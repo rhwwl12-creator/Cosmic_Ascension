@@ -43,6 +43,7 @@
 [14. Claude Code 협업 규칙](#14-claude-code-협업-규칙)
 [15. 용어집](#15-용어집)
 [16. 미결 사항 (결정 필요)](#16-미결-사항-결정-필요)
+[17. 검토 중인 제안: 영혼과 윤회 (미확정 초안)](#17-검토-중인-제안-영혼과-윤회-미확정-초안)
 
 
 ---
@@ -2013,7 +2014,7 @@ PROJECT = <프로젝트 루트>\Cosmic_Ascension.uproject
 | # | 결정 사항 | 권장안 | 영향 |
 |---|---|---|---|
 | 1 | 개인 Tier와 문명 Tier의 관계 | 독립. 단, T4→T5 통치자 업적은 개인 Tier ≥ 3 요구 | §3.2, §3.3 |
-| 2 | 방랑자 사망 처리 | T≤2 영구 사망, T≥3 환생 | §4.4 |
+| 2 | 방랑자 사망 처리 | T≤2 영구 사망, T≥3 환생. **§17 영혼과 윤회 제안이 이 항목의 대안이다. §17.3 결정 1과 함께 확정** | §4.4, §17 |
 | 3 | 한 판 길이 | 1배속 4~6시간 | §2.4, 밸런스 커맨드렛 목표 |
 | 4 | 은하 규모 | 수직 슬라이스 20, EA 60/120 선택지 | §12.1 |
 | 5 | 타락 초월자 봉인 외 결말(설득/공존) 포함 여부 | EA 이후 | §4.2 |
@@ -2021,6 +2022,7 @@ PROJECT = <프로젝트 루트>\Cosmic_Ascension.uproject
 | 7 | 영어 로컬 시점 | Phase 5 종료 후 | §8.5 |
 | 8 | 제품명 | 가제 유지. Steam 페이지 전 확정 | - |
 | 9 | 프로젝트 위치 | 현재 OneDrive 안(`Documents\Unreal Projects`). 빌드 산출물 수 GB가 동기화되므로 OneDrive 밖(`C:\Dev`)으로 이동 권장 | §10.5, CLAUDE.md |
+| 10 | 영혼과 윤회 제안 채택 여부와 §17.3의 결정 6건 | §17.3 권장안대로 채택. 채택 시 §17.7 수정 목록 적용 후 §17 삭제 | §4.4, §9.1, §11, §16 #2, §17 |
 
 확정 완료 (2026-10-10, Phase 0):
 UE 버전 고정값 → **5.8.3** (§1.2). 모듈명 → `Cosmic_Ascension` (언리얼 프로젝트 브라우저에서 생성한 이름 그대로 사용).
@@ -2028,6 +2030,224 @@ UE 버전 고정값 → **5.8.3** (§1.2). 모듈명 → `Cosmic_Ascension` (언
 UI 기술 → UMG 확정 (§6.3). 패드/스팀덱 지원이 목표가 되는 시점에 CommonUI를 재검토한다.
 플러그인 → CommonUI 미사용, ModelingTools 비활성, PythonScriptPlugin은 헤드리스 에디터 스크립트용으로 활성 (.uproject의 TargetAllowList=[Editor]는 Niagara 의존성 때문에 게임 타깃에서 효력이 없어 `WITH_PYTHON=0` 스텁 모듈이 게임 빌드에도 포함된다. 상세는 CLAUDE.md "렌더 / 플러그인 결정").
 자동화 테스트 플래그 → `EAutomationTestFlags::ClientContext | EditorContext | ProductFilter`. 테스트는 `-game -nullrhi`로 돌리므로 ClientContext 필수 (§9.3).
+
+
+
+---
+
+
+
+## 17. 검토 중인 제안: 영혼과 윤회 (미확정 초안)
+
+
+
+> **상태**: 2026-10-10 개발자 제안("영혼과 윤회")을 가이드라인 정합성·플레이 경험·기술 구조·1인 개발 범위·제안 옹호의 5개 관점으로 검토해 이 문서의 용어와 구조로 재작성한 초안이다. **아직 결정이 아니다.** 채택하면 §17.7의 수정 목록대로 본문을 고치고 이 섹션은 삭제한다. 미채택이면 이 섹션을 삭제하고 §16 #2(방랑자 사망 처리)를 기존 권장안으로 확정한다.
+
+
+
+### 17.1 한 줄 요약과 세계관
+
+
+
+플레이어는 육신이 아니라 **영혼(Soul)**이다. 육신이 죽으면 재화·능력치·유물·왕좌·소속을 모두 잃고, 영혼이 재구성되는 동안 은하는 혼자 흘러간다(**시간선 도약**). 영혼은 다른 성계의 필멸자로 다시 태어난다(**환생**). 남는 것은 연대기와 세계에 새긴 흔적뿐이다.
+
+세계관 문장: "태어날 때는 이름 없는 영혼이지만, 은하가 그 이름을 배운다." (원안의 "하나의 영혼에 불과하다"는 §1.1 피치의 상승 서사와 어긋나는 무력감 톤이라 수정.)
+
+이 제안은 새 시스템이 아니라 **§4.4 실패 상태와 §16 #2 미결 항목에 대한 답**이다. 기존 §4.4 2행(T≥3 환생)을 전 Tier로 넓히고, §5.10의 "떠나 있는 동안 세계가 변했다"와 §8.4 연대기를 사망에 적용하는 세계관 레이어다. 원안의 "경험치가 아닌 신화적 사건으로만 승천", "메타 프로그레션 배제", "영혼의 기록"은 이미 §3.2·§8.4가 보장하므로 중복이고, 새로 더해지는 것은 사망 규칙·도약·환생·저장 정책 네 가지다.
+
+
+
+### 17.2 비타협 원칙 (채택 시 §1.3·§3.2·§8과 함께 고정)
+
+
+
+1. **승계 없음(No Stat Heritage)**: 능력치·자원·유물·왕좌·소속은 다음 생애로 넘어가지 않는다. 메타 프로그레션(영혼 스킬트리, 언락, 은하 간 메타 세이브)은 만들지 않는다.
+2. **세계는 멈추지 않는다**: 사망은 §4.3의 유일한 시계(AI 승천)를 앞당기는 **비용**이다. 죽을수록 "다른 질서" 엔딩이 가까워진다.
+3. **기원은 무작위**: 필터와 가중치는 허용, 선택은 불허(기원 선택 카드는 Phase 6+ 보류). 선택을 주면 매번 최강 문명으로 수렴한다.
+4. **죽음은 출처가 있는 사건만**: 사망은 SourceRow가 있는 데이터 효과로만 일어난다. 틱당 사망 확률, "사소한 파동만으로 돌연사"는 §8.3(선택과 무관한 사건의 신화적 포장 금지) 위반이라 만들지 않는다. 읽히지 않는 죽음은 가혹한 것이 아니라 임의적인 것이다.
+
+
+
+### 17.3 개발자가 결정할 항목
+
+
+
+| # | 항목 | 선택지 | 권장 | 이유 |
+|---|---|---|---|---|
+| 1 | 사망 시 개인 Tier | (A) 전부 T1로 리셋(원안) / (B) T≤2는 T1로, T≥3은 유지(현 §4.4 2행의 확장) | **B** | A는 §2.4의 T3→T5 약 3시간을 한 생애 안에 무결점으로 요구한다. 사망 위험이 시간당 1회면 3시간 생존 확률은 약 5%라 후반 콘텍츠와 엔딩 2종이 거의 소비되지 않는다. B는 "T3 인과 간섭형 = 죽음을 넘는 각성"으로 §3.2 서사와 맞고, 수치는 전부 초기화되므로 원칙 1을 지킨다. Tier는 업적으로만 오르므로 누적 진척이 아니다. 검토 5건 중 유일하게 2:3으로 갈린 쟁점 |
+| 2 | 노화(수명) | 만들지 않음 / 데이터 노브(기본 OFF, Phase 5 테스트 후 ON 판단) | **노브, VS에서는 OFF** | 신중한 플레이어도 영혼 루프를 최소 1회 경험하게 하는 유일한 장치지만 §4.3 "유일한 시계" 옆의 두 번째 시계다. `LifespanTicks` 정수 하나와 보이는 카운트다운으로 구현 가능하니 설계만 두고 수직 슬라이스에서는 꺼 둔다 |
+| 3 | 통치자 사망 | VS에서는 방랑자만 사망(통치자 실패는 §4.4 붕괴 그대로) / 통치자도 노화·암살로 사망 | **VS는 방랑자만** | 예외 하나: 통치 문명이 `Hazard.Extinction`으로 삭제되면 통치자도 사망(종족이 사라짐). 노화 도입 시 순서는 "보이는 수명 → 자동 섭정 위임(§5.10) → 사망". 암살·쿠데타는 `KillPlayer` 효과를 가진 DT_Events 행으로 데이터만으로 추가 가능하게 열어 둔다 |
+| 4 | 저장 정책 | 은하당 슬롯 1개(아이언맨. 사망·환생 직후 자동 저장) / 수동 저장·로드 허용 | **아이언맨 기본** | 사망 직전 세이브를 로드할 수 있으면 하드 리셋이 선택 사항이 되어 제안 전체가 무의미하다. 결정론(§9.2) 덕에 비용은 정책 수준. "관조 모드" 토글은 Phase 5 테스터 반응 후 결정 |
+| 5 | 경외도(Reverence) | 사망 시 0 / 유지 후 감쇠(×0.5) | **×0.5** | 세계가 영혼을 기억하는 유일한 수치. ×0.5면 최대 1.0→0.5라 즉시 재즉위(≥0.6)는 불가능하고 전설의 머리 하나만 남는다. 능력치가 아니라 세계 상태이므로 원칙 1과 충돌하지 않는다 |
+| 6 | 첫 생애 | 무작위 / 고정(로드맵대로 플레이어 문명의 T1 통치자) | **고정** | Phase 2·5 종료 조건과 온보딩(첫 10분 로그 튜토리얼) 보호. 무작위 강림은 2생부터. 첫 생애도 환생도 같은 `Incarnate()` 함수를 쓴다 |
+
+
+
+### 17.4 규칙 초안
+
+
+
+**사망**: `EEffectType::KillPlayer` 효과로만 발생한다(사인 태그 `Death.*` + SourceRow). 발생 지점은 데이터 3곳: `FHazardDef.OnExpireEffects`(플레이어가 그 성계에 있을 때만 적용), `FEncounterChoice.OnFailure`, 노화 ON 시 수명 소진(`Death.Age`). 부상과 영구 삭감은 기존 `PlayerStatDelta` 음수로 표현하고 별도 부상 시스템은 만들지 않는다. 생애 첫 300틱은 치명 효과를 무시한다(출생 보호).
+
+**사망 파이프라인 (고정 순서, §7.4 틱 순서처럼 결정론 대상)**: KillPlayer 적용 → `FLifeRecord` 기록 + Severity 2 로그 → 통치자였다면 `BecomeWanderer`(Rng가 문명 윤리에 가중해 뽑은 섭정, 안정도 -0.25) → `LifeState=Between`, `LeapTicks = Rng.RandRange(Min, Max)` → 자동 저장 → 도약 → 막간 다이제스트 생성 → 환생 추첨 → 육신 초기화 → `LifeState=Embodied` → 자동 저장. 난수는 전부 `GetRng()`.
+
+**시간선 도약**: `UGalaxySimulationSubsystem::RunHeadless(LeapTicks)` 그대로다. 초월자 FSM이나 별도 갱신 경로는 없다. 흥망성쇠·봉인·영향권 변화는 기존 틱이 만든다. 도약 중에는 전역 방송 게이트(`IsBroadcastEnabled()`)를 끄고(모든 Core Logic Subsystem의 Broadcast가 이 게이트를 본다), 로그는 `ELogMode::Interlude`(Severity 0 폐기, 1은 영혼이 접촉한 문명·성계만, 2는 보존). 플레이어는 분리 상태라 `TickPlayerTravel`·플레이어 업적 평가·조우 생성을 건너뛴다. 매 틱 엔딩 조건을 검사해 AI가 T5에 도달하면 즉시 중단하고 "영혼이 지켜본 결말"로 §4.3 엔딩을 출력한다. `LeapTicksMin/Max`는 데이터(초기값 800~1,600틱 ≈ Hazard 수명 2~4회, 1배속 13~27분). 판 합계 상한(초기 4,500틱 = 18,000의 25%). §9.4 예산이면 1,600틱은 약 1.6초라 오버레이 뒤에서 동기 실행한다.
+
+**환생(강림)**: 후보 = `OwnerCivID != NAME_None`인 성계. 제외: 타락 초월자 영향권, Hazard 카운트다운 300틱 미만. 가중치 = 1 + 2×(2레인 안 활성 Hazard) + 1×(소유 문명 Tier ≥ 2) + 2×(소유 문명 Reverence > 0.3) − 1×(직전 생애와 같은 문명). "영혼은 인과율의 요동에 끌린다." 소유 성계가 0이면 환생 대신 **"침묵의 우주" 엔딩**(§4.4 엔딩 흐름 재사용, `Doctrine.Silence`와 일치하는 4번째 엔딩). 육신 초기치 = 1 + Σ(소유 문명 Traits의 `DT_Traits` 컬럼 `BodyMod/MindMod/CausalityMod`)를 0~3으로 클램프. 이것이 원안의 "종족 고유의 신체적 한계"다. 행성·종족 엔티티·DataAsset은 만들지 않는다. 환생은 항상 `Wanderer`. 통치자 환생은 §5.10 조건(경외도 ≥ 0.6 또는 안정도 < 0.2)으로만.
+
+**영혼 / 육신 / 세계 3분할**:
+
+| 구분 | 대상 | 사망 시 |
+|---|---|---|
+| 영혼(유지) | `PersonalTier`(결정 1=B면 T≥3만), `Powers`(Tier에서 재부여), `CompletedFeats`(기록), `LifeIndex`, `Lives` | 유지 |
+| 육신(소멸) | `Body/Mind/Causality`(출생 문명 Traits로 재설정), `PersonalPool`, `Relics`, `Role=Wanderer`, `RuledCivID/FormerCivID=NAME_None`, `CurrentSystemID` 재배치, `Travel*` | 전부 초기화 |
+| 세계(건드리지 않음) | `ReverenceToPlayer`(×0.5), `bAwareOfPlayer`(유지. 초월자는 영혼을 기억한다: "다시 왔구나"), 수호신 특성, 완성된 Megaproject, 열린 레인, `bSealed`, Log/Chronicle | 세계 상태 그대로 |
+
+**업적 조건의 생애 상대화**: `MegaprojectComplete`와 `TranscendentSealed` 조건은 완료 틱이 `Soul.BornTick` 이상일 때만 참(`FStarSystemState.MegaprojectCompletedTick`, `FTranscendentState.SealedTick`). 전생이 완성한 다이슨 스웜으로 T1→T2를 공짜로 받는 구멍을 막는다.
+
+**연대기**: 하나만 유지한다(원안의 Archive/SoulChronicle은 §15의 Chronicle과 같은 것). `FLifeRecord`에는 FName과 숫자만 저장하고 문장은 표시 시점에 템플릿으로 렌더한다(FText를 저장하면 로컬라이제이션만 바뀌어도 해시가 달라진다). `BuildChronicle()`은 생애별로 장을 나눈다. 사망 화면은 3단 고정: **비문**(사인, 마지막 선택 3개, 생존 주기, 최고 Tier, 업적) → **막간 다이제스트**(상태 diff 5~8줄: 멸망·도약한 문명, 소유가 바뀐 성계, 봉인/해제된 초월자, 전생 문명과 구한 성계의 운명, 초월자 1인칭 1줄) → **강림 서술**(`{CivAdj} {Civ} {System}`). 제목은 "제 N생", GAME OVER 문구 금지, 2회째부터 스킵 가능, 총 60~90초. `WBP_AscensionOverlay`와 `NS_Ascension` 색 파라미터를 재사용하고 새 위젯·Niagara는 만들지 않는다. 같은 diff 함수(`BuildWorldDigest`)를 §5.10 복귀에도 쓴다.
+
+**한 판의 재정의**: 판 = 은하 시드 1개 = 영혼 1회 = 4~6시간(변경 없음). 생애(Life)는 판 안의 장. 기대 2~5생. §2.4의 호는 "영혼의 호"로 읽는다(결정 1=B면 T3 이후는 사망을 넘어 이어진다). 원안의 "성장은 극도로 더디며"는 채택하지 않는다. 마찰은 성장 속도가 아니라 **사망 가능성과 세계 비용**에서 온다. "극소수의 영역"은 AI 문명 대비 희소성(대부분의 문명은 승천하지 못한다)으로 해석하고 §2.4 페이싱 목표는 유지한다. "수많은 초월자"는 톤으로만: 엔티티는 §4.2대로 2~3체(VS 1체), 과거 초월자는 로그 템플릿의 고유명사로.
+
+
+
+### 17.5 구현 매핑 (원안 스니펫의 대체. 코드 요청은 §14.1대로 헤더 단위)
+
+
+
+| 원안 용어 | 이 프로젝트의 구현 |
+|---|---|
+| `USoulComponent` | `FSoulState` USTRUCT(`FGalaxyState::Soul`) + `UPlayerRoleSubsystem::KillPlayer / BeginInterlude / Reincarnate`. 컴포넌트는 Actor가 필요해 §6.1·§6.2·§9.1 위반 |
+| `SoulRecord` / `SoulChronicle` / Archive | `FLifeRecord`, `FSoulState::Lives`, 기존 Chronicle(§8.4)의 장 나누기 |
+| `OnDeath()` 트리거 | `EEffectType::KillPlayer`(`UCosmicEventSubsystem::Apply`가 처리) |
+| Global Time Advance / 초월자 FSM 일괄 갱신 | `RunHeadless(LeapTicks)` + 방송 게이트 + `ELogMode::Interlude`. FSM 없음 |
+| `DominantSpecies` 데이터 에셋 / 행성 | 성계(`OwnerCivID`) + 소유 문명 `Traits` + `DT_Traits` 컬럼 4개(`BodyMod, MindMod, CausalityMod, LifespanTicksMod`) |
+| 생존 일수 | `TicksLived`(주기. §2.1 시간 단위) |
+| 리스폰 | 환생(`Reincarnate`) |
+| 튠 값(도약 폭, 수명, 가중치, 난이도 배율) | `DT_Rules` 단일 행 `FCosmicRulesDef`: `LeapTicksMin/Max, LeapTotalCap, BaseLifespanTicks(0=OFF), RebirthHazardWeight, RebirthCivTierWeight, ReverenceDecay, AIAscensionSpeedMultiplier`(§4.3 난이도 배율의 보관 장소) |
+
+
+
+```cpp
+
+// Core/GalaxyState.h 추가분 (스케치. 필드는 FName과 숫자만)
+
+UENUM(BlueprintType)
+
+enum class ELifeState : uint8 { Embodied, Between };
+
+
+
+USTRUCT(BlueprintType)
+
+struct FLifeRecord
+
+{
+
+GENERATED_BODY()
+
+UPROPERTY() int32 LifeIndex = 0;
+
+UPROPERTY() int64 BornTick = 0;
+
+UPROPERTY() int64 DiedTick = 0;
+
+UPROPERTY() FName BirthSystemID;
+
+UPROPERTY() FName BirthCivID;
+
+UPROPERTY() TArray<FName> RuledCivIDs;
+
+UPROPERTY() EAscensionTier PeakTier = EAscensionTier::Tier1_Planetary;
+
+UPROPERTY() FGameplayTag CauseOfDeath; // Death.Hazard / Death.Encounter / Death.Age / Death.Transcendent
+
+UPROPERTY() FName CauseSourceRow; // 사인을 만든 Hazard/조우/이벤트 행
+
+UPROPERTY() TArray<FName> Feats;
+
+UPROPERTY() TArray<FName> TranscendentsMet;
+
+};
+
+
+
+USTRUCT(BlueprintType)
+
+struct FSoulState
+
+{
+
+GENERATED_BODY()
+
+UPROPERTY() int32 LifeIndex = 1;
+
+UPROPERTY() int64 BornTick = 0;
+
+UPROPERTY() ELifeState LifeState = ELifeState::Embodied;
+
+UPROPERTY() int64 PendingLeapTicks = 0; // 막간 중 저장·로드 재개용
+
+UPROPERTY() TArray<FLifeRecord> Lives;
+
+};
+
+
+
+// FGalaxyState: FSoulState Soul; FGuid GalaxyID; (FPlayerEntityState는 '육신'으로 재정의)
+
+// FStarSystemState: int64 MegaprojectCompletedTick; FTranscendentState: int64 SealedTick;
+
+// EEffectType += KillPlayer; EConditionType += PlayerLifeIndexAtLeast, TranscendentAwareOfPlayer, (PlayerAgeAtLeast)
+
+// DefaultGameplayTags.ini += Death.Hazard, Death.Encounter, Death.Age, Death.Transcendent, Log.Soul
+
+```
+
+
+
+### 17.6 범위와 일정
+
+
+
+| 시점 | 작업 | 비용 |
+|---|---|---|
+| Phase 1 | `FSoulState/FLifeRecord/ELifeState/GalaxyID` 필드, 방송 게이트, 은하당 슬롯 1개 저장 모델, 해시에 `Soul` 포함 | 약 3시간 (헤더 작성 시점이라 추가 비용 거의 0. 나중에 넣으면 SaveVersion 마이그레이션) |
+| Phase 2 | `KillPlayer`, 조건 2종, `*CompletedTick` 2필드, `Death.*` 태그 | 약 2시간 |
+| Phase 3·4 | 변경 없음 | - |
+| **Phase 4b 신설 "영혼 루프" (2주)** | KillPlayer 처리 → 도약 → 환생 → 다이제스트 → 3화면 → 저장 트리거 → 빈 은하 가드 → 테스트 6개(`Soul.LeapDeterminism`, `Soul.HardReset`, `Soul.LeapResumeRoundTrip`, `Soul.NoPlayerDuringLeap`, `Sim.RebirthPossible`, `Sim.NoDanglingRefsAfterLeap`) → 템플릿 65~70줄. **종료 조건**: 방랑자 사망 → 연대기 → 도약 → 환생이 콘솔 명령 없이 1회 이상 가능, 환생 후 §5.10 조건으로 즉위 가능, 테스트 통과 | 순증 6~8 작업일 (§4.4가 원래 요구하던 사망·환생 분기 약 4일을 대체) |
+| Phase 5 | 커맨드렛 `-DeathAt=<틱>`, `-PlayerPolicy=Cautious|Reckless`, CSV 컬럼(`LifeIndex, LifeLengthTicks, DeathCauseRow, PeakTier, LeapTicks, EndingType`). 시작 목표: 판당 2~5생, 도약 유발 "다른 질서" < 15%, 사인 추적률 ≥ 90%, (결정 1=B) 첫 생애 T3 도달 40~60%. 테스터 질문에 "죽음이 공평했는가", "죽은 뒤에도 계속하고 싶었는가" 추가 | 약 1일 |
+| Phase 6+ | 기원 선택 카드(`EEffectType::RebirthAt`), `Trait.Legacy.Delivered/Forsaken`과 2생 전용 조우, 종족 상한 컬럼, 통치자 암살 이벤트 행, 노화 활성 판단, AI 문명 T4 도달 시 `Transcendents` 추가(기성 우주가 시뮬에서 자람) | 각각 §12.3 재심사 |
+
+**만들지 않는다 (채택 시 §12.2에 추가)**: `USoulComponent` 등 Actor 결합 상태. 행성·종족 엔티티와 DataAsset. 초월자 상태 FSM. 틱당 사망 확률·돌연사. 메타 프로그레션·영혼 스킬트리·은하 간 메타 세이브. 사망 전용 Niagara·일러스트. 통치자 사망의 별도 메커니즘. 도약 중 수동 개입.
+
+**콘텐츠 예산(VS)**: 사망 서술 Hazard 6종×3 + 일반 사인 5종×3 = 33줄, 다이제스트 8항목×3 = 24줄, 강림 5변형 + 생애 헤더 2줄, 초월자 영혼 인지 1인칭 3줄. 합계 약 65~70줄(1~1.5일). 전부 §8.3 규칙(두 문장, 사실→함의).
+
+**§12.3 판정**: Q1 코드 변경 있음(헤더 예약은 지금 비용 0, 동작은 Phase 4b로 분리) / Q2 양 모드 소비(통치자 사망·섭정 인계, 방랑자 사망, 환생 후 즉위) / Q3 위기·업적·로그 연결 모두 예.
+
+
+
+### 17.7 채택 시 본문 수정 목록
+
+
+
+§1.2 한 판 정의에 "영혼 1회, 기대 2~5생". §2.4 아래 "영혼의 호" 1줄. §3.2 Tier 3 행에 "인과 간섭형은 육신의 죽음을 넘는다"(결정 1=B). §4.3에 "사망 도약은 이 시계를 앞당기는 비용". §4.4 표: 2행 교체 + "침묵의 우주" 엔딩 + 금지 목록(틱당 사망 롤, 출생 300틱 내 사망, 도약 중 사망). §5.9 출생 스탯 컬럼과 Reverence 감쇠. §5.10 표에 "사망(강제)" 행. §7.2/§7.3/§7.4/§7.5 스케치에 §17.5 추가분. §8.3에 "죽음은 SourceRow가 있는 효과만". §8.4 생애별 장. §9.1 슬롯 정책과 자동 저장 트리거(사망 직후·환생 직후). §9.3 테스트 6개와 커맨드렛 인자. §10.1 `DT_Rules`. §11 Phase 4b. §12.1 "생애 전환 1회 이상". §12.2 금지 목록. §13 "하드 리셋 이탈" 행(징후: 테스터가 2번째 사망 후 종료 / 대응: 다이제스트·세계 기억·사망 경고 강화). §15 용어 추가. §16 #2 삭제, "관조 모드 토글"·"노화 활성" 신설. CLAUDE.md 불변 규칙에 "Core Logic Subsystem은 플레이어·생애에 종속된 멤버 변수를 갖지 않는다. 지속 업적 진척은 FGalaxyState 안에" 1줄.
+
+
+
+### 17.8 용어 (채택 시 §15로)
+
+
+
+| 한국어 | 영어 | 코드 식별자 |
+|---|---|---|
+| 영혼 | Soul | `FSoulState`, `FGalaxyState::Soul` |
+| 생애 | Life | `FLifeRecord`, `LifeIndex` |
+| 사망 / 사인 | Death / Cause of Death | `EEffectType::KillPlayer`, `Death.*` 태그, `CauseSourceRow` |
+| 시간선 도약 | Timeline Leap | `LeapTicks`, `RunHeadless` |
+| 막간 | Interlude | `ELifeState::Between`, `ELogMode::Interlude`, `BuildWorldDigest` |
+| 환생 / 강림 | Reincarnation / Incarnation | `Reincarnate()`, `Incarnate(SystemID, CivID, Role)` |
+| 생존 주기 | Cycles lived | `TicksLived = DiedTick - BornTick` |
 
 
 
