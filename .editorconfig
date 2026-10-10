@@ -1,0 +1,19 @@
+# Cosmic Ascension - editor settings (guideline.md section 10.3, 10.5)
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Unreal C++ / C# follow the engine convention: tabs
+[*.{cpp,h,inl,cs,uproject,uplugin}]
+indent_style = tab
+
+[*.py]
+indent_style = space
+indent_size = 4
+
+[*.md]
+trim_trailing_whitespace = false
