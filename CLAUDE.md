@@ -18,6 +18,10 @@ UE 5.8.3 (`C:\Program Files\Epic Games\UE_5.8`), C++ 게임 모듈 `Cosmic_Ascen
 GameplayTag는 `Config/DefaultGameplayTags.ini`에 선언하고 코드에서 `FGameplayTag::RequestGameplayTag(FName)`로 얻는다. 태그는 `Domain.Sub.Leaf` 최대 3단계 (§10.4).
 CommonUI 사용 금지 (UMG만, §6.3). Build.cs에 CommonUI를 추가하지 않는다.
 `UE_LOG` 카테고리는 `LogCosmic` 하나 (`Cosmic_Ascension.h`, 개발자 로그). §8.1의 `Log.*` GameplayTag는 게임 내 서사 로그의 분류이며 별개다.
+하나님(거룩한 질서)은 엔티티·화자·수치·엔딩 조건이 아니다 (§4.5). 1인칭 로그 화자는 타락 초월자만.
+Core Logic Subsystem은 플레이어·생애에 종속된 멤버 변수를 갖지 않는다. 지속 업적 진척은 FGalaxyState 안에.
+`FCivilizationState.Relations`의 키는 CivID 또는 TranscendentID.
+`DeposeRuler`·`KillPlayer`는 위기 단계에서 처리된다(§7.4 틱 순서).
 
 ## 작업 방식
 
@@ -142,5 +146,6 @@ Live Coding은 .cpp 변경에만. UCLASS/USTRUCT/UENUM 추가·변경은 에디�
 ## 현재 단계
 
 Phase 0 (셋업) 종료 조건 달성 (2026-10-10): 에디터/게임 타깃 커맨드라인 빌드 성공, `Content/CA/Maps/L_Galaxy.umap` 생성(헤드리스 Python), `GameDefaultMap`/`EditorStartupMap`을 L_Galaxy로 지정, `-game -nullrhi` 스모크 실행에서 L_Galaxy 로드 + Subsystem 6개의 `LogCosmic` 초기화 로그 확인(`Saved/Logs/GameSmoke.log`, 에러 0).
+설계 문서는 guideline.md **v0.4** (2026-10-11): 옛 §17 '부름과 계승'과 §18 '통치자 시작·이중 계·세력군·기독교적 요소' 제안을 권장안대로 전부 채택해 본문에 반영했고, 두 제안 섹션은 삭제됐다. Phase 1 헤더에는 v0.4의 예약 필드(`FCallingState`/`FLifeRecord`/`ELifeState`, `GalaxyID`, `HomeSystemID`, `ThroneLockedUntilTick`, `Realm`, `StatusTags`, `Exaltation`, `MegaprojectCompletedTick`, `SealedTick`, 방송 게이트, `Role` 기본값 Ruler, `DT_Civs`)가 포함된다 (§11 Phase 1, §7.2). 옛 '사도(Apostle)' Hazard 태그는 `Hazard.Cult`로 개명됐고 v0.4 태그 39개는 `Config/DefaultGameplayTags.ini`에 반영됐다.
 남음: Git 초기화와 첫 커밋 (Git/Git LFS 설치 필요. `.gitignore`/`.gitattributes`는 준비됨). 그 다음은 Phase 1 (§11): `Core/CosmicTypes.h`, `Core/GalaxyState.h`부터 §14.4의 요청 예시 순서로.
 참고: §10.1의 빈 폴더(Core, Data, World, UI, Tests, Content/CA/*)는 Git에 올라가지 않는다. 첫 파일이 생길 때 자연히 생성되므로 `.gitkeep`을 넣지 않는다.
