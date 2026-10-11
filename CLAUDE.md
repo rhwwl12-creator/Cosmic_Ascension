@@ -22,6 +22,9 @@ CommonUI 사용 금지 (UMG만, §6.3). Build.cs에 CommonUI를 추가하지 않
 Core Logic Subsystem은 플레이어·생애에 종속된 멤버 변수를 갖지 않는다. 지속 업적 진척은 FGalaxyState 안에.
 `FCivilizationState.Relations`의 키는 CivID 또는 TranscendentID.
 `DeposeRuler`·`KillPlayer`는 위기 단계·조우 해결에서 `PendingRoleEffect`로 기록되고 틱 경계의 '역할 효과 해소' 단계에서 처리된다(§7.4).
+영혼·구원·멸망을 세는 필드·컬럼·업적은 없다. 영혼 경제의 유일한 크기는 초월자 영향권(성계 수)이다 (§4.2, §8.3).
+`Realm`은 상태가 아니라 정의다: 초월자 소속은 `FTranscendentDef.Allegiance`(`Realm.Abyssal/Celestial/Independent`), `FTranscendentState`에 Realm 필드 없음. `TranscendentID` == `DT_Transcendents` 행 이름 (§4.2, §7.3).
+서술자 카테고리 로그 템플릿에 판정 어휘(천국·지옥·구원받·멸망받·영혼·저주받·심판받) 금지 — 테스트 `Data.NoVerdictWords`. 1인칭(`Log.Transcendent`·`Log.Claim`)과 조우 인용문만 예외 (§8.3).
 
 ## 작업 방식
 
@@ -146,6 +149,6 @@ Live Coding은 .cpp 변경에만. UCLASS/USTRUCT/UENUM 추가·변경은 에디�
 ## 현재 단계
 
 Phase 0 (셋업) 종료 조건 달성 (2026-10-10): 에디터/게임 타깃 커맨드라인 빌드 성공, `Content/CA/Maps/L_Galaxy.umap` 생성(헤드리스 Python), `GameDefaultMap`/`EditorStartupMap`을 L_Galaxy로 지정, `-game -nullrhi` 스모크 실행에서 L_Galaxy 로드 + Subsystem 6개의 `LogCosmic` 초기화 로그 확인(`Saved/Logs/GameSmoke.log`, 에러 0).
-설계 문서는 guideline.md **v0.4** (2026-10-11): 옛 §17 '부름과 계승'과 §18 '통치자 시작·이중 계·세력군·기독교적 요소' 제안을 권장안대로 전부 채택해 본문에 반영했고, 두 제안 섹션은 삭제됐다. Phase 1 헤더에는 v0.4의 예약 필드(`FCallingState`/`FLifeRecord`/`ELifeState`, `GalaxyID`, `HomeSystemID`, `ThroneLockedUntilTick`, `Realm`, `StatusTags`, `Exaltation`, `MegaprojectCompletedTick`, `SealedTick`, 방송 게이트, `Role` 기본값 Ruler, `DT_Civs`)가 포함된다 (§11 Phase 1, §7.2). 옛 '사도(Apostle)' Hazard 태그는 `Hazard.Cult`로 개명됐고 v0.4 태그 59개(같은 날 정합성 감사 반영분 20개 포함)는 `Config/DefaultGameplayTags.ini`에 반영됐다.
-남음: Git 초기화와 첫 커밋 (Git/Git LFS 설치 필요. `.gitignore`/`.gitattributes`는 준비됨). 그 다음은 Phase 1 (§11): `Core/CosmicTypes.h`, `Core/GalaxyState.h`부터 §14.4의 요청 예시 순서로.
+설계 문서는 guideline.md **v0.5** (2026-10-11): v0.4에서 옛 §17 '부름과 계승'·§18 '통치자 시작·이중 계·세력군·기독교적 요소'를, v0.5에서 §17 '사다리 위의 두 영역·영혼의 행방·지구와 계시 양식'(사다리 상한, 교리 4종·회귀 `Doctrine.Recurrence`·판당 활성 타락 ≤ 3, 영혼 경제 `Hazard.Claim`, 귀환 제안 `OfferReturn()`, 계시 양식 `RevelationMode`, 지구 `arch_terran` 첫 생애 고정, 닫힌 책 `Trait.Faith.Book`, 사후 문장 규칙·두 책 장)을 권장안대로 전부 채택해 본문에 반영했고, 제안 섹션들은 삭제됐다. Phase 1 헤더에는 예약 필드(`FCallingState`/`FLifeRecord`/`ELifeState`, `GalaxyID`, `HomeSystemID`, `ThroneLockedUntilTick`, `StatusTags`, `Exaltation`, `MegaprojectCompletedTick`, `SealedTick`, `FGalaxyState.Flags`/`Chronicle`, `FCallingState.PendingRoleEffect`, `FCivilizationState.LowStabilityTicks`, `FCivilizationState.ArchetypeRow`, `FLifeRecord.SuccessionKind`/`bReturnOffered`, `FTranscendentDef.Allegiance`(상태에 `Realm` 없음), 방송 게이트, `Role` 기본값 Ruler, `DT_Civs`·`DT_Rules.PlayerArchetypeRow`)가 포함된다 (§11 Phase 1, §7.2, §7.3, §9.1). 옛 '사도(Apostle)' Hazard 태그는 `Hazard.Cult`로 개명됐고 GameplayTag는 총 125개(v0.5 추가 33개 포함)가 `Config/DefaultGameplayTags.ini`에 선언되어 있다.
+Git 저장소 초기화·커밋 완료(2026-10-11, `main`, LFS). 다음: Phase 1 (§11): `Core/CosmicTypes.h`, `Core/GalaxyState.h`부터 §14.4의 요청 예시 순서로.
 참고: §10.1의 빈 폴더(Core, Data, World, UI, Tests, Content/CA/*)는 Git에 올라가지 않는다. 첫 파일이 생길 때 자연히 생성되므로 `.gitkeep`을 넣지 않는다.
