@@ -3,8 +3,11 @@
 #include "Sim/GalaxySimulationSubsystem.h"
 
 #include "Cosmic_Ascension.h"
+#include "Data/CosmicRowNames.h"
 #include "Engine/GameInstance.h"
 #include "GameplayTagContainer.h"
+#include "Internationalization/Text.h"
+#include "Log/CosmicLogSubsystem.h"
 #include "Misc/Crc.h"
 #include "Misc/Guid.h"
 #include "Player/PlayerRoleSubsystem.h"
@@ -17,20 +20,35 @@ namespace
 	// Research fields (section 5.4). Sim code walks this array and never the Research maps themselves (section 9.2).
 	const FName ResearchFields[] = { FName(TEXT("Physics")), FName(TEXT("Society")), FName(TEXT("Engineering")), FName(TEXT("Transcendence")) };
 
+	// One DT_LogTemplates row per field for its breakthroughs (section 8.2).
+	static_assert(UE_ARRAY_COUNT(CosmicRows::LogBreakthrough) == UE_ARRAY_COUNT(ResearchFields));
+
+	// One breakthrough opens at each of these progress marks (section 5.4).
+	constexpr float BreakthroughThresholds[] = { 0.25f, 0.5f, 0.75f, 1.0f };
+
 	// Home system of the first life (section 5.10).
 	const FName PlayerHomeSystemID(TEXT("sol"));
-
-	// Archetype of every AI civ until NewGalaxy can draw from DT_Civs.
-	const FName DefaultArchetypeRow(TEXT("arch_default"));
 
 	// Star system actors are budgeted at 150 (section 9.4).
 	constexpr int32 MaxSystems = 150;
 	constexpr int32 MaxLanesPerSystem = 4;
 
+	// Star classes from the hottest to the coolest.
+	const FName StarClassNames[] = {
+		FName(TEXT("Star.Class.O")), FName(TEXT("Star.Class.B")), FName(TEXT("Star.Class.A")), FName(TEXT("Star.Class.F")),
+		FName(TEXT("Star.Class.G")), FName(TEXT("Star.Class.K")), FName(TEXT("Star.Class.M"))
+	};
+
 	// Provisional numbers. Section 5.1 fixes what each resource depends on; the values belong to the balance pass (section 9.3).
 	namespace Economy
 	{
 		constexpr float TierMultiplier[] = { 1.0f, 1.5f, 2.2f, 3.0f, 3.0f };
+		static_assert(static_cast<int32>(UE_ARRAY_COUNT(TierMultiplier)) == static_cast<int32>(EAscensionTier::Tier5_EternalOrder) + 1);
+
+		// Energy of one owned system by star class, in the order of StarClassNames. G is the baseline.
+		constexpr float StarClassEnergy[] = { 2.0f, 1.7f, 1.4f, 1.2f, 1.0f, 0.8f, 0.6f };
+		static_assert(UE_ARRAY_COUNT(StarClassEnergy) == UE_ARRAY_COUNT(StarClassNames));
+
 		constexpr float MaterialistEnergyBonus = 0.2f;
 		constexpr float InsightPerPopulation = 1.0f;
 		constexpr float SpiritualistInsightBonus = 0.2f;
@@ -42,6 +60,35 @@ namespace
 
 	// Stability below this counts toward FCivilizationState.LowStabilityTicks (section 4.1).
 	constexpr float LowStabilityThreshold = 0.3f;
+
+	// Index for the tables with one entry per tier.
+	int32 TierIndex(EAscensionTier Tier)
+	{
+		// An enumerator name missing from this build loads as the enum's _MAX value, one past the last tier.
+		const int32 Max = static_cast<int32>(EAscensionTier::Tier5_EternalOrder);
+		const int32 Index = static_cast<int32>(Tier);
+		ensureMsgf(Index <= Max, TEXT("Invalid EAscensionTier %d"), Index);
+		return FMath::Clamp(Index, 0, Max);
+	}
+
+	float StarEnergy(const FGameplayTag& StarClass)
+	{
+		const FName ClassName = StarClass.GetTagName();
+		for (int32 Index = 0; Index < static_cast<int32>(UE_ARRAY_COUNT(StarClassNames)); ++Index)
+		{
+			if (StarClassNames[Index] == ClassName)
+			{
+				return Economy::StarClassEnergy[Index];
+			}
+		}
+		return 1.f;
+	}
+
+	// Names made at galaxy creation are stored flattened, like log lines (section 8.5).
+	FText Flatten(const FText& Text)
+	{
+		return FText::AsCultureInvariant(Text.ToString());
+	}
 
 	/**
 	 * Canonical state hasher (section 9.2). Everything is reduced to bytes that do not depend on the process:
@@ -58,11 +105,14 @@ namespace
 
 		void AddFloat(double Value)
 		{
-			if (Value == 0.0)
+			// Fold -0.0 into +0.0 on the bits: a value equal to its default is not saved, so a -0.0 reloads as +0.0.
+			uint64 Bits;
+			FMemory::Memcpy(&Bits, &Value, sizeof(Bits));
+			if ((Bits << 1) == 0)
 			{
-				Value = 0.0;
+				Bits = 0;
 			}
-			Hash = FCrc::MemCrc32(&Value, sizeof(Value), Hash);
+			Hash = FCrc::MemCrc32(&Bits, sizeof(Bits), Hash);
 		}
 
 		void AddName(FName Name)
@@ -77,7 +127,10 @@ namespace
 		{
 			for (TFieldIterator<FProperty> It(Struct); It; ++It)
 			{
-				AddProperty(*It, It->ContainerPtrToValuePtr<void>(Data));
+				for (int32 Index = 0; Index < It->ArrayDim; ++Index)
+				{
+					AddProperty(*It, It->ContainerPtrToValuePtr<void>(Data, Index));
+				}
 			}
 		}
 
@@ -187,6 +240,11 @@ namespace
 void UGalaxySimulationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+
+	FCosmicDataTables Loaded;
+	Loaded.LoadFromFixedPaths();
+	SetTables(Loaded);
+
 	UE_LOG(LogCosmic, Log, TEXT("UGalaxySimulationSubsystem initialized"));
 	SetTickableTickType(ETickableTickType::Conditional);
 }
@@ -199,18 +257,28 @@ void UGalaxySimulationSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
+void UGalaxySimulationSubsystem::SetTables(const FCosmicDataTables& InTables)
+{
+	Tables = InTables;
+	const FCosmicRulesDef* RulesRow = Tables.FindRules();
+	Rules = RulesRow ? *RulesRow : FCosmicRulesDef();
+}
+
 void UGalaxySimulationSubsystem::Tick(float DeltaTime)
 {
-	Accumulator += DeltaTime * TimeScale;
+	Accumulator = FMath::Max(0.f, Accumulator + DeltaTime * TimeScale);
 
-	const int32 Steps = FMath::Min(FMath::FloorToInt32(Accumulator / SecondsPerTick), MaxTicksPerFrame);
-	for (int32 Step = 0; Step < Steps; ++Step)
+	// Re-checked every step: a pause, NewGalaxy or LoadState issued from inside a tick ends the frame's work.
+	int32 Steps = 0;
+	while (Accumulator >= SecondsPerTick && Steps < MaxTicksPerFrame && bRunning && TimeScale > 0.f)
 	{
+		Accumulator -= SecondsPerTick;
 		SimulateTick();
+		++Steps;
 	}
 
 	// What is left carries over, but never more than one frame's budget: a long hitch must not turn into a catch-up spiral.
-	Accumulator = FMath::Min(Accumulator - Steps * SecondsPerTick, MaxTicksPerFrame * SecondsPerTick);
+	Accumulator = FMath::Min(Accumulator, MaxTicksPerFrame * SecondsPerTick);
 }
 
 void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 CivCount)
@@ -225,15 +293,6 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 	State.GalaxyID = FGuid::NewGuid();
 	Rng.Initialize(Seed);
 
-	const FGameplayTag StarClasses[] = {
-		FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.O"))),
-		FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.B"))),
-		FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.A"))),
-		FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.F"))),
-		FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.G"))),
-		FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.K"))),
-		FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.M"))),
-	};
 	const FGameplayTag AIProfiles[] = {
 		FGameplayTag::RequestGameplayTag(FName(TEXT("AI.Profile.Conservative"))),
 		FGameplayTag::RequestGameplayTag(FName(TEXT("AI.Profile.Expansionist"))),
@@ -252,8 +311,11 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 		const float Angle = Rng.FRand() * UE_TWO_PI;
 		const float Distance = FMath::Sqrt(Rng.FRand()) * DiscRadius;
 		System.Position = FVector(FMath::Cos(Angle) * Distance, FMath::Sin(Angle) * Distance, 0.0);
-		System.StarClass = StarClasses[Rng.RandRange(0, static_cast<int32>(UE_ARRAY_COUNT(StarClasses)) - 1)];
-		System.ResourceRichness = 0.5f + Rng.FRand();
+		System.StarClass = FGameplayTag::RequestGameplayTag(StarClassNames[Rng.RandRange(0, static_cast<int32>(UE_ARRAY_COUNT(StarClassNames)) - 1)]);
+
+		// Drawn for every system so the stream does not shift. The player's home stays ordinary: no numeric edge (section 5.11).
+		const float Richness = 0.5f + Rng.FRand();
+		System.ResourceRichness = (Index == 0) ? 1.f : Richness;
 	}
 
 	auto AddLane = [this](int32 A, int32 B)
@@ -305,6 +367,22 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 		}
 	}
 
+	// AI archetypes: the DT_Civs rows with a positive Weight, in lexical row order so the draw never depends on the
+	// table's own order (section 9.2). A row may be drawn more than once.
+	TArray<FName> ArchetypeRows;
+	TArray<float> ArchetypeWeights;
+	float TotalWeight = 0.f;
+	for (const FName RowName : Tables.GetCivRowNames())
+	{
+		const FCivArchetypeDef* Row = Tables.FindCiv(RowName);
+		if (Row && Row->Weight > 0.f)
+		{
+			ArchetypeRows.Add(RowName);
+			ArchetypeWeights.Add(Row->Weight);
+			TotalWeight += Row->Weight;
+		}
+	}
+
 	// Civilizations. Civ 0 is the player civ on system 0; AI civs draw distinct home systems from the rest.
 	TArray<int32> FreeHomes;
 	FreeHomes.Reserve(SystemCount - 1);
@@ -318,25 +396,73 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 	{
 		const bool bPlayerCiv = (CivIndex == 0);
 		int32 HomeIndex = 0;
+		FName ArchetypeRow = bPlayerCiv ? Rules.PlayerArchetypeRow : CosmicRows::ArchDefault;
 		if (!bPlayerCiv)
 		{
 			const int32 Pick = Rng.RandRange(0, FreeHomes.Num() - 1);
 			HomeIndex = FreeHomes[Pick];
 			FreeHomes.RemoveAtSwap(Pick);
+
+			if (!ArchetypeRows.IsEmpty())
+			{
+				float Roll = Rng.FRand() * TotalWeight;
+				int32 RowIndex = 0;
+				while (RowIndex < ArchetypeRows.Num() - 1 && Roll >= ArchetypeWeights[RowIndex])
+				{
+					Roll -= ArchetypeWeights[RowIndex];
+					++RowIndex;
+				}
+				ArchetypeRow = ArchetypeRows[RowIndex];
+			}
 		}
+		const FCivArchetypeDef* Archetype = Tables.FindCiv(ArchetypeRow);
 		FStarSystemState& Home = State.Systems[HomeIndex];
 
 		FCivilizationState& Civ = State.Civs.AddDefaulted_GetRef();
 		Civ.CivID = FName(*FString::Printf(TEXT("civ_%02d"), CivIndex));
 		Civ.HomeSystemID = Home.SystemID;
-		Civ.ArchetypeRow = bPlayerCiv ? Rules.PlayerArchetypeRow : DefaultArchetypeRow;
+		Civ.ArchetypeRow = ArchetypeRow;
 		Civ.Color = FLinearColor::MakeFromHSV8(static_cast<uint8>((CivIndex * 255) / CivCount), 180, 255);
+		if (Archetype)
+		{
+			Civ.Traits = Archetype->Traits;
+			Civ.Ethics = Archetype->EthicsPreset;
+			Civ.AIProfile = Archetype->AIProfile;
+			if (bPlayerCiv)
+			{
+				Civ.Color = Archetype->Color;
+			}
+		}
 		if (!bPlayerCiv)
 		{
-			Civ.Ethics.Pacifism = Rng.FRand() * 2.f - 1.f;
-			Civ.Ethics.Spiritualism = Rng.FRand() * 2.f - 1.f;
-			Civ.Ethics.Openness = Rng.FRand() * 2.f - 1.f;
-			Civ.AIProfile = AIProfiles[Rng.RandRange(0, static_cast<int32>(UE_ARRAY_COUNT(AIProfiles)) - 1)];
+			if (ArchetypeRow == CosmicRows::ArchDefault)
+			{
+				Civ.Ethics.Pacifism = Rng.FRand() * 2.f - 1.f;
+				Civ.Ethics.Spiritualism = Rng.FRand() * 2.f - 1.f;
+				Civ.Ethics.Openness = Rng.FRand() * 2.f - 1.f;
+			}
+			if (!Civ.AIProfile.IsValid())
+			{
+				Civ.AIProfile = AIProfiles[Rng.RandRange(0, static_cast<int32>(UE_ARRAY_COUNT(AIProfiles)) - 1)];
+			}
+		}
+		if (Archetype)
+		{
+			if (Archetype->HomeStarClass.IsValid())
+			{
+				Home.StarClass = Archetype->HomeStarClass;
+			}
+			if (!Archetype->HomeSystemNames.IsEmpty())
+			{
+				Home.DisplayName = Flatten(Archetype->HomeSystemNames[Rng.RandRange(0, Archetype->HomeSystemNames.Num() - 1)]);
+			}
+			if (!Archetype->NameBank.IsEmpty())
+			{
+				// Name patterns may call the home system by name.
+				FFormatNamedArguments NameArgs;
+				NameArgs.Add(TEXT("Star"), Home.DisplayName);
+				Civ.CivName = Flatten(FText::Format(Archetype->NameBank[Rng.RandRange(0, Archetype->NameBank.Num() - 1)], NameArgs));
+			}
 		}
 		for (const FName Field : ResearchFields)
 		{
@@ -379,6 +505,7 @@ void UGalaxySimulationSubsystem::RunHeadless(int64 Ticks)
 	for (int64 Index = 0; Index < Ticks; ++Index)
 	{
 		SimulateTick();
+		// Section 4.4: once endings exist, the ending conditions are checked here every tick and stop the run early.
 	}
 }
 
@@ -399,7 +526,8 @@ EPopulationBand UGalaxySimulationSubsystem::GetPopulationBand(FName CivID) const
 	static constexpr EPopulationBand BaselineByTier[] = {
 		EPopulationBand::Billions, EPopulationBand::HundredBillions, EPopulationBand::Trillions, EPopulationBand::Countless, EPopulationBand::Countless
 	};
-	int32 Band = static_cast<int32>(BaselineByTier[static_cast<int32>(Civ->Tier)]);
+	static_assert(static_cast<int32>(UE_ARRAY_COUNT(BaselineByTier)) == static_cast<int32>(EAscensionTier::Tier5_EternalOrder) + 1);
+	int32 Band = static_cast<int32>(BaselineByTier[TierIndex(Civ->Tier)]);
 
 	// Thresholds are ascending and exactly three (Data.Integrity). A malformed row leaves the baseline untouched.
 	const TArray<float>& Thresholds = Rules.PopulationBandThresholds;
@@ -453,14 +581,18 @@ uint32 UGalaxySimulationSubsystem::ComputeStateHash() const
 			Hasher.AddInt(Rng.GetCurrentSeed());
 			continue;
 		}
-		Hasher.AddProperty(*It, It->ContainerPtrToValuePtr<void>(&State));
+		for (int32 Index = 0; Index < It->ArrayDim; ++Index)
+		{
+			Hasher.AddProperty(*It, It->ContainerPtrToValuePtr<void>(&State, Index));
+		}
 	}
 	return Hasher.Hash;
 }
 
 void UGalaxySimulationSubsystem::SimulateTick()
 {
-	// Tick 0 is the generated state, so no event ever carries tick 0 and the "0 = unset" tick fields stay unambiguous.
+	// Tick 0 is the generated state: no event raised inside a tick stage carries tick 0, so the "0 = unset" tick fields
+	// stay unambiguous there. Player input outside the tick can still run at tick 0.
 	++State.Tick;
 
 	TickEconomy();
@@ -488,18 +620,21 @@ void UGalaxySimulationSubsystem::TickEconomy()
 	for (FCivilizationState& Civ : State.Civs)
 	{
 		float Richness = 0.f;
+		float StarOutput = 0.f;
 		for (const FName SystemID : Civ.OwnedSystems)
 		{
 			if (const FStarSystemState* System = FindSystem(SystemID))
 			{
 				Richness += System->ResourceRichness;
+				StarOutput += StarEnergy(System->StarClass);
 			}
 		}
 
-		// Causality stays at zero: it opens with Tier 3 research (section 5.1).
-		const float TierMultiplier = Economy::TierMultiplier[static_cast<int32>(Civ.Tier)];
+		// Energy comes from the stars owned, Matter from the richness of the systems, Insight and Influence from the
+		// people (section 5.1). Causality stays at zero: it opens with Tier 3 research.
+		const float TierMultiplier = Economy::TierMultiplier[TierIndex(Civ.Tier)];
 		FResourcePool Income;
-		Income.Energy = Richness * TierMultiplier * (1.f + Economy::MaterialistEnergyBonus * FMath::Max(0.f, -Civ.Ethics.Spiritualism));
+		Income.Energy = StarOutput * TierMultiplier * (1.f + Economy::MaterialistEnergyBonus * FMath::Max(0.f, -Civ.Ethics.Spiritualism));
 		Income.Matter = Richness * TierMultiplier;
 		Income.Insight = Civ.Population * Economy::InsightPerPopulation * (1.f + Economy::SpiritualistInsightBonus * FMath::Max(0.f, Civ.Ethics.Spiritualism));
 		Income.Influence = Civ.Population * Economy::InfluencePerPopulation * (1.f + Economy::OpenInfluenceBonus * FMath::Max(0.f, Civ.Ethics.Openness));
@@ -516,16 +651,35 @@ void UGalaxySimulationSubsystem::TickEconomy()
 
 void UGalaxySimulationSubsystem::TickResearch()
 {
+	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	check(Log);
+
 	for (FCivilizationState& Civ : State.Civs)
 	{
-		const float Spent = FMath::Min(Civ.Stockpile.Insight, Civ.IncomePerTick.Insight * Economy::ResearchInsightShare);
+		const float Spent = FMath::Max(0.f, FMath::Min(Civ.Stockpile.Insight, Civ.IncomePerTick.Insight * Economy::ResearchInsightShare));
 		Civ.Stockpile.Insight -= Spent;
 
-		for (const FName Field : ResearchFields)
+		for (int32 FieldIndex = 0; FieldIndex < static_cast<int32>(UE_ARRAY_COUNT(ResearchFields)); ++FieldIndex)
 		{
-			const float Focus = Civ.ResearchFocus.FindRef(Field);
-			float& Progress = Civ.Research.FindOrAdd(Field);
-			Progress = FMath::Min(1.f, Progress + Spent * Focus * Economy::ResearchPerInsight);
+			const FName Field = ResearchFields[FieldIndex];
+			const float Before = Civ.Research.FindRef(Field);
+			const float After = FMath::Min(1.f, Before + Spent * Civ.ResearchFocus.FindRef(Field) * Economy::ResearchPerInsight);
+			Civ.Research.Add(Field, After);
+
+			// A breakthrough is told once per mark crossed. A civ without a display name cannot be told of (section 8.2).
+			if (Civ.CivName.IsEmpty())
+			{
+				continue;
+			}
+			for (const float Threshold : BreakthroughThresholds)
+			{
+				if (Before < Threshold && After >= Threshold)
+				{
+					FFormatNamedArguments Args;
+					Args.Add(TEXT("Civ"), Civ.CivName);
+					Log->PushRow(CosmicRows::LogBreakthrough[FieldIndex], Civ.bIsPlayerRuled ? 1 : 0, Args, Civ.HomeSystemID);
+				}
+			}
 		}
 	}
 }

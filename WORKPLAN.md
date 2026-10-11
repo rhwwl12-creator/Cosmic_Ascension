@@ -6,7 +6,7 @@
 
 1. `git log --oneline -8`로 마지막 커밋을 확인하고, `CLAUDE.md`의 "현재 단계"와 `guideline.md` §16(미결)을 읽는다.
 2. `/effort status`로 지금 세션의 effort를 확인하고, 이 파일 §2에서 현재 Phase의 행을 찾아 맞춘다(`/effort <level>`, 세션 한정은 슬라이더에서 `s`).
-3. ultracode가 필요한 작업(§2 표의 "ultracode" 표기)이면 사용자가 프롬프트에 `ultracode`를 적거나 `/effort ultracode on`을 켠다. Claude는 지시서가 ultracode를 요구하는 작업에서 그것이 꺼져 있으면 **한 줄로 켜 달라고 요청**하고, 켜지기 전에는 단독으로 진행하지 않는다(리뷰 없이 넘어가지 않는다).
+3. ultracode가 필요한 작업(§2 표의 "ultracode" 표기)이면 사용자가 프롬프트에 `ultracode`를 적거나 `/effort ultracode on`을 켠다. Claude는 지시서가 ultracode를 요구하는 작업에서 그것이 꺼져 있으면 **한 줄로 켜 달라고 요청**하고, 켜지기 전에는 단독으로 진행하지 않는다(리뷰 없이 넘어가지 않는다). 반대 방향도 알린다: Claude는 단계가 바뀔 때마다(브리핑과 보고의 끝에) **다음 단계의 effort와 ultracode 켬/끔을 한 줄로** 적는다. 예: "다음: 로그 Subsystem 구현 — effort xhigh, ultracode 끔(단독). 조각이 끝나면 리뷰 때 켜 달라고 요청한다." ultracode가 세션에 켜져 있으면 Claude는 실질 작업마다 워크플로를 띄우므로, 단독 구간에서는 꺼 두고 리뷰·감사 턴에만 프롬프트에 `ultracode`를 적는 쪽이 싸다(2026-10-12 사용자 피드백).
 4. 작업 단위는 "컴파일되는 상태"(CLAUDE.md §10.5). 헤더만 추가하고 끝내지 않는다. 커밋 메시지는 한국어 요약 + `Co-Authored-By` 트레일러.
 5. 세션 끝에는 `CLAUDE.md` "현재 단계"를 갱신하고, 결정이 바뀌었으면 guideline.md를 먼저 고친 뒤 코드를 고친다.
 
@@ -86,8 +86,9 @@
 3. **밸런스 탐색**(Phase 5): 시드·정책 조합을 병렬 실행 → CSV 비교 → 노브 제안.
 4. 워크플로의 읽기 전용 에이전트에게는 **스냅샷 파일**을 주고, 편집은 메인 세션 또는 단일 편집 에이전트가 한다(같은 파일 동시 편집 금지). 워크플로 스크립트의 템플릿 문자열 안에 백틱을 넣지 않는다(파싱 실패).
 
-## 3. 다음 작업 (2026-10-12 기준)
+## 3. 다음 작업 (2026-10-12 기준, Phase 1 종료 뒤)
 
-1. guideline.md는 **v0.6** + Phase 1 헤더 리뷰 반영분까지다(§9.1 기본 초기값 불변·`SaveVersion` 1 고정, §9.2 해시의 표준형, 업적 조건의 0 센티널, Tier 번호 부호화). 헤더 리뷰에서 나온 설계 결정 13건은 guideline §16 #19~#31에 미결로 있다. 다음 설계 변경이 생기면 설계 문서 변경 행의 방식(ultracode 리뷰 → 적용 → 재감사)으로 처리한다.
-2. **Phase 1 진행 중**: 헤더 4개(`Core/CosmicTypes.h`·`Core/GalaxyState.h`·`Data/CosmicConditionTypes.h`·`Data/CosmicDefinitionRows.h`)와 `ultracode` 헤더 리뷰 1회·변경 범위 재감사를 마쳤다(빌드·스모크 통과). 다음 세션: `/effort xhigh`(세션 한정 `s`) → 사용자의 헤더 승인과 §16 #19·#20·#22 결정을 확인 → `Sim/GalaxySimulationSubsystem.h`(§7.4: 방송 게이트·`GetPopulationBand`·`ComputeStateHash` 선언, 틱 8단계) → .cpp(`NewGalaxy`·틱 골격·`ComputeStateHash`)와 `Save/` 저장·로드 → `Tests/`(§9.3 Determinism·SaveRoundTrip) → 에디터 타깃 빌드·자동화 테스트 → 커밋. 요청 예시는 guideline.md §14.4.
-3. 이번 헤더 리뷰의 범위는 상태·정의 헤더 4개였다. Subsystem 헤더(§7.4 틱 순서)와 `ComputeStateHash`·저장 왕복 코드는 아직 리뷰를 받지 않았다 — 그 코드가 들어간 뒤 변경 범위 리뷰를 한 번 더 돌릴지는 사용자가 정한다(§2 Phase 1 행은 리뷰 1회).
+1. guideline.md는 **v0.6** + Phase 1 반영분까지다(헤더 리뷰, 시뮬 코어 리뷰와 데이터 계층, 패널 라벨 로딩 정책 — 변경 이력의 2026-10-12 항목들). §16 미결은 #1~#18, #21, #23~#31, #33~#36이다. 이 가운데 Phase 2를 시작하기 전에 정해야 하는 것은 #21(`PendingEffect`가 담는 값)이고, #33(저장 경로의 안전)·#34(`Install`과 `Succession.Returned`)·#35(Tick 0의 틱 밖 입력)는 그 기능을 붙이는 Phase에서 정한다. 다음 설계 변경이 생기면 설계 문서 변경 행의 방식(ultracode 리뷰 → 적용 → 재감사)으로 처리한다.
+2. **Phase 1 종료 조건 달성(2026-10-12)**: 시뮬 코어·첫 생애·저장/로드·데이터 계층·로그·텍스트 패널·게임 모드·밸런스 커맨드렛이 들어갔고 자동화 테스트 10종이 연속 두 프로세스에서 통과한다(상세는 CLAUDE.md "현재 단계", guideline §11 Phase 1의 상태 줄). 리뷰는 헤더 1회와 시뮬 코어(Subsystem 헤더·`ComputeStateHash`·저장 왕복·`Install`) 1회를 돌렸다. **리뷰를 받지 않은 범위**: `Data/CosmicDataTables`, `Log/CosmicLogSubsystem`의 `PushRow`, `Tools/make_data_tables.py`, `UI/`·`World/`, `Tests/CosmicBalanceCommandlet`, 시뮬 코어 리뷰 뒤의 수정분. Phase 1 종료 리뷰(변경 범위만, ultracode 켬, effort xhigh)를 돌릴지는 사용자가 정한다 — Phase 2가 `PushRow`와 데이터 계층 위에 바로 올라가므로 돌리는 쪽을 권한다.
+3. **다음 세션(Phase 2)**: `/effort xhigh`(세션 한정 `s`), ultracode 끔(구현은 단독). 순서: §16 #21 결정 → `Events/CosmicEventSubsystem.h`(조건/효과 평가기, 헤더 먼저 제시 → 승인) → .cpp와 `Tests/` → 서브시스템 하나가 끝나면 ultracode를 켜 달라고 요청하고 리뷰(§2 Phase 2 행: 틱 순서·결정론·`Rng`만 사용·상태는 `FGalaxyState` 안·이벤트 큐 재진입). 요청 예시는 guideline.md §14.4.
+4. Phase 1에서 미룬 확인: 게임 바이너리(쿠킹된 빌드)의 해시 일치는 첫 패키징 때, 돌파 로그 12줄의 문장 감사는 Phase 4 텍스트 감사 묶음에 넣는다. 화면 확인은 CLAUDE.md의 오프스크린 한 장 찍는 법을 쓴다(패널을 고친 뒤에는 한 번 찍어 본다 — `-nullrhi` 테스트는 화면을 보지 못하고, 2026-10-12에 라벨 16개가 전부 자리표시 문자열로 찍히는 버그를 이것으로 잡았다).

@@ -27,7 +27,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	bool SaveCurrentGalaxy();
 
-	// Loads a galaxy's slot into the simulation. Fails on a missing slot and on a save newer than this build.
+	// Loads a galaxy's slot into the simulation. Fails on a missing slot, on a slot that does not hold this GalaxyID
+	// (truncated or foreign file) and on a save newer than this build. A refused load leaves the simulation untouched.
 	UFUNCTION(BlueprintCallable)
 	bool LoadGalaxy(const FGuid& GalaxyID);
 

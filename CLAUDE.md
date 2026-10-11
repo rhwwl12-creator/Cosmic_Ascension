@@ -30,6 +30,11 @@ Core Logic Subsystem은 플레이어·생애에 종속된 멤버 변수를 갖�
 저장되는 필드의 기본 초기값(멤버 초기화식)은 세이브가 생긴 뒤 바꾸지 않는다(의미 변경 = 마이그레이션): 저장이 클래스 기본 객체 대비 델타라서 초기값과 같은 값은 기록되지 않는다. `FGalaxyState.SaveVersion`의 초기값은 리터럴 1 고정이고 현재 버전은 `FGalaxyState::CurrentSaveVersion`을 `NewGalaxy`와 마이그레이션이 찍는다 (§9.1).
 `ComputeStateHash`는 FName·FGameplayTag를 소문자 문자열로 해시한다(`GetTypeHash`·이름 인덱스·구조체 원시 메모리 금지 — 프로세스마다 다르다). `TMap`은 `FNameLexicalLess`로 정렬한 키 순서로만 순회·해시한다. FText와 `GalaxyID`는 해시 밖이다 (§9.2).
 데이터 컬럼의 Tier는 번호 1~5이고 `EAscensionTier` 값은 0~4다(`Tier1_Planetary == 0`). 비교는 `static_cast<int32>(Tier) + 1`, Tier로 인덱싱하는 배열은 `static_cast<int32>(Tier)` (§7.3).
+정의 데이터는 `FCosmicDataTables`(`Data/CosmicDataTables.h`)가 고정 경로 `/Game/CA/Data/DT_*`에서 로드한다(설정 에셋 없음). 코드가 이름으로 찾는 행은 `Data/CosmicRowNames.h`의 `CosmicRows::` 상수로만 부른다. 에셋의 원본은 `Tools/data/*.json`·`ST_CA.csv`이고 `.uasset`은 `Tools/make_data_tables.py`의 산출물이다: 데이터는 JSON/CSV를 고치고 스크립트를 다시 돌린다(에디터에서 고친 행은 덮어써진다). 행 구조체를 바꾸면 JSON에 새 컬럼을 적고 다시 돌린다 (§7.3, §7.4, §10.1).
+서사 로그는 `UCosmicLogSubsystem::Push`·`PushRow`만 `State.Log`에 쓴다. `Message`는 렌더 결과를 평탄화해 저장한다(`FText::AsCultureInvariant`). `PushRow`는 호출당 난수 추첨이 정확히 1회다: 직전 줄과 같은 문장이 나오면 다음 변형으로 넘기되 다시 뽑지 않는다 (§7.5, §8.4).
+게임 모듈은 모든 타깃에서 부동소수점 정밀 모드다(`Build.cs`의 `FPSemantics = FPSemanticsMode.Precise`. V7 기본값은 에디터 타깃만 정밀, 게임 타깃은 `/fp:fast`). 지우면 게임 바이너리와 테스트·커맨드렛의 해시가 갈릴 수 있다 (§9.2).
+시뮬의 일시정지는 `SetTimeScale(0)` 하나뿐이다: Subsystem은 엔진의 월드 없는 틱 패스(`TickObjects(nullptr, …)`)에서 돌아서 `SetGamePaused`와 시간 팽창이 닿지 않는다 (§7.4).
+UI 라벨은 `FText::FromStringTable(…, EStringTableLoadingPolicy::FindOrFullyLoad)`로 읽는다. 기본 정책은 다른 비동기 로딩 중에 테이블을 비동기로 올려서, 그 사이에 만든 줄에 `<MISSING STRING TABLE ENTRY>`가 남는다 (§8.5).
 
 ## 작업 방식
 
@@ -48,6 +53,8 @@ UE 5.8은 모델 학습 데이터보다 새 버전이다. 낯선 엔진 API는 �
 set UE_ROOT=C:\Program Files\Epic Games\UE_5.8
 set ROOT=C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension
 set PROJECT=%ROOT%\Cosmic_Ascension.uproject
+:: -Script= 값은 Python 문자열로 읽힌다. 역슬래시 경로를 주면 \r, \U 따위가 이스케이프로 해석되어 실패하므로 슬래시 경로를 따로 둔다
+set ROOTF=C:/Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension
 
 :: 에디터 타깃 빌드 (에디터가 닫혀 있어야 함). Build.bat은 번들 .NET으로 UnrealBuildTool.dll을 실행하고 인자를 그대로 넘긴다
 "%UE_ROOT%\Engine\Build\BatchFiles\Build.bat" Cosmic_AscensionEditor Win64 Development -Project="%PROJECT%" -WaitMutex
@@ -62,7 +69,13 @@ set PROJECT=%ROOT%\Cosmic_Ascension.uproject
 "%UE_ROOT%\Engine\Build\BatchFiles\Build.bat" -projectfiles -project="%PROJECT%" -game -rocket -progress -VSCode -Automated
 
 :: L_Galaxy 맵 생성 (에디터 닫힌 상태, 에디터 타깃 빌드 후. Tools/make_galaxy_level.py 참고)
-"%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "%PROJECT%" -run=pythonscript -Script="%ROOT%/Tools/make_galaxy_level.py" -unattended -nosplash -stdout -FullStdOutLogOutput -AbsLog="%ROOT%/Saved/Logs/MakeGalaxyLevel.log"
+"%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "%PROJECT%" -run=pythonscript -Script="%ROOTF%/Tools/make_galaxy_level.py" -unattended -nosplash -stdout -FullStdOutLogOutput -AbsLog="%ROOTF%/Saved/Logs/MakeGalaxyLevel.log"
+
+:: DataTable·String Table 에셋 생성 (에디터 닫힌 상태, 에디터 타깃 빌드 후. Tools/data/*.json·ST_CA.csv -> Content/CA/Data. 로그 끝의 "written and verified" 줄 확인)
+"%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "%PROJECT%" -run=pythonscript -Script="%ROOTF%/Tools/make_data_tables.py" -unattended -nosplash -stdout -FullStdOutLogOutput -AbsLog="%ROOTF%/Saved/Logs/MakeDataTables.log"
+
+:: 밸런스 커맨드렛 (Saved/Balance/<Out>에 CSV, 100틱마다 문명별 1행. 로그의 "CosmicBalance: seed ... hash ..." 줄 확인)
+"%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "%PROJECT%" -run=CosmicBalance -Seed=42 -Ticks=20000 -Systems=60 -Civs=8 -Out=balance.csv -unattended -nosplash -stdout -FullStdOutLogOutput -AbsLog="%ROOTF%/Saved/Logs/Balance.log"
 
 :: 헤드리스 실행 스모크 (맵 로드 후 첫 프레임에 quit. 로그에서 LogCosmic 줄 확인)
 "%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "%PROJECT%" -game -nullrhi -nosound -unattended -nosplash -stdout -FullStdOutLogOutput -ExecCmds="quit" -AbsLog="%ROOT%/Saved/Logs/GameSmoke.log"
@@ -75,7 +88,7 @@ set PROJECT=%ROOT%\Cosmic_Ascension.uproject
 # PowerShell 5.1용. 변수는 반드시 $env: 로 정의한다. `--%` 뒤에서는 %VAR% 환경 변수만 치환되고 $VAR는 치환되지 않는다.
 # Claude Code의 PowerShell 호출은 호출 간 상태가 유지되지 않으므로 $env: 정의와 명령을 같은 호출에 둔다.
 # `--%` 뒤는 줄 끝까지 리터럴이라 그 뒤에 `;`로 다른 명령을 이어 쓸 수 없다. `set VAR=...`는 PowerShell에서 Set-Variable이라 실패한다.
-$env:UE_ROOT='C:\Program Files\Epic Games\UE_5.8'; $env:ROOT='C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension'; $env:PROJECT="$env:ROOT\Cosmic_Ascension.uproject"
+$env:UE_ROOT='C:\Program Files\Epic Games\UE_5.8'; $env:ROOT='C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension'; $env:PROJECT="$env:ROOT\Cosmic_Ascension.uproject"; $env:ROOTF='C:/Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension'
 
 # 에디터 타깃 빌드 (에디터 닫힌 상태)
 & "$env:UE_ROOT\Engine\Build\BatchFiles\Build.bat" --% Cosmic_AscensionEditor Win64 Development -Project="%PROJECT%" -WaitMutex
@@ -86,7 +99,11 @@ $env:UE_ROOT='C:\Program Files\Epic Games\UE_5.8'; $env:ROOT='C:\Users\rhwwl\One
 # VS Code 프로젝트 파일
 & "$env:UE_ROOT\Engine\Build\BatchFiles\Build.bat" --% -projectfiles -project="%PROJECT%" -game -rocket -progress -VSCode -Automated
 # L_Galaxy 맵 생성
-& "$env:UE_ROOT\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" --% "%PROJECT%" -run=pythonscript -Script="%ROOT%/Tools/make_galaxy_level.py" -unattended -nosplash -stdout -FullStdOutLogOutput -AbsLog="%ROOT%/Saved/Logs/MakeGalaxyLevel.log"
+& "$env:UE_ROOT\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" --% "%PROJECT%" -run=pythonscript -Script="%ROOTF%/Tools/make_galaxy_level.py" -unattended -nosplash -stdout -FullStdOutLogOutput -AbsLog="%ROOTF%/Saved/Logs/MakeGalaxyLevel.log"
+# DataTable·String Table 에셋 생성 (Tools/data -> Content/CA/Data)
+& "$env:UE_ROOT\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" --% "%PROJECT%" -run=pythonscript -Script="%ROOTF%/Tools/make_data_tables.py" -unattended -nosplash -stdout -FullStdOutLogOutput -AbsLog="%ROOTF%/Saved/Logs/MakeDataTables.log"
+# 밸런스 커맨드렛
+& "$env:UE_ROOT\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" --% "%PROJECT%" -run=CosmicBalance -Seed=42 -Ticks=20000 -Systems=60 -Civs=8 -Out=balance.csv -unattended -nosplash -stdout -FullStdOutLogOutput -AbsLog="%ROOTF%/Saved/Logs/Balance.log"
 # 헤드리스 스모크
 & "$env:UE_ROOT\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" --% "%PROJECT%" -game -nullrhi -nosound -unattended -nosplash -stdout -FullStdOutLogOutput -ExecCmds="quit" -AbsLog="%ROOT%/Saved/Logs/GameSmoke.log"
 # 자동화 테스트
@@ -97,9 +114,15 @@ $env:UE_ROOT='C:\Program Files\Epic Games\UE_5.8'; $env:ROOT='C:\Users\rhwwl\One
 UBT 로그: `%LOCALAPPDATA%\UnrealBuildTool\Log.txt` (프로젝트 파일 생성은 `Log_GPF.txt`). 프로젝트 로그: `Saved\Logs\Cosmic_Ascension.log`.
 PowerShell에서는 `& "<exe>" --% <나머지 인자>` 형태로 호출한다. `--%`가 없으면 `-Script="..."` 같은 따옴표 인자가 깨진다. `&&`는 PowerShell 5.1에서 동작하지 않는다.
 `-ExecCmds` 값은 쉼표로 분리되므로 안에 쉼표를 넣지 않는다.
+`--%` 없이 부르면 PowerShell이 `-Out=balance.csv` 같은 인자를 `-Out=balance`와 `.csv`로 쪼갠다.
+자동화 테스트는 **빌드 뒤 두 번 연속** 돌린다. `Sim.SaveRestart`는 첫 프로세스가 저장하고 해시를 `Saved/Automation/SaveRestart.txt`에 적고, 다음 프로세스가 로드해 검증한다(바이너리가 바뀌면 기록을 새로 쓴다). 두 번째 실행 로그에 `Restart half verified`가 있어야 재시작 절반까지 검증된 것이다.
+스모크에서 서사 로그 줄을 보려면 `-LogCmds="LogCosmic Verbose"`를 붙인다(`[0] 태양계. …` 줄이 `GameSmoke.log`에 찍힌다). 새 은하의 시드는 `-Seed=<n>`, 없으면 시계다.
+화면 확인: `-nullrhi` 실행과 테스트는 패널이 실제로 그려지는지 보지 못한다. 창 없이 한 장 찍으려면 `UnrealEditor.exe "<uproject>" -game -RenderOffScreen -windowed -ResX=1280 -ResY=720 -nosound -unattended -nosplash -Seed=42 -ExecCmds="shot showui"`를 띄우고 `Saved/Screenshots/WindowsEditor/ScreenShot*.png`가 생기면 프로세스를 끝낸다(스스로 끝나지 않는다. 첫 프레임 직후의 화면이다).
 
 **자동화 테스트 작성 규칙 (5.8)**
 `IMPLEMENT_SIMPLE_AUTOMATION_TEST(FClass, "Cosmic_Ascension.Sim.Determinism", EAutomationTestFlags::ClientContext | EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)`. `EAutomationTestFlags`는 enum class이고 마스크(`EAutomationTestFlags_ApplicationContextMask` 등)는 자유 상수다. Context 플래그 1개 이상 + Filter 플래그 정확히 1개가 static_assert로 강제된다. `-game`으로 돌리므로 `ClientContext`가 반드시 들어가야 한다. `-nullrhi`에서는 `NonNullRHI` 플래그 테스트가 제외된다.
+공용 도우미는 `Tests/CosmicTestHelpers.h`(`CosmicTests::Flags`·`AcquireSim`): 테스트는 실행 중인 게임의 Subsystem을 멈춰 놓고(`SetTimeScale(0)`) 은하를 갈아 끼운다. 유니티 빌드라서 .cpp마다 익명 네임스페이스에 같은 이름을 두면 충돌한다 — 테스트 파일별 네임스페이스(`CosmicLogTests` 등)를 쓴다.
+`AddExpectedMessage`/`AddExpectedError`의 Occurrences: 양수 = 정확히 그 횟수, 0 = 한 번 이상, 음수 = 횟수 무시(0번도 통과). 일부러 망가뜨린 세이브를 로드하는 테스트는 엔진의 `Failed loading tagged` 에러를 이것으로 예상 처리한다. 새 테스트는 한 번은 일부러 깨뜨려서(변이) 실패하는 것을 본 뒤 되돌린다.
 
 ## 모듈 / UHT / 컴파일 규칙 (5.8 UBT 소스 확인)
 
@@ -139,6 +162,13 @@ UPROPERTY의 기본값 초기화식은 UHT가 `;`까지 건너뛴다(`EpicGames.
 | `FGameplayTag`, `FGameplayTagContainer`, `FGameplayTag::RequestGameplayTag(const FName&, bool ErrorIfNotFound=true)` | `GameplayTagContainer.h` | GameplayTags | 엔진 런타임 모듈(플러그인 아님). `Classes/` 폴더라 하위 경로 없음 |
 | `UE_DECLARE_GAMEPLAY_TAG_EXTERN` / `UE_DEFINE_GAMEPLAY_TAG_COMMENT` | `NativeGameplayTags.h` | GameplayTags | 참고용. 현재 규칙상 사용하지 않는다: 태그 선언은 `Config/DefaultGameplayTags.ini` 단일 출처(§10.1), 코드는 `RequestGameplayTag`만. 바꾸려면 guideline.md §10.1을 먼저 고친다 |
 | `UCommandlet` | `Commandlets/Commandlet.h` | Engine | `-run=<이름>`은 `<이름>Commandlet` 클래스를 찾는다. 커맨드렛 프로세스에는 UGameInstance가 없으므로 Subsystem을 쓰려면 §9.3의 부트스트랩이 필요하다 |
+| `LoadObject<T>(nullptr, Path, {}, LOAD_NoWarn)` | `UObject/UObjectGlobals.h` | CoreUObject | 경로는 `/Game/CA/Data/DT_Rules.DT_Rules` 꼴. 없으면 nullptr이고 `LOAD_NoWarn`이면 엔진 경고도 없다(직접 `LogCosmic`으로 알린다). Subsystem `Initialize`에서 불러도 된다(-game, 커맨드렛 모두). 쿠킹에는 `Config/DefaultGame.ini`의 `+DirectoriesToAlwaysCook=(Path="/Game/CA/Data")`가 필요하다(코드 경로 로드는 참조로 잡히지 않는다) |
+| `EStringTableLoadingPolicy`, `FStringTableEntry::GetPlaceholderSourceString()` | `Internationalization/StringTableCoreFwd.h`, `Internationalization/StringTableCore.h` | Core | 에셋 테이블 ID는 객체 경로(`/Game/CA/Data/ST_CA.ST_CA`). `FindOrLoad`(기본)는 `IsAsyncLoading()` 중이면 비동기 로드라서 그 사이 값이 자리표시 문자열(`<MISSING STRING TABLE ENTRY>`)이 된다. UI는 `FindOrFullyLoad` |
+| `UWidgetTree::ConstructWidget<T>()`, `UUserWidget::WidgetTree`·`RebuildWidget`·`TakeWidget` | `Blueprint/WidgetTree.h`, `Blueprint/UserWidget.h` | UMG | WBP 없는 C++ 위젯은 `RebuildWidget`에서 `WidgetTree->RootWidget`이 없을 때 한 번 트리를 만들고 `Super::RebuildWidget()`을 부른다. `NativeConstruct`는 첫 `TakeWidget`(`AddToViewport`) 때, `NativeDestruct`는 Slate 위젯이 풀릴 때 온다. WBP가 없는 클래스는 `DisableNativeTick` 메타와 무관하게 틱한다(`UpdateCanTick`의 `!WidgetBPClass`). `CreateWidget<T>(Owner)`의 Owner는 PlayerController·GameInstance·World 등. 테스트는 `WidgetTree->ForEachWidget`으로 `UTextBlock::GetText()`를 읽는다 |
+| `AGameModeBase`, `AHUD`, `APlayerController`, `FKey`/`EKeys` | `GameFramework/GameModeBase.h`, `GameFramework/HUD.h`, `GameFramework/PlayerController.h`, `InputCoreTypes.h` | Engine, InputCore | 맵을 건드리지 않고 게임 모드를 고르는 곳은 `Config/DefaultEngine.ini`의 `[/Script/EngineSettings.GameMapsSettings] GlobalDefaultGameMode`. 키는 `InputComponent->BindKey(FKey, IE_Pressed, this, &Class::Handler)`, 핸들러는 `void(FKey)` |
+| `UGameMapsSettings` | `GameMapsSettings.h` | EngineSettings | `GameInstanceClass`(`TryLoadClass<UGameInstance>()`). 밸런스 커맨드렛이 읽는다. Build.cs Private 의존 |
+| `UWorld::DestroyWorld`, `UEngine::DestroyWorldContext` | `Engine/World.h`, `Engine/Engine.h` | Engine | `InitializeStandalone`으로 만든 GameInstance를 치울 때 쓴다(아래 Phase 1 메모) |
+| (에디터 Python) `unreal.DataTableFunctionLibrary.fill_data_table_from_json_string(table, json, struct)`, `unreal.StringTableLibrary.import_table_from_csv_string`, `unreal.EditorAssetSubsystem` | — | 에디터 전용 | 확인한 사실은 `Tools/make_data_tables.py` 머리 주석에 있다. JSON은 행 객체 배열·행 키 `"Name"`, 단일 태그는 문자열, 태그 컨테이너는 export 텍스트 `(GameplayTags=((TagName="A.B")))`. 임포트는 행에 문제가 있어도 True를 돌려주므로 스크립트가 다시 내보내 비교한다. `unreal.EditorAssetLibrary`는 이 프로젝트가 켜지 않은 플러그인 소속이라 쓰지 않는다 |
 
 **GameplayTags ini 규칙 (5.8 소스 확인)**
 `Config/DefaultGameplayTags.ini`는 계층 레이어라서 배열 행은 반드시 `+GameplayTagList=(Tag="A.B",DevComment="...")`. `+` 없는 행은 배열을 통째로 덮어쓴다.
@@ -146,9 +176,9 @@ UPROPERTY의 기본값 초기화식은 UHT가 `;`까지 건너뛴다(`EpicGames.
 속성 이름은 `WarnOnInvalidTags`(b 접두어 없음). `ClearInvalidTags`는 5.5에서 deprecated → 쓰지 않는다. 태그 이름에 `"` `'` `,` 금지.
 
 **Phase 1에서 틱 Subsystem을 만들 때 (5.8 확인 사항)**
-`FTickableGameObject`를 UObject(Subsystem)와 함께 쓸 때는 헤더 주석대로: 생성자에서 `FTickableGameObject(ETickableTickType::Never)`, `Initialize()` 끝에서 `SetTickableTickType(ETickableTickType::Conditional)`, `Deinitialize()`에서 다시 `Never`. `IsAllowedToTick()`은 UE_DEPRECATED(5.5)이므로 오버라이드하지 않는다. 일시정지 중에도 돌려야 하면 `IsTickableWhenPaused()` 오버라이드.
+`FTickableGameObject`를 UObject(Subsystem)와 함께 쓸 때는 헤더 주석대로: 생성자에서 `FTickableGameObject(ETickableTickType::Never)`, `Initialize()` 끝에서 `SetTickableTickType(ETickableTickType::Conditional)`, `Deinitialize()`에서 다시 `Never`. `IsAllowedToTick()`은 UE_DEPRECATED(5.5)이므로 오버라이드하지 않는다. `GetTickableGameObjectWorld()`를 오버라이드하지 않으면 월드 없는 패스(`UGameEngine::Tick`의 `TickObjects(nullptr, LEVELTICK_All, false, DeltaSeconds)`)에서 돌므로 엔진 일시정지·시간 팽창이 닿지 않는다(`IsTickableWhenPaused()`는 월드에 묶인 객체에만 의미가 있다).
 `GetStatId()`는 `RETURN_QUICK_DECLARE_CYCLE_STAT(UGalaxySimulationSubsystem, STATGROUP_Tickables);`.
-밸런스 커맨드렛(§9.3)은 UEditorEngine 아래에서 돌고 UGameInstance가 없다. `Main()`에서 `NewObject<UGameInstance>(GEngine, Class)` → `AddToRoot()` → `InitializeStandalone()`으로 GameInstance를 직접 만들어 Subsystem을 얻는다. 구현 전에 `Engine/GameInstance.h`의 `InitializeStandalone` 시그니처를 확인한다.
+밸런스 커맨드렛(§9.3)은 UEditorEngine 아래에서 돌고 UGameInstance가 없다. `Main()`에서 `NewObject<UGameInstance>(GEngine, Class)` → `AddToRoot()` → `InitializeStandalone()`으로 GameInstance를 직접 만들어 Subsystem을 얻는다(`Tests/CosmicBalanceCommandlet.cpp`). `InitializeStandalone`은 월드 컨텍스트와 더미 월드를 만들고 `Shutdown()`은 둘을 치우지 않는다. 끝낼 때는 `UWorld* World = GameInstance->GetWorld()`를 잡아 두고 `Shutdown()` → `GEngine->DestroyWorldContext(World)` → `World->DestroyWorld(false)` → `RemoveFromRoot()` 순서로 치운다(엔진 `AutomationCommon.cpp`와 같은 순서). 빼면 종료 때 `WorldPartitionSubsystem … destroyed while still initialized` ensure가 뜬다.
 
 ## 렌더 / 플러그인 결정 (2026-10-10, Config/DefaultEngine.ini)
 
@@ -162,5 +192,7 @@ Phase 0 (셋업) 종료 조건 달성 (2026-10-10): 에디터/게임 타깃 커�
 설계 문서는 guideline.md **v0.6** (2026-10-11): v0.4(옛 §17 '부름과 계승'·§18 '통치자 시작·이중 계·세력군·기독교적 요소')와 v0.5(§17 '사다리 위의 두 영역·영혼의 행방·지구와 계시 양식' — 사다리 상한, 교리 4종·회귀 `Doctrine.Recurrence`·판당 활성 타락 ≤ 3, 영혼 경제 `Hazard.Claim`, 귀환 제안 `OfferReturn()`, 계시 양식 `RevelationMode`, 지구 `arch_terran` 첫 생애 고정, 닫힌 책 `Trait.Faith.Book`, 사후 문장 규칙·두 책 장)의 채택분 위에, v0.6에서 '요약 단위 원칙'(§1.3: 사람은 수치, 특출난 소수만 이름, 문명·영·육신도 요약, 표시는 규모 등급)을 명문화하고 인물 기록 `FNotableRecord`·규모 등급 `GetPopulationBand`를 본문에 반영했다. Phase 1 헤더에는 예약 필드(`FCallingState`/`FLifeRecord`/`ELifeState`, `GalaxyID`, `HomeSystemID`, `ThroneLockedUntilTick`, `StatusTags`, `Exaltation`, `MegaprojectCompletedTick`, `SealedTick`, `FGalaxyState.Flags`/`Chronicle`, `FCallingState.PendingRoleEffect`, `FCivilizationState.LowStabilityTicks`, `FCivilizationState.ArchetypeRow`, `FLifeRecord.SuccessionKind`/`bReturnOffered`, `FTranscendentDef.Allegiance`(상태에 `Realm` 없음), 방송 게이트, `Role` 기본값 Ruler, `DT_Civs`·`DT_Rules.PlayerArchetypeRow`, 그리고 v0.6의 `FNotableRecord`/`FCivilizationState.Notables`, `FLifeRecord.NameIndex`, `FCivArchetypeDef.PersonNameBank`, `EEffectType::NameNotable`, `EConditionType::CivHasNotable`, `EPopulationBand`, `DT_Rules.MaxNotablesPerCiv`/`PopulationBandThresholds`, `FHazardDef.OnResolveEffects`)가 포함된다 (§11 Phase 1, §7.2, §7.3, §9.1). 옛 '사도(Apostle)' Hazard 태그는 `Hazard.Cult`로 개명됐고 GameplayTag는 총 134개(v0.5 추가 36개, v0.6 추가 `Notable.*` 6개 포함)가 `Config/DefaultGameplayTags.ini`에 선언되어 있다.
 Git 저장소 초기화·커밋 완료(2026-10-11, `main`, LFS).
 Phase 1 진행 중 (2026-10-12): 헤더 4개 작성 — `Core/CosmicTypes.h`(+`.cpp`, 공통 열거형·`FResourcePool`·`FEthicsAxes`), `Core/GalaxyState.h`(§7.2 런타임 상태 전체 + §8.1 `FCosmicLogEntry`), `Data/CosmicConditionTypes.h`(`EConditionType` 28·`EEffectType` 18과 조건·효과 구조체), `Data/CosmicDefinitionRows.h`(DataTable 행 구조체 9: 이벤트·Hazard·Feat·조우 선택지/조우·아키타입·초월자·로그 템플릿·규칙). §9.1·§11의 Phase 1 예약 필드는 전부 들어 있다(Subsystem 헤더에 속하는 방송 게이트·`GetPopulationBand`·`ComputeStateHash` 선언은 아직). 게임·에디터 타깃 빌드와 `-game -nullrhi` 스모크 통과. ultracode 헤더 리뷰 1회 완료(3관점 + 완전성 비평 51건 → 적대 검증 CONFIRMED 44, 수정 뒤 변경 범위 재감사 10건 → 8건 반영): 코드 변경은 `SaveVersion` 초기값 1 고정 하나이고 나머지는 직접 include 2개·주석 정정·guideline 문장 정정이다. 설계 결정이 필요한 13건은 guideline §16 #19~#31에 미결로 두었고 헤더는 스케치대로다. 스케치와 다르게 둔 것: `Body`/`Mind`/`Causality`는 UPROPERTY 3개로 분리, `CosmicTypes.h`는 태그 헤더를 include하지 않음(쓰지 않으므로), 주석은 영문 ASCII, 구조체마다 `COSMIC_ASCENSION_API`, `FGalaxyState::CurrentSaveVersion` 상수, §7.3은 파일 2개로 분리.
-다음: 사용자의 헤더 승인과 §16 #19(로그 `Message` 저장 형태)·#20(재위 3배열 불변식)·#22(삭제된 문명 참조) 결정 → `Sim/GalaxySimulationSubsystem.h`(§7.4) → `.cpp`(`NewGalaxy`·틱 8단계 골격·`ComputeStateHash`) → `Save/` 저장·로드 왕복 → `Tests/` Determinism·SaveRoundTrip → 로그 템플릿 치환 → 커맨드렛 골격 (§11 Phase 1).
+Phase 1 종료 조건 달성 (2026-10-12, guideline §11 Phase 1의 상태 줄): 시뮬 코어(`Sim/GalaxySimulationSubsystem` — `NewGalaxy`, 고정 스텝 틱·배속·이월 상한, 틱 8단계 중 경제·연구·재위 누계 본문과 나머지 골격, 리플렉션 기반 `ComputeStateHash`), 첫 생애(`Player/PlayerRoleSubsystem::Install`), 저장·로드(`Save/CosmicSaveSubsystem`, 슬롯 `Galaxy_<GUID>`), 데이터 계층(`Data/CosmicDataTables`·`CosmicRowNames`, `Tools/make_data_tables.py`와 `Tools/data` 원본, `Content/CA/Data`의 `DT_Rules`·`DT_Civs`·`DT_LogTemplates`·`ST_CA`), 로그(`Log/CosmicLogSubsystem` — `Push`·`PushRow`, 2,000줄 상한과 연대기 이관), 표현 계층(`UI/CosmicTextPanelWidget`, `World/CosmicGameMode`·HUD·PlayerController: 0/1/2/3/4 = 정지/1/2/5/10배속, Space = 정지 토글), 밸런스 커맨드렛(`Tests/CosmicBalanceCommandlet`, `-run=CosmicBalance`). 자동화 테스트 10종(`Sim.Determinism`·`NoNaN`·`FirstLife`·`PopulationBand`·`FrameStep`·`SaveRoundTrip`·`SaveRestart`, `Log.NoConsecutiveRepeat`·`CapAndChronicle`, `UI.PanelLabels`)이 연속 두 프로세스에서 통과한다. ultracode 리뷰 2회(헤더, 시뮬 코어 41건 → CONFIRMED 38, 높음 0)의 확정분은 반영했다. 데이터 계층·로그·패널·게임 모드·커맨드렛은 아직 리뷰를 받지 않았다.
+아직 확인하지 못한 것: 게임 바이너리(쿠킹된 빌드)에서 같은 시드가 같은 해시를 내는지(첫 패키징 때), 실행 중 패널이 틱마다 갱신되는 모습을 눈으로 보는 것(첫 프레임 스크린샷과 `UI.PanelLabels`의 델리게이트 검사까지만 했다), 돌파 로그 12줄의 문장 감사(§8.3). AI 문명은 아직 표시 이름이 없어서 Phase 1에서는 플레이어 문명만 돌파 로그를 낸다. guideline §16 미결: #1~#18, #21, #23~#31, #33~#36.
+다음: Phase 1 종료 리뷰(선택, ultracode — 리뷰 받지 않은 범위만) → Phase 2 (§11): `UCosmicEventSubsystem` 조건/효과 평가기부터. Phase 2는 effort xhigh, 구현은 단독, 서브시스템 하나가 끝날 때마다 ultracode 리뷰(WORKPLAN §2).
 참고: §10.1의 빈 폴더(Core, Data, World, UI, Tests, Content/CA/*)는 Git에 올라가지 않는다. 첫 파일이 생길 때 자연히 생성되므로 `.gitkeep`을 넣지 않는다.

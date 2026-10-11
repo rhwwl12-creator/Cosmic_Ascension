@@ -15,13 +15,22 @@ public class Cosmic_Ascension : ModuleRules
 		// PublicIncludePaths as "not allowed" (warning currently off by default).
 		PrivateIncludePaths.Add(ModuleDirectory);
 
+		// Same seed, same hash in every binary (guideline section 9.2): the tests and the balance commandlet run the editor
+		// module, the player runs the game module. V7 compiles only the editor target with precise floating point, so ask
+		// for it everywhere else too. Left alone for the editor target so it keeps the shared engine PCH.
+		if (Target.Type != TargetType.Editor)
+		{
+			FPSemantics = FPSemanticsMode.Precise;
+		}
+
 		PublicDependencyModuleNames.AddRange(new string[] {
 			"Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput",
 			"UMG", "Slate", "SlateCore",
 			"GameplayTags", "Niagara"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] { });
+		// EngineSettings: UGameMapsSettings, read by the balance commandlet to create its GameInstance (guideline section 9.3).
+		PrivateDependencyModuleNames.AddRange(new string[] { "EngineSettings" });
 
 		// CommonUI is intentionally NOT a dependency (guideline section 6.3). Revisit only if gamepad / Steam Deck support becomes a goal.
 	}

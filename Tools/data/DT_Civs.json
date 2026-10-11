@@ -1,0 +1,40 @@
+[
+	{
+		"Name": "arch_terran",
+		"DisplayName": "지구",
+		"Traits": "(GameplayTags=((TagName=\"Trait.Arch.Terran\"),(TagName=\"Trait.Society.Divided\"),(TagName=\"Trait.Faith.Book\"),(TagName=\"Trait.Biology.Shortlived\")))",
+		"EthicsPreset": {"Pacifism": 0.0, "Spiritualism": 0.0, "Openness": 0.2},
+		"AIProfile": "",
+		"Color": {"R": 0.25, "G": 0.55, "B": 1.0, "A": 1.0},
+		"NameBank": ["태양계 연합", "지구 연방", "인류 연합"],
+		"AdjectiveBank": ["갈라진", "끈질긴", "기억하는"],
+		"PersonNameBank": [],
+		"HazardSpawnMultipliers": {"Hazard.Rebellion": 1.5, "Hazard.AIAwakening": 1.2},
+		"InitialRelations": {},
+		"Weight": 0.0,
+		"RevelationMode": "Revelation.Book",
+		"RevelationTemplates": ["옛 책의 한 줄이 다시 읽혔다. 읽은 사람은 많지 않았다."],
+		"HomeSystemNames": ["태양계"],
+		"HomeStarClass": "Star.Class.G",
+		"DedicationBanks": ["Faith.Bank.Hebrew", "Faith.Bank.Civic"]
+	},
+	{
+		"Name": "arch_default",
+		"DisplayName": "",
+		"Traits": "(GameplayTags=((TagName=\"Trait.Arch.Default\")))",
+		"EthicsPreset": {"Pacifism": 0.0, "Spiritualism": 0.0, "Openness": 0.0},
+		"AIProfile": "",
+		"Color": {"R": 1.0, "G": 1.0, "B": 1.0, "A": 1.0},
+		"NameBank": [],
+		"AdjectiveBank": [],
+		"PersonNameBank": [],
+		"HazardSpawnMultipliers": {},
+		"InitialRelations": {},
+		"Weight": 1.0,
+		"RevelationMode": "Revelation.Seeking",
+		"RevelationTemplates": ["어느 제단에도 이름이 없었다. 그들은 빈 자리에 제단을 하나 더 세웠다."],
+		"HomeSystemNames": [],
+		"HomeStarClass": "",
+		"DedicationBanks": []
+	}
+]

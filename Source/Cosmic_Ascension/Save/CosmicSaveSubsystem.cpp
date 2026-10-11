@@ -54,10 +54,19 @@ bool UCosmicSaveSubsystem::SaveCurrentGalaxy()
 bool UCosmicSaveSubsystem::LoadGalaxy(const FGuid& GalaxyID)
 {
 	const FString SlotName = MakeSlotName(GalaxyID);
-	const UCosmicSaveGame* Loaded = Cast<UCosmicSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, SaveUserIndex));
+	const UCosmicSaveGame* Loaded = UGameplayStatics::DoesSaveGameExist(SlotName, SaveUserIndex)
+		? Cast<UCosmicSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, SaveUserIndex))
+		: nullptr;
 	if (!Loaded)
 	{
 		UE_LOG(LogCosmic, Warning, TEXT("LoadGalaxy: slot %s is missing or unreadable"), *SlotName);
+		return false;
+	}
+	// A truncated file still yields an object, with the state fallen back to its defaults: GalaxyID is then zero.
+	// A copied or renamed file carries another galaxy's ID.
+	if (!Loaded->State.GalaxyID.IsValid() || Loaded->State.GalaxyID != GalaxyID)
+	{
+		UE_LOG(LogCosmic, Warning, TEXT("LoadGalaxy: slot %s is truncated or holds another galaxy"), *SlotName);
 		return false;
 	}
 	if (Loaded->State.SaveVersion > FGalaxyState::CurrentSaveVersion)
