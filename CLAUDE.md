@@ -4,7 +4,7 @@
 
 UE 5.8.3 (`C:\Program Files\Epic Games\UE_5.8`), C++ 게임 모듈 `Cosmic_Ascension`. 설계 기준 문서: `guideline.md` (섹션 번호로 참조. 결정이 바뀌면 guideline.md를 먼저 고친다)
 1인 개발. 린 시뮬레이션. 3D 에셋·캐릭터 모델 참조 금지. 데이터는 DataTable(FTableRowBase), 식별자 FName, 분류 FGameplayTag, 표시 문자열 FText.
-프로젝트 루트: `C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension` (OneDrive 안. 프로젝트를 옮기면 이 파일과 guideline.md §14.3의 경로를 함께 갱신)
+프로젝트 루트: `C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension` (OneDrive 안. 프로젝트를 옮기면 이 파일과 guideline.md §16 #8의 경로를 함께 갱신)
 `.uproject`의 EngineAssociation은 GUID `{CCB28703-480F-382D-F8F7-E6A5E7850219}`로 5.8을 가리킨다. `"5.8"` 문자열로 바꾸지 않는다: 버전 문자열은 `%ProgramData%\Epic\UnrealEngineLauncher\LauncherInstalled.dat`의 UE_5.8 항목으로 해석되는데 이 PC의 파일에 그 항목이 없다. GUID는 사용자별 레지스트리 `HKCU\Software\Epic Games\Unreal Engine\Builds`에 있으므로, 다른 PC/계정에서는 .uproject 우클릭 "Switch Unreal Engine version"으로 다시 연결해야 한다.
 
 ## 아키텍처 불변 규칙
@@ -12,7 +12,7 @@ UE 5.8.3 (`C:\Program Files\Epic Games\UE_5.8`), C++ 게임 모듈 `Cosmic_Ascen
 `Source/Cosmic_Ascension/Sim`, `Events`, `Ascension`, `Log`, `Player`, `Save` (Core Logic Layer 전체)는 UUserWidget/AActor를 include하지 않는다 (§6.1).
 모든 런타임 상태는 `FGalaxyState` 안의 USTRUCT. UObject 그래프로 상태를 만들지 않는다 (§6.2, §7.2).
 난수는 `UGalaxySimulationSubsystem::GetRng()` 의 FRandomStream만. `FMath::Rand*` 금지 (§9.2).
-틱 처리 순서: 경제 → 연구 → 외교 → 분쟁 → 위기 → AI → 플레이어 이동. 변경 시 guideline.md §7.4 먼저 수정.
+틱 처리 순서: 경제 → 연구 → 외교 → 분쟁 → 위기 → AI → 플레이어 이동 → 역할 효과 해소. 변경 시 guideline.md §7.4 먼저 수정.
 소스 파일은 ASCII. `UMETA(DisplayName)` 영문. 한글은 DataTable/String Table (§10.3).
 헤더는 모듈 루트 기준 경로로 include: `#include "Sim/GalaxySimulationSubsystem.h"`. (Build.cs가 `ModuleDirectory`를 PrivateIncludePaths에 추가해 둠. Public이 아닌 이유: 다른 모듈이 이 헤더를 쓰지 않고, UBT가 모듈 루트를 Public include로 두는 것을 허용하지 않음)
 GameplayTag는 `Config/DefaultGameplayTags.ini`에 선언하고 코드에서 `FGameplayTag::RequestGameplayTag(FName)`로 얻는다. 태그는 `Domain.Sub.Leaf` 최대 3단계 (§10.4).
@@ -21,7 +21,7 @@ CommonUI 사용 금지 (UMG만, §6.3). Build.cs에 CommonUI를 추가하지 않
 하나님(거룩한 질서)은 엔티티·화자·수치·엔딩 조건이 아니다 (§4.5). 1인칭 로그 화자는 타락 초월자만.
 Core Logic Subsystem은 플레이어·생애에 종속된 멤버 변수를 갖지 않는다. 지속 업적 진척은 FGalaxyState 안에.
 `FCivilizationState.Relations`의 키는 CivID 또는 TranscendentID.
-`DeposeRuler`·`KillPlayer`는 위기 단계에서 처리된다(§7.4 틱 순서).
+`DeposeRuler`·`KillPlayer`는 위기 단계·조우 해결에서 `PendingRoleEffect`로 기록되고 틱 경계의 '역할 효과 해소' 단계에서 처리된다(§7.4).
 
 ## 작업 방식
 
@@ -146,6 +146,6 @@ Live Coding은 .cpp 변경에만. UCLASS/USTRUCT/UENUM 추가·변경은 에디�
 ## 현재 단계
 
 Phase 0 (셋업) 종료 조건 달성 (2026-10-10): 에디터/게임 타깃 커맨드라인 빌드 성공, `Content/CA/Maps/L_Galaxy.umap` 생성(헤드리스 Python), `GameDefaultMap`/`EditorStartupMap`을 L_Galaxy로 지정, `-game -nullrhi` 스모크 실행에서 L_Galaxy 로드 + Subsystem 6개의 `LogCosmic` 초기화 로그 확인(`Saved/Logs/GameSmoke.log`, 에러 0).
-설계 문서는 guideline.md **v0.4** (2026-10-11): 옛 §17 '부름과 계승'과 §18 '통치자 시작·이중 계·세력군·기독교적 요소' 제안을 권장안대로 전부 채택해 본문에 반영했고, 두 제안 섹션은 삭제됐다. Phase 1 헤더에는 v0.4의 예약 필드(`FCallingState`/`FLifeRecord`/`ELifeState`, `GalaxyID`, `HomeSystemID`, `ThroneLockedUntilTick`, `Realm`, `StatusTags`, `Exaltation`, `MegaprojectCompletedTick`, `SealedTick`, 방송 게이트, `Role` 기본값 Ruler, `DT_Civs`)가 포함된다 (§11 Phase 1, §7.2). 옛 '사도(Apostle)' Hazard 태그는 `Hazard.Cult`로 개명됐고 v0.4 태그 39개는 `Config/DefaultGameplayTags.ini`에 반영됐다.
+설계 문서는 guideline.md **v0.4** (2026-10-11): 옛 §17 '부름과 계승'과 §18 '통치자 시작·이중 계·세력군·기독교적 요소' 제안을 권장안대로 전부 채택해 본문에 반영했고, 두 제안 섹션은 삭제됐다. Phase 1 헤더에는 v0.4의 예약 필드(`FCallingState`/`FLifeRecord`/`ELifeState`, `GalaxyID`, `HomeSystemID`, `ThroneLockedUntilTick`, `Realm`, `StatusTags`, `Exaltation`, `MegaprojectCompletedTick`, `SealedTick`, 방송 게이트, `Role` 기본값 Ruler, `DT_Civs`)가 포함된다 (§11 Phase 1, §7.2). 옛 '사도(Apostle)' Hazard 태그는 `Hazard.Cult`로 개명됐고 v0.4 태그 59개(같은 날 정합성 감사 반영분 20개 포함)는 `Config/DefaultGameplayTags.ini`에 반영됐다.
 남음: Git 초기화와 첫 커밋 (Git/Git LFS 설치 필요. `.gitignore`/`.gitattributes`는 준비됨). 그 다음은 Phase 1 (§11): `Core/CosmicTypes.h`, `Core/GalaxyState.h`부터 §14.4의 요청 예시 순서로.
 참고: §10.1의 빈 폴더(Core, Data, World, UI, Tests, Content/CA/*)는 Git에 올라가지 않는다. 첫 파일이 생길 때 자연히 생성되므로 `.gitkeep`을 넣지 않는다.

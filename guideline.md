@@ -25,9 +25,10 @@
 - 거룩한 질서 §4.5 신설(세력이 아니다. 다섯 방식·수동태·은혜 이벤트 3종·길 4종), §4.2를 '초월자(타락·천상·독립)'로 확장(Realm 태그, 교리 심화 표, 공통 규칙 3개, "경배를 받아들이는 존재는 정의상 타락한다").
 - 문명 아키타입 §5.11 신설(`DT_Civs` 11행: VS 6 + EA 5), `DT_Transcendents`·`DT_Dedications`·`DT_Rules` 추가, 이중 계 Hazard EA 후보 6종 (§4.1, §6.1, §7.3, §10.1).
 - 서사 규칙: 로그 슬롯 `{HomeSystem}` `{Dedication}` `{Epithet}`, 화자 3층("두 등급 이상 위를 이름으로 부르지 못한다"), 우주론 선언문, 신성 표현 규칙 5줄, 신정론 예산, 헌정명·모티프 §8.6 신설 (§8.2, §8.3, §8.6).
-- 옛 '사도(Apostle)' Hazard 태그를 `Hazard.Cult`(교단)로 개명, GameplayTag 39개 추가(`Config/DefaultGameplayTags.ini`), CLAUDE.md 불변 규칙 4줄 추가.
+- 옛 '사도(Apostle)' Hazard 태그를 `Hazard.Cult`(교단)로 개명, GameplayTag 59개 추가(`Config/DefaultGameplayTags.ini`. 같은 날 정합성 감사 반영분 20개 포함), CLAUDE.md 불변 규칙 4줄 추가.
 - §16 정리: #2(방랑자 사망)·#10(§17 채택)·#11(§18 채택) 확정 삭제, '관조 모드 토글'·'노화 활성 시점'·'지구 시작'·'초월자 로스터(EA)' 신설. §17·§18 삭제, 목차 갱신.
 - 같은 날 이후: 새 §17 '검토 중인 제안: 사다리 위의 두 영역, 영혼의 행방, 지구와 계시 양식' 초안 추가(미확정, §16 #13). 회귀 교리·주장 Hazard·계시 양식·지구 `arch_terran`·닫힌 책은 채택 전까지 본문 규칙이 아니다.
+- 정합성 감사 반영(같은 날): 사망·폐위 파이프라인을 `PendingRoleEffect` + 틱 경계 '역할 효과 해소' 단계로(§4.4·§5.10·§7.4), `PersonalTier`·`Powers`·`CompletedFeats`를 `FCallingState`로 이동, `FGalaxyState.Flags`·`Chronicle`, `FCivilizationState.LowStabilityTicks`, `FLifeRecord` 비문 필드, `FHazardDef` 해결 수단 배열, 계승 노브 4개, 조건 `FlagSet/FlagNotSet/CivReverenceAtLeast`, 수량 정정(칙령 8·아키타입 11·업적 VS 4·초월자 VS 1/EA 3), 칙령 식별자 `edict_*`, 태그 추가(`Trait.Arch.*` 6, 아키타입 Trait 10, `Trait.Legacy.Humbled/Enduring`, `Flag.Grace.Spent`, `Doctrine.Covenant`).
 
 
 
@@ -182,7 +183,7 @@
 
 시뮬레이션은 **고정 스텝 틱**으로 돈다. 1틱 = 1 은하 주기(Cycle). 1배속에서 1초 = 1틱.
 배속: 일시정지 / 1x / 2x / 5x / 10x. 중요 이벤트(위기 발생, 업적 기회, 조우)는 자동 일시정지 옵션.
-한 판 목표 길이 약 5시간은 1배속 기준 약 18,000틱. 등급별 페이싱은 §3.2 참조. 공백기 도약(§4.4)의 판 합계 상한 4,500틱(25%)은 이 안에 포함된다.
+한 판 목표 길이 약 5시간은 1배속 기준 약 18,000틱. 등급별 페이싱은 §2.4 참조. 공백기 도약(§4.4)의 판 합계 상한 4,500틱(25%)은 이 안에 포함된다.
 
 
 ### 2.2 통치자(Ruler) 10분 루프
@@ -354,11 +355,11 @@ T1 한 행성에서는 연구 슬라이더·칙령·프로젝트만으로 이 �
 
 
 
-**Tier 5의 두 길**: 받는 길 `Way.Received` — 청지기로서 법칙을 지키고 봉인한 뒤 통치권을 내려놓는다 → 엔딩 '맡겨진 영겁'. 찬탈의 길 `Way.Seized` — 인과율을 흡수한다 → 엔딩 '내가 올라가리라'(게임 오버가 아니다). `FAscensionFeatDef.GrantedPowers`가 두 태그를 부여하고, `Law.Humility`(§4.5)에 따라 어떤 Feat도 `Way.Seized`를 떼지 못한다. 받는 길의 T4→T5 조건에는 §5.10 통치권 위임 또는 위기 종족 구출이 포함되고, 찬탈의 길은 '인과율 흡수'다. `Exaltation`(§5.9) ≥ 7이면 두 길 모두 '스스로 높아진 자' 변형(게임 오버 아님. 낮아짐을 택하면 회복 경로), ≤ 3이면 '보좌에 함께 앉다'. 자기 높임은 타락의 원형이고 주어지는 높임이 참 상승이다. 최고 피조 지위는 '왕 노릇'이지 '신'이 아니며, '우주와 일체화'·'신이 되다'라는 표현은 쓰지 않는다. 데이터 2행 + 템플릿 6줄 + 수치 1개로 끝난다.
+**Tier 5의 두 길**: 받는 길 `Way.Received` — 청지기로서 법칙을 지키고 봉인한 뒤 통치권을 내려놓는다 → 엔딩 '맡겨진 영겁'. 찬탈의 길 `Way.Seized` — 인과율을 흡수한다 → 엔딩 '내가 올라가리라'(게임 오버가 아니다). `FAscensionFeatDef.GrantedPowers`가 두 태그를 부여하고, `Law.Humility`(§4.5)에 따라 어떤 Feat도 `Way.Seized`를 떼지 못한다. 받는 길의 T4→T5 조건에는 §5.10 통치권 위임 또는 위기 종족 구출이 포함되고, 찬탈의 길은 '인과율 흡수'다. `Exaltation`(§5.9) ≥ 7이면 두 길 모두 '스스로 높아진 자' 변형(게임 오버 아님. 낮아짐을 택하면 회복 경로). ≤ 3 변형 '보좌에 함께 앉다'는 `Way.Received`에만 적용되고 `Way.Seized`는 `Exaltation`과 무관하게 '내가 올라가리라'로 고정된다. 자기 높임은 타락의 원형이고 주어지는 높임이 참 상승이다. 최고 피조 지위는 '왕 노릇'이지 '신'이 아니며, '우주와 일체화'·'신이 되다'라는 표현은 쓰지 않는다. 데이터 2행 + 템플릿 6줄 + 수치 1개로 끝난다.
 
 
 
-**승천의 대가**: 모든 등급 상승은 무언가를 바꾼다. 예: Tier 3→4 집단 정신 승천 시 문명의 '개방' 축이 폐쇄 쪽으로 이동하고 일부 개인성 특성이 사라진다. 방랑자가 Tier 4가 되면 Tier 1~2 문명과의 조우 카드가 "경외/공포" 분기로 바뀐다(분기 조건은 `Exaltation`, §5.9). 하위가 상위를 지각하는 방식은 격차로 정해진다: 격차 1 = 설명 불가한 현상(기후 이상, 통신 잡음), 격차 2 = 경외 또는 공포, 격차 3 이상 = 인지 불가("아무도 그것을 보지 못했다"). 수련은 Body/Mind를 올리되 Tier는 올리지 못한다 — 이것이 게임의 유일한 '답'이다.
+**승천의 대가**: 모든 등급 상승은 무언가를 바꾼다. 예: Tier 3→4 집단 정신 승천 시 문명의 '개방' 축이 폐쇄 쪽으로 이동하고 일부 개인성 특성이 사라진다. 방랑자와 문명의 격차가 2이면(T3↔T1, T4↔T2) 조우 카드가 경외/공포 분기로 바뀐다(분기 조건은 `Exaltation`, §5.9). 격차 3 이상이면 조우 대신 현상 카드만 뜬다. 하위가 상위를 지각하는 방식은 격차로 정해진다: 격차 1 = 설명 불가한 현상(기후 이상, 통신 잡음), 격차 2 = 경외 또는 공포, 격차 3 이상 = 인지 불가("아무도 그것을 보지 못했다"). 수련은 Body/Mind를 올리되 Tier는 올리지 못한다 — 이것이 게임의 유일한 '답'이다.
 
 
 
@@ -379,7 +380,7 @@ T1 한 행성에서는 연구 슬라이더·칙령·프로젝트만으로 이 �
 
 
 
-업적 정의는 데이터(`DT_Feats`)이며, 조건은 §7.3의 조건 구조체로 표현한다. 위 표는 수직 슬라이스용 최소 8개이고, 콘텐츠 확장 단계에서 등급당 3~4개로 늘린다. Phase 6+에서 길(Path, §4.5)별 T3→T4 Feat 변형 1개를 추가한다. T4→T5는 길과 무관하게 공통이다. `MegaprojectComplete`·`TranscendentSealed` 조건은 완료 틱이 현재 생애의 `BornTick` 이상일 때만 참이다(업적 조건의 생애 상대화, §4.4).
+업적 정의는 데이터(`DT_Feats`)이며, 조건은 §7.3의 조건 구조체로 표현한다. 위 표는 전체 8개이고 수직 슬라이스는 T1→T3 구간의 4개다(§12.1). 콘텐츠 확장 단계에서 등급당 3~4개로 늘린다. Phase 6+에서 길(Path, §4.5)별 T3→T4 Feat 변형 1개를 추가한다. T4→T5는 길과 무관하게 공통이다. `MegaprojectComplete`·`TranscendentSealed` 조건은 완료 틱이 현재 생애의 `BornTick` 이상일 때만 참이다(업적 조건의 생애 상대화, §4.4).
 
 
 
@@ -470,7 +471,7 @@ Hazard는 **카운트다운**을 가진다. 기한 내 해결되지 않으면 �
 
 
 
-**반란(`Hazard.Rebellion`)**: `DT_Hazards` 행 `crisis_rebellion`. 대상 성계 = 통치 문명의 `HomeSystemID`(수도). 발생 조건은 확률이 아니라 결정론이다: `CivStabilityBelow 0.3`이 100틱 연속(지속 틱 조건 1종 또는 `LowStabilityTicks` 카운터) ∧ `GalaxyTickAtLeast 300`(출생 보호). 카운트다운 200틱이 곧 '불만도 게이지'다 — 보이고, 해결 수단이 있고, 만료 시 확정된다. 별도 Unrest 미터는 없다. 전조 3단: ① Stability < 0.5에서 60틱마다 Severity 0 '웅성거림'(화자는 윤리 축이 고른 파벌: 군부의 침묵 / 사제들의 금식 / 의회의 자치 발언), ② 발생 시 Severity 1 + 노드 Hazard 경고(§6.4) + 자동 일시정지 후보, ③ 잔여 50틱에 마지막 청원 '왕좌를 지키겠는가': (A) 명예로운 양위(섭정 직접 선택, Stability −0.1, Reverence 유지 — 다윗이 예루살렘을 떠난 형) / (B) 버티기(성공 시 Stability +0.15와 특성 '굳건한', 실패 시 폐위) / (C) 개혁(Society 연구 진척 + Influence 대량 소모로 즉시 해결). 해결 수단: R = 거대 프로젝트 `project_reform`(수도, 틱당 Influence) 또는 위 카드 / W = 조우 `enc_rebel_parley`(Mind 체인, 성공 시 `ResolveHazard` + `ChangeReverence +0.2` → §5.10 즉위 경로). 통치자와 방랑자가 같은 Hazard를 소비한다(§13). 만료 시 `EEffectType::DeposeRuler`(§5.10). 수직 슬라이스는 전면 폐위 1종이고, EA에서 윤리 축별 분열(칙령 슬롯 −1)·분리(성계 1개가 `TransferSystem`으로 새 AI 문명)·쿠데타(`KillPlayer` 효과를 가진 DT_Events 행, Phase 6+) 변형을 추가한다. AI 문명의 반란 만료는 AIProfile 재추첨 + '정권 교체' 로그다. 반란은 벌칙이 아니라 '셈'이다(§8.6 모티프).
+**반란(`Hazard.Rebellion`)**: `DT_Hazards` 행 `crisis_rebellion`. 대상 성계 = 통치 문명의 `HomeSystemID`(수도). 발생 조건은 확률이 아니라 결정론이다: `CivStabilityBelow 0.3`이 100틱 연속(조건 `CivStabilityBelowFor`가 `FCivilizationState.LowStabilityTicks` 카운터를 읽는다, §7.2·§7.3) ∧ `GalaxyTickAtLeast 300`(출생 보호). 카운트다운 200틱이 곧 '불만도 게이지'다 — 보이고, 해결 수단이 있고, 만료 시 확정된다. 별도 Unrest 미터는 없다. 전조 3단(이벤트 행의 Category = `Event.Crisis.Rebellion`): ① Stability < 0.5에서 60틱마다 Severity 0 '웅성거림'(화자는 윤리 축이 고른 파벌: 군부의 침묵 / 사제들의 금식 / 의회의 자치 발언), ② 발생 시 Severity 1 + 노드 Hazard 경고(§6.4) + 자동 일시정지 후보, ③ 잔여 50틱에 마지막 청원 '왕좌를 지키겠는가': (A) 명예로운 양위(섭정 직접 선택, Stability −0.1, Reverence 유지 — 다윗이 예루살렘을 떠난 형) / (B) 버티기(성공 시 Stability +0.15와 특성 '굳건한', 실패 시 폐위) / (C) 개혁(Society 연구 진척 + Influence 대량 소모로 즉시 해결). 해결 수단: R = 거대 프로젝트 `project_reform`(수도, 틱당 Influence) 또는 위 카드 / W = 조우 `enc_rebel_parley`(Mind 체인, 성공 시 `ResolveHazard` + `ChangeReverence +0.2` → §5.10 즉위 경로). 통치자와 방랑자가 같은 Hazard를 소비한다(§13). 만료 시 `EEffectType::DeposeRuler`(§5.10). 수직 슬라이스는 전면 폐위 1종이고, EA에서 윤리 축별 분열(칙령 슬롯 −1)·분리(성계 1개가 `TransferSystem`으로 새 AI 문명)·쿠데타(`KillPlayer` 효과를 가진 DT_Events 행, Phase 6+) 변형을 추가한다. AI 문명의 반란 만료는 AIProfile 재추첨 + '정권 교체' 로그다. 반란은 벌칙이 아니라 '셈'이다(§8.6 모티프).
 
 
 
@@ -495,7 +496,7 @@ Hazard는 **카운트다운**을 가진다. 기한 내 해결되지 않으면 �
 
 
 
-은하에는 플레이어 외에 2~3체의 **Tier 4 존재**가 데이터(`DT_Transcendents`, §7.3)로 정의되어 있다. 각자 교리(Doctrine)와 계(`FTranscendentState.Realm`)를 가진다: `Realm.Abyssal`(타락) / `Realm.Celestial`(천상) / `Realm.Independent`(독립). 수직 슬라이스는 타락 1체 `trans_silence`뿐이다. EA 로스터 권장(§16 미결): 타락 2체(침묵·광신) + 천상 사자 1체(`trans_covenant`, `Realm.Celestial`, `Doctrine.Covenant`: 영향권 대신 '방문'한다 — 플레이어 성계에 조우 카드로 나타나 Hazard를 대신 풀어 주되 `Relations` 조건이 필요하다. 침묵의 교단과 대칭) + 동화는 `arch_machine`(§5.11)이 T4에 도달할 때 시뮬 안에서 자라게 둔다('영혼을 부정하던 자가 영이 된다'. AI 문명 T4 도달 시 `Transcendents`에 추가, Phase 6+). Phase 6+에는 비(非)타락 독립 초월자 1~2체(`Doctrine.Stillness/Release`, Hazard를 만들지 않고 관조)와 교리 후보 `Doctrine.Trespass`(경계 침범, 유 1:6). 교리는 4체 이상 만들지 않는다(§12.2).
+은하에는 플레이어 외에 VS 1체, EA 3체(§16 #12)의 **Tier 4 존재**가 데이터(`DT_Transcendents`, §7.3)로 정의되어 있다. 각자 교리(Doctrine)와 계(`FTranscendentState.Realm`)를 가진다: `Realm.Abyssal`(타락) / `Realm.Celestial`(천상) / `Realm.Independent`(독립). 수직 슬라이스는 타락 1체 `trans_silence`뿐이다. EA 로스터 권장(§16 미결): 타락 2체(침묵·광신) + 천상 사자 1체(`trans_covenant`, `Realm.Celestial`, `Doctrine.Covenant`: 영향권 대신 '방문'한다 — 플레이어 성계에 조우 카드로 나타나 Hazard를 대신 풀어 주되 `Relations` 조건이 필요하다. 침묵의 교단과 대칭) + 동화는 `arch_machine`(§5.11)이 T4에 도달할 때 시뮬 안에서 자라게 둔다('영혼을 부정하던 자가 영이 된다'. AI 문명 T4 도달 시 `Transcendents`에 추가, Phase 6+). Phase 6+에는 비(非)타락 독립 초월자 1~2체(`Doctrine.Stillness/Release`, Hazard를 만들지 않고 관조)와 교리 후보 `Doctrine.Trespass`(경계 침범, 유 1:6). 타락 교리 정의는 침묵·동화·광신 3종이다. `Doctrine.Trespass`는 Phase 6+ 후보이며 채택하려면 셋 중 하나와 교체한다(§17 결정 2가 채택되면 '정의 4·판당 활성 ≤ 3'으로 바뀐다). 천상 `Doctrine.Covenant`와 독립 `Doctrine.Stillness/Release`는 이 상한에 세지 않는다. 초월자 엔티티 총수: VS 1체, EA 3체(타락 2 + 천상 1), Phase 6+ 최대 6체(동화 창발 1 + 독립 1~2)(§12.2).
 
 
 
@@ -529,7 +530,7 @@ Hazard는 **카운트다운**을 가진다. 기한 내 해결되지 않으면 �
 
 
 
-**영압 앞의 선택지**. 통치자 5개(청원 체인 3장, `NextEncounter`): ① 조공(Tribute: Influence+Insight 수입 15% 상납, `Relations[T]` +0.2/카드, 윤리가 교리 방향으로 이동, Hazard 제거 대신 `Trait.Faith.Tribute` '굴복한') ② 무력 저항(Resist: 격차 ≥ 2에서 승리 불가, 그러나 시간을 산다. 로그는 비웃지 않고 경외로 쓴다: "함대가 불을 뿜었다. 빛은 그것에 닿지 않았다. 그러나 그 사이 세 척의 방주가 떠났다.") ③ 간구·중보(Intercede: 칙령 `Edict.Vigil` 철야·금식 — 수입 −20%, Stability +0.1, Spiritualism +0.1, 지속 중 반란 스폰 억제; 구원 이벤트 가중치 ×3(25%→60%, 절대 100% 아님). 히스기야의 편지와 요시야의 개혁, 두 결말을 모두 허용) ④ 분별(Discern: Insight 지출 또는 방랑자 Mind 판정으로 영압의 Doctrine 태그 공개 → 맞는 대응 카드 해금) ⑤ 피난(Evacuate: `Hazard.Extinction`의 방주 경로 재사용). 방랑자: 대면(T3+만), 증언(기록 → Reverence +0.1), 정신의 닻(§3.2 기존 Feat), 피난 호위(§4.1 기존 체인), 도주(Reverence −0.1). '힘으로는 못 이긴다'가 무력감이 아니라 경외로 읽히는 조건 네 가지: 힘은 항상 무언가를 산다 / 상위 존재는 결코 숫자로 묘사되지 않는다 / 영압 자체가 업적 기회다(조공·수도 상실 없이 견디면 Epithet + 이웃 Reverence +0.2) / AI 문명도 같은 날씨를 맞는다("{OtherCiv}은 조공을 택했다"). 플레이어 성계의 영압은 `GalaxyTickAtLeast 1800` 이후에만, T1 첫 30분에는 `Log.Sign` 징조로만 온다. 종속(플레이어 수도가 초월자 영향권 안)은 파생 상태(`HomeSystemID ∈ InfluencedSystems`, 조건 `SystemInfluencedBy`)이며 별도 종속국 엔티티는 없다.
+**영압 앞의 선택지**. 통치자 5개(청원 체인 3장, `NextEncounter`): ① 조공(Tribute: Influence+Insight 수입 15% 상납, `Relations[T]` +0.2/카드, 윤리가 교리 방향으로 이동, Hazard 제거 대신 `Trait.Faith.Tribute` '굴복한') ② 무력 저항(Resist: 격차 ≥ 2에서 승리 불가, 그러나 시간을 산다. 로그는 비웃지 않고 경외로 쓴다: "함대가 불을 뿜었다. 빛은 그것에 닿지 않았다. 그러나 그 사이 세 척의 방주가 떠났다.") ③ 간구·중보(Intercede: 칙령 `edict_vigil` 철야·금식 — 수입 −20%, Stability +0.1, Spiritualism +0.1, 지속 중 반란 스폰 억제; 구원 이벤트 가중치 ×3(25%→60%, 절대 100% 아님). 히스기야의 편지와 요시야의 개혁, 두 결말을 모두 허용) ④ 분별(Discern: Insight 지출 또는 방랑자 Mind 판정으로 영압의 Doctrine 태그 공개 → 맞는 대응 카드 해금) ⑤ 피난(Evacuate: `Hazard.Extinction`의 방주 경로 재사용). 방랑자: 대면(T3+만), 증언(기록 → Reverence +0.1), 정신의 닻(§3.2 기존 Feat), 피난 호위(§4.1 기존 체인), 도주(Reverence −0.1). '힘으로는 못 이긴다'가 무력감이 아니라 경외로 읽히는 조건 네 가지: 힘은 항상 무언가를 산다 / 상위 존재는 결코 숫자로 묘사되지 않는다 / 영압 자체가 업적 기회다(조공·수도 상실 없이 견디면 Epithet + 이웃 Reverence +0.2) / AI 문명도 같은 날씨를 맞는다("{OtherCiv}은 조공을 택했다"). 플레이어 성계의 영압은 `GalaxyTickAtLeast 1800` 이후에만, T1 첫 30분에는 `Log.Sign` 징조로만 온다. 종속(플레이어 수도가 초월자 영향권 안)은 파생 상태(`HomeSystemID ∈ InfluencedSystems`, 조건 `SystemInfluencedBy`)이며 별도 종속국 엔티티는 없다.
 
 
 ### 4.3 경쟁 승천 문명과 시계
@@ -550,7 +551,7 @@ AI 문명도 같은 업적 조건(단순화된 판정)으로 승천한다. 한 A
 | 통치 중인 문명이 붕괴 (수도 상실 후 소유 성계 0) | 게임 오버가 아니다. 플레이어는 **강제로 방랑자가 된다.** 로그에 "몰락한 군주" 기록. 폐위 파이프라인(§5.10)을 그대로 쓴다. 예외 하나: 통치 문명이 `Hazard.Extinction`으로 삭제되면 종족이 사라지므로 통치자도 사망한다(아래 '그릇의 소멸' 행) |
 | 폐위 (`Hazard.Rebellion` 만료 → `EEffectType::DeposeRuler`) | 게임 오버가 아니다. 모성계에 남는 방랑자(소지품·능력치 유지), Reverence ×0.5, 왕좌 600틱 잠금(`ThroneLockedUntilTick`), Severity 2 "몰락한 군주". 수직 슬라이스는 전면 폐위 1종. EA에 쿠데타(`KillPlayer`)·윤리 축별 분열·분리 변형(§4.1). 상세 §5.10 |
 | 그릇(육신)의 소멸 — 방랑자 사망, 또는 통치 문명의 `Hazard.Extinction` 삭제 | 게임 오버가 아니다. **부름이 다른 사람 위에 머문다(계승).** 개인 Tier ≤ 2는 T1로, Tier ≥ 3은 유지(권능은 Tier에서 재부여). 능력치·자원·유물·왕좌·소속은 초기화되고 연대기와 Reverence ×0.5만 넘어간다. 공백기 도약 뒤 다른 성계의 필멸자(항상 방랑자)로 취임. 규칙은 아래 '부름과 계승' |
-| 소유 성계가 0인 은하에서 사망 (계승 후보 없음) | **침묵의 우주 엔딩**. `Doctrine.Silence`와 일치하는 4번째 엔딩. 엔딩 흐름(연대기)을 재사용 |
+| 소유 성계가 0인 은하에서 사망 | **침묵의 우주 엔딩**. `Doctrine.Silence`와 일치하는 4번째 엔딩. 엔딩 흐름(연대기)을 재사용 |
 | 문명 Tier 5 도달 (통치자) | **집단 승천 엔딩** "영겁의 문명". 받는 길(`Way.Received`) '맡겨진 영겁' / 찬탈의 길(`Way.Seized`) '내가 올라가리라'(게임 오버 아님) |
 | 개인 Tier 5 도달 (방랑자) | **단독 승천 엔딩** "질서를 맡다". `Path.Covenant` 완주 시 '부르심에 응답하다' 변형 / 찬탈의 길 '내가 올라가리라' |
 | AI 문명이 먼저 Tier 5 | **다른 질서 엔딩**. 공백기 도약 중에 일어나면 도약을 즉시 중단하고 "부름이 지켜본 결말"로 출력 |
@@ -558,7 +559,7 @@ AI 문명도 같은 업적 조건(단순화된 판정)으로 승천한다. 한 A
 
 
 
-T5 엔딩은 `Exaltation`(§5.9)으로 한 번 더 갈린다: ≥ 7이면 두 길 모두 '스스로 높아진 자' 변형(게임 오버 아님. '낮아짐'을 택하면 회복 경로), ≤ 3이면 '보좌에 함께 앉다'. 엔딩 명칭에 '우주와 일체화'·'신이 되다'를 쓰지 않는다(§3.2).
+T5 엔딩은 `Exaltation`(§5.9)으로 한 번 더 갈린다: ≥ 7이면 두 길 모두 '스스로 높아진 자' 변형(게임 오버 아님. '낮아짐'을 택하면 회복 경로). ≤ 3 변형 '보좌에 함께 앉다'는 `Way.Received`에만 적용되고 `Way.Seized`는 `Exaltation`과 무관하게 '내가 올라가리라'로 고정된다. 엔딩 명칭에 '우주와 일체화'·'신이 되다'를 쓰지 않는다(§3.2).
 
 
 
@@ -579,19 +580,19 @@ T5 엔딩은 `Exaltation`(§5.9)으로 한 번 더 갈린다: ≥ 7이면 두 �
 
 
 
-**사망**: `EEffectType::KillPlayer` 효과로만 발생한다(사인 태그 `Death.*` + SourceRow). 발생 지점은 데이터 3곳: `FHazardDef.OnExpireEffects`(플레이어가 그 성계에 있을 때만 적용), `FEncounterChoice.OnFailure`, 노화 ON 시 수명 소진(`Death.Age`). 부상과 영구 삭감은 기존 `PlayerStatDelta` 음수로 표현하고 별도 부상 시스템은 만들지 않는다. 생애 첫 300틱은 치명 효과를 무시한다(출생 보호. `event_grace_rescue`(§4.5)의 1회 무효도 같은 로직). 수직 슬라이스에서는 방랑자만 죽는다. 통치자의 실패는 폐위·붕괴(§5.10)이고, 통치자 사망은 통치 문명이 `Hazard.Extinction`으로 삭제되는 예외 하나뿐이다. 암살·쿠데타는 `KillPlayer` 효과를 가진 DT_Events 행으로 Phase 6+에 데이터만으로 추가할 수 있게 열어 둔다. 통치자 사망의 별도 메커니즘은 만들지 않는다.
+**사망**: `EEffectType::KillPlayer` 효과로만 발생한다(사인 태그 `Death.*` + SourceRow). 발생 지점은 데이터 3곳: `FHazardDef.OnExpireEffects`(플레이어가 그 성계에 있을 때만 적용), `FEncounterChoice.OnFailure`, 노화 ON 시 수명 소진(`Death.Age`). 세 지점 모두 효과를 즉시 실행하지 않고 `FCallingState.PendingRoleEffect`에 기록만 하며, 파이프라인은 틱 경계의 '역할 효과 해소' 단계에서 시작한다(§7.4). 부상과 영구 삭감은 기존 `PlayerStatDelta` 음수로 표현하고 별도 부상 시스템은 만들지 않는다. 생애 첫 300틱은 치명 효과를 무시한다(출생 보호. `event_grace_rescue`(§4.5)의 1회 무효도 같은 로직). 수직 슬라이스에서는 방랑자만 죽는다. 통치자의 실패는 폐위·붕괴(§5.10)이고, 통치자 사망은 통치 문명이 `Hazard.Extinction`으로 삭제되는 예외 하나뿐이다. 암살·쿠데타는 `KillPlayer` 효과를 가진 DT_Events 행으로 Phase 6+에 데이터만으로 추가할 수 있게 열어 둔다. 통치자 사망의 별도 메커니즘은 만들지 않는다.
 
 
 
-**사망 파이프라인 (고정 순서, §7.4 틱 순서처럼 결정론 대상)**: KillPlayer 적용(위기 단계 끝, §7.4) → `FLifeRecord` 기록 + Severity 2 로그 → 통치자였다면 `BecomeWanderer`(Rng가 문명 윤리에 가중해 뽑은 섭정, 안정도 −0.25, 재위 종료 사유 `Reign.Died`) → `LifeState = Interregnum`, `LeapTicks = Rng.RandRange(Min, Max)` → 자동 저장 → 도약 → 공백기 다이제스트 생성 → 계승 추첨 → 그릇 초기화 → `LifeState = Embodied` → 자동 저장. 난수는 전부 `GetRng()`.
+**사망 파이프라인 (고정 순서, §7.4 틱 순서처럼 결정론 대상)**: KillPlayer 기록(위기 단계 또는 조우 해결, `FCallingState.PendingRoleEffect`) → 틱 경계의 '역할 효과 해소' 단계에서 파이프라인 시작(§7.4) → `FLifeRecord` 기록 + Severity 2 로그 → 통치자였고 문명이 존속하면(노화·쿠데타, Phase 6+) `BecomeWanderer(RegentProfile = Rng가 문명 윤리에 가중해 뽑은 섭정, ReignEndReason = Reign.Died)`, 안정도 −0.25; 통치 문명이 `Hazard.Extinction`으로 삭제된 경우(VS의 유일한 통치자 사망)는 섭정 단계를 건너뛰고 `RuledCivID`를 비우며 재위 종료 사유 `Reign.Died`만 기록 → 전 문명 `ReverenceToPlayer` ×= `ReverenceDecay`(0.5) (계승 추첨 전에 적용) → `LifeState = Interregnum`, `LeapTicks = Rng.RandRange(Min, Max)`(상한 clamp는 아래 '공백기 도약') → 자동 저장 → 도약 → 공백기 다이제스트 생성 → 계승 추첨 → 그릇 초기화 → `LifeState = Embodied` → 자동 저장. 난수는 전부 `GetRng()`.
 
 
 
-**공백기 도약(시간선 도약)**: `UGalaxySimulationSubsystem::RunHeadless(LeapTicks)` 그대로다. 초월자 FSM이나 별도 갱신 경로는 없다. 흥망성쇠·봉인·영향권 변화는 기존 틱이 만든다. 도약 중에는 전역 방송 게이트(`IsBroadcastEnabled()`)를 끄고(모든 Core Logic Subsystem의 Broadcast가 이 게이트를 본다), 로그는 `ELogMode::Interlude`(Severity 0 폐기, 1은 부름이 접촉한 문명·성계만, 2는 보존). 플레이어는 분리 상태라 `TickPlayerTravel`·플레이어 업적 평가·조우 생성을 건너뛴다. 매 틱 엔딩 조건을 검사해 AI가 T5에 도달하면 즉시 중단하고 "부름이 지켜본 결말"로 §4.3 엔딩을 출력한다. `LeapTicksMin/Max`는 데이터(초기값 800~1,600틱 ≈ Hazard 수명 2~4회, 1배속 13~27분). 판 합계 상한 `LeapTotalCap`(초기 4,500틱 = 18,000의 25%). §9.4 예산이면 1,600틱은 약 1.6초라 오버레이 뒤에서 동기 실행한다. 도약 중 수동 개입은 없다.
+**공백기 도약(시간선 도약)**: `UGalaxySimulationSubsystem::RunHeadless(LeapTicks)` 그대로다. 초월자 FSM이나 별도 갱신 경로는 없다. 흥망성쇠·봉인·영향권 변화는 기존 틱이 만든다. 도약 중에는 전역 방송 게이트(`IsBroadcastEnabled()`)를 끄고(모든 Core Logic Subsystem의 Broadcast가 이 게이트를 본다), 로그는 `ELogMode::Interlude`(Severity 0 폐기, 1은 부름이 접촉한 문명·성계만, 2는 보존). 플레이어는 분리 상태라 `TickPlayerTravel`·플레이어 업적 평가·조우 생성을 건너뛴다. 매 틱 엔딩 조건을 검사해 AI가 T5에 도달하면 즉시 중단하고 "부름이 지켜본 결말"로 §4.3 엔딩을 출력한다. `LeapTicksMin/Max`는 데이터(초기값 800~1,600틱 ≈ Hazard 수명 2~4회, 1배속 13~27분). 판 합계 상한 `LeapTotalCap`(초기 4,500틱 = 18,000의 25%). 도약 폭 = clamp(`Rng.RandRange(LeapTicksMin, LeapTicksMax)`, 0, `LeapTotalCap` − `Calling.LeapTicksTotal`). 0이면 도약 없이 즉시 계승하고 다이제스트는 한 줄('세계는 기다리지 않았다')만 낸다. 난수는 clamp 전에 1회 소비해 결정론을 유지한다. §9.4 예산이면 1,600틱은 약 1.6초라 오버레이 뒤에서 동기 실행한다. 도약 중 수동 개입은 없다.
 
 
 
-**계승(취임)**: 후보 = `OwnerCivID != NAME_None`인 성계. 제외: 타락 초월자 영향권, Hazard 카운트다운 300틱 미만. 가중치 = 1 + 2×(2레인 안 활성 Hazard) + 1×(소유 문명 Tier ≥ 2) + 2×(소유 문명 Reverence > 0.3) − 1×(직전 생애와 같은 문명). "부름은 위기 있는 곳에 임한다." 소유 성계가 0이면 계승 대신 **"침묵의 우주" 엔딩**. 그릇 초기치 = 1 + Σ(소유 문명 Traits의 `DT_Traits` 컬럼 `BodyMod/MindMod/CausalityMod`)를 0~3으로 클램프(§5.9). 이것이 '종족 고유의 신체적 한계'다. 행성·종족 엔티티·DataAsset은 만들지 않는다. 계승 취임은 항상 `Wanderer`. 통치자 취임은 §5.10 조건(경외도 ≥ 0.6 또는 안정도 < 0.2, 왕좌 잠금 해제)으로만. 첫 생애만 통치자로 고정이며(§5.10), 첫 생애도 계승도 같은 `Install(SystemID, CivID, Role)`을 쓴다. 취임 서술은 `{CivAdj} {Civ} {System}` 5변형. 초월자는 부름을 알아본다(`bAwareOfPlayer` 유지: "같은 부름의 냄새가 난다").
+**계승(취임)**: 후보 = `OwnerCivID != NAME_None`인 성계. 제외: 타락 초월자 영향권, Hazard 카운트다운 300틱 미만(`SuccessionMinHazardTicks`). 필터 적용 후 후보가 0이면 Hazard 필터 → 영향권 필터 순으로 완화해 다시 뽑는다. 가중치 = 1 + 2×(2레인 안 활성 Hazard)(`SuccessionHazardWeight`) + 1×(소유 문명 Tier ≥ 2)(`SuccessionCivTierWeight`) + 2×(소유 문명 Reverence > 0.3)(`SuccessionReverenceWeight`, `SuccessionReverenceThreshold`) − 1×(직전 생애와 같은 문명)(`SuccessionSameCivPenalty`). "부름은 위기 있는 곳에 임한다." 소유 성계 자체가 0일 때만 계승 대신 **"침묵의 우주" 엔딩**. 그릇 초기치 = 1 + Σ(소유 문명 Traits의 `DT_Traits` 컬럼 `BodyMod/MindMod/CausalityMod`)를 0~3으로 클램프(§5.9). 이것이 '종족 고유의 신체적 한계'다. 행성·종족 엔티티·DataAsset은 만들지 않는다. 계승 취임은 항상 `Wanderer`. 통치자 취임은 §5.10 조건(경외도 ≥ 0.6 또는 안정도 < 0.2, 왕좌 잠금 해제)으로만. 첫 생애만 통치자로 고정이며(§5.10), 첫 생애도 계승도 같은 `Install(SystemID, CivID, Role)`을 쓴다. 취임 서술은 `{CivAdj} {Civ} {System}` 5변형. 초월자는 부름을 알아본다(`bAwareOfPlayer` 유지: "같은 부름의 냄새가 난다").
 
 
 
@@ -613,7 +614,7 @@ T5 엔딩은 `Exaltation`(§5.9)으로 한 번 더 갈린다: ≥ 7이면 두 �
 
 
 
-**한 판의 재정의**: 판 = 은하 시드 1개 = 부름 1회 = 4~6시간(변경 없음). 생애(Life, 代)는 판 안의 장. 기대 2~5대. §2.4의 호는 '부름의 호'로 읽는다. "성장은 극도로 더디며"는 채택하지 않는다 — 마찰은 성장 속도가 아니라 **사망 가능성과 세계 비용**에서 온다. "극소수의 영역"은 AI 문명 대비 희소성(대부분의 문명은 승천하지 못한다)으로 해석하고 §2.4 페이싱 목표는 유지한다. "수많은 초월자"는 톤으로만: 엔티티는 §4.2대로 2~3체(VS 1체), 과거 초월자는 로그 템플릿의 고유명사로.
+**한 판의 재정의**: 판 = 은하 시드 1개 = 부름 1회 = 4~6시간(변경 없음). 생애(Life, 代)는 판 안의 장. 기대 2~5대. §2.4의 호는 '부름의 호'로 읽는다. "성장은 극도로 더디며"는 채택하지 않는다 — 마찰은 성장 속도가 아니라 **사망 가능성과 세계 비용**에서 온다. "극소수의 영역"은 AI 문명 대비 희소성(대부분의 문명은 승천하지 못한다)으로 해석하고 §2.4 페이싱 목표는 유지한다. "수많은 초월자"는 톤으로만: 엔티티는 §4.2대로 VS 1체, EA 3체, 과거 초월자는 로그 템플릿의 고유명사로.
 
 
 
@@ -641,9 +642,9 @@ T5 엔딩은 `Exaltation`(§5.9)으로 한 번 더 갈린다: ≥ 7이면 두 �
 
 ① **다시 쓸 수 없는 법** — `DT_Rules.ImmutableLaws`(FGameplayTagContainer): `Law.Judgment`(모든 연대기는 끝에 읽힌다, 계 20:12), `Law.Sabbath`(어떤 생산 승수도 안식·희년·은혜 이벤트를 무효화하지 못한다), `Law.Humility`(어떤 Feat도 `Way.Seized` 태그를 떼지 못한다). T5 '은하 법칙 제정'은 이 목록 밖의 것만 가능하다. 건드리려 하면 로그 한 줄: "법은 너의 것이 아니었다."(욥 38:4)
 
-② **방문** — `Hazard.Visitation`(§4.1. 120틱, 발생: 위기 해결 직후 Reverence ≥ 0.6 문명의 성계). 미해결 결과는 벌이 아니라 '지나감', Severity 1 "때가 지나갔다". R = 칙령 '안식'(프로젝트 1틱 정지 비용) / W = 조우 '신을 벗으라'(판정 없이 선택만: 응답/거절/질문). 보상은 자원이 아니라 `Trait.Faith.Visited`(Phase 4에 태그 추가) 또는 Reverence다. **올바른 선택이 손해처럼 보여야 한다**(창 22:12). '미해결 = 나쁜 결과'를 '놓친 기회'로 넓히는 유일한 예외.
+② **방문** — `Hazard.Visitation`(§4.1. 120틱, 발생: 위기 해결 직후 Reverence ≥ 0.6 문명의 성계. SpawnConditions: `CivReverenceAtLeast` 0.6). 미해결 결과는 벌이 아니라 '지나감', Severity 1 "때가 지나갔다". R = 칙령 '안식'(프로젝트 1틱 정지 비용) / W = 조우 '신을 벗으라'(판정 없이 선택만: 응답/거절/질문). 보상은 자원이 아니라 `Trait.Faith.Visited`(Phase 4에 태그 추가) 또는 Reverence다. **올바른 선택이 손해처럼 보여야 한다**(창 22:12). '미해결 = 나쁜 결과'를 '놓친 기회'로 넓히는 유일한 예외.
 
-③ **사자 조우** — `enc_messenger_*` 3~5장. 선택지는 항상 '듣는다/듣지 않는다'(샤마), 판정 None, 비용 0. 효과는 미래 조건 플래그 `SetFlag`와 로그 — 예언은 나중 이벤트의 조건이 된다(단 2 패턴). 사자는 이름이 없고(창 32:29) 숭배를 거절한다(계 19:10). 간접 화법("…라고 전했다")만. '거절한 사자의 말'은 연대기의 Severity 1 플레이어 항목에 반드시 포함된다(§8.4).
+③ **사자 조우** — `enc_messenger_*` 3~5장. 선택지는 항상 '듣는다/듣지 않는다'(샤마), 판정 None, 비용 0. 효과는 미래 조건 플래그 `SetFlag`와 로그 — 예언은 나중 이벤트의 조건이 된다(단 2 패턴. 예언 플래그 `Flag.Prophecy.*`는 Phase 4 사자 카드 작성 시 ini에 추가). 사자는 이름이 없고(창 32:29) 숭배를 거절한다(계 19:10). 간접 화법("…라고 전했다")만. '거절한 사자의 말'은 연대기의 Severity 1 플레이어 항목에 반드시 포함된다(§8.4).
 
 ④ **남은 자 특성** — `Trait.Faith.Remnant`(사 10:21, 왕상 19:18 칠천 명) · `Trait.Faith.Steward` · `Trait.Faith.Sabbath` · `Trait.Faith.Covenant`(방주 구조 후, 동일 Hazard 재발 면역 '다시는') · `Trait.Faith.Exile`(피정복 후 정체성 유지, 동화 플립 면역) · `Trait.Faith.Seeking`(행 17:23 '알지 못하는 신의 제단', 어느 문명에도) · `Trait.Faith.Tribute`(굴복한, §4.2). 효과는 Cult 저항·붕괴 회복 가중치 ↑ 와 **생산 승수 음수·조약 제한**이 동반된다 — 비용 없는 신앙 버프는 '신앙 = 최적 전략'이라는 거짓 메시지다(단 3·6장, 히 11:35-38). 어떤 종족·외형과도 결합하지 않고 어느 문명에도 뜰 수 있어야 한다(단 7:14, 계 7:9). 신앙 특성 문명의 로그는 같은 수치 변동을 '시험·환난·유혹·분별'로 쓴다("시험이 임했다. 남은 자들이 분별을 구한다.").
 
@@ -651,11 +652,11 @@ T5 엔딩은 `Exaltation`(§5.9)으로 한 번 더 갈린다: ≥ 7이면 두 �
 
 
 
-**은혜 이벤트 3종** (`DT_Events`, Severity 2, 쿨다운 없음, 판당 1회 `SetFlag Grace.Spent`): `event_grace_rescue`(방랑자 그릇 소멸 직전 "너는 아직 할 일이 있다" — 왕상 19:5-8; `KillPlayer` 1회 무효 = 출생 보호 로직 재사용) / `event_grace_remnant`(붕괴 문명에 1성계 존속 + `Trait.Faith.Remnant` — 사 1:9) / `event_grace_jubilee`(전 문명 음수 Relations 0, 조약 비용 0 — 레 25:10). 네 조건: 플레이어 행동이 조건이 아니다(실패 상태만 본다) / 판당 1회 / Tier·자원·능력치가 아닌 상태 회복과 기록만 / 거절 가능하고 거절도 기록된다. AI 문명에게도 동일하게 일어난다. 로그는 무주어 수동태("건져졌다." "남겨졌다."). 거절한 플레이어는 `Way.Seized` 경향으로 분류된다. `Law.Sabbath`가 이 이벤트의 무효화를 막는다. 은혜는 조건으로 유도할 수 없으므로 §3.2 '업적만'과 충돌하지 않는다(엡 2:8-9). **믿음은 결말을 사지 않는다**: 충실한 대응은 백성(안정도·형용사)을 확정적으로 바꾸고 결말은 확률로만 바꾼다. 기도·금식 칙령은 '가중치 상승, 결과 불확정'이다. 신정론 예산은 §8.3.
+**은혜 이벤트 3종** (`DT_Events`, Category = `Event.Grace.*`, Severity 2, 쿨다운 없음, 판당 1회(`SetFlag Flag.Grace.Spent` + 조건 `FlagNotSet Flag.Grace.Spent`)): `event_grace_rescue`(방랑자 그릇 소멸 직전 "너는 아직 할 일이 있다" — 왕상 19:5-8; `KillPlayer` 1회 무효 = 출생 보호 로직 재사용) / `event_grace_remnant`(붕괴 문명에 1성계 존속 + `Trait.Faith.Remnant` — 사 1:9) / `event_grace_jubilee`(전 문명 음수 Relations 0, 조약 비용 0 — 레 25:10). 네 조건: 플레이어 행동이 조건이 아니다(실패 상태만 본다) / 판당 1회 / Tier·자원·능력치가 아닌 상태 회복과 기록만 / 거절 가능하고 거절도 기록된다. AI 문명에게도 동일하게 일어난다. 로그는 무주어 수동태("건져졌다." "남겨졌다."). 거절한 플레이어는 `Way.Seized` 경향으로 분류된다. `Law.Sabbath`가 이 이벤트의 무효화를 막는다. 은혜는 조건으로 유도할 수 없으므로 §3.2 '업적만'과 충돌하지 않는다(엡 2:8-9). **믿음은 결말을 사지 않는다**: 충실한 대응은 백성(안정도·형용사)을 확정적으로 바꾸고 결말은 확률로만 바꾼다. 기도·금식 칙령은 '가중치 상승, 결과 불확정'이다. 신정론 예산은 §8.3.
 
 
 
-**길(Path) — 다른 전통의 대칭**. 선계·불계·사이오닉·언약은 각자의 주장을 가진 '길'이며 게임은 어느 길이 참인지 숫자로 판정하지 않는다. 길은 세력도 초월자도 아닌 **데이터**(조우 덱 + `Power.Path.*` 태그 + 형용사 뱅크)이고 전용 엔딩이 없다. `Path.Stillness`(선계, 무위: "우리는 부름받지 않았다, 올랐다" — 아무것도 하지 않음이 정답인 카드, 수련 Insight→Mind ×2, Cult 저항) · `Path.Release`(불계, 해탈: "놓으면 멈춘다" — 유물 슬롯을 비우는 것이 조건인 카드. 부름 루프(§4.4)에 대한 자기 해석 조우가 있으며 윤회 주장은 텍스트로만, 엔딩 없음) · `Path.Axiom`(사이오닉: "측정되는 것은 다스려진다" — Transcendence 가속, SubspaceErosion 위험 상승 = 교만의 대가) · `Path.Covenant`(언약: "부름이 먼저였다" — 손해를 감수하는 순종이 정답인 카드. 3 여정 체인: 공급(여호와 이레 → 어린양: 비용을 낼 수 없을 때만 열리는 체인), 목자(목자 고백 → 선한 목자: Stability < 0.2 문명의 '잃은 양'을 되찾는 체인 → §5.10 즉위 조건), 평강(여호와 샬롬 → 평강: 분쟁 중 두 문명의 Pacifism을 끌어올리는 체인)). 각 길 조우 3~5장 + 첫 만남 '주장 1줄'. 수직 슬라이스는 1길 5장. 세 선택지(무위/놓음/순종)는 겉보기에 비슷하지만 서사가 다르다 — 그 차이를 두 문장 로그로만 보여 준다. 길별 조우 제목은 자기 어휘로만(도·법·정리·언약), 섞지 않는다. 실존 종교 고유명사(석가·아미타불·태상노군·옥황상제)와 기독교 천사 이름(미가엘·가브리엘)을 유닛 이름으로 쓰지 않는다. "세 길은 결국 같다"는 문장(혼합주의)도 쓰지 않는다. 진지한 구도자로 존중하되(행 17:22-31 패턴) 희화화와 혼합주의를 둘 다 피한다. 수련은 Body/Mind를 올리되 Tier는 올리지 못한다(§3.2·§5.9)는 기존 규칙이 게임의 유일한 '답'이다. Phase 6+에 비타락 독립 초월자(`Doctrine.Stillness/Release`, §4.2)와 길별 T3→T4 Feat 변형 1개(§3.2).
+**길(Path) — 다른 전통의 대칭**. 선계·불계·사이오닉·언약은 각자의 주장을 가진 '길'이며 게임은 어느 길이 참인지 숫자로 판정하지 않는다. 길은 세력도 초월자도 아닌 **데이터**(조우 덱 + `Power.Path.*` 태그 + 형용사 뱅크)이고 전용 엔딩이 없다. `Path.Stillness`(선계, 무위: "우리는 부름받지 않았다, 올랐다" — 아무것도 하지 않음이 정답인 카드, 수련 Insight→Mind ×2, Cult 저항) · `Path.Release`(불계, 해탈: "놓으면 멈춘다" — 유물 슬롯을 비우는 것이 조건인 카드. 부름 루프(§4.4)에 대한 자기 해석 조우가 있으며 윤회 주장은 텍스트로만, 엔딩 없음) · `Path.Axiom`(사이오닉: "측정되는 것은 다스려진다" — Transcendence 가속, SubspaceErosion 위험 상승 = 교만의 대가) · `Path.Covenant`(언약: "부름이 먼저였다" — 손해를 감수하는 순종이 정답인 카드. 3 여정 체인: 공급(여호와 이레 → 어린양: 비용을 낼 수 없을 때만 열리는 체인), 목자(목자 고백 → 선한 목자: Stability < 0.2 문명의 '잃은 양'을 되찾는 체인 → §5.10 즉위 조건), 평강(여호와 샬롬 → 평강: 분쟁 중 두 문명의 Pacifism을 끌어올리는 체인)). 각 길 조우 3~5장 + 첫 만남 '주장 1줄'. 수직 슬라이스는 `Path.Covenant` 5장(첫 만남 주장 1 + 공급 체인 2 + 목자 체인 2; 평강 체인과 나머지 3길은 Phase 6+). `Power.Path.Covenant` 태그는 Phase 4 조우 작성 시 ini에 추가. 세 선택지(무위/놓음/순종)는 겉보기에 비슷하지만 서사가 다르다 — 그 차이를 두 문장 로그로만 보여 준다. 길별 조우 제목은 자기 어휘로만(도·법·정리·언약), 섞지 않는다. 실존 종교 고유명사(석가·아미타불·태상노군·옥황상제)와 기독교 천사 이름(미가엘·가브리엘)을 유닛 이름으로 쓰지 않는다. "세 길은 결국 같다"는 문장(혼합주의)도 쓰지 않는다. 진지한 구도자로 존중하되(행 17:22-31 패턴) 희화화와 혼합주의를 둘 다 피한다. 수련은 Body/Mind를 올리되 Tier는 올리지 못한다(§3.2·§5.9)는 기존 규칙이 게임의 유일한 '답'이다. Phase 6+에 비타락 독립 초월자(`Doctrine.Stillness/Release`, §4.2)와 길별 T3→T4 Feat 변형 1개(§3.2).
 
 
 
@@ -768,8 +769,8 @@ T5 엔딩은 `Exaltation`(§5.9)으로 한 번 더 갈린다: ≥ 7이면 두 �
 
 
 제국 전체 또는 (T5) 은하 전체에 걸리는 수정자. 슬롯 수는 Society 연구로 증가.
-수직 슬라이스 7종: 기계 권리, 전시 동원, 사상 개방, 격리령, 무역 자유화, 침묵의 금지(타락 초월자 영향 저항. 서술은 '전신갑주' 풍미, 엡 6:13), 철야·금식 `Edict.Vigil`(수입 −20%, Stability +0.1, Spiritualism +0.1, 지속 중 반란 스폰 억제, 구원 이벤트 가중치 ×3 — 결과는 불확정. §4.2 영압 ③).
-EA 후보(전부 기존 효과): 희년(점령 성계 원소유자 반환 `TransferSystem` + 조약 부채 리셋 + 전 문명 Reverence ↑, 비용 Energy/Influence 대량, 긴 쿨다운), 안식(`MultiplyIncome` 6/7 + Stability ↑ + 역병 전파 −. `Hazard.Visitation`의 통치자 해결 수단이므로 Phase 4에 최소형이 먼저 들어온다), 도피성(망명 통치자·난민 수용), 이삭 줍기(약소 문명에 자원 일부 자동 양도). '만나' 패턴: 자원 보충은 '저장 불가' `DurationTicks`로 = 파밍 방지. 칙령·수치 이름에 성령·은혜·기름부음·성결을 쓰지 않는다(§8.3). 기도·금식 칙령은 '가중치 상승, 결과 불확정'이다(§4.5).
+수직 슬라이스 7종(기계 권리, 전시 동원, 사상 개방, 격리령, 무역 자유화, 침묵의 금지(타락 초월자 영향 저항. 서술은 '전신갑주' 풍미, 엡 6:13), 철야·금식 `edict_vigil`(수입 −20%, Stability +0.1, Spiritualism +0.1, 지속 중 반란 스폰 억제, 구원 이벤트 가중치 ×3 — 결과는 불확정. §4.2 영압 ③)) + 안식 최소형 1(Phase 4, `Hazard.Visitation` 통치자 해결 수단 전용, `MultiplyIncome` 6/7만) = 8종.
+EA 후보(전부 기존 효과): 희년(점령 성계 원소유자 반환 `TransferSystem` + 조약 부채 리셋 + 전 문명 Reverence ↑, 비용 Energy/Influence 대량, 긴 쿨다운), 도피성(망명 통치자·난민 수용), 이삭 줍기(약소 문명에 자원 일부 자동 양도). 안식 확장형(Stability ↑, 역병 전파 −)은 EA. '만나' 패턴: 자원 보충은 '저장 불가' `DurationTicks`로 = 파밍 방지. 칙령·수치 이름에 성령·은혜·기름부음·성결을 쓰지 않는다(§8.3). 기도·금식 칙령은 '가중치 상승, 결과 불확정'이다(§4.5).
 T5 통치자 업적 "은하 법칙 3개 유지"는 칙령 범위가 은하로 확장된 상태를 가리킨다. 다시 쓸 수 없는 법(`ImmutableLaws`, §4.5)은 제정 대상이 아니다.
 
 
@@ -794,7 +795,7 @@ T5 통치자 업적 "은하 법칙 3개 유지"는 칙령 범위가 은하로 �
 제목, 서술, 선택지 2~3개. 각 선택지는 `능력치 판정(기준치)` + `자원 비용` + `결과 효과 + 로그`.
 판정: `능력치 + 0~5 난수 ≥ 기준치`. 결정론적 RNG 사용 (§9.2). 불가능한 선택지는 `Difficulty ≥ 16`으로 표현한다.
 조우도 `DT_Encounters` 데이터다. 조건(현재 성계 Hazard, 소유 문명 윤리, 개인 Tier, `StatusTags`, 영압 `SystemPressureAtLeast`, 생애 `PlayerLifeIndexAtLeast`)으로 필터링 후 가중치 추첨.
-수직 슬라이스 25장(몰락한 군주 전용 3~5장, 길 1종 5장, 사자 카드 3장을 안에 배정) + 통치자 청원 카드 8장(§5.10) = 33장. 확장 시 100장+. 같은 `FEncounterDef`를 두 모드가 소비한다.
+수직 슬라이스 25장(몰락한 군주 전용 3~5장, 길 1종(`Path.Covenant`) 5장, 사자 카드 3장을 안에 배정) + 통치자 청원 카드 8장(§5.10) = 33장. 확장 시 100장+. 같은 `FEncounterDef`를 두 모드가 소비한다.
 사망은 `FEncounterChoice.OnFailure`의 `KillPlayer` 효과로만 일어난다(§4.4). 치명 선택지는 서술에서 읽혀야 한다.
 
 
@@ -802,7 +803,7 @@ T5 통치자 업적 "은하 법칙 3개 유지"는 칙령 범위가 은하로 �
 
 
 
-**경외도 (Reverence)**: 각 문명이 플레이어에게 갖는 0~1 값. 그 문명의 위기를 해결하면 상승. 통치자 전환 조건. 사망·폐위 시 ×0.5(`DT_Rules.ReverenceDecay`) — 세계가 이름을 기억하는 유일한 수치다. 최대 1.0이 0.5가 되므로 즉시 재즉위(≥ 0.6)는 불가능하고 전설의 머리 하나만 남는다. 능력치가 아니라 세계 상태이므로 '승계 없음'과 충돌하지 않는다. **Reverence는 예배가 아니다.** 존경·경외이며 '섬긴 자가 다스림을 받는다'(즉위 조건 ≥ 0.6)의 구현이다. 경배를 받아들이는 것은 Reverence가 아니라 `Exaltation`으로 간다(§4.2 "경배를 받아들이는 존재는 정의상 타락한다"). 루스드라 카드(§8.6): T3+ 방랑자가 T1~2 문명을 만나면 '그들이 당신을 신이라 부른다' — 거부(Reverence는 '존경'으로 유지) / 수용(Exaltation +, 즉시 보상, 광신 경로) / 침묵. **수호신 특성 수락의 대가**: 즉위 시 개인 Tier > 문명 Tier이면 문명에 '수호신' 특성이 붙는데, 그 대가로 Openness −0.2와 광신 초월자의 `bAwareOfPlayer`가 켜진다(§5.10).
+**경외도 (Reverence)**: 각 문명이 플레이어에게 갖는 0~1 값. 그 문명의 위기를 해결하면 상승. 통치자 전환 조건. 사망·폐위 시 ×0.5(`DT_Rules.ReverenceDecay`) — 세계가 이름을 기억하는 유일한 수치다. 최대 1.0이 0.5가 되므로 즉시 재즉위(≥ 0.6)는 불가능하고 전설의 머리 하나만 남는다. 능력치가 아니라 세계 상태이므로 '승계 없음'과 충돌하지 않는다. **Reverence는 예배가 아니다.** 존경·경외이며 '섬긴 자가 다스림을 받는다'(즉위 조건 ≥ 0.6)의 구현이다. 경배를 받아들이는 것은 Reverence가 아니라 `Exaltation`으로 간다(§4.2 "경배를 받아들이는 존재는 정의상 타락한다"). 루스드라 카드(§8.6): 방랑자가 격차 2인 문명을 만나면 '그들이 당신을 신이라 부른다' — 거부(Reverence는 '존경'으로 유지) / 수용(Exaltation +, 즉시 보상, 광신 경로) / 침묵. **수호신 특성 수락의 대가**: 즉위 시 개인 Tier > 문명 Tier이면 문명에 '수호신' 특성이 붙는데, 그 대가로 Openness −0.2와 (`Doctrine.Zeal` 초월자가 존재하면) 그 초월자의 `bAwareOfPlayer = true`. VS에서는 Openness −0.2만(§5.10).
 
 
 
@@ -825,14 +826,14 @@ T5 통치자 업적 "은하 법칙 3개 유지"는 칙령 범위가 은하로 �
 | 전환 | 조건 | 즉시 효과 | 지속 효과 |
 |---|---|---|---|
 | 통치자 → 방랑자 (자진 이탈) | 언제나 가능 | 섭정 프로필 선택(보수/확장/학구/군사). 문명 안정도 -0.1. Severity 2 '왕좌를 비우다'. `Status.Abdicated`, 재위 종료 사유 `Reign.Abdicated` | 문명은 AI로 운영. 윤리가 섭정 성향으로 서서히 이동(섭정 표류). 통치자 전용 Feat(다이슨 스웜·초신성 안정화)은 떠나면 못 하고 섭정이 대신 하지 않는다 |
-| 방랑자 → 통치자 (즉위) | 대상 문명의 경외도 ≥ 0.6, 또는 안정도 < 0.2(지도자 공백). 그리고 `Tick ≥ ThroneLockedUntilTick` | 즉위. 개인 Tier > 문명 Tier이면 문명에 '수호신' 특성 부여 — 대가는 Openness −0.2와 광신 초월자의 `bAwareOfPlayer`(§5.9) | 개인 Tier는 유지되고 숨겨짐. 방랑자로 돌아가면 다시 드러남 |
+| 방랑자 → 통치자 (즉위) | 대상 문명의 경외도 ≥ 0.6, 또는 안정도 < 0.2(지도자 공백). 그리고 `Tick ≥ ThroneLockedUntilTick` | 즉위. 개인 Tier > 문명 Tier이면 문명에 '수호신' 특성 부여 — 대가는 Openness −0.2와 (`Doctrine.Zeal` 초월자가 존재하면) 그 초월자의 `bAwareOfPlayer = true`. VS에서는 Openness −0.2만(§5.9) | 개인 Tier는 유지되고 숨겨짐. 방랑자로 돌아가면 다시 드러남 |
 | 복귀 (전 제국으로) | 전 제국이 존속 중 ∧ `Tick ≥ ThroneLockedUntilTick` | 섭정 해임. 섭정 표류로 바뀐 윤리는 되돌아오지 않음. `BuildWorldDigest`로 '떠나 있는 동안' 다이제스트(§8.4) | - |
 | 폐위(강제) | `Hazard.Rebellion` 만료 → `EEffectType::DeposeRuler` (§4.1) | 아래 폐위 파이프라인. 모성계에 남는 방랑자, 소지품·능력치 유지, Reverence ×0.5, `ThroneLockedUntilTick = Tick + 600`, `Status.FallenMonarch`, `Reign.Deposed`, Severity 2 '몰락한 군주' | 왕좌 600틱 잠금. 몰락한 군주 전용 조우. AI 문명이면 AIProfile 재추첨 + '정권 교체' 로그 |
-| 사망(강제) | `EEffectType::KillPlayer` (§4.4) | 통치자였다면 섭정 자동 선택(Rng가 문명 윤리에 가중), 안정도 −0.25, `Reign.Died`. `FLifeRecord` 기록, 그릇 초기화, Reverence ×0.5 | 공백기 도약 → 다른 성계의 필멸자로 취임(항상 방랑자). 즉위는 위 조건으로만 |
+| 사망(강제) | `EEffectType::KillPlayer` (§4.4) | 통치자였고 문명이 존속하면(노화·쿠데타, Phase 6+) `BecomeWanderer`(섭정 자동 선택: Rng가 문명 윤리에 가중, 안정도 −0.25); 통치 문명이 `Hazard.Extinction`으로 삭제된 경우(VS의 유일한 통치자 사망)는 섭정 단계를 건너뛰고 `RuledCivID`를 비우며 재위 종료 사유 `Reign.Died`만 기록. `FLifeRecord` 기록, 그릇 초기화, Reverence ×0.5 | 공백기 도약 → 다른 성계의 필멸자로 취임(항상 방랑자). 즉위는 위 조건으로만 |
 
 
 
-**폐위 파이프라인(`EEffectType::DeposeRuler`)**: 플레이어 문명이면 §4.4 사망 파이프라인의 앞부분을 재사용한다 — `BecomeWanderer(RegentProfile = Rng가 문명 윤리에 가중해 선택, Reason = Status.FallenMonarch)` → Stability = min(현재, `PostRebellionStability` 0.15) → Reverence ×0.5 → `ThroneLockedUntilTick = Tick + ThroneLockTicks(600)`(없으면 '안정도 < 0.2' 경로로 즉시 재즉위하는 허점) → `FLifeRecord`에 재위 종료 사유(`Reign.Abdicated / Reign.Deposed / Reign.Died`) → Severity 2 '몰락한 군주'(§4.4 문구 그대로) → 3화면(폐위 기록: 백성이 붙인 별칭·마지막 결정 3개·재위 주기·완성 프로젝트 → `BuildWorldDigest` → 망명 첫 조우 3변형: 충신이 몰래 배를 내준다 / 반란군이 떠나게 둔다 / 혼자 걸어 나온다) → 자동 저장(§9.1). 플레이어는 **모성계에 남는 방랑자**다 — 몰락한 군주가 자기 제국을 안에서 지켜보는 쪽이 '떠나 있는 동안 세계가 변했다'를 가장 잘 보여 준다. 인접 성계로의 추방은 한 줄 변경이라 Phase 5 테스터 반응 뒤 전환 가능. '무일푼'은 채택하지 않는다(벌칙처럼 느껴지면 안 된다). 쿠데타에서의 사망은 VS에 없고 Phase 6+에 `KillPlayer` 효과 DT_Events 행으로만 열어 둔다. 폐위는 위기 단계에서 처리된다(§7.4).
+**폐위 파이프라인(`EEffectType::DeposeRuler`)**: 플레이어 문명이면 §4.4 사망 파이프라인과 같은 순서를 재사용한다 — `FLifeRecord`에 재위 종료 사유 `Reign.Deposed`(사유 태그는 `Reign.Abdicated / Reign.Deposed / Reign.Died` 중 하나) + Severity 2 '몰락한 군주'(§4.4 문구 그대로) → `BecomeWanderer(RegentProfile = Rng가 문명 윤리에 가중해 선택, ReignEndReason = Reign.Deposed)` → Reverence ×0.5 → Stability = min(현재, `PostRebellionStability` 0.15) → `ThroneLockedUntilTick = Tick + ThroneLockTicks(600)`(없으면 '안정도 < 0.2' 경로로 즉시 재즉위하는 허점) → 3화면(폐위 기록: 백성이 붙인 별칭·마지막 결정 3개·재위 주기·완성 프로젝트 → `BuildWorldDigest` → 망명 첫 조우 3변형: 충신이 몰래 배를 내준다 / 반란군이 떠나게 둔다 / 혼자 걸어 나온다) → 자동 저장(§9.1). 플레이어는 **모성계에 남는 방랑자**다 — 몰락한 군주가 자기 제국을 안에서 지켜보는 쪽이 '떠나 있는 동안 세계가 변했다'를 가장 잘 보여 준다. 인접 성계로의 추방은 한 줄 변경이라 Phase 5 테스터 반응 뒤 전환 가능. '무일푼'은 채택하지 않는다(벌칙처럼 느껴지면 안 된다). 쿠데타에서의 사망은 VS에 없고 Phase 6+에 `KillPlayer` 효과 DT_Events 행으로만 열어 둔다. 폐위는 위기 단계에서 기록되고 틱 경계에서 처리된다(§7.4).
 
 
 
@@ -840,7 +841,7 @@ T5 통치자 업적 "은하 법칙 3개 유지"는 칙령 범위가 은하로 �
 
 
 
-**남는 쪽과 떠나는 쪽이 모두 진짜 선택이 되게**: 충실한 통치의 보상은 숫자가 아니라 로그다 — 600틱 연속 재위 ∧ Stability ≥ 0.6마다 Severity 1 '시대 명명'("{Civ}의 백성이 이 시대를 '{Epithet}의 시대'라 부르기 시작했다". Epithet은 윤리·완성 프로젝트·해결 Hazard에서 고르는 DT 행 10개), 1,800틱에 `Trait.Legacy.*` 영구 특성, 통치자 전용 Feat은 떠나면 못 하고 섭정 표류도 없다. 떠남(자진 이탈)의 보상은 개인 Tier 경로 Feat·유물·조우와 요나형 서사(떠난 동안 변한 세계로의 복귀). 전환 비용은 Stability −0.1 + Severity 2 '왕좌를 비우다' 1개. 경외도 ≥ 0.6 즉위는 '섬긴 자가 다스림을 받는다'의 구현이다(§8.6 주제의 등뼈).
+**남는 쪽과 떠나는 쪽이 모두 진짜 선택이 되게**: 충실한 통치의 보상은 숫자가 아니라 로그다 — 600틱 연속 재위 ∧ Stability ≥ 0.6마다 Severity 1 '시대 명명'("{Civ}의 백성이 이 시대를 '{Epithet}의 시대'라 부르기 시작했다". Epithet은 `DT_Dedications` 행 10개(종류 Epithet; Phase 4에 이 10행만 최소형으로 먼저 생성, 헌정명 뱅크 확장은 Phase 6+)), 1,800틱에 `Trait.Legacy.Enduring` 영구 특성(`Trait.Legacy.Exiled`는 망명(폐위 후 방랑) 생애를 겪은 백성에게), 통치자 전용 Feat은 떠나면 못 하고 섭정 표류도 없다. 떠남(자진 이탈)의 보상은 개인 Tier 경로 Feat·유물·조우와 요나형 서사(떠난 동안 변한 세계로의 복귀). 전환 비용은 Stability −0.1 + Severity 2 '왕좌를 비우다' 1개. 경외도 ≥ 0.6 즉위는 '섬긴 자가 다스림을 받는다'의 구현이다(§8.6 주제의 등뼈).
 
 
 
@@ -856,23 +857,27 @@ T5 통치자 업적 "은하 법칙 3개 유지"는 칙령 범위가 은하로 �
 
 
 
-**(가) 물리 문명 아키타입** — 전부 데이터. `FCivArchetypeDef : FTableRowBase { Traits, EthicsPreset, AIProfile, Color, NameBank, AdjectiveBank, HazardSpawnMultipliers, InitialRelations, Weight }`(§7.3). 아키타입 태그는 Traits에도 넣어 `CivHasTrait`로 거른다. DataAsset은 쓰지 않는다 — DataTable이 '데이터만으로 수십 개 추가'를 더 잘 만족하고 `Data.Integrity` 테스트 대상이 된다. 수직 슬라이스 6행(플레이어 기본 + 5), EA 10행(+5). 시그니처 칙령·프로젝트·조우 씨앗은 행의 데이터이지만 VS 수량(§12.1) 밖의 것은 §12.3 절차로 Phase별 재심사한다. 형식: 이름 / 신조 / Traits / 윤리(P, S, O) / AI 프로필 / 선호 Hazard / {CivAdj} 3개 / 시그니처·조우 씨앗.
+**(가) 물리 문명 아키타입** — 전부 데이터. `FCivArchetypeDef : FTableRowBase { Traits, EthicsPreset, AIProfile, Color, NameBank, AdjectiveBank, HazardSpawnMultipliers, InitialRelations, Weight }`(§7.3). 아키타입 태그 = `Trait.Arch.<행 접미사>`(VS: `Trait.Arch.Default/Swarm/Psionic/Machine/Covenant/Merchant`). Traits 컨테이너의 첫 원소로 넣고 `CivHasTrait`로 거른다. DataAsset은 쓰지 않는다 — DataTable이 '데이터만으로 수십 개 추가'를 더 잘 만족하고 `Data.Integrity` 테스트 대상이 된다. 수직 슬라이스 6행(플레이어 기본 + 5), EA 11행(+5). 시그니처 칙령·프로젝트·조우 씨앗은 행의 데이터이지만 VS 수량(§12.1) 밖의 것은 §12.3 절차로 Phase별 재심사한다. 형식: 이름 / 신조 / Traits / 윤리(P, S, O) / AI 프로필 / 선호 Hazard / {CivAdj} 3개 / 시그니처·조우 씨앗.
 
 
 
 | 행 | 이름 | 신조 | Traits | 윤리 | AI | 선호 Hazard | {CivAdj} | 시그니처 / 조우 씨앗 |
 |---|---|---|---|---|---|---|---|---|
 | `arch_default` | 플레이어 기본 | - | 생성 시 §3.1 절차로 3~5개 | 0, 0, 0 | - | - | 윤리 축에서 | 첫 생애 고정(§5.10) |
-| `arch_swarm` | 생체 잠식 군체 (Bio-Devourer Swarm) | "먹는 것이 곧 아는 것이다" | `Trait.Biology.HiveMind`(기존)·`Devourer`·`Adaptive`·`Trait.Mind.NoSelf` | −0.6, −0.3, −0.8 | Expansionist | Plague ×2(전파자이자 면역), Extinction(가해자) | 탐식하는·증식하는·무언의 | 칙령 '생체 동화'(점령 성계 인구 흡수) / 조우: 군체가 당신의 기억을 맛보려 한다(Mind 판정, 성공 시 군체가 플레이어의 이름을 배워 Reverence +0.2) |
+| `arch_swarm` | 생체 잠식 군체 (Bio-Devourer Swarm) | "먹는 것이 곧 아는 것이다" | `Trait.Biology.HiveMind`(기존)·`Trait.Biology.Devourer`·`Trait.Biology.Adaptive`·`Trait.Mind.NoSelf` | −0.6, −0.3, −0.8 | Expansionist | Plague ×2(전파자이자 면역), Extinction(가해자) | 탐식하는·증식하는·무언의 | 칙령 '생체 동화'(점령 성계 인구 흡수) / 조우: 군체가 당신의 기억을 맛보려 한다(Mind 판정, 성공 시 군체가 플레이어의 이름을 배워 Reverence +0.2) |
 | `arch_psionic` | 고차원 가공 문명 (Techno-Arcane Psionics) | "법칙은 아직 쓰이지 않은 수학이다" | `Trait.Mind.PsionicAwakening`(기존)·`Trait.Tech.NanoAffinity`(기존)·`Trait.Tech.Arcane`·`Trait.Mind.Scholastic` | +0.2, +0.4, +0.3 | Scholarly | SubspaceErosion ×1.5(유발자), AIAwakening | 명상적인·사변적인·정교한 | 거대 프로젝트 '공리 탑'(Transcendence ×1.5, 완성 성계 SubspaceErosion ×3 — 대가) / 조우: 학자가 플레이어의 격을 측정하려다 실패(격차 인식 카드) |
-| `arch_machine` | 절대 기계 결정론 코어 (Deterministic Machine Core) | "계산되지 않은 것은 없다" | `Trait.Tech.Synthetic`·`Deterministic`·`Trait.Mind.NoSelf`·`NanoAffinity` | 0.0, −1.0, −0.5 | Conservative | AIAwakening ×3('오류'), Cult 저항 높음(영압에 둔감 — 침묵과 공명하는 역설) | 산술적인·무감한·필연의 | 칙령 '인과 봉인'(자국 Hazard −50%, Transcendence 연구 0 고정) / 조우: 코어가 플레이어의 승천을 '측정 오류'로 분류. 가장 강하고 가장 눈먼 문명의 비극적 희극. T4 도달 시 Phase 6+에서 동화 초월자가 되어 '영혼을 부정하던 자가 영이 된다'(§4.2) |
+| `arch_machine` | 절대 기계 결정론 코어 (Deterministic Machine Core) | "계산되지 않은 것은 없다" | `Trait.Tech.Synthetic`·`Trait.Tech.Deterministic`·`Trait.Mind.NoSelf`·`Trait.Tech.NanoAffinity` | 0.0, −1.0, −0.5 | Conservative | AIAwakening ×3('오류'), Cult 저항 높음(영압에 둔감 — 침묵과 공명하는 역설) | 산술적인·무감한·필연의 | 칙령 '인과 봉인'(자국 Hazard −50%, Transcendence 연구 0 고정) / 조우: 코어가 플레이어의 승천을 '측정 오류'로 분류. 가장 강하고 가장 눈먼 문명의 비극적 희극. T4 도달 시 Phase 6+에서 동화 초월자가 되어 '영혼을 부정하던 자가 영이 된다'(§4.2) |
 | `arch_covenant` | 언약 공동체 (Covenant Remnant) | "부름이 먼저였다" | `Trait.Faith.Remnant`·`Trait.Mind.Devout`·`Trait.Biology.Longlived` | +0.7, +0.8, +0.4 | Conservative | Extinction 피해자이자 방주 전문가(차원 방주 −30%), Cult 저항 | 언약의·기억하는·견고한 | 거대 프로젝트 '성소 봉헌'(완성 성계 Cult 발생 0, Reverence 획득 ×1.5) / 조우: 피난 호위 체인(§3.2 T3→T4). FleetPower 약함, 생산 승수 −10%(신앙은 공짜 버프가 아니다). 로그에 METAPHOR군(반석·방패·목자·산성). '천국 은하'는 지도 위에서 이 **보통 문명**으로만 나타난다(§4.5) |
-| `arch_merchant` | 다이슨 상인 연합 (Stellar Mercantile Concord) | "빛은 계량되어야 한다" | `Trait.Tech.EnergyMastery`·`Trait.Mind.Mercantile`·`Longlived` | +0.5, −0.5, +0.9 | Expansionist(무역형) | Plague(무역 조약 전파 +), PreSupernova(항성 과채취) | 계산적인·빛나는·번창하는 | 다이슨 스웜 −20%, 무역 조약 선호 / 조우: 영력을 사겠다는 상인 — 수락 시 Insight +, Reverence −0.3("팔리지 않는 것을 팔았다"). 영혼·기억 거래는 **연대기에서 심판받는 '큰 성' 상인 원형**(계 18:13 "사람의 영혼들")으로만, 중립 상점 금지 |
+| `arch_merchant` | 다이슨 상인 연합 (Stellar Mercantile Concord) | "빛은 계량되어야 한다" | `Trait.Tech.EnergyMastery`·`Trait.Mind.Mercantile`·`Trait.Biology.Longlived` | +0.5, −0.5, +0.9 | Expansionist(무역형) | Plague(무역 조약 전파 +), PreSupernova(항성 과채취) | 계산적인·빛나는·번창하는 | 다이슨 스웜 −20%, 무역 조약 선호 / 조우: 영력을 사겠다는 상인 — 수락 시 Insight +, Reverence −0.3("팔리지 않는 것을 팔았다"). 영혼·기억 거래는 **연대기에서 심판받는 '큰 성' 상인 원형**(계 18:13 "사람의 영혼들")으로만, 중립 상점 금지 |
 | EA | 순례 방주 민족 (Ark-Pilgrim Diaspora) | "집이 없으므로 어디든 성소다" | `Trait.Biology.Nomadic`·`Trait.Mind.Covenant`·`Trait.Tech.ArkBuilders` | +0.8, +0.8, +0.5 | Conservative | Extinction | 떠도는·언약의·기억하는 | Hazard 시 해결 대신 이주(출애굽·성막). AI 프로필 변경 필요 → Phase 6 |
-| EA | 침묵 수도 공화국 (Hermit Monastic Republic) | "말을 줄이면 바람이 들린다" | `Trait.Mind.Contemplative`·`Ascetic`·`Longlived` | +0.9, +1.0, −0.7 | Scholarly | Cult 저항, SubspaceErosion 조기 감지 | 은둔하는·고요한·투명한 | 칙령 '침묵의 금지' 효과 ×2 / 수련 가속 제공(Insight→Mind ×2), 대신 Influence 포기. 선계·불계 길의 문명형 숙주 |
+| EA | 침묵 수도 공화국 (Hermit Monastic Republic) | "말을 줄이면 바람이 들린다" | `Trait.Mind.Contemplative`·`Trait.Mind.Ascetic`·`Trait.Biology.Longlived` | +0.9, +1.0, −0.7 | Scholarly | Cult 저항, SubspaceErosion 조기 감지 | 은둔하는·고요한·투명한 | 칙령 '침묵의 금지' 효과 ×2 / 수련 가속 제공(Insight→Mind ×2), 대신 Influence 포기. 선계·불계 길의 문명형 숙주 |
 | EA | 강철 군단 왕조 (Iron Legion Dynasty) | "질서는 함대의 그림자만큼 미친다" | `Trait.Biology.Martial`·`Trait.Tech.Fortress`·`Trait.Mind.Honor` | −0.9, −0.2, −0.3 | Militarist | Cult R 경로 전문, 그러나 T3+ 앞에서 함대가 무력한 원형의 비극 | 호전적인·엄격한·단단한 | 칙령 '전시 동원'(기존) / 조우: 원수를 살려준 장군의 재판 — 플레이어 중재, Pacifism +0.1 |
-| EA | 잔존 유물 수호단 (Reliquary Wardens) | "우리는 만들지 않는다, 지킨다" | `Trait.Mind.Custodian`·`Trait.Tech.Salvage`·`Longlived` | +0.3, +0.5, −0.9 | Conservative | 고대 SubspaceErosion 성계 주변에 생성 | 오래된·경계하는·기억하는 | 칙령 '봉인 유지'(Relic 조우 ×2) / 조우: 유물 교환·시험 — §5.9 Relic 8종의 주 획득처. 제안의 Astral Nomads의 '합법 버전' |
+| EA | 잔존 유물 수호단 (Reliquary Wardens) | "우리는 만들지 않는다, 지킨다" | `Trait.Mind.Custodian`·`Trait.Tech.Salvage`·`Trait.Biology.Longlived` | +0.3, +0.5, −0.9 | Conservative | 고대 SubspaceErosion 성계 주변에 생성 | 오래된·경계하는·기억하는 | 칙령 '봉인 유지'(Relic 조우 ×2) / 조우: 유물 교환·시험 — §5.9 Relic 8종의 주 획득처. 제안의 Astral Nomads의 '합법 버전' |
 | EA | 바벨 연합 (Babel Concord) | "하나의 말, 하나의 탑" | `Trait.Society.OneTongue`·`Trait.Tech.Arcane` | 0.0, −0.4, +1.0 | Expansionist | 동화 교리에 취약 | 통일된·높이 쌓는·한목소리의 | '한 언어' 무역 보너스, 붕괴 시 '흩어짐' 이벤트로 3문명 분가(창 11, `TransferSystem` + `Trait.Society.Scattered`) |
+
+
+
+EA 행의 Trait 태그는 Phase 6+ 행 작성 시 ini에 추가한다.
 
 
 
@@ -932,7 +937,7 @@ T5 통치자 업적 "은하 법칙 3개 유지"는 칙령 범위가 은하로 �
 
 ├── 정의(Definition, 읽기 전용, DataTable): DT_Traits, DT_Events, DT_Feats, DT_Encounters, DT_Relics, DT_Edicts, DT_Hazards, DT_LogTemplates, DT_Civs, DT_Transcendents, DT_Dedications, DT_Rules
 
-├── 상태(State, 런타임, 저장 대상, USTRUCT): FGalaxyState { Systems, Civs, Player, Calling, Transcendents, Log, Rng }
+├── 상태(State, 런타임, 저장 대상, USTRUCT): FGalaxyState { Systems, Civs, Transcendents, Player, Calling, Log, Chronicle, Flags, RngState, GalaxyID }
 
 └── 문자열: String Table ST_CA (UI), DataTable의 FText 컬럼 (서사)
 
@@ -1209,6 +1214,8 @@ UPROPERTY(BlueprintReadOnly) float FleetPower = 0.f;
 
 UPROPERTY(BlueprintReadOnly) float Stability = 0.75f; // 0~1. 통치자의 유일한 지표. 불만도는 Hazard.Rebellion 카운트다운 (§5.10)
 
+UPROPERTY(BlueprintReadOnly) int32 LowStabilityTicks = 0; // Stability < 0.3 연속 틱. TickEconomy 끝에서 갱신, CivStabilityBelowFor가 읽는다 (§4.1)
+
 UPROPERTY(BlueprintReadOnly) TArray<FName> OwnedSystems;
 
 UPROPERTY(BlueprintReadOnly) TMap<FName, float> Relations; // Key = CivID 또는 TranscendentID -> -1~1 (§4.2). 별도 SpiritualFavor 미터 없음
@@ -1227,7 +1234,7 @@ UPROPERTY(BlueprintReadOnly) int64 ThroneLockedUntilTick = 0; // 폐위 후 Tick
 
 
 
-// '그릇(육신)'. 사망 시 §4.4 3분할 표의 '그릇' 열이 초기화되고, 부름(FCallingState)은 유지된다
+// 그릇(육신). 계승 시 전부 초기화 (§4.4 3분할 표 '그릇' 열). PersonalTier·Powers·CompletedFeats는 부름(FCallingState)에 있다
 
 USTRUCT(BlueprintType)
 
@@ -1238,8 +1245,6 @@ struct FPlayerEntityState
 GENERATED_BODY()
 
 UPROPERTY(BlueprintReadOnly) EPlayerRole Role = EPlayerRole::Ruler; // 첫 생애는 통치자 (§5.10). 계승 취임은 Wanderer
-
-UPROPERTY(BlueprintReadOnly) EAscensionTier PersonalTier = EAscensionTier::Tier1_Planetary;
 
 UPROPERTY(BlueprintReadOnly) FName CurrentSystemID;
 
@@ -1258,10 +1263,6 @@ UPROPERTY(BlueprintReadOnly) int32 Exaltation = 0; // 0~10. 높아짐. 경배 �
 UPROPERTY(BlueprintReadOnly) FResourcePool PersonalPool;
 
 UPROPERTY(BlueprintReadOnly) TArray<FName> Relics; // 최대 3
-
-UPROPERTY(BlueprintReadOnly) FGameplayTagContainer Powers; // 사망 시 Tier에서 재부여 (§4.4)
-
-UPROPERTY(BlueprintReadOnly) TArray<FName> CompletedFeats;
 
 UPROPERTY(BlueprintReadOnly) FGameplayTagContainer StatusTags; // Status.FallenMonarch / Status.Abdicated. 조건 PlayerHasStatus (§5.10)
 
@@ -1335,6 +1336,14 @@ UPROPERTY() TArray<FName> Feats;
 
 UPROPERTY() TArray<FName> TranscendentsMet;
 
+UPROPERTY() TArray<FName> LastChoiceRows; // 최근 3개 조우·청원 행 (비문)
+
+UPROPERTY() FName EpithetRow; // 시대 명명 (§5.10)
+
+UPROPERTY() TArray<FName> MegaprojectsCompleted;
+
+UPROPERTY() TArray<int64> ReignTicks; // RuledCivIDs와 같은 순서
+
 };
 
 
@@ -1355,9 +1364,25 @@ UPROPERTY() ELifeState LifeState = ELifeState::Embodied;
 
 UPROPERTY() int64 PendingLeapTicks = 0; // 공백기 중 저장·로드 재개용
 
-UPROPERTY() int64 LeapTicksTotal = 0; // 판 합계. LeapTotalCap 비교용
+UPROPERTY() int64 LeapTicksTotal = 0; // 판 합계. 다음 도약 폭 = clamp(Rng.RandRange(LeapTicksMin, LeapTicksMax), 0, LeapTotalCap - 이 값). 0이면 즉시 계승 (§4.4)
 
 UPROPERTY() TArray<FLifeRecord> Lives;
+
+// 부름 열(§4.4 3분할 표). 계승 시 PersonalTier는 T≤2 → Tier1_Planetary, T≥3 유지; Powers는 Tier에서 재부여; CompletedFeats는 기록
+
+UPROPERTY(BlueprintReadOnly) EAscensionTier PersonalTier = EAscensionTier::Tier1_Planetary;
+
+UPROPERTY(BlueprintReadOnly) FGameplayTagContainer Powers; // 사망 시 Tier에서 재부여 (§4.4)
+
+UPROPERTY(BlueprintReadOnly) TArray<FName> CompletedFeats;
+
+// PendingRoleEffect (§7.4 '역할 효과 해소'): 위기 단계·이벤트 효과·조우 해결은 아래 3필드에 기록만 한다. 빈 PendingEffect = 없음
+
+UPROPERTY() FGameplayTag PendingEffect; // KillPlayer 또는 DeposeRuler, 틱당 최대 1건, 먼저 기록된 것 우선
+
+UPROPERTY() FGameplayTag PendingCause; // Death.* 또는 Reign.*
+
+UPROPERTY() FName PendingSourceRow;
 
 };
 
@@ -1395,6 +1420,10 @@ UPROPERTY() TMap<FName, int64> EventCooldownUntilTick;
 
 UPROPERTY() TArray<FCosmicLogEntry> Log; // 상한 유지 (§8.4)
 
+UPROPERTY() TArray<FCosmicLogEntry> Chronicle; // Log 상한(2,000) 초과 시 Severity 1·2 이관. BuildChronicle 입력. 생애별 장은 FLifeRecord.BornTick/DiedTick 범위 (§8.4)
+
+UPROPERTY() FGameplayTagContainer Flags; // SetFlag 효과의 저장소. Flag.Grace.Spent, 사자 예언 플래그 (§4.5). ComputeStateHash 포함
+
 };
 
 ```
@@ -1415,7 +1444,9 @@ enum class EConditionType : uint8
 
 CivTierAtLeast, CivHasTrait, CivResourceAtLeast, CivStabilityBelow, CivEthicsAxisAbove,
 
-CivStabilityBelowFor, CivRelationAtLeast, // 지속 틱 조건(Value=임계, Key=틱 수. 또는 LowStabilityTicks 카운터, §4.1) / Key=OtherID(CivID 또는 TranscendentID)
+CivStabilityBelowFor, CivRelationAtLeast, // 지속 틱 조건(Value=임계, Key=틱 수. FCivilizationState.LowStabilityTicks 카운터를 읽는다, §4.1) / Key=OtherID(CivID 또는 TranscendentID)
+
+CivReverenceAtLeast, // ReverenceToPlayer >= Value (§4.5 방문 SpawnConditions)
 
 SystemHasHazard, SystemOwnedBy, MegaprojectComplete, // MegaprojectComplete는 CompletedTick >= Calling.BornTick일 때만 참 (§4.4)
 
@@ -1425,7 +1456,9 @@ PlayerTierAtLeast, PlayerInSystemWithHazard, PlayerStatAtLeast, PlayerHasRelic, 
 
 PlayerHasStatus, PlayerLifeIndexAtLeast, PlayerAgeAtLeast, // Tag=Status.* / 제 N대 이상 / 노화 ON일 때만 (§4.4)
 
-GalaxyTickAtLeast, TranscendentSealed, TranscendentAwareOfPlayer // TranscendentSealed는 SealedTick >= Calling.BornTick일 때만 참 (§4.4)
+GalaxyTickAtLeast, TranscendentSealed, TranscendentAwareOfPlayer, // TranscendentSealed는 SealedTick >= Calling.BornTick일 때만 참 (§4.4)
+
+FlagSet, FlagNotSet // Tag = Flag.*. FGalaxyState.Flags를 읽는다 (§4.5)
 
 };
 
@@ -1459,9 +1492,9 @@ enum class EEffectType : uint8
 
 AddResource, MultiplyIncome, ShiftEthics, AddTrait, RemoveTrait, ChangeStability, ChangeRelation,
 
-SpawnHazard, ResolveHazard, TransferSystem, ChangeReverence, GrantPower, PlayerStatDelta, SetFlag,
+SpawnHazard, ResolveHazard, TransferSystem, ChangeReverence, GrantPower, PlayerStatDelta, SetFlag, // SetFlag은 FGalaxyState.Flags에 Tag(Flag.*)를 기록 (§4.5)
 
-KillPlayer, DeposeRuler // 위기 단계에서 처리되어 UPlayerRoleSubsystem의 사망·폐위 파이프라인으로 위임 (§4.4, §5.10, §7.4). Tag = Death.* / Reign.*. Phase 6+: InstallAt(기원 선택 카드)
+KillPlayer, DeposeRuler // 즉시 실행하지 않고 FCallingState.PendingRoleEffect에 기록만 한다. 틱 경계의 '역할 효과 해소' 단계에서 UPlayerRoleSubsystem의 사망·폐위 파이프라인으로 위임 (§4.4, §5.10, §7.4). Tag = Death.* / Reign.*. Phase 6+: InstallAt(기원 선택 카드)
 
 };
 
@@ -1499,7 +1532,7 @@ struct FCosmicEventDef : public FTableRowBase
 
 GENERATED_BODY()
 
-UPROPERTY(EditAnywhere) FGameplayTag Category; // Event.Civ.Economy, Event.Civ.Society, Event.Crisis.Supernova, Event.Crisis.Transcendent (DefaultGameplayTags.ini의 Event.* 트리와 동일하게 유지)
+UPROPERTY(EditAnywhere) FGameplayTag Category; // Event.Civ.Economy/Society, Event.Crisis.Supernova/Transcendent/Rebellion, Event.Grace.Rescue/Remnant/Jubilee (DefaultGameplayTags.ini의 Event.* 트리 8개와 동일하게 유지)
 
 UPROPERTY(EditAnywhere) TArray<FCosmicCondition> Conditions; // AND
 
@@ -1541,9 +1574,9 @@ UPROPERTY(EditAnywhere) TArray<FCosmicCondition> SpawnConditions;
 
 UPROPERTY(EditAnywhere) TArray<FCosmicEffect> OnExpireEffects; // KillPlayer는 플레이어가 그 성계에 있을 때만 적용 (§4.4). crisis_rebellion은 DeposeRuler (§4.1)
 
-UPROPERTY(EditAnywhere) FName RulerResolutionMegaproject; // 통치자 해결 수단
+UPROPERTY(EditAnywhere) TArray<FName> RulerResolutions; // DT_Megaprojects·DT_Edicts·DT_Encounters(청원) 행 이름. 하나라도 완료되면 ResolveHazard
 
-UPROPERTY(EditAnywhere) FName WandererResolutionEncounter; // 방랑자 해결 수단
+UPROPERTY(EditAnywhere) TArray<FName> WandererResolutions; // DT_Encounters 행 이름
 
 };
 
@@ -1573,7 +1606,7 @@ UPROPERTY(EditAnywhere) TArray<FCosmicCondition> CompletionConditions;
 
 UPROPERTY(EditAnywhere) TArray<FCosmicEffect> AscensionCost; // 승천의 대가 (§3.2)
 
-UPROPERTY(EditAnywhere) FGameplayTagContainer GrantedPowers; // T4->T5 행은 Way.Received 또는 Way.Seized를 포함 (§3.2). Law.Humility: Way.Seized는 어떤 Feat도 떼지 못한다
+UPROPERTY(EditAnywhere) FGameplayTagContainer GrantedPowers; // T4->T5 행은 Way.Received 또는 Way.Seized를 포함 (§3.2). Law.Humility: Way.Seized는 어떤 Feat도 떼지 못한다. Power.* 태그는 DT_Feats 행 작성 시(Phase 2) ini에 추가한다
 
 UPROPERTY(EditAnywhere) FGameplayTag DedicationBank; // 완성 시 그 문명이 붙이는 헌정명 뱅크 (§8.6, Phase 6+). DT_Edicts·거대 프로젝트 행에도 같은 컬럼
 
@@ -1727,6 +1760,14 @@ UPROPERTY(EditAnywhere) float SuccessionHazardWeight = 2.f; // 계승 추첨: 2�
 
 UPROPERTY(EditAnywhere) float SuccessionCivTierWeight = 1.f; // 소유 문명 Tier >= 2
 
+UPROPERTY(EditAnywhere) float SuccessionReverenceWeight = 2.f; // 소유 문명 Reverence > SuccessionReverenceThreshold
+
+UPROPERTY(EditAnywhere) float SuccessionReverenceThreshold = 0.3f; // 위 가중치의 Reverence 임계
+
+UPROPERTY(EditAnywhere) float SuccessionSameCivPenalty = 1.f; // 직전 생애와 같은 문명 감점
+
+UPROPERTY(EditAnywhere) int32 SuccessionMinHazardTicks = 300; // 제외: Hazard 카운트다운이 이 값 미만인 성계
+
 UPROPERTY(EditAnywhere) float ReverenceDecay = 0.5f; // 사망·폐위 시 Reverence 배율
 
 UPROPERTY(EditAnywhere) float AIAscensionSpeedMultiplier = 1.f; // §4.3 난이도
@@ -1755,7 +1796,7 @@ UPROPERTY(EditAnywhere) FGameplayTagContainer ImmutableLaws; // Law.Judgment, La
 
 
 
-// DT_Dedications (§8.6, Phase 6+): 헌정명 뱅크 행 (Bank 태그 + 트리거 종류 + 이름 FText 묶음). 구조는 뱅크 작성 시 확정. 로그 슬롯 {Dedication}
+// DT_Dedications (§8.6). Phase 4: Epithet 10행 최소형 (§5.10 시대 명명, 로그 슬롯 {Epithet}). Phase 6+: 헌정명 뱅크 행 (Bank 태그 + 트리거 종류 + 이름 FText 묶음). 구조는 뱅크 작성 시 확정. 로그 슬롯 {Dedication}
 
 // DT_Traits 컬럼 추가분 (§5.9): int32 BodyMod, MindMod, CausalityMod, LifespanTicksMod
 
@@ -1853,9 +1894,11 @@ uint32 ComputeStateHash() const; // 결정론 테스트용. Calling 포함
 
 private:
 
-void SimulateTick(); // 고정 순서: 경제 → 연구 → 외교 → 분쟁 → 위기 → AI → 플레이어 이동
+void SimulateTick(); // 고정 순서: 경제 → 연구 → 외교 → 분쟁 → 위기 → AI → 플레이어 이동 → 역할 효과 해소
 
-// 위기 단계(TickHazards): Hazard 만료 효과 적용. KillPlayer·DeposeRuler는 여기서 처리되어 UPlayerRoleSubsystem의 사망·폐위 파이프라인(§4.4, §5.10)으로 위임된다
+// 위기 단계(TickHazards): Hazard 만료 효과 적용. TickHazards(Hazard 만료)·UCosmicEventSubsystem::Apply(이벤트 효과)·ResolveEncounterChoice(조우 OnFailure, 틱 밖 플레이어 입력)는 KillPlayer·DeposeRuler를 실행하지 않고 FCallingState.PendingRoleEffect(PendingEffect/PendingCause/PendingSourceRow, 틱당 최대 1건, 먼저 기록된 것 우선)에 기록만 한다
+
+// 역할 효과 해소(8번째·마지막 단계, ResolvePendingRoleEffect): PendingRoleEffect가 있으면 UPlayerRoleSubsystem의 사망·폐위 파이프라인(§4.4, §5.10)을 실행한다. 그 안의 RunHeadless 도약은 틱 경계에서 시작하므로 재진입이 없다. 자동 저장(§9.1)은 이 단계가 끝난 틱 경계에서만 찍는다
 
 // 공백기 도약 중(Calling.LifeState == Interregnum): TickPlayerTravel·플레이어 업적 평가·조우 생성을 건너뛰고 매 틱 엔딩 조건을 검사한다 (§4.4)
 
@@ -1867,11 +1910,13 @@ void TickDiplomacy();
 
 void TickConflict(); // 유효 전력 = FleetPower × FleetEffectivenessByTierGap, 상위 영향권 소모, 함대 투입당 카운트다운 +50 (§5.6). 승수·소모 2줄
 
-void TickHazards(); // 만료 효과, Hazard.Rebellion 지속 틱 조건 (§4.1)
+void TickHazards(); // 만료 효과, Hazard.Rebellion 지속 틱 조건 (§4.1). KillPlayer·DeposeRuler는 PendingRoleEffect 기록만
 
 void TickCivAI(); // 영압 P >= 1 성계로의 확장은 Tier >= 3일 때만 (§4.2). 1줄
 
 void TickPlayerTravel();
+
+void ResolvePendingRoleEffect(); // 역할 효과 해소. Calling.PendingEffect가 비어 있지 않으면 UPlayerRoleSubsystem 파이프라인 호출 후 비운다 (§4.4, §5.10)
 
 
 
@@ -1907,7 +1952,7 @@ static constexpr float SecondsPerTick = 1.0f;
 
 // - bool Check(const FCosmicCondition&, const FEvalContext&) 조건 1개 평가 (업적/조우/청원도 같은 함수 사용). MegaprojectComplete/TranscendentSealed는 Calling.BornTick 기준 (§4.4)
 
-// - void Apply(const FCosmicEffect&, FEvalContext&) 효과 1개 적용. KillPlayer/DeposeRuler는 UPlayerRoleSubsystem에 위임 (출생 보호 300틱·event_grace_rescue 1회 무효는 여기서 걸러짐)
+// - void Apply(const FCosmicEffect&, FEvalContext&) 효과 1개 적용. KillPlayer/DeposeRuler는 즉시 실행하지 않고 FCallingState.PendingRoleEffect에 기록만 한다(틱당 최대 1건, 먼저 기록된 것 우선). 파이프라인은 틱 경계의 '역할 효과 해소' 단계(§7.4)가 UPlayerRoleSubsystem에서 시작한다 (출생 보호 300틱·event_grace_rescue 1회 무효는 여기서 걸러짐)
 
 // - FOnCosmicEvent OnEventFired(FName EventRow, FEvalContext)
 
@@ -1941,13 +1986,13 @@ static constexpr float SecondsPerTick = 1.0f;
 
 // UPlayerRoleSubsystem
 
-// - BecomeRuler(FName CivID) / BecomeWanderer(FGameplayTag RegentProfile, FGameplayTag Reason) / ReturnToFormerCiv()  Reason = Status.Abdicated / Status.FallenMonarch / Reign.Died
+// - BecomeRuler(FName CivID) / BecomeWanderer(FGameplayTag RegentProfile, FGameplayTag ReignEndReason) / ReturnToFormerCiv()  ReignEndReason = Reign.Abdicated / Reign.Deposed / Reign.Died. StatusTags는 함수 안에서 파생(Abdicated → Status.Abdicated, Deposed → Status.FallenMonarch, Died → 없음)
 
 // - 즉위·복귀는 Tick >= ThroneLockedUntilTick 검사 (§5.10)
 
-// - KillPlayer(FGameplayTag Cause, FName SourceRow) → BeginInterlude() → RunHeadless(LeapTicks) → Succeed()  사망 파이프라인 (§4.4). Succeed()가 계승 추첨 후 Install()을 부른다
+// - 틱 경계에서 KillPlayer(FGameplayTag Cause, FName SourceRow) → BeginInterlude() → RunHeadless(LeapTicks) → Succeed()  사망 파이프라인 (§4.4). Succeed()가 계승 추첨 후 Install()을 부른다. 호출자는 §7.4 ResolvePendingRoleEffect만
 
-// - DeposeRuler()  폐위 파이프라인 (§5.10). 사망 파이프라인 앞부분 재사용
+// - 틱 경계에서 DeposeRuler()  폐위 파이프라인 (§5.10). 사망 파이프라인과 같은 순서 재사용
 
 // - Install(FName SystemID, FName CivID, EPlayerRole Role)  첫 생애(NewGalaxy, Ruler)와 계승(Wanderer)이 같은 함수
 
@@ -1955,7 +2000,7 @@ static constexpr float SecondsPerTick = 1.0f;
 
 // - 통치자 명령: SetResearchFocus, SetStance, ProposeTreaty, EnactEdict, StartMegaproject, AllocateFleet
 
-// - 조우·청원: FOnEncounterPresented / ResolveEncounterChoice(int32 Index)  청원은 Role == Ruler인 FEncounterDef (§5.10)
+// - 조우·청원: FOnEncounterPresented / ResolveEncounterChoice(int32 Index)  청원은 Role == Ruler인 FEncounterDef (§5.10). OnFailure의 KillPlayer는 PendingRoleEffect에 기록만, 파이프라인은 다음 틱 경계 (§7.4)
 
 
 
@@ -2029,6 +2074,7 @@ UPROPERTY(BlueprintReadOnly) FName SourceRow; // 디버그/연대기 집계용
 
 `FText::Format` + `FFormatNamedArguments`. 슬롯: `{Civ}`, `{System}`, `{OtherCiv}`, `{Trait}`, `{Value}`, `{Tier}`, `{Hazard}`, `{Player}`, `{HomeSystem}`(수도, §5.10), `{Dedication}`(헌정명, §8.6), `{Epithet}`(시대·성계의 두 번째 이름, §5.10·§5.11).
 이벤트마다 템플릿 **3개 이상**. 같은 문장이 10분 안에 두 번 보이면 실패다. `Data.Integrity` 테스트가 템플릿의 숫자 자릿수를 린트한다(§9.3).
+이벤트가 아닌 틱 로그(경제·연구·소유권 변동)와 방문·사자 템플릿은 `DT_LogTemplates`(`FLogTemplateDef`, §17 참조).
 문명별 **형용사 뱅크**: 윤리 축과 아키타입 `AdjectiveBank`(§5.11)에서 뽑는다. 군사 → "호전적인", 영성 → "명상적인", 폐쇄 → "은둔하는". 템플릿의 `{CivAdj}` 슬롯에 들어간다. 원어 낱말의 뜻도 뱅크에 넣는다: 인애한(헤세드)·신실한(에무나)·거룩한(카도쉬)·정의로운(미쉬파트·체데크)·듣는(샤마)·돌아오는(슈브).
 타락 초월자 관련 로그는 **1인칭 화자**로 쓴다. 다른 로그와 톤이 구분되어야 한다. "나는 베가의 불빛이 꺼지는 것을 지켜보았다." 1인칭은 타락 초월자(`Realm.Abyssal`) 전용이다.
 
@@ -2049,7 +2095,7 @@ Severity 2 로그는 반드시 플레이어 또는 문명의 선택과 연결된
 
 
 
-**우주론 선언문**: ① 두 계는 장소가 아니라 격이다(§3.2) — 보이는 것들(T1~2)과 보이지 않는 것들(T3~5)은 같은 지도 위에 겹쳐 있다. ② 영력의 은유는 넷만: **바람·숨·빛·음성**(루아흐, 프뉴마). 번개·에너지·수치 표현 금지. 영력은 저장·채굴·거래되지 않는다(§5.1). ③ 강제와 초청의 구분이 선악이다(§4.5) — 압력은 타락한 자의 방식, 부르심과 경외는 거룩한 질서의 방식. ④ 저자는 등장인물이 아니다(§4.5) — 하나님은 엔티티·화자·수치·엔딩 조건이 아니다. Tier 5조차 화신이지 저자가 아니다.
+**우주론 선언문**: ① 두 계는 장소가 아니라 격이다(§3.2) — 보이는 것들(T1~2)·문턱(T3)·보이지 않는 것들(T4~5)은 같은 지도 위에 겹쳐 있다. ② 영력의 은유는 넷만: **바람·숨·빛·음성**(루아흐, 프뉴마). 번개·에너지·수치 표현 금지. 영력은 저장·채굴·거래되지 않는다(§5.1). ③ 강제와 초청의 구분이 선악이다(§4.5) — 압력은 타락한 자의 방식, 부르심과 경외는 거룩한 질서의 방식. ④ 저자는 등장인물이 아니다(§4.5) — 하나님은 엔티티·화자·수치·엔딩 조건이 아니다. Tier 5조차 화신이지 저자가 아니다.
 
 
 
@@ -2113,7 +2159,7 @@ Severity 2 로그는 반드시 플레이어 또는 문명의 선택과 연결된
 
 **모티프 뱅크 30 → VS 6** (각 행에 `Motif.*` 태그: 안티 반복·연대기 집계. 태그는 모티프 행을 실제로 쓸 때 ini에 추가한다). 인월드에는 패턴만 들어가고 구절·고유명사는 들어가지 않는다(§8.3).
 
-VS 6: 바벨(창 11: 폐쇄 축·단일 사상 칙령 상태에서 '탑' 프로젝트 완공 시 문명이 2~3개로 쪼개짐) · 느부갓네살(단 4: FleetPower 1위 ∧ Stability > 0.9 ∧ Exaltation ≥ 5 → '지붕에서 거닐다' → N틱 강제 방랑자 + `Trait.Ruler.Humbled` → 겸비 선택 시 §5.10 복귀. '반란 → 방랑자'의 성경적 형태) · 요나(욘 3: Hazard의 해결 주체가 대상 AI 문명의 회개 이벤트일 수 있다 — Hazard가 결정론적 파멸이 아님을 가르치는 카드. 멸망을 바랐던 방랑자는 Reverence 손실) · 욥(반공식 규칙: 가장 의로운 문명에도 원인 없는 Hazard가 발생하며 로그는 절대 도덕화하지 않는다. T4 조우에서 타락 초월자가 '설명'을 제공하는 유혹 카드. 이기지 못하고 견디기만 하는 카드 1장) · 갈멜(왕상 18~19: 권능 대결 조우 → 승리 후 '낙심' 후속 카드 → `Trait.Faith.Remnant`) · 루스드라(행 14:15 vs 행 12:22-23: T3+ 방랑자가 T1~2 문명을 만나는 핵심 카드 '그들이 당신을 신이라 부른다' — 거부(Reverence는 '존경'으로 유지) / 수용(Exaltation +, 즉시 보상, 광신 경로) / 침묵, §5.9).
+VS 6: 바벨(창 11: 폐쇄 축·단일 사상 칙령 상태에서 '탑' 프로젝트 완공 시 문명이 2~3개로 쪼개짐) · 느부갓네살(단 4: FleetPower 1위 ∧ Stability > 0.9 ∧ Exaltation ≥ 5 → '지붕에서 거닐다' → N틱 강제 방랑자 + `Trait.Legacy.Humbled` → 겸비 선택 시 §5.10 복귀. '반란 → 방랑자'의 성경적 형태) · 요나(욘 3: Hazard의 해결 주체가 대상 AI 문명의 회개 이벤트일 수 있다 — Hazard가 결정론적 파멸이 아님을 가르치는 카드. 멸망을 바랐던 방랑자는 Reverence 손실) · 욥(반공식 규칙: 가장 의로운 문명에도 원인 없는 Hazard가 발생하며 로그는 절대 도덕화하지 않는다. T4 조우에서 타락 초월자가 '설명'을 제공하는 유혹 카드. 이기지 못하고 견디기만 하는 카드 1장) · 갈멜(왕상 18~19: 권능 대결 조우 → 승리 후 '낙심' 후속 카드 → `Trait.Faith.Remnant`) · 루스드라(행 14:15 vs 행 12:22-23: 방랑자가 격차 2인 문명을 만나는 핵심 카드 '그들이 당신을 신이라 부른다' — 거부(Reverence는 '존경'으로 유지) / 수용(Exaltation +, 즉시 보상, 광신 경로) / 침묵, §5.9).
 
 확장(Phase 6+): 오순절(여러 방언으로 이룬 연합 — 윤리가 다른 3문명 이상의 조약 = `Event.Civ.Pentecost`) · 유월절(격리령 성계가 역병을 '넘어감', 해방 업적 → `Trait.Legacy.Delivered`) · 희년·안식·면제년(칙령, §5.8) · 홍수 언약(방주 구조 문명에 `Trait.Faith.Covenant`) · 소돔 중보(성계 내 '의인' 수마다 카운트다운 연장) · 네피림(경계 침범 교리 `Doctrine.Trespass`) · 레기온(AI 각성의 '다중 자아' 변형, 해결은 '네 이름이 무엇이냐') · 다니엘 7(AI 프로필 4종의 연대기 별칭 사자·곰·표범·열 뿔; '손으로 짓지 않은 나라'는 플레이어가 결코 건설할 수 없는 유일한 것) · 곡과 마곡(T4에서 광신이 전 문명 관계를 적대로 몰아 포위; 해결은 FleetPower가 아닌 N틱 Stability 유지) · 두 증인 · 에덴·화염검(첫 10분 문구 '다스리며 지키라', 첫 유혹 카드 "하나님과 같이 되어", T5 문턱의 Exaltation 판정) · 계명성(모든 교리 초월자의 공통 전사: 한때 수호자였으나 "내가 하늘에 올라", §4.2) · 사울→다윗(즉위에 '열방과 같이' 로그; 업적을 '제사'처럼 쌓으면 정당성 하락) · 요시야(발견된 책 이벤트; 우상이 된 유물을 부숴 Stability 회복) · 계승(§4.4) · 피조물의 탄식(롬 8: 해결된 성계를 '탄식이 그친 성계'로) · 알지 못하는 신(행 17: 비기독교 문명을 그들의 범주로, `Trait.Faith.Seeking`) · 여호와의 날 · 포로지의 평안(렘 29: 적대 영토의 방랑자 과업) · 요셉의 섭리(실패한 조우가 나중 이벤트의 조건이 되는 전환 행 — 악을 미화하지 않고 결과만) · 엘리야의 낙심·요나의 떠남·모세의 도피와 부르심·다니엘의 협력과 양보(몰락한 군주 조우, §5.10).
 
@@ -2142,7 +2188,7 @@ VS 6: 바벨(창 11: 폐쇄 축·단일 사상 칙령 상태에서 '탑' 프로�
 상태가 전부 USTRUCT이므로 `UGameplayStatics::SaveGameToSlot`로 끝난다. Actor나 위젯 상태는 저장하지 않는다. 로드 후 Presentation이 상태를 보고 다시 그린다.
 `SaveVersion`을 두고, 구조체 필드 추가 시 기본값으로 호환한다. 필드 삭제·의미 변경은 버전 올리고 마이그레이션 함수를 쓴다.
 **슬롯 정책: 은하당 슬롯 1개(아이언맨).** 슬롯 이름은 `FGalaxyState.GalaxyID`에서 만든다. 수동 저장·로드 메뉴는 없다. 사망 직전 세이브를 로드할 수 있으면 하드 리셋이 선택 사항이 되어 부름과 계승(§4.4) 전체가 무의미해진다. 결정론(§9.2) 덕에 비용은 정책 수준이다. "관조 모드" 토글(수동 저장 허용)은 Phase 5 테스터 반응 뒤 결정한다(§16).
-**자동 저장 트리거**: 승천 직후, 역할 전환 직후(자진 이탈·즉위·복귀·폐위), **사망 직후**(공백기 진입 시, `PendingLeapTicks` 포함), **계승(취임) 직후**, 10분마다, 종료 시(강제 종료 롤백 방지). 사망과 계승 사이(공백기 도약 중)에는 저장하지 않는다 — 진입 시 저장한 `PendingLeapTicks`로 재개한다(`Calling.LeapResumeRoundTrip` 테스트, §9.3).
+**자동 저장 트리거**: 승천 직후, 역할 전환 직후(자진 이탈·즉위·복귀·폐위), **사망 직후**(공백기 진입 시, `PendingLeapTicks` 포함), **계승(취임) 직후**, 10분마다, 종료 시(강제 종료 롤백 방지). 모든 자동 저장은 틱 경계('역할 효과 해소' 단계 뒤, §7.4)에서만 찍는다. 사망과 계승 사이(공백기 도약 중)에는 저장하지 않는다 — 진입 시 저장한 `PendingLeapTicks`로 재개한다(`Calling.LeapResumeRoundTrip` 테스트, §9.3).
 
 
 ### 9.2 결정론
@@ -2151,7 +2197,7 @@ VS 6: 바벨(창 11: 폐쇄 축·단일 사상 칙령 상태에서 '탑' 프로�
 
 모든 난수는 `UGalaxySimulationSubsystem::Rng`(`FRandomStream`) 하나를 통한다. `FMath::Rand`를 시뮬 코드에서 쓰면 설계 위반.
 틱 내부 처리 순서는 고정(§7.4 주석). `TMap` 순회로 결과가 달라지는 코드를 쓰지 않는다. 순서가 중요한 곳은 `TArray`를 정렬해서 쓴다.
-같은 시드 + 같은 플레이어 입력 시퀀스 → 같은 `ComputeStateHash()`. 이것이 테스트의 기준이다. 해시에는 `Calling`(생애 인덱스·상태·기록)이 포함된다. 사망 파이프라인·계승 추첨·공백기 도약의 난수도 전부 `GetRng()`를 통한다(§4.4).
+같은 시드 + 같은 플레이어 입력 시퀀스 → 같은 `ComputeStateHash()`. 이것이 테스트의 기준이다. 해시에는 `Calling`(생애 인덱스·상태·기록)이 포함된다. 해시는 `Log`·`Chronicle`의 FText `Message`를 제외하고 Category·Severity·Tick·SourceRow·FocusSystemID만 포함한다(§4.4의 FText 저장 원칙과 같은 이유). 사망 파이프라인·계승 추첨·공백기 도약의 난수도 전부 `GetRng()`를 통한다(§4.4).
 결정론의 보상: 버그 재현, 리플레이, 헤드리스 밸런스 측정이 모두 가능해진다.
 
 
@@ -2174,7 +2220,7 @@ VS 6: 바벨(창 11: 폐쇄 축·단일 사상 칙령 상태에서 '탑' 프로�
 | `Cosmic_Ascension.Calling.HardReset` | 계승 후 그릇 열(§4.4 3분할 표)이 전부 초기화되고 부름 열은 유지. T≤2는 T1, T≥3은 유지 |
 | `Cosmic_Ascension.Calling.LeapResumeRoundTrip` | 공백기 진입 직후 저장 → 로드 → 남은 `PendingLeapTicks` 재개 → 중단 없이 돌린 것과 해시 동일 |
 | `Cosmic_Ascension.Calling.NoPlayerDuringLeap` | 도약 중 플레이어 이동·업적 평가·조우 생성·KillPlayer가 0회 |
-| `Cosmic_Ascension.Sim.SuccessionPossible` | 20,000틱 중 임의 틱에 사망시켜도 계승 후보가 1개 이상(없으면 '침묵의 우주' 엔딩이 정상 발화) |
+| `Cosmic_Ascension.Sim.SuccessionPossible` | 20,000틱 중 임의 틱에 사망시켜도 소유 성계가 1개 이상이면 계승 후보가 1개 이상(0이면 '침묵의 우주' 엔딩이 정상 발화) |
 | `Cosmic_Ascension.Sim.NoDanglingRefsAfterLeap` | 도약 후 `Player`·`Calling`의 모든 FName 참조(성계·문명·유물)가 존재 |
 | `Cosmic_Ascension.Sim.RevoltTelegraph` | Stability < 0.3이 100틱 지속되면 반드시 `Hazard.Rebellion`이 뜨고, 그 전에 전조 로그 ≥ 2줄 |
 | `Cosmic_Ascension.Sim.RealmPressureMonotonic` | `ComputeSpiritualPressure`는 원천 Tier가 오르면 단조 증가, 하위 Tier 원천은 0, 봉인 시 0 |
@@ -2277,7 +2323,7 @@ Cosmic_Ascension/
 
 └── Content/CA/
 
-├── Data/ DT_Traits, DT_Events, DT_Hazards, DT_Feats, DT_Encounters, DT_Relics, DT_Edicts, DT_Civs, DT_Transcendents, DT_Dedications, DT_Rules(단일 행 FCosmicRulesDef: 도약 폭·수명·계승 가중치·영압·왕좌 잠금·ImmutableLaws), ST_CA
+├── Data/ DT_Traits, DT_Events, DT_Hazards, DT_LogTemplates, DT_Feats, DT_Encounters, DT_Relics, DT_Edicts, DT_Civs, DT_Transcendents, DT_Dedications, DT_Rules(단일 행 FCosmicRulesDef: 도약 폭·수명·계승 가중치·영압·왕좌 잠금·ImmutableLaws), ST_CA
 
 ├── UI/ WBP_GalaxyHUD, WBP_SystemPanel, WBP_LogFeed, WBP_EncounterCard, WBP_AscensionOverlay
 
@@ -2319,7 +2365,7 @@ C++ 소스 파일은 ASCII만 쓴다. `UMETA(DisplayName)`도 영문. 한글은 
 
 UE 표준 접두어(U/A/F/E) 외 프로젝트 접두어는 쓰지 않는다. 대신 이름에 `Cosmic`/`Galaxy`/`Ascension` 등 도메인 단어를 넣는다.
 DataTable 행 이름: `snake_case` FName. 예: `crisis_pre_supernova`, `feat_dyson_swarm_1`.
-GameplayTag: `Domain.Sub.Leaf`. 최대 3단계. 예: `Hazard.PreSupernova`, `Trait.Biology.HiveMind`.
+GameplayTag: `Domain.Sub.Leaf`. 최대 3단계. 예: `Hazard.PreSupernova`, `Trait.Biology.HiveMind`, `Trait.Arch.Swarm`.
 에셋 접두어: `DT_`, `ST_`, `WBP_`, `NS_`, `M_`, `MI_`, `L_`.
 
 
@@ -2397,9 +2443,9 @@ GameplayTags ini에 초기 태그 트리. 빈 Subsystem 6개가 컴파일되고 
 
 
 
-방랑자: 이동, 조우 카드 UI, 능력치 판정(Exaltation 포함), 유물, 수련, 경외도. 조우 25장(몰락한 군주 3~5장, 길 1종 5장, 사자 카드 3장 포함).
-통치자: 연구 중점 슬라이더, 외교 태세/조약, 칙령 7종(`Edict.Vigil` 포함), 거대 프로젝트 5종(개혁 포함), 함대 배치, 청원 카드 8장, 시대 명명 이벤트.
-전환: 섭정 위임, 즉위, 복귀, 폐위 3화면(§8.4 재사용). 초월자 1체(침묵, `DT_Transcendents` 행 `trans_silence`), `ComputeSpiritualPressure`와 수정자 4곳, `Hazard.Visitation`, `Trait.Faith.*` 행. 순증 약 1주(콘텐츠 작성 포함).
+방랑자: 이동, 조우 카드 UI, 능력치 판정(Exaltation 포함), 유물, 수련, 경외도. 조우 25장(몰락한 군주 3~5장, 길 1종(`Path.Covenant`) 5장, 사자 카드 3장 포함).
+통치자: 연구 중점 슬라이더, 외교 태세/조약, 칙령 8종(`edict_vigil`, 안식 최소형 포함), 거대 프로젝트 5종(개혁 포함), 함대 배치, 청원 카드 8장, 시대 명명 이벤트, `DT_Dedications` 최소형(Epithet 10행).
+전환: 섭정 위임, 즉위, 복귀, 폐위 3화면(§8.4 재사용). 초월자 1체(침묵, `DT_Transcendents` 행 `trans_silence`), `ComputeSpiritualPressure`와 수정자 4곳, `Hazard.Visitation`, `Trait.Faith.*` 행. 남은 Hazard 3종(`Hazard.SubspaceErosion`·`Extinction`·`Cult`)과 그 R/W 해결 수단(방주 프로젝트, 피난 호위 체인, 침묵의 금지 칙령 + 청원 체인). 순증 약 1주(콘텐츠 작성 포함).
 **종료 조건**: 새 게임에서 30분 동안 양쪽 모드를 각각 한 번 이상 경험하며 T1→T3 도달이 가능하다.
 
 
@@ -2408,7 +2454,7 @@ GameplayTags ini에 초기 태그 트리. 빈 Subsystem 6개가 컴파일되고 
 
 
 KillPlayer 처리 → 공백기 도약 → 계승 → 다이제스트 → 3화면 → 저장 트리거 → 빈 은하 가드('침묵의 우주') → 테스트 6개(`Calling.LeapDeterminism`, `Calling.HardReset`, `Calling.LeapResumeRoundTrip`, `Calling.NoPlayerDuringLeap`, `Sim.SuccessionPossible`, `Sim.NoDanglingRefsAfterLeap`, §9.3) → 템플릿 65~70줄(§8.4 콘텐츠 예산).
-순증 6~8 작업일. §4.4가 원래 요구하던 사망 분기 약 4일을 대체한다. Phase 3·4의 코드는 변경하지 않고, 헤더는 Phase 1에서 예약했으므로 SaveVersion 마이그레이션이 없다. 양 모드가 소비한다(통치자 사망·섭정 인계, 방랑자 사망, 계승 후 즉위).
+순증 6~8 작업일. §4.4가 원래 요구하던 사망 분기 약 4일을 대체한다. Phase 3·4의 코드는 변경하지 않고, 헤더는 Phase 1에서 예약했으므로 SaveVersion 마이그레이션이 없다. 양 모드가 소비한다(Extinction 통치자 사망(섭정 없음), 방랑자 사망, 계승 후 즉위).
 **종료 조건**: 방랑자 사망 → 연대기 → 공백기 도약 → 계승이 콘솔 명령 없이 1회 이상 가능. 계승 후 §5.10 조건으로 즉위 가능. 테스트 6개 통과.
 
 
@@ -2427,7 +2473,7 @@ KillPlayer 처리 → 공백기 도약 → 계승 → 다이제스트 → 3화�
 
 
 이벤트 150+, 조우 100+, 특성 60, 업적 등급당 3~4(길별 T3→T4 변형 포함), 초월자 로스터(타락 2 + 천상 사자 1, 중립 초월자 선계·불계 1~2, `arch_machine` T4 → 동화 초월자, AI 문명 T4 도달 시 `Transcendents` 추가 — 기성 우주가 시뮬에서 자란다), 엔딩(집단·단독 각 두 길, 다른 질서, 침묵의 우주), 영어 로컬.
-아키타입 10행, 반란 결말 3종(쿠데타 `KillPlayer` 행/분열/분리), 길 3종 추가, 이중 계 Hazard 6종(§4.1 EA 후보), 모티프 24종, 칙령(희년·안식·도피성·이삭 줍기), 헌정명 뱅크·`DT_Dedications`, `EpithetRow`, Nomad 덱, 첫 생애 아키타입 선택 UI, 기원 선택 카드(`InstallAt`), `Trait.Legacy.Delivered/Forsaken`과 2대 전용 조우, 종족 상한 컬럼, 통치자 암살 이벤트 행, 노화 활성 판단(§16). 각각 §12.3 재심사.
+아키타입 11행, 반란 결말 3종(쿠데타 `KillPlayer` 행/분열/분리), 길 3종 추가, 이중 계 Hazard 6종(§4.1 EA 후보), 모티프 24종, 칙령(희년·안식·도피성·이삭 줍기), 헌정명 뱅크·`DT_Dedications`, `EpithetRow`, Nomad 덱, 첫 생애 아키타입 선택 UI, 기원 선택 카드(`InstallAt`), `Trait.Legacy.Delivered/Forsaken`과 2대 전용 조우, 종족 상한 컬럼, 통치자 암살 이벤트 행, 노화 활성 판단(§16). 각각 §12.3 재심사.
 성계 60/120 규모, 영겁 모드(스트레치).
 Steam 페이지(포지셔닝 문구는 §13), '세계관과 출처' 화면, 데모 빌드, EA 출시.
 
@@ -2457,9 +2503,9 @@ Steam 페이지(포지셔닝 문구는 §13), '세계관과 출처' 화면, 데�
 | 도달 가능 등급 | T1 → T3 (양 경로) |
 | Hazard | 7 (§4.1 표. 방문 `Hazard.Visitation`은 Phase 4에 별도 1종) |
 | 이벤트 | 40 (은혜 3·모티프 3·시대 명명 포함) |
-| 조우 | 25 (몰락한 군주 3~5, 길 1종 5, 사자 3 포함) + 청원 카드 8 = 33 |
+| 조우 | 25 (몰락한 군주 3~5, 길 1종(`Path.Covenant`) 5, 사자 3 포함) + 청원 카드 8 = 33 |
 | 업적 | 4 (T1→T2, T2→T3 각 2경로) |
-| 거대 프로젝트 / 칙령 / 유물 | 5 (개혁 포함) / 7 (철야 포함) / 8 |
+| 거대 프로젝트 / 칙령 / 유물 | 5 (개혁 포함) / 8 (철야·안식 최소형 포함) / 8 |
 | 생애 전환 | 1회 이상 (사망 → 공백기 도약 → 계승이 콘솔 명령 없이 가능, Phase 4b) |
 | Niagara | 1 (NS_Ascension. 사망·영적 사건 전용 없음) |
 | 저장/로드(은하당 슬롯 1), 배속, 결정론 테스트 | 완료 |
@@ -2484,7 +2530,7 @@ Steam 페이지(포지셔닝 문구는 §13), '세계관과 출처' 화면, 데�
 한국어·영어 외 언어 (EA 이후 판단).
 영겁 모드(엔딩 후 샌드박스)는 EA 이후.
 부름과 계승(§4.4): `USoulComponent`·`UCallingComponent` 등 Actor 결합 플레이어 상태. 행성·종족 엔티티와 DataAsset. 초월자 상태 FSM. 틱당 사망 확률·돌연사. 메타 프로그레션·스킬트리·은하 간 메타 세이브. 사망 전용 Niagara·일러스트. 통치자 사망의 별도 메커니즘. 도약 중 수동 개입. 수동 저장·로드 메뉴(관조 모드 토글은 §16).
-통치·이중 계·세력(§4.2, §4.5, §5.10, §5.11): `EPlayerRoleState`·`FPlanetaryGovernanceData`·Unrest/SpiritualFavor/영압 저장 필드·Dual-Realm Calculator 클래스·`UGalacticFactionDataAsset`·`EGalacticPhilosophy`. 천국·지옥·선계를 지도상의 영역으로. 두 번째 지도. 절대자 엔티티·화자·대화 NPC·'설득' 선택지. 영혼·기억 암시장, 영력 자원 바, 기도의 자원 지출, 신앙 게이지·개종 미터. 교리 4체 이상. 영적 존재의 체력·전투·축귀 미니게임, 악마 유닛. 사망·영적 사건 전용 Niagara. 문명 내부 파벌 엔티티. 실존 교단·목회자·현대 설교자 이름. 길을 '종교 세력' 하나로 합치는 것. 인월드 성경 본문·장절 인용(§8.3).
+통치·이중 계·세력(§4.2, §4.5, §5.10, §5.11): `EPlayerRoleState`·`FPlanetaryGovernanceData`·Unrest/SpiritualFavor/영압 저장 필드·Dual-Realm Calculator 클래스·`UGalacticFactionDataAsset`·`EGalacticPhilosophy`. 천국·지옥·선계를 지도상의 영역으로. 두 번째 지도. 절대자 엔티티·화자·대화 NPC·'설득' 선택지. 영혼·기억 암시장, 영력 자원 바, 기도의 자원 지출, 신앙 게이지·개종 미터. 타락 교리 정의 4종 이상·미봉인 타락 초월자 4체 이상(§17 채택 시 정의 4·활성 ≤ 3). 영적 존재의 체력·전투·축귀 미니게임, 악마 유닛. 사망·영적 사건 전용 Niagara. 문명 내부 파벌 엔티티. 실존 교단·목회자·현대 설교자 이름. 길을 '종교 세력' 하나로 합치는 것. 인월드 성경 본문·장절 인용(§8.3).
 
 
 ### 12.3 범위 추가 절차
@@ -2570,12 +2616,13 @@ UE 5.8.3 (C:\Program Files\Epic Games\UE_5.8), C++ 게임 모듈 `Cosmic_Ascensi
 Source/Cosmic_Ascension/Sim, Events, Ascension, Log, Player, Save 는 UUserWidget/AActor를 include하지 않는다.
 모든 런타임 상태는 FGalaxyState 안의 USTRUCT. UObject 그래프로 상태를 만들지 않는다.
 난수는 UGalaxySimulationSubsystem::GetRng() 의 FRandomStream만. FMath::Rand* 금지.
-틱 처리 순서: 경제 → 연구 → 외교 → 분쟁 → 위기 → AI → 플레이어 이동. 변경 시 가이드라인 §7.4 먼저 수정.
+틱 처리 순서: 경제 → 연구 → 외교 → 분쟁 → 위기 → AI → 플레이어 이동 → 역할 효과 해소. 변경 시 가이드라인 §7.4 먼저 수정.
 소스 파일은 ASCII. UMETA DisplayName 영문. 한글은 DataTable/String Table.
 하나님(거룩한 질서)은 엔티티·화자·수치·엔딩 조건이 아니다 (§4.5). 1인칭 로그 화자는 타락 초월자만.
 Core Logic Subsystem은 플레이어·생애에 종속된 멤버 변수를 갖지 않는다. 지속 업적 진척은 FGalaxyState 안에.
 FCivilizationState.Relations의 키는 CivID 또는 TranscendentID.
-DeposeRuler·KillPlayer는 위기 단계에서 처리된다 (§7.4 틱 순서).
+GameplayTag는 `Config/DefaultGameplayTags.ini`에 선언하고 코드에서 `FGameplayTag::RequestGameplayTag(FName)`로 얻는다. 태그는 `Domain.Sub.Leaf` 최대 3단계 (§10.1, §10.4).
+DeposeRuler·KillPlayer는 위기 단계·조우 해결에서 PendingRoleEffect로 기록되고 틱 경계의 '역할 효과 해소' 단계에서 처리된다 (§7.4).
 
 
 ## 작업 방식
@@ -2622,17 +2669,20 @@ PROJECT = <프로젝트 루트>\Cosmic_Ascension.uproject
 | 한국어 | 영어 | 코드 식별자 | 설명 |
 |---|---|---|---|
 | 존재 등급 | Ascension Tier | `EAscensionTier` | 5단계. 문명과 개인이 각각 가짐. T1~2 보이는 것들 / T3 문턱 / T4~5 보이지 않는 것들 |
-| 보이는 것들 / 보이지 않는 것들 | Visible / Invisible realms (골 1:16) | `EAscensionTier` T1~2 / T3~5 (열거형 변경 없음) | 두 계는 장소가 아니라 격 (§3.2) |
+| 보이는 것들 / 보이지 않는 것들 | Visible / Invisible realms (골 1:16) | `EAscensionTier` T1~2 / T3(문턱) / T4~5 (열거형 변경 없음) | 두 계는 장소가 아니라 격 (§3.2) |
 | 신화적 업적 | Mythic Feat | `FAscensionFeatDef`, `DT_Feats` | 승천의 유일한 조건 |
 | 승천 | Ascension | `UAscensionSubsystem::OnTierAscended` | 등급 상승 사건 |
 | 두 길 / 높아짐 | Two Ways / Exaltation | `Way.Received` / `Way.Seized`, `FPlayerEntityState.Exaltation`(0~10) | Tier 5의 받는 길과 찬탈의 길 (§3.2). 경배 수용이 올리는 4번째 개인 능력치 (§5.9) |
 | 위기 | Crisis / Hazard | `FHazardDef`, `Hazard.*` 태그 | 카운트다운이 있는 성계 상태. `Hazard.Visitation`만 '놓친 기회' |
 | 반란 / 폐위 / 왕좌 잠금 | Rebellion / Deposition / Throne lock | `Hazard.Rebellion`, `EEffectType::DeposeRuler`, `ThroneLockedUntilTick` | 통치자의 실패 상태 (§4.1, §5.10) |
+| 몰락한 군주 | Fallen Monarch | `Status.FallenMonarch`, Severity 2 '몰락한 군주' | 폐위·붕괴로 모성계에 남는 방랑자. 전용 조우 3~5장 (§4.4, §5.10) |
 | 초월자 | Transcendent | `FTranscendentState`, `Doctrine.*`, `Realm.*`, `DT_Transcendents` | Tier 4 AI 존재. 타락(침묵/동화/광신)·천상·독립 (§4.2) |
 | 계(界) 태그 | Realm | `FTranscendentState.Realm`: `Realm.Abyssal/Celestial/Independent` | 타락 / 천상 / 독립 |
 | 영압 | Spiritual pressure | `ComputeSpiritualPressure()`(파생, 저장 안 함) | Tier 격차의 파생 함수 + 수정자 4곳 (§4.2) |
+| 영적 시야 | Spiritual sight | `M_Star` `ViewMode`/`Pressure`/`DominionColor`, PlayerTier >= 3 해금 | 두 번째 지도 없음. Phase 3 꼬리 (§6.4) |
 | 영력 | Spiritual power | `Causality`(서사 이름만, 자원 아님) | 바람·숨·빛·음성으로만 묘사 (§5.1, §8.3) |
 | 거룩한 질서 | Divine Order | 엔티티 없음. `ImmutableLaws`, `Hazard.Visitation`, `Trait.Faith.*`, 수동태 | 저자는 등장인물이 아니다 (§4.5) |
+| 은혜 이벤트 | Grace event | `event_grace_rescue/remnant/jubilee`, `Event.Grace.*`, `Law.Sabbath`, `Flag.Grace.Spent` | 조건으로 유도 불가, 판당 1회, 거절 가능 (§4.5) |
 | 사자 | Messenger | `enc_messenger_*` | 이름 없음, 숭배 거절, 간접 화법 (§4.5) |
 | 남은 자 | Remnant | `Trait.Faith.Remnant`, `event_grace_remnant` | 어느 문명에도 뜨는 신앙 특성 (§4.5) |
 | 길 | Path | `Path.Stillness/Release/Axiom/Covenant`, `Power.Path.*` | 세력도 초월자도 아닌 조우 덱 데이터. 전용 엔딩 없음 (§4.5) |
@@ -2655,7 +2705,7 @@ PROJECT = <프로젝트 루트>\Cosmic_Ascension.uproject
 | 레인 | Lane | `FStarSystemState::Lanes` | 성계 간 이동 경로 |
 | 연대기 | Chronicle | `UCosmicLogSubsystem::BuildChronicle` | 엔딩용 로그 재편집. 생애(대)별 장 |
 | 부름 | Calling | `FCallingState`, `FGalaxyState::Calling`, `Log.Calling` | 플레이어의 정체. 그릇을 넘어 이어진다 (§4.4) |
-| 그릇 (육신) | Vessel | `FPlayerEntityState` | 사망 시 초기화되는 쪽 (§4.4 3분할 표) |
+| 그릇 (육신) | Vessel | `FPlayerEntityState` | 사망 시 전부 초기화되는 쪽. `PersonalTier`·`Powers`·`CompletedFeats`는 `FCallingState`에 유지 (§4.4 3분할 표) |
 | 생애 / 대(代) | Life | `FLifeRecord`, `LifeIndex`, `BornTick`, `Lives` | 판 안의 장. "제 N대" |
 | 사망 / 사인 | Death / Cause of Death | `EEffectType::KillPlayer`, `Death.*` 태그, `CauseSourceRow` | SourceRow가 있는 효과만 |
 | 시간선 도약 | Timeline Leap | `LeapTicks`, `RunHeadless` | 공백기 동안 은하가 혼자 흘러가는 구간 |
@@ -2664,10 +2714,6 @@ PROJECT = <프로젝트 루트>\Cosmic_Ascension.uproject
 | 재위 종료 사유 / 상태 | Reign end / Status | `Reign.Abdicated/Deposed/Died`, `Status.FallenMonarch/Abdicated` | 왜 방랑자가 되었나의 기록 (§5.10) |
 | 생존 주기 | Cycles lived | `TicksLived = DiedTick - BornTick` | 비문의 숫자 |
 | 수직 슬라이스 | Vertical Slice | - | §12.1 정의 |
-
-
-
-플레이어는 영혼이 아니라 부름이다. 한 그릇(육신)이 쓰러지면 부름이 다른 사람 위에 머문다(신 34:9, 왕하 2:9-15 패턴). 기록(연대기)과 경외도의 절반이 넘어가고, 능력치·유물·자원·왕좌는 넘어가지 않는다.
 
 
 
@@ -2698,6 +2744,7 @@ PROJECT = <프로젝트 루트>\Cosmic_Ascension.uproject
 | 11 | 지구를 첫 생애 시작으로 둘 것인가 | §17 결정 1(권장 A): VS부터 `arch_terran` 고정 — 갈라진 문명(`Trait.Society.Divided`) + 닫힌 책(`Trait.Faith.Book`), 수치 이점 0. 채택 시 §5.10·§5.11 적용 | §5.10, §5.11, §17 |
 | 12 | 초월자 로스터(EA) | §17 결정 2(권장 A): 교리 정의 4(침묵·동화·광신·회귀 `Doctrine.Recurrence`), 판당 활성(미봉인) 타락 ≤ 3 — VS 침묵 1, EA 침묵 고정 + 2체 가중 추첨, 창발 동화는 결원 시에만, 천상 사자 1행(상태 인스턴스 없음). 중립 초월자(선계·불계)는 Phase 6+ | §4.2, §11, §17 |
 | 13 | §17 '사다리 위의 두 영역, 영혼의 행방, 지구와 계시 양식' 채택 여부 | 권장안 전부 채택(17.4 결정 6건: 지구 고정 A / 회귀 교리 A / 영혼 경제 가시성 1 / 해탈의 길 A / 닫힌 책 A / 스토어 선언 A). 채택 시 17.9 적용 후 §17 삭제 | §3.2, §4.1, §4.2, §4.4, §4.5, §5.8~§5.11, §7, §8, §9, §11~§13, §15, ini, CLAUDE.md |
+| 14 | 폐위 후 플레이어 위치 | 모성계 잔류(현행, §5.10). Phase 5 테스터 반응 뒤 인접 성계 추방으로 전환 가능(한 줄 변경) | §5.10, §11 Phase 5 |
 
 확정 완료 (2026-10-11, v0.4):
 옛 §17 '부름과 계승' 채택 → 방랑자 사망 처리 확정: T≤2는 T1로, T≥3은 유지, 권능은 Tier에서 재부여. 사망은 `KillPlayer` 효과만, 공백기 도약은 `RunHeadless`, 계승 추첨은 가중 무작위, Reverence ×0.5, 은하당 슬롯 1개 아이언맨, 첫 생애는 통치자 고정, 노화는 노브(OFF). 상세 §4.4·§5.10·§9.1·§11 Phase 4b.
@@ -2792,7 +2839,7 @@ v0.4 본문에 흩어져 있는 일곱 원칙(§4.5 저자·강제와 초청·�
 
 - **발생**(결정론, 확률 아님): 어떤 Hazard가 만료된 성계가 (a) 미봉인 `Realm.Abyssal` 초월자의 영향권 안 또는 1레인 인접이거나, (b) 소유 문명이 그 초월자에게 `Trait.Faith.Tribute`를 가졌거나, (c) 소유 문명이 §4.4 붕괴 직후일 때. 만료 직후라 `ActiveHazard` 슬롯이 비어 있어 단일 슬롯과 충돌하지 않는다(`Hazard.Visitation`은 해결 직후, `Hazard.Claim`은 만료 직후 — 상호 배제). 지배 초월자는 `ComputeSpiritualPressure`의 `OutDominantSourceID` 재사용. 카운트다운 `DT_Rules.ClaimCountdown` 300. 상한: 그 초월자의 `InfluencedSystems.Num() ≥ MaxInfluencedSystems`(행 컬럼, 기본 12)면 발생하지 않는다.
 - **남은 자 법 `Law.Remnant`**(`ImmutableLaws` 추가): 주장은 한 문명의 마지막 미편입 성계에는 결코 발생하지 않는다. 왕상 19:18 "칠천 인을 남기리니", 사 1:9, 롬 11:5. 모든 주장 로그의 둘째 문장은 "전부는 아니었다" 또는 남은 자 문장이다. 상실 100%가 불가능하다는 구조적 보장이 '공포가 아니라 결정'을 만들고 신정론 예산(§8.3, 구원도 100% 아님)과 대칭을 이룬다. 테스트 `Sim.ClaimNeverTotal`.
-- **해결**: R = 거대 프로젝트 `project_relief`(해당 성계, 틱당 Matter+Influence) 또는 `Edict.Vigil`(§5.8, 카운트다운 +`VigilClaimExtension` 100, 수입 −20% — 보호에는 값이 있다) / W = 조우 `enc_witness`(T2+, Mind 판정, 증언) / 거대 프로젝트 '성소 봉헌'(§5.11 `arch_covenant`, 행 이름 `project_sanctuary`) 완성 성계는 주장 불가('Cult 발생 0' 확장) / T4 봉인 Feat = 결박: 그 초월자의 영향권 동결(§4.2), 신규 주장 0. 해결되면 아무 일도 없다 — 로그 Severity 1 "카운트다운이 멎었다. 아무것도 주장되지 않았다."
+- **해결**: R = 거대 프로젝트 `project_relief`(해당 성계, 틱당 Matter+Influence) 또는 `edict_vigil`(§5.8, 카운트다운 +`VigilClaimExtension` 100, 수입 −20% — 보호에는 값이 있다) / W = 조우 `enc_witness`(T2+, Mind 판정, 증언) / 거대 프로젝트 '성소 봉헌'(§5.11 `arch_covenant`, 행 이름 `project_sanctuary`) 완성 성계는 주장 불가('Cult 발생 0' 확장) / T4 봉인 Feat = 결박: 그 초월자의 영향권 동결(§4.2), 신규 주장 0. 해결되면 아무 일도 없다 — 로그 Severity 1 "카운트다운이 멎었다. 아무것도 주장되지 않았다."
 - **만료**: 성계가 그 초월자의 `InfluencedSystems`에 편입된다. 이것이 "베가가 떨어진 뒤 그림자가 부풀었다"의 실체이자 영혼 경제의 유일한 결과다. 저장 필드 추가 0 — 주장 상태는 영향권 소속이고, 표식(아래)은 파생이다.
 - **사용**: 영향권 안 문명에 교리별 `PressureEffectsPerTick`(§4.2 필드, 17.5 (다) '사용 방식' 열). 영향권 크기에 비례하는 이벤트 가중치: `EventWeightModifiers[Category] × (1 + SphereEventWeightStep(0.1) × InfluencedSystems.Num())`, 상한 ×3 — 가져간 만큼 그 교리의 사건이 잦아진다. 광신은 이것이 곧 '두려움이 양식'이다. 숫자 바·추출 미니게임·고통 장면 없음.
 - **신앙 특성은 자세이고 판결이 아니다**: `Trait.Faith.Remnant`·`Covenant`·`Exile`는 `Hazard.Claim` 발생 가중 ×0.5 / ×0.1 / ×0.5와 카운트다운 +100(§4.5 ④의 Cult 저항과 같은 결). 거둘 수 없는 것이 아니라 더디게 거두어지는 것이다(히 11:35-38, 롬 11:21 — 지구도 멸망할 수 있어야 '선한 편' 고정이 아니다). 주장의 발생 조건에 '신앙 특성 부재'를 넣지 않는다 — 조공과 미해결만 조건이다. 이 문명들의 손실·멸망에는 `Log.Record`(무주어 수동태, Severity 1) "{System}의 이름들이 기록되었다." / "{Civ}의 죽은 자들은 셈이 끝나지 않았다."가 뜬다(말 3:16 기념책, 눅 10:20). 서사만, 수치 없음.
@@ -2841,7 +2888,7 @@ v0.4 본문에 흩어져 있는 일곱 원칙(§4.5 저자·강제와 초청·�
 
 - **행**: 이름 뱅크 {태양계 연합, 지구 연방, 인류 연합}, {CivAdj} {갈라진, 끈질긴, 기억하는}, 신조 "책은 여기 있다. 읽는 사람이 적다." Traits = `Trait.Arch.Terran` + `Trait.Society.Divided`(신설) + `Trait.Faith.Book`(신설) + `Trait.Biology.Shortlived`(신설, 시 90:10 — Longlived 종족들과 대칭) + §3.1 절차 1~2개. 윤리 P 0.0 / S 0.0 / O +0.2. AIProfile 없음(플레이어 전용), `Weight` 0(AI 추첨 제외 — 지구는 하나). `HazardSpawnMultipliers` {`Hazard.Rebellion` 1.5, `Hazard.AIAwakening` 1.2}(나라들의 행성이라 반란 압력이 높고 파벌 청원이 잦다 — 첫 10분 결정 밀도를 데이터로 올리는 부수 효과). `RevelationMode` `Revelation.Book`. `DedicationBank` `Faith.Bank.Hebrew`(회중) / `Faith.Bank.Civic`(의회). 모성계 `sol`, 표시 '태양계', `Star.Class.G`, ResourceRichness 1.0 — 평범하게. '지구'라는 낱말은 문명 이름과 첫 10분 첫 줄("태양계. 당신은 이 행성의 통치자다.", §2.4)에만. 행성은 모델링하지 않는다(§5.10 '행성 = 모성계 1개').
 - **`Trait.Society.Divided`**: 청원 카드 화자가 윤리 축 파벌 대신 두 파벌 고정 — **의회**(세속 다수, `Faith.Bank.Civic`: 공화·연합·헌장)와 **회중의 장로들**(남은 자, `Faith.Bank.Hebrew`). 같은 청원에 두 목소리가 들어가고 선택은 Spiritualism을 ±0.05 움직인다. 프로젝트를 청원한 파벌이 완성 시 헌정명을 붙이므로 지구의 고백은 복수다. 이벤트 가중 {`Event.Civ.Society` 1.5}, Influence 수입 ×0.9, `Hazard.Rebellion` 전조 '웅성거림'이 분열형 문장을 쓴다. 마 13:30 "둘 다 추수 때까지 함께 자라게 두어라" — 게임은 어느 파벌이 옳은지 라벨링하지 않고 결과만 기록한다.
-- **`Trait.Faith.Book`(닫힌 책)**: 책은 사물·제도·사건으로 존재하고 본문으로 존재하지 않는다. 카메라는 표지까지만 간다. 효과: 헌정명 뱅크 Hebrew 사용, 회중 화자 활성, 광신의 '고발' 화법(§4.2)에 Book 변형 3줄("너희 책이 너희를 고발한다" 패턴 — 이름·인용 없이 실패 로그 `SourceRow`만 인용; 요 5:45, 암 3:2 "너희만 알았나니 그러므로 보응하리라") 가중 ×1.5, 생산 승수 0, 보호 0 — 책은 버프도 디버프도 아니라 **더 높은 기준**이다(롬 3:2 "말씀을 맡았음", 눅 12:48 "많이 받은 자에게는 많이 찾을 것이요", 롬 2:13 듣는 자가 아니라 행하는 자). 책은 Relic·연구·자원·능력치가 아니다. 제도 = 칙령: 안식·희년·도피성·이삭 줍기(§5.8 EA 후보) + **낭독 `Edict.Reading`**(느 8:8 패턴: Insight → Stability, 활성 중 `Hazard.Famine` 면역). 사건 3종(`DT_Events`, 전부 기존 효과): "책이 닫혔다"(침묵 영향권 300틱 지속 → `Trait.Faith.Book` 제거 + `Trait.Faith.BookShut`, Insight ×0.5, 형용사 '잊은'; 암 8:11·신 8:11) / "책이 발견되었다"(BookShut + Society 돌파 → 복원, Stability +0.2, "왕이 옷을 찢었다" 류 패턴 로그; 왕하 22:8·11, 23:2. §8.6 요시야 모티프의 구체형) / 낭독(주기 이벤트). 신조의 드라마: "우리는 들었고, 적었고, 잊었고, 다시 찾았다."
+- **`Trait.Faith.Book`(닫힌 책)**: 책은 사물·제도·사건으로 존재하고 본문으로 존재하지 않는다. 카메라는 표지까지만 간다. 효과: 헌정명 뱅크 Hebrew 사용, 회중 화자 활성, 광신의 '고발' 화법(§4.2)에 Book 변형 3줄("너희 책이 너희를 고발한다" 패턴 — 이름·인용 없이 실패 로그 `SourceRow`만 인용; 요 5:45, 암 3:2 "너희만 알았나니 그러므로 보응하리라") 가중 ×1.5, 생산 승수 0, 보호 0 — 책은 버프도 디버프도 아니라 **더 높은 기준**이다(롬 3:2 "말씀을 맡았음", 눅 12:48 "많이 받은 자에게는 많이 찾을 것이요", 롬 2:13 듣는 자가 아니라 행하는 자). 책은 Relic·연구·자원·능력치가 아니다. 제도 = 칙령: 안식·희년·도피성·이삭 줍기(§5.8 EA 후보) + **낭독 `edict_reading`**(느 8:8 패턴: Insight → Stability, 활성 중 `Hazard.Famine` 면역). 사건 3종(`DT_Events`, 전부 기존 효과): "책이 닫혔다"(침묵 영향권 300틱 지속 → `Trait.Faith.Book` 제거 + `Trait.Faith.BookShut`, Insight ×0.5, 형용사 '잊은'; 암 8:11·신 8:11) / "책이 발견되었다"(BookShut + Society 돌파 → 복원, Stability +0.2, "왕이 옷을 찢었다" 류 패턴 로그; 왕하 22:8·11, 23:2. §8.6 요시야 모티프의 구체형) / 낭독(주기 이벤트). 신조의 드라마: "우리는 들었고, 적었고, 잊었고, 다시 찾았다."
 - **어휘**: 지구 문명의 목소리는 개역한글 공용 명사(천국·지옥·음부·낙원·부활·심판·언약·남은 자·안식·희년)와 METAPHOR군(반석·방패·목자·산성), 헌정명(이레·닛시·샬롬·삼마·올람·로이). 책을 가리킬 때 '그 책' 또는 '언약책'(왕하 23:2) — UI·서술자에 '성경'은 없다. 바깥을 향한 가장 가까운 말은 '하늘의 하나님'(욘 1:9)과 '천지의 주재'. 성육신은 저자가 등장인물이 되는 사건이라 게임의 서술로는 금지(§4.5 원칙 1) — 지구 문명의 고백(`Path.Covenant` 체인, Tier B)으로만 존재하고 인월드 역사·연대표·사건 로그에는 없다. 교단·교회·현대 기관·목회자·국가·도시·종파 이름 없음. 지구도 멸망·폐위·주장·조공이 가능하다(플롯 아머 없음). 지구는 연대기('책들')를 '책'이라 부르는 유일한 문명이다 — 그들만 지평 문장 "손으로 짓지 않은 나라를 기다리는 자들의 기록"(§4.5 ⑤)을 자기 말로 알아듣는다.
 - **첫 10분 완화 7개**: ① 첫 청원 화자는 의회, Tier A 어휘만 ② 히브리 헌정명의 첫 등장은 첫 프로젝트 완성 ③ 영적 계에 관해 플레이어가 처음 읽는 문장은 항상 부름(`Log.Sign` 징조, 설명 없음)이고 영압은 1,800틱 이후(§4.2) ④ 신앙 어휘는 회중 화자의 입으로만 ⑤ 매 판 같은 시작의 피로는 절차 Traits 1~2개와 이웃 아키타입 무작위, 2대부터 무작위 계승으로 상쇄 ⑥ 수치 이점 0, 은혜 이벤트는 모든 문명과 동일 조건 ⑦ Phase 5 지표: 첫 10분 이탈(600틱 안 종료) < 10%, 비기독교 테스터의 '설교처럼 느낀 순간' 세션당 ≤ 1회, 두 명 이상이 겹쳐 지목한 '불편한 문장'은 교체.
 
@@ -2863,14 +2910,14 @@ v0.4 본문에 흩어져 있는 일곱 원칙(§4.5 저자·강제와 초청·�
 | 소속 | `FTranscendentDef.Allegiance`(FGameplayTag `Realm.*`), `FTranscendentState.Realm` 삭제, `TranscendentID` == 행 이름 | 헤더 1필드 | 1 |
 | 교리 4종·활성 ≤ 3 | `Doctrine.Recurrence` 태그(지금), `FTranscendentDef` 컬럼 `CounterfeitOf`·`Lure`·`Title`·`SpawnWeight`·`MaxInfluencedSystems`·`ClaimTemplates`, `DT_Rules.FallenTranscendentCount`(VS 1, EA 3), `NewGalaxy` 가중 추첨(약 20줄, 침묵 고정), 조건 `EConditionType::TranscendentDoctrinePresent` | small-code | 1 추첨 / 4 침묵 행 / 6+ 나머지 행 |
 | 위계 | `FHazardDef.SourceDoctrine`(선택), `Tier` 허용값 T3/T4 검사 | 헤더 1필드 | 2 |
-| 주장 | `DT_Hazards` 행 `crisis_claim`(`Hazard.Claim`, 300틱), 발생 규칙은 `TickHazards` 만료 처리 끝에(§7.4 순서 불변), 만료 효과 = 영향권 편입, `Law.Remnant`, `project_relief`·`enc_witness` 행, `Edict.Vigil` 연장, `Event.Crisis.Claim` 카테고리 | small-code(약 80줄) + 데이터 | 2 골격 / 4 해결 콘텐츠 |
+| 주장 | `DT_Hazards` 행 `crisis_claim`(`Hazard.Claim`, 300틱), 발생 규칙은 `TickHazards` 만료 처리 끝에(§7.4 순서 불변), 만료 효과 = 영향권 편입, `Law.Remnant`, `project_relief`·`enc_witness` 행, `edict_vigil` 연장, `Event.Crisis.Claim` 카테고리 | small-code(약 80줄) + 데이터 | 2 골격 / 4 해결 콘텐츠 |
 | 사용 | 교리별 `PressureEffectsPerTick` 데이터, 이벤트 가중 승수 `(1 + 0.1 × Num)` 상한 3, `event_zeal_sacrifice` 행, `EEffectType::ChangePopulation`(§4.1 역병 −40%에 어차피 필요) | small-code | 2 효과 / 6+ 행 |
 | 신앙 특성 | `Hazard.Claim` 발생 가중·카운트다운 보정은 기존 Trait 효과 경로, `Log.Record` 푸시 | 데이터 | 4 |
 | 표식 | `M_Star` `ClaimState` 파생 파라미터 1개(§6.4 토글 3개와 함께) | Presentation만 | 3 꼬리 |
 | 유혹 | `UPlayerRoleSubsystem::OfferReturn()` 훅(약 40줄), `enc_recurrence_return`, `FLifeRecord.SuccessionKind`(`Succession.Installed/Called/Returned`)·`bReturnOffered`, `Status.Returned`, `DT_Rules.ReturnLureMaxLanes`(2)·`ReturnedLivesToSeize`(3) | small-code | 1 예약 / 4b 훅(테스트 주입 행) / 6+ 실전 |
 | 길 = 응답 | §4.5 머리말 교체, 어휘 분리 린트 2종, `Faith.Bank.Nations` 뱅크, 해탈 분별 보너스 | 데이터 | 지금 / 4 / 6+ |
 | 계시 양식 | `FCivArchetypeDef.RevelationMode`·`RevelationTemplates`(3), `FLogTemplateDef { Category; Context; MinTierToReveal; Templates }`, `PickTemplate(Category, Context, Rng)`(약 20줄), `{Revelation}` 슬롯 | small-code | 1 구조체 / 4 VS 7행 × 3줄 = 21줄 / 6+ EA 15줄 |
-| 지구 | `DT_Civs` 행 `arch_terran`, `FCivArchetypeDef.HomeSystemNames`·`HomeStarClass`, `FCivilizationState.ArchetypeRow`(FName), `DT_Rules.PlayerArchetypeRow`, `DT_Traits` 행 `Trait.Society.Divided`·`Trait.Faith.Book`·`BookShut`·`Trait.Biology.Shortlived`, 청원 화자를 Trait로 덮어쓰는 1분기, `Edict.Reading`, 책 이벤트 3행, 고발 Book 변형 3줄, `Faith.Bank.Civic` | 데이터 + 분기 1 | 1 행·컬럼 / 2 이벤트 / 4 청원·템플릿 |
+| 지구 | `DT_Civs` 행 `arch_terran`, `FCivArchetypeDef.HomeSystemNames`·`HomeStarClass`, `FCivilizationState.ArchetypeRow`(FName), `DT_Rules.PlayerArchetypeRow`, `DT_Traits` 행 `Trait.Society.Divided`·`Trait.Faith.Book`·`BookShut`·`Trait.Biology.Shortlived`, 청원 화자를 Trait로 덮어쓰는 1분기, `edict_reading`, 책 이벤트 3행, 고발 Book 변형 3줄, `Faith.Bank.Civic` | 데이터 + 분기 1 | 1 행·컬럼 / 2 이벤트 / 4 청원·템플릿 |
 | 두 책 | `Log.Claim`·`Log.Record` 태그, `{Transcendent}` 슬롯, `BuildChronicle` 장 1개(약 40줄), 에필로그 둘째 줄 | small-code | 2 태그 / 4b 장 |
 | 독립 초월자·문턱·후원 | `trans_stillness`·`trans_release` 행, `enc_independent_question`, `enc_threshold`, `enc_patron_*` 4장, 엔딩 변형 템플릿 | 데이터 | 6+ |
 | 테스트 | `Sim.ClaimNeverTotal`(20,000틱 AI 전용: 소유 성계 ≥ 1인 어떤 문명도 전 성계 편입 안 됨) / `Sim.SphereGrowthResponsive`(인접 Hazard를 꾸준히 해결하면 성장 속도 절반 이하) / `Sim.FallenRosterPick`(시드별 활성 ≤ 3, 침묵 항상) / `Sim.NoClaimsFromCelestial` / `Calling.LureGate`(회귀 부재·봉인·범위 밖에서는 절대 뜨지 않음) / `Calling.ReturnLureBothPaths`(수락: `Way.Seized` 3회차·`Exaltation` +2·`LeapTicks` 0·모성계 편입·`Succession.Returned` / 거절: 파이프라인 동일·`Exaltation` −1) / `Data.NoVerdictWords`(서술자 카테고리 템플릿에 천국·지옥·구원받·멸망받·영혼·저주받·심판받 금지; `Log.Transcendent`·`Log.Claim`·조우 인용문·Chronicle 머리 문장 예외) / `Data.PathDoctrineVocab`(어휘 분리) / `Data.Integrity` 추가 항목(`Allegiance ∈ Realm.*`, Celestial 행은 영향권·압력·`SpawnWeight` 0, Abyssal `Tier ≤ 4`, Doctrine 고유, `RevelationMode` 커버리지와 폴백 행 존재, `PlayerArchetypeRow` 존재, `Weight 0` 행은 그것에서만 참조, 모든 DataTable FText에 Tier C 금지어 여호와·예수·그리스도·성령·보혜사와 기독교·성경·교회 금지) | 테스트 | 2 / 4b / 5 |
@@ -2908,7 +2955,7 @@ v0.4 본문에 흩어져 있는 일곱 원칙(§4.5 저자·강제와 초청·�
 | §4.2 | 모방의 원리 문단(원칙 11) + 교리 표에 회귀 행과 `CounterfeitOf`·사용 방식·유혹 열(17.5 (다)), 공통 규칙 넷째 줄, "타락한 자는 음부를 다스리지 않는다. 음부는 그들을 기다린다." 2문장, 엡 6:12 매핑 문단(17.5 (나)), "저자에게 상대는 없다" 1줄, 영혼 경제 정의("자원·저장 필드·카운터가 아니라 `Hazard.Claim`과 영향권, 교리별 압력, 1인칭 주장으로만 존재한다"), "교리는 4체 이상 만들지 않는다" → "교리 정의 4, 판당 활성(미봉인) 타락 ≤ 3", EA 로스터 문장을 "침묵 고정 + 나머지 셋 중 2 추첨(동화 2·광신 3·회귀 2), 창발 동화는 결원 시에만 + 천상 사자 1행(상태 인스턴스 없음)"으로, `FTranscendentState.Realm` → `FTranscendentDef.Allegiance` |
 | §4.4 | 계승 행 옆 "회귀의 유혹은 계승 파이프라인의 선택적 분기(Phase 4b 훅, 6+ 실전). 받아들여도 게임오버가 아니고 '돌아온 자'로 기록된다." T5 엔딩 변형 문장을 17.5 (차)의 두 벌로 정리. 사망 파이프라인에 `OfferReturn()` 위치 1줄. 3분할 표 '부름(유지)'에 `SuccessionKind` 기록. 엔딩 추가 없음 |
 | §4.5 | 원칙 1에 "성육신도 인월드 역사로 서술하지 않는다 — 지구 문명의 고백으로만" 1줄, 강제와 초청에 "착취는 살아 있는 자에게만 닿는다(욥 1:12)"(원칙 10) 1줄, ① `Law.Remnant` 추가, ③ 사자 템플릿이 `RevelationTemplates`를 읽는다, ④ 신앙 특성의 `Hazard.Claim` 보정, 길 문단 머리말 교체(17.5 (바), 원칙 9)와 "각자의 주장을 가진 '길'이며 게임은 어느 길이 참인지 숫자로 판정하지 않는다" → "한 저자에 대한 여러 응답이며 게임은 어느 응답이 받아들여졌는지 판정하지 않는다 — 책이 보이지 않기 때문이다", 영역 어휘표(17.5 (가)), 독립 초월자 입장과 Visitation 포함(17.5 (자), Phase 6+) |
-| §5.8 칙령 | `Edict.Reading`(낭독), `Edict.Vigil`의 주장 연장 |
+| §5.8 칙령 | `edict_reading`(낭독), `edict_vigil`의 주장 연장 |
 | §5.10 | 첫 생애 문명을 `arch_default` → `DT_Rules.PlayerArchetypeRow`(기본 `arch_terran`), 청원 화자에 `Trait.Society.Divided` 분기(의회/회중), §16 참조 제거 |
 | §5.11 | `arch_terran` 행과 컬럼 4개(`RevelationMode`·`RevelationTemplates`·`HomeSystemNames`·`HomeStarClass`), `Trait.Society.Divided`·`Trait.Faith.Book`·`BookShut`·`Trait.Biology.Shortlived`, 계시 양식 표(17.5 (사)), (나) 문장의 `FTranscendentState.Realm` → `FTranscendentDef.Allegiance`, 상인 행에 "'영혼' 낱말은 이 거래문에서만" |
 | §2.4 | 첫 10분 첫 줄 "태양계. 당신은 이 행성의 통치자다.", 첫 청원 화자 = 의회 |
@@ -2924,7 +2971,7 @@ v0.4 본문에 흩어져 있는 일곱 원칙(§4.5 저자·강제와 초청·�
 | §12.1 | Hazard 7 → 8(`Hazard.Claim`), 아키타입 6 → 7(`arch_terran`) |
 | §12.2 | 17.7 전부 |
 | §13 | 리스크 2행: '영혼 카운터 오독'(대응: 스칼라 0, 숫자 린트) / '종교적 타자 악역화'(대응: 어휘 분리 린트, 길의 입으로만 비판). '설교조' 행의 Steam 포지셔닝에 결정 6의 문장들과 '세계관과 출처' 화면 선언 |
-| `Config/DefaultGameplayTags.ini` | `Doctrine.Recurrence`, `Truth.Rest/Union/Worship/Renewal`, `Revelation.Book/OtherVoice/Remainder/Quiet/Debt/KeptCovenant/Pillar/Whisper/SparedEnemy/SealedWord/Scattering`, `Trait.Arch.Terran`, `Trait.Faith.Book/BookShut`, `Trait.Society.Divided`, `Trait.Biology.Shortlived`, `Status.Returned`, `Succession.Installed/Called/Returned`, `Log.Claim/Record`, `Hazard.Claim`, `Event.Crisis.Claim`, `Law.Remnant`, `Edict.Reading`, `Faith.Bank.Hebrew/Civic/Nations` |
+| `Config/DefaultGameplayTags.ini` | `Doctrine.Recurrence`, `Truth.Rest/Union/Worship/Renewal`, `Revelation.Book/OtherVoice/Remainder/Quiet/Debt/KeptCovenant/Pillar/Whisper/SparedEnemy/SealedWord/Scattering`, `Trait.Arch.Terran`, `Trait.Faith.Book/BookShut`, `Trait.Society.Divided`, `Trait.Biology.Shortlived`, `Status.Returned`, `Succession.Installed/Called/Returned`, `Log.Claim/Record`, `Hazard.Claim`, `Event.Crisis.Claim`, `Law.Remnant`, `Faith.Bank.Hebrew/Civic/Nations` |
 | `CLAUDE.md` 불변 규칙 | "영혼·구원·멸망을 세는 필드·컬럼·업적 없음", "`Realm`은 상태가 아니라 정의(`FTranscendentDef.Allegiance`)", "서술자 카테고리 템플릿에 판정 어휘 금지(`Data.NoVerdictWords`)" |
 | §15 | 17.10 용어, '계 태그 = 소속 / Tier 의미론 = 보임' |
 | §16 | #11·#12를 결정 1·2로 해소, #13 이 섹션 채택 여부 삭제; 미결 추가: 귀환 유혹의 실익 수준(Phase 6+ 재심사), 타락 1인칭 로그 밀도 2단 옵션(Phase 5 테스터 결과 후에만 재검토), 받는 길 두 변형 유지 여부(테스터 질문 결과), 구절 에코 옵션 범위(기본 OFF 유지) |
@@ -2944,7 +2991,7 @@ v0.4 본문에 흩어져 있는 일곱 원칙(§4.5 저자·강제와 초청·�
 | 남은 자 법 | Law of the remnant | `Law.Remnant`(마지막 미편입 성계는 주장 불가) |
 | 두 책 | Two Books | `BuildChronicle` 장: 기록된 이름들 / 주장된 이름들. '다른 책'은 펴지지 않는다 |
 | 계시 양식 | Revelation mode | `FCivArchetypeDef.RevelationMode`(`Revelation.*`), 텍스트만 바꾼다 |
-| 닫힌 책 | Closed book | `Trait.Faith.Book` / `BookShut`, `Edict.Reading`, 책 이벤트 3종 |
+| 닫힌 책 | Closed book | `Trait.Faith.Book` / `BookShut`, `edict_reading`(DT_Edicts 행), 책 이벤트 3종 |
 | 갈라진 문명 | Divided society | `Trait.Society.Divided`: 의회(`Faith.Bank.Civic`) / 회중의 장로들(`Faith.Bank.Hebrew`) |
 | 열방의 호칭 | Names of the nations | `Faith.Bank.Nations`(이방인이 쓴 호칭만) |
 | 문턱 | Threshold | `enc_threshold`(T5, 통과 선택지 없음), 문은 장소 |
