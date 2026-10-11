@@ -31,7 +31,10 @@
 #include "Core/CosmicTypes.h"
 #include "GalaxyState.generated.h"
 
-/** One narrative log line (section 8.1). Message is rendered when the entry is pushed (section 7.5). */
+/**
+ * One narrative log line (section 8.1). UCosmicLogSubsystem::Push renders the template and stores the flattened result
+ * (culture-invariant text): the save holds no format history, and the line keeps the language it was pushed in (section 7.5, 8.5).
+ */
 USTRUCT(BlueprintType)
 struct COSMIC_ASCENSION_API FCosmicLogEntry
 {
@@ -372,16 +375,23 @@ struct COSMIC_ASCENSION_API FLifeRecord
 	UPROPERTY()
 	FName BirthCivID;
 
-	// The vessel's name: index into the birth civ archetype's PersonNameBank, drawn by Install() with GetRng() (section 4.4, 7.5).
+	// DT_Civs row of the birth civ, copied from its ArchetypeRow by Install(). Keeps the vessel's name bank resolvable after
+	// Hazard.Extinction deletes the birth civ (section 8.2). Succession.Returned keeps the previous life's value.
+	UPROPERTY()
+	FName BirthArchetypeRow;
+
+	// The vessel's name: index into the PersonNameBank of BirthArchetypeRow, drawn by Install() with GetRng() (section 4.4, 7.5).
 	// Succession.Called draws a new index, Succession.Returned repeats the previous life's index.
 	// A nameless birth civ (empty PersonNameBank) uses arch_default's bank instead.
 	UPROPERTY()
 	int32 NameIndex = 0;
 
+	// The three reign arrays (RuledCivIDs, ReignEndReasons, ReignTicks) always have the same length. Taking a throne
+	// (Install as Ruler, BecomeRuler, ReturnToFormerCiv) adds one entry to all three.
 	UPROPERTY()
 	TArray<FName> RuledCivIDs;
 
-	// Same order as RuledCivIDs. Reign.Abdicated / Reign.Deposed / Reign.Died (section 5.10).
+	// Same order as RuledCivIDs. Reign.Abdicated / Reign.Deposed / Reign.Died (section 5.10). Empty tag = the open reign.
 	UPROPERTY()
 	TArray<FGameplayTag> ReignEndReasons;
 
@@ -413,7 +423,8 @@ struct COSMIC_ASCENSION_API FLifeRecord
 	UPROPERTY()
 	TArray<FName> MegaprojectsCompleted;
 
-	// Same order as RuledCivIDs.
+	// Same order as RuledCivIDs. Running count: +1 per tick while ruling, at the end of TickPlayerTravel (section 7.4).
+	// Era naming (600 ticks) and Trait.Legacy.Enduring (1,800 ticks) read it (section 5.10).
 	UPROPERTY()
 	TArray<int64> ReignTicks;
 
