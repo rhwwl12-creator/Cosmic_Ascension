@@ -28,6 +28,7 @@ Core Logic Subsystem은 플레이어·생애에 종속된 멤버 변수를 갖�
 
 ## 작업 방식
 
+진행 방식(Phase별 effort·ultracode 사용 기준, 세션 시작 절차, 다음 작업)은 `WORKPLAN.md`(작업지시서)를 따른다. 프로젝트 기본 모델·effort는 `.claude/settings.json`(Opus 5.5, high).
 클래스 하나씩. 헤더 먼저 제시하고 승인 후 소스 (§14.1).
 시뮬 코드는 `Tests/` 의 자동화 테스트와 함께 작성 (§9.3, §14.2).
 UE 5.8은 모델 학습 데이터보다 새 버전이다. 낯선 엔진 API는 반드시 로컬 엔진 소스에서 선언 헤더를 확인한 뒤 사용한다: `C:\Program Files\Epic Games\UE_5.8\Engine\Source` (UnrealBuildTool C# 소스도 `Engine\Source\Programs\UnrealBuildTool`에 있음).
