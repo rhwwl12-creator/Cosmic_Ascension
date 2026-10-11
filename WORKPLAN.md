@@ -68,7 +68,13 @@
 | 버그 원인 조사(재현 가능) | high (해시 불일치·저장 왕복 실패 등 결정론·저장 관련은 xhigh — 원인이 한 필드 누락일 때가 많다) | 단독. 원인이 둘 이상 의심되면 ultracode로 가설 병렬 검증 |
 | 엔진 API 확인(5.8 소스 대조) | medium | 단독(`C:\Program Files\Epic Games\UE_5.8\Engine\Source`에서 선언 헤더 확인) |
 
-### effort 세 단 요약과 세션 시작 시 설정`n`n- **코드와 문서는 xhigh**(Phase 1·2·4b, 설계 문서 변경, 결정론·저장 관련 버그), **콘텐츠 작성은 high**(Phase 4·6+ 텍스트, 일반 .cpp·테스트·버그 조사), **시각·기계 작업은 medium 이하**(Phase 3·5, 빌드·테스트 실행, 엔진 API 확인).`n- 프로젝트 설정 파일의 기본값은 `high`다. xhigh가 필요한 Phase(1·2·4b)와 설계 문서 변경 세션은 **시작할 때 `/effort xhigh`를 명시**한다(세션 한정은 슬라이더에서 `s`). 설정 파일 기본값을 xhigh로 올리지 않는다 — 모든 작업이 비싸진다.`n- `max`는 세션 한정이고 비용 대비 효과가 불확실하므로 메인 세션에는 쓰지 않는다. Phase 1 헤더 리뷰 워크플로의 **적대 검증 에이전트에만** `agent(prompt, { effort: 'max' })`로 준다.`n`n### ultracode를 켜지 않는 경우
+### effort 세 단 요약과 세션 시작 시 설정
+
+- **코드와 문서는 xhigh**(Phase 1·2·4b, 설계 문서 변경, 결정론·저장 관련 버그), **콘텐츠 작성은 high**(Phase 4·6+ 텍스트, 일반 .cpp·테스트·버그 조사), **시각·기계 작업은 medium 이하**(Phase 3·5, 빌드·테스트 실행, 엔진 API 확인).
+- 프로젝트 설정 파일의 기본값은 `high`다. xhigh가 필요한 Phase(1·2·4b)와 설계 문서 변경 세션은 **시작할 때 `/effort xhigh`를 명시**한다(세션 한정은 슬라이더에서 `s`). 설정 파일 기본값을 xhigh로 올리지 않는다 — 모든 작업이 비싸진다.
+- `max`는 세션 한정이고 비용 대비 효과가 불확실하므로 메인 세션에는 쓰지 않는다. Phase 1 헤더 리뷰 워크플로의 **적대 검증 에이전트에만** `agent(prompt, { effort: 'max' })`로 준다.
+
+### ultracode를 켜지 않는 경우
 
 - 수정 범위가 한 파일·한 함수인 작업, 사용자가 화면을 보며 왕복해야 하는 UI 조정, 빌드 오류 수정.
 - 이미 리뷰를 통과한 코드를 같은 세션에서 변경 없이 다시 리뷰하는 일.
@@ -80,7 +86,8 @@
 3. **밸런스 탐색**(Phase 5): 시드·정책 조합을 병렬 실행 → CSV 비교 → 노브 제안.
 4. 워크플로의 읽기 전용 에이전트에게는 **스냅샷 파일**을 주고, 편집은 메인 세션 또는 단일 편집 에이전트가 한다(같은 파일 동시 편집 금지). 워크플로 스크립트의 템플릿 문자열 안에 백틱을 넣지 않는다(파싱 실패).
 
-## 3. 다음 작업 (2026-10-11 기준)
+## 3. 다음 작업 (2026-10-12 기준)
 
-1. guideline.md는 **v0.6**까지 반영됐다(요약 단위 원칙·인물 기록 `FNotableRecord`·규모 등급 `GetPopulationBand`). v0.6 델타 재감사 결과를 반영한 커밋이 마지막이다. 다음 설계 변경이 생기면 설계 문서 변경 행의 방식(ultracode 리뷰 → 적용 → 재감사)으로 처리한다.
-2. **Phase 1 시작**: `/effort xhigh`(세션 한정 `s`). `Core/CosmicTypes.h` → `Core/GalaxyState.h` 초안(§7.1·§7.2, §9.1 예약 필드 전부) → `ultracode` 헤더 리뷰 1회 → .cpp와 `Tests/`(§9.3 Determinism·SaveRoundTrip) → 게임 타깃 빌드 → 커밋. 요청 예시는 guideline.md §14.4.
+1. guideline.md는 **v0.6** + Phase 1 헤더 리뷰 반영분까지다(§9.1 기본 초기값 불변·`SaveVersion` 1 고정, §9.2 해시의 표준형, 업적 조건의 0 센티널, Tier 번호 부호화). 헤더 리뷰에서 나온 설계 결정 13건은 guideline §16 #19~#31에 미결로 있다. 다음 설계 변경이 생기면 설계 문서 변경 행의 방식(ultracode 리뷰 → 적용 → 재감사)으로 처리한다.
+2. **Phase 1 진행 중**: 헤더 4개(`Core/CosmicTypes.h`·`Core/GalaxyState.h`·`Data/CosmicConditionTypes.h`·`Data/CosmicDefinitionRows.h`)와 `ultracode` 헤더 리뷰 1회·변경 범위 재감사를 마쳤다(빌드·스모크 통과). 다음 세션: `/effort xhigh`(세션 한정 `s`) → 사용자의 헤더 승인과 §16 #19·#20·#22 결정을 확인 → `Sim/GalaxySimulationSubsystem.h`(§7.4: 방송 게이트·`GetPopulationBand`·`ComputeStateHash` 선언, 틱 8단계) → .cpp(`NewGalaxy`·틱 골격·`ComputeStateHash`)와 `Save/` 저장·로드 → `Tests/`(§9.3 Determinism·SaveRoundTrip) → 에디터 타깃 빌드·자동화 테스트 → 커밋. 요청 예시는 guideline.md §14.4.
+3. 이번 헤더 리뷰의 범위는 상태·정의 헤더 4개였다. Subsystem 헤더(§7.4 틱 순서)와 `ComputeStateHash`·저장 왕복 코드는 아직 리뷰를 받지 않았다 — 그 코드가 들어간 뒤 변경 범위 리뷰를 한 번 더 돌릴지는 사용자가 정한다(§2 Phase 1 행은 리뷰 1회).

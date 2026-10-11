@@ -27,6 +27,9 @@ Core Logic Subsystem은 플레이어·생애에 종속된 멤버 변수를 갖�
 서술자 카테고리 로그 템플릿에 판정 어휘(천국·지옥·구원받·멸망받·영혼·저주받·심판받) 금지 — 테스트 `Data.NoVerdictWords`. 1인칭(`Log.Transcendent`·`Log.Claim`)과 조우 인용문만 예외 (§8.3).
 인물은 `FCivilizationState.Notables`의 기록이다(`FNotableRecord` 5필드 고정: Role·NameIndex·FirstTick·LastTick·SourceRow). 능력치·AI·관계 없음, 개인을 겨누는(ID를 받는) 조건/효과 없음(문명을 대상으로 기록 1개를 만드는 NameNotable과 역할 유무만 읽는 CivHasNotable이 전부). 능력치를 가진 개인은 그릇 하나(`FPlayerEntityState`) (§1.3, §7.2, §12.2).
 사람의 수는 UI·로그·연대기에 숫자로 쓰지 않는다(`GetPopulationBand` 등급만). 숫자는 서술자 로그·연대기에서는 주기·비율만, UI에서는 자원·Stability만 (§1.3, §8.3).
+저장되는 필드의 기본 초기값(멤버 초기화식)은 세이브가 생긴 뒤 바꾸지 않는다(의미 변경 = 마이그레이션): 저장이 클래스 기본 객체 대비 델타라서 초기값과 같은 값은 기록되지 않는다. `FGalaxyState.SaveVersion`의 초기값은 리터럴 1 고정이고 현재 버전은 `FGalaxyState::CurrentSaveVersion`을 `NewGalaxy`와 마이그레이션이 찍는다 (§9.1).
+`ComputeStateHash`는 FName·FGameplayTag를 소문자 문자열로 해시한다(`GetTypeHash`·이름 인덱스·구조체 원시 메모리 금지 — 프로세스마다 다르다). `TMap`은 `FNameLexicalLess`로 정렬한 키 순서로만 순회·해시한다. FText와 `GalaxyID`는 해시 밖이다 (§9.2).
+데이터 컬럼의 Tier는 번호 1~5이고 `EAscensionTier` 값은 0~4다(`Tier1_Planetary == 0`). 비교는 `static_cast<int32>(Tier) + 1`, Tier로 인덱싱하는 배열은 `static_cast<int32>(Tier)` (§7.3).
 
 ## 작업 방식
 
@@ -105,6 +108,7 @@ PowerShell에서는 `& "<exe>" --% <나머지 인자>` 형태로 호출한다. `
 include는 모듈 루트 기준(`"Sim/GalaxySimulationSubsystem.h"`). `"Cosmic_Ascension/Sim/..."`도 해석되지만 쓰지 않는다. 서브폴더는 자동 include 경로가 아니므로 다른 폴더의 헤더를 파일명만으로 include하지 않는다.
 BuildSettingsVersion.V7 + IncludeOrder Unreal5_8: C++20, `UE_LOG` 포맷 문자열 컴파일 타임 검증, 미정의 식별자/반환 타입/dangling/unreachable 경고가 **에러**, 전이 include 의존 금지(쓰는 헤더는 직접 include).
 Live Coding은 .cpp 변경에만. UCLASS/USTRUCT/UENUM 추가·변경은 에디터 종료 후 전체 빌드.
+UPROPERTY의 기본값 초기화식은 UHT가 `;`까지 건너뛴다(`EpicGames.UHT/Parsers/UhtPropertyParser.cs`의 `PropertyParsed`). `TArray<float> X = { 0.f, 1.f };`, `TMap<FName, float> M = { { TEXT("A"), 1.f } };` 같은 중괄호 초기화를 쓸 수 있다. Category 지정자는 엔진 모듈에서만 필수다.
 
 ## 검증된 엔진 헤더 경로 (5.8.3 로컬 소스 확인)
 
@@ -117,8 +121,11 @@ Live Coding은 .cpp 변경에만. UCLASS/USTRUCT/UENUM 추가·변경은 에디�
 | `UGameInstance::GetSubsystem<T>()` | `Engine/GameInstance.h` | Engine | 5.8 include order에서 전이 include에 의존하지 말 것 |
 | `FTickableGameObject`, `ETickableTickType` | `Tickable.h` | Engine | `Stats/Stats.h`를 포함하므로 `RETURN_QUICK_DECLARE_CYCLE_STAT`, `STATGROUP_Tickables`도 함께 옴 |
 | `USaveGame` | `GameFramework/SaveGame.h` | Engine | `ULocalPlayerSaveGame`(버전 필드 내장)도 같은 헤더 |
-| `UGameplayStatics::SaveGameToSlot/LoadGameFromSlot/DoesSaveGameExist/DeleteGameInSlot` | `Kismet/GameplayStatics.h` | Engine | `(const FString& SlotName, const int32 UserIndex)`. 비동기 `AsyncSaveGameToSlot`는 네이티브 델리게이트(ThreeParams) |
-| `FRandomStream` | `Math/RandomStream.h` | Core | 반드시 `Initialize(int32 Seed)`로 초기화. `Initialize(FName)`에 NAME_None을 주면 시간 기반 시드가 되어 결정론이 깨진다. `FRandRange`는 double(`FVector::FReal`) 반환, `GetFraction/FRand`는 float, `RandRange(int32,int32)`는 양끝 포함. 결과에 `%` 금지(하위 비트 품질 나쁨, 헤더 경고) |
+| `UGameplayStatics::SaveGameToSlot/LoadGameFromSlot/DoesSaveGameExist/DeleteGameInSlot` | `Kismet/GameplayStatics.h` | Engine | `(const FString& SlotName, const int32 UserIndex)`. 비동기 `AsyncSaveGameToSlot`는 네이티브 델리게이트(ThreeParams). 저장은 태그드 프로퍼티이고 `ArIsSaveGame`을 켜지 않으므로 `SaveGame` 지정자 없이 모든 UPROPERTY가 대상이다. 단 클래스 기본 객체 대비 델타라서 초기값과 같은 직속 멤버는 기록되지 않는다(`TArray` 원소 구조체는 전부 기록). UENUM은 이름으로 저장되고 사라진 이름은 enum 최대값으로 로드된다. FName은 문자열로, FGameplayTag는 태그 이름으로 저장된다(ini에서 사라진 태그는 이름은 남지만 `RequestGameplayTag`가 빈 태그를 준다) |
+| `FRandomStream` | `Math/RandomStream.h` | Core | 반드시 `Initialize(int32 Seed)`로 초기화. `Initialize(FName)`에 NAME_None을 주면 시간 기반 시드가 되어 결정론이 깨진다. `FRandRange`는 double(`FVector::FReal`) 반환, `GetFraction/FRand`는 float, `RandRange(int32,int32)`는 양끝 포함. 결과에 `%` 금지(하위 비트 품질 나쁨, 헤더 경고). 저장·복원: 상태는 `uint32 Seed` 하나라서 `GetCurrentSeed()`(int32)를 저장하고 `Initialize(int32)`로 되돌리면 스트림이 그대로 이어진다(`Reset()`·`GetInitialSeed()`는 쓰지 않는다) |
+| `FGuid` | `Misc/Guid.h` | Core | 5.8의 `CoreMinimal.h`는 이 헤더를 포함하지 않는다(전이로만 들어온다). 직접 include |
+| `TSoftObjectPtr` | `UObject/SoftObjectPtr.h` | CoreUObject | 가리키는 클래스는 전방 선언으로 충분 |
+| `FNameLexicalLess` | `UObject/NameTypes.h` | Core | 프로세스와 무관한 FName 정렬. `GetTypeHash(FName)`·`GetTypeHash(FGameplayTag)`·`FNameFastLess`는 이름 테이블 인덱스 기반이라 프로세스마다 다르다 — 해시·정렬 기준으로 쓰지 않는다 |
 | `FTableRowBase`, `UDataTable::FindRow<T>/GetAllRows<T>/ForeachRow<T>/GetRowNames` | `Engine/DataTable.h` | Engine | `FindRow<T>(RowName, TEXT("Ctx"))` |
 | `DECLARE_LOG_CATEGORY_EXTERN` / `DEFINE_LOG_CATEGORY` | `Logging/LogMacros.h` (실제 정의는 `Logging/LogCategory.h`) | Core | `UE_LOG` 포맷은 반드시 `TEXT("...")` (static_assert). 구조화 로그 `UE_LOGFMT`는 `Logging/StructuredLog.h` |
 | `IMPLEMENT_PRIMARY_GAME_MODULE` | `Modules/ModuleManager.h` | Core | 3번째 인자는 무시됨(UE_PROJECT_NAME 사용) |
@@ -153,5 +160,7 @@ Live Coding은 .cpp 변경에만. UCLASS/USTRUCT/UENUM 추가·변경은 에디�
 
 Phase 0 (셋업) 종료 조건 달성 (2026-10-10): 에디터/게임 타깃 커맨드라인 빌드 성공, `Content/CA/Maps/L_Galaxy.umap` 생성(헤드리스 Python), `GameDefaultMap`/`EditorStartupMap`을 L_Galaxy로 지정, `-game -nullrhi` 스모크 실행에서 L_Galaxy 로드 + Subsystem 6개의 `LogCosmic` 초기화 로그 확인(`Saved/Logs/GameSmoke.log`, 에러 0).
 설계 문서는 guideline.md **v0.6** (2026-10-11): v0.4(옛 §17 '부름과 계승'·§18 '통치자 시작·이중 계·세력군·기독교적 요소')와 v0.5(§17 '사다리 위의 두 영역·영혼의 행방·지구와 계시 양식' — 사다리 상한, 교리 4종·회귀 `Doctrine.Recurrence`·판당 활성 타락 ≤ 3, 영혼 경제 `Hazard.Claim`, 귀환 제안 `OfferReturn()`, 계시 양식 `RevelationMode`, 지구 `arch_terran` 첫 생애 고정, 닫힌 책 `Trait.Faith.Book`, 사후 문장 규칙·두 책 장)의 채택분 위에, v0.6에서 '요약 단위 원칙'(§1.3: 사람은 수치, 특출난 소수만 이름, 문명·영·육신도 요약, 표시는 규모 등급)을 명문화하고 인물 기록 `FNotableRecord`·규모 등급 `GetPopulationBand`를 본문에 반영했다. Phase 1 헤더에는 예약 필드(`FCallingState`/`FLifeRecord`/`ELifeState`, `GalaxyID`, `HomeSystemID`, `ThroneLockedUntilTick`, `StatusTags`, `Exaltation`, `MegaprojectCompletedTick`, `SealedTick`, `FGalaxyState.Flags`/`Chronicle`, `FCallingState.PendingRoleEffect`, `FCivilizationState.LowStabilityTicks`, `FCivilizationState.ArchetypeRow`, `FLifeRecord.SuccessionKind`/`bReturnOffered`, `FTranscendentDef.Allegiance`(상태에 `Realm` 없음), 방송 게이트, `Role` 기본값 Ruler, `DT_Civs`·`DT_Rules.PlayerArchetypeRow`, 그리고 v0.6의 `FNotableRecord`/`FCivilizationState.Notables`, `FLifeRecord.NameIndex`, `FCivArchetypeDef.PersonNameBank`, `EEffectType::NameNotable`, `EConditionType::CivHasNotable`, `EPopulationBand`, `DT_Rules.MaxNotablesPerCiv`/`PopulationBandThresholds`, `FHazardDef.OnResolveEffects`)가 포함된다 (§11 Phase 1, §7.2, §7.3, §9.1). 옛 '사도(Apostle)' Hazard 태그는 `Hazard.Cult`로 개명됐고 GameplayTag는 총 134개(v0.5 추가 36개, v0.6 추가 `Notable.*` 6개 포함)가 `Config/DefaultGameplayTags.ini`에 선언되어 있다.
-Git 저장소 초기화·커밋 완료(2026-10-11, `main`, LFS). 다음: Phase 1 (§11): `Core/CosmicTypes.h`, `Core/GalaxyState.h`부터 §14.4의 요청 예시 순서로.
+Git 저장소 초기화·커밋 완료(2026-10-11, `main`, LFS).
+Phase 1 진행 중 (2026-10-12): 헤더 4개 작성 — `Core/CosmicTypes.h`(+`.cpp`, 공통 열거형·`FResourcePool`·`FEthicsAxes`), `Core/GalaxyState.h`(§7.2 런타임 상태 전체 + §8.1 `FCosmicLogEntry`), `Data/CosmicConditionTypes.h`(`EConditionType` 28·`EEffectType` 18과 조건·효과 구조체), `Data/CosmicDefinitionRows.h`(DataTable 행 구조체 9: 이벤트·Hazard·Feat·조우 선택지/조우·아키타입·초월자·로그 템플릿·규칙). §9.1·§11의 Phase 1 예약 필드는 전부 들어 있다(Subsystem 헤더에 속하는 방송 게이트·`GetPopulationBand`·`ComputeStateHash` 선언은 아직). 게임·에디터 타깃 빌드와 `-game -nullrhi` 스모크 통과. ultracode 헤더 리뷰 1회 완료(3관점 + 완전성 비평 51건 → 적대 검증 CONFIRMED 44, 수정 뒤 변경 범위 재감사 10건 → 8건 반영): 코드 변경은 `SaveVersion` 초기값 1 고정 하나이고 나머지는 직접 include 2개·주석 정정·guideline 문장 정정이다. 설계 결정이 필요한 13건은 guideline §16 #19~#31에 미결로 두었고 헤더는 스케치대로다. 스케치와 다르게 둔 것: `Body`/`Mind`/`Causality`는 UPROPERTY 3개로 분리, `CosmicTypes.h`는 태그 헤더를 include하지 않음(쓰지 않으므로), 주석은 영문 ASCII, 구조체마다 `COSMIC_ASCENSION_API`, `FGalaxyState::CurrentSaveVersion` 상수, §7.3은 파일 2개로 분리.
+다음: 사용자의 헤더 승인과 §16 #19(로그 `Message` 저장 형태)·#20(재위 3배열 불변식)·#22(삭제된 문명 참조) 결정 → `Sim/GalaxySimulationSubsystem.h`(§7.4) → `.cpp`(`NewGalaxy`·틱 8단계 골격·`ComputeStateHash`) → `Save/` 저장·로드 왕복 → `Tests/` Determinism·SaveRoundTrip → 로그 템플릿 치환 → 커맨드렛 골격 (§11 Phase 1).
 참고: §10.1의 빈 폴더(Core, Data, World, UI, Tests, Content/CA/*)는 Git에 올라가지 않는다. 첫 파일이 생길 때 자연히 생성되므로 `.gitkeep`을 넣지 않는다.
