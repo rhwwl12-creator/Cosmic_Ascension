@@ -11,7 +11,7 @@
 | 항목 | 내용 |
 |---|---|
 | 문서 상태 | 설계 가이드라인. 초안 v0.1을 검토하고 보완한 v0.2 → Phase 0 셋업 결과를 반영한 v0.3 (UE 5.8.3 고정, C++ 모듈명 `Cosmic_Ascension`, 실제 빌드 경로) → **v0.4: §17 부름과 계승·§18 통치자 시작/이중 계/세력군/기독교적 요소 채택·본문 반영** (두 제안 섹션은 권장안 전부 채택 후 본문에 흡수되어 삭제) → **v0.5: §17 사다리 위의 두 영역·영혼의 행방·지구와 계시 양식 채택·본문 반영** (제안 섹션은 본문에 흡수되어 삭제) → **v0.6: 요약 단위 원칙(사람·문명·영·육신), 인물 기록 `FNotableRecord`, 규모 등급 `GetPopulationBand`** |
-| 최종 수정 | 2026-10-11 |
+| 최종 수정 | 2026-10-12 |
 | 대상 독자 | 개발자 본인, 그리고 코드 작성을 돕는 Claude Code 세션 |
 | 원칙 | 이 문서 하나가 설계의 단일 기준(Single Source of Truth)이다. 결정이 바뀌면 이 문서를 먼저 고친다. |
 
@@ -55,6 +55,7 @@
 - 서사: 요약 단위 서술 규칙 5줄, 역할 슬롯 6 + ST_CA 집단 폴백("모든 문장은 인물 없이도 성립한다"), 인물은 화자가 아님(1인칭은 타락 전용 유지), 두 책에 인물 없음(`Log.Record`·`Log.Claim`·`Log.Transcendent` 템플릿에 역할 슬롯·`{PopBand}` 금지 — 구조로 불가능), 다이제스트 항목 '왕좌가 바뀐 문명', 사후 문장 규칙 ⑥ 보강("`LastTick`은 퇴장이고 행방이 아니다") (§8.2, §8.3, §8.4).
 - 구현·범위: Phase 1 헤더 예약(저장 필드 순증 배열 1 + int32 1, `SaveVersion` 변경 없음), 해시에 `Notables`·`NameIndex`, 테스트 `Sim.NotablesCapped`·`Sim.NotablesFromEventsOnly` + 단언 2, `Data.Integrity` 항목, CSV 컬럼 4, 테스터 질문 2, §11 Phase 1·2·3·4·4b·5·6+ 꼬리, §12.1 2행, §12.2 '요약 단위' 금지 단락, §12.3 부칙 '인물 3문', §13 '영웅 시스템 표류', §15 8행, §16 미결 3건·확정 블록, §14.3·CLAUDE.md 불변 규칙 2줄, GameplayTag 6개 추가(`Notable.*`, 총 134) (§9, §11~§16).
 - 정합성 감사 반영(v0.6, 같은 날): T4 도달 시 열린 인물 기록 닫기, 왕좌가 바뀌면 열린 Ruler 닫기(반란 만료·즉위·복귀), 전조 ② 직접 Fire(BaseWeight 0), `FHazardDef.OnResolveEffects`로 Hearer 생성, 다이제스트 기준 = 정권 교체 로그, 자진 이탈 Regent의 SourceRow = log_throne_vacated, 귀환은 BirthCivID 유지, 숫자 허용 범위 단일화(서술 = 주기·비율 / UI = 자원·Stability), 가드 ②에 Trait.Mind.NoSelf, 참조·단계·수량 정정.
+- Phase 1 헤더 리뷰 반영(2026-10-12, `Core/CosmicTypes.h`·`Core/GalaxyState.h`·`Data/CosmicConditionTypes.h`·`Data/CosmicDefinitionRows.h` 작성 뒤 3관점 리뷰 + 적대 검증): `SaveVersion` 초기값 1 고정과 저장 필드의 기본 초기값 불변 규칙(§9.1 — 저장이 클래스 기본 객체 대비 델타), 해시의 표준형(FName·태그는 소문자 문자열, `TMap`은 정렬 키, `GalaxyID` 제외, §9.2), 업적 조건의 0 센티널(`MegaprojectComplete`는 `> 0`, `TranscendentSealed`는 `bSealed`), Tier 번호 부호화(데이터 컬럼은 1~5, 열거형 값은 0~4, §7.3), `SourceRow`의 출처 행 종류, `OnExpireEffects`의 절멸 예외, `Data.Integrity`의 고정 인덱스 배열 길이. 설계 결정이 필요한 13건은 §16 #19~#31로 옮겼다(헤더는 스케치대로 두었다).
 
 
 
@@ -415,7 +416,7 @@ T1 한 행성에서는 연구 슬라이더·칙령·프로젝트만으로 이 �
 
 
 
-업적 정의는 데이터(`DT_Feats`)이며, 조건은 §7.3의 조건 구조체로 표현한다. 위 표는 전체 8개이고 수직 슬라이스는 T1→T3 구간의 4개다(§12.1). 콘텐츠 확장 단계에서 등급당 3~4개로 늘린다. Phase 6+에서 길(Path, §4.5)별 T3→T4 Feat 변형 1개를 추가한다. T4→T5는 길과 무관하게 공통이다. `MegaprojectComplete`·`TranscendentSealed` 조건은 완료 틱이 현재 생애의 `BornTick` 이상일 때만 참이다(업적 조건의 생애 상대화, §4.4).
+업적 정의는 데이터(`DT_Feats`)이며, 조건은 §7.3의 조건 구조체로 표현한다. 위 표는 전체 8개이고 수직 슬라이스는 T1→T3 구간의 4개다(§12.1). 콘텐츠 확장 단계에서 등급당 3~4개로 늘린다. Phase 6+에서 길(Path, §4.5)별 T3→T4 Feat 변형 1개를 추가한다. T4→T5는 길과 무관하게 공통이다. `MegaprojectComplete`·`TranscendentSealed` 조건은 완료 틱이 0보다 크고(봉인은 `bSealed`) 현재 생애의 `BornTick` 이상일 때만 참이다(업적 조건의 생애 상대화, §4.4).
 
 
 
@@ -687,7 +688,7 @@ AI 문명도 같은 업적 조건(단순화된 판정)으로 승천한다. AI �
 
 
 
-**업적 조건의 생애 상대화**: `MegaprojectComplete`와 `TranscendentSealed` 조건은 완료 틱이 `Calling.BornTick` 이상일 때만 참(`FStarSystemState.MegaprojectCompletedTick`, `FTranscendentState.SealedTick`). 전생이 완성한 다이슨 스웜으로 T1→T2를 공짜로 받는 구멍을 막는다. Core Logic Subsystem은 플레이어·생애에 종속된 멤버 변수를 갖지 않고, 지속 업적 진척은 전부 `FGalaxyState` 안에 둔다.
+**업적 조건의 생애 상대화**: `MegaprojectComplete`는 `FStarSystemState.MegaprojectCompletedTick`이 0보다 크고 `Calling.BornTick` 이상일 때만, `TranscendentSealed`는 `FTranscendentState.bSealed`이고 `SealedTick`이 `Calling.BornTick` 이상일 때만 참이다(0과 `bSealed == false`는 미완성·미봉인. 첫 생애는 `BornTick`이 0이라 이 검사를 빼면 미완성 프로젝트와 봉인되지 않은 초월자도 참이 된다). 전생이 완성한 다이슨 스웜으로 T1→T2를 공짜로 받는 구멍을 막는다. Core Logic Subsystem은 플레이어·생애에 종속된 멤버 변수를 갖지 않고, 지속 업적 진척은 전부 `FGalaxyState` 안에 둔다.
 
 
 
@@ -1304,7 +1305,7 @@ UPROPERTY(BlueprintReadOnly) FName ActiveMegaproject;
 
 UPROPERTY(BlueprintReadOnly) float MegaprojectProgress = 0.f;
 
-UPROPERTY(BlueprintReadOnly) int64 MegaprojectCompletedTick = 0; // 0 = 미완성. 업적 조건의 생애 상대화: Calling.BornTick 이상일 때만 MegaprojectComplete 참 (§4.4)
+UPROPERTY(BlueprintReadOnly) int64 MegaprojectCompletedTick = 0; // 0 = 미완성. 업적 조건의 생애 상대화: 0보다 크고 Calling.BornTick 이상일 때만 MegaprojectComplete 참 (§4.4). 첫 생애는 BornTick이 0이라 > 0 검사를 빼면 미완성도 참이 된다
 
 // Phase 6: FName EpithetRow; 연대기가 붙이는 성계의 두 번째 이름 (§5.11)
 
@@ -1330,7 +1331,7 @@ UPROPERTY() int64 FirstTick = 0; // 등장 틱 = 만든 사건의 틱
 
 UPROPERTY() int64 LastTick = 0; // 퇴장 틱. 0 = 열린 기록. 등장·퇴장 틱이며 생몰이 아니다 — 게임은 인물의 죽음·행방을 말하지 않는다 (§8.3 사후 문장 규칙 ⑥)
 
-UPROPERTY() FName SourceRow; // 만든 행(이벤트·Hazard·조우). 테스트 Sim.NotablesFromEventsOnly의 근거 (§9.3)
+UPROPERTY() FName SourceRow; // 만든 행(이벤트·Hazard·조우 행. Ascendant 훅은 DT_Feats 행, 자진 이탈 Regent는 DT_LogTemplates 행 log_throne_vacated — §7.5). 테스트 Sim.NotablesFromEventsOnly의 근거 (§9.3)
 
 // 6번째 필드는 §12.3 '인물 3문'을 통과해야 한다
 
@@ -1452,7 +1453,7 @@ UPROPERTY(BlueprintReadOnly) bool bAwareOfPlayer = false; // 생애를 넘어 �
 
 UPROPERTY(BlueprintReadOnly) bool bSealed = false;
 
-UPROPERTY(BlueprintReadOnly) int64 SealedTick = 0; // 봉인 틱. TranscendentSealed 조건은 Calling.BornTick 이상일 때만 참 (§4.4)
+UPROPERTY(BlueprintReadOnly) int64 SealedTick = 0; // 봉인 틱. TranscendentSealed 조건은 bSealed이고 이 값이 Calling.BornTick 이상일 때만 참 (§4.4)
 
 };
 
@@ -1564,7 +1565,7 @@ struct FGalaxyState
 
 GENERATED_BODY()
 
-UPROPERTY() int32 SaveVersion = 1;
+UPROPERTY() int32 SaveVersion = 1; // 초기값 1 고정 = 버전 태그가 없는 세이브가 읽히는 버전. 현재 버전은 static constexpr int32 CurrentSaveVersion을 NewGalaxy와 마이그레이션이 찍는다. 초기값을 그 상수에 묶지 않는다 (§9.1)
 
 UPROPERTY() int32 Seed = 0;
 
@@ -1610,13 +1611,13 @@ enum class EConditionType : uint8
 
 {
 
-CivTierAtLeast, CivHasTrait, CivResourceAtLeast, CivStabilityBelow, CivEthicsAxisAbove,
+CivTierAtLeast, CivHasTrait, CivResourceAtLeast, CivStabilityBelow, CivEthicsAxisAbove, // CivTierAtLeast·PlayerTierAtLeast의 Value = Tier 번호 1~5 (열거형 값 + 1. EAscensionTier는 Tier1_Planetary == 0)
 
 CivStabilityBelowFor, CivRelationAtLeast, // 지속 틱 조건(Value=임계, Key=틱 수. FCivilizationState.LowStabilityTicks 카운터를 읽는다, §4.1) / Key=OtherID(CivID 또는 TranscendentID)
 
 CivReverenceAtLeast, // ReverenceToPlayer >= Value (§4.5 방문 SpawnConditions)
 
-SystemHasHazard, SystemOwnedBy, MegaprojectComplete, // MegaprojectComplete는 CompletedTick >= Calling.BornTick일 때만 참 (§4.4)
+SystemHasHazard, SystemOwnedBy, MegaprojectComplete, // MegaprojectComplete는 CompletedTick > 0이고 CompletedTick >= Calling.BornTick일 때만 참 (§4.4)
 
 SystemPressureAtLeast, SystemInfluencedBy, // 영압 P(S) >= Value (§4.2) / Key=TranscendentID (종속 판정)
 
@@ -1624,7 +1625,7 @@ PlayerTierAtLeast, PlayerInSystemWithHazard, PlayerStatAtLeast, PlayerHasRelic, 
 
 PlayerHasStatus, PlayerLifeIndexAtLeast, PlayerAgeAtLeast, // Tag=Status.* / 제 N대 이상 / 노화 ON일 때만 (§4.4)
 
-GalaxyTickAtLeast, TranscendentSealed, TranscendentAwareOfPlayer, // TranscendentSealed는 SealedTick >= Calling.BornTick일 때만 참 (§4.4)
+GalaxyTickAtLeast, TranscendentSealed, TranscendentAwareOfPlayer, // TranscendentSealed는 bSealed이고 SealedTick >= Calling.BornTick일 때만 참 (§4.4)
 
 FlagSet, FlagNotSet, // Tag = Flag.*. FGalaxyState.Flags를 읽는다 (§4.5)
 
@@ -1724,7 +1725,7 @@ UPROPERTY(EditAnywhere) TArray<FText> LogTemplates; // 3개 이상 권장. {Civ}
 
 UPROPERTY(EditAnywhere) uint8 Severity = 0; // 0 일반, 1 주목, 2 신화적
 
-UPROPERTY(EditAnywhere) uint8 MinTierToReveal = 0; // 플레이어 Tier가 이 값 미만이면 숨김 또는 하위 화자 템플릿. 초월자 이벤트만 템플릿 2벌 (§8.2)
+UPROPERTY(EditAnywhere) uint8 MinTierToReveal = 0; // 플레이어 Tier가 이 값 미만이면 숨김 또는 하위 화자 템플릿. 초월자 이벤트만 템플릿 2벌 (§8.2). 값은 Tier 번호 1~5(3 = Tier 3, 열거형 값이 아니다), 0 = 항상 보임
 
 };
 
@@ -1752,7 +1753,7 @@ UPROPERTY(EditAnywhere) float SpawnChancePerTick = 0.0005f;
 
 UPROPERTY(EditAnywhere) TArray<FCosmicCondition> SpawnConditions;
 
-UPROPERTY(EditAnywhere) TArray<FCosmicEffect> OnExpireEffects; // KillPlayer는 플레이어가 그 성계에 있을 때만 적용 (§4.4). crisis_rebellion은 DeposeRuler (§4.1)
+UPROPERTY(EditAnywhere) TArray<FCosmicEffect> OnExpireEffects; // KillPlayer는 플레이어가 그 성계에 있을 때만 적용 (§4.4). crisis_rebellion은 DeposeRuler (§4.1). 예외: 플레이어가 통치하는 문명이 Hazard.Extinction으로 삭제되면 위치와 무관하게 통치자도 사망한다 (§4.1, §4.4)
 
 UPROPERTY(EditAnywhere) TArray<FCosmicEffect> OnResolveEffects; // 해결 시 1회(R·W·AI 해결 모두 같은 ResolveHazard 경로). crisis_visitation: Trait.Faith.Visited 부여 + NameNotable(Notable.Hearer). 기본 빈 배열(Phase 1 예약)
 
@@ -1890,7 +1891,7 @@ UPROPERTY(EditAnywhere) float Weight = 1.f; // NewGalaxy AI 추첨 가중치. 0 
 
 UPROPERTY(EditAnywhere) FGameplayTag RevelationMode; // Revelation.* 계시 양식 (§5.11). 모든 행이 정확히 하나. 텍스트만 바꾸고 수치는 바꾸지 않는다. arch_default는 Revelation.Seeking 고정
 
-UPROPERTY(EditAnywhere) TArray<FText> RevelationTemplates; // 3개: [0] 징조(Log.Sign) / [1] 전언(enc_messenger_* 간접 화법) / [2] 지나감·응답(Hazard.Visitation 해결·만료). 수동태·간접 화법만
+UPROPERTY(EditAnywhere) TArray<FText> RevelationTemplates; // 정확히 3개(Data.Integrity): [0] 징조(Log.Sign) / [1] 전언(enc_messenger_* 간접 화법) / [2] 지나감·응답(Hazard.Visitation 해결·만료). 수동태·간접 화법만
 
 UPROPERTY(EditAnywhere) TArray<FText> HomeSystemNames; // 모성계 표시명 뱅크. arch_terran = {태양계}. 비면 항성 이름 3단 풀 (§5.11)
 
@@ -1956,7 +1957,7 @@ UPROPERTY(EditAnywhere) FGameplayTag Category; // Log.* (§8.1)
 
 UPROPERTY(EditAnywhere) FGameplayTag Context; // Revelation.* 또는 빈 태그(폴백). 텍스트만 바꾼다
 
-UPROPERTY(EditAnywhere) uint8 MinTierToReveal = 0; // 플레이어 Tier가 이 값 미만이면 하위 화자 템플릿 (§8.2 화자 3층)
+UPROPERTY(EditAnywhere) uint8 MinTierToReveal = 0; // 플레이어 Tier가 이 값 미만이면 하위 화자 템플릿 (§8.2 화자 3층). 값은 Tier 번호 1~5, 0 = 항상 보임
 
 UPROPERTY(EditAnywhere) TArray<FText> Templates; // 3개 이상. 두 문장, 사실 → 함의 (§8.3). 서술자 카테고리에는 판정 어휘 금지 (Data.NoVerdictWords)
 
@@ -2004,7 +2005,7 @@ UPROPERTY(EditAnywhere) float PostRebellionStability = 0.15f; // 폐위 직후 S
 
 UPROPERTY(EditAnywhere) int32 ThroneLockTicks = 600; // 왕좌 잠금
 
-UPROPERTY(EditAnywhere) TArray<float> PressureBySourceTier = {0.f, 0.f, 0.25f, 1.f, 2.f}; // 인덱스 = Tier-1 (§4.2)
+UPROPERTY(EditAnywhere) TArray<float> PressureBySourceTier = {0.f, 0.f, 0.25f, 1.f, 2.f}; // 인덱스 = Tier 번호 − 1 = static_cast<int32>(EAscensionTier). 정확히 5개 (§4.2, Data.Integrity)
 
 UPROPERTY(EditAnywhere) float PressureAdjacencyFalloff = 0.5f; // 1레인 인접
 
@@ -2012,7 +2013,7 @@ UPROPERTY(EditAnywhere) float SpiritualPressureStabilityDrain = 0.002f; // 틱�
 
 UPROPERTY(EditAnywhere) float PressureFleetAttrition = 0.01f; // 틱당 × P
 
-UPROPERTY(EditAnywhere) TArray<float> FleetEffectivenessByTierGap = {1.f, 0.5f, 0.f}; // 인덱스 = 격차(0, 1, >=2) (§5.6)
+UPROPERTY(EditAnywhere) TArray<float> FleetEffectivenessByTierGap = {1.f, 0.5f, 0.f}; // 인덱스 = 격차(0, 1, >=2). 정확히 3개 (§5.6, Data.Integrity)
 
 UPROPERTY(EditAnywhere) float FleetDelayPerPower = 50.f; // 함대 투입 1.0당 Hazard 카운트다운 +틱
 
@@ -2210,7 +2211,7 @@ static constexpr float SecondsPerTick = 1.0f;
 
 // - void EvaluateAndFire(FGalaxyState&, FRandomStream&) 매 틱 호출. 조건 통과 이벤트 중 가중치 추첨, 쿨다운 기록. 공백기 중에는 플레이어 조건 이벤트 제외
 
-// - bool Check(const FCosmicCondition&, const FEvalContext&) 조건 1개 평가 (업적/조우/청원도 같은 함수 사용). MegaprojectComplete/TranscendentSealed는 Calling.BornTick 기준 (§4.4)
+// - bool Check(const FCosmicCondition&, const FEvalContext&) 조건 1개 평가 (업적/조우/청원도 같은 함수 사용). MegaprojectComplete/TranscendentSealed는 Calling.BornTick 기준 + 0 센티널(CompletedTick > 0, bSealed) (§4.4)
 
 // - void Apply(const FCosmicEffect&, FEvalContext&) 효과 1개 적용. KillPlayer/DeposeRuler는 즉시 실행하지 않고 FCallingState.PendingRoleEffect에 기록만 한다(틱당 최대 1건, 먼저 기록된 것 우선). 파이프라인은 틱 경계의 '역할 효과 해소' 단계(§7.4)가 UPlayerRoleSubsystem에서 시작한다 (출생 보호 300틱·event_grace_rescue 1회 무효는 여기서 걸러짐)
 
@@ -2519,7 +2520,7 @@ VS 6: 바벨(창 11: 폐쇄 축·단일 사상 칙령 상태에서 '탑' 프로�
 
 `UCosmicSaveGame : USaveGame { UPROPERTY() FGalaxyState State; }` 하나.
 상태가 전부 USTRUCT이므로 `UGameplayStatics::SaveGameToSlot`로 끝난다. Actor나 위젯 상태는 저장하지 않는다. 로드 후 Presentation이 상태를 보고 다시 그린다.
-`SaveVersion`을 두고, 구조체 필드 추가 시 기본값으로 호환한다. 필드 삭제·의미 변경은 버전 올리고 마이그레이션 함수를 쓴다.
+`SaveVersion`을 두고, 구조체 필드 추가 시 기본값으로 호환한다. 필드 삭제·의미 변경은 버전 올리고 마이그레이션 함수를 쓴다. 저장된 필드의 기본 초기값(멤버 초기화식)도 세이브가 생긴 뒤에는 바꾸지 않는다(의미 변경으로 취급한다): `SaveGameToSlot`은 클래스 기본 객체 대비 델타로 쓰므로 `FGalaxyState`·`Player`·`Calling`의 직속 멤버(와 그 안에 직접 든 구조체의 멤버)는 초기값과 같으면 기록되지 않고, 로드하는 빌드의 초기값으로 읽힌다(`TArray` 원소 구조체는 전부 기록된다). 같은 이유로 `SaveVersion`의 초기값은 리터럴 1로 고정하고(= 버전 태그가 없는 세이브가 읽히는 버전) 현재 버전 `FGalaxyState::CurrentSaveVersion`은 `NewGalaxy`와 마이그레이션이 찍는다 — 초기값을 그 상수에 묶으면 버전이 한 번도 기록되지 않아 첫 버전 인상 뒤 구 세이브가 새 버전으로 읽히고 마이그레이션이 돌지 않는다(UE 5.8.3 소스 확인: `GameplayStatics.cpp` `SaveGameToMemory`, `Class.cpp` `SerializeTaggedProperties`).
 **슬롯 정책: 은하당 슬롯 1개(아이언맨).** 슬롯 이름은 `FGalaxyState.GalaxyID`에서 만든다. 수동 저장·로드 메뉴는 없다. 사망 직전 세이브를 로드할 수 있으면 하드 리셋이 선택 사항이 되어 부름과 계승(§4.4) 전체가 무의미해진다. 결정론(§9.2) 덕에 비용은 정책 수준이다. "관조 모드" 토글(수동 저장 허용)은 Phase 5 테스터 반응 뒤 결정한다(§16).
 **자동 저장 트리거**: 승천 직후, 역할 전환 직후(자진 이탈·즉위·복귀·폐위), **사망 직후**(공백기 진입 시, `PendingLeapTicks` 포함), **계승(취임) 직후**, 10분마다, 종료 시(강제 종료 롤백 방지). 모든 자동 저장은 틱 경계('역할 효과 해소' 단계 뒤, §7.4)에서만 찍는다. 사망과 계승 사이(공백기 도약 중)에는 저장하지 않는다 — 진입 시 저장한 `PendingLeapTicks`로 재개한다(`Calling.LeapResumeRoundTrip` 테스트, §9.3). 귀환 제안(§4.4)의 선택 해결 뒤에도 자동 저장한다.
 **Phase 1 헤더 예약(v0.5 추가분)** — 추가는 호환, 의미 변경은 마이그레이션: `FCivilizationState.ArchetypeRow`(없으면 구 세이브의 모든 문명이 `arch_default` 뱅크로 떨어진다) / `FLifeRecord.SuccessionKind`·`bReturnOffered`(해시 포함) / `TranscendentID` == `DT_Transcendents` 행 이름 / `Realm`은 상태에 두지 않음(`FTranscendentDef.Allegiance` — 상태에 두면 개명마다 리다이렉트가 필요해진다) / `Doctrine.*` 이름은 상태에 남으므로 지금 확정(`Doctrine.Recurrence` 포함) / 열거형은 끝에만 추가(UE 아카이브는 UENUM을 이름으로 직렬화하므로 추가는 안전, 재배열·개명은 마이그레이션 — `EEffectType::ChangePopulation`, `EConditionType::TranscendentDoctrinePresent`) / `Population`은 문명 단위 유지 / `ComputeStateHash`에서 FText 제외(§9.2). 저장 필드 순증: FName 1 + 태그 1 + bool 1. `SaveVersion` 변경 없음.
@@ -2531,8 +2532,8 @@ VS 6: 바벨(창 11: 폐쇄 축·단일 사상 칙령 상태에서 '탑' 프로�
 
 
 모든 난수는 `UGalaxySimulationSubsystem::Rng`(`FRandomStream`) 하나를 통한다. `FMath::Rand`를 시뮬 코드에서 쓰면 설계 위반.
-틱 내부 처리 순서는 고정(§7.4 주석). `TMap` 순회로 결과가 달라지는 코드를 쓰지 않는다. 순서가 중요한 곳은 `TArray`를 정렬해서 쓴다.
-같은 시드 + 같은 플레이어 입력 시퀀스 → 같은 `ComputeStateHash()`. 이것이 테스트의 기준이다. 해시에는 `Calling`(생애 인덱스·상태·기록)이 포함된다. 해시는 FName·숫자·태그만 포함하고 모든 FText(`Log`·`Chronicle`의 `Message`, `DisplayName`, `CivName` 등)를 제외한다 — 로그 항목은 Category·Severity·Tick·SourceRow·FocusSystemID만(§4.4의 FText 저장 원칙과 같은 이유. 로컬라이제이션만 바뀌어도 Determinism 테스트가 깨지는 것을 막는다). `FLifeRecord.SuccessionKind`·`bReturnOffered`는 포함한다. `FCivilizationState.Notables`(Role·NameIndex·FirstTick·LastTick·SourceRow — 정수·태그만)와 `FLifeRecord.NameIndex`도 포함한다. 규모 등급(`GetPopulationBand`)은 파생값이라 해시에 없다. 사망 파이프라인·계승 추첨·공백기 도약의 난수도 전부 `GetRng()`를 통한다(§4.4). 인물의 이름 추첨(`NameNotable` 가드·`Install()`)도 `GetRng()`만 쓰며, 틱 순서 안의 고정 지점(`UCosmicEventSubsystem::Apply`, `TickHazards` 만료 처리, `UAscensionSubsystem` 판정, 역할 효과 해소 단계의 `Install`) 또는 조우·청원 해결(틱 밖 플레이어 입력 — 판정 난수와 같은 자격으로 입력 시퀀스의 일부)에서만 일어난다. 같은 시드와 같은 입력 시퀀스면 같은 명부. `Notables`는 `TArray`이고 퇴출 선택은 (LastTick, FirstTick, 배열 순서) 키라 `TMap` 순회 없음.
+틱 내부 처리 순서는 고정(§7.4 주석). `TMap` 순회로 결과가 달라지는 코드를 쓰지 않는다. 순서가 중요한 곳은 `TArray`를 정렬해서 쓴다. `TMap`은 한 판 안에서는 순서가 결정적으로 보여도, 원소를 지운 뒤 새로 넣으면 실행 중에는 빈 자리를 재사용하고 로드 뒤에는 끝에 붙어 저장·로드 전후의 순회 순서가 달라진다 — 키를 `FNameLexicalLess`로 정렬해 쓰거나 `Civs`·`Transcendents` 배열을 돌며 `Find`한다.
+같은 시드 + 같은 플레이어 입력 시퀀스 → 같은 `ComputeStateHash()`. 이것이 테스트의 기준이다. 해시에는 `Calling`(생애 인덱스·상태·기록)이 포함된다. 해시는 FName·숫자·태그만 포함하고 모든 FText(`Log`·`Chronicle`의 `Message`, `DisplayName`, `CivName` 등)를 제외한다 — 로그 항목은 Category·Severity·Tick·SourceRow·FocusSystemID만(§4.4의 FText 저장 원칙과 같은 이유. 로컬라이제이션만 바뀌어도 Determinism 테스트가 깨지는 것을 막는다). `FLifeRecord.SuccessionKind`·`bReturnOffered`는 포함한다. `FCivilizationState.Notables`(Role·NameIndex·FirstTick·LastTick·SourceRow — 정수·태그만)와 `FLifeRecord.NameIndex`도 포함한다. 규모 등급(`GetPopulationBand`)은 파생값이라 해시에 없다. 사망 파이프라인·계승 추첨·공백기 도약의 난수도 전부 `GetRng()`를 통한다(§4.4). 인물의 이름 추첨(`NameNotable` 가드·`Install()`)도 `GetRng()`만 쓰며, 틱 순서 안의 고정 지점(`UCosmicEventSubsystem::Apply`, `TickHazards` 만료 처리, `UAscensionSubsystem` 판정, 역할 효과 해소 단계의 `Install`) 또는 조우·청원 해결(틱 밖 플레이어 입력 — 판정 난수와 같은 자격으로 입력 시퀀스의 일부)에서만 일어난다. 같은 시드와 같은 입력 시퀀스면 같은 명부. `Notables`는 `TArray`이고 퇴출 선택은 (LastTick, FirstTick, 배열 순서) 키라 `TMap` 순회 없음. **해시의 표준형**: `FName`과 `FGameplayTag`는 소문자로 바꾼 문자열로 해시한다 — `GetTypeHash(FName)`·`GetTypeHash(FGameplayTag)`·이름 인덱스·구조체 원시 메모리는 프로세스마다 값이 달라, 한 프로세스 안의 `Sim.Determinism`·`Sim.SaveRoundTrip`은 통과해도 "저장 → 재시작 → 로드 → 해시 동일"(§11 Phase 1 종료 조건)은 깨진다. `TMap`은 `FNameLexicalLess` 키 순서로, `FGameplayTagContainer`는 명시 태그만(파생 부모 태그 제외) 해시한다. `FGalaxyState.GalaxyID`는 저장 슬롯의 신원이라 해시에서 제외한다 — `NewGalaxy`가 `FGuid::NewGuid()`로 만들고(`GetRng()`를 쓰지 않는다) 같은 시드의 두 은하도 값이 다르다.
 결정론의 보상: 버그 재현, 리플레이, 헤드리스 밸런스 측정이 모두 가능해진다.
 
 
@@ -2549,7 +2550,7 @@ VS 6: 바벨(창 11: 폐쇄 축·단일 사상 칙령 상태에서 '탑' 프로�
 | `Cosmic_Ascension.Sim.Determinism` | 시드 42로 3,000틱 두 번 → 해시 동일 |
 | `Cosmic_Ascension.Sim.NoNaN` | 10,000틱 후 모든 float 유한 |
 | `Cosmic_Ascension.Sim.SaveRoundTrip` | 저장 → 로드 → 해시 동일 |
-| `Cosmic_Ascension.Data.Integrity` | 모든 DataTable 행의 태그/FName 참조가 존재. 로그 템플릿에 숫자 자릿수 금지 린트(§8.3). v0.5 추가 항목: `FTranscendentDef.Allegiance ∈ Realm.*`, Celestial 행은 영향권·압력·`SpawnWeight` 0, Abyssal `Tier ∈ {T3, T4}`, Doctrine 고유, `RevelationMode` 커버리지와 폴백 행 존재, `PlayerArchetypeRow` 존재, `Weight 0` 행은 그것에서만 참조, 모든 DataTable FText에 Tier C 금지어(여호와·예수·그리스도·성령·보혜사)와 기독교·성경·교회 금지, 서술자 템플릿에 '가져갔다·거두었다' 금지(§4.2). v0.6 추가 항목(§1.3 요약 단위 원칙): `Notable.*` 역할 태그 6개가 ini에 존재 / `PersonNameBank` 규칙(`Trait.Mind.NoSelf`가 아닌 모든 `DT_Civs` 행 ≥ 10·중복 없음·성경 인물·실존 인물·천사·실존 종교 고유명사 금지·`Data.NoVerdictWords` 낱말 금지, `arch_swarm`·`arch_machine`은 비움) / `MaxNotablesPerCiv ∈ [3, 5]` / `PopulationBandThresholds` 3개 오름차순 / 역할 슬롯 6과 `{PopBand}`가 `Log.Record`·`Log.Claim`·`Log.Transcendent` 템플릿과 `FTranscendentDef.ClaimTemplates`·`VoiceTemplates`에 없음 / 서술자 템플릿에 사람 수 정규식(숫자+명/인/억 명) 금지 / `NameNotable` 효과의 Tag ∈ `Notable.*`이고 `enc_messenger_*`·`Event.Grace.*`·`Hazard.Cult` 행에 없음 / 역할 슬롯 폴백 ST_CA 키 6개와 규모 등급 라벨 키 6개 존재 |
+| `Cosmic_Ascension.Data.Integrity` | 모든 DataTable 행의 태그/FName 참조가 존재. 로그 템플릿에 숫자 자릿수 금지 린트(§8.3). v0.5 추가 항목: `FTranscendentDef.Allegiance ∈ Realm.*`, Celestial 행은 영향권·압력·`SpawnWeight` 0, Abyssal `Tier ∈ {T3, T4}`, Doctrine 고유, `RevelationMode` 커버리지와 폴백 행 존재, `PlayerArchetypeRow` 존재, `Weight 0` 행은 그것에서만 참조, 모든 DataTable FText에 Tier C 금지어(여호와·예수·그리스도·성령·보혜사)와 기독교·성경·교회 금지, 서술자 템플릿에 '가져갔다·거두었다' 금지(§4.2). v0.6 추가 항목(§1.3 요약 단위 원칙): `Notable.*` 역할 태그 6개가 ini에 존재 / `PersonNameBank` 규칙(`Trait.Mind.NoSelf`가 아닌 모든 `DT_Civs` 행 ≥ 10·중복 없음·성경 인물·실존 인물·천사·실존 종교 고유명사 금지·`Data.NoVerdictWords` 낱말 금지, `arch_swarm`·`arch_machine`은 비움) / `MaxNotablesPerCiv ∈ [3, 5]` / `PopulationBandThresholds` 3개 오름차순 · `PressureBySourceTier` 정확히 5개 · `FleetEffectivenessByTierGap` 정확히 3개 · 모든 `DT_Civs` 행의 `RevelationTemplates` 정확히 3개(고정 인덱스 배열은 CSV 빈 칸이나 에디터 삭제로 비워질 수 있다) / 역할 슬롯 6과 `{PopBand}`가 `Log.Record`·`Log.Claim`·`Log.Transcendent` 템플릿과 `FTranscendentDef.ClaimTemplates`·`VoiceTemplates`에 없음 / 서술자 템플릿에 사람 수 정규식(숫자+명/인/억 명) 금지 / `NameNotable` 효과의 Tag ∈ `Notable.*`이고 `enc_messenger_*`·`Event.Grace.*`·`Hazard.Cult` 행에 없음 / 역할 슬롯 폴백 ST_CA 키 6개와 규모 등급 라벨 키 6개 존재 |
 | `Cosmic_Ascension.Feats.Reachable` | AI만으로 20,000틱 돌려 최소 1개 문명이 T3 도달 |
 | `Cosmic_Ascension.Calling.LeapDeterminism` | 같은 시드·같은 사망 틱 → 공백기 도약 후 해시 동일 |
 | `Cosmic_Ascension.Calling.HardReset` | 계승 후 그릇 열(§4.4 3분할 표)이 전부 초기화되고 부름 열은 유지. T≤2는 T1, T≥3은 유지. `Succeed()`·`Install()` 직전과 직후의 모든 문명 `Notables`가 동일 — 계승 단계 자체는 인물을 만들지도 닫지도 않는다(도약 중 AI 사건과 `BecomeWanderer`의 Regent 생성은 비교 구간 밖, §7.2) |
@@ -3001,6 +3002,9 @@ DeposeRuler·KillPlayer는 위기 단계·조우 해결에서 PendingRoleEffect�
 서술자 카테고리 로그 템플릿에 판정 어휘(천국·지옥·구원받·멸망받·영혼·저주받·심판받) 금지 — 테스트 `Data.NoVerdictWords`. 1인칭(`Log.Transcendent`·`Log.Claim`)과 조우 인용문만 예외 (§8.3).
 인물은 FCivilizationState.Notables의 기록이다(FNotableRecord 5필드 고정: Role·NameIndex·FirstTick·LastTick·SourceRow). 능력치·AI·관계 없음, 개인을 겨누는(ID를 받는) 조건/효과 없음(문명을 대상으로 기록 1개를 만드는 NameNotable과 역할 유무만 읽는 CivHasNotable이 전부). 능력치를 가진 개인은 그릇 하나(FPlayerEntityState) (§1.3, §7.2, §12.2).
 사람의 수는 UI·로그·연대기에 숫자로 쓰지 않는다(GetPopulationBand 등급만). 숫자는 서술자 로그·연대기에서는 주기·비율만, UI에서는 자원·Stability만 (§1.3, §8.3).
+저장되는 필드의 기본 초기값(멤버 초기화식)은 세이브가 생긴 뒤 바꾸지 않는다(의미 변경 = 마이그레이션): 저장이 클래스 기본 객체 대비 델타라서 초기값과 같은 값은 기록되지 않는다. FGalaxyState.SaveVersion의 초기값은 리터럴 1 고정이고 현재 버전은 FGalaxyState::CurrentSaveVersion을 NewGalaxy와 마이그레이션이 찍는다 (§9.1).
+ComputeStateHash는 FName·FGameplayTag를 소문자 문자열로 해시한다(GetTypeHash·이름 인덱스·구조체 원시 메모리 금지 — 프로세스마다 다르다). TMap은 FNameLexicalLess로 정렬한 키 순서로만 순회·해시한다. FText와 GalaxyID는 해시 밖이다 (§9.2).
+데이터 컬럼의 Tier는 번호 1~5이고 EAscensionTier 값은 0~4다(Tier1_Planetary == 0). 비교는 static_cast<int32>(Tier) + 1, Tier로 인덱싱하는 배열은 static_cast<int32>(Tier) (§7.3).
 
 
 ## 작업 방식
@@ -3152,6 +3156,19 @@ PROJECT = <프로젝트 루트>\Cosmic_Ascension.uproject
 | 16 | `Notable.Councilor`·`Notable.Elder` 역할(의회·회중의 얼굴) | VS에는 없다(화자는 제도, §5.10). Phase 6+에 §12.3 '인물 3문'으로 재심사 — Stability 임계 파벌 청원이 만들고 청원 Body 장식만 하는 안 | §5.10, §7.2, §11 Phase 6+ |
 | 17 | AI 통치자 첫 접촉 명명 | VS 제외(`NewGalaxy` 시드 없음 — 첫 정권 교체가 첫 이름을 만든다). 조약이 '사람과의 관계'로 읽히는 첫걸음이라 Phase 6+ 재심사 | §5.5, §7.2, §11 Phase 6+ |
 | 18 | `Notable.Ascendant` 역할 유지 여부 | 유지. AI T3 도달은 VS에서 드물게 뜨므로(`Feats.Reachable` 최소 1문명) Phase 5 CSV `NotablesCreated` 빈도를 보고 재심 | §4.3, §7.5, §9.3 |
+| 19 | 로그 `Message`의 저장 형태 (Phase 1 `Push` 구현 전) | 평탄화: `Push`가 `FText::AsCultureInvariant(Formatted.ToString())`로 저장한다 — §7.5 "Push 시점에 렌더되어 저장됨"의 글자 그대로이고 세이브가 자족적이다. `FText::Format` 결과를 그대로 두면 아카이브는 표시 문자열이 아니라 포맷 이력(템플릿 + 인자)을 쓰고 로드 때 다시 렌더하므로, 쌓인 줄이 언어 전환을 따라가는 대신 `ST_CA` 키와 템플릿 텍스트가 세이브에 남는 식별자가 된다 | §7.5, §8.1, §8.5, §9.1 |
+| 20 | `FLifeRecord` 재위 3배열(`RuledCivIDs`·`ReignEndReasons`·`ReignTicks`)의 불변식 (Phase 1 `Install(…, Ruler)` 구현 전 — 첫 세이브가 이미 열린 재위를 담는다) | 세 배열은 항상 같은 길이. 열린 재위는 `ReignEndReasons[i]`가 빈 태그이고 `ReignTicks[i]`는 통치 중 매 틱 1씩 느는 누계다(시대 명명 600틱·`Trait.Legacy.Enduring` 1,800틱이 읽는다). 배열 구조는 스케치대로 유지 — 나중에 구조체 배열로 바꾸면 마이그레이션 | §5.10, §7.2, §9.1 |
+| 21 | `FCallingState.PendingEffect`가 담는 값 (Phase 2 전) | 태그 2개 선언(`Effect.KillPlayer`·`Effect.DeposeRuler`, 134 → 136, 필드 형 유지). 지금은 `KillPlayer`·`DeposeRuler`가 `EEffectType` 열거자일 뿐 ini에 없어 `RequestGameplayTag`가 빈 태그를 돌려주고, 빈 태그가 곧 "없음"이라 기록된 사망·폐위가 사라진다. 대안: 필드를 없애고 `PendingCause`의 뿌리(`Death.*` / `Reign.*`)에서 파생 | §7.2, §7.4, ini |
+| 22 | 삭제된 문명·파괴된 성계를 가리키는 역사적 참조(`FLifeRecord.BirthCivID`·`RuledCivIDs`·`BirthSystemID`) (Phase 1 `Install` 또는 늦어도 Phase 2 초신성 만료(성계 파괴) 전. 문명 삭제 `Hazard.Extinction`은 Phase 4) | `FLifeRecord`에 `FName BirthArchetypeRow`를 두고 `Install()`이 적는다(FName 1, 해시 포함) — `Hazard.Extinction`이 출생 문명을 지워도 `{Player}`의 이름 뱅크가 풀린다. 생애별 장은 문명 이름이 풀리지 않아도 성립하게 쓰고, `Sim.NoDanglingRefsAfterLeap`은 `Calling.Lives`의 역사적 ID를 면제한다. 대안: 삭제하지 않고 묘비 표식으로 남긴다 | §4.1, §4.4, §7.2, §9.3 |
+| 23 | 성계당 거대 프로젝트 슬롯 1개 — 수도에서 업적 프로젝트(다이슨 스웜)와 `project_reform`·`project_relief`가 겹칠 때 (Phase 4 프로젝트 행 전) | `project_reform`·`project_relief`는 업적 슬롯을 쓰지 않게 한다(초신성 안정화·차원 방주는 위기 해결 수단이면서 §3.2의 업적 프로젝트라 슬롯과 `MegaprojectCompletedTick`을 그대로 쓴다). 지금 구조로는 두 번째 프로젝트가 `ActiveMegaproject`·`MegaprojectProgress`·`MegaprojectCompletedTick`을 덮어쓴다(첫 생애는 성계가 1개라 반드시 겹친다). 대안: 슬롯 1개를 유지하고 거절·교체 규칙을 적는다 / 성계별 완성 목록. 필드 추가는 나중에도 호환 | §5.7, §7.2 |
+| 24 | 통치자 입력의 저장 위치: 태세(`SetStance`)·조약(`ProposeTreaty`)·함대 배치(`AllocateFleet`) (Phase 4 전) | §7.2에 필드를 두거나(문명별 태세·조약, 성계별 함대 비율) 각 값이 기존 필드에서 어떻게 파생되는지 적는다. 지금은 `Relations` 스칼라와 `FleetPower` 하나뿐인데 Influence 수입(조약 수)·영향권 함대 소모·Hazard 지연이 매 틱 이 값을 읽는다. 추가는 호환(기본값 = 중립·조약 없음·미배치) | §5.5, §5.6, §7.2, §7.5 |
+| 25 | 지속 틱 조건 2건 (Phase 2 행 작성 전) | ① "침묵 영향권 300틱 지속"(`Trait.Faith.BookShut`, "책이 닫혔다")의 측정: `LowStabilityTicks` / `CivStabilityBelowFor` 패턴의 두 번째 문명 카운터 + 끝에 추가하는 조건 1개, 기준 성계(모성계 또는 소유 성계 아무거나)도 함께 정한다 ② `CivStabilityBelowFor`의 Value는 실제 파라미터인가 — 카운터는 0.3 고정이므로 "Value는 0.3이어야 한다"를 `Data.Integrity`로 검사한다 | §5.3, §5.11, §7.2, §7.3 |
+| 26 | 화면에 떠 있는 조우·청원 카드의 저장 (Phase 4 전) | 카드가 열려 있는 동안에는 10분·종료 자동 저장을 찍지 않는다(§4.4 귀환 제안과 같은 방식). 대안: `FPlayerEntityState`에 `FName PendingEncounterRow`를 두고 로드 뒤 다시 제시한다. 지금은 카드가 뜬 채 저장되면 로드 뒤 그 카드와 판정 난수가 사라져 중단 없이 돌린 판과 갈린다 | §5.9, §7.2, §9.1 |
+| 27 | 틱을 넘겨 사는 효과의 저장: `FCosmicEffect.DurationTicks` > 0과 일회성 출처의 `MultiplyIncome` (Phase 2 `Apply` 전) | 두 가지를 매 틱 저장 상태에서 다시 계산되는 출처(칙령·특성 행, `PressureEffectsPerTick`)로만 제한하고 `Data.Integrity`로 검사한다. 대안: §7.2에 활성 효과 기록(저장·해시)을 둔다. `IncomePerTick`은 매 틱 재계산되는 캐시라 이벤트·만료가 한 번 건 승수는 다음 틱에 사라진다 | §5.8, §7.2, §7.3 |
+| 28 | 방랑자 경로 업적의 생애 상대 증거 (Phase 4 방랑자 업적 전) | 조우 체인 업적의 완료 증거를 계승 때 지워지는 `StatusTags`에 적는다(끝에 추가하는 효과 1개 + 기존 `PlayerHasStatus`). 지금 조우가 남길 수 있는 표식은 판 단위 `Flags`뿐이라 T ≤ 2로 내려간 다음 그릇이 같은 업적을 그냥 통과한다. `Flags`를 §4.4 3분할 표에 넣는다 | §3.2, §4.4, §7.2, §7.3 |
+| 29 | 조건·효과 어휘의 빈칸 (Phase 2 행 작성 전) | 각각 열거형 끝에 추가할지 코드 경로로 둘지 §7.3에 적는다: ① `Research`를 읽는 조건(T1→T2 업적의 물리 50%, "책이 발견되었다"의 Society 돌파) ② 유물을 주고 빼는 효과 ③ `Powers`를 읽는 조건 ④ Stability가 임계 이상인지 보는 조건(`Stability ≥ Value` — 시대 명명의 ≥ 0.6(§5.10), 느부갓네살 모티프의 > 0.9(§8.6). 지금은 미만 비교 `CivStabilityBelow`·`CivStabilityBelowFor`뿐) ⑤ §4.1 표의 만료 결과 가운데 효과로 못 쓰는 것(성계 파괴·문명 삭제·레인 절단·영향권 편입·50/50 분기 — `TickHazards` 코드 훅인지 열거자인지). 두 열거형은 DataTable 행에만 있어 추가는 호환 | §4.1, §7.3, §7.4 |
+| 30 | 데이터 컬럼의 뜻 2건 (Phase 4 전) | ① `FEncounterChoice.CheckStat`의 Stability(0~1)·Influence(상한 없는 비축량)가 "능력치 + 0~5 ≥ 기준치" 판정에 들어가는 척도 ② `FAscensionFeatDef.DedicationBank`가 뱅크(`Faith.Bank.*`, §8.6)인지 이름의 종류인지 — §7.3의 두 주석이 엇갈린다 | §5.10, §7.3, §8.6 |
+| 31 | 헤더 리뷰가 판정하지 못한 3건 (Phase 2에서 재확인) | ① `DT_Hazards`의 `HazardTag` 고유 여부(`Data.Integrity`)와 `Hazard.Claim`의 주장자·함대 지연 누계를 어디에 두는가 ② `BuildChronicle`의 "플레이어 관련 Severity 1"과 `Log.Claim` 묶음 키를 `FCosmicLogEntry` 6필드만으로 정의할 수 있는가 ③ 주장 발생 조건 (c) "붕괴 직후"의 뜻(붕괴 = 소유 성계 0) | §4.1, §4.2, §7.2, §8.4 |
 
 확정 완료 (2026-10-11, v0.6):
 요약 단위 원칙(§1.3) 확정 → 사람은 수치(`Population`은 문명 단위 추상 비율, 개체 없음), 특출난 소수만 이름(인물 = AI·능력치 없는 기록, 사건이 만들고 문명당 상한), 문명도 요약(수치 + 특성 태그 + 인물 소수 + 기록. 행성 표면·도시·개별 함선 없음), 영과 육신도 요약(초월자 몇 체 + 영향권, 그릇 하나, 나머지는 백성 집계와 두 책의 기록된 이름들), 표시는 규모 등급. 결정: `FNotableRecord` 5필드 고정(Role·NameIndex·FirstTick·LastTick·SourceRow — 등장·퇴장 틱, 생몰 아님), `FCivilizationState.Notables` 상한 `MaxNotablesPerCiv` 4 + 역할당 열린 기록 1, 역할 6(`Notable.Ruler/Regent/Rebel/Loyalist/Hearer/Ascendant`), 생성은 효과 `NameNotable`을 실은 행 + 코드 훅 3, `NewGalaxy` 시드 없음(지연 생성), Rebel은 `crisis_rebellion` 발생 시(Severity 1 유일 예외), '들은 자' Hearer(Prophet 역할 없음), 그릇의 이름은 `FLifeRecord.NameIndex`(플레이어는 `Notables`에 넣지 않음, 귀환 수락 = 같은 인덱스), `PersonNameBank` 5행 × 12(`arch_swarm`·`arch_machine` 비움 = 이름 없는 문명), 규모 등급 6에 '소수'('남은 자'는 라벨 아님, `Trait.Faith.*` 템플릿 변형만), 인물에 별칭·칭호 없음, 두 책에 인물 없음(구조로), 인물은 화자가 아님. 기술 결정: 저장 필드 순증 배열 1 + int32 1, `SaveVersion` 불변, 해시에 `Notables`·`NameIndex`, 등급은 파생. 상세 §1.3·§1.4·§3.1·§4.1·§4.4·§4.5·§5.3·§5.9~§5.11·§7·§8·§9·§11~§13·§15.
