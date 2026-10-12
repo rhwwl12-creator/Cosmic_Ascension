@@ -547,8 +547,9 @@ struct COSMIC_ASCENSION_API FKnownMark
  * Saved and part of ComputeStateHash, but not world state: the world only writes it and never reads it (the full rule
  * and its one exception, the crossing-stage cleanup that compares a removed CivID with PendingContactCivID and clears
  * it, are in section 8.1), and ComputeWorldHash leaves it out. KnownSystems and MetCivs grow only through NoteMet,
- * NoteKnown and Install. The arrays are in order of discovery and never shrink (no TMap, no predicate tag). It belongs
- * to the calling: kept across death and succession (section 4.4).
+ * NoteKnown and Install (NoteMet, NoteKnown and the knowing write of Install arrive with Phase 2; until then only tests
+ * fill the arrays). The arrays are in order of discovery and never shrink (no TMap, no predicate tag). It belongs to
+ * the calling: kept across death and succession (section 4.4).
  */
 USTRUCT(BlueprintType)
 struct COSMIC_ASCENSION_API FKnowingState
@@ -559,7 +560,7 @@ struct COSMIC_ASCENSION_API FKnowingState
 	UPROPERTY()
 	TArray<FKnownMark> KnownSystems;
 
-	// ID = CivID. Includes the birth civilization of each life, which Install writes without a line.
+	// ID = CivID. From Phase 2 it includes the birth civilization of each life, which Install writes without a line.
 	UPROPERTY()
 	TArray<FKnownMark> MetCivs;
 

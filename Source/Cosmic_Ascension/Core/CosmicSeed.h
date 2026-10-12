@@ -56,8 +56,8 @@ namespace CosmicSeed
 		return Hash;
 	}
 
-	// Reference values of section 9.2, checked at compile time. Sim.SeedDerive checks them again at run time, and
-	// Sim.SaveRestart compares one value across two processes.
+	// Reference values of section 9.2, checked at compile time. Sim.SeedDerive checks them again at run time: those two
+	// hold the values. Sim.SaveRestart also writes one value into its record (same build in both halves: no extra guard).
 	static_assert(Derive(42, "", Purpose::Tell, 0) == 272114134u, "CosmicSeed::Derive is frozen (guideline section 9.2)");
 	static_assert(Derive(42, "gal_andromeda", Purpose::Summary, 0) == 569404729u, "CosmicSeed::Derive is frozen (guideline section 9.2)");
 	static_assert(Derive(7, "sol", Purpose::Life, 3) == 2833998181u, "CosmicSeed::Derive is frozen (guideline section 9.2)");

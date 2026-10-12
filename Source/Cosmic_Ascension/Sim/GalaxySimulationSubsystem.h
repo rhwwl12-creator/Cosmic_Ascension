@@ -151,8 +151,8 @@ private:
 	// draw from the sim stream. Its two triggers need no state of their own: the period is State.Tick against
 	// DT_Rules.SightIntervalTicks, and "the vessel moved this tick" is a local of SimulateTick (Player.CurrentSystemID
 	// before and after TickPlayerTravel), never a member of this class and never a saved field (section 4.4: the eye is
-	// derived). Whatever moves the vessel outside stage 8 (Install, a role change, a scan) writes knowing in its own call.
-	// Empty body until Phase 2.
+	// derived). Whatever places the eye outside stage 8 (Install, a role change) or widens it in place (a scan) writes
+	// knowing in its own call. Empty body until Phase 2: the knob and the local arrive with the body.
 	void TickSight();
 
 	void ResolvePendingRoleEffect();

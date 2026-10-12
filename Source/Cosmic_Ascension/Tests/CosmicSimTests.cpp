@@ -184,9 +184,10 @@ namespace CosmicSimTests
 	}
 
 	// Puts one value into every container of the state that a plain run leaves empty, so that the save and the hash see
-	// tag containers, maps, notables, transcendents, log entries, the knowing and a crossing. Every member reserved in
-	// v0.7 (section 9.1) leaves its initializer here: nothing writes them yet, and a member that reloads as its
-	// initializer looks the same whether it was saved or not. Needs three civs or more.
+	// tag containers, maps, notables, transcendents, log entries, the knowing and a crossing. Of the 25 members reserved
+	// in v0.7 (section 9.1), 24 leave their initializer here: no game code moves them off it yet, and a member that
+	// reloads as its initializer looks the same whether it was saved or not. The 25th, TellRngState, is not touched:
+	// NewGalaxy stamps it and DrawTell moves it. Needs three civs or more.
 	void FillEmptyContainers(FGalaxyState& State)
 	{
 		const FName TestRow(TEXT("evt_test"));
@@ -259,7 +260,8 @@ namespace CosmicSimTests
 	}
 
 	// How many of the 25 members reserved in v0.7 (section 9.1) are off their initializer. A member of an array element
-	// counts when it is set in the last element of every array that holds it.
+	// counts when it is set in the last element of every array that holds it; OriginGalaxyRow is read in Civs[1], the
+	// one civ FillEmptyContainers makes a newcomer (the others stay native, NAME_None).
 	int32 CountReservedMembersSet(const FGalaxyState& State)
 	{
 		auto MarkSet = [](const TArray<FKnownMark>& Marks, bool bID)
@@ -935,19 +937,27 @@ bool FCosmicSimTellStreamSeparateTest::RunTest(const FString& Parameters)
 	Sim->GetRng().GetUnsignedInt();
 	TestTrue(TEXT("A sim draw moves both hashes"), Sim->ComputeWorldHash() != World && Sim->ComputeStateHash() != Full);
 
-	// A whole run that tells more: a named AI civ has its breakthroughs told (section 8.2), from inside the tick stages.
+	// A whole run that tells more. Run B tells one extra line at every hundredth tick boundary, so every line told from
+	// inside a tick stage afterwards draws from another position of the tell stream. While TickResearch still gates the
+	// breakthrough lines on CivName (until the Phase 2 generation change), naming an AI civ also adds lines told from
+	// inside the stages; once the gate is gone that line does nothing and the boundary lines carry the block.
 	// The world does not notice.
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	Sim->RunHeadless(3000);
 	const uint32 QuietWorld = Sim->ComputeWorldHash();
 	const uint32 QuietFull = Sim->ComputeStateHash();
 	const int32 QuietSeed = Sim->GetRng().GetCurrentSeed();
-	const int32 QuietLines = State.Log.Num() + State.Chronicle.Num();
+	const int32 QuietTell = State.TellRngState;
 
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	Sim->GetMutableState().Civs[1].CivName = FText::AsCultureInvariant(TEXT("X"));
-	Sim->RunHeadless(3000);
-	TestTrue(TEXT("The run with a named AI civ told more lines"), State.Log.Num() + State.Chronicle.Num() > QuietLines);
+	for (int32 Slice = 0; Slice < 30; ++Slice)
+	{
+		Log->PushRow(RowName, 0, Args, NAME_None);
+		Sim->RunHeadless(100);
+	}
+	TestEqual(TEXT("Both runs are 3,000 ticks long"), State.Tick, static_cast<int64>(3000));
+	TestTrue(TEXT("More telling leaves the tell stream somewhere else"), State.TellRngState != QuietTell);
 	TestEqual(TEXT("More telling, same world hash"), static_cast<int64>(Sim->ComputeWorldHash()), static_cast<int64>(QuietWorld));
 	TestEqual(TEXT("More telling, same sim stream"), Sim->GetRng().GetCurrentSeed(), QuietSeed);
 	TestTrue(TEXT("More telling, another full hash"), Sim->ComputeStateHash() != QuietFull);
@@ -1097,7 +1107,9 @@ bool FCosmicSimSaveRestartTest::RunTest(const FString& Parameters)
 	// Parsed outside bHasRecord: a record of the format before this value still gets its slot deleted below.
 	uint32 RecordedDerive = 0;
 	const bool bHasDerive = FParse::Value(*Record, TEXT("Derive="), RecordedDerive);
-	// Decided by the seed, the name and the frozen expression alone: the same in every process (section 9.2).
+	// Decided by the seed, the name and the frozen expression alone (section 9.2). The second half only runs on the binary
+	// that wrote the record, so this comparison is equal by construction: it carries out the record entry of section 9.3
+	// and guards nothing by itself. The value is held by Sim.SeedDerive (same call, golden constant) and CosmicSeed.h.
 	const uint32 DeriveNow = CosmicSimTests::DeriveLowerCased(42, TEXT("gal_andromeda"), CosmicSeed::Purpose::Summary, 0);
 
 	if (bHasRecord && RecordedStamp == BinaryStamp && RecordedProcessId != ProcessId)
