@@ -1,7 +1,7 @@
 Key,SourceString
 "Panel.Cycle","주기"
 "Panel.Speed","배속"
-"Panel.Paused","정지"
+"Panel.Paused","일시정지"
 "Panel.Stability","안정도"
 "Panel.Resources","자원"
 "Panel.Research","연구"

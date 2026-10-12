@@ -144,6 +144,11 @@ private:
 	bool bRunning = false;
 	bool bBroadcastEnabled = true;
 
+	// True while stages one to seven run; role effect resolution, the eighth, is outside (the Phase 4b leap runs ticks
+	// from there). NewGalaxy, LoadState and SimulateTick ensure against it: the stages hold references into the state,
+	// and a delegate fired from inside them (OnLogEntry) must not replace it or run a tick.
+	bool bInTickStages = false;
+
 	static constexpr float SecondsPerTick = 1.0f;
 
 	// Ticks processed per frame at most. The remainder carries over to the next frame, capped at this many ticks (section 9.4).

@@ -99,7 +99,8 @@ enum class EEffectType : uint8
 	// Writes Tag (Flag.*) into FGalaxyState.Flags (section 4.5).
 	SetFlag,
 	// KillPlayer and DeposeRuler never run in place: they are only recorded in FCallingState (PendingEffect / PendingCause /
-	// PendingSourceRow) and resolved by the last tick stage (section 7.4). Tag = Death.* / Reign.*.
+	// PendingSourceRow) and resolved by the last tick stage (section 7.4). Tag = Death.* / Reign.*; the recorded
+	// PendingEffect is the tag Effect.KillPlayer / Effect.DeposeRuler.
 	KillPlayer,
 	DeposeRuler,
 	// Value = ratio. Applies to the civ's Population only; there is no per-system population (section 4.1, 4.2).

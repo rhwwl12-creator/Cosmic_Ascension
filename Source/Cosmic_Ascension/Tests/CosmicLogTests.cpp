@@ -7,6 +7,7 @@
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicRowNames.h"
+#include "Engine/GameInstance.h"
 #include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
@@ -52,6 +53,15 @@ bool FCosmicLogNoConsecutiveRepeatTest::RunTest(const FString& Parameters)
 		return false;
 	}
 
+	// Every row the code calls by name is in its table: a missing one is silent at run time.
+	for (const FName Name : CosmicRows::LogBreakthrough)
+	{
+		const FLogTemplateDef* Each = Sim->GetTables().FindLogTemplate(Name);
+		TestTrue(*FString::Printf(TEXT("DT_LogTemplates row %s has three templates or more"), *Name.ToString()), Each && Each->Templates.Num() >= 3);
+	}
+	TestNotNull(TEXT("DT_Rules holds the row rules"), Sim->GetTables().FindRules());
+	TestNotNull(TEXT("DT_Civs holds arch_default"), Sim->GetTables().FindCiv(CosmicRows::ArchDefault));
+
 	FFormatNamedArguments Args;
 	Args.Add(TEXT("Civ"), FText::AsCultureInvariant(TEXT("X")));
 
@@ -84,7 +94,20 @@ bool FCosmicLogNoConsecutiveRepeatTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("A missing row is not pushed"), Log->PushRow(FName(TEXT("log_no_such_row")), 0, Args, NAME_None));
 	TestTrue(TEXT("A missing row draws nothing and adds nothing"), Sim->GetRng().GetCurrentSeed() == SeedBefore && State.Log.Num() == EntriesBefore);
 
-	// A whole run: the log the simulation writes by itself.
+	// A row of one template still draws exactly once: the number of draws never depends on the content of a row.
+	const FLogTemplateDef* FirstRow = Sim->GetTables().FindLogTemplate(CosmicRows::LogFirstLife);
+	if (TestTrue(TEXT("log_first_life has exactly one template"), FirstRow && FirstRow->Templates.Num() == 1))
+	{
+		FRandomStream Probe(Sim->GetRng().GetCurrentSeed());
+		FFormatNamedArguments HomeArgs;
+		HomeArgs.Add(TEXT("HomeSystem"), FText::AsCultureInvariant(TEXT("X")));
+		TestTrue(TEXT("A one-template row is pushed"), Log->PushRow(CosmicRows::LogFirstLife, 0, HomeArgs, NAME_None));
+		Probe.RandRange(0, 0);
+		TestTrue(TEXT("A one-template row still draws exactly once"), Probe.GetCurrentSeed() == Sim->GetRng().GetCurrentSeed());
+	}
+
+	// A whole run: the log the simulation writes by itself. In Phase 1 such a run never pushes the same row twice in a
+	// row, so the check below gains force only with the tick logs of Phase 2.
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	Sim->RunHeadless(20000);
 	TestTrue(TEXT("The run wrote more than the first line"), State.Log.Num() + State.Chronicle.Num() > 1);
@@ -127,6 +150,8 @@ bool FCosmicLogCapAndChronicleTest::RunTest(const FString& Parameters)
 		const FGameplayTag Category = (Index % 50 == 0) ? ClaimTag : (Index % 50 == 25) ? RecordTag : CivTag;
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("Number"), FText::AsCultureInvariant(FString::FromInt(Index)));
+		// A stamp of its own for every entry (the first line of the galaxy carries tick 0), for the order check below.
+		Sim->GetMutableState().Tick = Index + 1;
 		Log->Push(Category, Severity, Template, Args, NAME_None, TestRow);
 		bKept.Add(Severity >= 1 || Category != CivTag);
 	}
@@ -149,7 +174,7 @@ bool FCosmicLogCapAndChronicleTest::RunTest(const FString& Parameters)
 	bool bChronicleInOrder = true;
 	for (int32 Index = 1; Index < State.Chronicle.Num(); ++Index)
 	{
-		bChronicleInOrder &= State.Chronicle[Index - 1].Tick <= State.Chronicle[Index].Tick;
+		bChronicleInOrder &= State.Chronicle[Index - 1].Tick < State.Chronicle[Index].Tick;
 	}
 	TestTrue(TEXT("The chronicle keeps the order of the log"), bChronicleInOrder);
 

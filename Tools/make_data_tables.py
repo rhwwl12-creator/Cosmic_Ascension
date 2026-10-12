@@ -19,7 +19,19 @@ Facts read from the UE 5.8.3 source (see CLAUDE.md for the summary):
     FGameplayTagContainer is written as export text "(GameplayTags=((TagName=\"A.B\"),...))". A column missing
     from the JSON keeps its C++ default but counts as an import problem, so the JSON files spell out every column.
   - unreal.EditorAssetLibrary belongs to a plugin this project does not enable; UEditorAssetSubsystem is always there.
+  - The localization key of a DataTable text comes from its position (row, column, array index). Once translation has
+    started, add to arrays such as Templates and NameBank at the end only, and never delete a DT_ asset to recreate it
+    (a new package gets a new namespace). This script refills the existing asset in place for that reason.
+
+What it checks before saving: every table is exported again and compared with the JSON value by value, and a column
+of the row struct that the JSON does not spell out is an error. String Table entries are compared key by key and text
+by text. On success it writes Tools/data/generated.sha1 (one "<file> <sha1>" line per source, carriage returns left
+out of the hash); the automation test Cosmic_Ascension.Data.SourcesInSync compares the sources with that stamp, so a
+source edited without running this script again fails there. The stamp is removed first, so a failed run leaves none.
 """
+import csv
+import hashlib
+import io
 import json
 import os
 import re
@@ -34,12 +46,15 @@ TABLES = [
     ("DT_LogTemplates", "LogTemplateDef"),
 ]
 STRING_TABLE = "ST_CA"
+STAMP_FILE = "generated.sha1"
 
 SOURCE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 EDITOR_ASSETS = unreal.get_editor_subsystem(unreal.EditorAssetSubsystem)
 ASSET_TOOLS = unreal.AssetToolsHelpers.get_asset_tools()
 TAG_NAME = re.compile(r'TagName="([^"]*)"')
 LOC_TEXT = re.compile(r'^NSLOCTEXT\("(?:[^"\\]|\\.)*",\s*"(?:[^"\\]|\\.)*",\s*"((?:[^"\\]|\\.)*)"\)$')
+# Escapes the engine exporter writes inside the source string of an NSLOCTEXT.
+UNESCAPE = {"n": "\n", "r": "\r", "t": "\t", "'": "'", '"': '"', "\\": "\\"}
 
 
 def log(message):
@@ -69,7 +84,10 @@ def load_or_create(asset_name, asset_class, factory):
 
 
 def differences(expected, actual, where):
-    """Return where the exported value disagrees with what was written. Extra exported keys are ignored."""
+    """Return where the exported value disagrees with what was written.
+
+    Below the row level extra exported keys are ignored; make_table reports the columns a row leaves out.
+    """
     if isinstance(expected, (int, float)) and isinstance(actual, dict) and len(actual) == 1:
         # The engine exporter writes a map value as {"<PropertyName>": value}.
         actual = next(iter(actual.values()))
@@ -116,7 +134,7 @@ def differences(expected, actual, where):
         # A localizable text is exported as NSLOCTEXT("namespace", "key", "source").
         text = LOC_TEXT.match(exported) if isinstance(exported, str) else None
         if text:
-            exported = text.group(1).replace('\\"', '"').replace("\\\\", "\\")
+            exported = re.sub(r"\\(.)", lambda found: UNESCAPE.get(found.group(1), found.group(0)), text.group(1))
         if exported == expected or (expected == "" and exported in ("None", None)):
             return []
         return ["%s: expected %r, exported %r" % (where, expected, actual)]
@@ -148,6 +166,9 @@ def make_table(asset_name, struct_name):
         problems.append("row names: wrote %s, table holds %s" % ([row["Name"] for row in rows], list(exported)))
     for row in rows:
         if row["Name"] in exported:
+            unset = sorted(set(exported[row["Name"]]) - set(row))
+            if unset:
+                problems.append("%s.%s: columns not in the JSON (the C++ default was kept): %s" % (asset_name, row["Name"], unset))
             problems.extend(differences(row, exported[row["Name"]], asset_name + "." + row["Name"]))
     if problems:
         raise RuntimeError("%s does not hold what was written:\n  %s" % (asset_name, "\n  ".join(problems)))
@@ -165,17 +186,43 @@ def make_string_table(asset_name):
     if not unreal.StringTableLibrary.import_table_from_csv_string(table_id, source):
         raise RuntimeError("string table import failed for " + asset_name)
 
-    wanted = [line.split(",", 1)[0].strip('"') for line in source.splitlines()[1:] if line.strip()]
+    parsed = [row for row in csv.reader(io.StringIO(source)) if row]
+    header, entries = parsed[0], parsed[1:]
+    ragged = [row[0] for row in entries if len(row) != len(header) or not row[1]]
+    if header[:2] != ["Key", "SourceString"] or ragged:
+        raise RuntimeError("%s.csv: wrong cell count (unquoted comma?) or empty SourceString in %s" % (asset_name, ragged))
+    wanted = {row[0]: row[1] for row in entries}
     keys = [str(key) for key in unreal.StringTableLibrary.get_keys_from_string_table(table_id)]
     if sorted(keys) != sorted(wanted):
         raise RuntimeError("%s keys: wrote %s, table holds %s" % (asset_name, sorted(wanted), sorted(keys)))
+    # A text with a backslash goes through the importer's escapes; those are left to the eye.
+    wrong = [key for key, text in wanted.items()
+             if "\\" not in text and str(unreal.StringTableLibrary.get_table_entry_source_string(table_id, key)) != text]
+    if wrong:
+        raise RuntimeError("%s texts differ for %s" % (asset_name, wrong))
 
     if not EDITOR_ASSETS.save_loaded_asset(table, False):
         raise RuntimeError("save failed for " + asset_name)
     log("%s: %d entries written and verified" % (asset_name, len(keys)))
 
 
+def write_stamp(file_names):
+    """Record the hash of every source that became an asset (carriage returns left out, as the automation test does)."""
+    lines = []
+    for file_name in file_names:
+        with open(os.path.join(SOURCE_DIR, file_name), "rb") as handle:
+            lines.append("%s %s" % (file_name, hashlib.sha1(handle.read().replace(b"\r", b"")).hexdigest()))
+    with open(os.path.join(SOURCE_DIR, STAMP_FILE), "w", encoding="ascii", newline="\n") as handle:
+        handle.write("\n".join(lines) + "\n")
+    log("%s: %d sources stamped" % (STAMP_FILE, len(lines)))
+
+
+# A run that fails after saving one asset must not leave the stamp of the previous run behind.
+if os.path.exists(os.path.join(SOURCE_DIR, STAMP_FILE)):
+    os.remove(os.path.join(SOURCE_DIR, STAMP_FILE))
+
 for table_name, table_struct in TABLES:
     make_table(table_name, table_struct)
 make_string_table(STRING_TABLE)
+write_stamp([table_name + ".json" for table_name, _ in TABLES] + [STRING_TABLE + ".csv"])
 log("done")

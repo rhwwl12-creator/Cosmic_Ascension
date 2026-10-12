@@ -5,21 +5,32 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
+#include "Data/CosmicDataTables.h"
+#include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
+#include "Engine/DataTable.h"
+#include "Engine/GameInstance.h"
 #include "GameplayTagContainer.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
+#include "Internationalization/Text.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Guid.h"
+#include "Misc/PackageName.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopeExit.h"
 #include "Modules/ModuleManager.h"
+#include "Player/PlayerRoleSubsystem.h"
 #include "Save/CosmicSaveSubsystem.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
+#include "UObject/TextProperty.h"
+#include "UObject/UObjectGlobals.h"
 #include "UObject/UnrealType.h"
 
 #include <limits>
@@ -90,6 +101,49 @@ namespace CosmicSimTests
 		return 0;
 	}
 
+	// Every text anywhere under a struct, by reflection: the names and sentences that ComputeStateHash leaves out.
+	// Maps are not walked; the state keeps no text in a map.
+	void AppendTexts(const FProperty* Property, const void* Value, FString& Out);
+
+	void AppendTextsInStruct(const UStruct* Struct, const void* Data, FString& Out)
+	{
+		for (TFieldIterator<FProperty> It(Struct); It; ++It)
+		{
+			for (int32 Index = 0; Index < It->ArrayDim; ++Index)
+			{
+				AppendTexts(*It, It->ContainerPtrToValuePtr<void>(Data, Index), Out);
+			}
+		}
+	}
+
+	void AppendTexts(const FProperty* Property, const void* Value, FString& Out)
+	{
+		if (const FTextProperty* TextProperty = CastField<FTextProperty>(Property))
+		{
+			Out += TextProperty->GetPropertyValue(Value).ToString();
+			Out += TEXT("|");
+		}
+		else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+		{
+			AppendTextsInStruct(StructProperty->Struct, Value, Out);
+		}
+		else if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+		{
+			FScriptArrayHelper Helper(ArrayProperty, Value);
+			for (int32 Index = 0; Index < Helper.Num(); ++Index)
+			{
+				AppendTexts(ArrayProperty->Inner, Helper.GetRawPtr(Index), Out);
+			}
+		}
+	}
+
+	FString CollectText(const FGalaxyState& State)
+	{
+		FString Out;
+		AppendTextsInStruct(FGalaxyState::StaticStruct(), &State, Out);
+		return Out;
+	}
+
 	// Binary that holds the simulation code. Its timestamp tells a rebuilt game from a restarted one.
 	FString SimBinaryPath()
 	{
@@ -98,6 +152,21 @@ namespace CosmicSimTests
 #else
 		return FModuleManager::Get().GetModuleFilename(FName(TEXT("Cosmic_Ascension")));
 #endif
+	}
+
+	// The definition tables are simulation input too: regenerated assets start the restart test over, like a rebuilt binary.
+	FString DataStamp()
+	{
+		FString Stamp;
+		for (const TCHAR* Package : { TEXT("/Game/CA/Data/DT_Rules"), TEXT("/Game/CA/Data/DT_Civs"), TEXT("/Game/CA/Data/DT_LogTemplates") })
+		{
+			FString File;
+			if (FPackageName::TryConvertLongPackageNameToFilename(FString(Package), File, FPackageName::GetAssetPackageExtension()))
+			{
+				Stamp += TEXT("_") + IFileManager::Get().GetTimeStamp(*File).ToIso8601();
+			}
+		}
+		return Stamp;
 	}
 
 	// Puts one value into every container of the state that a plain run leaves empty, so that the save and the hash see
@@ -234,6 +303,8 @@ bool FCosmicSimFirstLifeTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Home system has a display name"), Home.DisplayName.IsEmpty());
 
 	TestEqual(TEXT("Player civ archetype"), Civ.ArchetypeRow, Sim->GetRules().PlayerArchetypeRow);
+	// The exit criterion names the row itself, not whatever DT_Rules points at.
+	TestEqual(TEXT("Player civ archetype is arch_terran"), Civ.ArchetypeRow, FName(TEXT("arch_terran")));
 	TestEqual(TEXT("Player civ home"), Civ.HomeSystemID, Sol);
 	TestEqual(TEXT("Player civ owns one system"), Civ.OwnedSystems.Num(), 1);
 	TestTrue(TEXT("Player civ is player ruled"), Civ.bIsPlayerRuled);
@@ -273,6 +344,12 @@ bool FCosmicSimFirstLifeTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("First line focus"), First.FocusSystemID, Sol);
 		TestTrue(TEXT("First line starts with the home system name"), Message.StartsWith(Home.DisplayName.ToString(), ESearchCase::CaseSensitive));
 		TestFalse(TEXT("First line has no unfilled slot"), Message.Contains(TEXT("{")));
+
+		const FLogTemplateDef* FirstRow = Sim->GetTables().FindLogTemplate(CosmicRows::LogFirstLife);
+		if (TestNotNull(TEXT("DT_LogTemplates holds log_first_life"), FirstRow))
+		{
+			TestEqual(TEXT("log_first_life is a fixed line: exactly one variant"), FirstRow->Templates.Num(), 1);
+		}
 	}
 
 	Sim->RunHeadless(100);
@@ -312,6 +389,10 @@ bool FCosmicSimPopulationBandTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Below the lowest threshold: few"), Band(EAscensionTier::Tier3_Causal, Thresholds[0] * 0.5f), static_cast<int32>(EPopulationBand::Few));
 	TestEqual(TEXT("Above the highest threshold: one band up"), Band(EAscensionTier::Tier1_Planetary, Thresholds[2] + 1.f), static_cast<int32>(EPopulationBand::HundredBillions));
 	TestEqual(TEXT("One band up is capped at countless"), Band(EAscensionTier::Tier4_Transcendent, Thresholds[2] + 1.f), static_cast<int32>(EPopulationBand::Countless));
+	TestEqual(TEXT("Tier 4 baseline"), Band(EAscensionTier::Tier4_Transcendent, 1.f), static_cast<int32>(EPopulationBand::Countless));
+	TestEqual(TEXT("Exactly the lowest threshold: one band down, not few"), Band(EAscensionTier::Tier1_Planetary, Thresholds[0]), static_cast<int32>(EPopulationBand::Millions));
+	TestEqual(TEXT("Exactly the middle threshold: baseline"), Band(EAscensionTier::Tier1_Planetary, Thresholds[1]), static_cast<int32>(EPopulationBand::Billions));
+	TestEqual(TEXT("Exactly the highest threshold: baseline"), Band(EAscensionTier::Tier1_Planetary, Thresholds[2]), static_cast<int32>(EPopulationBand::Billions));
 	TestEqual(TEXT("Unknown civ"), static_cast<int32>(Sim->GetPopulationBand(FName(TEXT("civ_none")))), static_cast<int32>(EPopulationBand::Few));
 	return true;
 }
@@ -347,9 +428,183 @@ bool FCosmicSimFrameStepTest::RunTest(const FString& Parameters)
 	Sim->Tick(0.f);
 	TestEqual(TEXT("Nothing is left after the carried ticks"), State.Tick, static_cast<int64>(33));
 
+	// One second at 1x is one tick: the part of a tick left by a frame carries over.
+	Sim->SetTimeScale(1.f);
+	Sim->Tick(0.25f);
+	Sim->Tick(0.25f);
+	Sim->Tick(0.25f);
+	TestEqual(TEXT("1x: three quarter-second frames are not a tick yet"), State.Tick, static_cast<int64>(33));
+	Sim->Tick(0.25f);
+	TestEqual(TEXT("1x: the fourth frame completes one tick"), State.Tick, static_cast<int64>(34));
+
+	// Ticks driven by frames, with the broadcast gate open, end in the same state as headless ticks. Far enough for the
+	// first breakthrough lines: OnLogEntry then fires from inside a tick stage.
+	Sim->SetTimeScale(10.f);
+	for (int32 Frame = 0; Frame < 70; ++Frame)
+	{
+		Sim->Tick(1.f);
+	}
+	TestEqual(TEXT("Seventy full frames at 10x"), State.Tick, static_cast<int64>(734));
+	TestTrue(TEXT("The framed run pushed log lines from inside a tick"), State.Log.Num() > 1);
+	const uint32 FramedHash = Sim->ComputeStateHash();
+	Sim->NewGalaxy(42, 5, 3);
+	Sim->RunHeadless(734);
+	TestEqual(TEXT("Frame-driven ticks equal headless ticks"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(FramedHash));
+
 	Sim->SetTimeScale(0.f);
 	Sim->Tick(5.f);
-	TestEqual(TEXT("Paused again: no tick"), State.Tick, static_cast<int64>(33));
+	TestEqual(TEXT("Paused again: no tick"), State.Tick, static_cast<int64>(734));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimGenerationRulesTest, "Cosmic_Ascension.Sim.GenerationRules", CosmicTests::Flags)
+bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
+{
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	UPlayerRoleSubsystem* PlayerRole = Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>();
+	const FGalaxyState& State = Sim->GetState();
+
+	// Every case below injects its own tables; the tables of the running game come back at the end.
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); };
+
+	const FName PlayerRow = Sim->GetRules().PlayerArchetypeRow;
+	const FName Unweighted(TEXT("arch_test_a"));
+	const FName Light(TEXT("arch_test_b"));
+	const FName Heavy(TEXT("arch_test_c"));
+
+	// DT_Civs with the player's row (as many person names as asked) and three AI rows of weight 0, 1 and 3.
+	// The rules and the log templates stay those of the running game.
+	auto MakeTables = [&Original, PlayerRow, Unweighted, Light, Heavy](int32 PersonNames, bool bReverseRows = false)
+	{
+		UDataTable* Civs = NewObject<UDataTable>(GetTransientPackage());
+		Civs->RowStruct = FCivArchetypeDef::StaticStruct();
+
+		FCivArchetypeDef PlayerDef;
+		PlayerDef.Weight = 0.f;
+		for (int32 Index = 0; Index < PersonNames; ++Index)
+		{
+			PlayerDef.PersonNameBank.Add(FText::AsCultureInvariant(FString::Printf(TEXT("name %d"), Index)));
+		}
+		FCivArchetypeDef UnweightedDef;
+		UnweightedDef.Weight = 0.f;
+		FCivArchetypeDef LightDef;
+		LightDef.Weight = 1.f;
+		FCivArchetypeDef HeavyDef;
+		HeavyDef.Weight = 3.f;
+		if (bReverseRows)
+		{
+			Civs->AddRow(Heavy, HeavyDef);
+			Civs->AddRow(Light, LightDef);
+			Civs->AddRow(Unweighted, UnweightedDef);
+			Civs->AddRow(PlayerRow, PlayerDef);
+		}
+		else
+		{
+			Civs->AddRow(PlayerRow, PlayerDef);
+			Civs->AddRow(Unweighted, UnweightedDef);
+			Civs->AddRow(Light, LightDef);
+			Civs->AddRow(Heavy, HeavyDef);
+		}
+
+		FCosmicDataTables Tables = Original;
+		Tables.Civs = Civs;
+		return Tables;
+	};
+
+	// The weighted archetype draw: a row of weight 0 is never drawn, every weighted row is, and the seed decides who gets which.
+	Sim->SetTables(MakeTables(3));
+	// Counted over four more seeds: one galaxy of eleven AI civs misses the weight 1 row in 4% of the streams.
+	int32 LightTotal = 0;
+	int32 HeavyTotal = 0;
+	for (int32 Seed = 43; Seed <= 46; ++Seed)
+	{
+		Sim->NewGalaxy(Seed, CosmicTests::BudgetSystems, CosmicTests::BudgetCivs);
+		for (int32 Index = 1; Index < State.Civs.Num(); ++Index)
+		{
+			LightTotal += (State.Civs[Index].ArchetypeRow == Light) ? 1 : 0;
+			HeavyTotal += (State.Civs[Index].ArchetypeRow == Heavy) ? 1 : 0;
+		}
+	}
+
+	Sim->NewGalaxy(42, CosmicTests::BudgetSystems, CosmicTests::BudgetCivs);
+	TArray<FName> Assigned;
+	int32 LightCount = 0;
+	int32 HeavyCount = 0;
+	for (int32 Index = 1; Index < State.Civs.Num(); ++Index)
+	{
+		const FName Row = State.Civs[Index].ArchetypeRow;
+		Assigned.Add(Row);
+		LightCount += (Row == Light) ? 1 : 0;
+		HeavyCount += (Row == Heavy) ? 1 : 0;
+	}
+	TestEqual(TEXT("The player civ keeps the player archetype row"), State.Civs[0].ArchetypeRow, PlayerRow);
+	TestEqual(TEXT("AI civs draw weighted rows only"), LightCount + HeavyCount, CosmicTests::BudgetCivs - 1);
+	TestTrue(TEXT("Every weighted row is drawn"), LightTotal + LightCount > 0 && HeavyTotal + HeavyCount > 0);
+	const uint32 HashFirst = Sim->ComputeStateHash();
+
+	Sim->NewGalaxy(42, CosmicTests::BudgetSystems, CosmicTests::BudgetCivs);
+	bool bSameAssignment = State.Civs.Num() == Assigned.Num() + 1;
+	for (int32 Index = 1; bSameAssignment && Index < State.Civs.Num(); ++Index)
+	{
+		bSameAssignment = State.Civs[Index].ArchetypeRow == Assigned[Index - 1];
+	}
+	TestTrue(TEXT("The same seed assigns the same archetypes"), bSameAssignment);
+	TestEqual(TEXT("The same seed gives the same hash"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(HashFirst));
+
+	// The draw walks the rows in lexical order, not in the table's own order (section 9.2).
+	Sim->SetTables(MakeTables(3, true));
+	Sim->NewGalaxy(42, CosmicTests::BudgetSystems, CosmicTests::BudgetCivs);
+	TestEqual(TEXT("The row order of the table does not change the galaxy"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(HashFirst));
+
+	// The vessel's name: inside the bank, and a new life in the same civ never repeats the name before it.
+	const FName HomeSystemID = State.Systems[0].SystemID;
+	const FName PlayerCivID = State.Civs[0].CivID;
+	bool bNamesInBank = State.Calling.Lives.Num() == 1 && State.Calling.Lives[0].NameIndex >= 0 && State.Calling.Lives[0].NameIndex < 3;
+	bool bNeverRepeated = true;
+	for (int32 LifeNumber = 0; LifeNumber < 20; ++LifeNumber)
+	{
+		const int32 Previous = State.Calling.Lives.Last().NameIndex;
+		PlayerRole->Install(HomeSystemID, PlayerCivID, EPlayerRole::Ruler);
+		const int32 Drawn = State.Calling.Lives.Last().NameIndex;
+		bNamesInBank &= Drawn >= 0 && Drawn < 3;
+		bNeverRepeated &= Drawn != Previous;
+	}
+	TestTrue(TEXT("Every name index lies inside the three-name bank"), bNamesInBank);
+	TestTrue(TEXT("A new life in the same civ never repeats the previous name"), bNeverRepeated);
+	TestEqual(TEXT("Each Install opens one life"), State.Calling.Lives.Num(), 21);
+
+	// A bank of one name: every life carries it.
+	Sim->SetTables(MakeTables(1));
+	Sim->NewGalaxy(42, 5, 3);
+	PlayerRole->Install(State.Systems[0].SystemID, State.Civs[0].CivID, EPlayerRole::Ruler);
+	TestTrue(TEXT("A one-name bank gives index 0 to every life"),
+		State.Calling.Lives.Num() == 2 && State.Calling.Lives[0].NameIndex == 0 && State.Calling.Lives[1].NameIndex == 0);
+
+	// An injected rules row is read, and without a table the rules go back to the C++ defaults.
+	UDataTable* MarkedRules = NewObject<UDataTable>(GetTransientPackage());
+	MarkedRules->RowStruct = FCosmicRulesDef::StaticStruct();
+	FCosmicRulesDef Marked;
+	Marked.MaxNotablesPerCiv = FCosmicRulesDef().MaxNotablesPerCiv + 1;
+	MarkedRules->AddRow(CosmicRows::Rules, Marked);
+	FCosmicDataTables OnlyRules;
+	OnlyRules.Rules = MarkedRules;
+	Sim->SetTables(OnlyRules);
+	TestEqual(TEXT("An injected rules row is read"), Sim->GetRules().MaxNotablesPerCiv, Marked.MaxNotablesPerCiv);
+
+	// No tables at all: the galaxy is still generated, on the C++ defaults and without a log line.
+	Sim->SetTables(FCosmicDataTables());
+	Sim->NewGalaxy(42, 5, 3);
+	TestEqual(TEXT("Without tables the rules are the C++ defaults"), Sim->GetRules().MaxNotablesPerCiv, FCosmicRulesDef().MaxNotablesPerCiv);
+	TestTrue(TEXT("Without tables the galaxy is still generated"), State.Systems.Num() == 5 && State.Civs.Num() == 3 && State.Calling.Lives.Num() == 1);
+	TestTrue(TEXT("Without tables nothing is logged"), State.Log.IsEmpty());
+	TestTrue(TEXT("Without tables AI civs fall back to arch_default"),
+		State.Civs.Num() == 3 && State.Civs[1].ArchetypeRow == CosmicRows::ArchDefault && State.Civs[2].ArchetypeRow == CosmicRows::ArchDefault);
+	TestTrue(TEXT("Without tables no name is drawn"), State.Calling.Lives.Num() == 1 && State.Calling.Lives[0].NameIndex == 0);
 	return true;
 }
 
@@ -364,7 +619,7 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 	UCosmicSaveSubsystem* Save = Sim->GetGameInstance()->GetSubsystem<UCosmicSaveSubsystem>();
 
 	// The refusals below each log one LogCosmic warning.
-	AddExpectedMessage(TEXT("LoadGalaxy: slot .* is (truncated or holds another galaxy|missing or unreadable)"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 2);
+	AddExpectedMessage(TEXT("LoadGalaxy: slot .* is (truncated or holds another galaxy|missing or unreadable)"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 3);
 	AddExpectedMessage(TEXT("LoadGalaxy: slot .* has save version"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 1);
 	// The engine reports the slot that this test cuts in half: one or more errors, and a warning depending on where the cut falls.
 	AddExpectedError(TEXT("Failed loading tagged"), EAutomationExpectedErrorFlags::Contains, 0);
@@ -381,6 +636,8 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 
 	const FGuid GalaxyID = Sim->GetState().GalaxyID;
 	const uint32 HashAtSave = Sim->ComputeStateHash();
+	// Names and sentences are outside the hash, so they are compared on their own.
+	const FString TextAtSave = CosmicSimTests::CollectText(Sim->GetState());
 	if (!TestTrue(TEXT("Save succeeds"), Save->SaveCurrentGalaxy()))
 	{
 		return false;
@@ -401,6 +658,8 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Hash right after load equals hash at save"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(HashAtSave));
 		TestEqual(TEXT("Tick after load"), Sim->GetState().Tick, static_cast<int64>(1000));
 		TestTrue(TEXT("GalaxyID survives the round trip"), Sim->GetState().GalaxyID == GalaxyID);
+		TestEqual(TEXT("Names and log text survive the round trip"), CosmicSimTests::CollectText(Sim->GetState()), TextAtSave);
+		TestTrue(TEXT("Loaded log text is still culture-invariant"), !Sim->GetState().Log.IsEmpty() && Sim->GetState().Log[0].Message.IsCultureInvariant());
 
 		Sim->RunHeadless(500);
 		TestEqual(TEXT("Hash after load + 500 ticks equals the uninterrupted run"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(HashContinued));
@@ -418,6 +677,12 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 	TArray<uint8> Bytes;
 	if (TestTrue(TEXT("Slot bytes can be read"), UGameplayStatics::LoadDataFromSlot(Bytes, SlotName, 0)))
 	{
+		// The intact bytes under another galaxy's slot name, as a copied or renamed file would be.
+		const FGuid ForeignID = FGuid::NewGuid();
+		TestTrue(TEXT("Foreign slot written"), UGameplayStatics::SaveDataToSlot(Bytes, UCosmicSaveSubsystem::MakeSlotName(ForeignID), 0));
+		TestFalse(TEXT("A slot that holds another galaxy is refused"), Save->LoadGalaxy(ForeignID));
+		TestTrue(TEXT("Foreign slot removed"), Save->DeleteSave(ForeignID));
+
 		Bytes.SetNum(Bytes.Num() / 2);
 		TestTrue(TEXT("Truncated slot written"), UGameplayStatics::SaveDataToSlot(Bytes, SlotName, 0));
 		TestFalse(TEXT("A truncated slot is refused"), Save->LoadGalaxy(GalaxyID));
@@ -441,8 +706,8 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 
 // The Phase 1 exit criterion needs a restart in the middle, so this test spans two processes: the first run saves and
 // records the hash, the next run (a new process of the same build) loads and compares, and also simulates the same
-// seed afresh. A rebuilt binary starts over. After a failed verification the save and the record stay, so every later
-// process of that build fails the same way.
+// seed afresh. A rebuilt binary or regenerated data tables start over. After a failed verification the save and the
+// record stay, so every later process of that build and data fails the same way.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimSaveRestartTest, "Cosmic_Ascension.Sim.SaveRestart", CosmicTests::Flags)
 bool FCosmicSimSaveRestartTest::RunTest(const FString& Parameters)
 {
@@ -454,7 +719,7 @@ bool FCosmicSimSaveRestartTest::RunTest(const FString& Parameters)
 	UCosmicSaveSubsystem* Save = Sim->GetGameInstance()->GetSubsystem<UCosmicSaveSubsystem>();
 
 	const FString RecordPath = FPaths::ProjectSavedDir() / TEXT("Automation/SaveRestart.txt");
-	const FString BinaryStamp = IFileManager::Get().GetTimeStamp(*CosmicSimTests::SimBinaryPath()).ToIso8601();
+	const FString BinaryStamp = IFileManager::Get().GetTimeStamp(*CosmicSimTests::SimBinaryPath()).ToIso8601() + CosmicSimTests::DataStamp();
 	const uint32 ProcessId = FPlatformProcess::GetCurrentProcessId();
 
 	FString Record;

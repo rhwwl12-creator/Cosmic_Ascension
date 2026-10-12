@@ -15,6 +15,8 @@
 // Determinism (section 9.2):
 // - FText is display only: stored where noted, never part of ComputeStateHash. FGalaxyState.GalaxyID is the save slot
 //   identity and is not hashed either. Every other field is hashed.
+//   One thing in a text is read by the sim: whether CivName is empty (TickResearch tells no breakthrough of a nameless
+//   civ, section 8.2). Its content is never read.
 // - ComputeStateHash hashes FName and FGameplayTag as their lower-cased string, never GetTypeHash, a name index or raw
 //   struct memory: those differ per process and would break "save, restart, load, same hash".
 // - FGameplayTagContainer fields (Traits, StatusTags, Powers, Flags): ComputeStateHash hashes the explicit tags only, never
@@ -483,7 +485,7 @@ struct COSMIC_ASCENSION_API FCallingState
 	// PendingRoleEffect (section 7.4, last tick stage): hazard expiry, event effects and encounter resolution only record
 	// here. At most one per tick, first recorded wins. Empty PendingEffect = nothing pending.
 
-	// KillPlayer or DeposeRuler.
+	// Effect.KillPlayer or Effect.DeposeRuler (declared in the tag ini; one to one with the EEffectType enumerators).
 	UPROPERTY()
 	FGameplayTag PendingEffect;
 

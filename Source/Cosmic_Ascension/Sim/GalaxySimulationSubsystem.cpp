@@ -71,6 +71,29 @@ namespace
 		return FMath::Clamp(Index, 0, Max);
 	}
 
+	// Hue wheel colour of an AI civ (saturation 180/255, value 1). The same arithmetic as FLinearColor::MakeFromHSV8, but
+	// compiled in this module: Core follows the floating point mode of the target (fast in game targets) and Color is
+	// hashed, so a hashed float never comes out of an engine function that is not inline (section 9.2).
+	FLinearColor CivWheelColor(uint8 Hue)
+	{
+		constexpr float Saturation = 180.f / 255.f;
+		const float HueDiv60 = static_cast<float>(Hue) * (6.f / 256.f);
+		const int32 Sector = static_cast<int32>(HueDiv60);
+		const float Fraction = HueDiv60 - static_cast<float>(Sector);
+		const float P = 1.f - Saturation;
+		const float Q = 1.f - Fraction * Saturation;
+		const float T = 1.f - (1.f - Fraction) * Saturation;
+		switch (Sector)
+		{
+		case 0: return FLinearColor(1.f, T, P);
+		case 1: return FLinearColor(Q, 1.f, P);
+		case 2: return FLinearColor(P, 1.f, T);
+		case 3: return FLinearColor(P, Q, 1.f);
+		case 4: return FLinearColor(T, P, 1.f);
+		default: return FLinearColor(1.f, P, Q);
+		}
+	}
+
 	float StarEnergy(const FGameplayTag& StarClass)
 	{
 		const FName ClassName = StarClass.GetTagName();
@@ -261,6 +284,10 @@ void UGalaxySimulationSubsystem::SetTables(const FCosmicDataTables& InTables)
 {
 	Tables = InTables;
 	const FCosmicRulesDef* RulesRow = Tables.FindRules();
+	if (Tables.Rules && !RulesRow)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("DT_Rules has no row '%s': running on the C++ defaults."), *CosmicRows::Rules.ToString());
+	}
 	Rules = RulesRow ? *RulesRow : FCosmicRulesDef();
 }
 
@@ -268,7 +295,8 @@ void UGalaxySimulationSubsystem::Tick(float DeltaTime)
 {
 	Accumulator = FMath::Max(0.f, Accumulator + DeltaTime * TimeScale);
 
-	// Re-checked every step: a pause, NewGalaxy or LoadState issued from inside a tick ends the frame's work.
+	// Re-checked every step: a pause, NewGalaxy or LoadState issued from an OnSimTick handler (the tick boundary) ends the
+	// frame's work. Delegates fired inside a stage (OnLogEntry) must not replace the state.
 	int32 Steps = 0;
 	while (Accumulator >= SecondsPerTick && Steps < MaxTicksPerFrame && bRunning && TimeScale > 0.f)
 	{
@@ -283,6 +311,8 @@ void UGalaxySimulationSubsystem::Tick(float DeltaTime)
 
 void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 CivCount)
 {
+	ensureMsgf(!bInTickStages, TEXT("NewGalaxy from inside a tick stage: issue it from OnSimTick or from input"));
+
 	SystemCount = FMath::Clamp(SystemCount, 1, MaxSystems);
 	CivCount = FMath::Clamp(CivCount, 1, SystemCount);
 
@@ -422,7 +452,7 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 		Civ.CivID = FName(*FString::Printf(TEXT("civ_%02d"), CivIndex));
 		Civ.HomeSystemID = Home.SystemID;
 		Civ.ArchetypeRow = ArchetypeRow;
-		Civ.Color = FLinearColor::MakeFromHSV8(static_cast<uint8>((CivIndex * 255) / CivCount), 180, 255);
+		Civ.Color = CivWheelColor(static_cast<uint8>((CivIndex * 255) / CivCount));
 		if (Archetype)
 		{
 			Civ.Traits = Archetype->Traits;
@@ -551,6 +581,8 @@ EPopulationBand UGalaxySimulationSubsystem::GetPopulationBand(FName CivID) const
 
 void UGalaxySimulationSubsystem::LoadState(const FGalaxyState& In)
 {
+	ensureMsgf(!bInTickStages, TEXT("LoadState from inside a tick stage: issue it from OnSimTick or from input"));
+
 	State = In;
 	Rng.Initialize(State.RngState);
 	Accumulator = 0.f;
@@ -591,21 +623,28 @@ uint32 UGalaxySimulationSubsystem::ComputeStateHash() const
 
 void UGalaxySimulationSubsystem::SimulateTick()
 {
+	ensureMsgf(!bInTickStages, TEXT("SimulateTick re-entered from inside a tick stage: StepOnce or RunHeadless from an OnLogEntry handler"));
+
 	// Tick 0 is the generated state: no event raised inside a tick stage carries tick 0, so the "0 = unset" tick fields
 	// stay unambiguous there. Player input outside the tick can still run at tick 0.
 	++State.Tick;
 
-	TickEconomy();
-	TickResearch();
-	TickDiplomacy();
-	TickConflict();
-	TickHazards();
-	TickCivAI();
-	// The calling rests on no vessel during the interregnum leap (section 4.4).
-	if (State.Calling.LifeState == ELifeState::Embodied)
 	{
-		TickPlayerTravel();
+		// The stages hold references into the state, and OnLogEntry fires from inside them (section 9.4).
+		TGuardValue<bool> StageGuard(bInTickStages, true);
+		TickEconomy();
+		TickResearch();
+		TickDiplomacy();
+		TickConflict();
+		TickHazards();
+		TickCivAI();
+		// The calling rests on no vessel during the interregnum leap (section 4.4).
+		if (State.Calling.LifeState == ELifeState::Embodied)
+		{
+			TickPlayerTravel();
+		}
 	}
+	// Outside the guard: death and deposition replace the vessel, and the leap of Phase 4b runs ticks from here.
 	ResolvePendingRoleEffect();
 
 	SyncRngState();

@@ -364,7 +364,8 @@ struct COSMIC_ASCENSION_API FLogTemplateDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	uint8 MinTierToReveal = 0;
 
-	// Three or more. Two sentences: fact, then implication (section 8.3).
+	// Three or more; a row that fires once per run (log_first_life) may have one (section 7.5). Two sentences: fact, then
+	// implication (section 8.3).
 	UPROPERTY(EditAnywhere)
 	TArray<FText> Templates;
 };
