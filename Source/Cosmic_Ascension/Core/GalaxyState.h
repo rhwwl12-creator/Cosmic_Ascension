@@ -17,6 +17,9 @@
 //   identity and is not hashed either. Every other field is hashed.
 //   One thing in a text is read by the sim: whether CivName is empty (TickResearch tells no breakthrough of a nameless
 //   civ, section 8.2). Its content is never read.
+// - ComputeWorldHash is ComputeStateHash without Knowing, Log, Chronicle and TellRngState. Every exclusion (GalaxyID
+//   from both hashes, these four from the world hash) goes by the name of the top-level member of FGalaxyState: keep
+//   the slot identity, the stream values, the knowing and the telling at the top level, never inside a nested struct.
 // - ComputeStateHash hashes FName and FGameplayTag as their lower-cased string, never GetTypeHash, a name index or raw
 //   struct memory: those differ per process and would break "save, restart, load, same hash".
 // - FGameplayTagContainer fields (Traits, StatusTags, Powers, Flags): ComputeStateHash hashes the explicit tags only, never
@@ -58,9 +61,20 @@ struct COSMIC_ASCENSION_API FCosmicLogEntry
 	UPROPERTY(BlueprintReadOnly)
 	FText Message;
 
-	// Camera focus target when the entry is clicked. NAME_None = none.
+	// Subject system of the line and camera focus target when the entry is clicked. NAME_None = none.
 	UPROPERTY(BlueprintReadOnly)
 	FName FocusSystemID;
+
+	// Subject civilization of the line. NAME_None = none. Pairs with FocusSystemID: the scope of telling judges both at
+	// the push (section 8.1). Push and PushRow store it from the 'v0.7 reservation' commit on; the first caller that
+	// passes it is TickResearch in Phase 2, so until then every entry of a real run carries NAME_None.
+	UPROPERTY(BlueprintReadOnly)
+	FName FocusCivID;
+
+	// True for a line that was stored but is skipped by the feed: a Severity 2, Log.Claim or Log.Record entry whose
+	// subject was out of scope when it was pushed (section 8.1). Set from Phase 2; false until then.
+	UPROPERTY(BlueprintReadOnly)
+	bool bUntold = false;
 
 	// Row that produced the entry (event / hazard / encounter / feat / log-template row). Chronicle aggregation and tests read it.
 	UPROPERTY(BlueprintReadOnly)
@@ -75,6 +89,12 @@ struct COSMIC_ASCENSION_API FStarSystemState
 
 	UPROPERTY(BlueprintReadOnly)
 	FName SystemID;
+
+	// DT_Galaxies row name of the galaxy this system lies in (section 7.2). NewGalaxy stamps the home row name from the
+	// Phase 2 generation change on. The initializer NAME_None means "not stamped yet" and is frozen: no rule reads
+	// NAME_None as the home galaxy. Lanes only join systems of one GalaxyRow; a bridge between galaxies is not a lane.
+	UPROPERTY(BlueprintReadOnly)
+	FName GalaxyRow;
 
 	// Display only, not hashed.
 	UPROPERTY(BlueprintReadOnly)
@@ -164,6 +184,17 @@ struct COSMIC_ASCENSION_API FCivilizationState
 
 	UPROPERTY(BlueprintReadOnly)
 	FName CivID;
+
+	// DT_Galaxies row name of the galaxy this civilization lives in: always the GalaxyRow of its systems (section 7.2).
+	// Stamped by NewGalaxy from the Phase 2 generation change on. NAME_None = not stamped yet.
+	UPROPERTY(BlueprintReadOnly)
+	FName GalaxyRow;
+
+	// Set only for a people that crossed from another galaxy (Phase 6a): the DT_Galaxies row it came from.
+	// NAME_None = native. Of the two galaxy-row fields this is the only one in which NAME_None carries a meaning:
+	// in GalaxyRow it only says "not stamped yet".
+	UPROPERTY(BlueprintReadOnly)
+	FName OriginGalaxyRow;
 
 	// Capital. "The planet" of a Tier 1 civ is this one system. Target system of Hazard.Rebellion (section 5.10).
 	UPROPERTY(BlueprintReadOnly)
@@ -497,7 +528,106 @@ struct COSMIC_ASCENSION_API FCallingState
 	FName PendingSourceRow;
 };
 
-/** The whole saved game (section 7.2, 9.1). One of these per galaxy, one save slot per galaxy. */
+/** One thing the calling has come to know, and the tick it became known (section 7.2). Used instead of parallel arrays. */
+USTRUCT(BlueprintType)
+struct COSMIC_ASCENSION_API FKnownMark
+{
+	GENERATED_BODY()
+
+	// SystemID, CivID or a DT_Galaxies row name, depending on the array that holds the mark.
+	UPROPERTY()
+	FName ID;
+
+	UPROPERTY()
+	int64 Tick = 0;
+};
+
+/**
+ * Knowing: what the calling has come to know (section 8.1). Three layers, one direction: world -> knowing -> telling.
+ * Saved and part of ComputeStateHash, but not world state: the world only writes it and never reads it (the full rule
+ * and its one exception, the crossing-stage cleanup that compares a removed CivID with PendingContactCivID and clears
+ * it, are in section 8.1), and ComputeWorldHash leaves it out. KnownSystems and MetCivs grow only through NoteMet,
+ * NoteKnown and Install. The arrays are in order of discovery and never shrink (no TMap, no predicate tag). It belongs
+ * to the calling: kept across death and succession (section 4.4).
+ */
+USTRUCT(BlueprintType)
+struct COSMIC_ASCENSION_API FKnowingState
+{
+	GENERATED_BODY()
+
+	// ID = SystemID. Once known, always known.
+	UPROPERTY()
+	TArray<FKnownMark> KnownSystems;
+
+	// ID = CivID. Includes the birth civilization of each life, which Install writes without a line.
+	UPROPERTY()
+	TArray<FKnownMark> MetCivs;
+
+	// ID = DT_Galaxies row name. Used from Phase 6a.
+	UPROPERTY()
+	TArray<FKnownMark> MetGalaxies;
+
+	// The people whose first-contact card is waiting. NAME_None = no card waiting. Used from Phase 4.
+	UPROPERTY()
+	FName PendingContactCivID;
+
+	// The people of the first contact of this run. NAME_None (frozen initializer) = no first contact yet. NoteMet writes
+	// it once; Install never does; nothing clears it. Used from Phase 2.
+	UPROPERTY()
+	FName FirstContactCivID;
+
+	// Next tick at which log_far_event may be told again. Does not limit log_far_ascent.
+	UPROPERTY()
+	int64 FarLineUntilTick = 0;
+};
+
+/**
+ * One crossing between galaxies (section 5.7). What crosses is a record, not a unit. No FText. Records are never removed:
+ * the array order is hashed. Filled from Phase 6a; FGalaxyState.Transits stays empty until then.
+ */
+USTRUCT(BlueprintType)
+struct COSMIC_ASCENSION_API FTransitRecord
+{
+	GENERATED_BODY()
+
+	// Transit.* (Transit.People from Phase 6a).
+	UPROPERTY()
+	FGameplayTag Kind;
+
+	// DT_Galaxies row names.
+	UPROPERTY()
+	FName FromGalaxyRow;
+
+	UPROPERTY()
+	FName ToGalaxyRow;
+
+	UPROPERTY()
+	int64 DepartTick = 0;
+
+	UPROPERTY()
+	int64 ArriveTick = 0;
+
+	// The people that sent it. Empty for a crossing that starts in a summary galaxy. May name a civilization that was
+	// removed later: a failed lookup means it is gone.
+	UPROPERTY()
+	FName SourceCivID;
+
+	// DT_Civs row of the group that crosses.
+	UPROPERTY()
+	FName ArchetypeRow;
+
+	// The civilization created at landing in the home galaxy. Empty while in flight, when the landing was refused, and
+	// always for a crossing whose ToGalaxyRow is a summary galaxy (nothing is created there, section 5.7). Tell the three
+	// apart by ToGalaxyRow and ArriveTick, never by this field alone.
+	UPROPERTY()
+	FName ResultCivID;
+};
+
+/**
+ * The whole saved game (section 7.2, 9.1): the state of one run. One save slot per run. Identifiers that say Galaxy
+ * (FGalaxyState, GalaxyID, NewGalaxy, the slot name Galaxy_<GUID>) mean the run and are not renamed.
+ * Home-galaxy members: Systems, Civs (the one galaxy simulated in detail). Every other member is run-wide.
+ */
 USTRUCT(BlueprintType)
 struct COSMIC_ASCENSION_API FGalaxyState
 {
@@ -518,13 +648,24 @@ struct COSMIC_ASCENSION_API FGalaxyState
 	UPROPERTY()
 	int64 Tick = 0;
 
-	// FRandomStream::GetCurrentSeed() of the single sim stream. Restored with FRandomStream::Initialize(int32).
+	// FRandomStream::GetCurrentSeed() of the sim stream. Restored with FRandomStream::Initialize(int32).
 	UPROPERTY()
 	int32 RngState = 0;
 
-	// Key of the galaxy's single save slot (section 9.1). Identity, not sim state: not hashed.
+	// State of the tell stream (section 9.2): sentence variants only, and no rule reads it. Opened as a local stream for
+	// one draw and written back, so the saved value is always current. NewGalaxy sets it to
+	// (int32)CosmicSeed::Derive(Seed, "", Tell, 0). The initializer 0 is frozen. Top level on purpose: the hash
+	// exclusions go by top-level member name.
+	UPROPERTY()
+	int32 TellRngState = 0;
+
+	// Key of the run's single save slot (section 9.1). Identity, not sim state: not hashed.
 	UPROPERTY()
 	FGuid GalaxyID;
+
+	// Source of every CivID (civ_<n>) from the Phase 2 generation change on. Never reused.
+	UPROPERTY()
+	int32 NextCivSerial = 0;
 
 	UPROPERTY()
 	TArray<FStarSystemState> Systems;
@@ -542,6 +683,14 @@ struct COSMIC_ASCENSION_API FGalaxyState
 	// The calling.
 	UPROPERTY()
 	FCallingState Calling;
+
+	// What the calling has come to know (section 8.1). Top level on purpose: ComputeWorldHash leaves it out by name.
+	UPROPERTY()
+	FKnowingState Knowing;
+
+	// Crossings between galaxies in order of creation (section 5.7). Empty until Phase 6a.
+	UPROPERTY()
+	TArray<FTransitRecord> Transits;
 
 	// Key = DT_Events row name, or the Log.Claim spam-guard key log_claim_<row> (section 4.2). Keys are saved, so their
 	// format is fixed.

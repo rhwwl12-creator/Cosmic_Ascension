@@ -9,7 +9,7 @@
 #include "CosmicSaveSubsystem.generated.h"
 
 /**
- * FGalaxyState <-> USaveGame, one slot per galaxy (ironman, section 9.1). The slot name comes from FGalaxyState.GalaxyID.
+ * FGalaxyState <-> USaveGame, one slot per run (ironman, section 9.1). The slot name comes from FGalaxyState.GalaxyID.
  * There is no manual save or load menu. The autosave triggers of section 9.1 call SaveCurrentGalaxy at a tick boundary.
  */
 UCLASS()

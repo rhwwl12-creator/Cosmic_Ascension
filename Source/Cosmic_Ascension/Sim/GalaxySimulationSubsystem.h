@@ -17,10 +17,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSimTick, int64, Tick);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGalaxyGenerated, int32, Seed);
 
 /**
- * Fixed-step galaxy simulation (section 7.4). Owns the whole runtime state (FGalaxyState) and the single random stream.
+ * Fixed-step simulation of one run (section 7.4). Owns the whole runtime state (FGalaxyState) and the sim random stream.
  * One tick = one galaxy cycle; at 1x speed one second is one tick (section 2.1).
- * Stage order inside a tick is fixed: economy, research, diplomacy, conflict, hazards, civ AI, player travel, role effects.
- * Change guideline.md section 7.4 before changing that order.
+ * Stage order inside a tick is fixed, ten stages: economy, research, diplomacy, conflict, hazards, civ AI, crossings,
+ * player travel, sight, role effects. Change guideline.md section 7.4 before changing that order.
  */
 UCLASS()
 class COSMIC_ASCENSION_API UGalaxySimulationSubsystem : public UGameInstanceSubsystem, public FTickableGameObject
@@ -43,6 +43,7 @@ public:
 	 * Replaces the state with a new galaxy generated from Seed and the definition tables, then installs the first life as
 	 * the ruler of the player civ (DT_Rules.PlayerArchetypeRow, home system "sol") through UPlayerRoleSubsystem::Install
 	 * (section 5.10). AI civs draw their archetype from the DT_Civs rows with a positive Weight (section 7.4).
+	 * Stamps State.TellRngState with (int32)CosmicSeed::Derive(Seed, "", Tell, 0) before the first line is told.
 	 * Tick 0 is this generated state; the first simulated tick is 1.
 	 */
 	UFUNCTION(BlueprintCallable)
@@ -71,8 +72,16 @@ public:
 
 	FGalaxyState& GetMutableState() { return State; }
 
-	// The only source of randomness for sim code (section 9.2). Never use FMath::Rand*.
+	// The sim stream (section 9.2): every draw that changes saved world state. Never use FMath::Rand*.
 	FRandomStream& GetRng() { return Rng; }
+
+	/**
+	 * The tell stream (section 9.2): one number in [0, Count) for the choice of a sentence variant, and nothing else.
+	 * Opens a local stream on State.TellRngState, draws once and writes the state back, so the saved value is always
+	 * current: there is no live stream object and no getter. Never draws from the sim stream, and no rule reads the
+	 * result. Count < 1 is a caller error: one error line, no draw, returns 0.
+	 */
+	uint32 DrawTell(int32 Count);
 
 	// Copies the live stream position into State.RngState. NewGalaxy and every tick end with it. Code that draws from GetRng()
 	// outside a tick, and the save subsystem right before saving, call it themselves.
@@ -107,15 +116,22 @@ public:
 	void LoadState(const FGalaxyState& In);
 
 	/**
-	 * Canonical hash of the state (section 9.2). Walks FGalaxyState by reflection, so a new field is hashed without touching
-	 * this function. Skips every FText and GalaxyID, hashes FName and FGameplayTag as lower-cased strings, TMap entries in
-	 * FNameLexicalLess key order, tag containers by their explicit tags, and the live random stream instead of State.RngState.
-	 * Stable across processes of the same build.
+	 * Canonical hash of the whole state, knowing and telling included; the world alone is ComputeWorldHash (section 9.2).
+	 * Walks FGalaxyState by reflection, so a new field is hashed without touching this function. Skips every FText and
+	 * GalaxyID, hashes FName and FGameplayTag as lower-cased strings, TMap entries in FNameLexicalLess key order, tag
+	 * containers by their explicit tags, and the live sim stream instead of State.RngState (TellRngState is hashed as
+	 * stored: it is always current). Stable across processes of the same build.
 	 */
 	uint32 ComputeStateHash() const;
 
+	/**
+	 * World hash (section 8.1, 9.2): ComputeStateHash without the top-level members Knowing, Log, Chronicle and
+	 * TellRngState. Measures that knowing and telling never change the world; builds are compared by this value.
+	 */
+	uint32 ComputeWorldHash() const;
+
 private:
-	// Advances State.Tick first, then runs the eight stages in the fixed order and syncs the random stream state.
+	// Advances State.Tick first, then runs the ten stages in the fixed order and syncs the random stream state.
 	void SimulateTick();
 
 	void TickEconomy();
@@ -124,8 +140,25 @@ private:
 	void TickConflict();
 	void TickHazards();
 	void TickCivAI();
+
+	// Stage 7. The only place where the number of elements of State.Civs changes. Empty body until Phase 2 (cleanup of
+	// civilizations without systems) and Phase 6a (arrivals, departures).
+	void TickCrossings();
+
 	void TickPlayerTravel();
+
+	// Stage 9, only while the calling is Embodied. Reads the world and writes only State.Knowing and the telling: no
+	// draw from the sim stream. Its two triggers need no state of their own: the period is State.Tick against
+	// DT_Rules.SightIntervalTicks, and "the vessel moved this tick" is a local of SimulateTick (Player.CurrentSystemID
+	// before and after TickPlayerTravel), never a member of this class and never a saved field (section 4.4: the eye is
+	// derived). Whatever moves the vessel outside stage 8 (Install, a role change, a scan) writes knowing in its own call.
+	// Empty body until Phase 2.
+	void TickSight();
+
 	void ResolvePendingRoleEffect();
+
+	// The walk shared by ComputeStateHash and ComputeWorldHash.
+	uint32 HashState(bool bWorldOnly) const;
 
 	const FCivilizationState* FindCiv(FName CivID) const;
 	const FStarSystemState* FindSystem(FName SystemID) const;
@@ -144,7 +177,7 @@ private:
 	bool bRunning = false;
 	bool bBroadcastEnabled = true;
 
-	// True while stages one to seven run; role effect resolution, the eighth, is outside (the Phase 4b leap runs ticks
+	// True while stages one to nine run; role effect resolution, the tenth, is outside (the Phase 4b leap runs ticks
 	// from there). NewGalaxy, LoadState and SimulateTick ensure against it: the stages hold references into the state,
 	// and a delegate fired from inside them (OnLogEntry) must not replace it or run a tick.
 	bool bInTickStages = false;

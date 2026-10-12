@@ -18,12 +18,12 @@ void UCosmicLogSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-void UCosmicLogSubsystem::Push(FGameplayTag Category, uint8 Severity, const FText& Template, const FFormatNamedArguments& Args, FName FocusSystem, FName SourceRow)
+void UCosmicLogSubsystem::Push(FGameplayTag Category, uint8 Severity, const FText& Template, const FFormatNamedArguments& Args, FName FocusSystem, FName SourceRow, FName FocusCiv)
 {
-	Append(Category, Severity, FString(FText::Format(Template, Args).ToString()), FocusSystem, SourceRow);
+	Append(Category, Severity, FString(FText::Format(Template, Args).ToString()), FocusSystem, FocusCiv, SourceRow);
 }
 
-bool UCosmicLogSubsystem::PushRow(FName RowName, uint8 Severity, const FFormatNamedArguments& Args, FName FocusSystem)
+bool UCosmicLogSubsystem::PushRow(FName RowName, uint8 Severity, const FFormatNamedArguments& Args, FName FocusSystem, FName FocusCiv)
 {
 	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
 	check(Sim);
@@ -34,9 +34,9 @@ bool UCosmicLogSubsystem::PushRow(FName RowName, uint8 Severity, const FFormatNa
 		return false;
 	}
 
+	// The tell stream: which variant is told never moves the sim stream (section 9.2).
 	const int32 Count = Row->Templates.Num();
-	int32 Index = Sim->GetRng().RandRange(0, Count - 1);
-	Sim->SyncRngState();
+	int32 Index = static_cast<int32>(Sim->DrawTell(Count));
 
 	FString Rendered = FText::Format(Row->Templates[Index], Args).ToString();
 	const TArray<FCosmicLogEntry>& Log = Sim->GetState().Log;
@@ -46,11 +46,11 @@ bool UCosmicLogSubsystem::PushRow(FName RowName, uint8 Severity, const FFormatNa
 		Rendered = FText::Format(Row->Templates[Index], Args).ToString();
 	}
 
-	Append(Row->Category, Severity, MoveTemp(Rendered), FocusSystem, RowName);
+	Append(Row->Category, Severity, MoveTemp(Rendered), FocusSystem, FocusCiv, RowName);
 	return true;
 }
 
-void UCosmicLogSubsystem::Append(FGameplayTag Category, uint8 Severity, FString&& Rendered, FName FocusSystem, FName SourceRow)
+void UCosmicLogSubsystem::Append(FGameplayTag Category, uint8 Severity, FString&& Rendered, FName FocusSystem, FName FocusCiv, FName SourceRow)
 {
 	static const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Claim")));
 	static const FGameplayTag RecordTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Record")));
@@ -65,6 +65,7 @@ void UCosmicLogSubsystem::Append(FGameplayTag Category, uint8 Severity, FString&
 	Entry.Severity = Severity;
 	Entry.Message = FText::AsCultureInvariant(MoveTemp(Rendered));
 	Entry.FocusSystemID = FocusSystem;
+	Entry.FocusCivID = FocusCiv;
 	Entry.SourceRow = SourceRow;
 	State.Log.Add(Entry);
 	UE_LOG(LogCosmic, Verbose, TEXT("[%lld] %s"), Entry.Tick, *Entry.Message.ToString());

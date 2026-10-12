@@ -5,6 +5,9 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Containers/StringConv.h"
+#include "Containers/StringView.h"
+#include "Core/CosmicSeed.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
@@ -17,6 +20,8 @@
 #include "HAL/PlatformProcess.h"
 #include "Internationalization/Text.h"
 #include "Kismet/GameplayStatics.h"
+#include "Log/CosmicLogSubsystem.h"
+#include "Math/RandomStream.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Guid.h"
@@ -169,11 +174,23 @@ namespace CosmicSimTests
 		return Stamp;
 	}
 
+	// CosmicSeed::Derive for a name held as text, the way a caller that holds an FName has to pass it: lower-cased, as
+	// ANSI bytes (section 9.2). Evaluated at run time, unlike the static_asserts of CosmicSeed.h.
+	uint32 DeriveLowerCased(int32 Seed, const TCHAR* Name, uint32 Purpose, uint32 Index)
+	{
+		const FString Lower = FString(Name).ToLower();
+		const auto Ansi = StringCast<ANSICHAR>(*Lower);
+		return CosmicSeed::Derive(Seed, FAnsiStringView(Ansi.Get(), Ansi.Length()), Purpose, Index);
+	}
+
 	// Puts one value into every container of the state that a plain run leaves empty, so that the save and the hash see
-	// tag containers, maps, notables, transcendents and log entries.
+	// tag containers, maps, notables, transcendents, log entries, the knowing and a crossing. Every member reserved in
+	// v0.7 (section 9.1) leaves its initializer here: nothing writes them yet, and a member that reloads as its
+	// initializer looks the same whether it was saved or not. Needs three civs or more.
 	void FillEmptyContainers(FGalaxyState& State)
 	{
 		const FName TestRow(TEXT("evt_test"));
+		const FName HomeGalaxy(TEXT("gal_milkyway"));
 
 		State.Flags.AddTag(Tag(TEXT("Flag.Grace.Spent")));
 		State.Civs[0].Traits.AddTag(Tag(TEXT("Trait.Faith.Seeking")));
@@ -197,9 +214,151 @@ namespace CosmicSimTests
 		Entry.Tick = 10;
 		Entry.Category = Tag(TEXT("Log.Civ"));
 		Entry.Message = FText::AsCultureInvariant(TEXT("x"));
+		Entry.FocusSystemID = State.Systems[0].SystemID;
+		Entry.FocusCivID = State.Civs[1].CivID;
+		Entry.bUntold = true;
 		Entry.SourceRow = TestRow;
 		State.Log.Add(Entry);
 		State.Chronicle.Add(Entry);
+
+		State.NextCivSerial = State.Civs.Num();
+		for (FStarSystemState& System : State.Systems)
+		{
+			System.GalaxyRow = HomeGalaxy;
+		}
+		for (FCivilizationState& Civ : State.Civs)
+		{
+			Civ.GalaxyRow = HomeGalaxy;
+		}
+		State.Civs[1].OriginGalaxyRow = FName(TEXT("gal_andromeda"));
+
+		FKnownMark& KnownSystem = State.Knowing.KnownSystems.AddDefaulted_GetRef();
+		KnownSystem.ID = State.Systems[0].SystemID;
+		KnownSystem.Tick = 11;
+		FKnownMark& MetCiv = State.Knowing.MetCivs.AddDefaulted_GetRef();
+		MetCiv.ID = State.Civs[1].CivID;
+		MetCiv.Tick = 12;
+		FKnownMark& MetGalaxy = State.Knowing.MetGalaxies.AddDefaulted_GetRef();
+		MetGalaxy.ID = FName(TEXT("gal_lmc"));
+		MetGalaxy.Tick = 13;
+		State.Knowing.PendingContactCivID = State.Civs[2].CivID;
+		State.Knowing.FirstContactCivID = State.Civs[1].CivID;
+		State.Knowing.FarLineUntilTick = 14;
+
+		FTransitRecord& Transit = State.Transits.AddDefaulted_GetRef();
+		// Transit.People is declared in Phase 6a (section 7.2). Until then a declared tag stands in: the member only has
+		// to leave its initializer.
+		Transit.Kind = Tag(TEXT("Succession.Installed"));
+		Transit.FromGalaxyRow = HomeGalaxy;
+		Transit.ToGalaxyRow = FName(TEXT("gal_lmc"));
+		Transit.DepartTick = 15;
+		Transit.ArriveTick = 16;
+		Transit.SourceCivID = State.Civs[1].CivID;
+		Transit.ArchetypeRow = FName(TEXT("arch_test"));
+		Transit.ResultCivID = FName(TEXT("civ_test"));
+	}
+
+	// How many of the 25 members reserved in v0.7 (section 9.1) are off their initializer. A member of an array element
+	// counts when it is set in the last element of every array that holds it.
+	int32 CountReservedMembersSet(const FGalaxyState& State)
+	{
+		auto MarkSet = [](const TArray<FKnownMark>& Marks, bool bID)
+		{
+			return !Marks.IsEmpty() && (bID ? !Marks.Last().ID.IsNone() : Marks.Last().Tick != 0);
+		};
+		const FKnowingState& Knowing = State.Knowing;
+		const bool bLogs = !State.Log.IsEmpty() && !State.Chronicle.IsEmpty();
+		const bool bCivs = State.Civs.Num() > 1;
+
+		int32 Count = 0;
+		// FGalaxyState: TellRngState, NextCivSerial, Knowing, Transits.
+		Count += (State.TellRngState != 0) ? 1 : 0;
+		Count += (State.NextCivSerial != 0) ? 1 : 0;
+		Count += (!Knowing.KnownSystems.IsEmpty() || !Knowing.MetCivs.IsEmpty() || !Knowing.MetGalaxies.IsEmpty()) ? 1 : 0;
+		Count += !State.Transits.IsEmpty() ? 1 : 0;
+		// FKnowingState: three arrays and three scalars.
+		Count += !Knowing.KnownSystems.IsEmpty() ? 1 : 0;
+		Count += !Knowing.MetCivs.IsEmpty() ? 1 : 0;
+		Count += !Knowing.MetGalaxies.IsEmpty() ? 1 : 0;
+		Count += !Knowing.PendingContactCivID.IsNone() ? 1 : 0;
+		Count += !Knowing.FirstContactCivID.IsNone() ? 1 : 0;
+		Count += (Knowing.FarLineUntilTick != 0) ? 1 : 0;
+		// FKnownMark: ID, Tick.
+		Count += (MarkSet(Knowing.KnownSystems, true) && MarkSet(Knowing.MetCivs, true) && MarkSet(Knowing.MetGalaxies, true)) ? 1 : 0;
+		Count += (MarkSet(Knowing.KnownSystems, false) && MarkSet(Knowing.MetCivs, false) && MarkSet(Knowing.MetGalaxies, false)) ? 1 : 0;
+		// FTransitRecord: eight members.
+		if (!State.Transits.IsEmpty())
+		{
+			const FTransitRecord& Transit = State.Transits.Last();
+			Count += Transit.Kind.IsValid() ? 1 : 0;
+			Count += !Transit.FromGalaxyRow.IsNone() ? 1 : 0;
+			Count += !Transit.ToGalaxyRow.IsNone() ? 1 : 0;
+			Count += (Transit.DepartTick != 0) ? 1 : 0;
+			Count += (Transit.ArriveTick != 0) ? 1 : 0;
+			Count += !Transit.SourceCivID.IsNone() ? 1 : 0;
+			Count += !Transit.ArchetypeRow.IsNone() ? 1 : 0;
+			Count += !Transit.ResultCivID.IsNone() ? 1 : 0;
+		}
+		// FStarSystemState: GalaxyRow. FCivilizationState: GalaxyRow, OriginGalaxyRow.
+		Count += (!State.Systems.IsEmpty() && !State.Systems.Last().GalaxyRow.IsNone()) ? 1 : 0;
+		Count += (bCivs && !State.Civs.Last().GalaxyRow.IsNone()) ? 1 : 0;
+		Count += (bCivs && !State.Civs[1].OriginGalaxyRow.IsNone()) ? 1 : 0;
+		// FCosmicLogEntry: FocusCivID, bUntold.
+		Count += (bLogs && !State.Log.Last().FocusCivID.IsNone() && !State.Chronicle.Last().FocusCivID.IsNone()) ? 1 : 0;
+		Count += (bLogs && State.Log.Last().bUntold && State.Chronicle.Last().bUntold) ? 1 : 0;
+		return Count;
+	}
+
+	bool SameMarks(const TArray<FKnownMark>& A, const TArray<FKnownMark>& B)
+	{
+		bool bSame = A.Num() == B.Num();
+		for (int32 Index = 0; bSame && Index < A.Num(); ++Index)
+		{
+			bSame = A[Index].ID == B[Index].ID && A[Index].Tick == B[Index].Tick;
+		}
+		return bSame;
+	}
+
+	bool SameLogSubjects(const TArray<FCosmicLogEntry>& A, const TArray<FCosmicLogEntry>& B)
+	{
+		bool bSame = A.Num() == B.Num();
+		for (int32 Index = 0; bSame && Index < A.Num(); ++Index)
+		{
+			bSame = A[Index].FocusCivID == B[Index].FocusCivID && A[Index].bUntold == B[Index].bUntold;
+		}
+		return bSame;
+	}
+
+	// The members reserved in v0.7, compared one by one. ComputeStateHash walks reflection, so it cannot see a member that
+	// lost its UPROPERTY: such a member is neither saved nor hashed, and "same hash after load" still holds.
+	bool SameReservedMembers(const FGalaxyState& A, const FGalaxyState& B)
+	{
+		bool bSame = A.TellRngState == B.TellRngState && A.NextCivSerial == B.NextCivSerial
+			&& SameMarks(A.Knowing.KnownSystems, B.Knowing.KnownSystems)
+			&& SameMarks(A.Knowing.MetCivs, B.Knowing.MetCivs)
+			&& SameMarks(A.Knowing.MetGalaxies, B.Knowing.MetGalaxies)
+			&& A.Knowing.PendingContactCivID == B.Knowing.PendingContactCivID
+			&& A.Knowing.FirstContactCivID == B.Knowing.FirstContactCivID
+			&& A.Knowing.FarLineUntilTick == B.Knowing.FarLineUntilTick
+			&& SameLogSubjects(A.Log, B.Log) && SameLogSubjects(A.Chronicle, B.Chronicle)
+			&& A.Transits.Num() == B.Transits.Num() && A.Systems.Num() == B.Systems.Num() && A.Civs.Num() == B.Civs.Num();
+		for (int32 Index = 0; bSame && Index < A.Transits.Num(); ++Index)
+		{
+			const FTransitRecord& Left = A.Transits[Index];
+			const FTransitRecord& Right = B.Transits[Index];
+			bSame = Left.Kind == Right.Kind && Left.FromGalaxyRow == Right.FromGalaxyRow && Left.ToGalaxyRow == Right.ToGalaxyRow
+				&& Left.DepartTick == Right.DepartTick && Left.ArriveTick == Right.ArriveTick && Left.SourceCivID == Right.SourceCivID
+				&& Left.ArchetypeRow == Right.ArchetypeRow && Left.ResultCivID == Right.ResultCivID;
+		}
+		for (int32 Index = 0; bSame && Index < A.Systems.Num(); ++Index)
+		{
+			bSame = A.Systems[Index].GalaxyRow == B.Systems[Index].GalaxyRow;
+		}
+		for (int32 Index = 0; bSame && Index < A.Civs.Num(); ++Index)
+		{
+			bSame = A.Civs[Index].GalaxyRow == B.Civs[Index].GalaxyRow && A.Civs[Index].OriginGalaxyRow == B.Civs[Index].OriginGalaxyRow;
+		}
+		return bSame;
 	}
 }
 
@@ -608,6 +767,193 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimSeedDeriveTest, "Cosmic_Ascension.Sim.SeedDerive", CosmicTests::Flags)
+bool FCosmicSimSeedDeriveTest::RunTest(const FString& Parameters)
+{
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+
+	// The reference values of section 9.2: the first golden values of the project. CosmicSeed.h checks the same rows at
+	// compile time; here they are evaluated at run time, the names going through the lower-case ANSI conversion.
+	struct FReferenceRow
+	{
+		int32 Seed;
+		const TCHAR* Name;
+		uint32 Purpose;
+		uint32 Index;
+		uint32 Value;
+	};
+	const FReferenceRow Rows[] = {
+		{ 42, TEXT(""), CosmicSeed::Purpose::Tell, 0, 272114134u },
+		{ 42, TEXT("gal_andromeda"), CosmicSeed::Purpose::Summary, 0, 569404729u },
+		{ 7, TEXT("sol"), CosmicSeed::Purpose::Life, 3, 2833998181u },
+		{ -1, TEXT("gal_lmc"), CosmicSeed::Purpose::Depart, 2, 668976756u },
+		{ 0, TEXT(""), CosmicSeed::Purpose::Tell, 0, 4196651879u },
+	};
+	for (const FReferenceRow& Row : Rows)
+	{
+		TestEqual(*FString::Printf(TEXT("Derive(%d, '%s', %u, %u)"), Row.Seed, Row.Name, Row.Purpose, Row.Index),
+			static_cast<int64>(CosmicSimTests::DeriveLowerCased(Row.Seed, Row.Name, Row.Purpose, Row.Index)), static_cast<int64>(Row.Value));
+	}
+	TestEqual(TEXT("Index defaults to 0"), static_cast<int64>(CosmicSeed::Derive(42, "", CosmicSeed::Purpose::Tell)), static_cast<int64>(272114134u));
+	TestEqual(TEXT("A name in another casing gives the same value once the caller lower-cases it"),
+		static_cast<int64>(CosmicSimTests::DeriveLowerCased(7, TEXT("SOL"), CosmicSeed::Purpose::Life, 3)), static_cast<int64>(2833998181u));
+	TestTrue(TEXT("Derive itself folds every byte in as it is"), CosmicSeed::Derive(7, "SOL", CosmicSeed::Purpose::Life, 3) != 2833998181u);
+
+	// Purpose numbers are fixed: never renumbered, new ones appended.
+	const uint32 Purposes[] = {
+		CosmicSeed::Purpose::Tell, CosmicSeed::Purpose::Summary, CosmicSeed::Purpose::Name, CosmicSeed::Purpose::Life,
+		CosmicSeed::Purpose::Backdrop, CosmicSeed::Purpose::Scenery, CosmicSeed::Purpose::Depart, CosmicSeed::Purpose::Archetype
+	};
+	bool bPurposesFixed = true;
+	for (int32 Index = 0; Index < static_cast<int32>(UE_ARRAY_COUNT(Purposes)); ++Index)
+	{
+		bPurposesFixed &= Purposes[Index] == static_cast<uint32>(Index + 1);
+	}
+	TestTrue(TEXT("The eight purposes are numbered 1 to 8 in their fixed order"), bPurposesFixed);
+
+	// NewGalaxy stamps the tell stream with the derived value. Without tables no line is told, so the stamp is still there.
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); };
+	const FGalaxyState& State = Sim->GetState();
+
+	Sim->SetTables(FCosmicDataTables());
+	Sim->NewGalaxy(42, 5, 3);
+	TestTrue(TEXT("Without tables nothing is told"), State.Log.IsEmpty());
+	TestEqual(TEXT("NewGalaxy(42) stamps the tell stream with the derived value"), State.TellRngState, static_cast<int32>(272114134u));
+	Sim->NewGalaxy(0, 5, 3);
+	TestEqual(TEXT("NewGalaxy(0) stamps the tell stream with the derived value"), State.TellRngState, static_cast<int32>(4196651879u));
+
+	// With the tables of the game, Install tells the first line: one tell draw, taken from the stamp.
+	Sim->SetTables(Original);
+	Sim->NewGalaxy(42, 5, 3);
+	FRandomStream Probe(static_cast<int32>(272114134u));
+	Probe.RandHelper(1);
+	TestEqual(TEXT("NewGalaxy tells the first line and nothing else"), State.Log.Num(), 1);
+	TestEqual(TEXT("The first line took one tell draw from the stamp"), State.TellRngState, Probe.GetCurrentSeed());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimTellStreamSeparateTest, "Cosmic_Ascension.Sim.TellStreamSeparate", CosmicTests::Flags)
+bool FCosmicSimTellStreamSeparateTest::RunTest(const FString& Parameters)
+{
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	UCosmicLogSubsystem* Log = Sim->GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+
+	// The one error line of the DrawTell(0) call below.
+	AddExpectedError(TEXT("DrawTell: Count 0 is not a variant count"), EAutomationExpectedErrorFlags::Contains, 1);
+
+	Sim->NewGalaxy(42, 5, 3);
+	const FGalaxyState& State = Sim->GetState();
+	const FName RowName = CosmicRows::LogBreakthrough[0];
+	const FLogTemplateDef* Row = Sim->GetTables().FindLogTemplate(RowName);
+	if (!TestTrue(TEXT("DT_LogTemplates holds the breakthrough row (run Tools/make_data_tables.py)"), Row && !Row->Templates.IsEmpty()))
+	{
+		return false;
+	}
+
+	// Telling moves the tell stream by one step per line and nothing of the world (section 9.2).
+	const int32 SimSeed = Sim->GetRng().GetCurrentSeed();
+	const uint32 WorldBefore = Sim->ComputeWorldHash();
+	const uint32 FullBefore = Sim->ComputeStateHash();
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("Civ"), FText::AsCultureInvariant(TEXT("X")));
+	bool bOneTellStepPerLine = true;
+	for (int32 Call = 0; Call < 50; ++Call)
+	{
+		FRandomStream Probe(State.TellRngState);
+		Log->PushRow(RowName, 0, Args, NAME_None);
+		Probe.RandHelper(Row->Templates.Num());
+		bOneTellStepPerLine &= State.TellRngState == Probe.GetCurrentSeed();
+	}
+	TestTrue(TEXT("Each told line advances the tell stream by exactly one step"), bOneTellStepPerLine);
+	TestEqual(TEXT("Telling leaves the sim stream where it was"), Sim->GetRng().GetCurrentSeed(), SimSeed);
+	TestEqual(TEXT("Telling leaves State.RngState where it was"), State.RngState, SimSeed);
+	TestEqual(TEXT("Telling leaves the world hash unchanged"), static_cast<int64>(Sim->ComputeWorldHash()), static_cast<int64>(WorldBefore));
+	TestTrue(TEXT("Telling changes the full hash"), Sim->ComputeStateHash() != FullBefore);
+
+	// DrawTell itself: the number a probe stream gives, inside the range, one step of the tell stream, no sim draw.
+	bool bDrawMatchesProbe = true;
+	for (const int32 Count : { 1, 2, 3, 7 })
+	{
+		for (int32 Round = 0; Round < 50; ++Round)
+		{
+			FRandomStream Probe(State.TellRngState);
+			const uint32 Got = Sim->DrawTell(Count);
+			const int32 Want = Probe.RandHelper(Count);
+			bDrawMatchesProbe &= Got == static_cast<uint32>(Want) && Got < static_cast<uint32>(Count) && State.TellRngState == Probe.GetCurrentSeed();
+		}
+	}
+	TestTrue(TEXT("DrawTell returns the number of the stream, below Count, and writes the state back"), bDrawMatchesProbe);
+	TestEqual(TEXT("DrawTell never draws from the sim stream"), Sim->GetRng().GetCurrentSeed(), SimSeed);
+
+	// Not a variant count: one error line, no draw.
+	const int32 TellBefore = State.TellRngState;
+	TestEqual(TEXT("DrawTell(0) returns 0"), static_cast<int64>(Sim->DrawTell(0)), static_cast<int64>(0));
+	TestEqual(TEXT("DrawTell(0) draws nothing"), State.TellRngState, TellBefore);
+
+	// Which top-level member of FGalaxyState belongs to which hash (section 9.2). Every member is cleared in turn on a
+	// state in which each of them holds something: a world hash that forgot an exclusion, or excluded too much, fails here.
+	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	Sim->RunHeadless(1000);
+	FGalaxyState& Mutable = Sim->GetMutableState();
+	CosmicSimTests::FillEmptyContainers(Mutable);
+	const uint32 World = Sim->ComputeWorldHash();
+	const uint32 Full = Sim->ComputeStateHash();
+	const FGalaxyState Backup = Mutable;
+
+	const TSet<FName> NotWorld = {
+		GET_MEMBER_NAME_CHECKED(FGalaxyState, Knowing), GET_MEMBER_NAME_CHECKED(FGalaxyState, Log),
+		GET_MEMBER_NAME_CHECKED(FGalaxyState, Chronicle), GET_MEMBER_NAME_CHECKED(FGalaxyState, TellRngState)
+	};
+	// The slot identity is in no hash, and the live sim stream stands in for RngState in both.
+	const TSet<FName> InNeither = { GET_MEMBER_NAME_CHECKED(FGalaxyState, GalaxyID), GET_MEMBER_NAME_CHECKED(FGalaxyState, RngState) };
+	int32 Seen = 0;
+	for (TFieldIterator<FProperty> It(FGalaxyState::StaticStruct()); It; ++It)
+	{
+		const FName Name = It->GetFName();
+		It->ClearValue_InContainer(&Mutable);
+		const bool bWorldMoved = Sim->ComputeWorldHash() != World;
+		const bool bFullMoved = Sim->ComputeStateHash() != Full;
+		Mutable = Backup;
+
+		const bool bInFull = !InNeither.Contains(Name);
+		const bool bInWorld = bInFull && !NotWorld.Contains(Name);
+		TestTrue(*FString::Printf(TEXT("%s is %s the world hash"), *Name.ToString(), bInWorld ? TEXT("in") : TEXT("out of")), bWorldMoved == bInWorld);
+		TestTrue(*FString::Printf(TEXT("%s is %s the full hash"), *Name.ToString(), bInFull ? TEXT("in") : TEXT("out of")), bFullMoved == bInFull);
+		++Seen;
+	}
+	TestEqual(TEXT("Top-level members of FGalaxyState classified"), Seen, 18);
+	TestTrue(TEXT("Both hashes are back after restoring the state"), Sim->ComputeWorldHash() == World && Sim->ComputeStateHash() == Full);
+	Sim->GetRng().GetUnsignedInt();
+	TestTrue(TEXT("A sim draw moves both hashes"), Sim->ComputeWorldHash() != World && Sim->ComputeStateHash() != Full);
+
+	// A whole run that tells more: a named AI civ has its breakthroughs told (section 8.2), from inside the tick stages.
+	// The world does not notice.
+	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	Sim->RunHeadless(3000);
+	const uint32 QuietWorld = Sim->ComputeWorldHash();
+	const uint32 QuietFull = Sim->ComputeStateHash();
+	const int32 QuietSeed = Sim->GetRng().GetCurrentSeed();
+	const int32 QuietLines = State.Log.Num() + State.Chronicle.Num();
+
+	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	Sim->GetMutableState().Civs[1].CivName = FText::AsCultureInvariant(TEXT("X"));
+	Sim->RunHeadless(3000);
+	TestTrue(TEXT("The run with a named AI civ told more lines"), State.Log.Num() + State.Chronicle.Num() > QuietLines);
+	TestEqual(TEXT("More telling, same world hash"), static_cast<int64>(Sim->ComputeWorldHash()), static_cast<int64>(QuietWorld));
+	TestEqual(TEXT("More telling, same sim stream"), Sim->GetRng().GetCurrentSeed(), QuietSeed);
+	TestTrue(TEXT("More telling, another full hash"), Sim->ComputeStateHash() != QuietFull);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimSaveRoundTripTest, "Cosmic_Ascension.Sim.SaveRoundTrip", CosmicTests::Flags)
 bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 {
@@ -636,6 +982,9 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 
 	const FGuid GalaxyID = Sim->GetState().GalaxyID;
 	const uint32 HashAtSave = Sim->ComputeStateHash();
+	// The members reserved in v0.7 are compared one by one after the load: the hash cannot see a member without reflection.
+	const FGalaxyState AtSave = Sim->GetState();
+	TestEqual(TEXT("All 25 reserved members are off their initializer at save"), CosmicSimTests::CountReservedMembersSet(AtSave), 25);
 	// Names and sentences are outside the hash, so they are compared on their own.
 	const FString TextAtSave = CosmicSimTests::CollectText(Sim->GetState());
 	if (!TestTrue(TEXT("Save succeeds"), Save->SaveCurrentGalaxy()))
@@ -643,13 +992,18 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 		return false;
 	}
 
-	// The uninterrupted run: 500 more ticks, then four draws from the stream.
+	// The uninterrupted run: 500 more ticks, then four draws from each stream.
 	Sim->RunHeadless(500);
 	const uint32 HashContinued = Sim->ComputeStateHash();
 	uint32 DrawsContinued[4];
 	for (uint32& Draw : DrawsContinued)
 	{
 		Draw = Sim->GetRng().GetUnsignedInt();
+	}
+	uint32 TellsContinued[4];
+	for (uint32& Tell : TellsContinued)
+	{
+		Tell = Sim->DrawTell(1000);
 	}
 
 	// The same from the save.
@@ -660,12 +1014,18 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("GalaxyID survives the round trip"), Sim->GetState().GalaxyID == GalaxyID);
 		TestEqual(TEXT("Names and log text survive the round trip"), CosmicSimTests::CollectText(Sim->GetState()), TextAtSave);
 		TestTrue(TEXT("Loaded log text is still culture-invariant"), !Sim->GetState().Log.IsEmpty() && Sim->GetState().Log[0].Message.IsCultureInvariant());
+		TestEqual(TEXT("All 25 reserved members are off their initializer after load"), CosmicSimTests::CountReservedMembersSet(Sim->GetState()), 25);
+		TestTrue(TEXT("Every reserved member survives the round trip"), CosmicSimTests::SameReservedMembers(Sim->GetState(), AtSave));
 
 		Sim->RunHeadless(500);
 		TestEqual(TEXT("Hash after load + 500 ticks equals the uninterrupted run"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(HashContinued));
 		for (const uint32 Expected : DrawsContinued)
 		{
 			TestEqual(TEXT("Random stream continues identically after load"), static_cast<int64>(Sim->GetRng().GetUnsignedInt()), static_cast<int64>(Expected));
+		}
+		for (const uint32 Expected : TellsContinued)
+		{
+			TestEqual(TEXT("Tell stream continues identically after load"), static_cast<int64>(Sim->DrawTell(1000)), static_cast<int64>(Expected));
 		}
 	}
 
@@ -734,6 +1094,11 @@ bool FCosmicSimSaveRestartTest::RunTest(const FString& Parameters)
 		&& FParse::Value(*Record, TEXT("Hash="), RecordedHash)
 		&& FParse::Value(*Record, TEXT("Process="), RecordedProcessId)
 		&& FGuid::Parse(RecordedGalaxy, RecordedGalaxyID);
+	// Parsed outside bHasRecord: a record of the format before this value still gets its slot deleted below.
+	uint32 RecordedDerive = 0;
+	const bool bHasDerive = FParse::Value(*Record, TEXT("Derive="), RecordedDerive);
+	// Decided by the seed, the name and the frozen expression alone: the same in every process (section 9.2).
+	const uint32 DeriveNow = CosmicSimTests::DeriveLowerCased(42, TEXT("gal_andromeda"), CosmicSeed::Purpose::Summary, 0);
 
 	if (bHasRecord && RecordedStamp == BinaryStamp && RecordedProcessId != ProcessId)
 	{
@@ -747,7 +1112,8 @@ bool FCosmicSimSaveRestartTest::RunTest(const FString& Parameters)
 			// Simulation determinism across processes, not only the hash of a loaded state.
 			const bool bFreshOk = TestEqual(TEXT("A fresh run of seed 42 in this process equals the hash recorded by the previous process"),
 				FString::Printf(TEXT("%u"), CosmicSimTests::HashAfter(*Sim, 42, 1000)), RecordedHash);
-			bVerified = bHashOk && bTickOk && bFreshOk;
+			const bool bDeriveOk = TestTrue(TEXT("CosmicSeed::Derive gives the value recorded by the previous process"), bHasDerive && RecordedDerive == DeriveNow);
+			bVerified = bHashOk && bTickOk && bFreshOk && bDeriveOk;
 		}
 		// A slot that is gone cannot be verified again: start over.
 		if (bVerified || !Save->DoesSaveExist(RecordedGalaxyID))
@@ -772,8 +1138,8 @@ bool FCosmicSimSaveRestartTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	Record = FString::Printf(TEXT("Binary=%s Galaxy=%s Hash=%u Process=%u"),
-		*BinaryStamp, *Sim->GetState().GalaxyID.ToString(EGuidFormats::Digits), Hash, ProcessId);
+	Record = FString::Printf(TEXT("Binary=%s Galaxy=%s Hash=%u Process=%u Derive=%u"),
+		*BinaryStamp, *Sim->GetState().GalaxyID.ToString(EGuidFormats::Digits), Hash, ProcessId, DeriveNow);
 	TestTrue(TEXT("Record written"), FFileHelper::SaveStringToFile(Record, *RecordPath));
 	AddInfo(TEXT("Saved and recorded the hash. Run the tests once more in a new process to verify the restart half."));
 	return true;

@@ -65,45 +65,61 @@ bool FCosmicLogNoConsecutiveRepeatTest::RunTest(const FString& Parameters)
 	FFormatNamedArguments Args;
 	Args.Add(TEXT("Civ"), FText::AsCultureInvariant(TEXT("X")));
 
-	// The same row over and over: one entry and exactly one draw per call, and never the same sentence twice in a row.
+	// The same row over and over: one entry and exactly one draw from the tell stream per call, the sim stream left
+	// alone, and never the same sentence twice in a row (section 9.2).
+	const int32 SimSeed = Sim->GetRng().GetCurrentSeed();
 	bool bOneEntryPerCall = true;
 	bool bOneDrawPerCall = true;
-	bool bStateSeedSynced = true;
+	bool bSimUntouched = true;
+	TSet<FString> Sentences;
 	for (int32 Call = 0; Call < 300; ++Call)
 	{
-		FRandomStream Probe(Sim->GetRng().GetCurrentSeed());
+		FRandomStream Probe(State.TellRngState);
 		const int32 EntriesBefore = State.Log.Num();
 
 		const bool bPushed = Log->PushRow(RowName, 0, Args, NAME_None);
 
-		Probe.RandRange(0, Row->Templates.Num() - 1);
+		Probe.RandHelper(Row->Templates.Num());
 		bOneEntryPerCall &= bPushed && State.Log.Num() == EntriesBefore + 1;
-		bOneDrawPerCall &= Probe.GetCurrentSeed() == Sim->GetRng().GetCurrentSeed();
-		bStateSeedSynced &= State.RngState == Sim->GetRng().GetCurrentSeed();
+		bOneDrawPerCall &= Probe.GetCurrentSeed() == State.TellRngState;
+		bSimUntouched &= Sim->GetRng().GetCurrentSeed() == SimSeed && State.RngState == SimSeed;
+		Sentences.Add(State.Log.Last().Message.ToString());
 	}
 	TestTrue(TEXT("PushRow appends exactly one entry per call"), bOneEntryPerCall);
-	TestTrue(TEXT("PushRow draws exactly once per call"), bOneDrawPerCall);
-	TestTrue(TEXT("PushRow keeps State.RngState in sync"), bStateSeedSynced);
+	TestTrue(TEXT("PushRow draws exactly once per call from the tell stream"), bOneDrawPerCall);
+	TestTrue(TEXT("PushRow leaves the sim stream alone"), bSimUntouched);
 	TestTrue(TEXT("No sentence twice in a row after 300 pushes of one row"), CosmicLogTests::HasNoConsecutiveRepeat(State.Log));
+	// A draw that always returned the same number would alternate between two variants and pass the checks above.
+	TestTrue(TEXT("300 pushes of one row tell three variants or more"), Sentences.Num() >= 3);
 	TestEqual(TEXT("Entries carry the row as their source"), State.Log.Last().SourceRow, RowName);
 	TestTrue(TEXT("Entries carry the row's category"), State.Log.Last().Category == Row->Category);
+	TestTrue(TEXT("Without a subject civ the entry carries none"), State.Log.Last().FocusCivID.IsNone());
 
-	// A missing row: nothing is pushed and nothing is drawn.
-	const int32 SeedBefore = Sim->GetRng().GetCurrentSeed();
+	// The subject of a line is stored with it (section 8.1).
+	const FName SubjectSystem = State.Systems[1].SystemID;
+	const FName SubjectCiv = State.Civs[1].CivID;
+	TestTrue(TEXT("PushRow stores the subject system, the subject civ and the row"),
+		Log->PushRow(RowName, 0, Args, SubjectSystem, SubjectCiv)
+		&& State.Log.Last().FocusSystemID == SubjectSystem && State.Log.Last().FocusCivID == SubjectCiv && State.Log.Last().SourceRow == RowName);
+
+	// A missing row: nothing is pushed and nothing is drawn, from either stream.
+	const int32 TellBefore = State.TellRngState;
 	const int32 EntriesBefore = State.Log.Num();
 	TestFalse(TEXT("A missing row is not pushed"), Log->PushRow(FName(TEXT("log_no_such_row")), 0, Args, NAME_None));
-	TestTrue(TEXT("A missing row draws nothing and adds nothing"), Sim->GetRng().GetCurrentSeed() == SeedBefore && State.Log.Num() == EntriesBefore);
+	TestTrue(TEXT("A missing row draws nothing and adds nothing"),
+		State.TellRngState == TellBefore && Sim->GetRng().GetCurrentSeed() == SimSeed && State.Log.Num() == EntriesBefore);
 
 	// A row of one template still draws exactly once: the number of draws never depends on the content of a row.
 	const FLogTemplateDef* FirstRow = Sim->GetTables().FindLogTemplate(CosmicRows::LogFirstLife);
 	if (TestTrue(TEXT("log_first_life has exactly one template"), FirstRow && FirstRow->Templates.Num() == 1))
 	{
-		FRandomStream Probe(Sim->GetRng().GetCurrentSeed());
+		FRandomStream Probe(State.TellRngState);
 		FFormatNamedArguments HomeArgs;
 		HomeArgs.Add(TEXT("HomeSystem"), FText::AsCultureInvariant(TEXT("X")));
 		TestTrue(TEXT("A one-template row is pushed"), Log->PushRow(CosmicRows::LogFirstLife, 0, HomeArgs, NAME_None));
-		Probe.RandRange(0, 0);
-		TestTrue(TEXT("A one-template row still draws exactly once"), Probe.GetCurrentSeed() == Sim->GetRng().GetCurrentSeed());
+		Probe.RandHelper(1);
+		TestTrue(TEXT("A one-template row still draws exactly once from the tell stream"), Probe.GetCurrentSeed() == State.TellRngState);
+		TestTrue(TEXT("A one-template row leaves the sim stream alone"), Sim->GetRng().GetCurrentSeed() == SimSeed && State.RngState == SimSeed);
 	}
 
 	// A whole run: the log the simulation writes by itself. In Phase 1 such a run never pushes the same row twice in a
@@ -184,6 +200,15 @@ bool FCosmicLogCapAndChronicleTest::RunTest(const FString& Parameters)
 		bChronicleRuleHolds &= Entry.Severity >= 1 || Entry.Category == ClaimTag || Entry.Category == RecordTag;
 	}
 	TestTrue(TEXT("Nothing ordinary reached the chronicle"), bChronicleRuleHolds);
+
+	// The subject of a line is stored with it (section 8.1). Pushed last: the counts above are already checked.
+	const FName SubjectSystem = State.Systems[1].SystemID;
+	const FName SubjectCiv = State.Civs[1].CivID;
+	FFormatNamedArguments SubjectArgs;
+	SubjectArgs.Add(TEXT("Number"), FText::AsCultureInvariant(TEXT("subject")));
+	Log->Push(CivTag, 0, Template, SubjectArgs, SubjectSystem, TestRow, SubjectCiv);
+	TestTrue(TEXT("Push stores the subject system, the subject civ and the source row"),
+		State.Log.Last().FocusSystemID == SubjectSystem && State.Log.Last().FocusCivID == SubjectCiv && State.Log.Last().SourceRow == TestRow);
 	return true;
 }
 

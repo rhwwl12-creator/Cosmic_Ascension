@@ -69,7 +69,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 
 		if (FFileHelper::SaveStringToFile(Csv, *OutPath))
 		{
-			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance: seed %d, %lld ticks, hash %u, wrote %s"), Seed, Ticks, Sim->ComputeStateHash(), *OutPath);
+			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance: seed %d, %lld ticks, hash %u, world %u, wrote %s"), Seed, Ticks, Sim->ComputeStateHash(), Sim->ComputeWorldHash(), *OutPath);
 		}
 		else
 		{

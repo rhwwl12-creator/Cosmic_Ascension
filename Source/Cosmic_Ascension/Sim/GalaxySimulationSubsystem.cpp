@@ -2,6 +2,7 @@
 
 #include "Sim/GalaxySimulationSubsystem.h"
 
+#include "Core/CosmicSeed.h"
 #include "Cosmic_Ascension.h"
 #include "Data/CosmicRowNames.h"
 #include "Engine/GameInstance.h"
@@ -322,6 +323,8 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 	// Slot identity, deliberately not drawn from the sim stream (section 9.2).
 	State.GalaxyID = FGuid::NewGuid();
 	Rng.Initialize(Seed);
+	// The tell stream starts from a derived value, before Install tells the first line (section 9.2).
+	State.TellRngState = static_cast<int32>(CosmicSeed::Derive(Seed, "", CosmicSeed::Purpose::Tell, 0));
 
 	const FGameplayTag AIProfiles[] = {
 		FGameplayTag::RequestGameplayTag(FName(TEXT("AI.Profile.Conservative"))),
@@ -544,6 +547,21 @@ void UGalaxySimulationSubsystem::SyncRngState()
 	State.RngState = Rng.GetCurrentSeed();
 }
 
+uint32 UGalaxySimulationSubsystem::DrawTell(int32 Count)
+{
+	if (Count < 1)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("DrawTell: Count %d is not a variant count"), Count);
+		return 0;
+	}
+
+	// No live stream object: the saved value is the stream, so it is current at every save and every hash (section 9.2).
+	FRandomStream Tell(State.TellRngState);
+	const int32 Drawn = Tell.RandHelper(Count);
+	State.TellRngState = Tell.GetCurrentSeed();
+	return static_cast<uint32>(Drawn);
+}
+
 EPopulationBand UGalaxySimulationSubsystem::GetPopulationBand(FName CivID) const
 {
 	const FCivilizationState* Civ = FindCiv(CivID);
@@ -596,8 +614,25 @@ void UGalaxySimulationSubsystem::LoadState(const FGalaxyState& In)
 
 uint32 UGalaxySimulationSubsystem::ComputeStateHash() const
 {
+	return HashState(false);
+}
+
+uint32 UGalaxySimulationSubsystem::ComputeWorldHash() const
+{
+	return HashState(true);
+}
+
+uint32 UGalaxySimulationSubsystem::HashState(bool bWorldOnly) const
+{
 	static const FName GalaxyIDName = GET_MEMBER_NAME_CHECKED(FGalaxyState, GalaxyID);
 	static const FName RngStateName = GET_MEMBER_NAME_CHECKED(FGalaxyState, RngState);
+	// Knowing and telling: saved and part of the full hash, but not world state (section 8.1).
+	static const FName NotWorldNames[] = {
+		GET_MEMBER_NAME_CHECKED(FGalaxyState, Knowing),
+		GET_MEMBER_NAME_CHECKED(FGalaxyState, Log),
+		GET_MEMBER_NAME_CHECKED(FGalaxyState, Chronicle),
+		GET_MEMBER_NAME_CHECKED(FGalaxyState, TellRngState),
+	};
 
 	FStateHasher Hasher;
 	for (TFieldIterator<FProperty> It(FGalaxyState::StaticStruct()); It; ++It)
@@ -606,6 +641,18 @@ uint32 UGalaxySimulationSubsystem::ComputeStateHash() const
 		if (PropertyName == GalaxyIDName)
 		{
 			continue;
+		}
+		if (bWorldOnly)
+		{
+			bool bNotWorld = false;
+			for (const FName NotWorldName : NotWorldNames)
+			{
+				bNotWorld |= PropertyName == NotWorldName;
+			}
+			if (bNotWorld)
+			{
+				continue;
+			}
 		}
 		if (PropertyName == RngStateName)
 		{
@@ -638,10 +685,12 @@ void UGalaxySimulationSubsystem::SimulateTick()
 		TickConflict();
 		TickHazards();
 		TickCivAI();
-		// The calling rests on no vessel during the interregnum leap (section 4.4).
+		TickCrossings();
+		// The calling rests on no vessel during the interregnum leap (section 4.4): no travel and no sight.
 		if (State.Calling.LifeState == ELifeState::Embodied)
 		{
 			TickPlayerTravel();
+			TickSight();
 		}
 	}
 	// Outside the guard: death and deposition replace the vessel, and the leap of Phase 4b runs ticks from here.
@@ -743,6 +792,11 @@ void UGalaxySimulationSubsystem::TickCivAI()
 	// Policy profiles of AI civs and regents (section 3.1).
 }
 
+void UGalaxySimulationSubsystem::TickCrossings()
+{
+	// Cleanup of civilizations without systems (Phase 2), then arrivals and departures (Phase 6a) (section 7.4).
+}
+
 void UGalaxySimulationSubsystem::TickPlayerTravel()
 {
 	FPlayerEntityState& Player = State.Player;
@@ -761,6 +815,11 @@ void UGalaxySimulationSubsystem::TickPlayerTravel()
 			++Life.ReignTicks.Last();
 		}
 	}
+}
+
+void UGalaxySimulationSubsystem::TickSight()
+{
+	// Sight range, meetings and first contact: reads the world, writes State.Knowing and the telling (section 7.4, 8.1).
 }
 
 void UGalaxySimulationSubsystem::ResolvePendingRoleEffect()
