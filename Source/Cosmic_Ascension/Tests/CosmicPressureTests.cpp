@@ -22,6 +22,8 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 
+#include <limits>
+
 namespace CosmicPressureTests
 {
 	FGameplayTag Tag(const TCHAR* Name)
@@ -45,6 +47,17 @@ namespace CosmicPressureTests
 		Def.Tier = Tier;
 		Def.Depth = Depth;
 		return Def;
+	}
+
+	// An effect of a row: Key and Tag may be left out.
+	FCosmicEffect Effect(EEffectType Type, const TCHAR* Key, float Value, const TCHAR* TagName = nullptr)
+	{
+		FCosmicEffect Out;
+		Out.Type = Type;
+		Out.Key = Key ? FName(Key) : FName();
+		Out.Value = Value;
+		Out.Tag = TagName ? Tag(TagName) : FGameplayTag();
+		return Out;
 	}
 
 	FCosmicDataTables WithTranscendents(const FCosmicDataTables& Base, UDataTable* Transcendents)
@@ -285,6 +298,36 @@ bool FCosmicRealmPressureMonotonicTest::RunTest(const FString& Parameters)
 			Both.DominantSource == ECosmicPressureSource::Civilization && Both.P == Weight[3] + Weight[3]);
 	}
 
+	// Knobs out of range are read at their bounds: the ranges are a lint, the guards are in the function.
+	{
+		FGalaxyState FourInside = Fresh;
+		AddInstance(FourInside, RowOfTier[3], { XID });
+		FGalaxyState FiveInside = Fresh;
+		AddInstance(FiveInside, RowOfTier[4], { XID });
+		auto ReadWith = [&](const FCosmicRulesDef& RulesOfCase, const FGalaxyState& State, int32 SystemIndex)
+		{
+			return UGalaxySimulationSubsystem::ComputePressureIn(State, Index, Tables, RulesOfCase, SystemIndex).P;
+		};
+
+		FCosmicRulesDef Short = Rules;
+		Short.PressureBySourceTier.SetNum(4);
+		FCosmicRulesDef Negative = Rules;
+		Negative.PressureBySourceTier[3] = -1.f;
+		TestTrue(TEXT("A weight table too short for the tier and a weight below zero read as 0"),
+			ReadWith(Rules, FiveInside, Where.X) == Weight[4] && Weight[4] > 0.f && ReadWith(Short, FiveInside, Where.X) == 0.f
+			&& ReadWith(Negative, FourInside, Where.X) == 0.f);
+
+		FCosmicRulesDef Wide = Rules;
+		Wide.PressureAdjacencyFalloff = 1.5f;
+		FCosmicRulesDef Below = Rules;
+		Below.PressureAdjacencyFalloff = -1.f;
+		FCosmicRulesDef NotANumber = Rules;
+		NotANumber.PressureAdjacencyFalloff = std::numeric_limits<float>::quiet_NaN();
+		TestTrue(TEXT("A falloff above 1 reads as 1: a neighbour never presses harder than the sphere itself"), ReadWith(Wide, FourInside, Where.Near) == Weight[3]);
+		TestTrue(TEXT("A falloff below zero or not a number reads as 0"),
+			ReadWith(Below, FourInside, Where.Near) == 0.f && ReadWith(NotANumber, FourInside, Where.Near) == 0.f);
+	}
+
 	// The member reads the live state and gives what the static gives.
 	{
 		FGalaxyState Live = Fresh;
@@ -339,6 +382,7 @@ bool FCosmicPressureDepthMonotonicTest::RunTest(const FString& Parameters)
 	const FName Under(TEXT("tr_under"));
 	const FName DeepThree(TEXT("tr_deep_three"));
 	const FName ShallowFive(TEXT("tr_shallow_five"));
+	const FName NoNumber(TEXT("tr_no_number"));
 	UDataTable* Table = NewTable(FTranscendentDef::StaticStruct());
 	Table->AddRow(Shallow, Fallen(EAscensionTier::Tier4_Transcendent, 0.f));
 	Table->AddRow(Middle, Fallen(EAscensionTier::Tier4_Transcendent, 0.5f));
@@ -347,6 +391,7 @@ bool FCosmicPressureDepthMonotonicTest::RunTest(const FString& Parameters)
 	Table->AddRow(Under, Fallen(EAscensionTier::Tier4_Transcendent, -1.f));
 	Table->AddRow(DeepThree, Fallen(EAscensionTier::Tier3_Causal, 1.f));
 	Table->AddRow(ShallowFive, Fallen(EAscensionTier::Tier5_EternalOrder, 0.f));
+	Table->AddRow(NoNumber, Fallen(EAscensionTier::Tier4_Transcendent, std::numeric_limits<float>::quiet_NaN()));
 	const FCosmicDataTables Tables = WithTranscendents(Original, Table);
 
 	// The pressure of one transcendent alone, with the given system in its sphere, read at ReadAt.
@@ -363,6 +408,8 @@ bool FCosmicPressureDepthMonotonicTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("With the same tier and the same sphere a deeper transcendent presses harder"), AtShallow < AtMiddle && AtMiddle < AtDeep);
 	TestTrue(TEXT("Depth 0 is the plain weight of the tier and depth 1 exactly twice that"), AtShallow == Weight[3] && AtDeep == 2.f * Weight[3] && AtMiddle == 1.5f * Weight[3]);
 	TestTrue(TEXT("A depth out of range is read as 0..1"), Alone(Over, Where.X, Where.X) == AtDeep && Alone(Under, Where.X, Where.X) == AtShallow);
+	TestTrue(TEXT("A depth that is not a number is read as 0"), Alone(NoNumber, Where.X, Where.X) == AtShallow);
+	TestEqual(TEXT("A row that does not set its depth stands in the middle of its tier"), FTranscendentDef().Depth, 0.5f);
 	// Section 3.2: depth does not cross a tier. With the weights of the game the deepest tier 3 is below the shallowest
 	// tier 4, and the deepest tier 4 is not above the shallowest tier 5.
 	TestTrue(TEXT("Depth does not cross a tier: the deepest tier 3 stays below the shallowest tier 4"), Alone(DeepThree, Where.X, Where.X) < AtShallow);
@@ -401,6 +448,9 @@ bool FCosmicFallenRosterPickTest::RunTest(const FString& Parameters)
 	const FCosmicRulesDef BaseRules = Sim->GetRules();
 	ON_SCOPE_EXIT { Sim->SetTables(Original); };
 
+	// A knob outside 0..3 is read at its bound with one error line per new galaxy: three such galaxies in the last block.
+	AddExpectedError(TEXT("FallenTranscendentCount -?[0-9]+ is outside 0"), EAutomationExpectedErrorFlags::Contains, 3);
+
 	const FName Zeal(TEXT("trans_zeal"));
 	const FName ZealTwin(TEXT("trans_zeal_twin"));
 	const FName Assimilation(TEXT("trans_assimilation"));
@@ -408,39 +458,21 @@ bool FCosmicFallenRosterPickTest::RunTest(const FString& Parameters)
 	const FName Covenant(TEXT("trans_covenant"));
 	const FName Stillness(TEXT("trans_stillness"));
 
-	// Four fallen doctrines (one of them twice), a celestial row and an independent row. The two rows that must never
-	// be drawn carry the largest weights on purpose.
-	auto Rows = [&](bool bReverse, bool bWithSilence)
+	using FRowList = TArray<TPair<FName, FTranscendentDef>>;
+	auto Row = [](const TCHAR* Doctrine, float Weight, const TCHAR* Realm = TEXT("Realm.Abyssal"))
 	{
-		TArray<TPair<FName, FTranscendentDef>> Defs;
-		if (bWithSilence)
-		{
-			Defs.Emplace(CosmicRows::TransSilence, Fallen(EAscensionTier::Tier4_Transcendent, 1.f, TEXT("Doctrine.Silence")));
-		}
-		FTranscendentDef ZealDef = Fallen(EAscensionTier::Tier4_Transcendent, 0.6f, TEXT("Doctrine.Zeal"));
-		ZealDef.SpawnWeight = 3.f;
-		Defs.Emplace(Zeal, ZealDef);
-		Defs.Emplace(ZealTwin, ZealDef);
-		FTranscendentDef AssimilationDef = Fallen(EAscensionTier::Tier4_Transcendent, 0.5f, TEXT("Doctrine.Assimilation"));
-		AssimilationDef.SpawnWeight = 2.f;
-		Defs.Emplace(Assimilation, AssimilationDef);
-		FTranscendentDef RecurrenceDef = Fallen(EAscensionTier::Tier4_Transcendent, 0.7f, TEXT("Doctrine.Recurrence"));
-		RecurrenceDef.SpawnWeight = 2.f;
-		Defs.Emplace(Recurrence, RecurrenceDef);
-		FTranscendentDef CovenantDef = Fallen(EAscensionTier::Tier4_Transcendent, 0.5f, TEXT("Doctrine.Covenant"));
-		CovenantDef.Allegiance = Tag(TEXT("Realm.Celestial"));
-		CovenantDef.SpawnWeight = 50.f;
-		Defs.Emplace(Covenant, CovenantDef);
-		FTranscendentDef StillnessDef = Fallen(EAscensionTier::Tier4_Transcendent, 0.5f, TEXT("Doctrine.Stillness"));
-		StillnessDef.Allegiance = Tag(TEXT("Realm.Independent"));
-		StillnessDef.SpawnWeight = 50.f;
-		Defs.Emplace(Stillness, StillnessDef);
-
+		FTranscendentDef Def = Fallen(EAscensionTier::Tier4_Transcendent, 0.5f, Doctrine);
+		Def.Allegiance = Tag(Realm);
+		Def.SpawnWeight = Weight;
+		return Def;
+	};
+	auto TableOf = [](const FRowList& Rows, bool bReverse = false)
+	{
 		UDataTable* Table = NewTable(FTranscendentDef::StaticStruct());
-		for (int32 Step = 0; Step < Defs.Num(); ++Step)
+		for (int32 Step = 0; Step < Rows.Num(); ++Step)
 		{
-			const TPair<FName, FTranscendentDef>& Def = Defs[bReverse ? Defs.Num() - 1 - Step : Step];
-			Table->AddRow(Def.Key, Def.Value);
+			const TPair<FName, FTranscendentDef>& Each = Rows[bReverse ? Rows.Num() - 1 - Step : Step];
+			Table->AddRow(Each.Key, Each.Value);
 		}
 		return Table;
 	};
@@ -450,6 +482,7 @@ bool FCosmicFallenRosterPickTest::RunTest(const FString& Parameters)
 		RulesRow.FallenTranscendentCount = Count;
 		return WithTranscendents(WithRules(Original, RulesRow), Table);
 	};
+	// The TranscendentIDs of the roster a seed gives under the tables set last.
 	auto RosterOf = [Sim](int32 Seed)
 	{
 		Sim->NewGalaxy(Seed, 12, 4);
@@ -460,9 +493,29 @@ bool FCosmicFallenRosterPickTest::RunTest(const FString& Parameters)
 		}
 		return IDs;
 	};
+	// Where the sim stream stands after NewGalaxy of one seed under these tables.
+	auto SeedAfter = [Sim](const FCosmicDataTables& Tables)
+	{
+		Sim->SetTables(Tables);
+		Sim->NewGalaxy(7, 12, 4);
+		return Sim->GetRng().GetCurrentSeed();
+	};
+
+	// Four fallen doctrines (one of them twice), a celestial row and an independent row. The two rows that must never
+	// be drawn carry the largest weights on purpose.
+	FRowList Full;
+	Full.Emplace(CosmicRows::TransSilence, Row(TEXT("Doctrine.Silence"), 1.f));
+	Full.Emplace(Zeal, Row(TEXT("Doctrine.Zeal"), 3.f));
+	Full.Emplace(ZealTwin, Row(TEXT("Doctrine.Zeal"), 3.f));
+	Full.Emplace(Assimilation, Row(TEXT("Doctrine.Assimilation"), 2.f));
+	Full.Emplace(Recurrence, Row(TEXT("Doctrine.Recurrence"), 2.f));
+	Full.Emplace(Covenant, Row(TEXT("Doctrine.Covenant"), 50.f, TEXT("Realm.Celestial")));
+	Full.Emplace(Stillness, Row(TEXT("Doctrine.Stillness"), 50.f, TEXT("Realm.Independent")));
+	FRowList WithoutSilence = Full;
+	WithoutSilence.RemoveAt(0);
 
 	// Thirty runs with three places: silence first, two more fallen rows, no doctrine twice, nobody of another realm.
-	Sim->SetTables(TablesFor(3, Rows(false, true)));
+	Sim->SetTables(TablesFor(3, TableOf(Full)));
 	TSet<FName> Seen;
 	bool bRoster = true;
 	TArray<TArray<FName>> Rosters;
@@ -482,12 +535,12 @@ bool FCosmicFallenRosterPickTest::RunTest(const FString& Parameters)
 		bRoster &= Doctrines.Num() == Active.Num();
 	}
 	TestTrue(TEXT("Every roster is silence plus two more fallen rows, each doctrine once, with empty spheres and nobody of another realm"), bRoster);
-	TestTrue(TEXT("Over thirty seeds every fallen doctrine with a weight is drawn"),
-		(Seen.Contains(Zeal) || Seen.Contains(ZealTwin)) && Seen.Contains(Assimilation) && Seen.Contains(Recurrence));
+	TestTrue(TEXT("Over thirty seeds every fallen row with a weight is drawn, both rows of the doctrine that has two"),
+		Seen.Contains(Zeal) && Seen.Contains(ZealTwin) && Seen.Contains(Assimilation) && Seen.Contains(Recurrence));
 
 	// The order of the rows in the table is not the order of the draw.
 	{
-		Sim->SetTables(TablesFor(3, Rows(true, true)));
+		Sim->SetTables(TablesFor(3, TableOf(Full, true)));
 		bool bSame = true;
 		for (int32 Seed = 1; Seed <= 30; ++Seed)
 		{
@@ -497,34 +550,118 @@ bool FCosmicFallenRosterPickTest::RunTest(const FString& Parameters)
 	}
 
 	// The number of draws follows the knob alone: the same stream position with a full table, an empty one and none,
-	// and exactly two draws more than with one place.
+	// exactly two draws more than with one place, and none at all with one place or with no place.
 	{
-		auto SeedAfter = [Sim](const FCosmicDataTables& Tables)
-		{
-			Sim->SetTables(Tables);
-			Sim->NewGalaxy(7, 12, 4);
-			return Sim->GetRng().GetCurrentSeed();
-		};
-		const int32 Full = SeedAfter(TablesFor(3, Rows(false, true)));
-		TestEqual(TEXT("An empty DT_Transcendents draws like a full one"), SeedAfter(TablesFor(3, NewTable(FTranscendentDef::StaticStruct()))), Full);
-		TestEqual(TEXT("No DT_Transcendents draws like a full one"), SeedAfter(TablesFor(3, nullptr)), Full);
-		TestEqual(TEXT("A table without the silence row draws like a full one"), SeedAfter(TablesFor(3, Rows(false, false))), Full);
-		FRandomStream Probe(SeedAfter(TablesFor(1, Rows(false, true))));
+		const int32 Three = SeedAfter(TablesFor(3, TableOf(Full)));
+		TestEqual(TEXT("An empty DT_Transcendents draws like a full one"), SeedAfter(TablesFor(3, NewTable(FTranscendentDef::StaticStruct()))), Three);
+		TestEqual(TEXT("No DT_Transcendents draws like a full one"), SeedAfter(TablesFor(3, nullptr)), Three);
+		TestEqual(TEXT("A table without the silence row draws like a full one"), SeedAfter(TablesFor(3, TableOf(WithoutSilence))), Three);
+		const int32 One = SeedAfter(TablesFor(1, TableOf(Full)));
+		FRandomStream Probe(One);
 		Probe.GetFraction();
 		Probe.GetFraction();
-		TestEqual(TEXT("Three places draw exactly twice more than one place"), Full, Probe.GetCurrentSeed());
+		TestEqual(TEXT("Three places draw exactly twice more than one place"), Three, Probe.GetCurrentSeed());
+		TestEqual(TEXT("One place and no place draw nothing: the stream stands at the same position"), SeedAfter(TablesFor(0, TableOf(Full))), One);
 	}
 
 	// One place is silence alone, no place is nobody, and without the silence row nobody takes its place.
 	{
-		Sim->SetTables(TablesFor(1, Rows(false, true)));
+		Sim->SetTables(TablesFor(1, TableOf(Full)));
 		const TArray<FName> One = RosterOf(3);
-		Sim->SetTables(TablesFor(0, Rows(false, true)));
+		Sim->SetTables(TablesFor(0, TableOf(Full)));
 		const TArray<FName> None = RosterOf(3);
-		Sim->SetTables(TablesFor(3, Rows(false, false)));
+		Sim->SetTables(TablesFor(3, TableOf(WithoutSilence)));
 		const TArray<FName> NoSilence = RosterOf(3);
 		TestTrue(TEXT("One place is silence alone and no place is nobody"), One.Num() == 1 && One[0] == CosmicRows::TransSilence && None.IsEmpty());
 		TestTrue(TEXT("Without the silence row the two drawn places are all there is"), NoSilence.Num() == 2 && !NoSilence.Contains(CosmicRows::TransSilence));
+	}
+
+	// The fixed place belongs to a fallen silence: a trans_silence row of another realm gets no instance.
+	{
+		FRowList Rows;
+		Rows.Emplace(CosmicRows::TransSilence, Row(TEXT("Doctrine.Silence"), 1.f, TEXT("Realm.Celestial")));
+		Rows.Emplace(Assimilation, Row(TEXT("Doctrine.Assimilation"), 1.f));
+		Sim->SetTables(TablesFor(1, TableOf(Rows)));
+		const TArray<FName> One = RosterOf(3);
+		Sim->SetTables(TablesFor(2, TableOf(Rows)));
+		const TArray<FName> Two = RosterOf(3);
+		TestTrue(TEXT("A trans_silence row that is not Realm.Abyssal gets no instance, and nobody takes the fixed place"),
+			One.IsEmpty() && Two.Num() == 1 && Two[0] == Assimilation);
+	}
+
+	// The pick follows SpawnWeight. One drawn place and two candidates: the one that outweighs the other a million times
+	// is drawn in every one of thirty seeds, whichever of the two it is. A pick that ignored the weights would give the
+	// same rosters for both tables.
+	{
+		auto DrawnOverThirty = [&](float WeightOfAssimilation, float WeightOfRecurrence)
+		{
+			FRowList Rows;
+			Rows.Emplace(CosmicRows::TransSilence, Row(TEXT("Doctrine.Silence"), 1.f));
+			Rows.Emplace(Assimilation, Row(TEXT("Doctrine.Assimilation"), WeightOfAssimilation));
+			Rows.Emplace(Recurrence, Row(TEXT("Doctrine.Recurrence"), WeightOfRecurrence));
+			Sim->SetTables(TablesFor(2, TableOf(Rows)));
+			TSet<FName> Drawn;
+			bool bShape = true;
+			for (int32 Seed = 1; Seed <= 30; ++Seed)
+			{
+				const TArray<FName> IDs = RosterOf(Seed);
+				bShape &= IDs.Num() == 2 && IDs[0] == CosmicRows::TransSilence;
+				if (IDs.Num() == 2)
+				{
+					Drawn.Add(IDs[1]);
+				}
+			}
+			return bShape ? Drawn : TSet<FName>();
+		};
+		const TSet<FName> HeavyAssimilation = DrawnOverThirty(1000000.f, 1.f);
+		const TSet<FName> HeavyRecurrence = DrawnOverThirty(1.f, 1000000.f);
+		TestTrue(TEXT("The draw follows SpawnWeight: the row that outweighs the other is the one drawn, whichever of the two it is"),
+			HeavyAssimilation.Num() == 1 && HeavyAssimilation.Contains(Assimilation) && HeavyRecurrence.Num() == 1 && HeavyRecurrence.Contains(Recurrence));
+	}
+
+	// A weight that is zero, below zero, not a number or not finite makes no candidate.
+	{
+		FRowList Weightless;
+		Weightless.Emplace(CosmicRows::TransSilence, Row(TEXT("Doctrine.Silence"), 1.f));
+		Weightless.Emplace(Assimilation, Row(TEXT("Doctrine.Assimilation"), 0.f));
+		Weightless.Emplace(Recurrence, Row(TEXT("Doctrine.Recurrence"), -1.f));
+		Weightless.Emplace(Zeal, Row(TEXT("Doctrine.Zeal"), std::numeric_limits<float>::quiet_NaN()));
+		Sim->SetTables(TablesFor(2, TableOf(Weightless)));
+		bool bAlone = true;
+		for (int32 Seed = 1; Seed <= 10; ++Seed)
+		{
+			const TArray<FName> IDs = RosterOf(Seed);
+			bAlone &= IDs.Num() == 1 && IDs[0] == CosmicRows::TransSilence;
+		}
+		TestTrue(TEXT("A row whose weight is zero, below zero or not a number is never drawn"), bAlone);
+
+		// The row with the infinite weight sorts last on purpose: a sum that is not finite would fall back to the last
+		// candidate.
+		FRowList WithInfinite;
+		WithInfinite.Emplace(CosmicRows::TransSilence, Row(TEXT("Doctrine.Silence"), 1.f));
+		WithInfinite.Emplace(Assimilation, Row(TEXT("Doctrine.Assimilation"), 1.f));
+		WithInfinite.Emplace(Zeal, Row(TEXT("Doctrine.Zeal"), std::numeric_limits<float>::infinity()));
+		Sim->SetTables(TablesFor(2, TableOf(WithInfinite)));
+		bool bFiniteDrawn = true;
+		for (int32 Seed = 1; Seed <= 30; ++Seed)
+		{
+			const TArray<FName> IDs = RosterOf(Seed);
+			bFiniteDrawn &= IDs.Num() == 2 && IDs[1] == Assimilation;
+		}
+		TestTrue(TEXT("A row whose weight is not finite is no candidate: the row with a weight is drawn"), bFiniteDrawn);
+	}
+
+	// The knob is read as 0..3 (at most three active fallen per run): 4 gives the roster and the draws of 3.
+	{
+		Sim->SetTables(TablesFor(3, TableOf(Full)));
+		const TArray<FName> Three = RosterOf(3);
+		Sim->SetTables(TablesFor(4, TableOf(Full)));
+		const TArray<FName> Four = RosterOf(3);
+		const int32 SeedOfThree = SeedAfter(TablesFor(3, TableOf(Full)));
+		TestTrue(TEXT("A knob of 4 is read as 3: the same roster of three and the same number of draws"),
+			Four.Num() == 3 && Four == Three && SeedAfter(TablesFor(4, TableOf(Full))) == SeedOfThree);
+		Sim->SetTables(TablesFor(-2, TableOf(Full)));
+		TestTrue(TEXT("A knob below zero is read as 0: nobody"), RosterOf(3).IsEmpty());
 	}
 
 	Sim->SetTables(Original);
@@ -544,137 +681,255 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 	const FCosmicDataTables Original = Sim->GetTables();
 	ON_SCOPE_EXIT { Sim->SetTables(Original); };
 
-	const FName Presser(TEXT("tr_presser"));
-	const float StartStability = 0.8f;
+	// The knobs of this test, not of the game: the numbers below are compared exactly and the game's are tuned.
+	FCosmicRulesDef Knobs = Sim->GetRules();
+	Knobs.PressureBySourceTier = { 0.f, 0.f, 0.25f, 1.f, 2.f };
+	Knobs.PressureAdjacencyFalloff = 0.5f;
+	Knobs.SpiritualPressureStabilityDrain = 0.002f;
+	const float Start = 0.8f;
+	const float Drain = 0.002f;
+	const float Inside = 1.f;
+	const float Beside = 0.5f;
 
-	// A tier-4 transcendent of depth 0 whose per-tick effect leaves a countable trace, or halves the Energy income.
-	auto TablesWith = [&](bool bHalveEnergy)
+	const FName RowA(TEXT("tr_a"));
+	const FName RowB(TEXT("tr_b"));
+	const FCosmicEffect OneCausality = Effect(EEffectType::AddResource, TEXT("Causality"), 1.f);
+
+	// The tables of a case: its rules, its tier-4 rows of depth 0 with their per-tick effects, and no event rows (the
+	// slots of the tick still draw their numbers).
+	struct FRowOfCase
 	{
-		FTranscendentDef Def = Fallen(EAscensionTier::Tier4_Transcendent, 0.f);
-		FCosmicEffect Effect;
-		if (bHalveEnergy)
-		{
-			Effect.Type = EEffectType::MultiplyIncome;
-			Effect.Key = FName(TEXT("Energy"));
-			Effect.Value = 0.5f;
-		}
-		else
-		{
-			// Causality stays at zero in the economy of the first tiers: every unit of it comes from this effect.
-			Effect.Type = EEffectType::AddResource;
-			Effect.Key = FName(TEXT("Causality"));
-			Effect.Value = 1.f;
-		}
-		Def.PressureEffectsPerTick.Add(Effect);
+		FName Name;
+		TArray<FCosmicEffect> Effects;
+	};
+	using FRowsOfCase = TArray<FRowOfCase>;
+	auto TablesOf = [&](const FCosmicRulesDef& RulesRow, const FRowsOfCase& Rows)
+	{
 		UDataTable* Table = NewTable(FTranscendentDef::StaticStruct());
-		Table->AddRow(Presser, Def);
-		return WithTranscendents(Original, Table);
+		for (const FRowOfCase& Row : Rows)
+		{
+			FTranscendentDef Def = Fallen(EAscensionTier::Tier4_Transcendent, 0.f);
+			Def.PressureEffectsPerTick = Row.Effects;
+			Table->AddRow(Row.Name, Def);
+		}
+		FCosmicDataTables Tables = WithTranscendents(WithRules(Original, RulesRow), Table);
+		Tables.Events = nullptr;
+		return Tables;
 	};
 
-	// A fresh galaxy in which civilization 1 owns three settled systems and civilization 2 one. With bSphere all four
-	// lie in the sphere of the transcendent.
-	auto Arrange = [&](bool bSphere)
+	// A galaxy the test wires itself (CosmicTests::WireChain: a chain 0..9 with a branch 4-10-11), so that no case
+	// leans on what the generator made. The player's people holds system 0, the wide people systems 3, 4, 5 and 6 in
+	// that order, the border people system 10 and the single people system 8. A sphere is a row and system indices.
+	struct FSphereOfCase
+	{
+		FName Row;
+		TArray<int32> Systems;
+	};
+	using FSpheres = TArray<FSphereOfCase>;
+	bool bWired = true;
+	auto Arrange = [&](const FSpheres& Spheres)
 	{
 		Sim->NewGalaxy(42, 12, 4);
 		FGalaxyState& State = Sim->GetMutableState();
-		State.Transcendents.Reset();
-		FCivilizationState& Wide = State.Civs[1];
-		for (FStarSystemState& System : State.Systems)
+		if (State.Civs.Num() != 4 || !CosmicTests::WireChain(State))
 		{
-			if (System.OwnerCivID.IsNone() && Wide.OwnedSystems.Num() < 3)
-			{
-				System.OwnerCivID = Wide.CivID;
-				Wide.OwnedSystems.Add(System.SystemID);
-			}
+			bWired = false;
+			return;
 		}
+		// The case places its own transcendents: whatever roster the tables gave is taken out.
+		State.Transcendents.Reset();
+		CosmicTests::ClearOwners(State);
+		CosmicTests::Give(State, 0, { 0 });
+		CosmicTests::Give(State, 1, { 3, 4, 5, 6 });
+		CosmicTests::Give(State, 2, { 10 });
+		CosmicTests::Give(State, 3, { 8 });
 		for (FCivilizationState& Civ : State.Civs)
 		{
-			Civ.Stability = StartStability;
+			Civ.Stability = Start;
 		}
-		if (bSphere)
+		for (const FSphereOfCase& Sphere : Spheres)
 		{
-			TArray<FName> Sphere = Wide.OwnedSystems;
-			Sphere.Add(State.Civs[2].HomeSystemID);
-			AddInstance(State, Presser, Sphere);
-		}
-	};
-	// The largest pressure over the settled systems of a civilization whose dominant source stands above it, read
-	// before the tick with the public function.
-	auto LargestOver = [Sim](const FCivilizationState& Civ)
-	{
-		float Largest = 0.f;
-		for (const FName SystemID : Civ.OwnedSystems)
-		{
-			const FCosmicPressure Reading = UGalaxySimulationSubsystem::ComputePressureIn(Sim->GetState(), Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(),
-				Sim->GetStateIndex().FindSystem(Sim->GetState(), SystemID));
-			if (Reading.DominantSource != ECosmicPressureSource::None && static_cast<int32>(Reading.DominantTier) > static_cast<int32>(Civ.Tier))
+			TArray<FName> IDs;
+			for (const int32 SystemIndex : Sphere.Systems)
 			{
-				Largest = FMath::Max(Largest, Reading.P);
+				IDs.Add(State.Systems[SystemIndex].SystemID);
 			}
+			AddInstance(State, Sphere.Row, IDs);
 		}
-		return Largest;
 	};
+	const int32 PlayerCiv = 0;
+	const int32 WideCiv = 1;
+	const int32 BorderCiv = 2;
+	const int32 SingleCiv = 3;
+	const FGalaxyState& State = Sim->GetState();
 
-	// One tick: the drain is taken once per civilization, at its largest pressure, and the effects once per transcendent.
+	Sim->SetTables(TablesOf(Knobs, { { RowA, { OneCausality } } }));
+	Arrange({ { RowA, { 4, 5 } } });
+	if (!TestTrue(TEXT("The galaxy has twelve systems and four peoples to wire"), bWired))
 	{
-		Sim->SetTables(TablesWith(false));
-		Arrange(true);
-		const FGalaxyState& State = Sim->GetState();
-		const float Drain = Sim->GetRules().SpiritualPressureStabilityDrain;
-		TArray<float> Expected;
-		for (const FCivilizationState& Civ : State.Civs)
-		{
-			Expected.Add(StartStability - Drain * LargestOver(Civ));
-		}
-		TestTrue(TEXT("The test civilization owns three settled systems, all under a pressure of exactly the tier-4 weight"),
-			State.Civs[1].OwnedSystems.Num() == 3 && LargestOver(State.Civs[1]) == Sim->GetRules().PressureBySourceTier[3] && Drain > 0.f);
-
-		Sim->RunHeadless(1);
-		bool bDrain = true;
-		for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
-		{
-			bDrain &= State.Civs[CivIndex].Stability == Expected[CivIndex];
-		}
-		TestTrue(TEXT("Every civilization loses the drain times its largest pressure, once"), bDrain);
-		TestTrue(TEXT("Three systems in the sphere cost what one costs"),
-			State.Civs[1].Stability == State.Civs[2].Stability && State.Civs[1].Stability < StartStability);
-		TestTrue(TEXT("The per-tick effects of a transcendent are applied once per civilization, not once per system"),
-			State.Civs[1].Stockpile.Causality == 1.f && State.Civs[2].Stockpile.Causality == 1.f);
+		return false;
 	}
 
-	// A civilization on the tier of the transcendent is not drained and does not take its effects.
+	// One sphere over systems 4 and 5. The wide people has two systems in it and two beside it, the border people one
+	// beside it, the other two are out of reach.
 	{
-		Sim->SetTables(TablesWith(false));
-		Arrange(true);
-		Sim->GetMutableState().Civs[1].Tier = EAscensionTier::Tier4_Transcendent;
+		auto PressureAt = [Sim](int32 SystemIndex)
+		{
+			return UGalaxySimulationSubsystem::ComputePressureIn(Sim->GetState(), Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), SystemIndex).P;
+		};
+		TestTrue(TEXT("The public function reads the wired sphere: 1 inside, the falloff one lane away, 0 farther off"),
+			PressureAt(3) == Beside && PressureAt(4) == Inside && PressureAt(5) == Inside && PressureAt(6) == Beside
+			&& PressureAt(10) == Beside && PressureAt(8) == 0.f && PressureAt(0) == 0.f);
+
+		Sim->RunHeadless(1);
+		TestTrue(TEXT("A people with systems in the sphere and beside it is drained once, by the largest of their pressures"),
+			State.Civs[WideCiv].Stability == Start - Drain * Inside);
+		TestTrue(TEXT("A people that only borders the sphere is drained by the falloff"), State.Civs[BorderCiv].Stability == Start - Drain * Beside);
+		TestTrue(TEXT("A people out of reach keeps its Stability"), State.Civs[SingleCiv].Stability == Start && State.Civs[PlayerCiv].Stability == Start);
+		TestTrue(TEXT("The per-tick effects are applied once to a people with two systems in the sphere"), State.Civs[WideCiv].Stockpile.Causality == 1.f);
+		TestTrue(TEXT("A people that only borders the sphere, and a people out of reach, take no per-tick effect"),
+			State.Civs[BorderCiv].Stockpile.Causality == 0.f && State.Civs[SingleCiv].Stockpile.Causality == 0.f && State.Civs[PlayerCiv].Stockpile.Causality == 0.f);
+	}
+
+	// A sphere that also holds the one system of the single people: one system in a sphere costs what two cost. A
+	// system that is still being settled, or that is listed by a people that does not own it, counts for neither.
+	{
+		Arrange({ { RowA, { 4, 5, 8 } } });
+		Sim->RunHeadless(1);
+		TestTrue(TEXT("One system in the sphere costs what two cost, and takes the effects once as well"),
+			State.Civs[SingleCiv].Stability == Start - Drain * Inside && State.Civs[SingleCiv].Stability == State.Civs[WideCiv].Stability
+			&& State.Civs[SingleCiv].Stockpile.Causality == 1.f && State.Civs[WideCiv].Stockpile.Causality == 1.f);
+
+		Arrange({ { RowA, { 4, 5, 8 } } });
+		Sim->GetMutableState().Systems[8].ActiveMegaproject = CosmicRows::ProjectSettle;
+		Sim->GetMutableState().Civs[PlayerCiv].OwnedSystems.Add(State.Systems[4].SystemID);
+		Sim->RunHeadless(1);
+		TestTrue(TEXT("A system that is still being settled neither drains its people nor brings it the per-tick effects"),
+			State.Civs[SingleCiv].Stability == Start && State.Civs[SingleCiv].Stockpile.Causality == 0.f);
+		TestTrue(TEXT("A system listed by a people that does not own it neither drains that people nor brings it the effects"),
+			State.Civs[PlayerCiv].Stability == Start && State.Civs[PlayerCiv].Stockpile.Causality == 0.f);
+		TestTrue(TEXT("The people that owns settled systems in the sphere is pressed as before"),
+			State.Civs[WideCiv].Stability == Start - Drain * Inside && State.Civs[WideCiv].Stockpile.Causality == 1.f);
+	}
+
+	// A people on the tier of the transcendent is not drained and takes no effect; the people next to it still is.
+	{
+		Arrange({ { RowA, { 4, 5, 8 } } });
+		Sim->GetMutableState().Civs[WideCiv].Tier = EAscensionTier::Tier4_Transcendent;
 		Sim->RunHeadless(1);
 		TestTrue(TEXT("A source that does not stand above the civilization neither drains it nor applies its effects"),
-			Sim->GetState().Civs[1].Stability == StartStability && Sim->GetState().Civs[1].Stockpile.Causality == 0.f);
+			State.Civs[WideCiv].Stability == Start && State.Civs[WideCiv].Stockpile.Causality == 0.f);
+		TestTrue(TEXT("The tier of one people does not shield the next: a lower people on the same sphere is still pressed"),
+			State.Civs[SingleCiv].Stability == Start - Drain * Inside && State.Civs[SingleCiv].Stockpile.Causality == 1.f
+			&& State.Civs[BorderCiv].Stability == Start - Drain * Beside);
 	}
 
 	// A sealed transcendent presses on nobody.
 	{
-		Sim->SetTables(TablesWith(false));
-		Arrange(true);
+		Arrange({ { RowA, { 4, 5, 8 } } });
 		Sim->GetMutableState().Transcendents[0].bSealed = true;
 		Sim->RunHeadless(1);
-		TestTrue(TEXT("A sealed transcendent neither drains nor applies its effects"),
-			Sim->GetState().Civs[1].Stability == StartStability && Sim->GetState().Civs[1].Stockpile.Causality == 0.f);
+		bool bUntouched = true;
+		for (const FCivilizationState& Civ : State.Civs)
+		{
+			bUntouched &= Civ.Stability == Start && Civ.Stockpile.Causality == 0.f;
+		}
+		TestTrue(TEXT("A sealed transcendent neither drains nor applies its effects"), bUntouched);
 	}
 
-	// MultiplyIncome as a per-tick source: the income of this tick is scaled before it reaches the stockpile.
+	// Two transcendents over the wide people: both apply, once each, in the order of State.Transcendents, each with
+	// itself as the other party. The two lists do not commute (a stockpile stops at zero), so the order shows.
 	{
-		Sim->SetTables(TablesWith(true));
-		Arrange(false);
-		const float EnergyBefore = Sim->GetState().Civs[1].Stockpile.Energy;
-		Sim->RunHeadless(1);
-		const float FreeIncome = Sim->GetState().Civs[1].IncomePerTick.Energy;
+		const FCosmicEffect Estrange = Effect(EEffectType::ChangeRelation, nullptr, -0.1f);
+		const FCosmicEffect FiveLess = Effect(EEffectType::AddResource, TEXT("Causality"), -5.f);
+		Sim->SetTables(TablesOf(Knobs, { { RowA, { OneCausality, Estrange } }, { RowB, { FiveLess } } }));
 
-		Arrange(true);
+		Arrange({ { RowA, { 4, 5 } }, { RowB, { 5 } } });
 		Sim->RunHeadless(1);
-		const FCivilizationState& Pressed = Sim->GetState().Civs[1];
+		const float CausalityAThenB = State.Civs[WideCiv].Stockpile.Causality;
+		const bool bRelationToA = State.Civs[WideCiv].Relations.Num() == 1 && State.Civs[WideCiv].Relations.FindRef(RowA) == -0.1f;
+		TestTrue(TEXT("Where two spheres overlap their terms add up, and the people is drained by that sum"),
+			State.Civs[WideCiv].Stability == Start - Drain * (Inside + Inside));
+
+		Arrange({ { RowB, { 5 } }, { RowA, { 4, 5 } } });
+		Sim->RunHeadless(1);
+		TestTrue(TEXT("Two transcendents apply their per-tick effects once each, in the order of State.Transcendents"),
+			CausalityAThenB == 0.f && State.Civs[WideCiv].Stockpile.Causality == 1.f);
+		TestTrue(TEXT("The other party of a per-tick effect is the transcendent whose row it is"),
+			bRelationToA && State.Civs[WideCiv].Relations.Num() == 1 && State.Civs[WideCiv].Relations.FindRef(RowA) == -0.1f);
+	}
+
+	// MultiplyIncome as a per-tick source: the income of the tick is scaled before it reaches the stockpile, and a factor
+	// below zero is read as 0.
+	{
+		Sim->SetTables(TablesOf(Knobs, { { RowA, { Effect(EEffectType::MultiplyIncome, TEXT("Energy"), 0.5f) } } }));
+		Arrange({});
+		const float EnergyBefore = State.Civs[WideCiv].Stockpile.Energy;
+		Sim->RunHeadless(1);
+		const float FreeIncome = State.Civs[WideCiv].IncomePerTick.Energy;
+
+		Arrange({ { RowA, { 4, 5 } } });
+		Sim->RunHeadless(1);
 		TestTrue(TEXT("A per-tick MultiplyIncome halves the income of the tick, and the halved income is what reaches the stockpile"),
-			FreeIncome > 0.f && Pressed.IncomePerTick.Energy == 0.5f * FreeIncome && Pressed.Stockpile.Energy == EnergyBefore + Pressed.IncomePerTick.Energy);
+			FreeIncome > 0.f && State.Civs[WideCiv].IncomePerTick.Energy == 0.5f * FreeIncome
+			&& State.Civs[WideCiv].Stockpile.Energy == EnergyBefore + State.Civs[WideCiv].IncomePerTick.Energy);
+
+		Sim->SetTables(TablesOf(Knobs, { { RowA, { Effect(EEffectType::MultiplyIncome, TEXT("Energy"), -0.2f) } } }));
+		Arrange({ { RowA, { 4, 5 } } });
+		Sim->RunHeadless(1);
+		TestTrue(TEXT("A per-tick MultiplyIncome below zero is read as 0: no income, and the stockpile does not go down"),
+			State.Civs[WideCiv].IncomePerTick.Energy == 0.f && State.Civs[WideCiv].Stockpile.Energy == EnergyBefore);
+	}
+
+	// A per-tick source changes amounts and nothing else. A row full of other effects over the capital of the people
+	// the vessel rules leaves the tick exactly as a row without effects leaves it: no draw, no role effect, the vessel
+	// as it was.
+	{
+		auto TickOver = [&](const TArray<FCosmicEffect>& Effects)
+		{
+			Sim->SetTables(TablesOf(Knobs, { { RowA, Effects } }));
+			Arrange({ { RowA, { 0 } } });
+			Sim->RunHeadless(1);
+			return TPair<uint32, int32>(Sim->ComputeStateHash(), Sim->GetRng().GetCurrentSeed());
+		};
+		const TPair<uint32, int32> Plain = TickOver({});
+		const bool bPressed = State.Civs[PlayerCiv].Stability == Start - Drain * Inside;
+		const TPair<uint32, int32> Loaded = TickOver({
+			Effect(EEffectType::NameNotable, nullptr, 0.f, TEXT("Notable.Rebel")),
+			Effect(EEffectType::DeposeRuler, nullptr, 0.f, TEXT("Reign.Deposed")),
+			Effect(EEffectType::KillPlayer, nullptr, 0.f, TEXT("Death.Hazard")),
+			Effect(EEffectType::PlayerStatDelta, TEXT("Body"), 1.f),
+			Effect(EEffectType::GrantPower, nullptr, 0.f, TEXT("Way.Received")),
+			Effect(EEffectType::AddTrait, nullptr, 0.f, TEXT("Trait.Faith.Seeking")),
+			Effect(EEffectType::SetFlag, nullptr, 0.f, TEXT("Flag.Grace.Spent")) });
+		TestTrue(TEXT("The capital of the vessel's people lies in the sphere and the tick drains it"), bPressed && State.Civs[PlayerCiv].Stability == Start - Drain * Inside);
+		TestTrue(TEXT("The economy stage draws nothing, whatever a per-tick row holds"), Loaded.Value == Plain.Value);
+		TestTrue(TEXT("A per-tick row records no role effect and changes nothing but amounts: the state is the state of the plain tick"),
+			!State.Calling.PendingEffect.IsValid() && Loaded.Key == Plain.Key);
+	}
+
+	// The drain knob out of range takes nothing (below zero, not a number), and Stability stops at zero.
+	{
+		const FRowsOfCase NoEffects = { { RowA, {} } };
+		FCosmicRulesDef Negative = Knobs;
+		Negative.SpiritualPressureStabilityDrain = -1.f;
+		Sim->SetTables(TablesOf(Negative, NoEffects));
+		Arrange({ { RowA, { 4, 5 } } });
+		Sim->RunHeadless(1);
+		const bool bNegativeTakesNothing = State.Civs[WideCiv].Stability == Start;
+
+		FCosmicRulesDef NotANumber = Knobs;
+		NotANumber.SpiritualPressureStabilityDrain = std::numeric_limits<float>::quiet_NaN();
+		Sim->SetTables(TablesOf(NotANumber, NoEffects));
+		Arrange({ { RowA, { 4, 5 } } });
+		Sim->RunHeadless(1);
+		TestTrue(TEXT("A drain knob below zero or not a number takes nothing and gives nothing"), bNegativeTakesNothing && State.Civs[WideCiv].Stability == Start);
+
+		Sim->SetTables(TablesOf(Knobs, NoEffects));
+		Arrange({ { RowA, { 4, 5 } } });
+		Sim->GetMutableState().Civs[WideCiv].Stability = 0.5f * Drain;
+		Sim->RunHeadless(1);
+		TestTrue(TEXT("Stability stops at zero under the drain"), State.Civs[WideCiv].Stability == 0.f);
 	}
 
 	Sim->SetTables(Original);
@@ -696,22 +951,26 @@ bool FCosmicStabilityCountBoundaryTest::RunTest(const FString& Parameters)
 	ON_SCOPE_EXIT { Sim->SetTables(Original); };
 
 	// A Stability change by a per-tick source is counted in the tick it happens: the drain of pressure takes a
-	// civilization below the threshold and LowStabilityTicks is 1 at the end of that tick.
+	// civilization below the threshold and LowStabilityTicks is 1 at the end of that tick. The knobs are the test's own
+	// and the tick has no event rows.
 	{
 		const FName Presser(TEXT("tr_presser"));
 		UDataTable* Table = NewTable(FTranscendentDef::StaticStruct());
 		Table->AddRow(Presser, Fallen(EAscensionTier::Tier4_Transcendent, 0.f));
-		Sim->SetTables(WithTranscendents(Original, Table));
+		FCosmicRulesDef Knobs = BaseRules;
+		Knobs.PressureBySourceTier = { 0.f, 0.f, 0.25f, 1.f, 2.f };
+		Knobs.SpiritualPressureStabilityDrain = 0.002f;
+		FCosmicDataTables Tables = WithTranscendents(WithRules(Original, Knobs), Table);
+		Tables.Events = nullptr;
+		Sim->SetTables(Tables);
 		Sim->NewGalaxy(42, 12, 4);
 		FGalaxyState& State = Sim->GetMutableState();
 		State.Transcendents.Reset();
 		AddInstance(State, Presser, { State.Civs[1].HomeSystemID });
-		// What one tick takes from a tier-1 people whose capital lies in the sphere of a tier-4 source of depth 0.
-		const float Drain = Sim->GetRules().SpiritualPressureStabilityDrain * Sim->GetRules().PressureBySourceTier[3];
-		// Half a drain above the threshold: one tick of pressure crosses it.
-		const float JustAbove = 0.3f + 0.5f * Drain;
+		// Half a drain above the threshold: one tick under a tier-4 source of depth 0 (pressure 1) crosses it.
+		const float JustAbove = 0.3f + 0.5f * 0.002f;
 		State.Civs[1].Stability = JustAbove;
-		const bool bStartsUncounted = State.Civs[1].LowStabilityTicks == 0 && Drain > 0.f;
+		const bool bStartsUncounted = State.Civs[1].LowStabilityTicks == 0 && JustAbove > 0.3f;
 		Sim->RunHeadless(1);
 		TestTrue(TEXT("The drain of pressure that crosses the threshold in a tick is counted in that tick"),
 			bStartsUncounted && State.Civs[1].Stability < 0.3f && State.Civs[1].LowStabilityTicks == 1);
@@ -727,10 +986,7 @@ bool FCosmicStabilityCountBoundaryTest::RunTest(const FString& Parameters)
 		Def.Subject = ECosmicEventSubject::Civilization;
 		Def.BaseWeight = 0.f;
 		Def.CooldownTicks = 100000;
-		FCosmicEffect Effect;
-		Effect.Type = EEffectType::ChangeStability;
-		Effect.Value = -0.5f;
-		Def.Effects.Add(Effect);
+		Def.Effects.Add(Effect(EEffectType::ChangeStability, nullptr, -0.5f));
 		UDataTable* Events = NewTable(FCosmicEventDef::StaticStruct());
 		Events->AddRow(FName(TEXT("evt_test_unrest")), Def);
 

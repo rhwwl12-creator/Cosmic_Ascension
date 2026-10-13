@@ -14,9 +14,9 @@
 // civilization without systems, removed by the crossing stage).
 //
 // Not here yet: the three effects that reach into the hazard stage (SpawnHazard, ResolveHazard, TransferSystem) are
-// turned away until the hazard step of Phase 2 gives each its one path. What has to follow such a change of the world
+// turned away until the crisis handling work of Phase 2 gives each its one path. What has to follow such a change of the world
 // (a system the vessel's civilization received becomes known, the hazard's own line, the outbreak row) is added to this
-// header in that step, with the code that produces it.
+// header in that work, with the code that produces it.
 
 #pragma once
 
@@ -203,11 +203,13 @@ public:
 	 * - Tier values are tier numbers 1..5 (section 7.3).
 	 * - A condition whose Key names something the view cannot resolve is false. The other party of CivRelationAtLeast
 	 *   (its Key, or the OtherID of the view when the Key is empty) resolves only when it is the CivID of a living
-	 *   civilization, the TranscendentID of a transcendent in State.Transcendents, or the name of a DT_Transcendents row
-	 *   (a celestial row has no state instance and is still a party). The tick count of CivStabilityBelowFor resolves
-	 *   only when its Key is digits alone (nine at most) and above zero.
+	 *   civilization, the TranscendentID of a transcendent in State.Transcendents, or the name of a celestial row of
+	 *   DT_Transcendents (it never has a state instance and is still a party; a fallen or independent row is a party
+	 *   only as an instance of the run). The tick count of CivStabilityBelowFor resolves only when its Key is digits
+	 *   alone (nine at most) and above zero.
 	 * - SystemPressureAtLeast reads P of the subject system from UGalaxySimulationSubsystem::ComputePressureIn over the
-	 *   state of the view.
+	 *   state of the view. It is the whole sum: the term of the civilization that owns the system and the term of a
+	 *   wanderer standing there count like the term of a transcendent (section 16 #62).
 	 */
 	static bool Check(const FCosmicCondition& Condition, const FCosmicEvalView& View);
 
@@ -218,7 +220,12 @@ public:
 	 * One effect on the subject of Ctx, in place. World state only: it never tells a line, never writes Knowing, never
 	 * fires a row or a delegate and never changes the number of elements of Civs or Systems. Returns false when a guard
 	 * turned the effect away or its subject is missing: nothing in FGalaxyState was changed (NameNotable has still drawn
-	 * its one number from Ctx.Stream), and the caller goes on with the next effect.
+	 * its one number from Ctx.Stream, unless a per-tick source asked), and the caller goes on with the next effect.
+	 * - A per-tick source (Ctx.bPerTickSource) applies the seven effects that change an amount and no other:
+	 *   AddResource, MultiplyIncome, ShiftEthics, ChangeStability, ChangeRelation, ChangeReverence, ChangePopulation.
+	 *   Every other effect is turned away before anything is read or drawn, so the economy stage never draws, never
+	 *   records a role effect, never touches the vessel and never sets a mark that a row sets once (section 7.5). An
+	 *   effect type appended to the enum is refused there until it joins the list.
 	 * - KillPlayer and DeposeRuler never run here. They are written to FCallingState (PendingEffect, PendingCause = the
 	 *   effect's Tag, PendingSourceRow = Ctx.SourceRow) and the tenth stage resolves them (section 7.4). Both are recorded
 	 *   only while Calling.LifeState is Embodied and only while PendingEffect is empty: first recorded wins.
@@ -235,21 +242,23 @@ public:
 	 *   per application, before any guard, and throws it away when no record is made: the number of draws of a row
 	 *   depends on its effect list and never on name banks, tiers or caps. It is the only draw in this function.
 	 * - MultiplyIncome scales FCivilizationState.IncomePerTick and is applied only while Ctx.bPerTickSource is set.
+	 *   One multiplication, income x Value, with a Key (one resource) or without (all five). A Value below zero, not
+	 *   a number or not finite reads as 0: an income never turns negative.
 	 * - DurationTicks is not read: Apply keeps no record that could count it down (section 16 #27). Data.Integrity keeps
 	 *   a value above zero out of every effect array but the per-tick sources.
-	 * - SpawnHazard, ResolveHazard and TransferSystem are turned away with one error line until the hazard step gives
+	 * - SpawnHazard, ResolveHazard and TransferSystem are turned away with one error line until the crisis handling work gives
 	 *   each its one path. TransferSystem will never take or release the last owned system of a civilization: only
 	 *   stage code behind the last-system gate can do that (section 4.5, 7.4).
 	 * - An effect whose Key names something the context cannot resolve is turned away. ChangeRelation resolves its
 	 *   other party as CivRelationAtLeast does and writes no entry for one that does not resolve: the keys of
-	 *   Relations are saved, and they are living civilizations and transcendents of the run only.
+	 *   Relations are saved, and they are living civilizations, transcendents of the run and celestial rows only.
 	 * - NameNotable closes the open record of the same role with LastTick = max(Tick, 1): 0 marks an open record, so a
 	 *   record closed before the first tick still reads as closed (section 16 #35).
 	 */
 	static bool Apply(const FCosmicEffect& Effect, FCosmicEvalContext& Ctx);
 
 	// Apply over Effects in array order. A turned-away effect does not stop the rest. Like Apply it only changes the world:
-	// stage code that applies an array of its own (the per-tick sources; from later steps hazard expiry and resolution,
+	// stage code that applies an array of its own (the per-tick sources; from later work items hazard expiry and resolution,
 	// the cost of a feat, the outcome of an encounter) tells its own line afterwards, never in between.
 	static void ApplyAll(TConstArrayView<FCosmicEffect> Effects, FCosmicEvalContext& Ctx);
 

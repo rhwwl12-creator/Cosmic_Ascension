@@ -2,6 +2,8 @@
 
 #include "Sim/GalaxySimulationSubsystem.h"
 
+#include "Containers/ArrayView.h"
+#include "Containers/BitArray.h"
 #include "Core/CosmicSeed.h"
 #include "Cosmic_Ascension.h"
 #include "Data/CosmicRowNames.h"
@@ -62,6 +64,9 @@ namespace
 
 	// Stability below this counts toward FCivilizationState.LowStabilityTicks (section 4.1).
 	constexpr float LowStabilityThreshold = 0.3f;
+
+	// At most this many fallen transcendents are active in a run (section 4.2).
+	constexpr int32 MaxFallenRoster = 3;
 
 	// Index for the tables with one entry per tier.
 	int32 TierIndex(EAscensionTier Tier)
@@ -129,7 +134,9 @@ namespace
 		case ECosmicSphereReach::Inside:
 			return 1.f;
 		case ECosmicSphereReach::Adjacent:
-			return FMath::Clamp(Rules.PressureAdjacencyFalloff, 0.f, 1.f);
+			// The range of the knob is a lint; the guard is here. A comparison and not FMath::Clamp, which hands back the
+			// upper bound for a value that is not a number: such a value reads as 0, like one below zero.
+			return Rules.PressureAdjacencyFalloff > 0.f ? FMath::Min(Rules.PressureAdjacencyFalloff, 1.f) : 0.f;
 		default:
 			return 0.f;
 		}
@@ -153,13 +160,29 @@ namespace
 		}
 	}
 
+	// The rows of the transcendents that press, along State.Transcendents: null for a sealed one and for one whose row the
+	// tables do not hold.
+	using FPressingDefs = TArray<const FTranscendentDef*, TInlineAllocator<4>>;
+
+	FPressingDefs PressingDefsOf(const FGalaxyState& InState, const FCosmicDataTables& InTables)
+	{
+		FPressingDefs Defs;
+		Defs.Reserve(InState.Transcendents.Num());
+		for (const FTranscendentState& Transcendent : InState.Transcendents)
+		{
+			Defs.Add(Transcendent.bSealed ? nullptr : InTables.FindTranscendent(Transcendent.TranscendentID));
+		}
+		return Defs;
+	}
+
 	/**
-	 * The pressure on one system (section 4.2), with the reach of every transcendent handed in as ReachOf(index into
-	 * Transcendents). ComputePressureIn hands in SphereReachIn, the economy stage its table of the tick: one body, so
-	 * both give the same number for the same state.
+	 * The pressure on one system (section 4.2), with the rows of the pressing transcendents handed in as Defs (along
+	 * Transcendents, see PressingDefsOf) and the reach of every transcendent as ReachOf(index into Transcendents).
+	 * ComputePressureIn hands in SphereReachIn, the economy stage its table of the tick: one body, so both give the
+	 * same number for the same state.
 	 */
 	template <typename ReachOfType>
-	FCosmicPressure PressureWithReach(const FGalaxyState& InState, const FCosmicStateIndex& InIndex, const FCosmicDataTables& InTables, const FCosmicRulesDef& InRules, int32 SystemIndex, ReachOfType&& ReachOf)
+	FCosmicPressure PressureWithReach(const FGalaxyState& InState, const FCosmicStateIndex& InIndex, const FCosmicRulesDef& InRules, TConstArrayView<const FTranscendentDef*> Defs, int32 SystemIndex, ReachOfType&& ReachOf)
 	{
 		FCosmicPressure Out;
 		if (!InState.Systems.IsValidIndex(SystemIndex))
@@ -172,13 +195,14 @@ namespace
 		for (int32 TranscendentIndex = 0; TranscendentIndex < InState.Transcendents.Num(); ++TranscendentIndex)
 		{
 			const FTranscendentState& Transcendent = InState.Transcendents[TranscendentIndex];
-			const FTranscendentDef* Def = Transcendent.bSealed ? nullptr : InTables.FindTranscendent(Transcendent.TranscendentID);
+			const FTranscendentDef* Def = Defs.IsValidIndex(TranscendentIndex) ? Defs[TranscendentIndex] : nullptr;
 			if (!Def)
 			{
 				continue;
 			}
-			// Depth inside the tier (section 3.2). The range is a lint; the guard is here.
-			const float Depth = FMath::Clamp(Def->Depth, 0.f, 1.f);
+			// Depth inside the tier (section 3.2). The range is a lint; the guard is here, and a value that is not a number
+			// reads as 0.
+			const float Depth = Def->Depth > 0.f ? FMath::Min(Def->Depth, 1.f) : 0.f;
 			const float Term = PressureWeight(InRules, Def->Tier) * (1.f + Depth) * ReachFactor(ReachOf(TranscendentIndex), InRules);
 			AddPressureTerm(Out, Largest, Term, ECosmicPressureSource::Transcendent, Transcendent.TranscendentID, Def->Tier);
 		}
@@ -602,8 +626,15 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 			Transcendent.Doctrine = Def.Doctrine;
 		};
 
+		// The range of the knob is a lint; the guard is here, with one line when it bites.
+		const int32 Places = FMath::Clamp(Rules.FallenTranscendentCount, 0, MaxFallenRoster);
+		if (Places != Rules.FallenTranscendentCount)
+		{
+			UE_LOG(LogCosmic, Error, TEXT("DT_Rules: FallenTranscendentCount %d is outside 0..%d, read as %d"), Rules.FallenTranscendentCount, MaxFallenRoster, Places);
+		}
+
 		const FTranscendentDef* Silence = Tables.FindTranscendent(CosmicRows::TransSilence);
-		if (Rules.FallenTranscendentCount >= 1 && Silence && Silence->Allegiance == AbyssalTag)
+		if (Places >= 1 && Silence && Silence->Allegiance == AbyssalTag)
 		{
 			AddTranscendent(CosmicRows::TransSilence, *Silence);
 		}
@@ -613,7 +644,8 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 		for (const FName RowName : Tables.GetTranscendentRowNames())
 		{
 			const FTranscendentDef* Row = Tables.FindTranscendent(RowName);
-			if (Row && RowName != CosmicRows::TransSilence && Row->Allegiance == AbyssalTag && Row->SpawnWeight > 0.f)
+			// A weight that is zero, below zero, not a number or not finite is no candidate.
+			if (Row && RowName != CosmicRows::TransSilence && Row->Allegiance == AbyssalTag && Row->SpawnWeight > 0.f && FMath::IsFinite(Row->SpawnWeight))
 			{
 				Candidates.Add(RowName);
 			}
@@ -621,7 +653,7 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 
 		// One draw per remaining place of the roster, whatever the table holds: a draw without a candidate is thrown
 		// away, so the number of draws follows the knob alone.
-		for (int32 Place = 1; Place < Rules.FallenTranscendentCount; ++Place)
+		for (int32 Place = 1; Place < Places; ++Place)
 		{
 			const float Roll = Rng.FRand();
 
@@ -684,11 +716,21 @@ void UGalaxySimulationSubsystem::SetTimeScale(float Scale)
 
 void UGalaxySimulationSubsystem::StepOnce()
 {
+	if (IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("StepOnce called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return;
+	}
 	SimulateTick();
 }
 
 void UGalaxySimulationSubsystem::RunHeadless(int64 Ticks)
 {
+	if (IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("RunHeadless called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return;
+	}
 	TGuardValue<bool> GateGuard(bBroadcastEnabled, false);
 	for (int64 Index = 0; Index < Ticks; ++Index)
 	{
@@ -720,7 +762,8 @@ float UGalaxySimulationSubsystem::ComputeSpiritualPressure(FName SystemID, FName
 
 FCosmicPressure UGalaxySimulationSubsystem::ComputePressureIn(const FGalaxyState& InState, const FCosmicStateIndex& InIndex, const FCosmicDataTables& InTables, const FCosmicRulesDef& InRules, int32 SystemIndex)
 {
-	return PressureWithReach(InState, InIndex, InTables, InRules, SystemIndex, [&InState, SystemIndex](int32 TranscendentIndex)
+	const FPressingDefs Defs = PressingDefsOf(InState, InTables);
+	return PressureWithReach(InState, InIndex, InRules, Defs, SystemIndex, [&InState, SystemIndex](int32 TranscendentIndex)
 	{
 		return SphereReachIn(InState, InState.Transcendents[TranscendentIndex], SystemIndex);
 	});
@@ -906,16 +949,17 @@ void UGalaxySimulationSubsystem::SimulateTick()
 
 void UGalaxySimulationSubsystem::TickEconomy()
 {
-	// Which systems lie in the sphere of each transcendent that presses (unsealed, with a row), by system index. Built
-	// once: the pressures of this stage are read from here, not by one call of the public function per system
-	// (section 9.4). ActiveDefs is null for a transcendent that does not press.
+	// The rows of the transcendents that press (unsealed, with a row; null for the others) and which systems lie in the
+	// sphere of each, by system index. Built once: the pressures of this stage are read from here, not by one call of
+	// the public function per system and not by one row lookup per system (section 9.4).
 	const int32 TranscendentCount = State.Transcendents.Num();
-	TArray<const FTranscendentDef*, TInlineAllocator<4>> ActiveDefs;
+	const FPressingDefs ActiveDefs = PressingDefsOf(State, Tables);
+	const bool bAnyPresser = ActiveDefs.ContainsByPredicate([](const FTranscendentDef* Def) { return Def != nullptr; });
 	TArray<TBitArray<>, TInlineAllocator<4>> InSphere;
-	for (const FTranscendentState& Transcendent : State.Transcendents)
+	for (int32 TranscendentIndex = 0; TranscendentIndex < TranscendentCount; ++TranscendentIndex)
 	{
-		const FTranscendentDef* Def = Transcendent.bSealed ? nullptr : Tables.FindTranscendent(Transcendent.TranscendentID);
-		ActiveDefs.Add(Def);
+		const FTranscendentState& Transcendent = State.Transcendents[TranscendentIndex];
+		const FTranscendentDef* Def = ActiveDefs[TranscendentIndex];
 		TBitArray<>& Members = InSphere.Emplace_GetRef(false, State.Systems.Num());
 		for (const FName SystemID : Transcendent.InfluencedSystems)
 		{
@@ -970,12 +1014,16 @@ void UGalaxySimulationSubsystem::TickEconomy()
 			{
 				continue;
 			}
+			// The lanes are asked only when a transcendent presses: without one nothing reads them.
 			TArray<int32, TInlineAllocator<8>> LaneIndices;
-			for (const FName Lane : State.Systems[SystemIndex].Lanes)
+			if (bAnyPresser)
 			{
-				LaneIndices.Add(StateIndex.FindSystem(State, Lane));
+				for (const FName Lane : State.Systems[SystemIndex].Lanes)
+				{
+					LaneIndices.Add(StateIndex.FindSystem(State, Lane));
+				}
 			}
-			const FCosmicPressure Reading = PressureWithReach(State, StateIndex, Tables, Rules, SystemIndex, [&](int32 TranscendentIndex)
+			const FCosmicPressure Reading = PressureWithReach(State, StateIndex, Rules, ActiveDefs, SystemIndex, [&](int32 TranscendentIndex)
 			{
 				const TBitArray<>& Members = InSphere[TranscendentIndex];
 				if (Members[SystemIndex])
@@ -1003,9 +1051,12 @@ void UGalaxySimulationSubsystem::TickEconomy()
 				}
 			}
 		}
-		if (LargestPressure > 0.f)
+		// The range of the knob is a lint; the guard is here: a knob below zero or not a number takes nothing. The loss is
+		// tested, not the pressure, so that nothing that is not a number reaches Stability.
+		const float Loss = (Rules.SpiritualPressureStabilityDrain > 0.f ? Rules.SpiritualPressureStabilityDrain : 0.f) * LargestPressure;
+		if (Loss > 0.f)
 		{
-			Civ.Stability = FMath::Clamp(Civ.Stability - FMath::Max(0.f, Rules.SpiritualPressureStabilityDrain) * LargestPressure, 0.f, 1.f);
+			Civ.Stability = FMath::Max(0.f, Civ.Stability - Loss);
 		}
 		for (int32 TranscendentIndex = 0; TranscendentIndex < TranscendentCount; ++TranscendentIndex)
 		{
@@ -1082,7 +1133,7 @@ void UGalaxySimulationSubsystem::TickConflict()
 
 void UGalaxySimulationSubsystem::TickHazards()
 {
-	// (a) resolution, (b) countdown and expiry, (c) spawn; Hazard.Claim (section 4.1, 4.2): the hazard step of Phase 2.
+	// (a) resolution, (b) countdown and expiry, (c) spawn; Hazard.Claim (section 4.1, 4.2): the crisis handling work of Phase 2.
 
 	// (d) The event slots: the last step of this stage (section 7.4).
 	UCosmicEventSubsystem* Events = GetGameInstance()->GetSubsystem<UCosmicEventSubsystem>();

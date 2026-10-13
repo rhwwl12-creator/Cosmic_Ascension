@@ -81,7 +81,7 @@ struct COSMIC_ASCENSION_API FCosmicEventDef : public FTableRowBase
 	TArray<FCosmicEffect> Effects;
 
 	// Three or more for Lottery and Standing rows, one or more for Named rows (Data.Integrity). Slots: {Civ}, {System}
-	// and {HomeSystem}, nothing else of section 8.2 ({Hazard} joins with the hazard step). Empty = the row tells
+	// and {HomeSystem}, nothing else of section 8.2 ({Hazard} joins with the crisis handling work). Empty = the row tells
 	// nothing, not its SignRow either.
 	UPROPERTY(EditAnywhere)
 	TArray<FText> LogTemplates;
@@ -364,9 +364,11 @@ struct COSMIC_ASCENSION_API FTranscendentDef : public FTableRowBase
 
 	// Depth inside the tier, 0..1 (section 3.2): the tier says where a being stands, the depth how deep it stands there.
 	// Definition data: never saved, never hashed, and there is no depth of a civilization or of the vessel anywhere in
-	// the state. It scales the transcendent term of spiritual pressure by (1 + Depth) and is read clamped to 0..1: the
-	// range is a lint (Data.Integrity), the guard is in UGalaxySimulationSubsystem::ComputePressureIn. Celestial and
-	// Independent rows carry the column and add no pressure.
+	// the state. It scales the transcendent term of spiritual pressure by (1 + Depth) and is read as 0..1 (a value that
+	// is not a number reads as 0): the range is a lint (Data.Integrity), the guard is in
+	// UGalaxySimulationSubsystem::ComputePressureIn. A Celestial row never gets an instance and so adds no pressure. An
+	// Independent row gets none from the roster of NewGalaxy; an independent instance (Phase 6+) is meant to press with
+	// the plain weight of its tier (section 4.2), so the first such row comes with a rule for its Depth.
 	UPROPERTY(EditAnywhere)
 	float Depth = 0.5f;
 
@@ -377,20 +379,24 @@ struct COSMIC_ASCENSION_API FTranscendentDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	int32 MaxInfluencedSystems = 12;
 
-	// NewGalaxy fallen-roster draw weight. Celestial and Independent rows: 0.
+	// NewGalaxy fallen-roster draw weight. Celestial and Independent rows: 0. A row whose weight is zero, below zero or
+	// not finite is no candidate.
 	UPROPERTY(EditAnywhere)
 	float SpawnWeight = 1.f;
 
 	// Event.* leaf tag -> weight multiplier of Lottery rows of exactly that Category (no parent match), for units whose
 	// system is in the sphere or one lane from it. Factor of one transcendent = min(3, value x (1 +
-	// DT_Rules.SphereEventWeightStep x InfluencedSystems.Num())); several multiply in Transcendents order. A sealed
-	// transcendent has no effect. Read from the pressure step of Phase 2 on.
+	// DT_Rules.SphereEventWeightStep x InfluencedSystems.Num())), never below 0; several multiply in Transcendents
+	// order. A sealed transcendent has no effect. The unit's system is the capital for a Civilization row and the
+	// system itself for a SettledSystem row.
 	UPROPERTY(EditAnywhere)
 	TMap<FGameplayTag, float> EventWeightModifiers;
 
 	// Applied once per tick, in the economy stage, to every civilization of a lower Tier that has a settled system in
 	// the sphere: once per civilization, not once per system (section 4.2, 16 #55). OtherID of the application is this
-	// transcendent. Only effects that make sense every tick (Data.Integrity). Empty for Celestial rows.
+	// transcendent. A per-tick source: only the seven effects that change an amount are applied
+	// (UCosmicEventSubsystem::Apply turns every other away, and Data.Integrity keeps them out of the row). Empty for
+	// Celestial rows.
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicEffect> PressureEffectsPerTick;
 
@@ -534,7 +540,8 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 
 	// ---- Fallen roster, Earth, claims, return lure (section 4.2, 4.4, 5.11) ----
 
-	// Active (unsealed) fallen Transcendents per run. Silence is fixed; the rest are drawn by SpawnWeight.
+	// Active (unsealed) fallen Transcendents per run. Silence is fixed; the rest are drawn by SpawnWeight. Read as 0..3
+	// (section 4.2: at most three active fallen per run): NewGalaxy reports a value outside with one error line.
 	UPROPERTY(EditAnywhere)
 	int32 FallenTranscendentCount = 3;
 

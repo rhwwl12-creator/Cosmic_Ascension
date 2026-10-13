@@ -6,10 +6,13 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Core/GalaxyState.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Misc/AutomationTest.h"
 #include "Sim/GalaxySimulationSubsystem.h"
+
+#include <initializer_list>
 
 namespace CosmicTests
 {
@@ -50,6 +53,57 @@ namespace CosmicTests
 		}
 		Sim->SetTimeScale(0.f);
 		return Sim;
+	}
+
+	// A topology a test knows, whatever the generator made (the generation rules change, a test of reach should not):
+	// every lane is replaced by a chain 0-1-2-...-9 over the systems in array order, a branch from system 4 to system
+	// 10, and system 11 behind 10. So system 4 has three neighbours (3, 5 and 10). False when the state has fewer than
+	// twelve systems.
+	inline bool WireChain(FGalaxyState& State)
+	{
+		if (State.Systems.Num() < 12)
+		{
+			return false;
+		}
+		for (FStarSystemState& System : State.Systems)
+		{
+			System.Lanes.Reset();
+		}
+		auto Link = [&State](int32 A, int32 B)
+		{
+			State.Systems[A].Lanes.Add(State.Systems[B].SystemID);
+			State.Systems[B].Lanes.Add(State.Systems[A].SystemID);
+		};
+		for (int32 Index = 0; Index < 9; ++Index)
+		{
+			Link(Index, Index + 1);
+		}
+		Link(4, 10);
+		Link(10, 11);
+		return true;
+	}
+
+	// Nobody owns anything.
+	inline void ClearOwners(FGalaxyState& State)
+	{
+		for (FStarSystemState& System : State.Systems)
+		{
+			System.OwnerCivID = NAME_None;
+		}
+		for (FCivilizationState& Civ : State.Civs)
+		{
+			Civ.OwnedSystems.Reset();
+		}
+	}
+
+	// Hands systems (indices into Systems) to a civilization. The order given is its OwnedSystems order.
+	inline void Give(FGalaxyState& State, int32 CivIndex, std::initializer_list<int32> SystemIndices)
+	{
+		for (const int32 SystemIndex : SystemIndices)
+		{
+			State.Systems[SystemIndex].OwnerCivID = State.Civs[CivIndex].CivID;
+			State.Civs[CivIndex].OwnedSystems.Add(State.Systems[SystemIndex].SystemID);
+		}
 	}
 }
 

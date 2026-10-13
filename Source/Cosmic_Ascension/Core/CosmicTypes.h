@@ -81,6 +81,8 @@ struct COSMIC_ASCENSION_API FResourcePool
 
 	float Get(ECosmicResource Resource) const;
 	void Add(ECosmicResource Resource, float Amount);
+	// One multiplication on one member: the same float as Member *= Factor (section 9.2).
+	void Scale(ECosmicResource Resource, float Factor);
 };
 
 /** Civilization ethics, three axes in [-1, 1] (section 5.2). They drift with crisis outcomes and ascension costs. */

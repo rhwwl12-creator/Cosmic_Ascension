@@ -93,9 +93,10 @@ public:
 	 * (section 5.10). AI civs draw their archetype from the DT_Civs rows with a positive Weight (section 7.4).
 	 * The fallen roster (section 4.2): the instance of CosmicRows::TransSilence when DT_Transcendents holds that row as
 	 * a Realm.Abyssal row, then DT_Rules.FallenTranscendentCount - 1 draws from the sim stream, each picking one more
-	 * Realm.Abyssal row by SpawnWeight among the rows not active yet, in row-name order. A draw without a candidate is
-	 * thrown away, so the number of draws follows the knob alone, never the table. Celestial and Independent rows get
-	 * no instance. Every sphere starts empty: the starting systems (FTranscendentDef.InitialInfluencedSystems) are
+	 * Realm.Abyssal row by SpawnWeight among the rows not active yet, in row-name order (a row whose weight is not above
+	 * zero or not finite is no candidate). A draw without a candidate is thrown away, so the number of draws follows the
+	 * knob alone, never the table. The knob is read as 0..3, with one error line when it lies outside. Celestial and
+	 * Independent rows get no instance. Every sphere starts empty: the starting systems (FTranscendentDef.InitialInfluencedSystems) are
 	 * placed by the generation change of Phase 2.
 	 * Stamps State.TellRngState with (int32)CosmicSeed::Derive(Seed, "", Tell, 0) before the first line is told.
 	 * Tick 0 is this generated state; the first simulated tick is 1.
@@ -111,12 +112,14 @@ public:
 	UFUNCTION(BlueprintPure)
 	float GetTimeScale() const { return TimeScale; }
 
-	// One tick, with broadcasts as configured. Debug and tests.
+	// One tick, with broadcasts as configured. Debug and tests. Refused with one error line inside a handler of
+	// OnLogEntry or OnEventFired (IsBroadcasting): a handler may only read the state (section 9.4).
 	UFUNCTION(BlueprintCallable)
 	void StepOnce();
 
 	// Runs Ticks ticks with the broadcast gate closed, then restores the gate. Tests, balance runs, interregnum leap (section 4.4).
 	// Not yet: the per-tick ending-condition check that stops a leap early arrives with the endings (section 4.4, 7.4).
+	// Refused like StepOnce inside a handler of OnLogEntry or OnEventFired.
 	UFUNCTION(BlueprintCallable)
 	void RunHeadless(int64 Ticks);
 
@@ -198,9 +201,10 @@ public:
 	static FCosmicPressure ComputePressureIn(const FGalaxyState& InState, const FCosmicStateIndex& InIndex, const FCosmicDataTables& InTables, const FCosmicRulesDef& InRules, int32 SystemIndex);
 
 	// How the sphere of Transcendent reaches a system: the pressure function and the weight factor of the event slots
-	// ask here. The economy stage builds one table of the same reach for the tick instead (section 9.4);
-	// Sim.PressurePerCivilization holds the two together. Reads the Lanes of the system itself, by SystemID (no index
-	// is needed); whether the transcendent is sealed is the caller's question. An index out of range is None.
+	// ask here. The economy stage builds one table of the same reach for the tick instead (section 9.4): the two agree
+	// for every SystemID the state holds, and Sim.PressurePerCivilization holds them together for a people inside a
+	// sphere, one lane from it and out of its reach. Reads the Lanes of the system itself, by SystemID (no index is
+	// needed); whether the transcendent is sealed is the caller's question. An index out of range is None.
 	static ECosmicSphereReach SphereReachIn(const FGalaxyState& InState, const FTranscendentState& Transcendent, int32 SystemIndex);
 
 	// Population band (section 1.3, 8.3). Derived, never saved, never hashed: civ Tier baseline, adjusted by Population against
@@ -250,10 +254,13 @@ private:
 	// - FTranscendentDef.PressureEffectsPerTick of every unsealed transcendent of a Tier above the civilization's whose
 	//   sphere holds one of its settled systems: once per transcendent, in the order of State.Transcendents, through
 	//   UCosmicEventSubsystem::ApplyAll with bPerTickSource. Subject = the civilization and the first such system in
-	//   OwnedSystems order; OtherID and SourceRow = the TranscendentID.
+	//   OwnedSystems order; OtherID and SourceRow = the TranscendentID. A people that only borders the sphere is drained
+	//   and takes none of these effects.
 	// - Edict and trait rows, from Phase 4.
-	// The pressures are read from one table of sphere reach built at the start of the stage, not by one call of the
-	// public function per system (section 9.4). No draw.
+	// A per-tick source applies the seven effects that change an amount and no other (UCosmicEventSubsystem::Apply), so
+	// this stage makes no draw and records no role effect, whatever the rows hold.
+	// The pressures are read from one table of sphere membership and one list of rows built at the start of the stage,
+	// not by one call of the public function per system (section 9.4).
 	// Loop two: LowStabilityTicks. Last and separate on purpose: the count reads the Stability every civilization has at
 	// the end of this stage. A Stability change made anywhere else in the tick is first counted one tick later.
 	void TickEconomy();
@@ -264,13 +271,13 @@ private:
 
 	// Stage 5. Four steps in a fixed order (section 7.4): (a) resolution, (b) countdown and expiry in two passes,
 	// (c) spawn, exactly one sim draw per settled system, (d) the event slots, UCosmicEventSubsystem::EvaluateAndFire.
-	// (a) to (c) arrive with the hazard step of Phase 2; (d) is the last step of this stage from now on.
+	// (a) to (c) arrive with the crisis handling work of Phase 2; (d) is the last step of this stage from now on.
 	// KillPlayer and DeposeRuler are only recorded, through UCosmicEventSubsystem::Apply (first recorded wins).
 	void TickHazards();
 
 	// Stage 6. (a) decisions of AI civilizations and regents in Civs array order (a civilization without systems is
 	// skipped); (b) UAscensionSubsystem::EvaluateFeats, exactly once per tick and nowhere else in the tick (from the
-	// ascension step of Phase 2).
+	// ascension judgment work of Phase 2).
 	void TickCivAI();
 
 	// Stage 7. The only place where the number of elements of State.Civs changes. Empty body until Phase 2 (cleanup of

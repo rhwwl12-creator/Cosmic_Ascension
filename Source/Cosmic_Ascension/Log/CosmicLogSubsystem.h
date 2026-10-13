@@ -34,7 +34,7 @@ struct FCosmicLine
 
 	// Viewer tier window, tier numbers 1..5, 0 = no bound on that side. Outside the window the line is out of scope
 	// exactly as a line about an unmet people is: stored bUntold when it is Severity 2, Log.Claim or Log.Record, not
-	// stored otherwise. Carried from now on; read by the scope of telling (a later step of Phase 2).
+	// stored otherwise. Carried from now on; read by the scope of telling (the known scope and log work of Phase 2).
 	uint8 MinViewerTier = 0;
 	uint8 MaxViewerTier = 0;
 };
@@ -43,7 +43,7 @@ struct FCosmicLine
  * Narrative log (section 7.5, 8). Renders templates into FGalaxyState.Log, keeps the cap and moves what must be kept
  * into FGalaxyState.Chronicle. Holds no state of its own: the log lives in the saved state, is hashed by
  * ComputeStateHash (all but the text) and is left out of ComputeWorldHash. So far: Push, PushVariants, PushRow, the cap.
- * The scope of telling, bUntold and SetTellAll arrive with a later step of Phase 2; PickTemplateRow by revelation
+ * The scope of telling, bUntold and SetTellAll arrive with the known scope and log work of Phase 2; PickTemplateRow by revelation
  * context, slot resolution, the interlude mode, BuildChronicle and BuildWorldDigest with Phase 4 and 4b.
  */
 UCLASS()

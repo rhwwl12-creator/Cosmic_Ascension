@@ -38,6 +38,28 @@ namespace CosmicEventImpl
 		return State.Calling.LifeState == ELifeState::Embodied;
 	}
 
+	// The effects a per-tick source may apply (section 7.5): the ones that change an amount. Every other effect is turned
+	// away there, so the economy stage never draws (NameNotable), never records a role effect (KillPlayer, DeposeRuler),
+	// never touches the vessel (PlayerStatDelta, GrantPower), never sets a mark that a row sets once (AddTrait,
+	// RemoveTrait, SetFlag) and never reaches into the hazard stage. A closed list on purpose: an effect type appended to
+	// the enum is refused by a per-tick source until it is added here.
+	bool IsPerTickEffect(EEffectType Type)
+	{
+		switch (Type)
+		{
+		case EEffectType::AddResource:
+		case EEffectType::MultiplyIncome:
+		case EEffectType::ShiftEthics:
+		case EEffectType::ChangeStability:
+		case EEffectType::ChangeRelation:
+		case EEffectType::ChangeReverence:
+		case EEffectType::ChangePopulation:
+			return true;
+		default:
+			return false;
+		}
+	}
+
 	// Tier number 1..5, the unit of every Tier value in definition data (section 7.3).
 	float TierNumber(EAscensionTier Tier)
 	{
@@ -125,10 +147,12 @@ namespace CosmicEventImpl
 		return State.Transcendents.FindByPredicate([TranscendentID](const FTranscendentState& Each) { return Each.TranscendentID == TranscendentID; });
 	}
 
-	// The other party of a relation (section 5.5): OtherOf, resolved. A key of Relations is a living people or a
-	// transcendent of the run; any other name (a selector word nothing resolves, a people that is gone, a misspelt row)
-	// is NAME_None, so that it is neither read as a neutral relation nor written into the save. A celestial row has no
-	// state instance (section 4.2) and is a party all the same: a row name of DT_Transcendents resolves too.
+	// The other party of a relation (section 5.5): OtherOf, resolved. A key of Relations is a living people, a
+	// transcendent of the run or a celestial row; any other name (a selector word nothing resolves, a people that is
+	// gone, a misspelt row, a fallen row the roster did not draw) is NAME_None, so that it is neither read as a neutral
+	// relation nor written into the save. A celestial transcendent never has a state instance (section 4.2) and is a
+	// party all the same, by the name of its DT_Transcendents row. A fallen or independent row is a party only as an
+	// instance of the run.
 	FName RelationPartyOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicEvalSubject& Subject, FName Key)
 	{
 		const FName Other = OtherOf(Subject, Key);
@@ -136,12 +160,19 @@ namespace CosmicEventImpl
 		{
 			return NAME_None;
 		}
-		return (FindTranscendent(State, Other) || Tables.FindTranscendent(Other) || Index.FindCiv(State, Other) != INDEX_NONE) ? Other : FName();
+		if (FindTranscendent(State, Other) || Index.FindCiv(State, Other) != INDEX_NONE)
+		{
+			return Other;
+		}
+		const FTranscendentDef* Row = Tables.FindTranscendent(Other);
+		return (Row && Row->Allegiance == FGameplayTag::RequestGameplayTag(FName(TEXT("Realm.Celestial")))) ? Other : FName();
 	}
 
 	// Weight factor of a Lottery row of Category on a unit (section 4.2): the product, over the unsealed transcendents in
 	// array order whose sphere holds the unit's system or lies one lane from it, of min(3, modifier x (1 + step x size
-	// of the sphere)). 1 when no transcendent names that Category or the unit has no system.
+	// of the sphere)), never below 0. 1 when no transcendent names that Category or the unit has no system. The
+	// unit's system is the system of the pair: the capital for a Civilization row, the system itself for a
+	// SettledSystem row.
 	float SphereWeightFactor(const FGalaxyState& State, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, FGameplayTag Category, int32 SystemIndex)
 	{
 		float Factor = 1.f;
@@ -157,8 +188,10 @@ namespace CosmicEventImpl
 			{
 				continue;
 			}
-			// The ranges of the modifier and of the step are a lint; the guard is here: a factor is never below 0.
-			Factor *= FMath::Clamp(*Modifier * (1.f + Rules.SphereEventWeightStep * static_cast<float>(Transcendent.InfluencedSystems.Num())), 0.f, 3.f);
+			// The ranges of the modifier and of the step are a lint; the guard is here: a factor is never below 0 and never
+			// above 3. A comparison and not FMath::Clamp, which hands back the upper bound for a value that is not a number.
+			const float Raw = *Modifier * (1.f + Rules.SphereEventWeightStep * static_cast<float>(Transcendent.InfluencedSystems.Num()));
+			Factor *= Raw > 0.f ? FMath::Min(Raw, 3.f) : 0.f;
 		}
 		return Factor;
 	}
@@ -539,6 +572,12 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 	const FStarSystemState* System = State.Systems.IsValidIndex(Ctx.SystemIndex) ? &State.Systems[Ctx.SystemIndex] : nullptr;
 	FPlayerEntityState& Player = State.Player;
 
+	// Before anything else, the draw of NameNotable included: what a per-tick source may not apply changes nothing.
+	if (Ctx.bPerTickSource && !IsPerTickEffect(Effect.Type))
+	{
+		return false;
+	}
+
 	switch (Effect.Type)
 	{
 	case EEffectType::AddResource:
@@ -560,10 +599,14 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 		{
 			return false;
 		}
+		// The range of Value is a lint; the guard is here. Below zero, not a number and not finite all read as 0: an
+		// income never turns negative, so no stockpile goes below zero through it.
+		const float Factor = (Effect.Value > 0.f && FMath::IsFinite(Effect.Value)) ? Effect.Value : 0.f;
 		ECosmicResource Resource = ECosmicResource::Energy;
 		if (ResourceOf(Effect.Key, Resource))
 		{
-			Civ->IncomePerTick.Add(Resource, Civ->IncomePerTick.Get(Resource) * (Effect.Value - 1.f));
+			// The same single multiplication as the form without a Key below: both give the same float.
+			Civ->IncomePerTick.Scale(Resource, Factor);
 			return true;
 		}
 		if (!Effect.Key.IsNone())
@@ -571,11 +614,11 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 			return false;
 		}
 		// An empty Key scales all five.
-		Civ->IncomePerTick.Energy *= Effect.Value;
-		Civ->IncomePerTick.Matter *= Effect.Value;
-		Civ->IncomePerTick.Insight *= Effect.Value;
-		Civ->IncomePerTick.Influence *= Effect.Value;
-		Civ->IncomePerTick.Causality *= Effect.Value;
+		Civ->IncomePerTick.Energy *= Factor;
+		Civ->IncomePerTick.Matter *= Factor;
+		Civ->IncomePerTick.Insight *= Factor;
+		Civ->IncomePerTick.Influence *= Factor;
+		Civ->IncomePerTick.Causality *= Factor;
 		return true;
 	}
 
@@ -631,7 +674,7 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 	case EEffectType::SpawnHazard:
 	case EEffectType::ResolveHazard:
 	case EEffectType::TransferSystem:
-		UE_LOG(LogCosmic, Error, TEXT("Apply: effect type %d of row %s reaches into the hazard stage, which has no path for it yet (hazard step of Phase 2)"),
+		UE_LOG(LogCosmic, Error, TEXT("Apply: effect type %d of row %s reaches into the hazard stage, which has no path for it yet (crisis handling work of Phase 2)"),
 			static_cast<int32>(Effect.Type), *Ctx.SourceRow.ToString());
 		return false;
 

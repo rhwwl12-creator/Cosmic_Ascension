@@ -66,8 +66,8 @@ struct COSMIC_ASCENSION_API FCosmicLogEntry
 	FName FocusSystemID;
 
 	// Subject civilization of the line. NAME_None = none. Pairs with FocusSystemID: the scope of telling judges both at
-	// the push (section 8.1). Push and PushVariants store it. A fired event row passes its subject civilization (Phase 2
-	// step 1); TickResearch passes it from the Phase 2 generation change on.
+	// the push (section 8.1). Push and PushVariants store it. A fired event row passes its subject civilization (the
+	// event evaluator); TickResearch passes it from the Phase 2 generation change on.
 	UPROPERTY(BlueprintReadOnly)
 	FName FocusCivID;
 

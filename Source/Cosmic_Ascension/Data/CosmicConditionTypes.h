@@ -30,7 +30,8 @@ enum class EConditionType : uint8
 	// True only when MegaprojectCompletedTick > 0 and >= the SinceTick of the evaluation: 0 for events, hazards and AI
 	// feats, Calling.BornTick only in the judgment of the player's feats (section 4.4, 7.5).
 	MegaprojectComplete,
-	// Spiritual pressure P(System) >= Value (section 4.2).
+	// Spiritual pressure P(System) >= Value (section 4.2). The whole sum of the system: the term of the civilization
+	// that owns it and of a wanderer standing there count too (section 16 #62).
 	SystemPressureAtLeast,
 	// Key = TranscendentID.
 	SystemInfluencedBy,

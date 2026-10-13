@@ -26,3 +26,15 @@ void FResourcePool::Add(ECosmicResource Resource, float Amount)
 	case ECosmicResource::Causality: Causality += Amount; break;
 	}
 }
+
+void FResourcePool::Scale(ECosmicResource Resource, float Factor)
+{
+	switch (Resource)
+	{
+	case ECosmicResource::Energy: Energy *= Factor; break;
+	case ECosmicResource::Matter: Matter *= Factor; break;
+	case ECosmicResource::Insight: Insight *= Factor; break;
+	case ECosmicResource::Influence: Influence *= Factor; break;
+	case ECosmicResource::Causality: Causality *= Factor; break;
+	}
+}

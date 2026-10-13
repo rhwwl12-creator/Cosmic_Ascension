@@ -28,10 +28,10 @@ private:
 
 namespace CosmicState
 {
-	// Settled = owned and not being settled (section 5.7). The one predicate for it. The event slots use it now. Still to
-	// take it up: the count of Law.Remnant and the hazard spawn draw (hazard step), settlement adjacency and the income
-	// loop of TickEconomy, which is not filtered yet (settlement step, with project_settle), succession candidates
-	// (Phase 4b).
+	// Settled = owned and not being settled (section 5.7). The one predicate for it. The event slots and the pressure
+	// pass of the economy stage use it now. Still to take it up: the count of Law.Remnant and the hazard spawn draw
+	// (crisis handling work), settlement adjacency and the income loop of TickEconomy, which is not filtered yet
+	// (settlement and removal work, with project_settle), succession candidates (Phase 4b).
 	inline bool IsSettled(const FStarSystemState& System)
 	{
 		return !System.OwnerCivID.IsNone() && System.ActiveMegaproject != CosmicRows::ProjectSettle;
