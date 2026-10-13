@@ -40,6 +40,10 @@ Build/*/**
 # Baked lighting data (static lighting is disabled for this project)
 *_BuiltData.uasset
 
+# Python bytecode of the helpers under Tools/
+__pycache__/
+*.pyc
+
 # OS noise
 Thumbs.db
 desktop.ini

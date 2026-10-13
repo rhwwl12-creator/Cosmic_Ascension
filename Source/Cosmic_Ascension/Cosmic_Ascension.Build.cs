@@ -30,7 +30,9 @@ public class Cosmic_Ascension : ModuleRules
 		});
 
 		// EngineSettings: UGameMapsSettings, read by the balance commandlet to create its GameInstance (guideline section 9.3).
-		PrivateDependencyModuleNames.AddRange(new string[] { "EngineSettings" });
+		// Json: the automation test Data.Integrity reads Tools/data/schema.json (guideline section 7.3, 9.3). Tests only:
+		// no Core Logic code parses JSON.
+		PrivateDependencyModuleNames.AddRange(new string[] { "EngineSettings", "Json" });
 
 		// CommonUI is intentionally NOT a dependency (guideline section 6.3). Revisit only if gamepad / Steam Deck support becomes a goal.
 	}

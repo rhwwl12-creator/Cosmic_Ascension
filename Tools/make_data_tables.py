@@ -23,11 +23,16 @@ Facts read from the UE 5.8.3 source (see CLAUDE.md for the summary):
     started, add to arrays such as Templates and NameBank at the end only, and never delete a DT_ asset to recreate it
     (a new package gets a new namespace). This script refills the existing asset in place for that reason.
 
+What it checks before it touches an asset: the sources against Tools/data/schema.json (Tools/cosmic_data_schema.py,
+the same check as "python Tools/check_data.py": row names, references, tags, ranges, the usage of conditions and
+effects). One problem stops the run. The tables this script builds have to be the tables of the folder and of the schema.
+
 What it checks before saving: every table is exported again and compared with the JSON value by value, and a column
 of the row struct that the JSON does not spell out is an error. String Table entries are compared key by key and text
-by text. On success it writes Tools/data/generated.sha1 (one "<file> <sha1>" line per source, carriage returns left
-out of the hash); the automation test Cosmic_Ascension.Data.SourcesInSync compares the sources with that stamp, so a
-source edited without running this script again fails there. The stamp is removed first, so a failed run leaves none.
+by text. On success it writes Tools/data/generated.sha1 (one "<file> <sha1>" line per source and one for schema.json,
+carriage returns left out of the hash); the automation test Cosmic_Ascension.Data.SourcesInSync compares the sources
+with that stamp, so a source or a schema edited without running this script again fails there. The stamp is removed
+first, so a failed run leaves none.
 """
 import csv
 import hashlib
@@ -35,8 +40,13 @@ import io
 import json
 import os
 import re
+import sys
 
 import unreal
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import cosmic_data_schema  # noqa: E402  (the import needs the path above)
 
 DATA_FOLDER = "/Game/CA/Data"
 TABLES = [
@@ -206,8 +216,28 @@ def make_string_table(asset_name):
     log("%s: %d entries written and verified" % (asset_name, len(keys)))
 
 
+def check_sources():
+    """The sources against the schema, before any asset is touched. Raises with every problem in the message."""
+    schema, tables, tags = cosmic_data_schema.load_project()
+    problems = cosmic_data_schema.check(schema, tables, tags)
+    # What this script builds is what the folder holds and what the schema declares, struct by struct.
+    built = dict(TABLES)
+    for table_name in sorted(set(tables) - set(built)):
+        problems.append("%s.json is in Tools/data and this script does not build it: add it to TABLES" % table_name)
+    for table_name, struct_name in TABLES:
+        if table_name not in tables:
+            problems.append("Tools/data/%s.json is missing: this script builds that table" % table_name)
+        declared = schema.get("tables", {}).get(table_name, {}).get("struct")
+        if declared != struct_name:
+            problems.append("%s: this script builds it from %s, the schema says %s" % (table_name, struct_name, declared))
+    if problems:
+        raise RuntimeError("the sources do not hold Tools/data/schema.json (%d):\n  %s" % (len(problems), "\n  ".join(problems)))
+    log("schema: %d tables checked, no problem" % len(tables))
+
+
 def write_stamp(file_names):
-    """Record the hash of every source that became an asset (carriage returns left out, as the automation test does)."""
+    """Record the hash of every source that became an asset and of the schema they were checked against (carriage
+    returns left out, as the automation test does)."""
     lines = []
     for file_name in file_names:
         with open(os.path.join(SOURCE_DIR, file_name), "rb") as handle:
@@ -221,8 +251,9 @@ def write_stamp(file_names):
 if os.path.exists(os.path.join(SOURCE_DIR, STAMP_FILE)):
     os.remove(os.path.join(SOURCE_DIR, STAMP_FILE))
 
+check_sources()
 for table_name, table_struct in TABLES:
     make_table(table_name, table_struct)
 make_string_table(STRING_TABLE)
-write_stamp([table_name + ".json" for table_name, _ in TABLES] + [STRING_TABLE + ".csv"])
+write_stamp([table_name + ".json" for table_name, _ in TABLES] + [STRING_TABLE + ".csv", cosmic_data_schema.SCHEMA_FILE])
 log("done")

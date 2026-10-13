@@ -1,0 +1,307 @@
+{
+	"version": 1,
+	"about": [
+		"Definition schema of Cosmic Ascension (guideline.md section 7.3, 9.3 Data.Integrity, 10.4).",
+		"Authoring time only: nothing here reaches a runtime struct, the hash or a save.",
+		"Checked by Tools/cosmic_data_schema.py when Tools/make_data_tables.py builds the assets (python Tools/check_data.py runs the same check without the editor) and by the automation test Cosmic_Ascension.Data.Integrity over the loaded assets.",
+		"Every column of a row struct is declared here: a column added to a struct needs its line.",
+		"Column kinds (closed list): plain, number, numbers, text, texts, tag, tags, tag_list, tag_map, row, row_map, word_map, enum, conditions, effects.",
+		"A row rule is 'when -> then' over tests; the tests are a closed list too: one column with one of is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, or 'row' with a row name.",
+		"A number range stands here only where the guideline states one. A column without a range is checked for being a finite number.",
+		"The keys of this file and the options of each kind are closed lists in the checker: a key nothing reads is a problem, so a misspelt option cannot switch its check off.",
+		"What a rule names has to exist: a test over a column the table does not declare, a tag the ini lacks or a name that is no enumerator is a problem (it would never hold).",
+		"A table whose columns are null has no rows yet: its columns are declared when its first row is written."
+	],
+	"tag_sources": ["Config/DefaultGameplayTags.ini"],
+	"required_tags": ["Notable.Ruler", "Notable.Regent", "Notable.Rebel", "Notable.Loyalist", "Notable.Hearer", "Notable.Ascendant"],
+	"row_name_pattern": "^[a-z][a-z0-9_]*$",
+
+	"words": {
+		"resource": ["Energy", "Matter", "Insight", "Influence", "Causality"],
+		"axis": ["Pacifism", "Spiritualism", "Openness"],
+		"stat": ["Body", "Mind", "Causality", "Exaltation"],
+		"role": ["Ruler", "Wanderer"],
+		"civ_selector": ["Former"],
+		"policy": ["Cautious", "Reckless", "Faithful", "Tribute"]
+	},
+
+	"enums": {
+		"EAscensionTier": ["Tier1_Planetary", "Tier2_Stellar", "Tier3_Causal", "Tier4_Transcendent", "Tier5_EternalOrder"],
+		"ECosmicEventTrigger": ["Lottery", "Standing", "Named"],
+		"ECosmicEventSubject": ["Civilization", "SettledSystem"]
+	},
+
+	"single_variant_rows": ["log_first_life", "log_first_contact"],
+
+	"event_log_categories": {
+		"Event.Civ.Economy": ["Log.Civ"],
+		"Event.Civ.Society": ["Log.Civ"],
+		"Event.Crisis.Supernova": ["Log.Crisis", "Log.Civ"],
+		"Event.Crisis.Rebellion": ["Log.Crisis", "Log.Civ"],
+		"Event.Crisis.Transcendent": ["Log.Transcendent", "Log.Crisis"],
+		"Event.Crisis.Claim": ["Log.Claim", "Log.Record", "Log.Crisis"],
+		"Event.Grace.Rescue": ["Log.Calling"],
+		"Event.Grace.Remnant": ["Log.Civ"],
+		"Event.Grace.Jubilee": ["Log.Civ"]
+	},
+
+	"tables": {
+		"DT_Rules": {
+			"struct": "CosmicRulesDef",
+			"names": ["rules"],
+			"must_exist": true,
+			"required_rows": ["rules"],
+			"columns": {
+				"LeapTicksMin": {"kind": "number"},
+				"LeapTicksMax": {"kind": "number"},
+				"LeapTotalCap": {"kind": "number"},
+				"BirthProtectionTicks": {"kind": "number"},
+				"BaseLifespanTicks": {"kind": "number"},
+				"SuccessionHazardWeight": {"kind": "number"},
+				"SuccessionCivTierWeight": {"kind": "number"},
+				"SuccessionReverenceWeight": {"kind": "number"},
+				"SuccessionReverenceThreshold": {"kind": "number"},
+				"SuccessionSameCivPenalty": {"kind": "number"},
+				"SuccessionMinHazardTicks": {"kind": "number"},
+				"ReverenceDecay": {"kind": "number"},
+				"AIAscensionSpeedMultiplier": {"kind": "number"},
+				"PostRebellionStability": {"kind": "number"},
+				"ThroneLockTicks": {"kind": "number"},
+				"PressureBySourceTier": {"kind": "numbers", "len": 5, "min": 0},
+				"PressureAdjacencyFalloff": {"kind": "number", "min": 0, "max": 1},
+				"SpiritualPressureStabilityDrain": {"kind": "number", "min": 0},
+				"PressureFleetAttrition": {"kind": "number"},
+				"FleetEffectivenessByTierGap": {"kind": "numbers", "len": 3},
+				"FleetDelayPerPower": {"kind": "number"},
+				"FleetDelayCap": {"kind": "number"},
+				"ImmutableLaws": {"kind": "tags", "root": "Law."},
+				"FallenTranscendentCount": {"kind": "number", "min": 0, "max": 3, "integer": true},
+				"PlayerArchetypeRow": {"kind": "row", "table": "DT_Civs"},
+				"ClaimCountdown": {"kind": "number"},
+				"ClaimAdjacencyLanes": {"kind": "number"},
+				"VigilClaimExtension": {"kind": "number"},
+				"SphereEventWeightStep": {"kind": "number", "min": 0},
+				"ReturnLureMaxLanes": {"kind": "number"},
+				"ReturnedLivesToSeize": {"kind": "number"},
+				"LureAcceptByPolicy": {"kind": "word_map", "words": "policy"},
+				"MaxNotablesPerCiv": {"kind": "number", "min": 3, "max": 5, "integer": true},
+				"PopulationBandThresholds": {"kind": "numbers", "len": 3, "ascending": true},
+				"EventSlotTicks": {"kind": "number", "min": 1, "max": 20, "integer": true},
+				"EventChancePerSlot": {"kind": "number", "min": 0}
+			}
+		},
+
+		"DT_Civs": {
+			"struct": "CivArchetypeDef",
+			"prefixes": ["arch_"],
+			"must_exist": true,
+			"required_rows": ["arch_default"],
+			"columns": {
+				"DisplayName": {"kind": "text"},
+				"Traits": {"kind": "tags", "root": "Trait."},
+				"EthicsPreset": {"kind": "plain"},
+				"AIProfile": {"kind": "tag", "root": "AI.Profile.", "optional": true},
+				"Color": {"kind": "plain"},
+				"NameBank": {"kind": "texts", "slots": ["Star"], "no_digits": true},
+				"AdjectiveBank": {"kind": "texts", "len_in": [0, 3], "slots": []},
+				"PersonNameBank": {"kind": "texts", "empty_or_min": 10, "unique": true, "slots": []},
+				"HazardSpawnMultipliers": {"kind": "tag_map", "root": "Hazard.", "min": 0},
+				"InitialRelations": {"kind": "row_map", "table": "DT_Civs", "min": -1, "max": 1, "target": [{"col": "Weight", "gt": 0}]},
+				"Weight": {"kind": "number", "min": 0},
+				"RevelationMode": {"kind": "tag", "root": "Revelation."},
+				"RevelationTemplates": {"kind": "texts", "len_in": [1, 3]},
+				"HomeSystemNames": {"kind": "texts", "slots": []},
+				"HomeStarClass": {"kind": "tag", "root": "Star.Class.", "optional": true},
+				"DedicationBanks": {"kind": "tag_list", "root": "Faith.Bank."}
+			},
+			"rules": [
+				{
+					"why": "the name pattern of a people drawn for the AI calls its home star (guideline 5.11)",
+					"when": [{"col": "Weight", "gt": 0}],
+					"then": [{"col": "NameBank", "each_contains": "{Star}"}]
+				}
+			]
+		},
+
+		"DT_LogTemplates": {
+			"struct": "LogTemplateDef",
+			"prefixes": ["log_"],
+			"must_exist": true,
+			"required_rows": ["log_first_life", "log_breakthrough_physics", "log_breakthrough_society", "log_breakthrough_engineering", "log_breakthrough_transcendence"],
+			"columns": {
+				"Category": {"kind": "tag", "root": "Log."},
+				"Context": {"kind": "tag", "root": "Revelation.", "optional": true},
+				"MinTierToReveal": {"kind": "number", "min": 0, "max": 5, "integer": true},
+				"Templates": {
+					"kind": "texts",
+					"min": 3,
+					"single_variant": true,
+					"slots": ["Civ", "System", "OtherCiv", "Trait", "Value", "Tier", "Hazard", "Player", "HomeSystem", "Dedication", "Epithet", "Revelation", "Transcendent", "Ruler", "Regent", "Rebel", "Loyalist", "Hearer", "Ascendant", "PopBand", "CivAdj"]
+				}
+			},
+			"unique": [
+				{"cols": ["Category", "Context"], "when": [{"col": "Context", "set": true}], "why": "at most one selector row per category and revelation mode"}
+			]
+		},
+
+		"DT_Events": {
+			"struct": "CosmicEventDef",
+			"prefixes": ["event_"],
+			"columns": {
+				"Category": {"kind": "tag", "root": "Event."},
+				"LogCategory": {"kind": "tag", "root": "Log."},
+				"Trigger": {"kind": "enum", "enum": "ECosmicEventTrigger"},
+				"Subject": {"kind": "enum", "enum": "ECosmicEventSubject"},
+				"Conditions": {"kind": "conditions"},
+				"BaseWeight": {"kind": "number", "min": 0},
+				"CooldownTicks": {"kind": "number", "min": 0, "integer": true},
+				"Effects": {"kind": "effects"},
+				"LogTemplates": {"kind": "texts", "slots": ["Civ", "System", "HomeSystem"]},
+				"Severity": {"kind": "number", "min": 0, "max": 2, "integer": true},
+				"MinTierToReveal": {"kind": "number", "min": 0, "max": 5, "integer": true},
+				"SignRow": {"kind": "row", "table": "DT_LogTemplates", "optional": true, "target": [{"col": "Category", "is": "Log.Sign"}]}
+			},
+			"pairs": [
+				{"key": "Category", "value": "LogCategory", "allowed": "event_log_categories", "why": "the log category an event category may tell (guideline 8.1)"}
+			],
+			"rules": [
+				{
+					"why": "a slot row tells with three variants or more, or tells nothing",
+					"when": [{"col": "Trigger", "in": ["Lottery", "Standing"]}, {"col": "LogTemplates", "min_len": 1}],
+					"then": [{"col": "LogTemplates", "min_len": 3}]
+				},
+				{
+					"why": "only a Lottery row has a weight",
+					"when": [{"col": "Trigger", "in": ["Standing", "Named"]}],
+					"then": [{"col": "BaseWeight", "is": 0}]
+				},
+				{
+					"why": "a row fired by name has no cooldown key",
+					"when": [{"col": "Trigger", "is": "Named"}],
+					"then": [{"col": "CooldownTicks", "is": 0}]
+				},
+				{
+					"why": "a sign row is told below MinTierToReveal, so there has to be a tier below it and a line of its own",
+					"when": [{"col": "SignRow", "set": true}],
+					"then": [{"col": "MinTierToReveal", "ge": 2}, {"col": "LogTemplates", "min_len": 1}]
+				},
+				{
+					"why": "a grace row names no one (guideline 9.3: NameNotable is not carried by Event.Grace rows)",
+					"when": [{"col": "Category", "in": ["Event.Grace.Rescue", "Event.Grace.Remnant", "Event.Grace.Jubilee"]}],
+					"then": [{"col": "Effects", "lacks_type": "NameNotable"}]
+				}
+			]
+		},
+
+		"DT_Transcendents": {
+			"struct": "TranscendentDef",
+			"prefixes": ["trans_"],
+			"required_rows": ["trans_silence"],
+			"columns": {
+				"Doctrine": {"kind": "tag", "root": "Doctrine."},
+				"Allegiance": {"kind": "tag", "root": "Realm."},
+				"CounterfeitOf": {"kind": "tag", "root": "Truth.", "optional": true},
+				"Title": {"kind": "text"},
+				"Lure": {"kind": "text"},
+				"Tier": {"kind": "enum", "enum": "EAscensionTier"},
+				"Depth": {"kind": "number", "min": 0, "max": 1},
+				"InitialInfluencedSystems": {"kind": "number", "min": 0, "integer": true},
+				"MaxInfluencedSystems": {"kind": "number", "min": 0, "integer": true},
+				"SpawnWeight": {"kind": "number", "min": 0},
+				"EventWeightModifiers": {"kind": "tag_map", "root": "Event.", "min": 0},
+				"PressureEffectsPerTick": {"kind": "effects", "per_tick": true},
+				"VoiceTemplates": {"kind": "texts"},
+				"ClaimTemplates": {"kind": "texts"}
+			},
+			"unique": [
+				{"cols": ["Doctrine"], "why": "one transcendent per doctrine in a run (guideline 4.2)"}
+			],
+			"rules": [
+				{
+					"why": "the fixed place of the roster belongs to a fallen silence",
+					"when": [{"row": "trans_silence"}],
+					"then": [{"col": "Allegiance", "is": "Realm.Abyssal"}, {"col": "Doctrine", "is": "Doctrine.Silence"}]
+				},
+				{
+					"why": "a fallen transcendent stands on tier 3 or 4, never on tier 5",
+					"when": [{"col": "Allegiance", "is": "Realm.Abyssal"}],
+					"then": [{"col": "Tier", "in": ["Tier3_Causal", "Tier4_Transcendent"]}]
+				},
+				{
+					"why": "a celestial transcendent has no instance: no sphere, no pressure, no roster weight",
+					"when": [{"col": "Allegiance", "is": "Realm.Celestial"}],
+					"then": [
+						{"col": "SpawnWeight", "is": 0},
+						{"col": "InitialInfluencedSystems", "is": 0},
+						{"col": "MaxInfluencedSystems", "is": 0},
+						{"col": "PressureEffectsPerTick", "max_len": 0},
+						{"col": "EventWeightModifiers", "max_len": 0}
+					]
+				},
+				{
+					"why": "the roster of NewGalaxy draws fallen rows only",
+					"when": [{"col": "Allegiance", "is": "Realm.Independent"}],
+					"then": [{"col": "SpawnWeight", "is": 0}]
+				}
+			]
+		},
+
+		"DT_Hazards": {"struct": "HazardDef", "prefixes": ["crisis_"], "columns": null},
+		"DT_Feats": {"struct": "AscensionFeatDef", "prefixes": ["feat_"], "columns": null},
+		"DT_Encounters": {"struct": "EncounterDef", "prefixes": ["enc_", "petition_"], "columns": null}
+	},
+
+	"conditions": {
+		"CivTierAtLeast": {"value": {"min": 1, "max": 5, "integer": true}},
+		"CivHasTrait": {"tag": {"root": "Trait."}},
+		"CivResourceAtLeast": {"key": {"word": "resource"}, "value": {"min": 0}},
+		"CivStabilityBelow": {"value": {"min": 0, "max": 1}},
+		"CivEthicsAxisAbove": {"key": {"word": "axis"}, "value": {"min": -1, "max": 1}},
+		"CivStabilityBelowFor": {"key": {"digits": true}, "value": {"min": 0, "max": 1}},
+		"CivRelationAtLeast": {"key": {"row": "DT_Transcendents", "optional": true}, "value": {"min": -1, "max": 1}},
+		"CivReverenceAtLeast": {"value": {"min": 0, "max": 1}},
+		"SystemHasHazard": {"tag": {"root": "Hazard.", "optional": true}},
+		"SystemOwnedBy": {},
+		"MegaprojectComplete": {},
+		"SystemPressureAtLeast": {"value": {"min": 0}},
+		"SystemInfluencedBy": {"key": {"row": "DT_Transcendents", "optional": true}},
+		"PlayerTierAtLeast": {"value": {"min": 1, "max": 5, "integer": true}},
+		"PlayerInSystemWithHazard": {"tag": {"root": "Hazard.", "optional": true}},
+		"PlayerStatAtLeast": {"key": {"word": "stat"}, "value": {"min": 0, "max": 10}},
+		"PlayerHasRelic": {"key": {"any": true}},
+		"PlayerRoleIs": {"key": {"word": "role"}},
+		"PlayerHasStatus": {"tag": {"root": "Status."}},
+		"PlayerLifeIndexAtLeast": {"value": {"min": 1, "integer": true}},
+		"PlayerAgeAtLeast": {"value": {"min": 0}},
+		"GalaxyTickAtLeast": {"value": {"min": 0}},
+		"TranscendentSealed": {"key": {"row": "DT_Transcendents", "optional": true}},
+		"TranscendentAwareOfPlayer": {"key": {"row": "DT_Transcendents", "optional": true}},
+		"FlagSet": {"tag": {"root": "Flag."}},
+		"FlagNotSet": {"tag": {"root": "Flag."}},
+		"TranscendentDoctrinePresent": {"tag": {"root": "Doctrine."}},
+		"CivHasNotable": {"tag": {"root": "Notable."}, "key": {"word": "civ_selector", "optional": true}}
+	},
+
+	"effects": {
+		"AddResource": {"key": {"word": "resource"}, "value": {}},
+		"MultiplyIncome": {"key": {"word": "resource", "optional": true}, "value": {"min": 0}, "per_tick_only": true},
+		"ShiftEthics": {"key": {"word": "axis"}, "value": {"min": -2, "max": 2}},
+		"AddTrait": {"tag": {"root": "Trait."}},
+		"RemoveTrait": {"tag": {"root": "Trait."}},
+		"ChangeStability": {"value": {"min": -1, "max": 1}},
+		"ChangeRelation": {"key": {"row": "DT_Transcendents", "optional": true}, "value": {"min": -2, "max": 2}},
+		"SpawnHazard": {"tag": {"root": "Hazard."}},
+		"ResolveHazard": {"tag": {"root": "Hazard.", "optional": true}},
+		"TransferSystem": {"key": {"any": true, "optional": true}},
+		"ChangeReverence": {"value": {"min": -1, "max": 1}},
+		"GrantPower": {"tag": {"root": ["Way.", "Power."]}},
+		"PlayerStatDelta": {"key": {"word": "stat"}, "value": {"min": -10, "max": 10, "integer": true}},
+		"SetFlag": {"tag": {"root": "Flag."}},
+		"KillPlayer": {"tag": {"root": "Death."}},
+		"DeposeRuler": {"tag": {"root": "Reign."}},
+		"ChangePopulation": {"value": {"min": -1}},
+		"NameNotable": {"tag": {"root": "Notable."}, "key": {"word": "civ_selector", "optional": true}}
+	},
+
+	"per_tick_effects": ["AddResource", "MultiplyIncome", "ShiftEthics", "ChangeStability", "ChangeRelation", "ChangeReverence", "ChangePopulation"]
+}
