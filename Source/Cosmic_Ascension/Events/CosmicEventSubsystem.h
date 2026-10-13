@@ -203,9 +203,11 @@ public:
 	 * - Tier values are tier numbers 1..5 (section 7.3).
 	 * - A condition whose Key names something the view cannot resolve is false. The other party of CivRelationAtLeast
 	 *   (its Key, or the OtherID of the view when the Key is empty) resolves only when it is the CivID of a living
-	 *   civilization or the TranscendentID of a transcendent in State.Transcendents; a celestial row, which has no state
-	 *   instance, will resolve by row name once DT_Transcendents is among the tables (pressure step). The tick count of
-	 *   CivStabilityBelowFor resolves only when its Key is digits alone (nine at most) and above zero.
+	 *   civilization, the TranscendentID of a transcendent in State.Transcendents, or the name of a DT_Transcendents row
+	 *   (a celestial row has no state instance and is still a party). The tick count of CivStabilityBelowFor resolves
+	 *   only when its Key is digits alone (nine at most) and above zero.
+	 * - SystemPressureAtLeast reads P of the subject system from UGalaxySimulationSubsystem::ComputePressureIn over the
+	 *   state of the view.
 	 */
 	static bool Check(const FCosmicCondition& Condition, const FCosmicEvalView& View);
 
@@ -280,7 +282,11 @@ public:
 	 *       row with a cooldown fires for at most one unit per slot (the first that passes) and a row with
 	 *       CooldownTicks 0 fires for every unit. No draw.
 	 *    b. Lottery rows: the (row, unit) pairs whose conditions pass and whose cooldown is over are laid out in the same
-	 *       order, each with the share BaseWeight x weight factor x DT_Rules.EventChancePerSlot. The number of step 1
+	 *       order, each with the share BaseWeight x weight factor x DT_Rules.EventChancePerSlot. The weight factor is
+	 *       the product, over the unsealed transcendents in the order of State.Transcendents whose sphere holds the
+	 *       unit's system or lies one lane from it, of min(3, EventWeightModifiers[Category of the row] x (1 +
+	 *       DT_Rules.SphereEventWeightStep x size of the sphere)); 1 when no transcendent names that Category. The
+	 *       unit's system of a Civilization row is the capital. The number of step 1
 	 *       picks the pair it falls on, or none: at most one Lottery row per civilization and slot. Shares that add up to
 	 *       more than 1 are scaled down together, and then every number picks a pair: the number is multiplied by the
 	 *       total instead of each share being divided, so no number is left without a pair by rounding.

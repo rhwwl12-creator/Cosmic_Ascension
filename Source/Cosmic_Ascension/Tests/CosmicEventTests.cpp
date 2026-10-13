@@ -194,6 +194,8 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 	Detached.Systems[0].ActiveHazard = Tag(TEXT("Hazard.Plague"));
 	Detached.Systems[0].MegaprojectCompletedTick = 50;
 	{
+		// The two transcendents of the cases and no other: whatever roster the tables of the game gave is taken out.
+		Detached.Transcendents.Reset();
 		FTranscendentState& Active = Detached.Transcendents.AddDefaulted_GetRef();
 		Active.TranscendentID = TrActive;
 		Active.Doctrine = Tag(TEXT("Doctrine.Silence"));
@@ -251,7 +253,9 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		{ Cond(EConditionType::SystemOwnedBy, nullptr, Civ1, 0.f), 0, false },
 		{ Cond(EConditionType::MegaprojectComplete, nullptr, NAME_None, 0.f), 0, true },
 		{ Cond(EConditionType::MegaprojectComplete, nullptr, NAME_None, 0.f), 51, false },
-		{ Cond(EConditionType::SystemPressureAtLeast, nullptr, NAME_None, 0.f), 0, false },
+		// The transcendent of the test has no row in DT_Transcendents, so nothing presses on sol: 0 is reached, more is not.
+		{ Cond(EConditionType::SystemPressureAtLeast, nullptr, NAME_None, 0.f), 0, true },
+		{ Cond(EConditionType::SystemPressureAtLeast, nullptr, NAME_None, 0.1f), 0, false },
 		{ Cond(EConditionType::SystemInfluencedBy, nullptr, TrActive, 0.f), 0, true },
 		{ Cond(EConditionType::SystemInfluencedBy, nullptr, TrSealed, 0.f), 0, false },
 		{ Cond(EConditionType::PlayerTierAtLeast, nullptr, NAME_None, 2.f), 0, true },
@@ -356,6 +360,45 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("With aging on PlayerAgeAtLeast is false one tick above the age"), AgeAtLeast(Detached, Aging, 91.f));
 		TestFalse(TEXT("With aging on PlayerAgeAtLeast is false during the interregnum"), AgeAtLeast(Unborn, Aging, 90.f));
 		TestFalse(TEXT("With aging off PlayerAgeAtLeast is false at any age"), AgeAtLeast(Detached, NoAging, 0.f));
+	}
+
+	// SystemPressureAtLeast reads the pressure function (section 4.2): with a row for the transcendent whose sphere holds
+	// sol, the pressure there is the weight of a tier-4 source. A row name of DT_Transcendents is a relation party even
+	// without an instance in the run: a celestial transcendent has none.
+	{
+		const FName Celestial(TEXT("tr_test_celestial"));
+		FTranscendentDef Presser;
+		Presser.Doctrine = Tag(TEXT("Doctrine.Silence"));
+		Presser.Allegiance = Tag(TEXT("Realm.Abyssal"));
+		Presser.Tier = EAscensionTier::Tier4_Transcendent;
+		Presser.Depth = 0.f;
+		FTranscendentDef Heavenly;
+		Heavenly.Doctrine = Tag(TEXT("Doctrine.Covenant"));
+		Heavenly.Allegiance = Tag(TEXT("Realm.Celestial"));
+		UDataTable* Table = NewTable(FTranscendentDef::StaticStruct());
+		Table->AddRow(TrActive, Presser);
+		Table->AddRow(Celestial, Heavenly);
+		FCosmicDataTables WithRows = Sim->GetTables();
+		WithRows.Transcendents = Table;
+		const float Weight = NoAging.PressureBySourceTier.IsValidIndex(3) ? NoAging.PressureBySourceTier[3] : 0.f;
+		auto CheckWith = [&](const FCosmicDataTables& Tables, const FCosmicCondition& Condition, int32 SystemIndex)
+		{
+			FCosmicEvalView View(Detached, Index, Tables, NoAging);
+			View.CivIndex = 0;
+			View.SystemIndex = SystemIndex;
+			return UCosmicEventSubsystem::Check(Condition, View);
+		};
+		TestTrue(TEXT("The rules give a tier-4 source a weight"), Weight > 0.f);
+		TestTrue(TEXT("SystemPressureAtLeast is true at the pressure of the system"),
+			CheckWith(WithRows, Cond(EConditionType::SystemPressureAtLeast, nullptr, NAME_None, Weight), 0));
+		TestFalse(TEXT("SystemPressureAtLeast is false above the pressure of the system"),
+			CheckWith(WithRows, Cond(EConditionType::SystemPressureAtLeast, nullptr, NAME_None, Weight * 1.01f), 0));
+		TestFalse(TEXT("SystemPressureAtLeast is false without a system"),
+			CheckWith(WithRows, Cond(EConditionType::SystemPressureAtLeast, nullptr, NAME_None, 0.f), INDEX_NONE));
+		TestTrue(TEXT("A row name of DT_Transcendents is a relation party without an instance in the run"),
+			CheckWith(WithRows, Cond(EConditionType::CivRelationAtLeast, nullptr, Celestial, 0.f), 0));
+		TestFalse(TEXT("The same name is no party when the tables do not hold the row"),
+			CheckWith(Sim->GetTables(), Cond(EConditionType::CivRelationAtLeast, nullptr, Celestial, 0.f), 0));
 	}
 
 	// Without a subject every Civ and System condition is false and nothing else changes.
@@ -1733,6 +1776,244 @@ bool FCosmicEventsNotableDrawFixedTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicEventsSphereWeightsTest, "Cosmic_Ascension.Events.SphereWeights", CosmicTests::Flags)
+bool FCosmicEventsSphereWeightsTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicEventTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	UCosmicEventSubsystem* Events = Sim->GetGameInstance()->GetSubsystem<UCosmicEventSubsystem>();
+	const FCosmicDataTables Original = Sim->GetTables();
+	const FCosmicRulesDef BaseRules = Sim->GetRules();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); };
+
+	const FName RowEco(TEXT("evt_test_a_eco"));
+	const FName RowSoc(TEXT("evt_test_b_soc"));
+	const FName RowNames[] = { FName(TEXT("tr_test_first")), FName(TEXT("tr_test_second")) };
+	const FGameplayTag Economy = Tag(TEXT("Event.Civ.Economy"));
+	const float Chance = 0.1f;
+	const float Step = BaseRules.SphereEventWeightStep;
+
+	// Two Lottery rows of weight 1: one of the category the transcendents weigh, one of another.
+	UDataTable* Rows = NewTable(FCosmicEventDef::StaticStruct());
+	Rows->AddRow(RowEco, MakeRow(ECosmicEventTrigger::Lottery, ECosmicEventSubject::Civilization, 1.f, 0));
+	FCosmicEventDef Society = MakeRow(ECosmicEventTrigger::Lottery, ECosmicEventSubject::Civilization, 1.f, 0);
+	Society.Category = Tag(TEXT("Event.Civ.Society"));
+	Rows->AddRow(RowSoc, Society);
+
+	// The reach of a sphere as section 4.2 words it, written out here on its own: the system in it, or one lane from it.
+	auto Reaches = [](const FGalaxyState& State, const TArray<FName>& Sphere, FName SystemID)
+	{
+		const FStarSystemState* System = State.Systems.FindByPredicate([SystemID](const FStarSystemState& Each) { return Each.SystemID == SystemID; });
+		return Sphere.Contains(SystemID) || (System && System->Lanes.ContainsByPredicate([&Sphere](FName Lane) { return Sphere.Contains(Lane); }));
+	};
+
+	// A sphere of two systems that splits the peoples three ways: a capital in it (2), a capital one lane from it (1)
+	// and a capital out of its reach (0).
+	Sim->NewGalaxy(42, 12, 4);
+	TArray<FName> Sphere;
+	TArray<int32> Kinds;
+	{
+		const FGalaxyState& State = Sim->GetState();
+		for (int32 A = 0; A < State.Systems.Num() && Sphere.IsEmpty(); ++A)
+		{
+			for (int32 B = A + 1; B < State.Systems.Num() && Sphere.IsEmpty(); ++B)
+			{
+				const TArray<FName> Candidate = { State.Systems[A].SystemID, State.Systems[B].SystemID };
+				TArray<int32> CandidateKinds;
+				for (const FCivilizationState& Civ : State.Civs)
+				{
+					CandidateKinds.Add(Candidate.Contains(Civ.HomeSystemID) ? 2 : Reaches(State, Candidate, Civ.HomeSystemID) ? 1 : 0);
+				}
+				if (CandidateKinds.Contains(0) && CandidateKinds.Contains(1) && CandidateKinds.Contains(2))
+				{
+					Sphere = Candidate;
+					Kinds = CandidateKinds;
+				}
+			}
+		}
+	}
+	if (!TestTrue(TEXT("The galaxy has a sphere of two systems with a capital inside, a capital one lane away and a capital out of reach"), Sphere.Num() == 2))
+	{
+		return false;
+	}
+
+	// One transcendent of a case: the category it weighs, by how much, and whether it is sealed. All hold the same sphere.
+	struct FWeigher
+	{
+		FGameplayTag Category;
+		float Modifier;
+		bool bSealed;
+	};
+
+	// The row a number picks when the Economy row has this weight factor: the arithmetic of the slot, written out again.
+	auto RowFor = [&](float Roll, float Factor)
+	{
+		const float Eco = 1.f * Factor * Chance;
+		const float Soc = 1.f * 1.f * Chance;
+		const float Total = Eco + Soc;
+		const float Pick = Total > 1.f ? Roll * Total : Roll;
+		return Pick < Eco ? RowEco : (Pick < Eco + Soc) ? RowSoc : FName();
+	};
+
+	// Plays 80 slots for every civilization with the transcendents of a case in place. bMatch says that every fire was
+	// the row the test picks from Factors (one factor per civilization); Rolls keeps the numbers, civilization by
+	// civilization and round by round.
+	struct FPlayed
+	{
+		bool bMatch = true;
+		TArray<float> Rolls;
+	};
+	FScopedProbe Scoped(*Sim);
+	// The step of the rules a case plays under: the step of the game unless a case sets another.
+	float StepOfCase = Step;
+	auto Play = [&](const TArray<FWeigher>& Weighers, const TArray<float>& Factors)
+	{
+		UDataTable* Transcendents = NewTable(FTranscendentDef::StaticStruct());
+		for (int32 WeigherIndex = 0; WeigherIndex < Weighers.Num(); ++WeigherIndex)
+		{
+			FTranscendentDef Def;
+			Def.Doctrine = Tag(TEXT("Doctrine.Zeal"));
+			Def.Allegiance = Tag(TEXT("Realm.Abyssal"));
+			Def.EventWeightModifiers.Add(Weighers[WeigherIndex].Category, Weighers[WeigherIndex].Modifier);
+			Transcendents->AddRow(RowNames[WeigherIndex], Def);
+		}
+		FCosmicRulesDef RulesOfCase = BaseRules;
+		RulesOfCase.SphereEventWeightStep = StepOfCase;
+		FCosmicDataTables Tables = WithEvents(Original, RulesOfCase, Rows, 1, Chance);
+		Tables.Transcendents = Transcendents;
+		Sim->SetTables(Tables);
+		Sim->NewGalaxy(42, 12, 4);
+		FGalaxyState& State = Sim->GetMutableState();
+		// The case places its own transcendents: whatever roster the tables gave is taken out.
+		State.Transcendents.Reset();
+		for (int32 WeigherIndex = 0; WeigherIndex < Weighers.Num(); ++WeigherIndex)
+		{
+			FTranscendentState& Transcendent = State.Transcendents.AddDefaulted_GetRef();
+			Transcendent.TranscendentID = RowNames[WeigherIndex];
+			Transcendent.InfluencedSystems = Sphere;
+			Transcendent.bSealed = Weighers[WeigherIndex].bSealed;
+		}
+
+		FPlayed Played;
+		FRandomStream Handed(777);
+		FRandomStream Probe(777);
+		for (int32 Round = 0; Round < 80; ++Round)
+		{
+			TMap<FName, TArray<FName>> FiredFor;
+			Scoped.Probe->OnEvent = [&FiredFor](const FCosmicEventNotice& Notice) { FiredFor.FindOrAdd(Notice.CivID).Add(Notice.EventRow); };
+			++State.Tick;
+			Events->EvaluateAndFire(State, Handed);
+			for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+			{
+				const float Roll = Probe.GetFraction();
+				const FName Expected = RowFor(Roll, Factors[CivIndex]);
+				const TArray<FName> Fired = FiredFor.FindRef(State.Civs[CivIndex].CivID);
+				Played.bMatch &= Expected.IsNone() ? Fired.IsEmpty() : (Fired.Num() == 1 && Fired[0] == Expected);
+				Played.Rolls.Add(Roll);
+			}
+		}
+		Scoped.Probe->OnEvent = nullptr;
+		return Played;
+	};
+	// In how many of the played slots another set of factors would have picked another row: what a case is able to tell.
+	// Every assertion below asks for bMatch and for a count above zero, so it fails when the code weighs otherwise and
+	// never passes on numbers that could not have told the difference.
+	auto Differing = [&](const FPlayed& Played, const TArray<float>& Factors, const TArray<float>& Against)
+	{
+		int32 Count = 0;
+		for (int32 RollIndex = 0; RollIndex < Played.Rolls.Num(); ++RollIndex)
+		{
+			const int32 CivIndex = RollIndex % Factors.Num();
+			Count += (RowFor(Played.Rolls[RollIndex], Factors[CivIndex]) != RowFor(Played.Rolls[RollIndex], Against[CivIndex])) ? 1 : 0;
+		}
+		return Count;
+	};
+	// One factor per civilization from the kind of its capital.
+	auto ByKind = [&Kinds](float Inside, float OneLane, float OutOfReach)
+	{
+		TArray<float> Factors;
+		for (const int32 Kind : Kinds)
+		{
+			Factors.Add(Kind == 2 ? Inside : Kind == 1 ? OneLane : OutOfReach);
+		}
+		return Factors;
+	};
+
+	// The factor of one transcendent with a modifier of 2 and this sphere: min(3, modifier x (1 + step x size)).
+	const float Sized = 1.f + Step * 2.f;
+	const float Weighed = FMath::Min(3.f, 2.f * Sized);
+	const TArray<float> Plain = ByKind(1.f, 1.f, 1.f);
+	const TArray<float> Reached = ByKind(Weighed, Weighed, 1.f);
+	if (!TestTrue(TEXT("The step of the rules makes a sphere of two weigh more than a sphere of none, below the cap"), Weighed > 2.f && Weighed < 3.f))
+	{
+		return false;
+	}
+
+	// One transcendent that doubles the Economy rows.
+	{
+		const FPlayed Played = Play({ { Economy, 2.f, false } }, Reached);
+		TestTrue(TEXT("The share of a row of the weighed category is min(3, modifier x (1 + step x size of the sphere)) times its own, and the row of another category keeps its share"),
+			Played.bMatch && Differing(Played, Reached, Plain) > 0);
+		TestTrue(TEXT("A capital one lane from the sphere is weighed like a capital inside it"), Played.bMatch && Differing(Played, Reached, ByKind(Weighed, 1.f, 1.f)) > 0);
+		TestTrue(TEXT("A capital out of reach is not weighed"), Played.bMatch && Differing(Played, Reached, ByKind(Weighed, Weighed, Weighed)) > 0);
+		TestTrue(TEXT("The size of the sphere is part of the factor"), Played.bMatch && Differing(Played, Reached, ByKind(2.f, 2.f, 1.f)) > 0);
+	}
+
+	// The cap: a modifier of 5 gives 3, not 5 x (1 + step x size).
+	{
+		const TArray<float> Capped = ByKind(3.f, 3.f, 1.f);
+		const FPlayed Played = Play({ { Economy, 5.f, false } }, Capped);
+		TestTrue(TEXT("The factor of one transcendent stops at 3"), Played.bMatch && Differing(Played, Capped, ByKind(5.f * Sized, 5.f * Sized, 1.f)) > 0);
+	}
+
+	// A modifier below 1 lowers the share.
+	{
+		const float Lowered = FMath::Min(3.f, 0.5f * Sized);
+		const TArray<float> Low = ByKind(Lowered, Lowered, 1.f);
+		const FPlayed Played = Play({ { Economy, 0.5f, false } }, Low);
+		TestTrue(TEXT("A modifier below 1 lowers the share"), Played.bMatch && Differing(Played, Low, Plain) > 0);
+	}
+
+	// A step below zero is a mistake in the data: the factor stops at 0 and the row of the category does not fire, but
+	// the other row keeps its share.
+	{
+		StepOfCase = -1.f;
+		const TArray<float> Silenced = ByKind(0.f, 0.f, 1.f);
+		const FPlayed Played = Play({ { Economy, 2.f, false } }, Silenced);
+		StepOfCase = Step;
+		TestTrue(TEXT("A factor never goes below 0, whatever the step of the rules"), Played.bMatch && Differing(Played, Silenced, Plain) > 0);
+	}
+
+	// A sealed transcendent weighs nothing.
+	{
+		const FPlayed Played = Play({ { Economy, 2.f, true } }, Plain);
+		TestTrue(TEXT("A sealed transcendent leaves every share as it was"), Played.bMatch && Differing(Played, Plain, Reached) > 0);
+	}
+
+	// The category has to be the very same tag: a modifier on the parent does not reach its children.
+	{
+		const FPlayed Played = Play({ { Tag(TEXT("Event.Civ")), 2.f, false } }, Plain);
+		TestTrue(TEXT("A modifier on a parent category does not weigh the rows of its children"), Played.bMatch && Differing(Played, Plain, Reached) > 0);
+	}
+
+	// Two transcendents multiply, and the cap is on each of them, not on the product.
+	{
+		const float Twice = (1.f * Weighed) * Weighed;
+		const TArray<float> Both = ByKind(Twice, Twice, 1.f);
+		const FPlayed Played = Play({ { Economy, 2.f, false }, { Economy, 2.f, false } }, Both);
+		TestTrue(TEXT("The factors of two transcendents multiply"), Played.bMatch && Differing(Played, Both, Reached) > 0);
+		TestTrue(TEXT("The cap of 3 is on each factor, not on the product"), Played.bMatch && Twice > 3.f && Differing(Played, Both, ByKind(3.f, 3.f, 1.f)) > 0);
+	}
+
+	Sim->SetTables(Original);
+	Sim->NewGalaxy(42, 5, 3);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicEventsRoleEffectRulesTest, "Cosmic_Ascension.Events.RoleEffectRules", CosmicTests::Flags)
 bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 {
@@ -1918,6 +2199,27 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("A transcendent of the run is a party: the entry is made on first write"),
 			UCosmicEventSubsystem::Apply(Eff(EEffectType::ChangeRelation, nullptr, Transcendent, 0.2f), Bench.Ctx)
 			&& Civ.Relations.Num() == EntriesBefore + 1 && Civ.Relations.FindRef(Transcendent) == 0.2f);
+
+		// A celestial transcendent has no instance in the run and is a party all the same (section 4.2, 5.5): the name of
+		// a DT_Transcendents row resolves, with tables that hold it.
+		{
+			const FName Celestial(TEXT("tr_test_celestial"));
+			FTranscendentDef Heavenly;
+			Heavenly.Doctrine = Tag(TEXT("Doctrine.Covenant"));
+			Heavenly.Allegiance = Tag(TEXT("Realm.Celestial"));
+			UDataTable* Table = NewTable(FTranscendentDef::StaticStruct());
+			Table->AddRow(Celestial, Heavenly);
+			FCosmicDataTables WithRow = Sim->GetTables();
+			WithRow.Transcendents = Table;
+			TestFalse(TEXT("ChangeRelation towards a row name the tables do not hold is turned away"),
+				UCosmicEventSubsystem::Apply(Eff(EEffectType::ChangeRelation, nullptr, Celestial, 0.3f), Bench.Ctx));
+			FCosmicEvalContext WithRowCtx(Bench.State, Bench.Stream, Bench.Index, WithRow, Sim->GetRules());
+			WithRowCtx.CivIndex = 1;
+			TestTrue(TEXT("A row name of DT_Transcendents is a party without an instance in the run"),
+				UCosmicEventSubsystem::Apply(Eff(EEffectType::ChangeRelation, nullptr, Celestial, 0.3f), WithRowCtx)
+				&& Civ.Relations.FindRef(Celestial) == 0.3f
+				&& !Bench.State.Transcendents.ContainsByPredicate([Celestial](const FTranscendentState& Each) { return Each.TranscendentID == Celestial; }));
+		}
 
 		Bench.Ctx.CivIndex = INDEX_NONE;
 		TestFalse(TEXT("A civ effect without a civilization is turned away"), UCosmicEventSubsystem::Apply(Eff(EEffectType::ChangeStability, nullptr, NAME_None, 0.25f), Bench.Ctx));

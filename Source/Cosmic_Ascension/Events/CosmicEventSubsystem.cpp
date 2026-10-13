@@ -128,15 +128,39 @@ namespace CosmicEventImpl
 	// The other party of a relation (section 5.5): OtherOf, resolved. A key of Relations is a living people or a
 	// transcendent of the run; any other name (a selector word nothing resolves, a people that is gone, a misspelt row)
 	// is NAME_None, so that it is neither read as a neutral relation nor written into the save. A celestial row has no
-	// state instance (section 4.2): it resolves by row name once DT_Transcendents is among the tables (pressure step).
-	FName RelationPartyOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicEvalSubject& Subject, FName Key)
+	// state instance (section 4.2) and is a party all the same: a row name of DT_Transcendents resolves too.
+	FName RelationPartyOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicEvalSubject& Subject, FName Key)
 	{
 		const FName Other = OtherOf(Subject, Key);
 		if (Other.IsNone())
 		{
 			return NAME_None;
 		}
-		return (FindTranscendent(State, Other) || Index.FindCiv(State, Other) != INDEX_NONE) ? Other : FName();
+		return (FindTranscendent(State, Other) || Tables.FindTranscendent(Other) || Index.FindCiv(State, Other) != INDEX_NONE) ? Other : FName();
+	}
+
+	// Weight factor of a Lottery row of Category on a unit (section 4.2): the product, over the unsealed transcendents in
+	// array order whose sphere holds the unit's system or lies one lane from it, of min(3, modifier x (1 + step x size
+	// of the sphere)). 1 when no transcendent names that Category or the unit has no system.
+	float SphereWeightFactor(const FGalaxyState& State, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, FGameplayTag Category, int32 SystemIndex)
+	{
+		float Factor = 1.f;
+		if (!Category.IsValid() || !State.Systems.IsValidIndex(SystemIndex))
+		{
+			return Factor;
+		}
+		for (const FTranscendentState& Transcendent : State.Transcendents)
+		{
+			const FTranscendentDef* Def = Transcendent.bSealed ? nullptr : Tables.FindTranscendent(Transcendent.TranscendentID);
+			const float* Modifier = Def ? Def->EventWeightModifiers.Find(Category) : nullptr;
+			if (!Modifier || UGalaxySimulationSubsystem::SphereReachIn(State, Transcendent, SystemIndex) == ECosmicSphereReach::None)
+			{
+				continue;
+			}
+			// The ranges of the modifier and of the step are a lint; the guard is here: a factor is never below 0.
+			Factor *= FMath::Clamp(*Modifier * (1.f + Rules.SphereEventWeightStep * static_cast<float>(Transcendent.InfluencedSystems.Num())), 0.f, 3.f);
+		}
+		return Factor;
 	}
 
 	// A count of ticks written as a Key: digits only, nine at most. Anything else is 0, which means "no count": the
@@ -381,7 +405,7 @@ bool UCosmicEventSubsystem::Check(const FCosmicCondition& Condition, const FCosm
 	case EConditionType::CivRelationAtLeast:
 	{
 		// A missing entry is 0, neutral (section 5.5). A party that does not resolve has no relation to read.
-		const FName Other = RelationPartyOf(State, View.Index, View, Condition.Key);
+		const FName Other = RelationPartyOf(State, View.Index, View.Tables, View, Condition.Key);
 		return Civ && !Other.IsNone() && Civ->Relations.FindRef(Other) >= Condition.Value;
 	}
 
@@ -403,8 +427,8 @@ bool UCosmicEventSubsystem::Check(const FCosmicCondition& Condition, const FCosm
 		return System && System->MegaprojectCompletedTick > 0 && System->MegaprojectCompletedTick >= View.SinceTick;
 
 	case EConditionType::SystemPressureAtLeast:
-		// Spiritual pressure arrives with the pressure step of Phase 2 (section 4.2).
-		return false;
+		// P of the subject system, derived over the state of the view (section 4.2).
+		return System && UGalaxySimulationSubsystem::ComputePressureIn(State, View.Index, View.Tables, View.Rules, View.SystemIndex).P >= Condition.Value;
 
 	case EConditionType::SystemInfluencedBy:
 	{
@@ -594,7 +618,7 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 	{
 		// The entry is made on first write; a missing one reads as 0 (section 5.5). A party that does not resolve gets
 		// no entry: Relations is saved, and its keys are peoples and transcendents only.
-		const FName Other = RelationPartyOf(State, Ctx.Index, Ctx, Effect.Key);
+		const FName Other = RelationPartyOf(State, Ctx.Index, Ctx.Tables, Ctx, Effect.Key);
 		if (!Civ || Other.IsNone())
 		{
 			return false;
@@ -891,23 +915,27 @@ int32 UCosmicEventSubsystem::EvaluateAndFire(FGalaxyState& State, FRandomStream&
 		// b. Lottery rows: at most one, picked by the number drawn in step 1. Each pair has an absolute share.
 		TArray<FSlotPair, TInlineAllocator<16>> Lottery;
 		Gather(ECosmicEventTrigger::Lottery, Lottery);
+		// The share of every pair, once: BaseWeight x weight factor x chance. The factor is the sphere weight of the
+		// transcendents (section 4.2); traits and edicts add theirs in Phase 4.
+		TArray<float, TInlineAllocator<16>> Shares;
 		float Total = 0.f;
 		for (const FSlotPair& Pair : Lottery)
 		{
-			// The weight factor of transcendents, traits and edicts arrives with the pressure step; until then it is 1.
-			Total += FMath::Max(0.f, Pair.Row->BaseWeight) * Chance;
+			const float Share = FMath::Max(0.f, Pair.Row->BaseWeight) * SphereWeightFactor(State, Tables, Rules, Pair.Row->Category, Pair.SystemIndex) * Chance;
+			Shares.Add(Share);
+			Total += Share;
 		}
 		// Shares that add up to more than 1 are scaled down together by scaling the number instead: the sum below repeats
 		// the additions that made Total and so ends exactly on it, and a number below 1 times Total is below Total.
 		// Dividing every share would round, and leave numbers at the top on which no row fires.
 		const float Pick = Total > 1.f ? Rolls[Slot] * Total : Rolls[Slot];
 		float Reached = 0.f;
-		for (const FSlotPair& Pair : Lottery)
+		for (int32 PairIndex = 0; PairIndex < Lottery.Num(); ++PairIndex)
 		{
-			Reached += FMath::Max(0.f, Pair.Row->BaseWeight) * Chance;
+			Reached += Shares[PairIndex];
 			if (Pick < Reached)
 			{
-				FirePair(Pair);
+				FirePair(Lottery[PairIndex]);
 				break;
 			}
 		}

@@ -32,6 +32,12 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 	UPROPERTY(Transient)
 	TObjectPtr<UDataTable> Events;
 
+	// DT_Transcendents: one row per transcendent, row name == TranscendentID (section 4.2). A missing table means a run
+	// without transcendents. Not loaded from a fixed path yet: the asset arrives with its first row (trans_silence),
+	// tests inject the table until then.
+	UPROPERTY(Transient)
+	TObjectPtr<UDataTable> Transcendents;
+
 	// Loads every table from its fixed path. A missing asset leaves its pointer null and is reported once in LogCosmic.
 	void LoadFromFixedPaths();
 
@@ -40,10 +46,14 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 	const FCivArchetypeDef* FindCiv(FName RowName) const;
 	const FLogTemplateDef* FindLogTemplate(FName RowName) const;
 	const FCosmicEventDef* FindEvent(FName RowName) const;
+	const FTranscendentDef* FindTranscendent(FName RowName) const;
 
 	// Row names of DT_Civs in lexical order. Draws over the rows use this order, never the table's own (section 9.2).
 	TArray<FName> GetCivRowNames() const;
 
 	// Row names of DT_Events in lexical order: the order in which the event slots look at rows (section 7.5).
 	TArray<FName> GetEventRowNames() const;
+
+	// Row names of DT_Transcendents in lexical order: the order of the roster draw in NewGalaxy (section 4.2, 9.2).
+	TArray<FName> GetTranscendentRowNames() const;
 };

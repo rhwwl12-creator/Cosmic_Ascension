@@ -362,6 +362,14 @@ struct COSMIC_ASCENSION_API FTranscendentDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	EAscensionTier Tier = EAscensionTier::Tier4_Transcendent;
 
+	// Depth inside the tier, 0..1 (section 3.2): the tier says where a being stands, the depth how deep it stands there.
+	// Definition data: never saved, never hashed, and there is no depth of a civilization or of the vessel anywhere in
+	// the state. It scales the transcendent term of spiritual pressure by (1 + Depth) and is read clamped to 0..1: the
+	// range is a lint (Data.Integrity), the guard is in UGalaxySimulationSubsystem::ComputePressureIn. Celestial and
+	// Independent rows carry the column and add no pressure.
+	UPROPERTY(EditAnywhere)
+	float Depth = 0.5f;
+
 	UPROPERTY(EditAnywhere)
 	int32 InitialInfluencedSystems = 0;
 
@@ -380,7 +388,9 @@ struct COSMIC_ASCENSION_API FTranscendentDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	TMap<FGameplayTag, float> EventWeightModifiers;
 
-	// Applied each tick to systems under its pressure. Empty for Celestial rows.
+	// Applied once per tick, in the economy stage, to every civilization of a lower Tier that has a settled system in
+	// the sphere: once per civilization, not once per system (section 4.2, 16 #55). OtherID of the application is this
+	// transcendent. Only effects that make sense every tick (Data.Integrity). Empty for Celestial rows.
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicEffect> PressureEffectsPerTick;
 

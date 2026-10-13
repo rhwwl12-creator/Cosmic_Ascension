@@ -19,6 +19,49 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGalaxyGenerated, int32, Seed);
 
 struct FCosmicEvalContext;
 
+/** How the sphere of one transcendent reaches a system (section 4.2). */
+enum class ECosmicSphereReach : uint8
+{
+	// Neither in the sphere nor next to it.
+	None,
+	// One lane from a system of the sphere.
+	Adjacent,
+	// In the sphere (FTranscendentState.InfluencedSystems).
+	Inside
+};
+
+/** Who presses on a system (section 4.2). */
+enum class ECosmicPressureSource : uint8
+{
+	None,
+	// An unsealed transcendent whose sphere holds the system or lies one lane from it.
+	Transcendent,
+	// The civilization that owns the system, whoever rules it.
+	Civilization,
+	// The vessel as a wanderer, standing in the system.
+	Wanderer
+};
+
+/**
+ * Spiritual pressure on one system (section 4.2): what UGalaxySimulationSubsystem::ComputePressureIn returns.
+ * Derived whenever it is asked for: never saved, never hashed, and there is no meter behind it.
+ */
+struct FCosmicPressure
+{
+	// P: the sum of the terms of all sources. 0 when nothing of tier 3 or above reaches the system.
+	float P = 0.f;
+
+	// The source of the largest single term. Equal terms go to the transcendents in the order of
+	// FGalaxyState.Transcendents, then to the civilization, then to the wanderer. None when P is 0.
+	ECosmicPressureSource DominantSource = ECosmicPressureSource::None;
+
+	// TranscendentID or CivID of that source. NAME_None when P is 0, and for the wanderer: a vessel has no ID.
+	FName DominantSourceID;
+
+	// Tier of that source. Read it only when DominantSource is not None.
+	EAscensionTier DominantTier = EAscensionTier::Tier1_Planetary;
+};
+
 /**
  * Fixed-step simulation of one run (section 7.4). Owns the whole runtime state (FGalaxyState) and the sim random stream.
  * One tick = one galaxy cycle; at 1x speed one second is one tick (section 2.1).
@@ -48,6 +91,12 @@ public:
 	 * Replaces the state with a new galaxy generated from Seed and the definition tables, then installs the first life as
 	 * the ruler of the player civ (DT_Rules.PlayerArchetypeRow, home system "sol") through UPlayerRoleSubsystem::Install
 	 * (section 5.10). AI civs draw their archetype from the DT_Civs rows with a positive Weight (section 7.4).
+	 * The fallen roster (section 4.2): the instance of CosmicRows::TransSilence when DT_Transcendents holds that row as
+	 * a Realm.Abyssal row, then DT_Rules.FallenTranscendentCount - 1 draws from the sim stream, each picking one more
+	 * Realm.Abyssal row by SpawnWeight among the rows not active yet, in row-name order. A draw without a candidate is
+	 * thrown away, so the number of draws follows the knob alone, never the table. Celestial and Independent rows get
+	 * no instance. Every sphere starts empty: the starting systems (FTranscendentDef.InitialInfluencedSystems) are
+	 * placed by the generation change of Phase 2.
 	 * Stamps State.TellRngState with (int32)CosmicSeed::Derive(Seed, "", Tell, 0) before the first line is told.
 	 * Tick 0 is this generated state; the first simulated tick is 1.
 	 */
@@ -122,6 +171,38 @@ public:
 	void BeginBroadcast() { ++BroadcastDepth; }
 	void EndBroadcast() { --BroadcastDepth; }
 
+	/**
+	 * Spiritual pressure P on a system and the ID of its dominant source (section 4.2), over the live state. An unknown
+	 * SystemID gives 0 and NAME_None. For the presentation layer and for callers that want the ID alone; stage code and
+	 * the evaluator call ComputePressureIn, which also says what kind of source it is and of which tier.
+	 */
+	UFUNCTION(BlueprintPure)
+	float ComputeSpiritualPressure(FName SystemID, FName& OutDominantSourceID) const;
+
+	/**
+	 * The same over any state: what the member forwards to and what UCosmicEventSubsystem::Check calls with the state
+	 * of its view (SystemPressureAtLeast). A pure function of its arguments: world state only, never Knowing, no draw.
+	 * P is the sum of the terms below. A term is DT_Rules.PressureBySourceTier[tier of the source] x reach, so a
+	 * source below tier 3 adds nothing: the lower rungs do not press on the higher (section 4.2).
+	 * - Every unsealed transcendent, in the order of State.Transcendents: the Tier of its DT_Transcendents row; reach 1
+	 *   when the system is in its sphere, DT_Rules.PressureAdjacencyFalloff when it is one lane from it, 0 otherwise.
+	 *   This term alone is also scaled by (1 + Depth) of the row, Depth read clamped to 0..1: the depth inside the tier
+	 *   (section 3.2). The gap inside one tier is therefore at most a factor of two, and a transcendent never presses
+	 *   harder than the plain weight of the tier above it. An instance whose row the tables do not hold adds nothing.
+	 * - The civilization that owns the system: its Tier, reach 1. A ruling vessel adds no term of its own: the
+	 *   civilization it rules presses with its Tier like any other, with or without a living ruler.
+	 * - The vessel as a wanderer: Calling.PersonalTier on the system it stands in, reach 1, and only while
+	 *   Calling.LifeState is Embodied (during the interregnum FPlayerEntityState still holds the dead vessel).
+	 * A SystemIndex out of range gives the zero result. Only + and x reach the value (section 9.2).
+	 */
+	static FCosmicPressure ComputePressureIn(const FGalaxyState& InState, const FCosmicStateIndex& InIndex, const FCosmicDataTables& InTables, const FCosmicRulesDef& InRules, int32 SystemIndex);
+
+	// How the sphere of Transcendent reaches a system: the pressure function and the weight factor of the event slots
+	// ask here. The economy stage builds one table of the same reach for the tick instead (section 9.4);
+	// Sim.PressurePerCivilization holds the two together. Reads the Lanes of the system itself, by SystemID (no index
+	// is needed); whether the transcendent is sealed is the caller's question. An index out of range is None.
+	static ECosmicSphereReach SphereReachIn(const FGalaxyState& InState, const FTranscendentState& Transcendent, int32 SystemIndex);
+
 	// Population band (section 1.3, 8.3). Derived, never saved, never hashed: civ Tier baseline, adjusted by Population against
 	// DT_Rules.PopulationBandThresholds. Unknown CivID returns Few.
 	UFUNCTION(BlueprintPure)
@@ -162,9 +243,17 @@ private:
 
 	// Stage 1. Two loops over Civs in array order.
 	// Loop one, per civilization: income of its systems into IncomePerTick; then the per-tick sources, the only effects
-	// that may scale IncomePerTick or act every tick (the Stability drain of spiritual pressure and
-	// FTranscendentDef.PressureEffectsPerTick from the pressure step of Phase 2, edict and trait rows from Phase 4),
-	// applied through UCosmicEventSubsystem::ApplyAll with bPerTickSource; then IncomePerTick into the Stockpile.
+	// that may scale IncomePerTick or act every tick; then IncomePerTick into the Stockpile. The per-tick sources:
+	// - The drain of spiritual pressure, once per civilization and never once per system (section 16 #55): Stability
+	//   goes down by DT_Rules.SpiritualPressureStabilityDrain x the largest P among its settled systems whose dominant
+	//   source has a Tier above the civilization's own.
+	// - FTranscendentDef.PressureEffectsPerTick of every unsealed transcendent of a Tier above the civilization's whose
+	//   sphere holds one of its settled systems: once per transcendent, in the order of State.Transcendents, through
+	//   UCosmicEventSubsystem::ApplyAll with bPerTickSource. Subject = the civilization and the first such system in
+	//   OwnedSystems order; OtherID and SourceRow = the TranscendentID.
+	// - Edict and trait rows, from Phase 4.
+	// The pressures are read from one table of sphere reach built at the start of the stage, not by one call of the
+	// public function per system (section 9.4). No draw.
 	// Loop two: LowStabilityTicks. Last and separate on purpose: the count reads the Stability every civilization has at
 	// the end of this stage. A Stability change made anywhere else in the tick is first counted one tick later.
 	void TickEconomy();

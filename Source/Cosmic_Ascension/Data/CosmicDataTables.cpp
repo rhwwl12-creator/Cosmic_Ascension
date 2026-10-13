@@ -58,9 +58,21 @@ const FCosmicEventDef* FCosmicDataTables::FindEvent(FName RowName) const
 	return FindRowQuiet<FCosmicEventDef>(Events, RowName);
 }
 
+const FTranscendentDef* FCosmicDataTables::FindTranscendent(FName RowName) const
+{
+	return FindRowQuiet<FTranscendentDef>(Transcendents, RowName);
+}
+
 TArray<FName> FCosmicDataTables::GetEventRowNames() const
 {
 	TArray<FName> Names = Events ? Events->GetRowNames() : TArray<FName>();
+	Names.Sort(FNameLexicalLess());
+	return Names;
+}
+
+TArray<FName> FCosmicDataTables::GetTranscendentRowNames() const
+{
+	TArray<FName> Names = Transcendents ? Transcendents->GetRowNames() : TArray<FName>();
 	Names.Sort(FNameLexicalLess());
 	return Names;
 }

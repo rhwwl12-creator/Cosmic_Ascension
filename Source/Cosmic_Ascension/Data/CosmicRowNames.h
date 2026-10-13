@@ -15,6 +15,10 @@ namespace CosmicRows
 	// and the one row whose civs draw their ethics at random (section 5.11, 7.4).
 	inline const FName ArchDefault(TEXT("arch_default"));
 
+	// DT_Transcendents: Silence, the one fallen transcendent every run has. The roster of NewGalaxy starts from it
+	// (section 4.2).
+	inline const FName TransSilence(TEXT("trans_silence"));
+
 	// DT_Megaprojects: settling. A system whose ActiveMegaproject is this row is owned but not yet settled (section 5.7).
 	inline const FName ProjectSettle(TEXT("project_settle"));
 

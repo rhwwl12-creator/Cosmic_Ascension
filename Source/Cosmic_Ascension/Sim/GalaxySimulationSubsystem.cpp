@@ -115,6 +115,90 @@ namespace
 		return FText::AsCultureInvariant(Text.ToString());
 	}
 
+	// Weight of a pressure source by its tier (section 4.2). A table too short for the tier reads as 0.
+	float PressureWeight(const FCosmicRulesDef& Rules, EAscensionTier Tier)
+	{
+		const int32 Index = TierIndex(Tier);
+		return Rules.PressureBySourceTier.IsValidIndex(Index) ? FMath::Max(0.f, Rules.PressureBySourceTier[Index]) : 0.f;
+	}
+
+	float ReachFactor(ECosmicSphereReach Reach, const FCosmicRulesDef& Rules)
+	{
+		switch (Reach)
+		{
+		case ECosmicSphereReach::Inside:
+			return 1.f;
+		case ECosmicSphereReach::Adjacent:
+			return FMath::Clamp(Rules.PressureAdjacencyFalloff, 0.f, 1.f);
+		default:
+			return 0.f;
+		}
+	}
+
+	// One term of the sum. A larger term takes the lead and an equal one never does, so the order of the calls is the
+	// tie rule: transcendents in array order, then the civilization, then the wanderer.
+	void AddPressureTerm(FCosmicPressure& Out, float& InOutLargest, float Term, ECosmicPressureSource Source, FName SourceID, EAscensionTier Tier)
+	{
+		if (!(Term > 0.f))
+		{
+			return;
+		}
+		Out.P += Term;
+		if (Term > InOutLargest)
+		{
+			InOutLargest = Term;
+			Out.DominantSource = Source;
+			Out.DominantSourceID = SourceID;
+			Out.DominantTier = Tier;
+		}
+	}
+
+	/**
+	 * The pressure on one system (section 4.2), with the reach of every transcendent handed in as ReachOf(index into
+	 * Transcendents). ComputePressureIn hands in SphereReachIn, the economy stage its table of the tick: one body, so
+	 * both give the same number for the same state.
+	 */
+	template <typename ReachOfType>
+	FCosmicPressure PressureWithReach(const FGalaxyState& InState, const FCosmicStateIndex& InIndex, const FCosmicDataTables& InTables, const FCosmicRulesDef& InRules, int32 SystemIndex, ReachOfType&& ReachOf)
+	{
+		FCosmicPressure Out;
+		if (!InState.Systems.IsValidIndex(SystemIndex))
+		{
+			return Out;
+		}
+		const FStarSystemState& System = InState.Systems[SystemIndex];
+		float Largest = 0.f;
+
+		for (int32 TranscendentIndex = 0; TranscendentIndex < InState.Transcendents.Num(); ++TranscendentIndex)
+		{
+			const FTranscendentState& Transcendent = InState.Transcendents[TranscendentIndex];
+			const FTranscendentDef* Def = Transcendent.bSealed ? nullptr : InTables.FindTranscendent(Transcendent.TranscendentID);
+			if (!Def)
+			{
+				continue;
+			}
+			// Depth inside the tier (section 3.2). The range is a lint; the guard is here.
+			const float Depth = FMath::Clamp(Def->Depth, 0.f, 1.f);
+			const float Term = PressureWeight(InRules, Def->Tier) * (1.f + Depth) * ReachFactor(ReachOf(TranscendentIndex), InRules);
+			AddPressureTerm(Out, Largest, Term, ECosmicPressureSource::Transcendent, Transcendent.TranscendentID, Def->Tier);
+		}
+
+		// The owner presses with its own tier, whoever rules it.
+		const int32 OwnerIndex = InIndex.FindCiv(InState, System.OwnerCivID);
+		if (InState.Civs.IsValidIndex(OwnerIndex))
+		{
+			const FCivilizationState& Owner = InState.Civs[OwnerIndex];
+			AddPressureTerm(Out, Largest, PressureWeight(InRules, Owner.Tier), ECosmicPressureSource::Civilization, Owner.CivID, Owner.Tier);
+		}
+
+		// A wanderer presses where it stands. During the interregnum Player still holds the dead vessel: it adds nothing.
+		if (InState.Calling.LifeState == ELifeState::Embodied && InState.Player.Role == EPlayerRole::Wanderer && InState.Player.CurrentSystemID == System.SystemID)
+		{
+			AddPressureTerm(Out, Largest, PressureWeight(InRules, InState.Calling.PersonalTier), ECosmicPressureSource::Wanderer, NAME_None, InState.Calling.PersonalTier);
+		}
+		return Out;
+	}
+
 	/**
 	 * Canonical state hasher (section 9.2). Everything is reduced to bytes that do not depend on the process:
 	 * names and tags as lower-cased strings, map entries in lexical key order, -0.0 folded into +0.0.
@@ -507,6 +591,74 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 		Home.OwnerCivID = Civ.CivID;
 	}
 
+	// The fallen roster (section 4.2). Silence is fixed; the others are drawn. Every sphere starts empty: the starting
+	// systems of a sphere are placed by the generation change of Phase 2.
+	{
+		const FGameplayTag AbyssalTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Realm.Abyssal")));
+		auto AddTranscendent = [this](FName RowName, const FTranscendentDef& Def)
+		{
+			FTranscendentState& Transcendent = State.Transcendents.AddDefaulted_GetRef();
+			Transcendent.TranscendentID = RowName;
+			Transcendent.Doctrine = Def.Doctrine;
+		};
+
+		const FTranscendentDef* Silence = Tables.FindTranscendent(CosmicRows::TransSilence);
+		if (Rules.FallenTranscendentCount >= 1 && Silence && Silence->Allegiance == AbyssalTag)
+		{
+			AddTranscendent(CosmicRows::TransSilence, *Silence);
+		}
+
+		// Candidates in lexical row order, never the table's own (section 9.2).
+		TArray<FName> Candidates;
+		for (const FName RowName : Tables.GetTranscendentRowNames())
+		{
+			const FTranscendentDef* Row = Tables.FindTranscendent(RowName);
+			if (Row && RowName != CosmicRows::TransSilence && Row->Allegiance == AbyssalTag && Row->SpawnWeight > 0.f)
+			{
+				Candidates.Add(RowName);
+			}
+		}
+
+		// One draw per remaining place of the roster, whatever the table holds: a draw without a candidate is thrown
+		// away, so the number of draws follows the knob alone.
+		for (int32 Place = 1; Place < Rules.FallenTranscendentCount; ++Place)
+		{
+			const float Roll = Rng.FRand();
+
+			// A doctrine is active at most once.
+			Candidates.RemoveAll([this](FName RowName)
+			{
+				const FTranscendentDef* Row = Tables.FindTranscendent(RowName);
+				return State.Transcendents.ContainsByPredicate([Row](const FTranscendentState& Active) { return Active.Doctrine == Row->Doctrine; });
+			});
+			if (Candidates.IsEmpty())
+			{
+				continue;
+			}
+
+			float RosterWeight = 0.f;
+			for (const FName RowName : Candidates)
+			{
+				RosterWeight += Tables.FindTranscendent(RowName)->SpawnWeight;
+			}
+			const float Mark = Roll * RosterWeight;
+			int32 Picked = Candidates.Num() - 1;
+			float Reached = 0.f;
+			for (int32 CandidateIndex = 0; CandidateIndex < Candidates.Num(); ++CandidateIndex)
+			{
+				Reached += Tables.FindTranscendent(Candidates[CandidateIndex])->SpawnWeight;
+				if (Mark < Reached)
+				{
+					Picked = CandidateIndex;
+					break;
+				}
+			}
+			const FName PickedRow = Candidates[Picked];
+			Candidates.RemoveAt(Picked);
+			AddTranscendent(PickedRow, *Tables.FindTranscendent(PickedRow));
+		}
+	}
+
 	StateIndex.Rebuild(State);
 
 	// The first life: ruler of the player civ, through the same function succession uses (section 5.10).
@@ -557,6 +709,42 @@ FCosmicEvalContext UGalaxySimulationSubsystem::MakeEvalContext()
 		UE_LOG(LogCosmic, Error, TEXT("MakeEvalContext called from a handler of a Core Logic delegate: a handler may only read the state"));
 	}
 	return FCosmicEvalContext(State, Rng, StateIndex, Tables, Rules);
+}
+
+float UGalaxySimulationSubsystem::ComputeSpiritualPressure(FName SystemID, FName& OutDominantSourceID) const
+{
+	const FCosmicPressure Reading = ComputePressureIn(State, StateIndex, Tables, Rules, StateIndex.FindSystem(State, SystemID));
+	OutDominantSourceID = Reading.DominantSourceID;
+	return Reading.P;
+}
+
+FCosmicPressure UGalaxySimulationSubsystem::ComputePressureIn(const FGalaxyState& InState, const FCosmicStateIndex& InIndex, const FCosmicDataTables& InTables, const FCosmicRulesDef& InRules, int32 SystemIndex)
+{
+	return PressureWithReach(InState, InIndex, InTables, InRules, SystemIndex, [&InState, SystemIndex](int32 TranscendentIndex)
+	{
+		return SphereReachIn(InState, InState.Transcendents[TranscendentIndex], SystemIndex);
+	});
+}
+
+ECosmicSphereReach UGalaxySimulationSubsystem::SphereReachIn(const FGalaxyState& InState, const FTranscendentState& Transcendent, int32 SystemIndex)
+{
+	if (!InState.Systems.IsValidIndex(SystemIndex))
+	{
+		return ECosmicSphereReach::None;
+	}
+	const FStarSystemState& System = InState.Systems[SystemIndex];
+	if (Transcendent.InfluencedSystems.Contains(System.SystemID))
+	{
+		return ECosmicSphereReach::Inside;
+	}
+	for (const FName Lane : System.Lanes)
+	{
+		if (Transcendent.InfluencedSystems.Contains(Lane))
+		{
+			return ECosmicSphereReach::Adjacent;
+		}
+	}
+	return ECosmicSphereReach::None;
 }
 
 uint32 UGalaxySimulationSubsystem::DrawTell(int32 Count)
@@ -718,8 +906,34 @@ void UGalaxySimulationSubsystem::SimulateTick()
 
 void UGalaxySimulationSubsystem::TickEconomy()
 {
-	for (FCivilizationState& Civ : State.Civs)
+	// Which systems lie in the sphere of each transcendent that presses (unsealed, with a row), by system index. Built
+	// once: the pressures of this stage are read from here, not by one call of the public function per system
+	// (section 9.4). ActiveDefs is null for a transcendent that does not press.
+	const int32 TranscendentCount = State.Transcendents.Num();
+	TArray<const FTranscendentDef*, TInlineAllocator<4>> ActiveDefs;
+	TArray<TBitArray<>, TInlineAllocator<4>> InSphere;
+	for (const FTranscendentState& Transcendent : State.Transcendents)
 	{
+		const FTranscendentDef* Def = Transcendent.bSealed ? nullptr : Tables.FindTranscendent(Transcendent.TranscendentID);
+		ActiveDefs.Add(Def);
+		TBitArray<>& Members = InSphere.Emplace_GetRef(false, State.Systems.Num());
+		for (const FName SystemID : Transcendent.InfluencedSystems)
+		{
+			const int32 SystemIndex = StateIndex.FindSystem(State, SystemID);
+			if (Def && Members.IsValidIndex(SystemIndex))
+			{
+				Members[SystemIndex] = true;
+			}
+		}
+	}
+
+	// The context of the per-tick sources: the only place where MultiplyIncome applies (section 5.8).
+	FCosmicEvalContext Sources = MakeEvalContext();
+	Sources.bPerTickSource = true;
+
+	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+	{
+		FCivilizationState& Civ = State.Civs[CivIndex];
 		float Richness = 0.f;
 		float StarOutput = 0.f;
 		for (const FName SystemID : Civ.OwnedSystems)
@@ -742,8 +956,71 @@ void UGalaxySimulationSubsystem::TickEconomy()
 
 		Civ.IncomePerTick = Income;
 
-		// The per-tick sources go here, between the income and the stockpile: spiritual pressure from the pressure step
-		// of Phase 2, edicts and traits from Phase 4 (section 7.4).
+		// The per-tick sources, between the income and the stockpile (section 7.4). Edict and trait rows join in Phase 4.
+		// Spiritual pressure, once per civilization and never once per system (section 4.2): the largest P among its
+		// settled systems whose dominant source stands on a higher tier, and the first settled system inside the sphere
+		// of each transcendent.
+		float LargestPressure = 0.f;
+		TArray<int32, TInlineAllocator<4>> FirstInside;
+		FirstInside.Init(INDEX_NONE, TranscendentCount);
+		for (const FName SystemID : Civ.OwnedSystems)
+		{
+			const int32 SystemIndex = StateIndex.FindSystem(State, SystemID);
+			if (!State.Systems.IsValidIndex(SystemIndex) || State.Systems[SystemIndex].OwnerCivID != Civ.CivID || !CosmicState::IsSettled(State.Systems[SystemIndex]))
+			{
+				continue;
+			}
+			TArray<int32, TInlineAllocator<8>> LaneIndices;
+			for (const FName Lane : State.Systems[SystemIndex].Lanes)
+			{
+				LaneIndices.Add(StateIndex.FindSystem(State, Lane));
+			}
+			const FCosmicPressure Reading = PressureWithReach(State, StateIndex, Tables, Rules, SystemIndex, [&](int32 TranscendentIndex)
+			{
+				const TBitArray<>& Members = InSphere[TranscendentIndex];
+				if (Members[SystemIndex])
+				{
+					return ECosmicSphereReach::Inside;
+				}
+				for (const int32 LaneIndex : LaneIndices)
+				{
+					if (Members.IsValidIndex(LaneIndex) && Members[LaneIndex])
+					{
+						return ECosmicSphereReach::Adjacent;
+					}
+				}
+				return ECosmicSphereReach::None;
+			});
+			if (Reading.DominantSource != ECosmicPressureSource::None && TierIndex(Reading.DominantTier) > TierIndex(Civ.Tier))
+			{
+				LargestPressure = FMath::Max(LargestPressure, Reading.P);
+			}
+			for (int32 TranscendentIndex = 0; TranscendentIndex < TranscendentCount; ++TranscendentIndex)
+			{
+				if (FirstInside[TranscendentIndex] == INDEX_NONE && InSphere[TranscendentIndex][SystemIndex])
+				{
+					FirstInside[TranscendentIndex] = SystemIndex;
+				}
+			}
+		}
+		if (LargestPressure > 0.f)
+		{
+			Civ.Stability = FMath::Clamp(Civ.Stability - FMath::Max(0.f, Rules.SpiritualPressureStabilityDrain) * LargestPressure, 0.f, 1.f);
+		}
+		for (int32 TranscendentIndex = 0; TranscendentIndex < TranscendentCount; ++TranscendentIndex)
+		{
+			const FTranscendentDef* Def = ActiveDefs[TranscendentIndex];
+			if (!Def || FirstInside[TranscendentIndex] == INDEX_NONE || TierIndex(Def->Tier) <= TierIndex(Civ.Tier))
+			{
+				continue;
+			}
+			Sources.CivIndex = CivIndex;
+			Sources.SystemIndex = FirstInside[TranscendentIndex];
+			Sources.OtherID = State.Transcendents[TranscendentIndex].TranscendentID;
+			Sources.SourceRow = State.Transcendents[TranscendentIndex].TranscendentID;
+			Sources.GalaxyRow = Civ.GalaxyRow;
+			UCosmicEventSubsystem::ApplyAll(Def->PressureEffectsPerTick, Sources);
+		}
 
 		Civ.Stockpile.Energy += Civ.IncomePerTick.Energy;
 		Civ.Stockpile.Matter += Civ.IncomePerTick.Matter;
