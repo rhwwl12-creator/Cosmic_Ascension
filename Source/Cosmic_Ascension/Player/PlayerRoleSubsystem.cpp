@@ -69,16 +69,19 @@ void UPlayerRoleSubsystem::Install(FName SystemID, FName CivID, EPlayerRole Role
 	{
 		Archetype = Tables.FindCiv(CosmicRows::ArchDefault);
 	}
+	// One draw per Install, before the bank is looked at, thrown away when the bank is empty: the number of sim draws
+	// never depends on name banks, so filling one later does not move the stream (section 9.2).
+	const float NameRoll = Sim->GetRng().GetFraction();
 	const int32 NameCount = Archetype ? Archetype->PersonNameBank.Num() : 0;
 	if (NameCount > 1 && !bFirstLife && PreviousBirthCivID == CivID)
 	{
 		const int32 Previous = PreviousNameIndex % NameCount;
-		const int32 Drawn = Sim->GetRng().RandRange(0, NameCount - 2);
+		const int32 Drawn = FMath::Min(static_cast<int32>(NameRoll * static_cast<float>(NameCount - 1)), NameCount - 2);
 		Life.NameIndex = (Drawn >= Previous) ? Drawn + 1 : Drawn;
 	}
 	else if (NameCount > 0)
 	{
-		Life.NameIndex = Sim->GetRng().RandRange(0, NameCount - 1);
+		Life.NameIndex = FMath::Min(static_cast<int32>(NameRoll * static_cast<float>(NameCount)), NameCount - 1);
 	}
 
 	if (Role == EPlayerRole::Ruler)

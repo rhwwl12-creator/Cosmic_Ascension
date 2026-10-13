@@ -6,6 +6,7 @@
 #include "Cosmic_Ascension.h"
 #include "Data/CosmicRowNames.h"
 #include "Engine/GameInstance.h"
+#include "Events/CosmicEventSubsystem.h"
 #include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
@@ -549,6 +550,15 @@ void UGalaxySimulationSubsystem::SyncRngState()
 	State.RngState = Rng.GetCurrentSeed();
 }
 
+FCosmicEvalContext UGalaxySimulationSubsystem::MakeEvalContext()
+{
+	if (IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("MakeEvalContext called from a handler of a Core Logic delegate: a handler may only read the state"));
+	}
+	return FCosmicEvalContext(State, Rng, StateIndex, Tables, Rules);
+}
+
 uint32 UGalaxySimulationSubsystem::DrawTell(int32 Count)
 {
 	if (Count < 1)
@@ -731,11 +741,19 @@ void UGalaxySimulationSubsystem::TickEconomy()
 		Income.Influence = Civ.Population * Economy::InfluencePerPopulation * (1.f + Economy::OpenInfluenceBonus * FMath::Max(0.f, Civ.Ethics.Openness));
 
 		Civ.IncomePerTick = Income;
-		Civ.Stockpile.Energy += Income.Energy;
-		Civ.Stockpile.Matter += Income.Matter;
-		Civ.Stockpile.Insight += Income.Insight;
-		Civ.Stockpile.Influence += Income.Influence;
 
+		// The per-tick sources go here, between the income and the stockpile: spiritual pressure from the pressure step
+		// of Phase 2, edicts and traits from Phase 4 (section 7.4).
+
+		Civ.Stockpile.Energy += Civ.IncomePerTick.Energy;
+		Civ.Stockpile.Matter += Civ.IncomePerTick.Matter;
+		Civ.Stockpile.Insight += Civ.IncomePerTick.Insight;
+		Civ.Stockpile.Influence += Civ.IncomePerTick.Influence;
+	}
+
+	// Counted last, over the Stability every civilization has at the end of this stage (section 7.4).
+	for (FCivilizationState& Civ : State.Civs)
+	{
 		Civ.LowStabilityTicks = (Civ.Stability < LowStabilityThreshold) ? Civ.LowStabilityTicks + 1 : 0;
 	}
 }
@@ -787,7 +805,12 @@ void UGalaxySimulationSubsystem::TickConflict()
 
 void UGalaxySimulationSubsystem::TickHazards()
 {
-	// Hazard spawn, countdown, expiry and resolution; Hazard.Claim (section 4.1, 4.2).
+	// (a) resolution, (b) countdown and expiry, (c) spawn; Hazard.Claim (section 4.1, 4.2): the hazard step of Phase 2.
+
+	// (d) The event slots: the last step of this stage (section 7.4).
+	UCosmicEventSubsystem* Events = GetGameInstance()->GetSubsystem<UCosmicEventSubsystem>();
+	check(Events);
+	Events->EvaluateAndFire(State, Rng);
 }
 
 void UGalaxySimulationSubsystem::TickCivAI()

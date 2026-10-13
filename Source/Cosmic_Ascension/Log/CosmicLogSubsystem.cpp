@@ -23,31 +23,52 @@ void UCosmicLogSubsystem::Push(FGameplayTag Category, uint8 Severity, const FTex
 	Append(Category, Severity, FString(FText::Format(Template, Args).ToString()), FocusSystem, FocusCiv, SourceRow);
 }
 
+bool UCosmicLogSubsystem::PushVariants(const FCosmicLine& Line, TConstArrayView<FText> Variants, const FFormatNamedArguments& Args)
+{
+	if (Variants.IsEmpty())
+	{
+		return false;
+	}
+
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	check(Sim);
+
+	// The tell stream: which variant is told never moves the sim stream (section 9.2).
+	const int32 Count = Variants.Num();
+	int32 Index = static_cast<int32>(Sim->DrawTell(Count));
+
+	FString Rendered = FText::Format(Variants[Index], Args).ToString();
+	const TArray<FCosmicLogEntry>& Log = Sim->GetState().Log;
+	if (Count > 1 && !Log.IsEmpty() && Log.Last().Message.ToString() == Rendered)
+	{
+		Index = (Index + 1) % Count;
+		Rendered = FText::Format(Variants[Index], Args).ToString();
+	}
+
+	// The viewer tier window of the line is read by the scope of telling, from the commit that brings it.
+	Append(Line.Category, Line.Severity, MoveTemp(Rendered), Line.FocusSystem, Line.FocusCiv, Line.SourceRow);
+	return true;
+}
+
 bool UCosmicLogSubsystem::PushRow(FName RowName, uint8 Severity, const FFormatNamedArguments& Args, FName FocusSystem, FName FocusCiv)
 {
 	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
 	check(Sim);
 
 	const FLogTemplateDef* Row = Sim->GetTables().FindLogTemplate(RowName);
-	if (!Row || Row->Templates.IsEmpty())
+	if (!Row)
 	{
 		return false;
 	}
 
-	// The tell stream: which variant is told never moves the sim stream (section 9.2).
-	const int32 Count = Row->Templates.Num();
-	int32 Index = static_cast<int32>(Sim->DrawTell(Count));
-
-	FString Rendered = FText::Format(Row->Templates[Index], Args).ToString();
-	const TArray<FCosmicLogEntry>& Log = Sim->GetState().Log;
-	if (Count > 1 && !Log.IsEmpty() && Log.Last().Message.ToString() == Rendered)
-	{
-		Index = (Index + 1) % Count;
-		Rendered = FText::Format(Row->Templates[Index], Args).ToString();
-	}
-
-	Append(Row->Category, Severity, MoveTemp(Rendered), FocusSystem, FocusCiv, RowName);
-	return true;
+	FCosmicLine Line;
+	Line.Category = Row->Category;
+	Line.Severity = Severity;
+	Line.FocusSystem = FocusSystem;
+	Line.FocusCiv = FocusCiv;
+	Line.SourceRow = RowName;
+	Line.MinViewerTier = Row->MinTierToReveal;
+	return PushVariants(Line, Row->Templates, Args);
 }
 
 void UCosmicLogSubsystem::Append(FGameplayTag Category, uint8 Severity, FString&& Rendered, FName FocusSystem, FName FocusCiv, FName SourceRow)

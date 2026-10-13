@@ -17,11 +17,15 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSimTick, int64, Tick);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGalaxyGenerated, int32, Seed);
 
+struct FCosmicEvalContext;
+
 /**
  * Fixed-step simulation of one run (section 7.4). Owns the whole runtime state (FGalaxyState) and the sim random stream.
  * One tick = one galaxy cycle; at 1x speed one second is one tick (section 2.1).
  * Stage order inside a tick is fixed, ten stages: economy, research, diplomacy, conflict, hazards, civ AI, crossings,
- * player travel, sight, role effects. Change guideline.md section 7.4 before changing that order.
+ * player travel, sight, role effects. Events, feats and per-tick pressure have no stage of their own: they are fixed
+ * steps inside the economy, hazard and civ AI stages (see the stage declarations). Change guideline.md section 7.4
+ * before changing any of this.
  */
 UCLASS()
 class COSMIC_ASCENSION_API UGalaxySimulationSubsystem : public UGameInstanceSubsystem, public FTickableGameObject
@@ -97,6 +101,12 @@ public:
 	// Replaces the tables and re-reads the rules row. Tests inject transient tables here.
 	void SetTables(const FCosmicDataTables& InTables);
 
+	// Binds the live state, the sim stream, the state index, the tables and the rules into an evaluation context
+	// (section 7.5, Events/CosmicEventSubsystem.h). The stages build theirs here and hand it on; a caller outside a tick
+	// (encounter resolution, Phase 4) does the same and calls SyncRngState() afterwards. Reports an error when called
+	// while IsBroadcasting(): a handler must not evaluate anything.
+	FCosmicEvalContext MakeEvalContext();
+
 	// ID -> index for Civs and Systems (section 7.4, 9.4). Rebuilt by NewGalaxy, LoadState and the crossing stage.
 	const FCosmicStateIndex& GetStateIndex() const { return StateIndex; }
 
@@ -149,11 +159,28 @@ private:
 	// Advances State.Tick first, then runs the ten stages in the fixed order and syncs the random stream state.
 	void SimulateTick();
 
+	// Stage 1. Two loops over Civs in array order.
+	// Loop one, per civilization: income of its systems into IncomePerTick; then the per-tick sources, the only effects
+	// that may scale IncomePerTick or act every tick (the Stability drain of spiritual pressure and
+	// FTranscendentDef.PressureEffectsPerTick from the pressure step of Phase 2, edict and trait rows from Phase 4),
+	// applied through UCosmicEventSubsystem::ApplyAll with bPerTickSource; then IncomePerTick into the Stockpile.
+	// Loop two: LowStabilityTicks. Last and separate on purpose: the count reads the Stability every civilization has at
+	// the end of this stage. A Stability change made anywhere else in the tick is first counted one tick later.
 	void TickEconomy();
+
 	void TickResearch();
 	void TickDiplomacy();
 	void TickConflict();
+
+	// Stage 5. Four steps in a fixed order (section 7.4): (a) resolution, (b) countdown and expiry in two passes,
+	// (c) spawn, exactly one sim draw per settled system, (d) the event slots, UCosmicEventSubsystem::EvaluateAndFire.
+	// (a) to (c) arrive with the hazard step of Phase 2; (d) is the last step of this stage from now on.
+	// KillPlayer and DeposeRuler are only recorded, through UCosmicEventSubsystem::Apply (first recorded wins).
 	void TickHazards();
+
+	// Stage 6. (a) decisions of AI civilizations and regents in Civs array order (a civilization without systems is
+	// skipped); (b) UAscensionSubsystem::EvaluateFeats, exactly once per tick and nowhere else in the tick (from the
+	// ascension step of Phase 2).
 	void TickCivAI();
 
 	// Stage 7. The only place where the number of elements of State.Civs changes. Empty body until Phase 2 (cleanup of

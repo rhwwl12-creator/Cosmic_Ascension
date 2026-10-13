@@ -53,6 +53,18 @@ const FLogTemplateDef* FCosmicDataTables::FindLogTemplate(FName RowName) const
 	return FindRowQuiet<FLogTemplateDef>(LogTemplates, RowName);
 }
 
+const FCosmicEventDef* FCosmicDataTables::FindEvent(FName RowName) const
+{
+	return FindRowQuiet<FCosmicEventDef>(Events, RowName);
+}
+
+TArray<FName> FCosmicDataTables::GetEventRowNames() const
+{
+	TArray<FName> Names = Events ? Events->GetRowNames() : TArray<FName>();
+	Names.Sort(FNameLexicalLess());
+	return Names;
+}
+
 TArray<FName> FCosmicDataTables::GetCivRowNames() const
 {
 	TArray<FName> Names = Civs ? Civs->GetRowNames() : TArray<FName>();

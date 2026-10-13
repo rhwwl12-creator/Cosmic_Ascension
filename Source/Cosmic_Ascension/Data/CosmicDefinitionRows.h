@@ -17,6 +17,30 @@ class UNiagaraSystem;
 class USoundBase;
 class UTexture2D;
 
+/** How a DT_Events row comes to fire (section 7.5). Append only. */
+UENUM(BlueprintType)
+enum class ECosmicEventTrigger : uint8
+{
+	// Takes part in the one draw of a civilization's event slot, with BaseWeight. At most one per civilization and slot.
+	Lottery,
+	// Fires in the event slot whenever its conditions pass and its cooldown is over: a cadence, not a chance. No draw.
+	Standing,
+	// Never looked at by a slot. Code fires it by row name (UCosmicEventSubsystem::FireRow).
+	Named
+};
+
+/** What a DT_Events row is about: the unit a slot evaluates it on and the subject of its line (section 7.5, 8.1). Append only. */
+UENUM(BlueprintType)
+enum class ECosmicEventSubject : uint8
+{
+	// Once per civilization. Current system = its capital while that is one of its settled systems, else none. The
+	// line is about the people: FocusCiv only, so a met people is heard even when its capital is not a known system.
+	Civilization,
+	// Once per settled system of the civilization, in OwnedSystems order. The line is about the place: FocusSystem
+	// and FocusCiv.
+	SettledSystem
+};
+
 /** DT_Events row. */
 USTRUCT(BlueprintType)
 struct COSMIC_ASCENSION_API FCosmicEventDef : public FTableRowBase
@@ -24,23 +48,40 @@ struct COSMIC_ASCENSION_API FCosmicEventDef : public FTableRowBase
 	GENERATED_BODY()
 
 	// Event.Civ.Economy / Society, Event.Crisis.Supernova / Transcendent / Rebellion / Claim, Event.Grace.Rescue / Remnant / Jubilee.
+	// The weight family of the row: transcendent, trait and edict weight modifiers are keyed by it. It is not the
+	// category of the log line; that is LogCategory.
 	UPROPERTY(EditAnywhere)
 	FGameplayTag Category;
+
+	// Log.*: the Category of the log entry told for this row. Copied, never derived; the legal pairs with Category are
+	// in Tools/data/schema.json (Data.Integrity). Saved and hashed with the entry (section 8.1).
+	UPROPERTY(EditAnywhere)
+	FGameplayTag LogCategory;
+
+	UPROPERTY(EditAnywhere)
+	ECosmicEventTrigger Trigger = ECosmicEventTrigger::Lottery;
+
+	UPROPERTY(EditAnywhere)
+	ECosmicEventSubject Subject = ECosmicEventSubject::Civilization;
 
 	// AND.
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicCondition> Conditions;
 
+	// Lottery rows only: 1 = fires for an eligible unit with chance DT_Rules.EventChancePerSlot per slot.
+	// Standing and Named rows carry 0 (Data.Integrity).
 	UPROPERTY(EditAnywhere)
 	float BaseWeight = 1.f;
 
+	// Per civilization: key "<row>@<CivID>" in FGalaxyState.EventCooldownUntilTick. 0 = no cooldown. Named rows: 0.
 	UPROPERTY(EditAnywhere)
 	int32 CooldownTicks = 200;
 
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicEffect> Effects;
 
-	// Three or more. Slots: section 8.2.
+	// Three or more for Lottery and Standing rows, one or more for Named rows (Data.Integrity). Slots: section 8.2.
+	// Empty = the row tells nothing.
 	UPROPERTY(EditAnywhere)
 	TArray<FText> LogTemplates;
 
@@ -48,10 +89,14 @@ struct COSMIC_ASCENSION_API FCosmicEventDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	uint8 Severity = 0;
 
-	// Below this player Tier the event is hidden or told with the lower speaker's template (section 8.2).
-	// Tier number 1..5 (3 = Tier 3), not the enum value. 0 = always shown.
+	// Lowest viewer tier that is told LogTemplates. Tier number 1..5 (3 = Tier 3), not the enum value. 0 = everyone.
 	UPROPERTY(EditAnywhere)
 	uint8 MinTierToReveal = 0;
+
+	// DT_LogTemplates row of category Log.Sign: the lower speaker's sentence, told to a viewer below MinTierToReveal
+	// (section 8.2). NAME_None = nothing is told below it. Needs MinTierToReveal above zero (Data.Integrity).
+	UPROPERTY(EditAnywhere)
+	FName SignRow;
 };
 
 /** DT_Hazards row. */
@@ -326,7 +371,10 @@ struct COSMIC_ASCENSION_API FTranscendentDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	float SpawnWeight = 1.f;
 
-	// Event.* -> weight multiplier. Effective = value x (1 + DT_Rules.SphereEventWeightStep x InfluencedSystems.Num()), capped at x3.
+	// Event.* leaf tag -> weight multiplier of Lottery rows of exactly that Category (no parent match), for units whose
+	// system is in the sphere or one lane from it. Factor of one transcendent = min(3, value x (1 +
+	// DT_Rules.SphereEventWeightStep x InfluencedSystems.Num())); several multiply in Transcendents order. A sealed
+	// transcendent has no effect. Read from the pressure step of Phase 2 on.
 	UPROPERTY(EditAnywhere)
 	TMap<FGameplayTag, float> EventWeightModifiers;
 
@@ -344,8 +392,10 @@ struct COSMIC_ASCENSION_API FTranscendentDef : public FTableRowBase
 };
 
 /**
- * DT_LogTemplates row (section 5.11, 8.2): tick logs that are not events, plus visitation and messenger lines.
- * UCosmicLogSubsystem::PickTemplate picks the row whose Context matches the owner civ's RevelationMode, else the row with an empty Context.
+ * DT_LogTemplates row (section 5.11, 8.2): lines that belong to no event row. Two kinds of row, told apart by Context.
+ * Named rows (empty Context) are reached by row name through UCosmicLogSubsystem::PushRow. Selector rows (a
+ * Revelation.* Context, at most one per Category and Context) are reached through PickTemplateRow (Phase 4), whose
+ * fallback is a named row the caller passes.
  */
 USTRUCT(BlueprintType)
 struct COSMIC_ASCENSION_API FLogTemplateDef : public FTableRowBase
@@ -356,16 +406,16 @@ struct COSMIC_ASCENSION_API FLogTemplateDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	FGameplayTag Category;
 
-	// Revelation.* or empty (fallback row). Changes text only.
+	// Empty = a named row. Revelation.* = the selector row of that revelation mode. Changes text only.
 	UPROPERTY(EditAnywhere)
 	FGameplayTag Context;
 
-	// Below this player Tier the lower speaker's template is used (section 8.2). Tier number 1..5, 0 = always shown.
+	// Lowest viewer tier that is told this row (FCosmicLine.MinViewerTier). Tier number 1..5, 0 = everyone.
 	UPROPERTY(EditAnywhere)
 	uint8 MinTierToReveal = 0;
 
-	// Three or more; a row that fires once per run (log_first_life) may have one (section 7.5). Two sentences: fact, then
-	// implication (section 8.3).
+	// Three or more; the rows allowed one are listed by name in Tools/data/schema.json (log_first_life,
+	// log_first_contact). Two sentences: fact, then implication (section 8.3).
 	UPROPERTY(EditAnywhere)
 	TArray<FText> Templates;
 };
@@ -517,4 +567,16 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// Population band adjustment, ascending: Population < [1] one band down, < [0] Few, > [2] one band up (cap Countless).
 	UPROPERTY(EditAnywhere)
 	TArray<float> PopulationBandThresholds = { 0.15f, 0.5f, 2.0f };
+
+	// ---- Event slots (section 7.4, 7.5) ----
+
+	// Every civilization that owns a settled system gets one event slot every this many ticks. Allowed range 1..20
+	// (Data.Integrity): above 20 the two murmurs before a rebellion are no longer certain (section 4.1).
+	UPROPERTY(EditAnywhere)
+	int32 EventSlotTicks = 10;
+
+	// Chance per slot that a Lottery row of BaseWeight 1 fires for a unit it is eligible for. A provisional start value:
+	// what happens to one people grows with the number of eligible rows, so it is retuned with the content (section 16 #54).
+	UPROPERTY(EditAnywhere)
+	float EventChancePerSlot = 0.02f;
 };

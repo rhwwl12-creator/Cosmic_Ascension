@@ -15,6 +15,7 @@
 #include "Data/CosmicRowNames.h"
 #include "Engine/DataTable.h"
 #include "Engine/GameInstance.h"
+#include "Events/CosmicEventSubsystem.h"
 #include "GameplayTagContainer.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
@@ -867,14 +868,23 @@ bool FCosmicSimSeedDeriveTest::RunTest(const FString& Parameters)
 	// Purpose numbers are fixed: never renumbered, new ones appended.
 	const uint32 Purposes[] = {
 		CosmicSeed::Purpose::Tell, CosmicSeed::Purpose::Summary, CosmicSeed::Purpose::Name, CosmicSeed::Purpose::Life,
-		CosmicSeed::Purpose::Backdrop, CosmicSeed::Purpose::Scenery, CosmicSeed::Purpose::Depart, CosmicSeed::Purpose::Archetype
+		CosmicSeed::Purpose::Backdrop, CosmicSeed::Purpose::Scenery, CosmicSeed::Purpose::Depart, CosmicSeed::Purpose::Archetype,
+		CosmicSeed::Purpose::EventSlot
 	};
 	bool bPurposesFixed = true;
 	for (int32 Index = 0; Index < static_cast<int32>(UE_ARRAY_COUNT(Purposes)); ++Index)
 	{
 		bPurposesFixed &= Purposes[Index] == static_cast<uint32>(Index + 1);
 	}
-	TestTrue(TEXT("The eight purposes are numbered 1 to 8 in their fixed order"), bPurposesFixed);
+	TestTrue(TEXT("The nine purposes are numbered 1 to 9 in their fixed order"), bPurposesFixed);
+
+	// The helper for a caller that holds an FName lower-cases for it, whatever casing the name was registered in.
+	TestEqual(TEXT("DeriveForName gives the reference value of the lower-case name"),
+		static_cast<int64>(CosmicSeed::DeriveForName(42, FName(TEXT("gal_andromeda")), CosmicSeed::Purpose::Summary)), static_cast<int64>(569404729u));
+	TestEqual(TEXT("DeriveForName does not depend on the casing of the FName"),
+		static_cast<int64>(CosmicSeed::DeriveForName(7, FName(TEXT("SOL")), CosmicSeed::Purpose::Life, 3)), static_cast<int64>(2833998181u));
+	TestEqual(TEXT("DeriveForName reads NAME_None as the empty name"),
+		static_cast<int64>(CosmicSeed::DeriveForName(42, NAME_None, CosmicSeed::Purpose::Tell)), static_cast<int64>(272114134u));
 
 	// NewGalaxy stamps the tell stream with the derived value. Without tables no line is told, so the stamp is still there.
 	const FCosmicDataTables Original = Sim->GetTables();
@@ -1039,6 +1049,7 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 	// The engine reports the slot that this test cuts in half: one or more errors, and a warning depending on where the cut falls.
 	AddExpectedError(TEXT("Failed loading tagged"), EAutomationExpectedErrorFlags::Contains, 0);
 	AddExpectedMessage(TEXT("SerializeFromMismatchedTag failed"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, -1);
+	AddExpectedMessage(TEXT("Type mismatch in"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, -1);
 
 	// The budget size, so that names with a number part (sys_100, civ_10) go through the save and the hash.
 	Sim->NewGalaxy(42, CosmicTests::BudgetSystems, CosmicTests::BudgetCivs);
@@ -1046,6 +1057,17 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 	CosmicSimTests::FillEmptyContainers(Sim->GetMutableState());
 	// TickResearch re-adds the field: into the freed slot of the running map, at the end of the loaded one (section 9.2).
 	Sim->GetMutableState().Civs[0].Research.Remove(FName(TEXT("Physics")));
+	// The same for the cooldown keys of the event slots ("<row>@<CivID>"): one removed and inserted again, both far
+	// enough ahead that the sweep at tick 1,200 keeps them.
+	{
+		TMap<FName, int64>& Cooldowns = Sim->GetMutableState().EventCooldownUntilTick;
+		const FName First = UCosmicEventSubsystem::CooldownKey(FName(TEXT("evt_test")), Sim->GetState().Civs[1].CivID);
+		const FName Second = UCosmicEventSubsystem::CooldownKey(FName(TEXT("evt_test")), Sim->GetState().Civs[2].CivID);
+		Cooldowns.Add(First, 100000);
+		Cooldowns.Add(Second, 100001);
+		Cooldowns.Remove(First);
+		Cooldowns.Add(First, 100000);
+	}
 	// A draw outside a tick: the save itself has to capture the live stream position.
 	Sim->GetRng().GetUnsignedInt();
 
@@ -1096,6 +1118,8 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 		{
 			TestEqual(TEXT("Tell stream continues identically after load"), static_cast<int64>(Sim->DrawTell(1000)), static_cast<int64>(Expected));
 		}
+		TestEqual(TEXT("The cooldown keys of the event slots survive the round trip and the sweep"),
+			Sim->GetState().EventCooldownUntilTick.FindRef(UCosmicEventSubsystem::CooldownKey(FName(TEXT("evt_test")), Sim->GetState().Civs[1].CivID)), static_cast<int64>(100000));
 	}
 
 	// Refused loads leave the running galaxy untouched.
