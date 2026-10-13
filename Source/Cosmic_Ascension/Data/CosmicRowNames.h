@@ -15,6 +15,9 @@ namespace CosmicRows
 	// and the one row whose civs draw their ethics at random (section 5.11, 7.4).
 	inline const FName ArchDefault(TEXT("arch_default"));
 
+	// DT_Megaprojects: settling. A system whose ActiveMegaproject is this row is owned but not yet settled (section 5.7).
+	inline const FName ProjectSettle(TEXT("project_settle"));
+
 	// DT_LogTemplates: the first line of a run (section 2.4).
 	inline const FName LogFirstLife(TEXT("log_first_life"));
 

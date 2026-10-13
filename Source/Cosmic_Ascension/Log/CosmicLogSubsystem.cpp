@@ -84,6 +84,8 @@ void UCosmicLogSubsystem::Append(FGameplayTag Category, uint8 Severity, FString&
 
 	if (Sim->IsBroadcastEnabled())
 	{
+		Sim->BeginBroadcast();
 		OnLogEntry.Broadcast(Entry);
+		Sim->EndBroadcast();
 	}
 }

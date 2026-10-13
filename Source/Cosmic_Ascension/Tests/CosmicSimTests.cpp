@@ -769,6 +769,65 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimStateIndexTest, "Cosmic_Ascension.Sim.StateIndex", CosmicTests::Flags)
+bool FCosmicSimStateIndexTest::RunTest(const FString& Parameters)
+{
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+
+	// The one error line of the stale lookup below.
+	AddExpectedError(TEXT("State index is stale for civ"), EAutomationExpectedErrorFlags::Contains, 1);
+
+	// Every ID of the live state resolves to its own element.
+	auto AllResolve = [Sim]()
+	{
+		const FGalaxyState& State = Sim->GetState();
+		const FCosmicStateIndex& Index = Sim->GetStateIndex();
+		bool bAll = true;
+		for (int32 Civ = 0; Civ < State.Civs.Num(); ++Civ)
+		{
+			bAll &= Index.FindCiv(State, State.Civs[Civ].CivID) == Civ;
+		}
+		for (int32 System = 0; System < State.Systems.Num(); ++System)
+		{
+			bAll &= Index.FindSystem(State, State.Systems[System].SystemID) == System;
+		}
+		return bAll;
+	};
+
+	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	const FCosmicStateIndex& Index = Sim->GetStateIndex();
+	TestTrue(TEXT("After NewGalaxy every ID resolves to its own element"), AllResolve());
+	TestEqual(TEXT("NAME_None is no civ"), Index.FindCiv(Sim->GetState(), NAME_None), static_cast<int32>(INDEX_NONE));
+	TestEqual(TEXT("NAME_None is no system"), Index.FindSystem(Sim->GetState(), NAME_None), static_cast<int32>(INDEX_NONE));
+	TestEqual(TEXT("An unknown civ is not found"), Index.FindCiv(Sim->GetState(), FName(TEXT("civ_none"))), static_cast<int32>(INDEX_NONE));
+	TestEqual(TEXT("An unknown system is not found"), Index.FindSystem(Sim->GetState(), FName(TEXT("sys_none"))), static_cast<int32>(INDEX_NONE));
+
+	// A state of another size put in place by LoadState.
+	const FGalaxyState Larger = Sim->GetState();
+	Sim->NewGalaxy(43, 5, 3);
+	TestTrue(TEXT("After a smaller NewGalaxy every ID resolves"), AllResolve());
+	Sim->LoadState(Larger);
+	TestTrue(TEXT("After LoadState every ID resolves to its own element"),
+		Sim->GetState().Systems.Num() == CosmicTests::SliceSystems && Sim->GetState().Civs.Num() == CosmicTests::SliceCivs && AllResolve());
+
+	// An array changed by hand: the index is stale, says so once and never answers with another element.
+	FGalaxyState& Mutable = Sim->GetMutableState();
+	const FName Shifted = Mutable.Civs[2].CivID;
+	Mutable.Civs.RemoveAt(1);
+	TestEqual(TEXT("A stale index answers INDEX_NONE, not a wrong element"), Index.FindCiv(Mutable, Shifted), static_cast<int32>(INDEX_NONE));
+	Sim->RebuildStateIndex();
+	TestEqual(TEXT("After RebuildStateIndex the shifted civ is found where it is"), Index.FindCiv(Mutable, Shifted), 1);
+	TestTrue(TEXT("After RebuildStateIndex every ID resolves"), AllResolve());
+
+	// Leave a consistent galaxy behind.
+	Sim->NewGalaxy(42, 5, 3);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimSeedDeriveTest, "Cosmic_Ascension.Sim.SeedDerive", CosmicTests::Flags)
 bool FCosmicSimSeedDeriveTest::RunTest(const FString& Parameters)
 {

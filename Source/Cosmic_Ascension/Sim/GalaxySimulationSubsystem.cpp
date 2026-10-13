@@ -506,6 +506,8 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 		Home.OwnerCivID = Civ.CivID;
 	}
 
+	StateIndex.Rebuild(State);
+
 	// The first life: ruler of the player civ, through the same function succession uses (section 5.10).
 	UPlayerRoleSubsystem* PlayerRole = GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>();
 	check(PlayerRole);
@@ -602,6 +604,7 @@ void UGalaxySimulationSubsystem::LoadState(const FGalaxyState& In)
 	ensureMsgf(!bInTickStages, TEXT("LoadState from inside a tick stage: issue it from OnSimTick or from input"));
 
 	State = In;
+	StateIndex.Rebuild(State);
 	Rng.Initialize(State.RngState);
 	Accumulator = 0.f;
 	bRunning = true;
@@ -829,10 +832,12 @@ void UGalaxySimulationSubsystem::ResolvePendingRoleEffect()
 
 const FCivilizationState* UGalaxySimulationSubsystem::FindCiv(FName CivID) const
 {
-	return State.Civs.FindByPredicate([CivID](const FCivilizationState& Civ) { return Civ.CivID == CivID; });
+	const int32 Index = StateIndex.FindCiv(State, CivID);
+	return State.Civs.IsValidIndex(Index) ? &State.Civs[Index] : nullptr;
 }
 
 const FStarSystemState* UGalaxySimulationSubsystem::FindSystem(FName SystemID) const
 {
-	return State.Systems.FindByPredicate([SystemID](const FStarSystemState& System) { return System.SystemID == SystemID; });
+	const int32 Index = StateIndex.FindSystem(State, SystemID);
+	return State.Systems.IsValidIndex(Index) ? &State.Systems[Index] : nullptr;
 }

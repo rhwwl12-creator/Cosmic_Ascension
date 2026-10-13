@@ -11,6 +11,7 @@
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
+#include "Sim/CosmicStateIndex.h"
 #include "GalaxySimulationSubsystem.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSimTick, int64, Tick);
@@ -96,6 +97,20 @@ public:
 	// Replaces the tables and re-reads the rules row. Tests inject transient tables here.
 	void SetTables(const FCosmicDataTables& InTables);
 
+	// ID -> index for Civs and Systems (section 7.4, 9.4). Rebuilt by NewGalaxy, LoadState and the crossing stage.
+	const FCosmicStateIndex& GetStateIndex() const { return StateIndex; }
+
+	// For code that changed the number of elements of Civs or Systems through GetMutableState (tests).
+	void RebuildStateIndex() { StateIndex.Rebuild(State); }
+
+	// Counts the Core Logic delegates that are being broadcast right now and that can fire from inside a tick stage:
+	// OnLogEntry, OnEventFired, OnTierAscended (section 9.4). Their handlers may read the state and call SetTimeScale
+	// and nothing else, so UCosmicEventSubsystem refuses its member functions while this is true. Every such broadcast
+	// site brackets its Broadcast call with BeginBroadcast and EndBroadcast.
+	bool IsBroadcasting() const { return BroadcastDepth > 0; }
+	void BeginBroadcast() { ++BroadcastDepth; }
+	void EndBroadcast() { --BroadcastDepth; }
+
 	// Population band (section 1.3, 8.3). Derived, never saved, never hashed: civ Tier baseline, adjusted by Population against
 	// DT_Rules.PopulationBandThresholds. Unknown CivID returns Few.
 	UFUNCTION(BlueprintPure)
@@ -171,6 +186,11 @@ private:
 
 	FRandomStream Rng;
 	FCosmicRulesDef Rules;
+
+	// Derived from State, never saved: see GetStateIndex.
+	FCosmicStateIndex StateIndex;
+
+	int32 BroadcastDepth = 0;
 
 	float Accumulator = 0.f;
 	float TimeScale = 1.f;
