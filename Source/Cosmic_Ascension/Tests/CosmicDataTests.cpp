@@ -66,7 +66,10 @@ namespace CosmicDataTests
 	// list of the code, the words the evaluator resolves, and in the loaded assets the things that break silently at run
 	// time (a row name that names nothing, a tag the ini does not declare, an array of the wrong length, a knob out of
 	// range). The usage of conditions and effects, the text rules and the row rules stay with the sources:
-	// Data.SourcesInSync ties the assets to them.
+	// Data.SourcesInSync ties the assets to them. What it cannot tie them to is the ini of today (the ini is not in the
+	// stamp), so every tag of a loaded row is held to the ini here, the tags inside conditions and effects too.
+	// Names are compared to the letter: FString compares without regard to case, and a schema that differs from the code
+	// in case only would turn away rows written the way the code spells them.
 
 	using FJsonObjectPtr = TSharedPtr<FJsonObject>;
 
@@ -141,7 +144,19 @@ namespace CosmicDataTests
 		return FindObject<UScriptStruct>(nullptr, *(FString(TEXT("/Script/Cosmic_Ascension.")) + StructName));
 	}
 
-	// The kinds of column (the closed list of schema.json) a property may be declared as.
+	bool SameText(const FString& A, const FString& B)
+	{
+		return A.Equals(B, ESearchCase::CaseSensitive);
+	}
+
+	bool HasText(const TArray<FString>& List, const FString& Text)
+	{
+		return List.ContainsByPredicate([&Text](const FString& Each) { return SameText(Each, Text); });
+	}
+
+	// The kinds of column (the closed list of schema.json) a property may be declared as. A type the closed list has no
+	// kind for answers with a name outside the list, so that its first declaration fails until a kind exists: declared
+	// "plain", a list of row names or a list of structs with effects inside would go unchecked on both sides.
 	TArray<FString> KindsFor(const FProperty* Property)
 	{
 		if (CastField<FNameProperty>(Property))
@@ -205,6 +220,11 @@ namespace CosmicDataTests
 				{
 					return { TEXT("effects") };
 				}
+				return { TEXT("nested") };
+			}
+			if (CastField<FNameProperty>(Inner))
+			{
+				return { TEXT("row_list") };
 			}
 			return { TEXT("plain") };
 		}
@@ -223,11 +243,34 @@ namespace CosmicDataTests
 		return { TEXT("plain") };
 	}
 
+	// A column whose numbers are whole by its type: an integer property, an array of them, a map to them.
+	bool HoldsWholeNumbers(const FProperty* Property)
+	{
+		const FProperty* Number = Property;
+		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+		{
+			Number = ArrayProperty->Inner;
+		}
+		else if (const FMapProperty* MapProperty = CastField<FMapProperty>(Property))
+		{
+			Number = MapProperty->ValueProp;
+		}
+		const FByteProperty* ByteProperty = CastField<FByteProperty>(Number);
+		const FNumericProperty* Numeric = CastField<FNumericProperty>(Number);
+		return Numeric && Numeric->IsInteger() && !(ByteProperty && ByteProperty->Enum);
+	}
+
 	void CompareNames(TArray<FString>& Problems, const FString& What, TArray<FString> InSchema, TArray<FString> InCode)
 	{
-		InSchema.Sort();
-		InCode.Sort();
-		if (InSchema != InCode)
+		const auto Before = [](const FString& A, const FString& B) { return A.Compare(B, ESearchCase::CaseSensitive) < 0; };
+		InSchema.Sort(Before);
+		InCode.Sort(Before);
+		bool bSame = InSchema.Num() == InCode.Num();
+		for (int32 Index = 0; bSame && Index < InSchema.Num(); ++Index)
+		{
+			bSame = SameText(InSchema[Index], InCode[Index]);
+		}
+		if (!bSame)
 		{
 			Problems.Add(FString::Printf(TEXT("%s: the schema lists [%s], the code has [%s]"), *What, *FString::Join(InSchema, TEXT(", ")), *FString::Join(InCode, TEXT(", "))));
 		}
@@ -275,9 +318,16 @@ namespace CosmicDataTests
 				FString Kind;
 				Column->TryGetStringField(TEXT("kind"), Kind);
 				const TArray<FString> Allowed = KindsFor(*It);
-				if (!Allowed.Contains(Kind))
+				if (!HasText(Allowed, Kind))
 				{
 					Problems.Add(FString::Printf(TEXT("schema.%s.%s: kind '%s' does not fit the type of the column (%s)"), *TableName, *ColumnName, *Kind, *FString::Join(Allowed, TEXT(" or "))));
+				}
+				// A column of whole numbers says so: the sources are held to whole numbers by that option alone.
+				bool bInteger = false;
+				Column->TryGetBoolField(TEXT("integer"), bInteger);
+				if (HoldsWholeNumbers(*It) && !bInteger)
+				{
+					Problems.Add(FString::Printf(TEXT("schema.%s.%s: the column holds whole numbers and the schema does not say \"integer\": true"), *TableName, *ColumnName));
 				}
 			}
 			for (const FString& ColumnName : KeysOf(Columns))
@@ -329,8 +379,10 @@ namespace CosmicDataTests
 			Problems.Add(TEXT("schema: no words"));
 		}
 
-		// The tags the code asks for by name are declared, not only implied by a child.
-		for (const FString& TagName : StringsOf(Schema, TEXT("required_tags")))
+		// The tags the schema requires are declared in the ini, not only implied by a child. The list holds the role tags of
+		// a notable (section 9.3), and every tag the ini declares under Notable is on it: a seventh role needs its line.
+		const TArray<FString> RequiredTags = StringsOf(Schema, TEXT("required_tags"));
+		for (const FString& TagName : RequiredTags)
 		{
 			const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(*TagName), false);
 			const TSharedPtr<FGameplayTagNode> Node = Tag.IsValid() ? UGameplayTagsManager::Get().FindTagNode(Tag) : TSharedPtr<FGameplayTagNode>();
@@ -339,6 +391,19 @@ namespace CosmicDataTests
 				Problems.Add(FString::Printf(TEXT("schema.required_tags: tag %s is not declared in the ini"), *TagName));
 			}
 		}
+		TArray<FString> RoleTags;
+		const FGameplayTag Notable = FGameplayTag::RequestGameplayTag(FName(TEXT("Notable")), false);
+		if (Notable.IsValid())
+		{
+			// Held in a local: a range-for over the array of a temporary container would read it after it is gone.
+			const FGameplayTagContainer Roles = UGameplayTagsManager::Get().RequestGameplayTagChildren(Notable);
+			for (const FGameplayTag& Role : Roles.GetGameplayTagArray())
+			{
+				RoleTags.Add(Role.GetTagName().ToString());
+			}
+		}
+		CompareNames(Problems, TEXT("schema.required_tags (the role tags under Notable)"),
+			RequiredTags.FilterByPredicate([](const FString& TagName) { return TagName.StartsWith(TEXT("Notable."), ESearchCase::CaseSensitive); }), RoleTags);
 
 		// The per-tick list is the list of the code, effect by effect.
 		const TArray<FString> PerTick = StringsOf(Schema, TEXT("per_tick_effects"));
@@ -347,10 +412,11 @@ namespace CosmicDataTests
 		{
 			const FString Name = Effects->GetNameStringByIndex(Index);
 			const bool bInCode = CosmicEventImpl::IsPerTickEffect(static_cast<EEffectType>(Effects->GetValueByIndex(Index)));
-			if (PerTick.Contains(Name) != bInCode)
+			const bool bListed = HasText(PerTick, Name);
+			if (bListed != bInCode)
 			{
 				Problems.Add(FString::Printf(TEXT("schema.per_tick_effects: %s is %s in the schema and %s in the code"), *Name,
-					PerTick.Contains(Name) ? TEXT("listed") : TEXT("not listed"), bInCode ? TEXT("applied by a per-tick source") : TEXT("refused by a per-tick source")));
+					bListed ? TEXT("listed") : TEXT("not listed"), bInCode ? TEXT("applied by a per-tick source") : TEXT("refused by a per-tick source")));
 			}
 		}
 		return Problems;
@@ -368,20 +434,24 @@ namespace CosmicDataTests
 	}
 
 	// One number against the min and max of its column. A value that is not finite is a problem by itself. ("integer" is
-	// left to the sources: a column of whole numbers is an integer property here.)
-	void CheckNumber(TArray<FString>& Problems, const FString& Where, double Number, const FJsonObject& Column)
+	// left to the sources: a column of whole numbers is an integer property here.) A float column is held to the bound
+	// as a float holds it: the sources compare the number as written (0.85 against 0.85), and the same value read back
+	// from a float (0.85f is a little above 0.85) must not fall outside.
+	void CheckNumber(TArray<FString>& Problems, const FString& Where, const FProperty* Property, double Number, const FJsonObject& Column)
 	{
+		const bool bSingle = CastField<FFloatProperty>(Property) != nullptr;
+		const auto AsHeld = [bSingle](double Bound) { return bSingle ? static_cast<double>(static_cast<float>(Bound)) : Bound; };
 		if (!(Number >= std::numeric_limits<double>::lowest() && Number <= std::numeric_limits<double>::max()))
 		{
 			Problems.Add(FString::Printf(TEXT("%s: not a finite number"), *Where));
 			return;
 		}
 		double Bound = 0.0;
-		if (Column.TryGetNumberField(TEXT("min"), Bound) && Number < Bound)
+		if (Column.TryGetNumberField(TEXT("min"), Bound) && Number < AsHeld(Bound))
 		{
 			Problems.Add(FString::Printf(TEXT("%s: %g is below %g"), *Where, Number, Bound));
 		}
-		if (Column.TryGetNumberField(TEXT("max"), Bound) && Number > Bound)
+		if (Column.TryGetNumberField(TEXT("max"), Bound) && Number > AsHeld(Bound))
 		{
 			Problems.Add(FString::Printf(TEXT("%s: %g is above %g"), *Where, Number, Bound));
 		}
@@ -437,7 +507,7 @@ namespace CosmicDataTests
 	{
 		FString Kind;
 		Column.TryGetStringField(TEXT("kind"), Kind);
-		if (!KindsFor(Property).Contains(Kind))
+		if (!HasText(KindsFor(Property), Kind))
 		{
 			// CheckSchemaAgainstCode reports the kind. Reading the cell as that kind would read the wrong memory.
 			return;
@@ -470,7 +540,7 @@ namespace CosmicDataTests
 			double Number = 0.0;
 			if (NumberOf(Property, Value, Number))
 			{
-				CheckNumber(Problems, Where, Number, Column);
+				CheckNumber(Problems, Where, Property, Number, Column);
 			}
 		}
 		else if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
@@ -491,7 +561,7 @@ namespace CosmicDataTests
 				{
 					double Number = 0.0;
 					NumberOf(ArrayProperty->Inner, Helper.GetRawPtr(Index), Number);
-					CheckNumber(Problems, FString::Printf(TEXT("%s[%d]"), *Where, Index), Number, Column);
+					CheckNumber(Problems, FString::Printf(TEXT("%s[%d]"), *Where, Index), ArrayProperty->Inner, Number, Column);
 					if (bAscending && Index > 0 && !(Number > Previous))
 					{
 						Problems.Add(FString::Printf(TEXT("%s: the entries do not rise"), *Where));
@@ -507,9 +577,11 @@ namespace CosmicDataTests
 				bool bHasLeast = Column.TryGetNumberField(TEXT("min"), Least);
 				bool bSingleVariant = false;
 				Column.TryGetBoolField(TEXT("single_variant"), bSingleVariant);
-				if (bSingleVariant && StringsOf(Schema, TEXT("single_variant_rows")).Contains(RowName.ToString()))
+				if (bSingleVariant && HasText(StringsOf(Schema, TEXT("single_variant_rows")), RowName.ToString()))
 				{
+					// One variant is asked for whether or not the column states a least count of its own.
 					Least = 1;
+					bHasLeast = true;
 				}
 				if (bHasLeast && Count < Least)
 				{
@@ -531,6 +603,19 @@ namespace CosmicDataTests
 				for (int32 Index = 0; Index < Count; ++Index)
 				{
 					CheckTag(Problems, FString::Printf(TEXT("%s[%d]"), *Where, Index), *reinterpret_cast<const FGameplayTag*>(Helper.GetRawPtr(Index)), Column, false);
+				}
+			}
+			else if (Kind == TEXT("conditions") || Kind == TEXT("effects"))
+			{
+				// How a condition or an effect uses its Tag, Key and Value is checked on the sources. What the sources cannot
+				// vouch for is the ini of today: a tag that left it keeps its name in the asset and never matches again.
+				const FJsonObject AnyTag;
+				for (int32 Index = 0; Index < Count; ++Index)
+				{
+					const FGameplayTag& Tag = Kind == TEXT("conditions")
+						? reinterpret_cast<const FCosmicCondition*>(Helper.GetRawPtr(Index))->Tag
+						: reinterpret_cast<const FCosmicEffect*>(Helper.GetRawPtr(Index))->Tag;
+					CheckTag(Problems, FString::Printf(TEXT("%s[%d].Tag"), *Where, Index), Tag, AnyTag, true);
 				}
 			}
 		}
@@ -565,7 +650,7 @@ namespace CosmicDataTests
 					{
 						CheckRowName(Problems, Here, Key, Tables, TargetTable, false);
 					}
-					else if (!Words.IsValid() || !StringsOf(*Words, *WordList).Contains(Key.ToString()))
+					else if (!Words.IsValid() || !HasText(StringsOf(*Words, *WordList), Key.ToString()))
 					{
 						Problems.Add(FString::Printf(TEXT("%s: %s is none of the words of %s"), *Here, *Key.ToString(), *WordList));
 					}
@@ -573,7 +658,7 @@ namespace CosmicDataTests
 				double Number = 0.0;
 				if (NumberOf(MapProperty->ValueProp, Helper.GetValuePtr(Index), Number))
 				{
-					CheckNumber(Problems, Here, Number, Column);
+					CheckNumber(Problems, Here, MapProperty->ValueProp, Number, Column);
 				}
 			}
 		}
@@ -645,7 +730,7 @@ namespace CosmicDataTests
 				}
 				if (!Names.IsEmpty())
 				{
-					if (!Names.Contains(RowName))
+					if (!HasText(Names, RowName))
 					{
 						Problems.Add(FString::Printf(TEXT("%s: this table holds only the rows %s"), *Where, *FString::Join(Names, TEXT(", "))));
 					}
@@ -743,7 +828,7 @@ namespace CosmicDataTests
 }
 
 // The JSON and CSV files under Tools/data are the source of the DataTable and String Table assets, and the game reads only
-// the assets. The script that generates them leaves the hashes of its sources behind; a source edited afterwards without
+// the assets. The script that generates them leaves the hashes of what it read behind; a file edited afterwards without
 // running the script again fails here.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicDataSourcesInSyncTest, "Cosmic_Ascension.Data.SourcesInSync", CosmicTests::Flags)
 bool FCosmicDataSourcesInSyncTest::RunTest(const FString& Parameters)
@@ -761,8 +846,8 @@ bool FCosmicDataSourcesInSyncTest::RunTest(const FString& Parameters)
 		return false;
 	}
 
-	// One line per source the script turned into an asset, and one for the schema it checked them against:
-	// "<file name> <sha1>".
+	// One line per source the script turned into an asset, one for the schema it checked them against and one for the
+	// checker it checked them with: "<file name> <sha1>".
 	TMap<FString, FString> Recorded;
 	for (const FString& Line : Lines)
 	{
@@ -777,7 +862,10 @@ bool FCosmicDataSourcesInSyncTest::RunTest(const FString& Parameters)
 
 	for (const TPair<FString, FString>& Entry : Recorded)
 	{
-		const FString Current = CosmicDataTests::HashOfSource(SourceDir / Entry.Key);
+		// A name may climb out of the folder: "../cosmic_data_schema.py" is the checker, which lives next to it.
+		FString Path = SourceDir / Entry.Key;
+		FPaths::CollapseRelativeDirectories(Path);
+		const FString Current = CosmicDataTests::HashOfSource(Path);
 		TestTrue(*FString::Printf(TEXT("%s is unchanged since the assets were generated (run Tools/make_data_tables.py)"), *Entry.Key),
 			!Current.IsEmpty() && Current.Equals(Entry.Value, ESearchCase::IgnoreCase));
 	}
@@ -844,12 +932,16 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 	{
 		TestTrue(*(FString(TEXT("Reported: ")) + What), AnyCarries(Problems, Words));
 	};
-	// The problems of a fresh copy of the schema with one thing changed in it, against the code.
-	auto AgainstCode = [&SchemaText](TFunctionRef<void(const FJsonObjectPtr&)> Change)
+	// A fresh copy of the schema with one thing changed in it.
+	auto SchemaWith = [&SchemaText](TFunctionRef<void(const FJsonObjectPtr&)> Change)
 	{
 		const FJsonObjectPtr Copy = ParseJson(SchemaText);
 		Change(Copy);
-		return CheckSchemaAgainstCode(*Copy);
+		return Copy;
+	};
+	auto AgainstCode = [&SchemaWith](TFunctionRef<void(const FJsonObjectPtr&)> Change)
+	{
+		return CheckSchemaAgainstCode(*SchemaWith(Change));
 	};
 
 	// ---- The schema and the code ----
@@ -874,6 +966,13 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 			Columns->SetObjectField(TEXT("NoSuchKnob"), Column);
 		}
 	}), { TEXT("schema.DT_Rules.NoSuchKnob"), TEXT("does not have") });
+	Expect(TEXT("a column of whole numbers that the schema does not call integer"), AgainstCode([](const FJsonObjectPtr& Root)
+	{
+		if (const FJsonObjectPtr Column = At(Root, { TEXT("tables"), TEXT("DT_Rules"), TEXT("columns"), TEXT("ThroneLockTicks") }))
+		{
+			Column->RemoveField(TEXT("integer"));
+		}
+	}), { TEXT("schema.DT_Rules.ThroneLockTicks"), TEXT("holds whole numbers") });
 
 	// A kind that does not fit the type of its column, one case per type of column the row structs have.
 	struct FKindCase
@@ -888,6 +987,7 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		{ TEXT("DT_Civs"), TEXT("DisplayName"), TEXT("plain"), TEXT("(text)") },
 		{ TEXT("DT_Events"), TEXT("Trigger"), TEXT("number"), TEXT("(enum)") },
 		{ TEXT("DT_Rules"), TEXT("EventSlotTicks"), TEXT("text"), TEXT("(number)") },
+		{ TEXT("DT_Rules"), TEXT("EventSlotTicks"), TEXT("Number"), TEXT("(number)") },
 		{ TEXT("DT_Civs"), TEXT("AIProfile"), TEXT("row"), TEXT("(tag)") },
 		{ TEXT("DT_Civs"), TEXT("Traits"), TEXT("tag"), TEXT("(tags)") },
 		{ TEXT("DT_Civs"), TEXT("EthicsPreset"), TEXT("number"), TEXT("(plain)") },
@@ -911,6 +1011,14 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		const FString Where = FString::Printf(TEXT("schema.%s.%s"), Case.Table, Case.Column);
 		Expect(FString::Printf(TEXT("the kind %s on %s.%s, a column that is %s"), Case.WrongKind, Case.Table, Case.Column, Case.Fits), Unfit, { *Where, TEXT("does not fit"), Case.Fits });
 	}
+	{
+		// Two types of column the closed kinds cannot declare yet. Not "plain": such a column would go unchecked, so its
+		// first declaration has to fail until a kind for it exists (section 9.3: the hazard and the encounter tables).
+		const FProperty* RowNames = FHazardDef::StaticStruct()->FindPropertyByName(TEXT("RulerResolutions"));
+		const FProperty* Structs = FEncounterDef::StaticStruct()->FindPropertyByName(TEXT("Choices"));
+		TestTrue(TEXT("A list of row names is of no kind of the closed list yet"), RowNames && KindsFor(RowNames) == TArray<FString>{ TEXT("row_list") });
+		TestTrue(TEXT("A list of structs is of no kind of the closed list yet"), Structs && KindsFor(Structs) == TArray<FString>{ TEXT("nested") });
+	}
 
 	Expect(TEXT("a condition enumerator the schema does not list"), AgainstCode([](const FJsonObjectPtr& Root)
 	{
@@ -919,6 +1027,14 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 			Conditions->RemoveField(TEXT("CivHasNotable"));
 		}
 	}), { TEXT("schema.conditions"), TEXT("CivHasNotable") });
+	Expect(TEXT("a condition enumerator the schema spells in another case"), AgainstCode([](const FJsonObjectPtr& Root)
+	{
+		if (const FJsonObjectPtr Conditions = At(Root, { TEXT("conditions") }))
+		{
+			Conditions->RemoveField(TEXT("CivHasNotable"));
+			Conditions->SetObjectField(TEXT("civhasnotable"), MakeShared<FJsonObject>());
+		}
+	}), { TEXT("schema.conditions"), TEXT("civhasnotable") });
 	Expect(TEXT("an effect the schema lists and the code does not have"), AgainstCode([](const FJsonObjectPtr& Root)
 	{
 		if (const FJsonObjectPtr Effects = At(Root, { TEXT("effects") }))
@@ -951,18 +1067,28 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 	{
 		const TArray<FString> OtherPerTick = AgainstCode([](const FJsonObjectPtr& Root)
 		{
-			Root->SetArrayField(TEXT("per_tick_effects"), JsonStrings({ TEXT("AddResource"), TEXT("SetFlag") }));
+			Root->SetArrayField(TEXT("per_tick_effects"), JsonStrings({ TEXT("addresource"), TEXT("SetFlag") }));
 		});
 		Expect(TEXT("a per-tick effect of the schema that a per-tick source refuses"), OtherPerTick, { TEXT("SetFlag is listed in the schema and refused") });
 		Expect(TEXT("an effect a per-tick source applies and the schema does not list"), OtherPerTick, { TEXT("MultiplyIncome is not listed in the schema and applied") });
+		Expect(TEXT("a per-tick effect the schema spells in another case"), OtherPerTick, { TEXT("AddResource is not listed in the schema and applied") });
 	}
 	{
 		const TArray<FString> OtherTags = AgainstCode([](const FJsonObjectPtr& Root)
 		{
-			Root->SetArrayField(TEXT("required_tags"), JsonStrings({ TEXT("Notable.Rebel"), TEXT("Notable.Nobody") }));
+			TArray<FString> Tags = StringsOf(*Root, TEXT("required_tags"));
+			Tags.Add(TEXT("Notable.Nobody"));
+			Tags.Remove(TEXT("Notable.Hearer"));
+			TArray<TSharedPtr<FJsonValue>> Values;
+			for (const FString& Tag : Tags)
+			{
+				Values.Add(MakeShared<FJsonValueString>(Tag));
+			}
+			Root->SetArrayField(TEXT("required_tags"), Values);
 		});
-		Expect(TEXT("a tag the schema requires and the ini does not declare"), OtherTags, { TEXT("schema.required_tags"), TEXT("Notable.Nobody") });
-		TestFalse(TEXT("A required tag the ini declares is not reported"), AnyCarries(OtherTags, { TEXT("Notable.Rebel") }));
+		Expect(TEXT("a tag the schema requires and the ini does not declare"), OtherTags, { TEXT("schema.required_tags: tag Notable.Nobody") });
+		TestFalse(TEXT("A required tag the ini declares is not reported as undeclared"), AnyCarries(OtherTags, { TEXT("schema.required_tags: tag Notable.Rebel") }));
+		Expect(TEXT("a role tag the ini declares and the list of required tags lacks"), OtherTags, { TEXT("the role tags under Notable"), TEXT("Notable.Hearer") });
 	}
 #if WITH_EDITORONLY_DATA
 	Expect(TEXT("a required tag that only its children imply"), AgainstCode([](const FJsonObjectPtr& Root)
@@ -971,38 +1097,41 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 	}), { TEXT("schema.required_tags"), TEXT("tag Notable is not declared") });
 #endif
 
-	// The word lists that have a list in the code are that list, both ways.
+	// The word lists that have a list in the code are that list, both ways and to the letter.
 	struct FWordCase
 	{
 		const TCHAR* List;
 		const TCHAR* Extra;
 	};
-	for (const FWordCase& Case : { FWordCase{ TEXT("resource"), TEXT("Gold") }, FWordCase{ TEXT("role"), TEXT("Regent") }, FWordCase{ TEXT("axis"), TEXT("Militarism") }, FWordCase{ TEXT("policy"), TEXT("Greedy") } })
+	auto WithWords = [&AgainstCode](const TCHAR* List, TFunctionRef<void(TArray<FString>&)> Change)
 	{
-		const TArray<FString> OneMore = AgainstCode([&Case](const FJsonObjectPtr& Root)
+		return AgainstCode([List, &Change](const FJsonObjectPtr& Root)
 		{
 			if (const FJsonObjectPtr Words = At(Root, { TEXT("words") }))
 			{
-				TArray<FString> Listed = StringsOf(*Words, Case.List);
-				Listed.Add(Case.Extra);
+				TArray<FString> Listed = StringsOf(*Words, List);
+				Change(Listed);
 				TArray<TSharedPtr<FJsonValue>> Values;
 				for (const FString& Word : Listed)
 				{
 					Values.Add(MakeShared<FJsonValueString>(Word));
 				}
-				Words->SetArrayField(Case.List, Values);
+				Words->SetArrayField(List, Values);
 			}
 		});
+	};
+	for (const FWordCase& Case : { FWordCase{ TEXT("resource"), TEXT("Gold") }, FWordCase{ TEXT("role"), TEXT("Regent") }, FWordCase{ TEXT("axis"), TEXT("Militarism") }, FWordCase{ TEXT("policy"), TEXT("Greedy") } })
+	{
 		const FString Where = FString::Printf(TEXT("schema.words.%s"), Case.List);
-		Expect(FString::Printf(TEXT("a word under %s that the code does not have"), Case.List), OneMore, { *Where, Case.Extra });
-		const TArray<FString> NoneLeft = AgainstCode([&Case](const FJsonObjectPtr& Root)
+		Expect(FString::Printf(TEXT("a word under %s that the code does not have"), Case.List), WithWords(Case.List, [&Case](TArray<FString>& Listed) { Listed.Add(Case.Extra); }), { *Where, Case.Extra });
+		Expect(FString::Printf(TEXT("a word of the code that the list %s lacks"), Case.List), WithWords(Case.List, [](TArray<FString>& Listed) { Listed.Reset(); }), { *Where, TEXT("the schema lists []") });
+		Expect(FString::Printf(TEXT("a word under %s in another case"), Case.List), WithWords(Case.List, [](TArray<FString>& Listed)
 		{
-			if (const FJsonObjectPtr Words = At(Root, { TEXT("words") }))
+			if (Listed.Num() > 0)
 			{
-				Words->SetArrayField(Case.List, TArray<TSharedPtr<FJsonValue>>());
+				Listed[0] = Listed[0].ToLower();
 			}
-		});
-		Expect(FString::Printf(TEXT("a word of the code that the list %s lacks"), Case.List), NoneLeft, { *Where, TEXT("the schema lists []") });
+		}), { *Where, TEXT("the schema lists [") });
 	}
 
 	// The words a condition or an effect carries in its Key are the words the evaluator resolves, list by list, and a
@@ -1061,10 +1190,22 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 	const FCosmicDataTables& Game = Sim->GetTables();
 	TArray<FString> LoaderTables;
 	const FTableMap Loaded = TablesOfTheGame(Game, LoaderTables);
-	TestTrue(TEXT("The loader holds the three tables of the first phase and more"), LoaderTables.Num() >= 3 && Loaded.Contains(TEXT("DT_Rules")) && Loaded.Contains(TEXT("DT_Civs")) && Loaded.Contains(TEXT("DT_LogTemplates")));
+	for (const TCHAR* TableName : { TEXT("DT_Rules"), TEXT("DT_Civs"), TEXT("DT_LogTemplates") })
+	{
+		TestTrue(*FString::Printf(TEXT("%s, a table of the first phase, is a table of the loader and is loaded"), TableName), LoaderTables.Contains(TableName) && Loaded.Contains(TableName));
+	}
 	for (const FString& TableName : LoaderTables)
 	{
-		TestTrue(*FString::Printf(TEXT("%s, a table of the loader, is declared in the schema"), *TableName), ObjectOf(*SchemaTables, *TableName).IsValid());
+		const FJsonObjectPtr Spec = ObjectOf(*SchemaTables, *TableName);
+		TestTrue(*FString::Printf(TEXT("%s, a table of the loader, is declared in the schema"), *TableName), Spec.IsValid());
+		if (Loaded.Contains(TableName))
+		{
+			// A table that has an asset has to exist from then on. Without the flag, the day its asset no longer loads
+			// every check of the table is skipped in silence.
+			bool bMustExist = false;
+			TestTrue(*FString::Printf(TEXT("%s is loaded, so the schema says must_exist for it"), *TableName),
+				Spec.IsValid() && Spec->TryGetBoolField(TEXT("must_exist"), bMustExist) && bMustExist);
+		}
 	}
 	TestTrue(TEXT("The loaded tables hold the schema: row names, row references, tags, array lengths and the ranges of the numbers"),
 		Report(TEXT("loaded assets"), CheckTables(*Schema, Loaded)));
@@ -1074,8 +1215,9 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		Game.Rules && Game.Civs && Game.LogTemplates && Game.FindRules() && Game.FindCiv(CosmicRows::ArchDefault) && Game.FindLogTemplate(CosmicRows::LogBreakthrough[0])))
 	{
 		const FGameplayTag Plague = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Plague")));
-		// The problems of the tables of the game with one of them replaced (or, with null, taken away).
-		auto With = [&](const TCHAR* TableName, const UDataTable* Replacement)
+		// The problems of the tables of the game with one of them replaced (or, with null, taken away), under the schema
+		// of the project or under a changed copy of it.
+		auto With = [&](const TCHAR* TableName, const UDataTable* Replacement, const FJsonObjectPtr& Under = FJsonObjectPtr())
 		{
 			FTableMap Tables = Loaded;
 			if (Replacement)
@@ -1086,27 +1228,27 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 			{
 				Tables.Remove(TableName);
 			}
-			return CheckTables(*Schema, Tables);
+			return CheckTables(Under.IsValid() ? *Under : *Schema, Tables);
 		};
-		auto WithRules = [&](TFunctionRef<void(FCosmicRulesDef&)> Change, FName NewName = NAME_None)
+		auto WithRules = [&](TFunctionRef<void(FCosmicRulesDef&)> Change, FName NewName = NAME_None, const FJsonObjectPtr& Under = FJsonObjectPtr())
 		{
 			FCosmicRulesDef Row = *Game.FindRules();
 			Change(Row);
 			UDataTable* Table = NewObject<UDataTable>(GetTransientPackage());
 			Table->RowStruct = FCosmicRulesDef::StaticStruct();
 			Table->AddRow(NewName.IsNone() ? CosmicRows::Rules : NewName, Row);
-			return With(TEXT("DT_Rules"), Table);
+			return With(TEXT("DT_Rules"), Table, Under);
 		};
-		auto WithCiv = [&](TFunctionRef<void(FCivArchetypeDef&)> Change, FName NewName = NAME_None)
+		auto WithCiv = [&](TFunctionRef<void(FCivArchetypeDef&)> Change, FName NewName = NAME_None, const FJsonObjectPtr& Under = FJsonObjectPtr())
 		{
 			UDataTable* Table = CopyOf<FCivArchetypeDef>(Game.Civs);
 			FCivArchetypeDef Row = *Game.FindCiv(CosmicRows::ArchDefault);
 			Change(Row);
 			Table->RemoveRow(CosmicRows::ArchDefault);
 			Table->AddRow(NewName.IsNone() ? CosmicRows::ArchDefault : NewName, Row);
-			return With(TEXT("DT_Civs"), Table);
+			return With(TEXT("DT_Civs"), Table, Under);
 		};
-		auto WithLog = [&](TFunctionRef<void(FLogTemplateDef&)> Change, FName RowName)
+		auto WithLog = [&](TFunctionRef<void(FLogTemplateDef&)> Change, FName RowName, const FJsonObjectPtr& Under = FJsonObjectPtr())
 		{
 			UDataTable* Table = CopyOf<FLogTemplateDef>(Game.LogTemplates);
 			if (const FLogTemplateDef* Source = Game.FindLogTemplate(RowName))
@@ -1116,13 +1258,14 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 				Table->RemoveRow(RowName);
 				Table->AddRow(RowName, Row);
 			}
-			return With(TEXT("DT_LogTemplates"), Table);
+			return With(TEXT("DT_LogTemplates"), Table, Under);
 		};
 		auto SameRules = [](FCosmicRulesDef&) {};
 		auto SameCiv = [](FCivArchetypeDef&) {};
 
-		TestTrue(TEXT("The copies of the tables of the game pass as the tables themselves do"),
-			WithRules(SameRules).IsEmpty() && WithCiv(SameCiv).IsEmpty() && WithLog([](FLogTemplateDef&) {}, CosmicRows::LogFirstLife).IsEmpty());
+		TestTrue(TEXT("A copy of the rules table passes as the table itself does"), Report(TEXT("copy of DT_Rules"), WithRules(SameRules)));
+		TestTrue(TEXT("A copy of the archetype table passes as the table itself does"), Report(TEXT("copy of DT_Civs"), WithCiv(SameCiv)));
+		TestTrue(TEXT("A copy of the log table passes as the table itself does"), Report(TEXT("copy of DT_LogTemplates"), WithLog([](FLogTemplateDef&) {}, CosmicRows::LogFirstLife)));
 		{
 			const FJsonObjectPtr NoTables = ParseJson(SchemaText);
 			NoTables->RemoveField(TEXT("tables"));
@@ -1136,36 +1279,72 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		Expect(TEXT("a row name with a character that is no part of a name"), WithCiv(SameCiv, FName(TEXT("arch_default@1"))), { TEXT("not lower snake case") });
 		Expect(TEXT("a row name two tables use"), WithCiv(SameCiv, FName(TEXT("log_first_life"))), { TEXT("log_first_life"), TEXT("is used by") });
 		Expect(TEXT("a row of the single-row table under another name"), WithRules(SameRules, FName(TEXT("rules_two"))), { TEXT("DT_Rules.rules_two"), TEXT("holds only the rows rules") });
+		Expect(TEXT("a row of the single-row table under its name in another case"), WithRules(SameRules, FName(TEXT("Rules"))), { TEXT("DT_Rules.Rules"), TEXT("holds only the rows rules") });
 		Expect(TEXT("a table the schema requires and the game did not load"), With(TEXT("DT_LogTemplates"), nullptr), { TEXT("DT_LogTemplates"), TEXT("not loaded") });
 		Expect(TEXT("a table under another row struct"), With(TEXT("DT_Civs"), Game.Rules), { TEXT("DT_Civs"), TEXT("the row struct is") });
+		// A table whose columns the schema has not declared yet has no asset yet.
+		Expect(TEXT("a loaded table whose columns the schema has not declared"), With(TEXT("DT_Civs"), Game.Civs, SchemaWith([](const FJsonObjectPtr& Root)
 		{
-			// A table whose columns the schema has not declared yet has no asset yet.
-			UDataTable* Table = NewObject<UDataTable>(GetTransientPackage());
-			Table->RowStruct = FHazardDef::StaticStruct();
-			Expect(TEXT("a loaded table whose columns the schema has not declared"), With(TEXT("DT_Hazards"), Table), { TEXT("DT_Hazards"), TEXT("declares no columns") });
-		}
+			if (const FJsonObjectPtr Table = At(Root, { TEXT("tables"), TEXT("DT_Civs") }))
+			{
+				Table->SetField(TEXT("columns"), MakeShared<FJsonValueNull>());
+			}
+		})), { TEXT("DT_Civs"), TEXT("declares no columns") });
 
 		// Row references.
 		Expect(TEXT("a row reference that names no row"), WithRules([](FCosmicRulesDef& Row) { Row.PlayerArchetypeRow = FName(TEXT("arch_nobody")); }),
 			{ TEXT("DT_Rules.rules.PlayerArchetypeRow"), TEXT("DT_Civs has no row arch_nobody") });
 		Expect(TEXT("a required row reference left empty"), WithRules([](FCosmicRulesDef& Row) { Row.PlayerArchetypeRow = NAME_None; }),
 			{ TEXT("PlayerArchetypeRow"), TEXT("a row of DT_Civs is required") });
-		Expect(TEXT("a row name used as a map key that names no row"), WithCiv([](FCivArchetypeDef& Row) { Row.InitialRelations.Add(FName(TEXT("arch_nobody")), 0.5f); }),
+		Expect(TEXT("a row name used as a map key that names no row"), WithCiv([](FCivArchetypeDef& Row) { Row.InitialRelations = { { FName(TEXT("arch_nobody")), 0.5f } }; }),
 			{ TEXT("InitialRelations[arch_nobody]"), TEXT("has no row") });
 
 		// Tags.
 		Expect(TEXT("a single tag under the wrong root"), WithCiv([Plague](FCivArchetypeDef& Row) { Row.AIProfile = Plague; }), { TEXT("AIProfile"), TEXT("not under AI.Profile.") });
 		Expect(TEXT("a tag of a container under the wrong root"), WithCiv([Plague](FCivArchetypeDef& Row) { Row.Traits.AddTag(Plague); }), { TEXT("Traits"), TEXT("not under Trait.") });
-		Expect(TEXT("a tag of a list under the wrong root"), WithCiv([Plague](FCivArchetypeDef& Row) { Row.DedicationBanks.Add(Plague); }), { TEXT("DedicationBanks[0]"), TEXT("not under Faith.Bank.") });
+		Expect(TEXT("a tag of a list under the wrong root"), WithCiv([Plague](FCivArchetypeDef& Row) { Row.DedicationBanks = { Plague }; }), { TEXT("DedicationBanks[0]"), TEXT("not under Faith.Bank.") });
 		Expect(TEXT("a tag used as a map key under the wrong root"),
-			WithCiv([](FCivArchetypeDef& Row) { Row.HazardSpawnMultipliers.Add(FGameplayTag::RequestGameplayTag(FName(TEXT("Law.Remnant"))), 1.f); }),
+			WithCiv([](FCivArchetypeDef& Row) { Row.HazardSpawnMultipliers = { { FGameplayTag::RequestGameplayTag(FName(TEXT("Law.Remnant"))), 1.f } }; }),
 			{ TEXT("HazardSpawnMultipliers[Law.Remnant]"), TEXT("not under Hazard.") });
 		Expect(TEXT("a required tag left empty"), WithCiv([](FCivArchetypeDef& Row) { Row.RevelationMode = FGameplayTag(); }), { TEXT("RevelationMode"), TEXT("a tag is required") });
-		Expect(TEXT("an empty tag in a list"), WithCiv([](FCivArchetypeDef& Row) { Row.DedicationBanks.Add(FGameplayTag()); }), { TEXT("DedicationBanks[0]"), TEXT("a tag is required") });
-		TestTrue(TEXT("An optional tag left empty is not a problem"), WithCiv([](FCivArchetypeDef& Row) { Row.AIProfile = FGameplayTag(); Row.HomeStarClass = FGameplayTag(); }).IsEmpty());
+		Expect(TEXT("an empty tag in a list"), WithCiv([](FCivArchetypeDef& Row) { Row.DedicationBanks = { FGameplayTag() }; }), { TEXT("DedicationBanks[0]"), TEXT("a tag is required") });
+		{
+			// The same empty tag, under the schema of the project (optional) and under a copy that does not say so.
+			auto EmptyProfile = [](FCivArchetypeDef& Row) { Row.AIProfile = FGameplayTag(); Row.HomeStarClass = FGameplayTag(); };
+			TestTrue(TEXT("An optional tag left empty is not a problem"), Report(TEXT("empty optional tags"), WithCiv(EmptyProfile)));
+			Expect(TEXT("the same empty tag where the schema does not call it optional"), WithCiv(EmptyProfile, NAME_None, SchemaWith([](const FJsonObjectPtr& Root)
+			{
+				if (const FJsonObjectPtr Column = At(Root, { TEXT("tables"), TEXT("DT_Civs"), TEXT("columns"), TEXT("AIProfile") }))
+				{
+					Column->RemoveField(TEXT("optional"));
+				}
+			})), { TEXT("DT_Civs.arch_default.AIProfile"), TEXT("a tag is required") });
+		}
 #if WITH_EDITORONLY_DATA
-		Expect(TEXT("a parent tag that only its children imply"),
-			WithCiv([](FCivArchetypeDef& Row) { Row.Traits.AddTag(FGameplayTag::RequestGameplayTag(FName(TEXT("Trait.Arch")))); }), { TEXT("Traits"), TEXT("Trait.Arch is not declared") });
+		// Only the editor binaries know which tags the ini spells out (the tests run in one).
+		const FGameplayTag Implied = FGameplayTag::RequestGameplayTag(FName(TEXT("Trait.Arch")));
+		Expect(TEXT("a parent tag that only its children imply"), WithCiv([Implied](FCivArchetypeDef& Row) { Row.Traits.AddTag(Implied); }), { TEXT("Traits"), TEXT("Trait.Arch is not declared") });
+		{
+			// The tags inside conditions and effects are held to the ini too: the sources were, on the day the assets
+			// were built, and the ini is not in the stamp.
+			auto WithEvent = [&](const FGameplayTag& ConditionTag, const FGameplayTag& EffectTag)
+			{
+				FCosmicEventDef Row;
+				Row.Category = FGameplayTag::RequestGameplayTag(FName(TEXT("Event.Civ.Economy")));
+				Row.LogCategory = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Civ")));
+				Row.Conditions.AddDefaulted_GetRef().Tag = ConditionTag;
+				Row.Effects.AddDefaulted_GetRef().Tag = EffectTag;
+				UDataTable* Table = NewObject<UDataTable>(GetTransientPackage());
+				Table->RowStruct = FCosmicEventDef::StaticStruct();
+				Table->AddRow(FName(TEXT("event_test")), Row);
+				return With(TEXT("DT_Events"), Table);
+			};
+			const FGameplayTag Declared = FGameplayTag::RequestGameplayTag(FName(TEXT("Trait.Arch.Terran")));
+			Expect(TEXT("a tag in a condition of a loaded row that the ini does not declare"), WithEvent(Implied, Declared), { TEXT("DT_Events.event_test.Conditions[0].Tag"), TEXT("Trait.Arch is not declared") });
+			Expect(TEXT("a tag in an effect of a loaded row that the ini does not declare"), WithEvent(Declared, Implied), { TEXT("DT_Events.event_test.Effects[0].Tag"), TEXT("Trait.Arch is not declared") });
+			TestFalse(TEXT("Declared tags and empty tags in conditions and effects are not reported"),
+				AnyCarries(WithEvent(Declared, FGameplayTag()), { TEXT("].Tag") }));
+		}
 #endif
 
 		// Numbers.
@@ -1175,18 +1354,39 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 			{ TEXT("PressureAdjacencyFalloff"), TEXT("not a finite number") });
 		Expect(TEXT("a number that is not finite in a column without a range"), WithRules([](FCosmicRulesDef& Row) { Row.ReverenceDecay = std::numeric_limits<float>::infinity(); }),
 			{ TEXT("ReverenceDecay"), TEXT("not a finite number") });
-		Expect(TEXT("a map value below its range"), WithCiv([Plague](FCivArchetypeDef& Row) { Row.HazardSpawnMultipliers.Add(Plague, -1.f); }),
+		Expect(TEXT("a map value below its range"), WithCiv([Plague](FCivArchetypeDef& Row) { Row.HazardSpawnMultipliers = { { Plague, -1.f } }; }),
 			{ TEXT("HazardSpawnMultipliers[Hazard.Plague]"), TEXT("is below 0") });
-		Expect(TEXT("a map value above its range"), WithCiv([](FCivArchetypeDef& Row) { Row.InitialRelations.Add(CosmicRows::ArchDefault, 2.f); }),
+		Expect(TEXT("a map value above its range"), WithCiv([](FCivArchetypeDef& Row) { Row.InitialRelations = { { CosmicRows::ArchDefault, 2.f } }; }),
 			{ TEXT("InitialRelations[arch_default]"), TEXT("is above 1") });
-		Expect(TEXT("an array of numbers of the wrong length"), WithRules([](FCosmicRulesDef& Row) { Row.PressureBySourceTier.Pop(); }),
+		Expect(TEXT("an array of numbers of the wrong length"), WithRules([](FCosmicRulesDef& Row) { Row.PressureBySourceTier = { 0.f, 0.f, 0.25f, 1.f }; }),
 			{ TEXT("PressureBySourceTier"), TEXT("exactly 5 entries, found 4") });
-		Expect(TEXT("an entry of an array of numbers out of range"), WithRules([](FCosmicRulesDef& Row) { Row.PressureBySourceTier[4] = -2.f; }),
+		Expect(TEXT("an entry of an array of numbers out of range"), WithRules([](FCosmicRulesDef& Row) { Row.PressureBySourceTier = { 0.f, 0.f, 0.25f, 1.f, -2.f }; }),
 			{ TEXT("PressureBySourceTier[4]"), TEXT("is below 0") });
-		Expect(TEXT("an array of numbers that does not rise"), WithRules([](FCosmicRulesDef& Row) { Row.PopulationBandThresholds[1] = Row.PopulationBandThresholds[0]; }),
+		Expect(TEXT("an array of numbers that does not rise"), WithRules([](FCosmicRulesDef& Row) { Row.PopulationBandThresholds = { 0.5f, 0.5f, 2.f }; }),
 			{ TEXT("PopulationBandThresholds"), TEXT("do not rise") });
-		Expect(TEXT("a map key that is no word of its list"), WithRules([](FCosmicRulesDef& Row) { Row.LureAcceptByPolicy.Add(FName(TEXT("Greedy")), 0.5f); }),
+		Expect(TEXT("a map key that is no word of its list"), WithRules([](FCosmicRulesDef& Row) { Row.LureAcceptByPolicy = { { FName(TEXT("Greedy")), 0.5f } }; }),
 			{ TEXT("LureAcceptByPolicy[Greedy]"), TEXT("none of the words of policy") });
+		Expect(TEXT("a map key that is a word of its list in another case"), WithRules([](FCosmicRulesDef& Row) { Row.LureAcceptByPolicy = { { FName(TEXT("cautious")), 0.5f } }; }),
+			{ TEXT("LureAcceptByPolicy[cautious]"), TEXT("none of the words of policy") });
+		{
+			// A float column against a bound that a float cannot hold exactly: the value that sits on the bound passes, as
+			// it does on the sources (0.85f is a little above 0.85).
+			const FJsonObjectPtr Bounded = SchemaWith([](const FJsonObjectPtr& Root)
+			{
+				if (const FJsonObjectPtr Column = At(Root, { TEXT("tables"), TEXT("DT_Rules"), TEXT("columns"), TEXT("LureAcceptByPolicy") }))
+				{
+					Column->SetNumberField(TEXT("max"), 0.85);
+					Column->SetNumberField(TEXT("min"), 0.7);
+				}
+			});
+			const FName Tribute(TEXT("Tribute"));
+			TestTrue(TEXT("A float value that sits on a decimal bound is inside it, above and below"),
+				Report(TEXT("float on its bound"), WithRules([Tribute](FCosmicRulesDef& Row) { Row.LureAcceptByPolicy = { { Tribute, 0.85f }, { FName(TEXT("Cautious")), 0.7f } }; }, NAME_None, Bounded)));
+			Expect(TEXT("a float value above a decimal bound"), WithRules([Tribute](FCosmicRulesDef& Row) { Row.LureAcceptByPolicy = { { Tribute, 0.86f } }; }, NAME_None, Bounded),
+				{ TEXT("LureAcceptByPolicy[Tribute]"), TEXT("is above 0.85") });
+			Expect(TEXT("a float value below a decimal bound"), WithRules([Tribute](FCosmicRulesDef& Row) { Row.LureAcceptByPolicy = { { Tribute, 0.69f } }; }, NAME_None, Bounded),
+				{ TEXT("LureAcceptByPolicy[Tribute]"), TEXT("is below 0.7") });
+		}
 
 		// Counts of texts.
 		const FText Word = FText::AsCultureInvariant(TEXT("word"));
@@ -1194,13 +1394,22 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 			{ TEXT("AdjectiveBank"), TEXT("2 entries is none of the allowed counts") });
 		Expect(TEXT("a bank of names that is neither empty nor long enough"), WithCiv([&Word](FCivArchetypeDef& Row) { Row.PersonNameBank = { Word, Word, Word }; }),
 			{ TEXT("PersonNameBank"), TEXT("none or 10 entries and more, found 3") });
-		Expect(TEXT("a log row with fewer variants than three"), WithLog([](FLogTemplateDef& Row) { Row.Templates.SetNum(2); }, CosmicRows::LogBreakthrough[0]),
+		Expect(TEXT("a log row with fewer variants than three"), WithLog([&Word](FLogTemplateDef& Row) { Row.Templates = { Word, Word }; }, CosmicRows::LogBreakthrough[0]),
 			{ TEXT("log_breakthrough_physics.Templates"), TEXT("3 entries or more, found 2") });
 		Expect(TEXT("a single-variant log row with no variant at all"), WithLog([](FLogTemplateDef& Row) { Row.Templates.Reset(); }, CosmicRows::LogFirstLife),
 			{ TEXT("log_first_life.Templates"), TEXT("1 entries or more, found 0") });
-		TestTrue(TEXT("A single-variant log row with one variant is not a problem, and neither is three for a row that needs three"),
-			WithLog([](FLogTemplateDef& Row) { Row.Templates.SetNum(1); }, CosmicRows::LogFirstLife).IsEmpty()
-			&& WithLog([](FLogTemplateDef& Row) { Row.Templates.SetNum(3); }, CosmicRows::LogBreakthrough[0]).IsEmpty());
+		TestTrue(TEXT("A single-variant log row with one variant is not a problem"),
+			Report(TEXT("one variant"), WithLog([&Word](FLogTemplateDef& Row) { Row.Templates = { Word }; }, CosmicRows::LogFirstLife)));
+		TestTrue(TEXT("Three variants are enough for a row that needs three"),
+			Report(TEXT("three variants"), WithLog([&Word](FLogTemplateDef& Row) { Row.Templates = { Word, Word, Word }; }, CosmicRows::LogBreakthrough[0])));
+		// The one variant of a listed row is asked for also where the column states no least count (as the sources read it).
+		Expect(TEXT("a single-variant log row with no variant, in a column without a least count"), WithLog([](FLogTemplateDef& Row) { Row.Templates.Reset(); }, CosmicRows::LogFirstLife, SchemaWith([](const FJsonObjectPtr& Root)
+		{
+			if (const FJsonObjectPtr Column = At(Root, { TEXT("tables"), TEXT("DT_LogTemplates"), TEXT("columns"), TEXT("Templates") }))
+			{
+				Column->RemoveField(TEXT("min"));
+			}
+		})), { TEXT("log_first_life.Templates"), TEXT("1 entries or more, found 0") });
 	}
 
 	Sim->NewGalaxy(42, 5, 3);

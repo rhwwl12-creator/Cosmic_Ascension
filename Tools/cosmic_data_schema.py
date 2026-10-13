@@ -1,17 +1,29 @@
 """Check the definition data under Tools/data against Tools/data/schema.json.
 
 Cosmic Ascension - data layer helper (guideline.md section 7.3, 9.3 Data.Integrity, 10.4). Plain Python, no engine:
-Tools/make_data_tables.py calls check_project() before it touches an asset, Tools/check_data.py runs the same check
-from a shell, Tools/test_data_schema.py feeds every kind of rule a wrong input.
+Tools/make_data_tables.py runs it before it touches an asset, Tools/check_data.py runs the same check from a shell,
+Tools/test_data_schema.py feeds every check a wrong input.
+
+Three steps, each stops the next when it finds a problem:
+  1. Reading. A syntax error, a key written twice in one object, NaN or Infinity are problem lines with the file name.
+  2. The schema itself. A kind, an option, a test or a key this file does not know; a value of the wrong type; a name a
+     rule leans on that does not exist (a column, a tag, an enumerator, a row); a test that cannot be asked of the kind
+     of its column. Any of these would switch a check off in silence, so each is a problem and the data is not looked
+     at until the schema is right.
+  3. The data, by every rule of the schema.
 
 What a row looks like here is what the DataTable importer reads (see the head of make_data_tables.py): a list of row
 objects with the row name under "Name", a single tag as a string, a tag container as export text
-"(GameplayTags=((TagName=\"A.B\"),...))", a map as an object, a text as a string, an enumerator by its name.
+"(GameplayTags=((TagName=\"A.B\"),...))", a map as an object, a text as a string, an enumerator by its name, a
+condition or an effect as an object with every member of its struct. The importer takes other spellings too (a tag as
+an object, a container entry without quotes); they are problems here, so that one spelling exists and every rule
+reads it.
 
-The kinds of column, the options of each kind, the tests of a row rule and the keys of the schema are closed lists
-(schema.json names the kinds and the tests). A kind, an option, a test or a key this file does not know is itself a
-problem, never a silent pass: a misspelt "min" would otherwise switch its check off.
+The closed lists live at the head of this file: the kinds of column with the options of each (COLUMN_OPTIONS), the
+tests of a row rule with the kinds each may be asked of (TESTS, TEST_KINDS), the keys of the schema.
 """
+import csv
+import io
 import json
 import math
 import os
@@ -19,102 +31,301 @@ import re
 
 SCHEMA_FILE = "schema.json"
 TAG_NAME = re.compile(r'TagName="([^"]*)"')
-TAG_ROW = re.compile(r'^\s*\+?GameplayTagList\s*=\s*\(.*?Tag\s*=\s*"([^"]+)"')
-SLOT = re.compile(r"\{([^{}]*)\}")
-
-# Kind of column -> the options a column of that kind may carry next to "kind".
-COLUMN_OPTIONS = {
-    "plain": (),
-    "number": ("min", "max", "integer"),
-    "numbers": ("len", "ascending", "min", "max", "integer"),
-    "text": ("slots", "no_digits", "required"),
-    "texts": ("min", "len_in", "empty_or_min", "unique", "slots", "no_digits", "single_variant"),
-    "tag": ("root", "optional"),
-    "tags": ("root",),
-    "tag_list": ("root",),
-    "tag_map": ("root", "min", "max", "integer"),
-    "row": ("table", "optional", "target"),
-    "row_map": ("table", "target", "min", "max", "integer"),
-    "word_map": ("words", "min", "max", "integer"),
-    "enum": ("enum",),
-    "conditions": (),
-    "effects": ("per_tick",),
-}
-COLUMN_KINDS = tuple(COLUMN_OPTIONS)
-TESTS = ("is", "in", "gt", "ge", "lt", "le", "set", "min_len", "max_len", "each_contains", "lacks_type")
-TOP_KEYS = ("version", "about", "tag_sources", "required_tags", "row_name_pattern", "words", "enums", "single_variant_rows",
-            "tables", "conditions", "effects", "per_tick_effects")
-TABLE_KEYS = ("struct", "names", "prefixes", "must_exist", "required_rows", "columns", "rules", "unique", "pairs")
-RULE_KEYS = {"rules": ("why", "when", "then"), "unique": ("why", "when", "cols"), "pairs": ("why", "key", "value", "allowed")}
-# What a condition or an effect may say about each of its three cells; "per_tick_only" is for effects.
-USAGE_KEYS = {"tag": ("root", "optional"), "key": ("word", "row", "digits", "any", "optional"), "value": ("min", "max", "integer")}
-
-
-def project_root():
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
-def load_declared_tags(root, sources):
-    """The tags the ini files declare, by name. A parent that is only implied by a child is not among them."""
-    declared = set()
-    for source in sources:
-        with open(os.path.join(root, source), encoding="utf-8-sig") as handle:
-            for line in handle:
-                found = TAG_ROW.match(line)
-                if found:
-                    declared.add(found.group(1))
-    return declared
-
-
-def load_project(root=None):
-    """Read schema.json, the tags and every table source (DT_*.json) of the folder. Returns (schema, tables, tags).
-
-    Every table source, not only the ones the schema names: a source the schema does not declare is a problem."""
-    root = root or project_root()
-    data_dir = os.path.join(root, "Tools", "data")
-    with open(os.path.join(data_dir, SCHEMA_FILE), encoding="utf-8-sig") as handle:
-        schema = json.load(handle)
-    tables = {}
-    for file_name in sorted(os.listdir(data_dir)):
-        if file_name.startswith("DT_") and file_name.endswith(".json"):
-            with open(os.path.join(data_dir, file_name), encoding="utf-8-sig") as handle:
-                tables[file_name[:-len(".json")]] = json.load(handle)
-    return schema, tables, load_declared_tags(root, schema.get("tag_sources", []))
-
-
-def check_project(root=None):
-    """The problems of the sources of this project, as a list of lines. Empty = the data holds the schema."""
-    schema, tables, tags = load_project(root)
-    return check(schema, tables, tags)
+# The export text of a tag container, every entry quoted: what the engine writes and the only spelling read here.
+TAG_CONTAINER = re.compile(r'\(GameplayTags=(\(\(TagName="[^"]*"\)(,\(TagName="[^"]*"\))*\))?\)')
+TAG_ROW = re.compile(r'^\s*(\+?)GameplayTagList\s*=\s*\(.*?Tag\s*=\s*"([^"]+)"')
+CODE_NAME = re.compile(r'TEXT\("([^"]*)"\)')
+# FText::Format: a backtick escapes one of these.
+ESCAPED = "`{}|"
 
 
 def is_number(value):
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
-def is_set(value):
-    """A name, a tag, a text or a collection that holds something. A number counts as set."""
-    if value is None:
+def is_finite(value):
+    if not is_number(value):
         return False
-    if isinstance(value, str):
-        return value not in ("", "None") and not (value.startswith("(GameplayTags=") and not TAG_NAME.search(value))
-    if isinstance(value, (list, dict)):
-        return len(value) > 0
-    return True
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
 
 
-def tag_of(value):
-    """A single tag as the importer takes it: a string, or an object with TagName."""
-    if isinstance(value, dict) and "TagName" in value:
-        value = value["TagName"]
-    if value is None or value == "None":
+def is_count(value):
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
+def is_names(value):
+    return isinstance(value, list) and all(isinstance(entry, str) for entry in value)
+
+
+def is_scalar(value):
+    return isinstance(value, (str, bool)) or is_finite(value)
+
+
+# A type of value in the schema: what to call it in a problem line, and the test.
+NUMBER = ("a number", is_finite)
+FLAG = ("true or false", lambda value: isinstance(value, bool))
+COUNT = ("a whole number, zero or more", is_count)
+COUNTS = ("a list of whole numbers", lambda value: isinstance(value, list) and len(value) > 0 and all(is_count(e) for e in value))
+NAME = ("a string", lambda value: isinstance(value, str))
+NAMES = ("a list of strings", is_names)
+ROOT = ("a string or a list of strings", lambda value: isinstance(value, str) or (is_names(value) and len(value) > 0))
+SCALAR = ("a string, a number or true/false", is_scalar)
+SCALARS = ("a list of strings or numbers", lambda value: isinstance(value, list) and len(value) > 0 and all(is_scalar(e) for e in value))
+LIST = ("a list", lambda value: isinstance(value, list))
+OBJECT = ("an object", lambda value: isinstance(value, dict))
+OBJECT_OR_NULL = ("an object or null", lambda value: value is None or isinstance(value, dict))
+NAME_LISTS = ("an object of lists of strings", lambda value: isinstance(value, dict) and all(is_names(e) for e in value.values()))
+
+RANGE = {"min": NUMBER, "max": NUMBER, "integer": FLAG}
+# Kind of column -> the options a column of that kind may carry next to "kind", each with its type.
+COLUMN_OPTIONS = {
+    "plain": {},
+    "number": dict(RANGE),
+    "numbers": dict(RANGE, len=COUNT, ascending=FLAG),
+    "text": {"slots": NAMES, "no_digits": FLAG, "required": FLAG},
+    "texts": {"min": COUNT, "len_in": COUNTS, "empty_or_min": COUNT, "unique": FLAG, "slots": NAMES, "no_digits": FLAG,
+              "single_variant": FLAG},
+    "tag": {"root": ROOT, "optional": FLAG},
+    "tags": {"root": ROOT},
+    "tag_list": {"root": ROOT},
+    "tag_map": dict(RANGE, root=ROOT),
+    "row": {"table": NAME, "optional": FLAG, "target": LIST},
+    "row_map": dict(RANGE, table=NAME, target=LIST),
+    "word_map": dict(RANGE, words=NAME),
+    "enum": {"enum": NAME},
+    "conditions": {},
+    "effects": {"per_tick": FLAG},
+}
+COLUMN_KINDS = tuple(COLUMN_OPTIONS)
+REQUIRED_OPTIONS = {"row": ("table",), "row_map": ("table",), "word_map": ("words",), "enum": ("enum",)}
+
+# Test of a row rule -> the type of its operand.
+TESTS = {
+    "is": SCALAR, "in": SCALARS, "gt": NUMBER, "ge": NUMBER, "lt": NUMBER, "le": NUMBER, "set": FLAG,
+    "min_len": COUNT, "max_len": COUNT, "each_contains": NAME, "lacks_type": NAME, "slots_in": NAMES,
+}
+# Test -> the kinds of column it can be asked of. Asked of another kind it would never hold (or always).
+VALUE_KINDS = ("plain", "number", "text", "tag", "row", "enum")
+SIZED_KINDS = ("numbers", "texts", "tags", "tag_list", "tag_map", "row_map", "word_map", "conditions", "effects")
+TEST_KINDS = {
+    "is": VALUE_KINDS, "in": VALUE_KINDS, "gt": ("number",), "ge": ("number",), "lt": ("number",), "le": ("number",),
+    "set": COLUMN_KINDS, "min_len": SIZED_KINDS, "max_len": SIZED_KINDS, "each_contains": ("texts",),
+    "lacks_type": ("conditions", "effects"), "slots_in": ("text", "texts"),
+}
+
+TOP_KEYS = {
+    "version": NUMBER, "about": NAMES, "tag_sources": NAMES, "row_name_sources": NAMES, "required_tags": NAMES,
+    "row_name_pattern": NAME, "words": NAME_LISTS, "enums": NAME_LISTS, "single_variant_rows": NAMES, "tables": OBJECT,
+    "conditions": OBJECT, "effects": OBJECT, "per_tick_effects": NAMES,
+}
+TABLE_KEYS = {
+    "struct": NAME, "names": NAMES, "prefixes": NAMES, "must_exist": FLAG, "required_rows": NAMES,
+    "columns": OBJECT_OR_NULL, "rules": LIST, "unique": LIST, "pairs": LIST,
+}
+RULE_KEYS = {
+    "rules": {"why": NAME, "when": LIST, "then": LIST},
+    "unique": {"why": NAME, "when": LIST, "cols": NAMES},
+    "pairs": {"why": NAME, "key": NAME, "value": NAME, "allowed": NAME},
+}
+RULE_REQUIRED = {"rules": ("why", "then"), "unique": ("why", "cols"), "pairs": ("why", "key", "value", "allowed")}
+# What a condition or an effect may say about each of its three cells; "per_tick_only" is for effects.
+USAGE_KEYS = {
+    "tag": {"root": ROOT, "optional": FLAG},
+    "key": {"word": NAME, "row": NAME, "digits": FLAG, "any": FLAG, "optional": FLAG, "target": LIST},
+    "value": dict(RANGE),
+}
+# The members of the two structs as the sources spell them out (Data/CosmicConditionTypes.h).
+MEMBERS = {"conditions": ("Type", "Tag", "Key", "Value"), "effects": ("Type", "Tag", "Key", "Value", "DurationTicks")}
+
+
+def project_root():
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+# ---- reading ----
+
+def text_of(data):
+    """The text of a source read as bytes: UTF-8, a byte order mark dropped."""
+    return data.decode("utf-8-sig")
+
+
+def read_sources(root=None):
+    """File name -> bytes of schema.json, every DT_*.json and every ST_*.csv under Tools/data.
+
+    Each file is read once. A caller that goes on to import or to hash a source uses these bytes, so that what was
+    checked is what it imports and what it stamps."""
+    data_dir = os.path.join(root or project_root(), "Tools", "data")
+    sources = {}
+    for file_name in sorted(os.listdir(data_dir)):
+        is_table = file_name.startswith("DT_") and file_name.endswith(".json")
+        is_strings = file_name.startswith("ST_") and file_name.endswith(".csv")
+        if file_name == SCHEMA_FILE or is_table or is_strings:
+            with open(os.path.join(data_dir, file_name), "rb") as handle:
+                sources[file_name] = handle.read()
+    return sources
+
+
+def parse_json(text, file_name, problems):
+    """The value of a JSON text, or None with a problem line. A key written twice in one object and a number that is
+    no number are problems: json keeps the last of two keys in silence, and so does the engine."""
+    def pairs(items):
+        found = {}
+        for key, value in items:
+            if key in found:
+                problems.append("%s: the key %r is written twice in one object (the second would replace the first)" % (file_name, key))
+            found[key] = value
+        return found
+
+    def constant(name):
+        problems.append("%s: %s is not a number a table can hold" % (file_name, name))
+        return float("nan")
+
+    try:
+        return json.loads(text, object_pairs_hook=pairs, parse_constant=constant)
+    except ValueError as error:
+        problems.append("%s: not valid JSON: %s" % (file_name, error))
+        return None
+
+
+def load_declared_tags(root, sources):
+    """(the tags the ini files declare, problem lines). A parent that is only implied by a child is not among them.
+
+    Only the rows the engine reads count (CLAUDE.md, GameplayTags ini rules): in a Default ini a row needs its '+',
+    a row without one replaces the whole list; in a file under Config/Tags a row has no '+', one with it is ignored.
+    The files under Config/Tags are found by the engine on its own, and so they are here."""
+    declared = set()
+    problems = []
+    files = [source.replace("\\", "/") for source in sources]
+    tags_dir = os.path.join(root, "Config", "Tags")
+    if os.path.isdir(tags_dir):
+        for name in sorted(os.listdir(tags_dir)):
+            if name.lower().endswith(".ini") and "Config/Tags/" + name not in files:
+                files.append("Config/Tags/" + name)
+    for source in files:
+        in_tags_folder = source.startswith("Config/Tags/")
+        try:
+            with open(os.path.join(root, source), encoding="utf-8-sig") as handle:
+                lines = handle.read().splitlines()
+        except (OSError, UnicodeDecodeError) as error:
+            problems.append("%s: cannot be read: %s" % (source, error))
+            continue
+        for number, line in enumerate(lines, 1):
+            found = TAG_ROW.match(line)
+            if not found:
+                continue
+            has_plus = found.group(1) == "+"
+            if has_plus and in_tags_folder:
+                problems.append("%s:%d: the engine ignores a row with '+' in a file under Config/Tags (%s)" % (source, number, found.group(2)))
+            elif not has_plus and not in_tags_folder:
+                problems.append("%s:%d: a row without '+' replaces the whole tag list of this ini (%s)" % (source, number, found.group(2)))
+            else:
+                declared.add(found.group(2))
+    return declared, problems
+
+
+def load_code_rows(root, sources):
+    """(the row names the code calls by name, problem lines): every TEXT("...") of the headers the schema lists."""
+    names = []
+    problems = []
+    for source in sources:
+        try:
+            with open(os.path.join(root, source), encoding="utf-8-sig") as handle:
+                names.extend(CODE_NAME.findall(handle.read()))
+        except (OSError, UnicodeDecodeError) as error:
+            problems.append("%s: cannot be read: %s" % (source, error))
+    return names, problems
+
+
+def check_string_table(file_name, text):
+    """The shape of a String Table source: header, cell counts, keys, texts. What the texts say is not looked at."""
+    rows = [row for row in csv.reader(io.StringIO(text)) if row]
+    if not rows or rows[0][:2] != ["Key", "SourceString"]:
+        return ["%s: the first line has to start with Key,SourceString" % file_name]
+    problems = []
+    seen = set()
+    for number, row in enumerate(rows[1:], 1):
+        where = "%s: entry %d (%s)" % (file_name, number, row[0])
+        if len(row) != len(rows[0]):
+            problems.append("%s: expected %d cells, found %d (a comma or a quote that is not escaped?)" % (where, len(rows[0]), len(row)))
+        if row[0] == "":
+            problems.append("%s: the key is empty" % where)
+        elif row[0] in seen:
+            problems.append("%s: the key is written twice (the second text would replace the first)" % where)
+        seen.add(row[0])
+        if len(row) > 1 and row[1] == "":
+            problems.append("%s: the text is empty" % where)
+    return problems
+
+
+def check_sources(sources, root=None):
+    """The problems of sources (file name -> bytes, as read_sources gives them), as a list of lines."""
+    root = root or project_root()
+    problems = []
+    parsed = {}
+    for file_name, data in sorted(sources.items()):
+        try:
+            text = text_of(data)
+        except UnicodeDecodeError as error:
+            problems.append("%s: not UTF-8: %s" % (file_name, error))
+            continue
+        parsed[file_name] = parse_json(text, file_name, problems) if file_name.endswith(".json") else text
+    if SCHEMA_FILE not in sources:
+        problems.append("%s: missing from Tools/data" % SCHEMA_FILE)
+    if problems:
+        return problems + ["nothing was checked: the sources have to be readable first"]
+
+    schema = parsed[SCHEMA_FILE]
+    tables = {name[:-len(".json")]: value for name, value in parsed.items() if name.startswith("DT_")}
+    tag_sources = schema.get("tag_sources", []) if isinstance(schema, dict) else []
+    row_sources = schema.get("row_name_sources", []) if isinstance(schema, dict) else []
+    tags, tag_problems = load_declared_tags(root, tag_sources if is_names(tag_sources) else [])
+    code_rows, row_problems = load_code_rows(root, row_sources if is_names(row_sources) else [])
+    problems = tag_problems + row_problems + check(schema, tables, tags, code_rows)
+    for file_name in sorted(parsed):
+        if file_name.endswith(".csv"):
+            problems.extend(check_string_table(file_name, parsed[file_name]))
+    return problems
+
+
+def check_project(root=None):
+    """The problems of the sources of this project, as a list of lines. Empty = the data holds the schema."""
+    return check_sources(read_sources(root), root)
+
+
+def load_project(root=None):
+    """(schema, tables, tags) of the project, for callers that hand them to check() themselves (the unit tests)."""
+    root = root or project_root()
+    problems = []
+    parsed = {name: parse_json(text_of(data), name, problems) for name, data in read_sources(root).items() if name.endswith(".json")}
+    if problems:
+        raise ValueError("\n".join(problems))
+    schema = parsed.pop(SCHEMA_FILE)
+    tags, problems = load_declared_tags(root, schema.get("tag_sources", []))
+    if problems:
+        raise ValueError("\n".join(problems))
+    return schema, {name[:-len(".json")]: value for name, value in parsed.items()}, tags
+
+
+# ---- values ----
+
+def name_of(value):
+    """A name cell as the importer reads it: null and the word None (in any case) are the empty name."""
+    if value is None or (isinstance(value, str) and value.lower() == "none"):
         return ""
     return value
 
 
-def objects(entries):
-    """The entries that are objects. One that is not is reported by check_schema and read by nothing."""
-    return [entry for entry in entries if isinstance(entry, dict)]
+def is_set(value):
+    """A name, a tag, a text or a collection that holds something. A number counts as set."""
+    value = name_of(value)
+    if isinstance(value, str):
+        return value != "" and not (value.startswith("(GameplayTags=") and not TAG_NAME.search(value))
+    if isinstance(value, (list, dict)):
+        return len(value) > 0
+    return True
 
 
 def length_of(value):
@@ -125,25 +336,273 @@ def length_of(value):
     return 0
 
 
+def slots_of(text):
+    """(the slot names of a format text, what is wrong with its braces), read the way FText::Format reads it: a
+    backtick escapes a brace, and from an opening brace to the next closing one is the name of an argument."""
+    names = []
+    problems = []
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if char == "`" and text[index + 1:index + 2] and text[index + 1] in ESCAPED:
+            index += 2
+            continue
+        if char == "{":
+            end = text.find("}", index + 1)
+            if end < 0:
+                problems.append("a '{' that is never closed")
+                break
+            names.append(text[index + 1:end])
+            index = end + 1
+            continue
+        if char == "}":
+            problems.append("a '}' that closes nothing")
+        index += 1
+    return names, problems
+
+
 class Checker:
-    def __init__(self, schema, tables, tags):
+    def __init__(self, schema, tables, tags, code_rows=None):
         self.schema = schema
         self.tables = tables
         self.tags = set(tags)
+        self.code_rows = code_rows
         self.problems = []
-        self.words = schema.get("words", {})
         self.rows = {}
         for table_name, rows in tables.items():
             if isinstance(rows, list):
-                self.rows[table_name] = {row.get("Name"): row for row in rows if isinstance(row, dict)}
+                self.rows[table_name] = {row["Name"]: row for row in rows if isinstance(row, dict) and isinstance(row.get("Name"), str)}
 
     def report(self, where, message):
         self.problems.append("%s: %s" % (where, message))
 
+    # ---- the schema itself ----
+
+    def typed(self, where, entry, allowed, required=()):
+        """One object of the schema: every key is one that is read here, every value has the type its key takes,
+        every required key is there. False when something is wrong: the entry is then not read any further."""
+        if not isinstance(entry, dict):
+            self.report(where, "expected an object, found %r" % (entry,))
+            return False
+        good = True
+        for key in sorted(set(entry) - set(allowed)):
+            self.report(where, "%r is not read here (allowed: %s)" % (key, ", ".join(allowed) or "nothing"))
+            good = False
+        for key, (what, fits) in allowed.items():
+            if key in entry and not fits(entry[key]):
+                self.report(where, "%r has to be %s, found %r" % (key, what, entry[key]))
+                good = False
+        for key in required:
+            if key not in entry:
+                self.report(where, "%r is missing" % key)
+                good = False
+        return good
+
+    def row_is_known(self, table_name, name):
+        """A row name the schema may lean on: one the table has to have, or one its source has."""
+        spec = self.schema["tables"].get(table_name) if isinstance(table_name, str) else None
+        if not isinstance(spec, dict):
+            return False
+        listed = [entry for key in ("required_rows", "names") for entry in (spec.get(key) if is_names(spec.get(key)) else [])]
+        return name in listed or name in self.rows.get(table_name, {})
+
+    def check_tests(self, where, tests, table_name):
+        """The tests of a rule over the rows of table_name: each of a known shape with an operand of its type, over a
+        column the table declares and of a kind the test can be asked of, against names that exist. A test over a
+        misspelt column, tag, enumerator or row never holds, so its rule would be switched off in silence."""
+        specs = self.schema["tables"]
+        spec = specs.get(table_name) if isinstance(table_name, str) else None
+        columns = spec.get("columns") if isinstance(spec, dict) else None
+        for test in tests:
+            shown = json.dumps(test)
+            if isinstance(test, dict) and "row" in test:
+                if len(test) != 1 or not isinstance(test["row"], str):
+                    self.report(where, "a row test is 'row' with a row name, or a column with exactly one of %s: %s" % (", ".join(TESTS), shown))
+                elif not self.row_is_known(table_name, test["row"]):
+                    self.report(where, "a row test names the row %s, which %s neither requires nor has" % (test["row"], table_name))
+                continue
+            asked = [name for name in TESTS if name in test] if isinstance(test, dict) else []
+            if len(asked) != 1 or "col" not in test or len(test) != 2 or not isinstance(test["col"], str):
+                self.report(where, "a row test is 'row' with a row name, or a column with exactly one of %s: %s" % (", ".join(TESTS), shown))
+                continue
+            name = asked[0]
+            operand = test[name]
+            what, fits = TESTS[name]
+            if not fits(operand):
+                self.report(where, "the test '%s' needs %s: %s" % (name, what, shown))
+                continue
+            if not isinstance(columns, dict):
+                continue
+            column_spec = columns.get(test["col"])
+            if not isinstance(column_spec, dict):
+                self.report(where, "a row test names the column %r, which %s does not declare" % (test["col"], table_name))
+                continue
+            kind = column_spec.get("kind")
+            if kind not in TEST_KINDS[name]:
+                self.report(where, "the test '%s' cannot be asked of a column of kind %s (it would never hold): %s" % (name, kind, shown))
+                continue
+            for value in (operand if name == "in" else [operand] if name == "is" else []):
+                # A number is compared with numbers and a name with names: another type would never be equal.
+                if (kind == "number") != is_finite(value) and kind != "plain":
+                    self.report(where, "the test '%s' over a column of kind %s needs %s: %s" % (name, kind, "numbers" if kind == "number" else "strings", shown))
+                    continue
+                if kind != "number" and kind != "plain" and not isinstance(value, str):
+                    self.report(where, "the test '%s' over a column of kind %s needs strings: %s" % (name, kind, shown))
+                    continue
+                if kind == "tag" and value != "" and value not in self.tags:
+                    self.report(where, "a row test names the tag %s, which the ini does not declare" % (value,))
+                if kind == "enum" and value not in (self.schema["enums"].get(column_spec["enum"], []) if isinstance(column_spec.get("enum"), str) else []):
+                    self.report(where, "a row test names %r, which is no enumerator of %s" % (value, column_spec.get("enum")))
+                if kind == "row" and value != "" and not self.row_is_known(column_spec.get("table"), value):
+                    self.report(where, "a row test names the row %s, which %s neither requires nor has" % (value, column_spec.get("table")))
+            if name == "lacks_type" and operand not in self.schema[kind]:
+                self.report(where, "a row test names %r, which is no enumerator of %s" % (operand, kind))
+
+    def check_usage_entry(self, kind, type_name, usage):
+        specs = self.schema["tables"]
+        where = "schema.%s.%s" % (kind, type_name)
+        cells = {cell: OBJECT for cell in USAGE_KEYS}
+        if kind == "effects":
+            cells["per_tick_only"] = FLAG
+        if not self.typed(where, usage, cells):
+            return
+        # Every cell is read, also after one of them is wrong.
+        if not all([self.typed("%s.%s" % (where, cell), usage[cell], allowed) for cell, allowed in USAGE_KEYS.items() if cell in usage]):
+            return
+        key_spec = usage.get("key")
+        if key_spec is None:
+            return
+        said = [name for name in ("word", "row", "digits", "any") if key_spec.get(name) not in (None, False)]
+        if len(said) != 1:
+            self.report(where + ".key", "a Key is exactly one of: a word of a list, a row of a table, digits, any name")
+            return
+        if said[0] == "word" and key_spec["word"] not in self.schema["words"]:
+            self.report(where, "the word list %s is not in the schema" % (key_spec["word"],))
+        if said[0] == "row" and key_spec["row"] not in specs:
+            self.report(where, "the table %s is not in the schema" % (key_spec["row"],))
+        elif said[0] == "row" and isinstance(key_spec.get("target"), list):
+            self.check_tests(where + ".key", key_spec["target"], key_spec["row"])
+        if said[0] != "row" and "target" in key_spec:
+            self.report(where + ".key", "a target needs a row of a table to look at")
+
+    def check_table_spec(self, table_name, spec):
+        specs = self.schema["tables"]
+        here = "schema.%s" % table_name
+        if not self.typed(here, spec, TABLE_KEYS, ("struct", "columns")):
+            return
+        named = [key for key in ("names", "prefixes") if spec.get(key)]
+        if len(named) != 1:
+            self.report(here, "a table says what its rows are called with exactly one of 'names' and 'prefixes', not empty")
+        else:
+            for row_name in spec.get("required_rows", []):
+                fits = row_name in spec["names"] if "names" in named else any(row_name.startswith(prefix) for prefix in spec["prefixes"])
+                if not fits:
+                    self.report(here, "the required row %s does not carry a name this table allows" % row_name)
+        columns = spec["columns"] or {}
+        for column, column_spec in columns.items():
+            where = "%s.%s" % (here, column)
+            if not isinstance(column_spec, dict) or not isinstance(column_spec.get("kind"), str):
+                self.report(where, "expected an object with a kind, found %r" % (column_spec,))
+                continue
+            kind = column_spec["kind"]
+            if kind not in COLUMN_KINDS:
+                self.report(where, "a kind this checker does not know: %r" % (kind,))
+                continue
+            if not self.typed(where, column_spec, dict(COLUMN_OPTIONS[kind], kind=NAME), REQUIRED_OPTIONS.get(kind, ())):
+                continue
+            if "table" in column_spec and column_spec["table"] not in specs:
+                self.report(where, "the table %r is not in the schema" % (column_spec["table"],))
+            elif "target" in column_spec:
+                # The tests of a target read the rows of the table the column points at.
+                self.check_tests(where, column_spec["target"], column_spec["table"])
+            if kind == "word_map" and column_spec["words"] not in self.schema["words"]:
+                self.report(where, "the word list %r is not in the schema" % (column_spec["words"],))
+            if kind == "enum" and column_spec["enum"] not in self.schema["enums"]:
+                self.report(where, "the enum %r is not in the schema" % (column_spec["enum"],))
+        for list_name in RULE_KEYS:
+            for entry in spec.get(list_name, []):
+                if not self.typed("%s.%s" % (here, list_name), entry, RULE_KEYS[list_name], RULE_REQUIRED[list_name]):
+                    continue
+                if list_name == "rules":
+                    self.check_tests(here, entry.get("when", []) + entry["then"], table_name)
+                elif list_name == "unique":
+                    self.check_tests(here, entry.get("when", []), table_name)
+                    for column in entry["cols"]:
+                        if column not in columns:
+                            self.report(here, "unique names the column %r, which the table does not declare" % (column,))
+                else:
+                    allowed = self.schema.get(entry["allowed"])
+                    if not NAME_LISTS[1](allowed):
+                        self.report(here, "the list %r of a pair is not in the schema" % (entry["allowed"],))
+                        continue
+                    for side in ("key", "value"):
+                        column_spec = columns.get(entry[side])
+                        if not isinstance(column_spec, dict):
+                            self.report(here, "a pair names the column %r, which the table does not declare" % (entry[side],))
+                        elif column_spec.get("kind") == "tag":
+                            # Both sides of the list are tag names: one the ini lacks would never match a row.
+                            names = list(allowed) if side == "key" else [name for values in allowed.values() for name in values]
+                            for name in sorted(set(names) - self.tags):
+                                self.report("schema.%s" % entry["allowed"], "tag %s is not declared in the ini" % name)
+
+    def check_schema(self):
+        """The schema itself, for every table with or without rows. Whatever is wrong here would otherwise switch a
+        check off in silence, so the data is not looked at before this is clean."""
+        schema = self.schema
+        if not isinstance(schema, dict):
+            self.report("schema", "expected an object, found %r" % (schema,))
+            return
+        # A list of pairs is a top-level key of its own name.
+        pair_lists = {}
+        tables = schema.get("tables")
+        for spec in (tables.values() if isinstance(tables, dict) else []):
+            for pair in (spec.get("pairs") if isinstance(spec, dict) and isinstance(spec.get("pairs"), list) else []):
+                if isinstance(pair, dict) and isinstance(pair.get("allowed"), str) and pair["allowed"] not in TOP_KEYS:
+                    pair_lists[pair["allowed"]] = NAME_LISTS
+        sections = ("tables", "words", "enums", "conditions", "effects")
+        self.typed("schema", schema, dict(TOP_KEYS, **pair_lists), sections)
+        if any(key not in schema or not TOP_KEYS[key][1](schema[key]) for key in sections):
+            # Without its five sections nothing below can be read. A stray key elsewhere does not stop the reading.
+            return
+        if isinstance(schema.get("row_name_pattern"), str):
+            try:
+                re.compile(schema["row_name_pattern"])
+            except re.error as error:
+                self.report("schema.row_name_pattern", "not a pattern: %s" % error)
+        for tag in (schema.get("required_tags") if is_names(schema.get("required_tags")) else []):
+            if tag not in self.tags:
+                self.report("schema.required_tags", "tag %s is not declared in the ini" % tag)
+        for name in (schema.get("per_tick_effects") if is_names(schema.get("per_tick_effects")) else []):
+            if name not in schema["effects"]:
+                self.report("schema.per_tick_effects", "%s is no effect of the schema" % name)
+        for kind in ("conditions", "effects"):
+            for type_name, usage in schema[kind].items():
+                self.check_usage_entry(kind, type_name, usage)
+        for table_name, spec in schema["tables"].items():
+            self.check_table_spec(table_name, spec)
+        self.check_code_rows()
+
+    def check_code_rows(self):
+        """required_rows against the names the code calls: both ways, for the tables the schema has."""
+        if self.code_rows is None:
+            return
+        specs = {name: spec for name, spec in self.schema["tables"].items() if isinstance(spec, dict)}
+        for name in self.code_rows:
+            for table_name, spec in specs.items():
+                names = spec.get("names") if is_names(spec.get("names")) else []
+                prefixes = spec.get("prefixes") if is_names(spec.get("prefixes")) else []
+                required = spec.get("required_rows") if is_names(spec.get("required_rows")) else []
+                if (name in names or any(name.startswith(prefix) for prefix in prefixes)) and name not in required:
+                    self.report("schema.%s" % table_name, "the code calls the row %s by name and required_rows does not list it" % name)
+        for table_name, spec in specs.items():
+            for name in (spec.get("required_rows") if is_names(spec.get("required_rows")) else []):
+                if name not in self.code_rows:
+                    self.report("schema.%s" % table_name, "required_rows lists %s, which the code does not call by name" % name)
+
     # ---- values ----
 
     def check_number(self, where, value, spec):
-        if not is_number(value) or not math.isfinite(value):
+        if not is_finite(value):
             self.report(where, "expected a finite number, found %r" % (value,))
             return
         if "min" in spec and value < spec["min"]:
@@ -154,9 +613,9 @@ class Checker:
             self.report(where, "%r is not a whole number" % (value,))
 
     def check_tag(self, where, value, spec):
-        name = tag_of(value)
+        name = name_of(value)
         if not isinstance(name, str):
-            self.report(where, "expected a tag name, found %r" % (value,))
+            self.report(where, "expected a tag name as a string, found %r" % (value,))
             return
         if name == "":
             if not spec.get("optional"):
@@ -170,22 +629,21 @@ class Checker:
             self.report(where, "tag %s is not under %s" % (name, " or ".join(roots)))
 
     def check_row_ref(self, where, value, spec):
-        if value is None or value == "None":
-            value = ""
-        if not isinstance(value, str):
+        name = name_of(value)
+        if not isinstance(name, str):
             self.report(where, "expected a row name, found %r" % (value,))
             return
-        if value == "":
+        if name == "":
             if not spec.get("optional"):
                 self.report(where, "a row of %s is required here" % spec["table"])
             return
-        target = self.rows.get(spec["table"], {}).get(value)
+        target = self.rows.get(spec["table"], {}).get(name)
         if target is None:
-            self.report(where, "%s has no row %s" % (spec["table"], value))
+            self.report(where, "%s has no row %s" % (spec["table"], name))
             return
         for test in spec.get("target", []):
-            if not self.holds(test, target, value):
-                self.report(where, "row %s of %s does not hold %s" % (value, spec["table"], json.dumps(test)))
+            if not self.holds(test, target, name):
+                self.report(where, "row %s of %s does not hold %s" % (name, spec["table"], json.dumps(test)))
 
     def check_text(self, where, value, spec):
         if not isinstance(value, str):
@@ -196,51 +654,57 @@ class Checker:
         if spec.get("no_digits") and any(ch.isdigit() for ch in value):
             self.report(where, "a digit in a text that carries none: %s" % value)
         if "slots" in spec:
-            for slot in SLOT.findall(value):
+            names, problems = slots_of(value)
+            for problem in problems:
+                self.report(where, "%s: %s" % (problem, value))
+            for slot in names:
                 # A slot may carry a format modifier after a bar, as in {Ruler}|hpp(...): the name is what is checked.
                 if slot not in spec["slots"]:
                     self.report(where, "slot {%s} is not filled here (allowed: %s)" % (slot, ", ".join(spec["slots"]) or "none"))
 
     def check_usage(self, where, kind, item, per_tick):
         """One condition or effect against the usage table of its enumerator."""
-        table = self.schema.get(kind, {})
         if not isinstance(item, dict):
             self.report(where, "expected an object, found %r" % (item,))
             return
         type_name = item.get("Type")
-        usage = table.get(type_name)
+        usage = self.schema[kind].get(type_name) if isinstance(type_name, str) else None
         if usage is None:
             self.report(where, "%r is no enumerator of %s" % (type_name, kind))
             return
-        if not isinstance(usage, dict):
-            return
         where = "%s(%s)" % (where, type_name)
+        # Every member of the struct, and no other: the importer keeps a default for a member left out and drops one it
+        # does not know.
+        for member in sorted(set(item) - set(MEMBERS[kind])):
+            self.report(where, "the struct has no member %s" % member)
+        for member in MEMBERS[kind]:
+            if member not in item:
+                self.report(where, "the member %s is missing" % member)
 
-        tag = tag_of(item.get("Tag", ""))
+        tag = name_of(item.get("Tag", ""))
         if "tag" in usage:
             self.check_tag(where + ".Tag", tag, usage["tag"])
         elif tag != "":
-            self.report(where + ".Tag", "this type reads no Tag, found %s" % tag)
+            self.report(where + ".Tag", "this type reads no Tag, found %s" % (tag,))
 
-        key = item.get("Key", "")
-        key = "" if key in (None, "None") else key
+        key = name_of(item.get("Key", ""))
         key_spec = usage.get("key")
-        if key_spec is None:
+        if not isinstance(key, str):
+            self.report(where + ".Key", "expected a name, found %r" % (key,))
+        elif key_spec is None:
             if key != "":
                 self.report(where + ".Key", "this type reads no Key, found %s" % key)
         elif key == "":
             if not key_spec.get("optional"):
                 self.report(where + ".Key", "a Key is required here")
         elif "word" in key_spec:
-            if key not in self.words.get(key_spec["word"], []):
-                self.report(where + ".Key", "%s is none of %s" % (key, ", ".join(self.words.get(key_spec["word"], []))))
+            if key not in self.schema["words"][key_spec["word"]]:
+                self.report(where + ".Key", "%s is none of %s" % (key, ", ".join(self.schema["words"][key_spec["word"]])))
         elif "row" in key_spec:
-            self.check_row_ref(where + ".Key", key, {"table": key_spec["row"], "optional": True})
+            self.check_row_ref(where + ".Key", key, {"table": key_spec["row"], "optional": True, "target": key_spec.get("target", [])})
         elif key_spec.get("digits"):
-            if not (isinstance(key, str) and key.isascii() and key.isdigit() and len(key) <= 9 and int(key) > 0):
+            if not (key.isascii() and key.isdigit() and len(key) <= 9 and int(key) > 0):
                 self.report(where + ".Key", "%r is not a count of ticks (digits only, nine at most, above zero)" % (key,))
-        elif not key_spec.get("any"):
-            self.report(where + ".Key", "the schema says nothing about this Key: %s" % json.dumps(key_spec))
 
         value = item.get("Value", 0)
         if "value" in usage:
@@ -250,8 +714,8 @@ class Checker:
 
         if kind == "effects":
             duration = item.get("DurationTicks", 0)
-            if not is_number(duration) or duration < 0 or (duration > 0 and not per_tick):
-                self.report(where + ".DurationTicks", "%r: only a per-tick source may carry a duration" % (duration,))
+            if not is_count(duration) or (duration > 0 and not per_tick):
+                self.report(where + ".DurationTicks", "%r: a whole number, and above zero only for a per-tick source" % (duration,))
             allowed = self.schema.get("per_tick_effects", [])
             if per_tick and type_name not in allowed:
                 self.report(where, "a per-tick source applies only %s" % ", ".join(allowed))
@@ -259,9 +723,7 @@ class Checker:
                 self.report(where, "this effect is applied by per-tick sources only")
 
     def check_column(self, where, value, spec, row_name):
-        kind = spec.get("kind")
-        if kind == "plain":
-            return
+        kind = spec["kind"]  # "plain" has no branch below: nothing of it is checked
         if kind == "number":
             self.check_number(where, value, spec)
         elif kind == "numbers":
@@ -272,7 +734,7 @@ class Checker:
                 self.report(where, "expected exactly %d entries, found %d" % (spec["len"], len(value)))
             for index, entry in enumerate(value):
                 self.check_number("%s[%d]" % (where, index), entry, spec)
-            if spec.get("ascending") and all(is_number(entry) for entry in value):
+            if spec.get("ascending") and all(is_finite(entry) for entry in value):
                 if any(later <= earlier for earlier, later in zip(value, value[1:])):
                     self.report(where, "the entries do not rise: %r" % (value,))
         elif kind == "text":
@@ -298,17 +760,17 @@ class Checker:
         elif kind == "tag":
             self.check_tag(where, value, spec)
         elif kind == "tags":
-            if not isinstance(value, str) or (value != "" and not value.startswith("(GameplayTags=")):
-                self.report(where, "expected the export text of a tag container, found %r" % (value,))
+            if not isinstance(value, str) or (value != "" and not TAG_CONTAINER.fullmatch(value)):
+                self.report(where, "expected the export text of a tag container, (GameplayTags=((TagName=\"A.B\"),...)) with every name quoted, found %r" % (value,))
                 return
             for name in TAG_NAME.findall(value):
-                self.check_tag(where, name, dict(spec, optional=False))
+                self.check_tag(where, name, spec)
         elif kind == "tag_list":
             if not isinstance(value, list):
                 self.report(where, "expected a list of tags, found %r" % (value,))
                 return
             for index, entry in enumerate(value):
-                self.check_tag("%s[%d]" % (where, index), entry, dict(spec, optional=False))
+                self.check_tag("%s[%d]" % (where, index), entry, spec)
         elif kind in ("tag_map", "row_map", "word_map"):
             if not isinstance(value, dict):
                 self.report(where, "expected an object, found %r" % (value,))
@@ -316,57 +778,45 @@ class Checker:
             for key, entry in value.items():
                 here = "%s[%s]" % (where, key)
                 if kind == "tag_map":
-                    self.check_tag(here, key, dict(spec, optional=False))
+                    self.check_tag(here, key, spec)
                 elif kind == "row_map":
                     self.check_row_ref(here, key, {"table": spec["table"], "target": spec.get("target", [])})
-                elif key not in self.words.get(spec["words"], []):
-                    self.report(here, "%s is none of %s" % (key, ", ".join(self.words.get(spec["words"], []))))
+                elif key not in self.schema["words"][spec["words"]]:
+                    self.report(here, "%s is none of %s" % (key, ", ".join(self.schema["words"][spec["words"]])))
                 self.check_number(here, entry, spec)
         elif kind == "row":
             self.check_row_ref(where, value, spec)
         elif kind == "enum":
-            names = self.schema.get("enums", {}).get(spec.get("enum"), [])
+            names = self.schema["enums"][spec["enum"]]
             if value not in names:
-                self.report(where, "%r is no enumerator of %s" % (value, spec.get("enum")))
+                self.report(where, "%r is no enumerator of %s" % (value, spec["enum"]))
         elif kind in ("conditions", "effects"):
             if not isinstance(value, list):
                 self.report(where, "expected a list, found %r" % (value,))
                 return
             for index, item in enumerate(value):
                 self.check_usage("%s[%d]" % (where, index), kind, item, bool(spec.get("per_tick")))
-        # A kind this checker does not know is reported by check_schema, once, with or without rows.
 
     # ---- row rules ----
 
-    @staticmethod
-    def test_is_known(test):
-        if not isinstance(test, dict):
-            return False
-        if "row" in test:
-            return len(test) == 1
-        return "col" in test and len(test) == 2 and len([name for name in TESTS if name in test]) == 1
-
     def holds(self, test, row, row_name):
-        """One test of a row rule. A test this checker does not know counts as failed (check_schema reports it)."""
-        if not self.test_is_known(test):
-            return False
+        """One test of a row rule (check_schema has made sure it is one this file knows)."""
         if "row" in test:
             return row_name == test["row"]
-        known = [name for name in TESTS if name in test]
-        value = row.get(test["col"])
-        name = known[0]
+        name = [key for key in TESTS if key in test][0]
         operand = test[name]
-        plain = tag_of(value) if not isinstance(value, (list, dict)) else value
+        value = row.get(test["col"])
+        plain = name_of(value) if not isinstance(value, (list, dict)) else value
         if name == "is":
-            return plain == operand or (is_number(plain) and is_number(operand) and float(plain) == float(operand))
+            return plain == operand
         if name == "in":
-            return plain in operand
+            return not isinstance(plain, (list, dict)) and plain in operand
         if name in ("gt", "ge", "lt", "le"):
             if not is_number(value):
                 return False
             return {"gt": value > operand, "ge": value >= operand, "lt": value < operand, "le": value <= operand}[name]
         if name == "set":
-            return is_set(value) == bool(operand)
+            return is_set(value) == operand
         if name == "min_len":
             return length_of(value) >= operand
         if name == "max_len":
@@ -376,7 +826,9 @@ class Checker:
         if name == "lacks_type":
             # A list of conditions or effects without one of the named enumerator.
             return isinstance(value, list) and all(not (isinstance(item, dict) and item.get("Type") == operand) for item in value)
-        return False
+        # slots_in: every slot of the text, or of every text of the list, is one of the named.
+        texts = value if isinstance(value, list) else [value]
+        return all(isinstance(text, str) and all(slot in operand for slot in slots_of(text)[0]) for text in texts)
 
     def all_hold(self, tests, row, row_name):
         return all(self.holds(test, row, row_name) for test in tests)
@@ -384,7 +836,7 @@ class Checker:
     # ---- tables ----
 
     def check_table(self, table_name, spec):
-        columns = spec.get("columns")
+        columns = spec["columns"]
         rows = self.tables.get(table_name)
         if rows is None:
             if spec.get("must_exist"):
@@ -400,13 +852,13 @@ class Checker:
         names = [row["Name"] for row in rows]
         for name in names:
             where = "%s.%s" % (table_name, name)
-            if not pattern.match(name):
+            if not pattern.fullmatch(name):
                 self.report(where, "the row name is not lower snake case")
-            if "names" in spec:
+            if spec.get("names"):
                 if name not in spec["names"]:
                     self.report(where, "this table holds only the rows %s" % ", ".join(spec["names"]))
-            elif not any(name.startswith(prefix) for prefix in spec.get("prefixes", [])):
-                self.report(where, "the row name does not start with %s" % " or ".join(spec.get("prefixes", [])))
+            elif not any(name.startswith(prefix) for prefix in spec["prefixes"]):
+                self.report(where, "the row name does not start with %s" % " or ".join(spec["prefixes"]))
             if names.count(name) > 1:
                 self.report(where, "the row name appears %d times in the table" % names.count(name))
         for name in spec.get("required_rows", []):
@@ -419,172 +871,63 @@ class Checker:
                 self.report("%s.%s.%s" % (table_name, name, key), "the schema does not declare this column")
             for column, column_spec in columns.items():
                 where = "%s.%s.%s" % (table_name, name, column)
-                if not isinstance(column_spec, dict):
-                    continue
                 if column not in row:
                     self.report(where, "the column is missing from the row")
                 else:
                     self.check_column(where, row[column], column_spec, name)
-            for rule in objects(spec.get("rules", [])):
+            for rule in spec.get("rules", []):
                 if self.all_hold(rule.get("when", []), row, name):
-                    for test in rule.get("then", []):
+                    for test in rule["then"]:
                         if not self.holds(test, row, name):
-                            self.report("%s.%s" % (table_name, name), "%s: it does not hold %s" % (rule.get("why", "rule"), json.dumps(test)))
-            for pair in objects(spec.get("pairs", [])):
-                allowed = self.schema.get(pair.get("allowed"))
-                if not isinstance(allowed, dict):
-                    continue
-                key = tag_of(row.get(pair["key"]))
-                value = tag_of(row.get(pair["value"]))
+                            self.report("%s.%s" % (table_name, name), "%s: it does not hold %s" % (rule["why"], json.dumps(test)))
+            for pair in spec.get("pairs", []):
+                allowed = self.schema[pair["allowed"]]
+                key = name_of(row.get(pair["key"]))
+                value = name_of(row.get(pair["value"]))
+                if not isinstance(key, str) or not isinstance(value, str):
+                    continue  # reported as a wrong cell by its column
                 if key in allowed and value not in allowed[key]:
                     self.report("%s.%s.%s" % (table_name, name, pair["value"]),
-                                "%s: %s may tell %s, found %s" % (pair.get("why", "pair"), key, ", ".join(allowed[key]), value))
-                elif key not in allowed and is_set(key):
+                                "%s: %s may tell %s, found %s" % (pair["why"], key, ", ".join(allowed[key]), value))
+                elif key not in allowed and key != "":
                     self.report("%s.%s.%s" % (table_name, name, pair["key"]), "%s is not listed under %s" % (key, pair["allowed"]))
 
-        for unique in objects(spec.get("unique", [])):
+        for unique in spec.get("unique", []):
             seen = {}
             for row in rows:
                 if not self.all_hold(unique.get("when", []), row, row["Name"]):
                     continue
-                key = tuple(json.dumps(row.get(column), sort_keys=True) for column in unique["cols"])
+                cells = [row.get(column) for column in unique["cols"]]
+                key = json.dumps([cell if isinstance(cell, (list, dict)) else name_of(cell) for cell in cells], sort_keys=True)
                 if key in seen:
                     self.report("%s.%s" % (table_name, row["Name"]),
-                                "%s: the same %s as row %s" % (unique.get("why", "unique"), " and ".join(unique["cols"]), seen[key]))
+                                "%s: the same %s as row %s" % (unique["why"], " and ".join(unique["cols"]), seen[key]))
                 else:
                     seen[key] = row["Name"]
 
-    def check_schema(self):
-        """The schema itself, for every table with or without rows: a kind, a test or a name it leans on that is not
-        there would otherwise pass in silence."""
-        specs = self.schema.get("tables", {})
-        effects = self.schema.get("effects", {})
-        pair_lists = [pair.get("allowed") for spec in objects(specs.values()) for pair in objects(spec.get("pairs", []))]
-        self.unknown_keys("schema", self.schema, TOP_KEYS + tuple(name for name in pair_lists if isinstance(name, str)))
-        for tag in self.schema.get("required_tags", []):
-            if tag not in self.tags:
-                self.report("schema.required_tags", "tag %s is not declared in the ini" % tag)
-        for name in self.schema.get("per_tick_effects", []):
-            if name not in effects:
-                self.report("schema.per_tick_effects", "%s is no effect of the schema" % name)
-        for kind in ("conditions", "effects"):
-            for type_name, usage in self.schema.get(kind, {}).items():
-                where = "schema.%s.%s" % (kind, type_name)
-                if not self.unknown_keys(where, usage, tuple(USAGE_KEYS) + (("per_tick_only",) if kind == "effects" else ())):
-                    continue
-                for cell, allowed in USAGE_KEYS.items():
-                    self.unknown_keys("%s.%s" % (where, cell), usage.get(cell) or {}, allowed)
-                key_spec = usage.get("key") or {}
-                if "word" in key_spec and key_spec["word"] not in self.words:
-                    self.report("schema.%s.%s" % (kind, type_name), "the word list %s is not in the schema" % key_spec["word"])
-                if "row" in key_spec and key_spec["row"] not in specs:
-                    self.report("schema.%s.%s" % (kind, type_name), "the table %s is not in the schema" % key_spec["row"])
-        for table_name, spec in specs.items():
-            tests = []
-            if not self.unknown_keys("schema.%s" % table_name, spec, TABLE_KEYS):
-                continue
-            for list_name, allowed in RULE_KEYS.items():
-                for entry in spec.get(list_name, []):
-                    self.unknown_keys("schema.%s.%s" % (table_name, list_name), entry, allowed)
-            for column, column_spec in (spec.get("columns") or {}).items():
-                where = "schema.%s.%s" % (table_name, column)
-                if not isinstance(column_spec, dict):
-                    self.report(where, "expected an object with a kind, found %r" % (column_spec,))
-                    continue
-                kind = column_spec.get("kind")
-                if kind not in COLUMN_KINDS:
-                    self.report(where, "a kind this checker does not know: %r" % (kind,))
-                else:
-                    self.unknown_keys(where, column_spec, ("kind",) + COLUMN_OPTIONS[kind])
-                if kind in ("row", "row_map") and column_spec.get("table") not in specs:
-                    self.report(where, "the table %r is not in the schema" % (column_spec.get("table"),))
-                if kind == "word_map" and column_spec.get("words") not in self.words:
-                    self.report(where, "the word list %r is not in the schema" % (column_spec.get("words"),))
-                if kind == "enum" and column_spec.get("enum") not in self.schema.get("enums", {}):
-                    self.report(where, "the enum %r is not in the schema" % (column_spec.get("enum"),))
-                # The tests of a target read the rows of the table the column points at.
-                target = specs.get(column_spec.get("table"))
-                self.check_tests(where, column_spec.get("target", []), target.get("columns") if isinstance(target, dict) else None)
-            here = "schema.%s" % table_name
-            columns = spec.get("columns")
-            for rule in objects(spec.get("rules", [])):
-                tests.extend(rule.get("when", []))
-                tests.extend(rule.get("then", []))
-            for unique in objects(spec.get("unique", [])):
-                tests.extend(unique.get("when", []))
-                for column in unique.get("cols", []):
-                    if isinstance(columns, dict) and column not in columns:
-                        self.report(here, "unique names the column %r, which the table does not declare" % (column,))
-            self.check_tests(here, tests, columns)
-            for pair in objects(spec.get("pairs", [])):
-                allowed = self.schema.get(pair.get("allowed"))
-                if not isinstance(allowed, dict):
-                    self.report(here, "the list %r of a pair is not in the schema" % (pair.get("allowed"),))
-                    continue
-                for side in ("key", "value"):
-                    column_spec = columns.get(pair.get(side)) if isinstance(columns, dict) else None
-                    if not isinstance(column_spec, dict):
-                        self.report(here, "a pair names the column %r, which the table does not declare" % (pair.get(side),))
-                    elif column_spec.get("kind") == "tag":
-                        # Both sides of the list are tag names: one the ini lacks would never match a row.
-                        names = list(allowed) if side == "key" else [name for values in allowed.values() for name in values]
-                        for name in sorted(set(names) - self.tags):
-                            self.report("schema.%s" % pair.get("allowed"), "tag %s is not declared in the ini" % name)
-
-    def check_tests(self, where, tests, columns):
-        """The tests of a rule: each of a known shape, over a column the table declares, and against names that exist.
-        A test over a misspelt column, tag or enumerator never holds, so its rule would be switched off in silence."""
-        for test in tests:
-            if not self.test_is_known(test):
-                self.report(where, "a row test is 'row', or a column with exactly one of %s: %s" % (", ".join(TESTS), json.dumps(test)))
-                continue
-            if "row" in test or not isinstance(columns, dict):
-                continue
-            column_spec = columns.get(test["col"])
-            if not isinstance(column_spec, dict):
-                self.report(where, "a row test names the column %r, which the table does not declare" % (test["col"],))
-                continue
-            if "in" in test and not isinstance(test["in"], list):
-                self.report(where, "the test 'in' needs a list: %s" % json.dumps(test))
-                continue
-            operands = test["in"] if "in" in test else [test["is"]] if "is" in test else []
-            for operand in operands:
-                if column_spec.get("kind") == "tag" and operand != "" and operand not in self.tags:
-                    self.report(where, "a row test names the tag %s, which the ini does not declare" % (operand,))
-                if column_spec.get("kind") == "enum" and operand not in self.schema.get("enums", {}).get(column_spec.get("enum"), []):
-                    self.report(where, "a row test names %r, which is no enumerator of %s" % (operand, column_spec.get("enum")))
-
-    def unknown_keys(self, where, entry, allowed):
-        """A key of the schema that nothing reads: a misspelt option, or an option of another kind. False when the entry
-        is no object at all."""
-        if not isinstance(entry, dict):
-            self.report(where, "expected an object, found %r" % (entry,))
-            return False
-        for key in sorted(set(entry) - set(allowed)):
-            self.report(where, "%r is not read here (allowed: %s)" % (key, ", ".join(allowed) or "nothing"))
-        return True
-
     def run(self):
         self.check_schema()
-        specs = self.schema.get("tables", {})
+        if self.problems:
+            self.report("schema", "the data was not checked: the schema has to be right first")
+            return self.problems
+        specs = self.schema["tables"]
         for table_name in sorted(self.tables):
             if table_name not in specs:
                 self.report(table_name, "the schema does not declare this table")
         for table_name, spec in specs.items():
-            if isinstance(spec, dict):
-                self.check_table(table_name, spec)
+            self.check_table(table_name, spec)
         # A row name is one name in the whole game: it is saved without its table.
         owners = {}
         for table_name in specs:
-            for row in self.tables.get(table_name) or []:
-                if isinstance(row, dict) and isinstance(row.get("Name"), str):
-                    owners.setdefault(row["Name"], []).append(table_name)
+            for name in self.rows.get(table_name, {}):
+                owners.setdefault(name, []).append(table_name)
         for name, tables in sorted(owners.items()):
-            if len(set(tables)) > 1:
-                self.report(name, "the row name is used by %s" % " and ".join(sorted(set(tables))))
+            if len(tables) > 1:
+                self.report(name, "the row name is used by %s" % " and ".join(sorted(tables)))
         return self.problems
 
 
-def check(schema, tables, tags):
-    """The problems of tables (asset name -> list of rows) under schema, with the declared tag names."""
-    return Checker(schema, tables, tags).run()
+def check(schema, tables, tags, code_rows=None):
+    """The problems of tables (asset name -> list of rows) under schema, with the declared tag names. code_rows: the
+    row names the code calls by name, held against required_rows; None leaves that out."""
+    return Checker(schema, tables, tags, code_rows).run()

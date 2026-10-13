@@ -23,16 +23,23 @@ Facts read from the UE 5.8.3 source (see CLAUDE.md for the summary):
     started, add to arrays such as Templates and NameBank at the end only, and never delete a DT_ asset to recreate it
     (a new package gets a new namespace). This script refills the existing asset in place for that reason.
 
-What it checks before it touches an asset: the sources against Tools/data/schema.json (Tools/cosmic_data_schema.py,
-the same check as "python Tools/check_data.py": row names, references, tags, ranges, the usage of conditions and
-effects). One problem stops the run. The tables this script builds have to be the tables of the folder and of the schema.
+Every source is read once, at the start: those bytes are what is checked, what is imported and what is hashed into the
+stamp.
 
-What it checks before saving: every table is exported again and compared with the JSON value by value, and a column
-of the row struct that the JSON does not spell out is an error. String Table entries are compared key by key and text
-by text. On success it writes Tools/data/generated.sha1 (one "<file> <sha1>" line per source and one for schema.json,
-carriage returns left out of the hash); the automation test Cosmic_Ascension.Data.SourcesInSync compares the sources
-with that stamp, so a source or a schema edited without running this script again fails there. The stamp is removed
-first, so a failed run leaves none.
+What it checks before it touches an asset: the sources against Tools/data/schema.json (Tools/cosmic_data_schema.py, the
+same check as "python Tools/check_data.py": the schema itself, row names, references, tags, ranges, the usage of
+conditions and effects, the shape of the String Table), then the unit tests of the checker (Tools/test_data_schema.py).
+One problem stops the run. The sources come first because the unit tests start from the data of the project: with a
+wrong source they fail too, and the lines that say what is wrong would be lost behind them. The tables this script
+builds have to be the tables of the folder and of the schema.
+
+What it checks before saving: every table is filled, exported again and compared with the JSON value by value, and a
+column of the row struct that the JSON does not spell out is an error. String Table entries are compared key by key and
+text by text. Nothing is saved until every table and the String Table have passed, so a failure in a later table does
+not leave the earlier ones saved. On success it writes Tools/data/generated.sha1 (one "<file> <sha1>" line per source,
+one for schema.json and one for the checker, carriage returns left out of the hash); the automation test
+Cosmic_Ascension.Data.SourcesInSync compares the files with that stamp, so a source, a schema or a checker edited
+without running this script again fails there. The stamp is removed first, so a failed run leaves none.
 """
 import csv
 import hashlib
@@ -41,12 +48,16 @@ import json
 import os
 import re
 import sys
+import unittest
 
 import unreal
 
+# No bytecode cache next to the tools: the checker is small and is read fresh every run.
+sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import cosmic_data_schema  # noqa: E402  (the import needs the path above)
+import test_data_schema  # noqa: E402
 
 DATA_FOLDER = "/Game/CA/Data"
 TABLES = [
@@ -57,6 +68,9 @@ TABLES = [
 ]
 STRING_TABLE = "ST_CA"
 STAMP_FILE = "generated.sha1"
+# The checker is stamped next to the sources: the assets were checked by this version of it. The name is relative to
+# Tools/data, where Data.SourcesInSync looks.
+CHECKER_FILE = "../cosmic_data_schema.py"
 
 SOURCE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 EDITOR_ASSETS = unreal.get_editor_subsystem(unreal.EditorAssetSubsystem)
@@ -69,11 +83,6 @@ UNESCAPE = {"n": "\n", "r": "\r", "t": "\t", "'": "'", '"': '"', "\\": "\\"}
 
 def log(message):
     unreal.log("[make_data_tables] " + message)
-
-
-def read_text(file_name):
-    with open(os.path.join(SOURCE_DIR, file_name), encoding="utf-8-sig") as handle:
-        return handle.read()
 
 
 def row_struct(struct_name):
@@ -116,7 +125,7 @@ def differences(expected, actual, where):
             # A map: an entry dropped by the importer shows up as a size mismatch.
             extra = sorted(set(actual) - set(expected))
             if extra:
-                found.append("%s: unexpected keys %s" % (where, extra))
+                found.append("%s: the export holds %s, which the JSON does not write" % (where, extra))
         return found
     if isinstance(expected, list):
         if not isinstance(actual, list) or len(actual) != len(expected):
@@ -151,13 +160,13 @@ def differences(expected, actual, where):
     return ["%s: unsupported value %r" % (where, expected)]
 
 
-def make_table(asset_name, struct_name):
+def fill_table(asset_name, struct_name, source):
+    """Fill the table from the text of its source and compare what it then holds. Returns the table, not yet saved."""
     struct = row_struct(struct_name)
     factory = unreal.DataTableFactory()
     factory.set_editor_property("struct", struct)
     table = load_or_create(asset_name, unreal.DataTable, factory)
 
-    source = read_text(asset_name + ".json")
     rows = json.loads(source)
     if not unreal.DataTableFunctionLibrary.fill_data_table_from_json_string(table, source, struct):
         raise RuntimeError("fill failed for " + asset_name)
@@ -182,26 +191,19 @@ def make_table(asset_name, struct_name):
             problems.extend(differences(row, exported[row["Name"]], asset_name + "." + row["Name"]))
     if problems:
         raise RuntimeError("%s does not hold what was written:\n  %s" % (asset_name, "\n  ".join(problems)))
-
-    if not EDITOR_ASSETS.save_loaded_asset(table, False):
-        raise RuntimeError("save failed for " + path)
     log("%s: %d rows written and verified" % (asset_name, len(rows)))
+    return table
 
 
-def make_string_table(asset_name):
+def fill_string_table(asset_name, source):
+    """Import the String Table from the text of its source and compare what it then holds. Returns it, not yet saved.
+    The shape of the source (header, cell counts, keys) was checked with the other sources."""
     table = load_or_create(asset_name, None, unreal.StringTableFactory())
     table_id = table.get_path_name()
-
-    source = read_text(asset_name + ".csv")
     if not unreal.StringTableLibrary.import_table_from_csv_string(table_id, source):
         raise RuntimeError("string table import failed for " + asset_name)
 
-    parsed = [row for row in csv.reader(io.StringIO(source)) if row]
-    header, entries = parsed[0], parsed[1:]
-    ragged = [row[0] for row in entries if len(row) != len(header) or not row[1]]
-    if header[:2] != ["Key", "SourceString"] or ragged:
-        raise RuntimeError("%s.csv: wrong cell count (unquoted comma?) or empty SourceString in %s" % (asset_name, ragged))
-    wanted = {row[0]: row[1] for row in entries}
+    wanted = {row[0]: row[1] for row in list(csv.reader(io.StringIO(source)))[1:] if row}
     keys = [str(key) for key in unreal.StringTableLibrary.get_keys_from_string_table(table_id)]
     if sorted(keys) != sorted(wanted):
         raise RuntimeError("%s keys: wrote %s, table holds %s" % (asset_name, sorted(wanted), sorted(keys)))
@@ -210,50 +212,74 @@ def make_string_table(asset_name):
              if "\\" not in text and str(unreal.StringTableLibrary.get_table_entry_source_string(table_id, key)) != text]
     if wrong:
         raise RuntimeError("%s texts differ for %s" % (asset_name, wrong))
-
-    if not EDITOR_ASSETS.save_loaded_asset(table, False):
-        raise RuntimeError("save failed for " + asset_name)
     log("%s: %d entries written and verified" % (asset_name, len(keys)))
+    return table
 
 
-def check_sources():
+def run_checker_tests():
+    """The unit tests of the checker: the sources passed it, now it has to show that it would have caught them."""
+    stream = io.StringIO()
+    result = unittest.TextTestRunner(stream=stream, verbosity=0).run(unittest.defaultTestLoader.loadTestsFromModule(test_data_schema))
+    if not result.wasSuccessful():
+        raise RuntimeError("the unit tests of the checker fail (python Tools/test_data_schema.py):\n" + stream.getvalue())
+    log("checker: %d unit tests pass" % result.testsRun)
+
+
+def check_sources(sources):
     """The sources against the schema, before any asset is touched. Raises with every problem in the message."""
-    schema, tables, tags = cosmic_data_schema.load_project()
-    problems = cosmic_data_schema.check(schema, tables, tags)
-    # What this script builds is what the folder holds and what the schema declares, struct by struct.
-    built = dict(TABLES)
-    for table_name in sorted(set(tables) - set(built)):
-        problems.append("%s.json is in Tools/data and this script does not build it: add it to TABLES" % table_name)
-    for table_name, struct_name in TABLES:
-        if table_name not in tables:
-            problems.append("Tools/data/%s.json is missing: this script builds that table" % table_name)
-        declared = schema.get("tables", {}).get(table_name, {}).get("struct")
-        if declared != struct_name:
-            problems.append("%s: this script builds it from %s, the schema says %s" % (table_name, struct_name, declared))
+    problems = cosmic_data_schema.check_sources(sources)
+    if not problems:
+        # What this script builds is what the folder holds and what the schema declares, struct by struct.
+        schema = json.loads(cosmic_data_schema.text_of(sources[cosmic_data_schema.SCHEMA_FILE]))
+        in_folder = sorted(name[:-len(".json")] for name in sources if name.startswith("DT_"))
+        built = dict(TABLES)
+        for table_name in in_folder:
+            if table_name not in built:
+                problems.append("%s.json is in Tools/data and this script does not build it: add it to TABLES" % table_name)
+        for table_name, struct_name in TABLES:
+            if table_name not in in_folder:
+                problems.append("Tools/data/%s.json is missing: this script builds that table" % table_name)
+            declared = schema["tables"].get(table_name, {}).get("struct")
+            if declared != struct_name:
+                problems.append("%s: this script builds it from %s, the schema says %s" % (table_name, struct_name, declared))
+        if STRING_TABLE + ".csv" not in sources:
+            problems.append("Tools/data/%s.csv is missing: this script builds that String Table" % STRING_TABLE)
     if problems:
         raise RuntimeError("the sources do not hold Tools/data/schema.json (%d):\n  %s" % (len(problems), "\n  ".join(problems)))
-    log("schema: %d tables checked, no problem" % len(tables))
+    log("schema: %d sources checked, no problem" % len(sources))
 
 
-def write_stamp(file_names):
-    """Record the hash of every source that became an asset and of the schema they were checked against (carriage
-    returns left out, as the automation test does)."""
-    lines = []
-    for file_name in file_names:
-        with open(os.path.join(SOURCE_DIR, file_name), "rb") as handle:
-            lines.append("%s %s" % (file_name, hashlib.sha1(handle.read().replace(b"\r", b"")).hexdigest()))
+def write_stamp(stamped):
+    """Record the hash of what became an asset and of what it was checked with: (file name, bytes) pairs, carriage
+    returns left out of the hash, as the automation test does."""
+    lines = ["%s %s" % (file_name, hashlib.sha1(data.replace(b"\r", b"")).hexdigest()) for file_name, data in stamped]
     with open(os.path.join(SOURCE_DIR, STAMP_FILE), "w", encoding="ascii", newline="\n") as handle:
         handle.write("\n".join(lines) + "\n")
-    log("%s: %d sources stamped" % (STAMP_FILE, len(lines)))
+    log("%s: %d files stamped" % (STAMP_FILE, len(lines)))
 
 
-# A run that fails after saving one asset must not leave the stamp of the previous run behind.
+# A run that fails must not leave the stamp of the previous run behind.
 if os.path.exists(os.path.join(SOURCE_DIR, STAMP_FILE)):
     os.remove(os.path.join(SOURCE_DIR, STAMP_FILE))
 
-check_sources()
-for table_name, table_struct in TABLES:
-    make_table(table_name, table_struct)
-make_string_table(STRING_TABLE)
-write_stamp([table_name + ".json" for table_name, _ in TABLES] + [STRING_TABLE + ".csv", cosmic_data_schema.SCHEMA_FILE])
+# One read of everything. From here on the files on disk are not opened again.
+SOURCES = cosmic_data_schema.read_sources()
+with open(os.path.join(SOURCE_DIR, CHECKER_FILE), "rb") as checker_handle:
+    CHECKER_BYTES = checker_handle.read()
+
+check_sources(SOURCES)
+run_checker_tests()
+
+# Fill and compare everything, then save everything.
+filled = [fill_table(table_name, table_struct, cosmic_data_schema.text_of(SOURCES[table_name + ".json"])) for table_name, table_struct in TABLES]
+filled.append(fill_string_table(STRING_TABLE, cosmic_data_schema.text_of(SOURCES[STRING_TABLE + ".csv"])))
+for asset in filled:
+    if not EDITOR_ASSETS.save_loaded_asset(asset, False):
+        raise RuntimeError("save failed for " + asset.get_path_name())
+log("%d assets saved" % len(filled))
+
+write_stamp([(table_name + ".json", SOURCES[table_name + ".json"]) for table_name, _ in TABLES]
+            + [(STRING_TABLE + ".csv", SOURCES[STRING_TABLE + ".csv"]),
+               (cosmic_data_schema.SCHEMA_FILE, SOURCES[cosmic_data_schema.SCHEMA_FILE]),
+               (CHECKER_FILE, CHECKER_BYTES)])
 log("done")

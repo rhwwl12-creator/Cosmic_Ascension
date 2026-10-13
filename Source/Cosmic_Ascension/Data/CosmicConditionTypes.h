@@ -18,8 +18,9 @@ enum class EConditionType : uint8
 	CivResourceAtLeast,
 	CivStabilityBelow,
 	CivEthicsAxisAbove,
-	// Value = threshold, Key = tick count (digits only, above zero; anything else is false). Reads
-	// FCivilizationState.LowStabilityTicks (section 4.1).
+	// Value = threshold, fixed at 0.3 for now: the counter counts the ticks below 0.3 and the code does not read the
+	// Value, so the schema accepts 0.3 only (section 16 #25 (2)). Key = tick count (digits only, above zero; anything
+	// else is false). Reads FCivilizationState.LowStabilityTicks (section 4.1).
 	CivStabilityBelowFor,
 	// Key = other ID (CivID or TranscendentID).
 	CivRelationAtLeast,

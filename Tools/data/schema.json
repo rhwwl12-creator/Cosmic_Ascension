@@ -3,16 +3,22 @@
 	"about": [
 		"Definition schema of Cosmic Ascension (guideline.md section 7.3, 9.3 Data.Integrity, 10.4).",
 		"Authoring time only: nothing here reaches a runtime struct, the hash or a save.",
-		"Checked by Tools/cosmic_data_schema.py when Tools/make_data_tables.py builds the assets (python Tools/check_data.py runs the same check without the editor) and by the automation test Cosmic_Ascension.Data.Integrity over the loaded assets.",
+		"Checked by Tools/cosmic_data_schema.py before Tools/make_data_tables.py touches an asset (python Tools/check_data.py runs the same check without the editor), and by the automation test Cosmic_Ascension.Data.Integrity: this file against the code, the loaded assets against this file.",
+		"The checker reads this file first. While it has a problem the data is not looked at.",
 		"Every column of a row struct is declared here: a column added to a struct needs its line.",
-		"Column kinds (closed list): plain, number, numbers, text, texts, tag, tags, tag_list, tag_map, row, row_map, word_map, enum, conditions, effects.",
-		"A row rule is 'when -> then' over tests; the tests are a closed list too: one column with one of is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, or 'row' with a row name.",
+		"Column kinds (closed list): plain, number, numbers, text, texts, tag, tags, tag_list, tag_map, row, row_map, word_map, enum, conditions, effects",
+		"An integer property is declared with integer: true (Data.Integrity holds the columns to the property types).",
+		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, slots_in",
+		"A row rule is 'when -> then' over tests: one column with one test of the list above, or 'row' with a row name. Each test can be asked of some kinds of column only (the checker holds the table).",
+		"A rule added here needs an input that breaks it in Tools/test_data_schema.py: that test walks every rule, unique, pair, target and slot list of this file.",
 		"A number range stands here only where the guideline states one. A column without a range is checked for being a finite number.",
-		"The keys of this file and the options of each kind are closed lists in the checker: a key nothing reads is a problem, so a misspelt option cannot switch its check off.",
-		"What a rule names has to exist: a test over a column the table does not declare, a tag the ini lacks or a name that is no enumerator is a problem (it would never hold).",
+		"The keys of this file and the options of each kind are closed lists in the checker, each with the type of its value: a key nothing reads or a value of the wrong type is a problem, so a slip cannot switch a check off.",
+		"What a rule names has to exist: a test over a column the table does not declare, a tag the ini lacks, a name that is no enumerator or a row the table neither requires nor has is a problem (it would never hold).",
+		"required_rows are the rows the code calls by name: the checker holds them, both ways, to the names in the headers under row_name_sources. A table that has an asset carries must_exist.",
 		"A table whose columns are null has no rows yet: its columns are declared when its first row is written."
 	],
 	"tag_sources": ["Config/DefaultGameplayTags.ini"],
+	"row_name_sources": ["Source/Cosmic_Ascension/Data/CosmicRowNames.h"],
 	"required_tags": ["Notable.Ruler", "Notable.Regent", "Notable.Rebel", "Notable.Loyalist", "Notable.Hearer", "Notable.Ascendant"],
 	"row_name_pattern": "^[a-z][a-z0-9_]*$",
 
@@ -52,21 +58,21 @@
 			"must_exist": true,
 			"required_rows": ["rules"],
 			"columns": {
-				"LeapTicksMin": {"kind": "number"},
-				"LeapTicksMax": {"kind": "number"},
-				"LeapTotalCap": {"kind": "number"},
-				"BirthProtectionTicks": {"kind": "number"},
-				"BaseLifespanTicks": {"kind": "number"},
+				"LeapTicksMin": {"kind": "number", "integer": true},
+				"LeapTicksMax": {"kind": "number", "integer": true},
+				"LeapTotalCap": {"kind": "number", "integer": true},
+				"BirthProtectionTicks": {"kind": "number", "integer": true},
+				"BaseLifespanTicks": {"kind": "number", "integer": true},
 				"SuccessionHazardWeight": {"kind": "number"},
 				"SuccessionCivTierWeight": {"kind": "number"},
 				"SuccessionReverenceWeight": {"kind": "number"},
 				"SuccessionReverenceThreshold": {"kind": "number"},
 				"SuccessionSameCivPenalty": {"kind": "number"},
-				"SuccessionMinHazardTicks": {"kind": "number"},
+				"SuccessionMinHazardTicks": {"kind": "number", "integer": true},
 				"ReverenceDecay": {"kind": "number"},
 				"AIAscensionSpeedMultiplier": {"kind": "number"},
 				"PostRebellionStability": {"kind": "number"},
-				"ThroneLockTicks": {"kind": "number"},
+				"ThroneLockTicks": {"kind": "number", "integer": true},
 				"PressureBySourceTier": {"kind": "numbers", "len": 5, "min": 0},
 				"PressureAdjacencyFalloff": {"kind": "number", "min": 0, "max": 1},
 				"SpiritualPressureStabilityDrain": {"kind": "number", "min": 0},
@@ -77,12 +83,12 @@
 				"ImmutableLaws": {"kind": "tags", "root": "Law."},
 				"FallenTranscendentCount": {"kind": "number", "min": 0, "max": 3, "integer": true},
 				"PlayerArchetypeRow": {"kind": "row", "table": "DT_Civs"},
-				"ClaimCountdown": {"kind": "number"},
-				"ClaimAdjacencyLanes": {"kind": "number"},
-				"VigilClaimExtension": {"kind": "number"},
+				"ClaimCountdown": {"kind": "number", "integer": true},
+				"ClaimAdjacencyLanes": {"kind": "number", "integer": true},
+				"VigilClaimExtension": {"kind": "number", "integer": true},
 				"SphereEventWeightStep": {"kind": "number", "min": 0},
-				"ReturnLureMaxLanes": {"kind": "number"},
-				"ReturnedLivesToSeize": {"kind": "number"},
+				"ReturnLureMaxLanes": {"kind": "number", "integer": true},
+				"ReturnedLivesToSeize": {"kind": "number", "integer": true},
 				"LureAcceptByPolicy": {"kind": "word_map", "words": "policy"},
 				"MaxNotablesPerCiv": {"kind": "number", "min": 3, "max": 5, "integer": true},
 				"PopulationBandThresholds": {"kind": "numbers", "len": 3, "ascending": true},
@@ -110,7 +116,7 @@
 				"Weight": {"kind": "number", "min": 0},
 				"RevelationMode": {"kind": "tag", "root": "Revelation."},
 				"RevelationTemplates": {"kind": "texts", "len_in": [1, 3]},
-				"HomeSystemNames": {"kind": "texts", "slots": []},
+				"HomeSystemNames": {"kind": "texts", "slots": [], "no_digits": true},
 				"HomeStarClass": {"kind": "tag", "root": "Star.Class.", "optional": true},
 				"DedicationBanks": {"kind": "tag_list", "root": "Faith.Bank."}
 			},
@@ -159,16 +165,44 @@
 				"LogTemplates": {"kind": "texts", "slots": ["Civ", "System", "HomeSystem"]},
 				"Severity": {"kind": "number", "min": 0, "max": 2, "integer": true},
 				"MinTierToReveal": {"kind": "number", "min": 0, "max": 5, "integer": true},
-				"SignRow": {"kind": "row", "table": "DT_LogTemplates", "optional": true, "target": [{"col": "Category", "is": "Log.Sign"}]}
+				"SignRow": {
+					"kind": "row",
+					"table": "DT_LogTemplates",
+					"optional": true,
+					"target": [{"col": "Category", "is": "Log.Sign"}, {"col": "Templates", "slots_in": ["Civ", "System", "HomeSystem"]}]
+				}
 			},
 			"pairs": [
 				{"key": "Category", "value": "LogCategory", "allowed": "event_log_categories", "why": "the log category an event category may tell (guideline 8.1)"}
 			],
 			"rules": [
 				{
-					"why": "a slot row tells with three variants or more, or tells nothing",
-					"when": [{"col": "Trigger", "in": ["Lottery", "Standing"]}, {"col": "LogTemplates", "min_len": 1}],
+					"why": "a slot row tells with three variants or more (guideline 8.2)",
+					"when": [{"col": "Trigger", "in": ["Lottery", "Standing"]}],
 					"then": [{"col": "LogTemplates", "min_len": 3}]
+				},
+				{
+					"why": "a row fired by name tells with one variant or more (guideline 8.2)",
+					"when": [{"col": "Trigger", "is": "Named"}],
+					"then": [{"col": "LogTemplates", "min_len": 1}]
+				},
+				{
+					"why": "a slot runs for every people: until the selector words are decided it carries no condition on the vessel, no role effect and no effect on the vessel (guideline 16 #29 (7))",
+					"when": [{"col": "Trigger", "in": ["Lottery", "Standing"]}],
+					"then": [
+						{"col": "Conditions", "lacks_type": "PlayerTierAtLeast"},
+						{"col": "Conditions", "lacks_type": "PlayerInSystemWithHazard"},
+						{"col": "Conditions", "lacks_type": "PlayerStatAtLeast"},
+						{"col": "Conditions", "lacks_type": "PlayerHasRelic"},
+						{"col": "Conditions", "lacks_type": "PlayerRoleIs"},
+						{"col": "Conditions", "lacks_type": "PlayerHasStatus"},
+						{"col": "Conditions", "lacks_type": "PlayerLifeIndexAtLeast"},
+						{"col": "Conditions", "lacks_type": "PlayerAgeAtLeast"},
+						{"col": "Effects", "lacks_type": "KillPlayer"},
+						{"col": "Effects", "lacks_type": "DeposeRuler"},
+						{"col": "Effects", "lacks_type": "PlayerStatDelta"},
+						{"col": "Effects", "lacks_type": "GrantPower"}
+					]
 				},
 				{
 					"why": "only a Lottery row has a weight",
@@ -181,9 +215,9 @@
 					"then": [{"col": "CooldownTicks", "is": 0}]
 				},
 				{
-					"why": "a sign row is told below MinTierToReveal, so there has to be a tier below it and a line of its own",
+					"why": "a sign row is told below MinTierToReveal, so there has to be a tier below it",
 					"when": [{"col": "SignRow", "set": true}],
-					"then": [{"col": "MinTierToReveal", "ge": 2}, {"col": "LogTemplates", "min_len": 1}]
+					"then": [{"col": "MinTierToReveal", "ge": 2}]
 				},
 				{
 					"why": "a grace row names no one (guideline 9.3: NameNotable is not carried by Event.Grace rows)",
@@ -223,8 +257,7 @@
 					"then": [{"col": "Allegiance", "is": "Realm.Abyssal"}, {"col": "Doctrine", "is": "Doctrine.Silence"}]
 				},
 				{
-					"why": "a fallen transcendent stands on tier 3 or 4, never on tier 5",
-					"when": [{"col": "Allegiance", "is": "Realm.Abyssal"}],
+					"why": "a transcendent stands on tier 3 or 4 (guideline 4.2: no fallen one on tier 5)",
 					"then": [{"col": "Tier", "in": ["Tier3_Causal", "Tier4_Transcendent"]}]
 				},
 				{
@@ -257,14 +290,14 @@
 		"CivResourceAtLeast": {"key": {"word": "resource"}, "value": {"min": 0}},
 		"CivStabilityBelow": {"value": {"min": 0, "max": 1}},
 		"CivEthicsAxisAbove": {"key": {"word": "axis"}, "value": {"min": -1, "max": 1}},
-		"CivStabilityBelowFor": {"key": {"digits": true}, "value": {"min": 0, "max": 1}},
+		"CivStabilityBelowFor": {"key": {"digits": true}, "value": {"min": 0.3, "max": 0.3}},
 		"CivRelationAtLeast": {"key": {"row": "DT_Transcendents", "optional": true}, "value": {"min": -1, "max": 1}},
 		"CivReverenceAtLeast": {"value": {"min": 0, "max": 1}},
 		"SystemHasHazard": {"tag": {"root": "Hazard.", "optional": true}},
 		"SystemOwnedBy": {},
 		"MegaprojectComplete": {},
 		"SystemPressureAtLeast": {"value": {"min": 0}},
-		"SystemInfluencedBy": {"key": {"row": "DT_Transcendents", "optional": true}},
+		"SystemInfluencedBy": {"key": {"row": "DT_Transcendents", "optional": true, "target": [{"col": "Allegiance", "in": ["Realm.Abyssal", "Realm.Independent"]}]}},
 		"PlayerTierAtLeast": {"value": {"min": 1, "max": 5, "integer": true}},
 		"PlayerInSystemWithHazard": {"tag": {"root": "Hazard.", "optional": true}},
 		"PlayerStatAtLeast": {"key": {"word": "stat"}, "value": {"min": 0, "max": 10}},
@@ -274,8 +307,8 @@
 		"PlayerLifeIndexAtLeast": {"value": {"min": 1, "integer": true}},
 		"PlayerAgeAtLeast": {"value": {"min": 0}},
 		"GalaxyTickAtLeast": {"value": {"min": 0}},
-		"TranscendentSealed": {"key": {"row": "DT_Transcendents", "optional": true}},
-		"TranscendentAwareOfPlayer": {"key": {"row": "DT_Transcendents", "optional": true}},
+		"TranscendentSealed": {"key": {"row": "DT_Transcendents", "optional": true, "target": [{"col": "Allegiance", "in": ["Realm.Abyssal", "Realm.Independent"]}]}},
+		"TranscendentAwareOfPlayer": {"key": {"row": "DT_Transcendents", "optional": true, "target": [{"col": "Allegiance", "in": ["Realm.Abyssal", "Realm.Independent"]}]}},
 		"FlagSet": {"tag": {"root": "Flag."}},
 		"FlagNotSet": {"tag": {"root": "Flag."}},
 		"TranscendentDoctrinePresent": {"tag": {"root": "Doctrine."}},
