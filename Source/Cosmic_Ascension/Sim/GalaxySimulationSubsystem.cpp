@@ -12,6 +12,7 @@
 #include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
+#include "Math/NumericLimits.h"
 #include "Misc/Crc.h"
 #include "Misc/Guid.h"
 #include "Player/PlayerRoleSubsystem.h"
@@ -421,6 +422,11 @@ void UGalaxySimulationSubsystem::Tick(float DeltaTime)
 
 void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 CivCount)
 {
+	if (IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("NewGalaxy called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return;
+	}
 	ensureMsgf(!bInTickStages, TEXT("NewGalaxy from inside a tick stage: issue it from OnSimTick or from input"));
 
 	SystemCount = FMath::Clamp(SystemCount, 1, MaxSystems);
@@ -645,7 +651,7 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 		{
 			const FTranscendentDef* Row = Tables.FindTranscendent(RowName);
 			// A weight that is zero, below zero, not a number or not finite is no candidate.
-			if (Row && RowName != CosmicRows::TransSilence && Row->Allegiance == AbyssalTag && Row->SpawnWeight > 0.f && FMath::IsFinite(Row->SpawnWeight))
+			if (Row && RowName != CosmicRows::TransSilence && Row->Allegiance == AbyssalTag && Row->SpawnWeight > 0.f && Row->SpawnWeight <= TNumericLimits<float>::Max())
 			{
 				Candidates.Add(RowName);
 			}
@@ -842,6 +848,11 @@ EPopulationBand UGalaxySimulationSubsystem::GetPopulationBand(FName CivID) const
 
 void UGalaxySimulationSubsystem::LoadState(const FGalaxyState& In)
 {
+	if (IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("LoadState called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return;
+	}
 	ensureMsgf(!bInTickStages, TEXT("LoadState from inside a tick stage: issue it from OnSimTick or from input"));
 
 	State = In;
@@ -914,7 +925,8 @@ uint32 UGalaxySimulationSubsystem::HashState(bool bWorldOnly) const
 
 void UGalaxySimulationSubsystem::SimulateTick()
 {
-	ensureMsgf(!bInTickStages, TEXT("SimulateTick re-entered from inside a tick stage: StepOnce or RunHeadless from an OnLogEntry handler"));
+	// A backstop: StepOnce and RunHeadless already refuse a tick asked for from a handler.
+	ensureMsgf(!bInTickStages, TEXT("SimulateTick re-entered from inside a tick stage"));
 
 	// Tick 0 is the generated state: no event raised inside a tick stage carries tick 0, so the "0 = unset" tick fields
 	// stay unambiguous there. Player input outside the tick can still run at tick 0.

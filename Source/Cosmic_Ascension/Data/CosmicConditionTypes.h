@@ -110,10 +110,12 @@ enum class EEffectType : uint8
 	// Value = ratio. Applies to the civ's Population only; there is no per-system population (section 4.1, 4.2).
 	ChangePopulation,
 	// Tag = Notable.*, Value 0. Adds one notable record to the context civ (Key = selector, as in CivHasNotable).
-	// Guards live in UCosmicEventSubsystem::Apply (section 7.5); it draws one number per application, before its guards.
+	// Guards live in UCosmicEventSubsystem::Apply (section 7.5); it draws one number per application, before its guards
+	// (a per-tick source never applies it and so never draws).
 	// The only effect that makes a notable record; its target is the civ, never a person.
 	NameNotable
-	// Phase 6+ (append): MultiplyResearch, PopulationLossMultiplier, StabilityFloor (section 4.2).
+	// Phase 6+ (append): MultiplyResearch, PopulationLossMultiplier, StabilityFloor (section 4.2). They are per-tick
+	// effects: each joins the list of UCosmicEventSubsystem::Apply for per-tick sources when it is appended.
 };
 
 USTRUCT(BlueprintType)

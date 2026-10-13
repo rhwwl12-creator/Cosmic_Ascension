@@ -100,6 +100,8 @@ public:
 	 * placed by the generation change of Phase 2.
 	 * Stamps State.TellRngState with (int32)CosmicSeed::Derive(Seed, "", Tell, 0) before the first line is told.
 	 * Tick 0 is this generated state; the first simulated tick is 1.
+	 * Refused with one error line inside a handler of OnLogEntry or OnEventFired (IsBroadcasting): the state is not
+	 * replaced under a stage or a row that is still running.
 	 */
 	UFUNCTION(BlueprintCallable)
 	void NewGalaxy(int32 Seed, int32 SystemCount, int32 CivCount);
@@ -168,7 +170,8 @@ public:
 
 	// Counts the Core Logic delegates that are being broadcast right now and that can fire from inside a tick stage:
 	// OnLogEntry, OnEventFired, OnTierAscended (section 9.4). Their handlers may read the state and call SetTimeScale
-	// and nothing else, so UCosmicEventSubsystem refuses its member functions while this is true. Every such broadcast
+	// and nothing else, so UCosmicEventSubsystem refuses its member functions while this is true, and so do NewGalaxy,
+	// LoadState, StepOnce and RunHeadless here and UCosmicSaveSubsystem::LoadGalaxy. Every such broadcast
 	// site brackets its Broadcast call with BeginBroadcast and EndBroadcast.
 	bool IsBroadcasting() const { return BroadcastDepth > 0; }
 	void BeginBroadcast() { ++BroadcastDepth; }
@@ -322,8 +325,9 @@ private:
 	bool bBroadcastEnabled = true;
 
 	// True while stages one to nine run; role effect resolution, the tenth, is outside (the Phase 4b leap runs ticks
-	// from there). NewGalaxy, LoadState and SimulateTick ensure against it: the stages hold references into the state,
-	// and a delegate fired from inside them (OnLogEntry) must not replace it or run a tick.
+	// from there). NewGalaxy, LoadState and SimulateTick ensure against it: the stages hold references into the state.
+	// The ensure is a backstop: a delegate fired from inside the stages is a broadcast, and the four entry points that
+	// replace the state or run a tick refuse a call made during one (IsBroadcasting).
 	bool bInTickStages = false;
 
 	static constexpr float SecondsPerTick = 1.0f;

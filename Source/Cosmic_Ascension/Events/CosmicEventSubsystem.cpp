@@ -11,6 +11,7 @@
 #include "Engine/GameInstance.h"
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
+#include "Math/NumericLimits.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 
@@ -58,6 +59,14 @@ namespace CosmicEventImpl
 		default:
 			return false;
 		}
+	}
+
+	// The Value of an effect that adds to an amount or scales one has to be a finite number. Its range is a lint
+	// (Data.Integrity); the guard is here, as comparisons that are false for a value that is not a number: such an effect
+	// is turned away, so nothing that is not a number is clamped to a bound or written into the state.
+	bool IsAmount(float Value)
+	{
+		return Value >= TNumericLimits<float>::Lowest() && Value <= TNumericLimits<float>::Max();
 	}
 
 	// Tier number 1..5, the unit of every Tier value in definition data (section 7.3).
@@ -164,8 +173,9 @@ namespace CosmicEventImpl
 		{
 			return Other;
 		}
+		static const FGameplayTag CelestialTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Realm.Celestial")));
 		const FTranscendentDef* Row = Tables.FindTranscendent(Other);
-		return (Row && Row->Allegiance == FGameplayTag::RequestGameplayTag(FName(TEXT("Realm.Celestial")))) ? Other : FName();
+		return (Row && Row->Allegiance == CelestialTag) ? Other : FName();
 	}
 
 	// Weight factor of a Lottery row of Category on a unit (section 4.2): the product, over the unsealed transcendents in
@@ -583,7 +593,7 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 	case EEffectType::AddResource:
 	{
 		ECosmicResource Resource = ECosmicResource::Energy;
-		if (!Civ || !ResourceOf(Effect.Key, Resource))
+		if (!Civ || !ResourceOf(Effect.Key, Resource) || !IsAmount(Effect.Value))
 		{
 			return false;
 		}
@@ -595,13 +605,13 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 	case EEffectType::MultiplyIncome:
 	{
 		// Only a per-tick source reaches the stockpile: IncomePerTick is rebuilt every tick (section 5.8, 16 #27).
-		if (!Civ || !Ctx.bPerTickSource)
+		if (!Civ || !Ctx.bPerTickSource || !IsAmount(Effect.Value))
 		{
 			return false;
 		}
-		// The range of Value is a lint; the guard is here. Below zero, not a number and not finite all read as 0: an
-		// income never turns negative, so no stockpile goes below zero through it.
-		const float Factor = (Effect.Value > 0.f && FMath::IsFinite(Effect.Value)) ? Effect.Value : 0.f;
+		// The range of Value is a lint; the guard is here. A factor below zero reads as 0: an income never turns
+		// negative, so no stockpile goes below zero through it.
+		const float Factor = Effect.Value > 0.f ? Effect.Value : 0.f;
 		ECosmicResource Resource = ECosmicResource::Energy;
 		if (ResourceOf(Effect.Key, Resource))
 		{
@@ -625,7 +635,7 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 	case EEffectType::ShiftEthics:
 	{
 		float* Axis = Civ ? const_cast<float*>(EthicsAxisOf(Civ->Ethics, Effect.Key)) : nullptr;
-		if (!Axis)
+		if (!Axis || !IsAmount(Effect.Value))
 		{
 			return false;
 		}
@@ -650,7 +660,7 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 		return true;
 
 	case EEffectType::ChangeStability:
-		if (!Civ)
+		if (!Civ || !IsAmount(Effect.Value))
 		{
 			return false;
 		}
@@ -660,9 +670,9 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 	case EEffectType::ChangeRelation:
 	{
 		// The entry is made on first write; a missing one reads as 0 (section 5.5). A party that does not resolve gets
-		// no entry: Relations is saved, and its keys are peoples and transcendents only.
+		// no entry: Relations is saved, and its keys are peoples, transcendents of the run and celestial rows only.
 		const FName Other = RelationPartyOf(State, Ctx.Index, Ctx.Tables, Ctx, Effect.Key);
-		if (!Civ || Other.IsNone())
+		if (!Civ || Other.IsNone() || !IsAmount(Effect.Value))
 		{
 			return false;
 		}
@@ -679,7 +689,7 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 		return false;
 
 	case EEffectType::ChangeReverence:
-		if (!Civ)
+		if (!Civ || !IsAmount(Effect.Value))
 		{
 			return false;
 		}
@@ -698,7 +708,7 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 	case EEffectType::PlayerStatDelta:
 	{
 		int32* Stat = IsEmbodied(State) ? const_cast<int32*>(PlayerStatOf(Player, Effect.Key)) : nullptr;
-		if (!Stat)
+		if (!Stat || !IsAmount(Effect.Value))
 		{
 			return false;
 		}
@@ -752,7 +762,7 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 
 	case EEffectType::ChangePopulation:
 		// Value = ratio, on the people as a whole: there is no population per system (section 4.1).
-		if (!Civ)
+		if (!Civ || !IsAmount(Effect.Value))
 		{
 			return false;
 		}
@@ -761,7 +771,8 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 
 	case EEffectType::NameNotable:
 	{
-		// One draw per application, before any guard: the draws of a row follow its effect list alone (section 9.2).
+		// One draw per application, before any guard of its own: the draws of a row follow its effect list alone
+		// (section 9.2). A per-tick source never gets this far.
 		const float Roll = Ctx.Stream.GetFraction();
 		return AddNotable(Effect, Ctx, Roll);
 	}

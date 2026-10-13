@@ -19,7 +19,9 @@
 #include "Log/CosmicLogSubsystem.h"
 #include "Math/RandomStream.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/Guid.h"
 #include "Misc/ScopeExit.h"
+#include "Save/CosmicSaveSubsystem.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
@@ -384,17 +386,25 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		Table->AddRow(TrActive, Presser);
 		Table->AddRow(Celestial, Heavenly);
 		Table->AddRow(Absent, NotDrawn);
+		// An independent row, in the table and without an instance as well.
+		const FName Independent(TEXT("tr_test_independent"));
+		FTranscendentDef Apart = Presser;
+		Apart.Doctrine = Tag(TEXT("Doctrine.Stillness"));
+		Apart.Allegiance = Tag(TEXT("Realm.Independent"));
+		Table->AddRow(Independent, Apart);
 		FCosmicDataTables WithRows = Sim->GetTables();
 		WithRows.Transcendents = Table;
-		const float Weight = NoAging.PressureBySourceTier.IsValidIndex(3) ? NoAging.PressureBySourceTier[3] : 0.f;
+		// The weights of the test, not of the game: the answers below are compared with them exactly.
+		FCosmicRulesDef Pinned = NoAging;
+		Pinned.PressureBySourceTier = { 0.f, 0.f, 0.25f, 1.f, 2.f };
+		const float Weight = 1.f;
 		auto CheckWith = [&](const FGalaxyState& State, const FCosmicDataTables& Tables, const FCosmicCondition& Condition, int32 SystemIndex)
 		{
-			FCosmicEvalView View(State, Index, Tables, NoAging);
+			FCosmicEvalView View(State, Index, Tables, Pinned);
 			View.CivIndex = 0;
 			View.SystemIndex = SystemIndex;
 			return UCosmicEventSubsystem::Check(Condition, View);
 		};
-		TestTrue(TEXT("The rules give a tier-4 source a weight"), Weight > 0.f);
 		TestTrue(TEXT("SystemPressureAtLeast is true at the pressure of the system"),
 			CheckWith(Detached, WithRows, Cond(EConditionType::SystemPressureAtLeast, nullptr, NAME_None, Weight), 0));
 		TestFalse(TEXT("SystemPressureAtLeast is false above the pressure of the system"),
@@ -407,6 +417,8 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 			CheckWith(Detached, Sim->GetTables(), Cond(EConditionType::CivRelationAtLeast, nullptr, Celestial, 0.f), 0));
 		TestFalse(TEXT("The name of a fallen row without an instance in the run is no party"),
 			CheckWith(Detached, WithRows, Cond(EConditionType::CivRelationAtLeast, nullptr, Absent, 0.f), 0));
+		TestFalse(TEXT("The name of an independent row without an instance in the run is no party"),
+			CheckWith(Detached, WithRows, Cond(EConditionType::CivRelationAtLeast, nullptr, Independent, 0.f), 0));
 
 		// The pressure never reads knowing or telling, shown where the pressure is not zero: a zero would stay a zero
 		// whatever it were multiplied by.
@@ -416,10 +428,10 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		ToldUnderPressure.Log.AddDefaulted();
 		ToldUnderPressure.Chronicle.AddDefaulted();
 		ToldUnderPressure.TellRngState += 7;
-		const float PressureKnown = UGalaxySimulationSubsystem::ComputePressureIn(ToldUnderPressure, Index, WithRows, NoAging, 0).P;
-		const float PressurePlain = UGalaxySimulationSubsystem::ComputePressureIn(Detached, Index, WithRows, NoAging, 0).P;
+		const float PressureKnown = UGalaxySimulationSubsystem::ComputePressureIn(ToldUnderPressure, Index, WithRows, Pinned, 0).P;
+		const float PressurePlain = UGalaxySimulationSubsystem::ComputePressureIn(Detached, Index, WithRows, Pinned, 0).P;
 		TestTrue(TEXT("Knowing, Log, Chronicle and TellRngState change no pressure above zero and no answer of the pressure condition"),
-			PressureKnown == PressurePlain && PressurePlain == Weight && Weight > 0.f
+			PressureKnown == PressurePlain && PressurePlain == Weight
 			&& CheckWith(ToldUnderPressure, WithRows, Cond(EConditionType::SystemPressureAtLeast, nullptr, NAME_None, Weight), 0)
 			&& !CheckWith(ToldUnderPressure, WithRows, Cond(EConditionType::SystemPressureAtLeast, nullptr, NAME_None, Weight * 1.01f), 0));
 	}
@@ -1434,12 +1446,17 @@ bool FCosmicEventsRowAtomicTest::RunTest(const FString& Parameters)
 	ON_SCOPE_EXIT { Sim->SetTables(Original); };
 
 	// The error lines of the calls issued from inside a handler: FireRow and EvaluateAndFire once from each of the two
-	// delegates, MakeEvalContext once from OnEventFired. Then the two calls over a state that is not the live one.
+	// delegates, a tick (StepOnce) once from OnLogEntry, and once each from OnEventFired MakeEvalContext, a run of
+	// ticks (RunHeadless), a new galaxy, a state handed in and a slot to load. Then the two calls over a state that is
+	// not the live one.
 	AddExpectedError(TEXT("FireRow called from a handler of a Core Logic delegate"), EAutomationExpectedErrorFlags::Contains, 2);
 	AddExpectedError(TEXT("EvaluateAndFire called from a handler of a Core Logic delegate"), EAutomationExpectedErrorFlags::Contains, 2);
 	AddExpectedError(TEXT("MakeEvalContext called from a handler of a Core Logic delegate"), EAutomationExpectedErrorFlags::Contains, 1);
 	AddExpectedError(TEXT("StepOnce called from a handler of a Core Logic delegate"), EAutomationExpectedErrorFlags::Contains, 1);
 	AddExpectedError(TEXT("RunHeadless called from a handler of a Core Logic delegate"), EAutomationExpectedErrorFlags::Contains, 1);
+	AddExpectedError(TEXT("NewGalaxy called from a handler of a Core Logic delegate"), EAutomationExpectedErrorFlags::Contains, 1);
+	AddExpectedError(TEXT("LoadState called from a handler of a Core Logic delegate"), EAutomationExpectedErrorFlags::Contains, 1);
+	AddExpectedError(TEXT("LoadGalaxy called from a handler of a Core Logic delegate"), EAutomationExpectedErrorFlags::Contains, 1);
 	AddExpectedError(TEXT("EvaluateAndFire: the state handed in is not the live state"), EAutomationExpectedErrorFlags::Contains, 1);
 	AddExpectedError(TEXT("FireRow: the context is not over the live state"), EAutomationExpectedErrorFlags::Contains, 1);
 
@@ -1519,6 +1536,14 @@ bool FCosmicEventsRowAtomicTest::RunTest(const FString& Parameters)
 			bNestedFromNoticeRefused &= Events->EvaluateAndFire(Sim->GetMutableState(), Sim->GetRng()) == 0;
 			(void)Sim->MakeEvalContext();
 			Sim->RunHeadless(3);
+			// Replacing the state from a handler is refused as well: a new galaxy, a state handed in, a slot to load. The
+			// state handed in is the live one moved on in time, so that a load that is not refused shows in the hash and
+			// leaves the shape of the galaxy alone.
+			Sim->NewGalaxy(7, 5, 3);
+			FGalaxyState Later = Sim->GetState();
+			Later.Tick += 1000;
+			Sim->LoadState(Later);
+			bNestedFromNoticeRefused &= !Sim->GetGameInstance()->GetSubsystem<UCosmicSaveSubsystem>()->LoadGalaxy(Later.GalaxyID);
 			bNestedFromNoticeRefused &= Sim->ComputeStateHash() == Before && Sim->GetRng().GetCurrentSeed() == SeedBefore;
 		}
 	};
@@ -1558,8 +1583,9 @@ bool FCosmicEventsRowAtomicTest::RunTest(const FString& Parameters)
 		}
 	}
 
-	// A fire issued from a handler is refused with one error line and changes nothing: from OnLogEntry, then from
-	// OnEventFired, where the slots and MakeEvalContext are tried as well.
+	// A call issued from a handler is refused with one error line and changes nothing: a fire, the slots and a tick
+	// from OnLogEntry; then from OnEventFired a fire, the slots, MakeEvalContext, a run of ticks, a new galaxy, a state
+	// handed in and a slot to load.
 	{
 		bTryNestedFire = true;
 		FCosmicEvalContext Ctx = Sim->MakeEvalContext();
@@ -1572,7 +1598,7 @@ bool FCosmicEventsRowAtomicTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The outer row fires again"), Events->FireRow(RowName, Ctx));
 		TestTrue(TEXT("The handler of OnEventFired made its attempt"), !bTryNestedFromNotice);
 		bTryNestedFromNotice = false;
-		TestTrue(TEXT("FireRow, EvaluateAndFire, MakeEvalContext and RunHeadless issued from a handler of OnEventFired are refused and change nothing"), bNestedFromNoticeRefused);
+		TestTrue(TEXT("FireRow, EvaluateAndFire, MakeEvalContext, RunHeadless, NewGalaxy, LoadState and LoadGalaxy issued from a handler of OnEventFired are refused and change nothing"), bNestedFromNoticeRefused);
 		Sim->SyncRngState();
 	}
 
@@ -1833,39 +1859,29 @@ bool FCosmicEventsSphereWeightsTest::RunTest(const FString& Parameters)
 	Society.Category = Tag(TEXT("Event.Civ.Society"));
 	Rows->AddRow(RowSoc, Society);
 
-	// The reach of a sphere as section 4.2 words it, written out here on its own: the system in it, or one lane from it.
-	auto Reaches = [](const FGalaxyState& State, const TArray<FName>& Sphere, FName SystemID)
+	// A galaxy the test wires itself (CosmicTests::WireChain: a chain 0..9 with a branch 4-10-11), so that no case leans on
+	// what the generator made. The sphere of every case holds systems 4 and 5. The capital of civilization 1 is system 4
+	// (inside), that of civilization 2 is system 10 (one lane from system 4), those of civilizations 0 and 3 are
+	// systems 0 and 8 (out of reach).
+	auto Wire = [](FGalaxyState& State)
 	{
-		const FStarSystemState* System = State.Systems.FindByPredicate([SystemID](const FStarSystemState& Each) { return Each.SystemID == SystemID; });
-		return Sphere.Contains(SystemID) || (System && System->Lanes.ContainsByPredicate([&Sphere](FName Lane) { return Sphere.Contains(Lane); }));
-	};
-
-	// A sphere of two systems that splits the peoples three ways: a capital in it (2), a capital one lane from it (1)
-	// and a capital out of its reach (0).
-	Sim->NewGalaxy(42, 12, 4);
-	TArray<FName> Sphere;
-	TArray<int32> Kinds;
-	{
-		const FGalaxyState& State = Sim->GetState();
-		for (int32 A = 0; A < State.Systems.Num() && Sphere.IsEmpty(); ++A)
+		if (State.Civs.Num() != 4 || !CosmicTests::WireChain(State))
 		{
-			for (int32 B = A + 1; B < State.Systems.Num() && Sphere.IsEmpty(); ++B)
-			{
-				const TArray<FName> Candidate = { State.Systems[A].SystemID, State.Systems[B].SystemID };
-				TArray<int32> CandidateKinds;
-				for (const FCivilizationState& Civ : State.Civs)
-				{
-					CandidateKinds.Add(Candidate.Contains(Civ.HomeSystemID) ? 2 : Reaches(State, Candidate, Civ.HomeSystemID) ? 1 : 0);
-				}
-				if (CandidateKinds.Contains(0) && CandidateKinds.Contains(1) && CandidateKinds.Contains(2))
-				{
-					Sphere = Candidate;
-					Kinds = CandidateKinds;
-				}
-			}
+			return false;
 		}
-	}
-	if (!TestTrue(TEXT("The galaxy has a sphere of two systems with a capital inside, a capital one lane away and a capital out of reach"), Sphere.Num() == 2))
+		// The case places its own transcendents: whatever roster the tables gave is taken out.
+		State.Transcendents.Reset();
+		CosmicTests::ClearOwners(State);
+		CosmicTests::Give(State, 0, { 0 });
+		CosmicTests::Give(State, 1, { 4 });
+		CosmicTests::Give(State, 2, { 10 });
+		CosmicTests::Give(State, 3, { 8 });
+		return true;
+	};
+	// The kind of each capital, by civilization: 2 inside the sphere, 1 one lane from it, 0 out of its reach.
+	const TArray<int32> Kinds = { 0, 2, 1, 0 };
+	Sim->NewGalaxy(42, 12, 4);
+	if (!TestTrue(TEXT("The galaxy has twelve systems and four peoples to wire"), Wire(Sim->GetMutableState())))
 	{
 		return false;
 	}
@@ -1897,7 +1913,7 @@ bool FCosmicEventsSphereWeightsTest::RunTest(const FString& Parameters)
 		TArray<float> Rolls;
 	};
 	FScopedProbe Scoped(*Sim);
-	// The step of the rules a case plays under: the step of the game unless a case sets another.
+	// The step of the rules a case plays under: the step of the test unless a case sets another.
 	float StepOfCase = Step;
 	auto Play = [&](const TArray<FWeigher>& Weighers, const TArray<float>& Factors)
 	{
@@ -1917,13 +1933,12 @@ bool FCosmicEventsSphereWeightsTest::RunTest(const FString& Parameters)
 		Sim->SetTables(Tables);
 		Sim->NewGalaxy(42, 12, 4);
 		FGalaxyState& State = Sim->GetMutableState();
-		// The case places its own transcendents: whatever roster the tables gave is taken out.
-		State.Transcendents.Reset();
+		Wire(State);
 		for (int32 WeigherIndex = 0; WeigherIndex < Weighers.Num(); ++WeigherIndex)
 		{
 			FTranscendentState& Transcendent = State.Transcendents.AddDefaulted_GetRef();
 			Transcendent.TranscendentID = RowNames[WeigherIndex];
-			Transcendent.InfluencedSystems = Sphere;
+			Transcendent.InfluencedSystems = { State.Systems[4].SystemID, State.Systems[5].SystemID };
 			Transcendent.bSealed = Weighers[WeigherIndex].bSealed;
 		}
 
@@ -2087,6 +2102,7 @@ bool FCosmicEventsSphereWeightsTest::RunTest(const FString& Parameters)
 			CosmicTests::Give(State, 1, { 2, 7 });
 			CosmicTests::Give(State, 2, { 11 });
 			CosmicTests::Give(State, 3, { 9 });
+			// Give keeps a generated capital that is among the systems it hands over: the capital is set here.
 			State.Civs[1].HomeSystemID = State.Systems[2].SystemID;
 			FTranscendentState& Transcendent = State.Transcendents.AddDefaulted_GetRef();
 			Transcendent.TranscendentID = RowNames[0];
@@ -2283,8 +2299,8 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("IncomePerTick is scaled"), Bench.State.Civs[0].IncomePerTick.Energy, 2.f);
 	}
 
-	// A factor below zero, not a number or not finite reads as 0, and a row with a Key gives the same float as a row
-	// without one: both are one multiplication.
+	// A factor below zero reads as 0, and a row with a Key gives the same float as a row without one: both are one
+	// multiplication.
 	{
 		auto EnergyAfter = [&](const FCosmicEffect& Scale)
 		{
@@ -2299,11 +2315,56 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 		const float Unkeyed = EnergyAfter(Eff(EEffectType::MultiplyIncome, nullptr, NAME_None, 0.9f));
 		TestTrue(TEXT("MultiplyIncome with a Key and without one give the same float: one multiplication, income x Value"),
 			Keyed == Unkeyed && Keyed == 1.11f * 0.9f);
-		TestTrue(TEXT("A MultiplyIncome factor below zero, not a number or not finite reads as 0"),
+		TestTrue(TEXT("A MultiplyIncome factor below zero reads as 0"),
 			EnergyAfter(Eff(EEffectType::MultiplyIncome, nullptr, FName(TEXT("Energy")), -0.2f)) == 0.f
-			&& EnergyAfter(Eff(EEffectType::MultiplyIncome, nullptr, NAME_None, -0.2f)) == 0.f
-			&& EnergyAfter(Eff(EEffectType::MultiplyIncome, nullptr, FName(TEXT("Energy")), std::numeric_limits<float>::quiet_NaN())) == 0.f
-			&& EnergyAfter(Eff(EEffectType::MultiplyIncome, nullptr, FName(TEXT("Energy")), std::numeric_limits<float>::infinity())) == 0.f);
+			&& EnergyAfter(Eff(EEffectType::MultiplyIncome, nullptr, NAME_None, -0.2f)) == 0.f);
+	}
+
+	// The effects that add to an amount or scale one are turned away when their Value is not a finite number: nothing that
+	// is not a number is clamped to a bound or written into the state. Read from amounts that are not zero.
+	{
+		const float NotAmounts[] = { std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity() };
+		const FCosmicEffect AmountEffects[] = {
+			Eff(EEffectType::AddResource, nullptr, FName(TEXT("Matter")), 0.f),
+			Eff(EEffectType::MultiplyIncome, nullptr, FName(TEXT("Energy")), 0.f),
+			Eff(EEffectType::MultiplyIncome, nullptr, NAME_None, 0.f),
+			Eff(EEffectType::ShiftEthics, nullptr, FName(TEXT("Openness")), 0.f),
+			Eff(EEffectType::ChangeStability, nullptr, NAME_None, 0.f),
+			Eff(EEffectType::ChangeRelation, nullptr, NAME_None, 0.f),
+			Eff(EEffectType::ChangeReverence, nullptr, NAME_None, 0.f),
+			Eff(EEffectType::ChangePopulation, nullptr, NAME_None, 0.f),
+			Eff(EEffectType::PlayerStatDelta, nullptr, FName(TEXT("Body")), 0.f),
+		};
+		const FName Other = Fresh.Civs[1].CivID;
+		bool bTurnedAway = true;
+		for (const FCosmicEffect& Base : AmountEffects)
+		{
+			for (const float NotAmount : NotAmounts)
+			{
+				FBench Bench(Fresh, *Sim, PastProtection);
+				Bench.Ctx.CivIndex = 0;
+				Bench.Ctx.OtherID = Other;
+				// MultiplyIncome applies from a per-tick source only; PlayerStatDelta from any other only.
+				Bench.Ctx.bPerTickSource = Base.Type == EEffectType::MultiplyIncome;
+				FCivilizationState& Civ = Bench.State.Civs[0];
+				Civ.Stockpile.Matter = 3.f;
+				Civ.IncomePerTick.Energy = 1.11f;
+				Civ.Ethics.Openness = 0.25f;
+				Civ.Stability = 0.5f;
+				Civ.ReverenceToPlayer = 0.25f;
+				Civ.Population = 2.f;
+				Civ.Relations.Add(Other, 0.25f);
+				const int32 EntriesBefore = Civ.Relations.Num();
+				const int32 BodyBefore = Bench.State.Player.Body;
+				FCosmicEffect Effect = Base;
+				Effect.Value = NotAmount;
+				bTurnedAway &= !UCosmicEventSubsystem::Apply(Effect, Bench.Ctx)
+					&& Civ.Stockpile.Matter == 3.f && Civ.IncomePerTick.Energy == 1.11f && Civ.Ethics.Openness == 0.25f && Civ.Stability == 0.5f
+					&& Civ.ReverenceToPlayer == 0.25f && Civ.Population == 2.f && Civ.Relations.Num() == EntriesBefore && Civ.Relations.FindRef(Other) == 0.25f
+					&& Bench.State.Player.Body == BodyBefore;
+			}
+		}
+		TestTrue(TEXT("An effect on an amount whose Value is not a finite number is turned away and leaves every amount as it was"), bTurnedAway);
 	}
 
 	// A per-tick source applies the seven effects that change an amount and turns every other away before anything is
@@ -2429,6 +2490,12 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 			NotDrawn.Doctrine = Tag(TEXT("Doctrine.Recurrence"));
 			NotDrawn.Allegiance = Tag(TEXT("Realm.Abyssal"));
 			Table->AddRow(Absent, NotDrawn);
+			// An independent row is in the same place as a fallen row the roster did not draw: a party only as an instance.
+			const FName Independent(TEXT("tr_test_independent"));
+			FTranscendentDef Apart;
+			Apart.Doctrine = Tag(TEXT("Doctrine.Stillness"));
+			Apart.Allegiance = Tag(TEXT("Realm.Independent"));
+			Table->AddRow(Independent, Apart);
 			FCosmicDataTables WithRow = Sim->GetTables();
 			WithRow.Transcendents = Table;
 			TestFalse(TEXT("ChangeRelation towards a row name the tables do not hold is turned away"),
@@ -2443,6 +2510,9 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("ChangeRelation towards a fallen row without an instance in the run is turned away and leaves no entry"),
 				!UCosmicEventSubsystem::Apply(Eff(EEffectType::ChangeRelation, nullptr, Absent, 0.3f), WithRowCtx)
 				&& Civ.Relations.Num() == EntriesWithCelestial && !Civ.Relations.Contains(Absent));
+			TestTrue(TEXT("ChangeRelation towards an independent row without an instance in the run is turned away and leaves no entry"),
+				!UCosmicEventSubsystem::Apply(Eff(EEffectType::ChangeRelation, nullptr, Independent, 0.3f), WithRowCtx)
+				&& Civ.Relations.Num() == EntriesWithCelestial && !Civ.Relations.Contains(Independent));
 		}
 
 		Bench.Ctx.CivIndex = INDEX_NONE;

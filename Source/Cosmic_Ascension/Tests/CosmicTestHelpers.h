@@ -83,7 +83,7 @@ namespace CosmicTests
 		return true;
 	}
 
-	// Nobody owns anything.
+	// Nobody owns anything. HomeSystemID, megaprojects, hazards and spheres stay as they were generated.
 	inline void ClearOwners(FGalaxyState& State)
 	{
 		for (FStarSystemState& System : State.Systems)
@@ -96,13 +96,21 @@ namespace CosmicTests
 		}
 	}
 
-	// Hands systems (indices into Systems) to a civilization. The order given is its OwnedSystems order.
+	// Hands systems (indices into Systems) to a civilization. The order given is its OwnedSystems order. Call it after
+	// ClearOwners: it does not take a system away from a people that holds it. A people whose capital is not among its
+	// systems afterwards gets the first system handed over as its capital, so that no people is left with a capital
+	// another people owns.
 	inline void Give(FGalaxyState& State, int32 CivIndex, std::initializer_list<int32> SystemIndices)
 	{
 		for (const int32 SystemIndex : SystemIndices)
 		{
 			State.Systems[SystemIndex].OwnerCivID = State.Civs[CivIndex].CivID;
 			State.Civs[CivIndex].OwnedSystems.Add(State.Systems[SystemIndex].SystemID);
+		}
+		FCivilizationState& Civ = State.Civs[CivIndex];
+		if (SystemIndices.size() > 0 && !Civ.OwnedSystems.Contains(Civ.HomeSystemID))
+		{
+			Civ.HomeSystemID = State.Systems[*SystemIndices.begin()].SystemID;
 		}
 	}
 }

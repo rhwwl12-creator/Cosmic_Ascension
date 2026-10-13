@@ -53,6 +53,15 @@ bool UCosmicSaveSubsystem::SaveCurrentGalaxy()
 
 bool UCosmicSaveSubsystem::LoadGalaxy(const FGuid& GalaxyID)
 {
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	check(Sim);
+	// Before the slot is read: a load asked for from a handler is refused, not reported as done.
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("LoadGalaxy called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return false;
+	}
+
 	const FString SlotName = MakeSlotName(GalaxyID);
 	const UCosmicSaveGame* Loaded = UGameplayStatics::DoesSaveGameExist(SlotName, SaveUserIndex)
 		? Cast<UCosmicSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, SaveUserIndex))
@@ -77,8 +86,6 @@ bool UCosmicSaveSubsystem::LoadGalaxy(const FGuid& GalaxyID)
 	}
 	// Migration functions for SaveVersion < CurrentSaveVersion go here once a version bump exists (section 9.1).
 
-	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
-	check(Sim);
 	Sim->LoadState(Loaded->State);
 	return true;
 }

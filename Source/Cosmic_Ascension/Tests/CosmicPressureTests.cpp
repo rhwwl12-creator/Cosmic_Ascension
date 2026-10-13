@@ -84,40 +84,14 @@ namespace CosmicPressureTests
 		return Transcendent;
 	}
 
-	// Three systems of a state for the reach cases: X is unowned, Near is one lane from X, Far is neither X nor one lane
-	// from it. INDEX_NONE when the galaxy has no such triple.
+	// The three systems of the reach cases on the chain a test wires (CosmicTests::WireChain: 0-1-...-9, 4-10-11): X is
+	// a free system, Near is one lane from it, Far is out of its reach.
 	struct FReachTriple
 	{
-		int32 X = INDEX_NONE;
-		int32 Near = INDEX_NONE;
-		int32 Far = INDEX_NONE;
-		bool IsValid() const { return X != INDEX_NONE && Near != INDEX_NONE && Far != INDEX_NONE; }
+		int32 X = 6;
+		int32 Near = 7;
+		int32 Far = 9;
 	};
-
-	FReachTriple FindReachTriple(const FGalaxyState& State, const FCosmicStateIndex& Index)
-	{
-		FReachTriple Triple;
-		for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num() && !Triple.IsValid(); ++SystemIndex)
-		{
-			const FStarSystemState& System = State.Systems[SystemIndex];
-			if (!System.OwnerCivID.IsNone() || System.Lanes.IsEmpty())
-			{
-				continue;
-			}
-			Triple.X = SystemIndex;
-			Triple.Near = Index.FindSystem(State, System.Lanes[0]);
-			Triple.Far = INDEX_NONE;
-			for (int32 Other = 0; Other < State.Systems.Num(); ++Other)
-			{
-				if (Other != SystemIndex && !System.Lanes.Contains(State.Systems[Other].SystemID) && !State.Systems[Other].Lanes.Contains(System.SystemID))
-				{
-					Triple.Far = Other;
-					break;
-				}
-			}
-		}
-		return Triple;
-	}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicRealmPressureMonotonicTest, "Cosmic_Ascension.Sim.RealmPressureMonotonic", CosmicTests::Flags)
@@ -133,16 +107,26 @@ bool FCosmicRealmPressureMonotonicTest::RunTest(const FString& Parameters)
 	ON_SCOPE_EXIT { Sim->SetTables(Original); };
 
 	Sim->NewGalaxy(42, 12, 4);
-	// The cases place their own transcendents: whatever roster the tables of the game gave is taken out.
+	// The cases place their own transcendents on a topology the test wires itself (CosmicTests::WireChain), so that no
+	// case leans on what the generator made. Nobody owns a system but the player's people, which keeps system 0.
 	FGalaxyState Generated = Sim->GetState();
 	Generated.Transcendents.Reset();
+	const bool bWired = Generated.Civs.Num() == 4 && CosmicTests::WireChain(Generated);
+	if (bWired)
+	{
+		CosmicTests::ClearOwners(Generated);
+		CosmicTests::Give(Generated, 0, { 0 });
+	}
 	const FGalaxyState Fresh = Generated;
-	const FCosmicRulesDef Rules = Sim->GetRules();
+	// The knobs of the test, not of the game: the values below are compared exactly.
+	FCosmicRulesDef Knobs = Sim->GetRules();
+	Knobs.PressureBySourceTier = { 0.f, 0.f, 0.25f, 1.f, 2.f };
+	Knobs.PressureAdjacencyFalloff = 0.5f;
+	const FCosmicRulesDef Rules = Knobs;
 	FCosmicStateIndex Index;
 	Index.Rebuild(Fresh);
-	const FReachTriple Where = FindReachTriple(Fresh, Index);
-	if (!TestTrue(TEXT("The rules hold five pressure weights and the galaxy holds a free system, a neighbour and a far system"),
-		Rules.PressureBySourceTier.Num() == 5 && Where.IsValid()))
+	const FReachTriple Where = FReachTriple();
+	if (!TestTrue(TEXT("The galaxy has twelve systems and four peoples to wire"), bWired))
 	{
 		return false;
 	}
@@ -159,7 +143,7 @@ bool FCosmicRealmPressureMonotonicTest::RunTest(const FString& Parameters)
 		Table->AddRow(RowOfTier[TierIndex], Fallen(static_cast<EAscensionTier>(TierIndex), 0.f));
 	}
 	Table->AddRow(FourTwin, Fallen(EAscensionTier::Tier4_Transcendent, 0.f));
-	const FCosmicDataTables Tables = WithTranscendents(Original, Table);
+	const FCosmicDataTables Tables = WithRules(WithTranscendents(Original, Table), Rules);
 
 	// The index was built for Fresh; every state below is a copy with the same systems and civilizations.
 	auto Read = [&](const FGalaxyState& State, int32 SystemIndex)
@@ -210,7 +194,6 @@ bool FCosmicRealmPressureMonotonicTest::RunTest(const FString& Parameters)
 			&& UGalaxySimulationSubsystem::SphereReachIn(State, Four, Where.Near) == ECosmicSphereReach::Adjacent
 			&& UGalaxySimulationSubsystem::SphereReachIn(State, Four, Where.Far) == ECosmicSphereReach::None
 			&& UGalaxySimulationSubsystem::SphereReachIn(State, Four, INDEX_NONE) == ECosmicSphereReach::None);
-		// Near and Far may be owned: a fresh civilization is tier 1 and adds nothing.
 		TestEqual(TEXT("One lane from the sphere the pressure is the weight times the falloff"), Read(State, Where.Near).P, Weight[3] * Rules.PressureAdjacencyFalloff);
 		TestEqual(TEXT("Farther away there is no pressure"), Read(State, Where.Far).P, 0.f);
 	}
@@ -360,15 +343,26 @@ bool FCosmicPressureDepthMonotonicTest::RunTest(const FString& Parameters)
 	const FCosmicDataTables Original = Sim->GetTables();
 
 	Sim->NewGalaxy(42, 12, 4);
-	// The cases place their own transcendents: whatever roster the tables of the game gave is taken out.
+	// The cases place their own transcendents on a topology the test wires itself (CosmicTests::WireChain), so that no
+	// case leans on what the generator made. Nobody owns a system but the player's people, which keeps system 0.
 	FGalaxyState Generated = Sim->GetState();
 	Generated.Transcendents.Reset();
+	const bool bWired = Generated.Civs.Num() == 4 && CosmicTests::WireChain(Generated);
+	if (bWired)
+	{
+		CosmicTests::ClearOwners(Generated);
+		CosmicTests::Give(Generated, 0, { 0 });
+	}
 	const FGalaxyState Fresh = Generated;
-	const FCosmicRulesDef Rules = Sim->GetRules();
+	// The knobs of the test, not of the game: the values below are compared exactly.
+	FCosmicRulesDef Knobs = Sim->GetRules();
+	Knobs.PressureBySourceTier = { 0.f, 0.f, 0.25f, 1.f, 2.f };
+	Knobs.PressureAdjacencyFalloff = 0.5f;
+	const FCosmicRulesDef Rules = Knobs;
 	FCosmicStateIndex Index;
 	Index.Rebuild(Fresh);
-	const FReachTriple Where = FindReachTriple(Fresh, Index);
-	if (!TestTrue(TEXT("The rules hold five pressure weights and the galaxy holds a free system and a neighbour"), Rules.PressureBySourceTier.Num() == 5 && Where.IsValid()))
+	const FReachTriple Where = FReachTriple();
+	if (!TestTrue(TEXT("The galaxy has twelve systems and four peoples to wire"), bWired))
 	{
 		return false;
 	}
@@ -392,14 +386,14 @@ bool FCosmicPressureDepthMonotonicTest::RunTest(const FString& Parameters)
 	Table->AddRow(DeepThree, Fallen(EAscensionTier::Tier3_Causal, 1.f));
 	Table->AddRow(ShallowFive, Fallen(EAscensionTier::Tier5_EternalOrder, 0.f));
 	Table->AddRow(NoNumber, Fallen(EAscensionTier::Tier4_Transcendent, std::numeric_limits<float>::quiet_NaN()));
-	const FCosmicDataTables Tables = WithTranscendents(Original, Table);
+	const FCosmicDataTables Tables = WithRules(WithTranscendents(Original, Table), Rules);
 
 	// The pressure of one transcendent alone, with the given system in its sphere, read at ReadAt.
-	auto Alone = [&](FName RowName, int32 SphereSystem, int32 ReadAt)
+	auto Alone = [&](FName RowName, int32 SphereSystem, int32 ReadAt, const FCosmicRulesDef* RulesOfCase = nullptr)
 	{
 		FGalaxyState State = Fresh;
 		AddInstance(State, RowName, { State.Systems[SphereSystem].SystemID });
-		return UGalaxySimulationSubsystem::ComputePressureIn(State, Index, Tables, Rules, ReadAt).P;
+		return UGalaxySimulationSubsystem::ComputePressureIn(State, Index, Tables, RulesOfCase ? *RulesOfCase : Rules, ReadAt).P;
 	};
 
 	const float AtShallow = Alone(Shallow, Where.X, Where.X);
@@ -410,10 +404,13 @@ bool FCosmicPressureDepthMonotonicTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("A depth out of range is read as 0..1"), Alone(Over, Where.X, Where.X) == AtDeep && Alone(Under, Where.X, Where.X) == AtShallow);
 	TestTrue(TEXT("A depth that is not a number is read as 0"), Alone(NoNumber, Where.X, Where.X) == AtShallow);
 	TestEqual(TEXT("A row that does not set its depth stands in the middle of its tier"), FTranscendentDef().Depth, 0.5f);
-	// Section 3.2: depth does not cross a tier. With the weights of the game the deepest tier 3 is below the shallowest
-	// tier 4, and the deepest tier 4 is not above the shallowest tier 5.
-	TestTrue(TEXT("Depth does not cross a tier: the deepest tier 3 stays below the shallowest tier 4"), Alone(DeepThree, Where.X, Where.X) < AtShallow);
-	TestTrue(TEXT("Depth does not cross a tier: the deepest tier 4 is not above the shallowest tier 5"), AtDeep <= Alone(ShallowFive, Where.X, Where.X));
+	// Section 3.2: depth does not cross a tier. This pair is read with the weights of the game, which it is meant to
+	// hold: the deepest tier 3 is below the shallowest tier 4, and the deepest tier 4 is not above the shallowest tier 5.
+	const FCosmicRulesDef GameRules = Sim->GetRules();
+	TestTrue(TEXT("Depth does not cross a tier: with the weights of the game the deepest tier 3 stays below the shallowest tier 4"),
+		Alone(DeepThree, Where.X, Where.X, &GameRules) < Alone(Shallow, Where.X, Where.X, &GameRules));
+	TestTrue(TEXT("Depth does not cross a tier: with the weights of the game the deepest tier 4 is not above the shallowest tier 5"),
+		Alone(Deep, Where.X, Where.X, &GameRules) <= Alone(ShallowFive, Where.X, Where.X, &GameRules));
 	TestEqual(TEXT("One lane away the depth scales the term as well"), Alone(Deep, Where.X, Where.Near), 2.f * Weight[3] * Rules.PressureAdjacencyFalloff);
 
 	// The civilization and the wanderer have no depth: a deep row elsewhere changes nothing about their terms.
@@ -426,7 +423,7 @@ bool FCosmicPressureDepthMonotonicTest::RunTest(const FString& Parameters)
 		State.Player.RuledCivID = NAME_None;
 		State.Player.CurrentSystemID = XID;
 		State.Calling.PersonalTier = EAscensionTier::Tier3_Causal;
-		// X is not reached by the deep transcendent only when Far is not one lane from X, which FindReachTriple guarantees.
+		// The deep transcendent sits on Far, out of reach of X.
 		TestEqual(TEXT("The civilization term and the wanderer term carry no depth"),
 			UGalaxySimulationSubsystem::ComputePressureIn(State, Index, Tables, Rules, Where.X).P, Weight[3] + Weight[2]);
 	}
@@ -906,6 +903,27 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The economy stage draws nothing, whatever a per-tick row holds"), Loaded.Value == Plain.Value);
 		TestTrue(TEXT("A per-tick row records no role effect and changes nothing but amounts: the state is the state of the plain tick"),
 			!State.Calling.PendingEffect.IsValid() && Loaded.Key == Plain.Key);
+
+		// KillPlayer on its own, where it would be recorded if it got through: the vessel as a wanderer standing in the
+		// first pressed system, with no birth protection. (Over a ruler the effect is turned away for other reasons, so
+		// the row above cannot show it.)
+		FCosmicRulesDef NoShield = Knobs;
+		NoShield.BirthProtectionTicks = 0;
+		auto WandererTick = [&](const TArray<FCosmicEffect>& Effects)
+		{
+			Sim->SetTables(TablesOf(NoShield, { { RowA, Effects } }));
+			Arrange({ { RowA, { 0 } } });
+			FGalaxyState& Mutable = Sim->GetMutableState();
+			Mutable.Player.Role = EPlayerRole::Wanderer;
+			Mutable.Player.RuledCivID = NAME_None;
+			Mutable.Player.CurrentSystemID = Mutable.Systems[0].SystemID;
+			Sim->RunHeadless(1);
+			return TPair<uint32, int32>(Sim->ComputeStateHash(), Sim->GetRng().GetCurrentSeed());
+		};
+		const TPair<uint32, int32> PlainWanderer = WandererTick({});
+		const TPair<uint32, int32> KilledWanderer = WandererTick({ Effect(EEffectType::KillPlayer, nullptr, 0.f, TEXT("Death.Hazard")) });
+		TestTrue(TEXT("A per-tick KillPlayer over the system a wanderer stands in records no role effect"),
+			!State.Calling.PendingEffect.IsValid() && KilledWanderer.Key == PlainWanderer.Key && KilledWanderer.Value == PlainWanderer.Value);
 	}
 
 	// The drain knob out of range takes nothing (below zero, not a number), and Stability stops at zero.

@@ -140,7 +140,7 @@ struct FCosmicEvalContext : public FCosmicEvalSubject
 	{
 	}
 
-	// Not copyable: a copy would carry bPerTickSource (and whatever a later step hangs on a context) to a place that did
+	// Not copyable: a copy would carry bPerTickSource (and whatever a later work item hangs on a context) to a place that did
 	// not ask for it. A second context over the same state (FireRow's own) is built from the five references and takes
 	// its subject by assignment.
 	FCosmicEvalContext(const FCosmicEvalContext&) = delete;
@@ -239,15 +239,19 @@ public:
 	 * - PlayerStatDelta and GrantPower change the vessel and the calling: like the two role effects they are turned away
 	 *   unless Calling.LifeState is Embodied.
 	 * - NameNotable holds the four guards and the eviction of section 7.5. It draws exactly one number from Ctx.Stream
-	 *   per application, before any guard, and throws it away when no record is made: the number of draws of a row
-	 *   depends on its effect list and never on name banks, tiers or caps. It is the only draw in this function.
+	 *   per application, before any guard of its own, and throws it away when no record is made: the number of draws
+	 *   of a row depends on its effect list and never on name banks, tiers or caps. It is the only draw in this
+	 *   function, and a per-tick source never reaches it.
 	 * - MultiplyIncome scales FCivilizationState.IncomePerTick and is applied only while Ctx.bPerTickSource is set.
-	 *   One multiplication, income x Value, with a Key (one resource) or without (all five). A Value below zero, not
-	 *   a number or not finite reads as 0: an income never turns negative.
+	 *   One multiplication, income x Value, with a Key (one resource) or without (all five). A Value below zero reads
+	 *   as 0: an income never turns negative.
+	 * - The eight effects that add to an amount or scale one (AddResource, MultiplyIncome, ShiftEthics, ChangeStability,
+	 *   ChangeRelation, ChangeReverence, ChangePopulation, PlayerStatDelta) are turned away when their Value is not a
+	 *   finite number: nothing that is not a number is clamped to a bound or written into the state.
 	 * - DurationTicks is not read: Apply keeps no record that could count it down (section 16 #27). Data.Integrity keeps
 	 *   a value above zero out of every effect array but the per-tick sources.
-	 * - SpawnHazard, ResolveHazard and TransferSystem are turned away with one error line until the crisis handling work gives
-	 *   each its one path. TransferSystem will never take or release the last owned system of a civilization: only
+	 * - SpawnHazard, ResolveHazard and TransferSystem are turned away with one error line until the crisis handling work
+	 *   gives each its one path (a per-tick source turns them away before that, without a line). TransferSystem will never take or release the last owned system of a civilization: only
 	 *   stage code behind the last-system gate can do that (section 4.5, 7.4).
 	 * - An effect whose Key names something the context cannot resolve is turned away. ChangeRelation resolves its
 	 *   other party as CivRelationAtLeast does and writes no entry for one that does not resolve: the keys of
