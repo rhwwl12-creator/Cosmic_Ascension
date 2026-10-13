@@ -66,8 +66,8 @@ struct COSMIC_ASCENSION_API FCosmicLogEntry
 	FName FocusSystemID;
 
 	// Subject civilization of the line. NAME_None = none. Pairs with FocusSystemID: the scope of telling judges both at
-	// the push (section 8.1). Push and PushRow store it from the 'v0.7 reservation' commit on; the first caller that
-	// passes it is TickResearch in Phase 2, so until then every entry of a real run carries NAME_None.
+	// the push (section 8.1). Push and PushVariants store it. A fired event row passes its subject civilization (Phase 2
+	// step 1); TickResearch passes it from the Phase 2 generation change on.
 	UPROPERTY(BlueprintReadOnly)
 	FName FocusCivID;
 
@@ -133,8 +133,8 @@ struct COSMIC_ASCENSION_API FStarSystemState
 	UPROPERTY(BlueprintReadOnly)
 	float MegaprojectProgress = 0.f;
 
-	// 0 = not completed. Condition MegaprojectComplete is true only when this is > 0 and >= Calling.BornTick (section 4.4).
-	// BornTick is 0 in the first life, so the > 0 test is not redundant.
+	// 0 = not completed. Condition MegaprojectComplete is true only when this is > 0 and >= the SinceTick of the
+	// evaluation (section 4.4, 7.5). SinceTick is 0 for everything but the player's feats, so the > 0 test is not redundant.
 	UPROPERTY(BlueprintReadOnly)
 	int64 MegaprojectCompletedTick = 0;
 
@@ -373,7 +373,8 @@ struct COSMIC_ASCENSION_API FTranscendentState
 	UPROPERTY(BlueprintReadOnly)
 	bool bSealed = false;
 
-	// Tick of sealing. Condition TranscendentSealed is true only when bSealed and this is >= Calling.BornTick (section 4.4).
+	// Tick of sealing. Condition TranscendentSealed is true only when bSealed and this is >= the SinceTick of the
+	// evaluation (section 4.4, 7.5).
 	UPROPERTY(BlueprintReadOnly)
 	int64 SealedTick = 0;
 };
@@ -514,7 +515,8 @@ struct COSMIC_ASCENSION_API FCallingState
 	TArray<FName> CompletedFeats;
 
 	// PendingRoleEffect (section 7.4, last tick stage): hazard expiry, event effects and encounter resolution only record
-	// here. At most one per tick, first recorded wins. Empty PendingEffect = nothing pending.
+	// here, all through UCosmicEventSubsystem::Apply and only while LifeState is Embodied. At most one per tick, first
+	// recorded wins. Empty PendingEffect = nothing pending.
 
 	// Effect.KillPlayer or Effect.DeposeRuler (declared in the tag ini; one to one with the EEffectType enumerators).
 	UPROPERTY()
@@ -693,8 +695,9 @@ struct COSMIC_ASCENSION_API FGalaxyState
 	UPROPERTY()
 	TArray<FTransitRecord> Transits;
 
-	// Key = DT_Events row name, or the Log.Claim spam-guard key log_claim_<row> (section 4.2). Keys are saved, so their
-	// format is fixed.
+	// Key = UCosmicEventSubsystem::CooldownKey, "<DT_Events row>@<CivID>" (a slot row for one civilization; rows fired by
+	// name write none), or the Log.Claim spam-guard key log_claim_<row> (section 4.2). Entries that are over are dropped
+	// every 600 ticks. Keys are saved, so their format is fixed.
 	UPROPERTY()
 	TMap<FName, int64> EventCooldownUntilTick;
 

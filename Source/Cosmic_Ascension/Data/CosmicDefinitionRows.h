@@ -80,8 +80,9 @@ struct COSMIC_ASCENSION_API FCosmicEventDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicEffect> Effects;
 
-	// Three or more for Lottery and Standing rows, one or more for Named rows (Data.Integrity). Slots: section 8.2.
-	// Empty = the row tells nothing.
+	// Three or more for Lottery and Standing rows, one or more for Named rows (Data.Integrity). Slots: {Civ}, {System}
+	// and {HomeSystem}, nothing else of section 8.2 ({Hazard} joins with the hazard step). Empty = the row tells
+	// nothing, not its SignRow either.
 	UPROPERTY(EditAnywhere)
 	TArray<FText> LogTemplates;
 
@@ -94,7 +95,8 @@ struct COSMIC_ASCENSION_API FCosmicEventDef : public FTableRowBase
 	uint8 MinTierToReveal = 0;
 
 	// DT_LogTemplates row of category Log.Sign: the lower speaker's sentence, told to a viewer below MinTierToReveal
-	// (section 8.2). NAME_None = nothing is told below it. Needs MinTierToReveal above zero (Data.Integrity).
+	// (section 8.2). NAME_None = nothing is told below it. Needs LogTemplates and a MinTierToReveal of 2..5
+	// (Data.Integrity): no viewer tier lies below 1, so with 1 or 0 the sign line is not told.
 	UPROPERTY(EditAnywhere)
 	FName SignRow;
 };

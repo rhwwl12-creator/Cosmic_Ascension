@@ -322,6 +322,20 @@ bool FCosmicLogVariantsLedgerTest::RunTest(const FString& Parameters)
 		Def.MinTierToReveal = 3;
 		Def.SignRow = SignRow;
 		EventTable->AddRow(WithSign, Def);
+		// A sign row needs somebody below the window of the row: tier 2 is the lowest MinTierToReveal that has one.
+		const FName SignAtTwo(TEXT("evt_test_sign_two"));
+		const FName SignAtOne(TEXT("evt_test_sign_one"));
+		const FName SignAtZero(TEXT("evt_test_sign_zero"));
+		const FName SignButMute(TEXT("evt_test_sign_mute"));
+		Def.MinTierToReveal = 2;
+		EventTable->AddRow(SignAtTwo, Def);
+		Def.MinTierToReveal = 1;
+		EventTable->AddRow(SignAtOne, Def);
+		Def.MinTierToReveal = 0;
+		EventTable->AddRow(SignAtZero, Def);
+		Def.MinTierToReveal = 3;
+		Def.LogTemplates.Reset();
+		EventTable->AddRow(SignButMute, Def);
 
 		FCosmicDataTables Tables = Original;
 		Tables.LogTemplates = LogTable;
@@ -349,6 +363,11 @@ bool FCosmicLogVariantsLedgerTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The main line carries the row's log category and severity"), Main.Category == CivTag && Main.Severity == 2 && Main.SourceRow == WithSign);
 		TestTrue(TEXT("The sign line is a Log.Sign entry of severity 1 at most, with the event row as its source"),
 			Sign.Category == SignTag && Sign.Severity == 1 && Sign.SourceRow == WithSign && Sign.FocusCivID == State.Civs[1].CivID);
+
+		TestTrue(TEXT("A sign row under a row revealed from tier 2 is told: two lines"), TellStepsOf(SignAtTwo, 2));
+		TestTrue(TEXT("A sign row under a row revealed from tier 1 has nobody below it: one line"), TellStepsOf(SignAtOne, 1));
+		TestTrue(TEXT("A sign row under a row revealed to everyone has nobody below it: one line"), TellStepsOf(SignAtZero, 1));
+		TestTrue(TEXT("A row without templates tells nothing, its sign row included"), TellStepsOf(SignButMute, 0));
 	}
 
 	Sim->SetTables(Original);

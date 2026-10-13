@@ -11,7 +11,6 @@
 #include "Engine/GameInstance.h"
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
-#include "Misc/CString.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 
@@ -126,6 +125,46 @@ namespace CosmicEventImpl
 		return State.Transcendents.FindByPredicate([TranscendentID](const FTranscendentState& Each) { return Each.TranscendentID == TranscendentID; });
 	}
 
+	// The other party of a relation (section 5.5): OtherOf, resolved. A key of Relations is a living people or a
+	// transcendent of the run; any other name (a selector word nothing resolves, a people that is gone, a misspelt row)
+	// is NAME_None, so that it is neither read as a neutral relation nor written into the save. A celestial row has no
+	// state instance (section 4.2): it resolves by row name once DT_Transcendents is among the tables (pressure step).
+	FName RelationPartyOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicEvalSubject& Subject, FName Key)
+	{
+		const FName Other = OtherOf(Subject, Key);
+		if (Other.IsNone())
+		{
+			return NAME_None;
+		}
+		return (FindTranscendent(State, Other) || Index.FindCiv(State, Other) != INDEX_NONE) ? Other : FName();
+	}
+
+	// A count of ticks written as a Key: digits only, nine at most. Anything else is 0, which means "no count": the
+	// caller tests the count for being above zero before it compares (every counter is at least 0), so a malformed Key
+	// makes its condition false and is never read by its numeric prefix.
+	int32 TickCountOf(FName Key)
+	{
+		if (Key.IsNone())
+		{
+			return 0;
+		}
+		const FString Text = Key.ToString();
+		if (Text.Len() > 9)
+		{
+			return 0;
+		}
+		int32 Count = 0;
+		for (const TCHAR Char : Text)
+		{
+			if (Char < TEXT('0') || Char > TEXT('9'))
+			{
+				return 0;
+			}
+			Count = Count * 10 + static_cast<int32>(Char - TEXT('0'));
+		}
+		return Count;
+	}
+
 	bool IsSettledSystemOf(const FGalaxyState& State, int32 SystemIndex, FName CivID)
 	{
 		return State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == CivID && CosmicState::IsSettled(State.Systems[SystemIndex]);
@@ -173,12 +212,13 @@ namespace CosmicEventImpl
 			return false;
 		}
 
-		// Guard 3: at most one open record per role. The seat changed hands.
+		// Guard 3: at most one open record per role. The seat changed hands. 0 is the mark of an open record, so a record
+		// closed before the first tick is closed at 1 (section 16 #35).
 		for (FNotableRecord& Record : Civ.Notables)
 		{
 			if (Record.LastTick == 0 && Record.Role == Effect.Tag)
 			{
-				Record.LastTick = State.Tick;
+				Record.LastTick = FMath::Max<int64>(State.Tick, 1);
 			}
 		}
 
@@ -334,14 +374,14 @@ bool UCosmicEventSubsystem::Check(const FCosmicCondition& Condition, const FCosm
 	case EConditionType::CivStabilityBelowFor:
 	{
 		// Key = the number of ticks. The counter itself is fixed at the low-stability threshold (section 4.1, 16 #25).
-		const int32 Ticks = Condition.Key.IsNone() ? 0 : FCString::Atoi(*Condition.Key.ToString());
+		const int32 Ticks = TickCountOf(Condition.Key);
 		return Civ && Ticks > 0 && Civ->LowStabilityTicks >= Ticks;
 	}
 
 	case EConditionType::CivRelationAtLeast:
 	{
-		// A missing entry is 0, neutral (section 5.5).
-		const FName Other = OtherOf(View, Condition.Key);
+		// A missing entry is 0, neutral (section 5.5). A party that does not resolve has no relation to read.
+		const FName Other = RelationPartyOf(State, View.Index, View, Condition.Key);
 		return Civ && !Other.IsNone() && Civ->Relations.FindRef(Other) >= Condition.Value;
 	}
 
@@ -552,8 +592,9 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 
 	case EEffectType::ChangeRelation:
 	{
-		// The entry is made on first write; a missing one reads as 0 (section 5.5).
-		const FName Other = OtherOf(Ctx, Effect.Key);
+		// The entry is made on first write; a missing one reads as 0 (section 5.5). A party that does not resolve gets
+		// no entry: Relations is saved, and its keys are peoples and transcendents only.
+		const FName Other = RelationPartyOf(State, Ctx.Index, Ctx, Effect.Key);
 		if (!Civ || Other.IsNone())
 		{
 			return false;
@@ -709,12 +750,19 @@ int32 UCosmicEventSubsystem::EvaluateAndFire(FGalaxyState& State, FRandomStream&
 		}
 	}
 
-	if (Rules.EventSlotTicks < 1 || Rules.EventChancePerSlot < 0.f)
+	// The ranges of the two knobs are a lint; the guard is here. Each report names its own knob and nothing else.
+	if (Rules.EventSlotTicks < 1)
 	{
-		UE_LOG(LogCosmic, Error, TEXT("DT_Rules: EventSlotTicks %d and EventChancePerSlot %f are out of range, read as 1 and 0"), Rules.EventSlotTicks, Rules.EventChancePerSlot);
+		UE_LOG(LogCosmic, Error, TEXT("DT_Rules: EventSlotTicks %d is below 1, read as 1"), Rules.EventSlotTicks);
 	}
 	const int64 SlotTicks = FMath::Max(1, Rules.EventSlotTicks);
-	const float Chance = FMath::Max(0.f, Rules.EventChancePerSlot);
+	// Written so that a value that is not a number is caught as well.
+	const bool bChanceInRange = Rules.EventChancePerSlot >= 0.f;
+	if (!bChanceInRange)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("DT_Rules: EventChancePerSlot %f is below 0, read as 0"), Rules.EventChancePerSlot);
+	}
+	const float Chance = bChanceInRange ? Rules.EventChancePerSlot : 0.f;
 
 	// 1. Who has a slot in this tick, and one number for each, before any row is looked at.
 	TArray<int32, TInlineAllocator<16>> SlotCivs;
@@ -759,11 +807,10 @@ int32 UCosmicEventSubsystem::EvaluateAndFire(FGalaxyState& State, FRandomStream&
 				{
 					continue;
 				}
-				if (const int64* Until = State.EventCooldownUntilTick.Find(CooldownKey(RowName, CivID)); Until && *Until > State.Tick)
-				{
-					continue;
-				}
+				// Conditions first. The cooldown key is a string built from two names, so it is made at most once per
+				// row and only for a row with a unit that passed: most rows fail a condition (section 9.4).
 				View.SourceRow = RowName;
+				const int32 PairsBefore = OutPairs.Num();
 				if (Row->Subject == ECosmicEventSubject::SettledSystem)
 				{
 					for (const int32 SystemIndex : Units.SettledSystems)
@@ -781,6 +828,13 @@ int32 UCosmicEventSubsystem::EvaluateAndFire(FGalaxyState& State, FRandomStream&
 					if (CheckAll(Row->Conditions, View))
 					{
 						OutPairs.Add({ RowName, Row, Units.Capital });
+					}
+				}
+				if (OutPairs.Num() > PairsBefore)
+				{
+					if (const int64* Until = State.EventCooldownUntilTick.Find(CooldownKey(RowName, CivID)); Until && *Until > State.Tick)
+					{
+						OutPairs.SetNum(PairsBefore, EAllowShrinking::No);
 					}
 				}
 			}
@@ -843,12 +897,15 @@ int32 UCosmicEventSubsystem::EvaluateAndFire(FGalaxyState& State, FRandomStream&
 			// The weight factor of transcendents, traits and edicts arrives with the pressure step; until then it is 1.
 			Total += FMath::Max(0.f, Pair.Row->BaseWeight) * Chance;
 		}
-		const float Scale = Total > 1.f ? 1.f / Total : 1.f;
+		// Shares that add up to more than 1 are scaled down together by scaling the number instead: the sum below repeats
+		// the additions that made Total and so ends exactly on it, and a number below 1 times Total is below Total.
+		// Dividing every share would round, and leave numbers at the top on which no row fires.
+		const float Pick = Total > 1.f ? Rolls[Slot] * Total : Rolls[Slot];
 		float Reached = 0.f;
 		for (const FSlotPair& Pair : Lottery)
 		{
-			Reached += FMath::Max(0.f, Pair.Row->BaseWeight) * Chance * Scale;
-			if (Rolls[Slot] < Reached)
+			Reached += FMath::Max(0.f, Pair.Row->BaseWeight) * Chance;
+			if (Pick < Reached)
 			{
 				FirePair(Pair);
 				break;
@@ -923,9 +980,11 @@ void UCosmicEventSubsystem::FireResolved(FName RowName, const FCosmicEventDef& R
 
 	Log->PushVariants(Line, Row.LogTemplates, Args);
 
-	// The lower speaker's sentence, for the viewers the line above is not told to. Always told when the row has one, so
-	// the tell draws of a fire follow the row and never the viewer (section 8.1).
-	if (!Row.SignRow.IsNone() && Row.MinTierToReveal > 0)
+	// The lower speaker's sentence, for the viewers the line above is not told to. It goes with a line (a row without
+	// templates tells nothing) and needs a viewer tier below the window of that line: tier numbers start at 1, so the
+	// lowest MinTierToReveal with anybody below it is 2 (and 0 as an upper bound would mean "no bound"). Whenever the
+	// row's data allow it, it is told: the tell draws of a fire follow the row and never the viewer (section 8.1).
+	if (!Row.SignRow.IsNone() && !Row.LogTemplates.IsEmpty() && Row.MinTierToReveal > 1)
 	{
 		if (const FLogTemplateDef* Sign = Ctx.Tables.FindLogTemplate(Row.SignRow))
 		{

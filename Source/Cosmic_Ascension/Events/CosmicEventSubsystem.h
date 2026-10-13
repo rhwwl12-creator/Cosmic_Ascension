@@ -126,8 +126,9 @@ struct FCosmicEvalView : public FCosmicEvalSubject
 
 /**
  * Mutable side of an evaluation: what Apply may change and the one stream it may draw from (section 7.5, 9.2).
- * Inside a tick UGalaxySimulationSubsystem::MakeEvalContext builds it over the live state and the sim stream, and the
- * stages hand it on; a test may build one over a detached state and a stream of its own.
+ * Stage code that applies effects or fires a row by name builds it with UGalaxySimulationSubsystem::MakeEvalContext, over
+ * the live state and the sim stream; EvaluateAndFire is handed the state and the stream and builds the contexts of its
+ * own fires. A test may build one over a detached state and a stream of its own.
  * A plain C++ handle, not a USTRUCT: it refers to the state and to a stream, so it can be neither a UPROPERTY nor a
  * delegate parameter. Make one, use it and drop it inside one tick stage or one input call: State.Civs and State.Systems
  * must not change size while it lives.
@@ -200,7 +201,11 @@ public:
 	 *   that could turn it around (FlagNotSet reads flags only).
 	 * - MegaprojectComplete and TranscendentSealed compare with View.SinceTick, never with the life state.
 	 * - Tier values are tier numbers 1..5 (section 7.3).
-	 * - A condition whose Key names something the view cannot resolve is false.
+	 * - A condition whose Key names something the view cannot resolve is false. The other party of CivRelationAtLeast
+	 *   (its Key, or the OtherID of the view when the Key is empty) resolves only when it is the CivID of a living
+	 *   civilization or the TranscendentID of a transcendent in State.Transcendents; a celestial row, which has no state
+	 *   instance, will resolve by row name once DT_Transcendents is among the tables (pressure step). The tick count of
+	 *   CivStabilityBelowFor resolves only when its Key is digits alone (nine at most) and above zero.
 	 */
 	static bool Check(const FCosmicCondition& Condition, const FCosmicEvalView& View);
 
@@ -233,7 +238,11 @@ public:
 	 * - SpawnHazard, ResolveHazard and TransferSystem are turned away with one error line until the hazard step gives
 	 *   each its one path. TransferSystem will never take or release the last owned system of a civilization: only
 	 *   stage code behind the last-system gate can do that (section 4.5, 7.4).
-	 * - An effect whose Key names something the context cannot resolve is turned away.
+	 * - An effect whose Key names something the context cannot resolve is turned away. ChangeRelation resolves its
+	 *   other party as CivRelationAtLeast does and writes no entry for one that does not resolve: the keys of
+	 *   Relations are saved, and they are living civilizations and transcendents of the run only.
+	 * - NameNotable closes the open record of the same role with LastTick = max(Tick, 1): 0 marks an open record, so a
+	 *   record closed before the first tick still reads as closed (section 16 #35).
 	 */
 	static bool Apply(const FCosmicEffect& Effect, FCosmicEvalContext& Ctx);
 
@@ -254,7 +263,8 @@ public:
 	 * A civilization has a slot in this tick when it owns a settled system and State.Tick modulo DT_Rules.EventSlotTicks
 	 * equals its phase, CosmicSeed::DeriveForName(State.Seed, CivID, CosmicSeed::Purpose::EventSlot) modulo
 	 * EventSlotTicks: one slot per civilization every EventSlotTicks ticks, at a phase that never moves when other
-	 * civilizations come or go. (An EventSlotTicks below 1 is read as 1: the range is a lint, the guard is here.)
+	 * civilizations come or go. (An EventSlotTicks below 1 is read as 1 and an EventChancePerSlot below 0, or one that is
+	 * not a number, as 0, each with an error line that names that knob alone: the ranges are a lint, the guard is here.)
 	 * 1. Draws: one number in [0, 1) from Stream for every civilization that has a slot, in Civs array order, all of
 	 *    them before any row is looked at. These are the only draws of this function itself, and their count follows the
 	 *    seed, the tick, the ownership of systems and the CivIDs alone: not DT_Events (no table, no row and forty rows
@@ -264,14 +274,16 @@ public:
 	 *    settled systems), or each of its settled systems in OwnedSystems order.
 	 *    a. Standing rows: the (row, unit) pairs whose conditions pass and whose cooldown is over are gathered in row-name
 	 *       order (FNameLexicalLess; the units of one row keep OwnedSystems order), never in the table's own order, and
-	 *       fired one by one. Right before a pair fires three things are checked again: the unit is still a settled
+	 *       fired one by one. Conditions are looked at first and the cooldown key is built at most once per row, only
+	 *       for a row with a unit that passed (section 9.4); Lottery rows are gathered the same way. Right before a pair fires three things are checked again: the unit is still a settled
 	 *       system of the civilization, the conditions, the cooldown. The key is per row and civilization, so a Standing
 	 *       row with a cooldown fires for at most one unit per slot (the first that passes) and a row with
 	 *       CooldownTicks 0 fires for every unit. No draw.
 	 *    b. Lottery rows: the (row, unit) pairs whose conditions pass and whose cooldown is over are laid out in the same
-	 *       order, each with the share BaseWeight x weight factor x DT_Rules.EventChancePerSlot (shares that add up to
-	 *       more than 1 are scaled down together). The number of step 1 picks the pair it falls on, or none: at most one
-	 *       Lottery row per civilization and slot.
+	 *       order, each with the share BaseWeight x weight factor x DT_Rules.EventChancePerSlot. The number of step 1
+	 *       picks the pair it falls on, or none: at most one Lottery row per civilization and slot. Shares that add up to
+	 *       more than 1 are scaled down together, and then every number picks a pair: the number is multiplied by the
+	 *       total instead of each share being divided, so no number is left without a pair by rounding.
 	 *    Rows whose Trigger is Named are never looked at.
 	 * A fired slot row first writes its cooldown key (State.Tick + CooldownTicks, when above zero), then goes through
 	 * the sequence of FireRow. On ticks that are a multiple of CooldownSweepTicks the call first drops the cooldown
@@ -291,9 +303,12 @@ public:
 	 * 1. every effect in array order through Apply;
 	 * 2. the line, through UCosmicLogSubsystem::PushVariants: the row's LogTemplates as its LogCategory and Severity, with
 	 *    the row as SourceRow. Subject Civilization tells it about the civilization alone, SettledSystem about the subject
-	 *    system and the subject civilization. A row with a SignRow always tells a second line from that DT_LogTemplates
-	 *    row. The viewer tier windows of the two lines are complementary (MinTierToReveal), so the number of tell draws
-	 *    of a fire does not depend on the viewer's tier: 0, 1 or 2 by the row's data. The only other tell draw is the far
+	 *    system and the subject civilization. A row with LogTemplates, a SignRow and a MinTierToReveal of 2 or above
+	 *    always tells a second line from that DT_LogTemplates row, in that row's own Category (Log.Sign by
+	 *    Data.Integrity). With a MinTierToReveal of 1 or below no viewer tier lies under the first line, and a row
+	 *    without LogTemplates tells nothing at all: no second line. The viewer tier windows of the two lines are
+	 *    complementary (MinTierToReveal), so the number of tell draws of a fire does not depend on the viewer's tier:
+	 *    0, 1 or 2 by the row's data. The only other tell draw is the far
 	 *    line that stands in for an out-of-scope Severity 2 line (section 8.1). The line is told whether or not an effect
 	 *    was turned away;
 	 * 3. OnEventFired, while the global broadcast gate is open.

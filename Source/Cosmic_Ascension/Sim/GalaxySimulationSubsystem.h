@@ -102,7 +102,8 @@ public:
 	void SetTables(const FCosmicDataTables& InTables);
 
 	// Binds the live state, the sim stream, the state index, the tables and the rules into an evaluation context
-	// (section 7.5, Events/CosmicEventSubsystem.h). The stages build theirs here and hand it on; a caller outside a tick
+	// (section 7.5, Events/CosmicEventSubsystem.h). Stage code that applies effects or fires a row by name builds its
+	// context here (the event slots are handed the state and the stream and build their own); a caller outside a tick
 	// (encounter resolution, Phase 4) does the same and calls SyncRngState() afterwards. Reports an error when called
 	// while IsBroadcasting(): a handler must not evaluate anything.
 	FCosmicEvalContext MakeEvalContext();

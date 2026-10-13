@@ -24,8 +24,11 @@
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
 #include "Tests/CosmicTestProbe.h"
+#include "UObject/Class.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
+
+#include <limits>
 
 namespace CosmicEventTests
 {
@@ -64,6 +67,20 @@ namespace CosmicEventTests
 		{
 			FCivArchetypeDef Def = *Base.FindCiv(RowName);
 			Def.PersonNameBank = { FText::AsCultureInvariant(TEXT("name a")), FText::AsCultureInvariant(TEXT("name b")), FText::AsCultureInvariant(TEXT("name c")) };
+			Civs->AddRow(RowName, Def);
+		}
+		return Civs;
+	}
+
+	// The same table with no person name on any row: the control side of the name-bank comparisons. Built here and not
+	// taken from the game, so that the comparison stays one of empty against filled when the game's banks are filled.
+	UDataTable* CivsWithoutNames(const FCosmicDataTables& Base)
+	{
+		UDataTable* Civs = NewTable(FCivArchetypeDef::StaticStruct());
+		for (const FName RowName : Base.GetCivRowNames())
+		{
+			FCivArchetypeDef Def = *Base.FindCiv(RowName);
+			Def.PersonNameBank.Reset();
 			Civs->AddRow(RowName, Def);
 		}
 		return Civs;
@@ -193,9 +210,14 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 	Detached.Player.StatusTags.AddTag(Tag(TEXT("Status.Abdicated")));
 	Detached.Calling.PersonalTier = EAscensionTier::Tier2_Stellar;
 	Detached.Calling.LifeIndex = 2;
+	Detached.Calling.BornTick = 10;
 	Detached.Flags.AddTag(Tag(TEXT("Flag.Grace.Spent")));
 	FCosmicStateIndex Index;
 	Index.Rebuild(Detached);
+
+	// The rules the cases are judged under: aging off, whatever DT_Rules says today.
+	FCosmicRulesDef NoAging = Sim->GetRules();
+	NoAging.BaseLifespanTicks = 0;
 
 	// One line per case: the condition, the lower tick bound of the view, the expected answer for subject (civ 0, sol).
 	struct FCase
@@ -260,6 +282,20 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		{ Cond(EConditionType::TranscendentDoctrinePresent, TEXT("Doctrine.Zeal"), NAME_None, 0.f), 0, false },
 		{ Cond(EConditionType::CivHasNotable, TEXT("Notable.Rebel"), NAME_None, 0.f), 0, true },
 		{ Cond(EConditionType::CivHasNotable, TEXT("Notable.Ruler"), NAME_None, 0.f), 0, false },
+		// The boundary of every "at least": the bound itself passes.
+		{ Cond(EConditionType::CivStabilityBelowFor, nullptr, FName(TEXT("120")), 0.3f), 0, true },
+		{ Cond(EConditionType::MegaprojectComplete, nullptr, NAME_None, 0.f), 50, true },
+		{ Cond(EConditionType::TranscendentSealed, nullptr, TrSealed, 0.f), 40, true },
+		// A tick count that is not digits alone is not a tick count: false, never its numeric prefix.
+		{ Cond(EConditionType::CivStabilityBelowFor, nullptr, FName(TEXT("1,000")), 0.3f), 0, false },
+		{ Cond(EConditionType::CivStabilityBelowFor, nullptr, FName(TEXT("100ticks")), 0.3f), 0, false },
+		// Nine digits are read (leading zeros and all), ten are not a count any more.
+		{ Cond(EConditionType::CivStabilityBelowFor, nullptr, FName(TEXT("000000100")), 0.3f), 0, true },
+		{ Cond(EConditionType::CivStabilityBelowFor, nullptr, FName(TEXT("0000000100")), 0.3f), 0, false },
+		// The other party has to be a living people or a transcendent of the run. A missing entry reads as 0.
+		{ Cond(EConditionType::CivRelationAtLeast, nullptr, FName(TEXT("no_such_party")), -1.f), 0, false },
+		{ Cond(EConditionType::CivRelationAtLeast, nullptr, TrActive, 0.f), 0, true },
+		{ Cond(EConditionType::CivRelationAtLeast, nullptr, TrActive, 0.1f), 0, false },
 	};
 
 	auto Answers = [&](const FGalaxyState& State, int32 CivIndex, int32 SystemIndex)
@@ -267,7 +303,7 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		TArray<bool> Out;
 		for (const FCase& Case : Cases)
 		{
-			FCosmicEvalView View(State, Index, Sim->GetTables(), Sim->GetRules());
+			FCosmicEvalView View(State, Index, Sim->GetTables(), NoAging);
 			View.CivIndex = CivIndex;
 			View.SystemIndex = SystemIndex;
 			View.SinceTick = Case.SinceTick;
@@ -292,7 +328,35 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		Types.Add(Cases[CaseIndex].Condition.Type);
 		TestEqual(*FString::Printf(TEXT("Case %d (condition type %d)"), CaseIndex, static_cast<int32>(Cases[CaseIndex].Condition.Type)), Plain[CaseIndex], Cases[CaseIndex].bExpected);
 	}
-	TestEqual(TEXT("Every condition type is covered"), Types.Num(), static_cast<int32>(EConditionType::CivHasNotable) + 1);
+	// The count comes from reflection (the last entry of a UENUM is the generated _MAX), so an enumerator appended later
+	// fails here until it has a case.
+	TestEqual(TEXT("Every condition type is covered"), Types.Num(), StaticEnum<EConditionType>()->NumEnums() - 1);
+
+	// The two flag conditions the other way round: the cases above read a flag that is set.
+	{
+		FGalaxyState NoFlags = Detached;
+		NoFlags.Flags.Reset();
+		FCosmicEvalView View(NoFlags, Index, Sim->GetTables(), NoAging);
+		TestFalse(TEXT("FlagSet is false for a flag that is not set"), UCosmicEventSubsystem::Check(Cond(EConditionType::FlagSet, TEXT("Flag.Grace.Spent"), NAME_None, 0.f), View));
+		TestTrue(TEXT("FlagNotSet is true for a flag that is not set"), UCosmicEventSubsystem::Check(Cond(EConditionType::FlagNotSet, TEXT("Flag.Grace.Spent"), NAME_None, 0.f), View));
+	}
+
+	// PlayerAgeAtLeast with aging on: the age is the ticks since the birth of the vessel (tick 100, born at 10).
+	{
+		FCosmicRulesDef Aging = NoAging;
+		Aging.BaseLifespanTicks = 1000;
+		FGalaxyState Unborn = Detached;
+		Unborn.Calling.LifeState = ELifeState::Interregnum;
+		auto AgeAtLeast = [&](const FGalaxyState& State, const FCosmicRulesDef& Rules, float Value)
+		{
+			FCosmicEvalView View(State, Index, Sim->GetTables(), Rules);
+			return UCosmicEventSubsystem::Check(Cond(EConditionType::PlayerAgeAtLeast, nullptr, NAME_None, Value), View);
+		};
+		TestTrue(TEXT("With aging on PlayerAgeAtLeast is true at the age of the vessel"), AgeAtLeast(Detached, Aging, 90.f));
+		TestFalse(TEXT("With aging on PlayerAgeAtLeast is false one tick above the age"), AgeAtLeast(Detached, Aging, 91.f));
+		TestFalse(TEXT("With aging on PlayerAgeAtLeast is false during the interregnum"), AgeAtLeast(Unborn, Aging, 90.f));
+		TestFalse(TEXT("With aging off PlayerAgeAtLeast is false at any age"), AgeAtLeast(Detached, NoAging, 0.f));
+	}
 
 	// Without a subject every Civ and System condition is false and nothing else changes.
 	const TArray<bool> NoSubject = Answers(Detached, INDEX_NONE, INDEX_NONE);
@@ -353,8 +417,10 @@ bool FCosmicEventsSlotDrawsTest::RunTest(const FString& Parameters)
 	}
 	UCosmicEventSubsystem* Events = Sim->GetGameInstance()->GetSubsystem<UCosmicEventSubsystem>();
 
-	// The error line of the out-of-range knob at the end.
-	AddExpectedError(TEXT("EventSlotTicks 0 and EventChancePerSlot"), EAutomationExpectedErrorFlags::Contains, 1);
+	// The error lines of the two out-of-range knobs at the end: each names its own knob and nothing else.
+	AddExpectedError(TEXT("EventSlotTicks 0 is below 1, read as 1"), EAutomationExpectedErrorFlags::Contains, 1);
+	// Twice: for a chance of -0.1 and for a chance that is not a number.
+	AddExpectedError(TEXT("EventChancePerSlot .* is below 0, read as 0"), EAutomationExpectedErrorFlags::Contains, 2);
 
 	const FCosmicDataTables Original = Sim->GetTables();
 	const FCosmicRulesDef BaseRules = Sim->GetRules();
@@ -365,18 +431,50 @@ bool FCosmicEventsSlotDrawsTest::RunTest(const FString& Parameters)
 		return false;
 	}
 
-	// One call draws once per civilization that has a slot in that tick, and for nobody else.
+	// One call draws once per civilization that has a slot in that tick, and for nobody else. A slot needs a settled
+	// system: a civilization whose only system is still being settled and one that owns nothing have none.
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	FGalaxyState& State = Sim->GetMutableState();
+	{
+		const FName Settling = State.Civs[1].CivID;
+		const FName Landless = State.Civs[2].CivID;
+		for (FStarSystemState& System : State.Systems)
+		{
+			if (System.OwnerCivID == Settling)
+			{
+				System.ActiveMegaproject = CosmicRows::ProjectSettle;
+			}
+			else if (System.OwnerCivID == Landless)
+			{
+				System.OwnerCivID = NAME_None;
+			}
+		}
+		State.Civs[2].OwnedSystems.Reset();
+	}
+	// The predicate written out, not taken from the code under test.
+	auto HasSettledSystem = [&State](const FCivilizationState& Civ)
+	{
+		for (const FStarSystemState& System : State.Systems)
+		{
+			if (System.OwnerCivID == Civ.CivID && System.ActiveMegaproject != CosmicRows::ProjectSettle && Civ.OwnedSystems.Contains(System.SystemID))
+			{
+				return true;
+			}
+		}
+		return false;
+	};
 	bool bDrawsFollowSlots = true;
 	int32 SlotsSeen = 0;
+	int32 SlotsByPhaseAlone = 0;
 	for (int64 Tick = 1; Tick <= 2 * SlotTicks; ++Tick)
 	{
 		State.Tick = Tick;
 		int32 Expected = 0;
 		for (const FCivilizationState& Civ : State.Civs)
 		{
-			Expected += (SlotPhase(State, Civ.CivID, SlotTicks) == Tick % SlotTicks) ? 1 : 0;
+			const bool bPhase = SlotPhase(State, Civ.CivID, SlotTicks) == Tick % SlotTicks;
+			Expected += (bPhase && HasSettledSystem(Civ)) ? 1 : 0;
+			SlotsByPhaseAlone += bPhase ? 1 : 0;
 		}
 		FRandomStream Handed(123);
 		FRandomStream Probe(123);
@@ -389,7 +487,9 @@ bool FCosmicEventsSlotDrawsTest::RunTest(const FString& Parameters)
 		SlotsSeen += Expected;
 	}
 	TestTrue(TEXT("EvaluateAndFire draws once per civilization that has a slot"), bDrawsFollowSlots);
-	TestEqual(TEXT("Every civilization has one slot per period"), SlotsSeen, 2 * State.Civs.Num());
+	// The check above is only worth something if the two civilizations without a settled system were due in these ticks.
+	TestTrue(TEXT("The two periods held slots, and four more by phase alone for the two civilizations without a settled system"),
+		SlotsSeen > 0 && SlotsByPhaseAlone == SlotsSeen + 4);
 
 	// The sim stream after every tick does not depend on DT_Events: no table, no row, rows that fire, rows on cooldown
 	// and a chance of zero all draw the same.
@@ -470,8 +570,131 @@ bool FCosmicEventsSlotDrawsTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Removing a civilization leaves the slot ticks of the others unchanged"), bPhaseStable);
 	}
 
+	// The units of a slot follow ownership and the settled predicate: a civilization without a settled system has no
+	// slot and no row; a system that is still being settled, or that is listed in OwnedSystems but owned by another
+	// people, is no unit; the capital is HomeSystemID, wherever it stands in OwnedSystems.
+	{
+		const FName BeatRow(TEXT("evt_test_beat"));
+		const FName UnitRow(TEXT("evt_test_unit"));
+		UDataTable* Table = NewTable(FCosmicEventDef::StaticStruct());
+		Table->AddRow(BeatRow, MakeRow(ECosmicEventTrigger::Standing, ECosmicEventSubject::Civilization, 0.f, 0));
+		Table->AddRow(UnitRow, MakeRow(ECosmicEventTrigger::Standing, ECosmicEventSubject::SettledSystem, 0.f, 0));
+		Sim->SetTables(WithEvents(Original, BaseRules, Table, 1, 0.5f));
+		Sim->NewGalaxy(42, 7, 4);
+
+		FCivilizationState& Wide = State.Civs[0];
+		TArray<FName> Free;
+		for (FStarSystemState& System : State.Systems)
+		{
+			if (System.OwnerCivID.IsNone())
+			{
+				System.OwnerCivID = Wide.CivID;
+				Free.Add(System.SystemID);
+			}
+		}
+		if (TestTrue(TEXT("The test galaxy has four civilizations and three free systems"), State.Civs.Num() == 4 && Free.Num() == 3))
+		{
+			const FName WideID = Wide.CivID;
+			const FName Home = Wide.HomeSystemID;
+			const FName OtherID = State.Civs[3].CivID;
+			const FName OtherHome = State.Civs[3].HomeSystemID;
+			// Civilization 0: a free system first, then its capital, then two more (the last still being settled), then
+			// the home of civilization 3, which it lists but does not own.
+			Wide.OwnedSystems = { Free[0], Home, Free[1], Free[2], OtherHome };
+			State.Systems[Sim->GetStateIndex().FindSystem(State, Free[2])].ActiveMegaproject = CosmicRows::ProjectSettle;
+			// Civilization 1: its only system is still being settled. Civilization 2: owns nothing.
+			State.Systems[Sim->GetStateIndex().FindSystem(State, State.Civs[1].HomeSystemID)].ActiveMegaproject = CosmicRows::ProjectSettle;
+			State.Systems[Sim->GetStateIndex().FindSystem(State, State.Civs[2].HomeSystemID)].OwnerCivID = NAME_None;
+			State.Civs[2].OwnedSystems.Reset();
+
+			TArray<FCosmicEventNotice> Notices;
+			FScopedProbe Scoped(*Sim);
+			Scoped.Probe->OnEvent = [&Notices](const FCosmicEventNotice& Notice) { Notices.Add(Notice); };
+			State.Tick = 5;
+			FRandomStream Handed(123);
+			FRandomStream Probe(123);
+			const int32 Fired = Events->EvaluateAndFire(State, Handed);
+			Probe.GetFraction();
+			Probe.GetFraction();
+			TestEqual(TEXT("Only the two civilizations with a settled system draw"), Handed.GetCurrentSeed(), Probe.GetCurrentSeed());
+
+			// Row-name order, then OwnedSystems order.
+			struct FExpected
+			{
+				FName Row;
+				FName CivID;
+				FName SystemID;
+			};
+			const FExpected Expected[] = {
+				{ BeatRow, WideID, Home }, { UnitRow, WideID, Free[0] }, { UnitRow, WideID, Home }, { UnitRow, WideID, Free[1] },
+				{ BeatRow, OtherID, OtherHome }, { UnitRow, OtherID, OtherHome }
+			};
+			bool bUnits = Fired == static_cast<int32>(UE_ARRAY_COUNT(Expected)) && Notices.Num() == Fired;
+			for (int32 NoticeIndex = 0; bUnits && NoticeIndex < Notices.Num(); ++NoticeIndex)
+			{
+				bUnits &= Notices[NoticeIndex].EventRow == Expected[NoticeIndex].Row && Notices[NoticeIndex].CivID == Expected[NoticeIndex].CivID
+					&& Notices[NoticeIndex].SystemID == Expected[NoticeIndex].SystemID;
+			}
+			TestTrue(TEXT("Rows fire on the settled systems a civilization owns and on its capital, and on nothing else"), bUnits);
+		}
+	}
+
+	// The numbers of a tick are all drawn before any row is looked at: a Standing row whose effect draws (NameNotable)
+	// does not move the Lottery number of the civilizations that come after.
+	{
+		const FName LotRow(TEXT("evt_test_lot"));
+		UDataTable* Table = NewTable(FCosmicEventDef::StaticStruct());
+		FCosmicEventDef Naming = MakeRow(ECosmicEventTrigger::Standing, ECosmicEventSubject::Civilization, 0.f, 0);
+		Naming.Effects.Add(Eff(EEffectType::NameNotable, TEXT("Notable.Hearer"), NAME_None, 0.f));
+		Table->AddRow(FName(TEXT("evt_test_naming")), Naming);
+		Table->AddRow(LotRow, MakeRow(ECosmicEventTrigger::Lottery, ECosmicEventSubject::Civilization, 1.f, 0));
+		FCosmicDataTables Tables = WithEvents(Original, BaseRules, Table, 1, 0.5f);
+		Tables.Civs = CivsWithNames(Original);
+		Sim->SetTables(Tables);
+		Sim->NewGalaxy(42, 5, 3);
+
+		TSet<FName> LotFor;
+		FScopedProbe Scoped(*Sim);
+		Scoped.Probe->OnEvent = [&LotFor, LotRow](const FCosmicEventNotice& Notice)
+		{
+			if (Notice.EventRow == LotRow)
+			{
+				LotFor.Add(Notice.CivID);
+			}
+		};
+		FRandomStream Handed(321);
+		FRandomStream Probe(321);
+		bool bRollsFirst = true;
+		int32 LotFires = 0;
+		for (int32 Round = 0; Round < 20; ++Round)
+		{
+			LotFor.Reset();
+			++State.Tick;
+			Events->EvaluateAndFire(State, Handed);
+			TArray<float> Rolls;
+			for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+			{
+				Rolls.Add(Probe.GetFraction());
+			}
+			// Then one number for the NameNotable of every civilization's Standing row.
+			for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+			{
+				Probe.GetFraction();
+			}
+			for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+			{
+				bRollsFirst &= LotFor.Contains(State.Civs[CivIndex].CivID) == (Rolls[CivIndex] < 0.5f);
+			}
+			bRollsFirst &= Handed.GetCurrentSeed() == Probe.GetCurrentSeed();
+			LotFires += LotFor.Num();
+		}
+		TestTrue(TEXT("Every civilization's Lottery number is the one drawn before any row fired"), bRollsFirst);
+		TestTrue(TEXT("The Lottery row fired in some slots and not in others"), LotFires > 10 && LotFires < 50);
+	}
+
 	// No civilization: nothing is drawn and nothing fires.
 	{
+		Sim->SetTables(Original);
 		Sim->NewGalaxy(42, 5, 3);
 		State.Civs.Empty();
 		Sim->RebuildStateIndex();
@@ -493,6 +716,32 @@ bool FCosmicEventsSlotDrawsTest::RunTest(const FString& Parameters)
 			Probe.GetFraction();
 		}
 		TestEqual(TEXT("With a slot period of 0 every civilization draws in every tick"), Handed.GetCurrentSeed(), Probe.GetCurrentSeed());
+	}
+
+	// A chance below 0, and one that is not a number, is read as 0, with an error line that names that knob alone: the
+	// period is read as it is, the draws stay and no Lottery row fires.
+	for (const float BadChance : { -0.1f, std::numeric_limits<float>::quiet_NaN() })
+	{
+		UDataTable* Table = NewTable(FCosmicEventDef::StaticStruct());
+		Table->AddRow(FName(TEXT("evt_test_lot")), MakeRow(ECosmicEventTrigger::Lottery, ECosmicEventSubject::Civilization, 1.f, 0));
+		Sim->SetTables(WithEvents(Original, BaseRules, Table, 10, BadChance));
+		Sim->NewGalaxy(42, 5, 3);
+		// A tick in which at least the first civilization is due.
+		State.Tick = 10 + SlotPhase(State, State.Civs[0].CivID, 10);
+		int32 Due = 0;
+		for (const FCivilizationState& Civ : State.Civs)
+		{
+			Due += (SlotPhase(State, Civ.CivID, 10) == State.Tick % 10) ? 1 : 0;
+		}
+		FRandomStream Handed(123);
+		FRandomStream Probe(123);
+		const int32 Fired = Events->EvaluateAndFire(State, Handed);
+		for (int32 Draw = 0; Draw < Due; ++Draw)
+		{
+			Probe.GetFraction();
+		}
+		TestTrue(TEXT("With a chance out of range the slots still draw by the period of 10 and no row fires"),
+			Due >= 1 && Fired == 0 && Handed.GetCurrentSeed() == Probe.GetCurrentSeed());
 	}
 
 	Sim->SetTables(Original);
@@ -639,6 +888,35 @@ bool FCosmicEventsLotterySharesTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Shares above a total of 1 are scaled together and every slot fires one row"), bScaled);
 	}
 
+	// The same at the top of the range: ten shares of 0.1 add up to a hair above 1 in float, and the two largest numbers
+	// the stream can give (1 - 2^-23 and 1 - 2^-22) still land on a row. The number is scaled, not each share: dividing
+	// every share would leave a sliver at the top on which no row fires.
+	{
+		UDataTable* Table = NewTable(FCosmicEventDef::StaticStruct());
+		for (int32 RowIndex = 0; RowIndex < 10; ++RowIndex)
+		{
+			Table->AddRow(FName(*FString::Printf(TEXT("evt_test_ten_%d"), RowIndex)), MakeRow(ECosmicEventTrigger::Lottery, ECosmicEventSubject::Civilization, 1.f, 0));
+		}
+		Sim->SetTables(WithEvents(Original, BaseRules, Table, 1, 0.1f));
+		FGalaxyState& State = Sim->GetMutableState();
+		const FName First = State.Civs[0].CivID;
+		// The first number of each of these streams is the roll of the first civilization.
+		for (const int32 StreamSeed : { -381761311, 1004703457 })
+		{
+			if (!TestTrue(TEXT("The stream seed gives one of the two largest fractions first"), FRandomStream(StreamSeed).GetFraction() > 0.9999997f))
+			{
+				continue;
+			}
+			int32 FiresForFirst = 0;
+			Scoped.Probe->OnEvent = [&FiresForFirst, First](const FCosmicEventNotice& Notice) { FiresForFirst += (Notice.CivID == First) ? 1 : 0; };
+			FRandomStream Handed(StreamSeed);
+			++State.Tick;
+			Events->EvaluateAndFire(State, Handed);
+			TestEqual(TEXT("With shares above a total of 1 the largest numbers of the stream still pick a row"), FiresForFirst, 1);
+		}
+		Scoped.Probe->OnEvent = nullptr;
+	}
+
 	// Rows whose names sort after the first leave the fires of the first as they were.
 	{
 		auto FiresOfA = [&](bool bWithOthers)
@@ -699,6 +977,70 @@ bool FCosmicEventsLotterySharesTest::RunTest(const FString& Parameters)
 			});
 			TestTrue(TEXT("A SettledSystem row has one share per settled system, in OwnedSystems order"), bPerSystem);
 			TestEqual(TEXT("Every settled system was picked at least once"), Hit.Num(), 3);
+		}
+	}
+
+	// A row that is cooling down gives up its own share and nobody else's: the row before it keeps its interval.
+	{
+		const FName Steady(TEXT("evt_test_cd_a"));
+		const FName Cooling(TEXT("evt_test_cd_b"));
+		UDataTable* Table = NewTable(FCosmicEventDef::StaticStruct());
+		Table->AddRow(Steady, MakeRow(ECosmicEventTrigger::Lottery, ECosmicEventSubject::Civilization, 1.f, 0));
+		Table->AddRow(Cooling, MakeRow(ECosmicEventTrigger::Lottery, ECosmicEventSubject::Civilization, 1.f, 100000));
+		Sim->NewGalaxy(42, 5, 3);
+		const int32 CivCount = Sim->GetState().Civs.Num();
+		TArray<bool> bCoolingFor;
+		bCoolingFor.Init(false, CivCount);
+		bool bOwnShareOnly = true;
+		int32 CivTurn = 0;
+		Play(Table, 0.25f, 40, [&](float Roll, const TArray<FCosmicEventNotice>& Fired)
+		{
+			const int32 CivIndex = CivTurn++ % CivCount;
+			FName Expected;
+			if (Roll < 0.25f)
+			{
+				Expected = Steady;
+			}
+			else if (Roll < 0.5f && !bCoolingFor[CivIndex])
+			{
+				Expected = Cooling;
+				bCoolingFor[CivIndex] = true;
+			}
+			bOwnShareOnly &= Expected.IsNone() ? Fired.IsEmpty() : (Fired.Num() == 1 && Fired[0].EventRow == Expected);
+		});
+		TestTrue(TEXT("A row on cooldown leaves the share of the row before it where it was"), bOwnShareOnly);
+		TestTrue(TEXT("The row with the cooldown fired once for every civilization"), !bCoolingFor.Contains(false));
+	}
+
+	// The cooldown is per row and civilization: once a SettledSystem row fired for one system, every unit of that row
+	// is out for that civilization, not only one of them.
+	{
+		Sim->NewGalaxy(42, 5, 3);
+		FGalaxyState& State = Sim->GetMutableState();
+		FCivilizationState& Civ = State.Civs[0];
+		for (FStarSystemState& System : State.Systems)
+		{
+			if (System.OwnerCivID.IsNone())
+			{
+				System.OwnerCivID = Civ.CivID;
+				Civ.OwnedSystems.Add(System.SystemID);
+			}
+		}
+		const int32 CivCount = State.Civs.Num();
+		if (TestEqual(TEXT("The test civilization owns three systems again"), Civ.OwnedSystems.Num(), 3))
+		{
+			UDataTable* Table = NewTable(FCosmicEventDef::StaticStruct());
+			Table->AddRow(RowA, MakeRow(ECosmicEventTrigger::Lottery, ECosmicEventSubject::SettledSystem, 1.f, 100000));
+			int32 FiresForThree = 0;
+			int32 CivTurn = 0;
+			Play(Table, 0.2f, 60, [&](float Roll, const TArray<FCosmicEventNotice>& Fired)
+			{
+				if (CivTurn++ % CivCount == 0)
+				{
+					FiresForThree += Fired.Num();
+				}
+			});
+			TestEqual(TEXT("A SettledSystem row with a cooldown fires once for a civilization, whatever the number of its systems"), FiresForThree, 1);
 		}
 	}
 
@@ -847,6 +1189,170 @@ bool FCosmicEventsCooldownPerCivTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicEventsConditionGateTest, "Cosmic_Ascension.Events.ConditionGate", CosmicTests::Flags)
+bool FCosmicEventsConditionGateTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicEventTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	UCosmicEventSubsystem* Events = Sim->GetGameInstance()->GetSubsystem<UCosmicEventSubsystem>();
+	const FCosmicDataTables Original = Sim->GetTables();
+	const FCosmicRulesDef BaseRules = Sim->GetRules();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); };
+
+	// Every civilization of a fresh galaxy is at tier 1: one condition that holds for all of them and one for none.
+	const FCosmicCondition Holds = Cond(EConditionType::CivTierAtLeast, nullptr, NAME_None, 1.f);
+	const FCosmicCondition Fails = Cond(EConditionType::CivTierAtLeast, nullptr, NAME_None, 5.f);
+
+	// CheckAll: AND in array order, true for no condition.
+	{
+		Sim->NewGalaxy(42, 5, 3);
+		FCosmicEvalView View(Sim->GetState(), Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules());
+		View.CivIndex = 0;
+		TestTrue(TEXT("CheckAll of no condition is true"), UCosmicEventSubsystem::CheckAll(TArray<FCosmicCondition>(), View));
+		TestTrue(TEXT("CheckAll of two conditions that hold is true"), UCosmicEventSubsystem::CheckAll(TArray<FCosmicCondition>({ Holds, Holds }), View));
+		TestFalse(TEXT("CheckAll is false when the last condition fails"), UCosmicEventSubsystem::CheckAll(TArray<FCosmicCondition>({ Holds, Fails }), View));
+		TestFalse(TEXT("CheckAll is false when the first condition fails"), UCosmicEventSubsystem::CheckAll(TArray<FCosmicCondition>({ Fails, Holds }), View));
+	}
+
+	TArray<FCosmicEventNotice> Notices;
+	FScopedProbe Scoped(*Sim);
+	Scoped.Probe->OnEvent = [&Notices](const FCosmicEventNotice& Notice) { Notices.Add(Notice); };
+
+	// One call of the slots with a slot for every civilization (slot period 1), against a fresh galaxy.
+	auto SlotsOnce = [&](UDataTable* Table, float Chance, TFunctionRef<void(FGalaxyState&)> Prepare)
+	{
+		Sim->SetTables(WithEvents(Original, BaseRules, Table, 1, Chance));
+		Sim->NewGalaxy(42, 5, 3);
+		FGalaxyState& State = Sim->GetMutableState();
+		Prepare(State);
+		Notices.Reset();
+		State.Tick = 3;
+		FRandomStream Handed(5);
+		return Events->EvaluateAndFire(State, Handed);
+	};
+	auto Untouched = [](FGalaxyState&) {};
+
+	// A SettledSystem row is judged on each settled system by itself: it fires where its condition holds and nowhere else.
+	{
+		const FName Hazy(TEXT("evt_test_hazy"));
+		FCosmicEventDef Def = MakeRow(ECosmicEventTrigger::Standing, ECosmicEventSubject::SettledSystem, 0.f, 0);
+		Def.Conditions.Add(Cond(EConditionType::SystemHasHazard, nullptr, NAME_None, 0.f));
+		UDataTable* Table = NewTable(FCosmicEventDef::StaticStruct());
+		Table->AddRow(Hazy, Def);
+		FName Marked;
+		FName Owner;
+		SlotsOnce(Table, 0.5f, [&](FGalaxyState& State)
+		{
+			// The first civilization takes the free systems; the second of its three carries a hazard.
+			FCivilizationState& Civ = State.Civs[0];
+			for (FStarSystemState& System : State.Systems)
+			{
+				if (System.OwnerCivID.IsNone())
+				{
+					System.OwnerCivID = Civ.CivID;
+					Civ.OwnedSystems.Add(System.SystemID);
+				}
+			}
+			Owner = Civ.CivID;
+			Marked = Civ.OwnedSystems.Num() == 3 ? Civ.OwnedSystems[1] : FName();
+			const int32 MarkedIndex = Sim->GetStateIndex().FindSystem(State, Marked);
+			if (State.Systems.IsValidIndex(MarkedIndex))
+			{
+				State.Systems[MarkedIndex].ActiveHazard = Tag(TEXT("Hazard.Plague"));
+			}
+		});
+		TestTrue(TEXT("A SettledSystem row fires for the one system where its condition holds"),
+			!Marked.IsNone() && Notices.Num() == 1 && Notices[0].EventRow == Hazy && Notices[0].CivID == Owner && Notices[0].SystemID == Marked);
+	}
+
+	// The conditions are judged again right before a Standing pair fires: the row that fires first in a slot sets a flag,
+	// and the row gathered with it, which needs the flag unset, does not fire after it.
+	{
+		const FName Spend(TEXT("evt_test_a_spend"));
+		const FName Once(TEXT("evt_test_b_once"));
+		FCosmicEventDef SpendDef = MakeRow(ECosmicEventTrigger::Standing, ECosmicEventSubject::Civilization, 0.f, 0);
+		SpendDef.Effects.Add(Eff(EEffectType::SetFlag, TEXT("Flag.Grace.Spent"), NAME_None, 0.f));
+		FCosmicEventDef OnceDef = MakeRow(ECosmicEventTrigger::Standing, ECosmicEventSubject::Civilization, 0.f, 0);
+		OnceDef.Conditions.Add(Cond(EConditionType::FlagNotSet, TEXT("Flag.Grace.Spent"), NAME_None, 0.f));
+
+		// Alone, the gated row fires for every civilization: nothing ever sets the flag.
+		UDataTable* Alone = NewTable(FCosmicEventDef::StaticStruct());
+		Alone->AddRow(Once, OnceDef);
+		TestEqual(TEXT("A row whose condition holds fires for every civilization"), SlotsOnce(Alone, 0.5f, Untouched), Sim->GetState().Civs.Num());
+
+		UDataTable* Both = NewTable(FCosmicEventDef::StaticStruct());
+		Both->AddRow(Once, OnceDef);
+		Both->AddRow(Spend, SpendDef);
+		SlotsOnce(Both, 0.5f, Untouched);
+		int32 SpendFires = 0;
+		int32 OnceFires = 0;
+		for (const FCosmicEventNotice& Notice : Notices)
+		{
+			SpendFires += (Notice.EventRow == Spend) ? 1 : 0;
+			OnceFires += (Notice.EventRow == Once) ? 1 : 0;
+		}
+		TestEqual(TEXT("The row that sets the flag fires for every civilization"), SpendFires, Sim->GetState().Civs.Num());
+		TestEqual(TEXT("A Standing row whose condition an earlier row of the same slot turned false does not fire"), OnceFires, 0);
+	}
+
+	// Lottery rows pass the same gate: at a chance of 1 a row whose condition fails never fires and one whose condition
+	// holds fires for every civilization.
+	{
+		FCosmicEventDef Closed = MakeRow(ECosmicEventTrigger::Lottery, ECosmicEventSubject::Civilization, 1.f, 0);
+		Closed.Conditions.Add(Fails);
+		UDataTable* ClosedTable = NewTable(FCosmicEventDef::StaticStruct());
+		ClosedTable->AddRow(FName(TEXT("evt_test_closed")), Closed);
+		TestEqual(TEXT("A Lottery row whose condition fails never fires"), SlotsOnce(ClosedTable, 1.f, Untouched), 0);
+
+		FCosmicEventDef Open = MakeRow(ECosmicEventTrigger::Lottery, ECosmicEventSubject::Civilization, 1.f, 0);
+		Open.Conditions.Add(Holds);
+		UDataTable* OpenTable = NewTable(FCosmicEventDef::StaticStruct());
+		OpenTable->AddRow(FName(TEXT("evt_test_open")), Open);
+		TestEqual(TEXT("A Lottery row whose condition holds fires for every civilization at a chance of 1"), SlotsOnce(OpenTable, 1.f, Untouched), Sim->GetState().Civs.Num());
+	}
+
+	// A row fired by name: false when a condition fails, with nothing drawn, written, told or announced.
+	{
+		const FName ClosedRow(TEXT("evt_test_named_closed"));
+		const FName OpenRow(TEXT("evt_test_named_open"));
+		FCosmicEventDef Def = MakeRow(ECosmicEventTrigger::Named, ECosmicEventSubject::Civilization, 0.f, 0);
+		Def.Effects.Add(Eff(EEffectType::ChangeStability, nullptr, NAME_None, -0.1f));
+		Def.LogTemplates = ThreeLines(TEXT("gate"));
+		UDataTable* Table = NewTable(FCosmicEventDef::StaticStruct());
+		Def.Conditions = { Fails };
+		Table->AddRow(ClosedRow, Def);
+		Def.Conditions = { Holds, Holds };
+		Table->AddRow(OpenRow, Def);
+		Sim->SetTables(WithEvents(Original, BaseRules, Table, 1, 0.5f));
+		Sim->NewGalaxy(42, 5, 3);
+		Notices.Reset();
+		const FGalaxyState& State = Sim->GetState();
+
+		const uint32 Full = Sim->ComputeStateHash();
+		const uint32 World = Sim->ComputeWorldHash();
+		const int32 SimSeed = Sim->GetRng().GetCurrentSeed();
+		const int32 TellSeed = State.TellRngState;
+		const int32 Lines = State.Log.Num();
+		FCosmicEvalContext Ctx = Sim->MakeEvalContext();
+		Ctx.CivIndex = 1;
+		TestFalse(TEXT("FireRow is false when a condition of the row fails"), Events->FireRow(ClosedRow, Ctx));
+		TestTrue(TEXT("A refused row draws nothing, writes nothing, tells nothing and announces nothing"),
+			Sim->ComputeStateHash() == Full && Sim->ComputeWorldHash() == World && Sim->GetRng().GetCurrentSeed() == SimSeed
+			&& State.TellRngState == TellSeed && State.Log.Num() == Lines && Notices.IsEmpty());
+		TestTrue(TEXT("The same row with conditions that hold fires"),
+			Events->FireRow(OpenRow, Ctx) && Notices.Num() == 1 && State.Log.Num() == Lines + 1 && Sim->ComputeWorldHash() != World);
+	}
+
+	Scoped.Probe->OnEvent = nullptr;
+	Sim->SetTables(Original);
+	Sim->NewGalaxy(42, 5, 3);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicEventsRowAtomicTest, "Cosmic_Ascension.Events.RowAtomic", CosmicTests::Flags)
 bool FCosmicEventsRowAtomicTest::RunTest(const FString& Parameters)
 {
@@ -861,13 +1367,20 @@ bool FCosmicEventsRowAtomicTest::RunTest(const FString& Parameters)
 	const FCosmicRulesDef BaseRules = Sim->GetRules();
 	ON_SCOPE_EXIT { Sim->SetTables(Original); };
 
-	// The one error line of the FireRow issued from inside a handler.
-	AddExpectedError(TEXT("FireRow called from a handler of a Core Logic delegate"), EAutomationExpectedErrorFlags::Contains, 1);
+	// The error lines of the calls issued from inside a handler: FireRow and EvaluateAndFire once from each of the two
+	// delegates, MakeEvalContext once from OnEventFired. Then the two calls over a state that is not the live one.
+	AddExpectedError(TEXT("FireRow called from a handler of a Core Logic delegate"), EAutomationExpectedErrorFlags::Contains, 2);
+	AddExpectedError(TEXT("EvaluateAndFire called from a handler of a Core Logic delegate"), EAutomationExpectedErrorFlags::Contains, 2);
+	AddExpectedError(TEXT("MakeEvalContext called from a handler of a Core Logic delegate"), EAutomationExpectedErrorFlags::Contains, 1);
+	AddExpectedError(TEXT("EvaluateAndFire: the state handed in is not the live state"), EAutomationExpectedErrorFlags::Contains, 1);
+	AddExpectedError(TEXT("FireRow: the context is not over the live state"), EAutomationExpectedErrorFlags::Contains, 1);
 
-	// A row with three effects of different kinds and a line.
+	// A row with a line and four effects: the first is always turned away in a fired row (MultiplyIncome belongs to the
+	// per-tick sources), the other three are of different kinds.
 	const FName RowName(TEXT("evt_test_atomic"));
 	const FName SlotRow(TEXT("evt_test_slot"));
 	FCosmicEventDef Def = MakeRow(ECosmicEventTrigger::Named, ECosmicEventSubject::Civilization, 0.f, 0);
+	Def.Effects.Add(Eff(EEffectType::MultiplyIncome, nullptr, FName(TEXT("Energy")), 2.f));
 	Def.Effects.Add(Eff(EEffectType::ChangeStability, nullptr, NAME_None, -0.1f));
 	Def.Effects.Add(Eff(EEffectType::NameNotable, TEXT("Notable.Hearer"), NAME_None, 0.f));
 	Def.Effects.Add(Eff(EEffectType::AddResource, nullptr, FName(TEXT("Matter")), 5.f));
@@ -902,33 +1415,62 @@ bool FCosmicEventsRowAtomicTest::RunTest(const FString& Parameters)
 		}
 		if (bTryNestedFire)
 		{
-			// A handler that breaks its contract: the fire is refused and nothing changes. The context is built by hand:
-			// MakeEvalContext would report the same mistake a second time. Tried once: a fire that is not refused must
-			// fail this test, not run away.
+			// A handler that breaks its contract: a fire by name and the slots are refused and nothing changes, the sim
+			// stream included. The context is built by hand: MakeEvalContext would report the same mistake once more.
+			// Tried once: a call that is not refused must fail this test, not run away.
 			bTryNestedFire = false;
 			const uint32 Before = Sim->ComputeStateHash();
+			const int32 SeedBefore = Sim->GetRng().GetCurrentSeed();
 			FCosmicEvalContext Ctx(Sim->GetMutableState(), Sim->GetRng(), Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules());
 			Ctx.CivIndex = 1;
-			bNestedFireRefused &= !Events->FireRow(RowName, Ctx) && Sim->ComputeStateHash() == Before;
+			bNestedFireRefused &= !Events->FireRow(RowName, Ctx);
+			bNestedFireRefused &= Events->EvaluateAndFire(Sim->GetMutableState(), Sim->GetRng()) == 0;
+			bNestedFireRefused &= Sim->ComputeStateHash() == Before && Sim->GetRng().GetCurrentSeed() == SeedBefore;
 		}
 	};
+	TArray<uint32> HashAtNotice;
+	bool bNestedFromNoticeRefused = true;
+	bool bTryNestedFromNotice = false;
 	Scoped.Probe->OnEvent = [&](const FCosmicEventNotice& Notice)
 	{
 		Notices.Add(Notice);
 		LinesAtNotice.Add(HashAtLine.Num());
+		HashAtNotice.Add(Sim->ComputeWorldHash());
+		if (bTryNestedFromNotice)
+		{
+			// The same broken contract from the other delegate, tried once: a fire by name, the slots, and a context
+			// asked of the simulation. All three are refused and nothing changes, the sim stream included.
+			bTryNestedFromNotice = false;
+			const uint32 Before = Sim->ComputeStateHash();
+			const int32 SeedBefore = Sim->GetRng().GetCurrentSeed();
+			FCosmicEvalContext Ctx(Sim->GetMutableState(), Sim->GetRng(), Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules());
+			Ctx.CivIndex = 1;
+			bNestedFromNoticeRefused &= !Events->FireRow(RowName, Ctx);
+			bNestedFromNoticeRefused &= Events->EvaluateAndFire(Sim->GetMutableState(), Sim->GetRng()) == 0;
+			(void)Sim->MakeEvalContext();
+			bNestedFromNoticeRefused &= Sim->ComputeStateHash() == Before && Sim->GetRng().GetCurrentSeed() == SeedBefore;
+		}
 	};
 
 	// Fired by name.
 	{
 		const float StabilityBefore = State.Civs[1].Stability;
+		const float MatterBefore = State.Civs[1].Stockpile.Matter;
+		// An income above zero, so that a doubling would show (before the first tick it is 0). The caller's context even
+		// claims to be a per-tick source: a fire runs on a context of its own and does not take that over.
+		Sim->GetMutableState().Civs[1].IncomePerTick.Energy = 4.f;
 		FCosmicEvalContext Ctx = Sim->MakeEvalContext();
 		Ctx.CivIndex = 1;
+		Ctx.bPerTickSource = true;
 		TestTrue(TEXT("The row fires"), Events->FireRow(RowName, Ctx));
 		Sim->SyncRngState();
-		TestTrue(TEXT("Every effect was applied"), State.Civs[1].Stability < StabilityBefore && State.Civs[1].Notables.Num() == 1);
+		TestEqual(TEXT("The effect that is turned away changes nothing"), State.Civs[1].IncomePerTick.Energy, 4.f);
+		TestTrue(TEXT("Every effect after the one that was turned away was applied, the last one too"),
+			State.Civs[1].Stability < StabilityBefore && State.Civs[1].Notables.Num() == 1 && FMath::IsNearlyEqual(State.Civs[1].Stockpile.Matter, MatterBefore + 5.f));
 		TestTrue(TEXT("The line left once, after the last effect: the world at the line is the world after the row"),
 			HashAtLine.Num() == 1 && HashAtLine[0] == Sim->ComputeWorldHash());
-		TestTrue(TEXT("OnEventFired came once, after the line"), Notices.Num() == 1 && LinesAtNotice[0] == 1);
+		TestTrue(TEXT("OnEventFired came once, after the line, and saw the world after the row"),
+			Notices.Num() == 1 && LinesAtNotice[0] == 1 && HashAtNotice[0] == Sim->ComputeWorldHash());
 		if (Notices.Num() == 1)
 		{
 			TestTrue(TEXT("The notice carries the row, the subject and the tick"),
@@ -938,17 +1480,47 @@ bool FCosmicEventsRowAtomicTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The entry carries the row, its log category and the people"),
 			State.Log.Last().SourceRow == RowName && State.Log.Last().Category == Tag(TEXT("Log.Civ")) && State.Log.Last().FocusCivID == CivID
 			&& State.Log.Last().FocusSystemID.IsNone() && State.Log.Last().Severity == 1);
-		TestEqual(TEXT("The record names the row that made it"), State.Civs[1].Notables[0].SourceRow, RowName);
+		// Guarded: a regression that makes no record has to fail this test, not end the process on an array check.
+		if (State.Civs[1].Notables.Num() == 1)
+		{
+			TestEqual(TEXT("The record names the row that made it"), State.Civs[1].Notables[0].SourceRow, RowName);
+		}
 	}
 
-	// A fire issued from a handler is refused with one error line and changes nothing.
+	// A fire issued from a handler is refused with one error line and changes nothing: from OnLogEntry, then from
+	// OnEventFired, where the slots and MakeEvalContext are tried as well.
 	{
 		bTryNestedFire = true;
 		FCosmicEvalContext Ctx = Sim->MakeEvalContext();
 		Ctx.CivIndex = 2;
 		TestTrue(TEXT("The outer row still fires"), Events->FireRow(RowName, Ctx));
 		bTryNestedFire = false;
-		TestTrue(TEXT("A FireRow issued from a handler is refused and changes nothing"), bNestedFireRefused);
+		TestTrue(TEXT("FireRow and EvaluateAndFire issued from a handler of OnLogEntry are refused and change nothing"), bNestedFireRefused);
+
+		bTryNestedFromNotice = true;
+		TestTrue(TEXT("The outer row fires again"), Events->FireRow(RowName, Ctx));
+		TestTrue(TEXT("The handler of OnEventFired made its attempt"), !bTryNestedFromNotice);
+		bTryNestedFromNotice = false;
+		TestTrue(TEXT("FireRow, EvaluateAndFire and MakeEvalContext issued from a handler of OnEventFired are refused and change nothing"), bNestedFromNoticeRefused);
+		Sim->SyncRngState();
+	}
+
+	// Neither member runs over a state that is not the live one: one error line each, nothing drawn, nothing changed.
+	{
+		FGalaxyState Detached = Sim->GetState();
+		FCosmicStateIndex DetachedIndex;
+		DetachedIndex.Rebuild(Detached);
+		FRandomStream Handed(11);
+		const uint32 LiveBefore = Sim->ComputeStateHash();
+		const float StabilityBefore = Detached.Civs[1].Stability;
+		const int32 LinesBefore = Sim->GetState().Log.Num();
+		TestEqual(TEXT("EvaluateAndFire over a detached state fires nothing"), Events->EvaluateAndFire(Detached, Handed), 0);
+		FCosmicEvalContext Ctx(Detached, Handed, DetachedIndex, Sim->GetTables(), Sim->GetRules());
+		Ctx.CivIndex = 1;
+		TestFalse(TEXT("FireRow over a detached state is false"), Events->FireRow(RowName, Ctx));
+		TestTrue(TEXT("The refused calls drew nothing and changed neither state"),
+			Handed.GetCurrentSeed() == FRandomStream(11).GetCurrentSeed() && Sim->ComputeStateHash() == LiveBefore
+			&& Detached.Civs[1].Stability == StabilityBefore && Sim->GetState().Log.Num() == LinesBefore);
 	}
 
 	// On the slot path the cooldown key is already written when the line leaves.
@@ -1000,6 +1572,8 @@ bool FCosmicEventsNotableDrawFixedTest::RunTest(const FString& Parameters)
 
 	FCosmicDataTables Named = Original;
 	Named.Civs = CivsWithNames(Original);
+	FCosmicDataTables Nameless = Original;
+	Nameless.Civs = CivsWithoutNames(Original);
 	FCosmicRulesDef SmallRoster = BaseRules;
 	SmallRoster.MaxNotablesPerCiv = 2;
 
@@ -1028,7 +1602,7 @@ bool FCosmicEventsNotableDrawFixedTest::RunTest(const FString& Parameters)
 	bool bMade = false;
 	TestTrue(TEXT("A record made: one draw"), Try(Nothing, Named, BaseRules, 1, NameRebel, bMade) && bMade);
 	TestTrue(TEXT("No civilization: refused, one draw"), Try(Nothing, Named, BaseRules, INDEX_NONE, NameRebel, bMade) && !bMade);
-	TestTrue(TEXT("An empty name bank: refused, one draw"), Try(Nothing, Original, BaseRules, 1, NameRebel, bMade) && !bMade);
+	TestTrue(TEXT("An empty name bank: refused, one draw"), Try(Nothing, Nameless, BaseRules, 1, NameRebel, bMade) && !bMade);
 	TestTrue(TEXT("Trait.Mind.NoSelf: refused, one draw"),
 		Try([](FGalaxyState& State) { State.Civs[1].Traits.AddTag(Tag(TEXT("Trait.Mind.NoSelf"))); }, Named, BaseRules, 1, NameRebel, bMade) && !bMade);
 	TestTrue(TEXT("A people of the fourth rung: refused, one draw"),
@@ -1046,11 +1620,12 @@ bool FCosmicEventsNotableDrawFixedTest::RunTest(const FString& Parameters)
 			Regent.FirstTick = 2;
 		}, Named, SmallRoster, 1, NameRebel, bMade) && !bMade);
 
-	// The guards of a record that is made: the open record of the role is closed, the roster keeps its cap, the name is
-	// one nobody carries.
+	// Guard 3: the open record of the role is closed and a new one is made. Closed means LastTick above zero, also when
+	// the seat changes hands before the first tick: 0 is the mark of an open record.
+	for (const int64 Tick : { 77, 0 })
 	{
 		FGalaxyState Detached = Fresh;
-		Detached.Tick = 77;
+		Detached.Tick = Tick;
 		FCosmicStateIndex Index;
 		Index.Rebuild(Detached);
 		FRandomStream Handed(55);
@@ -1060,14 +1635,90 @@ bool FCosmicEventsNotableDrawFixedTest::RunTest(const FString& Parameters)
 		UCosmicEventSubsystem::Apply(NameRebel, Ctx);
 		UCosmicEventSubsystem::Apply(NameRebel, Ctx);
 		const TArray<FNotableRecord>& Notables = Detached.Civs[1].Notables;
-		TestTrue(TEXT("A second rebel closes the first: one closed and one open record"),
-			Notables.Num() == 2 && Notables[0].LastTick == 77 && Notables[1].LastTick == 0 && Notables[1].FirstTick == 77 && Notables[1].SourceRow == Ctx.SourceRow);
-		TestTrue(TEXT("The second record carries another name"), Notables.Num() == 2 && Notables[0].NameIndex != Notables[1].NameIndex);
-		UCosmicEventSubsystem::Apply(NameRebel, Ctx);
-		TestTrue(TEXT("At the cap the record closed longest ago leaves"), Notables.Num() == 2 && Notables[1].LastTick == 0);
+		if (Tick > 0)
+		{
+			TestTrue(TEXT("A second rebel closes the first: one closed and one open record"),
+				Notables.Num() == 2 && Notables[0].LastTick == 77 && Notables[1].LastTick == 0 && Notables[1].FirstTick == 77 && Notables[1].SourceRow == Ctx.SourceRow);
+		}
+		else
+		{
+			TestTrue(TEXT("At tick 0 the record that was closed still reads as closed"),
+				Notables.Num() == 2 && Notables[0].LastTick > 0 && Notables[1].LastTick == 0);
+		}
 	}
 
-	// A whole run: the same sim stream with empty name banks and with filled ones, Install's draw included.
+	// Guard 4 and the name, on rosters written out by hand so that every record differs in what the rule reads.
+	{
+		auto Rec = [](const TCHAR* Role, int32 NameIndex, int64 FirstTick, int64 LastTick)
+		{
+			FNotableRecord Record;
+			Record.Role = Tag(Role);
+			Record.NameIndex = NameIndex;
+			Record.FirstTick = FirstTick;
+			Record.LastTick = LastTick;
+			return Record;
+		};
+		// The roster of civilization 1 after one application at tick 90, with the given cap and stream.
+		auto RosterAfter = [&](const TArray<FNotableRecord>& Roster, int32 Cap, const FCosmicEffect& Effect, int32 StreamSeed, bool& bOutMade)
+		{
+			FGalaxyState Detached = Fresh;
+			Detached.Tick = 90;
+			Detached.Civs[1].Notables = Roster;
+			FCosmicStateIndex Index;
+			Index.Rebuild(Detached);
+			FRandomStream Handed(StreamSeed);
+			FCosmicRulesDef Rules = BaseRules;
+			Rules.MaxNotablesPerCiv = Cap;
+			FCosmicEvalContext Ctx(Detached, Handed, Index, Named, Rules);
+			Ctx.CivIndex = 1;
+			Ctx.SourceRow = FName(TEXT("evt_test"));
+			bOutMade = UCosmicEventSubsystem::Apply(Effect, Ctx);
+			return Detached.Civs[1].Notables;
+		};
+		auto HasFirstTick = [](const TArray<FNotableRecord>& Roster, int64 FirstTick)
+		{
+			return Roster.ContainsByPredicate([FirstTick](const FNotableRecord& Record) { return Record.FirstTick == FirstTick; });
+		};
+
+		// Two closed records and an open one that is older than both: the record closed longest ago leaves, not the one
+		// closed last and not the open one.
+		{
+			const TArray<FNotableRecord> After = RosterAfter(
+				{ Rec(TEXT("Notable.Loyalist"), 0, 10, 50), Rec(TEXT("Notable.Loyalist"), 1, 20, 40), Rec(TEXT("Notable.Hearer"), 2, 5, 0) }, 3, NameRebel, 55, bMade);
+			TestTrue(TEXT("At the cap the record closed longest ago leaves, before an older open one"),
+				bMade && After.Num() == 3 && !HasFirstTick(After, 20) && HasFirstTick(After, 10) && HasFirstTick(After, 5) && HasFirstTick(After, 90));
+		}
+		// Closed in the same tick: the older record leaves, although it stands later in the array.
+		{
+			const TArray<FNotableRecord> After = RosterAfter(
+				{ Rec(TEXT("Notable.Loyalist"), 0, 75, 80), Rec(TEXT("Notable.Loyalist"), 1, 70, 80), Rec(TEXT("Notable.Hearer"), 2, 60, 0) }, 3, NameRebel, 55, bMade);
+			TestTrue(TEXT("Of two records closed in the same tick the older one leaves"),
+				bMade && After.Num() == 3 && !HasFirstTick(After, 70) && HasFirstTick(After, 75) && HasFirstTick(After, 60));
+		}
+		// No closed record: the oldest open record that is neither ruler nor regent leaves.
+		{
+			const TArray<FNotableRecord> After = RosterAfter(
+				{ Rec(TEXT("Notable.Ruler"), 0, 1, 0), Rec(TEXT("Notable.Hearer"), 1, 30, 0), Rec(TEXT("Notable.Ascendant"), 2, 20, 0) }, 3, NameRebel, 55, bMade);
+			TestTrue(TEXT("With no closed record the oldest open record that is neither ruler nor regent leaves"),
+				bMade && After.Num() == 3 && !HasFirstTick(After, 20) && HasFirstTick(After, 1) && HasFirstTick(After, 30) && HasFirstTick(After, 90));
+		}
+		// The name: with two of the three bank indices taken the new record gets the third, whatever number was drawn.
+		{
+			bool bFreeName = true;
+			for (int32 StreamSeed = 1; StreamSeed <= 24; ++StreamSeed)
+			{
+				const TArray<FNotableRecord> After = RosterAfter({ Rec(TEXT("Notable.Hearer"), 0, 30, 0), Rec(TEXT("Notable.Ascendant"), 2, 20, 0) }, 8, NameRebel, StreamSeed, bMade);
+				bFreeName &= bMade && After.Num() == 3 && After.Last().NameIndex == 1;
+			}
+			TestTrue(TEXT("The new record carries the one name nobody of the roster carries"), bFreeName);
+			const TArray<FNotableRecord> Full = RosterAfter(
+				{ Rec(TEXT("Notable.Hearer"), 0, 30, 0), Rec(TEXT("Notable.Ascendant"), 2, 20, 0), Rec(TEXT("Notable.Loyalist"), 1, 10, 0) }, 8, NameRebel, 55, bMade);
+			TestTrue(TEXT("When every name is taken the bank is open again"), bMade && Full.Num() == 4 && Full.Last().NameIndex >= 0 && Full.Last().NameIndex <= 2);
+		}
+	}
+
+	// A whole run: the same sim stream with empty name banks and with filled ones, Install's draw included. Both sides
+	// are tables built here: the comparison does not lean on the game's banks being empty.
 	auto SeedAfter = [Sim](const FCosmicDataTables& Tables)
 	{
 		Sim->SetTables(Tables);
@@ -1075,7 +1726,7 @@ bool FCosmicEventsNotableDrawFixedTest::RunTest(const FString& Parameters)
 		Sim->RunHeadless(1000);
 		return Sim->GetRng().GetCurrentSeed();
 	};
-	TestEqual(TEXT("Filling the name banks does not move the sim stream"), SeedAfter(Named), SeedAfter(Original));
+	TestEqual(TEXT("Filling the name banks does not move the sim stream"), SeedAfter(Named), SeedAfter(Nameless));
 
 	Sim->SetTables(Original);
 	Sim->NewGalaxy(42, 5, 3);
@@ -1147,6 +1798,16 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("A KillPlayer inside the birth protection is turned away"), UCosmicEventSubsystem::Apply(Kill, Bench.Ctx));
 		TestFalse(TEXT("A shielded kill leaves the slot free"), Bench.State.Calling.PendingEffect.IsValid());
 		TestTrue(TEXT("A DeposeRuler after a shielded kill is recorded"), UCosmicEventSubsystem::Apply(Depose, Bench.Ctx) && Bench.State.Calling.PendingEffect == DeposeTag);
+	}
+	// The shield covers the ticks of a life below BirthProtectionTicks: the last of them is shielded, the next is not.
+	{
+		const int64 Protection = Sim->GetRules().BirthProtectionTicks;
+		FBench Last(Fresh, *Sim, Fresh.Calling.BornTick + Protection - 1);
+		Last.Ctx.CivIndex = 0;
+		TestFalse(TEXT("The last tick of the birth protection is shielded"), UCosmicEventSubsystem::Apply(Kill, Last.Ctx));
+		FBench Next(Fresh, *Sim, Fresh.Calling.BornTick + Protection);
+		Next.Ctx.CivIndex = 0;
+		TestTrue(TEXT("The tick after the birth protection is not shielded"), UCosmicEventSubsystem::Apply(Kill, Next.Ctx) && Next.State.Calling.PendingEffect == KillTag);
 	}
 
 	// What happens to a system reaches only a wanderer standing in it.
@@ -1242,6 +1903,21 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("SpawnHazard, ResolveHazard and TransferSystem are turned away until the hazard step"), bHazardEffects);
 		TestTrue(TEXT("The turned-away effects left the system alone"),
 			!Bench.State.Systems[1].ActiveHazard.IsValid() && Bench.State.Systems[1].OwnerCivID == Fresh.Systems[1].OwnerCivID);
+
+		// The other party of a relation has to be a living people or a transcendent of the run: a name that is neither
+		// (a selector word no code resolves, a people that is gone) is turned away and leaves no entry behind.
+		const int32 EntriesBefore = Civ.Relations.Num();
+		TestFalse(TEXT("ChangeRelation towards a name that is no party is turned away"),
+			UCosmicEventSubsystem::Apply(Eff(EEffectType::ChangeRelation, nullptr, FName(TEXT("Former")), 0.1f), Bench.Ctx));
+		Bench.Ctx.OtherID = FName(TEXT("civ_gone"));
+		TestFalse(TEXT("ChangeRelation towards a people that is gone is turned away"),
+			UCosmicEventSubsystem::Apply(Eff(EEffectType::ChangeRelation, nullptr, NAME_None, 0.1f), Bench.Ctx));
+		TestEqual(TEXT("A relation that was turned away leaves no entry"), Civ.Relations.Num(), EntriesBefore);
+		const FName Transcendent(TEXT("tr_test"));
+		Bench.State.Transcendents.AddDefaulted_GetRef().TranscendentID = Transcendent;
+		TestTrue(TEXT("A transcendent of the run is a party: the entry is made on first write"),
+			UCosmicEventSubsystem::Apply(Eff(EEffectType::ChangeRelation, nullptr, Transcendent, 0.2f), Bench.Ctx)
+			&& Civ.Relations.Num() == EntriesBefore + 1 && Civ.Relations.FindRef(Transcendent) == 0.2f);
 
 		Bench.Ctx.CivIndex = INDEX_NONE;
 		TestFalse(TEXT("A civ effect without a civilization is turned away"), UCosmicEventSubsystem::Apply(Eff(EEffectType::ChangeStability, nullptr, NAME_None, 0.25f), Bench.Ctx));

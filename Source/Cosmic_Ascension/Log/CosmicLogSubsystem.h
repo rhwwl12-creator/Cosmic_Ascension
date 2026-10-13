@@ -88,7 +88,8 @@ public:
 
 	// Fired for every appended entry while the global broadcast gate is open (section 6.1). With the gate closed the
 	// entry is only stored. Fired synchronously, also from inside a tick stage: a handler may read the state and call
-	// SetTimeScale, but must not call NewGalaxy, LoadGalaxy, SaveCurrentGalaxy, StepOnce or RunHeadless (section 9.4).
+	// SetTimeScale, but must not call NewGalaxy, LoadGalaxy, SaveCurrentGalaxy, StepOnce or RunHeadless, nor the evaluator
+	// (UCosmicEventSubsystem::EvaluateAndFire, FireRow, Apply). OnEventFired has the same contract (section 9.4).
 	UPROPERTY(BlueprintAssignable)
 	FOnLogEntry OnLogEntry;
 

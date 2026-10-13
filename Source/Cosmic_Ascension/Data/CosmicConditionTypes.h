@@ -18,7 +18,8 @@ enum class EConditionType : uint8
 	CivResourceAtLeast,
 	CivStabilityBelow,
 	CivEthicsAxisAbove,
-	// Value = threshold, Key = tick count. Reads FCivilizationState.LowStabilityTicks (section 4.1).
+	// Value = threshold, Key = tick count (digits only, above zero; anything else is false). Reads
+	// FCivilizationState.LowStabilityTicks (section 4.1).
 	CivStabilityBelowFor,
 	// Key = other ID (CivID or TranscendentID).
 	CivRelationAtLeast,
@@ -26,7 +27,8 @@ enum class EConditionType : uint8
 	CivReverenceAtLeast,
 	SystemHasHazard,
 	SystemOwnedBy,
-	// True only when MegaprojectCompletedTick > 0 and >= Calling.BornTick (section 4.4).
+	// True only when MegaprojectCompletedTick > 0 and >= the SinceTick of the evaluation: 0 for events, hazards and AI
+	// feats, Calling.BornTick only in the judgment of the player's feats (section 4.4, 7.5).
 	MegaprojectComplete,
 	// Spiritual pressure P(System) >= Value (section 4.2).
 	SystemPressureAtLeast,
@@ -45,7 +47,7 @@ enum class EConditionType : uint8
 	// Only with aging ON (section 4.4).
 	PlayerAgeAtLeast,
 	GalaxyTickAtLeast,
-	// True only when bSealed and SealedTick >= Calling.BornTick (section 4.4).
+	// True only when bSealed and SealedTick >= the SinceTick of the evaluation (as MegaprojectComplete; section 4.4, 7.5).
 	TranscendentSealed,
 	TranscendentAwareOfPlayer,
 	// Tag = Flag.*. Reads FGalaxyState.Flags (section 4.5).
@@ -54,7 +56,8 @@ enum class EConditionType : uint8
 	// Tag = Doctrine.*. Is there an unsealed active Transcendent of that doctrine (section 4.2, 4.4).
 	TranscendentDoctrinePresent,
 	// Tag = Notable.*. Does the context civ hold an open record (LastTick == 0) of that role (section 7.2).
-	// Key = context civ selector: empty = owner of the current system, Former = FormerCivID.
+	// Key = civ selector: empty = the context civilization (FCosmicEvalSubject.CivIndex; a caller that means the owner of
+	// the current system puts that owner there), Former = FormerCivID.
 	// The only condition that reads notables; it only picks encounter variants.
 	CivHasNotable
 };
@@ -106,8 +109,8 @@ enum class EEffectType : uint8
 	// Value = ratio. Applies to the civ's Population only; there is no per-system population (section 4.1, 4.2).
 	ChangePopulation,
 	// Tag = Notable.*, Value 0. Adds one notable record to the context civ (Key = selector, as in CivHasNotable).
-	// Guards live in UCosmicEventSubsystem::Apply (section 7.5). The only effect that makes a notable record; its target is
-	// the civ, never a person.
+	// Guards live in UCosmicEventSubsystem::Apply (section 7.5); it draws one number per application, before its guards.
+	// The only effect that makes a notable record; its target is the civ, never a person.
 	NameNotable
 	// Phase 6+ (append): MultiplyResearch, PopulationLossMultiplier, StabilityFloor (section 4.2).
 };
