@@ -265,7 +265,7 @@
 				"BridgeTicks": {"kind": "number", "min": 0, "integer": true},
 				"StarCountText": {"kind": "text", "hedged": ["약", "추정"]},
 				"DistanceText": {"kind": "text", "required": true, "hedged": ["약", "추정"]},
-				"FeatureText": {"kind": "text"},
+				"FeatureText": {"kind": "text", "hedged": ["약", "추정"]},
 				"MapPosition": {"kind": "plain"},
 				"StarNameBank": {"kind": "texts", "unique": true, "slots": [], "no_digits": true, "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
 				"CatalogPrefixes": {"kind": "texts", "unique": true, "slots": [], "no_digits": true, "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},

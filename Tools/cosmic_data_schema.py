@@ -121,13 +121,15 @@ TESTS = {
 # Test -> the kinds of column it can be asked of. Asked of another kind it would never hold (or always).
 VALUE_KINDS = ("plain", "number", "text", "tag", "row", "enum")
 SIZED_KINDS = ("numbers", "texts", "tags", "tag_list", "tag_map", "row_map", "word_map", "conditions", "effects")
+# A pool is a list or a map; a tag container is no pool of names (its export text is a string, never held as a list).
+POOL_KINDS = tuple(kind for kind in SIZED_KINDS if kind != "tags")
 TEST_KINDS = {
     "is": VALUE_KINDS, "in": VALUE_KINDS, "gt": ("number",), "ge": ("number",), "lt": ("number",), "le": ("number",),
     "set": tuple(kind for kind in COLUMN_KINDS if kind not in ("number", "enum")), "min_len": SIZED_KINDS, "max_len": SIZED_KINDS, "each_contains": ("texts",),
-    "lacks_type": ("conditions", "effects"), "slots_in": ("text", "texts"), "len_ge_col": SIZED_KINDS, "pairs_ge_col": SIZED_KINDS,
+    "lacks_type": ("conditions", "effects"), "slots_in": ("text", "texts"), "len_ge_col": POOL_KINDS, "pairs_ge_col": POOL_KINDS,
 }
 # The kinds of the columns a test names besides its own: the number to reach, the other pool.
-NAMED_COLUMNS = {"len_ge_col": (("number",),), "pairs_ge_col": (SIZED_KINDS, ("number",))}
+NAMED_COLUMNS = {"len_ge_col": (("number",),), "pairs_ge_col": (POOL_KINDS, ("number",))}
 
 TOP_KEYS = {
     "version": NUMBER, "about": NAMES, "tag_sources": NAMES, "row_name_sources": NAMES, "required_tags": NAMES,
@@ -684,9 +686,11 @@ class Checker:
             self.report(where, "a text is required here")
         if spec.get("no_digits") and any(ch.isdigit() for ch in value):
             self.report(where, "a digit in a text that carries none: %s" % value)
-        # A number of the sky is always an estimate (guideline 8.3): a text of such a column says so. An empty one is let be.
-        if "hedged" in spec and value != "" and not any(word in value for word in spec["hedged"]):
-            self.report(where, "a text without %s: %s" % (" or ".join(spec["hedged"]), value))
+        # A number of the sky is always an estimate (guideline 8.3): a text of such a column that carries a digit carries
+        # one of the words too, as a word of its own: a Hangul syllable joined to it makes another word (no hedge).
+        if "hedged" in spec and any(ch.isdigit() for ch in value) and not any(
+                re.search("(?<![\uac00-\ud7a3])" + re.escape(word) + "(?![\uac00-\ud7a3])", value) for word in spec["hedged"]):
+            self.report(where, "a number without %s: %s" % (" or ".join(spec["hedged"]), value))
         for word in spec.get("forbidden", []):
             if word in value:
                 self.report(where, "the word %s is not used here: %s" % (word, value))

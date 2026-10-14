@@ -4,9 +4,10 @@ Cosmic Ascension - data layer helper (guideline.md section 7.3, 9.3 Data.Integri
 
   python Tools/test_data_schema.py
 
-The base of every case is the data of the project itself under the schema of the project (it has to pass), plus one
-valid DT_Events row and two valid DT_Transcendents rows built here, because those tables have no source yet. A case
-changes one thing and names the words the report has to carry.
+The base of every case is the data of the project itself under the schema of the project (it has to pass), with the
+rows of two tables built here instead: DT_Events, which has no source yet, and DT_Transcendents, whose rows the cases
+read cell by cell (the project's rows are replaced on purpose). A case changes one thing and names the words the report
+has to carry.
 
 The last block walks the schema of the project: every rule, every unique, every pair, every target and every slot list
 needs an input here that breaks it. A rule added to schema.json without one fails test_every_rule_of_the_schema_can_fail.
@@ -135,9 +136,10 @@ def civ_row(base, name, **cells):
 
 
 def fixture_tables(schema, tables):
-    """The tables every case starts from: the sources of the project, with fixture rows for the two tables that have
-    no source yet. A row the code calls by name has to be in its table, so the event fixture gets one valid row for
-    each name the schema requires (fired by name: no rule about slot rows speaks of it)."""
+    """The tables every case starts from: the sources of the project, with fixture rows for DT_Events (no source yet)
+    and for DT_Transcendents (its project rows are replaced on purpose: the cases read the cells of the rows they build).
+    A row the code calls by name has to be in its table, so the event fixture gets one valid row for each name the schema
+    requires (fired by name: no rule about slot rows speaks of it)."""
     tables = copy.deepcopy(tables)
     tables["DT_Events"] = [event_row()]
     for name in schema["tables"]["DT_Events"].get("required_rows", []):
@@ -509,13 +511,27 @@ class SchemaTests(unittest.TestCase):
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "LivingWorldStarShares", shares[:5] + [0.5, 1.0])), "do not rise")
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "LivingWorldStarShares", shares[1:])), "exactly 7 entries, found 6")
 
+    def test_an_end_mark_on_a_column_without_a_range(self):
+        """ends_at works by itself, not through the max of the column: a numbers column without a range."""
+        mark = self.put(["tables", "DT_Rules", "columns", "PressureBySourceTier"], "ends_at", 1)
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "PressureBySourceTier", [0, 0, 0.25, 0.5, 1.5]), mark),
+                    "PressureBySourceTier", "the last entry has to be 1, found 1.5")
+        self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "PressureBySourceTier", [0, 0, 0.25, 0.5, 1.0]), mark), [])
+
     def test_galaxy_rows(self):
         home = lambda column, value: self.set_cell("DT_Galaxies", "gal_milkyway", column, value)  # noqa: E731
         # A number of the sky carries its estimate; an empty count is let be, an empty distance is not.
-        self.expect(self.after(home("DistanceText", "250\ub9cc \uad11\ub144")), "DT_Galaxies.gal_milkyway.DistanceText", "a text without \uc57d or \ucd94\uc815")
+        self.expect(self.after(home("DistanceText", "250\ub9cc \uad11\ub144")), "DT_Galaxies.gal_milkyway.DistanceText", "a number without \uc57d or \ucd94\uc815")
+        self.expect(self.after(home("DistanceText", "\uc694\uc57d\ud558\uba74 250\ub9cc \uad11\ub144")), "DT_Galaxies.gal_milkyway.DistanceText", "a number without")
+        self.expect(self.after(home("DistanceText", "\uc57d\ud55c \ube5b, 250\ub9cc \uad11\ub144")), "DT_Galaxies.gal_milkyway.DistanceText", "a number without")
+        self.assertEqual(self.after(home("DistanceText", "\uc57d250\ub9cc \uad11\ub144")), [])
+        self.assertEqual(self.after(home("DistanceText", "\uad6d\ubd80\uc740\ud558\uad70 \uc548")), [])
+        self.expect(self.after(home("FeatureText", "\uc9c0\ub984 10\ub9cc \uad11\ub144")), "DT_Galaxies.gal_milkyway.FeatureText", "a number without")
+        self.assertEqual(self.after(home("FeatureText", "\ub9c9\ub300\uac00 \uc788\ub2e4")), [])
+        self.assertEqual(self.after(home("FeatureText", "\uc9c0\ub984 10\ub9cc \uad11\ub144(\ucd94\uc815)")), [])
         self.assertEqual(self.after(home("DistanceText", "\uc57d 250\ub9cc \uad11\ub144")), [])
         self.assertEqual(self.after(home("StarCountText", "")), [])
-        self.expect(self.after(home("StarCountText", "\ubcc4 1\uc870 \uac1c")), "DT_Galaxies.gal_milkyway.StarCountText", "a text without \uc57d or \ucd94\uc815")
+        self.expect(self.after(home("StarCountText", "\ubcc4 1\uc870 \uac1c")), "DT_Galaxies.gal_milkyway.StarCountText", "a number without \uc57d or \ucd94\uc815")
         self.expect(self.after(home("DistanceText", "")), "DT_Galaxies.gal_milkyway.DistanceText", "a text is required")
         # The name pools: no digits, no word of the verdict list, no name twice.
         stars = self.row(self.tables, "DT_Galaxies", "gal_milkyway")["StarNameBank"]
@@ -548,6 +564,15 @@ class SchemaTests(unittest.TestCase):
                              ([{"col": "CatalogPrefixes", "pairs_ge_col": ["CatalogStems", "NoSuchColumn"]}], "names the column 'NoSuchColumn'")):
             with self.subTest(tests=tests):
                 self.schema_problem(self.put(target, "target", tests), "schema.DT_Rules.HomeGalaxyRow", words)
+        self.schema_problem(self.put(target, "target", [{"col": "Peoples", "pairs_ge_col": ["CatalogStems", "LivingWorlds"]}]),
+                            "schema.DT_Rules.HomeGalaxyRow", "the test 'pairs_ge_col' cannot be asked of a column of kind number")
+        # A tag container is no pool: in a rule of its own table, as the pool and as the other pool.
+        civ_rule = ["tables", "DT_Civs", "rules", 0]
+        for test, words in (({"col": "Traits", "len_ge_col": "Weight"}, "the test 'len_ge_col' cannot be asked of a column of kind tags"),
+                            ({"col": "Traits", "pairs_ge_col": ["NameBank", "Weight"]}, "the test 'pairs_ge_col' cannot be asked of a column of kind tags"),
+                            ({"col": "NameBank", "pairs_ge_col": ["Traits", "Weight"]}, "needs a column of kind numbers or texts")):
+            with self.subTest(test=test):
+                self.schema_problem(self.put(civ_rule, "when", [test]), "schema.DT_Civs", words)
         # A pool test holds only over a list and a number.
         holds = checker.Checker(self.schema, self.tables, self.tags).holds
         self.assertTrue(holds({"col": "A", "len_ge_col": "B"}, {"A": ["x", "y"], "B": 2}, "r"))
@@ -565,6 +590,8 @@ class SchemaTests(unittest.TestCase):
             with self.subTest(column=column, key=key, value=value):
                 self.schema_problem(self.put(["tables", "DT_Galaxies", "columns", column], key, value), "DT_Galaxies.%s" % column, key, "not empty")
         self.schema_problem(self.put(["tables", "DT_Rules", "columns", "LivingWorldStarShares"], "ends_at", "1"), "LivingWorldStarShares", "ends_at", "a number")
+        self.schema_problem(self.put(["tables", "DT_Galaxies", "columns", "StarNameBank"], "hedged", [""]), "DT_Galaxies.StarNameBank", "hedged", "not empty")
+        self.schema_problem(self.put(["tables", "DT_Galaxies", "columns", "DistanceText"], "forbidden", [""]), "DT_Galaxies.DistanceText", "forbidden", "not empty")
         self.schema_problem(self.put(["tables", "DT_Rules", "columns", "SightIntervalTicks"], "ends_at", 1), "SightIntervalTicks", "ends_at")
 
     # ---- texts ----

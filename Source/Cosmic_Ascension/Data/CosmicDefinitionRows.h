@@ -705,7 +705,7 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	TArray<int32> RealmCapByTier = { 1, 3, 4, 7, 10 };
 
 	// How far the calling sees, in lanes (section 7.4 sight stage). Index = static_cast<int32>(EAscensionTier). Exactly
-	// 5 entries, the first at least 1 (Data.Integrity). A knob of knowing: the world and the generation never read it.
+	// 5 entries, every one at least 1 (Data.Integrity). A knob of knowing: the world and the generation never read it.
 	// First read by the sight and story-scope work of Phase 2, like the three knobs below it.
 	UPROPERTY(EditAnywhere)
 	TArray<int32> SightLanesByTier = { 1, 2, 4, 6, 10 };

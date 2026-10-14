@@ -37,6 +37,7 @@
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
+#include "UObject/Package.h"
 #include "UObject/TextProperty.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UnrealType.h"
@@ -234,16 +235,18 @@ namespace CosmicSimTests
 	}
 
 	// The definition tables are simulation input too: regenerated assets start the restart test over, like a rebuilt binary.
-	FString DataStamp()
+	// Every table the loader holds, read from its members by reflection, so a table added to FCosmicDataTables joins the
+	// stamp without an edit here. A table injected by a test lives in the transient package and has no file.
+	FString DataStamp(const FCosmicDataTables& Tables)
 	{
 		FString Stamp;
-		for (const TCHAR* Package : { TEXT("/Game/CA/Data/DT_Rules"), TEXT("/Game/CA/Data/DT_Civs"), TEXT("/Game/CA/Data/DT_LogTemplates"),
-			TEXT("/Game/CA/Data/DT_Galaxies"), TEXT("/Game/CA/Data/DT_Transcendents") })
+		for (TFieldIterator<FObjectPropertyBase> It(FCosmicDataTables::StaticStruct()); It; ++It)
 		{
+			const UObject* Table = It->GetObjectPropertyValue_InContainer(&Tables);
 			FString File;
-			if (FPackageName::TryConvertLongPackageNameToFilename(FString(Package), File, FPackageName::GetAssetPackageExtension()))
+			if (Table && FPackageName::TryConvertLongPackageNameToFilename(Table->GetPackage()->GetName(), File, FPackageName::GetAssetPackageExtension()))
 			{
-				Stamp += TEXT("_") + IFileManager::Get().GetTimeStamp(*File).ToIso8601();
+				Stamp += TEXT("_") + It->GetName() + TEXT("@") + IFileManager::Get().GetTimeStamp(*File).ToIso8601();
 			}
 		}
 		return Stamp;
@@ -824,17 +827,42 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 	// A life knows where it was born, once, without a line, and the people it is born into is no first contact.
 	{
 		const FKnowingState& Knowing = State.Knowing;
-		TestTrue(TEXT("Install writes the birth system once"), Knowing.KnownSystems.Num() == 1 && Knowing.KnownSystems[0].ID == State.Systems[0].SystemID);
-		TestTrue(TEXT("Install writes the birth civilization once"), Knowing.MetCivs.Num() == 1 && Knowing.MetCivs[0].ID == State.Civs[0].CivID);
+		TestEqual(TEXT("Lives born in one system write it once"), Knowing.KnownSystems.Num(), 1);
+		TestTrue(TEXT("The known system is the birth system"), Knowing.KnownSystems.Num() == 1 && Knowing.KnownSystems[0].ID == State.Systems[0].SystemID);
+		TestEqual(TEXT("Lives born into one people write it once"), Knowing.MetCivs.Num(), 1);
+		TestTrue(TEXT("The met people is the birth people"), Knowing.MetCivs.Num() == 1 && Knowing.MetCivs[0].ID == State.Civs[0].CivID);
 		TestTrue(TEXT("Install writes no first contact"), Knowing.FirstContactCivID.IsNone());
+
+		// Some ticks on, a life born into another people: two more marks with the tick of the birth, no first contact and
+		// no line.
+		Sim->RunHeadless(5);
+		const int32 LinesBefore = State.Log.Num();
 		PlayerRole->Install(State.Civs[1].HomeSystemID, State.Civs[1].CivID, EPlayerRole::Ruler);
-		TestTrue(TEXT("A life born elsewhere adds its birth system"), Knowing.KnownSystems.Num() == 2 && Knowing.KnownSystems[1].ID == State.Civs[1].HomeSystemID);
-		TestTrue(TEXT("A life born into another people adds that people"), Knowing.MetCivs.Num() == 2 && Knowing.MetCivs[1].ID == State.Civs[1].CivID);
+		TestEqual(TEXT("A life born elsewhere adds its birth system"), Knowing.KnownSystems.Num(), 2);
+		TestTrue(TEXT("The added system is the new birth system"), Knowing.KnownSystems.Num() == 2 && Knowing.KnownSystems[1].ID == State.Civs[1].HomeSystemID);
+		TestTrue(TEXT("The added system carries the tick of the birth"), Knowing.KnownSystems.Num() == 2 && Knowing.KnownSystems[1].Tick == State.Tick);
+		TestEqual(TEXT("A life born into another people adds that people"), Knowing.MetCivs.Num(), 2);
+		TestTrue(TEXT("The added people is the new birth people"), Knowing.MetCivs.Num() == 2 && Knowing.MetCivs[1].ID == State.Civs[1].CivID);
+		TestTrue(TEXT("Being born into another people is no first contact"), Knowing.FirstContactCivID.IsNone());
+		TestEqual(TEXT("Install writes knowing without a line"), State.Log.Num(), LinesBefore);
+
+		// A life without a birth system writes no system, and still its people.
+		PlayerRole->Install(NAME_None, State.Civs[2].CivID, EPlayerRole::Wanderer);
+		TestEqual(TEXT("A life without a birth system adds no system"), Knowing.KnownSystems.Num(), 2);
+		TestEqual(TEXT("A life without a birth system still adds its people"), Knowing.MetCivs.Num(), 3);
 	}
 
 	// ---- The generation rules of v0.7 (section 7.4) ----
 	using namespace CosmicSimTests;
 	const FName HomeRow = Sim->GetRules().HomeGalaxyRow;
+	const FCosmicRulesDef GameRules = Original.FindRules() ? *Original.FindRules() : FCosmicRulesDef();
+	auto RulesTableOf = [](const FCosmicRulesDef& Row)
+	{
+		UDataTable* Table = NewObject<UDataTable>(GetTransientPackage());
+		Table->RowStruct = FCosmicRulesDef::StaticStruct();
+		Table->AddRow(CosmicRows::Rules, Row);
+		return Table;
+	};
 	auto WithGalaxy = [&MakeTables](UDataTable* Galaxies, UDataTable* Transcendents = nullptr)
 	{
 		FCosmicDataTables Tables = MakeTables(3);
@@ -847,20 +875,84 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 	// row says so.
 	Sim->SetTables(WithGalaxy(GalaxyTable(HomeRow, 17, 5, 5, 2, 6)));
 	Sim->NewGalaxy(42, 0, 0);
-	TestTrue(TEXT("Counts of 0 are read from the home row"), State.Systems.Num() == 17 && State.Civs.Num() == 5);
+	TestEqual(TEXT("A count of 0 systems is read from the home row"), State.Systems.Num(), 17);
+	TestEqual(TEXT("A count of 0 peoples is read from the home row"), State.Civs.Num(), 5);
 	Sim->SetTables(WithGalaxy(nullptr));
 	Sim->NewGalaxy(42, 0, 0);
-	TestTrue(TEXT("Without DT_Galaxies the counts are the C++ defaults"), State.Systems.Num() == FGalaxyDef().LivingWorlds && State.Civs.Num() == FGalaxyDef().Peoples);
+	TestEqual(TEXT("Without DT_Galaxies the count of systems is the C++ default"), State.Systems.Num(), FGalaxyDef().LivingWorlds);
+	TestEqual(TEXT("Without DT_Galaxies the count of peoples is the C++ default"), State.Civs.Num(), FGalaxyDef().Peoples);
 	AddExpectedErrorPlain(TEXT("DT_Galaxies has no row"), EAutomationExpectedErrorFlags::Contains, 1);
 	Sim->SetTables(WithGalaxy(GalaxyTable(FName(TEXT("gal_test_other")), 17, 5, 5, 2, 6)));
 	Sim->NewGalaxy(42, 0, 0);
-	TestTrue(TEXT("A table without the home row runs on the C++ defaults"), State.Systems.Num() == FGalaxyDef().LivingWorlds && State.Civs.Num() == FGalaxyDef().Peoples);
+	TestEqual(TEXT("A table without the home row gives the C++ default of systems"), State.Systems.Num(), FGalaxyDef().LivingWorlds);
+	TestEqual(TEXT("A table without the home row gives the C++ default of peoples"), State.Civs.Num(), FGalaxyDef().Peoples);
 	TestTrue(TEXT("The stamp is the knob's name even when the table lacks the row"),
 		State.Systems.Num() > 0 && State.Systems.Last().GalaxyRow == HomeRow && State.Civs.Last().GalaxyRow == HomeRow);
 	Sim->NewGalaxy(42, 400, 3);
 	TestEqual(TEXT("No upper bound on the number of systems in the simulation"), State.Systems.Num(), 400);
 	Sim->NewGalaxy(42, 4, 9);
 	TestEqual(TEXT("No more peoples than systems"), State.Civs.Num(), 4);
+
+	// Knobs at values other than their C++ defaults (another home row, shares that leave G alone, sol at a quarter of the
+	// radius): the generator reads them.
+	{
+		const FName TestHome(TEXT("gal_test_home"));
+		UDataTable* Galaxies = GalaxyTable(TestHome, 20, 4, 20, 2, 10);
+		Galaxies->FindRow<FGalaxyDef>(TestHome, TEXT("Sim.GenerationRules"))->HomeRadiusShare = 0.25f;
+		FCosmicDataTables Tables = WithGalaxy(Galaxies);
+		FCosmicRulesDef Knobs = GameRules;
+		Knobs.HomeGalaxyRow = TestHome;
+		Knobs.LivingWorldStarShares = { 0.f, 0.f, 0.f, 0.f, 1.f, 1.f, 1.f };
+		Tables.Rules = RulesTableOf(Knobs);
+		Sim->SetTables(Tables);
+		Sim->NewGalaxy(42, 0, 0);
+		TestEqual(TEXT("The home row the knob names gives the number of systems"), State.Systems.Num(), 20);
+		TestEqual(TEXT("The home row the knob names gives the number of peoples"), State.Civs.Num(), 4);
+		bool bSystemsStamped = true;
+		bool bOnlyG = true;
+		for (const FStarSystemState& System : State.Systems)
+		{
+			bSystemsStamped &= System.GalaxyRow == TestHome;
+			bOnlyG &= System.StarClass == Tag(TEXT("Star.Class.G"));
+		}
+		bool bCivsStamped = true;
+		for (const FCivilizationState& Civ : State.Civs)
+		{
+			bCivsStamped &= Civ.GalaxyRow == TestHome;
+		}
+		TestTrue(TEXT("Every system carries the home row the knob names"), bSystemsStamped);
+		TestTrue(TEXT("Every people carries the home row the knob names"), bCivsStamped);
+		TestTrue(TEXT("sol lies at the share of the home row the knob names"),
+			State.Systems.Num() > 0 && FMath::IsNearlyEqual(State.Systems[0].Position.X, 0.25 * 1000.0 * FMath::Sqrt(20.0), 1.0));
+		TestTrue(TEXT("Shares that leave G alone give only G"), bOnlyG);
+	}
+
+	// Edges of the counts, and the draws a second people adds (section 7.4: one neighbour draw, five draws of archetype,
+	// ethics and profile, two name draws, and one catalogue draw less).
+	{
+		Sim->SetTables(WithGalaxy(GalaxyTable(HomeRow, 17, 5, 17, 2, 6)));
+		Sim->NewGalaxy(42, -1, -1);
+		TestEqual(TEXT("A negative count of systems is read from the home row"), State.Systems.Num(), 17);
+		TestEqual(TEXT("A negative count of peoples is read from the home row"), State.Civs.Num(), 5);
+		Sim->NewGalaxy(42, 1, 1);
+		TestEqual(TEXT("A galaxy asked for one system has one system"), State.Systems.Num(), 1);
+		TestEqual(TEXT("A galaxy asked for one system has one people"), State.Civs.Num(), 1);
+		Sim->NewGalaxy(42, 12, 1);
+		FRandomStream Probe(Sim->GetRng().GetCurrentSeed());
+		for (int32 Draw = 0; Draw < 7; ++Draw)
+		{
+			Probe.FRand();
+		}
+		Sim->NewGalaxy(42, 12, 2);
+		TestEqual(TEXT("A second people makes exactly seven draws more"), Sim->GetRng().GetCurrentSeed(), Probe.GetCurrentSeed());
+		Sim->NewGalaxy(42, 12, 12);
+		int32 Owned = 0;
+		for (const FStarSystemState& System : State.Systems)
+		{
+			Owned += System.OwnerCivID.IsNone() ? 0 : 1;
+		}
+		TestEqual(TEXT("As many peoples as systems: every system is a home"), Owned, 12);
+	}
 
 	// IDs without padding, from NextCivSerial.
 	Sim->SetTables(WithGalaxy(GalaxyTable(HomeRow, 12, 11, 12, 2, 6)));
@@ -951,55 +1043,75 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The first AI people's home is a lane neighbour of sol"), bNeighbour);
 	}
 
-	// The starting core (section 5.7), against the rule walked by the test itself.
+	// The starting cores (section 5.7), against the rule walked by the test itself.
 	{
-		auto CoreHoldsTheRule = [&State](int32 MinLanes, bool& bFellBack)
+		// Every core in roster order: a candidate among the systems no earlier core took, or without a candidate the
+		// farthest of those systems from sol. Counts the cores that fell back.
+		auto CoresHoldTheRule = [&State](int32 MinLanes, int32& FellBack)
 		{
-			if (State.Transcendents.IsEmpty() || State.Transcendents[0].InfluencedSystems.Num() != 1)
-			{
-				return false;
-			}
-			const FName Core = State.Transcendents[0].InfluencedSystems[0];
 			const TArray<int32> Distance = LanesFrom(State, 0);
-			TArray<int32> Candidates;
-			int32 Farthest = INDEX_NONE;
-			int32 CoreIndex = INDEX_NONE;
-			for (int32 Index = 0; Index < State.Systems.Num(); ++Index)
+			TSet<FName> Taken;
+			bool bHolds = !State.Transcendents.IsEmpty();
+			for (const FTranscendentState& Transcendent : State.Transcendents)
 			{
-				const FStarSystemState& System = State.Systems[Index];
-				CoreIndex = (System.SystemID == Core) ? Index : CoreIndex;
-				if (!System.OwnerCivID.IsNone())
+				if (Transcendent.InfluencedSystems.Num() != 1)
 				{
+					bHolds = false;
 					continue;
 				}
-				bool bNextToAIHome = false;
-				for (int32 CivIndex = 1; CivIndex < State.Civs.Num(); ++CivIndex)
+				const FName Core = Transcendent.InfluencedSystems[0];
+				int32 CoreIndex = INDEX_NONE;
+				TArray<int32> Candidates;
+				int32 Farthest = INDEX_NONE;
+				for (int32 Index = 0; Index < State.Systems.Num(); ++Index)
 				{
-					bNextToAIHome |= System.Lanes.Contains(State.Civs[CivIndex].HomeSystemID);
+					const FStarSystemState& System = State.Systems[Index];
+					CoreIndex = (System.SystemID == Core) ? Index : CoreIndex;
+					if (!System.OwnerCivID.IsNone() || Taken.Contains(System.SystemID))
+					{
+						continue;
+					}
+					bool bNextToAIHome = false;
+					for (int32 CivIndex = 1; CivIndex < State.Civs.Num(); ++CivIndex)
+					{
+						bNextToAIHome |= System.Lanes.Contains(State.Civs[CivIndex].HomeSystemID);
+					}
+					if (Distance[Index] >= MinLanes && bNextToAIHome)
+					{
+						Candidates.Add(Index);
+					}
+					if (Farthest == INDEX_NONE || Distance[Index] > Distance[Farthest]
+						|| (Distance[Index] == Distance[Farthest] && FNameLexicalLess()(System.SystemID, State.Systems[Farthest].SystemID)))
+					{
+						Farthest = Index;
+					}
 				}
-				if (Distance[Index] >= MinLanes && bNextToAIHome)
+				FellBack += Candidates.IsEmpty() ? 1 : 0;
+				bHolds &= CoreIndex != INDEX_NONE && (Candidates.IsEmpty() ? CoreIndex == Farthest : Candidates.Contains(CoreIndex));
+				Taken.Add(Core);
+			}
+			return bHolds;
+		};
+		// The number of different systems in all spheres.
+		auto CoreSystems = [&State]()
+		{
+			TSet<FName> Cores;
+			for (const FTranscendentState& Transcendent : State.Transcendents)
+			{
+				for (const FName System : Transcendent.InfluencedSystems)
 				{
-					Candidates.Add(Index);
-				}
-				if (Farthest == INDEX_NONE || Distance[Index] > Distance[Farthest]
-					|| (Distance[Index] == Distance[Farthest] && FNameLexicalLess()(System.SystemID, State.Systems[Farthest].SystemID)))
-				{
-					Farthest = Index;
+					Cores.Add(System);
 				}
 			}
-			bFellBack = Candidates.IsEmpty();
-			return CoreIndex != INDEX_NONE && (bFellBack ? CoreIndex == Farthest : Candidates.Contains(CoreIndex));
+			return Cores.Num();
 		};
-		auto RulesWith = [&MakeTables, &WithGalaxy, HomeRow](int32 Places, int32 MinLanes, bool bCores, int32 Extra = 0)
+		auto RulesWith = [&WithGalaxy, &RulesTableOf, &GameRules, HomeRow](int32 Places, int32 MinLanes, bool bCores, int32 Extra = 0)
 		{
 			FCosmicDataTables Tables = WithGalaxy(GalaxyTable(HomeRow, 40, 8, 40, 5, 8), TranscendentTable(bCores, Extra));
-			UDataTable* RulesTable = NewObject<UDataTable>(GetTransientPackage());
-			RulesTable->RowStruct = FCosmicRulesDef::StaticStruct();
-			FCosmicRulesDef RulesRow = *MakeTables(3).FindRules();
+			FCosmicRulesDef RulesRow = GameRules;
 			RulesRow.FallenTranscendentCount = Places;
 			RulesRow.FallenCoreMinLanesFromHome = MinLanes;
-			RulesTable->AddRow(CosmicRows::Rules, RulesRow);
-			Tables.Rules = RulesTable;
+			Tables.Rules = RulesTableOf(RulesRow);
 			return Tables;
 		};
 		bool bRule = true;
@@ -1008,9 +1120,7 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 		for (int32 Seed = 1; Seed <= 30; ++Seed)
 		{
 			Sim->NewGalaxy(Seed, 0, 0);
-			bool bFell = false;
-			bRule &= CoreHoldsTheRule(3, bFell);
-			FellBack += bFell ? 1 : 0;
+			bRule &= CoresHoldTheRule(3, FellBack);
 		}
 		TestTrue(TEXT("The core is a candidate of the rule in every galaxy"), bRule);
 		TestTrue(TEXT("With three lanes the candidates were there in some galaxy"), FellBack < 30);
@@ -1020,31 +1130,26 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 		for (int32 Seed = 1; Seed <= 30; ++Seed)
 		{
 			Sim->NewGalaxy(Seed, 0, 0);
-			bool bFell = false;
-			bRule &= CoreHoldsTheRule(99, bFell);
-			FellBack += bFell ? 1 : 0;
+			bRule &= CoresHoldTheRule(99, FellBack);
 		}
-		TestTrue(TEXT("Without a candidate the core is the unowned system farthest from sol"), bRule && FellBack == 30);
+		TestTrue(TEXT("Without a candidate the core is the unowned system farthest from sol"), bRule);
+		TestEqual(TEXT("Without a candidate every core falls back"), FellBack, 30);
 		Sim->SetTables(RulesWith(1, 3, false));
 		Sim->NewGalaxy(3, 0, 0);
-		TestTrue(TEXT("A row without a core starts with an empty sphere"), State.Transcendents.Num() == 1 && State.Transcendents[0].InfluencedSystems.IsEmpty());
-		Sim->SetTables(RulesWith(3, 3, true, 2));
-		Sim->NewGalaxy(3, 0, 0);
-		TestTrue(TEXT("Three fallen get three different cores"), State.Transcendents.Num() == 3 && State.Transcendents[0].InfluencedSystems.Num() == 1
-			&& State.Transcendents[1].InfluencedSystems.Num() == 1 && State.Transcendents[2].InfluencedSystems.Num() == 1
-			&& State.Transcendents[0].InfluencedSystems[0] != State.Transcendents[1].InfluencedSystems[0]
-			&& State.Transcendents[1].InfluencedSystems[0] != State.Transcendents[2].InfluencedSystems[0]
-			&& State.Transcendents[0].InfluencedSystems[0] != State.Transcendents[2].InfluencedSystems[0]);
-		Sim->SetTables(RulesWith(3, 99, true, 2));
-		Sim->NewGalaxy(3, 0, 0);
-		TestTrue(TEXT("Three fallen without candidates still get three different cores"), State.Transcendents.Num() == 3
-			&& State.Transcendents[0].InfluencedSystems.Num() == 1 && State.Transcendents[1].InfluencedSystems.Num() == 1 && State.Transcendents[2].InfluencedSystems.Num() == 1
-			&& State.Transcendents[0].InfluencedSystems[0] != State.Transcendents[1].InfluencedSystems[0]
-			&& State.Transcendents[1].InfluencedSystems[0] != State.Transcendents[2].InfluencedSystems[0]
-			&& State.Transcendents[0].InfluencedSystems[0] != State.Transcendents[2].InfluencedSystems[0]);
+		TestEqual(TEXT("A row without a core still gets its instance"), State.Transcendents.Num(), 1);
+		TestEqual(TEXT("A row without a core starts with an empty sphere"), CoreSystems(), 0);
+		for (const int32 MinLanes : { 3, 99 })
+		{
+			Sim->SetTables(RulesWith(3, MinLanes, true, 2));
+			Sim->NewGalaxy(3, 0, 0);
+			int32 Unused = 0;
+			TestEqual(*FString::Printf(TEXT("Three fallen get three instances (%d lanes)"), MinLanes), State.Transcendents.Num(), 3);
+			TestEqual(*FString::Printf(TEXT("Three fallen get three different cores (%d lanes)"), MinLanes), CoreSystems(), 3);
+			TestTrue(*FString::Printf(TEXT("Each of the three cores holds the rule among the systems left to it (%d lanes)"), MinLanes), CoresHoldTheRule(MinLanes, Unused));
+		}
 		Sim->SetTables(RulesWith(1, 3, true));
 		Sim->NewGalaxy(3, 6, 6);
-		TestTrue(TEXT("Without an unowned system the sphere starts empty"), State.Transcendents.Num() == 1 && State.Transcendents[0].InfluencedSystems.IsEmpty());
+		TestEqual(TEXT("Without an unowned system the sphere starts empty"), CoreSystems(), 0);
 	}
 
 	// The number of draws follows the seed and the two counts, never the tables: other weights, other banks, a home row
@@ -1113,23 +1218,42 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 
 	// The two guards of NewGalaxy, each with one error line: a share table of another length (the C++ shares are used)
 	// and a place of sol outside 0..1 (the C++ share is used).
+	if (TestEqual(TEXT("The game's rules row has seven star shares to shorten"), GameRules.LivingWorldStarShares.Num(), 7))
 	{
 		AddExpectedErrorPlain(TEXT("LivingWorldStarShares has 6 entries"), EAutomationExpectedErrorFlags::Contains, 1);
 		AddExpectedErrorPlain(TEXT("HomeRadiusShare 1.5"), EAutomationExpectedErrorFlags::Contains, 1);
 		UDataTable* Galaxies = GalaxyTable(HomeRow, 20, 4, 20, 2, 10);
-		Galaxies->FindRow<FGalaxyDef>(HomeRow, TEXT("Sim.GenerationRules"))->HomeRadiusShare = 1.5f;
+		FGalaxyDef* HomeOfTheTest = Galaxies->FindRow<FGalaxyDef>(HomeRow, TEXT("Sim.GenerationRules"));
+		HomeOfTheTest->HomeRadiusShare = 1.5f;
 		FCosmicDataTables Tables = WithGalaxy(Galaxies);
-		UDataTable* RulesTable = NewObject<UDataTable>(GetTransientPackage());
-		RulesTable->RowStruct = FCosmicRulesDef::StaticStruct();
-		FCosmicRulesDef RulesRow = *MakeTables(3).FindRules();
-		RulesRow.LivingWorldStarShares.Pop();
-		RulesTable->AddRow(CosmicRows::Rules, RulesRow);
-		Tables.Rules = RulesTable;
+		FCosmicRulesDef Shortened = GameRules;
+		Shortened.LivingWorldStarShares.SetNum(6);
+		Tables.Rules = RulesTableOf(Shortened);
 		Sim->SetTables(Tables);
 		Sim->NewGalaxy(42, 0, 0);
+		TArray<FGameplayTag> Classes;
+		for (const FStarSystemState& System : State.Systems)
+		{
+			Classes.Add(System.StarClass);
+		}
 		const double Radius = 1000.0 * FMath::Sqrt(20.0);
+		TestEqual(TEXT("The galaxy of the two guards is generated"), State.Systems.Num(), 20);
 		TestTrue(TEXT("A place of sol outside the disc is read as the C++ share"),
-			State.Systems.Num() == 20 && FMath::IsNearlyEqual(State.Systems[0].Position.X, static_cast<double>(FGalaxyDef().HomeRadiusShare) * Radius, 1.0));
+			State.Systems.Num() > 0 && FMath::IsNearlyEqual(State.Systems[0].Position.X, static_cast<double>(FGalaxyDef().HomeRadiusShare) * Radius, 1.0));
+
+		// The same seed under the C++ shares given outright gives the same classes: the guard used that table.
+		FCosmicRulesDef Explicit = GameRules;
+		Explicit.LivingWorldStarShares = FCosmicRulesDef().LivingWorldStarShares;
+		Tables.Rules = RulesTableOf(Explicit);
+		HomeOfTheTest->HomeRadiusShare = FGalaxyDef().HomeRadiusShare;
+		Sim->SetTables(Tables);
+		Sim->NewGalaxy(42, 0, 0);
+		TArray<FGameplayTag> ExplicitClasses;
+		for (const FStarSystemState& System : State.Systems)
+		{
+			ExplicitClasses.Add(System.StarClass);
+		}
+		TestTrue(TEXT("A share table of another length is read as the C++ shares"), Classes == ExplicitClasses);
 	}
 
 	// A galaxy of the Early Access size, ten times, timed once for section 9.4 (budget: below 50 ms each).
@@ -1236,6 +1360,11 @@ bool FCosmicSimStateIndexTest::RunTest(const FString& Parameters)
 		const TArray<int32> Near = CosmicState::LaneDistancesFrom(Wired, Index, 0, 3);
 		TestEqual(TEXT("MaxLanes keeps a system at that many lanes"), Near.IsValidIndex(3) ? Near[3] : -2, 3);
 		TestEqual(TEXT("MaxLanes leaves a farther system out"), Near.IsValidIndex(4) ? Near[4] : -2, static_cast<int32>(INDEX_NONE));
+		const TArray<int32> Here = CosmicState::LaneDistancesFrom(Wired, Index, 0, 0);
+		TestEqual(TEXT("MaxLanes 0 keeps the system itself"), Here.IsValidIndex(0) ? Here[0] : -2, 0);
+		TestEqual(TEXT("MaxLanes 0 reaches no neighbour"), Here.IsValidIndex(1) ? Here[1] : -2, static_cast<int32>(INDEX_NONE));
+		const TArray<int32> Nowhere = CosmicState::LaneDistancesFrom(Wired, Index, 0, -1);
+		TestTrue(TEXT("A negative MaxLanes reaches nothing, not even the system itself"), Nowhere.Num() == Wired.Systems.Num() && !Nowhere.Contains(0));
 		// A lane into another galaxy is not followed, and a lane to an ID the state does not hold is skipped.
 		Wired.Systems[5].GalaxyRow = FName(TEXT("gal_test_elsewhere"));
 		Wired.Systems[0].Lanes.Add(FName(TEXT("sys_nowhere")));
@@ -1594,7 +1723,7 @@ bool FCosmicSimSaveRestartTest::RunTest(const FString& Parameters)
 	UCosmicSaveSubsystem* Save = Sim->GetGameInstance()->GetSubsystem<UCosmicSaveSubsystem>();
 
 	const FString RecordPath = FPaths::ProjectSavedDir() / TEXT("Automation/SaveRestart.txt");
-	const FString BinaryStamp = IFileManager::Get().GetTimeStamp(*CosmicSimTests::SimBinaryPath()).ToIso8601() + CosmicSimTests::DataStamp();
+	const FString BinaryStamp = IFileManager::Get().GetTimeStamp(*CosmicSimTests::SimBinaryPath()).ToIso8601() + CosmicSimTests::DataStamp(Sim->GetTables());
 	const uint32 ProcessId = FPlatformProcess::GetCurrentProcessId();
 
 	FString Record;
@@ -1685,29 +1814,38 @@ bool FCosmicSimLayersInRangeTest::RunTest(const FString& Parameters)
 	const TCHAR* ClassNames[] = { TEXT("Star.Class.O"), TEXT("Star.Class.B"), TEXT("Star.Class.A"), TEXT("Star.Class.F"), TEXT("Star.Class.G"), TEXT("Star.Class.K"), TEXT("Star.Class.M") };
 
 	const FGalaxyState& State = Sim->GetState();
-	bool bCounts = true;
-	bool bSol = true;
+	bool bSystemCount = true;
+	bool bPeopleCount = true;
+	bool bSolID = true;
+	bool bSolPlace = true;
+	bool bSolClass = true;
 	bool bInDisc = true;
+	bool bNamed = true;
 	bool bNamesOnce = true;
+	bool bPeopleNamed = true;
+	bool bPeopleNamesOnce = true;
 	bool bLanesHome = true;
 	bool bCivIDsOnce = true;
-	bool bStamped = true;
-	bool bPeopleNames = true;
+	bool bSystemsStamped = true;
+	bool bCivsStamped = true;
+	bool bOwnedLikeOwner = true;
 	TArray<int32> Classes;
 	Classes.Init(0, UE_ARRAY_COUNT(ClassNames));
 	int32 Drawn = 0;
 	for (int32 Seed = 1; Seed <= 20; ++Seed)
 	{
 		Sim->NewGalaxy(Seed, 0, 0);
-		bCounts &= State.Systems.Num() == Home.LivingWorlds && State.Civs.Num() == Home.Peoples;
+		bSystemCount &= State.Systems.Num() == Home.LivingWorlds;
+		bPeopleCount &= State.Civs.Num() == Home.Peoples;
 		if (State.Systems.IsEmpty())
 		{
 			continue;
 		}
 		const double Radius = 1000.0 * FMath::Sqrt(static_cast<double>(State.Systems.Num()));
 		const FStarSystemState& Sol = State.Systems[0];
-		bSol &= Sol.SystemID == FName(TEXT("sol")) && FMath::IsNearlyEqual(Sol.Position.X, Home.HomeRadiusShare * Radius, 0.01 * Radius) && Sol.Position.Y == 0.0
-			&& (!HomeClass.IsValid() || Sol.StarClass == HomeClass);
+		bSolID &= Sol.SystemID == FName(TEXT("sol"));
+		bSolPlace &= FMath::IsNearlyEqual(Sol.Position.X, Home.HomeRadiusShare * Radius, 0.01 * Radius) && Sol.Position.Y == 0.0;
+		bSolClass &= !HomeClass.IsValid() || Sol.StarClass == HomeClass;
 
 		TSet<FString> Names;
 		TSet<FName> Homes;
@@ -1718,9 +1856,10 @@ bool FCosmicSimLayersInRangeTest::RunTest(const FString& Parameters)
 		for (const FStarSystemState& System : State.Systems)
 		{
 			bInDisc &= System.Position.X * System.Position.X + System.Position.Y * System.Position.Y <= Radius * Radius * 1.0001;
-			bNamesOnce &= !System.DisplayName.IsEmpty() && !Names.Contains(System.DisplayName.ToString());
+			bNamed &= !System.DisplayName.IsEmpty();
+			bNamesOnce &= !Names.Contains(System.DisplayName.ToString());
 			Names.Add(System.DisplayName.ToString());
-			bStamped &= System.GalaxyRow == Rules.HomeGalaxyRow;
+			bSystemsStamped &= System.GalaxyRow == Rules.HomeGalaxyRow;
 			for (const FName Lane : System.Lanes)
 			{
 				const FStarSystemState* Other = State.Systems.FindByPredicate([Lane](const FStarSystemState& Each) { return Each.SystemID == Lane; });
@@ -1742,38 +1881,61 @@ bool FCosmicSimLayersInRangeTest::RunTest(const FString& Parameters)
 		{
 			bCivIDsOnce &= !CivIDs.Contains(Civ.CivID);
 			CivIDs.Add(Civ.CivID);
-			bStamped &= Civ.GalaxyRow == Rules.HomeGalaxyRow;
-			bPeopleNames &= !Civ.CivName.IsEmpty() && !PeopleNames.Contains(Civ.CivName.ToString());
+			bCivsStamped &= Civ.GalaxyRow == Rules.HomeGalaxyRow;
+			bPeopleNamed &= !Civ.CivName.IsEmpty();
+			bPeopleNamesOnce &= !PeopleNames.Contains(Civ.CivName.ToString());
 			PeopleNames.Add(Civ.CivName.ToString());
 			for (const FName Owned : Civ.OwnedSystems)
 			{
 				const FStarSystemState* System = State.Systems.FindByPredicate([Owned](const FStarSystemState& Each) { return Each.SystemID == Owned; });
-				bStamped &= System && System->GalaxyRow == Civ.GalaxyRow;
+				bOwnedLikeOwner &= System && System->GalaxyRow == Civ.GalaxyRow;
 			}
 		}
 	}
-	TestTrue(TEXT("The numbers of systems and peoples are those of the home row"), bCounts);
-	TestTrue(TEXT("sol lies at its share of the radius, angle 0, with the class of the player's archetype"), bSol);
+	TestTrue(TEXT("The number of systems is that of the home row"), bSystemCount);
+	TestTrue(TEXT("The number of peoples is that of the home row"), bPeopleCount);
+	TestTrue(TEXT("The first system is sol"), bSolID);
+	TestTrue(TEXT("sol lies at its share of the radius, angle 0"), bSolPlace);
+	TestTrue(TEXT("sol has the star class of the player's archetype"), bSolClass);
 	TestTrue(TEXT("Every system lies in the disc"), bInDisc);
-	TestTrue(TEXT("Every system has a name, and no name comes twice"), bNamesOnce);
-	TestTrue(TEXT("Every people has a name, and no name comes twice"), bPeopleNames);
+	TestTrue(TEXT("Every system has a name"), bNamed);
+	TestTrue(TEXT("No system name comes twice"), bNamesOnce);
+	TestTrue(TEXT("Every people has a name"), bPeopleNamed);
+	TestTrue(TEXT("No people name comes twice"), bPeopleNamesOnce);
 	TestTrue(TEXT("Every lane joins two systems of one GalaxyRow"), bLanesHome);
 	TestTrue(TEXT("No CivID comes twice"), bCivIDsOnce);
-	TestTrue(TEXT("Every system and people carries the home row, and every owned system the GalaxyRow of its owner"), bStamped);
+	TestTrue(TEXT("Every system carries the home row"), bSystemsStamped);
+	TestTrue(TEXT("Every people carries the home row"), bCivsStamped);
+	TestTrue(TEXT("Every owned system carries the GalaxyRow of its owner"), bOwnedLikeOwner);
 
-	// The shares: about a thousand drawn systems against DT_Rules.LivingWorldStarShares, each class within 5 points.
+	// The shares: about a thousand drawn systems against DT_Rules.LivingWorldStarShares. Each class is drawn at least
+	// once, and lies within four standard deviations of its share (plus half a point); the seeds are fixed.
 	float Below = 0.f;
 	for (int32 Class = 0; Class < Classes.Num(); ++Class)
 	{
 		const float Expected = Rules.LivingWorldStarShares[Class] - Below;
 		Below = Rules.LivingWorldStarShares[Class];
 		const float Seen = Drawn > 0 ? static_cast<float>(Classes[Class]) / static_cast<float>(Drawn) : -1.f;
-		TestTrue(*FString::Printf(TEXT("%s: %.3f of the drawn systems, the shares say %.3f"), ClassNames[Class], Seen, Expected), FMath::Abs(Seen - Expected) <= 0.05f);
+		const float Bound = Drawn > 0 ? 4.f * FMath::Sqrt(Expected * (1.f - Expected) / static_cast<float>(Drawn)) + 0.005f : 0.f;
+		if (Expected > 0.f)
+		{
+			TestTrue(*FString::Printf(TEXT("%s is drawn at least once"), ClassNames[Class]), Classes[Class] > 0);
+		}
+		TestTrue(*FString::Printf(TEXT("%s: %.3f of the drawn systems, the shares say %.3f (bound %.3f)"), ClassNames[Class], Seen, Expected, Bound), FMath::Abs(Seen - Expected) <= Bound);
 	}
 
 	// Twenty thousand ticks later the lanes still stay inside the galaxy, and the breakthroughs of AI peoples are told
 	// with their people (the CivName gate is gone, section 8.1).
 	Sim->NewGalaxy(42, 0, 0);
+	// Without their names the AI peoples are still told of: whether a line is told never reads a text (section 8.1).
+	// FText is in neither hash, so the run is the same world.
+	for (FCivilizationState& Civ : Sim->GetMutableState().Civs)
+	{
+		if (!Civ.bIsPlayerRuled)
+		{
+			Civ.CivName = FText::GetEmpty();
+		}
+	}
 	Sim->RunHeadless(20000);
 	bool bStillHome = true;
 	for (const FStarSystemState& System : State.Systems)
@@ -1797,7 +1959,7 @@ bool FCosmicSimLayersInRangeTest::RunTest(const FString& Parameters)
 		}
 	}
 	TestTrue(TEXT("Every breakthrough line carries the people it tells of"), bFocusOfBreakthrough);
-	TestTrue(TEXT("Breakthroughs of AI peoples are told"), bToldOfAIPeople);
+	TestTrue(TEXT("Breakthroughs of AI peoples are told, nameless ones too"), bToldOfAIPeople);
 	return true;
 }
 

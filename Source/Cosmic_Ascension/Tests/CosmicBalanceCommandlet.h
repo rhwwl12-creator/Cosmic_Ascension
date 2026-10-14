@@ -10,8 +10,10 @@
  * Headless balance run: generates a galaxy, runs it and writes one CSV row per civilization every 100 ticks
  * (resources, Tier, Stability, hazard count).
  *
- *   UnrealEditor-Cmd Cosmic_Ascension.uproject -run=CosmicBalance -Seed=42 -Ticks=20000 -Systems=60 -Civs=8 -Out=balance.csv
+ *   UnrealEditor-Cmd Cosmic_Ascension.uproject -run=CosmicBalance -Seed=42 -Ticks=20000 -Out=balance.csv
  *
+ * The numbers of systems and peoples are those of the home galaxy row (0, the default of -Systems= and -Civs=); give
+ * them only to measure another size.
  * -Out is relative to Saved/Balance unless it is an absolute path. A commandlet has no GameInstance, so Main creates
  * one to get the subsystems. The policy, death and archetype arguments of section 9.3 arrive with Phase 5.
  */
