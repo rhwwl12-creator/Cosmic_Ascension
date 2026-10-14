@@ -511,6 +511,13 @@ class SchemaTests(unittest.TestCase):
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "LivingWorldStarShares", shares[:5] + [0.5, 1.0])), "do not rise")
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "LivingWorldStarShares", shares[1:])), "exactly 7 entries, found 6")
 
+    def test_no_test_over_a_plain_column(self):
+        """A plain column holds a struct the checker does not read: is, in and set would never hold, or always."""
+        rule = ["tables", "DT_Civs", "rules", 0]
+        for test in ({"col": "EthicsPreset", "is": "x"}, {"col": "Color", "in": ["x"]}, {"col": "EthicsPreset", "set": False}, {"col": "Color", "set": True}):
+            with self.subTest(test=test):
+                self.schema_problem(self.put(rule, "when", [test]), "schema.DT_Civs", "cannot be asked of a column of kind plain")
+
     def test_an_end_mark_on_a_column_without_a_range(self):
         """ends_at works by itself, not through the max of the column: a numbers column without a range."""
         mark = self.put(["tables", "DT_Rules", "columns", "PressureBySourceTier"], "ends_at", 1)
@@ -523,12 +530,40 @@ class SchemaTests(unittest.TestCase):
         # A number of the sky carries its estimate; an empty count is let be, an empty distance is not.
         self.expect(self.after(home("DistanceText", "250\ub9cc \uad11\ub144")), "DT_Galaxies.gal_milkyway.DistanceText", "a number without \uc57d or \ucd94\uc815")
         self.expect(self.after(home("DistanceText", "\uc694\uc57d\ud558\uba74 250\ub9cc \uad11\ub144")), "DT_Galaxies.gal_milkyway.DistanceText", "a number without")
-        self.expect(self.after(home("DistanceText", "\uc57d\ud55c \ube5b, 250\ub9cc \uad11\ub144")), "DT_Galaxies.gal_milkyway.DistanceText", "a number without")
+        self.expect(self.after(home("DistanceText", "\uc57d\ud55c \ube5b\uc758 250\ub9cc \uad11\ub144")), "DT_Galaxies.gal_milkyway.DistanceText", "a number without")
         self.assertEqual(self.after(home("DistanceText", "\uc57d250\ub9cc \uad11\ub144")), [])
         self.assertEqual(self.after(home("DistanceText", "\uad6d\ubd80\uc740\ud558\uad70 \uc548")), [])
         self.expect(self.after(home("FeatureText", "\uc9c0\ub984 10\ub9cc \uad11\ub144")), "DT_Galaxies.gal_milkyway.FeatureText", "a number without")
         self.assertEqual(self.after(home("FeatureText", "\ub9c9\ub300\uac00 \uc788\ub2e4")), [])
         self.assertEqual(self.after(home("FeatureText", "\uc9c0\ub984 10\ub9cc \uad11\ub144(\ucd94\uc815)")), [])
+        # The hedge is a word of its own: no syllable joined before it.
+        self.expect(self.after(home("DistanceText", "\uc694\uc57d 250\ub9cc \uad11\ub144")), "DT_Galaxies.gal_milkyway.DistanceText", "a number without")
+        # Figures without digits, and digits of another script.
+        self.expect(self.after(home("StarCountText", "\ubcc4 \uc218\uc5b5 ~ \uc218\uc2ed\uc5b5 \uac1c")), "DT_Galaxies.gal_milkyway.StarCountText", "a number without")
+        self.assertEqual(self.after(home("StarCountText", "\ubcc4 \uc57d \uc218\uc5b5 ~ \uc218\uc2ed\uc5b5 \uac1c")), [])
+        self.expect(self.after(home("FeatureText", "\uc9c0\ub984 \uc2ed\ub9cc \uad11\ub144")), "DT_Galaxies.gal_milkyway.FeatureText", "a number without")
+        self.expect(self.after(home("DistanceText", "\uc9c0\ub984 \uff11\uff10 \uad11\ub144")), "DT_Galaxies.gal_milkyway.DistanceText", "a number without")
+        self.expect(self.after(home("DistanceText", "\uc9c0\ub984 \u5341\u842c \uad11\ub144")), "DT_Galaxies.gal_milkyway.DistanceText", "a number without")
+        # A longer hedge may take an ending; a figure that is debated says so.
+        self.assertEqual(self.after(home("StarCountText", "\ubcc4 1\uc870 \uac1c(\ucd94\uc815\uce58)")), [])
+        self.assertEqual(self.after(home("StarCountText", "\ucd94\uc815\uc5d0 \ub530\ub974\uba74 \ubcc4 1\uc870 \uac1c")), [])
+        for column in ("StarCountText", "DistanceText", "FeatureText"):
+            with self.subTest(column=column):
+                self.assertEqual(self.after(home(column, "\uc8fc\uc694 \ub098\uc120\ud314 2~4\uac1c(\ub17c\uc7c1 \uc911)")), [])
+        # A catalogue designation is a name, not a figure.
+        self.assertEqual(self.after(home("FeatureText", "M32\uc640 NGC 205\ub97c \uac70\ub290\ub9b0\ub2e4")), [])
+        # A word of five capitals is no designation: its number stays a figure.
+        self.expect(self.after(home("FeatureText", "GALEX 3\uac1c\uc758 \ub760")), "DT_Galaxies.gal_milkyway.FeatureText", "a number without")
+        # Each clause carries its own hedge; a thousands comma does not end a clause.
+        self.expect(self.after(home("FeatureText", "\uc9c0\ub984 \uc57d 10\ub9cc \uad11\ub144, \ubcc4 1,000\uc5b5 \uac1c")), "DT_Galaxies.gal_milkyway.FeatureText", "a number without", ": \ubcc4 1,000\uc5b5 \uac1c")
+        self.assertEqual(self.after(home("FeatureText", "\ubcc4 \uc57d 1,000\uc5b5 \uac1c, \uc9c0\ub984 \uc57d 10\ub9cc \uad11\ub144")), [])
+        for mark in (" \u2014 ", " - ", "; "):
+            with self.subTest(mark=mark):
+                self.expect(self.after(home("FeatureText", "\ubcc4 1,000\uc5b5 \uac1c" + mark + "\uc9c0\ub984 \uc57d 10\ub9cc \uad11\ub144")),
+                            "DT_Galaxies.gal_milkyway.FeatureText", "a number without", "\ubcc4 1,000\uc5b5 \uac1c")
+        # Over a list of texts too, entry by entry.
+        hedged_pool = self.put(["tables", "DT_Galaxies", "columns", "PeopleStems"], "hedged", ["\uc57d"])
+        self.expect(self.after(home("PeopleStems", ["\ubcc4\uc774 3\uac1c"]), hedged_pool), "DT_Galaxies.gal_milkyway.PeopleStems[0]", "a number without \uc57d")
         self.assertEqual(self.after(home("DistanceText", "\uc57d 250\ub9cc \uad11\ub144")), [])
         self.assertEqual(self.after(home("StarCountText", "")), [])
         self.expect(self.after(home("StarCountText", "\ubcc4 1\uc870 \uac1c")), "DT_Galaxies.gal_milkyway.StarCountText", "a number without \uc57d or \ucd94\uc815")
@@ -1094,7 +1129,7 @@ class SchemaTests(unittest.TestCase):
         self.schema_problem(self.put(["tables", "DT_Events", "rules", 0], "when", [{"col": "Trigger", "gt": 1}]), "schema.DT_Events", cannot, "enum")
         # A number and an enumerator are always there: 'set' over them says nothing.
         self.schema_problem(self.put(["tables", "DT_Events", "rules", 0], "when", [{"col": "Trigger", "set": True}]), "schema.DT_Events", cannot, "enum")
-        self.assertEqual(self.after(NOTHING, self.put(rule, "when", [{"col": "Color", "set": True}, {"col": "Weight", "gt": 0}])), [])
+        self.assertEqual(self.after(NOTHING, self.put(rule, "when", [{"col": "DisplayName", "set": True}, {"col": "Weight", "gt": 0}])), [])
 
     def test_the_operand_of_a_test_has_its_type(self):
         rule = ["tables", "DT_Civs", "rules", 0]

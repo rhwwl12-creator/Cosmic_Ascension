@@ -43,6 +43,13 @@ CODE_NAME = re.compile(r'TEXT\("([^"]*)"\)')
 CODE_COMMENT = re.compile(r'/\*.*?\*/|//[^\n]*', re.S)
 # FText::Format: a backtick escapes one of these.
 ESCAPED = "`{}|"
+# Numbers of the sky (guideline 8.3): a figure is a numeral of any script, or a Korean number word before a counter
+# (\ucc9c\uc5b5 \uac1c, \uc2ed\ub9cc \uad11\ub144); a catalogue designation (M87, NGC 205, IC 1101) is a name and no figure. A text is
+# read clause by clause, and each clause with a figure carries its own hedge; a thousands comma has no space after it.
+SKY_DESIGNATION = re.compile(r"(?<![A-Za-z])[A-Z]{1,4}\s?[0-9]+")
+SKY_NUMBER_WORD = re.compile("[\uc2ed\ubc31\ucc9c\ub9cc\uc5b5\uc870]+\\s*(?:\uac1c|\uad11\ub144)")
+SKY_CLAUSE = re.compile(r",\s|\s[\u2014\u2013-]\s|;\s")
+HANGUL = "\uac00-\ud7a3"
 
 
 def is_number(value):
@@ -64,6 +71,22 @@ def is_count(value):
 
 def is_names(value):
     return isinstance(value, list) and all(isinstance(entry, str) for entry in value)
+
+
+def has_figure(clause):
+    """Whether a clause holds a number of the sky (see SKY_DESIGNATION)."""
+    plain = SKY_DESIGNATION.sub("", clause)
+    return any(ch.isnumeric() for ch in plain) or SKY_NUMBER_WORD.search(plain) is not None
+
+
+def hedges(clause, words):
+    """Whether a clause carries one of the words as a word of its own: no Hangul syllable before it, and after a word
+    of one syllable none either (a syllable joined to it makes another word); a longer word may take an ending."""
+    for word in words:
+        tail = "(?![%s])" % HANGUL if len(word) == 1 else ""
+        if re.search("(?<![%s])" % HANGUL + re.escape(word) + tail, clause):
+            return True
+    return False
 
 
 def is_scalar(value):
@@ -119,13 +142,14 @@ TESTS = {
     "len_ge_col": NAME, "pairs_ge_col": TWO_NAMES,
 }
 # Test -> the kinds of column it can be asked of. Asked of another kind it would never hold (or always).
-VALUE_KINDS = ("plain", "number", "text", "tag", "row", "enum")
+# A plain column holds a struct the checker does not read (EthicsPreset, Color, MapPosition): no test can be asked of it.
+VALUE_KINDS = ("number", "text", "tag", "row", "enum")
 SIZED_KINDS = ("numbers", "texts", "tags", "tag_list", "tag_map", "row_map", "word_map", "conditions", "effects")
 # A pool is a list or a map; a tag container is no pool of names (its export text is a string, never held as a list).
 POOL_KINDS = tuple(kind for kind in SIZED_KINDS if kind != "tags")
 TEST_KINDS = {
     "is": VALUE_KINDS, "in": VALUE_KINDS, "gt": ("number",), "ge": ("number",), "lt": ("number",), "le": ("number",),
-    "set": tuple(kind for kind in COLUMN_KINDS if kind not in ("number", "enum")), "min_len": SIZED_KINDS, "max_len": SIZED_KINDS, "each_contains": ("texts",),
+    "set": tuple(kind for kind in COLUMN_KINDS if kind not in ("number", "enum", "plain")), "min_len": SIZED_KINDS, "max_len": SIZED_KINDS, "each_contains": ("texts",),
     "lacks_type": ("conditions", "effects"), "slots_in": ("text", "texts"), "len_ge_col": POOL_KINDS, "pairs_ge_col": POOL_KINDS,
 }
 # The kinds of the columns a test names besides its own: the number to reach, the other pool.
@@ -469,10 +493,10 @@ class Checker:
                 continue
             for value in (operand if name == "in" else [operand] if name == "is" else []):
                 # A number is compared with numbers and a name with names: another type would never be equal.
-                if (kind == "number") != is_finite(value) and kind != "plain":
+                if (kind == "number") != is_finite(value):
                     self.report(where, "the test '%s' over a column of kind %s needs %s: %s" % (name, kind, "numbers" if kind == "number" else "strings", shown))
                     continue
-                if kind != "number" and kind != "plain" and not isinstance(value, str):
+                if kind != "number" and not isinstance(value, str):
                     self.report(where, "the test '%s' over a column of kind %s needs strings: %s" % (name, kind, shown))
                     continue
                 if kind == "tag" and value != "" and value not in self.tags:
@@ -688,9 +712,10 @@ class Checker:
             self.report(where, "a digit in a text that carries none: %s" % value)
         # A number of the sky is always an estimate (guideline 8.3): a text of such a column that carries a digit carries
         # one of the words too, as a word of its own: a Hangul syllable joined to it makes another word (no hedge).
-        if "hedged" in spec and any(ch.isdigit() for ch in value) and not any(
-                re.search("(?<![\uac00-\ud7a3])" + re.escape(word) + "(?![\uac00-\ud7a3])", value) for word in spec["hedged"]):
-            self.report(where, "a number without %s: %s" % (" or ".join(spec["hedged"]), value))
+        if "hedged" in spec:
+            for clause in SKY_CLAUSE.split(value):
+                if has_figure(clause) and not hedges(clause, spec["hedged"]):
+                    self.report(where, "a number without %s: %s" % (" or ".join(spec["hedged"]), clause))
         for word in spec.get("forbidden", []):
             if word in value:
                 self.report(where, "the word %s is not used here: %s" % (word, value))

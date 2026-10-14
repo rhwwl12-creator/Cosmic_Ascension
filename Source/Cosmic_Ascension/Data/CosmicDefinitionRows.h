@@ -505,7 +505,7 @@ struct COSMIC_ASCENSION_API FGalaxyDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	FText DistanceText;
 
-	// A feature worth one line. May be empty. Display.
+	// A feature worth one line. May be empty. A figure in it carries its estimate like the two texts above. Display.
 	UPROPERTY(EditAnywhere)
 	FText FeatureText;
 

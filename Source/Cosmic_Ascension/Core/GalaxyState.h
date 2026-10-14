@@ -548,9 +548,9 @@ struct COSMIC_ASCENSION_API FKnownMark
  * Saved and part of ComputeStateHash, but not world state: the world only writes it and never reads it (the full rule
  * and its one exception, the crossing-stage cleanup that compares a removed CivID with PendingContactCivID and clears
  * it, are in section 8.1), and ComputeWorldHash leaves it out. KnownSystems and MetCivs grow only through NoteMet,
- * NoteKnown and Install (Install writes the birth system and civilization; NoteMet and NoteKnown arrive with the knowing
- * work of Phase 2, and until then only Install and tests
- * fill the arrays). The arrays are in order of discovery and never shrink (no TMap, no predicate tag). It belongs to
+ * NoteKnown and Install (Install writes the birth system and civilization; NoteMet and NoteKnown arrive with the known
+ * scope and log work of Phase 2, and until then only Install and tests fill the arrays). The arrays are in order of
+ * discovery and never shrink (no TMap, no predicate tag). It belongs to
  * the calling: kept across death and succession (section 4.4).
  */
 USTRUCT(BlueprintType)
