@@ -27,24 +27,30 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 	UPROPERTY(Transient)
 	TObjectPtr<UDataTable> LogTemplates;
 
+	// DT_Galaxies: one row per galaxy that has a name (section 5.11). The simulation reads the home row alone
+	// (DT_Rules.HomeGalaxyRow); a missing table or home row means the C++ defaults of FGalaxyDef.
+	UPROPERTY(Transient)
+	TObjectPtr<UDataTable> Galaxies;
+
 	// DT_Events: one row per event (section 7.3). A missing table means no rows; the event slots still draw.
 	// Not loaded from a fixed path yet: the asset arrives with the first row, tests inject the table until then.
 	UPROPERTY(Transient)
 	TObjectPtr<UDataTable> Events;
 
 	// DT_Transcendents: one row per transcendent, row name == TranscendentID (section 4.2). A missing table means a run
-	// without transcendents. Not loaded from a fixed path yet: the asset arrives with its first row (trans_silence),
-	// tests inject the table until then.
+	// without transcendents.
 	UPROPERTY(Transient)
 	TObjectPtr<UDataTable> Transcendents;
 
-	// Loads every table from its fixed path. A missing asset leaves its pointer null and is reported once in LogCosmic.
+	// Loads every table that has an asset from its fixed path: DT_Rules, DT_Civs, DT_LogTemplates, DT_Galaxies and
+	// DT_Transcendents. A missing asset leaves its pointer null and is reported once in LogCosmic.
 	void LoadFromFixedPaths();
 
 	// Null when the table or the row is missing. They never warn: the caller decides what a missing row means.
 	const FCosmicRulesDef* FindRules() const;
 	const FCivArchetypeDef* FindCiv(FName RowName) const;
 	const FLogTemplateDef* FindLogTemplate(FName RowName) const;
+	const FGalaxyDef* FindGalaxy(FName RowName) const;
 	const FCosmicEventDef* FindEvent(FName RowName) const;
 	const FTranscendentDef* FindTranscendent(FName RowName) const;
 

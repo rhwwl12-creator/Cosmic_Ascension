@@ -15,6 +15,8 @@
 #include "Math/NumericLimits.h"
 #include "Misc/Crc.h"
 #include "Misc/Guid.h"
+#include "Sim/CosmicStateIndex.h"
+#include "UObject/NameTypes.h"
 #include "Player/PlayerRoleSubsystem.h"
 #include "UObject/EnumProperty.h"
 #include "UObject/TextProperty.h"
@@ -34,9 +36,35 @@ namespace
 	// Home system of the first life (section 5.10).
 	const FName PlayerHomeSystemID(TEXT("sol"));
 
-	// Star system actors are budgeted at 150 (section 9.4).
-	constexpr int32 MaxSystems = 150;
 	constexpr int32 MaxLanesPerSystem = 4;
+
+	// The disc of the home galaxy: about pi x 1000^2 of map per system (section 7.4).
+	constexpr float DiscRadiusPerRootSystem = 1000.f;
+
+	// Rejection sampling of a place: at most this many tries per system; the last one is halved if it misses too, and a
+	// point of the square halved always lies in the disc (section 9.2).
+	constexpr int32 MaxPlaceTries = 16;
+
+	// One draw read as an index in [0, Count). The number is drawn by the caller whether or not it is used, so the draws
+	// never depend on Count (section 9.2). INDEX_NONE when there is nothing to pick.
+	int32 PickIndex(float Roll, int32 Count)
+	{
+		return Count > 0 ? FMath::Min(static_cast<int32>(Roll * static_cast<float>(Count)), Count - 1) : INDEX_NONE;
+	}
+
+	// The star class one draw gives under cumulative shares (DT_Rules.LivingWorldStarShares): the first class whose
+	// share lies above the draw. A draw above every share (shares that do not end at 1, or are not numbers) is the last.
+	int32 StarClassIndex(float Roll, const TArray<float>& Shares)
+	{
+		for (int32 Index = 0; Index < Shares.Num(); ++Index)
+		{
+			if (Roll < Shares[Index])
+			{
+				return Index;
+			}
+		}
+		return Shares.Num() - 1;
+	}
 
 	// Star classes from the hottest to the coolest.
 	const FName StarClassNames[] = {
@@ -400,6 +428,13 @@ void UGalaxySimulationSubsystem::SetTables(const FCosmicDataTables& InTables)
 		UE_LOG(LogCosmic, Error, TEXT("DT_Rules has no row '%s': running on the C++ defaults."), *CosmicRows::Rules.ToString());
 	}
 	Rules = RulesRow ? *RulesRow : FCosmicRulesDef();
+
+	const FGalaxyDef* HomeRow = Tables.FindGalaxy(Rules.HomeGalaxyRow);
+	if (Tables.Galaxies && !HomeRow)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("DT_Galaxies has no row '%s' (DT_Rules.HomeGalaxyRow): the home galaxy runs on the C++ defaults."), *Rules.HomeGalaxyRow.ToString());
+	}
+	HomeGalaxy = HomeRow ? *HomeRow : FGalaxyDef();
 }
 
 void UGalaxySimulationSubsystem::Tick(float DeltaTime)
@@ -429,8 +464,28 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 	}
 	ensureMsgf(!bInTickStages, TEXT("NewGalaxy from inside a tick stage: issue it from OnSimTick or from input"));
 
-	SystemCount = FMath::Clamp(SystemCount, 1, MaxSystems);
-	CivCount = FMath::Clamp(CivCount, 1, SystemCount);
+	// A count of 0 or less is the home row's (section 3.1). No upper bound: the actor budget is the presentation's.
+	SystemCount = FMath::Max(SystemCount > 0 ? SystemCount : HomeGalaxy.LivingWorlds, 1);
+	CivCount = FMath::Clamp(CivCount > 0 ? CivCount : HomeGalaxy.Peoples, 1, SystemCount);
+
+	// The range checks of the two knobs are lints; the guards are here, with one line when they bite.
+	const FCosmicRulesDef DefaultRules;
+	const TArray<float>& StarShares = (Rules.LivingWorldStarShares.Num() == static_cast<int32>(UE_ARRAY_COUNT(StarClassNames))) ? Rules.LivingWorldStarShares : DefaultRules.LivingWorldStarShares;
+	if (&StarShares != &Rules.LivingWorldStarShares)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("DT_Rules: LivingWorldStarShares has %d entries, not %d: the C++ default is used"), Rules.LivingWorldStarShares.Num(), static_cast<int32>(UE_ARRAY_COUNT(StarClassNames)));
+	}
+	float HomeShare = HomeGalaxy.HomeRadiusShare;
+	if (!(HomeShare >= 0.f && HomeShare <= 1.f))
+	{
+		HomeShare = FGalaxyDef().HomeRadiusShare;
+		UE_LOG(LogCosmic, Error, TEXT("DT_Galaxies: HomeRadiusShare %f of the home row is outside 0..1, read as %f"), HomeGalaxy.HomeRadiusShare, HomeShare);
+	}
+	const int32 Places = FMath::Clamp(Rules.FallenTranscendentCount, 0, MaxFallenRoster);
+	if (Places != Rules.FallenTranscendentCount)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("DT_Rules: FallenTranscendentCount %d is outside 0..%d, read as %d"), Rules.FallenTranscendentCount, MaxFallenRoster, Places);
+	}
 
 	State = FGalaxyState();
 	State.SaveVersion = FGalaxyState::CurrentSaveVersion;
@@ -448,20 +503,49 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 		FGameplayTag::RequestGameplayTag(FName(TEXT("AI.Profile.Militarist"))),
 	};
 
-	// Systems on a disc. System 0 is the player's home.
-	const float DiscRadius = 1000.f * FMath::Sqrt(static_cast<float>(SystemCount));
+	// The draws below are made in the order NewGalaxy's header comment gives, whether or not they are used, so their
+	// number follows Seed, the two counts and the roster knob and never what the tables hold (section 7.4, 9.2).
+
+	// 1. Systems on a disc. System 0 is sol, the home of the first life, at a fixed place.
+	const float DiscRadius = DiscRadiusPerRootSystem * FMath::Sqrt(static_cast<float>(SystemCount));
 	State.Systems.Reserve(SystemCount);
 	for (int32 Index = 0; Index < SystemCount; ++Index)
 	{
 		FStarSystemState& System = State.Systems.AddDefaulted_GetRef();
-		System.SystemID = (Index == 0) ? PlayerHomeSystemID : FName(*FString::Printf(TEXT("sys_%03d"), Index));
+		System.SystemID = (Index == 0) ? PlayerHomeSystemID : FName(*FString::Printf(TEXT("sys_%d"), Index));
+		System.GalaxyRow = Rules.HomeGalaxyRow;
 
-		const float Angle = Rng.FRand() * UE_TWO_PI;
-		const float Distance = FMath::Sqrt(Rng.FRand()) * DiscRadius;
-		System.Position = FVector(FMath::Cos(Angle) * Distance, FMath::Sin(Angle) * Distance, 0.0);
-		System.StarClass = FGameplayTag::RequestGameplayTag(StarClassNames[Rng.RandRange(0, static_cast<int32>(UE_ARRAY_COUNT(StarClassNames)) - 1)]);
+		if (Index == 0)
+		{
+			System.Position = FVector(HomeShare * DiscRadius, 0.0, 0.0);
+		}
+		else
+		{
+			// A point of the square, thrown away while it lies outside the disc. No trigonometry (section 9.2).
+			float X = 0.f;
+			float Y = 0.f;
+			for (int32 Try = 1; ; ++Try)
+			{
+				X = Rng.FRand() * 2.f - 1.f;
+				Y = Rng.FRand() * 2.f - 1.f;
+				if (X * X + Y * Y <= 1.f)
+				{
+					break;
+				}
+				if (Try == MaxPlaceTries)
+				{
+					X *= 0.5f;
+					Y *= 0.5f;
+					break;
+				}
+			}
+			System.Position = FVector(X * DiscRadius, Y * DiscRadius, 0.0);
+		}
 
-		// Drawn for every system so the stream does not shift. The player's home stays ordinary: no numeric edge (section 5.11).
+		const float ClassRoll = Rng.FRand();
+		System.StarClass = FGameplayTag::RequestGameplayTag(StarClassNames[StarClassIndex(ClassRoll, StarShares)]);
+
+		// The player's home stays ordinary: no numeric edge (section 5.11).
 		const float Richness = 0.5f + Rng.FRand();
 		System.ResourceRichness = (Index == 0) ? 1.f : Richness;
 	}
@@ -497,12 +581,13 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 		return Best;
 	};
 
-	// A spanning tree first, so every system can be reached: each system links to the nearest earlier one.
+	// Lanes join systems of the one galaxy (section 5.9). A spanning tree first, so every system can be reached: each
+	// system links to the nearest earlier one. Then one more lane per system to its nearest unlinked neighbour, while
+	// both ends have room. No draw.
 	for (int32 Index = 1; Index < SystemCount; ++Index)
 	{
 		AddLane(Index, FindNearest(Index, Index, false));
 	}
-	// Then one more lane per system to its nearest unlinked neighbour, while both ends have room.
 	for (int32 Index = 0; Index < SystemCount; ++Index)
 	{
 		if (State.Systems[Index].Lanes.Num() < MaxLanesPerSystem)
@@ -514,104 +599,48 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 			}
 		}
 	}
+	StateIndex.Rebuild(State);
 
-	// AI archetypes: the DT_Civs rows with a positive Weight, in lexical row order so the draw never depends on the
-	// table's own order (section 9.2). A row may be drawn more than once.
-	TArray<FName> ArchetypeRows;
-	TArray<float> ArchetypeWeights;
-	float TotalWeight = 0.f;
-	for (const FName RowName : Tables.GetCivRowNames())
-	{
-		const FCivArchetypeDef* Row = Tables.FindCiv(RowName);
-		if (Row && Row->Weight > 0.f)
-		{
-			ArchetypeRows.Add(RowName);
-			ArchetypeWeights.Add(Row->Weight);
-			TotalWeight += Row->Weight;
-		}
-	}
-
-	// Civilizations. Civ 0 is the player civ on system 0; AI civs draw distinct home systems from the rest.
-	TArray<int32> FreeHomes;
-	FreeHomes.Reserve(SystemCount - 1);
+	// 2. Homes. The first AI people lives one lane from sol, so the first contact comes at 5:30 (section 2.4); every
+	// other AI people draws its home among the systems still free.
+	TArray<int32> HomeIndices;
+	HomeIndices.Reserve(CivCount);
+	HomeIndices.Add(0);
+	TArray<int32> FreeSystems;
+	FreeSystems.Reserve(SystemCount - 1);
 	for (int32 Index = 1; Index < SystemCount; ++Index)
 	{
-		FreeHomes.Add(Index);
+		FreeSystems.Add(Index);
+	}
+	if (CivCount >= 2)
+	{
+		TArray<int32> Neighbours;
+		for (const FName Lane : State.Systems[0].Lanes)
+		{
+			Neighbours.Add(StateIndex.FindSystem(State, Lane));
+		}
+		const int32 Neighbour = Neighbours[PickIndex(Rng.FRand(), Neighbours.Num())];
+		HomeIndices.Add(Neighbour);
+		FreeSystems.Remove(Neighbour);
+	}
+	while (HomeIndices.Num() < CivCount)
+	{
+		const int32 Pick = PickIndex(Rng.FRand(), FreeSystems.Num());
+		HomeIndices.Add(FreeSystems[Pick]);
+		FreeSystems.RemoveAt(Pick);
 	}
 
+	// The peoples. Civ 0 is the player's; every CivID comes from NextCivSerial (section 7.2).
 	State.Civs.Reserve(CivCount);
 	for (int32 CivIndex = 0; CivIndex < CivCount; ++CivIndex)
 	{
-		const bool bPlayerCiv = (CivIndex == 0);
-		int32 HomeIndex = 0;
-		FName ArchetypeRow = bPlayerCiv ? Rules.PlayerArchetypeRow : CosmicRows::ArchDefault;
-		if (!bPlayerCiv)
-		{
-			const int32 Pick = Rng.RandRange(0, FreeHomes.Num() - 1);
-			HomeIndex = FreeHomes[Pick];
-			FreeHomes.RemoveAtSwap(Pick);
-
-			if (!ArchetypeRows.IsEmpty())
-			{
-				float Roll = Rng.FRand() * TotalWeight;
-				int32 RowIndex = 0;
-				while (RowIndex < ArchetypeRows.Num() - 1 && Roll >= ArchetypeWeights[RowIndex])
-				{
-					Roll -= ArchetypeWeights[RowIndex];
-					++RowIndex;
-				}
-				ArchetypeRow = ArchetypeRows[RowIndex];
-			}
-		}
-		const FCivArchetypeDef* Archetype = Tables.FindCiv(ArchetypeRow);
-		FStarSystemState& Home = State.Systems[HomeIndex];
-
+		FStarSystemState& Home = State.Systems[HomeIndices[CivIndex]];
 		FCivilizationState& Civ = State.Civs.AddDefaulted_GetRef();
-		Civ.CivID = FName(*FString::Printf(TEXT("civ_%02d"), CivIndex));
+		Civ.CivID = FName(*FString::Printf(TEXT("civ_%d"), State.NextCivSerial++));
+		Civ.GalaxyRow = Rules.HomeGalaxyRow;
 		Civ.HomeSystemID = Home.SystemID;
-		Civ.ArchetypeRow = ArchetypeRow;
+		Civ.ArchetypeRow = (CivIndex == 0) ? Rules.PlayerArchetypeRow : CosmicRows::ArchDefault;
 		Civ.Color = CivWheelColor(static_cast<uint8>((CivIndex * 255) / CivCount));
-		if (Archetype)
-		{
-			Civ.Traits = Archetype->Traits;
-			Civ.Ethics = Archetype->EthicsPreset;
-			Civ.AIProfile = Archetype->AIProfile;
-			if (bPlayerCiv)
-			{
-				Civ.Color = Archetype->Color;
-			}
-		}
-		if (!bPlayerCiv)
-		{
-			if (ArchetypeRow == CosmicRows::ArchDefault)
-			{
-				Civ.Ethics.Pacifism = Rng.FRand() * 2.f - 1.f;
-				Civ.Ethics.Spiritualism = Rng.FRand() * 2.f - 1.f;
-				Civ.Ethics.Openness = Rng.FRand() * 2.f - 1.f;
-			}
-			if (!Civ.AIProfile.IsValid())
-			{
-				Civ.AIProfile = AIProfiles[Rng.RandRange(0, static_cast<int32>(UE_ARRAY_COUNT(AIProfiles)) - 1)];
-			}
-		}
-		if (Archetype)
-		{
-			if (Archetype->HomeStarClass.IsValid())
-			{
-				Home.StarClass = Archetype->HomeStarClass;
-			}
-			if (!Archetype->HomeSystemNames.IsEmpty())
-			{
-				Home.DisplayName = Flatten(Archetype->HomeSystemNames[Rng.RandRange(0, Archetype->HomeSystemNames.Num() - 1)]);
-			}
-			if (!Archetype->NameBank.IsEmpty())
-			{
-				// Name patterns may call the home system by name.
-				FFormatNamedArguments NameArgs;
-				NameArgs.Add(TEXT("Star"), Home.DisplayName);
-				Civ.CivName = Flatten(FText::Format(Archetype->NameBank[Rng.RandRange(0, Archetype->NameBank.Num() - 1)], NameArgs));
-			}
-		}
 		for (const FName Field : ResearchFields)
 		{
 			Civ.Research.Add(Field, 0.f);
@@ -621,8 +650,142 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 		Home.OwnerCivID = Civ.CivID;
 	}
 
-	// The fallen roster (section 4.2). Silence is fixed; the others are drawn. Every sphere starts empty: the starting
-	// systems of a sphere are placed by the generation change of Phase 2.
+	// 3. Archetype, ethics and profile of every AI people. AI archetypes: the DT_Civs rows with a positive, finite
+	// Weight, in lexical row order so the draw never depends on the table's own order (section 9.2). A row may be
+	// drawn more than once.
+	TArray<FName> ArchetypeRows;
+	TArray<float> ArchetypeWeights;
+	float TotalWeight = 0.f;
+	for (const FName RowName : Tables.GetCivRowNames())
+	{
+		const FCivArchetypeDef* Row = Tables.FindCiv(RowName);
+		if (Row && Row->Weight > 0.f && Row->Weight <= TNumericLimits<float>::Max())
+		{
+			ArchetypeRows.Add(RowName);
+			ArchetypeWeights.Add(Row->Weight);
+			TotalWeight += Row->Weight;
+		}
+	}
+	for (int32 CivIndex = 0; CivIndex < CivCount; ++CivIndex)
+	{
+		FCivilizationState& Civ = State.Civs[CivIndex];
+		const bool bPlayerCiv = (CivIndex == 0);
+		float ArchetypeRoll = 0.f;
+		float EthicsRolls[3] = { 0.f, 0.f, 0.f };
+		float ProfileRoll = 0.f;
+		if (!bPlayerCiv)
+		{
+			ArchetypeRoll = Rng.FRand();
+			for (float& Roll : EthicsRolls)
+			{
+				Roll = Rng.FRand() * 2.f - 1.f;
+			}
+			ProfileRoll = Rng.FRand();
+			if (!ArchetypeRows.IsEmpty())
+			{
+				float Mark = ArchetypeRoll * TotalWeight;
+				int32 RowIndex = 0;
+				while (RowIndex < ArchetypeRows.Num() - 1 && Mark >= ArchetypeWeights[RowIndex])
+				{
+					Mark -= ArchetypeWeights[RowIndex];
+					++RowIndex;
+				}
+				Civ.ArchetypeRow = ArchetypeRows[RowIndex];
+			}
+		}
+		if (const FCivArchetypeDef* Archetype = Tables.FindCiv(Civ.ArchetypeRow))
+		{
+			Civ.Traits = Archetype->Traits;
+			Civ.Ethics = Archetype->EthicsPreset;
+			Civ.AIProfile = Archetype->AIProfile;
+			if (bPlayerCiv)
+			{
+				Civ.Color = Archetype->Color;
+			}
+			if (Archetype->HomeStarClass.IsValid())
+			{
+				State.Systems[HomeIndices[CivIndex]].StarClass = Archetype->HomeStarClass;
+			}
+		}
+		if (!bPlayerCiv)
+		{
+			if (Civ.ArchetypeRow == CosmicRows::ArchDefault)
+			{
+				Civ.Ethics.Pacifism = EthicsRolls[0];
+				Civ.Ethics.Spiritualism = EthicsRolls[1];
+				Civ.Ethics.Openness = EthicsRolls[2];
+			}
+			if (!Civ.AIProfile.IsValid())
+			{
+				Civ.AIProfile = AIProfiles[PickIndex(ProfileRoll, static_cast<int32>(UE_ARRAY_COUNT(AIProfiles)))];
+			}
+		}
+	}
+
+	// 4. Names, made once and flattened (section 5.11, 8.5). Pools without replacement are partial shuffles of an index
+	// array: the k-th taker swaps a drawn index into place k.
+	auto TakeWithoutReplacement = [](TArray<int32>& Order, int32& Taken, float Roll) -> int32
+	{
+		if (Taken >= Order.Num())
+		{
+			return INDEX_NONE;
+		}
+		Order.Swap(Taken, Taken + PickIndex(Roll, Order.Num() - Taken));
+		return Order[Taken++];
+	};
+	TArray<int32> StarOrder;
+	for (int32 Index = 0; Index < HomeGalaxy.StarNameBank.Num(); ++Index)
+	{
+		StarOrder.Add(Index);
+	}
+	int32 StarsTaken = 0;
+	for (int32 CivIndex = 0; CivIndex < CivCount; ++CivIndex)
+	{
+		FCivilizationState& Civ = State.Civs[CivIndex];
+		FStarSystemState& Home = State.Systems[HomeIndices[CivIndex]];
+		const float HomeRoll = Rng.FRand();
+		const float NameRoll = Rng.FRand();
+		const FCivArchetypeDef* Archetype = Tables.FindCiv(Civ.ArchetypeRow);
+		if (Archetype && !Archetype->HomeSystemNames.IsEmpty())
+		{
+			Home.DisplayName = Flatten(Archetype->HomeSystemNames[PickIndex(HomeRoll, Archetype->HomeSystemNames.Num())]);
+		}
+		else
+		{
+			const int32 Star = TakeWithoutReplacement(StarOrder, StarsTaken, HomeRoll);
+			Home.DisplayName = (Star != INDEX_NONE) ? Flatten(HomeGalaxy.StarNameBank[Star]) : FText::GetEmpty();
+		}
+		if (Archetype && !Archetype->NameBank.IsEmpty())
+		{
+			// Name patterns call the home system by name.
+			FFormatNamedArguments NameArgs;
+			NameArgs.Add(TEXT("Star"), Home.DisplayName);
+			Civ.CivName = Flatten(FText::Format(Archetype->NameBank[PickIndex(NameRoll, Archetype->NameBank.Num())], NameArgs));
+		}
+	}
+	const int32 StemCount = HomeGalaxy.CatalogStems.Num();
+	TArray<int32> PairOrder;
+	for (int32 Index = 0; Index < HomeGalaxy.CatalogPrefixes.Num() * StemCount; ++Index)
+	{
+		PairOrder.Add(Index);
+	}
+	int32 PairsTaken = 0;
+	for (FStarSystemState& System : State.Systems)
+	{
+		if (!System.OwnerCivID.IsNone())
+		{
+			continue;
+		}
+		const int32 Pair = TakeWithoutReplacement(PairOrder, PairsTaken, Rng.FRand());
+		if (Pair != INDEX_NONE)
+		{
+			const int32 Prefix = Pair / StemCount;
+			const int32 Stem = Pair - Prefix * StemCount;
+			System.DisplayName = FText::AsCultureInvariant(HomeGalaxy.CatalogPrefixes[Prefix].ToString() + TEXT(" ") + HomeGalaxy.CatalogStems[Stem].ToString());
+		}
+	}
+
+	// 5. The fallen roster (section 4.2). Silence is fixed; the others are drawn.
 	{
 		const FGameplayTag AbyssalTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Realm.Abyssal")));
 		auto AddTranscendent = [this](FName RowName, const FTranscendentDef& Def)
@@ -631,13 +794,6 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 			Transcendent.TranscendentID = RowName;
 			Transcendent.Doctrine = Def.Doctrine;
 		};
-
-		// The range of the knob is a lint; the guard is here, with one line when it bites.
-		const int32 Places = FMath::Clamp(Rules.FallenTranscendentCount, 0, MaxFallenRoster);
-		if (Places != Rules.FallenTranscendentCount)
-		{
-			UE_LOG(LogCosmic, Error, TEXT("DT_Rules: FallenTranscendentCount %d is outside 0..%d, read as %d"), Rules.FallenTranscendentCount, MaxFallenRoster, Places);
-		}
 
 		const FTranscendentDef* Silence = Tables.FindTranscendent(CosmicRows::TransSilence);
 		if (Places >= 1 && Silence && Silence->Allegiance == AbyssalTag)
@@ -697,6 +853,61 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 		}
 	}
 
+	// 6. Starting cores (section 5.7): one draw per place of the roster. Candidates: unowned systems far enough from
+	// sol, one lane from the home of an AI people and in no sphere yet, in array order.
+	{
+		const TArray<int32> FromSol = CosmicState::LaneDistancesFrom(State, StateIndex, 0);
+		const int32 MinLanes = FMath::Max(0, Rules.FallenCoreMinLanesFromHome);
+		TBitArray<> NextToAIHome(false, SystemCount);
+		for (int32 CivIndex = 1; CivIndex < CivCount; ++CivIndex)
+		{
+			for (const FName Lane : State.Systems[HomeIndices[CivIndex]].Lanes)
+			{
+				NextToAIHome[StateIndex.FindSystem(State, Lane)] = true;
+			}
+		}
+		TBitArray<> InSphere(false, SystemCount);
+		for (int32 Place = 0; Place < Places; ++Place)
+		{
+			const float Roll = Rng.FRand();
+			if (!State.Transcendents.IsValidIndex(Place))
+			{
+				continue;
+			}
+			FTranscendentState& Transcendent = State.Transcendents[Place];
+			const FTranscendentDef* Def = Tables.FindTranscendent(Transcendent.TranscendentID);
+			if (!Def || Def->InitialInfluencedSystems <= 0)
+			{
+				continue;
+			}
+			TArray<int32> Candidates;
+			int32 Farthest = INDEX_NONE;
+			for (int32 Index = 0; Index < SystemCount; ++Index)
+			{
+				const FStarSystemState& System = State.Systems[Index];
+				if (!System.OwnerCivID.IsNone() || InSphere[Index] || FromSol[Index] == INDEX_NONE)
+				{
+					continue;
+				}
+				if (FromSol[Index] >= MinLanes && NextToAIHome[Index])
+				{
+					Candidates.Add(Index);
+				}
+				if (Farthest == INDEX_NONE || FromSol[Index] > FromSol[Farthest]
+					|| (FromSol[Index] == FromSol[Farthest] && FNameLexicalLess()(System.SystemID, State.Systems[Farthest].SystemID)))
+				{
+					Farthest = Index;
+				}
+			}
+			const int32 Core = Candidates.IsEmpty() ? Farthest : Candidates[PickIndex(Roll, Candidates.Num())];
+			if (Core != INDEX_NONE)
+			{
+				Transcendent.InfluencedSystems.Add(State.Systems[Core].SystemID);
+				InSphere[Core] = true;
+			}
+		}
+	}
+
 	StateIndex.Rebuild(State);
 
 	// The first life: ruler of the player civ, through the same function succession uses (section 5.10).
@@ -708,7 +919,7 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 	Accumulator = 0.f;
 	bRunning = true;
 
-	UE_LOG(LogCosmic, Log, TEXT("NewGalaxy: seed %d, %d systems, %d civs"), Seed, SystemCount, CivCount);
+	UE_LOG(LogCosmic, Log, TEXT("NewGalaxy: seed %d, %d systems, %d civs, galaxy %s"), Seed, SystemCount, CivCount, *Rules.HomeGalaxyRow.ToString());
 	if (bBroadcastEnabled)
 	{
 		OnGalaxyGenerated.Broadcast(Seed);
@@ -1115,18 +1326,15 @@ void UGalaxySimulationSubsystem::TickResearch()
 			const float After = FMath::Min(1.f, Before + Spent * Civ.ResearchFocus.FindRef(Field) * Economy::ResearchPerInsight);
 			Civ.Research.Add(Field, After);
 
-			// A breakthrough is told once per mark crossed. A civ without a display name cannot be told of (section 8.2).
-			if (Civ.CivName.IsEmpty())
-			{
-				continue;
-			}
+			// A breakthrough is told once per mark crossed. Every people has a name from its birth (section 5.11); whether
+			// the line is told is the story scope's question, never the world's (section 8.1).
 			for (const float Threshold : BreakthroughThresholds)
 			{
 				if (Before < Threshold && After >= Threshold)
 				{
 					FFormatNamedArguments Args;
 					Args.Add(TEXT("Civ"), Civ.CivName);
-					Log->PushRow(CosmicRows::LogBreakthrough[FieldIndex], Civ.bIsPlayerRuled ? 1 : 0, Args, Civ.HomeSystemID);
+					Log->PushRow(CosmicRows::LogBreakthrough[FieldIndex], Civ.bIsPlayerRuled ? 1 : 0, Args, Civ.HomeSystemID, Civ.CivID);
 				}
 			}
 		}

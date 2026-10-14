@@ -547,18 +547,29 @@ bool FCosmicFallenRosterPickTest::RunTest(const FString& Parameters)
 	}
 
 	// The number of draws follows the knob alone: the same stream position with a full table, an empty one and none,
-	// exactly two draws more than with one place, and none at all with one place or with no place.
+	// and with rows that have a starting core or not. Each place beyond the first is one roster draw and each place is
+	// one core draw (section 7.4): three places draw four times more than one place, one place once more than none.
 	{
 		const int32 Three = SeedAfter(TablesFor(3, TableOf(Full)));
 		TestEqual(TEXT("An empty DT_Transcendents draws like a full one"), SeedAfter(TablesFor(3, NewTable(FTranscendentDef::StaticStruct()))), Three);
 		TestEqual(TEXT("No DT_Transcendents draws like a full one"), SeedAfter(TablesFor(3, nullptr)), Three);
 		TestEqual(TEXT("A table without the silence row draws like a full one"), SeedAfter(TablesFor(3, TableOf(WithoutSilence))), Three);
+		FRowList WithCores = Full;
+		for (TPair<FName, FTranscendentDef>& Each : WithCores)
+		{
+			Each.Value.InitialInfluencedSystems = 1;
+		}
+		TestEqual(TEXT("Rows with a starting core draw like rows without"), SeedAfter(TablesFor(3, TableOf(WithCores))), Three);
 		const int32 One = SeedAfter(TablesFor(1, TableOf(Full)));
 		FRandomStream Probe(One);
-		Probe.GetFraction();
-		Probe.GetFraction();
-		TestEqual(TEXT("Three places draw exactly twice more than one place"), Three, Probe.GetCurrentSeed());
-		TestEqual(TEXT("One place and no place draw nothing: the stream stands at the same position"), SeedAfter(TablesFor(0, TableOf(Full))), One);
+		for (int32 Draw = 0; Draw < 4; ++Draw)
+		{
+			Probe.GetFraction();
+		}
+		TestEqual(TEXT("Three places draw exactly four times more than one place (two roster draws, two core draws)"), Three, Probe.GetCurrentSeed());
+		FRandomStream FromNone(SeedAfter(TablesFor(0, TableOf(Full))));
+		FromNone.GetFraction();
+		TestEqual(TEXT("One place draws exactly once more than no place: its core draw"), One, FromNone.GetCurrentSeed());
 	}
 
 	// One place is silence alone, no place is nobody, and without the silence row nobody takes its place.

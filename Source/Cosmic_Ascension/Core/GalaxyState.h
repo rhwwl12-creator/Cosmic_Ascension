@@ -14,9 +14,8 @@
 //
 // Determinism (section 9.2):
 // - FText is display only: stored where noted, never part of ComputeStateHash. FGalaxyState.GalaxyID is the save slot
-//   identity and is not hashed either. Every other field is hashed.
-//   One thing in a text is read by the sim: whether CivName is empty (TickResearch tells no breakthrough of a nameless
-//   civ, section 8.2). Its content is never read.
+//   identity and is not hashed either. Every other field is hashed. The sim reads no text: every people is named at
+//   generation, and whether a line is told is the story scope's question (section 8.1).
 // - ComputeWorldHash is ComputeStateHash without Knowing, Log, Chronicle and TellRngState. Every exclusion (GalaxyID
 //   from both hashes, these four from the world hash) goes by the name of the top-level member of FGalaxyState: keep
 //   the slot identity, the stream values, the knowing and the telling at the top level, never inside a nested struct.
@@ -67,7 +66,7 @@ struct COSMIC_ASCENSION_API FCosmicLogEntry
 
 	// Subject civilization of the line. NAME_None = none. Pairs with FocusSystemID: the scope of telling judges both at
 	// the push (section 8.1). Push and PushVariants store it. A fired event row passes its subject civilization (the
-	// event evaluator); TickResearch passes it from the Phase 2 generation change on.
+	// event evaluator), and so does TickResearch.
 	UPROPERTY(BlueprintReadOnly)
 	FName FocusCivID;
 
@@ -90,8 +89,8 @@ struct COSMIC_ASCENSION_API FStarSystemState
 	UPROPERTY(BlueprintReadOnly)
 	FName SystemID;
 
-	// DT_Galaxies row name of the galaxy this system lies in (section 7.2). NewGalaxy stamps the home row name from the
-	// Phase 2 generation change on. The initializer NAME_None means "not stamped yet" and is frozen: no rule reads
+	// DT_Galaxies row name of the galaxy this system lies in (section 7.2). NewGalaxy stamps the home row name
+	// (DT_Rules.HomeGalaxyRow). The initializer NAME_None means "not stamped yet" and is frozen: no rule reads
 	// NAME_None as the home galaxy. Lanes only join systems of one GalaxyRow; a bridge between galaxies is not a lane.
 	UPROPERTY(BlueprintReadOnly)
 	FName GalaxyRow;
@@ -186,7 +185,7 @@ struct COSMIC_ASCENSION_API FCivilizationState
 	FName CivID;
 
 	// DT_Galaxies row name of the galaxy this civilization lives in: always the GalaxyRow of its systems (section 7.2).
-	// Stamped by NewGalaxy from the Phase 2 generation change on. NAME_None = not stamped yet.
+	// Stamped by NewGalaxy. NAME_None = not stamped yet.
 	UPROPERTY(BlueprintReadOnly)
 	FName GalaxyRow;
 
@@ -666,7 +665,7 @@ struct COSMIC_ASCENSION_API FGalaxyState
 	UPROPERTY()
 	FGuid GalaxyID;
 
-	// Source of every CivID (civ_<n>) from the Phase 2 generation change on. Never reused.
+	// Source of every CivID (civ_<n>, no padding). Never reused.
 	UPROPERTY()
 	int32 NextCivSerial = 0;
 

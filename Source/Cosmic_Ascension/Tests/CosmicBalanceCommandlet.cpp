@@ -37,8 +37,9 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 {
 	int32 Seed = 42;
 	int64 Ticks = 20000;
-	int32 Systems = 60;
-	int32 Civs = 8;
+	// 0 = the home galaxy row (DT_Galaxies: LivingWorlds, Peoples). Give them only to measure another size (section 9.3).
+	int32 Systems = 0;
+	int32 Civs = 0;
 	FString Out = TEXT("balance.csv");
 	FParse::Value(*Params, TEXT("Seed="), Seed);
 	FParse::Value(*Params, TEXT("Ticks="), Ticks);

@@ -87,8 +87,8 @@ struct FCosmicEvalSubject
 	// section 7.3. EvaluateAndFire leaves it empty; FireRow and stage code hand their own value on.
 	FName OtherID;
 
-	// DT_Galaxies row of the subject (section 7.2). The caller copies it from the subject civilization or system;
-	// NAME_None until the Phase 2 generation change stamps the state. Carried from the first header on so that the rules
+	// DT_Galaxies row of the subject (section 7.2). The caller copies it from the subject civilization or system, which
+	// NewGalaxy has stamped (NAME_None only in a state made by hand). Carried from the first header on so that the rules
 	// that count lanes never need a second signature; no condition or effect of the vertical slice reads it.
 	FName GalaxyRow;
 

@@ -88,16 +88,50 @@ public:
 	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UGalaxySimulationSubsystem, STATGROUP_Tickables); }
 
 	/**
-	 * Replaces the state with a new galaxy generated from Seed and the definition tables, then installs the first life as
-	 * the ruler of the player civ (DT_Rules.PlayerArchetypeRow, home system "sol") through UPlayerRoleSubsystem::Install
-	 * (section 5.10). AI civs draw their archetype from the DT_Civs rows with a positive Weight (section 7.4).
-	 * The fallen roster (section 4.2): the instance of CosmicRows::TransSilence when DT_Transcendents holds that row as
-	 * a Realm.Abyssal row, then DT_Rules.FallenTranscendentCount - 1 draws from the sim stream, each picking one more
-	 * Realm.Abyssal row by SpawnWeight among the rows not active yet, in row-name order (a row whose weight is not above
-	 * zero or not finite is no candidate). A draw without a candidate is thrown away, so the number of draws follows the
-	 * knob alone, never the table. The knob is read as 0..3, with one error line when it lies outside. Celestial and
-	 * Independent rows get no instance. Every sphere starts empty: the starting systems (FTranscendentDef.InitialInfluencedSystems) are
-	 * placed by the generation change of Phase 2.
+	 * Replaces the state with a new home galaxy generated from Seed and the definition tables, then installs the first
+	 * life as the ruler of the player's people (DT_Rules.PlayerArchetypeRow, home system "sol") through
+	 * UPlayerRoleSubsystem::Install (section 5.10, 7.4).
+	 *
+	 * Numbers. A count of 0 or less is read from the home row (GetHomeGalaxy: LivingWorlds, Peoples), so no caller
+	 * keeps a copy of those numbers. Systems: at least 1, and no upper bound here (the actor budget of 150 belongs to
+	 * the presentation layer). Peoples: at least 1, at most the number of systems.
+	 *
+	 * What it makes. Systems "sol" and "sys_<n>", civilizations "civ_<n>" from State.NextCivSerial, no padding; every
+	 * system and civilization carries DT_Rules.HomeGalaxyRow in GalaxyRow. sol lies at HomeRadiusShare of the disc
+	 * radius, angle 0; every other system at a point drawn in the square and thrown away while it lies outside the
+	 * disc, at most 16 tries, the sixteenth halved when it misses too. No trigonometry: only + - x / and the square
+	 * root reach a hashed value (section 9.2). Lanes join systems of the one galaxy. One lane neighbour of sol is the
+	 * home of the first AI people. Names are final and flattened here: nothing is named later.
+	 *
+	 * The draws, in this order and no other (section 9.2). Kinds of draw are made in blocks:
+	 * 1. Per system, in array order: its place (none for sol; two draws per try), its star class (one draw against
+	 *    DT_Rules.LivingWorldStarShares), its richness (one draw). sol draws both too; its richness is always 1, and
+	 *    the home of any people whose archetype has a HomeStarClass takes that class instead of the one it drew.
+	 * 2. Homes: the first AI people among the lane neighbours of sol (one draw, none when there is one people), then
+	 *    one draw per further AI people among the systems still free.
+	 * 3. Per AI people, in CivID order: archetype (one draw over the DT_Civs rows of positive Weight in row-name
+	 *    order), ethics (three draws: pacifism, spiritualism, openness), AI profile (one draw).
+	 * 4. Names. Per people, the player's first: the home system (one draw: HomeSystemNames of the archetype when it
+	 *    holds any, else the next name of FGalaxyDef.StarNameBank without replacement) and the people (one draw
+	 *    over NameBank of the archetype, {Star} = the home). Then per unowned system in array order: one draw for a
+	 *    pair of FGalaxyDef.CatalogPrefixes x CatalogStems, without replacement.
+	 * 5. The fallen roster (section 4.2): the instance of CosmicRows::TransSilence when DT_Transcendents holds that row
+	 *    as a Realm.Abyssal row, then DT_Rules.FallenTranscendentCount - 1 draws, each picking one more Realm.Abyssal
+	 *    row by SpawnWeight among the rows not active yet, in row-name order (a row whose weight is not above zero or
+	 *    not finite is no candidate). The knob is read as 0..3, with one error line when it lies outside. Celestial
+	 *    and Independent rows get no instance.
+	 * 6. Starting cores (section 5.7): one draw per place of the roster. An instance whose row has
+	 *    InitialInfluencedSystems above 0 gets one system: an unowned system at least
+	 *    DT_Rules.FallenCoreMinLanesFromHome lanes from sol, one lane from the home of an AI people and in no sphere
+	 *    yet, picked among the candidates in array order. Without a candidate: the unowned system in no sphere that
+	 *    lies farthest from sol in lanes, the lowest SystemID (FNameLexicalLess) among equals. Without an unowned
+	 *    system the sphere starts empty.
+	 * 7. The first life: the name of the vessel (one draw, in Install).
+	 * Every draw is made whether or not it is used: a people whose archetype has fixed ethics, a profile or an empty
+	 * bank, a place of the roster without an instance, a row without a core all draw and throw the number away. The
+	 * number of draws therefore follows Seed, the two counts and the roster knob, never what the tables hold: adding
+	 * a row or filling a bank moves no system and no home.
+	 *
 	 * Stamps State.TellRngState with (int32)CosmicSeed::Derive(Seed, "", Tell, 0) before the first line is told.
 	 * Tick 0 is this generated state; the first simulated tick is 1.
 	 * Refused with one error line inside a handler of OnLogEntry or OnEventFired (IsBroadcasting): the state is not
@@ -149,10 +183,14 @@ public:
 	// DT_Rules single row. C++ defaults when the table or its row is missing.
 	const FCosmicRulesDef& GetRules() const { return Rules; }
 
+	// The DT_Galaxies row of the home galaxy (DT_Rules.HomeGalaxyRow). C++ defaults when the table or the row is
+	// missing; a table that lacks the row is reported with one error line, like DT_Rules.
+	const FGalaxyDef& GetHomeGalaxy() const { return HomeGalaxy; }
+
 	// The definition tables (section 7.3), loaded from their fixed asset paths in Initialize.
 	const FCosmicDataTables& GetTables() const { return Tables; }
 
-	// Replaces the tables and re-reads the rules row. Tests inject transient tables here.
+	// Replaces the tables and re-reads the rules row and the home galaxy row. Tests inject transient tables here.
 	void SetTables(const FCosmicDataTables& InTables);
 
 	// Binds the live state, the sim stream, the state index, the tables and the rules into an evaluation context
@@ -313,6 +351,7 @@ private:
 
 	FRandomStream Rng;
 	FCosmicRulesDef Rules;
+	FGalaxyDef HomeGalaxy;
 
 	// Derived from State, never saved: see GetStateIndex.
 	FCosmicStateIndex StateIndex;

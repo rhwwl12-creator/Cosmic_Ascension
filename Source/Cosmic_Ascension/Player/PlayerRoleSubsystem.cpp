@@ -96,6 +96,21 @@ void UPlayerRoleSubsystem::Install(FName SystemID, FName CivID, EPlayerRole Role
 	}
 	Sim->SyncRngState();
 
+	// A life knows where it was born, without a line (section 8.1). The first contact is not written here.
+	FKnowingState& Knowing = State.Knowing;
+	if (!SystemID.IsNone() && !Knowing.KnownSystems.ContainsByPredicate([SystemID](const FKnownMark& Mark) { return Mark.ID == SystemID; }))
+	{
+		FKnownMark& Mark = Knowing.KnownSystems.AddDefaulted_GetRef();
+		Mark.ID = SystemID;
+		Mark.Tick = State.Tick;
+	}
+	if (Civ && !Knowing.MetCivs.ContainsByPredicate([CivID](const FKnownMark& Mark) { return Mark.ID == CivID; }))
+	{
+		FKnownMark& Mark = Knowing.MetCivs.AddDefaulted_GetRef();
+		Mark.ID = CivID;
+		Mark.Tick = State.Tick;
+	}
+
 	if (bFirstLife)
 	{
 		// The first line of the run calls the home system by name (section 2.4).

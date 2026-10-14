@@ -25,6 +25,10 @@ public:
 	/**
 	 * Starts a life on a new vessel (section 4.4, 7.5). The first life (NewGalaxy, Ruler) and every succession go through
 	 * here. Resets the vessel, opens a FLifeRecord and, for a ruler, opens a reign in the three reign arrays.
+	 * Writes the birth system into Knowing.KnownSystems and the birth civilization into Knowing.MetCivs, each once and
+	 * without a line (section 8.1): a life knows where it was born. It never writes Knowing.FirstContactCivID: the
+	 * people one is born into is not a contact.
+	 * One draw from the sim stream per call, for the name of the vessel, made before the name bank is looked at.
 	 */
 	void Install(FName SystemID, FName CivID, EPlayerRole Role);
 };

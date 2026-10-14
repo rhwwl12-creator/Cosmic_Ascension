@@ -36,4 +36,15 @@ namespace CosmicState
 	{
 		return !System.OwnerCivID.IsNone() && System.ActiveMegaproject != CosmicRows::ProjectSettle;
 	}
+
+	/**
+	 * Lanes counted from one system (section 5.9): entry i is the fewest lanes from system FromSystemIndex to system i,
+	 * 0 for the system itself, and INDEX_NONE for a system that cannot be reached, that lies farther than MaxLanes, or
+	 * that lies in another GalaxyRow (a bridge between galaxies is not a lane, and the walk does not follow a lane into
+	 * another galaxy even if the state held one). A lane to a SystemID the state does not hold is skipped. An index
+	 * out of range gives INDEX_NONE for every system. The array has one entry per element of State.Systems.
+	 * The one walk for every rule that counts lanes over more than one step: the place of a starting core now, the
+	 * sight of the calling, settlement and succession later. World state only, no draw, one breadth-first pass.
+	 */
+	COSMIC_ASCENSION_API TArray<int32> LaneDistancesFrom(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 FromSystemIndex, int32 MaxLanes = MAX_int32);
 }

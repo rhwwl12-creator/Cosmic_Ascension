@@ -84,16 +84,18 @@ LIST = ("a list", lambda value: isinstance(value, list))
 OBJECT = ("an object", lambda value: isinstance(value, dict))
 OBJECT_OR_NULL = ("an object or null", lambda value: value is None or isinstance(value, dict))
 NAME_LISTS = ("an object of lists of strings", lambda value: isinstance(value, dict) and all(is_names(e) for e in value.values()))
+WORDS = ("a list of strings, not empty", lambda value: is_names(value) and len(value) > 0 and all(entry != "" for entry in value))
+TWO_NAMES = ("a list of two column names", lambda value: is_names(value) and len(value) == 2)
 
 RANGE = {"min": NUMBER, "max": NUMBER, "integer": FLAG}
 # Kind of column -> the options a column of that kind may carry next to "kind", each with its type.
 COLUMN_OPTIONS = {
     "plain": {},
     "number": dict(RANGE),
-    "numbers": dict(RANGE, len=COUNT, ascending=FLAG),
-    "text": {"slots": NAMES, "no_digits": FLAG, "required": FLAG},
+    "numbers": dict(RANGE, len=COUNT, ascending=FLAG, ends_at=NUMBER),
+    "text": {"slots": NAMES, "no_digits": FLAG, "required": FLAG, "hedged": WORDS, "forbidden": WORDS},
     "texts": {"min": COUNT, "len_in": COUNTS, "empty_or_min": COUNT, "unique": FLAG, "slots": NAMES, "no_digits": FLAG,
-              "single_variant": FLAG},
+              "single_variant": FLAG, "hedged": WORDS, "forbidden": WORDS},
     "tag": {"root": ROOT, "optional": FLAG},
     "tags": {"root": ROOT},
     "tag_list": {"root": ROOT},
@@ -112,6 +114,9 @@ REQUIRED_OPTIONS = {"row": ("table",), "row_map": ("table",), "word_map": ("word
 TESTS = {
     "is": SCALAR, "in": SCALARS, "gt": NUMBER, "ge": NUMBER, "lt": NUMBER, "le": NUMBER, "set": FLAG,
     "min_len": COUNT, "max_len": COUNT, "each_contains": NAME, "lacks_type": NAME, "slots_in": NAMES,
+    # The size of a list against other columns of the same row: at least the number in the named column; the product
+    # of the two lengths at least the number in the second named column (two pools whose pairs are handed out).
+    "len_ge_col": NAME, "pairs_ge_col": TWO_NAMES,
 }
 # Test -> the kinds of column it can be asked of. Asked of another kind it would never hold (or always).
 VALUE_KINDS = ("plain", "number", "text", "tag", "row", "enum")
@@ -119,8 +124,10 @@ SIZED_KINDS = ("numbers", "texts", "tags", "tag_list", "tag_map", "row_map", "wo
 TEST_KINDS = {
     "is": VALUE_KINDS, "in": VALUE_KINDS, "gt": ("number",), "ge": ("number",), "lt": ("number",), "le": ("number",),
     "set": tuple(kind for kind in COLUMN_KINDS if kind not in ("number", "enum")), "min_len": SIZED_KINDS, "max_len": SIZED_KINDS, "each_contains": ("texts",),
-    "lacks_type": ("conditions", "effects"), "slots_in": ("text", "texts"),
+    "lacks_type": ("conditions", "effects"), "slots_in": ("text", "texts"), "len_ge_col": SIZED_KINDS, "pairs_ge_col": SIZED_KINDS,
 }
+# The kinds of the columns a test names besides its own: the number to reach, the other pool.
+NAMED_COLUMNS = {"len_ge_col": (("number",),), "pairs_ge_col": (SIZED_KINDS, ("number",))}
 
 TOP_KEYS = {
     "version": NUMBER, "about": NAMES, "tag_sources": NAMES, "row_name_sources": NAMES, "required_tags": NAMES,
@@ -474,6 +481,13 @@ class Checker:
                     self.report(where, "a row test names the row %s, which %s neither requires nor has" % (value, column_spec.get("table")))
             if name == "lacks_type" and operand not in self.schema[kind]:
                 self.report(where, "a row test names %r, which is no enumerator of %s" % (operand, kind))
+            if name in NAMED_COLUMNS:
+                for other, kinds in zip([operand] if isinstance(operand, str) else operand, NAMED_COLUMNS[name]):
+                    other_spec = columns.get(other)
+                    if not isinstance(other_spec, dict):
+                        self.report(where, "a row test names the column %r, which %s does not declare" % (other, table_name))
+                    elif other_spec.get("kind") not in kinds:
+                        self.report(where, "the test '%s' needs a column of kind %s, and %s is of kind %s: %s" % (name, " or ".join(kinds), other, other_spec.get("kind"), shown))
 
     def check_usage_entry(self, kind, type_name, usage):
         specs = self.schema["tables"]
@@ -670,6 +684,12 @@ class Checker:
             self.report(where, "a text is required here")
         if spec.get("no_digits") and any(ch.isdigit() for ch in value):
             self.report(where, "a digit in a text that carries none: %s" % value)
+        # A number of the sky is always an estimate (guideline 8.3): a text of such a column says so. An empty one is let be.
+        if "hedged" in spec and value != "" and not any(word in value for word in spec["hedged"]):
+            self.report(where, "a text without %s: %s" % (" or ".join(spec["hedged"]), value))
+        for word in spec.get("forbidden", []):
+            if word in value:
+                self.report(where, "the word %s is not used here: %s" % (word, value))
         if "slots" in spec:
             names, problems = slots_of(value)
             for problem in problems:
@@ -754,6 +774,9 @@ class Checker:
             if spec.get("ascending") and all(is_finite(entry) for entry in value):
                 if any(later <= earlier for earlier, later in zip(value, value[1:])):
                     self.report(where, "the entries do not rise: %r" % (value,))
+            # A cumulative share ends where every draw is covered.
+            if "ends_at" in spec and (not value or not is_number(value[-1]) or value[-1] != spec["ends_at"]):
+                self.report(where, "the last entry has to be %r, found %r" % (spec["ends_at"], value[-1] if value else None))
         elif kind == "text":
             self.check_text(where, value, spec)
         elif kind == "texts":
@@ -843,6 +866,12 @@ class Checker:
         if name == "lacks_type":
             # A list of conditions or effects without one of the named enumerator.
             return isinstance(value, list) and all(not (isinstance(item, dict) and item.get("Type") == operand) for item in value)
+        if name == "len_ge_col":
+            bound = row.get(operand)
+            return isinstance(value, (list, dict)) and is_number(bound) and length_of(value) >= bound
+        if name == "pairs_ge_col":
+            other, bound = row.get(operand[0]), row.get(operand[1])
+            return isinstance(value, (list, dict)) and isinstance(other, (list, dict)) and is_number(bound) and length_of(value) * length_of(other) >= bound
         # slots_in: every slot of the text, or of every text of the list, is one of the named.
         texts = value if isinstance(value, list) else [value]
         return all(isinstance(text, str) and all(slot in operand for slot in slots_of(text)[0]) for text in texts)

@@ -11,13 +11,6 @@
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "UI/CosmicTextPanelWidget.h"
 
-namespace
-{
-	// The Phase 1 prototype galaxy (section 11).
-	constexpr int32 PrototypeSystems = 5;
-	constexpr int32 PrototypeCivs = 3;
-}
-
 ACosmicGameMode::ACosmicGameMode()
 {
 	HUDClass = ACosmicHUD::StaticClass();
@@ -38,7 +31,8 @@ void ACosmicGameMode::StartPlay()
 		{
 			Seed = static_cast<int32>(FDateTime::UtcNow().GetTicks() & 0x7fffffff);
 		}
-		Sim->NewGalaxy(Seed, PrototypeSystems, PrototypeCivs);
+		// The counts come from the home galaxy row (section 3.1).
+		Sim->NewGalaxy(Seed, 0, 0);
 		Sim->SetTimeScale(1.f);
 	}
 

@@ -499,6 +499,74 @@ class SchemaTests(unittest.TestCase):
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "PopulationBandThresholds", 3)), "list of numbers")
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "LureAcceptByPolicy", {"Greedy": 0.5})), "Greedy is none of")
 
+    def test_a_cumulative_share_ends_at_its_mark(self):
+        shares = [0.01, 0.05, 0.14, 0.31, 0.57, 0.82, 1.0]
+        self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "LivingWorldStarShares", shares)), [])
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "LivingWorldStarShares", shares[:6] + [0.9])), "LivingWorldStarShares", "the last entry has to be 1, found 0.9")
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "LivingWorldStarShares", shares[:6] + ["1"])), "LivingWorldStarShares", "the last entry has to be 1")
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "LivingWorldStarShares", [])), "LivingWorldStarShares", "the last entry has to be 1, found None")
+        # The other options of the column stay what they were.
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "LivingWorldStarShares", shares[:5] + [0.5, 1.0])), "do not rise")
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "LivingWorldStarShares", shares[1:])), "exactly 7 entries, found 6")
+
+    def test_galaxy_rows(self):
+        home = lambda column, value: self.set_cell("DT_Galaxies", "gal_milkyway", column, value)  # noqa: E731
+        # A number of the sky carries its estimate; an empty count is let be, an empty distance is not.
+        self.expect(self.after(home("DistanceText", "250\ub9cc \uad11\ub144")), "DT_Galaxies.gal_milkyway.DistanceText", "a text without \uc57d or \ucd94\uc815")
+        self.assertEqual(self.after(home("DistanceText", "\uc57d 250\ub9cc \uad11\ub144")), [])
+        self.assertEqual(self.after(home("StarCountText", "")), [])
+        self.expect(self.after(home("StarCountText", "\ubcc4 1\uc870 \uac1c")), "DT_Galaxies.gal_milkyway.StarCountText", "a text without \uc57d or \ucd94\uc815")
+        self.expect(self.after(home("DistanceText", "")), "DT_Galaxies.gal_milkyway.DistanceText", "a text is required")
+        # The name pools: no digits, no word of the verdict list, no name twice.
+        stars = self.row(self.tables, "DT_Galaxies", "gal_milkyway")["StarNameBank"]
+        self.expect(self.after(home("StarNameBank", stars[:-1] + ["\uc601\ud63c\uc758 \ubcc4"])), "StarNameBank[%d]" % (len(stars) - 1), "the word \uc601\ud63c is not used here")
+        self.expect(self.after(home("CatalogStems", ["\ub9ac\ub77c\uc5d0", "\uae00\ub9ac\uc81c 581"])), "CatalogStems[1]", "a digit")
+        self.expect(self.after(home("CatalogPrefixes", ["\uc54c\ud30c", "\uc54c\ud30c"])), "CatalogPrefixes", "appears twice")
+        # The home row: enough names for its peoples, enough pairs for its systems, no bridge.
+        self.expect(self.after(home("Peoples", len(stars) + 1)), "row gal_milkyway of DT_Galaxies does not hold", '"len_ge_col": "Peoples"')
+        self.assertEqual(self.after(home("Peoples", len(stars))), [])
+        row = self.row(self.tables, "DT_Galaxies", "gal_milkyway")
+        pairs = len(row["CatalogPrefixes"]) * len(row["CatalogStems"])
+        self.expect(self.after(home("LivingWorlds", pairs + 1)), "row gal_milkyway of DT_Galaxies does not hold", '"pairs_ge_col"')
+        self.assertEqual(self.after(home("LivingWorlds", pairs)), [])
+        self.expect(self.after(home("BridgeTicks", 400)), "row gal_milkyway of DT_Galaxies does not hold", '"col": "BridgeTicks"')
+        # Another row of the table is held to none of that: only the row the knob names is the home.
+        self.assertEqual(self.after(self.set_cell("DT_Galaxies", "gal_andromeda", "Peoples", 0)), [])
+        self.expect(self.after(self.set_cell("DT_Galaxies", "gal_andromeda", "BridgeTicks", -1)), "gal_andromeda.BridgeTicks", "is below 0")
+        self.expect(self.after(self.set_cell("DT_Galaxies", "gal_andromeda", "Kind", "Star.Class.G")), "gal_andromeda.Kind", "not under Galaxy.Kind.")
+
+    def test_a_pool_test_names_columns_of_its_table(self):
+        target = ["tables", "DT_Rules", "columns", "HomeGalaxyRow"]
+        for tests, words in (([{"col": "StarNameBank", "len_ge_col": 5}], "the test 'len_ge_col' needs a string"),
+                             ([{"col": "StarNameBank", "len_ge_col": "NoSuchColumn"}], "names the column 'NoSuchColumn', which DT_Galaxies does not declare"),
+                             ([{"col": "StarNameBank", "len_ge_col": "DisplayName"}], "the test 'len_ge_col' needs a column of kind number, and DisplayName is of kind text"),
+                             ([{"col": "Peoples", "len_ge_col": "Peoples"}], "the test 'len_ge_col' cannot be asked of a column of kind number"),
+                             ([{"col": "CatalogPrefixes", "pairs_ge_col": ["CatalogStems"]}], "the test 'pairs_ge_col' needs a list of two column names"),
+                             ([{"col": "CatalogPrefixes", "pairs_ge_col": "CatalogStems"}], "the test 'pairs_ge_col' needs a list of two column names"),
+                             ([{"col": "CatalogPrefixes", "pairs_ge_col": ["DisplayName", "LivingWorlds"]}], "needs a column of kind numbers or texts"),
+                             ([{"col": "CatalogPrefixes", "pairs_ge_col": ["CatalogStems", "DisplayName"]}], "needs a column of kind number, and DisplayName is of kind text"),
+                             ([{"col": "CatalogPrefixes", "pairs_ge_col": ["CatalogStems", "NoSuchColumn"]}], "names the column 'NoSuchColumn'")):
+            with self.subTest(tests=tests):
+                self.schema_problem(self.put(target, "target", tests), "schema.DT_Rules.HomeGalaxyRow", words)
+        # A pool test holds only over a list and a number.
+        holds = checker.Checker(self.schema, self.tables, self.tags).holds
+        self.assertTrue(holds({"col": "A", "len_ge_col": "B"}, {"A": ["x", "y"], "B": 2}, "r"))
+        self.assertFalse(holds({"col": "A", "len_ge_col": "B"}, {"A": ["x", "y"], "B": 3}, "r"))
+        self.assertFalse(holds({"col": "A", "len_ge_col": "B"}, {"A": ["x", "y"], "B": "1"}, "r"))
+        self.assertFalse(holds({"col": "A", "len_ge_col": "B"}, {"A": "xy", "B": 1}, "r"))
+        self.assertTrue(holds({"col": "A", "pairs_ge_col": ["C", "B"]}, {"A": ["x", "y"], "C": ["p", "q", "r"], "B": 6}, "r"))
+        self.assertFalse(holds({"col": "A", "pairs_ge_col": ["C", "B"]}, {"A": ["x", "y"], "C": ["p", "q", "r"], "B": 7}, "r"))
+        self.assertFalse(holds({"col": "A", "pairs_ge_col": ["C", "B"]}, {"A": ["x", "y"], "C": "pqr", "B": 1}, "r"))
+        self.assertFalse(holds({"col": "A", "pairs_ge_col": ["C", "B"]}, {"A": ["x", "y"], "C": ["p"], "B": None}, "r"))
+
+    def test_options_of_the_text_kinds_have_their_type(self):
+        for column, key, value in (("DistanceText", "hedged", []), ("DistanceText", "hedged", "\uc57d"), ("DistanceText", "hedged", ["\uc57d", ""]),
+                                   ("StarNameBank", "forbidden", []), ("StarNameBank", "forbidden", [1])):
+            with self.subTest(column=column, key=key, value=value):
+                self.schema_problem(self.put(["tables", "DT_Galaxies", "columns", column], key, value), "DT_Galaxies.%s" % column, key, "not empty")
+        self.schema_problem(self.put(["tables", "DT_Rules", "columns", "LivingWorldStarShares"], "ends_at", "1"), "LivingWorldStarShares", "ends_at", "a number")
+        self.schema_problem(self.put(["tables", "DT_Rules", "columns", "SightIntervalTicks"], "ends_at", 1), "SightIntervalTicks", "ends_at")
+
     # ---- texts ----
 
     def test_texts(self):
@@ -1103,6 +1171,10 @@ class SchemaTests(unittest.TestCase):
             row[column] = list(row[column]) + [cond(operand) if kind == "conditions" else eff(operand)]
         elif name == "slots_in":
             row[column] = ["{NoSuchSlot} a.", "b.", "c."] if kind == "texts" else "{NoSuchSlot}"
+        elif name == "len_ge_col":
+            row[operand] = len(row[column]) + 1
+        elif name == "pairs_ge_col":
+            row[operand[1]] = len(row[column]) * len(row[operand[0]]) + 1
         else:
             self.fail("the walker cannot break the test %s: add the case" % name)
 
@@ -1124,6 +1196,8 @@ class SchemaTests(unittest.TestCase):
         named = update_event(Trigger="Named", BaseWeight=0, CooldownTicks=0, LogTemplates=["one."])
         return {
             ("DT_Civs", "the name pattern of a people drawn for the AI calls its home star (guideline 5.11)"): (NOTHING, "arch_default"),
+            ("DT_Civs", "the home of a people drawn for the AI takes a proper name from the galaxy without replacement, never a fixed one two peoples could share (guideline 7.4)"):
+                (NOTHING, "arch_default"),
             ("DT_Events", "a slot row tells with three variants or more (guideline 8.2)"): (NOTHING, event),
             ("DT_Events", "a row fired by name tells with one variant or more (guideline 8.2)"): (named, event),
             ("DT_Events", "a slot runs for every people: until the selector words are decided it carries no condition on the vessel, no role effect and no effect on the vessel (guideline 16 #29 (7))"): (NOTHING, event),
@@ -1154,7 +1228,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 28, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 30, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 
@@ -1205,6 +1279,7 @@ class SchemaTests(unittest.TestCase):
         # Where a target stands -> (what makes the reference, the table and the row it then points at).
         setups = {
             "DT_Civs.InitialRelations": (relation_to_default, "DT_Civs", "arch_default"),
+            "DT_Rules.HomeGalaxyRow": (NOTHING, "DT_Galaxies", "gal_milkyway"),
             "DT_Events.SignRow": (self.add_sign_row, "DT_LogTemplates", "log_sign_test"),
             "conditions.SystemInfluencedBy": (condition_on("SystemInfluencedBy"), "DT_Transcendents", "trans_silence"),
             "conditions.TranscendentSealed": (condition_on("TranscendentSealed"), "DT_Transcendents", "trans_silence"),
@@ -1241,7 +1316,7 @@ class SchemaTests(unittest.TestCase):
                 with self.subTest(table=table, column=column):
                     self.expect(self.after(self.set_cell(table, row_name, column, value)), "%s.%s.%s" % (table, row_name, column), "slot {NoSuchSlot}")
                     walked += 1
-        self.assertEqual(walked, 6, "the number of slot lists in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 10, "the number of slot lists in schema.json changed: look at what was added or taken out, then set the count")
 
 
 if __name__ == "__main__":

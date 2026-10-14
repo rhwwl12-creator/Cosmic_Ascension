@@ -50,3 +50,36 @@ int32 FCosmicStateIndex::FindSystem(const FGalaxyState& State, FName SystemID) c
 	}
 	return *Found;
 }
+
+TArray<int32> CosmicState::LaneDistancesFrom(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 FromSystemIndex, int32 MaxLanes)
+{
+	TArray<int32> Distances;
+	Distances.Init(INDEX_NONE, State.Systems.Num());
+	if (!State.Systems.IsValidIndex(FromSystemIndex) || MaxLanes < 0)
+	{
+		return Distances;
+	}
+	const FName Galaxy = State.Systems[FromSystemIndex].GalaxyRow;
+	TArray<int32> Queue;
+	Queue.Reserve(State.Systems.Num());
+	Distances[FromSystemIndex] = 0;
+	Queue.Add(FromSystemIndex);
+	for (int32 Head = 0; Head < Queue.Num(); ++Head)
+	{
+		const int32 Current = Queue[Head];
+		if (Distances[Current] >= MaxLanes)
+		{
+			continue;
+		}
+		for (const FName Lane : State.Systems[Current].Lanes)
+		{
+			const int32 Next = Index.FindSystem(State, Lane);
+			if (Next != INDEX_NONE && Distances[Next] == INDEX_NONE && State.Systems[Next].GalaxyRow == Galaxy)
+			{
+				Distances[Next] = Distances[Current] + 1;
+				Queue.Add(Next);
+			}
+		}
+	}
+	return Distances;
+}

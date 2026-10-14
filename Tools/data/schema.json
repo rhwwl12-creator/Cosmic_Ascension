@@ -8,7 +8,7 @@
 		"Every column of a row struct is declared here: a column added to a struct needs its line.",
 		"Column kinds (closed list): plain, number, numbers, text, texts, tag, tags, tag_list, tag_map, row, row_map, word_map, enum, conditions, effects",
 		"An integer property is declared with integer: true (Data.Integrity holds the columns to the property types).",
-		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, slots_in",
+		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, slots_in, len_ge_col, pairs_ge_col",
 		"A row rule is 'when -> then' over tests: one column with one test of the list above, or 'row' with a row name. Each test can be asked of some kinds of column only (the checker holds the table).",
 		"A rule added here needs an input that breaks it in Tools/test_data_schema.py: that test walks every rule, unique, pair, target and slot list of this file.",
 		"A number range stands here only where the guideline states one. A column without a range is checked for being a finite number.",
@@ -93,7 +93,25 @@
 				"MaxNotablesPerCiv": {"kind": "number", "min": 3, "max": 5, "integer": true},
 				"PopulationBandThresholds": {"kind": "numbers", "len": 3, "ascending": true},
 				"EventSlotTicks": {"kind": "number", "min": 1, "max": 20, "integer": true},
-				"EventChancePerSlot": {"kind": "number", "min": 0}
+				"EventChancePerSlot": {"kind": "number", "min": 0},
+				"HomeGalaxyRow": {
+					"kind": "row",
+					"table": "DT_Galaxies",
+					"target": [
+						{"col": "BridgeTicks", "is": 0},
+						{"col": "LivingWorlds", "ge": 1},
+						{"col": "Peoples", "ge": 1},
+						{"col": "StarNameBank", "len_ge_col": "Peoples"},
+						{"col": "CatalogPrefixes", "pairs_ge_col": ["CatalogStems", "LivingWorlds"]}
+					]
+				},
+				"RealmCapByTier": {"kind": "numbers", "len": 5, "ascending": true, "integer": true},
+				"SightLanesByTier": {"kind": "numbers", "len": 5, "min": 1, "integer": true},
+				"SightIntervalTicks": {"kind": "number", "integer": true},
+				"FirstSightTick": {"kind": "number", "integer": true},
+				"FarLineCooldownTicks": {"kind": "number", "integer": true},
+				"LivingWorldStarShares": {"kind": "numbers", "len": 7, "ascending": true, "min": 0, "max": 1, "ends_at": 1},
+				"FallenCoreMinLanesFromHome": {"kind": "number", "integer": true}
 			}
 		},
 
@@ -124,7 +142,12 @@
 				{
 					"why": "the name pattern of a people drawn for the AI calls its home star (guideline 5.11)",
 					"when": [{"col": "Weight", "gt": 0}],
-					"then": [{"col": "NameBank", "each_contains": "{Star}"}]
+					"then": [{"col": "NameBank", "min_len": 1}, {"col": "NameBank", "each_contains": "{Star}"}]
+				},
+				{
+					"why": "the home of a people drawn for the AI takes a proper name from the galaxy without replacement, never a fixed one two peoples could share (guideline 7.4)",
+					"when": [{"col": "Weight", "gt": 0}],
+					"then": [{"col": "HomeSystemNames", "max_len": 0}]
 				}
 			]
 		},
@@ -227,9 +250,34 @@
 			]
 		},
 
+		"DT_Galaxies": {
+			"struct": "GalaxyDef",
+			"prefixes": ["gal_"],
+			"must_exist": true,
+			"columns": {
+				"DisplayName": {"kind": "text", "required": true},
+				"Kind": {"kind": "tag", "root": "Galaxy.Kind."},
+				"LivingWorlds": {"kind": "number", "min": 0, "integer": true},
+				"Peoples": {"kind": "number", "min": 0, "integer": true},
+				"AIFourthRungCap": {"kind": "number", "min": 0, "integer": true},
+				"HomeRadiusShare": {"kind": "number", "min": 0, "max": 1},
+				"RadiusLy": {"kind": "number", "min": 0, "integer": true},
+				"BridgeTicks": {"kind": "number", "min": 0, "integer": true},
+				"StarCountText": {"kind": "text", "hedged": ["약", "추정"]},
+				"DistanceText": {"kind": "text", "required": true, "hedged": ["약", "추정"]},
+				"FeatureText": {"kind": "text"},
+				"MapPosition": {"kind": "plain"},
+				"StarNameBank": {"kind": "texts", "unique": true, "slots": [], "no_digits": true, "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
+				"CatalogPrefixes": {"kind": "texts", "unique": true, "slots": [], "no_digits": true, "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
+				"CatalogStems": {"kind": "texts", "unique": true, "slots": [], "no_digits": true, "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
+				"PeopleStems": {"kind": "texts", "unique": true, "slots": [], "no_digits": true, "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]}
+			}
+		},
+
 		"DT_Transcendents": {
 			"struct": "TranscendentDef",
 			"prefixes": ["trans_"],
+			"must_exist": true,
 			"required_rows": ["trans_silence"],
 			"columns": {
 				"Doctrine": {"kind": "tag", "root": "Doctrine."},
@@ -239,7 +287,7 @@
 				"Lure": {"kind": "text"},
 				"Tier": {"kind": "enum", "enum": "EAscensionTier"},
 				"Depth": {"kind": "number", "min": 0, "max": 1},
-				"InitialInfluencedSystems": {"kind": "number", "min": 0, "integer": true},
+				"InitialInfluencedSystems": {"kind": "number", "min": 0, "max": 1, "integer": true},
 				"MaxInfluencedSystems": {"kind": "number", "min": 0, "integer": true},
 				"SpawnWeight": {"kind": "number", "min": 0},
 				"EventWeightModifiers": {"kind": "tag_map", "root": "Event.", "min": 0},

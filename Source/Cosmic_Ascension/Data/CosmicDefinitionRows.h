@@ -279,7 +279,9 @@ struct COSMIC_ASCENSION_API FCivArchetypeDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	FLinearColor Color = FLinearColor::White;
 
-	// Civ name patterns with the {Star} slot.
+	// Name patterns of a people. {Star} is the display name of its home system; a row AI peoples are drawn from has
+	// it in every pattern, so two peoples of one archetype never share a name (section 5.11). NewGalaxy picks one with
+	// one draw per people, made whether or not the bank holds anything (section 9.2).
 	UPROPERTY(EditAnywhere)
 	TArray<FText> NameBank;
 
@@ -316,11 +318,14 @@ struct COSMIC_ASCENSION_API FCivArchetypeDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	TArray<FText> RevelationTemplates;
 
-	// Home system display names. Empty = the star-name pools (section 5.11).
+	// Display names for the home system (arch_terran: one, the name of sol). Empty = the home takes the next proper
+	// name of FGalaxyDef.StarNameBank, without replacement. Either way it is the one home-name draw of the people. A row
+	// AI peoples are drawn from leaves this empty (Data.Integrity): a bank read with replacement could name two homes alike.
 	UPROPERTY(EditAnywhere)
 	TArray<FText> HomeSystemNames;
 
-	// Fixed star class of the home system. Empty = random.
+	// Fixed star class of the home system (arch_terran: Star.Class.G). Empty = the class the system drew from
+	// DT_Rules.LivingWorldStarShares like every other system (section 7.4).
 	UPROPERTY(EditAnywhere)
 	FGameplayTag HomeStarClass;
 
@@ -372,6 +377,8 @@ struct COSMIC_ASCENSION_API FTranscendentDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	float Depth = 0.5f;
 
+	// The starting core of the sphere (section 5.7): 0 = none, 1 = one system, which NewGalaxy places. Allowed range
+	// 0..1 (Data.Integrity); the code reads any value above 0 as one system.
 	UPROPERTY(EditAnywhere)
 	int32 InitialInfluencedSystems = 0;
 
@@ -436,6 +443,91 @@ struct COSMIC_ASCENSION_API FLogTemplateDef : public FTableRowBase
 	// log_first_contact). Two sentences: fact, then implication (section 8.3).
 	UPROPERTY(EditAnywhere)
 	TArray<FText> Templates;
+};
+
+/**
+ * DT_Galaxies row (section 5.11): one galaxy that has a name. The row name is the identity of the galaxy and lands in
+ * saves (GalaxyRow, OriginGalaxyRow, FTransitRecord), so it never changes once shipped.
+ * One row is the home galaxy (DT_Rules.HomeGalaxyRow), the only galaxy simulated in detail. Of that row the simulation
+ * reads LivingWorlds, Peoples, HomeRadiusShare and the three name pools at generation, and AIFourthRungCap from Phase 6a.
+ * Of the other rows it reads nothing until the crossings of Phase 6a (BridgeTicks, PeopleStems). Every other column
+ * is display only: editing it never moves a hash.
+ * The member initializers are what a run falls back on when the table or the home row is missing: the numbers of the
+ * vertical slice. A row that is not the home row writes 0 into the four simulation columns.
+ */
+USTRUCT(BlueprintType)
+struct COSMIC_ASCENSION_API FGalaxyDef : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	// The common name of the galaxy. Display.
+	UPROPERTY(EditAnywhere)
+	FText DisplayName;
+
+	// Galaxy.Kind.Dwarf / Spiral / GrandSpiral / Elliptical. Definition only, never copied into the state. Display.
+	UPROPERTY(EditAnywhere)
+	FGameplayTag Kind;
+
+	// Living systems: the number of systems NewGalaxy makes when it is asked for 0 (section 3.1). Home row only.
+	UPROPERTY(EditAnywhere)
+	int32 LivingWorlds = 60;
+
+	// Peoples, the player's included: the number of civilizations NewGalaxy makes when it is asked for 0. Home row only.
+	UPROPERTY(EditAnywhere)
+	int32 Peoples = 12;
+
+	// The brake on the fourth rung (section 5.12, 7.4 crossing stage). 0 = no brake. Read by the simplified AI ascent
+	// of Phase 6a and never by the player's feats. Home row only.
+	UPROPERTY(EditAnywhere)
+	int32 AIFourthRungCap = 2;
+
+	// Where sol lies: this share of the disc radius, at angle 0 (section 7.4). A place, not an advantage. Read as 0..1;
+	// a value outside, or one that is not a number, is reported with one error line and read as the C++ default.
+	// Home row only.
+	UPROPERTY(EditAnywhere)
+	float HomeRadiusShare = 0.53f;
+
+	// Radius in light years, by the same definition as the display texts. Only the scale of the map reads it. Display.
+	UPROPERTY(EditAnywhere)
+	int32 RadiusLy = 0;
+
+	// The bridge (section 5.9): ticks to cross from the home galaxy. 0 = no bridge; the home row is 0. Not a lane and
+	// no state. Display until the crossing stage reads it in Phase 6a.
+	UPROPERTY(EditAnywhere)
+	int32 BridgeTicks = 0;
+
+	// How many stars, in words that carry their own "about" or "estimated" (section 8.3). May be empty: the panel then
+	// leaves the line out. Display.
+	UPROPERTY(EditAnywhere)
+	FText StarCountText;
+
+	// How far, in words that carry their own "about". The home row tells where the sun lies. Display.
+	UPROPERTY(EditAnywhere)
+	FText DistanceText;
+
+	// A feature worth one line. May be empty. Display.
+	UPROPERTY(EditAnywhere)
+	FText FeatureText;
+
+	// Place on the screen of the universe (the same map, zoomed out). Display, never hashed.
+	UPROPERTY(EditAnywhere)
+	FVector2D MapPosition = FVector2D::ZeroVector;
+
+	// Proper names for the home systems of peoples, handed out without replacement (section 5.11). Home row only.
+	UPROPERTY(EditAnywhere)
+	TArray<FText> StarNameBank;
+
+	// Catalogue names for unowned systems: one prefix (a Greek letter) and one stem (a constellation), joined with a
+	// space, every pair handed out at most once. No digits anywhere (section 5.11). Home row only.
+	UPROPERTY(EditAnywhere)
+	TArray<FText> CatalogPrefixes;
+
+	UPROPERTY(EditAnywhere)
+	TArray<FText> CatalogStems;
+
+	// Name stems for a people that crossed over from this galaxy. Read by the arrivals of Phase 6a.
+	UPROPERTY(EditAnywhere)
+	TArray<FText> PeopleStems;
 };
 
 /** DT_Rules: a single row of tuning knobs and the laws that cannot be rewritten (section 10.1). */
@@ -598,4 +690,47 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// what happens to one people grows with the number of eligible rows, so it is retuned with the content (section 16 #54).
 	UPROPERTY(EditAnywhere)
 	float EventChancePerSlot = 0.02f;
+
+	// ---- Galaxy, layers and knowing (section 5.7, 5.11, 5.12, 7.4, 8.1). Start values ----
+
+	// DT_Galaxies row of the home galaxy, the only galaxy simulated in detail. NewGalaxy stamps this name into the
+	// GalaxyRow of every system and civilization, whether or not the table holds the row. Never changes once shipped.
+	UPROPERTY(EditAnywhere)
+	FName HomeGalaxyRow = FName(TEXT("gal_milkyway"));
+
+	// The realm cap (section 5.12): a people may start settling only while it owns fewer systems than this.
+	// Index = static_cast<int32>(EAscensionTier). Exactly 5 entries, ascending (Data.Integrity). A knob, not a law, and
+	// the same for AI peoples and the people the player rules. First read by the settlement work of Phase 2.
+	UPROPERTY(EditAnywhere)
+	TArray<int32> RealmCapByTier = { 1, 3, 4, 7, 10 };
+
+	// How far the calling sees, in lanes (section 7.4 sight stage). Index = static_cast<int32>(EAscensionTier). Exactly
+	// 5 entries, the first at least 1 (Data.Integrity). A knob of knowing: the world and the generation never read it.
+	// First read by the sight and story-scope work of Phase 2, like the three knobs below it.
+	UPROPERTY(EditAnywhere)
+	TArray<int32> SightLanesByTier = { 1, 2, 4, 6, 10 };
+
+	// Period of the sight stage, in ticks.
+	UPROPERTY(EditAnywhere)
+	int32 SightIntervalTicks = 10;
+
+	// The tick from which a ruler sees from the systems the people owns (5:30 at 1x). The eye of a wanderer is not held back.
+	UPROPERTY(EditAnywhere)
+	int32 FirstSightTick = 330;
+
+	// Least ticks between two lines of log_far_event. log_far_ascent is told every time (section 8.1).
+	UPROPERTY(EditAnywhere)
+	int32 FarLineCooldownTicks = 300;
+
+	// Star classes of living systems, cumulative, O to M: one draw per system is compared with it (section 7.4).
+	// Exactly 7 entries, ascending, the last 1.0 (Data.Integrity); an array of another length is reported with one error
+	// line and the C++ default is used. A design value that leans to G and K, not the real share of the classes
+	// (section 3.4). Read by NewGalaxy.
+	UPROPERTY(EditAnywhere)
+	TArray<float> LivingWorldStarShares = { 0.01f, 0.05f, 0.14f, 0.31f, 0.57f, 0.82f, 1.0f };
+
+	// The starting core of a fallen sphere lies at least this many lanes from the home of the first life (section 5.7):
+	// what keeps pressure off the first minutes. Read by NewGalaxy; below 0 reads as 0.
+	UPROPERTY(EditAnywhere)
+	int32 FallenCoreMinLanesFromHome = 3;
 };

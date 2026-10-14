@@ -668,6 +668,16 @@ namespace CosmicDataTests
 					}
 					Previous = Number;
 				}
+				// A cumulative share ends where every draw is covered. A float array holds the mark as a float does.
+				double EndsAt = 0.0;
+				if (Column.TryGetNumberField(TEXT("ends_at"), EndsAt))
+				{
+					const double Held = CastField<FFloatProperty>(ArrayProperty->Inner) ? static_cast<double>(static_cast<float>(EndsAt)) : EndsAt;
+					if (Count == 0 || Previous != Held)
+					{
+						Problems.Add(FString::Printf(TEXT("%s: the last entry has to be %g"), *Where, EndsAt));
+					}
+				}
 			}
 			else if (Kind == TEXT("texts"))
 			{
@@ -1544,6 +1554,10 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 
 		// Numbers.
 		Expect(TEXT("a number above its range"), WithRules([](FCosmicRulesDef& Row) { Row.FallenTranscendentCount = 4; }), { TEXT("FallenTranscendentCount"), TEXT("is above 3") });
+		Expect(TEXT("a cumulative share that does not end at its mark"), WithRules([](FCosmicRulesDef& Row) { Row.LivingWorldStarShares.Last() = 0.9f; }),
+			{ TEXT("DT_Rules.rules.LivingWorldStarShares"), TEXT("the last entry has to be 1") });
+		Expect(TEXT("an empty cumulative share"), WithRules([](FCosmicRulesDef& Row) { Row.LivingWorldStarShares.Reset(); }),
+			{ TEXT("DT_Rules.rules.LivingWorldStarShares"), TEXT("the last entry has to be 1") });
 		Expect(TEXT("a number below its range"), WithRules([](FCosmicRulesDef& Row) { Row.EventSlotTicks = 0; }), { TEXT("EventSlotTicks"), TEXT("is below 1") });
 		Expect(TEXT("a number that is not finite"), WithRules([](FCosmicRulesDef& Row) { Row.PressureAdjacencyFalloff = std::numeric_limits<float>::quiet_NaN(); }),
 			{ TEXT("PressureAdjacencyFalloff"), TEXT("not a finite number") });

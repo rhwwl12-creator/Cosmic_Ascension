@@ -36,6 +36,8 @@ void FCosmicDataTables::LoadFromFixedPaths()
 	Rules = LoadTable(TEXT("/Game/CA/Data/DT_Rules.DT_Rules"), FCosmicRulesDef::StaticStruct());
 	Civs = LoadTable(TEXT("/Game/CA/Data/DT_Civs.DT_Civs"), FCivArchetypeDef::StaticStruct());
 	LogTemplates = LoadTable(TEXT("/Game/CA/Data/DT_LogTemplates.DT_LogTemplates"), FLogTemplateDef::StaticStruct());
+	Galaxies = LoadTable(TEXT("/Game/CA/Data/DT_Galaxies.DT_Galaxies"), FGalaxyDef::StaticStruct());
+	Transcendents = LoadTable(TEXT("/Game/CA/Data/DT_Transcendents.DT_Transcendents"), FTranscendentDef::StaticStruct());
 }
 
 const FCosmicRulesDef* FCosmicDataTables::FindRules() const
@@ -51,6 +53,11 @@ const FCivArchetypeDef* FCosmicDataTables::FindCiv(FName RowName) const
 const FLogTemplateDef* FCosmicDataTables::FindLogTemplate(FName RowName) const
 {
 	return FindRowQuiet<FLogTemplateDef>(LogTemplates, RowName);
+}
+
+const FGalaxyDef* FCosmicDataTables::FindGalaxy(FName RowName) const
+{
+	return FindRowQuiet<FGalaxyDef>(Galaxies, RowName);
 }
 
 const FCosmicEventDef* FCosmicDataTables::FindEvent(FName RowName) const

@@ -19,11 +19,12 @@ namespace CosmicTests
 	// The tests run with -game, so ClientContext is required (CLAUDE.md).
 	inline constexpr EAutomationTestFlags Flags = EAutomationTestFlags::ClientContext | EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter;
 
-	// Vertical slice size (section 12.1) and the performance budget size (section 9.4).
-	inline constexpr int32 SliceSystems = 20;
-	inline constexpr int32 SliceCivs = 6;
-	inline constexpr int32 BudgetSystems = 120;
-	inline constexpr int32 BudgetCivs = 12;
+	// Vertical slice size: 0 reads the home galaxy row (60 and 12, section 3.1). The performance budget size: the
+	// Early Access start values (section 9.4).
+	inline constexpr int32 SliceSystems = 0;
+	inline constexpr int32 SliceCivs = 0;
+	inline constexpr int32 BudgetSystems = 300;
+	inline constexpr int32 BudgetCivs = 48;
 
 	inline UGameInstance* FindGameInstance()
 	{

@@ -1,0 +1,27 @@
+[
+	{
+		"Name": "trans_silence",
+		"Doctrine": "Doctrine.Silence",
+		"Allegiance": "Realm.Abyssal",
+		"CounterfeitOf": "",
+		"Title": "",
+		"Lure": "",
+		"Tier": "Tier4_Transcendent",
+		"Depth": 1.0,
+		"InitialInfluencedSystems": 1,
+		"MaxInfluencedSystems": 12,
+		"SpawnWeight": 1.0,
+		"EventWeightModifiers": {},
+		"PressureEffectsPerTick": [
+			{
+				"Type": "MultiplyIncome",
+				"Tag": "",
+				"Key": "Insight",
+				"Value": 0.7,
+				"DurationTicks": 0
+			}
+		],
+		"VoiceTemplates": [],
+		"ClaimTemplates": []
+	}
+]
