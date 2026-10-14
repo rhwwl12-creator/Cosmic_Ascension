@@ -262,7 +262,8 @@ def write_stamp(stamped):
 if os.path.exists(os.path.join(SOURCE_DIR, STAMP_FILE)):
     os.remove(os.path.join(SOURCE_DIR, STAMP_FILE))
 
-# One read of everything. From here on the files on disk are not opened again.
+# One read of every source under Tools/data and of the checker: the check, the import and the stamp use these bytes.
+# (The check reads the tags ini and the header of row names besides; the unit tests read the folder again for themselves.)
 SOURCES = cosmic_data_schema.read_sources()
 with open(os.path.join(SOURCE_DIR, CHECKER_FILE), "rb") as checker_handle:
     CHECKER_BYTES = checker_handle.read()

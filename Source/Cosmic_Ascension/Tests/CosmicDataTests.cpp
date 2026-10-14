@@ -68,8 +68,10 @@ namespace CosmicDataTests
 	// range). The usage of conditions and effects, the text rules and the row rules stay with the sources:
 	// Data.SourcesInSync ties the assets to them. What it cannot tie them to is the ini of today (the ini is not in the
 	// stamp), so every tag of a loaded row is held to the ini here, the tags inside conditions and effects too.
-	// Names are compared to the letter: FString compares without regard to case, and a schema that differs from the code
-	// in case only would turn away rows written the way the code spells them.
+	// Names are compared to the letter: FString compares without regard to case and a field of a JSON object is found
+	// without regard to it, and a schema that differs from the code in case only would turn away rows written the way the
+	// code spells them. (The words of the stats and of the civ selector are the exception: they are held by asking the
+	// evaluator, which reads them as FNames, case ignored.)
 
 	using FJsonObjectPtr = TSharedPtr<FJsonObject>;
 
@@ -152,6 +154,34 @@ namespace CosmicDataTests
 	bool HasText(const TArray<FString>& List, const FString& Text)
 	{
 		return List.ContainsByPredicate([&Text](const FString& Each) { return SameText(Each, Text); });
+	}
+
+	// Every TEXT("...") of a header, comments left out (a constant that is commented out is not called). The same
+	// reading as load_code_rows of Tools/cosmic_data_schema.py.
+	TArray<FString> RowNamesInCode(const FString& Header)
+	{
+		FString Code;
+		int32 From = 0;
+		FRegexMatcher Comments(FRegexPattern(TEXT("(?s)/\\*.*?\\*/|//[^\\n]*")), Header);
+		while (Comments.FindNext())
+		{
+			Code += Header.Mid(From, Comments.GetMatchBeginning() - From);
+			From = Comments.GetMatchEnding();
+		}
+		Code += Header.Mid(From);
+		TArray<FString> Names;
+		FRegexMatcher Matcher(FRegexPattern(TEXT("TEXT\\(\"([^\"]*)\"\\)")), Code);
+		while (Matcher.FindNext())
+		{
+			Names.Add(Matcher.GetCaptureGroup(1));
+		}
+		return Names;
+	}
+
+	// A table the schema declares under exactly this name.
+	bool DeclaresTable(const FJsonObjectPtr& Tables, const FString& TableName)
+	{
+		return Tables.IsValid() && HasText(KeysOf(Tables), TableName) && ObjectOf(*Tables, *TableName).IsValid();
 	}
 
 	// The kinds of column (the closed list of schema.json) a property may be declared as. A type the closed list has no
@@ -306,10 +336,13 @@ namespace CosmicDataTests
 				// Declared with the first row of the table.
 				continue;
 			}
+			const TArray<FString> Declared = KeysOf(Columns);
+			TArray<FString> PropertyNames;
 			for (TFieldIterator<FProperty> It(Struct, EFieldIteratorFlags::ExcludeSuper); It; ++It)
 			{
 				const FString ColumnName = It->GetName();
-				const FJsonObjectPtr Column = ObjectOf(*Columns, *ColumnName);
+				PropertyNames.Add(ColumnName);
+				const FJsonObjectPtr Column = HasText(Declared, ColumnName) ? ObjectOf(*Columns, *ColumnName) : FJsonObjectPtr();
 				if (!Column.IsValid())
 				{
 					Problems.Add(FString::Printf(TEXT("schema.%s.%s: the struct has this column and the schema does not declare it"), *TableName, *ColumnName));
@@ -329,10 +362,26 @@ namespace CosmicDataTests
 				{
 					Problems.Add(FString::Printf(TEXT("schema.%s.%s: the column holds whole numbers and the schema does not say \"integer\": true"), *TableName, *ColumnName));
 				}
+				// An enum column names the enum of its property: its cells and the tests of the rules are held to that list.
+				const UEnum* Enum = nullptr;
+				if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(*It))
+				{
+					Enum = EnumProperty->GetEnum();
+				}
+				else if (const FByteProperty* ByteProperty = CastField<FByteProperty>(*It))
+				{
+					Enum = ByteProperty->Enum;
+				}
+				FString EnumName;
+				Column->TryGetStringField(TEXT("enum"), EnumName);
+				if (Enum && !SameText(EnumName, Enum->GetName()))
+				{
+					Problems.Add(FString::Printf(TEXT("schema.%s.%s: the column is of the enum %s and the schema says '%s'"), *TableName, *ColumnName, *Enum->GetName(), *EnumName));
+				}
 			}
-			for (const FString& ColumnName : KeysOf(Columns))
+			for (const FString& ColumnName : Declared)
 			{
-				if (!Struct->FindPropertyByName(FName(*ColumnName)))
+				if (!HasText(PropertyNames, ColumnName))
 				{
 					Problems.Add(FString::Printf(TEXT("schema.%s.%s: the schema declares a column the struct does not have"), *TableName, *ColumnName));
 				}
@@ -404,6 +453,57 @@ namespace CosmicDataTests
 		}
 		CompareNames(Problems, TEXT("schema.required_tags (the role tags under Notable)"),
 			RequiredTags.FilterByPredicate([](const FString& TagName) { return TagName.StartsWith(TEXT("Notable."), ESearchCase::CaseSensitive); }), RoleTags);
+
+		// The rows the code calls by name (the headers the schema lists) against required_rows, both ways, for the tables
+		// the schema has. Tools/cosmic_data_schema.py does the same when the assets are built; an edit of the header alone
+		// changes no source and builds no asset, so it is held here too.
+		const TArray<FString> RowSources = StringsOf(Schema, TEXT("row_name_sources"));
+		TArray<FString> CodeRows;
+		bool bHeadersRead = RowSources.Num() > 0;
+		if (RowSources.IsEmpty())
+		{
+			Problems.Add(TEXT("schema.row_name_sources: no header is listed, so required_rows cannot be held to the code"));
+		}
+		for (const FString& Source : RowSources)
+		{
+			FString Header;
+			if (FFileHelper::LoadFileToString(Header, *(FPaths::ProjectDir() / Source)))
+			{
+				CodeRows.Append(RowNamesInCode(Header));
+			}
+			else
+			{
+				Problems.Add(FString::Printf(TEXT("schema.row_name_sources: %s cannot be read"), *Source));
+				bHeadersRead = false;
+			}
+		}
+		for (const auto& TablePair : Tables->Values)
+		{
+			if (!bHeadersRead)
+			{
+				break;
+			}
+			const FString TableName(*TablePair.Key);
+			const FJsonObjectPtr Spec = TablePair.Value->AsObject();
+			const TArray<FString> Names = StringsOf(*Spec, TEXT("names"));
+			const TArray<FString> Prefixes = StringsOf(*Spec, TEXT("prefixes"));
+			const TArray<FString> Required = StringsOf(*Spec, TEXT("required_rows"));
+			for (const FString& Row : CodeRows)
+			{
+				const bool bOfThisTable = HasText(Names, Row) || Prefixes.ContainsByPredicate([&Row](const FString& Prefix) { return Row.StartsWith(Prefix, ESearchCase::CaseSensitive); });
+				if (bOfThisTable && !HasText(Required, Row))
+				{
+					Problems.Add(FString::Printf(TEXT("schema.%s: the code calls the row %s by name and required_rows does not list it"), *TableName, *Row));
+				}
+			}
+			for (const FString& Row : Required)
+			{
+				if (!HasText(CodeRows, Row))
+				{
+					Problems.Add(FString::Printf(TEXT("schema.%s: required_rows lists %s, which the code does not call by name"), *TableName, *Row));
+				}
+			}
+		}
 
 		// The per-tick list is the list of the code, effect by effect.
 		const TArray<FString> PerTick = StringsOf(Schema, TEXT("per_tick_effects"));
@@ -857,14 +957,20 @@ bool FCosmicDataSourcesInSyncTest::RunTest(const FString& Parameters)
 		{
 			Recorded.Add(FileName, Hash.TrimStartAndEnd());
 		}
+		else if (!Line.TrimStartAndEnd().IsEmpty())
+		{
+			AddError(FString::Printf(TEXT("A line of the stamp is not '<file name> <sha1>': %s"), *Line));
+		}
 	}
 	TestTrue(TEXT("The stamp lists at least one source"), Recorded.Num() > 0);
+	TestTrue(TEXT("The stamp lists the checker the sources were checked with (Tools/make_data_tables.py stamps it)"), Recorded.Contains(TEXT("../cosmic_data_schema.py")));
 
 	for (const TPair<FString, FString>& Entry : Recorded)
 	{
-		// A name may climb out of the folder: "../cosmic_data_schema.py" is the checker, which lives next to it.
+		// A name may climb out of the folder: "../cosmic_data_schema.py" is the checker, which lives next to it. (The
+		// second argument: the project dir itself starts with "..", and without it the call stops there.)
 		FString Path = SourceDir / Entry.Key;
-		FPaths::CollapseRelativeDirectories(Path);
+		FPaths::CollapseRelativeDirectories(Path, true);
 		const FString Current = CosmicDataTests::HashOfSource(Path);
 		TestTrue(*FString::Printf(TEXT("%s is unchanged since the assets were generated (run Tools/make_data_tables.py)"), *Entry.Key),
 			!Current.IsEmpty() && Current.Equals(Entry.Value, ESearchCase::IgnoreCase));
@@ -966,6 +1072,58 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 			Columns->SetObjectField(TEXT("NoSuchKnob"), Column);
 		}
 	}), { TEXT("schema.DT_Rules.NoSuchKnob"), TEXT("does not have") });
+	{
+		// The same column under a name in another case: the struct has Severity, the schema would say severity.
+		const TArray<FString> OtherCase = AgainstCode([](const FJsonObjectPtr& Root)
+		{
+			if (const FJsonObjectPtr Columns = At(Root, { TEXT("tables"), TEXT("DT_Events"), TEXT("columns") }))
+			{
+				const FJsonObjectPtr Column = ObjectOf(*Columns, TEXT("Severity"));
+				Columns->RemoveField(TEXT("Severity"));
+				Columns->SetObjectField(TEXT("severity"), Column);
+			}
+		});
+		Expect(TEXT("a column the schema declares in another case, as a column it lacks"), OtherCase, { TEXT("schema.DT_Events.Severity"), TEXT("does not declare it") });
+		Expect(TEXT("a column the schema declares in another case, as a column the struct lacks"), OtherCase, { TEXT("schema.DT_Events.severity"), TEXT("does not have") });
+	}
+	Expect(TEXT("an enum column under the name of another enum"), AgainstCode([](const FJsonObjectPtr& Root)
+	{
+		if (const FJsonObjectPtr Column = At(Root, { TEXT("tables"), TEXT("DT_Events"), TEXT("columns"), TEXT("Subject") }))
+		{
+			Column->SetStringField(TEXT("enum"), TEXT("ECosmicEventTrigger"));
+		}
+	}), { TEXT("schema.DT_Events.Subject"), TEXT("is of the enum ECosmicEventSubject") });
+	{
+		auto WithRequired = [&AgainstCode](const TCHAR* Table, TFunctionRef<void(TArray<FString>&)> Change)
+		{
+			return AgainstCode([Table, &Change](const FJsonObjectPtr& Root)
+			{
+				if (const FJsonObjectPtr Spec = At(Root, { TEXT("tables"), Table }))
+				{
+					TArray<FString> Rows = StringsOf(*Spec, TEXT("required_rows"));
+					Change(Rows);
+					TArray<TSharedPtr<FJsonValue>> Values;
+					for (const FString& Row : Rows)
+					{
+						Values.Add(MakeShared<FJsonValueString>(Row));
+					}
+					Spec->SetArrayField(TEXT("required_rows"), Values);
+				}
+			});
+		};
+		Expect(TEXT("a row the code calls by name that required_rows does not list"), WithRequired(TEXT("DT_Civs"), [](TArray<FString>& Rows) { Rows.Reset(); }),
+			{ TEXT("schema.DT_Civs"), TEXT("the code calls the row arch_default by name") });
+		Expect(TEXT("a required row the code does not call by name"), WithRequired(TEXT("DT_LogTemplates"), [](TArray<FString>& Rows) { Rows.Add(TEXT("log_nobody")); }),
+			{ TEXT("schema.DT_LogTemplates"), TEXT("required_rows lists log_nobody") });
+		Expect(TEXT("a schema that lists no header of row names"), AgainstCode([](const FJsonObjectPtr& Root) { Root->RemoveField(TEXT("row_name_sources")); }),
+			{ TEXT("schema.row_name_sources"), TEXT("no header is listed") });
+		Expect(TEXT("a header of row names that cannot be read"), AgainstCode([](const FJsonObjectPtr& Root)
+		{
+			Root->SetArrayField(TEXT("row_name_sources"), JsonStrings({ TEXT("Source/Nowhere.h") }));
+		}), { TEXT("schema.row_name_sources"), TEXT("Source/Nowhere.h cannot be read") });
+		TestTrue(TEXT("A constant that is commented out is not a row the code calls"),
+			RowNamesInCode(TEXT("A(TEXT(\"row_a\")); // B(TEXT(\"row_b\"));\n/* C(\n TEXT(\"row_c\")); */ D(TEXT(\"row_d\"));")) == TArray<FString>{ TEXT("row_a"), TEXT("row_d") });
+	}
 	Expect(TEXT("a column of whole numbers that the schema does not call integer"), AgainstCode([](const FJsonObjectPtr& Root)
 	{
 		if (const FJsonObjectPtr Column = At(Root, { TEXT("tables"), TEXT("DT_Rules"), TEXT("columns"), TEXT("ThroneLockTicks") }))
@@ -1013,7 +1171,8 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 	}
 	{
 		// Two types of column the closed kinds cannot declare yet. Not "plain": such a column would go unchecked, so its
-		// first declaration has to fail until a kind for it exists (section 9.3: the hazard and the encounter tables).
+		// first declaration has to fail until a kind for it exists (section 9.3: the hazard table has lists of row names,
+		// the encounter table a list of choices with effects inside).
 		const FProperty* RowNames = FHazardDef::StaticStruct()->FindPropertyByName(TEXT("RulerResolutions"));
 		const FProperty* Structs = FEncounterDef::StaticStruct()->FindPropertyByName(TEXT("Choices"));
 		TestTrue(TEXT("A list of row names is of no kind of the closed list yet"), RowNames && KindsFor(RowNames) == TArray<FString>{ TEXT("row_list") });
@@ -1074,21 +1233,28 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		Expect(TEXT("a per-tick effect the schema spells in another case"), OtherPerTick, { TEXT("AddResource is not listed in the schema and applied") });
 	}
 	{
-		const TArray<FString> OtherTags = AgainstCode([](const FJsonObjectPtr& Root)
+		auto WithTags = [&AgainstCode](TFunctionRef<void(TArray<FString>&)> Change)
 		{
-			TArray<FString> Tags = StringsOf(*Root, TEXT("required_tags"));
-			Tags.Add(TEXT("Notable.Nobody"));
-			Tags.Remove(TEXT("Notable.Hearer"));
-			TArray<TSharedPtr<FJsonValue>> Values;
-			for (const FString& Tag : Tags)
+			return AgainstCode([&Change](const FJsonObjectPtr& Root)
 			{
-				Values.Add(MakeShared<FJsonValueString>(Tag));
-			}
-			Root->SetArrayField(TEXT("required_tags"), Values);
-		});
-		Expect(TEXT("a tag the schema requires and the ini does not declare"), OtherTags, { TEXT("schema.required_tags: tag Notable.Nobody") });
-		TestFalse(TEXT("A required tag the ini declares is not reported as undeclared"), AnyCarries(OtherTags, { TEXT("schema.required_tags: tag Notable.Rebel") }));
-		Expect(TEXT("a role tag the ini declares and the list of required tags lacks"), OtherTags, { TEXT("the role tags under Notable"), TEXT("Notable.Hearer") });
+				TArray<FString> Tags = StringsOf(*Root, TEXT("required_tags"));
+				Change(Tags);
+				TArray<TSharedPtr<FJsonValue>> Values;
+				for (const FString& Tag : Tags)
+				{
+					Values.Add(MakeShared<FJsonValueString>(Tag));
+				}
+				Root->SetArrayField(TEXT("required_tags"), Values);
+			});
+		};
+		// One change per copy: a tag the ini does not have, and (apart from it) a role tag taken off the list.
+		const TArray<FString> OneMore = WithTags([](TArray<FString>& Tags) { Tags.Add(TEXT("Trait.NoSuchTag")); });
+		Expect(TEXT("a tag the schema requires and the ini does not declare"), OneMore, { TEXT("schema.required_tags: tag Trait.NoSuchTag") });
+		TestFalse(TEXT("A required tag the ini declares is not reported as undeclared"), AnyCarries(OneMore, { TEXT("schema.required_tags: tag Notable.Rebel") }));
+		TestFalse(TEXT("A tag outside Notable is no matter of the role tags"), AnyCarries(OneMore, { TEXT("the role tags under Notable") }));
+		Expect(TEXT("a role tag the ini declares and the list of required tags lacks"), WithTags([](TArray<FString>& Tags) { Tags.Remove(TEXT("Notable.Hearer")); }),
+			{ TEXT("the role tags under Notable"), TEXT("Notable.Hearer") });
+		TestFalse(TEXT("The role tags of the schema as it is are the role tags of the ini"), AnyCarries(CheckSchemaAgainstCode(*Schema), { TEXT("the role tags under Notable") }));
 	}
 #if WITH_EDITORONLY_DATA
 	Expect(TEXT("a required tag that only its children imply"), AgainstCode([](const FJsonObjectPtr& Root)
@@ -1197,7 +1363,7 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 	for (const FString& TableName : LoaderTables)
 	{
 		const FJsonObjectPtr Spec = ObjectOf(*SchemaTables, *TableName);
-		TestTrue(*FString::Printf(TEXT("%s, a table of the loader, is declared in the schema"), *TableName), Spec.IsValid());
+		TestTrue(*FString::Printf(TEXT("%s, a table of the loader, is declared in the schema"), *TableName), DeclaresTable(SchemaTables, TableName));
 		if (Loaded.Contains(TableName))
 		{
 			// A table that has an asset has to exist from then on. Without the flag, the day its asset no longer loads
@@ -1206,6 +1372,20 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 			TestTrue(*FString::Printf(TEXT("%s is loaded, so the schema says must_exist for it"), *TableName),
 				Spec.IsValid() && Spec->TryGetBoolField(TEXT("must_exist"), bMustExist) && bMustExist);
 		}
+	}
+	{
+		// Under a key in another case the table is not declared: the sources are read by the exact name.
+		const FJsonObjectPtr OtherCase = SchemaWith([](const FJsonObjectPtr& Root)
+		{
+			if (const FJsonObjectPtr AllTables = At(Root, { TEXT("tables") }))
+			{
+				const FJsonObjectPtr Spec = ObjectOf(*AllTables, TEXT("DT_Civs"));
+				AllTables->RemoveField(TEXT("DT_Civs"));
+				AllTables->SetObjectField(TEXT("dt_civs"), Spec);
+			}
+		});
+		TestFalse(TEXT("A table the schema declares under a key in another case is not declared"), DeclaresTable(ObjectOf(*OtherCase, TEXT("tables")), TEXT("DT_Civs")));
+		TestTrue(TEXT("The same table under its own key is"), DeclaresTable(SchemaTables, TEXT("DT_Civs")));
 	}
 	TestTrue(TEXT("The loaded tables hold the schema: row names, row references, tags, array lengths and the ranges of the numbers"),
 		Report(TEXT("loaded assets"), CheckTables(*Schema, Loaded)));
@@ -1320,31 +1500,46 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 				}
 			})), { TEXT("DT_Civs.arch_default.AIProfile"), TEXT("a tag is required") });
 		}
+		// The tags inside conditions and effects are held to the ini too: the sources were, on the day the assets were
+		// built, and the ini is not in the stamp.
+		auto WithEvent = [&](const FGameplayTag& ConditionTag, const FGameplayTag& EffectTag)
+		{
+			FCosmicEventDef Row;
+			Row.Category = FGameplayTag::RequestGameplayTag(FName(TEXT("Event.Civ.Economy")));
+			Row.LogCategory = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Civ")));
+			Row.Conditions.AddDefaulted_GetRef().Tag = ConditionTag;
+			Row.Effects.AddDefaulted_GetRef().Tag = EffectTag;
+			UDataTable* Table = NewObject<UDataTable>(GetTransientPackage());
+			Table->RowStruct = FCosmicEventDef::StaticStruct();
+			Table->AddRow(FName(TEXT("event_test")), Row);
+			return With(TEXT("DT_Events"), Table);
+		};
+		const FGameplayTag Declared = FGameplayTag::RequestGameplayTag(FName(TEXT("Trait.Arch.Terran")));
+		TestFalse(TEXT("Declared tags and empty tags in conditions and effects are not reported"), AnyCarries(WithEvent(Declared, FGameplayTag()), { TEXT("].Tag") }));
+		{
+			// A tag whose name the ini does not have at all: what a tag that left the ini looks like in a loaded asset. It
+			// keeps its name, it counts as valid, and it never matches again. (Any binary knows that it has no such tag.)
+			FGameplayTag Gone;
+			if (const FNameProperty* NameOfTag = CastField<FNameProperty>(FGameplayTag::StaticStruct()->FindPropertyByName(TEXT("TagName"))))
+			{
+				NameOfTag->SetPropertyValue_InContainer(&Gone, FName(TEXT("Trait.NoSuchTag")));
+			}
+			if (TestTrue(TEXT("The test can build a tag with a name the ini does not have"), Gone.IsValid()))
+			{
+				Expect(TEXT("a tag of a loaded row whose name the ini does not have"), WithCiv([Gone](FCivArchetypeDef& Row) { Row.AIProfile = Gone; }),
+					{ TEXT("DT_Civs.arch_default.AIProfile"), TEXT("Trait.NoSuchTag is not declared") });
+				Expect(TEXT("a tag in a condition of a loaded row whose name the ini does not have"), WithEvent(Gone, Declared),
+					{ TEXT("DT_Events.event_test.Conditions[0].Tag"), TEXT("Trait.NoSuchTag is not declared") });
+				Expect(TEXT("a tag in an effect of a loaded row whose name the ini does not have"), WithEvent(Declared, Gone),
+					{ TEXT("DT_Events.event_test.Effects[0].Tag"), TEXT("Trait.NoSuchTag is not declared") });
+			}
+		}
 #if WITH_EDITORONLY_DATA
 		// Only the editor binaries know which tags the ini spells out (the tests run in one).
 		const FGameplayTag Implied = FGameplayTag::RequestGameplayTag(FName(TEXT("Trait.Arch")));
 		Expect(TEXT("a parent tag that only its children imply"), WithCiv([Implied](FCivArchetypeDef& Row) { Row.Traits.AddTag(Implied); }), { TEXT("Traits"), TEXT("Trait.Arch is not declared") });
-		{
-			// The tags inside conditions and effects are held to the ini too: the sources were, on the day the assets
-			// were built, and the ini is not in the stamp.
-			auto WithEvent = [&](const FGameplayTag& ConditionTag, const FGameplayTag& EffectTag)
-			{
-				FCosmicEventDef Row;
-				Row.Category = FGameplayTag::RequestGameplayTag(FName(TEXT("Event.Civ.Economy")));
-				Row.LogCategory = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Civ")));
-				Row.Conditions.AddDefaulted_GetRef().Tag = ConditionTag;
-				Row.Effects.AddDefaulted_GetRef().Tag = EffectTag;
-				UDataTable* Table = NewObject<UDataTable>(GetTransientPackage());
-				Table->RowStruct = FCosmicEventDef::StaticStruct();
-				Table->AddRow(FName(TEXT("event_test")), Row);
-				return With(TEXT("DT_Events"), Table);
-			};
-			const FGameplayTag Declared = FGameplayTag::RequestGameplayTag(FName(TEXT("Trait.Arch.Terran")));
-			Expect(TEXT("a tag in a condition of a loaded row that the ini does not declare"), WithEvent(Implied, Declared), { TEXT("DT_Events.event_test.Conditions[0].Tag"), TEXT("Trait.Arch is not declared") });
-			Expect(TEXT("a tag in an effect of a loaded row that the ini does not declare"), WithEvent(Declared, Implied), { TEXT("DT_Events.event_test.Effects[0].Tag"), TEXT("Trait.Arch is not declared") });
-			TestFalse(TEXT("Declared tags and empty tags in conditions and effects are not reported"),
-				AnyCarries(WithEvent(Declared, FGameplayTag()), { TEXT("].Tag") }));
-		}
+		Expect(TEXT("a parent tag in a condition of a loaded row"), WithEvent(Implied, Declared), { TEXT("DT_Events.event_test.Conditions[0].Tag"), TEXT("Trait.Arch is not declared") });
+		Expect(TEXT("a parent tag in an effect of a loaded row"), WithEvent(Declared, Implied), { TEXT("DT_Events.event_test.Effects[0].Tag"), TEXT("Trait.Arch is not declared") });
 #endif
 
 		// Numbers.

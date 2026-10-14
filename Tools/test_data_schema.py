@@ -11,10 +11,14 @@ changes one thing and names the words the report has to carry.
 The last block walks the schema of the project: every rule, every unique, every pair, every target and every slot list
 needs an input here that breaks it. A rule added to schema.json without one fails test_every_rule_of_the_schema_can_fail.
 
-Tools/make_data_tables.py runs this file before it checks the sources, so a broken checker stops the build of the assets.
+Tools/make_data_tables.py runs this file right after it has checked the sources and before it touches an asset, so a
+broken checker stops the build of the assets. For that reason no case here leans on a cell of the project that the
+design plans to change: a case that needs a row with certain cells builds that row itself (civ_row, event_row).
 """
 import contextlib
 import copy
+import csv
+import io
 import json
 import os
 import shutil
@@ -119,14 +123,40 @@ def with_change(root, path, value, delete=False):
     return clone
 
 
+def civ_row(base, name, **cells):
+    """An archetype row of the test: every column of base (a row of the project, for the columns the struct has), with
+    the cells the cases read set here, so that no case depends on what the project writes into them."""
+    row = copy.deepcopy(base)
+    row.update(Name=name, DisplayName="plain", Traits=tags_text("Trait.Arch.Default"), AIProfile="", NameBank=["union"], AdjectiveBank=[],
+               PersonNameBank=[], HazardSpawnMultipliers={}, InitialRelations={}, Weight=0.0, RevelationMode="Revelation.Seeking",
+               HomeSystemNames=["Home"], HomeStarClass="", DedicationBanks=[])
+    row.update(cells)
+    return row
+
+
+def fixture_tables(schema, tables):
+    """The tables every case starts from: the sources of the project, with fixture rows for the two tables that have
+    no source yet. A row the code calls by name has to be in its table, so the event fixture gets one valid row for
+    each name the schema requires (fired by name: no rule about slot rows speaks of it)."""
+    tables = copy.deepcopy(tables)
+    tables["DT_Events"] = [event_row()]
+    for name in schema["tables"]["DT_Events"].get("required_rows", []):
+        tables["DT_Events"].append(event_row(name, Trigger="Named", BaseWeight=0, CooldownTicks=0, LogTemplates=["one."]))
+    tables["DT_Transcendents"] = [transcendent_row(), celestial_row()]
+    return tables
+
+
 @contextlib.contextmanager
 def project_copy():
-    """A copy of what the checker reads, in a temporary folder: the data, the tags ini, the header of row names."""
+    """A copy of what the checker reads, in a temporary folder: the data, the tags ini (and the files under Config/Tags
+    when there are any), the header of row names."""
     work = tempfile.mkdtemp(prefix="ca_schema_test_")
     try:
         root = checker.project_root()
         os.makedirs(os.path.join(work, "Config"))
         shutil.copy(os.path.join(root, "Config", "DefaultGameplayTags.ini"), os.path.join(work, "Config"))
+        if os.path.isdir(os.path.join(root, "Config", "Tags")):
+            shutil.copytree(os.path.join(root, "Config", "Tags"), os.path.join(work, "Config", "Tags"))
         shutil.copytree(os.path.join(root, "Tools", "data"), os.path.join(work, "Tools", "data"))
         os.makedirs(os.path.dirname(os.path.join(work, ROW_HEADER)))
         shutil.copy(os.path.join(root, ROW_HEADER), os.path.join(work, ROW_HEADER))
@@ -138,10 +168,8 @@ def project_copy():
 class SchemaTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.schema, cls.tables, cls.tags = checker.load_project()
-        cls.tables = copy.deepcopy(cls.tables)
-        cls.tables["DT_Events"] = [event_row()]
-        cls.tables["DT_Transcendents"] = [transcendent_row(), celestial_row()]
+        cls.schema, project_tables, cls.tags = checker.load_project()
+        cls.tables = fixture_tables(cls.schema, project_tables)
 
     def after(self, change=NOTHING, schema_change=None, code_rows=None):
         """The problems after one change to a copy of the base tables (and, for some cases, of the schema)."""
@@ -155,10 +183,10 @@ class SchemaTests(unittest.TestCase):
     def row(self, tables, table, name):
         return next(row for row in tables[table] if row["Name"] == name)
 
-    def expect(self, problems, *words):
-        """Some problem line carries all the words."""
-        self.assertTrue(any(all(word in line for word in words) for line in problems),
-                        "no problem carries %r among:\n  %s" % (words, "\n  ".join(problems) or "(none)"))
+    def expect(self, problems, *words, wanted=True):
+        """Some problem line carries all the words (wanted=False: none does)."""
+        found = any(all(word in line for word in words) for line in problems)
+        self.assertEqual(found, wanted, "%s %r among:\n  %s" % ("no problem carries" if wanted else "a problem carries", words, "\n  ".join(problems) or "(none)"))
 
     def set_cell(self, table, name, column, value):
         def change(tables):
@@ -194,26 +222,33 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(checker.check_project(), [])
         self.assertEqual(self.after(), [])
 
+    def test_fixture_has_the_rows_the_code_calls(self):
+        """The day the code calls an event row by name, the schema requires it and the fixture has to carry it."""
+        schema = copy.deepcopy(self.schema)
+        schema["tables"]["DT_Events"]["required_rows"] = ["event_called_by_name"]
+        self.expect(checker.check(schema, self.tables, self.tags), "DT_Events", "the row event_called_by_name", "is missing")
+        self.assertEqual(checker.check(schema, fixture_tables(schema, self.tables), self.tags), [])
+
     # ---- reading ----
 
     def test_reading_the_sources(self):
         base = checker.read_sources()
 
-        def with_text(file_name, old, new):
+        def with_text(file_name, text):
+            """The sources of the project with one file replaced by a text of the test: what is wrong with reading a
+            file does not depend on what the project writes into it."""
             sources = dict(base)
-            text = checker.text_of(sources[file_name])
-            self.assertEqual(text.count(old), 1, old)
-            sources[file_name] = text.replace(old, new).encode("utf-8")
+            sources[file_name] = text.encode("utf-8")
             return checker.check_sources(sources)
         self.assertEqual(checker.check_sources(base), [])
-        broken = with_text("DT_Civs.json", '"Name": "arch_terran",', '"Name": "arch_terran"')
+        broken = with_text("DT_Civs.json", '[{"Name": "arch_default" "Weight": 1}]')
         self.expect(broken, "DT_Civs.json", "not valid JSON")
         self.expect(broken, "nothing was checked")
-        self.expect(with_text("schema.json", '"version": 1,', '"version": 1, "version": 2,'), "schema.json", "the key 'version' is written twice")
-        self.expect(with_text("DT_Rules.json", '"ThroneLockTicks": 600,', '"ThroneLockTicks": 600, "ThroneLockTicks": 601,'),
-                    "DT_Rules.json", "the key 'ThroneLockTicks' is written twice")
-        self.expect(with_text("DT_Rules.json", '"ReverenceDecay": 0.5', '"ReverenceDecay": NaN'), "DT_Rules.json", "NaN is not a number")
-        self.expect(with_text("DT_Rules.json", '"ReverenceDecay": 0.5', '"ReverenceDecay": -Infinity'), "-Infinity is not a number")
+        self.expect(with_text("schema.json", '{"version": 1, "version": 2}'), "schema.json", "the key 'version' is written twice")
+        self.expect(with_text("DT_Rules.json", '[{"Name": "rules", "Knob": 600, "Knob": 601}]'), "DT_Rules.json", "the key 'Knob' is written twice")
+        self.expect(with_text("DT_Rules.json", '[{"Name": "rules", "Inner": {"A": 1}, "Other": {"A": 2}}]'), "nothing was checked", wanted=False)
+        self.expect(with_text("DT_Rules.json", '[{"Name": "rules", "Knob": NaN}]'), "DT_Rules.json", "NaN is not a number")
+        self.expect(with_text("DT_Rules.json", '[{"Name": "rules", "Knob": -Infinity}]'), "-Infinity is not a number")
         sources = dict(base)
         sources["DT_Civs.json"] = b"\xff\xfe[]"
         self.expect(checker.check_sources(sources), "DT_Civs.json", "not UTF-8")
@@ -259,8 +294,9 @@ class SchemaTests(unittest.TestCase):
         self.expect(check('Key,SourceString\n"A",""\n'), "entry 1 (A)", "the text is empty")
         # The string table of the project is under the same check, through the sources.
         sources = checker.read_sources()
-        sources["ST_CA.csv"] += b'"Panel.Cycle","again"\n'
-        self.expect(checker.check_sources(sources), "ST_CA.csv", "Panel.Cycle", "written twice")
+        first_key = next(row[0] for row in list(csv.reader(io.StringIO(checker.text_of(sources["ST_CA.csv"]))))[1:] if row)
+        sources["ST_CA.csv"] = sources["ST_CA.csv"].rstrip(b"\r\n") + ('\n"%s","again"\n' % first_key).encode("utf-8")
+        self.expect(checker.check_sources(sources), "ST_CA.csv", first_key, "written twice")
 
     def test_tags_ini(self):
         with project_copy() as work:
@@ -270,17 +306,29 @@ class SchemaTests(unittest.TestCase):
                              '+GameplayTagList=(Tag="Test.One",DevComment="counted")\n'
                              ';+GameplayTagList=(Tag="Test.Commented",DevComment="not a row")\n'
                              'GameplayTagList=(Tag="Test.Bare",DevComment="replaces the list")\n')
-            os.makedirs(os.path.join(work, "Config", "Tags"))
+                handle.write('[/Script/Engine.SomethingElse]\n'
+                             '+GameplayTagList=(Tag="Test.WrongSection",DevComment="not the section of the tag settings")\n')
+            shutil.rmtree(os.path.join(work, "Config", "Tags"), ignore_errors=True)
+            os.makedirs(os.path.join(work, "Config", "Tags", "Sub"))
             with open(os.path.join(work, "Config", "Tags", "Extra.ini"), "w", encoding="utf-8") as handle:
-                handle.write('[/Script/GameplayTags.GameplayTagsList]\n'
+                handle.write('GameplayTagList=(Tag="Test.NoSection",DevComment="before any section")\n'
+                             '[/Script/GameplayTags.GameplayTagsList]\n'
                              'GameplayTagList=(Tag="Test.Extra",DevComment="counted")\n'
                              '+GameplayTagList=(Tag="Test.Ignored",DevComment="the engine ignores it")\n')
+            with open(os.path.join(work, "Config", "Tags", "Sub", "Deep.ini"), "w", encoding="utf-8") as handle:
+                handle.write('[/Script/GameplayTags.GameplayTagsList]\n'
+                             'GameplayTagList=(Tag="Test.Deep",DevComment="counted: the engine looks into subfolders")\n'
+                             '[/Script/GameplayTags.GameplayTagsSettings]\n'
+                             'GameplayTagList=(Tag="Test.SettingsSection",DevComment="the section of the Default ini, in the wrong file")\n')
             tags, problems = checker.load_declared_tags(work, ["Config/DefaultGameplayTags.ini"])
-            # The file under Config/Tags is found without being listed, as the engine finds it.
-            self.assertEqual(tags, {"Test.One", "Test.Extra"})
+            # The files under Config/Tags are found without being listed, as the engine finds them.
+            self.assertEqual(tags, {"Test.One", "Test.Extra", "Test.Deep"})
             self.expect(problems, "DefaultGameplayTags.ini:4", "without '+'", "Test.Bare")
-            self.expect(problems, "Config/Tags/Extra.ini:3", "ignores a row with '+'", "Test.Ignored")
-            self.assertEqual(len(problems), 2)
+            self.expect(problems, "DefaultGameplayTags.ini:6", "under [/Script/GameplayTags.GameplayTagsSettings] only", "Test.WrongSection")
+            self.expect(problems, "Config/Tags/Extra.ini:1", "under [/Script/GameplayTags.GameplayTagsList] only", "Test.NoSection")
+            self.expect(problems, "Config/Tags/Extra.ini:4", "ignores a row with '+'", "Test.Ignored")
+            self.expect(problems, "Config/Tags/Sub/Deep.ini:4", "under [/Script/GameplayTags.GameplayTagsList] only", "Test.SettingsSection")
+            self.assertEqual(len(problems), 5)
             tags, problems = checker.load_declared_tags(work, ["Config/Nowhere.ini"])
             self.expect(problems, "Config/Nowhere.ini", "cannot be read")
             # Through the project: the bare row is a problem line of the whole check.
@@ -294,7 +342,10 @@ class SchemaTests(unittest.TestCase):
         self.assertIn("project_settle", code_rows)  # its table is not in the schema yet: nothing is asked of it
         self.assertEqual(self.after(code_rows=code_rows), [])
         self.schema_problem_with_rows(code_rows + ["log_new_line"], "schema.DT_LogTemplates", "the code calls the row log_new_line by name")
-        self.schema_problem_with_rows(code_rows + ["rules_two"], "schema.DT_Rules", "required_rows lists rules", wanted=False)
+        # A table with "names" asks for its names only: a code row that merely starts like one is none of its business.
+        self.schema_problem_with_rows(code_rows + ["rules_two"], "schema.DT_Rules", "the code calls the row rules_two", wanted=False)
+        problems = self.after(NOTHING, self.drop(["tables", "DT_Rules"], "required_rows"), code_rows)
+        self.expect(problems, "schema.DT_Rules", "the code calls the row rules by name and required_rows does not list it")
         self.schema_problem_with_rows([name for name in code_rows if name != "arch_default"], "schema.DT_Civs",
                                       "required_rows lists arch_default, which the code does not call by name")
         self.schema_problem_with_rows([name for name in code_rows if name != "rules"], "schema.DT_Rules", "required_rows lists rules")
@@ -308,6 +359,11 @@ class SchemaTests(unittest.TestCase):
         with project_copy() as work:
             os.remove(os.path.join(work, ROW_HEADER))
             self.expect(checker.check_project(work), "CosmicRowNames.h", "cannot be read")
+        # A constant that is commented out is not called.
+        with project_copy() as work:
+            with open(os.path.join(work, ROW_HEADER), "a", encoding="utf-8") as handle:
+                handle.write('\n// inline const FName LogOld(TEXT("log_old_line"));\n/* inline const FName LogOlder(\n    TEXT("log_older_line")); */\n')
+            self.assertEqual(checker.check_project(work), [])
 
     def schema_problem_with_rows(self, code_rows, *words, wanted=True):
         problems = self.after(code_rows=code_rows)
@@ -494,9 +550,14 @@ class SchemaTests(unittest.TestCase):
         """Each test, both ways, through a rule built here (the rules of the project use only some of them)."""
         def rule(when, then):
             return self.put(["tables", "DT_Civs", "rules"], 0, {"why": "a rule of the test", "when": when, "then": then})
-        broken = lambda when, then: self.expect(self.after(NOTHING, rule(when, then)), "a rule of the test")  # noqa: E731
-        holds = lambda when, then: self.assertEqual(self.after(NOTHING, rule(when, then)), [])  # noqa: E731
-        terran = [{"row": "arch_terran"}]
+
+        def add_row(tables):
+            tables["DT_Civs"].append(civ_row(tables["DT_Civs"][0], "arch_test_row", RevelationMode="Revelation.Book", Traits=tags_text(
+                "Trait.Arch.Terran", "Trait.Society.Divided", "Trait.Faith.Book", "Trait.Biology.Shortlived")))
+        broken = lambda when, then: self.expect(self.after(add_row, rule(when, then)), "a rule of the test")  # noqa: E731
+        holds = lambda when, then: self.assertEqual(self.after(add_row, rule(when, then)), [])  # noqa: E731
+        # The row the cases read is built here: Weight 0, no AI profile, four traits, empty banks, one home system name.
+        terran = [{"row": "arch_test_row"}]
         holds(terran, [{"col": "Weight", "lt": 1}, {"col": "Weight", "le": 0}, {"col": "Weight", "ge": 0}, {"col": "Weight", "is": 0}])
         broken(terran, [{"col": "Weight", "lt": 0}])
         broken(terran, [{"col": "Weight", "le": -1}])
@@ -515,10 +576,12 @@ class SchemaTests(unittest.TestCase):
         broken(terran, [{"col": "PersonNameBank", "set": True}])
         broken(terran, [{"col": "NameBank", "each_contains": "{Star}"}])
         holds(terran, [{"col": "NameBank", "slots_in": ["Star"]}, {"col": "DisplayName", "slots_in": []}])
-        broken([{"row": "arch_default"}], [{"col": "Weight", "is": 0}])
+        # The 'row' test picks one row: what the other rows hold is none of the rule's business.
+        holds(terran, [{"col": "DisplayName", "is": "plain"}])
+        broken([], [{"col": "DisplayName", "is": "plain"}])
         # A rule without 'when' holds for every row.
-        self.expect(self.after(NOTHING, self.put(["tables", "DT_Civs", "rules"], 0, {"why": "a rule for all", "then": [{"col": "Weight", "gt": 0}]})),
-                    "DT_Civs.arch_terran", "a rule for all")
+        self.expect(self.after(add_row, self.put(["tables", "DT_Civs", "rules"], 0, {"why": "a rule for all", "then": [{"col": "Weight", "gt": 0}]})),
+                    "DT_Civs.arch_test_row", "a rule for all")
 
     def test_unique(self):
         def two_selectors(first, second):
@@ -532,9 +595,18 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(self.after(two_selectors("Revelation.Book", "Revelation.Seeking")), [])
         self.expect(self.after(lambda tables: tables["DT_Transcendents"].append(transcendent_row("trans_echo"))), "trans_echo", "the same Doctrine as row trans_silence")
         # The empty name has one value, however it is spelt: "" in one row and the word None in the other are the same.
-        one_class = self.put(["tables", "DT_Civs"], "unique", [{"cols": ["HomeStarClass"], "why": "one people per star class"}])
-        self.assertEqual(self.after(NOTHING, one_class), [])
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "HomeStarClass", "None"), one_class), "one people per star class", "the same HomeStarClass")
+        # Two rows of the test, picked out by a display name no row of the project has.
+        one_class = self.put(["tables", "DT_Civs"], "unique", [{"cols": ["HomeStarClass"], "when": [{"col": "DisplayName", "is": "unique"}],
+                                                                "why": "one people per star class"}])
+
+        def two_rows(first, second):
+            def change(tables):
+                base = tables["DT_Civs"][0]
+                tables["DT_Civs"].append(civ_row(base, "arch_test_a", DisplayName="unique", HomeStarClass=first))
+                tables["DT_Civs"].append(civ_row(base, "arch_test_b", DisplayName="unique", HomeStarClass=second))
+            return change
+        self.assertEqual(self.after(two_rows("Star.Class.G", ""), one_class), [])
+        self.expect(self.after(two_rows("", "None"), one_class), "arch_test_b", "one people per star class", "the same HomeStarClass")
 
     def test_event_row(self):
         cell = lambda column, value: self.set_cell("DT_Events", "event_test_harvest", column, value)  # noqa: E731
@@ -559,6 +631,28 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(self.after(named(**vessel)), [])
         self.expect(self.after(cell("Conditions", vessel["Conditions"])), "a slot runs for every people", "PlayerRoleIs")
         self.expect(self.after(cell("Effects", vessel["Effects"])), "a slot runs for every people", "GrantPower")
+        # The same for the other kind of slot row.
+        standing = lambda **changes: (lambda tables: self.row(tables, "DT_Events", "event_test_harvest").update(dict(dict(Trigger="Standing", BaseWeight=0), **changes)))  # noqa: E731
+        self.assertEqual(self.after(standing()), [])
+        self.expect(self.after(standing(LogTemplates=["a.", "b."])), "three variants or more")
+        self.expect(self.after(standing(Conditions=vessel["Conditions"])), "a slot runs for every people", "PlayerRoleIs")
+        self.expect(self.after(standing(Effects=vessel["Effects"])), "a slot runs for every people", "KillPlayer")
+
+    def test_the_slot_rule_covers_the_vocabulary(self):
+        """The rule names its conditions and effects one by one. An enumerator added to the vocabulary later has to be
+        put on one side here: a condition on the vessel or an effect on it goes into the rule."""
+        rule = next(rule for rule in self.schema["tables"]["DT_Events"]["rules"] if rule["why"].startswith("a slot runs for every people"))
+        named = lambda column: {test["lacks_type"] for test in rule["then"] if test["col"] == column}  # noqa: E731
+        self.assertEqual(named("Conditions"), {name for name in self.schema["conditions"] if name.startswith("Player")},
+                         "every condition on the vessel is in the rule of slot rows, and nothing else")
+        world_effects = {"AddResource", "MultiplyIncome", "ShiftEthics", "AddTrait", "RemoveTrait", "ChangeStability", "ChangeRelation", "SpawnHazard",
+                         "ResolveHazard", "TransferSystem", "ChangeReverence", "SetFlag", "ChangePopulation", "NameNotable"}
+        self.assertEqual(named("Effects") | world_effects, set(self.schema["effects"]),
+                         "a new effect is either an effect on the world (add it to this list) or one on the vessel or the role (add it to the rule of slot rows)")
+        self.assertEqual(named("Effects") & world_effects, set())
+
+    def test_sign_row_and_grace_row(self):
+        cell = lambda column, value: self.set_cell("DT_Events", "event_test_harvest", column, value)  # noqa: E731
 
         def sign(min_tier, category, templates=("{Civ} a.", "{System} b.", "{HomeSystem} c.")):
             def change(tables):
@@ -898,10 +992,14 @@ class SchemaTests(unittest.TestCase):
                            ({"col": "DisplayName", "min_len": 1}, "text"),
                            ({"col": "Weight", "max_len": 0}, "number"),
                            ({"col": "NameBank", "lacks_type": "NameNotable"}, "texts"),
-                           ({"col": "Weight", "slots_in": ["Star"]}, "number")):
+                           ({"col": "Weight", "slots_in": ["Star"]}, "number"),
+                           ({"col": "Weight", "set": False}, "number")):
             with self.subTest(test=test):
                 self.schema_problem(self.put(rule, "when", [test]), "schema.DT_Civs", cannot, kind)
         self.schema_problem(self.put(["tables", "DT_Events", "rules", 0], "when", [{"col": "Trigger", "gt": 1}]), "schema.DT_Events", cannot, "enum")
+        # A number and an enumerator are always there: 'set' over them says nothing.
+        self.schema_problem(self.put(["tables", "DT_Events", "rules", 0], "when", [{"col": "Trigger", "set": True}]), "schema.DT_Events", cannot, "enum")
+        self.assertEqual(self.after(NOTHING, self.put(rule, "when", [{"col": "Color", "set": True}, {"col": "Weight", "gt": 0}])), [])
 
     def test_the_operand_of_a_test_has_its_type(self):
         rule = ["tables", "DT_Civs", "rules", 0]
@@ -946,12 +1044,14 @@ class SchemaTests(unittest.TestCase):
         """Every node of the schema and of the tables replaced by a value of another shape, and taken out: the answer
         is a list of lines every time, never an exception. (A traceback names no file and no row.)"""
         wrong = (None, 5, "x", [], {"a": 1})
-        for name, root in (("schema", self.schema), ("tables", self.tables)):
+        # One row of each table: the shapes are those of the columns, and the cost must not grow with the rows.
+        small = {table: rows[:1] for table, rows in self.tables.items()}
+        for name, root in (("schema", self.schema), ("tables", small)):
             for path in paths_of(root):
                 for value, delete in [(value, False) for value in wrong] + [(None, True)]:
                     changed = with_change(root, path, value, delete)
                     try:
-                        problems = checker.check(changed, self.tables, self.tags) if name == "schema" else checker.check(self.schema, changed, self.tags)
+                        problems = checker.check(changed, small, self.tags) if name == "schema" else checker.check(self.schema, changed, self.tags)
                     except Exception as error:  # noqa: BLE001  (any exception is the failure looked for)
                         self.fail("%s%r %s raised %r" % (name, path, "taken out" if delete else "= %r" % (value,), error))
                     self.assertIsInstance(problems, list)

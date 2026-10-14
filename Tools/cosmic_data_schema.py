@@ -34,7 +34,13 @@ TAG_NAME = re.compile(r'TagName="([^"]*)"')
 # The export text of a tag container, every entry quoted: what the engine writes and the only spelling read here.
 TAG_CONTAINER = re.compile(r'\(GameplayTags=(\(\(TagName="[^"]*"\)(,\(TagName="[^"]*"\))*\))?\)')
 TAG_ROW = re.compile(r'^\s*(\+?)GameplayTagList\s*=\s*\(.*?Tag\s*=\s*"([^"]+)"')
+INI_SECTION = re.compile(r'^\s*\[([^\]]*)\]\s*$')
+# The section the engine reads tag rows from: the settings object for a Default ini, the list object for a file under
+# Config/Tags (GameplayTagsManager.cpp loads each of those files as a UGameplayTagsList).
+TAG_SECTION = "/Script/GameplayTags.GameplayTagsSettings"
+TAG_FILE_SECTION = "/Script/GameplayTags.GameplayTagsList"
 CODE_NAME = re.compile(r'TEXT\("([^"]*)"\)')
+CODE_COMMENT = re.compile(r'/\*.*?\*/|//[^\n]*', re.S)
 # FText::Format: a backtick escapes one of these.
 ESCAPED = "`{}|"
 
@@ -112,7 +118,7 @@ VALUE_KINDS = ("plain", "number", "text", "tag", "row", "enum")
 SIZED_KINDS = ("numbers", "texts", "tags", "tag_list", "tag_map", "row_map", "word_map", "conditions", "effects")
 TEST_KINDS = {
     "is": VALUE_KINDS, "in": VALUE_KINDS, "gt": ("number",), "ge": ("number",), "lt": ("number",), "le": ("number",),
-    "set": COLUMN_KINDS, "min_len": SIZED_KINDS, "max_len": SIZED_KINDS, "each_contains": ("texts",),
+    "set": tuple(kind for kind in COLUMN_KINDS if kind not in ("number", "enum")), "min_len": SIZED_KINDS, "max_len": SIZED_KINDS, "each_contains": ("texts",),
     "lacks_type": ("conditions", "effects"), "slots_in": ("text", "texts"),
 }
 
@@ -195,17 +201,21 @@ def load_declared_tags(root, sources):
 
     Only the rows the engine reads count (CLAUDE.md, GameplayTags ini rules): in a Default ini a row needs its '+',
     a row without one replaces the whole list; in a file under Config/Tags a row has no '+', one with it is ignored.
-    The files under Config/Tags are found by the engine on its own, and so they are here."""
+    A row counts under the section of its file only. The files under Config/Tags, subfolders too, are found by the
+    engine on its own, and so they are here."""
     declared = set()
     problems = []
     files = [source.replace("\\", "/") for source in sources]
     tags_dir = os.path.join(root, "Config", "Tags")
-    if os.path.isdir(tags_dir):
-        for name in sorted(os.listdir(tags_dir)):
-            if name.lower().endswith(".ini") and "Config/Tags/" + name not in files:
-                files.append("Config/Tags/" + name)
+    for folder, _, names in sorted(os.walk(tags_dir)):
+        for name in sorted(names):
+            source = os.path.relpath(os.path.join(folder, name), root).replace("\\", "/")
+            if name.lower().endswith(".ini") and source not in files:
+                files.append(source)
     for source in files:
         in_tags_folder = source.startswith("Config/Tags/")
+        wanted = TAG_FILE_SECTION if in_tags_folder else TAG_SECTION
+        section = None
         try:
             with open(os.path.join(root, source), encoding="utf-8-sig") as handle:
                 lines = handle.read().splitlines()
@@ -213,11 +223,17 @@ def load_declared_tags(root, sources):
             problems.append("%s: cannot be read: %s" % (source, error))
             continue
         for number, line in enumerate(lines, 1):
+            header = INI_SECTION.match(line)
+            if header:
+                section = header.group(1)
+                continue
             found = TAG_ROW.match(line)
             if not found:
                 continue
             has_plus = found.group(1) == "+"
-            if has_plus and in_tags_folder:
+            if section != wanted:
+                problems.append("%s:%d: the engine reads the tag rows of this file under [%s] only (%s)" % (source, number, wanted, found.group(2)))
+            elif has_plus and in_tags_folder:
                 problems.append("%s:%d: the engine ignores a row with '+' in a file under Config/Tags (%s)" % (source, number, found.group(2)))
             elif not has_plus and not in_tags_folder:
                 problems.append("%s:%d: a row without '+' replaces the whole tag list of this ini (%s)" % (source, number, found.group(2)))
@@ -227,13 +243,14 @@ def load_declared_tags(root, sources):
 
 
 def load_code_rows(root, sources):
-    """(the row names the code calls by name, problem lines): every TEXT("...") of the headers the schema lists."""
+    """(the row names the code calls by name, problem lines): every TEXT("...") of the headers the schema lists,
+    comments left out (a constant that is commented out is not called)."""
     names = []
     problems = []
     for source in sources:
         try:
             with open(os.path.join(root, source), encoding="utf-8-sig") as handle:
-                names.extend(CODE_NAME.findall(handle.read()))
+                names.extend(CODE_NAME.findall(CODE_COMMENT.sub("", handle.read())))
         except (OSError, UnicodeDecodeError) as error:
             problems.append("%s: cannot be read: %s" % (source, error))
     return names, problems
