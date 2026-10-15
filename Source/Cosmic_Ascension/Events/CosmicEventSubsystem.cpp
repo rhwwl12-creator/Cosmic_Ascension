@@ -15,11 +15,17 @@
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
+#include "Templates/UnrealTemplate.h"
 
 // Helpers of this file. A named namespace: the module is built as one unity file, so an anonymous one would share its
 // names with every other .cpp.
 namespace CosmicEventImpl
 {
+	// How deep outbreak rows nest through FollowUpNotes (an outbreak row that resolves and places again what fired it would
+	// never end). Transient: it is back to 0 whenever no FollowUpNotes runs, so it is no state of the run.
+	constexpr int32 MaxNestedOutbreakRows = 4;
+	int32 NestedOutbreakRows = 0;
+
 	const FName KeyFormer(TEXT("Former"));
 	const FName KeyRuler(TEXT("Ruler"));
 	const FName KeyWanderer(TEXT("Wanderer"));
@@ -1242,8 +1248,13 @@ void UCosmicEventSubsystem::FollowUpNotes(FCosmicEvalContext& Ctx)
 		{
 			TellHazardLine(Ctx, ECosmicHazardLine::Outbreak, Note.HazardRow, Note.SystemIndex, Note.CivIndex);
 			const FHazardDef* Row = Ctx.Tables.FindHazard(Note.HazardRow);
-			if (Row && !Row->OutbreakRow.IsNone())
+			if (Row && !Row->OutbreakRow.IsNone() && CosmicEventImpl::NestedOutbreakRows >= CosmicEventImpl::MaxNestedOutbreakRows)
 			{
+				UE_LOG(LogCosmic, Error, TEXT("FollowUpNotes: the outbreak row %s of %s is not fired: outbreak rows nested %d deep (does a row place again what its outbreak row resolves?)"), *Row->OutbreakRow.ToString(), *Note.HazardRow.ToString(), CosmicEventImpl::NestedOutbreakRows);
+			}
+			else if (Row && !Row->OutbreakRow.IsNone())
+			{
+				TGuardValue<int32> Nesting(CosmicEventImpl::NestedOutbreakRows, CosmicEventImpl::NestedOutbreakRows + 1);
 				// The place and its people are the subject; the stream is the caller's, so a name the row gives is drawn there.
 				FCosmicEvalContext Outbreak(Ctx.State, Ctx.Stream, Ctx.Index, Ctx.Tables, Ctx.Rules);
 				Outbreak.CivIndex = Note.CivIndex;

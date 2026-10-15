@@ -316,7 +316,7 @@ private:
 
 	// Stage 5. Four steps in a fixed order (section 7.4). Every hazard is placed through CosmicHazards::Place, and its lines
 	// follow (FollowUpNotes) before the next placement.
-	// (a) Resolution by a completed means: from the megaproject work of Phase 2 on (work item 8).
+	// (a) Resolution by a completed means: from the megaproject and ascension judgment work of Phase 2 on.
 	// (b) Countdown and expiry, in two passes. First every countdown goes down by one and the systems that reach 0 are
 	//     collected in Systems order, so a hazard placed later in this stage keeps its whole count this tick. Then two
 	//     numbers per collected system are drawn from the sim stream, all of them before the first expiry: the outcome
@@ -326,20 +326,25 @@ private:
 	//     in the same order, the Draw row the number falls on is placed on a free slot. Then the Capital rows,
 	//     civilization by civilization in Civs order.
 	// (d) The event slots, UCosmicEventSubsystem::EvaluateAndFire.
-	// The draws of this stage itself follow the seed, the tick, which systems are settled and which hazards run out, and
-	// never what DT_Hazards holds. KillPlayer and DeposeRuler are only recorded, through UCosmicEventSubsystem::Apply
-	// (first recorded wins).
+	// Each draw point of this stage draws a count that no row, tag, chance or weight decides: one number per settled
+	// system, two per hazard that runs out, whatever DT_Hazards holds. How many hazards run out, and when, follows the
+	// world, and the world follows the tables (section 9.2). KillPlayer and DeposeRuler are only recorded, through
+	// UCosmicEventSubsystem::Apply (first recorded wins).
 	void TickHazards();
 
 	/**
 	 * One expiry of step (b) (section 7.4), on the hazard tag SystemIndex held when it was collected: a slot that holds
-	 * another (or none) is passed by and its numbers are thrown away. In this order: the last-system gate, when the code
-	 * of the tag takes the system and it is its owner's last owned system (a kept system ends there: its slot is emptied
-	 * without result); the effects (OnExpireEffects, or OnExpireBranchEffects when OutcomeNumber is below BranchChance),
-	 * then OnExpireNeighbourEffects; the code of the tag (Hazard.PreSupernova: CosmicHazards::Destroy, then DeposeRuler
-	 * through Apply when the people the vessel rules has no system left; Hazard.Rebellion: the throne; Hazard.Claim: the
-	 * join); the slot emptied; the claim rule on that slot; the expiry line (a claim that did not join tells the
-	 * resolution line); FollowUpNotes.
+	 * another tag (or none), or a hazard placed after the countdown pass (its count is above 0, whatever its tag), is
+	 * passed by and its numbers are thrown away. A tag no row holds leaves its slot as a resolution without a row does: no
+	 * effects, no line (a rebellion still ends its leader and its count). In this order: the last-system gate, when the
+	 * code of the tag takes the system and it is its owner's last owned system (a kept system ends there: its slot is
+	 * emptied without result); the effects (OnExpireEffects, or OnExpireBranchEffects when OutcomeNumber is below
+	 * BranchChance), then OnExpireNeighbourEffects; the code of the tag (Hazard.PreSupernova: CosmicHazards::Destroy, then
+	 * DeposeRuler through Apply when the people the vessel rules has no system left; Hazard.Rebellion: the throne;
+	 * Hazard.Claim: the join); the slot emptied; the claim rule on that slot; the expiry line (a claim that did not join
+	 * tells the resolution line); FollowUpNotes. Should the effects have made the system its owner's last owned system
+	 * after the gate let it pass (no row of the game can: Data.Integrity), the gate is asked again, with an error line,
+	 * before the code of the tag takes it.
 	 */
 	void ExpireHazard(int32 SystemIndex, FGameplayTag Collected, float OutcomeNumber, float ClaimNumber);
 
@@ -352,7 +357,7 @@ private:
 
 	// Stage 6. (a) decisions of AI civilizations and regents in Civs array order (a civilization without systems is
 	// skipped); (b) UAscensionSubsystem::EvaluateFeats, exactly once per tick and nowhere else in the tick (from the
-	// ascension judgment work of Phase 2).
+	// megaproject and ascension judgment work of Phase 2).
 	void TickCivAI();
 
 	// Stage 7. The only place where the number of elements of State.Civs changes. Empty body until Phase 2 (cleanup of

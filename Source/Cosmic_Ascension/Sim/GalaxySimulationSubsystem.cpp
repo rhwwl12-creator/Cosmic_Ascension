@@ -1624,7 +1624,9 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 	static const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Claim")));
 	static const FGameplayTag DeposedTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Deposed")));
 
-	if (!State.Systems.IsValidIndex(SystemIndex) || State.Systems[SystemIndex].ActiveHazard != Collected)
+	// A slot an earlier expiry of this pass emptied, or filled again: a hazard placed after the countdown pass keeps its
+	// whole count, whatever its tag (every collected slot is at 0 or below, every placement at 1 or above).
+	if (!State.Systems.IsValidIndex(SystemIndex) || State.Systems[SystemIndex].ActiveHazard != Collected || State.Systems[SystemIndex].HazardTicksRemaining > 0)
 	{
 		return;
 	}
@@ -1639,14 +1641,15 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 		State.Systems[SystemIndex].ActiveHazard = FGameplayTag();
 		State.Systems[SystemIndex].HazardTicksRemaining = 0;
 	};
+	FCosmicEvalContext Ctx = MakeEvalContext();
 	if (!Row)
 	{
-		// A tag no row holds has no effects and no line.
-		EmptySlot();
+		// A tag no row holds has no effects and no line: it leaves its slot as a resolution without a row does (a
+		// rebellion still ends its leader and its count).
+		CosmicHazards::Resolve(Ctx, SystemIndex);
 		return;
 	}
 
-	FCosmicEvalContext Ctx = MakeEvalContext();
 	Ctx.CivIndex = OwnerIndex;
 	Ctx.SystemIndex = SystemIndex;
 	Ctx.SourceRow = RowName;
@@ -1654,7 +1657,8 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 
 	// The gate comes before any part of the loss (section 4.5): a kept system loses nothing, not even its line.
 	const bool bTakesSystem = Collected == SupernovaTag;
-	if (bTakesSystem && CosmicHazards::IsLastOwnedSystem(State, StateIndex, SystemIndex) && GraceKeepsLastSystem(Ctx, SystemIndex))
+	const bool bLastAtGate = bTakesSystem && CosmicHazards::IsLastOwnedSystem(State, StateIndex, SystemIndex);
+	if (bLastAtGate && GraceKeepsLastSystem(Ctx, SystemIndex))
 	{
 		EmptySlot();
 		return;
@@ -1687,6 +1691,18 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 	bool bJoined = true;
 	if (Collected == SupernovaTag)
 	{
+		// The gate was asked before the effects. Should an effect have let the owner's other systems go meanwhile (no row
+		// of the game can: Data.Integrity), it is asked again here: a people reaches no system only behind the gate.
+		if (!bLastAtGate && CosmicHazards::IsLastOwnedSystem(State, StateIndex, SystemIndex))
+		{
+			UE_LOG(LogCosmic, Error, TEXT("Expiry of %s: its effects left %s the last owned system of its people; the last-system gate is asked again"), *RowName.ToString(), *State.Systems[SystemIndex].SystemID.ToString());
+			if (GraceKeepsLastSystem(Ctx, SystemIndex))
+			{
+				EmptySlot();
+				Events->FollowUpNotes(Ctx);
+				return;
+			}
+		}
 		CosmicHazards::Destroy(Ctx, SystemIndex);
 		// The collapse of the people the vessel rules: the deposition pipeline (section 4.4). Apply keeps the rules of the
 		// record (Embodied, the ruled people, first recorded wins).

@@ -7,6 +7,7 @@
 #include "Data/CosmicDefinitionRows.h"
 #include "GameplayTagContainer.h"
 #include "Sim/CosmicStateIndex.h"
+#include "Templates/UnrealTemplate.h"
 
 // Helpers of this file. A named namespace: the module is built as one unity file, so an anonymous one would share its
 // names with every other .cpp.
@@ -27,6 +28,31 @@ namespace CosmicHazardsImpl
 		const int32 Index = FMath::Clamp(static_cast<int32>(Tier), 0, static_cast<int32>(EAscensionTier::Tier5_EternalOrder));
 		const float Weight = Rules.PressureBySourceTier.IsValidIndex(Index) ? Rules.PressureBySourceTier[Index] : 0.f;
 		return Weight > 0.f ? Weight : 0.f;
+	}
+
+	// How deep resolutions nest through OnResolveEffects (a row that places again what it then resolves would never end).
+	// Transient: it is back to 0 whenever no Resolve runs, so it is no state of the run.
+	constexpr int32 MaxNestedResolutions = 4;
+	int32 NestedResolutions = 0;
+
+	// A rebellion that leaves its slot without a change of throne (resolved, or ended with its slot by a transfer): its
+	// leader leaves the record and the count of discontent starts over (section 4.1).
+	void EndRebellion(FGalaxyState& State, int32 CivIndex)
+	{
+		static const FGameplayTag RebelTag = TagOf(TEXT("Notable.Rebel"));
+		if (!State.Civs.IsValidIndex(CivIndex))
+		{
+			return;
+		}
+		FCivilizationState& Civ = State.Civs[CivIndex];
+		for (FNotableRecord& Record : Civ.Notables)
+		{
+			if (Record.LastTick == 0 && Record.Role == RebelTag)
+			{
+				Record.LastTick = FMath::Max<int64>(State.Tick, 1);
+			}
+		}
+		Civ.LowStabilityTicks = 0;
 	}
 
 	// Whether a fallen instance (its row Realm.Abyssal, sealed or not) holds SystemID in its sphere.
@@ -92,7 +118,6 @@ bool CosmicHazards::Resolve(FCosmicEvalContext& Ctx, int32 SystemIndex)
 	using namespace CosmicHazardsImpl;
 
 	static const FGameplayTag RebellionTag = TagOf(TEXT("Hazard.Rebellion"));
-	static const FGameplayTag RebelTag = TagOf(TEXT("Notable.Rebel"));
 
 	FGalaxyState& State = Ctx.State;
 	if (!State.Systems.IsValidIndex(SystemIndex) || !State.Systems[SystemIndex].ActiveHazard.IsValid())
@@ -105,22 +130,14 @@ bool CosmicHazards::Resolve(FCosmicEvalContext& Ctx, int32 SystemIndex)
 	const FHazardDef* Row = Ctx.Tables.FindHazardByTag(Hazard, &RowName);
 	const int32 OwnerIndex = Ctx.Index.FindCiv(State, System.OwnerCivID);
 
-	// The slot first: whatever the effects below do, they find it empty (one level deep).
+	// The slot first: whatever the effects below do, they find it empty.
 	System.ActiveHazard = FGameplayTag();
 	System.HazardTicksRemaining = 0;
 
 	// A rebellion that ends: its leader leaves the record, and the count of discontent starts over (section 4.1).
-	if (Hazard == RebellionTag && State.Civs.IsValidIndex(OwnerIndex))
+	if (Hazard == RebellionTag)
 	{
-		FCivilizationState& Owner = State.Civs[OwnerIndex];
-		for (FNotableRecord& Record : Owner.Notables)
-		{
-			if (Record.LastTick == 0 && Record.Role == RebelTag)
-			{
-				Record.LastTick = FMath::Max<int64>(State.Tick, 1);
-			}
-		}
-		Owner.LowStabilityTicks = 0;
+		EndRebellion(State, OwnerIndex);
 	}
 
 	if (!Row)
@@ -129,6 +146,12 @@ bool CosmicHazards::Resolve(FCosmicEvalContext& Ctx, int32 SystemIndex)
 	}
 	// The resolution line comes before the lines of anything its effects do.
 	Ctx.Notes.Add({ ECosmicWorldNote::HazardResolved, SystemIndex, OwnerIndex, RowName });
+	if (NestedResolutions >= MaxNestedResolutions)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("Resolve: the effects of %s are not applied: resolutions nested %d deep (does a row resolve again what its effects place?)"), *RowName.ToString(), NestedResolutions);
+		return true;
+	}
+	TGuardValue<int32> Nesting(NestedResolutions, NestedResolutions + 1);
 
 	const FCosmicEvalSubject Saved = Ctx;
 	Ctx.CivIndex = OwnerIndex;
@@ -143,6 +166,9 @@ bool CosmicHazards::Resolve(FCosmicEvalContext& Ctx, int32 SystemIndex)
 
 bool CosmicHazards::Transfer(FCosmicEvalContext& Ctx, int32 SystemIndex, int32 ToCivIndex)
 {
+	using namespace CosmicHazardsImpl;
+
+	static const FGameplayTag RebellionTag = TagOf(TEXT("Hazard.Rebellion"));
 	FGalaxyState& State = Ctx.State;
 	if (!State.Systems.IsValidIndex(SystemIndex) || (ToCivIndex != INDEX_NONE && !State.Civs.IsValidIndex(ToCivIndex)))
 	{
@@ -160,6 +186,10 @@ bool CosmicHazards::Transfer(FCosmicEvalContext& Ctx, int32 SystemIndex, int32 T
 		const FHazardDef* Row = Ctx.Tables.FindHazardByTag(System.ActiveHazard);
 		if (ToCivIndex == INDEX_NONE || (Row && Row->SpawnRule == ECosmicHazardSpawn::Capital))
 		{
+			if (System.ActiveHazard == RebellionTag)
+			{
+				EndRebellion(State, FromCivIndex);
+			}
 			System.ActiveHazard = FGameplayTag();
 			System.HazardTicksRemaining = 0;
 		}

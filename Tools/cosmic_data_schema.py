@@ -829,7 +829,9 @@ class Checker:
                 self.report(where, "expected none or %d entries and more, found %d" % (spec["empty_or_min"], count))
             for index, entry in enumerate(value):
                 self.check_text("%s[%d]" % (where, index), entry, dict(spec, required=True))
-            if spec.get("unique") and len(set(e for e in value if isinstance(e, str))) != count:
+            # Among the texts only: an entry of another type is reported above, never as a duplicate.
+            texts = [entry for entry in value if isinstance(entry, str)]
+            if spec.get("unique") and len(set(texts)) != len(texts):
                 self.report(where, "an entry appears twice")
         elif kind == "tag":
             self.check_tag(where, value, spec)
@@ -871,7 +873,9 @@ class Checker:
                     self.report(here, "expected a row name, found %r" % (entry,))
                 elif not any(name in self.rows.get(table, {}) for table in spec["tables"]):
                     self.report(here, "none of %s has a row %s" % (", ".join(spec["tables"]), name))
-            if spec.get("unique") and len(set(e for e in value if isinstance(e, str))) != len(value):
+            # Among the row names only: an entry that is no name is reported above, never as a duplicate.
+            names = [name_of(entry) for entry in value if isinstance(name_of(entry), str) and name_of(entry) != ""]
+            if spec.get("unique") and len(set(names)) != len(names):
                 self.report(where, "an entry appears twice")
         elif kind == "enum":
             names = self.schema["enums"][spec["enum"]]

@@ -29,6 +29,11 @@ void UPlayerRoleSubsystem::Install(FName SystemID, FName CivID, EPlayerRole Role
 {
 	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
 	check(Sim);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("Install called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return;
+	}
 	FGalaxyState& State = Sim->GetMutableState();
 	FCallingState& Calling = State.Calling;
 	FCivilizationState* Civ = State.Civs.FindByPredicate([CivID](const FCivilizationState& Candidate) { return Candidate.CivID == CivID; });
@@ -128,6 +133,11 @@ void UPlayerRoleSubsystem::DeposeRuler()
 	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
 	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
 	check(Sim && Log);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("DeposeRuler called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return;
+	}
 	FGalaxyState& State = Sim->GetMutableState();
 	const FPlayerEntityState& Player = State.Player;
 	if (State.Calling.LifeState != ELifeState::Embodied || Player.Role != EPlayerRole::Ruler)
@@ -146,13 +156,17 @@ void UPlayerRoleSubsystem::DeposeRuler()
 	const float RegentRoll = Sim->GetRng().GetFraction();
 	BecomeWanderer(CosmicState::PickAIProfile(RegentRoll), FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Deposed"))));
 
+	// The ranges are lints; the guards are comparisons, so a value that is not a number takes the safe side.
+	const FCosmicRulesDef& Rules = Sim->GetRules();
+	const float Decay = Rules.ReverenceDecay > 0.f ? FMath::Min(Rules.ReverenceDecay, 1.f) : 0.f;
+	// Every people remembers the fallen name less, as after a death (section 4.4, 5.10): none crowns it at once.
+	for (FCivilizationState& Other : State.Civs)
+	{
+		Other.ReverenceToPlayer = FMath::Clamp(Other.ReverenceToPlayer * Decay, 0.f, 1.f);
+	}
 	if (State.Civs.IsValidIndex(CivIndex))
 	{
-		const FCosmicRulesDef& Rules = Sim->GetRules();
 		FCivilizationState& Civ = State.Civs[CivIndex];
-		// The ranges are lints; the guards are comparisons, so a value that is not a number takes the safe side.
-		const float Decay = Rules.ReverenceDecay > 0.f ? FMath::Min(Rules.ReverenceDecay, 1.f) : 0.f;
-		Civ.ReverenceToPlayer = FMath::Clamp(Civ.ReverenceToPlayer * Decay, 0.f, 1.f);
 		const float Ceiling = Rules.PostRebellionStability > 0.f ? FMath::Min(Rules.PostRebellionStability, 1.f) : 0.f;
 		Civ.Stability = FMath::Min(Civ.Stability, Ceiling);
 		Civ.ThroneLockedUntilTick = State.Tick + FMath::Max(0, Rules.ThroneLockTicks);
@@ -164,6 +178,11 @@ void UPlayerRoleSubsystem::BecomeWanderer(FGameplayTag RegentProfile, FGameplayT
 {
 	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
 	check(Sim);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("BecomeWanderer called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return;
+	}
 	FGalaxyState& State = Sim->GetMutableState();
 	FPlayerEntityState& Player = State.Player;
 	if (State.Calling.LifeState != ELifeState::Embodied || Player.Role != EPlayerRole::Ruler)

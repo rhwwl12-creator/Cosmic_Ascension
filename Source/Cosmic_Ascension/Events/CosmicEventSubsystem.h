@@ -15,9 +15,9 @@
 // tenth stage; a civilization without systems, removed by the crossing stage).
 //
 // The three effects that reach into the hazard stage (SpawnHazard, ResolveHazard, TransferSystem) go through the world
-// functions of Sim/CosmicHazards.h, the one path for each, and leave notes in the context; the member layer tells what the
-// notes say. The known scope and log work adds the note of a system the vessel's civilization received (it becomes known
-// before any line).
+// functions of Sim/CosmicHazards.h, the one path for each. SpawnHazard and ResolveHazard leave notes in the context and the
+// member layer tells what the notes say; TransferSystem leaves none (a hazard it ends goes untold). The known scope and log
+// work adds the note of a system the vessel's civilization received (it becomes known before any line).
 
 #pragma once
 
@@ -294,8 +294,9 @@ public:
 	 *   CosmicHazards::Resolve; with a Tag, only a hazard that matches it (MatchesTag). TransferSystem hands the subject
 	 *   system to the civilization its Key names (a living CivID; an empty Key = to no one) through
 	 *   CosmicHazards::Transfer, which never takes or lets go the last owned system of a civilization: only stage code
-	 *   behind the last-system gate can (section 4.5, 7.4). The three leave notes in Ctx.Notes; whoever applied them tells
-	 *   them after its own line (FollowUpNotes). A per-tick source turns all three away.
+	 *   behind the last-system gate can (section 4.5, 7.4). SpawnHazard and ResolveHazard leave notes in Ctx.Notes, and
+	 *   whoever applied them tells them after its own line (FollowUpNotes); TransferSystem leaves none. A per-tick source
+	 *   turns all three away.
 	 * - An effect whose Key names something the context cannot resolve is turned away. ChangeRelation resolves its
 	 *   other party as CivRelationAtLeast does and writes no entry for one that does not resolve: the keys of
 	 *   Relations are saved, and they are living civilizations, transcendents of the run and celestial rows only.
@@ -394,7 +395,9 @@ public:
 	 * HazardPlaced tells the outbreak line and fires the row's OutbreakRow through FireRow, with that system and people as
 	 * subject over the state and the stream of Ctx (a NameNotable of that row draws from it); HazardResolved tells the
 	 * resolution line. Every user of the world functions ends with it: FireRow after the row's line, the hazard stage
-	 * after each placement and after each expiry line. Refused like FireRow, leaving the notes where they are.
+	 * after each placement and after each expiry line. Refused like FireRow, leaving the notes where they are. Outbreak
+	 * rows fired from within the follow-up of an outbreak row stop at a fixed depth with an error line instead of running
+	 * the stack out: no row of the game nests (Data.Integrity).
 	 */
 	void FollowUpNotes(FCosmicEvalContext& Ctx);
 

@@ -31,16 +31,18 @@ public:
 	 * without a line (section 8.1): a life knows where it was born. It never writes Knowing.FirstContactCivID: the
 	 * people one is born into is not a contact.
 	 * One draw from the sim stream per call, for the name of the vessel, made before the name bank is looked at.
+	 * Refused with an error line when called from a handler of a Core Logic delegate (a handler may only read the state).
 	 */
 	void Install(FName SystemID, FName CivID, EPlayerRole Role);
 
 	/**
 	 * The deposition pipeline (section 5.10), run by the role-effect stage for Effect.DeposeRuler, in its Phase 2 form:
 	 * tells CosmicRows::LogFallenMonarch (Severity 2), draws the regent profile (one number from the sim stream,
-	 * CosmicState::PickAIProfile), BecomeWanderer with Reign.Deposed, then the people's ReverenceToPlayer times
-	 * DT_Rules.ReverenceDecay, Stability = min(Stability, PostRebellionStability) and ThroneLockedUntilTick = Tick +
-	 * ThroneLockTicks. The vessel stays where it stands. The three screens, the digest and the exile encounter are Phase 4.
-	 * Does nothing unless the vessel rules.
+	 * CosmicState::PickAIProfile), BecomeWanderer with Reign.Deposed, then every people's ReverenceToPlayer times
+	 * DT_Rules.ReverenceDecay (as after a death, section 4.4: no people crowns the fallen at once), and for the people it
+	 * ruled Stability = min(Stability, PostRebellionStability) and ThroneLockedUntilTick = Tick + ThroneLockTicks. The
+	 * vessel stays where it stands. The three screens, the digest and the exile encounter are Phase 4. Does nothing unless
+	 * the vessel rules; refused with an error line when called from a handler of a Core Logic delegate.
 	 */
 	void DeposeRuler();
 
@@ -49,7 +51,8 @@ public:
 	 * AI-run with RegentProfile, StatusTags from ReignEndReason (Reign.Abdicated: Status.Abdicated, Reign.Deposed:
 	 * Status.FallenMonarch, Reign.Died: none), the open reign closed with ReignEndReason, Knowing.PendingContactCivID
 	 * cleared. The regent record (notable hook 1) arrives with the abdication command of Phase 4, the neighbours the new
-	 * eye knows with the known scope and log work. Does nothing unless the vessel rules.
+	 * eye knows with the known scope and log work. Does nothing unless the vessel rules; refused with an error line when
+	 * called from a handler of a Core Logic delegate.
 	 */
 	void BecomeWanderer(FGameplayTag RegentProfile, FGameplayTag ReignEndReason);
 };

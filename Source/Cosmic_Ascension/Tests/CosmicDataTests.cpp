@@ -1545,6 +1545,25 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 			Table->AddRow(FName(TEXT("event_test")), Row);
 			return With(TEXT("DT_Events"), Table);
 		};
+		// A list of row names (the rows kind) is held to the tables it names, on the loaded assets too.
+		auto WithHazard = [&](TFunctionRef<void(FHazardDef&)> Change)
+		{
+			UDataTable* Table = CopyOf<FHazardDef>(Game.Hazards);
+			const TArray<FName> Names = Game.GetHazardRowNames();
+			if (!Names.IsEmpty())
+			{
+				FHazardDef Row = *Game.FindHazard(Names[0]);
+				Change(Row);
+				Table->RemoveRow(Names[0]);
+				Table->AddRow(Names[0], Row);
+			}
+			return With(TEXT("DT_Hazards"), Table);
+		};
+		TestTrue(TEXT("The game has a hazard row to change"), !Game.GetHazardRowNames().IsEmpty());
+		Expect(TEXT("a list of row names with a row no named table has"), WithHazard([](FHazardDef& Row) { Row.RulerResolutions = { FName(TEXT("enc_nobody")) }; }),
+			{ TEXT("RulerResolutions[0]"), TEXT("none of DT_Encounters has a row enc_nobody") });
+		Expect(TEXT("a list of row names with an empty name"), WithHazard([](FHazardDef& Row) { Row.WandererResolutions = { NAME_None }; }),
+			{ TEXT("WandererResolutions[0]"), TEXT("none of DT_Encounters has a row None") });
 		const FGameplayTag Declared = FGameplayTag::RequestGameplayTag(FName(TEXT("Trait.Arch.Terran")));
 		TestFalse(TEXT("Declared tags and empty tags in conditions and effects are not reported"), AnyCarries(WithEvent(Declared, FGameplayTag()), { TEXT("].Tag") }));
 		{

@@ -2471,7 +2471,8 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 		{
 			Types.Add(Case.Effect.Type);
 			// The vessel rules civilization 0 and stands in sol, past the birth protection: both role effects, the vessel
-			// effects and the notable would all go through if the source were an event row.
+			// effects and the notable would all go through if the source were an event row. The three hazard effects would
+			// not (the bench has no subject system): Events.HazardEffects refuses them from a per-tick source with one.
 			FBench Bench(Fresh, *Sim, PastProtection);
 			Bench.Ctx.CivIndex = 0;
 			Bench.Ctx.OtherID = Fresh.Civs[1].CivID;

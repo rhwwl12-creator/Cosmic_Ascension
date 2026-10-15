@@ -5,6 +5,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Core/CosmicSeed.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicConditionTypes.h"
@@ -23,8 +24,11 @@
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
+#include "Log/CosmicLogSubsystem.h"
 #include "Templates/Function.h"
+#include "Templates/Tuple.h"
 #include "Tests/CosmicTestHelpers.h"
+#include "Tests/CosmicTestProbe.h"
 #include "UObject/NameTypes.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
@@ -268,6 +272,64 @@ namespace CosmicHazardTests
 		return INDEX_NONE;
 	}
 
+	// A name followed by the particle the engine's hpp modifier gives it: the consonant form after a Hangul syllable with a
+	// final consonant, the vowel form after one without, nothing after any other character.
+	FString WithParticle(const FString& Name, const TCHAR* Consonant, const TCHAR* Vowel)
+	{
+		if (Name.IsEmpty())
+		{
+			return Name;
+		}
+		const TCHAR Last = Name[Name.Len() - 1];
+		if (Last < 0xAC00 || Last > 0xD7A3)
+		{
+			return Name;
+		}
+		return Name + ((Last - 0xAC00) % 28 != 0 ? Consonant : Vowel);
+	}
+
+	// The archetype table of the game with no hazard multiplier, and one multiplier on one row.
+	UDataTable* CivsWithMultiplier(const FCosmicDataTables& Original, FName ArchetypeRow, const TCHAR* HazardTag, float Factor)
+	{
+		UDataTable* Civs = NewTable(FCivArchetypeDef::StaticStruct());
+		for (const FName RowName : Original.GetCivRowNames())
+		{
+			FCivArchetypeDef Row = *Original.FindCiv(RowName);
+			Row.HazardSpawnMultipliers.Reset();
+			if (RowName == ArchetypeRow)
+			{
+				Row.HazardSpawnMultipliers.Add(Tag(HazardTag), Factor);
+			}
+			Civs->AddRow(RowName, Row);
+		}
+		return Civs;
+	}
+
+	// A probe on both delegates of the Core Logic for the lifetime of the object.
+	struct FHazardProbe
+	{
+		FHazardProbe(UGalaxySimulationSubsystem& Sim)
+			: Log(Sim.GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>())
+			, Events(Sim.GetGameInstance()->GetSubsystem<UCosmicEventSubsystem>())
+			, Probe(NewObject<UCosmicTestProbe>())
+		{
+			Probe->AddToRoot();
+			Log->OnLogEntry.AddDynamic(Probe, &UCosmicTestProbe::HandleLogEntry);
+			Events->OnEventFired.AddDynamic(Probe, &UCosmicTestProbe::HandleEventFired);
+		}
+
+		~FHazardProbe()
+		{
+			Log->OnLogEntry.RemoveDynamic(Probe, &UCosmicTestProbe::HandleLogEntry);
+			Events->OnEventFired.RemoveDynamic(Probe, &UCosmicTestProbe::HandleEventFired);
+			Probe->RemoveFromRoot();
+		}
+
+		UCosmicLogSubsystem* Log;
+		UCosmicEventSubsystem* Events;
+		UCosmicTestProbe* Probe;
+	};
+
 	bool InSphere(const FGalaxyState& State, int32 TranscendentIndex, int32 SystemIndex)
 	{
 		return State.Transcendents.IsValidIndex(TranscendentIndex) && State.Transcendents[TranscendentIndex].InfluencedSystems.Contains(State.Systems[SystemIndex].SystemID);
@@ -358,6 +420,14 @@ bool FCosmicEventsHazardEffectsTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("A tag no row holds places nothing"), UCosmicEventSubsystem::Apply(Spawn(TEXT("Hazard.Cult")), Bench.Ctx));
 		Bench.Ctx.bPerTickSource = true;
 		TestFalse(TEXT("A per-tick source places nothing"), UCosmicEventSubsystem::Apply(Spawn(TEXT("Hazard.Plague")), Bench.Ctx));
+		// The other two with a subject they could act on: a placed hazard, and a system that is not its people's last.
+		Bench.Ctx.SystemIndex = 1;
+		TestFalse(TEXT("A per-tick source resolves nothing"), UCosmicEventSubsystem::Apply(Resolve(nullptr), Bench.Ctx));
+		TestTrue(TEXT("The hazard a per-tick source could not resolve stays"), State.Systems[1].ActiveHazard == Plague);
+		Bench.Ctx.SystemIndex = 2;
+		TestFalse(TEXT("A per-tick source hands nothing over"), UCosmicEventSubsystem::Apply(Transfer(State.Civs[1].CivID), Bench.Ctx));
+		TestEqual(TEXT("The system a per-tick source could not hand over keeps its owner"), State.Systems[2].OwnerCivID, State.Civs[0].CivID);
+		Bench.Ctx.SystemIndex = 6;
 		Bench.Ctx.bPerTickSource = false;
 		TestFalse(TEXT("Nothing was placed on that system so far"), State.Systems[6].ActiveHazard.IsValid());
 		Bench.Ctx.SystemIndex = INDEX_NONE;
@@ -373,19 +443,26 @@ bool FCosmicEventsHazardEffectsTest::RunTest(const FString& Parameters)
 		FGalaxyState& State = Bench.State;
 		State.Tick = 40;
 		PlaceByHand(State, 0, TEXT("Hazard.Rebellion"), 50);
-		FNotableRecord& Rebel = State.Civs[0].Notables.AddDefaulted_GetRef();
+		FNotableRecord Rebel;
 		Rebel.Role = Tag(TEXT("Notable.Rebel"));
 		Rebel.FirstTick = 10;
 		Rebel.SourceRow = FName(TEXT("event_test_rises"));
+		State.Civs[0].Notables.Add(Rebel);
+		FNotableRecord Ruler;
+		Ruler.Role = Tag(TEXT("Notable.Ruler"));
+		Ruler.FirstTick = 5;
+		Ruler.SourceRow = FName(TEXT("event_test_crowned"));
+		State.Civs[0].Notables.Add(Ruler);
 		State.Civs[0].LowStabilityTicks = 150;
 		Bench.Ctx.CivIndex = 0;
 		Bench.Ctx.SystemIndex = 0;
 		TestTrue(TEXT("ResolveHazard resolves the hazard of the subject system"), UCosmicEventSubsystem::Apply(Resolve(nullptr), Bench.Ctx));
 		TestFalse(TEXT("Its slot is empty"), State.Systems[0].ActiveHazard.IsValid());
 		TestEqual(TEXT("Its countdown is 0"), State.Systems[0].HazardTicksRemaining, 0);
-		if (TestEqual(TEXT("The rebel is still on the record"), State.Civs[0].Notables.Num(), 1))
+		if (TestEqual(TEXT("Both records are still on the record"), State.Civs[0].Notables.Num(), 2))
 		{
 			TestEqual(TEXT("The rebel leaves the record at the tick of the resolution"), State.Civs[0].Notables[0].LastTick, static_cast<int64>(40));
+			TestEqual(TEXT("A record of another role stays open"), State.Civs[0].Notables[1].LastTick, static_cast<int64>(0));
 		}
 		TestEqual(TEXT("The count of discontent starts over"), State.Civs[0].LowStabilityTicks, 0);
 		if (TestEqual(TEXT("The resolution leaves one note"), Bench.Ctx.Notes.Num(), 1))
@@ -395,11 +472,23 @@ bool FCosmicEventsHazardEffectsTest::RunTest(const FString& Parameters)
 		}
 		TestFalse(TEXT("An empty slot has nothing to resolve"), UCosmicEventSubsystem::Apply(Resolve(nullptr), Bench.Ctx));
 
+		// A hazard that is no rebellion: the people's discontent and its rebel stay as they are.
+		FNotableRecord Waiting;
+		Waiting.Role = Tag(TEXT("Notable.Rebel"));
+		Waiting.FirstTick = 41;
+		Waiting.SourceRow = FName(TEXT("event_test_rises"));
+		State.Civs[0].Notables.Add(Waiting);
+		State.Civs[0].LowStabilityTicks = 150;
 		PlaceByHand(State, 1, TEXT("Hazard.Plague"), 50);
 		Bench.Ctx.SystemIndex = 1;
 		TestFalse(TEXT("A Tag that does not match leaves the hazard"), UCosmicEventSubsystem::Apply(Resolve(TEXT("Hazard.Rebellion")), Bench.Ctx));
 		TestTrue(TEXT("The hazard that did not match stays"), State.Systems[1].ActiveHazard == Plague);
 		TestTrue(TEXT("A Tag that matches resolves it"), UCosmicEventSubsystem::Apply(Resolve(TEXT("Hazard.Plague")), Bench.Ctx));
+		TestEqual(TEXT("A resolution that is no rebellion leaves the count of discontent"), State.Civs[0].LowStabilityTicks, 150);
+		if (TestEqual(TEXT("Three records"), State.Civs[0].Notables.Num(), 3))
+		{
+			TestEqual(TEXT("A resolution that is no rebellion leaves the rebel's record open"), State.Civs[0].Notables[2].LastTick, static_cast<int64>(0));
+		}
 
 		// The row's effects land on the system and its owner, after the note of the resolution.
 		PlaceByHand(State, 6, TEXT("Hazard.AIAwakening"), 50);
@@ -414,8 +503,10 @@ bool FCosmicEventsHazardEffectsTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The resolution's own SpawnHazard found the slot empty"), State.Systems[6].ActiveHazard == Plague);
 		if (TestEqual(TEXT("Two notes"), Bench.Ctx.Notes.Num(), 2))
 		{
-			TestTrue(TEXT("The resolution comes first"), Bench.Ctx.Notes[0].Kind == ECosmicWorldNote::HazardResolved && Bench.Ctx.Notes[0].HazardRow == Waking);
-			TestTrue(TEXT("What its effects placed comes after"), Bench.Ctx.Notes[1].Kind == ECosmicWorldNote::HazardPlaced && Bench.Ctx.Notes[1].HazardRow == Storm);
+			TestTrue(TEXT("The first note is the resolution"), Bench.Ctx.Notes[0].Kind == ECosmicWorldNote::HazardResolved);
+			TestEqual(TEXT("The first note names the resolved row"), Bench.Ctx.Notes[0].HazardRow, Waking);
+			TestTrue(TEXT("The second note is what its effects placed"), Bench.Ctx.Notes[1].Kind == ECosmicWorldNote::HazardPlaced);
+			TestEqual(TEXT("The second note names the placed row"), Bench.Ctx.Notes[1].HazardRow, Storm);
 			TestEqual(TEXT("The placement is about the owner"), Bench.Ctx.Notes[1].CivIndex, 1);
 		}
 		TestEqual(TEXT("The subject civilization of the context is back"), Bench.Ctx.CivIndex, 2);
@@ -483,15 +574,111 @@ bool FCosmicEventsHazardEffectsTest::RunTest(const FString& Parameters)
 		const FName Civ3 = State.Civs[3].CivID;
 		State.Systems[1].ActiveMegaproject = CosmicRows::ProjectSettle;
 		PlaceByHand(State, 0, TEXT("Hazard.Rebellion"), 50);
+		FNotableRecord Rebel;
+		Rebel.Role = Tag(TEXT("Notable.Rebel"));
+		Rebel.FirstTick = 10;
+		Rebel.SourceRow = FName(TEXT("event_test_rises"));
+		State.Civs[0].Notables.Add(Rebel);
+		State.Civs[0].LowStabilityTicks = 150;
 		Bench.Ctx.CivIndex = 0;
 		Bench.Ctx.SystemIndex = 0;
 		TestTrue(TEXT("A capital can be handed over while its people keeps other systems"), UCosmicEventSubsystem::Apply(Transfer(Civ3), Bench.Ctx));
 		TestFalse(TEXT("The discontent of the old owner does not follow its capital"), State.Systems[0].ActiveHazard.IsValid());
+		if (TestEqual(TEXT("The rebel is still on the record"), State.Civs[0].Notables.Num(), 1))
+		{
+			TestEqual(TEXT("A rebellion ended by the transfer closes its rebel's record"), State.Civs[0].Notables[0].LastTick, FMath::Max<int64>(State.Tick, 1));
+		}
+		TestEqual(TEXT("A rebellion ended by the transfer starts the count of discontent over"), State.Civs[0].LowStabilityTicks, 0);
 		TestEqual(TEXT("The capital moves to the first settled system"), State.Civs[0].HomeSystemID, State.Systems[2].SystemID);
 		TestEqual(TEXT("Losing the capital costs Stability"), State.Civs[0].Stability, 0.75f - 0.3f);
 		Bench.Ctx.SystemIndex = 2;
 		TestTrue(TEXT("The new capital can be handed over too"), UCosmicEventSubsystem::Apply(Transfer(Civ3), Bench.Ctx));
 		TestEqual(TEXT("Without a settled system the capital is the system being settled"), State.Civs[0].HomeSystemID, State.Systems[1].SystemID);
+	}
+
+	// The game's only resolution in Phase 2: the Jonah row resolves the plague.
+	{
+		const FCosmicEventDef* Jonah = Original.FindEvent(FName(TEXT("event_plague_repentance")));
+		if (TestNotNull(TEXT("The game has the Jonah row"), Jonah))
+		{
+			TestTrue(TEXT("The Jonah row resolves the plague"), Jonah->Effects.ContainsByPredicate([&Plague](const FCosmicEffect& Effect)
+			{
+				return Effect.Type == EEffectType::ResolveHazard && Effect.Tag == Plague;
+			}));
+		}
+	}
+
+	// Rows that resolve and place each other nest; the nesting stops at a fixed depth with one error line. Two chains of
+	// six rows, so a stop that is missing ends the chain instead of the process.
+	const TCHAR* const ChainTags[] = { TEXT("Hazard.Plague"), TEXT("Hazard.AIAwakening"), TEXT("Hazard.PreSupernova"), TEXT("Hazard.SubspaceErosion"), TEXT("Hazard.Extinction"), TEXT("Hazard.Cult") };
+	constexpr int32 ChainLength = UE_ARRAY_COUNT(ChainTags);
+	// Through the effects of a resolution: each row resolves the next one it places, and takes a little Stability.
+	{
+		UDataTable* Chain = NewTable(FHazardDef::StaticStruct());
+		for (int32 Link = 0; Link < ChainLength; ++Link)
+		{
+			FHazardDef Row = HazardRow(ChainTags[Link], ECosmicHazardSpawn::Draw, 0.f, 50);
+			if (Link + 1 < ChainLength)
+			{
+				Row.OnResolveEffects = { Eff(EEffectType::ChangeStability, nullptr, NAME_None, -0.01f), Spawn(ChainTags[Link + 1]), Resolve(ChainTags[Link + 1]) };
+			}
+			Chain->AddRow(FName(*FString::Printf(TEXT("crisis_test_link_%d"), Link)), Row);
+		}
+		Sim->SetTables(TablesWith(Original, Knobs(BaseRules), Chain, nullptr));
+		Sim->NewGalaxy(42, 12, 4);
+		FGalaxyState Linked = Sim->GetState();
+		if (!TestTrue(TEXT("The board of the resolution chain is laid"), Board(Linked)))
+		{
+			return false;
+		}
+		FBench Bench(Linked, *Sim);
+		PlaceByHand(Bench.State, 6, ChainTags[0], 50);
+		Bench.State.Civs[1].Stability = 0.5f;
+		Bench.Ctx.CivIndex = 1;
+		Bench.Ctx.SystemIndex = 6;
+		AddExpectedError(TEXT("resolutions nested 4 deep"), EAutomationExpectedErrorFlags::Contains, 1);
+		TestTrue(TEXT("The first resolution of the chain goes through"), UCosmicEventSubsystem::Apply(Resolve(nullptr), Bench.Ctx));
+		TestEqual(TEXT("Four rows of the chain applied their effects and the fifth did not"), Bench.State.Civs[1].Stability, 0.5f - 4.f * 0.01f, 0.0001f);
+	}
+	// Through outbreak rows: each row's outbreak row resolves it and places the next.
+	{
+		UDataTable* Chain = NewTable(FHazardDef::StaticStruct());
+		UDataTable* ChainEvents = NewTable(FCosmicEventDef::StaticStruct());
+		for (int32 Link = 0; Link < ChainLength; ++Link)
+		{
+			FHazardDef Row = HazardRow(ChainTags[Link], ECosmicHazardSpawn::Draw, 0.f, 50);
+			if (Link + 1 < ChainLength)
+			{
+				const FName OutbreakName(*FString::Printf(TEXT("event_test_link_%d"), Link));
+				Row.OutbreakRow = OutbreakName;
+				FCosmicEventDef Next;
+				Next.Category = Tag(TEXT("Event.Civ.Economy"));
+				Next.LogCategory = Tag(TEXT("Log.Civ"));
+				Next.Trigger = ECosmicEventTrigger::Named;
+				Next.Subject = ECosmicEventSubject::SettledSystem;
+				Next.BaseWeight = 0.f;
+				Next.CooldownTicks = 0;
+				Next.Effects = { Resolve(ChainTags[Link]), Spawn(ChainTags[Link + 1]) };
+				ChainEvents->AddRow(OutbreakName, Next);
+			}
+			Chain->AddRow(FName(*FString::Printf(TEXT("crisis_test_link_%d"), Link)), Row);
+		}
+		Sim->SetTables(TablesWith(Original, Knobs(BaseRules), Chain, ChainEvents));
+		Sim->NewGalaxy(42, 12, 4);
+		FGalaxyState& Live = Sim->GetMutableState();
+		if (!TestTrue(TEXT("The board of the outbreak chain is laid"), Board(Live)))
+		{
+			return false;
+		}
+		UCosmicEventSubsystem* EventSubsystem = Sim->GetGameInstance()->GetSubsystem<UCosmicEventSubsystem>();
+		FCosmicEvalContext Ctx = Sim->MakeEvalContext();
+		Ctx.CivIndex = 1;
+		Ctx.SystemIndex = 6;
+		AddExpectedError(TEXT("outbreak rows nested 4 deep"), EAutomationExpectedErrorFlags::Contains, 1);
+		TestTrue(TEXT("The first row of the outbreak chain is placed"), UCosmicEventSubsystem::Apply(Spawn(ChainTags[0]), Ctx));
+		EventSubsystem->FollowUpNotes(Ctx);
+		Sim->SyncRngState();
+		TestTrue(TEXT("The chain stopped at the fifth row: its outbreak row was not fired"), Live.Systems[6].ActiveHazard == Tag(ChainTags[4]));
 	}
 
 	Sim->SetTables(Original);
@@ -655,6 +842,8 @@ bool FCosmicHazardLifecycleTest::RunTest(const FString& Parameters)
 		Pairing->AddRow(Waking, Mender);
 		FHazardDef Mended = HazardRow(TEXT("Hazard.Plague"), ECosmicHazardSpawn::Draw, 0.f, 1);
 		Mended.OnExpireEffects = { Eff(EEffectType::AddResource, nullptr, Causality, 1000.f) };
+		// Its resolution places the same hazard again, with its whole count, while the pass still has it collected.
+		Mended.OnResolveEffects = { Eff(EEffectType::SpawnHazard, TEXT("Hazard.Plague")) };
 		Pairing->AddRow(Storm, Mended);
 		Sim->SetTables(TablesWith(Original, Knobs(BaseRules), Pairing, nullptr));
 		Sim->NewGalaxy(42, 12, 4);
@@ -669,6 +858,99 @@ bool FCosmicHazardLifecycleTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The first expiry resolved its neighbour"), FindLine(Paired, Storm, Paired.Tick, TEXT("resolution")) != INDEX_NONE);
 		TestEqual(TEXT("The resolved hazard does not expire as well"), CountLines(Paired, Storm, Paired.Tick, TEXT("expiry")), 0);
 		TestEqual(TEXT("and applies none of its effects"), Paired.Civs[2].Stockpile.Causality, 0.f);
+		TestTrue(TEXT("The hazard its resolution placed again stands"), Paired.Systems[7].ActiveHazard == Tag(TEXT("Hazard.Plague")));
+		TestEqual(TEXT("and keeps its whole count"), Paired.Systems[7].HazardTicksRemaining, 1);
+	}
+
+	// The slots of a hazard's own lines: the owner, the system, the owner's capital and the hazard, with the particle each
+	// name takes. The hazard stands away from the capital, so the system and the capital are two names.
+	{
+		UDataTable* Speaking = NewTable(FHazardDef::StaticStruct());
+		FHazardDef Spoken = HazardRow(TEXT("Hazard.Plague"), ECosmicHazardSpawn::Draw, 0.f, 1);
+		Spoken.ExpireTemplates = Lines(TEXT("{Civ}|hpp(\uC740,\uB294) {System}|hpp(\uC774,\uAC00) {HomeSystem} {Hazard} expiry"));
+		Speaking->AddRow(Storm, Spoken);
+		Sim->SetTables(TablesWith(Original, Knobs(BaseRules), Speaking, nullptr));
+		Sim->NewGalaxy(42, 12, 4);
+		FGalaxyState& Spoke = Sim->GetMutableState();
+		if (!TestTrue(TEXT("The board of the spoken lines is laid"), Board(Spoke)))
+		{
+			return false;
+		}
+		PlaceByHand(Spoke, 1, TEXT("Hazard.Plague"), 1);
+		Sim->StepOnce();
+		const int32 Spoken1 = FindLine(Spoke, Storm, Spoke.Tick, TEXT("expiry"));
+		if (TestTrue(TEXT("The spoken expiry is told"), Spoken1 != INDEX_NONE))
+		{
+			const FString Text = Spoke.Log[Spoken1].Message.ToString();
+			TestTrue(TEXT("{Civ} names the owner with its particle"), Text.Contains(WithParticle(Spoke.Civs[0].CivName.ToString(), TEXT("\uC740"), TEXT("\uB294")) + TEXT(" ")));
+			TestTrue(TEXT("{System} names the system with its particle"), Text.Contains(WithParticle(Spoke.Systems[1].DisplayName.ToString(), TEXT("\uC774"), TEXT("\uAC00")) + TEXT(" ")));
+			TestTrue(TEXT("{HomeSystem} names the owner's capital"), Text.Contains(Spoke.Systems[0].DisplayName.ToString() + TEXT(" <Hazard.Plague>")));
+			TestTrue(TEXT("{Hazard} names the hazard"), Text.Contains(TEXT("<Hazard.Plague> expiry")));
+			TestFalse(TEXT("No slot is left unfilled"), Text.Contains(TEXT("{")));
+		}
+	}
+
+	// A row whose effect resolves a hazard: the resolution line is told before OnEventFired. A handler of the notice can
+	// neither tell a hazard's line nor follow notes, and neither can a context over a detached state.
+	{
+		UDataTable* Curable = NewTable(FHazardDef::StaticStruct());
+		Curable->AddRow(Storm, HazardRow(TEXT("Hazard.Plague"), ECosmicHazardSpawn::Draw, 0.f, 50));
+		UDataTable* CureEvents = NewTable(FCosmicEventDef::StaticStruct());
+		FCosmicEventDef CureNow;
+		CureNow.Category = Tag(TEXT("Event.Civ.Society"));
+		CureNow.LogCategory = Tag(TEXT("Log.Civ"));
+		CureNow.Trigger = ECosmicEventTrigger::Named;
+		CureNow.Subject = ECosmicEventSubject::SettledSystem;
+		CureNow.BaseWeight = 0.f;
+		CureNow.CooldownTicks = 0;
+		CureNow.Effects = { Eff(EEffectType::ResolveHazard, TEXT("Hazard.Plague")) };
+		CureNow.LogTemplates = Lines(TEXT("the cure now"));
+		CureEvents->AddRow(Cure, CureNow);
+		Sim->SetTables(TablesWith(Original, Knobs(BaseRules), Curable, CureEvents));
+		Sim->NewGalaxy(42, 12, 4);
+		FGalaxyState& Live = Sim->GetMutableState();
+		if (!TestTrue(TEXT("The board of the told cure is laid"), Board(Live)))
+		{
+			return false;
+		}
+		PlaceByHand(Live, 6, TEXT("Hazard.Plague"), 50);
+		UCosmicEventSubsystem* EventSubsystem = Sim->GetGameInstance()->GetSubsystem<UCosmicEventSubsystem>();
+		FCosmicEvalContext Ctx = Sim->MakeEvalContext();
+		Ctx.CivIndex = 1;
+		Ctx.SystemIndex = 6;
+		bool bNoticed = false;
+		bool bResolutionToldFirst = false;
+		{
+			FHazardProbe Probe(*Sim);
+			Probe.Probe->OnEvent = [&](const FCosmicEventNotice& Notice)
+			{
+				if (bNoticed || Notice.EventRow != Cure)
+				{
+					return;
+				}
+				bNoticed = true;
+				bResolutionToldFirst = FindLine(Sim->GetState(), Storm, Sim->GetState().Tick, TEXT("resolution")) != INDEX_NONE;
+				EventSubsystem->TellHazardLine(Ctx, ECosmicHazardLine::Expiry, Storm, 6, 1);
+				EventSubsystem->FollowUpNotes(Ctx);
+			};
+			AddExpectedError(TEXT("TellHazardLine called from a handler"), EAutomationExpectedErrorFlags::Contains, 1);
+			AddExpectedError(TEXT("FollowUpNotes called from a handler"), EAutomationExpectedErrorFlags::Contains, 1);
+			TestTrue(TEXT("The cure row fired"), EventSubsystem->FireRow(Cure, Ctx));
+			Sim->SyncRngState();
+		}
+		TestTrue(TEXT("The notice of the cure came"), bNoticed);
+		TestTrue(TEXT("The resolution it caused was told before the notice"), bResolutionToldFirst);
+		TestEqual(TEXT("A handler tells no hazard line"), CountLines(Live, Storm, Live.Tick, TEXT("expiry")), 0);
+
+		FBench Bench(Live, *Sim);
+		Bench.Ctx.Notes.Add({ ECosmicWorldNote::HazardResolved, 6, 1, Storm });
+		AddExpectedError(TEXT("TellHazardLine: the context is not over the live state"), EAutomationExpectedErrorFlags::Contains, 1);
+		AddExpectedError(TEXT("FollowUpNotes: the context is not over the live state"), EAutomationExpectedErrorFlags::Contains, 1);
+		const int32 LinesBefore = Live.Log.Num();
+		EventSubsystem->TellHazardLine(Bench.Ctx, ECosmicHazardLine::Expiry, Storm, 6, 1);
+		EventSubsystem->FollowUpNotes(Bench.Ctx);
+		TestEqual(TEXT("A detached context tells nothing"), Live.Log.Num(), LinesBefore);
+		TestEqual(TEXT("and leaves its notes where they are"), Bench.Ctx.Notes.Num(), 1);
 	}
 
 	Sim->SetTables(Original);
@@ -689,8 +971,16 @@ bool FCosmicHazardDrawsTest::RunTest(const FString& Parameters)
 	const FCosmicRulesDef BaseRules = Sim->GetRules();
 	ON_SCOPE_EXIT { Sim->SetTables(Original); };
 
+	// Draw rows whose shares and conditions are read on every free settled system without a draw of their own: one of
+	// chance 0, one whose condition fails, one of chance 1 that lands wherever a slot is free.
 	UDataTable* Rows = NewTable(FHazardDef::StaticStruct());
 	Rows->AddRow(Storm, HazardRow(TEXT("Hazard.Plague"), ECosmicHazardSpawn::Draw, 0.f, 3));
+	FHazardDef Never = HazardRow(TEXT("Hazard.PreSupernova"), ECosmicHazardSpawn::Draw, 0.5f, 3);
+	Never.SpawnConditions = { Cond(EConditionType::GalaxyTickAtLeast, nullptr, nullptr, 1000000.f) };
+	Rows->AddRow(Nova, Never);
+	FHazardDef Always = HazardRow(TEXT("Hazard.AIAwakening"), ECosmicHazardSpawn::Draw, 1.f, 3);
+	Always.SpawnConditions = { Cond(EConditionType::GalaxyTickAtLeast, nullptr, nullptr, 0.f) };
+	Rows->AddRow(Waking, Always);
 	FHazardDef UnrestRow = HazardRow(TEXT("Hazard.Rebellion"), ECosmicHazardSpawn::Capital, 0.f, 50);
 	UnrestRow.SpawnConditions = { Cond(EConditionType::CivStabilityBelow, nullptr, nullptr, 0.f) };
 	Rows->AddRow(Unrest, UnrestRow);
@@ -715,7 +1005,15 @@ bool FCosmicHazardDrawsTest::RunTest(const FString& Parameters)
 	};
 
 	const int32 Base = DrawsOfTick(Start, NoRows);
-	TestTrue(TEXT("A tick draws at least one number per settled system"), Base >= 5);
+	// The board's six settled systems, and the civilizations whose event slot falls on the tick (section 7.5).
+	int32 SlotCivs = 0;
+	const int32 SlotTicks = FMath::Max(1, Knobs(BaseRules).EventSlotTicks);
+	for (const FCivilizationState& Civ : Start.Civs)
+	{
+		const int64 Phase = static_cast<int64>(CosmicSeed::DeriveForName(Start.Seed, Civ.CivID, CosmicSeed::Purpose::EventSlot) % static_cast<uint32>(SlotTicks));
+		SlotCivs += (!Civ.OwnedSystems.IsEmpty() && (Start.Tick + 1) % SlotTicks == Phase) ? 1 : 0;
+	}
+	TestEqual(TEXT("A tick draws one number per settled system (six) and one per civilization whose event slot it is"), Base, 6 + SlotCivs);
 	TestEqual(TEXT("The rows of DT_Hazards move no draw"), DrawsOfTick(Start, WithRows), Base);
 	FGalaxyState More = Start;
 	CosmicTests::Give(More, 0, { 3 });
@@ -728,10 +1026,13 @@ bool FCosmicHazardDrawsTest::RunTest(const FString& Parameters)
 	PlaceByHand(Expiring, 6, TEXT("Hazard.Plague"), 1);
 	TestEqual(TEXT("Two expiries draw two numbers each"), DrawsOfTick(Expiring, WithRows), Base + 4);
 	TestEqual(TEXT("An expiry draws its numbers whatever the tables hold"), DrawsOfTick(Expiring, NoRows), Base + 4);
+	FGalaxyState Unowned = Start;
+	PlaceByHand(Unowned, 3, TEXT("Hazard.Plague"), 2);
+	TestEqual(TEXT("A countdown that does not run out draws nothing (on a system nobody settled)"), DrawsOfTick(Unowned, WithRows), Base);
 	FGalaxyState Waiting = Start;
 	PlaceByHand(Waiting, 1, TEXT("Hazard.Plague"), 2);
 	PlaceByHand(Waiting, 6, TEXT("Hazard.Plague"), 2);
-	TestEqual(TEXT("A taken slot still draws, and a countdown that does not run out draws nothing"), DrawsOfTick(Waiting, WithRows), Base);
+	TestEqual(TEXT("A taken slot still draws its number"), DrawsOfTick(Waiting, WithRows), Base);
 
 	Sim->SetTables(Original);
 	Sim->NewGalaxy(42, 5, 3);
@@ -962,6 +1263,7 @@ bool FCosmicGraceRemnantAtLossTest::RunTest(const FString& Parameters)
 	UDataTable* Hazards = NewTable(FHazardDef::StaticStruct());
 	FHazardDef NovaRow = HazardRow(TEXT("Hazard.PreSupernova"), ECosmicHazardSpawn::Draw, 0.f, 1);
 	NovaRow.OnExpireEffects = { Eff(EEffectType::AddResource, nullptr, Causality, 5.f) };
+	NovaRow.OnExpireNeighbourEffects = { Eff(EEffectType::ChangeStability, nullptr, NAME_None, -0.1f) };
 	Hazards->AddRow(Nova, NovaRow);
 	UDataTable* Events = NewTable(FCosmicEventDef::StaticStruct());
 	if (!TestTrue(TEXT("The game has the grace row of the remnant"), CopyEvent(Original, Events, CosmicRows::EventGraceRemnant)))
@@ -979,7 +1281,9 @@ bool FCosmicGraceRemnantAtLossTest::RunTest(const FString& Parameters)
 		return false;
 	}
 
-	// The first people about to lose its last system is kept, and the loss does not happen at all.
+	// The first people about to lose its last system is kept, and the loss does not happen at all. Its neighbour 10 has a
+	// people, which a supernova would hurt.
+	CosmicTests::Give(State, 1, { 10 });
 	PlaceByHand(State, 11, TEXT("Hazard.PreSupernova"), 1);
 	Sim->StepOnce();
 	const int64 Kept = State.Tick;
@@ -990,6 +1294,7 @@ bool FCosmicGraceRemnantAtLossTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The grace of the run is spent"), State.Flags.HasTagExact(Spent));
 	TestTrue(TEXT("The kept people carries the remnant"), State.Civs[3].Traits.HasTagExact(Remnant));
 	TestEqual(TEXT("The expiry's effects were not applied"), State.Civs[3].Stockpile.Causality, 0.f);
+	TestEqual(TEXT("The expiry's neighbour effects were not applied"), State.Civs[1].Stability, 0.75f);
 	TestEqual(TEXT("No expiry line is told for a kept system"), CountLines(State, Nova, Kept), 0);
 	const int32 GraceLine = FindLine(State, CosmicRows::EventGraceRemnant, Kept);
 	if (TestTrue(TEXT("The grace is told"), GraceLine != INDEX_NONE))
@@ -1028,6 +1333,30 @@ bool FCosmicGraceRemnantAtLossTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Its ruler still rules"), State.Player.Role == EPlayerRole::Ruler);
 	TestFalse(TEXT("No role effect is recorded for a kept system"), State.Calling.PendingEffect.IsValid());
 
+	// An expiry whose effects let the owner's other system go, so that the system it takes became the last after the gate:
+	// the gate is asked again before the system goes (no row of the game can do this: Data.Integrity).
+	{
+		UDataTable* Handing = NewTable(FHazardDef::StaticStruct());
+		FHazardDef HandingRow = HazardRow(TEXT("Hazard.PreSupernova"), ECosmicHazardSpawn::Draw, 0.f, 1);
+		HandingRow.OnExpireNeighbourEffects = { Eff(EEffectType::TransferSystem) };
+		Handing->AddRow(Nova, HandingRow);
+		Sim->SetTables(TablesWith(Original, Knobs(BaseRules), Handing, Events));
+		Sim->NewGalaxy(42, 12, 4);
+		if (!TestTrue(TEXT("The board of the handing case is laid"), Board(State)))
+		{
+			return false;
+		}
+		// Civilization 2 holds 7 and its neighbour 8; the other neighbour, 6, is civilization 1's only system.
+		CosmicTests::Give(State, 2, { 8 });
+		PlaceByHand(State, 7, TEXT("Hazard.PreSupernova"), 1);
+		AddExpectedError(TEXT("the last-system gate is asked again"), EAutomationExpectedErrorFlags::Contains, 1);
+		Sim->StepOnce();
+		TestTrue(TEXT("The neighbour was let go"), State.Systems[8].OwnerCivID.IsNone());
+		TestEqual(TEXT("A people's only system is never let go"), State.Systems[6].OwnerCivID, State.Civs[1].CivID);
+		TestFalse(TEXT("The system the effects left the last is kept"), CosmicHazards::IsDeadNode(State.Systems[7]));
+		TestTrue(TEXT("The grace of the run is spent on it"), State.Flags.HasTagExact(Spent));
+	}
+
 	Sim->SetTables(Original);
 	Sim->NewGalaxy(42, 5, 3);
 	return true;
@@ -1036,16 +1365,19 @@ bool FCosmicGraceRemnantAtLossTest::RunTest(const FString& Parameters)
 namespace CosmicHazardTests
 {
 	// One expiry on system 2 of the board (civilization 0 holds 0, 1 and 2), the transcendents laid by Lay, then the tick.
-	// The test's claim runs out two ticks after it is placed.
-	FGalaxyState& ExpireNextToSpheres(UGalaxySimulationSubsystem& Sim, TFunctionRef<void(FGalaxyState&)> Lay)
+	// The test's claim runs out two ticks after it is placed. Null when the board cannot be laid.
+	FGalaxyState* ExpireNextToSpheres(UGalaxySimulationSubsystem& Sim, TFunctionRef<void(FGalaxyState&)> Lay)
 	{
 		Sim.NewGalaxy(42, 12, 4);
 		FGalaxyState& State = Sim.GetMutableState();
-		Board(State);
+		if (!Board(State))
+		{
+			return nullptr;
+		}
 		Lay(State);
 		PlaceByHand(State, 2, TEXT("Hazard.Plague"), 1);
 		Sim.StepOnce();
-		return State;
+		return &State;
 	}
 
 	UDataTable* ClaimHazards()
@@ -1072,13 +1404,27 @@ bool FCosmicClaimRuleTest::RunTest(const FString& Parameters)
 	Sim->SetTables(TablesWith(Original, Knobs(BaseRules), ClaimHazards(), nullptr));
 	const FGameplayTag Claim = Tag(TEXT("Hazard.Claim"));
 
+	// The claim row of the game: the claim rule finds it by its tag.
+	{
+		const FHazardDef* GameClaim = Original.FindHazardByTag(Claim);
+		if (TestNotNull(TEXT("The game has a claim row"), GameClaim))
+		{
+			TestTrue(TEXT("The game's claim row is placed by the claim rule"), GameClaim->SpawnRule == ECosmicHazardSpawn::ClaimRule);
+		}
+	}
+
 	// The claimant: the largest term of pressure among the fallen that reach the system and do not hold it yet.
 	{
-		FGalaxyState& State = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
+		FGalaxyState* StateLaid = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
 		{
 			AddInstance(S, Fallen, TEXT("Doctrine.Silence"), { 3 });
 			AddInstance(S, Zealous, TEXT("Doctrine.Zeal"), { 3 });
 		});
+		if (!TestNotNull(TEXT("The board of the case is laid"), StateLaid))
+		{
+			return false;
+		}
+		FGalaxyState& State = *StateLaid;
 		TestTrue(TEXT("An expiry next to a fallen sphere places a claim"), State.Systems[2].ActiveHazard == Claim);
 		TestEqual(TEXT("The claim counts down from its row"), State.Systems[2].HazardTicksRemaining, 2);
 		const int32 ExpiryLine = FindLine(State, Spark, State.Tick, TEXT("expiry"));
@@ -1093,55 +1439,85 @@ bool FCosmicClaimRuleTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The join is told"), FindLine(State, ClaimRow, State.Tick, TEXT("expiry")) != INDEX_NONE);
 	}
 	{
-		FGalaxyState& State = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
+		FGalaxyState* StateLaid = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
 		{
 			AddInstance(S, Other, TEXT("Doctrine.Assimilation"), { 3 });
 			AddInstance(S, Fallen, TEXT("Doctrine.Silence"), { 3 });
 		});
+		if (!TestNotNull(TEXT("The board of the case is laid"), StateLaid))
+		{
+			return false;
+		}
+		FGalaxyState& State = *StateLaid;
 		Sim->RunHeadless(2);
 		TestTrue(TEXT("Equal terms go to the earlier instance"), InSphere(State, 0, 2));
 		TestFalse(TEXT("The later instance of an equal term does not claim"), InSphere(State, 1, 2));
 	}
 	{
-		FGalaxyState& State = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
+		FGalaxyState* StateLaid = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
 		{
 			AddInstance(S, Fallen, TEXT("Doctrine.Silence"), { 3 });
 			AddInstance(S, Zealous, TEXT("Doctrine.Zeal"), { 3 });
 			S.Transcendents[1].bSealed = true;
 		});
+		if (!TestNotNull(TEXT("The board of the case is laid"), StateLaid))
+		{
+			return false;
+		}
+		FGalaxyState& State = *StateLaid;
 		Sim->RunHeadless(2);
 		TestTrue(TEXT("A sealed fallen does not claim: the unsealed one does"), InSphere(State, 0, 2));
 		TestFalse(TEXT("The sealed sphere does not grow"), InSphere(State, 1, 2));
 	}
 	{
-		FGalaxyState& State = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
+		FGalaxyState* StateLaid = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
 		{
 			AddInstance(S, Fallen, TEXT("Doctrine.Silence"), { 2, 3 });
 		});
+		if (!TestNotNull(TEXT("The board of the case is laid"), StateLaid))
+		{
+			return false;
+		}
+		FGalaxyState& State = *StateLaid;
 		TestFalse(TEXT("A fallen does not claim what its sphere holds"), State.Systems[2].ActiveHazard.IsValid());
 	}
 	{
-		FGalaxyState& State = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
+		FGalaxyState* StateLaid = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
 		{
 			AddInstance(S, Fallen, TEXT("Doctrine.Silence"), { 2, 3 });
 			AddInstance(S, Zealous, TEXT("Doctrine.Zeal"), { 3 });
 		});
+		if (!TestNotNull(TEXT("The board of the case is laid"), StateLaid))
+		{
+			return false;
+		}
+		FGalaxyState& State = *StateLaid;
 		TestTrue(TEXT("Another fallen claims a system in someone else's sphere"), State.Systems[2].ActiveHazard == Claim);
 	}
 
 	// Law.Remnant: never the last settled system of a people outside every fallen sphere.
 	{
-		FGalaxyState& State = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
+		FGalaxyState* StateLaid = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
 		{
 			AddInstance(S, Fallen, TEXT("Doctrine.Silence"), { 3, 0, 1 });
 		});
+		if (!TestNotNull(TEXT("The board of the case is laid"), StateLaid))
+		{
+			return false;
+		}
+		FGalaxyState& State = *StateLaid;
 		TestFalse(TEXT("No claim is placed on a people's last unclaimed settled system"), State.Systems[2].ActiveHazard.IsValid());
 	}
 	{
-		FGalaxyState& State = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
+		FGalaxyState* StateLaid = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
 		{
 			AddInstance(S, Fallen, TEXT("Doctrine.Silence"), { 3 });
 		});
+		if (!TestNotNull(TEXT("The board of the case is laid"), StateLaid))
+		{
+			return false;
+		}
+		FGalaxyState& State = *StateLaid;
 		if (TestTrue(TEXT("The claim of the late case is placed"), State.Systems[2].ActiveHazard == Claim))
 		{
 			State.Transcendents[0].InfluencedSystems.Add(State.Systems[0].SystemID);
@@ -1155,10 +1531,15 @@ bool FCosmicClaimRuleTest::RunTest(const FString& Parameters)
 
 	// The cap of a sphere, at the placement and at the join.
 	{
-		FGalaxyState& State = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
+		FGalaxyState* StateLaid = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
 		{
 			AddInstance(S, Pair, TEXT("Doctrine.Silence"), { 3 });
 		});
+		if (!TestNotNull(TEXT("The board of the case is laid"), StateLaid))
+		{
+			return false;
+		}
+		FGalaxyState& State = *StateLaid;
 		if (TestTrue(TEXT("The claim of a sphere with room is placed"), State.Systems[2].ActiveHazard == Claim))
 		{
 			State.Transcendents[0].InfluencedSystems.Add(State.Systems[8].SystemID);
@@ -1167,27 +1548,42 @@ bool FCosmicClaimRuleTest::RunTest(const FString& Parameters)
 		}
 	}
 	{
-		FGalaxyState& State = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
+		FGalaxyState* StateLaid = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
 		{
 			AddInstance(S, Small, TEXT("Doctrine.Recurrence"), { 3 });
 		});
+		if (!TestNotNull(TEXT("The board of the case is laid"), StateLaid))
+		{
+			return false;
+		}
+		FGalaxyState& State = *StateLaid;
 		TestFalse(TEXT("A full sphere places no claim"), State.Systems[2].ActiveHazard.IsValid());
 	}
 
 	// Two lanes out with the knob at 2; one lane out with the knob at 1.
 	{
-		FGalaxyState& Near = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
+		FGalaxyState* NearLaid = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
 		{
 			AddInstance(S, Fallen, TEXT("Doctrine.Silence"), { 4 });
 		});
+		if (!TestNotNull(TEXT("The board of the case is laid"), NearLaid))
+		{
+			return false;
+		}
+		FGalaxyState& Near = *NearLaid;
 		TestFalse(TEXT("A sphere two lanes off does not claim with the knob at 1"), Near.Systems[2].ActiveHazard.IsValid());
 		FCosmicRulesDef Wide = Knobs(BaseRules);
 		Wide.ClaimAdjacencyLanes = 2;
 		Sim->SetTables(TablesWith(Original, Wide, ClaimHazards(), nullptr));
-		FGalaxyState& Far = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
+		FGalaxyState* FarLaid = ExpireNextToSpheres(*Sim, [](FGalaxyState& S)
 		{
 			AddInstance(S, Fallen, TEXT("Doctrine.Silence"), { 4 });
 		});
+		if (!TestNotNull(TEXT("The board of the case is laid"), FarLaid))
+		{
+			return false;
+		}
+		FGalaxyState& Far = *FarLaid;
 		TestTrue(TEXT("A sphere two lanes off claims with the knob at 2"), Far.Systems[2].ActiveHazard == Claim);
 	}
 
@@ -1249,8 +1645,9 @@ bool FCosmicNoClaimsFromCelestialTest::RunTest(const FString& Parameters)
 namespace CosmicHazardTests
 {
 	// A board for long runs of claims: civilization 0 holds 0 to 3, civilization 1 holds 5 to 7, civilization 3 holds 10
-	// and 11; a fallen core on 4 touches 3, 5 and 10. Hazards land often and run out quickly.
-	void LayClaimField(UGalaxySimulationSubsystem& Sim, const FCosmicDataTables& Original, const FCosmicRulesDef& BaseRules)
+	// and 11; a fallen core on 4 touches 3, 5 and 10. Hazards land often and run out quickly. False when the board cannot
+	// be laid.
+	bool LayClaimField(UGalaxySimulationSubsystem& Sim, const FCosmicDataTables& Original, const FCosmicRulesDef& BaseRules)
 	{
 		UDataTable* Hazards = NewTable(FHazardDef::StaticStruct());
 		Hazards->AddRow(Spark, HazardRow(TEXT("Hazard.Plague"), ECosmicHazardSpawn::Draw, 0.05f, 5));
@@ -1258,13 +1655,17 @@ namespace CosmicHazardTests
 		Sim.SetTables(TablesWith(Original, Knobs(BaseRules), Hazards, nullptr));
 		Sim.NewGalaxy(42, 12, 4);
 		FGalaxyState& State = Sim.GetMutableState();
-		Board(State);
+		if (!Board(State))
+		{
+			return false;
+		}
 		CosmicTests::ClearOwners(State);
 		CosmicTests::Give(State, 0, { 0, 1, 2, 3 });
 		CosmicTests::Give(State, 1, { 5, 6, 7 });
 		CosmicTests::Give(State, 2, { 9 });
 		CosmicTests::Give(State, 3, { 10, 11 });
 		AddInstance(State, Fallen, TEXT("Doctrine.Silence"), { 4 });
+		return true;
 	}
 
 	// For every people with a settled system: one of them lies in no fallen sphere.
@@ -1311,7 +1712,10 @@ bool FCosmicClaimNeverTotalTest::RunTest(const FString& Parameters)
 	const FCosmicDataTables Original = Sim->GetTables();
 	const FCosmicRulesDef BaseRules = Sim->GetRules();
 	ON_SCOPE_EXIT { Sim->SetTables(Original); };
-	LayClaimField(*Sim, Original, BaseRules);
+	if (!TestTrue(TEXT("The claim field is laid"), LayClaimField(*Sim, Original, BaseRules)))
+	{
+		return false;
+	}
 	FGalaxyState& State = Sim->GetMutableState();
 
 	bool bNeverTotal = true;
@@ -1320,7 +1724,7 @@ bool FCosmicClaimNeverTotalTest::RunTest(const FString& Parameters)
 		Sim->StepOnce();
 		bNeverTotal &= NoPeopleWhollyClaimed(State, Sim->GetStateIndex(), Sim->GetTables());
 	}
-	// Civilization 0 had four settled systems, the third of them next to the core: claims walked up its chain.
+	// Civilization 0 had four settled systems, the fourth of them (system 3) next to the core: claims walked up its chain.
 	int32 Claimed = 0;
 	for (int32 SystemIndex : { 0, 1, 2, 3 })
 	{
@@ -1357,7 +1761,10 @@ bool FCosmicSphereGrowthResponsiveTest::RunTest(const FString& Parameters)
 	// each tick, the way a ruler who answers every claim would.
 	auto Growth = [&](bool bResolve)
 	{
-		LayClaimField(*Sim, Original, BaseRules);
+		if (!TestTrue(TEXT("The claim field is laid"), LayClaimField(*Sim, Original, BaseRules)))
+		{
+			return 0;
+		}
 		FGalaxyState& State = Sim->GetMutableState();
 		const int32 Before = State.Transcendents[0].InfluencedSystems.Num();
 		for (int32 Step = 0; Step < 1500; ++Step)
@@ -1637,6 +2044,64 @@ bool FCosmicRebellionThroneTest::RunTest(const FString& Parameters)
 		State.Calling.PendingEffect = FGameplayTag();
 	}
 
+	// A deposition another row recorded first in the tick: the rebellion's own is dropped, so the throne does not change,
+	// and the vessel falls to the other at the boundary.
+	{
+		Sim->NewGalaxy(42, 12, 4);
+		FGalaxyState& State = Sim->GetMutableState();
+		if (!TestTrue(TEXT("The board of the other deposition is laid"), Board(State)))
+		{
+			return false;
+		}
+		State.Tick = 400;
+		Discontent(State.Civs[0]);
+		Sim->StepOnce();
+		const int64 Stood = State.Tick;
+		Sim->RunHeadless(2);
+		// Recorded between ticks, after the boundary of the tick before the expiry.
+		FCosmicEvalContext Ctx = Sim->MakeEvalContext();
+		Ctx.CivIndex = 0;
+		Ctx.SourceRow = FName(TEXT("event_test_other"));
+		TestTrue(TEXT("The other deposition is recorded"), UCosmicEventSubsystem::Apply(Eff(EEffectType::DeposeRuler, TEXT("Reign.Deposed")), Ctx));
+		Sim->SyncRngState();
+		Sim->StepOnce();
+		TestFalse(TEXT("The rebellion of the other case ran out"), State.Systems[0].ActiveHazard == RebellionTag);
+		const FNotableRecord* Rebel = State.Civs[0].Notables.FindByPredicate([Stood](const FNotableRecord& Record) { return Record.FirstTick == Stood; });
+		if (TestNotNull(TEXT("The rebel of the other case is on the record"), Rebel))
+		{
+			TestTrue(TEXT("A deposition from another row changes no throne: the rebel stays a rebel"), Rebel->Role == RebelTag);
+		}
+		TestTrue(TEXT("The vessel fell to the other deposition"), State.Player.Role == EPlayerRole::Wanderer);
+		TestEqual(TEXT("The count of discontent starts over"), State.Civs[0].LowStabilityTicks, 0);
+	}
+
+	// A rebellion whose row is gone (a save from an older table): it leaves its slot as a resolution without a row does.
+	{
+		Sim->SetTables(TablesWith(Original, Knobs(BaseRules), NewTable(FHazardDef::StaticStruct()), Events));
+		Sim->NewGalaxy(42, 12, 4);
+		FGalaxyState& State = Sim->GetMutableState();
+		if (!TestTrue(TEXT("The board of the rowless case is laid"), Board(State)))
+		{
+			return false;
+		}
+		State.Tick = 400;
+		PlaceByHand(State, 6, TEXT("Hazard.Rebellion"), 1);
+		FNotableRecord Rebel;
+		Rebel.Role = RebelTag;
+		Rebel.FirstTick = 300;
+		Rebel.SourceRow = Rises;
+		State.Civs[1].Notables.Add(Rebel);
+		Discontent(State.Civs[1]);
+		Sim->StepOnce();
+		TestFalse(TEXT("The rowless rebellion left its slot"), State.Systems[6].ActiveHazard.IsValid());
+		if (TestEqual(TEXT("The rowless rebel is on the record"), State.Civs[1].Notables.Num(), 1))
+		{
+			TestEqual(TEXT("The rowless rebellion closes its rebel's record"), State.Civs[1].Notables[0].LastTick, State.Tick);
+		}
+		TestEqual(TEXT("The rowless rebellion starts the count of discontent over"), State.Civs[1].LowStabilityTicks, 0);
+		Sim->SetTables(TablesWith(Original, Knobs(BaseRules), Hazards, Events));
+	}
+
 	// A rebellion resolved: the rebel leaves the record.
 	{
 		Sim->NewGalaxy(42, 12, 4);
@@ -1682,7 +2147,12 @@ bool FCosmicDepositionPipelineTest::RunTest(const FString& Parameters)
 	const FCosmicDataTables Original = Sim->GetTables();
 	const FCosmicRulesDef BaseRules = Sim->GetRules();
 	ON_SCOPE_EXIT { Sim->SetTables(Original); };
-	Sim->SetTables(TablesWith(Original, Knobs(BaseRules), nullptr, nullptr));
+	// The test's own knobs of the pipeline, so the comparisons below do not lean on the game's values.
+	FCosmicRulesDef Rules = Knobs(BaseRules);
+	Rules.ReverenceDecay = 0.25f;
+	Rules.PostRebellionStability = 0.2f;
+	Rules.ThroneLockTicks = 77;
+	Sim->SetTables(TablesWith(Original, Rules, nullptr, nullptr));
 	UPlayerRoleSubsystem* Role = Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>();
 	if (!TestNotNull(TEXT("The role subsystem"), Role))
 	{
@@ -1716,7 +2186,9 @@ bool FCosmicDepositionPipelineTest::RunTest(const FString& Parameters)
 	}
 	State.Tick = 400;
 	State.Civs[0].ReverenceToPlayer = 0.8f;
+	State.Civs[2].ReverenceToPlayer = 0.9f;
 	State.Civs[0].Stability = 0.6f;
+	State.Knowing.PendingContactCivID = State.Civs[2].CivID;
 	const FName Ruled = State.Civs[0].CivID;
 	const FName Standing = State.Player.CurrentSystemID;
 	Sim->SyncRngState();
@@ -1727,7 +2199,28 @@ bool FCosmicDepositionPipelineTest::RunTest(const FString& Parameters)
 	}
 	Sim->SyncRngState();
 	const FGalaxyState Recorded = State;
-	Sim->StepOnce();
+	{
+		// A handler of the fallen monarch's line tries the pipeline's three calls once each: all are refused.
+		FHazardProbe Probe(*Sim);
+		bool bTried = false;
+		Probe.Probe->OnLog = [&bTried, Role, Sim](const FCosmicLogEntry& Entry)
+		{
+			if (bTried || Entry.SourceRow != CosmicRows::LogFallenMonarch)
+			{
+				return;
+			}
+			bTried = true;
+			const FGalaxyState& Now = Sim->GetState();
+			Role->DeposeRuler();
+			Role->BecomeWanderer(Tag(TEXT("AI.Profile.Militarist")), Tag(TEXT("Reign.Deposed")));
+			Role->Install(Now.Player.CurrentSystemID, Now.Player.RuledCivID, EPlayerRole::Ruler);
+		};
+		AddExpectedError(TEXT("DeposeRuler called from a handler"), EAutomationExpectedErrorFlags::Contains, 1);
+		AddExpectedError(TEXT("BecomeWanderer called from a handler"), EAutomationExpectedErrorFlags::Contains, 1);
+		AddExpectedError(TEXT("Install called from a handler"), EAutomationExpectedErrorFlags::Contains, 1);
+		Sim->StepOnce();
+		TestTrue(TEXT("The handler of the fallen monarch's line ran"), bTried);
+	}
 	const FPlayerEntityState& Player = State.Player;
 	const FCivilizationState& Civ = State.Civs[0];
 	TestTrue(TEXT("The vessel walks"), Player.Role == EPlayerRole::Wanderer);
@@ -1737,9 +2230,11 @@ bool FCosmicDepositionPipelineTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("It is a fallen monarch"), Player.StatusTags.HasTagExact(Tag(TEXT("Status.FallenMonarch"))));
 	TestFalse(TEXT("The people is no longer ruled by the vessel"), Civ.bIsPlayerRuled);
 	TestTrue(TEXT("A regent profile runs the people"), Civ.AIProfile.MatchesTag(Tag(TEXT("AI.Profile"))));
-	TestEqual(TEXT("Reverence is halved"), Civ.ReverenceToPlayer, 0.8f * BaseRules.ReverenceDecay);
-	TestTrue(TEXT("Stability is at most the post-rebellion value"), Civ.Stability <= BaseRules.PostRebellionStability);
-	TestEqual(TEXT("The throne is locked"), Civ.ThroneLockedUntilTick, State.Tick + BaseRules.ThroneLockTicks);
+	TestEqual(TEXT("Reverence goes down by ReverenceDecay"), Civ.ReverenceToPlayer, 0.8f * 0.25f);
+	TestEqual(TEXT("Reverence goes down at every people, not only the one that was ruled"), State.Civs[2].ReverenceToPlayer, 0.9f * 0.25f);
+	TestEqual(TEXT("Stability is the post-rebellion value"), Civ.Stability, 0.2f);
+	TestEqual(TEXT("The throne is locked for ThroneLockTicks"), Civ.ThroneLockedUntilTick, State.Tick + 77);
+	TestTrue(TEXT("The role change ends a first-contact card that was waiting"), State.Knowing.PendingContactCivID.IsNone());
 	const FLifeRecord* Life = State.Calling.Lives.IsEmpty() ? nullptr : &State.Calling.Lives.Last();
 	TestTrue(TEXT("The reign ended as a deposition"), Life && !Life->ReignEndReasons.IsEmpty() && Life->ReignEndReasons.Last() == Tag(TEXT("Reign.Deposed")));
 	const int32 Line = FindLine(State, CosmicRows::LogFallenMonarch, State.Tick);
@@ -1758,7 +2253,10 @@ bool FCosmicDepositionPipelineTest::RunTest(const FString& Parameters)
 	// A death waits for Phase 4b: it stays recorded and the vessel stays.
 	Sim->NewGalaxy(42, 12, 4);
 	FGalaxyState& Fresh = Sim->GetMutableState();
-	Board(Fresh);
+	if (!TestTrue(TEXT("The board of the death case is laid"), Board(Fresh)))
+	{
+		return false;
+	}
 	Fresh.Tick = 400;
 	if (TestTrue(TEXT("The death is recorded"), Record(TEXT("Kill"), TEXT("Death.Hazard"))))
 	{
@@ -1777,6 +2275,9 @@ bool FCosmicDepositionPipelineTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("and no people of its own to hand over"), Sim->GetState().Civs[0].AIProfile == Tag(TEXT("AI.Profile.Scholarly")));
 	Sim->NewGalaxy(42, 12, 4);
 	Role->BecomeWanderer(FGameplayTag(), Tag(TEXT("Reign.Died")));
+	TestTrue(TEXT("A death makes the vessel walk too"), Sim->GetState().Player.Role == EPlayerRole::Wanderer);
+	TestTrue(TEXT("and it rules nothing"), Sim->GetState().Player.RuledCivID.IsNone());
+	TestFalse(TEXT("and its people is no longer ruled by it"), Sim->GetState().Civs[0].bIsPlayerRuled);
 	TestEqual(TEXT("A death leaves no status"), Sim->GetState().Player.StatusTags.Num(), 0);
 
 	Sim->SetTables(Original);
@@ -1876,6 +2377,207 @@ bool FCosmicNotablesFromEventsOnlyTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Records stand at the end of the run"), Records >= 1);
 	TestTrue(TEXT("Every record comes from a row of the game"), bRealRows);
 	TestTrue(TEXT("Every record was told in the tick it appeared, by the row that made it"), bToldAtFirstTick);
+	Sim->NewGalaxy(42, 5, 3);
+	return true;
+}
+
+namespace CosmicHazardTests
+{
+	// The board on tables of a test, or null when it cannot be laid.
+	FGalaxyState* LayBoard(UGalaxySimulationSubsystem& Sim, const FCosmicDataTables& Tables)
+	{
+		Sim.SetTables(Tables);
+		Sim.NewGalaxy(42, 12, 4);
+		FGalaxyState& State = Sim.GetMutableState();
+		return Board(State) ? &State : nullptr;
+	}
+
+	void ClearSlots(FGalaxyState& State)
+	{
+		for (FStarSystemState& System : State.Systems)
+		{
+			System.ActiveHazard = FGameplayTag();
+			System.HazardTicksRemaining = 0;
+		}
+	}
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicHazardSharesTest, "Cosmic_Ascension.Sim.HazardShares", CosmicTests::Flags)
+bool FCosmicHazardSharesTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicHazardTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	const FCosmicRulesDef BaseRules = Sim->GetRules();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); };
+	const FGameplayTag Plague = Tag(TEXT("Hazard.Plague"));
+	const FGameplayTag Awakening = Tag(TEXT("Hazard.AIAwakening"));
+
+	// Ten ticks on the board, every slot emptied before each: then the first numbers of a tick are its spawn numbers (no
+	// expiry, nobody researches, no event row), one per settled system in Systems order.
+
+	// Shares that add up to more than 1 scale the number: two rows of 0.8 split it at 0.5, not at 0.8.
+	{
+		UDataTable* Hazards = NewTable(FHazardDef::StaticStruct());
+		Hazards->AddRow(Storm, HazardRow(TEXT("Hazard.Plague"), ECosmicHazardSpawn::Draw, 0.8f, 50));
+		Hazards->AddRow(Waking, HazardRow(TEXT("Hazard.AIAwakening"), ECosmicHazardSpawn::Draw, 0.8f, 50));
+		FCosmicDataTables Tables = TablesWith(Original, Knobs(BaseRules), Hazards, nullptr);
+		Tables.Civs = CivsWithMultiplier(Original, NAME_None, TEXT("Hazard.Plague"), 1.f);
+		FGalaxyState* State = LayBoard(*Sim, Tables);
+		if (!TestNotNull(TEXT("The board of the scaled shares is laid"), State))
+		{
+			return false;
+		}
+		const float Total = 0.8f + 0.8f;
+		int32 Wrong = 0;
+		int32 Placed = 0;
+		int32 Scaled = 0;
+		for (int32 Step = 0; Step < 10; ++Step)
+		{
+			ClearSlots(*State);
+			FRandomStream Probe(State->RngState);
+			TArray<TPair<int32, FGameplayTag>> Expected;
+			for (int32 SystemIndex = 0; SystemIndex < State->Systems.Num(); ++SystemIndex)
+			{
+				if (!CosmicState::IsSettled(State->Systems[SystemIndex]))
+				{
+					continue;
+				}
+				const float Number = Probe.GetFraction();
+				const float Pick = Number * Total;
+				Expected.Emplace(SystemIndex, Pick < 0.8f ? Plague : Awakening);
+				Scaled += (Number < 0.8f && !(Pick < 0.8f)) ? 1 : 0;
+			}
+			Sim->StepOnce();
+			for (const TPair<int32, FGameplayTag>& Entry : Expected)
+			{
+				Placed += State->Systems[Entry.Key].ActiveHazard.IsValid() ? 1 : 0;
+				Wrong += State->Systems[Entry.Key].ActiveHazard == Entry.Value ? 0 : 1;
+			}
+		}
+		TestEqual(TEXT("Shares of 1.6 in all place a hazard on every settled system (six, ten ticks)"), Placed, 60);
+		TestEqual(TEXT("Every drawn hazard is the row the scaled number falls on"), Wrong, 0);
+		TestTrue(TEXT("Some number fell where the scaling decides the row"), Scaled > 0);
+	}
+
+	// A multiplier above 1 raises the share: 0.5 weighed by 2 lands on every free slot of the vessel's people.
+	{
+		UDataTable* Hazards = NewTable(FHazardDef::StaticStruct());
+		Hazards->AddRow(Storm, HazardRow(TEXT("Hazard.Plague"), ECosmicHazardSpawn::Draw, 0.5f, 50));
+		FCosmicDataTables Tables = TablesWith(Original, Knobs(BaseRules), Hazards, nullptr);
+		Tables.Civs = CivsWithMultiplier(Original, BaseRules.PlayerArchetypeRow, TEXT("Hazard.Plague"), 2.f);
+		FGalaxyState* State = LayBoard(*Sim, Tables);
+		if (!TestNotNull(TEXT("The board of the weighed share is laid"), State))
+		{
+			return false;
+		}
+		int32 Weighed = 0;
+		int32 Plain = 0;
+		for (int32 Step = 0; Step < 10; ++Step)
+		{
+			ClearSlots(*State);
+			Sim->StepOnce();
+			for (const int32 SystemIndex : { 0, 1, 2 })
+			{
+				Weighed += State->Systems[SystemIndex].ActiveHazard == Plague ? 1 : 0;
+			}
+			for (const int32 SystemIndex : { 6, 7, 11 })
+			{
+				Plain += State->Systems[SystemIndex].ActiveHazard == Plague ? 1 : 0;
+			}
+		}
+		TestEqual(TEXT("A share of 0.5 weighed by 2 lands every time"), Weighed, 30);
+		TestTrue(TEXT("The same share unweighed misses sometimes"), Plain < 30);
+	}
+
+	Sim->SetTables(Original);
+	Sim->NewGalaxy(42, 5, 3);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicHazardRowOrderInertTest, "Cosmic_Ascension.Sim.HazardRowOrderInert", CosmicTests::Flags)
+bool FCosmicHazardRowOrderInertTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicHazardTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	const FCosmicRulesDef BaseRules = Sim->GetRules();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); };
+
+	// Two Draw rows whose shares compete on every free settled system, and two Capital rows whose conditions both hold
+	// on every discontented capital. The rows go into the table in one order, then in the other: the world is the same.
+	const FName CultRow(TEXT("crisis_test_cult"));
+	TArray<TPair<FName, FHazardDef>> Rows;
+	Rows.Emplace(Storm, HazardRow(TEXT("Hazard.Plague"), ECosmicHazardSpawn::Draw, 0.3f, 5));
+	Rows.Emplace(Waking, HazardRow(TEXT("Hazard.AIAwakening"), ECosmicHazardSpawn::Draw, 0.3f, 5));
+	FHazardDef Rising = HazardRow(TEXT("Hazard.Rebellion"), ECosmicHazardSpawn::Capital, 0.f, 5);
+	Rising.SpawnConditions = { Cond(EConditionType::CivStabilityBelow, nullptr, nullptr, 0.5f) };
+	Rows.Emplace(Unrest, Rising);
+	FHazardDef Gathering = HazardRow(TEXT("Hazard.Cult"), ECosmicHazardSpawn::Capital, 0.f, 5);
+	Gathering.SpawnConditions = { Cond(EConditionType::CivStabilityBelow, nullptr, nullptr, 0.5f) };
+	Rows.Emplace(CultRow, Gathering);
+
+	struct FOutcome
+	{
+		uint32 WorldHash = 0;
+		uint32 StateHash = 0;
+		int32 RngState = 0;
+		int32 CapitalHazards = 0;
+		int32 DrawnHazards = 0;
+	};
+	auto Run = [&](bool bReversed)
+	{
+		FOutcome Outcome;
+		UDataTable* Hazards = NewTable(FHazardDef::StaticStruct());
+		for (int32 Index = 0; Index < Rows.Num(); ++Index)
+		{
+			const TPair<FName, FHazardDef>& Row = Rows[bReversed ? Rows.Num() - 1 - Index : Index];
+			Hazards->AddRow(Row.Key, Row.Value);
+		}
+		FGalaxyState* State = LayBoard(*Sim, TablesWith(Original, Knobs(BaseRules), Hazards, nullptr));
+		if (!TestNotNull(TEXT("The board of the row order is laid"), State))
+		{
+			return Outcome;
+		}
+		for (const int32 CivIndex : { 1, 2, 3 })
+		{
+			State->Civs[CivIndex].Stability = 0.2f;
+		}
+		for (int32 Step = 0; Step < 300; ++Step)
+		{
+			Sim->StepOnce();
+			for (const FCivilizationState& Civ : State->Civs)
+			{
+				const int32 Capital = Sim->GetStateIndex().FindSystem(*State, Civ.HomeSystemID);
+				Outcome.CapitalHazards += (State->Systems.IsValidIndex(Capital) && State->Systems[Capital].HazardTicksRemaining == 5) ? 1 : 0;
+			}
+			for (const int32 SystemIndex : { 1, 2 })
+			{
+				Outcome.DrawnHazards += State->Systems[SystemIndex].HazardTicksRemaining == 5 ? 1 : 0;
+			}
+		}
+		Outcome.WorldHash = Sim->ComputeWorldHash();
+		Outcome.StateHash = Sim->ComputeStateHash();
+		Outcome.RngState = State->RngState;
+		return Outcome;
+	};
+	const FOutcome Forward = Run(false);
+	const FOutcome Backward = Run(true);
+	TestTrue(TEXT("Hazards stood on discontented capitals"), Forward.CapitalHazards > 0);
+	TestTrue(TEXT("Drawn hazards stood away from the capitals"), Forward.DrawnHazards > 0);
+	TestEqual(TEXT("The world does not follow the order of the rows in DT_Hazards"), Forward.WorldHash, Backward.WorldHash);
+	TestEqual(TEXT("Nor does the whole state"), Forward.StateHash, Backward.StateHash);
+	TestEqual(TEXT("Nor the sim stream"), Forward.RngState, Backward.RngState);
+
+	Sim->SetTables(Original);
 	Sim->NewGalaxy(42, 5, 3);
 	return true;
 }

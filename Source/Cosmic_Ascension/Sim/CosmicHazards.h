@@ -1,6 +1,7 @@
 // Cosmic Ascension - Sim layer. Design: guideline.md section 4.1, 4.2, 4.5, 5.10, 7.2, 7.4, 7.5.
 // The world side of hazards and of the map: placing a hazard, resolving it, handing a system over, losing a capital,
-// destroying a system, and the claim rule's two questions. World state only: no line, no knowing, no delegate, no draw.
+// destroying a system, and the claim rule's two questions. World state only: no line, no knowing, no delegate, and no
+// draw of their own (the effects Resolve applies draw as Apply does: a NameNotable among them draws once).
 // UCosmicEventSubsystem::Apply (SpawnHazard, ResolveHazard, TransferSystem) and the hazard stage both come here, so a
 // hazard is placed by one path and a system changes hands by one path. What has to be told afterwards is left as a note
 // in the context (FCosmicEvalContext::Notes) for UCosmicEventSubsystem::FollowUpNotes.
@@ -43,7 +44,9 @@ namespace CosmicHazards
 	 * applies the row's OnResolveEffects with the system and its owner as subject and the row as SourceRow (the subject
 	 * of Ctx is restored afterwards). A Hazard.Rebellion also closes the open Notable.Rebel record of the owner
 	 * (LastTick = max(Tick, 1)) and starts the owner's LowStabilityTicks over (section 4.1, 7.4 notable hook 2). False
-	 * when the slot is empty. A hazard whose tag no row holds is emptied without effects and without a note.
+	 * when the slot is empty. A hazard whose tag no row holds is emptied without effects and without a note (a rebellion
+	 * still ends its leader and its count). Resolutions nested through OnResolveEffects stop at a fixed depth with an
+	 * error line instead of running the stack out: no row of the game nests (Data.Integrity).
 	 */
 	COSMIC_ASCENSION_API bool Resolve(FCosmicEvalContext& Ctx, int32 SystemIndex);
 
@@ -54,7 +57,9 @@ namespace CosmicHazards
 	 * gate takes that (section 4.5). What changes with the owner: the system leaves the old owner's OwnedSystems and joins
 	 * the end of the new owner's; its megaproject row and progress end (a completion tick stays); the hazard of a Capital
 	 * row ends without result, and so does any hazard of a system let go (no people under it, no threat: section 16 #29
-	 * (5)); when it was the old owner's capital, the capital moves (MoveCapital).
+	 * (5)) - a rebellion that ends so also closes its leader's open record and starts the old owner's count over, as a
+	 * resolution does; when it was the old owner's capital, the capital moves (MoveCapital). Leaves no note: a hazard it
+	 * ends is not told (the note of a received system arrives with the known scope and log work).
 	 */
 	COSMIC_ASCENSION_API bool Transfer(FCosmicEvalContext& Ctx, int32 SystemIndex, int32 ToCivIndex);
 

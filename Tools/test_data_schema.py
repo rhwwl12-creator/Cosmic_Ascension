@@ -670,6 +670,9 @@ class SchemaTests(unittest.TestCase):
         for wrong in ("", None, 5):
             with self.subTest(entry=wrong):
                 self.expect(self.after(rows([wrong])), "RulerResolutions[0]", "expected a row name")
+                # Reported once: an entry that is no name is never also a duplicate.
+                said = [line for line in self.after(rows([wrong])) if "RulerResolutions" in line]
+                self.assertEqual(len(said), 1, said)
         to_events = self.put(column, "tables", ["DT_Events"])
         self.assertEqual(self.after(rows(["event_book_found"]), to_events), [])
         self.expect(self.after(rows(["event_book_found", "event_book_found"]), to_events), "RulerResolutions", "appears twice")
@@ -681,6 +684,12 @@ class SchemaTests(unittest.TestCase):
         self.schema_problem(self.drop(column, "tables"), "DT_Hazards.RulerResolutions", "'tables' is missing")
         self.schema_problem(self.put(column, "unique", "yes"), "DT_Hazards.RulerResolutions", "unique")
         self.schema_problem(self.put(column, "table", "DT_Events"), "DT_Hazards.RulerResolutions", "'table' is not read here")
+        self.schema_problem(self.put(column, "slots", ["Civ"]), "DT_Hazards.RulerResolutions", "'slots' is not read here")
+        # A text list with unique: an entry that is no text is reported once, never also as a duplicate.
+        bank = lambda value: self.set_cell("DT_Civs", "arch_default", "PersonNameBank", value)  # noqa: E731
+        names = ["n%s" % letter for letter in "abcdefghij"]
+        said = [line for line in self.after(bank(names + [None])) if "PersonNameBank" in line]
+        self.assertEqual(len(said), 1, said)
 
     def test_hazard_row(self):
         cell = lambda column, value: self.set_cell("DT_Hazards", "crisis_test_storm", column, value)  # noqa: E731
@@ -693,6 +702,30 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(self.after(cell("OutbreakRow", "event_book_found")), [])
         self.expect(self.after(cell("ExpireTemplates", ["{Rebel} rose."])), "crisis_test_storm.ExpireTemplates", "slot {Rebel}")
         self.assertEqual(self.after(cell("OutbreakTemplates", [])), [])
+        # The rules of the crisis handling review, each broken by hand with the enumerator it names.
+        def both(*changes):
+            return lambda tables: [change(tables) for change in changes]
+        resolve_again = "a resolution or an expiry does not resolve again"
+        hand_over = "only stage code behind the last-system gate takes a system"
+        branch = cell("BranchChance", 0.5)
+        for column in ("OnResolveEffects", "OnExpireEffects", "OnExpireBranchEffects"):
+            with self.subTest(column=column, effect="ResolveHazard"):
+                self.expect(self.after(both(branch, cell(column, [eff("ResolveHazard")]))), "crisis_test_storm", resolve_again, column)
+        for column in ("OnExpireEffects", "OnExpireBranchEffects", "OnExpireNeighbourEffects"):
+            with self.subTest(column=column, effect="TransferSystem"):
+                self.expect(self.after(both(branch, cell(column, [eff("TransferSystem")]))), "crisis_test_storm", hand_over, column)
+        # A neighbour's hazard may be resolved by an expiry (the system's own is not).
+        self.assertEqual(self.after(cell("OnExpireNeighbourEffects", [eff("ResolveHazard")])), [])
+        self.expect(self.after(cell("SpawnConditions", [cond("CivFallenSphereTicksReached", key="300")])), "crisis_test_storm", "the stay condition holds on every tick")
+        # The outbreak row: a cult has none, and no outbreak row resolves what just broke out.
+        self.expect(self.after(both(cell("HazardTag", "Hazard.Cult"), cell("OutbreakRow", "event_book_found"))), "crisis_test_storm", "the leader of a cult has no name", "OutbreakRow")
+
+        def resolving_outbreak_row(tables):
+            row = copy.deepcopy(self.row(tables, "DT_Events", "event_book_found"))
+            row.update(Name="event_test_outbreak", Effects=[eff("ResolveHazard")])
+            tables["DT_Events"].append(row)
+            self.row(tables, "DT_Hazards", "crisis_test_storm")["OutbreakRow"] = "event_test_outbreak"
+        self.expect(self.after(resolving_outbreak_row), "crisis_test_storm.OutbreakRow", "does not hold", "ResolveHazard")
 
     # ---- texts ----
 
@@ -1220,6 +1253,18 @@ class SchemaTests(unittest.TestCase):
                            ({"col": "Weight", "set": False}, "number")):
             with self.subTest(test=test):
                 self.schema_problem(self.put(rule, "when", [test]), "schema.DT_Civs", cannot, kind)
+        # A list of row names: 'is' and 'in' over it never hold, so a rule asking them would be off for good.
+        hazard_rule = ["tables", "DT_Hazards", "rules", 0]
+        for test in ({"col": "RulerResolutions", "is": "project_relief"}, {"col": "RulerResolutions", "in": ["project_relief"]},
+                     {"col": "RulerResolutions", "gt": 0}, {"col": "RulerResolutions", "each_contains": "x"}):
+            with self.subTest(test=test):
+                self.schema_problem(self.put(hazard_rule, "when", [test]), "schema.DT_Hazards", cannot, "rows")
+        # Its size and whether it holds anything are fair questions (the rule's own then may fail on the fixture row:
+        # only the schema is looked at here).
+        for test in ({"col": "RulerResolutions", "min_len": 1}, {"col": "RulerResolutions", "max_len": 0}, {"col": "RulerResolutions", "set": True}):
+            with self.subTest(test=test):
+                said = [line for line in self.after(NOTHING, self.put(hazard_rule, "when", [test])) if line.startswith("schema.")]
+                self.assertEqual(said, [])
         self.schema_problem(self.put(["tables", "DT_Events", "rules", 0], "when", [{"col": "Trigger", "gt": 1}]), "schema.DT_Events", cannot, "enum")
         # A number and an enumerator are always there: 'set' over them says nothing.
         self.schema_problem(self.put(["tables", "DT_Events", "rules", 0], "when", [{"col": "Trigger", "set": True}]), "schema.DT_Events", cannot, "enum")
@@ -1325,6 +1370,14 @@ class SchemaTests(unittest.TestCase):
             row[column] = ["nothing of the kind"]
         elif name == "lacks_type":
             row[column] = list(row[column]) + [cond(operand) if kind == "conditions" else eff(operand)]
+        elif name == "set" and operand is False and kind == "row":
+            # A row of the column's table that answers the column's own target, so that only the rule is broken.
+            target = spec.get("target", [])
+            self.assertTrue(all(set(test) == {"col", "is"} or "lacks_type" in test for test in target), "the walker reads 'is' and 'lacks_type' targets only")
+            row[column] = next(entry["Name"] for entry in self.tables[spec["table"]]
+                               if all(entry.get(test["col"]) == test["is"] if "is" in test
+                                      else all(item.get("Type") != test["lacks_type"] for item in entry.get(test["col"], []))
+                                      for test in target))
         elif name == "slots_in":
             row[column] = ["{NoSuchSlot} a.", "b.", "c."] if kind == "texts" else "{NoSuchSlot}"
         elif name == "len_ge_col":
@@ -1384,6 +1437,11 @@ class SchemaTests(unittest.TestCase):
             ("DT_Hazards", "branch effects without a chance are never applied (guideline 4.1)"): (NOTHING, hazard),
             ("DT_Hazards", "a recorded death waits for the death pipeline of Phase 4b: until then no row records one (guideline 7.4)"): (NOTHING, hazard),
             ("DT_Hazards", "the leader of a cult has no name (guideline 4.1)"): (update_hazard(HazardTag="Hazard.Cult"), hazard),
+            ("DT_Hazards", "the stage reads the spawn conditions on every tick, and the stay condition holds on every tick of its window, not in one slot (guideline 7.3)"):
+                (NOTHING, hazard),
+            ("DT_Hazards", "only stage code behind the last-system gate takes a system: an expiry hands nothing over (guideline 4.5, 16 #53 (1))"): (NOTHING, hazard),
+            ("DT_Hazards", "a resolution or an expiry does not resolve again on its own system: a row that resolves what it places would never end (guideline 7.4)"):
+                (NOTHING, hazard),
             ("DT_Transcendents", "the fixed place of the roster belongs to a fallen silence"): (NOTHING, "trans_silence"),
             ("DT_Transcendents", "a transcendent stands on tier 3 or 4 (guideline 4.2: no fallen one on tier 5)"): (NOTHING, "trans_silence"),
             ("DT_Transcendents", "a celestial transcendent has no instance: no sphere, no pressure, no roster weight"): (NOTHING, "trans_covenant"),
@@ -1406,7 +1464,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 49, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 57, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

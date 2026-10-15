@@ -377,7 +377,7 @@
 				"OutbreakTemplates": {"kind": "texts", "slots": ["Civ", "System", "HomeSystem", "Hazard"]},
 				"ExpireTemplates": {"kind": "texts", "slots": ["Civ", "System", "HomeSystem", "Hazard"]},
 				"ResolveTemplates": {"kind": "texts", "slots": ["Civ", "System", "HomeSystem", "Hazard"]},
-				"OutbreakRow": {"kind": "row", "table": "DT_Events", "optional": true, "target": [{"col": "Trigger", "is": "Named"}]}
+				"OutbreakRow": {"kind": "row", "table": "DT_Events", "optional": true, "target": [{"col": "Trigger", "is": "Named"}, {"col": "Effects", "lacks_type": "ResolveHazard"}]}
 			},
 			"unique": [
 				{"cols": ["HazardTag"], "why": "a system holds the tag and the code finds the row by it (guideline 7.3)"}
@@ -429,7 +429,28 @@
 						{"col": "OnExpireEffects", "lacks_type": "NameNotable"},
 						{"col": "OnExpireBranchEffects", "lacks_type": "NameNotable"},
 						{"col": "OnExpireNeighbourEffects", "lacks_type": "NameNotable"},
-						{"col": "OnResolveEffects", "lacks_type": "NameNotable"}
+						{"col": "OnResolveEffects", "lacks_type": "NameNotable"},
+						{"col": "OutbreakRow", "set": false}
+					]
+				},
+				{
+					"why": "the stage reads the spawn conditions on every tick, and the stay condition holds on every tick of its window, not in one slot (guideline 7.3)",
+					"then": [{"col": "SpawnConditions", "lacks_type": "CivFallenSphereTicksReached"}]
+				},
+				{
+					"why": "only stage code behind the last-system gate takes a system: an expiry hands nothing over (guideline 4.5, 16 #53 (1))",
+					"then": [
+						{"col": "OnExpireEffects", "lacks_type": "TransferSystem"},
+						{"col": "OnExpireBranchEffects", "lacks_type": "TransferSystem"},
+						{"col": "OnExpireNeighbourEffects", "lacks_type": "TransferSystem"}
+					]
+				},
+				{
+					"why": "a resolution or an expiry does not resolve again on its own system: a row that resolves what it places would never end (guideline 7.4)",
+					"then": [
+						{"col": "OnResolveEffects", "lacks_type": "ResolveHazard"},
+						{"col": "OnExpireEffects", "lacks_type": "ResolveHazard"},
+						{"col": "OnExpireBranchEffects", "lacks_type": "ResolveHazard"}
 					]
 				}
 			]
