@@ -67,6 +67,7 @@ TABLES = [
     ("DT_LogTemplates", "LogTemplateDef"),
     ("DT_Galaxies", "GalaxyDef"),
     ("DT_Transcendents", "TranscendentDef"),
+    ("DT_Events", "CosmicEventDef"),
 ]
 STRING_TABLE = "ST_CA"
 STAMP_FILE = "generated.sha1"

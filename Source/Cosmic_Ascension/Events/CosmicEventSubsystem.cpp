@@ -546,6 +546,38 @@ bool UCosmicEventSubsystem::Check(const FCosmicCondition& Condition, const FCosm
 			return !Each.bSealed && Each.Doctrine.MatchesTagExact(Condition.Tag);
 		});
 
+	case EConditionType::CivFallenSphereTicksReached:
+	{
+		// Key = the number of ticks. The count of the stay grows by one a tick and the slot of a civilization comes once in
+		// EventSlotTicks ticks, so exactly one slot of a long enough stay finds it in the window (section 5.11, 16 #25).
+		const int32 Ticks = TickCountOf(Condition.Key);
+		const int32 Window = FMath::Max(1, View.Rules.EventSlotTicks);
+		if (!Civ || Ticks <= 0 || Civ->FallenSphereTicks < Ticks || Civ->FallenSphereTicks - Ticks >= Window)
+		{
+			return false;
+		}
+		if (!Condition.Tag.IsValid())
+		{
+			return true;
+		}
+		// A doctrine as well: a settled system of the civilization lies, now, in the sphere of an unsealed transcendent of it.
+		for (const FTranscendentState& Transcendent : State.Transcendents)
+		{
+			if (Transcendent.bSealed || !Transcendent.Doctrine.MatchesTagExact(Condition.Tag))
+			{
+				continue;
+			}
+			for (const FName SystemID : Transcendent.InfluencedSystems)
+			{
+				if (IsSettledSystemOf(State, View.Index.FindSystem(State, SystemID), Civ->CivID))
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	case EConditionType::CivHasNotable:
 	{
 		const int32 Selected = SelectCiv(State, View.Index, View, Condition.Key);

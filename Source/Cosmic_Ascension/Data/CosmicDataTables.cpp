@@ -37,6 +37,7 @@ void FCosmicDataTables::LoadFromFixedPaths()
 	Civs = LoadTable(TEXT("/Game/CA/Data/DT_Civs.DT_Civs"), FCivArchetypeDef::StaticStruct());
 	LogTemplates = LoadTable(TEXT("/Game/CA/Data/DT_LogTemplates.DT_LogTemplates"), FLogTemplateDef::StaticStruct());
 	Galaxies = LoadTable(TEXT("/Game/CA/Data/DT_Galaxies.DT_Galaxies"), FGalaxyDef::StaticStruct());
+	Events = LoadTable(TEXT("/Game/CA/Data/DT_Events.DT_Events"), FCosmicEventDef::StaticStruct());
 	Transcendents = LoadTable(TEXT("/Game/CA/Data/DT_Transcendents.DT_Transcendents"), FTranscendentDef::StaticStruct());
 }
 

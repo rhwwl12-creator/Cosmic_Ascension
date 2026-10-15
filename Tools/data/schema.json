@@ -176,6 +176,8 @@
 		"DT_Events": {
 			"struct": "CosmicEventDef",
 			"prefixes": ["event_"],
+			"must_exist": true,
+			"required_rows": ["event_book_found"],
 			"columns": {
 				"Category": {"kind": "tag", "root": "Event."},
 				"LogCategory": {"kind": "tag", "root": "Log."},
@@ -360,7 +362,8 @@
 		"FlagSet": {"tag": {"root": "Flag."}},
 		"FlagNotSet": {"tag": {"root": "Flag."}},
 		"TranscendentDoctrinePresent": {"tag": {"root": "Doctrine."}},
-		"CivHasNotable": {"tag": {"root": "Notable."}, "key": {"word": "civ_selector", "optional": true}}
+		"CivHasNotable": {"tag": {"root": "Notable."}, "key": {"word": "civ_selector", "optional": true}},
+		"CivFallenSphereTicksReached": {"tag": {"root": "Doctrine.", "optional": true}, "key": {"digits": true}}
 	},
 
 	"effects": {

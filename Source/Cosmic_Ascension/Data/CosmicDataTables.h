@@ -33,7 +33,6 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 	TObjectPtr<UDataTable> Galaxies;
 
 	// DT_Events: one row per event (section 7.3). A missing table means no rows; the event slots still draw.
-	// Not loaded from a fixed path yet: the asset arrives with the first row, tests inject the table until then.
 	UPROPERTY(Transient)
 	TObjectPtr<UDataTable> Events;
 
@@ -42,8 +41,8 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 	UPROPERTY(Transient)
 	TObjectPtr<UDataTable> Transcendents;
 
-	// Loads every table that has an asset from its fixed path: DT_Rules, DT_Civs, DT_LogTemplates, DT_Galaxies and
-	// DT_Transcendents. A missing asset leaves its pointer null and is reported once in LogCosmic.
+	// Loads every table that has an asset from its fixed path: DT_Rules, DT_Civs, DT_LogTemplates, DT_Galaxies,
+	// DT_Events and DT_Transcendents. A missing asset leaves its pointer null and is reported once in LogCosmic.
 	void LoadFromFixedPaths();
 
 	// Null when the table or the row is missing. They never warn: the caller decides what a missing row means.

@@ -1,0 +1,244 @@
+[
+	{
+		"Name": "event_book_shut",
+		"Category": "Event.Civ.Society",
+		"LogCategory": "Log.Civ",
+		"Trigger": "Standing",
+		"Subject": "Civilization",
+		"Conditions": [
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Trait.Faith.Book",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivFallenSphereTicksReached",
+				"Tag": "Doctrine.Silence",
+				"Key": "300",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 0.0,
+		"CooldownTicks": 0,
+		"Effects": [
+			{
+				"Type": "RemoveTrait",
+				"Tag": "Trait.Faith.Book",
+				"Key": "None",
+				"Value": 0.0,
+				"DurationTicks": 0
+			},
+			{
+				"Type": "AddTrait",
+				"Tag": "Trait.Faith.BookShut",
+				"Key": "None",
+				"Value": 0.0,
+				"DurationTicks": 0
+			}
+		],
+		"LogTemplates": [
+			"{Civ}에서 그 책을 펴는 사람이 없어졌다. 책은 그대로 있었고, 아무도 그것을 잃었다고 말하지 않았다.",
+			"{Civ}의 회중이 모이지 않은 채 여러 주기가 지났다. 그 책이 어디 있는지 아는 이가 적어졌다.",
+			"{Civ}에서 옛 책의 낭독이 그쳤다. 듣는 일이 먼저 그쳤다."
+		],
+		"Severity": 1,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
+	},
+	{
+		"Name": "event_book_found",
+		"Category": "Event.Civ.Society",
+		"LogCategory": "Log.Civ",
+		"Trigger": "Named",
+		"Subject": "Civilization",
+		"Conditions": [
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Trait.Faith.BookShut",
+				"Key": "None",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 0.0,
+		"CooldownTicks": 0,
+		"Effects": [
+			{
+				"Type": "RemoveTrait",
+				"Tag": "Trait.Faith.BookShut",
+				"Key": "None",
+				"Value": 0.0,
+				"DurationTicks": 0
+			},
+			{
+				"Type": "AddTrait",
+				"Tag": "Trait.Faith.Book",
+				"Key": "None",
+				"Value": 0.0,
+				"DurationTicks": 0
+			},
+			{
+				"Type": "ChangeStability",
+				"Tag": "",
+				"Key": "None",
+				"Value": 0.2,
+				"DurationTicks": 0
+			}
+		],
+		"LogTemplates": [
+			"{Civ}의 오래된 서고를 고치던 이들이 그 책을 찾아냈다. 읽는 소리를 들은 다스리는 이들이 옷을 찢었다.",
+			"{Civ}의 문서고 깊은 곳에서 그 책이 다시 나왔다. 회중이 모여 처음부터 끝까지 들었다.",
+			"{Civ}에서 잊혔던 책이 다시 펼쳐졌다. 다스리는 이들이 그 앞에서 오래 말이 없었다."
+		],
+		"Severity": 2,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
+	},
+	{
+		"Name": "event_book_reading",
+		"Category": "Event.Civ.Society",
+		"LogCategory": "Log.Civ",
+		"Trigger": "Standing",
+		"Subject": "Civilization",
+		"Conditions": [
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Trait.Faith.Book",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "GalaxyTickAtLeast",
+				"Tag": "",
+				"Key": "None",
+				"Value": 1800.0
+			}
+		],
+		"BaseWeight": 0.0,
+		"CooldownTicks": 1800,
+		"Effects": [],
+		"LogTemplates": [
+			"{Civ}의 회중 앞에서 옛 책이 낭독되었다. 끝까지 들은 이는 많지 않았다.",
+			"{Civ}의 회중이 모여 그 책을 읽었다. 의회의 회기는 그날도 계속되었다.",
+			"{Civ}의 한 모임에서 언약책이 낭독되었다. 지나가던 이들이 잠시 걸음을 멈추었다."
+		],
+		"Severity": 0,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
+	},
+	{
+		"Name": "event_civ_lode",
+		"Category": "Event.Civ.Economy",
+		"LogCategory": "Log.Civ",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"Conditions": [],
+		"BaseWeight": 1.0,
+		"CooldownTicks": 600,
+		"Effects": [
+			{
+				"Type": "AddResource",
+				"Tag": "",
+				"Key": "Matter",
+				"Value": 20.0,
+				"DurationTicks": 0
+			}
+		],
+		"LogTemplates": [
+			"{Civ}의 탐사선이 새 광맥을 찾았다. 제련소의 불이 한동안 꺼지지 않았다.",
+			"{Civ}의 측량대가 버려진 소행성대에서 쓸 만한 금속을 찾았다. 창고가 오랜만에 찼다.",
+			"{Civ}의 광부들이 깊은 층에서 새 광맥을 만났다. 그 주기의 장부는 넉넉했다."
+		],
+		"Severity": 0,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
+	},
+	{
+		"Name": "event_civ_grid_failure",
+		"Category": "Event.Civ.Economy",
+		"LogCategory": "Log.Civ",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"Conditions": [],
+		"BaseWeight": 1.0,
+		"CooldownTicks": 600,
+		"Effects": [
+			{
+				"Type": "AddResource",
+				"Tag": "",
+				"Key": "Energy",
+				"Value": -15.0,
+				"DurationTicks": 0
+			}
+		],
+		"LogTemplates": [
+			"{Civ}의 에너지망이 한 주기 동안 흔들렸다. 불 꺼진 거리에서 사람들은 다시 켜지기를 기다렸다.",
+			"{Civ}의 발전소 하나가 멈춰 섰다. 고치는 동안 공장들은 쉬었다.",
+			"{Civ}의 송전선이 항성풍에 끊겼다. 비축해 둔 에너지가 그 틈을 메웠다."
+		],
+		"Severity": 0,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
+	},
+	{
+		"Name": "event_civ_quarrel",
+		"Category": "Event.Civ.Society",
+		"LogCategory": "Log.Civ",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"Conditions": [
+			{
+				"Type": "CivStabilityBelow",
+				"Tag": "",
+				"Key": "None",
+				"Value": 0.5
+			}
+		],
+		"BaseWeight": 1.0,
+		"CooldownTicks": 600,
+		"Effects": [
+			{
+				"Type": "ChangeStability",
+				"Tag": "",
+				"Key": "None",
+				"Value": -0.03,
+				"DurationTicks": 0
+			}
+		],
+		"LogTemplates": [
+			"{Civ}의 광장에서 다툼이 길어졌다. 서로의 말을 끝까지 듣는 이가 줄었다.",
+			"{Civ}의 회의가 한 안건을 두고 갈라졌다. 결론 없이 그 주기가 지나갔다.",
+			"{Civ}의 거리에 불평이 늘었다. 작은 일에도 목소리가 높아졌다."
+		],
+		"Severity": 0,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
+	},
+	{
+		"Name": "event_civ_festival",
+		"Category": "Event.Civ.Society",
+		"LogCategory": "Log.Civ",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"Conditions": [],
+		"BaseWeight": 1.0,
+		"CooldownTicks": 600,
+		"Effects": [
+			{
+				"Type": "ChangeStability",
+				"Tag": "",
+				"Key": "None",
+				"Value": 0.03,
+				"DurationTicks": 0
+			}
+		],
+		"LogTemplates": [
+			"{Civ}의 거리에 축제가 열렸다. 그날은 늦게까지 불이 켜져 있었다.",
+			"{Civ}의 오래된 기념일이 무사히 지나갔다. 아이들은 그날의 노래를 다시 배웠다.",
+			"{Civ}의 시장이 평소보다 붐볐다. 사람들은 서로의 안부를 물었다."
+		],
+		"Severity": 0,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
+	}
+]

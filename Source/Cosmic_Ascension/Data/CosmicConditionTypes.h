@@ -18,9 +18,9 @@ enum class EConditionType : uint8
 	CivResourceAtLeast,
 	CivStabilityBelow,
 	CivEthicsAxisAbove,
-	// Value = threshold, fixed at 0.3 for now: the counter counts the ticks below 0.3 and the code does not read the
-	// Value, so the schema accepts 0.3 only (section 16 #25 (2)). Key = tick count (digits only, above zero; anything
-	// else is false). Reads FCivilizationState.LowStabilityTicks (section 4.1).
+	// Value = threshold 0.3, written for the reader: it is not a parameter. The counter counts the ticks below 0.3, the
+	// code does not read the Value and the schema accepts 0.3 only (section 16 #25 (2)). Key = tick count (digits only,
+	// above zero; anything else is false). Reads FCivilizationState.LowStabilityTicks (section 4.1).
 	CivStabilityBelowFor,
 	// Key = other ID (CivID or TranscendentID).
 	CivRelationAtLeast,
@@ -61,7 +61,15 @@ enum class EConditionType : uint8
 	// Key = civ selector: empty = the context civilization (FCosmicEvalSubject.CivIndex; a caller that means the owner of
 	// the current system puts that owner there), Former = FormerCivID.
 	// The only condition that reads notables; it only picks encounter variants.
-	CivHasNotable
+	CivHasNotable,
+	// Key = tick count (digits only, above zero; anything else is false). True in the one event slot of the civilization
+	// in which its stay in a fallen sphere reaches Key ticks: Key <= FallenSphereTicks < Key + DT_Rules.EventSlotTicks
+	// (below 1 read as 1), so a Standing row fires once per stay. Tag = optional Doctrine.*: one of the civilization's
+	// settled systems must then also lie, now, in the sphere of an unsealed transcendent of that doctrine. Value unused
+	// (section 5.11 "the book was shut", 16 #25 (1)).
+	CivFallenSphereTicksReached
+	// Decided, appended with the first row that uses each (section 16 #29): CivResearchAtLeast, CivStabilityAtLeast,
+	// PlayerHasPower.
 };
 
 USTRUCT(BlueprintType)
@@ -117,6 +125,8 @@ enum class EEffectType : uint8
 	NameNotable
 	// Phase 6+ (append): MultiplyResearch, PopulationLossMultiplier, StabilityFloor (section 4.2). They are per-tick
 	// effects: each joins the list of UCosmicEventSubsystem::Apply for per-tick sources when it is appended.
+	// Decided, appended with the relics of Phase 4 (section 16 #29): GrantRelic, RemoveRelic. A system is let go to no
+	// one by TransferSystem with an empty Key, not by an effect of its own.
 };
 
 USTRUCT(BlueprintType)

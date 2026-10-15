@@ -27,6 +27,9 @@ namespace
 	// Research fields (section 5.4). Sim code walks this array and never the Research maps themselves (section 9.2).
 	const FName ResearchFields[] = { FName(TEXT("Physics")), FName(TEXT("Society")), FName(TEXT("Engineering")), FName(TEXT("Transcendence")) };
 
+	// The field whose breakthroughs may find a book that was shut (section 5.11).
+	const FName& SocietyField = ResearchFields[1];
+
 	// One DT_LogTemplates row per field for its breakthroughs (section 8.2).
 	static_assert(UE_ARRAY_COUNT(CosmicRows::LogBreakthrough) == UE_ARRAY_COUNT(ResearchFields));
 
@@ -1194,6 +1197,16 @@ void UGalaxySimulationSubsystem::TickEconomy()
 		}
 	}
 
+	// The spheres FallenSphereTicks counts: those of the pressing transcendents whose row is fallen (section 5.11).
+	const FGameplayTag AbyssalTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Realm.Abyssal")));
+	TBitArray<> FallenPresser(false, TranscendentCount);
+	for (int32 TranscendentIndex = 0; TranscendentIndex < TranscendentCount; ++TranscendentIndex)
+	{
+		FallenPresser[TranscendentIndex] = ActiveDefs[TranscendentIndex] && ActiveDefs[TranscendentIndex]->Allegiance == AbyssalTag;
+	}
+	// By index into Civs: a settled system of the civilization lies inside a fallen sphere this tick.
+	TBitArray<> InFallenSphere(false, State.Civs.Num());
+
 	// The context of the per-tick sources: the only place where MultiplyIncome applies (section 5.8).
 	FCosmicEvalContext Sources = MakeEvalContext();
 	Sources.bPerTickSource = true;
@@ -1274,6 +1287,13 @@ void UGalaxySimulationSubsystem::TickEconomy()
 				}
 			}
 		}
+		for (int32 TranscendentIndex = 0; TranscendentIndex < TranscendentCount; ++TranscendentIndex)
+		{
+			if (FallenPresser[TranscendentIndex] && FirstInside[TranscendentIndex] != INDEX_NONE)
+			{
+				InFallenSphere[CivIndex] = true;
+			}
+		}
 		// The range of the knob is a lint; the guard is here: a knob below zero or not a number takes nothing. The loss is
 		// tested, not the pressure, so that nothing that is not a number reaches Stability.
 		const float Loss = (Rules.SpiritualPressureStabilityDrain > 0.f ? Rules.SpiritualPressureStabilityDrain : 0.f) * LargestPressure;
@@ -1302,10 +1322,13 @@ void UGalaxySimulationSubsystem::TickEconomy()
 		Civ.Stockpile.Influence += Civ.IncomePerTick.Influence;
 	}
 
-	// Counted last, over the Stability every civilization has at the end of this stage (section 7.4).
-	for (FCivilizationState& Civ : State.Civs)
+	// Counted last, over the Stability every civilization has at the end of this stage (section 7.4), and over the
+	// sphere membership of its start (section 5.11).
+	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
 	{
+		FCivilizationState& Civ = State.Civs[CivIndex];
 		Civ.LowStabilityTicks = (Civ.Stability < LowStabilityThreshold) ? Civ.LowStabilityTicks + 1 : 0;
+		Civ.FallenSphereTicks = InFallenSphere[CivIndex] ? Civ.FallenSphereTicks + 1 : 0;
 	}
 }
 
@@ -1313,9 +1336,12 @@ void UGalaxySimulationSubsystem::TickResearch()
 {
 	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
 	check(Log);
+	UCosmicEventSubsystem* Events = GetGameInstance()->GetSubsystem<UCosmicEventSubsystem>();
+	check(Events);
 
-	for (FCivilizationState& Civ : State.Civs)
+	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
 	{
+		FCivilizationState& Civ = State.Civs[CivIndex];
 		const float Spent = FMath::Max(0.f, FMath::Min(Civ.Stockpile.Insight, Civ.IncomePerTick.Insight * Economy::ResearchInsightShare));
 		Civ.Stockpile.Insight -= Spent;
 
@@ -1335,6 +1361,18 @@ void UGalaxySimulationSubsystem::TickResearch()
 					FFormatNamedArguments Args;
 					Args.Add(TEXT("Civ"), Civ.CivName);
 					Log->PushRow(CosmicRows::LogBreakthrough[FieldIndex], Civ.bIsPlayerRuled ? 1 : 0, Args, Civ.HomeSystemID, Civ.CivID);
+
+					// After its line, a Society breakthrough may find a book that was shut: the row's conditions pick the
+					// people (section 5.11). Its subject is the civilization, with its capital while that is settled.
+					if (Field == SocietyField)
+					{
+						const int32 Capital = StateIndex.FindSystem(State, Civ.HomeSystemID);
+						FCosmicEvalContext Found = MakeEvalContext();
+						Found.CivIndex = CivIndex;
+						Found.SystemIndex = (State.Systems.IsValidIndex(Capital) && State.Systems[Capital].OwnerCivID == Civ.CivID && CosmicState::IsSettled(State.Systems[Capital])) ? Capital : INDEX_NONE;
+						Found.GalaxyRow = Civ.GalaxyRow;
+						Events->FireRow(CosmicRows::EventBookFound, Found);
+					}
 				}
 			}
 		}

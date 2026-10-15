@@ -302,10 +302,13 @@ private:
 	// this stage makes no draw and records no role effect, whatever the rows hold.
 	// The pressures are read from one table of sphere membership and one list of rows built at the start of the stage,
 	// not by one call of the public function per system (section 9.4).
-	// Loop two: LowStabilityTicks. Last and separate on purpose: the count reads the Stability every civilization has at
-	// the end of this stage. A Stability change made anywhere else in the tick is first counted one tick later.
+	// Loop two: LowStabilityTicks and FallenSphereTicks. Last and separate on purpose: the count reads the Stability every
+	// civilization has at the end of this stage. A Stability change made anywhere else in the tick is first counted one
+	// tick later. FallenSphereTicks reads the sphere membership the stage built at its start.
 	void TickEconomy();
 
+	// Research progress and breakthroughs, civilization by civilization. A Society breakthrough fires the DT_Events row
+	// CosmicRows::EventBookFound after its line; the row's conditions pick the people whose book is shut (section 5.11).
 	void TickResearch();
 	void TickDiplomacy();
 	void TickConflict();

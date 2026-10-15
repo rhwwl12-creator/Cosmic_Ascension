@@ -315,7 +315,7 @@ public:
 	/**
 	 * Fires the DT_Events row RowName for the subject of Ctx when every condition of the row passes; false, with nothing
 	 * drawn, written or told, when the row is missing or a condition fails. This is how a Named row fires: the row at the
-	 * outbreak of a rebellion, the grace rows (section 4.1, 4.5). It neither reads nor writes a cooldown key and makes no
+	 * outbreak of a rebellion, the grace rows, the book found at a Society breakthrough (section 4.1, 4.5, 5.11). It neither reads nor writes a cooldown key and makes no
 	 * draw of its own. Ctx gives the subject: the fire runs on a context of its own over the same state and stream, with
 	 * SourceRow = the row and bPerTickSource off, and leaves the subject of Ctx as it is.
 	 * One fire is one fixed sequence, the same for all three triggers:

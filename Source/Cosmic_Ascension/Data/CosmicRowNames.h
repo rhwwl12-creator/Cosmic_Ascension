@@ -22,6 +22,10 @@ namespace CosmicRows
 	// DT_Megaprojects: settling. A system whose ActiveMegaproject is this row is owned but not yet settled (section 5.7).
 	inline const FName ProjectSettle(TEXT("project_settle"));
 
+	// DT_Events: the book is found. The research stage fires it at every Society breakthrough; the row's conditions
+	// pick the people whose book is shut (section 5.11).
+	inline const FName EventBookFound(TEXT("event_book_found"));
+
 	// DT_LogTemplates: the first line of a run (section 2.4).
 	inline const FName LogFirstLife(TEXT("log_first_life"));
 

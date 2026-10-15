@@ -252,6 +252,13 @@ struct COSMIC_ASCENSION_API FCivilizationState
 	UPROPERTY(BlueprintReadOnly)
 	int32 LowStabilityTicks = 0;
 
+	// Consecutive ticks at the end of whose economy stage at least one settled system of this civilization lay in the
+	// sphere of an unsealed fallen transcendent (row Allegiance Realm.Abyssal; a lane away is not inside, and an instance
+	// without a row counts for nothing). Counted with LowStabilityTicks; read by CivFallenSphereTicksReached (section
+	// 5.11, 16 #25).
+	UPROPERTY(BlueprintReadOnly)
+	int32 FallenSphereTicks = 0;
+
 	UPROPERTY(BlueprintReadOnly)
 	TArray<FName> OwnedSystems;
 

@@ -187,6 +187,7 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		Civ.Stability = 0.4f;
 		Civ.Ethics.Openness = 0.5f;
 		Civ.LowStabilityTicks = 120;
+		Civ.FallenSphereTicks = 305;
 		Civ.Relations.Add(Civ1, 0.6f);
 		Civ.ReverenceToPlayer = 0.5f;
 		FNotableRecord& Rebel = Civ.Notables.AddDefaulted_GetRef();
@@ -219,9 +220,11 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 	FCosmicStateIndex Index;
 	Index.Rebuild(Detached);
 
-	// The rules the cases are judged under: aging off, whatever DT_Rules says today.
+	// The rules the cases are judged under: aging off and a slot every ten ticks (the window of
+	// CivFallenSphereTicksReached), whatever DT_Rules says today.
 	FCosmicRulesDef NoAging = Sim->GetRules();
 	NoAging.BaseLifespanTicks = 0;
+	NoAging.EventSlotTicks = 10;
 
 	// One line per case: the condition, the lower tick bound of the view, the expected answer for subject (civ 0, sol).
 	struct FCase
@@ -288,10 +291,21 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		{ Cond(EConditionType::TranscendentDoctrinePresent, TEXT("Doctrine.Zeal"), NAME_None, 0.f), 0, false },
 		{ Cond(EConditionType::CivHasNotable, TEXT("Notable.Rebel"), NAME_None, 0.f), 0, true },
 		{ Cond(EConditionType::CivHasNotable, TEXT("Notable.Ruler"), NAME_None, 0.f), 0, false },
+		// A stay of 305 ticks: Key 300 lies in the window of the last slot period (Key <= 305 < Key + 10), 306 is not reached.
+		{ Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("300")), 0.f), 0, true },
+		{ Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("306")), 0.f), 0, false },
+		// With a doctrine: sol lies in the sphere of the unsealed Silence of the test; the Zeal of the test is sealed.
+		{ Cond(EConditionType::CivFallenSphereTicksReached, TEXT("Doctrine.Silence"), FName(TEXT("300")), 0.f), 0, true },
+		{ Cond(EConditionType::CivFallenSphereTicksReached, TEXT("Doctrine.Zeal"), FName(TEXT("300")), 0.f), 0, false },
 		// The boundary of every "at least": the bound itself passes.
 		{ Cond(EConditionType::CivStabilityBelowFor, nullptr, FName(TEXT("120")), 0.3f), 0, true },
 		{ Cond(EConditionType::MegaprojectComplete, nullptr, NAME_None, 0.f), 50, true },
 		{ Cond(EConditionType::TranscendentSealed, nullptr, TrSealed, 0.f), 40, true },
+		{ Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("305")), 0.f), 0, true },
+		// The window of a reached stay ends where the next slot period begins: 296 is its last Key, 295 is past it.
+		{ Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("296")), 0.f), 0, true },
+		{ Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("295")), 0.f), 0, false },
+		{ Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("300ticks")), 0.f), 0, false },
 		// A tick count that is not digits alone is not a tick count: false, never its numeric prefix.
 		{ Cond(EConditionType::CivStabilityBelowFor, nullptr, FName(TEXT("1,000")), 0.3f), 0, false },
 		{ Cond(EConditionType::CivStabilityBelowFor, nullptr, FName(TEXT("100ticks")), 0.3f), 0, false },
@@ -319,7 +333,7 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 	};
 	auto IsSubjectType = [](EConditionType Type)
 	{
-		return Type <= EConditionType::SystemInfluencedBy || Type == EConditionType::CivHasNotable;
+		return Type <= EConditionType::SystemInfluencedBy || Type == EConditionType::CivHasNotable || Type == EConditionType::CivFallenSphereTicksReached;
 	};
 	auto IsPlayerType = [](EConditionType Type)
 	{
@@ -345,6 +359,36 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		FCosmicEvalView View(NoFlags, Index, Sim->GetTables(), NoAging);
 		TestFalse(TEXT("FlagSet is false for a flag that is not set"), UCosmicEventSubsystem::Check(Cond(EConditionType::FlagSet, TEXT("Flag.Grace.Spent"), NAME_None, 0.f), View));
 		TestTrue(TEXT("FlagNotSet is true for a flag that is not set"), UCosmicEventSubsystem::Check(Cond(EConditionType::FlagNotSet, TEXT("Flag.Grace.Spent"), NAME_None, 0.f), View));
+	}
+
+	// The doctrine of CivFallenSphereTicksReached is looked for among unsealed transcendents: sol in the sphere of the
+	// sealed Zeal of the test does not answer for Zeal, and does once it is unsealed. A system of another people inside
+	// the sphere does not answer for this one.
+	{
+		const FCosmicCondition ZealReached = Cond(EConditionType::CivFallenSphereTicksReached, TEXT("Doctrine.Zeal"), FName(TEXT("300")), 0.f);
+		FGalaxyState ZealOverSol = Detached;
+		ZealOverSol.Transcendents[1].InfluencedSystems.Add(ZealOverSol.Systems[0].SystemID);
+		FCosmicEvalView Sealed(ZealOverSol, Index, Sim->GetTables(), NoAging);
+		Sealed.CivIndex = 0;
+		TestFalse(TEXT("A sealed transcendent of the doctrine does not answer for it"), UCosmicEventSubsystem::Check(ZealReached, Sealed));
+		ZealOverSol.Transcendents[1].bSealed = false;
+		FCosmicEvalView Unsealed(ZealOverSol, Index, Sim->GetTables(), NoAging);
+		Unsealed.CivIndex = 0;
+		TestTrue(TEXT("Unsealed, the same transcendent answers for its doctrine"), UCosmicEventSubsystem::Check(ZealReached, Unsealed));
+		FGalaxyState SilenceElsewhere = Detached;
+		SilenceElsewhere.Transcendents[0].InfluencedSystems = { SilenceElsewhere.Civs[1].HomeSystemID };
+		FCosmicEvalView Elsewhere(SilenceElsewhere, Index, Sim->GetTables(), NoAging);
+		Elsewhere.CivIndex = 0;
+		TestFalse(TEXT("A sphere over another people's system does not answer for this people"),
+			UCosmicEventSubsystem::Check(Cond(EConditionType::CivFallenSphereTicksReached, TEXT("Doctrine.Silence"), FName(TEXT("300")), 0.f), Elsewhere));
+		// A short stay: Key 5 is reached, and a Key that is not a count is not, though no count would lie below the window.
+		FGalaxyState ShortStay = Detached;
+		ShortStay.Civs[0].FallenSphereTicks = 5;
+		FCosmicEvalView Short(ShortStay, Index, Sim->GetTables(), NoAging);
+		Short.CivIndex = 0;
+		TestTrue(TEXT("A stay of five ticks reaches Key 5"), UCosmicEventSubsystem::Check(Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("5")), 0.f), Short));
+		TestFalse(TEXT("A Key that is not a count is never reached, not even by a short stay"),
+			UCosmicEventSubsystem::Check(Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("abc")), 0.f), Short));
 	}
 
 	// PlayerAgeAtLeast with aging on: the age is the ticks since the birth of the vessel (tick 100, born at 10).
