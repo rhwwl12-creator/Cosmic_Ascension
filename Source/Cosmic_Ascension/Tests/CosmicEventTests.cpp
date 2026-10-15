@@ -388,6 +388,8 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		Wide.CivIndex = 0;
 		TestTrue(TEXT("With 25-tick slots a stay of 305 still lies in the window of Key 285"),
 			UCosmicEventSubsystem::Check(Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("285")), 0.f), Wide));
+		TestTrue(TEXT("With 25-tick slots Key 281 is the last Key whose window holds a stay of 305"),
+			UCosmicEventSubsystem::Check(Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("281")), 0.f), Wide));
 		TestFalse(TEXT("With 25-tick slots Key 280 lies past the window"),
 			UCosmicEventSubsystem::Check(Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("280")), 0.f), Wide));
 		FCosmicRulesDef NoSlots = NoAging;

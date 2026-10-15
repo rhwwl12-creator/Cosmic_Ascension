@@ -250,7 +250,7 @@
 					"then": [{"col": "Conditions", "lacks_type": "CivFallenSphereTicksReached"}]
 				},
 				{
-					"why": "a system-subject slot row fires once for every settled system: the stay condition would fire it many times in one slot (guideline 7.3)",
+					"why": "a system-subject row lands on a place and the stay condition is about the people: without a cooldown a Standing row would fire once for every settled system in the one slot, otherwise it lands on whichever settled system comes first (guideline 7.3)",
 					"when": [{"col": "Subject", "is": "SettledSystem"}],
 					"then": [{"col": "Conditions", "lacks_type": "CivFallenSphereTicksReached"}]
 				},
@@ -378,7 +378,7 @@
 		"FlagNotSet": {"tag": {"root": "Flag."}},
 		"TranscendentDoctrinePresent": {"tag": {"root": "Doctrine."}},
 		"CivHasNotable": {"tag": {"root": "Notable."}, "key": {"word": "civ_selector", "optional": true}},
-		"CivFallenSphereTicksReached": {"tag": {"root": "Doctrine.", "optional": true}, "key": {"digits": true}}
+		"CivFallenSphereTicksReached": {"tag": {"root": ["Doctrine.Silence", "Doctrine.Assimilation", "Doctrine.Zeal", "Doctrine.Recurrence"], "optional": true}, "key": {"digits": true}}
 	},
 
 	"effects": {

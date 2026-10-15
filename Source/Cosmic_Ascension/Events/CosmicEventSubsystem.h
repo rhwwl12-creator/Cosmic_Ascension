@@ -205,8 +205,8 @@ public:
 	 *   (its Key, or the OtherID of the view when the Key is empty) resolves only when it is the CivID of a living
 	 *   civilization, the TranscendentID of a transcendent in State.Transcendents, or the name of a celestial row of
 	 *   DT_Transcendents (it never has a state instance and is still a party; a fallen or independent row is a party
-	 *   only as an instance of the run). The tick count of CivStabilityBelowFor resolves only when its Key is digits
-	 *   alone (nine at most) and above zero.
+	 *   only as an instance of the run). The tick counts of CivStabilityBelowFor and CivFallenSphereTicksReached
+	 *   resolve only when their Key is digits alone (nine at most) and above zero.
 	 * - SystemPressureAtLeast reads P of the subject system from UGalaxySimulationSubsystem::ComputePressureIn over the
 	 *   state of the view. It is the whole sum: the term of the civilization that owns the system and the term of a
 	 *   wanderer standing there count like the term of a transcendent (section 16 #62).

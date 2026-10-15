@@ -67,8 +67,8 @@ struct FCosmicPressure
  * One tick = one galaxy cycle; at 1x speed one second is one tick (section 2.1).
  * Stage order inside a tick is fixed, ten stages: economy, research, diplomacy, conflict, hazards, civ AI, crossings,
  * player travel, sight, role effects. Events, feats and per-tick pressure have no stage of their own: they are fixed
- * steps inside the economy, hazard and civ AI stages (see the stage declarations). Change guideline.md section 7.4
- * before changing any of this.
+ * steps inside the economy, research, hazard and civ AI stages (see the stage declarations). Change guideline.md
+ * section 7.4 before changing any of this.
  */
 UCLASS()
 class COSMIC_ASCENSION_API UGalaxySimulationSubsystem : public UGameInstanceSubsystem, public FTickableGameObject

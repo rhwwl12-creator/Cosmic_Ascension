@@ -756,7 +756,7 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(self.after(named()), [])
         self.expect(self.after(named(CooldownTicks=200)), "has no cooldown key")
         self.expect(self.after(named(LogTemplates=[])), "one variant or more")
-        # A row fired by name may speak of the vessel; a slot row may not, until the selector words are decided.
+        # A row fired by name may speak of the vessel; a slot row may not, until the selector words reach the code (Phase 4 petitions).
         vessel = dict(Conditions=[cond("PlayerRoleIs", key="Ruler")], Effects=[eff("KillPlayer", tag="Death.Hazard"), eff("GrantPower", tag="Way.Received")])
         self.assertEqual(self.after(named(**vessel)), [])
         self.expect(self.after(cell("Conditions", vessel["Conditions"])), "a slot runs for every people", "PlayerRoleIs")
@@ -767,6 +767,22 @@ class SchemaTests(unittest.TestCase):
         self.expect(self.after(standing(LogTemplates=["a.", "b."])), "three variants or more")
         self.expect(self.after(standing(Conditions=vessel["Conditions"])), "a slot runs for every people", "PlayerRoleIs")
         self.expect(self.after(standing(Effects=vessel["Effects"])), "a slot runs for every people", "KillPlayer")
+
+    def test_stay_condition_rows(self):
+        """The stay in a fallen sphere stands on Civilization slot rows only; the row the research stage fires is Named."""
+        stay = cond("CivFallenSphereTicksReached", key="300")
+        harvest = lambda **changes: (lambda tables: self.row(tables, "DT_Events", "event_test_harvest").update(changes))  # noqa: E731
+        self.assertEqual(self.after(harvest(Trigger="Standing", BaseWeight=0, Conditions=[stay])), [])
+        self.assertEqual(self.after(harvest(Conditions=[stay])), [])
+        self.expect(self.after(harvest(Trigger="Named", BaseWeight=0, CooldownTicks=0, LogTemplates=["one."], Conditions=[stay])),
+                    "a row fired by name is not a slot", "CivFallenSphereTicksReached")
+        self.expect(self.after(harvest(Subject="SettledSystem", Conditions=[stay])), "a system-subject row lands on a place", "CivFallenSphereTicksReached")
+        self.expect(self.after(harvest(Trigger="Standing", BaseWeight=0, Subject="SettledSystem", Conditions=[stay])),
+                    "a system-subject row lands on a place", "CivFallenSphereTicksReached")
+        found = lambda **changes: (lambda tables: self.row(tables, "DT_Events", "event_book_found").update(changes))  # noqa: E731
+        self.expect(self.after(found(Trigger="Standing")), "event_book_found", "the research stage fires the found row by name")
+        self.expect(self.after(found(Trigger="Lottery", BaseWeight=1.0, CooldownTicks=600, LogTemplates=["a.", "b.", "c."])),
+                    "event_book_found", "the research stage fires the found row by name")
 
     def test_the_slot_rule_covers_the_vocabulary(self):
         """The rule names its conditions and effects one by one. An enumerator added to the vocabulary later has to be
@@ -859,7 +875,10 @@ class SchemaTests(unittest.TestCase):
         for key in ("300ticks", "0"):
             self.expect(self.conditions(cond("CivFallenSphereTicksReached", key=key)), "(CivFallenSphereTicksReached).Key", "not a count of ticks")
         self.expect(self.conditions(cond("CivFallenSphereTicksReached")), "(CivFallenSphereTicksReached).Key", "a Key is required")
-        self.expect(self.conditions(cond("CivFallenSphereTicksReached", key="300", tag="Trait.Faith.Book")), "(CivFallenSphereTicksReached).Tag", "not under Doctrine.")
+        self.expect(self.conditions(cond("CivFallenSphereTicksReached", key="300", tag="Trait.Faith.Book")), "(CivFallenSphereTicksReached).Tag", "not under")
+        # The counter counts fallen spheres: a celestial doctrine never has one (no instance), any fallen doctrine may.
+        self.expect(self.conditions(cond("CivFallenSphereTicksReached", key="300", tag="Doctrine.Covenant")), "(CivFallenSphereTicksReached).Tag", "not under")
+        self.assertEqual(self.conditions(cond("CivFallenSphereTicksReached", key="300", tag="Doctrine.Zeal")), [])
         self.expect(self.conditions(cond("CivFallenSphereTicksReached", key="300", value=1)), "(CivFallenSphereTicksReached)", "reads no Value")
         self.expect(self.conditions("CivTierAtLeast"), "expected an object")
         self.expect(self.after(self.set_cell("DT_Events", "event_test_harvest", "Conditions", {"Type": "CivTierAtLeast"})), "Conditions", "expected a list")
@@ -1272,7 +1291,7 @@ class SchemaTests(unittest.TestCase):
             ("DT_Events", "a row fired by name tells with one variant or more (guideline 8.2)"): (named, event),
             ("DT_Events", "a slot runs for every people: until the selector words reach the code (Phase 4 petitions) it carries no condition on the vessel, no role effect and no effect on the vessel (guideline 16 #29 (7))"): (NOTHING, event),
             ("DT_Events", "a row fired by name is not a slot: the stay condition holds on every tick of its window there (guideline 7.3)"): (named, event),
-            ("DT_Events", "a system-subject slot row fires once for every settled system: the stay condition would fire it many times in one slot (guideline 7.3)"):
+            ("DT_Events", "a system-subject row lands on a place and the stay condition is about the people: without a cooldown a Standing row would fire once for every settled system in the one slot, otherwise it lands on whichever settled system comes first (guideline 7.3)"):
                 (update_event(Subject="SettledSystem"), event),
             ("DT_Events", "the research stage fires the found row by name: as a slot row it would also fire in the slots (guideline 5.11)"): (NOTHING, "event_book_found"),
             ("DT_Events", "only a Lottery row has a weight"): (update_event(Trigger="Standing", BaseWeight=0), event),
