@@ -1692,7 +1692,9 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 	if (Collected == SupernovaTag)
 	{
 		// The gate was asked before the effects. Should an effect have let the owner's other systems go meanwhile (no row
-		// of the game can: Data.Integrity), it is asked again here: a people reaches no system only behind the gate.
+		// of the game can: Data.Integrity keeps TransferSystem out of the expiry effects and out of OnResolveEffects, which
+		// a ResolveHazard on a neighbour runs), it is asked again here: a people reaches no system only behind the gate. A
+		// system kept here has taken the expiry's effects and its damage to the neighbours already.
 		if (!bLastAtGate && CosmicHazards::IsLastOwnedSystem(State, StateIndex, SystemIndex))
 		{
 			UE_LOG(LogCosmic, Error, TEXT("Expiry of %s: its effects left %s the last owned system of its people; the last-system gate is asked again"), *RowName.ToString(), *State.Systems[SystemIndex].SystemID.ToString());

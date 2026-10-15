@@ -673,6 +673,12 @@ class SchemaTests(unittest.TestCase):
                 # Reported once: an entry that is no name is never also a duplicate.
                 said = [line for line in self.after(rows([wrong])) if "RulerResolutions" in line]
                 self.assertEqual(len(said), 1, said)
+        # Two entries that are no names: each reported, neither a duplicate of the other.
+        for wrong in ([None, ""], ["None", "none"], [None, None], [5, 5]):
+            with self.subTest(entries=wrong):
+                said = [line for line in self.after(rows(wrong)) if "RulerResolutions" in line]
+                self.assertEqual(len(said), 2, said)
+                self.assertEqual([line for line in said if "appears twice" in line], [], said)
         to_events = self.put(column, "tables", ["DT_Events"])
         self.assertEqual(self.after(rows(["event_book_found"]), to_events), [])
         self.expect(self.after(rows(["event_book_found", "event_book_found"]), to_events), "RulerResolutions", "appears twice")
@@ -690,6 +696,11 @@ class SchemaTests(unittest.TestCase):
         names = ["n%s" % letter for letter in "abcdefghij"]
         said = [line for line in self.after(bank(names + [None])) if "PersonNameBank" in line]
         self.assertEqual(len(said), 1, said)
+        for wrong in ([None, None], [5, 5]):
+            with self.subTest(entries=wrong):
+                said = [line for line in self.after(bank(names + wrong)) if "PersonNameBank" in line]
+                self.assertEqual(len(said), 2, said)
+                self.assertEqual([line for line in said if "appears twice" in line], [], said)
 
     def test_hazard_row(self):
         cell = lambda column, value: self.set_cell("DT_Hazards", "crisis_test_storm", column, value)  # noqa: E731
@@ -711,10 +722,10 @@ class SchemaTests(unittest.TestCase):
         for column in ("OnResolveEffects", "OnExpireEffects", "OnExpireBranchEffects"):
             with self.subTest(column=column, effect="ResolveHazard"):
                 self.expect(self.after(both(branch, cell(column, [eff("ResolveHazard")]))), "crisis_test_storm", resolve_again, column)
-        for column in ("OnExpireEffects", "OnExpireBranchEffects", "OnExpireNeighbourEffects"):
+        for column in ("OnExpireEffects", "OnExpireBranchEffects", "OnExpireNeighbourEffects", "OnResolveEffects"):
             with self.subTest(column=column, effect="TransferSystem"):
                 self.expect(self.after(both(branch, cell(column, [eff("TransferSystem")]))), "crisis_test_storm", hand_over, column)
-        # A neighbour's hazard may be resolved by an expiry (the system's own is not).
+        # A neighbour's hazard may be resolved by an expiry (the system's own is not); its resolution hands nothing over.
         self.assertEqual(self.after(cell("OnExpireNeighbourEffects", [eff("ResolveHazard")])), [])
         self.expect(self.after(cell("SpawnConditions", [cond("CivFallenSphereTicksReached", key="300")])), "crisis_test_storm", "the stay condition holds on every tick")
         # The outbreak row: a cult has none, and no outbreak row resolves what just broke out.
@@ -754,7 +765,21 @@ class SchemaTests(unittest.TestCase):
         self.expect(self.after(self.set_cell("DT_Events", "event_test_harvest", "LogTemplates", ["{OtherCiv} a.", "b.", "c."])), "slot {OtherCiv}")
         self.assertEqual(log("{CivAdj} {Civ}."), [])
         # Read the way the engine reads a format text.
-        self.assertEqual(log("{Ruler}|hpp(a,b) of {Civ}."), [])
+        self.assertEqual(log("{Ruler}|hpp(\uc740,\ub294) of {Civ}."), [])
+        # The modifier after a slot: hpp alone, with a particle pair, the form after a final consonant first.
+        self.assertEqual(log("{Civ}|hpp(\uc73c\ub85c, \ub85c) {HomeSystem}|hpp(\uc774,\uac00)."), [])
+        self.expect(log("{Civ}|hpp(\ub294,\uc740) a."), "|hpp(\ub294,\uc740)", "the wrong way round")
+        self.expect(log("{Civ}|hpp(\uac00,\uc774) a."), "the wrong way round")
+        for arguments in ("\uc740", "\uc740.\ub294", "a,b", "\uc740,\ub294,\uc774", "\uc740,", ",\ub294", "\uc740,\ub97c", ""):
+            with self.subTest(arguments=arguments):
+                self.expect(log("{Civ}|hpp(%s) a." % arguments), "|hpp(%s) is not a particle pair" % arguments)
+        self.expect(log("{Civ}|hp(\uc740,\ub294) a."), "the modifier |hp is not one the texts use")
+        self.expect(log("{Civ}|plural(one=a,other=b) a."), "the modifier |plural is not one the texts use")
+        for broken in ("{Civ}|hpp(\uc740,\ub294 a.", "{Civ}| a.", "{Civ}|(\uc740,\ub294) a.", "{Civ}|hpp a."):
+            with self.subTest(text=broken):
+                self.expect(log(broken), "starts no modifier")
+        self.assertEqual(log("{Civ}`| a."), [])
+        self.assertEqual(log("{Civ} |hpp a."), [])
         self.assertEqual(log("`{not a slot`} and {Civ}."), [])
         self.expect(log("{HomeSystm. broken {Civ"), "never closed")
         self.expect(log("HomeSystem} arrives."), "closes nothing")
@@ -1439,8 +1464,8 @@ class SchemaTests(unittest.TestCase):
             ("DT_Hazards", "the leader of a cult has no name (guideline 4.1)"): (update_hazard(HazardTag="Hazard.Cult"), hazard),
             ("DT_Hazards", "the stage reads the spawn conditions on every tick, and the stay condition holds on every tick of its window, not in one slot (guideline 7.3)"):
                 (NOTHING, hazard),
-            ("DT_Hazards", "only stage code behind the last-system gate takes a system: an expiry hands nothing over (guideline 4.5, 16 #53 (1))"): (NOTHING, hazard),
-            ("DT_Hazards", "a resolution or an expiry does not resolve again on its own system: a row that resolves what it places would never end (guideline 7.4)"):
+            ("DT_Hazards", "only stage code behind the last-system gate takes a system: an expiry hands nothing over, and neither does a resolution, which an expiry may run on a neighbour (guideline 4.5, 16 #53 (1))"): (NOTHING, hazard),
+            ("DT_Hazards", "a resolution or an expiry does not resolve again on its own system: a row that resolves what it places would never end (guideline 7.3)"):
                 (NOTHING, hazard),
             ("DT_Transcendents", "the fixed place of the roster belongs to a fallen silence"): (NOTHING, "trans_silence"),
             ("DT_Transcendents", "a transcendent stands on tier 3 or 4 (guideline 4.2: no fallen one on tier 5)"): (NOTHING, "trans_silence"),
@@ -1464,7 +1489,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 57, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 58, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

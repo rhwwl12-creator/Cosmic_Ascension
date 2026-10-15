@@ -56,10 +56,11 @@ namespace CosmicHazards
 	 * unowned one cannot be let go), and for the last owned system of its owner: only stage code behind the last-system
 	 * gate takes that (section 4.5). What changes with the owner: the system leaves the old owner's OwnedSystems and joins
 	 * the end of the new owner's; its megaproject row and progress end (a completion tick stays); the hazard of a Capital
-	 * row ends without result, and so does any hazard of a system let go (no people under it, no threat: section 16 #29
-	 * (5)) - a rebellion that ends so also closes its leader's open record and starts the old owner's count over, as a
-	 * resolution does; when it was the old owner's capital, the capital moves (MoveCapital). Leaves no note: a hazard it
-	 * ends is not told (the note of a received system arrives with the known scope and log work).
+	 * row ends without result, and so does a Hazard.Rebellion whose tag no row holds (the old owner's discontent either
+	 * way) and any hazard of a system let go (no people under it, no threat: section 16 #29 (5)) - a rebellion that ends so
+	 * also closes its leader's open record and starts the old owner's count over, as a resolution does; when it was the old
+	 * owner's capital, the capital moves (MoveCapital). Leaves no note: a hazard it ends is not told (the note of a
+	 * received system arrives with the known scope and log work).
 	 */
 	COSMIC_ASCENSION_API bool Transfer(FCosmicEvalContext& Ctx, int32 SystemIndex, int32 ToCivIndex);
 

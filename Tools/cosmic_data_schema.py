@@ -43,6 +43,17 @@ CODE_NAME = re.compile(r'TEXT\("([^"]*)"\)')
 CODE_COMMENT = re.compile(r'/\*.*?\*/|//[^\n]*', re.S)
 # FText::Format: a backtick escapes one of these.
 ESCAPED = "`{}|"
+# FText::Format: an argument modifier right after a slot, as in {Civ}|hpp(...): a name of letters, digits and underscores,
+# then its arguments in parentheses (TextFormatter.cpp). A bar that starts no modifier, or a modifier the engine cannot
+# compile, is printed as it stands.
+MODIFIER = re.compile(r"\|([A-Za-z0-9_]*)(?:\(([^)]*)\))?")
+# The particle pairs the texts give hpp, the form after a final consonant first: the engine puts the first argument
+# after a Hangul syllable that has a final consonant and the second after one that has none
+# (TextFormatArgumentModifier.cpp, FTextFormatArgumentModifier_HangulPostPositions).
+HANGUL_PARTICLES = {
+    "\uc774": "\uac00", "\uc740": "\ub294", "\uc744": "\ub97c", "\uacfc": "\uc640", "\uc73c\ub85c": "\ub85c",
+    "\uc774\ub77c": "\ub77c", "\uc544": "\uc57c", "\uc774\uc5ec": "\uc5ec",
+}
 # Numbers of the sky (guideline 8.3): a figure is a numeral of any script, or a Korean number word before a counter
 # (\ucc9c\uc5b5 \uac1c, \uc2ed\ub9cc \uad11\ub144); a catalogue designation (M87, NGC 205, IC 1101) is a name and no figure. A text is
 # read clause by clause, and each clause with a figure carries its own hedge; a thousands comma has no space after it.
@@ -388,9 +399,28 @@ def length_of(value):
     return 0
 
 
+def modifier_at(text, index):
+    """The argument modifier at text[index], a bar right after a slot: (where reading goes on, what is wrong with it or
+    None). The texts use hpp alone, with a pair of HANGUL_PARTICLES in its order."""
+    match = MODIFIER.match(text, index)
+    name, arguments = match.group(1), match.group(2)
+    if not name or arguments is None:
+        return index + 1, "a '|' after a slot that starts no modifier (the engine prints it as it stands)"
+    if name != "hpp":
+        return match.end(), "the modifier |%s is not one the texts use (only hpp)" % name
+    pair = [argument.strip() for argument in arguments.split(",")]
+    if len(pair) == 2 and HANGUL_PARTICLES.get(pair[1]) == pair[0]:
+        return match.end(), "|hpp(%s) has its forms the wrong way round: the form after a final consonant comes first" % arguments
+    if len(pair) != 2 or HANGUL_PARTICLES.get(pair[0]) != pair[1]:
+        return match.end(), "|hpp(%s) is not a particle pair, the form after a final consonant first (%s)" % (
+            arguments, " ".join("%s,%s" % item for item in HANGUL_PARTICLES.items()))
+    return match.end(), None
+
+
 def slots_of(text):
-    """(the slot names of a format text, what is wrong with its braces), read the way FText::Format reads it: a
-    backtick escapes a brace, and from an opening brace to the next closing one is the name of an argument."""
+    """(the slot names of a format text, what is wrong with its braces and modifiers), read the way FText::Format reads
+    it: a backtick escapes a brace, from an opening brace to the next closing one is the name of an argument, and a bar
+    right after it starts an argument modifier (modifier_at)."""
     names = []
     problems = []
     index = 0
@@ -406,6 +436,10 @@ def slots_of(text):
                 break
             names.append(text[index + 1:end])
             index = end + 1
+            if text[index:index + 1] == "|":
+                index, problem = modifier_at(text, index)
+                if problem:
+                    problems.append(problem)
             continue
         if char == "}":
             problems.append("a '}' that closes nothing")
@@ -729,7 +763,7 @@ class Checker:
             for problem in problems:
                 self.report(where, "%s: %s" % (problem, value))
             for slot in names:
-                # A slot may carry a format modifier after a bar, as in {Ruler}|hpp(...): the name is what is checked.
+                # A slot may carry a format modifier after a bar, as in {Ruler}|hpp(...): slots_of read it above.
                 if slot not in spec["slots"]:
                     self.report(where, "slot {%s} is not filled here (allowed: %s)" % (slot, ", ".join(spec["slots"]) or "none"))
 

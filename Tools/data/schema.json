@@ -438,15 +438,16 @@
 					"then": [{"col": "SpawnConditions", "lacks_type": "CivFallenSphereTicksReached"}]
 				},
 				{
-					"why": "only stage code behind the last-system gate takes a system: an expiry hands nothing over (guideline 4.5, 16 #53 (1))",
+					"why": "only stage code behind the last-system gate takes a system: an expiry hands nothing over, and neither does a resolution, which an expiry may run on a neighbour (guideline 4.5, 16 #53 (1))",
 					"then": [
 						{"col": "OnExpireEffects", "lacks_type": "TransferSystem"},
 						{"col": "OnExpireBranchEffects", "lacks_type": "TransferSystem"},
-						{"col": "OnExpireNeighbourEffects", "lacks_type": "TransferSystem"}
+						{"col": "OnExpireNeighbourEffects", "lacks_type": "TransferSystem"},
+						{"col": "OnResolveEffects", "lacks_type": "TransferSystem"}
 					]
 				},
 				{
-					"why": "a resolution or an expiry does not resolve again on its own system: a row that resolves what it places would never end (guideline 7.4)",
+					"why": "a resolution or an expiry does not resolve again on its own system: a row that resolves what it places would never end (guideline 7.3)",
 					"then": [
 						{"col": "OnResolveEffects", "lacks_type": "ResolveHazard"},
 						{"col": "OnExpireEffects", "lacks_type": "ResolveHazard"},

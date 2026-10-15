@@ -184,7 +184,8 @@ bool CosmicHazards::Transfer(FCosmicEvalContext& Ctx, int32 SystemIndex, int32 T
 	if (System.ActiveHazard.IsValid())
 	{
 		const FHazardDef* Row = Ctx.Tables.FindHazardByTag(System.ActiveHazard);
-		if (ToCivIndex == INDEX_NONE || (Row && Row->SpawnRule == ECosmicHazardSpawn::Capital))
+		// A rebellion is the old owner's discontent whether a row holds its tag or not.
+		if (ToCivIndex == INDEX_NONE || System.ActiveHazard == RebellionTag || (Row && Row->SpawnRule == ECosmicHazardSpawn::Capital))
 		{
 			if (System.ActiveHazard == RebellionTag)
 			{

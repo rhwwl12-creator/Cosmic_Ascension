@@ -343,8 +343,10 @@ private:
 	 * DeposeRuler through Apply when the people the vessel rules has no system left; Hazard.Rebellion: the throne;
 	 * Hazard.Claim: the join); the slot emptied; the claim rule on that slot; the expiry line (a claim that did not join
 	 * tells the resolution line); FollowUpNotes. Should the effects have made the system its owner's last owned system
-	 * after the gate let it pass (no row of the game can: Data.Integrity), the gate is asked again, with an error line,
-	 * before the code of the tag takes it.
+	 * after the gate let it pass (no row of the game can: Data.Integrity keeps TransferSystem out of the expiry effects
+	 * and out of OnResolveEffects, which a ResolveHazard on a neighbour runs), the gate is asked again, with an error line,
+	 * before the code of the tag takes it; a system kept then has taken the effects already, and the notes they left are
+	 * told after the grace line.
 	 */
 	void ExpireHazard(int32 SystemIndex, FGameplayTag Collected, float OutcomeNumber, float ClaimNumber);
 
