@@ -5,8 +5,8 @@ Cosmic Ascension - data layer helper (guideline.md section 7.3, 9.3 Data.Integri
   python Tools/test_data_schema.py
 
 The base of every case is the data of the project itself under the schema of the project (it has to pass), with the
-rows of two tables built here instead: DT_Events, which has no source yet, and DT_Transcendents, whose rows the cases
-read cell by cell (the project's rows are replaced on purpose). A case changes one thing and names the words the report
+rows of two tables built here instead: DT_Events and DT_Transcendents, whose rows the cases read cell by cell (the
+project's rows are replaced on purpose). A case changes one thing and names the words the report
 has to carry.
 
 The last block walks the schema of the project: every rule, every unique, every pair, every target and every slot list
@@ -136,8 +136,8 @@ def civ_row(base, name, **cells):
 
 
 def fixture_tables(schema, tables):
-    """The tables every case starts from: the sources of the project, with fixture rows for DT_Events (no source yet)
-    and for DT_Transcendents (its project rows are replaced on purpose: the cases read the cells of the rows they build).
+    """The tables every case starts from: the sources of the project, with fixture rows for DT_Events and for
+    DT_Transcendents (their project rows are replaced on purpose: the cases read the cells of the rows they build).
     A row the code calls by name has to be in its table, so the event fixture gets one valid row for each name the schema
     requires (fired by name: no rule about slot rows speaks of it)."""
     tables = copy.deepcopy(tables)
@@ -227,7 +227,7 @@ class SchemaTests(unittest.TestCase):
     def test_fixture_has_the_rows_the_code_calls(self):
         """The day the code calls an event row by name, the schema requires it and the fixture has to carry it."""
         schema = copy.deepcopy(self.schema)
-        schema["tables"]["DT_Events"]["required_rows"] = ["event_called_by_name"]
+        schema["tables"]["DT_Events"]["required_rows"] = schema["tables"]["DT_Events"].get("required_rows", []) + ["event_called_by_name"]
         self.expect(checker.check(schema, self.tables, self.tags), "DT_Events", "the row event_called_by_name", "is missing")
         self.assertEqual(checker.check(schema, fixture_tables(schema, self.tables), self.tags), [])
 
@@ -853,6 +853,14 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(self.conditions(cond("CivRelationAtLeast", value=0.5)), [])
         self.assertEqual(self.conditions(cond("SystemHasHazard"), cond("CivHasNotable", tag="Notable.Rebel", key="Former")), [])
         self.expect(self.conditions(cond("CivHasNotable", tag="Notable.Rebel", key="Latter")), "Latter is none of Former")
+        # The stay in a fallen sphere: a count of ticks, a doctrine that may be left out, no Value.
+        self.assertEqual(self.conditions(cond("CivFallenSphereTicksReached", key="300")), [])
+        self.assertEqual(self.conditions(cond("CivFallenSphereTicksReached", key="300", tag="Doctrine.Silence")), [])
+        for key in ("300ticks", "0"):
+            self.expect(self.conditions(cond("CivFallenSphereTicksReached", key=key)), "(CivFallenSphereTicksReached).Key", "not a count of ticks")
+        self.expect(self.conditions(cond("CivFallenSphereTicksReached")), "(CivFallenSphereTicksReached).Key", "a Key is required")
+        self.expect(self.conditions(cond("CivFallenSphereTicksReached", key="300", tag="Trait.Faith.Book")), "(CivFallenSphereTicksReached).Tag", "not under Doctrine.")
+        self.expect(self.conditions(cond("CivFallenSphereTicksReached", key="300", value=1)), "(CivFallenSphereTicksReached)", "reads no Value")
         self.expect(self.conditions("CivTierAtLeast"), "expected an object")
         self.expect(self.after(self.set_cell("DT_Events", "event_test_harvest", "Conditions", {"Type": "CivTierAtLeast"})), "Conditions", "expected a list")
 
@@ -1262,7 +1270,11 @@ class SchemaTests(unittest.TestCase):
                 (NOTHING, "arch_default"),
             ("DT_Events", "a slot row tells with three variants or more (guideline 8.2)"): (NOTHING, event),
             ("DT_Events", "a row fired by name tells with one variant or more (guideline 8.2)"): (named, event),
-            ("DT_Events", "a slot runs for every people: until the selector words are decided it carries no condition on the vessel, no role effect and no effect on the vessel (guideline 16 #29 (7))"): (NOTHING, event),
+            ("DT_Events", "a slot runs for every people: until the selector words reach the code (Phase 4 petitions) it carries no condition on the vessel, no role effect and no effect on the vessel (guideline 16 #29 (7))"): (NOTHING, event),
+            ("DT_Events", "a row fired by name is not a slot: the stay condition holds on every tick of its window there (guideline 7.3)"): (named, event),
+            ("DT_Events", "a system-subject slot row fires once for every settled system: the stay condition would fire it many times in one slot (guideline 7.3)"):
+                (update_event(Subject="SettledSystem"), event),
+            ("DT_Events", "the research stage fires the found row by name: as a slot row it would also fire in the slots (guideline 5.11)"): (NOTHING, "event_book_found"),
             ("DT_Events", "only a Lottery row has a weight"): (update_event(Trigger="Standing", BaseWeight=0), event),
             ("DT_Events", "a row fired by name has no cooldown key"): (named, event),
             ("DT_Events", "a sign row is told below MinTierToReveal, so there has to be a tier below it"): (self.add_sign_row, event),
@@ -1290,7 +1302,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 30, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 33, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

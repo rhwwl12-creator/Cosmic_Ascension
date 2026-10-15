@@ -64,9 +64,11 @@ enum class EConditionType : uint8
 	CivHasNotable,
 	// Key = tick count (digits only, above zero; anything else is false). True in the one event slot of the civilization
 	// in which its stay in a fallen sphere reaches Key ticks: Key <= FallenSphereTicks < Key + DT_Rules.EventSlotTicks
-	// (below 1 read as 1), so a Standing row fires once per stay. Tag = optional Doctrine.*: one of the civilization's
-	// settled systems must then also lie, now, in the sphere of an unsealed transcendent of that doctrine. Value unused
-	// (section 5.11 "the book was shut", 16 #25 (1)).
+	// (below 1 read as 1). So a Civilization slot row fires at most once per stay, and exactly once when the stay lasts
+	// Key + EventSlotTicks - 1 ticks; Named and SettledSystem rows do not carry it (schema). A change of EventSlotTicks in
+	// the data holds from the next stay on. Tag = optional Doctrine.*: one of the civilization's settled systems must then
+	// also lie, now, in the sphere of an unsealed transcendent of that doctrine. Value unused (section 5.11 "the book was
+	// shut", 16 #25 (1)).
 	CivFallenSphereTicksReached
 	// Decided, appended with the first row that uses each (section 16 #29): CivResearchAtLeast, CivStabilityAtLeast,
 	// PlayerHasPower.

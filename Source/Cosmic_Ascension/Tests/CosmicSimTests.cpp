@@ -1632,6 +1632,8 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 	}
 	// A draw outside a tick: the save itself has to capture the live stream position.
 	Sim->GetRng().GetUnsignedInt();
+	// A stay in a fallen sphere under way: the counter is checked on its own after the load, not only through the hash.
+	Sim->GetMutableState().Civs[1].FallenSphereTicks = 123;
 
 	const FGuid GalaxyID = Sim->GetState().GalaxyID;
 	const uint32 HashAtSave = Sim->ComputeStateHash();
@@ -1664,6 +1666,8 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 	{
 		TestEqual(TEXT("Hash right after load equals hash at save"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(HashAtSave));
 		TestEqual(TEXT("Tick after load"), Sim->GetState().Tick, static_cast<int64>(1000));
+		TestEqual(TEXT("A stay in a fallen sphere survives the round trip"),
+			Sim->GetState().Civs.IsValidIndex(1) ? Sim->GetState().Civs[1].FallenSphereTicks : static_cast<int32>(INDEX_NONE), 123);
 		TestTrue(TEXT("GalaxyID survives the round trip"), Sim->GetState().GalaxyID == GalaxyID);
 		TestEqual(TEXT("Names and log text survive the round trip"), CosmicSimTests::CollectText(Sim->GetState()), TextAtSave);
 		TestTrue(TEXT("Loaded log text is still culture-invariant"), !Sim->GetState().Log.IsEmpty() && Sim->GetState().Log[0].Message.IsCultureInvariant());

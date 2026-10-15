@@ -212,7 +212,7 @@
 					"then": [{"col": "LogTemplates", "min_len": 1}]
 				},
 				{
-					"why": "a slot runs for every people: until the selector words are decided it carries no condition on the vessel, no role effect and no effect on the vessel (guideline 16 #29 (7))",
+					"why": "a slot runs for every people: until the selector words reach the code (Phase 4 petitions) it carries no condition on the vessel, no role effect and no effect on the vessel (guideline 16 #29 (7))",
 					"when": [{"col": "Trigger", "in": ["Lottery", "Standing"]}],
 					"then": [
 						{"col": "Conditions", "lacks_type": "PlayerTierAtLeast"},
@@ -243,6 +243,21 @@
 					"why": "a sign row is told below MinTierToReveal, so there has to be a tier below it",
 					"when": [{"col": "SignRow", "set": true}],
 					"then": [{"col": "MinTierToReveal", "ge": 2}]
+				},
+				{
+					"why": "a row fired by name is not a slot: the stay condition holds on every tick of its window there (guideline 7.3)",
+					"when": [{"col": "Trigger", "is": "Named"}],
+					"then": [{"col": "Conditions", "lacks_type": "CivFallenSphereTicksReached"}]
+				},
+				{
+					"why": "a system-subject slot row fires once for every settled system: the stay condition would fire it many times in one slot (guideline 7.3)",
+					"when": [{"col": "Subject", "is": "SettledSystem"}],
+					"then": [{"col": "Conditions", "lacks_type": "CivFallenSphereTicksReached"}]
+				},
+				{
+					"why": "the research stage fires the found row by name: as a slot row it would also fire in the slots (guideline 5.11)",
+					"when": [{"row": "event_book_found"}],
+					"then": [{"col": "Trigger", "is": "Named"}]
 				},
 				{
 					"why": "a grace row names no one (guideline 9.3: NameNotable is not carried by Event.Grace rows)",

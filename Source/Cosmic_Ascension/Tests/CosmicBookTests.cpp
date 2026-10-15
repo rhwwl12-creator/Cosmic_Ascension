@@ -18,6 +18,7 @@
 #include "Misc/ScopeExit.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
+#include "UObject/NameTypes.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 
@@ -40,6 +41,10 @@ namespace CosmicBookTests
 	const FName Fallen(TEXT("tr_test_fallen"));
 	const FName Apart(TEXT("tr_test_apart"));
 	const FName Rowless(TEXT("tr_test_rowless"));
+	const FName TestClosed(TEXT("event_test_closed"));
+	const FName TestReading(TEXT("event_test_reading"));
+	const FName GameClosed(TEXT("event_book_closed"));
+	const FName GameReading(TEXT("event_book_reading"));
 
 	// A fallen row of Silence and an independent row, both of tier 4: the transcendents of the test.
 	UDataTable* TranscendentRows()
@@ -75,8 +80,19 @@ namespace CosmicBookTests
 		return Tables;
 	}
 
+	// No research progress at all, so that no breakthrough of its own falls inside a case (a Society mark would fire the
+	// found row).
+	void NoResearch(FCivilizationState& Civ)
+	{
+		for (TPair<FName, float>& Focus : Civ.ResearchFocus)
+		{
+			Focus.Value = 0.f;
+		}
+	}
+
 	// A board the test knows: the chain of CosmicTests::WireChain, civilization 0 holds systems 0 and 1, the others one
-	// system each (6, 9, 11), no transcendent, and civilization 0 has the book. False below twelve systems or four peoples.
+	// system each (6, 9, 11), no transcendent, civilization 0 has the book and nobody researches. False below twelve
+	// systems or four peoples.
 	bool Board(FGalaxyState& State)
 	{
 		if (!CosmicTests::WireChain(State) || State.Civs.Num() < 4)
@@ -91,10 +107,14 @@ namespace CosmicBookTests
 		State.Transcendents.Reset();
 		State.Civs[0].Traits.AddTag(Tag(TEXT("Trait.Faith.Book")));
 		State.Civs[0].Traits.RemoveTag(Tag(TEXT("Trait.Faith.BookShut")));
+		for (FCivilizationState& Civ : State.Civs)
+		{
+			NoResearch(Civ);
+		}
 		return true;
 	}
 
-	FTranscendentState& AddInstance(FGalaxyState& State, FName TranscendentID, const TCHAR* Doctrine, std::initializer_list<int32> Sphere)
+	void AddInstance(FGalaxyState& State, FName TranscendentID, const TCHAR* Doctrine, std::initializer_list<int32> Sphere)
 	{
 		FTranscendentState& Transcendent = State.Transcendents.AddDefaulted_GetRef();
 		Transcendent.TranscendentID = TranscendentID;
@@ -103,7 +123,6 @@ namespace CosmicBookTests
 		{
 			Transcendent.InfluencedSystems.Add(State.Systems[SystemIndex].SystemID);
 		}
-		return Transcendent;
 	}
 
 	FCosmicCondition Cond(EConditionType Type, const TCHAR* TagName, const TCHAR* Key)
@@ -124,22 +143,37 @@ namespace CosmicBookTests
 		return Effect;
 	}
 
-	// The book rows of the test: shut after Key ticks in a sphere of Doctrine (a Standing row), found by name.
+	TArray<FText> Lines(const TCHAR* Stem)
+	{
+		return {
+			FText::AsCultureInvariant(FString::Printf(TEXT("%s one"), Stem)),
+			FText::AsCultureInvariant(FString::Printf(TEXT("%s two"), Stem)),
+			FText::AsCultureInvariant(FString::Printf(TEXT("%s three"), Stem))
+		};
+	}
+
+	// The book rows of the test: closed after 300 ticks in a sphere of Doctrine (a Standing row), found by name, and a
+	// reading of every slot while the book is open (a Standing row without cooldown) whose name sorts after the closing.
 	UDataTable* BookRows(const TCHAR* Doctrine)
 	{
 		UDataTable* Events = NewTable(FCosmicEventDef::StaticStruct());
-		FCosmicEventDef Shut;
-		Shut.Category = Tag(TEXT("Event.Civ.Society"));
-		Shut.LogCategory = Tag(TEXT("Log.Civ"));
-		Shut.Trigger = ECosmicEventTrigger::Standing;
-		Shut.Subject = ECosmicEventSubject::Civilization;
-		Shut.BaseWeight = 0.f;
-		Shut.CooldownTicks = 0;
-		Shut.Conditions = { Cond(EConditionType::CivHasTrait, TEXT("Trait.Faith.Book"), nullptr), Cond(EConditionType::CivFallenSphereTicksReached, Doctrine, TEXT("300")) };
-		Shut.Effects = { Eff(EEffectType::RemoveTrait, TEXT("Trait.Faith.Book")), Eff(EEffectType::AddTrait, TEXT("Trait.Faith.BookShut")) };
-		Shut.LogTemplates = { FText::AsCultureInvariant(TEXT("shut one")), FText::AsCultureInvariant(TEXT("shut two")), FText::AsCultureInvariant(TEXT("shut three")) };
-		Events->AddRow(FName(TEXT("event_test_shut")), Shut);
-		FCosmicEventDef Found = Shut;
+		FCosmicEventDef Closed;
+		Closed.Category = Tag(TEXT("Event.Civ.Society"));
+		Closed.LogCategory = Tag(TEXT("Log.Civ"));
+		Closed.Trigger = ECosmicEventTrigger::Standing;
+		Closed.Subject = ECosmicEventSubject::Civilization;
+		Closed.BaseWeight = 0.f;
+		Closed.CooldownTicks = 0;
+		Closed.Conditions = { Cond(EConditionType::CivHasTrait, TEXT("Trait.Faith.Book"), nullptr), Cond(EConditionType::CivFallenSphereTicksReached, Doctrine, TEXT("300")) };
+		Closed.Effects = { Eff(EEffectType::RemoveTrait, TEXT("Trait.Faith.Book")), Eff(EEffectType::AddTrait, TEXT("Trait.Faith.BookShut")) };
+		Closed.LogTemplates = Lines(TEXT("closed"));
+		Events->AddRow(TestClosed, Closed);
+		FCosmicEventDef Reading = Closed;
+		Reading.Conditions = { Cond(EConditionType::CivHasTrait, TEXT("Trait.Faith.Book"), nullptr) };
+		Reading.Effects.Reset();
+		Reading.LogTemplates = Lines(TEXT("reading"));
+		Events->AddRow(TestReading, Reading);
+		FCosmicEventDef Found = Closed;
 		Found.Trigger = ECosmicEventTrigger::Named;
 		Found.Conditions = { Cond(EConditionType::CivHasTrait, TEXT("Trait.Faith.BookShut"), nullptr) };
 		Found.Effects = { Eff(EEffectType::RemoveTrait, TEXT("Trait.Faith.BookShut")), Eff(EEffectType::AddTrait, TEXT("Trait.Faith.Book")), Eff(EEffectType::ChangeStability, nullptr, 0.2f) };
@@ -161,14 +195,20 @@ namespace CosmicBookTests
 	// Research that crosses the first mark of one field in the next tick: everything spent goes to that field.
 	void ToTheMark(FCivilizationState& Civ, const TCHAR* Field)
 	{
-		for (TPair<FName, float>& Focus : Civ.ResearchFocus)
-		{
-			Focus.Value = 0.f;
-		}
+		NoResearch(Civ);
 		Civ.ResearchFocus.Add(FName(Field), 1.f);
 		Civ.Research.Add(FName(Field), 0.2499f);
 		Civ.Population = 1.f;
 		Civ.Stockpile.Insight = 100.f;
+	}
+
+	// Log lines of a row about a people, at one tick or at any tick (Tick < 0).
+	int32 LinesOf(const FGalaxyState& State, FName Row, FName CivID, int64 Tick = -1)
+	{
+		return State.Log.FilterByPredicate([Row, CivID, Tick](const FCosmicLogEntry& Entry)
+		{
+			return Entry.SourceRow == Row && Entry.FocusCivID == CivID && (Tick < 0 || Entry.Tick == Tick);
+		}).Num();
 	}
 }
 
@@ -193,70 +233,89 @@ bool FCosmicFallenSphereTicksTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	FTranscendentState& Silence = AddInstance(State, Fallen, TEXT("Doctrine.Silence"), { 1 });
+	AddInstance(State, Fallen, TEXT("Doctrine.Silence"), { 1 });
+	// Read through the arrays after every run, never through a reference held across one.
+	auto Count = [&State](int32 CivIndex)
+	{
+		return State.Civs.IsValidIndex(CivIndex) ? State.Civs[CivIndex].FallenSphereTicks : static_cast<int32>(INDEX_NONE);
+	};
+	auto Silence = [&State]() -> FTranscendentState&
+	{
+		return State.Transcendents[0];
+	};
 	auto Sphere = [&State, &Silence](std::initializer_list<int32> Systems)
 	{
-		Silence.InfluencedSystems.Reset();
+		Silence().InfluencedSystems.Reset();
 		for (const int32 SystemIndex : Systems)
 		{
-			Silence.InfluencedSystems.Add(State.Systems[SystemIndex].SystemID);
+			Silence().InfluencedSystems.Add(State.Systems[SystemIndex].SystemID);
 		}
 	};
-	const int32& Count = State.Civs[0].FallenSphereTicks;
 
 	Sim->RunHeadless(5);
-	TestEqual(TEXT("A settled system inside a fallen sphere counts one a tick"), Count, 5);
-	TestEqual(TEXT("A people without a system inside counts nothing"), State.Civs[1].FallenSphereTicks, 0);
+	if (!TestEqual(TEXT("The one transcendent of the test is still there"), State.Transcendents.Num(), 1))
+	{
+		return false;
+	}
+	TestEqual(TEXT("A settled system inside a fallen sphere counts one a tick"), Count(0), 5);
+	TestEqual(TEXT("A people without a system inside counts nothing"), Count(1), 0);
 	Sphere({ 0, 1 });
 	Sim->RunHeadless(3);
-	TestEqual(TEXT("Two systems inside still count one a tick"), Count, 8);
+	TestEqual(TEXT("Two systems inside still count one a tick"), Count(0), 8);
 	Sphere({});
 	Sim->RunHeadless(1);
-	TestEqual(TEXT("Leaving the sphere starts the count over"), Count, 0);
+	TestEqual(TEXT("Leaving the sphere starts the count over"), Count(0), 0);
 	Sphere({ 1 });
 	Sim->RunHeadless(2);
-	TestEqual(TEXT("Coming back counts from one"), Count, 2);
+	TestEqual(TEXT("Coming back counts from one"), Count(0), 2);
+
+	// The tier of the people does not matter: on the transcendent's own tier the sphere still counts.
+	State.Civs[0].Tier = EAscensionTier::Tier4_Transcendent;
+	Sim->RunHeadless(1);
+	TestEqual(TEXT("A people on the transcendent's own tier still counts"), Count(0), 3);
+	State.Civs[0].Tier = EAscensionTier::Tier1_Planetary;
 
 	// A lane away is not inside.
 	Sphere({ 2 });
 	Sim->RunHeadless(1);
-	TestEqual(TEXT("A system one lane from the sphere is not inside"), Count, 0);
+	TestEqual(TEXT("A system one lane from the sphere is not inside"), Count(0), 0);
 	Sphere({ 1 });
 	Sim->RunHeadless(1);
-	TestEqual(TEXT("Inside again after the lane case"), Count, 1);
+	TestEqual(TEXT("Inside again after the lane case"), Count(0), 1);
 
 	// A system being settled is owned, not settled.
 	State.Systems[1].ActiveMegaproject = CosmicRows::ProjectSettle;
 	Sim->RunHeadless(1);
-	TestEqual(TEXT("A system being settled does not count"), Count, 0);
+	TestEqual(TEXT("A system being settled does not count"), Count(0), 0);
 	State.Systems[1].ActiveMegaproject = NAME_None;
 	Sim->RunHeadless(1);
-	TestEqual(TEXT("Settled again, it counts"), Count, 1);
+	TestEqual(TEXT("Settled again, it counts"), Count(0), 1);
 
 	// A sealed transcendent, an instance without a row and an independent sphere press no fallen sphere on anyone.
-	Silence.bSealed = true;
+	Silence().bSealed = true;
 	Sim->RunHeadless(1);
-	TestEqual(TEXT("The sphere of a sealed transcendent does not count"), Count, 0);
-	Silence.bSealed = false;
+	TestEqual(TEXT("The sphere of a sealed transcendent does not count"), Count(0), 0);
+	Silence().bSealed = false;
 	Sim->RunHeadless(1);
-	TestEqual(TEXT("Unsealed again, it counts"), Count, 1);
-	Silence.TranscendentID = Rowless;
+	TestEqual(TEXT("Unsealed again, it counts"), Count(0), 1);
+	Silence().TranscendentID = Rowless;
 	Sim->RunHeadless(1);
-	TestEqual(TEXT("The sphere of an instance without a row does not count"), Count, 0);
-	Silence.TranscendentID = Apart;
-	Silence.Doctrine = Tag(TEXT("Doctrine.Stillness"));
+	TestEqual(TEXT("The sphere of an instance without a row does not count"), Count(0), 0);
+	Silence().TranscendentID = Apart;
+	Silence().Doctrine = Tag(TEXT("Doctrine.Stillness"));
 	Sim->RunHeadless(1);
-	TestEqual(TEXT("An independent sphere is not a fallen one"), Count, 0);
-	Silence.TranscendentID = Fallen;
-	Silence.Doctrine = Tag(TEXT("Doctrine.Silence"));
+	TestEqual(TEXT("An independent sphere is not a fallen one"), Count(0), 0);
+	Silence().TranscendentID = Fallen;
+	Silence().Doctrine = Tag(TEXT("Doctrine.Silence"));
 	Sim->RunHeadless(1);
-	TestEqual(TEXT("The fallen row again, it counts"), Count, 1);
+	TestEqual(TEXT("The fallen row again, it counts"), Count(0), 1);
 
 	// A system of another people counts for that people only.
 	Sphere({ 6 });
 	Sim->RunHeadless(1);
-	TestEqual(TEXT("Another people's system inside does not count for this one"), Count, 0);
-	TestEqual(TEXT("It counts for the people that holds it"), State.Civs[1].FallenSphereTicks, 1);
+	TestEqual(TEXT("Another people's system inside does not count for this one"), Count(0), 0);
+	TestEqual(TEXT("It counts for the people that holds it"), Count(1), 1);
+	TestEqual(TEXT("A third people without a system inside still counts nothing"), Count(2), 0);
 
 	Sim->SetTables(Original);
 	Sim->NewGalaxy(42, 5, 3);
@@ -276,50 +335,56 @@ bool FCosmicBookCycleTest::RunTest(const FString& Parameters)
 	const FCosmicRulesDef BaseRules = Sim->GetRules();
 	ON_SCOPE_EXIT { Sim->SetTables(Original); };
 
-	// The book is shut in the one slot in which the stay in Silence's sphere reaches 300 ticks.
+	// The book is closed in the one slot in which the stay in Silence's sphere reaches 300 ticks, and the reading of that
+	// slot, which sorts after the closing, finds no book left to read.
 	{
 		Sim->SetTables(TablesWith(Original, BaseRules, BookRows(TEXT("Doctrine.Silence"))));
 		Sim->NewGalaxy(42, 12, 4);
 		FGalaxyState& State = Sim->GetMutableState();
-		if (!TestTrue(TEXT("The board of the shut cases is laid"), Board(State)))
+		if (!TestTrue(TEXT("The board of the closing cases is laid"), Board(State)))
 		{
 			return false;
 		}
-		FTranscendentState& Silence = AddInstance(State, Fallen, TEXT("Doctrine.Silence"), { 1 });
-		FCivilizationState& Civ = State.Civs[0];
-		bool bShutEarly = false;
-		int32 ShutAt = INDEX_NONE;
-		for (int32 Tick = 0; Tick < 320 && ShutAt == INDEX_NONE; ++Tick)
+		AddInstance(State, Fallen, TEXT("Doctrine.Silence"), { 1 });
+		const FName CivID = State.Civs[0].CivID;
+		bool bClosedEarly = false;
+		int32 ClosedAt = INDEX_NONE;
+		int64 ClosedTick = -1;
+		for (int32 Tick = 0; Tick < 320 && ClosedAt == INDEX_NONE; ++Tick)
 		{
 			Sim->RunHeadless(1);
-			if (!HasBook(Civ))
+			if (!HasBook(State.Civs[0]))
 			{
-				ShutAt = Civ.FallenSphereTicks;
-				bShutEarly = Civ.FallenSphereTicks < 300;
+				ClosedAt = State.Civs[0].FallenSphereTicks;
+				ClosedTick = State.Tick;
+				bClosedEarly = ClosedAt < 300;
 			}
 		}
-		TestNotEqual(TEXT("The book is shut within 320 ticks of the stay"), ShutAt, static_cast<int32>(INDEX_NONE));
-		TestFalse(TEXT("The book is not shut before the stay reaches 300 ticks"), bShutEarly);
-		TestTrue(TEXT("The book is shut by the slot of the stay's 309th tick"), ShutAt < 310);
-		TestTrue(TEXT("The shut book carries BookShut"), HasShutBook(Civ));
+		TestNotEqual(TEXT("The book is closed within 320 ticks of the stay"), ClosedAt, static_cast<int32>(INDEX_NONE));
+		TestFalse(TEXT("The book is not closed before the stay reaches 300 ticks"), bClosedEarly);
+		TestTrue(TEXT("The book is closed by the slot of the stay's 309th tick"), ClosedAt < 310);
+		TestTrue(TEXT("The closed book carries BookShut"), HasShutBook(State.Civs[0]));
+		TestEqual(TEXT("The closing tells its line in that tick"), LinesOf(State, TestClosed, CivID, ClosedTick), 1);
+		TestEqual(TEXT("No reading is told in the tick of the closing"), LinesOf(State, TestReading, CivID, ClosedTick), 0);
+		TestTrue(TEXT("The reading of the test was told before, in the slots of the open book"), LinesOf(State, TestReading, CivID) > 0);
 
-		// Found again during the same stay, it is not shut again.
-		Civ.Traits.RemoveTag(Tag(TEXT("Trait.Faith.BookShut")));
-		Civ.Traits.AddTag(Tag(TEXT("Trait.Faith.Book")));
+		// Found again during the same stay, it is not closed again.
+		State.Civs[0].Traits.RemoveTag(Tag(TEXT("Trait.Faith.BookShut")));
+		State.Civs[0].Traits.AddTag(Tag(TEXT("Trait.Faith.Book")));
 		Sim->RunHeadless(40);
-		TestTrue(TEXT("A book found during the stay stays open while the stay lasts"), HasBook(Civ));
+		TestTrue(TEXT("A book found during the stay stays open while the stay lasts"), HasBook(State.Civs[0]));
 
-		// Out and in again: a new stay of 300 ticks shuts it again, and not a tick before.
-		Silence.InfluencedSystems.Reset();
+		// Out and in again: a new stay of 300 ticks closes it again, and not a tick before.
+		State.Transcendents[0].InfluencedSystems.Reset();
 		Sim->RunHeadless(1);
-		Silence.InfluencedSystems.Add(State.Systems[1].SystemID);
+		State.Transcendents[0].InfluencedSystems.Add(State.Systems[1].SystemID);
 		Sim->RunHeadless(299);
-		TestTrue(TEXT("A new stay of 299 ticks has not shut the book"), HasBook(Civ));
+		TestTrue(TEXT("A new stay of 299 ticks has not closed the book"), HasBook(State.Civs[0]));
 		Sim->RunHeadless(11);
-		TestFalse(TEXT("A new stay of 310 ticks has shut the book"), HasBook(Civ));
+		TestFalse(TEXT("A new stay of 310 ticks has closed the book"), HasBook(State.Civs[0]));
 	}
 
-	// The doctrine of the condition: a row that asks for Zeal does not shut the book in Silence's sphere.
+	// The doctrine of the condition: a row that asks for Zeal does not close the book in Silence's sphere.
 	{
 		Sim->SetTables(TablesWith(Original, BaseRules, BookRows(TEXT("Doctrine.Zeal"))));
 		Sim->NewGalaxy(42, 12, 4);
@@ -331,11 +396,12 @@ bool FCosmicBookCycleTest::RunTest(const FString& Parameters)
 		AddInstance(State, Fallen, TEXT("Doctrine.Silence"), { 1 });
 		Sim->RunHeadless(320);
 		TestEqual(TEXT("The stay of the doctrine case reached the window"), State.Civs[0].FallenSphereTicks, 320);
-		TestTrue(TEXT("A row that asks for another doctrine does not shut the book"), HasBook(State.Civs[0]));
+		TestTrue(TEXT("A row that asks for another doctrine does not close the book"), HasBook(State.Civs[0]));
 	}
 
-	// The book is found at a Society breakthrough of a people whose book is shut, after the line of the breakthrough.
-	// Two controls in the same tick: a Physics breakthrough of a shut book, a Society breakthrough of an open one.
+	// The book is found at a Society breakthrough of a people whose book is shut, the people that broke through, after
+	// the line of its breakthrough. Two peoples find theirs in the same tick. Two controls: a Physics breakthrough of a
+	// shut book, a Society breakthrough of an open one.
 	{
 		Sim->SetTables(TablesWith(Original, BaseRules, BookRows(TEXT("Doctrine.Silence"))));
 		Sim->NewGalaxy(42, 12, 4);
@@ -344,42 +410,64 @@ bool FCosmicBookCycleTest::RunTest(const FString& Parameters)
 		{
 			return false;
 		}
-		FCivilizationState& Shut = State.Civs[0];
-		Shut.Traits.RemoveTag(Tag(TEXT("Trait.Faith.Book")));
-		Shut.Traits.AddTag(Tag(TEXT("Trait.Faith.BookShut")));
-		Shut.Stability = 0.5f;
-		ToTheMark(Shut, TEXT("Society"));
-		FCivilizationState& OtherField = State.Civs[1];
-		OtherField.Traits.AddTag(Tag(TEXT("Trait.Faith.BookShut")));
-		OtherField.Stability = 0.5f;
-		ToTheMark(OtherField, TEXT("Physics"));
-		FCivilizationState& Open = State.Civs[2];
-		Open.Traits.AddTag(Tag(TEXT("Trait.Faith.Book")));
-		Open.Stability = 0.5f;
-		ToTheMark(Open, TEXT("Society"));
+		for (const int32 CivIndex : { 0, 3 })
+		{
+			FCivilizationState& Shut = State.Civs[CivIndex];
+			Shut.Traits.RemoveTag(Tag(TEXT("Trait.Faith.Book")));
+			Shut.Traits.AddTag(Tag(TEXT("Trait.Faith.BookShut")));
+			Shut.Stability = 0.5f;
+			ToTheMark(Shut, TEXT("Society"));
+		}
+		State.Civs[1].Traits.AddTag(Tag(TEXT("Trait.Faith.BookShut")));
+		State.Civs[1].Stability = 0.5f;
+		ToTheMark(State.Civs[1], TEXT("Physics"));
+		State.Civs[2].Traits.AddTag(Tag(TEXT("Trait.Faith.Book")));
+		State.Civs[2].Stability = 0.5f;
+		ToTheMark(State.Civs[2], TEXT("Society"));
 		Sim->RunHeadless(1);
 
-		TestTrue(TEXT("A Society breakthrough finds the shut book"), HasBook(Shut));
-		TestFalse(TEXT("The found book no longer carries BookShut"), HasShutBook(Shut));
-		TestEqual(TEXT("Finding the book raises Stability by the row's value"), Shut.Stability, 0.7f, 1e-4f);
-		TestTrue(TEXT("A Physics breakthrough leaves the book shut"), HasShutBook(OtherField));
-		TestFalse(TEXT("A Physics breakthrough does not open the book"), HasBook(OtherField));
-		TestEqual(TEXT("An open book is not found again: the row's condition picks the shut ones"), Open.Stability, 0.5f, 1e-4f);
-		const TArray<FCosmicLogEntry>& Log = State.Log;
-		const int32 FoundLine = Log.IndexOfByPredicate([](const FCosmicLogEntry& Entry) { return Entry.SourceRow == CosmicRows::EventBookFound; });
-		TestTrue(TEXT("The found row tells its line"), FoundLine != INDEX_NONE);
-		if (TestTrue(TEXT("A line comes before the found line"), FoundLine > 0))
+		for (const int32 CivIndex : { 0, 3 })
 		{
-			TestEqual(TEXT("The line just before is the Society breakthrough"), Log[FoundLine - 1].SourceRow, CosmicRows::LogBreakthrough[1]);
-			TestEqual(TEXT("The breakthrough before it is the finding people's"), Log[FoundLine - 1].FocusCivID, Shut.CivID);
+			const FCivilizationState& Found = State.Civs[CivIndex];
+			TestTrue(*FString::Printf(TEXT("A Society breakthrough finds the shut book (people %d)"), CivIndex), HasBook(Found));
+			TestFalse(*FString::Printf(TEXT("The found book no longer carries BookShut (people %d)"), CivIndex), HasShutBook(Found));
+			TestEqual(*FString::Printf(TEXT("Finding the book raises Stability by the row's value (people %d)"), CivIndex), Found.Stability, 0.7f, 1e-4f);
+			TestEqual(*FString::Printf(TEXT("The found row tells one line about the finding people (people %d)"), CivIndex),
+				LinesOf(State, CosmicRows::EventBookFound, Found.CivID), 1);
+			const int32 FoundLine = State.Log.IndexOfByPredicate([&Found](const FCosmicLogEntry& Entry)
+			{
+				return Entry.SourceRow == CosmicRows::EventBookFound && Entry.FocusCivID == Found.CivID;
+			});
+			if (TestTrue(*FString::Printf(TEXT("A line comes before the found line (people %d)"), CivIndex), FoundLine > 0))
+			{
+				TestEqual(*FString::Printf(TEXT("The line just before is the Society breakthrough (people %d)"), CivIndex), State.Log[FoundLine - 1].SourceRow, CosmicRows::LogBreakthrough[1]);
+				TestEqual(*FString::Printf(TEXT("The breakthrough before it is the finding people's (people %d)"), CivIndex), State.Log[FoundLine - 1].FocusCivID, Found.CivID);
+			}
 		}
-		TestEqual(TEXT("The found row tells one line in that tick"),
-			Log.FilterByPredicate([](const FCosmicLogEntry& Entry) { return Entry.SourceRow == CosmicRows::EventBookFound; }).Num(), 1);
+		TestTrue(TEXT("The Physics control crossed its mark"), State.Civs[1].Research.FindRef(FName(TEXT("Physics"))) >= 0.25f);
+		TestTrue(TEXT("A Physics breakthrough leaves the book shut"), HasShutBook(State.Civs[1]));
+		TestFalse(TEXT("A Physics breakthrough does not open the book"), HasBook(State.Civs[1]));
+		TestTrue(TEXT("The open-book control crossed its Society mark"), State.Civs[2].Research.FindRef(FName(TEXT("Society"))) >= 0.25f);
+		TestEqual(TEXT("An open book is not found again: the row's condition picks the shut ones"), State.Civs[2].Stability, 0.5f, 1e-4f);
+		TestEqual(TEXT("The found row tells about no other people"), LinesOf(State, CosmicRows::EventBookFound, State.Civs[1].CivID) + LinesOf(State, CosmicRows::EventBookFound, State.Civs[2].CivID), 0);
 	}
 
-	// The rows of the game turn the cycle once: shut in Silence's sphere, found at a Society breakthrough.
+	// The rows of the game turn the cycle once: closed in Silence's sphere between 300 and 300 + EventSlotTicks - 1
+	// ticks of the stay, found at a Society breakthrough. A people without the book gains nothing at its own mark.
 	{
 		Sim->SetTables(Original);
+		const int32 SlotTicks = FMath::Max(1, Sim->GetRules().EventSlotTicks);
+		const FCosmicEventDef* GameFound = Original.FindEvent(CosmicRows::EventBookFound);
+		if (TestNotNull(TEXT("The game has the found row"), GameFound))
+		{
+			TestTrue(TEXT("The game's found row is fired by name only"), GameFound->Trigger == ECosmicEventTrigger::Named);
+			TestTrue(TEXT("The game's found row asks for a shut book"), GameFound->Conditions.ContainsByPredicate([](const FCosmicCondition& Condition)
+			{
+				return Condition.Type == EConditionType::CivHasTrait && Condition.Tag == Tag(TEXT("Trait.Faith.BookShut"));
+			}));
+		}
+		TestTrue(TEXT("A slot looks at the game's closing row before its reading row"), FNameLexicalLess()(GameClosed, GameReading));
+
 		Sim->NewGalaxy(42, 12, 4);
 		FGalaxyState& State = Sim->GetMutableState();
 		if (!TestTrue(TEXT("The board of the game rows is laid"), Board(State)))
@@ -387,16 +475,46 @@ bool FCosmicBookCycleTest::RunTest(const FString& Parameters)
 			return false;
 		}
 		AddInstance(State, CosmicRows::TransSilence, TEXT("Doctrine.Silence"), { 1 });
-		FCivilizationState& Civ = State.Civs[0];
-		Sim->RunHeadless(310);
-		TestTrue(TEXT("The game's row shuts the book after 300 ticks in Silence's sphere"), HasShutBook(Civ));
-		TestFalse(TEXT("The game's shut row takes the open book away"), HasBook(Civ));
-		TestTrue(TEXT("The game's shut row tells its line"),
-			State.Log.ContainsByPredicate([](const FCosmicLogEntry& Entry) { return Entry.SourceRow == FName(TEXT("event_book_shut")); }));
-		ToTheMark(Civ, TEXT("Society"));
+		int32 ClosedAt = INDEX_NONE;
+		for (int32 Tick = 0; Tick < 300 + SlotTicks + 1 && ClosedAt == INDEX_NONE; ++Tick)
+		{
+			Sim->RunHeadless(1);
+			if (!HasBook(State.Civs[0]))
+			{
+				ClosedAt = State.Civs[0].FallenSphereTicks;
+			}
+		}
+		TestNotEqual(TEXT("The game's closing row closes the book"), ClosedAt, static_cast<int32>(INDEX_NONE));
+		TestTrue(TEXT("The game's closing row waits for a stay of 300 ticks"), ClosedAt >= 300);
+		TestTrue(TEXT("The game's closing row closes in the slot that finds the stay in its window"), ClosedAt < 300 + SlotTicks);
+		TestTrue(TEXT("The game's closing row leaves the book shut"), HasShutBook(State.Civs[0]));
+		TestEqual(TEXT("The game's closing row tells its line"), LinesOf(State, GameClosed, State.Civs[0].CivID), 1);
+		ToTheMark(State.Civs[0], TEXT("Society"));
+		ToTheMark(State.Civs[1], TEXT("Society"));
 		Sim->RunHeadless(1);
-		TestTrue(TEXT("The game's found row opens the book at a Society breakthrough"), HasBook(Civ));
-		TestFalse(TEXT("The game's found row takes BookShut away"), HasShutBook(Civ));
+		TestTrue(TEXT("The game's found row opens the book at a Society breakthrough"), HasBook(State.Civs[0]));
+		TestFalse(TEXT("The game's found row takes BookShut away"), HasShutBook(State.Civs[0]));
+		TestTrue(TEXT("The AI control crossed its Society mark"), State.Civs[1].Research.FindRef(FName(TEXT("Society"))) >= 0.25f);
+		TestFalse(TEXT("A people without the book gains none at its Society mark"), HasBook(State.Civs[1]));
+		TestEqual(TEXT("The game's found row tells nothing about that people"), LinesOf(State, CosmicRows::EventBookFound, State.Civs[1].CivID), 0);
+	}
+
+	// The reading row of the game: nothing before tick 1,800, then once in the first slot after it, for the people that
+	// holds the book only.
+	{
+		Sim->SetTables(Original);
+		const int32 SlotTicks = FMath::Max(1, Sim->GetRules().EventSlotTicks);
+		Sim->NewGalaxy(42, 12, 4);
+		FGalaxyState& State = Sim->GetMutableState();
+		if (!TestTrue(TEXT("The board of the reading case is laid"), Board(State)))
+		{
+			return false;
+		}
+		Sim->RunHeadless(1799 - State.Tick);
+		TestEqual(TEXT("No reading before tick 1,800"), LinesOf(State, GameReading, State.Civs[0].CivID), 0);
+		Sim->RunHeadless(SlotTicks);
+		TestEqual(TEXT("One reading in the first slot from tick 1,800"), LinesOf(State, GameReading, State.Civs[0].CivID), 1);
+		TestEqual(TEXT("No reading for a people without the book"), LinesOf(State, GameReading, State.Civs[1].CivID), 0);
 	}
 
 	Sim->SetTables(Original);

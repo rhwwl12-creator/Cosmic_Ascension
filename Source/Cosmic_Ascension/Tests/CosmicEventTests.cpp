@@ -381,6 +381,32 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		Elsewhere.CivIndex = 0;
 		TestFalse(TEXT("A sphere over another people's system does not answer for this people"),
 			UCosmicEventSubsystem::Check(Cond(EConditionType::CivFallenSphereTicksReached, TEXT("Doctrine.Silence"), FName(TEXT("300")), 0.f), Elsewhere));
+		// The window is as wide as the event slot of the rules handed in: 25 ticks, and below one read as one.
+		FCosmicRulesDef WideSlots = NoAging;
+		WideSlots.EventSlotTicks = 25;
+		FCosmicEvalView Wide(Detached, Index, Sim->GetTables(), WideSlots);
+		Wide.CivIndex = 0;
+		TestTrue(TEXT("With 25-tick slots a stay of 305 still lies in the window of Key 285"),
+			UCosmicEventSubsystem::Check(Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("285")), 0.f), Wide));
+		TestFalse(TEXT("With 25-tick slots Key 280 lies past the window"),
+			UCosmicEventSubsystem::Check(Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("280")), 0.f), Wide));
+		FCosmicRulesDef NoSlots = NoAging;
+		NoSlots.EventSlotTicks = 0;
+		FCosmicEvalView Narrow(Detached, Index, Sim->GetTables(), NoSlots);
+		Narrow.CivIndex = 0;
+		TestTrue(TEXT("Slots below one tick are read as one: Key 305 at a stay of 305"),
+			UCosmicEventSubsystem::Check(Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("305")), 0.f), Narrow));
+		TestFalse(TEXT("Slots below one tick are read as one: Key 304 lies past the window"),
+			UCosmicEventSubsystem::Check(Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("304")), 0.f), Narrow));
+		// The doctrine is looked for on settled systems: sol, still being settled, does not answer for Silence.
+		FGalaxyState SolSettling = Detached;
+		SolSettling.Systems[0].ActiveMegaproject = CosmicRows::ProjectSettle;
+		FCosmicEvalView Settling(SolSettling, Index, Sim->GetTables(), NoAging);
+		Settling.CivIndex = 0;
+		TestFalse(TEXT("A system of the people still being settled does not answer for the doctrine"),
+			UCosmicEventSubsystem::Check(Cond(EConditionType::CivFallenSphereTicksReached, TEXT("Doctrine.Silence"), FName(TEXT("300")), 0.f), Settling));
+		TestTrue(TEXT("Without a doctrine the same stay is reached: the false answer above is the doctrine's"),
+			UCosmicEventSubsystem::Check(Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("300")), 0.f), Settling));
 		// A short stay: Key 5 is reached, and a Key that is not a count is not, though no count would lie below the window.
 		FGalaxyState ShortStay = Detached;
 		ShortStay.Civs[0].FallenSphereTicks = 5;
