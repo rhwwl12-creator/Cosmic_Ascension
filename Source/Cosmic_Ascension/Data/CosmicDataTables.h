@@ -41,8 +41,13 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 	UPROPERTY(Transient)
 	TObjectPtr<UDataTable> Transcendents;
 
+	// DT_Hazards: one row per hazard, HazardTag unique across rows (section 4.1). A missing table means no hazard is ever
+	// placed; the spawn draw still draws.
+	UPROPERTY(Transient)
+	TObjectPtr<UDataTable> Hazards;
+
 	// Loads every table that has an asset from its fixed path: DT_Rules, DT_Civs, DT_LogTemplates, DT_Galaxies,
-	// DT_Events and DT_Transcendents. A missing asset leaves its pointer null and is reported once in LogCosmic.
+	// DT_Events, DT_Transcendents and DT_Hazards. A missing asset leaves its pointer null and is reported once in LogCosmic.
 	void LoadFromFixedPaths();
 
 	// Null when the table or the row is missing. They never warn: the caller decides what a missing row means.
@@ -52,6 +57,12 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 	const FGalaxyDef* FindGalaxy(FName RowName) const;
 	const FCosmicEventDef* FindEvent(FName RowName) const;
 	const FTranscendentDef* FindTranscendent(FName RowName) const;
+	const FHazardDef* FindHazard(FName RowName) const;
+
+	// The DT_Hazards row whose HazardTag is Tag exactly, and its name in OutRowName when one is asked for (NAME_None when
+	// there is no such row). Rows are looked at in lexical order, so a table that broke the uniqueness lint answers the
+	// same in every process.
+	const FHazardDef* FindHazardByTag(FGameplayTag Tag, FName* OutRowName = nullptr) const;
 
 	// Row names of DT_Civs in lexical order. Draws over the rows use this order, never the table's own (section 9.2).
 	TArray<FName> GetCivRowNames() const;
@@ -61,4 +72,8 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 
 	// Row names of DT_Transcendents in lexical order: the order of the roster draw in NewGalaxy (section 4.2, 9.2).
 	TArray<FName> GetTranscendentRowNames() const;
+
+	// Row names of DT_Hazards in lexical order: the order of the shares of one spawn draw and of the capital rule
+	// (section 7.4, 9.2).
+	TArray<FName> GetHazardRowNames() const;
 };

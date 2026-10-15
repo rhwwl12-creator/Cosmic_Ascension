@@ -12,6 +12,7 @@
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
 #include "Math/NumericLimits.h"
+#include "Sim/CosmicHazards.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 
@@ -714,11 +715,38 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 	}
 
 	case EEffectType::SpawnHazard:
+	{
+		// The one path of every hazard; the claim is placed by the claim rule alone, which holds Law.Remnant (section 4.2).
+		FName HazardRow;
+		const FHazardDef* Row = System ? Ctx.Tables.FindHazardByTag(Effect.Tag, &HazardRow) : nullptr;
+		if (!Row || Row->SpawnRule == ECosmicHazardSpawn::ClaimRule)
+		{
+			return false;
+		}
+		return CosmicHazards::Place(Ctx, Ctx.SystemIndex, HazardRow);
+	}
+
 	case EEffectType::ResolveHazard:
+		if (!System || !System->ActiveHazard.IsValid() || (Effect.Tag.IsValid() && !System->ActiveHazard.MatchesTag(Effect.Tag)))
+		{
+			return false;
+		}
+		return CosmicHazards::Resolve(Ctx, Ctx.SystemIndex);
+
 	case EEffectType::TransferSystem:
-		UE_LOG(LogCosmic, Error, TEXT("Apply: effect type %d of row %s reaches into the hazard stage, which has no path for it yet (crisis handling work of Phase 2)"),
-			static_cast<int32>(Effect.Type), *Ctx.SourceRow.ToString());
-		return false;
+	{
+		// An empty Key lets the system go to no one (section 16 #29 (6)); any other Key is a living civilization.
+		int32 ToCivIndex = INDEX_NONE;
+		if (!Effect.Key.IsNone())
+		{
+			ToCivIndex = Ctx.Index.FindCiv(State, Effect.Key);
+			if (ToCivIndex == INDEX_NONE)
+			{
+				return false;
+			}
+		}
+		return System && CosmicHazards::Transfer(Ctx, Ctx.SystemIndex, ToCivIndex);
+	}
 
 	case EEffectType::ChangeReverence:
 		if (!Civ || !IsAmount(Effect.Value))
@@ -1068,6 +1096,16 @@ void UCosmicEventSubsystem::FireResolved(FName RowName, const FCosmicEventDef& R
 	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
 	check(Sim && Log);
 
+	// The hazard the subject system holds before the effects: the {Hazard} of the line, also when an effect resolved it.
+	FText HazardName;
+	if (Ctx.State.Systems.IsValidIndex(Ctx.SystemIndex))
+	{
+		if (const FHazardDef* Hazard = Ctx.Tables.FindHazardByTag(Ctx.State.Systems[Ctx.SystemIndex].ActiveHazard))
+		{
+			HazardName = Hazard->DisplayName;
+		}
+	}
+
 	// 1. The world: every effect, in array order.
 	Ctx.SourceRow = RowName;
 	Ctx.bPerTickSource = false;
@@ -1091,6 +1129,7 @@ void UCosmicEventSubsystem::FireResolved(FName RowName, const FCosmicEventDef& R
 	Args.Add(TEXT("Civ"), Civ ? Civ->CivName : FText::GetEmpty());
 	Args.Add(TEXT("System"), System ? System->DisplayName : FText::GetEmpty());
 	Args.Add(TEXT("HomeSystem"), State.Systems.IsValidIndex(HomeIndex) ? State.Systems[HomeIndex].DisplayName : FText::GetEmpty());
+	Args.Add(TEXT("Hazard"), HazardName);
 
 	Log->PushVariants(Line, Row.LogTemplates, Args);
 
@@ -1115,7 +1154,10 @@ void UCosmicEventSubsystem::FireResolved(FName RowName, const FCosmicEventDef& R
 		}
 	}
 
-	// 3. The presentation layer.
+	// 3. What the effects did, told after the row's own line: a cause comes before what follows from it.
+	FollowUpNotes(Ctx);
+
+	// 4. The presentation layer.
 	if (Sim->IsBroadcastEnabled())
 	{
 		FCosmicEventNotice Notice;
@@ -1128,5 +1170,92 @@ void UCosmicEventSubsystem::FireResolved(FName RowName, const FCosmicEventDef& R
 		Sim->BeginBroadcast();
 		OnEventFired.Broadcast(Notice);
 		Sim->EndBroadcast();
+	}
+}
+
+void UCosmicEventSubsystem::TellHazardLine(const FCosmicEvalContext& Ctx, ECosmicHazardLine Line, FName HazardRow, int32 SystemIndex, int32 CivIndex)
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	check(Sim && Log);
+	if (&Ctx.State != &Sim->GetState())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("TellHazardLine: the context is not over the live state"));
+		return;
+	}
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("TellHazardLine called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return;
+	}
+	const FHazardDef* Row = Ctx.Tables.FindHazard(HazardRow);
+	if (!Row)
+	{
+		return;
+	}
+	const TArray<FText>& Templates = Line == ECosmicHazardLine::Outbreak ? Row->OutbreakTemplates
+		: Line == ECosmicHazardLine::Expiry ? Row->ExpireTemplates : Row->ResolveTemplates;
+
+	const FGalaxyState& State = Ctx.State;
+	const FCivilizationState* Civ = State.Civs.IsValidIndex(CivIndex) ? &State.Civs[CivIndex] : nullptr;
+	const FStarSystemState* System = State.Systems.IsValidIndex(SystemIndex) ? &State.Systems[SystemIndex] : nullptr;
+	const int32 HomeIndex = Civ ? Ctx.Index.FindSystem(State, Civ->HomeSystemID) : INDEX_NONE;
+
+	FCosmicLine HazardLine;
+	HazardLine.Category = Row->LogCategory;
+	HazardLine.Severity = Row->Severity;
+	HazardLine.FocusSystem = System ? System->SystemID : FName();
+	HazardLine.FocusCiv = Civ ? Civ->CivID : FName();
+	HazardLine.SourceRow = HazardRow;
+
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("Civ"), Civ ? Civ->CivName : FText::GetEmpty());
+	Args.Add(TEXT("System"), System ? System->DisplayName : FText::GetEmpty());
+	Args.Add(TEXT("HomeSystem"), State.Systems.IsValidIndex(HomeIndex) ? State.Systems[HomeIndex].DisplayName : FText::GetEmpty());
+	Args.Add(TEXT("Hazard"), Row->DisplayName);
+	Log->PushVariants(HazardLine, Templates, Args);
+}
+
+void UCosmicEventSubsystem::FollowUpNotes(FCosmicEvalContext& Ctx)
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	check(Sim);
+	if (&Ctx.State != &Sim->GetState())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("FollowUpNotes: the context is not over the live state"));
+		return;
+	}
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("FollowUpNotes called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return;
+	}
+
+	// Taken out first: a row fired below follows its own notes on its own context, never these.
+	const TArray<FCosmicWorldNote, TInlineAllocator<2>> Notes = MoveTemp(Ctx.Notes);
+	Ctx.Notes.Reset();
+	for (const FCosmicWorldNote& Note : Notes)
+	{
+		switch (Note.Kind)
+		{
+		case ECosmicWorldNote::HazardPlaced:
+		{
+			TellHazardLine(Ctx, ECosmicHazardLine::Outbreak, Note.HazardRow, Note.SystemIndex, Note.CivIndex);
+			const FHazardDef* Row = Ctx.Tables.FindHazard(Note.HazardRow);
+			if (Row && !Row->OutbreakRow.IsNone())
+			{
+				// The place and its people are the subject; the stream is the caller's, so a name the row gives is drawn there.
+				FCosmicEvalContext Outbreak(Ctx.State, Ctx.Stream, Ctx.Index, Ctx.Tables, Ctx.Rules);
+				Outbreak.CivIndex = Note.CivIndex;
+				Outbreak.SystemIndex = Note.SystemIndex;
+				Outbreak.GalaxyRow = Ctx.State.Systems.IsValidIndex(Note.SystemIndex) ? Ctx.State.Systems[Note.SystemIndex].GalaxyRow : FName();
+				FireRow(Row->OutbreakRow, Outbreak);
+			}
+			break;
+		}
+		case ECosmicWorldNote::HazardResolved:
+			TellHazardLine(Ctx, ECosmicHazardLine::Resolution, Note.HazardRow, Note.SystemIndex, Note.CivIndex);
+			break;
+		}
 	}
 }

@@ -2243,10 +2243,6 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 		return false;
 	}
 
-	// The three effects that wait for the crisis handling work each leave one error line (not from a per-tick source,
-	// which turns them away before that).
-	AddExpectedError(TEXT("reaches into the hazard stage"), EAutomationExpectedErrorFlags::Contains, 3);
-
 	Sim->NewGalaxy(42, 5, 3);
 	const FGalaxyState Fresh = Sim->GetState();
 	const FCosmicEffect Kill = Eff(EEffectType::KillPlayer, TEXT("Death.Hazard"), NAME_None, 0.f);
@@ -2498,7 +2494,7 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Every effect type has its line in the per-tick table"), Types.Num(), StaticEnum<EEffectType>()->NumEnums() - 1);
 	}
 
-	// The plain world effects, and the three that wait for the crisis handling work.
+	// The plain world effects. The three that reach into the hazard stage have a test of their own: Events.HazardEffects.
 	{
 		FBench Bench(Fresh, *Sim, PastProtection);
 		Bench.Ctx.CivIndex = 1;
@@ -2524,13 +2520,6 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 			&& Bench.State.Flags.HasTagExact(Tag(TEXT("Flag.Grace.Spent"))) && FMath::IsNearlyEqual(Civ.Population, 0.6f));
 		TestTrue(TEXT("RemoveTrait takes the trait away again"),
 			UCosmicEventSubsystem::Apply(Eff(EEffectType::RemoveTrait, TEXT("Trait.Faith.Seeking"), NAME_None, 0.f), Bench.Ctx) && !Civ.Traits.HasTagExact(Seeking));
-
-		const bool bHazardEffects = UCosmicEventSubsystem::Apply(Eff(EEffectType::SpawnHazard, TEXT("Hazard.Plague"), NAME_None, 0.f), Bench.Ctx)
-			|| UCosmicEventSubsystem::Apply(Eff(EEffectType::ResolveHazard, nullptr, NAME_None, 0.f), Bench.Ctx)
-			|| UCosmicEventSubsystem::Apply(Eff(EEffectType::TransferSystem, nullptr, NAME_None, 0.f), Bench.Ctx);
-		TestFalse(TEXT("SpawnHazard, ResolveHazard and TransferSystem are turned away until the crisis handling work"), bHazardEffects);
-		TestTrue(TEXT("The turned-away effects left the system alone"),
-			!Bench.State.Systems[1].ActiveHazard.IsValid() && Bench.State.Systems[1].OwnerCivID == Fresh.Systems[1].OwnerCivID);
 
 		// The other party of a relation has to be a living people or a transcendent of the run: a name that is neither
 		// (a selector word no code resolves, a people that is gone) is turned away and leaves no entry behind.

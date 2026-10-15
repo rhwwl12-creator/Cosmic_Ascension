@@ -63,8 +63,9 @@ namespace CosmicBookTests
 		return Table;
 	}
 
-	// The test's tables: its transcendent rows, these event rows and its own knobs (a slot every ten ticks, no Lottery
-	// chance, no Stability drain), over the rest of the game's tables.
+	// The test's tables: its transcendent rows, these event rows, no hazard row (a hazard of the game would land on the
+	// board at random) and its own knobs (a slot every ten ticks, no Lottery chance, no Stability drain), over the rest of
+	// the game's tables.
 	FCosmicDataTables TablesWith(const FCosmicDataTables& Base, const FCosmicRulesDef& BaseRules, UDataTable* Events)
 	{
 		FCosmicRulesDef Knobs = BaseRules;
@@ -77,6 +78,16 @@ namespace CosmicBookTests
 		Tables.Rules = RulesTable;
 		Tables.Transcendents = TranscendentRows();
 		Tables.Events = Events;
+		Tables.Hazards = NewTable(FHazardDef::StaticStruct());
+		return Tables;
+	}
+
+	// The game's tables without its hazard rows: the cases that read the game's event rows run hundreds of ticks, and a
+	// hazard of the game landing on the board at random would change what they read.
+	FCosmicDataTables GameRowsWithoutHazards(const FCosmicDataTables& Original)
+	{
+		FCosmicDataTables Tables = Original;
+		Tables.Hazards = NewTable(FHazardDef::StaticStruct());
 		return Tables;
 	}
 
@@ -469,7 +480,7 @@ bool FCosmicBookCycleTest::RunTest(const FString& Parameters)
 	// The rows of the game turn the cycle once: closed in Silence's sphere between 300 and 300 + EventSlotTicks - 1
 	// ticks of the stay, found at a Society breakthrough. A people without the book gains nothing at its own mark.
 	{
-		Sim->SetTables(Original);
+		Sim->SetTables(GameRowsWithoutHazards(Original));
 		const int32 SlotTicks = FMath::Max(1, Sim->GetRules().EventSlotTicks);
 		const FCosmicEventDef* GameFound = Original.FindEvent(CosmicRows::EventBookFound);
 		if (TestNotNull(TEXT("The game has the found row"), GameFound))
@@ -523,7 +534,7 @@ bool FCosmicBookCycleTest::RunTest(const FString& Parameters)
 	// The reading row of the game: nothing before tick 1,800, then once in the first slot after it, for the people that
 	// holds the book only.
 	{
-		Sim->SetTables(Original);
+		Sim->SetTables(GameRowsWithoutHazards(Original));
 		const int32 SlotTicks = FMath::Max(1, Sim->GetRules().EventSlotTicks);
 		Sim->NewGalaxy(42, 12, 4);
 		FGalaxyState& State = Sim->GetMutableState();

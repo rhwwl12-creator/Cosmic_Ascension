@@ -125,13 +125,15 @@ COLUMN_OPTIONS = {
     "tag_map": dict(RANGE, root=ROOT),
     "row": {"table": NAME, "optional": FLAG, "target": LIST},
     "row_map": dict(RANGE, table=NAME, target=LIST),
+    # A list of row names, each a row of one of the named tables (DT_Hazards: the means that resolve a hazard).
+    "rows": {"tables": WORDS, "unique": FLAG},
     "word_map": dict(RANGE, words=NAME),
     "enum": {"enum": NAME},
     "conditions": {},
     "effects": {"per_tick": FLAG},
 }
 COLUMN_KINDS = tuple(COLUMN_OPTIONS)
-REQUIRED_OPTIONS = {"row": ("table",), "row_map": ("table",), "word_map": ("words",), "enum": ("enum",)}
+REQUIRED_OPTIONS = {"row": ("table",), "row_map": ("table",), "rows": ("tables",), "word_map": ("words",), "enum": ("enum",)}
 
 # Test of a row rule -> the type of its operand.
 TESTS = {
@@ -144,7 +146,7 @@ TESTS = {
 # Test -> the kinds of column it can be asked of. Asked of another kind it would never hold (or always).
 # A plain column holds a struct the checker does not read (EthicsPreset, Color, MapPosition): no test can be asked of it.
 VALUE_KINDS = ("number", "text", "tag", "row", "enum")
-SIZED_KINDS = ("numbers", "texts", "tags", "tag_list", "tag_map", "row_map", "word_map", "conditions", "effects")
+SIZED_KINDS = ("numbers", "texts", "tags", "tag_list", "tag_map", "row_map", "word_map", "rows", "conditions", "effects")
 # A pool is a list or a map; a tag container is no pool of names (its export text is a string, never held as a list).
 POOL_KINDS = tuple(kind for kind in SIZED_KINDS if kind != "tags")
 TEST_KINDS = {
@@ -572,6 +574,9 @@ class Checker:
             elif "target" in column_spec:
                 # The tests of a target read the rows of the table the column points at.
                 self.check_tests(where, column_spec["target"], column_spec["table"])
+            for listed in (column_spec.get("tables") if kind == "rows" else []):
+                if listed not in specs:
+                    self.report(where, "the table %r is not in the schema" % (listed,))
             if kind == "word_map" and column_spec["words"] not in self.schema["words"]:
                 self.report(where, "the word list %r is not in the schema" % (column_spec["words"],))
             if kind == "enum" and column_spec["enum"] not in self.schema["enums"]:
@@ -855,6 +860,19 @@ class Checker:
                 self.check_number(here, entry, spec)
         elif kind == "row":
             self.check_row_ref(where, value, spec)
+        elif kind == "rows":
+            if not isinstance(value, list):
+                self.report(where, "expected a list of row names, found %r" % (value,))
+                return
+            for index, entry in enumerate(value):
+                here = "%s[%d]" % (where, index)
+                name = name_of(entry)
+                if not isinstance(name, str) or name == "":
+                    self.report(here, "expected a row name, found %r" % (entry,))
+                elif not any(name in self.rows.get(table, {}) for table in spec["tables"]):
+                    self.report(here, "none of %s has a row %s" % (", ".join(spec["tables"]), name))
+            if spec.get("unique") and len(set(e for e in value if isinstance(e, str))) != len(value):
+                self.report(where, "an entry appears twice")
         elif kind == "enum":
             names = self.schema["enums"][spec["enum"]]
             if value not in names:

@@ -240,5 +240,140 @@
 		"Severity": 0,
 		"MinTierToReveal": 0,
 		"SignRow": "None"
+	},
+	{
+		"Name": "event_grace_remnant",
+		"Category": "Event.Grace.Remnant",
+		"LogCategory": "Log.Civ",
+		"Trigger": "Named",
+		"Subject": "SettledSystem",
+		"Conditions": [
+			{
+				"Type": "FlagNotSet",
+				"Tag": "Flag.Grace.Spent",
+				"Key": "None",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 0.0,
+		"CooldownTicks": 0,
+		"Effects": [
+			{
+				"Type": "SetFlag",
+				"Tag": "Flag.Grace.Spent",
+				"Key": "None",
+				"Value": 0.0,
+				"DurationTicks": 0
+			},
+			{
+				"Type": "AddTrait",
+				"Tag": "Trait.Faith.Remnant",
+				"Key": "None",
+				"Value": 0.0,
+				"DurationTicks": 0
+			}
+		],
+		"LogTemplates": [
+			"{System}이 남겨졌다. {Civ}의 사람들은 그 까닭을 알지 못했다.",
+			"무너질 것이 무너지지 않았다. {System}에 한 백성이 남겨졌다.",
+			"{Civ}의 마지막 땅 {System}이 지켜졌다. 그것은 누구의 공로로도 기록되지 않았다."
+		],
+		"Severity": 2,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
+	},
+	{
+		"Name": "event_rebellion_murmur",
+		"Category": "Event.Crisis.Rebellion",
+		"LogCategory": "Log.Civ",
+		"Trigger": "Standing",
+		"Subject": "Civilization",
+		"Conditions": [
+			{
+				"Type": "CivStabilityBelow",
+				"Tag": "",
+				"Key": "None",
+				"Value": 0.5
+			}
+		],
+		"BaseWeight": 0.0,
+		"CooldownTicks": 60,
+		"Effects": [],
+		"LogTemplates": [
+			"{Civ}의 군부가 회의에서 말을 아꼈다. 침묵이 길어질수록 소문이 늘었다.",
+			"{Civ}의 사제들이 금식을 선포했다. 그 까닭을 묻는 이에게 그들은 대답하지 않았다.",
+			"{Civ}의 의회에서 자치를 말하는 목소리가 나왔다. 아무도 그 말을 막지 않았다."
+		],
+		"Severity": 0,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
+	},
+	{
+		"Name": "event_rebellion_rises",
+		"Category": "Event.Crisis.Rebellion",
+		"LogCategory": "Log.Crisis",
+		"Trigger": "Named",
+		"Subject": "Civilization",
+		"Conditions": [
+			{
+				"Type": "SystemHasHazard",
+				"Tag": "Hazard.Rebellion",
+				"Key": "None",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 0.0,
+		"CooldownTicks": 0,
+		"Effects": [
+			{
+				"Type": "NameNotable",
+				"Tag": "Notable.Rebel",
+				"Key": "None",
+				"Value": 0.0,
+				"DurationTicks": 0
+			}
+		],
+		"LogTemplates": [
+			"{Civ}의 수도 {HomeSystem}에서 반란이 일어났다. 한 사람이 그 앞에 섰다.",
+			"{HomeSystem}의 광장에 반란의 깃발이 올랐다. {Civ}의 다스리는 이들은 남은 날을 세기 시작했다.",
+			"{Civ}의 불만이 마침내 무기를 들었다. 수도의 성문 앞에 무리가 모였다."
+		],
+		"Severity": 1,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
+	},
+	{
+		"Name": "event_plague_repentance",
+		"Category": "Event.Civ.Society",
+		"LogCategory": "Log.Civ",
+		"Trigger": "Lottery",
+		"Subject": "SettledSystem",
+		"Conditions": [
+			{
+				"Type": "SystemHasHazard",
+				"Tag": "Hazard.Plague",
+				"Key": "None",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"CooldownTicks": 600,
+		"Effects": [
+			{
+				"Type": "ResolveHazard",
+				"Tag": "Hazard.Plague",
+				"Key": "None",
+				"Value": 0.0,
+				"DurationTicks": 0
+			}
+		],
+		"LogTemplates": [
+			"{System}의 사람들이 {Hazard} 앞에서 일을 멈추고 함께 금식했다. 다스리는 이도 자리에서 내려와 그들 곁에 앉았다.",
+			"{Civ}의 {System}에서 사람들이 거친 옷을 입고 거리에 모였다. 누구도 그날의 장사를 셈하지 않았다.",
+			"{System}의 광장마다 사람들이 무릎을 꿇었다. 그들은 서로에게 지난 일을 털어놓았다."
+		],
+		"Severity": 1,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
 	}
 ]

@@ -103,11 +103,12 @@ struct COSMIC_ASCENSION_API FStarSystemState
 	UPROPERTY(BlueprintReadOnly)
 	FVector Position = FVector::ZeroVector;
 
-	// Adjacent SystemIDs.
+	// Adjacent SystemIDs. Empty for a dead node: destruction cuts every lane from both ends (section 7.2).
 	UPROPERTY(BlueprintReadOnly)
 	TArray<FName> Lanes;
 
-	// Star.Class.*
+	// Star.Class.*. Empty = a destroyed system, a dead node: no owner, no lane, in no sphere, passed by by every rule over
+	// living systems, never removed from State.Systems (section 7.2, 16 #29 (5)).
 	UPROPERTY(BlueprintReadOnly)
 	FGameplayTag StarClass;
 
@@ -118,7 +119,7 @@ struct COSMIC_ASCENSION_API FStarSystemState
 	UPROPERTY(BlueprintReadOnly)
 	FName OwnerCivID;
 
-	// Hazard.* or empty.
+	// Hazard.* or empty: one hazard at a time, placed only through CosmicHazards::Place and only on a settled system.
 	UPROPERTY(BlueprintReadOnly)
 	FGameplayTag ActiveHazard;
 
@@ -195,7 +196,8 @@ struct COSMIC_ASCENSION_API FCivilizationState
 	UPROPERTY(BlueprintReadOnly)
 	FName OriginGalaxyRow;
 
-	// Capital. "The planet" of a Tier 1 civ is this one system. Target system of Hazard.Rebellion (section 5.10).
+	// Capital. "The planet" of a Tier 1 civ is this one system. Target system of Hazard.Rebellion (section 5.10). Moves
+	// when the capital is lost (CosmicHazards::MoveCapital); a people left with no system keeps the old ID.
 	UPROPERTY(BlueprintReadOnly)
 	FName HomeSystemID;
 
@@ -249,6 +251,8 @@ struct COSMIC_ASCENSION_API FCivilizationState
 	float Stability = 0.75f;
 
 	// Consecutive ticks with Stability < 0.3. Updated at the end of TickEconomy, read by CivStabilityBelowFor (section 4.1).
+	// Starts over at 0 when a Hazard.Rebellion leaves the capital, resolved or expired: a new rebellion needs another
+	// stretch of discontent.
 	UPROPERTY(BlueprintReadOnly)
 	int32 LowStabilityTicks = 0;
 

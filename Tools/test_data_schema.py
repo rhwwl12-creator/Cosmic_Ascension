@@ -5,8 +5,8 @@ Cosmic Ascension - data layer helper (guideline.md section 7.3, 9.3 Data.Integri
   python Tools/test_data_schema.py
 
 The base of every case is the data of the project itself under the schema of the project (it has to pass), with the
-rows of two tables built here instead: DT_Events and DT_Transcendents, whose rows the cases read cell by cell (the
-project's rows are replaced on purpose). A case changes one thing and names the words the report
+rows of three tables built here instead: DT_Events, DT_Transcendents and DT_Hazards, whose rows the cases read cell by cell
+(the project's rows are replaced on purpose). A case changes one thing and names the words the report
 has to carry.
 
 The last block walks the schema of the project: every rule, every unique, every pair, every target and every slot list
@@ -101,6 +101,34 @@ def celestial_row(**changes):
     return row
 
 
+def hazard_row(name="crisis_test_storm", **changes):
+    row = {
+        "Name": name,
+        "HazardTag": "Hazard.Plague",
+        "SourceDoctrine": "",
+        "DisplayName": "storm",
+        "CountdownTicks": 100,
+        "SpawnRule": "Draw",
+        "SpawnChancePerTick": 0.001,
+        "SpawnConditions": [cond("GalaxyTickAtLeast", value=1)],
+        "OnExpireEffects": [eff("ChangeStability", value=-0.1)],
+        "BranchChance": 0.0,
+        "OnExpireBranchEffects": [],
+        "OnExpireNeighbourEffects": [],
+        "OnResolveEffects": [],
+        "RulerResolutions": [],
+        "WandererResolutions": [],
+        "LogCategory": "Log.Crisis",
+        "Severity": 1,
+        "OutbreakTemplates": ["{System} a.", "{Civ} b.", "{Hazard} c."],
+        "ExpireTemplates": ["{System} d."],
+        "ResolveTemplates": ["{HomeSystem} e."],
+        "OutbreakRow": "",
+    }
+    row.update(changes)
+    return row
+
+
 def paths_of(node, here=()):
     """Every path to a node below node: keys of objects and indices of lists."""
     if isinstance(node, dict):
@@ -136,8 +164,8 @@ def civ_row(base, name, **cells):
 
 
 def fixture_tables(schema, tables):
-    """The tables every case starts from: the sources of the project, with fixture rows for DT_Events and for
-    DT_Transcendents (their project rows are replaced on purpose: the cases read the cells of the rows they build).
+    """The tables every case starts from: the sources of the project, with fixture rows for DT_Events, DT_Transcendents and
+    DT_Hazards (their project rows are replaced on purpose: the cases read the cells of the rows they build).
     A row the code calls by name has to be in its table, so the event fixture gets one valid row for each name the schema
     requires (fired by name: no rule about slot rows speaks of it)."""
     tables = copy.deepcopy(tables)
@@ -145,6 +173,7 @@ def fixture_tables(schema, tables):
     for name in schema["tables"]["DT_Events"].get("required_rows", []):
         tables["DT_Events"].append(event_row(name, Trigger="Named", BaseWeight=0, CooldownTicks=0, LogTemplates=["one."]))
     tables["DT_Transcendents"] = [transcendent_row(), celestial_row()]
+    tables["DT_Hazards"] = [hazard_row()]
     return tables
 
 
@@ -466,7 +495,7 @@ class SchemaTests(unittest.TestCase):
 
     def test_tables(self):
         self.expect(self.after(lambda tables: tables.pop("DT_Rules")), "DT_Rules.json is missing")
-        self.expect(self.after(lambda tables: tables.update(DT_Hazards=[])), "DT_Hazards", "declares no columns")
+        self.expect(self.after(lambda tables: tables.update(DT_Feats=[])), "DT_Feats", "declares no columns")
         self.expect(self.after(lambda tables: tables.update(DT_Nobody=[])), "DT_Nobody", "does not declare this table")
         self.expect(self.after(lambda tables: tables.update(DT_Events=[transcendent_row("event_wrong")])), "does not declare this column")
         # A table that need not exist may be absent; one that has to exist may not. The flag is set here, so the case
@@ -629,6 +658,42 @@ class SchemaTests(unittest.TestCase):
         self.schema_problem(self.put(["tables", "DT_Galaxies", "columns", "DistanceText"], "forbidden", [""]), "DT_Galaxies.DistanceText", "forbidden", "not empty")
         self.schema_problem(self.put(["tables", "DT_Rules", "columns", "SightIntervalTicks"], "ends_at", 1), "SightIntervalTicks", "ends_at")
 
+    def test_rows_kind(self):
+        """A list of row names: each a row of one of the named tables, a list and nothing else, at most once with unique."""
+        column = ["tables", "DT_Hazards", "columns", "RulerResolutions"]
+        rows = lambda value: self.set_cell("DT_Hazards", "crisis_test_storm", "RulerResolutions", value)  # noqa: E731
+        self.assertEqual(self.after(rows([])), [])
+        self.expect(self.after(rows(["enc_nobody"])), "RulerResolutions[0]", "none of DT_Encounters has a row enc_nobody")
+        # A row of a table the column does not name is no answer.
+        self.expect(self.after(rows(["event_book_found"])), "RulerResolutions[0]", "none of DT_Encounters has a row event_book_found")
+        self.expect(self.after(rows("enc_nobody")), "RulerResolutions", "expected a list of row names")
+        for wrong in ("", None, 5):
+            with self.subTest(entry=wrong):
+                self.expect(self.after(rows([wrong])), "RulerResolutions[0]", "expected a row name")
+        to_events = self.put(column, "tables", ["DT_Events"])
+        self.assertEqual(self.after(rows(["event_book_found"]), to_events), [])
+        self.expect(self.after(rows(["event_book_found", "event_book_found"]), to_events), "RulerResolutions", "appears twice")
+        without_unique = self.drop(column, "unique")
+        self.assertEqual(self.after(rows(["event_book_found", "event_book_found"]), lambda schema: (to_events(schema), without_unique(schema))), [])
+        self.schema_problem(self.put(column, "tables", []), "DT_Hazards.RulerResolutions", "tables", "not empty")
+        self.schema_problem(self.put(column, "tables", "DT_Events"), "DT_Hazards.RulerResolutions", "tables", "not empty")
+        self.schema_problem(self.put(column, "tables", ["DT_Nowhere"]), "DT_Hazards.RulerResolutions", "the table 'DT_Nowhere' is not in the schema")
+        self.schema_problem(self.drop(column, "tables"), "DT_Hazards.RulerResolutions", "'tables' is missing")
+        self.schema_problem(self.put(column, "unique", "yes"), "DT_Hazards.RulerResolutions", "unique")
+        self.schema_problem(self.put(column, "table", "DT_Events"), "DT_Hazards.RulerResolutions", "'table' is not read here")
+
+    def test_hazard_row(self):
+        cell = lambda column, value: self.set_cell("DT_Hazards", "crisis_test_storm", column, value)  # noqa: E731
+        self.expect(self.after(cell("SpawnRule", "Sometimes")), "'Sometimes' is no enumerator of ECosmicHazardSpawn")
+        self.expect(self.after(cell("LogCategory", "Log.Civ")), "crisis_test_storm.LogCategory", "not under Log.Crisis")
+        self.expect(self.after(cell("CountdownTicks", 0)), "crisis_test_storm.CountdownTicks", "is below 1")
+        self.expect(self.after(cell("SpawnChancePerTick", 1.5)), "crisis_test_storm.SpawnChancePerTick", "is above 1")
+        self.expect(self.after(cell("SourceDoctrine", "Doctrine.Covenant")), "crisis_test_storm.SourceDoctrine", "not under")
+        self.expect(self.after(cell("OutbreakRow", "event_nowhere")), "crisis_test_storm.OutbreakRow", "DT_Events has no row event_nowhere")
+        self.assertEqual(self.after(cell("OutbreakRow", "event_book_found")), [])
+        self.expect(self.after(cell("ExpireTemplates", ["{Rebel} rose."])), "crisis_test_storm.ExpireTemplates", "slot {Rebel}")
+        self.assertEqual(self.after(cell("OutbreakTemplates", [])), [])
+
     # ---- texts ----
 
     def test_texts(self):
@@ -757,7 +822,7 @@ class SchemaTests(unittest.TestCase):
         self.expect(self.after(named(CooldownTicks=200)), "has no cooldown key")
         self.expect(self.after(named(LogTemplates=[])), "one variant or more")
         # A row fired by name may speak of the vessel; a slot row may not, until the selector words reach the code (Phase 4 petitions).
-        vessel = dict(Conditions=[cond("PlayerRoleIs", key="Ruler")], Effects=[eff("KillPlayer", tag="Death.Hazard"), eff("GrantPower", tag="Way.Received")])
+        vessel = dict(Conditions=[cond("PlayerRoleIs", key="Ruler")], Effects=[eff("DeposeRuler", tag="Reign.Deposed"), eff("GrantPower", tag="Way.Received")])
         self.assertEqual(self.after(named(**vessel)), [])
         self.expect(self.after(cell("Conditions", vessel["Conditions"])), "a slot runs for every people", "PlayerRoleIs")
         self.expect(self.after(cell("Effects", vessel["Effects"])), "a slot runs for every people", "GrantPower")
@@ -766,7 +831,7 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(self.after(standing()), [])
         self.expect(self.after(standing(LogTemplates=["a.", "b."])), "three variants or more")
         self.expect(self.after(standing(Conditions=vessel["Conditions"])), "a slot runs for every people", "PlayerRoleIs")
-        self.expect(self.after(standing(Effects=vessel["Effects"])), "a slot runs for every people", "KillPlayer")
+        self.expect(self.after(standing(Effects=vessel["Effects"])), "a slot runs for every people", "DeposeRuler")
 
     def test_stay_condition_rows(self):
         """The stay in a fallen sphere stands on Civilization slot rows only; the row the research stage fires is Named."""
@@ -914,7 +979,9 @@ class SchemaTests(unittest.TestCase):
             def change(tables):
                 self.row(tables, "DT_Events", "event_test_harvest").update(Trigger="Named", BaseWeight=0, CooldownTicks=0, Effects=list(items))
             return self.after(change)
-        self.assertEqual(named(eff("GrantPower", tag="Way.Received"), eff("KillPlayer", tag="Death.Hazard")), [])
+        self.assertEqual(named(eff("GrantPower", tag="Way.Received"), eff("DeposeRuler", tag="Reign.Deposed")), [])
+        # A recorded death waits for the death pipeline of Phase 4b: no row records one before then.
+        self.expect(named(eff("KillPlayer", tag="Death.Hazard")), "a recorded death waits for the death pipeline")
         self.expect(named(eff("KillPlayer", tag="Reign.Deposed")), "not under Death.")
         self.expect(named(eff("GrantPower", tag="Death.Hazard")), "not under Way. or Power.")
         self.expect(named(eff("PlayerStatDelta", key="Body", value=0.5)), "not a whole number")
@@ -1282,6 +1349,8 @@ class SchemaTests(unittest.TestCase):
         without an entry here fails the walk below."""
         event = "event_test_harvest"
         update_event = lambda **changes: (lambda tables: self.row(tables, "DT_Events", event).update(**changes))  # noqa: E731
+        hazard = "crisis_test_storm"
+        update_hazard = lambda **changes: (lambda tables: self.row(tables, "DT_Hazards", hazard).update(**changes))  # noqa: E731
         named = update_event(Trigger="Named", BaseWeight=0, CooldownTicks=0, LogTemplates=["one."])
         return {
             ("DT_Civs", "the name pattern of a people drawn for the AI calls its home star (guideline 5.11)"): (NOTHING, "arch_default"),
@@ -1299,6 +1368,22 @@ class SchemaTests(unittest.TestCase):
             ("DT_Events", "a sign row is told below MinTierToReveal, so there has to be a tier below it"): (self.add_sign_row, event),
             ("DT_Events", "a grace row names no one (guideline 9.3: NameNotable is not carried by Event.Grace rows)"):
                 (update_event(Category="Event.Grace.Jubilee", LogCategory="Log.Civ"), event),
+            ("DT_Events", "the last-system gate fires the remnant row by name: as a slot row it would also fire in the slots (guideline 4.5)"):
+                (NOTHING, "event_grace_remnant"),
+            ("DT_Events", "a recorded death waits for the death pipeline of Phase 4b: until then no row records one (guideline 7.4)"): (NOTHING, event),
+            ("DT_Hazards", "the claim is placed by the claim rule alone, which holds Law.Remnant (guideline 4.2)"):
+                (update_hazard(HazardTag="Hazard.Claim", SpawnRule="ClaimRule", SpawnChancePerTick=0), hazard),
+            ("DT_Hazards", "the claim rule places the claim and nothing else (guideline 4.2)"):
+                (update_hazard(HazardTag="Hazard.Claim", SpawnRule="ClaimRule", SpawnChancePerTick=0), hazard),
+            ("DT_Hazards", "a rebellion is the discontent of a people in its capital, not a draw (guideline 4.1)"):
+                (update_hazard(HazardTag="Hazard.Rebellion", SpawnRule="Capital", SpawnChancePerTick=0), hazard),
+            ("DT_Hazards", "only a drawn hazard has a chance: the capital rule and the claim rule draw nothing (guideline 7.4)"):
+                (update_hazard(SpawnRule="Capital", SpawnChancePerTick=0), hazard),
+            ("DT_Hazards", "a branch is a chance and the effects it takes instead (guideline 4.1)"):
+                (update_hazard(BranchChance=0.5, OnExpireBranchEffects=[eff("ChangeStability", value=-0.2)]), hazard),
+            ("DT_Hazards", "branch effects without a chance are never applied (guideline 4.1)"): (NOTHING, hazard),
+            ("DT_Hazards", "a recorded death waits for the death pipeline of Phase 4b: until then no row records one (guideline 7.4)"): (NOTHING, hazard),
+            ("DT_Hazards", "the leader of a cult has no name (guideline 4.1)"): (update_hazard(HazardTag="Hazard.Cult"), hazard),
             ("DT_Transcendents", "the fixed place of the roster belongs to a fallen silence"): (NOTHING, "trans_silence"),
             ("DT_Transcendents", "a transcendent stands on tier 3 or 4 (guideline 4.2: no fallen one on tier 5)"): (NOTHING, "trans_silence"),
             ("DT_Transcendents", "a celestial transcendent has no instance: no sphere, no pressure, no roster weight"): (NOTHING, "trans_covenant"),
@@ -1321,7 +1406,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 33, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 49, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 
@@ -1334,6 +1419,7 @@ class SchemaTests(unittest.TestCase):
         breakers = {
             ("DT_LogTemplates", "at most one selector row per category and revelation mode"): two_selectors,
             ("DT_Transcendents", "one transcendent per doctrine in a run (guideline 4.2)"): lambda tables: tables["DT_Transcendents"].append(transcendent_row("trans_echo")),
+            ("DT_Hazards", "a system holds the tag and the code finds the row by it (guideline 7.3)"): lambda tables: tables["DT_Hazards"].append(hazard_row("crisis_test_echo")),
         }
         walked = 0
         for table, spec in self.schema["tables"].items():
@@ -1374,6 +1460,7 @@ class SchemaTests(unittest.TestCase):
             "DT_Civs.InitialRelations": (relation_to_default, "DT_Civs", "arch_default"),
             "DT_Rules.HomeGalaxyRow": (NOTHING, "DT_Galaxies", "gal_milkyway"),
             "DT_Events.SignRow": (self.add_sign_row, "DT_LogTemplates", "log_sign_test"),
+            "DT_Hazards.OutbreakRow": (self.set_cell("DT_Hazards", "crisis_test_storm", "OutbreakRow", "event_book_found"), "DT_Events", "event_book_found"),
             "conditions.SystemInfluencedBy": (condition_on("SystemInfluencedBy"), "DT_Transcendents", "trans_silence"),
             "conditions.TranscendentSealed": (condition_on("TranscendentSealed"), "DT_Transcendents", "trans_silence"),
             "conditions.TranscendentAwareOfPlayer": (condition_on("TranscendentAwareOfPlayer"), "DT_Transcendents", "trans_silence"),
@@ -1409,7 +1496,7 @@ class SchemaTests(unittest.TestCase):
                 with self.subTest(table=table, column=column):
                     self.expect(self.after(self.set_cell(table, row_name, column, value)), "%s.%s.%s" % (table, row_name, column), "slot {NoSuchSlot}")
                     walked += 1
-        self.assertEqual(walked, 10, "the number of slot lists in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 14, "the number of slot lists in schema.json changed: look at what was added or taken out, then set the count")
 
 
 if __name__ == "__main__":

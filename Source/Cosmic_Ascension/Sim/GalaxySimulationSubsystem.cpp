@@ -15,6 +15,7 @@
 #include "Math/NumericLimits.h"
 #include "Misc/Crc.h"
 #include "Misc/Guid.h"
+#include "Sim/CosmicHazards.h"
 #include "Sim/CosmicStateIndex.h"
 #include "UObject/NameTypes.h"
 #include "Player/PlayerRoleSubsystem.h"
@@ -253,6 +254,98 @@ namespace
 			AddPressureTerm(Out, Largest, PressureWeight(InRules, InState.Calling.PersonalTier), ECosmicPressureSource::Wanderer, NAME_None, InState.Calling.PersonalTier);
 		}
 		return Out;
+	}
+
+	// The claim rule after an expiry (section 4.2): on a settled system whose slot the expiry left free, the claimant
+	// places Hazard.Claim unless its sphere is full or the system is its owner's last unclaimed settled system. The claim
+	// number stands for the weight of the faith traits (section 4.5 (4)): 1 until the trait rows of Phase 4, so it always
+	// passes. It is drawn whether or not it is read.
+	void TryPlaceClaim(FCosmicEvalContext& Ctx, int32 SystemIndex, float ClaimNumber)
+	{
+		static const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Claim")));
+		const FGalaxyState& State = Ctx.State;
+		if (!State.Systems.IsValidIndex(SystemIndex) || !CosmicState::IsSettled(State.Systems[SystemIndex]) || State.Systems[SystemIndex].ActiveHazard.IsValid())
+		{
+			return;
+		}
+		const int32 Claimant = CosmicHazards::ClaimantOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, SystemIndex);
+		const FTranscendentDef* Def = State.Transcendents.IsValidIndex(Claimant) ? Ctx.Tables.FindTranscendent(State.Transcendents[Claimant].TranscendentID) : nullptr;
+		if (!Def || State.Transcendents[Claimant].InfluencedSystems.Num() >= Def->MaxInfluencedSystems
+			|| CosmicHazards::IsLastUnclaimed(State, Ctx.Index, Ctx.Tables, SystemIndex))
+		{
+			return;
+		}
+		constexpr float FaithWeight = 1.f;
+		FName ClaimRow;
+		if (!(ClaimNumber < FaithWeight) || !Ctx.Tables.FindHazardByTag(ClaimTag, &ClaimRow))
+		{
+			return;
+		}
+		CosmicHazards::Place(Ctx, SystemIndex, ClaimRow);
+	}
+
+	// The expiry of a claim (section 4.2): the claimant of now joins the system to its sphere, unless the system is no
+	// longer settled, the sphere is full, or Law.Remnant forbids it. True when it joined.
+	bool JoinClaimedSphere(FCosmicEvalContext& Ctx, int32 SystemIndex)
+	{
+		FGalaxyState& State = Ctx.State;
+		if (!State.Systems.IsValidIndex(SystemIndex) || !CosmicState::IsSettled(State.Systems[SystemIndex]))
+		{
+			return false;
+		}
+		const int32 Claimant = CosmicHazards::ClaimantOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, SystemIndex);
+		const FTranscendentDef* Def = State.Transcendents.IsValidIndex(Claimant) ? Ctx.Tables.FindTranscendent(State.Transcendents[Claimant].TranscendentID) : nullptr;
+		if (!Def || State.Transcendents[Claimant].InfluencedSystems.Num() >= Def->MaxInfluencedSystems
+			|| CosmicHazards::IsLastUnclaimed(State, Ctx.Index, Ctx.Tables, SystemIndex))
+		{
+			return false;
+		}
+		State.Transcendents[Claimant].InfluencedSystems.Add(State.Systems[SystemIndex].SystemID);
+		return true;
+	}
+
+	// The expiry of a rebellion (section 4.1, 7.4 notable hook 2). The throne changes for an AI people always, with a new
+	// profile picked by the outcome number; for the people the vessel rules only when the DeposeRuler this row just
+	// applied is the one recorded. A throne that changes closes the open Ruler record (LastTick = max(Tick, 1)) and then
+	// makes the open Rebel record the Ruler. Either way the count of discontent starts over.
+	void ChangeThrone(FCosmicEvalContext& Ctx, int32 CivIndex, FName HazardRow, float OutcomeNumber)
+	{
+		static const FGameplayTag DeposeTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Effect.DeposeRuler")));
+		static const FGameplayTag RulerTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Notable.Ruler")));
+		static const FGameplayTag RebelTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Notable.Rebel")));
+		FGalaxyState& State = Ctx.State;
+		if (!State.Civs.IsValidIndex(CivIndex))
+		{
+			return;
+		}
+		FCivilizationState& Civ = State.Civs[CivIndex];
+		bool bThroneChanges = true;
+		if (Civ.bIsPlayerRuled)
+		{
+			bThroneChanges = State.Calling.PendingEffect == DeposeTag && State.Calling.PendingSourceRow == HazardRow;
+		}
+		else
+		{
+			Civ.AIProfile = CosmicState::PickAIProfile(OutcomeNumber);
+		}
+		if (bThroneChanges)
+		{
+			for (FNotableRecord& Record : Civ.Notables)
+			{
+				if (Record.LastTick == 0 && Record.Role == RulerTag)
+				{
+					Record.LastTick = FMath::Max<int64>(State.Tick, 1);
+				}
+			}
+			for (FNotableRecord& Record : Civ.Notables)
+			{
+				if (Record.LastTick == 0 && Record.Role == RebelTag)
+				{
+					Record.Role = RulerTag;
+				}
+			}
+		}
+		Civ.LowStabilityTicks = 0;
 	}
 
 	/**
@@ -499,13 +592,6 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 	// The tell stream starts from a derived value, before Install tells the first line (section 9.2).
 	State.TellRngState = static_cast<int32>(CosmicSeed::Derive(Seed, "", CosmicSeed::Purpose::Tell, 0));
 
-	const FGameplayTag AIProfiles[] = {
-		FGameplayTag::RequestGameplayTag(FName(TEXT("AI.Profile.Conservative"))),
-		FGameplayTag::RequestGameplayTag(FName(TEXT("AI.Profile.Expansionist"))),
-		FGameplayTag::RequestGameplayTag(FName(TEXT("AI.Profile.Scholarly"))),
-		FGameplayTag::RequestGameplayTag(FName(TEXT("AI.Profile.Militarist"))),
-	};
-
 	// The draws below are made in the order NewGalaxy's header comment gives, whether or not they are used, so their
 	// number follows Seed, the two counts and the roster knob and never what the tables hold (section 7.4, 9.2).
 
@@ -720,7 +806,7 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 			}
 			if (!Civ.AIProfile.IsValid())
 			{
-				Civ.AIProfile = AIProfiles[PickIndex(ProfileRoll, static_cast<int32>(UE_ARRAY_COUNT(AIProfiles)))];
+				Civ.AIProfile = CosmicState::PickAIProfile(ProfileRoll);
 			}
 		}
 	}
@@ -1391,12 +1477,263 @@ void UGalaxySimulationSubsystem::TickConflict()
 
 void UGalaxySimulationSubsystem::TickHazards()
 {
-	// (a) resolution, (b) countdown and expiry, (c) spawn; Hazard.Claim (section 4.1, 4.2): the crisis handling work of Phase 2.
-
-	// (d) The event slots: the last step of this stage (section 7.4).
 	UCosmicEventSubsystem* Events = GetGameInstance()->GetSubsystem<UCosmicEventSubsystem>();
 	check(Events);
+
+	// (a) Resolution by a completed means arrives with the megaprojects (work item 8).
+
+	// (b) Countdown and expiry. Every countdown first, so a hazard placed later in this stage keeps its count this tick.
+	TArray<TPair<int32, FGameplayTag>, TInlineAllocator<8>> Expiring;
+	for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num(); ++SystemIndex)
+	{
+		FStarSystemState& System = State.Systems[SystemIndex];
+		if (System.ActiveHazard.IsValid() && --System.HazardTicksRemaining <= 0)
+		{
+			Expiring.Emplace(SystemIndex, System.ActiveHazard);
+		}
+	}
+	// Two numbers per expiry, all of them before the first one runs (section 9.2).
+	TArray<float, TInlineAllocator<16>> ExpiryNumbers;
+	for (int32 Index = 0; Index < Expiring.Num() * 2; ++Index)
+	{
+		ExpiryNumbers.Add(Rng.GetFraction());
+	}
+	for (int32 Index = 0; Index < Expiring.Num(); ++Index)
+	{
+		ExpireHazard(Expiring[Index].Key, Expiring[Index].Value, ExpiryNumbers[Index * 2], ExpiryNumbers[Index * 2 + 1]);
+	}
+
+	// (c) Spawn. One number per settled system, all drawn first, whether its slot is free or not.
+	TArray<int32, TInlineAllocator<64>> Settled;
+	TArray<float, TInlineAllocator<64>> SpawnNumbers;
+	for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num(); ++SystemIndex)
+	{
+		if (CosmicState::IsSettled(State.Systems[SystemIndex]))
+		{
+			Settled.Add(SystemIndex);
+			SpawnNumbers.Add(Rng.GetFraction());
+		}
+	}
+	const TArray<FName> HazardRows = Tables.GetHazardRowNames();
+	for (int32 Index = 0; Index < Settled.Num(); ++Index)
+	{
+		const int32 SystemIndex = Settled[Index];
+		const FStarSystemState& System = State.Systems[SystemIndex];
+		const int32 OwnerIndex = StateIndex.FindCiv(State, System.OwnerCivID);
+		if (!CosmicState::IsSettled(System) || System.ActiveHazard.IsValid() || !State.Civs.IsValidIndex(OwnerIndex))
+		{
+			continue;
+		}
+		const FCivilizationState& Owner = State.Civs[OwnerIndex];
+		const FCivArchetypeDef* Archetype = Tables.FindCiv(Owner.ArchetypeRow.IsNone() ? CosmicRows::ArchDefault : Owner.ArchetypeRow);
+
+		// The share of every Draw row on this system: its chance times the owner's multiplier, where its conditions pass.
+		// The ranges are lints; the guards are comparisons, so a value below 0 or not a number takes nothing.
+		FCosmicEvalView View(State, StateIndex, Tables, Rules);
+		View.CivIndex = OwnerIndex;
+		View.SystemIndex = SystemIndex;
+		View.GalaxyRow = System.GalaxyRow;
+		TArray<TPair<FName, float>, TInlineAllocator<8>> Shares;
+		float Total = 0.f;
+		for (const FName RowName : HazardRows)
+		{
+			const FHazardDef* Row = Tables.FindHazard(RowName);
+			if (!Row || Row->SpawnRule != ECosmicHazardSpawn::Draw)
+			{
+				continue;
+			}
+			const float Chance = Row->SpawnChancePerTick > 0.f ? FMath::Min(Row->SpawnChancePerTick, 1.f) : 0.f;
+			const float* Multiplier = Archetype ? Archetype->HazardSpawnMultipliers.Find(Row->HazardTag) : nullptr;
+			const float Factor = Multiplier ? (*Multiplier > 0.f ? FMath::Min(*Multiplier, TNumericLimits<float>::Max()) : 0.f) : 1.f;
+			const float Share = Chance * Factor;
+			if (!(Share > 0.f))
+			{
+				continue;
+			}
+			View.SourceRow = RowName;
+			if (!UCosmicEventSubsystem::CheckAll(Row->SpawnConditions, View))
+			{
+				continue;
+			}
+			Shares.Emplace(RowName, Share);
+			Total += Share;
+		}
+		// Shares that add up to more than 1 are scaled down together by scaling the number instead (as the event slots do).
+		const float Pick = Total > 1.f ? SpawnNumbers[Index] * Total : SpawnNumbers[Index];
+		float Reached = 0.f;
+		for (const TPair<FName, float>& Share : Shares)
+		{
+			Reached += Share.Value;
+			if (Pick < Reached)
+			{
+				FCosmicEvalContext Ctx = MakeEvalContext();
+				if (CosmicHazards::Place(Ctx, SystemIndex, Share.Key))
+				{
+					Events->FollowUpNotes(Ctx);
+				}
+				break;
+			}
+		}
+	}
+
+	// The capital rule: no draw. A people's discontent stands in its capital (section 4.1).
+	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+	{
+		const FCivilizationState& Civ = State.Civs[CivIndex];
+		const int32 Capital = StateIndex.FindSystem(State, Civ.HomeSystemID);
+		if (!State.Systems.IsValidIndex(Capital) || State.Systems[Capital].OwnerCivID != Civ.CivID || !CosmicState::IsSettled(State.Systems[Capital]))
+		{
+			continue;
+		}
+		for (const FName RowName : HazardRows)
+		{
+			const FHazardDef* Row = Tables.FindHazard(RowName);
+			if (State.Systems[Capital].ActiveHazard.IsValid())
+			{
+				break;
+			}
+			if (!Row || Row->SpawnRule != ECosmicHazardSpawn::Capital)
+			{
+				continue;
+			}
+			FCosmicEvalView View(State, StateIndex, Tables, Rules);
+			View.CivIndex = CivIndex;
+			View.SystemIndex = Capital;
+			View.GalaxyRow = Civ.GalaxyRow;
+			View.SourceRow = RowName;
+			if (!UCosmicEventSubsystem::CheckAll(Row->SpawnConditions, View))
+			{
+				continue;
+			}
+			FCosmicEvalContext Ctx = MakeEvalContext();
+			if (CosmicHazards::Place(Ctx, Capital, RowName))
+			{
+				Events->FollowUpNotes(Ctx);
+			}
+		}
+	}
+
+	// (d) The event slots: the last step of this stage (section 7.4).
 	Events->EvaluateAndFire(State, Rng);
+}
+
+void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Collected, float OutcomeNumber, float ClaimNumber)
+{
+	static const FGameplayTag SupernovaTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.PreSupernova")));
+	static const FGameplayTag RebellionTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Rebellion")));
+	static const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Claim")));
+	static const FGameplayTag DeposedTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Deposed")));
+
+	if (!State.Systems.IsValidIndex(SystemIndex) || State.Systems[SystemIndex].ActiveHazard != Collected)
+	{
+		return;
+	}
+	UCosmicEventSubsystem* Events = GetGameInstance()->GetSubsystem<UCosmicEventSubsystem>();
+	check(Events);
+
+	FName RowName;
+	const FHazardDef* Row = Tables.FindHazardByTag(Collected, &RowName);
+	const int32 OwnerIndex = StateIndex.FindCiv(State, State.Systems[SystemIndex].OwnerCivID);
+	auto EmptySlot = [this, SystemIndex]()
+	{
+		State.Systems[SystemIndex].ActiveHazard = FGameplayTag();
+		State.Systems[SystemIndex].HazardTicksRemaining = 0;
+	};
+	if (!Row)
+	{
+		// A tag no row holds has no effects and no line.
+		EmptySlot();
+		return;
+	}
+
+	FCosmicEvalContext Ctx = MakeEvalContext();
+	Ctx.CivIndex = OwnerIndex;
+	Ctx.SystemIndex = SystemIndex;
+	Ctx.SourceRow = RowName;
+	Ctx.GalaxyRow = State.Systems[SystemIndex].GalaxyRow;
+
+	// The gate comes before any part of the loss (section 4.5): a kept system loses nothing, not even its line.
+	const bool bTakesSystem = Collected == SupernovaTag;
+	if (bTakesSystem && CosmicHazards::IsLastOwnedSystem(State, StateIndex, SystemIndex) && GraceKeepsLastSystem(Ctx, SystemIndex))
+	{
+		EmptySlot();
+		return;
+	}
+
+	// The effects of the expiry, then its damage to the neighbours.
+	const bool bBranch = Row->BranchChance > 0.f && OutcomeNumber < Row->BranchChance;
+	UCosmicEventSubsystem::ApplyAll(bBranch ? Row->OnExpireBranchEffects : Row->OnExpireEffects, Ctx);
+	if (!Row->OnExpireNeighbourEffects.IsEmpty())
+	{
+		const TArray<FName> Lanes = State.Systems[SystemIndex].Lanes;
+		for (const FName Lane : Lanes)
+		{
+			const int32 Neighbour = StateIndex.FindSystem(State, Lane);
+			if (!State.Systems.IsValidIndex(Neighbour) || CosmicHazards::IsDeadNode(State.Systems[Neighbour]))
+			{
+				continue;
+			}
+			Ctx.SystemIndex = Neighbour;
+			Ctx.CivIndex = StateIndex.FindCiv(State, State.Systems[Neighbour].OwnerCivID);
+			Ctx.GalaxyRow = State.Systems[Neighbour].GalaxyRow;
+			UCosmicEventSubsystem::ApplyAll(Row->OnExpireNeighbourEffects, Ctx);
+		}
+		Ctx.SystemIndex = SystemIndex;
+		Ctx.CivIndex = OwnerIndex;
+		Ctx.GalaxyRow = State.Systems[SystemIndex].GalaxyRow;
+	}
+
+	// The code of the tag: what no effect may say (section 16 #29 (5)).
+	bool bJoined = true;
+	if (Collected == SupernovaTag)
+	{
+		CosmicHazards::Destroy(Ctx, SystemIndex);
+		// The collapse of the people the vessel rules: the deposition pipeline (section 4.4). Apply keeps the rules of the
+		// record (Embodied, the ruled people, first recorded wins).
+		if (State.Civs.IsValidIndex(OwnerIndex) && State.Civs[OwnerIndex].OwnedSystems.IsEmpty())
+		{
+			FCosmicEffect Collapse;
+			Collapse.Type = EEffectType::DeposeRuler;
+			Collapse.Tag = DeposedTag;
+			Ctx.SystemIndex = INDEX_NONE;
+			UCosmicEventSubsystem::Apply(Collapse, Ctx);
+			Ctx.SystemIndex = SystemIndex;
+		}
+	}
+	else if (Collected == RebellionTag)
+	{
+		ChangeThrone(Ctx, OwnerIndex, RowName, OutcomeNumber);
+	}
+	else if (Collected == ClaimTag)
+	{
+		bJoined = JoinClaimedSphere(Ctx, SystemIndex);
+	}
+	EmptySlot();
+
+	// The claim rule on the slot this expiry left free (section 4.2).
+	TryPlaceClaim(Ctx, SystemIndex, ClaimNumber);
+
+	// The expiry's own line, then what followed from it.
+	Events->TellHazardLine(Ctx, bJoined ? ECosmicHazardLine::Expiry : ECosmicHazardLine::Resolution, RowName, SystemIndex, OwnerIndex);
+	Events->FollowUpNotes(Ctx);
+}
+
+bool UGalaxySimulationSubsystem::GraceKeepsLastSystem(FCosmicEvalContext& Ctx, int32 SystemIndex)
+{
+	if (!CosmicHazards::IsLastOwnedSystem(State, StateIndex, SystemIndex))
+	{
+		return false;
+	}
+	UCosmicEventSubsystem* Events = GetGameInstance()->GetSubsystem<UCosmicEventSubsystem>();
+	check(Events);
+	const FCosmicEvalSubject Saved = Ctx;
+	Ctx.SystemIndex = SystemIndex;
+	Ctx.CivIndex = StateIndex.FindCiv(State, State.Systems[SystemIndex].OwnerCivID);
+	Ctx.OtherID = NAME_None;
+	Ctx.GalaxyRow = State.Systems[SystemIndex].GalaxyRow;
+	const bool bFired = Events->FireRow(CosmicRows::EventGraceRemnant, Ctx);
+	static_cast<FCosmicEvalSubject&>(Ctx) = Saved;
+	return bFired;
 }
 
 void UGalaxySimulationSubsystem::TickCivAI()
@@ -1436,7 +1773,19 @@ void UGalaxySimulationSubsystem::TickSight()
 
 void UGalaxySimulationSubsystem::ResolvePendingRoleEffect()
 {
-	// Death and deposition recorded in Calling.PendingEffect start their pipeline here, at the tick boundary (section 4.4, 5.10).
+	// Death and deposition recorded in Calling.PendingEffect start their pipeline here, at the tick boundary (section 4.4,
+	// 5.10). The death pipeline arrives with Phase 4b: until then a KillPlayer stays recorded.
+	static const FGameplayTag DeposeTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Effect.DeposeRuler")));
+	FCallingState& Calling = State.Calling;
+	if (Calling.PendingEffect == DeposeTag)
+	{
+		UPlayerRoleSubsystem* PlayerRole = GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>();
+		check(PlayerRole);
+		PlayerRole->DeposeRuler();
+		Calling.PendingEffect = FGameplayTag();
+		Calling.PendingCause = FGameplayTag();
+		Calling.PendingSourceRow = NAME_None;
+	}
 }
 
 const FCivilizationState* UGalaxySimulationSubsystem::FindCiv(FName CivID) const

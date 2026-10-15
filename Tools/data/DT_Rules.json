@@ -26,7 +26,6 @@
 		"ImmutableLaws": "(GameplayTags=((TagName=\"Law.Judgment\"),(TagName=\"Law.Sabbath\"),(TagName=\"Law.Humility\"),(TagName=\"Law.Remnant\")))",
 		"FallenTranscendentCount": 1,
 		"PlayerArchetypeRow": "arch_terran",
-		"ClaimCountdown": 300,
 		"ClaimAdjacencyLanes": 1,
 		"VigilClaimExtension": 100,
 		"SphereEventWeightStep": 0.1,

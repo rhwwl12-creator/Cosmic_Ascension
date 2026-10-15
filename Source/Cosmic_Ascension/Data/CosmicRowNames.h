@@ -26,8 +26,15 @@ namespace CosmicRows
 	// pick the people whose book is shut (section 5.11).
 	inline const FName EventBookFound(TEXT("event_book_found"));
 
+	// DT_Events: the grace of the remnant. The last-system gate fires it by name before a people loses its last owned
+	// system; the row's own conditions keep it to once per run (section 4.5, 7.4).
+	inline const FName EventGraceRemnant(TEXT("event_grace_remnant"));
+
 	// DT_LogTemplates: the first line of a run (section 2.4).
 	inline const FName LogFirstLife(TEXT("log_first_life"));
+
+	// DT_LogTemplates: the fallen monarch, told by the deposition pipeline (section 5.10).
+	inline const FName LogFallenMonarch(TEXT("log_fallen_monarch"));
 
 	// DT_LogTemplates: research breakthroughs, in the order Physics, Society, Engineering, Transcendence (section 5.4).
 	inline const FName LogBreakthrough[] = {

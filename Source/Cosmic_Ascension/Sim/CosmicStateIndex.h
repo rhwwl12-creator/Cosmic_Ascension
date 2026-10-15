@@ -6,6 +6,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicRowNames.h"
 
@@ -28,9 +29,9 @@ private:
 
 namespace CosmicState
 {
-	// Settled = owned and not being settled (section 5.7). The one predicate for it. The event slots and the pressure
-	// pass of the economy stage use it now. Still to take it up: the count of Law.Remnant and the hazard spawn draw
-	// (crisis handling work), settlement adjacency and the income loop of TickEconomy, which is not filtered yet
+	// Settled = owned and not being settled (section 5.7). The one predicate for it. The event slots, the pressure pass
+	// of the economy stage, the hazard stage (the spawn draw, the placement of a hazard) and the count of Law.Remnant use
+	// it now. Still to take it up: settlement adjacency and the income loop of TickEconomy, which is not filtered yet
 	// (settlement and removal work, with project_settle), succession candidates (Phase 4b).
 	inline bool IsSettled(const FStarSystemState& System)
 	{
@@ -47,4 +48,11 @@ namespace CosmicState
 	 * sight of the calling, settlement and succession later. World state only, no draw, one breadth-first pass.
 	 */
 	COSMIC_ASCENSION_API TArray<int32> LaneDistancesFrom(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 FromSystemIndex, int32 MaxLanes = MAX_int32);
+
+	/**
+	 * The AI.Profile tag one number in [0, 1) picks (section 3.1, 5.10): the four profiles in a fixed order, evenly, until
+	 * section 16 #36 (1) weighs the draw by ethics. NewGalaxy, the overthrow of a people and the regency after a
+	 * deposition use it, each with a number drawn whether or not it is used.
+	 */
+	COSMIC_ASCENSION_API FGameplayTag PickAIProfile(float Roll);
 }

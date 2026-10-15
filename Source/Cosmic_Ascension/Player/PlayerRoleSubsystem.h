@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Core/CosmicTypes.h"
 #include "PlayerRoleSubsystem.generated.h"
@@ -11,7 +12,8 @@
 /**
  * Ruler / Wanderer role switching, travel, encounter flow, the ruler command API, and the death, deposition and
  * succession pipeline. Holds no player or life dependent member: all of it lives in FGalaxyState (section 6.1).
- * So far only Install exists; the rest of the interface in section 7.5 arrives with Phase 4 and 4b.
+ * So far: Install, and the deposition pipeline in its Phase 2 form with BecomeWanderer. The rest of the interface in
+ * section 7.5 arrives with Phase 4 and 4b.
  */
 UCLASS()
 class COSMIC_ASCENSION_API UPlayerRoleSubsystem : public UGameInstanceSubsystem
@@ -31,4 +33,23 @@ public:
 	 * One draw from the sim stream per call, for the name of the vessel, made before the name bank is looked at.
 	 */
 	void Install(FName SystemID, FName CivID, EPlayerRole Role);
+
+	/**
+	 * The deposition pipeline (section 5.10), run by the role-effect stage for Effect.DeposeRuler, in its Phase 2 form:
+	 * tells CosmicRows::LogFallenMonarch (Severity 2), draws the regent profile (one number from the sim stream,
+	 * CosmicState::PickAIProfile), BecomeWanderer with Reign.Deposed, then the people's ReverenceToPlayer times
+	 * DT_Rules.ReverenceDecay, Stability = min(Stability, PostRebellionStability) and ThroneLockedUntilTick = Tick +
+	 * ThroneLockTicks. The vessel stays where it stands. The three screens, the digest and the exile encounter are Phase 4.
+	 * Does nothing unless the vessel rules.
+	 */
+	void DeposeRuler();
+
+	/**
+	 * Ruler to wanderer (section 5.10): Role = Wanderer, FormerCivID = the ruled people, RuledCivID cleared, the people
+	 * AI-run with RegentProfile, StatusTags from ReignEndReason (Reign.Abdicated: Status.Abdicated, Reign.Deposed:
+	 * Status.FallenMonarch, Reign.Died: none), the open reign closed with ReignEndReason, Knowing.PendingContactCivID
+	 * cleared. The regent record (notable hook 1) arrives with the abdication command of Phase 4, the neighbours the new
+	 * eye knows with the known scope and log work. Does nothing unless the vessel rules.
+	 */
+	void BecomeWanderer(FGameplayTag RegentProfile, FGameplayTag ReignEndReason);
 };

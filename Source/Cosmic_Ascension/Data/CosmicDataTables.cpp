@@ -39,6 +39,7 @@ void FCosmicDataTables::LoadFromFixedPaths()
 	Galaxies = LoadTable(TEXT("/Game/CA/Data/DT_Galaxies.DT_Galaxies"), FGalaxyDef::StaticStruct());
 	Events = LoadTable(TEXT("/Game/CA/Data/DT_Events.DT_Events"), FCosmicEventDef::StaticStruct());
 	Transcendents = LoadTable(TEXT("/Game/CA/Data/DT_Transcendents.DT_Transcendents"), FTranscendentDef::StaticStruct());
+	Hazards = LoadTable(TEXT("/Game/CA/Data/DT_Hazards.DT_Hazards"), FHazardDef::StaticStruct());
 }
 
 const FCosmicRulesDef* FCosmicDataTables::FindRules() const
@@ -71,6 +72,36 @@ const FTranscendentDef* FCosmicDataTables::FindTranscendent(FName RowName) const
 	return FindRowQuiet<FTranscendentDef>(Transcendents, RowName);
 }
 
+const FHazardDef* FCosmicDataTables::FindHazard(FName RowName) const
+{
+	return FindRowQuiet<FHazardDef>(Hazards, RowName);
+}
+
+const FHazardDef* FCosmicDataTables::FindHazardByTag(FGameplayTag Tag, FName* OutRowName) const
+{
+	if (OutRowName)
+	{
+		*OutRowName = NAME_None;
+	}
+	if (!Tag.IsValid())
+	{
+		return nullptr;
+	}
+	for (const FName RowName : GetHazardRowNames())
+	{
+		const FHazardDef* Row = FindHazard(RowName);
+		if (Row && Row->HazardTag == Tag)
+		{
+			if (OutRowName)
+			{
+				*OutRowName = RowName;
+			}
+			return Row;
+		}
+	}
+	return nullptr;
+}
+
 TArray<FName> FCosmicDataTables::GetEventRowNames() const
 {
 	TArray<FName> Names = Events ? Events->GetRowNames() : TArray<FName>();
@@ -81,6 +112,13 @@ TArray<FName> FCosmicDataTables::GetEventRowNames() const
 TArray<FName> FCosmicDataTables::GetTranscendentRowNames() const
 {
 	TArray<FName> Names = Transcendents ? Transcendents->GetRowNames() : TArray<FName>();
+	Names.Sort(FNameLexicalLess());
+	return Names;
+}
+
+TArray<FName> FCosmicDataTables::GetHazardRowNames() const
+{
+	TArray<FName> Names = Hazards ? Hazards->GetRowNames() : TArray<FName>();
 	Names.Sort(FNameLexicalLess());
 	return Names;
 }

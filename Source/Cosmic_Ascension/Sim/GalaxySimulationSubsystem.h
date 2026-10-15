@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayTagContainer.h"
 #include "Math/RandomStream.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Tickable.h"
@@ -313,11 +314,41 @@ private:
 	void TickDiplomacy();
 	void TickConflict();
 
-	// Stage 5. Four steps in a fixed order (section 7.4): (a) resolution, (b) countdown and expiry in two passes,
-	// (c) spawn, exactly one sim draw per settled system, (d) the event slots, UCosmicEventSubsystem::EvaluateAndFire.
-	// (a) to (c) arrive with the crisis handling work of Phase 2; (d) is the last step of this stage from now on.
-	// KillPlayer and DeposeRuler are only recorded, through UCosmicEventSubsystem::Apply (first recorded wins).
+	// Stage 5. Four steps in a fixed order (section 7.4). Every hazard is placed through CosmicHazards::Place, and its lines
+	// follow (FollowUpNotes) before the next placement.
+	// (a) Resolution by a completed means: from the megaproject work of Phase 2 on (work item 8).
+	// (b) Countdown and expiry, in two passes. First every countdown goes down by one and the systems that reach 0 are
+	//     collected in Systems order, so a hazard placed later in this stage keeps its whole count this tick. Then two
+	//     numbers per collected system are drawn from the sim stream, all of them before the first expiry: the outcome
+	//     number (the branch of the row, the new profile of an overthrown people) and the claim number (the weight of the
+	//     faith traits, read as 1 until the trait rows of Phase 4). Then ExpireHazard for each, in that order.
+	// (c) Spawn. One number per settled system in Systems order, all drawn first, whether its slot is free or not; then,
+	//     in the same order, the Draw row the number falls on is placed on a free slot. Then the Capital rows,
+	//     civilization by civilization in Civs order.
+	// (d) The event slots, UCosmicEventSubsystem::EvaluateAndFire.
+	// The draws of this stage itself follow the seed, the tick, which systems are settled and which hazards run out, and
+	// never what DT_Hazards holds. KillPlayer and DeposeRuler are only recorded, through UCosmicEventSubsystem::Apply
+	// (first recorded wins).
 	void TickHazards();
+
+	/**
+	 * One expiry of step (b) (section 7.4), on the hazard tag SystemIndex held when it was collected: a slot that holds
+	 * another (or none) is passed by and its numbers are thrown away. In this order: the last-system gate, when the code
+	 * of the tag takes the system and it is its owner's last owned system (a kept system ends there: its slot is emptied
+	 * without result); the effects (OnExpireEffects, or OnExpireBranchEffects when OutcomeNumber is below BranchChance),
+	 * then OnExpireNeighbourEffects; the code of the tag (Hazard.PreSupernova: CosmicHazards::Destroy, then DeposeRuler
+	 * through Apply when the people the vessel rules has no system left; Hazard.Rebellion: the throne; Hazard.Claim: the
+	 * join); the slot emptied; the claim rule on that slot; the expiry line (a claim that did not join tells the
+	 * resolution line); FollowUpNotes.
+	 */
+	void ExpireHazard(int32 SystemIndex, FGameplayTag Collected, float OutcomeNumber, float ClaimNumber);
+
+	/**
+	 * The last-system gate (section 4.5, 7.4): when SystemIndex is its owner's last owned system, fires
+	 * CosmicRows::EventGraceRemnant with that system and people as subject. True when the row fired: the loss does not
+	 * happen. The row's own conditions keep it to once per run. The subject of Ctx is left as it was.
+	 */
+	bool GraceKeepsLastSystem(FCosmicEvalContext& Ctx, int32 SystemIndex);
 
 	// Stage 6. (a) decisions of AI civilizations and regents in Civs array order (a civilization without systems is
 	// skipped); (b) UAscensionSubsystem::EvaluateFeats, exactly once per tick and nowhere else in the tick (from the
@@ -338,6 +369,9 @@ private:
 	// knowing in its own call. Empty body until Phase 2: the knob and the local arrive with the body.
 	void TickSight();
 
+	// Stage 10, outside the stage guard (section 7.4). Effect.DeposeRuler: UPlayerRoleSubsystem::DeposeRuler, then the
+	// record is cleared. Effect.KillPlayer stays recorded until the death pipeline of Phase 4b: no row of the game records
+	// one before then.
 	void ResolvePendingRoleEffect();
 
 	// The walk shared by ComputeStateHash and ComputeWorldHash.

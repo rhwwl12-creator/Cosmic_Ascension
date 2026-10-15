@@ -5,11 +5,13 @@
 #include "Cosmic_Ascension.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
+#include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
 #include "Engine/GameInstance.h"
 #include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
+#include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 
 void UPlayerRoleSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -119,4 +121,90 @@ void UPlayerRoleSubsystem::Install(FName SystemID, FName CivID, EPlayerRole Role
 		Args.Add(TEXT("HomeSystem"), Home ? Home->DisplayName : FText::GetEmpty());
 		GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>()->PushRow(CosmicRows::LogFirstLife, 2, Args, SystemID);
 	}
+}
+
+void UPlayerRoleSubsystem::DeposeRuler()
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	check(Sim && Log);
+	FGalaxyState& State = Sim->GetMutableState();
+	const FPlayerEntityState& Player = State.Player;
+	if (State.Calling.LifeState != ELifeState::Embodied || Player.Role != EPlayerRole::Ruler)
+	{
+		return;
+	}
+	const FName RuledCivID = Player.RuledCivID;
+	const int32 CivIndex = Sim->GetStateIndex().FindCiv(State, RuledCivID);
+
+	// The line first: the fall is told before what it changes (section 5.10).
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("Civ"), State.Civs.IsValidIndex(CivIndex) ? State.Civs[CivIndex].CivName : FText::GetEmpty());
+	Log->PushRow(CosmicRows::LogFallenMonarch, 2, Args, Player.CurrentSystemID, RuledCivID);
+
+	// One number for the regent, whether or not a people is there to take it (section 9.2).
+	const float RegentRoll = Sim->GetRng().GetFraction();
+	BecomeWanderer(CosmicState::PickAIProfile(RegentRoll), FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Deposed"))));
+
+	if (State.Civs.IsValidIndex(CivIndex))
+	{
+		const FCosmicRulesDef& Rules = Sim->GetRules();
+		FCivilizationState& Civ = State.Civs[CivIndex];
+		// The ranges are lints; the guards are comparisons, so a value that is not a number takes the safe side.
+		const float Decay = Rules.ReverenceDecay > 0.f ? FMath::Min(Rules.ReverenceDecay, 1.f) : 0.f;
+		Civ.ReverenceToPlayer = FMath::Clamp(Civ.ReverenceToPlayer * Decay, 0.f, 1.f);
+		const float Ceiling = Rules.PostRebellionStability > 0.f ? FMath::Min(Rules.PostRebellionStability, 1.f) : 0.f;
+		Civ.Stability = FMath::Min(Civ.Stability, Ceiling);
+		Civ.ThroneLockedUntilTick = State.Tick + FMath::Max(0, Rules.ThroneLockTicks);
+	}
+	Sim->SyncRngState();
+}
+
+void UPlayerRoleSubsystem::BecomeWanderer(FGameplayTag RegentProfile, FGameplayTag ReignEndReason)
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	check(Sim);
+	FGalaxyState& State = Sim->GetMutableState();
+	FPlayerEntityState& Player = State.Player;
+	if (State.Calling.LifeState != ELifeState::Embodied || Player.Role != EPlayerRole::Ruler)
+	{
+		return;
+	}
+	const int32 CivIndex = Sim->GetStateIndex().FindCiv(State, Player.RuledCivID);
+	if (State.Civs.IsValidIndex(CivIndex))
+	{
+		FCivilizationState& Civ = State.Civs[CivIndex];
+		Civ.bIsPlayerRuled = false;
+		if (RegentProfile.IsValid())
+		{
+			Civ.AIProfile = RegentProfile;
+		}
+	}
+
+	Player.FormerCivID = Player.RuledCivID;
+	Player.RuledCivID = NAME_None;
+	Player.Role = EPlayerRole::Wanderer;
+
+	// Why the vessel walks (section 5.10). A death leaves no status: the next vessel starts from nothing.
+	if (ReignEndReason == FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Abdicated"))))
+	{
+		Player.StatusTags.AddTag(FGameplayTag::RequestGameplayTag(FName(TEXT("Status.Abdicated"))));
+	}
+	else if (ReignEndReason == FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Deposed"))))
+	{
+		Player.StatusTags.AddTag(FGameplayTag::RequestGameplayTag(FName(TEXT("Status.FallenMonarch"))));
+	}
+
+	// The open reign ends with its reason (section 7.2).
+	if (!State.Calling.Lives.IsEmpty())
+	{
+		FLifeRecord& Life = State.Calling.Lives.Last();
+		if (!Life.ReignEndReasons.IsEmpty() && !Life.ReignEndReasons.Last().IsValid())
+		{
+			Life.ReignEndReasons.Last() = ReignEndReason;
+		}
+	}
+
+	// A role change ends a first-contact card that was waiting (section 8.1).
+	State.Knowing.PendingContactCivID = NAME_None;
 }

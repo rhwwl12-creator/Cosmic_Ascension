@@ -80,9 +80,9 @@ struct COSMIC_ASCENSION_API FCosmicEventDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicEffect> Effects;
 
-	// Three or more for Lottery and Standing rows, one or more for Named rows (Data.Integrity). Slots: {Civ}, {System}
-	// and {HomeSystem}, nothing else of section 8.2 ({Hazard} joins with the crisis handling work). Empty = the row tells
-	// nothing, not its SignRow either.
+	// Three or more for Lottery and Standing rows, one or more for Named rows (Data.Integrity). Slots: {Civ}, {System},
+	// {HomeSystem} and {Hazard} (the DisplayName of the hazard the subject system held when the row began to fire), nothing
+	// else of section 8.2. Empty = the row tells nothing, not its SignRow either.
 	UPROPERTY(EditAnywhere)
 	TArray<FText> LogTemplates;
 
@@ -101,13 +101,33 @@ struct COSMIC_ASCENSION_API FCosmicEventDef : public FTableRowBase
 	FName SignRow;
 };
 
-/** DT_Hazards row. */
+/** How a DT_Hazards row comes onto a system (section 4.1). Append only. */
+UENUM(BlueprintType)
+enum class ECosmicHazardSpawn : uint8
+{
+	// The spawn draw of the hazard stage: one number per settled system and tick, laid over the SpawnChancePerTick of
+	// every Draw row whose SpawnConditions pass on that system, in row-name order.
+	Draw,
+	// No draw: placed on the capital of a people when the capital is a settled system with a free slot and the
+	// SpawnConditions pass on it (Hazard.Rebellion, section 4.1).
+	Capital,
+	// Placed by the claim rule alone, after an expiry (Hazard.Claim, section 4.2). SpawnHazard never places it: the
+	// claim rule holds Law.Remnant.
+	ClaimRule
+};
+
+/**
+ * DT_Hazards row (section 4.1). HazardTag is unique across rows (Data.Integrity): a system holds the tag and the code finds
+ * the row by it (FCosmicDataTables::FindHazardByTag). What an expiry does that no effect may say is code keyed by the tag
+ * (section 16 #29 (5)): Hazard.PreSupernova destroys the system, Hazard.Rebellion changes the throne, Hazard.Claim joins
+ * the sphere of its claimant.
+ */
 USTRUCT(BlueprintType)
 struct COSMIC_ASCENSION_API FHazardDef : public FTableRowBase
 {
 	GENERATED_BODY()
 
-	// Hazard.*
+	// Hazard.*. Unique across rows.
 	UPROPERTY(EditAnywhere)
 	FGameplayTag HazardTag;
 
@@ -115,35 +135,84 @@ struct COSMIC_ASCENSION_API FHazardDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	FGameplayTag SourceDoctrine;
 
+	// The name of the hazard: the UI and the {Hazard} slot.
 	UPROPERTY(EditAnywhere)
 	FText DisplayName;
 
+	// Ticks from placement to expiry, read as at least 1. Hazard.Claim counts down from its row like every hazard.
 	UPROPERTY(EditAnywhere)
 	int32 CountdownTicks = 300;
 
 	UPROPERTY(EditAnywhere)
+	ECosmicHazardSpawn SpawnRule = ECosmicHazardSpawn::Draw;
+
+	// Draw rows: the share of one spawn draw, times the owner archetype's HazardSpawnMultipliers[HazardTag] (missing = 1).
+	// Capital and ClaimRule rows carry 0 (Data.Integrity). Below 0, or not a number, reads as 0.
+	UPROPERTY(EditAnywhere)
 	float SpawnChancePerTick = 0.0005f;
 
+	// AND. Subject = the system and its owner.
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicCondition> SpawnConditions;
 
-	// KillPlayer applies only when the player is in that system (section 4.4). crisis_rebellion carries DeposeRuler (section 4.1).
-	// Exception: when Hazard.Extinction deletes the civ the player rules, the ruler dies wherever the vessel is (section 4.1, 4.4).
+	// At expiry: subject = the system and its owner, SourceRow = this row. KillPlayer reaches only a wanderer standing in
+	// the system (section 4.4); crisis_rebellion carries DeposeRuler (section 4.1). No row carries KillPlayer before the
+	// death pipeline of Phase 4b.
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicEffect> OnExpireEffects;
 
-	// Applied once when the hazard is resolved. Ruler, wanderer and AI resolutions all go through the same ResolveHazard path.
-	// crisis_visitation: grants Trait.Faith.Visited and NameNotable (Notable.Hearer). Empty by default.
+	// The branch of an expiry (the 50/50 of Hazard.AIAwakening, section 4.1): when the expiry's outcome number is below
+	// BranchChance, OnExpireBranchEffects are applied instead of OnExpireEffects. 0 = no branch.
+	UPROPERTY(EditAnywhere)
+	float BranchChance = 0.f;
+
+	UPROPERTY(EditAnywhere)
+	TArray<FCosmicEffect> OnExpireBranchEffects;
+
+	// At expiry, after the effects above and before the code of the tag: once for every lane neighbour of the system that
+	// is not a dead node, in the order of its Lanes, subject = that neighbour and its owner, SourceRow = this row (the
+	// damage of a supernova to its neighbours). The spread of a plague waits for its cure, the quarantine of Phase 4.
+	UPROPERTY(EditAnywhere)
+	TArray<FCosmicEffect> OnExpireNeighbourEffects;
+
+	// Applied once when the hazard is resolved, after its slot was emptied: subject = the system and its owner, SourceRow
+	// = this row. Every resolution goes through CosmicHazards::Resolve. crisis_visitation (Phase 4): Trait.Faith.Visited
+	// and NameNotable (Notable.Hearer).
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicEffect> OnResolveEffects;
 
-	// DT_Megaprojects / DT_Edicts / DT_Encounters (petition) row names. Any one completed resolves the hazard.
+	// DT_Megaprojects / DT_Edicts / DT_Encounters (petition) row names. Any one completed resolves the hazard: read from
+	// the megaproject work of Phase 2 on (work item 8), empty in every row until then.
 	UPROPERTY(EditAnywhere)
 	TArray<FName> RulerResolutions;
 
-	// DT_Encounters row names.
+	// DT_Encounters row names (Phase 4).
 	UPROPERTY(EditAnywhere)
 	TArray<FName> WandererResolutions;
+
+	// Log.* and Severity of the three lines below.
+	UPROPERTY(EditAnywhere)
+	FGameplayTag LogCategory;
+
+	UPROPERTY(EditAnywhere)
+	uint8 Severity = 1;
+
+	// The hazard's own lines (UCosmicEventSubsystem::TellHazardLine), about the system and its owner, SourceRow = this
+	// row. Slots {Civ} {System} {HomeSystem} {Hazard}. Empty = that moment tells nothing of its own.
+	UPROPERTY(EditAnywhere)
+	TArray<FText> OutbreakTemplates;
+
+	UPROPERTY(EditAnywhere)
+	TArray<FText> ExpireTemplates;
+
+	// Also told when a claim ends without joining a sphere.
+	UPROPERTY(EditAnywhere)
+	TArray<FText> ResolveTemplates;
+
+	// DT_Events Named row fired right after the outbreak line, subject = the system and its owner (crisis_rebellion: the
+	// second precursor, which names the rebel). NAME_None = none.
+	UPROPERTY(EditAnywhere)
+	FName OutbreakRow;
 };
 
 /** DT_Feats row: a Mythic Feat, the only way up a Tier (section 3.2). */
@@ -641,11 +710,8 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	FName PlayerArchetypeRow = FName(TEXT("arch_terran"));
 
-	// Hazard.Claim countdown.
-	UPROPERTY(EditAnywhere)
-	int32 ClaimCountdown = 300;
-
-	// Claim spawn condition: within this many lanes of a fallen sphere.
+	// Claim spawn condition: within this many lanes of a fallen sphere. The claim's countdown is the CountdownTicks of its
+	// DT_Hazards row (section 4.2).
 	UPROPERTY(EditAnywhere)
 	int32 ClaimAdjacencyLanes = 1;
 

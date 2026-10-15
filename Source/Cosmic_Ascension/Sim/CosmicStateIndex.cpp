@@ -3,6 +3,7 @@
 #include "Sim/CosmicStateIndex.h"
 
 #include "Cosmic_Ascension.h"
+#include "GameplayTagContainer.h"
 
 void FCosmicStateIndex::Rebuild(const FGalaxyState& State)
 {
@@ -82,4 +83,16 @@ TArray<int32> CosmicState::LaneDistancesFrom(const FGalaxyState& State, const FC
 		}
 	}
 	return Distances;
+}
+
+FGameplayTag CosmicState::PickAIProfile(float Roll)
+{
+	static const FName Profiles[] = {
+		FName(TEXT("AI.Profile.Conservative")), FName(TEXT("AI.Profile.Expansionist")),
+		FName(TEXT("AI.Profile.Scholarly")), FName(TEXT("AI.Profile.Militarist"))
+	};
+	constexpr int32 Count = static_cast<int32>(UE_ARRAY_COUNT(Profiles));
+	// A comparison, not a cast of whatever came in: a number outside [0, 1) or one that is not a number picks an end.
+	const int32 Pick = Roll > 0.f ? FMath::Min(static_cast<int32>(FMath::Min(Roll, 1.f) * static_cast<float>(Count)), Count - 1) : 0;
+	return FGameplayTag::RequestGameplayTag(Profiles[Pick]);
 }

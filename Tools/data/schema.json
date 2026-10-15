@@ -6,7 +6,7 @@
 		"Checked by Tools/cosmic_data_schema.py before Tools/make_data_tables.py touches an asset (python Tools/check_data.py runs the same check without the editor), and by the automation test Cosmic_Ascension.Data.Integrity: this file against the code, the loaded assets against this file.",
 		"The checker reads this file first. While it has a problem the data is not looked at.",
 		"Every column of a row struct is declared here: a column added to a struct needs its line.",
-		"Column kinds (closed list): plain, number, numbers, text, texts, tag, tags, tag_list, tag_map, row, row_map, word_map, enum, conditions, effects",
+		"Column kinds (closed list): plain, number, numbers, text, texts, tag, tags, tag_list, tag_map, row, row_map, rows, word_map, enum, conditions, effects",
 		"An integer property is declared with integer: true (Data.Integrity holds the columns to the property types).",
 		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, slots_in, len_ge_col, pairs_ge_col",
 		"A row rule is 'when -> then' over tests: one column with one test of the list above, or 'row' with a row name. Each test can be asked of some kinds of column only (the checker holds the table).",
@@ -34,7 +34,8 @@
 	"enums": {
 		"EAscensionTier": ["Tier1_Planetary", "Tier2_Stellar", "Tier3_Causal", "Tier4_Transcendent", "Tier5_EternalOrder"],
 		"ECosmicEventTrigger": ["Lottery", "Standing", "Named"],
-		"ECosmicEventSubject": ["Civilization", "SettledSystem"]
+		"ECosmicEventSubject": ["Civilization", "SettledSystem"],
+		"ECosmicHazardSpawn": ["Draw", "Capital", "ClaimRule"]
 	},
 
 	"single_variant_rows": ["log_first_life", "log_first_contact"],
@@ -83,7 +84,6 @@
 				"ImmutableLaws": {"kind": "tags", "root": "Law."},
 				"FallenTranscendentCount": {"kind": "number", "min": 0, "max": 3, "integer": true},
 				"PlayerArchetypeRow": {"kind": "row", "table": "DT_Civs"},
-				"ClaimCountdown": {"kind": "number", "integer": true},
 				"ClaimAdjacencyLanes": {"kind": "number", "integer": true},
 				"VigilClaimExtension": {"kind": "number", "integer": true},
 				"SphereEventWeightStep": {"kind": "number", "min": 0},
@@ -156,7 +156,7 @@
 			"struct": "LogTemplateDef",
 			"prefixes": ["log_"],
 			"must_exist": true,
-			"required_rows": ["log_first_life", "log_breakthrough_physics", "log_breakthrough_society", "log_breakthrough_engineering", "log_breakthrough_transcendence"],
+			"required_rows": ["log_first_life", "log_breakthrough_physics", "log_breakthrough_society", "log_breakthrough_engineering", "log_breakthrough_transcendence", "log_fallen_monarch"],
 			"columns": {
 				"Category": {"kind": "tag", "root": "Log."},
 				"Context": {"kind": "tag", "root": "Revelation.", "optional": true},
@@ -177,7 +177,7 @@
 			"struct": "CosmicEventDef",
 			"prefixes": ["event_"],
 			"must_exist": true,
-			"required_rows": ["event_book_found"],
+			"required_rows": ["event_book_found", "event_grace_remnant"],
 			"columns": {
 				"Category": {"kind": "tag", "root": "Event."},
 				"LogCategory": {"kind": "tag", "root": "Log."},
@@ -187,14 +187,14 @@
 				"BaseWeight": {"kind": "number", "min": 0},
 				"CooldownTicks": {"kind": "number", "min": 0, "integer": true},
 				"Effects": {"kind": "effects"},
-				"LogTemplates": {"kind": "texts", "slots": ["Civ", "System", "HomeSystem"]},
+				"LogTemplates": {"kind": "texts", "slots": ["Civ", "System", "HomeSystem", "Hazard"]},
 				"Severity": {"kind": "number", "min": 0, "max": 2, "integer": true},
 				"MinTierToReveal": {"kind": "number", "min": 0, "max": 5, "integer": true},
 				"SignRow": {
 					"kind": "row",
 					"table": "DT_LogTemplates",
 					"optional": true,
-					"target": [{"col": "Category", "is": "Log.Sign"}, {"col": "Templates", "slots_in": ["Civ", "System", "HomeSystem"]}]
+					"target": [{"col": "Category", "is": "Log.Sign"}, {"col": "Templates", "slots_in": ["Civ", "System", "HomeSystem", "Hazard"]}]
 				}
 			},
 			"pairs": [
@@ -258,6 +258,15 @@
 					"why": "the research stage fires the found row by name: as a slot row it would also fire in the slots (guideline 5.11)",
 					"when": [{"row": "event_book_found"}],
 					"then": [{"col": "Trigger", "is": "Named"}]
+				},
+				{
+					"why": "the last-system gate fires the remnant row by name: as a slot row it would also fire in the slots (guideline 4.5)",
+					"when": [{"row": "event_grace_remnant"}],
+					"then": [{"col": "Trigger", "is": "Named"}]
+				},
+				{
+					"why": "a recorded death waits for the death pipeline of Phase 4b: until then no row records one (guideline 7.4)",
+					"then": [{"col": "Effects", "lacks_type": "KillPlayer"}]
 				},
 				{
 					"why": "a grace row names no one (guideline 9.3: NameNotable is not carried by Event.Grace rows)",
@@ -344,7 +353,87 @@
 			]
 		},
 
-		"DT_Hazards": {"struct": "HazardDef", "prefixes": ["crisis_"], "columns": null},
+		"DT_Hazards": {
+			"struct": "HazardDef",
+			"prefixes": ["crisis_"],
+			"must_exist": true,
+			"columns": {
+				"HazardTag": {"kind": "tag", "root": "Hazard."},
+				"SourceDoctrine": {"kind": "tag", "root": ["Doctrine.Silence", "Doctrine.Assimilation", "Doctrine.Zeal", "Doctrine.Recurrence"], "optional": true},
+				"DisplayName": {"kind": "text", "required": true, "slots": []},
+				"CountdownTicks": {"kind": "number", "min": 1, "integer": true},
+				"SpawnRule": {"kind": "enum", "enum": "ECosmicHazardSpawn"},
+				"SpawnChancePerTick": {"kind": "number", "min": 0, "max": 1},
+				"SpawnConditions": {"kind": "conditions"},
+				"OnExpireEffects": {"kind": "effects"},
+				"BranchChance": {"kind": "number", "min": 0, "max": 1},
+				"OnExpireBranchEffects": {"kind": "effects"},
+				"OnExpireNeighbourEffects": {"kind": "effects"},
+				"OnResolveEffects": {"kind": "effects"},
+				"RulerResolutions": {"kind": "rows", "tables": ["DT_Encounters"], "unique": true},
+				"WandererResolutions": {"kind": "rows", "tables": ["DT_Encounters"], "unique": true},
+				"LogCategory": {"kind": "tag", "root": ["Log.Crisis"]},
+				"Severity": {"kind": "number", "min": 0, "max": 2, "integer": true},
+				"OutbreakTemplates": {"kind": "texts", "slots": ["Civ", "System", "HomeSystem", "Hazard"]},
+				"ExpireTemplates": {"kind": "texts", "slots": ["Civ", "System", "HomeSystem", "Hazard"]},
+				"ResolveTemplates": {"kind": "texts", "slots": ["Civ", "System", "HomeSystem", "Hazard"]},
+				"OutbreakRow": {"kind": "row", "table": "DT_Events", "optional": true, "target": [{"col": "Trigger", "is": "Named"}]}
+			},
+			"unique": [
+				{"cols": ["HazardTag"], "why": "a system holds the tag and the code finds the row by it (guideline 7.3)"}
+			],
+			"rules": [
+				{
+					"why": "the claim is placed by the claim rule alone, which holds Law.Remnant (guideline 4.2)",
+					"when": [{"col": "HazardTag", "is": "Hazard.Claim"}],
+					"then": [{"col": "SpawnRule", "is": "ClaimRule"}]
+				},
+				{
+					"why": "the claim rule places the claim and nothing else (guideline 4.2)",
+					"when": [{"col": "SpawnRule", "is": "ClaimRule"}],
+					"then": [{"col": "HazardTag", "is": "Hazard.Claim"}]
+				},
+				{
+					"why": "a rebellion is the discontent of a people in its capital, not a draw (guideline 4.1)",
+					"when": [{"col": "HazardTag", "is": "Hazard.Rebellion"}],
+					"then": [{"col": "SpawnRule", "is": "Capital"}]
+				},
+				{
+					"why": "only a drawn hazard has a chance: the capital rule and the claim rule draw nothing (guideline 7.4)",
+					"when": [{"col": "SpawnRule", "in": ["Capital", "ClaimRule"]}],
+					"then": [{"col": "SpawnChancePerTick", "is": 0}]
+				},
+				{
+					"why": "a branch is a chance and the effects it takes instead (guideline 4.1)",
+					"when": [{"col": "BranchChance", "gt": 0}],
+					"then": [{"col": "OnExpireBranchEffects", "min_len": 1}]
+				},
+				{
+					"why": "branch effects without a chance are never applied (guideline 4.1)",
+					"when": [{"col": "BranchChance", "is": 0}],
+					"then": [{"col": "OnExpireBranchEffects", "max_len": 0}]
+				},
+				{
+					"why": "a recorded death waits for the death pipeline of Phase 4b: until then no row records one (guideline 7.4)",
+					"then": [
+						{"col": "OnExpireEffects", "lacks_type": "KillPlayer"},
+						{"col": "OnExpireBranchEffects", "lacks_type": "KillPlayer"},
+						{"col": "OnExpireNeighbourEffects", "lacks_type": "KillPlayer"},
+						{"col": "OnResolveEffects", "lacks_type": "KillPlayer"}
+					]
+				},
+				{
+					"why": "the leader of a cult has no name (guideline 4.1)",
+					"when": [{"col": "HazardTag", "is": "Hazard.Cult"}],
+					"then": [
+						{"col": "OnExpireEffects", "lacks_type": "NameNotable"},
+						{"col": "OnExpireBranchEffects", "lacks_type": "NameNotable"},
+						{"col": "OnExpireNeighbourEffects", "lacks_type": "NameNotable"},
+						{"col": "OnResolveEffects", "lacks_type": "NameNotable"}
+					]
+				}
+			]
+		},
 		"DT_Feats": {"struct": "AscensionFeatDef", "prefixes": ["feat_"], "columns": null},
 		"DT_Encounters": {"struct": "EncounterDef", "prefixes": ["enc_", "petition_"], "columns": null}
 	},

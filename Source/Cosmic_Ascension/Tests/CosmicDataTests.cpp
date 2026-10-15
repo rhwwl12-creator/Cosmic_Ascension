@@ -186,7 +186,7 @@ namespace CosmicDataTests
 
 	// The kinds of column (the closed list of schema.json) a property may be declared as. A type the closed list has no
 	// kind for answers with a name outside the list, so that its first declaration fails until a kind exists: declared
-	// "plain", a list of row names or a list of structs with effects inside would go unchecked on both sides.
+	// "plain", a list of structs with effects inside would go unchecked on both sides.
 	TArray<FString> KindsFor(const FProperty* Property)
 	{
 		if (CastField<FNameProperty>(Property))
@@ -254,7 +254,7 @@ namespace CosmicDataTests
 			}
 			if (CastField<FNameProperty>(Inner))
 			{
-				return { TEXT("row_list") };
+				return { TEXT("rows") };
 			}
 			return { TEXT("plain") };
 		}
@@ -715,6 +715,25 @@ namespace CosmicDataTests
 					CheckTag(Problems, FString::Printf(TEXT("%s[%d]"), *Where, Index), *reinterpret_cast<const FGameplayTag*>(Helper.GetRawPtr(Index)), Column, false);
 				}
 			}
+			else if (Kind == TEXT("rows"))
+			{
+				// Every entry a row of one of the named tables, as the loaded tables hold them.
+				const TArray<FString> Targets = StringsOf(Column, TEXT("tables"));
+				const FNameProperty* Inner = CastFieldChecked<FNameProperty>(ArrayProperty->Inner);
+				for (int32 Index = 0; Index < Count; ++Index)
+				{
+					const FName Entry = Inner->GetPropertyValue(Helper.GetRawPtr(Index));
+					const bool bFound = !Entry.IsNone() && Targets.ContainsByPredicate([&Tables, Entry](const FString& Target)
+					{
+						const UDataTable* const* Table = Tables.Find(Target);
+						return Table && *Table && (*Table)->GetRowMap().Contains(Entry);
+					});
+					if (!bFound)
+					{
+						Problems.Add(FString::Printf(TEXT("%s[%d]: none of %s has a row %s"), *Where, Index, *FString::Join(Targets, TEXT(", ")), *Entry.ToString()));
+					}
+				}
+			}
 			else if (Kind == TEXT("conditions") || Kind == TEXT("effects"))
 			{
 				// How a condition or an effect uses its Tag, Key and Value is checked on the sources. What the sources cannot
@@ -1166,6 +1185,8 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		{ TEXT("DT_Events"), TEXT("Effects"), TEXT("conditions"), TEXT("(effects)") },
 		{ TEXT("DT_Civs"), TEXT("HazardSpawnMultipliers"), TEXT("row_map"), TEXT("(tag_map)") },
 		{ TEXT("DT_Civs"), TEXT("InitialRelations"), TEXT("tag_map"), TEXT("(row_map or word_map)") },
+		{ TEXT("DT_Hazards"), TEXT("RulerResolutions"), TEXT("row"), TEXT("(rows)") },
+		{ TEXT("DT_Hazards"), TEXT("OutbreakRow"), TEXT("rows"), TEXT("(row)") },
 	};
 	for (const FKindCase& Case : KindCases)
 	{
@@ -1180,12 +1201,12 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		Expect(FString::Printf(TEXT("the kind %s on %s.%s, a column that is %s"), Case.WrongKind, Case.Table, Case.Column, Case.Fits), Unfit, { *Where, TEXT("does not fit"), Case.Fits });
 	}
 	{
-		// Two types of column the closed kinds cannot declare yet. Not "plain": such a column would go unchecked, so its
-		// first declaration has to fail until a kind for it exists (section 9.3: the hazard table has lists of row names,
-		// the encounter table a list of choices with effects inside).
+		// A type of column the closed kinds cannot declare yet. Not "plain": such a column would go unchecked, so its first
+		// declaration has to fail until a kind for it exists (section 9.3: the encounter table has a list of choices with
+		// effects inside). A list of row names has its kind since the crisis handling work: rows.
 		const FProperty* RowNames = FHazardDef::StaticStruct()->FindPropertyByName(TEXT("RulerResolutions"));
 		const FProperty* Structs = FEncounterDef::StaticStruct()->FindPropertyByName(TEXT("Choices"));
-		TestTrue(TEXT("A list of row names is of no kind of the closed list yet"), RowNames && KindsFor(RowNames) == TArray<FString>{ TEXT("row_list") });
+		TestTrue(TEXT("A list of row names is of the kind rows"), RowNames && KindsFor(RowNames) == TArray<FString>{ TEXT("rows") });
 		TestTrue(TEXT("A list of structs is of no kind of the closed list yet"), Structs && KindsFor(Structs) == TArray<FString>{ TEXT("nested") });
 	}
 

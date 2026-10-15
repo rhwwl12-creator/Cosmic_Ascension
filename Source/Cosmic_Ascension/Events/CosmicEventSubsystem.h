@@ -8,15 +8,16 @@
 // - Member functions (EvaluateAndFire, FireRow) work on the live state only and add the two things the static layer
 //   cannot do: tell lines and fire OnEventFired.
 //
-// A row is atomic (section 7.4): every effect in array order, then its line, then OnEventFired. No line and no delegate
-// leaves between two effects, so a handler never reads a half-applied row. Effects are applied in place and nothing is
-// queued: what has to wait is already kept by the state (the pending role effect, resolved by the tenth stage; a
-// civilization without systems, removed by the crossing stage).
+// A row is atomic (section 7.4): every effect in array order, then its line, then the lines that follow what the effects
+// did (a hazard placed or resolved: FollowUpNotes), then OnEventFired. No line and no delegate leaves between two effects,
+// so a handler never reads a half-applied row, and a cause is told before what follows from it. Effects are applied in
+// place and nothing is queued: what has to wait is already kept by the state (the pending role effect, resolved by the
+// tenth stage; a civilization without systems, removed by the crossing stage).
 //
-// Not here yet: the three effects that reach into the hazard stage (SpawnHazard, ResolveHazard, TransferSystem) are
-// turned away until the crisis handling work of Phase 2 gives each its one path. What has to follow such a change of the world
-// (a system the vessel's civilization received becomes known, the hazard's own line, the outbreak row) is added to this
-// header in that work, with the code that produces it.
+// The three effects that reach into the hazard stage (SpawnHazard, ResolveHazard, TransferSystem) go through the world
+// functions of Sim/CosmicHazards.h, the one path for each, and leave notes in the context; the member layer tells what the
+// notes say. The known scope and log work adds the note of a system the vessel's civilization received (it becomes known
+// before any line).
 
 #pragma once
 
@@ -103,6 +104,38 @@ struct FCosmicEvalSubject
 	int64 SinceTick = 0;
 };
 
+/** A change of the world that an effect made and the member layer has to follow with lines (section 7.5). */
+enum class ECosmicWorldNote : uint8
+{
+	// A hazard was placed: its outbreak line, then the OutbreakRow of its row.
+	HazardPlaced,
+	// A hazard was resolved: its resolution line.
+	HazardResolved
+};
+
+/** One note: what changed, where, about whom. Plain values, made by the world functions of Sim/CosmicHazards.h. */
+struct FCosmicWorldNote
+{
+	ECosmicWorldNote Kind = ECosmicWorldNote::HazardPlaced;
+
+	// Index into FGalaxyState.Systems.
+	int32 SystemIndex = INDEX_NONE;
+
+	// The owner at the moment of the change, index into FGalaxyState.Civs: the people the line is about.
+	int32 CivIndex = INDEX_NONE;
+
+	// DT_Hazards row of the hazard.
+	FName HazardRow;
+};
+
+/** Which of a hazard's own lines (FHazardDef: OutbreakTemplates, ExpireTemplates, ResolveTemplates). */
+enum class ECosmicHazardLine : uint8
+{
+	Outbreak,
+	Expiry,
+	Resolution
+};
+
 /**
  * Read-only side of an evaluation: what Check may see. It holds no stream, on purpose: every draw method of
  * FRandomStream is const, so a const reference to a context that held one would not stop a draw. A view without one does.
@@ -167,6 +200,11 @@ struct FCosmicEvalContext : public FCosmicEvalSubject
 	// trait rows from Phase 4). MultiplyIncome is applied only then: IncomePerTick is rebuilt every tick, so a multiplier
 	// from anywhere else would be gone before it reached the stockpile (section 5.8).
 	bool bPerTickSource = false;
+
+	// What the world functions of Sim/CosmicHazards.h changed through this context, in order, waiting for
+	// UCosmicEventSubsystem::FollowUpNotes. FireRow fires on a context of its own, so the notes of a fired row are
+	// followed by that fire and never by its caller.
+	TArray<FCosmicWorldNote, TInlineAllocator<2>> Notes;
 };
 
 /**
@@ -250,9 +288,14 @@ public:
 	 *   finite number: nothing that is not a number is clamped to a bound or written into the state.
 	 * - DurationTicks is not read: Apply keeps no record that could count it down (section 16 #27). Data.Integrity keeps
 	 *   a value above zero out of every effect array but the per-tick sources.
-	 * - SpawnHazard, ResolveHazard and TransferSystem are turned away with one error line until the crisis handling work
-	 *   gives each its one path (a per-tick source turns them away before that, without a line). TransferSystem will never take or release the last owned system of a civilization: only
-	 *   stage code behind the last-system gate can do that (section 4.5, 7.4).
+	 * - SpawnHazard places the DT_Hazards row whose HazardTag is the effect's Tag on the subject system, through
+	 *   CosmicHazards::Place (refused there: a system that is not settled or whose slot is taken, a Capital row away from
+	 *   its owner's capital, a ClaimRule row always). ResolveHazard resolves the hazard of the subject system through
+	 *   CosmicHazards::Resolve; with a Tag, only a hazard that matches it (MatchesTag). TransferSystem hands the subject
+	 *   system to the civilization its Key names (a living CivID; an empty Key = to no one) through
+	 *   CosmicHazards::Transfer, which never takes or lets go the last owned system of a civilization: only stage code
+	 *   behind the last-system gate can (section 4.5, 7.4). The three leave notes in Ctx.Notes; whoever applied them tells
+	 *   them after its own line (FollowUpNotes). A per-tick source turns all three away.
 	 * - An effect whose Key names something the context cannot resolve is turned away. ChangeRelation resolves its
 	 *   other party as CivRelationAtLeast does and writes no entry for one that does not resolve: the keys of
 	 *   Relations are saved, and they are living civilizations, transcendents of the run and celestial rows only.
@@ -262,8 +305,9 @@ public:
 	static bool Apply(const FCosmicEffect& Effect, FCosmicEvalContext& Ctx);
 
 	// Apply over Effects in array order. A turned-away effect does not stop the rest. Like Apply it only changes the world:
-	// stage code that applies an array of its own (the per-tick sources; from later work items hazard expiry and resolution,
-	// the cost of a feat, the outcome of an encounter) tells its own line afterwards, never in between.
+	// stage code that applies an array of its own (the per-tick sources, a hazard's expiry and resolution; from later
+	// work items the cost of a feat, the outcome of an encounter) tells its own line afterwards, never in between, and
+	// then follows the notes.
 	static void ApplyAll(TConstArrayView<FCosmicEffect> Effects, FCosmicEvalContext& Ctx);
 
 	// Key of FGalaxyState.EventCooldownUntilTick for a slot row and a civilization: "<row>@<CivID>". Keys are saved, so
@@ -329,12 +373,30 @@ public:
 	 *    complementary (MinTierToReveal), so the number of tell draws of a fire does not depend on the viewer's tier:
 	 *    0, 1 or 2 by the row's data. The only other tell draw is the far
 	 *    line that stands in for an out-of-scope Severity 2 line (section 8.1). The line is told whether or not an effect
-	 *    was turned away;
-	 * 3. OnEventFired, while the global broadcast gate is open.
+	 *    was turned away. Slot {Hazard}: the hazard the subject system held before the effects;
+	 * 3. FollowUpNotes: the lines of what the effects did (a hazard placed or resolved), in the order it was done;
+	 * 4. OnEventFired, while the global broadcast gate is open.
 	 * Cooldown keys, sim draw counts and the result never depend on whether a line was told. Outside a tick the caller
 	 * syncs the random stream state afterwards. Refused like EvaluateAndFire.
 	 */
 	bool FireRow(FName RowName, const FCosmicEvalContext& Ctx);
+
+	/**
+	 * One of the three lines of the DT_Hazards row HazardRow (section 4.1), about SystemIndex and CivIndex: the caller names
+	 * the people, because an expiry may already have taken the system from it. Told through PushVariants with the row's
+	 * LogCategory and Severity, SourceRow = the row, focus on the system and the people, slots {Civ} {System}
+	 * {HomeSystem} {Hazard}. A missing row or empty templates tell nothing (no draw). Refused like FireRow.
+	 */
+	void TellHazardLine(const FCosmicEvalContext& Ctx, ECosmicHazardLine Line, FName HazardRow, int32 SystemIndex, int32 CivIndex);
+
+	/**
+	 * Follows Ctx.Notes after the caller's own line (section 7.5). Takes the notes out of Ctx first, then in their order:
+	 * HazardPlaced tells the outbreak line and fires the row's OutbreakRow through FireRow, with that system and people as
+	 * subject over the state and the stream of Ctx (a NameNotable of that row draws from it); HazardResolved tells the
+	 * resolution line. Every user of the world functions ends with it: FireRow after the row's line, the hazard stage
+	 * after each placement and after each expiry line. Refused like FireRow, leaving the notes where they are.
+	 */
+	void FollowUpNotes(FCosmicEvalContext& Ctx);
 
 	// Fired once for every row that fired, after its effects and its lines, while the global broadcast gate is open
 	// (section 6.1). Fired synchronously, also from inside a tick stage, and also for rows about peoples the calling has
