@@ -1,6 +1,6 @@
 // Cosmic Ascension - Sim layer. Design: guideline.md section 4.2, 4.3, 5.7, 5.12, 7.4.
-// The world side of megaprojects: starting one, what a people would start, settlement, and one tick of the two slots of
-// a system. World state only: no line, no knowing, no delegate and no draw of their own (a completion that resolves a
+// The world side of megaprojects: starting one, what a people would start, settlement, and one tick of one project slot
+// of a system (step (a) runs every response slot, then every construction slot). World state only: no line, no knowing, no delegate and no draw of their own (a completion that resolves a
 // hazard goes through CosmicHazards::Resolve, whose effects draw as Apply does; the AI draws its settlement number
 // before it calls Settle). The ruler's command and the AI start through Start and Settle; the crisis stage advances
 // through Advance and tells the lines afterwards.
@@ -10,7 +10,6 @@
 
 #include "CoreMinimal.h"
 #include "Containers/Array.h"
-#include "Containers/ContainerAllocationPolicies.h"
 #include "Core/GalaxyState.h"
 #include "Events/CosmicEventSubsystem.h"
 #include "Templates/Tuple.h"
@@ -100,8 +99,9 @@ namespace CosmicMegaprojects
 
 	/**
 	 * Starts the settlement of SystemIndex by the people CivIndex (section 5.7): refused (false, nothing changed)
-	 * unless CanSettle. The system becomes the people's through CosmicHazards::Transfer (the one path of a system that
-	 * changes hands) and its construction slot takes project_settle from 0. Until the project completes the system is
+	 * unless CanSettle. The system becomes the people's through CosmicHazards::Transfer (the one path by which an effect
+	 * or a settlement hands a system over; only the stage code of Destroy and LetSettlementsGo lets one go otherwise) and
+	 * its construction slot takes project_settle from 0. Until the project completes the system is
 	 * not settled: no income, no hazard, no foothold for the next settlement, not in the count of Law.Remnant.
 	 * No line, no draw (the AI draws before it calls this; the ruler's command draws nothing).
 	 */

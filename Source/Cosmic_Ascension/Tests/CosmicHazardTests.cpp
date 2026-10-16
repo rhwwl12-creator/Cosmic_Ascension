@@ -525,7 +525,7 @@ bool FCosmicEventsHazardEffectsTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("No line is due for it"), Bench.Ctx.Notes.Num(), 0);
 	}
 
-	// TransferSystem: one path for a system to change hands; never the last owned system.
+	// TransferSystem: one path for a system to change hands; never the last settled system.
 	{
 		FBench Bench(Laid, *Sim);
 		FGalaxyState& State = Bench.State;
@@ -575,9 +575,9 @@ bool FCosmicEventsHazardEffectsTest::RunTest(const FString& Parameters)
 		}
 
 		Bench.Ctx.SystemIndex = 0;
-		TestFalse(TEXT("The last owned system is never handed over"), UCosmicEventSubsystem::Apply(Transfer(Civ1), Bench.Ctx));
-		TestFalse(TEXT("The last owned system is never let go"), UCosmicEventSubsystem::Apply(Transfer(NAME_None), Bench.Ctx));
-		TestEqual(TEXT("The last owned system stays with its people"), State.Systems[0].OwnerCivID, State.Civs[0].CivID);
+		TestFalse(TEXT("The last settled system is never handed over"), UCosmicEventSubsystem::Apply(Transfer(Civ1), Bench.Ctx));
+		TestFalse(TEXT("The last settled system is never let go"), UCosmicEventSubsystem::Apply(Transfer(NAME_None), Bench.Ctx));
+		TestEqual(TEXT("The last settled system stays with its people"), State.Systems[0].OwnerCivID, State.Civs[0].CivID);
 		Bench.Ctx.SystemIndex = 1;
 		TestFalse(TEXT("An unowned system cannot be let go"), UCosmicEventSubsystem::Apply(Transfer(NAME_None), Bench.Ctx));
 		Bench.Ctx.SystemIndex = 2;
@@ -1293,8 +1293,13 @@ bool FCosmicDeadNodeTest::RunTest(const FString& Parameters)
 		Bare.OwnedSystems = Kept;
 	}
 
-	// The collapse of the people the vessel rules: the deposition pipeline, at the tick boundary.
+	// The collapse of the people the vessel rules: the deposition pipeline, at the tick boundary. The deposition caps the
+	// people's Stability at PostRebellionStability: the case lifts that ceiling so that a charge for the lost capital
+	// would show.
 	{
+		FCosmicRulesDef Uncapped = Knobs(BaseRules);
+		Uncapped.PostRebellionStability = 1.f;
+		Sim->SetTables(TablesWith(Original, Uncapped, Hazards, Events));
 		Sim->NewGalaxy(42, 12, 4);
 		FGalaxyState& State = Sim->GetMutableState();
 		if (!TestTrue(TEXT("The board of the collapse case is laid"), Board(State)))
@@ -1310,6 +1315,7 @@ bool FCosmicDeadNodeTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The last system went"), CosmicHazards::IsDeadNode(State.Systems[0]));
 		TestEqual(TEXT("The people has no system left"), State.Civs[0].OwnedSystems.Num(), 0);
 		TestEqual(TEXT("and keeps the ID of its lost capital while it is kept for the tick of its loss"), State.Civs[0].HomeSystemID, State.Systems[0].SystemID);
+		TestEqual(TEXT("and its Stability: a people with no system left pays nothing for the lost capital"), State.Civs[0].Stability, 0.75f);
 		TestTrue(TEXT("The ruler fell: the vessel walks"), State.Player.Role == EPlayerRole::Wanderer);
 		TestTrue(TEXT("as a fallen monarch"), State.Player.StatusTags.HasTagExact(Tag(TEXT("Status.FallenMonarch"))));
 		TestFalse(TEXT("The role effect was resolved at the tick boundary"), State.Calling.PendingEffect.IsValid());

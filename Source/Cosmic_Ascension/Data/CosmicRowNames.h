@@ -26,7 +26,7 @@ namespace CosmicRows
 	// pick the people whose book is shut (section 5.11).
 	inline const FName EventBookFound(TEXT("event_book_found"));
 
-	// DT_Events: the grace of the remnant. The last-system gate fires it by name before a people loses its last owned
+	// DT_Events: the grace of the remnant. The last-system gate fires it by name before a people loses its last settled
 	// system; the row's own conditions keep it to once per run (section 4.5, 7.4).
 	inline const FName EventGraceRemnant(TEXT("event_grace_remnant"));
 

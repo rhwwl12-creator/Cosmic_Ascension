@@ -41,9 +41,10 @@ namespace CosmicHazards
 	 * no one (section 5.7): owner none, out of its OwnedSystems, both project slots and the hazard slot empty (the
 	 * completion records stay). Nothing otherwise. Destroy calls it for the owner of the system it destroys, and the
 	 * cleanup of the crossing stage for every people, so that no people holds only settlements it can never pay for.
-	 * No line, no note, no draw.
+	 * Returns whether it let any go. No line, no note, no draw, and no role effect: a stage that takes the last settled
+	 * system of the people the player rules records the collapse itself (section 7.4 (o)).
 	 */
-	COSMIC_ASCENSION_API void LetSettlementsGo(FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex);
+	COSMIC_ASCENSION_API bool LetSettlementsGo(FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex);
 
 	/**
 	 * Places the hazard of the DT_Hazards row HazardRow on SystemIndex: the one path (section 7.4). The spawn draw, the
@@ -81,8 +82,9 @@ namespace CosmicHazards
 
 	/**
 	 * The capital of CivIndex was lost (section 5.10): HomeSystemID moves to its first settled system in OwnedSystems
-	 * order, or with none to its first owned system, and Stability goes down by 0.3. A people with no system left keeps
-	 * the old ID and its Stability.
+	 * order, or with none to its first owned system (an entry whose owner is the people: a listed system another people
+	 * owns is never made the capital), and Stability goes down by 0.3. A people with no system left keeps the old ID and
+	 * its Stability.
 	 */
 	COSMIC_ASCENSION_API void MoveCapital(FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex);
 
@@ -91,7 +93,7 @@ namespace CosmicHazards
 	 * was the owner's last settled system (LetSettlementsGo) - and its capital moves; every lane to and from it
 	 * is cut, its star class, hazard and both project slots are cleared (the completion records stay), and it leaves every
 	 * sphere. A vessel standing there is carried away while the calling is Embodied and no KillPlayer is pending: a ruler
-	 * to the new capital of its people, anyone else (and a ruler whose people has no system left) to the first lane
+	 * to the new capital of its people, anyone else (and a ruler whose people owns no capital any more) to the first lane
 	 * neighbour of the old Lanes that is not a dead node; with none it stays (section 16 #53 (2)). The stage that destroys
 	 * asks the last-system gate first and records the collapse afterwards.
 	 */

@@ -2,6 +2,7 @@
 
 #include "Sim/CosmicMegaprojects.h"
 
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"

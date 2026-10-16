@@ -385,7 +385,8 @@ private:
 
 	// Stage 7. The only place where the number of elements of State.Civs changes (section 7.4). (o) Cleanup: first every
 	// people with no settled system lets its settlements go (CosmicHazards::LetSettlementsGo - a destruction has done so
-	// already in play); then every civilization that owns no system (CosmicState::OwnsAnySystem) leaves Civs, in array
+	// already in play; when that empties the people the player rules with no deposition recorded, an error line says so,
+	// for nothing lets go of it then); then every civilization that owns no system (CosmicState::OwnsAnySystem) leaves Civs, in array
 	// order, except the one the player rules this tick, which the next tick's cleanup takes once the role-effect stage has
 	// let go of it (that rests on the recorded deposition: Phase 4b's death pipeline lets go of a people as well). The
 	// Relations key of a removed CivID leaves every other civilization, Knowing.PendingContactCivID is cleared when it

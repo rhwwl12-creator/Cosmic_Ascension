@@ -1865,10 +1865,16 @@ void UGalaxySimulationSubsystem::TickCrossings()
 	// it this tick (the role-effect stage lets go of it first; the next tick's cleanup takes it). No line: the expiry that
 	// took its last system has told it. Arrivals and departures are Phase 6a.
 	// A people with no settled system lets its settlements go first (section 5.7: a destruction has done so already in
-	// play), so that none is left holding only settlements it can never pay for.
+	// play), so that none is left holding only settlements it can never pay for. This net records no collapse: a people
+	// the player rules that it empties would be kept with nothing to rule, so it says so (the stage that takes the last
+	// settled system of that people records the collapse itself, as the hazard expiry does).
+	static const FGameplayTag DeposeTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Effect.DeposeRuler")));
 	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
 	{
-		CosmicHazards::LetSettlementsGo(State, StateIndex, CivIndex);
+		if (CosmicHazards::LetSettlementsGo(State, StateIndex, CivIndex) && State.Civs[CivIndex].bIsPlayerRuled && State.Calling.PendingEffect != DeposeTag)
+		{
+			UE_LOG(LogCosmic, Error, TEXT("TickCrossings: %s, the people the player rules, held only settlements: they go to no one, and no collapse was recorded to depose its ruler."), *State.Civs[CivIndex].CivID.ToString());
+		}
 	}
 	TArray<FName> Removed;
 	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); )

@@ -102,11 +102,11 @@ bool CosmicHazards::IsLastSettledSystem(const FGalaxyState& State, const FCosmic
 	return Owner.OwnedSystems.Contains(System.SystemID) && !bOtherSettled;
 }
 
-void CosmicHazards::LetSettlementsGo(FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex)
+bool CosmicHazards::LetSettlementsGo(FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex)
 {
 	if (!State.Civs.IsValidIndex(CivIndex))
 	{
-		return;
+		return false;
 	}
 	FCivilizationState& Civ = State.Civs[CivIndex];
 	TArray<int32, TInlineAllocator<4>> Owned;
@@ -117,7 +117,7 @@ void CosmicHazards::LetSettlementsGo(FGalaxyState& State, const FCosmicStateInde
 		{
 			if (CosmicState::IsSettled(State.Systems[SystemIndex]))
 			{
-				return;
+				return false;
 			}
 			Owned.Add(SystemIndex);
 		}
@@ -131,6 +131,7 @@ void CosmicHazards::LetSettlementsGo(FGalaxyState& State, const FCosmicStateInde
 		System.ActiveMegaproject = NAME_None;
 		System.MegaprojectProgress = 0.f;
 	}
+	return !Owned.IsEmpty();
 }
 
 bool CosmicHazards::Place(FCosmicEvalContext& Ctx, int32 SystemIndex, FName HazardRow)
@@ -278,19 +279,30 @@ void CosmicHazards::MoveCapital(FGalaxyState& State, const FCosmicStateIndex& In
 		return;
 	}
 	FCivilizationState& Civ = State.Civs[CivIndex];
+	// The first settled system the people owns, or with none the first system it owns: an entry another people owns is
+	// never its capital.
 	FName NewHome;
+	FName FirstOwned;
 	for (const FName SystemID : Civ.OwnedSystems)
 	{
 		const int32 SystemIndex = Index.FindSystem(State, SystemID);
-		if (State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == Civ.CivID && CosmicState::IsSettled(State.Systems[SystemIndex]))
+		if (!State.Systems.IsValidIndex(SystemIndex) || State.Systems[SystemIndex].OwnerCivID != Civ.CivID)
+		{
+			continue;
+		}
+		if (CosmicState::IsSettled(State.Systems[SystemIndex]))
 		{
 			NewHome = SystemID;
 			break;
 		}
+		if (FirstOwned.IsNone())
+		{
+			FirstOwned = SystemID;
+		}
 	}
-	if (NewHome.IsNone() && !Civ.OwnedSystems.IsEmpty())
+	if (NewHome.IsNone())
 	{
-		NewHome = Civ.OwnedSystems[0];
+		NewHome = FirstOwned;
 	}
 	if (NewHome.IsNone())
 	{
@@ -354,11 +366,17 @@ void CosmicHazards::Destroy(FCosmicEvalContext& Ctx, int32 SystemIndex)
 
 	if (bCarryVessel)
 	{
+		// A ruler goes to the capital of its people when the people owns it (not merely lists it).
 		FName Target;
 		const int32 RuledIndex = Ctx.Index.FindCiv(State, Player.RuledCivID);
-		if (Player.Role == EPlayerRole::Ruler && State.Civs.IsValidIndex(RuledIndex) && State.Civs[RuledIndex].OwnedSystems.Contains(State.Civs[RuledIndex].HomeSystemID))
+		if (Player.Role == EPlayerRole::Ruler && State.Civs.IsValidIndex(RuledIndex))
 		{
-			Target = State.Civs[RuledIndex].HomeSystemID;
+			const FCivilizationState& Ruled = State.Civs[RuledIndex];
+			const int32 Home = Ctx.Index.FindSystem(State, Ruled.HomeSystemID);
+			if (State.Systems.IsValidIndex(Home) && State.Systems[Home].OwnerCivID == Ruled.CivID)
+			{
+				Target = Ruled.HomeSystemID;
+			}
 		}
 		for (int32 LaneIndex = 0; Target.IsNone() && LaneIndex < OldLanes.Num(); ++LaneIndex)
 		{

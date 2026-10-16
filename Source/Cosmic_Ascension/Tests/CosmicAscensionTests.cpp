@@ -504,6 +504,8 @@ bool FCosmicMegaprojectProgressTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The construction of the same tick is recorded"), Built && Built->Tick == Both);
 		TestTrue(TEXT("and so is the answer"), Answered && Answered->Tick == Both);
 		TestEqual(TEXT("Two records on one system"), Again->Systems[0].CompletedMegaprojects.Num(), 2);
+		TestTrue(TEXT("Both completions are told: the construction"), FindLine(*Again, Build, Both) != INDEX_NONE);
+		TestTrue(TEXT("and the answer"), FindLine(*Again, Answer, Both) != INDEX_NONE);
 	}
 
 	// A second completion of a row moves its tick; it adds no record.
@@ -903,9 +905,13 @@ bool FCosmicCivAIProjectsTest::RunTest(const FString& Parameters)
 		{
 			return false;
 		}
+		// People 1 also holds 5, settled: a settlement on its capital would stay in the slot to be seen, not go with the
+		// people's last settled system in the crossing stage.
+		CosmicTests::Give(*Again, 1, { 5 });
 		Sim->StepOnce();
 		TestTrue(TEXT("An AI capital takes no project_settle into its construction slot"), Again->Systems[6].ActiveMegaproject.IsNone());
 		TestTrue(TEXT("and stays settled"), CosmicState::IsSettled(Again->Systems[6]));
+		TestEqual(TEXT("and stays its people's"), Again->Systems[6].OwnerCivID, Again->Civs[1].CivID);
 		Sim->SetTables(Tables);
 	}
 

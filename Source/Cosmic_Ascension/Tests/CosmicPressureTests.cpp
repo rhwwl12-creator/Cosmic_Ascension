@@ -771,6 +771,12 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 	const int32 BorderCiv = 2;
 	const int32 SingleCiv = 3;
 	const FGalaxyState& State = Sim->GetState();
+	// Every case reads the peoples by index after its tick: a people the cleanup took out would end the run on the
+	// array's range check, so each read waits for this.
+	auto FourPeoples = [this, &State]()
+	{
+		return TestEqual(TEXT("The four peoples are still there"), State.Civs.Num(), 4);
+	};
 
 	Sim->SetTables(TablesOf(Knobs, { { RowA, { OneCausality } } }));
 	Arrange({ { RowA, { 4, 5 } } });
@@ -791,13 +797,19 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 			&& PressureAt(10) == Beside && PressureAt(8) == 0.f && PressureAt(0) == 0.f);
 
 		Sim->RunHeadless(1);
+		if (!FourPeoples())
+		{
+			return false;
+		}
 		TestTrue(TEXT("A people with systems in the sphere and beside it is drained once, by the largest of their pressures"),
 			State.Civs[WideCiv].Stability == Start - Drain * Inside);
 		TestTrue(TEXT("A people that only borders the sphere is drained by the falloff"), State.Civs[BorderCiv].Stability == Start - Drain * Beside);
-		TestTrue(TEXT("A people out of reach keeps its Stability"), State.Civs[SingleCiv].Stability == Start && State.Civs[PlayerCiv].Stability == Start);
+		TestTrue(TEXT("A people out of reach keeps its Stability"), State.Civs[SingleCiv].Stability == Start);
+		TestTrue(TEXT("and so does the player's people, out of reach too"), State.Civs[PlayerCiv].Stability == Start);
 		TestTrue(TEXT("The per-tick effects are applied once to a people with two systems in the sphere"), State.Civs[WideCiv].Stockpile.Causality == 1.f);
-		TestTrue(TEXT("A people that only borders the sphere, and a people out of reach, take no per-tick effect"),
-			State.Civs[BorderCiv].Stockpile.Causality == 0.f && State.Civs[SingleCiv].Stockpile.Causality == 0.f && State.Civs[PlayerCiv].Stockpile.Causality == 0.f);
+		TestTrue(TEXT("A people that only borders the sphere takes no per-tick effect"), State.Civs[BorderCiv].Stockpile.Causality == 0.f);
+		TestTrue(TEXT("nor does a people out of reach"), State.Civs[SingleCiv].Stockpile.Causality == 0.f);
+		TestTrue(TEXT("nor the player's people"), State.Civs[PlayerCiv].Stockpile.Causality == 0.f);
 	}
 
 	// A sphere that also holds the one system of the single people: one system in a sphere costs what two cost. A
@@ -805,9 +817,14 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 	{
 		Arrange({ { RowA, { 4, 5, 8 } } });
 		Sim->RunHeadless(1);
-		TestTrue(TEXT("One system in the sphere costs what two cost, and takes the effects once as well"),
-			State.Civs[SingleCiv].Stability == Start - Drain * Inside && State.Civs[SingleCiv].Stability == State.Civs[WideCiv].Stability
-			&& State.Civs[SingleCiv].Stockpile.Causality == 1.f && State.Civs[WideCiv].Stockpile.Causality == 1.f);
+		if (!FourPeoples())
+		{
+			return false;
+		}
+		TestTrue(TEXT("One system in the sphere costs what two cost"), State.Civs[SingleCiv].Stability == Start - Drain * Inside);
+		TestTrue(TEXT("as much as the wide people pays"), State.Civs[SingleCiv].Stability == State.Civs[WideCiv].Stability);
+		TestTrue(TEXT("and takes the effects once as well"), State.Civs[SingleCiv].Stockpile.Causality == 1.f);
+		TestTrue(TEXT("as the wide people does"), State.Civs[WideCiv].Stockpile.Causality == 1.f);
 
 		Arrange({ { RowA, { 4, 5, 8 } } });
 		// The single people also holds 11, settled and out of reach: a people left with only a settlement would let it go
@@ -817,12 +834,16 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 		Sim->GetMutableState().Systems[8].ActiveMegaproject = CosmicRows::ProjectSettle;
 		Sim->GetMutableState().Civs[PlayerCiv].OwnedSystems.Add(State.Systems[4].SystemID);
 		Sim->RunHeadless(1);
-		TestTrue(TEXT("A system that is still being settled neither drains its people nor brings it the per-tick effects"),
-			State.Civs[SingleCiv].Stability == Start && State.Civs[SingleCiv].Stockpile.Causality == 0.f);
-		TestTrue(TEXT("A system listed by a people that does not own it neither drains that people nor brings it the effects"),
-			State.Civs[PlayerCiv].Stability == Start && State.Civs[PlayerCiv].Stockpile.Causality == 0.f);
-		TestTrue(TEXT("The people that owns settled systems in the sphere is pressed as before"),
-			State.Civs[WideCiv].Stability == Start - Drain * Inside && State.Civs[WideCiv].Stockpile.Causality == 1.f);
+		if (!FourPeoples())
+		{
+			return false;
+		}
+		TestTrue(TEXT("A system that is still being settled does not drain its people"), State.Civs[SingleCiv].Stability == Start);
+		TestTrue(TEXT("nor bring it the per-tick effects"), State.Civs[SingleCiv].Stockpile.Causality == 0.f);
+		TestTrue(TEXT("A system listed by a people that does not own it does not drain that people"), State.Civs[PlayerCiv].Stability == Start);
+		TestTrue(TEXT("nor bring it the effects"), State.Civs[PlayerCiv].Stockpile.Causality == 0.f);
+		TestTrue(TEXT("The people that owns settled systems in the sphere is drained as before"), State.Civs[WideCiv].Stability == Start - Drain * Inside);
+		TestTrue(TEXT("and takes the effects as before"), State.Civs[WideCiv].Stockpile.Causality == 1.f);
 	}
 
 	// A people on the tier of the transcendent is not drained and takes no effect; the people next to it still is.
@@ -830,11 +851,15 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 		Arrange({ { RowA, { 4, 5, 8 } } });
 		Sim->GetMutableState().Civs[WideCiv].Tier = EAscensionTier::Tier4_Transcendent;
 		Sim->RunHeadless(1);
-		TestTrue(TEXT("A source that does not stand above the civilization neither drains it nor applies its effects"),
-			State.Civs[WideCiv].Stability == Start && State.Civs[WideCiv].Stockpile.Causality == 0.f);
-		TestTrue(TEXT("The tier of one people does not shield the next: a lower people on the same sphere is still pressed"),
-			State.Civs[SingleCiv].Stability == Start - Drain * Inside && State.Civs[SingleCiv].Stockpile.Causality == 1.f
-			&& State.Civs[BorderCiv].Stability == Start - Drain * Beside);
+		if (!FourPeoples())
+		{
+			return false;
+		}
+		TestTrue(TEXT("A source that does not stand above the civilization does not drain it"), State.Civs[WideCiv].Stability == Start);
+		TestTrue(TEXT("nor apply its effects"), State.Civs[WideCiv].Stockpile.Causality == 0.f);
+		TestTrue(TEXT("The tier of one people does not shield the next: a lower people on the same sphere is still drained"), State.Civs[SingleCiv].Stability == Start - Drain * Inside);
+		TestTrue(TEXT("and still takes the effects"), State.Civs[SingleCiv].Stockpile.Causality == 1.f);
+		TestTrue(TEXT("and the people that borders the sphere is still drained by the falloff"), State.Civs[BorderCiv].Stability == Start - Drain * Beside);
 	}
 
 	// A sealed transcendent presses on nobody.
@@ -842,6 +867,10 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 		Arrange({ { RowA, { 4, 5, 8 } } });
 		Sim->GetMutableState().Transcendents[0].bSealed = true;
 		Sim->RunHeadless(1);
+		if (!FourPeoples())
+		{
+			return false;
+		}
 		bool bUntouched = true;
 		for (const FCivilizationState& Civ : State.Civs)
 		{
@@ -859,6 +888,10 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 
 		Arrange({ { RowA, { 4, 5 } }, { RowB, { 5 } } });
 		Sim->RunHeadless(1);
+		if (!FourPeoples())
+		{
+			return false;
+		}
 		const float CausalityAThenB = State.Civs[WideCiv].Stockpile.Causality;
 		const bool bRelationToA = State.Civs[WideCiv].Relations.Num() == 1 && State.Civs[WideCiv].Relations.FindRef(RowA) == -0.1f;
 		TestTrue(TEXT("Where two spheres overlap their terms add up, and the people is drained by that sum"),
@@ -866,6 +899,10 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 
 		Arrange({ { RowB, { 5 } }, { RowA, { 4, 5 } } });
 		Sim->RunHeadless(1);
+		if (!FourPeoples())
+		{
+			return false;
+		}
 		TestTrue(TEXT("Two transcendents apply their per-tick effects once each, in the order of State.Transcendents"),
 			CausalityAThenB == 0.f && State.Civs[WideCiv].Stockpile.Causality == 1.f);
 		TestTrue(TEXT("The other party of a per-tick effect is the transcendent whose row it is"),
@@ -879,10 +916,18 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 		Arrange({});
 		const float EnergyBefore = State.Civs[WideCiv].Stockpile.Energy;
 		Sim->RunHeadless(1);
+		if (!FourPeoples())
+		{
+			return false;
+		}
 		const float FreeIncome = State.Civs[WideCiv].IncomePerTick.Energy;
 
 		Arrange({ { RowA, { 4, 5 } } });
 		Sim->RunHeadless(1);
+		if (!FourPeoples())
+		{
+			return false;
+		}
 		TestTrue(TEXT("A per-tick MultiplyIncome halves the income of the tick, and the halved income is what reaches the stockpile"),
 			FreeIncome > 0.f && State.Civs[WideCiv].IncomePerTick.Energy == 0.5f * FreeIncome
 			&& State.Civs[WideCiv].Stockpile.Energy == EnergyBefore + State.Civs[WideCiv].IncomePerTick.Energy);
@@ -890,6 +935,10 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 		Sim->SetTables(TablesOf(Knobs, { { RowA, { Effect(EEffectType::MultiplyIncome, TEXT("Energy"), -0.2f) } } }));
 		Arrange({ { RowA, { 4, 5 } } });
 		Sim->RunHeadless(1);
+		if (!FourPeoples())
+		{
+			return false;
+		}
 		TestTrue(TEXT("A per-tick MultiplyIncome below zero is read as 0: no income, and the stockpile does not go down"),
 			State.Civs[WideCiv].IncomePerTick.Energy == 0.f && State.Civs[WideCiv].Stockpile.Energy == EnergyBefore);
 	}
@@ -906,6 +955,10 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 			return TPair<uint32, int32>(Sim->ComputeStateHash(), Sim->GetRng().GetCurrentSeed());
 		};
 		const TPair<uint32, int32> Plain = TickOver({});
+		if (!FourPeoples())
+		{
+			return false;
+		}
 		const bool bPressed = State.Civs[PlayerCiv].Stability == Start - Drain * Inside;
 		const TPair<uint32, int32> Loaded = TickOver({
 			Effect(EEffectType::NameNotable, nullptr, 0.f, TEXT("Notable.Rebel")),
@@ -915,6 +968,10 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 			Effect(EEffectType::GrantPower, nullptr, 0.f, TEXT("Way.Received")),
 			Effect(EEffectType::AddTrait, nullptr, 0.f, TEXT("Trait.Faith.Seeking")),
 			Effect(EEffectType::SetFlag, nullptr, 0.f, TEXT("Flag.Grace.Spent")) });
+		if (!FourPeoples())
+		{
+			return false;
+		}
 		TestTrue(TEXT("The capital of the vessel's people lies in the sphere and the tick drains it"), bPressed && State.Civs[PlayerCiv].Stability == Start - Drain * Inside);
 		TestTrue(TEXT("The economy stage draws nothing, whatever a per-tick row holds"), Loaded.Value == Plain.Value);
 		TestTrue(TEXT("A per-tick row records no role effect and changes nothing but amounts: the state is the state of the plain tick"),
@@ -950,6 +1007,10 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 		Sim->SetTables(TablesOf(Negative, NoEffects));
 		Arrange({ { RowA, { 4, 5 } } });
 		Sim->RunHeadless(1);
+		if (!FourPeoples())
+		{
+			return false;
+		}
 		const bool bNegativeTakesNothing = State.Civs[WideCiv].Stability == Start;
 
 		FCosmicRulesDef NotANumber = Knobs;
@@ -957,12 +1018,20 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 		Sim->SetTables(TablesOf(NotANumber, NoEffects));
 		Arrange({ { RowA, { 4, 5 } } });
 		Sim->RunHeadless(1);
+		if (!FourPeoples())
+		{
+			return false;
+		}
 		TestTrue(TEXT("A drain knob below zero or not a number takes nothing and gives nothing"), bNegativeTakesNothing && State.Civs[WideCiv].Stability == Start);
 
 		Sim->SetTables(TablesOf(Knobs, NoEffects));
 		Arrange({ { RowA, { 4, 5 } } });
 		Sim->GetMutableState().Civs[WideCiv].Stability = 0.5f * Drain;
 		Sim->RunHeadless(1);
+		if (!FourPeoples())
+		{
+			return false;
+		}
 		TestTrue(TEXT("Stability stops at zero under the drain"), State.Civs[WideCiv].Stability == 0.f);
 	}
 
