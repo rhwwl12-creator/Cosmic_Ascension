@@ -470,6 +470,8 @@ struct COSMIC_ASCENSION_API FLifeRecord
 	UPROPERTY()
 	TArray<FGameplayTag> ReignEndReasons;
 
+	// The highest rung of the life (section 16 #67 (1), default): the personal Tier at birth (Install), raised by the feat
+	// judgment when the people the vessel rules climbs (a ruler's feat leaves the personal Tier as it is).
 	UPROPERTY()
 	EAscensionTier PeakTier = EAscensionTier::Tier1_Planetary;
 

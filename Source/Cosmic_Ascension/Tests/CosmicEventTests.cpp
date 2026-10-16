@@ -46,7 +46,8 @@ namespace CosmicEventTests
 		return Table;
 	}
 
-	// The tables handed in, with this DT_Events and a rules row that carries other slot knobs.
+	// The tables handed in, with this DT_Events and a rules row that carries other slot knobs, and without the game's
+	// projects and feats (CosmicTests::WithoutProjects).
 	FCosmicDataTables WithEvents(const FCosmicDataTables& Base, const FCosmicRulesDef& BaseRules, UDataTable* Events, int32 SlotTicks, float Chance)
 	{
 		FCosmicRulesDef RulesRow = BaseRules;
@@ -58,7 +59,7 @@ namespace CosmicEventTests
 		FCosmicDataTables Tables = Base;
 		Tables.Rules = RulesTable;
 		Tables.Events = Events;
-		return Tables;
+		return CosmicTests::WithoutProjects(Tables);
 	}
 
 	// The DT_Civs of the game with three person names on every row, so that NameNotable can make a record.

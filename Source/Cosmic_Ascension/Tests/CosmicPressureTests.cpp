@@ -60,11 +60,12 @@ namespace CosmicPressureTests
 		return Out;
 	}
 
+	// The two below hand the tables back without the game's projects and feats (CosmicTests::WithoutProjects).
 	FCosmicDataTables WithTranscendents(const FCosmicDataTables& Base, UDataTable* Transcendents)
 	{
 		FCosmicDataTables Tables = Base;
 		Tables.Transcendents = Transcendents;
-		return Tables;
+		return CosmicTests::WithoutProjects(Tables);
 	}
 
 	FCosmicDataTables WithRules(const FCosmicDataTables& Base, const FCosmicRulesDef& RulesRow)
@@ -73,7 +74,7 @@ namespace CosmicPressureTests
 		RulesTable->AddRow(CosmicRows::Rules, RulesRow);
 		FCosmicDataTables Tables = Base;
 		Tables.Rules = RulesTable;
-		return Tables;
+		return CosmicTests::WithoutProjects(Tables);
 	}
 
 	FTranscendentState& AddInstance(FGalaxyState& State, FName TranscendentID, const TArray<FName>& Sphere)

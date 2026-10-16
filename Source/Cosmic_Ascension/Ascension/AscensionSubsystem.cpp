@@ -30,6 +30,12 @@ void UAscensionSubsystem::EvaluateFeats(FGalaxyState& State, FRandomStream& Rng)
 {
 	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
 	check(Sim);
+	// The lines go to the live log and the follow-up notes refuse another state: a copy would split the ascension.
+	if (&State != &Sim->GetState())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("EvaluateFeats: the state handed in is not the live state"));
+		return;
+	}
 	if (Sim->IsBroadcasting())
 	{
 		UE_LOG(LogCosmic, Error, TEXT("EvaluateFeats called from a handler of a Core Logic delegate: a handler may only read the state"));
@@ -65,12 +71,13 @@ bool UAscensionSubsystem::JudgePeople(FGalaxyState& State, FRandomStream& Rng, i
 	const FCosmicStateIndex& Index = Sim->GetStateIndex();
 	const FCosmicRulesDef& Rules = Sim->GetRules();
 
-	// The settled systems of the people, in OwnedSystems order: a feat holds on one of them.
+	// The settled systems the people owns, in OwnedSystems order: a feat holds on one of them. An entry of OwnedSystems
+	// whose owner is another people counts for nothing, as in the economy stage.
 	TArray<int32, TInlineAllocator<8>> Settled;
 	for (const FName SystemID : State.Civs[CivIndex].OwnedSystems)
 	{
 		const int32 SystemIndex = Index.FindSystem(State, SystemID);
-		if (State.Systems.IsValidIndex(SystemIndex) && CosmicState::IsSettled(State.Systems[SystemIndex]))
+		if (State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == State.Civs[CivIndex].CivID && CosmicState::IsSettled(State.Systems[SystemIndex]))
 		{
 			Settled.Add(SystemIndex);
 		}
@@ -85,6 +92,13 @@ bool UAscensionSubsystem::JudgePeople(FGalaxyState& State, FRandomStream& Rng, i
 		const FAscensionFeatDef* Feat = Tables.FindFeat(FeatRow);
 		if (!Feat || Feat->Path != EPlayerRole::Ruler || Feat->RequiredTier != State.Civs[CivIndex].Tier)
 		{
+			continue;
+		}
+		// A feat is one rung reached by a deed (section 3.2): a row that is not would lift a people every tick, skip a rung or
+		// pull it down, and one without a condition would lift every people of its rung at once.
+		if (static_cast<int32>(Feat->TargetTier) != static_cast<int32>(Feat->RequiredTier) + 1 || Feat->CompletionConditions.IsEmpty())
+		{
+			UE_LOG(LogCosmic, Error, TEXT("DT_Feats row %s is not one rung up with a condition: not judged"), *FeatRow.ToString());
 			continue;
 		}
 		for (const int32 SystemIndex : Settled)
@@ -126,13 +140,19 @@ void UAscensionSubsystem::Ascend(FCosmicEvalContext& Ctx, FName FeatRow, const F
 	State.Civs[CivIndex].Tier = Feat.TargetTier;
 	UCosmicEventSubsystem::ApplyAll(Feat.AscensionCost, Ctx);
 
-	// What the calling keeps (section 4.4).
+	// What the calling keeps (section 4.4). CompletedFeats is the ordered log of the climbs; the life's peak counts the rung
+	// of the people the vessel rules (section 16 #67 (1), default).
 	if (bPlayer)
 	{
 		State.Calling.CompletedFeats.Add(FeatRow);
 		if (!State.Calling.Lives.IsEmpty())
 		{
-			State.Calling.Lives.Last().Feats.Add(FeatRow);
+			FLifeRecord& Life = State.Calling.Lives.Last();
+			Life.Feats.Add(FeatRow);
+			if (static_cast<int32>(Feat.TargetTier) > static_cast<int32>(Life.PeakTier))
+			{
+				Life.PeakTier = Feat.TargetTier;
+			}
 		}
 		State.Calling.Powers.AppendTags(Feat.GrantedPowers);
 	}

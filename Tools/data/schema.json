@@ -114,7 +114,13 @@
 				"FarLineCooldownTicks": {"kind": "number", "integer": true},
 				"LivingWorldStarShares": {"kind": "numbers", "len": 7, "ascending": true, "min": 0, "max": 1, "ends_at": 1},
 				"FallenCoreMinLanesFromHome": {"kind": "number", "integer": true}
-			}
+			},
+			"rules": [
+				{
+					"why": "the rate of the AI's projects multiplies their progress: at 0 or below they would never progress, so the code reads it as 1 with an error line (guideline 4.3, 5.7)",
+					"then": [{"col": "AIAscensionSpeedMultiplier", "gt": 0}]
+				}
+			]
 		},
 
 		"DT_Civs": {
@@ -493,6 +499,51 @@
 				{
 					"why": "the wanderer's feats are judged from Phase 4, with their first row: until then no row walks that path (guideline 3.2, 7.5)",
 					"then": [{"col": "Path", "is": "Ruler"}]
+				},
+				{
+					"why": "a feat lifts its people one rung: from the first to the second (guideline 3.2; the judgment does not judge another row)",
+					"when": [{"col": "RequiredTier", "is": "Tier1_Planetary"}],
+					"then": [{"col": "TargetTier", "is": "Tier2_Stellar"}]
+				},
+				{
+					"why": "a feat lifts its people one rung: from the second to the third (guideline 3.2; the judgment does not judge another row)",
+					"when": [{"col": "RequiredTier", "is": "Tier2_Stellar"}],
+					"then": [{"col": "TargetTier", "is": "Tier3_Causal"}]
+				},
+				{
+					"why": "a feat lifts its people one rung: from the third to the fourth (guideline 3.2; the judgment does not judge another row)",
+					"when": [{"col": "RequiredTier", "is": "Tier3_Causal"}],
+					"then": [{"col": "TargetTier", "is": "Tier4_Transcendent"}]
+				},
+				{
+					"why": "a feat lifts its people one rung: from the fourth to the fifth (guideline 3.2; the judgment does not judge another row)",
+					"when": [{"col": "RequiredTier", "is": "Tier4_Transcendent"}],
+					"then": [{"col": "TargetTier", "is": "Tier5_EternalOrder"}]
+				},
+				{
+					"why": "the fifth rung is the last: no feat climbs from it (guideline 3.2)",
+					"then": [{"col": "RequiredTier", "in": ["Tier1_Planetary", "Tier2_Stellar", "Tier3_Causal", "Tier4_Transcendent"]}]
+				},
+				{
+					"why": "no people climbs without a deed: a feat holds one condition or more (guideline 3.2; the judgment does not judge a row without one)",
+					"then": [{"col": "CompletionConditions", "min_len": 1}]
+				},
+				{
+					"why": "a feat row judges every people, the AI's too (guideline 4.3): its conditions do not read the vessel, and its price records no role effect and touches no vessel (a recorded death also waits for the death pipeline of Phase 4b). How a vessel condition of a T4->T5 row reads for the AI is decided with that row (guideline 16 #1)",
+					"then": [
+						{"col": "CompletionConditions", "lacks_type": "PlayerTierAtLeast"},
+						{"col": "CompletionConditions", "lacks_type": "PlayerInSystemWithHazard"},
+						{"col": "CompletionConditions", "lacks_type": "PlayerStatAtLeast"},
+						{"col": "CompletionConditions", "lacks_type": "PlayerHasRelic"},
+						{"col": "CompletionConditions", "lacks_type": "PlayerRoleIs"},
+						{"col": "CompletionConditions", "lacks_type": "PlayerHasStatus"},
+						{"col": "CompletionConditions", "lacks_type": "PlayerLifeIndexAtLeast"},
+						{"col": "CompletionConditions", "lacks_type": "PlayerAgeAtLeast"},
+						{"col": "AscensionCost", "lacks_type": "KillPlayer"},
+						{"col": "AscensionCost", "lacks_type": "DeposeRuler"},
+						{"col": "AscensionCost", "lacks_type": "PlayerStatDelta"},
+						{"col": "AscensionCost", "lacks_type": "GrantPower"}
+					]
 				}
 			]
 		},

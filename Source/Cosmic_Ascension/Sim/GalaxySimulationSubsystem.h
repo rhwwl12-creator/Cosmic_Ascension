@@ -135,8 +135,8 @@ public:
 	 *
 	 * Stamps State.TellRngState with (int32)CosmicSeed::Derive(Seed, "", Tell, 0) before the first line is told.
 	 * Tick 0 is this generated state; the first simulated tick is 1.
-	 * Refused with one error line inside a handler of OnLogEntry or OnEventFired (IsBroadcasting): the state is not
-	 * replaced under a stage or a row that is still running.
+	 * Refused with one error line inside a handler of a Core Logic delegate (IsBroadcasting): the state is not replaced
+	 * under a stage or a row that is still running.
 	 */
 	UFUNCTION(BlueprintCallable)
 	void NewGalaxy(int32 Seed, int32 SystemCount, int32 CivCount);
@@ -149,14 +149,14 @@ public:
 	UFUNCTION(BlueprintPure)
 	float GetTimeScale() const { return TimeScale; }
 
-	// One tick, with broadcasts as configured. Debug and tests. Refused with one error line inside a handler of
-	// OnLogEntry or OnEventFired (IsBroadcasting): a handler may only read the state (section 9.4).
+	// One tick, with broadcasts as configured. Debug and tests. Refused with one error line inside a handler of a Core
+	// Logic delegate (IsBroadcasting): a handler may only read the state (section 9.4).
 	UFUNCTION(BlueprintCallable)
 	void StepOnce();
 
 	// Runs Ticks ticks with the broadcast gate closed, then restores the gate. Tests, balance runs, interregnum leap (section 4.4).
 	// Not yet: the per-tick ending-condition check that stops a leap early arrives with the endings (section 4.4, 7.4).
-	// Refused like StepOnce inside a handler of OnLogEntry or OnEventFired.
+	// Refused like StepOnce inside a handler of a Core Logic delegate.
 	UFUNCTION(BlueprintCallable)
 	void RunHeadless(int64 Ticks);
 
@@ -210,7 +210,9 @@ public:
 	// Counts the Core Logic delegates that are being broadcast right now and that can fire from inside a tick stage:
 	// OnLogEntry, OnEventFired, OnTierAscended (section 9.4). Their handlers may read the state and call SetTimeScale
 	// and nothing else, so UCosmicEventSubsystem refuses its member functions while this is true, and so do NewGalaxy,
-	// LoadState, StepOnce and RunHeadless here and UCosmicSaveSubsystem::LoadGalaxy. Every such broadcast
+	// LoadState, StepOnce, RunHeadless and MakeEvalContext here, UCosmicSaveSubsystem::LoadGalaxy,
+	// UAscensionSubsystem::EvaluateFeats and the role changes and commands of UPlayerRoleSubsystem (Install, DeposeRuler,
+	// BecomeWanderer, StartMegaproject, StartNextMegaproject). Every such broadcast
 	// site brackets its Broadcast call with BeginBroadcast and EndBroadcast.
 	bool IsBroadcasting() const { return BroadcastDepth > 0; }
 	void BeginBroadcast() { ++BroadcastDepth; }

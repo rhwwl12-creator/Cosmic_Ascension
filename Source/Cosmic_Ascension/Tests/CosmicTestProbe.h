@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Templates/Function.h"
 #include "UObject/Object.h"
+#include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Events/CosmicEventSubsystem.h"
 #include "CosmicTestProbe.generated.h"

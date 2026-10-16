@@ -33,6 +33,9 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 
+#include <initializer_list>
+#include <limits>
+
 namespace CosmicAscensionTests
 {
 	FGameplayTag Tag(const TCHAR* Name)
@@ -76,6 +79,21 @@ namespace CosmicAscensionTests
 		};
 	}
 
+	// Three variants that name every slot of Slots before the stem: a told line has to fill them all.
+	TArray<FText> SlotLines(const FString& Slots, const FString& Stem)
+	{
+		return {
+			FText::AsCultureInvariant(Slots + TEXT(" ") + Stem + TEXT(" one")),
+			FText::AsCultureInvariant(Slots + TEXT(" ") + Stem + TEXT(" two")),
+			FText::AsCultureInvariant(Slots + TEXT(" ") + Stem + TEXT(" three"))
+		};
+	}
+
+	// The slots of a completion line and of an ascension line, with the particle modifier the game's rows use (its two
+	// forms in ASCII: the modifier picks one by the last letter of the name and takes any text).
+	const TCHAR* const ProjectSlots = TEXT("{Civ}|hpp(eun,neun) {System} {Project}");
+	const TCHAR* const FeatSlots = TEXT("{Civ}|hpp(eun,neun) {HomeSystem}");
+
 	// The rows of the tests.
 	const FName Build(TEXT("project_test_build"));
 	const FName Rebuild(TEXT("project_test_rebuild"));
@@ -83,8 +101,14 @@ namespace CosmicAscensionTests
 	const FName Pricey(TEXT("project_test_pricey"));
 	const FName Answer(TEXT("project_test_answer"));
 	const FName Second(TEXT("project_test_second"));
+	const FName Costly(TEXT("project_test_costly"));
+	const FName HighAnswer(TEXT("project_test_high_answer"));
+	const FName Dear(TEXT("project_test_dear"));
+	const FName Refund(TEXT("project_test_refund"));
+	const FName Endless(TEXT("project_test_endless"));
 	const FName Storm(TEXT("crisis_test_storm"));
 	const FName Unrest(TEXT("crisis_test_unrest"));
+	const FName Quake(TEXT("crisis_test_quake"));
 
 	FMegaprojectDef Project(EAscensionTier Tier, float Energy, float Matter, float Required, const TCHAR* Stem)
 	{
@@ -94,12 +118,14 @@ namespace CosmicAscensionTests
 		Row.CostPerTick.Energy = Energy;
 		Row.CostPerTick.Matter = Matter;
 		Row.RequiredProgress = Required;
-		Row.CompleteTemplates = Lines(FString(Stem) + TEXT(" done"));
+		Row.CompleteTemplates = SlotLines(ProjectSlots, FString(Stem) + TEXT(" done"));
 		return Row;
 	}
 
-	// The projects of the tests: Build and Rebuild (construction, Tier 1, Energy 10, 3), High (Tier 2), Pricey (more than any
-	// stockpile of a test), Answer and Second (the answers of Storm, Matter 5, 2), and a project_settle row, which no start
+	// The projects of the tests: Build and Rebuild (construction, Tier 1, Energy 10, 3), High (Tier 2), Pricey (Energy more
+	// than any stockpile of a test, Matter 5), Answer and Second (the answers of Storm, Matter 5, 2), Costly (an answer of
+	// Storm no stockpile pays), HighAnswer (Tier 2, the first answer of Quake), Dear (one Insight, Influence and Causality,
+	// 5), Refund (a cost below 0, 5), Endless (a progress that is not a number), and a project_settle row, which no start
 	// takes until settlement comes.
 	UDataTable* ProjectRows()
 	{
@@ -107,9 +133,18 @@ namespace CosmicAscensionTests
 		Table->AddRow(Build, Project(EAscensionTier::Tier1_Planetary, 10.f, 0.f, 3.f, TEXT("build")));
 		Table->AddRow(Rebuild, Project(EAscensionTier::Tier1_Planetary, 10.f, 0.f, 3.f, TEXT("rebuild")));
 		Table->AddRow(High, Project(EAscensionTier::Tier2_Stellar, 10.f, 0.f, 3.f, TEXT("high")));
-		Table->AddRow(Pricey, Project(EAscensionTier::Tier1_Planetary, 1.0e9f, 0.f, 3.f, TEXT("pricey")));
+		Table->AddRow(Pricey, Project(EAscensionTier::Tier1_Planetary, 1.0e9f, 5.f, 3.f, TEXT("pricey")));
 		Table->AddRow(Answer, Project(EAscensionTier::Tier1_Planetary, 0.f, 5.f, 2.f, TEXT("answer")));
 		Table->AddRow(Second, Project(EAscensionTier::Tier1_Planetary, 0.f, 5.f, 2.f, TEXT("second")));
+		Table->AddRow(Costly, Project(EAscensionTier::Tier1_Planetary, 0.f, 1.0e9f, 2.f, TEXT("costly")));
+		Table->AddRow(HighAnswer, Project(EAscensionTier::Tier2_Stellar, 0.f, 5.f, 2.f, TEXT("high answer")));
+		FMegaprojectDef DearRow = Project(EAscensionTier::Tier1_Planetary, 0.f, 0.f, 5.f, TEXT("dear"));
+		DearRow.CostPerTick.Insight = 1.f;
+		DearRow.CostPerTick.Influence = 1.f;
+		DearRow.CostPerTick.Causality = 1.f;
+		Table->AddRow(Dear, DearRow);
+		Table->AddRow(Refund, Project(EAscensionTier::Tier1_Planetary, -5.f, 0.f, 5.f, TEXT("refund")));
+		Table->AddRow(Endless, Project(EAscensionTier::Tier1_Planetary, 1.f, 0.f, std::numeric_limits<float>::quiet_NaN(), TEXT("endless")));
 		Table->AddRow(CosmicRows::ProjectSettle, Project(EAscensionTier::Tier1_Planetary, 1.f, 0.f, 3.f, TEXT("settle")));
 		return Table;
 	}
@@ -131,12 +166,13 @@ namespace CosmicAscensionTests
 		return Row;
 	}
 
-	// Storm: a plague answered by Answer, then Second. Unrest: a rebellion that lists no project of the tests and never
-	// stands by itself.
+	// Storm: a plague answered by Answer, then Second, then Costly. Quake: an awakening answered by HighAnswer (Tier 2),
+	// then Answer. Unrest: a rebellion that lists no project of the tests and never stands by itself.
 	UDataTable* HazardRows()
 	{
 		UDataTable* Table = NewTable(FHazardDef::StaticStruct());
-		Table->AddRow(Storm, HazardRow(TEXT("Hazard.Plague"), ECosmicHazardSpawn::Draw, 50, { Answer, Second }));
+		Table->AddRow(Storm, HazardRow(TEXT("Hazard.Plague"), ECosmicHazardSpawn::Draw, 50, { Answer, Second, Costly }));
+		Table->AddRow(Quake, HazardRow(TEXT("Hazard.AIAwakening"), ECosmicHazardSpawn::Draw, 50, { HighAnswer, Answer }));
 		// The capital rule never holds for it: the tests place their rebellions by hand.
 		FHazardDef Rebellion = HazardRow(TEXT("Hazard.Rebellion"), ECosmicHazardSpawn::Capital, 200, {});
 		Rebellion.SpawnConditions = { Cond(EConditionType::CivStabilityBelow, NAME_None, 0.f) };
@@ -152,7 +188,7 @@ namespace CosmicAscensionTests
 		Row.TargetTier = To;
 		Row.Path = EPlayerRole::Ruler;
 		Row.CompletionConditions = MoveTemp(Conditions);
-		Row.LogTemplates = Lines(FString(Stem) + TEXT(" climbed"));
+		Row.LogTemplates = SlotLines(FeatSlots, FString(Stem) + TEXT(" climbed"));
 		return Row;
 	}
 
@@ -183,7 +219,9 @@ namespace CosmicAscensionTests
 
 	// The board: the chain of CosmicTests::WireChain; the vessel's people 0 holds 0 and 1 (capital 0), people 1 holds 6,
 	// people 2 holds 7 and people 3 holds 11. No hazard, project, record, transcendent, flag or research; every stockpile
-	// 1000 of each; every Stability 0.75. False below twelve systems or four peoples.
+	// 1000 of each but Causality; every Stability 0.75; every people of the archetype arch_default (a bank of person names)
+	// without Trait.Mind.NoSelf, so that a record of a person can be made whatever the game's DT_Civs gives seed 42. False
+	// below twelve systems or four peoples.
 	bool Board(FGalaxyState& State)
 	{
 		if (!CosmicTests::WireChain(State) || State.Civs.Num() < 4)
@@ -223,6 +261,8 @@ namespace CosmicAscensionTests
 			Civ.LowStabilityTicks = 0;
 			Civ.Notables.Reset();
 			Civ.Tier = EAscensionTier::Tier1_Planetary;
+			Civ.ArchetypeRow = CosmicRows::ArchDefault;
+			Civ.Traits.RemoveTag(Tag(TEXT("Trait.Mind.NoSelf")));
 		}
 		return true;
 	}
@@ -265,6 +305,18 @@ namespace CosmicAscensionTests
 			}
 		}
 		return INDEX_NONE;
+	}
+
+	// Whether a told line fills every slot: it names each of Names and holds no brace.
+	bool Filled(const FCosmicLogEntry& Entry, std::initializer_list<FString> Names)
+	{
+		const FString Message = Entry.Message.ToString();
+		bool bAll = !Message.Contains(TEXT("{"));
+		for (const FString& Name : Names)
+		{
+			bAll &= !Name.IsEmpty() && Message.Contains(Name);
+		}
+		return bAll;
 	}
 
 	int32 CountLines(const FGalaxyState& State, FName Row)
@@ -338,13 +390,15 @@ bool FCosmicMegaprojectProgressTest::RunTest(const FString& Parameters)
 		return false;
 	}
 	FGalaxyState& State = *Laid;
-	// The vessel's people builds on 0, people 1 (AI) builds on 6, people 2 (AI) cannot pay on 7, and the vessel's people
-	// answers a plague on 1.
+	// The vessel's people builds on 0, people 1 (AI) builds on 6, people 2 (AI) cannot pay on 7, the vessel's people
+	// answers a plague on 1, and people 3 (AI) answers a plague on 11.
 	State.Systems[0].ActiveMegaproject = Build;
 	State.Systems[6].ActiveMegaproject = Build;
 	State.Systems[7].ActiveMegaproject = Pricey;
 	PlaceByHand(State, 1, TEXT("Hazard.Plague"), 50);
 	State.Systems[1].ResponseMegaproject = Answer;
+	PlaceByHand(State, 11, TEXT("Hazard.Plague"), 50);
+	State.Systems[11].ResponseMegaproject = Answer;
 	const FGalaxyState Before = State;
 	Sim->StepOnce();
 	const FCivilizationState& Player = State.Civs[0];
@@ -353,10 +407,14 @@ bool FCosmicMegaprojectProgressTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("A paid tick of an AI people progresses by the multiplier"), State.Systems[6].MegaprojectProgress, 2.f);
 	TestEqual(TEXT("A tick that cannot be paid in full progresses nothing"), State.Systems[7].MegaprojectProgress, 0.f);
 	TestEqual(TEXT("and costs nothing"), State.Civs[2].Stockpile.Energy, Before.Civs[2].Stockpile.Energy + State.Civs[2].IncomePerTick.Energy, 0.01f);
+	TestEqual(TEXT("not even the member it could pay"), State.Civs[2].Stockpile.Matter, Before.Civs[2].Stockpile.Matter + State.Civs[2].IncomePerTick.Matter, 0.01f);
 	TestEqual(TEXT("The answer progresses in its own slot"), State.Systems[1].ResponseProgress, 1.f);
 	TestEqual(TEXT("and pays its own cost"), Player.Stockpile.Matter, Before.Civs[0].Stockpile.Matter + Player.IncomePerTick.Matter - 5.f, 0.01f);
+	// Required 2 at the multiplier 2: one paid tick completes the AI answer and resolves the plague.
+	TestTrue(TEXT("An AI answer progresses by the multiplier too: it completes in one paid tick"), RecordOf(State.Systems[11], Answer) != nullptr);
+	TestFalse(TEXT("and resolves its hazard"), State.Systems[11].ActiveHazard.IsValid());
 
-	// The projects draw nothing: the same tick without them draws as much.
+	// The projects draw nothing, a completion and its resolution included: the same tick without them draws as much.
 	{
 		FGalaxyState Bare = Before;
 		for (FStarSystemState& System : Bare.Systems)
@@ -388,12 +446,17 @@ bool FCosmicMegaprojectProgressTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("as a line of Severity 0"), static_cast<int32>(Live.Log[AILine].Severity), 0);
 		TestTrue(TEXT("in Log.Civ"), Live.Log[AILine].Category == Tag(TEXT("Log.Civ")));
 		TestEqual(TEXT("about the people"), Live.Log[AILine].FocusCivID, Live.Civs[1].CivID);
+		TestEqual(TEXT("and the system"), Live.Log[AILine].FocusSystemID, Live.Systems[6].SystemID);
+		TestTrue(TEXT("with the people, the system and the project in its slots"),
+			Filled(Live.Log[AILine], { Live.Civs[1].CivName.ToString(), Live.Systems[6].DisplayName.ToString(), TEXT("<build>") }));
 	}
 	TestFalse(TEXT("The answered hazard is resolved"), Live.Systems[1].ActiveHazard.IsValid());
 	TestTrue(TEXT("The answer is recorded too"), RecordOf(Live.Systems[1], Answer) != nullptr);
 	const int32 AnswerLine = FindLine(Live, Answer, Second2);
 	const int32 Resolution = FindLine(Live, Storm, Second2, TEXT("resolution"));
-	if (TestTrue(TEXT("The answer's completion is told"), AnswerLine != INDEX_NONE) && TestTrue(TEXT("The resolution is told"), Resolution != INDEX_NONE))
+	const bool bAnswerTold = TestTrue(TEXT("The answer's completion is told"), AnswerLine != INDEX_NONE);
+	const bool bResolutionTold = TestTrue(TEXT("The resolution is told"), Resolution != INDEX_NONE);
+	if (bAnswerTold && bResolutionTold)
 	{
 		TestTrue(TEXT("The completion line comes before the resolution line"), AnswerLine < Resolution);
 		TestEqual(TEXT("The completion of the people the player rules is Severity 1"), static_cast<int32>(Live.Log[AnswerLine].Severity), 1);
@@ -467,6 +530,8 @@ bool FCosmicMegaprojectProgressTest::RunTest(const FString& Parameters)
 			Again->Systems[SystemIndex].ResponseMegaproject = Answer;
 			Again->Systems[SystemIndex].ResponseProgress = 1.f;
 		}
+		// An answer of the plague no stockpile pays: it cannot complete, whatever the economy earns.
+		Again->Systems[7].ResponseMegaproject = Costly;
 		Sim->RebuildStateIndex();
 		FCosmicEvalContext Ctx = Sim->MakeEvalContext();
 		Ctx.CivIndex = 0;
@@ -490,15 +555,11 @@ bool FCosmicMegaprojectProgressTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("A destruction takes the answer"), Again->Systems[6].ResponseMegaproject.IsNone());
 		Sim->SyncRngState();
 		Again->Systems[7].HazardTicksRemaining = 1;
-		Again->Systems[7].ResponseProgress = 0.f;
-		Again->Civs[2].Stockpile.Matter = 0.f;
-		Again->Civs[2].IncomePerTick.Matter = 0.f;
-		// No matter to pay with: the answer cannot complete, and the plague runs out.
-		Again->Systems[7].ResourceRichness = 0.f;
 		Sim->StepOnce();
 		TestFalse(TEXT("The unanswered plague ran out"), Again->Systems[7].ActiveHazard.IsValid());
 		TestTrue(TEXT("An expiry takes the answer"), Again->Systems[7].ResponseMegaproject.IsNone());
-		TestTrue(TEXT("without a completion"), RecordOf(Again->Systems[7], Answer) == nullptr);
+		TestEqual(TEXT("and its progress"), Again->Systems[7].ResponseProgress, 0.f);
+		TestTrue(TEXT("without a completion"), RecordOf(Again->Systems[7], Costly) == nullptr);
 	}
 
 	// An answer the row of the hazard no longer lists ends without result; a construction row the table does not hold ends.
@@ -519,6 +580,85 @@ bool FCosmicMegaprojectProgressTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The hazard stays"), Again->Systems[0].ActiveHazard == Tag(TEXT("Hazard.Rebellion")));
 		TestTrue(TEXT("A construction row no table holds ends"), Again->Systems[1].ActiveMegaproject.IsNone());
 		TestTrue(TEXT("without a record"), Again->Systems[1].CompletedMegaprojects.IsEmpty());
+	}
+
+	// Every member of a cost is paid in full or none is: Insight, Influence and Causality as much as Energy and Matter.
+	{
+		FGalaxyState* Again = LayBoard(*Sim, Tables);
+		if (!TestNotNull(TEXT("The board of the members is laid"), Again))
+		{
+			return false;
+		}
+		Again->Systems[0].ActiveMegaproject = Dear;
+		Again->Civs[0].Stockpile.Causality = 0.f;
+		const FGalaxyState Short = *Again;
+		Sim->StepOnce();
+		TestEqual(TEXT("A tick short of one member progresses nothing"), Again->Systems[0].MegaprojectProgress, 0.f);
+		TestEqual(TEXT("and takes no member it could pay"), Again->Civs[0].Stockpile.Influence, Short.Civs[0].Stockpile.Influence + Again->Civs[0].IncomePerTick.Influence, 0.01f);
+		Again->Civs[0].Stockpile.Causality = 10.f;
+		const FGalaxyState Stocked = *Again;
+		Sim->StepOnce();
+		const float InsightPaid = Again->Civs[0].Stockpile.Insight;
+		TestEqual(TEXT("A tick that pays every member progresses"), Again->Systems[0].MegaprojectProgress, 1.f);
+		TestEqual(TEXT("and takes its Influence"), Again->Civs[0].Stockpile.Influence, Stocked.Civs[0].Stockpile.Influence + Again->Civs[0].IncomePerTick.Influence - 1.f, 0.01f);
+		TestEqual(TEXT("its Causality"), Again->Civs[0].Stockpile.Causality, Stocked.Civs[0].Stockpile.Causality + Again->Civs[0].IncomePerTick.Causality - 1.f, 0.01f);
+		// Research spends Insight as well: the same tick without the project tells what the project took.
+		FGalaxyState Unbuilt = Stocked;
+		Unbuilt.Systems[0].ActiveMegaproject = NAME_None;
+		Sim->LoadState(Unbuilt);
+		Sim->StepOnce();
+		TestEqual(TEXT("and its Insight"), Sim->GetState().Civs[0].Stockpile.Insight - InsightPaid, 1.f, 0.01f);
+	}
+
+	// A system being settled is left alone until settlement brings its own rule: no pay, no progress, no completion.
+	{
+		FGalaxyState* Again = LayBoard(*Sim, Tables);
+		if (!TestNotNull(TEXT("The board of the settling system is laid"), Again))
+		{
+			return false;
+		}
+		// The test's settle row costs Energy 1 and needs 3: one paid tick would complete it.
+		Again->Systems[1].ActiveMegaproject = CosmicRows::ProjectSettle;
+		Again->Systems[1].MegaprojectProgress = 2.f;
+		const FGalaxyState Settling = *Again;
+		Sim->StepOnce();
+		TestEqual(TEXT("A system being settled keeps its row"), Again->Systems[1].ActiveMegaproject, CosmicRows::ProjectSettle);
+		TestEqual(TEXT("and its progress"), Again->Systems[1].MegaprojectProgress, 2.f);
+		TestTrue(TEXT("and records nothing"), Again->Systems[1].CompletedMegaprojects.IsEmpty());
+		TestEqual(TEXT("and costs nothing"), Again->Civs[0].Stockpile.Energy, Settling.Civs[0].Stockpile.Energy + Again->Civs[0].IncomePerTick.Energy, 0.01f);
+	}
+
+	// What the guards read: an AI rate that is not above 0 or is not a number as 1 (one error line a tick), a cost below 0
+	// as 0, a required progress that is not a number as 1.
+	{
+		AddExpectedError(TEXT("AIAscensionSpeedMultiplier"), EAutomationExpectedErrorFlags::Contains, 2);
+		for (const float BadRate : { 0.f, std::numeric_limits<float>::quiet_NaN() })
+		{
+			FCosmicRulesDef Bad = Knobs(BaseRules);
+			Bad.AIAscensionSpeedMultiplier = BadRate;
+			FGalaxyState* Again = LayBoard(*Sim, TablesWith(Original, Bad, nullptr));
+			if (!TestNotNull(TEXT("The board of a bad rate is laid"), Again))
+			{
+				return false;
+			}
+			Again->Systems[6].ActiveMegaproject = Rebuild;
+			Sim->StepOnce();
+			TestEqual(FString::Printf(TEXT("An AI rate of %f progresses by 1"), BadRate), Again->Systems[6].MegaprojectProgress, 1.f);
+		}
+		FGalaxyState* Again = LayBoard(*Sim, Tables);
+		if (!TestNotNull(TEXT("The board of the bad rows is laid"), Again))
+		{
+			return false;
+		}
+		Again->Systems[0].ActiveMegaproject = Refund;
+		Again->Systems[1].ActiveMegaproject = Endless;
+		const FGalaxyState Guarded = *Again;
+		Sim->StepOnce();
+		TestEqual(TEXT("A cost below 0 progresses for nothing"), Again->Systems[0].MegaprojectProgress, 1.f);
+		// Endless costs Energy 1; Refund costs none.
+		TestEqual(TEXT("and gives nothing back"), Again->Civs[0].Stockpile.Energy, Guarded.Civs[0].Stockpile.Energy + Again->Civs[0].IncomePerTick.Energy - 1.f, 0.01f);
+		TestTrue(TEXT("A required progress that is not a number completes as 1"), RecordOf(Again->Systems[1], Endless) != nullptr);
+		TestTrue(TEXT("and empties its slot"), Again->Systems[1].ActiveMegaproject.IsNone());
 	}
 	return true;
 }
@@ -544,7 +684,8 @@ bool FCosmicStartMegaprojectTest::RunTest(const FString& Parameters)
 	}
 	FGalaxyState& State = *Laid;
 	const FName Home = State.Systems[0].SystemID;
-	const int32 RngBefore = State.RngState;
+	// The live stream itself: State.RngState is only its copy at the end of a tick, which no command writes.
+	const int32 SeedBefore = Sim->GetRng().GetCurrentSeed();
 
 	TestTrue(TEXT("The ruler starts a construction on a system of its people"), Role->StartMegaproject(Home, Build));
 	TestEqual(TEXT("in the construction slot"), State.Systems[0].ActiveMegaproject, Build);
@@ -556,8 +697,12 @@ bool FCosmicStartMegaprojectTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("A system of another people is refused"), Role->StartMegaproject(State.Systems[6].SystemID, Build));
 	TestFalse(TEXT("A row the table does not hold is refused"), Role->StartMegaproject(Home, FName(TEXT("project_test_gone"))));
 	TestFalse(TEXT("A row above the people's tier is refused"), Role->StartMegaproject(Home, High));
+	PlaceByHand(State, 1, TEXT("Hazard.AIAwakening"), 50);
+	TestFalse(TEXT("An answer above the people's tier is refused"), Role->StartMegaproject(State.Systems[1].SystemID, HighAnswer));
 	State.Civs[0].Tier = EAscensionTier::Tier2_Stellar;
 	TestTrue(TEXT("and taken at its tier"), Role->StartMegaproject(Home, High));
+	TestTrue(TEXT("and so is the answer"), Role->StartMegaproject(State.Systems[1].SystemID, HighAnswer));
+	CosmicHazards::EmptyHazardSlot(State.Systems[1]);
 	TestFalse(TEXT("project_settle is started by its own rule only"), Role->StartMegaproject(State.Systems[1].SystemID, CosmicRows::ProjectSettle));
 	TestFalse(TEXT("An answer without its hazard is refused"), Role->StartMegaproject(State.Systems[1].SystemID, Answer));
 	PlaceByHand(State, 1, TEXT("Hazard.Rebellion"), 50);
@@ -567,6 +712,10 @@ bool FCosmicStartMegaprojectTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("in the response slot"), State.Systems[1].ResponseMegaproject, Answer);
 	TestTrue(TEXT("leaving the construction slot alone"), State.Systems[1].ActiveMegaproject.IsNone());
 	TestFalse(TEXT("A full response slot takes no second answer"), Role->StartMegaproject(State.Systems[1].SystemID, Second));
+	// The key starts the first of what the AI would start: the answer of the capital's hazard.
+	PlaceByHand(State, 0, TEXT("Hazard.Plague"), 50);
+	TestTrue(TEXT("The key starts a project"), Role->StartNextMegaproject());
+	TestEqual(TEXT("the answer of the capital's hazard"), State.Systems[0].ResponseMegaproject, Answer);
 	State.Systems[1].ActiveMegaproject = CosmicRows::ProjectSettle;
 	TestFalse(TEXT("A system being settled takes no project"), Role->StartMegaproject(State.Systems[1].SystemID, Rebuild));
 	State.Systems[1].ActiveMegaproject = NAME_None;
@@ -581,7 +730,7 @@ bool FCosmicStartMegaprojectTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Nobody gives a command during the interregnum"), Role->StartMegaproject(State.Systems[1].SystemID, Rebuild));
 	TestFalse(TEXT("nor presses the project key"), Role->StartNextMegaproject());
 	State.Calling.LifeState = ELifeState::Embodied;
-	TestEqual(TEXT("A command draws nothing"), State.RngState, RngBefore);
+	TestEqual(TEXT("A command draws nothing"), Sim->GetRng().GetCurrentSeed(), SeedBefore);
 
 	// A handler of a Core Logic delegate gives no command.
 	{
@@ -647,6 +796,8 @@ bool FCosmicCivAIProjectsTest::RunTest(const FString& Parameters)
 	PlaceByHand(State, 7, TEXT("Hazard.Plague"), 50);
 	PlaceByHand(State, 1, TEXT("Hazard.Plague"), 50);
 	Record(State.Systems[11], Build, 5);
+	// The first answer of the awakening is above people 3's tier.
+	PlaceByHand(State, 11, TEXT("Hazard.AIAwakening"), 50);
 	State.Civs[2].Tier = EAscensionTier::Tier2_Stellar;
 	const FGalaxyState Before = State;
 	Sim->StepOnce();
@@ -654,10 +805,11 @@ bool FCosmicCivAIProjectsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("An AI people answers the hazard of its system"), State.Systems[7].ResponseMegaproject, Answer);
 	TestEqual(TEXT("and builds for the feat of its own rung"), State.Systems[7].ActiveMegaproject, High);
 	TestTrue(TEXT("A project a people completed is not built again"), State.Systems[11].ActiveMegaproject.IsNone());
+	TestEqual(TEXT("An AI people takes the first answer its tier allows"), State.Systems[11].ResponseMegaproject, Answer);
 	TestTrue(TEXT("The AI does not touch the people the player rules: no construction"), State.Systems[0].ActiveMegaproject.IsNone());
 	TestTrue(TEXT("and no answer"), State.Systems[1].ResponseMegaproject.IsNone());
 
-	// The AI stage draws nothing: without the rows that make it start, the tick draws as much.
+	// The AI's starts draw nothing: without the rows that make it start, the tick draws as much.
 	{
 		const FGalaxyState After = State;
 		Sim->SetTables(TablesWith(Original, Knobs(BaseRules), nullptr));
@@ -680,7 +832,8 @@ bool FCosmicCivAIProjectsTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("A busy construction slot keeps its row"), Again->Systems[6].ActiveMegaproject, Rebuild);
 	}
 
-	// The project key starts for the people the player rules what the AI would start first.
+	// The project key starts for the people the player rules what the AI would start first, counting from the vessel's
+	// birth: a completion before it does not count, as in the player's judgment.
 	{
 		FGalaxyState* Again = LayBoard(*Sim, Tables);
 		if (!TestNotNull(TEXT("The board of the key is laid"), Again))
@@ -688,11 +841,17 @@ bool FCosmicCivAIProjectsTest::RunTest(const FString& Parameters)
 			return false;
 		}
 		PlaceByHand(*Again, 1, TEXT("Hazard.Plague"), 50);
+		Again->Calling.BornTick = 10;
+		Record(Again->Systems[0], Build, 5);
+		const TArray<TPair<int32, FName>> FromStart = CosmicMegaprojects::Choices(*Again, Sim->GetStateIndex(), Sim->GetTables(), 0, 0);
+		TestEqual(TEXT("Counted from the beginning the completion stands: only the answer"), FromStart.Num(), 1);
 		const TArray<TPair<int32, FName>> Choices = CosmicMegaprojects::Choices(*Again, Sim->GetStateIndex(), Sim->GetTables(), 0, Again->Calling.BornTick);
-		if (TestEqual(TEXT("Two choices: the answer, then the construction"), Choices.Num(), 2))
+		if (TestEqual(TEXT("Two choices from the birth: the answer, then the construction"), Choices.Num(), 2))
 		{
-			TestTrue(TEXT("The answer comes first"), Choices[0].Key == 1 && Choices[0].Value == Answer);
-			TestTrue(TEXT("then the construction on the capital"), Choices[1].Key == 0 && Choices[1].Value == Build);
+			TestEqual(TEXT("The answer comes first"), Choices[0].Value, Answer);
+			TestEqual(TEXT("on its system"), Choices[0].Key, 1);
+			TestEqual(TEXT("then the construction"), Choices[1].Value, Build);
+			TestEqual(TEXT("on the capital"), Choices[1].Key, 0);
 		}
 		TestTrue(TEXT("The key starts a project"), Role->StartNextMegaproject());
 		TestEqual(TEXT("the first choice"), Again->Systems[1].ResponseMegaproject, Answer);
@@ -700,6 +859,30 @@ bool FCosmicCivAIProjectsTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("A second press starts the next"), Role->StartNextMegaproject());
 		TestEqual(TEXT("the construction"), Again->Systems[0].ActiveMegaproject, Build);
 		TestFalse(TEXT("With nothing left the key starts nothing"), Role->StartNextMegaproject());
+	}
+
+	// Only the systems a people owns count, and a construction running on one of them is not started again.
+	{
+		FGalaxyState* Again = LayBoard(*Sim, Tables);
+		if (!TestNotNull(TEXT("The board of the owned systems is laid"), Again))
+		{
+			return false;
+		}
+		// People 1 lists system 11, which people 3 owns, with a hazard and a completion of Build on it.
+		Again->Civs[1].OwnedSystems.Add(Again->Systems[11].SystemID);
+		PlaceByHand(*Again, 11, TEXT("Hazard.Plague"), 50);
+		Record(Again->Systems[11], Build, 5);
+		const TArray<TPair<int32, FName>> Listed = CosmicMegaprojects::Choices(*Again, Sim->GetStateIndex(), Sim->GetTables(), 1, 0);
+		if (TestEqual(TEXT("A system a people lists but does not own gives it nothing to answer"), Listed.Num(), 1))
+		{
+			TestEqual(TEXT("and its completion counts for nothing: the feat's construction"), Listed[0].Value, Build);
+			TestEqual(TEXT("on the capital"), Listed[0].Key, 6);
+		}
+		// The vessel's people builds Build on its second system.
+		Again->Systems[1].ActiveMegaproject = Build;
+		TestEqual(TEXT("A construction running on another system of the people is not offered again"),
+			CosmicMegaprojects::Choices(*Again, Sim->GetStateIndex(), Sim->GetTables(), 0, Again->Calling.BornTick).Num(), 0);
+		TestFalse(TEXT("nor started by the key"), Role->StartNextMegaproject());
 	}
 	return true;
 }
@@ -714,12 +897,16 @@ bool FCosmicFeatsEvaluateTest::RunTest(const FString& Parameters)
 		return false;
 	}
 	UAscensionSubsystem* Ascension = Sim->GetGameInstance()->GetSubsystem<UAscensionSubsystem>();
+	UPlayerRoleSubsystem* Role = Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>();
 	const FCosmicDataTables Original = Sim->GetTables();
 	const FCosmicRulesDef BaseRules = Sim->GetRules();
 	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	// Two judgments are refused below: one from the handler of the player's ascension, one from the handler of an AI
+	// people's ascension line. (An expected error is kept per pattern: a second call with the same one would replace it.)
+	AddExpectedError(TEXT("EvaluateFeats called from a handler"), EAutomationExpectedErrorFlags::Contains, 2);
 
-	// Two feats of the first rung on the same completion (the first by name is the one), a second rung, a split feat
-	// (its two conditions on one system), a third rung and a fourth.
+	// Two feats of the first rung on the same completion (the first by name is the one), a second rung whose price places
+	// a plague, a split feat (its two conditions on one system), a third rung and a fourth.
 	const FName FeatA(TEXT("feat_test_a"));
 	const FName FeatB(TEXT("feat_test_b"));
 	const FName FeatSecond(TEXT("feat_test_second"));
@@ -732,7 +919,9 @@ bool FCosmicFeatsEvaluateTest::RunTest(const FString& Parameters)
 	// B goes into the table first: the judgment reads the rows by name, not in the table's order.
 	Feats->AddRow(FeatB, FeatRow(EAscensionTier::Tier1_Planetary, EAscensionTier::Tier2_Stellar, { Cond(EConditionType::MegaprojectComplete, Build), Cond(EConditionType::SystemHasHazard, NAME_None, 0.f, TEXT("Hazard.Plague")) }, TEXT("other")));
 	Feats->AddRow(FeatA, First);
-	Feats->AddRow(FeatSecond, FeatRow(EAscensionTier::Tier2_Stellar, EAscensionTier::Tier3_Causal, { Cond(EConditionType::MegaprojectComplete, Build) }, TEXT("second")));
+	FAscensionFeatDef SecondRung = FeatRow(EAscensionTier::Tier2_Stellar, EAscensionTier::Tier3_Causal, { Cond(EConditionType::MegaprojectComplete, Build) }, TEXT("second"));
+	SecondRung.AscensionCost = { Eff(EEffectType::SpawnHazard, TEXT("Hazard.Plague")) };
+	Feats->AddRow(FeatSecond, SecondRung);
 	Feats->AddRow(FeatThird, FeatRow(EAscensionTier::Tier3_Causal, EAscensionTier::Tier4_Transcendent, { Cond(EConditionType::MegaprojectComplete, Rebuild) }, TEXT("third")));
 	FAscensionFeatDef Walk = FeatRow(EAscensionTier::Tier4_Transcendent, EAscensionTier::Tier5_EternalOrder, { Cond(EConditionType::MegaprojectComplete, Build) }, TEXT("walk"));
 	Walk.Path = EPlayerRole::Wanderer;
@@ -754,9 +943,10 @@ bool FCosmicFeatsEvaluateTest::RunTest(const FString& Parameters)
 	CosmicTests::Give(State, 1, { 5 });
 	Record(State.Systems[6], Build, 10);
 	PlaceByHand(State, 5, TEXT("Hazard.Plague"), 500);
-	// People 2 reaches the third rung on 7; it has a waiting rebel.
+	// People 2 reaches the third rung by a completion on its second system, 8 (its capital stays 7); it has a waiting rebel.
 	State.Civs[2].Tier = EAscensionTier::Tier2_Stellar;
-	Record(State.Systems[7], Build, 10);
+	CosmicTests::Give(State, 2, { 8 });
+	Record(State.Systems[8], Build, 10);
 	// People 3, at the third rung with an open rebel, reaches the fourth.
 	State.Civs[3].Tier = EAscensionTier::Tier3_Causal;
 	Record(State.Systems[11], Rebuild, 10);
@@ -767,7 +957,8 @@ bool FCosmicFeatsEvaluateTest::RunTest(const FString& Parameters)
 
 	FProbe Probe(*Sim);
 	TArray<TTuple<EAscensionTier, FName, EPlayerRole>> Heard;
-	Probe.Probe->OnTier = [&Heard](EAscensionTier NewTier, FName FeatRow, EPlayerRole Path) { Heard.Emplace(NewTier, FeatRow, Path); };
+	auto Listen = [&Heard](EAscensionTier NewTier, FName FeatRow, EPlayerRole Path) { Heard.Emplace(NewTier, FeatRow, Path); };
+	Probe.Probe->OnTier = Listen;
 	const bool bWasBroadcasting = Sim->IsBroadcastEnabled();
 	Sim->SetBroadcastEnabled(true);
 	ON_SCOPE_EXIT { Sim->SetBroadcastEnabled(bWasBroadcasting); };
@@ -791,6 +982,14 @@ bool FCosmicFeatsEvaluateTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("as a line of Severity 2"), static_cast<int32>(State.Log[Line].Severity), 2);
 		TestTrue(TEXT("in Log.Ascension"), State.Log[Line].Category == Tag(TEXT("Log.Ascension")));
 		TestEqual(TEXT("about the people"), State.Log[Line].FocusCivID, State.Civs[2].CivID);
+		TestEqual(TEXT("and its capital, not the system of the feat"), State.Log[Line].FocusSystemID, State.Systems[7].SystemID);
+		TestTrue(TEXT("with the people and its capital in its slots"), Filled(State.Log[Line], { State.Civs[2].CivName.ToString(), State.Systems[7].DisplayName.ToString() }));
+		// The price placed a plague on the system of the feat: its outbreak line follows the ascension line.
+		const int32 Outbreak = FindLine(State, Storm, State.Tick, TEXT("outbreak"));
+		if (TestTrue(TEXT("The lines that follow the price are told"), Outbreak != INDEX_NONE))
+		{
+			TestTrue(TEXT("after the ascension line"), Outbreak > Line);
+		}
 	}
 	TestEqual(TEXT("No ascension of an AI people is heard on OnTierAscended"), Heard.Num(), 0);
 
@@ -807,20 +1006,45 @@ bool FCosmicFeatsEvaluateTest::RunTest(const FString& Parameters)
 	}
 	FGalaxyState& Live = Sim->GetMutableState();
 
-	// The boundary tick counts: the vessel's people climbs, its cost applies, the calling keeps the feat.
+	// The boundary tick counts: the vessel's people climbs, its cost applies, the calling keeps the feat. A handler of the
+	// player's ascension hears it after its line, and it judges nothing, starts nothing and runs no tick.
 	{
 		FMegaprojectRecord* Old = Live.Systems[0].CompletedMegaprojects.FindByPredicate([](const FMegaprojectRecord& Candidate) { return Candidate.Row == Build; });
-		if (Old)
+		if (!TestNotNull(TEXT("The completion before the birth is on the record"), Old))
 		{
-			Old->Tick = Live.Calling.BornTick;
+			return false;
 		}
+		Old->Tick = Live.Calling.BornTick;
 		const float CausalityBefore = Live.Civs[0].Stockpile.Causality;
+		const int64 TickBefore = Live.Tick;
 		Heard.Reset();
+		bool bTried = false;
+		bool bLineFirst = false;
+		bool bStarted = true;
+		Probe.Probe->OnTier = [&](EAscensionTier NewTier, FName FeatRow, EPlayerRole Path)
+		{
+			Listen(NewTier, FeatRow, Path);
+			if (bTried)
+			{
+				return;
+			}
+			bTried = true;
+			bLineFirst = FindLine(Sim->GetState(), FeatRow, Sim->GetState().Tick) != INDEX_NONE;
+			FRandomStream Local(1);
+			Ascension->EvaluateFeats(Sim->GetMutableState(), Local);
+			bStarted = Role->StartNextMegaproject();
+			Sim->StepOnce();
+		};
+		AddExpectedError(TEXT("StartNextMegaproject called from a handler"), EAutomationExpectedErrorFlags::Contains, 1);
+		AddExpectedError(TEXT("StepOnce called from a handler"), EAutomationExpectedErrorFlags::Contains, 1);
 		Sim->StepOnce();
+		Probe.Probe->OnTier = Listen;
 		TestEqual(TEXT("A completion at the birth tick lifts the player's people"), Live.Civs[0].Tier, EAscensionTier::Tier2_Stellar);
 		TestEqual(TEXT("by the first feat by name"), Live.Calling.CompletedFeats.Num(), 1);
 		TestTrue(TEXT("which is feat_test_a"), Live.Calling.CompletedFeats.Contains(FeatA));
 		TestTrue(TEXT("The open life records the feat"), !Live.Calling.Lives.IsEmpty() && Live.Calling.Lives.Last().Feats.Contains(FeatA));
+		TestEqual(TEXT("The life's peak follows the rung of the people the vessel rules"),
+			Live.Calling.Lives.IsEmpty() ? EAscensionTier::Tier1_Planetary : Live.Calling.Lives.Last().PeakTier, EAscensionTier::Tier2_Stellar);
 		TestTrue(TEXT("The calling takes the powers of the feat"), Live.Calling.Powers.HasTagExact(Tag(TEXT("Way.Received"))));
 		TestEqual(TEXT("The price of the rung is paid (a people of the first rung earns no Causality)"), Live.Civs[0].Stockpile.Causality, CausalityBefore + 7.f, 0.0001f);
 		TestEqual(TEXT("The personal tier stays"), Live.Calling.PersonalTier, EAscensionTier::Tier1_Planetary);
@@ -830,9 +1054,24 @@ bool FCosmicFeatsEvaluateTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("and the feat row"), Heard[0].Get<1>(), FeatA);
 			TestEqual(TEXT("on the ruler's path"), Heard[0].Get<2>(), EPlayerRole::Ruler);
 		}
+		TestTrue(TEXT("The handler of the player's ascension ran"), bTried);
+		TestTrue(TEXT("after the ascension line was told"), bLineFirst);
+		TestFalse(TEXT("and started nothing"), bStarted);
+		TestEqual(TEXT("and ran no tick"), Live.Tick, TickBefore + 1);
 		Sim->StepOnce();
 		TestEqual(TEXT("One rung per tick: the next rung comes on the next tick"), Live.Civs[0].Tier, EAscensionTier::Tier3_Causal);
 		TestFalse(TEXT("The player's people gets no one who crossed first at the third rung"), Live.Civs[0].Notables.ContainsByPredicate([](const FNotableRecord& Candidate) { return Candidate.Role == Tag(TEXT("Notable.Ascendant")); }));
+
+		// The fourth rung closes the open records of the player's people as well.
+		Record(Live.Systems[0], Rebuild, Live.Tick);
+		FNotableRecord& Ruler = Live.Civs[0].Notables.AddDefaulted_GetRef();
+		Ruler.Role = Tag(TEXT("Notable.Ruler"));
+		Ruler.FirstTick = 55;
+		Sim->StepOnce();
+		TestEqual(TEXT("The player's people reaches the fourth rung"), Live.Civs[0].Tier, EAscensionTier::Tier4_Transcendent);
+		TestEqual(TEXT("and its open records close in that tick"), Live.Civs[0].Notables.Num() > 0 ? Live.Civs[0].Notables[0].LastTick : int64(-1), Live.Tick);
+		TestEqual(TEXT("The life's peak is the fourth rung"),
+			Live.Calling.Lives.IsEmpty() ? EAscensionTier::Tier1_Planetary : Live.Calling.Lives.Last().PeakTier, EAscensionTier::Tier4_Transcendent);
 	}
 
 	// No judgment of the player's people during the interregnum; a wanderer's feat is not judged.
@@ -850,6 +1089,74 @@ bool FCosmicFeatsEvaluateTest::RunTest(const FString& Parameters)
 		Sim->StepOnce();
 		TestEqual(TEXT("The people the player rules is not judged during the interregnum"), Again->Civs[0].Tier, EAscensionTier::Tier1_Planetary);
 		TestEqual(TEXT("A wanderer's feat lifts no people"), Again->Civs[1].Tier, EAscensionTier::Tier4_Transcendent);
+	}
+
+	// Only the settled systems a people owns hold its feats: a system it lists but another people owns, and a system it
+	// is settling, lift it no rung.
+	{
+		FGalaxyState* Again = LayBoard(*Sim, Tables);
+		if (!TestNotNull(TEXT("The board of the owned systems is laid"), Again))
+		{
+			return false;
+		}
+		// People 1 lists system 11, which people 3 owns (at the fourth rung, where no row of the test judges it).
+		Again->Civs[1].OwnedSystems.Add(Again->Systems[11].SystemID);
+		Again->Civs[3].Tier = EAscensionTier::Tier4_Transcendent;
+		Record(Again->Systems[11], Build, 10);
+		PlaceByHand(*Again, 11, TEXT("Hazard.Plague"), 500);
+		// People 2 is settling its second system, 8.
+		CosmicTests::Give(*Again, 2, { 8 });
+		Again->Systems[8].ActiveMegaproject = CosmicRows::ProjectSettle;
+		Record(Again->Systems[8], Build, 10);
+		PlaceByHand(*Again, 8, TEXT("Hazard.Plague"), 500);
+		Sim->StepOnce();
+		TestEqual(TEXT("A system a people lists but does not own lifts it no rung"), Again->Civs[1].Tier, EAscensionTier::Tier1_Planetary);
+		TestEqual(TEXT("A system a people is settling lifts it no rung"), Again->Civs[2].Tier, EAscensionTier::Tier1_Planetary);
+	}
+
+	// A row that is not one rung up, or that holds no condition, is not judged (an error line each time it is looked at).
+	{
+		UDataTable* BadFeats = NewTable(FAscensionFeatDef::StaticStruct());
+		const FName Same(TEXT("feat_test_same"));
+		BadFeats->AddRow(Same, FeatRow(EAscensionTier::Tier1_Planetary, EAscensionTier::Tier1_Planetary, { Cond(EConditionType::MegaprojectComplete, Build) }, TEXT("same")));
+		BadFeats->AddRow(FName(TEXT("feat_test_bare")), FeatRow(EAscensionTier::Tier1_Planetary, EAscensionTier::Tier2_Stellar, {}, TEXT("bare")));
+		FGalaxyState* Again = LayBoard(*Sim, TablesWith(Original, Knobs(BaseRules), BadFeats));
+		if (!TestNotNull(TEXT("The board of the bad rows is laid"), Again))
+		{
+			return false;
+		}
+		Record(Again->Systems[6], Build, 5);
+		AddExpectedError(TEXT("is not one rung up with a condition"), EAutomationExpectedErrorFlags::Contains, 0);
+		Sim->StepOnce();
+		TestEqual(TEXT("A row that does not climb one rung is not judged: nothing is told of it"), CountLines(*Again, Same), 0);
+		TestEqual(TEXT("A row without a condition lifts no people"), Again->Civs[2].Tier, EAscensionTier::Tier1_Planetary);
+	}
+
+	// With the gate closed (a leap, a balance run) the player's ascension is not heard; a state that is not the live one
+	// is not judged.
+	{
+		FGalaxyState* Again = LayBoard(*Sim, Tables);
+		if (!TestNotNull(TEXT("The board of the closed gate is laid"), Again))
+		{
+			return false;
+		}
+		Record(Again->Systems[0], Build, 5);
+		PlaceByHand(*Again, 0, TEXT("Hazard.Plague"), 500);
+		{
+			FGalaxyState Copy = *Again;
+			FRandomStream Local(1);
+			const int32 LinesBefore = Again->Log.Num();
+			AddExpectedError(TEXT("EvaluateFeats: the state handed in is not the live state"), EAutomationExpectedErrorFlags::Contains, 1);
+			Ascension->EvaluateFeats(Copy, Local);
+			TestEqual(TEXT("A copy of the state is not judged"), Copy.Civs[0].Tier, EAscensionTier::Tier1_Planetary);
+			TestEqual(TEXT("and nothing of it is told"), Again->Log.Num(), LinesBefore);
+		}
+		Heard.Reset();
+		Sim->SetBroadcastEnabled(false);
+		Sim->StepOnce();
+		Sim->SetBroadcastEnabled(true);
+		TestEqual(TEXT("With the gate closed the player's people climbs"), Again->Civs[0].Tier, EAscensionTier::Tier2_Stellar);
+		TestEqual(TEXT("and nobody hears it"), Heard.Num(), 0);
 	}
 
 	// A handler of a Core Logic delegate does not judge.
@@ -874,7 +1181,6 @@ bool FCosmicFeatsEvaluateTest::RunTest(const FString& Parameters)
 			FRandomStream Local(1);
 			Ascension->EvaluateFeats(Sim->GetMutableState(), Local);
 		};
-		AddExpectedError(TEXT("EvaluateFeats called from a handler"), EAutomationExpectedErrorFlags::Contains, 1);
 		Sim->StepOnce();
 		TestTrue(TEXT("The handler of the ascension line ran"), bTried);
 		TestEqual(TEXT("and lifted nobody again"), Again->Civs[2].Tier, EAscensionTier::Tier3_Causal);
@@ -937,19 +1243,39 @@ bool FCosmicPlayerAscendsToT3Test::RunTest(const FString& Parameters)
 		return false;
 	}
 	TestTrue(TEXT("by the feat of the Dyson swarm"), State.Calling.CompletedFeats.Contains(FName(TEXT("feat_dyson_swarm"))));
+	// The vessel climbed as the ruler of its people: no rebellion took the throne meanwhile.
+	TestEqual(TEXT("The vessel is still embodied"), State.Calling.LifeState, ELifeState::Embodied);
+	TestEqual(TEXT("and rules"), State.Player.Role, EPlayerRole::Ruler);
+	TestEqual(TEXT("the same people"), State.Player.RuledCivID, State.Civs[CivIndex].CivID);
 
-	// A supernova threatens the capital; the key answers it.
+	// A supernova threatens the capital, with the countdown of the game's row; the key answers it. A hazard standing there
+	// first is resolved, so that its leader's record ends as a resolution ends it.
+	const FHazardDef* NovaRow = Sim->GetTables().FindHazardByTag(Tag(TEXT("Hazard.PreSupernova")));
+	if (!TestNotNull(TEXT("The game has the row of the supernova"), NovaRow))
+	{
+		return false;
+	}
+	const int32 Countdown = NovaRow->CountdownTicks;
 	FGalaxyState& Live = Sim->GetMutableState();
-	CosmicHazards::EmptyHazardSlot(Live.Systems[Home]);
-	PlaceByHand(Live, Home, TEXT("Hazard.PreSupernova"), 300);
+	if (Live.Systems[Home].ActiveHazard.IsValid())
+	{
+		FCosmicEvalContext Ctx = Sim->MakeEvalContext();
+		Ctx.CivIndex = CivIndex;
+		Ctx.SystemIndex = Home;
+		UCosmicEventSubsystem::Apply(Eff(EEffectType::ResolveHazard), Ctx);
+	}
+	const bool bGraceSpent = Live.Flags.HasTagExact(Tag(TEXT("Flag.Grace.Spent")));
+	PlaceByHand(Live, Home, TEXT("Hazard.PreSupernova"), Countdown);
 	TestTrue(TEXT("The project key answers the supernova"), Role->StartNextMegaproject());
 	TestEqual(TEXT("with the stabilization"), Live.Systems[Home].ResponseMegaproject, FName(TEXT("project_stabilize")));
-	for (int32 Step = 0; Step < 300 && Live.Civs[CivIndex].Tier == EAscensionTier::Tier2_Stellar; ++Step)
+	for (int32 Step = 0; Step < Countdown && Live.Civs[CivIndex].Tier == EAscensionTier::Tier2_Stellar; ++Step)
 	{
 		Sim->StepOnce();
 	}
+	TestTrue(TEXT("The stabilization completed within the supernova's countdown"), CosmicMegaprojects::HasCompleted(Live.Systems[Home], FName(TEXT("project_stabilize")), Live.Calling.BornTick));
 	TestFalse(TEXT("The capital still stands"), CosmicHazards::IsDeadNode(Live.Systems[Home]));
 	TestFalse(TEXT("The supernova is resolved"), Live.Systems[Home].ActiveHazard == Tag(TEXT("Hazard.PreSupernova")));
+	TestEqual(TEXT("not kept by the grace"), Live.Flags.HasTagExact(Tag(TEXT("Flag.Grace.Spent"))), bGraceSpent);
 	TestEqual(TEXT("The people climbs to the third rung"), Live.Civs[CivIndex].Tier, EAscensionTier::Tier3_Causal);
 	TestTrue(TEXT("by the feat of the stabilized supernova"), Live.Calling.CompletedFeats.Contains(FName(TEXT("feat_supernova_stabilized"))));
 	return true;

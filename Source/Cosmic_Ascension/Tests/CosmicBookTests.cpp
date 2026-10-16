@@ -64,8 +64,8 @@ namespace CosmicBookTests
 	}
 
 	// The test's tables: its transcendent rows, these event rows, no hazard row (a hazard of the game would land on the
-	// board at random) and its own knobs (a slot every ten ticks, no Lottery chance, no Stability drain), over the rest of
-	// the game's tables.
+	// board at random), no project and feat of the game (CosmicTests::WithoutProjects) and its own knobs (a slot every ten
+	// ticks, no Lottery chance, no Stability drain), over the rest of the game's tables.
 	FCosmicDataTables TablesWith(const FCosmicDataTables& Base, const FCosmicRulesDef& BaseRules, UDataTable* Events)
 	{
 		FCosmicRulesDef Knobs = BaseRules;
@@ -79,16 +79,17 @@ namespace CosmicBookTests
 		Tables.Transcendents = TranscendentRows();
 		Tables.Events = Events;
 		Tables.Hazards = NewTable(FHazardDef::StaticStruct());
-		return Tables;
+		return CosmicTests::WithoutProjects(Tables);
 	}
 
-	// The game's tables without its hazard rows: the cases that read the game's event rows run hundreds of ticks, and a
-	// hazard of the game landing on the board at random would change what they read.
+	// The game's tables without its hazard rows, projects and feats: the cases that read the game's event rows run hundreds
+	// of ticks, and a hazard of the game landing on the board at random, or the AI paying for its projects, would change
+	// what they read.
 	FCosmicDataTables GameRowsWithoutHazards(const FCosmicDataTables& Original)
 	{
 		FCosmicDataTables Tables = Original;
 		Tables.Hazards = NewTable(FHazardDef::StaticStruct());
-		return Tables;
+		return CosmicTests::WithoutProjects(Tables);
 	}
 
 	// No research progress at all, so that no breakthrough of its own falls inside a case (a Society mark would fire the

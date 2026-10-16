@@ -1634,6 +1634,17 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 	Sim->GetRng().GetUnsignedInt();
 	// A stay in a fallen sphere under way: the counter is checked on its own after the load, not only through the hash.
 	Sim->GetMutableState().Civs[1].FallenSphereTicks = 123;
+	// An answer under way, a completion on the record and a feat of the calling (section 5.7, 4.4): checked on their own
+	// after the load too.
+	{
+		FStarSystemState& Projects = Sim->GetMutableState().Systems[0];
+		Projects.ResponseMegaproject = FName(TEXT("project_test_answer"));
+		Projects.ResponseProgress = 3.5f;
+		FMegaprojectRecord& Record = Projects.CompletedMegaprojects.AddDefaulted_GetRef();
+		Record.Row = FName(TEXT("project_test_done"));
+		Record.Tick = 7;
+		Sim->GetMutableState().Calling.CompletedFeats.Add(FName(TEXT("feat_test_done")));
+	}
 
 	const FGuid GalaxyID = Sim->GetState().GalaxyID;
 	const uint32 HashAtSave = Sim->ComputeStateHash();
@@ -1668,6 +1679,18 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Tick after load"), Sim->GetState().Tick, static_cast<int64>(1000));
 		TestEqual(TEXT("A stay in a fallen sphere survives the round trip"),
 			Sim->GetState().Civs.IsValidIndex(1) ? Sim->GetState().Civs[1].FallenSphereTicks : static_cast<int32>(INDEX_NONE), 123);
+		if (TestTrue(TEXT("The system of the projects is there after load"), Sim->GetState().Systems.IsValidIndex(0)))
+		{
+			const FStarSystemState& Projects = Sim->GetState().Systems[0];
+			TestEqual(TEXT("An answer under way survives the round trip"), Projects.ResponseMegaproject, FName(TEXT("project_test_answer")));
+			TestEqual(TEXT("with its progress"), Projects.ResponseProgress, 3.5f);
+			const FMegaprojectRecord* Record = Projects.CompletedMegaprojects.FindByPredicate([](const FMegaprojectRecord& Candidate) { return Candidate.Row == FName(TEXT("project_test_done")); });
+			if (TestNotNull(TEXT("A completion record survives the round trip"), Record))
+			{
+				TestEqual(TEXT("with its tick"), Record->Tick, static_cast<int64>(7));
+			}
+		}
+		TestTrue(TEXT("The feats of the calling survive the round trip"), Sim->GetState().Calling.CompletedFeats.Contains(FName(TEXT("feat_test_done"))));
 		TestTrue(TEXT("GalaxyID survives the round trip"), Sim->GetState().GalaxyID == GalaxyID);
 		TestEqual(TEXT("Names and log text survive the round trip"), CosmicSimTests::CollectText(Sim->GetState()), TextAtSave);
 		TestTrue(TEXT("Loaded log text is still culture-invariant"), !Sim->GetState().Log.IsEmpty() && Sim->GetState().Log[0].Message.IsCultureInvariant());

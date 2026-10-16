@@ -7,10 +7,17 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Core/GalaxyState.h"
+#include "Data/CosmicDataTables.h"
+#include "Data/CosmicDefinitionRows.h"
+#include "Data/CosmicRowNames.h"
+#include "Engine/DataTable.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
+#include "Internationalization/Text.h"
 #include "Misc/AutomationTest.h"
 #include "Sim/GalaxySimulationSubsystem.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
 
 #include <initializer_list>
 
@@ -54,6 +61,36 @@ namespace CosmicTests
 		}
 		Sim->SetTimeScale(0.f);
 		return Sim;
+	}
+
+	// The construction row a test may put in a slot under WithoutProjects.
+	inline FName StandingProject()
+	{
+		return FName(TEXT("project_test"));
+	}
+
+	// The tables handed in without the game's projects and feats (section 5.7). With them every AI people of a board would
+	// start the construction its next feat names on the first tick and pay for it from the stockpiles a test reasons
+	// about, on values Phase 5 changes. DT_Megaprojects keeps two rows no stockpile of a test can pay: StandingProject,
+	// which a test may put in a construction slot (step (a) of the crisis stage leaves it standing, so only a world
+	// function empties the slot), and project_settle (a row the code calls by name). DT_Feats is empty. A test of the
+	// projects brings its own rows.
+	inline FCosmicDataTables WithoutProjects(const FCosmicDataTables& Base)
+	{
+		FMegaprojectDef Unpaid;
+		Unpaid.DisplayName = FText::AsCultureInvariant(TEXT("<unpaid>"));
+		Unpaid.CostPerTick.Energy = 1.0e9f;
+		Unpaid.RequiredProgress = 1.0e9f;
+		UDataTable* Projects = NewObject<UDataTable>(GetTransientPackage());
+		Projects->RowStruct = FMegaprojectDef::StaticStruct();
+		Projects->AddRow(StandingProject(), Unpaid);
+		Projects->AddRow(CosmicRows::ProjectSettle, Unpaid);
+		UDataTable* Feats = NewObject<UDataTable>(GetTransientPackage());
+		Feats->RowStruct = FAscensionFeatDef::StaticStruct();
+		FCosmicDataTables Tables = Base;
+		Tables.Megaprojects = Projects;
+		Tables.Feats = Feats;
+		return Tables;
 	}
 
 	// A topology a test knows, whatever the generator made (the generation rules change, a test of reach should not):

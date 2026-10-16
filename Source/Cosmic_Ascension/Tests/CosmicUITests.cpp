@@ -14,8 +14,11 @@
 #include "Engine/GameInstance.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Internationalization/StringTableCore.h"
+#include "Internationalization/StringTableCoreFwd.h"
+#include "Internationalization/Text.h"
 #include "Misc/AutomationTest.h"
 #include "Player/PlayerRoleSubsystem.h"
+#include "Sim/CosmicMegaprojects.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Templates/SharedPointer.h"
 #include "Tests/CosmicTestHelpers.h"
@@ -83,6 +86,9 @@ bool FCosmicUIPanelLabelsTest::RunTest(const FString& Parameters)
 	if (TestNotNull(TEXT("The player rules a civ"), Civ))
 	{
 		TestTrue(TEXT("The panel names the ruled civ"), !Civ->CivName.IsEmpty() && Shown.Contains(Civ->CivName.ToString()));
+		// The rung as the data counts it, 1 to 5 (section 7.3), after the label.
+		const FString TierLabel = FText::FromStringTable(FName(TEXT("/Game/CA/Data/ST_CA.ST_CA")), TEXT("Panel.Tier"), EStringTableLoadingPolicy::FindOrFullyLoad).ToString();
+		TestTrue(TEXT("The panel shows the rung of the ruled civ"), Shown.Contains(FString::Printf(TEXT("%s %d"), *TierLabel, static_cast<int32>(Civ->Tier) + 1)));
 	}
 	if (TestTrue(TEXT("The log has its first line"), !State.Log.IsEmpty()))
 	{
@@ -103,6 +109,9 @@ bool FCosmicUIPanelLabelsTest::RunTest(const FString& Parameters)
 			if (TestNotNull(TEXT("The started project is a row of the game"), Row))
 			{
 				TestTrue(TEXT("The panel shows the running project"), WithProject.Contains(Home->DisplayName.ToString() + TEXT(" ") + Row->DisplayName.ToString()));
+				// The progress against what the simulation needs, as whole numbers.
+				TestTrue(TEXT("with its progress and the progress it needs"), WithProject.Contains(FString::Printf(TEXT(" %s %s/%s"), *Row->DisplayName.ToString(),
+					*FText::AsNumber(FMath::FloorToInt32(Home->MegaprojectProgress)).ToString(), *FText::AsNumber(FMath::FloorToInt32(CosmicMegaprojects::RequiredProgressOf(*Row))).ToString())));
 			}
 			TestTrue(TEXT("No label of the project line is missing"), !WithProject.Contains(Placeholder));
 			Shown = WithProject;

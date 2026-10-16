@@ -5,8 +5,8 @@ Cosmic Ascension - data layer helper (guideline.md section 7.3, 9.3 Data.Integri
   python Tools/test_data_schema.py
 
 The base of every case is the data of the project itself under the schema of the project (it has to pass), with the
-rows of four tables built here instead: DT_Events, DT_Transcendents, DT_Hazards and DT_Feats, whose rows the cases read cell by cell
-(the project's rows are replaced on purpose). A case changes one thing and names the words the report
+rows of five tables built here instead: DT_Events, DT_Transcendents, DT_Hazards, DT_Megaprojects and DT_Feats, whose rows the
+cases read cell by cell (the project's rows are replaced on purpose). A case changes one thing and names the words the report
 has to carry.
 
 The last block walks the schema of the project: every rule, every unique, every pair, every target and every slot list
@@ -149,6 +149,19 @@ def feat_row(name="feat_test_climb", **changes):
     return row
 
 
+def megaproject_row(name="project_test_build", **changes):
+    row = {
+        "Name": name,
+        "DisplayName": "build",
+        "RequiredTier": "Tier1_Planetary",
+        "CostPerTick": {"Energy": 1.0, "Matter": 0.0, "Insight": 0.0, "Influence": 0.0, "Causality": 0.0},
+        "RequiredProgress": 10.0,
+        "CompleteTemplates": ["{Civ} a.", "{System} b.", "{Project} c."],
+    }
+    row.update(changes)
+    return row
+
+
 def paths_of(node, here=()):
     """Every path to a node below node: keys of objects and indices of lists."""
     if isinstance(node, dict):
@@ -185,15 +198,16 @@ def civ_row(base, name, **cells):
 
 def fixture_tables(schema, tables):
     """The tables every case starts from: the sources of the project, with fixture rows for DT_Events, DT_Transcendents,
-    DT_Hazards and DT_Feats (their project rows are replaced on purpose: the cases read the cells of the rows they build).
-    A row the code calls by name has to be in its table, so the event fixture gets one valid row for each name the schema
-    requires (fired by name: no rule about slot rows speaks of it)."""
+    DT_Hazards, DT_Megaprojects and DT_Feats (their project rows are replaced on purpose: the cases read the cells of the
+    rows they build). A row the code calls by name has to be in its table, so the event and project fixtures get one valid
+    row for each name the schema requires (an event fired by name: no rule about slot rows speaks of it)."""
     tables = copy.deepcopy(tables)
     tables["DT_Events"] = [event_row()]
     for name in schema["tables"]["DT_Events"].get("required_rows", []):
         tables["DT_Events"].append(event_row(name, Trigger="Named", BaseWeight=0, CooldownTicks=0, LogTemplates=["one."]))
     tables["DT_Transcendents"] = [transcendent_row(), celestial_row()]
     tables["DT_Hazards"] = [hazard_row()]
+    tables["DT_Megaprojects"] = [megaproject_row()] + [megaproject_row(name) for name in schema["tables"]["DT_Megaprojects"].get("required_rows", [])]
     tables["DT_Feats"] = [feat_row()]
     return tables
 
@@ -391,7 +405,7 @@ class SchemaTests(unittest.TestCase):
         code_rows, problems = checker.load_code_rows(root, self.schema["row_name_sources"])
         self.assertEqual(problems, [])
         self.assertIn("arch_default", code_rows)
-        self.assertIn("project_settle", code_rows)  # its table is not in the schema yet: nothing is asked of it
+        self.assertIn("project_settle", code_rows)
         self.assertEqual(self.after(code_rows=code_rows), [])
         self.schema_problem_with_rows(code_rows + ["log_new_line"], "schema.DT_LogTemplates", "the code calls the row log_new_line by name")
         # A table with "names" asks for its names only: a code row that merely starts like one is none of its business.
@@ -686,7 +700,7 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(self.after(rows([])), [])
         self.expect(self.after(rows(["enc_nobody"])), "RulerResolutions[0]", "none of DT_Megaprojects, DT_Encounters has a row enc_nobody")
         # A project is an answer.
-        self.assertEqual(self.after(rows(["project_reform"])), [])
+        self.assertEqual(self.after(rows(["project_test_build"])), [])
         # A row of a table the column does not name is no answer.
         self.expect(self.after(rows(["event_book_found"])), "RulerResolutions[0]", "none of DT_Megaprojects, DT_Encounters has a row event_book_found")
         self.expect(self.after(rows("enc_nobody")), "RulerResolutions", "expected a list of row names")
@@ -763,10 +777,10 @@ class SchemaTests(unittest.TestCase):
 
     def test_megaprojects_and_feats(self):
         """The lines of a completion and of an ascension come in three variants or more; a feat walks the ruler's path."""
-        self.expect(self.after(self.set_cell("DT_Megaprojects", "project_dyson", "CompleteTemplates", ["{Civ} a.", "{System} b."])),
-                    "DT_Megaprojects.project_dyson.CompleteTemplates", "3 entries or more")
+        self.expect(self.after(self.set_cell("DT_Megaprojects", "project_test_build", "CompleteTemplates", ["{Civ} a.", "{System} b."])),
+                    "DT_Megaprojects.project_test_build.CompleteTemplates", "3 entries or more")
         self.expect(self.after(self.set_cell("DT_Feats", "feat_test_climb", "LogTemplates", ["{Civ} a.", "b."])), "DT_Feats.feat_test_climb.LogTemplates", "3 entries or more")
-        self.expect(self.after(self.set_cell("DT_Megaprojects", "project_dyson", "RequiredProgress", 0.5)), "DT_Megaprojects.project_dyson.RequiredProgress", "is below 1")
+        self.expect(self.after(self.set_cell("DT_Megaprojects", "project_test_build", "RequiredProgress", 0.5)), "DT_Megaprojects.project_test_build.RequiredProgress", "is below 1")
         self.expect(self.after(self.set_cell("DT_Feats", "feat_test_climb", "Path", "Wanderer")), "feat_test_climb", "the wanderer's feats are judged from Phase 4")
         self.expect(self.after(self.set_cell("DT_Feats", "feat_test_climb", "GrantedPowers", tags_text("Trait.Arch.Terran"))), "feat_test_climb.GrantedPowers", "not under")
 
@@ -940,17 +954,21 @@ class SchemaTests(unittest.TestCase):
                     "event_book_found", "the research stage fires the found row by name")
 
     def test_the_slot_rule_covers_the_vocabulary(self):
-        """The rule names its conditions and effects one by one. An enumerator added to the vocabulary later has to be
-        put on one side here: a condition on the vessel or an effect on it goes into the rule."""
-        rule = next(rule for rule in self.schema["tables"]["DT_Events"]["rules"] if rule["why"].startswith("a slot runs for every people"))
-        named = lambda column: {test["lacks_type"] for test in rule["then"] if test["col"] == column}  # noqa: E731
-        self.assertEqual(named("Conditions"), {name for name in self.schema["conditions"] if name.startswith("Player")},
-                         "every condition on the vessel is in the rule of slot rows, and nothing else")
+        """The rules of the rows every people runs (slot rows, feat rows) name their conditions and effects one by one. An
+        enumerator added to the vocabulary later has to be put on one side here: a condition on the vessel or an effect on it
+        goes into both rules."""
         world_effects = {"AddResource", "MultiplyIncome", "ShiftEthics", "AddTrait", "RemoveTrait", "ChangeStability", "ChangeRelation", "SpawnHazard",
                          "ResolveHazard", "TransferSystem", "ChangeReverence", "SetFlag", "ChangePopulation", "NameNotable"}
-        self.assertEqual(named("Effects") | world_effects, set(self.schema["effects"]),
-                         "a new effect is either an effect on the world (add it to this list) or one on the vessel or the role (add it to the rule of slot rows)")
-        self.assertEqual(named("Effects") & world_effects, set())
+        for table, start, conditions, effects in (("DT_Events", "a slot runs for every people", "Conditions", "Effects"),
+                                                  ("DT_Feats", "a feat row judges every people", "CompletionConditions", "AscensionCost")):
+            with self.subTest(table=table):
+                rule = next(rule for rule in self.schema["tables"][table]["rules"] if rule["why"].startswith(start))
+                named = lambda column: {test["lacks_type"] for test in rule["then"] if test["col"] == column}  # noqa: E731
+                self.assertEqual(named(conditions), {name for name in self.schema["conditions"] if name.startswith("Player")},
+                                 "every condition on the vessel is in the rule, and nothing else")
+                self.assertEqual(named(effects) | world_effects, set(self.schema["effects"]),
+                                 "a new effect is either an effect on the world (add it to this list) or one on the vessel or the role (add it to both rules)")
+                self.assertEqual(named(effects) & world_effects, set())
 
     def test_sign_row_and_grace_row(self):
         cell = lambda column, value: self.set_cell("DT_Events", "event_test_harvest", column, value)  # noqa: E731
@@ -1036,13 +1054,14 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(self.conditions(cond("CivFallenSphereTicksReached", key="300", tag="Doctrine.Zeal")), [])
         self.expect(self.conditions(cond("CivFallenSphereTicksReached", key="300", value=1)), "(CivFallenSphereTicksReached)", "reads no Value")
         # A completion: the project row is required and has to be a row of DT_Megaprojects.
-        self.assertEqual(self.conditions(cond("MegaprojectComplete", key="project_dyson")), [])
+        self.assertEqual(self.conditions(cond("MegaprojectComplete", key="project_test_build")), [])
         self.expect(self.conditions(cond("MegaprojectComplete")), "(MegaprojectComplete).Key", "a Key is required")
         self.expect(self.conditions(cond("MegaprojectComplete", key="project_nowhere")), "(MegaprojectComplete).Key", "DT_Megaprojects has no row project_nowhere")
         # A research field and a share of it.
         self.assertEqual(self.conditions(cond("CivResearchAtLeast", key="Physics", value=0.5)), [])
         self.expect(self.conditions(cond("CivResearchAtLeast", key="Alchemy", value=0.5)), "(CivResearchAtLeast).Key", "Alchemy is none of Physics")
         self.expect(self.conditions(cond("CivResearchAtLeast", key="Physics", value=1.5)), "(CivResearchAtLeast).Value", "is above 1")
+        self.expect(self.conditions(cond("CivResearchAtLeast", key="Physics", value=-0.1)), "(CivResearchAtLeast).Value", "is below 0")
         self.expect(self.conditions("CivTierAtLeast"), "expected an object")
         self.expect(self.after(self.set_cell("DT_Events", "event_test_harvest", "Conditions", {"Type": "CivTierAtLeast"})), "Conditions", "expected a list")
 
@@ -1470,6 +1489,7 @@ class SchemaTests(unittest.TestCase):
         hazard = "crisis_test_storm"
         update_hazard = lambda **changes: (lambda tables: self.row(tables, "DT_Hazards", hazard).update(**changes))  # noqa: E731
         named = update_event(Trigger="Named", BaseWeight=0, CooldownTicks=0, LogTemplates=["one."])
+        update_feat = lambda **changes: (lambda tables: self.row(tables, "DT_Feats", "feat_test_climb").update(**changes))  # noqa: E731
         return {
             ("DT_Civs", "the name pattern of a people drawn for the AI calls its home star (guideline 5.11)"): (NOTHING, "arch_default"),
             ("DT_Civs", "the home of a people drawn for the AI takes a proper name from the galaxy without replacement, never a fixed one two peoples could share (guideline 7.4)"):
@@ -1509,6 +1529,21 @@ class SchemaTests(unittest.TestCase):
                 (NOTHING, hazard),
             ("DT_Feats", "the wanderer's feats are judged from Phase 4, with their first row: until then no row walks that path (guideline 3.2, 7.5)"):
                 (NOTHING, "feat_test_climb"),
+            ("DT_Feats", "a feat lifts its people one rung: from the first to the second (guideline 3.2; the judgment does not judge another row)"):
+                (NOTHING, "feat_test_climb"),
+            ("DT_Feats", "a feat lifts its people one rung: from the second to the third (guideline 3.2; the judgment does not judge another row)"):
+                (update_feat(RequiredTier="Tier2_Stellar", TargetTier="Tier3_Causal"), "feat_test_climb"),
+            ("DT_Feats", "a feat lifts its people one rung: from the third to the fourth (guideline 3.2; the judgment does not judge another row)"):
+                (update_feat(RequiredTier="Tier3_Causal", TargetTier="Tier4_Transcendent"), "feat_test_climb"),
+            ("DT_Feats", "a feat lifts its people one rung: from the fourth to the fifth (guideline 3.2; the judgment does not judge another row)"):
+                (update_feat(RequiredTier="Tier4_Transcendent", TargetTier="Tier5_EternalOrder"), "feat_test_climb"),
+            ("DT_Feats", "the fifth rung is the last: no feat climbs from it (guideline 3.2)"): (NOTHING, "feat_test_climb"),
+            ("DT_Feats", "no people climbs without a deed: a feat holds one condition or more (guideline 3.2; the judgment does not judge a row without one)"):
+                (NOTHING, "feat_test_climb"),
+            ("DT_Feats", "a feat row judges every people, the AI's too (guideline 4.3): its conditions do not read the vessel, and its price records no role effect and touches no vessel (a recorded death also waits for the death pipeline of Phase 4b). How a vessel condition of a T4->T5 row reads for the AI is decided with that row (guideline 16 #1)"):
+                (NOTHING, "feat_test_climb"),
+            ("DT_Rules", "the rate of the AI's projects multiplies their progress: at 0 or below they would never progress, so the code reads it as 1 with an error line (guideline 4.3, 5.7)"):
+                (NOTHING, "rules"),
             ("DT_Transcendents", "the fixed place of the roster belongs to a fallen silence"): (NOTHING, "trans_silence"),
             ("DT_Transcendents", "a transcendent stands on tier 3 or 4 (guideline 4.2: no fallen one on tier 5)"): (NOTHING, "trans_silence"),
             ("DT_Transcendents", "a celestial transcendent has no instance: no sphere, no pressure, no roster weight"): (NOTHING, "trans_covenant"),
@@ -1531,7 +1566,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 59, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 78, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

@@ -181,8 +181,10 @@ struct COSMIC_ASCENSION_API FHazardDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicEffect> OnResolveEffects;
 
-	// DT_Megaprojects / DT_Edicts / DT_Encounters (petition) row names. Any one completed resolves the hazard: read from
-	// the megaproject work of Phase 2 on (work item 8), empty in every row until then.
+	// The answers of this hazard: DT_Megaprojects / DT_Edicts / DT_Encounters (petition) row names. Any one completed
+	// resolves the hazard. A DT_Megaprojects row listed by any hazard row is an answer: it runs in the response slot of
+	// the system (FCosmicDataTables::IsHazardAnswer, section 5.7) and ends with the hazard. DT_Edicts and DT_Encounters
+	// names are read from Phase 4.
 	UPROPERTY(EditAnywhere)
 	TArray<FName> RulerResolutions;
 

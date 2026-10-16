@@ -15,6 +15,7 @@
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Log/CosmicLogSubsystem.h"
+#include "Sim/CosmicMegaprojects.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 
 namespace
@@ -186,7 +187,7 @@ void UCosmicTextPanelWidget::RefreshStatus()
 			{
 				if (const FMegaprojectDef* Row = SlotRows[SlotIndex].IsNone() ? nullptr : Tables.FindMegaproject(SlotRows[SlotIndex]))
 				{
-					Projects.Add(FText::Format(INVTEXT("{0} {1} {2}/{3}"), System.DisplayName, Row->DisplayName, WholeNumber(SlotProgress[SlotIndex]), WholeNumber(Row->RequiredProgress)));
+					Projects.Add(FText::Format(INVTEXT("{0} {1} {2}/{3}"), System.DisplayName, Row->DisplayName, WholeNumber(SlotProgress[SlotIndex]), WholeNumber(CosmicMegaprojects::RequiredProgressOf(*Row))));
 				}
 			}
 		}

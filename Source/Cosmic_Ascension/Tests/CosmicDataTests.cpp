@@ -1563,7 +1563,8 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The game has a hazard row to change"), !Game.GetHazardRowNames().IsEmpty());
 		Expect(TEXT("a list of row names with a row no named table has"), WithHazard([](FHazardDef& Row) { Row.RulerResolutions = { FName(TEXT("enc_nobody")) }; }),
 			{ TEXT("RulerResolutions[0]"), TEXT("none of DT_Megaprojects, DT_Encounters has a row enc_nobody") });
-		TestFalse(TEXT("A project of DT_Megaprojects answers a hazard"), AnyCarries(WithHazard([](FHazardDef& Row) { Row.RulerResolutions = { FName(TEXT("project_reform")) }; }), { TEXT("RulerResolutions") }));
+		// A row of DT_Megaprojects the code calls by name, so that the case does not lean on a row the design may rename.
+		TestFalse(TEXT("A project of DT_Megaprojects answers a hazard"), AnyCarries(WithHazard([](FHazardDef& Row) { Row.RulerResolutions = { CosmicRows::ProjectSettle }; }), { TEXT("RulerResolutions") }));
 		Expect(TEXT("a list of row names with an empty name"), WithHazard([](FHazardDef& Row) { Row.WandererResolutions = { NAME_None }; }),
 			{ TEXT("WandererResolutions[0]"), TEXT("none of DT_Encounters has a row None") });
 		const FGameplayTag Declared = FGameplayTag::RequestGameplayTag(FName(TEXT("Trait.Arch.Terran")));

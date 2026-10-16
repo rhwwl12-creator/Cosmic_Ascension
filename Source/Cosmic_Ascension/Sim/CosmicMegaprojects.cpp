@@ -19,12 +19,6 @@ namespace CosmicMegaprojectsImpl
 		return (Value > 0.f && Value <= TNumericLimits<float>::Max()) ? Value : 0.f;
 	}
 
-	// The progress a row needs: below 1, or not a number, reads as 1.
-	float RequiredOf(const FMegaprojectDef& Row)
-	{
-		return (Row.RequiredProgress >= 1.f && Row.RequiredProgress <= TNumericLimits<float>::Max()) ? Row.RequiredProgress : 1.f;
-	}
-
 	// Pays the cost of one tick from Stockpile when it can be paid in full; nothing otherwise.
 	bool PayInFull(FResourcePool& Stockpile, const FResourcePool& Cost)
 	{
@@ -45,13 +39,37 @@ namespace CosmicMegaprojectsImpl
 		return true;
 	}
 
-	// Whether the people CivIndex holds a completion of RowName on any of its settled systems since SinceTick.
+	// The index of a system of OwnedSystems when the people CivIndex owns it and it is settled; INDEX_NONE otherwise. An
+	// entry whose owner is another people counts for nothing, as in the economy stage.
+	int32 SettledOwnedIndex(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex, FName SystemID)
+	{
+		const int32 SystemIndex = Index.FindSystem(State, SystemID);
+		const bool bOwnedAndSettled = State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == State.Civs[CivIndex].CivID
+			&& CosmicState::IsSettled(State.Systems[SystemIndex]);
+		return bOwnedAndSettled ? SystemIndex : INDEX_NONE;
+	}
+
+	// Whether the people CivIndex holds a completion of RowName on a settled system it owns since SinceTick.
 	bool CompletedByPeople(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex, FName RowName, int64 SinceTick)
 	{
 		for (const FName SystemID : State.Civs[CivIndex].OwnedSystems)
 		{
-			const int32 SystemIndex = Index.FindSystem(State, SystemID);
-			if (State.Systems.IsValidIndex(SystemIndex) && CosmicState::IsSettled(State.Systems[SystemIndex]) && CosmicMegaprojects::HasCompleted(State.Systems[SystemIndex], RowName, SinceTick))
+			const int32 SystemIndex = SettledOwnedIndex(State, Index, CivIndex, SystemID);
+			if (SystemIndex != INDEX_NONE && CosmicMegaprojects::HasCompleted(State.Systems[SystemIndex], RowName, SinceTick))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	// Whether RowName runs in the construction slot of a settled system the people CivIndex owns.
+	bool RunningForPeople(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex, FName RowName)
+	{
+		for (const FName SystemID : State.Civs[CivIndex].OwnedSystems)
+		{
+			const int32 SystemIndex = SettledOwnedIndex(State, Index, CivIndex, SystemID);
+			if (SystemIndex != INDEX_NONE && State.Systems[SystemIndex].ActiveMegaproject == RowName)
 			{
 				return true;
 			}
@@ -68,6 +86,12 @@ bool CosmicMegaprojects::HasCompleted(const FStarSystemState& System, FName RowN
 	}
 	const FMegaprojectRecord* Record = System.CompletedMegaprojects.FindByPredicate([RowName](const FMegaprojectRecord& Candidate) { return Candidate.Row == RowName; });
 	return Record && Record->Tick > 0 && Record->Tick >= SinceTick;
+}
+
+float CosmicMegaprojects::RequiredProgressOf(const FMegaprojectDef& Row)
+{
+	// A compare, so a value that is not a number reads as 1 (section 9.2: no CRT call).
+	return (Row.RequiredProgress >= 1.f && Row.RequiredProgress <= TNumericLimits<float>::Max()) ? Row.RequiredProgress : 1.f;
 }
 
 bool CosmicMegaprojects::CanStart(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, int32 SystemIndex, FName RowName)
@@ -126,11 +150,11 @@ TArray<TPair<int32, FName>> CosmicMegaprojects::Choices(const FGalaxyState& Stat
 	}
 	const FCivilizationState& Civ = State.Civs[CivIndex];
 
-	// The answers: one per settled system whose hazard has an answer it can take.
+	// The answers: one per settled system it owns whose hazard has an answer it can take.
 	for (const FName SystemID : Civ.OwnedSystems)
 	{
-		const int32 SystemIndex = Index.FindSystem(State, SystemID);
-		if (!State.Systems.IsValidIndex(SystemIndex) || !CosmicState::IsSettled(State.Systems[SystemIndex]) || !State.Systems[SystemIndex].ResponseMegaproject.IsNone())
+		const int32 SystemIndex = SettledOwnedIndex(State, Index, CivIndex, SystemID);
+		if (SystemIndex == INDEX_NONE || !State.Systems[SystemIndex].ResponseMegaproject.IsNone())
 		{
 			continue;
 		}
@@ -164,7 +188,8 @@ TArray<TPair<int32, FName>> CosmicMegaprojects::Choices(const FGalaxyState& Stat
 		}
 		for (const FCosmicCondition& Condition : Feat->CompletionConditions)
 		{
-			if (Condition.Type != EConditionType::MegaprojectComplete || Tables.IsHazardAnswer(Condition.Key) || CompletedByPeople(State, Index, CivIndex, Condition.Key, SinceTick))
+			if (Condition.Type != EConditionType::MegaprojectComplete || Tables.IsHazardAnswer(Condition.Key) || CompletedByPeople(State, Index, CivIndex, Condition.Key, SinceTick)
+				|| RunningForPeople(State, Index, CivIndex, Condition.Key))
 			{
 				continue;
 			}
@@ -223,11 +248,11 @@ TArray<FName, TInlineAllocator<2>> CosmicMegaprojects::Advance(FCosmicEvalContex
 		}
 	};
 
-	// The construction slot.
+	// The construction slot. A system being settled is left alone until settlement brings its own rule (work item 9).
 	{
 		FStarSystemState& System = State.Systems[SystemIndex];
 		const FName RowName = System.ActiveMegaproject;
-		if (!RowName.IsNone())
+		if (!RowName.IsNone() && RowName != CosmicRows::ProjectSettle)
 		{
 			const FMegaprojectDef* Row = Ctx.Tables.FindMegaproject(RowName);
 			if (!Row)
@@ -238,7 +263,7 @@ TArray<FName, TInlineAllocator<2>> CosmicMegaprojects::Advance(FCosmicEvalContex
 			else if (PayInFull(State.Civs[OwnerIndex].Stockpile, Row->CostPerTick))
 			{
 				System.MegaprojectProgress += Rate;
-				if (System.MegaprojectProgress >= RequiredOf(*Row))
+				if (System.MegaprojectProgress >= CosmicMegaprojects::RequiredProgressOf(*Row))
 				{
 					System.ActiveMegaproject = NAME_None;
 					System.MegaprojectProgress = 0.f;
@@ -264,7 +289,7 @@ TArray<FName, TInlineAllocator<2>> CosmicMegaprojects::Advance(FCosmicEvalContex
 			else if (PayInFull(State.Civs[OwnerIndex].Stockpile, Row->CostPerTick))
 			{
 				System.ResponseProgress += Rate;
-				if (System.ResponseProgress >= RequiredOf(*Row))
+				if (System.ResponseProgress >= CosmicMegaprojects::RequiredProgressOf(*Row))
 				{
 					System.ResponseMegaproject = NAME_None;
 					System.ResponseProgress = 0.f;

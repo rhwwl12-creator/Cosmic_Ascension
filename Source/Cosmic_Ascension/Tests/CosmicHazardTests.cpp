@@ -155,7 +155,8 @@ namespace CosmicHazardTests
 		return Rules;
 	}
 
-	// The game's tables with the test's rules, hazard rows, event rows (none when null) and transcendent rows.
+	// The game's tables with the test's rules, hazard rows, event rows (none when null) and transcendent rows, and without
+	// the game's projects and feats (CosmicTests::WithoutProjects).
 	FCosmicDataTables TablesWith(const FCosmicDataTables& Original, const FCosmicRulesDef& Rules, UDataTable* Hazards, UDataTable* Events)
 	{
 		UDataTable* RulesTable = NewTable(FCosmicRulesDef::StaticStruct());
@@ -165,7 +166,7 @@ namespace CosmicHazardTests
 		Tables.Hazards = Hazards ? Hazards : NewTable(FHazardDef::StaticStruct());
 		Tables.Events = Events ? Events : NewTable(FCosmicEventDef::StaticStruct());
 		Tables.Transcendents = TranscendentRows();
-		return Tables;
+		return CosmicTests::WithoutProjects(Tables);
 	}
 
 	// A copy of a row of the game's DT_Events in a table of the test. False when the game lacks it.
@@ -526,9 +527,12 @@ bool FCosmicEventsHazardEffectsTest::RunTest(const FString& Parameters)
 		FBench Bench(Laid, *Sim);
 		FGalaxyState& State = Bench.State;
 		const FName Civ1 = State.Civs[1].CivID;
-		State.Systems[2].ActiveMegaproject = FName(TEXT("project_test"));
+		State.Systems[2].ActiveMegaproject = CosmicTests::StandingProject();
 		State.Systems[2].MegaprojectProgress = 0.5f;
 		State.Systems[2].MegaprojectCompletedTick = 7;
+		FMegaprojectRecord& Kept = State.Systems[2].CompletedMegaprojects.AddDefaulted_GetRef();
+		Kept.Row = FName(TEXT("project_test_done"));
+		Kept.Tick = 7;
 		PlaceByHand(State, 2, TEXT("Hazard.Plague"), 50);
 		Bench.Ctx.CivIndex = 0;
 		Bench.Ctx.SystemIndex = 2;
@@ -538,7 +542,12 @@ bool FCosmicEventsHazardEffectsTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("It joined the end of the new owner's systems"), !State.Civs[1].OwnedSystems.IsEmpty() && State.Civs[1].OwnedSystems.Last() == State.Systems[2].SystemID);
 		TestEqual(TEXT("Its megaproject ended"), State.Systems[2].ActiveMegaproject, FName());
 		TestEqual(TEXT("Its progress is gone"), State.Systems[2].MegaprojectProgress, 0.f);
-		TestEqual(TEXT("A completion stays on the record"), State.Systems[2].MegaprojectCompletedTick, static_cast<int64>(7));
+		TestEqual(TEXT("The latest completion tick stays"), State.Systems[2].MegaprojectCompletedTick, static_cast<int64>(7));
+		if (TestEqual(TEXT("The completion records stay with the system"), State.Systems[2].CompletedMegaprojects.Num(), 1))
+		{
+			TestEqual(TEXT("with their row"), State.Systems[2].CompletedMegaprojects[0].Row, FName(TEXT("project_test_done")));
+			TestEqual(TEXT("and their tick"), State.Systems[2].CompletedMegaprojects[0].Tick, static_cast<int64>(7));
+		}
 		TestTrue(TEXT("A drawn hazard goes with the system"), State.Systems[2].ActiveHazard == Plague);
 		TestEqual(TEXT("The old owner keeps its capital"), State.Civs[0].HomeSystemID, State.Systems[0].SystemID);
 		TestEqual(TEXT("The old owner keeps its Stability"), State.Civs[0].Stability, 0.75f);
@@ -1186,9 +1195,13 @@ bool FCosmicDeadNodeTest::RunTest(const FString& Parameters)
 		}
 		AddInstance(State, Fallen, TEXT("Doctrine.Silence"), { 0, 3 });
 		State.Systems[1].ActiveMegaproject = CosmicRows::ProjectSettle;
-		State.Systems[0].ActiveMegaproject = FName(TEXT("project_test"));
+		// A row the test's tables hold and no stockpile pays: step (a) leaves it standing, so only the destruction ends it.
+		State.Systems[0].ActiveMegaproject = CosmicTests::StandingProject();
 		State.Systems[0].MegaprojectProgress = 0.4f;
 		State.Systems[0].MegaprojectCompletedTick = 7;
+		FMegaprojectRecord& Kept = State.Systems[0].CompletedMegaprojects.AddDefaulted_GetRef();
+		Kept.Row = FName(TEXT("project_test_done"));
+		Kept.Tick = 7;
 		PlaceByHand(State, 0, TEXT("Hazard.PreSupernova"), 1);
 		const int32 SystemCount = State.Systems.Num();
 		const FName Sol = State.Systems[0].SystemID;
@@ -1201,7 +1214,12 @@ bool FCosmicDeadNodeTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("The destroyed system holds no hazard"), Dead.ActiveHazard.IsValid());
 		TestEqual(TEXT("Its megaproject ended"), Dead.ActiveMegaproject, FName());
 		TestEqual(TEXT("Its progress is gone"), Dead.MegaprojectProgress, 0.f);
-		TestEqual(TEXT("A completion stays on the record"), Dead.MegaprojectCompletedTick, static_cast<int64>(7));
+		TestEqual(TEXT("The latest completion tick stays"), Dead.MegaprojectCompletedTick, static_cast<int64>(7));
+		if (TestEqual(TEXT("The completion records stay with the dead node"), Dead.CompletedMegaprojects.Num(), 1))
+		{
+			TestEqual(TEXT("with their row"), Dead.CompletedMegaprojects[0].Row, FName(TEXT("project_test_done")));
+			TestEqual(TEXT("and their tick"), Dead.CompletedMegaprojects[0].Tick, static_cast<int64>(7));
+		}
 		TestFalse(TEXT("No lane leads to it from its neighbour"), State.Systems[1].Lanes.Contains(Sol));
 		TestFalse(TEXT("It left the sphere"), State.Transcendents[0].InfluencedSystems.Contains(Sol));
 		TestTrue(TEXT("The rest of the sphere stays"), State.Transcendents[0].InfluencedSystems.Contains(State.Systems[3].SystemID));
@@ -1295,6 +1313,8 @@ bool FCosmicGraceRemnantAtLossTest::RunTest(const FString& Parameters)
 	FHazardDef NovaRow = HazardRow(TEXT("Hazard.PreSupernova"), ECosmicHazardSpawn::Draw, 0.f, 1);
 	NovaRow.OnExpireEffects = { Eff(EEffectType::AddResource, nullptr, Causality, 5.f) };
 	NovaRow.OnExpireNeighbourEffects = { Eff(EEffectType::ChangeStability, nullptr, NAME_None, -0.1f) };
+	// An answer no stockpile pays: step (a) keeps it in the response slot, so only the gate can empty it.
+	NovaRow.RulerResolutions = { CosmicTests::StandingProject() };
 	Hazards->AddRow(Nova, NovaRow);
 	UDataTable* Events = NewTable(FCosmicEventDef::StaticStruct());
 	if (!TestTrue(TEXT("The game has the grace row of the remnant"), CopyEvent(Original, Events, CosmicRows::EventGraceRemnant)))
@@ -1316,12 +1336,16 @@ bool FCosmicGraceRemnantAtLossTest::RunTest(const FString& Parameters)
 	// people, which a supernova would hurt.
 	CosmicTests::Give(State, 1, { 10 });
 	PlaceByHand(State, 11, TEXT("Hazard.PreSupernova"), 1);
+	State.Systems[11].ResponseMegaproject = CosmicTests::StandingProject();
+	State.Systems[11].ResponseProgress = 60.f;
 	Sim->StepOnce();
 	const int64 Kept = State.Tick;
 	TestFalse(TEXT("The kept system is no dead node"), CosmicHazards::IsDeadNode(State.Systems[11]));
 	TestEqual(TEXT("The kept system keeps its people"), State.Systems[11].OwnerCivID, State.Civs[3].CivID);
 	TestTrue(TEXT("The kept system keeps its lanes"), State.Systems[11].Lanes.Num() > 0);
 	TestFalse(TEXT("The kept system's slot is empty"), State.Systems[11].ActiveHazard.IsValid());
+	TestTrue(TEXT("The answer of the kept system ends with its hazard"), State.Systems[11].ResponseMegaproject.IsNone());
+	TestEqual(TEXT("and its progress"), State.Systems[11].ResponseProgress, 0.f);
 	TestTrue(TEXT("The grace of the run is spent"), State.Flags.HasTagExact(Spent));
 	TestTrue(TEXT("The kept people carries the remnant"), State.Civs[3].Traits.HasTagExact(Remnant));
 	TestEqual(TEXT("The expiry's effects were not applied"), State.Civs[3].Stockpile.Causality, 0.f);
@@ -1375,6 +1399,7 @@ bool FCosmicGraceRemnantAtLossTest::RunTest(const FString& Parameters)
 		FHazardDef HandingRow = HazardRow(TEXT("Hazard.PreSupernova"), ECosmicHazardSpawn::Draw, 0.f, 1);
 		// The plague the neighbour effects place on 6 is a note the kept branch has to tell.
 		HandingRow.OnExpireNeighbourEffects = { Eff(EEffectType::TransferSystem), Eff(EEffectType::SpawnHazard, TEXT("Hazard.Plague")) };
+		HandingRow.RulerResolutions = { CosmicTests::StandingProject() };
 		Handing->AddRow(Nova, HandingRow);
 		Handing->AddRow(Sickness, HazardRow(TEXT("Hazard.Plague"), ECosmicHazardSpawn::Draw, 0.f, 50));
 		Sim->SetTables(TablesWith(Original, Knobs(BaseRules), Handing, Events));
@@ -1387,6 +1412,8 @@ bool FCosmicGraceRemnantAtLossTest::RunTest(const FString& Parameters)
 		}
 		CosmicTests::Give(State, 2, { 8 });
 		PlaceByHand(State, 7, TEXT("Hazard.PreSupernova"), 1);
+		State.Systems[7].ResponseMegaproject = CosmicTests::StandingProject();
+		State.Systems[7].ResponseProgress = 40.f;
 		Sim->StepOnce();
 		const int64 Handed = State.Tick;
 		TestTrue(TEXT("The neighbour was let go"), State.Systems[8].OwnerCivID.IsNone());
@@ -1394,6 +1421,8 @@ bool FCosmicGraceRemnantAtLossTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("The system the effects left the last is kept"), CosmicHazards::IsDeadNode(State.Systems[7]));
 		TestTrue(TEXT("The grace of the run is spent on it"), State.Flags.HasTagExact(Spent));
 		TestFalse(TEXT("The slot of the system kept the second time is empty"), State.Systems[7].ActiveHazard.IsValid());
+		TestTrue(TEXT("Its answer ends with the hazard"), State.Systems[7].ResponseMegaproject.IsNone());
+		TestEqual(TEXT("and so does its progress"), State.Systems[7].ResponseProgress, 0.f);
 		TestEqual(TEXT("No expiry line is told for the system kept the second time"), CountLines(State, Nova, Handed), 0);
 		TestEqual(TEXT("The grace is told for it"), CountLines(State, CosmicRows::EventGraceRemnant, Handed), 1);
 		TestTrue(TEXT("What the effects placed before the gate is told as well"), FindLine(State, Sickness, Handed, TEXT("outbreak")) != INDEX_NONE);
@@ -2420,11 +2449,11 @@ bool FCosmicNotablesCappedTest::RunTest(const FString& Parameters)
 	const FGalaxyState& State = Sim->GetState();
 	const int32 Cap = Sim->GetRules().MaxNotablesPerCiv;
 	// The guards of a nameless people and of the fourth rung are Events.NotableDrawFixed's: no people of the slice meets
-	// them in this run.
+	// them in this run. The closing of open records at the fourth rung is Feats.Evaluate's: the game's data has no feat to
+	// the fourth rung, so no people of this run reaches it.
 	bool bCapped = true;
 	bool bOnePerRole = true;
 	bool bClosedInOrder = true;
-	bool bNoneOpenAtFourth = true;
 	int32 Made = 0;
 	for (int32 Step = 0; Step < 20000; ++Step)
 	{
@@ -2432,9 +2461,6 @@ bool FCosmicNotablesCappedTest::RunTest(const FString& Parameters)
 		for (const FCivilizationState& Civ : State.Civs)
 		{
 			bCapped &= Civ.Notables.Num() <= Cap;
-			// From the fourth rung on a people holds no open record (Feats.Evaluate lifts one there).
-			bNoneOpenAtFourth &= static_cast<int32>(Civ.Tier) < static_cast<int32>(EAscensionTier::Tier4_Transcendent)
-				|| !Civ.Notables.ContainsByPredicate([](const FNotableRecord& Record) { return Record.LastTick == 0; });
 			TSet<FGameplayTag> OpenRoles;
 			for (const FNotableRecord& Record : Civ.Notables)
 			{
@@ -2456,7 +2482,6 @@ bool FCosmicNotablesCappedTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("No people ever held more records than the cap"), bCapped);
 	TestTrue(TEXT("No people ever held two open records of one role"), bOnePerRole);
 	TestTrue(TEXT("Every closed record closed after it opened"), bClosedInOrder);
-	TestTrue(TEXT("No people of the fourth rung or above held an open record"), bNoneOpenAtFourth);
 	Sim->NewGalaxy(42, 5, 3);
 	return true;
 }

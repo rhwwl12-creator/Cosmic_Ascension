@@ -12,8 +12,8 @@ class UScrollBox;
 class UTextBlock;
 
 /**
- * The one text panel of the Phase 1 prototype: cycle and speed, then the stability, resources and research of the civ the
- * player rules, then the tail of the log. Built in C++ without a Widget Blueprint; the WBP layouts of Phase 3 replace it.
+ * The one text panel of the Phase 1 prototype: cycle and speed, then the tier, stability, resources and research of the civ
+ * the player rules and the projects of its systems (with the prototype's project key), then the tail of the log. Built in C++ without a Widget Blueprint; the WBP layouts of Phase 3 replace it.
  * Labels come from the String Table ST_CA. Refreshed from the subsystem delegates, never from a tick.
  */
 // DisableNativeTick: the meta of UUserWidget is not inherited, and Widget Blueprints made from this class should not tick.
