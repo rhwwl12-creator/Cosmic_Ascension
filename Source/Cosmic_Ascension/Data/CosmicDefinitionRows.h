@@ -264,6 +264,13 @@ struct COSMIC_ASCENSION_API FAscensionFeatDef : public FTableRowBase
 	// SourceRow = this row. Slots {Civ} {HomeSystem}.
 	UPROPERTY(EditAnywhere)
 	TArray<FText> LogTemplates;
+
+	// Whether the judgment looks at this row at all: one rung up (TargetTier = RequiredTier + 1) with a condition (section
+	// 3.2). The judgment refuses any other row with an error line, and the AI and the project key build for none.
+	bool IsOneRungWithDeed() const
+	{
+		return static_cast<int32>(TargetTier) == static_cast<int32>(RequiredTier) + 1 && !CompletionConditions.IsEmpty();
+	}
 };
 
 /**

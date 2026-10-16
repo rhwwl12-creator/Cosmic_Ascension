@@ -182,7 +182,8 @@ TArray<TPair<int32, FName>> CosmicMegaprojects::Choices(const FGalaxyState& Stat
 	for (const FName FeatRow : Tables.GetFeatRowNames())
 	{
 		const FAscensionFeatDef* Feat = Tables.FindFeat(FeatRow);
-		if (!Feat || Feat->Path != EPlayerRole::Ruler || Feat->RequiredTier != Civ.Tier)
+		// A row the judgment refuses (FAscensionFeatDef::IsOneRungWithDeed) would never lift the people it builds for.
+		if (!Feat || Feat->Path != EPlayerRole::Ruler || Feat->RequiredTier != Civ.Tier || !Feat->IsOneRungWithDeed())
 		{
 			continue;
 		}

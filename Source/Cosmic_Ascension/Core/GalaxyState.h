@@ -471,7 +471,8 @@ struct COSMIC_ASCENSION_API FLifeRecord
 	TArray<FGameplayTag> ReignEndReasons;
 
 	// The highest rung of the life (section 16 #67 (1), default): the personal Tier at birth (Install), raised by the feat
-	// judgment when the people the vessel rules climbs (a ruler's feat leaves the personal Tier as it is).
+	// judgment when the people the vessel rules climbs above it (a ruler's feat leaves the personal Tier as it is). Whether
+	// a vessel that comes to rule a higher people counts that rung at once is decided with enthronement (Phase 4).
 	UPROPERTY()
 	EAscensionTier PeakTier = EAscensionTier::Tier1_Planetary;
 
@@ -517,7 +518,8 @@ struct COSMIC_ASCENSION_API FLifeRecord
 /**
  * The calling: the player's identity across vessels (section 4.4 three-way table, column "calling").
  * On succession PersonalTier drops to Tier 1 when it is Tier 2 or lower and is kept from Tier 3 up; Powers are re-granted
- * from the Tier; CompletedFeats stay as a record.
+ * from the Tier (whether powers granted by a ruler's feats survive is open: section 16 #67 (2)); CompletedFeats stay as a
+ * record (the ordered log of the climbs).
  */
 USTRUCT(BlueprintType)
 struct COSMIC_ASCENSION_API FCallingState

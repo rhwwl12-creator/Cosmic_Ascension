@@ -783,6 +783,25 @@ class SchemaTests(unittest.TestCase):
         self.expect(self.after(self.set_cell("DT_Megaprojects", "project_test_build", "RequiredProgress", 0.5)), "DT_Megaprojects.project_test_build.RequiredProgress", "is below 1")
         self.expect(self.after(self.set_cell("DT_Feats", "feat_test_climb", "Path", "Wanderer")), "feat_test_climb", "the wanderer's feats are judged from Phase 4")
         self.expect(self.after(self.set_cell("DT_Feats", "feat_test_climb", "GrantedPowers", tags_text("Trait.Arch.Terran"))), "feat_test_climb.GrantedPowers", "not under")
+        # One rung: every other pair of rungs is refused by the rule of its starting rung, whatever the walker tries.
+        rungs = ["Tier1_Planetary", "Tier2_Stellar", "Tier3_Causal", "Tier4_Transcendent", "Tier5_EternalOrder"]
+        ordinal = ["first", "second", "third", "fourth"]
+        tiers = lambda required, target: (lambda tables: self.row(tables, "DT_Feats", "feat_test_climb").update(RequiredTier=required, TargetTier=target))  # noqa: E731
+        for start in range(4):
+            for end in range(5):
+                with self.subTest(required=rungs[start], target=rungs[end]):
+                    why = "a feat lifts its people one rung: from the %s to the" % ordinal[start]
+                    self.expect(self.after(tiers(rungs[start], rungs[end])), "feat_test_climb", why, wanted=end != start + 1)
+        self.expect(self.after(tiers("Tier5_EternalOrder", "Tier5_EternalOrder")), "feat_test_climb", "the fifth rung is the last")
+        # The rate of the AI's projects: its boundary is 0 itself.
+        rate = lambda value: self.set_cell("DT_Rules", "rules", "AIAscensionSpeedMultiplier", value)  # noqa: E731
+        self.expect(self.after(rate(0)), "DT_Rules.rules", "the rate of the AI's projects multiplies their progress")
+        self.expect(self.after(rate(-1)), "DT_Rules.rules", "the rate of the AI's projects multiplies their progress")
+        self.assertEqual(self.after(rate(0.5)), [])
+        # The vessel rule is about ruler rows: a wanderer row is refused by the wanderer rule alone.
+        wanderer = lambda tables: self.row(tables, "DT_Feats", "feat_test_climb").update(Path="Wanderer", CompletionConditions=[cond("PlayerStatAtLeast", key="Body", value=3)])  # noqa: E731
+        self.expect(self.after(wanderer), "feat_test_climb", "a ruler feat row judges every people", wanted=False)
+        self.expect(self.after(wanderer), "feat_test_climb", "the wanderer's feats are judged from Phase 4")
 
     # ---- texts ----
 
@@ -960,7 +979,7 @@ class SchemaTests(unittest.TestCase):
         world_effects = {"AddResource", "MultiplyIncome", "ShiftEthics", "AddTrait", "RemoveTrait", "ChangeStability", "ChangeRelation", "SpawnHazard",
                          "ResolveHazard", "TransferSystem", "ChangeReverence", "SetFlag", "ChangePopulation", "NameNotable"}
         for table, start, conditions, effects in (("DT_Events", "a slot runs for every people", "Conditions", "Effects"),
-                                                  ("DT_Feats", "a feat row judges every people", "CompletionConditions", "AscensionCost")):
+                                                  ("DT_Feats", "a ruler feat row judges every people", "CompletionConditions", "AscensionCost")):
             with self.subTest(table=table):
                 rule = next(rule for rule in self.schema["tables"][table]["rules"] if rule["why"].startswith(start))
                 named = lambda column: {test["lacks_type"] for test in rule["then"] if test["col"] == column}  # noqa: E731
@@ -1540,7 +1559,7 @@ class SchemaTests(unittest.TestCase):
             ("DT_Feats", "the fifth rung is the last: no feat climbs from it (guideline 3.2)"): (NOTHING, "feat_test_climb"),
             ("DT_Feats", "no people climbs without a deed: a feat holds one condition or more (guideline 3.2; the judgment does not judge a row without one)"):
                 (NOTHING, "feat_test_climb"),
-            ("DT_Feats", "a feat row judges every people, the AI's too (guideline 4.3): its conditions do not read the vessel, and its price records no role effect and touches no vessel (a recorded death also waits for the death pipeline of Phase 4b). How a vessel condition of a T4->T5 row reads for the AI is decided with that row (guideline 16 #1)"):
+            ("DT_Feats", "a ruler feat row judges every people, the AI's too (guideline 4.3): its conditions do not read the vessel, and its price records no role effect and touches no vessel (a recorded death also waits for the death pipeline of Phase 4b). How a vessel condition of a T4->T5 row reads for the AI is decided with that row (guideline 16 #1); a wanderer's feat is judged on the vessel and gets its own rules with its first row (guideline 16 #28)"):
                 (NOTHING, "feat_test_climb"),
             ("DT_Rules", "the rate of the AI's projects multiplies their progress: at 0 or below they would never progress, so the code reads it as 1 with an error line (guideline 4.3, 5.7)"):
                 (NOTHING, "rules"),

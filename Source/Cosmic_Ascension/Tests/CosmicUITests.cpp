@@ -8,6 +8,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
+#include "Engine/DataTable.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
@@ -21,6 +22,8 @@
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
 #include "Tests/CosmicTestHelpers.h"
 #include "UI/CosmicTextPanelWidget.h"
 #include "Widgets/SWidget.h"
@@ -115,6 +118,38 @@ bool FCosmicUIPanelLabelsTest::RunTest(const FString& Parameters)
 			}
 			TestTrue(TEXT("No label of the project line is missing"), !WithProject.Contains(Placeholder));
 			Shown = WithProject;
+		}
+	}
+
+	// The progress a project needs is the simulation's reading of its row: a row below 1 (only a hand-made table holds one -
+	// the schema asks for 1 or more) needs 1.
+	{
+		const FCosmicDataTables GameTables = Sim->GetTables();
+		const FName Capital = Civ ? Civ->HomeSystemID : FName();
+		FStarSystemState* Home = Sim->GetMutableState().Systems.FindByPredicate([Capital](const FStarSystemState& System) { return System.SystemID == Capital; });
+		if (TestNotNull(TEXT("The ruled civ has its capital for the half row"), Home))
+		{
+			const FName SlotBefore = Home->ActiveMegaproject;
+			const float ProgressBefore = Home->MegaprojectProgress;
+			UDataTable* Projects = NewObject<UDataTable>(GetTransientPackage());
+			Projects->RowStruct = FMegaprojectDef::StaticStruct();
+			FMegaprojectDef Half;
+			Half.DisplayName = FText::AsCultureInvariant(TEXT("<half>"));
+			Half.RequiredProgress = 0.5f;
+			Projects->AddRow(FName(TEXT("project_test_half")), Half);
+			FCosmicDataTables WithHalf = GameTables;
+			WithHalf.Megaprojects = Projects;
+			Sim->SetTables(WithHalf);
+			Home->ActiveMegaproject = FName(TEXT("project_test_half"));
+			Home->MegaprojectProgress = 0.f;
+			Panel->Refresh();
+			FString WithHalfShown;
+			CosmicUITests::ReadPanel(*Panel, WithHalfShown);
+			TestTrue(TEXT("A row that needs less than 1 shows that it needs 1"), WithHalfShown.Contains(TEXT("<half> 0/1")));
+			Sim->SetTables(GameTables);
+			Home->ActiveMegaproject = SlotBefore;
+			Home->MegaprojectProgress = ProgressBefore;
+			Panel->Refresh();
 		}
 	}
 

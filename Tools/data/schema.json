@@ -529,7 +529,8 @@
 					"then": [{"col": "CompletionConditions", "min_len": 1}]
 				},
 				{
-					"why": "a feat row judges every people, the AI's too (guideline 4.3): its conditions do not read the vessel, and its price records no role effect and touches no vessel (a recorded death also waits for the death pipeline of Phase 4b). How a vessel condition of a T4->T5 row reads for the AI is decided with that row (guideline 16 #1)",
+					"why": "a ruler feat row judges every people, the AI's too (guideline 4.3): its conditions do not read the vessel, and its price records no role effect and touches no vessel (a recorded death also waits for the death pipeline of Phase 4b). How a vessel condition of a T4->T5 row reads for the AI is decided with that row (guideline 16 #1); a wanderer's feat is judged on the vessel and gets its own rules with its first row (guideline 16 #28)",
+					"when": [{"col": "Path", "is": "Ruler"}],
 					"then": [
 						{"col": "CompletionConditions", "lacks_type": "PlayerTierAtLeast"},
 						{"col": "CompletionConditions", "lacks_type": "PlayerInSystemWithHazard"},

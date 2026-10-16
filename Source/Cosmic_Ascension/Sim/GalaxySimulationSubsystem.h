@@ -210,10 +210,11 @@ public:
 	// Counts the Core Logic delegates that are being broadcast right now and that can fire from inside a tick stage:
 	// OnLogEntry, OnEventFired, OnTierAscended (section 9.4). Their handlers may read the state and call SetTimeScale
 	// and nothing else, so UCosmicEventSubsystem refuses its member functions while this is true, and so do NewGalaxy,
-	// LoadState, StepOnce, RunHeadless and MakeEvalContext here, UCosmicSaveSubsystem::LoadGalaxy,
-	// UAscensionSubsystem::EvaluateFeats and the role changes and commands of UPlayerRoleSubsystem (Install, DeposeRuler,
-	// BecomeWanderer, StartMegaproject, StartNextMegaproject). Every such broadcast
-	// site brackets its Broadcast call with BeginBroadcast and EndBroadcast.
+	// LoadState, StepOnce and RunHeadless here, UCosmicSaveSubsystem::LoadGalaxy, UAscensionSubsystem::EvaluateFeats and
+	// the role changes and commands of UPlayerRoleSubsystem (Install, DeposeRuler, BecomeWanderer, StartMegaproject,
+	// StartNextMegaproject). MakeEvalContext reports an error and still returns the context (it holds references): the
+	// static Apply and ApplyAll are kept out of a handler by the rule alone. Every such broadcast site brackets its
+	// Broadcast call with BeginBroadcast and EndBroadcast.
 	bool IsBroadcasting() const { return BroadcastDepth > 0; }
 	void BeginBroadcast() { ++BroadcastDepth; }
 	void EndBroadcast() { --BroadcastDepth; }
