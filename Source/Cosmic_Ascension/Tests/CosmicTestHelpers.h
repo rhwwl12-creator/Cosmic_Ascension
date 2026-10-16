@@ -14,6 +14,7 @@
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Internationalization/Text.h"
+#include "Log/CosmicLogSubsystem.h"
 #include "Misc/AutomationTest.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "UObject/Package.h"
@@ -48,8 +49,10 @@ namespace CosmicTests
 		return nullptr;
 	}
 
-	// The simulation of the running game, paused so that frame ticks cannot interleave with a test. The tests replace
-	// its galaxy and leave it paused. Null (with a test error) when there is no GameInstance.
+	// The simulation of the running game, paused so that frame ticks cannot interleave with a test, with the log in its
+	// tell-all mode (every line is stored, as the tests expect - section 8.1; a test that turns the mode off turns it back
+	// on when it ends). The tests replace its galaxy and leave it paused. Null (with a test error) when there is no
+	// GameInstance.
 	inline UGalaxySimulationSubsystem* AcquireSim(FAutomationTestBase& Test)
 	{
 		UGameInstance* GameInstance = FindGameInstance();
@@ -60,6 +63,10 @@ namespace CosmicTests
 			return nullptr;
 		}
 		Sim->SetTimeScale(0.f);
+		if (UCosmicLogSubsystem* Log = GameInstance->GetSubsystem<UCosmicLogSubsystem>())
+		{
+			Log->SetTellAll(true);
+		}
 		return Sim;
 	}
 

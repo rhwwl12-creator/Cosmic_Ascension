@@ -36,6 +36,16 @@ namespace CosmicRows
 	// DT_LogTemplates: the fallen monarch, told by the deposition pipeline (section 5.10).
 	inline const FName LogFallenMonarch(TEXT("log_fallen_monarch"));
 
+	// DT_LogTemplates: the meeting lines (section 7.4). NoteMet tells the first for the first meeting of the run, the
+	// second for every later one.
+	inline const FName LogFirstContact(TEXT("log_first_contact"));
+	inline const FName LogContact(TEXT("log_contact"));
+
+	// DT_LogTemplates: the far lines that stand in for an untold Severity 2 line (section 8.1): an ascent to the third
+	// rung or above, told every time, and any other event, told at most once per DT_Rules.FarLineCooldownTicks.
+	inline const FName LogFarAscent(TEXT("log_far_ascent"));
+	inline const FName LogFarEvent(TEXT("log_far_event"));
+
 	// DT_LogTemplates: research breakthroughs, in the order Physics, Society, Engineering, Transcendence (section 5.4).
 	inline const FName LogBreakthrough[] = {
 		FName(TEXT("log_breakthrough_physics")), FName(TEXT("log_breakthrough_society")),

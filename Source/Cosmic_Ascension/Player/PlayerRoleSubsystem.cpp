@@ -16,6 +16,33 @@
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 
+// Helpers of this file. A named namespace: the module is built as one unity file.
+namespace CosmicPlayerRoleImpl
+{
+	// The new eye of a wanderer (section 4.4): the system it stands in and its lane neighbours in the same galaxy row
+	// become known, in Lanes order, without a line. Meeting their owners is the next sight stage's.
+	void KnowAround(UGalaxySimulationSubsystem& Sim, FName SystemID)
+	{
+		const FGalaxyState& State = Sim.GetState();
+		const int32 SystemIndex = Sim.GetStateIndex().FindSystem(State, SystemID);
+		if (!State.Systems.IsValidIndex(SystemIndex))
+		{
+			return;
+		}
+		Sim.NoteKnown(SystemID);
+		const TArray<FName> Lanes = State.Systems[SystemIndex].Lanes;
+		const FName GalaxyRow = State.Systems[SystemIndex].GalaxyRow;
+		for (const FName Neighbour : Lanes)
+		{
+			const int32 NeighbourIndex = Sim.GetStateIndex().FindSystem(State, Neighbour);
+			if (State.Systems.IsValidIndex(NeighbourIndex) && State.Systems[NeighbourIndex].GalaxyRow == GalaxyRow)
+			{
+				Sim.NoteKnown(Neighbour);
+			}
+		}
+	}
+}
+
 void UPlayerRoleSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
@@ -118,6 +145,11 @@ void UPlayerRoleSubsystem::Install(FName SystemID, FName CivID, EPlayerRole Role
 		FKnownMark& Mark = Knowing.MetCivs.AddDefaulted_GetRef();
 		Mark.ID = CivID;
 		Mark.Tick = State.Tick;
+	}
+	// A life that starts as a wanderer sees around it at once (section 4.4); a ruler's eye waits for the sight stage.
+	if (Role == EPlayerRole::Wanderer)
+	{
+		CosmicPlayerRoleImpl::KnowAround(*Sim, SystemID);
 	}
 
 	if (bFirstLife)
@@ -228,6 +260,9 @@ void UPlayerRoleSubsystem::BecomeWanderer(FGameplayTag RegentProfile, FGameplayT
 
 	// A role change ends a first-contact card that was waiting (section 8.1).
 	State.Knowing.PendingContactCivID = NAME_None;
+
+	// The new eye of a wanderer: where it stands and the lanes around (section 4.4).
+	CosmicPlayerRoleImpl::KnowAround(*Sim, Player.CurrentSystemID);
 }
 
 bool UPlayerRoleSubsystem::StartMegaproject(FName SystemID, FName RowName)
@@ -247,9 +282,15 @@ bool UPlayerRoleSubsystem::StartMegaproject(FName SystemID, FName RowName)
 	const int32 SystemIndex = Sim->GetStateIndex().FindSystem(State, SystemID);
 	if (RowName == CosmicRows::ProjectSettle)
 	{
-		// The target is a wild system: the rules are those of the AI's settlement, without its draw (section 5.7).
+		// The target is a wild system: the rules are those of the AI's settlement, without its draw (section 5.7). The
+		// system the people starts to settle is known at once (section 8.1).
 		FCosmicEvalContext Ctx = Sim->MakeEvalContext();
-		return CosmicMegaprojects::Settle(Ctx, Sim->GetStateIndex().FindCiv(State, State.Player.RuledCivID), SystemIndex);
+		const bool bSettles = CosmicMegaprojects::Settle(Ctx, Sim->GetStateIndex().FindCiv(State, State.Player.RuledCivID), SystemIndex);
+		if (bSettles)
+		{
+			GetGameInstance()->GetSubsystem<UCosmicEventSubsystem>()->FollowUpKnowing(Ctx);
+		}
+		return bSettles;
 	}
 	if (!State.Systems.IsValidIndex(SystemIndex) || State.Systems[SystemIndex].OwnerCivID != State.Player.RuledCivID)
 	{

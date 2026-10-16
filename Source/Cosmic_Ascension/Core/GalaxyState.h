@@ -71,7 +71,8 @@ struct COSMIC_ASCENSION_API FCosmicLogEntry
 	FName FocusCivID;
 
 	// True for a line that was stored but is skipped by the feed: a Severity 2, Log.Claim or Log.Record entry whose
-	// subject was out of scope when it was pushed (section 8.1). Set from Phase 2; false until then.
+	// subject was out of scope when it was pushed (section 8.1). Set by the scope of telling of UCosmicLogSubsystem; never
+	// in the tell-all mode.
 	UPROPERTY(BlueprintReadOnly)
 	bool bUntold = false;
 
@@ -594,8 +595,8 @@ struct COSMIC_ASCENSION_API FKnownMark
  * Saved and part of ComputeStateHash, but not world state: the world only writes it and never reads it (the full rule
  * and its one exception, the crossing-stage cleanup that compares a removed CivID with PendingContactCivID and clears
  * it, are in section 8.1), and ComputeWorldHash leaves it out. KnownSystems and MetCivs grow only through NoteMet,
- * NoteKnown and Install (Install writes the birth system and civilization; NoteMet and NoteKnown arrive with the known
- * scope and log work of Phase 2, and until then only Install and tests fill the arrays). The arrays are in order of
+ * NoteKnown (the sight stage adds the systems it sees by NoteKnown's rule) and Install (the birth system and
+ * civilization, and around a wanderer's birth system its lane neighbours). The arrays are in order of
  * discovery and never shrink (no TMap, no predicate tag). It belongs to
  * the calling: kept across death and succession (section 4.4).
  */
@@ -621,7 +622,7 @@ struct COSMIC_ASCENSION_API FKnowingState
 	FName PendingContactCivID;
 
 	// The people of the first contact of this run. NAME_None (frozen initializer) = no first contact yet. NoteMet writes
-	// it once; Install never does; nothing clears it. Used from Phase 2.
+	// it once; Install never does; nothing clears it.
 	UPROPERTY()
 	FName FirstContactCivID;
 

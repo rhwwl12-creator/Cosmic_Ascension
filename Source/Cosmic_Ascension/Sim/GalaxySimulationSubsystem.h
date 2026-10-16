@@ -181,6 +181,32 @@ public:
 	// outside a tick, and the save subsystem right before saving, call it themselves.
 	void SyncRngState();
 
+	/**
+	 * Meets the people CivID (section 7.4, 8.1): the one writer of Knowing.MetCivs besides Install. Nothing when the
+	 * people is already met, is not in Civs, or when the calling has no vessel (interregnum). The gap rule comes first: a
+	 * people whose Tier is three or more above GetViewerTier is not met. A new meeting is appended with the current tick
+	 * and told at once, through the tell stream only (no sim draw): the first meeting of the run - while
+	 * Knowing.FirstContactCivID is NAME_None - writes that field and tells CosmicRows::LogFirstContact, any later one
+	 * CosmicRows::LogContact, both Severity 1 about that people and about SeenAtSystemID (NAME_None when the caller has
+	 * no place). Never writes PendingContactCivID (the card is Phase 4). Returns whether the people was newly met.
+	 * Refused with an error line when called from a handler of a Core Logic delegate.
+	 */
+	bool NoteMet(FName CivID, FName SeenAtSystemID = NAME_None);
+
+	/**
+	 * Knows the system SystemID (section 8.1): appended to Knowing.KnownSystems with the current tick when it is not
+	 * there yet. No line, no draw. Nothing for a system the state does not hold or without a vessel. Returns whether it
+	 * was newly known. Refused like NoteMet inside a handler.
+	 */
+	bool NoteKnown(FName SystemID);
+
+	/**
+	 * The tier the calling sees from (section 8.1): the Tier of the people the vessel rules while it rules one, the
+	 * calling's PersonalTier otherwise (a wanderer, and the interregnum). Read by the gap rule of NoteMet and by the
+	 * scope of telling; never by the world.
+	 */
+	EAscensionTier GetViewerTier() const;
+
 	// DT_Rules single row. C++ defaults when the table or its row is missing.
 	const FCosmicRulesDef& GetRules() const { return Rules; }
 
@@ -396,13 +422,21 @@ private:
 
 	void TickPlayerTravel();
 
-	// Stage 9, only while the calling is Embodied. Reads the world and writes only State.Knowing and the telling: no
-	// draw from the sim stream. Its two triggers need no state of their own: the period is State.Tick against
-	// DT_Rules.SightIntervalTicks, and "the vessel moved this tick" is a local of SimulateTick (Player.CurrentSystemID
-	// before and after TickPlayerTravel), never a member of this class and never a saved field (section 4.4: the eye is
-	// derived). Whatever places the eye outside stage 8 (Install, a role change) or widens it in place (a scan) writes
-	// knowing in its own call. Empty body until Phase 2: the knob and the local arrive with the body.
-	void TickSight();
+	// Stage 9, only while the calling is Embodied (section 7.4). Reads the world and writes only State.Knowing and the
+	// telling: no draw from the sim stream. Runs when State.Tick is a multiple of DT_Rules.SightIntervalTicks (read as at
+	// least 1) or when bVesselMoved: Player.CurrentSystemID differs from its value at the start of the tick (a journey's
+	// end, or a destruction that carried the vessel). Both are locals of SimulateTick - no member, no saved field
+	// (section 4.4: the eye is derived). Whatever places the eye outside the stages (Install, a role change) or widens it
+	// in place (a scan, Phase 4) writes knowing in its own call.
+	// The eye: a ruler at every system its people owns (OwnedSystems order), with the reach of the people's Tier, and
+	// only from DT_Rules.FirstSightTick on (before, the places of the eye still order the meetings but add no system); a
+	// wanderer at the system it stands in, with the reach of the calling's PersonalTier. Reach =
+	// DT_Rules.SightLanesByTier[tier] lanes (a missing or lower entry reads as 1). One breadth-first walk from all places
+	// of the eye along Lanes, inside the GalaxyRow of each place, notes every system within reach (NoteKnown, in the order
+	// of the walk). Then every known system is looked at again: its owner, when not met yet, is met (NoteMet with that
+	// system) - nearer peoples first (lanes from the eye without the reach bound; ties by CivID FNameLexicalLess); the
+	// gap rule keeps a people unmet until a later look.
+	void TickSight(bool bVesselMoved);
 
 	// Stage 10, outside the stage guard (section 7.4). Effect.DeposeRuler: UPlayerRoleSubsystem::DeposeRuler, then the
 	// record is cleared. Effect.KillPlayer stays recorded until the death pipeline of Phase 4b: no row of the game records

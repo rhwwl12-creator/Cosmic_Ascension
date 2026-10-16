@@ -62,5 +62,47 @@
 			"{Civ}|hpp(은,는) 더 이상 당신의 다스림을 받지 않는다. 몰락한 군주는 이제 방랑자다.",
 			"당신의 다스림이 끝났다. 당신은 {Civ}의 몰락한 군주로 남았다."
 		]
+	},
+	{
+		"Name": "log_first_contact",
+		"Category": "Log.Civ",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{Civ}의 신호가 처음으로 닿았다. 하늘은 더 이상 비어 있지 않다."
+		]
+	},
+	{
+		"Name": "log_contact",
+		"Category": "Log.Civ",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{Civ}의 신호가 잡혔다. 아는 하늘에 이름 하나가 더 적혔다.",
+			"먼 하늘에서 {Civ}의 불빛이 읽혔다. 그들도 이쪽을 보고 있을 것이다.",
+			"{Civ}|hpp(이,가) 아는 하늘 안으로 들어왔다. 그들의 밤에도 같은 별들이 뜬다."
+		]
+	},
+	{
+		"Name": "log_far_event",
+		"Category": "Log.Discovery",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"알지 못하는 하늘 너머에서 큰일이 있었다. 소식은 이름 없이 닿았다.",
+			"먼 곳에서 무언가가 크게 바뀌었다. 누구의 일인지는 전해지지 않았다.",
+			"아는 하늘 밖에서 큰일이 지나갔다는 말이 돌았다. 그곳을 아는 이는 아직 없다."
+		]
+	},
+	{
+		"Name": "log_far_ascent",
+		"Category": "Log.Discovery",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"이름 모를 백성이 문턱에 올라섰다는 소식이 닿았다. 경주는 아는 하늘 밖에서도 이어진다.",
+			"알지 못하는 어딘가에서 한 백성이 더 높은 칸에 올랐다. 그 이름은 아직 들리지 않는다.",
+			"먼 곳에서 한 백성이 한 칸 더 높이 섰다는 말이 돌았다. 누가 먼저 닿을지는 아무도 모른다."
+		]
 	}
 ]

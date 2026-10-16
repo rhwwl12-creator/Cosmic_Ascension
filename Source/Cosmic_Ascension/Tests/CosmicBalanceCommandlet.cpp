@@ -8,6 +8,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameMapsSettings.h"
+#include "Log/CosmicLogSubsystem.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
@@ -58,6 +59,11 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	UGalaxySimulationSubsystem* Sim = GameInstance->GetSubsystem<UGalaxySimulationSubsystem>();
 	if (Sim)
 	{
+		// Every line is stored (section 8.1); the argument -TellAll arrives with Phase 5. The world hash is the same either way.
+		if (UCosmicLogSubsystem* Log = GameInstance->GetSubsystem<UCosmicLogSubsystem>())
+		{
+			Log->SetTellAll(true);
+		}
 		Sim->NewGalaxy(Seed, Systems, Civs);
 
 		FString Csv = TEXT("Tick,CivID,Archetype,Tier,Systems,Stability,Energy,Matter,Insight,Influence,Causality,Hazards\n");

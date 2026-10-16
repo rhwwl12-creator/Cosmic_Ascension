@@ -34,17 +34,18 @@ struct FCosmicLine
 
 	// Viewer tier window, tier numbers 1..5, 0 = no bound on that side. Outside the window the line is out of scope
 	// exactly as a line about an unmet people is: stored bUntold when it is Severity 2, Log.Claim or Log.Record, not
-	// stored otherwise. Carried from now on; read by the scope of telling (the known scope and log work of Phase 2).
+	// stored otherwise - but a window alone never calls for a far line (section 8.1).
 	uint8 MinViewerTier = 0;
 	uint8 MaxViewerTier = 0;
 };
 
 /**
- * Narrative log (section 7.5, 8). Renders templates into FGalaxyState.Log, keeps the cap and moves what must be kept
- * into FGalaxyState.Chronicle. Holds no state of its own: the log lives in the saved state, is hashed by
- * ComputeStateHash (all but the text) and is left out of ComputeWorldHash. So far: Push, PushVariants, PushRow, the cap.
- * The scope of telling, bUntold and SetTellAll arrive with the known scope and log work of Phase 2; PickTemplateRow by revelation
- * context, slot resolution, the interlude mode, BuildChronicle and BuildWorldDigest with Phase 4 and 4b.
+ * Narrative log (section 7.5, 8). Renders templates into FGalaxyState.Log, judges each line by the scope of telling
+ * (section 8.1), keeps the cap and moves what must be kept into FGalaxyState.Chronicle. Holds no state of its own but
+ * the tell-all mode: the log lives in the saved state, is hashed by ComputeStateHash (all but the text) and is left out
+ * of ComputeWorldHash. So far: Push, PushVariants, PushRow, the scope with bUntold and the far lines, the tell-all mode,
+ * the cap. PickTemplateRow by revelation context, slot resolution, the interlude mode, BuildChronicle and
+ * BuildWorldDigest arrive with Phase 4 and 4b.
  */
 UCLASS()
 class COSMIC_ASCENSION_API UCosmicLogSubsystem : public UGameInstanceSubsystem
@@ -58,12 +59,19 @@ public:
 	// FGalaxyState.Log keeps the most recent entries up to this count (section 8.4).
 	static constexpr int32 MaxLogEntries = 2000;
 
+	// The tell-all mode (section 8.1): with it on every line is stored and nothing is judged by the scope of telling (no
+	// bUntold, no far line). Not saved: a mode of the run, off in the game, on in the tests (CosmicTests::AcquireSim) and
+	// in the balance commandlet. The world hash is the same either way.
+	void SetTellAll(bool bOn) { bTellAll = bOn; }
+	bool IsTellAll() const { return bTellAll; }
+
 	/**
 	 * Renders Template with Args and appends one entry stamped with the current tick. The stored Message is the flattened
 	 * result (culture-invariant text): no format history reaches the save and the line keeps its language (section 7.5).
 	 * SourceRow names the row behind the line (event, hazard, encounter, feat or log-template row).
-	 * FocusSystem and FocusCiv name the subject system and the subject civilization of the line (section 8.1); the
-	 * scope of telling reads them from Phase 2.
+	 * FocusSystem and FocusCiv name the subject system and the subject civilization of the line (section 8.1): the system
+	 * the line calls by name, and its people. The line is judged by the scope of telling as PushVariants judges one (no
+	 * draw here; a far line that follows draws its own).
 	 */
 	void Push(FGameplayTag Category, uint8 Severity, const FText& Template, const FFormatNamedArguments& Args, FName FocusSystem, FName SourceRow, FName FocusCiv = NAME_None);
 
@@ -71,28 +79,48 @@ public:
 	 * Tells one line out of a caller-owned array of sentence variants: an event row's LogTemplates, the Templates of a
 	 * DT_LogTemplates row, a transcendent row's ClaimTemplates or VoiceTemplates. The single home of the variant rule
 	 * and the only caller of DrawTell (section 7.5, 9.2).
-	 * Draws exactly one number from the tell stream, also for a single variant, and never from the sim stream. If the
-	 * rendered result reads the same as the last stored log line and there is more than one variant, the next variant
-	 * is used, without a second draw: the same sentence never appears twice in a row, and neither the number of draws
-	 * nor the number of entries depends on the text. Returns false and tells nothing (no draw) when Variants is empty;
-	 * otherwise true.
+	 * Draws exactly one number from the tell stream, also for a single variant, before the scope is looked at, and never
+	 * from the sim stream. If the rendered result reads the same as the last line that was told (entries marked bUntold
+	 * are passed by) and there is more than one variant, the next variant is used, without a second draw: the same
+	 * sentence never appears twice in a row in the feed, and the number of draws does not depend on the text.
+	 * Then the scope of telling (section 8.1), judged against the state and Knowing at this moment - unless the tell-all
+	 * mode is on, which stores every line:
+	 * - The subject holds when Category is Log.Calling, or when FocusCiv is none or a met people whose Tier is not three
+	 *   or more above the viewer's (UGalaxySimulationSubsystem::GetViewerTier; a lower people is never held back), and
+	 *   FocusSystem is none or a known system. The line is in scope when the subject holds and the viewer's tier number
+	 *   lies inside [MinViewerTier, MaxViewerTier] (0 = no bound on that side).
+	 * - In scope: stored, and broadcast by OnLogEntry. Out of scope, Severity 2 or Log.Claim or Log.Record: stored with
+	 *   bUntold and never broadcast. Otherwise: not stored.
+	 * - A Severity 2 line out of scope because its subject does not hold (a window alone calls for none) is followed by
+	 *   one far line with no subject, through its own PushRow and its own draw: CosmicRows::LogFarAscent when the line is
+	 *   Log.Ascension and its people stands on the third rung or above, every time; CosmicRows::LogFarEvent otherwise,
+	 *   only when State.Tick >= Knowing.FarLineUntilTick, which it then sets to Tick + DT_Rules.FarLineCooldownTicks
+	 *   (read as at least 0).
+	 * Returns false and tells nothing (no draw) when Variants is empty; otherwise true, whatever the scope.
 	 */
 	bool PushVariants(const FCosmicLine& Line, TConstArrayView<FText> Variants, const FFormatNamedArguments& Args);
 
 	/**
 	 * Pushes one line of the DT_LogTemplates row RowName, a named row: PushVariants with the row's Category and
-	 * Templates, SourceRow = RowName and MinViewerTier = the row's MinTierToReveal. Returns false and pushes nothing
-	 * (no draw) when the row is missing or has no template.
+	 * Templates, SourceRow = RowName and MinViewerTier = the row's MinTierToReveal, so the scope and the far line are
+	 * those of PushVariants. Returns false and pushes nothing (no draw) when the row is missing or has no template.
 	 */
 	bool PushRow(FName RowName, uint8 Severity, const FFormatNamedArguments& Args, FName FocusSystem, FName FocusCiv = NAME_None);
 
-	// Fired for every appended entry while the global broadcast gate is open (section 6.1). With the gate closed the
-	// entry is only stored. Fired synchronously, also from inside a tick stage: a handler may read the state and call
+	// Fired for every appended entry that is told (never for one marked bUntold) while the global broadcast gate is open
+	// (section 6.1, 8.1). With the gate closed the entry is only stored. Fired synchronously, also from inside a tick
+	// stage: a handler may read the state and call
 	// SetTimeScale, but must not call NewGalaxy, LoadGalaxy, SaveCurrentGalaxy, StepOnce or RunHeadless, nor the evaluator
 	// (UCosmicEventSubsystem::EvaluateAndFire, FireRow, Apply). OnEventFired has the same contract (section 9.4).
 	UPROPERTY(BlueprintAssignable)
 	FOnLogEntry OnLogEntry;
 
 private:
-	void Append(FGameplayTag Category, uint8 Severity, FString&& Rendered, FName FocusSystem, FName FocusCiv, FName SourceRow);
+	// Judges Line by the scope of telling and stores Rendered accordingly; then the far line, when one is due. The one
+	// place behind Push and PushVariants.
+	void Tell(const FCosmicLine& Line, FString&& Rendered);
+
+	void Append(FGameplayTag Category, uint8 Severity, FString&& Rendered, FName FocusSystem, FName FocusCiv, FName SourceRow, bool bUntold);
+
+	bool bTellAll = false;
 };

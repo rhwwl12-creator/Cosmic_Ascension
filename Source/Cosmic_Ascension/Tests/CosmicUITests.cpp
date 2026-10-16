@@ -98,6 +98,24 @@ bool FCosmicUIPanelLabelsTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The panel shows the last log line"), Shown.Contains(State.Log.Last().Message.ToString()));
 	}
 
+	// An entry marked bUntold is kept, never shown (section 8.1): the panel passes it by and still shows the line before it.
+	{
+		const FString LastTold = State.Log.IsEmpty() ? FString() : State.Log.Last().Message.ToString();
+		FCosmicLogEntry Untold;
+		Untold.Tick = State.Tick;
+		Untold.Severity = 2;
+		Untold.Message = FText::AsCultureInvariant(TEXT("<untold line of the test>"));
+		Untold.bUntold = true;
+		Sim->GetMutableState().Log.Add(Untold);
+		Panel->Refresh();
+		FString WithUntold;
+		CosmicUITests::ReadPanel(*Panel, WithUntold);
+		TestFalse(TEXT("The panel does not show an untold entry"), WithUntold.Contains(TEXT("<untold line of the test>")));
+		TestTrue(TEXT("and still shows the last told line"), !LastTold.IsEmpty() && WithUntold.Contains(LastTold));
+		Sim->GetMutableState().Log.Pop();
+		Panel->Refresh();
+	}
+
 	// A project the ruler starts shows with its system and its name (the project key of the prototype).
 	{
 		UPlayerRoleSubsystem* Role = Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>();

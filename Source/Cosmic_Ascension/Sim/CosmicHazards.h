@@ -75,8 +75,9 @@ namespace CosmicHazards
 	 * row ends without result, and so does a Hazard.Rebellion whose tag no row holds (the old owner's discontent either
 	 * way) and any hazard of a system let go (no people under it, no threat: section 16 #29 (5)) - a rebellion that ends so
 	 * also closes its leader's open record and starts the old owner's count over, as a resolution does; when it was the old
-	 * owner's capital, the capital moves (MoveCapital). Leaves no note: a hazard it ends is not told (the note of a
-	 * received system arrives with the known scope and log work).
+	 * owner's capital, the capital moves (MoveCapital). Leaves a SystemReceived note when ToCivIndex is a people
+	 * (FollowUpKnowing makes the system known to the calling when that people is the vessel's); a hazard it ends is not
+	 * told.
 	 */
 	COSMIC_ASCENSION_API bool Transfer(FCosmicEvalContext& Ctx, int32 SystemIndex, int32 ToCivIndex);
 

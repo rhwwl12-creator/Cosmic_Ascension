@@ -30,7 +30,8 @@ public:
 	 * here. Resets the vessel, opens a FLifeRecord and, for a ruler, opens a reign in the three reign arrays.
 	 * Writes the birth system into Knowing.KnownSystems and the birth civilization into Knowing.MetCivs, each once and
 	 * without a line (section 8.1): a life knows where it was born. It never writes Knowing.FirstContactCivID: the
-	 * people one is born into is not a contact.
+	 * people one is born into is not a contact. A life that starts as a wanderer (succession, Phase 4b) also knows the
+	 * lane neighbours of its birth system (NoteKnown, Lanes order, no line - section 4.4: the new eye).
 	 * One draw from the sim stream per call, for the name of the vessel, made before the name bank is looked at.
 	 * Refused with an error line when called from a handler of a Core Logic delegate (a handler may only read the state).
 	 */
@@ -51,9 +52,10 @@ public:
 	 * Ruler to wanderer (section 5.10): Role = Wanderer, FormerCivID = the ruled people, RuledCivID cleared, the people
 	 * AI-run with RegentProfile, StatusTags from ReignEndReason (Reign.Abdicated: Status.Abdicated, Reign.Deposed:
 	 * Status.FallenMonarch, Reign.Died: none), the open reign closed with ReignEndReason, Knowing.PendingContactCivID
-	 * cleared. The regent record (notable hook 1) arrives with the abdication command of Phase 4, the neighbours the new
-	 * eye knows with the known scope and log work. Does nothing unless the vessel rules; refused with an error line when
-	 * called from a handler of a Core Logic delegate.
+	 * cleared, and the system the vessel stands in and its lane neighbours known (NoteKnown, Lanes order, no line -
+	 * section 4.4: the new eye of a wanderer; meeting their owners is the next sight stage's). The regent record (notable
+	 * hook 1) arrives with the abdication command of Phase 4. Does nothing unless the vessel rules; refused with an error
+	 * line when called from a handler of a Core Logic delegate.
 	 */
 	void BecomeWanderer(FGameplayTag RegentProfile, FGameplayTag ReignEndReason);
 
@@ -61,7 +63,8 @@ public:
 	 * The ruler's command (section 5.7, 7.5): starts RowName on SystemID for the people the vessel rules, through
 	 * CosmicMegaprojects::Start - the same rules as the AI. Only while Embodied and Ruler, and only for a system of the
 	 * ruled people - except project_settle, whose SystemID is the wild system to settle (CosmicMegaprojects::Settle, the
-	 * rules of the AI's settlement). Between ticks: the project first progresses in the next tick's crisis stage. False
+	 * rules of the AI's settlement; the system it starts to settle becomes known at once, through FollowUpKnowing).
+	 * Between ticks: the project first progresses in the next tick's crisis stage. False
 	 * and nothing changed otherwise; inside a handler of a Core Logic delegate an error line and nothing. No draw.
 	 */
 	bool StartMegaproject(FName SystemID, FName RowName);

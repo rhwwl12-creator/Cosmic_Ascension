@@ -4,6 +4,7 @@
 
 #include "Cosmic_Ascension.h"
 #include "Data/CosmicDataTables.h"
+#include "Data/CosmicRowNames.h"
 #include "Engine/GameInstance.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 
@@ -20,7 +21,13 @@ void UCosmicLogSubsystem::Deinitialize()
 
 void UCosmicLogSubsystem::Push(FGameplayTag Category, uint8 Severity, const FText& Template, const FFormatNamedArguments& Args, FName FocusSystem, FName SourceRow, FName FocusCiv)
 {
-	Append(Category, Severity, FString(FText::Format(Template, Args).ToString()), FocusSystem, FocusCiv, SourceRow);
+	FCosmicLine Line;
+	Line.Category = Category;
+	Line.Severity = Severity;
+	Line.FocusSystem = FocusSystem;
+	Line.FocusCiv = FocusCiv;
+	Line.SourceRow = SourceRow;
+	Tell(Line, FString(FText::Format(Template, Args).ToString()));
 }
 
 bool UCosmicLogSubsystem::PushVariants(const FCosmicLine& Line, TConstArrayView<FText> Variants, const FFormatNamedArguments& Args)
@@ -37,16 +44,25 @@ bool UCosmicLogSubsystem::PushVariants(const FCosmicLine& Line, TConstArrayView<
 	const int32 Count = Variants.Num();
 	int32 Index = static_cast<int32>(Sim->DrawTell(Count));
 
+	// The same sentence never follows itself in the feed: the line it is held against is the last one told (an entry
+	// marked bUntold is passed by).
 	FString Rendered = FText::Format(Variants[Index], Args).ToString();
-	const TArray<FCosmicLogEntry>& Log = Sim->GetState().Log;
-	if (Count > 1 && !Log.IsEmpty() && Log.Last().Message.ToString() == Rendered)
+	if (Count > 1)
 	{
-		Index = (Index + 1) % Count;
-		Rendered = FText::Format(Variants[Index], Args).ToString();
+		const TArray<FCosmicLogEntry>& Log = Sim->GetState().Log;
+		int32 LastTold = Log.Num() - 1;
+		while (LastTold >= 0 && Log[LastTold].bUntold)
+		{
+			--LastTold;
+		}
+		if (LastTold >= 0 && Log[LastTold].Message.ToString() == Rendered)
+		{
+			Index = (Index + 1) % Count;
+			Rendered = FText::Format(Variants[Index], Args).ToString();
+		}
 	}
 
-	// The viewer tier window of the line is read by the scope of telling, from the commit that brings it.
-	Append(Line.Category, Line.Severity, MoveTemp(Rendered), Line.FocusSystem, Line.FocusCiv, Line.SourceRow);
+	Tell(Line, MoveTemp(Rendered));
 	return true;
 }
 
@@ -71,7 +87,81 @@ bool UCosmicLogSubsystem::PushRow(FName RowName, uint8 Severity, const FFormatNa
 	return PushVariants(Line, Row->Templates, Args);
 }
 
-void UCosmicLogSubsystem::Append(FGameplayTag Category, uint8 Severity, FString&& Rendered, FName FocusSystem, FName FocusCiv, FName SourceRow)
+void UCosmicLogSubsystem::Tell(const FCosmicLine& Line, FString&& Rendered)
+{
+	static const FGameplayTag CallingTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Calling")));
+	static const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Claim")));
+	static const FGameplayTag RecordTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Record")));
+	static const FGameplayTag AscensionTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Ascension")));
+
+	if (bTellAll)
+	{
+		Append(Line.Category, Line.Severity, MoveTemp(Rendered), Line.FocusSystem, Line.FocusCiv, Line.SourceRow, false);
+		return;
+	}
+
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	check(Sim);
+	const FGalaxyState& State = Sim->GetState();
+	const FKnowingState& Knowing = State.Knowing;
+	const EAscensionTier Viewer = Sim->GetViewerTier();
+
+	// The subject (section 8.1): a met people not three rungs or more above the viewer (a lower one is never held
+	// back), and a known system. The calling's own lines always hold.
+	const int32 CivIndex = Line.FocusCiv.IsNone() ? INDEX_NONE : Sim->GetStateIndex().FindCiv(State, Line.FocusCiv);
+	const FCivilizationState* Civ = State.Civs.IsValidIndex(CivIndex) ? &State.Civs[CivIndex] : nullptr;
+	bool bSubject = true;
+	if (Line.Category != CallingTag)
+	{
+		if (!Line.FocusCiv.IsNone())
+		{
+			const FName CivID = Line.FocusCiv;
+			const bool bMet = Knowing.MetCivs.ContainsByPredicate([CivID](const FKnownMark& Mark) { return Mark.ID == CivID; });
+			const bool bFarAbove = Civ && static_cast<int32>(Civ->Tier) - static_cast<int32>(Viewer) >= 3;
+			bSubject = bMet && !bFarAbove;
+		}
+		if (bSubject && !Line.FocusSystem.IsNone())
+		{
+			const FName SystemID = Line.FocusSystem;
+			bSubject = Knowing.KnownSystems.ContainsByPredicate([SystemID](const FKnownMark& Mark) { return Mark.ID == SystemID; });
+		}
+	}
+	// The window of the viewer's tier number (0 = no bound on that side).
+	const int32 ViewerNumber = static_cast<int32>(Viewer) + 1;
+	const bool bWindow = (Line.MinViewerTier == 0 || ViewerNumber >= Line.MinViewerTier) && (Line.MaxViewerTier == 0 || ViewerNumber <= Line.MaxViewerTier);
+
+	if (bSubject && bWindow)
+	{
+		Append(Line.Category, Line.Severity, MoveTemp(Rendered), Line.FocusSystem, Line.FocusCiv, Line.SourceRow, false);
+		return;
+	}
+	// Out of scope: the mythic lines and the two books' lines are kept untold, the rest is not stored.
+	if (Line.Severity >= 2 || Line.Category == ClaimTag || Line.Category == RecordTag)
+	{
+		Append(Line.Category, Line.Severity, MoveTemp(Rendered), Line.FocusSystem, Line.FocusCiv, Line.SourceRow, true);
+	}
+
+	// The clock is read (section 8.1): a mythic line about a subject out of scope - not one hidden by its window alone -
+	// is followed by a far line with no subject. An ascent to the third rung or above is told every time; anything else
+	// at most once per FarLineCooldownTicks.
+	if (bSubject || Line.Severity < 2)
+	{
+		return;
+	}
+	if (Line.Category == AscensionTag && Civ && static_cast<int32>(Civ->Tier) >= static_cast<int32>(EAscensionTier::Tier3_Causal))
+	{
+		PushRow(CosmicRows::LogFarAscent, 1, FFormatNamedArguments(), NAME_None);
+		return;
+	}
+	FGalaxyState& Mutable = Sim->GetMutableState();
+	if (Mutable.Tick >= Mutable.Knowing.FarLineUntilTick && PushRow(CosmicRows::LogFarEvent, 1, FFormatNamedArguments(), NAME_None))
+	{
+		const int32 Cooldown = Sim->GetRules().FarLineCooldownTicks > 0 ? Sim->GetRules().FarLineCooldownTicks : 0;
+		Mutable.Knowing.FarLineUntilTick = Mutable.Tick + Cooldown;
+	}
+}
+
+void UCosmicLogSubsystem::Append(FGameplayTag Category, uint8 Severity, FString&& Rendered, FName FocusSystem, FName FocusCiv, FName SourceRow, bool bUntold)
 {
 	static const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Claim")));
 	static const FGameplayTag RecordTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Record")));
@@ -88,8 +178,9 @@ void UCosmicLogSubsystem::Append(FGameplayTag Category, uint8 Severity, FString&
 	Entry.FocusSystemID = FocusSystem;
 	Entry.FocusCivID = FocusCiv;
 	Entry.SourceRow = SourceRow;
+	Entry.bUntold = bUntold;
 	State.Log.Add(Entry);
-	UE_LOG(LogCosmic, Verbose, TEXT("[%lld] %s"), Entry.Tick, *Entry.Message.ToString());
+	UE_LOG(LogCosmic, Verbose, TEXT("[%lld]%s %s"), Entry.Tick, bUntold ? TEXT(" (untold)") : TEXT(""), *Entry.Message.ToString());
 
 	// Over the cap the oldest entries leave: notable and mythic ones, and every claim and record, move to the chronicle;
 	// ordinary ones are dropped (section 8.4).
@@ -103,7 +194,8 @@ void UCosmicLogSubsystem::Append(FGameplayTag Category, uint8 Severity, FString&
 		State.Log.RemoveAt(0, 1, EAllowShrinking::No);
 	}
 
-	if (Sim->IsBroadcastEnabled())
+	// An untold entry is kept for the chronicle and the two books, never announced (section 8.1).
+	if (!bUntold && Sim->IsBroadcastEnabled())
 	{
 		Sim->BeginBroadcast();
 		OnLogEntry.Broadcast(Entry);

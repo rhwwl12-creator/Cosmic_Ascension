@@ -177,7 +177,8 @@ void UAscensionSubsystem::Ascend(FCosmicEvalContext& Ctx, FName FeatRow, const F
 		}
 	}
 
-	// The line, then what the price did.
+	// What the vessel's people received through the price is known before any line; the line, then what the price did.
+	Events->FollowUpKnowing(Ctx);
 	const FCivilizationState& Civ = State.Civs[CivIndex];
 	const int32 Capital = Ctx.Index.FindSystem(State, Civ.HomeSystemID);
 	FCosmicLine Line;

@@ -210,8 +210,17 @@ void UCosmicTextPanelWidget::RefreshLog()
 	}
 	const TArray<FCosmicLogEntry>& Log = Sim->GetState().Log;
 
+	// The last told entries, oldest first: an entry marked bUntold is kept for the chronicle and never shown (section 8.1).
+	TArray<int32> Shown;
+	for (int32 Index = Log.Num() - 1; Index >= 0 && Shown.Num() < MaxShownLogLines; --Index)
+	{
+		if (!Log[Index].bUntold)
+		{
+			Shown.Insert(Index, 0);
+		}
+	}
 	TArray<FText> Lines;
-	for (int32 Index = FMath::Max(0, Log.Num() - MaxShownLogLines); Index < Log.Num(); ++Index)
+	for (const int32 Index : Shown)
 	{
 		Lines.Add(FText::Format(INVTEXT("[{0}] {1}"), FText::AsNumber(Log[Index].Tick), Log[Index].Message));
 	}

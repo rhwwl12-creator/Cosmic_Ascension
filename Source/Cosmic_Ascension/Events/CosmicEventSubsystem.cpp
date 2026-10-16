@@ -1121,10 +1121,11 @@ void UCosmicEventSubsystem::FireResolved(FName RowName, const FCosmicEventDef& R
 		}
 	}
 
-	// 1. The world: every effect, in array order.
+	// 1. The world: every effect, in array order; then what the vessel's people received is known before any line.
 	Ctx.SourceRow = RowName;
 	Ctx.bPerTickSource = false;
 	ApplyAll(Row.Effects, Ctx);
+	FollowUpKnowing(Ctx);
 
 	// 2. The line. A Civilization row is about the people alone, a SettledSystem row about the place and its people.
 	const FGalaxyState& State = Ctx.State;
@@ -1231,6 +1232,51 @@ void UCosmicEventSubsystem::TellHazardLine(const FCosmicEvalContext& Ctx, ECosmi
 	Log->PushVariants(HazardLine, Templates, Args);
 }
 
+void UCosmicEventSubsystem::FollowUpKnowing(FCosmicEvalContext& Ctx)
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	check(Sim);
+	if (&Ctx.State != &Sim->GetState())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("FollowUpKnowing: the context is not over the live state"));
+		return;
+	}
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("FollowUpKnowing called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return;
+	}
+
+	// Taken out in their order; the other notes stay for FollowUpNotes.
+	TArray<FCosmicWorldNote, TInlineAllocator<2>> Received;
+	for (const FCosmicWorldNote& Note : Ctx.Notes)
+	{
+		if (Note.Kind == ECosmicWorldNote::SystemReceived)
+		{
+			Received.Add(Note);
+		}
+	}
+	if (Received.IsEmpty())
+	{
+		return;
+	}
+	Ctx.Notes.RemoveAll([](const FCosmicWorldNote& Note) { return Note.Kind == ECosmicWorldNote::SystemReceived; });
+
+	// Only what the people the vessel rules received: the calling sees through its own people (section 8.1).
+	const FGalaxyState& State = Ctx.State;
+	if (State.Calling.LifeState != ELifeState::Embodied || State.Player.Role != EPlayerRole::Ruler)
+	{
+		return;
+	}
+	for (const FCosmicWorldNote& Note : Received)
+	{
+		if (State.Civs.IsValidIndex(Note.CivIndex) && State.Civs[Note.CivIndex].CivID == State.Player.RuledCivID && State.Systems.IsValidIndex(Note.SystemIndex))
+		{
+			Sim->NoteKnown(State.Systems[Note.SystemIndex].SystemID);
+		}
+	}
+}
+
 void UCosmicEventSubsystem::FollowUpNotes(FCosmicEvalContext& Ctx)
 {
 	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
@@ -1245,6 +1291,10 @@ void UCosmicEventSubsystem::FollowUpNotes(FCosmicEvalContext& Ctx)
 		UE_LOG(LogCosmic, Error, TEXT("FollowUpNotes called from a handler of a Core Logic delegate: a handler may only read the state"));
 		return;
 	}
+
+	// What the vessel's people received is known before any line below (a caller that told its own line first has
+	// followed it already).
+	FollowUpKnowing(Ctx);
 
 	// Taken out first: a row fired below follows its own notes on its own context, never these.
 	const TArray<FCosmicWorldNote, TInlineAllocator<2>> Notes = MoveTemp(Ctx.Notes);
@@ -1275,6 +1325,9 @@ void UCosmicEventSubsystem::FollowUpNotes(FCosmicEvalContext& Ctx)
 		}
 		case ECosmicWorldNote::HazardResolved:
 			TellHazardLine(Ctx, ECosmicHazardLine::Resolution, Note.HazardRow, Note.SystemIndex, Note.CivIndex);
+			break;
+		case ECosmicWorldNote::SystemReceived:
+			// Followed above, never told.
 			break;
 		}
 	}

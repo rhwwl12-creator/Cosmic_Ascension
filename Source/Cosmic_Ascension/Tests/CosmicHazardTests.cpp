@@ -588,7 +588,15 @@ bool FCosmicEventsHazardEffectsTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("A dead node is nobody's to take"), UCosmicEventSubsystem::Apply(Transfer(Civ1), Bench.Ctx));
 		Bench.Ctx.SystemIndex = 1;
 		TestTrue(TEXT("An unowned living system can be handed to a people"), UCosmicEventSubsystem::Apply(Transfer(Civ1), Bench.Ctx));
-		TestEqual(TEXT("TransferSystem leaves no note"), Bench.Ctx.Notes.Num(), 0);
+		// A hand-over to a people leaves the note of the system received (the knowing of the calling follows it, never a
+		// line); letting a system go and a refused hand-over leave none. Two hand-overs to people 1 went through above.
+		if (TestEqual(TEXT("TransferSystem leaves one note per hand-over to a people, none for a let-go or a refusal"), Bench.Ctx.Notes.Num(), 2))
+		{
+			const FCosmicWorldNote& Received = Bench.Ctx.Notes.Last();
+			TestTrue(TEXT("The note is of a system received"), Received.Kind == ECosmicWorldNote::SystemReceived);
+			TestEqual(TEXT("about the system handed over"), Received.SystemIndex, 1);
+			TestEqual(TEXT("and its new owner"), Received.CivIndex, 1);
+		}
 	}
 
 	// A capital that changes hands: the discontent of the old owner stays behind and the capital moves.

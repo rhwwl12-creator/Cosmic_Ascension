@@ -16,8 +16,8 @@
 //
 // The three effects that reach into the hazard stage (SpawnHazard, ResolveHazard, TransferSystem) go through the world
 // functions of Sim/CosmicHazards.h, the one path for each. SpawnHazard and ResolveHazard leave notes in the context and the
-// member layer tells what the notes say; TransferSystem leaves none (a hazard it ends goes untold). The known scope and log
-// work adds the note of a system the vessel's civilization received (it becomes known before any line).
+// member layer tells what the notes say. TransferSystem leaves a note of the system received, never told: the member layer
+// makes a system the vessel's people received known before any line (FollowUpKnowing). A hazard it ends goes untold.
 
 #pragma once
 
@@ -110,7 +110,9 @@ enum class ECosmicWorldNote : uint8
 	// A hazard was placed: its outbreak line, then the OutbreakRow of its row.
 	HazardPlaced,
 	// A hazard was resolved: its resolution line.
-	HazardResolved
+	HazardResolved,
+	// A system changed hands to a people (CivIndex is the new owner). Followed by FollowUpKnowing, never told.
+	SystemReceived
 };
 
 /** One note: what changed, where, about whom. Plain values, made by the world functions of Sim/CosmicHazards.h. */
@@ -124,7 +126,7 @@ struct FCosmicWorldNote
 	// The owner at the moment of the change, index into FGalaxyState.Civs: the people the line is about.
 	int32 CivIndex = INDEX_NONE;
 
-	// DT_Hazards row of the hazard.
+	// DT_Hazards row of the hazard (none for SystemReceived).
 	FName HazardRow;
 };
 
@@ -298,7 +300,8 @@ public:
 	 *   system to the civilization its Key names (a living CivID; an empty Key = to no one) through
 	 *   CosmicHazards::Transfer, which never takes or lets go the last settled system of a civilization: only stage code
 	 *   behind the last-system gate can (section 4.5, 7.4). SpawnHazard and ResolveHazard leave notes in Ctx.Notes, and
-	 *   whoever applied them tells them after its own line (FollowUpNotes); TransferSystem leaves none. A per-tick source
+	 *   whoever applied them tells them after its own line (FollowUpNotes); TransferSystem to a people leaves the note of
+	 *   the system received, which whoever applied it follows before its own line (FollowUpKnowing). A per-tick source
 	 *   turns all three away.
 	 * - An effect whose Key names something the context cannot resolve is turned away. ChangeRelation resolves its
 	 *   other party as CivRelationAtLeast does and writes no entry for one that does not resolve: the keys of
@@ -367,7 +370,8 @@ public:
 	 * draw of its own. Ctx gives the subject: the fire runs on a context of its own over the same state and stream, with
 	 * SourceRow = the row and bPerTickSource off, and leaves the subject of Ctx as it is.
 	 * One fire is one fixed sequence, the same for all three triggers:
-	 * 1. every effect in array order through Apply;
+	 * 1. every effect in array order through Apply, then FollowUpKnowing (a system the vessel's people received is known
+	 *    before the line);
 	 * 2. the line, through UCosmicLogSubsystem::PushVariants: the row's LogTemplates as its LogCategory and Severity, with
 	 *    the row as SourceRow. Subject Civilization tells it about the civilization alone, SettledSystem about the subject
 	 *    system and the subject civilization. A row with LogTemplates, a SignRow and a MinTierToReveal of 2 or above
@@ -394,7 +398,17 @@ public:
 	void TellHazardLine(const FCosmicEvalContext& Ctx, ECosmicHazardLine Line, FName HazardRow, int32 SystemIndex, int32 CivIndex);
 
 	/**
-	 * Follows Ctx.Notes after the caller's own line (section 7.5). Takes the notes out of Ctx first, then in their order:
+	 * Follows the SystemReceived notes of Ctx before any line (section 7.5, 8.1): takes them out of Ctx and, for every
+	 * system received by the people the vessel rules (Embodied, Ruler), calls UGalaxySimulationSubsystem::NoteKnown, so
+	 * that the lines about it are told. The other notes stay, in their order, for FollowUpNotes. Called after the effects
+	 * and before the own line by FireRow, the hazard expiry, the completion of a project and the judgment of a feat; by
+	 * the ruler's settlement command; and first of all by FollowUpNotes. No draw, no line. Refused like FollowUpNotes.
+	 */
+	void FollowUpKnowing(FCosmicEvalContext& Ctx);
+
+	/**
+	 * Follows Ctx.Notes after the caller's own line (section 7.5). Follows the SystemReceived notes first
+	 * (FollowUpKnowing), then takes the other notes out of Ctx and, in their order:
 	 * HazardPlaced tells the outbreak line and fires the row's OutbreakRow through FireRow, with that system and people as
 	 * subject over the state and the stream of Ctx (a NameNotable of that row draws from it); HazardResolved tells the
 	 * resolution line. Every user of the world functions ends with it: FireRow after the row's line, the hazard stage

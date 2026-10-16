@@ -1052,6 +1052,76 @@ void UGalaxySimulationSubsystem::SyncRngState()
 	State.RngState = Rng.GetCurrentSeed();
 }
 
+bool UGalaxySimulationSubsystem::NoteMet(FName CivID, FName SeenAtSystemID)
+{
+	if (IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("NoteMet called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return false;
+	}
+	FKnowingState& Knowing = State.Knowing;
+	const int32 CivIndex = StateIndex.FindCiv(State, CivID);
+	if (State.Calling.LifeState != ELifeState::Embodied || !State.Civs.IsValidIndex(CivIndex)
+		|| Knowing.MetCivs.ContainsByPredicate([CivID](const FKnownMark& Mark) { return Mark.ID == CivID; }))
+	{
+		return false;
+	}
+	// The gap rule (section 3.2): a people three rungs or more above the viewer is seen, not met.
+	if (static_cast<int32>(State.Civs[CivIndex].Tier) - static_cast<int32>(GetViewerTier()) >= 3)
+	{
+		return false;
+	}
+
+	FKnownMark& Mark = Knowing.MetCivs.AddDefaulted_GetRef();
+	Mark.ID = CivID;
+	Mark.Tick = State.Tick;
+	// The first meeting of the run is the first contact, once (section 7.4): Install never writes this field.
+	const bool bFirstContact = Knowing.FirstContactCivID.IsNone();
+	if (bFirstContact)
+	{
+		Knowing.FirstContactCivID = CivID;
+	}
+
+	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	check(Log);
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("Civ"), State.Civs[CivIndex].CivName);
+	Log->PushRow(bFirstContact ? CosmicRows::LogFirstContact : CosmicRows::LogContact, 1, Args, SeenAtSystemID, CivID);
+	return true;
+}
+
+bool UGalaxySimulationSubsystem::NoteKnown(FName SystemID)
+{
+	if (IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("NoteKnown called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return false;
+	}
+	FKnowingState& Knowing = State.Knowing;
+	if (State.Calling.LifeState != ELifeState::Embodied || !State.Systems.IsValidIndex(StateIndex.FindSystem(State, SystemID))
+		|| Knowing.KnownSystems.ContainsByPredicate([SystemID](const FKnownMark& Mark) { return Mark.ID == SystemID; }))
+	{
+		return false;
+	}
+	FKnownMark& Mark = Knowing.KnownSystems.AddDefaulted_GetRef();
+	Mark.ID = SystemID;
+	Mark.Tick = State.Tick;
+	return true;
+}
+
+EAscensionTier UGalaxySimulationSubsystem::GetViewerTier() const
+{
+	if (State.Calling.LifeState == ELifeState::Embodied && State.Player.Role == EPlayerRole::Ruler)
+	{
+		const int32 CivIndex = StateIndex.FindCiv(State, State.Player.RuledCivID);
+		if (State.Civs.IsValidIndex(CivIndex))
+		{
+			return State.Civs[CivIndex].Tier;
+		}
+	}
+	return State.Calling.PersonalTier;
+}
+
 FCosmicEvalContext UGalaxySimulationSubsystem::MakeEvalContext()
 {
 	if (IsBroadcasting())
@@ -1233,6 +1303,9 @@ void UGalaxySimulationSubsystem::SimulateTick()
 	// Tick 0 is the generated state: no event raised inside a tick stage carries tick 0, so the "0 = unset" tick fields
 	// stay unambiguous there. Player input outside the tick can still run at tick 0.
 	++State.Tick;
+	// Where the vessel stood when the tick began: the sight stage looks again when it has moved, by a journey or by a
+	// destruction that carried it (section 7.4).
+	const FName VesselAtStart = State.Player.CurrentSystemID;
 
 	{
 		// The stages hold references into the state, and OnLogEntry fires from inside them (section 9.4).
@@ -1248,7 +1321,7 @@ void UGalaxySimulationSubsystem::SimulateTick()
 		if (State.Calling.LifeState == ELifeState::Embodied)
 		{
 			TickPlayerTravel();
-			TickSight();
+			TickSight(State.Player.CurrentSystemID != VesselAtStart);
 		}
 	}
 	// Outside the guard: death and deposition replace the vessel, and the leap of Phase 4b runs ticks from here.
@@ -1457,14 +1530,15 @@ void UGalaxySimulationSubsystem::TickResearch()
 			Civ.Research.Add(Field, After);
 
 			// A breakthrough is told once per mark crossed. Every people has a name from its birth (section 5.11); whether
-			// the line is told is the story scope's question, never the world's (section 8.1).
+			// the line is told is the story scope's question, never the world's (section 8.1). The line calls the people
+			// and no place, so it has no subject system: a people met is told of without its capital being known.
 			for (const float Threshold : BreakthroughThresholds)
 			{
 				if (Before < Threshold && After >= Threshold)
 				{
 					FFormatNamedArguments Args;
 					Args.Add(TEXT("Civ"), Civ.CivName);
-					Log->PushRow(CosmicRows::LogBreakthrough[FieldIndex], Civ.bIsPlayerRuled ? 1 : 0, Args, Civ.HomeSystemID, Civ.CivID);
+					Log->PushRow(CosmicRows::LogBreakthrough[FieldIndex], Civ.bIsPlayerRuled ? 1 : 0, Args, NAME_None, Civ.CivID);
 
 					// After its line, a Society breakthrough may find a book that was shut: the row's conditions pick the
 					// people (section 5.11). Its subject is the civilization, with its capital while that is settled.
@@ -1750,7 +1824,8 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 	// The claim rule on the slot this expiry left free (section 4.2).
 	TryPlaceClaim(Ctx, SystemIndex, ClaimNumber);
 
-	// The expiry's own line, then what followed from it.
+	// What the vessel's people received is known before any line; then the expiry's own line, then what followed from it.
+	Events->FollowUpKnowing(Ctx);
 	Events->TellHazardLine(Ctx, bJoined ? ECosmicHazardLine::Expiry : ECosmicHazardLine::Resolution, RowName, SystemIndex, OwnerIndex);
 	Events->FollowUpNotes(Ctx);
 }
@@ -1804,6 +1879,7 @@ void UGalaxySimulationSubsystem::AdvanceMegaprojects()
 			FCosmicEvalContext Ctx = MakeEvalContext();
 			const int32 OwnerIndex = StateIndex.FindCiv(State, Held.OwnerCivID);
 			const FName RowName = CosmicMegaprojects::Advance(Ctx, SystemIndex, Slot, AIRate);
+			Events->FollowUpKnowing(Ctx);
 			const FMegaprojectDef* Row = RowName.IsNone() ? nullptr : Tables.FindMegaproject(RowName);
 			if (Row && State.Civs.IsValidIndex(OwnerIndex))
 			{
@@ -1927,9 +2003,147 @@ void UGalaxySimulationSubsystem::TickPlayerTravel()
 	}
 }
 
-void UGalaxySimulationSubsystem::TickSight()
+void UGalaxySimulationSubsystem::TickSight(bool bVesselMoved)
 {
 	// Sight range, meetings and first contact: reads the world, writes State.Knowing and the telling (section 7.4, 8.1).
+	// The knobs are knowing's own: below 1 reads as 1, without an error line (the ranges are a lint).
+	const int32 Interval = Rules.SightIntervalTicks > 1 ? Rules.SightIntervalTicks : 1;
+	if (!bVesselMoved && State.Tick % Interval != 0)
+	{
+		return;
+	}
+
+	// The places of the eye (section 4.4): a ruler at every system its people owns, a wanderer where it stands.
+	const FPlayerEntityState& Player = State.Player;
+	const bool bRuler = Player.Role == EPlayerRole::Ruler;
+	EAscensionTier EyeTier = State.Calling.PersonalTier;
+	TArray<int32, TInlineAllocator<8>> Eye;
+	if (bRuler)
+	{
+		const int32 RuledIndex = StateIndex.FindCiv(State, Player.RuledCivID);
+		if (State.Civs.IsValidIndex(RuledIndex))
+		{
+			const FCivilizationState& Ruled = State.Civs[RuledIndex];
+			EyeTier = Ruled.Tier;
+			for (const FName SystemID : Ruled.OwnedSystems)
+			{
+				const int32 SystemIndex = StateIndex.FindSystem(State, SystemID);
+				if (State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == Ruled.CivID && !Eye.Contains(SystemIndex))
+				{
+					Eye.Add(SystemIndex);
+				}
+			}
+		}
+	}
+	else
+	{
+		const int32 Standing = StateIndex.FindSystem(State, Player.CurrentSystemID);
+		if (State.Systems.IsValidIndex(Standing))
+		{
+			Eye.Add(Standing);
+		}
+	}
+	const int32 TierIndex = static_cast<int32>(EyeTier);
+	const int32 Reach = (Rules.SightLanesByTier.IsValidIndex(TierIndex) && Rules.SightLanesByTier[TierIndex] > 1) ? Rules.SightLanesByTier[TierIndex] : 1;
+	// A ruler's eye opens at FirstSightTick; until then its places only order the meetings.
+	const bool bSees = !bRuler || State.Tick >= Rules.FirstSightTick;
+
+	// One breadth-first walk from every place of the eye, inside the galaxy row it starts in: the lanes from the eye
+	// without the reach bound (the order of the meetings), INDEX_NONE where the walk does not reach. Integers only.
+	TArray<int32> LanesFromEye;
+	LanesFromEye.Init(INDEX_NONE, State.Systems.Num());
+	TArray<int32> Walk;
+	Walk.Reserve(State.Systems.Num());
+	for (const int32 SystemIndex : Eye)
+	{
+		LanesFromEye[SystemIndex] = 0;
+		Walk.Add(SystemIndex);
+	}
+	for (int32 Head = 0; Head < Walk.Num(); ++Head)
+	{
+		const FStarSystemState& From = State.Systems[Walk[Head]];
+		for (const FName LaneID : From.Lanes)
+		{
+			const int32 To = StateIndex.FindSystem(State, LaneID);
+			if (State.Systems.IsValidIndex(To) && LanesFromEye[To] == INDEX_NONE && State.Systems[To].GalaxyRow == From.GalaxyRow)
+			{
+				LanesFromEye[To] = LanesFromEye[Walk[Head]] + 1;
+				Walk.Add(To);
+			}
+		}
+	}
+
+	// What the eye reaches becomes known, in the order of the walk (NoteKnown's rule over a set made for this pass: the
+	// order is hashed, the set is only asked).
+	FKnowingState& Knowing = State.Knowing;
+	TSet<FName> Known;
+	Known.Reserve(Knowing.KnownSystems.Num());
+	for (const FKnownMark& Mark : Knowing.KnownSystems)
+	{
+		Known.Add(Mark.ID);
+	}
+	if (bSees)
+	{
+		for (const int32 SystemIndex : Walk)
+		{
+			if (LanesFromEye[SystemIndex] > Reach)
+			{
+				break;
+			}
+			const FName SystemID = State.Systems[SystemIndex].SystemID;
+			if (!Known.Contains(SystemID))
+			{
+				Known.Add(SystemID);
+				FKnownMark& Mark = Knowing.KnownSystems.AddDefaulted_GetRef();
+				Mark.ID = SystemID;
+				Mark.Tick = State.Tick;
+			}
+		}
+	}
+
+	// The owners of the known systems are met, nearer peoples first (section 7.4): recognition, not a visit. A people's
+	// distance is that of its nearest known system; ties go by CivID.
+	struct FSighting
+	{
+		int32 CivIndex = INDEX_NONE;
+		int32 Lanes = MAX_int32;
+		int32 SystemIndex = INDEX_NONE;
+	};
+	TArray<FSighting, TInlineAllocator<8>> Sightings;
+	for (const FKnownMark& Mark : Knowing.KnownSystems)
+	{
+		const int32 SystemIndex = StateIndex.FindSystem(State, Mark.ID);
+		const FName Owner = State.Systems.IsValidIndex(SystemIndex) ? State.Systems[SystemIndex].OwnerCivID : FName();
+		const int32 CivIndex = StateIndex.FindCiv(State, Owner);
+		if (!State.Civs.IsValidIndex(CivIndex) || Knowing.MetCivs.ContainsByPredicate([Owner](const FKnownMark& Met) { return Met.ID == Owner; }))
+		{
+			continue;
+		}
+		const int32 Lanes = LanesFromEye[SystemIndex] == INDEX_NONE ? MAX_int32 : LanesFromEye[SystemIndex];
+		FSighting* Seen = Sightings.FindByPredicate([CivIndex](const FSighting& Each) { return Each.CivIndex == CivIndex; });
+		if (!Seen)
+		{
+			Seen = &Sightings.AddDefaulted_GetRef();
+			Seen->CivIndex = CivIndex;
+		}
+		if (Lanes < Seen->Lanes || Seen->SystemIndex == INDEX_NONE)
+		{
+			Seen->Lanes = Lanes;
+			Seen->SystemIndex = SystemIndex;
+		}
+	}
+	Sightings.Sort([this](const FSighting& A, const FSighting& B)
+	{
+		if (A.Lanes != B.Lanes)
+		{
+			return A.Lanes < B.Lanes;
+		}
+		return FNameLexicalLess()(State.Civs[A.CivIndex].CivID, State.Civs[B.CivIndex].CivID);
+	});
+	for (const FSighting& Seen : Sightings)
+	{
+		NoteMet(State.Civs[Seen.CivIndex].CivID, State.Systems[Seen.SystemIndex].SystemID);
+	}
 }
 
 void UGalaxySimulationSubsystem::ResolvePendingRoleEffect()
