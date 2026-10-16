@@ -71,8 +71,9 @@ bool UCosmicSaveSubsystem::LoadGalaxy(const FGuid& GalaxyID)
 		UE_LOG(LogCosmic, Warning, TEXT("LoadGalaxy: slot %s is missing or unreadable"), *SlotName);
 		return false;
 	}
-	// A truncated file still yields an object, with the state fallen back to its defaults: GalaxyID is then zero.
-	// A copied or renamed file carries another galaxy's ID.
+	// A file cut at the end of the engine's header, or inside most properties, still yields an object, with the state
+	// fallen back to its defaults: GalaxyID is then zero. A cut inside some properties reaches a fatal check of the engine
+	// before this line in a build with checks (guideline 16 #70). A copied or renamed file carries another galaxy's ID.
 	if (!Loaded->State.GalaxyID.IsValid() || Loaded->State.GalaxyID != GalaxyID)
 	{
 		UE_LOG(LogCosmic, Warning, TEXT("LoadGalaxy: slot %s is truncated or holds another galaxy"), *SlotName);

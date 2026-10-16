@@ -49,9 +49,10 @@ namespace CosmicState
 	 * that lies in another GalaxyRow (a bridge between galaxies is not a lane, and the walk does not follow a lane into
 	 * another galaxy even if the state held one). A lane to a SystemID the state does not hold is skipped. An index
 	 * out of range gives INDEX_NONE for every system. The array has one entry per element of State.Systems.
-	 * The one walk for every rule that counts lanes over more than one step: the place of a starting core now, the
-	 * sight of the calling and succession later (settlement reads one lane directly). World state only, no draw, one
-	 * breadth-first pass.
+	 * The single-source walk: the place of a starting core and the adjacency of a claimant now, succession later
+	 * (settlement reads one lane directly). The sight stage walks from every place of the eye at once, in
+	 * UGalaxySimulationSubsystem::TickSight, with the same galaxy-row rule. World state only, no draw, one breadth-first
+	 * pass.
 	 */
 	COSMIC_ASCENSION_API TArray<int32> LaneDistancesFrom(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 FromSystemIndex, int32 MaxLanes = MAX_int32);
 

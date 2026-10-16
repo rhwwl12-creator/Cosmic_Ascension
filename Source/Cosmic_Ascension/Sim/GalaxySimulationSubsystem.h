@@ -236,7 +236,7 @@ public:
 	// Counts the Core Logic delegates that are being broadcast right now and that can fire from inside a tick stage:
 	// OnLogEntry, OnEventFired, OnTierAscended (section 9.4). Their handlers may read the state and call SetTimeScale
 	// and nothing else, so UCosmicEventSubsystem refuses its member functions while this is true, and so do NewGalaxy,
-	// LoadState, StepOnce and RunHeadless here, UCosmicSaveSubsystem::LoadGalaxy, UAscensionSubsystem::EvaluateFeats and
+	// LoadState, StepOnce, RunHeadless, NoteMet and NoteKnown here, UCosmicSaveSubsystem::LoadGalaxy, UAscensionSubsystem::EvaluateFeats and
 	// the role changes and commands of UPlayerRoleSubsystem (Install, DeposeRuler, BecomeWanderer, StartMegaproject,
 	// StartNextMegaproject). MakeEvalContext reports an error and still returns the context (it holds references): the
 	// static Apply and ApplyAll are kept out of a handler by the rule alone. Every such broadcast site brackets its
@@ -432,8 +432,9 @@ private:
 	// only from DT_Rules.FirstSightTick on (before, the places of the eye still order the meetings but add no system); a
 	// wanderer at the system it stands in, with the reach of the calling's PersonalTier. Reach =
 	// DT_Rules.SightLanesByTier[tier] lanes (a missing or lower entry reads as 1). One breadth-first walk from all places
-	// of the eye along Lanes, inside the GalaxyRow of each place, notes every system within reach (NoteKnown, in the order
-	// of the walk). Then every known system is looked at again: its owner, when not met yet, is met (NoteMet with that
+	// of the eye along Lanes, inside the GalaxyRow of each place, notes every system within reach through NoteKnown, in
+	// the order of the walk (a set made for the pass only filters what is known already). Then every known system is
+	// looked at again: its owner, when not met yet, is met (NoteMet with that
 	// system) - nearer peoples first (lanes from the eye without the reach bound; ties by CivID FNameLexicalLess); the
 	// gap rule keeps a people unmet until a later look.
 	void TickSight(bool bVesselMoved);

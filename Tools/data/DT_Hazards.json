@@ -234,12 +234,12 @@
 		"OutbreakTemplates": [],
 		"ExpireTemplates": [
 			"{Civ}의 수도에서 반란이 왕좌를 차지했다. 새 다스리는 이가 섰다.",
-			"{HomeSystem}의 궁정이 반란군에게 열렸다. {Civ}의 다스림이 바뀌었다.",
+			"{System}의 궁정이 반란군에게 열렸다. {Civ}의 다스림이 바뀌었다.",
 			"{Civ}의 옛 정부가 무너졌다. 반란을 이끈 이들이 그 자리를 이었다."
 		],
 		"ResolveTemplates": [
 			"{Civ}의 반란이 가라앉았다. 반란을 이끈 이의 이름은 더 들리지 않았다.",
-			"{HomeSystem}의 광장이 다시 조용해졌다. 깃발들은 내려졌다.",
+			"{System}의 광장이 다시 조용해졌다. 깃발들은 내려졌다.",
 			"{Civ}의 불만이 무기를 내려놓았다. 다스리는 이들은 그날을 오래 기억했다."
 		],
 		"OutbreakRow": "event_rebellion_rises"

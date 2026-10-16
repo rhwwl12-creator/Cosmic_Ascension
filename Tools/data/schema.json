@@ -110,9 +110,9 @@
 				},
 				"RealmCapByTier": {"kind": "numbers", "len": 5, "ascending": true, "integer": true},
 				"SightLanesByTier": {"kind": "numbers", "len": 5, "min": 1, "integer": true},
-				"SightIntervalTicks": {"kind": "number", "integer": true},
-				"FirstSightTick": {"kind": "number", "integer": true},
-				"FarLineCooldownTicks": {"kind": "number", "integer": true},
+				"SightIntervalTicks": {"kind": "number", "min": 1, "integer": true},
+				"FirstSightTick": {"kind": "number", "min": 0, "integer": true},
+				"FarLineCooldownTicks": {"kind": "number", "min": 0, "integer": true},
 				"LivingWorldStarShares": {"kind": "numbers", "len": 7, "ascending": true, "min": 0, "max": 1, "ends_at": 1},
 				"FallenCoreMinLanesFromHome": {"kind": "number", "integer": true}
 			},
@@ -179,6 +179,23 @@
 			},
 			"unique": [
 				{"cols": ["Category", "Context"], "when": [{"col": "Context", "set": true}], "why": "at most one selector row per category and revelation mode"}
+			],
+			"rules": [
+				{
+					"why": "the calling's own line is told whatever its subject, and no tier window hides it: a line of the calling that waits for a tier is an event row with its sign row (guideline 8.1)",
+					"when": [{"col": "Category", "is": "Log.Calling"}],
+					"then": [{"col": "MinTierToReveal", "is": 0}]
+				},
+				{
+					"why": "a far line is the same sentence for everyone, told with no subject and no arguments, and the clock of the race stops when a window hides it: log_far_event (guideline 8.1)",
+					"when": [{"row": "log_far_event"}],
+					"then": [{"col": "Category", "is": "Log.Discovery"}, {"col": "MinTierToReveal", "is": 0}, {"col": "Templates", "slots_in": []}]
+				},
+				{
+					"why": "a far line is the same sentence for everyone, told with no subject and no arguments, and the clock of the race stops when a window hides it: log_far_ascent (guideline 8.1)",
+					"when": [{"row": "log_far_ascent"}],
+					"then": [{"col": "Category", "is": "Log.Discovery"}, {"col": "MinTierToReveal", "is": 0}, {"col": "Templates", "slots_in": []}]
+				}
 			]
 		},
 
@@ -196,20 +213,25 @@
 				"BaseWeight": {"kind": "number", "min": 0},
 				"CooldownTicks": {"kind": "number", "min": 0, "integer": true},
 				"Effects": {"kind": "effects"},
-				"LogTemplates": {"kind": "texts", "slots": ["Civ", "System", "HomeSystem", "Hazard"]},
+				"LogTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"]},
 				"Severity": {"kind": "number", "min": 0, "max": 2, "integer": true},
 				"MinTierToReveal": {"kind": "number", "min": 0, "max": 5, "integer": true},
 				"SignRow": {
 					"kind": "row",
 					"table": "DT_LogTemplates",
 					"optional": true,
-					"target": [{"col": "Category", "is": "Log.Sign"}, {"col": "Templates", "slots_in": ["Civ", "System", "HomeSystem", "Hazard"]}]
+					"target": [{"col": "Category", "is": "Log.Sign"}, {"col": "Templates", "slots_in": ["Civ", "System", "Hazard"]}]
 				}
 			},
 			"pairs": [
 				{"key": "Category", "value": "LogCategory", "allowed": "event_log_categories", "why": "the log category an event category may tell (guideline 8.1)"}
 			],
 			"rules": [
+				{
+					"why": "the subject system of a line is the system it names: a Civilization row is about the people alone and names no system, so the name of a system the calling does not know never reaches the feed (guideline 8.1)",
+					"when": [{"col": "Subject", "is": "Civilization"}],
+					"then": [{"col": "LogTemplates", "slots_in": ["Civ", "Hazard"]}]
+				},
 				{
 					"why": "a slot row tells with three variants or more (guideline 8.2)",
 					"when": [{"col": "Trigger", "in": ["Lottery", "Standing"]}],
@@ -383,9 +405,9 @@
 				"WandererResolutions": {"kind": "rows", "tables": ["DT_Encounters"], "unique": true},
 				"LogCategory": {"kind": "tag", "root": ["Log.Crisis"]},
 				"Severity": {"kind": "number", "min": 0, "max": 2, "integer": true},
-				"OutbreakTemplates": {"kind": "texts", "slots": ["Civ", "System", "HomeSystem", "Hazard"]},
-				"ExpireTemplates": {"kind": "texts", "slots": ["Civ", "System", "HomeSystem", "Hazard"]},
-				"ResolveTemplates": {"kind": "texts", "slots": ["Civ", "System", "HomeSystem", "Hazard"]},
+				"OutbreakTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"]},
+				"ExpireTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"]},
+				"ResolveTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"]},
 				"OutbreakRow": {"kind": "row", "table": "DT_Events", "optional": true, "target": [{"col": "Trigger", "is": "Named"}, {"col": "Effects", "lacks_type": "ResolveHazard"}]}
 			},
 			"unique": [

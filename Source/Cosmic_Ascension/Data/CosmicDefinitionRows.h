@@ -34,7 +34,8 @@ UENUM(BlueprintType)
 enum class ECosmicEventSubject : uint8
 {
 	// Once per civilization. Current system = its capital while that is one of its settled systems, else none. The
-	// line is about the people: FocusCiv only, so a met people is heard even when its capital is not a known system.
+	// line is about the people: FocusCiv only, so a met people is heard even when its capital is not a known system -
+	// and so its templates name no system (Data.Integrity: the subject system of a line is the system it names).
 	Civilization,
 	// Once per settled system of the civilization, in OwnedSystems order. The line is about the place: FocusSystem
 	// and FocusCiv.

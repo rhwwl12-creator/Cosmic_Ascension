@@ -65,14 +65,14 @@ struct COSMIC_ASCENSION_API FCosmicLogEntry
 	FName FocusSystemID;
 
 	// Subject civilization of the line. NAME_None = none. Pairs with FocusSystemID: the scope of telling judges both at
-	// the push (section 8.1). Push and PushVariants store it. A fired event row passes its subject civilization (the
-	// event evaluator), and so does TickResearch.
+	// the push (section 8.1). Push and PushVariants store it. Every caller whose line names a people passes it: a fired
+	// event row, a hazard line, a completion, an ascension, a meeting and a breakthrough line.
 	UPROPERTY(BlueprintReadOnly)
 	FName FocusCivID;
 
-	// True for a line that was stored but is skipped by the feed: a Severity 2, Log.Claim or Log.Record entry whose
-	// subject was out of scope when it was pushed (section 8.1). Set by the scope of telling of UCosmicLogSubsystem; never
-	// in the tell-all mode.
+	// True for a line that was stored but is skipped by the feed: a Severity 2, Log.Claim or Log.Record entry that was
+	// out of scope when it was pushed - by its subject, or by the viewer-tier window (section 8.1). Set by the scope of
+	// telling of UCosmicLogSubsystem; never in the tell-all mode.
 	UPROPERTY(BlueprintReadOnly)
 	bool bUntold = false;
 
@@ -595,8 +595,8 @@ struct COSMIC_ASCENSION_API FKnownMark
  * Saved and part of ComputeStateHash, but not world state: the world only writes it and never reads it (the full rule
  * and its one exception, the crossing-stage cleanup that compares a removed CivID with PendingContactCivID and clears
  * it, are in section 8.1), and ComputeWorldHash leaves it out. KnownSystems and MetCivs grow only through NoteMet,
- * NoteKnown (the sight stage adds the systems it sees by NoteKnown's rule) and Install (the birth system and
- * civilization, and around a wanderer's birth system its lane neighbours). The arrays are in order of
+ * NoteKnown and Install (the birth system and civilization, without a line). The sight stage, the systems the vessel's
+ * people receives (FollowUpKnowing) and a wanderer's new eye go through NoteKnown and NoteMet. The arrays are in order of
  * discovery and never shrink (no TMap, no predicate tag). It belongs to
  * the calling: kept across death and succession (section 4.4).
  */

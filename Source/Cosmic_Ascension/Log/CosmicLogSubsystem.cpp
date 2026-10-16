@@ -2,10 +2,13 @@
 
 #include "Log/CosmicLogSubsystem.h"
 
+#include "Core/CosmicTypes.h"
 #include "Cosmic_Ascension.h"
 #include "Data/CosmicDataTables.h"
+#include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
 #include "Engine/GameInstance.h"
+#include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 
 void UCosmicLogSubsystem::Initialize(FSubsystemCollectionBase& Collection)

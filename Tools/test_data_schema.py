@@ -62,7 +62,7 @@ def event_row(name="event_test_harvest", **changes):
         "BaseWeight": 1.0,
         "CooldownTicks": 200,
         "Effects": [eff("AddResource", key="Energy", value=5)],
-        "LogTemplates": ["{Civ} one.", "{Civ} two.", "{System} three."],
+        "LogTemplates": ["{Civ} one.", "{Civ} two.", "{Civ} three."],
         "Severity": 0,
         "MinTierToReveal": 0,
         "SignRow": "",
@@ -122,7 +122,7 @@ def hazard_row(name="crisis_test_storm", **changes):
         "Severity": 1,
         "OutbreakTemplates": ["{System} a.", "{Civ} b.", "{Hazard} c."],
         "ExpireTemplates": ["{System} d."],
-        "ResolveTemplates": ["{HomeSystem} e."],
+        "ResolveTemplates": ["{System} e."],
         "OutbreakRow": "",
     }
     row.update(changes)
@@ -552,6 +552,14 @@ class SchemaTests(unittest.TestCase):
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "FallenTranscendentCount", -1)), "is below 0")
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "FallenTranscendentCount", 1.5)), "not a whole number")
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "ThroneLockTicks", 600.5)), "ThroneLockTicks", "not a whole number")
+        # The knobs of knowing: the sight stage looks at least every tick, from tick 0 on, and the far line waits no less
+        # than nothing (the code reads a value below as the bound, without a line).
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "SightIntervalTicks", 0)), "rules.SightIntervalTicks", "is below 1")
+        self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "SightIntervalTicks", 1)), [])
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "FirstSightTick", -1)), "rules.FirstSightTick", "is below 0")
+        self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "FirstSightTick", 0)), [])
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "FarLineCooldownTicks", -1)), "rules.FarLineCooldownTicks", "is below 0")
+        self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "FarLineCooldownTicks", 0)), [])
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "PressureAdjacencyFalloff", NAN)), "finite number")
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "LeapTicksMin", "800")), "finite number")
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "LeapTicksMin", True)), "finite number")
@@ -956,6 +964,29 @@ class SchemaTests(unittest.TestCase):
         self.expect(self.after(standing(Conditions=vessel["Conditions"])), "a slot runs for every people", "PlayerRoleIs")
         self.expect(self.after(standing(Effects=vessel["Effects"])), "a slot runs for every people", "DeposeRuler")
 
+    def test_a_line_names_its_subject_system(self):
+        """The scope of telling judges a line by the system it names (guideline 8.1): a row about a people names none, the
+        lines of an event row and of a hazard name the subject system and never the capital beside it, the far lines name
+        nothing and wait for no tier, and the calling's own lines wait for no tier."""
+        harvest = lambda **changes: (lambda tables: self.row(tables, "DT_Events", "event_test_harvest").update(changes))  # noqa: E731
+        names_none = "a Civilization row is about the people alone and names no system"
+        self.expect(self.after(harvest(LogTemplates=["{Civ} a.", "{System} b.", "c."])), "event_test_harvest", names_none)
+        self.assertEqual(self.after(harvest(Subject="SettledSystem", LogTemplates=["{Civ} a.", "{System} b.", "c."])), [])
+        self.assertEqual(self.after(harvest(LogTemplates=["{Civ} a.", "{Hazard} b.", "c."])), [])
+        self.expect(self.after(harvest(Subject="SettledSystem", LogTemplates=["{Civ} a.", "{HomeSystem} b.", "c."])), "event_test_harvest.LogTemplates", "slot {HomeSystem}")
+        self.expect(self.after(self.set_cell("DT_Hazards", "crisis_test_storm", "ExpireTemplates", ["{HomeSystem} d."])), "crisis_test_storm.ExpireTemplates", "slot {HomeSystem}")
+        far = "a far line is the same sentence for everyone"
+        for name in ("log_far_event", "log_far_ascent"):
+            with self.subTest(row=name):
+                self.expect(self.after(self.set_cell("DT_LogTemplates", name, "MinTierToReveal", 2)), "DT_LogTemplates.%s" % name, far, "MinTierToReveal")
+                self.expect(self.after(self.set_cell("DT_LogTemplates", name, "Category", "Log.Civ")), "DT_LogTemplates.%s" % name, far, "Category")
+                self.expect(self.after(self.set_cell("DT_LogTemplates", name, "Templates", ["{Civ} a.", "b.", "c."])), "DT_LogTemplates.%s" % name, far, "slots_in")
+        # Another row may wait for a tier and call a people; the calling's own rows may not wait.
+        self.assertEqual(self.after(self.set_cell("DT_LogTemplates", "log_contact", "MinTierToReveal", 2)), [])
+        calling = "the calling's own line is told whatever its subject"
+        self.expect(self.after(self.set_cell("DT_LogTemplates", "log_fallen_monarch", "MinTierToReveal", 2)), "log_fallen_monarch", calling)
+        self.expect(self.after(self.set_cell("DT_LogTemplates", "log_first_life", "MinTierToReveal", 1)), "log_first_life", calling)
+
     def test_stay_condition_rows(self):
         """The stay in a fallen sphere stands on Civilization slot rows only; the row the research stage fires is Named."""
         stay = cond("CivFallenSphereTicksReached", key="300")
@@ -992,7 +1023,7 @@ class SchemaTests(unittest.TestCase):
     def test_sign_row_and_grace_row(self):
         cell = lambda column, value: self.set_cell("DT_Events", "event_test_harvest", column, value)  # noqa: E731
 
-        def sign(min_tier, category, templates=("{Civ} a.", "{System} b.", "{HomeSystem} c.")):
+        def sign(min_tier, category, templates=("{Civ} a.", "{System} b.", "{Hazard} c.")):
             def change(tables):
                 row = copy.deepcopy(self.row(tables, "DT_LogTemplates", "log_breakthrough_physics"))
                 row.update(Name="log_sign_test", Category=category, Templates=list(templates))
@@ -1492,7 +1523,7 @@ class SchemaTests(unittest.TestCase):
 
     def add_sign_row(self, tables):
         row = copy.deepcopy(self.row(tables, "DT_LogTemplates", "log_breakthrough_physics"))
-        row.update(Name="log_sign_test", Category="Log.Sign", Templates=["{Civ} a.", "{System} b.", "{HomeSystem} c."])
+        row.update(Name="log_sign_test", Category="Log.Sign", Templates=["{Civ} a.", "{System} b.", "{Hazard} c."])
         tables["DT_LogTemplates"].append(row)
         self.row(tables, "DT_Events", "event_test_harvest").update(SignRow="log_sign_test", MinTierToReveal=3)
 
@@ -1510,6 +1541,14 @@ class SchemaTests(unittest.TestCase):
         named = update_event(Trigger="Named", BaseWeight=0, CooldownTicks=0, LogTemplates=["one."])
         update_feat = lambda **changes: (lambda tables: self.row(tables, "DT_Feats", "feat_test_climb").update(**changes))  # noqa: E731
         return {
+            ("DT_LogTemplates", "the calling's own line is told whatever its subject, and no tier window hides it: a line of the calling that waits for a tier is an event row with its sign row (guideline 8.1)"):
+                (NOTHING, "log_first_life"),
+            ("DT_LogTemplates", "a far line is the same sentence for everyone, told with no subject and no arguments, and the clock of the race stops when a window hides it: log_far_event (guideline 8.1)"):
+                (NOTHING, "log_far_event"),
+            ("DT_LogTemplates", "a far line is the same sentence for everyone, told with no subject and no arguments, and the clock of the race stops when a window hides it: log_far_ascent (guideline 8.1)"):
+                (NOTHING, "log_far_ascent"),
+            ("DT_Events", "the subject system of a line is the system it names: a Civilization row is about the people alone and names no system, so the name of a system the calling does not know never reaches the feed (guideline 8.1)"):
+                (NOTHING, event),
             ("DT_Civs", "the name pattern of a people drawn for the AI calls its home star (guideline 5.11)"): (NOTHING, "arch_default"),
             ("DT_Civs", "the home of a people drawn for the AI takes a proper name from the galaxy without replacement, never a fixed one two peoples could share (guideline 7.4)"):
                 (NOTHING, "arch_default"),
@@ -1585,7 +1624,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 78, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 86, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

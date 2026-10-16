@@ -313,7 +313,7 @@
 		"Category": "Event.Crisis.Rebellion",
 		"LogCategory": "Log.Crisis",
 		"Trigger": "Named",
-		"Subject": "Civilization",
+		"Subject": "SettledSystem",
 		"Conditions": [
 			{
 				"Type": "SystemHasHazard",
@@ -334,8 +334,8 @@
 			}
 		],
 		"LogTemplates": [
-			"{Civ}의 수도 {HomeSystem}에서 반란이 일어났다. 한 사람이 그 앞에 섰다.",
-			"{HomeSystem}의 광장에 반란의 깃발이 올랐다. {Civ}의 다스리는 이들은 남은 날을 세기 시작했다.",
+			"{Civ}의 수도 {System}에서 반란이 일어났다. 한 사람이 그 앞에 섰다.",
+			"{System}의 광장에 반란의 깃발이 올랐다. {Civ}의 다스리는 이들은 남은 날을 세기 시작했다.",
 			"{Civ}의 불만이 마침내 무기를 들었다. 수도의 성문 앞에 무리가 모였다."
 		],
 		"Severity": 1,

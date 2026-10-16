@@ -258,8 +258,8 @@ bool CosmicHazards::Transfer(FCosmicEvalContext& Ctx, int32 SystemIndex, int32 T
 		FCivilizationState& To = State.Civs[ToCivIndex];
 		System.OwnerCivID = To.CivID;
 		To.OwnedSystems.Add(System.SystemID);
-		// Never told: FollowUpKnowing makes it known when the people is the vessel's (section 8.1).
-		Ctx.Notes.Add({ ECosmicWorldNote::SystemReceived, SystemIndex, ToCivIndex, NAME_None });
+		// Never told: FollowUpKnowing makes it known, and meets the old owner, when the people is the vessel's (section 8.1).
+		Ctx.Notes.Add({ ECosmicWorldNote::SystemReceived, SystemIndex, ToCivIndex, NAME_None, FromCivIndex });
 	}
 	else
 	{

@@ -4,6 +4,8 @@
 
 #include "Containers/ArrayView.h"
 #include "Containers/BitArray.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Containers/Set.h"
 #include "Core/CosmicSeed.h"
 #include "Cosmic_Ascension.h"
 #include "Data/CosmicRowNames.h"
@@ -1778,6 +1780,10 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 		Ctx.CivIndex = OwnerIndex;
 		Ctx.GalaxyRow = State.Systems[SystemIndex].GalaxyRow;
 	}
+	// What the vessel's people received through the effects is known, and the people it came from met, before any line
+	// of the expiry: the grace line of the gate below as much as the expiry's own (section 8.1). The code hooks below
+	// hand no system to a people. No row of the game hands one over here (Data.Integrity): this is defence.
+	Events->FollowUpKnowing(Ctx);
 
 	// The code of the tag: what no effect may say (section 16 #29 (5)).
 	bool bJoined = true;
@@ -1824,8 +1830,7 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 	// The claim rule on the slot this expiry left free (section 4.2).
 	TryPlaceClaim(Ctx, SystemIndex, ClaimNumber);
 
-	// What the vessel's people received is known before any line; then the expiry's own line, then what followed from it.
-	Events->FollowUpKnowing(Ctx);
+	// The expiry's own line, then what followed from it.
 	Events->TellHazardLine(Ctx, bJoined ? ECosmicHazardLine::Expiry : ECosmicHazardLine::Resolution, RowName, SystemIndex, OwnerIndex);
 	Events->FollowUpNotes(Ctx);
 }
@@ -1879,6 +1884,8 @@ void UGalaxySimulationSubsystem::AdvanceMegaprojects()
 			FCosmicEvalContext Ctx = MakeEvalContext();
 			const int32 OwnerIndex = StateIndex.FindCiv(State, Held.OwnerCivID);
 			const FName RowName = CosmicMegaprojects::Advance(Ctx, SystemIndex, Slot, AIRate);
+			// A resolution's effects may hand a system to the vessel's people: known before the completion line names it.
+			// No row of the game hands one over there (Data.Integrity keeps TransferSystem out of OnResolveEffects).
 			Events->FollowUpKnowing(Ctx);
 			const FMegaprojectDef* Row = RowName.IsNone() ? nullptr : Tables.FindMegaproject(RowName);
 			if (Row && State.Civs.IsValidIndex(OwnerIndex))
@@ -2006,7 +2013,7 @@ void UGalaxySimulationSubsystem::TickPlayerTravel()
 void UGalaxySimulationSubsystem::TickSight(bool bVesselMoved)
 {
 	// Sight range, meetings and first contact: reads the world, writes State.Knowing and the telling (section 7.4, 8.1).
-	// The knobs are knowing's own: below 1 reads as 1, without an error line (the ranges are a lint).
+	// The knobs are knowing's own: below 1 reads as 1, without an error line (the schema keeps their ranges).
 	const int32 Interval = Rules.SightIntervalTicks > 1 ? Rules.SightIntervalTicks : 1;
 	if (!bVesselMoved && State.Tick % Interval != 0)
 	{
@@ -2073,17 +2080,17 @@ void UGalaxySimulationSubsystem::TickSight(bool bVesselMoved)
 		}
 	}
 
-	// What the eye reaches becomes known, in the order of the walk (NoteKnown's rule over a set made for this pass: the
-	// order is hashed, the set is only asked).
+	// What the eye reaches becomes known through NoteKnown, in the order of the walk. A set made for this pass only keeps
+	// NoteKnown from scanning the array for what is known already (the order is hashed, the set is only asked).
 	FKnowingState& Knowing = State.Knowing;
-	TSet<FName> Known;
-	Known.Reserve(Knowing.KnownSystems.Num());
-	for (const FKnownMark& Mark : Knowing.KnownSystems)
-	{
-		Known.Add(Mark.ID);
-	}
 	if (bSees)
 	{
+		TSet<FName> Known;
+		Known.Reserve(Knowing.KnownSystems.Num());
+		for (const FKnownMark& Mark : Knowing.KnownSystems)
+		{
+			Known.Add(Mark.ID);
+		}
 		for (const int32 SystemIndex : Walk)
 		{
 			if (LanesFromEye[SystemIndex] > Reach)
@@ -2094,9 +2101,7 @@ void UGalaxySimulationSubsystem::TickSight(bool bVesselMoved)
 			if (!Known.Contains(SystemID))
 			{
 				Known.Add(SystemID);
-				FKnownMark& Mark = Knowing.KnownSystems.AddDefaulted_GetRef();
-				Mark.ID = SystemID;
-				Mark.Tick = State.Tick;
+				NoteKnown(SystemID);
 			}
 		}
 	}

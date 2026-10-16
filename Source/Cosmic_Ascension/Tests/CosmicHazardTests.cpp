@@ -596,6 +596,8 @@ bool FCosmicEventsHazardEffectsTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("The note is of a system received"), Received.Kind == ECosmicWorldNote::SystemReceived);
 			TestEqual(TEXT("about the system handed over"), Received.SystemIndex, 1);
 			TestEqual(TEXT("and its new owner"), Received.CivIndex, 1);
+			TestEqual(TEXT("A wild system was nobody's: no old owner"), Received.FromCivIndex, static_cast<int32>(INDEX_NONE));
+			TestEqual(TEXT("A system taken from a people names it: the old owner"), Bench.Ctx.Notes[0].FromCivIndex, 0);
 		}
 	}
 

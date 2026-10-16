@@ -1272,7 +1272,14 @@ void UCosmicEventSubsystem::FollowUpKnowing(FCosmicEvalContext& Ctx)
 	{
 		if (State.Civs.IsValidIndex(Note.CivIndex) && State.Civs[Note.CivIndex].CivID == State.Player.RuledCivID && State.Systems.IsValidIndex(Note.SystemIndex))
 		{
-			Sim->NoteKnown(State.Systems[Note.SystemIndex].SystemID);
+			// Known first, so that the meeting line about the place is told: the people that gave it is the other party
+			// of the event (section 8.1).
+			const FName SystemID = State.Systems[Note.SystemIndex].SystemID;
+			Sim->NoteKnown(SystemID);
+			if (State.Civs.IsValidIndex(Note.FromCivIndex))
+			{
+				Sim->NoteMet(State.Civs[Note.FromCivIndex].CivID, SystemID);
+			}
 		}
 	}
 }

@@ -116,6 +116,34 @@ bool FCosmicUIPanelLabelsTest::RunTest(const FString& Parameters)
 		Panel->Refresh();
 	}
 
+	// A full panel counts told lines, not entries: 70 told lines and an untold entry after them show the last 60 told
+	// (the panel's MaxShownLogLines).
+	{
+		constexpr int32 PanelLines = 60;
+		TArray<FCosmicLogEntry>& Entries = Sim->GetMutableState().Log;
+		const int32 Before = Entries.Num();
+		for (int32 Index = 1; Index <= 70; ++Index)
+		{
+			FCosmicLogEntry Told;
+			Told.Tick = State.Tick;
+			Told.Message = FText::AsCultureInvariant(FString::Printf(TEXT("<told line %d>"), Index));
+			Entries.Add(Told);
+		}
+		FCosmicLogEntry Untold;
+		Untold.Tick = State.Tick;
+		Untold.Severity = 2;
+		Untold.Message = FText::AsCultureInvariant(TEXT("<untold line of the test>"));
+		Untold.bUntold = true;
+		Entries.Add(Untold);
+		Panel->Refresh();
+		FString Full;
+		CosmicUITests::ReadPanel(*Panel, Full);
+		TestTrue(TEXT("A full panel shows the oldest of its told lines"), Full.Contains(FString::Printf(TEXT("<told line %d>"), 70 - PanelLines + 1)));
+		TestFalse(TEXT("and not one older"), Full.Contains(FString::Printf(TEXT("<told line %d>"), 70 - PanelLines)));
+		Entries.SetNum(Before);
+		Panel->Refresh();
+	}
+
 	// A project the ruler starts shows with its system and its name (the project key of the prototype).
 	{
 		UPlayerRoleSubsystem* Role = Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>();

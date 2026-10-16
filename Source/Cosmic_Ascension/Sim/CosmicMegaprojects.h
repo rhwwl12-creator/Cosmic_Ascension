@@ -103,7 +103,9 @@ namespace CosmicMegaprojects
 	 * or a settlement hands a system over; only the stage code of Destroy and LetSettlementsGo lets one go otherwise) and
 	 * its construction slot takes project_settle from 0. Until the project completes the system is
 	 * not settled: no income, no hazard, no foothold for the next settlement, not in the count of Law.Remnant.
-	 * No line, no draw (the AI draws before it calls this; the ruler's command draws nothing).
+	 * No line, no draw (the AI draws before it calls this; the ruler's command draws nothing). Leaves the SystemReceived
+	 * note of CosmicHazards::Transfer in Ctx: a caller that may settle for the people the vessel rules follows it
+	 * (FollowUpKnowing); the AI stage drops it, since the people it settles for is never the vessel's.
 	 */
 	COSMIC_ASCENSION_API bool Settle(FCosmicEvalContext& Ctx, int32 CivIndex, int32 SystemIndex);
 

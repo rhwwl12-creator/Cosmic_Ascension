@@ -33,6 +33,7 @@
 #include "Misc/ScopeExit.h"
 #include "Modules/ModuleManager.h"
 #include "Player/PlayerRoleSubsystem.h"
+#include "Save/CosmicSaveGame.h"
 #include "Save/CosmicSaveSubsystem.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
@@ -1608,10 +1609,8 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 	// The refusals below each log one LogCosmic warning.
 	AddExpectedMessage(TEXT("LoadGalaxy: slot .* is (truncated or holds another galaxy|missing or unreadable)"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 3);
 	AddExpectedMessage(TEXT("LoadGalaxy: slot .* has save version"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 1);
-	// The engine reports the slot that this test cuts in half: one or more errors, and a warning depending on where the cut falls.
-	AddExpectedError(TEXT("Failed loading tagged"), EAutomationExpectedErrorFlags::Contains, 0);
-	AddExpectedMessage(TEXT("SerializeFromMismatchedTag failed"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, -1);
-	AddExpectedMessage(TEXT("Type mismatch in"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, -1);
+	// The slot this test cuts ends at the end of the engine's save header: no property is read, so the engine reports
+	// nothing (a cut inside a property would, or would stop the process - guideline 16 #70).
 
 	// The budget size, so that names with a number part (sys_100, civ_10) go through the save and the hash.
 	Sim->NewGalaxy(42, CosmicTests::BudgetSystems, CosmicTests::BudgetCivs);
@@ -1715,7 +1714,7 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 	const uint32 HashBeforeRefusals = Sim->ComputeStateHash();
 	const FString SlotName = UCosmicSaveSubsystem::MakeSlotName(GalaxyID);
 
-	// A slot cut in half, as a write interrupted by a crash would leave it.
+	// A slot cut short, as a write interrupted by a crash would leave it.
 	TArray<uint8> Bytes;
 	if (TestTrue(TEXT("Slot bytes can be read"), UGameplayStatics::LoadDataFromSlot(Bytes, SlotName, 0)))
 	{
@@ -1725,9 +1724,26 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("A slot that holds another galaxy is refused"), Save->LoadGalaxy(ForeignID));
 		TestTrue(TEXT("Foreign slot removed"), Save->DeleteSave(ForeignID));
 
-		Bytes.SetNum(Bytes.Num() / 2);
-		TestTrue(TEXT("Truncated slot written"), UGameplayStatics::SaveDataToSlot(Bytes, SlotName, 0));
-		TestFalse(TEXT("A truncated slot is refused"), Save->LoadGalaxy(GalaxyID));
+		// Cut at the end of the engine's save header, which ends with the class path of the save object and its
+		// terminator: no tagged property is read, so the cut lands in the same place whatever the state holds. A cut
+		// inside a property can reach a fatal check of the engine in a build with checks (guideline 16 #70).
+		const FString ClassPath = UCosmicSaveGame::StaticClass()->GetPathName();
+		const auto Path = StringCast<ANSICHAR>(*ClassPath);
+		int32 HeaderEnd = INDEX_NONE;
+		for (int32 At = 0; At + Path.Length() < Bytes.Num(); ++At)
+		{
+			if (FMemory::Memcmp(Bytes.GetData() + At, Path.Get(), Path.Length()) == 0 && Bytes[At + Path.Length()] == 0)
+			{
+				HeaderEnd = At + Path.Length() + 1;
+				break;
+			}
+		}
+		if (TestTrue(TEXT("The slot holds the class path of the save object"), HeaderEnd != INDEX_NONE))
+		{
+			Bytes.SetNum(HeaderEnd);
+			TestTrue(TEXT("Truncated slot written"), UGameplayStatics::SaveDataToSlot(Bytes, SlotName, 0));
+			TestFalse(TEXT("A truncated slot is refused"), Save->LoadGalaxy(GalaxyID));
+		}
 	}
 	TestTrue(TEXT("Test slot removed"), Save->DeleteSave(GalaxyID));
 	TestFalse(TEXT("A missing slot is refused"), Save->LoadGalaxy(GalaxyID));
