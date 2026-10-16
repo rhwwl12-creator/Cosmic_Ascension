@@ -125,8 +125,8 @@ namespace CosmicAscensionTests
 	// The projects of the tests: Build and Rebuild (construction, Tier 1, Energy 10, 3), High (Tier 2), Pricey (Energy more
 	// than any stockpile of a test, Matter 5), Answer and Second (the answers of Storm, Matter 5, 2), Costly (an answer of
 	// Storm no stockpile pays), HighAnswer (Tier 2, the first answer of Quake), Dear (one Insight, Influence and Causality,
-	// 5), Refund (a cost below 0, 5), Endless (a progress that is not a number), and a project_settle row, which no start
-	// takes until settlement comes.
+	// 5), Refund (a cost below 0, 5), Endless (a progress that is not a number), and a project_settle row (Tier 1, Energy
+	// 1, 3), which Start never takes: a settlement starts through CosmicMegaprojects::Settle.
 	UDataTable* ProjectRows()
 	{
 		UDataTable* Table = NewTable(FMegaprojectDef::StaticStruct());
@@ -192,7 +192,9 @@ namespace CosmicAscensionTests
 		return Row;
 	}
 
-	// The knobs of the tests: no Lottery chance, no pressure drain, AI projects twice as fast.
+	// The knobs of the tests: no Lottery chance, no pressure drain, AI projects twice as fast, and a realm cap of one on
+	// every tier, so that no people of a board settles (a settlement would draw and take wild systems the tests reason
+	// about; Sim.Settlement brings its own cap).
 	FCosmicRulesDef Knobs(const FCosmicRulesDef& BaseRules)
 	{
 		FCosmicRulesDef Rules = BaseRules;
@@ -200,6 +202,7 @@ namespace CosmicAscensionTests
 		Rules.EventChancePerSlot = 0.f;
 		Rules.SpiritualPressureStabilityDrain = 0.f;
 		Rules.AIAscensionSpeedMultiplier = 2.f;
+		Rules.RealmCapByTier = { 1, 1, 1, 1, 1 };
 		return Rules;
 	}
 
@@ -628,25 +631,39 @@ bool FCosmicMegaprojectProgressTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("and its Insight"), Sim->GetState().Civs[0].Stockpile.Insight - InsightPaid, 1.f, 0.01f);
 	}
 
-	// A system being settled is left alone until settlement brings its own rule: no pay, no progress, no completion.
+	// A settlement is one more construction row (section 5.7): paid, progressed and completed like the others, with its
+	// record, its line and the vessel's life; the system it completes on is settled from then on.
 	{
 		FGalaxyState* Again = LayBoard(*Sim, Tables);
 		if (!TestNotNull(TEXT("The board of the settling system is laid"), Again))
 		{
 			return false;
 		}
-		// The test's settle row costs Energy 1 and needs 3: one paid tick would complete it.
+		// The test's settle row costs Energy 1 and needs 3: one paid tick completes it.
 		Again->Systems[1].ActiveMegaproject = CosmicRows::ProjectSettle;
-		Again->Systems[1].MegaprojectProgress = 2.f;
+		Again->Systems[1].MegaprojectProgress = 1.f;
+		Sim->StepOnce();
+		TestEqual(TEXT("A paid tick of a settlement progresses it"), Again->Systems[1].MegaprojectProgress, 2.f);
+		TestFalse(TEXT("and the system is still being settled"), CosmicState::IsSettled(Again->Systems[1]));
 		const FGalaxyState Settling = *Again;
 		Sim->StepOnce();
-		TestEqual(TEXT("A system being settled keeps its row"), Again->Systems[1].ActiveMegaproject, CosmicRows::ProjectSettle);
-		TestEqual(TEXT("and its progress"), Again->Systems[1].MegaprojectProgress, 2.f);
-		TestTrue(TEXT("and records nothing"), Again->Systems[1].CompletedMegaprojects.IsEmpty());
-		TestEqual(TEXT("and costs nothing"), Again->Civs[0].Stockpile.Energy, Settling.Civs[0].Stockpile.Energy + Again->Civs[0].IncomePerTick.Energy, 0.01f);
+		TestTrue(TEXT("A settlement that completes empties its slot"), Again->Systems[1].ActiveMegaproject.IsNone());
+		TestEqual(TEXT("and its progress"), Again->Systems[1].MegaprojectProgress, 0.f);
+		TestTrue(TEXT("The system it completed on is settled"), CosmicState::IsSettled(Again->Systems[1]));
+		const FMegaprojectRecord* Settled = RecordOf(Again->Systems[1], CosmicRows::ProjectSettle);
+		TestTrue(TEXT("The settlement is recorded on its system"), Settled != nullptr);
+		TestEqual(TEXT("at the tick it completed"), Settled ? Settled->Tick : int64(0), Again->Tick);
+		TestEqual(TEXT("which is the latest completion of the system"), Again->Systems[1].MegaprojectCompletedTick, Again->Tick);
+		TestTrue(TEXT("The life of the vessel that rules the people takes it"), !Again->Calling.Lives.IsEmpty() && Again->Calling.Lives.Last().MegaprojectsCompleted.Contains(CosmicRows::ProjectSettle));
+		TestEqual(TEXT("It costs its row"), Again->Civs[0].Stockpile.Energy, Settling.Civs[0].Stockpile.Energy + Again->Civs[0].IncomePerTick.Energy - 1.f, 0.01f);
+		const int32 Done = FindLine(*Again, CosmicRows::ProjectSettle, Again->Tick, TEXT("settle done"));
+		if (TestTrue(TEXT("Its completion is told"), Done != INDEX_NONE))
+		{
+			TestEqual(TEXT("about the system it settled"), Again->Log[Done].FocusSystemID, Again->Systems[1].SystemID);
+		}
 	}
 
-	// The same whether or not the table holds the settle row: a missing row does not settle the system at once.
+	// A settlement waits for its row: a missing row does not settle the system at once.
 	{
 		FCosmicDataTables NoSettle = Tables;
 		UDataTable* Rows = ProjectRows();

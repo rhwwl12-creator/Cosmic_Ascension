@@ -12,7 +12,8 @@
 /**
  * Ruler / Wanderer role switching, travel, encounter flow, the ruler command API, and the death, deposition and
  * succession pipeline. Holds no player or life dependent member: all of it lives in FGalaxyState (section 6.1).
- * So far: Install, the deposition pipeline in its Phase 2 form with BecomeWanderer, and the ruler's megaproject command.
+ * So far: Install, the deposition pipeline in its Phase 2 form with BecomeWanderer, and the ruler's megaproject command
+ * (settlement included).
  * The rest of the interface in section 7.5 arrives with Phase 4 and 4b.
  */
 UCLASS()
@@ -59,13 +60,14 @@ public:
 	/**
 	 * The ruler's command (section 5.7, 7.5): starts RowName on SystemID for the people the vessel rules, through
 	 * CosmicMegaprojects::Start - the same rules as the AI. Only while Embodied and Ruler, and only for a system of the
-	 * ruled people. Between ticks: the project first progresses in the next tick's crisis stage. False and nothing changed
-	 * otherwise; inside a handler of a Core Logic delegate an error line and nothing. No draw.
+	 * ruled people - except project_settle, whose SystemID is the wild system to settle (CosmicMegaprojects::Settle, the
+	 * rules of the AI's settlement). Between ticks: the project first progresses in the next tick's crisis stage. False
+	 * and nothing changed otherwise; inside a handler of a Core Logic delegate an error line and nothing. No draw.
 	 */
 	bool StartMegaproject(FName SystemID, FName RowName);
 
 	// The prototype's project key (Phase 3 replaces it with the panel): starts the first of CosmicMegaprojects::Choices
-	// for the people the vessel rules (SinceTick = Calling.BornTick), under the rules of StartMegaproject. False when
-	// there is none.
+	// for the people the vessel rules (SinceTick = Calling.BornTick), or with none a settlement of the first of
+	// CosmicMegaprojects::SettleTargets, under the rules of StartMegaproject. False when there is neither.
 	bool StartNextMegaproject();
 };

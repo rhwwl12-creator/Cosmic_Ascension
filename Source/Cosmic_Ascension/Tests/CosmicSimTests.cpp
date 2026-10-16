@@ -1970,14 +1970,32 @@ bool FCosmicSimLayersInRangeTest::RunTest(const FString& Parameters)
 	Sim->NewGalaxy(42, 0, 0);
 	// Without their names the AI peoples are still told of: whether a line is told never reads a text (section 8.1).
 	// FText is in neither hash, so the run is the same world.
+	// The peoples of the start, by ID: whether the player rules it. A people may leave Civs later (the crossing stage), and
+	// the log keeps 2,000 lines, so the lines are read every 1,000 ticks against the peoples of the start.
+	TMap<FName, bool> RuledAtStart;
 	for (FCivilizationState& Civ : Sim->GetMutableState().Civs)
 	{
+		RuledAtStart.Add(Civ.CivID, Civ.bIsPlayerRuled);
 		if (!Civ.bIsPlayerRuled)
 		{
 			Civ.CivName = FText::GetEmpty();
 		}
 	}
-	Sim->RunHeadless(20000);
+	bool bToldOfAIPeople = false;
+	bool bFocusOfBreakthrough = true;
+	for (int32 Chunk = 0; Chunk < 20; ++Chunk)
+	{
+		Sim->RunHeadless(1000);
+		for (const FCosmicLogEntry& Entry : State.Log)
+		{
+			if (Entry.SourceRow.ToString().StartsWith(TEXT("log_breakthrough_")))
+			{
+				const bool* bRuled = RuledAtStart.Find(Entry.FocusCivID);
+				bFocusOfBreakthrough &= bRuled != nullptr;
+				bToldOfAIPeople |= bRuled && !*bRuled;
+			}
+		}
+	}
 	bool bOneRow = true;
 	bool bStillHome = true;
 	for (const FStarSystemState& System : State.Systems)
@@ -1991,17 +2009,6 @@ bool FCosmicSimLayersInRangeTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("After 20,000 ticks every lane still joins two systems of one galaxy"), bOneRow);
 	TestTrue(TEXT("After 20,000 ticks every system is still of the home galaxy"), bStillHome);
-	bool bToldOfAIPeople = false;
-	bool bFocusOfBreakthrough = true;
-	for (const FCosmicLogEntry& Entry : State.Log)
-	{
-		if (Entry.SourceRow.ToString().StartsWith(TEXT("log_breakthrough_")))
-		{
-			const FCivilizationState* Civ = State.Civs.FindByPredicate([&Entry](const FCivilizationState& Each) { return Each.CivID == Entry.FocusCivID; });
-			bFocusOfBreakthrough &= Civ != nullptr;
-			bToldOfAIPeople |= Civ && !Civ->bIsPlayerRuled;
-		}
-	}
 	TestTrue(TEXT("Every breakthrough line carries the people it tells of"), bFocusOfBreakthrough);
 	TestTrue(TEXT("Breakthroughs of AI peoples are told, nameless ones too"), bToldOfAIPeople);
 	return true;

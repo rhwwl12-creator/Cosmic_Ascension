@@ -76,6 +76,65 @@ namespace CosmicMegaprojectsImpl
 		}
 		return false;
 	}
+
+	// The index of a system of OwnedSystems when the people CivIndex owns it, settled or being settled; INDEX_NONE
+	// otherwise.
+	int32 OwnedIndex(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex, FName SystemID)
+	{
+		const int32 SystemIndex = Index.FindSystem(State, SystemID);
+		return (State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == State.Civs[CivIndex].CivID) ? SystemIndex : INDEX_NONE;
+	}
+
+	// Whether the project_settle row lets the people CivIndex settle: the row exists and its RequiredTier is at most the
+	// people's Tier.
+	bool SettleRowAllows(const FGalaxyState& State, const FCosmicDataTables& Tables, int32 CivIndex)
+	{
+		const FMegaprojectDef* Row = Tables.FindMegaproject(CosmicRows::ProjectSettle);
+		return Row && static_cast<int32>(State.Civs[CivIndex].Tier) >= static_cast<int32>(Row->RequiredTier);
+	}
+
+	// Whether SystemIndex is a target of the people CivIndex, whatever MaySettle and the row say: a wild system (no
+	// owner, not a dead node) one lane from a settled system the people owns and in that system's GalaxyRow, and, inside
+	// the sphere of an unsealed transcendent with a row, a people on Tier 3 or higher (section 4.2 modifier 4).
+	bool IsTargetOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, int32 CivIndex, int32 SystemIndex)
+	{
+		if (!State.Systems.IsValidIndex(SystemIndex))
+		{
+			return false;
+		}
+		const FStarSystemState& Target = State.Systems[SystemIndex];
+		if (!Target.OwnerCivID.IsNone() || CosmicHazards::IsDeadNode(Target))
+		{
+			return false;
+		}
+		bool bFoothold = false;
+		for (const FName SystemID : State.Civs[CivIndex].OwnedSystems)
+		{
+			const int32 Foothold = SettledOwnedIndex(State, Index, CivIndex, SystemID);
+			if (Foothold != INDEX_NONE && State.Systems[Foothold].GalaxyRow == Target.GalaxyRow && State.Systems[Foothold].Lanes.Contains(Target.SystemID))
+			{
+				bFoothold = true;
+				break;
+			}
+		}
+		if (!bFoothold)
+		{
+			return false;
+		}
+		if (static_cast<int32>(State.Civs[CivIndex].Tier) >= static_cast<int32>(EAscensionTier::Tier3_Causal))
+		{
+			return true;
+		}
+		// Membership, not a number: no threshold on P, and no term of a vessel that happens to stand nearby.
+		for (const FTranscendentState& Transcendent : State.Transcendents)
+		{
+			if (!Transcendent.bSealed && Tables.FindTranscendent(Transcendent.TranscendentID) && Transcendent.InfluencedSystems.Contains(Target.SystemID))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
 }
 
 bool CosmicMegaprojects::HasCompleted(const FStarSystemState& System, FName RowName, int64 SinceTick)
@@ -204,6 +263,91 @@ TArray<TPair<int32, FName>> CosmicMegaprojects::Choices(const FGalaxyState& Stat
 	return Result;
 }
 
+int32 CosmicMegaprojects::RealmCapOf(const FCosmicRulesDef& Rules, EAscensionTier Tier)
+{
+	const int32 TierIndex = static_cast<int32>(Tier);
+	return Rules.RealmCapByTier.IsValidIndex(TierIndex) ? Rules.RealmCapByTier[TierIndex] : 0;
+}
+
+bool CosmicMegaprojects::IsSettling(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex)
+{
+	using namespace CosmicMegaprojectsImpl;
+
+	if (!State.Civs.IsValidIndex(CivIndex))
+	{
+		return false;
+	}
+	for (const FName SystemID : State.Civs[CivIndex].OwnedSystems)
+	{
+		const int32 SystemIndex = OwnedIndex(State, Index, CivIndex, SystemID);
+		if (SystemIndex != INDEX_NONE && State.Systems[SystemIndex].ActiveMegaproject == CosmicRows::ProjectSettle)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool CosmicMegaprojects::MaySettle(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules, int32 CivIndex)
+{
+	using namespace CosmicMegaprojectsImpl;
+
+	if (!State.Civs.IsValidIndex(CivIndex))
+	{
+		return false;
+	}
+	int32 Owned = 0;
+	bool bAnySettled = false;
+	for (const FName SystemID : State.Civs[CivIndex].OwnedSystems)
+	{
+		const int32 SystemIndex = OwnedIndex(State, Index, CivIndex, SystemID);
+		if (SystemIndex != INDEX_NONE)
+		{
+			++Owned;
+			bAnySettled |= CosmicState::IsSettled(State.Systems[SystemIndex]);
+		}
+	}
+	return bAnySettled && Owned < RealmCapOf(Rules, State.Civs[CivIndex].Tier) && !IsSettling(State, Index, CivIndex);
+}
+
+bool CosmicMegaprojects::CanSettle(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex, int32 SystemIndex)
+{
+	using namespace CosmicMegaprojectsImpl;
+
+	return MaySettle(State, Index, Rules, CivIndex) && SettleRowAllows(State, Tables, CivIndex) && IsTargetOf(State, Index, Tables, CivIndex, SystemIndex);
+}
+
+TArray<int32> CosmicMegaprojects::SettleTargets(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex)
+{
+	using namespace CosmicMegaprojectsImpl;
+
+	TArray<int32> Targets;
+	if (!MaySettle(State, Index, Rules, CivIndex) || !SettleRowAllows(State, Tables, CivIndex))
+	{
+		return Targets;
+	}
+	for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num(); ++SystemIndex)
+	{
+		if (IsTargetOf(State, Index, Tables, CivIndex, SystemIndex))
+		{
+			Targets.Add(SystemIndex);
+		}
+	}
+	return Targets;
+}
+
+bool CosmicMegaprojects::Settle(FCosmicEvalContext& Ctx, int32 CivIndex, int32 SystemIndex)
+{
+	if (!CanSettle(Ctx.State, Ctx.Index, Ctx.Tables, Ctx.Rules, CivIndex, SystemIndex) || !CosmicHazards::Transfer(Ctx, SystemIndex, CivIndex))
+	{
+		return false;
+	}
+	FStarSystemState& System = Ctx.State.Systems[SystemIndex];
+	System.ActiveMegaproject = CosmicRows::ProjectSettle;
+	System.MegaprojectProgress = 0.f;
+	return true;
+}
+
 TArray<FName, TInlineAllocator<2>> CosmicMegaprojects::Advance(FCosmicEvalContext& Ctx, int32 SystemIndex, float AIRate)
 {
 	using namespace CosmicMegaprojectsImpl;
@@ -249,17 +393,21 @@ TArray<FName, TInlineAllocator<2>> CosmicMegaprojects::Advance(FCosmicEvalContex
 		}
 	};
 
-	// The construction slot. A system being settled is left alone until settlement brings its own rule (work item 9).
+	// The construction slot. A settlement is one more construction row (section 5.7).
 	{
 		FStarSystemState& System = State.Systems[SystemIndex];
 		const FName RowName = System.ActiveMegaproject;
-		if (!RowName.IsNone() && RowName != CosmicRows::ProjectSettle)
+		if (!RowName.IsNone())
 		{
 			const FMegaprojectDef* Row = Ctx.Tables.FindMegaproject(RowName);
 			if (!Row)
 			{
-				System.ActiveMegaproject = NAME_None;
-				System.MegaprojectProgress = 0.f;
+				// A settlement waits for its row: the system does not become settled for want of one.
+				if (RowName != CosmicRows::ProjectSettle)
+				{
+					System.ActiveMegaproject = NAME_None;
+					System.MegaprojectProgress = 0.f;
+				}
 			}
 			else if (PayInFull(State.Civs[OwnerIndex].Stockpile, Row->CostPerTick))
 			{

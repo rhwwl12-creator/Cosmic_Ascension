@@ -143,8 +143,8 @@ struct COSMIC_ASCENSION_API FStarSystemState
 	UPROPERTY(BlueprintReadOnly)
 	int32 HazardTicksRemaining = 0;
 
-	// The construction slot: a DT_Megaprojects row that answers no hazard (project_dyson; project_settle and
-	// project_crossing later). NAME_None = none (section 5.7).
+	// The construction slot: a DT_Megaprojects row that answers no hazard (project_dyson, project_settle; project_crossing
+	// later). NAME_None = none (section 5.7).
 	UPROPERTY(BlueprintReadOnly)
 	FName ActiveMegaproject;
 

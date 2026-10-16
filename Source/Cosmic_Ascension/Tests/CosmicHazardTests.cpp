@@ -144,7 +144,9 @@ namespace CosmicHazardTests
 		return Table;
 	}
 
-	// The knobs of the tests: a slot every ten ticks, no Lottery chance, no Stability drain, claims one lane out.
+	// The knobs of the tests: a slot every ten ticks, no Lottery chance, no Stability drain, claims one lane out, and a
+	// realm cap of one on every tier, so that no people of a board settles (a settlement would draw and take wild systems
+	// the tests reason about).
 	FCosmicRulesDef Knobs(const FCosmicRulesDef& BaseRules)
 	{
 		FCosmicRulesDef Rules = BaseRules;
@@ -152,6 +154,7 @@ namespace CosmicHazardTests
 		Rules.EventChancePerSlot = 0.f;
 		Rules.SpiritualPressureStabilityDrain = 0.f;
 		Rules.ClaimAdjacencyLanes = 1;
+		Rules.RealmCapByTier = { 1, 1, 1, 1, 1 };
 		return Rules;
 	}
 
@@ -1259,11 +1262,22 @@ bool FCosmicDeadNodeTest::RunTest(const FString& Parameters)
 		State.Systems[10].StarClass = FGameplayTag();
 		State.Player.CurrentSystemID = State.Systems[11].SystemID;
 		PlaceByHand(State, 11, TEXT("Hazard.PreSupernova"), 1);
+		const FName LostPeople = State.Civs[3].CivID;
 		Sim->StepOnce();
 		TestTrue(TEXT("The last system went"), CosmicHazards::IsDeadNode(State.Systems[11]));
 		TestEqual(TEXT("A vessel with no living neighbour stays where it stood"), State.Player.CurrentSystemID, State.Systems[11].SystemID);
-		TestEqual(TEXT("A people that lost its last system keeps the ID of its capital"), State.Civs[3].HomeSystemID, State.Systems[11].SystemID);
-		TestEqual(TEXT("and its Stability"), State.Civs[3].Stability, 0.75f);
+		TestEqual(TEXT("A people that lost its last system leaves the civilizations in the crossing stage of that tick"), Sim->GetStateIndex().FindCiv(State, LostPeople), static_cast<int32>(INDEX_NONE));
+
+		// What the loss of a capital leaves on a people with no system left, seen before the cleanup takes it: the old ID
+		// and its Stability.
+		FCivilizationState& Bare = State.Civs[1];
+		const TArray<FName> Kept = Bare.OwnedSystems;
+		const FName Capital = Bare.HomeSystemID;
+		Bare.OwnedSystems.Reset();
+		CosmicHazards::MoveCapital(State, Sim->GetStateIndex(), 1);
+		TestEqual(TEXT("A people with no system left keeps the ID of its capital"), Bare.HomeSystemID, Capital);
+		TestEqual(TEXT("and its Stability"), Bare.Stability, 0.75f);
+		Bare.OwnedSystems = Kept;
 	}
 
 	// The collapse of the people the vessel rules: the deposition pipeline, at the tick boundary.
@@ -1361,10 +1375,16 @@ bool FCosmicGraceRemnantAtLossTest::RunTest(const FString& Parameters)
 
 	// Once in a run: the next people about to lose its last system loses it.
 	PlaceByHand(State, 7, TEXT("Hazard.PreSupernova"), 1);
+	const FName Second = State.Civs[2].CivID;
 	Sim->StepOnce();
 	TestTrue(TEXT("After the grace a last system goes"), CosmicHazards::IsDeadNode(State.Systems[7]));
-	TestEqual(TEXT("The second people has no system left"), State.Civs[2].OwnedSystems.Num(), 0);
-	TestFalse(TEXT("The second people carries no remnant"), State.Civs[2].Traits.HasTagExact(Remnant));
+	TestEqual(TEXT("The second people has no system left: it left the civilizations"), Sim->GetStateIndex().FindCiv(State, Second), static_cast<int32>(INDEX_NONE));
+	int32 Carriers = 0;
+	for (const FCivilizationState& Civ : State.Civs)
+	{
+		Carriers += Civ.Traits.HasTagExact(Remnant) ? 1 : 0;
+	}
+	TestEqual(TEXT("Only the kept people carries the remnant"), Carriers, 1);
 	TestEqual(TEXT("The grace was told once"), CountLines(State, CosmicRows::EventGraceRemnant), 1);
 
 	// A system that is not its people's last asks no gate: the grace is not spent on it.
@@ -1439,9 +1459,10 @@ bool FCosmicGraceRemnantAtLossTest::RunTest(const FString& Parameters)
 		CosmicTests::Give(State, 2, { 8 });
 		State.Flags.AddTag(Spent);
 		PlaceByHand(State, 7, TEXT("Hazard.PreSupernova"), 1);
+		const FName Lost = State.Civs[2].CivID;
 		Sim->StepOnce();
 		TestTrue(TEXT("Without the grace the system the effects left the last goes"), CosmicHazards::IsDeadNode(State.Systems[7]));
-		TestEqual(TEXT("and its people has no system left"), State.Civs[2].OwnedSystems.Num(), 0);
+		TestEqual(TEXT("and its people has no system left: it left the civilizations"), Sim->GetStateIndex().FindCiv(State, Lost), static_cast<int32>(INDEX_NONE));
 		TestEqual(TEXT("No grace is told once it is spent"), CountLines(State, CosmicRows::EventGraceRemnant, State.Tick), 0);
 
 		// The other shape: the neighbour effects resolve the hazard of 8, and its resolution lets 8 go.

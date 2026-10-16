@@ -34,6 +34,7 @@
 		"LureAcceptByPolicy": {"Cautious": 0.1, "Reckless": 0.6, "Faithful": 0.0, "Tribute": 0.85},
 		"MaxNotablesPerCiv": 4,
 		"PopulationBandThresholds": [0.15, 0.5, 2.0],
+		"PopulationRegrowthPerTick": 0.0002,
 		"EventSlotTicks": 10,
 		"EventChancePerSlot": 0.02,
 		"HomeGalaxyRow": "gal_milkyway",

@@ -796,6 +796,12 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	TArray<float> PopulationBandThresholds = { 0.15f, 0.5f, 2.0f };
 
+	// Population regrowth (section 4.1, 7.4): every tick, in the economy stage before the income, a people below 1.0
+	// gains this much, up to 1.0; above 1.0 nothing changes. Not above 0, or not a number: no regrowth. Start value: the
+	// 0.4 a plague takes comes back in 2,000 ticks (Phase 5 tunes it).
+	UPROPERTY(EditAnywhere)
+	float PopulationRegrowthPerTick = 0.0002f;
+
 	// ---- Event slots (section 7.4, 7.5) ----
 
 	// Every civilization that owns a settled system gets one event slot every this many ticks. Allowed range 1..20
@@ -817,7 +823,7 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 
 	// The realm cap (section 5.12): a people may start settling only while it owns fewer systems than this.
 	// Index = static_cast<int32>(EAscensionTier). Exactly 5 entries, ascending (Data.Integrity). A knob, not a law, and
-	// the same for AI peoples and the people the player rules. First read by the settlement work of Phase 2.
+	// the same for AI peoples and the people the player rules. Read through CosmicMegaprojects::RealmCapOf.
 	UPROPERTY(EditAnywhere)
 	TArray<int32> RealmCapByTier = { 1, 3, 4, 7, 10 };
 

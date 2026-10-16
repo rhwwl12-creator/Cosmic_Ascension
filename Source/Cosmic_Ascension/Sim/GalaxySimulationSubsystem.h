@@ -291,8 +291,10 @@ private:
 	void SimulateTick();
 
 	// Stage 1. Two loops over Civs in array order.
-	// Loop one, per civilization: income of its systems into IncomePerTick; then the per-tick sources, the only effects
-	// that may scale IncomePerTick or act every tick; then IncomePerTick into the Stockpile. The per-tick sources:
+	// Loop one, per civilization: the population regrowth (DT_Rules.PopulationRegrowthPerTick: below 1.0 it rises by the
+	// knob up to 1.0; above 1.0, or with a knob not above 0 or not a number, nothing); income of its settled systems into
+	// IncomePerTick (a system being settled pays nothing, section 5.7); then the per-tick sources, the only effects that
+	// may scale IncomePerTick or act every tick; then IncomePerTick into the Stockpile. The per-tick sources:
 	// - The drain of spiritual pressure, once per civilization and never once per system (section 16 #55): Stability
 	//   goes down by DT_Rules.SpiritualPressureStabilityDrain x the largest P among its settled systems whose dominant
 	//   source has a Tier above the civilization's own.
@@ -370,13 +372,19 @@ private:
 	 */
 	void AdvanceMegaprojects();
 
-	// Stage 6. (a) Every people the player does not rule starts its CosmicMegaprojects::Choices (SinceTick 0), in Civs
-	// order; no draw (section 4.3, 5.7). Settlement (project_settle and its draw) comes with the settlement and removal
-	// work. (b) UAscensionSubsystem::EvaluateFeats, exactly once per tick and nowhere else in the tick.
+	// Stage 6. (a) Every people the player does not rule, in Civs order: it starts its CosmicMegaprojects::Choices
+	// (SinceTick 0), no draw (section 4.3, 5.7); then, when CosmicMegaprojects::MaySettle holds, one number from the sim
+	// stream, drawn before the targets are looked at and thrown away when there is none, picks a target of SettleTargets
+	// to Settle (section 9.2). A people that may not settle draws nothing. (b) UAscensionSubsystem::EvaluateFeats,
+	// exactly once per tick and nowhere else in the tick.
 	void TickCivAI();
 
-	// Stage 7. The only place where the number of elements of State.Civs changes. Empty body until Phase 2 (cleanup of
-	// civilizations without systems) and Phase 6a (arrivals, departures).
+	// Stage 7. The only place where the number of elements of State.Civs changes (section 7.4). (o) Cleanup: every
+	// civilization that owns no system (no entry of OwnedSystems whose owner is it - a system being settled counts) leaves
+	// Civs, in array order, except the one the player rules this tick, which the next tick's cleanup takes once the
+	// role-effect stage has let go of it. The Relations key of a removed CivID leaves every other civilization,
+	// Knowing.PendingContactCivID is cleared when it names one, and the state index is rebuilt. No line: the expiry that
+	// took the last system has told it. Arrivals and departures are Phase 6a.
 	void TickCrossings();
 
 	void TickPlayerTravel();

@@ -1299,17 +1299,27 @@ void UGalaxySimulationSubsystem::TickEconomy()
 	FCosmicEvalContext Sources = MakeEvalContext();
 	Sources.bPerTickSource = true;
 
+	// The population comes back toward 1.0 (section 4.1). A compare, so a knob that is not a number gives no regrowth.
+	const float Regrowth = (Rules.PopulationRegrowthPerTick > 0.f && Rules.PopulationRegrowthPerTick <= TNumericLimits<float>::Max()) ? Rules.PopulationRegrowthPerTick : 0.f;
+
 	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
 	{
 		FCivilizationState& Civ = State.Civs[CivIndex];
+		if (Regrowth > 0.f && Civ.Population < 1.f)
+		{
+			Civ.Population = FMath::Min(1.f, Civ.Population + Regrowth);
+		}
+
+		// Only settled systems pay (section 5.7): a system being settled is not yet a home.
 		float Richness = 0.f;
 		float StarOutput = 0.f;
 		for (const FName SystemID : Civ.OwnedSystems)
 		{
-			if (const FStarSystemState* System = FindSystem(SystemID))
+			const int32 SystemIndex = StateIndex.FindSystem(State, SystemID);
+			if (State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == Civ.CivID && CosmicState::IsSettled(State.Systems[SystemIndex]))
 			{
-				Richness += System->ResourceRichness;
-				StarOutput += StarEnergy(System->StarClass);
+				Richness += State.Systems[SystemIndex].ResourceRichness;
+				StarOutput += StarEnergy(State.Systems[SystemIndex].StarClass);
 			}
 		}
 
@@ -1807,7 +1817,8 @@ void UGalaxySimulationSubsystem::AdvanceMegaprojects()
 
 void UGalaxySimulationSubsystem::TickCivAI()
 {
-	// (a) The peoples the player does not rule start what they would start (section 4.3, 5.7). No draw.
+	// (a) The peoples the player does not rule start what they would start, no draw; then a people that may settle draws
+	// one number, before the targets are looked at, and settles the target it falls on (section 4.3, 5.7, 9.2).
 	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
 	{
 		if (State.Civs[CivIndex].bIsPlayerRuled)
@@ -1817,6 +1828,17 @@ void UGalaxySimulationSubsystem::TickCivAI()
 		for (const TPair<int32, FName>& Choice : CosmicMegaprojects::Choices(State, StateIndex, Tables, CivIndex, 0))
 		{
 			CosmicMegaprojects::Start(State, StateIndex, Tables, Choice.Key, Choice.Value);
+		}
+		if (CosmicMegaprojects::MaySettle(State, StateIndex, Rules, CivIndex))
+		{
+			const float Roll = Rng.GetFraction();
+			const TArray<int32> Targets = CosmicMegaprojects::SettleTargets(State, StateIndex, Tables, Rules, CivIndex);
+			const int32 Pick = PickIndex(Roll, Targets.Num());
+			if (Pick != INDEX_NONE)
+			{
+				FCosmicEvalContext Ctx = MakeEvalContext();
+				CosmicMegaprojects::Settle(Ctx, CivIndex, Targets[Pick]);
+			}
 		}
 	}
 
@@ -1828,7 +1850,42 @@ void UGalaxySimulationSubsystem::TickCivAI()
 
 void UGalaxySimulationSubsystem::TickCrossings()
 {
-	// Cleanup of civilizations without systems (Phase 2), then arrivals and departures (Phase 6a) (section 7.4).
+	// (o) Cleanup (section 7.4): a civilization that owns no system leaves Civs, in array order, unless the player rules
+	// it this tick (the role-effect stage lets go of it first; the next tick's cleanup takes it). No line: the expiry that
+	// took its last system has told it. Arrivals and departures are Phase 6a.
+	TArray<FName> Removed;
+	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); )
+	{
+		const FCivilizationState& Civ = State.Civs[CivIndex];
+		const bool bOwnsAny = Civ.OwnedSystems.ContainsByPredicate([this, &Civ](FName SystemID)
+		{
+			const int32 SystemIndex = StateIndex.FindSystem(State, SystemID);
+			return State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == Civ.CivID;
+		});
+		if (bOwnsAny || Civ.bIsPlayerRuled)
+		{
+			++CivIndex;
+			continue;
+		}
+		Removed.Add(Civ.CivID);
+		State.Civs.RemoveAt(CivIndex);
+	}
+	if (Removed.IsEmpty())
+	{
+		return;
+	}
+	for (FCivilizationState& Civ : State.Civs)
+	{
+		for (const FName CivID : Removed)
+		{
+			Civ.Relations.Remove(CivID);
+		}
+	}
+	if (Removed.Contains(State.Knowing.PendingContactCivID))
+	{
+		State.Knowing.PendingContactCivID = NAME_None;
+	}
+	StateIndex.Rebuild(State);
 }
 
 void UGalaxySimulationSubsystem::TickPlayerTravel()

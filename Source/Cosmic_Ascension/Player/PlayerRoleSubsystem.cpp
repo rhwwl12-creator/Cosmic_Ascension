@@ -8,6 +8,7 @@
 #include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
 #include "Engine/GameInstance.h"
+#include "Events/CosmicEventSubsystem.h"
 #include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
@@ -244,6 +245,12 @@ bool UPlayerRoleSubsystem::StartMegaproject(FName SystemID, FName RowName)
 		return false;
 	}
 	const int32 SystemIndex = Sim->GetStateIndex().FindSystem(State, SystemID);
+	if (RowName == CosmicRows::ProjectSettle)
+	{
+		// The target is a wild system: the rules are those of the AI's settlement, without its draw (section 5.7).
+		FCosmicEvalContext Ctx = Sim->MakeEvalContext();
+		return CosmicMegaprojects::Settle(Ctx, Sim->GetStateIndex().FindCiv(State, State.Player.RuledCivID), SystemIndex);
+	}
 	if (!State.Systems.IsValidIndex(SystemIndex) || State.Systems[SystemIndex].OwnerCivID != State.Player.RuledCivID)
 	{
 		return false;
@@ -267,5 +274,11 @@ bool UPlayerRoleSubsystem::StartNextMegaproject()
 	}
 	const int32 CivIndex = Sim->GetStateIndex().FindCiv(State, State.Player.RuledCivID);
 	const TArray<TPair<int32, FName>> Choices = CosmicMegaprojects::Choices(State, Sim->GetStateIndex(), Sim->GetTables(), CivIndex, State.Calling.BornTick);
-	return !Choices.IsEmpty() && StartMegaproject(State.Systems[Choices[0].Key].SystemID, Choices[0].Value);
+	if (!Choices.IsEmpty())
+	{
+		return StartMegaproject(State.Systems[Choices[0].Key].SystemID, Choices[0].Value);
+	}
+	// Nothing to build or answer: the first target of a settlement, when there is one.
+	const TArray<int32> Targets = CosmicMegaprojects::SettleTargets(State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), CivIndex);
+	return !Targets.IsEmpty() && StartMegaproject(State.Systems[Targets[0]].SystemID, CosmicRows::ProjectSettle);
 }

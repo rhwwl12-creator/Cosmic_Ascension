@@ -94,6 +94,7 @@
 				"LureAcceptByPolicy": {"kind": "word_map", "words": "policy"},
 				"MaxNotablesPerCiv": {"kind": "number", "min": 3, "max": 5, "integer": true},
 				"PopulationBandThresholds": {"kind": "numbers", "len": 3, "ascending": true},
+				"PopulationRegrowthPerTick": {"kind": "number", "min": 0},
 				"EventSlotTicks": {"kind": "number", "min": 1, "max": 20, "integer": true},
 				"EventChancePerSlot": {"kind": "number", "min": 0},
 				"HomeGalaxyRow": {

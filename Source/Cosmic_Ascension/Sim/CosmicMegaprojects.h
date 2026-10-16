@@ -1,8 +1,9 @@
-// Cosmic Ascension - Sim layer. Design: guideline.md section 4.3, 5.7, 7.4, 16 #23.
-// The world side of megaprojects: starting one, what a people would start, and one tick of the two slots of a system.
-// World state only: no line, no knowing, no delegate and no draw of their own (a completion that resolves a hazard goes
-// through CosmicHazards::Resolve, whose effects draw as Apply does). The ruler's command and the AI start through Start;
-// the crisis stage advances through Advance and tells the lines afterwards.
+// Cosmic Ascension - Sim layer. Design: guideline.md section 4.2, 4.3, 5.7, 5.12, 7.4.
+// The world side of megaprojects: starting one, what a people would start, settlement, and one tick of the two slots of
+// a system. World state only: no line, no knowing, no delegate and no draw of their own (a completion that resolves a
+// hazard goes through CosmicHazards::Resolve, whose effects draw as Apply does; the AI draws its settlement number
+// before it calls Settle). The ruler's command and the AI start through Start and Settle; the crisis stage advances
+// through Advance and tells the lines afterwards.
 // RULE (section 6.1): files under Sim/ must never include UUserWidget or AActor headers.
 
 #pragma once
@@ -17,6 +18,7 @@
 struct FMegaprojectDef;
 
 struct FCosmicDataTables;
+struct FCosmicRulesDef;
 struct FCosmicStateIndex;
 
 namespace CosmicMegaprojects
@@ -34,8 +36,8 @@ namespace CosmicMegaprojects
 	COSMIC_ASCENSION_API float RequiredProgressOf(const FMegaprojectDef& Row);
 
 	/**
-	 * Whether Start would take RowName on SystemIndex now (section 5.7): the row exists and is not project_settle (its
-	 * own rule comes with settlement), the system is a settled system of a living people whose Tier is at least the
+	 * Whether Start would take RowName on SystemIndex now (section 5.7): the row exists and is not project_settle (a
+	 * settlement starts through Settle alone), the system is a settled system of a living people whose Tier is at least the
 	 * row's RequiredTier, and then - for an answer (FCosmicDataTables::IsHazardAnswer) - the row of the system's hazard
 	 * lists it and the response slot is empty, or - for any other row - the construction slot does not hold that row.
 	 */
@@ -60,10 +62,47 @@ namespace CosmicMegaprojects
 	 */
 	COSMIC_ASCENSION_API TArray<TPair<int32, FName>> Choices(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, int32 CivIndex, int64 SinceTick);
 
+	// The realm cap of Tier (section 5.12): DT_Rules.RealmCapByTier[Tier], or 0 when the array lacks that index
+	// (Data.Integrity keeps exactly five entries).
+	COSMIC_ASCENSION_API int32 RealmCapOf(const FCosmicRulesDef& Rules, EAscensionTier Tier);
+
+	// Whether the people CivIndex has a settlement under way: a system it owns whose construction slot holds
+	// project_settle (stalled or not - nothing abandons a settlement).
+	COSMIC_ASCENSION_API bool IsSettling(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex);
+
+	/**
+	 * Whether the people CivIndex may start a settlement now (section 5.7, 5.12), whatever the targets and the tables:
+	 * it owns a settled system, it owns fewer systems than RealmCapOf its Tier, and it has no settlement under way.
+	 * The AI's settlement draw is made for exactly these peoples (one each, before the targets are looked at).
+	 */
+	COSMIC_ASCENSION_API bool MaySettle(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules, int32 CivIndex);
+
+	/**
+	 * Whether the people CivIndex can settle SystemIndex now: MaySettle; the project_settle row exists and its
+	 * RequiredTier is at most the people's Tier; SystemIndex is a wild system (no owner, not a dead node) one lane from
+	 * a settled system the people owns and in that system's GalaxyRow; and, inside the sphere of an unsealed
+	 * transcendent (one with a DT_Transcendents row, as the pressure counts them), the people stands on Tier 3 or higher
+	 * (section 4.2 modifier 4).
+	 */
+	COSMIC_ASCENSION_API bool CanSettle(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex, int32 SystemIndex);
+
+	// The systems CanSettle holds for the people CivIndex, in Systems order. Reads only.
+	COSMIC_ASCENSION_API TArray<int32> SettleTargets(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex);
+
+	/**
+	 * Starts the settlement of SystemIndex by the people CivIndex (section 5.7): refused (false, nothing changed)
+	 * unless CanSettle. The system becomes the people's through CosmicHazards::Transfer (the one path of a system that
+	 * changes hands) and its construction slot takes project_settle from 0. Until the project completes the system is
+	 * not settled: no income, no hazard, no foothold for the next settlement, not in the count of Law.Remnant.
+	 * No line, no draw (the AI draws before it calls this; the ruler's command draws nothing).
+	 */
+	COSMIC_ASCENSION_API bool Settle(FCosmicEvalContext& Ctx, int32 CivIndex, int32 SystemIndex);
+
 	/**
 	 * One tick of the two slots of SystemIndex (step (a) of the crisis stage, section 7.4): the construction slot, then the
-	 * response slot. A construction slot that holds project_settle is left alone (no pay, no progress, no completion),
-	 * whether or not the table holds the row, until settlement brings its own rule (work item 9). A slot whose row the table does not hold, and a response the row of the
+	 * response slot. A settlement (project_settle) is paid, progresses and completes as every construction row does; it
+	 * needs its row like them, but a settlement whose row the table does not hold stays in its slot (the system does not
+	 * become settled for want of a row). Any other slot whose row the table does not hold, and a response the row of the
 	 * system's hazard no longer lists, ends without result. Otherwise the slot is paid in full from the owner's stockpile
 	 * and progresses by 1 (by AIRate for a people the player does not rule), or costs and progresses nothing. A slot whose
 	 * progress reaches RequiredProgressOf(row) completes (on the first paid tick on which the float sum reaches it, which
