@@ -81,9 +81,10 @@ struct COSMIC_ASCENSION_API FCosmicEventDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicEffect> Effects;
 
-	// Three or more for Lottery and Standing rows, one or more for Named rows (Data.Integrity). Slots: {Civ}, {System},
-	// {HomeSystem} and {Hazard} (the DisplayName of the hazard the subject system held when the row began to fire), nothing
-	// else of section 8.2. Empty = the row tells nothing, not its SignRow either.
+	// Three or more for Lottery and Standing rows, one or more for Named rows (Data.Integrity). Slots: {Civ}, {System} and
+	// {Hazard} (the DisplayName of the hazard the subject system held when the row began to fire), nothing else of section
+	// 8.2; a Civilization row calls {Civ} and {Hazard} only (Data.Integrity: the subject system of a line is the system it
+	// names, so no capital beside it). Empty = the row tells nothing, not its SignRow either.
 	UPROPERTY(EditAnywhere)
 	TArray<FText> LogTemplates;
 
@@ -201,7 +202,8 @@ struct COSMIC_ASCENSION_API FHazardDef : public FTableRowBase
 	uint8 Severity = 1;
 
 	// The hazard's own lines (UCosmicEventSubsystem::TellHazardLine), about the system and its owner, SourceRow = this
-	// row. Slots {Civ} {System} {HomeSystem} {Hazard}. Empty = that moment tells nothing of its own.
+	// row. Slots {Civ} {System} {Hazard} (no capital beside the system: Data.Integrity). Empty = that moment tells nothing
+	// of its own.
 	UPROPERTY(EditAnywhere)
 	TArray<FText> OutbreakTemplates;
 
@@ -213,7 +215,9 @@ struct COSMIC_ASCENSION_API FHazardDef : public FTableRowBase
 	TArray<FText> ResolveTemplates;
 
 	// DT_Events Named row fired right after the outbreak line, subject = the system and its owner (crisis_rebellion: the
-	// second precursor, which names the rebel). NAME_None = none.
+	// second precursor, which names the rebel). A SettledSystem row (Data.Integrity), so that its line has the hazard's
+	// system as its subject, as the hazard's own lines do: the start and the end are told or hidden together. NAME_None =
+	// none.
 	UPROPERTY(EditAnywhere)
 	FName OutbreakRow;
 };

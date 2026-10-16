@@ -1131,7 +1131,6 @@ void UCosmicEventSubsystem::FireResolved(FName RowName, const FCosmicEventDef& R
 	const FGalaxyState& State = Ctx.State;
 	const FCivilizationState* Civ = State.Civs.IsValidIndex(Ctx.CivIndex) ? &State.Civs[Ctx.CivIndex] : nullptr;
 	const FStarSystemState* System = State.Systems.IsValidIndex(Ctx.SystemIndex) ? &State.Systems[Ctx.SystemIndex] : nullptr;
-	const int32 HomeIndex = Civ ? Ctx.Index.FindSystem(State, Civ->HomeSystemID) : INDEX_NONE;
 
 	FCosmicLine Line;
 	Line.Category = Row.LogCategory;
@@ -1144,7 +1143,6 @@ void UCosmicEventSubsystem::FireResolved(FName RowName, const FCosmicEventDef& R
 	FFormatNamedArguments Args;
 	Args.Add(TEXT("Civ"), Civ ? Civ->CivName : FText::GetEmpty());
 	Args.Add(TEXT("System"), System ? System->DisplayName : FText::GetEmpty());
-	Args.Add(TEXT("HomeSystem"), State.Systems.IsValidIndex(HomeIndex) ? State.Systems[HomeIndex].DisplayName : FText::GetEmpty());
 	Args.Add(TEXT("Hazard"), HazardName);
 
 	Log->PushVariants(Line, Row.LogTemplates, Args);
@@ -1152,7 +1150,9 @@ void UCosmicEventSubsystem::FireResolved(FName RowName, const FCosmicEventDef& R
 	// The lower speaker's sentence, for the viewers the line above is not told to. It goes with a line (a row without
 	// templates tells nothing) and needs a viewer tier below the window of that line: tier numbers start at 1, so the
 	// lowest MinTierToReveal with anybody below it is 2 (and 0 as an upper bound would mean "no bound"). Whenever the
-	// row's data allow it, it is told: the tell draws of a fire follow the row and never the viewer (section 8.1).
+	// row's data allow it, it is told: the windows add no tell draw (section 8.1). The sign row's templates call {Civ}
+	// and {Hazard} only (Data.Integrity): it copies the focus of the line above, which names no system for a Civilization
+	// row, and a sign row may serve rows of either subject.
 	if (!Row.SignRow.IsNone() && !Row.LogTemplates.IsEmpty() && Row.MinTierToReveal > 1)
 	{
 		if (const FLogTemplateDef* Sign = Ctx.Tables.FindLogTemplate(Row.SignRow))
@@ -1215,7 +1215,6 @@ void UCosmicEventSubsystem::TellHazardLine(const FCosmicEvalContext& Ctx, ECosmi
 	const FGalaxyState& State = Ctx.State;
 	const FCivilizationState* Civ = State.Civs.IsValidIndex(CivIndex) ? &State.Civs[CivIndex] : nullptr;
 	const FStarSystemState* System = State.Systems.IsValidIndex(SystemIndex) ? &State.Systems[SystemIndex] : nullptr;
-	const int32 HomeIndex = Civ ? Ctx.Index.FindSystem(State, Civ->HomeSystemID) : INDEX_NONE;
 
 	FCosmicLine HazardLine;
 	HazardLine.Category = Row->LogCategory;
@@ -1227,7 +1226,6 @@ void UCosmicEventSubsystem::TellHazardLine(const FCosmicEvalContext& Ctx, ECosmi
 	FFormatNamedArguments Args;
 	Args.Add(TEXT("Civ"), Civ ? Civ->CivName : FText::GetEmpty());
 	Args.Add(TEXT("System"), System ? System->DisplayName : FText::GetEmpty());
-	Args.Add(TEXT("HomeSystem"), State.Systems.IsValidIndex(HomeIndex) ? State.Systems[HomeIndex].DisplayName : FText::GetEmpty());
 	Args.Add(TEXT("Hazard"), Row->DisplayName);
 	Log->PushVariants(HazardLine, Templates, Args);
 }

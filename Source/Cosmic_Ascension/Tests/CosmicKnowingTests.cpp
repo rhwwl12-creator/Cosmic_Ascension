@@ -48,7 +48,7 @@ namespace CosmicKnowingTests
 	}
 
 	// The knobs of the tests, not the game's: sight every ten ticks from tick 30, reach 1/2/3/4/5 lanes, a far event
-	// line every 300 ticks at most, no slot chance, no drain, no regrowth, nobody settles.
+	// line every 300 ticks at most, no slot chance, no drain, no regrowth, nobody settles, the AI's projects at rate 1.
 	FCosmicRulesDef Knobs(const FCosmicRulesDef& Base)
 	{
 		FCosmicRulesDef Rules = Base;
@@ -61,6 +61,7 @@ namespace CosmicKnowingTests
 		Rules.SpiritualPressureStabilityDrain = 0.f;
 		Rules.PopulationRegrowthPerTick = 0.f;
 		Rules.RealmCapByTier = { 1, 1, 1, 1, 1 };
+		Rules.AIAscensionSpeedMultiplier = 1.f;
 		return Rules;
 	}
 
@@ -498,6 +499,18 @@ bool FCosmicSightStageTest::RunTest(const FString& Parameters)
 		MakeWanderer(*State, 4, EAscensionTier::Tier2_Stellar);
 		Sim->StepOnce();
 		TestTrue(TEXT("A negative interval looks every tick, and a reach below 1 reads as one lane"), IDs(State->Knowing.KnownSystems) == SystemIDs(*State, { 0, 4, 3, 5, 10 }));
+
+		// A short table: the tier past its end reads as one lane, not as the last entry.
+		Low.SightIntervalTicks = 1;
+		Low.SightLanesByTier = { 1, 3 };
+		State = LayBoard(*Sim, TablesWith(Original, Low));
+		if (!TestNotNull(TEXT("The board of the short reach is laid"), State))
+		{
+			return false;
+		}
+		MakeWanderer(*State, 4, EAscensionTier::Tier3_Causal);
+		Sim->StepOnce();
+		TestTrue(TEXT("A tier past the end of the reach table reads as one lane, not as its last entry"), IDs(State->Knowing.KnownSystems) == SystemIDs(*State, { 0, 4, 3, 5, 10 }));
 	}
 
 	// ---- Equal lanes: the lower ID first, not the one the walk found first ----
@@ -698,11 +711,12 @@ bool FCosmicKnowingWritersTest::RunTest(const FString& Parameters)
 		{
 			return false;
 		}
-		// People 1 holds 2, 3 and 1, people 2 holds 8 and 7, so that none of them is the last of its people.
+		// People 1 holds 2, 3 and 1, people 2 holds 8, 7 and 9, so that none of the gifts takes the last of a people.
 		CosmicTests::Give(*State, 1, { 3, 1 });
-		CosmicTests::Give(*State, 2, { 7 });
+		CosmicTests::Give(*State, 2, { 7, 9 });
 		const FName One = State->Civs[1].CivID;
 		const FName Two = State->Civs[2].CivID;
+		const FName Three = State->Civs[3].CivID;
 		const FName ToRuled(TEXT("event_test_gift_ruled"));
 		const FName ToAI(TEXT("event_test_gift_ai"));
 		UDataTable* EventRows = NewTable(FCosmicEventDef::StaticStruct());
@@ -729,7 +743,11 @@ bool FCosmicKnowingWritersTest::RunTest(const FString& Parameters)
 			Ctx.CivIndex = 1;
 			Ctx.SystemIndex = 2;
 			Ctx.GalaxyRow = State->Systems[2].GalaxyRow;
+			const int32 TellBefore = State->TellRngState;
+			const int32 SimBefore = Sim->GetRng().GetCurrentSeed();
 			TestTrue(TEXT("The gift to the vessel's people fires"), Events->FireRow(ToRuled, Ctx));
+			TestEqual(TEXT("The fire draws twice from the tell stream: the meeting with the giver, then the row's line"), DrawsBetween(TellBefore, State->TellRngState), 2);
+			TestEqual(TEXT("and nothing from the sim stream: meeting the giver moves no world"), DrawsBetween(SimBefore, Sim->GetRng().GetCurrentSeed()), 0);
 		}
 		TestEqual(TEXT("The system is the vessel's people's"), State->Systems[2].OwnerCivID, State->Civs[0].CivID);
 		TestTrue(TEXT("and known"), Knows(*State, 2));
@@ -744,10 +762,16 @@ bool FCosmicKnowingWritersTest::RunTest(const FString& Parameters)
 		if (TestTrue(TEXT("The meeting with the giver is told"), Meeting != INDEX_NONE))
 		{
 			TestEqual(TEXT("at the system received"), State->Log[Meeting].FocusSystemID, State->Systems[2].SystemID);
-			if (Told != INDEX_NONE)
-			{
-				TestTrue(TEXT("before the row's line"), Meeting < Told);
-			}
+		}
+		{
+			// Again from people 1, met now: the row's line alone.
+			FCosmicEvalContext Ctx = Sim->MakeEvalContext();
+			Ctx.CivIndex = 1;
+			Ctx.SystemIndex = 3;
+			Ctx.GalaxyRow = State->Systems[3].GalaxyRow;
+			const int32 TellBefore = State->TellRngState;
+			TestTrue(TEXT("A second gift from people 1 fires"), Events->FireRow(ToRuled, Ctx));
+			TestEqual(TEXT("A gift from a people met already draws once from the tell stream: the row's line"), DrawsBetween(TellBefore, State->TellRngState), 1);
 		}
 		{
 			FCosmicEvalContext Ctx = Sim->MakeEvalContext();
@@ -759,6 +783,31 @@ bool FCosmicKnowingWritersTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("That system is the AI people's"), State->Systems[7].OwnerCivID, State->Civs[3].CivID);
 		TestFalse(TEXT("and stays unknown"), Knows(*State, 7));
 		TestFalse(TEXT("and its giver unmet"), HasMet(*State, Two));
+		{
+			// The giver is the system's old owner, not the people the row is about: 7 is people 3's now, the row about
+			// people 2.
+			FCosmicEvalContext Ctx = Sim->MakeEvalContext();
+			Ctx.CivIndex = 2;
+			Ctx.SystemIndex = 7;
+			Ctx.GalaxyRow = State->Systems[7].GalaxyRow;
+			TestTrue(TEXT("A gift about another people fires"), Events->FireRow(ToRuled, Ctx));
+		}
+		TestTrue(TEXT("It meets the people the system came from"), HasMet(*State, Three));
+		TestFalse(TEXT("not the people the row is about"), HasMet(*State, Two));
+		{
+			// As a command of the ruler would fire it: about the vessel's people, on people 2's system 9.
+			FCosmicEvalContext Ctx = Sim->MakeEvalContext();
+			Ctx.CivIndex = 0;
+			Ctx.SystemIndex = 9;
+			Ctx.GalaxyRow = State->Systems[9].GalaxyRow;
+			TestTrue(TEXT("A gift about the vessel's people fires"), Events->FireRow(ToRuled, Ctx));
+		}
+		TestTrue(TEXT("It meets the people the system came from, though the row is about the vessel's people"), HasMet(*State, Two));
+		const int32 Commanded = State->Log.IndexOfByPredicate([Two](const FCosmicLogEntry& Entry) { return Entry.SourceRow == CosmicRows::LogContact && Entry.FocusCivID == Two; });
+		if (TestTrue(TEXT("and tells that meeting"), Commanded != INDEX_NONE))
+		{
+			TestEqual(TEXT("at the system received"), State->Log[Commanded].FocusSystemID, State->Systems[9].SystemID);
+		}
 		Log->SetTellAll(true);
 		Sim->SetTables(Tables);
 	}
@@ -836,12 +885,15 @@ bool FCosmicKnowingWritersTest::RunTest(const FString& Parameters)
 		Outbreak.Trigger = ECosmicEventTrigger::Named;
 		Outbreak.Subject = ECosmicEventSubject::SettledSystem;
 		Outbreak.LogTemplates = { FText::AsCultureInvariant(TEXT("spread {System}")) };
+		// The outbreak row names a person: one draw from the sim stream each, the only draws of the block.
+		Outbreak.Effects = { Eff(EEffectType::NameNotable, TEXT("Notable.Rebel")) };
 		EventRows->AddRow(Spread, Outbreak);
 		Sim->SetTables(TablesWith(Original, Rules, HazardRows, EventRows));
 		FCosmicEvalContext Ctx = Sim->MakeEvalContext();
 		Ctx.CivIndex = 1;
 		Ctx.SystemIndex = 3;
 		Ctx.GalaxyRow = State->Systems[3].GalaxyRow;
+		const int32 SimBefore = Sim->GetRng().GetCurrentSeed();
 		// 3 goes to the vessel's people and a plague breaks out there; then one breaks out on people 1's 1.
 		TestTrue(TEXT("(3 is handed to the vessel's people)"), UCosmicEventSubsystem::Apply(Eff(EEffectType::TransferSystem, nullptr, State->Civs[0].CivID), Ctx));
 		TestTrue(TEXT("(a plague is placed on 3)"), UCosmicEventSubsystem::Apply(Eff(EEffectType::SpawnHazard, TEXT("Hazard.Plague")), Ctx));
@@ -865,6 +917,7 @@ bool FCosmicKnowingWritersTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("the one on 3 first"), State->Log[First].FocusSystemID, State->Systems[3].SystemID);
 		}
 		TestEqual(TEXT("and each fired its outbreak row"), State->Log.FilterByPredicate([Spread](const FCosmicLogEntry& Entry) { return Entry.SourceRow == Spread; }).Num(), 2);
+		TestEqual(TEXT("The sim stream moved by the two names alone: knowing what was received, and meeting its giver, draw nothing"), DrawsBetween(SimBefore, Sim->GetRng().GetCurrentSeed()), 2);
 		Sim->SetTables(Tables);
 	}
 
@@ -972,6 +1025,50 @@ bool FCosmicKnowingWritersTest::RunTest(const FString& Parameters)
 		Sim->SetTables(Tables);
 	}
 
+	// ---- A feat whose price hands a system to the vessel's people: the ascender, its giver, is met before the line ----
+	{
+		FGalaxyState* State = LayBoard(*Sim, Tables);
+		if (!TestNotNull(TEXT("The board of the feat is laid"), State))
+		{
+			return false;
+		}
+		// People 1 holds 2, its capital, and 3. The capital is known and people 1 unmet: only the meeting decides the line.
+		CosmicTests::Give(*State, 1, { 3 });
+		Mark(State->Knowing.KnownSystems, State->Systems[2].SystemID);
+		const FName Climb(TEXT("feat_test_gift"));
+		FCosmicDataTables WithFeat = TablesWith(Original, Rules);
+		FAscensionFeatDef Feat;
+		Feat.Path = EPlayerRole::Ruler;
+		Feat.RequiredTier = EAscensionTier::Tier1_Planetary;
+		Feat.TargetTier = EAscensionTier::Tier2_Stellar;
+		// The deed stands on 3 alone, so the price takes 3 and not the capital the line names.
+		FCosmicCondition Deed;
+		Deed.Type = EConditionType::SystemHasHazard;
+		Deed.Tag = Tag(TEXT("Hazard.Plague"));
+		Feat.CompletionConditions = { Deed };
+		Feat.AscensionCost = { Eff(EEffectType::TransferSystem, nullptr, State->Civs[0].CivID) };
+		Feat.LogTemplates = { FText::AsCultureInvariant(TEXT("ascent {Civ}")) };
+		WithFeat.Feats->AddRow(Climb, Feat);
+		Sim->SetTables(WithFeat);
+		State->Systems[3].ActiveHazard = Tag(TEXT("Hazard.Plague"));
+		State->Systems[3].HazardTicksRemaining = 1000;
+		Log->SetTellAll(false);
+		Sim->StepOnce();
+		Log->SetTellAll(true);
+		TestTrue(TEXT("(people 1 climbed)"), State->Civs[1].Tier == EAscensionTier::Tier2_Stellar);
+		TestEqual(TEXT("The price handed the system of the deed to the vessel's people"), State->Systems[3].OwnerCivID, State->Civs[0].CivID);
+		TestTrue(TEXT("which knows it"), Knows(*State, 3));
+		TestTrue(TEXT("and has met the ascender, the people it came from"), HasMet(*State, State->Civs[1].CivID));
+		const int32 Ascent = FindLine(*State, Climb, State->Tick);
+		const int32 Meeting = FindLine(*State, CosmicRows::LogFirstContact, State->Tick);
+		if (TestTrue(TEXT("The ascension line is stored"), Ascent != INDEX_NONE) && TestTrue(TEXT("and so is the meeting"), Meeting != INDEX_NONE))
+		{
+			TestFalse(TEXT("The ascension line is told: the ascender was met before it"), State->Log[Ascent].bUntold);
+			TestTrue(TEXT("The meeting comes before the ascension line"), Meeting < Ascent);
+		}
+		Sim->SetTables(Tables);
+	}
+
 	// ---- FollowUpKnowing refuses a handler and a detached state, and leaves the notes ----
 	{
 		FGalaxyState* State = LayBoard(*Sim, Tables);
@@ -1001,7 +1098,8 @@ bool FCosmicKnowingWritersTest::RunTest(const FString& Parameters)
 			Log->PushRow(CosmicRows::LogFirstLife, 2, Args, State->Systems[0].SystemID);
 		}
 		TestTrue(TEXT("A handler ran"), bTried);
-		TestFalse(TEXT("FollowUpKnowing refuses a handler: the system stays unknown"), Knows(*State, 9));
+		// FollowUpKnowing's refusal stands on NoteKnown's and NoteMet's own: these two hold while any of the three refuses.
+		TestFalse(TEXT("Nothing is written from a handler: the system stays unknown"), Knows(*State, 9));
 		TestFalse(TEXT("and the giver unmet"), HasMet(*State, State->Civs[1].CivID));
 		TestEqual(TEXT("and the note stays"), Ctx.Notes.Num(), 1);
 
@@ -1011,7 +1109,7 @@ bool FCosmicKnowingWritersTest::RunTest(const FString& Parameters)
 		Away.Notes.Add(Received);
 		Events->FollowUpKnowing(Away);
 		TestFalse(TEXT("FollowUpKnowing refuses a detached state: the live knowing is untouched"), Knows(*State, 9));
-		TestFalse(TEXT("and so is the copy's"), Knows(Detached, 9));
+		TestFalse(TEXT("and the giver stays unmet"), HasMet(*State, State->Civs[1].CivID));
 		TestEqual(TEXT("and its note stays"), Away.Notes.Num(), 1);
 	}
 
@@ -1208,8 +1306,16 @@ bool FCosmicLogTellScopeTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("A Severity 2 line about a met people in an unknown system is followed by a far line"), Tell(CivTag, 2, Two, Eight).Added, 2);
 		if (TestTrue(TEXT("(that far line)"), State.Log.IsValidIndex(BeforeUnknown + 1)))
 		{
-			TestTrue(TEXT("which has no subject system"), State.Log[BeforeUnknown + 1].FocusSystemID.IsNone());
-			TestTrue(TEXT("and no subject people"), State.Log[BeforeUnknown + 1].FocusCivID.IsNone());
+			TestTrue(TEXT("which has no subject people"), State.Log[BeforeUnknown + 1].FocusCivID.IsNone());
+		}
+		// An unmet people in a system the calling knows: the far line names the system no more than the people.
+		State.Knowing.FarLineUntilTick = 0;
+		const int32 BeforeKnown = State.Log.Num();
+		TestEqual(TEXT("A Severity 2 line about an unmet people in a known system is followed by a far line"), Tell(CivTag, 2, One, Six).Added, 2);
+		if (TestTrue(TEXT("(the far line of the known system)"), State.Log.IsValidIndex(BeforeKnown + 1)))
+		{
+			TestEqual(TEXT("the far event line"), State.Log[BeforeKnown + 1].SourceRow, CosmicRows::LogFarEvent);
+			TestTrue(TEXT("which has no subject system, though the system is known"), State.Log[BeforeKnown + 1].FocusSystemID.IsNone());
 		}
 		// The calling's own line holds its subject whatever it names; below its window it is kept untold, with no far line.
 		State.Knowing.FarLineUntilTick = 0;
@@ -1226,9 +1332,11 @@ bool FCosmicLogTellScopeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("Push judges the scope: a line about an unmet people is not stored"), State.Log.Num(), BeforePush);
 			TestEqual(TEXT("and Push draws nothing"), State.TellRngState, TellBefore);
 			State.Knowing.FarLineUntilTick = 0;
+			const int32 BeforeMythic = State.Log.Num();
 			Log->Push(CivTag, 2, FText::AsCultureInvariant(TEXT("mythic push about the unmet")), FFormatNamedArguments(), NAME_None, PushRow, One);
-			TestEqual(TEXT("A mythic Push out of scope is kept, with its far line"), State.Log.Num(), BeforePush + 2);
-			TestTrue(TEXT("(kept untold)"), State.Log.IsValidIndex(BeforePush) && State.Log[BeforePush].bUntold);
+			TestEqual(TEXT("A mythic Push out of scope is kept, with its far line"), State.Log.Num(), BeforeMythic + 2);
+			TestTrue(TEXT("(kept untold)"), State.Log.IsValidIndex(BeforeMythic) && State.Log[BeforeMythic].bUntold);
+			TestTrue(TEXT("(followed by the far event line)"), State.Log.IsValidIndex(BeforeMythic + 1) && State.Log[BeforeMythic + 1].SourceRow == CosmicRows::LogFarEvent);
 		}
 
 		// Ascents: the third rung or above is told every time and leaves the cooldown of the far event line alone.
@@ -1241,6 +1349,12 @@ bool FCosmicLogTellScopeTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("An unmet people's ascent to the third rung is followed by the far ascent line"), Ascent.Added, 2);
 		TestTrue(TEXT("(that line)"), State.Log.IsValidIndex(BeforeAscent + 1) && State.Log[BeforeAscent + 1].SourceRow == CosmicRows::LogFarAscent);
 		TestEqual(TEXT("A second ascent is followed by it again"), Tell(AscensionTag, 2, One, NAME_None).Added, 2);
+		const int32 BeforeKnownAscent = State.Log.Num();
+		TestEqual(TEXT("An unmet people's ascent in a known system is followed by the far ascent line"), Tell(AscensionTag, 2, One, Six).Added, 2);
+		if (TestTrue(TEXT("(the far ascent line of the known system)"), State.Log.IsValidIndex(BeforeKnownAscent + 1)))
+		{
+			TestTrue(TEXT("which has no subject system, though the system is known"), State.Log[BeforeKnownAscent + 1].FocusSystemID.IsNone());
+		}
 		TestEqual(TEXT("The far ascent line leaves the far event line's next tick alone"), State.Knowing.FarLineUntilTick, Until);
 		// A mythic line about a people on the third rung that is no ascent follows the far event line and its cooldown.
 		State.Knowing.FarLineUntilTick = 0;
@@ -1255,7 +1369,7 @@ bool FCosmicLogTellScopeTest::RunTest(const FString& Parameters)
 		if (TestTrue(TEXT("(that far line)"), State.Log.IsValidIndex(BeforeMetAscent + 1)))
 		{
 			TestEqual(TEXT("the far ascent line"), State.Log[BeforeMetAscent + 1].SourceRow, CosmicRows::LogFarAscent);
-			TestTrue(TEXT("with no subject system"), State.Log[BeforeMetAscent + 1].FocusSystemID.IsNone());
+			TestTrue(TEXT("with no subject people"), State.Log[BeforeMetAscent + 1].FocusCivID.IsNone());
 		}
 		State.Civs[2].Tier = EAscensionTier::Tier1_Planetary;
 		State.Knowing.FarLineUntilTick = 0;
@@ -1385,19 +1499,30 @@ bool FCosmicLogTellScopeTest::RunTest(const FString& Parameters)
 			return Again->Log.ContainsByPredicate([&Text](const FCosmicLogEntry& Entry) { return !Entry.bUntold && Entry.Message.ToString().Contains(Text); });
 		};
 		TestTrue(TEXT("(the rebellion breaks out in people 1's capital)"), Rise());
-		TestEqual(TEXT("A rising in an unknown capital is not told"), FindLine(*Again, Rises, Again->Tick), static_cast<int32>(INDEX_NONE));
+		TestTrue(TEXT("(the rising fired: its rebel is named)"), Again->Civs[1].Notables.ContainsByPredicate([Rises](const FNotableRecord& Record) { return Record.SourceRow == Rises; }));
+		const int32 HiddenRise = FindLine(*Again, Rises, Again->Tick);
+		TestTrue(TEXT("A rising in an unknown capital is not told"), HiddenRise == INDEX_NONE || Again->Log[HiddenRise].bUntold);
 		Again->Systems[2].HazardTicksRemaining = 1;
 		Sim->StepOnce();
 		TestFalse(TEXT("(the rebellion ran out)"), Again->Systems[2].ActiveHazard.IsValid());
-		TestEqual(TEXT("and neither is its end"), FindLine(*Again, Rebellion, Again->Tick), static_cast<int32>(INDEX_NONE));
+		const int32 HiddenEnd = FindLine(*Again, Rebellion, Again->Tick);
+		TestTrue(TEXT("and neither is its end"), HiddenEnd == INDEX_NONE || Again->Log[HiddenEnd].bUntold);
 		TestFalse(TEXT("The name of the unknown capital never reaches the feed"), ToldSays(Capital));
 		// The control: once the capital is known, both are told.
 		TestTrue(TEXT("(the capital becomes known)"), Sim->NoteKnown(Again->Systems[2].SystemID));
 		TestTrue(TEXT("(the rebellion breaks out again)"), Rise());
-		TestTrue(TEXT("A rising in a known capital is told"), FindLine(*Again, Rises, Again->Tick) != INDEX_NONE);
+		const int32 KnownRise = FindLine(*Again, Rises, Again->Tick);
+		if (TestTrue(TEXT("A rising in a known capital is stored"), KnownRise != INDEX_NONE))
+		{
+			TestFalse(TEXT("and told"), Again->Log[KnownRise].bUntold);
+		}
 		Again->Systems[2].HazardTicksRemaining = 1;
 		Sim->StepOnce();
-		TestTrue(TEXT("and so is its end"), FindLine(*Again, Rebellion, Again->Tick) != INDEX_NONE);
+		const int32 KnownEnd = FindLine(*Again, Rebellion, Again->Tick);
+		if (TestTrue(TEXT("and so is its end"), KnownEnd != INDEX_NONE))
+		{
+			TestFalse(TEXT("told as well"), Again->Log[KnownEnd].bUntold);
+		}
 	}
 	return true;
 }
@@ -1480,6 +1605,7 @@ bool FCosmicKnowingInertTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("The world is the same whether a wanderer's eye looks or not"), WalkingBlind.World, Walking.World);
 	TestEqual(TEXT("and so is the sim stream (wanderer)"), WalkingBlind.Rng, Walking.Rng);
 	TestTrue(TEXT("A wanderer's eye knows more than none (the case can tell)"), Walking.Known > WalkingBlind.Known);
+	TestTrue(TEXT("and meets more (wanderer)"), Walking.Met > WalkingBlind.Met);
 	return true;
 }
 

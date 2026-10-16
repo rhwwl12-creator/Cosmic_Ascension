@@ -178,8 +178,9 @@ void UAscensionSubsystem::Ascend(FCosmicEvalContext& Ctx, FName FeatRow, const F
 	}
 
 	// What the vessel's people received through the price is known, and the people it came from met, before any line; the
-	// line, then what the price did. A backstop: the price acts on the ascender's own system, which never is the capital
-	// the line names (FollowUpNotes would also follow it, after the line).
+	// line, then what the price did. The received system is never the capital the line names, but its giver is the
+	// ascender the line is about (a transfer never goes from a people to itself): the meeting has to come before the line,
+	// or an unmet ascender's line would fall out of scope (FollowUpNotes would follow it only after the line).
 	Events->FollowUpKnowing(Ctx);
 	const FCivilizationState& Civ = State.Civs[CivIndex];
 	const int32 Capital = Ctx.Index.FindSystem(State, Civ.HomeSystemID);

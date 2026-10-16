@@ -909,14 +909,14 @@ bool FCosmicHazardLifecycleTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("and keeps its whole count"), Paired.Systems[7].HazardTicksRemaining, 1);
 	}
 
-	// The slots of a hazard's own lines: the owner, the system, the owner's capital and the hazard, with the particle each
-	// name takes. The hazard stands away from the capital, so the system and the capital are two names.
+	// The slots of a hazard's own lines: the owner, the system and the hazard, with the particle each name takes. The
+	// hazard stands away from the capital, and the line names the system alone (no capital beside it: Data.Integrity).
 	{
 		UDataTable* Speaking = NewTable(FHazardDef::StaticStruct());
 		FHazardDef Spoken = HazardRow(TEXT("Hazard.Plague"), ECosmicHazardSpawn::Draw, 0.f, 1);
-		Spoken.OutbreakTemplates = Lines(TEXT("{Civ}|hpp(\uC740,\uB294) {System}|hpp(\uC774,\uAC00) {HomeSystem} {Hazard} outbreak"));
-		Spoken.ExpireTemplates = Lines(TEXT("{Civ}|hpp(\uC740,\uB294) {System}|hpp(\uC774,\uAC00) {HomeSystem} {Hazard} expiry"));
-		Spoken.ResolveTemplates = Lines(TEXT("{Civ}|hpp(\uC740,\uB294) {System}|hpp(\uC774,\uAC00) {HomeSystem} {Hazard} resolution"));
+		Spoken.OutbreakTemplates = Lines(TEXT("{Civ}|hpp(\uC740,\uB294) {System}|hpp(\uC774,\uAC00) {Hazard} outbreak"));
+		Spoken.ExpireTemplates = Lines(TEXT("{Civ}|hpp(\uC740,\uB294) {System}|hpp(\uC774,\uAC00) {Hazard} expiry"));
+		Spoken.ResolveTemplates = Lines(TEXT("{Civ}|hpp(\uC740,\uB294) {System}|hpp(\uC774,\uAC00) {Hazard} resolution"));
 		Speaking->AddRow(Storm, Spoken);
 		Sim->SetTables(TablesWith(Original, Knobs(BaseRules), Speaking, nullptr));
 		Sim->NewGalaxy(42, 12, 4);
@@ -935,7 +935,6 @@ bool FCosmicHazardLifecycleTest::RunTest(const FString& Parameters)
 			const FString Text = Spoke.Log[Index].Message.ToString();
 			TestTrue(*FString::Printf(TEXT("{Civ} of the %s names the owner with its particle"), Word), Text.Contains(WithParticle(Spoke.Civs[0].CivName.ToString(), TEXT("\uC740"), TEXT("\uB294")) + TEXT(" ")));
 			TestTrue(*FString::Printf(TEXT("{System} of the %s names the system with its particle"), Word), Text.Contains(WithParticle(Spoke.Systems[1].DisplayName.ToString(), TEXT("\uC774"), TEXT("\uAC00")) + TEXT(" ")));
-			TestTrue(*FString::Printf(TEXT("{HomeSystem} of the %s names the owner's capital"), Word), Text.Contains(Spoke.Systems[0].DisplayName.ToString() + TEXT(" <Hazard.Plague>")));
 			TestTrue(*FString::Printf(TEXT("{Hazard} of the %s names the hazard"), Word), Text.Contains(FString(TEXT("<Hazard.Plague> ")) + Word));
 			TestFalse(*FString::Printf(TEXT("No slot of the %s is left unfilled"), Word), Text.Contains(TEXT("{")));
 		};

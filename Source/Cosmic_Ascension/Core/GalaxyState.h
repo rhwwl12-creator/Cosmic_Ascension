@@ -66,7 +66,7 @@ struct COSMIC_ASCENSION_API FCosmicLogEntry
 
 	// Subject civilization of the line. NAME_None = none. Pairs with FocusSystemID: the scope of telling judges both at
 	// the push (section 8.1). Push and PushVariants store it. Every caller whose line names a people passes it: a fired
-	// event row, a hazard line, a completion, an ascension, a meeting and a breakthrough line.
+	// event row, a hazard line, a completion, an ascension, a meeting, a breakthrough and a deposition line.
 	UPROPERTY(BlueprintReadOnly)
 	FName FocusCivID;
 
@@ -595,8 +595,9 @@ struct COSMIC_ASCENSION_API FKnownMark
  * Saved and part of ComputeStateHash, but not world state: the world only writes it and never reads it (the full rule
  * and its one exception, the crossing-stage cleanup that compares a removed CivID with PendingContactCivID and clears
  * it, are in section 8.1), and ComputeWorldHash leaves it out. KnownSystems and MetCivs grow only through NoteMet,
- * NoteKnown and Install (the birth system and civilization, without a line). The sight stage, the systems the vessel's
- * people receives (FollowUpKnowing) and a wanderer's new eye go through NoteKnown and NoteMet. The arrays are in order of
+ * NoteKnown and Install (the birth system and civilization, without a line). The sight stage and the systems the vessel's
+ * people receives (FollowUpKnowing) go through NoteKnown, then NoteMet; a wanderer's new eye through NoteKnown only (the
+ * owners it now knows are met by the next look). The arrays are in order of
  * discovery and never shrink (no TMap, no predicate tag). It belongs to
  * the calling: kept across death and succession (section 4.4).
  */

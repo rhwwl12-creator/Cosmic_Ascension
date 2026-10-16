@@ -213,8 +213,9 @@ struct FCosmicEvalContext : public FCosmicEvalSubject
 
 	// What the world functions of Sim/CosmicHazards.h changed through this context, in order: the hazard notes wait for
 	// UCosmicEventSubsystem::FollowUpNotes, the SystemReceived notes for FollowUpKnowing (the first thing FollowUpNotes
-	// does; the settlement paths leave that note alone). FireRow fires on a context of its own, so the notes of a fired
-	// row are followed by that fire and never by its caller.
+	// does; a settlement leaves only that note: the ruler's command follows it with FollowUpKnowing, the AI stage drops
+	// it). FireRow fires on a context of its own, so the notes of a fired row are followed by that fire and never by its
+	// caller.
 	TArray<FCosmicWorldNote, TInlineAllocator<2>> Notes;
 };
 
@@ -321,9 +322,10 @@ public:
 	static bool Apply(const FCosmicEffect& Effect, FCosmicEvalContext& Ctx);
 
 	// Apply over Effects in array order. A turned-away effect does not stop the rest. Like Apply it only changes the world:
-	// stage code that applies an array of its own (the per-tick sources, a hazard's expiry and resolution, the cost of a
-	// feat; from later work items the outcome of an encounter) follows the systems received first (FollowUpKnowing),
-	// then tells its own line - afterwards, never in between - and then follows the other notes (FollowUpNotes).
+	// stage code that applies an array of its own (a hazard's expiry and resolution, the cost of a feat; from later work
+	// items the outcome of an encounter) follows the systems received first (FollowUpKnowing), then tells its own line -
+	// afterwards, never in between - and then follows the other notes (FollowUpNotes). A per-tick source leaves no note
+	// and tells no line.
 	static void ApplyAll(TConstArrayView<FCosmicEffect> Effects, FCosmicEvalContext& Ctx);
 
 	// Key of FGalaxyState.EventCooldownUntilTick for a slot row and a civilization: "<row>@<CivID>". Keys are saved, so
@@ -387,10 +389,11 @@ public:
 	 *    always tells a second line from that DT_LogTemplates row, in that row's own Category (Log.Sign by
 	 *    Data.Integrity). With a MinTierToReveal of 1 or below no viewer tier lies under the first line, and a row
 	 *    without LogTemplates tells nothing at all: no second line. The viewer tier windows of the two lines are
-	 *    complementary (MinTierToReveal), so the number of tell draws of a fire does not depend on the viewer's tier:
-	 *    0, 1 or 2 by the row's data. The only other tell draw is the far
-	 *    line that stands in for an out-of-scope Severity 2 line (section 8.1). The line is told whether or not an effect
-	 *    was turned away. Slot {Hazard}: the hazard the subject system held before the effects;
+	 *    complementary (MinTierToReveal), so the windows add no tell draw: the row's own lines draw 0, 1 or 2 times by
+	 *    its data. Knowing adds two more: the far line that stands in for an out-of-scope Severity 2 line, and in step 1
+	 *    one meeting line for each giver FollowUpKnowing meets (unmet before, and let through by the gap rule - so that
+	 *    one depends on the viewer's tier too, and comes in tell-all mode as well; section 8.1). The line is told whether
+	 *    or not an effect was turned away. Slot {Hazard}: the hazard the subject system held before the effects;
 	 * 3. FollowUpNotes: the lines of what the effects did (a hazard placed or resolved), in the order it was done;
 	 * 4. OnEventFired, while the global broadcast gate is open.
 	 * Cooldown keys, sim draw counts and the result never depend on whether a line was told. Outside a tick the caller
@@ -401,8 +404,8 @@ public:
 	/**
 	 * One of the three lines of the DT_Hazards row HazardRow (section 4.1), about SystemIndex and CivIndex: the caller names
 	 * the people, because an expiry may already have taken the system from it. Told through PushVariants with the row's
-	 * LogCategory and Severity, SourceRow = the row, focus on the system and the people, slots {Civ} {System}
-	 * {HomeSystem} {Hazard}. A missing row or empty templates tell nothing (no draw). Refused like FireRow.
+	 * LogCategory and Severity, SourceRow = the row, focus on the system and the people, slots {Civ} {System} {Hazard}.
+	 * A missing row or empty templates tell nothing (no draw). Refused like FireRow.
 	 */
 	void TellHazardLine(const FCosmicEvalContext& Ctx, ECosmicHazardLine Line, FName HazardRow, int32 SystemIndex, int32 CivIndex);
 
@@ -410,9 +413,11 @@ public:
 	 * Follows the SystemReceived notes of Ctx before any line (section 7.5, 8.1): takes them out of Ctx and, for every
 	 * system received by the people the vessel rules (Embodied, Ruler), calls UGalaxySimulationSubsystem::NoteKnown and
 	 * then NoteMet for the people it came from, at that system - the other party of the event (section 8.1), under the
-	 * gap rule and with its meeting line - so that the lines about the gift are told. The other notes stay, in their
-	 * order, for FollowUpNotes. Called after the effects and before the own line by FireRow, the hazard expiry (before its
-	 * code hooks and the last-system gate), the completion of a project and the judgment of a feat; by the ruler's
+	 * gap rule and with its meeting line - so that the lines about the gift are told, unless the gap rule keeps the giver
+	 * unmet: a line about the giver then stays out of scope (section 8.1). The other notes stay, in their order, for
+	 * FollowUpNotes. Called after the effects and before the own line by FireRow, the hazard expiry (after its neighbour
+	 * effects, before its code hooks and the second ask of the last-system gate), the completion of a project and the
+	 * judgment of a feat (the giver there is the ascender the line is about); by the ruler's
 	 * settlement command; and first of all by FollowUpNotes. No sim draw (a meeting line draws from the tell stream).
 	 * Refused like FollowUpNotes: over a detached state or from a handler, an error line and the notes stay.
 	 */

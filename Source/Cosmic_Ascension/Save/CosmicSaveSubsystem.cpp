@@ -72,8 +72,10 @@ bool UCosmicSaveSubsystem::LoadGalaxy(const FGuid& GalaxyID)
 		return false;
 	}
 	// A file cut at the end of the engine's header, or inside most properties, still yields an object, with the state
-	// fallen back to its defaults: GalaxyID is then zero. A cut inside some properties reaches a fatal check of the engine
-	// before this line in a build with checks (guideline 16 #70). A copied or renamed file carries another galaxy's ID.
+	// fallen back to its defaults: GalaxyID is then zero (the engine's tagged-property read clears a property whose size
+	// does not match, PropertyTag.cpp; only the cut at the header's end is tested). A cut inside some properties reaches a
+	// fatal check of the engine before this line in a build with checks (guideline 16 #33 (2), #70). A copied or renamed
+	// file carries another galaxy's ID.
 	if (!Loaded->State.GalaxyID.IsValid() || Loaded->State.GalaxyID != GalaxyID)
 	{
 		UE_LOG(LogCosmic, Warning, TEXT("LoadGalaxy: slot %s is truncated or holds another galaxy"), *SlotName);

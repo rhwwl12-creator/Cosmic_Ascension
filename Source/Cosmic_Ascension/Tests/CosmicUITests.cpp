@@ -116,8 +116,9 @@ bool FCosmicUIPanelLabelsTest::RunTest(const FString& Parameters)
 		Panel->Refresh();
 	}
 
-	// A full panel counts told lines, not entries: 70 told lines and an untold entry after them show the last 60 told
-	// (the panel's MaxShownLogLines).
+	// A full panel counts told lines, not entries: 70 told lines, with an untold entry after the 40th and another after
+	// them all, show the last 60 told (the panel's MaxShownLogLines). Two untold entries inside the last 61 entries tell a
+	// count of told lines from a window of entries one longer.
 	{
 		constexpr int32 PanelLines = 60;
 		TArray<FCosmicLogEntry>& Entries = Sim->GetMutableState().Log;
@@ -128,13 +129,16 @@ bool FCosmicUIPanelLabelsTest::RunTest(const FString& Parameters)
 			Told.Tick = State.Tick;
 			Told.Message = FText::AsCultureInvariant(FString::Printf(TEXT("<told line %d>"), Index));
 			Entries.Add(Told);
+			if (Index == 40 || Index == 70)
+			{
+				FCosmicLogEntry Untold;
+				Untold.Tick = State.Tick;
+				Untold.Severity = 2;
+				Untold.Message = FText::AsCultureInvariant(TEXT("<untold line of the test>"));
+				Untold.bUntold = true;
+				Entries.Add(Untold);
+			}
 		}
-		FCosmicLogEntry Untold;
-		Untold.Tick = State.Tick;
-		Untold.Severity = 2;
-		Untold.Message = FText::AsCultureInvariant(TEXT("<untold line of the test>"));
-		Untold.bUntold = true;
-		Entries.Add(Untold);
 		Panel->Refresh();
 		FString Full;
 		CosmicUITests::ReadPanel(*Panel, Full);

@@ -1742,7 +1742,7 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 		{
 			Bytes.SetNum(HeaderEnd);
 			TestTrue(TEXT("Truncated slot written"), UGameplayStatics::SaveDataToSlot(Bytes, SlotName, 0));
-			TestFalse(TEXT("A truncated slot is refused"), Save->LoadGalaxy(GalaxyID));
+			TestFalse(TEXT("A slot cut at the end of the engine's header is refused"), Save->LoadGalaxy(GalaxyID));
 		}
 	}
 	TestTrue(TEXT("Test slot removed"), Save->DeleteSave(GalaxyID));

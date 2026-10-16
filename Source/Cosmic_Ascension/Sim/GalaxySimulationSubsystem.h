@@ -373,14 +373,16 @@ private:
 	 * effects, no line (a rebellion still ends its leader and its count). In this order: the last-system gate, when the
 	 * code of the tag takes the system and it is its owner's last settled system (a kept system ends there: its slot is
 	 * emptied without result); the effects (OnExpireEffects, or OnExpireBranchEffects when OutcomeNumber is below
-	 * BranchChance), then OnExpireNeighbourEffects; the code of the tag (Hazard.PreSupernova: CosmicHazards::Destroy, then
+	 * BranchChance), then OnExpireNeighbourEffects; FollowUpKnowing (a system the effects handed to the vessel's people is
+	 * known and its giver met, with the meeting line - the one line that can leave before the code of the tag, while the
+	 * slot still holds the expiring tag); the code of the tag (Hazard.PreSupernova: CosmicHazards::Destroy, then
 	 * DeposeRuler through Apply when the people the vessel rules has no system left; Hazard.Rebellion: the throne;
 	 * Hazard.Claim: the join); the slot emptied; the claim rule on that slot; the expiry line (a claim that did not join
 	 * tells the resolution line); FollowUpNotes. Should the effects have made the system its owner's last settled system
 	 * after the gate let it pass (no row of the game can: Data.Integrity keeps TransferSystem out of the expiry effects
 	 * and out of OnResolveEffects, which a ResolveHazard on a neighbour runs), the gate is asked again, with an error line,
-	 * before the code of the tag takes it; a system kept then has taken the effects already, and the notes they left are
-	 * told after the grace line.
+	 * before the code of the tag takes it; a system kept then has taken the effects already: what they handed to the
+	 * vessel's people was known before the grace line, and the hazard notes they left are told after it.
 	 */
 	void ExpireHazard(int32 SystemIndex, FGameplayTag Collected, float OutcomeNumber, float ClaimNumber);
 
@@ -396,9 +398,10 @@ private:
 	 * Step (a) of the crisis stage (section 5.7, 7.4): CosmicMegaprojects::Advance for every response slot that holds a
 	 * project, in Systems order, then for every construction slot, in Systems order (an answer spends the stockpile before
 	 * a construction does), with DT_Rules.AIAscensionSpeedMultiplier as the rate of the peoples the player does not rule
-	 * (not above 0, or not a number: 1, with one error line). After each slot its completion line (the row's
-	 * CompleteTemplates, Log.Civ, Severity 1 for the people the player rules and 0 for the others, slots {Civ} {System}
-	 * {Project}), then the lines that follow (FollowUpNotes - the resolution a completion made). No draw of its own.
+	 * (not above 0, or not a number: 1, with one error line). After each slot FollowUpKnowing (a system a resolution
+	 * handed to the vessel's people), then its completion line (the row's CompleteTemplates, Log.Civ, Severity 1 for the
+	 * people the player rules and 0 for the others, slots {Civ} {System} {Project}), then the lines that follow
+	 * (FollowUpNotes - the resolution a completion made). No draw of its own.
 	 */
 	void AdvanceMegaprojects();
 

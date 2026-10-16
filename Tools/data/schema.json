@@ -220,7 +220,7 @@
 					"kind": "row",
 					"table": "DT_LogTemplates",
 					"optional": true,
-					"target": [{"col": "Category", "is": "Log.Sign"}, {"col": "Templates", "slots_in": ["Civ", "System", "Hazard"]}]
+					"target": [{"col": "Category", "is": "Log.Sign"}, {"col": "Templates", "slots_in": ["Civ", "Hazard"]}]
 				}
 			},
 			"pairs": [
@@ -274,6 +274,11 @@
 					"why": "a sign row is told below MinTierToReveal, so there has to be a tier below it",
 					"when": [{"col": "SignRow", "set": true}],
 					"then": [{"col": "MinTierToReveal", "ge": 2}]
+				},
+				{
+					"why": "the calling's own line that waits for a tier comes with its sign row: the viewers below the window hear the sign (guideline 8.1)",
+					"when": [{"col": "LogCategory", "is": "Log.Calling"}, {"col": "MinTierToReveal", "ge": 2}],
+					"then": [{"col": "SignRow", "set": true}]
 				},
 				{
 					"why": "a row fired by name is not a slot: the stay condition holds on every tick of its window there (guideline 7.3)",
@@ -408,7 +413,7 @@
 				"OutbreakTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"]},
 				"ExpireTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"]},
 				"ResolveTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"]},
-				"OutbreakRow": {"kind": "row", "table": "DT_Events", "optional": true, "target": [{"col": "Trigger", "is": "Named"}, {"col": "Effects", "lacks_type": "ResolveHazard"}]}
+				"OutbreakRow": {"kind": "row", "table": "DT_Events", "optional": true, "target": [{"col": "Trigger", "is": "Named"}, {"col": "Subject", "is": "SettledSystem"}, {"col": "Effects", "lacks_type": "ResolveHazard"}]}
 			},
 			"unique": [
 				{"cols": ["HazardTag"], "why": "a system holds the tag and the code finds the row by it (guideline 7.3)"}
