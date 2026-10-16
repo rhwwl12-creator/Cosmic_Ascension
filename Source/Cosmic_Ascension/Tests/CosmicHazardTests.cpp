@@ -2403,7 +2403,7 @@ namespace CosmicHazardTests
 	// The rows of the game behind a record: an event, hazard or log-template row of the tables.
 	bool IsGameRow(const FCosmicDataTables& Tables, FName Row)
 	{
-		return Tables.FindEvent(Row) || Tables.FindHazard(Row) || Tables.FindLogTemplate(Row);
+		return Tables.FindEvent(Row) || Tables.FindHazard(Row) || Tables.FindLogTemplate(Row) || Tables.FindFeat(Row);
 	}
 }
 
@@ -2424,6 +2424,7 @@ bool FCosmicNotablesCappedTest::RunTest(const FString& Parameters)
 	bool bCapped = true;
 	bool bOnePerRole = true;
 	bool bClosedInOrder = true;
+	bool bNoneOpenAtFourth = true;
 	int32 Made = 0;
 	for (int32 Step = 0; Step < 20000; ++Step)
 	{
@@ -2431,6 +2432,9 @@ bool FCosmicNotablesCappedTest::RunTest(const FString& Parameters)
 		for (const FCivilizationState& Civ : State.Civs)
 		{
 			bCapped &= Civ.Notables.Num() <= Cap;
+			// From the fourth rung on a people holds no open record (Feats.Evaluate lifts one there).
+			bNoneOpenAtFourth &= static_cast<int32>(Civ.Tier) < static_cast<int32>(EAscensionTier::Tier4_Transcendent)
+				|| !Civ.Notables.ContainsByPredicate([](const FNotableRecord& Record) { return Record.LastTick == 0; });
 			TSet<FGameplayTag> OpenRoles;
 			for (const FNotableRecord& Record : Civ.Notables)
 			{
@@ -2452,6 +2456,7 @@ bool FCosmicNotablesCappedTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("No people ever held more records than the cap"), bCapped);
 	TestTrue(TEXT("No people ever held two open records of one role"), bOnePerRole);
 	TestTrue(TEXT("Every closed record closed after it opened"), bClosedInOrder);
+	TestTrue(TEXT("No people of the fourth rung or above held an open record"), bNoneOpenAtFourth);
 	Sim->NewGalaxy(42, 5, 3);
 	return true;
 }

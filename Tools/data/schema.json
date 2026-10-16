@@ -28,11 +28,13 @@
 		"stat": ["Body", "Mind", "Causality", "Exaltation"],
 		"role": ["Ruler", "Wanderer"],
 		"civ_selector": ["Former"],
-		"policy": ["Cautious", "Reckless", "Faithful", "Tribute"]
+		"policy": ["Cautious", "Reckless", "Faithful", "Tribute"],
+		"research": ["Physics", "Society", "Engineering", "Transcendence"]
 	},
 
 	"enums": {
 		"EAscensionTier": ["Tier1_Planetary", "Tier2_Stellar", "Tier3_Causal", "Tier4_Transcendent", "Tier5_EternalOrder"],
+		"EPlayerRole": ["Ruler", "Wanderer"],
 		"ECosmicEventTrigger": ["Lottery", "Standing", "Named"],
 		"ECosmicEventSubject": ["Civilization", "SettledSystem"],
 		"ECosmicHazardSpawn": ["Draw", "Capital", "ClaimRule"]
@@ -370,7 +372,7 @@
 				"OnExpireBranchEffects": {"kind": "effects"},
 				"OnExpireNeighbourEffects": {"kind": "effects"},
 				"OnResolveEffects": {"kind": "effects"},
-				"RulerResolutions": {"kind": "rows", "tables": ["DT_Encounters"], "unique": true},
+				"RulerResolutions": {"kind": "rows", "tables": ["DT_Megaprojects", "DT_Encounters"], "unique": true},
 				"WandererResolutions": {"kind": "rows", "tables": ["DT_Encounters"], "unique": true},
 				"LogCategory": {"kind": "tag", "root": ["Log.Crisis"]},
 				"Severity": {"kind": "number", "min": 0, "max": 2, "integer": true},
@@ -456,7 +458,44 @@
 				}
 			]
 		},
-		"DT_Feats": {"struct": "AscensionFeatDef", "prefixes": ["feat_"], "columns": null},
+		"DT_Megaprojects": {
+			"struct": "MegaprojectDef",
+			"prefixes": ["project_"],
+			"required_rows": ["project_settle"],
+			"must_exist": true,
+			"columns": {
+				"DisplayName": {"kind": "text", "required": true, "slots": []},
+				"RequiredTier": {"kind": "enum", "enum": "EAscensionTier"},
+				"CostPerTick": {"kind": "plain"},
+				"RequiredProgress": {"kind": "number", "min": 1},
+				"CompleteTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "System", "Project"]}
+			}
+		},
+		"DT_Feats": {
+			"struct": "AscensionFeatDef",
+			"prefixes": ["feat_"],
+			"must_exist": true,
+			"columns": {
+				"Title": {"kind": "text", "required": true, "slots": []},
+				"MythicNarrative": {"kind": "text", "required": true, "slots": []},
+				"RequiredTier": {"kind": "enum", "enum": "EAscensionTier"},
+				"TargetTier": {"kind": "enum", "enum": "EAscensionTier"},
+				"Path": {"kind": "enum", "enum": "EPlayerRole"},
+				"CompletionConditions": {"kind": "conditions"},
+				"AscensionCost": {"kind": "effects"},
+				"GrantedPowers": {"kind": "tags", "root": ["Power.", "Way."]},
+				"DedicationBank": {"kind": "tag", "root": "Faith.Bank.", "optional": true},
+				"FX": {"kind": "plain"},
+				"Sound": {"kind": "plain"},
+				"LogTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "HomeSystem"]}
+			},
+			"rules": [
+				{
+					"why": "the wanderer's feats are judged from Phase 4, with their first row: until then no row walks that path (guideline 3.2, 7.5)",
+					"then": [{"col": "Path", "is": "Ruler"}]
+				}
+			]
+		},
 		"DT_Encounters": {"struct": "EncounterDef", "prefixes": ["enc_", "petition_"], "columns": null}
 	},
 
@@ -471,7 +510,7 @@
 		"CivReverenceAtLeast": {"value": {"min": 0, "max": 1}},
 		"SystemHasHazard": {"tag": {"root": "Hazard.", "optional": true}},
 		"SystemOwnedBy": {},
-		"MegaprojectComplete": {},
+		"MegaprojectComplete": {"key": {"row": "DT_Megaprojects"}},
 		"SystemPressureAtLeast": {"value": {"min": 0}},
 		"SystemInfluencedBy": {"key": {"row": "DT_Transcendents", "optional": true, "target": [{"col": "Allegiance", "in": ["Realm.Abyssal", "Realm.Independent"]}]}},
 		"PlayerTierAtLeast": {"value": {"min": 1, "max": 5, "integer": true}},
@@ -489,7 +528,8 @@
 		"FlagNotSet": {"tag": {"root": "Flag."}},
 		"TranscendentDoctrinePresent": {"tag": {"root": "Doctrine."}},
 		"CivHasNotable": {"tag": {"root": "Notable."}, "key": {"word": "civ_selector", "optional": true}},
-		"CivFallenSphereTicksReached": {"tag": {"root": ["Doctrine.Silence", "Doctrine.Assimilation", "Doctrine.Zeal", "Doctrine.Recurrence"], "optional": true}, "key": {"digits": true}}
+		"CivFallenSphereTicksReached": {"tag": {"root": ["Doctrine.Silence", "Doctrine.Assimilation", "Doctrine.Zeal", "Doctrine.Recurrence"], "optional": true}, "key": {"digits": true}},
+		"CivResearchAtLeast": {"key": {"word": "research"}, "value": {"min": 0, "max": 1}}
 	},
 
 	"effects": {

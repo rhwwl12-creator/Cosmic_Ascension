@@ -1,0 +1,62 @@
+[
+	{
+		"Name": "project_dyson",
+		"DisplayName": "다이슨 스웜",
+		"RequiredTier": "Tier1_Planetary",
+		"CostPerTick": {"Energy": 2.0, "Matter": 1.0, "Insight": 0.0, "Influence": 0.0, "Causality": 0.0},
+		"RequiredProgress": 600.0,
+		"CompleteTemplates": [
+			"{Civ}|hpp(이,가) {System}의 별을 두르는 첫 고리를 닫았다.",
+			"{System}의 빛이 이제 {Civ}의 그물을 지나 흐른다.",
+			"{Civ}의 {Project}|hpp(이,가) {System}에서 첫 단계를 마쳤다."
+		]
+	},
+	{
+		"Name": "project_reform",
+		"DisplayName": "개혁",
+		"RequiredTier": "Tier1_Planetary",
+		"CostPerTick": {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 1.0, "Causality": 0.0},
+		"RequiredProgress": 100.0,
+		"CompleteTemplates": [
+			"{Civ}의 개혁이 {System}에서 마무리되었다.",
+			"{Civ}|hpp(은,는) 오래 미뤄 둔 개혁을 마쳤다.",
+			"{System}의 광장에 새 법이 걸렸다. {Civ}의 {Project}|hpp(이,가) 끝났다."
+		]
+	},
+	{
+		"Name": "project_relief",
+		"DisplayName": "구호",
+		"RequiredTier": "Tier1_Planetary",
+		"CostPerTick": {"Energy": 0.0, "Matter": 1.0, "Insight": 0.0, "Influence": 1.0, "Causality": 0.0},
+		"RequiredProgress": 150.0,
+		"CompleteTemplates": [
+			"{Civ}의 구호선이 {System}에 닿았다.",
+			"{System}의 사람들에게 {Civ}의 손이 끝까지 닿았다.",
+			"{Civ}|hpp(은,는) {System}의 밤을 함께 지켰다. {Project}|hpp(이,가) 끝났다."
+		]
+	},
+	{
+		"Name": "project_settle",
+		"DisplayName": "정착",
+		"RequiredTier": "Tier2_Stellar",
+		"CostPerTick": {"Energy": 1.0, "Matter": 2.0, "Insight": 0.0, "Influence": 0.0, "Causality": 0.0},
+		"RequiredProgress": 300.0,
+		"CompleteTemplates": [
+			"{Civ}|hpp(이,가) {System}에 자리를 잡았다.",
+			"{System}에 {Civ}의 첫 불빛이 켜졌다.",
+			"{Civ}의 {Project}|hpp(이,가) {System}에서 끝났다. 그곳은 이제 그들의 집이다."
+		]
+	},
+	{
+		"Name": "project_stabilize",
+		"DisplayName": "초신성 안정화",
+		"RequiredTier": "Tier2_Stellar",
+		"CostPerTick": {"Energy": 2.0, "Matter": 2.0, "Insight": 0.0, "Influence": 0.0, "Causality": 0.0},
+		"RequiredProgress": 100.0,
+		"CompleteTemplates": [
+			"{Civ}|hpp(이,가) {System}의 별을 붙들었다. 무너질 날이 물러났다.",
+			"{System}의 별이 다시 고요해졌다. {Civ}의 {Project}|hpp(이,가) 끝났다.",
+			"{Civ}의 기술자들이 {System}의 붕괴를 멈추었다."
+		]
+	}
+]

@@ -13,6 +13,7 @@
 #include "Log/CosmicLogSubsystem.h"
 #include "Math/NumericLimits.h"
 #include "Sim/CosmicHazards.h"
+#include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Templates/UnrealTemplate.h"
@@ -474,7 +475,8 @@ bool UCosmicEventSubsystem::Check(const FCosmicCondition& Condition, const FCosm
 		return Condition.Key.IsNone() ? (Civ && System->OwnerCivID == Civ->CivID) : System->OwnerCivID == Condition.Key;
 
 	case EConditionType::MegaprojectComplete:
-		return System && System->MegaprojectCompletedTick > 0 && System->MegaprojectCompletedTick >= View.SinceTick;
+		// The record of the Key's row on the subject system, since the life the judgment counts from (section 4.4, 5.7).
+		return System && CosmicMegaprojects::HasCompleted(*System, Condition.Key, View.SinceTick);
 
 	case EConditionType::SystemPressureAtLeast:
 		// P of the subject system, derived over the state of the view (section 4.2).
@@ -583,6 +585,13 @@ bool UCosmicEventSubsystem::Check(const FCosmicCondition& Condition, const FCosm
 			}
 		}
 		return false;
+	}
+
+	case EConditionType::CivResearchAtLeast:
+	{
+		// A research field is a key the civilization's Research holds; any other Key is false (section 5.4).
+		const float* Progress = Civ ? Civ->Research.Find(Condition.Key) : nullptr;
+		return Progress && *Progress >= Condition.Value;
 	}
 
 	case EConditionType::CivHasNotable:

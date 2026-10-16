@@ -80,6 +80,23 @@ struct COSMIC_ASCENSION_API FCosmicLogEntry
 	FName SourceRow;
 };
 
+/**
+ * The last completion of one DT_Megaprojects row on one system (section 5.7, 7.2). It stays when the system changes hands
+ * or is destroyed. Condition MegaprojectComplete reads it.
+ */
+USTRUCT(BlueprintType)
+struct COSMIC_ASCENSION_API FMegaprojectRecord
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName Row;
+
+	// Tick of the last completion of Row here. Above 0: no tick stage runs at tick 0.
+	UPROPERTY()
+	int64 Tick = 0;
+};
+
 /** One star system (section 7.2). The smallest unit of the map: no planet surface, no per-system population (section 12.2). */
 USTRUCT(BlueprintType)
 struct COSMIC_ASCENSION_API FStarSystemState
@@ -126,17 +143,31 @@ struct COSMIC_ASCENSION_API FStarSystemState
 	UPROPERTY(BlueprintReadOnly)
 	int32 HazardTicksRemaining = 0;
 
-	// DT_Megaprojects row name. NAME_None = none.
+	// The construction slot: a DT_Megaprojects row that answers no hazard (project_dyson; project_settle and
+	// project_crossing later). NAME_None = none (section 5.7).
 	UPROPERTY(BlueprintReadOnly)
 	FName ActiveMegaproject;
 
 	UPROPERTY(BlueprintReadOnly)
 	float MegaprojectProgress = 0.f;
 
-	// 0 = not completed. Condition MegaprojectComplete is true only when this is > 0 and >= the SinceTick of the
-	// evaluation (section 4.4, 7.5). SinceTick is 0 for everything but the player's feats, so the > 0 test is not redundant.
+	// Tick of the latest completion of any project here. 0 = none yet. Conditions read CompletedMegaprojects instead.
 	UPROPERTY(BlueprintReadOnly)
 	int64 MegaprojectCompletedTick = 0;
+
+	// The response slot (section 5.7, 16 #23): a DT_Megaprojects row that the RulerResolutions of the row of the hazard in
+	// the slot list. It lives and dies with that hazard: every path that empties the hazard slot empties this one too
+	// (CosmicHazards::EmptyHazardSlot). NAME_None = none.
+	UPROPERTY(BlueprintReadOnly)
+	FName ResponseMegaproject;
+
+	UPROPERTY(BlueprintReadOnly)
+	float ResponseProgress = 0.f;
+
+	// One record per row ever completed here, in the order of first completion; a later completion of a row moves its tick
+	// (section 5.7). Condition MegaprojectComplete reads it.
+	UPROPERTY(BlueprintReadOnly)
+	TArray<FMegaprojectRecord> CompletedMegaprojects;
 
 	// Phase 6 (append): FName EpithetRow - the second name the chronicle gives a system (section 5.11).
 };

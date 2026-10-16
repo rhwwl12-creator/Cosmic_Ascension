@@ -316,7 +316,8 @@ private:
 
 	// Stage 5. Four steps in a fixed order (section 7.4). Every hazard is placed through CosmicHazards::Place, and its lines
 	// follow (FollowUpNotes) before the next placement.
-	// (a) Resolution by a completed means: from the megaproject and ascension judgment work of Phase 2 on.
+	// (a) Megaprojects and resolution (AdvanceMegaprojects), before the countdown: a project completed on the last tick of
+	//     a hazard still saves the system.
 	// (b) Countdown and expiry, in two passes. First every countdown goes down by one and the systems that reach 0 are
 	//     collected in Systems order, so a hazard placed later in this stage keeps its whole count this tick. Then two
 	//     numbers per collected system are drawn from the sim stream, all of them before the first expiry: the outcome
@@ -357,9 +358,18 @@ private:
 	 */
 	bool GraceKeepsLastSystem(FCosmicEvalContext& Ctx, int32 SystemIndex);
 
-	// Stage 6. (a) decisions of AI civilizations and regents in Civs array order (a civilization without systems is
-	// skipped); (b) UAscensionSubsystem::EvaluateFeats, exactly once per tick and nowhere else in the tick (from the
-	// megaproject and ascension judgment work of Phase 2).
+	/**
+	 * Step (a) of the crisis stage (section 5.7, 7.4): CosmicMegaprojects::Advance for every system that holds a project,
+	 * in Systems order, with DT_Rules.AIAscensionSpeedMultiplier as the rate of the peoples the player does not rule (not
+	 * above 0, or not a number: 1, with one error line). After each system its completion lines (the row's
+	 * CompleteTemplates, Log.Civ, Severity 1 for the people the player rules and 0 for the others, slots {Civ} {System}
+	 * {Project}), then the lines that follow (FollowUpNotes - the resolution a completion made). No draw of its own.
+	 */
+	void AdvanceMegaprojects();
+
+	// Stage 6. (a) Every people the player does not rule starts its CosmicMegaprojects::Choices (SinceTick 0), in Civs
+	// order; no draw (section 4.3, 5.7). Settlement (project_settle and its draw) comes with the settlement and removal
+	// work. (b) UAscensionSubsystem::EvaluateFeats, exactly once per tick and nowhere else in the tick.
 	void TickCivAI();
 
 	// Stage 7. The only place where the number of elements of State.Civs changes. Empty body until Phase 2 (cleanup of

@@ -45,7 +45,10 @@ private:
 	TObjectPtr<UCosmicTextPanelWidget> Panel;
 };
 
-/** Time controls of the prototype: 0 pauses, 1 to 4 set the speed to 1x, 2x, 5x and 10x, Space toggles the pause. */
+/**
+ * Controls of the prototype: 0 pauses, 1 to 4 set the speed to 1x, 2x, 5x and 10x, Space toggles the pause, P starts the
+ * next megaproject of the ruled people (UPlayerRoleSubsystem::StartNextMegaproject; the panels of Phase 3 replace it).
+ */
 UCLASS()
 class COSMIC_ASCENSION_API ACosmicPlayerController : public APlayerController
 {
@@ -59,6 +62,7 @@ protected:
 
 private:
 	void HandleSpeedKey(FKey Key);
+	void HandleProjectKey(FKey Key);
 
 	// Speed to return to when the pause is released.
 	float SpeedBeforePause = 1.f;

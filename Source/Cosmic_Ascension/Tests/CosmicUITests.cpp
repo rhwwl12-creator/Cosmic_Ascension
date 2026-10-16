@@ -9,10 +9,13 @@
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "Core/GalaxyState.h"
+#include "Data/CosmicDataTables.h"
+#include "Data/CosmicDefinitionRows.h"
 #include "Engine/GameInstance.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Internationalization/StringTableCore.h"
 #include "Misc/AutomationTest.h"
+#include "Player/PlayerRoleSubsystem.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Templates/SharedPointer.h"
 #include "Tests/CosmicTestHelpers.h"
@@ -84,6 +87,26 @@ bool FCosmicUIPanelLabelsTest::RunTest(const FString& Parameters)
 	if (TestTrue(TEXT("The log has its first line"), !State.Log.IsEmpty()))
 	{
 		TestTrue(TEXT("The panel shows the last log line"), Shown.Contains(State.Log.Last().Message.ToString()));
+	}
+
+	// A project the ruler starts shows with its system and its name (the project key of the prototype).
+	{
+		UPlayerRoleSubsystem* Role = Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>();
+		const FName Capital = Civ ? Civ->HomeSystemID : FName();
+		const FStarSystemState* Home = State.Systems.FindByPredicate([Capital](const FStarSystemState& System) { return System.SystemID == Capital; });
+		if (TestTrue(TEXT("The project key starts a project"), Role->StartNextMegaproject()) && TestNotNull(TEXT("The ruled civ has its capital"), Home))
+		{
+			const FMegaprojectDef* Row = Sim->GetTables().FindMegaproject(Home->ActiveMegaproject);
+			Panel->Refresh();
+			FString WithProject;
+			CosmicUITests::ReadPanel(*Panel, WithProject);
+			if (TestNotNull(TEXT("The started project is a row of the game"), Row))
+			{
+				TestTrue(TEXT("The panel shows the running project"), WithProject.Contains(Home->DisplayName.ToString() + TEXT(" ") + Row->DisplayName.ToString()));
+			}
+			TestTrue(TEXT("No label of the project line is missing"), !WithProject.Contains(Placeholder));
+			Shown = WithProject;
+		}
 	}
 
 	// A tick redraws the status through the delegate alone; nothing here asks the panel to refresh.

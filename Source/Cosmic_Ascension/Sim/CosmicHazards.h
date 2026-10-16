@@ -26,6 +26,10 @@ namespace CosmicHazards
 		return !System.StarClass.IsValid();
 	}
 
+	// Empties the hazard slot of System and the response slot that answered its hazard (section 5.7, 16 #23). Resolve,
+	// Transfer, Destroy and the expiry come through here, so a response never outlives its hazard.
+	COSMIC_ASCENSION_API void EmptyHazardSlot(FStarSystemState& System);
+
 	// Whether SystemIndex is owned and the only element of its owner's OwnedSystems: the system the last-system gate asks
 	// about (section 4.5). A system being settled counts: what is owned is what can be lost.
 	COSMIC_ASCENSION_API bool IsLastOwnedSystem(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 SystemIndex);
@@ -55,7 +59,7 @@ namespace CosmicHazards
 	 * 16 #29 (6)). Refused (false, nothing changed) for a dead node, for a system that already is the target's (an
 	 * unowned one cannot be let go), and for the last owned system of its owner: only stage code behind the last-system
 	 * gate takes that (section 4.5). What changes with the owner: the system leaves the old owner's OwnedSystems and joins
-	 * the end of the new owner's; its megaproject row and progress end (a completion tick stays); the hazard of a Capital
+	 * the end of the new owner's; both project slots end (the completion records stay); the hazard of a Capital
 	 * row ends without result, and so does a Hazard.Rebellion whose tag no row holds (the old owner's discontent either
 	 * way) and any hazard of a system let go (no people under it, no threat: section 16 #29 (5)) - a rebellion that ends so
 	 * also closes its leader's open record and starts the old owner's count over, as a resolution does; when it was the old
@@ -73,7 +77,7 @@ namespace CosmicHazards
 
 	/**
 	 * Destroys SystemIndex (section 7.2, 16 #29 (5)): the owner lets it go (its capital moves), every lane to and from it
-	 * is cut, its star class, hazard and megaproject row are cleared (a completion tick stays), and it leaves every
+	 * is cut, its star class, hazard and both project slots are cleared (the completion records stay), and it leaves every
 	 * sphere. A vessel standing there is carried away while the calling is Embodied and no KillPlayer is pending: a ruler
 	 * to the new capital of its people, anyone else (and a ruler whose people has no system left) to the first lane
 	 * neighbour of the old Lanes that is not a dead node; with none it stays (section 16 #53 (2)). The stage that destroys

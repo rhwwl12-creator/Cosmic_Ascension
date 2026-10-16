@@ -17,3 +17,11 @@ void UCosmicTestProbe::HandleEventFired(const FCosmicEventNotice& Notice)
 		OnEvent(Notice);
 	}
 }
+
+void UCosmicTestProbe::HandleTierAscended(EAscensionTier NewTier, FName FeatRow, EPlayerRole Path)
+{
+	if (OnTier)
+	{
+		OnTier(NewTier, FeatRow, Path);
+	}
+}

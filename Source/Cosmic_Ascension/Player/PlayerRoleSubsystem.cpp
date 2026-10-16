@@ -11,6 +11,7 @@
 #include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
+#include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 
@@ -226,4 +227,45 @@ void UPlayerRoleSubsystem::BecomeWanderer(FGameplayTag RegentProfile, FGameplayT
 
 	// A role change ends a first-contact card that was waiting (section 8.1).
 	State.Knowing.PendingContactCivID = NAME_None;
+}
+
+bool UPlayerRoleSubsystem::StartMegaproject(FName SystemID, FName RowName)
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	check(Sim);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("StartMegaproject called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return false;
+	}
+	FGalaxyState& State = Sim->GetMutableState();
+	if (State.Calling.LifeState != ELifeState::Embodied || State.Player.Role != EPlayerRole::Ruler || State.Player.RuledCivID.IsNone())
+	{
+		return false;
+	}
+	const int32 SystemIndex = Sim->GetStateIndex().FindSystem(State, SystemID);
+	if (!State.Systems.IsValidIndex(SystemIndex) || State.Systems[SystemIndex].OwnerCivID != State.Player.RuledCivID)
+	{
+		return false;
+	}
+	return CosmicMegaprojects::Start(State, Sim->GetStateIndex(), Sim->GetTables(), SystemIndex, RowName);
+}
+
+bool UPlayerRoleSubsystem::StartNextMegaproject()
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	check(Sim);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("StartNextMegaproject called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return false;
+	}
+	const FGalaxyState& State = Sim->GetState();
+	if (State.Calling.LifeState != ELifeState::Embodied || State.Player.Role != EPlayerRole::Ruler)
+	{
+		return false;
+	}
+	const int32 CivIndex = Sim->GetStateIndex().FindCiv(State, State.Player.RuledCivID);
+	const TArray<TPair<int32, FName>> Choices = CosmicMegaprojects::Choices(State, Sim->GetStateIndex(), Sim->GetTables(), CivIndex, State.Calling.BornTick);
+	return !Choices.IsEmpty() && StartMegaproject(State.Systems[Choices[0].Key].SystemID, Choices[0].Value);
 }

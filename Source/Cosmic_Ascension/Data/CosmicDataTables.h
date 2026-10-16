@@ -46,8 +46,18 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 	UPROPERTY(Transient)
 	TObjectPtr<UDataTable> Hazards;
 
+	// DT_Megaprojects: one row per megaproject (section 5.7). A missing table means no project can start; the stage still
+	// runs.
+	UPROPERTY(Transient)
+	TObjectPtr<UDataTable> Megaprojects;
+
+	// DT_Feats: one row per Mythic Feat (section 3.2). A missing table means nobody ascends.
+	UPROPERTY(Transient)
+	TObjectPtr<UDataTable> Feats;
+
 	// Loads every table that has an asset from its fixed path: DT_Rules, DT_Civs, DT_LogTemplates, DT_Galaxies,
-	// DT_Events, DT_Transcendents and DT_Hazards. A missing asset leaves its pointer null and is reported once in LogCosmic.
+	// DT_Events, DT_Transcendents, DT_Hazards, DT_Megaprojects and DT_Feats. A missing asset leaves its pointer null and is
+	// reported once in LogCosmic.
 	void LoadFromFixedPaths();
 
 	// Null when the table or the row is missing. They never warn: the caller decides what a missing row means.
@@ -58,6 +68,8 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 	const FCosmicEventDef* FindEvent(FName RowName) const;
 	const FTranscendentDef* FindTranscendent(FName RowName) const;
 	const FHazardDef* FindHazard(FName RowName) const;
+	const FMegaprojectDef* FindMegaproject(FName RowName) const;
+	const FAscensionFeatDef* FindFeat(FName RowName) const;
 
 	// The DT_Hazards row whose HazardTag is Tag exactly, and its name in OutRowName when one is asked for (NAME_None when
 	// there is no such row). Rows are looked at in lexical order, so a table that broke the uniqueness lint answers the
@@ -76,4 +88,11 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 	// Row names of DT_Hazards in lexical order: the order of the shares of one spawn draw and of the capital rule
 	// (section 7.4, 9.2).
 	TArray<FName> GetHazardRowNames() const;
+
+	// Row names of DT_Feats in lexical order: the order in which the feat judgment and the AI look at rows (section 7.5).
+	TArray<FName> GetFeatRowNames() const;
+
+	// Whether some DT_Hazards row lists the DT_Megaprojects row RowName in RulerResolutions: the project answers a hazard
+	// and runs in the response slot (section 5.7).
+	bool IsHazardAnswer(FName RowName) const;
 };

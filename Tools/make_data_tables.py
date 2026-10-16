@@ -69,6 +69,8 @@ TABLES = [
     ("DT_Transcendents", "TranscendentDef"),
     ("DT_Events", "CosmicEventDef"),
     ("DT_Hazards", "HazardDef"),
+    ("DT_Megaprojects", "MegaprojectDef"),
+    ("DT_Feats", "AscensionFeatDef"),
 ]
 STRING_TABLE = "ST_CA"
 STAMP_FILE = "generated.sha1"

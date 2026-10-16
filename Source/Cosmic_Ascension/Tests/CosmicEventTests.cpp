@@ -196,6 +196,13 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 	}
 	Detached.Systems[0].ActiveHazard = Tag(TEXT("Hazard.Plague"));
 	Detached.Systems[0].MegaprojectCompletedTick = 50;
+	const FName Built(TEXT("project_test_build"));
+	{
+		FMegaprojectRecord& Record = Detached.Systems[0].CompletedMegaprojects.AddDefaulted_GetRef();
+		Record.Row = Built;
+		Record.Tick = 50;
+	}
+	Detached.Civs[0].Research.Add(FName(TEXT("Physics")), 0.5f);
 	{
 		// The two transcendents of the cases and no other: whatever roster the tables of the game gave is taken out.
 		Detached.Transcendents.Reset();
@@ -256,8 +263,11 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		{ Cond(EConditionType::SystemHasHazard, TEXT("Hazard.Rebellion"), NAME_None, 0.f), 0, false },
 		{ Cond(EConditionType::SystemOwnedBy, nullptr, NAME_None, 0.f), 0, true },
 		{ Cond(EConditionType::SystemOwnedBy, nullptr, Civ1, 0.f), 0, false },
-		{ Cond(EConditionType::MegaprojectComplete, nullptr, NAME_None, 0.f), 0, true },
-		{ Cond(EConditionType::MegaprojectComplete, nullptr, NAME_None, 0.f), 51, false },
+		{ Cond(EConditionType::MegaprojectComplete, nullptr, Built, 0.f), 0, true },
+		{ Cond(EConditionType::MegaprojectComplete, nullptr, Built, 0.f), 51, false },
+		// The record of its own row only: another row, and an empty Key, are false.
+		{ Cond(EConditionType::MegaprojectComplete, nullptr, FName(TEXT("project_test_other")), 0.f), 0, false },
+		{ Cond(EConditionType::MegaprojectComplete, nullptr, NAME_None, 0.f), 0, false },
 		// The transcendent of the test has no row in DT_Transcendents, so nothing presses on sol: 0 is reached, more is not.
 		{ Cond(EConditionType::SystemPressureAtLeast, nullptr, NAME_None, 0.f), 0, true },
 		{ Cond(EConditionType::SystemPressureAtLeast, nullptr, NAME_None, 0.1f), 0, false },
@@ -299,7 +309,8 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		{ Cond(EConditionType::CivFallenSphereTicksReached, TEXT("Doctrine.Zeal"), FName(TEXT("300")), 0.f), 0, false },
 		// The boundary of every "at least": the bound itself passes.
 		{ Cond(EConditionType::CivStabilityBelowFor, nullptr, FName(TEXT("120")), 0.3f), 0, true },
-		{ Cond(EConditionType::MegaprojectComplete, nullptr, NAME_None, 0.f), 50, true },
+		{ Cond(EConditionType::MegaprojectComplete, nullptr, Built, 0.f), 50, true },
+		{ Cond(EConditionType::CivResearchAtLeast, nullptr, FName(TEXT("Physics")), 0.5f), 0, true },
 		{ Cond(EConditionType::TranscendentSealed, nullptr, TrSealed, 0.f), 40, true },
 		{ Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("305")), 0.f), 0, true },
 		// The window of a reached stay ends where the next slot period begins: 296 is its last Key, 295 is past it.
@@ -316,6 +327,9 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		{ Cond(EConditionType::CivRelationAtLeast, nullptr, FName(TEXT("no_such_party")), -1.f), 0, false },
 		{ Cond(EConditionType::CivRelationAtLeast, nullptr, TrActive, 0.f), 0, true },
 		{ Cond(EConditionType::CivRelationAtLeast, nullptr, TrActive, 0.1f), 0, false },
+		// A research field: its progress; a Key that is no field is false.
+		{ Cond(EConditionType::CivResearchAtLeast, nullptr, FName(TEXT("Physics")), 0.51f), 0, false },
+		{ Cond(EConditionType::CivResearchAtLeast, nullptr, FName(TEXT("NoSuchField")), 0.f), 0, false },
 	};
 
 	auto Answers = [&](const FGalaxyState& State, int32 CivIndex, int32 SystemIndex)
@@ -333,7 +347,8 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 	};
 	auto IsSubjectType = [](EConditionType Type)
 	{
-		return Type <= EConditionType::SystemInfluencedBy || Type == EConditionType::CivHasNotable || Type == EConditionType::CivFallenSphereTicksReached;
+		return Type <= EConditionType::SystemInfluencedBy || Type == EConditionType::CivHasNotable || Type == EConditionType::CivFallenSphereTicksReached
+			|| Type == EConditionType::CivResearchAtLeast;
 	};
 	auto IsPlayerType = [](EConditionType Type)
 	{

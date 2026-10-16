@@ -8,6 +8,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/DateTime.h"
 #include "Misc/Parse.h"
+#include "Player/PlayerRoleSubsystem.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "UI/CosmicTextPanelWidget.h"
 
@@ -73,6 +74,20 @@ void ACosmicPlayerController::SetupInputComponent()
 	for (const FKey& Key : { EKeys::Zero, EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::SpaceBar })
 	{
 		InputComponent->BindKey(Key, IE_Pressed, this, &ACosmicPlayerController::HandleSpeedKey);
+	}
+	InputComponent->BindKey(EKeys::P, IE_Pressed, this, &ACosmicPlayerController::HandleProjectKey);
+}
+
+void ACosmicPlayerController::HandleProjectKey(FKey Key)
+{
+	UPlayerRoleSubsystem* Roles = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (Roles && Roles->StartNextMegaproject())
+	{
+		// A paused simulation sends no tick: show the new project now.
+		if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
+		{
+			CosmicHUD->RefreshPanel();
+		}
 	}
 }
 

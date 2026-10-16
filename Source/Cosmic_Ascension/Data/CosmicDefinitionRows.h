@@ -1,7 +1,7 @@
 // Cosmic Ascension - Data layer. Design: guideline.md section 7.3.
 // Definition rows: read-only DataTable data (FTableRowBase). The row name is the ID; rows are never saved in FGalaxyState.
 // Player-facing strings are FText columns (Korean lives here and in String Tables, never in source, section 10.3).
-// DT_Megaprojects / DT_Edicts / DT_Relics / DT_Traits / DT_Dedications row structs are added with their rows (Phase 2, 4).
+// DT_Edicts / DT_Relics / DT_Traits / DT_Dedications row structs are added with their rows (Phase 4).
 
 #pragma once
 
@@ -257,6 +257,48 @@ struct COSMIC_ASCENSION_API FAscensionFeatDef : public FTableRowBase
 
 	UPROPERTY(EditAnywhere)
 	TSoftObjectPtr<USoundBase> Sound;
+
+	// The ascension line (Log.Ascension, Severity 2, an AI people's too), about the people that ascended and its capital,
+	// SourceRow = this row. Slots {Civ} {HomeSystem}.
+	UPROPERTY(EditAnywhere)
+	TArray<FText> LogTemplates;
+};
+
+/**
+ * DT_Megaprojects row (section 5.7). A project runs on one system of its owner and is paid on every tick it progresses.
+ * Where it runs follows from DT_Hazards: a row that some hazard row lists in RulerResolutions answers that hazard - it
+ * starts only while such a hazard stands in the system, runs in the response slot and ends with the hazard. Any other
+ * row runs in the construction slot. A completion is recorded on the system and resolves the hazard of the system when
+ * that hazard's row lists the project.
+ */
+USTRUCT(BlueprintType)
+struct COSMIC_ASCENSION_API FMegaprojectDef : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	// The name of the project: the UI and the {Project} slot.
+	UPROPERTY(EditAnywhere)
+	FText DisplayName;
+
+	// The owner's Tier from which the project can be started (section 3.2 table).
+	UPROPERTY(EditAnywhere)
+	EAscensionTier RequiredTier = EAscensionTier::Tier1_Planetary;
+
+	// Paid in full from the owner's stockpile on every tick the project progresses. A tick the stockpile cannot pay in
+	// full costs nothing and progresses nothing; there is no partial pay and no abandonment. A member below 0, or not a
+	// number, reads as 0.
+	UPROPERTY(EditAnywhere)
+	FResourcePool CostPerTick;
+
+	// Progress to completion: 1 per paid tick, DT_Rules.AIAscensionSpeedMultiplier per paid tick for a people the player
+	// does not rule. Read as at least 1.
+	UPROPERTY(EditAnywhere)
+	float RequiredProgress = 100.f;
+
+	// The completion line (Log.Civ; Severity 1 for the people the player rules, 0 for the others), about the system and its
+	// owner, SourceRow = this row. Slots {Civ} {System} {Project}. {Dedication} comes with DT_Dedications (Phase 4).
+	UPROPERTY(EditAnywhere)
+	TArray<FText> CompleteTemplates;
 };
 
 /** One choice of an encounter or petition card. Check: stat + Rng 0..5 >= Difficulty (section 5.9). */

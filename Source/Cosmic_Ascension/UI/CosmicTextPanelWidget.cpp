@@ -12,6 +12,8 @@
 #include "Internationalization/StringTableCoreFwd.h"
 #include "Internationalization/Text.h"
 #include "Layout/Margin.h"
+#include "Data/CosmicDataTables.h"
+#include "Data/CosmicDefinitionRows.h"
 #include "Log/CosmicLogSubsystem.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 
@@ -153,7 +155,8 @@ void UCosmicTextPanelWidget::RefreshStatus()
 	const FCivilizationState* Civ = State.Civs.FindByPredicate([RuledCivID](const FCivilizationState& Candidate) { return Candidate.CivID == RuledCivID; });
 	if (Civ)
 	{
-		Lines.Add(FText::Format(INVTEXT("{0}      {1} {2}"), Civ->CivName, Label(TEXT("Panel.Stability")), Percent(Civ->Stability)));
+		Lines.Add(FText::Format(INVTEXT("{0}      {1} {2}      {3} {4}"), Civ->CivName, Label(TEXT("Panel.Tier")), FText::AsNumber(static_cast<int32>(Civ->Tier) + 1),
+			Label(TEXT("Panel.Stability")), Percent(Civ->Stability)));
 		Lines.Add(FText::Format(INVTEXT("{0}      {1} {2}   {3} {4}   {5} {6}   {7} {8}   {9} {10}"),
 			Label(TEXT("Panel.Resources")),
 			Label(TEXT("Resource.Energy")), WholeNumber(Civ->Stockpile.Energy),
@@ -167,6 +170,28 @@ void UCosmicTextPanelWidget::RefreshStatus()
 			Label(TEXT("Research.Society")), Percent(Civ->Research.FindRef(FName(TEXT("Society")))),
 			Label(TEXT("Research.Engineering")), Percent(Civ->Research.FindRef(FName(TEXT("Engineering")))),
 			Label(TEXT("Research.Transcendence")), Percent(Civ->Research.FindRef(FName(TEXT("Transcendence"))))));
+
+		// The projects of the ruled people, both slots of every system, and the prototype's key (section 5.7).
+		TArray<FText> Projects;
+		const FCosmicDataTables& Tables = Sim->GetTables();
+		for (const FStarSystemState& System : State.Systems)
+		{
+			if (System.OwnerCivID != RuledCivID)
+			{
+				continue;
+			}
+			const FName SlotRows[] = { System.ActiveMegaproject, System.ResponseMegaproject };
+			const float SlotProgress[] = { System.MegaprojectProgress, System.ResponseProgress };
+			for (int32 SlotIndex = 0; SlotIndex < 2; ++SlotIndex)
+			{
+				if (const FMegaprojectDef* Row = SlotRows[SlotIndex].IsNone() ? nullptr : Tables.FindMegaproject(SlotRows[SlotIndex]))
+				{
+					Projects.Add(FText::Format(INVTEXT("{0} {1} {2}/{3}"), System.DisplayName, Row->DisplayName, WholeNumber(SlotProgress[SlotIndex]), WholeNumber(Row->RequiredProgress)));
+				}
+			}
+		}
+		Lines.Add(FText::Format(INVTEXT("{0}      {1}      ({2})"), Label(TEXT("Panel.Projects")),
+			Projects.IsEmpty() ? Label(TEXT("Panel.None")) : FText::Join(INVTEXT(", "), Projects), Label(TEXT("Panel.ProjectKey"))));
 	}
 	Lines.Add(FText::GetEmpty());
 	Lines.Add(Label(TEXT("Panel.Log")));

@@ -238,6 +238,9 @@ public:
 	 *   the role effects in Apply, that is the whole exclusion of the player from the leap: the vocabulary has no negation
 	 *   that could turn it around (FlagNotSet reads flags only).
 	 * - MegaprojectComplete and TranscendentSealed compare with View.SinceTick, never with the life state.
+	 *   MegaprojectComplete reads the completion record of its Key's row on the subject system
+	 *   (CosmicMegaprojects::HasCompleted); an empty Key is false.
+	 * - CivResearchAtLeast resolves its Key only as a key of the civilization's Research (a research field).
 	 * - Tier values are tier numbers 1..5 (section 7.3).
 	 * - A condition whose Key names something the view cannot resolve is false. The other party of CivRelationAtLeast
 	 *   (its Key, or the OtherID of the view when the Key is empty) resolves only when it is the CivID of a living

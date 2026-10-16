@@ -15,7 +15,9 @@
 #include "Math/NumericLimits.h"
 #include "Misc/Crc.h"
 #include "Misc/Guid.h"
+#include "Ascension/AscensionSubsystem.h"
 #include "Sim/CosmicHazards.h"
+#include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
 #include "UObject/NameTypes.h"
 #include "Player/PlayerRoleSubsystem.h"
@@ -1480,7 +1482,8 @@ void UGalaxySimulationSubsystem::TickHazards()
 	UCosmicEventSubsystem* Events = GetGameInstance()->GetSubsystem<UCosmicEventSubsystem>();
 	check(Events);
 
-	// (a) Resolution by a completed means arrives with the megaprojects (work item 8).
+	// (a) Megaprojects and the resolutions their completions make, before any countdown.
+	AdvanceMegaprojects();
 
 	// (b) Countdown and expiry. Every countdown first, so a hazard placed later in this stage keeps its count this tick.
 	TArray<TPair<int32, FGameplayTag>, TInlineAllocator<8>> Expiring;
@@ -1638,8 +1641,7 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 	const int32 OwnerIndex = StateIndex.FindCiv(State, State.Systems[SystemIndex].OwnerCivID);
 	auto EmptySlot = [this, SystemIndex]()
 	{
-		State.Systems[SystemIndex].ActiveHazard = FGameplayTag();
-		State.Systems[SystemIndex].HazardTicksRemaining = 0;
+		CosmicHazards::EmptyHazardSlot(State.Systems[SystemIndex]);
 	};
 	FCosmicEvalContext Ctx = MakeEvalContext();
 	if (!Row)
@@ -1754,9 +1756,74 @@ bool UGalaxySimulationSubsystem::GraceKeepsLastSystem(FCosmicEvalContext& Ctx, i
 	return bFired;
 }
 
+void UGalaxySimulationSubsystem::AdvanceMegaprojects()
+{
+	static const FGameplayTag CivCategory = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Civ")));
+	UCosmicEventSubsystem* Events = GetGameInstance()->GetSubsystem<UCosmicEventSubsystem>();
+	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	check(Events && Log);
+
+	// The rate of the peoples the player does not rule (section 4.3). A compare, so a value that is not a number reads as 1.
+	float AIRate = Rules.AIAscensionSpeedMultiplier;
+	if (!(AIRate > 0.f && AIRate <= TNumericLimits<float>::Max()))
+	{
+		UE_LOG(LogCosmic, Error, TEXT("DT_Rules.AIAscensionSpeedMultiplier %f is not above 0: read as 1"), AIRate);
+		AIRate = 1.f;
+	}
+
+	for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num(); ++SystemIndex)
+	{
+		if (State.Systems[SystemIndex].ActiveMegaproject.IsNone() && State.Systems[SystemIndex].ResponseMegaproject.IsNone())
+		{
+			continue;
+		}
+		FCosmicEvalContext Ctx = MakeEvalContext();
+		const int32 OwnerIndex = StateIndex.FindCiv(State, State.Systems[SystemIndex].OwnerCivID);
+		const TArray<FName, TInlineAllocator<2>> Completed = CosmicMegaprojects::Advance(Ctx, SystemIndex, AIRate);
+		for (const FName RowName : Completed)
+		{
+			const FMegaprojectDef* Row = Tables.FindMegaproject(RowName);
+			if (!Row || !State.Civs.IsValidIndex(OwnerIndex))
+			{
+				continue;
+			}
+			const FCivilizationState& Owner = State.Civs[OwnerIndex];
+			FCosmicLine Line;
+			Line.Category = CivCategory;
+			Line.Severity = Owner.bIsPlayerRuled ? 1 : 0;
+			Line.FocusSystem = State.Systems[SystemIndex].SystemID;
+			Line.FocusCiv = Owner.CivID;
+			Line.SourceRow = RowName;
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("Civ"), Owner.CivName);
+			Args.Add(TEXT("System"), State.Systems[SystemIndex].DisplayName);
+			Args.Add(TEXT("Project"), Row->DisplayName);
+			Log->PushVariants(Line, Row->CompleteTemplates, Args);
+		}
+		// What the completions did (a resolution), told after them: a cause comes before what follows from it.
+		Events->FollowUpNotes(Ctx);
+	}
+}
+
 void UGalaxySimulationSubsystem::TickCivAI()
 {
-	// Policy profiles of AI civs and regents (section 3.1).
+	// (a) The peoples the player does not rule start what they would start (section 4.3, 5.7). No draw.
+	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+	{
+		if (State.Civs[CivIndex].bIsPlayerRuled)
+		{
+			continue;
+		}
+		for (const TPair<int32, FName>& Choice : CosmicMegaprojects::Choices(State, StateIndex, Tables, CivIndex, 0))
+		{
+			CosmicMegaprojects::Start(State, StateIndex, Tables, Choice.Key, Choice.Value);
+		}
+	}
+
+	// (b) The feat judgment, once per tick.
+	UAscensionSubsystem* Ascension = GetGameInstance()->GetSubsystem<UAscensionSubsystem>();
+	check(Ascension);
+	Ascension->EvaluateFeats(State, Rng);
 }
 
 void UGalaxySimulationSubsystem::TickCrossings()

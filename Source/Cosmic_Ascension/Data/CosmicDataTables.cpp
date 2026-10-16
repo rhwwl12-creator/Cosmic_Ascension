@@ -40,6 +40,8 @@ void FCosmicDataTables::LoadFromFixedPaths()
 	Events = LoadTable(TEXT("/Game/CA/Data/DT_Events.DT_Events"), FCosmicEventDef::StaticStruct());
 	Transcendents = LoadTable(TEXT("/Game/CA/Data/DT_Transcendents.DT_Transcendents"), FTranscendentDef::StaticStruct());
 	Hazards = LoadTable(TEXT("/Game/CA/Data/DT_Hazards.DT_Hazards"), FHazardDef::StaticStruct());
+	Megaprojects = LoadTable(TEXT("/Game/CA/Data/DT_Megaprojects.DT_Megaprojects"), FMegaprojectDef::StaticStruct());
+	Feats = LoadTable(TEXT("/Game/CA/Data/DT_Feats.DT_Feats"), FAscensionFeatDef::StaticStruct());
 }
 
 const FCosmicRulesDef* FCosmicDataTables::FindRules() const
@@ -75,6 +77,16 @@ const FTranscendentDef* FCosmicDataTables::FindTranscendent(FName RowName) const
 const FHazardDef* FCosmicDataTables::FindHazard(FName RowName) const
 {
 	return FindRowQuiet<FHazardDef>(Hazards, RowName);
+}
+
+const FMegaprojectDef* FCosmicDataTables::FindMegaproject(FName RowName) const
+{
+	return FindRowQuiet<FMegaprojectDef>(Megaprojects, RowName);
+}
+
+const FAscensionFeatDef* FCosmicDataTables::FindFeat(FName RowName) const
+{
+	return FindRowQuiet<FAscensionFeatDef>(Feats, RowName);
 }
 
 const FHazardDef* FCosmicDataTables::FindHazardByTag(FGameplayTag Tag, FName* OutRowName) const
@@ -121,6 +133,30 @@ TArray<FName> FCosmicDataTables::GetHazardRowNames() const
 	TArray<FName> Names = Hazards ? Hazards->GetRowNames() : TArray<FName>();
 	Names.Sort(FNameLexicalLess());
 	return Names;
+}
+
+TArray<FName> FCosmicDataTables::GetFeatRowNames() const
+{
+	TArray<FName> Names = Feats ? Feats->GetRowNames() : TArray<FName>();
+	Names.Sort(FNameLexicalLess());
+	return Names;
+}
+
+bool FCosmicDataTables::IsHazardAnswer(FName RowName) const
+{
+	if (RowName.IsNone() || !Hazards)
+	{
+		return false;
+	}
+	for (const FName HazardRow : Hazards->GetRowNames())
+	{
+		const FHazardDef* Row = FindHazard(HazardRow);
+		if (Row && Row->RulerResolutions.Contains(RowName))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 TArray<FName> FCosmicDataTables::GetCivRowNames() const

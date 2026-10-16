@@ -28,8 +28,9 @@ enum class EConditionType : uint8
 	CivReverenceAtLeast,
 	SystemHasHazard,
 	SystemOwnedBy,
-	// True only when MegaprojectCompletedTick > 0 and >= the SinceTick of the evaluation: 0 for events, hazards and AI
-	// feats, Calling.BornTick only in the judgment of the player's feats (section 4.4, 7.5).
+	// Key = DT_Megaprojects row (required; empty is false). True only when the subject system holds a record of that row
+	// (CompletedMegaprojects) whose Tick is > 0 and >= the SinceTick of the evaluation: 0 for events, hazards and AI feats,
+	// Calling.BornTick only in the judgment of the player's feats (section 4.4, 5.7, 7.5).
 	MegaprojectComplete,
 	// Spiritual pressure P(System) >= Value (section 4.2). The whole sum of the system: the term of the civilization
 	// that owns it and of a wanderer standing there count too (section 16 #62).
@@ -71,9 +72,11 @@ enum class EConditionType : uint8
 	// under other rules) may fire twice or not at all. Tag = optional fallen Doctrine.*: one of the civilization's settled
 	// systems must then also lie, now, in the sphere of an unsealed transcendent of that doctrine. Value unused (section
 	// 5.11 "the book was shut", 16 #25 (1)).
-	CivFallenSphereTicksReached
-	// Decided, appended with the first row that uses each (section 16 #29): CivResearchAtLeast, CivStabilityAtLeast,
-	// PlayerHasPower.
+	CivFallenSphereTicksReached,
+	// Key = research field (Physics / Society / Engineering / Transcendence: a key of the civilization's Research; anything
+	// else is false), Value 0..1: the context civilization's Research[Key] >= Value (section 5.4, 16 #29 (1)).
+	CivResearchAtLeast
+	// Decided, appended with the first row that uses each (section 16 #29): CivStabilityAtLeast, PlayerHasPower.
 };
 
 USTRUCT(BlueprintType)

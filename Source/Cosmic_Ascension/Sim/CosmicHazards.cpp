@@ -71,6 +71,14 @@ namespace CosmicHazardsImpl
 	}
 }
 
+void CosmicHazards::EmptyHazardSlot(FStarSystemState& System)
+{
+	System.ActiveHazard = FGameplayTag();
+	System.HazardTicksRemaining = 0;
+	System.ResponseMegaproject = NAME_None;
+	System.ResponseProgress = 0.f;
+}
+
 bool CosmicHazards::IsLastOwnedSystem(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 SystemIndex)
 {
 	if (!State.Systems.IsValidIndex(SystemIndex))
@@ -130,9 +138,8 @@ bool CosmicHazards::Resolve(FCosmicEvalContext& Ctx, int32 SystemIndex)
 	const FHazardDef* Row = Ctx.Tables.FindHazardByTag(Hazard, &RowName);
 	const int32 OwnerIndex = Ctx.Index.FindCiv(State, System.OwnerCivID);
 
-	// The slot first: whatever the effects below do, they find it empty.
-	System.ActiveHazard = FGameplayTag();
-	System.HazardTicksRemaining = 0;
+	// The slot first (and the response that answered it): whatever the effects below do, they find it empty.
+	EmptyHazardSlot(System);
 
 	// A rebellion that ends: its leader leaves the record, and the count of discontent starts over (section 4.1).
 	if (Hazard == RebellionTag)
@@ -191,12 +198,14 @@ bool CosmicHazards::Transfer(FCosmicEvalContext& Ctx, int32 SystemIndex, int32 T
 			{
 				EndRebellion(State, FromCivIndex);
 			}
-			System.ActiveHazard = FGameplayTag();
-			System.HazardTicksRemaining = 0;
+			EmptyHazardSlot(System);
 		}
 	}
+	// Both slots were the old owner's work: a hazard that goes with the system is no longer answered.
 	System.ActiveMegaproject = NAME_None;
 	System.MegaprojectProgress = 0.f;
+	System.ResponseMegaproject = NAME_None;
+	System.ResponseProgress = 0.f;
 
 	bool bWasCapital = false;
 	if (State.Civs.IsValidIndex(FromCivIndex))
@@ -294,8 +303,7 @@ void CosmicHazards::Destroy(FCosmicEvalContext& Ctx, int32 SystemIndex)
 	}
 	System.Lanes.Reset();
 	System.StarClass = FGameplayTag();
-	System.ActiveHazard = FGameplayTag();
-	System.HazardTicksRemaining = 0;
+	EmptyHazardSlot(System);
 	System.ActiveMegaproject = NAME_None;
 	System.MegaprojectProgress = 0.f;
 

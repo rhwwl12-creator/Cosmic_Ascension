@@ -1,5 +1,5 @@
 // Cosmic Ascension - test probe (guideline.md section 9.3). A UObject whose UFUNCTIONs can be bound to the dynamic
-// delegates of the Core Logic subsystems; an automation test hangs its own code on the two function members.
+// delegates of the Core Logic subsystems; an automation test hangs its own code on the function members.
 // Outside WITH_DEV_AUTOMATION_TESTS on purpose: UHT does not evaluate that macro, so a reflected class cannot sit behind it.
 
 #pragma once
@@ -25,6 +25,11 @@ public:
 	UFUNCTION()
 	void HandleEventFired(const FCosmicEventNotice& Notice);
 
+	// Bind to UAscensionSubsystem::OnTierAscended.
+	UFUNCTION()
+	void HandleTierAscended(EAscensionTier NewTier, FName FeatRow, EPlayerRole Path);
+
 	TFunction<void(const FCosmicLogEntry&)> OnLog;
 	TFunction<void(const FCosmicEventNotice&)> OnEvent;
+	TFunction<void(EAscensionTier, FName, EPlayerRole)> OnTier;
 };

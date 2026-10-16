@@ -12,8 +12,8 @@
 /**
  * Ruler / Wanderer role switching, travel, encounter flow, the ruler command API, and the death, deposition and
  * succession pipeline. Holds no player or life dependent member: all of it lives in FGalaxyState (section 6.1).
- * So far: Install, and the deposition pipeline in its Phase 2 form with BecomeWanderer. The rest of the interface in
- * section 7.5 arrives with Phase 4 and 4b.
+ * So far: Install, the deposition pipeline in its Phase 2 form with BecomeWanderer, and the ruler's megaproject command.
+ * The rest of the interface in section 7.5 arrives with Phase 4 and 4b.
  */
 UCLASS()
 class COSMIC_ASCENSION_API UPlayerRoleSubsystem : public UGameInstanceSubsystem
@@ -55,4 +55,17 @@ public:
 	 * called from a handler of a Core Logic delegate.
 	 */
 	void BecomeWanderer(FGameplayTag RegentProfile, FGameplayTag ReignEndReason);
+
+	/**
+	 * The ruler's command (section 5.7, 7.5): starts RowName on SystemID for the people the vessel rules, through
+	 * CosmicMegaprojects::Start - the same rules as the AI. Only while Embodied and Ruler, and only for a system of the
+	 * ruled people. Between ticks: the project first progresses in the next tick's crisis stage. False and nothing changed
+	 * otherwise; inside a handler of a Core Logic delegate an error line and nothing. No draw.
+	 */
+	bool StartMegaproject(FName SystemID, FName RowName);
+
+	// The prototype's project key (Phase 3 replaces it with the panel): starts the first of CosmicMegaprojects::Choices
+	// for the people the vessel rules (SinceTick = Calling.BornTick), under the rules of StartMegaproject. False when
+	// there is none.
+	bool StartNextMegaproject();
 };

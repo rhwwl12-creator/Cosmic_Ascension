@@ -1381,6 +1381,7 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		EveryWord(TEXT("stat"), [&](const FString& Word) { return Holds(Bench, EConditionType::PlayerStatAtLeast, Word, 0.f); });
 		EveryWord(TEXT("role"), [&](const FString& Word) { return Holds(Bench, EConditionType::PlayerRoleIs, Word, 0.f) != Holds(Wandering, EConditionType::PlayerRoleIs, Word, 0.f); });
 		EveryWord(TEXT("civ_selector"), [&](const FString& Word) { return Holds(Bench, EConditionType::CivHasNotable, Word, 0.f, TEXT("Notable.Rebel")); });
+		EveryWord(TEXT("research"), [&](const FString& Word) { return Holds(Bench, EConditionType::CivResearchAtLeast, Word, 0.f); });
 	}
 
 	// ---- The loaded assets ----
@@ -1561,7 +1562,8 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		};
 		TestTrue(TEXT("The game has a hazard row to change"), !Game.GetHazardRowNames().IsEmpty());
 		Expect(TEXT("a list of row names with a row no named table has"), WithHazard([](FHazardDef& Row) { Row.RulerResolutions = { FName(TEXT("enc_nobody")) }; }),
-			{ TEXT("RulerResolutions[0]"), TEXT("none of DT_Encounters has a row enc_nobody") });
+			{ TEXT("RulerResolutions[0]"), TEXT("none of DT_Megaprojects, DT_Encounters has a row enc_nobody") });
+		TestFalse(TEXT("A project of DT_Megaprojects answers a hazard"), AnyCarries(WithHazard([](FHazardDef& Row) { Row.RulerResolutions = { FName(TEXT("project_reform")) }; }), { TEXT("RulerResolutions") }));
 		Expect(TEXT("a list of row names with an empty name"), WithHazard([](FHazardDef& Row) { Row.WandererResolutions = { NAME_None }; }),
 			{ TEXT("WandererResolutions[0]"), TEXT("none of DT_Encounters has a row None") });
 		const FGameplayTag Declared = FGameplayTag::RequestGameplayTag(FName(TEXT("Trait.Arch.Terran")));
