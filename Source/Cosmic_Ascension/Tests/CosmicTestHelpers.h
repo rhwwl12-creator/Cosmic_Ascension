@@ -73,8 +73,10 @@ namespace CosmicTests
 	// start the construction its next feat names on the first tick and pay for it from the stockpiles a test reasons
 	// about, on values Phase 5 changes. DT_Megaprojects keeps two rows no stockpile of a test can pay: StandingProject,
 	// which a test may put in a construction slot (step (a) of the crisis stage leaves it standing, so only a world
-	// function empties the slot), and project_settle (a row the code calls by name). DT_Feats is empty. A test of the
-	// projects brings its own rows.
+	// function empties the slot), and project_settle (a row the code calls by name - Tier 1 and unpaid: under the game's
+	// realm caps an AI people of a board that may settle still draws its settlement number and starts a settlement that
+	// never completes; a test that must not see that sets RealmCapByTier in its own rules). DT_Feats is empty. A test of
+	// the projects brings its own rows.
 	inline FCosmicDataTables WithoutProjects(const FCosmicDataTables& Base)
 	{
 		FMegaprojectDef Unpaid;

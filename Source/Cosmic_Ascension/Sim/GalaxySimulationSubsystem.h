@@ -315,6 +315,8 @@ private:
 
 	// Research progress and breakthroughs, civilization by civilization. A Society breakthrough fires the DT_Events row
 	// CosmicRows::EventBookFound after its line; the row's conditions pick the people whose book is shut (section 5.11).
+	// A people that owns no system (the one the player ruled, kept for the tick of its loss) is passed by: it spends no
+	// Insight and crosses no mark (section 7.4 (o)).
 	void TickResearch();
 	void TickDiplomacy();
 	void TickConflict();
@@ -322,7 +324,7 @@ private:
 	// Stage 5. Four steps in a fixed order (section 7.4). Every hazard is placed through CosmicHazards::Place, and its lines
 	// follow (FollowUpNotes) before the next placement.
 	// (a) Megaprojects and resolution (AdvanceMegaprojects), before the countdown: a project completed on the last tick of
-	//     a hazard still saves the system.
+	//     a hazard still saves the system. Every response slot before any construction slot.
 	// (b) Countdown and expiry, in two passes. First every countdown goes down by one and the systems that reach 0 are
 	//     collected in Systems order, so a hazard placed later in this stage keeps its whole count this tick. Then two
 	//     numbers per collected system are drawn from the sim stream, all of them before the first expiry: the outcome
@@ -343,12 +345,12 @@ private:
 	 * another tag (or none), or a hazard placed after the countdown pass (its count is above 0, whatever its tag), is
 	 * passed by and its numbers are thrown away. A tag no row holds leaves its slot as a resolution without a row does: no
 	 * effects, no line (a rebellion still ends its leader and its count). In this order: the last-system gate, when the
-	 * code of the tag takes the system and it is its owner's last owned system (a kept system ends there: its slot is
+	 * code of the tag takes the system and it is its owner's last settled system (a kept system ends there: its slot is
 	 * emptied without result); the effects (OnExpireEffects, or OnExpireBranchEffects when OutcomeNumber is below
 	 * BranchChance), then OnExpireNeighbourEffects; the code of the tag (Hazard.PreSupernova: CosmicHazards::Destroy, then
 	 * DeposeRuler through Apply when the people the vessel rules has no system left; Hazard.Rebellion: the throne;
 	 * Hazard.Claim: the join); the slot emptied; the claim rule on that slot; the expiry line (a claim that did not join
-	 * tells the resolution line); FollowUpNotes. Should the effects have made the system its owner's last owned system
+	 * tells the resolution line); FollowUpNotes. Should the effects have made the system its owner's last settled system
 	 * after the gate let it pass (no row of the game can: Data.Integrity keeps TransferSystem out of the expiry effects
 	 * and out of OnResolveEffects, which a ResolveHazard on a neighbour runs), the gate is asked again, with an error line,
 	 * before the code of the tag takes it; a system kept then has taken the effects already, and the notes they left are
@@ -357,16 +359,18 @@ private:
 	void ExpireHazard(int32 SystemIndex, FGameplayTag Collected, float OutcomeNumber, float ClaimNumber);
 
 	/**
-	 * The last-system gate (section 4.5, 7.4): when SystemIndex is its owner's last owned system, fires
+	 * The last-system gate (section 4.5, 7.4): when SystemIndex is its owner's last settled system
+	 * (CosmicHazards::IsLastSettledSystem - a settlement under way is no home and goes with it), fires
 	 * CosmicRows::EventGraceRemnant with that system and people as subject. True when the row fired: the loss does not
 	 * happen. The row's own conditions keep it to once per run. The subject of Ctx is left as it was.
 	 */
 	bool GraceKeepsLastSystem(FCosmicEvalContext& Ctx, int32 SystemIndex);
 
 	/**
-	 * Step (a) of the crisis stage (section 5.7, 7.4): CosmicMegaprojects::Advance for every system that holds a project,
-	 * in Systems order, with DT_Rules.AIAscensionSpeedMultiplier as the rate of the peoples the player does not rule (not
-	 * above 0, or not a number: 1, with one error line). After each system its completion lines (the row's
+	 * Step (a) of the crisis stage (section 5.7, 7.4): CosmicMegaprojects::Advance for every response slot that holds a
+	 * project, in Systems order, then for every construction slot, in Systems order (an answer spends the stockpile before
+	 * a construction does), with DT_Rules.AIAscensionSpeedMultiplier as the rate of the peoples the player does not rule
+	 * (not above 0, or not a number: 1, with one error line). After each slot its completion line (the row's
 	 * CompleteTemplates, Log.Civ, Severity 1 for the people the player rules and 0 for the others, slots {Civ} {System}
 	 * {Project}), then the lines that follow (FollowUpNotes - the resolution a completion made). No draw of its own.
 	 */
@@ -379,12 +383,14 @@ private:
 	// exactly once per tick and nowhere else in the tick.
 	void TickCivAI();
 
-	// Stage 7. The only place where the number of elements of State.Civs changes (section 7.4). (o) Cleanup: every
-	// civilization that owns no system (no entry of OwnedSystems whose owner is it - a system being settled counts) leaves
-	// Civs, in array order, except the one the player rules this tick, which the next tick's cleanup takes once the
-	// role-effect stage has let go of it. The Relations key of a removed CivID leaves every other civilization,
-	// Knowing.PendingContactCivID is cleared when it names one, and the state index is rebuilt. No line: the expiry that
-	// took the last system has told it. Arrivals and departures are Phase 6a.
+	// Stage 7. The only place where the number of elements of State.Civs changes (section 7.4). (o) Cleanup: first every
+	// people with no settled system lets its settlements go (CosmicHazards::LetSettlementsGo - a destruction has done so
+	// already in play); then every civilization that owns no system (CosmicState::OwnsAnySystem) leaves Civs, in array
+	// order, except the one the player rules this tick, which the next tick's cleanup takes once the role-effect stage has
+	// let go of it (that rests on the recorded deposition: Phase 4b's death pipeline lets go of a people as well). The
+	// Relations key of a removed CivID leaves every other civilization, Knowing.PendingContactCivID is cleared when it
+	// names one, and the state index is rebuilt. Every other record of the ID stays. No line: the expiry that took the
+	// last system has told it. Arrivals and departures are Phase 6a.
 	void TickCrossings();
 
 	void TickPlayerTravel();

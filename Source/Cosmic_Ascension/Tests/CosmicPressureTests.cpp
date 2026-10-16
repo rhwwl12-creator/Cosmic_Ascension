@@ -810,6 +810,10 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 			&& State.Civs[SingleCiv].Stockpile.Causality == 1.f && State.Civs[WideCiv].Stockpile.Causality == 1.f);
 
 		Arrange({ { RowA, { 4, 5, 8 } } });
+		// The single people also holds 11, settled and out of reach: a people left with only a settlement would let it go
+		// and leave the civilizations (section 5.7).
+		Sim->GetMutableState().Systems[11].OwnerCivID = State.Civs[SingleCiv].CivID;
+		Sim->GetMutableState().Civs[SingleCiv].OwnedSystems.Add(State.Systems[11].SystemID);
 		Sim->GetMutableState().Systems[8].ActiveMegaproject = CosmicRows::ProjectSettle;
 		Sim->GetMutableState().Civs[PlayerCiv].OwnedSystems.Add(State.Systems[4].SystemID);
 		Sim->RunHeadless(1);

@@ -1439,6 +1439,12 @@ void UGalaxySimulationSubsystem::TickResearch()
 
 	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
 	{
+		// A people with no system left (the one the player ruled, kept for the tick of its loss) researches nothing more:
+		// no breakthrough line and no book about a people that is gone (section 7.4 (o)).
+		if (!CosmicState::OwnsAnySystem(State, StateIndex, CivIndex))
+		{
+			continue;
+		}
 		FCivilizationState& Civ = State.Civs[CivIndex];
 		const float Spent = FMath::Max(0.f, FMath::Min(Civ.Stockpile.Insight, Civ.IncomePerTick.Insight * Economy::ResearchInsightShare));
 		Civ.Stockpile.Insight -= Spent;
@@ -1669,7 +1675,7 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 
 	// The gate comes before any part of the loss (section 4.5): a kept system loses nothing, not even its line.
 	const bool bTakesSystem = Collected == SupernovaTag;
-	const bool bLastAtGate = bTakesSystem && CosmicHazards::IsLastOwnedSystem(State, StateIndex, SystemIndex);
+	const bool bLastAtGate = bTakesSystem && CosmicHazards::IsLastSettledSystem(State, StateIndex, SystemIndex);
 	if (bLastAtGate && GraceKeepsLastSystem(Ctx, SystemIndex))
 	{
 		EmptySlot();
@@ -1707,9 +1713,9 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 		// of the game can: Data.Integrity keeps TransferSystem out of the expiry effects and out of OnResolveEffects, which
 		// a ResolveHazard on a neighbour runs), it is asked again here: a people reaches no system only behind the gate. A
 		// system kept here has taken the expiry's effects and its damage to the neighbours already.
-		if (!bLastAtGate && CosmicHazards::IsLastOwnedSystem(State, StateIndex, SystemIndex))
+		if (!bLastAtGate && CosmicHazards::IsLastSettledSystem(State, StateIndex, SystemIndex))
 		{
-			UE_LOG(LogCosmic, Error, TEXT("Expiry of %s: its effects left %s the last owned system of its people; the last-system gate is asked again"), *RowName.ToString(), *State.Systems[SystemIndex].SystemID.ToString());
+			UE_LOG(LogCosmic, Error, TEXT("Expiry of %s: its effects left %s the last settled system of its people; the last-system gate is asked again"), *RowName.ToString(), *State.Systems[SystemIndex].SystemID.ToString());
 			if (GraceKeepsLastSystem(Ctx, SystemIndex))
 			{
 				EmptySlot();
@@ -1718,9 +1724,10 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 			}
 		}
 		CosmicHazards::Destroy(Ctx, SystemIndex);
-		// The collapse of the people the vessel rules: the deposition pipeline (section 4.4). Apply keeps the rules of the
-		// record (Embodied, the ruled people, first recorded wins).
-		if (State.Civs.IsValidIndex(OwnerIndex) && State.Civs[OwnerIndex].OwnedSystems.IsEmpty())
+		// The collapse of the people the vessel rules: the deposition pipeline (section 4.4). Destroy has let the people's
+		// settlements go with its last settled system (section 5.7). Apply keeps the rules of the record (Embodied, the
+		// ruled people, first recorded wins).
+		if (State.Civs.IsValidIndex(OwnerIndex) && !CosmicState::OwnsAnySystem(State, StateIndex, OwnerIndex))
 		{
 			FCosmicEffect Collapse;
 			Collapse.Type = EEffectType::DeposeRuler;
@@ -1750,7 +1757,7 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 
 bool UGalaxySimulationSubsystem::GraceKeepsLastSystem(FCosmicEvalContext& Ctx, int32 SystemIndex)
 {
-	if (!CosmicHazards::IsLastOwnedSystem(State, StateIndex, SystemIndex))
+	if (!CosmicHazards::IsLastSettledSystem(State, StateIndex, SystemIndex))
 	{
 		return false;
 	}
@@ -1781,37 +1788,41 @@ void UGalaxySimulationSubsystem::AdvanceMegaprojects()
 		AIRate = 1.f;
 	}
 
-	for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num(); ++SystemIndex)
+	// Every response slot first, then every construction slot, each pass in Systems order: an answer spends the stockpile
+	// before a construction does (section 5.7).
+	using CosmicMegaprojects::ECosmicProjectSlot;
+	constexpr ECosmicProjectSlot Passes[] = { ECosmicProjectSlot::Response, ECosmicProjectSlot::Construction };
+	for (const ECosmicProjectSlot Slot : Passes)
 	{
-		if (State.Systems[SystemIndex].ActiveMegaproject.IsNone() && State.Systems[SystemIndex].ResponseMegaproject.IsNone())
+		for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num(); ++SystemIndex)
 		{
-			continue;
-		}
-		FCosmicEvalContext Ctx = MakeEvalContext();
-		const int32 OwnerIndex = StateIndex.FindCiv(State, State.Systems[SystemIndex].OwnerCivID);
-		const TArray<FName, TInlineAllocator<2>> Completed = CosmicMegaprojects::Advance(Ctx, SystemIndex, AIRate);
-		for (const FName RowName : Completed)
-		{
-			const FMegaprojectDef* Row = Tables.FindMegaproject(RowName);
-			if (!Row || !State.Civs.IsValidIndex(OwnerIndex))
+			const FStarSystemState& Held = State.Systems[SystemIndex];
+			if ((Slot == ECosmicProjectSlot::Response ? Held.ResponseMegaproject : Held.ActiveMegaproject).IsNone())
 			{
 				continue;
 			}
-			const FCivilizationState& Owner = State.Civs[OwnerIndex];
-			FCosmicLine Line;
-			Line.Category = CivCategory;
-			Line.Severity = Owner.bIsPlayerRuled ? 1 : 0;
-			Line.FocusSystem = State.Systems[SystemIndex].SystemID;
-			Line.FocusCiv = Owner.CivID;
-			Line.SourceRow = RowName;
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("Civ"), Owner.CivName);
-			Args.Add(TEXT("System"), State.Systems[SystemIndex].DisplayName);
-			Args.Add(TEXT("Project"), Row->DisplayName);
-			Log->PushVariants(Line, Row->CompleteTemplates, Args);
+			FCosmicEvalContext Ctx = MakeEvalContext();
+			const int32 OwnerIndex = StateIndex.FindCiv(State, Held.OwnerCivID);
+			const FName RowName = CosmicMegaprojects::Advance(Ctx, SystemIndex, Slot, AIRate);
+			const FMegaprojectDef* Row = RowName.IsNone() ? nullptr : Tables.FindMegaproject(RowName);
+			if (Row && State.Civs.IsValidIndex(OwnerIndex))
+			{
+				const FCivilizationState& Owner = State.Civs[OwnerIndex];
+				FCosmicLine Line;
+				Line.Category = CivCategory;
+				Line.Severity = Owner.bIsPlayerRuled ? 1 : 0;
+				Line.FocusSystem = State.Systems[SystemIndex].SystemID;
+				Line.FocusCiv = Owner.CivID;
+				Line.SourceRow = RowName;
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("Civ"), Owner.CivName);
+				Args.Add(TEXT("System"), State.Systems[SystemIndex].DisplayName);
+				Args.Add(TEXT("Project"), Row->DisplayName);
+				Log->PushVariants(Line, Row->CompleteTemplates, Args);
+			}
+			// What the completion did (a resolution), told after it: a cause comes before what follows from it.
+			Events->FollowUpNotes(Ctx);
 		}
-		// What the completions did (a resolution), told after them: a cause comes before what follows from it.
-		Events->FollowUpNotes(Ctx);
 	}
 }
 
@@ -1853,16 +1864,18 @@ void UGalaxySimulationSubsystem::TickCrossings()
 	// (o) Cleanup (section 7.4): a civilization that owns no system leaves Civs, in array order, unless the player rules
 	// it this tick (the role-effect stage lets go of it first; the next tick's cleanup takes it). No line: the expiry that
 	// took its last system has told it. Arrivals and departures are Phase 6a.
+	// A people with no settled system lets its settlements go first (section 5.7: a destruction has done so already in
+	// play), so that none is left holding only settlements it can never pay for.
+	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+	{
+		CosmicHazards::LetSettlementsGo(State, StateIndex, CivIndex);
+	}
 	TArray<FName> Removed;
 	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); )
 	{
 		const FCivilizationState& Civ = State.Civs[CivIndex];
-		const bool bOwnsAny = Civ.OwnedSystems.ContainsByPredicate([this, &Civ](FName SystemID)
-		{
-			const int32 SystemIndex = StateIndex.FindSystem(State, SystemID);
-			return State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == Civ.CivID;
-		});
-		if (bOwnsAny || Civ.bIsPlayerRuled)
+		// The civilization half of the index is stale once one is removed; OwnsAnySystem reads only the system half.
+		if (CosmicState::OwnsAnySystem(State, StateIndex, CivIndex) || Civ.bIsPlayerRuled)
 		{
 			++CivIndex;
 			continue;

@@ -31,12 +31,17 @@ namespace CosmicState
 {
 	// Settled = owned and not being settled (section 5.7). The one predicate for it. The event slots, the economy stage
 	// (income and pressure), the hazard stage (the spawn draw, the placement of a hazard), the count of Law.Remnant, the
-	// megaprojects and the feats, and settlement (who may settle, from where) use it now. Still to take it up: succession
-	// candidates (Phase 4b).
+	// megaprojects and the feats, settlement (who may settle, from where) and the last-system gate use it now. Still to
+	// take it up: succession candidates (Phase 4b).
 	inline bool IsSettled(const FStarSystemState& System)
 	{
 		return !System.OwnerCivID.IsNone() && System.ActiveMegaproject != CosmicRows::ProjectSettle;
 	}
+
+	// Whether the people CivIndex owns a system: an entry of its OwnedSystems whose owner is the people, settled or being
+	// settled (section 7.4 (o)). An entry whose owner is another people counts for nothing. The cleanup of the crossing
+	// stage, the collapse after a destruction and the research stage read it.
+	COSMIC_ASCENSION_API bool OwnsAnySystem(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex);
 
 	/**
 	 * Lanes counted from one system (section 5.9): entry i is the fewest lanes from system FromSystemIndex to system i,
@@ -45,7 +50,8 @@ namespace CosmicState
 	 * another galaxy even if the state held one). A lane to a SystemID the state does not hold is skipped. An index
 	 * out of range gives INDEX_NONE for every system. The array has one entry per element of State.Systems.
 	 * The one walk for every rule that counts lanes over more than one step: the place of a starting core now, the
-	 * sight of the calling, settlement and succession later. World state only, no draw, one breadth-first pass.
+	 * sight of the calling and succession later (settlement reads one lane directly). World state only, no draw, one
+	 * breadth-first pass.
 	 */
 	COSMIC_ASCENSION_API TArray<int32> LaneDistancesFrom(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 FromSystemIndex, int32 MaxLanes = MAX_int32);
 

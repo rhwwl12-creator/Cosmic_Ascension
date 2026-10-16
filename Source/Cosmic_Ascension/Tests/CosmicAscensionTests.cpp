@@ -764,7 +764,9 @@ bool FCosmicStartMegaprojectTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("and taken at its tier"), Role->StartMegaproject(Home, High));
 	TestTrue(TEXT("and so is the answer"), Role->StartMegaproject(State.Systems[1].SystemID, HighAnswer));
 	CosmicHazards::EmptyHazardSlot(State.Systems[1]);
-	TestFalse(TEXT("project_settle is started by its own rule only"), Role->StartMegaproject(State.Systems[1].SystemID, CosmicRows::ProjectSettle));
+	TestFalse(TEXT("The command does not settle a system the people already owns"), Role->StartMegaproject(State.Systems[1].SystemID, CosmicRows::ProjectSettle));
+	TestTrue(TEXT("Start would take a construction on that system"), CosmicMegaprojects::CanStart(State, Sim->GetStateIndex(), Sim->GetTables(), 1, Build));
+	TestFalse(TEXT("but never project_settle: a settlement starts through Settle alone"), CosmicMegaprojects::CanStart(State, Sim->GetStateIndex(), Sim->GetTables(), 1, CosmicRows::ProjectSettle));
 	TestFalse(TEXT("An answer without its hazard is refused"), Role->StartMegaproject(State.Systems[1].SystemID, Answer));
 	PlaceByHand(State, 1, TEXT("Hazard.Rebellion"), 50);
 	TestFalse(TEXT("An answer to another hazard is refused"), Role->StartMegaproject(State.Systems[1].SystemID, Answer));
@@ -887,8 +889,24 @@ bool FCosmicCivAIProjectsTest::RunTest(const FString& Parameters)
 		}
 		Sim->LoadState(NoAI);
 		Sim->StepOnce();
-		TestEqual(TEXT("The AI stage draws nothing per people it looks at"), Sim->GetState().RngState, After.RngState);
+		TestEqual(TEXT("Beyond the settlement number (no people may settle under the test's realm cap of one), the AI stage draws nothing per people it looks at"), Sim->GetState().RngState, After.RngState);
 		Sim->LoadState(After);
+	}
+
+	// A feat that names project_settle builds nothing: Start never takes it (a settlement starts through Settle alone).
+	{
+		UDataTable* SettleFeat = NewTable(FAscensionFeatDef::StaticStruct());
+		SettleFeat->AddRow(FName(TEXT("feat_test_settle")), FeatRow(EAscensionTier::Tier1_Planetary, EAscensionTier::Tier2_Stellar,
+			{ Cond(EConditionType::MegaprojectComplete, CosmicRows::ProjectSettle) }, TEXT("settle")));
+		FGalaxyState* Again = LayBoard(*Sim, TablesWith(Original, Knobs(BaseRules), SettleFeat));
+		if (!TestNotNull(TEXT("The board of the settle feat is laid"), Again))
+		{
+			return false;
+		}
+		Sim->StepOnce();
+		TestTrue(TEXT("An AI capital takes no project_settle into its construction slot"), Again->Systems[6].ActiveMegaproject.IsNone());
+		TestTrue(TEXT("and stays settled"), CosmicState::IsSettled(Again->Systems[6]));
+		Sim->SetTables(Tables);
 	}
 
 	// An AI people never takes over its own construction slot.

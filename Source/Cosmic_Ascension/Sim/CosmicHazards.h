@@ -30,9 +30,20 @@ namespace CosmicHazards
 	// Transfer, Destroy and the expiry come through here, so a response never outlives its hazard.
 	COSMIC_ASCENSION_API void EmptyHazardSlot(FStarSystemState& System);
 
-	// Whether SystemIndex is owned and the only element of its owner's OwnedSystems: the system the last-system gate asks
-	// about (section 4.5). A system being settled counts: what is owned is what can be lost.
-	COSMIC_ASCENSION_API bool IsLastOwnedSystem(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 SystemIndex);
+	// Whether SystemIndex is a settled system and the only settled system its owner owns (entries of OwnedSystems whose
+	// owner is the people): the system the last-system gate asks about, and the one TransferSystem never takes (section
+	// 4.5, 5.7). A system being settled is not a home and does not count: a people that loses its last settled system
+	// lets its settlements go with it (LetSettlementsGo).
+	COSMIC_ASCENSION_API bool IsLastSettledSystem(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 SystemIndex);
+
+	/**
+	 * When the people CivIndex owns no settled system, every system it still owns - each a settlement under way - goes to
+	 * no one (section 5.7): owner none, out of its OwnedSystems, both project slots and the hazard slot empty (the
+	 * completion records stay). Nothing otherwise. Destroy calls it for the owner of the system it destroys, and the
+	 * cleanup of the crossing stage for every people, so that no people holds only settlements it can never pay for.
+	 * No line, no note, no draw.
+	 */
+	COSMIC_ASCENSION_API void LetSettlementsGo(FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex);
 
 	/**
 	 * Places the hazard of the DT_Hazards row HazardRow on SystemIndex: the one path (section 7.4). The spawn draw, the
@@ -57,8 +68,8 @@ namespace CosmicHazards
 	/**
 	 * Hands SystemIndex to the civilization ToCivIndex, or lets it go to no one when ToCivIndex is INDEX_NONE (section
 	 * 16 #29 (6)). Refused (false, nothing changed) for a dead node, for a system that already is the target's (an
-	 * unowned one cannot be let go), and for the last owned system of its owner: only stage code behind the last-system
-	 * gate takes that (section 4.5). What changes with the owner: the system leaves the old owner's OwnedSystems and joins
+	 * unowned one cannot be let go), and for the last settled system of its owner (IsLastSettledSystem): only stage code
+	 * behind the last-system gate takes that (section 4.5). What changes with the owner: the system leaves the old owner's OwnedSystems and joins
 	 * the end of the new owner's; both project slots end (the completion records stay); the hazard of a Capital
 	 * row ends without result, and so does a Hazard.Rebellion whose tag no row holds (the old owner's discontent either
 	 * way) and any hazard of a system let go (no people under it, no threat: section 16 #29 (5)) - a rebellion that ends so
@@ -76,7 +87,8 @@ namespace CosmicHazards
 	COSMIC_ASCENSION_API void MoveCapital(FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex);
 
 	/**
-	 * Destroys SystemIndex (section 7.2, 16 #29 (5)): the owner lets it go (its capital moves), every lane to and from it
+	 * Destroys SystemIndex (section 7.2, 16 #29 (5)): the owner lets it go - and with it its settlements under way when it
+	 * was the owner's last settled system (LetSettlementsGo) - and its capital moves; every lane to and from it
 	 * is cut, its star class, hazard and both project slots are cleared (the completion records stay), and it leaves every
 	 * sphere. A vessel standing there is carried away while the calling is Embodied and no KillPlayer is pending: a ruler
 	 * to the new capital of its people, anyone else (and a ruler whose people has no system left) to the first lane

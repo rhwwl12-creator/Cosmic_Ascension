@@ -23,6 +23,14 @@ struct FCosmicStateIndex;
 
 namespace CosmicMegaprojects
 {
+	// The two project slots of a system (section 5.7): the response slot answers the hazard standing there, the
+	// construction slot builds. Step (a) of the crisis stage advances every response slot before any construction slot.
+	enum class ECosmicProjectSlot : uint8
+	{
+		Response,
+		Construction,
+	};
+
 	/**
 	 * Whether the system holds a completion of RowName (CompletedMegaprojects) whose tick is above 0 and not below
 	 * SinceTick: the test of condition MegaprojectComplete (section 4.4, 5.7). An empty RowName is false.
@@ -86,7 +94,8 @@ namespace CosmicMegaprojects
 	 */
 	COSMIC_ASCENSION_API bool CanSettle(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex, int32 SystemIndex);
 
-	// The systems CanSettle holds for the people CivIndex, in Systems order. Reads only.
+	// The systems CanSettle holds for the people CivIndex, in Systems order. Reads only. Looks only at the lane neighbours
+	// of the people's settled systems (a target lies one lane from one of them).
 	COSMIC_ASCENSION_API TArray<int32> SettleTargets(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex);
 
 	/**
@@ -99,17 +108,19 @@ namespace CosmicMegaprojects
 	COSMIC_ASCENSION_API bool Settle(FCosmicEvalContext& Ctx, int32 CivIndex, int32 SystemIndex);
 
 	/**
-	 * One tick of the two slots of SystemIndex (step (a) of the crisis stage, section 7.4): the construction slot, then the
-	 * response slot. A settlement (project_settle) is paid, progresses and completes as every construction row does; it
-	 * needs its row like them, but a settlement whose row the table does not hold stays in its slot (the system does not
-	 * become settled for want of a row). Any other slot whose row the table does not hold, and a response the row of the
-	 * system's hazard no longer lists, ends without result. Otherwise the slot is paid in full from the owner's stockpile
-	 * and progresses by 1 (by AIRate for a people the player does not rule), or costs and progresses nothing. A slot whose
-	 * progress reaches RequiredProgressOf(row) completes (on the first paid tick on which the float sum reaches it, which
-	 * for a rate not exact in binary can be one tick after Required / rate): the record of the row moves to this tick (CompletedMegaprojects,
-	 * MegaprojectCompletedTick), the slot empties, the open life of the vessel takes the row when the people is the one the
-	 * vessel rules, and the hazard of the system is resolved when its row lists the project (CosmicHazards::Resolve - a
-	 * HazardResolved note in Ctx). Returns the completed rows in slot order, for the caller's lines.
+	 * One tick of one slot of SystemIndex (step (a) of the crisis stage, section 7.4: every response slot in Systems order,
+	 * then every construction slot in Systems order - an answer spends the stockpile before a construction does). A
+	 * settlement (project_settle) is paid, progresses and completes as every construction row does; it needs its row like
+	 * them, but a settlement whose row the table does not hold stays in its slot (the system does not become settled for
+	 * want of a row). Any other slot whose row the table does not hold, and a response the row of the system's hazard no
+	 * longer lists, ends without result. Otherwise the slot is paid in full from the owner's stockpile and progresses by 1
+	 * (by AIRate for a people the player does not rule), or costs and progresses nothing. A slot whose progress reaches
+	 * RequiredProgressOf(row) completes (on the first paid tick on which the float sum reaches it, which for a rate not
+	 * exact in binary can be one tick after Required / rate): the record of the row moves to this tick
+	 * (CompletedMegaprojects, MegaprojectCompletedTick), the slot empties, the open life of the vessel takes the row when
+	 * the people is the one the vessel rules, and the hazard of the system is resolved when its row lists the project
+	 * (CosmicHazards::Resolve - a HazardResolved note in Ctx). Returns the completed row, or NAME_None, for the caller's
+	 * line.
 	 */
-	COSMIC_ASCENSION_API TArray<FName, TInlineAllocator<2>> Advance(FCosmicEvalContext& Ctx, int32 SystemIndex, float AIRate);
+	COSMIC_ASCENSION_API FName Advance(FCosmicEvalContext& Ctx, int32 SystemIndex, ECosmicProjectSlot Slot, float AIRate);
 }

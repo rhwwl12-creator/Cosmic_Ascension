@@ -52,6 +52,20 @@ int32 FCosmicStateIndex::FindSystem(const FGalaxyState& State, FName SystemID) c
 	return *Found;
 }
 
+bool CosmicState::OwnsAnySystem(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex)
+{
+	if (!State.Civs.IsValidIndex(CivIndex))
+	{
+		return false;
+	}
+	const FCivilizationState& Civ = State.Civs[CivIndex];
+	return Civ.OwnedSystems.ContainsByPredicate([&State, &Index, &Civ](FName SystemID)
+	{
+		const int32 SystemIndex = Index.FindSystem(State, SystemID);
+		return State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == Civ.CivID;
+	});
+}
+
 TArray<int32> CosmicState::LaneDistancesFrom(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 FromSystemIndex, int32 MaxLanes)
 {
 	TArray<int32> Distances;

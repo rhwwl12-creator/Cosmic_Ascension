@@ -326,7 +326,27 @@ TArray<int32> CosmicMegaprojects::SettleTargets(const FGalaxyState& State, const
 	{
 		return Targets;
 	}
-	for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num(); ++SystemIndex)
+	// The candidates are the lane neighbours of the settled footholds, in Systems order: the same list a walk over every
+	// system would give, without the walk (section 9.4).
+	TArray<int32, TInlineAllocator<16>> Candidates;
+	for (const FName SystemID : State.Civs[CivIndex].OwnedSystems)
+	{
+		const int32 Foothold = SettledOwnedIndex(State, Index, CivIndex, SystemID);
+		if (Foothold == INDEX_NONE)
+		{
+			continue;
+		}
+		for (const FName Lane : State.Systems[Foothold].Lanes)
+		{
+			const int32 Neighbour = Index.FindSystem(State, Lane);
+			if (State.Systems.IsValidIndex(Neighbour))
+			{
+				Candidates.AddUnique(Neighbour);
+			}
+		}
+	}
+	Candidates.Sort();
+	for (const int32 SystemIndex : Candidates)
 	{
 		if (IsTargetOf(State, Index, Tables, CivIndex, SystemIndex))
 		{
@@ -348,11 +368,11 @@ bool CosmicMegaprojects::Settle(FCosmicEvalContext& Ctx, int32 CivIndex, int32 S
 	return true;
 }
 
-TArray<FName, TInlineAllocator<2>> CosmicMegaprojects::Advance(FCosmicEvalContext& Ctx, int32 SystemIndex, float AIRate)
+FName CosmicMegaprojects::Advance(FCosmicEvalContext& Ctx, int32 SystemIndex, ECosmicProjectSlot Slot, float AIRate)
 {
 	using namespace CosmicMegaprojectsImpl;
 
-	TArray<FName, TInlineAllocator<2>> Completed;
+	FName Completed;
 	FGalaxyState& State = Ctx.State;
 	if (!State.Systems.IsValidIndex(SystemIndex))
 	{
@@ -385,7 +405,7 @@ TArray<FName, TInlineAllocator<2>> CosmicMegaprojects::Advance(FCosmicEvalContex
 		{
 			State.Calling.Lives.Last().MegaprojectsCompleted.Add(RowName);
 		}
-		Completed.Add(RowName);
+		Completed = RowName;
 		const FHazardDef* Hazard = Ctx.Tables.FindHazardByTag(System.ActiveHazard);
 		if (Hazard && Hazard->RulerResolutions.Contains(RowName))
 		{
@@ -394,6 +414,7 @@ TArray<FName, TInlineAllocator<2>> CosmicMegaprojects::Advance(FCosmicEvalContex
 	};
 
 	// The construction slot. A settlement is one more construction row (section 5.7).
+	if (Slot == ECosmicProjectSlot::Construction)
 	{
 		FStarSystemState& System = State.Systems[SystemIndex];
 		const FName RowName = System.ActiveMegaproject;
@@ -423,6 +444,7 @@ TArray<FName, TInlineAllocator<2>> CosmicMegaprojects::Advance(FCosmicEvalContex
 	}
 
 	// The response slot: it answers the hazard that stands there now, or it ends.
+	if (Slot == ECosmicProjectSlot::Response)
 	{
 		FStarSystemState& System = State.Systems[SystemIndex];
 		const FName RowName = System.ResponseMegaproject;

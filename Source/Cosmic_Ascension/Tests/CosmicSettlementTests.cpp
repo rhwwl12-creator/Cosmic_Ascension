@@ -7,6 +7,7 @@
 
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
+#include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
@@ -73,15 +74,25 @@ namespace CosmicSettlementTests
 	}
 
 	// The projects of the tests: the settle row (Tier 2, Energy 1, 3 - three paid ticks) unless SettleTier is null, and
-	// the answer of Storm (Tier 1, Matter 5, 2).
-	UDataTable* ProjectRows(const EAscensionTier* SettleTier)
+	// the answer of Storm (Tier 1, Matter 5, 2). With bCausality both cost one Causality a tick instead, a resource no
+	// people earns: the stockpile alone decides which slot is paid.
+	UDataTable* ProjectRows(const EAscensionTier* SettleTier, bool bCausality = false)
 	{
 		UDataTable* Table = NewTable(FMegaprojectDef::StaticStruct());
+		FMegaprojectDef Settle = Project(SettleTier ? *SettleTier : EAscensionTier::Tier1_Planetary, 1.f, 0.f, 3.f, TEXT("settle"));
+		FMegaprojectDef Answering = Project(EAscensionTier::Tier1_Planetary, 0.f, 5.f, 2.f, TEXT("answer"));
+		if (bCausality)
+		{
+			Settle.CostPerTick = FResourcePool();
+			Settle.CostPerTick.Causality = 1.f;
+			Answering.CostPerTick = FResourcePool();
+			Answering.CostPerTick.Causality = 1.f;
+		}
 		if (SettleTier)
 		{
-			Table->AddRow(CosmicRows::ProjectSettle, Project(*SettleTier, 1.f, 0.f, 3.f, TEXT("settle")));
+			Table->AddRow(CosmicRows::ProjectSettle, Settle);
 		}
-		Table->AddRow(Answer, Project(EAscensionTier::Tier1_Planetary, 0.f, 5.f, 2.f, TEXT("answer")));
+		Table->AddRow(Answer, Answering);
 		return Table;
 	}
 
@@ -145,17 +156,19 @@ namespace CosmicSettlementTests
 		return Rules;
 	}
 
-	FCosmicDataTables TablesWith(const FCosmicDataTables& Original, const FCosmicRulesDef& Rules, UDataTable* Projects, UDataTable* Hazards)
+	// The game's tables with the test's rules, projects, hazards (Storm and Nova when null), feats and events (none when
+	// null) and transcendent row.
+	FCosmicDataTables TablesWith(const FCosmicDataTables& Original, const FCosmicRulesDef& Rules, UDataTable* Projects, UDataTable* Hazards, UDataTable* Feats = nullptr, UDataTable* Events = nullptr)
 	{
 		UDataTable* RulesTable = NewTable(FCosmicRulesDef::StaticStruct());
 		RulesTable->AddRow(CosmicRows::Rules, Rules);
 		FCosmicDataTables Tables = Original;
 		Tables.Rules = RulesTable;
 		Tables.Hazards = Hazards ? Hazards : HazardRows(false);
-		Tables.Events = NewTable(FCosmicEventDef::StaticStruct());
+		Tables.Events = Events ? Events : NewTable(FCosmicEventDef::StaticStruct());
 		Tables.Transcendents = TranscendentRows();
 		Tables.Megaprojects = Projects;
-		Tables.Feats = NewTable(FAscensionFeatDef::StaticStruct());
+		Tables.Feats = Feats ? Feats : NewTable(FAscensionFeatDef::StaticStruct());
 		return Tables;
 	}
 
@@ -221,6 +234,13 @@ namespace CosmicSettlementTests
 		State.Civs[CivIndex].OwnedSystems.Add(State.Systems[SystemIndex].SystemID);
 	}
 
+	// Hands SystemIndex to the people CivIndex as a settlement under way (a test's board).
+	void HandSettling(FGalaxyState& State, int32 CivIndex, int32 SystemIndex)
+	{
+		Hand(State, CivIndex, SystemIndex);
+		State.Systems[SystemIndex].ActiveMegaproject = CosmicRows::ProjectSettle;
+	}
+
 	void AddInstance(FGalaxyState& State, FName TranscendentID, std::initializer_list<int32> Members)
 	{
 		FTranscendentState& Transcendent = State.Transcendents.AddDefaulted_GetRef();
@@ -242,6 +262,15 @@ namespace CosmicSettlementTests
 		return Count;
 	}
 
+	// The system the people with CivID is settling, or INDEX_NONE.
+	int32 SettlingTarget(const FGalaxyState& State, FName CivID)
+	{
+		return State.Systems.IndexOfByPredicate([CivID](const FStarSystemState& System)
+		{
+			return System.OwnerCivID == CivID && System.ActiveMegaproject == CosmicRows::ProjectSettle;
+		});
+	}
+
 	int32 OwnedCount(const FGalaxyState& State, const FCivilizationState& Civ)
 	{
 		int32 Count = 0;
@@ -252,20 +281,34 @@ namespace CosmicSettlementTests
 		return Count;
 	}
 
-	/**
-	 * The settlement draws of one tick from From: the tick under Tables against the same tick under Capped (the same
-	 * tables with a realm cap of 0 on every tier, so that no people may settle, whatever it owns). No draw of the tick
-	 * comes after the AI stage on these boards, so the stream of the first is the stream of the second walked on by the
-	 * settlement draws.
-	 * Returns that count, or -1 when no count up to 16 matches. OutAfter is the state after the tick under Tables.
-	 */
-	int32 SettlementDraws(UGalaxySimulationSubsystem& Sim, const FCosmicDataTables& Tables, const FCosmicDataTables& Capped, const FGalaxyState& From, FGalaxyState& OutAfter)
+	// The index PickIndex gives a number among Count targets.
+	int32 PickOf(float Roll, int32 Count)
 	{
-		Sim.SetTables(Capped);
-		Sim.LoadState(From);
+		return FMath::Min(static_cast<int32>(Roll * static_cast<float>(Count)), Count - 1);
+	}
+
+	/**
+	 * The draws of the AI stage in one tick from From under Tables: the stream at the end of that tick against the stream
+	 * at the end of the same tick with every people marked as ruled by the player, so that the AI stage looks at none (its
+	 * starts and the feat judgment of the AI peoples then draw nothing, and on these boards nothing after the AI stage
+	 * draws). Returns that count, or -1 when no count up to 16 matches. OutAfter is the state after the tick; OutBefore,
+	 * when given, the stream the AI stage starts from.
+	 */
+	int32 AIStageDraws(UGalaxySimulationSubsystem& Sim, const FCosmicDataTables& Tables, const FGalaxyState& From, FGalaxyState& OutAfter, int32* OutBefore = nullptr)
+	{
+		Sim.SetTables(Tables);
+		FGalaxyState NoAI = From;
+		for (FCivilizationState& Civ : NoAI.Civs)
+		{
+			Civ.bIsPlayerRuled = true;
+		}
+		Sim.LoadState(NoAI);
 		Sim.StepOnce();
 		const int32 Without = Sim.GetState().RngState;
-		Sim.SetTables(Tables);
+		if (OutBefore)
+		{
+			*OutBefore = Without;
+		}
 		Sim.LoadState(From);
 		Sim.StepOnce();
 		OutAfter = Sim.GetState();
@@ -299,9 +342,6 @@ bool FCosmicSettlementTest::RunTest(const FString& Parameters)
 	const EAscensionTier Stellar = EAscensionTier::Tier2_Stellar;
 	const EAscensionTier Causal = EAscensionTier::Tier3_Causal;
 	const FCosmicDataTables Tables = TablesWith(Original, Rules, ProjectRows(&Stellar), nullptr);
-	FCosmicRulesDef CapNone = Rules;
-	CapNone.RealmCapByTier = { 0, 0, 0, 0, 0 };
-	const FCosmicDataTables Capped = TablesWith(Original, CapNone, ProjectRows(&Stellar), nullptr);
 
 	// ---- Who may settle and where: the world functions on copies of one board ----
 	FGalaxyState* Laid = LayBoard(*Sim, Tables);
@@ -328,6 +368,13 @@ bool FCosmicSettlementTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("A system another people owns is no target"), Can(Case, 1, 6));
 	}
 	{
+		// People 1 also holds 6, next to its 5: its own system is no target, though a settled system of it lies beside.
+		FGalaxyState Case = Base;
+		Hand(Case, 1, 6);
+		TestFalse(TEXT("A system the people itself owns is no target"), Can(Case, 1, 6));
+		TestFalse(TEXT("nor among its targets"), Targets(Case, Tables, 1).Contains(6));
+	}
+	{
 		FGalaxyState Case = Base;
 		Case.Systems[6].StarClass = FGameplayTag();
 		TestFalse(TEXT("A dead node is no target, even with its lanes"), Can(Case, 1, 6));
@@ -346,6 +393,8 @@ bool FCosmicSettlementTest::RunTest(const FString& Parameters)
 		FGalaxyState Own = Base;
 		Hand(Own, 1, 3);
 		TestTrue(TEXT("A system the people owns is a foothold"), Can(Own, 1, 2));
+		// Its footholds are 5 then 3 in its own order; their targets come in Systems order all the same.
+		TestTrue(TEXT("The targets of two footholds come in Systems order"), Targets(Own, Tables, 1) == TArray<int32>({ 2, 4, 6 }));
 	}
 	{
 		FGalaxyState Case = Base;
@@ -371,7 +420,7 @@ bool FCosmicSettlementTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("and no settlement"), CosmicMegaprojects::CanSettle(Base, Index, NoRow, Rules, 1, 6));
 		FCosmicDataTables HighRow = TablesWith(Original, Rules, ProjectRows(&Causal), nullptr);
 		TestTrue(TEXT("Below the row's Tier there is no target"), Targets(Base, HighRow, 1).IsEmpty());
-		TestTrue(TEXT("Whether a people may settle does not read the row"), CosmicMegaprojects::MaySettle(Base, Index, Rules, 1));
+		TestTrue(TEXT("though the people may still settle there: only its targets are hidden"), CosmicMegaprojects::MaySettle(Base, Index, Rules, 1));
 	}
 
 	TestEqual(TEXT("The realm cap of Tier 1"), CosmicMegaprojects::RealmCapOf(Rules, EAscensionTier::Tier1_Planetary), 1);
@@ -397,8 +446,7 @@ bool FCosmicSettlementTest::RunTest(const FString& Parameters)
 	}
 	{
 		FGalaxyState Case = Base;
-		Hand(Case, 1, 4);
-		Case.Systems[4].ActiveMegaproject = CosmicRows::ProjectSettle;
+		HandSettling(Case, 1, 4);
 		TestTrue(TEXT("A people with a settlement under way is settling"), CosmicMegaprojects::IsSettling(Case, Index, 1));
 		TestFalse(TEXT("and may not start another"), CosmicMegaprojects::MaySettle(Case, Index, Rules, 1));
 		TestTrue(TEXT("so it has no target"), Targets(Case, Tables, 1).IsEmpty());
@@ -422,6 +470,9 @@ bool FCosmicSettlementTest::RunTest(const FString& Parameters)
 		{
 			return false;
 		}
+		// A wild system may carry a leftover slot from an earlier owner: the settlement starts from 0 whatever it holds.
+		State->Systems[6].ActiveMegaproject = FName(TEXT("project_test_leftover"));
+		State->Systems[6].MegaprojectProgress = 2.5f;
 		const int32 SeedBefore = Sim->GetRng().GetCurrentSeed();
 		FCosmicEvalContext Ctx = Sim->MakeEvalContext();
 		TestFalse(TEXT("A settlement of a system that is no target is refused"), CosmicMegaprojects::Settle(Ctx, 1, 7));
@@ -430,7 +481,7 @@ bool FCosmicSettlementTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("The target becomes the people's"), State->Systems[6].OwnerCivID, State->Civs[1].CivID);
 		TestEqual(TEXT("at the end of its systems"), State->Civs[1].OwnedSystems.Last(), State->Systems[6].SystemID);
 		TestEqual(TEXT("Its construction slot holds the settlement"), State->Systems[6].ActiveMegaproject, CosmicRows::ProjectSettle);
-		TestEqual(TEXT("from 0"), State->Systems[6].MegaprojectProgress, 0.f);
+		TestEqual(TEXT("from 0, whatever the slot held"), State->Systems[6].MegaprojectProgress, 0.f);
 		TestFalse(TEXT("It is not settled yet"), CosmicState::IsSettled(State->Systems[6]));
 		TestFalse(TEXT("A second settlement waits for the first"), CosmicMegaprojects::Settle(Ctx, 1, 4));
 		TestTrue(TEXT("and its target stays wild"), State->Systems[4].OwnerCivID.IsNone());
@@ -484,7 +535,10 @@ bool FCosmicSettlementTest::RunTest(const FString& Parameters)
 		{
 			TestEqual(TEXT("at the tick it completed"), Record->Tick, Done);
 		}
-		TestFalse(TEXT("The life of the vessel does not take an AI people's settlement"), !Live.Calling.Lives.IsEmpty() && Live.Calling.Lives.Last().MegaprojectsCompleted.Contains(CosmicRows::ProjectSettle));
+		if (TestFalse(TEXT("The vessel has a life"), Live.Calling.Lives.IsEmpty()))
+		{
+			TestFalse(TEXT("The life of the vessel does not take an AI people's settlement"), Live.Calling.Lives.Last().MegaprojectsCompleted.Contains(CosmicRows::ProjectSettle));
+		}
 		const FCosmicLogEntry* Line = Live.Log.FindByPredicate([Done](const FCosmicLogEntry& Each) { return Each.SourceRow == CosmicRows::ProjectSettle && Each.Tick == Done; });
 		if (TestNotNull(TEXT("The completion is told"), Line))
 		{
@@ -501,7 +555,59 @@ bool FCosmicSettlementTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("and Matter"), Live.Civs[1].IncomePerTick.Matter, IncomeSettled.Matter);
 	}
 
-	// ---- The AI's draw: one per people that may settle, before the targets are looked at ----
+	// ---- An AI people's settlement: unpaid it waits, paid it goes at the AI's pace ----
+	{
+		FCosmicRulesDef Doubled = Rules;
+		Doubled.AIAscensionSpeedMultiplier = 2.f;
+		FGalaxyState* State = LayBoard(*Sim, TablesWith(Original, Doubled, ProjectRows(&Stellar, true), nullptr));
+		if (!TestNotNull(TEXT("The board of the pace is laid"), State))
+		{
+			return false;
+		}
+		{
+			FCosmicEvalContext Ctx = Sim->MakeEvalContext();
+			TestTrue(TEXT("The settlement of the pace starts"), CosmicMegaprojects::Settle(Ctx, 1, 6));
+		}
+		FGalaxyState& Live = Sim->GetMutableState();
+		Sim->StepOnce();
+		TestEqual(TEXT("A settlement that cannot be paid does not progress"), Live.Systems[6].MegaprojectProgress, 0.f);
+		TestEqual(TEXT("and waits in its slot"), Live.Systems[6].ActiveMegaproject, CosmicRows::ProjectSettle);
+		TestFalse(TEXT("so the system is not settled for free"), CosmicState::IsSettled(Live.Systems[6]));
+		Live.Civs[1].Stockpile.Causality = 10.f;
+		Sim->StepOnce();
+		TestEqual(TEXT("A paid tick of an AI people's settlement progresses at the AI's pace"), Live.Systems[6].MegaprojectProgress, 2.f);
+	}
+
+	// ---- Answers before constructions: a settlement on a lower system does not take what the capital's answer needs ----
+	{
+		FGalaxyState* State = LayBoard(*Sim, TablesWith(Original, Rules, ProjectRows(&Stellar, true), nullptr));
+		if (!TestNotNull(TEXT("The board of the payment order is laid"), State))
+		{
+			return false;
+		}
+		// People 1 holds its capital 5 and settles 4 (a lower index); a storm stands on 5 with its answer under way. One
+		// Causality pays one of the two rows.
+		{
+			FCosmicEvalContext Ctx = Sim->MakeEvalContext();
+			TestTrue(TEXT("The settlement of the payment order starts"), CosmicMegaprojects::Settle(Ctx, 1, 4));
+		}
+		FGalaxyState& Live = Sim->GetMutableState();
+		Live.Systems[5].ActiveHazard = Tag(TEXT("Hazard.Plague"));
+		Live.Systems[5].HazardTicksRemaining = 1000;
+		Live.Systems[5].ResponseMegaproject = Answer;
+		Live.Civs[1].Stockpile.Causality = 1.f;
+		const FGalaxyState OneUnit = Live;
+		Sim->StepOnce();
+		TestEqual(TEXT("The answer is paid first"), Live.Systems[5].ResponseProgress, 1.f);
+		TestEqual(TEXT("and the settlement on a lower system waits"), Live.Systems[4].MegaprojectProgress, 0.f);
+		FGalaxyState TwoUnits = OneUnit;
+		TwoUnits.Civs[1].Stockpile.Causality = 2.f;
+		Sim->LoadState(TwoUnits);
+		Sim->StepOnce();
+		TestEqual(TEXT("With enough for both the settlement is paid too"), Sim->GetState().Systems[4].MegaprojectProgress, 1.f);
+	}
+
+	// ---- The AI's draw: one per people that may settle, before the targets are looked at, picking the target ----
 	{
 		FGalaxyState* State = LayBoard(*Sim, Tables);
 		if (!TestNotNull(TEXT("The board of the draws is laid"), State))
@@ -510,37 +616,37 @@ bool FCosmicSettlementTest::RunTest(const FString& Parameters)
 		}
 		const FGalaxyState Board0 = *State;
 		FGalaxyState After;
-		TestEqual(TEXT("One people that may settle: one draw"), SettlementDraws(*Sim, Tables, Capped, Board0, After), 1);
+		TestEqual(TEXT("One people that may settle: one draw"), AIStageDraws(*Sim, Tables, Board0, After), 1);
 		TestEqual(TEXT("and it settles one of its targets"), SettlingCount(After, After.Civs[1]), 1);
 		{
 			FGalaxyState Case = Board0;
 			Case.Civs[2].Tier = Stellar;
-			TestEqual(TEXT("Two peoples that may settle: two draws"), SettlementDraws(*Sim, Tables, Capped, Case, After), 2);
+			TestEqual(TEXT("Two peoples that may settle: two draws"), AIStageDraws(*Sim, Tables, Case, After), 2);
 		}
 		{
 			// People 0 takes 4 and 6: people 1 may settle and has no target.
 			FGalaxyState Case = Board0;
 			Hand(Case, 0, 4);
 			Hand(Case, 0, 6);
-			TestEqual(TEXT("A people that may settle draws with no target too"), SettlementDraws(*Sim, Tables, Capped, Case, After), 1);
+			TestEqual(TEXT("A people that may settle draws with no target too"), AIStageDraws(*Sim, Tables, Case, After), 1);
 			TestEqual(TEXT("and settles nothing"), SettlingCount(After, After.Civs[1]), 0);
 		}
 		{
 			FGalaxyState Case = Board0;
 			Hand(Case, 1, 1);
 			Hand(Case, 1, 9);
-			TestEqual(TEXT("A people at its cap draws nothing"), SettlementDraws(*Sim, Tables, Capped, Case, After), 0);
+			TestEqual(TEXT("A people at its cap draws nothing"), AIStageDraws(*Sim, Tables, Case, After), 0);
 		}
 		{
 			FGalaxyState Case = Board0;
-			Hand(Case, 1, 4);
-			Case.Systems[4].ActiveMegaproject = CosmicRows::ProjectSettle;
-			TestEqual(TEXT("A people with a settlement under way draws nothing"), SettlementDraws(*Sim, Tables, Capped, Case, After), 0);
+			HandSettling(Case, 1, 4);
+			Hand(Case, 1, 9);
+			TestEqual(TEXT("A people with a settlement under way draws nothing"), AIStageDraws(*Sim, Tables, Case, After), 0);
 		}
 		{
 			FGalaxyState Case = Board0;
 			Case.Civs[0].Tier = Stellar;
-			TestEqual(TEXT("The people the player rules draws nothing"), SettlementDraws(*Sim, Tables, Capped, Case, After), 1);
+			TestEqual(TEXT("The people the player rules draws nothing"), AIStageDraws(*Sim, Tables, Case, After), 1);
 			TestEqual(TEXT("and settles nothing by itself"), SettlingCount(After, After.Civs[0]), 0);
 		}
 		{
@@ -548,17 +654,90 @@ bool FCosmicSettlementTest::RunTest(const FString& Parameters)
 			Case.Civs[2].Tier = Stellar;
 			Case.Systems[8].OwnerCivID = NAME_None;
 			Case.Civs[2].OwnedSystems.Reset();
-			TestEqual(TEXT("A people without a system draws nothing"), SettlementDraws(*Sim, Tables, Capped, Case, After), 1);
+			TestEqual(TEXT("A people without a system draws nothing"), AIStageDraws(*Sim, Tables, Case, After), 1);
 		}
 		{
 			const FCosmicDataTables NoRow = TablesWith(Original, Rules, ProjectRows(nullptr), nullptr);
-			const FCosmicDataTables NoRowCapped = TablesWith(Original, CapNone, ProjectRows(nullptr), nullptr);
-			TestEqual(TEXT("Without the settle row the draws are the same"), SettlementDraws(*Sim, NoRow, NoRowCapped, Board0, After), 1);
+			TestEqual(TEXT("Without the settle row the draws are the same"), AIStageDraws(*Sim, NoRow, Board0, After), 1);
 			TestEqual(TEXT("and nothing is settled"), SettlingCount(After, After.Civs[1]), 0);
 			const FCosmicDataTables HighRow = TablesWith(Original, Rules, ProjectRows(&Causal), nullptr);
-			const FCosmicDataTables HighRowCapped = TablesWith(Original, CapNone, ProjectRows(&Causal), nullptr);
-			TestEqual(TEXT("Under a row of a higher Tier the draws are the same"), SettlementDraws(*Sim, HighRow, HighRowCapped, Board0, After), 1);
+			TestEqual(TEXT("Under a row of a higher Tier the draws are the same"), AIStageDraws(*Sim, HighRow, Board0, After), 1);
 			TestEqual(TEXT("and nothing is settled either"), SettlingCount(After, After.Civs[1]), 0);
+		}
+
+		// The number picks the target: target PickIndex(number, 2) of {4, 6}, over several streams so that both occur.
+		{
+			const int32 Choices[] = { 4, 6 };
+			int32 Mismatches = 0;
+			bool bSawFirst = false;
+			bool bSawSecond = false;
+			for (int32 Seed = 1; Seed <= 16; ++Seed)
+			{
+				FGalaxyState Case = Board0;
+				Case.RngState = Seed * 7919;
+				int32 Before = 0;
+				AIStageDraws(*Sim, Tables, Case, After, &Before);
+				FRandomStream Walk(Before);
+				const int32 Expected = Choices[PickOf(Walk.GetFraction(), 2)];
+				const int32 Settled = SettlingTarget(After, After.Civs[1].CivID);
+				Mismatches += Settled == Expected ? 0 : 1;
+				bSawFirst |= Settled == 4;
+				bSawSecond |= Settled == 6;
+			}
+			TestEqual(TEXT("Every settlement number picks the target it falls on"), Mismatches, 0);
+			TestTrue(TEXT("The first target was picked by some number"), bSawFirst);
+			TestTrue(TEXT("and so was the second"), bSawSecond);
+		}
+
+		// Two peoples share one target: the earlier in Civs order takes it, and the later still draws.
+		{
+			FGalaxyState Case = Board0;
+			Case.Civs[2].Tier = Stellar;
+			Hand(Case, 2, 7);
+			Hand(Case, 3, 4);
+			Hand(Case, 3, 9);
+			TestEqual(TEXT("Two peoples that share a target draw twice"), AIStageDraws(*Sim, Tables, Case, After), 2);
+			TestEqual(TEXT("and the earlier people in Civs order takes the shared target"), After.Systems[6].OwnerCivID, After.Civs[1].CivID);
+			TestEqual(TEXT("the later one settles nothing"), SettlingCount(After, After.Civs[2]), 0);
+		}
+
+		// The settlement number comes before the name a feat draws in the same tick: the AI stage settles, then judges.
+		{
+			UDataTable* Feats = NewTable(FAscensionFeatDef::StaticStruct());
+			FAscensionFeatDef Climb;
+			Climb.Title = FText::AsCultureInvariant(TEXT("climb"));
+			Climb.RequiredTier = Stellar;
+			Climb.TargetTier = Causal;
+			Climb.Path = EPlayerRole::Ruler;
+			FCosmicCondition Always0;
+			Always0.Type = EConditionType::CivResearchAtLeast;
+			Always0.Key = FName(TEXT("Physics"));
+			Always0.Value = 0.f;
+			Climb.CompletionConditions = { Always0 };
+			Climb.LogTemplates = { FText::AsCultureInvariant(TEXT("{Civ} climbed")) };
+			Feats->AddRow(FName(TEXT("feat_test_climb")), Climb);
+			const FCosmicDataTables Climbing = TablesWith(Original, Rules, ProjectRows(&Stellar), nullptr, Feats);
+			const int32 Choices[] = { 4, 6 };
+			bool bTold = false;
+			for (int32 Seed = 1; Seed <= 32 && !bTold; ++Seed)
+			{
+				FGalaxyState Case = Board0;
+				Case.RngState = Seed * 104729;
+				int32 Before = 0;
+				const int32 Draws = AIStageDraws(*Sim, Climbing, Case, After, &Before);
+				FRandomStream Walk(Before);
+				const float First = Walk.GetFraction();
+				const float Second = Walk.GetFraction();
+				if (PickOf(First, 2) == PickOf(Second, 2))
+				{
+					continue;
+				}
+				bTold = true;
+				TestEqual(TEXT("A people that settles and climbs in one tick draws twice"), Draws, 2);
+				TestEqual(TEXT("and climbs"), static_cast<int32>(After.Civs[1].Tier), static_cast<int32>(Causal));
+				TestEqual(TEXT("Its settlement takes the first number"), SettlingTarget(After, After.Civs[1].CivID), Choices[PickOf(First, 2)]);
+			}
+			TestTrue(TEXT("Some stream told the two numbers apart"), bTold);
 		}
 	}
 
@@ -610,11 +789,15 @@ bool FCosmicSettlementTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("the first target in Systems order"), Keyed.Systems[3].ActiveMegaproject, CosmicRows::ProjectSettle);
 		TestFalse(TEXT("With a settlement under way and nothing else the key does nothing"), PlayerRole->StartNextMegaproject());
 
+		// The cap, on Tier 2: two systems settle, three do not.
 		Sim->LoadState(Ruling);
-		FGalaxyState& Capped1 = Sim->GetMutableState();
-		Capped1.Civs[0].Tier = EAscensionTier::Tier1_Planetary;
+		Hand(Sim->GetMutableState(), 0, 2);
+		const FGalaxyState Below = Sim->GetState();
+		Hand(Sim->GetMutableState(), 0, 0);
 		TestFalse(TEXT("The ruler's people at its cap does not settle"), PlayerRole->StartMegaproject(Three, CosmicRows::ProjectSettle));
 		TestFalse(TEXT("and the key has nothing to start"), PlayerRole->StartNextMegaproject());
+		Sim->LoadState(Below);
+		TestTrue(TEXT("One system below the cap the ruler's people settles"), PlayerRole->StartMegaproject(Three, CosmicRows::ProjectSettle));
 	}
 
 	return true;
@@ -634,14 +817,16 @@ bool FCosmicRealmCapTest::RunTest(const FString& Parameters)
 	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
 
 	// The game's data, 20,000 ticks: no people ever holds more systems than the cap of its Tier (the game's rows hand no
-	// system over, so every system a people gains comes from a settlement), and no people settles two at once.
+	// system over, so every system a people gains comes from a settlement), and no people settles two at once. The bound
+	// is read from DT_Rules itself, not through the function under test, and some people does reach its cap.
 	{
 		Sim->SetTables(Original);
 		Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 		const FGalaxyState& State = Sim->GetState();
-		const FCosmicRulesDef& GameRules = Sim->GetRules();
+		const TArray<int32> Caps = Sim->GetRules().RealmCapByTier;
 		int64 OverCapTick = 0;
 		int64 TwoAtOnceTick = 0;
+		int64 ReachedCapTick = 0;
 		int32 MostSystems = 0;
 		int32 Settlements = 0;
 		for (int32 Step = 0; Step < 20000; ++Step)
@@ -650,10 +835,16 @@ bool FCosmicRealmCapTest::RunTest(const FString& Parameters)
 			for (const FCivilizationState& Civ : State.Civs)
 			{
 				const int32 Owned = OwnedCount(State, Civ);
+				const int32 TierIndex = static_cast<int32>(Civ.Tier);
+				const int32 Cap = Caps.IsValidIndex(TierIndex) ? Caps[TierIndex] : 0;
 				MostSystems = FMath::Max(MostSystems, Owned);
-				if (OverCapTick == 0 && Owned > CosmicMegaprojects::RealmCapOf(GameRules, Civ.Tier))
+				if (OverCapTick == 0 && Owned > Cap)
 				{
 					OverCapTick = State.Tick;
+				}
+				if (ReachedCapTick == 0 && Owned == Cap && Cap > 1)
+				{
+					ReachedCapTick = State.Tick;
 				}
 				if (TwoAtOnceTick == 0 && SettlingCount(State, Civ) > 1)
 				{
@@ -669,6 +860,7 @@ bool FCosmicRealmCapTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("No people settles two systems at once (the first tick it did)"), TwoAtOnceTick, int64(0));
 		TestTrue(TEXT("The peoples do settle in the game (the run is not empty)"), Settlements > 0);
 		TestTrue(TEXT("Some people holds more than one system"), MostSystems > 1);
+		TestTrue(TEXT("Some people reaches a cap above one (the bound is met, not only kept)"), ReachedCapTick > 0);
 	}
 
 	// A people over its cap by a hand-over keeps what it was handed and settles no more, by the AI's draw or the command.
@@ -700,6 +892,8 @@ bool FCosmicRealmCapTest::RunTest(const FString& Parameters)
 		Hand(*State, 0, 2);
 		Hand(*State, 0, 3);
 		Hand(*State, 0, 10);
+		TestTrue(TEXT("The ruler's target is still wild"), State->Systems[4].OwnerCivID.IsNone());
+		TestFalse(TEXT("and the ruler's people is not settling"), CosmicMegaprojects::IsSettling(*State, Sim->GetStateIndex(), 0));
 		UPlayerRoleSubsystem* PlayerRole = Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>();
 		if (TestNotNull(TEXT("The role subsystem exists"), PlayerRole))
 		{
@@ -724,9 +918,11 @@ bool FCosmicCivRemovalTest::RunTest(const FString& Parameters)
 	const EAscensionTier Stellar = EAscensionTier::Tier2_Stellar;
 	FCosmicRulesDef Rules = Knobs(Sim->GetRules());
 	Rules.RealmCapByTier = { 1, 1, 1, 1, 1 };
-	const FCosmicDataTables Tables = TablesWith(Original, Rules, ProjectRows(&Stellar), HazardRows(false));
+	// Settlements cost a Causality no board pays: they stand still where the tests put them.
+	const FCosmicDataTables Tables = TablesWith(Original, Rules, ProjectRows(&Stellar, true), HazardRows(false));
 
-	// Peoples 2 and 3 lose everything between ticks: 2 by hand, 3 because the system it lists is people 1's.
+	// Peoples 2 and 3 lose everything between ticks: 2 by hand, 3 because the system it lists is people 1's. What the
+	// cleanup clears and what it leaves.
 	{
 		FGalaxyState* State = LayBoard(*Sim, Tables);
 		if (!TestNotNull(TEXT("The board of the cleanup is laid"), State))
@@ -742,7 +938,14 @@ bool FCosmicCivRemovalTest::RunTest(const FString& Parameters)
 		State->Civs[0].Relations.Add(One, 0.1f);
 		State->Civs[0].Relations.Add(Sphere, -0.5f);
 		State->Civs[1].Relations.Add(Two, 0.3f);
-		State->Knowing.PendingContactCivID = Two;
+		State->Knowing.PendingContactCivID = Three;
+		State->Knowing.FirstContactCivID = Two;
+		FKnownMark& Met = State->Knowing.MetCivs.AddDefaulted_GetRef();
+		Met.ID = Two;
+		Met.Tick = 0;
+		const FName CooldownKey = UCosmicEventSubsystem::CooldownKey(FName(TEXT("event_test_row")), Two);
+		State->EventCooldownUntilTick.Add(CooldownKey, 99);
+		State->Player.FormerCivID = Three;
 		State->Systems[8].OwnerCivID = NAME_None;
 		State->Civs[2].OwnedSystems.Reset();
 		State->Systems[11].OwnerCivID = One;
@@ -758,11 +961,41 @@ bool FCosmicCivRemovalTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("in every people"), State->Civs[1].Relations.Contains(Two));
 		TestEqual(TEXT("The relation with a people that stays is kept"), State->Civs[0].Relations.FindRef(One), 0.1f);
 		TestEqual(TEXT("and so is the relation with a transcendent"), State->Civs[0].Relations.FindRef(Sphere), -0.5f);
-		TestTrue(TEXT("A pending contact with a removed people is cleared"), State->Knowing.PendingContactCivID.IsNone());
-		TestEqual(TEXT("The index finds the people that stays at its new place"), Sim->GetStateIndex().FindCiv(*State, One), 1);
+		TestTrue(TEXT("A pending contact with a removed people is cleared, whichever removed people it names"), State->Knowing.PendingContactCivID.IsNone());
+		TestEqual(TEXT("The first contact stays on the record"), State->Knowing.FirstContactCivID, Two);
+		TestTrue(TEXT("and so does the meeting"), State->Knowing.MetCivs.ContainsByPredicate([Two](const FKnownMark& Mark) { return Mark.ID == Two; }));
+		TestTrue(TEXT("and the cooldown of a removed people (the sweep takes it later)"), State->EventCooldownUntilTick.Contains(CooldownKey));
+		TestEqual(TEXT("and the former people of the vessel"), State->Player.FormerCivID, Three);
+		TestEqual(TEXT("The index finds the people that stays"), Sim->GetStateIndex().FindCiv(*State, One), 1);
 		TestEqual(TEXT("and no longer finds a removed people"), Sim->GetStateIndex().FindCiv(*State, Two), static_cast<int32>(INDEX_NONE));
 		TestEqual(TEXT("nor the other"), Sim->GetStateIndex().FindCiv(*State, Three), static_cast<int32>(INDEX_NONE));
 		TestEqual(TEXT("A removal tells no line"), State->Log.FilterByPredicate([State](const FCosmicLogEntry& Each) { return Each.Tick == State->Tick; }).Num(), 0);
+	}
+
+	// A people from the middle of Civs: those after it move up in order, and their keys to it go.
+	{
+		FGalaxyState* State = LayBoard(*Sim, Tables);
+		if (!TestNotNull(TEXT("The board of the middle removal is laid"), State))
+		{
+			return false;
+		}
+		const FName Zero = State->Civs[0].CivID;
+		const FName One = State->Civs[1].CivID;
+		const FName Two = State->Civs[2].CivID;
+		const FName Three = State->Civs[3].CivID;
+		State->Civs[3].Relations.Add(One, 0.2f);
+		State->Systems[5].OwnerCivID = NAME_None;
+		State->Civs[1].OwnedSystems.Reset();
+		Sim->StepOnce();
+		if (!TestEqual(TEXT("A people from the middle leaves"), State->Civs.Num(), 3))
+		{
+			return false;
+		}
+		TestEqual(TEXT("The first keeps its place"), State->Civs[0].CivID, Zero);
+		TestEqual(TEXT("the one after the removed moves up"), State->Civs[1].CivID, Two);
+		TestEqual(TEXT("and the last after it, in array order"), State->Civs[2].CivID, Three);
+		TestEqual(TEXT("The index finds the last at its new place"), Sim->GetStateIndex().FindCiv(*State, Three), 2);
+		TestFalse(TEXT("A people after the removed one loses its key to it"), State->Civs[2].Relations.Contains(One));
 	}
 
 	// A pending contact with a people that stays is left alone.
@@ -780,8 +1013,61 @@ bool FCosmicCivRemovalTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("A pending contact with a people that stays is kept"), State->Knowing.PendingContactCivID, One);
 	}
 
-	// The people the player rules loses its last system: it stays for the tick of the loss, the role-effect stage lets go
-	// of it, and the next tick's cleanup takes it.
+	// The last settled system: a people that holds a settled system and a settlement stays; losing the settled one lets
+	// the settlement go with it, and the people leaves.
+	{
+		FGalaxyState* State = LayBoard(*Sim, Tables);
+		if (!TestNotNull(TEXT("The board of the last settled system is laid"), State))
+		{
+			return false;
+		}
+		const FName One = State->Civs[1].CivID;
+		HandSettling(*State, 1, 4);
+		State->Systems[4].MegaprojectProgress = 2.f;
+		Sim->StepOnce();
+		TestTrue(TEXT("A people with a settled system and a stalled settlement stays"), Sim->GetStateIndex().FindCiv(*State, One) != INDEX_NONE);
+		TestEqual(TEXT("and keeps its settlement"), State->Systems[4].ActiveMegaproject, CosmicRows::ProjectSettle);
+		{
+			FCosmicEvalContext Ctx = Sim->MakeEvalContext();
+			TestFalse(TEXT("Its last settled system is not handed over, though a settlement remains"), CosmicHazards::Transfer(Ctx, 5, 2));
+		}
+		TestTrue(TEXT("The settled system is the last for the gate"), CosmicHazards::IsLastSettledSystem(*State, Sim->GetStateIndex(), 5));
+		TestFalse(TEXT("the settlement is not"), CosmicHazards::IsLastSettledSystem(*State, Sim->GetStateIndex(), 4));
+		State->Systems[5].ActiveHazard = Tag(TEXT("Hazard.PreSupernova"));
+		State->Systems[5].HazardTicksRemaining = 1;
+		Sim->StepOnce();
+		TestTrue(TEXT("The last settled system went"), CosmicHazards::IsDeadNode(State->Systems[5]));
+		TestTrue(TEXT("and the settlement went with it, to no one"), State->Systems[4].OwnerCivID.IsNone());
+		TestTrue(TEXT("its slot empty"), State->Systems[4].ActiveMegaproject.IsNone());
+		TestEqual(TEXT("and its progress gone"), State->Systems[4].MegaprojectProgress, 0.f);
+		TestEqual(TEXT("The people that had nothing left leaves the civilizations"), Sim->GetStateIndex().FindCiv(*State, One), static_cast<int32>(INDEX_NONE));
+	}
+
+	// The gate asks for the last settled system, a settlement under way or not: the grace keeps it.
+	{
+		UDataTable* Events = NewTable(FCosmicEventDef::StaticStruct());
+		const FCosmicEventDef* Grace = Original.FindEvent(CosmicRows::EventGraceRemnant);
+		if (!TestNotNull(TEXT("The game has the grace row of the remnant"), Grace))
+		{
+			return false;
+		}
+		Events->AddRow(CosmicRows::EventGraceRemnant, *Grace);
+		FGalaxyState* State = LayBoard(*Sim, TablesWith(Original, Rules, ProjectRows(&Stellar, true), HazardRows(false), nullptr, Events));
+		if (!TestNotNull(TEXT("The board of the grace is laid"), State))
+		{
+			return false;
+		}
+		HandSettling(*State, 1, 4);
+		State->Systems[5].ActiveHazard = Tag(TEXT("Hazard.PreSupernova"));
+		State->Systems[5].HazardTicksRemaining = 1;
+		Sim->StepOnce();
+		TestFalse(TEXT("The grace keeps a last settled system beside a settlement"), CosmicHazards::IsDeadNode(State->Systems[5]));
+		TestTrue(TEXT("the grace of the run is spent on it"), State->Flags.HasTagExact(Tag(TEXT("Flag.Grace.Spent"))));
+		TestEqual(TEXT("and the settlement stays the people's"), State->Systems[4].OwnerCivID, State->Civs[1].CivID);
+	}
+
+	// The people the player rules loses its last settled system while it settles: the settlement goes, the ruler falls,
+	// the people stays for the tick of its loss, researches nothing the next tick, and the next tick's cleanup takes it.
 	{
 		FGalaxyState* State = LayBoard(*Sim, Tables);
 		if (!TestNotNull(TEXT("The board of the ruler's people is laid"), State))
@@ -789,17 +1075,61 @@ bool FCosmicCivRemovalTest::RunTest(const FString& Parameters)
 			return false;
 		}
 		const FName Ruled = State->Civs[0].CivID;
+		HandSettling(*State, 0, 1);
 		State->Systems[0].ActiveHazard = Tag(TEXT("Hazard.PreSupernova"));
 		State->Systems[0].HazardTicksRemaining = 1;
 		Sim->StepOnce();
-		TestTrue(TEXT("The last system of the ruler's people went"), CosmicHazards::IsDeadNode(State->Systems[0]));
+		TestTrue(TEXT("The last settled system of the ruler's people went"), CosmicHazards::IsDeadNode(State->Systems[0]));
+		TestTrue(TEXT("and its settlement went with it"), State->Systems[1].OwnerCivID.IsNone());
 		TestTrue(TEXT("The ruler fell"), State->Player.Role == EPlayerRole::Wanderer);
 		const int32 Kept = Sim->GetStateIndex().FindCiv(*State, Ruled);
-		TestTrue(TEXT("The people the player ruled in the tick of the loss stays for that tick"), Kept != INDEX_NONE);
-		TestTrue(TEXT("and no longer has the player"), State->Civs.IsValidIndex(Kept) && !State->Civs[Kept].bIsPlayerRuled);
+		if (!TestTrue(TEXT("The people the player ruled in the tick of the loss stays for that tick"), State->Civs.IsValidIndex(Kept)))
+		{
+			return false;
+		}
+		TestFalse(TEXT("and no longer has the player"), State->Civs[Kept].bIsPlayerRuled);
+		TestEqual(TEXT("It keeps the ID of its lost capital"), State->Civs[Kept].HomeSystemID, State->Systems[0].SystemID);
+		// Both the kept people and people 1 are one step short of a Society mark: only people 1 crosses it.
+		const FName Society(TEXT("Society"));
+		for (const int32 CivIndex : { Kept, Sim->GetStateIndex().FindCiv(*State, State->Civs[1].CivID) })
+		{
+			State->Civs[CivIndex].Research.Add(Society, 0.4995f);
+			State->Civs[CivIndex].ResearchFocus.Add(Society, 1.f);
+		}
+		const FName Control = State->Civs[1].CivID;
 		Sim->StepOnce();
+		auto ToldOf = [State](FName CivID)
+		{
+			return State->Log.ContainsByPredicate([State, CivID](const FCosmicLogEntry& Each)
+			{
+				return Each.Tick == State->Tick && Each.FocusCivID == CivID && Each.SourceRow.ToString().StartsWith(TEXT("log_breakthrough_"));
+			});
+		};
+		TestTrue(TEXT("A people with a system crosses its mark (the board can tell)"), ToldOf(Control));
+		TestFalse(TEXT("The kept people researches nothing: no breakthrough is told of it"), ToldOf(Ruled));
 		TestEqual(TEXT("The next tick's cleanup takes it"), Sim->GetStateIndex().FindCiv(*State, Ruled), static_cast<int32>(INDEX_NONE));
-		TestEqual(TEXT("and only it"), State->Civs.Num(), 3);
+		if (TestEqual(TEXT("and only it"), State->Civs.Num(), 3))
+		{
+			TestEqual(TEXT("The others move up in order"), State->Civs[0].CivID, Control);
+		}
+	}
+
+	// A people holding only a settlement (made by hand: in play its last settled system takes it along) lets it go in the
+	// crossing stage and leaves.
+	{
+		FGalaxyState* State = LayBoard(*Sim, Tables);
+		if (!TestNotNull(TEXT("The board of the settlement alone is laid"), State))
+		{
+			return false;
+		}
+		const FName Two = State->Civs[2].CivID;
+		State->Systems[8].OwnerCivID = NAME_None;
+		State->Civs[2].OwnedSystems.Reset();
+		HandSettling(*State, 2, 9);
+		Sim->StepOnce();
+		TestTrue(TEXT("A settlement whose people has no settled system goes to no one"), State->Systems[9].OwnerCivID.IsNone());
+		TestTrue(TEXT("with an empty slot"), State->Systems[9].ActiveMegaproject.IsNone());
+		TestEqual(TEXT("and its people leaves"), Sim->GetStateIndex().FindCiv(*State, Two), static_cast<int32>(INDEX_NONE));
 	}
 	return true;
 }
@@ -820,7 +1150,8 @@ bool FCosmicPopulationRegrowthTest::RunTest(const FString& Parameters)
 	FCosmicRulesDef Rules = Knobs(Sim->GetRules());
 	Rules.RealmCapByTier = { 1, 1, 1, 1, 1 };
 
-	// The board with people 1 at 0.5, people 2 just under 1, people 3 above 1; then one tick under Knob.
+	// The board with the people the player rules at 0.7, people 1 at 0.5, people 2 just under 1, people 3 above 1; then
+	// one tick under Knob.
 	auto OneTick = [&](float Knob) -> FGalaxyState
 	{
 		FCosmicRulesDef With = Rules;
@@ -830,6 +1161,7 @@ bool FCosmicPopulationRegrowthTest::RunTest(const FString& Parameters)
 		{
 			return FGalaxyState();
 		}
+		State->Civs[0].Population = 0.7f;
 		State->Civs[1].Population = 0.5f;
 		State->Civs[2].Population = 0.995f;
 		State->Civs[3].Population = 1.5f;
@@ -849,14 +1181,15 @@ bool FCosmicPopulationRegrowthTest::RunTest(const FString& Parameters)
 
 	const FGalaxyState Grown = OneTick(0.01f);
 	TestEqual(TEXT("A people below 1 grows by the knob"), PopulationOf(Grown, 1), 0.5f + 0.01f);
+	TestEqual(TEXT("The people the player rules grows alike"), PopulationOf(Grown, 0), 0.7f + 0.01f);
 	TestEqual(TEXT("A people near 1 stops at 1"), PopulationOf(Grown, 2), 1.f);
 	TestEqual(TEXT("A people above 1 is left as it is"), PopulationOf(Grown, 3), 1.5f);
-	TestEqual(TEXT("A people at 1 stays at 1"), PopulationOf(Grown, 0), 1.f);
 
 	const FGalaxyState Still = OneTick(0.f);
 	TestEqual(TEXT("A knob of 0 grows nothing"), PopulationOf(Still, 1), 0.5f);
 	TestEqual(TEXT("A knob below 0 takes nothing"), PopulationOf(OneTick(-0.01f), 1), 0.5f);
 	TestEqual(TEXT("A knob that is not a number grows nothing"), PopulationOf(OneTick(std::numeric_limits<float>::quiet_NaN()), 1), 0.5f);
+	TestEqual(TEXT("An infinite knob grows nothing"), PopulationOf(OneTick(std::numeric_limits<float>::infinity()), 1), 0.5f);
 	// The regrowth comes before the income: the Insight of the tick follows the grown population.
 	TestEqual(TEXT("The income of the tick reads the grown population"), InsightOf(Grown, 1), InsightOf(Still, 1) * (0.51f / 0.5f), 0.0001f);
 	return true;

@@ -616,8 +616,21 @@ bool FCosmicEventsHazardEffectsTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("The capital moves to the first settled system"), State.Civs[0].HomeSystemID, State.Systems[2].SystemID);
 		TestEqual(TEXT("Losing the capital costs Stability"), State.Civs[0].Stability, 0.75f - 0.3f);
 		Bench.Ctx.SystemIndex = 2;
-		TestTrue(TEXT("The new capital can be handed over too"), UCosmicEventSubsystem::Apply(Transfer(Civ3), Bench.Ctx));
-		TestEqual(TEXT("Without a settled system the capital is the system being settled"), State.Civs[0].HomeSystemID, State.Systems[1].SystemID);
+		TestFalse(TEXT("The last settled system is not handed over, though a settlement remains"), UCosmicEventSubsystem::Apply(Transfer(Civ3), Bench.Ctx));
+		TestEqual(TEXT("and stays with its people"), State.Systems[2].OwnerCivID, State.Civs[0].CivID);
+		Bench.Ctx.SystemIndex = 1;
+		TestTrue(TEXT("A system being settled can be handed over while a settled system remains"), UCosmicEventSubsystem::Apply(Transfer(Civ3), Bench.Ctx));
+		TestEqual(TEXT("and goes to its new owner"), State.Systems[1].OwnerCivID, Civ3);
+		TestTrue(TEXT("as a settled system: the old owner's settlement ends with the hand-over"), CosmicState::IsSettled(State.Systems[1]));
+
+		// MoveCapital's last fallback, seen directly: with no settled system the capital moves to a system being settled (no
+		// path of the game reaches it: a lost last settled system lets its settlements go, section 5.7).
+		State.Systems[1].OwnerCivID = State.Civs[0].CivID;
+		State.Systems[1].ActiveMegaproject = CosmicRows::ProjectSettle;
+		State.Civs[0].OwnedSystems = { State.Systems[1].SystemID };
+		State.Civs[0].HomeSystemID = State.Systems[0].SystemID;
+		CosmicHazards::MoveCapital(State, Bench.Ctx.Index, 0);
+		TestEqual(TEXT("Without a settled system the capital moves to the system being settled"), State.Civs[0].HomeSystemID, State.Systems[1].SystemID);
 	}
 
 	// The game's only resolution in Phase 2: the Jonah row resolves the plague.
@@ -1296,6 +1309,7 @@ bool FCosmicDeadNodeTest::RunTest(const FString& Parameters)
 		Sim->StepOnce();
 		TestTrue(TEXT("The last system went"), CosmicHazards::IsDeadNode(State.Systems[0]));
 		TestEqual(TEXT("The people has no system left"), State.Civs[0].OwnedSystems.Num(), 0);
+		TestEqual(TEXT("and keeps the ID of its lost capital while it is kept for the tick of its loss"), State.Civs[0].HomeSystemID, State.Systems[0].SystemID);
 		TestTrue(TEXT("The ruler fell: the vessel walks"), State.Player.Role == EPlayerRole::Wanderer);
 		TestTrue(TEXT("as a fallen monarch"), State.Player.StatusTags.HasTagExact(Tag(TEXT("Status.FallenMonarch"))));
 		TestFalse(TEXT("The role effect was resolved at the tick boundary"), State.Calling.PendingEffect.IsValid());

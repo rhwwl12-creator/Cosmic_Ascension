@@ -1563,8 +1563,8 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The game has a hazard row to change"), !Game.GetHazardRowNames().IsEmpty());
 		Expect(TEXT("a list of row names with a row no named table has"), WithHazard([](FHazardDef& Row) { Row.RulerResolutions = { FName(TEXT("enc_nobody")) }; }),
 			{ TEXT("RulerResolutions[0]"), TEXT("none of DT_Megaprojects, DT_Encounters has a row enc_nobody") });
-		// A project the game's own hazard rows give as an answer, whatever its name - not project_settle, which section 9.3
-		// plans to forbid in this column.
+		// A project the game's own hazard rows give as an answer, whatever its name - not project_settle, which the code
+		// refuses as an answer (CanStart; the schema leaves it out, decision K of the settlement work - Sim.StartMegaproject).
 		FName GameAnswer;
 		for (const FName HazardName : Game.GetHazardRowNames())
 		{

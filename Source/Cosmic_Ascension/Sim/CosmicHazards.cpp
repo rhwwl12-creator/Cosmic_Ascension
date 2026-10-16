@@ -3,6 +3,7 @@
 #include "Sim/CosmicHazards.h"
 
 #include "Cosmic_Ascension.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "GameplayTagContainer.h"
@@ -79,9 +80,9 @@ void CosmicHazards::EmptyHazardSlot(FStarSystemState& System)
 	System.ResponseProgress = 0.f;
 }
 
-bool CosmicHazards::IsLastOwnedSystem(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 SystemIndex)
+bool CosmicHazards::IsLastSettledSystem(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 SystemIndex)
 {
-	if (!State.Systems.IsValidIndex(SystemIndex))
+	if (!State.Systems.IsValidIndex(SystemIndex) || !CosmicState::IsSettled(State.Systems[SystemIndex]))
 	{
 		return false;
 	}
@@ -91,8 +92,45 @@ bool CosmicHazards::IsLastOwnedSystem(const FGalaxyState& State, const FCosmicSt
 	{
 		return false;
 	}
-	const TArray<FName>& Owned = State.Civs[OwnerIndex].OwnedSystems;
-	return Owned.Num() == 1 && Owned[0] == System.SystemID;
+	const FCivilizationState& Owner = State.Civs[OwnerIndex];
+	const bool bOtherSettled = Owner.OwnedSystems.ContainsByPredicate([&State, &Index, &Owner, &System](FName SystemID)
+	{
+		const int32 Other = Index.FindSystem(State, SystemID);
+		return SystemID != System.SystemID && State.Systems.IsValidIndex(Other) && State.Systems[Other].OwnerCivID == Owner.CivID
+			&& CosmicState::IsSettled(State.Systems[Other]);
+	});
+	return Owner.OwnedSystems.Contains(System.SystemID) && !bOtherSettled;
+}
+
+void CosmicHazards::LetSettlementsGo(FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex)
+{
+	if (!State.Civs.IsValidIndex(CivIndex))
+	{
+		return;
+	}
+	FCivilizationState& Civ = State.Civs[CivIndex];
+	TArray<int32, TInlineAllocator<4>> Owned;
+	for (const FName SystemID : Civ.OwnedSystems)
+	{
+		const int32 SystemIndex = Index.FindSystem(State, SystemID);
+		if (State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == Civ.CivID)
+		{
+			if (CosmicState::IsSettled(State.Systems[SystemIndex]))
+			{
+				return;
+			}
+			Owned.Add(SystemIndex);
+		}
+	}
+	for (const int32 SystemIndex : Owned)
+	{
+		FStarSystemState& System = State.Systems[SystemIndex];
+		Civ.OwnedSystems.Remove(System.SystemID);
+		System.OwnerCivID = NAME_None;
+		EmptyHazardSlot(System);
+		System.ActiveMegaproject = NAME_None;
+		System.MegaprojectProgress = 0.f;
+	}
 }
 
 bool CosmicHazards::Place(FCosmicEvalContext& Ctx, int32 SystemIndex, FName HazardRow)
@@ -183,7 +221,7 @@ bool CosmicHazards::Transfer(FCosmicEvalContext& Ctx, int32 SystemIndex, int32 T
 	}
 	FStarSystemState& System = State.Systems[SystemIndex];
 	const int32 FromCivIndex = Ctx.Index.FindCiv(State, System.OwnerCivID);
-	if (IsDeadNode(System) || FromCivIndex == ToCivIndex || IsLastOwnedSystem(State, Ctx.Index, SystemIndex))
+	if (IsDeadNode(System) || FromCivIndex == ToCivIndex || IsLastSettledSystem(State, Ctx.Index, SystemIndex))
 	{
 		return false;
 	}
@@ -279,14 +317,15 @@ void CosmicHazards::Destroy(FCosmicEvalContext& Ctx, int32 SystemIndex)
 	FPlayerEntityState& Player = State.Player;
 	const bool bCarryVessel = State.Calling.LifeState == ELifeState::Embodied && Player.CurrentSystemID == SystemID && State.Calling.PendingEffect != KillTag;
 
-	// The owner lets it go, and a lost capital moves.
+	// The owner lets it go, with its settlements under way when this was its last settled system (section 5.7), and a
+	// lost capital moves.
 	const int32 OwnerIndex = Ctx.Index.FindCiv(State, System.OwnerCivID);
 	System.OwnerCivID = NAME_None;
 	if (State.Civs.IsValidIndex(OwnerIndex))
 	{
-		FCivilizationState& Owner = State.Civs[OwnerIndex];
-		Owner.OwnedSystems.Remove(SystemID);
-		if (Owner.HomeSystemID == SystemID)
+		State.Civs[OwnerIndex].OwnedSystems.Remove(SystemID);
+		LetSettlementsGo(State, Ctx.Index, OwnerIndex);
+		if (State.Civs[OwnerIndex].HomeSystemID == SystemID)
 		{
 			MoveCapital(State, Ctx.Index, OwnerIndex);
 		}

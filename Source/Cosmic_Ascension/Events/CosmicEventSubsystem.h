@@ -296,7 +296,7 @@ public:
 	 *   its owner's capital, a ClaimRule row always). ResolveHazard resolves the hazard of the subject system through
 	 *   CosmicHazards::Resolve; with a Tag, only a hazard that matches it (MatchesTag). TransferSystem hands the subject
 	 *   system to the civilization its Key names (a living CivID; an empty Key = to no one) through
-	 *   CosmicHazards::Transfer, which never takes or lets go the last owned system of a civilization: only stage code
+	 *   CosmicHazards::Transfer, which never takes or lets go the last settled system of a civilization: only stage code
 	 *   behind the last-system gate can (section 4.5, 7.4). SpawnHazard and ResolveHazard leave notes in Ctx.Notes, and
 	 *   whoever applied them tells them after its own line (FollowUpNotes); TransferSystem leaves none. A per-tick source
 	 *   turns all three away.
