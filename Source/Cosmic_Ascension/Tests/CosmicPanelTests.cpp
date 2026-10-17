@@ -34,6 +34,8 @@
 #include "UObject/NameTypes.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
+#include "Widgets/IToolTip.h"
+#include "Widgets/SWidget.h"
 #include "World/CosmicGalaxyMapActor.h"
 #include "World/CosmicGameMode.h"
 
@@ -209,7 +211,7 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 		Startable.RemoveAll([&](FName Row) { return !CosmicMegaprojects::CanStart(Live, Sim->GetStateIndex(), GameTables, HomeIndex, Row); });
 		TestTrue(TEXT("(the home can start a project)"), !Startable.IsEmpty());
 		TestTrue(TEXT("One button per project the home can start, in row order"), ActionsOf(*Panel) == Startable);
-		TestFalse(TEXT("No realm-cap line on a settled system"), Panel->IsRealmCapShown());
+		TestFalse(TEXT("No reason line on a settled system"), Panel->IsReasonShown());
 		if (!Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0])
 		{
 			const FName Row = Panel->GetActionButtons()[0]->GetAction();
@@ -226,7 +228,43 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 		}
 	}
 
-	// ---- A wild neighbour: the settle button, then the realm-cap line ----
+	// ---- Every reason a settle button can give has its words ----
+	{
+		using CosmicMegaprojects::ECosmicSettleBlock;
+		// The reasons a button shows, by hand (the enum's count below catches one added without words here).
+		const ECosmicSettleBlock Shown[] = { ECosmicSettleBlock::Owned, ECosmicSettleBlock::NoLane, ECosmicSettleBlock::NoRow, ECosmicSettleBlock::RowTier,
+			ECosmicSettleBlock::RealmCap, ECosmicSettleBlock::Settling, ECosmicSettleBlock::Sphere };
+		int32 Showable = 0;
+		for (int32 At = 0; At < static_cast<int32>(ECosmicSettleBlock::Count); ++At)
+		{
+			const ECosmicSettleBlock Block = static_cast<ECosmicSettleBlock>(At);
+			const FString Words = UCosmicSystemPanelWidget::ReasonOf(Block, GameTables).ToString();
+			const bool bShows = Block != ECosmicSettleBlock::None && Block != ECosmicSettleBlock::NoPeople && Block != ECosmicSettleBlock::Dead;
+			Showable += bShows ? 1 : 0;
+			if (bShows)
+			{
+				TestFalse(*FString::Printf(TEXT("Reason %d has words"), At), Words.IsEmpty());
+				TestFalse(*FString::Printf(TEXT("Reason %d is no missing String Table entry"), At), Words.Contains(Placeholder));
+				TestFalse(*FString::Printf(TEXT("Reason %d leaves no argument unfilled"), At), Words.Contains(TEXT("{")));
+			}
+			else
+			{
+				TestTrue(*FString::Printf(TEXT("Reason %d, which no button shows, has no words"), At), Words.IsEmpty());
+			}
+		}
+		TestEqual(TEXT("Every reason a button shows is named here"), Showable, static_cast<int32>(UE_ARRAY_COUNT(Shown)));
+		// The rungs the words name, numbered as the top bar numbers rungs: the game's settle row asks for the second, and the
+		// third lifts a sphere. Below the third rung the sphere's words name neither transcendent nor sphere (section 3.2).
+		TestTrue(TEXT("The rung reason names the settle row's rung"), UCosmicSystemPanelWidget::ReasonOf(ECosmicSettleBlock::RowTier, GameTables).ToString().Contains(TEXT("2")));
+		const FString SphereWords = UCosmicSystemPanelWidget::ReasonOf(ECosmicSettleBlock::Sphere, GameTables).ToString();
+		TestTrue(TEXT("The sphere reason names the rung that lifts it"), SphereWords.Contains(TEXT("3")));
+		// "Transcendent" and "sphere" in the String Table's language, escaped: the source files are ASCII (section 10.3).
+		TestFalse(TEXT("and does not say transcendent"), SphereWords.Contains(TEXT("\xCD08\xC6D4\xC790")));
+		TestFalse(TEXT("nor sphere"), SphereWords.Contains(TEXT("\xC601\xD5A5\xAD8C")));
+		TestEqual(TEXT("A reason's words come from its String Table key"), UCosmicSystemPanelWidget::ReasonOf(ECosmicSettleBlock::Owned, GameTables).ToString(), LabelText(TEXT("Settle.Block.Owned")));
+	}
+
+	// ---- A wild neighbour: the settle button, then the greyed button and its reason ----
 	{
 		// On the third rung the settlement's tier and a transcendent's sphere do not stand in the way.
 		Live.Civs[RuledIndex].Tier = EAscensionTier::Tier3_Causal;
@@ -238,59 +276,131 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 			Panel->ShowSystem(First);
 			TestTrue(TEXT("A wild system the people can settle shows one settle button"), ActionsOf(*Panel) == TArray<FName>({ CosmicRows::ProjectSettle }));
 			TestTrue(TEXT("and says it has no owner"), ReadTexts(*Panel).Contains(LabelText(TEXT("Panel.NoOwner"))));
-			TestFalse(TEXT("and no realm-cap line"), Panel->IsRealmCapShown());
-			if (!Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0])
+			TestTrue(TEXT("The settle button of a target is enabled"), !Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0]->GetIsEnabled());
+			TestFalse(TEXT("and no reason line shows"), Panel->IsReasonShown());
+			TestTrue(TEXT("(no reason is held)"), Panel->GetShownSettleBlock() == CosmicMegaprojects::ECosmicSettleBlock::None);
+
+			// In a transcendent's sphere below the third rung: greyed out, the sphere's words as the line and the tooltip, and
+			// a press does nothing.
+			Live.Civs[RuledIndex].Tier = EAscensionTier::Tier2_Stellar;
+			const int32 Unsealed = Live.Transcendents.IndexOfByPredicate([&](const FTranscendentState& Each) { return !Each.bSealed && GameTables.FindTranscendent(Each.TranscendentID) != nullptr; });
+			if (TestTrue(TEXT("(the game's galaxy has an unsealed transcendent)"), Unsealed != INDEX_NONE))
 			{
-				Panel->GetActionButtons()[0]->Press();
+				Live.Transcendents[Unsealed].InfluencedSystems.Add(First);
+				Panel->Refresh();
+				const FString SphereWords = UCosmicSystemPanelWidget::ReasonOf(CosmicMegaprojects::ECosmicSettleBlock::Sphere, GameTables).ToString();
+				TestTrue(TEXT("A neighbour in a transcendent's sphere gives the sphere as its reason"), Panel->GetShownSettleBlock() == CosmicMegaprojects::ECosmicSettleBlock::Sphere);
+				TestTrue(TEXT("on the line"), ReadTexts(*Panel).Contains(SphereWords));
+				TestTrue(TEXT("and as the tooltip"), !Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0]->GetToolTipText().ToString() == SphereWords);
+				// A press on the greyed-out button announces nothing (a click never reaches it; a press from code is refused
+				// the same way) - counted on the button's own delegate, as the command would refuse the settlement anyway.
+				int32 Announced = 0;
+				if (UCosmicActionButton* Greyed = Panel->GetActionButtons().IsEmpty() ? nullptr : Panel->GetActionButtons()[0].Get())
+				{
+					const FDelegateHandle Counter = Greyed->OnAction.AddLambda([&Announced](FName, float) { ++Announced; });
+					Greyed->Press();
+					Greyed->OnAction.Remove(Counter);
+				}
+				TestEqual(TEXT("A press on the greyed-out button announces nothing"), Announced, 0);
+				TestTrue(TEXT("and settles nothing"), Live.Systems[Targets[0]].OwnerCivID.IsNone());
+				Live.Transcendents[Unsealed].InfluencedSystems.Remove(First);
 			}
+			Live.Civs[RuledIndex].Tier = EAscensionTier::Tier3_Causal;
+			Panel->Refresh();
+			int32 Announced = 0;
+			if (UCosmicActionButton* Settle = Panel->GetActionButtons().IsEmpty() ? nullptr : Panel->GetActionButtons()[0].Get())
+			{
+				const FDelegateHandle Counter = Settle->OnAction.AddLambda([&Announced](FName, float) { ++Announced; });
+				Settle->Press();
+				Settle->OnAction.Remove(Counter);
+			}
+			TestEqual(TEXT("A press on the enabled button announces its action once"), Announced, 1);
 			TestEqual(TEXT("Pressing it settles: the system is the people's"), Live.Systems[Targets[0]].OwnerCivID, RuledID);
 			TestEqual(TEXT("with the settlement in its construction slot"), Live.Systems[Targets[0]].ActiveMegaproject, CosmicRows::ProjectSettle);
 
-			// Every realm cap 2: the people owns two systems now, exactly its cap, so the other neighbour shows the line, not
-			// the button - and a wild system the people does not touch shows neither.
+			// Every realm cap 2: the people owns two systems now, exactly its cap, so the other neighbour's settle button is
+			// greyed out with the cap as its reason (line and tooltip), before the settlement under way - and a wild system the
+			// people does not touch gives the lane as its reason (the system's own reasons come first).
 			FCosmicRulesDef Capped = Sim->GetRules();
 			Capped.RealmCapByTier = { 2, 2, 2, 2, 2 };
 			FCosmicDataTables CappedTables = GameTables;
 			CappedTables.Rules = RulesTable(Capped);
 			Sim->SetTables(CappedTables);
 			Panel->ShowSystem(Second);
-			TestTrue(TEXT("At its realm cap the people sees the realm-cap line on a wild neighbour"), Panel->IsRealmCapShown());
-			TestEqual(TEXT("and no settle button"), Panel->GetActionButtons().Num(), 0);
+			TestEqual(TEXT("At its realm cap a wild neighbour still shows the settle button"), Panel->GetActionButtons().Num(), 1);
+			TestFalse(TEXT("greyed out"), !Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0]->GetIsEnabled());
+			TestTrue(TEXT("with the realm cap as its reason, before the settlement under way"), Panel->GetShownSettleBlock() == CosmicMegaprojects::ECosmicSettleBlock::RealmCap);
+			TestTrue(TEXT("on a line"), Panel->IsReasonShown());
+			TestTrue(TEXT("and as its tooltip"), !Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0]->GetToolTipText().ToString() == LabelText(TEXT("Settle.Block.RealmCap")));
+			TestTrue(TEXT("The line says so"), ReadTexts(*Panel).Contains(LabelText(TEXT("Settle.Block.RealmCap"))));
 			const int32 Untouched = FindUntouched(*Sim, RuledID);
 			if (TestTrue(TEXT("(a wild system away from the people)"), Untouched != INDEX_NONE))
 			{
 				Panel->ShowSystem(Live.Systems[Untouched].SystemID);
-				TestFalse(TEXT("At the cap a wild system away from the people has no realm-cap line"), Panel->IsRealmCapShown());
+				TestTrue(TEXT("At the cap a wild system away from the people gives the lane as its reason"), Panel->GetShownSettleBlock() == CosmicMegaprojects::ECosmicSettleBlock::NoLane);
 			}
 			Sim->SetTables(GameTables);
 			Panel->ShowSystem(Second);
-			TestFalse(TEXT("Below the cap the line goes"), Panel->IsRealmCapShown());
+			TestTrue(TEXT("Below the cap, the settlement under way is the reason"), Panel->GetShownSettleBlock() == CosmicMegaprojects::ECosmicSettleBlock::Settling);
 		}
-		// A wild system no settled system of the people touches: no button.
+		// A wild system no settled system of the people touches: a greyed settle button that gives the lane as its reason.
 		const int32 Far = FindUntouched(*Sim, RuledID);
 		if (TestTrue(TEXT("(a wild system away from the people)"), Far != INDEX_NONE))
 		{
 			Panel->ShowSystem(Live.Systems[Far].SystemID);
-			TestEqual(TEXT("A wild system away from the people has no button"), Panel->GetActionButtons().Num(), 0);
+			TestEqual(TEXT("A wild system away from the people shows the settle button"), Panel->GetActionButtons().Num(), 1);
+			TestTrue(TEXT("with the lane as its reason"), Panel->GetShownSettleBlock() == CosmicMegaprojects::ECosmicSettleBlock::NoLane);
 
 			// Destroyed: said so, no buttons.
 			const FGameplayTag StarClass = Live.Systems[Far].StarClass;
 			Live.Systems[Far].StarClass = FGameplayTag();
 			Panel->Refresh();
 			TestTrue(TEXT("A destroyed system says so"), ReadTexts(*Panel).Contains(LabelText(TEXT("Panel.Destroyed"))));
+			TestEqual(TEXT("and has no button"), Panel->GetActionButtons().Num(), 0);
 			Live.Systems[Far].StarClass = StarClass;
 		}
 		Live.Civs[RuledIndex].Tier = EAscensionTier::Tier1_Planetary;
 	}
 
-	// ---- Another people's system and a wanderer: no commands ----
+	// ---- Another people's system: a greyed settle button that names no people; the buttons outlive a tick ----
 	{
 		const int32 Other = Live.Systems.IndexOfByPredicate([&](const FStarSystemState& System) { return !System.OwnerCivID.IsNone() && System.OwnerCivID != RuledID; });
 		if (TestTrue(TEXT("(another people owns a system)"), Other != INDEX_NONE))
 		{
 			Panel->ShowSystem(Live.Systems[Other].SystemID);
-			TestEqual(TEXT("Another people's system has no button"), Panel->GetActionButtons().Num(), 0);
+			TestTrue(TEXT("Another people's system shows the settle button"), ActionsOf(*Panel) == TArray<FName>({ CosmicRows::ProjectSettle }));
+			TestFalse(TEXT("greyed out"), !Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0]->GetIsEnabled());
+			TestTrue(TEXT("because another people lives there"), Panel->GetShownSettleBlock() == CosmicMegaprojects::ECosmicSettleBlock::Owned);
+			TestTrue(TEXT("The line says so"), ReadTexts(*Panel).Contains(LabelText(TEXT("Settle.Block.Owned"))));
+
+			// The same content keeps the same button: a refresh, then a tick through the delegate (a button built again
+			// between the press and the release of a click drops the click).
+			const UCosmicActionButton* Before = Panel->GetActionButtons().IsEmpty() ? nullptr : Panel->GetActionButtons()[0].Get();
+			Panel->Refresh();
+			TestTrue(TEXT("A refresh with the same buttons keeps the button object"), !Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0].Get() == Before);
+			Controller->SelectSystem(Live.Systems[Other].SystemID);
+			ACosmicHUD* HUD = Controller->GetHUD<ACosmicHUD>();
+			UCosmicSystemPanelWidget* HudPanel = HUD ? HUD->GetSystemPanel() : nullptr;
+			if (TestNotNull(TEXT("(the HUD has its system panel)"), HudPanel))
+			{
+				const UCosmicActionButton* HudBefore = HudPanel->GetActionButtons().IsEmpty() ? nullptr : HudPanel->GetActionButtons()[0].Get();
+				const FString TooltipBefore = HudBefore ? HudBefore->GetToolTipText().ToString() : FString();
+				// Every SetToolTipText makes a new Slate tooltip (an open one would close): the same words keep the object.
+				const TSharedPtr<SWidget> SlateBefore = HudBefore ? HudBefore->GetCachedWidget() : TSharedPtr<SWidget>();
+				const IToolTip* TipBefore = SlateBefore ? SlateBefore->GetToolTip().Get() : nullptr;
+				const bool bWasBroadcasting = Sim->IsBroadcastEnabled();
+				Sim->SetBroadcastEnabled(true);
+				Sim->StepOnce();
+				Sim->SetBroadcastEnabled(bWasBroadcasting);
+				TestTrue(TEXT("(the system is still the other people's)"), Live.Systems[Other].OwnerCivID != RuledID && !Live.Systems[Other].OwnerCivID.IsNone());
+				TestTrue(TEXT("A tick keeps the button object"), HudBefore && !HudPanel->GetActionButtons().IsEmpty() && HudPanel->GetActionButtons()[0].Get() == HudBefore);
+				TestEqual(TEXT("and its tooltip"), HudBefore ? HudBefore->GetToolTipText().ToString() : FString(), TooltipBefore);
+				TestTrue(TEXT("(the greyed-out button has a tooltip)"), TipBefore != nullptr);
+				TestTrue(TEXT("and the tick keeps the tooltip object"), SlateBefore && SlateBefore->GetToolTip().Get() == TipBefore);
+			}
+			Controller->SelectSystem(NAME_None);
 		}
+		// A wanderer has no commands.
 		Live.Systems[HomeIndex].ActiveMegaproject = NAME_None;
 		Live.Systems[HomeIndex].ResponseMegaproject = NAME_None;
 		Panel->ShowSystem(Home);
@@ -409,12 +519,12 @@ bool FCosmicUIMouseOnlyAscentTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	// A click on the panel's button of Row; false when the panel shows no such button.
+	// A click on the panel's button of Row; false when the panel shows no such button or shows it greyed out.
 	auto Click = [Panel](FName Row)
 	{
 		for (UCosmicActionButton* Button : Panel->GetActionButtons())
 		{
-			if (Button && Button->GetAction() == Row)
+			if (Button && Button->GetAction() == Row && Button->GetIsEnabled())
 			{
 				Button->Press();
 				return true;

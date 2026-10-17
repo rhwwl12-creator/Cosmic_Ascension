@@ -25,8 +25,9 @@ public:
 	void Setup(FName InAction, float InValue, const FText& Label);
 	FName GetAction() const { return Action; }
 	float GetValue() const { return Value; }
+	const FText& GetLabel() const { return ShownLabel; }
 
-	/** What a click does: announces the action (tests call it in place of a click). */
+	/** What a click does: announces the action (tests call it in place of a click). A greyed-out button announces nothing. */
 	void Press();
 
 	FOnCosmicAction OnAction;

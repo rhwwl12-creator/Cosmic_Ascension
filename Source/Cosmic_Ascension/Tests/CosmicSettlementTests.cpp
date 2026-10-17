@@ -1505,4 +1505,116 @@ bool FCosmicPopulationRegrowthTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// Why a settlement is refused (the system panel's reasons): one board per reason, the order of the reasons where two
+// stand at once, and on every board the systems with no reason are exactly the AI's targets (SettleTargets walks the
+// candidates its own way, so the panel's button, the command and the AI never disagree).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSettleBlockTest, "Cosmic_Ascension.Sim.SettleBlockReasons", CosmicTests::Flags)
+bool FCosmicSettleBlockTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicSettlementTests;
+	using CosmicMegaprojects::ECosmicSettleBlock;
+
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	const EAscensionTier Stellar = EAscensionTier::Tier2_Stellar;
+	const EAscensionTier Causal = EAscensionTier::Tier3_Causal;
+	const FCosmicRulesDef Rules = Knobs(Sim->GetRules());
+	FGalaxyState* State = LayBoard(*Sim, TablesWith(Original, Rules, ProjectRows(&Stellar), HazardRows(false)));
+	if (!TestNotNull(TEXT("The board is laid"), State))
+	{
+		return false;
+	}
+	auto Block = [&](int32 Civ, int32 SystemIndex)
+	{
+		return CosmicMegaprojects::SettleBlockOf(*State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), Civ, SystemIndex);
+	};
+	// For every people, the systems with no reason are SettleTargets, in Systems order.
+	auto Agrees = [&]()
+	{
+		int32 Disagreements = 0;
+		for (int32 Civ = 0; Civ < State->Civs.Num(); ++Civ)
+		{
+			TArray<int32> Free;
+			for (int32 SystemIndex = 0; SystemIndex < State->Systems.Num(); ++SystemIndex)
+			{
+				if (Block(Civ, SystemIndex) == ECosmicSettleBlock::None)
+				{
+					Free.Add(SystemIndex);
+				}
+			}
+			Disagreements += Free == CosmicMegaprojects::SettleTargets(*State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), Civ) ? 0 : 1;
+		}
+		return Disagreements;
+	};
+
+	// People 1 (Tier 2, cap 3) holds 5: 4 and 6 are its targets.
+	TestTrue(TEXT("A target has no reason"), Block(1, 4) == ECosmicSettleBlock::None);
+	TestTrue(TEXT("CanSettle is the reason's None"), CosmicMegaprojects::CanSettle(*State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), 1, 4));
+	TestTrue(TEXT("Another people's system is owned"), Block(1, 8) == ECosmicSettleBlock::Owned);
+	TestTrue(TEXT("The people's own system is owned"), Block(1, 5) == ECosmicSettleBlock::Owned);
+	TestTrue(TEXT("A wild system away from the people has no lane"), Block(1, 2) == ECosmicSettleBlock::NoLane);
+	// People 0 (Tier 1, cap 1) holds 0. Next to its home the settle row's rung refuses it before its cap does (the first
+	// rung's case of a wild neighbour of the home); two lanes away, the missing lane comes first.
+	TestTrue(TEXT("Next to its home a first-rung people is refused by the settle row's rung, before its cap"), Block(0, 1) == ECosmicSettleBlock::RowTier);
+	TestTrue(TEXT("Two lanes away the lane comes before the rung"), Block(0, 2) == ECosmicSettleBlock::NoLane);
+	TestTrue(TEXT("A people that does not exist"), Block(99, 4) == ECosmicSettleBlock::NoPeople);
+	TestTrue(TEXT("A system that does not exist"), Block(1, 999) == ECosmicSettleBlock::NoPeople);
+	TestEqual(TEXT("The board as laid: no reason exactly on the AI's targets"), Agrees(), 0);
+
+	// A dead node.
+	{
+		const FGameplayTag StarClass = State->Systems[6].StarClass;
+		State->Systems[6].StarClass = FGameplayTag();
+		TestTrue(TEXT("A dead node is refused as dead"), Block(1, 6) == ECosmicSettleBlock::Dead);
+		TestEqual(TEXT("With a dead node: no reason exactly on the AI's targets"), Agrees(), 0);
+		State->Systems[6].StarClass = StarClass;
+	}
+
+	// A sphere: refused below Tier 3, allowed from it; a far system in it gives its lane first.
+	{
+		AddInstance(*State, Sphere, { 4, 2 });
+		TestTrue(TEXT("A sphere refuses a people below Tier 3"), Block(1, 4) == ECosmicSettleBlock::Sphere);
+		TestTrue(TEXT("(the other target is outside it)"), Block(1, 6) == ECosmicSettleBlock::None);
+		TestTrue(TEXT("A far system in a sphere gives the lane first"), Block(1, 2) == ECosmicSettleBlock::NoLane);
+		TestEqual(TEXT("With a sphere: no reason exactly on the AI's targets"), Agrees(), 0);
+		State->Civs[1].Tier = Causal;
+		TestTrue(TEXT("From Tier 3 the sphere does not refuse"), Block(1, 4) == ECosmicSettleBlock::None);
+		TestEqual(TEXT("At Tier 3 in a sphere: no reason exactly on the AI's targets"), Agrees(), 0);
+		State->Civs[1].Tier = Stellar;
+
+		// A settlement under way (below the cap) refuses the next one, and comes before the sphere.
+		HandSettling(*State, 1, 6);
+		TestTrue(TEXT("A settlement under way refuses the next one, before the sphere"), Block(1, 4) == ECosmicSettleBlock::Settling);
+		TestEqual(TEXT("With a settlement under way: no reason exactly on the AI's targets"), Agrees(), 0);
+
+		// At the cap (5, 6 under way and 7: three of three), the cap comes before the settlement under way.
+		Hand(*State, 1, 7);
+		TestTrue(TEXT("At its cap a people is refused by the cap, before the settlement under way"), Block(1, 4) == ECosmicSettleBlock::RealmCap);
+		TestEqual(TEXT("At the cap: no reason exactly on the AI's targets"), Agrees(), 0);
+	}
+
+	// No settle row, and a settle row above the people's Tier.
+	{
+		State = LayBoard(*Sim, TablesWith(Original, Rules, ProjectRows(nullptr), HazardRows(false)));
+		if (TestNotNull(TEXT("The board without a settle row is laid"), State))
+		{
+			TestTrue(TEXT("Without a settle row the settlement is refused for want of it"), Block(1, 4) == ECosmicSettleBlock::NoRow);
+			TestTrue(TEXT("(away from the people the lane still comes first)"), Block(1, 2) == ECosmicSettleBlock::NoLane);
+			TestEqual(TEXT("Without a settle row: no reason exactly on the AI's targets"), Agrees(), 0);
+		}
+		State = LayBoard(*Sim, TablesWith(Original, Rules, ProjectRows(&Causal), HazardRows(false)));
+		if (TestNotNull(TEXT("The board with a Tier 3 settle row is laid"), State))
+		{
+			TestTrue(TEXT("A settle row above the people's Tier refuses it"), Block(1, 4) == ECosmicSettleBlock::RowTier);
+			TestEqual(TEXT("With a Tier 3 settle row: no reason exactly on the AI's targets"), Agrees(), 0);
+		}
+	}
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

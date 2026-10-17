@@ -90,9 +90,41 @@ namespace CosmicMegaprojectsImpl
 		return Row && static_cast<int32>(State.Civs[CivIndex].Tier) >= static_cast<int32>(Row->RequiredTier);
 	}
 
+	// Whether a settled system the people CivIndex owns lies one lane from Target, in Target's GalaxyRow (a foothold).
+	bool HasFoothold(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex, const FStarSystemState& Target)
+	{
+		for (const FName SystemID : State.Civs[CivIndex].OwnedSystems)
+		{
+			const int32 Foothold = SettledOwnedIndex(State, Index, CivIndex, SystemID);
+			if (Foothold != INDEX_NONE && State.Systems[Foothold].GalaxyRow == Target.GalaxyRow && State.Systems[Foothold].Lanes.Contains(Target.SystemID))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	// Whether a sphere refuses Target to the people CivIndex: the people stands below Tier 3 and Target lies in the sphere
+	// of an unsealed transcendent with a row (section 4.2 modifier 4). Membership, not a number: no threshold on P, and no
+	// term of a vessel that happens to stand nearby.
+	bool SphereRefuses(const FGalaxyState& State, const FCosmicDataTables& Tables, int32 CivIndex, const FStarSystemState& Target)
+	{
+		if (static_cast<int32>(State.Civs[CivIndex].Tier) >= static_cast<int32>(CosmicMegaprojects::SphereLiftTier))
+		{
+			return false;
+		}
+		for (const FTranscendentState& Transcendent : State.Transcendents)
+		{
+			if (!Transcendent.bSealed && Tables.FindTranscendent(Transcendent.TranscendentID) && Transcendent.InfluencedSystems.Contains(Target.SystemID))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	// Whether SystemIndex is a target of the people CivIndex, whatever MaySettle and the row say: a wild system (no
-	// owner, not a dead node) one lane from a settled system the people owns and in that system's GalaxyRow, and, inside
-	// the sphere of an unsealed transcendent with a row, a people on Tier 3 or higher (section 4.2 modifier 4).
+	// owner, not a dead node) with a foothold of the people, that no sphere refuses it.
 	bool IsTargetOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, int32 CivIndex, int32 SystemIndex)
 	{
 		if (!State.Systems.IsValidIndex(SystemIndex))
@@ -100,37 +132,24 @@ namespace CosmicMegaprojectsImpl
 			return false;
 		}
 		const FStarSystemState& Target = State.Systems[SystemIndex];
-		if (!Target.OwnerCivID.IsNone() || CosmicHazards::IsDeadNode(Target))
-		{
-			return false;
-		}
-		bool bFoothold = false;
+		return Target.OwnerCivID.IsNone() && !CosmicHazards::IsDeadNode(Target) && HasFoothold(State, Index, CivIndex, Target) && !SphereRefuses(State, Tables, CivIndex, Target);
+	}
+
+	// How many systems the people CivIndex owns (settled or being settled); bAnySettled says whether one is settled.
+	int32 OwnedCount(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex, bool& bAnySettled)
+	{
+		int32 Owned = 0;
+		bAnySettled = false;
 		for (const FName SystemID : State.Civs[CivIndex].OwnedSystems)
 		{
-			const int32 Foothold = SettledOwnedIndex(State, Index, CivIndex, SystemID);
-			if (Foothold != INDEX_NONE && State.Systems[Foothold].GalaxyRow == Target.GalaxyRow && State.Systems[Foothold].Lanes.Contains(Target.SystemID))
+			const int32 SystemIndex = OwnedIndex(State, Index, CivIndex, SystemID);
+			if (SystemIndex != INDEX_NONE)
 			{
-				bFoothold = true;
-				break;
+				++Owned;
+				bAnySettled |= CosmicState::IsSettled(State.Systems[SystemIndex]);
 			}
 		}
-		if (!bFoothold)
-		{
-			return false;
-		}
-		if (static_cast<int32>(State.Civs[CivIndex].Tier) >= static_cast<int32>(EAscensionTier::Tier3_Causal))
-		{
-			return true;
-		}
-		// Membership, not a number: no threshold on P, and no term of a vessel that happens to stand nearby.
-		for (const FTranscendentState& Transcendent : State.Transcendents)
-		{
-			if (!Transcendent.bSealed && Tables.FindTranscendent(Transcendent.TranscendentID) && Transcendent.InfluencedSystems.Contains(Target.SystemID))
-			{
-				return false;
-			}
-		}
-		return true;
+		return Owned;
 	}
 }
 
@@ -311,25 +330,60 @@ bool CosmicMegaprojects::MaySettle(const FGalaxyState& State, const FCosmicState
 	{
 		return false;
 	}
-	int32 Owned = 0;
 	bool bAnySettled = false;
-	for (const FName SystemID : State.Civs[CivIndex].OwnedSystems)
-	{
-		const int32 SystemIndex = OwnedIndex(State, Index, CivIndex, SystemID);
-		if (SystemIndex != INDEX_NONE)
-		{
-			++Owned;
-			bAnySettled |= CosmicState::IsSettled(State.Systems[SystemIndex]);
-		}
-	}
+	const int32 Owned = OwnedCount(State, Index, CivIndex, bAnySettled);
 	return bAnySettled && Owned < RealmCapOf(Rules, State.Civs[CivIndex].Tier) && !IsSettling(State, Index, CivIndex);
+}
+
+CosmicMegaprojects::ECosmicSettleBlock CosmicMegaprojects::SettleBlockOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex, int32 SystemIndex)
+{
+	using namespace CosmicMegaprojectsImpl;
+
+	if (!State.Civs.IsValidIndex(CivIndex) || !State.Systems.IsValidIndex(SystemIndex))
+	{
+		return ECosmicSettleBlock::NoPeople;
+	}
+	const FStarSystemState& Target = State.Systems[SystemIndex];
+	if (!Target.OwnerCivID.IsNone())
+	{
+		return ECosmicSettleBlock::Owned;
+	}
+	if (CosmicHazards::IsDeadNode(Target))
+	{
+		return ECosmicSettleBlock::Dead;
+	}
+	// A foothold is a settled system: past this, MaySettle's first part holds.
+	if (!HasFoothold(State, Index, CivIndex, Target))
+	{
+		return ECosmicSettleBlock::NoLane;
+	}
+	if (!Tables.FindMegaproject(CosmicRows::ProjectSettle))
+	{
+		return ECosmicSettleBlock::NoRow;
+	}
+	if (!SettleRowAllows(State, Tables, CivIndex))
+	{
+		return ECosmicSettleBlock::RowTier;
+	}
+	bool bAnySettled = false;
+	if (OwnedCount(State, Index, CivIndex, bAnySettled) >= RealmCapOf(Rules, State.Civs[CivIndex].Tier))
+	{
+		return ECosmicSettleBlock::RealmCap;
+	}
+	if (IsSettling(State, Index, CivIndex))
+	{
+		return ECosmicSettleBlock::Settling;
+	}
+	if (SphereRefuses(State, Tables, CivIndex, Target))
+	{
+		return ECosmicSettleBlock::Sphere;
+	}
+	return ECosmicSettleBlock::None;
 }
 
 bool CosmicMegaprojects::CanSettle(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex, int32 SystemIndex)
 {
-	using namespace CosmicMegaprojectsImpl;
-
-	return MaySettle(State, Index, Rules, CivIndex) && SettleRowAllows(State, Tables, CivIndex) && IsTargetOf(State, Index, Tables, CivIndex, SystemIndex);
+	return SettleBlockOf(State, Index, Tables, Rules, CivIndex, SystemIndex) == ECosmicSettleBlock::None;
 }
 
 TArray<int32> CosmicMegaprojects::SettleTargets(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex)

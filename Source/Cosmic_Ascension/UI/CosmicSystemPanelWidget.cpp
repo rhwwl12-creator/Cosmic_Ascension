@@ -50,30 +50,33 @@ namespace CosmicSystemPanelImpl
 			CosmicUI::WholeNumber(Progress), CosmicUI::WholeNumber(CosmicMegaprojects::RequiredProgressOf(*Row)));
 	}
 
-	// The systems the people CivIndex owns, as MaySettle counts them (an entry whose owner is another people counts for nothing).
-	int32 OwnedCount(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex)
-	{
-		int32 Owned = 0;
-		for (const FName SystemID : State.Civs[CivIndex].OwnedSystems)
-		{
-			const int32 SystemIndex = Index.FindSystem(State, SystemID);
-			Owned += (State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == State.Civs[CivIndex].CivID) ? 1 : 0;
-		}
-		return Owned;
-	}
+	// The String Table key of each reason, in the order of ECosmicSettleBlock (None, NoPeople and Dead show no button).
+	const TCHAR* const SettleBlockKeys[] = {
+		nullptr,
+		nullptr,
+		TEXT("Settle.Block.Owned"),
+		nullptr,
+		TEXT("Settle.Block.NoLane"),
+		TEXT("Settle.Block.NoRow"),
+		TEXT("Settle.Block.RowTier"),
+		TEXT("Settle.Block.RealmCap"),
+		TEXT("Settle.Block.Settling"),
+		TEXT("Settle.Block.Sphere"),
+	};
+	static_assert(static_cast<int32>(UE_ARRAY_COUNT(SettleBlockKeys)) == static_cast<int32>(CosmicMegaprojects::ECosmicSettleBlock::Count), "One key per reason, in the order of the enum");
 
-	// Whether System lies one lane from a settled system of the people CivIndex.
-	bool NextToSettled(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex, const FStarSystemState& System)
+	// A command button the panel shows: what it does, its label, and why it is greyed out (empty: enabled).
+	struct FWantedButton
 	{
-		for (const FName Lane : System.Lanes)
-		{
-			const int32 Other = Index.FindSystem(State, Lane);
-			if (State.Systems.IsValidIndex(Other) && State.Systems[Other].OwnerCivID == State.Civs[CivIndex].CivID && CosmicState::IsSettled(State.Systems[Other]))
-			{
-				return true;
-			}
-		}
-		return false;
+		FName Action;
+		FText Label;
+		FText Reason;
+	};
+
+	// Whether two texts say the same words (the panel leaves a text alone when its words stay).
+	bool SameWords(const FText& A, const FText& B)
+	{
+		return A.ToString().Equals(B.ToString(), ESearchCase::CaseSensitive);
 	}
 }
 
@@ -102,11 +105,10 @@ TSharedRef<SWidget> UCosmicSystemPanelWidget::RebuildWidget()
 		Column->AddChildToVerticalBox(DetailText)->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
 		ButtonBox = WidgetTree->ConstructWidget<UVerticalBox>();
 		Column->AddChildToVerticalBox(ButtonBox);
-		RealmCapText = CosmicUI::MakeText(*WidgetTree, 13);
-		RealmCapText->SetText(CosmicUI::Label(TEXT("Panel.RealmCap")));
-		RealmCapText->SetColorAndOpacity(FSlateColor(FLinearColor(0.85f, 0.85f, 0.9f)));
-		RealmCapText->SetVisibility(ESlateVisibility::Collapsed);
-		Column->AddChildToVerticalBox(RealmCapText)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
+		ReasonText = CosmicUI::MakeText(*WidgetTree, 13);
+		ReasonText->SetColorAndOpacity(FSlateColor(FLinearColor(0.85f, 0.85f, 0.9f)));
+		ReasonText->SetVisibility(ESlateVisibility::Collapsed);
+		Column->AddChildToVerticalBox(ReasonText)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
 	}
 	return Super::RebuildWidget();
 }
@@ -148,9 +150,34 @@ void UCosmicSystemPanelWidget::ShowSystem(FName SystemID)
 	Refresh();
 }
 
-bool UCosmicSystemPanelWidget::IsRealmCapShown() const
+FText UCosmicSystemPanelWidget::ReasonOf(CosmicMegaprojects::ECosmicSettleBlock Block, const FCosmicDataTables& Tables)
 {
-	return RealmCapText && RealmCapText->GetVisibility() != ESlateVisibility::Collapsed;
+	using namespace CosmicSystemPanelImpl;
+	using CosmicMegaprojects::ECosmicSettleBlock;
+
+	const int32 At = static_cast<int32>(Block);
+	const TCHAR* const Key = (At >= 0 && At < static_cast<int32>(UE_ARRAY_COUNT(SettleBlockKeys))) ? SettleBlockKeys[At] : nullptr;
+	if (!Key)
+	{
+		return FText::GetEmpty();
+	}
+	// The rung the words name is read where the rule keeps it, numbered as the top bar shows rungs (1 to 5): the settle
+	// row's RequiredTier, and the rung that lifts a sphere.
+	if (Block == ECosmicSettleBlock::RowTier)
+	{
+		const FMegaprojectDef* Row = Tables.FindMegaproject(CosmicRows::ProjectSettle);
+		return FText::Format(CosmicUI::Label(Key), FText::AsNumber(Row ? static_cast<int32>(Row->RequiredTier) + 1 : 0));
+	}
+	if (Block == ECosmicSettleBlock::Sphere)
+	{
+		return FText::Format(CosmicUI::Label(Key), FText::AsNumber(static_cast<int32>(CosmicMegaprojects::SphereLiftTier) + 1));
+	}
+	return CosmicUI::Label(Key);
+}
+
+bool UCosmicSystemPanelWidget::IsReasonShown() const
+{
+	return ReasonText && ReasonText->GetVisibility() != ESlateVisibility::Collapsed;
 }
 
 void UCosmicSystemPanelWidget::HandleAction(FName Action, float Value)
@@ -178,97 +205,124 @@ void UCosmicSystemPanelWidget::Refresh()
 	const FCosmicDataTables& Tables = Sim->GetTables();
 	const int32 SystemIndex = ShownSystemID.IsNone() ? INDEX_NONE : Index.FindSystem(State, ShownSystemID);
 
-	ButtonBox->ClearChildren();
-	ActionButtons.Reset();
-	RealmCapText->SetVisibility(ESlateVisibility::Collapsed);
-	if (!State.Systems.IsValidIndex(SystemIndex))
+	TArray<FWantedButton> Wanted;
+	ShownSettleBlock = CosmicMegaprojects::ECosmicSettleBlock::None;
+	if (State.Systems.IsValidIndex(SystemIndex))
 	{
-		SetVisibility(ESlateVisibility::Collapsed);
-		return;
-	}
-	// The box takes the clicks on it (NativeOnMouseButtonDown); the panel's empty area does not.
-	SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		// The box takes the clicks on it (NativeOnMouseButtonDown); the panel's empty area does not.
+		SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 
-	const FStarSystemState& System = State.Systems[SystemIndex];
-	const bool bDead = CosmicHazards::IsDeadNode(System);
-	const int32 OwnerIndex = System.OwnerCivID.IsNone() ? INDEX_NONE : Index.FindCiv(State, System.OwnerCivID);
-	NameText->SetText(System.DisplayName);
+		const FStarSystemState& System = State.Systems[SystemIndex];
+		const bool bDead = CosmicHazards::IsDeadNode(System);
+		const int32 OwnerIndex = System.OwnerCivID.IsNone() ? INDEX_NONE : Index.FindCiv(State, System.OwnerCivID);
+		NameText->SetText(System.DisplayName);
 
-	TArray<FText> Lines;
-	if (bDead)
-	{
-		Lines.Add(Label(TEXT("Panel.Destroyed")));
+		TArray<FText> Lines;
+		if (bDead)
+		{
+			Lines.Add(Label(TEXT("Panel.Destroyed")));
+		}
+		else
+		{
+			const FString Letter = StarClassLetter(System.StarClass);
+			if (!Letter.IsEmpty())
+			{
+				Lines.Add(FText::Format(INVTEXT("{0}  {1}"), Label(TEXT("Panel.StarClass")), FText::AsCultureInvariant(Letter)));
+			}
+			Lines.Add(State.Civs.IsValidIndex(OwnerIndex) ? FText::Format(INVTEXT("{0}  {1}"), Label(TEXT("Panel.Owner")), State.Civs[OwnerIndex].CivName) : Label(TEXT("Panel.NoOwner")));
+			if (System.ActiveHazard.IsValid())
+			{
+				const FHazardDef* Hazard = Tables.FindHazardByTag(System.ActiveHazard);
+				const FText HazardName = Hazard ? Hazard->DisplayName : FText::AsCultureInvariant(System.ActiveHazard.ToString());
+				Lines.Add(FText::Format(INVTEXT("{0}  {1}   {2} {3}"), Label(TEXT("Panel.Hazard")), HazardName, Label(TEXT("Panel.CyclesLeft")), FText::AsNumber(System.HazardTicksRemaining)));
+			}
+			const FText SlotLines[] = {
+				SlotLine(TEXT("Panel.Construction"), Tables, System.ActiveMegaproject, System.MegaprojectProgress),
+				SlotLine(TEXT("Panel.Response"), Tables, System.ResponseMegaproject, System.ResponseProgress),
+			};
+			for (const FText& SlotText : SlotLines)
+			{
+				if (!SlotText.IsEmpty())
+				{
+					Lines.Add(SlotText);
+				}
+			}
+		}
+		DetailText->SetText(FText::Join(INVTEXT("\n"), Lines));
+
+		// The commands of an embodied ruler (section 5.7): the same rules as StartMegaproject applies when pressed.
+		const int32 RuledIndex = State.Player.RuledCivID.IsNone() ? INDEX_NONE : Index.FindCiv(State, State.Player.RuledCivID);
+		const bool bRules = State.Calling.LifeState == ELifeState::Embodied && State.Player.Role == EPlayerRole::Ruler && State.Civs.IsValidIndex(RuledIndex);
+		if (bRules && !bDead && OwnerIndex == RuledIndex && CosmicState::IsSettled(System))
+		{
+			TArray<FName> Rows = Tables.Megaprojects ? Tables.Megaprojects->GetRowNames() : TArray<FName>();
+			Rows.Sort(FNameLexicalLess());
+			for (const FName Row : Rows)
+			{
+				const FMegaprojectDef* Def = Tables.FindMegaproject(Row);
+				// CanStart never takes project_settle: a settlement starts on the system to settle (the settle button).
+				if (Def && CosmicMegaprojects::CanStart(State, Index, Tables, SystemIndex, Row))
+				{
+					Wanted.Add({ Row, FText::Format(INVTEXT("{0}  {1}"), Label(TEXT("Panel.Start")), Def->DisplayName), FText::GetEmpty() });
+				}
+			}
+		}
+		else if (bRules && !bDead && OwnerIndex != RuledIndex)
+		{
+			// Every living system that is not the people's shows the settle button; refused, it is greyed out and says why
+			// (the player sees what to do next - rise a rung, wait for the settlement under way, settle one lane from home).
+			ShownSettleBlock = CosmicMegaprojects::SettleBlockOf(State, Index, Tables, Sim->GetRules(), RuledIndex, SystemIndex);
+			Wanted.Add({ CosmicRows::ProjectSettle, Label(TEXT("Panel.Settle")), ReasonOf(ShownSettleBlock, Tables) });
+		}
 	}
 	else
 	{
-		const FString Letter = StarClassLetter(System.StarClass);
-		if (!Letter.IsEmpty())
-		{
-			Lines.Add(FText::Format(INVTEXT("{0}  {1}"), Label(TEXT("Panel.StarClass")), FText::AsCultureInvariant(Letter)));
-		}
-		Lines.Add(State.Civs.IsValidIndex(OwnerIndex) ? FText::Format(INVTEXT("{0}  {1}"), Label(TEXT("Panel.Owner")), State.Civs[OwnerIndex].CivName) : Label(TEXT("Panel.NoOwner")));
-		if (System.ActiveHazard.IsValid())
-		{
-			const FHazardDef* Hazard = Tables.FindHazardByTag(System.ActiveHazard);
-			const FText HazardName = Hazard ? Hazard->DisplayName : FText::AsCultureInvariant(System.ActiveHazard.ToString());
-			Lines.Add(FText::Format(INVTEXT("{0}  {1}   {2} {3}"), Label(TEXT("Panel.Hazard")), HazardName, Label(TEXT("Panel.CyclesLeft")), FText::AsNumber(System.HazardTicksRemaining)));
-		}
-		const FText SlotLines[] = {
-			SlotLine(TEXT("Panel.Construction"), Tables, System.ActiveMegaproject, System.MegaprojectProgress),
-			SlotLine(TEXT("Panel.Response"), Tables, System.ResponseMegaproject, System.ResponseProgress),
-		};
-		for (const FText& SlotText : SlotLines)
-		{
-			if (!SlotText.IsEmpty())
-			{
-				Lines.Add(SlotText);
-			}
-		}
+		SetVisibility(ESlateVisibility::Collapsed);
 	}
-	DetailText->SetText(FText::Join(INVTEXT("\n"), Lines));
 
-	// The commands of an embodied ruler (section 5.7): the same rules as StartMegaproject applies when pressed.
-	const int32 RuledIndex = State.Player.RuledCivID.IsNone() ? INDEX_NONE : Index.FindCiv(State, State.Player.RuledCivID);
-	const bool bRules = State.Calling.LifeState == ELifeState::Embodied && State.Player.Role == EPlayerRole::Ruler && State.Civs.IsValidIndex(RuledIndex);
-	if (!bRules || bDead)
+	// The buttons are built again only when the list of their actions changes. A click spans a press and a release, a
+	// button built again between them drops it, and the simulation ticks up to ten times a second: otherwise each button
+	// keeps its object and takes its label, state and tooltip in place.
+	bool bSameActions = ActionButtons.Num() == Wanted.Num();
+	for (int32 At = 0; bSameActions && At < Wanted.Num(); ++At)
 	{
-		return;
+		bSameActions = ActionButtons[At] && ActionButtons[At]->GetAction() == Wanted[At].Action;
 	}
-	auto AddButton = [this](FName Action, const FText& ButtonLabel)
+	if (!bSameActions)
 	{
-		UCosmicActionButton* Button = WidgetTree->ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
-		Button->Setup(Action, 0.f, ButtonLabel);
-		Button->OnAction.AddUObject(this, &UCosmicSystemPanelWidget::HandleAction);
-		ButtonBox->AddChildToVerticalBox(Button)->SetPadding(FMargin(0.f, 2.f));
-		ActionButtons.Add(Button);
-	};
-	if (OwnerIndex == RuledIndex && CosmicState::IsSettled(System))
-	{
-		TArray<FName> Rows = Tables.Megaprojects ? Tables.Megaprojects->GetRowNames() : TArray<FName>();
-		Rows.Sort(FNameLexicalLess());
-		for (const FName Row : Rows)
+		ButtonBox->ClearChildren();
+		ActionButtons.Reset();
+		for (const FWantedButton& Want : Wanted)
 		{
-			const FMegaprojectDef* Def = Tables.FindMegaproject(Row);
-			// CanStart never takes project_settle: a settlement starts on the wild system (the settle button).
-			if (Def && CosmicMegaprojects::CanStart(State, Index, Tables, SystemIndex, Row))
-			{
-				AddButton(Row, FText::Format(INVTEXT("{0}  {1}"), Label(TEXT("Panel.Start")), Def->DisplayName));
-			}
+			UCosmicActionButton* Button = WidgetTree->ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
+			Button->Setup(Want.Action, 0.f, Want.Label);
+			Button->OnAction.AddUObject(this, &UCosmicSystemPanelWidget::HandleAction);
+			ButtonBox->AddChildToVerticalBox(Button)->SetPadding(FMargin(0.f, 2.f));
+			ActionButtons.Add(Button);
 		}
 	}
-	else if (System.OwnerCivID.IsNone())
+	for (int32 At = 0; At < Wanted.Num(); ++At)
 	{
-		if (CosmicMegaprojects::CanSettle(State, Index, Tables, Sim->GetRules(), RuledIndex, SystemIndex))
+		UCosmicActionButton* Button = ActionButtons[At];
+		if (!SameWords(Button->GetLabel(), Wanted[At].Label))
 		{
-			AddButton(CosmicRows::ProjectSettle, Label(TEXT("Panel.Settle")));
+			Button->Setup(Wanted[At].Action, 0.f, Wanted[At].Label);
 		}
-		else if (NextToSettled(State, Index, RuledIndex, System)
-			&& OwnedCount(State, Index, RuledIndex) >= CosmicMegaprojects::RealmCapOf(Sim->GetRules(), State.Civs[RuledIndex].Tier))
+		Button->SetIsEnabled(Wanted[At].Reason.IsEmpty());
+		// A tooltip set again is a new tooltip (SWidget::SetToolTipText makes one), and an open one would close.
+		if (!SameWords(Button->GetToolTipText(), Wanted[At].Reason))
 		{
-			// Section 5.12: wider only by rising.
-			RealmCapText->SetVisibility(ESlateVisibility::HitTestInvisible);
+			Button->SetToolTipText(Wanted[At].Reason);
 		}
 	}
+
+	// The reason line under a greyed-out settle button.
+	const FText Reason = ReasonOf(ShownSettleBlock, Tables);
+	if (!SameWords(ReasonText->GetText(), Reason))
+	{
+		ReasonText->SetText(Reason);
+	}
+	ReasonText->SetVisibility(Reason.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 }
 
 FReply UCosmicSystemPanelWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)

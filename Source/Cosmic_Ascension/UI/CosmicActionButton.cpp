@@ -21,6 +21,11 @@ void UCosmicActionButton::Setup(FName InAction, float InValue, const FText& Labe
 
 void UCosmicActionButton::Press()
 {
+	// A click never reaches a disabled button; a press from code is refused the same way.
+	if (!GetIsEnabled())
+	{
+		return;
+	}
 	OnAction.Broadcast(Action, Value);
 }
 

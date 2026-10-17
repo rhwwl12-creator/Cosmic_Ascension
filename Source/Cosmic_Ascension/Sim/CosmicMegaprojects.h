@@ -94,13 +94,49 @@ namespace CosmicMegaprojects
 	 */
 	COSMIC_ASCENSION_API bool MaySettle(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules, int32 CivIndex);
 
+	// The rung from which a sphere no longer refuses a settlement (section 4.2 modifier 4).
+	constexpr EAscensionTier SphereLiftTier = EAscensionTier::Tier3_Causal;
+
+	// Why a settlement of a system is refused, in the order SettleBlockOf asks (the system panel shows it - section 5.7,
+	// 5.12): first what the system is (an owner, a dead node, no foothold one lane away), then what the people may do now
+	// (the settle row and its Tier, the realm cap, a settlement under way), last the sphere that the third rung lifts.
+	enum class ECosmicSettleBlock : uint8
+	{
+		None,
+		// The people or the system does not exist.
+		NoPeople,
+		// The system has an owner (settled or being settled).
+		Owned,
+		// The system is a dead node.
+		Dead,
+		// No settled system of the people lies one lane away in the system's galaxy row.
+		NoLane,
+		// The tables hold no project_settle row.
+		NoRow,
+		// The people's Tier is below the project_settle row's RequiredTier.
+		RowTier,
+		// The people owns as many systems as RealmCapOf its Tier allows.
+		RealmCap,
+		// The people has a settlement under way.
+		Settling,
+		// The system lies in the sphere of an unsealed transcendent (one with a DT_Transcendents row, as the pressure counts
+		// them) and the people stands below Tier 3 (section 4.2 modifier 4).
+		Sphere,
+		// The number of the values above (not a reason).
+		Count,
+	};
+
 	/**
-	 * Whether the people CivIndex can settle SystemIndex now: MaySettle; the project_settle row exists and its
-	 * RequiredTier is at most the people's Tier; SystemIndex is a wild system (no owner, not a dead node) one lane from
-	 * a settled system the people owns and in that system's GalaxyRow; and, inside the sphere of an unsealed
-	 * transcendent (one with a DT_Transcendents row, as the pressure counts them), the people stands on Tier 3 or higher
-	 * (section 4.2 modifier 4).
+	 * The first reason the people CivIndex cannot settle SystemIndex now, in the order of the enum; None when it can: the
+	 * system is wild (no owner, not a dead node) and one lane from a settled system the people owns, in that system's
+	 * GalaxyRow; the project_settle row exists and its RequiredTier is at most the people's Tier; the people owns fewer
+	 * systems than RealmCapOf its Tier and has no settlement under way (MaySettle); and outside every sphere, or on Tier 3
+	 * or higher. Reads only; draws nothing.
 	 */
+	COSMIC_ASCENSION_API ECosmicSettleBlock SettleBlockOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex, int32 SystemIndex);
+
+	// Whether the people CivIndex can settle SystemIndex now: SettleBlockOf says None (one rule for the command, the AI's
+	// targets and the panel's button).
 	COSMIC_ASCENSION_API bool CanSettle(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex, int32 SystemIndex);
 
 	// The systems CanSettle holds for the people CivIndex, in Systems order. Reads only. Looks only at the lane neighbours
