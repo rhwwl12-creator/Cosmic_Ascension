@@ -1051,9 +1051,15 @@ int32 UCosmicEventSubsystem::EvaluateAndFire(FGalaxyState& State, FRandomStream&
 		for (const FSlotPair& Pair : Lottery)
 		{
 			// A weight below 0, not a number or not finite reads as 0 (a compare: FMath::Max lets NaN and infinity through, and
-			// one such share would silence every row of the slot).
+			// one such share would silence every row of the slot). So does a share whose product overflows, and a share that
+			// would carry the sum past the largest float - each with an error line.
 			const float Weight = (Pair.Row->BaseWeight > 0.f && Pair.Row->BaseWeight <= TNumericLimits<float>::Max()) ? Pair.Row->BaseWeight : 0.f;
-			const float Share = Weight * SphereWeightFactor(State, Tables, Rules, Pair.Row->Category, Pair.SystemIndex) * Chance;
+			float Share = Weight * SphereWeightFactor(State, Tables, Rules, Pair.Row->Category, Pair.SystemIndex) * Chance;
+			if (!(Share >= 0.f && Share <= TNumericLimits<float>::Max() - Total))
+			{
+				UE_LOG(LogCosmic, Error, TEXT("EvaluateAndFire: the share of %s overflows the slot of %s, read as 0"), *Pair.RowName.ToString(), *CivID.ToString());
+				Share = 0.f;
+			}
 			Shares.Add(Share);
 			Total += Share;
 		}

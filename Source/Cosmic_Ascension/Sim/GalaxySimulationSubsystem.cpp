@@ -157,6 +157,16 @@ namespace
 		return FText::AsCultureInvariant(Text.ToString());
 	}
 
+	// Whether paying Cost from Stockpile would leave less than Waiting - the summed cost of a people's answers that could
+	// not pay this tick - in a resource Cost spends and the answers need (step (a) of the crisis stage, section 5.7).
+	bool TakesFromWaitingAnswers(const FResourcePool& Stockpile, const FResourcePool& Cost, const FResourcePool& Waiting)
+	{
+		auto Takes = [](float Held, float Spent, float Needed) { return Spent > 0.f && Needed > 0.f && Held - Spent < Needed; };
+		return Takes(Stockpile.Energy, Cost.Energy, Waiting.Energy) || Takes(Stockpile.Matter, Cost.Matter, Waiting.Matter)
+			|| Takes(Stockpile.Insight, Cost.Insight, Waiting.Insight) || Takes(Stockpile.Influence, Cost.Influence, Waiting.Influence)
+			|| Takes(Stockpile.Causality, Cost.Causality, Waiting.Causality);
+	}
+
 	// Weight of a pressure source by its tier (section 4.2). A table too short for the tier reads as 0, and so does a weight
 	// below 0, not a number or not finite (a compare: FMath::Max lets NaN and infinity through).
 	float PressureWeight(const FCosmicRulesDef& Rules, EAscensionTier Tier)
@@ -1646,10 +1656,15 @@ void UGalaxySimulationSubsystem::TickHazards()
 			}
 			const float Chance = Row->SpawnChancePerTick > 0.f ? FMath::Min(Row->SpawnChancePerTick, 1.f) : 0.f;
 			const float* Multiplier = Archetype ? Archetype->HazardSpawnMultipliers.Find(Row->HazardTag) : nullptr;
-			const float Factor = Multiplier ? (*Multiplier > 0.f ? FMath::Min(*Multiplier, TNumericLimits<float>::Max()) : 0.f) : 1.f;
+			const float Factor = Multiplier ? ((*Multiplier > 0.f && *Multiplier <= TNumericLimits<float>::Max()) ? *Multiplier : 0.f) : 1.f;
 			const float Share = Chance * Factor;
 			if (!(Share > 0.f))
 			{
+				continue;
+			}
+			if (!(Share <= TNumericLimits<float>::Max() - Total))
+			{
+				UE_LOG(LogCosmic, Error, TEXT("TickHazards: the share of %s on %s would carry the sum past the largest float, read as 0"), *RowName.ToString(), *System.SystemID.ToString());
 				continue;
 			}
 			View.SourceRow = RowName;
@@ -1876,36 +1891,52 @@ void UGalaxySimulationSubsystem::AdvanceMegaprojects()
 	}
 
 	// Every response slot first, then every construction slot, each pass in Systems order: an answer spends the stockpile
-	// before a construction does (section 5.7). A people one of whose answers could not pay in full this tick builds
-	// nothing this tick: payment is all or nothing, so a cheaper construction would otherwise take back, tick after tick,
-	// what the dearer answer is waiting for.
+	// before a construction does (section 5.7). Payment is all or nothing, so an answer that could not pay waits for its
+	// whole cost: a construction of the same people that would leave less than that in a resource it spends is held back
+	// this tick, or a cheaper construction would take back, tick after tick, what the dearer answer is waiting for. A
+	// construction that spends nothing the waiting answers need goes on.
 	using CosmicMegaprojects::ECosmicProjectSlot;
 	constexpr ECosmicProjectSlot Passes[] = { ECosmicProjectSlot::Response, ECosmicProjectSlot::Construction };
-	TArray<FName, TInlineAllocator<8>> UnpaidAnswers;
+	TArray<TPair<FName, FResourcePool>, TInlineAllocator<8>> WaitingAnswers;
 	for (const ECosmicProjectSlot Slot : Passes)
 	{
 		for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num(); ++SystemIndex)
 		{
 			const FStarSystemState& Held = State.Systems[SystemIndex];
-			if ((Slot == ECosmicProjectSlot::Response ? Held.ResponseMegaproject : Held.ActiveMegaproject).IsNone())
+			const FName HeldRow = Slot == ECosmicProjectSlot::Response ? Held.ResponseMegaproject : Held.ActiveMegaproject;
+			if (HeldRow.IsNone())
 			{
 				continue;
 			}
 			const FName OwnerID = Held.OwnerCivID;
-			if (Slot == ECosmicProjectSlot::Construction && UnpaidAnswers.Contains(OwnerID))
-			{
-				continue;
-			}
-			const FName AnswerBefore = Held.ResponseMegaproject;
-			const float AnswerProgressBefore = Held.ResponseProgress;
-			FCosmicEvalContext Ctx = MakeEvalContext();
 			const int32 OwnerIndex = StateIndex.FindCiv(State, OwnerID);
-			const FName RowName = CosmicMegaprojects::Advance(Ctx, SystemIndex, Slot, AIRate);
-			// An answer still standing with the progress it had was not paid (one that completed or ended left its slot).
-			if (Slot == ECosmicProjectSlot::Response && !OwnerID.IsNone() && State.Systems[SystemIndex].ResponseMegaproject == AnswerBefore
-				&& State.Systems[SystemIndex].ResponseProgress == AnswerProgressBefore)
+			const FMegaprojectDef* HeldDef = Tables.FindMegaproject(HeldRow);
+			const FResourcePool Cost = HeldDef ? CosmicMegaprojects::CostPerTickOf(*HeldDef) : FResourcePool();
+			// Whether the owner could pay the slot in full now: what Advance pays by (a missing row pays nothing).
+			const bool bCanPay = State.Civs.IsValidIndex(OwnerIndex) && CosmicMegaprojects::CanPay(State.Civs[OwnerIndex].Stockpile, Cost);
+			if (Slot == ECosmicProjectSlot::Construction && HeldDef && bCanPay)
 			{
-				UnpaidAnswers.AddUnique(OwnerID);
+				const TPair<FName, FResourcePool>* Waiting = WaitingAnswers.FindByPredicate([OwnerID](const TPair<FName, FResourcePool>& Each) { return Each.Key == OwnerID; });
+				if (Waiting && TakesFromWaitingAnswers(State.Civs[OwnerIndex].Stockpile, Cost, Waiting->Value))
+				{
+					continue;
+				}
+			}
+			FCosmicEvalContext Ctx = MakeEvalContext();
+			const FName RowName = CosmicMegaprojects::Advance(Ctx, SystemIndex, Slot, AIRate);
+			// An answer that could not pay and still stands waits for its cost (one whose row or hazard is gone left its slot).
+			if (Slot == ECosmicProjectSlot::Response && !bCanPay && HeldDef && !OwnerID.IsNone() && State.Systems[SystemIndex].ResponseMegaproject == HeldRow)
+			{
+				TPair<FName, FResourcePool>* Waiting = WaitingAnswers.FindByPredicate([OwnerID](const TPair<FName, FResourcePool>& Each) { return Each.Key == OwnerID; });
+				if (!Waiting)
+				{
+					Waiting = &WaitingAnswers.Emplace_GetRef(OwnerID, FResourcePool());
+				}
+				Waiting->Value.Energy += Cost.Energy;
+				Waiting->Value.Matter += Cost.Matter;
+				Waiting->Value.Insight += Cost.Insight;
+				Waiting->Value.Influence += Cost.Influence;
+				Waiting->Value.Causality += Cost.Causality;
 			}
 			// A resolution's effects may hand a system to the vessel's people: known before the completion line names it.
 			// No row of the game hands one over there (Data.Integrity keeps TransferSystem out of OnResolveEffects).

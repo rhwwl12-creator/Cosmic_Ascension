@@ -10,6 +10,7 @@
 #include "Core/CosmicSeed.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
+#include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
@@ -35,6 +36,7 @@
 #include "Player/PlayerRoleSubsystem.h"
 #include "Save/CosmicSaveGame.h"
 #include "Save/CosmicSaveSubsystem.h"
+#include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
@@ -2035,10 +2037,11 @@ bool FCosmicSimLayersInRangeTest::RunTest(const FString& Parameters)
 }
 
 // The exit conditions of Phase 2 on the game's data, input-free (guideline 11, Phase 2): hazards are placed, run out and are
-// answered, with their lines; a claim stands next to Silence and its sphere grows (seed 42, 60 systems and 12 peoples,
-// 20,000 ticks); and a neglected ruler is deposed, with the fallen monarch's line (seed 7). The seeds are measured, not
-// chosen by a rule: a change of the world that loses a condition on its seed has to show it on another one and say so in
-// guideline 9.3. One tick at a time is also the same world as the whole run at once.
+// answered, each ending with its own line; a claim stands next to Silence, runs out and joins its sphere (seed 42, 60
+// systems and 12 peoples, 20,000 ticks); and a neglected ruler is deposed by a rebellion, with the fallen monarch's line
+// (seed 7). The seeds are measured, not chosen by a rule: a change of the world that loses a condition on its seed has to
+// show it on another one and say so in guideline 9.3. The stepped run steps as a game's frames do (StepOnce, the gate
+// open), and it is the same world as the whole run at once with the gate closed.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimPhaseTwoExitTest, "Cosmic_Ascension.Sim.PhaseTwoExit", CosmicTests::Flags)
 bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 {
@@ -2051,24 +2054,32 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
 	Sim->SetTables(Original);
 	static const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Claim")));
+	static const FGameplayTag RebellionTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Rebellion")));
 	constexpr int64 Ticks = 20000;
+
+	// The deposition of condition 5 rests on the game's rebellion row: the evidence of seed 7 below is only as good as this.
+	FName RebellionRow;
+	const FHazardDef* Rebellion = Original.FindHazardByTag(RebellionTag, &RebellionRow);
+	TestTrue(TEXT("The game's rebellion row deposes the ruler when it runs out"),
+		Rebellion && Rebellion->OnExpireEffects.ContainsByPredicate([](const FCosmicEffect& Effect) { return Effect.Type == EEffectType::DeposeRuler; }));
 
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	const FGalaxyState& State = Sim->GetState();
-	auto SilenceSphere = [&State]()
-	{
-		const FTranscendentState* Silence = State.Transcendents.FindByPredicate([](const FTranscendentState& Each) { return Each.TranscendentID == CosmicRows::TransSilence; });
-		return Silence ? Silence->InfluencedSystems.Num() : -1;
-	};
-	const int32 SphereStart = SilenceSphere();
+	auto Silence = [&State]() { return State.Transcendents.FindByPredicate([](const FTranscendentState& Each) { return Each.TranscendentID == CosmicRows::TransSilence; }); };
+	TestTrue(TEXT("Silence is in the roster (seed 42)"), Silence() != nullptr);
+	const int32 SphereStart = Silence() ? Silence()->InfluencedSystems.Num() : 0;
 	int32 Placed = 0;
 	int32 RanOut = 0;
+	int32 RanOutTold = 0;
 	int32 Answered = 0;
+	int32 AnsweredTold = 0;
 	int32 Claims = 0;
+	int32 ClaimsJoined = 0;
 	struct FSlot
 	{
 		FGameplayTag Tag;
 		int32 Remaining = 0;
+		FName Answer;
 	};
 	TArray<FSlot> Before;
 	for (int64 Step = 0; Step < Ticks; ++Step)
@@ -2076,9 +2087,22 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 		Before.Reset();
 		for (const FStarSystemState& System : State.Systems)
 		{
-			Before.Add({ System.ActiveHazard, System.HazardTicksRemaining });
+			Before.Add({ System.ActiveHazard, System.HazardTicksRemaining, System.ResponseMegaproject });
 		}
-		Sim->RunHeadless(1);
+		const int64 TickBefore = State.Tick;
+		Sim->StepOnce();
+		// Whether a line of Row on SystemID was stored in this tick (every line is stored: tell-all).
+		const auto ToldHere = [&State, TickBefore](FName Row, FName SystemID)
+		{
+			for (int32 Index = State.Log.Num() - 1; Index >= 0 && State.Log[Index].Tick > TickBefore; --Index)
+			{
+				if (State.Log[Index].SourceRow == Row && State.Log[Index].FocusSystemID == SystemID)
+				{
+					return true;
+				}
+			}
+			return false;
+		};
 		for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num() && SystemIndex < Before.Num(); ++SystemIndex)
 		{
 			const FStarSystemState& System = State.Systems[SystemIndex];
@@ -2086,7 +2110,25 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 			const bool bAgain = System.ActiveHazard == Slot.Tag && System.HazardTicksRemaining >= Slot.Remaining;
 			if (Slot.Tag.IsValid() && (System.ActiveHazard != Slot.Tag || bAgain))
 			{
-				(Slot.Remaining <= 1 ? RanOut : Answered)++;
+				FName Row;
+				Original.FindHazardByTag(Slot.Tag, &Row);
+				// Answered: before its last count, the answer in its response slot completed in this tick (its record moved
+				// to this tick) - only the resolution of that completion ends a hazard there. On the last count an expiry
+				// ends it in the same tick whatever the answer did, so such an end is counted as neither. Ran out: not
+				// answered, on its last count, and not kept by the grace of the last system.
+				const bool bCompleted = !Slot.Answer.IsNone() && CosmicMegaprojects::HasCompleted(System, Slot.Answer, State.Tick);
+				if (bCompleted && Slot.Remaining > 1)
+				{
+					++Answered;
+					AnsweredTold += ToldHere(Row, System.SystemID) ? 1 : 0;
+				}
+				else if (!bCompleted && Slot.Remaining == 1 && !ToldHere(CosmicRows::EventGraceRemnant, System.SystemID))
+				{
+					++RanOut;
+					RanOutTold += ToldHere(Row, System.SystemID) ? 1 : 0;
+					const FTranscendentState* Sphere = Silence();
+					ClaimsJoined += (Slot.Tag == ClaimTag && Sphere && Sphere->InfluencedSystems.Contains(System.SystemID)) ? 1 : 0;
+				}
 			}
 			if (System.ActiveHazard.IsValid() && (System.ActiveHazard != Slot.Tag || bAgain))
 			{
@@ -2097,15 +2139,16 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("Hazards are placed in an input-free run of the game's data"), Placed > 0);
 	TestTrue(TEXT("some run out"), RanOut > 0);
-	TestTrue(TEXT("and some are answered before they run out"), Answered > 0);
-	const auto CrisisLine = [](const FCosmicLogEntry& Entry) { return Entry.SourceRow.ToString().StartsWith(TEXT("crisis_")); };
-	TestTrue(TEXT("and the hazards' own lines are told"), State.Log.ContainsByPredicate(CrisisLine) || State.Chronicle.ContainsByPredicate(CrisisLine));
-	TestTrue(TEXT("A claim stands next to Silence (seed 42)"), Claims > 0);
-	TestTrue(TEXT("and the sphere of Silence grows (seed 42)"), SphereStart >= 0 && SilenceSphere() > SphereStart);
+	TestEqual(TEXT("and every one that runs out is told by its row on its system"), RanOutTold, RanOut);
+	TestTrue(TEXT("some are answered: an answer of the hazard's row completes before it runs out"), Answered > 0);
+	TestEqual(TEXT("and every answered one is told by its row on its system"), AnsweredTold, Answered);
+	TestTrue(TEXT("A claim stands (seed 42)"), Claims > 0);
+	TestTrue(TEXT("A claim runs out and its system joins the sphere of Silence (seed 42)"), ClaimsJoined > 0);
+	TestTrue(TEXT("and the sphere of Silence grows (seed 42)"), Silence() && Silence()->InfluencedSystems.Num() > SphereStart);
 	const uint32 Stepped = Sim->ComputeWorldHash();
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	Sim->RunHeadless(Ticks);
-	TestEqual(TEXT("One tick at a time is the same world as the whole run at once"), Sim->ComputeWorldHash(), Stepped);
+	TestEqual(TEXT("Stepped with the gate open, one tick at a time is the same world as the whole run at once with it closed"), Sim->ComputeWorldHash(), Stepped);
 
 	// Neglect: nothing the player does keeps the ruled people's stability up, and a rebellion deposes the ruler.
 	Sim->NewGalaxy(7, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
@@ -2113,7 +2156,15 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("A neglected ruler is deposed (seed 7)"), State.Player.Role == EPlayerRole::Wanderer);
 	TestTrue(TEXT("and carries the status of a fallen monarch"), State.Player.StatusTags.HasTagExact(FGameplayTag::RequestGameplayTag(FName(TEXT("Status.FallenMonarch")))));
 	const auto Fallen = [](const FCosmicLogEntry& Entry) { return Entry.SourceRow == CosmicRows::LogFallenMonarch && Entry.Severity == 2; };
-	TestTrue(TEXT("and the fallen monarch's line is told"), State.Log.ContainsByPredicate(Fallen) || State.Chronicle.ContainsByPredicate(Fallen));
+	const FCosmicLogEntry* FallenLine = State.Log.FindByPredicate(Fallen);
+	FallenLine = FallenLine ? FallenLine : State.Chronicle.FindByPredicate(Fallen);
+	TestTrue(TEXT("and the fallen monarch's line is told"), FallenLine != nullptr);
+	const bool bReignDeposed = !State.Calling.Lives.IsEmpty()
+		&& State.Calling.Lives[0].ReignEndReasons.Contains(FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Deposed"))));
+	TestTrue(TEXT("The first reign ended as a deposition"), bReignDeposed);
+	const int64 FallenTick = FallenLine ? FallenLine->Tick : -1;
+	const auto RisingEnds = [FallenTick, RebellionRow](const FCosmicLogEntry& Entry) { return Entry.Tick == FallenTick && Entry.SourceRow == RebellionRow; };
+	TestTrue(TEXT("A rebellion ran out in the tick of the deposition"), State.Log.ContainsByPredicate(RisingEnds) || State.Chronicle.ContainsByPredicate(RisingEnds));
 	return true;
 }
 

@@ -28,6 +28,7 @@ import json
 import math
 import os
 import re
+import unicodedata
 
 SCHEMA_FILE = "schema.json"
 TAG_NAME = re.compile(r'TagName="([^"]*)"')
@@ -127,9 +128,10 @@ COLUMN_OPTIONS = {
     "plain": {},
     "number": dict(RANGE),
     "numbers": dict(RANGE, len=COUNT, ascending=FLAG, ends_at=NUMBER),
-    "text": {"slots": NAMES, "no_digits": FLAG, "required": FLAG, "hedged": WORDS, "forbidden": WORDS},
+    # "forbidden" names a word list of the schema (words): no text of the column holds one of its words.
+    "text": {"slots": NAMES, "no_digits": FLAG, "required": FLAG, "hedged": WORDS, "forbidden": NAME},
     "texts": {"min": COUNT, "len_in": COUNTS, "empty_or_min": COUNT, "unique": FLAG, "slots": NAMES, "no_digits": FLAG,
-              "single_variant": FLAG, "hedged": WORDS, "forbidden": WORDS},
+              "single_variant": FLAG, "hedged": WORDS, "forbidden": NAME},
     "tag": {"root": ROOT, "optional": FLAG},
     "tags": {"root": ROOT},
     "tag_list": {"root": ROOT},
@@ -613,6 +615,8 @@ class Checker:
                     self.report(where, "the table %r is not in the schema" % (listed,))
             if kind == "word_map" and column_spec["words"] not in self.schema["words"]:
                 self.report(where, "the word list %r is not in the schema" % (column_spec["words"],))
+            if "forbidden" in column_spec and column_spec["forbidden"] not in self.schema["words"]:
+                self.report(where, "the word list %r is not in the schema" % (column_spec["forbidden"],))
             if kind == "enum" and column_spec["enum"] not in self.schema["enums"]:
                 self.report(where, "the enum %r is not in the schema" % (column_spec["enum"],))
         for list_name in RULE_KEYS:
@@ -747,6 +751,14 @@ class Checker:
             return
         if spec.get("required") and value == "":
             self.report(where, "a text is required here")
+        # One form of a text, so that a word is found as it is written: composed Hangul (NFC), no invisible format
+        # character (a zero-width space splits a word for the eye of a check, not for the reader's).
+        if unicodedata.normalize("NFC", value) != value:
+            self.report(where, "a text not in the composed form (NFC): %s" % value)
+        for ch in value:
+            if unicodedata.category(ch) == "Cf":
+                self.report(where, "an invisible format character U+%04X in a text: %s" % (ord(ch), value))
+                break
         if spec.get("no_digits") and any(ch.isdigit() for ch in value):
             self.report(where, "a digit in a text that carries none: %s" % value)
         # A number of the sky is always an estimate (guideline 8.3): a text of such a column that carries a digit carries
@@ -755,7 +767,7 @@ class Checker:
             for clause in SKY_CLAUSE.split(value):
                 if has_figure(clause) and not hedges(clause, spec["hedged"]):
                     self.report(where, "a number without %s: %s" % (" or ".join(spec["hedged"]), clause))
-        for word in spec.get("forbidden", []):
+        for word in self.schema["words"].get(spec["forbidden"], []) if "forbidden" in spec else []:
             if word in value:
                 self.report(where, "the word %s is not used here: %s" % (word, value))
         if "slots" in spec:

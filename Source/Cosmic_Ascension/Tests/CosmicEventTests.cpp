@@ -18,6 +18,7 @@
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
 #include "Math/RandomStream.h"
+#include "Math/NumericLimits.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/Guid.h"
 #include "Misc/ScopeExit.h"
@@ -502,10 +503,13 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 			CheckWith(Detached, WithRows, Cond(EConditionType::SystemPressureAtLeast, nullptr, NAME_None, Weight * 1.01f), 0));
 		TestFalse(TEXT("SystemPressureAtLeast is false without a system"),
 			CheckWith(Detached, WithRows, Cond(EConditionType::SystemPressureAtLeast, nullptr, NAME_None, 0.f), INDEX_NONE));
-		// A weight that is not finite reads as 0: an infinite weight leaves no pressure, not an infinite one.
+		// A weight that is not finite, or not a number, reads as 0: it leaves no pressure, not an infinite or a broken one.
 		FCosmicRulesDef Endless = Pinned;
 		Endless.PressureBySourceTier = { 0.f, 0.f, std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity() };
 		TestEqual(TEXT("A pressure weight that is not finite reads as 0"), UGalaxySimulationSubsystem::ComputePressureIn(Detached, Index, WithRows, Endless, 0).P, 0.f);
+		FCosmicRulesDef Broken = Pinned;
+		Broken.PressureBySourceTier = { 0.f, 0.f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::quiet_NaN() };
+		TestEqual(TEXT("A pressure weight that is not a number reads as 0"), UGalaxySimulationSubsystem::ComputePressureIn(Detached, Index, WithRows, Broken, 0).P, 0.f);
 		TestTrue(TEXT("The name of a celestial row is a relation party without an instance in the run"),
 			CheckWith(Detached, WithRows, Cond(EConditionType::CivRelationAtLeast, nullptr, Celestial, 0.f), 0));
 		TestFalse(TEXT("The same name is no party when the tables do not hold the row"),
@@ -892,7 +896,8 @@ bool FCosmicEventsSlotDrawsTest::RunTest(const FString& Parameters)
 	}
 
 	// A chance below 0, one that is not a number and one that is not finite are read as 0, with an error line that names
-	// that knob alone: the period is read as it is, the draws stay and no Lottery row fires.
+	// that knob alone: the period is read as it is, the draws stay and no Lottery row fires. For the infinite chance only
+	// the error line tells the guard apart: without it the share overflows and is read as 0 by the guard of the shares.
 	for (const float BadChance : { -0.1f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity() })
 	{
 		UDataTable* Table = NewTable(FCosmicEventDef::StaticStruct());
@@ -913,8 +918,9 @@ bool FCosmicEventsSlotDrawsTest::RunTest(const FString& Parameters)
 		{
 			Probe.GetFraction();
 		}
-		TestTrue(TEXT("With a chance out of range the slots still draw by the period of 10 and no row fires"),
-			Due >= 1 && Fired == 0 && Handed.GetCurrentSeed() == Probe.GetCurrentSeed());
+		TestTrue(*FString::Printf(TEXT("A civilization is due in the tick of the chance %f"), BadChance), Due >= 1);
+		TestEqual(*FString::Printf(TEXT("With the chance %f no row fires"), BadChance), Fired, 0);
+		TestEqual(*FString::Printf(TEXT("With the chance %f the slots still draw by the period of 10"), BadChance), Handed.GetCurrentSeed(), Probe.GetCurrentSeed());
 	}
 
 	Sim->SetTables(Original);
@@ -1103,6 +1109,21 @@ bool FCosmicEventsLotterySharesTest::RunTest(const FString& Parameters)
 			bByShare &= (Roll < 0.5f) ? (Fired.Num() == 1 && Fired[0].EventRow == RowA) : Fired.IsEmpty();
 		});
 		TestTrue(*FString::Printf(TEXT("Beside a row of weight %f the next row fires at its share and the bad one never"), BadWeight), bByShare);
+	}
+
+	// A finite weight whose share overflows (the largest float times a chance of 4) reads as 0 with an error line: the
+	// next row still fires at its share.
+	{
+		AddExpectedError(TEXT("overflows the slot of"), EAutomationExpectedErrorFlags::Contains, 0);
+		UDataTable* Table = NewTable(FCosmicEventDef::StaticStruct());
+		Table->AddRow(FName(TEXT("evt_test_0_bad")), MakeRow(ECosmicEventTrigger::Lottery, ECosmicEventSubject::Civilization, TNumericLimits<float>::Max(), 0));
+		Table->AddRow(RowA, MakeRow(ECosmicEventTrigger::Lottery, ECosmicEventSubject::Civilization, 0.125f, 0));
+		bool bByShare = true;
+		Play(Table, 4.f, 40, [&](float Roll, const TArray<FCosmicEventNotice>& Fired)
+		{
+			bByShare &= (Roll < 0.5f) ? (Fired.Num() == 1 && Fired[0].EventRow == RowA) : Fired.IsEmpty();
+		});
+		TestTrue(TEXT("Beside a row whose share overflows the next row fires at its share and the overflowing one never"), bByShare);
 	}
 
 	// Rows whose names sort after the first leave the fires of the first as they were.

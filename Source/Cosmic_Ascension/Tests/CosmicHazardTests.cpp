@@ -2689,6 +2689,37 @@ bool FCosmicHazardSharesTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The same share unweighed misses sometimes"), Plain < 30);
 	}
 
+	// A multiplier that is not finite reads as 0 (a compare, as the other guards): an infinite multiplier places nothing on
+	// the systems of the vessel's people, while the same share unweighed lands elsewhere.
+	{
+		UDataTable* Hazards = NewTable(FHazardDef::StaticStruct());
+		Hazards->AddRow(Storm, HazardRow(TEXT("Hazard.Plague"), ECosmicHazardSpawn::Draw, 0.5f, 50));
+		FCosmicDataTables Tables = TablesWith(Original, Knobs(BaseRules), Hazards, nullptr);
+		Tables.Civs = CivsWithMultiplier(Original, BaseRules.PlayerArchetypeRow, TEXT("Hazard.Plague"), std::numeric_limits<float>::infinity());
+		FGalaxyState* State = LayBoard(*Sim, Tables);
+		if (!TestNotNull(TEXT("The board of the endless multiplier is laid"), State))
+		{
+			return false;
+		}
+		int32 Weighed = 0;
+		int32 Plain = 0;
+		for (int32 Step = 0; Step < 10; ++Step)
+		{
+			ClearSlots(*State);
+			Sim->StepOnce();
+			for (const int32 SystemIndex : { 0, 1, 2 })
+			{
+				Weighed += State->Systems[SystemIndex].ActiveHazard == Plague ? 1 : 0;
+			}
+			for (const int32 SystemIndex : { 6, 7, 11 })
+			{
+				Plain += State->Systems[SystemIndex].ActiveHazard == Plague ? 1 : 0;
+			}
+		}
+		TestEqual(TEXT("An infinite multiplier reads as 0: nothing lands on the vessel's people"), Weighed, 0);
+		TestTrue(TEXT("(the same share unweighed lands elsewhere)"), Plain > 0);
+	}
+
 	Sim->SetTables(Original);
 	Sim->NewGalaxy(42, 5, 3);
 	return true;

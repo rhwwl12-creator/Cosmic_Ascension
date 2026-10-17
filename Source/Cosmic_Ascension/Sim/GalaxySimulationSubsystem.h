@@ -156,6 +156,8 @@ public:
 
 	// Runs Ticks ticks with the broadcast gate closed, then restores the gate. Tests, balance runs, interregnum leap (section 4.4).
 	// Not yet: the per-tick ending-condition check that stops a leap early arrives with the endings (section 4.4, 7.4).
+	// When it does, a run that has ended simulates nothing on a later RunHeadless or StepOnce: one tick at a time stays the
+	// same world as one long leap (the balance commandlet and Sim.PhaseTwoExit step one tick at a time).
 	// Refused like StepOnce inside a handler of a Core Logic delegate.
 	UFUNCTION(BlueprintCallable)
 	void RunHeadless(int64 Ticks);
@@ -399,9 +401,12 @@ private:
 	/**
 	 * Step (a) of the crisis stage (section 5.7, 7.4): CosmicMegaprojects::Advance for every response slot that holds a
 	 * project, in Systems order, then for every construction slot, in Systems order (an answer spends the stockpile before
-	 * a construction does; a people one of whose answers could not pay in full this tick builds nothing this tick, so a
-	 * cheaper construction cannot keep taking what the answer waits for), with DT_Rules.AIAscensionSpeedMultiplier as the
-	 * rate of the peoples the player does not rule
+	 * a construction does). An answer that could not pay in full this tick waits for its cost (CostPerTickOf, summed over
+	 * the people's unpaid answers): a construction of the same people is held back this tick when, for some resource it
+	 * spends and the waiting answers need, what it would leave in the stockpile is below that need - so a cheaper
+	 * construction cannot keep taking what the answer waits for, and a construction that spends nothing the answers need
+	 * goes on. Whether an answer pays is read before its Advance (CanPay of the stockpile and the cost), not from its
+	 * progress. DT_Rules.AIAscensionSpeedMultiplier is the rate of the peoples the player does not rule
 	 * (not above 0, or not a number: 1, with one error line). After each slot FollowUpKnowing (a system a resolution
 	 * handed to the vessel's people), then its completion line (the row's CompleteTemplates, Log.Civ, Severity 1 for the
 	 * people the player rules and 0 for the others, slots {Civ} {System} {Project}), then the lines that follow

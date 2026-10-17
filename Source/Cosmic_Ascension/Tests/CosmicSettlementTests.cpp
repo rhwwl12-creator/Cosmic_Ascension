@@ -28,6 +28,7 @@
 #include "UObject/NameTypes.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
+#include "UObject/UnrealType.h"
 
 #include <initializer_list>
 #include <limits>
@@ -217,6 +218,74 @@ namespace CosmicSettlementTests
 		}
 		State.Civs[1].Tier = EAscensionTier::Tier2_Stellar;
 		return true;
+	}
+
+	// Whether an effect of Type stands anywhere in Value, a property of the kind Property: an effect, or a struct, an array or
+	// a map holding effects at any depth (reflection, so a column or table added later is walked as well).
+	bool AnyEffectIn(const FProperty* Property, const void* Value, EEffectType Type);
+
+	bool AnyEffectOf(const UStruct* Struct, const void* Data, EEffectType Type)
+	{
+		for (TFieldIterator<FProperty> It(Struct); It; ++It)
+		{
+			if (AnyEffectIn(*It, It->ContainerPtrToValuePtr<void>(Data), Type))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool AnyEffectIn(const FProperty* Property, const void* Value, EEffectType Type)
+	{
+		if (const FStructProperty* AsStruct = CastField<FStructProperty>(Property))
+		{
+			return AsStruct->Struct == FCosmicEffect::StaticStruct() ? static_cast<const FCosmicEffect*>(Value)->Type == Type : AnyEffectOf(AsStruct->Struct, Value, Type);
+		}
+		if (const FArrayProperty* AsArray = CastField<FArrayProperty>(Property))
+		{
+			FScriptArrayHelper Elements(AsArray, Value);
+			for (int32 Index = 0; Index < Elements.Num(); ++Index)
+			{
+				if (AnyEffectIn(AsArray->Inner, Elements.GetRawPtr(Index), Type))
+				{
+					return true;
+				}
+			}
+		}
+		if (const FMapProperty* AsMap = CastField<FMapProperty>(Property))
+		{
+			FScriptMapHelper Pairs(AsMap, Value);
+			for (int32 Index = 0; Index < Pairs.GetMaxIndex(); ++Index)
+			{
+				if (Pairs.IsValidIndex(Index) && AnyEffectIn(AsMap->ValueProp, Pairs.GetValuePtr(Index), Type))
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	// Whether a row of a table the loader holds (every UDataTable member of FCosmicDataTables) carries an effect of Type.
+	bool AnyTableEffectOf(const FCosmicDataTables& Tables, EEffectType Type)
+	{
+		for (TFieldIterator<FObjectPropertyBase> It(FCosmicDataTables::StaticStruct()); It; ++It)
+		{
+			const UDataTable* Table = Cast<UDataTable>(It->GetObjectPropertyValue_InContainer(&Tables));
+			if (!Table || !Table->GetRowStruct())
+			{
+				continue;
+			}
+			for (const TPair<FName, uint8*>& Row : Table->GetRowMap())
+			{
+				if (AnyEffectOf(Table->GetRowStruct(), Row.Value, Type))
+				{
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	FGalaxyState* LayBoard(UGalaxySimulationSubsystem& Sim, const FCosmicDataTables& Tables)
@@ -609,45 +678,87 @@ bool FCosmicSettlementTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("With enough for both the settlement is paid too"), Sim->GetState().Systems[4].MegaprojectProgress, 1.f);
 	}
 
-	// ---- An answer that cannot pay holds its people's constructions back: payment is all or nothing, so a cheaper
-	// settlement would otherwise take, tick after tick, what the dearer answer is waiting for ----
+	// ---- An answer that cannot pay waits for its whole cost: payment is all or nothing, so a cheaper construction would
+	// otherwise take, tick after tick, what the dearer answer is waiting for. A construction of the same people that would
+	// leave less than the answer's cost in a resource it spends is held back; one that spends nothing the answer needs, or
+	// leaves enough of it, goes on ----
 	{
 		const FName Building(TEXT("project_test_build"));
+		const FName Mining(TEXT("project_test_mine"));
 		UDataTable* Projects = ProjectRows(&Stellar, true);
-		Projects->FindRow<FMegaprojectDef>(Answer, TEXT("DearAnswer"))->CostPerTick.Causality = 2.f;
+		FMegaprojectDef* Dear = Projects->FindRow<FMegaprojectDef>(Answer, TEXT("DearAnswer"));
+		Dear->CostPerTick.Causality = 2.f;
+		Dear->CostPerTick.Matter = 5.f;
 		FMegaprojectDef Build = Project(EAscensionTier::Tier1_Planetary, 0.f, 0.f, 9.f, TEXT("build"));
 		Build.CostPerTick.Causality = 1.f;
 		Projects->AddRow(Building, Build);
+		Projects->AddRow(Mining, Project(EAscensionTier::Tier1_Planetary, 0.f, 1.f, 9.f, TEXT("mine")));
 		FGalaxyState* State = LayBoard(*Sim, TablesWith(Original, Rules, Projects, nullptr));
 		if (!TestNotNull(TEXT("The board of the unpaid answer is laid"), State))
 		{
 			return false;
 		}
-		// People 1 settles 4 from its capital 5, where a storm stands with an answer that costs two Causality a tick. People
-		// 2 builds on 8 with what it has.
+		// People 1 settles 4 from its capital 5, where a storm stands with an answer that costs two Causality and five Matter
+		// a tick; it also builds on 6 (Causality) and mines on 7 (Matter). Each slot already holds some progress. People 2
+		// builds on 8 with what it has.
 		{
 			FCosmicEvalContext Ctx = Sim->MakeEvalContext();
 			TestTrue(TEXT("The settlement beside the unpaid answer starts"), CosmicMegaprojects::Settle(Ctx, 1, 4));
 		}
 		FGalaxyState& Live = Sim->GetMutableState();
+		Hand(Live, 1, 6);
+		Hand(Live, 1, 7);
 		Live.Systems[5].ActiveHazard = Tag(TEXT("Hazard.Plague"));
 		Live.Systems[5].HazardTicksRemaining = 1000;
 		Live.Systems[5].ResponseMegaproject = Answer;
+		Live.Systems[5].ResponseProgress = 0.5f;
+		Live.Systems[4].MegaprojectProgress = 1.5f;
+		Live.Systems[6].ActiveMegaproject = Building;
+		Live.Systems[6].MegaprojectProgress = 2.5f;
+		Live.Systems[7].ActiveMegaproject = Mining;
+		Live.Systems[7].MegaprojectProgress = 0.5f;
 		Live.Civs[1].Stockpile.Causality = 1.f;
 		Live.Systems[8].ActiveMegaproject = Building;
 		Live.Civs[2].Stockpile.Causality = 1.f;
 		const FGalaxyState OneUnit = Live;
 		Sim->StepOnce();
-		TestEqual(TEXT("An answer that cannot pay does not progress"), Live.Systems[5].ResponseProgress, 0.f);
-		TestEqual(TEXT("and its people's settlement waits for it"), Live.Systems[4].MegaprojectProgress, 0.f);
+		TestEqual(TEXT("An answer that cannot pay does not progress, nor does it lose its progress"), Live.Systems[5].ResponseProgress, 0.5f);
+		TestEqual(TEXT("Its people's settlement, which spends the Causality the answer lacks, waits with its progress"), Live.Systems[4].MegaprojectProgress, 1.5f);
+		TestEqual(TEXT("and so does its other construction that spends Causality"), Live.Systems[6].MegaprojectProgress, 2.5f);
 		TestEqual(TEXT("so the stockpile stays for the answer"), Live.Civs[1].Stockpile.Causality, 1.f);
+		TestEqual(TEXT("A construction that leaves enough of what the answer needs goes on"), Live.Systems[7].MegaprojectProgress, 1.5f);
 		TestEqual(TEXT("Another people's construction is not held back"), Live.Systems[8].MegaprojectProgress, 1.f);
+
+		// Matter is not what the answer lacks, but mining would leave less of it than the answer needs: held too, so the
+		// answer can pay as soon as its Causality comes. The stockpile is set so that it holds 5.5 Matter after the income of
+		// the tick (the economy stage pays before the crisis stage; the income is that of the tick just stepped).
+		const float MatterIncome = Live.Civs[1].IncomePerTick.Matter;
+		TestTrue(TEXT("(the people earns Matter)"), MatterIncome > 0.f);
+		FGalaxyState Tight = OneUnit;
+		Tight.Civs[1].Stockpile.Matter = 5.5f - MatterIncome;
+		Sim->LoadState(Tight);
+		Sim->StepOnce();
+		TestEqual(TEXT("A construction that would leave less than the answer needs of a resource it spends waits"), Sim->GetState().Systems[7].MegaprojectProgress, 0.5f);
+		TestEqual(TEXT("and the Matter stays for the answer"), Sim->GetState().Civs[1].Stockpile.Matter, 5.5f, 0.001f);
+
+		// Paid, the answer completes in this tick (its slot empties), and what is left pays the constructions.
 		FGalaxyState ThreeUnits = OneUnit;
 		ThreeUnits.Civs[1].Stockpile.Causality = 3.f;
+		ThreeUnits.Systems[5].ResponseProgress = 1.5f;
 		Sim->LoadState(ThreeUnits);
 		Sim->StepOnce();
-		TestEqual(TEXT("Paid, the answer progresses"), Sim->GetState().Systems[5].ResponseProgress, 1.f);
-		TestEqual(TEXT("and the settlement is paid from what is left"), Sim->GetState().Systems[4].MegaprojectProgress, 1.f);
+		TestTrue(TEXT("Paid, the answer completes"), Sim->GetState().Systems[5].ResponseMegaproject.IsNone());
+		TestTrue(TEXT("and resolves the storm"), !Sim->GetState().Systems[5].ActiveHazard.IsValid());
+		TestEqual(TEXT("and the settlement is paid from what is left"), Sim->GetState().Systems[4].MegaprojectProgress, 2.5f);
+
+		// An answer whose hazard is gone ends without paying, and holds nothing back.
+		FGalaxyState Gone = OneUnit;
+		CosmicHazards::EmptyHazardSlot(Gone.Systems[5]);
+		Gone.Systems[5].ResponseMegaproject = Answer;
+		Sim->LoadState(Gone);
+		Sim->StepOnce();
+		TestTrue(TEXT("An answer whose hazard is gone leaves its slot"), Sim->GetState().Systems[5].ResponseMegaproject.IsNone());
+		TestEqual(TEXT("and holds back no construction of its people"), Sim->GetState().Systems[4].MegaprojectProgress, 2.5f);
 	}
 
 	// ---- Answers before constructions on one system: the capital's construction waits for its answer, and each slot is
@@ -907,31 +1018,22 @@ bool FCosmicRealmCapTest::RunTest(const FString& Parameters)
 		// The case this block measures: no row of the game hands a system over, so every system a people gains comes from
 		// a settlement. A row that does (conquest, Phase 4) makes going over the cap legal - the next block - and this
 		// block then has to count settlements instead.
-		bool bNoHandOver = true;
-		auto NoHandOverIn = [&bNoHandOver](const TArray<FCosmicEffect>& Effects)
+		TestFalse(TEXT("(no row of the game hands a system over: the case of this block)"), AnyTableEffectOf(Original, EEffectType::TransferSystem));
+		// The walk can tell: an event row's effect and a hazard's neighbour effect that hand a system over are found.
 		{
-			for (const FCosmicEffect& Effect : Effects)
-			{
-				bNoHandOver &= Effect.Type != EEffectType::TransferSystem;
-			}
-		};
-		for (const FName RowName : Original.GetEventRowNames())
-		{
-			NoHandOverIn(Original.FindEvent(RowName)->Effects);
+			FCosmicDataTables Handing = Original;
+			Handing.Events = NewTable(FCosmicEventDef::StaticStruct());
+			FCosmicEventDef Handover;
+			Handover.Effects.AddDefaulted_GetRef().Type = EEffectType::TransferSystem;
+			Handing.Events->AddRow(FName(TEXT("event_test_handover")), Handover);
+			TestTrue(TEXT("(the walk finds a hand-over in an event row)"), AnyTableEffectOf(Handing, EEffectType::TransferSystem));
+			Handing.Events = Original.Events;
+			Handing.Hazards = NewTable(FHazardDef::StaticStruct());
+			FHazardDef Spreading;
+			Spreading.OnExpireNeighbourEffects.AddDefaulted_GetRef().Type = EEffectType::TransferSystem;
+			Handing.Hazards->AddRow(FName(TEXT("crisis_test_handover")), Spreading);
+			TestTrue(TEXT("(the walk finds a hand-over in a hazard's neighbour effects)"), AnyTableEffectOf(Handing, EEffectType::TransferSystem));
 		}
-		for (const FName RowName : Original.GetHazardRowNames())
-		{
-			const FHazardDef* Row = Original.FindHazard(RowName);
-			NoHandOverIn(Row->OnExpireEffects);
-			NoHandOverIn(Row->OnExpireBranchEffects);
-			NoHandOverIn(Row->OnExpireNeighbourEffects);
-			NoHandOverIn(Row->OnResolveEffects);
-		}
-		for (const FName RowName : Original.GetFeatRowNames())
-		{
-			NoHandOverIn(Original.FindFeat(RowName)->AscensionCost);
-		}
-		TestTrue(TEXT("(no row of the game hands a system over: the case of this block)"), bNoHandOver);
 		for (int32 Step = 0; Step < 20000; ++Step)
 		{
 			// Headless: the block reads the state after every tick, and no handler has to run.

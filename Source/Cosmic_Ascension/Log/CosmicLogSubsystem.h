@@ -105,7 +105,8 @@ public:
 	/**
 	 * Pushes one line of the DT_LogTemplates row RowName, a named row: PushVariants with the row's Category and
 	 * Templates, SourceRow = RowName and MinViewerTier = the row's MinTierToReveal, so the scope and the far line are
-	 * those of PushVariants. Returns false and pushes nothing (no draw) when the row is missing or has no template.
+	 * those of PushVariants. Returns false and pushes nothing (no draw) when the row is missing or has no template, and
+	 * when it is called from a handler of a Core Logic delegate (an error line, through PushVariants).
 	 */
 	bool PushRow(FName RowName, uint8 Severity, const FFormatNamedArguments& Args, FName FocusSystem, FName FocusCiv = NAME_None);
 

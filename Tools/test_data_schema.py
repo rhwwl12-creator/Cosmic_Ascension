@@ -25,6 +25,7 @@ import os
 import shutil
 import sys
 import tempfile
+import unicodedata
 import unittest
 
 # No bytecode cache: a mutation loop rewrites the checker faster than the cache can tell two versions apart.
@@ -699,13 +700,15 @@ class SchemaTests(unittest.TestCase):
         self.assertFalse(holds({"col": "A", "pairs_ge_col": ["C", "B"]}, {"A": ["x", "y"], "C": ["p"], "B": None}, "r"))
 
     def test_options_of_the_text_kinds_have_their_type(self):
-        for column, key, value in (("DistanceText", "hedged", []), ("DistanceText", "hedged", "\uc57d"), ("DistanceText", "hedged", ["\uc57d", ""]),
-                                   ("StarNameBank", "forbidden", []), ("StarNameBank", "forbidden", [1])):
+        for column, key, value in (("DistanceText", "hedged", []), ("DistanceText", "hedged", "\uc57d"), ("DistanceText", "hedged", ["\uc57d", ""])):
             with self.subTest(column=column, key=key, value=value):
                 self.schema_problem(self.put(["tables", "DT_Galaxies", "columns", column], key, value), "DT_Galaxies.%s" % column, key, "not empty")
+        # The words a column refuses are a word list of the schema, named: a list of words in its place is a problem.
+        for value in ([], [1], ["\uc601\ud63c"], [""]):
+            with self.subTest(key="forbidden", value=value):
+                self.schema_problem(self.put(["tables", "DT_Galaxies", "columns", "StarNameBank"], "forbidden", value), "DT_Galaxies.StarNameBank", "forbidden", "a string")
         self.schema_problem(self.put(["tables", "DT_Rules", "columns", "LivingWorldStarShares"], "ends_at", "1"), "LivingWorldStarShares", "ends_at", "a number")
         self.schema_problem(self.put(["tables", "DT_Galaxies", "columns", "StarNameBank"], "hedged", [""]), "DT_Galaxies.StarNameBank", "hedged", "not empty")
-        self.schema_problem(self.put(["tables", "DT_Galaxies", "columns", "DistanceText"], "forbidden", [""]), "DT_Galaxies.DistanceText", "forbidden", "not empty")
         self.schema_problem(self.put(["tables", "DT_Rules", "columns", "SightIntervalTicks"], "ends_at", 1), "SightIntervalTicks", "ends_at")
 
     def test_rows_kind(self):
@@ -1009,30 +1012,55 @@ class SchemaTests(unittest.TestCase):
         selector = lambda tables: self.row(tables, "DT_LogTemplates", "log_fallen_monarch").update(Context="Revelation.Book", MinTierToReveal=2)  # noqa: E731
         self.expect(self.after(selector), "log_fallen_monarch", calling)
 
-    def test_narrator_texts_carry_no_verdict_word(self):
-        """The narrator's lines and the names of persons carry none of the verdict words (CLAUDE.md, guideline 8.3): the
-        schema guards them until the test Data.NoVerdictWords of Phase 5. A first-person row (Log.Transcendent, Log.Claim)
-        does not exist yet; with the first one the rule of its column becomes one by category."""
-        soul = "\uc601\ud63c"
-        cases = (
-            ("DT_Events", "event_test_harvest", "LogTemplates", ["{Civ} %s a." % soul, "{Civ} b.", "{Civ} c."]),
-            ("DT_Hazards", "crisis_test_storm", "OutbreakTemplates", ["%s a." % soul]),
-            ("DT_Hazards", "crisis_test_storm", "ExpireTemplates", ["%s d." % soul]),
-            ("DT_Hazards", "crisis_test_storm", "ResolveTemplates", ["%s e." % soul]),
-            ("DT_LogTemplates", "log_breakthrough_physics", "Templates", ["%s a." % soul, "b.", "c."]),
-            ("DT_Megaprojects", "project_test_build", "CompleteTemplates", ["%s a." % soul, "b.", "c."]),
-            ("DT_Feats", "feat_test_climb", "Title", soul),
-            ("DT_Feats", "feat_test_climb", "MythicNarrative", "%s a." % soul),
-            ("DT_Feats", "feat_test_climb", "LogTemplates", ["{Civ} %s a." % soul, "{Civ} b.", "{Civ} c."]),
-        )
-        for table, row_name, column, value in cases:
-            with self.subTest(table=table, column=column):
-                self.expect(self.after(self.set_cell(table, row_name, column, value)), "%s.%s.%s" % (table, row_name, column), "the word %s is not used here" % soul)
+    def test_every_forbidden_column_refuses_every_verdict_word(self):
+        """The narrator's lines, the names that fill their slots and the names of persons carry none of the verdict words
+        (CLAUDE.md, guideline 8.3): the schema guards them until the test Data.NoVerdictWords of Phase 5. The words are one
+        list of the schema (words.verdict), the list of the invariant in CLAUDE.md; every column that names it refuses every
+        one of them. A first-person row (Log.Transcendent, Log.Claim) does not exist yet: with the first one the rule of its
+        column becomes one by category, which needs a row test the schema does not have (guideline 12.3)."""
+        verdict = self.schema["words"]["verdict"]
+        # The list is the invariant's: the seven words of the line in CLAUDE.md, in its order.
+        with io.open(os.path.join(checker.project_root(), "CLAUDE.md"), encoding="utf-8") as claude:
+            line = next(each for each in claude if "\ud310\uc815 \uc5b4\ud718(" in each)
+        listed = line.split("\ud310\uc815 \uc5b4\ud718(", 1)[1].split(")", 1)[0].split("\u00b7")
+        self.assertEqual(verdict, listed)
+        columns = [(table, column, spec) for table, table_spec in sorted(self.schema["tables"].items())
+                   for column, spec in sorted((table_spec.get("columns") or {}).items()) if spec.get("forbidden") == "verdict"]
+        # Every column that refuses the words: the narrator's lines, the names that fill their slots and the name pools.
+        self.assertEqual(len(columns), 19, [table + "." + column for table, column, spec in columns])
+        for table, column, spec in columns:
+            row_name = self.tables[table][0]["Name"]
+            for word in verdict:
+                with self.subTest(table=table, column=column, word=word):
+                    value = "%s a." % word if spec["kind"] == "text" else ["%s a." % word]
+                    self.expect(self.after(self.set_cell(table, row_name, column, value)), "%s.%s.%s" % (table, row_name, column),
+                                "the word %s is not used here" % word)
+        # The list is named, not copied: a column that names a list the schema does not hold is a problem of the schema.
+        self.expect(self.after(NOTHING, self.put(["tables", "DT_Events", "columns", "LogTemplates"], "forbidden", "verdicts")),
+                    "the word list 'verdicts' is not in the schema")
 
-        def names(tables):
-            bank = self.row(tables, "DT_Civs", "arch_default")["PersonNameBank"]
-            bank[0] = soul
-        self.expect(self.after(names), "DT_Civs.arch_default.PersonNameBank", "the word %s is not used here" % soul)
+    def test_a_text_has_one_form(self):
+        """A word is found as it is written: a text is composed (NFC) and holds no invisible format character, so a verdict
+        word cannot hide in decomposed Hangul or behind a zero-width space."""
+        soul = "\uc601\ud63c"
+        templates = lambda first: self.set_cell("DT_Events", "event_test_harvest", "LogTemplates", ["{Civ} %s a." % first, "{Civ} b.", "{Civ} c."])  # noqa: E731
+        decomposed = unicodedata.normalize("NFD", soul)
+        self.expect(self.after(templates(decomposed)), "DT_Events.event_test_harvest.LogTemplates", "a text not in the composed form (NFC)")
+        self.expect(self.after(templates(soul[0] + "\u200b" + soul[1])), "DT_Events.event_test_harvest.LogTemplates", "an invisible format character U+200B")
+        self.expect(self.after(templates(soul)), "the word %s is not used here" % soul)
+        self.assertEqual(self.after(templates("\ub0a0")), [])
+
+    def test_rows_that_never_fire(self):
+        """A Lottery row with no weight never fires, and a Draw row with no chance never stands: the two boundaries are
+        pinned by hand (a walk built from the schema's own operand would move with a weakened rule)."""
+        weight = lambda value: self.set_cell("DT_Events", "event_test_harvest", "BaseWeight", value)  # noqa: E731
+        self.expect(self.after(weight(0)), "event_test_harvest", "a Lottery row with no weight never fires")
+        self.expect(self.after(weight(-1)), "event_test_harvest", "a Lottery row with no weight never fires")
+        self.assertEqual(self.after(weight(0.5)), [])
+        chance = lambda value: self.set_cell("DT_Hazards", "crisis_test_storm", "SpawnChancePerTick", value)  # noqa: E731
+        self.expect(self.after(chance(0)), "crisis_test_storm", "a Draw row is drawn every tick")
+        self.expect(self.after(chance(-1)), "crisis_test_storm", "a Draw row is drawn every tick")
+        self.assertEqual(self.after(chance(0.001)), [])
 
     def test_stay_condition_rows(self):
         """The stay in a fallen sphere stands on Civilization slot rows only; the row the research stage fires is Named."""
@@ -1641,7 +1669,7 @@ class SchemaTests(unittest.TestCase):
                 (update_hazard(HazardTag="Hazard.Claim", SpawnRule="ClaimRule", SpawnChancePerTick=0), hazard),
             ("DT_Hazards", "a rebellion is the discontent of a people in its capital, not a draw (guideline 4.1)"):
                 (update_hazard(HazardTag="Hazard.Rebellion", SpawnRule="Capital", SpawnChancePerTick=0), hazard),
-            ("DT_Hazards", "a drawn hazard with no chance never stands (guideline 7.4)"): (NOTHING, hazard),
+            ("DT_Hazards", "a Draw row is drawn every tick: a chance of 0 is a slip, and a hazard that only an effect or a hook places will have a spawn rule of its own (guideline 7.3, Phase 4)"): (NOTHING, hazard),
             ("DT_Hazards", "only a drawn hazard has a chance: the capital rule and the claim rule draw nothing (guideline 7.4)"):
                 (update_hazard(SpawnRule="Capital", SpawnChancePerTick=0), hazard),
             ("DT_Hazards", "a branch is a chance and the effects it takes instead (guideline 4.1)"):

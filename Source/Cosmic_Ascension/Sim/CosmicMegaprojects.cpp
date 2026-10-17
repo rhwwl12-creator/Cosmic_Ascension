@@ -14,29 +14,25 @@
 // Helpers of this file. A named namespace: the module is built as one unity file.
 namespace CosmicMegaprojectsImpl
 {
-	// A cost member as it is paid: below 0, or not a number, reads as 0 (a compare, not a CRT call - section 9.2).
+	// A cost member as it is paid: below 0, not a number or not finite reads as 0 (a compare, not a CRT call - section 9.2).
 	float CostOf(float Value)
 	{
 		return (Value > 0.f && Value <= TNumericLimits<float>::Max()) ? Value : 0.f;
 	}
 
-	// Pays the cost of one tick from Stockpile when it can be paid in full; nothing otherwise.
-	bool PayInFull(FResourcePool& Stockpile, const FResourcePool& Cost)
+	// Pays the cost of one tick of Row from Stockpile when it can be paid in full; nothing otherwise.
+	bool PayInFull(FResourcePool& Stockpile, const FMegaprojectDef& Row)
 	{
-		const float Energy = CostOf(Cost.Energy);
-		const float Matter = CostOf(Cost.Matter);
-		const float Insight = CostOf(Cost.Insight);
-		const float Influence = CostOf(Cost.Influence);
-		const float Causality = CostOf(Cost.Causality);
-		if (Stockpile.Energy < Energy || Stockpile.Matter < Matter || Stockpile.Insight < Insight || Stockpile.Influence < Influence || Stockpile.Causality < Causality)
+		const FResourcePool Cost = CosmicMegaprojects::CostPerTickOf(Row);
+		if (!CosmicMegaprojects::CanPay(Stockpile, Cost))
 		{
 			return false;
 		}
-		Stockpile.Energy -= Energy;
-		Stockpile.Matter -= Matter;
-		Stockpile.Insight -= Insight;
-		Stockpile.Influence -= Influence;
-		Stockpile.Causality -= Causality;
+		Stockpile.Energy -= Cost.Energy;
+		Stockpile.Matter -= Cost.Matter;
+		Stockpile.Insight -= Cost.Insight;
+		Stockpile.Influence -= Cost.Influence;
+		Stockpile.Causality -= Cost.Causality;
 		return true;
 	}
 
@@ -146,6 +142,24 @@ bool CosmicMegaprojects::HasCompleted(const FStarSystemState& System, FName RowN
 	}
 	const FMegaprojectRecord* Record = System.CompletedMegaprojects.FindByPredicate([RowName](const FMegaprojectRecord& Candidate) { return Candidate.Row == RowName; });
 	return Record && Record->Tick > 0 && Record->Tick >= SinceTick;
+}
+
+FResourcePool CosmicMegaprojects::CostPerTickOf(const FMegaprojectDef& Row)
+{
+	using namespace CosmicMegaprojectsImpl;
+	FResourcePool Cost;
+	Cost.Energy = CostOf(Row.CostPerTick.Energy);
+	Cost.Matter = CostOf(Row.CostPerTick.Matter);
+	Cost.Insight = CostOf(Row.CostPerTick.Insight);
+	Cost.Influence = CostOf(Row.CostPerTick.Influence);
+	Cost.Causality = CostOf(Row.CostPerTick.Causality);
+	return Cost;
+}
+
+bool CosmicMegaprojects::CanPay(const FResourcePool& Stockpile, const FResourcePool& Cost)
+{
+	return !(Stockpile.Energy < Cost.Energy || Stockpile.Matter < Cost.Matter || Stockpile.Insight < Cost.Insight || Stockpile.Influence < Cost.Influence
+		|| Stockpile.Causality < Cost.Causality);
 }
 
 float CosmicMegaprojects::RequiredProgressOf(const FMegaprojectDef& Row)
@@ -431,7 +445,7 @@ FName CosmicMegaprojects::Advance(FCosmicEvalContext& Ctx, int32 SystemIndex, EC
 					System.MegaprojectProgress = 0.f;
 				}
 			}
-			else if (PayInFull(State.Civs[OwnerIndex].Stockpile, Row->CostPerTick))
+			else if (PayInFull(State.Civs[OwnerIndex].Stockpile, *Row))
 			{
 				System.MegaprojectProgress += Rate;
 				if (System.MegaprojectProgress >= CosmicMegaprojects::RequiredProgressOf(*Row))
@@ -458,7 +472,7 @@ FName CosmicMegaprojects::Advance(FCosmicEvalContext& Ctx, int32 SystemIndex, EC
 				System.ResponseMegaproject = NAME_None;
 				System.ResponseProgress = 0.f;
 			}
-			else if (PayInFull(State.Civs[OwnerIndex].Stockpile, Row->CostPerTick))
+			else if (PayInFull(State.Civs[OwnerIndex].Stockpile, *Row))
 			{
 				System.ResponseProgress += Rate;
 				if (System.ResponseProgress >= CosmicMegaprojects::RequiredProgressOf(*Row))

@@ -17,6 +17,8 @@
 #include "Misc/Paths.h"
 #include "Save/CosmicSaveGame.h"
 #include "Sim/CosmicHazards.h"
+#include "Sim/CosmicMegaprojects.h"
+#include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 
 namespace
@@ -25,24 +27,41 @@ namespace
 	// SaveBytes is measured on every tenth sample only: one save of the whole state takes tens of milliseconds.
 	constexpr int64 SaveEverySamples = 10;
 
+	// The claims that ended one way, with what their owners held when they ended (section 9.3: why a claim runs out).
+	struct FClaimEnds
+	{
+		int32 Count = 0;
+		// Ended with an answer (project_relief in the game's data) in the response slot of the system.
+		int32 WithAnswer = 0;
+		// The owner's Influence before the tick in which the claim ended, summed.
+		double OwnerInfluence = 0.0;
+	};
+
 	// What the run counts tick by tick, read from the state only (no hook into the simulation, no draw).
 	struct FRunCounts
 	{
 		int64 FirstClaimTick = -1;
 		int64 FirstJoinTick = -1;
 		int64 DeposedTick = -1;
-		int32 ClaimsJoined = 0;
-		int32 ClaimsEnded = 0;
+		// The first tick at which some people holds two settled systems: claims can stand from then on (Law.Remnant).
+		int64 FirstTwoSettledTick = -1;
+		int32 ClaimsAfterTwoSettled = 0;
+		FClaimEnds ClaimsJoined;
+		FClaimEnds ClaimsStilled;
 		int64 ToldLines = 0;
 		TMap<FString, int32> Placed;
+		TMap<FString, int32> Answered;
 		TMap<FString, int32> Expired;
 		TMap<FString, int32> Ended;
 	};
 
+	// A slot before the tick: its hazard and count, the answer in its response slot, and the owner's Influence.
 	struct FSlotBefore
 	{
 		FGameplayTag Tag;
 		int32 Remaining = 0;
+		FName Answer;
+		float OwnerInfluence = 0.f;
 	};
 
 	int32 SphereSize(const FGalaxyState& State)
@@ -53,6 +72,30 @@ namespace
 			Size += Transcendent.InfluencedSystems.Num();
 		}
 		return Size;
+	}
+
+	// The sphere of every instance, as "<TranscendentID> <size>".
+	TArray<FString> SpheresOf(const FGalaxyState& State)
+	{
+		TArray<FString> Spheres;
+		for (const FTranscendentState& Transcendent : State.Transcendents)
+		{
+			Spheres.Add(FString::Printf(TEXT("%s %d"), *Transcendent.TranscendentID.ToString(), Transcendent.InfluencedSystems.Num()));
+		}
+		return Spheres;
+	}
+
+	bool HoldsTwoSettled(const FGalaxyState& State)
+	{
+		TMap<FName, int32> Settled;
+		for (const FStarSystemState& System : State.Systems)
+		{
+			if (!System.OwnerCivID.IsNone() && CosmicState::IsSettled(System) && ++Settled.FindOrAdd(System.OwnerCivID) >= 2)
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	bool InSomeSphere(const FGalaxyState& State, FName SystemID)
@@ -97,32 +140,45 @@ namespace
 		return Mark ? FString::Printf(TEXT("%lld"), Mark->Tick) : FString();
 	}
 
-	int32 T4PlusCount(const FGalaxyState& State)
+	// The beings of the fourth rung and above as section 4.2 counts them (layer 4 of section 3.1): the unsealed Tier 4
+	// fallen with a sphere, the independents, and the Tier 4 peoples the player does not rule.
+	int32 T4PlusCount(const FGalaxyState& State, const FCosmicDataTables& Tables)
 	{
+		static const FGameplayTag Abyssal = FGameplayTag::RequestGameplayTag(FName(TEXT("Realm.Abyssal")));
+		static const FGameplayTag Independent = FGameplayTag::RequestGameplayTag(FName(TEXT("Realm.Independent")));
+		const int32 Fourth = static_cast<int32>(EAscensionTier::Tier4_Transcendent);
 		int32 Count = 0;
 		for (const FCivilizationState& Civ : State.Civs)
 		{
-			Count += static_cast<int32>(Civ.Tier) >= static_cast<int32>(EAscensionTier::Tier4_Transcendent) ? 1 : 0;
+			Count += (static_cast<int32>(Civ.Tier) >= Fourth && !Civ.bIsPlayerRuled) ? 1 : 0;
 		}
-		return Count + State.Transcendents.Num();
+		for (const FTranscendentState& Transcendent : State.Transcendents)
+		{
+			const FTranscendentDef* Def = Tables.FindTranscendent(Transcendent.TranscendentID);
+			const bool bFallen = Def && Def->Allegiance == Abyssal && static_cast<int32>(Def->Tier) >= Fourth && !Transcendent.bSealed
+				&& !Transcendent.InfluencedSystems.IsEmpty();
+			Count += (bFallen || (Def && Def->Allegiance == Independent)) ? 1 : 0;
+		}
+		return Count;
 	}
 
-	int32 SaveBytesOf(const FGalaxyState& State, double& OutMilliseconds)
+	// The size of the state serialized as the game's save serializes it (SaveGameToMemory of a UCosmicSaveGame), and the
+	// time of the copy and the serialization. The file write of SaveGameToSlot is not in it. One save object for the run.
+	int32 SaveBytesOf(UCosmicSaveGame* Save, const FGalaxyState& State, double& OutMilliseconds)
 	{
-		UCosmicSaveGame* Save = NewObject<UCosmicSaveGame>();
-		Save->State = State;
 		TArray<uint8> Bytes;
 		const double Start = FPlatformTime::Seconds();
+		Save->State = State;
 		UGameplayStatics::SaveGameToMemory(Save, Bytes);
 		OutMilliseconds = (FPlatformTime::Seconds() - Start) * 1000.0;
 		return Bytes.Num();
 	}
 
-	void AppendSample(FString& Csv, const FGalaxyState& State, const FRunCounts& Counts, double TickMicros, const FString& SaveBytes)
+	void AppendSample(FString& Csv, const FGalaxyState& State, const FCosmicDataTables& Tables, const FRunCounts& Counts, double TickMicros, const FString& SaveBytes)
 	{
 		const FString FirstClaim = Counts.FirstClaimTick >= 0 ? FString::Printf(TEXT("%lld"), Counts.FirstClaimTick) : FString();
 		const FString Galaxy = FString::Printf(TEXT("%d,%d,%d,%s,%d,%s,%lld,%.1f,%s,%d,%d"),
-			State.Knowing.KnownSystems.Num(), MetCivs(State), WildSystems(State), *FirstContactTick(State), T4PlusCount(State),
+			State.Knowing.KnownSystems.Num(), MetCivs(State), WildSystems(State), *FirstContactTick(State), T4PlusCount(State, Tables),
 			*FirstClaim, Counts.ToldLines, TickMicros, *SaveBytes, State.Log.Num(), State.Chronicle.Num());
 		for (const FCivilizationState& Civ : State.Civs)
 		{
@@ -149,6 +205,12 @@ namespace
 			Text += FString::Printf(TEXT(" %s %d"), *Key, Counts[Key]);
 		}
 		return Text.IsEmpty() ? TEXT(" none") : Text;
+	}
+
+	FString ClaimEndsText(const TCHAR* Name, const FClaimEnds& Ends)
+	{
+		return FString::Printf(TEXT("%d %s (answer running %d, owner Influence mean %.1f)"), Ends.Count, Name, Ends.WithAnswer,
+			Ends.Count > 0 ? Ends.OwnerInfluence / Ends.Count : 0.0);
 	}
 }
 
@@ -189,9 +251,13 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		}
 		Sim->NewGalaxy(Seed, Systems, Civs);
 		const FGalaxyState& State = Sim->GetState();
+		const FCosmicDataTables& Tables = Sim->GetTables();
+		UCosmicSaveGame* Save = NewObject<UCosmicSaveGame>();
+		Save->AddToRoot();
 
 		FRunCounts Counts;
 		const int32 SphereStart = SphereSize(State);
+		const TArray<FString> SpheresStart = SpheresOf(State);
 		for (const FCosmicLogEntry& Entry : State.Log)
 		{
 			Counts.ToldLines += Entry.bUntold ? 0 : 1;
@@ -199,10 +265,9 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		FString Csv = TEXT("Tick,CivID,Archetype,Tier,Systems,Stability,Energy,Matter,Insight,Influence,Causality,Hazards,KnownSystems,MetCivs,WildSystems,FirstContactTick,T4PlusCount,FirstClaimTick,ToldLines,TickMicros,SaveBytes,LogLen,ChronicleLen\n");
 		FString Rows = TEXT("Tick,SourceRow,Lines\n");
 		double Unused = 0.0;
-		AppendSample(Csv, State, Counts, 0.0, FString::FromInt(SaveBytesOf(State, Unused)));
+		AppendSample(Csv, State, Tables, Counts, 0.0, FString::FromInt(SaveBytesOf(Save, State, Unused)));
 
 		TArray<double> TickMicros;
-		TickMicros.Reserve(static_cast<int32>(FMath::Min<int64>(Ticks, MAX_int32)));
 		TArray<FSlotBefore> Before;
 		TMap<FString, int32> SampleRows;
 		double SampleMicros = 0.0;
@@ -213,7 +278,8 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			Before.Reset();
 			for (const FStarSystemState& System : State.Systems)
 			{
-				Before.Add({ System.ActiveHazard, System.HazardTicksRemaining });
+				const FCivilizationState* Owner = State.Civs.FindByPredicate([&System](const FCivilizationState& Civ) { return Civ.CivID == System.OwnerCivID; });
+				Before.Add({ System.ActiveHazard, System.HazardTicksRemaining, System.ResponseMegaproject, Owner ? Owner->Stockpile.Influence : 0.f });
 			}
 			const EPlayerRole RoleBefore = State.Player.Role;
 			const int64 TickBefore = State.Tick;
@@ -226,8 +292,15 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			SampleMicros += Micros;
 			++SampleTicks;
 
+			if (Counts.FirstTwoSettledTick < 0 && HoldsTwoSettled(State))
+			{
+				Counts.FirstTwoSettledTick = State.Tick;
+			}
 			// A hazard is placed when a slot holds a tag it did not hold or holds it with a full count again; it ended when
-			// its tag is gone or counted again, and it expired when its count was 1 or less before the tick.
+			// its tag is gone or counted again. An ended hazard was answered when the answer in its response slot completed on
+			// this tick (its completion record moved to this tick), and it expired when it was not answered and its count was
+			// 1 before the tick (the crisis stage runs the answers before the countdown). A hazard placed and ended inside one
+			// tick is not seen here (its lines are in the rows file).
 			for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num() && SystemIndex < Before.Num(); ++SystemIndex)
 			{
 				const FStarSystemState& System = State.Systems[SystemIndex];
@@ -235,23 +308,32 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				const bool bAgain = System.ActiveHazard == Slot.Tag && System.HazardTicksRemaining >= Slot.Remaining;
 				if (Slot.Tag.IsValid() && (System.ActiveHazard != Slot.Tag || bAgain))
 				{
-					Counts.Ended.FindOrAdd(Slot.Tag.ToString())++;
-					if (Slot.Remaining <= 1)
+					const FString Tag = Slot.Tag.ToString();
+					Counts.Ended.FindOrAdd(Tag)++;
+					const bool bAnswered = !Slot.Answer.IsNone() && CosmicMegaprojects::HasCompleted(System, Slot.Answer, State.Tick);
+					if (bAnswered)
 					{
-						Counts.Expired.FindOrAdd(Slot.Tag.ToString())++;
+						Counts.Answered.FindOrAdd(Tag)++;
+					}
+					else if (Slot.Remaining == 1)
+					{
+						Counts.Expired.FindOrAdd(Tag)++;
 					}
 					if (Slot.Tag == ClaimTag)
 					{
-						++Counts.ClaimsEnded;
-						Counts.ClaimsJoined += InSomeSphere(State, System.SystemID) ? 1 : 0;
+						FClaimEnds& Ends = InSomeSphere(State, System.SystemID) ? Counts.ClaimsJoined : Counts.ClaimsStilled;
+						++Ends.Count;
+						Ends.WithAnswer += Slot.Answer.IsNone() ? 0 : 1;
+						Ends.OwnerInfluence += Slot.OwnerInfluence;
 					}
 				}
 				if (System.ActiveHazard.IsValid() && (System.ActiveHazard != Slot.Tag || bAgain))
 				{
 					Counts.Placed.FindOrAdd(System.ActiveHazard.ToString())++;
-					if (System.ActiveHazard == ClaimTag && Counts.FirstClaimTick < 0)
+					if (System.ActiveHazard == ClaimTag)
 					{
-						Counts.FirstClaimTick = State.Tick;
+						Counts.FirstClaimTick = Counts.FirstClaimTick < 0 ? State.Tick : Counts.FirstClaimTick;
+						Counts.ClaimsAfterTwoSettled += Counts.FirstTwoSettledTick >= 0 ? 1 : 0;
 					}
 				}
 			}
@@ -275,9 +357,9 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				FString SaveBytes;
 				if (Samples % SaveEverySamples == 0 || Done + 1 == Ticks)
 				{
-					SaveBytes = FString::FromInt(SaveBytesOf(State, Unused));
+					SaveBytes = FString::FromInt(SaveBytesOf(Save, State, Unused));
 				}
-				AppendSample(Csv, State, Counts, SampleTicks > 0 ? SampleMicros / SampleTicks : 0.0, SaveBytes);
+				AppendSample(Csv, State, Tables, Counts, SampleTicks > 0 ? SampleMicros / SampleTicks : 0.0, SaveBytes);
 				TArray<FString> Keys;
 				SampleRows.GetKeys(Keys);
 				Keys.Sort();
@@ -301,19 +383,24 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				Sum += Each;
 			}
 			double SaveMilliseconds = 0.0;
-			const int32 SaveBytes = SaveBytesOf(State, SaveMilliseconds);
-			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance summary: tell-all %d, %d systems, %d peoples; claims %d placed, %d ended, %d joined; first claim %lld, first join %lld; sphere %d->%d; wild %d; vessel deposed at %lld; tick us mean %.1f p99 %.1f max %.1f; save %d bytes in %.1f ms; log %d, chronicle %d, told %lld"),
-				TellAll, State.Systems.Num(), State.Civs.Num(), Counts.Placed.FindRef(ClaimTag.ToString()), Counts.ClaimsEnded, Counts.ClaimsJoined, Counts.FirstClaimTick,
-				Counts.FirstJoinTick, SphereStart, SphereSize(State), WildSystems(State), Counts.DeposedTick,
+			const int32 SaveBytes = SaveBytesOf(Save, State, SaveMilliseconds);
+			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance summary: tell-all %d, %d systems, %d peoples; claims %d placed, %d ended, %d joined; first claim %lld, first join %lld; first two-settled people %lld, claims after it %d; sphere %d->%d; wild %d; vessel deposed at %lld; tick us mean %.1f p99 %.1f max %.1f; save serialized %d bytes in %.1f ms; log %d, chronicle %d, told %lld"),
+				TellAll, State.Systems.Num(), State.Civs.Num(), Counts.Placed.FindRef(ClaimTag.ToString()), Counts.ClaimsJoined.Count + Counts.ClaimsStilled.Count,
+				Counts.ClaimsJoined.Count, Counts.FirstClaimTick, Counts.FirstJoinTick, Counts.FirstTwoSettledTick, Counts.ClaimsAfterTwoSettled, SphereStart,
+				SphereSize(State), WildSystems(State), Counts.DeposedTick,
 				TickMicros.Num() ? Sum / TickMicros.Num() : 0.0, TickMicros.Num() ? TickMicros[FMath::Min(TickMicros.Num() - 1, static_cast<int32>(TickMicros.Num() * 0.99))] : 0.0,
 				TickMicros.Num() ? TickMicros.Last() : 0.0, SaveBytes, SaveMilliseconds, State.Log.Num(), State.Chronicle.Num(), Counts.ToldLines);
-			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance hazards: placed%s | expired%s | ended%s"), *CountsText(Counts.Placed), *CountsText(Counts.Expired), *CountsText(Counts.Ended));
+			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance claims: %s | %s; spheres %s -> %s"), *ClaimEndsText(TEXT("joined"), Counts.ClaimsJoined),
+				*ClaimEndsText(TEXT("stilled"), Counts.ClaimsStilled), *FString::Join(SpheresStart, TEXT(", ")), *FString::Join(SpheresOf(State), TEXT(", ")));
+			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance hazards: placed%s | answered%s | expired%s | ended%s"), *CountsText(Counts.Placed), *CountsText(Counts.Answered),
+				*CountsText(Counts.Expired), *CountsText(Counts.Ended));
 		}
 		else
 		{
 			UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: could not write %s or %s"), *OutPath, *RowsPath);
 			Result = 1;
 		}
+		Save->RemoveFromRoot();
 	}
 	else
 	{

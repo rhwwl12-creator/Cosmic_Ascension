@@ -10,6 +10,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/Array.h"
+#include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Events/CosmicEventSubsystem.h"
 #include "Templates/Tuple.h"
@@ -41,6 +42,15 @@ namespace CosmicMegaprojects
 	 * number. The panel shows the same number.
 	 */
 	COSMIC_ASCENSION_API float RequiredProgressOf(const FMegaprojectDef& Row);
+
+	/**
+	 * The cost of one tick of Row as Advance pays it: its CostPerTick with every member below 0, or not a number, or not
+	 * finite read as 0.
+	 */
+	COSMIC_ASCENSION_API FResourcePool CostPerTickOf(const FMegaprojectDef& Row);
+
+	/** Whether Stockpile can pay Cost (a cost read through CostPerTickOf) in full: no member of it is below Cost's. */
+	COSMIC_ASCENSION_API bool CanPay(const FResourcePool& Stockpile, const FResourcePool& Cost);
 
 	/**
 	 * Whether Start would take RowName on SystemIndex now (section 5.7): the row exists and is not project_settle (a

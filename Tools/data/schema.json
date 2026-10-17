@@ -29,7 +29,8 @@
 		"role": ["Ruler", "Wanderer"],
 		"civ_selector": ["Former"],
 		"policy": ["Cautious", "Reckless", "Faithful", "Tribute"],
-		"research": ["Physics", "Society", "Engineering", "Transcendence"]
+		"research": ["Physics", "Society", "Engineering", "Transcendence"],
+		"verdict": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]
 	},
 
 	"enums": {
@@ -135,15 +136,15 @@
 				"EthicsPreset": {"kind": "plain"},
 				"AIProfile": {"kind": "tag", "root": "AI.Profile.", "optional": true},
 				"Color": {"kind": "plain"},
-				"NameBank": {"kind": "texts", "slots": ["Star"], "no_digits": true},
-				"AdjectiveBank": {"kind": "texts", "len_in": [0, 3], "slots": []},
-				"PersonNameBank": {"kind": "texts", "empty_or_min": 10, "unique": true, "slots": [], "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
+				"NameBank": {"kind": "texts", "slots": ["Star"], "no_digits": true, "forbidden": "verdict"},
+				"AdjectiveBank": {"kind": "texts", "len_in": [0, 3], "slots": [], "forbidden": "verdict"},
+				"PersonNameBank": {"kind": "texts", "empty_or_min": 10, "unique": true, "slots": [], "forbidden": "verdict"},
 				"HazardSpawnMultipliers": {"kind": "tag_map", "root": "Hazard.", "min": 0},
 				"InitialRelations": {"kind": "row_map", "table": "DT_Civs", "min": -1, "max": 1, "target": [{"col": "Weight", "gt": 0}]},
 				"Weight": {"kind": "number", "min": 0},
 				"RevelationMode": {"kind": "tag", "root": "Revelation."},
 				"RevelationTemplates": {"kind": "texts", "len_in": [1, 3]},
-				"HomeSystemNames": {"kind": "texts", "slots": [], "no_digits": true},
+				"HomeSystemNames": {"kind": "texts", "slots": [], "no_digits": true, "forbidden": "verdict"},
 				"HomeStarClass": {"kind": "tag", "root": "Star.Class.", "optional": true},
 				"DedicationBanks": {"kind": "tag_list", "root": "Faith.Bank."}
 			},
@@ -175,7 +176,7 @@
 					"min": 3,
 					"single_variant": true,
 					"slots": ["Civ", "System", "OtherCiv", "Trait", "Value", "Tier", "Hazard", "Player", "HomeSystem", "Dedication", "Epithet", "Revelation", "Transcendent", "Ruler", "Regent", "Rebel", "Loyalist", "Hearer", "Ascendant", "PopBand", "CivAdj"],
-					"forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]
+					"forbidden": "verdict"
 				}
 			},
 			"unique": [
@@ -214,7 +215,7 @@
 				"BaseWeight": {"kind": "number", "min": 0},
 				"CooldownTicks": {"kind": "number", "min": 0, "integer": true},
 				"Effects": {"kind": "effects"},
-				"LogTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
+				"LogTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": "verdict"},
 				"Severity": {"kind": "number", "min": 0, "max": 2, "integer": true},
 				"MinTierToReveal": {"kind": "number", "min": 0, "max": 5, "integer": true},
 				"SignRow": {
@@ -335,10 +336,10 @@
 				"DistanceText": {"kind": "text", "required": true, "hedged": ["약", "추정", "논쟁 중"]},
 				"FeatureText": {"kind": "text", "hedged": ["약", "추정", "논쟁 중"]},
 				"MapPosition": {"kind": "plain"},
-				"StarNameBank": {"kind": "texts", "unique": true, "slots": [], "no_digits": true, "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
-				"CatalogPrefixes": {"kind": "texts", "unique": true, "slots": [], "no_digits": true, "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
-				"CatalogStems": {"kind": "texts", "unique": true, "slots": [], "no_digits": true, "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
-				"PeopleStems": {"kind": "texts", "unique": true, "slots": [], "no_digits": true, "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]}
+				"StarNameBank": {"kind": "texts", "unique": true, "slots": [], "no_digits": true, "forbidden": "verdict"},
+				"CatalogPrefixes": {"kind": "texts", "unique": true, "slots": [], "no_digits": true, "forbidden": "verdict"},
+				"CatalogStems": {"kind": "texts", "unique": true, "slots": [], "no_digits": true, "forbidden": "verdict"},
+				"PeopleStems": {"kind": "texts", "unique": true, "slots": [], "no_digits": true, "forbidden": "verdict"}
 			}
 		},
 
@@ -402,7 +403,7 @@
 			"columns": {
 				"HazardTag": {"kind": "tag", "root": "Hazard."},
 				"SourceDoctrine": {"kind": "tag", "root": ["Doctrine.Silence", "Doctrine.Assimilation", "Doctrine.Zeal", "Doctrine.Recurrence"], "optional": true},
-				"DisplayName": {"kind": "text", "required": true, "slots": []},
+				"DisplayName": {"kind": "text", "required": true, "slots": [], "forbidden": "verdict"},
 				"CountdownTicks": {"kind": "number", "min": 1, "integer": true},
 				"SpawnRule": {"kind": "enum", "enum": "ECosmicHazardSpawn"},
 				"SpawnChancePerTick": {"kind": "number", "min": 0, "max": 1},
@@ -416,9 +417,9 @@
 				"WandererResolutions": {"kind": "rows", "tables": ["DT_Encounters"], "unique": true},
 				"LogCategory": {"kind": "tag", "root": ["Log.Crisis"]},
 				"Severity": {"kind": "number", "min": 0, "max": 2, "integer": true},
-				"OutbreakTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
-				"ExpireTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
-				"ResolveTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
+				"OutbreakTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": "verdict"},
+				"ExpireTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": "verdict"},
+				"ResolveTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": "verdict"},
 				"OutbreakRow": {"kind": "row", "table": "DT_Events", "optional": true, "target": [{"col": "Trigger", "is": "Named"}, {"col": "Subject", "is": "SettledSystem"}, {"col": "Effects", "lacks_type": "ResolveHazard"}]}
 			},
 			"unique": [
@@ -441,7 +442,7 @@
 					"then": [{"col": "SpawnRule", "is": "Capital"}]
 				},
 				{
-					"why": "a drawn hazard with no chance never stands (guideline 7.4)",
+					"why": "a Draw row is drawn every tick: a chance of 0 is a slip, and a hazard that only an effect or a hook places will have a spawn rule of its own (guideline 7.3, Phase 4)",
 					"when": [{"col": "SpawnRule", "is": "Draw"}],
 					"then": [{"col": "SpawnChancePerTick", "gt": 0}]
 				},
@@ -509,11 +510,11 @@
 			"required_rows": ["project_settle"],
 			"must_exist": true,
 			"columns": {
-				"DisplayName": {"kind": "text", "required": true, "slots": []},
+				"DisplayName": {"kind": "text", "required": true, "slots": [], "forbidden": "verdict"},
 				"RequiredTier": {"kind": "enum", "enum": "EAscensionTier"},
 				"CostPerTick": {"kind": "plain"},
 				"RequiredProgress": {"kind": "number", "min": 1},
-				"CompleteTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "System", "Project"], "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]}
+				"CompleteTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "System", "Project"], "forbidden": "verdict"}
 			}
 		},
 		"DT_Feats": {
@@ -521,8 +522,8 @@
 			"prefixes": ["feat_"],
 			"must_exist": true,
 			"columns": {
-				"Title": {"kind": "text", "required": true, "slots": [], "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
-				"MythicNarrative": {"kind": "text", "required": true, "slots": [], "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
+				"Title": {"kind": "text", "required": true, "slots": [], "forbidden": "verdict"},
+				"MythicNarrative": {"kind": "text", "required": true, "slots": [], "forbidden": "verdict"},
 				"RequiredTier": {"kind": "enum", "enum": "EAscensionTier"},
 				"TargetTier": {"kind": "enum", "enum": "EAscensionTier"},
 				"Path": {"kind": "enum", "enum": "EPlayerRole"},
@@ -532,7 +533,7 @@
 				"DedicationBank": {"kind": "tag", "root": "Faith.Bank.", "optional": true},
 				"FX": {"kind": "plain"},
 				"Sound": {"kind": "plain"},
-				"LogTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "HomeSystem"], "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]}
+				"LogTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "HomeSystem"], "forbidden": "verdict"}
 			},
 			"rules": [
 				{
