@@ -77,6 +77,9 @@ set ROOTF=C:/Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension
 :: L_Galaxy 맵 생성 (에디터 닫힌 상태, 에디터 타깃 빌드 후. Tools/make_galaxy_level.py 참고)
 "%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "%PROJECT%" -run=pythonscript -Script="%ROOTF%/Tools/make_galaxy_level.py" -unattended -nosplash -stdout -FullStdOutLogOutput -AbsLog="%ROOTF%/Saved/Logs/MakeGalaxyLevel.log"
 
+:: 지도의 머티리얼 생성 (에디터 닫힌 상태, 에디터 타깃 빌드 후. Tools/make_materials.py -> Content/CA/Materials의 M_Star·M_Nebula. 로그 끝의 "written and verified" 두 줄 확인)
+"%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "%PROJECT%" -run=pythonscript -Script="%ROOTF%/Tools/make_materials.py" -unattended -nosplash -stdout -FullStdOutLogOutput -AbsLog="%ROOTF%/Saved/Logs/MakeMaterials.log"
+
 :: DataTable·String Table 에셋 생성 (에디터 닫힌 상태, 에디터 타깃 빌드 후. Tools/data/*.json·ST_CA.csv -> Content/CA/Data. 로그 끝의 "written and verified" 줄 확인)
 "%UE_ROOT%\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "%PROJECT%" -run=pythonscript -Script="%ROOTF%/Tools/make_data_tables.py" -unattended -nosplash -stdout -FullStdOutLogOutput -AbsLog="%ROOTF%/Saved/Logs/MakeDataTables.log"
 
@@ -106,6 +109,8 @@ $env:UE_ROOT='C:\Program Files\Epic Games\UE_5.8'; $env:ROOT='C:\Users\rhwwl\One
 & "$env:UE_ROOT\Engine\Build\BatchFiles\Build.bat" --% -projectfiles -project="%PROJECT%" -game -rocket -progress -VSCode -Automated
 # L_Galaxy 맵 생성
 & "$env:UE_ROOT\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" --% "%PROJECT%" -run=pythonscript -Script="%ROOTF%/Tools/make_galaxy_level.py" -unattended -nosplash -stdout -FullStdOutLogOutput -AbsLog="%ROOTF%/Saved/Logs/MakeGalaxyLevel.log"
+# 지도의 머티리얼 생성 (Tools/make_materials.py -> Content/CA/Materials)
+& "$env:UE_ROOT\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" --% "%PROJECT%" -run=pythonscript -Script="%ROOTF%/Tools/make_materials.py" -unattended -nosplash -stdout -FullStdOutLogOutput -AbsLog="%ROOTF%/Saved/Logs/MakeMaterials.log"
 # DataTable·String Table 에셋 생성 (Tools/data -> Content/CA/Data)
 & "$env:UE_ROOT\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" --% "%PROJECT%" -run=pythonscript -Script="%ROOTF%/Tools/make_data_tables.py" -unattended -nosplash -stdout -FullStdOutLogOutput -AbsLog="%ROOTF%/Saved/Logs/MakeDataTables.log"
 # 밸런스 커맨드렛
@@ -123,7 +128,7 @@ PowerShell에서는 `& "<exe>" --% <나머지 인자>` 형태로 호출한다. `
 `--%` 없이 부르면 PowerShell이 `-Out=balance.csv` 같은 인자를 `-Out=balance`와 `.csv`로 쪼갠다.
 자동화 테스트는 **빌드 뒤 두 번 연속** 돌린다. `Sim.SaveRestart`는 첫 프로세스가 저장하고 해시를 `Saved/Automation/SaveRestart.txt`에 적고, 다음 프로세스가 로드해 검증한다(바이너리나 `Content/CA/Data`의 DT 에셋이 바뀌면 기록을 새로 쓴다). 두 번째 실행 로그에 `Restart half verified`가 있어야 재시작 절반까지 검증된 것이다.
 스모크에서 서사 로그 줄을 보려면 `-LogCmds="LogCosmic Verbose"`를 붙인다(`[0] 태양계. …` 줄이 `GameSmoke.log`에 찍힌다). 새 은하의 시드는 `-Seed=<n>`, 없으면 시계다.
-화면 확인: `-nullrhi` 실행과 테스트는 패널이 실제로 그려지는지 보지 못한다. 창 없이 한 장 찍으려면 `UnrealEditor.exe "<uproject>" -game -RenderOffScreen -windowed -ResX=1280 -ResY=720 -nosound -unattended -nosplash -Seed=42 -ExecCmds="shot showui"`를 띄우고 `Saved/Screenshots/WindowsEditor/ScreenShot*.png`가 생기면 프로세스를 끝낸다(스스로 끝나지 않는다. 첫 프레임 직후의 화면이다).
+화면 확인: `-nullrhi` 실행과 테스트는 패널이 실제로 그려지는지 보지 못한다. 창 없이 한 장 찍으려면 `UnrealEditor.exe "<uproject>" -game -RenderOffScreen -windowed -ResX=1280 -ResY=720 -nosound -unattended -nosplash -Seed=42 -ExecCmds="shot showui"`를 띄우고 `Saved/Screenshots/WindowsEditor/ScreenShot*.png`가 생기면 프로세스를 끝낸다(스스로 끝나지 않는다. 첫 프레임 직후의 화면이다). 지도를 보려면 `-ExecCmds="shot showui"` 대신 게임 모드의 개발용 인자 `-ShotAfterSeconds=25`를 준다(첫 프레임은 아직 셰이더를 컴파일하는 화면이다 — N초 뒤에 한 장을 찍는다).
 에디터 없이 도는 데이터 검사(시스템 Python 3, 표준 라이브러리만): `python Tools/check_data.py`는 `Tools/data`의 원본(`schema.json`·`DT_*.json`·`ST_*.csv`)을 본다(문제마다 한 줄, 문제가 있으면 종료 코드 1. JSON이나 스키마를 고치면 에셋을 만들기 전에 먼저 돌린다). 스키마에 문제가 있으면 데이터는 보지 않는다(문제 줄 가운데 `the data was not checked` 줄이 있다 — String Table의 문제 줄과 끝의 `check_data: N problem(s)`는 그 뒤에도 나온다). `make_data_tables.py`는 에셋에 손대기 전에 같은 검사를 돌리고 이어서 검사기의 단위 테스트를 돌린다 — 문제가 있으면 멈춘다(로그에 `the sources do not hold Tools/data/schema.json`과 그 아래 문제 줄, 또는 `the unit tests of the checker fail` — 도장은 남지 않는다). 도장(`generated.sha1`)에는 검사기 파일도 든다: `cosmic_data_schema.py`를 고치면 에셋을 다시 만들어야 `Data.SourcesInSync`가 통과한다. `python Tools/test_data_schema.py`는 검사기의 단위 테스트다(약 5초). 검사기를 일부러 고장 내 보는 변이는 `python -B`로, 캐시 폴더 없이 돌린다(같은 초 안에 같은 크기로 고친 파일은 캐시된 바이트코드가 대신 돈다 — 세 도구는 캐시를 쓰지도 남기지도 않게 해 두었다).
 
 **자동화 테스트 작성 규칙 (5.8)**
@@ -166,6 +171,13 @@ UPROPERTY의 기본값 초기화식은 UHT가 `;`까지 건너뛴다(`EpicGames.
 | `IMPLEMENT_PRIMARY_GAME_MODULE` | `Modules/ModuleManager.h` | Core | 3번째 인자는 무시됨(UE_PROJECT_NAME 사용) |
 | `UUserWidget` | `Blueprint/UserWidget.h` | UMG | C++ 파생 위젯(과 그 자식 WBP)은 기본적으로 매 프레임 NativeTick이 돈다(`DisableNativeTick` 메타는 UUserWidget 자신에만 적용). 틱이 필요 없는 베이스 클래스는 `meta=(DisableNativeTick)`를 다시 선언. UI 갱신은 Subsystem 델리게이트로 |
 | `UListView`, `IUserObjectListEntry` | `Components/ListView.h`, `Blueprint/IUserObjectListEntry.h` | UMG | 항목은 UObject, 엔트리 위젯은 IUserObjectListEntry 구현 |
+| `UWidgetComponent` | `Components/WidgetComponent.h` | UMG | 성계마다 이름표. `SetWidgetSpace(EWidgetSpace::Screen)`·`SetWidgetClass`(WBP 없는 C++ 위젯 클래스도 된다)·`SetDrawSize`·`SetPivot`. 위젯 객체(`GetUserWidgetObject`)는 컴포넌트가 등록·시작될 때 생기고, 위젯 트리는 첫 `RebuildWidget`에 생긴다 — 그 전에 받은 모양은 위젯이 들고 있다가 트리를 만들 때 다시 그린다(`UCosmicSystemLabelWidget::Shown`) |
+| `ULineBatchComponent`, `FBatchedLine` | `Components/LineBatchComponent.h` | Engine | `DrawLines(TArrayView<FBatchedLine>)`, `Flush()`. LifeTime 0인 선은 `Flush`까지 남는다. 두께는 월드 단위다(프록시가 `DrawTranslucentLine`을 화면 공간 없이 부른다) — 멀리서 한 픽셀보다 얇으면 점선으로 끊긴다. `DrawCircle`은 두께 인자가 없어 고리는 선분으로 직접 만든다 |
+| `UMaterialInstanceDynamic`, `UPrimitiveComponent::CreateAndSetMaterialInstanceDynamicFromMaterial(int32, UMaterialInterface*)` | `Materials/MaterialInstanceDynamic.h` | Engine | 성계 액터의 `M_Star` 파라미터. 없는 파라미터 이름에 값을 넣어도 조용히 지나간다 |
+| `ConstructorHelpers::FObjectFinder` | `UObject/ConstructorHelpers.h` | CoreUObject | 찾은 객체를 루트에 묶는다(`AddToRoot` — 프로세스 내내). 헤드리스 스크립트가 같은 프로세스에서 그 에셋을 제자리에서 다시 채우면 `!IsRooted()` 단언으로 죽는다 — 스크립트가 만드는 에셋(머티리얼)은 `BeginPlay`의 `LoadObject`로 읽는다. 엔진 기본 구(`/Engine/BasicShapes/Sphere`)는 생성자 탐색으로 충분하다 |
+| `UCameraComponent`, `FPostProcessSettings` | `Camera/CameraComponent.h` | Engine | 컨트롤러의 `SetViewTarget(Actor)`은 그 액터의 카메라 컴포넌트로 본다. 어두운 하늘의 이미시브 별은 자동 노출이 출렁이게 하므로 `AutoExposureMinBrightness`·`MaxBrightness`를 1로 고정한다(`bOverride_…`) |
+| `FTimerManager::SetTimer`, `FTimerDelegate::CreateWeakLambda` | `TimerManager.h` | Engine | 게임 모드의 `-ShotAfterSeconds`. 월드의 타이머는 월드 시간을 따른다(시뮬의 `SetTimeScale`과 무관) |
+| (에디터 Python) `unreal.MaterialEditingLibrary`(`create_material_expression`·`connect_material_expressions`·`connect_material_property`·`delete_all_material_expressions`·`recompile_material`·`get_scalar_parameter_names`), `unreal.AssetToolsHelpers.get_asset_tools().create_asset(…, unreal.MaterialFactoryNew())` | — | 에디터 전용(MaterialEditor) | 확인한 사실은 `Tools/make_materials.py` 머리 주석에 있다. Substrate가 켜져 있어도 옛 핀(Emissive)만 이은 머티리얼은 컴파일 때 Substrate 노드로 바뀐다 |
 | `UNiagaraSystem` | `NiagaraSystem.h` | Niagara | 플러그인 `Classes/` 폴더라 하위 경로 없이 include |
 | `UNiagaraFunctionLibrary::SpawnSystemAtLocation` | `NiagaraFunctionLibrary.h` | Niagara | |
 | `FText::Format`, `FFormatNamedArguments`, `FText::FromStringTable` | `Internationalization/Text.h` | Core | `FFormatNamedArguments`는 `TSortedMap<FString, FFormatArgumentValue>` |
@@ -228,6 +240,7 @@ Phase 2 종료 조건 달성 (2026-10-17, guideline §11 Phase 2의 상태 줄).
 - guideline §16 미결: #1~#18, #24·#26, #28~#31, #33~#36, #40~#51, #55, #59, #60, #64, #67~#73(#64는 첫 이벤트 데이터의 리뷰가, #67은 거대 프로젝트와 승천 판정의 리뷰가, #68은 정착과 문명 제거 작업의 측정이, #69·#70은 아는 범위와 로그 작업의 리뷰가, #71~#73은 Phase 2 종료 리뷰가 연 물음이고 기본값과 함께다 — #67 ①의 기본값은 코드에 들어갔다. #23의 정착 쪽·#61 ④·#63·#65·#66은 정착과 문명 제거 작업의 헤더에서 정했다(#61의 소모 노브는 Phase 2 종료 리뷰에서 0.002 그대로 정해 #61이 닫혔다). #27·#37·#38·#39는 정했다. #25·#54·#62와 #29 ①~④·⑥·⑦은 첫 이벤트 데이터 작업 전에, #52·#53·#56과 #29 ⑤·#31 ①은 위기 처리 작업의 헤더에서 정했다 — #29는 ⑧, #31은 ②가 남았다(③은 Phase 2 종료 리뷰에서 닫혔다). #23은 개혁·구호 쪽을 거대 프로젝트와 승천 판정 작업의 헤더에서(건설 칸과 대응 칸), 정착 쪽을 정착과 문명 제거 작업의 헤더에서 정했다. #29 ①(`CivResearchAtLeast`)은 그 작업에서 열거형 끝에 더했다. #55는 ③만 정했다. 초월자의 심도와 현현에서 나온 세 물음 가운데 옛 #57·#58은 정했고 #59 하나가 기본값과 함께 남았다. #60~#62는 영적 압력의 리뷰가 연 물음이고 기본값은 현행이다 — #61은 ④의 문턱을 정착과 문명 제거 작업의 헤더에서 영향권 소속으로, 소모 노브를 Phase 2 종료 리뷰에서 정해 닫혔다. #40은 ⑥이 닫혔다(스키마 검사기 작업에서 기본값대로 가고 위기 처리 작업에서 두 행의 뱅크를 채웠다). #40 ⑦(연대기와 세이브 크기)은 Phase 2 종료 리뷰가 잰 값으로 기본값을 정했다(저장 작업과 함께). 스키마가 좁게 막는 것 셋 — `CivStabilityBelowFor`의 Value는 0.3만(#25 ②로 굳혔다), 슬롯 행에는 Player 조건·역할 효과·그릇 효과 없음(#29 ⑦의 선택자 낱말이 코드에 들어오는 Phase 4 청원 카드까지), 통치자 업적 행에는 그릇을 읽는 조건과 역할·그릇에 닿는 대가 없음(#1 — 첫 T4→T5 행까지)).
 
 Phase 3 진행 중 (2026-10-17). 작업의 목록·순서·하는 일은 WORKPLAN.md §3의 Phase 3 표에 있다(열 작업 — 성계와 레인 그리기, 카메라와 선택, 상단 바와 성계 정보 패널, 로그 피드, 승천 연출, 종료 조건 확인, 영적 시야 꼬리, 앎의 표시 꼬리, 우주 화면, 종료 리뷰).
+- 끝난 작업 '성계와 레인 그리기'(헤더 초안 승인 뒤 단독): 맵 액터 `World/CosmicGalaxyMapActor`(게임 모드가 만든다 — 성계 액터·레인·주인 색의 고리·성운 하늘·고정 개관 카메라), 성계 액터 `World/CosmicStarSystemActor`(엔진 기본 구 + `M_Star`, 화면 공간 이름표), 이름표 위젯 `UI/CosmicSystemLabelWidget`(이름과 건설·대응 칸의 진척 막대), 그릴 값 `World/CosmicMapLook`(`LookOf`·`LanesOf` — 상태만 읽는 순수 함수), 머티리얼 스크립트 `Tools/make_materials.py`와 `Content/CA/Materials`의 `M_Star`·`M_Nebula`(쿠킹 폴더에 더했다), 게임 모드의 개발용 인자 `-ShotAfterSeconds`. 승인한 헤더와 다른 곳(guideline §11 Phase 3의 상태 줄): 주인 색은 선의 고리, 머티리얼은 `BeginPlay`의 `LoadObject`, 이름표의 `Shown`, 개발용 인자. 새 테스트 `UI.GalaxyMap`(단언은 변이 22개로 깨뜨려 보았다) — 자동화 테스트 70종이 연속 두 프로세스에서 통과한다. 세계는 그대로다(표현 계층만).
 
-다음: Phase 3의 1번 작업 '성계와 레인 그리기' — 헤더 초안(결정 A~J)의 승인을 기다린다. effort medium, ultracode 끔, 단독(WORKPLAN §2의 Phase 3 행). 헤더가 새로 생기거나 바뀌는 작업은 헤더 먼저 제시 → 승인.
+다음: Phase 3의 2번 작업 '카메라와 선택' — 헤더 초안을 먼저 낸다(1번 작업의 화면에 대한 사용자 의견도 함께 반영). effort medium, ultracode 끔, 단독(WORKPLAN §2의 Phase 3 행). 헤더가 새로 생기거나 바뀌는 작업은 헤더 먼저 제시 → 승인.
 참고: §10.1의 빈 폴더(Core, Data, World, UI, Tests, Content/CA/*)는 Git에 올라가지 않는다. 첫 파일이 생길 때 자연히 생성되므로 `.gitkeep`을 넣지 않는다.

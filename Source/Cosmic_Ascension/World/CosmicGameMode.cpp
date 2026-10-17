@@ -5,12 +5,15 @@
 #include "Components/InputComponent.h"
 #include "Cosmic_Ascension.h"
 #include "Engine/GameInstance.h"
+#include "Engine/World.h"
+#include "TimerManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/DateTime.h"
 #include "Misc/Parse.h"
 #include "Player/PlayerRoleSubsystem.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "UI/CosmicTextPanelWidget.h"
+#include "World/CosmicGalaxyMapActor.h"
 
 ACosmicGameMode::ACosmicGameMode()
 {
@@ -38,6 +41,35 @@ void ACosmicGameMode::StartPlay()
 	}
 
 	Super::StartPlay();
+
+	// The map reads the state from here on; until the camera pawn it is also the view.
+	if (UWorld* World = GetWorld())
+	{
+		// A development aid: -ShotAfterSeconds=N takes one screenshot N seconds in (the first frame of an off-screen run
+		// still compiles shaders). See CLAUDE.md on looking at the screen without a window.
+		float ShotAfter = 0.f;
+		if (FParse::Value(FCommandLine::Get(), TEXT("ShotAfterSeconds="), ShotAfter) && ShotAfter > 0.f)
+		{
+			FTimerHandle Shot;
+			World->GetTimerManager().SetTimer(Shot, FTimerDelegate::CreateWeakLambda(World, [World]()
+			{
+				// Typed as at the console: the player's console reaches the viewport that handles "shot".
+				if (APlayerController* Controller = World->GetFirstPlayerController())
+				{
+					Controller->ConsoleCommand(TEXT("shot showui"));
+				}
+			}), ShotAfter, false);
+		}
+
+		ACosmicGalaxyMapActor* Map = World->SpawnActor<ACosmicGalaxyMapActor>();
+		for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+		{
+			if (APlayerController* Controller = It->Get(); Controller && Map)
+			{
+				Controller->SetViewTarget(Map);
+			}
+		}
+	}
 }
 
 void ACosmicHUD::BeginPlay()

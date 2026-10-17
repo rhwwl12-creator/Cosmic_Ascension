@@ -12,8 +12,9 @@
 class UCosmicTextPanelWidget;
 
 /**
- * Game mode of the galaxy map. Starts a galaxy when none is running (the Phase 1 prototype: five systems, seed from
- * -Seed= on the command line or from the clock) and puts the HUD and the player controller in place.
+ * Game mode of the galaxy map. Starts a galaxy when none is running (the counts of the home galaxy row, seed from -Seed=
+ * on the command line or from the clock), puts the HUD and the player controller in place, and spawns the map
+ * (ACosmicGalaxyMapActor), whose overview camera is the view until the camera pawn of Phase 3 item 2.
  * Selected for every map by GlobalDefaultGameMode in Config/DefaultEngine.ini.
  */
 UCLASS()
