@@ -85,12 +85,28 @@ TSharedRef<SWidget> UCosmicLogEntryWidget::RebuildWidget()
 	return Super::RebuildWidget();
 }
 
+FText CosmicLogFeed::LineText(const UCosmicLogItem& Item, ECosmicTimeUnit Unit)
+{
+	return FText::Format(INVTEXT("[{0}] {1}"), CosmicUI::StampLabel(Item.Tick, Unit), Item.Message);
+}
+
 void UCosmicLogEntryWidget::NativeOnListItemObjectSet(UObject* ListItemObject)
 {
-	const UCosmicLogItem* Item = Cast<UCosmicLogItem>(ListItemObject);
+	ShowItem(Cast<UCosmicLogItem>(ListItemObject));
+}
+
+void UCosmicLogEntryWidget::ShowItem(const UCosmicLogItem* Item)
+{
+	ShownItem = Item;
+	Redraw();
+}
+
+void UCosmicLogEntryWidget::Redraw()
+{
+	const UCosmicLogItem* Item = ShownItem.Get();
 	if (Text && Item)
 	{
-		Text->SetText(FText::Format(INVTEXT("[{0}] {1}"), FText::AsNumber(Item->Tick), Item->Message));
+		Text->SetText(CosmicLogFeed::LineText(*Item, ACosmicPlayerController::TimeUnitFor(*this)));
 		Text->SetColorAndOpacity(FSlateColor(CosmicLogFeed::ColorOf(Item->Severity, Item->Category)));
 	}
 }
@@ -229,6 +245,22 @@ void UCosmicLogFeedWidget::Append(const FCosmicLogEntry& Entry)
 void UCosmicLogFeedWidget::HandleItemClicked(UObject* Item)
 {
 	OpenItem(Cast<UCosmicLogItem>(Item));
+}
+
+void UCosmicLogFeedWidget::RedrawLines()
+{
+	if (!List)
+	{
+		return;
+	}
+	// Only the lines on screen have widgets; a line scrolled into view later is drawn in the new unit when it is set.
+	for (UUserWidget* Shown : List->GetDisplayedEntryWidgets())
+	{
+		if (UCosmicLogEntryWidget* Line = Cast<UCosmicLogEntryWidget>(Shown))
+		{
+			Line->Redraw();
+		}
+	}
 }
 
 void UCosmicLogFeedWidget::OpenItem(UCosmicLogItem* Item)

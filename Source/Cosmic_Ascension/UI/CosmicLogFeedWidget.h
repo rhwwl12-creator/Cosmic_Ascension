@@ -7,6 +7,8 @@
 #include "Blueprint/IUserObjectListEntry.h"
 #include "Blueprint/UserWidget.h"
 #include "GameplayTagContainer.h"
+#include "UI/CosmicUILabels.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "CosmicLogFeedWidget.generated.h"
 
 class UListView;
@@ -28,11 +30,20 @@ public:
 	FName FocusCivID;
 };
 
-/** The widget of one line; the list makes and reuses these. Built in C++ (no WBP). */
+/** The widget of one line; the list makes and reuses these. Built in C++ (no WBP). The stamp follows the clock's unit
+ * of the owning controller. */
 UCLASS(meta = (DisableNativeTick))
 class COSMIC_ASCENSION_API UCosmicLogEntryWidget : public UUserWidget, public IUserObjectListEntry
 {
 	GENERATED_BODY()
+
+public:
+	/** Shows Item (what the list does through NativeOnListItemObjectSet; tests call it on a widget of their own). */
+	void ShowItem(const UCosmicLogItem* Item);
+	/** Draws the shown item again (the clock's unit changed). */
+	void Redraw();
+	/** The line's text block (tests). */
+	const UTextBlock* GetText() const { return Text; }
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -41,6 +52,8 @@ protected:
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> Text;
+
+	TWeakObjectPtr<const UCosmicLogItem> ShownItem;
 };
 
 namespace CosmicLogFeed
@@ -51,6 +64,9 @@ namespace CosmicLogFeed
 
 	/** The lines the feed holds at most (section 9.4). */
 	inline constexpr int32 MaxItems = 500;
+
+	/** The text of a line: its stamp in Unit, then the message ("[1,204] ..." or the year form). */
+	COSMIC_ASCENSION_API FText LineText(const UCosmicLogItem& Item, ECosmicTimeUnit Unit);
 }
 
 /**
@@ -71,6 +87,8 @@ public:
 	const TArray<TObjectPtr<UCosmicLogItem>>& GetItems() const { return Items; }
 	/** What a click on Item does: goes to its system (tests call it in place of a click). */
 	void OpenItem(UCosmicLogItem* Item);
+	/** Draws the shown lines again, their stamps in the clock's unit (the HUD calls it when the unit changes). */
+	void RedrawLines();
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;

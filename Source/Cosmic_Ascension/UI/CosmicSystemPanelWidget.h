@@ -15,7 +15,8 @@ struct FCosmicDataTables;
 
 /**
  * The panel of the selected system, on the right of the screen (hidden with no selection): its name, star class, owner
- * (or none, or destroyed), the hazard standing there with the cycles it has left, the construction and response slots
+ * (or none, or destroyed), the hazard standing there with the time it has left (in the clock's unit - cycles or years,
+ * the controller's choice; the HUD redraws the panel when it changes), the construction and response slots
  * with their progress against what they need - then, for the people the player rules, the commands: one button per
  * project CosmicMegaprojects::CanStart takes on its settled system (rows in lexical order), and on every living system
  * that is not the people's a settle button - greyed out, with the reason as its tooltip and as a line under it, when

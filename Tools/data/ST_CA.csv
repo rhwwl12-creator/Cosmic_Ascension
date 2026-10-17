@@ -30,3 +30,8 @@ Key,SourceString
 "Settle.Block.Settling","이미 다른 곳에 정착하고 있다 — 정착은 한 번에 하나씩이다."
 "Settle.Block.NoRow","정착할 방법이 아직 없다."
 "Settle.Block.RowTier","정착은 칸 {0}부터 할 수 있다."
+"Time.Year","{0}년"
+"Time.YearsLeft","{0}년 남음"
+"Time.YearsPerSecond","{0}년/초"
+"Time.Both","{0} · {1}(첫 기록부터)"
+"Time.Tip","첫 기록부터 센 해 · 1주기 = 1년"

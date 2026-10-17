@@ -234,7 +234,9 @@ void UCosmicSystemPanelWidget::Refresh()
 			{
 				const FHazardDef* Hazard = Tables.FindHazardByTag(System.ActiveHazard);
 				const FText HazardName = Hazard ? Hazard->DisplayName : FText::AsCultureInvariant(System.ActiveHazard.ToString());
-				Lines.Add(FText::Format(INVTEXT("{0}  {1}   {2} {3}"), Label(TEXT("Panel.Hazard")), HazardName, Label(TEXT("Panel.CyclesLeft")), FText::AsNumber(System.HazardTicksRemaining)));
+				// The countdown in the clock's unit (the viewer's choice, guideline 6.3).
+				Lines.Add(FText::Format(INVTEXT("{0}  {1}   {2}"), Label(TEXT("Panel.Hazard")), HazardName,
+					TimeLeftLabel(System.HazardTicksRemaining, ACosmicPlayerController::TimeUnitFor(*this))));
 			}
 			const FText SlotLines[] = {
 				SlotLine(TEXT("Panel.Construction"), Tables, System.ActiveMegaproject, System.MegaprojectProgress),

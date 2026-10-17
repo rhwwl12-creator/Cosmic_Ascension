@@ -2,13 +2,16 @@
 
 #include "World/CosmicGameMode.h"
 
+#include "Blueprint/UserWidget.h"
 #include "Components/InputComponent.h"
+#include "CoreGlobals.h"
 #include "Cosmic_Ascension.h"
 #include "Data/CosmicDataTables.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Math/RotationMatrix.h"
 #include "Misc/CommandLine.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/DateTime.h"
 #include "Misc/Parse.h"
 #include "Player/PlayerRoleSubsystem.h"
@@ -38,6 +41,29 @@ namespace CosmicControlImpl
 	const FVector2D SystemPanelSize(340.f, 460.f);
 	const FVector2D LogPanelSize(620.f, 230.f);
 	constexpr float ScreenMargin = 16.f;
+
+	// The viewer's clock unit (guideline 6.3) is kept in the viewer's GameUserSettings ini (the controller's
+	// TimeUnitSection and TimeUnitKey), not in a galaxy's save.
+	const TCHAR* NameOf(ECosmicTimeUnit Unit)
+	{
+		return Unit == ECosmicTimeUnit::Year ? TEXT("Year") : TEXT("Cycle");
+	}
+
+	// Year or Cycle; anything else is no unit.
+	bool ParseUnit(const FString& Text, ECosmicTimeUnit& OutUnit)
+	{
+		if (Text.Equals(TEXT("Year"), ESearchCase::IgnoreCase))
+		{
+			OutUnit = ECosmicTimeUnit::Year;
+			return true;
+		}
+		if (Text.Equals(TEXT("Cycle"), ESearchCase::IgnoreCase))
+		{
+			OutUnit = ECosmicTimeUnit::Cycle;
+			return true;
+		}
+		return false;
+	}
 }
 
 ACosmicGameMode::ACosmicGameMode()
@@ -162,6 +188,10 @@ void ACosmicHUD::BeginPlay()
 			SystemPanel->ShowSystem(Cosmic->GetSelectedSystem());
 		}
 	}
+	if (ACosmicPlayerController* Cosmic = Cast<ACosmicPlayerController>(Controller))
+	{
+		TimeUnitHandle = Cosmic->OnTimeUnitChanged.AddUObject(this, &ACosmicHUD::HandleTimeUnitChanged);
+	}
 	// Over everything, the whole screen; hidden until an ascension.
 	Overlay = CreateWidget<UCosmicAscensionOverlayWidget>(Controller);
 	if (Overlay)
@@ -175,6 +205,7 @@ void ACosmicHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (ACosmicPlayerController* Cosmic = Cast<ACosmicPlayerController>(GetOwningPlayerController()))
 	{
 		Cosmic->OnSelectionChanged.Remove(SelectionHandle);
+		Cosmic->OnTimeUnitChanged.Remove(TimeUnitHandle);
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -184,6 +215,16 @@ void ACosmicHUD::HandleSelectionChanged(FName SystemID)
 	if (SystemPanel)
 	{
 		SystemPanel->ShowSystem(SystemID);
+	}
+}
+
+void ACosmicHUD::HandleTimeUnitChanged()
+{
+	RefreshPanel();
+	// The feed's lines are drawn once when they arrive; their stamps are redrawn here.
+	if (Feed)
+	{
+		Feed->RedrawLines();
 	}
 }
 
@@ -203,6 +244,53 @@ void ACosmicHUD::RefreshPanel()
 ACosmicPlayerController::ACosmicPlayerController()
 {
 	bShowMouseCursor = true;
+}
+
+void ACosmicPlayerController::PostInitializeComponents()
+{
+	using namespace CosmicControlImpl;
+
+	Super::PostInitializeComponents();
+	// Before the HUD is spawned, so the panels open in the viewer's unit. A value the code does not know reads as none.
+	FString Kept;
+	if (GConfig && GConfig->GetString(TimeUnitSection, TimeUnitKey, Kept, GGameUserSettingsIni))
+	{
+		ParseUnit(Kept, TimeUnit);
+	}
+	FString Given;
+	if (FParse::Value(FCommandLine::Get(), TEXT("TimeUnit="), Given))
+	{
+		ParseUnit(Given, TimeUnit);
+	}
+}
+
+void ACosmicPlayerController::SetTimeUnit(ECosmicTimeUnit Unit)
+{
+	if (Unit == TimeUnit)
+	{
+		return;
+	}
+	TimeUnit = Unit;
+	OnTimeUnitChanged.Broadcast();
+}
+
+void ACosmicPlayerController::ToggleTimeUnit()
+{
+	using namespace CosmicControlImpl;
+
+	SetTimeUnit(TimeUnit == ECosmicTimeUnit::Year ? ECosmicTimeUnit::Cycle : ECosmicTimeUnit::Year);
+	// The viewer's choice outlives the session. A test run on the same machine reads it but never writes it.
+	if (GConfig && !GIsAutomationTesting)
+	{
+		GConfig->SetString(TimeUnitSection, TimeUnitKey, NameOf(TimeUnit), GGameUserSettingsIni);
+		GConfig->Flush(false, GGameUserSettingsIni);
+	}
+}
+
+ECosmicTimeUnit ACosmicPlayerController::TimeUnitFor(const UUserWidget& Widget)
+{
+	const ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(Widget.GetOwningPlayer());
+	return Controller ? Controller->GetTimeUnit() : ECosmicTimeUnit::Cycle;
 }
 
 void ACosmicPlayerController::BeginPlay()

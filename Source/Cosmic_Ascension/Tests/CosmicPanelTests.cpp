@@ -7,9 +7,12 @@
 
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/Button.h"
+#include "Components/ListView.h"
 #include "Components/SlateWrapperTypes.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
+#include "CoreGlobals.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
@@ -22,12 +25,16 @@
 #include "Framework/Application/SlateApplication.h"
 #include "GameplayTagContainer.h"
 #include "Internationalization/StringTableCore.h"
+#include "Layout/Geometry.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeExit.h"
+#include "Rendering/SlateLayoutTransform.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
 #include "UI/CosmicActionButton.h"
+#include "UI/CosmicLogFeedWidget.h"
 #include "UI/CosmicSystemPanelWidget.h"
 #include "UI/CosmicTopBarWidget.h"
 #include "UI/CosmicUILabels.h"
@@ -101,6 +108,35 @@ namespace CosmicPanelTests
 		Table->AddRow(CosmicRows::Rules, Rules);
 		return Table;
 	}
+
+	// The list view in a widget's own tree, or null.
+	UListView* FindList(const UUserWidget& Widget)
+	{
+		UListView* Found = nullptr;
+		if (Widget.WidgetTree)
+		{
+			Widget.WidgetTree->ForEachWidget([&Found](UWidget* Child)
+			{
+				if (!Found)
+				{
+					Found = Cast<UListView>(Child);
+				}
+			});
+		}
+		return Found;
+	}
+
+	// Lets a list view make its line widgets now. A list makes them on Slate's tick with its size on screen, and a
+	// -nullrhi run gives it no size - the list is ticked once here with a size of its own.
+	void DrawListNow(UListView& List)
+	{
+		const TSharedPtr<SWidget> Slate = List.GetCachedWidget();
+		if (Slate.IsValid())
+		{
+			Slate->SlatePrepass(1.f);
+			Slate->Tick(FGeometry::MakeRoot(FVector2f(600.f, 400.f), FSlateLayoutTransform()), FSlateApplication::Get().GetCurrentTime(), 0.f);
+		}
+	}
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicUITopBarAndPanelTest, "Cosmic_Ascension.UI.TopBarAndPanel", CosmicTests::Flags)
@@ -125,14 +161,19 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 		return false;
 	}
 	const FCosmicDataTables GameTables = Sim->GetTables();
+	const ECosmicTimeUnit ViewerUnit = Controller->GetTimeUnit();
 	ON_SCOPE_EXIT
 	{
 		Sim->SetTables(GameTables);
 		Sim->SetTimeScale(0.f);
 		Controller->SelectSystem(NAME_None);
+		Controller->SetTimeUnit(ViewerUnit);
 		Sim->NewGalaxy(42, 5, 3);
 	};
 	Sim->NewGalaxy(42, 0, 0);
+	// The labels below are the cycle forms: the unit is fixed in memory (the developer's own choice may be years, and
+	// a test never writes it - guideline 9.3 UI.TimeUnitToggle).
+	Controller->SetTimeUnit(ECosmicTimeUnit::Cycle);
 	const FString& Placeholder = FStringTableEntry::GetPlaceholderSourceString();
 	FGalaxyState& Live = Sim->GetMutableState();
 	const int32 RuledIndex = Sim->GetStateIndex().FindCiv(Live, Live.Player.RuledCivID);
@@ -163,7 +204,7 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("No label of the top bar is a missing String Table entry"), Shown.Contains(Placeholder));
 		TestTrue(TEXT("The top bar names the ruled people"), Shown.Contains(Live.Civs[RuledIndex].CivName.ToString()));
 		TestTrue(TEXT("and its rung, 1 to 5"), Shown.Contains(FString::Printf(TEXT("%s %d"), *LabelText(TEXT("Panel.Tier")), static_cast<int32>(Live.Civs[RuledIndex].Tier) + 1)));
-		TestTrue(TEXT("and the cycle"), Shown.Contains(FString::Printf(TEXT("%s %lld"), *LabelText(TEXT("Panel.Cycle")), Live.Tick)));
+		TestTrue(TEXT("and the cycle"), Shown.Contains(CosmicUI::ClockLabel(Live.Tick, ECosmicTimeUnit::Cycle).ToString()));
 
 		const TArray<TObjectPtr<UCosmicActionButton>>& Speeds = Bar->GetSpeedButtons();
 		const float Expected[] = { 0.f, 1.f, 2.f, 5.f, 10.f };
@@ -422,7 +463,7 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 		{
 			TestTrue(TEXT("The panel names the hazard"), ReadTexts(*Panel).Contains(HazardRow->DisplayName.ToString()));
 		}
-		TestTrue(TEXT("and the cycles it has left"), ReadTexts(*Panel).Contains(FString::Printf(TEXT("%s 123"), *LabelText(TEXT("Panel.CyclesLeft")))));
+		TestTrue(TEXT("and the cycles it has left"), ReadTexts(*Panel).Contains(CosmicUI::TimeLeftLabel(123, ECosmicTimeUnit::Cycle).ToString()));
 
 		// Two rows added out of lexical order: the buttons come in lexical order.
 		{
@@ -471,7 +512,7 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 			Sim->SetBroadcastEnabled(true);
 			Sim->StepOnce();
 			Sim->SetBroadcastEnabled(bWasBroadcasting);
-			TestTrue(TEXT("A tick redraws the panel through the delegate"), ReadTexts(*HudPanel).Contains(FString::Printf(TEXT("%s %d"), *LabelText(TEXT("Panel.CyclesLeft")), Live.Systems[HomeIndex].HazardTicksRemaining)));
+			TestTrue(TEXT("A tick redraws the panel through the delegate"), ReadTexts(*HudPanel).Contains(CosmicUI::TimeLeftLabel(Live.Systems[HomeIndex].HazardTicksRemaining, ECosmicTimeUnit::Cycle).ToString()));
 			TestEqual(TEXT("(the hazard counted down)"), Live.Systems[HomeIndex].HazardTicksRemaining, 499);
 			Controller->SelectSystem(NAME_None);
 			TestTrue(TEXT("Clearing the selection hides it"), HudPanel->GetVisibility() == ESlateVisibility::Collapsed);
@@ -579,6 +620,243 @@ bool FCosmicUIMouseOnlyAscentTest::RunTest(const FString& Parameters)
 		Sim->RunHeadless(1);
 	}
 	TestEqual(TEXT("The people climbs to the third rung by the buttons alone"), Live.Civs[CivIndex].Tier, EAscensionTier::Tier3_Causal);
+	return true;
+}
+
+// The clock's unit (guideline 2.1, 6.3 - v0.8 step 2): the label functions take the unit, a press on the top bar's clock
+// switches cycles and years for the clock, the speeds, the panel's countdown and the feed's stamps, the mouse on the
+// clock shows both, and the switch moves neither hash nor the viewer's settings file (a test on the developer's machine
+// fixes the unit in memory and never writes the developer's choice).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicUITimeUnitToggleTest, "Cosmic_Ascension.UI.TimeUnitToggle", CosmicTests::Flags)
+bool FCosmicUITimeUnitToggleTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicPanelTests;
+
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	if (!FSlateApplication::IsInitialized())
+	{
+		AddError(TEXT("No Slate application: run the automation tests with -game (see CLAUDE.md)."));
+		return false;
+	}
+	UWorld* World = Sim->GetGameInstance()->GetWorld();
+	ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(World ? World->GetFirstPlayerController() : nullptr);
+	if (!TestNotNull(TEXT("The first player controller is the game's"), Controller))
+	{
+		return false;
+	}
+	const ECosmicTimeUnit ViewerUnit = Controller->GetTimeUnit();
+	ON_SCOPE_EXIT
+	{
+		Sim->SetTimeScale(0.f);
+		Controller->SelectSystem(NAME_None);
+		Controller->SetTimeUnit(ViewerUnit);
+		Sim->NewGalaxy(42, 5, 3);
+	};
+	Sim->NewGalaxy(42, 0, 0);
+	Controller->SetTimeUnit(ECosmicTimeUnit::Cycle);
+	const FString& Placeholder = FStringTableEntry::GetPlaceholderSourceString();
+	// The year word of the String Table (U+B144) and a number past a thousand (the culture groups its digits).
+	const FString YearWord(TEXT("\xB144"));
+	constexpr int64 Tick = 1204;
+	const FString Number = FText::AsNumber(Tick).ToString();
+
+	// ---- The label functions take the unit ----
+	const FString YearStamp = CosmicUI::StampLabel(Tick, ECosmicTimeUnit::Year).ToString();
+	UCosmicLogItem* Item = NewObject<UCosmicLogItem>(GetTransientPackage());
+	Item->Tick = Tick;
+	Item->Message = FText::AsCultureInvariant(TEXT("line"));
+	{
+		const FString CycleClock = CosmicUI::ClockLabel(Tick, ECosmicTimeUnit::Cycle).ToString();
+		const FString YearClock = CosmicUI::ClockLabel(Tick, ECosmicTimeUnit::Year).ToString();
+		TestEqual(TEXT("The cycle clock keeps the Phase 3 form"), CycleClock, FString::Printf(TEXT("%s %s"), *LabelText(TEXT("Panel.Cycle")), *Number));
+		TestTrue(TEXT("The year clock holds the number"), YearClock.Contains(Number));
+		TestTrue(TEXT("The year clock holds the year word"), YearClock.Contains(YearWord));
+		TestFalse(TEXT("The year clock does not say cycle"), YearClock.Contains(LabelText(TEXT("Panel.Cycle"))));
+		const FString Both = CosmicUI::ClockBothLabel(Tick).ToString();
+		TestTrue(TEXT("Both units hold the cycle form"), Both.Contains(CycleClock));
+		TestTrue(TEXT("Both units hold the year form"), Both.Contains(YearClock));
+
+		const FString CycleLeft = CosmicUI::TimeLeftLabel(120, ECosmicTimeUnit::Cycle).ToString();
+		const FString YearLeft = CosmicUI::TimeLeftLabel(120, ECosmicTimeUnit::Year).ToString();
+		TestEqual(TEXT("The cycle countdown keeps the Phase 3 form"), CycleLeft, FString::Printf(TEXT("%s 120"), *LabelText(TEXT("Panel.CyclesLeft"))));
+		TestTrue(TEXT("The year countdown holds the number"), YearLeft.Contains(TEXT("120")));
+		TestTrue(TEXT("The year countdown holds the year word"), YearLeft.Contains(YearWord));
+		TestFalse(TEXT("The year countdown does not say cycles left"), YearLeft.Contains(LabelText(TEXT("Panel.CyclesLeft"))));
+
+		TestEqual(TEXT("The cycle stamp is the bare number"), CosmicUI::StampLabel(Tick, ECosmicTimeUnit::Cycle).ToString(), Number);
+		TestTrue(TEXT("The year stamp holds the number"), YearStamp.Contains(Number));
+		TestTrue(TEXT("The year stamp holds the year word"), YearStamp.Contains(YearWord));
+
+		TestEqual(TEXT("A speed in cycles is x2"), CosmicUI::SpeedLabel(2.f, ECosmicTimeUnit::Cycle).ToString(), FString(TEXT("x2")));
+		const FString YearSpeed = CosmicUI::SpeedLabel(2.f, ECosmicTimeUnit::Year).ToString();
+		TestTrue(TEXT("A speed in years holds the number"), YearSpeed.Contains(TEXT("2")));
+		TestTrue(TEXT("A speed in years holds the year word"), YearSpeed.Contains(YearWord));
+		TestEqual(TEXT("The pause is the pause in cycles"), CosmicUI::SpeedLabel(0.f, ECosmicTimeUnit::Cycle).ToString(), LabelText(TEXT("Speed.Pause")));
+		TestEqual(TEXT("and in years"), CosmicUI::SpeedLabel(0.f, ECosmicTimeUnit::Year).ToString(), LabelText(TEXT("Speed.Pause")));
+
+		TestEqual(TEXT("A line in cycles is [number] message"), CosmicLogFeed::LineText(*Item, ECosmicTimeUnit::Cycle).ToString(), FString::Printf(TEXT("[%s] line"), *Number));
+		TestEqual(TEXT("A line in years carries the year stamp"), CosmicLogFeed::LineText(*Item, ECosmicTimeUnit::Year).ToString(), FString::Printf(TEXT("[%s] line"), *YearStamp));
+
+		const FString Shown[] = { CycleClock, YearClock, Both, CycleLeft, YearLeft, YearStamp, YearSpeed, LabelText(TEXT("Time.Tip")) };
+		for (const FString& Text : Shown)
+		{
+			TestFalse(*FString::Printf(TEXT("No missing String Table entry in '%s'"), *Text), Text.Contains(Placeholder));
+		}
+	}
+
+	// ---- A change is announced once ----
+	{
+		int32 Announced = 0;
+		const FDelegateHandle Probe = Controller->OnTimeUnitChanged.AddLambda([&Announced]() { ++Announced; });
+		Controller->SetTimeUnit(ECosmicTimeUnit::Year);
+		Controller->SetTimeUnit(ECosmicTimeUnit::Year);
+		Controller->OnTimeUnitChanged.Remove(Probe);
+		TestEqual(TEXT("Setting the same unit twice announces one change"), Announced, 1);
+		Controller->SetTimeUnit(ECosmicTimeUnit::Cycle);
+	}
+
+	// ---- The scene: a clock past a thousand, a hazard counting down at home, home selected on the HUD ----
+	FGalaxyState& Live = Sim->GetMutableState();
+	const int32 RuledIndex = Sim->GetStateIndex().FindCiv(Live, Live.Player.RuledCivID);
+	if (!TestTrue(TEXT("(the player rules a people)"), Live.Civs.IsValidIndex(RuledIndex)))
+	{
+		return false;
+	}
+	const FName Home = Live.Civs[RuledIndex].HomeSystemID;
+	const int32 HomeIndex = Sim->GetStateIndex().FindSystem(Live, Home);
+	if (!TestTrue(TEXT("(the ruled people has its home system)"), Live.Systems.IsValidIndex(HomeIndex)))
+	{
+		return false;
+	}
+	Live.Tick = Tick;
+	Live.Systems[HomeIndex].ActiveHazard = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.AIAwakening")));
+	Live.Systems[HomeIndex].HazardTicksRemaining = 120;
+	Controller->SelectSystem(Home);
+	ACosmicHUD* HUD = Controller->GetHUD<ACosmicHUD>();
+	UCosmicTopBarWidget* HudBar = HUD ? HUD->GetTopBar() : nullptr;
+	UCosmicSystemPanelWidget* HudPanel = HUD ? HUD->GetSystemPanel() : nullptr;
+	UCosmicLogFeedWidget* HudFeed = HUD ? HUD->GetLogFeed() : nullptr;
+	if (!TestNotNull(TEXT("The HUD has its top bar"), HudBar) || !TestNotNull(TEXT("The HUD has its system panel"), HudPanel)
+		|| !TestNotNull(TEXT("The HUD has its log feed"), HudFeed) || !TestNotNull(TEXT("(the HUD's top bar has its clock)"), HudBar->GetClockText()))
+	{
+		return false;
+	}
+	HUD->RefreshPanel();
+	// The HUD feed's lines on screen (the new galaxy's first lines), drawn now.
+	UListView* FeedList = FindList(*HudFeed);
+	if (!TestNotNull(TEXT("(the HUD feed has its list)"), FeedList))
+	{
+		return false;
+	}
+	DrawListNow(*FeedList);
+	auto FeedTexts = [FeedList]()
+	{
+		TArray<FString> Texts;
+		for (const UUserWidget* Entry : FeedList->GetDisplayedEntryWidgets())
+		{
+			const UCosmicLogEntryWidget* FeedLine = Cast<UCosmicLogEntryWidget>(Entry);
+			Texts.Add(FeedLine && FeedLine->GetText() ? FeedLine->GetText()->GetText().ToString() : FString());
+		}
+		return Texts;
+	};
+	const TArray<FString> CycleLines = FeedTexts();
+	if (!TestTrue(TEXT("(the HUD feed draws the galaxy's lines)"), CycleLines.Num() > 0))
+	{
+		return false;
+	}
+	for (const FString& Text : CycleLines)
+	{
+		TestTrue(*FString::Printf(TEXT("A feed line starts with a stamp: %s"), *Text), Text.StartsWith(TEXT("[")));
+		TestFalse(*FString::Printf(TEXT("and the stamp is in cycles: %s"), *Text), Text.Contains(YearWord + TEXT("]")));
+	}
+
+	// ---- The top bar's clock ----
+	UCosmicTopBarWidget* Bar = CreateWidget<UCosmicTopBarWidget>(Controller);
+	if (!TestNotNull(TEXT("The top bar can be created"), Bar))
+	{
+		return false;
+	}
+	const TSharedRef<SWidget> SlateBar = Bar->TakeWidget();
+	Bar->Refresh();
+	if (!TestNotNull(TEXT("The bar has its clock"), Bar->GetClockText()) || !TestNotNull(TEXT("The bar has its clock's button"), Bar->GetClockButton())
+		|| !TestEqual(TEXT("(five speed buttons)"), Bar->GetSpeedButtons().Num(), 5))
+	{
+		return false;
+	}
+	auto ClockShown = [Bar]() { return Bar->GetClockText()->GetText().ToString(); };
+	auto SpeedShown = [Bar]() { return Bar->GetSpeedButtons()[2]->GetLabel().ToString(); };
+	TestEqual(TEXT("The clock starts in cycles"), ClockShown(), CosmicUI::ClockLabel(Tick, ECosmicTimeUnit::Cycle).ToString());
+	TestEqual(TEXT("The speeds start in cycles"), SpeedShown(), CosmicUI::SpeedLabel(2.f, ECosmicTimeUnit::Cycle).ToString());
+	TestEqual(TEXT("The clock's tooltip says what a year is"), Bar->GetClockButton()->GetToolTipText().ToString(), LabelText(TEXT("Time.Tip")));
+
+	// A line drawn by a widget of the test's own.
+	UCosmicLogEntryWidget* Line = CreateWidget<UCosmicLogEntryWidget>(Controller);
+	if (!TestNotNull(TEXT("A feed line can be created"), Line))
+	{
+		return false;
+	}
+	const TSharedRef<SWidget> SlateLine = Line->TakeWidget();
+	Line->ShowItem(Item);
+	if (!TestNotNull(TEXT("(the line has its text)"), Line->GetText()))
+	{
+		return false;
+	}
+	TestEqual(TEXT("A line starts with the cycle stamp"), Line->GetText()->GetText().ToString(), CosmicLogFeed::LineText(*Item, ECosmicTimeUnit::Cycle).ToString());
+
+	const uint32 StateHash = Sim->ComputeStateHash();
+	const uint32 WorldHash = Sim->ComputeWorldHash();
+	FString KeptBefore;
+	const bool bKeptBefore = GConfig && GConfig->GetString(ACosmicPlayerController::TimeUnitSection, ACosmicPlayerController::TimeUnitKey, KeptBefore, GGameUserSettingsIni);
+	auto NothingWritten = [&](const TCHAR* When)
+	{
+		FString KeptNow;
+		const bool bKeptNow = GConfig && GConfig->GetString(ACosmicPlayerController::TimeUnitSection, ACosmicPlayerController::TimeUnitKey, KeptNow, GGameUserSettingsIni);
+		TestEqual(*FString::Printf(TEXT("%s, the viewer's settings hold the same entry or none"), When), bKeptNow, bKeptBefore);
+		TestEqual(*FString::Printf(TEXT("%s, the viewer's settings keep their value"), When), KeptNow, KeptBefore);
+		TestEqual(*FString::Printf(TEXT("%s, the state hash is the same"), When), Sim->ComputeStateHash(), StateHash);
+		TestEqual(*FString::Printf(TEXT("%s, the world hash is the same"), When), Sim->ComputeWorldHash(), WorldHash);
+	};
+
+	Bar->PressClock();
+	TestTrue(TEXT("A press on the clock turns it to years"), Controller->GetTimeUnit() == ECosmicTimeUnit::Year);
+	TestEqual(TEXT("The clock shows years"), ClockShown(), CosmicUI::ClockLabel(Tick, ECosmicTimeUnit::Year).ToString());
+	TestEqual(TEXT("The speeds follow the clock"), SpeedShown(), CosmicUI::SpeedLabel(2.f, ECosmicTimeUnit::Year).ToString());
+	TestEqual(TEXT("The pause stays the pause"), Bar->GetSpeedButtons()[0]->GetLabel().ToString(), LabelText(TEXT("Speed.Pause")));
+	TestEqual(TEXT("The HUD's clock follows"), HudBar->GetClockText()->GetText().ToString(), CosmicUI::ClockLabel(Tick, ECosmicTimeUnit::Year).ToString());
+	TestTrue(TEXT("The HUD panel's countdown follows"), ReadTexts(*HudPanel).Contains(CosmicUI::TimeLeftLabel(120, ECosmicTimeUnit::Year).ToString()));
+	const TArray<FString> YearLines = FeedTexts();
+	TestEqual(TEXT("The HUD feed keeps its lines"), YearLines.Num(), CycleLines.Num());
+	for (const FString& Text : YearLines)
+	{
+		TestTrue(*FString::Printf(TEXT("A feed line on screen takes the year stamp: %s"), *Text), Text.Contains(YearWord + TEXT("]")));
+	}
+	Line->Redraw();
+	TestEqual(TEXT("A redrawn line takes the year stamp"), Line->GetText()->GetText().ToString(), CosmicLogFeed::LineText(*Item, ECosmicTimeUnit::Year).ToString());
+	NothingWritten(TEXT("After the first press"));
+
+	// The mouse on the clock shows both units; off it, the chosen one.
+	Bar->SetClockHovered(true);
+	TestEqual(TEXT("The mouse on the clock shows both units"), ClockShown(), CosmicUI::ClockBothLabel(Tick).ToString());
+	Bar->SetClockHovered(false);
+	TestEqual(TEXT("Off the clock it shows the chosen unit"), ClockShown(), CosmicUI::ClockLabel(Tick, ECosmicTimeUnit::Year).ToString());
+
+	Bar->PressClock();
+	TestTrue(TEXT("A second press turns it back to cycles"), Controller->GetTimeUnit() == ECosmicTimeUnit::Cycle);
+	TestEqual(TEXT("The clock shows cycles again"), ClockShown(), CosmicUI::ClockLabel(Tick, ECosmicTimeUnit::Cycle).ToString());
+	TestEqual(TEXT("and the speeds"), SpeedShown(), CosmicUI::SpeedLabel(2.f, ECosmicTimeUnit::Cycle).ToString());
+	TestTrue(TEXT("and the HUD panel's countdown"), ReadTexts(*HudPanel).Contains(CosmicUI::TimeLeftLabel(120, ECosmicTimeUnit::Cycle).ToString()));
+	const TArray<FString> CycleAgain = FeedTexts();
+	for (const FString& Text : CycleAgain)
+	{
+		TestFalse(*FString::Printf(TEXT("A feed line on screen takes the cycle stamp again: %s"), *Text), Text.Contains(YearWord + TEXT("]")));
+	}
+	Line->Redraw();
+	TestEqual(TEXT("A redrawn line takes the cycle stamp again"), Line->GetText()->GetText().ToString(), CosmicLogFeed::LineText(*Item, ECosmicTimeUnit::Cycle).ToString());
+	NothingWritten(TEXT("After the second press"));
 	return true;
 }
 

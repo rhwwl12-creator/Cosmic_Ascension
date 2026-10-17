@@ -3,7 +3,9 @@
 #include "UI/CosmicTopBarWidget.h"
 
 #include "Blueprint/WidgetTree.h"
+#include "Brushes/SlateNoResource.h"
 #include "Components/Border.h"
+#include "Components/Button.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/SlateWrapperTypes.h"
@@ -12,8 +14,11 @@
 #include "Engine/GameInstance.h"
 #include "Layout/Margin.h"
 #include "Sim/GalaxySimulationSubsystem.h"
+#include "Styling/SlateColor.h"
+#include "Styling/SlateTypes.h"
 #include "UI/CosmicActionButton.h"
 #include "UI/CosmicUILabels.h"
+#include "UObject/UnrealType.h"
 #include "World/CosmicGameMode.h"
 
 // Helpers of this file. A named namespace: the module is built as one unity file.
@@ -23,6 +28,9 @@ namespace CosmicTopBarImpl
 	// Pause first; the keys 0 to 4 set the same speeds.
 	constexpr float Speeds[] = { 0.f, 1.f, 2.f, 5.f, 10.f };
 	const FLinearColor BandColor(0.01f, 0.01f, 0.03f, 0.8f);
+	// The clock's text, and its colour while the mouse is on it (a press does something there).
+	const FLinearColor ClockColor = FLinearColor::White;
+	const FLinearColor ClockHoverColor(1.f, 0.82f, 0.4f);
 }
 
 TSharedRef<SWidget> UCosmicTopBarWidget::RebuildWidget()
@@ -46,22 +54,43 @@ TSharedRef<SWidget> UCosmicTopBarWidget::RebuildWidget()
 		StatusSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		StatusSlot->SetVerticalAlignment(VAlign_Center);
 
-		CycleText = CosmicUI::MakeText(*WidgetTree, 14, false);
-		UHorizontalBoxSlot* CycleSlot = Row->AddChildToHorizontalBox(CycleText);
-		CycleSlot->SetVerticalAlignment(VAlign_Center);
-		CycleSlot->SetPadding(FMargin(16.f, 0.f, 12.f, 0.f));
+		// The clock: a flat button around the text (no brush in any state, no padding shift when pressed).
+		ClockButton = WidgetTree->ConstructWidget<UButton>();
+		// Before the Slate button exists: a focusable button keeps the keyboard focus after a click and Space presses it.
+		// UButton keeps its initializer of IsFocusable protected (5.8), so the property is set through reflection.
+		if (FBoolProperty* Focusable = FindFProperty<FBoolProperty>(UButton::StaticClass(), TEXT("IsFocusable")))
+		{
+			Focusable->SetPropertyValue_InContainer(ClockButton, false);
+		}
+		FButtonStyle Flat = ClockButton->GetStyle();
+		const FSlateNoResource NoBrush;
+		Flat.SetNormal(NoBrush).SetHovered(NoBrush).SetPressed(NoBrush).SetDisabled(NoBrush);
+		Flat.SetNormalPadding(FMargin(0.f)).SetPressedPadding(FMargin(0.f));
+		ClockButton->SetStyle(Flat);
+		ClockButton->OnClicked.AddUniqueDynamic(this, &UCosmicTopBarWidget::HandleClockClicked);
+		ClockButton->OnHovered.AddUniqueDynamic(this, &UCosmicTopBarWidget::HandleClockHovered);
+		ClockButton->OnUnhovered.AddUniqueDynamic(this, &UCosmicTopBarWidget::HandleClockUnhovered);
+		// Set once: SetToolTipText builds a new Slate tooltip each time.
+		ClockButton->SetToolTipText(CosmicUI::Label(TEXT("Time.Tip")));
+		ClockText = CosmicUI::MakeText(*WidgetTree, 14, false);
+		ClockText->SetColorAndOpacity(FSlateColor(ClockColor));
+		ClockButton->AddChild(ClockText);
+		UHorizontalBoxSlot* ClockSlot = Row->AddChildToHorizontalBox(ClockButton);
+		ClockSlot->SetVerticalAlignment(VAlign_Center);
+		ClockSlot->SetPadding(FMargin(16.f, 0.f, 12.f, 0.f));
 
+		// Labelled in the cycle form here; Refresh relabels them in the controller's unit.
 		for (const float Speed : Speeds)
 		{
 			UCosmicActionButton* Button = WidgetTree->ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
-			const FText Label = Speed > 0.f ? FText::Format(INVTEXT("x{0}"), CosmicUI::WholeNumber(Speed)) : CosmicUI::Label(TEXT("Speed.Pause"));
-			Button->Setup(SpeedAction, Speed, Label);
+			Button->Setup(SpeedAction, Speed, CosmicUI::SpeedLabel(Speed, ECosmicTimeUnit::Cycle));
 			Button->OnAction.AddUObject(this, &UCosmicTopBarWidget::HandleSpeed);
 			UHorizontalBoxSlot* ButtonSlot = Row->AddChildToHorizontalBox(Button);
 			ButtonSlot->SetVerticalAlignment(VAlign_Center);
 			ButtonSlot->SetPadding(FMargin(2.f, 0.f));
 			SpeedButtons.Add(Button);
 		}
+		LabelledUnit = ECosmicTimeUnit::Cycle;
 	}
 	return Super::RebuildWidget();
 }
@@ -111,6 +140,41 @@ void UCosmicTopBarWidget::HandleSpeed(FName Action, float Value)
 	Refresh();
 }
 
+void UCosmicTopBarWidget::HandleClockClicked()
+{
+	PressClock();
+}
+
+void UCosmicTopBarWidget::HandleClockHovered()
+{
+	SetClockHovered(true);
+}
+
+void UCosmicTopBarWidget::HandleClockUnhovered()
+{
+	SetClockHovered(false);
+}
+
+void UCosmicTopBarWidget::PressClock()
+{
+	// The controller announces the change and the HUD redraws its panels; this bar may not be the HUD's (tests).
+	if (ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer()))
+	{
+		Controller->ToggleTimeUnit();
+	}
+	Refresh();
+}
+
+void UCosmicTopBarWidget::SetClockHovered(bool bHovered)
+{
+	bClockHovered = bHovered;
+	if (ClockText)
+	{
+		ClockText->SetColorAndOpacity(FSlateColor(bHovered ? CosmicTopBarImpl::ClockHoverColor : CosmicTopBarImpl::ClockColor));
+	}
+	Refresh();
+}
+
 void UCosmicTopBarWidget::Refresh()
 {
 	using namespace CosmicUI;
@@ -144,17 +208,28 @@ void UCosmicTopBarWidget::Refresh()
 	{
 		StatusText->SetText(FText::GetEmpty());
 	}
-	CycleText->SetText(FText::Format(INVTEXT("{0} {1}"), Label(TEXT("Panel.Cycle")), FText::AsNumber(State.Tick)));
+	// The viewer's unit; the mouse on the clock shows both.
+	const ECosmicTimeUnit Unit = ACosmicPlayerController::TimeUnitFor(*this);
+	if (ClockText)
+	{
+		ClockText->SetText(bClockHovered ? ClockBothLabel(State.Tick) : ClockLabel(State.Tick, Unit));
+	}
 
-	// The current speed's button is greyed out (and a click on it would change nothing).
+	// The current speed's button is greyed out (and a click on it would change nothing). The labels follow the unit.
+	const bool bRelabel = !LabelledUnit.IsSet() || LabelledUnit.GetValue() != Unit;
 	const float Current = Sim->GetTimeScale();
 	for (UCosmicActionButton* Button : SpeedButtons)
 	{
 		if (Button)
 		{
+			if (bRelabel)
+			{
+				Button->Setup(Button->GetAction(), Button->GetValue(), SpeedLabel(Button->GetValue(), Unit));
+			}
 			Button->SetIsEnabled(!FMath::IsNearlyEqual(Button->GetValue(), Current));
 		}
 	}
+	LabelledUnit = Unit;
 }
 
 FReply UCosmicTopBarWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
