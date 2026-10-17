@@ -11,8 +11,8 @@
 
 class ACosmicCameraPawn;
 class ACosmicGalaxyMapActor;
+class UCosmicLogFeedWidget;
 class UCosmicSystemPanelWidget;
-class UCosmicTextPanelWidget;
 class UCosmicTopBarWidget;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnCosmicSelectionChanged, FName /* SystemID, None when cleared */);
@@ -37,7 +37,7 @@ public:
 
 /**
  * Puts the panels on the screen: the top bar along the top, the system panel on the right (it follows the controller's
- * selection) and the log tail of the Phase 1 text panel at the bottom left (until the feed of Phase 3 item 4).
+ * selection) and the log feed at the bottom left.
  */
 UCLASS()
 class COSMIC_ASCENSION_API ACosmicHUD : public AHUD
@@ -50,7 +50,7 @@ public:
 
 	UCosmicTopBarWidget* GetTopBar() const { return TopBar; }
 	UCosmicSystemPanelWidget* GetSystemPanel() const { return SystemPanel; }
-	UCosmicTextPanelWidget* GetLogPanel() const { return Panel; }
+	UCosmicLogFeedWidget* GetLogFeed() const { return Feed; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -60,7 +60,7 @@ private:
 	void HandleSelectionChanged(FName SystemID);
 
 	UPROPERTY(Transient)
-	TObjectPtr<UCosmicTextPanelWidget> Panel;
+	TObjectPtr<UCosmicLogFeedWidget> Feed;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCosmicTopBarWidget> TopBar;
@@ -100,6 +100,10 @@ public:
 	 * project_settle on the wild SystemID). On success redraws the HUD and asks the map to redraw. */
 	bool StartProject(FName SystemID, FName RowName);
 
+	/** Selects SystemID and glides the camera to it, as a double click on its star does (the log feed's lines too). False
+	 * when the map holds no such star. */
+	bool SelectAndFocus(FName SystemID);
+
 	/** Development aid: selects and focuses a system as a double click on it would ("CosmicSelect sol" at the console or
 	 * in -ExecCmds). Waits for the map when given before it is built. */
 	UFUNCTION(Exec)
@@ -125,8 +129,6 @@ private:
 	FName PickAtCursor() const;
 	// The point of the disc plane under a screen position.
 	bool DiscPointAt(const FVector2D& Screen, FVector& OutPoint) const;
-	// Selects and focuses SystemID when the map holds it; false otherwise.
-	bool SelectAndFocus(FName SystemID);
 	ACosmicCameraPawn* GetCameraPawn() const;
 
 	// Speed to return to when the pause is released.

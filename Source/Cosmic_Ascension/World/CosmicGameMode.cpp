@@ -13,8 +13,8 @@
 #include "Player/PlayerRoleSubsystem.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "TimerManager.h"
+#include "UI/CosmicLogFeedWidget.h"
 #include "UI/CosmicSystemPanelWidget.h"
-#include "UI/CosmicTextPanelWidget.h"
 #include "UI/CosmicTopBarWidget.h"
 #include "Widgets/Layout/Anchors.h"
 #include "World/CosmicCameraPawn.h"
@@ -116,16 +116,16 @@ void ACosmicHUD::BeginPlay()
 	{
 		return;
 	}
-	// The log tail at the bottom left.
-	Panel = CreateWidget<UCosmicTextPanelWidget>(Controller);
-	if (Panel)
+	// The log feed at the bottom left.
+	Feed = CreateWidget<UCosmicLogFeedWidget>(Controller);
+	if (Feed)
 	{
 		// Position and size first: both reset the anchors to the top left (UGameViewportSubsystem), so the anchors come last.
-		Panel->AddToViewport();
-		Panel->SetPositionInViewport(FVector2D(ScreenMargin, -ScreenMargin), false);
-		Panel->SetDesiredSizeInViewport(LogPanelSize);
-		Panel->SetAnchorsInViewport(FAnchors(0.f, 1.f));
-		Panel->SetAlignmentInViewport(FVector2D(0.f, 1.f));
+		Feed->AddToViewport();
+		Feed->SetPositionInViewport(FVector2D(ScreenMargin, -ScreenMargin), false);
+		Feed->SetDesiredSizeInViewport(LogPanelSize);
+		Feed->SetAnchorsInViewport(FAnchors(0.f, 1.f));
+		Feed->SetAlignmentInViewport(FVector2D(0.f, 1.f));
 	}
 	// Along the top, the full width (a horizontal stretch: the size's X is the right inset).
 	TopBar = CreateWidget<UCosmicTopBarWidget>(Controller);
@@ -172,10 +172,7 @@ void ACosmicHUD::HandleSelectionChanged(FName SystemID)
 
 void ACosmicHUD::RefreshPanel()
 {
-	if (Panel)
-	{
-		Panel->Refresh();
-	}
+	// The feed follows the log through its own delegate; a command adds no line of its own.
 	if (TopBar)
 	{
 		TopBar->Refresh();
