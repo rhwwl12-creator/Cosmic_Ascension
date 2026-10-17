@@ -701,7 +701,7 @@ bool FCosmicUITimeUnitToggleTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("A line in cycles is [number] message"), CosmicLogFeed::LineText(*Item, ECosmicTimeUnit::Cycle).ToString(), FString::Printf(TEXT("[%s] line"), *Number));
 		TestEqual(TEXT("A line in years carries the year stamp"), CosmicLogFeed::LineText(*Item, ECosmicTimeUnit::Year).ToString(), FString::Printf(TEXT("[%s] line"), *YearStamp));
 
-		const FString Shown[] = { CycleClock, YearClock, Both, CycleLeft, YearLeft, YearStamp, YearSpeed, LabelText(TEXT("Time.Tip")) };
+		const FString Shown[] = { CycleClock, YearClock, Both, CycleLeft, YearLeft, YearStamp, YearSpeed, LabelText(TEXT("Time.Tip")), LabelText(TEXT("Time.TipPress")) };
 		for (const FString& Text : Shown)
 		{
 			TestFalse(*FString::Printf(TEXT("No missing String Table entry in '%s'"), *Text), Text.Contains(Placeholder));
@@ -791,7 +791,9 @@ bool FCosmicUITimeUnitToggleTest::RunTest(const FString& Parameters)
 	auto SpeedShown = [Bar]() { return Bar->GetSpeedButtons()[2]->GetLabel().ToString(); };
 	TestEqual(TEXT("The clock starts in cycles"), ClockShown(), CosmicUI::ClockLabel(Tick, ECosmicTimeUnit::Cycle).ToString());
 	TestEqual(TEXT("The speeds start in cycles"), SpeedShown(), CosmicUI::SpeedLabel(2.f, ECosmicTimeUnit::Cycle).ToString());
-	TestEqual(TEXT("The clock's tooltip says what a year is"), Bar->GetClockButton()->GetToolTipText().ToString(), LabelText(TEXT("Time.Tip")));
+	const FString ClockTip = Bar->GetClockButton()->GetToolTipText().ToString();
+	TestTrue(TEXT("The clock's tooltip says what a year is"), ClockTip.Contains(LabelText(TEXT("Time.Tip"))));
+	TestTrue(TEXT("and that a press switches the unit"), ClockTip.Contains(LabelText(TEXT("Time.TipPress"))));
 
 	// A line drawn by a widget of the test's own.
 	UCosmicLogEntryWidget* Line = CreateWidget<UCosmicLogEntryWidget>(Controller);

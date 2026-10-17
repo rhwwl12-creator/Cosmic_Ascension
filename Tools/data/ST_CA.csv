@@ -35,3 +35,4 @@ Key,SourceString
 "Time.YearsPerSecond","{0}년/초"
 "Time.Both","{0} · {1}(첫 기록부터)"
 "Time.Tip","첫 기록부터 센 해 · 1주기 = 1년"
+"Time.TipPress","누르면 주기와 해가 바뀐다."

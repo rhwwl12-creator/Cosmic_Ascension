@@ -70,8 +70,9 @@ TSharedRef<SWidget> UCosmicTopBarWidget::RebuildWidget()
 		ClockButton->OnClicked.AddUniqueDynamic(this, &UCosmicTopBarWidget::HandleClockClicked);
 		ClockButton->OnHovered.AddUniqueDynamic(this, &UCosmicTopBarWidget::HandleClockHovered);
 		ClockButton->OnUnhovered.AddUniqueDynamic(this, &UCosmicTopBarWidget::HandleClockUnhovered);
-		// Set once: SetToolTipText builds a new Slate tooltip each time.
-		ClockButton->SetToolTipText(CosmicUI::Label(TEXT("Time.Tip")));
+		// Set once: SetToolTipText builds a new Slate tooltip each time. What a year is, then what a press does (a flat
+		// button does not look pressable).
+		ClockButton->SetToolTipText(FText::Format(INVTEXT("{0}\n{1}"), CosmicUI::Label(TEXT("Time.Tip")), CosmicUI::Label(TEXT("Time.TipPress"))));
 		ClockText = CosmicUI::MakeText(*WidgetTree, 14, false);
 		ClockText->SetColorAndOpacity(FSlateColor(ClockColor));
 		ClockButton->AddChild(ClockText);
