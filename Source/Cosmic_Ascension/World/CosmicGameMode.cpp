@@ -13,7 +13,10 @@
 #include "Player/PlayerRoleSubsystem.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "TimerManager.h"
+#include "UI/CosmicSystemPanelWidget.h"
 #include "UI/CosmicTextPanelWidget.h"
+#include "UI/CosmicTopBarWidget.h"
+#include "Widgets/Layout/Anchors.h"
 #include "World/CosmicCameraPawn.h"
 #include "World/CosmicGalaxyMapActor.h"
 #include "World/CosmicMapPick.h"
@@ -27,6 +30,12 @@ namespace CosmicControlImpl
 	// A left press that moves further than this is a pan, not a click.
 	constexpr float DragPixels = 6.f;
 	constexpr float OrbitDegreesPerPixel = 0.25f;
+
+	// The places of the panels on the screen (slate units).
+	constexpr float TopBarHeight = 40.f;
+	const FVector2D SystemPanelSize(340.f, 460.f);
+	const FVector2D LogPanelSize(620.f, 230.f);
+	constexpr float ScreenMargin = 16.f;
 }
 
 ACosmicGameMode::ACosmicGameMode()
@@ -98,15 +107,66 @@ void ACosmicGameMode::StartPlay()
 
 void ACosmicHUD::BeginPlay()
 {
+	using namespace CosmicControlImpl;
+
 	Super::BeginPlay();
 
-	if (APlayerController* Controller = GetOwningPlayerController())
+	APlayerController* Controller = GetOwningPlayerController();
+	if (!Controller)
 	{
-		Panel = CreateWidget<UCosmicTextPanelWidget>(Controller);
-		if (Panel)
+		return;
+	}
+	// The log tail at the bottom left.
+	Panel = CreateWidget<UCosmicTextPanelWidget>(Controller);
+	if (Panel)
+	{
+		// Position and size first: both reset the anchors to the top left (UGameViewportSubsystem), so the anchors come last.
+		Panel->AddToViewport();
+		Panel->SetPositionInViewport(FVector2D(ScreenMargin, -ScreenMargin), false);
+		Panel->SetDesiredSizeInViewport(LogPanelSize);
+		Panel->SetAnchorsInViewport(FAnchors(0.f, 1.f));
+		Panel->SetAlignmentInViewport(FVector2D(0.f, 1.f));
+	}
+	// Along the top, the full width (a horizontal stretch: the size's X is the right inset).
+	TopBar = CreateWidget<UCosmicTopBarWidget>(Controller);
+	if (TopBar)
+	{
+		TopBar->AddToViewport(1);
+		TopBar->SetPositionInViewport(FVector2D::ZeroVector, false);
+		TopBar->SetDesiredSizeInViewport(FVector2D(0.f, TopBarHeight));
+		TopBar->SetAnchorsInViewport(FAnchors(0.f, 0.f, 1.f, 0.f));
+	}
+	// On the right under the bar; it follows the controller's selection.
+	SystemPanel = CreateWidget<UCosmicSystemPanelWidget>(Controller);
+	if (SystemPanel)
+	{
+		SystemPanel->AddToViewport(1);
+		SystemPanel->SetPositionInViewport(FVector2D(-ScreenMargin, TopBarHeight + ScreenMargin), false);
+		SystemPanel->SetDesiredSizeInViewport(SystemPanelSize);
+		SystemPanel->SetAnchorsInViewport(FAnchors(1.f, 0.f));
+		SystemPanel->SetAlignmentInViewport(FVector2D(1.f, 0.f));
+		if (ACosmicPlayerController* Cosmic = Cast<ACosmicPlayerController>(Controller))
 		{
-			Panel->AddToViewport();
+			SelectionHandle = Cosmic->OnSelectionChanged.AddUObject(this, &ACosmicHUD::HandleSelectionChanged);
+			SystemPanel->ShowSystem(Cosmic->GetSelectedSystem());
 		}
+	}
+}
+
+void ACosmicHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (ACosmicPlayerController* Cosmic = Cast<ACosmicPlayerController>(GetOwningPlayerController()))
+	{
+		Cosmic->OnSelectionChanged.Remove(SelectionHandle);
+	}
+	Super::EndPlay(EndPlayReason);
+}
+
+void ACosmicHUD::HandleSelectionChanged(FName SystemID)
+{
+	if (SystemPanel)
+	{
+		SystemPanel->ShowSystem(SystemID);
 	}
 }
 
@@ -115,6 +175,14 @@ void ACosmicHUD::RefreshPanel()
 	if (Panel)
 	{
 		Panel->Refresh();
+	}
+	if (TopBar)
+	{
+		TopBar->Refresh();
+	}
+	if (SystemPanel)
+	{
+		SystemPanel->Refresh();
 	}
 }
 
@@ -235,7 +303,6 @@ void ACosmicPlayerController::SetupInputComponent()
 	{
 		InputComponent->BindKey(Key, IE_Pressed, this, &ACosmicPlayerController::HandleSpeedKey);
 	}
-	InputComponent->BindKey(EKeys::P, IE_Pressed, this, &ACosmicPlayerController::HandleProjectKey);
 
 	InputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this, &ACosmicPlayerController::HandleLeftPressed);
 	InputComponent->BindKey(EKeys::LeftMouseButton, IE_Released, this, &ACosmicPlayerController::HandleLeftReleased);
@@ -372,16 +439,43 @@ void ACosmicPlayerController::HandleWheel(FKey Key)
 	}
 }
 
-void ACosmicPlayerController::HandleProjectKey(FKey Key)
+bool ACosmicPlayerController::StartProject(FName SystemID, FName RowName)
 {
 	UPlayerRoleSubsystem* Roles = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
-	if (Roles && Roles->StartNextMegaproject())
+	if (!Roles || !Roles->StartMegaproject(SystemID, RowName))
 	{
-		// A paused simulation sends no tick: show the new project now.
-		if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
-		{
-			CosmicHUD->RefreshPanel();
-		}
+		return false;
+	}
+	// A paused simulation sends no tick: show the new project now, on the panels and on the map.
+	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
+	{
+		CosmicHUD->RefreshPanel();
+	}
+	if (ACosmicGalaxyMapActor* TheMap = Map.Get())
+	{
+		TheMap->RequestRefresh();
+	}
+	return true;
+}
+
+void ACosmicPlayerController::SetSpeed(float Speed)
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!Sim)
+	{
+		return;
+	}
+	const float Current = Sim->GetTimeScale();
+	if (Current > 0.f)
+	{
+		SpeedBeforePause = Current;
+	}
+	Sim->SetTimeScale(Speed);
+
+	// No delegate announces a new time scale, and a paused simulation sends no tick.
+	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
+	{
+		CosmicHUD->RefreshPanel();
 	}
 }
 
@@ -419,16 +513,5 @@ void ACosmicPlayerController::HandleSpeedKey(FKey Key)
 	{
 		Wanted = 10.f;
 	}
-
-	if (Current > 0.f)
-	{
-		SpeedBeforePause = Current;
-	}
-	Sim->SetTimeScale(Wanted);
-
-	// No delegate announces a new time scale, and a paused simulation sends no tick.
-	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
-	{
-		CosmicHUD->RefreshPanel();
-	}
+	SetSpeed(Wanted);
 }

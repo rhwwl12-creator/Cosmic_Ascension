@@ -56,6 +56,8 @@ public:
 
 	/** Applies what is pending now instead of at the next frame (tests). */
 	void RefreshNow();
+	/** Redraws at the next frame: a command changed the state between ticks (a paused simulation sends no tick). */
+	void RequestRefresh() { bRefreshPending = true; }
 
 protected:
 	virtual void BeginPlay() override;

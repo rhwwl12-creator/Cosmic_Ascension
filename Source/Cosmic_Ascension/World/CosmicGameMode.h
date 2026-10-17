@@ -11,7 +11,9 @@
 
 class ACosmicCameraPawn;
 class ACosmicGalaxyMapActor;
+class UCosmicSystemPanelWidget;
 class UCosmicTextPanelWidget;
+class UCosmicTopBarWidget;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnCosmicSelectionChanged, FName /* SystemID, None when cleared */);
 
@@ -33,29 +35,47 @@ public:
 	virtual void StartPlay() override;
 };
 
-/** Shows the Phase 1 text panel. */
+/**
+ * Puts the panels on the screen: the top bar along the top, the system panel on the right (it follows the controller's
+ * selection) and the log tail of the Phase 1 text panel at the bottom left (until the feed of Phase 3 item 4).
+ */
 UCLASS()
 class COSMIC_ASCENSION_API ACosmicHUD : public AHUD
 {
 	GENERATED_BODY()
 
 public:
-	// Redraws the panel from the current state.
+	// Redraws every panel from the current state (after a command or a new speed: a paused simulation sends no tick).
 	void RefreshPanel();
+
+	UCosmicTopBarWidget* GetTopBar() const { return TopBar; }
+	UCosmicSystemPanelWidget* GetSystemPanel() const { return SystemPanel; }
+	UCosmicTextPanelWidget* GetLogPanel() const { return Panel; }
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
+	void HandleSelectionChanged(FName SystemID);
+
 	UPROPERTY(Transient)
 	TObjectPtr<UCosmicTextPanelWidget> Panel;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCosmicTopBarWidget> TopBar;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCosmicSystemPanelWidget> SystemPanel;
+
+	FDelegateHandle SelectionHandle;
 };
 
 /**
  * Controls: the mouse drives the camera pawn and selects (left click selects, left drag pans, right drag orbits, the
- * wheel zooms, a double click focuses); 0 pauses, 1 to 4 set 1x, 2x, 5x and 10x, Space toggles the pause, P starts the
- * next megaproject of the ruled people (UPlayerRoleSubsystem::StartNextMegaproject; the panels of item 3 replace it).
- * Holds the selection (presentation state: not in FGalaxyState, never saved).
+ * wheel zooms, a double click focuses); 0 pauses, 1 to 4 set 1x, 2x, 5x and 10x, Space toggles the pause (the top bar's
+ * buttons share SetSpeed). The system panel's commands come through StartProject. Holds the selection (presentation
+ * state: not in FGalaxyState, never saved).
  */
 UCLASS()
 class COSMIC_ASCENSION_API ACosmicPlayerController : public APlayerController
@@ -73,6 +93,13 @@ public:
 	FName GetSelectedSystem() const { return SelectedSystemID; }
 	FOnCosmicSelectionChanged OnSelectionChanged;
 
+	/** Sets the simulation's speed (0 pauses) and remembers the speed to return to after a pause. Redraws the HUD. */
+	void SetSpeed(float Speed);
+
+	/** The ruler's command of the system panel (UPlayerRoleSubsystem::StartMegaproject: RowName on SystemID, or
+	 * project_settle on the wild SystemID). On success redraws the HUD and asks the map to redraw. */
+	bool StartProject(FName SystemID, FName RowName);
+
 	/** Development aid: selects and focuses a system as a double click on it would ("CosmicSelect sol" at the console or
 	 * in -ExecCmds). Waits for the map when given before it is built. */
 	UFUNCTION(Exec)
@@ -86,7 +113,6 @@ protected:
 
 private:
 	void HandleSpeedKey(FKey Key);
-	void HandleProjectKey(FKey Key);
 	void HandleLeftPressed(FKey Key);
 	void HandleLeftReleased(FKey Key);
 	void HandleLeftDoubleClick(FKey Key);

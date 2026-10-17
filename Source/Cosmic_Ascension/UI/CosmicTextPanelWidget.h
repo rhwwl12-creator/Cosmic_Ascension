@@ -12,9 +12,9 @@ class UScrollBox;
 class UTextBlock;
 
 /**
- * The one text panel of the Phase 1 prototype: cycle and speed, then the tier, stability, resources and research of the civ
- * the player rules and the projects of its systems (with the prototype's project key), then the tail of the log. Built in C++ without a Widget Blueprint; the WBP layouts of Phase 3 replace it.
- * Labels come from the String Table ST_CA. Refreshed from the subsystem delegates, never from a tick.
+ * The text panel of the Phase 1 prototype, cut down to the tail of the log at the bottom left (Phase 3 item 3 moved its
+ * status lines to the top bar and the system panel; the log feed of item 4 replaces it). Built in C++ without a Widget
+ * Blueprint. Labels come from the String Table ST_CA. Refreshed from the subsystem delegates, never from a tick.
  */
 // DisableNativeTick: the meta of UUserWidget is not inherited, and Widget Blueprints made from this class should not tick.
 UCLASS(meta = (DisableNativeTick))
@@ -23,29 +23,28 @@ class COSMIC_ASCENSION_API UCosmicTextPanelWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	// Redraws everything from the current state. For changes no delegate announces, such as a new time scale while paused.
+	// Redraws the log from the current state.
 	void Refresh();
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	// A press on the panel stops here: it is not a click on the map under it (an unhandled press bubbles up to the viewport).
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonDoubleClick(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
 private:
-	UFUNCTION()
-	void HandleSimTick(int64 Tick);
-
 	UFUNCTION()
 	void HandleGalaxyGenerated(int32 Seed);
 
 	UFUNCTION()
 	void HandleLogEntry(const FCosmicLogEntry& Entry);
 
-	void RefreshStatus();
 	void RefreshLog();
 
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> StatusText;
+	TObjectPtr<UTextBlock> TitleText;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> LogText;
