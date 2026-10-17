@@ -18,6 +18,7 @@
 #include "Engine/DataTable.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GameplayTagContainer.h"
 #include "Internationalization/StringTableCore.h"
@@ -33,6 +34,7 @@
 #include "UObject/NameTypes.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
+#include "World/CosmicGalaxyMapActor.h"
 #include "World/CosmicGameMode.h"
 
 namespace CosmicPanelTests
@@ -365,6 +367,108 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("Clearing the selection hides it"), HudPanel->GetVisibility() == ESlateVisibility::Collapsed);
 		}
 	}
+	return true;
+}
+
+// Phase 3's exit condition, as far as a test can see it: the first life climbs to the third rung by the buttons of the HUD
+// alone - the top bar's speed and the system panel's commands - with no key and no prototype command.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicUIMouseOnlyAscentTest, "Cosmic_Ascension.UI.MouseOnlyAscent", CosmicTests::Flags)
+bool FCosmicUIMouseOnlyAscentTest::RunTest(const FString& Parameters)
+{
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	UWorld* World = Sim->GetGameInstance()->GetWorld();
+	ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(World ? World->GetFirstPlayerController() : nullptr);
+	ACosmicHUD* HUD = Controller ? Controller->GetHUD<ACosmicHUD>() : nullptr;
+	UCosmicSystemPanelWidget* Panel = HUD ? HUD->GetSystemPanel() : nullptr;
+	UCosmicTopBarWidget* Bar = HUD ? HUD->GetTopBar() : nullptr;
+	ACosmicGalaxyMapActor* Map = nullptr;
+	for (TActorIterator<ACosmicGalaxyMapActor> It(World); World && It; ++It)
+	{
+		Map = *It;
+	}
+	if (!TestNotNull(TEXT("The HUD has its system panel"), Panel) || !TestNotNull(TEXT("and its top bar"), Bar) || !TestNotNull(TEXT("The map stands"), Map))
+	{
+		return false;
+	}
+	ON_SCOPE_EXIT
+	{
+		Controller->SelectSystem(NAME_None);
+		Sim->SetTimeScale(0.f);
+		Sim->NewGalaxy(42, 5, 3);
+	};
+	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	Map->RefreshNow();
+	FGalaxyState& Live = Sim->GetMutableState();
+	const int32 CivIndex = Sim->GetStateIndex().FindCiv(Live, Live.Player.RuledCivID);
+	const int32 Home = Live.Civs.IsValidIndex(CivIndex) ? Sim->GetStateIndex().FindSystem(Live, Live.Civs[CivIndex].HomeSystemID) : INDEX_NONE;
+	if (!TestTrue(TEXT("(the vessel rules a people with a capital)"), Live.Systems.IsValidIndex(Home)))
+	{
+		return false;
+	}
+	// A click on the panel's button of Row; false when the panel shows no such button.
+	auto Click = [Panel](FName Row)
+	{
+		for (UCosmicActionButton* Button : Panel->GetActionButtons())
+		{
+			if (Button && Button->GetAction() == Row)
+			{
+				Button->Press();
+				return true;
+			}
+		}
+		return false;
+	};
+
+	// The first rung: select the capital (a click on its star) and press the Dyson swarm; the bar's x10 sets the pace.
+	Controller->SelectSystem(Live.Systems[Home].SystemID);
+	TestTrue(TEXT("The capital's panel offers the Dyson swarm"), Click(FName(TEXT("project_dyson"))));
+	TestEqual(TEXT("and the button starts it"), Live.Systems[Home].ActiveMegaproject, FName(TEXT("project_dyson")));
+	if (Bar->GetSpeedButtons().Num() == 5)
+	{
+		Bar->GetSpeedButtons()[4]->Press();
+	}
+	TestEqual(TEXT("The bar's x10 sets the pace"), Sim->GetTimeScale(), 10.f);
+	Sim->SetTimeScale(0.f);
+	for (int32 Chunk = 0; Chunk < 60 && Live.Civs[CivIndex].Tier == EAscensionTier::Tier1_Planetary; ++Chunk)
+	{
+		Sim->RunHeadless(100);
+	}
+	if (!TestEqual(TEXT("The people climbs to the second rung"), Live.Civs[CivIndex].Tier, EAscensionTier::Tier2_Stellar))
+	{
+		return false;
+	}
+
+	// The second rung widens the realm: a wild neighbour's panel offers the settlement.
+	const TArray<int32> Targets = CosmicMegaprojects::SettleTargets(Live, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), CivIndex);
+	if (TestTrue(TEXT("(the people has a wild neighbour to settle)"), !Targets.IsEmpty()))
+	{
+		Controller->SelectSystem(Live.Systems[Targets[0]].SystemID);
+		TestTrue(TEXT("A wild neighbour's panel offers the settlement"), Click(CosmicRows::ProjectSettle));
+		TestEqual(TEXT("and the button starts it"), Live.Systems[Targets[0]].OwnerCivID, Live.Civs[CivIndex].CivID);
+	}
+
+	// The third rung: a supernova threatens the capital with the game's countdown; its panel offers the stabilization.
+	const FHazardDef* NovaRow = Sim->GetTables().FindHazardByTag(FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.PreSupernova"))));
+	if (!TestNotNull(TEXT("(the game has the row of the supernova)"), NovaRow))
+	{
+		return false;
+	}
+	Live.Systems[Home].ActiveHazard = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.PreSupernova")));
+	Live.Systems[Home].HazardTicksRemaining = NovaRow->CountdownTicks;
+	Live.Systems[Home].ResponseMegaproject = NAME_None;
+	Live.Systems[Home].ResponseProgress = 0.f;
+	Controller->SelectSystem(Live.Systems[Home].SystemID);
+	Panel->Refresh();
+	TestTrue(TEXT("The threatened capital's panel offers the stabilization"), Click(FName(TEXT("project_stabilize"))));
+	for (int32 Step = 0; Step < NovaRow->CountdownTicks && Live.Civs[CivIndex].Tier == EAscensionTier::Tier2_Stellar; ++Step)
+	{
+		Sim->RunHeadless(1);
+	}
+	TestEqual(TEXT("The people climbs to the third rung by the buttons alone"), Live.Civs[CivIndex].Tier, EAscensionTier::Tier3_Causal);
 	return true;
 }
 

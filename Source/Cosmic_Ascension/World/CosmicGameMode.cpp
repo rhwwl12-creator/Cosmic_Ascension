@@ -60,30 +60,39 @@ void ACosmicGameMode::StartPlay()
 		{
 			Seed = static_cast<int32>(FDateTime::UtcNow().GetTicks() & 0x7fffffff);
 		}
-		// The counts come from the home galaxy row (section 3.1).
+		// The counts come from the home galaxy row (section 3.1). A development aid: -Speed=N starts at that speed (the
+		// frame-time measure of Phase 3 item 6 runs at 10x).
 		Sim->NewGalaxy(Seed, 0, 0);
-		Sim->SetTimeScale(1.f);
+		float Speed = 1.f;
+		FParse::Value(FCommandLine::Get(), TEXT("Speed="), Speed);
+		Sim->SetTimeScale(Speed);
 	}
 
 	Super::StartPlay();
 
 	if (UWorld* World = GetWorld())
 	{
-		// A development aid: -ShotAfterSeconds=N takes one screenshot N seconds in (the first frame of an off-screen run
-		// still compiles shaders). See CLAUDE.md on looking at the screen without a window.
-		float ShotAfter = 0.f;
-		if (FParse::Value(FCommandLine::Get(), TEXT("ShotAfterSeconds="), ShotAfter) && ShotAfter > 0.f)
+		// Development aids (see CLAUDE.md on looking at the screen without a window): -ShotAfterSeconds=N takes one
+		// screenshot N seconds in (the first frame of an off-screen run still compiles shaders); -ProfileAfterSeconds=N
+		// records 600 frames of the CSV profiler from N seconds in (Saved/Profiling/CSV - the frame time of item 6).
+		auto After = [World](const TCHAR* Param, const TCHAR* Command)
 		{
-			FTimerHandle Shot;
-			World->GetTimerManager().SetTimer(Shot, FTimerDelegate::CreateWeakLambda(World, [World]()
+			float Seconds = 0.f;
+			if (FParse::Value(FCommandLine::Get(), Param, Seconds) && Seconds > 0.f)
 			{
-				// Typed as at the console: the player's console reaches the viewport that handles "shot".
-				if (APlayerController* Controller = World->GetFirstPlayerController())
+				FTimerHandle Handle;
+				World->GetTimerManager().SetTimer(Handle, FTimerDelegate::CreateWeakLambda(World, [World, Command]()
 				{
-					Controller->ConsoleCommand(TEXT("shot showui"));
-				}
-			}), ShotAfter, false);
-		}
+					// Typed as at the console: the player's console reaches the viewport that handles "shot".
+					if (APlayerController* Controller = World->GetFirstPlayerController())
+					{
+						Controller->ConsoleCommand(Command);
+					}
+				}), Seconds, false);
+			}
+		};
+		After(TEXT("ShotAfterSeconds="), TEXT("shot showui"));
+		After(TEXT("ProfileAfterSeconds="), TEXT("CsvProfile Frames=600"));
 
 		// The map reads the state from here on; each player looks at it through a camera pawn.
 		ACosmicGalaxyMapActor* Map = World->SpawnActor<ACosmicGalaxyMapActor>();
