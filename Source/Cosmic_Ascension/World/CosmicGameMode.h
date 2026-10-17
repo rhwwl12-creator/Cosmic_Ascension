@@ -11,6 +11,7 @@
 
 class ACosmicCameraPawn;
 class ACosmicGalaxyMapActor;
+class UCosmicAscensionOverlayWidget;
 class UCosmicLogFeedWidget;
 class UCosmicSystemPanelWidget;
 class UCosmicTopBarWidget;
@@ -37,7 +38,7 @@ public:
 
 /**
  * Puts the panels on the screen: the top bar along the top, the system panel on the right (it follows the controller's
- * selection) and the log feed at the bottom left.
+ * selection), the log feed at the bottom left, and over them all the ascension presentation (hidden until an ascension).
  */
 UCLASS()
 class COSMIC_ASCENSION_API ACosmicHUD : public AHUD
@@ -51,6 +52,7 @@ public:
 	UCosmicTopBarWidget* GetTopBar() const { return TopBar; }
 	UCosmicSystemPanelWidget* GetSystemPanel() const { return SystemPanel; }
 	UCosmicLogFeedWidget* GetLogFeed() const { return Feed; }
+	UCosmicAscensionOverlayWidget* GetAscensionOverlay() const { return Overlay; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -61,6 +63,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCosmicLogFeedWidget> Feed;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCosmicAscensionOverlayWidget> Overlay;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCosmicTopBarWidget> TopBar;
@@ -108,6 +113,11 @@ public:
 	 * in -ExecCmds). Waits for the map when given before it is built. */
 	UFUNCTION(Exec)
 	void CosmicSelect(const FString& SystemID);
+
+	/** Development aid: after DelaySeconds of real time shows the ascension presentation to the second rung with the first
+	 * feat row ("CosmicPreviewAscension 23" with -ShotAfterSeconds=25 photographs it). Changes no state. */
+	UFUNCTION(Exec)
+	void CosmicPreviewAscension(float DelaySeconds);
 
 protected:
 	virtual void BeginPlay() override;

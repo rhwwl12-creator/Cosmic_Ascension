@@ -4,6 +4,7 @@
 
 #include "Components/InputComponent.h"
 #include "Cosmic_Ascension.h"
+#include "Data/CosmicDataTables.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Math/RotationMatrix.h"
@@ -13,6 +14,7 @@
 #include "Player/PlayerRoleSubsystem.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "TimerManager.h"
+#include "UI/CosmicAscensionOverlayWidget.h"
 #include "UI/CosmicLogFeedWidget.h"
 #include "UI/CosmicSystemPanelWidget.h"
 #include "UI/CosmicTopBarWidget.h"
@@ -151,6 +153,12 @@ void ACosmicHUD::BeginPlay()
 			SystemPanel->ShowSystem(Cosmic->GetSelectedSystem());
 		}
 	}
+	// Over everything, the whole screen; hidden until an ascension.
+	Overlay = CreateWidget<UCosmicAscensionOverlayWidget>(Controller);
+	if (Overlay)
+	{
+		Overlay->AddToViewport(10);
+	}
 }
 
 void ACosmicHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -252,6 +260,26 @@ void ACosmicPlayerController::CosmicSelect(const FString& SystemID)
 	{
 		PendingSelect = Wanted;
 	}
+}
+
+void ACosmicPlayerController::CosmicPreviewAscension(float DelaySeconds)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	FTimerHandle Preview;
+	World->GetTimerManager().SetTimer(Preview, FTimerDelegate::CreateWeakLambda(this, [this]()
+	{
+		const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+		ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
+		const TArray<FName> Feats = Sim ? Sim->GetTables().GetFeatRowNames() : TArray<FName>();
+		if (CosmicHUD && CosmicHUD->GetAscensionOverlay())
+		{
+			CosmicHUD->GetAscensionOverlay()->Show(EAscensionTier::Tier2_Stellar, Feats.IsEmpty() ? NAME_None : Feats[0]);
+		}
+	}), FMath::Max(DelaySeconds, 0.01f), false);
 }
 
 bool ACosmicPlayerController::SelectAndFocus(FName SystemID)

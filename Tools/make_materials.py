@@ -26,6 +26,8 @@ colour x HazardAmount over the whole star. The pulse runs on the material's own 
 simulation's). The owner is not in the material: the map draws a ring of lines around the star (a rim on a sphere a few
 pixels wide does not read from the overview).
 M_Nebula (unlit, two-sided, on the inside of the sky sphere): a dark violet with noise.
+M_AscensionGlow (user interface domain, translucent; parameters set by UCosmicAscensionOverlayWidget): a round glow of
+GlowColor whose opacity falls from the centre of the image to its edge, times Glow (0..1, the fade of the presentation).
 """
 import unreal
 
@@ -137,5 +139,34 @@ def make_nebula_material():
     finish(mat, "M_Nebula", [], [])
 
 
+def make_ascension_glow_material():
+    mat = material("M_AscensionGlow")
+    mat.set_editor_property("material_domain", unreal.MaterialDomain.MD_UI)
+    mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
+    g = Graph(mat)
+    uv = g.node(unreal.MaterialExpressionTextureCoordinate, x=-1100)
+    distance = g.node(unreal.MaterialExpressionDistance, x=-900)
+    centre = g.node(unreal.MaterialExpressionConstant2Vector, x=-1100, r=0.5, g=0.5)
+    for pin, expr in (("A", uv), ("B", centre)):
+        if not MEL.connect_material_expressions(expr, "", distance, pin):
+            raise RuntimeError("could not connect %s of the glow distance" % pin)
+    # 1 at the centre, 0 at the edge of the image (distance 0.5), squared for a soft falloff.
+    falloff = g.node(unreal.MaterialExpressionOneMinus, x=-700)
+    if not MEL.connect_material_expressions(g.mul(distance, const_b=2.0), "", falloff, ""):
+        raise RuntimeError("could not connect the glow falloff")
+    clamped = g.node(unreal.MaterialExpressionSaturate, x=-500)
+    if not MEL.connect_material_expressions(falloff, "", clamped, ""):
+        raise RuntimeError("could not clamp the glow")
+    soft = g.node(unreal.MaterialExpressionPower, x=-400, const_exponent=2.0)
+    if not MEL.connect_material_expressions(clamped, "", soft, "Base"):
+        raise RuntimeError("could not soften the glow")
+    opacity = g.mul(soft, g.scalar("Glow", 0.0))
+    if not MEL.connect_material_property(opacity, "", unreal.MaterialProperty.MP_OPACITY):
+        raise RuntimeError("could not connect the opacity pin")
+    g.emissive(g.vector("GlowColor", (1.0, 0.8, 0.4)))
+    finish(mat, "M_AscensionGlow", ["Glow"], ["GlowColor"])
+
+
 make_star_material()
 make_nebula_material()
+make_ascension_glow_material()

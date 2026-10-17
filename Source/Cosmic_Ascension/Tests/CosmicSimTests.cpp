@@ -701,6 +701,18 @@ bool FCosmicSimFrameStepTest::RunTest(const FString& Parameters)
 	Sim->SetTimeScale(0.f);
 	Sim->Tick(5.f);
 	TestEqual(TEXT("Paused again: no tick"), State.Tick, static_cast<int64>(734));
+
+	// A pause drops the time carried over (section 16 #40 (3)): after resuming, a tick needs a whole second again.
+	Sim->SetTimeScale(1.f);
+	Sim->Tick(0.9f);
+	TestEqual(TEXT("(0.9 s at 1x is not a tick yet)"), State.Tick, static_cast<int64>(734));
+	Sim->SetTimeScale(0.f);
+	Sim->SetTimeScale(1.f);
+	Sim->Tick(0.5f);
+	TestEqual(TEXT("A pause drops the carried time: 0.5 s after resuming is not a tick"), State.Tick, static_cast<int64>(734));
+	Sim->Tick(0.5f);
+	TestEqual(TEXT("and a whole second after resuming is one"), State.Tick, static_cast<int64>(735));
+	Sim->SetTimeScale(0.f);
 	return true;
 }
 
