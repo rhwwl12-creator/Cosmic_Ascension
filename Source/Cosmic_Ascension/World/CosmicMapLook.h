@@ -38,4 +38,8 @@ namespace CosmicMapLook
 
 	/** The lanes to draw, each once as (lower index, higher index): a lane listed by either end, both ends existing and not dead. */
 	COSMIC_ASCENSION_API TArray<TPair<int32, int32>> LanesOf(const FGalaxyState& State);
+
+	/** Whether a system's label shows: always when near; from afar only for a system with an owner or a hazard, or the
+	 * selected one. */
+	COSMIC_ASCENSION_API bool ShowsLabel(const FCosmicSystemLook& Look, bool bSelected, bool bFarView);
 }

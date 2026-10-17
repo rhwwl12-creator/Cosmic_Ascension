@@ -127,3 +127,8 @@ TArray<TPair<int32, int32>> CosmicMapLook::LanesOf(const FGalaxyState& State)
 	}
 	return Lanes;
 }
+
+bool CosmicMapLook::ShowsLabel(const FCosmicSystemLook& Look, bool bSelected, bool bFarView)
+{
+	return !bFarView || bSelected || Look.bOwned || Look.bHazard;
+}

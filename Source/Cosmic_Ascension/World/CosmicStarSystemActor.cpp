@@ -2,6 +2,8 @@
 
 #include "World/CosmicStarSystemActor.h"
 
+#include "Blueprint/UserWidget.h"
+#include "Components/SlateWrapperTypes.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Cosmic_Ascension.h"
@@ -42,8 +44,8 @@ ACosmicStarSystemActor::ACosmicStarSystemActor()
 		Star->SetStaticMesh(Sphere.Object);
 	}
 	Star->SetCastShadow(false);
-	// The click of the camera work traces the visibility channel; nothing walks into a star.
-	Star->SetCollisionProfileName(TEXT("BlockAllDynamic"));
+	// The click picks in screen space (CosmicMapPick), and nothing walks into a star.
+	Star->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	Label = CreateDefaultSubobject<UWidgetComponent>(TEXT("Label"));
 	Label->SetupAttachment(Star);
@@ -51,7 +53,9 @@ ACosmicStarSystemActor::ACosmicStarSystemActor()
 	Label->SetWidgetClass(UCosmicSystemLabelWidget::StaticClass());
 	Label->SetDrawSize(FVector2D(160.f, 40.f));
 	Label->SetPivot(FVector2D(0.5f, 1.f));
-	Label->SetRelativeLocation(FVector(0.f, 0.f, 60.f));
+	// Above the sphere (radius 50 in its own units) by enough that the camera's slant (pitch -59: a height shows at about
+	// half its length) still lifts the label clear of the star.
+	Label->SetRelativeLocation(FVector(0.f, 0.f, 110.f));
 	Label->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
@@ -91,7 +95,24 @@ void ACosmicStarSystemActor::ApplyLook(const FCosmicSystemLook& Look)
 	if (UCosmicSystemLabelWidget* Widget = Label ? Cast<UCosmicSystemLabelWidget>(Label->GetUserWidgetObject()) : nullptr)
 	{
 		Widget->Show(Look);
+		Widget->SetVisibility(bLabelVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
+}
+
+void ACosmicStarSystemActor::SetLabelVisible(bool bVisible)
+{
+	bLabelVisible = bVisible;
+	if (UUserWidget* Widget = Label ? Label->GetUserWidgetObject() : nullptr)
+	{
+		// On the widget itself, which hides it at once whatever the component's own tick does.
+		Widget->SetVisibility(bVisible ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+}
+
+bool ACosmicStarSystemActor::IsLabelVisible() const
+{
+	const UUserWidget* Widget = Label ? Label->GetUserWidgetObject() : nullptr;
+	return Widget ? Widget->GetVisibility() != ESlateVisibility::Collapsed : bLabelVisible;
 }
 
 float ACosmicStarSystemActor::GetStarRadius() const
