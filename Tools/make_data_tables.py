@@ -143,7 +143,9 @@ def differences(expected, actual, where):
     if isinstance(expected, bool):
         return [] if actual is expected else ["%s: expected %r, exported %r" % (where, expected, actual)]
     if isinstance(expected, (int, float)):
-        if isinstance(actual, (int, float)) and abs(float(actual) - float(expected)) < 1e-4:
+        # Relative, with a floor of half the last digit an exporter that writes six decimals keeps: an absolute 1e-4 would
+        # pass a chance of 5e-05 imported as 0.
+        if isinstance(actual, (int, float)) and abs(float(actual) - float(expected)) <= max(5e-7, 1e-6 * abs(float(expected))):
             return []
         return ["%s: expected %r, exported %r" % (where, expected, actual)]
     if isinstance(expected, str) and expected.startswith("(GameplayTags="):

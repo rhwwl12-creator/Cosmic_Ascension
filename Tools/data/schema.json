@@ -137,7 +137,7 @@
 				"Color": {"kind": "plain"},
 				"NameBank": {"kind": "texts", "slots": ["Star"], "no_digits": true},
 				"AdjectiveBank": {"kind": "texts", "len_in": [0, 3], "slots": []},
-				"PersonNameBank": {"kind": "texts", "empty_or_min": 10, "unique": true, "slots": []},
+				"PersonNameBank": {"kind": "texts", "empty_or_min": 10, "unique": true, "slots": [], "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
 				"HazardSpawnMultipliers": {"kind": "tag_map", "root": "Hazard.", "min": 0},
 				"InitialRelations": {"kind": "row_map", "table": "DT_Civs", "min": -1, "max": 1, "target": [{"col": "Weight", "gt": 0}]},
 				"Weight": {"kind": "number", "min": 0},
@@ -174,7 +174,8 @@
 					"kind": "texts",
 					"min": 3,
 					"single_variant": true,
-					"slots": ["Civ", "System", "OtherCiv", "Trait", "Value", "Tier", "Hazard", "Player", "HomeSystem", "Dedication", "Epithet", "Revelation", "Transcendent", "Ruler", "Regent", "Rebel", "Loyalist", "Hearer", "Ascendant", "PopBand", "CivAdj"]
+					"slots": ["Civ", "System", "OtherCiv", "Trait", "Value", "Tier", "Hazard", "Player", "HomeSystem", "Dedication", "Epithet", "Revelation", "Transcendent", "Ruler", "Regent", "Rebel", "Loyalist", "Hearer", "Ascendant", "PopBand", "CivAdj"],
+					"forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]
 				}
 			},
 			"unique": [
@@ -213,7 +214,7 @@
 				"BaseWeight": {"kind": "number", "min": 0},
 				"CooldownTicks": {"kind": "number", "min": 0, "integer": true},
 				"Effects": {"kind": "effects"},
-				"LogTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"]},
+				"LogTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
 				"Severity": {"kind": "number", "min": 0, "max": 2, "integer": true},
 				"MinTierToReveal": {"kind": "number", "min": 0, "max": 5, "integer": true},
 				"SignRow": {
@@ -259,6 +260,11 @@
 						{"col": "Effects", "lacks_type": "PlayerStatDelta"},
 						{"col": "Effects", "lacks_type": "GrantPower"}
 					]
+				},
+				{
+					"why": "a Lottery row with no weight never fires (guideline 7.5)",
+					"when": [{"col": "Trigger", "is": "Lottery"}],
+					"then": [{"col": "BaseWeight", "gt": 0}]
 				},
 				{
 					"why": "only a Lottery row has a weight",
@@ -410,9 +416,9 @@
 				"WandererResolutions": {"kind": "rows", "tables": ["DT_Encounters"], "unique": true},
 				"LogCategory": {"kind": "tag", "root": ["Log.Crisis"]},
 				"Severity": {"kind": "number", "min": 0, "max": 2, "integer": true},
-				"OutbreakTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"]},
-				"ExpireTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"]},
-				"ResolveTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"]},
+				"OutbreakTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
+				"ExpireTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
+				"ResolveTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
 				"OutbreakRow": {"kind": "row", "table": "DT_Events", "optional": true, "target": [{"col": "Trigger", "is": "Named"}, {"col": "Subject", "is": "SettledSystem"}, {"col": "Effects", "lacks_type": "ResolveHazard"}]}
 			},
 			"unique": [
@@ -433,6 +439,11 @@
 					"why": "a rebellion is the discontent of a people in its capital, not a draw (guideline 4.1)",
 					"when": [{"col": "HazardTag", "is": "Hazard.Rebellion"}],
 					"then": [{"col": "SpawnRule", "is": "Capital"}]
+				},
+				{
+					"why": "a drawn hazard with no chance never stands (guideline 7.4)",
+					"when": [{"col": "SpawnRule", "is": "Draw"}],
+					"then": [{"col": "SpawnChancePerTick", "gt": 0}]
 				},
 				{
 					"why": "only a drawn hazard has a chance: the capital rule and the claim rule draw nothing (guideline 7.4)",
@@ -502,7 +513,7 @@
 				"RequiredTier": {"kind": "enum", "enum": "EAscensionTier"},
 				"CostPerTick": {"kind": "plain"},
 				"RequiredProgress": {"kind": "number", "min": 1},
-				"CompleteTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "System", "Project"]}
+				"CompleteTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "System", "Project"], "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]}
 			}
 		},
 		"DT_Feats": {
@@ -510,8 +521,8 @@
 			"prefixes": ["feat_"],
 			"must_exist": true,
 			"columns": {
-				"Title": {"kind": "text", "required": true, "slots": []},
-				"MythicNarrative": {"kind": "text", "required": true, "slots": []},
+				"Title": {"kind": "text", "required": true, "slots": [], "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
+				"MythicNarrative": {"kind": "text", "required": true, "slots": [], "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]},
 				"RequiredTier": {"kind": "enum", "enum": "EAscensionTier"},
 				"TargetTier": {"kind": "enum", "enum": "EAscensionTier"},
 				"Path": {"kind": "enum", "enum": "EPlayerRole"},
@@ -521,7 +532,7 @@
 				"DedicationBank": {"kind": "tag", "root": "Faith.Bank.", "optional": true},
 				"FX": {"kind": "plain"},
 				"Sound": {"kind": "plain"},
-				"LogTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "HomeSystem"]}
+				"LogTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "HomeSystem"], "forbidden": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]}
 			},
 			"rules": [
 				{

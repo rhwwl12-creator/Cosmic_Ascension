@@ -440,8 +440,8 @@ public:
 	// Fired once for every row that fired, after its effects and its lines, while the global broadcast gate is open
 	// (section 6.1). Fired synchronously, also from inside a tick stage, and also for rows about peoples the calling has
 	// not met: the presentation filters by what is known (section 6.4). Same contract as OnLogEntry (section 9.4): a
-	// handler may read the state and call SetTimeScale; it must not call NewGalaxy, LoadGalaxy, SaveCurrentGalaxy,
-	// StepOnce or RunHeadless, nor EvaluateAndFire, FireRow or Apply.
+	// handler may read the state and call SetTimeScale and nothing else - the refused calls are listed at
+	// UGalaxySimulationSubsystem::IsBroadcasting; the static Apply and ApplyAll are kept out by the rule alone.
 	UPROPERTY(BlueprintAssignable)
 	FOnCosmicEvent OnEventFired;
 

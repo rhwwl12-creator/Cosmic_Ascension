@@ -71,7 +71,8 @@ public:
 	 * SourceRow names the row behind the line (event, hazard, encounter, feat or log-template row).
 	 * FocusSystem and FocusCiv name the subject system and the subject civilization of the line (section 8.1): the system
 	 * the line calls by name, and its people. The line is judged by the scope of telling as PushVariants judges one (no
-	 * draw here; a far line that follows draws its own).
+	 * draw here; a far line that follows draws its own). From a handler of a Core Logic delegate: an error line and
+	 * nothing (IsBroadcasting).
 	 */
 	void Push(FGameplayTag Category, uint8 Severity, const FText& Template, const FFormatNamedArguments& Args, FName FocusSystem, FName SourceRow, FName FocusCiv = NAME_None);
 
@@ -96,7 +97,8 @@ public:
 	 *   Log.Ascension and its people stands on the third rung or above, every time; CosmicRows::LogFarEvent otherwise,
 	 *   only when State.Tick >= Knowing.FarLineUntilTick, which it then sets to Tick + DT_Rules.FarLineCooldownTicks
 	 *   (read as at least 0).
-	 * Returns false and tells nothing (no draw) when Variants is empty; otherwise true, whatever the scope.
+	 * Returns false and tells nothing (no draw) when Variants is empty, and when called from a handler of a Core Logic
+	 * delegate (an error line - a handler may only read the state); otherwise true, whatever the scope.
 	 */
 	bool PushVariants(const FCosmicLine& Line, TConstArrayView<FText> Variants, const FFormatNamedArguments& Args);
 
@@ -109,9 +111,9 @@ public:
 
 	// Fired for every appended entry that is told (never for one marked bUntold) while the global broadcast gate is open
 	// (section 6.1, 8.1). With the gate closed the entry is only stored. Fired synchronously, also from inside a tick
-	// stage: a handler may read the state and call
-	// SetTimeScale, but must not call NewGalaxy, LoadGalaxy, SaveCurrentGalaxy, StepOnce or RunHeadless, nor the evaluator
-	// (UCosmicEventSubsystem::EvaluateAndFire, FireRow, Apply). OnEventFired has the same contract (section 9.4).
+	// stage: a handler may read the state and call SetTimeScale and nothing else - the calls that are refused with an error
+	// line are listed at UGalaxySimulationSubsystem::IsBroadcasting (Push, PushVariants and PushRow among them), and
+	// SaveCurrentGalaxy waits for section 16 #33 (1). OnEventFired and OnTierAscended have the same contract (section 9.4).
 	UPROPERTY(BlueprintAssignable)
 	FOnLogEntry OnLogEntry;
 

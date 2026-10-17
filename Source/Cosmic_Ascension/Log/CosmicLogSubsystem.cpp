@@ -24,6 +24,13 @@ void UCosmicLogSubsystem::Deinitialize()
 
 void UCosmicLogSubsystem::Push(FGameplayTag Category, uint8 Severity, const FText& Template, const FFormatNamedArguments& Args, FName FocusSystem, FName SourceRow, FName FocusCiv)
 {
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	check(Sim);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("Push called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return;
+	}
 	FCosmicLine Line;
 	Line.Category = Category;
 	Line.Severity = Severity;
@@ -35,6 +42,11 @@ void UCosmicLogSubsystem::Push(FGameplayTag Category, uint8 Severity, const FTex
 
 bool UCosmicLogSubsystem::PushVariants(const FCosmicLine& Line, TConstArrayView<FText> Variants, const FFormatNamedArguments& Args)
 {
+	if (const UGalaxySimulationSubsystem* Guard = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>(); Guard && Guard->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("PushVariants called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return false;
+	}
 	if (Variants.IsEmpty())
 	{
 		return false;

@@ -1148,6 +1148,48 @@ bool FCosmicKnowingWritersTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("and nothing was met"), HasMet(*State, Three));
 		TestFalse(TEXT("or known"), Knows(*State, 9));
 	}
+
+	// ---- The log refuses a handler as well: a handler pushes no line and draws nothing from the tell stream ----
+	{
+		FGalaxyState* State = LayBoard(*Sim, Tables);
+		if (!TestNotNull(TEXT("The board of the log's handler is laid"), State))
+		{
+			return false;
+		}
+		AddExpectedError(TEXT("PushVariants called from a handler"), EAutomationExpectedErrorFlags::Contains, 1);
+		AddExpectedError(TEXT("Push called from a handler"), EAutomationExpectedErrorFlags::Contains, 1);
+		AddExpectedError(TEXT("DrawTell called from a handler"), EAutomationExpectedErrorFlags::Contains, 1);
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("HomeSystem"), State->Systems[0].DisplayName);
+		bool bTried = false;
+		bool bRowInHandler = true;
+		int32 EntriesBefore = -1;
+		int32 EntriesAfter = -2;
+		int32 TellBefore = 0;
+		int32 TellAfter = 1;
+		{
+			FScopedLogProbe Probe(*Log);
+			Probe.Probe->OnLog = [&](const FCosmicLogEntry&)
+			{
+				if (!bTried)
+				{
+					bTried = true;
+					EntriesBefore = State->Log.Num();
+					TellBefore = State->TellRngState;
+					bRowInHandler = Log->PushRow(CosmicRows::LogFirstLife, 2, Args, State->Systems[0].SystemID);
+					Log->Push(Tag(TEXT("Log.Civ")), 1, FText::AsCultureInvariant(TEXT("pushed from a handler")), FFormatNamedArguments(), NAME_None, FName(TEXT("log_test_handler")));
+					Sim->DrawTell(3);
+					EntriesAfter = State->Log.Num();
+					TellAfter = State->TellRngState;
+				}
+			};
+			Log->PushRow(CosmicRows::LogFirstLife, 2, Args, State->Systems[0].SystemID);
+		}
+		TestTrue(TEXT("A handler of the line ran"), bTried);
+		TestFalse(TEXT("PushRow refuses a handler"), bRowInHandler);
+		TestEqual(TEXT("No line is pushed from a handler"), EntriesAfter, EntriesBefore);
+		TestEqual(TEXT("and nothing is drawn from the tell stream there"), TellAfter, TellBefore);
+	}
 	return true;
 }
 
@@ -1554,7 +1596,8 @@ bool FCosmicKnowingInertTest::RunTest(const FString& Parameters)
 		int32 Known = 0;
 		int32 Met = 0;
 	};
-	// The game's data, 3,000 ticks of seed 42, no input: the first life rules people 0 and gives no command. With
+	// The game's data, 20,000 ticks of seed 42 (past the first claims, the joins of the sphere, the settlements and their
+	// completions), no input: the first life rules people 0 and gives no command. With
 	// bWanderer the vessel walks from the start instead, a wanderer of the second rung standing in its birth system.
 	auto Run = [&](const FCosmicRulesDef& Rules, bool bTellAll, bool bWanderer)
 	{
@@ -1569,7 +1612,7 @@ bool FCosmicKnowingInertTest::RunTest(const FString& Parameters)
 			Mutable.Player.RuledCivID = NAME_None;
 			Mutable.Calling.PersonalTier = EAscensionTier::Tier2_Stellar;
 		}
-		Sim->RunHeadless(3000);
+		Sim->RunHeadless(20000);
 		FRun Result;
 		Result.World = Sim->ComputeWorldHash();
 		Result.Whole = Sim->ComputeStateHash();

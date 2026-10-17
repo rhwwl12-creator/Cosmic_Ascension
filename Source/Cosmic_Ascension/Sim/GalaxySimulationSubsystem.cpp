@@ -157,11 +157,13 @@ namespace
 		return FText::AsCultureInvariant(Text.ToString());
 	}
 
-	// Weight of a pressure source by its tier (section 4.2). A table too short for the tier reads as 0.
+	// Weight of a pressure source by its tier (section 4.2). A table too short for the tier reads as 0, and so does a weight
+	// below 0, not a number or not finite (a compare: FMath::Max lets NaN and infinity through).
 	float PressureWeight(const FCosmicRulesDef& Rules, EAscensionTier Tier)
 	{
 		const int32 Index = TierIndex(Tier);
-		return Rules.PressureBySourceTier.IsValidIndex(Index) ? FMath::Max(0.f, Rules.PressureBySourceTier[Index]) : 0.f;
+		const float Weight = Rules.PressureBySourceTier.IsValidIndex(Index) ? Rules.PressureBySourceTier[Index] : 0.f;
+		return (Weight > 0.f && Weight <= TNumericLimits<float>::Max()) ? Weight : 0.f;
 	}
 
 	float ReachFactor(ECosmicSphereReach Reach, const FCosmicRulesDef& Rules)
@@ -1172,6 +1174,11 @@ ECosmicSphereReach UGalaxySimulationSubsystem::SphereReachIn(const FGalaxyState&
 
 uint32 UGalaxySimulationSubsystem::DrawTell(int32 Count)
 {
+	if (IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("DrawTell called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return 0;
+	}
 	if (Count < 1)
 	{
 		UE_LOG(LogCosmic, Error, TEXT("DrawTell: Count %d is not a variant count"), Count);
@@ -1869,9 +1876,12 @@ void UGalaxySimulationSubsystem::AdvanceMegaprojects()
 	}
 
 	// Every response slot first, then every construction slot, each pass in Systems order: an answer spends the stockpile
-	// before a construction does (section 5.7).
+	// before a construction does (section 5.7). A people one of whose answers could not pay in full this tick builds
+	// nothing this tick: payment is all or nothing, so a cheaper construction would otherwise take back, tick after tick,
+	// what the dearer answer is waiting for.
 	using CosmicMegaprojects::ECosmicProjectSlot;
 	constexpr ECosmicProjectSlot Passes[] = { ECosmicProjectSlot::Response, ECosmicProjectSlot::Construction };
+	TArray<FName, TInlineAllocator<8>> UnpaidAnswers;
 	for (const ECosmicProjectSlot Slot : Passes)
 	{
 		for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num(); ++SystemIndex)
@@ -1881,9 +1891,22 @@ void UGalaxySimulationSubsystem::AdvanceMegaprojects()
 			{
 				continue;
 			}
+			const FName OwnerID = Held.OwnerCivID;
+			if (Slot == ECosmicProjectSlot::Construction && UnpaidAnswers.Contains(OwnerID))
+			{
+				continue;
+			}
+			const FName AnswerBefore = Held.ResponseMegaproject;
+			const float AnswerProgressBefore = Held.ResponseProgress;
 			FCosmicEvalContext Ctx = MakeEvalContext();
-			const int32 OwnerIndex = StateIndex.FindCiv(State, Held.OwnerCivID);
+			const int32 OwnerIndex = StateIndex.FindCiv(State, OwnerID);
 			const FName RowName = CosmicMegaprojects::Advance(Ctx, SystemIndex, Slot, AIRate);
+			// An answer still standing with the progress it had was not paid (one that completed or ended left its slot).
+			if (Slot == ECosmicProjectSlot::Response && !OwnerID.IsNone() && State.Systems[SystemIndex].ResponseMegaproject == AnswerBefore
+				&& State.Systems[SystemIndex].ResponseProgress == AnswerProgressBefore)
+			{
+				UnpaidAnswers.AddUnique(OwnerID);
+			}
 			// A resolution's effects may hand a system to the vessel's people: known before the completion line names it.
 			// No row of the game hands one over there (Data.Integrity keeps TransferSystem out of OnResolveEffects).
 			Events->FollowUpKnowing(Ctx);

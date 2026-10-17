@@ -1881,7 +1881,8 @@ bool FCosmicClaimNeverTotalTest::RunTest(const FString& Parameters)
 	bool bNeverTotal = true;
 	for (int32 Step = 0; Step < 3000; ++Step)
 	{
-		Sim->StepOnce();
+		// Headless: the state is read after every tick, and no handler has to run.
+		Sim->RunHeadless(1);
 		bNeverTotal &= NoPeopleWhollyClaimed(State, Sim->GetStateIndex(), Sim->GetTables());
 	}
 	// Civilization 0 had four settled systems, the fourth of them (system 3) next to the core: claims walked up its chain.
@@ -1946,7 +1947,7 @@ bool FCosmicSphereGrowthResponsiveTest::RunTest(const FString& Parameters)
 				}
 				Sim->SyncRngState();
 			}
-			Sim->StepOnce();
+			Sim->RunHeadless(1);
 		}
 		return State.Transcendents[0].InfluencedSystems.Num() - Before;
 	};
@@ -2507,7 +2508,8 @@ bool FCosmicNotablesCappedTest::RunTest(const FString& Parameters)
 	int32 Made = 0;
 	for (int32 Step = 0; Step < 20000; ++Step)
 	{
-		Sim->StepOnce();
+		// Headless: the records are read after every tick, and no handler has to run.
+		Sim->RunHeadless(1);
 		for (const FCivilizationState& Civ : State.Civs)
 		{
 			bCapped &= Civ.Notables.Num() <= Cap;

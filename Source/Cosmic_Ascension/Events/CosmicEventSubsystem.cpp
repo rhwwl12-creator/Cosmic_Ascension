@@ -909,11 +909,11 @@ int32 UCosmicEventSubsystem::EvaluateAndFire(FGalaxyState& State, FRandomStream&
 		UE_LOG(LogCosmic, Error, TEXT("DT_Rules: EventSlotTicks %d is below 1, read as 1"), Rules.EventSlotTicks);
 	}
 	const int64 SlotTicks = FMath::Max(1, Rules.EventSlotTicks);
-	// Written so that a value that is not a number is caught as well.
-	const bool bChanceInRange = Rules.EventChancePerSlot >= 0.f;
+	// Written so that a value that is not a number, or not finite, is caught as well.
+	const bool bChanceInRange = Rules.EventChancePerSlot >= 0.f && Rules.EventChancePerSlot <= TNumericLimits<float>::Max();
 	if (!bChanceInRange)
 	{
-		UE_LOG(LogCosmic, Error, TEXT("DT_Rules: EventChancePerSlot %f is below 0, read as 0"), Rules.EventChancePerSlot);
+		UE_LOG(LogCosmic, Error, TEXT("DT_Rules: EventChancePerSlot %f is below 0 or not finite, read as 0"), Rules.EventChancePerSlot);
 	}
 	const float Chance = bChanceInRange ? Rules.EventChancePerSlot : 0.f;
 
@@ -1050,7 +1050,10 @@ int32 UCosmicEventSubsystem::EvaluateAndFire(FGalaxyState& State, FRandomStream&
 		float Total = 0.f;
 		for (const FSlotPair& Pair : Lottery)
 		{
-			const float Share = FMath::Max(0.f, Pair.Row->BaseWeight) * SphereWeightFactor(State, Tables, Rules, Pair.Row->Category, Pair.SystemIndex) * Chance;
+			// A weight below 0, not a number or not finite reads as 0 (a compare: FMath::Max lets NaN and infinity through, and
+			// one such share would silence every row of the slot).
+			const float Weight = (Pair.Row->BaseWeight > 0.f && Pair.Row->BaseWeight <= TNumericLimits<float>::Max()) ? Pair.Row->BaseWeight : 0.f;
+			const float Share = Weight * SphereWeightFactor(State, Tables, Rules, Pair.Row->Category, Pair.SystemIndex) * Chance;
 			Shares.Add(Share);
 			Total += Share;
 		}

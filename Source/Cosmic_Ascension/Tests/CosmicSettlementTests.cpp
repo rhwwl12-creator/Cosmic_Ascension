@@ -609,6 +609,47 @@ bool FCosmicSettlementTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("With enough for both the settlement is paid too"), Sim->GetState().Systems[4].MegaprojectProgress, 1.f);
 	}
 
+	// ---- An answer that cannot pay holds its people's constructions back: payment is all or nothing, so a cheaper
+	// settlement would otherwise take, tick after tick, what the dearer answer is waiting for ----
+	{
+		const FName Building(TEXT("project_test_build"));
+		UDataTable* Projects = ProjectRows(&Stellar, true);
+		Projects->FindRow<FMegaprojectDef>(Answer, TEXT("DearAnswer"))->CostPerTick.Causality = 2.f;
+		FMegaprojectDef Build = Project(EAscensionTier::Tier1_Planetary, 0.f, 0.f, 9.f, TEXT("build"));
+		Build.CostPerTick.Causality = 1.f;
+		Projects->AddRow(Building, Build);
+		FGalaxyState* State = LayBoard(*Sim, TablesWith(Original, Rules, Projects, nullptr));
+		if (!TestNotNull(TEXT("The board of the unpaid answer is laid"), State))
+		{
+			return false;
+		}
+		// People 1 settles 4 from its capital 5, where a storm stands with an answer that costs two Causality a tick. People
+		// 2 builds on 8 with what it has.
+		{
+			FCosmicEvalContext Ctx = Sim->MakeEvalContext();
+			TestTrue(TEXT("The settlement beside the unpaid answer starts"), CosmicMegaprojects::Settle(Ctx, 1, 4));
+		}
+		FGalaxyState& Live = Sim->GetMutableState();
+		Live.Systems[5].ActiveHazard = Tag(TEXT("Hazard.Plague"));
+		Live.Systems[5].HazardTicksRemaining = 1000;
+		Live.Systems[5].ResponseMegaproject = Answer;
+		Live.Civs[1].Stockpile.Causality = 1.f;
+		Live.Systems[8].ActiveMegaproject = Building;
+		Live.Civs[2].Stockpile.Causality = 1.f;
+		const FGalaxyState OneUnit = Live;
+		Sim->StepOnce();
+		TestEqual(TEXT("An answer that cannot pay does not progress"), Live.Systems[5].ResponseProgress, 0.f);
+		TestEqual(TEXT("and its people's settlement waits for it"), Live.Systems[4].MegaprojectProgress, 0.f);
+		TestEqual(TEXT("so the stockpile stays for the answer"), Live.Civs[1].Stockpile.Causality, 1.f);
+		TestEqual(TEXT("Another people's construction is not held back"), Live.Systems[8].MegaprojectProgress, 1.f);
+		FGalaxyState ThreeUnits = OneUnit;
+		ThreeUnits.Civs[1].Stockpile.Causality = 3.f;
+		Sim->LoadState(ThreeUnits);
+		Sim->StepOnce();
+		TestEqual(TEXT("Paid, the answer progresses"), Sim->GetState().Systems[5].ResponseProgress, 1.f);
+		TestEqual(TEXT("and the settlement is paid from what is left"), Sim->GetState().Systems[4].MegaprojectProgress, 1.f);
+	}
+
 	// ---- Answers before constructions on one system: the capital's construction waits for its answer, and each slot is
 	// paid once a tick ----
 	{
@@ -863,9 +904,38 @@ bool FCosmicRealmCapTest::RunTest(const FString& Parameters)
 		int64 ReachedCapTick = 0;
 		int32 MostSystems = 0;
 		int32 Settlements = 0;
+		// The case this block measures: no row of the game hands a system over, so every system a people gains comes from
+		// a settlement. A row that does (conquest, Phase 4) makes going over the cap legal - the next block - and this
+		// block then has to count settlements instead.
+		bool bNoHandOver = true;
+		auto NoHandOverIn = [&bNoHandOver](const TArray<FCosmicEffect>& Effects)
+		{
+			for (const FCosmicEffect& Effect : Effects)
+			{
+				bNoHandOver &= Effect.Type != EEffectType::TransferSystem;
+			}
+		};
+		for (const FName RowName : Original.GetEventRowNames())
+		{
+			NoHandOverIn(Original.FindEvent(RowName)->Effects);
+		}
+		for (const FName RowName : Original.GetHazardRowNames())
+		{
+			const FHazardDef* Row = Original.FindHazard(RowName);
+			NoHandOverIn(Row->OnExpireEffects);
+			NoHandOverIn(Row->OnExpireBranchEffects);
+			NoHandOverIn(Row->OnExpireNeighbourEffects);
+			NoHandOverIn(Row->OnResolveEffects);
+		}
+		for (const FName RowName : Original.GetFeatRowNames())
+		{
+			NoHandOverIn(Original.FindFeat(RowName)->AscensionCost);
+		}
+		TestTrue(TEXT("(no row of the game hands a system over: the case of this block)"), bNoHandOver);
 		for (int32 Step = 0; Step < 20000; ++Step)
 		{
-			Sim->StepOnce();
+			// Headless: the block reads the state after every tick, and no handler has to run.
+			Sim->RunHeadless(1);
 			for (const FCivilizationState& Civ : State.Civs)
 			{
 				const int32 Owned = OwnedCount(State, Civ);

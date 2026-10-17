@@ -38,7 +38,8 @@ public:
 	 * people climbs at most one rung per tick. Climbing, in order: Tier = TargetTier; AscensionCost (ApplyAll, SourceRow =
 	 * the feat row); for the player CompletedFeats, the Feats and the PeakTier of the open life and GrantedPowers; for another
 	 * people reaching Tier 3 one Notable.Ascendant record (NameNotable through Apply: one draw, before its guards); from
-	 * Tier 4 on the people's open notable records close (LastTick = Tick); the ascension line (the row's LogTemplates,
+	 * Tier 4 on the people's open notable records close (LastTick = Tick); what the price handed to the vessel's people is
+	 * known and its giver - the ascender - met (FollowUpKnowing); the ascension line (the row's LogTemplates,
 	 * Log.Ascension, Severity 2); the lines that follow (FollowUpNotes); for the player OnTierAscended. Wanderer feats are
 	 * judged from Phase 4, with their first row. Inside a handler of a Core Logic delegate, or over a state that is not
 	 * the live one: an error line and nothing.
@@ -46,7 +47,8 @@ public:
 	void EvaluateFeats(FGalaxyState& State, FRandomStream& Rng);
 
 	// The player's ascensions only (section 7.5): an AI people's ascension is its line alone. Presentation listens; the
-	// effect and sound of Phase 3 hang here.
+	// effect and sound of Phase 3 hang here. Fired synchronously inside the AI stage: same contract as OnLogEntry - a
+	// handler may read the state and call SetTimeScale and nothing else (the refused calls: IsBroadcasting).
 	UPROPERTY(BlueprintAssignable)
 	FOnTierAscended OnTierAscended;
 

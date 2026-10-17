@@ -233,6 +233,8 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 	FCosmicRulesDef NoAging = Sim->GetRules();
 	NoAging.BaseLifespanTicks = 0;
 	NoAging.EventSlotTicks = 10;
+	// The pressure weights of the test, not of the game: the owner of sol stands on the second rung, which weighs 0 here.
+	NoAging.PressureBySourceTier = { 0.f, 0.f, 0.25f, 1.f, 2.f };
 
 	// One line per case: the condition, the lower tick bound of the view, the expected answer for subject (civ 0, sol).
 	struct FCase
@@ -269,7 +271,8 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		// The record of its own row only: another row, and an empty Key, are false.
 		{ Cond(EConditionType::MegaprojectComplete, nullptr, FName(TEXT("project_test_other")), 0.f), 0, false },
 		{ Cond(EConditionType::MegaprojectComplete, nullptr, NAME_None, 0.f), 0, false },
-		// The transcendent of the test has no row in DT_Transcendents, so nothing presses on sol: 0 is reached, more is not.
+		// The transcendent of the test has no row in DT_Transcendents and the owner of sol, on the second rung, weighs 0 under
+		// the test's weights, so nothing presses on sol: 0 is reached, more is not.
 		{ Cond(EConditionType::SystemPressureAtLeast, nullptr, NAME_None, 0.f), 0, true },
 		{ Cond(EConditionType::SystemPressureAtLeast, nullptr, NAME_None, 0.1f), 0, false },
 		{ Cond(EConditionType::SystemInfluencedBy, nullptr, TrActive, 0.f), 0, true },
@@ -499,6 +502,10 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 			CheckWith(Detached, WithRows, Cond(EConditionType::SystemPressureAtLeast, nullptr, NAME_None, Weight * 1.01f), 0));
 		TestFalse(TEXT("SystemPressureAtLeast is false without a system"),
 			CheckWith(Detached, WithRows, Cond(EConditionType::SystemPressureAtLeast, nullptr, NAME_None, 0.f), INDEX_NONE));
+		// A weight that is not finite reads as 0: an infinite weight leaves no pressure, not an infinite one.
+		FCosmicRulesDef Endless = Pinned;
+		Endless.PressureBySourceTier = { 0.f, 0.f, std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity() };
+		TestEqual(TEXT("A pressure weight that is not finite reads as 0"), UGalaxySimulationSubsystem::ComputePressureIn(Detached, Index, WithRows, Endless, 0).P, 0.f);
 		TestTrue(TEXT("The name of a celestial row is a relation party without an instance in the run"),
 			CheckWith(Detached, WithRows, Cond(EConditionType::CivRelationAtLeast, nullptr, Celestial, 0.f), 0));
 		TestFalse(TEXT("The same name is no party when the tables do not hold the row"),
@@ -585,8 +592,8 @@ bool FCosmicEventsSlotDrawsTest::RunTest(const FString& Parameters)
 
 	// The error lines of the two out-of-range knobs at the end: each names its own knob and nothing else.
 	AddExpectedError(TEXT("EventSlotTicks 0 is below 1, read as 1"), EAutomationExpectedErrorFlags::Contains, 1);
-	// Twice: for a chance of -0.1 and for a chance that is not a number.
-	AddExpectedError(TEXT("EventChancePerSlot .* is below 0, read as 0"), EAutomationExpectedErrorFlags::Contains, 2);
+	// Three times: for a chance of -0.1, for one that is not a number and for one that is not finite.
+	AddExpectedError(TEXT("EventChancePerSlot .* is below 0 or not finite, read as 0"), EAutomationExpectedErrorFlags::Contains, 3);
 
 	const FCosmicDataTables Original = Sim->GetTables();
 	const FCosmicRulesDef BaseRules = Sim->GetRules();
@@ -884,9 +891,9 @@ bool FCosmicEventsSlotDrawsTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("With a slot period of 0 every civilization draws in every tick"), Handed.GetCurrentSeed(), Probe.GetCurrentSeed());
 	}
 
-	// A chance below 0, and one that is not a number, is read as 0, with an error line that names that knob alone: the
-	// period is read as it is, the draws stay and no Lottery row fires.
-	for (const float BadChance : { -0.1f, std::numeric_limits<float>::quiet_NaN() })
+	// A chance below 0, one that is not a number and one that is not finite are read as 0, with an error line that names
+	// that knob alone: the period is read as it is, the draws stay and no Lottery row fires.
+	for (const float BadChance : { -0.1f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity() })
 	{
 		UDataTable* Table = NewTable(FCosmicEventDef::StaticStruct());
 		Table->AddRow(FName(TEXT("evt_test_lot")), MakeRow(ECosmicEventTrigger::Lottery, ECosmicEventSubject::Civilization, 1.f, 0));
@@ -1081,6 +1088,21 @@ bool FCosmicEventsLotterySharesTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("With shares above a total of 1 the largest numbers of the stream still pick a row"), FiresForFirst, 1);
 		}
 		Scoped.Probe->OnEvent = nullptr;
+	}
+
+	// A weight that is not a number or not finite reads as 0: the row that sorts after it still fires at its share, and the
+	// bad row never fires.
+	for (const float BadWeight : { std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity() })
+	{
+		UDataTable* Table = NewTable(FCosmicEventDef::StaticStruct());
+		Table->AddRow(FName(TEXT("evt_test_0_bad")), MakeRow(ECosmicEventTrigger::Lottery, ECosmicEventSubject::Civilization, BadWeight, 0));
+		Table->AddRow(RowA, MakeRow(ECosmicEventTrigger::Lottery, ECosmicEventSubject::Civilization, 1.f, 0));
+		bool bByShare = true;
+		Play(Table, 0.5f, 40, [&](float Roll, const TArray<FCosmicEventNotice>& Fired)
+		{
+			bByShare &= (Roll < 0.5f) ? (Fired.Num() == 1 && Fired[0].EventRow == RowA) : Fired.IsEmpty();
+		});
+		TestTrue(*FString::Printf(TEXT("Beside a row of weight %f the next row fires at its share and the bad one never"), BadWeight), bByShare);
 	}
 
 	// Rows whose names sort after the first leave the fires of the first as they were.

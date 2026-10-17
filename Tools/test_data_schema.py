@@ -646,6 +646,10 @@ class SchemaTests(unittest.TestCase):
         # The name pools: no digits, no word of the verdict list, no name twice.
         stars = self.row(self.tables, "DT_Galaxies", "gal_milkyway")["StarNameBank"]
         self.expect(self.after(home("StarNameBank", stars[:-1] + ["\uc601\ud63c\uc758 \ubcc4"])), "StarNameBank[%d]" % (len(stars) - 1), "the word \uc601\ud63c is not used here")
+        for column in ("CatalogPrefixes", "CatalogStems", "PeopleStems"):
+            with self.subTest(column=column):
+                pool = self.row(self.tables, "DT_Galaxies", "gal_milkyway")[column][:-1] + ["\uc601\ud63c\ub9ac"]
+                self.expect(self.after(home(column, pool)), "%s[%d]" % (column, len(pool) - 1), "the word \uc601\ud63c is not used here")
         self.expect(self.after(home("CatalogStems", ["\ub9ac\ub77c\uc5d0", "\uae00\ub9ac\uc81c 581"])), "CatalogStems[1]", "a digit")
         self.expect(self.after(home("CatalogPrefixes", ["\uc54c\ud30c", "\uc54c\ud30c"])), "CatalogPrefixes", "appears twice")
         # The home row: enough names for its peoples, enough pairs for its systems, no bridge.
@@ -1004,6 +1008,31 @@ class SchemaTests(unittest.TestCase):
         # A selector row of the calling waits for no tier either.
         selector = lambda tables: self.row(tables, "DT_LogTemplates", "log_fallen_monarch").update(Context="Revelation.Book", MinTierToReveal=2)  # noqa: E731
         self.expect(self.after(selector), "log_fallen_monarch", calling)
+
+    def test_narrator_texts_carry_no_verdict_word(self):
+        """The narrator's lines and the names of persons carry none of the verdict words (CLAUDE.md, guideline 8.3): the
+        schema guards them until the test Data.NoVerdictWords of Phase 5. A first-person row (Log.Transcendent, Log.Claim)
+        does not exist yet; with the first one the rule of its column becomes one by category."""
+        soul = "\uc601\ud63c"
+        cases = (
+            ("DT_Events", "event_test_harvest", "LogTemplates", ["{Civ} %s a." % soul, "{Civ} b.", "{Civ} c."]),
+            ("DT_Hazards", "crisis_test_storm", "OutbreakTemplates", ["%s a." % soul]),
+            ("DT_Hazards", "crisis_test_storm", "ExpireTemplates", ["%s d." % soul]),
+            ("DT_Hazards", "crisis_test_storm", "ResolveTemplates", ["%s e." % soul]),
+            ("DT_LogTemplates", "log_breakthrough_physics", "Templates", ["%s a." % soul, "b.", "c."]),
+            ("DT_Megaprojects", "project_test_build", "CompleteTemplates", ["%s a." % soul, "b.", "c."]),
+            ("DT_Feats", "feat_test_climb", "Title", soul),
+            ("DT_Feats", "feat_test_climb", "MythicNarrative", "%s a." % soul),
+            ("DT_Feats", "feat_test_climb", "LogTemplates", ["{Civ} %s a." % soul, "{Civ} b.", "{Civ} c."]),
+        )
+        for table, row_name, column, value in cases:
+            with self.subTest(table=table, column=column):
+                self.expect(self.after(self.set_cell(table, row_name, column, value)), "%s.%s.%s" % (table, row_name, column), "the word %s is not used here" % soul)
+
+        def names(tables):
+            bank = self.row(tables, "DT_Civs", "arch_default")["PersonNameBank"]
+            bank[0] = soul
+        self.expect(self.after(names), "DT_Civs.arch_default.PersonNameBank", "the word %s is not used here" % soul)
 
     def test_stay_condition_rows(self):
         """The stay in a fallen sphere stands on Civilization slot rows only; the row the research stage fires is Named."""
@@ -1595,6 +1624,7 @@ class SchemaTests(unittest.TestCase):
             ("DT_Events", "a system-subject row lands on a place and the stay condition is about the people: without a cooldown a Standing row would fire once for every settled system in the one slot, otherwise it lands on whichever settled system comes first (guideline 7.3)"):
                 (update_event(Subject="SettledSystem"), event),
             ("DT_Events", "the research stage fires the found row by name: as a slot row it would also fire in the slots (guideline 5.11)"): (NOTHING, "event_book_found"),
+            ("DT_Events", "a Lottery row with no weight never fires (guideline 7.5)"): (NOTHING, event),
             ("DT_Events", "only a Lottery row has a weight"): (update_event(Trigger="Standing", BaseWeight=0), event),
             ("DT_Events", "a row fired by name has no cooldown key"): (named, event),
             ("DT_Events", "a sign row is told below MinTierToReveal, so there has to be a tier below it"): (self.add_sign_row, event),
@@ -1611,6 +1641,7 @@ class SchemaTests(unittest.TestCase):
                 (update_hazard(HazardTag="Hazard.Claim", SpawnRule="ClaimRule", SpawnChancePerTick=0), hazard),
             ("DT_Hazards", "a rebellion is the discontent of a people in its capital, not a draw (guideline 4.1)"):
                 (update_hazard(HazardTag="Hazard.Rebellion", SpawnRule="Capital", SpawnChancePerTick=0), hazard),
+            ("DT_Hazards", "a drawn hazard with no chance never stands (guideline 7.4)"): (NOTHING, hazard),
             ("DT_Hazards", "only a drawn hazard has a chance: the capital rule and the claim rule draw nothing (guideline 7.4)"):
                 (update_hazard(SpawnRule="Capital", SpawnChancePerTick=0), hazard),
             ("DT_Hazards", "a branch is a chance and the effects it takes instead (guideline 4.1)"):
@@ -1662,7 +1693,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 87, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 89, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

@@ -47,6 +47,10 @@
 
 namespace CosmicSimTests
 {
+	// The run of Sim.SaveRestart: past the first second rung, the first settlements and their draws, and the first feats
+	// (seed 42), so that the second process re-checks them.
+	constexpr int64 RestartTicks = 3000;
+
 	uint32 HashAfter(UGalaxySimulationSubsystem& Sim, int32 Seed, int64 Ticks)
 	{
 		Sim.NewGalaxy(Seed, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
@@ -1808,10 +1812,10 @@ bool FCosmicSimSaveRestartTest::RunTest(const FString& Parameters)
 		{
 			const bool bHashOk = TestEqual(TEXT("Hash after restart and load equals the hash recorded at save"),
 				FString::Printf(TEXT("%u"), Sim->ComputeStateHash()), RecordedHash);
-			const bool bTickOk = TestEqual(TEXT("Tick after restart and load"), Sim->GetState().Tick, static_cast<int64>(1000));
+			const bool bTickOk = TestEqual(TEXT("Tick after restart and load"), Sim->GetState().Tick, static_cast<int64>(CosmicSimTests::RestartTicks));
 			// Simulation determinism across processes, not only the hash of a loaded state.
 			const bool bFreshOk = TestEqual(TEXT("A fresh run of seed 42 in this process equals the hash recorded by the previous process"),
-				FString::Printf(TEXT("%u"), CosmicSimTests::HashAfter(*Sim, 42, 1000)), RecordedHash);
+				FString::Printf(TEXT("%u"), CosmicSimTests::HashAfter(*Sim, 42, CosmicSimTests::RestartTicks)), RecordedHash);
 			const bool bDeriveOk = TestTrue(TEXT("CosmicSeed::Derive gives the value recorded by the previous process"), bHasDerive && RecordedDerive == DeriveNow);
 			bVerified = bHashOk && bTickOk && bFreshOk && bDeriveOk;
 		}
@@ -1833,7 +1837,7 @@ bool FCosmicSimSaveRestartTest::RunTest(const FString& Parameters)
 	{
 		Save->DeleteSave(RecordedGalaxyID);
 	}
-	const uint32 Hash = CosmicSimTests::HashAfter(*Sim, 42, 1000);
+	const uint32 Hash = CosmicSimTests::HashAfter(*Sim, 42, CosmicSimTests::RestartTicks);
 	if (!TestTrue(TEXT("Save succeeds"), Save->SaveCurrentGalaxy()))
 	{
 		return false;
@@ -2027,6 +2031,89 @@ bool FCosmicSimLayersInRangeTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("After 20,000 ticks every system is still of the home galaxy"), bStillHome);
 	TestTrue(TEXT("Every breakthrough line carries the people it tells of"), bFocusOfBreakthrough);
 	TestTrue(TEXT("Breakthroughs of AI peoples are told, nameless ones too"), bToldOfAIPeople);
+	return true;
+}
+
+// The exit conditions of Phase 2 on the game's data, input-free (guideline 11, Phase 2): hazards are placed, run out and are
+// answered, with their lines; a claim stands next to Silence and its sphere grows (seed 42, 60 systems and 12 peoples,
+// 20,000 ticks); and a neglected ruler is deposed, with the fallen monarch's line (seed 7). The seeds are measured, not
+// chosen by a rule: a change of the world that loses a condition on its seed has to show it on another one and say so in
+// guideline 9.3. One tick at a time is also the same world as the whole run at once.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimPhaseTwoExitTest, "Cosmic_Ascension.Sim.PhaseTwoExit", CosmicTests::Flags)
+bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
+{
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	Sim->SetTables(Original);
+	static const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Claim")));
+	constexpr int64 Ticks = 20000;
+
+	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	const FGalaxyState& State = Sim->GetState();
+	auto SilenceSphere = [&State]()
+	{
+		const FTranscendentState* Silence = State.Transcendents.FindByPredicate([](const FTranscendentState& Each) { return Each.TranscendentID == CosmicRows::TransSilence; });
+		return Silence ? Silence->InfluencedSystems.Num() : -1;
+	};
+	const int32 SphereStart = SilenceSphere();
+	int32 Placed = 0;
+	int32 RanOut = 0;
+	int32 Answered = 0;
+	int32 Claims = 0;
+	struct FSlot
+	{
+		FGameplayTag Tag;
+		int32 Remaining = 0;
+	};
+	TArray<FSlot> Before;
+	for (int64 Step = 0; Step < Ticks; ++Step)
+	{
+		Before.Reset();
+		for (const FStarSystemState& System : State.Systems)
+		{
+			Before.Add({ System.ActiveHazard, System.HazardTicksRemaining });
+		}
+		Sim->RunHeadless(1);
+		for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num() && SystemIndex < Before.Num(); ++SystemIndex)
+		{
+			const FStarSystemState& System = State.Systems[SystemIndex];
+			const FSlot& Slot = Before[SystemIndex];
+			const bool bAgain = System.ActiveHazard == Slot.Tag && System.HazardTicksRemaining >= Slot.Remaining;
+			if (Slot.Tag.IsValid() && (System.ActiveHazard != Slot.Tag || bAgain))
+			{
+				(Slot.Remaining <= 1 ? RanOut : Answered)++;
+			}
+			if (System.ActiveHazard.IsValid() && (System.ActiveHazard != Slot.Tag || bAgain))
+			{
+				++Placed;
+				Claims += System.ActiveHazard == ClaimTag ? 1 : 0;
+			}
+		}
+	}
+	TestTrue(TEXT("Hazards are placed in an input-free run of the game's data"), Placed > 0);
+	TestTrue(TEXT("some run out"), RanOut > 0);
+	TestTrue(TEXT("and some are answered before they run out"), Answered > 0);
+	const auto CrisisLine = [](const FCosmicLogEntry& Entry) { return Entry.SourceRow.ToString().StartsWith(TEXT("crisis_")); };
+	TestTrue(TEXT("and the hazards' own lines are told"), State.Log.ContainsByPredicate(CrisisLine) || State.Chronicle.ContainsByPredicate(CrisisLine));
+	TestTrue(TEXT("A claim stands next to Silence (seed 42)"), Claims > 0);
+	TestTrue(TEXT("and the sphere of Silence grows (seed 42)"), SphereStart >= 0 && SilenceSphere() > SphereStart);
+	const uint32 Stepped = Sim->ComputeWorldHash();
+	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	Sim->RunHeadless(Ticks);
+	TestEqual(TEXT("One tick at a time is the same world as the whole run at once"), Sim->ComputeWorldHash(), Stepped);
+
+	// Neglect: nothing the player does keeps the ruled people's stability up, and a rebellion deposes the ruler.
+	Sim->NewGalaxy(7, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	Sim->RunHeadless(Ticks);
+	TestTrue(TEXT("A neglected ruler is deposed (seed 7)"), State.Player.Role == EPlayerRole::Wanderer);
+	TestTrue(TEXT("and carries the status of a fallen monarch"), State.Player.StatusTags.HasTagExact(FGameplayTag::RequestGameplayTag(FName(TEXT("Status.FallenMonarch")))));
+	const auto Fallen = [](const FCosmicLogEntry& Entry) { return Entry.SourceRow == CosmicRows::LogFallenMonarch && Entry.Severity == 2; };
+	TestTrue(TEXT("and the fallen monarch's line is told"), State.Log.ContainsByPredicate(Fallen) || State.Chronicle.ContainsByPredicate(Fallen));
 	return true;
 }
 

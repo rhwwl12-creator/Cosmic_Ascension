@@ -173,7 +173,8 @@ public:
 	 * The tell stream (section 9.2): one number in [0, Count) for the choice of a sentence variant, and nothing else.
 	 * Opens a local stream on State.TellRngState, draws once and writes the state back, so the saved value is always
 	 * current: there is no live stream object and no getter. Never draws from the sim stream, and no rule reads the
-	 * result. Count < 1 is a caller error: one error line, no draw, returns 0.
+	 * result. Count < 1 is a caller error: one error line, no draw, returns 0; so is a call from a handler of a Core Logic
+	 * delegate (IsBroadcasting).
 	 */
 	uint32 DrawTell(int32 Count);
 
@@ -236,7 +237,8 @@ public:
 	// Counts the Core Logic delegates that are being broadcast right now and that can fire from inside a tick stage:
 	// OnLogEntry, OnEventFired, OnTierAscended (section 9.4). Their handlers may read the state and call SetTimeScale
 	// and nothing else, so UCosmicEventSubsystem refuses its member functions while this is true, and so do NewGalaxy,
-	// LoadState, StepOnce, RunHeadless, NoteMet and NoteKnown here, UCosmicSaveSubsystem::LoadGalaxy, UAscensionSubsystem::EvaluateFeats and
+	// LoadState, StepOnce, RunHeadless, NoteMet, NoteKnown and DrawTell here, UCosmicLogSubsystem::Push and PushVariants
+	// (and so PushRow), UCosmicSaveSubsystem::LoadGalaxy, UAscensionSubsystem::EvaluateFeats and
 	// the role changes and commands of UPlayerRoleSubsystem (Install, DeposeRuler, BecomeWanderer, StartMegaproject,
 	// StartNextMegaproject). MakeEvalContext reports an error and still returns the context (it holds references): the
 	// static Apply and ApplyAll are kept out of a handler by the rule alone. Every such broadcast site brackets its
@@ -397,7 +399,9 @@ private:
 	/**
 	 * Step (a) of the crisis stage (section 5.7, 7.4): CosmicMegaprojects::Advance for every response slot that holds a
 	 * project, in Systems order, then for every construction slot, in Systems order (an answer spends the stockpile before
-	 * a construction does), with DT_Rules.AIAscensionSpeedMultiplier as the rate of the peoples the player does not rule
+	 * a construction does; a people one of whose answers could not pay in full this tick builds nothing this tick, so a
+	 * cheaper construction cannot keep taking what the answer waits for), with DT_Rules.AIAscensionSpeedMultiplier as the
+	 * rate of the peoples the player does not rule
 	 * (not above 0, or not a number: 1, with one error line). After each slot FollowUpKnowing (a system a resolution
 	 * handed to the vessel's people), then its completion line (the row's CompleteTemplates, Log.Civ, Severity 1 for the
 	 * people the player rules and 0 for the others, slots {Civ} {System} {Project}), then the lines that follow
