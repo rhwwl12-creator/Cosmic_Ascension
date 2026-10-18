@@ -90,8 +90,9 @@ void ACosmicGameMode::StartPlay()
 		{
 			Seed = static_cast<int32>(FDateTime::UtcNow().GetTicks() & 0x7fffffff);
 		}
-		// The counts come from the home galaxy row (section 3.1). A development aid: -Speed=N starts at that speed (the
-		// frame-time measure of Phase 3 item 6 runs at 10x).
+		// The counts come from the home galaxy row (section 3.1). A development aid: -Speed=N starts at that speed, up to
+		// x25 whatever the rung (the frame-time measure: item 6 at 10x, item 12 at 25x - the controller lowers only a x25
+		// the gate opened and then closed).
 		Sim->NewGalaxy(Seed, 0, 0);
 		float Speed = 1.f;
 		FParse::Value(FCommandLine::Get(), TEXT("Speed="), Speed);
@@ -123,6 +124,24 @@ void ACosmicGameMode::StartPlay()
 		};
 		After(TEXT("ShotAfterSeconds="), TEXT("shot showui"));
 		After(TEXT("ProfileAfterSeconds="), TEXT("CsvProfile Frames=600"));
+		// The profiled run says at what speed it ran: the tick and the time scale when the profile starts and ten seconds
+		// later (600 frames at 60 fps), so the log shows that a -Speed=25 run kept x25 (item 12).
+		float ProfileSeconds = 0.f;
+		if (FParse::Value(FCommandLine::Get(), TEXT("ProfileAfterSeconds="), ProfileSeconds) && ProfileSeconds > 0.f)
+		{
+			for (const float At : { ProfileSeconds, ProfileSeconds + 10.f })
+			{
+				FTimerHandle Handle;
+				World->GetTimerManager().SetTimer(Handle, FTimerDelegate::CreateWeakLambda(World, [World, At]()
+				{
+					const UGalaxySimulationSubsystem* Running = World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+					if (Running)
+					{
+						UE_LOG(LogCosmic, Display, TEXT("CosmicProfile: %.1f s in, tick %lld, time scale %.1f"), At, Running->GetState().Tick, Running->GetTimeScale());
+					}
+				}), At, false);
+			}
+		}
 
 		// The map reads the state from here on; each player looks at it through a camera pawn.
 		ACosmicGalaxyMapActor* Map = World->SpawnActor<ACosmicGalaxyMapActor>();
@@ -412,6 +431,12 @@ void ACosmicPlayerController::BeginPlay()
 		Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 		SetInputMode(Mode);
 	}
+	// The third rung's gate is followed at the tick boundary and on a new galaxy or a load (FollowSpeedGate).
+	if (UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr)
+	{
+		Sim->OnSimTick.AddUniqueDynamic(this, &ACosmicPlayerController::HandleSimTick);
+		Sim->OnGalaxyGenerated.AddUniqueDynamic(this, &ACosmicPlayerController::HandleGalaxyGenerated);
+	}
 }
 
 void ACosmicPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -420,7 +445,46 @@ void ACosmicPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		TheMap->OnRebuilt.Remove(RebuiltHandle);
 	}
+	if (UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr)
+	{
+		Sim->OnSimTick.RemoveDynamic(this, &ACosmicPlayerController::HandleSimTick);
+		Sim->OnGalaxyGenerated.RemoveDynamic(this, &ACosmicPlayerController::HandleGalaxyGenerated);
+	}
 	Super::EndPlay(EndPlayReason);
+}
+
+void ACosmicPlayerController::HandleSimTick(int64 Tick)
+{
+	FollowSpeedGate();
+}
+
+void ACosmicPlayerController::HandleGalaxyGenerated(int32 Seed)
+{
+	FollowSpeedGate();
+}
+
+void ACosmicPlayerController::FollowSpeedGate()
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!Sim)
+	{
+		return;
+	}
+	// Only the closing lowers: a first look notes the gate, and a speed the gate never opened (-Speed=25) stays.
+	const bool bOpen = IsSpiritualSightOpen();
+	if (CosmicUI::LowersSpeed(ThirdRungWasOpen, bOpen, Sim->GetTimeScale()))
+	{
+		SetSpeed(CosmicUI::CallingTopSpeed);
+	}
+	ThirdRungWasOpen = bOpen;
+}
+
+void ACosmicPlayerController::CosmicStartProject(const FString& SystemID, const FString& RowName)
+{
+	if (!StartProject(FName(*SystemID), FName(*RowName)))
+	{
+		UE_LOG(LogCosmic, Display, TEXT("CosmicStartProject: %s on %s was refused"), *RowName, *SystemID);
+	}
 }
 
 void ACosmicPlayerController::UseMap(ACosmicGalaxyMapActor* InMap)
@@ -553,9 +617,9 @@ void ACosmicPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
-	for (const FKey& Key : { EKeys::Zero, EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::SpaceBar })
+	for (const FKey& Key : { EKeys::Zero, EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five, EKeys::SpaceBar })
 	{
-		InputComponent->BindKey(Key, IE_Pressed, this, &ACosmicPlayerController::HandleSpeedKey);
+		InputComponent->BindKey(Key, IE_Pressed, this, &ACosmicPlayerController::PressSpeedKey);
 	}
 
 	InputComponent->BindKey(EKeys::LeftMouseButton, IE_Pressed, this, &ACosmicPlayerController::HandleLeftPressed);
@@ -727,7 +791,8 @@ void ACosmicPlayerController::SetSpeed(float Speed)
 	{
 		SpeedBeforePause = Current;
 	}
-	Sim->SetTimeScale(Speed);
+	// One rule for every path: a speed the third rung's gate does not open runs as x10.
+	Sim->SetTimeScale(CosmicUI::OpenSpeed(Speed, IsSpiritualSightOpen()));
 
 	// No delegate announces a new time scale, and a paused simulation sends no tick.
 	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
@@ -736,39 +801,38 @@ void ACosmicPlayerController::SetSpeed(float Speed)
 	}
 }
 
-void ACosmicPlayerController::HandleSpeedKey(FKey Key)
+TOptional<float> ACosmicPlayerController::SpeedOfKey(const FKey& Key)
+{
+	// The number keys in the order of the speed steps, pause first.
+	const FKey NumberKeys[] = { EKeys::Zero, EKeys::One, EKeys::Two, EKeys::Three, EKeys::Four, EKeys::Five };
+	static_assert(UE_ARRAY_COUNT(NumberKeys) == UE_ARRAY_COUNT(CosmicUI::SpeedSteps), "One number key per speed step, 0 to 5");
+	for (int32 At = 0; At < static_cast<int32>(UE_ARRAY_COUNT(NumberKeys)); ++At)
+	{
+		if (Key == NumberKeys[At])
+		{
+			return CosmicUI::SpeedSteps[At];
+		}
+	}
+	return TOptional<float>();
+}
+
+void ACosmicPlayerController::PressSpeedKey(FKey Key)
 {
 	UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
 	if (!Sim)
 	{
 		return;
 	}
-
-	const float Current = Sim->GetTimeScale();
-	float Wanted = Current;
 	if (Key == EKeys::SpaceBar)
 	{
-		Wanted = (Current > 0.f) ? 0.f : SpeedBeforePause;
+		SetSpeed(Sim->GetTimeScale() > 0.f ? 0.f : SpeedBeforePause);
+		return;
 	}
-	else if (Key == EKeys::Zero)
+	// A key whose step the gate does not open does nothing (it never becomes x10). The keys follow the gate alone: under
+	// the ascension presentation key 5 sets x25 while the bar keeps that button folded, as keys 1 to 4 set theirs.
+	const TOptional<float> Step = SpeedOfKey(Key);
+	if (Step.IsSet() && CosmicUI::IsSpeedOpen(Step.GetValue(), IsSpiritualSightOpen()))
 	{
-		Wanted = 0.f;
+		SetSpeed(Step.GetValue());
 	}
-	else if (Key == EKeys::One)
-	{
-		Wanted = 1.f;
-	}
-	else if (Key == EKeys::Two)
-	{
-		Wanted = 2.f;
-	}
-	else if (Key == EKeys::Three)
-	{
-		Wanted = 5.f;
-	}
-	else if (Key == EKeys::Four)
-	{
-		Wanted = 10.f;
-	}
-	SetSpeed(Wanted);
 }

@@ -276,6 +276,14 @@ struct COSMIC_ASCENSION_API FAscensionFeatDef : public FTableRowBase
 	{
 		return static_cast<int32>(TargetTier) == static_cast<int32>(RequiredTier) + 1 && !CompletionConditions.IsEmpty();
 	}
+
+	// Whether the feat judgment looks at this row for a people on Tier: a Ruler row of that RequiredTier that
+	// IsOneRungWithDeed. The one filter of the judgment (UAscensionSubsystem, which reports a Ruler row of the rung that is
+	// not one rung up), the AI's choices (CosmicMegaprojects::Choices) and the top bar's next rung (CosmicNextRung::Of).
+	bool IsJudgedRulerRowAt(EAscensionTier Tier) const
+	{
+		return Path == EPlayerRole::Ruler && RequiredTier == Tier && IsOneRungWithDeed();
+	}
 };
 
 /**

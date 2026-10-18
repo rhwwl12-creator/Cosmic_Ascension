@@ -37,7 +37,8 @@ namespace CosmicAscensionSound
  * in the centre (the UI material M_AscensionGlow), the feat's title, the new rung and its MythicNarrative, with a chime.
  * About five seconds of real time, then it closes; a click closes it at once. It answers UAscensionSubsystem::
  * OnTierAscended (the player's ascensions) and pauses a running simulation while it shows, giving the speed back when it
- * closes unless the player changed it meanwhile. When the presentation of the rung that opens the spiritual sight
+ * closes unless the player changed it meanwhile; a close always redraws the HUD, since the top bar holds the third rung's
+ * x25 back while the presentation shows (guideline 6.3). When the presentation of the rung that opens the spiritual sight
  * (CosmicMapLook::SpiritualSightTier) closes and the view drawn is spiritual, a second phase shows ST_CA Sight.Opened
  * over the map - one plain white line, no veil, no glow, no chime, taking no click, for RevealSeconds (guideline 6.4:
  * the opening is received, so it stands apart from the feat's prize). NS_Ascension (Niagara) is deferred (guideline
@@ -51,8 +52,8 @@ class COSMIC_ASCENSION_API UCosmicAscensionOverlayWidget : public UUserWidget
 public:
 	/** Shows the ascension to NewTier through FeatRow (its title and narrative; an unknown row shows the rung alone). */
 	void Show(EAscensionTier NewTier, FName FeatRow);
-	/** Closes now and gives back the speed it paused (unless the player changed it); the third rung's presentation then
-	 * turns into the reveal when the view drawn is spiritual. */
+	/** Closes now and gives back the speed it paused (unless the player changed it), redrawing the HUD either way; the
+	 * third rung's presentation then turns into the reveal when the view drawn is spiritual. */
 	void Close();
 	/** Moves the presentation, or the reveal, on by DeltaSeconds of real time (its tick; tests call it). */
 	void Advance(float DeltaSeconds);

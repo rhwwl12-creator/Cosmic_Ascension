@@ -1033,7 +1033,8 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 
 void UGalaxySimulationSubsystem::SetTimeScale(float Scale)
 {
-	TimeScale = FMath::Clamp(Scale, 0.f, static_cast<float>(MaxTicksPerFrame));
+	// A compare, so a scale that is not a number pauses: FMath::Clamp would read it as its top (CLAUDE.md, the API table).
+	TimeScale = Scale > 0.f ? FMath::Min(Scale, MaxTimeScale) : 0.f;
 	// A pause drops the carried-over time too (section 16 #40 (3)): resuming never runs the leftover in one burst. The
 	// ticks themselves are the same; only the frames they fall in move.
 	if (!(TimeScale > 0.f))

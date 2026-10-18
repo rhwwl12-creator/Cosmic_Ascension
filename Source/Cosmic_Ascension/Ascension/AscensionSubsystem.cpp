@@ -90,15 +90,15 @@ bool UAscensionSubsystem::JudgePeople(FGalaxyState& State, FRandomStream& Rng, i
 	for (const FName FeatRow : Tables.GetFeatRowNames())
 	{
 		const FAscensionFeatDef* Feat = Tables.FindFeat(FeatRow);
-		if (!Feat || Feat->Path != EPlayerRole::Ruler || Feat->RequiredTier != State.Civs[CivIndex].Tier)
+		const EAscensionTier Tier = State.Civs[CivIndex].Tier;
+		if (!Feat || !Feat->IsJudgedRulerRowAt(Tier))
 		{
-			continue;
-		}
-		// A feat is one rung reached by a deed (section 3.2): a row that is not would lift a people every tick, skip a rung or
-		// pull it down, and one without a condition would lift every people of its rung at once.
-		if (!Feat->IsOneRungWithDeed())
-		{
-			UE_LOG(LogCosmic, Error, TEXT("DT_Feats row %s is not one rung up with a condition: not judged"), *FeatRow.ToString());
+			// A feat is one rung reached by a deed (section 3.2): a Ruler row of this rung that is not would lift a people
+			// every tick, skip a rung or pull it down, and one without a condition would lift every people of its rung at once.
+			if (Feat && Feat->Path == EPlayerRole::Ruler && Feat->RequiredTier == Tier)
+			{
+				UE_LOG(LogCosmic, Error, TEXT("DT_Feats row %s is not one rung up with a condition: not judged"), *FeatRow.ToString());
+			}
 			continue;
 		}
 		for (const int32 SystemIndex : Settled)

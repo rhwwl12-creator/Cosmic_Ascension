@@ -35,6 +35,7 @@
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
 #include "UI/CosmicActionButton.h"
+#include "UI/CosmicAscensionOverlayWidget.h"
 #include "UI/CosmicLogFeedWidget.h"
 #include "UI/CosmicSystemPanelWidget.h"
 #include "UI/CosmicTopBarWidget.h"
@@ -210,13 +211,14 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("and the cycle"), Shown.Contains(CosmicUI::ClockLabel(Live.Tick, ECosmicTimeUnit::Cycle).ToString()));
 
 		const TArray<TObjectPtr<UCosmicActionButton>>& Speeds = Bar->GetSpeedButtons();
-		const float Expected[] = { 0.f, 1.f, 2.f, 5.f, 10.f };
-		if (TestEqual(TEXT("Five speed buttons"), Speeds.Num(), 5))
+		const float Expected[] = { 0.f, 1.f, 2.f, 5.f, 10.f, 25.f };
+		if (TestEqual(TEXT("Six speed buttons"), Speeds.Num(), 6))
 		{
-			for (int32 Index = 0; Index < 5; ++Index)
+			for (int32 Index = 0; Index < 6; ++Index)
 			{
 				TestEqual(*FString::Printf(TEXT("Speed button %d sets %g"), Index, Expected[Index]), Speeds[Index]->GetValue(), Expected[Index]);
 			}
+			TestTrue(TEXT("On the first rung the x25 button is collapsed"), Speeds[5]->GetVisibility() == ESlateVisibility::Collapsed);
 			TestFalse(TEXT("Paused, the pause button is greyed out"), Speeds[0]->GetIsEnabled());
 			TestTrue(TEXT("and x5 is not"), Speeds[3]->GetIsEnabled());
 			Speeds[3]->Press();
@@ -250,19 +252,29 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 		const FString ClassName = Live.Systems[HomeIndex].StarClass.GetTagName().ToString();
 		TestTrue(TEXT("and its star class by letter"), Shown.Contains(FString::Printf(TEXT("%s  %s"), *LabelText(TEXT("Panel.StarClass")), *ClassName.RightChop(ClassName.Find(TEXT("."), ESearchCase::CaseSensitive, ESearchDir::FromEnd) + 1))));
 
-		TArray<FName> Startable = GameTables.Megaprojects ? GameTables.Megaprojects->GetRowNames() : TArray<FName>();
-		Startable.Sort(FNameLexicalLess());
-		Startable.RemoveAll([&](FName Row) { return !CosmicMegaprojects::CanStart(Live, Sim->GetStateIndex(), GameTables, HomeIndex, Row); });
-		TestTrue(TEXT("(the home can start a project)"), !Startable.IsEmpty());
-		TestTrue(TEXT("One button per project the home can start, in row order"), ActionsOf(*Panel) == Startable);
+		// The rows that belong on the home: those the rule takes and those it greys for a reason with words (Phase 3 item 12 -
+		// on a quiet first-rung home only the Dyson swarm: every answer has no hazard here, the settle row has its button).
+		TArray<FName> Listed = GameTables.Megaprojects ? GameTables.Megaprojects->GetRowNames() : TArray<FName>();
+		Listed.Sort(FNameLexicalLess());
+		Listed.RemoveAll([&](FName Row)
+		{
+			const CosmicMegaprojects::ECosmicStartBlock Block = CosmicMegaprojects::StartBlockOf(Live, Sim->GetStateIndex(), GameTables, HomeIndex, Row);
+			return Block != CosmicMegaprojects::ECosmicStartBlock::None && UCosmicSystemPanelWidget::StartReasonOf(Block, GameTables, Row).IsEmpty();
+		});
+		TestTrue(TEXT("(the home lists a project)"), !Listed.IsEmpty());
+		TestTrue(TEXT("One button per project the home lists, in row order"), ActionsOf(*Panel) == Listed);
+		TestTrue(TEXT("which on a quiet first-rung home is the Dyson swarm alone"), ActionsOf(*Panel) == TArray<FName>({ FName(TEXT("project_dyson")) }));
 		TestFalse(TEXT("No reason line on a settled system"), Panel->IsReasonShown());
 		if (!Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0])
 		{
-			const FName Row = Panel->GetActionButtons()[0]->GetAction();
-			Panel->GetActionButtons()[0]->Press();
+			UCosmicActionButton* Pressed = Panel->GetActionButtons()[0];
+			const FName Row = Pressed->GetAction();
+			Pressed->Press();
 			const FStarSystemState& After = Live.Systems[HomeIndex];
 			TestTrue(TEXT("Pressing it starts the project"), After.ActiveMegaproject == Row || After.ResponseMegaproject == Row);
-			TestFalse(TEXT("and its button goes"), ActionsOf(*Panel).Contains(Row));
+			TestTrue(TEXT("and its button stays"), !Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0].Get() == Pressed);
+			TestFalse(TEXT("greyed out"), Pressed->GetIsEnabled());
+			TestTrue(TEXT("with the running reason"), Panel->GetShownStartBlock(Row) == CosmicMegaprojects::ECosmicStartBlock::Running);
 			const FMegaprojectDef* Def = GameTables.FindMegaproject(Row);
 			if (TestNotNull(TEXT("(the row is the game's)"), Def))
 			{
@@ -335,7 +347,7 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 				const FString SphereWords = UCosmicSystemPanelWidget::ReasonOf(CosmicMegaprojects::ECosmicSettleBlock::Sphere, GameTables).ToString();
 				TestTrue(TEXT("A neighbour in a transcendent's sphere gives the sphere as its reason"), Panel->GetShownSettleBlock() == CosmicMegaprojects::ECosmicSettleBlock::Sphere);
 				TestTrue(TEXT("on the line"), ReadTexts(*Panel).Contains(SphereWords));
-				TestTrue(TEXT("and as the tooltip"), !Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0]->GetToolTipText().ToString() == SphereWords);
+				TestTrue(TEXT("and its tooltip starts with them"), !Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0]->GetToolTipText().ToString().StartsWith(SphereWords, ESearchCase::CaseSensitive));
 				// A press on the greyed-out button announces nothing (a click never reaches it; a press from code is refused
 				// the same way) - counted on the button's own delegate, as the command would refuse the settlement anyway.
 				int32 Announced = 0;
@@ -375,7 +387,7 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 			TestFalse(TEXT("greyed out"), !Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0]->GetIsEnabled());
 			TestTrue(TEXT("with the realm cap as its reason, before the settlement under way"), Panel->GetShownSettleBlock() == CosmicMegaprojects::ECosmicSettleBlock::RealmCap);
 			TestTrue(TEXT("on a line"), Panel->IsReasonShown());
-			TestTrue(TEXT("and as its tooltip"), !Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0]->GetToolTipText().ToString() == LabelText(TEXT("Settle.Block.RealmCap")));
+			TestTrue(TEXT("and its tooltip starts with it"), !Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0]->GetToolTipText().ToString().StartsWith(LabelText(TEXT("Settle.Block.RealmCap")), ESearchCase::CaseSensitive));
 			TestTrue(TEXT("The line says so"), ReadTexts(*Panel).Contains(LabelText(TEXT("Settle.Block.RealmCap"))));
 			const int32 Untouched = FindUntouched(*Sim, RuledID);
 			if (TestTrue(TEXT("(a wild system away from the people)"), Untouched != INDEX_NONE))
@@ -691,9 +703,10 @@ bool FCosmicUIMouseOnlyAscentTest::RunTest(const FString& Parameters)
 	Controller->SelectSystem(Live.Systems[Home].SystemID);
 	TestTrue(TEXT("The capital's panel offers the Dyson swarm"), Click(FName(TEXT("project_dyson"))));
 	TestEqual(TEXT("and the button starts it"), Live.Systems[Home].ActiveMegaproject, FName(TEXT("project_dyson")));
-	if (Bar->GetSpeedButtons().Num() == 5)
+	// Found by its value: a guard on the count of buttons would skip the press without a word when a step is added.
+	if (UCosmicActionButton* X10 = Bar->FindSpeedButton(10.f); TestNotNull(TEXT("(the bar has its x10 button)"), X10))
 	{
-		Bar->GetSpeedButtons()[4]->Press();
+		X10->Press();
 	}
 	TestEqual(TEXT("The bar's x10 sets the pace"), Sim->GetTimeScale(), 10.f);
 	Sim->SetTimeScale(0.f);
@@ -747,6 +760,24 @@ bool FCosmicUIMouseOnlyAscentTest::RunTest(const FString& Parameters)
 	Bar->PressViewButton();
 	Map->RefreshNow();
 	TestTrue(TEXT("and a press on it turns the map to the physical view"), Map->GetDrawnViewMode() == ECosmicViewMode::Physical);
+
+	// The third rung's speed (item 12): the bar offers x25 once no ascension presentation shows (a headless run tells no
+	// ascension; one an earlier test raised closes here), and its press runs the simulation at 25.
+	if (UCosmicAscensionOverlayWidget* Overlay = HUD->GetAscensionOverlay())
+	{
+		Overlay->Close();
+		Sim->SetTimeScale(0.f);
+	}
+	HUD->RefreshPanel();
+	UCosmicActionButton* X25 = Bar->FindSpeedButton(25.f);
+	const ESlateVisibility X25Visibility = X25 ? X25->GetVisibility() : ESlateVisibility::Collapsed;
+	TestTrue(TEXT("From the third rung the bar offers x25 to the mouse"), X25Visibility == ESlateVisibility::Visible || X25Visibility == ESlateVisibility::SelfHitTestInvisible);
+	if (X25)
+	{
+		X25->Press();
+	}
+	TestEqual(TEXT("and its press runs x25"), Sim->GetTimeScale(), 25.f);
+	Sim->SetTimeScale(0.f);
 	return true;
 }
 
@@ -909,13 +940,16 @@ bool FCosmicUITimeUnitToggleTest::RunTest(const FString& Parameters)
 	}
 	const TSharedRef<SWidget> SlateBar = Bar->TakeWidget();
 	Bar->Refresh();
+	// The speed buttons by their value (a step added to the bar moves the places, not the values).
+	const UCosmicActionButton* X2 = Bar->FindSpeedButton(2.f);
+	const UCosmicActionButton* PauseButton = Bar->FindSpeedButton(0.f);
 	if (!TestNotNull(TEXT("The bar has its clock"), Bar->GetClockText()) || !TestNotNull(TEXT("The bar has its clock's button"), Bar->GetClockButton())
-		|| !TestEqual(TEXT("(five speed buttons)"), Bar->GetSpeedButtons().Num(), 5))
+		|| !TestNotNull(TEXT("(the bar has its x2 button)"), X2) || !TestNotNull(TEXT("(and its pause button)"), PauseButton))
 	{
 		return false;
 	}
 	auto ClockShown = [Bar]() { return Bar->GetClockText()->GetText().ToString(); };
-	auto SpeedShown = [Bar]() { return Bar->GetSpeedButtons()[2]->GetLabel().ToString(); };
+	auto SpeedShown = [X2]() { return X2->GetLabel().ToString(); };
 	TestEqual(TEXT("The clock starts in cycles"), ClockShown(), CosmicUI::ClockLabel(Tick, ECosmicTimeUnit::Cycle).ToString());
 	TestEqual(TEXT("The speeds start in cycles"), SpeedShown(), CosmicUI::SpeedLabel(2.f, ECosmicTimeUnit::Cycle).ToString());
 	const FString ClockTip = Bar->GetClockButton()->GetToolTipText().ToString();
@@ -954,7 +988,7 @@ bool FCosmicUITimeUnitToggleTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("A press on the clock turns it to years"), Controller->GetTimeUnit() == ECosmicTimeUnit::Year);
 	TestEqual(TEXT("The clock shows years"), ClockShown(), CosmicUI::ClockLabel(Tick, ECosmicTimeUnit::Year).ToString());
 	TestEqual(TEXT("The speeds follow the clock"), SpeedShown(), CosmicUI::SpeedLabel(2.f, ECosmicTimeUnit::Year).ToString());
-	TestEqual(TEXT("The pause stays the pause"), Bar->GetSpeedButtons()[0]->GetLabel().ToString(), LabelText(TEXT("Speed.Pause")));
+	TestEqual(TEXT("The pause stays the pause"), PauseButton->GetLabel().ToString(), LabelText(TEXT("Speed.Pause")));
 	TestEqual(TEXT("The HUD's clock follows"), HudBar->GetClockText()->GetText().ToString(), CosmicUI::ClockLabel(Tick, ECosmicTimeUnit::Year).ToString());
 	TestTrue(TEXT("The HUD panel's countdown follows"), ReadTexts(*HudPanel).Contains(CosmicUI::TimeLeftLabel(120, ECosmicTimeUnit::Year).ToString()));
 	const TArray<FString> YearLines = FeedTexts();

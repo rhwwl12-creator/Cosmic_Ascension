@@ -89,10 +89,11 @@ private:
 
 /**
  * Controls: the mouse drives the camera pawn and selects (left click selects, left drag pans, right drag orbits, the
- * wheel zooms, a double click focuses); 0 pauses, 1 to 4 set 1x, 2x, 5x and 10x, Space toggles the pause (the top bar's
- * buttons share SetSpeed). The system panel's commands come through StartProject. Holds the selection, the clock's unit
- * and the view (physical or the third rung's spiritual sight) - presentation state: not in FGalaxyState, never saved
- * with a galaxy (the unit is the viewer's setting, the view lives in memory only).
+ * wheel zooms, a double click focuses); 0 pauses, 1 to 4 set 1x, 2x, 5x and 10x and 5 sets 25x once the third rung's
+ * gate is open (CosmicUI::SpeedSteps, as the top bar's buttons; a key whose speed the gate does not open does nothing),
+ * Space toggles the pause (the top bar's buttons share SetSpeed). The system panel's commands come through StartProject.
+ * Holds the selection, the clock's unit and the view (physical or the third rung's spiritual sight) - presentation state:
+ * not in FGalaxyState, never saved with a galaxy (the unit is the viewer's setting, the view lives in memory only).
  */
 UCLASS()
 class COSMIC_ASCENSION_API ACosmicPlayerController : public APlayerController
@@ -110,8 +111,28 @@ public:
 	FName GetSelectedSystem() const { return SelectedSystemID; }
 	FOnCosmicSelectionChanged OnSelectionChanged;
 
-	/** Sets the simulation's speed (0 pauses) and remembers the speed to return to after a pause. Redraws the HUD. */
+	/** Sets the simulation's speed (0 pauses) - a speed the third rung's gate does not open is x10 instead (CosmicUI::
+	 * OpenSpeed with IsSpiritualSightOpen; the pause's release and the ascension presentation's give-back come through
+	 * here too) - and remembers the speed to return to after a pause. Redraws the HUD. */
 	void SetSpeed(float Speed);
+
+	/** What a speed key does: 0 to 5 set the steps of CosmicUI::SpeedSteps through SetSpeed - a step the gate does not
+	 * open does nothing (it never becomes x10, guideline 2.1) -, Space toggles the pause. The keys follow the gate alone:
+	 * while the ascension presentation shows, key 5 sets x25 although the bar keeps its x25 button folded until the
+	 * presentation closes, as keys 1 to 4 already set their speeds under it. The bound handler; tests call it in place of
+	 * a key. */
+	void PressSpeedKey(FKey Key);
+
+	/** The speed of a number key: 0 to 5 are CosmicUI::SpeedSteps in order; any other key has none. */
+	static TOptional<float> SpeedOfKey(const FKey& Key);
+
+	/**
+	 * Follows the third rung's gate (IsSpiritualSightOpen), from this controller's handlers of OnSimTick and
+	 * OnGalaxyGenerated: when the gate closes - a deposition, a new galaxy, a lower save - a running speed above x10 falls
+	 * to x10 (CosmicUI::LowersSpeed). The first look only notes the gate, so a speed above x10 the gate never opened (the
+	 * development argument -Speed=25) stays. Tests call it directly too.
+	 */
+	void FollowSpeedGate();
 
 	/** How the UI shows the clock (guideline 2.1, 6.3): the viewer's choice, read from the viewer's settings when the
 	 * controller starts (Cycle when none is kept). */
@@ -143,7 +164,7 @@ public:
 	 * closed. */
 	void ToggleViewMode();
 	/** Whether the spiritual sight is open: CosmicMapLook::SpiritualSightOpens of the simulation's viewer tier, or forced
-	 * open by CosmicSpiritualSight. */
+	 * open by CosmicSpiritualSight. The third rung's one gate: x25 opens with it (CosmicUI::IsSpeedOpen). */
 	bool IsSpiritualSightOpen() const;
 	/** The view drawn: CosmicMapLook::ShownViewMode of the wanted view, the force and the viewer tier. */
 	ECosmicViewMode GetShownViewMode() const;
@@ -189,11 +210,17 @@ public:
 	UFUNCTION(Exec)
 	void CosmicPreviewRung(float DelaySeconds, int32 Rung);
 
-	/** Development aid: "CosmicSpiritualSight 1" forces the sight open at any rung for the session (the off-screen
-	 * screenshot, the frame-time measure) and logs the first system of each fallen sphere for CosmicSelect; 0 gives the
-	 * rung its say back. Changes no state, keeps nothing. */
+	/** Development aid: "CosmicSpiritualSight 1" forces the third rung's gate open at any rung for the session - the
+	 * spiritual sight and x25 (the off-screen screenshot, the frame-time measure) - and logs the first system of each
+	 * fallen sphere for CosmicSelect; 0 gives the rung its say back. Changes no state, keeps nothing. */
 	UFUNCTION(Exec)
 	void CosmicSpiritualSight(int32 Open);
+
+	/** Development aid: the system panel's command from the console ("CosmicStartProject <the home's SystemID>
+	 * project_dyson" at the console or in -ExecCmds - the home is sol until v0.8 step 4, sys_0 from then) - StartProject,
+	 * the path a button takes; it changes the world only as that click would. */
+	UFUNCTION(Exec)
+	void CosmicStartProject(const FString& SystemID, const FString& RowName);
 
 protected:
 	// Reads the viewer's clock unit before the HUD exists. A development aid: -TimeUnit=Year (or Cycle) sets it for the
@@ -205,7 +232,12 @@ protected:
 	virtual void PlayerTick(float DeltaTime) override;
 
 private:
-	void HandleSpeedKey(FKey Key);
+	UFUNCTION()
+	void HandleSimTick(int64 Tick);
+
+	UFUNCTION()
+	void HandleGalaxyGenerated(int32 Seed);
+
 	void HandleLeftPressed(FKey Key);
 	void HandleLeftReleased(FKey Key);
 	void HandleLeftDoubleClick(FKey Key);
@@ -222,6 +254,9 @@ private:
 
 	// Speed to return to when the pause is released.
 	float SpeedBeforePause = 1.f;
+
+	// Whether the third rung's gate was open at the last FollowSpeedGate; unset before the first.
+	TOptional<bool> ThirdRungWasOpen;
 
 	ECosmicTimeUnit TimeUnit = ECosmicTimeUnit::Cycle;
 

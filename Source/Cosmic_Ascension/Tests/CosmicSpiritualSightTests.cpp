@@ -821,7 +821,7 @@ bool FCosmicUISpiritualSightTest::RunTest(const FString& Parameters)
 		{
 			TestFalse(*FString::Printf(TEXT("%s is no missing entry"), Key), CosmicUI::Label(Key).ToString().Contains(Placeholder));
 		}
-		TestEqual(TEXT("The bar still has five speed buttons"), Bar->GetSpeedButtons().Num(), 5);
+		TestEqual(TEXT("The view button is no speed button: one speed button per step"), Bar->GetSpeedButtons().Num(), static_cast<int32>(UE_ARRAY_COUNT(CosmicUI::SpeedSteps)));
 	}
 
 	// ---- 10. The panel's words: a line of their own and its tooltip, in the sight only ----

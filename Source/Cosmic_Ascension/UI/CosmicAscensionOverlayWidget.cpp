@@ -226,6 +226,9 @@ void UCosmicAscensionOverlayWidget::Show(EAscensionTier NewTier, FName FeatRow)
 		NarrativeText->SetText(Feat ? Feat->MythicNarrative : FText::GetEmpty());
 	}
 
+	// Showing before the pause: the pause redraws the HUD, and the top bar keeps x25 hidden while the presentation shows.
+	bShowing = true;
+	Elapsed = 0.f;
 	// Pause a running simulation (a second ascension while showing pauses again if the player resumed meanwhile).
 	if (Sim && Sim->GetTimeScale() > 0.f)
 	{
@@ -235,8 +238,6 @@ void UCosmicAscensionOverlayWidget::Show(EAscensionTier NewTier, FName FeatRow)
 			Controller->SetSpeed(0.f);
 		}
 	}
-	bShowing = true;
-	Elapsed = 0.f;
 	SetVisibility(ESlateVisibility::Visible);
 	Advance(0.f);
 	PlayChime();
@@ -250,14 +251,18 @@ void UCosmicAscensionOverlayWidget::Close()
 	}
 	bShowing = false;
 	SetVisibility(ESlateVisibility::Collapsed);
-	// Give the paused speed back, unless the player set a speed meanwhile.
+	// Give the paused speed back, unless the player set a speed meanwhile (through the controller's SetSpeed: a x25 the
+	// rung no longer opens comes back as x10). The HUD is redrawn either way - what waited for the presentation to close
+	// (the third rung's x25) shows now, also when the simulation stays paused.
 	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
-	if (PausedSpeed > 0.f && Sim && !(Sim->GetTimeScale() > 0.f))
+	ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer());
+	if (PausedSpeed > 0.f && Sim && !(Sim->GetTimeScale() > 0.f) && Controller)
 	{
-		if (ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer()))
-		{
-			Controller->SetSpeed(PausedSpeed);
-		}
+		Controller->SetSpeed(PausedSpeed);
+	}
+	else if (ACosmicHUD* HUD = Controller ? Controller->GetHUD<ACosmicHUD>() : nullptr)
+	{
+		HUD->RefreshPanel();
 	}
 	PausedSpeed = 0.f;
 	// The first reward of the third rung (guideline 6.4): after the presentation, never inside it, and only over a map

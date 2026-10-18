@@ -1,15 +1,18 @@
 // Cosmic Ascension - UI layer (Presentation). Design: guideline.md section 2.1, 6.3, 8.3, 8.5.
-// Small shared helpers of the C++ widgets: the String Table labels and the number forms the UI may show.
+// Small shared helpers of the C++ widgets: the String Table labels, the number forms the UI may show, the speed steps
+// and the third rung's speed gate, and the joins of texts.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/TextBlock.h"
+#include "Containers/ArrayView.h"
 #include "Core/CosmicTypes.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Internationalization/StringTableCoreFwd.h"
 #include "Internationalization/Text.h"
+#include "Misc/Optional.h"
 
 /** How the UI shows the clock (guideline 2.1): in cycles, or in years counted from the first record (1 cycle = 1 year,
  * no calendar). The viewer's choice: never in FGalaxyState, never in a save, outside both hashes. The narration and the
@@ -121,6 +124,70 @@ namespace CosmicUI
 		}
 		return Unit == ECosmicTimeUnit::Year ? FText::Format(Label(TEXT("Time.YearsPerSecond")), WholeNumber(Speed))
 			: FText::Format(INVTEXT("x{0}"), WholeNumber(Speed));
+	}
+
+	// The three stages of time (guideline 2.1): the calling runs up to x10; once the third rung's gate is open, one step
+	// more, x25 (the top bar's source asserts it is not above UGalaxySimulationSubsystem::MaxTimeScale).
+	inline constexpr float CallingTopSpeed = 10.f;
+	inline constexpr float ThirdRungTopSpeed = 25.f;
+
+	// The speed steps of the top bar's buttons and of the number keys 0 to 5, pause first.
+	inline constexpr float SpeedSteps[] = { 0.f, 1.f, 2.f, 5.f, CallingTopSpeed, ThirdRungTopSpeed };
+
+	// Whether Speed is offered: up to CallingTopSpeed always, above it while the third rung's gate is open - the gate of
+	// the spiritual sight, CosmicMapLook::SpiritualSightOpens of the viewer tier (the player controller's
+	// IsSpiritualSightOpen, its development force included). One gate for the sight and for x25 (guideline 6.4).
+	inline bool IsSpeedOpen(float Speed, bool bThirdRungOpen)
+	{
+		return !(Speed > CallingTopSpeed) || bThirdRungOpen;
+	}
+
+	// What a speed button or key, the pause's release or the ascension presentation's give-back sets: Speed when it is
+	// open, CallingTopSpeed when it is not.
+	inline float OpenSpeed(float Speed, bool bThirdRungOpen)
+	{
+		return IsSpeedOpen(Speed, bThirdRungOpen) ? Speed : CallingTopSpeed;
+	}
+
+	// Whether a running Speed falls to CallingTopSpeed now: the gate was open at the last look (WasOpen set and true) and
+	// is closed now (a deposition, a new galaxy, a lower save) while Speed is above CallingTopSpeed. A first look (WasOpen
+	// unset) lowers nothing, so a speed the gate never opened (the development argument -Speed=25) stays.
+	inline bool LowersSpeed(const TOptional<bool>& WasOpen, bool bOpenNow, float Speed)
+	{
+		return WasOpen.IsSet() && WasOpen.GetValue() && !bOpenNow && Speed > CallingTopSpeed;
+	}
+
+	// Texts joined by the String Table's separator (List.Pair, "{0} <middle dot> {1}" - the dot lives in the table, the
+	// code stays ASCII), the empty ones left out; empty when all are. Call it with a braced list in the call itself: a view
+	// of temporaries kept in a local would dangle.
+	inline FText JoinList(TConstArrayView<FText> Texts)
+	{
+		FText Joined;
+		bool bAny = false;
+		for (const FText& Text : Texts)
+		{
+			if (Text.IsEmpty())
+			{
+				continue;
+			}
+			Joined = bAny ? FText::Format(Label(TEXT("List.Pair")), Joined, Text) : Text;
+			bAny = true;
+		}
+		return bAny ? Joined : FText::GetEmpty();
+	}
+
+	// Texts one per line, the empty ones left out (a tooltip of a reason and its hint): empty when all are.
+	inline FText JoinLines(TConstArrayView<FText> Texts)
+	{
+		TArray<FText> Shown;
+		for (const FText& Text : Texts)
+		{
+			if (!Text.IsEmpty())
+			{
+				Shown.Add(Text);
+			}
+		}
+		return FText::Join(INVTEXT("\n"), Shown);
 	}
 
 	inline UTextBlock* MakeText(UWidgetTree& Tree, int32 FontSize, bool bWrap = true)

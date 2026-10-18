@@ -728,6 +728,19 @@ bool FCosmicSettlementTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("so the stockpile stays for the answer"), Live.Civs[1].Stockpile.Causality, 1.f);
 		TestEqual(TEXT("A construction that leaves enough of what the answer needs goes on"), Live.Systems[7].MegaprojectProgress, 1.5f);
 		TestEqual(TEXT("Another people's construction is not held back"), Live.Systems[8].MegaprojectProgress, 1.f);
+		// What the system panel's 'paused' mark reads (CosmicMegaprojects::PaidNothing): a construction held back for an
+		// unpaid answer paid nothing too - a want of resources as well.
+		{
+			using CosmicMegaprojects::ECosmicProjectSlot;
+			auto Unpaid = [&](int32 SystemIndex, ECosmicProjectSlot Slot)
+			{
+				return CosmicMegaprojects::PaidNothing(CosmicMegaprojects::ReadSlot(OneUnit.Systems[SystemIndex], Slot), CosmicMegaprojects::ReadSlot(Live.Systems[SystemIndex], Slot));
+			};
+			TestTrue(TEXT("The unpaid answer paid nothing"), Unpaid(5, ECosmicProjectSlot::Response));
+			TestTrue(TEXT("A construction held back for it paid nothing"), Unpaid(6, ECosmicProjectSlot::Construction));
+			TestTrue(TEXT("and so did the held-back settlement"), Unpaid(4, ECosmicProjectSlot::Construction));
+			TestFalse(TEXT("A construction that goes on paid"), Unpaid(7, ECosmicProjectSlot::Construction));
+		}
 
 		// Matter is not what the answer lacks, but mining would leave less of it than the answer needs: held too, so the
 		// answer can pay as soon as its Causality comes. The stockpile is set so that it holds 5.5 Matter after the income of
@@ -1612,6 +1625,112 @@ bool FCosmicSettleBlockTest::RunTest(const FString& Parameters)
 		{
 			TestTrue(TEXT("A settle row above the people's Tier refuses it"), Block(1, 4) == ECosmicSettleBlock::RowTier);
 			TestEqual(TEXT("With a Tier 3 settle row: no reason exactly on the AI's targets"), Agrees(), 0);
+		}
+	}
+
+	// ---- Why a people starts no settlement (PeopleSettleBlockOf - the balance commandlet counts it, Phase 3 item 12) ----
+	{
+		auto People = [&](int32 Civ)
+		{
+			return CosmicMegaprojects::PeopleSettleBlockOf(*State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), Civ);
+		};
+		// On every board: for every people, None exactly when SettleTargets is not empty; and how many peoples have a
+		// target and how many do not (the control group: a board where every people agrees by having none says little).
+		// Where a board allows it, both kinds stand on it: people 3 holds 11, whose lane neighbour 10 is wild, and is raised
+		// to the settle row's rung for that.
+		int32 WithTarget = 0;
+		int32 WithoutTarget = 0;
+		auto PeopleAgree = [&]()
+		{
+			int32 Disagreements = 0;
+			WithTarget = 0;
+			WithoutTarget = 0;
+			for (int32 Civ = 0; Civ < State->Civs.Num(); ++Civ)
+			{
+				const bool bTarget = !CosmicMegaprojects::SettleTargets(*State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), Civ).IsEmpty();
+				Disagreements += (People(Civ) == ECosmicSettleBlock::None) == bTarget ? 0 : 1;
+				WithTarget += bTarget ? 1 : 0;
+				WithoutTarget += bTarget ? 0 : 1;
+			}
+			return Disagreements;
+		};
+		// The control of the last PeopleAgree: some people with a target and some without.
+		auto Control = [&](const TCHAR* Board)
+		{
+			TestTrue(*FString::Printf(TEXT("(%s: some people has a target)"), Board), WithTarget > 0);
+			TestTrue(*FString::Printf(TEXT("(%s: and some has none)"), Board), WithoutTarget > 0);
+		};
+		State = LayBoard(*Sim, TablesWith(Original, Rules, ProjectRows(&Stellar), HazardRows(false)));
+		if (TestNotNull(TEXT("The board of the people's reasons is laid"), State))
+		{
+			State->Civs[3].Tier = Stellar;
+			TestTrue(TEXT("A people with a target has no reason"), People(1) == ECosmicSettleBlock::None);
+			TestTrue(TEXT("A first-rung people is refused by the settle row's rung"), People(0) == ECosmicSettleBlock::RowTier);
+			TestTrue(TEXT("and so is a first-rung people at its cap: the row before the cap"), People(2) == ECosmicSettleBlock::RowTier);
+			TestTrue(TEXT("A people that does not exist"), People(99) == ECosmicSettleBlock::NoPeople);
+			TestEqual(TEXT("As laid: for every people, None exactly when SettleTargets is not empty"), PeopleAgree(), 0);
+			Control(TEXT("as laid"));
+
+			// People 1 holds 5; its lane neighbours are 4 and 6.
+			AddInstance(*State, Sphere, { 4, 6 });
+			TestTrue(TEXT("Every neighbour in a sphere gives the sphere"), People(1) == ECosmicSettleBlock::Sphere);
+			TestEqual(TEXT("In a sphere: for every people, None exactly when SettleTargets is not empty"), PeopleAgree(), 0);
+			Control(TEXT("in a sphere"));
+			State->Transcendents.Last().InfluencedSystems.Remove(State->Systems[6].SystemID);
+			TestTrue(TEXT("One free neighbour is enough"), People(1) == ECosmicSettleBlock::None);
+			Hand(*State, 2, 6);
+			TestTrue(TEXT("A sphere comes before an owner"), People(1) == ECosmicSettleBlock::Sphere);
+			TestEqual(TEXT("A sphere beside an owner: for every people, None exactly when SettleTargets is not empty"), PeopleAgree(), 0);
+			Control(TEXT("a sphere beside an owner"));
+			State->Transcendents.Reset();
+			Hand(*State, 3, 4);
+			TestTrue(TEXT("Boxed in by owners gives Owned"), People(1) == ECosmicSettleBlock::Owned);
+			TestEqual(TEXT("Boxed in by owners: for every people, None exactly when SettleTargets is not empty"), PeopleAgree(), 0);
+			Control(TEXT("boxed in by owners"));
+		}
+		State = LayBoard(*Sim, TablesWith(Original, Rules, ProjectRows(&Stellar), HazardRows(false)));
+		if (TestNotNull(TEXT("The board of the dead neighbours is laid"), State))
+		{
+			State->Civs[3].Tier = Stellar;
+			const FGameplayTag Four = State->Systems[4].StarClass;
+			const FGameplayTag Six = State->Systems[6].StarClass;
+			State->Systems[4].StarClass = FGameplayTag();
+			State->Systems[6].StarClass = FGameplayTag();
+			TestTrue(TEXT("Boxed in by dead nodes gives Dead"), People(1) == ECosmicSettleBlock::Dead);
+			TestEqual(TEXT("Boxed in by dead nodes: for every people, None exactly when SettleTargets is not empty"), PeopleAgree(), 0);
+			Control(TEXT("boxed in by dead nodes"));
+			State->Systems[4].StarClass = Four;
+			State->Systems[6].StarClass = Six;
+
+			HandSettling(*State, 1, 6);
+			TestTrue(TEXT("A settlement under way gives Settling"), People(1) == ECosmicSettleBlock::Settling);
+			Hand(*State, 1, 7);
+			TestTrue(TEXT("At the cap the cap comes before the settlement under way"), People(1) == ECosmicSettleBlock::RealmCap);
+			TestEqual(TEXT("Settling and at the cap: for every people, None exactly when SettleTargets is not empty"), PeopleAgree(), 0);
+			Control(TEXT("settling and at the cap"));
+
+			// People 3's only settled system becomes a settlement under way: no foothold at all. People 2 (it holds 8, whose
+			// lane neighbour 9 is wild) is raised for the control.
+			State->Systems[11].ActiveMegaproject = CosmicRows::ProjectSettle;
+			State->Civs[2].Tier = Stellar;
+			TestTrue(TEXT("A people with no settled system gives NoLane"), People(3) == ECosmicSettleBlock::NoLane);
+			TestEqual(TEXT("Without a foothold: for every people, None exactly when SettleTargets is not empty"), PeopleAgree(), 0);
+			Control(TEXT("without a foothold"));
+		}
+		State = LayBoard(*Sim, TablesWith(Original, Rules, ProjectRows(nullptr), HazardRows(false)));
+		if (TestNotNull(TEXT("The board of the people without a settle row is laid"), State))
+		{
+			// No control here: without a settle row no people can have a target.
+			TestTrue(TEXT("Without a settle row a people is refused for want of it"), People(1) == ECosmicSettleBlock::NoRow);
+			TestEqual(TEXT("Without a settle row: for every people, None exactly when SettleTargets is not empty"), PeopleAgree(), 0);
+		}
+		State = LayBoard(*Sim, TablesWith(Original, Rules, ProjectRows(&Causal), HazardRows(false)));
+		if (TestNotNull(TEXT("The board of the people with a Tier 3 settle row is laid"), State))
+		{
+			State->Civs[3].Tier = Causal;
+			TestTrue(TEXT("A settle row above the people's rung gives RowTier"), People(1) == ECosmicSettleBlock::RowTier);
+			TestEqual(TEXT("With a Tier 3 settle row: for every people, None exactly when SettleTargets is not empty"), PeopleAgree(), 0);
+			Control(TEXT("with a Tier 3 settle row"));
 		}
 	}
 	return true;
