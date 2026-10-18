@@ -41,6 +41,10 @@ namespace
 	struct FRunCounts
 	{
 		int64 FirstClaimTick = -1;
+		// Where the first claim stood and the tick its slot emptied (-1 while it stands): the spiritual sight's claim
+		// screenshot reads them (CLAUDE.md, the screenshot recipe).
+		FName FirstClaimSystemID;
+		int64 FirstClaimEndTick = -1;
 		int64 FirstJoinTick = -1;
 		int64 DeposedTick = -1;
 		// The first tick at which some people holds two settled systems: claims can stand from then on (Law.Remnant).
@@ -321,6 +325,10 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					}
 					if (Slot.Tag == ClaimTag)
 					{
+						if (Counts.FirstClaimEndTick < 0 && System.SystemID == Counts.FirstClaimSystemID)
+						{
+							Counts.FirstClaimEndTick = State.Tick;
+						}
 						FClaimEnds& Ends = InSomeSphere(State, System.SystemID) ? Counts.ClaimsJoined : Counts.ClaimsStilled;
 						++Ends.Count;
 						Ends.WithAnswer += Slot.Answer.IsNone() ? 0 : 1;
@@ -332,7 +340,11 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					Counts.Placed.FindOrAdd(System.ActiveHazard.ToString())++;
 					if (System.ActiveHazard == ClaimTag)
 					{
-						Counts.FirstClaimTick = Counts.FirstClaimTick < 0 ? State.Tick : Counts.FirstClaimTick;
+						if (Counts.FirstClaimTick < 0)
+						{
+							Counts.FirstClaimTick = State.Tick;
+							Counts.FirstClaimSystemID = System.SystemID;
+						}
 						Counts.ClaimsAfterTwoSettled += Counts.FirstTwoSettledTick >= 0 ? 1 : 0;
 					}
 				}
@@ -384,9 +396,9 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			}
 			double SaveMilliseconds = 0.0;
 			const int32 SaveBytes = SaveBytesOf(Save, State, SaveMilliseconds);
-			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance summary: tell-all %d, %d systems, %d peoples; claims %d placed, %d ended, %d joined; first claim %lld, first join %lld; first two-settled people %lld, claims after it %d; sphere %d->%d; wild %d; vessel deposed at %lld; tick us mean %.1f p99 %.1f max %.1f; save serialized %d bytes in %.1f ms; log %d, chronicle %d, told %lld"),
+			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance summary: tell-all %d, %d systems, %d peoples; claims %d placed, %d ended, %d joined; first claim %lld on %s until %lld, first join %lld; first two-settled people %lld, claims after it %d; sphere %d->%d; wild %d; vessel deposed at %lld; tick us mean %.1f p99 %.1f max %.1f; save serialized %d bytes in %.1f ms; log %d, chronicle %d, told %lld"),
 				TellAll, State.Systems.Num(), State.Civs.Num(), Counts.Placed.FindRef(ClaimTag.ToString()), Counts.ClaimsJoined.Count + Counts.ClaimsStilled.Count,
-				Counts.ClaimsJoined.Count, Counts.FirstClaimTick, Counts.FirstJoinTick, Counts.FirstTwoSettledTick, Counts.ClaimsAfterTwoSettled, SphereStart,
+				Counts.ClaimsJoined.Count, Counts.FirstClaimTick, *Counts.FirstClaimSystemID.ToString(), Counts.FirstClaimEndTick, Counts.FirstJoinTick, Counts.FirstTwoSettledTick, Counts.ClaimsAfterTwoSettled, SphereStart,
 				SphereSize(State), WildSystems(State), Counts.DeposedTick,
 				TickMicros.Num() ? Sum / TickMicros.Num() : 0.0, TickMicros.Num() ? TickMicros[FMath::Min(TickMicros.Num() - 1, static_cast<int32>(TickMicros.Num() * 0.99))] : 0.0,
 				TickMicros.Num() ? TickMicros.Last() : 0.0, SaveBytes, SaveMilliseconds, State.Log.Num(), State.Chronicle.Num(), Counts.ToldLines);

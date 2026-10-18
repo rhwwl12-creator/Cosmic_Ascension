@@ -5,10 +5,13 @@
 #include "Blueprint/UserWidget.h"
 #include "Components/InputComponent.h"
 #include "CoreGlobals.h"
+#include "Core/GalaxyState.h"
 #include "Cosmic_Ascension.h"
 #include "Data/CosmicDataTables.h"
+#include "Data/CosmicDefinitionRows.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "GameplayTagContainer.h"
 #include "Math/RotationMatrix.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
@@ -24,6 +27,7 @@
 #include "Widgets/Layout/Anchors.h"
 #include "World/CosmicCameraPawn.h"
 #include "World/CosmicGalaxyMapActor.h"
+#include "World/CosmicMapLook.h"
 #include "World/CosmicMapPick.h"
 #include "World/CosmicStarSystemActor.h"
 
@@ -191,6 +195,7 @@ void ACosmicHUD::BeginPlay()
 	if (ACosmicPlayerController* Cosmic = Cast<ACosmicPlayerController>(Controller))
 	{
 		TimeUnitHandle = Cosmic->OnTimeUnitChanged.AddUObject(this, &ACosmicHUD::HandleTimeUnitChanged);
+		ViewModeHandle = Cosmic->OnViewModeChanged.AddUObject(this, &ACosmicHUD::HandleViewModeChanged);
 	}
 	// Over everything, the whole screen; hidden until an ascension.
 	Overlay = CreateWidget<UCosmicAscensionOverlayWidget>(Controller);
@@ -206,6 +211,7 @@ void ACosmicHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		Cosmic->OnSelectionChanged.Remove(SelectionHandle);
 		Cosmic->OnTimeUnitChanged.Remove(TimeUnitHandle);
+		Cosmic->OnViewModeChanged.Remove(ViewModeHandle);
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -226,6 +232,12 @@ void ACosmicHUD::HandleTimeUnitChanged()
 	{
 		Feed->RedrawLines();
 	}
+}
+
+void ACosmicHUD::HandleViewModeChanged()
+{
+	// The top bar's view button and the panel's spiritual line; the map was told by the controller.
+	RefreshPanel();
 }
 
 void ACosmicHUD::RefreshPanel()
@@ -293,6 +305,102 @@ ECosmicTimeUnit ACosmicPlayerController::TimeUnitFor(const UUserWidget& Widget)
 	return Controller ? Controller->GetTimeUnit() : ECosmicTimeUnit::Cycle;
 }
 
+void ACosmicPlayerController::SetWantedViewMode(ECosmicViewMode Mode)
+{
+	if (Mode == WantedViewMode)
+	{
+		return;
+	}
+	WantedViewMode = Mode;
+	// The map only marks a refresh (it draws at most once a frame); the HUD redraws the bar and the panel.
+	if (ACosmicGalaxyMapActor* TheMap = Map.Get())
+	{
+		TheMap->SetViewWanted(WantedViewMode, bSightForcedOpen);
+	}
+	OnViewModeChanged.Broadcast();
+}
+
+void ACosmicPlayerController::ToggleViewMode()
+{
+	// The only guard: a closed sight has no other view to turn to.
+	if (!IsSpiritualSightOpen())
+	{
+		return;
+	}
+	SetWantedViewMode(WantedViewMode == ECosmicViewMode::Spiritual ? ECosmicViewMode::Physical : ECosmicViewMode::Spiritual);
+}
+
+bool ACosmicPlayerController::IsSpiritualSightOpen() const
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	return bSightForcedOpen || (Sim && CosmicMapLook::SpiritualSightOpens(Sim->GetViewerTier()));
+}
+
+ECosmicViewMode ACosmicPlayerController::GetShownViewMode() const
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	return CosmicMapLook::ShownViewMode(WantedViewMode, bSightForcedOpen, Sim ? Sim->GetViewerTier() : EAscensionTier::Tier1_Planetary);
+}
+
+void ACosmicPlayerController::FollowSightOpening()
+{
+	const bool bOpen = IsSpiritualSightOpen();
+	// The sight opened again after it closed (a deposed ruler who climbed back, the force given again): the reveal of the
+	// opening never shows over a physical map.
+	if (bOpen && SightWasOpen.IsSet() && !SightWasOpen.GetValue())
+	{
+		SetWantedViewMode(ECosmicViewMode::Spiritual);
+	}
+	SightWasOpen = bOpen;
+}
+
+ECosmicViewMode ACosmicPlayerController::ShownViewModeFor(const UUserWidget& Widget)
+{
+	const ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(Widget.GetOwningPlayer());
+	return Controller ? Controller->GetShownViewMode() : ECosmicViewMode::Physical;
+}
+
+bool ACosmicPlayerController::IsSpiritualSightOpenFor(const UUserWidget& Widget)
+{
+	const ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(Widget.GetOwningPlayer());
+	return Controller && Controller->IsSpiritualSightOpen();
+}
+
+void ACosmicPlayerController::CosmicSpiritualSight(int32 Open)
+{
+	const bool bForce = Open != 0;
+	if (bForce != bSightForcedOpen)
+	{
+		bSightForcedOpen = bForce;
+		if (ACosmicGalaxyMapActor* TheMap = Map.Get())
+		{
+			TheMap->SetViewWanted(WantedViewMode, bSightForcedOpen);
+		}
+		// Forced open from closed is an opening like any other.
+		FollowSightOpening();
+		OnViewModeChanged.Broadcast();
+	}
+	if (!bForce)
+	{
+		return;
+	}
+	// The first system of each fallen sphere, for CosmicSelect in a screenshot's -ExecCmds.
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!Sim)
+	{
+		return;
+	}
+	const FGameplayTag Abyssal = FGameplayTag::RequestGameplayTag(FName(TEXT("Realm.Abyssal")), false);
+	for (const FTranscendentState& Transcendent : Sim->GetState().Transcendents)
+	{
+		const FTranscendentDef* Row = Sim->GetTables().FindTranscendent(Transcendent.TranscendentID);
+		if (Row && Row->Allegiance == Abyssal && !Transcendent.InfluencedSystems.IsEmpty())
+		{
+			UE_LOG(LogCosmic, Display, TEXT("CosmicSpiritualSight: %s holds %s"), *Transcendent.TranscendentID.ToString(), *Transcendent.InfluencedSystems[0].ToString());
+		}
+	}
+}
+
 void ACosmicPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
@@ -323,6 +431,10 @@ void ACosmicPlayerController::UseMap(ACosmicGalaxyMapActor* InMap)
 	}
 	Map = InMap;
 	RebuiltHandle = InMap ? InMap->OnRebuilt.AddUObject(this, &ACosmicPlayerController::HandleMapRebuilt) : FDelegateHandle();
+	if (InMap)
+	{
+		InMap->SetViewWanted(WantedViewMode, bSightForcedOpen);
+	}
 }
 
 void ACosmicPlayerController::SelectSystem(FName SystemID)
@@ -361,20 +473,38 @@ void ACosmicPlayerController::CosmicSelect(const FString& SystemID)
 
 void ACosmicPlayerController::CosmicPreviewAscension(float DelaySeconds)
 {
+	CosmicPreviewRung(DelaySeconds, 2);
+}
+
+void ACosmicPlayerController::CosmicPreviewRung(float DelaySeconds, int32 Rung)
+{
 	UWorld* World = GetWorld();
 	if (!World)
 	{
 		return;
 	}
+	// The rung 1..5; anything else is the second.
+	const EAscensionTier Tier = (Rung >= 1 && Rung <= 5) ? static_cast<EAscensionTier>(Rung - 1) : EAscensionTier::Tier2_Stellar;
 	FTimerHandle Preview;
-	World->GetTimerManager().SetTimer(Preview, FTimerDelegate::CreateWeakLambda(this, [this]()
+	World->GetTimerManager().SetTimer(Preview, FTimerDelegate::CreateWeakLambda(this, [this, Tier]()
 	{
 		const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
 		ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
 		const TArray<FName> Feats = Sim ? Sim->GetTables().GetFeatRowNames() : TArray<FName>();
+		// The first feat row that reaches the rung, else the first row.
+		FName Row = Feats.IsEmpty() ? NAME_None : Feats[0];
+		for (const FName Each : Feats)
+		{
+			const FAscensionFeatDef* Feat = Sim->GetTables().FindFeat(Each);
+			if (Feat && Feat->TargetTier == Tier)
+			{
+				Row = Each;
+				break;
+			}
+		}
 		if (CosmicHUD && CosmicHUD->GetAscensionOverlay())
 		{
-			CosmicHUD->GetAscensionOverlay()->Show(EAscensionTier::Tier2_Stellar, Feats.IsEmpty() ? NAME_None : Feats[0]);
+			CosmicHUD->GetAscensionOverlay()->Show(Tier, Row);
 		}
 	}), FMath::Max(DelaySeconds, 0.01f), false);
 }
@@ -399,6 +529,8 @@ void ACosmicPlayerController::HandleMapRebuilt()
 {
 	const ACosmicGalaxyMapActor* TheMap = Map.Get();
 	SelectSystem(NAME_None);
+	// A new galaxy or a load starts at the default view (the map put its own back before it drew; this announces it).
+	SetWantedViewMode(ECosmicViewMode::Spiritual);
 	if (ACosmicCameraPawn* CameraPawn = GetCameraPawn(); CameraPawn && TheMap)
 	{
 		CameraPawn->FrameAll(TheMap->GetDiscCentre(), TheMap->GetDiscRadius());
@@ -472,6 +604,9 @@ void ACosmicPlayerController::PlayerTick(float DeltaTime)
 	{
 		TheMap->SetViewDistance(CameraPawn->GetArmLength());
 	}
+	// The map reads the viewer's tier at each refresh itself; this only brings the wanted view back when the sight opens
+	// again after it closed.
+	FollowSightOpening();
 }
 
 bool ACosmicPlayerController::DiscPointAt(const FVector2D& Screen, FVector& OutPoint) const

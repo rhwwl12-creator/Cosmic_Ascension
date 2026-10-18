@@ -12,19 +12,23 @@
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "Core/CosmicTypes.h"
+#include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Engine/DataTable.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Internationalization/StringTableCore.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
+#include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
 #include "UI/CosmicAscensionOverlayWidget.h"
 #include "UI/CosmicUILabels.h"
 #include "World/CosmicGameMode.h"
+#include "World/CosmicMapLook.h"
 
 namespace CosmicAscensionOverlayTests
 {
@@ -71,6 +75,7 @@ bool FCosmicUIAscensionOverlayTest::RunTest(const FString& Parameters)
 	ON_SCOPE_EXIT
 	{
 		Sim->SetTimeScale(0.f);
+		Controller->SetWantedViewMode(ECosmicViewMode::Spiritual);
 		Sim->NewGalaxy(42, 5, 3);
 	};
 	Sim->NewGalaxy(42, 0, 0);
@@ -148,6 +153,64 @@ bool FCosmicUIAscensionOverlayTest::RunTest(const FString& Parameters)
 		Overlay->Advance(3.f);
 		TestTrue(TEXT("and starts the five seconds again"), Overlay->IsShowing());
 		Overlay->Close();
+	}
+
+	// ---- The third rung's presentation is followed by the reveal "this is seen now" over a map that shows the sight ----
+	{
+		FGalaxyState& Live = Sim->GetMutableState();
+		const int32 Ruled = Sim->GetStateIndex().FindCiv(Live, Live.Player.RuledCivID);
+		if (TestTrue(TEXT("(the player rules a people)"), Live.Civs.IsValidIndex(Ruled)))
+		{
+			// The ruled people on the third rung: the sight is open and the view drawn is spiritual.
+			Live.Civs[Ruled].Tier = EAscensionTier::Tier3_Causal;
+			Controller->SetWantedViewMode(ECosmicViewMode::Spiritual);
+			Overlay->Show(EAscensionTier::Tier3_Causal, FeatRows[0]);
+			TestFalse(TEXT("(no reveal while the presentation shows)"), Overlay->IsRevealing());
+			Overlay->Close();
+			TestTrue(TEXT("The third rung's presentation is followed by the reveal"), Overlay->IsRevealing());
+			const UTextBlock* Reveal = Overlay->GetRevealText();
+			if (TestNotNull(TEXT("(the overlay has its reveal line)"), Reveal))
+			{
+				TestTrue(TEXT("Its line shows"), Reveal->GetVisibility() != ESlateVisibility::Collapsed);
+				TestEqual(TEXT("saying it is seen now"), Reveal->GetText().ToString(), CosmicUI::Label(TEXT("Sight.Opened")).ToString());
+				TestTrue(TEXT("The reveal takes no click"), Overlay->GetVisibility() == ESlateVisibility::HitTestInvisible);
+				TestFalse(TEXT("(the presentation itself is over)"), Overlay->IsShowing());
+				// What the eye sees is the overlay's opacity: it fades in, stands at full strength, and fades out.
+				TestTrue(TEXT("The reveal fades in"), Overlay->GetRenderOpacity() < 1.f);
+				Overlay->Advance(0.5f * CosmicAscensionOverlay::RevealSeconds);
+				TestEqual(TEXT("and stands at full strength halfway through its seconds"), Overlay->GetRenderOpacity(), 1.f);
+				Overlay->Advance(0.5f * CosmicAscensionOverlay::RevealSeconds - 0.1f);
+				TestTrue(TEXT("It still shows just before its seconds"), Overlay->IsRevealing());
+				TestTrue(TEXT("fading out"), Overlay->GetRenderOpacity() > 0.f && Overlay->GetRenderOpacity() < 1.f);
+				Overlay->Advance(0.2f);
+				TestFalse(TEXT("and ends after them"), Overlay->IsRevealing());
+				TestTrue(TEXT("Its line collapses"), Reveal->GetVisibility() == ESlateVisibility::Collapsed);
+				TestTrue(TEXT("and a collapsed line carries no text"), Reveal->GetText().IsEmpty());
+				TestTrue(TEXT("and the overlay is collapsed"), Overlay->GetVisibility() == ESlateVisibility::Collapsed);
+			}
+			// The other rungs have no reveal.
+			Overlay->Show(EAscensionTier::Tier2_Stellar, FeatRows[0]);
+			Overlay->Close();
+			TestFalse(TEXT("A second rung's presentation has no reveal"), Overlay->IsRevealing());
+			Overlay->Show(EAscensionTier::Tier4_Transcendent, FeatRows[0]);
+			Overlay->Close();
+			TestFalse(TEXT("nor a fourth rung's"), Overlay->IsRevealing());
+			// Over a physical map the line would say what the map does not show.
+			Controller->SetWantedViewMode(ECosmicViewMode::Physical);
+			Overlay->Show(EAscensionTier::Tier3_Causal, FeatRows[0]);
+			Overlay->Close();
+			TestFalse(TEXT("Over a physical map the third rung's presentation has no reveal"), Overlay->IsRevealing());
+			Controller->SetWantedViewMode(ECosmicViewMode::Spiritual);
+			// A presentation ends a reveal still showing.
+			Overlay->Show(EAscensionTier::Tier3_Causal, FeatRows[0]);
+			Overlay->Close();
+			TestTrue(TEXT("(revealing again)"), Overlay->IsRevealing());
+			Overlay->Show(EAscensionTier::Tier2_Stellar, FeatRows[0]);
+			TestFalse(TEXT("A presentation ends a reveal"), Overlay->IsRevealing());
+			Overlay->Close();
+			TestFalse(TEXT("Sight.Opened is no missing entry"), CosmicUI::Label(TEXT("Sight.Opened")).ToString().Contains(FStringTableEntry::GetPlaceholderSourceString()));
+			Live.Civs[Ruled].Tier = EAscensionTier::Tier1_Planetary;
+		}
 	}
 
 	// ---- The glow's envelope and the chime ----

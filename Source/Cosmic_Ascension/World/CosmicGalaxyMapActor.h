@@ -4,10 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "World/CosmicMapLook.h"
 #include "CosmicGalaxyMapActor.generated.h"
 
 class ACosmicStarSystemActor;
 class ULineBatchComponent;
+class UMaterialInstanceDynamic;
 class UStaticMeshComponent;
 
 /**
@@ -15,7 +17,9 @@ class UStaticMeshComponent;
  * around each owned system (dashed while it is being settled), a white ring around the selected system and the nebula
  * sky. Rebuilt when a galaxy is generated or loaded, refreshed when a tick ran - the delegates only mark it, and its Tick
  * redraws at most once a frame. Labels thin out and lines keep about a pixel's width as the camera (ACosmicCameraPawn)
- * moves away. Reads the state; never changes it.
+ * moves away. In the spiritual sight (the controller's view, section 6.4) the stars show the fallen's pressure, marks and
+ * colour, each lane is two halves greyed by the pressure at their end, a grey ring stands around every system of a sealed
+ * sphere and the sky goes quiet (M_Nebula SpiritualIntensity). Reads the state; never changes it.
  */
 UCLASS()
 class COSMIC_ASCENSION_API ACosmicGalaxyMapActor : public AActor
@@ -28,7 +32,7 @@ public:
 	/** The actor that draws SystemID, or null. */
 	ACosmicStarSystemActor* FindStar(FName SystemID) const;
 	const TArray<TObjectPtr<ACosmicStarSystemActor>>& GetStars() const { return Stars; }
-	/** The lanes drawn by the last refresh. */
+	/** The lanes drawn by the last refresh (a lane drawn as two halves in the spiritual view counts once). */
 	int32 GetDrawnLaneCount() const { return DrawnLanes; }
 	/** The owner's rings drawn by the last refresh. */
 	int32 GetDrawnRingCount() const { return DrawnRings; }
@@ -54,6 +58,22 @@ public:
 	/** The lane thickness of the last refresh, in world units. */
 	float GetLaneThickness() const { return LaneThickness; }
 
+	/**
+	 * The view the viewer wants and whether a development aid forces the sight open, as the player controller hands them
+	 * over; marks a refresh when either changed. The view drawn is CosmicMapLook::ShownViewMode of these and of the
+	 * simulation's viewer tier, read at every refresh: the tick of an ascension or a deposition turns it. A rebuild puts
+	 * the wanted view back to Spiritual before it draws (a new galaxy or a load starts at the default).
+	 */
+	void SetViewWanted(ECosmicViewMode Wanted, bool bForcedOpen);
+	/** The view the last refresh drew. */
+	ECosmicViewMode GetDrawnViewMode() const { return DrawnView; }
+	/** The Sealed rings the last refresh drew (spiritual view only). */
+	int32 GetDrawnSealedRingCount() const { return DrawnSealedRings; }
+	/** The half-lanes the last refresh drew greyed by pressure (spiritual view only). */
+	int32 GetDrawnGreyedHalfCount() const { return DrawnGreyedHalves; }
+	/** The SpiritualIntensity the last refresh gave the sky. */
+	float GetSkyIntensity() const { return SkyIntensity; }
+
 	/** Applies what is pending now instead of at the next frame (tests). */
 	void RefreshNow();
 	/** Redraws at the next frame: a command changed the state between ticks (a paused simulation sends no tick). */
@@ -71,9 +91,10 @@ private:
 	UFUNCTION()
 	void HandleSimTick(int64 Tick);
 
-	// One star actor per system (old ones destroyed), the disc, a refresh, then OnRebuilt.
+	// One star actor per system (old ones destroyed), the disc, the wanted view back to the default, a refresh, then
+	// OnRebuilt.
 	void Rebuild();
-	// Looks, labels, lanes and rings from the state.
+	// Looks, labels, lanes, rings and the sky from the state and the view.
 	void Refresh();
 
 	UPROPERTY(VisibleAnywhere)
@@ -81,6 +102,10 @@ private:
 
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UStaticMeshComponent> Sky;
+
+	// The sky's own instance of M_Nebula (BeginPlay), so that the view can set SpiritualIntensity.
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> SkyMaterial;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<ACosmicStarSystemActor>> Stars;
@@ -97,4 +122,11 @@ private:
 	float LaneThickness = 30.f;
 	FVector DiscCentre = FVector::ZeroVector;
 	float DiscRadius = 1000.f;
+
+	ECosmicViewMode WantedView = ECosmicViewMode::Spiritual;
+	bool bSightForcedOpen = false;
+	ECosmicViewMode DrawnView = ECosmicViewMode::Physical;
+	int32 DrawnSealedRings = 0;
+	int32 DrawnGreyedHalves = 0;
+	float SkyIntensity = 0.f;
 };

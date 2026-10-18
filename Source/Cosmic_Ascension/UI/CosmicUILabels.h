@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/TextBlock.h"
+#include "Core/CosmicTypes.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Internationalization/StringTableCoreFwd.h"
 #include "Internationalization/Text.h"
@@ -29,6 +30,44 @@ namespace CosmicUI
 	inline FText Label(const TCHAR* Key)
 	{
 		return FText::FromStringTable(LabelTableId, Key, EStringTableLoadingPolicy::FindOrFullyLoad);
+	}
+
+	// The String Table key of a population band's label (section 8.3), named after its enumerator and written out here (an
+	// enumerator's name keeps its case in an editor build only). Null for a value past the last band. (Phase 4: the log's
+	// {PopBand} reads the same keys - this table then moves to a Core-side header, Log/ cannot include UI/.)
+	inline const TCHAR* PopulationBandKey(EPopulationBand Band)
+	{
+		switch (Band)
+		{
+		case EPopulationBand::Few:
+			return TEXT("Band.Few");
+		case EPopulationBand::Millions:
+			return TEXT("Band.Millions");
+		case EPopulationBand::Billions:
+			return TEXT("Band.Billions");
+		case EPopulationBand::HundredBillions:
+			return TEXT("Band.HundredBillions");
+		case EPopulationBand::Trillions:
+			return TEXT("Band.Trillions");
+		case EPopulationBand::Countless:
+			return TEXT("Band.Countless");
+		}
+		return nullptr;
+	}
+
+	// The label of a band: the only form in which the size of a people reaches the UI - never a number. Empty past the
+	// last band.
+	inline FText PopulationBandLabel(EPopulationBand Band)
+	{
+		const TCHAR* Key = PopulationBandKey(Band);
+		return Key ? Label(Key) : FText::GetEmpty();
+	}
+
+	// The system panel's people line: ST_CA Panel.People with the band in its slot {PopBand}, the band before the word for
+	// a people (the word order is the table's, section 16 #45).
+	inline FText PeopleLine(EPopulationBand Band)
+	{
+		return FText::FormatNamed(Label(TEXT("Panel.People")), TEXT("PopBand"), PopulationBandLabel(Band));
 	}
 
 	// Resources and progress as whole numbers (section 8.3: resource numbers are for the UI only).

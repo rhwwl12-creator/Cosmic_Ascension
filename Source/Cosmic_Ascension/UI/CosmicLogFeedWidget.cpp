@@ -16,6 +16,7 @@
 #include "Layout/Margin.h"
 #include "Log/CosmicLogSubsystem.h"
 #include "Sim/GalaxySimulationSubsystem.h"
+#include "UI/CosmicPalette.h"
 #include "UI/CosmicUILabels.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UnrealType.h"
@@ -28,11 +29,6 @@ namespace CosmicLogFeedImpl
 	// an editor build's list view takes only a Blueprint entry class. Cooked by DirectoriesToAlwaysCook.
 	const TCHAR* const EntryClassPath = TEXT("/Game/CA/UI/WBP_LogEntry.WBP_LogEntry_C");
 	const FLinearColor BoxColor(0.01f, 0.01f, 0.03f, 0.7f);
-	// The colours of section 8.2.
-	const FLinearColor Grey(0.6f, 0.6f, 0.65f);
-	const FLinearColor White(0.95f, 0.95f, 0.95f);
-	const FLinearColor Gold(1.f, 0.82f, 0.4f);
-	const FLinearColor Purple(0.78f, 0.6f, 1.f);
 
 	// The entry class of a list view and whether it takes the keyboard focus: properties with no public setter in 5.8,
 	// set before the list's Slate widget exists.
@@ -63,15 +59,14 @@ namespace CosmicLogFeedImpl
 
 FLinearColor CosmicLogFeed::ColorOf(uint8 Severity, FGameplayTag Category)
 {
-	using namespace CosmicLogFeedImpl;
-
+	// The colours of section 8.2, shared with the map's spiritual sight (one purple).
 	static const FGameplayTag Transcendent = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Transcendent")), false);
 	static const FGameplayTag Claim = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Claim")), false);
 	if (Category.IsValid() && (Category == Transcendent || Category == Claim))
 	{
-		return Purple;
+		return CosmicPalette::Purple;
 	}
-	return Severity >= 2 ? Gold : (Severity == 1 ? White : Grey);
+	return Severity >= 2 ? CosmicPalette::Gold : (Severity == 1 ? CosmicPalette::White : CosmicPalette::Grey);
 }
 
 TSharedRef<SWidget> UCosmicLogEntryWidget::RebuildWidget()

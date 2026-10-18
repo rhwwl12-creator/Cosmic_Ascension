@@ -17,9 +17,12 @@ class UTextBlock;
  * The band along the top of the screen: the people the player rules (name, rung, stability), its five resources and four
  * research shares, the clock, and the speed buttons (pause, x1, x2, x5, x10 - the current one greyed out). The clock is
  * a flat button: a press switches the clock's unit between cycles and years (the controller's ToggleTimeUnit), the
- * mouse on it shows both units, and the speed buttons follow the unit ("2 years a second"). A wanderer has no people:
- * the band shows only the clock and the speeds. Built in C++ (no WBP); redrawn from the simulation's delegates, after a
- * speed button and after the clock's press.
+ * mouse on it shows both units, and the speed buttons follow the unit ("2 years a second"). From the third rung (the
+ * controller's IsSpiritualSightOpen) a bordered view button stands between the clock and the speeds - its label names
+ * the view drawn (ST_CA Sight.Spiritual or Sight.Physical), a press switches it (the controller's ToggleViewMode), its
+ * tooltip says what the sight is (Sight.Tip); below the third rung it is collapsed, so its appearing is the opening. A
+ * wanderer has no people: the band shows only the clock, the view and the speeds. Built in C++ (no WBP); redrawn from the
+ * simulation's delegates, after a speed button and after the clock's and the view's press.
  */
 UCLASS(meta = (DisableNativeTick))
 class COSMIC_ASCENSION_API UCosmicTopBarWidget : public UUserWidget
@@ -41,6 +44,11 @@ public:
 	/** The clock's button (tests read its tooltip). */
 	const UButton* GetClockButton() const { return ClockButton; }
 
+	/** What a click on the view button does (tests call it in place of a click). */
+	void PressViewButton();
+	/** The view button (tests read its label, visibility and tooltip). */
+	const UCosmicActionButton* GetViewButton() const { return ViewButton; }
+
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeConstruct() override;
@@ -57,6 +65,8 @@ private:
 	void HandleGalaxyGenerated(int32 Seed);
 
 	void HandleSpeed(FName Action, float Value);
+
+	void HandleView(FName Action, float Value);
 
 	UFUNCTION()
 	void HandleClockClicked();
@@ -78,6 +88,9 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UCosmicActionButton>> SpeedButtons;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCosmicActionButton> ViewButton;
 
 	bool bClockHovered = false;
 	// The unit the speed buttons were last labelled with (relabelled only when it changes).

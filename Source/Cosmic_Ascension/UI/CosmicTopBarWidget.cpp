@@ -20,11 +20,13 @@
 #include "UI/CosmicUILabels.h"
 #include "UObject/UnrealType.h"
 #include "World/CosmicGameMode.h"
+#include "World/CosmicMapLook.h"
 
 // Helpers of this file. A named namespace: the module is built as one unity file.
 namespace CosmicTopBarImpl
 {
 	const FName SpeedAction(TEXT("speed"));
+	const FName ViewAction(TEXT("view"));
 	// Pause first; the keys 0 to 4 set the same speeds.
 	constexpr float Speeds[] = { 0.f, 1.f, 2.f, 5.f, 10.f };
 	const FLinearColor BandColor(0.01f, 0.01f, 0.03f, 0.8f);
@@ -79,6 +81,18 @@ TSharedRef<SWidget> UCosmicTopBarWidget::RebuildWidget()
 		UHorizontalBoxSlot* ClockSlot = Row->AddChildToHorizontalBox(ClockButton);
 		ClockSlot->SetVerticalAlignment(VAlign_Center);
 		ClockSlot->SetPadding(FMargin(16.f, 0.f, 12.f, 0.f));
+
+		// The view: a bordered button between the clock and the speeds (its slot never moves when the clock's hover text
+		// grows - the status text takes that), outside SpeedButtons. Its tooltip is set once; Refresh shows it from the
+		// third rung and labels it with the view drawn.
+		ViewButton = WidgetTree->ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
+		ViewButton->Setup(ViewAction, 0.f, CosmicUI::Label(TEXT("Sight.Spiritual")));
+		ViewButton->OnAction.AddUObject(this, &UCosmicTopBarWidget::HandleView);
+		ViewButton->SetToolTipText(CosmicUI::Label(TEXT("Sight.Tip")));
+		ViewButton->SetVisibility(ESlateVisibility::Collapsed);
+		UHorizontalBoxSlot* ViewSlot = Row->AddChildToHorizontalBox(ViewButton);
+		ViewSlot->SetVerticalAlignment(VAlign_Center);
+		ViewSlot->SetPadding(FMargin(0.f, 0.f, 12.f, 0.f));
 
 		// Labelled in the cycle form here; Refresh relabels them in the controller's unit.
 		for (const float Speed : Speeds)
@@ -137,6 +151,22 @@ void UCosmicTopBarWidget::HandleSpeed(FName Action, float Value)
 	else if (UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr)
 	{
 		Sim->SetTimeScale(Value);
+	}
+	Refresh();
+}
+
+void UCosmicTopBarWidget::HandleView(FName Action, float Value)
+{
+	PressViewButton();
+}
+
+void UCosmicTopBarWidget::PressViewButton()
+{
+	// The controller refuses while the sight is closed, hands the view to the map and announces it (the HUD redraws its
+	// panels); this bar may not be the HUD's (tests).
+	if (ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer()))
+	{
+		Controller->ToggleViewMode();
 	}
 	Refresh();
 }
@@ -214,6 +244,22 @@ void UCosmicTopBarWidget::Refresh()
 	if (ClockText)
 	{
 		ClockText->SetText(bClockHovered ? ClockBothLabel(State.Tick) : ClockLabel(State.Tick, Unit));
+	}
+
+	// The view button: shown from the third rung (collapsed, not greyed, below it - its appearing is the opening), labelled
+	// with the view drawn even while hidden. Both set only when they change.
+	if (ViewButton)
+	{
+		const ESlateVisibility ViewVisibility = ACosmicPlayerController::IsSpiritualSightOpenFor(*this) ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
+		if (ViewButton->GetVisibility() != ViewVisibility)
+		{
+			ViewButton->SetVisibility(ViewVisibility);
+		}
+		const FText ViewLabel = Label(ACosmicPlayerController::ShownViewModeFor(*this) == ECosmicViewMode::Spiritual ? TEXT("Sight.Spiritual") : TEXT("Sight.Physical"));
+		if (!ViewButton->GetLabel().ToString().Equals(ViewLabel.ToString(), ESearchCase::CaseSensitive))
+		{
+			ViewButton->Setup(CosmicTopBarImpl::ViewAction, 0.f, ViewLabel);
+		}
 	}
 
 	// The current speed's button is greyed out (and a click on it would change nothing). The labels follow the unit.

@@ -76,6 +76,43 @@ namespace CosmicTests
 		return FName(TEXT("project_test"));
 	}
 
+	// An empty table of a row struct in the transient package: a test fills it and hands it in through SetTables.
+	inline UDataTable* NewTable(UScriptStruct* RowStruct)
+	{
+		UDataTable* Table = NewObject<UDataTable>(GetTransientPackage());
+		Table->RowStruct = RowStruct;
+		return Table;
+	}
+
+	// The tables with DT_Rules replaced by one row, everything else as given - the game's projects and feats too: a test
+	// that ticks a board takes them out with WithoutProjects (below).
+	inline FCosmicDataTables WithRules(const FCosmicDataTables& Base, const FCosmicRulesDef& RulesRow)
+	{
+		UDataTable* RulesTable = NewTable(FCosmicRulesDef::StaticStruct());
+		RulesTable->AddRow(CosmicRows::Rules, RulesRow);
+		FCosmicDataTables Tables = Base;
+		Tables.Rules = RulesTable;
+		return Tables;
+	}
+
+	// The tables with DT_Transcendents replaced, everything else as given.
+	inline FCosmicDataTables WithTranscendents(const FCosmicDataTables& Base, UDataTable* Transcendents)
+	{
+		FCosmicDataTables Tables = Base;
+		Tables.Transcendents = Transcendents;
+		return Tables;
+	}
+
+	// A transcendent instance put in the state by the test (clear State.Transcendents first: NewGalaxy brings the game's
+	// roster - CLAUDE.md), with its sphere.
+	inline FTranscendentState& AddInstance(FGalaxyState& State, FName TranscendentID, const TArray<FName>& Sphere)
+	{
+		FTranscendentState& Transcendent = State.Transcendents.AddDefaulted_GetRef();
+		Transcendent.TranscendentID = TranscendentID;
+		Transcendent.InfluencedSystems = Sphere;
+		return Transcendent;
+	}
+
 	// The tables handed in without the game's projects and feats (section 5.7). With them every AI people of a board would
 	// start the construction its next feat names on the first tick and pay for it from the stockpiles a test reasons
 	// about, on values Phase 5 changes. DT_Megaprojects keeps two rows no stockpile of a test can pay: StandingProject,

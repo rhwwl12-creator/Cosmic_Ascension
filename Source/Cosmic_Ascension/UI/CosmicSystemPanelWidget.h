@@ -12,12 +12,17 @@ class UCosmicActionButton;
 class UTextBlock;
 class UVerticalBox;
 struct FCosmicDataTables;
+struct FCosmicSpiritLook;
 
 /**
  * The panel of the selected system, on the right of the screen (hidden with no selection): its name, star class, owner
- * (or none, or destroyed), the hazard standing there with the time it has left (in the clock's unit - cycles or years,
- * the controller's choice; the HUD redraws the panel when it changes), the construction and response slots
- * with their progress against what they need - then, for the people the player rules, the commands: one button per
+ * (or none, or destroyed) and right after it the owner people's band (ST_CA Panel.People - section 8.3, never a number;
+ * none on a wild or destroyed system), the hazard standing there with the time it has left (in the clock's unit - cycles
+ * or years, the controller's choice; the HUD redraws the panel when it changes), the construction and response slots
+ * with their progress against what they need; in the spiritual view (the controller's view drawn) a line of its own under
+ * the details with the words of the sight's mark, which it also carries as its tooltip (SpiritTipOf - the fallen one's
+ * title, no number; a block apart, so that the words never cover the people's band) - then, for the people the player
+ * rules, the commands: one button per
  * project CosmicMegaprojects::CanStart takes on its settled system (rows in lexical order), and on every living system
  * that is not the people's a settle button - greyed out, with the reason as its tooltip and as a line under it, when
  * CosmicMegaprojects::SettleBlockOf refuses (another people lives there, no lane, the settle row's rung, the realm cap of
@@ -48,6 +53,19 @@ public:
 	 */
 	static FText ReasonOf(CosmicMegaprojects::ECosmicSettleBlock Block, const FCosmicDataTables& Tables);
 
+	/**
+	 * The words of the spiritual sight for a system (section 4.2, 6.4): the Title of Spirit.MarkRow - a title, never a
+	 * name, no number - in the words of its mark (ST_CA Sight.Claimed, Sight.Held, Sight.Pressed for the fallen one that
+	 * presses, Sight.Bound for the sealed holder alone; the particle by |hpp). Empty when nothing marks the system, when
+	 * the tables do not hold the row and when its Title is empty (a slip the schema refuses for a fallen row).
+	 */
+	static FText SpiritTipOf(const FCosmicSpiritLook& Spirit, const FCosmicDataTables& Tables);
+	/** The block of detail lines (tests read its text). */
+	const UTextBlock* GetDetailText() const { return DetailText; }
+	/** The line of the sight's words under the detail lines, with the same words as its tooltip (tests): shown in the
+	 * spiritual view when SpiritTipOf has words, collapsed and empty otherwise. */
+	const UTextBlock* GetMarkText() const { return MarkText; }
+
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeConstruct() override;
@@ -70,6 +88,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> DetailText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> MarkText;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> ReasonText;

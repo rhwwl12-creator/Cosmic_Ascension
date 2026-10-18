@@ -28,7 +28,12 @@ namespace CosmicCameraTests
 {
 	ACosmicGalaxyMapActor* FindMap(UWorld* World)
 	{
-		for (TActorIterator<ACosmicGalaxyMapActor> It(World); World && It; ++It)
+		// The iterator checks its world as it is made, before any loop condition.
+		if (!World)
+		{
+			return nullptr;
+		}
+		for (TActorIterator<ACosmicGalaxyMapActor> It(World); It; ++It)
 		{
 			return *It;
 		}

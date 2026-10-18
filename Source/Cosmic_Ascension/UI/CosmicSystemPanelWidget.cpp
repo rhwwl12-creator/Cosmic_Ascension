@@ -24,6 +24,7 @@
 #include "UI/CosmicUILabels.h"
 #include "UObject/NameTypes.h"
 #include "World/CosmicGameMode.h"
+#include "World/CosmicMapLook.h"
 
 // Helpers of this file. A named namespace: the module is built as one unity file.
 namespace CosmicSystemPanelImpl
@@ -103,6 +104,10 @@ TSharedRef<SWidget> UCosmicSystemPanelWidget::RebuildWidget()
 		Column->AddChildToVerticalBox(NameText)->SetPadding(FMargin(0.f, 0.f, 0.f, 6.f));
 		DetailText = CosmicUI::MakeText(*WidgetTree, 13);
 		Column->AddChildToVerticalBox(DetailText)->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
+		// The sight's words, a block apart from the details: their tooltip covers only them (Refresh).
+		MarkText = CosmicUI::MakeText(*WidgetTree, 13);
+		MarkText->SetVisibility(ESlateVisibility::Collapsed);
+		Column->AddChildToVerticalBox(MarkText)->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
 		ButtonBox = WidgetTree->ConstructWidget<UVerticalBox>();
 		Column->AddChildToVerticalBox(ButtonBox);
 		ReasonText = CosmicUI::MakeText(*WidgetTree, 13);
@@ -175,6 +180,22 @@ FText UCosmicSystemPanelWidget::ReasonOf(CosmicMegaprojects::ECosmicSettleBlock 
 	return CosmicUI::Label(Key);
 }
 
+FText UCosmicSystemPanelWidget::SpiritTipOf(const FCosmicSpiritLook& Spirit, const FCosmicDataTables& Tables)
+{
+	const FTranscendentDef* Row = Spirit.MarkRow.IsNone() ? nullptr : Tables.FindTranscendent(Spirit.MarkRow);
+	if (!Row || Row->Title.IsEmpty())
+	{
+		return FText::GetEmpty();
+	}
+	// The verbs of the counterfeit principle (section 4.2): it claims, it holds, it presses; a sealed sphere is what it
+	// held before the binding.
+	const TCHAR* Key = Spirit.ClaimState == ECosmicClaimState::Claimed ? TEXT("Sight.Claimed")
+		: Spirit.ClaimState == ECosmicClaimState::Held ? TEXT("Sight.Held")
+		: Spirit.bMarkPresses ? TEXT("Sight.Pressed")
+		: Spirit.ClaimState == ECosmicClaimState::Bound ? TEXT("Sight.Bound") : nullptr;
+	return Key ? FText::FormatNamed(CosmicUI::Label(Key), TEXT("Transcendent"), Row->Title) : FText::GetEmpty();
+}
+
 bool UCosmicSystemPanelWidget::IsReasonShown() const
 {
 	return ReasonText && ReasonText->GetVisibility() != ESlateVisibility::Collapsed;
@@ -207,6 +228,8 @@ void UCosmicSystemPanelWidget::Refresh()
 
 	TArray<FWantedButton> Wanted;
 	ShownSettleBlock = CosmicMegaprojects::ECosmicSettleBlock::None;
+	// The spiritual sight's words for the shown system (section 6.4): a line of their own and its tooltip.
+	FText SpiritWords;
 	if (State.Systems.IsValidIndex(SystemIndex))
 	{
 		// The box takes the clicks on it (NativeOnMouseButtonDown); the panel's empty area does not.
@@ -230,6 +253,12 @@ void UCosmicSystemPanelWidget::Refresh()
 				Lines.Add(FText::Format(INVTEXT("{0}  {1}"), Label(TEXT("Panel.StarClass")), FText::AsCultureInvariant(Letter)));
 			}
 			Lines.Add(State.Civs.IsValidIndex(OwnerIndex) ? FText::Format(INVTEXT("{0}  {1}"), Label(TEXT("Panel.Owner")), State.Civs[OwnerIndex].CivName) : Label(TEXT("Panel.NoOwner")));
+			// The owner people's size, as its band only (section 8.3): never asked of a wild system or an owner the state
+			// does not hold - GetPopulationBand reads those as Few.
+			if (State.Civs.IsValidIndex(OwnerIndex))
+			{
+				Lines.Add(PeopleLine(Sim->GetPopulationBand(State.Civs[OwnerIndex].CivID)));
+			}
 			if (System.ActiveHazard.IsValid())
 			{
 				const FHazardDef* Hazard = Tables.FindHazardByTag(System.ActiveHazard);
@@ -248,6 +277,11 @@ void UCosmicSystemPanelWidget::Refresh()
 				{
 					Lines.Add(SlotText);
 				}
+			}
+			// The sight names the fallen one that marks the system by its title, in the spiritual view only.
+			if (ACosmicPlayerController::ShownViewModeFor(*this) == ECosmicViewMode::Spiritual)
+			{
+				SpiritWords = SpiritTipOf(CosmicMapLook::SpiritOf(State, Index, Tables, Sim->GetRules(), SystemIndex), Tables);
 			}
 		}
 		DetailText->SetText(FText::Join(INVTEXT("\n"), Lines));
@@ -325,6 +359,20 @@ void UCosmicSystemPanelWidget::Refresh()
 		ReasonText->SetText(Reason);
 	}
 	ReasonText->SetVisibility(Reason.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+
+	// The sight's words (none in the physical view): a line of their own under the details, with the same words as its
+	// tooltip - a block apart, so that neither the line nor the tooltip covers the people's band (a claim is never told
+	// with a size, section 8.4). Set only when the words change: the panel redraws every tick, and a new tooltip closes
+	// an open one.
+	if (!SameWords(MarkText->GetText(), SpiritWords))
+	{
+		MarkText->SetText(SpiritWords);
+	}
+	if (!SameWords(MarkText->GetToolTipText(), SpiritWords))
+	{
+		MarkText->SetToolTipText(SpiritWords);
+	}
+	MarkText->SetVisibility(SpiritWords.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 }
 
 FReply UCosmicSystemPanelWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)

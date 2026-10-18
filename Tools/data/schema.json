@@ -352,7 +352,7 @@
 				"Doctrine": {"kind": "tag", "root": "Doctrine."},
 				"Allegiance": {"kind": "tag", "root": "Realm."},
 				"CounterfeitOf": {"kind": "tag", "root": "Truth.", "optional": true},
-				"Title": {"kind": "text"},
+				"Title": {"kind": "text", "slots": [], "no_digits": true, "forbidden": "verdict"},
 				"Lure": {"kind": "text"},
 				"Tier": {"kind": "enum", "enum": "EAscensionTier"},
 				"Depth": {"kind": "number", "min": 0, "max": 1},
@@ -392,6 +392,11 @@
 					"why": "the roster of NewGalaxy draws fallen rows only",
 					"when": [{"col": "Allegiance", "is": "Realm.Independent"}],
 					"then": [{"col": "SpawnWeight", "is": 0}]
+				},
+				{
+					"why": "a fallen one is named by its title, never a name: the spiritual sight's line and tooltip and the log's {Transcendent} slot read it (guideline 4.2, 6.4, 8.2)",
+					"when": [{"col": "Allegiance", "is": "Realm.Abyssal"}],
+					"then": [{"col": "Title", "set": true}]
 				}
 			]
 		},

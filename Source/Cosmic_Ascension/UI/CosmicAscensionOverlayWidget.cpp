@@ -23,9 +23,11 @@
 #include "Materials/MaterialInterface.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Sound/SoundWaveProcedural.h"
+#include "UI/CosmicPalette.h"
 #include "UI/CosmicUILabels.h"
 #include "UObject/UObjectGlobals.h"
 #include "World/CosmicGameMode.h"
+#include "World/CosmicMapLook.h"
 
 // Helpers of this file. A named namespace: the module is built as one unity file.
 namespace CosmicAscensionOverlayImpl
@@ -51,6 +53,8 @@ namespace CosmicAscensionOverlayImpl
 	}
 	constexpr int32 ChimeSampleRate = 44100;
 	constexpr float ChimeSeconds = 3.f;
+	// The reveal fades in and out over this much of its seconds.
+	constexpr float RevealFadeSeconds = 0.4f;
 }
 
 float CosmicAscensionOverlay::GlowAt(float At)
@@ -107,9 +111,17 @@ TSharedRef<SWidget> UCosmicAscensionOverlayWidget::RebuildWidget()
 		UOverlay* Root = WidgetTree->ConstructWidget<UOverlay>();
 		WidgetTree->RootWidget = Root;
 
+		// The presentation's layer: veil, glow and texts, hidden together while the reveal shows.
+		UOverlay* Layer = WidgetTree->ConstructWidget<UOverlay>();
+		Layer->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		UOverlaySlot* LayerSlot = Root->AddChildToOverlay(Layer);
+		LayerSlot->SetHorizontalAlignment(HAlign_Fill);
+		LayerSlot->SetVerticalAlignment(VAlign_Fill);
+		PresentationLayer = Layer;
+
 		UBorder* Veil = WidgetTree->ConstructWidget<UBorder>();
 		Veil->SetBrushColor(VeilColor);
-		UOverlaySlot* VeilSlot = Root->AddChildToOverlay(Veil);
+		UOverlaySlot* VeilSlot = Layer->AddChildToOverlay(Veil);
 		VeilSlot->SetHorizontalAlignment(HAlign_Fill);
 		VeilSlot->SetVerticalAlignment(VAlign_Fill);
 
@@ -118,12 +130,12 @@ TSharedRef<SWidget> UCosmicAscensionOverlayWidget::RebuildWidget()
 		GlowBox->SetHeightOverride(GlowSize);
 		Glow = WidgetTree->ConstructWidget<UImage>();
 		GlowBox->AddChild(Glow);
-		UOverlaySlot* GlowSlot = Root->AddChildToOverlay(GlowBox);
+		UOverlaySlot* GlowSlot = Layer->AddChildToOverlay(GlowBox);
 		GlowSlot->SetHorizontalAlignment(HAlign_Center);
 		GlowSlot->SetVerticalAlignment(VAlign_Center);
 
 		UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>();
-		UOverlaySlot* ColumnSlot = Root->AddChildToOverlay(Column);
+		UOverlaySlot* ColumnSlot = Layer->AddChildToOverlay(Column);
 		ColumnSlot->SetHorizontalAlignment(HAlign_Center);
 		ColumnSlot->SetVerticalAlignment(VAlign_Center);
 		TitleText = CosmicUI::MakeText(*WidgetTree, 34, false);
@@ -144,6 +156,16 @@ TSharedRef<SWidget> UCosmicAscensionOverlayWidget::RebuildWidget()
 		UVerticalBoxSlot* NarrativeSlot = Column->AddChildToVerticalBox(NarrativeBox);
 		NarrativeSlot->SetHorizontalAlignment(HAlign_Center);
 		NarrativeSlot->SetPadding(FMargin(0.f, 18.f, 0.f, 0.f));
+
+		// The reveal: one plain white line over the map, collapsed and empty until the third rung's presentation closes.
+		RevealText = CosmicUI::MakeText(*WidgetTree, 24, false);
+		RevealText->SetColorAndOpacity(FSlateColor(CosmicPalette::White));
+		RevealText->SetJustification(ETextJustify::Center);
+		AddShadow(*RevealText);
+		RevealText->SetVisibility(ESlateVisibility::Collapsed);
+		UOverlaySlot* RevealSlot = Root->AddChildToOverlay(RevealText);
+		RevealSlot->SetHorizontalAlignment(HAlign_Center);
+		RevealSlot->SetVerticalAlignment(VAlign_Center);
 
 		SetVisibility(ESlateVisibility::Collapsed);
 	}
@@ -189,6 +211,12 @@ void UCosmicAscensionOverlayWidget::HandleTierAscended(EAscensionTier NewTier, F
 
 void UCosmicAscensionOverlayWidget::Show(EAscensionTier NewTier, FName FeatRow)
 {
+	// A presentation ends a reveal still showing.
+	if (bRevealing)
+	{
+		EndReveal();
+	}
+	PresentedTier = NewTier;
 	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
 	const FAscensionFeatDef* Feat = (Sim && !FeatRow.IsNone()) ? Sim->GetTables().FindFeat(FeatRow) : nullptr;
 	if (TitleText)
@@ -232,12 +260,65 @@ void UCosmicAscensionOverlayWidget::Close()
 		}
 	}
 	PausedSpeed = 0.f;
+	// The first reward of the third rung (guideline 6.4): after the presentation, never inside it, and only over a map
+	// that shows what it says.
+	if (PresentedTier == CosmicMapLook::SpiritualSightTier && ACosmicPlayerController::ShownViewModeFor(*this) == ECosmicViewMode::Spiritual)
+	{
+		StartReveal();
+	}
+}
+
+void UCosmicAscensionOverlayWidget::StartReveal()
+{
+	bRevealing = true;
+	RevealElapsed = 0.f;
+	if (PresentationLayer)
+	{
+		PresentationLayer->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (RevealText)
+	{
+		RevealText->SetText(CosmicUI::Label(TEXT("Sight.Opened")));
+		RevealText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+	// Over the map, taking no click: the map stays under the cursor.
+	SetVisibility(ESlateVisibility::HitTestInvisible);
+	Advance(0.f);
+}
+
+void UCosmicAscensionOverlayWidget::EndReveal()
+{
+	bRevealing = false;
+	// A collapsed line carries no text.
+	if (RevealText)
+	{
+		RevealText->SetText(FText::GetEmpty());
+		RevealText->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	if (PresentationLayer)
+	{
+		PresentationLayer->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
+	SetVisibility(ESlateVisibility::Collapsed);
 }
 
 void UCosmicAscensionOverlayWidget::Advance(float DeltaSeconds)
 {
 	using namespace CosmicAscensionOverlayImpl;
 
+	if (bRevealing)
+	{
+		RevealElapsed += FMath::Max(DeltaSeconds, 0.f);
+		if (RevealElapsed >= CosmicAscensionOverlay::RevealSeconds)
+		{
+			EndReveal();
+			return;
+		}
+		// A short fade in and out.
+		const float Fade = FMath::Min(RevealElapsed, CosmicAscensionOverlay::RevealSeconds - RevealElapsed) / RevealFadeSeconds;
+		SetRenderOpacity(Fade < 1.f ? Fade : 1.f);
+		return;
+	}
 	if (!bShowing)
 	{
 		return;

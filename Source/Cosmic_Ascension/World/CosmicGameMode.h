@@ -7,7 +7,9 @@
 #include "GameFramework/HUD.h"
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
+#include "Misc/Optional.h"
 #include "UI/CosmicUILabels.h"
+#include "World/CosmicMapLook.h"
 #include "CosmicGameMode.generated.h"
 
 class ACosmicCameraPawn;
@@ -64,6 +66,9 @@ private:
 	void HandleSelectionChanged(FName SystemID);
 	// The clock's unit changed: the top bar, the panel's countdown and the feed's stamps follow.
 	void HandleTimeUnitChanged();
+	// The view changed: the top bar's view button and the panel's spiritual line follow (the controller tells the map
+	// itself).
+	void HandleViewModeChanged();
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCosmicLogFeedWidget> Feed;
@@ -79,13 +84,15 @@ private:
 
 	FDelegateHandle SelectionHandle;
 	FDelegateHandle TimeUnitHandle;
+	FDelegateHandle ViewModeHandle;
 };
 
 /**
  * Controls: the mouse drives the camera pawn and selects (left click selects, left drag pans, right drag orbits, the
  * wheel zooms, a double click focuses); 0 pauses, 1 to 4 set 1x, 2x, 5x and 10x, Space toggles the pause (the top bar's
- * buttons share SetSpeed). The system panel's commands come through StartProject. Holds the selection and the clock's
- * unit (presentation state: not in FGalaxyState, never saved with a galaxy - the unit is the viewer's setting).
+ * buttons share SetSpeed). The system panel's commands come through StartProject. Holds the selection, the clock's unit
+ * and the view (physical or the third rung's spiritual sight) - presentation state: not in FGalaxyState, never saved
+ * with a galaxy (the unit is the viewer's setting, the view lives in memory only).
  */
 UCLASS()
 class COSMIC_ASCENSION_API ACosmicPlayerController : public APlayerController
@@ -123,6 +130,37 @@ public:
 	static constexpr const TCHAR* TimeUnitSection = TEXT("Cosmic_Ascension.View");
 	static constexpr const TCHAR* TimeUnitKey = TEXT("TimeUnit");
 
+	/**
+	 * How the map is seen (section 6.4): the view the viewer wants. Presentation state - not in FGalaxyState, never saved,
+	 * outside both hashes, not kept across sessions. Spiritual by default, so that the map turns at the tick the viewer
+	 * reaches the third rung; a new galaxy or a load returns it to the default, and so does the sight opening again after
+	 * it closed (FollowSightOpening). Drawn only while the sight is open.
+	 */
+	ECosmicViewMode GetWantedViewMode() const { return WantedViewMode; }
+	/** Sets the wanted view in memory (tests fix it so); a change is handed to the map and announced once. */
+	void SetWantedViewMode(ECosmicViewMode Mode);
+	/** The top bar's view button: the other view. Refused - nothing changes, nothing is announced - while the sight is
+	 * closed. */
+	void ToggleViewMode();
+	/** Whether the spiritual sight is open: CosmicMapLook::SpiritualSightOpens of the simulation's viewer tier, or forced
+	 * open by CosmicSpiritualSight. */
+	bool IsSpiritualSightOpen() const;
+	/** The view drawn: CosmicMapLook::ShownViewMode of the wanted view, the force and the viewer tier. */
+	ECosmicViewMode GetShownViewMode() const;
+	/**
+	 * Follows the sight (every frame, from PlayerTick; tests call it in place of a frame): when it went from closed to
+	 * open since the last call, the wanted view returns to Spiritual - the reveal of the opening never contradicts the map
+	 * (section 16 #96). A first call only notes whether the sight is open.
+	 */
+	void FollowSightOpening();
+	/** Announced when the wanted view or the force changes (the HUD redraws the top bar and the panel). */
+	FSimpleMulticastDelegate OnViewModeChanged;
+
+	/** The view a widget shows: its owning controller's view drawn; Physical without one. */
+	static ECosmicViewMode ShownViewModeFor(const UUserWidget& Widget);
+	/** Whether a widget's owning controller has the sight open; false without one. */
+	static bool IsSpiritualSightOpenFor(const UUserWidget& Widget);
+
 	/** The ruler's command of the system panel (UPlayerRoleSubsystem::StartMegaproject: RowName on SystemID, or
 	 * project_settle on the wild SystemID). On success redraws the HUD and asks the map to redraw. */
 	bool StartProject(FName SystemID, FName RowName);
@@ -136,10 +174,26 @@ public:
 	UFUNCTION(Exec)
 	void CosmicSelect(const FString& SystemID);
 
-	/** Development aid: after DelaySeconds of real time shows the ascension presentation to the second rung with the first
-	 * feat row ("CosmicPreviewAscension 23" with -ShotAfterSeconds=25 photographs it). Changes no state. */
+	/** Development aid: after DelaySeconds of real time shows the ascension presentation to the second rung
+	 * ("CosmicPreviewAscension 23" with -ShotAfterSeconds=25 photographs it) - CosmicPreviewRung of the second rung.
+	 * Changes no state. */
 	UFUNCTION(Exec)
 	void CosmicPreviewAscension(float DelaySeconds);
+
+	/** Development aid: after DelaySeconds of real time shows the ascension presentation to Rung (1..5; anything else is
+	 * the second) with the first feat row that reaches that rung, or the first feat row ("CosmicPreviewRung 19 3" shows
+	 * the third rung's, whose close shows the reveal of the spiritual sight when the view drawn will be spiritual - force
+	 * the sight open below the third rung). A command of its own, not a default argument of CosmicPreviewAscension: an
+	 * Exec's default comes from editor-only metadata, and a build without it refuses a call that leaves the argument out.
+	 * Changes no state. */
+	UFUNCTION(Exec)
+	void CosmicPreviewRung(float DelaySeconds, int32 Rung);
+
+	/** Development aid: "CosmicSpiritualSight 1" forces the sight open at any rung for the session (the off-screen
+	 * screenshot, the frame-time measure) and logs the first system of each fallen sphere for CosmicSelect; 0 gives the
+	 * rung its say back. Changes no state, keeps nothing. */
+	UFUNCTION(Exec)
+	void CosmicSpiritualSight(int32 Open);
 
 protected:
 	// Reads the viewer's clock unit before the HUD exists. A development aid: -TimeUnit=Year (or Cycle) sets it for the
@@ -170,6 +224,11 @@ private:
 	float SpeedBeforePause = 1.f;
 
 	ECosmicTimeUnit TimeUnit = ECosmicTimeUnit::Cycle;
+
+	ECosmicViewMode WantedViewMode = ECosmicViewMode::Spiritual;
+	bool bSightForcedOpen = false;
+	// Whether the sight was open at the last FollowSightOpening; unset until the first.
+	TOptional<bool> SightWasOpen;
 
 	FName SelectedSystemID;
 	// CosmicSelect given before the map was built.

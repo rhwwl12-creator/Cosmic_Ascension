@@ -10,6 +10,13 @@
 #include "GameplayTagContainer.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
+#include "Sim/CosmicStateIndex.h"
+#include "Sim/GalaxySimulationSubsystem.h"
+#include "UI/CosmicPalette.h"
+
+// The material decodes the claim marker by these values (Tools/make_materials.py: 1 pulses, 2 glows).
+static_assert(static_cast<int32>(ECosmicClaimState::Claimed) == 1 && static_cast<int32>(ECosmicClaimState::Held) == 2 && static_cast<int32>(ECosmicClaimState::Bound) == 3,
+	"M_Star reads ClaimState as 1 claimed, 2 held, 3 bound");
 
 // Helpers of this file. A named namespace: the module is built as one unity file.
 namespace CosmicMapLookImpl
@@ -31,6 +38,24 @@ namespace CosmicMapLookImpl
 		{ TEXT("Star.Class.K"), FLinearColor(1.f, 0.55f, 0.22f), 0.85f },
 		{ TEXT("Star.Class.M"), FLinearColor(1.f, 0.3f, 0.15f), 0.7f },
 	};
+
+	// The colour of a lane (the physical view, and an end without pressure in the spiritual one).
+	const FLinearColor LaneColor(0.25f, 0.4f, 0.65f, 1.f);
+	// Low enough that the tone mapper keeps the colour of the class instead of washing it to white.
+	constexpr float Brightness = 1.3f;
+	constexpr float DeadBrightness = 0.4f;
+	const FLinearColor DeadColor(0.35f, 0.35f, 0.4f);
+	// The physical warning of a hazard: the orange of item 1.
+	const FLinearColor PhysicalWarning(1.f, 0.25f, 0.05f);
+	// In the spiritual view the physical layer recedes (section 6.4): the class colour loses this much of its saturation,
+	// the star dims to this brightness, and the warning turns to the Severity-0 grey at this scale - the material
+	// multiplies it by 3 at the top of its pulse, so its peak is about 1, a grey pulse. Tuned on the off-screen
+	// screenshots (item 7): at 0.8 the dimmed core still washed the pale purple added to it to white; since the review the
+	// material tints a marked star toward a deep purple about this dim instead of adding light (the fallen's mark is a
+	// hue, never a white glow).
+	constexpr float SpiritualDesaturation = 0.7f;
+	constexpr float SpiritualBrightness = 0.3f;
+	constexpr float SpiritualWarningScale = 0.5f;
 
 	void ApplyStarClass(FGameplayTag StarClass, FCosmicSystemLook& Look)
 	{
@@ -56,6 +81,31 @@ namespace CosmicMapLookImpl
 		}
 		const float Share = Progress / CosmicMegaprojects::RequiredProgressOf(*Row);
 		return Share > 0.f ? FMath::Min(Share, 1.f) : 0.f;
+	}
+
+	const FGameplayTag& AbyssalTag()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Realm.Abyssal")), false);
+		return Tag;
+	}
+
+	const FGameplayTag& ClaimTag()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Claim")), false);
+		return Tag;
+	}
+
+	// Whether a row is a fallen one's: the only rows that mark a system or colour it (the reading of ClaimantOf).
+	bool IsFallen(const FTranscendentDef* Row)
+	{
+		return Row && Row->Allegiance.IsValid() && Row->Allegiance == AbyssalTag();
+	}
+
+	// A colour with its alpha put back to 1 (FLinearColor::Desaturate fades the alpha toward 0 as well).
+	FLinearColor Opaque(FLinearColor Color)
+	{
+		Color.A = 1.f;
+		return Color;
 	}
 }
 
@@ -131,4 +181,176 @@ TArray<TPair<int32, int32>> CosmicMapLook::LanesOf(const FGalaxyState& State)
 bool CosmicMapLook::ShowsLabel(const FCosmicSystemLook& Look, bool bSelected, bool bFarView)
 {
 	return !bFarView || bSelected || Look.bOwned || Look.bHazard;
+}
+
+bool CosmicMapLook::SpiritualSightOpens(EAscensionTier ViewerTier)
+{
+	return static_cast<int32>(ViewerTier) >= static_cast<int32>(SpiritualSightTier);
+}
+
+ECosmicViewMode CosmicMapLook::ShownViewMode(ECosmicViewMode Wanted, bool bForcedOpen, EAscensionTier ViewerTier)
+{
+	return Wanted == ECosmicViewMode::Spiritual && (bForcedOpen || SpiritualSightOpens(ViewerTier)) ? ECosmicViewMode::Spiritual : ECosmicViewMode::Physical;
+}
+
+float CosmicMapLook::PressureShareOf(float P, const FCosmicRulesDef& Rules)
+{
+	const int32 Fourth = static_cast<int32>(EAscensionTier::Tier4_Transcendent);
+	const float Weight = Rules.PressureBySourceTier.IsValidIndex(Fourth) ? Rules.PressureBySourceTier[Fourth] : 0.f;
+	// Compares: a P or a weight that is not a positive number gives no pulse.
+	if (!(P > 0.f) || !(Weight > 0.f))
+	{
+		return 0.f;
+	}
+	const float Share = P / (2.f * Weight);
+	return Share < 1.f ? Share : 1.f;
+}
+
+FLinearColor CosmicMapLook::DominionColorOf(const FTranscendentDef* Row)
+{
+	return CosmicMapLookImpl::IsFallen(Row) ? CosmicPalette::Purple : FLinearColor::Black;
+}
+
+FCosmicSpiritLook CosmicMapLook::SpiritOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 SystemIndex)
+{
+	using namespace CosmicMapLookImpl;
+
+	FCosmicSpiritLook Spirit;
+	// (v0.8 step 4: the sanctuary comes first here - no colour, no pressure.)
+	if (!State.Systems.IsValidIndex(SystemIndex) || CosmicHazards::IsDeadNode(State.Systems[SystemIndex]))
+	{
+		return Spirit;
+	}
+	const FStarSystemState& System = State.Systems[SystemIndex];
+
+	// The holders: the first fallen instance whose sphere holds the system, unsealed and sealed apart (an instance
+	// without a row counts for nothing).
+	int32 Holder = INDEX_NONE;
+	int32 SealedHolder = INDEX_NONE;
+	for (int32 At = 0; At < State.Transcendents.Num(); ++At)
+	{
+		const FTranscendentState& Transcendent = State.Transcendents[At];
+		if (!Transcendent.InfluencedSystems.Contains(System.SystemID) || !IsFallen(Tables.FindTranscendent(Transcendent.TranscendentID)))
+		{
+			continue;
+		}
+		int32& Slot = Transcendent.bSealed ? SealedHolder : Holder;
+		Slot = Slot == INDEX_NONE ? At : Slot;
+	}
+	Spirit.bSealedRing = SealedHolder != INDEX_NONE;
+
+	// The claimant now: a claim nobody can claim now is no mark.
+	const int32 Claimant = System.ActiveHazard.IsValid() && System.ActiveHazard == ClaimTag()
+		? CosmicHazards::ClaimantOf(State, Index, Tables, Rules, SystemIndex) : INDEX_NONE;
+	Spirit.ClaimState = Claimant != INDEX_NONE ? ECosmicClaimState::Claimed
+		: Holder != INDEX_NONE ? ECosmicClaimState::Held
+		: SealedHolder != INDEX_NONE ? ECosmicClaimState::Bound : ECosmicClaimState::None;
+
+	// The pulse, where a fallen one leads: the dominant source has a fallen row (a people and a wanderer have none - the
+	// kind of the source only says so too) and stands above the owner's rung, or nobody owns the system. Its strength
+	// is the whole P, the owner's own term included, as the drain reads it.
+	FName Presser;
+	const FCosmicPressure Reading = UGalaxySimulationSubsystem::ComputePressureIn(State, Index, Tables, Rules, SystemIndex);
+	if (Reading.DominantSource == ECosmicPressureSource::Transcendent && IsFallen(Tables.FindTranscendent(Reading.DominantSourceID)))
+	{
+		const int32 OwnerIndex = System.OwnerCivID.IsNone() ? INDEX_NONE : Index.FindCiv(State, System.OwnerCivID);
+		if (!State.Civs.IsValidIndex(OwnerIndex) || static_cast<int32>(Reading.DominantTier) > static_cast<int32>(State.Civs[OwnerIndex].Tier))
+		{
+			Spirit.Pressure = PressureShareOf(Reading.P, Rules);
+			Presser = Reading.DominantSourceID;
+		}
+	}
+
+	// One order for the words and the colour: the claimant, the unsealed holder, the presser, the sealed holder - the
+	// words always name the one whose purple is drawn.
+	if (Claimant != INDEX_NONE)
+	{
+		Spirit.MarkRow = State.Transcendents[Claimant].TranscendentID;
+	}
+	else if (Holder != INDEX_NONE)
+	{
+		Spirit.MarkRow = State.Transcendents[Holder].TranscendentID;
+	}
+	else if (!Presser.IsNone())
+	{
+		Spirit.MarkRow = Presser;
+		Spirit.bMarkPresses = true;
+	}
+	else if (SealedHolder != INDEX_NONE)
+	{
+		Spirit.MarkRow = State.Transcendents[SealedHolder].TranscendentID;
+	}
+	Spirit.DominionColor = Spirit.MarkRow.IsNone() ? FLinearColor::Black : DominionColorOf(Tables.FindTranscendent(Spirit.MarkRow));
+	return Spirit;
+}
+
+FLinearColor CosmicMapLook::LaneColorOf(float EndPressure, ECosmicViewMode Shown)
+{
+	using namespace CosmicMapLookImpl;
+
+	// A compare, so a pressure that is not a number keeps the colour.
+	if (Shown != ECosmicViewMode::Spiritual || !(EndPressure > 0.f))
+	{
+		return LaneColor;
+	}
+	return Opaque(LaneColor.Desaturate(EndPressure < 1.f ? EndPressure : 1.f));
+}
+
+FCosmicStarParams CosmicMapLook::StarParamsOf(const FCosmicSystemLook& Look, const FCosmicSpiritLook& Spirit, ECosmicViewMode Shown)
+{
+	using namespace CosmicMapLookImpl;
+
+	FCosmicStarParams Params;
+	Params.WarningColor = PhysicalWarning;
+	if (Look.bDead)
+	{
+		// A destroyed system is a dim grey in both views and draws nothing spiritual.
+		Params.StarColor = DeadColor;
+		Params.Brightness = DeadBrightness;
+		Params.HazardAmount = 0.f;
+		return Params;
+	}
+	Params.StarColor = Look.StarColor;
+	Params.Brightness = Brightness;
+	Params.HazardAmount = Look.bHazard ? 1.f : 0.f;
+	if (Shown != ECosmicViewMode::Spiritual)
+	{
+		return Params;
+	}
+	// The physical layer recedes; the marks the sight draws keep their hue.
+	Params.StarColor = Opaque(Look.StarColor.Desaturate(SpiritualDesaturation));
+	Params.Brightness = SpiritualBrightness;
+	Params.WarningColor = Opaque(CosmicPalette::Grey * SpiritualWarningScale);
+	Params.ViewMode = 1.f;
+	Params.Pressure = Spirit.Pressure;
+	Params.DominionColor = Spirit.DominionColor;
+	Params.ClaimState = static_cast<float>(static_cast<int32>(Spirit.ClaimState));
+	// A claim pulses in its claimant's colour instead of the warning.
+	if (Spirit.ClaimState == ECosmicClaimState::Claimed)
+	{
+		Params.HazardAmount = 0.f;
+	}
+	return Params;
+}
+
+float CosmicMapLook::SkyIntensityOf(ECosmicViewMode Shown)
+{
+	return Shown == ECosmicViewMode::Spiritual ? 1.f : 0.f;
+}
+
+FLinearColor CosmicMapLook::OwnerRingColorOf(const FLinearColor& OwnerColor, ECosmicViewMode Shown)
+{
+	if (Shown != ECosmicViewMode::Spiritual)
+	{
+		return OwnerColor;
+	}
+	// Presentation only (no hash reads it). Compares: a hue or a saturation that is not a number keeps the colour, and a
+	// grey has no hue to keep out.
+	const FLinearColor Hsv = OwnerColor.LinearRGBToHSV();
+	if (Hsv.G > 0.f && Hsv.R >= FallenHueFrom && Hsv.R <= FallenHueTo)
+	{
+		const float Grey = OwnerColor.GetLuminance();
+		return FLinearColor(Grey, Grey, Grey, 1.f);
+	}
+	return OwnerColor;
 }

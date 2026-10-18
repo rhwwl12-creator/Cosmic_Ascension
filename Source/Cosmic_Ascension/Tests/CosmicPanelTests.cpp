@@ -30,6 +30,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeExit.h"
 #include "Rendering/SlateLayoutTransform.h"
+#include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
@@ -41,10 +42,12 @@
 #include "UObject/NameTypes.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
+#include "UObject/Class.h"
 #include "Widgets/IToolTip.h"
 #include "Widgets/SWidget.h"
 #include "World/CosmicGalaxyMapActor.h"
 #include "World/CosmicGameMode.h"
+#include "World/CosmicMapLook.h"
 
 namespace CosmicPanelTests
 {
@@ -498,6 +501,108 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 		Live.Systems[HomeIndex].ActiveMegaproject = NAME_None;
 	}
 
+	// ---- The people line: the owner people's band right after the owner, never a number, never on a wild system ----
+	{
+		// The test's own band thresholds (the game's may change in Phase 5): Population 1 keeps a rung's band, under the
+		// first threshold a people is Few.
+		FCosmicRulesDef BandRules = Sim->GetRules();
+		BandRules.PopulationBandThresholds = { 0.15f, 0.5f, 2.0f };
+		Sim->SetTables(CosmicTests::WithRules(GameTables, BandRules));
+		const int32 OtherSystem = Live.Systems.IndexOfByPredicate([&](const FStarSystemState& System) { return !System.OwnerCivID.IsNone() && System.OwnerCivID != RuledID && !CosmicHazards::IsDeadNode(System); });
+		const int32 OtherCiv = OtherSystem == INDEX_NONE ? INDEX_NONE : Sim->GetStateIndex().FindCiv(Live, Live.Systems[OtherSystem].OwnerCivID);
+		const int32 Wild = Live.Systems.IndexOfByPredicate([](const FStarSystemState& System) { return System.OwnerCivID.IsNone() && !CosmicHazards::IsDeadNode(System); });
+		if (TestTrue(TEXT("(another people owns a living system, and a living system is wild)"), Live.Civs.IsValidIndex(OtherCiv) && Live.Systems.IsValidIndex(Wild)))
+		{
+			const EAscensionTier RuledTier = Live.Civs[RuledIndex].Tier;
+			Live.Civs[RuledIndex].Tier = EAscensionTier::Tier3_Causal;
+			Live.Civs[RuledIndex].Population = 1.f;
+			Live.Civs[OtherCiv].Tier = EAscensionTier::Tier1_Planetary;
+			Live.Civs[OtherCiv].Population = 0.01f;
+			const FString RuledBand = CosmicUI::PeopleLine(Sim->GetPopulationBand(RuledID)).ToString();
+			const FString OtherBand = CosmicUI::PeopleLine(Sim->GetPopulationBand(Live.Civs[OtherCiv].CivID)).ToString();
+			TestFalse(TEXT("(the two peoples' bands differ)"), RuledBand.Equals(OtherBand, ESearchCase::CaseSensitive));
+			auto DetailLines = [Panel]()
+			{
+				TArray<FString> Lines;
+				if (Panel->GetDetailText())
+				{
+					Panel->GetDetailText()->GetText().ToString().ParseIntoArray(Lines, TEXT("\n"));
+				}
+				return Lines;
+			};
+			auto AnyBandLine = [&DetailLines]()
+			{
+				const TArray<FString> Lines = DetailLines();
+				const UEnum* Bands = StaticEnum<EPopulationBand>();
+				for (int32 At = 0; At < Bands->NumEnums() - 1; ++At)
+				{
+					if (Lines.Contains(CosmicUI::PeopleLine(static_cast<EPopulationBand>(Bands->GetValueByIndex(At))).ToString()))
+					{
+						return true;
+					}
+				}
+				return false;
+			};
+
+			Panel->ShowSystem(Home);
+			const TArray<FString> HomeLines = DetailLines();
+			const int32 OwnerLine = HomeLines.IndexOfByPredicate([](const FString& Line) { return Line.StartsWith(LabelText(TEXT("Panel.Owner"))); });
+			const int32 PeopleLineAt = HomeLines.IndexOfByPredicate([&RuledBand](const FString& Line) { return Line.Equals(RuledBand, ESearchCase::CaseSensitive); });
+			TestTrue(TEXT("The ruled home shows its people's band"), PeopleLineAt != INDEX_NONE);
+			TestTrue(TEXT("right after its owner"), OwnerLine != INDEX_NONE && PeopleLineAt == OwnerLine + 1);
+
+			Panel->ShowSystem(Live.Systems[OtherSystem].SystemID);
+			TestTrue(TEXT("Another people's system shows that people's band"), DetailLines().Contains(OtherBand));
+			TestFalse(TEXT("not the ruled people's"), DetailLines().Contains(RuledBand));
+
+			Panel->ShowSystem(Live.Systems[Wild].SystemID);
+			TestTrue(TEXT("(the wild system's panel shows)"), !DetailLines().IsEmpty());
+			TestFalse(TEXT("A wild system has no people line"), AnyBandLine());
+
+			const FGameplayTag StarClass = Live.Systems[OtherSystem].StarClass;
+			Live.Systems[OtherSystem].StarClass = FGameplayTag();
+			Panel->ShowSystem(Live.Systems[OtherSystem].SystemID);
+			TestTrue(TEXT("(the destroyed system keeps its owner)"), Live.Systems[OtherSystem].OwnerCivID == Live.Civs[OtherCiv].CivID);
+			TestFalse(TEXT("A destroyed system has none"), AnyBandLine());
+			Live.Systems[OtherSystem].StarClass = StarClass;
+
+			Live.Systems[Wild].OwnerCivID = FName(TEXT("civ_99"));
+			Panel->ShowSystem(Live.Systems[Wild].SystemID);
+			TestFalse(TEXT("An owner the state does not hold has none"), AnyBandLine());
+			Live.Systems[Wild].OwnerCivID = NAME_None;
+
+			Live.Civs[RuledIndex].Tier = RuledTier;
+		}
+
+		// Every band has its key and its words; no line holds a number.
+		const UEnum* Bands = StaticEnum<EPopulationBand>();
+		const int32 Count = Bands->NumEnums() - 1;
+		TSet<FString> Labels;
+		bool bDigit = false;
+		for (int32 At = 0; At < Count; ++At)
+		{
+			const EPopulationBand Band = static_cast<EPopulationBand>(Bands->GetValueByIndex(At));
+			const FString Name = Bands->GetNameStringByIndex(At);
+			const TCHAR* Key = CosmicUI::PopulationBandKey(Band);
+			TestTrue(*FString::Printf(TEXT("Band %s has its key"), *Name), Key && FString(Key).Equals(FString(TEXT("Band.")) + Name, ESearchCase::CaseSensitive));
+			const FString Words = CosmicUI::PopulationBandLabel(Band).ToString();
+			TestFalse(*FString::Printf(TEXT("Band %s has words"), *Name), Words.IsEmpty());
+			TestFalse(*FString::Printf(TEXT("Band %s is no missing entry"), *Name), Words.Contains(Placeholder));
+			Labels.Add(Words);
+			// Held in a local: FText::ToString returns a reference into the text, which a temporary takes with it.
+			const FString Line = CosmicUI::PeopleLine(Band).ToString();
+			for (const TCHAR Char : Line)
+			{
+				bDigit |= Char >= TEXT('0') && Char <= TEXT('9');
+			}
+		}
+		TestEqual(TEXT("The six bands have six labels"), Labels.Num(), 6);
+		TestEqual(TEXT("(six bands)"), Count, 6);
+		TestFalse(TEXT("The people line holds no digit"), bDigit);
+		TestFalse(TEXT("Panel.People is no missing entry"), LabelText(TEXT("Panel.People")).Contains(Placeholder));
+		Sim->SetTables(GameTables);
+	}
+
 	// ---- The HUD's panel follows the selection, and a tick redraws it ----
 	{
 		ACosmicHUD* HUD = Controller->GetHUD<ACosmicHUD>();
@@ -537,9 +642,13 @@ bool FCosmicUIMouseOnlyAscentTest::RunTest(const FString& Parameters)
 	UCosmicSystemPanelWidget* Panel = HUD ? HUD->GetSystemPanel() : nullptr;
 	UCosmicTopBarWidget* Bar = HUD ? HUD->GetTopBar() : nullptr;
 	ACosmicGalaxyMapActor* Map = nullptr;
-	for (TActorIterator<ACosmicGalaxyMapActor> It(World); World && It; ++It)
+	// The iterator checks its world as it is made, before any loop condition.
+	if (World)
 	{
-		Map = *It;
+		for (TActorIterator<ACosmicGalaxyMapActor> It(World); It; ++It)
+		{
+			Map = *It;
+		}
 	}
 	if (!TestNotNull(TEXT("The HUD has its system panel"), Panel) || !TestNotNull(TEXT("and its top bar"), Bar) || !TestNotNull(TEXT("The map stands"), Map))
 	{
@@ -548,11 +657,15 @@ bool FCosmicUIMouseOnlyAscentTest::RunTest(const FString& Parameters)
 	ON_SCOPE_EXIT
 	{
 		Controller->SelectSystem(NAME_None);
+		Controller->SetWantedViewMode(ECosmicViewMode::Spiritual);
 		Sim->SetTimeScale(0.f);
 		Sim->NewGalaxy(42, 5, 3);
 	};
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	Map->RefreshNow();
+	// The view's control is the mouse's too: below the third rung the bar has no view button.
+	Bar->Refresh();
+	TestTrue(TEXT("At the first rung the top bar shows no view button"), Bar->GetViewButton() && Bar->GetViewButton()->GetVisibility() == ESlateVisibility::Collapsed);
 	FGalaxyState& Live = Sim->GetMutableState();
 	const int32 CivIndex = Sim->GetStateIndex().FindCiv(Live, Live.Player.RuledCivID);
 	const int32 Home = Live.Civs.IsValidIndex(CivIndex) ? Sim->GetStateIndex().FindSystem(Live, Live.Civs[CivIndex].HomeSystemID) : INDEX_NONE;
@@ -620,6 +733,20 @@ bool FCosmicUIMouseOnlyAscentTest::RunTest(const FString& Parameters)
 		Sim->RunHeadless(1);
 	}
 	TestEqual(TEXT("The people climbs to the third rung by the buttons alone"), Live.Civs[CivIndex].Tier, EAscensionTier::Tier3_Causal);
+
+	// The third rung opens the sight: the bar shows its button (a headless run sends no tick - the bar is redrawn here), and
+	// a press turns the map.
+	Bar->Refresh();
+	// Shown and clickable: visible, or self-hit-test-invisible over its own button (hidden or hit-test-invisible would
+	// leave the mouse no way to it).
+	const ESlateVisibility ViewVisibility = Bar->GetViewButton() ? Bar->GetViewButton()->GetVisibility() : ESlateVisibility::Collapsed;
+	TestTrue(TEXT("At the third rung the top bar shows the view button for the mouse"), ViewVisibility == ESlateVisibility::Visible || ViewVisibility == ESlateVisibility::SelfHitTestInvisible);
+	Map->RequestRefresh();
+	Map->RefreshNow();
+	TestTrue(TEXT("(the map draws the sight)"), Map->GetDrawnViewMode() == ECosmicViewMode::Spiritual);
+	Bar->PressViewButton();
+	Map->RefreshNow();
+	TestTrue(TEXT("and a press on it turns the map to the physical view"), Map->GetDrawnViewMode() == ECosmicViewMode::Physical);
 	return true;
 }
 

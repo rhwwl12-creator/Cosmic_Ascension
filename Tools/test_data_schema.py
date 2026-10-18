@@ -78,7 +78,7 @@ def transcendent_row(name="trans_silence", **changes):
         "Doctrine": "Doctrine.Silence",
         "Allegiance": "Realm.Abyssal",
         "CounterfeitOf": "",
-        "Title": "",
+        "Title": "the quiet one",
         "Lure": "",
         "Tier": "Tier4_Transcendent",
         "Depth": 1.0,
@@ -1026,8 +1026,9 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(verdict, listed)
         columns = [(table, column, spec) for table, table_spec in sorted(self.schema["tables"].items())
                    for column, spec in sorted((table_spec.get("columns") or {}).items()) if spec.get("forbidden") == "verdict"]
-        # Every column that refuses the words: the narrator's lines, the names that fill their slots and the name pools.
-        self.assertEqual(len(columns), 19, [table + "." + column for table, column, spec in columns])
+        # Every column that refuses the words: the narrator's lines, the names that fill their slots, the name pools and the
+        # title of a transcendent (the spiritual sight's line and tooltip, the log's {Transcendent} slot).
+        self.assertEqual(len(columns), 20, [table + "." + column for table, column, spec in columns])
         for table, column, spec in columns:
             row_name = self.tables[table][0]["Name"]
             for word in verdict:
@@ -1148,6 +1149,11 @@ class SchemaTests(unittest.TestCase):
         # The tier rule holds for every row, not for the fallen only.
         self.expect(self.after(cell("trans_covenant", "Tier", "Tier1_Planetary")), "trans_covenant", "tier 3 or 4")
         self.expect(self.after(cell("trans_silence", "Allegiance", "Realm.Celestial")), "fixed place of the roster")
+        # A fallen one is named by its title (guideline 4.2, 6.4): never empty, no number, no slot.
+        self.expect(self.after(cell("trans_silence", "Title", "")), "trans_silence", "named by its title", '"set": true')
+        self.expect(self.after(cell("trans_silence", "Title", "the 7th")), "trans_silence.Title", "a digit in a text that carries none")
+        self.expect(self.after(cell("trans_silence", "Title", "{Civ} a.")), "trans_silence.Title", "slot {Civ} is not filled here")
+        self.assertEqual(self.after(cell("trans_covenant", "Title", "")), [], "a row that is not fallen may go without a title")
         self.expect(self.after(lambda tables: tables["DT_Transcendents"].pop(0)), "the row trans_silence", "is missing")
 
     # ---- conditions and effects ----
@@ -1703,6 +1709,7 @@ class SchemaTests(unittest.TestCase):
             ("DT_Transcendents", "a transcendent stands on tier 3 or 4 (guideline 4.2: no fallen one on tier 5)"): (NOTHING, "trans_silence"),
             ("DT_Transcendents", "a celestial transcendent has no instance: no sphere, no pressure, no roster weight"): (NOTHING, "trans_covenant"),
             ("DT_Transcendents", "the roster of NewGalaxy draws fallen rows only"): (self.add_independent_row, "trans_stillness"),
+            ("DT_Transcendents", "a fallen one is named by its title, never a name: the spiritual sight's line and tooltip and the log's {Transcendent} slot read it (guideline 4.2, 6.4, 8.2)"): (NOTHING, "trans_silence"),
         }
 
     def test_every_rule_of_the_schema_can_fail(self):
@@ -1721,7 +1728,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 89, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 90, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 
@@ -1811,7 +1818,7 @@ class SchemaTests(unittest.TestCase):
                 with self.subTest(table=table, column=column):
                     self.expect(self.after(self.set_cell(table, row_name, column, value)), "%s.%s.%s" % (table, row_name, column), "slot {NoSuchSlot}")
                     walked += 1
-        self.assertEqual(walked, 19, "the number of slot lists in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 20, "the number of slot lists in schema.json changed: look at what was added or taken out, then set the count")
 
 
 if __name__ == "__main__":

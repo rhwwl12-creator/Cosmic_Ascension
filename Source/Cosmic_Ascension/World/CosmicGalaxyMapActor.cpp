@@ -9,22 +9,26 @@
 #include "Engine/GameInstance.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "Math/Box2D.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "SceneTypes.h"
+#include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
+#include "UI/CosmicPalette.h"
 #include "UObject/ConstructorHelpers.h"
 #include "UObject/UObjectGlobals.h"
 #include "World/CosmicMapLook.h"
 #include "World/CosmicStarSystemActor.h"
 
+// The map's own column of the CSV profiler (CosmicMap/GameThread/Refresh): the frame-time measure reads a refresh by
+// itself.
+CSV_DEFINE_CATEGORY(CosmicMap, true);
+
 // Helpers of this file. A named namespace: the module is built as one unity file.
 namespace CosmicGalaxyMapImpl
 {
-	const TCHAR* const NebulaMaterialPath = TEXT("/Game/CA/Materials/M_Nebula.M_Nebula");
-	const FLinearColor LaneColor(0.25f, 0.4f, 0.65f, 1.f);
-	// White, one of the Severity colours (guideline 8.2).
-	const FLinearColor SelectionColor(0.95f, 0.95f, 1.f, 1.f);
 	// Thicknesses are in world units: a lane is the view distance x this, about 1.2 px on screen at any zoom (a thinner
 	// line breaks into dashes, a fixed one is 13 px thick from close by). The rings are thicker by RingFactor.
 	constexpr float LaneThicknessPerDistance = 0.0018f;
@@ -36,13 +40,17 @@ namespace CosmicGalaxyMapImpl
 	// The owner's ring: this far outside the star, in this many segments (a settlement under way draws every other one).
 	constexpr float RingGap = 110.f;
 	constexpr int32 RingSegments = 24;
-	// The selection ring stands this many ring thicknesses outside the owner's ring.
+	// The Sealed ring of the spiritual view stands this many ring thicknesses outside the owner's ring, the selection
+	// ring this many.
+	constexpr float SealedGapRings = 2.f;
 	constexpr float SelectionGapRings = 4.f;
 	constexpr int32 SelectionSegments = 32;
 	// A disc smaller than this is taken as this (a board of a few systems).
 	constexpr float MinDiscRadius = 1000.f;
 	// The sky sphere: the engine sphere (100 units across) blown up far past the disc of any galaxy size.
 	constexpr float SkyScale = 3000.f;
+	// M_Nebula's scalar, looked up once.
+	const FName SkyIntensityName(CosmicMapLook::SkyIntensityParam);
 
 	void AddRing(TArray<FBatchedLine>& Lines, const FVector& Centre, float Radius, int32 Segments, bool bDashed, const FLinearColor& Color, float Thickness)
 	{
@@ -122,17 +130,29 @@ void ACosmicGalaxyMapActor::SetViewDistance(float ArmLength)
 	}
 }
 
+void ACosmicGalaxyMapActor::SetViewWanted(ECosmicViewMode Wanted, bool bForcedOpen)
+{
+	// Only marked: the map redraws at most once a frame.
+	if (Wanted != WantedView || bForcedOpen != bSightForcedOpen)
+	{
+		WantedView = Wanted;
+		bSightForcedOpen = bForcedOpen;
+		bRefreshPending = true;
+	}
+}
+
 void ACosmicGalaxyMapActor::BeginPlay()
 {
 	Super::BeginPlay();
-	// Loaded here, not by a constructor finder, for the reason ACosmicStarSystemActor::BeginPlay gives.
-	if (UMaterialInterface* Nebula = LoadObject<UMaterialInterface>(nullptr, CosmicGalaxyMapImpl::NebulaMaterialPath, nullptr, LOAD_NoWarn))
+	// Loaded here, not by a constructor finder, for the reason ACosmicStarSystemActor::BeginPlay gives. The sky draws
+	// through its own instance, so that the view can set SpiritualIntensity.
+	if (UMaterialInterface* Nebula = LoadObject<UMaterialInterface>(nullptr, CosmicMapLook::NebulaMaterialPath, nullptr, LOAD_NoWarn))
 	{
-		Sky->SetMaterial(0, Nebula);
+		SkyMaterial = Sky->CreateAndSetMaterialInstanceDynamicFromMaterial(0, Nebula);
 	}
 	else
 	{
-		UE_LOG(LogCosmic, Error, TEXT("%s is missing: run Tools/make_materials.py"), CosmicGalaxyMapImpl::NebulaMaterialPath);
+		UE_LOG(LogCosmic, Error, TEXT("%s is missing: run Tools/make_materials.py"), CosmicMapLook::NebulaMaterialPath);
 	}
 	if (UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr)
 	{
@@ -193,8 +213,11 @@ void ACosmicGalaxyMapActor::Rebuild()
 		}
 	}
 	Stars.Reset();
-	// A selection belongs to the galaxy it was made in.
+	// A selection belongs to the galaxy it was made in. A new galaxy or a load starts at the default view - before the
+	// first draw, so a third-rung load never shows one physical frame (the controller announces the reset after
+	// OnRebuilt). The development force stays for the session.
 	SelectedSystemID = NAME_None;
+	WantedView = ECosmicViewMode::Spiritual;
 
 	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
 	UWorld* World = GetWorld();
@@ -236,6 +259,7 @@ void ACosmicGalaxyMapActor::Refresh()
 {
 	using namespace CosmicGalaxyMapImpl;
 
+	CSV_SCOPED_TIMING_STAT(CosmicMap, Refresh);
 	bRefreshPending = false;
 	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
 	if (!Sim)
@@ -246,26 +270,63 @@ void ACosmicGalaxyMapActor::Refresh()
 	LaneThickness = ViewDistance * LaneThicknessPerDistance;
 	const float RingThickness = RingFactor * LaneThickness;
 
-	TArray<FBatchedLine> Lines;
-	for (const TPair<int32, int32>& Lane : CosmicMapLook::LanesOf(State))
+	// The view drawn: the viewer's tier is read here, so the tick of an ascension or a deposition turns it.
+	DrawnView = CosmicMapLook::ShownViewMode(WantedView, bSightForcedOpen, Sim->GetViewerTier());
+	const bool bSpiritual = DrawnView == ECosmicViewMode::Spiritual;
+
+	// The looks first: a half-lane needs the pressure at its end. The physical view asks nothing spiritual.
+	const int32 SystemCount = State.Systems.Num();
+	TArray<FCosmicSystemLook> Looks;
+	TArray<FCosmicSpiritLook> Spirits;
+	Looks.Reserve(SystemCount);
+	Spirits.SetNum(SystemCount);
+	for (int32 Index = 0; Index < SystemCount; ++Index)
 	{
-		Lines.Emplace(State.Systems[Lane.Key].Position, State.Systems[Lane.Value].Position, LaneColor, 0.f, LaneThickness, SDPG_World);
+		Looks.Add(CosmicMapLook::LookOf(State, Sim->GetTables(), Index));
+		if (bSpiritual)
+		{
+			Spirits[Index] = CosmicMapLook::SpiritOf(State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), Index);
+		}
 	}
-	DrawnLanes = Lines.Num();
+
+	// Physical: one line per lane. Spiritual: two halves, each from its end to the midpoint in the colour of its end's
+	// pressure (a line batch has one colour per line and no material - there is no M_Lane).
+	TArray<FBatchedLine> Lines;
+	const TArray<TPair<int32, int32>> LaneList = CosmicMapLook::LanesOf(State);
+	DrawnGreyedHalves = 0;
+	for (const TPair<int32, int32>& Lane : LaneList)
+	{
+		const FVector From = State.Systems[Lane.Key].Position;
+		const FVector To = State.Systems[Lane.Value].Position;
+		if (!bSpiritual)
+		{
+			Lines.Emplace(From, To, CosmicMapLook::LaneColorOf(0.f, ECosmicViewMode::Physical), 0.f, LaneThickness, SDPG_World);
+			continue;
+		}
+		const FVector Middle = 0.5 * (From + To);
+		for (const TPair<int32, FVector>& End : { TPair<int32, FVector>(Lane.Key, From), TPair<int32, FVector>(Lane.Value, To) })
+		{
+			const float EndPressure = Spirits[End.Key].Pressure;
+			Lines.Emplace(End.Value, Middle, CosmicMapLook::LaneColorOf(EndPressure, ECosmicViewMode::Spiritual), 0.f, LaneThickness, SDPG_World);
+			DrawnGreyedHalves += EndPressure > 0.f ? 1 : 0;
+		}
+	}
+	DrawnLanes = LaneList.Num();
 
 	// Systems are never removed (a destroyed one stays as a dead node), so the actors match the systems by index.
 	DrawnRings = 0;
+	DrawnSealedRings = 0;
 	DrawnSelection = NAME_None;
-	for (int32 Index = 0; Index < Stars.Num() && Index < State.Systems.Num(); ++Index)
+	for (int32 Index = 0; Index < Stars.Num() && Index < SystemCount; ++Index)
 	{
 		ACosmicStarSystemActor* Star = Stars[Index];
 		if (!Star)
 		{
 			continue;
 		}
-		const FCosmicSystemLook Look = CosmicMapLook::LookOf(State, Sim->GetTables(), Index);
+		const FCosmicSystemLook& Look = Looks[Index];
 		const bool bSelected = !SelectedSystemID.IsNone() && Star->GetSystemID() == SelectedSystemID;
-		Star->ApplyLook(Look);
+		Star->ApplyLook(Look, Spirits[Index], DrawnView);
 		Star->SetLabelVisible(CosmicMapLook::ShowsLabel(Look, bSelected, bFarView));
 
 		// Around the star as this look scaled it.
@@ -273,14 +334,28 @@ void ACosmicGalaxyMapActor::Refresh()
 		const float OwnerRadius = Star->GetStarRadius() + RingGap;
 		if (Look.bOwned)
 		{
-			AddRing(Lines, Centre, OwnerRadius, RingSegments, Look.bSettling, Look.OwnerColor, RingThickness);
+			// In the sight no people's ring takes the fallen's purple (CosmicMapLook::OwnerRingColorOf).
+			AddRing(Lines, Centre, OwnerRadius, RingSegments, Look.bSettling, CosmicMapLook::OwnerRingColorOf(Look.OwnerColor, DrawnView), RingThickness);
 			++DrawnRings;
+		}
+		if (bSpiritual && Spirits[Index].bSealedRing)
+		{
+			AddRing(Lines, Centre, OwnerRadius + SealedGapRings * RingThickness, RingSegments, false, CosmicPalette::Grey, RingThickness);
+			++DrawnSealedRings;
 		}
 		if (bSelected)
 		{
-			AddRing(Lines, Centre, OwnerRadius + SelectionGapRings * RingThickness, SelectionSegments, false, SelectionColor, RingThickness);
+			// White, one of the Severity colours of the palette (guideline 8.2).
+			AddRing(Lines, Centre, OwnerRadius + SelectionGapRings * RingThickness, SelectionSegments, false, CosmicPalette::White, RingThickness);
 			DrawnSelection = SelectedSystemID;
 		}
+	}
+
+	// The sky goes quiet in the spiritual view.
+	SkyIntensity = CosmicMapLook::SkyIntensityOf(DrawnView);
+	if (SkyMaterial)
+	{
+		SkyMaterial->SetScalarParameterValue(SkyIntensityName, SkyIntensity);
 	}
 
 	Lanes->Flush();

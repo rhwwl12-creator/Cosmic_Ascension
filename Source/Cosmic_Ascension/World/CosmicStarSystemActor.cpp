@@ -17,19 +17,20 @@
 // Helpers of this file. A named namespace: the module is built as one unity file.
 namespace CosmicStarSystemImpl
 {
-	const TCHAR* const StarMaterialPath = TEXT("/Game/CA/Materials/M_Star.M_Star");
-	// The parameters of M_Star (Tools/make_materials.py writes them).
-	const FName StarColorParam(TEXT("StarColor"));
-	const FName BrightnessParam(TEXT("Brightness"));
-	const FName HazardAmountParam(TEXT("HazardAmount"));
+	// The parameters of M_Star under the names CosmicMapLook::StarParam keeps (Tools/make_materials.py writes them), each
+	// looked up once: a MID setter takes an FName.
+	const FName StarColorParam(CosmicMapLook::StarParam::StarColor);
+	const FName BrightnessParam(CosmicMapLook::StarParam::Brightness);
+	const FName HazardAmountParam(CosmicMapLook::StarParam::HazardAmount);
+	const FName WarningColorParam(CosmicMapLook::StarParam::WarningColor);
+	const FName ViewModeParam(CosmicMapLook::StarParam::ViewMode);
+	const FName PressureParam(CosmicMapLook::StarParam::Pressure);
+	const FName DominionColorParam(CosmicMapLook::StarParam::DominionColor);
+	const FName ClaimStateParam(CosmicMapLook::StarParam::ClaimState);
 
 	// The engine sphere is 100 units across; a star of scale 1 is 300 (systems stand about 1,000 apart).
 	constexpr float SphereRadius = 50.f;
 	constexpr float BaseScale = 3.f;
-	// Low enough that the tone mapper keeps the colour of the class instead of washing it to white.
-	constexpr float Brightness = 1.3f;
-	constexpr float DeadBrightness = 0.4f;
-	const FLinearColor DeadColor(0.35f, 0.35f, 0.4f);
 }
 
 ACosmicStarSystemActor::ACosmicStarSystemActor()
@@ -69,28 +70,37 @@ void ACosmicStarSystemActor::BeginPlay()
 	Super::BeginPlay();
 	// Loaded here, not by a constructor finder: a finder roots the material for the whole process, and the script that
 	// refills it in place (Tools/make_materials.py) cannot then rebuild its graph. Cooked by DirectoriesToAlwaysCook.
-	if (UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, CosmicStarSystemImpl::StarMaterialPath, nullptr, LOAD_NoWarn))
+	if (UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, CosmicMapLook::StarMaterialPath, nullptr, LOAD_NoWarn))
 	{
 		StarMaterial = Star->CreateAndSetMaterialInstanceDynamicFromMaterial(0, Base);
 	}
 	else
 	{
-		UE_LOG(LogCosmic, Error, TEXT("%s is missing: run Tools/make_materials.py"), CosmicStarSystemImpl::StarMaterialPath);
+		UE_LOG(LogCosmic, Error, TEXT("%s is missing: run Tools/make_materials.py"), CosmicMapLook::StarMaterialPath);
 	}
-	ApplyLook(Applied);
+	ApplyLook(Applied, AppliedSpirit, AppliedView);
 }
 
-void ACosmicStarSystemActor::ApplyLook(const FCosmicSystemLook& Look)
+void ACosmicStarSystemActor::ApplyLook(const FCosmicSystemLook& Look, const FCosmicSpiritLook& Spirit, ECosmicViewMode Shown)
 {
 	using namespace CosmicStarSystemImpl;
 
 	Applied = Look;
+	AppliedSpirit = Spirit;
+	AppliedView = Shown;
+	AppliedParams = CosmicMapLook::StarParamsOf(Look, Spirit, Shown);
 	SetActorScale3D(FVector(BaseScale * (Look.bDead ? 0.6f : Look.StarScale)));
 	if (StarMaterial)
 	{
-		StarMaterial->SetVectorParameterValue(StarColorParam, Look.bDead ? DeadColor : Look.StarColor);
-		StarMaterial->SetScalarParameterValue(BrightnessParam, Look.bDead ? DeadBrightness : Brightness);
-		StarMaterial->SetScalarParameterValue(HazardAmountParam, Look.bHazard ? 1.f : 0.f);
+		// A value equal to the one set before sends no render update (UMaterialInstance's setters compare).
+		StarMaterial->SetVectorParameterValue(StarColorParam, AppliedParams.StarColor);
+		StarMaterial->SetScalarParameterValue(BrightnessParam, AppliedParams.Brightness);
+		StarMaterial->SetScalarParameterValue(HazardAmountParam, AppliedParams.HazardAmount);
+		StarMaterial->SetVectorParameterValue(WarningColorParam, AppliedParams.WarningColor);
+		StarMaterial->SetScalarParameterValue(ViewModeParam, AppliedParams.ViewMode);
+		StarMaterial->SetScalarParameterValue(PressureParam, AppliedParams.Pressure);
+		StarMaterial->SetVectorParameterValue(DominionColorParam, AppliedParams.DominionColor);
+		StarMaterial->SetScalarParameterValue(ClaimStateParam, AppliedParams.ClaimState);
 	}
 	if (UCosmicSystemLabelWidget* Widget = Label ? Cast<UCosmicSystemLabelWidget>(Label->GetUserWidgetObject()) : nullptr)
 	{

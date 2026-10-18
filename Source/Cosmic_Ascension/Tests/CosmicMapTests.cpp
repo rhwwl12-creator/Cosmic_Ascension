@@ -12,11 +12,14 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameplayTagContainer.h"
+#include "Materials/MaterialInterface.h"
+#include "Materials/MaterialParameters.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
+#include "UObject/UObjectGlobals.h"
 #include "World/CosmicGalaxyMapActor.h"
 #include "World/CosmicMapLook.h"
 #include "World/CosmicStarSystemActor.h"
@@ -32,7 +35,12 @@ namespace CosmicMapTests
 
 	ACosmicGalaxyMapActor* FindMap(UWorld* World)
 	{
-		for (TActorIterator<ACosmicGalaxyMapActor> It(World); World && It; ++It)
+		// The iterator checks its world as it is made, before any loop condition.
+		if (!World)
+		{
+			return nullptr;
+		}
+		for (TActorIterator<ACosmicGalaxyMapActor> It(World); It; ++It)
 		{
 			return *It;
 		}
@@ -214,6 +222,75 @@ bool FCosmicUIGalaxyMapTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("the lane one end lists"), Lanes.Contains(TPair<int32, int32>(1, 2)));
 		TestFalse(TEXT("no lane to a dead node"), Lanes.Contains(TPair<int32, int32>(3, 4)));
 	}
+	return true;
+}
+
+// The names C++ sets on the generated materials are the materials' own (a dynamic instance takes any name silently, so a
+// misspelt name failed nothing before), and the defaults of the star's values are the material's: a star given nothing
+// looks as the material does. Asks the base assets (a dynamic instance answers for any name once it was set).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicUIMaterialParamsTest, "Cosmic_Ascension.UI.MaterialParams", CosmicTests::Flags)
+bool FCosmicUIMaterialParamsTest::RunTest(const FString& Parameters)
+{
+	auto Scalar = [](const UMaterialInterface& Material, const TCHAR* Name, float& Out)
+	{
+		return Material.GetScalarParameterValue(FHashedMaterialParameterInfo(FName(Name)), Out);
+	};
+	auto Vector = [](const UMaterialInterface& Material, const TCHAR* Name, FLinearColor& Out)
+	{
+		return Material.GetVectorParameterValue(FHashedMaterialParameterInfo(FName(Name)), Out);
+	};
+
+	const UMaterialInterface* Star = LoadObject<UMaterialInterface>(nullptr, CosmicMapLook::StarMaterialPath, nullptr, LOAD_NoWarn);
+	if (!TestNotNull(TEXT("(M_Star loads)"), Star))
+	{
+		return false;
+	}
+	for (const TCHAR* Name : CosmicMapLook::StarScalarParams)
+	{
+		float Value = 0.f;
+		TestTrue(*FString::Printf(TEXT("M_Star has the scalar %s"), Name), Scalar(*Star, Name, Value));
+	}
+	for (const TCHAR* Name : CosmicMapLook::StarVectorParams)
+	{
+		FLinearColor Value;
+		TestTrue(*FString::Printf(TEXT("M_Star has the vector %s"), Name), Vector(*Star, Name, Value));
+	}
+
+	// The defaults of FCosmicStarParams are the material's own.
+	const FCosmicStarParams Defaults;
+	const TPair<const TCHAR*, float> Scalars[] = {
+		{ CosmicMapLook::StarParam::Brightness, Defaults.Brightness },
+		{ CosmicMapLook::StarParam::HazardAmount, Defaults.HazardAmount },
+		{ CosmicMapLook::StarParam::ViewMode, Defaults.ViewMode },
+		{ CosmicMapLook::StarParam::Pressure, Defaults.Pressure },
+		{ CosmicMapLook::StarParam::ClaimState, Defaults.ClaimState },
+	};
+	TestEqual(TEXT("(every scalar has its default here)"), static_cast<int32>(UE_ARRAY_COUNT(Scalars)), static_cast<int32>(UE_ARRAY_COUNT(CosmicMapLook::StarScalarParams)));
+	for (const TPair<const TCHAR*, float>& Each : Scalars)
+	{
+		float Value = -1.f;
+		TestTrue(*FString::Printf(TEXT("M_Star's %s starts at the default star's"), Each.Key), Scalar(*Star, Each.Key, Value) && FMath::IsNearlyEqual(Value, Each.Value, 1e-5f));
+	}
+	const TPair<const TCHAR*, FLinearColor> Vectors[] = {
+		{ CosmicMapLook::StarParam::StarColor, Defaults.StarColor },
+		{ CosmicMapLook::StarParam::WarningColor, Defaults.WarningColor },
+		{ CosmicMapLook::StarParam::DominionColor, Defaults.DominionColor },
+	};
+	TestEqual(TEXT("(every vector has its default here)"), static_cast<int32>(UE_ARRAY_COUNT(Vectors)), static_cast<int32>(UE_ARRAY_COUNT(CosmicMapLook::StarVectorParams)));
+	for (const TPair<const TCHAR*, FLinearColor>& Each : Vectors)
+	{
+		FLinearColor Value = FLinearColor::Transparent;
+		TestTrue(*FString::Printf(TEXT("M_Star's %s starts at the default star's"), Each.Key), Vector(*Star, Each.Key, Value) && Value.Equals(Each.Value, 1e-5f));
+	}
+
+	const UMaterialInterface* Nebula = LoadObject<UMaterialInterface>(nullptr, CosmicMapLook::NebulaMaterialPath, nullptr, LOAD_NoWarn);
+	if (!TestNotNull(TEXT("(M_Nebula loads)"), Nebula))
+	{
+		return false;
+	}
+	float Intensity = -1.f;
+	TestTrue(TEXT("M_Nebula has the scalar SpiritualIntensity"), Scalar(*Nebula, CosmicMapLook::SkyIntensityParam, Intensity));
+	TestEqual(TEXT("which starts at 0"), Intensity, 0.f);
 	return true;
 }
 
