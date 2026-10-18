@@ -53,7 +53,8 @@ public:
 	/** Shows the ascension to NewTier through FeatRow (its title and narrative; an unknown row shows the rung alone). */
 	void Show(EAscensionTier NewTier, FName FeatRow);
 	/** Closes now and gives back the speed it paused (unless the player changed it), redrawing the HUD either way; the
-	 * third rung's presentation then turns into the reveal when the view drawn is spiritual. */
+	 * third rung's presentation then turns into the reveal when the view drawn is spiritual - at the universe level after
+	 * the camera is framed on the region again (ACosmicPlayerController::FrameRegion, snapped: Phase 3 item 9). */
 	void Close();
 	/** Moves the presentation, or the reveal, on by DeltaSeconds of real time (its tick; tests call it). */
 	void Advance(float DeltaSeconds);

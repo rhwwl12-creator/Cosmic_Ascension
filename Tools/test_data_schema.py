@@ -570,6 +570,12 @@ class SchemaTests(unittest.TestCase):
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "BackgroundStarCount", 100001)), "rules.BackgroundStarCount", "is above 100000")
         self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "BackgroundStarCount", 100000)), [])
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "BackgroundStarCount", 20000.5)), "rules.BackgroundStarCount", "not a whole number")
+        # The scenery's count (Phase 3 item 9): the universe level reads it as 0..50,000 - both sides of both bounds by hand.
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "SceneryGalaxyCount", -1)), "rules.SceneryGalaxyCount", "is below 0")
+        self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "SceneryGalaxyCount", 0)), [])
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "SceneryGalaxyCount", 50001)), "rules.SceneryGalaxyCount", "is above 50000")
+        self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "SceneryGalaxyCount", 50000)), [])
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "SceneryGalaxyCount", 5000.5)), "rules.SceneryGalaxyCount", "not a whole number")
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "PressureAdjacencyFalloff", NAN)), "finite number")
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "LeapTicksMin", "800")), "finite number")
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "LeapTicksMin", True)), "finite number")
@@ -671,6 +677,16 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(self.after(self.set_cell("DT_Galaxies", "gal_andromeda", "Peoples", 0)), [])
         self.expect(self.after(self.set_cell("DT_Galaxies", "gal_andromeda", "BridgeTicks", -1)), "gal_andromeda.BridgeTicks", "is below 0")
         self.expect(self.after(self.set_cell("DT_Galaxies", "gal_andromeda", "Kind", "Star.Class.G")), "gal_andromeda.Kind", "not under Galaxy.Kind.")
+        # The universe level (Phase 3 item 9): one name and one place per galaxy, and a galaxy other than the home holds
+        # nothing the simulation reads of the home row.
+        self.expect(self.after(self.set_cell("DT_Galaxies", "gal_m87", "DisplayName", "안드로메다은하")), "DT_Galaxies.gal_m87", "the universe level labels every galaxy", "the same DisplayName as row gal_andromeda")
+        self.expect(self.after(self.set_cell("DT_Galaxies", "gal_m87", "MapPosition", {"X": 0.0, "Y": 0.0})), "DT_Galaxies.gal_m87", "two galaxies never stand on one place", "the same MapPosition as row gal_milkyway")
+        self.assertEqual(self.after(self.set_cell("DT_Galaxies", "gal_andromeda", "MapPosition", {"X": 2.5, "Y": 4.0})), [])
+        for column, value in (("Peoples", 3), ("AIFourthRungCap", 1), ("HomeRadiusShare", 0.5), ("StarNameBank", ["X"]), ("CatalogPrefixes", ["X"]), ("CatalogStems", ["X"])):
+            self.expect(self.after(self.set_cell("DT_Galaxies", "gal_m87", column, value)), "DT_Galaxies.gal_m87", "a galaxy other than the home holds no peoples", '"col": "%s"' % column)
+        self.assertEqual(self.after(self.set_cell("DT_Galaxies", "gal_m87", "PeopleStems", ["X"])), [])
+        for column in ("DisplayName", "StarCountText", "DistanceText", "FeatureText"):
+            self.expect(self.after(self.set_cell("DT_Galaxies", "gal_m87", column, "약 영혼")), "DT_Galaxies.gal_m87.%s" % column, "the word 영혼 is not used here")
 
     def test_a_pool_test_names_columns_of_its_table(self):
         target = ["tables", "DT_Rules", "columns", "HomeGalaxyRow"]
@@ -1034,7 +1050,7 @@ class SchemaTests(unittest.TestCase):
                    for column, spec in sorted((table_spec.get("columns") or {}).items()) if spec.get("forbidden") == "verdict"]
         # Every column that refuses the words: the narrator's lines, the names that fill their slots, the name pools and the
         # title of a transcendent (the spiritual sight's line and tooltip, the log's {Transcendent} slot).
-        self.assertEqual(len(columns), 20, [table + "." + column for table, column, spec in columns])
+        self.assertEqual(len(columns), 24, [table + "." + column for table, column, spec in columns])
         for table, column, spec in columns:
             row_name = self.tables[table][0]["Name"]
             for word in verdict:
@@ -1716,6 +1732,7 @@ class SchemaTests(unittest.TestCase):
             ("DT_Transcendents", "a celestial transcendent has no instance: no sphere, no pressure, no roster weight"): (NOTHING, "trans_covenant"),
             ("DT_Transcendents", "the roster of NewGalaxy draws fallen rows only"): (self.add_independent_row, "trans_stillness"),
             ("DT_Transcendents", "a fallen one is named by its title, never a name: the spiritual sight's line and tooltip and the log's {Transcendent} slot read it (guideline 4.2, 6.4, 8.2)"): (NOTHING, "trans_silence"),
+            ("DT_Galaxies", "a galaxy other than the home holds no peoples, no brake, no home share and no name pools (guideline 5.11 '고향이 아닌 행의 이 네 값은 0')"): (NOTHING, "gal_m87"),
         }
 
     def test_every_rule_of_the_schema_can_fail(self):
@@ -1734,7 +1751,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 90, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 96, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 
@@ -1748,6 +1765,10 @@ class SchemaTests(unittest.TestCase):
             ("DT_LogTemplates", "at most one selector row per category and revelation mode"): two_selectors,
             ("DT_Transcendents", "one transcendent per doctrine in a run (guideline 4.2)"): lambda tables: tables["DT_Transcendents"].append(transcendent_row("trans_echo")),
             ("DT_Hazards", "a system holds the tag and the code finds the row by it (guideline 7.3)"): lambda tables: tables["DT_Hazards"].append(hazard_row("crisis_test_echo")),
+            ("DT_Galaxies", "the universe level labels every galaxy with its name: two rows of one name would read as one galaxy (guideline 5.11, 6.4)"):
+                lambda tables: self.row(tables, "DT_Galaxies", "gal_m87").update(DisplayName=self.row(tables, "DT_Galaxies", "gal_andromeda")["DisplayName"]),
+            ("DT_Galaxies", "two galaxies never stand on one place - the home holds (0,0), so a row left there has no place yet (guideline 5.11, 7.3)"):
+                lambda tables: self.row(tables, "DT_Galaxies", "gal_m87").update(MapPosition={"X": 0.0, "Y": 0.0}),
         }
         walked = 0
         for table, spec in self.schema["tables"].items():

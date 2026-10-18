@@ -587,6 +587,8 @@ struct COSMIC_ASCENSION_API FLogTemplateDef : public FTableRowBase
  * is display only: editing it never moves a hash.
  * The member initializers are what a run falls back on when the table or the home row is missing: the numbers of the
  * vertical slice. A row that is not the home row writes 0 into the four simulation columns.
+ * A row that is not the home row and has BridgeTicks 0 is display only (section 5.11): drawn on the universe level, its
+ * galaxy panel shown; no rule of the simulation reads it.
  */
 USTRUCT(BlueprintType)
 struct COSMIC_ASCENSION_API FGalaxyDef : public FTableRowBase
@@ -597,7 +599,8 @@ struct COSMIC_ASCENSION_API FGalaxyDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	FText DisplayName;
 
-	// Galaxy.Kind.Dwarf / Spiral / GrandSpiral / Elliptical. Definition only, never copied into the state. Display.
+	// Galaxy.Kind.Dwarf / Spiral / GrandSpiral / Elliptical. Definition only, never copied into the state. Display (the
+	// panel's word, the sprite's aspect on the universe level).
 	UPROPERTY(EditAnywhere)
 	FGameplayTag Kind;
 
@@ -620,7 +623,10 @@ struct COSMIC_ASCENSION_API FGalaxyDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	float HomeRadiusShare = 0.53f;
 
-	// Radius in light years, by the same definition as the display texts. Only the scale of the map reads it. Display.
+	// Radius in light years: the home row's is the universe level's unit (half of 'about 100,000 across'); another row's is
+	// 1/2 x D25 x its central distance (Tools/data/sources/galaxies.md). Only the drawing reads it - the sprite's size on the
+	// universe level (CosmicUniverseLook::SpriteShareOf, the square root of its share of 43,500); 0 draws the kind's size.
+	// Never printed. Display.
 	UPROPERTY(EditAnywhere)
 	int32 RadiusLy = 0;
 
@@ -642,7 +648,12 @@ struct COSMIC_ASCENSION_API FGalaxyDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	FText FeatureText;
 
-	// Place on the screen of the universe (the same map, zoomed out). Display, never hashed.
+	// Place on the universe level (the same map, zoomed out - section 6.4): home-galaxy radii from the home galaxy's centre,
+	// in the map's own X and Y. Entered by hand from the row's sources (Tools/data/sources/galaxies.md): distance
+	// 1 + ln(d / 50,000 ly), direction the galactic longitude growing clockwise as the camera sees it (X = -r cos l,
+	// Y = -r sin l), nudged where two would stand on one place. The home row is (0,0) and stands at the centre whatever it
+	// holds; any other row at (0,0), not a number, inside the home galaxy or farther than 20 is not drawn
+	// (CosmicUniverseLook::HasPlace). Display, never hashed.
 	UPROPERTY(EditAnywhere)
 	FVector2D MapPosition = FVector2D::ZeroVector;
 
@@ -877,4 +888,10 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// 0..100,000 (CosmicMapLook::BackdropCountOf; the schema keeps the same bounds).
 	UPROPERTY(EditAnywhere)
 	int32 BackgroundStarCount = 20000;
+
+	// Points of the scenery galaxies (section 5.11): the uncounted galaxies the universe level of the map draws on one
+	// instanced mesh (CosmicUniverseLook::SceneryPointsOf), never read by the simulation - no state, no hash, no selection,
+	// no label, no panel. Read as 0..50,000 (CosmicUniverseLook::SceneryCountOf; the schema keeps the same bounds).
+	UPROPERTY(EditAnywhere)
+	int32 SceneryGalaxyCount = 10000;
 };

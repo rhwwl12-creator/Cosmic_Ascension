@@ -32,6 +32,8 @@
 #include "World/CosmicMapLook.h"
 #include "World/CosmicMapPick.h"
 #include "World/CosmicStarSystemActor.h"
+#include "World/CosmicUniverseLook.h"
+#include "World/CosmicZoomLevels.h"
 
 // Helpers of this file. A named namespace: the module is built as one unity file.
 namespace CosmicControlImpl
@@ -53,14 +55,6 @@ namespace CosmicControlImpl
 	const TCHAR* NameOf(ECosmicTimeUnit Unit)
 	{
 		return Unit == ECosmicTimeUnit::Year ? TEXT("Year") : TEXT("Cycle");
-	}
-
-	// The galaxy the galaxy panel shows for a selection: the home galaxy while nothing is selected, none while a system is
-	// (the system panel takes the place - the two never stand together).
-	FName GalaxyRowFor(const UGameInstance* GameInstance, FName SelectedSystemID)
-	{
-		const UGalaxySimulationSubsystem* Sim = GameInstance ? GameInstance->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
-		return (Sim && SelectedSystemID.IsNone()) ? Sim->GetRules().HomeGalaxyRow : NAME_None;
 	}
 
 	// Year or Cycle; anything else is no unit.
@@ -134,6 +128,9 @@ void ACosmicGameMode::StartPlay()
 		};
 		After(TEXT("ShotAfterSeconds="), TEXT("shot showui"));
 		After(TEXT("ProfileAfterSeconds="), TEXT("CsvProfile Frames=600"));
+		// Phase 3 item 9: -WheelAfterSeconds=N turns the wheel one notch away N seconds in - from the region's far stop
+		// ("CosmicWheel -2" in -ExecCmds) the crossing into the universe falls inside a profiled run.
+		After(TEXT("WheelAfterSeconds="), TEXT("CosmicWheel -1"));
 		// The profiled run says at what speed it ran: the tick and the time scale when the profile starts and ten seconds
 		// later (600 frames at 60 fps), so the log shows that a -Speed=25 run kept x25 (item 12).
 		float ProfileSeconds = 0.f;
@@ -229,15 +226,11 @@ void ACosmicHUD::BeginPlay()
 	}
 	if (ACosmicPlayerController* Cosmic = Cast<ACosmicPlayerController>(Controller))
 	{
+		// The right side follows both selections and the camera's level (CosmicUniverseLook::PanelOf).
 		SelectionHandle = Cosmic->OnSelectionChanged.AddUObject(this, &ACosmicHUD::HandleSelectionChanged);
-		if (SystemPanel)
-		{
-			SystemPanel->ShowSystem(Cosmic->GetSelectedSystem());
-		}
-		if (GalaxyPanel)
-		{
-			GalaxyPanel->ShowGalaxy(GalaxyRowFor(GetGameInstance(), Cosmic->GetSelectedSystem()));
-		}
+		GalaxySelectionHandle = Cosmic->OnGalaxySelectionChanged.AddUObject(this, &ACosmicHUD::HandleSelectionChanged);
+		ZoomLevelHandle = Cosmic->OnZoomLevelChanged.AddUObject(this, &ACosmicHUD::ShowRightSide);
+		ShowRightSide();
 	}
 	if (ACosmicPlayerController* Cosmic = Cast<ACosmicPlayerController>(Controller))
 	{
@@ -257,6 +250,8 @@ void ACosmicHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (ACosmicPlayerController* Cosmic = Cast<ACosmicPlayerController>(GetOwningPlayerController()))
 	{
 		Cosmic->OnSelectionChanged.Remove(SelectionHandle);
+		Cosmic->OnGalaxySelectionChanged.Remove(GalaxySelectionHandle);
+		Cosmic->OnZoomLevelChanged.Remove(ZoomLevelHandle);
 		Cosmic->OnTimeUnitChanged.Remove(TimeUnitHandle);
 		Cosmic->OnViewModeChanged.Remove(ViewModeHandle);
 	}
@@ -265,20 +260,29 @@ void ACosmicHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void ACosmicHUD::HandleSelectionChanged(FName SystemID)
 {
-	using namespace CosmicControlImpl;
+	ShowRightSide();
+}
 
+void ACosmicHUD::ShowRightSide()
+{
+	const ACosmicPlayerController* Cosmic = Cast<ACosmicPlayerController>(GetOwningPlayerController());
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!Cosmic || !Sim)
+	{
+		return;
+	}
+	// What the player looks at: the level of the camera's target arm and the two selections (never two panels).
+	const ECosmicZoomLevel Level = Cosmic->GetZoomLevel();
+	const FCosmicPanelChoice Choice = CosmicUniverseLook::PanelOf(Level, Cosmic->GetSelectedSystem(), Cosmic->GetSelectedGalaxy(), Sim->GetRules().HomeGalaxyRow);
 	if (SystemPanel)
 	{
-		SystemPanel->ShowSystem(SystemID);
+		SystemPanel->ShowSystem(Choice.bSystemPanel ? Choice.Shown : NAME_None);
 	}
 	if (GalaxyPanel)
 	{
-		GalaxyPanel->ShowGalaxy(GalaxyRowFor(GetGameInstance(), SystemID));
-		// The first selection of the session: the player found the stars - the hint goes for good.
-		if (!SystemID.IsNone())
-		{
-			GalaxyPanel->DropHint();
-		}
+		// The hint, then the galaxy (each redraws the panel; the definitions only).
+		GalaxyPanel->ShowHint(CosmicUI::HintKeyOf(Level, Cosmic->GetHintProgress()));
+		GalaxyPanel->ShowGalaxy(Choice.bSystemPanel ? NAME_None : Choice.Shown);
 	}
 }
 
@@ -305,16 +309,9 @@ void ACosmicHUD::RefreshPanel()
 	{
 		TopBar->Refresh();
 	}
-	if (SystemPanel)
-	{
-		SystemPanel->Refresh();
-	}
-	// The galaxy panel reads only definitions: shown again for the selection now (the tables may have changed).
-	if (GalaxyPanel)
-	{
-		const ACosmicPlayerController* Cosmic = Cast<ACosmicPlayerController>(GetOwningPlayerController());
-		GalaxyPanel->ShowGalaxy(CosmicControlImpl::GalaxyRowFor(GetGameInstance(), Cosmic ? Cosmic->GetSelectedSystem() : NAME_None));
-	}
+	// The right side: the system panel (one refresh) or the galaxy panel - it reads only definitions, shown again now (the
+	// tables may have changed) - with its hint.
+	ShowRightSide();
 }
 
 ACosmicPlayerController::ACosmicPlayerController()
@@ -615,7 +612,133 @@ void ACosmicPlayerController::SelectSystem(FName SystemID)
 	{
 		TheMap->SetSelectedSystem(SystemID);
 	}
+	// Noted before the announcement: the HUD redraws the hint from it.
+	if (!SystemID.IsNone())
+	{
+		Hints.bPickedSystem = true;
+	}
 	OnSelectionChanged.Broadcast(SystemID);
+}
+
+void ACosmicPlayerController::SelectGalaxy(FName Row)
+{
+	if (Row == SelectedGalaxyRow)
+	{
+		return;
+	}
+	if (!Row.IsNone())
+	{
+		// A named galaxy the universe draws: a scenery galaxy has no selection (section 5.11).
+		const ACosmicGalaxyMapActor* TheMap = Map.Get();
+		if (!TheMap || !TheMap->GetGalaxyMarks().ContainsByPredicate([Row](const FCosmicGalaxyMark& Mark) { return Mark.Row == Row; }))
+		{
+			return;
+		}
+	}
+	SelectedGalaxyRow = Row;
+	if (ACosmicGalaxyMapActor* TheMap = Map.Get())
+	{
+		TheMap->SetSelectedGalaxy(Row);
+	}
+	if (!Row.IsNone())
+	{
+		Hints.bPickedGalaxy = true;
+	}
+	OnGalaxySelectionChanged.Broadcast(Row);
+}
+
+bool ACosmicPlayerController::SelectAndFocusGalaxy(FName Row)
+{
+	const ACosmicGalaxyMapActor* TheMap = Map.Get();
+	const FCosmicGalaxyMark* Mark = (TheMap && !Row.IsNone()) ? TheMap->GetGalaxyMarks().FindByPredicate([Row](const FCosmicGalaxyMark& Each) { return Each.Row == Row; }) : nullptr;
+	if (!Mark)
+	{
+		return false;
+	}
+	if (Mark->bHome)
+	{
+		// The way home: the region framed again, no galaxy selected.
+		SelectGalaxy(NAME_None);
+		FrameRegion();
+	}
+	else
+	{
+		SelectGalaxy(Row);
+		if (ACosmicCameraPawn* CameraPawn = GetCameraPawn())
+		{
+			CameraPawn->FocusOnUniverse(Mark->Position, CosmicUniverseLook::FocusArmOf(*Mark, TheMap->GetZoomLevels()));
+		}
+	}
+	FollowZoomLevel();
+	return true;
+}
+
+void ACosmicPlayerController::FrameRegion()
+{
+	const ACosmicGalaxyMapActor* TheMap = Map.Get();
+	ACosmicCameraPawn* CameraPawn = GetCameraPawn();
+	if (TheMap && CameraPawn)
+	{
+		CameraPawn->FrameAll(TheMap->GetZoomLevels());
+	}
+}
+
+ECosmicZoomLevel ACosmicPlayerController::GetZoomLevel() const
+{
+	const ACosmicCameraPawn* CameraPawn = GetCameraPawn();
+	return CameraPawn ? CameraPawn->GetTargetLevel() : ECosmicZoomLevel::Region;
+}
+
+void ACosmicPlayerController::FollowZoomLevel()
+{
+	const ECosmicZoomLevel Now = GetZoomLevel();
+	if (LastLevel.IsSet() && LastLevel.GetValue() != Now)
+	{
+		// Noted before the announcement: the HUD redraws the hint from it.
+		if (Now == ECosmicZoomLevel::Universe)
+		{
+			Hints.bReachedUniverse = true;
+		}
+		else
+		{
+			Hints.bLeftUniverse = true;
+		}
+		LastLevel = Now;
+		OnZoomLevelChanged.Broadcast();
+		return;
+	}
+	LastLevel = Now;
+}
+
+void ACosmicPlayerController::CosmicWheel(float Steps)
+{
+	const ACosmicGalaxyMapActor* TheMap = Map.Get();
+	// A map still to be built frames the camera when it is: wait for it.
+	if (!TheMap || TheMap->IsRebuildPending() || TheMap->GetStars().Num() == 0)
+	{
+		PendingWheel = Steps;
+		return;
+	}
+	if (ACosmicCameraPawn* CameraPawn = GetCameraPawn())
+	{
+		CameraPawn->Zoom(Steps);
+	}
+	FollowZoomLevel();
+}
+
+void ACosmicPlayerController::CosmicSelectGalaxy(const FString& Row)
+{
+	const FName Wanted(*Row);
+	const ACosmicGalaxyMapActor* TheMap = Map.Get();
+	if (!TheMap || TheMap->IsRebuildPending() || TheMap->GetStars().Num() == 0)
+	{
+		PendingGalaxy = Wanted;
+		return;
+	}
+	if (!SelectAndFocusGalaxy(Wanted))
+	{
+		UE_LOG(LogCosmic, Display, TEXT("CosmicSelectGalaxy: %s is no galaxy the universe draws"), *Wanted.ToString());
+	}
 }
 
 void ACosmicPlayerController::CosmicSelect(const FString& SystemID)
@@ -701,21 +824,34 @@ bool ACosmicPlayerController::SelectAndFocus(FName SystemID)
 	}
 	if (ACosmicCameraPawn* CameraPawn = GetCameraPawn())
 	{
+		// From the universe too: a system is looked at in the region.
 		CameraPawn->FocusOn(Star->GetActorLocation());
 	}
+	FollowZoomLevel();
 	return true;
 }
 
 void ACosmicPlayerController::HandleMapRebuilt()
 {
-	const ACosmicGalaxyMapActor* TheMap = Map.Get();
+	ACosmicGalaxyMapActor* TheMap = Map.Get();
 	SelectSystem(NAME_None);
+	SelectGalaxy(NAME_None);
 	// A new galaxy or a load starts at the default view (the map put its own back before it drew; this announces it).
 	SetWantedViewMode(ECosmicViewMode::Spiritual);
 	if (ACosmicCameraPawn* CameraPawn = GetCameraPawn(); CameraPawn && TheMap)
 	{
-		CameraPawn->FrameAll(TheMap->GetDiscCentre(), TheMap->GetDiscRadius());
+		// The region framed on the map's levels, at once; the map's share is the snapped arm's.
+		FrameRegion();
 		CameraPawn->SnapToTargets();
+		TheMap->SetViewDistance(CameraPawn->GetArmLength());
+		// That framing is the rebuild's, not the player's way home: the level is announced (the right side follows it)
+		// without noting the hint, which stays for the session (Phase 3 item 9's review).
+		const ECosmicZoomLevel Framed = GetZoomLevel();
+		if (LastLevel.IsSet() && LastLevel.GetValue() != Framed)
+		{
+			LastLevel = Framed;
+			OnZoomLevelChanged.Broadcast();
+		}
 	}
 	if (!PendingSelect.IsNone())
 	{
@@ -726,6 +862,25 @@ void ACosmicPlayerController::HandleMapRebuilt()
 			LogRefusedSelect(Wanted);
 		}
 	}
+	if (PendingWheel.IsSet())
+	{
+		const float Steps = PendingWheel.GetValue();
+		PendingWheel.Reset();
+		if (ACosmicCameraPawn* CameraPawn = GetCameraPawn())
+		{
+			CameraPawn->Zoom(Steps);
+		}
+	}
+	if (!PendingGalaxy.IsNone())
+	{
+		const FName Wanted = PendingGalaxy;
+		PendingGalaxy = NAME_None;
+		if (!SelectAndFocusGalaxy(Wanted))
+		{
+			UE_LOG(LogCosmic, Display, TEXT("CosmicSelectGalaxy: %s is no galaxy the universe draws"), *Wanted.ToString());
+		}
+	}
+	FollowZoomLevel();
 }
 
 ACosmicCameraPawn* ACosmicPlayerController::GetCameraPawn() const
@@ -791,6 +946,7 @@ void ACosmicPlayerController::PlayerTick(float DeltaTime)
 	// The map reads the viewer's tier at each refresh itself; this only brings the wanted view back when the sight opens
 	// again after it closed.
 	FollowSightOpening();
+	FollowZoomLevel();
 }
 
 bool ACosmicPlayerController::DiscPointAt(const FVector2D& Screen, FVector& OutPoint) const
@@ -803,6 +959,11 @@ bool ACosmicPlayerController::DiscPointAt(const FVector2D& Screen, FVector& OutP
 TArray<FCosmicPickCandidate> ACosmicPlayerController::PickCandidatesOf(const ACosmicGalaxyMapActor& Map, const FCosmicKnownView& View, TFunctionRef<bool(const FVector&, FVector2D&)> Project, const FVector& Side)
 {
 	TArray<FCosmicPickCandidate> Candidates;
+	// A click takes only what is drawn: at the universe level no star (a named galaxy there).
+	if (!Map.IsRegionDetailShown())
+	{
+		return Candidates;
+	}
 	const TArray<TObjectPtr<ACosmicStarSystemActor>>& Stars = Map.GetStars();
 	for (int32 Index = 0; Index < Stars.Num(); ++Index)
 	{
@@ -825,6 +986,56 @@ TArray<FCosmicPickCandidate> ACosmicPlayerController::PickCandidatesOf(const ACo
 		}
 	}
 	return Candidates;
+}
+
+TArray<FCosmicGalaxyPickCandidate> ACosmicPlayerController::GalaxyPickCandidatesOf(const ACosmicGalaxyMapActor& Map, TFunctionRef<bool(const FVector&, FVector2D&)> Project, const FVector& Side)
+{
+	TArray<FCosmicGalaxyPickCandidate> Candidates;
+	// A click takes only what is drawn: in the region no galaxy; never a scenery galaxy (section 5.11).
+	if (Map.IsRegionDetailShown())
+	{
+		return Candidates;
+	}
+	for (const FCosmicGalaxyMark& Mark : Map.GetGalaxyMarks())
+	{
+		FVector2D Centre;
+		FVector2D Edge;
+		if (Project(Mark.Position, Centre) && Project(Mark.Position + Side * CosmicUniverseLook::RingRadiusOf(Mark), Edge))
+		{
+			FCosmicGalaxyPickCandidate& Candidate = Candidates.AddDefaulted_GetRef();
+			Candidate.Row = Mark.Row;
+			Candidate.Target.Centre = Centre;
+			Candidate.Target.Radius = static_cast<float>(FVector2D::Distance(Centre, Edge));
+		}
+	}
+	return Candidates;
+}
+
+FName ACosmicPlayerController::PickGalaxyAtCursor() const
+{
+	const ACosmicGalaxyMapActor* TheMap = Map.Get();
+	float MouseX = 0.f;
+	float MouseY = 0.f;
+	if (!TheMap || !GetMousePosition(MouseX, MouseY))
+	{
+		return NAME_None;
+	}
+	FVector ViewLocation;
+	FRotator ViewRotation;
+	GetPlayerViewPoint(ViewLocation, ViewRotation);
+	const FVector Side = FRotationMatrix(ViewRotation).GetUnitAxis(EAxis::Y);
+	const TArray<FCosmicGalaxyPickCandidate> Candidates = GalaxyPickCandidatesOf(*TheMap, [this](const FVector& World, FVector2D& Screen)
+	{
+		return ProjectWorldLocationToScreen(World, Screen);
+	}, Side);
+	TArray<FCosmicScreenTarget> Targets;
+	Targets.Reserve(Candidates.Num());
+	for (const FCosmicGalaxyPickCandidate& Candidate : Candidates)
+	{
+		Targets.Add(Candidate.Target);
+	}
+	const int32 Index = CosmicMapPick::NearestOnScreen(Targets, FVector2D(MouseX, MouseY), CosmicControlImpl::PickPixels);
+	return Candidates.IsValidIndex(Index) ? Candidates[Index].Row : NAME_None;
 }
 
 FName ACosmicPlayerController::PickAtCursor() const
@@ -875,10 +1086,19 @@ void ACosmicPlayerController::HandleLeftReleased(FKey Key)
 	// click through the gliding view could clear or move that selection.
 	const bool bSwallow = bSwallowRelease;
 	bSwallowRelease = false;
-	// A press that did not become a pan is a click: the star under the cursor, or empty space (clears).
+	// A press that did not become a pan is a click: what the map draws under the cursor - a star in the region, a named
+	// galaxy at the universe level - or empty space (clears the selection of that level).
 	if (bLeftDown && !bPanning && !bSwallow)
 	{
-		SelectSystem(PickAtCursor());
+		const ACosmicGalaxyMapActor* TheMap = Map.Get();
+		if (TheMap && !TheMap->IsRegionDetailShown())
+		{
+			SelectGalaxy(PickGalaxyAtCursor());
+		}
+		else
+		{
+			SelectSystem(PickAtCursor());
+		}
 	}
 	bLeftDown = false;
 	bPanning = false;
@@ -887,7 +1107,15 @@ void ACosmicPlayerController::HandleLeftReleased(FKey Key)
 void ACosmicPlayerController::HandleLeftDoubleClick(FKey Key)
 {
 	bSwallowRelease = true;
-	SelectAndFocus(PickAtCursor());
+	const ACosmicGalaxyMapActor* TheMap = Map.Get();
+	if (TheMap && !TheMap->IsRegionDetailShown())
+	{
+		SelectAndFocusGalaxy(PickGalaxyAtCursor());
+	}
+	else
+	{
+		SelectAndFocus(PickAtCursor());
+	}
 }
 
 void ACosmicPlayerController::HandleRightPressed(FKey Key)
@@ -910,6 +1138,7 @@ void ACosmicPlayerController::HandleWheel(FKey Key)
 	{
 		CameraPawn->Zoom(Key == EKeys::MouseScrollUp ? 1.f : -1.f);
 	}
+	FollowZoomLevel();
 }
 
 bool ACosmicPlayerController::StartProject(FName SystemID, FName RowName)

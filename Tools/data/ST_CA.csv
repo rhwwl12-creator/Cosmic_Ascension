@@ -94,3 +94,6 @@ Key,SourceString
 "Galaxy.Kind.Elliptical","타원은하"
 "Galaxy.Named","이 은하의 별들도 하나도 빠짐없이 이름대로 불렸다."
 "Galaxy.Hint","별을 누르면 그 성계를 본다."
+"Galaxy.HintZoomOut","휠로 더 멀리 보면 다른 은하들이 보인다."
+"Galaxy.HintPickGalaxy","은하를 누르면 그 은하를 본다."
+"Galaxy.HintHome","{Home}|hpp(을,를) 두 번 누르면 별들이 다시 보인다."

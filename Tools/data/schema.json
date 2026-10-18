@@ -116,7 +116,8 @@
 				"FarLineCooldownTicks": {"kind": "number", "min": 0, "integer": true},
 				"LivingWorldStarShares": {"kind": "numbers", "len": 7, "ascending": true, "min": 0, "max": 1, "ends_at": 1},
 				"FallenCoreMinLanesFromHome": {"kind": "number", "integer": true},
-				"BackgroundStarCount": {"kind": "number", "min": 0, "max": 100000, "integer": true}
+				"BackgroundStarCount": {"kind": "number", "min": 0, "max": 100000, "integer": true},
+				"SceneryGalaxyCount": {"kind": "number", "min": 0, "max": 50000, "integer": true}
 			},
 			"rules": [
 				{
@@ -325,7 +326,7 @@
 			"prefixes": ["gal_"],
 			"must_exist": true,
 			"columns": {
-				"DisplayName": {"kind": "text", "required": true},
+				"DisplayName": {"kind": "text", "required": true, "forbidden": "verdict"},
 				"Kind": {"kind": "tag", "root": "Galaxy.Kind."},
 				"LivingWorlds": {"kind": "number", "min": 0, "integer": true},
 				"Peoples": {"kind": "number", "min": 0, "integer": true},
@@ -333,15 +334,26 @@
 				"HomeRadiusShare": {"kind": "number", "min": 0, "max": 1},
 				"RadiusLy": {"kind": "number", "min": 0, "integer": true},
 				"BridgeTicks": {"kind": "number", "min": 0, "integer": true},
-				"StarCountText": {"kind": "text", "hedged": ["약", "추정", "논쟁 중"]},
-				"DistanceText": {"kind": "text", "required": true, "hedged": ["약", "추정", "논쟁 중"]},
-				"FeatureText": {"kind": "text", "hedged": ["약", "추정", "논쟁 중"]},
+				"StarCountText": {"kind": "text", "hedged": ["약", "추정", "논쟁 중"], "forbidden": "verdict"},
+				"DistanceText": {"kind": "text", "required": true, "hedged": ["약", "추정", "논쟁 중"], "forbidden": "verdict"},
+				"FeatureText": {"kind": "text", "hedged": ["약", "추정", "논쟁 중"], "forbidden": "verdict"},
 				"MapPosition": {"kind": "plain"},
 				"StarNameBank": {"kind": "texts", "unique": true, "slots": [], "no_digits": true, "forbidden": "verdict"},
 				"CatalogPrefixes": {"kind": "texts", "unique": true, "slots": [], "no_digits": true, "forbidden": "verdict"},
 				"CatalogStems": {"kind": "texts", "unique": true, "slots": [], "no_digits": true, "forbidden": "verdict"},
 				"PeopleStems": {"kind": "texts", "unique": true, "slots": [], "no_digits": true, "forbidden": "verdict"}
-			}
+			},
+			"unique": [
+				{"cols": ["DisplayName"], "why": "the universe level labels every galaxy with its name: two rows of one name would read as one galaxy (guideline 5.11, 6.4)"},
+				{"cols": ["MapPosition"], "why": "two galaxies never stand on one place - the home holds (0,0), so a row left there has no place yet (guideline 5.11, 7.3)"}
+			],
+			"rules": [
+				{
+					"why": "a galaxy other than the home holds no peoples, no brake, no home share and no name pools (guideline 5.11 '고향이 아닌 행의 이 네 값은 0')",
+					"when": [{"col": "LivingWorlds", "is": 0}],
+					"then": [{"col": "Peoples", "is": 0}, {"col": "AIFourthRungCap", "is": 0}, {"col": "HomeRadiusShare", "is": 0}, {"col": "StarNameBank", "max_len": 0}, {"col": "CatalogPrefixes", "max_len": 0}, {"col": "CatalogStems", "max_len": 0}]
+				}
+			]
 		},
 
 		"DT_Transcendents": {

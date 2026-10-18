@@ -16,9 +16,9 @@ struct FGalaxyDef;
  * FeatureText - each carries its own hedge; an empty one is no line), and on every galaxy, the home galaxy too, the one
  * line ST_CA Galaxy.Named. A galaxy not met - every galaxy before Phase 6a - shows nothing more. No people line, no count
  * of living systems, peoples or known things, no allegiance or jurisdiction (section 8.3, 12.2). Under the lines, in grey,
- * the hint ST_CA Galaxy.Hint ("press a star to see its system") until the first selection of the session (DropHint -
- * never saved). The HUD shows it in the system panel's place while no system is selected; item 9's universe screen shows
- * other rows through ShowGalaxy. Built in C++ (no WBP).
+ * one hint the HUD gives (ShowHint - CosmicUI::HintKeyOf of the camera's level and the session's progress: a star, the
+ * wheel past the region, a galaxy, the way home; never saved). The HUD shows the galaxy the universe level selected, else
+ * the home galaxy (CosmicUniverseLook::PanelOf), in the system panel's place. Built in C++ (no WBP).
  */
 UCLASS(meta = (DisableNativeTick))
 class COSMIC_ASCENSION_API UCosmicGalaxyPanelWidget : public UUserWidget
@@ -34,12 +34,13 @@ public:
 	 * that are not empty, then Galaxy.Named - on every galaxy. The panel shows them with an empty line before the last. */
 	static TArray<FText> LinesOf(const FGalaxyDef& Galaxy);
 
-	/** Takes the hint away for the rest of the session (the HUD calls it at the first selection). */
-	void DropHint();
+	/** Shows the String Table entry Key as the grey hint line under the lines - {Home} filled with the home galaxy's
+	 * DisplayName (CosmicUI::HintHomeKey) -, or collapses it for null. The HUD gives it CosmicUI::HintKeyOf. */
+	void ShowHint(const TCHAR* Key);
+	/** The key ShowHint was given last (null for none). */
+	const TCHAR* GetHintKey() const { return HintKey; }
 	/** Whether the hint line shows. */
 	bool IsHintShown() const;
-	/** Gives the hint back as at the session's start (tests: an earlier test of the run may have selected already). */
-	void RestoreHintForTests();
 
 	/** The name, the block of lines and the hint (tests). */
 	const UTextBlock* GetNameText() const { return NameText; }
@@ -66,5 +67,5 @@ private:
 	TObjectPtr<UTextBlock> HintText;
 
 	FName ShownRow;
-	bool bHintDropped = false;
+	const TCHAR* HintKey = nullptr;
 };

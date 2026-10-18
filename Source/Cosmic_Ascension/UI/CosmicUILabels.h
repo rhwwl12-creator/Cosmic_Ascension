@@ -15,6 +15,7 @@
 #include "Internationalization/StringTableCoreFwd.h"
 #include "Internationalization/Text.h"
 #include "Misc/Optional.h"
+#include "World/CosmicZoomLevels.h"
 
 /** How the UI shows the clock (guideline 2.1): in cycles, or in years counted from the first record (1 cycle = 1 year,
  * no calendar). The viewer's choice: never in FGalaxyState, never in a save, outside both hashes. The narration and the
@@ -23,6 +24,20 @@ enum class ECosmicTimeUnit : uint8
 {
 	Cycle,
 	Year,
+};
+
+/** What the mouse has done once this session, for the galaxy panel's hints (section 6.4 'the universe screen').
+ * Presentation state: never saved, kept across new galaxies in the session (the player already knows). */
+struct COSMIC_ASCENSION_API FCosmicHintProgress
+{
+	// The first system selection.
+	bool bPickedSystem = false;
+	// The first visit of the universe level.
+	bool bReachedUniverse = false;
+	// The first galaxy selection.
+	bool bPickedGalaxy = false;
+	// The first move from the universe to the region, by any way.
+	bool bLeftUniverse = false;
 };
 
 namespace CosmicUI
@@ -236,6 +251,26 @@ namespace CosmicUI
 			return FText::GetEmpty();
 		}
 		return FText::Format(INVTEXT("{0}  {1}"), Label(TEXT("Panel.Life")), Label(LifeWordKeys[LifeWordIndexOf(Seed, SystemID)]));
+	}
+
+	// The galaxy panel's hints, one at a time (section 6.4 'the universe screen'): item 8's (a star), then the wheel past the
+	// region, then a galaxy at the universe level, then the way home. String Table keys; HintHomeKey's {Home} is the home
+	// galaxy's DisplayName (UCosmicGalaxyPanelWidget::ShowHint fills it).
+	inline constexpr const TCHAR* HintPickStarKey = TEXT("Galaxy.Hint");
+	inline constexpr const TCHAR* HintZoomOutKey = TEXT("Galaxy.HintZoomOut");
+	inline constexpr const TCHAR* HintPickGalaxyKey = TEXT("Galaxy.HintPickGalaxy");
+	inline constexpr const TCHAR* HintHomeKey = TEXT("Galaxy.HintHome");
+
+	/** The hint for a level and a progress: in the region item 8's until the first system selection, then HintZoomOutKey
+	 * until the first visit of the universe; at the universe HintPickGalaxyKey until the first galaxy selection, then
+	 * HintHomeKey until the first move back to the region; null (no line) after them. */
+	inline const TCHAR* HintKeyOf(ECosmicZoomLevel Level, const FCosmicHintProgress& Progress)
+	{
+		if (Level == ECosmicZoomLevel::Universe)
+		{
+			return !Progress.bPickedGalaxy ? HintPickGalaxyKey : (!Progress.bLeftUniverse ? HintHomeKey : nullptr);
+		}
+		return !Progress.bPickedSystem ? HintPickStarKey : (!Progress.bReachedUniverse ? HintZoomOutKey : nullptr);
 	}
 
 	// The String Table key of a galaxy's kind (section 3.1, 5.11): the four Galaxy.Kind tags, matched as tags requested by

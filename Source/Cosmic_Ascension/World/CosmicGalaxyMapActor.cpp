@@ -2,11 +2,14 @@
 
 #include "World/CosmicGalaxyMapActor.h"
 
+#include "Blueprint/UserWidget.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/LineBatchComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/WidgetComponent.h"
 #include "Cosmic_Ascension.h"
+#include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Engine/GameInstance.h"
 #include "Engine/StaticMesh.h"
@@ -20,10 +23,13 @@
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "UI/CosmicPalette.h"
+#include "UI/CosmicSystemLabelWidget.h"
 #include "UObject/ConstructorHelpers.h"
 #include "UObject/UObjectGlobals.h"
 #include "World/CosmicMapLook.h"
 #include "World/CosmicStarSystemActor.h"
+#include "World/CosmicUniverseLook.h"
+#include "World/CosmicZoomLevels.h"
 
 // The map's own column of the CSV profiler (CosmicMap/GameThread/Refresh): the frame-time measure reads a refresh by
 // itself.
@@ -48,14 +54,25 @@ namespace CosmicGalaxyMapImpl
 	constexpr float SealedGapRings = 2.f;
 	constexpr float SelectionGapRings = 4.f;
 	constexpr int32 SelectionSegments = 32;
-	// A disc smaller than this is taken as this (a board of a few systems).
-	constexpr float MinDiscRadius = 1000.f;
-	// The sky sphere: the engine sphere (100 units across) blown up far past the disc of any galaxy size.
-	constexpr float SkyScale = 3000.f;
+	// The sky sphere before the first rebuild: the engine sphere blown up to the smallest sky (CosmicUniverseLook::
+	// MinSkyRadius); every rebuild sizes it to hold the universe (SkyRadiusOf).
+	constexpr float SkyScale = CosmicUniverseLook::MinSkyRadius / CosmicUniverseLook::SkySphereRadius;
 	// M_Nebula's and M_Backdrop's scalar, looked up once.
 	const FName SkyIntensityName(CosmicMapLook::SkyIntensityParam);
 	// The engine plane is 100 units across: an instance of a point Size across is scaled by Size / this.
 	constexpr float PlaneSize = 100.f;
+	// M_Backdrop's LayerFade, looked up once; a share that moved by more than this writes the fades again.
+	const FName LayerFadeName(CosmicMapLook::LayerFadeParam);
+	constexpr float FadeSlack = 0.005f;
+	// A galaxy's label: one line of a name, wider than a system's for the longest names, as tall as the line so that the
+	// name stands just above its anchor (a taller box would lift it onto the galaxy above - screenshot 1).
+	const FVector2D GalaxyLabelSize(220.f, 20.f);
+
+	// Two marks draw the same instance: the same row, place, size, aspect and turn (the name is not drawn by the mesh).
+	bool SameInstance(const FCosmicGalaxyMark& A, const FCosmicGalaxyMark& B)
+	{
+		return A.Row == B.Row && A.Position.Equals(B.Position, 0.0) && A.Radius == B.Radius && A.Aspect == B.Aspect && A.TurnDegrees == B.TurnDegrees;
+	}
 
 	// The transform of a backdrop point: at its place, flat on the disc, Size across.
 	FTransform PointTransform(const FCosmicBackdropPoint& Point)
@@ -116,6 +133,20 @@ ACosmicGalaxyMapActor::ACosmicGalaxyMapActor()
 	Backdrop->SetCanEverAffectNavigation(false);
 	// Before any instance is added: the setter resets all custom data to 0.
 	Backdrop->SetNumCustomDataFloats(CosmicMapLook::BackdropDataFloats);
+
+	// The universe (Phase 3 item 9): a second instanced mesh of the same plane, its own instance of M_Backdrop, built by
+	// Rebuild when its key changes; hidden until the camera stands past the region.
+	Universe = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("Universe"));
+	Universe->SetupAttachment(RootComponent);
+	if (Plane.Succeeded())
+	{
+		Universe->SetStaticMesh(Plane.Object);
+	}
+	Universe->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Universe->SetCastShadow(false);
+	Universe->SetCanEverAffectNavigation(false);
+	Universe->SetNumCustomDataFloats(CosmicMapLook::BackdropDataFloats);
+	Universe->SetVisibility(false);
 }
 
 void ACosmicGalaxyMapActor::SetSeeAll(bool bInSeeAll)
@@ -158,12 +189,36 @@ void ACosmicGalaxyMapActor::SetViewDistance(float ArmLength)
 	{
 		return;
 	}
+	// Where the camera stands between the levels: the fades follow at once (material values, no redraw); a flip of the
+	// region's detail is a redraw.
+	const float Share = CosmicZoom::UniverseShareOf(ArmLength, ZoomLevels);
+	ApplyLayerFades(Share);
+	if (CosmicZoom::ShowsRegionDetail(Share) != bRegionDetail)
+	{
+		bRefreshPending = true;
+	}
+	UniverseShare = Share;
 	const bool bFar = ArmLength > FarViewDistance;
 	if (bFar != bFarView || FMath::Abs(ArmLength - ViewDistance) > ViewDistanceSlack * ViewDistance)
 	{
 		ViewDistance = ArmLength;
 		bFarView = bFar;
 		bRefreshPending = true;
+	}
+	// At the universe level a galaxy's label follows the distance itself, not the one last redrawn: a label whose rule
+	// turns inside the slack above asks a redraw (else a label near its threshold showed or not by the frame on which the
+	// glide last redrew - the far stop's Small Magellanic Cloud did one run and not the next; Phase 3 item 9's review).
+	if (!CosmicZoom::ShowsRegionDetail(Share) && ViewDistance != ArmLength)
+	{
+		for (const FCosmicGalaxyMark& Mark : Marks)
+		{
+			if (CosmicUniverseLook::ShowsGalaxyLabel(Mark, ViewDistance, false) != CosmicUniverseLook::ShowsGalaxyLabel(Mark, ArmLength, false))
+			{
+				ViewDistance = ArmLength;
+				bRefreshPending = true;
+				break;
+			}
+		}
 	}
 }
 
@@ -204,6 +259,14 @@ void ACosmicGalaxyMapActor::BeginPlay()
 		UE_LOG(LogCosmic, Error, TEXT("%s is missing or cannot draw instanced meshes: run Tools/make_materials.py (the backdrop stays hidden)"), CosmicMapLook::BackdropMaterialPath);
 	}
 	Backdrop->SetVisibility(bBackdropUsable);
+	// The universe draws through its own instance of the same material (its LayerFade and SpiritualIntensity apart), and
+	// only through a usable one (the same rule as the backdrop's).
+	if (bBackdropUsable)
+	{
+		UniverseMaterial = Universe->CreateAndSetMaterialInstanceDynamicFromMaterial(0, Dust);
+	}
+	WrittenShare = -1.f;
+	ApplyLayerFades(0.f);
 	if (UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr)
 	{
 		Sim->OnGalaxyGenerated.AddUniqueDynamic(this, &ACosmicGalaxyMapActor::HandleGalaxyGenerated);
@@ -267,6 +330,7 @@ void ACosmicGalaxyMapActor::Rebuild()
 	// first draw, so a third-rung load never shows one physical frame (the controller announces the reset after
 	// OnRebuilt). The development force stays for the session.
 	SelectedSystemID = NAME_None;
+	SelectedGalaxyRow = NAME_None;
 	WantedView = ECosmicViewMode::Spiritual;
 
 	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
@@ -299,14 +363,221 @@ void ACosmicGalaxyMapActor::Rebuild()
 			Farthest = FMath::Max(Farthest, FVector::Dist2D(System.Position, DiscCentre));
 		}
 	}
-	DiscRadius = Farthest > MinDiscRadius ? static_cast<float>(Farthest) : MinDiscRadius;
+	DiscRadius = Farthest > CosmicZoom::MinDiscRadius ? static_cast<float>(Farthest) : CosmicZoom::MinDiscRadius;
 
 	if (Sim)
 	{
 		BuildBackdrop(Sim->GetState(), Sim->GetRules());
+		BuildUniverse(Sim->GetRules(), Sim->GetTables());
 	}
+	else
+	{
+		ZoomLevels = CosmicZoom::LevelsOf(DiscCentre, DiscRadius, 0.f);
+	}
+	// A new galaxy or a load starts in the region, framed (the controller snaps the camera there after OnRebuilt): the
+	// new stars are visible, both fades written for the region and the view distance the framing's.
+	UniverseShare = 0.f;
+	bRegionDetail = true;
+	bStarsHidden = false;
+	ViewDistance = CosmicZoom::FrameArmFactor * DiscRadius;
+	bFarView = ViewDistance > FarViewDistance;
+	WrittenShare = -1.f;
+	ApplyLayerFades(0.f);
 	Refresh();
 	OnRebuilt.Broadcast();
+}
+
+void ACosmicGalaxyMapActor::BuildUniverse(const FCosmicRulesDef& Rules, const FCosmicDataTables& Tables)
+{
+	using namespace CosmicGalaxyMapImpl;
+
+	// The frame, the marks, the reach and the levels at every rebuild (cheap).
+	Frame = CosmicUniverseLook::FrameOf(DiscCentre, DiscRadius);
+	Marks = CosmicUniverseLook::MarksOf(Tables, Rules.HomeGalaxyRow, Frame);
+	const TArray<FName> Unplaced = CosmicUniverseLook::UnplacedRowsOf(Tables, Rules.HomeGalaxyRow);
+	if (!Unplaced.IsEmpty())
+	{
+		FString Names;
+		for (const FName Name : Unplaced)
+		{
+			Names += (Names.IsEmpty() ? TEXT("") : TEXT(", ")) + Name.ToString();
+		}
+		UE_LOG(LogCosmic, Warning, TEXT("CosmicMap: galaxy rows without a place are not drawn: %s"), *Names);
+	}
+	Reach = CosmicUniverseLook::ReachOf(Frame, Marks);
+	ZoomLevels = CosmicZoom::LevelsOf(DiscCentre, DiscRadius, Reach);
+
+	// One label per mark: the extra ones go, the missing ones are made (a component registered on a begun actor begins at
+	// once, so its widget exists right after RegisterComponent).
+	while (GalaxyLabels.Num() > Marks.Num())
+	{
+		if (UWidgetComponent* Extra = GalaxyLabels.Pop())
+		{
+			Extra->DestroyComponent();
+		}
+	}
+	while (GalaxyLabels.Num() < Marks.Num())
+	{
+		UWidgetComponent* Label = NewObject<UWidgetComponent>(this);
+		Label->SetupAttachment(RootComponent);
+		Label->SetWidgetSpace(EWidgetSpace::Screen);
+		Label->SetWidgetClass(UCosmicSystemLabelWidget::StaticClass());
+		Label->SetDrawSize(GalaxyLabelSize);
+		Label->SetPivot(FVector2D(0.5f, 1.f));
+		Label->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		// Ticked only while its widget shows: a collapsed label (every one in the region) turns its tick off and a change of
+		// visibility turns it on again (the default, Enabled, ticks twenty hidden labels every frame).
+		Label->SetTickMode(ETickMode::Automatic);
+		Label->RegisterComponent();
+		GalaxyLabels.Add(Label);
+	}
+	for (int32 Index = 0; Index < Marks.Num(); ++Index)
+	{
+		// Bounded by the labels too: a label component the engine refused leaves no hole to index.
+		UWidgetComponent* Label = GalaxyLabels.IsValidIndex(Index) ? GalaxyLabels[Index].Get() : nullptr;
+		if (!Label)
+		{
+			continue;
+		}
+		const FCosmicGalaxyMark& Mark = Marks[Index];
+		Label->SetWorldLocation(Mark.Position + FVector(0.0, 0.0, CosmicUniverseLook::LabelLiftShare * Mark.Radius));
+		// The name alone: no bar (both shares -1).
+		FCosmicSystemLook Look;
+		Look.Name = Mark.Name;
+		Look.ConstructionShare = -1.f;
+		Look.ResponseShare = -1.f;
+		if (UCosmicSystemLabelWidget* Widget = Cast<UCosmicSystemLabelWidget>(Label->GetUserWidgetObject()))
+		{
+			Widget->Show(Look);
+			Widget->SetVisibility(ESlateVisibility::Collapsed);
+		}
+	}
+
+	// The sky holds every camera place and everything drawn (the engine sphere's radius is SkySphereRadius).
+	Sky->SetRelativeScale3D(FVector(CosmicUniverseLook::SkyRadiusOf(ZoomLevels, Frame, GetActorLocation()) / CosmicUniverseLook::SkySphereRadius));
+
+	if (!bBackdropUsable)
+	{
+		return;
+	}
+	// The instances only when their key changed (ClearInstances rebuilds the render state): the home row, the count, the
+	// frame and the marks' instances. Never the run's seed - one sky for every run.
+	const int32 Count = CosmicUniverseLook::SceneryCountOf(Rules);
+	bool bSameKey = InstanceCount == Count && InstanceRow == Rules.HomeGalaxyRow && InstanceFrame.Centre.Equals(Frame.Centre, 0.0)
+		&& InstanceFrame.Unit == Frame.Unit && KeyMarks.Num() == Marks.Num();
+	for (int32 Index = 0; bSameKey && Index < Marks.Num(); ++Index)
+	{
+		bSameKey = SameInstance(KeyMarks[Index], Marks[Index]);
+	}
+	if (bSameKey)
+	{
+		return;
+	}
+	CSV_SCOPED_TIMING_STAT(CosmicMap, Universe);
+	const uint64 Start = FPlatformTime::Cycles64();
+	TArray<FCosmicSceneryPoint> Points = CosmicUniverseLook::SceneryPointsOf(Rules.HomeGalaxyRow, Count, Frame);
+	CosmicUniverseLook::ClearAroundMarks(Points, Marks);
+	TArray<FTransform> Transforms;
+	Transforms.Reserve(Points.Num() + Marks.Num());
+	for (const FCosmicSceneryPoint& Point : Points)
+	{
+		Transforms.Add(CosmicUniverseLook::InstanceOf(Point));
+	}
+	for (const FCosmicGalaxyMark& Mark : Marks)
+	{
+		Transforms.Add(CosmicUniverseLook::InstanceOf(Mark));
+	}
+	// The ranged custom-data write checks its size fatally: the count of floats is set where it is used.
+	if (Universe->NumCustomDataFloats != CosmicMapLook::BackdropDataFloats)
+	{
+		Universe->SetNumCustomDataFloats(CosmicMapLook::BackdropDataFloats);
+	}
+	Universe->ClearInstances();
+	Universe->AddInstances(Transforms, false, true, false);
+	const int32 Instances = Transforms.Num();
+	if (Instances > 0)
+	{
+		TArray<float> Glows;
+		Glows.Reserve(Instances * Universe->NumCustomDataFloats);
+		for (const FCosmicSceneryPoint& Point : Points)
+		{
+			Glows.Add(Point.Glow);
+		}
+		for (const FCosmicGalaxyMark& Mark : Marks)
+		{
+			Glows.Add(Mark.Glow);
+		}
+		if (Glows.Num() == Instances * Universe->NumCustomDataFloats)
+		{
+			Universe->SetCustomData(0, Instances - 1, Glows, false);
+		}
+	}
+	SceneryCount = Points.Num();
+	InstanceCount = Count;
+	InstanceRow = Rules.HomeGalaxyRow;
+	InstanceFrame = Frame;
+	KeyMarks = Marks;
+	++UniverseBuilds;
+	UniverseBuildMs = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - Start);
+	UE_LOG(LogCosmic, Log, TEXT("CosmicMap: universe built (%d scenery, %d named) in %.2f ms"), SceneryCount, Marks.Num(), UniverseBuildMs);
+}
+
+void ACosmicGalaxyMapActor::ApplyLayerFades(float Share)
+{
+	using namespace CosmicGalaxyMapImpl;
+
+	const bool bEnd = Share == 0.f || Share == 1.f;
+	if (!(FMath::Abs(Share - WrittenShare) > FadeSlack || (bEnd && Share != WrittenShare)))
+	{
+		return;
+	}
+	WrittenShare = Share;
+	if (BackdropMaterial)
+	{
+		BackdropMaterial->SetScalarParameterValue(LayerFadeName, 1.f - Share);
+	}
+	if (UniverseMaterial)
+	{
+		UniverseMaterial->SetScalarParameterValue(LayerFadeName, Share);
+	}
+	// A layer that shows nothing is not drawn at all: the universe in the region, the dust at the universe level (a
+	// visibility change at each crossing, never a rebuild of the instances).
+	Universe->SetVisibility(bBackdropUsable && Share > 0.f);
+	Backdrop->SetVisibility(bBackdropUsable && Share < 1.f);
+	WriteIntensities();
+}
+
+void ACosmicGalaxyMapActor::WriteIntensities()
+{
+	// At the universe level the sight dims nothing (the fallen do not cross): the sky and the universe take the view's
+	// value x (1 - the share). A value equal to the one set before sends no render update.
+	const float Share = WrittenShare < 0.f ? UniverseShare : WrittenShare;
+	const float Receded = CosmicUniverseLook::RecededIntensityOf(SkyIntensity, Share);
+	if (SkyMaterial)
+	{
+		SkyMaterial->SetScalarParameterValue(CosmicGalaxyMapImpl::SkyIntensityName, Receded);
+	}
+	if (UniverseMaterial)
+	{
+		UniverseMaterial->SetScalarParameterValue(CosmicGalaxyMapImpl::SkyIntensityName, Receded);
+	}
+}
+
+void ACosmicGalaxyMapActor::SetSelectedGalaxy(FName Row)
+{
+	// Only marked: the map redraws at most once a frame.
+	if (Row != SelectedGalaxyRow)
+	{
+		SelectedGalaxyRow = Row;
+		bRefreshPending = true;
+	}
+}
+
+bool ACosmicGalaxyMapActor::IsGalaxyLabelVisible(int32 MarkIndex) const
+{
+	const UWidgetComponent* Label = GalaxyLabels.IsValidIndex(MarkIndex) ? GalaxyLabels[MarkIndex].Get() : nullptr;
+	const UUserWidget* Widget = Label ? Label->GetUserWidgetObject() : nullptr;
+	return Widget && Widget->GetVisibility() != ESlateVisibility::Collapsed;
 }
 
 void ACosmicGalaxyMapActor::BuildBackdrop(const FGalaxyState& State, const FCosmicRulesDef& Rules)
@@ -418,6 +689,7 @@ void ACosmicGalaxyMapActor::Refresh()
 
 	CSV_SCOPED_TIMING_STAT(CosmicMap, Refresh);
 	bRefreshPending = false;
+	++Refreshes;
 	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
 	if (!Sim)
 	{
@@ -430,6 +702,84 @@ void ACosmicGalaxyMapActor::Refresh()
 	// The view drawn: the viewer's tier is read here, so the tick of an ascension or a deposition turns it.
 	DrawnView = CosmicMapLook::ShownViewMode(WantedView, bSightForcedOpen, Sim->GetViewerTier());
 	const bool bSpiritual = DrawnView == ECosmicViewMode::Spiritual;
+	bRegionDetail = CosmicZoom::ShowsRegionDetail(UniverseShare);
+
+	if (!bRegionDetail)
+	{
+		// The universe level: the region's stars, labels, lanes and rings are not drawn - at the far stop the disc is a few
+		// dozen pixels across. An actor's hidden flag composes with its sphere's own visibility, so item 8's unknown stars
+		// keep theirs; a hidden owner's screen-space label leaves the screen at its next tick.
+		if (!bStarsHidden)
+		{
+			for (ACosmicStarSystemActor* Star : Stars)
+			{
+				if (Star)
+				{
+					Star->SetActorHiddenInGame(true);
+					Star->SetLabelVisible(false);
+				}
+			}
+			bStarsHidden = true;
+		}
+		// The cheap redraw: the galaxies' labels and the selected galaxy's ring - no looks, spirits, lanes or slots.
+		TArray<FBatchedLine> Lines;
+		DrawnGalaxySelection = NAME_None;
+		bGalaxyLabelsSet = true;
+		for (int32 Index = 0; Index < Marks.Num(); ++Index)
+		{
+			const FCosmicGalaxyMark& Mark = Marks[Index];
+			const bool bSelected = !SelectedGalaxyRow.IsNone() && Mark.Row == SelectedGalaxyRow;
+			if (UUserWidget* Widget = GalaxyLabels.IsValidIndex(Index) && GalaxyLabels[Index] ? GalaxyLabels[Index]->GetUserWidgetObject() : nullptr)
+			{
+				Widget->SetVisibility(CosmicUniverseLook::ShowsGalaxyLabel(Mark, ViewDistance, bSelected) ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+			}
+			if (bSelected)
+			{
+				AddRing(Lines, Mark.Position, CosmicUniverseLook::RingRadiusOf(Mark), SelectionSegments, false, CosmicPalette::White, RingThickness);
+				DrawnGalaxySelection = Mark.Row;
+			}
+		}
+		DrawnLanes = 0;
+		DrawnRings = 0;
+		DrawnSealedRings = 0;
+		DrawnGreyedHalves = 0;
+		DrawnSelection = NAME_None;
+		SkyIntensity = CosmicMapLook::SkyIntensityOf(DrawnView);
+		BackdropIntensity = SkyIntensity;
+		if (BackdropMaterial)
+		{
+			BackdropMaterial->SetScalarParameterValue(SkyIntensityName, BackdropIntensity);
+		}
+		WriteIntensities();
+		Lanes->Flush();
+		Lanes->DrawLines(Lines);
+		return;
+	}
+
+	// The region: the stars back when the universe hid them, the galaxies' labels gone.
+	if (bStarsHidden)
+	{
+		for (ACosmicStarSystemActor* Star : Stars)
+		{
+			if (Star)
+			{
+				Star->SetActorHiddenInGame(false);
+			}
+		}
+		bStarsHidden = false;
+	}
+	if (bGalaxyLabelsSet)
+	{
+		for (UWidgetComponent* Label : GalaxyLabels)
+		{
+			if (UUserWidget* Widget = Label ? Label->GetUserWidgetObject() : nullptr)
+			{
+				Widget->SetVisibility(ESlateVisibility::Collapsed);
+			}
+		}
+		bGalaxyLabelsSet = false;
+	}
+	DrawnGalaxySelection = NAME_None;
 	// What the viewer knows, read once for this refresh (section 6.4): the one reading of Knowing.
 	const FCosmicKnownView View = CosmicMapLook::KnownViewOf(State, Sim->GetStateIndex(), Sim->GetViewerTier(), bSeeAll);
 
@@ -519,12 +869,9 @@ void ACosmicGalaxyMapActor::Refresh()
 	// The backdrop's slots: an unknown system's point lit, a known one's dark (only the slots whose knowledge flipped).
 	LightSlots(State, View);
 
-	// The sky goes quiet in the spiritual view, and the dust with it.
+	// The sky goes quiet in the spiritual view, and the dust with it (the sky and the universe recede by the share).
 	SkyIntensity = CosmicMapLook::SkyIntensityOf(DrawnView);
-	if (SkyMaterial)
-	{
-		SkyMaterial->SetScalarParameterValue(SkyIntensityName, SkyIntensity);
-	}
+	WriteIntensities();
 	BackdropIntensity = SkyIntensity;
 	if (BackdropMaterial)
 	{

@@ -11,6 +11,7 @@
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Engine/GameInstance.h"
+#include "Internationalization/Text.h"
 #include "Layout/Margin.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Styling/SlateColor.h"
@@ -49,7 +50,6 @@ TSharedRef<SWidget> UCosmicGalaxyPanelWidget::RebuildWidget()
 		Column->AddChildToVerticalBox(LinesText);
 		HintText = CosmicUI::MakeText(*WidgetTree, 13);
 		HintText->SetColorAndOpacity(FSlateColor(HintColor));
-		HintText->SetText(CosmicUI::Label(TEXT("Galaxy.Hint")));
 		Column->AddChildToVerticalBox(HintText)->SetPadding(FMargin(0.f, 10.f, 0.f, 0.f));
 	}
 	TSharedRef<SWidget> Built = Super::RebuildWidget();
@@ -85,18 +85,9 @@ TArray<FText> UCosmicGalaxyPanelWidget::LinesOf(const FGalaxyDef& Galaxy)
 	return Lines;
 }
 
-void UCosmicGalaxyPanelWidget::DropHint()
+void UCosmicGalaxyPanelWidget::ShowHint(const TCHAR* Key)
 {
-	bHintDropped = true;
-	if (HintText)
-	{
-		HintText->SetVisibility(ESlateVisibility::Collapsed);
-	}
-}
-
-void UCosmicGalaxyPanelWidget::RestoreHintForTests()
-{
-	bHintDropped = false;
+	HintKey = Key;
 	Redraw();
 }
 
@@ -128,7 +119,20 @@ void UCosmicGalaxyPanelWidget::Redraw()
 		Lines.Insert(FText::GetEmpty(), Lines.Num() - 1);
 	}
 	LinesText->SetText(FText::Join(INVTEXT("\n"), Lines));
-	HintText->SetVisibility(bHintDropped ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	if (HintKey)
+	{
+		// {Home}: the home galaxy's name (the way home's hint); the other hints hold no argument.
+		const FGalaxyDef* Home = Sim->GetTables().FindGalaxy(Sim->GetRules().HomeGalaxyRow);
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("Home"), Home ? Home->DisplayName : FText::GetEmpty());
+		HintText->SetText(FText::Format(CosmicUI::Label(HintKey), Args));
+		HintText->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+	else
+	{
+		HintText->SetText(FText::GetEmpty());
+		HintText->SetVisibility(ESlateVisibility::Collapsed);
+	}
 }
 
 FReply UCosmicGalaxyPanelWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)

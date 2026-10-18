@@ -1,7 +1,7 @@
 // Cosmic Ascension - World layer (Presentation). Design: guideline.md section 3.1, 3.2, 4.2, 5.7, 6.4, 8.1, 8.2, 11 Phase 3.
 // What the map draws of the state, computed from the state alone: no UObject, no draw, no write. Knowing is read in one
 // place, KnownViewOf: the map, the system panel and the selection ask that view (the galaxy panel reads definitions only -
-// a met galaxy, Phase 6a, adds its bit to the view).
+// a met galaxy, Phase 6a, adds its bit to the view). The universe level's values are CosmicUniverseLook's (Phase 3 item 9).
 
 #pragma once
 
@@ -314,6 +314,17 @@ namespace CosmicMapLook
 	inline constexpr const TCHAR* BackdropMaterialPath = TEXT("/Game/CA/Materials/M_Backdrop.M_Backdrop");
 	// The per-instance floats of a point: its Glow (M_Backdrop's PerInstanceCustomData, index 0).
 	inline constexpr int32 BackdropDataFloats = 1;
+	// M_Backdrop's two parameters of Phase 3 item 9 (Tools/make_materials.py), on both of its instances - the backdrop's and
+	// the universe's (ACosmicGalaxyMapActor). LayerFade: the share of its light a layer shows - the backdrop 1 - CosmicZoom::
+	// UniverseShareOf, the universe the share itself; 1 by default, item 8's look. Tint: the one colour of the dust and of
+	// every galaxy - a default the C++ never sets, held out of the fallen's band of hues and away from white by
+	// UI.MaterialParams.
+	inline constexpr const TCHAR* LayerFadeParam = TEXT("LayerFade");
+	inline constexpr const TCHAR* BackdropTintParam = TEXT("Tint");
+	// M_Nebula's two colours (Phase 3 item 9 - section 16 #98 (4), #113): the dark and the bright of its noise, defaults the
+	// C++ never sets, held below the fallen's band of hues (a deep blue) by UI.MaterialParams.
+	inline constexpr const TCHAR* NebulaLowParam = TEXT("NebulaLow");
+	inline constexpr const TCHAR* NebulaHighParam = TEXT("NebulaHigh");
 	// DT_Rules.BackgroundStarCount is read as 0..this (the schema's bound too).
 	inline constexpr int32 MaxBackdropPoints = 100000;
 	// The points stand evenly over this many disc radii; past the disc's edge their glow fades to 0 here (a soft rim - no

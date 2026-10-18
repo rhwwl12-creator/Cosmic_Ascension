@@ -13,6 +13,8 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameplayTagContainer.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialExpressionNoise.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialParameters.h"
 #include "Misc/AutomationTest.h"
@@ -296,6 +298,37 @@ bool FCosmicUIMaterialParamsTest::RunTest(const FString& Parameters)
 	float Intensity = -1.f;
 	TestTrue(TEXT("M_Nebula has the scalar SpiritualIntensity"), Scalar(*Nebula, CosmicMapLook::SkyIntensityParam, Intensity));
 	TestEqual(TEXT("which starts at 0"), Intensity, 0.f);
+	// Phase 3 item 9: the sky's two colours keep below the fallen's band (the purple of the sight is theirs alone), and
+	// its noise reads the view's direction - a Position of its own at scale 1.
+	for (const TCHAR* Name : { CosmicMapLook::NebulaLowParam, CosmicMapLook::NebulaHighParam })
+	{
+		FLinearColor Colour = FLinearColor::Transparent;
+		TestTrue(*FString::Printf(TEXT("M_Nebula has the vector %s"), Name), Vector(*Nebula, Name, Colour));
+		const float Hue = Colour.LinearRGBToHSV().R;
+		TestTrue(*FString::Printf(TEXT("M_Nebula's %s keeps out of the fallen's band"), Name), Hue < CosmicMapLook::FallenHueFrom || Hue > CosmicMapLook::FallenHueTo);
+		TestTrue(*FString::Printf(TEXT("M_Nebula's %s is a blue"), Name), Hue > 180.f && Hue < CosmicMapLook::FallenHueFrom);
+	}
+#if WITH_EDITOR
+	{
+		const UMaterial* Base = Nebula->GetMaterial();
+		const UMaterialExpressionNoise* Noise = nullptr;
+		int32 Noises = 0;
+		if (Base)
+		{
+			for (const UMaterialExpression* Expression : Base->GetExpressions())
+			{
+				if (const UMaterialExpressionNoise* Each = Cast<UMaterialExpressionNoise>(Expression))
+				{
+					Noise = Each;
+					++Noises;
+				}
+			}
+		}
+		TestEqual(TEXT("(M_Nebula holds one noise)"), Noises, 1);
+		TestTrue(TEXT("M_Nebula's noise reads a Position of its own"), Noise && Noise->Position.GetTracedInput().Expression != nullptr);
+		TestTrue(TEXT("at scale 1"), Noise && Noise->Scale == 1.f);
+	}
+#endif
 
 	// The backdrop's dust (Phase 3 item 8): the sky's one parameter, the instanced usage the asset must carry (under -game
 	// a material without it falls back to the engine's default - only the editor proper adds a missing usage), and an
@@ -310,6 +343,16 @@ bool FCosmicUIMaterialParamsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("M_Backdrop's SpiritualIntensity starts at 0"), DustIntensity, 0.f);
 	TestTrue(TEXT("M_Backdrop may draw instanced meshes"), Dust->GetUsageByFlag(MATUSAGE_InstancedStaticMeshes));
 	TestTrue(TEXT("M_Backdrop is additive"), Dust->GetBlendMode() == BLEND_Additive);
+	// Phase 3 item 9: the share of its light a layer shows (the dust and the universe), and the one tint of the dust and of
+	// every galaxy - never the fallen's hue, never white (no galaxy is the holy order's, section 6.4 'colour').
+	float Fade = -1.f;
+	TestTrue(TEXT("M_Backdrop has the scalar LayerFade"), Scalar(*Dust, CosmicMapLook::LayerFadeParam, Fade));
+	TestEqual(TEXT("which starts at 1"), Fade, 1.f);
+	FLinearColor Tint = FLinearColor::Transparent;
+	TestTrue(TEXT("M_Backdrop has the vector Tint"), Vector(*Dust, CosmicMapLook::BackdropTintParam, Tint));
+	const FLinearColor TintHsv = Tint.LinearRGBToHSV();
+	TestTrue(TEXT("whose hue keeps out of the fallen's band"), TintHsv.R < CosmicMapLook::FallenHueFrom || TintHsv.R > CosmicMapLook::FallenHueTo);
+	TestTrue(TEXT("and is not white"), TintHsv.G >= 0.15f);
 	return true;
 }
 

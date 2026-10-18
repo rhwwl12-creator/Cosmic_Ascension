@@ -9,21 +9,28 @@
 // Helpers of this file. A named namespace: the module is built as one unity file.
 namespace CosmicCameraImpl
 {
-	// The view of item 1: above and behind the disc, looking at its centre, the whole disc in view.
+	// The view of item 1: above and behind the disc, looking at its centre, the whole disc in view (the arm is
+	// CosmicZoom::FrameArmFactor x the radius; the stops and the bounds are CosmicZoom's).
 	constexpr float FramePitch = -59.f;
-	constexpr float FrameArmFactor = 2.25f;
-	constexpr float MaxArmFactor = 3.f;
-	constexpr float PanBoundsFactor = 1.1f;
-	// A disc smaller than this is framed as this (a board of a few systems).
-	constexpr float MinDiscRadius = 1000.f;
-	// Near enough that a star (300 across) fills a good part of the screen.
-	constexpr float MinArmLength = 1500.f;
 	constexpr float FocusArmLength = 3000.f;
-	constexpr float ZoomStep = 0.85f;
 	constexpr float MinPitch = -85.f;
 	constexpr float MaxPitch = -20.f;
 	// Per second: the share of the way left that a glide closes is 1 - exp(-GlideRate x seconds).
 	constexpr float GlideRate = 10.f;
+
+	// Point on the disc plane within Bound of Centre.
+	FVector ClampToBound(const FVector& Point, const FVector& Centre, float Bound)
+	{
+		const FVector Plane(Centre.X, Centre.Y, 0.0);
+		FVector Next(Point.X, Point.Y, 0.0);
+		const FVector Offset = Next - Plane;
+		if (Offset.Size2D() > Bound)
+		{
+			Next = Plane + Offset.GetSafeNormal2D() * Bound;
+		}
+		Next.Z = 0.0;
+		return Next;
+	}
 }
 
 ACosmicCameraPawn::ACosmicCameraPawn()
@@ -56,19 +63,20 @@ ACosmicCameraPawn::ACosmicCameraPawn()
 	Camera->PostProcessSettings.AutoExposureMaxBrightness = 1.f;
 }
 
-void ACosmicCameraPawn::FrameAll(const FVector& Centre, float Radius)
+void ACosmicCameraPawn::FrameAll(const FCosmicZoomLevels& InLevels)
 {
 	using namespace CosmicCameraImpl;
 
-	// A compare, so a radius that is not a number frames the smallest disc.
-	const float Disc = Radius > MinDiscRadius ? Radius : MinDiscRadius;
-	BoundsCentre = FVector(Centre.X, Centre.Y, 0.0);
-	BoundsRadius = PanBoundsFactor * Disc;
-	MaxArmLength = MaxArmFactor * Disc;
-	TargetFocus = BoundsCentre;
-	TargetArmLength = FrameArmFactor * Disc;
+	Levels = InLevels;
+	TargetFocus = FVector(Levels.Centre.X, Levels.Centre.Y, 0.0);
+	TargetArmLength = CosmicZoom::FrameArmFactor * Levels.RegionRadius;
 	TargetYaw = 0.f;
 	TargetPitch = FramePitch;
+}
+
+ECosmicZoomLevel ACosmicCameraPawn::GetTargetLevel() const
+{
+	return CosmicZoom::LevelOf(TargetArmLength, Levels);
 }
 
 void ACosmicCameraPawn::Orbit(float YawDegrees, float PitchDegrees)
@@ -83,36 +91,45 @@ void ACosmicCameraPawn::Zoom(float Steps)
 {
 	using namespace CosmicCameraImpl;
 
-	TargetArmLength = FMath::Clamp(TargetArmLength * FMath::Pow(ZoomStep, Steps), MinArmLength, MaxArmLength);
+	TargetArmLength = CosmicZoom::ArmAfter(TargetArmLength, Steps, Levels, TargetFocus);
+	// Into the region the focus is pulled home: its bound is the level's of the new arm.
+	TargetFocus = ClampToBound(TargetFocus, Levels.Centre, CosmicZoom::BoundOf(GetTargetLevel(), Levels));
 }
 
 void ACosmicCameraPawn::Pan(const FVector& Delta)
 {
-	// Within the bounds, on the plane.
-	FVector Next = TargetFocus + FVector(Delta.X, Delta.Y, 0.0);
-	const FVector Offset = Next - BoundsCentre;
-	if (Offset.Size2D() > BoundsRadius)
-	{
-		Next = BoundsCentre + Offset.GetSafeNormal2D() * BoundsRadius;
-	}
-	Next.Z = 0.0;
-	// At once, not by a glide: the controller pans by the mouse's movement each frame.
-	TargetFocus = Next;
-	SetActorLocation(TargetFocus);
+	using namespace CosmicCameraImpl;
+
+	// Within the bound of the target arm's level, on the plane.
+	const FVector Before = TargetFocus;
+	TargetFocus = ClampToBound(TargetFocus + FVector(Delta.X, Delta.Y, 0.0), Levels.Centre, CosmicZoom::BoundOf(GetTargetLevel(), Levels));
+	// At once, not by a glide: the controller pans by the mouse's movement each frame. The actor moves by the same move -
+	// never snapped to the target, so a drag during a glide does not jump.
+	FVector Moved = TargetFocus - Before;
+	Moved.Z = 0.0;
+	SetActorLocation(GetActorLocation() + Moved);
 }
 
 void ACosmicCameraPawn::FocusOn(const FVector& Location)
 {
 	using namespace CosmicCameraImpl;
 
-	FVector Next(Location.X, Location.Y, 0.0);
-	const FVector Offset = Next - BoundsCentre;
-	if (Offset.Size2D() > BoundsRadius)
-	{
-		Next = BoundsCentre + Offset.GetSafeNormal2D() * BoundsRadius;
-	}
-	TargetFocus = Next;
+	// The arm first: from the universe a system is looked at in the region, so the region's bound holds the focus.
 	TargetArmLength = FMath::Min(TargetArmLength, FocusArmLength);
+	TargetFocus = ClampToBound(Location, Levels.Centre, Levels.RegionBound);
+}
+
+bool ACosmicCameraPawn::FocusOnUniverse(const FVector& Location, float ArmLength)
+{
+	using namespace CosmicCameraImpl;
+
+	if (!Levels.HasUniverse())
+	{
+		return false;
+	}
+	TargetArmLength = ArmLength > 0.f ? FMath::Clamp(ArmLength, Levels.UniverseNear, Levels.UniverseFar) : Levels.UniverseNear;
+	TargetFocus = ClampToBound(Location, Levels.Centre, Levels.UniverseBound);
+	return true;
 }
 
 void ACosmicCameraPawn::SnapToTargets()

@@ -40,6 +40,15 @@ Verified against UE 5.8.3 engine source:
   - MaterialExpressionPerInstanceCustomData has DataIndex and ConstDefaultValue (used when no instance gives a value).
   - MaterialExpressionPixelDepth has no inputs: the pixel's depth along the view axis in world units
     (FMaterialCompiler::PixelDepth) - M_Backdrop's near fade reads it.
+  - MaterialExpressionNoise (Phase 3 item 9): with no Position input it reads the absolute world position
+    (UMaterialExpressionNoise::Compile; WorldPositionOriginType defaults to Absolute). With the CameraRelative origin
+    FHLSLMaterialTranslator::Noise turns the input from translated world back to world, so a camera-relative direction
+    is built by hand and connected with the Absolute origin. The Position pin is named after the origin
+    (UMaterialExpressionNoise::GetInputName - UE::MaterialTranslatorUtils::GetWorldPositionInputName): "World Position"
+    for Absolute; the input name "" (input 0) reaches it too.
+  - MaterialExpressionWorldPosition's world_position_shader_offset takes unreal.WorldPositionIncludedOffsets
+    (WPT_CAMERA_RELATIVE: the pixel's position relative to the camera); MaterialExpressionNormalize has one input,
+    VectorInput, reached by the input name "".
 
 M_Star (unlit; parameters set by ACosmicStarSystemActor, values chosen by CosmicMapLook::StarParamsOf): emissive =
 the core StarColor x Brightness, tinted in the spiritual view toward the fallen's purple, + WarningColor x HazardAmount
@@ -54,15 +63,20 @@ material's own time (a rendering clock, never the simulation's): the warning's e
 pressure every three. With ViewMode 0 the lerp keeps the core exactly, so the physical view is item 1's look. The owner
 is not in the material: the map draws a ring of lines around the star (a rim on a sphere a few pixels wide does not read
 from the overview).
-M_Nebula (unlit, two-sided, on the inside of the sky sphere): a dark violet with noise; SpiritualIntensity (0 physical,
-1 spiritual - the map's ACosmicGalaxyMapActor) desaturates it and dims it by SKY_DIM, so the sky gives the spiritual view
-no purple (the owners' rings keep out of the fallen's hues there too - CosmicMapLook::OwnerRingColorOf). At 0 the output
-is the plain nebula exactly.
+M_Nebula (unlit, two-sided, on the inside of the sky sphere): a dark deep blue with noise - the vector parameters
+NebulaLow and NebulaHigh, defaults the C++ never sets, held below the fallen's band of hues (Phase 3 item 9: the purple of
+the sight is the fallen's alone, guideline 16 #98 (4) and #113); SpiritualIntensity (0 physical, 1 spiritual - the map's
+ACosmicGalaxyMapActor, times 1 - its universe share) desaturates it and dims it by SKY_DIM. At 0 the output is the plain
+nebula exactly. The noise reads the view's direction (the camera-relative world position, normalized, x
+NEBULA_FREQUENCY): the pattern depends on where the camera looks, not where it is or how large the sphere is - a sky at
+infinity that stays still while the universe level's galaxies shrink (the map sizes the sphere to hold the universe).
 M_AscensionGlow (user interface domain, translucent; parameters set by UCosmicAscensionOverlayWidget): a round glow of
 GlowColor whose opacity falls from the centre of the image to its edge, times Glow (0..1, the fade of the presentation).
 M_Backdrop (unlit, additive, two-sided, used with instanced static meshes; the backdrop of ACosmicGalaxyMapActor - one
-instance of the engine plane per point of the galaxy's dust and one per system, section 6.4): emissive = TINT x
-POINT_GAIN x the instance's glow (per-instance custom data 0 - CosmicMapLook::BackdropLookOf; 0 for a known system's
+instance of the engine plane per point of the galaxy's dust and one per system, section 6.4 - and, through its own
+instance, the universe level's scenery and named galaxies, Phase 3 item 9): emissive = Tint (a vector parameter whose
+default is BACKDROP_TINT; the C++ never sets it) x LayerFade (the share of its light a layer shows: the map writes 1 - u
+on the dust and u on the universe; default 1) x POINT_GAIN x the instance's glow (per-instance custom data 0 - CosmicMapLook::BackdropLookOf; 0 for a known system's
 slot, which then draws nothing) x a round falloff on the plane x a near fade by the pixel's depth (none from
 NEAR_FADE_START on, all by NEAR_FADE_END: a point close to the camera fades out, so a star seen from near stands clear of
 the dust) x (1 - SPIRIT_DIM x SpiritualIntensity) (the map gives it the sky's value: in the spiritual view the physical
@@ -96,6 +110,11 @@ POINT_GAIN = 1.0
 NEAR_FADE_START = 6000.0
 NEAR_FADE_END = 2000.0
 SPIRIT_DIM = 0.6
+# The sky (item 9): its noise reads the view's direction x this - 150,000 x 0.00003, the coordinates today's sphere gave a
+# camera at its centre - and its two colours, a deep blue below the fallen's band of hues (about 230 degrees).
+NEBULA_FREQUENCY = 4.5
+NEBULA_LOW = (0.001, 0.0015, 0.004)
+NEBULA_HIGH = (0.008, 0.012, 0.03)
 
 
 def material(name):
@@ -250,13 +269,19 @@ def make_nebula_material():
     mat.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
     mat.set_editor_property("two_sided", True)
     g = Graph(mat)
-    noise = g.node(unreal.MaterialExpressionNoise, x=-900, scale=0.00003, levels=4, output_min=0.0, output_max=1.0)
-    nebula = g.lerp(g.constant3((0.0015, 0.001, 0.004)), g.constant3((0.018, 0.007, 0.03)), g.mul(noise, noise))
-    # The spiritual view: the sky loses its violet and darkens (one more desaturation and one multiply, the one noise).
+    # The view's direction: the camera-relative world position, normalized - a sky at infinity (see the head comment).
+    position = g.node(unreal.MaterialExpressionWorldPosition, x=-1300,
+                      world_position_shader_offset=unreal.WorldPositionIncludedOffsets.WPT_CAMERA_RELATIVE)
+    direction = g.unary(unreal.MaterialExpressionNormalize, position)
+    noise = g.node(unreal.MaterialExpressionNoise, x=-900, scale=1.0, levels=4, output_min=0.0, output_max=1.0)
+    if not MEL.connect_material_expressions(g.mul(direction, const_b=NEBULA_FREQUENCY), "", noise, "World Position"):
+        raise RuntimeError("could not connect the direction to the noise")
+    nebula = g.lerp(g.vector("NebulaLow", NEBULA_LOW), g.vector("NebulaHigh", NEBULA_HIGH), g.mul(noise, noise))
+    # The spiritual view: the sky loses its colour and darkens (one more desaturation and one multiply, the one noise).
     intensity = g.scalar("SpiritualIntensity", 0.0)
     quiet = g.desaturate(nebula, intensity)
     g.emissive(g.mul(quiet, g.unary(unreal.MaterialExpressionOneMinus, g.mul(intensity, const_b=SKY_DIM))))
-    finish(mat, "M_Nebula", ["SpiritualIntensity"], [])
+    finish(mat, "M_Nebula", ["SpiritualIntensity"], ["NebulaLow", "NebulaHigh"])
 
 
 def make_ascension_glow_material():
@@ -312,9 +337,11 @@ def make_backdrop_material():
                    g.mul(g.add(depth, const_b=-NEAR_FADE_END), const_b=1.0 / (NEAR_FADE_START - NEAR_FADE_END)))
     # The spiritual view: the physical layer recedes, the dust with it (the sky's value).
     quiet = g.unary(unreal.MaterialExpressionOneMinus, g.mul(g.scalar("SpiritualIntensity", 0.0), const_b=SPIRIT_DIM))
-    light = g.mul(g.mul(g.mul(g.constant3(BACKDROP_TINT), const_b=POINT_GAIN), glow), round_point)
+    # Item 9: the tint a parameter (its default the one colour), and LayerFade - the share of its light a layer shows.
+    tint = g.mul(g.vector("Tint", BACKDROP_TINT), g.scalar("LayerFade", 1.0))
+    light = g.mul(g.mul(g.mul(tint, const_b=POINT_GAIN), glow), round_point)
     g.emissive(g.mul(g.mul(light, near), quiet))
-    finish(mat, "M_Backdrop", ["SpiritualIntensity"], [], usages=[instanced])
+    finish(mat, "M_Backdrop", ["SpiritualIntensity", "LayerFade"], ["Tint"], usages=[instanced])
 
 
 make_star_material()

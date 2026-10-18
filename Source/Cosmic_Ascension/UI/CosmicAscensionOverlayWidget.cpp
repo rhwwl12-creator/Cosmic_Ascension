@@ -26,8 +26,10 @@
 #include "UI/CosmicPalette.h"
 #include "UI/CosmicUILabels.h"
 #include "UObject/UObjectGlobals.h"
+#include "World/CosmicCameraPawn.h"
 #include "World/CosmicGameMode.h"
 #include "World/CosmicMapLook.h"
+#include "World/CosmicZoomLevels.h"
 
 // Helpers of this file. A named namespace: the module is built as one unity file.
 namespace CosmicAscensionOverlayImpl
@@ -269,6 +271,18 @@ void UCosmicAscensionOverlayWidget::Close()
 	// that shows what it says.
 	if (PresentedTier == CosmicMapLook::SpiritualSightTier && ACosmicPlayerController::ShownViewModeFor(*this) == ECosmicViewMode::Spiritual)
 	{
+		// At the universe level the map shows no star the reveal speaks of: the camera comes back to the region first
+		// (Phase 3 item 9), at once - a glide would keep the stars hidden for the reveal's first frames (the map hides the
+		// region's detail while the arm's share is past half). The cut falls as the presentation goes.
+		if (Controller && Controller->GetZoomLevel() == ECosmicZoomLevel::Universe)
+		{
+			Controller->FrameRegion();
+			if (ACosmicCameraPawn* CameraPawn = Cast<ACosmicCameraPawn>(Controller->GetPawn()))
+			{
+				CameraPawn->SnapToTargets();
+			}
+			Controller->FollowZoomLevel();
+		}
 		StartReveal();
 	}
 }

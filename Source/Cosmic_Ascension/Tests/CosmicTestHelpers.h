@@ -17,6 +17,7 @@
 #include "Engine/DataTable.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
+#include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
 #include "Misc/AutomationTest.h"
@@ -97,6 +98,32 @@ namespace CosmicTests
 		FCosmicDataTables Tables = Base;
 		Tables.Rules = RulesTable;
 		return Tables;
+	}
+
+	// The tables with DT_Galaxies replaced, everything else as given (as WithTranscendents). A test that hands it to SetTables
+	// puts a copy of the game's home row in it: a table without the home row is an error line and the C++ defaults (7.4).
+	inline FCosmicDataTables WithGalaxies(const FCosmicDataTables& Base, UDataTable* Galaxies)
+	{
+		FCosmicDataTables Tables = Base;
+		Tables.Galaxies = Galaxies;
+		return Tables;
+	}
+
+	// A DT_Galaxies row as a test writes it: display only (the four simulation values 0, BridgeTicks 0), DisplayName and Kind
+	// (requested by name), RadiusLy and MapPosition as given; the texts and pools empty.
+	inline FGalaxyDef GalaxyRowOf(const TCHAR* DisplayName, const TCHAR* Kind, int32 RadiusLy, const FVector2D& MapPosition)
+	{
+		FGalaxyDef Row;
+		Row.DisplayName = FText::AsCultureInvariant(DisplayName);
+		Row.Kind = FGameplayTag::RequestGameplayTag(FName(Kind), false);
+		Row.LivingWorlds = 0;
+		Row.Peoples = 0;
+		Row.AIFourthRungCap = 0;
+		Row.HomeRadiusShare = 0.f;
+		Row.RadiusLy = RadiusLy;
+		Row.BridgeTicks = 0;
+		Row.MapPosition = MapPosition;
+		return Row;
 	}
 
 	// The tables with DT_Transcendents replaced, everything else as given.

@@ -1793,10 +1793,12 @@ bool FCosmicUIGalaxyPanelTest::RunTest(const FString& Parameters)
 	{
 		TArray<FName> Rows = Tables.Galaxies ? Tables.Galaxies->GetRowNames() : TArray<FName>();
 		Rows.Sort(FNameLexicalLess());
-		TestEqual(TEXT("(the game has its six galaxy rows)"), Rows.Num(), 6);
+		TestTrue(TEXT("(the game has at least the six galaxy rows of v0.7)"), Rows.Num() >= 6);
 		const FString Named = Words(TEXT("Galaxy.Named"));
-		// The other galaxies' distances are told from the home galaxy ("from our galaxy", escaped: ASCII sources).
+		// The other galaxies' distances are told from the home galaxy ("from our galaxy", escaped: ASCII sources) - or, for
+		// the one row inside the home galaxy's halo, from the Sun ("from the Sun", Phase 3 item 9).
 		const FString FromHome(TEXT("\uC6B0\uB9AC\uC740\uD558\uC5D0\uC11C"));
+		const FString FromSun(TEXT("\uD0DC\uC591\uC5D0\uC11C"));
 		for (const FName Row : Rows)
 		{
 			const FGalaxyDef* Galaxy = Tables.FindGalaxy(Row);
@@ -1805,7 +1807,9 @@ bool FCosmicUIGalaxyPanelTest::RunTest(const FString& Parameters)
 			TestFalse(*FString::Printf(TEXT("Galaxy %s shows no empty line"), *Row.ToString()), Lines.ContainsByPredicate([](const FText& Line) { return Line.IsEmpty(); }));
 			if (Galaxy && Row != Sim->GetRules().HomeGalaxyRow)
 			{
-				TestTrue(*FString::Printf(TEXT("Galaxy %s's distance is told from the home galaxy"), *Row.ToString()), Galaxy->DistanceText.ToString().StartsWith(FromHome, ESearchCase::CaseSensitive));
+				const FString Distance = Galaxy->DistanceText.ToString();
+				TestTrue(*FString::Printf(TEXT("Galaxy %s's distance is told from the home galaxy"), *Row.ToString()),
+					Distance.StartsWith(FromHome, ESearchCase::CaseSensitive) || (Row == FName(TEXT("gal_sgr_dsph")) && Distance.StartsWith(FromSun, ESearchCase::CaseSensitive)));
 			}
 		}
 	}
@@ -1823,11 +1827,15 @@ bool FCosmicUIGalaxyPanelTest::RunTest(const FString& Parameters)
 		const FName HomeRow = Sim->GetRules().HomeGalaxyRow;
 		const FGalaxyDef* Home = Tables.FindGalaxy(HomeRow);
 		Controller->SelectSystem(NAME_None);
-		// The hint lasts the session and an earlier test may have selected already: arm it again for this section.
-		Galaxy->RestoreHintForTests();
+		// The hints last the session and an earlier test may have selected already: start this section from none
+		// (Phase 3 item 9 - the progress lives on the controller).
+		const FCosmicHintProgress KeptHints = Controller->GetHintProgress();
+		ON_SCOPE_EXIT { Controller->SetHintProgress(KeptHints); };
+		Controller->SetHintProgress(FCosmicHintProgress());
 		HUD->RefreshPanel();
 		TestTrue(TEXT("With no selection the HUD shows the galaxy panel"), Galaxy->GetVisibility() != ESlateVisibility::Collapsed);
 		TestTrue(TEXT("with the hint while nothing has been selected"), Galaxy->IsHintShown());
+		TestTrue(TEXT("the star's hint"), Galaxy->GetHintKey() == CosmicUI::HintPickStarKey);
 		TestEqual(TEXT("of the home galaxy"), Galaxy->GetShownGalaxy(), HomeRow);
 		TestTrue(TEXT("naming it"), Home && Galaxy->GetNameText() && Galaxy->GetNameText()->GetText().EqualTo(Home->DisplayName));
 		TestTrue(TEXT("with the every-galaxy line"), Galaxy->GetLinesText() && Galaxy->GetLinesText()->GetText().ToString().Contains(Words(TEXT("Galaxy.Named"))));
@@ -1854,7 +1862,8 @@ bool FCosmicUIGalaxyPanelTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Clearing the selection shows it again"), Galaxy->GetVisibility() != ESlateVisibility::Collapsed);
 		TestFalse(TEXT("The two panels never stand together: after the selection is cleared"), System->GetVisibility() != ESlateVisibility::Collapsed);
 		// Read with the panel shown again (a collapsed panel shows no hint whatever its state).
-		TestFalse(TEXT("The HUD's first selection took the hint away for good"), Galaxy->IsHintShown());
+		TestFalse(TEXT("The HUD's first selection took the star's hint away for good"), Galaxy->GetHintKey() == CosmicUI::HintPickStarKey);
+		TestTrue(TEXT("and turned it to the wheel's (Phase 3 item 9)"), Galaxy->GetHintKey() == CosmicUI::HintZoomOutKey);
 	}
 
 	// ---- 5 The hint, on a panel of the test's own ----
@@ -1864,10 +1873,12 @@ bool FCosmicUIGalaxyPanelTest::RunTest(const FString& Parameters)
 		{
 			const TSharedRef<SWidget> SlatePanel = Panel->TakeWidget();
 			Panel->ShowGalaxy(Sim->GetRules().HomeGalaxyRow);
-			TestTrue(TEXT("The hint shows until the first selection"), Panel->IsHintShown());
+			TestFalse(TEXT("A panel shows no hint it was not given"), Panel->IsHintShown());
+			Panel->ShowHint(CosmicUI::HintPickStarKey);
+			TestTrue(TEXT("The hint shows when given"), Panel->IsHintShown());
 			TestTrue(TEXT("with its words"), Panel->GetHintText() && Panel->GetHintText()->GetText().ToString().Equals(Words(TEXT("Galaxy.Hint")), ESearchCase::CaseSensitive));
-			Panel->DropHint();
-			TestFalse(TEXT("DropHint takes it away"), Panel->IsHintShown());
+			Panel->ShowHint(nullptr);
+			TestFalse(TEXT("No key takes it away"), Panel->IsHintShown());
 			Panel->ShowGalaxy(Sim->GetRules().HomeGalaxyRow);
 			TestFalse(TEXT("for good"), Panel->IsHintShown());
 			Panel->ShowGalaxy(NAME_None);
