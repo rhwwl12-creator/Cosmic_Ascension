@@ -52,23 +52,8 @@
 
 namespace CosmicPanelTests
 {
-	// Everything the text blocks of a widget's own tree show, one block per line.
-	FString ReadTexts(const UUserWidget& Widget)
-	{
-		FString Shown;
-		if (Widget.WidgetTree)
-		{
-			Widget.WidgetTree->ForEachWidget([&Shown](UWidget* Child)
-			{
-				if (const UTextBlock* Block = Cast<UTextBlock>(Child))
-				{
-					Shown += Block->GetText().ToString();
-					Shown += TEXT("\n");
-				}
-			});
-		}
-		return Shown;
-	}
+	// Everything the text blocks of a widget's own tree show (shared - Tests/CosmicTestHelpers.h).
+	using CosmicTests::ReadTexts;
 
 	TArray<FName> ActionsOf(const UCosmicSystemPanelWidget& Panel)
 	{
@@ -180,6 +165,9 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 	Controller->SetTimeUnit(ECosmicTimeUnit::Cycle);
 	const FString& Placeholder = FStringTableEntry::GetPlaceholderSourceString();
 	FGalaxyState& Live = Sim->GetMutableState();
+	// The whole board known, as before Phase 3 item 8: the panel shows every system and names every people
+	// (UI.KnownFilter holds the gate itself).
+	CosmicTests::KnowAll(Live);
 	const int32 RuledIndex = Sim->GetStateIndex().FindCiv(Live, Live.Player.RuledCivID);
 	if (!TestTrue(TEXT("(the player rules a people)"), Live.Civs.IsValidIndex(RuledIndex)))
 	{

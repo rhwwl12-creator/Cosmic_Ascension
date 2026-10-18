@@ -274,7 +274,8 @@ void UCosmicLogFeedWidget::OpenItem(UCosmicLogItem* Item)
 		const int32 CivIndex = Sim->GetStateIndex().FindCiv(State, Item->FocusCivID);
 		Target = State.Civs.IsValidIndex(CivIndex) ? State.Civs[CivIndex].HomeSystemID : NAME_None;
 	}
-	// SelectAndFocus refuses None and a system the map does not hold.
+	// SelectAndFocus refuses None, a system the map does not hold, and one the viewer does not know (section 8.1: the
+	// camera goes to a known place only).
 	Controller->SelectAndFocus(Target);
 }
 

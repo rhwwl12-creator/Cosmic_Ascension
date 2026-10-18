@@ -16,7 +16,9 @@ class UWidgetComponent;
  * (UCosmicSystemLabelWidget). It only shows the look it is given; the map actor reads the state and draws the owner's
  * ring around it (a line, readable from afar where a rim on the sphere is not). In the spiritual view (the map's choice)
  * its own colour recedes and it shows the pressure, the claim marker and the colour of the fallen (section 6.4). No
- * collision: the click picks in screen space (CosmicMapPick).
+ * collision: the click picks in screen space (CosmicMapPick). A system the viewer does not know is not drawn: its sphere
+ * is hidden (the look's bKnown), its label too (the map's ShowsLabel), and the map's backdrop draws its point (section
+ * 6.4).
  */
 UCLASS()
 class COSMIC_ASCENSION_API ACosmicStarSystemActor : public AActor
@@ -31,7 +33,8 @@ public:
 	FName GetSystemID() const { return SystemID; }
 
 	/** Sets the scale, the material parameters (CosmicMapLook::StarParamsOf of the three, under the names of
-	 * CosmicMapLook::StarParam) and the label (the physical look - the sight changes no label). */
+	 * CosmicMapLook::StarParam) and the label (the physical look - the sight changes no label); the sphere shows only
+	 * while the look is known. */
 	void ApplyLook(const FCosmicSystemLook& Look, const FCosmicSpiritLook& Spirit, ECosmicViewMode Shown);
 	/** The world radius of the star as the last look scaled it (the owner's ring stands outside it). */
 	float GetStarRadius() const;

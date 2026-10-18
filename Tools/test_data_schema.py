@@ -564,6 +564,12 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "FirstSightTick", 0)), [])
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "FarLineCooldownTicks", -1)), "rules.FarLineCooldownTicks", "is below 0")
         self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "FarLineCooldownTicks", 0)), [])
+        # The backdrop's count (Phase 3 item 8): the map reads it as 0..100,000 - both sides of both bounds by hand.
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "BackgroundStarCount", -1)), "rules.BackgroundStarCount", "is below 0")
+        self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "BackgroundStarCount", 0)), [])
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "BackgroundStarCount", 100001)), "rules.BackgroundStarCount", "is above 100000")
+        self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "BackgroundStarCount", 100000)), [])
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "BackgroundStarCount", 20000.5)), "rules.BackgroundStarCount", "not a whole number")
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "PressureAdjacencyFalloff", NAN)), "finite number")
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "LeapTicksMin", "800")), "finite number")
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "LeapTicksMin", True)), "finite number")

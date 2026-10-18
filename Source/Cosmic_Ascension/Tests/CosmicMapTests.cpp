@@ -8,6 +8,7 @@
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
+#include "Engine/EngineTypes.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -70,6 +71,9 @@ bool FCosmicUIGalaxyMapTest::RunTest(const FString& Parameters)
 	// ---- The map of the game's galaxy: one star per system at its position, every lane once ----
 	{
 		Sim->NewGalaxy(42, 0, 0);
+		// The whole board, as before Phase 3 item 8: every system known and every people met (UI.KnownFilter holds the
+		// gate itself).
+		CosmicTests::KnowAll(Sim->GetMutableState());
 		Map->RefreshNow();
 		const FGalaxyState& State = Sim->GetState();
 		TestEqual(TEXT("One star actor per system"), Map->GetStars().Num(), State.Systems.Num());
@@ -149,7 +153,8 @@ bool FCosmicUIGalaxyMapTest::RunTest(const FString& Parameters)
 		Board.Systems[1].OwnerCivID = Board.Civs[0].CivID;
 		const FCosmicSystemLook Owned = CosmicMapLook::LookOf(Board, Tables, 1);
 		TestTrue(TEXT("An owned system is drawn with its owner"), Owned.bOwned);
-		TestEqual(TEXT("in the owner's colour"), Owned.OwnerColor, Board.Civs[0].Color);
+		// The drawn colour is the meeting order's (ShownLookOf): the world's look carries no colour of the state.
+		TestEqual(TEXT("LookOf draws no colour of the state"), Owned.OwnerColor, FLinearColor::Black);
 		TestTrue(TEXT("and with its name"), Owned.Name.EqualTo(Board.Systems[1].DisplayName));
 		Board.Systems[2].OwnerCivID = FName(TEXT("civ_99"));
 		TestFalse(TEXT("An owner the state does not hold draws no owner"), CosmicMapLook::LookOf(Board, Tables, 2).bOwned);
@@ -291,6 +296,20 @@ bool FCosmicUIMaterialParamsTest::RunTest(const FString& Parameters)
 	float Intensity = -1.f;
 	TestTrue(TEXT("M_Nebula has the scalar SpiritualIntensity"), Scalar(*Nebula, CosmicMapLook::SkyIntensityParam, Intensity));
 	TestEqual(TEXT("which starts at 0"), Intensity, 0.f);
+
+	// The backdrop's dust (Phase 3 item 8): the sky's one parameter, the instanced usage the asset must carry (under -game
+	// a material without it falls back to the engine's default - only the editor proper adds a missing usage), and an
+	// additive blend that writes no depth over the lanes.
+	UMaterialInterface* Dust = LoadObject<UMaterialInterface>(nullptr, CosmicMapLook::BackdropMaterialPath, nullptr, LOAD_NoWarn);
+	if (!TestNotNull(TEXT("(M_Backdrop loads)"), Dust))
+	{
+		return false;
+	}
+	float DustIntensity = -1.f;
+	TestTrue(TEXT("M_Backdrop has the scalar SpiritualIntensity"), Scalar(*Dust, CosmicMapLook::SkyIntensityParam, DustIntensity));
+	TestEqual(TEXT("M_Backdrop's SpiritualIntensity starts at 0"), DustIntensity, 0.f);
+	TestTrue(TEXT("M_Backdrop may draw instanced meshes"), Dust->GetUsageByFlag(MATUSAGE_InstancedStaticMeshes));
+	TestTrue(TEXT("M_Backdrop is additive"), Dust->GetBlendMode() == BLEND_Additive);
 	return true;
 }
 

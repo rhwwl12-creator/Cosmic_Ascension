@@ -1,4 +1,4 @@
-"""Create or refill the materials of the galaxy map: /Game/CA/Materials/M_Star and M_Nebula.
+"""Create or refill the materials of the galaxy map: /Game/CA/Materials/M_Star, M_Nebula, M_AscensionGlow, M_Backdrop.
 
 Cosmic Ascension - Phase 3 helper (guideline.md section 6.4, 11 Phase 3). The materials are generated, like the data
 tables: change this script and run it again (an edit made in the editor is overwritten). An existing asset is refilled in
@@ -10,7 +10,8 @@ Run headlessly with the editor CLOSED and the editor target already built:
       -run=pythonscript -Script="<PROJECT_ROOT>/Tools/make_materials.py"
       -unattended -nosplash -stdout -FullStdOutLogOutput
 
-The log ends with "[make_materials] M_Star written and verified" and the same line for M_Nebula and M_AscensionGlow.
+The log ends with "[make_materials] M_Star written and verified" and the same line for M_Nebula, M_AscensionGlow and
+M_Backdrop.
 
 Verified against UE 5.8.3 engine source:
   - UMaterialEditingLibrary (MaterialEditor module, exposed to Python as unreal.MaterialEditingLibrary):
@@ -32,6 +33,13 @@ Verified against UE 5.8.3 engine source:
     not is converted on compile (UMaterial: the legacy pins go into a Substrate shading-models node), so the legacy
     Emissive pin is enough for an unlit material.
   - unreal.EditorAssetLibrary belongs to a plugin this project does not enable: the asset subsystem is used instead.
+  - Material usages: UMaterial::bUsedWithInstancedStaticMeshes is UE_DEPRECATED(5.8); MaterialEditingLibrary's
+    SetBaseMaterialUsage and HasMaterialUsage are the calls. A material without a usage is fixed only in memory by the
+    editor proper (UMaterial::SetMaterialUsage, GIsEditor and not a game): under -game it draws with the engine's default
+    material instead, and a cooked build needs the flag in the asset - so finish checks every usage before it saves.
+  - MaterialExpressionPerInstanceCustomData has DataIndex and ConstDefaultValue (used when no instance gives a value).
+  - MaterialExpressionPixelDepth has no inputs: the pixel's depth along the view axis in world units
+    (FMaterialCompiler::PixelDepth) - M_Backdrop's near fade reads it.
 
 M_Star (unlit; parameters set by ACosmicStarSystemActor, values chosen by CosmicMapLook::StarParamsOf): emissive =
 the core StarColor x Brightness, tinted in the spiritual view toward the fallen's purple, + WarningColor x HazardAmount
@@ -52,6 +60,13 @@ no purple (the owners' rings keep out of the fallen's hues there too - CosmicMap
 is the plain nebula exactly.
 M_AscensionGlow (user interface domain, translucent; parameters set by UCosmicAscensionOverlayWidget): a round glow of
 GlowColor whose opacity falls from the centre of the image to its edge, times Glow (0..1, the fade of the presentation).
+M_Backdrop (unlit, additive, two-sided, used with instanced static meshes; the backdrop of ACosmicGalaxyMapActor - one
+instance of the engine plane per point of the galaxy's dust and one per system, section 6.4): emissive = TINT x
+POINT_GAIN x the instance's glow (per-instance custom data 0 - CosmicMapLook::BackdropLookOf; 0 for a known system's
+slot, which then draws nothing) x a round falloff on the plane x a near fade by the pixel's depth (none from
+NEAR_FADE_START on, all by NEAR_FADE_END: a point close to the camera fades out, so a star seen from near stands clear of
+the dust) x (1 - SPIRIT_DIM x SpiritualIntensity) (the map gives it the sky's value: in the spiritual view the physical
+layer recedes, the dust with it). Additive writes no depth: the dust never hides a lane or a ring, and needs no sorting.
 """
 import unreal
 
@@ -73,6 +88,14 @@ PRESSURE_GAIN = 0.5
 HELD_TINT = 0.6
 CLAIM_GAIN = 0.8
 SKY_DIM = 0.4
+# The backdrop (item 8), tuned on the off-screen screenshots: one pale tint for every point (no new colour - section 6.4),
+# the gain on the instance's glow (0.1..0.45, mostly faint), the near fade in world units of pixel depth (the overview
+# is about 17,000 away, a focused star 3,000), and how far the dust recedes in the spiritual view.
+BACKDROP_TINT = (0.75, 0.8, 1.0)
+POINT_GAIN = 1.0
+NEAR_FADE_START = 6000.0
+NEAR_FADE_END = 2000.0
+SPIRIT_DIM = 0.6
 
 
 def material(name):
@@ -168,11 +191,16 @@ class Graph:
             raise RuntimeError("could not connect the emissive pin")
 
 
-def finish(mat, name, scalars, vectors):
-    """Lays out and compiles the graph, checks its parameters, and only then saves it (a graph that fails a check is
-    never written: the asset on disk keeps its last verified graph)."""
+def finish(mat, name, scalars, vectors, usages=()):
+    """Lays out and compiles the graph, checks its parameters and its usages, and only then saves it (a graph that fails
+    a check is never written: the asset on disk keeps its last verified graph)."""
     MEL.layout_material_expressions(mat)
     MEL.recompile_material(mat)
+    # A usage the asset lacks is set by the editor proper in memory only; under -game the material would draw with the
+    # engine's default instead (see the head comment).
+    lacking = [str(usage) for usage in usages if not MEL.has_material_usage(mat, usage)]
+    if lacking:
+        raise RuntimeError("%s lacks the usages %s" % (name, ", ".join(lacking)))
     found_scalars = [str(n) for n in MEL.get_scalar_parameter_names(mat)]
     found_vectors = [str(n) for n in MEL.get_vector_parameter_names(mat)]
     missing = [n for n in scalars if n not in found_scalars] + [n for n in vectors if n not in found_vectors]
@@ -259,6 +287,37 @@ def make_ascension_glow_material():
     finish(mat, "M_AscensionGlow", ["Glow"], ["GlowColor"])
 
 
+def make_backdrop_material():
+    mat = material("M_Backdrop")
+    mat.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+    mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_ADDITIVE)
+    mat.set_editor_property("two_sided", True)
+    instanced = unreal.MaterialUsage.MATUSAGE_INSTANCED_STATIC_MESHES
+    MEL.set_base_material_usage(mat, instanced, True)
+    g = Graph(mat)
+    # The instance's glow (CosmicMapLook::BackdropLookOf): a point's, an unknown system's slot's, or 0.
+    glow = g.node(unreal.MaterialExpressionPerInstanceCustomData, x=-1100, data_index=0, const_default_value=0.0)
+    # A round point on the plane: 1 at the centre of its UVs, 0 at the edge, squared for a soft falloff.
+    uv = g.node(unreal.MaterialExpressionTextureCoordinate, x=-1100)
+    centre = g.node(unreal.MaterialExpressionConstant2Vector, x=-1100, r=0.5, g=0.5)
+    distance = g.node(unreal.MaterialExpressionDistance, x=-900)
+    for pin, expr in (("A", uv), ("B", centre)):
+        if not MEL.connect_material_expressions(expr, "", distance, pin):
+            raise RuntimeError("could not connect %s of the point's distance" % pin)
+    edge = g.unary(unreal.MaterialExpressionSaturate, g.unary(unreal.MaterialExpressionOneMinus, g.mul(distance, const_b=2.0)))
+    round_point = g.mul(edge, edge)
+    # The near fade: saturate((depth - END) / (START - END)) - the dust clears around a star seen from near.
+    depth = g.node(unreal.MaterialExpressionPixelDepth, x=-1100)
+    near = g.unary(unreal.MaterialExpressionSaturate,
+                   g.mul(g.add(depth, const_b=-NEAR_FADE_END), const_b=1.0 / (NEAR_FADE_START - NEAR_FADE_END)))
+    # The spiritual view: the physical layer recedes, the dust with it (the sky's value).
+    quiet = g.unary(unreal.MaterialExpressionOneMinus, g.mul(g.scalar("SpiritualIntensity", 0.0), const_b=SPIRIT_DIM))
+    light = g.mul(g.mul(g.mul(g.constant3(BACKDROP_TINT), const_b=POINT_GAIN), glow), round_point)
+    g.emissive(g.mul(g.mul(light, near), quiet))
+    finish(mat, "M_Backdrop", ["SpiritualIntensity"], [], usages=[instanced])
+
+
 make_star_material()
 make_nebula_material()
 make_ascension_glow_material()
+make_backdrop_material()

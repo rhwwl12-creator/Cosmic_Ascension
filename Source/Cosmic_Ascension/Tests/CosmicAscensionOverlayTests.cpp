@@ -32,22 +32,8 @@
 
 namespace CosmicAscensionOverlayTests
 {
-	FString ReadTexts(const UUserWidget& Widget)
-	{
-		FString Shown;
-		if (Widget.WidgetTree)
-		{
-			Widget.WidgetTree->ForEachWidget([&Shown](UWidget* Child)
-			{
-				if (const UTextBlock* Block = Cast<UTextBlock>(Child))
-				{
-					Shown += Block->GetText().ToString();
-					Shown += TEXT("\n");
-				}
-			});
-		}
-		return Shown;
-	}
+	// Everything the text blocks of a widget's own tree show (shared - Tests/CosmicTestHelpers.h).
+	using CosmicTests::ReadTexts;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicUIAscensionOverlayTest, "Cosmic_Ascension.UI.AscensionOverlay", CosmicTests::Flags)

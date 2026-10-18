@@ -15,7 +15,9 @@ class UGalaxySimulationSubsystem;
 class UTextBlock;
 class UVerticalBox;
 struct FCosmicDataTables;
+struct FCosmicKnownView;
 struct FCosmicSpiritLook;
+struct FGalaxyState;
 
 /** What the system panel remembers of one project slot, to tell a slot that does not pay (guideline 6.3, Panel.Stalled). */
 struct COSMIC_ASCENSION_API FCosmicSlotWatch
@@ -51,11 +53,16 @@ namespace CosmicSlotWatch
 }
 
 /**
- * The panel of the selected system, on the right of the screen (hidden with no selection): its name, star class, owner
- * (or none, or destroyed) and right after it the owner people's band (ST_CA Panel.People - section 8.3, never a number;
- * none on a wild or destroyed system), the hazard standing there with the time it has left (in the clock's unit - cycles
+ * The panel of the selected system, on the right of the screen (hidden with no selection and for a system the viewer
+ * does not know - the HUD shows the galaxy panel in its place while nothing is selected): its name, star class, the
+ * owner as OwnerLineOf says (a people the viewer is shown by name, any other as another people, or none, or destroyed)
+ * and right after a shown owner that people's band (ST_CA Panel.People - section 8.3, never a number; none on a wild or
+ * destroyed system or for an owner the viewer is not shown), the life of its world (ST_CA Panel.Life with one of twelve
+ * words, CosmicUI::LifeLine - none on a destroyed system, and none on sol until v0.8 step 4 gives the sanctuary its own
+ * lines), the hazard standing there with the time it has left (in the clock's unit - cycles
  * or years, the controller's choice; the HUD redraws the panel when it changes), the construction and response slots
- * with their progress against what they need - on a slot of the people the player rules followed by the paused mark
+ * with their progress against what they need (not for an owner the viewer is not shown: they are its works) - on a slot
+ * of the people the player rules followed by the paused mark
  * (ST_CA Panel.Stalled) while its watch says it does not pay (FCosmicSlotWatch; another people's slot says nothing -
  * that would tell its stockpile -, nor does any slot while the vessel is not an embodied ruler); in the spiritual view (the controller's view drawn) a line of its own under the
  * details with the words of the sight's mark, which it also carries as its tooltip (SpiritTipOf - the fallen one's title,
@@ -64,8 +71,9 @@ namespace CosmicSlotWatch
  * CosmicMegaprojects::StartBlockOf says None, greyed out with a short reason after its name and the reason first in its
  * tooltip when the row's rung, this answer running already, another answer in the response slot or this construction
  * running already stands in the way (StartReasonOf); a row that does not belong there (an answer to no hazard standing
- * there, project_settle, ...) has no button. On every living system that is not the people's a settle button - greyed
- * out, with the reason first in its tooltip and as a line under it, when CosmicMegaprojects::SettleBlockOf refuses.
+ * there, project_settle, ...) has no button. On every living known system that is not the people's a settle button -
+ * greyed out, with the reason first in its tooltip and as a line under it, when CosmicMegaprojects::SettleBlockOf
+ * refuses (where another people lives, Settle.Block.Owned names no people, whether the viewer is shown it or not).
  * Every command button's tooltip carries its cost after the reason (StartHintOf - none where another people lives or no
  * settle row exists): the cost refuses nothing (section 5.7). No commands while the vessel is not an embodied ruler. The
  * buttons are built again only when the list of their actions changes; otherwise each keeps its object and takes its
@@ -82,6 +90,15 @@ public:
 	void ShowSystem(FName SystemID);
 	FName GetShownSystem() const { return ShownSystemID; }
 	void Refresh();
+
+	/**
+	 * The owner line of State.Systems[SystemIndex] (section 6.3, 6.4), as CosmicMapLook::OwnerShownOf says: Panel.Owner
+	 * and the CivName of a shown owner; Panel.Owner and Panel.OtherOwner for a hidden one - a people lives there (the
+	 * settle button's Settle.Block.Owned says so too) but no name; Panel.NoOwner for none; Panel.Destroyed for a destroyed
+	 * system; empty for an index out of range and for a system the view does not know. (v0.8 step 4: the sanctuary's line
+	 * first.)
+	 */
+	static FText OwnerLineOf(const FGalaxyState& State, const FCosmicKnownView& View, int32 SystemIndex);
 
 	/** The command buttons now shown (tests). */
 	const TArray<TObjectPtr<UCosmicActionButton>>& GetActionButtons() const { return ActionButtons; }

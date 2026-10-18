@@ -409,6 +409,37 @@ void UCosmicSystemPanelWidget::ShowSystem(FName SystemID)
 	Refresh();
 }
 
+FText UCosmicSystemPanelWidget::OwnerLineOf(const FGalaxyState& State, const FCosmicKnownView& View, int32 SystemIndex)
+{
+	using CosmicUI::Label;
+
+	// (v0.8 step 4: the sanctuary's line first.)
+	if (!State.Systems.IsValidIndex(SystemIndex) || !View.IsKnown(SystemIndex))
+	{
+		return FText::GetEmpty();
+	}
+	if (CosmicHazards::IsDeadNode(State.Systems[SystemIndex]))
+	{
+		return Label(TEXT("Panel.Destroyed"));
+	}
+	switch (CosmicMapLook::OwnerShownOf(State, View, SystemIndex))
+	{
+	case ECosmicOwnerShown::Shown:
+	{
+		const FName OwnerID = State.Systems[SystemIndex].OwnerCivID;
+		const FCivilizationState* Owner = State.Civs.FindByPredicate([OwnerID](const FCivilizationState& Civ) { return Civ.CivID == OwnerID; });
+		return Owner ? FText::Format(INVTEXT("{0}  {1}"), Label(TEXT("Panel.Owner")), Owner->CivName) : Label(TEXT("Panel.NoOwner"));
+	}
+	case ECosmicOwnerShown::Hidden:
+		// A people lives there, whom the viewer is not shown: true in both hidden cases (not met, and met but three rungs
+		// above), and it names no one - the words of the settle button's reason (Settle.Block.Owned).
+		return FText::Format(INVTEXT("{0}  {1}"), Label(TEXT("Panel.Owner")), Label(TEXT("Panel.OtherOwner")));
+	case ECosmicOwnerShown::None:
+		break;
+	}
+	return Label(TEXT("Panel.NoOwner"));
+}
+
 FText UCosmicSystemPanelWidget::ReasonOf(CosmicMegaprojects::ECosmicSettleBlock Block, const FCosmicDataTables& Tables)
 {
 	using namespace CosmicSystemPanelImpl;
@@ -482,13 +513,19 @@ void UCosmicSystemPanelWidget::Refresh()
 	const FCosmicDataTables& Tables = Sim->GetTables();
 	const int32 SystemIndex = ShownSystemID.IsNone() ? INDEX_NONE : Index.FindSystem(State, ShownSystemID);
 	const ECosmicTimeUnit Unit = ACosmicPlayerController::TimeUnitFor(*this);
+	// What the viewer knows (section 6.4): a system the viewer does not know shows no panel, as if nothing were selected
+	// (a guard - the controller selects only known systems), and an owner the viewer is not shown has no name, no people
+	// line and no works here.
+	const FCosmicKnownView View = ACosmicPlayerController::KnownViewFor(*this);
 
 	TArray<FWantedButton> Wanted;
 	ShownSettleBlock = CosmicMegaprojects::ECosmicSettleBlock::None;
 	ShownStartBlocks.Reset();
 	// The spiritual sight's words for the shown system (section 6.4): a line of their own and its tooltip.
 	FText SpiritWords;
-	if (State.Systems.IsValidIndex(SystemIndex))
+	// The panel's gate of knowledge (v0.8 step 4: the sanctuary's shown-by-name bit of the view opens it too - its own
+	// panel, section 6.3).
+	if (State.Systems.IsValidIndex(SystemIndex) && View.IsKnown(SystemIndex))
 	{
 		// The box takes the clicks on it (NativeOnMouseButtonDown); the panel's empty area does not.
 		SetVisibility(ESlateVisibility::SelfHitTestInvisible);
@@ -513,12 +550,19 @@ void UCosmicSystemPanelWidget::Refresh()
 			{
 				Lines.Add(FText::Format(INVTEXT("{0}  {1}"), Label(TEXT("Panel.StarClass")), FText::AsCultureInvariant(Letter)));
 			}
-			Lines.Add(State.Civs.IsValidIndex(OwnerIndex) ? FText::Format(INVTEXT("{0}  {1}"), Label(TEXT("Panel.Owner")), State.Civs[OwnerIndex].CivName) : Label(TEXT("Panel.NoOwner")));
-			// The owner people's size, as its band only (section 8.3): never asked of a wild system or an owner the state
-			// does not hold - GetPopulationBand reads those as Few.
-			if (State.Civs.IsValidIndex(OwnerIndex))
+			Lines.Add(OwnerLineOf(State, View, SystemIndex));
+			// The owner people's size, as its band only (section 8.3), for a people the viewer is shown: never asked of a
+			// wild system or an owner the state does not hold - GetPopulationBand reads those as Few.
+			const ECosmicOwnerShown OwnerShown = CosmicMapLook::OwnerShownOf(State, View, SystemIndex);
+			if (OwnerShown == ECosmicOwnerShown::Shown && State.Civs.IsValidIndex(OwnerIndex))
 			{
 				Lines.Add(PeopleLine(Sim->GetPopulationBand(State.Civs[OwnerIndex].CivID)));
+			}
+			// The life of the world (section 5.7), after the people: the world's other life (empty on sol until v0.8 step 4).
+			const FText Life = LifeLine(State.Seed, System.SystemID);
+			if (!Life.IsEmpty())
+			{
+				Lines.Add(Life);
 			}
 			if (System.ActiveHazard.IsValid())
 			{
@@ -541,9 +585,10 @@ void UCosmicSystemPanelWidget::Refresh()
 				Marked(SlotLine(TEXT("Panel.Construction"), Tables, System.ActiveMegaproject, System.MegaprojectProgress), CosmicMegaprojects::ECosmicProjectSlot::Construction),
 				Marked(SlotLine(TEXT("Panel.Response"), Tables, System.ResponseMegaproject, System.ResponseProgress), CosmicMegaprojects::ECosmicProjectSlot::Response),
 			};
+			// The slots are the owner's works: none of them for a people the viewer is not shown.
 			for (const FText& SlotText : SlotLines)
 			{
-				if (!SlotText.IsEmpty())
+				if (!SlotText.IsEmpty() && OwnerShown != ECosmicOwnerShown::Hidden)
 				{
 					Lines.Add(SlotText);
 				}

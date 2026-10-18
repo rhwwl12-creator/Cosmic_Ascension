@@ -47,23 +47,8 @@ namespace CosmicCommandReasonTests
 		return FGameplayTag::RequestGameplayTag(FName(Name));
 	}
 
-	// Everything the text blocks of a widget's own tree show, one block per line.
-	FString ReadTexts(const UUserWidget& Widget)
-	{
-		FString Shown;
-		if (Widget.WidgetTree)
-		{
-			Widget.WidgetTree->ForEachWidget([&Shown](UWidget* Child)
-			{
-				if (const UTextBlock* Block = Cast<UTextBlock>(Child))
-				{
-					Shown += Block->GetText().ToString();
-					Shown += TEXT("\n");
-				}
-			});
-		}
-		return Shown;
-	}
+	// Everything the text blocks of a widget's own tree show (shared - Tests/CosmicTestHelpers.h).
+	using CosmicTests::ReadTexts;
 
 	TArray<FName> ActionsOf(const UCosmicSystemPanelWidget& Panel)
 	{
@@ -256,6 +241,9 @@ bool FCosmicUIStartReasonsTest::RunTest(const FString& Parameters)
 	const FCosmicDataTables Tables = ReasonTables(GameTables);
 	Sim->SetTables(Tables);
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	// The whole board known (Phase 3 item 8): the wild neighbour of section 10 is unknown at tick 0, and an unknown system
+	// shows no panel.
+	CosmicTests::KnowAll(Sim->GetMutableState());
 	Controller->SetTimeUnit(ECosmicTimeUnit::Cycle);
 	const FString& Placeholder = FStringTableEntry::GetPlaceholderSourceString();
 	FGalaxyState& Live = Sim->GetMutableState();
@@ -641,6 +629,9 @@ bool FCosmicUIStalledSlotTest::RunTest(const FString& Parameters)
 	Sim->SetTables(Tables);
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	FGalaxyState& Live = Sim->GetMutableState();
+	// The whole board known (Phase 3 item 8): another people's system must be selectable, or "another people's unpaid
+	// slot shows no mark" would pass on a panel that stayed on the home.
+	CosmicTests::KnowAll(Live);
 	const int32 Ruled = Sim->GetStateIndex().FindCiv(Live, Live.Player.RuledCivID);
 	const int32 HomeIndex = Live.Civs.IsValidIndex(Ruled) ? Sim->GetStateIndex().FindSystem(Live, Live.Civs[Ruled].HomeSystemID) : INDEX_NONE;
 	const int32 OtherIndex = Live.Systems.IndexOfByPredicate([&](const FStarSystemState& System)

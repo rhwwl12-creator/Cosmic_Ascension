@@ -10,7 +10,7 @@
 		"RadiusLy": 50000,
 		"BridgeTicks": 0,
 		"StarCountText": "별 약 1,000억 ~ 4,000억 개(추정)",
-		"DistanceText": "태양은 은하 중심에서 약 2만 6천 ~ 2만 7천 광년, 궁수자리 팔과 페르세우스 팔 사이의 작은 팔(오리온 팔) 안쪽 가장자리",
+		"DistanceText": "태양은 은하 중심에서 약 26,000 ~ 27,000 광년, 궁수자리 팔과 페르세우스 팔 사이의 작은 팔(오리온 팔) 안쪽 가장자리",
 		"FeatureText": "중심 막대와 주요 나선팔 2~4개(논쟁 중), 흔히 지름 약 10만 광년",
 		"MapPosition": {
 			"X": 0.0,
@@ -149,7 +149,7 @@
 		"RadiusLy": 75000,
 		"BridgeTicks": 2400,
 		"StarCountText": "별 약 1조 개(추정)",
-		"DistanceText": "약 250만 광년",
+		"DistanceText": "우리은하에서 약 250만 광년",
 		"FeatureText": "질량은 우리은하와 비슷하다는 연구가 많다",
 		"MapPosition": {
 			"X": 0.0,
@@ -171,7 +171,7 @@
 		"RadiusLy": 30500,
 		"BridgeTicks": 3300,
 		"StarCountText": "",
-		"DistanceText": "약 270만 ~ 290만 광년",
+		"DistanceText": "우리은하에서 약 270만 ~ 290만 광년",
 		"FeatureText": "",
 		"MapPosition": {
 			"X": 0.0,
@@ -193,7 +193,7 @@
 		"RadiusLy": 16000,
 		"BridgeTicks": 400,
 		"StarCountText": "별 약 200억 ~ 300억 개(추정)",
-		"DistanceText": "약 16만 광년",
+		"DistanceText": "우리은하에서 약 16만 광년",
 		"FeatureText": "",
 		"MapPosition": {
 			"X": 0.0,
@@ -215,7 +215,7 @@
 		"RadiusLy": 0,
 		"BridgeTicks": 520,
 		"StarCountText": "",
-		"DistanceText": "약 20만 광년",
+		"DistanceText": "우리은하에서 약 20만 광년",
 		"FeatureText": "",
 		"MapPosition": {
 			"X": 0.0,
@@ -237,8 +237,8 @@
 		"RadiusLy": 65000,
 		"BridgeTicks": 0,
 		"StarCountText": "별 약 1조 개 이상(추정)",
-		"DistanceText": "약 5,300만 광년 — 국부은하군 밖",
-		"FeatureText": "처녀자리 은하단의 중심 은하",
+		"DistanceText": "우리은하에서 약 5,300만 광년 — 국부은하군 밖",
+		"FeatureText": "처녀자리 은하단의 중심에 선 거대 타원은하",
 		"MapPosition": {
 			"X": 0.0,
 			"Y": 0.0

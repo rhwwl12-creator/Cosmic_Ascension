@@ -208,6 +208,8 @@ bool FCosmicUILogFeedTest::RunTest(const FString& Parameters)
 
 	// ---- A click on a line goes to its system ----
 	{
+		// The whole board known (Phase 3 item 8: the click goes to a known place only - UI.KnownFilter holds the gate).
+		CosmicTests::KnowAll(Sim->GetMutableState());
 		const FGalaxyState& State = Sim->GetState();
 		const int32 RuledIndex = Sim->GetStateIndex().FindCiv(State, State.Player.RuledCivID);
 		ACosmicCameraPawn* CameraPawn = Cast<ACosmicCameraPawn>(Controller->GetPawn());

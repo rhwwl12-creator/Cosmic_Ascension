@@ -11,6 +11,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameplayTagContainer.h"
+#include "InputCoreTypes.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
 #include "Sim/GalaxySimulationSubsystem.h"
@@ -79,6 +80,8 @@ bool FCosmicUICameraAndSelectionTest::RunTest(const FString& Parameters)
 	// ---- A rebuild frames the whole disc and puts the camera there at once ----
 	{
 		Sim->NewGalaxy(42, 0, 0);
+		// The whole board known, as before Phase 3 item 8 (the selection takes known systems only - UI.KnownFilter).
+		CosmicTests::KnowAll(Sim->GetMutableState());
 		Pawn->Orbit(30.f, 10.f);
 		Pawn->Zoom(3.f);
 		Map->RefreshNow();
@@ -183,6 +186,7 @@ bool FCosmicUICameraAndSelectionTest::RunTest(const FString& Parameters)
 	{
 		TestTrue(TEXT("(the old galaxy has a star named sol)"), Map->FindStar(FName(TEXT("sol"))) != nullptr);
 		Sim->NewGalaxy(42, 0, 0);
+		CosmicTests::KnowAll(Sim->GetMutableState());
 		Controller->CosmicSelect(TEXT("sol"));
 		TestEqual(TEXT("A CosmicSelect before the build waits"), Controller->GetSelectedSystem(), FName(NAME_None));
 		Map->RefreshNow();
@@ -197,6 +201,7 @@ bool FCosmicUICameraAndSelectionTest::RunTest(const FString& Parameters)
 	// ---- From afar labels thin out to the owned, the hazards and the selection ----
 	{
 		Sim->NewGalaxy(42, 0, 0);
+		CosmicTests::KnowAll(Sim->GetMutableState());
 		Map->RefreshNow();
 		FGalaxyState& Live = Sim->GetMutableState();
 		TArray<int32> Wild;
@@ -245,6 +250,28 @@ bool FCosmicUICameraAndSelectionTest::RunTest(const FString& Parameters)
 		Look.bOwned = false;
 		Look.bHazard = true;
 		TestTrue(TEXT("with a hazard, from afar too"), CosmicMapLook::ShowsLabel(Look, false, true));
+	}
+
+	// ---- The release that ends a double click is no click (Phase 3 item 8, amendment 14) ----
+	{
+		// UPlayerInput turns the second press into a press and a double click; the button-up after it is an ordinary
+		// release. Here the cursor picks nothing (no mouse in a test): a release taken as a click would clear the selection.
+		const FName Picked = Sim->GetState().Systems.IsValidIndex(2) ? Sim->GetState().Systems[2].SystemID : NAME_None;
+		Controller->SelectSystem(Picked);
+		TestEqual(TEXT("(a known system is selected)"), Controller->GetSelectedSystem(), Picked);
+		Controller->HandleLeftPressed(EKeys::LeftMouseButton);
+		Controller->HandleLeftDoubleClick(EKeys::LeftMouseButton);
+		Controller->HandleLeftReleased(EKeys::LeftMouseButton);
+		TestEqual(TEXT("A double click's release keeps the selection"), Controller->GetSelectedSystem(), Picked);
+		// The other order (the double click before the press): the press leaves the swallow alone.
+		Controller->HandleLeftDoubleClick(EKeys::LeftMouseButton);
+		Controller->HandleLeftPressed(EKeys::LeftMouseButton);
+		Controller->HandleLeftReleased(EKeys::LeftMouseButton);
+		TestEqual(TEXT("and so does it when the double click comes before the press"), Controller->GetSelectedSystem(), Picked);
+		// The control: a single press and release with no double click is a click on empty space, which clears.
+		Controller->HandleLeftPressed(EKeys::LeftMouseButton);
+		Controller->HandleLeftReleased(EKeys::LeftMouseButton);
+		TestEqual(TEXT("A single click on empty space clears the selection"), Controller->GetSelectedSystem(), FName(NAME_None));
 	}
 
 	// ---- Lines keep about a pixel's width ----

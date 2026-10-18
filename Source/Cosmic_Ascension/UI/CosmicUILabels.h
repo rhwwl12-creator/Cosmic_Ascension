@@ -1,6 +1,6 @@
-// Cosmic Ascension - UI layer (Presentation). Design: guideline.md section 2.1, 6.3, 8.3, 8.5.
+// Cosmic Ascension - UI layer (Presentation). Design: guideline.md section 2.1, 5.7, 5.11, 6.3, 8.3, 8.5.
 // Small shared helpers of the C++ widgets: the String Table labels, the number forms the UI may show, the speed steps
-// and the third rung's speed gate, and the joins of texts.
+// and the third rung's speed gate, the joins of texts, the life words and the galaxy kinds.
 
 #pragma once
 
@@ -8,8 +8,10 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/TextBlock.h"
 #include "Containers/ArrayView.h"
+#include "Core/CosmicSeed.h"
 #include "Core/CosmicTypes.h"
 #include "Fonts/SlateFontInfo.h"
+#include "GameplayTagContainer.h"
 #include "Internationalization/StringTableCoreFwd.h"
 #include "Internationalization/Text.h"
 #include "Misc/Optional.h"
@@ -199,5 +201,56 @@ namespace CosmicUI
 		Text->SetFont(Font);
 		Text->SetAutoWrapText(bWrap);
 		return Text;
+	}
+
+	// The twelve life words of the system panel (section 5.7, the life word): String Table keys, in the order that maps a
+	// system's Life derive to a word - append only (another order or count changes every world's word; display only,
+	// nothing is saved or hashed). No number, no creature's proper name, no verdict or harvest word, none of the spirit's
+	// four pictures (UI.KnownFilter walks them).
+	inline constexpr const TCHAR* LifeWordKeys[] = {
+		TEXT("Life.Shoals"), TEXT("Life.Mats"), TEXT("Life.Forests"), TEXT("Life.Flyers"),
+		TEXT("Life.Burrowers"), TEXT("Life.Vents"), TEXT("Life.UnderIce"), TEXT("Life.Drifters"),
+		TEXT("Life.Vines"), TEXT("Life.Shelled"), TEXT("Life.Grazers"), TEXT("Life.Mycelium"),
+	};
+	static_assert(UE_ARRAY_COUNT(LifeWordKeys) == 12, "Twelve life words (section 5.7)");
+
+	// The life word of SystemID in a run of Seed: CosmicSeed::DeriveForName(Seed, SystemID, Purpose::Life, 0) modulo twelve
+	// (a finalized hash - its low bits are as good as its high ones; the rule against a modulo is FRandomStream's).
+	inline int32 LifeWordIndexOf(int32 Seed, FName SystemID)
+	{
+		return static_cast<int32>(CosmicSeed::DeriveForName(Seed, SystemID, CosmicSeed::Purpose::Life, 0) % static_cast<uint32>(UE_ARRAY_COUNT(LifeWordKeys)));
+	}
+
+	// The system that gets no life line until v0.8 step 4 - an interim check: today sol is the first life's home (the panel
+	// would give it a random life under "billions of the people"), from step 4 it is the sanctuary, whose fixed line
+	// "this place is kept" takes the slot (section 6.3, the sanctuary's panel). Step 4 replaces this name with the
+	// sanctuary's predicate.
+	inline const FName NoLifeLineSystemID(TEXT("sol"));
+
+	// The system panel's life line: Panel.Life and the word of LifeWordIndexOf ("<Panel.Life>  <word>"); empty for
+	// NoLifeLineSystemID (the interim check above).
+	inline FText LifeLine(int32 Seed, FName SystemID)
+	{
+		if (SystemID == NoLifeLineSystemID)
+		{
+			return FText::GetEmpty();
+		}
+		return FText::Format(INVTEXT("{0}  {1}"), Label(TEXT("Panel.Life")), Label(LifeWordKeys[LifeWordIndexOf(Seed, SystemID)]));
+	}
+
+	// The String Table key of a galaxy's kind (section 3.1, 5.11): the four Galaxy.Kind tags, matched as tags requested by
+	// name - never by a tag's printed name, whose case only an editor build keeps; the key is the tag's name. Null for any
+	// other tag.
+	inline const TCHAR* GalaxyKindKey(FGameplayTag Kind)
+	{
+		static const TCHAR* const Kinds[] = { TEXT("Galaxy.Kind.Dwarf"), TEXT("Galaxy.Kind.Spiral"), TEXT("Galaxy.Kind.GrandSpiral"), TEXT("Galaxy.Kind.Elliptical") };
+		for (const TCHAR* Each : Kinds)
+		{
+			if (Kind.IsValid() && Kind == FGameplayTag::RequestGameplayTag(FName(Each), false))
+			{
+				return Each;
+			}
+		}
+		return nullptr;
 	}
 }

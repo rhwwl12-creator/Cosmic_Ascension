@@ -18,9 +18,11 @@
 #include "Misc/DateTime.h"
 #include "Misc/Parse.h"
 #include "Player/PlayerRoleSubsystem.h"
+#include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "TimerManager.h"
 #include "UI/CosmicAscensionOverlayWidget.h"
+#include "UI/CosmicGalaxyPanelWidget.h"
 #include "UI/CosmicLogFeedWidget.h"
 #include "UI/CosmicSystemPanelWidget.h"
 #include "UI/CosmicTopBarWidget.h"
@@ -51,6 +53,14 @@ namespace CosmicControlImpl
 	const TCHAR* NameOf(ECosmicTimeUnit Unit)
 	{
 		return Unit == ECosmicTimeUnit::Year ? TEXT("Year") : TEXT("Cycle");
+	}
+
+	// The galaxy the galaxy panel shows for a selection: the home galaxy while nothing is selected, none while a system is
+	// (the system panel takes the place - the two never stand together).
+	FName GalaxyRowFor(const UGameInstance* GameInstance, FName SelectedSystemID)
+	{
+		const UGalaxySimulationSubsystem* Sim = GameInstance ? GameInstance->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+		return (Sim && SelectedSystemID.IsNone()) ? Sim->GetRules().HomeGalaxyRow : NAME_None;
 	}
 
 	// Year or Cycle; anything else is no unit.
@@ -205,10 +215,28 @@ void ACosmicHUD::BeginPlay()
 		SystemPanel->SetDesiredSizeInViewport(SystemPanelSize);
 		SystemPanel->SetAnchorsInViewport(FAnchors(1.f, 0.f));
 		SystemPanel->SetAlignmentInViewport(FVector2D(1.f, 0.f));
-		if (ACosmicPlayerController* Cosmic = Cast<ACosmicPlayerController>(Controller))
+	}
+	// In the system panel's place, while no system is selected: the galaxy the viewer is in (section 6.4).
+	GalaxyPanel = CreateWidget<UCosmicGalaxyPanelWidget>(Controller);
+	if (GalaxyPanel)
+	{
+		// Position and size first, the anchors last (as above).
+		GalaxyPanel->AddToViewport(1);
+		GalaxyPanel->SetPositionInViewport(FVector2D(-ScreenMargin, TopBarHeight + ScreenMargin), false);
+		GalaxyPanel->SetDesiredSizeInViewport(SystemPanelSize);
+		GalaxyPanel->SetAnchorsInViewport(FAnchors(1.f, 0.f));
+		GalaxyPanel->SetAlignmentInViewport(FVector2D(1.f, 0.f));
+	}
+	if (ACosmicPlayerController* Cosmic = Cast<ACosmicPlayerController>(Controller))
+	{
+		SelectionHandle = Cosmic->OnSelectionChanged.AddUObject(this, &ACosmicHUD::HandleSelectionChanged);
+		if (SystemPanel)
 		{
-			SelectionHandle = Cosmic->OnSelectionChanged.AddUObject(this, &ACosmicHUD::HandleSelectionChanged);
 			SystemPanel->ShowSystem(Cosmic->GetSelectedSystem());
+		}
+		if (GalaxyPanel)
+		{
+			GalaxyPanel->ShowGalaxy(GalaxyRowFor(GetGameInstance(), Cosmic->GetSelectedSystem()));
 		}
 	}
 	if (ACosmicPlayerController* Cosmic = Cast<ACosmicPlayerController>(Controller))
@@ -237,9 +265,20 @@ void ACosmicHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void ACosmicHUD::HandleSelectionChanged(FName SystemID)
 {
+	using namespace CosmicControlImpl;
+
 	if (SystemPanel)
 	{
 		SystemPanel->ShowSystem(SystemID);
+	}
+	if (GalaxyPanel)
+	{
+		GalaxyPanel->ShowGalaxy(GalaxyRowFor(GetGameInstance(), SystemID));
+		// The first selection of the session: the player found the stars - the hint goes for good.
+		if (!SystemID.IsNone())
+		{
+			GalaxyPanel->DropHint();
+		}
 	}
 }
 
@@ -269,6 +308,12 @@ void ACosmicHUD::RefreshPanel()
 	if (SystemPanel)
 	{
 		SystemPanel->Refresh();
+	}
+	// The galaxy panel reads only definitions: shown again for the selection now (the tables may have changed).
+	if (GalaxyPanel)
+	{
+		const ACosmicPlayerController* Cosmic = Cast<ACosmicPlayerController>(GetOwningPlayerController());
+		GalaxyPanel->ShowGalaxy(CosmicControlImpl::GalaxyRowFor(GetGameInstance(), Cosmic ? Cosmic->GetSelectedSystem() : NAME_None));
 	}
 }
 
@@ -498,7 +543,54 @@ void ACosmicPlayerController::UseMap(ACosmicGalaxyMapActor* InMap)
 	if (InMap)
 	{
 		InMap->SetViewWanted(WantedViewMode, bSightForcedOpen);
+		InMap->SetSeeAll(bSeeAll);
 	}
+}
+
+FCosmicKnownView ACosmicPlayerController::GetKnownView() const
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	return Sim ? CosmicMapLook::KnownViewOf(Sim->GetState(), Sim->GetStateIndex(), Sim->GetViewerTier(), bSeeAll) : FCosmicKnownView();
+}
+
+FCosmicKnownView ACosmicPlayerController::KnownViewFor(const UUserWidget& Widget)
+{
+	if (const ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(Widget.GetOwningPlayer()))
+	{
+		return Controller->GetKnownView();
+	}
+	const UGameInstance* GameInstance = Widget.GetGameInstance();
+	const UGalaxySimulationSubsystem* Sim = GameInstance ? GameInstance->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	return Sim ? CosmicMapLook::KnownViewOf(Sim->GetState(), Sim->GetStateIndex(), Sim->GetViewerTier(), false) : FCosmicKnownView();
+}
+
+void ACosmicPlayerController::CosmicSeeAll(int32 On)
+{
+	const bool bOn = On != 0;
+	if (bOn == bSeeAll)
+	{
+		return;
+	}
+	bSeeAll = bOn;
+	if (ACosmicGalaxyMapActor* TheMap = Map.Get())
+	{
+		TheMap->SetSeeAll(bSeeAll);
+	}
+	// Knowledge has its say back: a selection the viewer does not know goes.
+	if (!bSeeAll && !SelectedSystemID.IsNone())
+	{
+		const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+		const int32 Selected = Sim ? Sim->GetStateIndex().FindSystem(Sim->GetState(), SelectedSystemID) : INDEX_NONE;
+		if (!GetKnownView().IsKnown(Selected))
+		{
+			SelectSystem(NAME_None);
+		}
+	}
+	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
+	{
+		CosmicHUD->RefreshPanel();
+	}
+	UE_LOG(LogCosmic, Display, TEXT("CosmicSeeAll: %s"), bSeeAll ? TEXT("every system is drawn as known and every people as shown (nothing is written)") : TEXT("the screens draw what the viewer knows"));
 }
 
 void ACosmicPlayerController::SelectSystem(FName SystemID)
@@ -509,9 +601,11 @@ void ACosmicPlayerController::SelectSystem(FName SystemID)
 	}
 	if (!SystemID.IsNone())
 	{
+		// A system of the state that the viewer knows: a backdrop point - an unknown system's among them - has no
+		// selection (section 6.4).
 		const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
-		const bool bHeld = Sim && Sim->GetState().Systems.ContainsByPredicate([SystemID](const FStarSystemState& System) { return System.SystemID == SystemID; });
-		if (!bHeld)
+		const int32 SystemIndex = Sim ? Sim->GetStateIndex().FindSystem(Sim->GetState(), SystemID) : INDEX_NONE;
+		if (SystemIndex == INDEX_NONE || !GetKnownView().IsKnown(SystemIndex))
 		{
 			return;
 		}
@@ -529,10 +623,28 @@ void ACosmicPlayerController::CosmicSelect(const FString& SystemID)
 	const FName Wanted(*SystemID);
 	const ACosmicGalaxyMapActor* TheMap = Map.Get();
 	// A map still to be built (or rebuilt) holds the old galaxy's stars: wait for the build.
-	if (!TheMap || TheMap->IsRebuildPending() || TheMap->GetStars().Num() == 0 || !SelectAndFocus(Wanted))
+	if (!TheMap || TheMap->IsRebuildPending() || TheMap->GetStars().Num() == 0)
 	{
 		PendingSelect = Wanted;
+		return;
 	}
+	// On a built map nothing waits: a system the viewer does not know is refused at once.
+	if (!SelectAndFocus(Wanted))
+	{
+		LogRefusedSelect(Wanted);
+	}
+}
+
+void ACosmicPlayerController::LogRefusedSelect(FName Wanted) const
+{
+	// An ID the state does not hold (a typo) is no matter of knowledge: CosmicSeeAll would not help.
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!Sim || Sim->GetStateIndex().FindSystem(Sim->GetState(), Wanted) == INDEX_NONE)
+	{
+		UE_LOG(LogCosmic, Display, TEXT("CosmicSelect: %s is no system of this galaxy"), *Wanted.ToString());
+		return;
+	}
+	UE_LOG(LogCosmic, Display, TEXT("CosmicSelect: %s is not a system the viewer knows (CosmicSeeAll 1 draws every system)"), *Wanted.ToString());
 }
 
 void ACosmicPlayerController::CosmicPreviewAscension(float DelaySeconds)
@@ -582,6 +694,11 @@ bool ACosmicPlayerController::SelectAndFocus(FName SystemID)
 		return false;
 	}
 	SelectSystem(SystemID);
+	// Refused (a system the viewer does not know): the camera stays (section 8.1 - it goes to a known system only).
+	if (SelectedSystemID != SystemID)
+	{
+		return false;
+	}
 	if (ACosmicCameraPawn* CameraPawn = GetCameraPawn())
 	{
 		CameraPawn->FocusOn(Star->GetActorLocation());
@@ -604,7 +721,10 @@ void ACosmicPlayerController::HandleMapRebuilt()
 	{
 		const FName Wanted = PendingSelect;
 		PendingSelect = NAME_None;
-		SelectAndFocus(Wanted);
+		if (!SelectAndFocus(Wanted))
+		{
+			LogRefusedSelect(Wanted);
+		}
 	}
 }
 
@@ -680,6 +800,33 @@ bool ACosmicPlayerController::DiscPointAt(const FVector2D& Screen, FVector& OutP
 	return DeprojectScreenPositionToWorld(Screen.X, Screen.Y, Origin, Direction) && CosmicMapPick::OntoDisc(Origin, Direction, OutPoint);
 }
 
+TArray<FCosmicPickCandidate> ACosmicPlayerController::PickCandidatesOf(const ACosmicGalaxyMapActor& Map, const FCosmicKnownView& View, TFunctionRef<bool(const FVector&, FVector2D&)> Project, const FVector& Side)
+{
+	TArray<FCosmicPickCandidate> Candidates;
+	const TArray<TObjectPtr<ACosmicStarSystemActor>>& Stars = Map.GetStars();
+	for (int32 Index = 0; Index < Stars.Num(); ++Index)
+	{
+		const ACosmicStarSystemActor* Star = Stars[Index];
+		// The star at index i draws system i (the map's own rule): a system the viewer does not know is a backdrop point,
+		// and background stars have no selection.
+		if (!Star || !View.IsKnown(Index))
+		{
+			continue;
+		}
+		// A star's drawn radius: its centre and a point its radius to the side of the view, both projected.
+		FVector2D Centre;
+		FVector2D Edge;
+		if (Project(Star->GetActorLocation(), Centre) && Project(Star->GetActorLocation() + Side * Star->GetStarRadius(), Edge))
+		{
+			FCosmicPickCandidate& Candidate = Candidates.AddDefaulted_GetRef();
+			Candidate.SystemID = Star->GetSystemID();
+			Candidate.Target.Centre = Centre;
+			Candidate.Target.Radius = static_cast<float>(FVector2D::Distance(Centre, Edge));
+		}
+	}
+	return Candidates;
+}
+
 FName ACosmicPlayerController::PickAtCursor() const
 {
 	const ACosmicGalaxyMapActor* TheMap = Map.Get();
@@ -689,26 +836,23 @@ FName ACosmicPlayerController::PickAtCursor() const
 	{
 		return NAME_None;
 	}
-	// A star's drawn radius: its centre and a point its radius to the side of the view, both projected.
 	FVector ViewLocation;
 	FRotator ViewRotation;
 	GetPlayerViewPoint(ViewLocation, ViewRotation);
 	const FVector Side = FRotationMatrix(ViewRotation).GetUnitAxis(EAxis::Y);
-
-	TArray<FCosmicScreenTarget> Targets;
-	TArray<FName> IDs;
-	for (const ACosmicStarSystemActor* Star : TheMap->GetStars())
+	// The live view, the one the selection asks too: a click and the selection never disagree about a star.
+	const TArray<FCosmicPickCandidate> Candidates = PickCandidatesOf(*TheMap, GetKnownView(), [this](const FVector& World, FVector2D& Screen)
 	{
-		FVector2D Centre;
-		FVector2D Edge;
-		if (Star && ProjectWorldLocationToScreen(Star->GetActorLocation(), Centre) && ProjectWorldLocationToScreen(Star->GetActorLocation() + Side * Star->GetStarRadius(), Edge))
-		{
-			Targets.Add({ Centre, static_cast<float>(FVector2D::Distance(Centre, Edge)) });
-			IDs.Add(Star->GetSystemID());
-		}
+		return ProjectWorldLocationToScreen(World, Screen);
+	}, Side);
+	TArray<FCosmicScreenTarget> Targets;
+	Targets.Reserve(Candidates.Num());
+	for (const FCosmicPickCandidate& Candidate : Candidates)
+	{
+		Targets.Add(Candidate.Target);
 	}
 	const int32 Index = CosmicMapPick::NearestOnScreen(Targets, FVector2D(MouseX, MouseY), CosmicControlImpl::PickPixels);
-	return IDs.IsValidIndex(Index) ? IDs[Index] : NAME_None;
+	return Candidates.IsValidIndex(Index) ? Candidates[Index].SystemID : NAME_None;
 }
 
 void ACosmicPlayerController::HandleLeftPressed(FKey Key)
@@ -720,12 +864,19 @@ void ACosmicPlayerController::HandleLeftPressed(FKey Key)
 	bPanning = false;
 	LeftPressAt = FVector2D(MouseX, MouseY);
 	LastMouse = LeftPressAt;
+	// The swallow of a double click is not cleared here. The engine sends the second press before the double click
+	// (UPlayerInput queues IE_Pressed first and sorts the delegates by event index), but the order does not matter:
+	// UI.CameraAndSelection holds both orders.
 }
 
 void ACosmicPlayerController::HandleLeftReleased(FKey Key)
 {
+	// The release that ends a double click is no click: the double click already selected and focused, and a second
+	// click through the gliding view could clear or move that selection.
+	const bool bSwallow = bSwallowRelease;
+	bSwallowRelease = false;
 	// A press that did not become a pan is a click: the star under the cursor, or empty space (clears).
-	if (bLeftDown && !bPanning)
+	if (bLeftDown && !bPanning && !bSwallow)
 	{
 		SelectSystem(PickAtCursor());
 	}
@@ -735,6 +886,7 @@ void ACosmicPlayerController::HandleLeftReleased(FKey Key)
 
 void ACosmicPlayerController::HandleLeftDoubleClick(FKey Key)
 {
+	bSwallowRelease = true;
 	SelectAndFocus(PickAtCursor());
 }
 

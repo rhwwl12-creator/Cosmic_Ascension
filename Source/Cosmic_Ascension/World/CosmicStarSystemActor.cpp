@@ -102,6 +102,13 @@ void ACosmicStarSystemActor::ApplyLook(const FCosmicSystemLook& Look, const FCos
 		StarMaterial->SetVectorParameterValue(DominionColorParam, AppliedParams.DominionColor);
 		StarMaterial->SetScalarParameterValue(ClaimStateParam, AppliedParams.ClaimState);
 	}
+	// A system the viewer does not know is a backdrop point: the sphere alone hides (the label, a child, is hidden through
+	// its widget by the map's SetLabelVisible), and the map's backdrop draws the system's own point in its place.
+	if (Star)
+	{
+		// The setter does nothing when the flag is already so.
+		Star->SetVisibility(Look.bKnown, false);
+	}
 	if (UCosmicSystemLabelWidget* Widget = Label ? Cast<UCosmicSystemLabelWidget>(Label->GetUserWidgetObject()) : nullptr)
 	{
 		Widget->Show(Look);

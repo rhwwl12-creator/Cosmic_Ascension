@@ -869,4 +869,12 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// what keeps pressure off the first minutes. Read by NewGalaxy; below 0 reads as 0.
 	UPROPERTY(EditAnywhere)
 	int32 FallenCoreMinLanesFromHome = 3;
+
+	// ---- The picture (section 3.1 layer 1). Read by the presentation only ----
+
+	// Points of the backdrop of the home galaxy (section 3.1, 6.4): a picture the map draws on one instanced mesh
+	// (CosmicMapLook::BackdropPointsOf), never read by the simulation - no state, no hash, no selection. Read as
+	// 0..100,000 (CosmicMapLook::BackdropCountOf; the schema keeps the same bounds).
+	UPROPERTY(EditAnywhere)
+	int32 BackgroundStarCount = 20000;
 };

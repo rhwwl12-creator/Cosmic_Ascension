@@ -616,7 +616,8 @@ bool FCosmicUISpiritualSightTest::RunTest(const FString& Parameters)
 	CosmicTests::ClearOwners(Live);
 	CosmicTests::Give(Live, Other, { 0, 1 });
 	Live.Civs[Other].Tier = EAscensionTier::Tier1_Planetary;
-	// The owners' wheel's violet (a hue of the fallen's band): the sight draws this people's rings grey.
+	// The owners' wheel's violet (a hue of the fallen's band) as the state's colour: the map draws it nowhere (item 8 -
+	// a ring takes the meeting colour), in either view.
 	const FLinearColor OtherViolet(0.63f, 0.294f, 1.f);
 	Live.Civs[Other].Color = OtherViolet;
 	for (FStarSystemState& System : Live.Systems)
@@ -626,6 +627,11 @@ bool FCosmicUISpiritualSightTest::RunTest(const FString& Parameters)
 	AddInstance(Live, Quiet, { Live.Systems[6].SystemID });
 	AddInstance(Live, Zeal, { Live.Systems[2].SystemID, Live.Systems[3].SystemID }).bSealed = true;
 	Live.Civs[RuledIndex].Tier = EAscensionTier::Tier1_Planetary;
+	// The whole board known (Phase 3 item 8): the sight draws only what the viewer knows (UI.KnownFilter holds that).
+	CosmicTests::KnowAll(Live);
+	// The meeting colour of the other people: its place in the meeting order (the ruled people met first, by Install).
+	const int32 OtherOrder = Live.Knowing.MetCivs.IndexOfByPredicate([&Live, Other](const FKnownMark& Mark) { return Mark.ID == Live.Civs[Other].CivID; });
+	const FLinearColor OtherColour = CosmicPalette::OwnerColorOf(OtherOrder);
 	Controller->SetWantedViewMode(ECosmicViewMode::Spiritual);
 	Map->RefreshNow();
 	auto Refreshed = [&]()
@@ -638,7 +644,8 @@ bool FCosmicUISpiritualSightTest::RunTest(const FString& Parameters)
 		return false;
 	}
 	ULineBatchComponent* Batch = Map->FindComponentByClass<ULineBatchComponent>();
-	UStaticMeshComponent* SkyMesh = Map->FindComponentByClass<UStaticMeshComponent>();
+	// The sky by its own getter: the backdrop is a static mesh component too (item 8), so a lookup by class may find it.
+	const UStaticMeshComponent* SkyMesh = Map->GetSky();
 	const UMaterialInterface* SkyMaterial = SkyMesh ? SkyMesh->GetMaterial(0) : nullptr;
 	if (!TestNotNull(TEXT("(the map draws its lines in one batch)"), Batch) || !TestNotNull(TEXT("(the sky draws through a material)"), SkyMaterial))
 	{
@@ -674,7 +681,9 @@ bool FCosmicUISpiritualSightTest::RunTest(const FString& Parameters)
 		const ACosmicStarSystemActor* Zero = Map->GetStars()[0].Get();
 		const TArray<const FBatchedLine*> ZeroRing = Zero ? RingLinesAround(*Batch, Zero->GetActorLocation(), Zero->GetStarRadius(), 1000.0) : TArray<const FBatchedLine*>();
 		TestEqual(TEXT("(closed, star 0 has its owner's ring of 24)"), ZeroRing.Num(), 24);
-		TestEqual(TEXT("Closed, a people's ring keeps its own colour, violet or not"), CountInColor(ZeroRing, OtherViolet), ZeroRing.Num());
+		TestTrue(TEXT("(the other people is met, after the ruled one)"), OtherOrder > 0);
+		TestEqual(TEXT("Closed, a people's ring is drawn in its meeting colour"), CountInColor(ZeroRing, OtherColour), ZeroRing.Num());
+		TestEqual(TEXT("and never in the state's violet"), CountInColor(ZeroRing, OtherViolet), 0);
 
 		// The development force: open at the first rung, then the rung has its say again.
 		Controller->CosmicSpiritualSight(1);
@@ -751,8 +760,8 @@ bool FCosmicUISpiritualSightTest::RunTest(const FString& Parameters)
 		const bool bTwoRing = TestEqual(TEXT("The sealed ring around star 2 has 24 segments"), TwoRing.Num(), 24);
 		if (bZeroRing && bTwoRing && Zero && Two)
 		{
-			TestTrue(TEXT("In the sight a people's violet ring is grey"), IsGrey(ZeroRing[0]->Color));
-			TestEqual(TEXT("as OwnerRingColorOf draws it"), CountInColor(ZeroRing, CosmicMapLook::OwnerRingColorOf(OtherViolet, ECosmicViewMode::Spiritual)), ZeroRing.Num());
+			// The palette leaves the fallen's band out (item 8): in the sight a people's ring keeps its meeting colour.
+			TestEqual(TEXT("In the sight a people's ring keeps its meeting colour"), CountInColor(ZeroRing, OtherColour), ZeroRing.Num());
 			TestEqual(TEXT("The sealed ring is the Severity-0 grey, every segment"), CountInColor(TwoRing, CosmicPalette::Grey), TwoRing.Num());
 			// Two ring widths outside where the owner's ring stands (the owner's ring of star 0 gives the gap and the width).
 			const double OwnerGap = FVector::Dist2D(ZeroRing[0]->Start, Zero->GetActorLocation()) - Zero->GetStarRadius();

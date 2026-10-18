@@ -44,6 +44,7 @@
 		"FirstSightTick": 330,
 		"FarLineCooldownTicks": 300,
 		"LivingWorldStarShares": [0.01, 0.05, 0.14, 0.31, 0.57, 0.82, 1.0],
-		"FallenCoreMinLanesFromHome": 3
+		"FallenCoreMinLanesFromHome": 3,
+		"BackgroundStarCount": 20000
 	}
 ]

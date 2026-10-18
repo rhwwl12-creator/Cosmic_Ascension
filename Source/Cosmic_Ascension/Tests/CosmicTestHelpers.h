@@ -6,6 +6,10 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Blueprint/UserWidget.h"
+#include "Blueprint/WidgetTree.h"
+#include "Components/TextBlock.h"
+#include "Components/Widget.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
@@ -196,6 +200,70 @@ namespace CosmicTests
 		{
 			Civ.HomeSystemID = State.Systems[*SystemIndices.begin()].SystemID;
 		}
+	}
+
+	// Every system known and every people met, appended after what Knowing holds, in array order, at the current tick (the
+	// ruled people of the first life stays first in the meeting order): for a test that draws or shows a whole board as
+	// before Phase 3 item 8. Writes the state only - no NoteMet, no line, no draw. The state hash moves (Knowing is in it);
+	// the world hash does not.
+	inline void KnowAll(FGalaxyState& State)
+	{
+		auto Append = [&State](TArray<FKnownMark>& Marks, FName ID)
+		{
+			if (!Marks.ContainsByPredicate([ID](const FKnownMark& Mark) { return Mark.ID == ID; }))
+			{
+				FKnownMark& Mark = Marks.AddDefaulted_GetRef();
+				Mark.ID = ID;
+				Mark.Tick = State.Tick;
+			}
+		};
+		for (const FStarSystemState& System : State.Systems)
+		{
+			Append(State.Knowing.KnownSystems, System.SystemID);
+		}
+		for (const FCivilizationState& Civ : State.Civs)
+		{
+			Append(State.Knowing.MetCivs, Civ.CivID);
+		}
+	}
+
+	// Knowing as a test sets it: exactly these systems (indices into Systems) known and these peoples (indices into Civs)
+	// met, in the order given (the meeting order of the palette), at the current tick. FirstContactCivID,
+	// PendingContactCivID and FarLineUntilTick stay.
+	inline void SetKnowing(FGalaxyState& State, std::initializer_list<int32> SystemIndices, std::initializer_list<int32> CivIndices)
+	{
+		State.Knowing.KnownSystems.Reset();
+		State.Knowing.MetCivs.Reset();
+		for (const int32 SystemIndex : SystemIndices)
+		{
+			FKnownMark& Mark = State.Knowing.KnownSystems.AddDefaulted_GetRef();
+			Mark.ID = State.Systems.IsValidIndex(SystemIndex) ? State.Systems[SystemIndex].SystemID : NAME_None;
+			Mark.Tick = State.Tick;
+		}
+		for (const int32 CivIndex : CivIndices)
+		{
+			FKnownMark& Mark = State.Knowing.MetCivs.AddDefaulted_GetRef();
+			Mark.ID = State.Civs.IsValidIndex(CivIndex) ? State.Civs[CivIndex].CivID : NAME_None;
+			Mark.Tick = State.Tick;
+		}
+	}
+
+	// Everything the text blocks of a widget's own tree show, one block per line.
+	inline FString ReadTexts(const UUserWidget& Widget)
+	{
+		FString Shown;
+		if (Widget.WidgetTree)
+		{
+			Widget.WidgetTree->ForEachWidget([&Shown](UWidget* Child)
+			{
+				if (const UTextBlock* Block = Cast<UTextBlock>(Child))
+				{
+					Shown += Block->GetText().ToString();
+					Shown += TEXT("\n");
+				}
+			});
+		}
+		return Shown;
 	}
 }
 
