@@ -1,6 +1,6 @@
 # A0 헤더 초안 — 성역(4a)과 첫 생애 행(4b-lite)
 
-상태: **승인 완료 (2026-10-19 결정 6개 전원 권장안 채택, Core/CosmicIDs.h 신설)**. 승인에 따라 Windows에서 4a 성역 → 4b 첫 생애 행 구현·빌드·테스트 2회·`run_checks.ps1 -UpdateBaseline`으로 기준값을 다시 잰다. 근거: `docs/10_DESIGN/crisis_and_transcendents.md` §4.5 ①, `docs/10_DESIGN/systems.md` §5.10·§5.11, `docs/21_DATA_MODEL_REFERENCE.md` §7.4 생성 규칙 3·9·11항, `docs/50_ROADMAP.md` '①-4a·①-4b' 행, `OPEN_QUESTIONS.md` #74·#80·#81·#92·#94, `CLAUDE.md` 불변 규칙 13·14·15.
+상태: **구현 완료 (2026-10-19 — 4a `[A0-4a]`, 4b `[A0-4b]`, 리뷰 `[A0]`; `git log --grep 'A0-4'`)**. 승인(같은 날, 결정 6개 전원 권장안)에 따라 Windows에서 4a 성역 → 4b 첫 생애 행 구현·빌드·테스트 2회·`run_checks.ps1 -UpdateBaseline`으로 기준값을 다시 쟀다. 이 문서와 다르게 한 것은 `docs/60_DECISIONS/DECISIONS_LOG.md`의 'A0 구현' 항목에 적었다. 근거: `docs/10_DESIGN/crisis_and_transcendents.md` §4.5 ①, `docs/10_DESIGN/systems.md` §5.10·§5.11, `docs/21_DATA_MODEL_REFERENCE.md` §7.4 생성 규칙 3·9·11항, `docs/50_ROADMAP.md` '①-4a·①-4b' 행, `OPEN_QUESTIONS.md` #74·#80·#81·#92·#94, `CLAUDE.md` 불변 규칙 13·14·15.
 
 ## 0. 범위와 전제
 

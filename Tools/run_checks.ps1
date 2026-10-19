@@ -39,7 +39,9 @@ function Step([string] $Name, [scriptblock] $Body) {
 Step 'data: schema check'             { python -I (Join-Path $Root 'Tools\check_data.py') }
 Step 'data: checker unit tests'       { python -I (Join-Path $Root 'Tools\test_data_schema.py') }
 Step 'layers: include direction etc.' { python -I (Join-Path $Root 'Tools\check_layers.py') }
-Step 'docs: config reference, links'  { python -I (Join-Path $Root 'Tools\make_config_reference.py') --check; python -I (Join-Path $Root 'Tools\check_docs.py') }
+# One step per command: a step reads only the exit code of its last command.
+Step 'docs: config reference'          { python -I (Join-Path $Root 'Tools\make_config_reference.py') --check }
+Step 'docs: links and anchors'         { python -I (Join-Path $Root 'Tools\check_docs.py') }
 
 if ($Data) {
     Step 'assets: DataTable / String Table' {

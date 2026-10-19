@@ -2,6 +2,16 @@
 
 > 2026-10-19 재편: 본문에 섞여 있던 이력·상태 줄·일지·리뷰 통계를 여기로 옮겼다(내용 무변경, 위치만 — 원격의 Phase 3 꼬리 7·12·8·9 기록 포함). 앞으로는 날짜·작업 접두어·바뀐 규칙·리뷰 통계를 여기에만 적고, 설계 본문과 STATUS.md에는 적지 않는다.
 
+## 2026-10-19 — A0 'v0.8 예약 ①': 성역(4a)과 첫 생애 행(4b)
+
+- `[A0-4a]` 성역 `sol`: 생성 11항(모든 추첨 뒤·`Install` 전에 배열 끝, 레인 없음, 1.15 × 원판 반지름·각도 0, G, 풍부도 0, ST_CA `System.Sanctuary` 이름), 0번 성계 `sys_0`. `Law.Hedge`(다섯째 법 — 스키마 규칙 `contains_all`, 검사기에 새 테스트 종류). 거절 자리: `SettleBlockOf` 첫 사유 `Sanctuary`(`PeopleSettleBlockOf`에서는 0점)·`SettleTargets`·`Place`·`Transfer`·`Destroy`(와 그릇 옮기기)·압력 본체 0·`Install`·`BecomeWanderer`·`LoadGalaxy`. 표현: `FCosmicKnownView::ShownByName`·`IsShown`, 성역의 패널(주인 줄 `Panel.Sanctuary`, 생명 줄 없음, 정착 단추 회색 + 값 줄 없음), 영적 시야 `Sight.Sanctuary`. `arch_terran.HomeSystemNames`를 비워 중간 상태(성역과 모성계가 둘 다 '태양계')를 막았다. 개발 세이브 3개 삭제.
+- `[A0-4b]` 첫 생애 행 `arch_seeker`(`arch_terran`·`Trait.Arch.Terran` 은퇴), `PlayerArchetypeRow`(JSON·C++ 기본값), `CosmicRows::ArchSeeker`, 첫 줄 "{HomeSystem}. 이 백성이 당신에게 맡겨졌다.", 스키마 규칙 둘과 빈 낱말 목록 `other_works`·`holy_and_myth`.
+- 증명: 커맨드렛 시드 42 20,000틱 — 4a 뒤 CSV의 결정적인 칸이 2,412행 모두 A0 전과 같고 `WildSystems`만 +1(행 CSV 동일) = 추첨 수 불변. 4b 뒤 세계 칸은 4a와 같고 줄 수·로그·연대기만 다르다(첫 생애 행에 책이 없다).
+- 기준값(시드 42): 4a 3,000틱 hash 37918939·world 2651345342 / 20,000틱 3634280889·2867078977. **4b(현행)** 3,000틱 hash 2998664607·world 2405589164 / 20,000틱 hash 215423113·world 3260616143 (`Tools/baselines/seed42.json`).
+- 테스트 92종(새 셋: `Sim.SanctuaryKept`·`Sim.SanctuaryRefusals`·`Sim.SaveSanctuary`), 각 커밋에서 `run_checks.ps1 -Tier full`(테스트 2회 연속) 통과. 새 단언 변이 30개(4a 28·4b 2) 모두 잡힘. 성계 수 전제를 고친 테스트: FirstLife·GenerationRules·LayersInRange·Events 셋(ConditionGate·LotteryShares·SlotDraws)·GalaxyMap·KnownFilter·Backdrop·SpiritualSight·TopBarAndPanel. 설계 문서가 '재측정'으로 꼽은 `PhaseTwoExit`·`Feats.Reachable`·`FirstContactTimeline`·`UI.ZoomLevels` 등은 고칠 것이 없었다(세계 칸이 그대로라서).
+- 도구: `run_checks.ps1 -UpdateBaseline`이 BOM 없이 쓴다(PowerShell 5.1 `Set-Content -Encoding UTF8`은 BOM을 붙였다). `make_config_reference.py --check`의 '오래됨' 메시지가 cp949 콘솔에서 죽던 것 수정.
+- 리뷰(ultracode 1회, 워크플로 9에이전트 — 렌즈 셋: 저장 호환·결정론과 난수 스트림·`Law.Hedge`의 한 곳과 4b 데이터, 발견마다 반박하는 검증 하나): 발견 5건 → 1건 확인(중간), 4건 반박. 확인: 4b에서 `make_config_reference.py --check`의 `sys.exit(1)`이 주석 안으로 들어가 오래된 설정 표가 통과하던 것 — 되돌렸고, `run_checks.ps1`의 문서 단계가 두 명령 중 마지막의 종료 코드만 읽던 것도 단계 둘로 나눴다. 반박(그대로 둠): 로드 문이 손으로 고친 세이브의 성역 위 그릇·영향권·레인·앎과 A0 전 한 성계짜리 판을 거르지 않는다(게임이 만들 수 없는 상태 — 설계가 정한 문은 주인·위기·프로젝트), 지도의 원판이 성역을 담아 중심이 조금 옮겨진다(지도의 계약 '원판은 모든 성계에 닿는다'와 카메라의 이동 한계가 성역을 고를 수 있게 한다 — 의도). 저장 필드·`SaveVersion`·추첨 수·해시 입력·스트림 분리는 세 렌즈 모두 결함 없음.
+
 ## 2026-10-19 — 정리(Windows 몫): 러너 검증·기준값 기록·FCosmicEvalContext 분리
 
 - `[tools]` `Tools/run_checks.ps1` 첫 Windows 실행 확인: 타임스탬프 차이로 인한 베이스라인 오탐을 방지하도록 요약 정규식(`CosmicBalance: seed.*`) 일치로 보정. 시드 42 3,000틱 커맨드렛 기준값 `Tools/baselines/seed42.json` 기록 완료 (`hash 2438129736, world 1171528496`).

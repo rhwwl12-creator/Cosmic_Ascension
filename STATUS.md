@@ -1,19 +1,19 @@
 # STATUS — 현재 단계
 
-갱신: 2026-10-19 (Windows 도구 검증 및 FCosmicEvalContext 헤더 분리 완료; 시드 42 3,000틱 기준값 기록). 세션 시작에 읽고 세션 끝에 이 파일만 갱신한다. 일지·리뷰 통계는 `docs/CHANGELOG.md`에.
+갱신: 2026-10-19 (A0 'v0.8 예약 ①' 끝 — 성역 4a·첫 생애 행 4b·ultracode 리뷰 1회). 세션 시작에 읽고 세션 끝에 이 파일만 갱신한다. 일지·리뷰 통계는 `docs/CHANGELOG.md`에.
 
 ## 지금
 
-- **Phase 3(은하 맵 뷰포트) — 작업은 모두 끝, 종료 절차만 남음.** 본체(1~5번·6번 기계 몫·정착 사유·11번 시간 표시 토글)에 이어 꼬리 7번 영적 시야·12번 셋째 칸의 ×25와 명령의 사유·8번 앎의 표시·9번 우주 화면이 2026-10-18~19에 끝났다(원격 커밋 `94e8706`·`b8803ef`·`25104b2`·`25ab43b`, 기록은 `docs/CHANGELOG.md`). 남은 것: 종료 조건의 사람 몫 **손 확인(개발자: 9번까지 든 가장 새 빌드로, 창에서 마우스만으로 셋째 칸, `stat fps`·`stat unit` 60fps — 배경 별의 GPU 몫은 `show InstancedStaticMeshes`로 끄고 켜서 본다)** → 10번 종료 리뷰(ultracode 1회: Core Logic이 UI/Actor를 include하지 않는지, 표현 계층이 앎을 `KnownViewOf` 한 곳에서만 읽는지).
-- **설계 문서**: 2026-10-18~19 `docs/`로 재편(1단계 전수 조사 → 2단계 통폐합; 원격 반영분까지 다시 이관). 설계 결정은 `docs/60_DECISIONS/DECISIONS_LOG.md`, 열린 물음은 `OPEN_QUESTIONS.md`(#번호는 옛 guideline §16 그대로, 원격이 더한 #96~#116 포함).
-- **코드 사실**: 자동화 테스트 89종 통과, `Sim/CosmicEvalContext.h` 분리 완료로 `check_layers.py` 0 error/0 warning 달성. DT_Rules 노브 46(읽힘 28·예약 18), `DT_Galaxies` 20행, 배속 상한 `MaxTimeScale` 25.
-- **기준값**: 커맨드렛 시드 42(성계 60·백성 12, 3000틱) hash 2438129736, world 1171528496 (`Tools/baselines/seed42.json` 기록 완료). `run_checks.ps1 -Tier smoke` 통과.
+- **A0 'v0.8 예약 ①' — 끝(2026-10-19, `git log --grep 'A0-4'`).** 4a 성역: `sol`은 배열 끝의 레인 없는 노드(1.15 × 원판 반지름·각도 0), 첫 생애의 모성계는 `sys_0`, 다섯째 법 `Law.Hedge`, 거절 자리(`SettleBlockOf` 첫 사유·`SettleTargets`·`Place`·`Transfer`·`Destroy`·압력 0·`Install`·`BecomeWanderer`·`LoadGalaxy`), 표현은 `FCosmicKnownView::ShownByName`·`IsShown`. 4b 첫 생애 행 `arch_seeker`(찾는 백성, 첫 줄 "{HomeSystem}. 이 백성이 당신에게 맡겨졌다."). 증명: 4a 뒤 커맨드렛 20,000틱 CSV의 결정적인 칸이 A0 전과 같고 무주 성계만 +1(추첨 수 불변). 리뷰: 5건 중 1건 확인(설정 표 검사가 실패하지 못하던 4b의 도구 실수 — 고침), 4건 반박.
+- **Phase 3**: 작업은 모두 끝. 기계 몫 종료 리뷰(규칙 1·14)는 통과했다(개발자 보고). 남은 것은 **손 확인(개발자: 가장 새 빌드로, 창에서 마우스만으로 셋째 칸, `stat fps`·`stat unit` 60fps — 배경 별의 GPU 몫은 `show InstancedStaticMeshes`로 끄고 켜서 본다; 성역 '태양계'가 원반 가장자리 — 첫 생애 모성계 쪽 바깥 — 에 이름과 별로만 보이고 고를 수 있는지도)** → CHANGELOG 한 줄 → Phase 3 종료 선언.
+- **코드 사실**: 자동화 테스트 92종 통과(새 셋: `Sim.SanctuaryKept`·`Sim.SanctuaryRefusals`·`Sim.SaveSanctuary`). `State.Systems`는 생명 성계 + 성역(VS 61 — 테스트는 `CosmicTests::LivingSystems`). DT_Rules 노브 46(읽힘 28·예약 18), `ImmutableLaws` 5, `DT_Galaxies` 20행, 배속 상한 25.
+- **기준값**: 커맨드렛 시드 42, 3,000틱 hash 2998664607, world 2405589164 (`Tools/baselines/seed42.json`; 20,000틱 hash 215423113, world 3260616143). `run_checks.ps1 -Tier full` 통과. 개발 세이브는 지웠다 — A0 전의 세이브는 로드 문이 거절한다.
 
-## 다음 3작업 (`docs/50_ROADMAP.md` 0 → A0)
+## 다음 3작업 (`docs/50_ROADMAP.md` 0 → A)
 
-1. **손 확인**(개발자) → 결과(fps·막힌 조작)를 CHANGELOG에 한 줄 → 10번 종료 리뷰 → Phase 3 종료 선언.
-2. **A0 'v0.8 예약 ①'**: 성역 `sol`(배열 끝)·`sys_0`·`Law.Hedge`·`IsSanctuary`(앎 뷰의 둘째 비트 `ShownByName` 포함) + 첫 생애 행 뼈대 `arch_seeker`(행 이름·태그·첫 줄·두 목소리). 가칭 식별자 일괄 확정 → 헤더 승인(`docs/60_DECISIONS/headers/A0_sanctuary_first_life.md` 결정 6개) → 구현 → 재측정 테스트 → ultracode 리뷰 1회(저장·결정론). effort xhigh.
-3. **Playable MVP(A)**: 자동 일시정지 → 청원 카드 10장+카드 위젯 → 첫 10분 보장·#68/#71/#72 → 임시 엔딩·연대기 최소형 → 저장 최소형 → 지표·온보딩 → Win64 패키징.
+1. **손 확인**(개발자) → 결과(fps·막힌 조작·성역의 보임)를 CHANGELOG에 한 줄 → Phase 3 종료 선언.
+2. **Playable MVP(A) ①②**: 자동 일시정지(Severity 2·자기 성계 위기·카드, 기본 켬 + 토글) → `DT_Encounters` 스키마·중첩 구조체 검사 → 청원 카드 10장 + 카드 위젯. effort high(헤더·저장에 닿는 부분은 xhigh), ultracode 끔(단독) — 카드 텍스트 묶음 감사 때 켠다.
+3. **MVP ③**: 첫 10분 보장 + #68·#71·#72의 기본값(먼저 커맨드렛으로 '#68만'·'#71만' 판을 잰다) + T2→T3 둘째 업적.
 
 ## 열린 결정 Top 4 (`docs/60_DECISIONS/OPEN_QUESTIONS.md`)
 

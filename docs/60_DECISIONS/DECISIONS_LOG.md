@@ -2,6 +2,19 @@
 
 > 2026-10-19 이관(내용 무변경). 위가 최신. 새 결정은 "확정 완료 (날짜, 작업 — 근거):" 꼴로 맨 위에 더한다.
 
+## 확정 완료 (2026-10-19, A0 구현 — 4a `[A0-4a]`·4b `[A0-4b]`, 헤더 `headers/A0_sanctuary_first_life.md`와 다르게 하거나 더한 것)
+
+- 거절 자리를 헤더 표보다 넓혔다: `CosmicHazards::Transfer`·`Destroy`(성역은 넘겨지지도 파괴되지도 않는다)와 `Destroy`의 그릇 옮기기(성역으로는 옮기지 않는다 — #81), `SettleTargets`의 대상 술어. 근거: `Law.Hedge`의 DevComment가 열거한 '소유·파괴·그릇'을 한 길(넘김·파괴)에서 막아야 '법은 한 곳에서 읽힌다'가 성립한다. 지금은 레인이 없어 어느 단계도 이 길로 성역에 닿지 않지만 단계 5의 레인이 와도 그대로다.
+- `PeopleSettleBlockOf`는 성역을 후보에서 따로 빼지 않고 성역 사유를 0점으로 둔다(성역만 이웃인 백성은 `NoLane`). 헤더의 '후보에서 뺀다'와 결과가 같고, 뺄셈 한 줄이 아무 결과도 바꾸지 않는 죽은 코드였다(변이가 살아남았다) — `static_assert`의 메시지에 0점이 의도임을 적었다.
+- 표현 계층의 문은 `FCosmicKnownView::IsShown`(= `IsKnown` ∨ `IsShownByName`) 하나로 모았다(헤더의 `IsKnown ∨ IsShownByName`을 자리마다 쓰지 않는다). 이름으로만 보이는 성계의 모습은 이름과 별만 남긴다 — 세계가 법을 어긴 상태에서도 주인·위기·막대를 그리지 않는다. 주인을 알리는 답(`OwnerShownOf`)은 `IsKnown`만 읽는다.
+- 지도의 원판(상자 중심과 가장 먼 성계)은 성역을 함께 담는다 — 1.15R의 성역이 화면 밖으로 나가지 않고, 카메라의 이동 한계 안에 든다. 배경 별의 테두리도 그만큼 넓다(그림만, 해시 밖).
+- 성역의 이름은 시뮬이 ST_CA `System.Sanctuary`를 읽어 평탄화한다. ST_CA의 경로는 `Data/CosmicDataTables.h`의 `CosmicLabels::TableId` 하나로 옮겼다(UI의 `CosmicUI::Label`도 그것을 읽는다 — 경로 문자열은 한 곳).
+- 4a에서 `arch_terran.HomeSystemNames`는 '첫 해'가 아니라 빈 목록으로 했다(로드맵 ①-4a의 문장 — 성역과 모성계가 둘 다 '태양계'가 되는 중간 상태를 막는다). '첫 해'는 4b의 `arch_seeker`가 가진다.
+- 기준값은 4a와 4b에서 각각 다시 쟀다(헤더는 4b에서 한 번) — 커밋마다 `run_checks.ps1 -Tier full`이 통과하도록. 두 값 모두 `docs/CHANGELOG.md`에.
+- `arch_seeker`의 `AdjectiveBank`는 헤더에 없어 `arch_terran`의 셋('갈라진'·'끈질긴'·'기억하는')을 그대로 두었다(단계 7에서 다시 쓴다). 스키마 규칙은 `Trait.Arch.Seeker`를 '첫 원소'가 아니라 '담는다'(`contains_all`)로 요구한다 — 태그 컨테이너에는 순서의 뜻이 없다. 같은 규칙이 `Weight` 0과 `Revelation.Seeking`도 요구한다(찾는 백성의 정의, guideline 용어집).
+- `LoadGalaxy`의 성역 문은 헤더대로 에러 한 줄이다(다른 거절 — 잘린 파일·다른 은하·새 버전 — 은 경고 그대로). 개발 세이브는 2026-10-19에 지웠다(`Saved/SaveGames`의 A0 전 형식 3개).
+- 열린 물음 #74(첫 생애 행의 꼴)를 닫았다: `arch_seeker`(`Trait.Arch.Seeker`, `Weight` 0, `Revelation.Seeking`) — 위 결정 4·5의 구현.
+
 ## 확정 완료 (2026-10-19, A0 'v0.8 예약 ①' 헤더 승인)
 
 - 결정 6개 전원 권장안 채택 (`docs/60_DECISIONS/headers/A0_sanctuary_first_life.md` §5):

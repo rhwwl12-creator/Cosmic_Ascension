@@ -52,7 +52,8 @@ text = '\n'.join(lines) + '\n'
 if '--check' in sys.argv:
     cur = open(OUT, encoding='utf-8').read() if os.path.exists(OUT) else ''
     if cur != text:
-        print('make_config_reference: docs/30_CONFIG_REFERENCE.md is stale - run the script')  # ASCII: a cp949 console cannot print a dash; sys.exit(1)
+        # ASCII only: a cp949 console cannot print a dash.
+        print('make_config_reference: docs/30_CONFIG_REFERENCE.md is stale - run the script'); sys.exit(1)
     print('make_config_reference: up to date'); sys.exit(0)
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 open(OUT, 'w', encoding='utf-8', newline='\n').write(text)
