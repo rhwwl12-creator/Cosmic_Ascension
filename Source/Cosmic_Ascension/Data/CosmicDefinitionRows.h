@@ -438,7 +438,8 @@ struct COSMIC_ASCENSION_API FCivArchetypeDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	TMap<FName, float> InitialRelations;
 
-	// NewGalaxy AI draw weight. 0 = never drawn for AI (arch_terran: referenced only by DT_Rules.PlayerArchetypeRow).
+	// NewGalaxy AI draw weight. 0 = never drawn for AI (arch_seeker, the first life's row: referenced only by
+	// DT_Rules.PlayerArchetypeRow).
 	UPROPERTY(EditAnywhere)
 	float Weight = 1.f;
 
@@ -451,13 +452,14 @@ struct COSMIC_ASCENSION_API FCivArchetypeDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	TArray<FText> RevelationTemplates;
 
-	// Display names for the home system (arch_terran: one, the name of sol). Empty = the home takes the next proper
-	// name of FGalaxyDef.StarNameBank, without replacement. Either way it is the one home-name draw of the people. A row
-	// AI peoples are drawn from leaves this empty (Data.Integrity): a bank read with replacement could name two homes alike.
+	// Display names for the home system (arch_seeker: one, the name its people call its sun by). Empty = the home takes
+	// the next proper name of FGalaxyDef.StarNameBank, without replacement. Either way it is the one home-name draw of the
+	// people. A row AI peoples are drawn from leaves this empty (Data.Integrity): a bank read with replacement could name
+	// two homes alike.
 	UPROPERTY(EditAnywhere)
 	TArray<FText> HomeSystemNames;
 
-	// Fixed star class of the home system (arch_terran: Star.Class.G). Empty = the class the system drew from
+	// Fixed star class of the home system (arch_seeker: Star.Class.G). Empty = the class the system drew from
 	// DT_Rules.LivingWorldStarShares like every other system (section 7.4).
 	UPROPERTY(EditAnywhere)
 	FGameplayTag HomeStarClass;
@@ -781,9 +783,9 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	int32 FallenTranscendentCount = 3;
 
-	// DT_Civs row of the player's first-life civ.
+	// DT_Civs row of the player's first-life civ: the first life's row (CosmicRows::ArchSeeker, section 5.10).
 	UPROPERTY(EditAnywhere)
-	FName PlayerArchetypeRow = FName(TEXT("arch_terran"));
+	FName PlayerArchetypeRow = FName(TEXT("arch_seeker"));
 
 	// Claim spawn condition: within this many lanes of a fallen sphere. The claim's countdown is the CountdownTicks of its
 	// DT_Hazards row (section 4.2).

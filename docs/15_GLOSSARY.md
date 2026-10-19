@@ -38,7 +38,7 @@
 | 인물 이름 뱅크 | Person name bank | `FCivArchetypeDef.PersonNameBank` | 아키타입별 12개(Data.Integrity 하한 10, §9.3). `Trait.Mind.NoSelf` 문명(뱅크 비움)과 T4 이상 문명(가드)은 인물을 만들지 않는다. 성경 인물·실존 인물·천사 이름 금지. 두 번째 이름은 사람에게 붙지 않는다 (§5.11, §8.3) |
 | 이름 없는 문명 | Nameless civilization | `PersonNameBank` 빈 행(`arch_swarm`, `arch_machine`) | NoSelf 문명은 인물이 없다. 가장 강하고 가장 눈먼 문명의 비극이 데이터 한 칸으로. 만나기 전의 백성에는 이 말을 쓰지 않는다(그쪽은 만나지 않은 백성) (§5.11) |
 | 계시 양식 | Revelation mode | `FCivArchetypeDef.RevelationMode`(`Revelation.*`)·`RevelationTemplates`, `FLogTemplateDef`, `PickTemplateRow`, 슬롯 `{Revelation}` | 한 저자의 말이 각 백성에게 닿는 형식. 텍스트만 바꾼다 (§5.11) |
-| 첫 생애 행 / 찾는 백성 | First-life row / Seeking people | `DT_Rules.PlayerArchetypeRow`(가칭 `arch_seeker`, `Trait.Arch.Seeker`), `Revelation.Seeking` | 플레이어의 첫 생애 백성 — 성역 밖 찾는 백성, 두 목소리(의회·회중). v0.8 — 단계 4b부터(그 전 `arch_terran` 지구) (§5.11). 찾는 백성은 계시 양식이 '찾음'인 백성이다 — AI의 `arch_default`도 그렇다 |
+| 첫 생애 행 / 찾는 백성 | First-life row / Seeking people | `DT_Rules.PlayerArchetypeRow`(`arch_seeker`, `Trait.Arch.Seeker`), `Revelation.Seeking` | 플레이어의 첫 생애 백성 — 성역 밖 찾는 백성, 두 목소리(의회·회중). A0 4b부터(그 전 `arch_terran` 지구 — 은퇴) (§5.11). 찾는 백성은 계시 양식이 '찾음'인 백성이다 — AI의 `arch_default`도 그렇다 |
 | 닫힌 책 | Closed book | `Trait.Faith.Book` / `BookShut`, `edict_reading`, 책 이벤트 3종 | 말이 도착한 백성의 특성. 사물·제도·사건이지 본문이 아니다 (§5.11) |
 | 갈라진 문명 | Divided society | `Trait.Society.Divided`: 의회(`Faith.Bank.Civic`) / 회중의 장로들(말이 오기 전 `Faith.Bank.Nations`, 온 뒤 `Hebrew`) | 청원 화자 두 파벌 고정 (§5.10, §5.11) |
 | 열방의 호칭 | Names of the nations | `Faith.Bank.Nations` | 이방인이 쓴 호칭만. `Trait.Faith.Seeking` 문명의 헌정명 뱅크 (§4.5, §8.6). 첫 생애 백성의 회중이 말이 오기 전 쓴다 |

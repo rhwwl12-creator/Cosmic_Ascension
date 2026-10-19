@@ -1583,7 +1583,7 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		}
 		Expect(TEXT("a list of row names with an empty name"), WithHazard([](FHazardDef& Row) { Row.WandererResolutions = { NAME_None }; }),
 			{ TEXT("WandererResolutions[0]"), TEXT("none of DT_Encounters has a row None") });
-		const FGameplayTag Declared = FGameplayTag::RequestGameplayTag(FName(TEXT("Trait.Arch.Terran")));
+		const FGameplayTag Declared = FGameplayTag::RequestGameplayTag(FName(TEXT("Trait.Arch.Seeker")));
 		TestFalse(TEXT("Declared tags and empty tags in conditions and effects are not reported"), AnyCarries(WithEvent(Declared, FGameplayTag()), { TEXT("].Tag") }));
 		{
 			// A tag whose name the ini does not have at all: what a tag that left the ini looks like in a loaded asset. It

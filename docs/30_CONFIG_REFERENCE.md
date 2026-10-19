@@ -28,7 +28,7 @@
 | `FleetDelayCap` | `100.0` | number |  | — | 예약 |
 | `ImmutableLaws` | `"(GameplayTags=((TagName=\"Law.Judgment\"),(TagName=\"Law.Sabbath\"…` | tags | `{"root": "Law."}` | — | 예약 |
 | `FallenTranscendentCount` | `1` | number | `{"min": 0, "max": 3, "integer": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
-| `PlayerArchetypeRow` | `"arch_terran"` | row | `{"table": "DT_Civs"}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
+| `PlayerArchetypeRow` | `"arch_seeker"` | row | `{"table": "DT_Civs"}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `ClaimAdjacencyLanes` | `1` | number | `{"integer": true}` | Sim/CosmicHazards.cpp | 읽힘 |
 | `VigilClaimExtension` | `100` | number | `{"integer": true}` | — | 예약 |
 | `SphereEventWeightStep` | `0.1` | number | `{"min": 0}` | Events/CosmicEventSubsystem.cpp | 읽힘 |

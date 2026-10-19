@@ -836,17 +836,17 @@ UPROPERTY(EditAnywhere) TMap<FGameplayTag, float> HazardSpawnMultipliers; // Haz
 
 UPROPERTY(EditAnywhere) TMap<FName, float> InitialRelations; // 다른 아키타입 행 -> 초기 관계
 
-UPROPERTY(EditAnywhere) float Weight = 1.f; // NewGalaxy AI 추첨 가중치. 0 = AI 추첨 제외 (첫 생애 행 — v0.8 — 단계 4b부터 가칭 arch_seeker(§16 #74), 그 전 arch_terran: 플레이어 전용, DT_Rules.PlayerArchetypeRow에서만 참조)
+UPROPERTY(EditAnywhere) float Weight = 1.f; // NewGalaxy AI 추첨 가중치. 0 = AI 추첨 제외 (첫 생애 행 arch_seeker — A0 4b부터, 그 전 arch_terran(은퇴): 플레이어 전용, DT_Rules.PlayerArchetypeRow에서만 참조. 스키마 규칙: arch_seeker는 Weight 0·Trait.Arch.Seeker·Revelation.Seeking)
 
 UPROPERTY(EditAnywhere) FGameplayTag RevelationMode; // Revelation.* 계시 양식 (§5.11). 모든 행이 정확히 하나. 텍스트만 바꾸고 수치는 바꾸지 않는다. arch_default는 Revelation.Seeking 고정
 
 UPROPERTY(EditAnywhere) TArray<FText> RevelationTemplates; // 정확히 3개(Data.Integrity): [0] 징조(Log.Sign) / [1] 전언(enc_messenger_* 간접 화법) / [2] 지나감·응답(Hazard.Visitation 해결·만료). 수동태·간접 화법만
 
-UPROPERTY(EditAnywhere) TArray<FText> HomeSystemNames; // 모성계 표시명 뱅크. 첫 생애 행 = 그 백성이 제 해를 부르는 이름(숫자 없음 — v0.8 — 단계 4b부터. 그 전 arch_terran = {태양계}). 비면 FGalaxyDef.StarNameBank (§5.11)
+UPROPERTY(EditAnywhere) TArray<FText> HomeSystemNames; // 모성계 표시명 뱅크. 첫 생애 행 = 그 백성이 제 해를 부르는 이름(숫자 없음 — A0 4b부터 {첫 해}, 자리 채움 — 단계 7에서 다시 쓴다. A0 4a에서 arch_terran은 비웠다 — 성역과 이름이 겹치지 않게). 비면 FGalaxyDef.StarNameBank (§5.11)
 
 UPROPERTY(EditAnywhere) FGameplayTag HomeStarClass; // 모성계 항성 등급 고정 (첫 생애 행 = Star.Class.G — v0.8 — 단계 5까지, 그 뒤 실제 별 등급 + 정규화). 빈 태그 = DT_Rules.LivingWorldStarShares의 분포에서 뽑는다 (§7.4)
 
-UPROPERTY(EditAnywhere) TArray<FGameplayTag> DedicationBanks; // Faith.Bank.* (§8.6). 보통 1개. 첫 생애 행 = {Faith.Bank.Nations, Faith.Bank.Civic} — 말이 온 뒤 Trait.Faith.Book의 효과로 Hebrew를 더한다(v0.8 — 단계 4b·7부터. 그 전 arch_terran = {Hebrew, Civic}) — 청원한 파벌이 고른다 (§5.11). Feat·칙령·프로젝트 행의 DedicationBank는 '어떤 이름 종류'를, 이 컬럼은 '어느 뱅크'를 정한다
+UPROPERTY(EditAnywhere) TArray<FGameplayTag> DedicationBanks; // Faith.Bank.* (§8.6). 보통 1개. 첫 생애 행 = {Faith.Bank.Nations, Faith.Bank.Civic} — 말이 온 뒤 Trait.Faith.Book의 효과로 Hebrew를 더한다(첫 생애 행의 값은 A0 4b부터, 말이 온 뒤의 Hebrew는 단계 7부터. 그 전 arch_terran = {Hebrew, Civic}) — 청원한 파벌이 고른다 (§5.11). Feat·칙령·프로젝트 행의 DedicationBank는 '어떤 이름 종류'를, 이 컬럼은 '어느 뱅크'를 정한다
 
 };
 
@@ -1011,7 +1011,7 @@ UPROPERTY(EditAnywhere) FGameplayTagContainer ImmutableLaws; // Law.Judgment, La
 
 UPROPERTY(EditAnywhere) int32 FallenTranscendentCount = 3; // 판당 활성(미봉인) 타락 초월자 수 — 은하가 늘어도 판 전체의 수다 (§4.2). VS 1(DT_Rules.json의 데이터 값이고 코드 기본값은 3이다 — 둘 다 그대로 둔다), EA 3. 0~3으로 읽는다: 밖의 값은 NewGalaxy가 에러 한 줄을 내고 잘라 읽는다(§4.2 '판당 활성 타락 ≤ 3'). 침묵 고정 + 나머지는 SpawnWeight 가중 추첨 (§4.2, §7.4 NewGalaxy)
 
-UPROPERTY(EditAnywhere) FName PlayerArchetypeRow = TEXT("arch_terran"); // 플레이어 첫 생애 문명의 DT_Civs 행 (§5.10, §5.11). Data.Integrity: 행 존재 (v0.8 — 단계 4b에서 C++ 기본값과 DT_Rules 값을 첫 생애 행으로 바꾼다)
+UPROPERTY(EditAnywhere) FName PlayerArchetypeRow = TEXT("arch_seeker"); // 플레이어 첫 생애 문명의 DT_Civs 행 = 첫 생애 행 (§5.10, §5.11). Data.Integrity: 행 존재, 스키마 규칙: arch_seeker (A0 4b — C++ 기본값과 DT_Rules 값이 함께 바뀌었다. `CosmicRows::ArchSeeker`)
 
 UPROPERTY(EditAnywhere) int32 ClaimAdjacencyLanes = 1; // 주장 발생 조건 (a): 타락 영향권에서 이 레인 수 이내. (옛 ClaimCountdown은 위기 처리 작업에서 지웠다 — 주장도 제 행의 CountdownTicks로 센다)
 
@@ -1141,7 +1141,7 @@ virtual bool IsTickable() const override { return bRunning && TimeScale > 0.f; }
 
 virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UGalaxySimulationSubsystem, STATGROUP_Tickables); }
 
-UFUNCTION(BlueprintCallable) void NewGalaxy(int32 Seed, int32 SystemCount, int32 CivCount); // 플레이어 문명 = DT_Rules.PlayerArchetypeRow(첫 생애 행 — v0.8 — 단계 4b부터, 그 전 arch_terran) → Install(…, Ruler), 각 문명의 ArchetypeRow 기록 (§5.10). 타락 로스터(Phase 2 영적 압력 작업, §4.2): FallenTranscendentCount가 1 이상이고 DT_Transcendents에 Realm.Abyssal 행 trans_silence가 있으면 침묵을 고정으로 넣는다. 이어서 시뮬 스트림에서 정확히 (0~3으로 읽은 FallenTranscendentCount − 1)번 뽑아, 아직 들지 않은 Realm.Abyssal 행(SpawnWeight가 유한하고 0보다 큰 것, 교리가 겹치지 않는 것) 가운데 하나씩 SpawnWeight 가중으로 고른다 — 행 이름 사전순으로 놓고 고르며, 후보가 없으면 뽑은 수를 버린다(추첨 수는 노브만 따르고 테이블을 따르지 않는다, §9.2 ⓐ). Celestial·Independent 행은 상태 인스턴스를 만들지 않는다. 영향권은 아래 9항의 초기 코어로 시작한다 — 행의 `InitialInfluencedSystems`가 1이면 성계 하나, 0이면 빈 영향권이다(§5.7). 생성 규칙: AI 문명의 아키타입은 `Weight` > 0인 `DT_Civs` 행을 행 이름 사전순(`FNameLexicalLess`)으로 놓고 가중 추첨한다(복원 추첨 — 같은 아키타입이 여러 번 나올 수 있다). `arch_default` 문명은 윤리 3축을 축마다 [-1, 1] 균등 추첨하고 그 외 행은 `EthicsPreset` 그대로다. `AIProfile`이 빈 행의 AI 문명은 프로필 4개 중 추첨한다(윤리 가중 공식은 §16 #36). 플레이어 모성계는 `ResourceRichness` 1.0·`HomeStarClass`·`HomeSystemNames`를 쓴다(§5.11). 문명 이름과 성계 표시명은 뱅크에서 뽑아 평탄화해 저장한다(§8.5). 아래 1~10항은 Phase 2의 은하 생성 규칙 변경(`43a7b94`)에서 한 번에 넣었다 — 시뮬 추첨 지점이 바뀌어 같은 시드가 주는 은하가 그때 한 번 달라졌다(§9.2). 11항은 v0.8이다(단계 4 — 추첨 없이 붙어 추첨 수가 바뀌지 않는다)
+UFUNCTION(BlueprintCallable) void NewGalaxy(int32 Seed, int32 SystemCount, int32 CivCount); // 플레이어 문명 = DT_Rules.PlayerArchetypeRow(첫 생애 행 arch_seeker — A0 4b부터, 그 전 arch_terran) → Install(…, Ruler), 각 문명의 ArchetypeRow 기록 (§5.10). 타락 로스터(Phase 2 영적 압력 작업, §4.2): FallenTranscendentCount가 1 이상이고 DT_Transcendents에 Realm.Abyssal 행 trans_silence가 있으면 침묵을 고정으로 넣는다. 이어서 시뮬 스트림에서 정확히 (0~3으로 읽은 FallenTranscendentCount − 1)번 뽑아, 아직 들지 않은 Realm.Abyssal 행(SpawnWeight가 유한하고 0보다 큰 것, 교리가 겹치지 않는 것) 가운데 하나씩 SpawnWeight 가중으로 고른다 — 행 이름 사전순으로 놓고 고르며, 후보가 없으면 뽑은 수를 버린다(추첨 수는 노브만 따르고 테이블을 따르지 않는다, §9.2 ⓐ). Celestial·Independent 행은 상태 인스턴스를 만들지 않는다. 영향권은 아래 9항의 초기 코어로 시작한다 — 행의 `InitialInfluencedSystems`가 1이면 성계 하나, 0이면 빈 영향권이다(§5.7). 생성 규칙: AI 문명의 아키타입은 `Weight` > 0인 `DT_Civs` 행을 행 이름 사전순(`FNameLexicalLess`)으로 놓고 가중 추첨한다(복원 추첨 — 같은 아키타입이 여러 번 나올 수 있다). `arch_default` 문명은 윤리 3축을 축마다 [-1, 1] 균등 추첨하고 그 외 행은 `EthicsPreset` 그대로다. `AIProfile`이 빈 행의 AI 문명은 프로필 4개 중 추첨한다(윤리 가중 공식은 §16 #36). 플레이어 모성계는 `ResourceRichness` 1.0·`HomeStarClass`·`HomeSystemNames`를 쓴다(§5.11). 문명 이름과 성계 표시명은 뱅크에서 뽑아 평탄화해 저장한다(§8.5). 아래 1~10항은 Phase 2의 은하 생성 규칙 변경(`43a7b94`)에서 한 번에 넣었다 — 시뮬 추첨 지점이 바뀌어 같은 시드가 주는 은하가 그때 한 번 달라졌다(§9.2). 11항은 v0.8이다(단계 4 — 추첨 없이 붙어 추첨 수가 바뀌지 않는다)
 
 // 1. 수: `SystemCount`·`CivCount`가 0이면 고향 행(`DT_Rules.HomeGalaxyRow` → `DT_Galaxies`)의 `LivingWorlds`·`Peoples`를 쓴다 — 게임 모드·테스트·커맨드렛은 60과 12의 사본을 갖지 않는다(§3.1). `DT_Galaxies`나 고향 행이 없으면 `FGalaxyDef`의 C++ 기본값을 쓴다(`DT_Rules`와 같은 방식이다 — `LogCosmic`으로 알린다. 기본값은 VS의 고향 값 60·12다, §7.3). 수 인자는 0 이하면 고향 행을 읽고, 성계는 1 이상으로, 백성은 1 이상 성계 수 이하로 맞춘다. `MaxSystems` 150 클램프를 시뮬에서 뗀다(시뮬은 150을 알지 못한다 — 150은 표현 계층의 액터 예산이고 넘었을 때의 경고도 액터를 만드는 표현 계층이 낸다, §9.4)
 

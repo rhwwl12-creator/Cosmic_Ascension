@@ -1,22 +1,22 @@
 [
 	{
-		"Name": "arch_terran",
-		"DisplayName": "지구",
-		"Traits": "(GameplayTags=((TagName=\"Trait.Arch.Terran\"),(TagName=\"Trait.Society.Divided\"),(TagName=\"Trait.Faith.Book\"),(TagName=\"Trait.Biology.Shortlived\")))",
+		"Name": "arch_seeker",
+		"DisplayName": "",
+		"Traits": "(GameplayTags=((TagName=\"Trait.Arch.Seeker\"),(TagName=\"Trait.Society.Divided\"),(TagName=\"Trait.Biology.Shortlived\")))",
 		"EthicsPreset": {"Pacifism": 0.0, "Spiritualism": 0.0, "Openness": 0.2},
 		"AIProfile": "",
 		"Color": {"R": 0.25, "G": 0.55, "B": 1.0, "A": 1.0},
-		"NameBank": ["태양계 연합", "지구 연방", "인류 연합"],
+		"NameBank": ["갈라진 집", "찾는 자들의 연맹", "첫 불의 의회"],
 		"AdjectiveBank": ["갈라진", "끈질긴", "기억하는"],
-		"PersonNameBank": ["유나", "하루토", "메이린", "아마라", "에시", "솔베이", "이네스", "아딜", "키아라", "나디아", "아요", "빅토르"],
+		"PersonNameBank": ["사렌", "토바르", "이소란", "벨루나", "오르테", "키라반", "베론", "누린", "타비엔", "아루스", "펜리아", "소르닌"],
 		"HazardSpawnMultipliers": {"Hazard.AIAwakening": 1.2},
 		"InitialRelations": {},
 		"Weight": 0.0,
-		"RevelationMode": "Revelation.Book",
-		"RevelationTemplates": ["옛 책의 한 줄이 다시 읽혔다. 읽은 사람은 많지 않았다."],
-		"HomeSystemNames": [],
+		"RevelationMode": "Revelation.Seeking",
+		"RevelationTemplates": ["어느 제단에도 이름이 없었다. 그들은 빈 자리에 제단을 하나 더 세웠다."],
+		"HomeSystemNames": ["첫 해"],
 		"HomeStarClass": "Star.Class.G",
-		"DedicationBanks": ["Faith.Bank.Hebrew", "Faith.Bank.Civic"]
+		"DedicationBanks": ["Faith.Bank.Nations", "Faith.Bank.Civic"]
 	},
 	{
 		"Name": "arch_default",

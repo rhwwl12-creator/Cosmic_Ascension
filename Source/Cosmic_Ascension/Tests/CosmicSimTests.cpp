@@ -550,8 +550,11 @@ bool FCosmicSimFirstLifeTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("Home system has a display name"), Home.DisplayName.IsEmpty());
 
 	TestEqual(TEXT("Player civ archetype"), Civ.ArchetypeRow, Sim->GetRules().PlayerArchetypeRow);
-	// The exit criterion names the row itself, not whatever DT_Rules points at.
-	TestEqual(TEXT("Player civ archetype is arch_terran"), Civ.ArchetypeRow, FName(TEXT("arch_terran")));
+	// The exit criterion names the row itself, not whatever DT_Rules points at: the first life's row (A0 4b).
+	TestEqual(TEXT("Player civ archetype is arch_seeker"), Civ.ArchetypeRow, CosmicRows::ArchSeeker);
+	TestEqual(TEXT("and so is the C++ default of DT_Rules.PlayerArchetypeRow"), FCosmicRulesDef().PlayerArchetypeRow, CosmicRows::ArchSeeker);
+	TestTrue(TEXT("The first life's people is a seeking people"), Civ.Traits.HasTagExact(CosmicSimTests::Tag(TEXT("Trait.Arch.Seeker"))) && Archetype->RevelationMode == CosmicSimTests::Tag(TEXT("Revelation.Seeking")));
+	TestEqual(TEXT("and is never drawn for the AI"), Archetype->Weight, 0.f);
 	TestEqual(TEXT("Player civ home"), Civ.HomeSystemID, FirstHome);
 	TestEqual(TEXT("Player civ owns one system"), Civ.OwnedSystems.Num(), 1);
 	TestTrue(TEXT("Player civ is player ruled"), Civ.bIsPlayerRuled);
@@ -590,12 +593,18 @@ bool FCosmicSimFirstLifeTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("First line tick"), First.Tick, static_cast<int64>(0));
 		TestEqual(TEXT("First line focus"), First.FocusSystemID, FirstHome);
 		TestTrue(TEXT("First line starts with the home system name"), Message.StartsWith(Home.DisplayName.ToString(), ESearchCase::CaseSensitive));
+		TestEqual(TEXT("The home is called by the name its people gives its sun"), Home.DisplayName.ToString(), Archetype->HomeSystemNames.IsEmpty() ? FString() : Archetype->HomeSystemNames[0].ToString());
 		TestFalse(TEXT("First line has no unfilled slot"), Message.Contains(TEXT("{")));
 
 		const FLogTemplateDef* FirstRow = Sim->GetTables().FindLogTemplate(CosmicRows::LogFirstLife);
 		if (TestNotNull(TEXT("DT_LogTemplates holds log_first_life"), FirstRow))
 		{
 			TestEqual(TEXT("log_first_life is a fixed line: exactly one variant"), FirstRow->Templates.Num(), 1);
+			if (FirstRow->Templates.Num() == 1)
+			{
+				TestEqual(TEXT("The first line is that variant with the home's name in its slot"), Message,
+					FText::FormatNamed(FirstRow->Templates[0], TEXT("HomeSystem"), Home.DisplayName).ToString());
+			}
 		}
 	}
 

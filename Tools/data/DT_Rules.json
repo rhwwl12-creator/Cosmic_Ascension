@@ -25,7 +25,7 @@
 		"FleetDelayCap": 100.0,
 		"ImmutableLaws": "(GameplayTags=((TagName=\"Law.Judgment\"),(TagName=\"Law.Sabbath\"),(TagName=\"Law.Humility\"),(TagName=\"Law.Remnant\"),(TagName=\"Law.Hedge\")))",
 		"FallenTranscendentCount": 1,
-		"PlayerArchetypeRow": "arch_terran",
+		"PlayerArchetypeRow": "arch_seeker",
 		"ClaimAdjacencyLanes": 1,
 		"VigilClaimExtension": 100,
 		"SphereEventWeightStep": 0.1,

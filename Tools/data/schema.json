@@ -30,7 +30,9 @@
 		"civ_selector": ["Former"],
 		"policy": ["Cautious", "Reckless", "Faithful", "Tribute"],
 		"research": ["Physics", "Society", "Engineering", "Transcendence"],
-		"verdict": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"]
+		"verdict": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"],
+		"other_works": [],
+		"holy_and_myth": []
 	},
 
 	"enums": {
@@ -125,6 +127,10 @@
 					"then": [{"col": "AIAscensionSpeedMultiplier", "gt": 0}]
 				},
 				{
+					"why": "the first life is born into the first life's row, arch_seeker (guideline 5.10)",
+					"then": [{"col": "PlayerArchetypeRow", "is": "arch_seeker"}]
+				},
+				{
 					"why": "every immutable law the rules read is listed, and none can be taken out of the list: Law.Hedge keeps the sanctuary (guideline 4.5)",
 					"then": [{"col": "ImmutableLaws", "contains_all": ["Law.Judgment", "Law.Sabbath", "Law.Humility", "Law.Remnant", "Law.Hedge"]}]
 				}
@@ -135,7 +141,7 @@
 			"struct": "CivArchetypeDef",
 			"prefixes": ["arch_"],
 			"must_exist": true,
-			"required_rows": ["arch_default"],
+			"required_rows": ["arch_default", "arch_seeker"],
 			"columns": {
 				"DisplayName": {"kind": "text"},
 				"Traits": {"kind": "tags", "root": "Trait."},
@@ -164,6 +170,11 @@
 					"why": "the home of a people drawn for the AI takes a proper name from the galaxy without replacement, never a fixed one two peoples could share (guideline 7.4)",
 					"when": [{"col": "Weight", "gt": 0}],
 					"then": [{"col": "HomeSystemNames", "max_len": 0}]
+				},
+				{
+					"why": "the first life's row is a seeking people no AI people is drawn from: weight 0, its archetype tag, the seeking revelation (guideline 5.10, 5.11)",
+					"when": [{"row": "arch_seeker"}],
+					"then": [{"col": "Weight", "is": 0}, {"col": "Traits", "contains_all": ["Trait.Arch.Seeker"]}, {"col": "RevelationMode", "is": "Revelation.Seeking"}]
 				}
 			]
 		},

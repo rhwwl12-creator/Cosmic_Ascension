@@ -15,6 +15,10 @@ namespace CosmicRows
 	// and the one row whose civs draw their ethics at random (section 5.11, 7.4).
 	inline const FName ArchDefault(TEXT("arch_default"));
 
+	// DT_Civs: the first life's row, a seeking people outside the sanctuary (DT_Rules.PlayerArchetypeRow and the C++ default
+	// of FCosmicRulesDef, section 5.10, 5.11). Weight 0: never drawn for AI peoples.
+	inline const FName ArchSeeker(TEXT("arch_seeker"));
+
 	// DT_Transcendents: Silence, the one fallen transcendent every run has. The roster of NewGalaxy starts from it
 	// (section 4.2).
 	inline const FName TransSilence(TEXT("trans_silence"));

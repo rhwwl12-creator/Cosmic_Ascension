@@ -456,21 +456,21 @@ class SchemaTests(unittest.TestCase):
 
     def test_tag_required_and_optional(self):
         self.expect(self.after(self.set_cell("DT_Civs", "arch_default", "RevelationMode", "")), "RevelationMode", "a tag is required")
-        self.assertEqual(self.after(self.set_cell("DT_Civs", "arch_terran", "HomeStarClass", "")), [])
+        self.assertEqual(self.after(self.set_cell("DT_Civs", "arch_seeker", "HomeStarClass", "")), [])
         # The importer reads null and the word None, in any case, as the empty name.
         for empty in (None, "None", "none"):
             self.expect(self.after(self.set_cell("DT_Civs", "arch_default", "RevelationMode", empty)), "RevelationMode", "a tag is required")
-            self.assertEqual(self.after(self.set_cell("DT_Civs", "arch_terran", "HomeStarClass", empty)), [])
+            self.assertEqual(self.after(self.set_cell("DT_Civs", "arch_seeker", "HomeStarClass", empty)), [])
 
     def test_a_single_tag_is_a_string(self):
         """The importer also takes {"TagName": ...}; rules and unique read one spelling, so the other is a problem."""
         as_object = {"TagName": "Revelation.Book"}
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "RevelationMode", as_object)), "RevelationMode", "expected a tag name as a string")
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "RevelationMode", as_object)), "RevelationMode", "expected a tag name as a string")
         self.expect(self.after(self.set_cell("DT_Transcendents", "trans_covenant", "Allegiance", {"TagName": "Realm.Celestial"})),
                     "trans_covenant.Allegiance", "expected a tag name as a string")
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "DedicationBanks", [{"TagName": "Faith.Bank.Hebrew"}])),
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "DedicationBanks", [{"TagName": "Faith.Bank.Hebrew"}])),
                     "DedicationBanks[0]", "expected a tag name as a string")
-        self.expect(self.after(self.set_cell("DT_Events", "event_test_harvest", "Conditions", [cond("CivHasTrait", tag={"TagName": "Trait.Arch.Terran"})])),
+        self.expect(self.after(self.set_cell("DT_Events", "event_test_harvest", "Conditions", [cond("CivHasTrait", tag={"TagName": "Trait.Arch.Seeker"})])),
                     "(CivHasTrait).Tag", "expected a tag name as a string")
 
     def test_parent_tag_is_not_declared(self):
@@ -478,11 +478,11 @@ class SchemaTests(unittest.TestCase):
                     "EventWeightModifiers[Event.Civ]", "not declared")
 
     def test_tag_list_and_tag_map(self):
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "DedicationBanks", ["Faith.Bank.Nope"])), "DedicationBanks[0]", "not declared")
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "DedicationBanks", "Faith.Bank.Hebrew")), "DedicationBanks", "expected a list of tags")
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "HazardSpawnMultipliers", {"Trait.Arch.Terran": 1})), "not under Hazard.")
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "HazardSpawnMultipliers", {"Hazard.Plague": -1})), "is below 0")
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "HazardSpawnMultipliers", ["Hazard.Plague"])), "HazardSpawnMultipliers", "expected an object")
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "DedicationBanks", ["Faith.Bank.Nope"])), "DedicationBanks[0]", "not declared")
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "DedicationBanks", "Faith.Bank.Hebrew")), "DedicationBanks", "expected a list of tags")
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "HazardSpawnMultipliers", {"Trait.Arch.Seeker": 1})), "not under Hazard.")
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "HazardSpawnMultipliers", {"Hazard.Plague": -1})), "is below 0")
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "HazardSpawnMultipliers", ["Hazard.Plague"])), "HazardSpawnMultipliers", "expected an object")
 
     def test_tag_container_text(self):
         """Only the export text with every name quoted: the importer drops what it cannot read without a word."""
@@ -491,7 +491,7 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(cell("(GameplayTags=)"), [])
         self.assertEqual(cell(""), [])
         self.expect(cell('(GameplayTags=((TagName="")))'), "arch_default.Traits", "a tag is required")
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "DedicationBanks", ["Faith.Bank.Hebrew", ""])), "DedicationBanks[1]", "a tag is required")
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "DedicationBanks", ["Faith.Bank.Hebrew", ""])), "DedicationBanks[1]", "a tag is required")
         for text in ('(GameplayTags=((TagName=Trait.Arch.Default),(TagName=Trait.Arch.Nobody)))',
                      '(GameplayTags=((TagNme="Trait.Arch.Nobody")))',
                      "(GameplayTags=((TagName='Trait.Arch.Nobody')))",
@@ -507,10 +507,10 @@ class SchemaTests(unittest.TestCase):
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "PlayerArchetypeRow", "arch_nobody")), "PlayerArchetypeRow", "has no row arch_nobody")
         for empty in ("", None, "None", "NONE"):
             self.expect(self.after(self.set_cell("DT_Rules", "rules", "PlayerArchetypeRow", empty)), "a row of DT_Civs is required")
-        self.expect(self.after(self.set_cell("DT_Rules", "rules", "PlayerArchetypeRow", ["arch_terran"])), "PlayerArchetypeRow", "expected a row name")
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "InitialRelations", {"arch_nobody": 0.5})), "has no row arch_nobody")
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "InitialRelations", {"arch_default": 2})), "is above 1")
-        self.assertEqual(self.after(self.set_cell("DT_Civs", "arch_terran", "InitialRelations", {"arch_default": 0.5})), [])
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "PlayerArchetypeRow", ["arch_seeker"])), "PlayerArchetypeRow", "expected a row name")
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "InitialRelations", {"arch_nobody": 0.5})), "has no row arch_nobody")
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "InitialRelations", {"arch_default": 2})), "is above 1")
+        self.assertEqual(self.after(self.set_cell("DT_Civs", "arch_seeker", "InitialRelations", {"arch_default": 0.5})), [])
 
     def test_row_names(self):
         def rename(table, old, new):
@@ -825,7 +825,7 @@ class SchemaTests(unittest.TestCase):
         self.expect(self.after(self.set_cell("DT_Feats", "feat_test_climb", "LogTemplates", ["{Civ} a.", "b."])), "DT_Feats.feat_test_climb.LogTemplates", "3 entries or more")
         self.expect(self.after(self.set_cell("DT_Megaprojects", "project_test_build", "RequiredProgress", 0.5)), "DT_Megaprojects.project_test_build.RequiredProgress", "is below 1")
         self.expect(self.after(self.set_cell("DT_Feats", "feat_test_climb", "Path", "Wanderer")), "feat_test_climb", "the wanderer's feats are judged from Phase 4")
-        self.expect(self.after(self.set_cell("DT_Feats", "feat_test_climb", "GrantedPowers", tags_text("Trait.Arch.Terran"))), "feat_test_climb.GrantedPowers", "not under")
+        self.expect(self.after(self.set_cell("DT_Feats", "feat_test_climb", "GrantedPowers", tags_text("Trait.Arch.Seeker"))), "feat_test_climb.GrantedPowers", "not under")
         # One rung: every other pair of rungs is refused by the rule of its starting rung, whatever the walker tries.
         rungs = ["Tier1_Planetary", "Tier2_Stellar", "Tier3_Causal", "Tier4_Transcendent", "Tier5_EternalOrder"]
         ordinal = ["first", "second", "third", "fourth"]
@@ -855,21 +855,21 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(self.after(templates(3)), [])
         self.expect(self.after(self.set_cell("DT_LogTemplates", "log_first_life", "Templates", [])), "1 entries or more")
         self.assertEqual(self.after(self.set_cell("DT_LogTemplates", "log_first_life", "Templates", ["{HomeSystem}."])), [])
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "AdjectiveBank", ["a", "b"])), "0 or 3 entries, found 2")
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "AdjectiveBank", ["a", "", "c"])), "AdjectiveBank[1]", "a text is required")
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "AdjectiveBank", ["a", 2, "c"])), "AdjectiveBank[1]", "expected a text")
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "DisplayName", 5)), "DisplayName", "expected a text")
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "AdjectiveBank", ["a", "b"])), "0 or 3 entries, found 2")
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "AdjectiveBank", ["a", "", "c"])), "AdjectiveBank[1]", "a text is required")
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "AdjectiveBank", ["a", 2, "c"])), "AdjectiveBank[1]", "expected a text")
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "DisplayName", 5)), "DisplayName", "expected a text")
         names = ["name %s" % letter for letter in "abcdefghij"]
-        self.assertEqual(self.after(self.set_cell("DT_Civs", "arch_terran", "PersonNameBank", names)), [])
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "PersonNameBank", names[:5])), "none or 10 entries and more, found 5")
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "PersonNameBank", names[:9] + names[:1])), "appears twice")
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "NameBank", "one text")), "list of texts")
+        self.assertEqual(self.after(self.set_cell("DT_Civs", "arch_seeker", "PersonNameBank", names)), [])
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "PersonNameBank", names[:5])), "none or 10 entries and more, found 5")
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "PersonNameBank", names[:9] + names[:1])), "appears twice")
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "NameBank", "one text")), "list of texts")
 
     def test_slots(self):
         log = lambda text: self.after(self.set_cell("DT_LogTemplates", "log_first_life", "Templates", [text]))  # noqa: E731
         self.expect(log("{Civv} arrives."), "slot {Civv}")
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "NameBank", ["{Hex} union"])), "slot {Hex}")
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "AdjectiveBank", ["{Civ}", "b", "c"])), "slot {Civ}", "none")
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "NameBank", ["{Hex} union"])), "slot {Hex}")
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "AdjectiveBank", ["{Civ}", "b", "c"])), "slot {Civ}", "none")
         self.expect(self.after(self.set_cell("DT_Events", "event_test_harvest", "LogTemplates", ["{OtherCiv} a.", "b.", "c."])), "slot {OtherCiv}")
         self.assertEqual(log("{CivAdj} {Civ}."), [])
         # Read the way the engine reads a format text.
@@ -896,16 +896,16 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(checker.slots_of("a `{b`} {C} ``{D}"), (["C", "D"], []))
 
     def test_no_digits_in_a_name(self):
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "NameBank", ["Union 7"])), "NameBank[0]", "a digit")
-        self.assertEqual(self.after(self.set_cell("DT_Civs", "arch_terran", "NameBank", ["Union Seven"])), [])
-        self.expect(self.after(self.set_cell("DT_Civs", "arch_terran", "HomeSystemNames", ["HD-581"])), "HomeSystemNames[0]", "a digit")
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "NameBank", ["Union 7"])), "NameBank[0]", "a digit")
+        self.assertEqual(self.after(self.set_cell("DT_Civs", "arch_seeker", "NameBank", ["Union Seven"])), [])
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_seeker", "HomeSystemNames", ["HD-581"])), "HomeSystemNames[0]", "a digit")
 
     # ---- row rules, unique, pairs ----
 
     def test_row_rule(self):
         self.expect(self.after(self.set_cell("DT_Civs", "arch_default", "NameBank", ["union"])), "arch_default", "home star", "{Star}")
         self.assertEqual(self.after(self.set_cell("DT_Civs", "arch_default", "NameBank", ["{Star} union"])), [])
-        self.assertEqual(self.after(self.set_cell("DT_Civs", "arch_terran", "NameBank", ["union"])), [])
+        self.assertEqual(self.after(self.set_cell("DT_Civs", "arch_seeker", "NameBank", ["union"])), [])
 
     def test_tests_of_a_rule(self):
         """Each test, both ways, through a rule built here (the rules of the project use only some of them)."""
@@ -914,7 +914,7 @@ class SchemaTests(unittest.TestCase):
 
         def add_row(tables):
             tables["DT_Civs"].append(civ_row(tables["DT_Civs"][0], "arch_test_row", RevelationMode="Revelation.Book", Traits=tags_text(
-                "Trait.Arch.Terran", "Trait.Society.Divided", "Trait.Faith.Book", "Trait.Biology.Shortlived"),
+                "Trait.Arch.Seeker", "Trait.Society.Divided", "Trait.Faith.Book", "Trait.Biology.Shortlived"),
                 DedicationBanks=["Faith.Bank.Hebrew", "Faith.Bank.Civic"]))
         broken = lambda when, then: self.expect(self.after(add_row, rule(when, then)), "a rule of the test")  # noqa: E731
         holds = lambda when, then: self.assertEqual(self.after(add_row, rule(when, then)), [])  # noqa: E731
@@ -1492,17 +1492,17 @@ class SchemaTests(unittest.TestCase):
                             "schema.DT_Rules", "names the row arch_teran, which DT_Civs")
         def lost_table(schema):
             schema["tables"]["DT_Rules"]["columns"]["PlayerArchetypeRow"]["table"] = "DT_Peoples"
-            schema["tables"]["DT_Rules"]["rules"] = [{"why": "w", "then": [{"col": "PlayerArchetypeRow", "is": "arch_terran"}]}]
-        self.schema_problem(lost_table, "schema.DT_Rules", "names the row arch_terran, which DT_Peoples neither requires nor has")
+            schema["tables"]["DT_Rules"]["rules"] = [{"why": "w", "then": [{"col": "PlayerArchetypeRow", "is": "arch_seeker"}]}]
+        self.schema_problem(lost_table, "schema.DT_Rules", "names the row arch_seeker, which DT_Peoples neither requires nor has")
         # A row the table has to have, a row its source has, and the empty name are names a rule may lean on.
-        self.assertEqual(self.after(NOTHING, put(["tables", "DT_Rules"], "rules", [{"why": "w", "then": [{"col": "PlayerArchetypeRow", "in": ["arch_terran", "arch_default"]}]}])), [])
+        self.assertEqual(self.after(NOTHING, put(["tables", "DT_Rules"], "rules", [{"why": "w", "then": [{"col": "PlayerArchetypeRow", "in": ["arch_seeker", "arch_default"]}]}])), [])
         self.assertEqual(self.after(NOTHING, put(rule, "when", [{"col": "AIProfile", "is": ""}, {"col": "Weight", "gt": 0}])), [])
 
     def test_a_test_fits_the_kind_of_its_column(self):
         """Asked of another kind a test never holds, or always: 'is' over a container, a comparison over a name."""
         rule = ["tables", "DT_Civs", "rules", 0]
         cannot = "cannot be asked of a column of kind"
-        for test, kind in (({"col": "Traits", "is": "Trait.Arch.Terran"}, "tags"),
+        for test, kind in (({"col": "Traits", "is": "Trait.Arch.Seeker"}, "tags"),
                            ({"col": "DedicationBanks", "in": ["Faith.Bank.Hebrew"]}, "tag_list"),
                            ({"col": "NameBank", "is": "union"}, "texts"),
                            ({"col": "InitialRelations", "is": 0}, "row_map"),
@@ -1617,6 +1617,8 @@ class SchemaTests(unittest.TestCase):
             taken = operand if name == "in" else [operand]
             if kind == "number":
                 row[column] = max(taken) + 1
+            elif kind == "row":
+                row[column] = next(entry["Name"] for entry in self.tables[spec["table"]] if entry["Name"] not in taken)
             elif kind == "tag":
                 row[column] = next(tag for tag in sorted(self.tags) if tag not in taken)
             elif kind == "enum":
@@ -1691,6 +1693,8 @@ class SchemaTests(unittest.TestCase):
                 (NOTHING, "log_far_ascent"),
             ("DT_Events", "the subject system of a line is the system it names: a Civilization row is about the people alone and names no system, so the name of a system the calling does not know never reaches the feed (guideline 8.1)"):
                 (NOTHING, event),
+            ("DT_Rules", "the first life is born into the first life's row, arch_seeker (guideline 5.10)"): (NOTHING, "rules"),
+            ("DT_Civs", "the first life's row is a seeking people no AI people is drawn from: weight 0, its archetype tag, the seeking revelation (guideline 5.10, 5.11)"): (NOTHING, "arch_seeker"),
             ("DT_Rules", "every immutable law the rules read is listed, and none can be taken out of the list: Law.Hedge keeps the sanctuary (guideline 4.5)"): (NOTHING, "rules"),
             ("DT_Civs", "the name pattern of a people drawn for the AI calls its home star (guideline 5.11)"): (NOTHING, "arch_default"),
             ("DT_Civs", "the home of a people drawn for the AI takes a proper name from the galaxy without replacement, never a fixed one two peoples could share (guideline 7.4)"):
@@ -1773,7 +1777,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 97, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 101, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 
@@ -1822,7 +1826,7 @@ class SchemaTests(unittest.TestCase):
 
     def test_every_target_of_the_schema_can_fail(self):
         def relation_to_default(tables):
-            self.row(tables, "DT_Civs", "arch_terran")["InitialRelations"] = {"arch_default": 0.5}
+            self.row(tables, "DT_Civs", "arch_seeker")["InitialRelations"] = {"arch_default": 0.5}
 
         def condition_on(type_name):
             return lambda tables: self.row(tables, "DT_Events", "event_test_harvest").update(Conditions=[cond(type_name, key="trans_silence")])
