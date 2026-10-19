@@ -4,6 +4,7 @@
 
 #include "Cosmic_Ascension.h"
 #include "Containers/ContainerAllocationPolicies.h"
+#include "Core/CosmicIDs.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Events/CosmicEventSubsystem.h"
@@ -144,6 +145,11 @@ bool CosmicHazards::Place(FCosmicEvalContext& Ctx, int32 SystemIndex, FName Haza
 		return false;
 	}
 	FStarSystemState& System = State.Systems[SystemIndex];
+	// Law.Hedge (section 4.5 (1)): no hazard and no claim on the sanctuary, whoever asks - refused before anything else.
+	if (CosmicState::IsSanctuary(System.SystemID))
+	{
+		return false;
+	}
 	const int32 OwnerIndex = Ctx.Index.FindCiv(State, System.OwnerCivID);
 	// A hazard threatens a people that lives there: never an unowned system, never one being settled (section 5.7).
 	if (!CosmicState::IsSettled(System) || !State.Civs.IsValidIndex(OwnerIndex) || System.ActiveHazard.IsValid())
@@ -223,7 +229,8 @@ bool CosmicHazards::Transfer(FCosmicEvalContext& Ctx, int32 SystemIndex, int32 T
 	}
 	FStarSystemState& System = State.Systems[SystemIndex];
 	const int32 FromCivIndex = Ctx.Index.FindCiv(State, System.OwnerCivID);
-	if (IsDeadNode(System) || FromCivIndex == ToCivIndex || IsLastSettledSystem(State, Ctx.Index, SystemIndex))
+	// The sanctuary changes hands by no path (Law.Hedge, section 4.5 (1)).
+	if (CosmicState::IsSanctuary(System.SystemID) || IsDeadNode(System) || FromCivIndex == ToCivIndex || IsLastSettledSystem(State, Ctx.Index, SystemIndex))
 	{
 		return false;
 	}
@@ -322,7 +329,8 @@ void CosmicHazards::Destroy(FCosmicEvalContext& Ctx, int32 SystemIndex)
 	static const FGameplayTag KillTag = TagOf(TEXT("Effect.KillPlayer"));
 
 	FGalaxyState& State = Ctx.State;
-	if (!State.Systems.IsValidIndex(SystemIndex) || IsDeadNode(State.Systems[SystemIndex]))
+	// Nothing destroys the sanctuary (Law.Hedge, section 4.5 (1)).
+	if (!State.Systems.IsValidIndex(SystemIndex) || IsDeadNode(State.Systems[SystemIndex]) || CosmicState::IsSanctuary(State.Systems[SystemIndex].SystemID))
 	{
 		return;
 	}
@@ -381,10 +389,11 @@ void CosmicHazards::Destroy(FCosmicEvalContext& Ctx, int32 SystemIndex)
 				Target = Ruled.HomeSystemID;
 			}
 		}
+		// Never into the sanctuary, where no vessel stands (Law.Hedge, section 16 #81).
 		for (int32 LaneIndex = 0; Target.IsNone() && LaneIndex < OldLanes.Num(); ++LaneIndex)
 		{
 			const int32 Neighbour = Ctx.Index.FindSystem(State, OldLanes[LaneIndex]);
-			if (State.Systems.IsValidIndex(Neighbour) && !IsDeadNode(State.Systems[Neighbour]))
+			if (State.Systems.IsValidIndex(Neighbour) && !IsDeadNode(State.Systems[Neighbour]) && !CosmicState::IsSanctuary(OldLanes[LaneIndex]))
 			{
 				Target = OldLanes[LaneIndex];
 			}

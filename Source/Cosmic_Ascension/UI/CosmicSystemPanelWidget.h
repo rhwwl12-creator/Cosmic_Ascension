@@ -54,12 +54,13 @@ namespace CosmicSlotWatch
 
 /**
  * The panel of the selected system, on the right of the screen (hidden with no selection and for a system the viewer
- * does not know - the HUD shows the galaxy panel in its place while nothing is selected): its name, star class, the
+ * is not shown - FCosmicKnownView::IsShown: known, or the sanctuary by its name; the HUD shows the galaxy panel in its
+ * place while nothing is selected): its name, star class, the
  * owner as OwnerLineOf says (a people the viewer is shown by name, any other as another people, or none, or destroyed)
  * and right after a shown owner that people's band (ST_CA Panel.People - section 8.3, never a number; none on a wild or
  * destroyed system or for an owner the viewer is not shown), the life of its world (ST_CA Panel.Life with one of twelve
- * words, CosmicUI::LifeLine - none on a destroyed system, and none on sol until v0.8 step 4 gives the sanctuary its own
- * lines), the hazard standing there with the time it has left (in the clock's unit - cycles
+ * words, CosmicUI::LifeLine - none on a destroyed system and none on the sanctuary, whose owner line says it is kept),
+ * the hazard standing there with the time it has left (in the clock's unit - cycles
  * or years, the controller's choice; the HUD redraws the panel when it changes), the construction and response slots
  * with their progress against what they need (not for an owner the viewer is not shown: they are its works) - on a slot
  * of the people the player rules followed by the paused mark
@@ -73,9 +74,10 @@ namespace CosmicSlotWatch
  * running already stands in the way (StartReasonOf); a row that does not belong there (an answer to no hazard standing
  * there, project_settle, ...) has no button. On every living known system that is not the people's a settle button -
  * greyed out, with the reason first in its tooltip and as a line under it, when CosmicMegaprojects::SettleBlockOf
- * refuses (where another people lives, Settle.Block.Owned names no people, whether the viewer is shown it or not).
- * Every command button's tooltip carries its cost after the reason (StartHintOf - none where another people lives or no
- * settle row exists): the cost refuses nothing (section 5.7). No commands while the vessel is not an embodied ruler. The
+ * refuses (where another people lives, Settle.Block.Owned names no people, whether the viewer is shown it or not; on the
+ * sanctuary, Settle.Block.Sanctuary).
+ * Every command button's tooltip carries its cost after the reason (StartHintOf - none where another people lives, on the
+ * sanctuary or where no settle row exists): the cost refuses nothing (section 5.7). No commands while the vessel is not an embodied ruler. The
  * buttons are built again only when the list of their actions changes; otherwise each keeps its object and takes its
  * label, state and tooltip in place - a click spans a press and a release, and a button built again between them drops
  * it. Built in C++ (no WBP).
@@ -95,8 +97,8 @@ public:
 	 * The owner line of State.Systems[SystemIndex] (section 6.3, 6.4), as CosmicMapLook::OwnerShownOf says: Panel.Owner
 	 * and the CivName of a shown owner; Panel.Owner and Panel.OtherOwner for a hidden one - a people lives there (the
 	 * settle button's Settle.Block.Owned says so too) but no name; Panel.NoOwner for none; Panel.Destroyed for a destroyed
-	 * system; empty for an index out of range and for a system the view does not know. (v0.8 step 4: the sanctuary's line
-	 * first.)
+	 * system; empty for an index out of range and for a system the view does not show. The sanctuary's line first:
+	 * Panel.Sanctuary, whatever else holds (section 4.5 (1), 6.3).
 	 */
 	static FText OwnerLineOf(const FGalaxyState& State, const FCosmicKnownView& View, int32 SystemIndex);
 
@@ -108,7 +110,7 @@ public:
 	bool IsReasonShown() const;
 	/**
 	 * The words of a reason a settlement is refused (ST_CA Settle.Block.*, the rung read from the settle row and the
-	 * sphere rule); empty for None, NoPeople and Dead, which no settle button shows.
+	 * sphere rule; Settle.Block.Sanctuary for the sanctuary); empty for None, NoPeople and Dead, which no settle button shows.
 	 */
 	static FText ReasonOf(CosmicMegaprojects::ECosmicSettleBlock Block, const FCosmicDataTables& Tables);
 
@@ -141,8 +143,9 @@ public:
 	/**
 	 * The words of the spiritual sight for a system (section 4.2, 6.4): the Title of Spirit.MarkRow - a title, never a
 	 * name, no number - in the words of its mark (ST_CA Sight.Claimed, Sight.Held, Sight.Pressed for the fallen one that
-	 * presses, Sight.Bound for the sealed holder alone; the particle by |hpp). Empty when nothing marks the system, when
-	 * the tables do not hold the row and when its Title is empty (a slip the schema refuses for a fallen row).
+	 * presses, Sight.Bound for the sealed holder alone; the particle by |hpp); for the sanctuary (Spirit.bSanctuary) the
+	 * words Sight.Sanctuary, that no pressure reaches it. Empty when nothing marks the system, when the tables do not hold
+	 * the row and when its Title is empty (a slip the schema refuses for a fallen row).
 	 */
 	static FText SpiritTipOf(const FCosmicSpiritLook& Spirit, const FCosmicDataTables& Tables);
 	/** The block of detail lines (tests read its text). */

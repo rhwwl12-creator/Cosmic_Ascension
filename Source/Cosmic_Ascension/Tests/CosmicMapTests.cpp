@@ -126,7 +126,7 @@ bool FCosmicUIGalaxyMapTest::RunTest(const FString& Parameters)
 		const FGalaxyState Saved = Sim->GetState();
 		Sim->NewGalaxy(7, 5, 3);
 		Map->RefreshNow();
-		TestEqual(TEXT("A new galaxy rebuilds the map"), Map->GetStars().Num(), 5);
+		TestEqual(TEXT("A new galaxy rebuilds the map: its five systems and the sanctuary"), Map->GetStars().Num(), 6);
 		Sim->LoadState(Saved);
 		Map->RefreshNow();
 		TestEqual(TEXT("A load rebuilds it as well"), Map->GetStars().Num(), Saved.Systems.Num());
@@ -137,7 +137,7 @@ bool FCosmicUIGalaxyMapTest::RunTest(const FString& Parameters)
 		Sim->NewGalaxy(42, 5, 3);
 		FGalaxyState Board = Sim->GetState();
 		const FCosmicDataTables& Tables = Sim->GetTables();
-		if (!TestTrue(TEXT("(the board has five systems and a people)"), Board.Systems.Num() == 5 && Board.Civs.Num() >= 1))
+		if (!TestTrue(TEXT("(the board has five systems and a people)"), CosmicTests::LivingSystems(Board) == 5 && Board.Civs.Num() >= 1))
 		{
 			return false;
 		}

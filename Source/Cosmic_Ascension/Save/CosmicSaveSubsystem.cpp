@@ -3,6 +3,8 @@
 #include "Save/CosmicSaveSubsystem.h"
 
 #include "Cosmic_Ascension.h"
+#include "Core/CosmicIDs.h"
+#include "Core/GalaxyState.h"
 #include "Engine/GameInstance.h"
 #include "Kismet/GameplayStatics.h"
 #include "Save/CosmicSaveGame.h"
@@ -88,6 +90,18 @@ bool UCosmicSaveSubsystem::LoadGalaxy(const FGuid& GalaxyID)
 		return false;
 	}
 	// Migration functions for SaveVersion < CurrentSaveVersion go here once a version bump exists (section 9.1).
+
+	// Every galaxy ends with the sanctuary, kept by Law.Hedge (section 4.5 (1)): no owner, hazard or project. A save from
+	// before v0.8 step 4 (sol was the first life's home then) or one whose sanctuary is not kept is refused - development
+	// saves are not carried over (no SaveVersion bump: no field changed).
+	const TArray<FStarSystemState>& Systems = Loaded->State.Systems;
+	const FStarSystemState* Last = Systems.IsEmpty() ? nullptr : &Systems.Last();
+	if (!Last || !CosmicState::IsSanctuary(Last->SystemID) || !Last->OwnerCivID.IsNone() || Last->ActiveHazard.IsValid()
+		|| !Last->ActiveMegaproject.IsNone() || !Last->ResponseMegaproject.IsNone())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("LoadGalaxy: slot %s does not end with a kept sanctuary (a save from before v0.8 step 4, or a broken one): start a new galaxy"), *SlotName);
+		return false;
+	}
 
 	Sim->LoadState(Loaded->State);
 	return true;

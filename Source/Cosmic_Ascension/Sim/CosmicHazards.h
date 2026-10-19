@@ -48,7 +48,8 @@ namespace CosmicHazards
 
 	/**
 	 * Places the hazard of the DT_Hazards row HazardRow on SystemIndex: the one path (section 7.4). The spawn draw, the
-	 * capital rule, the claim rule and the SpawnHazard effect all come here. Refused (false, nothing changed) unless the
+	 * capital rule, the claim rule and the SpawnHazard effect all come here. Refused (false, nothing changed) for the
+	 * sanctuary, whatever else holds (Law.Hedge, section 4.5 (1)), and unless the
 	 * row exists, the system is a settled system with a free slot and, for a Capital row, the capital of its owner.
 	 * Sets ActiveHazard to the row's HazardTag and HazardTicksRemaining to its CountdownTicks (read as at least 1) and
 	 * leaves a HazardPlaced note in Ctx.
@@ -68,7 +69,8 @@ namespace CosmicHazards
 
 	/**
 	 * Hands SystemIndex to the civilization ToCivIndex, or lets it go to no one when ToCivIndex is INDEX_NONE (section
-	 * 16 #29 (6)). Refused (false, nothing changed) for a dead node, for a system that already is the target's (an
+	 * 16 #29 (6)). Refused (false, nothing changed) for the sanctuary (Law.Hedge, section 4.5 (1)), for a dead node, for a
+	 * system that already is the target's (an
 	 * unowned one cannot be let go), and for the last settled system of its owner (IsLastSettledSystem): only stage code
 	 * behind the last-system gate takes that (section 4.5). What changes with the owner: the system leaves the old owner's OwnedSystems and joins
 	 * the end of the new owner's; both project slots end (the completion records stay); the hazard of a Capital
@@ -90,12 +92,13 @@ namespace CosmicHazards
 	COSMIC_ASCENSION_API void MoveCapital(FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex);
 
 	/**
-	 * Destroys SystemIndex (section 7.2, 16 #29 (5)): the owner lets it go - and with it its settlements under way when it
+	 * Destroys SystemIndex (section 7.2, 16 #29 (5)) - never the sanctuary (Law.Hedge, section 4.5 (1): nothing happens):
+	 * the owner lets it go - and with it its settlements under way when it
 	 * was the owner's last settled system (LetSettlementsGo) - and its capital moves; every lane to and from it
 	 * is cut, its star class, hazard and both project slots are cleared (the completion records stay), and it leaves every
 	 * sphere. A vessel standing there is carried away while the calling is Embodied and no KillPlayer is pending: a ruler
 	 * to the new capital of its people, anyone else (and a ruler whose people owns no capital any more) to the first lane
-	 * neighbour of the old Lanes that is not a dead node; with none it stays (section 16 #53 (2)). The stage that destroys
+	 * neighbour of the old Lanes that is neither a dead node nor the sanctuary; with none it stays (section 16 #53 (2), #81). The stage that destroys
 	 * asks the last-system gate first and records the collapse afterwards.
 	 */
 	COSMIC_ASCENSION_API void Destroy(FCosmicEvalContext& Ctx, int32 SystemIndex);

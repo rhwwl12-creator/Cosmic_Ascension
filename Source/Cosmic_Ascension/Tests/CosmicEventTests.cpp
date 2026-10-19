@@ -4,6 +4,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Core/CosmicIDs.h"
 #include "Core/CosmicSeed.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
@@ -763,7 +764,7 @@ bool FCosmicEventsSlotDrawsTest::RunTest(const FString& Parameters)
 		TArray<FName> Free;
 		for (FStarSystemState& System : State.Systems)
 		{
-			if (System.OwnerCivID.IsNone())
+			if (System.OwnerCivID.IsNone() && !CosmicState::IsSanctuary(System.SystemID))
 			{
 				System.OwnerCivID = Wide.CivID;
 				Free.Add(System.SystemID);
@@ -1155,7 +1156,7 @@ bool FCosmicEventsLotterySharesTest::RunTest(const FString& Parameters)
 		FCivilizationState& Civ = State.Civs[0];
 		for (FStarSystemState& System : State.Systems)
 		{
-			if (System.OwnerCivID.IsNone())
+			if (System.OwnerCivID.IsNone() && !CosmicState::IsSanctuary(System.SystemID))
 			{
 				System.OwnerCivID = Civ.CivID;
 				Civ.OwnedSystems.Add(System.SystemID);
@@ -1229,7 +1230,7 @@ bool FCosmicEventsLotterySharesTest::RunTest(const FString& Parameters)
 		FCivilizationState& Civ = State.Civs[0];
 		for (FStarSystemState& System : State.Systems)
 		{
-			if (System.OwnerCivID.IsNone())
+			if (System.OwnerCivID.IsNone() && !CosmicState::IsSanctuary(System.SystemID))
 			{
 				System.OwnerCivID = Civ.CivID;
 				Civ.OwnedSystems.Add(System.SystemID);
@@ -1366,7 +1367,7 @@ bool FCosmicEventsCooldownPerCivTest::RunTest(const FString& Parameters)
 		FCivilizationState& Civ = Mutable.Civs[0];
 		for (FStarSystemState& System : Mutable.Systems)
 		{
-			if (System.OwnerCivID.IsNone())
+			if (System.OwnerCivID.IsNone() && !CosmicState::IsSanctuary(System.SystemID))
 			{
 				System.OwnerCivID = Civ.CivID;
 				Civ.OwnedSystems.Add(System.SystemID);
@@ -1460,7 +1461,7 @@ bool FCosmicEventsConditionGateTest::RunTest(const FString& Parameters)
 			FCivilizationState& Civ = State.Civs[0];
 			for (FStarSystemState& System : State.Systems)
 			{
-				if (System.OwnerCivID.IsNone())
+				if (System.OwnerCivID.IsNone() && !CosmicState::IsSanctuary(System.SystemID))
 				{
 					System.OwnerCivID = Civ.CivID;
 					Civ.OwnedSystems.Add(System.SystemID);

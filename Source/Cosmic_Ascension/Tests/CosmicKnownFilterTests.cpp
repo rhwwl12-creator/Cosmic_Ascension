@@ -12,6 +12,7 @@
 #include "Components/SlateWrapperTypes.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextBlock.h"
+#include "Core/CosmicIDs.h"
 #include "Core/CosmicSeed.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
@@ -145,10 +146,11 @@ namespace CosmicKnownFilterTests
 	};
 
 	// The board of UI.KnownFilter (section 6.4): twelve systems wired as CosmicTests::WireChain, four peoples, two test
-	// fallen ones; known 0, 2, 3, 5, 6, 8, 9 and met R, F, A in that order. False when the state does not have the shape.
+	// fallen ones; known 0, 2, 3, 5, 6, 8, 9 and met R, F, A in that order; the sanctuary after them (index 12), as the
+	// generation leaves it. False when the state does not have the shape.
 	bool MakeBoard(FGalaxyState& Live, const FCosmicStateIndex& Index, FBoardPeoples& Out)
 	{
-		if (Live.Systems.Num() != 12 || Live.Civs.Num() != 4)
+		if (CosmicTests::LivingSystems(Live) != 12 || Live.Civs.Num() != 4)
 		{
 			return false;
 		}
@@ -165,6 +167,7 @@ namespace CosmicKnownFilterTests
 			System.ResponseProgress = 0.f;
 			System.StarClass = Tag(TEXT("Star.Class.G"));
 		}
+		// WireChain links the first twelve; the sanctuary keeps no lane.
 		Live.Systems[5].StarClass = Tag(TEXT("Star.Class.O"));
 		Live.Systems[4].StarClass = Tag(TEXT("Star.Class.K"));
 		Out.R = Index.FindCiv(Live, Live.Player.RuledCivID);
@@ -561,6 +564,56 @@ bool FCosmicUIKnownFilterTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Under see-all a people not met follows the met ones"), SeeAll.ShownOrderOf(P.U), 3);
 	TestEqual(TEXT("Under see-all a people far above is shown"), SeeAll.ShownOrderOf(P.F), 1);
 
+	// ---- 1.3b The sanctuary: shown by its name alone, never known (section 4.5 (1), 6.4) ----
+	{
+		const int32 Sanctuary = PureIndex.FindSystem(Pure, CosmicIDs::Sanctuary);
+		if (TestEqual(TEXT("(the board's sanctuary follows its twelve systems)"), Sanctuary, 12))
+		{
+			int32 ByName = 0;
+			int32 ShownCount = 0;
+			for (int32 At = 0; At < Pure.Systems.Num(); ++At)
+			{
+				ByName += View.IsShownByName(At) ? 1 : 0;
+				ShownCount += View.IsShown(At) ? 1 : 0;
+			}
+			TestEqual(TEXT("The view shows one system by its name alone"), ByName, 1);
+			TestTrue(TEXT("the sanctuary"), View.IsShownByName(Sanctuary) && !View.IsKnown(Sanctuary) && View.IsShown(Sanctuary));
+			TestEqual(TEXT("It is shown beside the known systems"), ShownCount, static_cast<int32>(UE_ARRAY_COUNT(KnownOnBoard)) + 1);
+			TestFalse(TEXT("(Knowing does not hold it)"), Pure.Knowing.KnownSystems.ContainsByPredicate([](const FKnownMark& Mark) { return Mark.ID == CosmicIDs::Sanctuary; }));
+			TestTrue(TEXT("Under see-all it is shown by its name too"), SeeAll.IsShownByName(Sanctuary) && SeeAll.IsKnown(Sanctuary));
+			TestFalse(TEXT("An index out of range is not shown by name"), View.IsShownByName(99) || View.IsShownByName(-1));
+
+			// Its look: its name and its star, nothing the viewer could have learned - even a state that broke the law.
+			FGalaxyState Broken = Pure;
+			Broken.Systems[Sanctuary].OwnerCivID = Broken.Civs[P.R].CivID;
+			Broken.Systems[Sanctuary].ActiveHazard = Tag(TEXT("Hazard.AIAwakening"));
+			Broken.Systems[Sanctuary].ActiveMegaproject = CosmicRows::ProjectSettle;
+			const FCosmicSystemLook WorldLook = LookOf(Broken, Tables, Sanctuary);
+			const FCosmicSystemLook ByNameLook = ShownLookOf(WorldLook, Broken, View, Sanctuary);
+			TestTrue(TEXT("The sanctuary's look is shown"), ByNameLook.bKnown);
+			TestTrue(TEXT("with its name"), !ByNameLook.Name.IsEmpty() && ByNameLook.Name.EqualTo(Pure.Systems[Sanctuary].DisplayName));
+			TestTrue(TEXT("and its star"), ByNameLook.StarColor.Equals(WorldLook.StarColor) && ByNameLook.StarScale == WorldLook.StarScale);
+			TestTrue(TEXT("and nothing else: no owner, ring colour, hazard, settling or bars"), !ByNameLook.bOwned && ByNameLook.OwnerColor == FLinearColor::Black
+				&& !ByNameLook.bHazard && !ByNameLook.bSettling && ByNameLook.ConstructionShare == -1.f && ByNameLook.ResponseShare == -1.f && !ByNameLook.bDead);
+			TestTrue(TEXT("Its owner is never told"), CosmicMapLook::OwnerShownOf(Broken, View, Sanctuary) == ECosmicOwnerShown::None);
+
+			// A lane to it is drawn when its other end is known (v0.8 step 5 may give it lanes), not toward an unknown one.
+			const TArray<TPair<int32, int32>> ToSanctuary = { TPair<int32, int32>(0, Sanctuary), TPair<int32, int32>(1, Sanctuary) };
+			const TArray<TPair<int32, int32>> Drawn = CosmicMapLook::KnownLanesOf(ToSanctuary, View);
+			TestTrue(TEXT("A lane between a known system and the sanctuary is drawn, none toward an unknown one"), Drawn.Num() == 1 && Drawn[0].Key == 0);
+
+			// The sight: no colour, no pressure, no mark, even inside a sphere; its words say that no pressure reaches it.
+			FGalaxyState Held = Pure;
+			Held.Transcendents[0].InfluencedSystems.Add(CosmicIDs::Sanctuary);
+			const FCosmicSpiritLook Spirit = CosmicMapLook::SpiritOf(Held, PureIndex, Tables, Sim->GetRules(), Sanctuary);
+			TestTrue(TEXT("The sight marks the sanctuary as itself"), Spirit.bSanctuary);
+			TestTrue(TEXT("with no pressure, colour, claim, ring or mark, inside a sphere too"), Spirit.Pressure == 0.f && Spirit.DominionColor == FLinearColor::Black
+				&& Spirit.ClaimState == ECosmicClaimState::None && !Spirit.bSealedRing && Spirit.MarkRow.IsNone());
+			TestFalse(TEXT("(another system of that sphere is held: the control)"), CosmicMapLook::SpiritOf(Held, PureIndex, Tables, Sim->GetRules(), 3).bSanctuary);
+			TestEqual(TEXT("Its words say that no pressure reaches it"), UCosmicSystemPanelWidget::SpiritTipOf(Spirit, Tables).ToString(), Words(TEXT("Sight.Sanctuary")));
+		}
+	}
+
 	// ---- 1.4 A gone people keeps its place ----
 	{
 		FGalaxyState Gone = Pure;
@@ -781,12 +834,12 @@ bool FCosmicUIKnownFilterTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("No line is drawn in a colour of the state"), StateColoured, 0);
 		TestEqual(TEXT("A known system of an unmet people has no ring"), RingOf(*Map, 3).Num(), 0);
 
-		// Labels near, spheres, applied looks.
+		// Labels near, spheres, applied looks: a system is shown when the viewer knows it, and the sanctuary by its name.
 		for (int32 At = 0; At < Board.Systems.Num(); ++At)
 		{
-			const bool bKnown = View.IsKnown(At);
+			const bool bKnown = View.IsShown(At);
 			const ACosmicStarSystemActor* Star = Map->GetStars()[At].Get();
-			TestEqual(*FString::Printf(TEXT("Star %d's label shows near as the viewer knows it"), At), Star && Star->IsLabelVisible(), bKnown);
+			TestEqual(*FString::Printf(TEXT("Star %d's label shows near as the viewer is shown it"), At), Star && Star->IsLabelVisible(), bKnown);
 			if (bKnown)
 			{
 				TestTrue(*FString::Printf(TEXT("Star %d's sphere shows"), At), SphereShows(*Map, At));
@@ -923,6 +976,10 @@ bool FCosmicUIKnownFilterTest::RunTest(const FString& Parameters)
 		{
 			TestTrue(*FString::Printf(TEXT("Star %d, which the viewer knows, is a pick target"), At), IsCandidate(IdOf(At)));
 		}
+		TestTrue(TEXT("The sanctuary, shown by its name, is a pick target"), IsCandidate(CosmicIDs::Sanctuary));
+		Controller->SelectSystem(CosmicIDs::Sanctuary);
+		TestEqual(TEXT("and it can be selected"), Controller->GetSelectedSystem(), CosmicIDs::Sanctuary);
+		Controller->SelectSystem(IdOf(3));
 		const FVector2D FourAt(Board.Systems[4].Position.X, Board.Systems[4].Position.Y);
 		TArray<FCosmicScreenTarget> Targets;
 		for (const FCosmicPickCandidate& Candidate : Candidates)
@@ -1062,9 +1119,27 @@ bool FCosmicUIKnownFilterTest::RunTest(const FString& Parameters)
 			Panel->ShowSystem(IdOf(At));
 			TestTrue(*FString::Printf(TEXT("The panel's word is the run's seed's on system %d"), At), DetailLines(*Panel).Contains(LifeWordLine(Board.Seed, IdOf(At))));
 		}
-		TestEqual(TEXT("(system 0 is sol)"), IdOf(0), FName(TEXT("sol")));
+		TestEqual(TEXT("(system 0 is sys_0, the first life's home)"), IdOf(0), CosmicIDs::FirstHome);
 		Panel->ShowSystem(IdOf(0));
-		TestFalse(TEXT("(interim until v0.8 step 4) sol shows no life line"), DetailLines(*Panel).ContainsByPredicate([](const FString& Line) { return Line.StartsWith(Words(TEXT("Panel.Life"))); }));
+		TestTrue(TEXT("The first life's home shows the life of its world"), DetailLines(*Panel).Contains(LifeWordLine(Board.Seed, IdOf(0))));
+
+		// The sanctuary's own panel (section 6.3): open though Knowing does not hold it; kept, with no owner, people or life
+		// line; its settle button greyed for the sanctuary's reason, with no cost after it.
+		Panel->ShowSystem(CosmicIDs::Sanctuary);
+		{
+			const TArray<FString> Lines = DetailLines(*Panel);
+			TestTrue(TEXT("The sanctuary's panel opens though Knowing does not hold it"), Panel->GetVisibility() != ESlateVisibility::Collapsed);
+			TestTrue(TEXT("It names the sanctuary"), ReadTexts(*Panel).Contains(Board.Systems.Last().DisplayName.ToString()));
+			TestTrue(TEXT("and says it is kept"), Lines.Contains(Words(TEXT("Panel.Sanctuary"))));
+			TestFalse(TEXT("with no owner line"), Lines.ContainsByPredicate([](const FString& Line) { return Line.StartsWith(Words(TEXT("Panel.Owner"))) || Line == Words(TEXT("Panel.NoOwner")); }));
+			TestFalse(TEXT("no people line"), AnyPeopleLine(Lines));
+			TestFalse(TEXT("and no life line"), Lines.ContainsByPredicate([](const FString& Line) { return Line.StartsWith(Words(TEXT("Panel.Life"))); }));
+			TestTrue(TEXT("Its settle button gives the sanctuary's reason"), Panel->GetShownSettleBlock() == CosmicMegaprojects::ECosmicSettleBlock::Sanctuary);
+			const UCosmicActionButton* Settle = Panel->GetActionButtons().Num() == 1 ? Panel->GetActionButtons()[0].Get() : nullptr;
+			TestTrue(TEXT("greyed out"), Settle && !Settle->GetIsEnabled());
+			TestEqual(TEXT("its tooltip is the reason alone: no cost"), Settle ? Settle->GetToolTipText().ToString() : FString(), Words(TEXT("Settle.Block.Sanctuary")));
+			TestTrue(TEXT("and the reason line says it"), ReadTexts(*Panel).Contains(Words(TEXT("Settle.Block.Sanctuary"))));
+		}
 		{
 			FGalaxyState Later = Board;
 			Later.Tick += 7;
@@ -1221,6 +1296,12 @@ bool FCosmicUIKnownFilterTest::RunTest(const FString& Parameters)
 		Refreshed();
 		for (int32 At = 0; At < Live.Systems.Num(); ++At)
 		{
+			// The sanctuary is drawn by its name, not known: no line about it is told (none is ever about it).
+			if (CosmicState::IsSanctuary(IdOf(At)))
+			{
+				TestTrue(TEXT("The sanctuary is drawn by its name, and no line about it is told"), SphereShows(*Map, At) && !Told(IdOf(At), NAME_None));
+				continue;
+			}
 			TestEqual(*FString::Printf(TEXT("For system %d, the map knows it exactly when a line about it is told"), At), SphereShows(*Map, At), Told(IdOf(At), NAME_None));
 		}
 		Log->SetTellAll(true);
@@ -1548,16 +1629,18 @@ bool FCosmicUIBackdropTest::RunTest(const FString& Parameters)
 		int32 MisLit = 0;
 		int32 MisHidden = 0;
 		int32 KnownCount = 0;
+		int32 ShownCount = 0;
 		const FCosmicKnownView View = Controller->GetKnownView();
 		for (int32 At = 0; At < State.Systems.Num(); ++At)
 		{
 			FTransform Transform;
 			Misplaced += (Backdrop->GetInstanceTransform(Count + At, Transform, true) && Transform.GetLocation().Equals(State.Systems[At].Position, 0.01)) ? 0 : 1;
-			if (View.IsKnown(At))
+			if (View.IsShown(At))
 			{
-				++KnownCount;
-				TestEqual(TEXT("The known system's slot is dark"), GlowOf(*Backdrop, Count + At), 0.f);
-				TestTrue(TEXT("and the known one shows"), SphereShows(*Map, At));
+				++ShownCount;
+				KnownCount += View.IsKnown(At) ? 1 : 0;
+				TestEqual(TEXT("A shown system's slot is dark (known, or the sanctuary by its name)"), GlowOf(*Backdrop, Count + At), 0.f);
+				TestTrue(TEXT("and the shown one's star shows"), SphereShows(*Map, At));
 			}
 			else
 			{
@@ -1567,6 +1650,7 @@ bool FCosmicUIBackdropTest::RunTest(const FString& Parameters)
 		}
 		TestEqual(TEXT("Every slot stands at its system's place"), Misplaced, 0);
 		TestEqual(TEXT("(the game's galaxy knows one system at the start)"), KnownCount, 1);
+		TestEqual(TEXT("and shows one more by its name alone, the sanctuary"), ShownCount, 2);
 		TestEqual(TEXT("Every unknown system's slot glows its own law"), MisLit, 0);
 		TestEqual(TEXT("Every unknown system's sphere is hidden"), MisHidden, 0);
 
@@ -1578,7 +1662,7 @@ bool FCosmicUIBackdropTest::RunTest(const FString& Parameters)
 		CosmicTests::KnowAll(Sim->GetMutableState());
 		Map->RequestRefresh();
 		Map->RefreshNow();
-		TestEqual(TEXT("(the refresh wrote each flipped slot once)"), Map->GetSlotWrites(), WritesBefore + State.Systems.Num() - KnownCount);
+		TestEqual(TEXT("(the refresh wrote each flipped slot once)"), Map->GetSlotWrites(), WritesBefore + State.Systems.Num() - ShownCount);
 		int32 StillLit = 0;
 		int32 StillHidden = 0;
 		for (int32 At = 0; At < State.Systems.Num(); ++At)

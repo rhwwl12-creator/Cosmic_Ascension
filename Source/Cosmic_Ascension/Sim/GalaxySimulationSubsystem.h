@@ -90,25 +90,27 @@ public:
 
 	/**
 	 * Replaces the state with a new home galaxy generated from Seed and the definition tables, then installs the first
-	 * life as the ruler of the player's people (DT_Rules.PlayerArchetypeRow, home system "sol") through
-	 * UPlayerRoleSubsystem::Install (section 5.10, 7.4).
+	 * life as the ruler of the player's people (DT_Rules.PlayerArchetypeRow, home system CosmicIDs::FirstHome "sys_0")
+	 * through UPlayerRoleSubsystem::Install (section 5.10, 7.4).
 	 *
 	 * Numbers. A count of 0 or less is read from the home row (GetHomeGalaxy: LivingWorlds, Peoples), so no caller
 	 * keeps a copy of those numbers. Systems: at least 1, and no upper bound here (the actor budget of 150 belongs to
-	 * the presentation layer). Peoples: at least 1, at most the number of systems.
+	 * the presentation layer). Peoples: at least 1, at most the number of systems. The sanctuary is not counted: the
+	 * state holds SystemCount + 1 systems.
 	 *
-	 * What it makes. Systems "sol" and "sys_<n>", civilizations "civ_<n>" from State.NextCivSerial, no padding; every
-	 * system and civilization carries DT_Rules.HomeGalaxyRow in GalaxyRow. sol lies at HomeRadiusShare of the disc
-	 * radius, angle 0; every other system at a point drawn in the square and thrown away while it lies outside the
-	 * disc, at most 16 tries, the sixteenth halved when it misses too. No trigonometry: only + - x / and the square
-	 * root reach a hashed value (section 9.2). Lanes join systems of the one galaxy. One lane neighbour of sol is the
-	 * home of the first AI people. Names are final and flattened here: nothing is named later.
+	 * What it makes. Systems "sys_<n>" (n = the array index, sys_0 the first life's home) and the sanctuary "sol" at the
+	 * end of the array, civilizations "civ_<n>" from State.NextCivSerial, no padding; every system and civilization
+	 * carries DT_Rules.HomeGalaxyRow in GalaxyRow. sys_0 lies at HomeRadiusShare of the disc radius, angle 0; every other
+	 * living system at a point drawn in the square and thrown away while it lies outside the disc, at most 16 tries, the
+	 * sixteenth halved when it misses too. No trigonometry: only + - x / and the square root reach a hashed value
+	 * (section 9.2). Lanes join systems of the one galaxy. One lane neighbour of sys_0 is the home of the first AI
+	 * people. Names are final and flattened here: nothing is named later.
 	 *
 	 * The draws, in this order and no other (section 9.2). Kinds of draw are made in blocks:
-	 * 1. Per system, in array order: its place (none for sol; two draws per try), its star class (one draw against
-	 *    DT_Rules.LivingWorldStarShares), its richness (one draw). sol draws both too; its richness is always 1, and
-	 *    the home of any people whose archetype has a HomeStarClass takes that class instead of the one it drew.
-	 * 2. Homes: the first AI people among the lane neighbours of sol (one draw, none when there is one people), then
+	 * 1. Per living system, in array order: its place (none for sys_0; two draws per try), its star class (one draw
+	 *    against DT_Rules.LivingWorldStarShares), its richness (one draw). sys_0 draws both too; its richness is always
+	 *    1, and the home of any people whose archetype has a HomeStarClass takes that class instead of the one it drew.
+	 * 2. Homes: the first AI people among the lane neighbours of sys_0 (one draw, none when there is one people), then
 	 *    one draw per further AI people among the systems still free.
 	 * 3. Per AI people, in CivID order: archetype (one draw over the DT_Civs rows of positive Weight in row-name
 	 *    order), ethics (three draws: pacifism, spiritualism, openness), AI profile (one draw).
@@ -123,11 +125,14 @@ public:
 	 *    and Independent rows get no instance.
 	 * 6. Starting cores (section 5.7): one draw per place of the roster. An instance whose row has
 	 *    InitialInfluencedSystems above 0 gets one system: an unowned system at least
-	 *    DT_Rules.FallenCoreMinLanesFromHome lanes from sol, one lane from the home of an AI people and in no sphere
+	 *    DT_Rules.FallenCoreMinLanesFromHome lanes from sys_0, one lane from the home of an AI people and in no sphere
 	 *    yet, picked among the candidates in array order. Without a candidate: the unowned system in no sphere that
-	 *    lies farthest from sol in lanes, the lowest SystemID (FNameLexicalLess) among equals. Without an unowned
+	 *    lies farthest from sys_0 in lanes, the lowest SystemID (FNameLexicalLess) among equals. Without an unowned
 	 *    system the sphere starts empty.
-	 * 7. The first life: the name of the vessel (one draw, in Install).
+	 * 7. The first life: the name of the vessel (one draw, in Install), after the sanctuary has joined the array.
+	 * The sanctuary (rule 11 of the generation, section 4.5 (1)) draws nothing: after the cores it joins the end of the
+	 * array as CosmicIDs::Sanctuary - no lane, at 1.15 x the disc radius and angle 0, star class G, richness 0, the name
+	 * of ST_CA System.Sanctuary, no owner, hazard, project, sphere or core.
 	 * Every draw is made whether or not it is used: a people whose archetype has fixed ethics, a profile or an empty
 	 * bank, a place of the roster without an instance, a row without a core all draw and throw the number away. The
 	 * number of draws therefore follows Seed, the two counts and the roster knob, never what the tables hold: adding

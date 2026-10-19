@@ -8,6 +8,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Core/CosmicIDs.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
@@ -54,6 +55,7 @@ namespace CosmicSystemPanelImpl
 	// The String Table key of each reason, in the order of ECosmicSettleBlock (None, NoPeople and Dead show no button).
 	const TCHAR* const SettleBlockKeys[] = {
 		nullptr,
+		TEXT("Settle.Block.Sanctuary"),
 		nullptr,
 		TEXT("Settle.Block.Owned"),
 		nullptr,
@@ -413,8 +415,16 @@ FText UCosmicSystemPanelWidget::OwnerLineOf(const FGalaxyState& State, const FCo
 {
 	using CosmicUI::Label;
 
-	// (v0.8 step 4: the sanctuary's line first.)
-	if (!State.Systems.IsValidIndex(SystemIndex) || !View.IsKnown(SystemIndex))
+	if (!State.Systems.IsValidIndex(SystemIndex) || !View.IsShown(SystemIndex))
+	{
+		return FText::GetEmpty();
+	}
+	// The sanctuary's line first: it is kept, and belongs to no people (section 4.5 (1), 6.3).
+	if (CosmicState::IsSanctuary(State.Systems[SystemIndex].SystemID))
+	{
+		return Label(TEXT("Panel.Sanctuary"));
+	}
+	if (!View.IsKnown(SystemIndex))
 	{
 		return FText::GetEmpty();
 	}
@@ -467,6 +477,11 @@ FText UCosmicSystemPanelWidget::ReasonOf(CosmicMegaprojects::ECosmicSettleBlock 
 
 FText UCosmicSystemPanelWidget::SpiritTipOf(const FCosmicSpiritLook& Spirit, const FCosmicDataTables& Tables)
 {
+	// No pressure reaches the sanctuary (Law.Hedge, section 4.5 (1)).
+	if (Spirit.bSanctuary)
+	{
+		return CosmicUI::Label(TEXT("Sight.Sanctuary"));
+	}
 	const FTranscendentDef* Row = Spirit.MarkRow.IsNone() ? nullptr : Tables.FindTranscendent(Spirit.MarkRow);
 	if (!Row || Row->Title.IsEmpty())
 	{
@@ -523,9 +538,9 @@ void UCosmicSystemPanelWidget::Refresh()
 	ShownStartBlocks.Reset();
 	// The spiritual sight's words for the shown system (section 6.4): a line of their own and its tooltip.
 	FText SpiritWords;
-	// The panel's gate of knowledge (v0.8 step 4: the sanctuary's shown-by-name bit of the view opens it too - its own
+	// The panel's gate of knowledge: a known system, or the sanctuary by its name (the view's ShownByName - its own
 	// panel, section 6.3).
-	if (State.Systems.IsValidIndex(SystemIndex) && View.IsKnown(SystemIndex))
+	if (State.Systems.IsValidIndex(SystemIndex) && View.IsShown(SystemIndex))
 	{
 		// The box takes the clicks on it (NativeOnMouseButtonDown); the panel's empty area does not.
 		SetVisibility(ESlateVisibility::SelfHitTestInvisible);
@@ -558,7 +573,8 @@ void UCosmicSystemPanelWidget::Refresh()
 			{
 				Lines.Add(PeopleLine(Sim->GetPopulationBand(State.Civs[OwnerIndex].CivID)));
 			}
-			// The life of the world (section 5.7), after the people: the world's other life (empty on sol until v0.8 step 4).
+			// The life of the world (section 5.7), after the people: the world's other life (none on the sanctuary, whose
+			// owner line says it is kept).
 			const FText Life = LifeLine(State.Seed, System.SystemID);
 			if (!Life.IsEmpty())
 			{
@@ -634,10 +650,11 @@ void UCosmicSystemPanelWidget::Refresh()
 			// lives there, no settle row).
 			ShownSettleBlock = CosmicMegaprojects::SettleBlockOf(State, Index, Tables, Sim->GetRules(), RuledIndex, SystemIndex);
 			const FText Reason = ReasonOf(ShownSettleBlock, Tables);
-			// A reason added to ECosmicSettleBlock decides here whether its button shows the cost (v0.8 step 4: the
-			// sanctuary's reason shows none, as Owned and NoRow - guideline 6.3).
-			static_assert(static_cast<int32>(CosmicMegaprojects::ECosmicSettleBlock::Count) == 10, "A new settle reason: decide whether its settle button shows the cost line (the sanctuary: no)");
-			const bool bHint = ShownSettleBlock != CosmicMegaprojects::ECosmicSettleBlock::Owned && ShownSettleBlock != CosmicMegaprojects::ECosmicSettleBlock::NoRow;
+			// A reason added to ECosmicSettleBlock decides here whether its button shows the cost: the sanctuary's shows
+			// none, as Owned and NoRow (guideline 6.3).
+			static_assert(static_cast<int32>(CosmicMegaprojects::ECosmicSettleBlock::Count) == 11, "A new settle reason: decide whether its settle button shows the cost line");
+			const bool bHint = ShownSettleBlock != CosmicMegaprojects::ECosmicSettleBlock::Owned && ShownSettleBlock != CosmicMegaprojects::ECosmicSettleBlock::NoRow
+				&& ShownSettleBlock != CosmicMegaprojects::ECosmicSettleBlock::Sanctuary;
 			Wanted.Add({ CosmicRows::ProjectSettle, Label(TEXT("Panel.Settle")), Reason,
 				JoinLines({ Reason, bHint ? StartHintOf(Tables, CosmicRows::ProjectSettle, System, Unit) : FText::GetEmpty() }) });
 		}

@@ -3,6 +3,7 @@
 #include "Sim/CosmicMegaprojects.h"
 
 #include "Containers/ContainerAllocationPolicies.h"
+#include "Core/CosmicIDs.h"
 #include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
@@ -124,7 +125,7 @@ namespace CosmicMegaprojectsImpl
 	}
 
 	// Whether SystemIndex is a target of the people CivIndex, whatever MaySettle and the row say: a wild system (no
-	// owner, not a dead node) with a foothold of the people, that no sphere refuses it.
+	// owner, not a dead node, not the sanctuary) with a foothold of the people, that no sphere refuses it.
 	bool IsTargetOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, int32 CivIndex, int32 SystemIndex)
 	{
 		if (!State.Systems.IsValidIndex(SystemIndex))
@@ -132,7 +133,8 @@ namespace CosmicMegaprojectsImpl
 			return false;
 		}
 		const FStarSystemState& Target = State.Systems[SystemIndex];
-		return Target.OwnerCivID.IsNone() && !CosmicHazards::IsDeadNode(Target) && HasFoothold(State, Index, CivIndex, Target) && !SphereRefuses(State, Tables, CivIndex, Target);
+		return !CosmicState::IsSanctuary(Target.SystemID) && Target.OwnerCivID.IsNone() && !CosmicHazards::IsDeadNode(Target)
+			&& HasFoothold(State, Index, CivIndex, Target) && !SphereRefuses(State, Tables, CivIndex, Target);
 	}
 
 	// How many systems the people CivIndex owns (settled or being settled); bAnySettled says whether one is settled.
@@ -397,6 +399,11 @@ CosmicMegaprojects::ECosmicSettleBlock CosmicMegaprojects::SettleBlockOf(const F
 {
 	using namespace CosmicMegaprojectsImpl;
 
+	// Law.Hedge (section 4.5 (1)): the first reason, whoever asks.
+	if (State.Systems.IsValidIndex(SystemIndex) && CosmicState::IsSanctuary(State.Systems[SystemIndex].SystemID))
+	{
+		return ECosmicSettleBlock::Sanctuary;
+	}
 	if (!State.Civs.IsValidIndex(CivIndex) || !State.Systems.IsValidIndex(SystemIndex))
 	{
 		return ECosmicSettleBlock::NoPeople;
@@ -515,10 +522,11 @@ CosmicMegaprojects::ECosmicSettleBlock CosmicMegaprojects::PeopleSettleBlockOf(c
 		return ECosmicSettleBlock::Settling;
 	}
 	// What surrounds the people: the candidates of SettleTargets, each read by SettleBlockOf itself (one rule with the
-	// panel). Past the people's reasons only Owned, Dead, NoLane (a foothold of another galaxy row), Sphere or None can come.
-	// A reason added to ECosmicSettleBlock takes its rank here, or it scores 0 and a people boxed in by it reads NoLane
-	// (v0.8 step 4: the sanctuary's reason ranks below Sphere, beside Owned - guideline 5.7).
-	static_assert(static_cast<int32>(ECosmicSettleBlock::Count) == 10, "A new settle reason: give it its rank among a people's neighbour reasons (the sanctuary: below Sphere, beside Owned)");
+	// panel). Past the people's reasons only Sanctuary, Owned, Dead, NoLane (a foothold of another galaxy row), Sphere or
+	// None can come. A reason added to ECosmicSettleBlock takes its rank here, or it scores 0 and a people boxed in by it
+	// reads NoLane. The sanctuary scores 0 on purpose: it is never a target and gives a people no reason of its own, so a
+	// people whose only neighbour it is has no lane to settle by (it has no lane before v0.8 step 5).
+	static_assert(static_cast<int32>(ECosmicSettleBlock::Count) == 11, "A new settle reason: give it its rank among a people's neighbour reasons (the sanctuary scores 0 on purpose)");
 	auto Strength = [](ECosmicSettleBlock Block)
 	{
 		return Block == ECosmicSettleBlock::Sphere ? 4 : Block == ECosmicSettleBlock::Owned ? 3 : Block == ECosmicSettleBlock::Dead ? 2 : Block == ECosmicSettleBlock::NoLane ? 1 : 0;

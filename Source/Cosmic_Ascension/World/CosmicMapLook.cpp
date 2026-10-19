@@ -4,6 +4,7 @@
 
 #include "Containers/Map.h"
 #include "Containers/Set.h"
+#include "Core/CosmicIDs.h"
 #include "Core/CosmicSeed.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
@@ -228,12 +229,17 @@ FCosmicSpiritLook CosmicMapLook::SpiritOf(const FGalaxyState& State, const FCosm
 	using namespace CosmicMapLookImpl;
 
 	FCosmicSpiritLook Spirit;
-	// (v0.8 step 4: the sanctuary comes first here - no colour, no pressure.)
 	if (!State.Systems.IsValidIndex(SystemIndex) || CosmicHazards::IsDeadNode(State.Systems[SystemIndex]))
 	{
 		return Spirit;
 	}
 	const FStarSystemState& System = State.Systems[SystemIndex];
+	// The sanctuary first (Law.Hedge, section 4.5 (1)): no colour, no pressure, no mark.
+	if (CosmicState::IsSanctuary(System.SystemID))
+	{
+		Spirit.bSanctuary = true;
+		return Spirit;
+	}
 
 	// The holders: the first fallen instance whose sphere holds the system, unsealed and sealed apart (an instance
 	// without a row counts for nothing).
@@ -378,6 +384,13 @@ FCosmicKnownView CosmicMapLook::KnownViewOf(const FGalaxyState& State, const FCo
 	FCosmicKnownView View;
 	View.bSeeAll = bSeeAll;
 	View.Known.Init(bSeeAll, State.Systems.Num());
+	// The sanctuary is shown by its name alone, whatever Knowing holds (section 4.5 (1)): never written there.
+	View.ShownByName.Init(false, State.Systems.Num());
+	const int32 Sanctuary = Index.FindSystem(State, CosmicIDs::Sanctuary);
+	if (View.ShownByName.IsValidIndex(Sanctuary))
+	{
+		View.ShownByName[Sanctuary] = true;
+	}
 	if (!bSeeAll)
 	{
 		for (const FKnownMark& Mark : State.Knowing.KnownSystems)
@@ -438,10 +451,18 @@ FCosmicSystemLook CosmicMapLook::ShownLookOf(const FCosmicSystemLook& World, con
 
 	FCosmicSystemLook Unknown;
 	Unknown.bKnown = false;
-	// (v0.8 step 4: the sanctuary first here, through the view - always shown, by its name only.)
-	if (!State.Systems.IsValidIndex(SystemIndex) || !View.IsKnown(SystemIndex))
+	if (!State.Systems.IsValidIndex(SystemIndex) || !View.IsShown(SystemIndex))
 	{
 		return Unknown;
+	}
+	// Shown by its name alone (the sanctuary): its name and its star, nothing the viewer could have learned.
+	if (!View.IsKnown(SystemIndex))
+	{
+		FCosmicSystemLook ByName;
+		ByName.Name = World.Name;
+		ByName.StarColor = World.StarColor;
+		ByName.StarScale = World.StarScale;
+		return ByName;
 	}
 	FCosmicSystemLook Look = World;
 	Look.bKnown = true;
@@ -470,7 +491,7 @@ TArray<TPair<int32, int32>> CosmicMapLook::KnownLanesOf(const TArray<TPair<int32
 	Known.Reserve(Lanes.Num());
 	for (const TPair<int32, int32>& Lane : Lanes)
 	{
-		if (View.IsKnown(Lane.Key) && View.IsKnown(Lane.Value))
+		if (View.IsShown(Lane.Key) && View.IsShown(Lane.Value))
 		{
 			Known.Add(Lane);
 		}

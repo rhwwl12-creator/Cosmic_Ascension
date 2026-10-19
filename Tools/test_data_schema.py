@@ -914,10 +914,12 @@ class SchemaTests(unittest.TestCase):
 
         def add_row(tables):
             tables["DT_Civs"].append(civ_row(tables["DT_Civs"][0], "arch_test_row", RevelationMode="Revelation.Book", Traits=tags_text(
-                "Trait.Arch.Terran", "Trait.Society.Divided", "Trait.Faith.Book", "Trait.Biology.Shortlived")))
+                "Trait.Arch.Terran", "Trait.Society.Divided", "Trait.Faith.Book", "Trait.Biology.Shortlived"),
+                DedicationBanks=["Faith.Bank.Hebrew", "Faith.Bank.Civic"]))
         broken = lambda when, then: self.expect(self.after(add_row, rule(when, then)), "a rule of the test")  # noqa: E731
         holds = lambda when, then: self.assertEqual(self.after(add_row, rule(when, then)), [])  # noqa: E731
-        # The row the cases read is built here: Weight 0, no AI profile, four traits, empty banks, one home system name.
+        # The row the cases read is built here: Weight 0, no AI profile, four traits, empty name banks, two dedication banks,
+        # one home system name.
         terran = [{"row": "arch_test_row"}]
         holds(terran, [{"col": "Weight", "lt": 1}, {"col": "Weight", "le": 0}, {"col": "Weight", "ge": 0}, {"col": "Weight", "is": 0}])
         broken(terran, [{"col": "Weight", "lt": 0}])
@@ -933,6 +935,11 @@ class SchemaTests(unittest.TestCase):
         holds(terran, [{"col": "Traits", "set": True}, {"col": "Traits", "min_len": 4}, {"col": "Traits", "max_len": 4}])
         broken(terran, [{"col": "Traits", "min_len": 5}])
         broken(terran, [{"col": "Traits", "max_len": 3}])
+        # contains_all over a tag container and over a list of tags: every named tag, in any order.
+        holds(terran, [{"col": "Traits", "contains_all": ["Trait.Faith.Book", "Trait.Society.Divided"]}])
+        broken(terran, [{"col": "Traits", "contains_all": ["Trait.Society.Divided", "Trait.Arch.Default"]}])
+        holds(terran, [{"col": "DedicationBanks", "contains_all": ["Faith.Bank.Civic"]}])
+        broken(terran, [{"col": "DedicationBanks", "contains_all": ["Faith.Bank.Civic", "Faith.Bank.Nations"]}])
         holds(terran, [{"col": "PersonNameBank", "set": False}, {"col": "InitialRelations", "set": False}, {"col": "HomeSystemNames", "min_len": 1}])
         broken(terran, [{"col": "PersonNameBank", "set": True}])
         broken(terran, [{"col": "NameBank", "each_contains": "{Star}"}])
@@ -1477,6 +1484,8 @@ class SchemaTests(unittest.TestCase):
         self.schema_problem(put(events, 0, {"why": "w", "then": [{"col": "Effects", "lacks_type": "NameNotabel"}]}), "schema.DT_Events", "'NameNotabel', which is no enumerator of effects")
         self.schema_problem(put(events, 0, {"why": "w", "then": [{"col": "Effects", "lacks_type": "CivHasNotable"}]}), "schema.DT_Events", "'CivHasNotable', which is no enumerator of effects")
         self.schema_problem(put(events, 0, {"why": "w", "when": [{"row": "event_nobody"}], "then": []}), "schema.DT_Events", "names the row event_nobody, which DT_Events")
+        self.schema_problem(put(["tables", "DT_Rules", "rules"], 1, {"why": "w", "then": [{"col": "ImmutableLaws", "contains_all": ["Law.Remnant", "Law.Hegde"]}]}),
+                            "schema.DT_Rules", "names the tag Law.Hegde, which the ini does not declare")
         self.schema_problem(put(["tables", "DT_Transcendents", "rules"], 0, {"why": "w", "when": [{"row": "trans_silance"}], "then": []}),
                             "schema.DT_Transcendents", "names the row trans_silance")
         self.schema_problem(put(["tables", "DT_Rules"], "rules", [{"why": "w", "then": [{"col": "PlayerArchetypeRow", "is": "arch_teran"}]}]),
@@ -1503,7 +1512,9 @@ class SchemaTests(unittest.TestCase):
                            ({"col": "Weight", "max_len": 0}, "number"),
                            ({"col": "NameBank", "lacks_type": "NameNotable"}, "texts"),
                            ({"col": "Weight", "slots_in": ["Star"]}, "number"),
-                           ({"col": "Weight", "set": False}, "number")):
+                           ({"col": "Weight", "set": False}, "number"),
+                           ({"col": "RevelationMode", "contains_all": ["Revelation.Book"]}, "tag"),
+                           ({"col": "NameBank", "contains_all": ["union"]}, "texts")):
             with self.subTest(test=test):
                 self.schema_problem(self.put(rule, "when", [test]), "schema.DT_Civs", cannot, kind)
         # A list of row names: 'is' and 'in' over it never hold, so a rule asking them would be off for good.
@@ -1534,7 +1545,10 @@ class SchemaTests(unittest.TestCase):
                             ({"col": "NameBank", "min_len": "1"}, "the test 'min_len' needs a whole number"),
                             ({"col": "NameBank", "max_len": 1.5}, "the test 'max_len' needs a whole number"),
                             ({"col": "NameBank", "each_contains": ["{Star}"]}, "the test 'each_contains' needs a string"),
-                            ({"col": "NameBank", "slots_in": "Star"}, "the test 'slots_in' needs a list of strings")):
+                            ({"col": "NameBank", "slots_in": "Star"}, "the test 'slots_in' needs a list of strings"),
+                            ({"col": "Traits", "contains_all": "Trait.Faith.Book"}, "the test 'contains_all' needs a list of strings, not empty"),
+                            ({"col": "Traits", "contains_all": []}, "the test 'contains_all' needs a list of strings, not empty"),
+                            ({"col": "Traits", "contains_all": ["Trait.Faith.Book", ""]}, "the test 'contains_all' needs a list of strings, not empty")):
             with self.subTest(test=test):
                 self.schema_problem(self.put(rule, "when", [test]), "schema.DT_Civs", words)
         self.schema_problem(self.put(["tables", "DT_Events", "rules", 0], "then", [{"col": "Effects", "lacks_type": ["NameNotable"]}]),
@@ -1635,6 +1649,13 @@ class SchemaTests(unittest.TestCase):
                                       for test in target))
         elif name == "slots_in":
             row[column] = ["{NoSuchSlot} a.", "b.", "c."] if kind == "texts" else "{NoSuchSlot}"
+        elif name == "contains_all":
+            # The first named tag taken out of the cell, the others kept.
+            if kind == "tags":
+                kept = [tag for tag in checker.TAG_NAME.findall(row[column]) if tag != operand[0]]
+                row[column] = tags_text(*kept) if kept else ""
+            else:
+                row[column] = [tag for tag in row[column] if tag != operand[0]]
         elif name == "len_ge_col":
             row[operand] = len(row[column]) + 1
         elif name == "pairs_ge_col":
@@ -1670,6 +1691,7 @@ class SchemaTests(unittest.TestCase):
                 (NOTHING, "log_far_ascent"),
             ("DT_Events", "the subject system of a line is the system it names: a Civilization row is about the people alone and names no system, so the name of a system the calling does not know never reaches the feed (guideline 8.1)"):
                 (NOTHING, event),
+            ("DT_Rules", "every immutable law the rules read is listed, and none can be taken out of the list: Law.Hedge keeps the sanctuary (guideline 4.5)"): (NOTHING, "rules"),
             ("DT_Civs", "the name pattern of a people drawn for the AI calls its home star (guideline 5.11)"): (NOTHING, "arch_default"),
             ("DT_Civs", "the home of a people drawn for the AI takes a proper name from the galaxy without replacement, never a fixed one two peoples could share (guideline 7.4)"):
                 (NOTHING, "arch_default"),
@@ -1751,7 +1773,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 96, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 97, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

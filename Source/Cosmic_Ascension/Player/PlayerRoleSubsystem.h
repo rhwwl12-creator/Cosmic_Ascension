@@ -33,7 +33,9 @@ public:
 	 * people one is born into is not a contact. A life that starts as a wanderer (succession, Phase 4b) also knows the
 	 * lane neighbours of its birth system in its galaxy row (NoteKnown, Lanes order, no line - section 4.4: the new eye).
 	 * One draw from the sim stream per call, for the name of the vessel, made before the name bank is looked at.
-	 * Refused with an error line when called from a handler of a Core Logic delegate (a handler may only read the state).
+	 * Refused with an error line when called from a handler of a Core Logic delegate (a handler may only read the state),
+	 * and for the sanctuary (CosmicState::IsSanctuary - no vessel stands there, section 4.5 (1), 16 #81): a refused call
+	 * changes nothing and draws nothing.
 	 */
 	void Install(FName SystemID, FName CivID, EPlayerRole Role);
 
@@ -56,7 +58,8 @@ public:
 	 * order, no line -
 	 * section 4.4: the new eye of a wanderer; meeting their owners is the next sight stage's). The regent record (notable
 	 * hook 1) arrives with the abdication command of Phase 4. Does nothing unless the vessel rules; refused with an error
-	 * line when called from a handler of a Core Logic delegate.
+	 * line when called from a handler of a Core Logic delegate, and when the vessel stands in the sanctuary (a state no
+	 * rule makes - Install refuses it).
 	 */
 	void BecomeWanderer(FGameplayTag RegentProfile, FGameplayTag ReignEndReason);
 

@@ -23,7 +23,7 @@
 		"FleetEffectivenessByTierGap": [1.0, 0.5, 0.0],
 		"FleetDelayPerPower": 50.0,
 		"FleetDelayCap": 100.0,
-		"ImmutableLaws": "(GameplayTags=((TagName=\"Law.Judgment\"),(TagName=\"Law.Sabbath\"),(TagName=\"Law.Humility\"),(TagName=\"Law.Remnant\")))",
+		"ImmutableLaws": "(GameplayTags=((TagName=\"Law.Judgment\"),(TagName=\"Law.Sabbath\"),(TagName=\"Law.Humility\"),(TagName=\"Law.Remnant\"),(TagName=\"Law.Hedge\")))",
 		"FallenTranscendentCount": 1,
 		"PlayerArchetypeRow": "arch_terran",
 		"ClaimAdjacencyLanes": 1,

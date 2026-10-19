@@ -9,6 +9,13 @@
 #include "Data/CosmicDefinitionRows.h"
 #include "CosmicDataTables.generated.h"
 
+// The String Table of the labels (ST_CA, section 8.5): the UI's labels, and the one fixed name the simulation flattens into
+// the state when it makes a galaxy (the sanctuary's, ST_CA System.Sanctuary). Read with FindOrFullyLoad.
+namespace CosmicLabels
+{
+	inline const FName TableId(TEXT("/Game/CA/Data/ST_CA.ST_CA"));
+}
+
 USTRUCT()
 struct COSMIC_ASCENSION_API FCosmicDataTables
 {

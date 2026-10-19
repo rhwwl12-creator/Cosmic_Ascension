@@ -1680,6 +1680,18 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		})), { TEXT("log_first_life.Templates"), TEXT("1 entries or more, found 0") });
 	}
 
+	// The immutable laws of the loaded DT_Rules (section 4.5): exactly the five, the sanctuary's Law.Hedge among them, each a
+	// tag the ini declares (the schema's contains_all says the same of the source).
+	if (const FCosmicRulesDef* GameRules = Game.FindRules())
+	{
+		TestEqual(TEXT("DT_Rules.ImmutableLaws holds five laws"), GameRules->ImmutableLaws.Num(), 5);
+		for (const TCHAR* Law : { TEXT("Law.Judgment"), TEXT("Law.Sabbath"), TEXT("Law.Humility"), TEXT("Law.Remnant"), TEXT("Law.Hedge") })
+		{
+			const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(Law), false);
+			TestTrue(*FString::Printf(TEXT("%s is declared and listed in DT_Rules.ImmutableLaws"), Law), Tag.IsValid() && GameRules->ImmutableLaws.HasTagExact(Tag));
+		}
+	}
+
 	Sim->NewGalaxy(42, 5, 3);
 	return true;
 }

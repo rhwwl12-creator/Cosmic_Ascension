@@ -3,6 +3,7 @@
 #include "Player/PlayerRoleSubsystem.h"
 
 #include "Cosmic_Ascension.h"
+#include "Core/CosmicIDs.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
@@ -61,6 +62,12 @@ void UPlayerRoleSubsystem::Install(FName SystemID, FName CivID, EPlayerRole Role
 	if (Sim->IsBroadcasting())
 	{
 		UE_LOG(LogCosmic, Error, TEXT("Install called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return;
+	}
+	// No vessel stands in the sanctuary (Law.Hedge, section 4.5 (1), 16 #81): refused before anything changes or draws.
+	if (CosmicState::IsSanctuary(SystemID))
+	{
+		UE_LOG(LogCosmic, Error, TEXT("Install: no vessel is born in the sanctuary %s"), *SystemID.ToString());
 		return;
 	}
 	FGalaxyState& State = Sim->GetMutableState();
@@ -221,6 +228,13 @@ void UPlayerRoleSubsystem::BecomeWanderer(FGameplayTag RegentProfile, FGameplayT
 	FPlayerEntityState& Player = State.Player;
 	if (State.Calling.LifeState != ELifeState::Embodied || Player.Role != EPlayerRole::Ruler)
 	{
+		return;
+	}
+	// A wanderer walks where the vessel stands, and no vessel stands in the sanctuary (Law.Hedge, section 4.5 (1)): a state
+	// that says otherwise is refused, not walked from.
+	if (CosmicState::IsSanctuary(Player.CurrentSystemID))
+	{
+		UE_LOG(LogCosmic, Error, TEXT("BecomeWanderer: the vessel stands in the sanctuary %s, where no vessel stands"), *Player.CurrentSystemID.ToString());
 		return;
 	}
 	const int32 CivIndex = Sim->GetStateIndex().FindCiv(State, Player.RuledCivID);

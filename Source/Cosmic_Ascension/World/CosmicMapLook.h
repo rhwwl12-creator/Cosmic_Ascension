@@ -39,10 +39,11 @@ struct COSMIC_ASCENSION_API FCosmicSystemLook
 	float ResponseShare = -1.f;
 	// Destroyed (CosmicHazards::IsDeadNode): drawn dim, no owner, no hazard, no bars.
 	bool bDead = false;
-	// Whether the viewer knows the system (section 6.4). False only from ShownLookOf, for a system the viewer does not
-	// know: the default look otherwise - no name, class, owner, hazard, bars or death - and its star hidden; the backdrop's
-	// point at its place is all the map shows of it (no label, ring, lane, mark or selection). LookOf and a look made by
-	// default say true, so every look made before Phase 3 item 8 keeps its meaning.
+	// Whether the viewer is shown the system (section 6.4): it knows it, or the view shows it by its name alone (the
+	// sanctuary, FCosmicKnownView::IsShownByName). False only from ShownLookOf, for a system the viewer is not shown: the
+	// default look otherwise - no name, class, owner, hazard, bars or death - and its star hidden; the backdrop's point at
+	// its place is all the map shows of it (no label, ring, lane, mark or selection). LookOf and a look made by default say
+	// true, so every look made before Phase 3 item 8 keeps its meaning.
 	bool bKnown = true;
 };
 
@@ -93,6 +94,9 @@ struct COSMIC_ASCENSION_API FCosmicSpiritLook
 	// MarkRow names the fallen one that presses (no claimant and no unsealed holder came before it): the panel says
 	// "presses here" rather than the words of ClaimState.
 	bool bMarkPresses = false;
+	// The system is the sanctuary (CosmicState::IsSanctuary, Law.Hedge - section 4.5 (1)): nothing above is ever set for
+	// it, and the panel says that no pressure reaches it (ST_CA Sight.Sanctuary).
+	bool bSanctuary = false;
 };
 
 /**
@@ -116,16 +120,18 @@ struct COSMIC_ASCENSION_API FCosmicStarParams
 /**
  * What the viewer knows, read once from FGalaxyState.Knowing (section 6.4, 8.1 reader 2) for one refresh of the map or
  * of a panel - the presentation's one reading of knowledge (CosmicMapLook::KnownViewOf). Plain values by array index:
- * never stored, outside both hashes; Knowing is never written. (v0.8 step 4 enters here too: the sanctuary, always shown
- * by its name only and never written into Knowing, takes a second bit beside Known - for example ShownByName - which
- * ShownLookOf, the backdrop's slots, the pick, the selection and the system panel's gate read, so the one reading survives
- * step 4; step 4 also
- * decides whether lanes reach the sanctuary.)
+ * never stored, outside both hashes; Knowing is never written. The sanctuary, never written into Knowing, is always
+ * shown by its name alone (section 4.5 (1)): its bit of ShownByName, beside Known. What the screens draw, pick and
+ * select is IsShown - known or shown by name; what is told of an owner stays IsKnown's (OwnerShownOf). The sanctuary
+ * has no lane until v0.8 step 5.
  */
 struct COSMIC_ASCENSION_API FCosmicKnownView
 {
 	// By system index (State.Systems): Knowing.KnownSystems holds its ID - every system under bSeeAll.
 	TBitArray<> Known;
+	// By system index: shown by its name alone, whatever Knowing holds - the sanctuary (CosmicState::IsSanctuary), and
+	// under bSeeAll too.
+	TBitArray<> ShownByName;
 	// By civilization index (State.Civs): the people's meeting order - its place in Knowing.MetCivs, a gone people
 	// keeping its place - while the viewer is shown it (CosmicMapLook::IsShownPeople); INDEX_NONE otherwise. Under bSeeAll
 	// every people is shown, and one not met follows the met ones in Civs order.
@@ -134,6 +140,10 @@ struct COSMIC_ASCENSION_API FCosmicKnownView
 	bool bSeeAll = false;
 
 	bool IsKnown(int32 SystemIndex) const { return Known.IsValidIndex(SystemIndex) && Known[SystemIndex]; }
+	bool IsShownByName(int32 SystemIndex) const { return ShownByName.IsValidIndex(SystemIndex) && ShownByName[SystemIndex]; }
+	// Whether the screens show the system at all - its star, its label, its lanes, the pick, the selection and the
+	// system panel's gate: known, or shown by its name.
+	bool IsShown(int32 SystemIndex) const { return IsKnown(SystemIndex) || IsShownByName(SystemIndex); }
 	int32 ShownOrderOf(int32 CivIndex) const { return ShownOrder.IsValidIndex(CivIndex) ? ShownOrder[CivIndex] : INDEX_NONE; }
 };
 
@@ -226,8 +236,8 @@ namespace CosmicMapLook
 	 * ECosmicClaimState and FCosmicSpiritLook say; Pressure from one call of UGalaxySimulationSubsystem::ComputePressureIn,
 	 * shown where the dominant source has a Realm.Abyssal row (that row is the real guard: a people's or a wanderer's
 	 * source has none) and stands above the owner's rung or the system has no owner; DominionColor of MarkRow's row. The
-	 * zero look for an index out of range and for a destroyed system. (v0.8 step 4 puts the sanctuary first: no colour,
-	 * no pressure.)
+	 * zero look for an index out of range and for a destroyed system. The sanctuary first: the zero look with bSanctuary
+	 * - no colour, no pressure, no mark, whatever a sphere lists (Law.Hedge, section 4.5 (1)).
 	 */
 	COSMIC_ASCENSION_API FCosmicSpiritLook SpiritOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 SystemIndex);
 
@@ -284,7 +294,8 @@ namespace CosmicMapLook
 
 	/** The view of State.Knowing for a viewer on ViewerTier; bSeeAll (the development aid CosmicSeeAll) knows every system
 	 * and shows every people. Index resolves the IDs: an ID the state no longer holds (a gone people) sets nothing but
-	 * keeps its place in the meeting order. The one reader of Knowing in the presentation; never writes it. */
+	 * keeps its place in the meeting order. ShownByName holds the sanctuary, found by its ID (CosmicIDs::Sanctuary). The
+	 * one reader of Knowing in the presentation; never writes it. */
 	COSMIC_ASCENSION_API FCosmicKnownView KnownViewOf(const FGalaxyState& State, const FCosmicStateIndex& Index, EAscensionTier ViewerTier, bool bSeeAll);
 
 	/** How the owner of State.Systems[SystemIndex] is shown: None for an index out of range, a system the view does not
@@ -294,16 +305,17 @@ namespace CosmicMapLook
 
 	/**
 	 * What the viewer is shown of State.Systems[SystemIndex] (section 6.4), from its world look World (LookOf) - the one
-	 * gate the map and its labels read (the pick and the selection ask the view). (v0.8 step 4 puts the sanctuary first: always shown, by its name only -
-	 * through the view, FCosmicKnownView.) A system the view does not know, and an index out of range: the default look with
-	 * bKnown false - nothing of World (a destroyed system the viewer never knew stays a point). A known one: World, with
+	 * gate the map and its labels read (the pick and the selection ask the view). A system the view does not show
+	 * (FCosmicKnownView::IsShown), and an index out of range: the default look with bKnown false - nothing of World (a
+	 * destroyed system the viewer never knew stays a point). One shown by its name alone (the sanctuary): its name and its
+	 * star only - no owner, hazard, bars, settling dash or death, nothing the viewer could have learned. A known one: World, with
 	 * its owner as OwnerShownOf says - Shown: OwnerColor is CosmicPalette::OwnerColorOf its meeting order; Hidden: no owner,
 	 * no colour, no settling dash and no bars (both shares -1), its name, class, hazard and death kept; None: World as it is.
 	 */
 	COSMIC_ASCENSION_API FCosmicSystemLook ShownLookOf(const FCosmicSystemLook& World, const FGalaxyState& State, const FCosmicKnownView& View, int32 SystemIndex);
 
-	/** The lanes of Lanes (LanesOf) whose two ends the view knows (section 6.4), in their order: no stub toward an unknown
-	 * end. */
+	/** The lanes of Lanes (LanesOf) whose two ends the view shows (section 6.4, FCosmicKnownView::IsShown), in their order:
+	 * no stub toward an unknown end. */
 	COSMIC_ASCENSION_API TArray<TPair<int32, int32>> KnownLanesOf(const TArray<TPair<int32, int32>>& Lanes, const FCosmicKnownView& View);
 
 	// ---- The backdrop (section 3.1 layer 1, 6.4): the points of the galaxy's disc, an unknown system's among them ----

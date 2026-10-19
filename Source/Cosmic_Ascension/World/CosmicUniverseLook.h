@@ -18,8 +18,8 @@ struct FCosmicRulesDef;
 struct FGalaxyDef;
 
 /** Where the universe stands on the map: its centre on the disc plane and its unit - one home-galaxy radius, in world
- * units. Before v0.8 step 5 the map's disc is drawn as the home galaxy itself (sol at HomeRadiusShare 0.53 of it, section
- * 7.4), so the unit is the disc radius; step 5 replaces FrameOf when its galaxy level draws the home galaxy. */
+ * units. Before v0.8 step 5 the map's disc is drawn as the home galaxy itself (sys_0 at HomeRadiusShare 0.53 of it,
+ * section 7.4), so the unit is the disc radius; step 5 replaces FrameOf when its galaxy level draws the home galaxy. */
 struct COSMIC_ASCENSION_API FCosmicUniverseFrame
 {
 	FVector Centre = FVector::ZeroVector;

@@ -167,11 +167,14 @@ namespace CosmicMegaprojects
 	constexpr EAscensionTier SphereLiftTier = EAscensionTier::Tier3_Causal;
 
 	// Why a settlement of a system is refused, in the order SettleBlockOf asks (the system panel shows it - section 5.7,
-	// 5.12): first what the system is (an owner, a dead node, no foothold one lane away), then what the people may do now
-	// (the settle row and its Tier, the realm cap, a settlement under way), last the sphere that the third rung lifts.
+	// 5.12): first the sanctuary, which no people settles whoever asks; then what the system is (an owner, a dead node, no
+	// foothold one lane away), then what the people may do now (the settle row and its Tier, the realm cap, a settlement
+	// under way), last the sphere that the third rung lifts. Never saved: an enumerator may go anywhere.
 	enum class ECosmicSettleBlock : uint8
 	{
 		None,
+		// The system is the sanctuary (CosmicState::IsSanctuary - Law.Hedge, section 4.5 (1)): nobody settles it, ever.
+		Sanctuary,
 		// The people or the system does not exist.
 		NoPeople,
 		// The system has an owner (settled or being settled).
@@ -197,7 +200,8 @@ namespace CosmicMegaprojects
 
 	/**
 	 * The first reason the people CivIndex cannot settle SystemIndex now, in the order of the enum; None when it can: the
-	 * system is wild (no owner, not a dead node) and one lane from a settled system the people owns, in that system's
+	 * system is not the sanctuary (asked first, of any people - a people out of range included), it is wild (no owner,
+	 * not a dead node) and one lane from a settled system the people owns, in that system's
 	 * GalaxyRow; the project_settle row exists and its RequiredTier is at most the people's Tier; the people owns fewer
 	 * systems than RealmCapOf its Tier and has no settlement under way (MaySettle); and outside every sphere, or on Tier 3
 	 * or higher. Reads only; draws nothing.
@@ -209,7 +213,7 @@ namespace CosmicMegaprojects
 	COSMIC_ASCENSION_API bool CanSettle(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex, int32 SystemIndex);
 
 	// The systems CanSettle holds for the people CivIndex, in Systems order. Reads only. Looks only at the lane neighbours
-	// of the people's settled systems (a target lies one lane from one of them).
+	// of the people's settled systems (a target lies one lane from one of them); never the sanctuary.
 	COSMIC_ASCENSION_API TArray<int32> SettleTargets(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex);
 
 	/**
@@ -218,7 +222,8 @@ namespace CosmicMegaprojects
 	 * in its order - NoRow, RowTier, RealmCap, Settling; then, when none of those stands, the lane neighbours of its
 	 * settled systems (the candidates of SettleTargets), each read by SettleBlockOf itself: None as soon as one of them is
 	 * a target, otherwise the strongest of their reasons - Sphere (the third rung lifts it) before Owned before Dead
-	 * before NoLane (no neighbour, or none in the galaxy row of a foothold). None exactly when SettleTargets is not empty:
+	 * before NoLane (no neighbour, or none in the galaxy row of a foothold; the sanctuary counts as no neighbour, and is
+	 * never the people's reason). None exactly when SettleTargets is not empty:
 	 * the settlement draw would find a target now. Reads only; draws nothing.
 	 */
 	COSMIC_ASCENSION_API ECosmicSettleBlock PeopleSettleBlockOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex);

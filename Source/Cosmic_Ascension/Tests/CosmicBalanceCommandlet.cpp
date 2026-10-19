@@ -80,6 +80,7 @@ namespace
 	// with no settled system prints NoFoothold (the reason is NoLane in the rule; the commandlet tells the two apart).
 	const TCHAR* const SettleBlockNames[] = {
 		TEXT("None"),
+		TEXT("Sanctuary"),
 		TEXT("NoPeople"),
 		TEXT("Owned"),
 		TEXT("Dead"),

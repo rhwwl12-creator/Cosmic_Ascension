@@ -8,7 +8,7 @@
 		"Every column of a row struct is declared here: a column added to a struct needs its line.",
 		"Column kinds (closed list): plain, number, numbers, text, texts, tag, tags, tag_list, tag_map, row, row_map, rows, word_map, enum, conditions, effects",
 		"An integer property is declared with integer: true (Data.Integrity holds the columns to the property types).",
-		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, slots_in, len_ge_col, pairs_ge_col",
+		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, slots_in, len_ge_col, pairs_ge_col, contains_all",
 		"A row rule is 'when -> then' over tests: one column with one test of the list above, or 'row' with a row name. Each test can be asked of some kinds of column only (the checker holds the table).",
 		"A rule added here needs an input that breaks it in Tools/test_data_schema.py: that test walks every rule, unique, pair, target and slot list of this file.",
 		"A number range stands here only where the guideline states one. A column without a range is checked for being a finite number.",
@@ -123,6 +123,10 @@
 				{
 					"why": "the rate of the AI's projects multiplies their progress: at 0 or below they would never progress, so the code reads it as 1 with an error line (guideline 4.3, 5.7)",
 					"then": [{"col": "AIAscensionSpeedMultiplier", "gt": 0}]
+				},
+				{
+					"why": "every immutable law the rules read is listed, and none can be taken out of the list: Law.Hedge keeps the sanctuary (guideline 4.5)",
+					"then": [{"col": "ImmutableLaws", "contains_all": ["Law.Judgment", "Law.Sabbath", "Law.Humility", "Law.Remnant", "Law.Hedge"]}]
 				}
 			]
 		},

@@ -1,15 +1,15 @@
 {
-    "what":  "Balance commandlet summary for seed 42 on the home row (60 systems, 12 peoples). Tools/run_checks.ps1 compares its \u0027CosmicBalance: seed ...\u0027 line with summary_line; an intended world change reruns with -UpdateBaseline and quotes the new hashes in the commit message.",
+    "what":  "Balance commandlet summary for seed 42 on the home row (60 living systems and the sanctuary, 12 peoples). Tools/run_checks.ps1 compares its \u0027CosmicBalance: seed ...\u0027 line with summary_line; an intended world change reruns with -UpdateBaseline and quotes the new hashes in the commit message.",
     "seed":  42,
     "ticks":  3000,
-    "summary_line":  "CosmicBalance: seed 42, 3000 ticks, hash 2438129736, world 1171528496, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks",
+    "summary_line":  "CosmicBalance: seed 42, 3000 ticks, hash 37918939, world 2651345342, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks",
     "verified_at":  "2026-10-19",
     "last_recorded_in_changelog":  {
-                                       "task":  "Phase 2 task 9 (settlement and civ removal) - the last record that says the world of seed 42 changed",
-                                       "state_hash_3000":  2062223486,
-                                       "world_hash_3000":  662826373,
-                                       "state_hash_20000":  1805540809,
-                                       "world_hash_20000":  567851056,
-                                       "note":  "Not re-measured after the Phase 3 tail work (BackgroundStarCount / SceneryGalaxyCount knobs and the 14 display-only DT_Galaxies rows should leave the simulation untouched). The first Windows run with -UpdateBaseline fills summary_line."
+                                       "task":  "A0 4a (the sanctuary sol at the end of the systems, the first home sys_0) - the last record that says the world of seed 42 changed",
+                                       "state_hash_3000":  37918939,
+                                       "world_hash_3000":  2651345342,
+                                       "state_hash_20000":  3634280889,
+                                       "world_hash_20000":  2867078977,
+                                       "note":  "Measured 2026-10-19 on Windows (editor binaries). Every deterministic column of the 20,000-tick CSV equals the run before A0 4a, WildSystems +1 in every row: the hashes moved with the system IDs and the added node, not with the draws."
                                    }
 }

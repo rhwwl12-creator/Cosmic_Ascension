@@ -578,7 +578,7 @@ void ACosmicPlayerController::CosmicSeeAll(int32 On)
 	{
 		const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
 		const int32 Selected = Sim ? Sim->GetStateIndex().FindSystem(Sim->GetState(), SelectedSystemID) : INDEX_NONE;
-		if (!GetKnownView().IsKnown(Selected))
+		if (!GetKnownView().IsShown(Selected))
 		{
 			SelectSystem(NAME_None);
 		}
@@ -598,11 +598,11 @@ void ACosmicPlayerController::SelectSystem(FName SystemID)
 	}
 	if (!SystemID.IsNone())
 	{
-		// A system of the state that the viewer knows: a backdrop point - an unknown system's among them - has no
-		// selection (section 6.4).
+		// A system of the state that the viewer is shown - known, or the sanctuary by its name: a backdrop point - an
+		// unknown system's among them - has no selection (section 6.4).
 		const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
 		const int32 SystemIndex = Sim ? Sim->GetStateIndex().FindSystem(Sim->GetState(), SystemID) : INDEX_NONE;
-		if (SystemIndex == INDEX_NONE || !GetKnownView().IsKnown(SystemIndex))
+		if (SystemIndex == INDEX_NONE || !GetKnownView().IsShown(SystemIndex))
 		{
 			return;
 		}
@@ -968,9 +968,9 @@ TArray<FCosmicPickCandidate> ACosmicPlayerController::PickCandidatesOf(const ACo
 	for (int32 Index = 0; Index < Stars.Num(); ++Index)
 	{
 		const ACosmicStarSystemActor* Star = Stars[Index];
-		// The star at index i draws system i (the map's own rule): a system the viewer does not know is a backdrop point,
+		// The star at index i draws system i (the map's own rule): a system the viewer is not shown is a backdrop point,
 		// and background stars have no selection.
-		if (!Star || !View.IsKnown(Index))
+		if (!Star || !View.IsShown(Index))
 		{
 			continue;
 		}

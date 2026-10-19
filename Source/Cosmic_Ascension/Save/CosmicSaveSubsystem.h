@@ -28,7 +28,9 @@ public:
 	bool SaveCurrentGalaxy();
 
 	// Loads a galaxy's slot into the simulation. Fails on a missing slot, on a slot that does not hold this GalaxyID
-	// (truncated or foreign file) and on a save newer than this build. A refused load leaves the simulation untouched.
+	// (truncated or foreign file), on a save newer than this build, and - with one error line - on a state whose last
+	// system is not a kept sanctuary (CosmicIDs::Sanctuary with no owner, hazard or project: a save from before v0.8 step
+	// 4, section 4.5 (1)). A refused load leaves the simulation untouched.
 	// Refused with one error line inside a handler of a Core Logic delegate (IsBroadcasting, section 9.4).
 	UFUNCTION(BlueprintCallable)
 	bool LoadGalaxy(const FGuid& GalaxyID);

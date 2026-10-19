@@ -97,3 +97,7 @@ Key,SourceString
 "Galaxy.HintZoomOut","휠로 더 멀리 보면 다른 은하들이 보인다."
 "Galaxy.HintPickGalaxy","은하를 누르면 그 은하를 본다."
 "Galaxy.HintHome","{Home}|hpp(을,를) 두 번 누르면 별들이 다시 보인다."
+"System.Sanctuary","태양계"
+"Panel.Sanctuary","이곳은 지켜지고 있다."
+"Settle.Block.Sanctuary","이곳은 팔리지도 차지되지도 않는다."
+"Sight.Sanctuary","이곳에는 압력이 닿지 않는다."

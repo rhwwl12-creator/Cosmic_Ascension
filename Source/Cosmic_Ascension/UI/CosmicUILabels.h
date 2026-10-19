@@ -8,8 +8,10 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/TextBlock.h"
 #include "Containers/ArrayView.h"
+#include "Core/CosmicIDs.h"
 #include "Core/CosmicSeed.h"
 #include "Core/CosmicTypes.h"
+#include "Data/CosmicDataTables.h"
 #include "Fonts/SlateFontInfo.h"
 #include "GameplayTagContainer.h"
 #include "Internationalization/StringTableCoreFwd.h"
@@ -42,14 +44,12 @@ struct COSMIC_ASCENSION_API FCosmicHintProgress
 
 namespace CosmicUI
 {
-	// The String Table of the UI labels (section 8.5).
-	inline const FName LabelTableId(TEXT("/Game/CA/Data/ST_CA.ST_CA"));
-
-	// A blocking load on purpose: the default policy loads the table asynchronously while anything else is loading, and
-	// the lines formatted meanwhile would keep the placeholder of a missing entry.
+	// A label of the String Table of the labels (CosmicLabels::TableId, section 8.5). A blocking load on purpose: the
+	// default policy loads the table asynchronously while anything else is loading, and the lines formatted meanwhile
+	// would keep the placeholder of a missing entry.
 	inline FText Label(const TCHAR* Key)
 	{
-		return FText::FromStringTable(LabelTableId, Key, EStringTableLoadingPolicy::FindOrFullyLoad);
+		return FText::FromStringTable(CosmicLabels::TableId, Key, EStringTableLoadingPolicy::FindOrFullyLoad);
 	}
 
 	// The String Table key of a population band's label (section 8.3), named after its enumerator and written out here (an
@@ -236,17 +236,11 @@ namespace CosmicUI
 		return static_cast<int32>(CosmicSeed::DeriveForName(Seed, SystemID, CosmicSeed::Purpose::Life, 0) % static_cast<uint32>(UE_ARRAY_COUNT(LifeWordKeys)));
 	}
 
-	// The system that gets no life line until v0.8 step 4 - an interim check: today sol is the first life's home (the panel
-	// would give it a random life under "billions of the people"), from step 4 it is the sanctuary, whose fixed line
-	// "this place is kept" takes the slot (section 6.3, the sanctuary's panel). Step 4 replaces this name with the
-	// sanctuary's predicate.
-	inline const FName NoLifeLineSystemID(TEXT("sol"));
-
-	// The system panel's life line: Panel.Life and the word of LifeWordIndexOf ("<Panel.Life>  <word>"); empty for
-	// NoLifeLineSystemID (the interim check above).
+	// The system panel's life line: Panel.Life and the word of LifeWordIndexOf ("<Panel.Life>  <word>"); empty for the
+	// sanctuary (CosmicState::IsSanctuary), whose fixed line "this place is kept" stands instead (section 6.3).
 	inline FText LifeLine(int32 Seed, FName SystemID)
 	{
-		if (SystemID == NoLifeLineSystemID)
+		if (CosmicState::IsSanctuary(SystemID))
 		{
 			return FText::GetEmpty();
 		}

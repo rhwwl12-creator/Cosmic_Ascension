@@ -6,12 +6,15 @@
 #include "Containers/BitArray.h"
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/Set.h"
+#include "Core/CosmicIDs.h"
 #include "Core/CosmicSeed.h"
 #include "Cosmic_Ascension.h"
+#include "Data/CosmicDataTables.h"
 #include "Data/CosmicRowNames.h"
 #include "Engine/GameInstance.h"
 #include "Events/CosmicEventSubsystem.h"
 #include "GameplayTagContainer.h"
+#include "Internationalization/StringTableCoreFwd.h"
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
 #include "Math/NumericLimits.h"
@@ -41,13 +44,16 @@ namespace
 	// One breakthrough opens at each of these progress marks (section 5.4).
 	constexpr float BreakthroughThresholds[] = { 0.25f, 0.5f, 0.75f, 1.0f };
 
-	// Home system of the first life (section 5.10).
-	const FName PlayerHomeSystemID(TEXT("sol"));
-
 	constexpr int32 MaxLanesPerSystem = 4;
 
 	// The disc of the home galaxy: about pi x 1000^2 of map per system (section 7.4).
 	constexpr float DiscRadiusPerRootSystem = 1000.f;
+
+	// The place of the sanctuary: this share of the disc radius, at angle 0 - outside the disc of the living worlds, on the
+	// side of the first life's home (section 4.5 (1); interim, v0.8 step 5 gives the real sky's place). No draw.
+	constexpr float SanctuaryRadiusShare = 1.15f;
+	// The star class of the sanctuary: the Sun's.
+	const FName SanctuaryStarClass(TEXT("Star.Class.G"));
 
 	// Rejection sampling of a place: at most this many tries per system; the last one is halved if it misses too, and a
 	// point of the square halved always lies in the disc (section 9.2).
@@ -239,6 +245,11 @@ namespace
 			return Out;
 		}
 		const FStarSystemState& System = InState.Systems[SystemIndex];
+		// Law.Hedge (section 4.5 (1)): no pressure reaches the sanctuary - before any source is summed.
+		if (CosmicState::IsSanctuary(System.SystemID))
+		{
+			return Out;
+		}
 		float Largest = 0.f;
 
 		for (int32 TranscendentIndex = 0; TranscendentIndex < InState.Transcendents.Num(); ++TranscendentIndex)
@@ -611,13 +622,13 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 	// The draws below are made in the order NewGalaxy's header comment gives, whether or not they are used, so their
 	// number follows Seed, the two counts and the roster knob and never what the tables hold (section 7.4, 9.2).
 
-	// 1. Systems on a disc. System 0 is sol, the home of the first life, at a fixed place.
+	// 1. Systems on a disc. System 0 is sys_0, the home of the first life, at a fixed place.
 	const float DiscRadius = DiscRadiusPerRootSystem * FMath::Sqrt(static_cast<float>(SystemCount));
 	State.Systems.Reserve(SystemCount);
 	for (int32 Index = 0; Index < SystemCount; ++Index)
 	{
 		FStarSystemState& System = State.Systems.AddDefaulted_GetRef();
-		System.SystemID = (Index == 0) ? PlayerHomeSystemID : FName(*FString::Printf(TEXT("sys_%d"), Index));
+		System.SystemID = (Index == 0) ? CosmicIDs::FirstHome : FName(*FString::Printf(TEXT("sys_%d"), Index));
 		System.GalaxyRow = Rules.HomeGalaxyRow;
 
 		if (Index == 0)
@@ -706,7 +717,7 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 	}
 	StateIndex.Rebuild(State);
 
-	// 2. Homes. The first AI people lives one lane from sol, so the first contact comes at 5:30 (section 2.4); every
+	// 2. Homes. The first AI people lives one lane from sys_0, so the first contact comes at 5:30 (section 2.4); every
 	// other AI people draws its home among the systems still free.
 	TArray<int32> HomeIndices;
 	HomeIndices.Reserve(CivCount);
@@ -959,9 +970,10 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 	}
 
 	// 6. Starting cores (section 5.7): one draw per place of the roster. Candidates: unowned systems far enough from
-	// sol, one lane from the home of an AI people and in no sphere yet, in array order.
+	// sys_0, one lane from the home of an AI people and in no sphere yet, in array order. The sanctuary is no candidate:
+	// it joins the array only after the last draw (11).
 	{
-		const TArray<int32> FromSol = CosmicState::LaneDistancesFrom(State, StateIndex, 0);
+		const TArray<int32> FromHome = CosmicState::LaneDistancesFrom(State, StateIndex, 0);
 		const int32 MinLanes = FMath::Max(0, Rules.FallenCoreMinLanesFromHome);
 		TBitArray<> NextToAIHome(false, SystemCount);
 		for (int32 CivIndex = 1; CivIndex < CivCount; ++CivIndex)
@@ -990,16 +1002,16 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 			for (int32 Index = 0; Index < SystemCount; ++Index)
 			{
 				const FStarSystemState& System = State.Systems[Index];
-				if (!System.OwnerCivID.IsNone() || InSphere[Index] || FromSol[Index] == INDEX_NONE)
+				if (!System.OwnerCivID.IsNone() || InSphere[Index] || FromHome[Index] == INDEX_NONE)
 				{
 					continue;
 				}
-				if (FromSol[Index] >= MinLanes && NextToAIHome[Index])
+				if (FromHome[Index] >= MinLanes && NextToAIHome[Index])
 				{
 					Candidates.Add(Index);
 				}
-				if (Farthest == INDEX_NONE || FromSol[Index] > FromSol[Farthest]
-					|| (FromSol[Index] == FromSol[Farthest] && FNameLexicalLess()(System.SystemID, State.Systems[Farthest].SystemID)))
+				if (Farthest == INDEX_NONE || FromHome[Index] > FromHome[Farthest]
+					|| (FromHome[Index] == FromHome[Farthest] && FNameLexicalLess()(System.SystemID, State.Systems[Farthest].SystemID)))
 				{
 					Farthest = Index;
 				}
@@ -1013,18 +1025,32 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 		}
 	}
 
+	// 11. The sanctuary (section 4.5 (1), Law.Hedge), after the last draw of the generation and drawing nothing itself: the
+	// number of draws stays the header comment's. A node without a lane (the map holds together without it - v0.8 step 5
+	// decides the lanes of the real sky), at a fixed place outside the disc, with the name of ST_CA System.Sanctuary
+	// flattened as every name made here. No owner, hazard, project, sphere or core: no rule of the run ever gives it one.
+	{
+		FStarSystemState& Sanctuary = State.Systems.AddDefaulted_GetRef();
+		Sanctuary.SystemID = CosmicIDs::Sanctuary;
+		Sanctuary.GalaxyRow = Rules.HomeGalaxyRow;
+		Sanctuary.DisplayName = Flatten(FText::FromStringTable(CosmicLabels::TableId, TEXT("System.Sanctuary"), EStringTableLoadingPolicy::FindOrFullyLoad));
+		Sanctuary.Position = FVector(SanctuaryRadiusShare * DiscRadius, 0.0, 0.0);
+		Sanctuary.StarClass = FGameplayTag::RequestGameplayTag(SanctuaryStarClass);
+		Sanctuary.ResourceRichness = 0.f;
+	}
+
 	StateIndex.Rebuild(State);
 
 	// The first life: ruler of the player civ, through the same function succession uses (section 5.10).
 	UPlayerRoleSubsystem* PlayerRole = GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>();
 	check(PlayerRole);
-	PlayerRole->Install(PlayerHomeSystemID, State.Civs[0].CivID, EPlayerRole::Ruler);
+	PlayerRole->Install(CosmicIDs::FirstHome, State.Civs[0].CivID, EPlayerRole::Ruler);
 
 	SyncRngState();
 	Accumulator = 0.f;
 	bRunning = true;
 
-	UE_LOG(LogCosmic, Log, TEXT("NewGalaxy: seed %d, %d systems, %d civs, galaxy %s"), Seed, SystemCount, CivCount, *Rules.HomeGalaxyRow.ToString());
+	UE_LOG(LogCosmic, Log, TEXT("NewGalaxy: seed %d, %d systems and the sanctuary, %d civs, galaxy %s"), Seed, SystemCount, CivCount, *Rules.HomeGalaxyRow.ToString());
 	if (bBroadcastEnabled)
 	{
 		OnGalaxyGenerated.Broadcast(Seed);

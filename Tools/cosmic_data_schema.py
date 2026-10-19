@@ -155,6 +155,8 @@ TESTS = {
     # The size of a list against other columns of the same row: at least the number in the named column; the product
     # of the two lengths at least the number in the second named column (two pools whose pairs are handed out).
     "len_ge_col": NAME, "pairs_ge_col": TWO_NAMES,
+    # Every named tag is in the tags of the cell (DT_Rules.ImmutableLaws holds every law the code reads).
+    "contains_all": WORDS,
 }
 # Test -> the kinds of column it can be asked of. Asked of another kind it would never hold (or always).
 # A plain column holds a struct the checker does not read (EthicsPreset, Color, MapPosition): no test can be asked of it.
@@ -166,6 +168,7 @@ TEST_KINDS = {
     "is": VALUE_KINDS, "in": VALUE_KINDS, "gt": ("number",), "ge": ("number",), "lt": ("number",), "le": ("number",),
     "set": tuple(kind for kind in COLUMN_KINDS if kind not in ("number", "enum", "plain")), "min_len": SIZED_KINDS, "max_len": SIZED_KINDS, "each_contains": ("texts",),
     "lacks_type": ("conditions", "effects"), "slots_in": ("text", "texts"), "len_ge_col": POOL_KINDS, "pairs_ge_col": POOL_KINDS,
+    "contains_all": ("tags", "tag_list"),
 }
 # The kinds of the columns a test names besides its own: the number to reach, the other pool.
 NAMED_COLUMNS = {"len_ge_col": (("number",),), "pairs_ge_col": (POOL_KINDS, ("number",))}
@@ -545,6 +548,10 @@ class Checker:
                     self.report(where, "a row test names the row %s, which %s neither requires nor has" % (value, column_spec.get("table")))
             if name == "lacks_type" and operand not in self.schema[kind]:
                 self.report(where, "a row test names %r, which is no enumerator of %s" % (operand, kind))
+            if name == "contains_all":
+                for value in operand:
+                    if value not in self.tags:
+                        self.report(where, "a row test names the tag %s, which the ini does not declare" % (value,))
             if name in NAMED_COLUMNS:
                 for other, kinds in zip([operand] if isinstance(operand, str) else operand, NAMED_COLUMNS[name]):
                     other_spec = columns.get(other)
@@ -963,6 +970,14 @@ class Checker:
         if name == "lacks_type":
             # A list of conditions or effects without one of the named enumerator.
             return isinstance(value, list) and all(not (isinstance(item, dict) and item.get("Type") == operand) for item in value)
+        if name == "contains_all":
+            if isinstance(value, str):
+                held = TAG_NAME.findall(value)
+            elif isinstance(value, list):
+                held = [name_of(entry) for entry in value]
+            else:
+                return False
+            return all(tag in held for tag in operand)
         if name == "len_ge_col":
             bound = row.get(operand)
             return isinstance(value, (list, dict)) and is_number(bound) and length_of(value) >= bound

@@ -605,7 +605,7 @@ bool FCosmicUISpiritualSightTest::RunTest(const FString& Parameters)
 	Sim->NewGalaxy(42, 12, 3);
 	FGalaxyState& Live = Sim->GetMutableState();
 	const int32 RuledIndex = Sim->GetStateIndex().FindCiv(Live, Live.Player.RuledCivID);
-	if (!TestTrue(TEXT("(the board has twelve systems, three peoples and a ruled one)"), Live.Systems.Num() == 12 && Live.Civs.Num() == 3 && Live.Civs.IsValidIndex(RuledIndex)))
+	if (!TestTrue(TEXT("(the board has twelve systems, three peoples and a ruled one)"), CosmicTests::LivingSystems(Live) == 12 && Live.Civs.Num() == 3 && Live.Civs.IsValidIndex(RuledIndex)))
 	{
 		return false;
 	}

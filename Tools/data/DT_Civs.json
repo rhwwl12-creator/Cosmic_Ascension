@@ -14,7 +14,7 @@
 		"Weight": 0.0,
 		"RevelationMode": "Revelation.Book",
 		"RevelationTemplates": ["옛 책의 한 줄이 다시 읽혔다. 읽은 사람은 많지 않았다."],
-		"HomeSystemNames": ["태양계"],
+		"HomeSystemNames": [],
 		"HomeStarClass": "Star.Class.G",
 		"DedicationBanks": ["Faith.Bank.Hebrew", "Faith.Bank.Civic"]
 	},

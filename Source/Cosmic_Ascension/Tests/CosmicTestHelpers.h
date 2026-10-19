@@ -10,6 +10,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
+#include "Core/CosmicIDs.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
@@ -38,6 +39,13 @@ namespace CosmicTests
 	inline constexpr int32 SliceCivs = 0;
 	inline constexpr int32 BudgetSystems = 300;
 	inline constexpr int32 BudgetCivs = 48;
+
+	// The systems of State but the sanctuary that NewGalaxy puts at the end of the array (rule 11 of the generation): the
+	// living worlds a count of NewGalaxy asks for.
+	inline int32 LivingSystems(const FGalaxyState& State)
+	{
+		return State.Systems.Num() - ((!State.Systems.IsEmpty() && CosmicState::IsSanctuary(State.Systems.Last().SystemID)) ? 1 : 0);
+	}
 
 	inline UGameInstance* FindGameInstance()
 	{

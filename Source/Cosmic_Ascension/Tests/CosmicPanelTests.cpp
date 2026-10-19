@@ -276,8 +276,8 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 	{
 		using CosmicMegaprojects::ECosmicSettleBlock;
 		// The reasons a button shows, by hand (the enum's count below catches one added without words here).
-		const ECosmicSettleBlock Shown[] = { ECosmicSettleBlock::Owned, ECosmicSettleBlock::NoLane, ECosmicSettleBlock::NoRow, ECosmicSettleBlock::RowTier,
-			ECosmicSettleBlock::RealmCap, ECosmicSettleBlock::Settling, ECosmicSettleBlock::Sphere };
+		const ECosmicSettleBlock Shown[] = { ECosmicSettleBlock::Sanctuary, ECosmicSettleBlock::Owned, ECosmicSettleBlock::NoLane, ECosmicSettleBlock::NoRow,
+			ECosmicSettleBlock::RowTier, ECosmicSettleBlock::RealmCap, ECosmicSettleBlock::Settling, ECosmicSettleBlock::Sphere };
 		int32 Showable = 0;
 		for (int32 At = 0; At < static_cast<int32>(ECosmicSettleBlock::Count); ++At)
 		{
@@ -306,6 +306,7 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("and does not say transcendent"), SphereWords.Contains(TEXT("\xCD08\xC6D4\xC790")));
 		TestFalse(TEXT("nor sphere"), SphereWords.Contains(TEXT("\xC601\xD5A5\xAD8C")));
 		TestEqual(TEXT("A reason's words come from its String Table key"), UCosmicSystemPanelWidget::ReasonOf(ECosmicSettleBlock::Owned, GameTables).ToString(), LabelText(TEXT("Settle.Block.Owned")));
+		TestEqual(TEXT("and the sanctuary's from its own"), UCosmicSystemPanelWidget::ReasonOf(ECosmicSettleBlock::Sanctuary, GameTables).ToString(), LabelText(TEXT("Settle.Block.Sanctuary")));
 	}
 
 	// ---- A wild neighbour: the settle button, then the greyed button and its reason ----

@@ -672,7 +672,7 @@ void ACosmicGalaxyMapActor::LightSlots(const FGalaxyState& State, const FCosmicK
 	const int32 SlotCount = FMath::Min3(State.Systems.Num(), SlotGlows.Num(), SlotValues.Num());
 	for (int32 Index = 0; Index < SlotCount; ++Index)
 	{
-		const float Want = View.IsKnown(Index) ? 0.f : SlotGlows[Index];
+		const float Want = View.IsShown(Index) ? 0.f : SlotGlows[Index];
 		if (Want != SlotValues[Index])
 		{
 			// Marks the instances dirty itself (an incremental update; the render state is not rebuilt).

@@ -526,24 +526,24 @@ bool FCosmicSimFirstLifeTest::RunTest(const FString& Parameters)
 		return false;
 	}
 
-	// The Phase 1 prototype size: five systems.
+	// The Phase 1 prototype size: five systems, and the sanctuary after them.
 	Sim->NewGalaxy(42, 5, 3);
 	const FGalaxyState& State = Sim->GetState();
-	const FName Sol(TEXT("sol"));
+	const FName FirstHome(TEXT("sys_0"));
 
 	const FCivArchetypeDef* Archetype = Sim->GetTables().FindCiv(Sim->GetRules().PlayerArchetypeRow);
 	if (!TestNotNull(TEXT("DT_Civs holds the player archetype row (run Tools/make_data_tables.py)"), Archetype))
 	{
 		return false;
 	}
-	if (!TestEqual(TEXT("Systems"), State.Systems.Num(), 5) || !TestEqual(TEXT("Civs"), State.Civs.Num(), 3) || !TestEqual(TEXT("Lives"), State.Calling.Lives.Num(), 1))
+	if (!TestEqual(TEXT("Systems: five and the sanctuary"), State.Systems.Num(), 6) || !TestEqual(TEXT("Civs"), State.Civs.Num(), 3) || !TestEqual(TEXT("Lives"), State.Calling.Lives.Num(), 1))
 	{
 		return false;
 	}
 
 	const FStarSystemState& Home = State.Systems[0];
 	const FCivilizationState& Civ = State.Civs[0];
-	TestEqual(TEXT("Home system ID"), Home.SystemID, Sol);
+	TestEqual(TEXT("Home system ID"), Home.SystemID, FirstHome);
 	TestEqual(TEXT("Home system owner"), Home.OwnerCivID, Civ.CivID);
 	TestEqual(TEXT("Home richness is ordinary"), Home.ResourceRichness, 1.f);
 	TestTrue(TEXT("Home star class comes from the archetype"), Home.StarClass == Archetype->HomeStarClass);
@@ -552,7 +552,7 @@ bool FCosmicSimFirstLifeTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Player civ archetype"), Civ.ArchetypeRow, Sim->GetRules().PlayerArchetypeRow);
 	// The exit criterion names the row itself, not whatever DT_Rules points at.
 	TestEqual(TEXT("Player civ archetype is arch_terran"), Civ.ArchetypeRow, FName(TEXT("arch_terran")));
-	TestEqual(TEXT("Player civ home"), Civ.HomeSystemID, Sol);
+	TestEqual(TEXT("Player civ home"), Civ.HomeSystemID, FirstHome);
 	TestEqual(TEXT("Player civ owns one system"), Civ.OwnedSystems.Num(), 1);
 	TestTrue(TEXT("Player civ is player ruled"), Civ.bIsPlayerRuled);
 	TestFalse(TEXT("Player civ has a name"), Civ.CivName.IsEmpty());
@@ -566,13 +566,13 @@ bool FCosmicSimFirstLifeTest::RunTest(const FString& Parameters)
 
 	TestTrue(TEXT("Vessel is a ruler"), State.Player.Role == EPlayerRole::Ruler);
 	TestEqual(TEXT("Vessel rules the player civ"), State.Player.RuledCivID, Civ.CivID);
-	TestEqual(TEXT("Vessel is at home"), State.Player.CurrentSystemID, Sol);
+	TestEqual(TEXT("Vessel is at home"), State.Player.CurrentSystemID, FirstHome);
 	TestEqual(TEXT("First life index"), State.Calling.LifeIndex, 1);
 	TestTrue(TEXT("Calling is embodied"), State.Calling.LifeState == ELifeState::Embodied);
 
 	const FLifeRecord& Life = State.Calling.Lives[0];
 	TestTrue(TEXT("Succession kind"), Life.SuccessionKind == CosmicSimTests::Tag(TEXT("Succession.Installed")));
-	TestEqual(TEXT("Birth system"), Life.BirthSystemID, Sol);
+	TestEqual(TEXT("Birth system"), Life.BirthSystemID, FirstHome);
 	TestEqual(TEXT("Birth civ"), Life.BirthCivID, Civ.CivID);
 	TestEqual(TEXT("Birth archetype row"), Life.BirthArchetypeRow, Civ.ArchetypeRow);
 	TestTrue(TEXT("Reign arrays hold one open reign"),
@@ -588,7 +588,7 @@ bool FCosmicSimFirstLifeTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("First line category"), First.Category == CosmicSimTests::Tag(TEXT("Log.Calling")));
 		TestEqual(TEXT("First line severity"), static_cast<int32>(First.Severity), 2);
 		TestEqual(TEXT("First line tick"), First.Tick, static_cast<int64>(0));
-		TestEqual(TEXT("First line focus"), First.FocusSystemID, Sol);
+		TestEqual(TEXT("First line focus"), First.FocusSystemID, FirstHome);
 		TestTrue(TEXT("First line starts with the home system name"), Message.StartsWith(Home.DisplayName.ToString(), ESearchCase::CaseSensitive));
 		TestFalse(TEXT("First line has no unfilled slot"), Message.Contains(TEXT("{")));
 
@@ -929,27 +929,28 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 	// row says so.
 	Sim->SetTables(WithGalaxy(GalaxyTable(HomeRow, 17, 5, 5, 2, 6)));
 	Sim->NewGalaxy(42, 0, 0);
-	TestEqual(TEXT("A count of 0 systems is read from the home row"), State.Systems.Num(), 17);
+	TestEqual(TEXT("A count of 0 systems is read from the home row"), CosmicTests::LivingSystems(State), 17);
+	TestTrue(TEXT("and the sanctuary follows the living worlds"), State.Systems.Num() == 18 && CosmicState::IsSanctuary(State.Systems.Last().SystemID));
 	TestEqual(TEXT("A count of 0 peoples is read from the home row"), State.Civs.Num(), 5);
 	Sim->SetTables(WithGalaxy(nullptr));
 	Sim->NewGalaxy(42, 0, 0);
-	TestEqual(TEXT("Without DT_Galaxies the count of systems is the C++ default"), State.Systems.Num(), FGalaxyDef().LivingWorlds);
+	TestEqual(TEXT("Without DT_Galaxies the count of systems is the C++ default"), CosmicTests::LivingSystems(State), FGalaxyDef().LivingWorlds);
 	TestEqual(TEXT("Without DT_Galaxies the count of peoples is the C++ default"), State.Civs.Num(), FGalaxyDef().Peoples);
 	AddExpectedErrorPlain(TEXT("DT_Galaxies has no row"), EAutomationExpectedErrorFlags::Contains, 1);
 	Sim->SetTables(WithGalaxy(GalaxyTable(FName(TEXT("gal_test_other")), 17, 5, 5, 2, 6)));
 	Sim->NewGalaxy(42, 0, 0);
-	TestEqual(TEXT("A table without the home row gives the C++ default of systems"), State.Systems.Num(), FGalaxyDef().LivingWorlds);
+	TestEqual(TEXT("A table without the home row gives the C++ default of systems"), CosmicTests::LivingSystems(State), FGalaxyDef().LivingWorlds);
 	TestEqual(TEXT("A table without the home row gives the C++ default of peoples"), State.Civs.Num(), FGalaxyDef().Peoples);
 	TestTrue(TEXT("The stamp of the systems is the knob's name even when the table lacks the row"),
 		State.Systems.Num() > 0 && State.Systems.Last().GalaxyRow == HomeRow);
 	TestTrue(TEXT("The stamp of the peoples is the knob's name even when the table lacks the row"),
 		State.Civs.Num() > 0 && State.Civs.Last().GalaxyRow == HomeRow);
 	Sim->NewGalaxy(42, 400, 3);
-	TestEqual(TEXT("No upper bound on the number of systems in the simulation"), State.Systems.Num(), 400);
+	TestEqual(TEXT("No upper bound on the number of systems in the simulation"), CosmicTests::LivingSystems(State), 400);
 	Sim->NewGalaxy(42, 4, 9);
 	TestEqual(TEXT("No more peoples than systems"), State.Civs.Num(), 4);
 
-	// Knobs at values other than their C++ defaults (another home row, shares that leave G alone, sol at a quarter of the
+	// Knobs at values other than their C++ defaults (another home row, shares that leave G alone, sys_0 at a quarter of the
 	// radius): the generator reads them.
 	{
 		const FName TestHome(TEXT("gal_test_home"));
@@ -962,7 +963,7 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 		Tables.Rules = RulesTableOf(Knobs);
 		Sim->SetTables(Tables);
 		Sim->NewGalaxy(42, 0, 0);
-		TestEqual(TEXT("The home row the knob names gives the number of systems"), State.Systems.Num(), 20);
+		TestEqual(TEXT("The home row the knob names gives the number of systems"), CosmicTests::LivingSystems(State), 20);
 		TestEqual(TEXT("The home row the knob names gives the number of peoples"), State.Civs.Num(), 4);
 		bool bSystemsStamped = true;
 		bool bOnlyG = true;
@@ -978,7 +979,7 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 		}
 		TestTrue(TEXT("Every system carries the home row the knob names"), bSystemsStamped);
 		TestTrue(TEXT("Every people carries the home row the knob names"), bCivsStamped);
-		TestTrue(TEXT("sol lies at the share of the home row the knob names"),
+		TestTrue(TEXT("sys_0 lies at the share of the home row the knob names"),
 			State.Systems.Num() > 0 && FMath::IsNearlyEqual(State.Systems[0].Position.X, 0.25 * 1000.0 * FMath::Sqrt(20.0), 1.0));
 		TestTrue(TEXT("Shares that leave G alone give only G"), bOnlyG);
 	}
@@ -988,10 +989,11 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 	{
 		Sim->SetTables(WithGalaxy(GalaxyTable(HomeRow, 17, 5, 17, 2, 6)));
 		Sim->NewGalaxy(42, -1, -1);
-		TestEqual(TEXT("A negative count of systems is read from the home row"), State.Systems.Num(), 17);
+		TestEqual(TEXT("A negative count of systems is read from the home row"), CosmicTests::LivingSystems(State), 17);
 		TestEqual(TEXT("A negative count of peoples is read from the home row"), State.Civs.Num(), 5);
 		Sim->NewGalaxy(42, 1, 1);
-		TestEqual(TEXT("A galaxy asked for one system has one system"), State.Systems.Num(), 1);
+		TestEqual(TEXT("A galaxy asked for one system has one system"), CosmicTests::LivingSystems(State), 1);
+		TestEqual(TEXT("and the sanctuary"), State.Systems.Num(), 2);
 		TestEqual(TEXT("A galaxy asked for one system has one people"), State.Civs.Num(), 1);
 		Sim->NewGalaxy(42, 12, 1);
 		FRandomStream Probe(Sim->GetRng().GetCurrentSeed());
@@ -1014,8 +1016,8 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 	Sim->SetTables(WithGalaxy(GalaxyTable(HomeRow, 12, 11, 12, 2, 6)));
 	Sim->NewGalaxy(42, 0, 0);
 	{
-		bool bSystemIDs = State.Systems[0].SystemID == FName(TEXT("sol"));
-		for (int32 Index = 1; Index < State.Systems.Num(); ++Index)
+		bool bSystemIDs = !State.Systems.IsEmpty() && State.Systems.Last().SystemID.ToString().Equals(TEXT("sol"), ESearchCase::CaseSensitive);
+		for (int32 Index = 0; Index < State.Systems.Num() - 1; ++Index)
 		{
 			bSystemIDs &= State.Systems[Index].SystemID.ToString().Equals(FString::Printf(TEXT("sys_%d"), Index), ESearchCase::CaseSensitive);
 		}
@@ -1024,7 +1026,7 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 		{
 			bCivIDs &= State.Civs[Index].CivID.ToString().Equals(FString::Printf(TEXT("civ_%d"), Index), ESearchCase::CaseSensitive);
 		}
-		TestTrue(TEXT("Systems are sol and sys_<n> without padding"), bSystemIDs);
+		TestTrue(TEXT("Systems are sys_<n> without padding, sys_0 first, and sol last"), bSystemIDs);
 		TestTrue(TEXT("Civilizations are civ_<n> without padding"), bCivIDs);
 		TestEqual(TEXT("NextCivSerial has handed out one number per civilization"), State.NextCivSerial, State.Civs.Num());
 	}
@@ -1047,6 +1049,11 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 		TSet<FString> Short;
 		for (const FStarSystemState& System : State.Systems)
 		{
+			// The sanctuary's fixed name is no taker of the pools.
+			if (CosmicState::IsSanctuary(System.SystemID))
+			{
+				continue;
+			}
 			Empty += System.DisplayName.IsEmpty() ? 1 : 0;
 			if (!System.DisplayName.IsEmpty())
 			{
@@ -1087,7 +1094,7 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Every AI people is named after its own home"), bCallsHome);
 	}
 
-	// The first AI people lives one lane from sol, in every galaxy of two peoples or more.
+	// The first AI people lives one lane from sys_0, in every galaxy of two peoples or more.
 	{
 		Sim->SetTables(WithGalaxy(GalaxyTable(HomeRow, 30, 6, 30, 4, 8)));
 		bool bNeighbour = true;
@@ -1096,13 +1103,13 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 			Sim->NewGalaxy(Seed, 0, 0);
 			bNeighbour &= State.Civs.Num() >= 2 && State.Systems[0].Lanes.Contains(State.Civs[1].HomeSystemID);
 		}
-		TestTrue(TEXT("The first AI people's home is a lane neighbour of sol"), bNeighbour);
+		TestTrue(TEXT("The first AI people's home is a lane neighbour of sys_0"), bNeighbour);
 	}
 
 	// The starting cores (section 5.7), against the rule walked by the test itself.
 	{
 		// Every core in roster order: a candidate among the systems no earlier core took, or without a candidate the
-		// farthest of those systems from sol. Counts the cores that fell back.
+		// farthest of those systems from sys_0. Counts the cores that fell back.
 		auto CoresHoldTheRule = [&State](int32 MinLanes, int32& FellBack)
 		{
 			const TArray<int32> Distance = LanesFrom(State, 0);
@@ -1274,7 +1281,7 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 	}
 
 	// The two guards of NewGalaxy, each with one error line: a share table of another length (the C++ shares are used)
-	// and a place of sol outside 0..1 (the C++ share is used). The short table is the test's own: read as it is, padded
+	// and a place of sys_0 outside 0..1 (the C++ share is used). The short table is the test's own: read as it is, padded
 	// or merged with the C++ shares it gives only G, which the C++ shares do not.
 	{
 		AddExpectedErrorPlain(TEXT("LivingWorldStarShares has 6 entries"), EAutomationExpectedErrorFlags::Contains, 1);
@@ -1294,8 +1301,8 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 			Classes.Add(System.StarClass);
 		}
 		const double Radius = 1000.0 * FMath::Sqrt(20.0);
-		TestEqual(TEXT("The galaxy of the two guards is generated"), State.Systems.Num(), 20);
-		TestTrue(TEXT("A place of sol outside the disc is read as the C++ share"),
+		TestEqual(TEXT("The galaxy of the two guards is generated"), CosmicTests::LivingSystems(State), 20);
+		TestTrue(TEXT("A place of sys_0 outside the disc is read as the C++ share"),
 			State.Systems.Num() > 0 && FMath::IsNearlyEqual(State.Systems[0].Position.X, static_cast<double>(FGalaxyDef().HomeRadiusShare) * Radius, 1.0));
 
 		// The same seed under the C++ shares given outright gives the same classes: the guard used that table.
@@ -1325,7 +1332,7 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 		}
 		const double Each = (FPlatformTime::Seconds() - Start) * 100.0;
 		AddInfo(FString::Printf(TEXT("NewGalaxy at %d systems and %d peoples: %.1f ms each"), CosmicTests::BudgetSystems, CosmicTests::BudgetCivs, Each));
-		TestEqual(TEXT("The Early Access size is generated as asked"), State.Systems.Num(), CosmicTests::BudgetSystems);
+		TestEqual(TEXT("The Early Access size is generated as asked"), CosmicTests::LivingSystems(State), CosmicTests::BudgetSystems);
 	}
 
 	// An injected rules row is read, and without a table the rules go back to the C++ defaults.
@@ -1343,7 +1350,7 @@ bool FCosmicSimGenerationRulesTest::RunTest(const FString& Parameters)
 	Sim->SetTables(FCosmicDataTables());
 	Sim->NewGalaxy(42, 5, 3);
 	TestEqual(TEXT("Without tables the rules are the C++ defaults"), Sim->GetRules().MaxNotablesPerCiv, FCosmicRulesDef().MaxNotablesPerCiv);
-	TestTrue(TEXT("Without tables the galaxy is still generated"), State.Systems.Num() == 5 && State.Civs.Num() == 3 && State.Calling.Lives.Num() == 1);
+	TestTrue(TEXT("Without tables the galaxy is still generated"), CosmicTests::LivingSystems(State) == 5 && State.Civs.Num() == 3 && State.Calling.Lives.Num() == 1);
 	TestTrue(TEXT("Without tables nothing is logged"), State.Log.IsEmpty());
 	TestTrue(TEXT("Without tables AI civs fall back to arch_default"),
 		State.Civs.Num() == 3 && State.Civs[1].ArchetypeRow == CosmicRows::ArchDefault && State.Civs[2].ArchetypeRow == CosmicRows::ArchDefault);
@@ -1893,9 +1900,10 @@ bool FCosmicSimSaveRestartTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-// The layers of the home galaxy as the game's tables make them (section 3.1, 7.4): the numbers of the home row, the star
-// classes of DT_Rules.LivingWorldStarShares, the place and class of sol, names that never repeat, lanes inside the one
-// galaxy, and every system of a people stamped like its people. The lanes still stay inside after 20,000 ticks.
+// The layers of the home galaxy as the game's tables make them (section 3.1, 7.4): the numbers of the home row and the
+// sanctuary after them, the star classes of DT_Rules.LivingWorldStarShares, the place and class of sys_0, names that never
+// repeat, lanes inside the one galaxy, and every system of a people stamped like its people. The lanes still stay inside
+// after 20,000 ticks.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimLayersInRangeTest, "Cosmic_Ascension.Sim.LayersInRange", CosmicTests::Flags)
 bool FCosmicSimLayersInRangeTest::RunTest(const FString& Parameters)
 {
@@ -1918,11 +1926,12 @@ bool FCosmicSimLayersInRangeTest::RunTest(const FString& Parameters)
 	const FGalaxyState& State = Sim->GetState();
 	bool bSystemCount = true;
 	bool bPeopleCount = true;
-	bool bSolID = true;
-	bool bSolPlace = true;
-	bool bSolAngle = true;
-	bool bSolClass = true;
+	bool bFirstHomeID = true;
+	bool bFirstHomePlace = true;
+	bool bFirstHomeAngle = true;
+	bool bFirstHomeClass = true;
 	bool bInDisc = true;
+	bool bSanctuaryOutside = true;
 	bool bNamed = true;
 	bool bNamesOnce = true;
 	bool bPeopleNamed = true;
@@ -1938,18 +1947,18 @@ bool FCosmicSimLayersInRangeTest::RunTest(const FString& Parameters)
 	for (int32 Seed = 1; Seed <= 20; ++Seed)
 	{
 		Sim->NewGalaxy(Seed, 0, 0);
-		bSystemCount &= State.Systems.Num() == Home.LivingWorlds;
+		bSystemCount &= CosmicTests::LivingSystems(State) == Home.LivingWorlds && State.Systems.Num() == Home.LivingWorlds + 1;
 		bPeopleCount &= State.Civs.Num() == Home.Peoples;
 		if (State.Systems.IsEmpty())
 		{
 			continue;
 		}
-		const double Radius = 1000.0 * FMath::Sqrt(static_cast<double>(State.Systems.Num()));
-		const FStarSystemState& Sol = State.Systems[0];
-		bSolID &= Sol.SystemID == FName(TEXT("sol"));
-		bSolPlace &= FMath::IsNearlyEqual(Sol.Position.X, Home.HomeRadiusShare * Radius, 0.01 * Radius);
-		bSolAngle &= Sol.Position.Y == 0.0;
-		bSolClass &= !HomeClass.IsValid() || Sol.StarClass == HomeClass;
+		const double Radius = 1000.0 * FMath::Sqrt(static_cast<double>(CosmicTests::LivingSystems(State)));
+		const FStarSystemState& FirstHome = State.Systems[0];
+		bFirstHomeID &= FirstHome.SystemID == FName(TEXT("sys_0"));
+		bFirstHomePlace &= FMath::IsNearlyEqual(FirstHome.Position.X, Home.HomeRadiusShare * Radius, 0.01 * Radius);
+		bFirstHomeAngle &= FirstHome.Position.Y == 0.0;
+		bFirstHomeClass &= !HomeClass.IsValid() || FirstHome.StarClass == HomeClass;
 
 		TSet<FString> Names;
 		TSet<FName> Homes;
@@ -1959,7 +1968,15 @@ bool FCosmicSimLayersInRangeTest::RunTest(const FString& Parameters)
 		}
 		for (const FStarSystemState& System : State.Systems)
 		{
-			bInDisc &= System.Position.X * System.Position.X + System.Position.Y * System.Position.Y <= Radius * Radius * 1.0001;
+			const double Reach = System.Position.X * System.Position.X + System.Position.Y * System.Position.Y;
+			if (CosmicState::IsSanctuary(System.SystemID))
+			{
+				bSanctuaryOutside &= Reach > Radius * Radius;
+			}
+			else
+			{
+				bInDisc &= Reach <= Radius * Radius * 1.0001;
+			}
 			bNamed &= !System.DisplayName.IsEmpty();
 			bNamesOnce &= !Names.Contains(System.DisplayName.ToString());
 			Names.Add(System.DisplayName.ToString());
@@ -1969,8 +1986,9 @@ bool FCosmicSimLayersInRangeTest::RunTest(const FString& Parameters)
 				const FStarSystemState* Other = State.Systems.FindByPredicate([Lane](const FStarSystemState& Each) { return Each.SystemID == Lane; });
 				bLanesHome &= Other && Other->GalaxyRow == System.GalaxyRow;
 			}
-			// Homes keep a class of their archetype when it has one; every other system shows the drawn shares.
-			if (!Homes.Contains(System.SystemID))
+			// Homes keep a class of their archetype when it has one, the sanctuary its fixed one; every other system shows
+			// the drawn shares.
+			if (!Homes.Contains(System.SystemID) && !CosmicState::IsSanctuary(System.SystemID))
 			{
 				for (int32 Class = 0; Class < Classes.Num(); ++Class)
 				{
@@ -1996,13 +2014,14 @@ bool FCosmicSimLayersInRangeTest::RunTest(const FString& Parameters)
 			}
 		}
 	}
-	TestTrue(TEXT("The number of systems is that of the home row"), bSystemCount);
+	TestTrue(TEXT("The number of living systems is that of the home row, and the sanctuary follows them"), bSystemCount);
 	TestTrue(TEXT("The number of peoples is that of the home row"), bPeopleCount);
-	TestTrue(TEXT("The first system is sol"), bSolID);
-	TestTrue(TEXT("sol lies at its share of the radius"), bSolPlace);
-	TestTrue(TEXT("sol lies at angle 0"), bSolAngle);
-	TestTrue(TEXT("sol has the star class of the player's archetype"), bSolClass);
-	TestTrue(TEXT("Every system lies in the disc"), bInDisc);
+	TestTrue(TEXT("The first system is sys_0"), bFirstHomeID);
+	TestTrue(TEXT("sys_0 lies at its share of the radius"), bFirstHomePlace);
+	TestTrue(TEXT("sys_0 lies at angle 0"), bFirstHomeAngle);
+	TestTrue(TEXT("sys_0 has the star class of the player's archetype"), bFirstHomeClass);
+	TestTrue(TEXT("Every living system lies in the disc"), bInDisc);
+	TestTrue(TEXT("The sanctuary lies outside it"), bSanctuaryOutside);
 	TestTrue(TEXT("Every system has a name"), bNamed);
 	TestTrue(TEXT("No system name comes twice"), bNamesOnce);
 	TestTrue(TEXT("Every people has a name"), bPeopleNamed);

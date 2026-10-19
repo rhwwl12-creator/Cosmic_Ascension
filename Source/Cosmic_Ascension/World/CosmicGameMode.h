@@ -259,9 +259,10 @@ public:
 	 * system the viewer knows only). */
 	bool SelectAndFocus(FName SystemID);
 
-	/** Development aid: selects and focuses a system as a double click on it would ("CosmicSelect sol" at the console or
-	 * in -ExecCmds). Waits for a map not built yet; on a built map a system the viewer does not know is refused with one
-	 * log line (CosmicSeeAll 1 draws every system) and nothing waits. */
+	/** Development aid: selects and focuses a system as a double click on it would ("CosmicSelect sys_0" at the console or
+	 * in -ExecCmds; "CosmicSelect sol" takes the sanctuary, always shown by its name). Waits for a map not built yet; on a
+	 * built map a system the viewer is not shown is refused with one log line (CosmicSeeAll 1 draws every system) and
+	 * nothing waits. */
 	UFUNCTION(Exec)
 	void CosmicSelect(const FString& SystemID);
 
@@ -342,7 +343,7 @@ public:
 	void CosmicSpiritualSight(int32 Open);
 
 	/** Development aid: the system panel's command from the console ("CosmicStartProject <the home's SystemID>
-	 * project_dyson" at the console or in -ExecCmds - the home is sol until v0.8 step 4, sys_0 from then) - StartProject,
+	 * project_dyson" at the console or in -ExecCmds - the home is sys_0) - StartProject,
 	 * the path a button takes; it changes the world only as that click would. */
 	UFUNCTION(Exec)
 	void CosmicStartProject(const FString& SystemID, const FString& RowName);

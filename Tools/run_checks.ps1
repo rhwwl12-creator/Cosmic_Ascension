@@ -77,7 +77,8 @@ Step 'balance: seed 42 vs baseline' {
     $baseline = Get-Content $baselinePath -Raw | ConvertFrom-Json
     if ($UpdateBaseline) {
         $baseline.summary_line = $summary; $baseline.verified_at = (Get-Date -Format 'yyyy-MM-dd')
-        $baseline | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 $baselinePath
+        # UTF-8 without a byte order mark (Set-Content -Encoding UTF8 of PowerShell 5.1 writes one; Python's json reads none).
+        [IO.File]::WriteAllText($baselinePath, ($baseline | ConvertTo-Json -Depth 4), (New-Object Text.UTF8Encoding $false))
         Write-Host "   baseline updated: $summary"
     } elseif ($baseline.summary_line -and ($baseline.summary_line -ne $summary)) {
         throw "summary line differs from Tools/baselines/seed42.json`n   now:      $summary`n   baseline: $($baseline.summary_line)`n   (intended change -> rerun with -UpdateBaseline and put the new hashes in the commit message)"
