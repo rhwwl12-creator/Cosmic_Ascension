@@ -2,6 +2,12 @@
 
 > 2026-10-19 재편: 본문에 섞여 있던 이력·상태 줄·일지·리뷰 통계를 여기로 옮겼다(내용 무변경, 위치만 — 원격의 Phase 3 꼬리 7·12·8·9 기록 포함). 앞으로는 날짜·작업 접두어·바뀐 규칙·리뷰 통계를 여기에만 적고, 설계 본문과 STATUS.md에는 적지 않는다.
 
+## 2026-10-19 — 문서 재편 뒤의 정리 도구(Linux 세션)
+
+- `[docs]` 53f6d35 문서 재편, 65633a7 원격 Phase 3 꼬리(7·12·8·9)와 병합, 2b6d017 가이드라인 보완.
+- 도구: `Tools/check_layers.py`(include 방향·Core Logic 위젯/액터 헤더·`FMath::Rand`·비ASCII = 에러; 태그 리터럴 35·미사용 노브 18 = 기준선), `Tools/make_config_reference.py` → `docs/30_CONFIG_REFERENCE.md`(노브 46: 읽힘 28·예약 18), `Tools/check_docs.py`, `Tools/run_checks.sh`(에디터 없이 5단계), `Tools/run_checks.ps1`(Windows 전체 러너 — 첫 실행 미확인), `Tools/baselines/seed42.json`(요약 줄은 첫 Windows 실행이 채운다).
+- 고친 것: 축약한 CLAUDE.md의 판정 어휘 일곱 낱말이 `test_data_schema.py`가 읽는 꼴(…받)과 달라 단위 테스트 1건이 깨졌던 것을 되돌림. 이 세션에서 돌린 검사: `check_data` 0, `test_data_schema` OK, `check_layers` 0 error(경고 2 = Sim 헤더 → Events), `check_docs` 0.
+
 ## 문서 상태 표 (옛 guideline.md 머리)
 
 | 항목 | 내용 |

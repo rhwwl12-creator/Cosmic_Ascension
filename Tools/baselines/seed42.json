@@ -1,0 +1,15 @@
+{
+  "what": "Balance commandlet summary for seed 42 on the home row (60 systems, 12 peoples). Tools/run_checks.ps1 compares its 'CosmicBalance: seed ...' line with summary_line; an intended world change reruns with -UpdateBaseline and quotes the new hashes in the commit message.",
+  "seed": 42,
+  "ticks": 3000,
+  "summary_line": null,
+  "verified_at": null,
+  "last_recorded_in_changelog": {
+    "task": "Phase 2 task 9 (settlement and civ removal) - the last record that says the world of seed 42 changed",
+    "state_hash_3000": 2062223486,
+    "world_hash_3000": 662826373,
+    "state_hash_20000": 1805540809,
+    "world_hash_20000": 567851056,
+    "note": "Not re-measured after the Phase 3 tail work (BackgroundStarCount / SceneryGalaxyCount knobs and the 14 display-only DT_Galaxies rows should leave the simulation untouched). The first Windows run with -UpdateBaseline fills summary_line."
+  }
+}

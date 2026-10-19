@@ -12,7 +12,7 @@
 ## 다음 3작업 (`docs/50_ROADMAP.md` 0 → A0)
 
 1. **손 확인**(개발자) → 결과(fps·막힌 조작)를 CHANGELOG에 한 줄 → 10번 종료 리뷰 → Phase 3 종료 선언.
-2. **정리**: `Tools/run_checks`(데이터 검사 → 빌드 → 테스트 2회 → 스모크 → 커맨드렛 기준값 비교)·`Tools/check_layers.py`(include 방향·태그 리터럴·`FMath::Rand` grep), `FCosmicEvalContext`를 `Sim/CosmicEvalContext.h`로 분리, 시드 42 기준값을 `Tools/baselines/`에 파일로. effort medium, 단독.
+2. **정리(Windows 몫)**: `powershell -File Tools\run_checks.ps1 -Tier smoke -UpdateBaseline` 첫 실행(러너 검증 + 시드 42 기준값 기록), `FCosmicEvalContext`를 `Sim/CosmicEvalContext.h`로 분리(빌드·테스트 뒤 `check_layers.py` 경고 0). Linux 몫(러너 `run_checks.sh`·`check_layers.py`·`check_docs.py`·`make_config_reference.py`·`Tools/baselines/seed42.json`)은 2026-10-19에 끝. effort medium, 단독.
 3. **A0 'v0.8 예약 ①'**: 성역 `sol`(배열 끝)·`sys_0`·`Law.Hedge`·`IsSanctuary`(앎 뷰의 둘째 비트 `ShownByName` 포함) + 첫 생애 행 뼈대 `arch_seeker`(행 이름·태그·첫 줄·두 목소리). 가칭 식별자 일괄 확정 → 헤더 승인 → 구현 → 재측정 테스트 → ultracode 리뷰 1회(저장·결정론). effort xhigh. 그 뒤 **Playable MVP(A)**: 자동 일시정지 → 청원 카드 10장+카드 위젯 → 첫 10분 보장·#68/#71/#72 → 임시 엔딩·연대기 최소형 → 저장 최소형 → 지표·온보딩 → Win64 패키징.
 
 ## 열린 결정 Top 5 (`docs/60_DECISIONS/OPEN_QUESTIONS.md`)

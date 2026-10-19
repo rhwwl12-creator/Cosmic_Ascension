@@ -13,7 +13,7 @@
 
 ## 2. 모듈·의존 방향
 
-- `Core ← Data ← Sim ← {Events, Ascension, Log, Player, Save} ← {World, UI}`. 역방향 include 금지. 단일 모듈이라 빌드가 강제하지 않으므로 `Tools/check_layers.py`(로드맵 0단계)가 include 방향·태그 리터럴·`FMath::Rand`를 grep으로 검사한다.
+- `Core ← Data ← Sim ← {Events, Ascension, Log, Player, Save} ← {World, UI}`. 역방향 include 금지. 단일 모듈이라 빌드가 강제하지 않으므로 `Tools/check_layers.py`가 include 방향·Core Logic의 위젯/액터 헤더·`FMath::Rand`·비ASCII를 검사하고(에러), 태그 리터럴 수·읽히지 않는 노브 수를 기준선과 비교한다(`--strict`면 늘어나면 에러). Sim의 .cpp가 형제 Subsystem 헤더를 include하는 것은 허용, Sim 헤더가 Events 헤더를 include하는 둘은 `CosmicEvalContext.h` 분리 전까지의 경고다.
 - Sim은 형제 Subsystem을 틱 단계 함수에서만 부른다(`GetSubsystem<>()`). Sim↔Events의 .cpp 수준 상호 호출은 '한 길' 설계로 허용하되 평가 문맥 타입(`FCosmicEvalSubject`·`View`·`Context`·`WorldNote`)은 `Sim/CosmicEvalContext.h` 독립 헤더로 내린다.
 - 표현 상태(선택·카메라·시계 단위)는 Controller/ini에 두고 `FGalaxyState`·해시 밖이다.
 
@@ -22,14 +22,14 @@
 - 런타임 상태는 `FGalaxyState` 안의 USTRUCT만. Subsystem 멤버에 플레이어·생애 종속 상태 없음.
 - 저장 필드의 기본 초기값은 세이브가 생긴 뒤 불변, 열거자는 끝에만, `SaveVersion` 인상은 마이그레이션 함수 + 테스트 동반.
 - 세계를 바꾸는 추첨은 `GetRng()`만, 행·뱅크를 보기 전에 정해진 횟수. 말하기 스트림은 `PushVariants`만. `FMath::Rand*` 0건. (grep)
-- 해시에 드는 산술은 모듈 안의 `+ − × ÷ √`만. 시드 42 세계 해시 기준값은 `Tools/baselines/seed42.json`에 파일로 두고 커맨드렛이 비교한다(로드맵 0단계 — 지금은 CHANGELOG의 기록).
+- 해시에 드는 산술은 모듈 안의 `+ − × ÷ √`만. 시드 42 세계 해시 기준값은 `Tools/baselines/seed42.json`에 두고 `Tools/run_checks.ps1`의 마지막 단계가 커맨드렛 요약 줄과 비교한다(의도한 변경은 `-UpdateBaseline`으로 갱신하고 커밋 메시지에 새 해시를 적는다. 첫 측정 전까지는 CHANGELOG의 Phase 2 기록이 참고값).
 - 자동 저장(승천·역할 전환·10분·종료)은 틱 경계에서만, 핸들러 안에서는 금지. 쿠킹 빌드의 해시 일치를 MVP 종료 조건에 넣는다.
 
 ## 4. 데이터·설정 관리
 
 - 원본은 `Tools/data/*.json`·`ST_CA.csv`, `.uasset`은 산출물. 컬럼·열거자 추가 = `schema.json` + `test_data_schema.py`의 경계 케이스 동반. 검사는 `python -I Tools/check_data.py`(에디터 불필요).
 - 플레이 밸런스 수치는 `DT_Rules` 또는 행 컬럼에 둔다. cpp `constexpr`는 '법'(틱 길이·로스터 상한 3·칸 5·저안정 문턱 0.3)에만 허용하고 주석에 `[law]`. 경제·연구 상수 9개(`TierMultiplier`·`StarClassEnergy`·`InsightPerPopulation`·`InfluencePerPopulation`·보너스 3·`ResearchInsightShare`·`ResearchPerInsight`)는 MVP에서 `DT_Rules`로 옮긴다(`StarClassEnergy`는 단계 5까지 C++).
-- `DT_Rules` 노브는 읽는 코드가 있을 때만 추가한다. 예약 노브(계승 6·도약 3·함대 4·귀환 3·`ImmutableLaws`·`VigilClaimExtension`)는 스키마에 `since: "Phase N"` 표지를 달고 `Data.Integrity`가 '읽는 코드 없는 노브'를 알린다. 노브 표 `docs/30_CONFIG_REFERENCE.md`는 손으로 쓰지 않고 JSON+schema에서 생성한다(A0 뒤).
+- `DT_Rules` 노브는 읽는 코드가 있을 때만 추가한다. 예약 노브(계승 6·도약 3·함대 4·귀환 3·`ImmutableLaws`·`VigilClaimExtension`)는 스키마에 `since: "Phase N"` 표지를 달고 `Data.Integrity`가 '읽는 코드 없는 노브'를 알린다. 노브 표 `docs/30_CONFIG_REFERENCE.md`는 손으로 쓰지 않고 `Tools/make_config_reference.py`가 JSON+schema+코드에서 생성한다(`--check`가 러너에 들어 낡으면 실패한다).
 - ini `DevComment`·헤더 주석·스키마 `why`에 설계 수치를 적지 않는다 — 어디를 보라는 한 줄만. 수치의 원본은 데이터(JSON)와 docs/10_DESIGN 둘.
 
 ## 5. 테스트
@@ -49,7 +49,7 @@
 ## 7. 환경
 
 - 개발 PC는 Windows(PowerShell 5.1). 경로는 `$env:UE_ROOT`·`$env:PROJECT_ROOT`로 변수화한다(아래 원문 명령의 절대 경로를 그대로 쓰되 다른 PC에서는 두 변수만 바꾼다). Linux 체크아웃에서는 데이터 검사·스키마 단위 테스트·레이어 린트만 돈다.
-- `Tools/run_checks.(ps1|sh) -Tier smoke|full`(로드맵 0단계): 데이터 검사 → 레이어 린트 → 빌드 → 테스트 2회 → `-nullrhi` 스모크 → 커맨드렛 기준값 비교.
+- `Tools/run_checks.ps1 -Tier smoke|full [-Data] [-UpdateBaseline] [-SkipBuild]`(Windows): 데이터 검사 → 스키마 단위 테스트 → 레이어 린트 → 설정 표·문서 검사 → (에셋 재생성) → 빌드 둘 → 자동화 테스트 2회 → `-nullrhi` 스모크 → 커맨드렛 기준값 비교. `Tools/run_checks.sh`(Linux/macOS)는 앞의 다섯 단계만. 2026-10-19에 Linux에서 썼으므로 Windows 첫 실행에서 고칠 것이 있을 수 있다.
 
 ---
 
