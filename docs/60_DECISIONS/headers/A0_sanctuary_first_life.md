@@ -1,6 +1,6 @@
 # A0 헤더 초안 — 성역(4a)과 첫 생애 행(4b-lite)
 
-상태: **초안(승인 대기)**. 2026-10-19 Linux 세션에서 코드를 빌드하지 않고 썼다. 승인 뒤 Windows에서 구현·빌드·테스트 2회·`run_checks.ps1 -UpdateBaseline`으로 기준값을 다시 잰다. 근거: `docs/10_DESIGN/crisis_and_transcendents.md` §4.5 ①, `docs/10_DESIGN/systems.md` §5.10·§5.11, `docs/21_DATA_MODEL_REFERENCE.md` §7.4 생성 규칙 3·9·11항, `docs/50_ROADMAP.md` '①-4a·①-4b' 행, `OPEN_QUESTIONS.md` #74·#80·#81·#92·#94, `CLAUDE.md` 불변 규칙 13·14·15.
+상태: **승인 완료 (2026-10-19 결정 6개 전원 권장안 채택, Core/CosmicIDs.h 신설)**. 승인에 따라 Windows에서 4a 성역 → 4b 첫 생애 행 구현·빌드·테스트 2회·`run_checks.ps1 -UpdateBaseline`으로 기준값을 다시 잰다. 근거: `docs/10_DESIGN/crisis_and_transcendents.md` §4.5 ①, `docs/10_DESIGN/systems.md` §5.10·§5.11, `docs/21_DATA_MODEL_REFERENCE.md` §7.4 생성 규칙 3·9·11항, `docs/50_ROADMAP.md` '①-4a·①-4b' 행, `OPEN_QUESTIONS.md` #74·#80·#81·#92·#94, `CLAUDE.md` 불변 규칙 13·14·15.
 
 ## 0. 범위와 전제
 
@@ -66,11 +66,11 @@
 3. 리뷰 1회(저장·결정론·'법은 한 곳에서 읽힌다' — Agent 도구 2~3개로 충분).
 4. 문서: `CLAUDE.md` 15번의 '현재 코드' 줄과 `docs/50_ROADMAP.md` A0 행을 끝으로, `OPEN_QUESTIONS` #74 닫고 `DECISIONS_LOG`에 날짜·근거.
 
-## 5. 개발자가 정할 것
+## 5. 개발자 결정 (2026-10-19 승인)
 
-1. 식별자 §1 표를 그대로 확정하는가(특히 `Core/CosmicIDs.h` 신설 — 대안: `CosmicRowNames.h`에 둔다).
-2. A0의 성역은 **레인 없는 노드**(권장)인가, 가장 가까운 성계 하나에 레인을 두는가(그러면 레인 셈 규칙 #80을 지금 정해야 한다).
-3. 성역의 자리: 원반 밖 고정 자리(권장 — 우주 화면에서 '고향의 빛' 밖) vs 원반 안.
-4. `arch_terran` 행과 `Trait.Arch.Terran` 태그 삭제(권장) vs 보존.
-5. 첫 생애 백성의 이름 뱅크 3개와 제 해의 이름 — 위 후보는 자리 채움이다. 단계 7까지 자리 채움으로 둘지, 지금 고를지.
-6. 금지어 목록(`other_works`·`holy_and_myth`)을 A0에서 빈 꼴만 선언(권장)할지, 목록까지 채울지.
+1. **식별자 확정**: §1 표 전체 확정. `Core/CosmicIDs.h` 신설 완료 (`CosmicIDs::Sanctuary = "sol"`, `CosmicIDs::FirstHome = "sys_0"`).
+2. **성역 레인**: A0에서는 **레인 없는 노드**(권장안)로 확정 (지도는 성역 없이 연결, 실제 하늘 단계 5에서 레인 검토).
+3. **성역의 자리**: 원반 밖 고정 자리(권장안 — 반지름 1.15R, 각도 0)로 확정.
+4. **아키타입 정리**: `arch_terran` 행과 `Trait.Arch.Terran` 태그 삭제(권장안) 확정 (개발 세이브 지움).
+5. **첫 생애 이름 뱅크**: 현재 후보("갈라진 집"·"찾는 자들의 연맹"·"첫 불의 의회" / "첫 해")를 자리 채움으로 유지하고 단계 7에서 외계 이름으로 확장(권장안) 확정.
+6. **금지어 목록**: A0에서는 스키마에 빈 목록(`other_works`·`holy_and_myth`)만 선언하고 채우는 것은 단계 7 텍스트 작업으로 미룸(권장안) 확정.

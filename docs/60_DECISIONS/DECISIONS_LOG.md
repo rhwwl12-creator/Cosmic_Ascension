@@ -2,6 +2,17 @@
 
 > 2026-10-19 이관(내용 무변경). 위가 최신. 새 결정은 "확정 완료 (날짜, 작업 — 근거):" 꼴로 맨 위에 더한다.
 
+## 확정 완료 (2026-10-19, A0 'v0.8 예약 ①' 헤더 승인)
+
+- 결정 6개 전원 권장안 채택 (`docs/60_DECISIONS/headers/A0_sanctuary_first_life.md` §5):
+  1. 식별자 §1 표 전체 확정 및 `Core/CosmicIDs.h` 신설 (`CosmicIDs::Sanctuary = "sol"`, `CosmicIDs::FirstHome = "sys_0"`).
+  2. 성역은 A0에서 레인 없는 고정 노드로 확정 (지도는 성역 없이 연결 유지).
+  3. 성역의 자리: 원반 밖 고정 자리(반지름 1.15R, 각도 0)로 확정.
+  4. 아키타입 정리: `arch_terran` 행과 `Trait.Arch.Terran` 태그 삭제(개발 세이브 지움).
+  5. 첫 생애 이름 뱅크: 현재 후보 자리 채움 유지, 단계 7에서 외계 이름으로 고침.
+  6. 금지어 목록: A0에서는 스키마에 빈 목록(`other_works`·`holy_and_myth`)만 선언하고 채우는 것은 단계 7 텍스트 작업으로 미룸.
+
+
 ## ADR-0001 렌더 / 플러그인 결정 (옛 CLAUDE.md, 2026-10-10)
 
 레이트레이싱 OFF + SkinCache OFF (한 묶음. RT만 켜고 SkinCache를 끄면 시작 시 Fatal). Lumen GI/반사 OFF, 메시 디스턴스 필드 OFF (읽기 전용 cvar, 메시 0개인 지금 결정). Substrate ON 유지 (5.8 신규 프로젝트 기본값. 나중에 끄면 에디터 재시작이 필요하고 Substrate 전용 노드로 만든 머티리얼이 깨지므로 머티리얼 작성 전인 지금 확정). 정적 라이팅 OFF, 가상 섀도맵 ON, DX12 SM6.

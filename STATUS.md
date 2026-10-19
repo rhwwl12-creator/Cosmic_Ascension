@@ -15,13 +15,12 @@
 2. **A0 'v0.8 예약 ①'**: 성역 `sol`(배열 끝)·`sys_0`·`Law.Hedge`·`IsSanctuary`(앎 뷰의 둘째 비트 `ShownByName` 포함) + 첫 생애 행 뼈대 `arch_seeker`(행 이름·태그·첫 줄·두 목소리). 가칭 식별자 일괄 확정 → 헤더 승인(`docs/60_DECISIONS/headers/A0_sanctuary_first_life.md` 결정 6개) → 구현 → 재측정 테스트 → ultracode 리뷰 1회(저장·결정론). effort xhigh.
 3. **Playable MVP(A)**: 자동 일시정지 → 청원 카드 10장+카드 위젯 → 첫 10분 보장·#68/#71/#72 → 임시 엔딩·연대기 최소형 → 저장 최소형 → 지표·온보딩 → Win64 패키징.
 
-## 열린 결정 Top 5 (`docs/60_DECISIONS/OPEN_QUESTIONS.md`)
+## 열린 결정 Top 4 (`docs/60_DECISIONS/OPEN_QUESTIONS.md`)
 
-1. A0 헤더 초안 승인 — `docs/60_DECISIONS/headers/A0_sanctuary_first_life.md`(식별자 확정 표 + 결정 6개: `Core/CosmicIDs.h`, 레인 없는 성역, 자리, `arch_terran` 삭제, 이름 후보, 금지어 목록 시점). 승인 뒤 Windows에서 4a → 4b 구현.
-2. #68 안정도 회복·#71 AI 구호 정책·#72 전조 확률의 기본값 — MVP '세계 손질' 전('#68만'·'#71만' 판을 커맨드렛으로 먼저 잰다).
-3. 첫 10분 보장 방식 — 모든 백성 공통 Standing 위기(+`GalaxyTickAtLeast`+`SpawnHazard`) vs `Placed` 열거자(카드 헤더 전).
-4. MVP 임시 엔딩(통치 백성 T3 ∨ 틱 6,000 → 연대기 최소형)과 연대기 이관 기준(#40 ⑦ + 상한 노브 1,500).
-5. 격차 규칙을 Core의 술어 하나로 모으는 때(#107, Phase 4)와 아공간 침식 Hazard의 때(#90).
+1. #68 안정도 회복·#71 AI 구호 정책·#72 전조 확률의 기본값 — MVP '세계 손질' 전('#68만'·'#71만' 판을 커맨드렛으로 먼저 잰다).
+2. 첫 10분 보장 방식 — 모든 백성 공통 Standing 위기(+`GalaxyTickAtLeast`+`SpawnHazard`) vs `Placed` 열거자(카드 헤더 전).
+3. MVP 임시 엔딩(통치 백성 T3 ∨ 틱 6,000 → 연대기 최소형)과 연대기 이관 기준(#40 ⑦ + 상한 노브 1,500).
+4. 격차 규칙을 Core의 술어 하나로 모으는 때(#107, Phase 4)와 아공간 침식 Hazard의 때(#90).
 
 ## 2026-10-18 개발자 결정 (1단계 브리핑 §9 — "권장대로")
 
