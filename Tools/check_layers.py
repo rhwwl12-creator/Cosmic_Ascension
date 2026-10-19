@@ -2,8 +2,6 @@
 
 Checks (docs/40_DEV_GUIDE.md section 2, CLAUDE.md invariant rules 1, 3, 10):
   1. Include direction  Core <- Data <- Sim <- {Events, Ascension, Log, Player, Save} <- {World, UI}  (Tests may include anything).
-     The Sim -> Events header dependency (FCosmicEvalContext lives in Events) is a documented exception until the
-     context types move to Sim/CosmicEvalContext.h; it is reported as a warning, not an error.
   2. Core Logic (Core, Data, Sim, Events, Ascension, Log, Player, Save) includes no widget / actor engine headers.
   3. No FMath::Rand* anywhere in the module (the three random sources are GetRng, DrawTell, CosmicSeed::Derive).
   4. Non-ASCII bytes in source files (the Korean lives in DataTable / String Table only).
@@ -21,7 +19,7 @@ STRICT = '--strict' in sys.argv
 LAYER = {'Core': 0, 'Data': 1, 'Sim': 2, 'Events': 3, 'Ascension': 3, 'Log': 3, 'Player': 3, 'Save': 3, 'World': 4, 'UI': 4, 'Tests': 9}
 CORE_LOGIC = {'Core', 'Data', 'Sim', 'Events', 'Ascension', 'Log', 'Player', 'Save'}
 FORBIDDEN_ENGINE = re.compile(r'#include\s+"(Blueprint/UserWidget\.h|GameFramework/(Actor|Pawn|PlayerController|HUD|GameModeBase|Character)\.h|Components/(Widget|TextBlock|Button|ListView|SceneComponent|StaticMeshComponent)\w*\.h|Engine/World\.h)"')
-ALLOWED_EXCEPTIONS = {('Sim', 'Events')}  # header-level, documented; warning only
+ALLOWED_EXCEPTIONS = set()  # header-level exceptions (Sim/CosmicEvalContext.h resolved Sim -> Events)
 # Baselines for report-only counts (update deliberately when a cleanup lands).
 BASELINE = {'tag_literals': 35, 'unused_knobs': 18}  # measured 2026-10-19
 

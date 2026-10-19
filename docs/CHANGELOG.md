@@ -2,6 +2,12 @@
 
 > 2026-10-19 재편: 본문에 섞여 있던 이력·상태 줄·일지·리뷰 통계를 여기로 옮겼다(내용 무변경, 위치만 — 원격의 Phase 3 꼬리 7·12·8·9 기록 포함). 앞으로는 날짜·작업 접두어·바뀐 규칙·리뷰 통계를 여기에만 적고, 설계 본문과 STATUS.md에는 적지 않는다.
 
+## 2026-10-19 — 정리(Windows 몫): 러너 검증·기준값 기록·FCosmicEvalContext 분리
+
+- `[tools]` `Tools/run_checks.ps1` 첫 Windows 실행 확인: 타임스탬프 차이로 인한 베이스라인 오탐을 방지하도록 요약 정규식(`CosmicBalance: seed.*`) 일치로 보정. 시드 42 3,000틱 커맨드렛 기준값 `Tools/baselines/seed42.json` 기록 완료 (`hash 2438129736, world 1171528496`).
+- `[refactor]` `FCosmicEvalContext`를 `Source/Cosmic_Ascension/Sim/CosmicEvalContext.h`로 분리하여 `Sim` 계층의 `Events` 의존성(헤더 예외) 완전 해소. `CosmicHazards.h`·`CosmicMegaprojects.h` include 교체, `CosmicHazards.cpp` include 보완.
+- 검사: `Tools/check_layers.py` 0 error / 0 warning 달성 (`ALLOWED_EXCEPTIONS` 빈 세트로 전환). `run_checks.ps1 -Tier smoke` (데이터 스키마 검사·단위 테스트·레이어 린트·문서 검사·에디터/게임 타깃 빌드·자동화 테스트 2회·헤드리스 스모크·시드 42 커맨드렛) 전체 통과.
+
 ## 2026-10-19 — 문서 재편 뒤의 정리 도구(Linux 세션)
 
 - `[docs]` 53f6d35 문서 재편, 65633a7 원격 Phase 3 꼬리(7·12·8·9)와 병합, 2b6d017 가이드라인 보완.

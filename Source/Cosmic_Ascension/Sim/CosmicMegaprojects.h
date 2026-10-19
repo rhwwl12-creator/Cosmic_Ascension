@@ -13,7 +13,7 @@
 #include "Containers/Array.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
-#include "Events/CosmicEventSubsystem.h"
+#include "Sim/CosmicEvalContext.h"
 #include "Templates/Tuple.h"
 
 struct FMegaprojectDef;

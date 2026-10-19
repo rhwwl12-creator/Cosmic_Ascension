@@ -6,6 +6,7 @@
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
+#include "Events/CosmicEventSubsystem.h"
 #include "GameplayTagContainer.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Templates/UnrealTemplate.h"

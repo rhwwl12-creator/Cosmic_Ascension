@@ -11,7 +11,7 @@
 
 #include "CoreMinimal.h"
 #include "Core/GalaxyState.h"
-#include "Events/CosmicEventSubsystem.h"
+#include "Sim/CosmicEvalContext.h"
 
 struct FCosmicDataTables;
 struct FCosmicRulesDef;

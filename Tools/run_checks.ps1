@@ -72,15 +72,16 @@ Step 'balance: seed 42 vs baseline' {
     & $Editor $Project -run=CosmicBalance -Seed=42 -Ticks=3000 -Out=checks.csv -unattended -nosplash -stdout -FullStdOutLogOutput "-AbsLog=$RootF/Saved/Logs/Balance.log"
     $line = Select-String -Path $log -Pattern 'CosmicBalance: seed' | Select-Object -Last 1
     if (-not $line) { throw 'no "CosmicBalance: seed" summary line in Balance.log' }
+    $summary = if ($line.Line -match '(CosmicBalance: seed.*)') { $Matches[1] } else { $line.Line }
     $baselinePath = Join-Path $Root 'Tools\baselines\seed42.json'
     $baseline = Get-Content $baselinePath -Raw | ConvertFrom-Json
     if ($UpdateBaseline) {
-        $baseline.summary_line = $line.Line; $baseline.verified_at = (Get-Date -Format 'yyyy-MM-dd')
+        $baseline.summary_line = $summary; $baseline.verified_at = (Get-Date -Format 'yyyy-MM-dd')
         $baseline | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 $baselinePath
-        Write-Host "   baseline updated: $($line.Line)"
-    } elseif ($baseline.summary_line -and ($baseline.summary_line -ne $line.Line)) {
-        throw "summary line differs from Tools/baselines/seed42.json`n   now:      $($line.Line)`n   baseline: $($baseline.summary_line)`n   (intended change -> rerun with -UpdateBaseline and put the new hashes in the commit message)"
-    } else { Write-Host "   $($line.Line)" }
+        Write-Host "   baseline updated: $summary"
+    } elseif ($baseline.summary_line -and ($baseline.summary_line -ne $summary)) {
+        throw "summary line differs from Tools/baselines/seed42.json`n   now:      $summary`n   baseline: $($baseline.summary_line)`n   (intended change -> rerun with -UpdateBaseline and put the new hashes in the commit message)"
+    } else { Write-Host "   $summary" }
 }
 
 if ($failed.Count -gt 0) { Write-Host "run_checks: FAILED -> $($failed -join '; ')"; exit 1 }
