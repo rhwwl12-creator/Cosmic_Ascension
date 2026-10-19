@@ -17,7 +17,7 @@
 
 ## 열린 결정 Top 5 (`docs/60_DECISIONS/OPEN_QUESTIONS.md`)
 
-1. 가칭 식별자 확정 — `arch_seeker`·`Trait.Arch.Seeker`·`Law.Hedge`·`IsSanctuary`·`ShownByName`·`ReceiveCalling`·`enc_sanctuary_bound`·`event_word_arrived`(A0 헤더 전; 세이브에 남아 배포 뒤 불변).
+1. A0 헤더 초안 승인 — `docs/60_DECISIONS/headers/A0_sanctuary_first_life.md`(식별자 확정 표 + 결정 6개: `Core/CosmicIDs.h`, 레인 없는 성역, 자리, `arch_terran` 삭제, 이름 후보, 금지어 목록 시점). 승인 뒤 Windows에서 4a → 4b 구현.
 2. #68 안정도 회복·#71 AI 구호 정책·#72 전조 확률의 기본값 — MVP '세계 손질' 전('#68만'·'#71만' 판을 커맨드렛으로 먼저 잰다).
 3. 첫 10분 보장 방식 — 모든 백성 공통 Standing 위기(+`GalaxyTickAtLeast`+`SpawnHazard`) vs `Placed` 열거자(카드 헤더 전).
 4. MVP 임시 엔딩(통치 백성 T3 ∨ 틱 6,000 → 연대기 최소형)과 연대기 이관 기준(#40 ⑦ + 상한 노브 1,500).
