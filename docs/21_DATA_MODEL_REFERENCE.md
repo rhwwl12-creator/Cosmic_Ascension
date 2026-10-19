@@ -1,6 +1,6 @@
 # 데이터 모델·C++ 설계안 사본 (옛 §7)
 
-> **코드가 원본이다.** 이 문서는 guideline.md v0.8 §7(공통 타입·런타임 상태·정의 데이터·시뮬레이션 Subsystem·인터페이스 요약)을 2026-10-18에 그대로 옮긴 사본이다. `Source/Cosmic_Ascension/Core`·`Data`·`Sim`·`Events`·`Log`·`Player`·`Save`의 헤더와 다르면 코드가 이긴다. 설계 결정(규칙)의 출처로만 읽고, 필드 목록·시그니처는 헤더를 본다. 예정 표지와 §번호의 뜻은 다른 문서와 같다(`docs/SECTION_MAP.md`).
+> **코드가 원본이다.** 이 문서는 guideline.md v0.8 §7(공통 타입·런타임 상태·정의 데이터·시뮬레이션 Subsystem·인터페이스 요약)을 2026-10-19에 그대로 옮긴 사본이다. `Source/Cosmic_Ascension/Core`·`Data`·`Sim`·`Events`·`Log`·`Player`·`Save`의 헤더와 다르면 코드가 이긴다. 설계 결정(규칙)의 출처로만 읽고, 필드 목록·시그니처는 헤더를 본다. 예정 표지와 §번호의 뜻은 다른 문서와 같다(`docs/SECTION_MAP.md`).
 
 ## 7. 데이터 모델 및 C++ 설계안
 
@@ -866,7 +866,7 @@ UPROPERTY(EditAnywhere) FGameplayTag Allegiance; // 소속: Realm.Abyssal / Real
 
 UPROPERTY(EditAnywhere) FGameplayTag CounterfeitOf; // 모방의 원리 (§4.2): 이 교리가 흉내 내는 참된 것. Truth.Rest / Truth.Union / Truth.Worship / Truth.Renewal. Abyssal 행은 필수
 
-UPROPERTY(EditAnywhere) FText Title; // 호칭(이름 아님). 로그 슬롯 {Transcendent}, 성계 패널 툴팁, 두 책 장 묶음 제목 (§8.2, §8.4). 예: 잠잠케 하는 자
+UPROPERTY(EditAnywhere) FText Title; // 호칭(이름 아님). 로그 슬롯 {Transcendent}, 성계 패널의 표식 말(한 줄과 툴팁), 두 책 장 묶음 제목 (§8.2, §8.4). 예: 꺼뜨리는 이
 
 UPROPERTY(EditAnywhere) FText Lure; // 필멸자에게 주는 것 — 교리 표 '유혹' 열 (§4.2). 텍스트만
 
@@ -909,7 +909,7 @@ UPROPERTY(EditAnywhere) TArray<FText> Templates; // 3개 이상(한 판에 한 �
 
 };
 
-// DT_Galaxies (§5.11). 은하 정의. 행 이름이 은하의 식별자이고 세이브에 닿으므로(GalaxyRow·OriginGalaxyRow·Transits) 배포 뒤 바꾸지 않는다. 6행: gal_milkyway(고향 은하 = DT_Rules.HomeGalaxyRow)·gal_andromeda·gal_triangulum·gal_lmc·gal_smc·gal_m87. 시뮬이 읽는 컬럼과 읽지 않는 표시 컬럼의 규칙은 §5.11에 있다(읽는 쪽은 아래 컬럼 주석의 '시뮬'·'표시'다). 컬럼의 형은 아래 그대로이고(은하 생성 규칙 변경의 헤더에서 확정), 테이블이나 고향 행이 없을 때 쓰는 C++ 기본값(멤버 초기화식)은 VS의 고향 값이다 — `LivingWorlds` 60·`Peoples` 12·`AIFourthRungCap` 2·`HomeRadiusShare` 0.53, 나머지는 0과 빈 값. 고향이 아닌 행은 네 시뮬 값에 0을 적는다. Phase 2
+// DT_Galaxies (§5.11). 은하 정의. 행 이름이 은하의 식별자이고 세이브에 닿으므로(GalaxyRow·OriginGalaxyRow·Transits) 배포 뒤 바꾸지 않는다. 20행: gal_milkyway(고향 은하 = DT_Rules.HomeGalaxyRow)·gal_andromeda·gal_triangulum·gal_lmc·gal_smc·gal_m87과 새 표시 전용 14행(Phase 3 9번 작업 — M87과 함께 표시 전용 15, §5.11의 표). 시뮬이 읽는 컬럼과 읽지 않는 표시 컬럼의 규칙은 §5.11에 있다(읽는 쪽은 아래 컬럼 주석의 '시뮬'·'표시'다). 컬럼의 형은 아래 그대로이고(은하 생성 규칙 변경의 헤더에서 확정), 테이블이나 고향 행이 없을 때 쓰는 C++ 기본값(멤버 초기화식)은 VS의 고향 값이다 — `LivingWorlds` 60·`Peoples` 12·`AIFourthRungCap` 2·`HomeRadiusShare` 0.53, 나머지는 0과 빈 값. 고향이 아닌 행은 네 시뮬 값에 0을 적는다. Phase 2
 
 USTRUCT(BlueprintType)
 
@@ -931,7 +931,7 @@ UPROPERTY(EditAnywhere) int32 AIFourthRungCap = 2; // 넷째 칸의 제동 (§5.
 
 UPROPERTY(EditAnywhere) float HomeRadiusShare = 0.53f; // sol의 자리(v0.8 — 단계 4부터 첫 생애의 모성계 sys_0의 자리 — 임시, 단계 5가 관측 좌표로 바꾼다) = 값 × 원판 반지름, 각도 0 (§7.4). 고향 행 0.53. 0~1로 읽는다(밖의 값과 숫자가 아닌 값은 C++ 기본값으로 읽고 에러 한 줄). 시뮬(고향 행만)
 
-UPROPERTY(EditAnywhere) int32 RadiusLy = 0; // 광년. 표시문과 같은 정의의 반지름(광년 눈금). 표시 — 시뮬은 읽지 않는다
+UPROPERTY(EditAnywhere) int32 RadiusLy = 0; // 광년. 고향은 '지름 약 10만 광년'의 절반(우주 화면의 단위), 다른 행은 ½ × D25 × 중심 거리. 우주 화면의 그림 크기(CosmicUniverseLook::SpriteShareOf — 43,500 광년에 대한 몫의 제곱근)와 단계 5의 광년 눈금. 0이면 종류의 크기. 표시 — 시뮬은 읽지 않고 인쇄하지 않는다
 
 UPROPERTY(EditAnywhere) int32 BridgeTicks = 0; // 다리 (§5.9): 고향 은하에서 건너는 틱. 0 = 다리 없음. 고향 행은 0, 음수 금지 (Data.Integrity). 레인이 아니고 상태가 없다. 표시, Phase 6a부터 건넘 단계가 읽는다
 
@@ -941,7 +941,7 @@ UPROPERTY(EditAnywhere) FText DistanceText; // 거리 문안('약' 포함). 고�
 
 UPROPERTY(EditAnywhere) FText FeatureText; // 특징 문안. 빈 값 허용. 표시
 
-UPROPERTY(EditAnywhere) FVector2D MapPosition = FVector2D::ZeroVector; // 우주 화면(같은 지도의 줌 단계)에서의 자리. 표시, 해시 밖
+UPROPERTY(EditAnywhere) FVector2D MapPosition = FVector2D::ZeroVector; // 우주 화면(같은 지도의 줌 단계)에서의 자리: 고향 은하 반지름 단위, 고향의 중심에서, 지도의 X·Y. 거리 1 + ln(d / 50,000 광년), 방향은 은하 경도가 카메라에서 시계 방향(X = −r cos l, Y = −r sin l), 겹치면 손으로 옮긴다(출처와 손 고침은 Tools/data/sources/galaxies.md). 고향은 무엇을 들든 가운데, 다른 행은 (0,0)·NaN·1단위 안·20단위 밖이면 그리지 않는다(CosmicUniverseLook::HasPlace). 표시, 해시 밖
 
 UPROPERTY(EditAnywhere) TArray<FText> StarNameBank; // 백성 모성계의 고유명. 고향 행 60칸, 비복원 (§5.11). 시뮬(고향 행, 생성) (v0.8 — 단계 5에서 은퇴하거나 6a의 건너온 백성용으로 남긴다. 남길 때 '알골'을 뺀다 — '란'은 지금 뱅크에 없다)
 
@@ -1052,9 +1052,9 @@ UPROPERTY(EditAnywhere) int32 FallenCoreMinLanesFromHome = 3; // 초기 코어�
 
 UPROPERTY(EditAnywhere) int32 FarLineCooldownTicks = 300; // log_far_event 사이의 최소 간격. log_far_ascent에는 걸리지 않는다 — 매번 낸다 (§8.1). Phase 2
 
-UPROPERTY(EditAnywhere) int32 BackgroundStarCount = 20000; // 배경 별의 점 수. 표현 계층만 읽는다 (§3.1). Phase 3 꼬리
+UPROPERTY(EditAnywhere) int32 BackgroundStarCount = 20000; // 배경 별의 점 수. 표현 계층만 읽는다 — 0~100,000으로 읽는다(`CosmicMapLook::BackdropCountOf`, 스키마도 같은 경계) (§3.1, §6.4). Phase 3 8번 작업에서 코드에 들어왔다
 
-UPROPERTY(EditAnywhere) int32 SceneryGalaxyCount = 5000; // 풍경 은하의 점 수. 표현 계층만 읽는다 (§5.11). Phase 3 꼬리
+UPROPERTY(EditAnywhere) int32 SceneryGalaxyCount = 10000; // 풍경 은하의 점 수. 표현 계층만 읽는다(CosmicUniverseLook::SceneryCountOf — 0~50,000으로 읽는다, 스키마도 같은 경계) (§5.11, §6.4 '우주 화면'). Phase 3 9번 작업
 
 UPROPERTY(EditAnywhere) int32 ScanSightBonusLanes = 1; // 스캔이 그 자리에서 보는 거리에 더하는 레인 수 (§4.4). Phase 4
 
@@ -1167,7 +1167,7 @@ UFUNCTION(BlueprintCallable) void NewGalaxy(int32 Seed, int32 SystemCount, int32
 
 // 현실에서 가져온 것 가운데 해시에 드는 것은 셋뿐이다: 항성 등급(5), `sys_0`의 고정 자리(v0.8 — 단계 4부터. 그 전은 `sol`)와 성계 좌표(4) (§8.3, §9.2. v0.8 — 단계 5 뒤에는 관측 목록의 좌표·등급이 해시에 든다 — 오프라인 도구가 계산한 값이라 C++에 삼각 함수가 없다). 추첨의 순서(은하 생성 규칙 변경의 헤더에서 고정했다 — 같은 종류의 추첨은 묶어서 뽑는다, §9.2 ⓑ): ① 성계마다 배열 순서로 — 좌표(`sol`은 뽑지 않는다. 그 밖은 시도마다 2회), 항성 등급 1회, 자원 풍부도 1회(등급과 풍부도는 `sol`도 뽑는다. 고정값이 있는 모성계는 뽑은 수를 버린다) ② 모성계의 자리 — 첫 AI 백성은 `sol`의 1레인 이웃에서 1회(7항), 나머지 AI 백성은 저마다 남은 성계에서 1회 ③ AI 백성마다 CivID 순서로 — 아키타입 1회, 윤리 3회(평화·영성·개방), 프로필 1회 ④ 이름 — 백성마다(플레이어 먼저) 모성계 이름 1회와 백성 이름 1회, 이어서 무주 성계마다 배열 순서로 카탈로그 이름 1회 ⑤ 타락 로스터(자리 − 1회) ⑥ 초기 코어(자리마다 1회) ⑦ 첫 생애의 그릇 이름 1회(`Install`)(v0.8 — 단계 4부터 이 순서의 `sol`은 첫 생애의 모성계 `sys_0`이 대신하고, 성역 `sol`은 이 순서 밖에서 추첨 없이 붙는다 — 11항. 그래서 추첨 수는 그대로다). 아키타입·윤리·프로필·모성계 이름·백성 이름의 다섯 추첨은 §9.2 ⓐ대로 무조건 뽑는다 — 가중 행이 없어도, 아키타입이 `arch_default`가 아니어도, `AIProfile`이 차 있어도, 뱅크가 비어도 뽑고 버린다. 그래서 생성의 추첨 수는 시드와 두 수(성계·백성)와 로스터 노브만 따르고 `DT_Civs`·`DT_Galaxies`·`DT_Transcendents`의 내용에 좌우되지 않는다 — 행을 더하거나 뱅크를 채워도 지형과 모성계의 자리는 그대로다. `Sim.LayersInRange`가 결과를 본다: 성계·백성 수 = 고향 행 값(v0.8 — 단계 4부터 성역 노드는 이 수에 세지 않거나 따로 센다), 등급 분포의 허용 오차, 첫 생애의 모성계(`sol` — v0.8 — 단계 4부터 `sys_0`)의 자리와 등급, 이름 중복 없음, 모든 레인이 같은 `GalaxyRow`, CivID 유일, 모든 소유 성계의 `GalaxyRow`가 주인과 같다 (§9.3)
 
-UFUNCTION(BlueprintCallable) void SetTimeScale(float Scale); // 0,1,2,5,10. 0 = 일시정지이며 시뮬의 유일한 일시정지다 — 이 Subsystem은 엔진의 null-world 패스에서 틱하므로 엔진 일시정지(`SetGamePaused`)와 시간 팽창이 닿지 않는다. UI는 SetTimeScale(0)으로만 멈춘다
+UFUNCTION(BlueprintCallable) void SetTimeScale(float Scale); // 0,1,2,5,10, 25(셋째 칸부터 — 어느 배속이 열리는가는 표현 계층의 문이고 시뮬은 0..MaxTimeScale로만 자른다: 0 이하이거나 숫자가 아니면 0, 25 위는 25. FMath::Clamp는 NaN을 위쪽 끝으로 읽으므로 비교로). 0 = 일시정지이며 시뮬의 유일한 일시정지다 — 이 Subsystem은 엔진의 null-world 패스에서 틱하므로 엔진 일시정지(`SetGamePaused`)와 시간 팽창이 닿지 않는다. UI는 SetTimeScale(0)으로만 멈춘다
 
 UFUNCTION(BlueprintPure) float GetTimeScale() const { return TimeScale; } // 패널의 배속 표시와 테스트의 복원용
 
@@ -1251,7 +1251,7 @@ void TickDiplomacy();
 
 void TickConflict(); // 유효 전력 = FleetPower × FleetEffectivenessByTierGap, 상위 영향권 소모, 함대 투입당 카운트다운 +50 (§5.6). 승수·소모 2줄. 통치 문명의 마지막 성계를 앗아 가면 PendingRoleEffect(DeposeRuler) 기록만(§4.4)
 
-// 세계 함수(공개, static이 아닌 이름공간 — 상태·색인·테이블을 받고 줄을 내지 않는다): CosmicHazards::Place·Resolve·Transfer·MoveCapital·Destroy·EmptyHazardSlot·LetSettlementsGo, 물음 ClaimantOf·IsLastUnclaimed·IsLastSettledSystem·IsDeadNode / CosmicMegaprojects::Start·CanStart·Choices·Advance·HasCompleted·RequiredProgressOf·CostPerTickOf·CanPay·RealmCapOf·IsSettling·MaySettle·CanSettle·SettleBlockOf·SettleTargets·Settle / CosmicState::IsSettled·OwnsAnySystem·PickAIProfile·LaneDistancesFrom·IsSanctuary(가칭 — 성역의 술어, v0.8 — 단계 4부터, §4.5 ①) (Sim/CosmicHazards.h·CosmicMegaprojects.h·CosmicStateIndex.h — 새 물음을 만들기 전에 여기서 찾는다. 종료 리뷰)
+// 세계 함수(공개, static이 아닌 이름공간 — 상태·색인·테이블을 받고 줄을 내지 않는다): CosmicHazards::Place·Resolve·Transfer·MoveCapital·Destroy·EmptyHazardSlot·LetSettlementsGo, 물음 ClaimantOf·IsLastUnclaimed·IsLastSettledSystem·IsDeadNode / CosmicMegaprojects::Start·StartBlockOf·CanStart·Choices·Advance·HasCompleted·RequiredProgressOf·CostPerTickOf·CanPay·RealmCapOf·IsSettling·MaySettle·CanSettle·SettleBlockOf·SettleTargets·PeopleSettleBlockOf·Settle, 읽기만 하는 ReadSlot·PaidNothing(패널의 '멈춤'과 커맨드렛 — 어느 단계도 부르지 않는다) / CosmicState::IsSettled·OwnsAnySystem·PickAIProfile·LaneDistancesFrom·IsSanctuary(가칭 — 성역의 술어, v0.8 — 단계 4부터, §4.5 ①) (Sim/CosmicHazards.h·CosmicMegaprojects.h·CosmicStateIndex.h — 새 물음을 만들기 전에 여기서 찾는다. 종료 리뷰)
 void TickHazards(); // 발생 추첨은 정착된 성계만 돈다 — 무주 성계와 정착 중인 성계는 뽑지 않고 건너뛴다(추첨 수는 소유를 따르고 시드에 대해 고정이다). Hazard.Claim도 정착된 성계에만 선다 (§5.7). Hazard.Extinction의 만료는 그 문명의 성계를 놓게 할 뿐 Civs 배열을 줄이지 않는다 — 제거는 그 틱의 건넘 단계의 정리가 한다(플레이어가 통치하는 문명만 다음 틱의 정리로 미룬다 — 아래 '건넘 단계'). 만료 효과, Hazard.Rebellion 지속 틱 조건 (§4.1). KillPlayer·DeposeRuler는 PendingRoleEffect 기록만. 만료 처리 끝에 Hazard.Claim 발생 규칙(결정론: 타락 영향권 인접 — 조공은 Phase 4, Law.Remnant, MaxInfluencedSystems 상한)과 Claim 만료 = InfluencedSystems 편입 (§4.2 영혼 경제, 틱 순서 불변) 단계 안의 순서(고정): ⓐ 거대 프로젝트와 해결(AdvanceMegaprojects) — 모든 성계의 대응 칸(Systems 배열 순서), 그다음 모든 성계의 건설 칸(같은 순서)을 내고 진척시키고, 완성된 프로젝트를 기록하고 칸을 비우고, 그 성계의 Hazard 행이 든 프로젝트면 그 Hazard를 해결한다(답이 짓는 일보다 먼저 비축을 쓴다 — 정착과 문명 제거 작업의 리뷰. 값을 다 치르지 못한 대응 칸이 기다리는 자원을 그 값 아래로 남길 같은 백성의 건설 칸은 그 틱에 내지 않는다 — 종료 리뷰와 그 재감사). 카운트다운보다 먼저라 마지막 틱에 완성된 해결 수단도 성계를 구한다. 프로젝트 칸 하나가 '세계 → 받은 성계의 앎 → 완성 줄 → 해결 줄'이다(§5.7). 행이 더는 들고 있지 않은 대응 프로젝트는 결과 없이 끝나고, 정착 중인 성계의 건설 칸(`project_settle`)도 다른 건설 행처럼 돈다(그 행이 테이블에 없으면 칸이 그대로 남는다 — 정착과 문명 제거 작업). ⓐ는 제 추첨이 없다 — 해결이 거는 효과(`OnResolveEffects`)와 그 뒤의 행은 Apply대로 뽑는다(`NameNotable` 1회 따위) ⓑ 카운트다운과 만료 — 두 번에 나눠 한다: 모든 카운트다운을 줄이며 0이 된 성계를 Systems 배열 순서로 모으고, 그다음 모은 순서대로 만료시킨다. 모은 만료마다 시뮬 추첨 2회(결과의 수, 주장의 수)를 만료를 돌기 전에 전부 먼저 뽑는다(행이 없는 태그도 뽑는다). 만료 하나는 '세계 → 받은 성계의 앎 → 만료 줄 → 뒤따르는 줄'이다(원인이 먼저 읽힌다. 받은 성계의 앎은 세계 쪽의 코드 훅보다도 먼저라 그 만남의 줄은 슬롯에 아직 만료하는 태그가 있을 때 나간다 — 재감사): 앞선 만료가 그 슬롯을 비웠거나 바꿨으면(같은 태그로 다시 놓았어도 — 새로 놓인 것은 카운트가 1 이상이다) 건너뛴다 → 행이 없는 태그는 결과도 줄도 없이 비운다(해결처럼 — 반란이면 지도자와 불만의 셈도 끝난다) → 성계를 앗아 가는 만료(초신성 전조)가 주인의 마지막 정착된 성계에 닿으면(정착 중인 성계는 셈하지 않는다 — 그 정착은 성계와 함께 놓인다, §5.7) 먼저 마지막 성계의 문을 묻는다(아래 건넘 단계, §4.5 — 문이 열리면 그 만료는 줄 없이 슬롯만 비운다) → OnExpireEffects 또는 갈래(UCosmicEventSubsystem::ApplyAll) → 이웃 효과 → 받은 성계의 앎(FollowUpKnowing — 효과가 통치 문명에 넘긴 성계를 알고 준 백성을 만난다. 아래의 은혜 줄과 만료 줄보다 먼저다 — 아는 범위와 로그 작업과 그 리뷰) → 태그의 코드 훅(파괴·왕좌 교체·편입. 효과가 그 성계를 주인의 마지막 정착된 성계로 만들었으면 — 데이터는 그럴 수 없다: 만료 효과도, 이웃 효과가 부르는 해결 효과도 TransferSystem을 싣지 않는다, Data.Integrity — 파괴 앞에서 문을 다시 묻고 에러 한 줄. 그때 지켜진 성계는 만료 효과와 이웃 효과를 이미 받았다: 그 효과가 통치 문명에 넘긴 성계는 은혜 줄보다 먼저 알고, 그 효과가 남긴 Hazard의 줄은 은혜 줄 다음에 나간다) → 슬롯 비움 → 이 만료가 비운 슬롯에 Hazard.Claim 발생 규칙 → 만료 줄(주장이 아무것도 편입하지 못했으면 해결 줄) → 뒤따르는 줄(새로 선 Hazard의 발생 줄과 전조 행, 해결 줄) ⓒ 발생 — 정착된 성계마다 슬롯이 비었든 찼든 시뮬 추첨 정확히 1회를 Systems 배열 순서로 먼저 전부 뽑고, 그다음 그 수가 정한 발생을 같은 순서로 놓는다(찬 슬롯과 정착 중인 성계에는 서지 않는다). 그다음 결정론 발생(반란)을 Civs 배열 순서로 본다 ⓓ 이벤트 슬롯 — UCosmicEventSubsystem::EvaluateAndFire. Hazard를 슬롯에 놓는 길은 하나다(추첨·결정론 발생·SpawnHazard 효과·인접 전파가 같은 함수를 거친다). 그 길이 발생 줄과 그 Hazard의 발생 전조 행(crisis_rebellion의 전조 ②)을 낸다 — 효과가 놓은 반란도 전조 ②를 받는다. 효과가 세계를 바꾼 뒤 따라야 하는 줄은 문맥의 후속 처리 기록(FCosmicEvalContext.Notes — 세계 함수 CosmicHazards::Place·Resolve가 적는다)과 멤버 FollowUpNotes가 잇는다(위기 처리 작업). 받은 성계의 기록은 FollowUpKnowing이 줄보다 먼저 따른다(아는 범위와 로그 작업, §7.5)
 
 // 인물 훅 ② (§1.3, §7.2, §7.5): crisis_rebellion 발생 처리가 전조 ② 행을 직접 Fire하고 그 효과 NameNotable(Notable.Rebel)이 만든다(데이터). 만료 처리에서 먼저 그 문명의 열린 Notable.Ruler 기록이 있으면 Apply 가드 ③과 같은 규칙으로 닫고(LastTick = max(Tick, 1), §7.5 — 왕좌가 바뀌었다), 그다음 열린 Notable.Rebel 기록의 Role을 Notable.Ruler로 바꾼다(AI 문명·플레이어 옛 문명 동일, '정권 교체' 로그 {Ruler}). 플레이어 문명이면 그 만료의 효과를 적용한 직후 PendingEffect가 Effect.DeposeRuler이고 PendingSourceRow가 crisis_rebellion일 때만 전환한다(다른 역할 효과가 먼저 기록되어 이 DeposeRuler가 버려지면 전환도 하지 않는다 — 다른 행이 적은 DeposeRuler로는 전환하지 않는다). 그때도 지금은 그 행의 만료 줄('새 다스리는 이가 섰다')이 나간다. 왕좌가 그대로 남는 것은 사망이 먼저 적혔을 때뿐이라 '반란이 지나갔다' 줄은 Phase 4b의 사망 파이프라인과 함께 더한다. 다른 원천(이름으로 부르는 행, Phase 4부터 조우의 해결)이 먼저 적은 폐위는 그릇을 어차피 틱 경계에서 떨어뜨린다 — 그때 만료 줄은 반란이 왕좌를 차지했다고 말하고 기록은 반란 지도자를 반란 지도자로 둔다. 그 줄은 그런 원천이 처음 오는 작업에서 정한다(§11 Phase 4). AI 문명이면 새 AIProfile을 만료의 결과 수가 고른다(CosmicState::PickAIProfile — 네 프로필 균등). 해결 처리에서 열린 Rebel 기록을 닫는다(LastTick = max(Tick, 1)). 넘김(TransferSystem)으로 비는 반란과 행이 없는 태그의 만료도 해결처럼 닫는다. 반란이 슬롯을 떠나면(만료·해결·넘김) 그 문명의 LowStabilityTicks = 0. Hazard.Extinction의 만료로 성계를 모두 잃은 문명은 그 틱의 건넘 단계(정리)에서 제거되고(플레이어가 통치하던 문명만 다음 틱) 명부도 함께 사라진다 — 애도 문장이 통치자 이름을 한 번 부른다. 인물 훅 ③은 UAscensionSubsystem의 AI 간이 판정(T3 도달 → Notable.Ascendant, §7.5), 훅 ①은 UPlayerRoleSubsystem::BecomeWanderer(Regent, §7.5). 인물 추첨의 난수는 문맥이 건넨 시뮬 스트림이다(§7.5)
@@ -1287,6 +1287,8 @@ bool bBroadcastEnabled = true;
 bool bInTickStages = false; // 1~9단계가 도는 동안 참(역할 효과 해소는 밖). 이때 NewGalaxy·LoadState·SimulateTick이 불리면 ensure (§9.4)
 
 static constexpr int32 MaxTicksPerFrame = 10; // 프레임당 처리 상한이자 이월 상한 (§9.4)
+
+static constexpr float MaxTimeScale = 25.f; // (공개) 배속 상한 — 셋째 칸의 ×25(§2.1). 프레임 예산이 아니다: MaxTicksPerFrame은 10 그대로 (§9.4)
 
 static constexpr float SecondsPerTick = 1.0f;
 
@@ -1363,7 +1365,7 @@ static constexpr float SecondsPerTick = 1.0f;
 
 // UAscensionSubsystem
 
-// - void EvaluateFeats(FGalaxyState&, FRandomStream&)  틱당 정확히 1회, AI 단계의 맨 끝에서만 부른다(§7.4). 그 틱의 해결·만료·이벤트·AI 행동이 모두 지난 자리라 '주요 이벤트 후'는 자리로 지켜진다(따로 부르지 않는다). 순서: 플레이어가 통치하는 백성 먼저(Embodied이고 통치자일 때만. 조건은 SinceTick = Calling.BornTick으로 본다), 그다음 Civs 배열 순서로 그 밖의 백성(SinceTick 0. 정착된 성계가 없는 백성은 건너뛴다). 한 백성에 대해: Path가 Ruler이고 RequiredTier가 그 백성의 Tier인 DT_Feats 행을 행 이름 사전순으로 보고(한 칸 위가 아니거나 조건이 없는 행은 판정하지 않고 에러 한 줄을 낸 뒤 다음 행으로 간다 — FAscensionFeatDef::IsOneRungWithDeed, AI의 선택도 그 행을 보지 않는다), CompletionConditions가 그 백성과 제가 가진 정착된 성계 하나(OwnedSystems 순서 — 목록에 있어도 주인이 다른 성계는 세지 않는다)를 주제로 전부 성립하는 첫 행 하나로 오른다 — 한 틱에 한 칸. 오를 때의 순서: Tier = TargetTier → AscensionCost(ApplyAll, SourceRow = 업적 행) → 플레이어면 CompletedFeats·생애의 Feats와 PeakTier(오른 칸이 더 높을 때만, §16 #67 ①)·GrantedPowers → AI 백성이 Tier 3에 오르면 Notable.Ascendant 기록(아래 인물 훅 ③) / Tier 4 이상이면 열린 인물 기록 닫기(아래) → 받은 성계의 앎(FollowUpKnowing — 대가가 통치 문명에 넘긴 성계를 알고 준 백성, 곧 승천한 백성을 만난다. 그 만남이 승천 줄보다 먼저다) → 승천 줄(행의 LogTemplates, Log.Ascension, Severity 2) → 뒤따르는 줄(FollowUpNotes) → 플레이어면 OnTierAscended. 방랑자 경로(개인 Tier)의 판정은 첫 방랑자 업적 행과 함께 Phase 4다. 핸들러 안에서 불리거나 살아 있는 상태가 아닌 상태를 받으면 에러 한 줄을 내고 아무것도 하지 않는다. 틱 사이 입력이 채운 조건은 다음 틱의 판정이 잡는다
+// - void EvaluateFeats(FGalaxyState&, FRandomStream&)  틱당 정확히 1회, AI 단계의 맨 끝에서만 부른다(§7.4). 그 틱의 해결·만료·이벤트·AI 행동이 모두 지난 자리라 '주요 이벤트 후'는 자리로 지켜진다(따로 부르지 않는다). 순서: 플레이어가 통치하는 백성 먼저(Embodied이고 통치자일 때만. 조건은 SinceTick = Calling.BornTick으로 본다), 그다음 Civs 배열 순서로 그 밖의 백성(SinceTick 0. 정착된 성계가 없는 백성은 건너뛴다). 한 백성에 대해: Path가 Ruler이고 RequiredTier가 그 백성의 Tier인 DT_Feats 행을 행 이름 사전순으로 보고(한 칸 위가 아니거나 조건이 없는 행은 판정하지 않고 에러 한 줄을 낸 뒤 다음 행으로 간다 — FAscensionFeatDef::IsOneRungWithDeed. 보는 행의 거르개는 FAscensionFeatDef::IsJudgedRulerRowAt 하나다(Path·RequiredTier·IsOneRungWithDeed — AI의 선택과 상단 바의 '다음 칸까지'도 같은 행만 본다, Phase 3 12번 작업)), CompletionConditions가 그 백성과 제가 가진 정착된 성계 하나(OwnedSystems 순서 — 목록에 있어도 주인이 다른 성계는 세지 않는다)를 주제로 전부 성립하는 첫 행 하나로 오른다 — 한 틱에 한 칸. 오를 때의 순서: Tier = TargetTier → AscensionCost(ApplyAll, SourceRow = 업적 행) → 플레이어면 CompletedFeats·생애의 Feats와 PeakTier(오른 칸이 더 높을 때만, §16 #67 ①)·GrantedPowers → AI 백성이 Tier 3에 오르면 Notable.Ascendant 기록(아래 인물 훅 ③) / Tier 4 이상이면 열린 인물 기록 닫기(아래) → 받은 성계의 앎(FollowUpKnowing — 대가가 통치 문명에 넘긴 성계를 알고 준 백성, 곧 승천한 백성을 만난다. 그 만남이 승천 줄보다 먼저다) → 승천 줄(행의 LogTemplates, Log.Ascension, Severity 2) → 뒤따르는 줄(FollowUpNotes) → 플레이어면 OnTierAscended. 방랑자 경로(개인 Tier)의 판정은 첫 방랑자 업적 행과 함께 Phase 4다. 핸들러 안에서 불리거나 살아 있는 상태가 아닌 상태를 받으면 에러 한 줄을 내고 아무것도 하지 않는다. 틱 사이 입력이 채운 조건은 다음 틱의 판정이 잡는다
 
 // - FOnTierAscended OnTierAscended(EAscensionTier NewTier, FName FeatRow, EPlayerRole Path)  플레이어의 승천에만 낸다(AI 백성의 승천은 줄뿐이다). 방송 게이트와 방송 중 표시를 거친다
 

@@ -6,6 +6,10 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Blueprint/UserWidget.h"
+#include "Blueprint/WidgetTree.h"
+#include "Components/TextBlock.h"
+#include "Components/Widget.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
@@ -13,6 +17,7 @@
 #include "Engine/DataTable.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
+#include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
 #include "Misc/AutomationTest.h"
@@ -74,6 +79,69 @@ namespace CosmicTests
 	inline FName StandingProject()
 	{
 		return FName(TEXT("project_test"));
+	}
+
+	// An empty table of a row struct in the transient package: a test fills it and hands it in through SetTables.
+	inline UDataTable* NewTable(UScriptStruct* RowStruct)
+	{
+		UDataTable* Table = NewObject<UDataTable>(GetTransientPackage());
+		Table->RowStruct = RowStruct;
+		return Table;
+	}
+
+	// The tables with DT_Rules replaced by one row, everything else as given - the game's projects and feats too: a test
+	// that ticks a board takes them out with WithoutProjects (below).
+	inline FCosmicDataTables WithRules(const FCosmicDataTables& Base, const FCosmicRulesDef& RulesRow)
+	{
+		UDataTable* RulesTable = NewTable(FCosmicRulesDef::StaticStruct());
+		RulesTable->AddRow(CosmicRows::Rules, RulesRow);
+		FCosmicDataTables Tables = Base;
+		Tables.Rules = RulesTable;
+		return Tables;
+	}
+
+	// The tables with DT_Galaxies replaced, everything else as given (as WithTranscendents). A test that hands it to SetTables
+	// puts a copy of the game's home row in it: a table without the home row is an error line and the C++ defaults (7.4).
+	inline FCosmicDataTables WithGalaxies(const FCosmicDataTables& Base, UDataTable* Galaxies)
+	{
+		FCosmicDataTables Tables = Base;
+		Tables.Galaxies = Galaxies;
+		return Tables;
+	}
+
+	// A DT_Galaxies row as a test writes it: display only (the four simulation values 0, BridgeTicks 0), DisplayName and Kind
+	// (requested by name), RadiusLy and MapPosition as given; the texts and pools empty.
+	inline FGalaxyDef GalaxyRowOf(const TCHAR* DisplayName, const TCHAR* Kind, int32 RadiusLy, const FVector2D& MapPosition)
+	{
+		FGalaxyDef Row;
+		Row.DisplayName = FText::AsCultureInvariant(DisplayName);
+		Row.Kind = FGameplayTag::RequestGameplayTag(FName(Kind), false);
+		Row.LivingWorlds = 0;
+		Row.Peoples = 0;
+		Row.AIFourthRungCap = 0;
+		Row.HomeRadiusShare = 0.f;
+		Row.RadiusLy = RadiusLy;
+		Row.BridgeTicks = 0;
+		Row.MapPosition = MapPosition;
+		return Row;
+	}
+
+	// The tables with DT_Transcendents replaced, everything else as given.
+	inline FCosmicDataTables WithTranscendents(const FCosmicDataTables& Base, UDataTable* Transcendents)
+	{
+		FCosmicDataTables Tables = Base;
+		Tables.Transcendents = Transcendents;
+		return Tables;
+	}
+
+	// A transcendent instance put in the state by the test (clear State.Transcendents first: NewGalaxy brings the game's
+	// roster - CLAUDE.md), with its sphere.
+	inline FTranscendentState& AddInstance(FGalaxyState& State, FName TranscendentID, const TArray<FName>& Sphere)
+	{
+		FTranscendentState& Transcendent = State.Transcendents.AddDefaulted_GetRef();
+		Transcendent.TranscendentID = TranscendentID;
+		Transcendent.InfluencedSystems = Sphere;
+		return Transcendent;
 	}
 
 	// The tables handed in without the game's projects and feats (section 5.7). With them every AI people of a board would
@@ -159,6 +227,70 @@ namespace CosmicTests
 		{
 			Civ.HomeSystemID = State.Systems[*SystemIndices.begin()].SystemID;
 		}
+	}
+
+	// Every system known and every people met, appended after what Knowing holds, in array order, at the current tick (the
+	// ruled people of the first life stays first in the meeting order): for a test that draws or shows a whole board as
+	// before Phase 3 item 8. Writes the state only - no NoteMet, no line, no draw. The state hash moves (Knowing is in it);
+	// the world hash does not.
+	inline void KnowAll(FGalaxyState& State)
+	{
+		auto Append = [&State](TArray<FKnownMark>& Marks, FName ID)
+		{
+			if (!Marks.ContainsByPredicate([ID](const FKnownMark& Mark) { return Mark.ID == ID; }))
+			{
+				FKnownMark& Mark = Marks.AddDefaulted_GetRef();
+				Mark.ID = ID;
+				Mark.Tick = State.Tick;
+			}
+		};
+		for (const FStarSystemState& System : State.Systems)
+		{
+			Append(State.Knowing.KnownSystems, System.SystemID);
+		}
+		for (const FCivilizationState& Civ : State.Civs)
+		{
+			Append(State.Knowing.MetCivs, Civ.CivID);
+		}
+	}
+
+	// Knowing as a test sets it: exactly these systems (indices into Systems) known and these peoples (indices into Civs)
+	// met, in the order given (the meeting order of the palette), at the current tick. FirstContactCivID,
+	// PendingContactCivID and FarLineUntilTick stay.
+	inline void SetKnowing(FGalaxyState& State, std::initializer_list<int32> SystemIndices, std::initializer_list<int32> CivIndices)
+	{
+		State.Knowing.KnownSystems.Reset();
+		State.Knowing.MetCivs.Reset();
+		for (const int32 SystemIndex : SystemIndices)
+		{
+			FKnownMark& Mark = State.Knowing.KnownSystems.AddDefaulted_GetRef();
+			Mark.ID = State.Systems.IsValidIndex(SystemIndex) ? State.Systems[SystemIndex].SystemID : NAME_None;
+			Mark.Tick = State.Tick;
+		}
+		for (const int32 CivIndex : CivIndices)
+		{
+			FKnownMark& Mark = State.Knowing.MetCivs.AddDefaulted_GetRef();
+			Mark.ID = State.Civs.IsValidIndex(CivIndex) ? State.Civs[CivIndex].CivID : NAME_None;
+			Mark.Tick = State.Tick;
+		}
+	}
+
+	// Everything the text blocks of a widget's own tree show, one block per line.
+	inline FString ReadTexts(const UUserWidget& Widget)
+	{
+		FString Shown;
+		if (Widget.WidgetTree)
+		{
+			Widget.WidgetTree->ForEachWidget([&Shown](UWidget* Child)
+			{
+				if (const UTextBlock* Block = Cast<UTextBlock>(Child))
+				{
+					Shown += Block->GetText().ToString();
+					Shown += TEXT("\n");
+				}
+			});
+		}
+		return Shown;
 	}
 }
 

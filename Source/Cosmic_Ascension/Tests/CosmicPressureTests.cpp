@@ -26,16 +26,15 @@
 
 namespace CosmicPressureTests
 {
+	// The test-table helpers are shared (Tests/CosmicTestHelpers.h).
+	using CosmicTests::AddInstance;
+	using CosmicTests::NewTable;
+	using CosmicTests::WithRules;
+	using CosmicTests::WithTranscendents;
+
 	FGameplayTag Tag(const TCHAR* Name)
 	{
 		return FGameplayTag::RequestGameplayTag(FName(Name));
-	}
-
-	UDataTable* NewTable(UScriptStruct* RowStruct)
-	{
-		UDataTable* Table = NewObject<UDataTable>(GetTransientPackage());
-		Table->RowStruct = RowStruct;
-		return Table;
 	}
 
 	// A fallen transcendent row of a tier and a depth.
@@ -58,31 +57,6 @@ namespace CosmicPressureTests
 		Out.Value = Value;
 		Out.Tag = TagName ? Tag(TagName) : FGameplayTag();
 		return Out;
-	}
-
-	// The two below hand the tables back without the game's projects and feats (CosmicTests::WithoutProjects).
-	FCosmicDataTables WithTranscendents(const FCosmicDataTables& Base, UDataTable* Transcendents)
-	{
-		FCosmicDataTables Tables = Base;
-		Tables.Transcendents = Transcendents;
-		return CosmicTests::WithoutProjects(Tables);
-	}
-
-	FCosmicDataTables WithRules(const FCosmicDataTables& Base, const FCosmicRulesDef& RulesRow)
-	{
-		UDataTable* RulesTable = NewTable(FCosmicRulesDef::StaticStruct());
-		RulesTable->AddRow(CosmicRows::Rules, RulesRow);
-		FCosmicDataTables Tables = Base;
-		Tables.Rules = RulesTable;
-		return CosmicTests::WithoutProjects(Tables);
-	}
-
-	FTranscendentState& AddInstance(FGalaxyState& State, FName TranscendentID, const TArray<FName>& Sphere)
-	{
-		FTranscendentState& Transcendent = State.Transcendents.AddDefaulted_GetRef();
-		Transcendent.TranscendentID = TranscendentID;
-		Transcendent.InfluencedSystems = Sphere;
-		return Transcendent;
 	}
 
 	// The three systems of the reach cases on the chain a test wires (CosmicTests::WireChain: 0-1-...-9, 4-10-11): X is
@@ -144,7 +118,7 @@ bool FCosmicRealmPressureMonotonicTest::RunTest(const FString& Parameters)
 		Table->AddRow(RowOfTier[TierIndex], Fallen(static_cast<EAscensionTier>(TierIndex), 0.f));
 	}
 	Table->AddRow(FourTwin, Fallen(EAscensionTier::Tier4_Transcendent, 0.f));
-	const FCosmicDataTables Tables = WithRules(WithTranscendents(Original, Table), Rules);
+	const FCosmicDataTables Tables = CosmicTests::WithoutProjects(WithRules(WithTranscendents(Original, Table), Rules));
 
 	// The index was built for Fresh; every state below is a copy with the same systems and civilizations.
 	auto Read = [&](const FGalaxyState& State, int32 SystemIndex)
@@ -387,7 +361,7 @@ bool FCosmicPressureDepthMonotonicTest::RunTest(const FString& Parameters)
 	Table->AddRow(DeepThree, Fallen(EAscensionTier::Tier3_Causal, 1.f));
 	Table->AddRow(ShallowFive, Fallen(EAscensionTier::Tier5_EternalOrder, 0.f));
 	Table->AddRow(NoNumber, Fallen(EAscensionTier::Tier4_Transcendent, std::numeric_limits<float>::quiet_NaN()));
-	const FCosmicDataTables Tables = WithRules(WithTranscendents(Original, Table), Rules);
+	const FCosmicDataTables Tables = CosmicTests::WithoutProjects(WithRules(WithTranscendents(Original, Table), Rules));
 
 	// The pressure of one transcendent alone, with the given system in its sphere, read at ReadAt.
 	auto Alone = [&](FName RowName, int32 SphereSystem, int32 ReadAt, const FCosmicRulesDef* RulesOfCase = nullptr)
@@ -478,7 +452,7 @@ bool FCosmicFallenRosterPickTest::RunTest(const FString& Parameters)
 	{
 		FCosmicRulesDef RulesRow = BaseRules;
 		RulesRow.FallenTranscendentCount = Count;
-		return WithTranscendents(WithRules(Original, RulesRow), Table);
+		return CosmicTests::WithoutProjects(WithTranscendents(WithRules(Original, RulesRow), Table));
 	};
 	// The TranscendentIDs of the roster a seed gives under the tables set last.
 	auto RosterOf = [Sim](int32 Seed)
@@ -721,7 +695,7 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 			Def.PressureEffectsPerTick = Row.Effects;
 			Table->AddRow(Row.Name, Def);
 		}
-		FCosmicDataTables Tables = WithTranscendents(WithRules(Original, RulesRow), Table);
+		FCosmicDataTables Tables = CosmicTests::WithoutProjects(WithTranscendents(WithRules(Original, RulesRow), Table));
 		Tables.Events = nullptr;
 		return Tables;
 	};
@@ -1063,7 +1037,7 @@ bool FCosmicStabilityCountBoundaryTest::RunTest(const FString& Parameters)
 		FCosmicRulesDef Knobs = BaseRules;
 		Knobs.PressureBySourceTier = { 0.f, 0.f, 0.25f, 1.f, 2.f };
 		Knobs.SpiritualPressureStabilityDrain = 0.002f;
-		FCosmicDataTables Tables = WithTranscendents(WithRules(Original, Knobs), Table);
+		FCosmicDataTables Tables = CosmicTests::WithoutProjects(WithTranscendents(WithRules(Original, Knobs), Table));
 		Tables.Events = nullptr;
 		Sim->SetTables(Tables);
 		Sim->NewGalaxy(42, 12, 4);
@@ -1095,7 +1069,7 @@ bool FCosmicStabilityCountBoundaryTest::RunTest(const FString& Parameters)
 
 		FCosmicRulesDef RulesRow = BaseRules;
 		RulesRow.EventSlotTicks = 1;
-		FCosmicDataTables Tables = WithRules(Original, RulesRow);
+		FCosmicDataTables Tables = CosmicTests::WithoutProjects(WithRules(Original, RulesRow));
 		Tables.Events = Events;
 		Sim->SetTables(Tables);
 		Sim->NewGalaxy(42, 12, 4);

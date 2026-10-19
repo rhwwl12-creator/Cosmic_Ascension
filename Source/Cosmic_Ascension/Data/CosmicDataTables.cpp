@@ -159,6 +159,13 @@ bool FCosmicDataTables::IsHazardAnswer(FName RowName) const
 	return false;
 }
 
+TArray<FName> FCosmicDataTables::GetGalaxyRowNames() const
+{
+	TArray<FName> Names = Galaxies ? Galaxies->GetRowNames() : TArray<FName>();
+	Names.Sort(FNameLexicalLess());
+	return Names;
+}
+
 TArray<FName> FCosmicDataTables::GetCivRowNames() const
 {
 	TArray<FName> Names = Civs ? Civs->GetRowNames() : TArray<FName>();

@@ -663,8 +663,12 @@ bool FCosmicSimFrameStepTest::RunTest(const FString& Parameters)
 	Sim->Tick(0.35f);
 	TestEqual(TEXT("10x for 0.35 s: three ticks"), State.Tick, static_cast<int64>(3));
 
+	// Above x10 the broadcast gate is closed: the game's controller answers OnSimTick and lowers a speed above x10 when the
+	// third rung's gate closes (Phase 3 item 12) - these counts must not lean on what an earlier test left it seeing.
+	const bool bWasBroadcasting = Sim->IsBroadcastEnabled();
+	Sim->SetBroadcastEnabled(false);
 	Sim->SetTimeScale(50.f);
-	TestEqual(TEXT("Time scale is capped at 10"), Sim->GetTimeScale(), 10.f);
+	TestEqual(TEXT("Time scale is capped at 25"), Sim->GetTimeScale(), 25.f);
 	Sim->Tick(1.f);
 	TestEqual(TEXT("At most ten ticks per frame"), State.Tick, static_cast<int64>(13));
 
@@ -674,6 +678,7 @@ bool FCosmicSimFrameStepTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("The backlog carried over is ten ticks at most"), State.Tick, static_cast<int64>(33));
 	Sim->Tick(0.f);
 	TestEqual(TEXT("Nothing is left after the carried ticks"), State.Tick, static_cast<int64>(33));
+	Sim->SetBroadcastEnabled(bWasBroadcasting);
 
 	// One second at 1x is one tick: the part of a tick left by a frame carries over.
 	Sim->SetTimeScale(1.f);
@@ -713,6 +718,31 @@ bool FCosmicSimFrameStepTest::RunTest(const FString& Parameters)
 	Sim->Tick(0.5f);
 	TestEqual(TEXT("and a whole second after resuming is one"), State.Tick, static_cast<int64>(735));
 	Sim->SetTimeScale(0.f);
+
+	// The third rung's x25 (Phase 3 item 12), with the broadcast gate closed as above. A scale that is not a number pauses
+	// (FMath::Clamp would read it as its top, x25); the frame budget stays ten ticks: x25 keeps its pace above 2.5 frames a
+	// second, and a half-second frame runs ten ticks and carries what is left, up to ten.
+	Sim->SetBroadcastEnabled(false);
+	Sim->SetTimeScale(std::numeric_limits<float>::quiet_NaN());
+	TestEqual(TEXT("A speed that is not a number pauses"), Sim->GetTimeScale(), 0.f);
+	Sim->Tick(1.f);
+	TestEqual(TEXT("(and runs no tick)"), State.Tick, static_cast<int64>(735));
+	Sim->SetTimeScale(25.f);
+	for (int32 Frame = 0; Frame < 4; ++Frame)
+	{
+		Sim->Tick(0.25f);
+	}
+	// 6.25 ticks a frame, exact in binary: 6, 6, 6 and 7.
+	TestEqual(TEXT("At x25 four quarter-second frames run 25 ticks"), State.Tick, static_cast<int64>(760));
+	Sim->SetTimeScale(0.f);
+	Sim->SetTimeScale(25.f);
+	Sim->Tick(0.5f);
+	Sim->Tick(0.5f);
+	TestEqual(TEXT("Below 2.5 frames a second the frame cap bites: two half-second frames run 20 ticks"), State.Tick, static_cast<int64>(780));
+	Sim->Tick(0.f);
+	TestEqual(TEXT("and the 5 carried over run on the next frame"), State.Tick, static_cast<int64>(785));
+	Sim->SetTimeScale(0.f);
+	Sim->SetBroadcastEnabled(bWasBroadcasting);
 	return true;
 }
 

@@ -11,6 +11,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameplayTagContainer.h"
+#include "InputCoreTypes.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
 #include "Sim/GalaxySimulationSubsystem.h"
@@ -21,6 +22,7 @@
 #include "World/CosmicMapLook.h"
 #include "World/CosmicMapPick.h"
 #include "World/CosmicStarSystemActor.h"
+#include "World/CosmicZoomLevels.h"
 
 #include <limits>
 
@@ -28,7 +30,12 @@ namespace CosmicCameraTests
 {
 	ACosmicGalaxyMapActor* FindMap(UWorld* World)
 	{
-		for (TActorIterator<ACosmicGalaxyMapActor> It(World); World && It; ++It)
+		// The iterator checks its world as it is made, before any loop condition.
+		if (!World)
+		{
+			return nullptr;
+		}
+		for (TActorIterator<ACosmicGalaxyMapActor> It(World); It; ++It)
 		{
 			return *It;
 		}
@@ -74,6 +81,8 @@ bool FCosmicUICameraAndSelectionTest::RunTest(const FString& Parameters)
 	// ---- A rebuild frames the whole disc and puts the camera there at once ----
 	{
 		Sim->NewGalaxy(42, 0, 0);
+		// The whole board known, as before Phase 3 item 8 (the selection takes known systems only - UI.KnownFilter).
+		CosmicTests::KnowAll(Sim->GetMutableState());
 		Pawn->Orbit(30.f, 10.f);
 		Pawn->Zoom(3.f);
 		Map->RefreshNow();
@@ -108,20 +117,32 @@ bool FCosmicUICameraAndSelectionTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("One wheel step in comes nearer by x0.85"), Pawn->GetTargetArmLength(), Framed * 0.85f, 0.5f);
 		Pawn->Zoom(100.f);
 		TestEqual(TEXT("Many steps in stop at 1,500"), Pawn->GetTargetArmLength(), 1500.f);
+		// At 1,500 the target arm is the region's: its bound holds a far pan.
+		Pawn->Pan(FVector(100.f * Radius, 0.f, 0.f));
+		TestEqual(TEXT("A far pan in the region stops 1.1 radii from the centre"), FVector::Dist2D(Pawn->GetTargetFocus(), Centre), 1.1 * Radius, 0.5);
+		TestTrue(TEXT("A pan moves the camera at once"), Pawn->GetActorLocation().Equals(Pawn->GetTargetFocus(), 0.01));
 		Pawn->Zoom(-100.f);
-		TestEqual(TEXT("Many steps out stop at three radii"), Pawn->GetTargetArmLength(), 3.f * Radius, 0.5f);
+		TestEqual(TEXT("Many steps out stop at the universe's far stop"), Pawn->GetTargetArmLength(), Pawn->GetZoomLevels().UniverseFar, 0.5f);
+		TestTrue(TEXT("(the far stop lies past the region)"), Pawn->GetTargetArmLength() > 3.f * Radius);
+		Pawn->Pan(FVector(100.f * Radius, 0.f, 0.f));
+		TestEqual(TEXT("At the universe level a far pan stops at the universe's bound"), FVector::Dist2D(Pawn->GetTargetFocus(), Centre), static_cast<double>(Pawn->GetZoomLevels().UniverseBound), 0.5);
 		Pawn->Orbit(0.f, -100.f);
 		TestEqual(TEXT("The pitch stops at -85"), Pawn->GetTargetPitch(), -85.f);
 		Pawn->Orbit(0.f, 200.f);
 		TestEqual(TEXT("and at -20"), Pawn->GetTargetPitch(), -20.f);
 		Pawn->Orbit(400.f, 0.f);
 		TestEqual(TEXT("The yaw goes round freely"), Pawn->GetTargetYaw(), 40.f, 0.01f);
-		Pawn->Pan(FVector(100.f * Radius, 0.f, 0.f));
-		TestEqual(TEXT("A far pan stops 1.1 radii from the centre"), FVector::Dist2D(Pawn->GetTargetFocus(), Centre), 1.1 * Radius, 0.5);
-		TestTrue(TEXT("A pan moves the camera at once"), Pawn->GetActorLocation().Equals(Pawn->GetTargetFocus(), 0.01));
 		Pawn->FocusOn(Sol);
 		TestTrue(TEXT("Focusing aims at the system"), Pawn->GetTargetFocus().Equals(FVector(Sol.X, Sol.Y, 0.0), 0.01));
 		TestEqual(TEXT("and comes to arm 3,000"), Pawn->GetTargetArmLength(), 3000.f);
+		TestTrue(TEXT("and into the region"), Pawn->GetTargetLevel() == ECosmicZoomLevel::Region);
+		// A drag during a glide moves the camera by the drag, from where it is (Phase 3 item 9, amendment 13): no jump to the
+		// target.
+		const FVector Before = Pawn->GetActorLocation();
+		const FVector Drag(250.f, -100.f, 0.f);
+		TestFalse(TEXT("(the camera is still gliding toward the system)"), Before.Equals(Pawn->GetTargetFocus(), 1.0));
+		Pawn->Pan(Drag);
+		TestTrue(TEXT("A pan during a glide moves the camera by the pan"), Pawn->GetActorLocation().Equals(Before + Drag, 0.01));
 		Pawn->Zoom(100.f);
 		Pawn->FocusOn(Sol);
 		TestEqual(TEXT("A nearer arm stays when focusing"), Pawn->GetTargetArmLength(), 1500.f);
@@ -172,12 +193,14 @@ bool FCosmicUICameraAndSelectionTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("and its ring"), Map->GetDrawnSelection(), FName(NAME_None));
 		TestTrue(TEXT("and frames the new disc"), Pawn->GetTargetFocus().Equals(Map->GetDiscCentre(), 0.01));
 		TestEqual(TEXT("from its own distance"), Pawn->GetTargetArmLength(), 2.25f * Map->GetDiscRadius(), 0.5f);
+		TestTrue(TEXT("and opens the universe"), Pawn->GetZoomLevels().HasUniverse());
 	}
 
 	// ---- CosmicSelect given before a build waits for it (the old galaxy's stars still stand) ----
 	{
 		TestTrue(TEXT("(the old galaxy has a star named sol)"), Map->FindStar(FName(TEXT("sol"))) != nullptr);
 		Sim->NewGalaxy(42, 0, 0);
+		CosmicTests::KnowAll(Sim->GetMutableState());
 		Controller->CosmicSelect(TEXT("sol"));
 		TestEqual(TEXT("A CosmicSelect before the build waits"), Controller->GetSelectedSystem(), FName(NAME_None));
 		Map->RefreshNow();
@@ -192,6 +215,7 @@ bool FCosmicUICameraAndSelectionTest::RunTest(const FString& Parameters)
 	// ---- From afar labels thin out to the owned, the hazards and the selection ----
 	{
 		Sim->NewGalaxy(42, 0, 0);
+		CosmicTests::KnowAll(Sim->GetMutableState());
 		Map->RefreshNow();
 		FGalaxyState& Live = Sim->GetMutableState();
 		TArray<int32> Wild;
@@ -211,6 +235,7 @@ bool FCosmicUICameraAndSelectionTest::RunTest(const FString& Parameters)
 		{
 			return false;
 		}
+		TestEqual(TEXT("(20,000 lies in the region on this disc)"), CosmicZoom::UniverseShareOf(20000.f, Map->GetZoomLevels()), 0.f);
 		Live.Systems[Wild[1]].ActiveHazard = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.AIAwakening")));
 		Live.Systems[Wild[1]].HazardTicksRemaining = 1000;
 		Controller->SelectSystem(Live.Systems[Wild[2]].SystemID);
@@ -240,6 +265,28 @@ bool FCosmicUICameraAndSelectionTest::RunTest(const FString& Parameters)
 		Look.bOwned = false;
 		Look.bHazard = true;
 		TestTrue(TEXT("with a hazard, from afar too"), CosmicMapLook::ShowsLabel(Look, false, true));
+	}
+
+	// ---- The release that ends a double click is no click (Phase 3 item 8, amendment 14) ----
+	{
+		// UPlayerInput turns the second press into a press and a double click; the button-up after it is an ordinary
+		// release. Here the cursor picks nothing (no mouse in a test): a release taken as a click would clear the selection.
+		const FName Picked = Sim->GetState().Systems.IsValidIndex(2) ? Sim->GetState().Systems[2].SystemID : NAME_None;
+		Controller->SelectSystem(Picked);
+		TestEqual(TEXT("(a known system is selected)"), Controller->GetSelectedSystem(), Picked);
+		Controller->HandleLeftPressed(EKeys::LeftMouseButton);
+		Controller->HandleLeftDoubleClick(EKeys::LeftMouseButton);
+		Controller->HandleLeftReleased(EKeys::LeftMouseButton);
+		TestEqual(TEXT("A double click's release keeps the selection"), Controller->GetSelectedSystem(), Picked);
+		// The other order (the double click before the press): the press leaves the swallow alone.
+		Controller->HandleLeftDoubleClick(EKeys::LeftMouseButton);
+		Controller->HandleLeftPressed(EKeys::LeftMouseButton);
+		Controller->HandleLeftReleased(EKeys::LeftMouseButton);
+		TestEqual(TEXT("and so does it when the double click comes before the press"), Controller->GetSelectedSystem(), Picked);
+		// The control: a single press and release with no double click is a click on empty space, which clears.
+		Controller->HandleLeftPressed(EKeys::LeftMouseButton);
+		Controller->HandleLeftReleased(EKeys::LeftMouseButton);
+		TestEqual(TEXT("A single click on empty space clears the selection"), Controller->GetSelectedSystem(), FName(NAME_None));
 	}
 
 	// ---- Lines keep about a pixel's width ----

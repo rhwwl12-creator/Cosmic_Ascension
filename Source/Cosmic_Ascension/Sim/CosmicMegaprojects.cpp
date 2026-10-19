@@ -187,29 +187,86 @@ float CosmicMegaprojects::RequiredProgressOf(const FMegaprojectDef& Row)
 	return (Row.RequiredProgress >= 1.f && Row.RequiredProgress <= TNumericLimits<float>::Max()) ? Row.RequiredProgress : 1.f;
 }
 
-bool CosmicMegaprojects::CanStart(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, int32 SystemIndex, FName RowName)
+CosmicMegaprojects::FCosmicSlotReading CosmicMegaprojects::ReadSlot(const FStarSystemState& System, ECosmicProjectSlot Slot)
 {
+	FCosmicSlotReading Reading;
+	const bool bConstruction = Slot == ECosmicProjectSlot::Construction;
+	Reading.Row = bConstruction ? System.ActiveMegaproject : System.ResponseMegaproject;
+	Reading.Progress = bConstruction ? System.MegaprojectProgress : System.ResponseProgress;
+	return Reading;
+}
+
+bool CosmicMegaprojects::PaidNothing(const FCosmicSlotReading& Before, const FCosmicSlotReading& After)
+{
+	// An unpaid tick does no arithmetic on the progress, so the compare is exact.
+	return !After.Row.IsNone() && After.Row == Before.Row && After.Progress == Before.Progress;
+}
+
+CosmicMegaprojects::ECosmicStartBlock CosmicMegaprojects::StartBlockOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, int32 SystemIndex, FName RowName)
+{
+	// The refusals of the rule of section 5.7, one reason each. Each is a pure read and the rule is their conjunction, so
+	// None holds exactly where the Phase 2 body of CanStart took the row (Sim.StartBlockReasons holds the two together).
 	const FMegaprojectDef* Row = Tables.FindMegaproject(RowName);
-	if (!Row || RowName == CosmicRows::ProjectSettle || !State.Systems.IsValidIndex(SystemIndex))
+	if (!Row)
 	{
-		return false;
+		return ECosmicStartBlock::NoRow;
+	}
+	if (RowName == CosmicRows::ProjectSettle)
+	{
+		return ECosmicStartBlock::SettleRow;
+	}
+	if (!State.Systems.IsValidIndex(SystemIndex))
+	{
+		return ECosmicStartBlock::NoSystem;
 	}
 	const FStarSystemState& System = State.Systems[SystemIndex];
+	// Asked once, as before (it only reports a stale index).
 	const int32 OwnerIndex = Index.FindCiv(State, System.OwnerCivID);
-	if (CosmicHazards::IsDeadNode(System) || !CosmicState::IsSettled(System) || !State.Civs.IsValidIndex(OwnerIndex))
+	if (CosmicHazards::IsDeadNode(System))
 	{
-		return false;
+		return ECosmicStartBlock::Dead;
+	}
+	if (!CosmicState::IsSettled(System))
+	{
+		return ECosmicStartBlock::NotSettled;
+	}
+	if (!State.Civs.IsValidIndex(OwnerIndex))
+	{
+		return ECosmicStartBlock::NoOwner;
+	}
+	// The hazard before the rung: an answer to no hazard standing here is no button at all, whatever the rung.
+	const bool bAnswer = Tables.IsHazardAnswer(RowName);
+	if (bAnswer)
+	{
+		const FHazardDef* Hazard = Tables.FindHazardByTag(System.ActiveHazard);
+		if (!Hazard)
+		{
+			return ECosmicStartBlock::NoHazard;
+		}
+		if (!Hazard->RulerResolutions.Contains(RowName))
+		{
+			return ECosmicStartBlock::OtherHazard;
+		}
 	}
 	if (static_cast<int32>(State.Civs[OwnerIndex].Tier) < static_cast<int32>(Row->RequiredTier))
 	{
-		return false;
+		return ECosmicStartBlock::RowTier;
 	}
-	if (Tables.IsHazardAnswer(RowName))
+	if (bAnswer)
 	{
-		const FHazardDef* Hazard = Tables.FindHazardByTag(System.ActiveHazard);
-		return Hazard && Hazard->RulerResolutions.Contains(RowName) && System.ResponseMegaproject.IsNone();
+		if (System.ResponseMegaproject == RowName)
+		{
+			return ECosmicStartBlock::Answering;
+		}
+		return System.ResponseMegaproject.IsNone() ? ECosmicStartBlock::None : ECosmicStartBlock::ResponseBusy;
 	}
-	return System.ActiveMegaproject != RowName;
+	// A construction slot that holds another row takes this one over (section 5.7): only the same row refuses.
+	return System.ActiveMegaproject == RowName ? ECosmicStartBlock::Running : ECosmicStartBlock::None;
+}
+
+bool CosmicMegaprojects::CanStart(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, int32 SystemIndex, FName RowName)
+{
+	return StartBlockOf(State, Index, Tables, SystemIndex, RowName) == ECosmicStartBlock::None;
 }
 
 bool CosmicMegaprojects::Start(FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, int32 SystemIndex, FName RowName)
@@ -275,8 +332,9 @@ TArray<TPair<int32, FName>> CosmicMegaprojects::Choices(const FGalaxyState& Stat
 	for (const FName FeatRow : Tables.GetFeatRowNames())
 	{
 		const FAscensionFeatDef* Feat = Tables.FindFeat(FeatRow);
-		// A row the judgment refuses (FAscensionFeatDef::IsOneRungWithDeed) would never lift the people it builds for.
-		if (!Feat || Feat->Path != EPlayerRole::Ruler || Feat->RequiredTier != Civ.Tier || !Feat->IsOneRungWithDeed())
+		// Only a row the judgment looks at (the one filter of the judgment, this list and the top bar's next rung): a row it
+		// refuses would never lift the people it builds for.
+		if (!Feat || !Feat->IsJudgedRulerRowAt(Civ.Tier))
 		{
 			continue;
 		}
@@ -423,6 +481,75 @@ TArray<int32> CosmicMegaprojects::SettleTargets(const FGalaxyState& State, const
 		}
 	}
 	return Targets;
+}
+
+CosmicMegaprojects::ECosmicSettleBlock CosmicMegaprojects::PeopleSettleBlockOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex)
+{
+	using namespace CosmicMegaprojectsImpl;
+
+	if (!State.Civs.IsValidIndex(CivIndex))
+	{
+		return ECosmicSettleBlock::NoPeople;
+	}
+	// The people part of SettleBlockOf's order, with the first part of MaySettle before it (no foothold at all).
+	bool bAnySettled = false;
+	const int32 Owned = OwnedCount(State, Index, CivIndex, bAnySettled);
+	if (!bAnySettled)
+	{
+		return ECosmicSettleBlock::NoLane;
+	}
+	if (!Tables.FindMegaproject(CosmicRows::ProjectSettle))
+	{
+		return ECosmicSettleBlock::NoRow;
+	}
+	if (!SettleRowAllows(State, Tables, CivIndex))
+	{
+		return ECosmicSettleBlock::RowTier;
+	}
+	if (Owned >= RealmCapOf(Rules, State.Civs[CivIndex].Tier))
+	{
+		return ECosmicSettleBlock::RealmCap;
+	}
+	if (IsSettling(State, Index, CivIndex))
+	{
+		return ECosmicSettleBlock::Settling;
+	}
+	// What surrounds the people: the candidates of SettleTargets, each read by SettleBlockOf itself (one rule with the
+	// panel). Past the people's reasons only Owned, Dead, NoLane (a foothold of another galaxy row), Sphere or None can come.
+	// A reason added to ECosmicSettleBlock takes its rank here, or it scores 0 and a people boxed in by it reads NoLane
+	// (v0.8 step 4: the sanctuary's reason ranks below Sphere, beside Owned - guideline 5.7).
+	static_assert(static_cast<int32>(ECosmicSettleBlock::Count) == 10, "A new settle reason: give it its rank among a people's neighbour reasons (the sanctuary: below Sphere, beside Owned)");
+	auto Strength = [](ECosmicSettleBlock Block)
+	{
+		return Block == ECosmicSettleBlock::Sphere ? 4 : Block == ECosmicSettleBlock::Owned ? 3 : Block == ECosmicSettleBlock::Dead ? 2 : Block == ECosmicSettleBlock::NoLane ? 1 : 0;
+	};
+	ECosmicSettleBlock Strongest = ECosmicSettleBlock::NoLane;
+	for (const FName SystemID : State.Civs[CivIndex].OwnedSystems)
+	{
+		const int32 Foothold = SettledOwnedIndex(State, Index, CivIndex, SystemID);
+		if (Foothold == INDEX_NONE)
+		{
+			continue;
+		}
+		for (const FName Lane : State.Systems[Foothold].Lanes)
+		{
+			const int32 Neighbour = Index.FindSystem(State, Lane);
+			if (!State.Systems.IsValidIndex(Neighbour))
+			{
+				continue;
+			}
+			const ECosmicSettleBlock Block = SettleBlockOf(State, Index, Tables, Rules, CivIndex, Neighbour);
+			if (Block == ECosmicSettleBlock::None)
+			{
+				return ECosmicSettleBlock::None;
+			}
+			if (Strength(Block) > Strength(Strongest))
+			{
+				Strongest = Block;
+			}
+		}
+	}
+	return Strongest;
 }
 
 bool CosmicMegaprojects::Settle(FCosmicEvalContext& Ctx, int32 CivIndex, int32 SystemIndex)

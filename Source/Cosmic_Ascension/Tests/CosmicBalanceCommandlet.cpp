@@ -4,6 +4,7 @@
 
 #include "Core/GalaxyState.h"
 #include "Cosmic_Ascension.h"
+#include "Data/CosmicRowNames.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -41,6 +42,10 @@ namespace
 	struct FRunCounts
 	{
 		int64 FirstClaimTick = -1;
+		// Where the first claim stood and the tick its slot emptied (-1 while it stands): the spiritual sight's claim
+		// screenshot reads them (CLAUDE.md, the screenshot recipe).
+		FName FirstClaimSystemID;
+		int64 FirstClaimEndTick = -1;
 		int64 FirstJoinTick = -1;
 		int64 DeposedTick = -1;
 		// The first tick at which some people holds two settled systems: claims can stand from then on (Law.Remnant).
@@ -53,16 +58,75 @@ namespace
 		TMap<FString, int32> Answered;
 		TMap<FString, int32> Expired;
 		TMap<FString, int32> Ended;
+		// Why the peoples the player does not rule started no settlement, one count per (sample, people) - the tick-0 sample
+		// included -, and how many such pairs there were, counted apart from the reasons (PeoplesNotRuled at every sample:
+		// the reasons must add up to it).
+		TMap<FString, int32> Expansion;
+		int64 ExpansionPairs = 0;
 	};
 
-	// A slot before the tick: its hazard and count, the answer in its response slot, and the owner's Influence.
+	// A slot before the tick: its hazard and count, the answer in its response slot, the owner's Influence, and the
+	// construction slot (a settlement that paid nothing in the tick is a stalled one).
 	struct FSlotBefore
 	{
 		FGameplayTag Tag;
 		int32 Remaining = 0;
 		FName Answer;
 		float OwnerInfluence = 0.f;
+		CosmicMegaprojects::FCosmicSlotReading Construction;
 	};
+
+	// The names of CosmicMegaprojects::ECosmicSettleBlock in its order, as the CSV and the log print them. NoLane of a people
+	// with no settled system prints NoFoothold (the reason is NoLane in the rule; the commandlet tells the two apart).
+	const TCHAR* const SettleBlockNames[] = {
+		TEXT("None"),
+		TEXT("NoPeople"),
+		TEXT("Owned"),
+		TEXT("Dead"),
+		TEXT("NoLane"),
+		TEXT("NoRow"),
+		TEXT("RowTier"),
+		TEXT("RealmCap"),
+		TEXT("Settling"),
+		TEXT("Sphere"),
+	};
+	static_assert(static_cast<int32>(UE_ARRAY_COUNT(SettleBlockNames)) == static_cast<int32>(CosmicMegaprojects::ECosmicSettleBlock::Count), "One name per reason, in the order of the enum");
+
+	// Why the people CivIndex starts no settlement now (CosmicMegaprojects::PeopleSettleBlockOf by name): NoFoothold for a
+	// people with no settled system, SettlingStalled for a settlement under way that paid nothing in the tick just run (its
+	// construction slot against Before - an empty Before, the tick-0 sample, says Settling).
+	FString ExpansionOf(const UGalaxySimulationSubsystem& Sim, int32 CivIndex, const TArray<FSlotBefore>& Before)
+	{
+		const FGalaxyState& State = Sim.GetState();
+		const FCosmicStateIndex& Index = Sim.GetStateIndex();
+		const CosmicMegaprojects::ECosmicSettleBlock Block = CosmicMegaprojects::PeopleSettleBlockOf(State, Index, Sim.GetTables(), Sim.GetRules(), CivIndex);
+		const FCivilizationState& Civ = State.Civs[CivIndex];
+		if (Block == CosmicMegaprojects::ECosmicSettleBlock::NoLane)
+		{
+			const bool bFoothold = Civ.OwnedSystems.ContainsByPredicate([&](FName SystemID)
+			{
+				const int32 SystemIndex = Index.FindSystem(State, SystemID);
+				return State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == Civ.CivID && CosmicState::IsSettled(State.Systems[SystemIndex]);
+			});
+			return bFoothold ? TEXT("NoLane") : TEXT("NoFoothold");
+		}
+		if (Block == CosmicMegaprojects::ECosmicSettleBlock::Settling)
+		{
+			for (const FName SystemID : Civ.OwnedSystems)
+			{
+				const int32 SystemIndex = Index.FindSystem(State, SystemID);
+				if (!State.Systems.IsValidIndex(SystemIndex) || SystemIndex >= Before.Num() || State.Systems[SystemIndex].OwnerCivID != Civ.CivID
+					|| State.Systems[SystemIndex].ActiveMegaproject != CosmicRows::ProjectSettle)
+				{
+					continue;
+				}
+				const CosmicMegaprojects::FCosmicSlotReading Now = CosmicMegaprojects::ReadSlot(State.Systems[SystemIndex], CosmicMegaprojects::ECosmicProjectSlot::Construction);
+				return CosmicMegaprojects::PaidNothing(Before[SystemIndex].Construction, Now) ? TEXT("SettlingStalled") : TEXT("Settling");
+			}
+		}
+		const int32 At = static_cast<int32>(Block);
+		return (At >= 0 && At < static_cast<int32>(UE_ARRAY_COUNT(SettleBlockNames))) ? SettleBlockNames[At] : TEXT("?");
+	}
 
 	int32 SphereSize(const FGalaxyState& State)
 	{
@@ -174,23 +238,45 @@ namespace
 		return Bytes.Num();
 	}
 
-	void AppendSample(FString& Csv, const FGalaxyState& State, const FCosmicDataTables& Tables, const FRunCounts& Counts, double TickMicros, const FString& SaveBytes)
+	// The peoples the player does not rule: the (sample, people) pairs one sample adds to the expansion counts, counted
+	// apart from AppendSample, so that a people it skips or a filter it gets wrong shows as a sum that does not add up.
+	int32 PeoplesNotRuled(const FGalaxyState& State)
 	{
-		const FString FirstClaim = Counts.FirstClaimTick >= 0 ? FString::Printf(TEXT("%lld"), Counts.FirstClaimTick) : FString();
-		const FString Galaxy = FString::Printf(TEXT("%d,%d,%d,%s,%d,%s,%lld,%.1f,%s,%d,%d"),
-			State.Knowing.KnownSystems.Num(), MetCivs(State), WildSystems(State), *FirstContactTick(State), T4PlusCount(State, Tables),
-			*FirstClaim, Counts.ToldLines, TickMicros, *SaveBytes, State.Log.Num(), State.Chronicle.Num());
+		int32 Count = 0;
 		for (const FCivilizationState& Civ : State.Civs)
 		{
+			Count += Civ.bIsPlayerRuled ? 0 : 1;
+		}
+		return Count;
+	}
+
+	// One CSV row per civilization, the galaxy columns on each, and last the expansion reason of a people the player does
+	// not rule (empty for the people the player rules), which it counts into Counts.Expansion.
+	void AppendSample(FString& Csv, const UGalaxySimulationSubsystem& Sim, const TArray<FSlotBefore>& Before, FRunCounts& Counts, double TickMicros, const FString& SaveBytes)
+	{
+		const FGalaxyState& State = Sim.GetState();
+		const FString FirstClaim = Counts.FirstClaimTick >= 0 ? FString::Printf(TEXT("%lld"), Counts.FirstClaimTick) : FString();
+		const FString Galaxy = FString::Printf(TEXT("%d,%d,%d,%s,%d,%s,%lld,%.1f,%s,%d,%d"),
+			State.Knowing.KnownSystems.Num(), MetCivs(State), WildSystems(State), *FirstContactTick(State), T4PlusCount(State, Sim.GetTables()),
+			*FirstClaim, Counts.ToldLines, TickMicros, *SaveBytes, State.Log.Num(), State.Chronicle.Num());
+		for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+		{
+			const FCivilizationState& Civ = State.Civs[CivIndex];
 			int32 Hazards = 0;
 			for (const FStarSystemState& System : State.Systems)
 			{
 				Hazards += (System.OwnerCivID == Civ.CivID && System.ActiveHazard.IsValid()) ? 1 : 0;
 			}
-			Csv += FString::Printf(TEXT("%lld,%s,%s,%d,%d,%.4f,%.2f,%.2f,%.2f,%.2f,%.2f,%d,%s\n"),
+			FString Expansion;
+			if (!Civ.bIsPlayerRuled)
+			{
+				Expansion = ExpansionOf(Sim, CivIndex, Before);
+				Counts.Expansion.FindOrAdd(Expansion)++;
+			}
+			Csv += FString::Printf(TEXT("%lld,%s,%s,%d,%d,%.4f,%.2f,%.2f,%.2f,%.2f,%.2f,%d,%s,%s\n"),
 				State.Tick, *Civ.CivID.ToString(), *Civ.ArchetypeRow.ToString(), static_cast<int32>(Civ.Tier) + 1, Civ.OwnedSystems.Num(),
 				Civ.Stability, Civ.Stockpile.Energy, Civ.Stockpile.Matter, Civ.Stockpile.Insight, Civ.Stockpile.Influence, Civ.Stockpile.Causality, Hazards,
-				*Galaxy);
+				*Galaxy, *Expansion);
 		}
 	}
 
@@ -251,7 +337,6 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		}
 		Sim->NewGalaxy(Seed, Systems, Civs);
 		const FGalaxyState& State = Sim->GetState();
-		const FCosmicDataTables& Tables = Sim->GetTables();
 		UCosmicSaveGame* Save = NewObject<UCosmicSaveGame>();
 		Save->AddToRoot();
 
@@ -262,13 +347,14 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		{
 			Counts.ToldLines += Entry.bUntold ? 0 : 1;
 		}
-		FString Csv = TEXT("Tick,CivID,Archetype,Tier,Systems,Stability,Energy,Matter,Insight,Influence,Causality,Hazards,KnownSystems,MetCivs,WildSystems,FirstContactTick,T4PlusCount,FirstClaimTick,ToldLines,TickMicros,SaveBytes,LogLen,ChronicleLen\n");
+		FString Csv = TEXT("Tick,CivID,Archetype,Tier,Systems,Stability,Energy,Matter,Insight,Influence,Causality,Hazards,KnownSystems,MetCivs,WildSystems,FirstContactTick,T4PlusCount,FirstClaimTick,ToldLines,TickMicros,SaveBytes,LogLen,ChronicleLen,Expansion\n");
 		FString Rows = TEXT("Tick,SourceRow,Lines\n");
 		double Unused = 0.0;
-		AppendSample(Csv, State, Tables, Counts, 0.0, FString::FromInt(SaveBytesOf(Save, State, Unused)));
-
 		TArray<double> TickMicros;
 		TArray<FSlotBefore> Before;
+		// The tick-0 sample: no tick has run yet, so a settlement under way reads as Settling.
+		AppendSample(Csv, *Sim, Before, Counts, 0.0, FString::FromInt(SaveBytesOf(Save, State, Unused)));
+		Counts.ExpansionPairs += PeoplesNotRuled(State);
 		TMap<FString, int32> SampleRows;
 		double SampleMicros = 0.0;
 		int64 SampleTicks = 0;
@@ -279,7 +365,8 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			for (const FStarSystemState& System : State.Systems)
 			{
 				const FCivilizationState* Owner = State.Civs.FindByPredicate([&System](const FCivilizationState& Civ) { return Civ.CivID == System.OwnerCivID; });
-				Before.Add({ System.ActiveHazard, System.HazardTicksRemaining, System.ResponseMegaproject, Owner ? Owner->Stockpile.Influence : 0.f });
+				Before.Add({ System.ActiveHazard, System.HazardTicksRemaining, System.ResponseMegaproject, Owner ? Owner->Stockpile.Influence : 0.f,
+					CosmicMegaprojects::ReadSlot(System, CosmicMegaprojects::ECosmicProjectSlot::Construction) });
 			}
 			const EPlayerRole RoleBefore = State.Player.Role;
 			const int64 TickBefore = State.Tick;
@@ -321,6 +408,10 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					}
 					if (Slot.Tag == ClaimTag)
 					{
+						if (Counts.FirstClaimEndTick < 0 && System.SystemID == Counts.FirstClaimSystemID)
+						{
+							Counts.FirstClaimEndTick = State.Tick;
+						}
 						FClaimEnds& Ends = InSomeSphere(State, System.SystemID) ? Counts.ClaimsJoined : Counts.ClaimsStilled;
 						++Ends.Count;
 						Ends.WithAnswer += Slot.Answer.IsNone() ? 0 : 1;
@@ -332,7 +423,11 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					Counts.Placed.FindOrAdd(System.ActiveHazard.ToString())++;
 					if (System.ActiveHazard == ClaimTag)
 					{
-						Counts.FirstClaimTick = Counts.FirstClaimTick < 0 ? State.Tick : Counts.FirstClaimTick;
+						if (Counts.FirstClaimTick < 0)
+						{
+							Counts.FirstClaimTick = State.Tick;
+							Counts.FirstClaimSystemID = System.SystemID;
+						}
 						Counts.ClaimsAfterTwoSettled += Counts.FirstTwoSettledTick >= 0 ? 1 : 0;
 					}
 				}
@@ -359,7 +454,8 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				{
 					SaveBytes = FString::FromInt(SaveBytesOf(Save, State, Unused));
 				}
-				AppendSample(Csv, State, Tables, Counts, SampleTicks > 0 ? SampleMicros / SampleTicks : 0.0, SaveBytes);
+				AppendSample(Csv, *Sim, Before, Counts, SampleTicks > 0 ? SampleMicros / SampleTicks : 0.0, SaveBytes);
+				Counts.ExpansionPairs += PeoplesNotRuled(State);
 				TArray<FString> Keys;
 				SampleRows.GetKeys(Keys);
 				Keys.Sort();
@@ -384,9 +480,9 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			}
 			double SaveMilliseconds = 0.0;
 			const int32 SaveBytes = SaveBytesOf(Save, State, SaveMilliseconds);
-			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance summary: tell-all %d, %d systems, %d peoples; claims %d placed, %d ended, %d joined; first claim %lld, first join %lld; first two-settled people %lld, claims after it %d; sphere %d->%d; wild %d; vessel deposed at %lld; tick us mean %.1f p99 %.1f max %.1f; save serialized %d bytes in %.1f ms; log %d, chronicle %d, told %lld"),
+			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance summary: tell-all %d, %d systems, %d peoples; claims %d placed, %d ended, %d joined; first claim %lld on %s until %lld, first join %lld; first two-settled people %lld, claims after it %d; sphere %d->%d; wild %d; vessel deposed at %lld; tick us mean %.1f p99 %.1f max %.1f; save serialized %d bytes in %.1f ms; log %d, chronicle %d, told %lld"),
 				TellAll, State.Systems.Num(), State.Civs.Num(), Counts.Placed.FindRef(ClaimTag.ToString()), Counts.ClaimsJoined.Count + Counts.ClaimsStilled.Count,
-				Counts.ClaimsJoined.Count, Counts.FirstClaimTick, Counts.FirstJoinTick, Counts.FirstTwoSettledTick, Counts.ClaimsAfterTwoSettled, SphereStart,
+				Counts.ClaimsJoined.Count, Counts.FirstClaimTick, *Counts.FirstClaimSystemID.ToString(), Counts.FirstClaimEndTick, Counts.FirstJoinTick, Counts.FirstTwoSettledTick, Counts.ClaimsAfterTwoSettled, SphereStart,
 				SphereSize(State), WildSystems(State), Counts.DeposedTick,
 				TickMicros.Num() ? Sum / TickMicros.Num() : 0.0, TickMicros.Num() ? TickMicros[FMath::Min(TickMicros.Num() - 1, static_cast<int32>(TickMicros.Num() * 0.99))] : 0.0,
 				TickMicros.Num() ? TickMicros.Last() : 0.0, SaveBytes, SaveMilliseconds, State.Log.Num(), State.Chronicle.Num(), Counts.ToldLines);
@@ -394,6 +490,20 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				*ClaimEndsText(TEXT("stilled"), Counts.ClaimsStilled), *FString::Join(SpheresStart, TEXT(", ")), *FString::Join(SpheresOf(State), TEXT(", ")));
 			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance hazards: placed%s | answered%s | expired%s | ended%s"), *CountsText(Counts.Placed), *CountsText(Counts.Answered),
 				*CountsText(Counts.Expired), *CountsText(Counts.Ended));
+			// Why the AI did not widen its realm (section 9.3): one reason per people the player does not rule at every
+			// sample, the tick-0 sample included. The reasons add up to the pairs counted apart, or an error line says so.
+			int64 ExpansionSum = 0;
+			for (const TPair<FString, int32>& Each : Counts.Expansion)
+			{
+				ExpansionSum += Each.Value;
+			}
+			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance expansion: %lld (sample, people) pairs of peoples the player does not rule, the tick-0 sample included;%s"),
+				Counts.ExpansionPairs, *CountsText(Counts.Expansion));
+			if (ExpansionSum != Counts.ExpansionPairs)
+			{
+				UE_LOG(LogCosmic, Error, TEXT("CosmicBalance expansion: the counts add up to %lld, not %lld"), ExpansionSum, Counts.ExpansionPairs);
+				Result = 1;
+			}
 		}
 		else
 		{

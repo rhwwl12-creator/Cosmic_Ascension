@@ -8,15 +8,21 @@
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
+#include "Engine/EngineTypes.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameplayTagContainer.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialExpressionNoise.h"
+#include "Materials/MaterialInterface.h"
+#include "Materials/MaterialParameters.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
+#include "UObject/UObjectGlobals.h"
 #include "World/CosmicGalaxyMapActor.h"
 #include "World/CosmicMapLook.h"
 #include "World/CosmicStarSystemActor.h"
@@ -32,7 +38,12 @@ namespace CosmicMapTests
 
 	ACosmicGalaxyMapActor* FindMap(UWorld* World)
 	{
-		for (TActorIterator<ACosmicGalaxyMapActor> It(World); World && It; ++It)
+		// The iterator checks its world as it is made, before any loop condition.
+		if (!World)
+		{
+			return nullptr;
+		}
+		for (TActorIterator<ACosmicGalaxyMapActor> It(World); It; ++It)
 		{
 			return *It;
 		}
@@ -62,6 +73,9 @@ bool FCosmicUIGalaxyMapTest::RunTest(const FString& Parameters)
 	// ---- The map of the game's galaxy: one star per system at its position, every lane once ----
 	{
 		Sim->NewGalaxy(42, 0, 0);
+		// The whole board, as before Phase 3 item 8: every system known and every people met (UI.KnownFilter holds the
+		// gate itself).
+		CosmicTests::KnowAll(Sim->GetMutableState());
 		Map->RefreshNow();
 		const FGalaxyState& State = Sim->GetState();
 		TestEqual(TEXT("One star actor per system"), Map->GetStars().Num(), State.Systems.Num());
@@ -141,7 +155,8 @@ bool FCosmicUIGalaxyMapTest::RunTest(const FString& Parameters)
 		Board.Systems[1].OwnerCivID = Board.Civs[0].CivID;
 		const FCosmicSystemLook Owned = CosmicMapLook::LookOf(Board, Tables, 1);
 		TestTrue(TEXT("An owned system is drawn with its owner"), Owned.bOwned);
-		TestEqual(TEXT("in the owner's colour"), Owned.OwnerColor, Board.Civs[0].Color);
+		// The drawn colour is the meeting order's (ShownLookOf): the world's look carries no colour of the state.
+		TestEqual(TEXT("LookOf draws no colour of the state"), Owned.OwnerColor, FLinearColor::Black);
 		TestTrue(TEXT("and with its name"), Owned.Name.EqualTo(Board.Systems[1].DisplayName));
 		Board.Systems[2].OwnerCivID = FName(TEXT("civ_99"));
 		TestFalse(TEXT("An owner the state does not hold draws no owner"), CosmicMapLook::LookOf(Board, Tables, 2).bOwned);
@@ -214,6 +229,130 @@ bool FCosmicUIGalaxyMapTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("the lane one end lists"), Lanes.Contains(TPair<int32, int32>(1, 2)));
 		TestFalse(TEXT("no lane to a dead node"), Lanes.Contains(TPair<int32, int32>(3, 4)));
 	}
+	return true;
+}
+
+// The names C++ sets on the generated materials are the materials' own (a dynamic instance takes any name silently, so a
+// misspelt name failed nothing before), and the defaults of the star's values are the material's: a star given nothing
+// looks as the material does. Asks the base assets (a dynamic instance answers for any name once it was set).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicUIMaterialParamsTest, "Cosmic_Ascension.UI.MaterialParams", CosmicTests::Flags)
+bool FCosmicUIMaterialParamsTest::RunTest(const FString& Parameters)
+{
+	auto Scalar = [](const UMaterialInterface& Material, const TCHAR* Name, float& Out)
+	{
+		return Material.GetScalarParameterValue(FHashedMaterialParameterInfo(FName(Name)), Out);
+	};
+	auto Vector = [](const UMaterialInterface& Material, const TCHAR* Name, FLinearColor& Out)
+	{
+		return Material.GetVectorParameterValue(FHashedMaterialParameterInfo(FName(Name)), Out);
+	};
+
+	const UMaterialInterface* Star = LoadObject<UMaterialInterface>(nullptr, CosmicMapLook::StarMaterialPath, nullptr, LOAD_NoWarn);
+	if (!TestNotNull(TEXT("(M_Star loads)"), Star))
+	{
+		return false;
+	}
+	for (const TCHAR* Name : CosmicMapLook::StarScalarParams)
+	{
+		float Value = 0.f;
+		TestTrue(*FString::Printf(TEXT("M_Star has the scalar %s"), Name), Scalar(*Star, Name, Value));
+	}
+	for (const TCHAR* Name : CosmicMapLook::StarVectorParams)
+	{
+		FLinearColor Value;
+		TestTrue(*FString::Printf(TEXT("M_Star has the vector %s"), Name), Vector(*Star, Name, Value));
+	}
+
+	// The defaults of FCosmicStarParams are the material's own.
+	const FCosmicStarParams Defaults;
+	const TPair<const TCHAR*, float> Scalars[] = {
+		{ CosmicMapLook::StarParam::Brightness, Defaults.Brightness },
+		{ CosmicMapLook::StarParam::HazardAmount, Defaults.HazardAmount },
+		{ CosmicMapLook::StarParam::ViewMode, Defaults.ViewMode },
+		{ CosmicMapLook::StarParam::Pressure, Defaults.Pressure },
+		{ CosmicMapLook::StarParam::ClaimState, Defaults.ClaimState },
+	};
+	TestEqual(TEXT("(every scalar has its default here)"), static_cast<int32>(UE_ARRAY_COUNT(Scalars)), static_cast<int32>(UE_ARRAY_COUNT(CosmicMapLook::StarScalarParams)));
+	for (const TPair<const TCHAR*, float>& Each : Scalars)
+	{
+		float Value = -1.f;
+		TestTrue(*FString::Printf(TEXT("M_Star's %s starts at the default star's"), Each.Key), Scalar(*Star, Each.Key, Value) && FMath::IsNearlyEqual(Value, Each.Value, 1e-5f));
+	}
+	const TPair<const TCHAR*, FLinearColor> Vectors[] = {
+		{ CosmicMapLook::StarParam::StarColor, Defaults.StarColor },
+		{ CosmicMapLook::StarParam::WarningColor, Defaults.WarningColor },
+		{ CosmicMapLook::StarParam::DominionColor, Defaults.DominionColor },
+	};
+	TestEqual(TEXT("(every vector has its default here)"), static_cast<int32>(UE_ARRAY_COUNT(Vectors)), static_cast<int32>(UE_ARRAY_COUNT(CosmicMapLook::StarVectorParams)));
+	for (const TPair<const TCHAR*, FLinearColor>& Each : Vectors)
+	{
+		FLinearColor Value = FLinearColor::Transparent;
+		TestTrue(*FString::Printf(TEXT("M_Star's %s starts at the default star's"), Each.Key), Vector(*Star, Each.Key, Value) && Value.Equals(Each.Value, 1e-5f));
+	}
+
+	const UMaterialInterface* Nebula = LoadObject<UMaterialInterface>(nullptr, CosmicMapLook::NebulaMaterialPath, nullptr, LOAD_NoWarn);
+	if (!TestNotNull(TEXT("(M_Nebula loads)"), Nebula))
+	{
+		return false;
+	}
+	float Intensity = -1.f;
+	TestTrue(TEXT("M_Nebula has the scalar SpiritualIntensity"), Scalar(*Nebula, CosmicMapLook::SkyIntensityParam, Intensity));
+	TestEqual(TEXT("which starts at 0"), Intensity, 0.f);
+	// Phase 3 item 9: the sky's two colours keep below the fallen's band (the purple of the sight is theirs alone), and
+	// its noise reads the view's direction - a Position of its own at scale 1.
+	for (const TCHAR* Name : { CosmicMapLook::NebulaLowParam, CosmicMapLook::NebulaHighParam })
+	{
+		FLinearColor Colour = FLinearColor::Transparent;
+		TestTrue(*FString::Printf(TEXT("M_Nebula has the vector %s"), Name), Vector(*Nebula, Name, Colour));
+		const float Hue = Colour.LinearRGBToHSV().R;
+		TestTrue(*FString::Printf(TEXT("M_Nebula's %s keeps out of the fallen's band"), Name), Hue < CosmicMapLook::FallenHueFrom || Hue > CosmicMapLook::FallenHueTo);
+		TestTrue(*FString::Printf(TEXT("M_Nebula's %s is a blue"), Name), Hue > 180.f && Hue < CosmicMapLook::FallenHueFrom);
+	}
+#if WITH_EDITOR
+	{
+		const UMaterial* Base = Nebula->GetMaterial();
+		const UMaterialExpressionNoise* Noise = nullptr;
+		int32 Noises = 0;
+		if (Base)
+		{
+			for (const UMaterialExpression* Expression : Base->GetExpressions())
+			{
+				if (const UMaterialExpressionNoise* Each = Cast<UMaterialExpressionNoise>(Expression))
+				{
+					Noise = Each;
+					++Noises;
+				}
+			}
+		}
+		TestEqual(TEXT("(M_Nebula holds one noise)"), Noises, 1);
+		TestTrue(TEXT("M_Nebula's noise reads a Position of its own"), Noise && Noise->Position.GetTracedInput().Expression != nullptr);
+		TestTrue(TEXT("at scale 1"), Noise && Noise->Scale == 1.f);
+	}
+#endif
+
+	// The backdrop's dust (Phase 3 item 8): the sky's one parameter, the instanced usage the asset must carry (under -game
+	// a material without it falls back to the engine's default - only the editor proper adds a missing usage), and an
+	// additive blend that writes no depth over the lanes.
+	UMaterialInterface* Dust = LoadObject<UMaterialInterface>(nullptr, CosmicMapLook::BackdropMaterialPath, nullptr, LOAD_NoWarn);
+	if (!TestNotNull(TEXT("(M_Backdrop loads)"), Dust))
+	{
+		return false;
+	}
+	float DustIntensity = -1.f;
+	TestTrue(TEXT("M_Backdrop has the scalar SpiritualIntensity"), Scalar(*Dust, CosmicMapLook::SkyIntensityParam, DustIntensity));
+	TestEqual(TEXT("M_Backdrop's SpiritualIntensity starts at 0"), DustIntensity, 0.f);
+	TestTrue(TEXT("M_Backdrop may draw instanced meshes"), Dust->GetUsageByFlag(MATUSAGE_InstancedStaticMeshes));
+	TestTrue(TEXT("M_Backdrop is additive"), Dust->GetBlendMode() == BLEND_Additive);
+	// Phase 3 item 9: the share of its light a layer shows (the dust and the universe), and the one tint of the dust and of
+	// every galaxy - never the fallen's hue, never white (no galaxy is the holy order's, section 6.4 'colour').
+	float Fade = -1.f;
+	TestTrue(TEXT("M_Backdrop has the scalar LayerFade"), Scalar(*Dust, CosmicMapLook::LayerFadeParam, Fade));
+	TestEqual(TEXT("which starts at 1"), Fade, 1.f);
+	FLinearColor Tint = FLinearColor::Transparent;
+	TestTrue(TEXT("M_Backdrop has the vector Tint"), Vector(*Dust, CosmicMapLook::BackdropTintParam, Tint));
+	const FLinearColor TintHsv = Tint.LinearRGBToHSV();
+	TestTrue(TEXT("whose hue keeps out of the fallen's band"), TintHsv.R < CosmicMapLook::FallenHueFrom || TintHsv.R > CosmicMapLook::FallenHueTo);
+	TestTrue(TEXT("and is not white"), TintHsv.G >= 0.15f);
 	return true;
 }
 

@@ -7,18 +7,39 @@
 #include "GameFramework/HUD.h"
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
+#include "Misc/Optional.h"
+#include "Templates/Function.h"
 #include "UI/CosmicUILabels.h"
+#include "World/CosmicMapLook.h"
+#include "World/CosmicMapPick.h"
+#include "World/CosmicZoomLevels.h"
 #include "CosmicGameMode.generated.h"
 
 class ACosmicCameraPawn;
 class ACosmicGalaxyMapActor;
 class UCosmicAscensionOverlayWidget;
+class UCosmicGalaxyPanelWidget;
 class UCosmicLogFeedWidget;
 class UCosmicSystemPanelWidget;
 class UCosmicTopBarWidget;
 class UUserWidget;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnCosmicSelectionChanged, FName /* SystemID, None when cleared */);
+
+/** A star a click may take (ACosmicPlayerController::PickCandidatesOf): its system and how the screen shows it. */
+struct COSMIC_ASCENSION_API FCosmicPickCandidate
+{
+	FName SystemID;
+	FCosmicScreenTarget Target;
+};
+
+/** A named galaxy a click may take at the universe level (ACosmicPlayerController::GalaxyPickCandidatesOf): its row and how
+ * the screen shows it. */
+struct COSMIC_ASCENSION_API FCosmicGalaxyPickCandidate
+{
+	FName Row;
+	FCosmicScreenTarget Target;
+};
 
 /**
  * Game mode of the galaxy map. Starts a galaxy when none is running (the counts of the home galaxy row, seed from -Seed=
@@ -39,8 +60,10 @@ public:
 };
 
 /**
- * Puts the panels on the screen: the top bar along the top, the system panel on the right (it follows the controller's
- * selection), the log feed at the bottom left, and over them all the ascension presentation (hidden until an ascension).
+ * Puts the panels on the screen: the top bar along the top, on the right the system panel or the galaxy panel, as
+ * CosmicUniverseLook::PanelOf says of the camera's level and the two selections (section 6.4 - the two never stand
+ * together, section 8.3), the galaxy panel with the session's hint (CosmicUI::HintKeyOf), the log feed at the bottom left,
+ * and over them all the ascension presentation (hidden until an ascension).
  */
 UCLASS()
 class COSMIC_ASCENSION_API ACosmicHUD : public AHUD
@@ -53,6 +76,7 @@ public:
 
 	UCosmicTopBarWidget* GetTopBar() const { return TopBar; }
 	UCosmicSystemPanelWidget* GetSystemPanel() const { return SystemPanel; }
+	UCosmicGalaxyPanelWidget* GetGalaxyPanel() const { return GalaxyPanel; }
 	UCosmicLogFeedWidget* GetLogFeed() const { return Feed; }
 	UCosmicAscensionOverlayWidget* GetAscensionOverlay() const { return Overlay; }
 
@@ -61,9 +85,20 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
+	// The right side again (ShowRightSide).
 	void HandleSelectionChanged(FName SystemID);
+	// The right side again: CosmicUniverseLook::PanelOf of the controller's level and selections, and the galaxy panel's
+	// hint (CosmicUI::HintKeyOf of the level and the controller's hint progress). Bound to the system selection, the galaxy
+	// selection and the level; BeginPlay and RefreshPanel call it too.
+	void ShowRightSide();
 	// The clock's unit changed: the top bar, the panel's countdown and the feed's stamps follow.
 	void HandleTimeUnitChanged();
+	// The view changed: the top bar's view button and the panel's spiritual line follow (the controller tells the map
+	// itself).
+	void HandleViewModeChanged();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCosmicGalaxyPanelWidget> GalaxyPanel;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCosmicLogFeedWidget> Feed;
@@ -78,14 +113,22 @@ private:
 	TObjectPtr<UCosmicSystemPanelWidget> SystemPanel;
 
 	FDelegateHandle SelectionHandle;
+	FDelegateHandle GalaxySelectionHandle;
+	FDelegateHandle ZoomLevelHandle;
 	FDelegateHandle TimeUnitHandle;
+	FDelegateHandle ViewModeHandle;
 };
 
 /**
  * Controls: the mouse drives the camera pawn and selects (left click selects, left drag pans, right drag orbits, the
- * wheel zooms, a double click focuses); 0 pauses, 1 to 4 set 1x, 2x, 5x and 10x, Space toggles the pause (the top bar's
- * buttons share SetSpeed). The system panel's commands come through StartProject. Holds the selection and the clock's
- * unit (presentation state: not in FGalaxyState, never saved with a galaxy - the unit is the viewer's setting).
+ * wheel zooms, a double click focuses; past the region's far stop the wheel goes on to the universe level - the named
+ * galaxies: a click selects one, a double click glides to it, a double click on the home galaxy frames the region again);
+ * 0 pauses, 1 to 4 set 1x, 2x, 5x and 10x and 5 sets 25x once the third rung's
+ * gate is open (CosmicUI::SpeedSteps, as the top bar's buttons; a key whose speed the gate does not open does nothing),
+ * Space toggles the pause (the top bar's buttons share SetSpeed). The system panel's commands come through StartProject.
+ * Holds the selection, the galaxy selection, the session's hint progress, the clock's unit and the view (physical or the
+ * third rung's spiritual sight) - presentation state: not in FGalaxyState, never saved with a galaxy (the unit is the
+ * viewer's setting, the view and the hints live in memory only).
  */
 UCLASS()
 class COSMIC_ASCENSION_API ACosmicPlayerController : public APlayerController
@@ -98,13 +141,66 @@ public:
 	/** The map this controller selects on (the game mode hands it over after spawning it). */
 	void UseMap(ACosmicGalaxyMapActor* InMap);
 
-	/** Selects a system of the state; None clears. An ID the state does not hold is ignored. A change is announced once. */
+	/** Selects a system of the state the viewer knows (GetKnownView - a system the viewer does not know is a backdrop
+	 * point, and background stars have no selection, section 6.4); None clears. Anything else - an ID the state does not
+	 * hold, a system the viewer does not know - is ignored: nothing changes, nothing is announced. A change is announced
+	 * once. */
 	void SelectSystem(FName SystemID);
 	FName GetSelectedSystem() const { return SelectedSystemID; }
 	FOnCosmicSelectionChanged OnSelectionChanged;
 
-	/** Sets the simulation's speed (0 pauses) and remembers the speed to return to after a pause. Redraws the HUD. */
+	/** Selects a named galaxy - a row the universe draws (the map's GetGalaxyMarks); None clears. Any other row is ignored:
+	 * nothing changes, nothing is announced. A change is announced once. Presentation state, like the system selection:
+	 * never saved, outside both hashes; a rebuild clears it. The system selection stays as it is - the right side follows
+	 * the level (CosmicUniverseLook::PanelOf). The first selection of the session is noted in the hint progress. */
+	void SelectGalaxy(FName Row);
+	FName GetSelectedGalaxy() const { return SelectedGalaxyRow; }
+	FOnCosmicSelectionChanged OnGalaxySelectionChanged;
+
+	/** What a double click on a galaxy does: the home galaxy clears the galaxy selection and frames the region again (a
+	 * glide); another named galaxy is selected and the camera glides to it (ACosmicCameraPawn::FocusOnUniverse at
+	 * CosmicUniverseLook::FocusArmOf). False - nothing changes - for a row the universe does not draw. */
+	bool SelectAndFocusGalaxy(FName Row);
+
+	/** The camera framed on the map's levels (ACosmicCameraPawn::FrameAll(Map->GetZoomLevels())) - a glide: the double
+	 * click on the home; the third rung's reveal over the universe (UCosmicAscensionOverlayWidget::Close) and a rebuild
+	 * snap it. */
+	void FrameRegion();
+
+	/** The level of the camera's target arm (ACosmicCameraPawn::GetTargetLevel); Region without a camera pawn. */
+	ECosmicZoomLevel GetZoomLevel() const;
+	/** Follows the level (every frame from PlayerTick and after a wheel notch; tests call it in place of a frame): a change
+	 * is announced once and noted in the hint progress (into the universe, out of it). A first call only notes the level. */
+	void FollowZoomLevel();
+	FSimpleMulticastDelegate OnZoomLevelChanged;
+
+	/** What the mouse has done once this session (the galaxy panel's hints, CosmicUI::HintKeyOf). */
+	const FCosmicHintProgress& GetHintProgress() const { return Hints; }
+	/** Sets the progress in memory (tests start from a known one; the HUD redraws with RefreshPanel). */
+	void SetHintProgress(const FCosmicHintProgress& Progress) { Hints = Progress; }
+
+	/** Sets the simulation's speed (0 pauses) - a speed the third rung's gate does not open is x10 instead (CosmicUI::
+	 * OpenSpeed with IsSpiritualSightOpen; the pause's release and the ascension presentation's give-back come through
+	 * here too) - and remembers the speed to return to after a pause. Redraws the HUD. */
 	void SetSpeed(float Speed);
+
+	/** What a speed key does: 0 to 5 set the steps of CosmicUI::SpeedSteps through SetSpeed - a step the gate does not
+	 * open does nothing (it never becomes x10, guideline 2.1) -, Space toggles the pause. The keys follow the gate alone:
+	 * while the ascension presentation shows, key 5 sets x25 although the bar keeps its x25 button folded until the
+	 * presentation closes, as keys 1 to 4 already set their speeds under it. The bound handler; tests call it in place of
+	 * a key. */
+	void PressSpeedKey(FKey Key);
+
+	/** The speed of a number key: 0 to 5 are CosmicUI::SpeedSteps in order; any other key has none. */
+	static TOptional<float> SpeedOfKey(const FKey& Key);
+
+	/**
+	 * Follows the third rung's gate (IsSpiritualSightOpen), from this controller's handlers of OnSimTick and
+	 * OnGalaxyGenerated: when the gate closes - a deposition, a new galaxy, a lower save - a running speed above x10 falls
+	 * to x10 (CosmicUI::LowersSpeed). The first look only notes the gate, so a speed above x10 the gate never opened (the
+	 * development argument -Speed=25) stays. Tests call it directly too.
+	 */
+	void FollowSpeedGate();
 
 	/** How the UI shows the clock (guideline 2.1, 6.3): the viewer's choice, read from the viewer's settings when the
 	 * controller starts (Cycle when none is kept). */
@@ -123,23 +219,133 @@ public:
 	static constexpr const TCHAR* TimeUnitSection = TEXT("Cosmic_Ascension.View");
 	static constexpr const TCHAR* TimeUnitKey = TEXT("TimeUnit");
 
+	/**
+	 * How the map is seen (section 6.4): the view the viewer wants. Presentation state - not in FGalaxyState, never saved,
+	 * outside both hashes, not kept across sessions. Spiritual by default, so that the map turns at the tick the viewer
+	 * reaches the third rung; a new galaxy or a load returns it to the default, and so does the sight opening again after
+	 * it closed (FollowSightOpening). Drawn only while the sight is open.
+	 */
+	ECosmicViewMode GetWantedViewMode() const { return WantedViewMode; }
+	/** Sets the wanted view in memory (tests fix it so); a change is handed to the map and announced once. */
+	void SetWantedViewMode(ECosmicViewMode Mode);
+	/** The top bar's view button: the other view. Refused - nothing changes, nothing is announced - while the sight is
+	 * closed. */
+	void ToggleViewMode();
+	/** Whether the spiritual sight is open: CosmicMapLook::SpiritualSightOpens of the simulation's viewer tier, or forced
+	 * open by CosmicSpiritualSight. The third rung's one gate: x25 opens with it (CosmicUI::IsSpeedOpen). */
+	bool IsSpiritualSightOpen() const;
+	/** The view drawn: CosmicMapLook::ShownViewMode of the wanted view, the force and the viewer tier. */
+	ECosmicViewMode GetShownViewMode() const;
+	/**
+	 * Follows the sight (every frame, from PlayerTick; tests call it in place of a frame): when it went from closed to
+	 * open since the last call, the wanted view returns to Spiritual - the reveal of the opening never contradicts the map
+	 * (section 16 #96). A first call only notes whether the sight is open.
+	 */
+	void FollowSightOpening();
+	/** Announced when the wanted view or the force changes (the HUD redraws the top bar and the panel). */
+	FSimpleMulticastDelegate OnViewModeChanged;
+
+	/** The view a widget shows: its owning controller's view drawn; Physical without one. */
+	static ECosmicViewMode ShownViewModeFor(const UUserWidget& Widget);
+	/** Whether a widget's owning controller has the sight open; false without one. */
+	static bool IsSpiritualSightOpenFor(const UUserWidget& Widget);
+
 	/** The ruler's command of the system panel (UPlayerRoleSubsystem::StartMegaproject: RowName on SystemID, or
 	 * project_settle on the wild SystemID). On success redraws the HUD and asks the map to redraw. */
 	bool StartProject(FName SystemID, FName RowName);
 
-	/** Selects SystemID and glides the camera to it, as a double click on its star does (the log feed's lines too). False
-	 * when the map holds no such star. */
+	/** Selects SystemID and glides the camera to it, as a double click on its star does (the log feed's lines too). False -
+	 * and the camera stays - when the map holds no such star or SelectSystem refused it (section 8.1: the camera goes to a
+	 * system the viewer knows only). */
 	bool SelectAndFocus(FName SystemID);
 
 	/** Development aid: selects and focuses a system as a double click on it would ("CosmicSelect sol" at the console or
-	 * in -ExecCmds). Waits for the map when given before it is built. */
+	 * in -ExecCmds). Waits for a map not built yet; on a built map a system the viewer does not know is refused with one
+	 * log line (CosmicSeeAll 1 draws every system) and nothing waits. */
 	UFUNCTION(Exec)
 	void CosmicSelect(const FString& SystemID);
 
-	/** Development aid: after DelaySeconds of real time shows the ascension presentation to the second rung with the first
-	 * feat row ("CosmicPreviewAscension 23" with -ShotAfterSeconds=25 photographs it). Changes no state. */
+	/** The viewer's knowledge as the screens read it: CosmicMapLook::KnownViewOf of the state, the simulation's viewer
+	 * tier and CosmicSeeAll; an empty view without a simulation. */
+	FCosmicKnownView GetKnownView() const;
+	/** The view a widget reads: its owning controller's; Knowing alone (no see-all) without one; an empty view without a
+	 * simulation. */
+	static FCosmicKnownView KnownViewFor(const UUserWidget& Widget);
+
+	/**
+	 * The stars of Map a click may take, each projected by Project (a world point to the screen; false when it does not
+	 * reach it): every star of a system View knows - the star at index i draws system i - and never a backdrop point,
+	 * an unknown system's among them (section 6.4). The same answer the selection reads (SelectSystem asks the live view
+	 * too). A star's drawn radius is the distance between its projected centre and its centre moved one star radius along
+	 * Side (the view's sideways axis). PickAtCursor projects through this controller's view; tests pass their own projector.
+	 */
+	static TArray<FCosmicPickCandidate> PickCandidatesOf(const ACosmicGalaxyMapActor& Map, const FCosmicKnownView& View, TFunctionRef<bool(const FVector&, FVector2D&)> Project, const FVector& Side);
+
+	/**
+	 * The named galaxies of Map a click may take, each projected by Project (a world point to the screen; false when it does
+	 * not reach it): every mark of the universe, its drawn radius the distance between its projected centre and its centre
+	 * moved CosmicUniverseLook::RingRadiusOf along Side - none while the map draws the region's detail (PickCandidatesOf
+	 * takes the stars there), and never a scenery galaxy (section 5.11). PickGalaxyAtCursor projects through this
+	 * controller's view; tests pass their own projector.
+	 */
+	static TArray<FCosmicGalaxyPickCandidate> GalaxyPickCandidatesOf(const ACosmicGalaxyMapActor& Map, TFunctionRef<bool(const FVector&, FVector2D&)> Project, const FVector& Side);
+
+	/** Development aid: turns the wheel by Steps as ACosmicCameraPawn::Zoom does (positive nearer) - "CosmicWheel -100" the
+	 * universe's far stop, "CosmicWheel -3" from the region's framing to the universe's near stop, "CosmicWheel -2" to the
+	 * region's far stop (off-screen screenshots and the frame-time measure: -ExecCmds cannot scroll). Waits for a map not
+	 * built yet. Changes no state. Not named CosmicZoom: a member of that name would hide the namespace CosmicZoom here. */
+	UFUNCTION(Exec)
+	void CosmicWheel(float Steps);
+
+	/** Development aid: selects and focuses a named galaxy as a double click on it would ("CosmicSelectGalaxy
+	 * gal_andromeda"). Waits for a map not built yet; on a built map a row the universe does not draw is refused with one
+	 * log line. Changes no state. */
+	UFUNCTION(Exec)
+	void CosmicSelectGalaxy(const FString& Row);
+
+	/** Development aid: "CosmicSeeAll 1" draws every system as known and every people as shown for the session - the map,
+	 * the system panel and the selection (off-screen screenshots of places the viewer has not reached, the frame-time measure
+	 * with sixty stars); 0 gives knowledge its say back and lets go of a selected system the viewer does not know. Writes
+	 * nothing: Knowing, the state and both hashes stay. */
+	UFUNCTION(Exec)
+	void CosmicSeeAll(int32 On);
+	bool IsSeeingAll() const { return bSeeAll; }
+
+	/** The left mouse button, as bound in SetupInputComponent (tests call them in place of the mouse). A press starts a
+	 * click or a pan; a release that ends a press which did not become a pan is a click - the star under the cursor, or
+	 * empty space (clears) -, except the release that ends a double click (section 6.4: a double click selects and focuses;
+	 * the button-up after it is no second click); a double click selects and focuses the star under the cursor. */
+	void HandleLeftPressed(FKey Key);
+	void HandleLeftReleased(FKey Key);
+	void HandleLeftDoubleClick(FKey Key);
+
+	/** Development aid: after DelaySeconds of real time shows the ascension presentation to the second rung
+	 * ("CosmicPreviewAscension 23" with -ShotAfterSeconds=25 photographs it) - CosmicPreviewRung of the second rung.
+	 * Changes no state. */
 	UFUNCTION(Exec)
 	void CosmicPreviewAscension(float DelaySeconds);
+
+	/** Development aid: after DelaySeconds of real time shows the ascension presentation to Rung (1..5; anything else is
+	 * the second) with the first feat row that reaches that rung, or the first feat row ("CosmicPreviewRung 19 3" shows
+	 * the third rung's, whose close shows the reveal of the spiritual sight when the view drawn will be spiritual - force
+	 * the sight open below the third rung). A command of its own, not a default argument of CosmicPreviewAscension: an
+	 * Exec's default comes from editor-only metadata, and a build without it refuses a call that leaves the argument out.
+	 * Changes no state. */
+	UFUNCTION(Exec)
+	void CosmicPreviewRung(float DelaySeconds, int32 Rung);
+
+	/** Development aid: "CosmicSpiritualSight 1" forces the third rung's gate open at any rung for the session - the
+	 * spiritual sight and x25 (the off-screen screenshot, the frame-time measure) - and logs the first system of each
+	 * fallen sphere for CosmicSelect (a sphere system the viewer does not know needs CosmicSeeAll 1 before CosmicSelect);
+	 * 0 gives the rung its say back. Changes no state, keeps nothing. */
+	UFUNCTION(Exec)
+	void CosmicSpiritualSight(int32 Open);
+
+	/** Development aid: the system panel's command from the console ("CosmicStartProject <the home's SystemID>
+	 * project_dyson" at the console or in -ExecCmds - the home is sol until v0.8 step 4, sys_0 from then) - StartProject,
+	 * the path a button takes; it changes the world only as that click would. */
+	UFUNCTION(Exec)
+	void CosmicStartProject(const FString& SystemID, const FString& RowName);
 
 protected:
 	// Reads the viewer's clock unit before the HUD exists. A development aid: -TimeUnit=Year (or Cycle) sets it for the
@@ -151,29 +357,54 @@ protected:
 	virtual void PlayerTick(float DeltaTime) override;
 
 private:
-	void HandleSpeedKey(FKey Key);
-	void HandleLeftPressed(FKey Key);
-	void HandleLeftReleased(FKey Key);
-	void HandleLeftDoubleClick(FKey Key);
+	UFUNCTION()
+	void HandleSimTick(int64 Tick);
+
+	UFUNCTION()
+	void HandleGalaxyGenerated(int32 Seed);
+
 	void HandleRightPressed(FKey Key);
 	void HandleRightReleased(FKey Key);
 	void HandleWheel(FKey Key);
 	void HandleMapRebuilt();
 
-	// The system under the cursor (CosmicMapPick::NearestOnScreen over the projected stars), or None.
+	// The system under the cursor (CosmicMapPick::NearestOnScreen over PickCandidatesOf through this controller's view and
+	// the live GetKnownView), or None.
 	FName PickAtCursor() const;
+	// The named galaxy under the cursor (CosmicMapPick::NearestOnScreen over GalaxyPickCandidatesOf through this view), or
+	// None.
+	FName PickGalaxyAtCursor() const;
 	// The point of the disc plane under a screen position.
 	bool DiscPointAt(const FVector2D& Screen, FVector& OutPoint) const;
 	ACosmicCameraPawn* GetCameraPawn() const;
+	// The one log line of a refused CosmicSelect: an ID this galaxy does not hold, or a system the viewer does not know.
+	void LogRefusedSelect(FName Wanted) const;
 
 	// Speed to return to when the pause is released.
 	float SpeedBeforePause = 1.f;
 
+	// Whether the third rung's gate was open at the last FollowSpeedGate; unset before the first.
+	TOptional<bool> ThirdRungWasOpen;
+
 	ECosmicTimeUnit TimeUnit = ECosmicTimeUnit::Cycle;
+
+	ECosmicViewMode WantedViewMode = ECosmicViewMode::Spiritual;
+	bool bSightForcedOpen = false;
+	// Whether the sight was open at the last FollowSightOpening; unset until the first.
+	TOptional<bool> SightWasOpen;
 
 	FName SelectedSystemID;
 	// CosmicSelect given before the map was built.
 	FName PendingSelect;
+	FName SelectedGalaxyRow;
+	// CosmicSelectGalaxy and CosmicWheel given before the map was built.
+	FName PendingGalaxy;
+	TOptional<float> PendingWheel;
+	// The level at the last FollowZoomLevel; unset before the first.
+	TOptional<ECosmicZoomLevel> LastLevel;
+	FCosmicHintProgress Hints;
+	// The development aid CosmicSeeAll (handed to the map; read by GetKnownView).
+	bool bSeeAll = false;
 
 	TWeakObjectPtr<ACosmicGalaxyMapActor> Map;
 	FDelegateHandle RebuiltHandle;
@@ -182,6 +413,9 @@ private:
 	// movement since the last frame.
 	bool bLeftDown = false;
 	bool bPanning = false;
+	// Set by a double click: the release that ends it is no click (it would run the click again through a view that is
+	// already gliding, and clear or move the selection the double click just made). The next release consumes it.
+	bool bSwallowRelease = false;
 	FVector2D LeftPressAt = FVector2D::ZeroVector;
 	bool bRightDown = false;
 	FVector2D LastMouse = FVector2D::ZeroVector;

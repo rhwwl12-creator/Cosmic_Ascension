@@ -1,6 +1,6 @@
 # 용어집 (옛 §15)
 
-> 원문: guideline.md v0.8 §15 (2026-10-18 docs/ 재편으로 이관, 내용 무변경). 표지 `(v0.8 — 단계 N부터)`·`(v0.7 — …)`·`Phase N`이 붙은 문장은 **예정**(아직 코드에 없음), 표지 없는 문장은 **현행 규칙**이다. 열린 물음은 `docs/60_DECISIONS/OPEN_QUESTIONS.md`, 확정 기록은 `docs/60_DECISIONS/DECISIONS_LOG.md`. 절 번호(§N)는 원문 그대로 두었다 — 위치는 `docs/SECTION_MAP.md`.
+> 원문: guideline.md v0.8 §15 (2026-10-19 docs/ 재편으로 이관, 내용 무변경 — 원격의 Phase 3 꼬리 작업 반영분 포함). 표지 `(v0.8 — 단계 N부터)`·`(v0.7 — …)`·`Phase N`이 붙은 문장은 **예정**(아직 코드에 없음), 표지 없는 문장은 **현행 규칙**이다. 열린 물음은 `docs/60_DECISIONS/OPEN_QUESTIONS.md`, 확정 기록은 `docs/60_DECISIONS/DECISIONS_LOG.md`. 절 번호(§N)는 원문 그대로 두었다 — 위치는 `docs/SECTION_MAP.md`.
 
 ※ 같은 낱말의 두 뜻은 이렇게 고정한다: '칸' = Tier(거대 프로젝트의 자리는 '건설/대응 슬롯'), '부르심' = 서막 끝의 소명 사건, '문턱' = T3(칸 이름) / `enc_threshold`(T5 카드), '정착률'은 '주장 만료율'로 바꿔 부른다.
 
@@ -47,7 +47,7 @@
 | 영압 (영적 압력) | Spiritual pressure | `ComputeSpiritualPressure()`(파생, 저장 안 함) | Tier 격차의 파생 함수 + 수정자 4곳 (§4.2) |
 | 심도 | Depth | `FTranscendentDef.Depth`(0~1, 정의 데이터) | 칸 안의 깊이. 초월자는 행의 컬럼, 문명과 플레이어는 파생·서술만(저장 없음). 영압의 초월자 항에 (1 + Depth). 칸을 넘지 못한다 (§3.2, §4.2) |
 | 현현 | Manifestation | 코드 식별자 없음 | 초월자와 거룩한 질서가 규칙을 비트는 방식 — 거룩한 질서의 것은 은혜, 타락의 것은 유혹과 침식. 기존 Hazard·효과·특성·은혜 이벤트의 데이터다 (§4.2, §8.3) |
-| 영적 시야 | Spiritual sight | `M_Star` `ViewMode`/`Pressure`/`DominionColor`, PlayerTier >= 3 해금 | 영적·사후 영역의 두 번째 지도 없음(우주 화면은 같은 지도의 줌 단계). Phase 3 꼬리 (§6.4) |
+| 영적 시야 | Spiritual sight | `M_Star` `ViewMode`/`Pressure`/`DominionColor`/`ClaimState`/`WarningColor`, `M_Nebula` `SpiritualIntensity`, 보는 쪽의 칸(`GetViewerTier`) ≥ 3 해금 | 같은 지도를 다르게 그리는 방법 — 영적·사후 영역의 두 번째 지도 없음(우주 화면은 같은 지도의 줌 단계). 보기는 보는 사람의 것(메모리, 기본 영적). Phase 3 7번 작업 (§6.4) |
 | 영력 | Spiritual power | `Causality`(서사 이름만, 자원 아님) | 바람·숨·빛·음성으로만 묘사 (§5.1, §8.3) |
 | 거룩한 질서 | Divine Order | 엔티티 없음. `ImmutableLaws`, `Hazard.Visitation`, `Trait.Faith.*`, 수동태 | 저자는 등장인물이 아니다 (§4.5) |
 | 은혜 이벤트 | Grace event | `event_grace_rescue/remnant/jubilee`, `Event.Grace.*`, `Law.Sabbath`, `Flag.Grace.Spent` | 조건으로 유도 불가, 판당 1회, 거절 가능 (§4.5) |
@@ -84,10 +84,13 @@
 | 수직 슬라이스 | Vertical Slice | - | §12.1 정의 |
 | 판 | Run | 식별자 없음(낱말). 코드 식별자의 Galaxy — `FGalaxyState`·`GalaxyID`·`NewGalaxy`·슬롯 `Galaxy_<GUID>`·`L_Galaxy` — 가 가리키는 것 | 우주 시드 1개 = 부름 1회 = 저장 슬롯 1개. 은하는 여럿이고 판은 하나다 (§9.2) |
 | 고향 은하 | Home galaxy | `DT_Rules.HomeGalaxyRow`(`gal_milkyway`), 성계·문명의 `GalaxyRow` | 매 틱 상세로 시뮬되는 은하 하나(우리은하). `NewGalaxy`가 모든 성계·문명의 `GalaxyRow`에 이 행 이름을 찍는다. NAME_None은 '아직 찍히지 않음'이다 (§5.11, §7.2) |
-| 무대 은하 | Stage galaxy | `DT_Galaxies` 행 가운데 `BridgeTicks` > 0인 것(안드로메다·삼각형자리·대마젤란·소마젤란) | 이름과 다리가 있는 은하. 6a부터 저장 상태 없이 요약으로 흐른다(본문의 '요약 은하'는 요약으로 흐르는 무대 은하를 가리킨다). VS에서는 표시 전용 (§5.11, §7.4) |
-| 풍경 은하 | Scenery galaxy | `DT_Rules.SceneryGalaxyCount`, `Derive`의 용도 Scenery | 셀 수 없이 많은 나머지 은하. 표현 계층이 그리기만 한다 — 상태·역사·방문이 없다 (§5.11) |
+| 무대 은하 | Stage galaxy | `DT_Galaxies` 행 가운데 `BridgeTicks` > 0인 것(안드로메다·삼각형자리·대마젤란·소마젤란) | 이름과 다리가 있는 은하. 6a부터 저장 상태 없이 요약으로 흐른다(본문의 '요약 은하'는 요약으로 흐르는 무대 은하를 가리킨다). VS에서는 보이기만 한다 (§5.11, §7.4) |
+| 풍경 은하 | Scenery galaxy | `DT_Rules.SceneryGalaxyCount`, `Derive`의 용도 Scenery | 셀 수 없이 많은 나머지 은하. 표현 계층이 그리기만 한다 — 상태·역사·방문이 없다. 어느 판에서나 같은 하늘이고, 행이 추첨을 움직이지 않는다 (§5.11, §6.4 '우주 화면') |
+| 표시 전용 은하 행 | Display-only galaxy row | `DT_Galaxies` 행 가운데 고향이 아니고 `BridgeTicks` 0인 것(M87과 9번 작업의 열넷) | 고향이 아니고 다리가 없는 행: 6a 뒤에도 보이기만 한다 (§5.11) |
+| 우주 화면 | Universe level | `CosmicZoom`(`ECosmicZoomLevel::Universe`), `CosmicUniverseLook` | 같은 지도의 줌 단계(구역 다음 휠 한 칸) — 고향 은하가 이름 있는 은하·풍경 은하 사이에 선 그림. 별도 지도가 아니다 (§6.4) |
+| 줌 단계 | Zoom level | `ECosmicZoomLevel` | 한 지도의 단계: 지금 구역·우주, 단계 5에 은하, 단계 6에 성계(서막) (§6.4) |
 | 요약 | Summary | `SummaryAt(GalaxyRow, Tick)` (6a) | 무대 은하의 대략적인 상태. 순수 함수의 값(칸별 백성 수와 닿아 있는 교리 태그)이고 화면에는 낱말로만 나온다 (§7.4) |
-| 배경 별 | Backdrop star | `DT_Rules.BackgroundStarCount`, `Derive`의 용도 Backdrop | 은하의 모양을 그리는 점. 그림뿐이고 상태·해시가 없다 (§3.1) |
+| 배경 별 | Backdrop star | `DT_Rules.BackgroundStarCount`, `Derive`의 용도 Backdrop, `M_Backdrop` | 은하의 모양을 그리는 점. 그림뿐이고 상태·해시가 없다. 모르는 성계의 점도 이 점 가운데 하나다 (§3.1, §6.4) |
 | 생명 성계 / 무주 성계 | Living world / Wild world | `FStarSystemState`, `OwnerCivID == NAME_None` | 성계 = 시뮬 노드 = 생명이 있거나 백성이 사는 별. 주인이 없는 것이 무주 성계: Hazard·주장의 대상이 아니고 정착의 대상이다 (§3.1, §5.7) |
 | 정착 / 정착된 성계 | Settlement / Settled system | `project_settle`, 술어 '소유이고 `ActiveMegaproject != project_settle`' | 정착 = 자기의 정착된 성계에서 1레인인 무주 성계를 거대 프로젝트로 제 것으로 삼는 일(§3.2 표 T2의 '성계 확장'). 정착된 성계만 수입·Hazard·계승 후보·남은 자의 셈·다음 정착의 발판이 되고 마지막 성계의 문이 묻는 성계가 된다(계승 후보의 예외 — 정착된 성계가 하나도 없을 때의 마지막 완화 — 는 정착과 문명 제거 작업의 리뷰부터 비어 있다, §4.4) (§5.7) |
 | 죽은 노드 | Dead node | `StarClass` 빈 태그(§16 #29 ⑤) | 파괴된 성계. `Systems`에서 지우지 않는다 — 주인도 레인도 없고 생명 성계가 아니다 (§7.2) |
@@ -98,6 +101,7 @@
 | 보는 거리 | Sight (reach) | `DT_Rules.SightLanesByTier`·`SightIntervalTicks`·`FirstSightTick`·`ScanSightBonusLanes` | 지금 그릇이 닿는 범위(레인 수). 파생이고 저장하지 않는다. §3.2의 '보임'(격의 의미론)·§6.4의 '영적 시야'(보기 전환)와 다른 말 (§7.4) |
 | 만남 / 첫 접촉 | Meeting / First contact | `log_contact` / `log_first_contact`, `petition_first_contact`, `Knowing.FirstContactCivID`, `Knowing.PendingContactCivID` | 만남 = 한 백성을 처음 알아보는 일(각각). 첫 접촉 = 그 판의 첫 만남(§2.4 타임라인 5:30의 박자) — `Knowing.FirstContactCivID`가 NAME_None일 때 `NoteMet`이 적는 만남이고, 같은 호출이 그 칸에 만난 백성의 ID를 적는다(`Install`은 적지 않는다. 판에 한 번이고 계승에도 남는다 — 정의 §7.4). 방문이 아니라 알아봄(신호)이다. 청원 카드는 첫 접촉에만, 통치자에게만 (§7.4) |
 | 만난 백성 / 만나지 않은 백성 | Met people / Unmet people | `Knowing.MetCivs` | 알아본 백성 / 아직 그렇지 않은 백성(지도·목록·외교에 없다). 개발자의 '조우한 뒤'는 본문의 '만난 뒤'다. '조우'는 조우 카드만 뜻한다 (§6.4, §8.1) |
+| 보이는 백성 / 다른 백성 | Shown people / Another people | `CosmicMapLook::IsShownPeople`, ST_CA `Panel.OtherOwner` | 보이는 백성 = 만났고 보는 쪽보다 세 칸 이상 위가 아닌 백성(이야기의 범위의 주제 규칙 그대로). 보이지 않는 백성이 사는 아는 성계의 주인 줄은 '주인  다른 백성'이다 — '알아보지 못한 백성'은 쓰지 않는다(사 1:3의 '주인을 알아보지 못한 백성'으로 읽혀 판정이 된다) (§6.4) |
 | 만난 은하 | Met galaxy | `Knowing.MetGalaxies` (6a) | 만난 백성과 건넘을 주고받은 은하. 그 전에는 종류와 현실 수치 문구만 보인다 (§7.4) |
 | 이야기의 범위 | Scope of telling | `Push`·`PushRow`의 `FocusSystem`·`FocusCiv`, `FCosmicLogEntry.bUntold`, `SetTellAll`, `log_far_ascent`·`log_far_event` | 줄을 쌓을지 정하는 규칙. 범위 밖의 Severity 2·주장·기록은 `bUntold`로 쌓이고 그 밖은 쌓이지 않는다 (§8.1) |
 | 보는 쪽 Tier | Viewer tier | `UGalaxySimulationSubsystem::GetViewerTier` | 부름이 세상을 보는 칸 — 통치하는 동안은 통치 문명의 Tier, 그 밖(방랑자, 공백기)은 개인 Tier. 격차 규칙과 줄의 창이 읽는다 (§7.4, §8.1) |

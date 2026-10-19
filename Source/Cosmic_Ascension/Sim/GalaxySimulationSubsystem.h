@@ -141,10 +141,17 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void NewGalaxy(int32 Seed, int32 SystemCount, int32 CivCount);
 
-	// The UI offers 0, 1, 2, 5, 10 (section 2.1). 0 pauses, and it is the only pause of the simulation: this subsystem
-	// ticks in the engine's null-world pass, so engine pause (SetGamePaused) and time dilation never reach it.
+	// The UI offers 0, 1, 2, 5 and 10, and 25 once the calling sees from the third rung (section 2.1 - which speeds are
+	// open is the presentation's rule, CosmicUI::IsSpeedOpen; this subsystem keeps nothing of the player). 0 pauses, and
+	// it is the only pause of the simulation: this subsystem ticks in the engine's null-world pass, so engine pause
+	// (SetGamePaused) and time dilation never reach it. A scale that is not above 0, or not a number, reads as 0 (a
+	// compare: FMath::Clamp turns a NaN into its top); one above MaxTimeScale reads as MaxTimeScale. A frame still runs
+	// MaxTicksPerFrame ticks at most, so x25 keeps its pace only above 2.5 frames a second (section 9.4).
 	UFUNCTION(BlueprintCallable)
 	void SetTimeScale(float Scale);
+
+	// The highest time scale: the third rung's x25 (section 2.1). Not the frame budget: MaxTicksPerFrame stays 10.
+	static constexpr float MaxTimeScale = 25.f;
 
 	UFUNCTION(BlueprintPure)
 	float GetTimeScale() const { return TimeScale; }

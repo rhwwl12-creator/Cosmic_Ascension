@@ -1,6 +1,7 @@
 // Cosmic Ascension - Sim layer. Design: guideline.md section 4.2, 4.3, 5.7, 5.12, 7.4.
-// The world side of megaprojects: starting one, what a people would start, settlement, and one tick of one project slot
-// of a system (step (a) runs every response slot, then every construction slot). World state only: no line, no knowing, no delegate and no draw of their own (a completion that resolves a
+// The world side of megaprojects: starting one and why it cannot start, what a people would start, settlement and why a
+// people does not settle, one tick of one project slot of a system (step (a) runs every response slot, then every
+// construction slot) and how to read whether a slot paid. World state only: no line, no knowing, no delegate and no draw of their own (a completion that resolves a
 // hazard goes through CosmicHazards::Resolve, whose effects draw as Apply does; the AI draws its settlement number
 // before it calls Settle). The ruler's command and the AI start through Start and Settle; the crisis stage advances
 // through Advance and tells the lines afterwards.
@@ -31,6 +32,28 @@ namespace CosmicMegaprojects
 		Construction,
 	};
 
+	// One project slot as the state holds it: its row (NAME_None when empty) and its progress. A reading for the
+	// presentation and the balance commandlet; never stored.
+	struct FCosmicSlotReading
+	{
+		FName Row;
+		float Progress = 0.f;
+	};
+
+	// The reading of Slot on System.
+	COSMIC_ASCENSION_API FCosmicSlotReading ReadSlot(const FStarSystemState& System, ECosmicProjectSlot Slot);
+
+	/**
+	 * Whether a slot read at the end of one tick (Before) and again at the end of the next tick (After) paid nothing in
+	 * that tick: it holds the same row, not NAME_None, with exactly the same progress. Exact by Advance and step (a) of the
+	 * crisis stage: a tick that cannot be paid in full changes nothing in the slot, and neither does a construction held
+	 * back for an unpaid answer of its people (a want of resources too); a paid tick adds the rate (1, or the AI rate,
+	 * which is above 0) or completes the row and empties the slot. A settlement whose row the tables do not hold stays and
+	 * reads as paying nothing. Not exact for a row that completes in one paid tick and starts again in the same tick (no
+	 * game row: RequiredProgress is 100 and up), nor for an AI rate too small to move the float. Reads only.
+	 */
+	COSMIC_ASCENSION_API bool PaidNothing(const FCosmicSlotReading& Before, const FCosmicSlotReading& After);
+
 	/**
 	 * Whether the system holds a completion of RowName (CompletedMegaprojects) whose tick is above 0 and not below
 	 * SinceTick: the test of condition MegaprojectComplete (section 4.4, 5.7). An empty RowName is false.
@@ -52,8 +75,54 @@ namespace CosmicMegaprojects
 	/** Whether Stockpile can pay Cost (a cost read through CostPerTickOf) in full: no member of it is below Cost's. */
 	COSMIC_ASCENSION_API bool CanPay(const FResourcePool& Stockpile, const FResourcePool& Cost);
 
+	// Why Start refuses a row on a system, in the order StartBlockOf asks (the system panel shows it - section 5.7, 6.3):
+	// first the row (none, the settle row), then the system (none, dead, not settled, no living owner), then - for an
+	// answer - whether it answers the hazard standing there (none, another), then the people (the row's Tier), last the
+	// slot (this answer runs, another answer runs, this construction runs). A construction slot that holds another row is
+	// no reason (Start replaces that row, section 5.7), and neither is the cost (a tick that cannot pay waits).
+	enum class ECosmicStartBlock : uint8
+	{
+		None,
+		// The tables hold no such row (NAME_None included).
+		NoRow,
+		// project_settle: a settlement starts through Settle alone (the panel's settle button).
+		SettleRow,
+		// SystemIndex is out of range.
+		NoSystem,
+		// The system is a dead node.
+		Dead,
+		// The system has no owner, or a settlement is under way there.
+		NotSettled,
+		// The owner is not a people of Civs.
+		NoOwner,
+		// An answer (FCosmicDataTables::IsHazardAnswer), and no hazard with a row stands there.
+		NoHazard,
+		// An answer that the row of the hazard standing there does not list.
+		OtherHazard,
+		// The owner's Tier is below the row's RequiredTier.
+		RowTier,
+		// An answer, and the response slot holds this row already.
+		Answering,
+		// An answer, and the response slot holds another row.
+		ResponseBusy,
+		// A construction row that runs in the construction slot already.
+		Running,
+		// The number of the values above (not a reason).
+		Count,
+	};
+
 	/**
-	 * Whether Start would take RowName on SystemIndex now (section 5.7): the row exists and is not project_settle (a
+	 * The first reason Start refuses RowName on SystemIndex now, in the order of the enum; None when it takes it. Every
+	 * reason is one refusal of the rule of section 5.7 and the rule is their conjunction, so the order names the reason
+	 * and decides nothing: no start of the command or of the AI depends on it. The hazard is asked before the rung so that
+	 * the panel can leave out an answer whose hazard does not stand there instead of greying it for the rung. Reads only;
+	 * draws nothing.
+	 */
+	COSMIC_ASCENSION_API ECosmicStartBlock StartBlockOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, int32 SystemIndex, FName RowName);
+
+	/**
+	 * Whether Start would take RowName on SystemIndex now (section 5.7): StartBlockOf says None - one rule for the ruler's
+	 * command, the AI's choices and the panel's project buttons. That is: the row exists and is not project_settle (a
 	 * settlement starts through Settle alone), the system is a settled system of a living people whose Tier is at least the
 	 * row's RequiredTier, and then - for an answer (FCosmicDataTables::IsHazardAnswer) - the row of the system's hazard
 	 * lists it and the response slot is empty, or - for any other row - the construction slot does not hold that row.
@@ -72,7 +141,7 @@ namespace CosmicMegaprojects
 	 * system it owns, in OwnedSystems order, whose response slot is empty, the first row in the RulerResolutions of its
 	 * hazard's row that Start would take; then, while the construction slot of its settled capital is empty, the first
 	 * construction row named by a MegaprojectComplete condition of a Ruler feat for its Tier that the judgment looks at
-	 * (FAscensionFeatDef::IsOneRungWithDeed; feat rows in lexical order, conditions in order) that it has completed on none of the settled systems it owns since SinceTick, that runs in the
+	 * (FAscensionFeatDef::IsJudgedRulerRowAt; feat rows in lexical order, conditions in order) that it has completed on none of the settled systems it owns since SinceTick, that runs in the
 	 * construction slot of none of them, and that Start would take. An entry of OwnedSystems whose owner is another people
 	 * counts for nothing. Reads only; draws nothing. The AI starts every choice; the prototype's project key starts the
 	 * first one for the people the player rules.
@@ -142,6 +211,17 @@ namespace CosmicMegaprojects
 	// The systems CanSettle holds for the people CivIndex, in Systems order. Reads only. Looks only at the lane neighbours
 	// of the people's settled systems (a target lies one lane from one of them).
 	COSMIC_ASCENSION_API TArray<int32> SettleTargets(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex);
+
+	/**
+	 * Why the people CivIndex starts no settlement now, as one reason (the balance commandlet counts it - section 9.3):
+	 * NoPeople for an index out of range; NoLane when it owns no settled system; then the people's reasons of SettleBlockOf
+	 * in its order - NoRow, RowTier, RealmCap, Settling; then, when none of those stands, the lane neighbours of its
+	 * settled systems (the candidates of SettleTargets), each read by SettleBlockOf itself: None as soon as one of them is
+	 * a target, otherwise the strongest of their reasons - Sphere (the third rung lifts it) before Owned before Dead
+	 * before NoLane (no neighbour, or none in the galaxy row of a foothold). None exactly when SettleTargets is not empty:
+	 * the settlement draw would find a target now. Reads only; draws nothing.
+	 */
+	COSMIC_ASCENSION_API ECosmicSettleBlock PeopleSettleBlockOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex);
 
 	/**
 	 * Starts the settlement of SystemIndex by the people CivIndex (section 5.7): refused (false, nothing changed)

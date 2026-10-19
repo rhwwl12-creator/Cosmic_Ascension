@@ -10,7 +10,8 @@
 class UProgressBar;
 class UTextBlock;
 
-/** The label of one system on the map: its name, and a bar for each slot that holds a project. Built in C++ (no WBP). */
+/** The label of one system on the map: its name, and a bar for each slot that holds a project - or, at the universe level,
+ * of one named galaxy: its name alone (a look whose two shares are -1). Built in C++ (no WBP). */
 UCLASS(meta = (DisableNativeTick))
 class COSMIC_ASCENSION_API UCosmicSystemLabelWidget : public UUserWidget
 {
@@ -18,6 +19,8 @@ class COSMIC_ASCENSION_API UCosmicSystemLabelWidget : public UUserWidget
 
 public:
 	void Show(const FCosmicSystemLook& Look);
+	/** The look shown last (tests read a galaxy label's name from it). */
+	const FCosmicSystemLook& GetShownLook() const { return Shown; }
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;

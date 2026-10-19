@@ -35,16 +35,14 @@
 
 namespace CosmicKnowingTests
 {
+	// The test-table helpers are shared (Tests/CosmicTestHelpers.h). WithRules keeps the game's projects and feats: the
+	// run of KnowingInert is the game's data.
+	using CosmicTests::NewTable;
+	using CosmicTests::WithRules;
+
 	FGameplayTag Tag(const TCHAR* Name)
 	{
 		return FGameplayTag::RequestGameplayTag(FName(Name));
-	}
-
-	UDataTable* NewTable(UScriptStruct* RowStruct)
-	{
-		UDataTable* Table = NewObject<UDataTable>(GetTransientPackage());
-		Table->RowStruct = RowStruct;
-		return Table;
 	}
 
 	// The knobs of the tests, not the game's: sight every ten ticks from tick 30, reach 1/2/3/4/5 lanes, a far event
@@ -93,16 +91,6 @@ namespace CosmicKnowingTests
 		Tables.Hazards = Hazards ? Hazards : NewTable(FHazardDef::StaticStruct());
 		Tables.Events = Events ? Events : NewTable(FCosmicEventDef::StaticStruct());
 		Tables.Transcendents = NewTable(FTranscendentDef::StaticStruct());
-		return Tables;
-	}
-
-	// The game's tables with the rules row replaced.
-	FCosmicDataTables WithRules(const FCosmicDataTables& Original, const FCosmicRulesDef& Rules)
-	{
-		UDataTable* RulesTable = NewTable(FCosmicRulesDef::StaticStruct());
-		RulesTable->AddRow(CosmicRows::Rules, Rules);
-		FCosmicDataTables Tables = Original;
-		Tables.Rules = RulesTable;
 		return Tables;
 	}
 

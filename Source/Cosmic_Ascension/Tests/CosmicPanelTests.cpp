@@ -30,10 +30,12 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeExit.h"
 #include "Rendering/SlateLayoutTransform.h"
+#include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
 #include "UI/CosmicActionButton.h"
+#include "UI/CosmicAscensionOverlayWidget.h"
 #include "UI/CosmicLogFeedWidget.h"
 #include "UI/CosmicSystemPanelWidget.h"
 #include "UI/CosmicTopBarWidget.h"
@@ -41,30 +43,17 @@
 #include "UObject/NameTypes.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
+#include "UObject/Class.h"
 #include "Widgets/IToolTip.h"
 #include "Widgets/SWidget.h"
 #include "World/CosmicGalaxyMapActor.h"
 #include "World/CosmicGameMode.h"
+#include "World/CosmicMapLook.h"
 
 namespace CosmicPanelTests
 {
-	// Everything the text blocks of a widget's own tree show, one block per line.
-	FString ReadTexts(const UUserWidget& Widget)
-	{
-		FString Shown;
-		if (Widget.WidgetTree)
-		{
-			Widget.WidgetTree->ForEachWidget([&Shown](UWidget* Child)
-			{
-				if (const UTextBlock* Block = Cast<UTextBlock>(Child))
-				{
-					Shown += Block->GetText().ToString();
-					Shown += TEXT("\n");
-				}
-			});
-		}
-		return Shown;
-	}
+	// Everything the text blocks of a widget's own tree show (shared - Tests/CosmicTestHelpers.h).
+	using CosmicTests::ReadTexts;
 
 	TArray<FName> ActionsOf(const UCosmicSystemPanelWidget& Panel)
 	{
@@ -176,6 +165,9 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 	Controller->SetTimeUnit(ECosmicTimeUnit::Cycle);
 	const FString& Placeholder = FStringTableEntry::GetPlaceholderSourceString();
 	FGalaxyState& Live = Sim->GetMutableState();
+	// The whole board known, as before Phase 3 item 8: the panel shows every system and names every people
+	// (UI.KnownFilter holds the gate itself).
+	CosmicTests::KnowAll(Live);
 	const int32 RuledIndex = Sim->GetStateIndex().FindCiv(Live, Live.Player.RuledCivID);
 	if (!TestTrue(TEXT("(the player rules a people)"), Live.Civs.IsValidIndex(RuledIndex)))
 	{
@@ -207,13 +199,14 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("and the cycle"), Shown.Contains(CosmicUI::ClockLabel(Live.Tick, ECosmicTimeUnit::Cycle).ToString()));
 
 		const TArray<TObjectPtr<UCosmicActionButton>>& Speeds = Bar->GetSpeedButtons();
-		const float Expected[] = { 0.f, 1.f, 2.f, 5.f, 10.f };
-		if (TestEqual(TEXT("Five speed buttons"), Speeds.Num(), 5))
+		const float Expected[] = { 0.f, 1.f, 2.f, 5.f, 10.f, 25.f };
+		if (TestEqual(TEXT("Six speed buttons"), Speeds.Num(), 6))
 		{
-			for (int32 Index = 0; Index < 5; ++Index)
+			for (int32 Index = 0; Index < 6; ++Index)
 			{
 				TestEqual(*FString::Printf(TEXT("Speed button %d sets %g"), Index, Expected[Index]), Speeds[Index]->GetValue(), Expected[Index]);
 			}
+			TestTrue(TEXT("On the first rung the x25 button is collapsed"), Speeds[5]->GetVisibility() == ESlateVisibility::Collapsed);
 			TestFalse(TEXT("Paused, the pause button is greyed out"), Speeds[0]->GetIsEnabled());
 			TestTrue(TEXT("and x5 is not"), Speeds[3]->GetIsEnabled());
 			Speeds[3]->Press();
@@ -247,19 +240,29 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 		const FString ClassName = Live.Systems[HomeIndex].StarClass.GetTagName().ToString();
 		TestTrue(TEXT("and its star class by letter"), Shown.Contains(FString::Printf(TEXT("%s  %s"), *LabelText(TEXT("Panel.StarClass")), *ClassName.RightChop(ClassName.Find(TEXT("."), ESearchCase::CaseSensitive, ESearchDir::FromEnd) + 1))));
 
-		TArray<FName> Startable = GameTables.Megaprojects ? GameTables.Megaprojects->GetRowNames() : TArray<FName>();
-		Startable.Sort(FNameLexicalLess());
-		Startable.RemoveAll([&](FName Row) { return !CosmicMegaprojects::CanStart(Live, Sim->GetStateIndex(), GameTables, HomeIndex, Row); });
-		TestTrue(TEXT("(the home can start a project)"), !Startable.IsEmpty());
-		TestTrue(TEXT("One button per project the home can start, in row order"), ActionsOf(*Panel) == Startable);
+		// The rows that belong on the home: those the rule takes and those it greys for a reason with words (Phase 3 item 12 -
+		// on a quiet first-rung home only the Dyson swarm: every answer has no hazard here, the settle row has its button).
+		TArray<FName> Listed = GameTables.Megaprojects ? GameTables.Megaprojects->GetRowNames() : TArray<FName>();
+		Listed.Sort(FNameLexicalLess());
+		Listed.RemoveAll([&](FName Row)
+		{
+			const CosmicMegaprojects::ECosmicStartBlock Block = CosmicMegaprojects::StartBlockOf(Live, Sim->GetStateIndex(), GameTables, HomeIndex, Row);
+			return Block != CosmicMegaprojects::ECosmicStartBlock::None && UCosmicSystemPanelWidget::StartReasonOf(Block, GameTables, Row).IsEmpty();
+		});
+		TestTrue(TEXT("(the home lists a project)"), !Listed.IsEmpty());
+		TestTrue(TEXT("One button per project the home lists, in row order"), ActionsOf(*Panel) == Listed);
+		TestTrue(TEXT("which on a quiet first-rung home is the Dyson swarm alone"), ActionsOf(*Panel) == TArray<FName>({ FName(TEXT("project_dyson")) }));
 		TestFalse(TEXT("No reason line on a settled system"), Panel->IsReasonShown());
 		if (!Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0])
 		{
-			const FName Row = Panel->GetActionButtons()[0]->GetAction();
-			Panel->GetActionButtons()[0]->Press();
+			UCosmicActionButton* Pressed = Panel->GetActionButtons()[0];
+			const FName Row = Pressed->GetAction();
+			Pressed->Press();
 			const FStarSystemState& After = Live.Systems[HomeIndex];
 			TestTrue(TEXT("Pressing it starts the project"), After.ActiveMegaproject == Row || After.ResponseMegaproject == Row);
-			TestFalse(TEXT("and its button goes"), ActionsOf(*Panel).Contains(Row));
+			TestTrue(TEXT("and its button stays"), !Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0].Get() == Pressed);
+			TestFalse(TEXT("greyed out"), Pressed->GetIsEnabled());
+			TestTrue(TEXT("with the running reason"), Panel->GetShownStartBlock(Row) == CosmicMegaprojects::ECosmicStartBlock::Running);
 			const FMegaprojectDef* Def = GameTables.FindMegaproject(Row);
 			if (TestNotNull(TEXT("(the row is the game's)"), Def))
 			{
@@ -332,7 +335,7 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 				const FString SphereWords = UCosmicSystemPanelWidget::ReasonOf(CosmicMegaprojects::ECosmicSettleBlock::Sphere, GameTables).ToString();
 				TestTrue(TEXT("A neighbour in a transcendent's sphere gives the sphere as its reason"), Panel->GetShownSettleBlock() == CosmicMegaprojects::ECosmicSettleBlock::Sphere);
 				TestTrue(TEXT("on the line"), ReadTexts(*Panel).Contains(SphereWords));
-				TestTrue(TEXT("and as the tooltip"), !Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0]->GetToolTipText().ToString() == SphereWords);
+				TestTrue(TEXT("and its tooltip starts with them"), !Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0]->GetToolTipText().ToString().StartsWith(SphereWords, ESearchCase::CaseSensitive));
 				// A press on the greyed-out button announces nothing (a click never reaches it; a press from code is refused
 				// the same way) - counted on the button's own delegate, as the command would refuse the settlement anyway.
 				int32 Announced = 0;
@@ -372,7 +375,7 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 			TestFalse(TEXT("greyed out"), !Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0]->GetIsEnabled());
 			TestTrue(TEXT("with the realm cap as its reason, before the settlement under way"), Panel->GetShownSettleBlock() == CosmicMegaprojects::ECosmicSettleBlock::RealmCap);
 			TestTrue(TEXT("on a line"), Panel->IsReasonShown());
-			TestTrue(TEXT("and as its tooltip"), !Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0]->GetToolTipText().ToString() == LabelText(TEXT("Settle.Block.RealmCap")));
+			TestTrue(TEXT("and its tooltip starts with it"), !Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0]->GetToolTipText().ToString().StartsWith(LabelText(TEXT("Settle.Block.RealmCap")), ESearchCase::CaseSensitive));
 			TestTrue(TEXT("The line says so"), ReadTexts(*Panel).Contains(LabelText(TEXT("Settle.Block.RealmCap"))));
 			const int32 Untouched = FindUntouched(*Sim, RuledID);
 			if (TestTrue(TEXT("(a wild system away from the people)"), Untouched != INDEX_NONE))
@@ -498,6 +501,108 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 		Live.Systems[HomeIndex].ActiveMegaproject = NAME_None;
 	}
 
+	// ---- The people line: the owner people's band right after the owner, never a number, never on a wild system ----
+	{
+		// The test's own band thresholds (the game's may change in Phase 5): Population 1 keeps a rung's band, under the
+		// first threshold a people is Few.
+		FCosmicRulesDef BandRules = Sim->GetRules();
+		BandRules.PopulationBandThresholds = { 0.15f, 0.5f, 2.0f };
+		Sim->SetTables(CosmicTests::WithRules(GameTables, BandRules));
+		const int32 OtherSystem = Live.Systems.IndexOfByPredicate([&](const FStarSystemState& System) { return !System.OwnerCivID.IsNone() && System.OwnerCivID != RuledID && !CosmicHazards::IsDeadNode(System); });
+		const int32 OtherCiv = OtherSystem == INDEX_NONE ? INDEX_NONE : Sim->GetStateIndex().FindCiv(Live, Live.Systems[OtherSystem].OwnerCivID);
+		const int32 Wild = Live.Systems.IndexOfByPredicate([](const FStarSystemState& System) { return System.OwnerCivID.IsNone() && !CosmicHazards::IsDeadNode(System); });
+		if (TestTrue(TEXT("(another people owns a living system, and a living system is wild)"), Live.Civs.IsValidIndex(OtherCiv) && Live.Systems.IsValidIndex(Wild)))
+		{
+			const EAscensionTier RuledTier = Live.Civs[RuledIndex].Tier;
+			Live.Civs[RuledIndex].Tier = EAscensionTier::Tier3_Causal;
+			Live.Civs[RuledIndex].Population = 1.f;
+			Live.Civs[OtherCiv].Tier = EAscensionTier::Tier1_Planetary;
+			Live.Civs[OtherCiv].Population = 0.01f;
+			const FString RuledBand = CosmicUI::PeopleLine(Sim->GetPopulationBand(RuledID)).ToString();
+			const FString OtherBand = CosmicUI::PeopleLine(Sim->GetPopulationBand(Live.Civs[OtherCiv].CivID)).ToString();
+			TestFalse(TEXT("(the two peoples' bands differ)"), RuledBand.Equals(OtherBand, ESearchCase::CaseSensitive));
+			auto DetailLines = [Panel]()
+			{
+				TArray<FString> Lines;
+				if (Panel->GetDetailText())
+				{
+					Panel->GetDetailText()->GetText().ToString().ParseIntoArray(Lines, TEXT("\n"));
+				}
+				return Lines;
+			};
+			auto AnyBandLine = [&DetailLines]()
+			{
+				const TArray<FString> Lines = DetailLines();
+				const UEnum* Bands = StaticEnum<EPopulationBand>();
+				for (int32 At = 0; At < Bands->NumEnums() - 1; ++At)
+				{
+					if (Lines.Contains(CosmicUI::PeopleLine(static_cast<EPopulationBand>(Bands->GetValueByIndex(At))).ToString()))
+					{
+						return true;
+					}
+				}
+				return false;
+			};
+
+			Panel->ShowSystem(Home);
+			const TArray<FString> HomeLines = DetailLines();
+			const int32 OwnerLine = HomeLines.IndexOfByPredicate([](const FString& Line) { return Line.StartsWith(LabelText(TEXT("Panel.Owner"))); });
+			const int32 PeopleLineAt = HomeLines.IndexOfByPredicate([&RuledBand](const FString& Line) { return Line.Equals(RuledBand, ESearchCase::CaseSensitive); });
+			TestTrue(TEXT("The ruled home shows its people's band"), PeopleLineAt != INDEX_NONE);
+			TestTrue(TEXT("right after its owner"), OwnerLine != INDEX_NONE && PeopleLineAt == OwnerLine + 1);
+
+			Panel->ShowSystem(Live.Systems[OtherSystem].SystemID);
+			TestTrue(TEXT("Another people's system shows that people's band"), DetailLines().Contains(OtherBand));
+			TestFalse(TEXT("not the ruled people's"), DetailLines().Contains(RuledBand));
+
+			Panel->ShowSystem(Live.Systems[Wild].SystemID);
+			TestTrue(TEXT("(the wild system's panel shows)"), !DetailLines().IsEmpty());
+			TestFalse(TEXT("A wild system has no people line"), AnyBandLine());
+
+			const FGameplayTag StarClass = Live.Systems[OtherSystem].StarClass;
+			Live.Systems[OtherSystem].StarClass = FGameplayTag();
+			Panel->ShowSystem(Live.Systems[OtherSystem].SystemID);
+			TestTrue(TEXT("(the destroyed system keeps its owner)"), Live.Systems[OtherSystem].OwnerCivID == Live.Civs[OtherCiv].CivID);
+			TestFalse(TEXT("A destroyed system has none"), AnyBandLine());
+			Live.Systems[OtherSystem].StarClass = StarClass;
+
+			Live.Systems[Wild].OwnerCivID = FName(TEXT("civ_99"));
+			Panel->ShowSystem(Live.Systems[Wild].SystemID);
+			TestFalse(TEXT("An owner the state does not hold has none"), AnyBandLine());
+			Live.Systems[Wild].OwnerCivID = NAME_None;
+
+			Live.Civs[RuledIndex].Tier = RuledTier;
+		}
+
+		// Every band has its key and its words; no line holds a number.
+		const UEnum* Bands = StaticEnum<EPopulationBand>();
+		const int32 Count = Bands->NumEnums() - 1;
+		TSet<FString> Labels;
+		bool bDigit = false;
+		for (int32 At = 0; At < Count; ++At)
+		{
+			const EPopulationBand Band = static_cast<EPopulationBand>(Bands->GetValueByIndex(At));
+			const FString Name = Bands->GetNameStringByIndex(At);
+			const TCHAR* Key = CosmicUI::PopulationBandKey(Band);
+			TestTrue(*FString::Printf(TEXT("Band %s has its key"), *Name), Key && FString(Key).Equals(FString(TEXT("Band.")) + Name, ESearchCase::CaseSensitive));
+			const FString Words = CosmicUI::PopulationBandLabel(Band).ToString();
+			TestFalse(*FString::Printf(TEXT("Band %s has words"), *Name), Words.IsEmpty());
+			TestFalse(*FString::Printf(TEXT("Band %s is no missing entry"), *Name), Words.Contains(Placeholder));
+			Labels.Add(Words);
+			// Held in a local: FText::ToString returns a reference into the text, which a temporary takes with it.
+			const FString Line = CosmicUI::PeopleLine(Band).ToString();
+			for (const TCHAR Char : Line)
+			{
+				bDigit |= Char >= TEXT('0') && Char <= TEXT('9');
+			}
+		}
+		TestEqual(TEXT("The six bands have six labels"), Labels.Num(), 6);
+		TestEqual(TEXT("(six bands)"), Count, 6);
+		TestFalse(TEXT("The people line holds no digit"), bDigit);
+		TestFalse(TEXT("Panel.People is no missing entry"), LabelText(TEXT("Panel.People")).Contains(Placeholder));
+		Sim->SetTables(GameTables);
+	}
+
 	// ---- The HUD's panel follows the selection, and a tick redraws it ----
 	{
 		ACosmicHUD* HUD = Controller->GetHUD<ACosmicHUD>();
@@ -537,9 +642,13 @@ bool FCosmicUIMouseOnlyAscentTest::RunTest(const FString& Parameters)
 	UCosmicSystemPanelWidget* Panel = HUD ? HUD->GetSystemPanel() : nullptr;
 	UCosmicTopBarWidget* Bar = HUD ? HUD->GetTopBar() : nullptr;
 	ACosmicGalaxyMapActor* Map = nullptr;
-	for (TActorIterator<ACosmicGalaxyMapActor> It(World); World && It; ++It)
+	// The iterator checks its world as it is made, before any loop condition.
+	if (World)
 	{
-		Map = *It;
+		for (TActorIterator<ACosmicGalaxyMapActor> It(World); It; ++It)
+		{
+			Map = *It;
+		}
 	}
 	if (!TestNotNull(TEXT("The HUD has its system panel"), Panel) || !TestNotNull(TEXT("and its top bar"), Bar) || !TestNotNull(TEXT("The map stands"), Map))
 	{
@@ -548,11 +657,15 @@ bool FCosmicUIMouseOnlyAscentTest::RunTest(const FString& Parameters)
 	ON_SCOPE_EXIT
 	{
 		Controller->SelectSystem(NAME_None);
+		Controller->SetWantedViewMode(ECosmicViewMode::Spiritual);
 		Sim->SetTimeScale(0.f);
 		Sim->NewGalaxy(42, 5, 3);
 	};
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	Map->RefreshNow();
+	// The view's control is the mouse's too: below the third rung the bar has no view button.
+	Bar->Refresh();
+	TestTrue(TEXT("At the first rung the top bar shows no view button"), Bar->GetViewButton() && Bar->GetViewButton()->GetVisibility() == ESlateVisibility::Collapsed);
 	FGalaxyState& Live = Sim->GetMutableState();
 	const int32 CivIndex = Sim->GetStateIndex().FindCiv(Live, Live.Player.RuledCivID);
 	const int32 Home = Live.Civs.IsValidIndex(CivIndex) ? Sim->GetStateIndex().FindSystem(Live, Live.Civs[CivIndex].HomeSystemID) : INDEX_NONE;
@@ -578,9 +691,10 @@ bool FCosmicUIMouseOnlyAscentTest::RunTest(const FString& Parameters)
 	Controller->SelectSystem(Live.Systems[Home].SystemID);
 	TestTrue(TEXT("The capital's panel offers the Dyson swarm"), Click(FName(TEXT("project_dyson"))));
 	TestEqual(TEXT("and the button starts it"), Live.Systems[Home].ActiveMegaproject, FName(TEXT("project_dyson")));
-	if (Bar->GetSpeedButtons().Num() == 5)
+	// Found by its value: a guard on the count of buttons would skip the press without a word when a step is added.
+	if (UCosmicActionButton* X10 = Bar->FindSpeedButton(10.f); TestNotNull(TEXT("(the bar has its x10 button)"), X10))
 	{
-		Bar->GetSpeedButtons()[4]->Press();
+		X10->Press();
 	}
 	TestEqual(TEXT("The bar's x10 sets the pace"), Sim->GetTimeScale(), 10.f);
 	Sim->SetTimeScale(0.f);
@@ -620,6 +734,38 @@ bool FCosmicUIMouseOnlyAscentTest::RunTest(const FString& Parameters)
 		Sim->RunHeadless(1);
 	}
 	TestEqual(TEXT("The people climbs to the third rung by the buttons alone"), Live.Civs[CivIndex].Tier, EAscensionTier::Tier3_Causal);
+
+	// The third rung opens the sight: the bar shows its button (a headless run sends no tick - the bar is redrawn here), and
+	// a press turns the map.
+	Bar->Refresh();
+	// Shown and clickable: visible, or self-hit-test-invisible over its own button (hidden or hit-test-invisible would
+	// leave the mouse no way to it).
+	const ESlateVisibility ViewVisibility = Bar->GetViewButton() ? Bar->GetViewButton()->GetVisibility() : ESlateVisibility::Collapsed;
+	TestTrue(TEXT("At the third rung the top bar shows the view button for the mouse"), ViewVisibility == ESlateVisibility::Visible || ViewVisibility == ESlateVisibility::SelfHitTestInvisible);
+	Map->RequestRefresh();
+	Map->RefreshNow();
+	TestTrue(TEXT("(the map draws the sight)"), Map->GetDrawnViewMode() == ECosmicViewMode::Spiritual);
+	Bar->PressViewButton();
+	Map->RefreshNow();
+	TestTrue(TEXT("and a press on it turns the map to the physical view"), Map->GetDrawnViewMode() == ECosmicViewMode::Physical);
+
+	// The third rung's speed (item 12): the bar offers x25 once no ascension presentation shows (a headless run tells no
+	// ascension; one an earlier test raised closes here), and its press runs the simulation at 25.
+	if (UCosmicAscensionOverlayWidget* Overlay = HUD->GetAscensionOverlay())
+	{
+		Overlay->Close();
+		Sim->SetTimeScale(0.f);
+	}
+	HUD->RefreshPanel();
+	UCosmicActionButton* X25 = Bar->FindSpeedButton(25.f);
+	const ESlateVisibility X25Visibility = X25 ? X25->GetVisibility() : ESlateVisibility::Collapsed;
+	TestTrue(TEXT("From the third rung the bar offers x25 to the mouse"), X25Visibility == ESlateVisibility::Visible || X25Visibility == ESlateVisibility::SelfHitTestInvisible);
+	if (X25)
+	{
+		X25->Press();
+	}
+	TestEqual(TEXT("and its press runs x25"), Sim->GetTimeScale(), 25.f);
+	Sim->SetTimeScale(0.f);
 	return true;
 }
 
@@ -782,13 +928,16 @@ bool FCosmicUITimeUnitToggleTest::RunTest(const FString& Parameters)
 	}
 	const TSharedRef<SWidget> SlateBar = Bar->TakeWidget();
 	Bar->Refresh();
+	// The speed buttons by their value (a step added to the bar moves the places, not the values).
+	const UCosmicActionButton* X2 = Bar->FindSpeedButton(2.f);
+	const UCosmicActionButton* PauseButton = Bar->FindSpeedButton(0.f);
 	if (!TestNotNull(TEXT("The bar has its clock"), Bar->GetClockText()) || !TestNotNull(TEXT("The bar has its clock's button"), Bar->GetClockButton())
-		|| !TestEqual(TEXT("(five speed buttons)"), Bar->GetSpeedButtons().Num(), 5))
+		|| !TestNotNull(TEXT("(the bar has its x2 button)"), X2) || !TestNotNull(TEXT("(and its pause button)"), PauseButton))
 	{
 		return false;
 	}
 	auto ClockShown = [Bar]() { return Bar->GetClockText()->GetText().ToString(); };
-	auto SpeedShown = [Bar]() { return Bar->GetSpeedButtons()[2]->GetLabel().ToString(); };
+	auto SpeedShown = [X2]() { return X2->GetLabel().ToString(); };
 	TestEqual(TEXT("The clock starts in cycles"), ClockShown(), CosmicUI::ClockLabel(Tick, ECosmicTimeUnit::Cycle).ToString());
 	TestEqual(TEXT("The speeds start in cycles"), SpeedShown(), CosmicUI::SpeedLabel(2.f, ECosmicTimeUnit::Cycle).ToString());
 	const FString ClockTip = Bar->GetClockButton()->GetToolTipText().ToString();
@@ -827,7 +976,7 @@ bool FCosmicUITimeUnitToggleTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("A press on the clock turns it to years"), Controller->GetTimeUnit() == ECosmicTimeUnit::Year);
 	TestEqual(TEXT("The clock shows years"), ClockShown(), CosmicUI::ClockLabel(Tick, ECosmicTimeUnit::Year).ToString());
 	TestEqual(TEXT("The speeds follow the clock"), SpeedShown(), CosmicUI::SpeedLabel(2.f, ECosmicTimeUnit::Year).ToString());
-	TestEqual(TEXT("The pause stays the pause"), Bar->GetSpeedButtons()[0]->GetLabel().ToString(), LabelText(TEXT("Speed.Pause")));
+	TestEqual(TEXT("The pause stays the pause"), PauseButton->GetLabel().ToString(), LabelText(TEXT("Speed.Pause")));
 	TestEqual(TEXT("The HUD's clock follows"), HudBar->GetClockText()->GetText().ToString(), CosmicUI::ClockLabel(Tick, ECosmicTimeUnit::Year).ToString());
 	TestTrue(TEXT("The HUD panel's countdown follows"), ReadTexts(*HudPanel).Contains(CosmicUI::TimeLeftLabel(120, ECosmicTimeUnit::Year).ToString()));
 	const TArray<FString> YearLines = FeedTexts();

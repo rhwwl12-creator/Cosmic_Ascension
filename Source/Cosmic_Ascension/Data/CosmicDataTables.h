@@ -28,7 +28,8 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 	TObjectPtr<UDataTable> LogTemplates;
 
 	// DT_Galaxies: one row per galaxy that has a name (section 5.11). The simulation reads the home row alone
-	// (DT_Rules.HomeGalaxyRow); a missing table or home row means the C++ defaults of FGalaxyDef.
+	// (DT_Rules.HomeGalaxyRow); a missing table or home row means the C++ defaults of FGalaxyDef. The presentation draws
+	// every row on the universe level (Phase 3 item 9).
 	UPROPERTY(Transient)
 	TObjectPtr<UDataTable> Galaxies;
 
@@ -91,6 +92,10 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 
 	// Row names of DT_Feats in lexical order: the order in which the feat judgment and the AI look at rows (section 7.5).
 	TArray<FName> GetFeatRowNames() const;
+
+	// Row names of DT_Galaxies in lexical order: the order the universe level draws and labels the named galaxies in
+	// (CosmicUniverseLook::MarksOf - a table's own order is insertion order). The simulation never walks the table.
+	TArray<FName> GetGalaxyRowNames() const;
 
 	// Whether some DT_Hazards row lists the DT_Megaprojects row RowName in RulerResolutions: the project answers a hazard
 	// and runs in the response slot (section 5.7).

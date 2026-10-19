@@ -73,7 +73,8 @@ namespace CosmicLogFeed
  * The log feed at the bottom left of the screen: the last told entries of the log (section 8.1 - an entry marked bUntold
  * never shows) in a virtualized list (section 6.3), oldest first, coloured by severity. A new galaxy or a load rebuilds it
  * from the state; a new line arrives through OnLogEntry, and the list follows it when it showed the end. A click on a line
- * goes to its system (the focus system, or the capital of its focus people). Built in C++ (no WBP).
+ * goes to its place - the focus system, or else the capital of its focus people - when the viewer knows that place (the
+ * controller's SelectAndFocus refuses any other, section 8.1). Built in C++ (no WBP).
  */
 UCLASS(meta = (DisableNativeTick))
 class COSMIC_ASCENSION_API UCosmicLogFeedWidget : public UUserWidget
@@ -85,7 +86,7 @@ public:
 	void Refresh();
 	/** The items now held, oldest first (tests). */
 	const TArray<TObjectPtr<UCosmicLogItem>>& GetItems() const { return Items; }
-	/** What a click on Item does: goes to its system (tests call it in place of a click). */
+	/** What a click on Item does: goes to its place as the class comment says (tests call it in place of a click). */
 	void OpenItem(UCosmicLogItem* Item);
 	/** Draws the shown lines again, their stamps in the clock's unit (the HUD calls it when the unit changes). */
 	void RedrawLines();

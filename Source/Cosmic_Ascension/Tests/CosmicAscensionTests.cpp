@@ -431,6 +431,28 @@ bool FCosmicMegaprojectProgressTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("An AI answer progresses by the multiplier too: it completes in one paid tick"), RecordOf(State.Systems[11], Answer) != nullptr);
 	TestFalse(TEXT("and resolves its hazard"), State.Systems[11].ActiveHazard.IsValid());
 
+	// Whether a slot paid, read across the tick (CosmicMegaprojects::PaidNothing - the system panel's 'paused' mark and the
+	// commandlet read it so): exact against the payments of this tick.
+	{
+		using CosmicMegaprojects::ECosmicProjectSlot;
+		auto Unpaid = [&](int32 SystemIndex, ECosmicProjectSlot Slot)
+		{
+			return CosmicMegaprojects::PaidNothing(CosmicMegaprojects::ReadSlot(Before.Systems[SystemIndex], Slot), CosmicMegaprojects::ReadSlot(State.Systems[SystemIndex], Slot));
+		};
+		TestTrue(TEXT("A slot that could not pay paid nothing"), Unpaid(7, ECosmicProjectSlot::Construction));
+		TestFalse(TEXT("A paid slot of the people the player rules did not"), Unpaid(0, ECosmicProjectSlot::Construction));
+		TestFalse(TEXT("A paid slot of an AI people did not"), Unpaid(6, ECosmicProjectSlot::Construction));
+		TestFalse(TEXT("A paid answer did not"), Unpaid(1, ECosmicProjectSlot::Response));
+		TestFalse(TEXT("A slot that completed and emptied did not"), Unpaid(11, ECosmicProjectSlot::Response));
+		TestFalse(TEXT("An empty slot did not"), Unpaid(2, ECosmicProjectSlot::Construction));
+		const CosmicMegaprojects::FCosmicSlotReading Read = CosmicMegaprojects::ReadSlot(State.Systems[1], ECosmicProjectSlot::Response);
+		TestEqual(TEXT("ReadSlot reads the response slot's row"), Read.Row, Answer);
+		TestEqual(TEXT("and its progress"), Read.Progress, State.Systems[1].ResponseProgress);
+		const CosmicMegaprojects::FCosmicSlotReading Built = CosmicMegaprojects::ReadSlot(State.Systems[0], ECosmicProjectSlot::Construction);
+		TestEqual(TEXT("ReadSlot reads the construction slot's row"), Built.Row, Build);
+		TestEqual(TEXT("and its progress"), Built.Progress, State.Systems[0].MegaprojectProgress);
+	}
+
 	// The projects draw nothing, a completion and its resolution included: the same tick without them draws as much.
 	{
 		FGalaxyState Bare = Before;
@@ -823,6 +845,228 @@ bool FCosmicStartMegaprojectTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The handler of the completion line ran"), bTried);
 		TestFalse(TEXT("and started nothing"), bStarted);
 		TestTrue(TEXT("The construction slot stays empty after the completion"), State.Systems[0].ActiveMegaproject.IsNone());
+	}
+	return true;
+}
+
+namespace CosmicAscensionTests
+{
+	// The rule of guideline 5.7 as Phase 2 wrote it (the body of CosmicMegaprojects::CanStart at 75af02b): change both
+	// together. StartBlockOf asks the same refusals in another order and must take exactly what this takes.
+	bool ReferenceCanStart(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, int32 SystemIndex, FName RowName)
+	{
+		const FMegaprojectDef* Row = Tables.FindMegaproject(RowName);
+		if (!Row || RowName == CosmicRows::ProjectSettle || !State.Systems.IsValidIndex(SystemIndex))
+		{
+			return false;
+		}
+		const FStarSystemState& System = State.Systems[SystemIndex];
+		const int32 OwnerIndex = Index.FindCiv(State, System.OwnerCivID);
+		if (CosmicHazards::IsDeadNode(System) || !CosmicState::IsSettled(System) || !State.Civs.IsValidIndex(OwnerIndex))
+		{
+			return false;
+		}
+		if (static_cast<int32>(State.Civs[OwnerIndex].Tier) < static_cast<int32>(Row->RequiredTier))
+		{
+			return false;
+		}
+		if (Tables.IsHazardAnswer(RowName))
+		{
+			const FHazardDef* Hazard = Tables.FindHazardByTag(System.ActiveHazard);
+			return Hazard && Hazard->RulerResolutions.Contains(RowName) && System.ResponseMegaproject.IsNone();
+		}
+		return System.ActiveMegaproject != RowName;
+	}
+
+	// For every system from -1 to Systems.Num() and every row of the tables plus NAME_None and a row no table holds: how
+	// often the reason's None and the reference disagree, how often CanStart and the reason disagree, and how many pairs
+	// the reference took and refused (the control group: a sweep that visits nothing, or tables that did not take, would
+	// disagree nowhere).
+	struct FSweep
+	{
+		int32 ReasonDisagrees = 0;
+		int32 CanStartDisagrees = 0;
+		int32 Taken = 0;
+		int32 Refused = 0;
+	};
+
+	FSweep SweepStarts(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables)
+	{
+		FSweep Sweep;
+		TArray<FName> Rows = Tables.Megaprojects ? Tables.Megaprojects->GetRowNames() : TArray<FName>();
+		Rows.Add(NAME_None);
+		Rows.Add(FName(TEXT("project_test_gone")));
+		for (int32 SystemIndex = -1; SystemIndex <= State.Systems.Num(); ++SystemIndex)
+		{
+			for (const FName Row : Rows)
+			{
+				const bool bReference = ReferenceCanStart(State, Index, Tables, SystemIndex, Row);
+				const bool bNone = CosmicMegaprojects::StartBlockOf(State, Index, Tables, SystemIndex, Row) == CosmicMegaprojects::ECosmicStartBlock::None;
+				Sweep.ReasonDisagrees += bNone == bReference ? 0 : 1;
+				Sweep.CanStartDisagrees += CosmicMegaprojects::CanStart(State, Index, Tables, SystemIndex, Row) == bNone ? 0 : 1;
+				Sweep.Taken += bReference ? 1 : 0;
+				Sweep.Refused += bReference ? 0 : 1;
+			}
+		}
+		return Sweep;
+	}
+}
+
+// Why Start refuses a row (the system panel's reasons, Phase 3 item 12): one case per reason on the projects' board, the
+// order where two stand at once (the hazard before the rung, the rung before the slot), and on nine states - the board in
+// six forms and the game's galaxy at three rungs - the reason's None is exactly the Phase 2 rule (a copy of its body) and
+// CanStart. The order names the reason and decides nothing: no start of the command or of the AI moves.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicStartBlockReasonsTest, "Cosmic_Ascension.Sim.StartBlockReasons", CosmicTests::Flags)
+bool FCosmicStartBlockReasonsTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicAscensionTests;
+	using CosmicMegaprojects::ECosmicStartBlock;
+
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	const FCosmicRulesDef BaseRules = Sim->GetRules();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	const FCosmicDataTables Tables = TablesWith(Original, Knobs(BaseRules), nullptr);
+	FGalaxyState* Laid = LayBoard(*Sim, Tables);
+	if (!TestNotNull(TEXT("The board of the reasons is laid"), Laid))
+	{
+		return false;
+	}
+	FGalaxyState& State = *Laid;
+	auto Block = [&](int32 SystemIndex, FName Row)
+	{
+		return CosmicMegaprojects::StartBlockOf(State, Sim->GetStateIndex(), Sim->GetTables(), SystemIndex, Row);
+	};
+	auto Is = [&](const TCHAR* What, int32 SystemIndex, FName Row, ECosmicStartBlock Expected)
+	{
+		TestEqual(What, static_cast<int32>(Block(SystemIndex, Row)), static_cast<int32>(Expected));
+	};
+	// Read only: the hashes and the live stream before every call of this test's cases.
+	const uint32 StateHash = Sim->ComputeStateHash();
+	const uint32 WorldHash = Sim->ComputeWorldHash();
+	const int32 SeedBefore = Sim->GetRng().GetCurrentSeed();
+
+	// ---- One case per reason ----
+	Is(TEXT("A construction the people can start has no reason"), 0, Build, ECosmicStartBlock::None);
+	TestTrue(TEXT("CanStart is the reason's None"), CosmicMegaprojects::CanStart(State, Sim->GetStateIndex(), Sim->GetTables(), 0, Build));
+	Is(TEXT("A row no table holds is NoRow"), 0, FName(TEXT("project_test_gone")), ECosmicStartBlock::NoRow);
+	Is(TEXT("NAME_None is NoRow"), 0, NAME_None, ECosmicStartBlock::NoRow);
+	Is(TEXT("project_settle is the settle row"), 0, CosmicRows::ProjectSettle, ECosmicStartBlock::SettleRow);
+	Is(TEXT("An index below the systems is NoSystem"), -1, Build, ECosmicStartBlock::NoSystem);
+	Is(TEXT("An index past the systems is NoSystem"), State.Systems.Num(), Build, ECosmicStartBlock::NoSystem);
+	{
+		const FGameplayTag OwnedClass = State.Systems[1].StarClass;
+		const FGameplayTag WildClass = State.Systems[2].StarClass;
+		State.Systems[1].StarClass = FGameplayTag();
+		State.Systems[2].StarClass = FGameplayTag();
+		Is(TEXT("An owned dead node is Dead"), 1, Build, ECosmicStartBlock::Dead);
+		Is(TEXT("An unowned dead node is Dead too, not NotSettled: the node before the owner"), 2, Build, ECosmicStartBlock::Dead);
+		State.Systems[1].StarClass = OwnedClass;
+		State.Systems[2].StarClass = WildClass;
+	}
+	Is(TEXT("A wild system is not settled"), 3, Build, ECosmicStartBlock::NotSettled);
+	State.Systems[1].ActiveMegaproject = CosmicRows::ProjectSettle;
+	Is(TEXT("A settlement under way is not settled"), 1, Build, ECosmicStartBlock::NotSettled);
+	State.Systems[1].ActiveMegaproject = NAME_None;
+	{
+		const FName Owner = State.Systems[5].OwnerCivID;
+		State.Systems[5].OwnerCivID = FName(TEXT("civ_99"));
+		Is(TEXT("An owner that names no people is NoOwner"), 5, Build, ECosmicStartBlock::NoOwner);
+		State.Systems[5].OwnerCivID = Owner;
+	}
+	Is(TEXT("An answer with no hazard standing there is NoHazard"), 0, Answer, ECosmicStartBlock::NoHazard);
+	PlaceByHand(State, 0, TEXT("Hazard.Rebellion"), 50);
+	Is(TEXT("An answer the standing hazard's row does not list is OtherHazard"), 0, Answer, ECosmicStartBlock::OtherHazard);
+	CosmicHazards::EmptyHazardSlot(State.Systems[0]);
+
+	// ---- The hazard before the rung, the rung before the slot ----
+	Is(TEXT("A second-rung answer on a quiet first-rung system is NoHazard, not RowTier"), 0, HighAnswer, ECosmicStartBlock::NoHazard);
+	PlaceByHand(State, 0, TEXT("Hazard.Plague"), 50);
+	Is(TEXT("A second-rung answer under a hazard that does not list it is OtherHazard, not RowTier"), 0, HighAnswer, ECosmicStartBlock::OtherHazard);
+	CosmicHazards::EmptyHazardSlot(State.Systems[0]);
+	Is(TEXT("A second-rung construction on the first rung is RowTier"), 0, High, ECosmicStartBlock::RowTier);
+	PlaceByHand(State, 0, TEXT("Hazard.AIAwakening"), 50);
+	Is(TEXT("A second-rung answer under its own hazard is RowTier"), 0, HighAnswer, ECosmicStartBlock::RowTier);
+	State.Systems[0].ResponseMegaproject = Answer;
+	Is(TEXT("with the response slot full it is still RowTier: the rung before the slot"), 0, HighAnswer, ECosmicStartBlock::RowTier);
+	CosmicHazards::EmptyHazardSlot(State.Systems[0]);
+
+	// ---- The slots ----
+	PlaceByHand(State, 1, TEXT("Hazard.Plague"), 50);
+	State.Systems[1].ResponseMegaproject = Answer;
+	Is(TEXT("The answer running in the response slot is Answering"), 1, Answer, ECosmicStartBlock::Answering);
+	Is(TEXT("Another answer of that hazard is ResponseBusy"), 1, Second, ECosmicStartBlock::ResponseBusy);
+	CosmicHazards::EmptyHazardSlot(State.Systems[1]);
+	State.Systems[0].ActiveMegaproject = Build;
+	Is(TEXT("A construction running in the construction slot is Running"), 0, Build, ECosmicStartBlock::Running);
+	Is(TEXT("Another construction over it has no reason: the replacement rule stays"), 0, Rebuild, ECosmicStartBlock::None);
+	Is(TEXT("A construction no stockpile pays has no reason: the cost is no reason"), 0, Pricey, ECosmicStartBlock::None);
+	State.Systems[0].ActiveMegaproject = NAME_None;
+
+	// ---- Any owner: the rule reads the owner, not the vessel ----
+	Is(TEXT("Another people's system takes a construction too"), 6, Build, ECosmicStartBlock::None);
+	Is(TEXT("and refuses a row above that people's rung"), 6, High, ECosmicStartBlock::RowTier);
+	State.Systems[6].ActiveMegaproject = Build;
+	Is(TEXT("and says Running for its own construction"), 6, Build, ECosmicStartBlock::Running);
+	State.Systems[6].ActiveMegaproject = NAME_None;
+	State.Systems[6].MegaprojectProgress = 0.f;
+
+	TestEqual(TEXT("The reasons change no state"), Sim->ComputeStateHash(), StateHash);
+	TestEqual(TEXT("and no world"), Sim->ComputeWorldHash(), WorldHash);
+	TestEqual(TEXT("and draw nothing"), Sim->GetRng().GetCurrentSeed(), SeedBefore);
+
+	// ---- The sweep: nine states ----
+	auto Swept = [&](const TCHAR* Name)
+	{
+		const FSweep Sweep = SweepStarts(Sim->GetState(), Sim->GetStateIndex(), Sim->GetTables());
+		TestEqual(*FString::Printf(TEXT("On %s, the reason is None exactly where the Phase 2 rule takes the row"), Name), Sweep.ReasonDisagrees, 0);
+		TestEqual(*FString::Printf(TEXT("On %s, CanStart agrees with the reason"), Name), Sweep.CanStartDisagrees, 0);
+		TestTrue(*FString::Printf(TEXT("(on %s the rule takes a row somewhere)"), Name), Sweep.Taken > 0);
+		TestTrue(*FString::Printf(TEXT("(on %s the rule refuses a row somewhere)"), Name), Sweep.Refused > 0);
+	};
+	Swept(TEXT("the laid board"));
+	PlaceByHand(State, 0, TEXT("Hazard.Plague"), 50);
+	PlaceByHand(State, 1, TEXT("Hazard.AIAwakening"), 50);
+	PlaceByHand(State, 6, TEXT("Hazard.Rebellion"), 50);
+	PlaceByHand(State, 11, TEXT("Hazard.Plague"), 50);
+	Swept(TEXT("the board with hazards"));
+	State.Systems[0].ResponseMegaproject = Second;
+	State.Systems[1].ResponseMegaproject = Answer;
+	State.Systems[11].ResponseMegaproject = Costly;
+	State.Systems[0].ActiveMegaproject = Rebuild;
+	Swept(TEXT("the board with its slots full"));
+	{
+		const FGameplayTag StarClass = State.Systems[7].StarClass;
+		State.Systems[7].StarClass = FGameplayTag();
+		Swept(TEXT("the board with a dead node"));
+		State.Systems[7].StarClass = StarClass;
+	}
+	State.Systems[1].ActiveMegaproject = CosmicRows::ProjectSettle;
+	Swept(TEXT("the board with a settlement under way"));
+	State.Systems[1].ActiveMegaproject = NAME_None;
+	State.Civs[0].Tier = EAscensionTier::Tier2_Stellar;
+	Swept(TEXT("the board with people 0 on the second rung"));
+
+	// The game's tables on the game's galaxy, some way in.
+	Sim->SetTables(Original);
+	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	Sim->RunHeadless(2000);
+	FGalaxyState& Game = Sim->GetMutableState();
+	const int32 Ruled = Sim->GetStateIndex().FindCiv(Game, Game.Player.RuledCivID);
+	const int32 Capital = Game.Civs.IsValidIndex(Ruled) ? Sim->GetStateIndex().FindSystem(Game, Game.Civs[Ruled].HomeSystemID) : INDEX_NONE;
+	if (TestTrue(TEXT("(the game's galaxy has a ruled people with its capital)"), Game.Systems.IsValidIndex(Capital)))
+	{
+		CosmicHazards::EmptyHazardSlot(Game.Systems[Capital]);
+		PlaceByHand(Game, Capital, TEXT("Hazard.PreSupernova"), 300);
+		for (const EAscensionTier Tier : { EAscensionTier::Tier1_Planetary, EAscensionTier::Tier2_Stellar, EAscensionTier::Tier3_Causal })
+		{
+			Game.Civs[Ruled].Tier = Tier;
+			Swept(*FString::Printf(TEXT("the game's galaxy at rung %d"), static_cast<int32>(Tier) + 1));
+		}
 	}
 	return true;
 }

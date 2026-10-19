@@ -6,6 +6,9 @@
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Fonts/SlateFontInfo.h"
+#include "Styling/SlateBrush.h"
+#include "Styling/SlateColor.h"
+#include "Styling/SlateTypes.h"
 #include "UObject/UnrealType.h"
 
 void UCosmicActionButton::Setup(FName InAction, float InValue, const FText& Label)
@@ -47,6 +50,19 @@ TSharedRef<SWidget> UCosmicActionButton::RebuildWidget()
 			Focusable->SetPropertyValue_InContainer(Button, false);
 		}
 		Button->OnClicked.AddUniqueDynamic(this, &UCosmicActionButton::HandleClicked);
+		// The label takes the face's foreground. Slate draws a greyed-out widget at 45% opacity, face and label alike: the
+		// default face (no disabled brush - a pale box) under the dark label left a greyed button hardly legible, and the
+		// short reason of a greyed project button must be read (item 12). A greyed button is a near-black face under a
+		// white label - at 45% the label still stands about 4 to 1 over the face; an enabled one keeps the light face under
+		// the dark label.
+		FButtonStyle Style = Button->GetStyle();
+		const FSlateColor Ink(FLinearColor(0.05f, 0.05f, 0.08f));
+		Style.SetNormalForeground(Ink).SetHoveredForeground(Ink).SetPressedForeground(Ink);
+		Style.SetDisabledForeground(FSlateColor(FLinearColor::White));
+		FSlateBrush Off = Style.Normal;
+		Off.TintColor = FSlateColor(FLinearColor(0.02f, 0.02f, 0.025f));
+		Style.SetDisabled(Off);
+		Button->SetStyle(Style);
 		WidgetTree->RootWidget = Button;
 
 		Text = WidgetTree->ConstructWidget<UTextBlock>();
@@ -54,7 +70,7 @@ TSharedRef<SWidget> UCosmicActionButton::RebuildWidget()
 		Font.Size = 13;
 		Font.TypefaceFontName = FName(TEXT("Regular"));
 		Text->SetFont(Font);
-		Text->SetColorAndOpacity(FSlateColor(FLinearColor(0.05f, 0.05f, 0.08f)));
+		Text->SetColorAndOpacity(FSlateColor::UseForeground());
 		Text->SetText(ShownLabel);
 		Button->AddChild(Text);
 	}
