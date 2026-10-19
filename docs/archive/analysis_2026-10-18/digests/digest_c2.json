@@ -1,0 +1,909 @@
+{
+ "scope": "c2: Sim 핵심 — GalaxySimulationSubsystem(생성·틱 열 단계·경제·연구·외교·분쟁·AI·앎·해시·난수)과 상태 색인",
+ "summary": "UGalaxySimulationSubsystem(저장소 /home/mechtro/Desktop/bbb/Cosmic_Ascension 기준 Source/Cosmic_Ascension/Sim/)은 판 전체의 상태 FGalaxyState와 시뮬 난수 스트림을 쥔 고정 스텝 엔진이다. 1틱=1초, 프레임당 최대 10틱, 열 단계(경제→연구→외교→분쟁→위기→AI→건넘→이동→앎→역할 효과 해소)를 고정 순서로 돌리고, NewGalaxy는 머리 주석에 못 박은 추첨 순서대로 원판 기각 추출·항성 분포·신장 트리+1 레인·이웃 보장·가중 아키타입·비복원 이름·타락 로스터·초기 코어를 만든다. 경제·연구·위기(4단)·AI·건넘 정리·앎·폐위 해소는 본문이 있고, 외교·분쟁은 빈 함수이며 엔딩 검사·사망 파이프라인·여행 명령·연구 중점 명령·조약·Causality·안정도 회복·AI 프로필 행동은 없다. 결정론 장치(단일 FRandomStream, 행을 보기 전 미리 뽑기, 말하기 스트림 분리, 리플렉션 해시와 세계 해시, 모듈 내 FP 산술)는 충실하고 Sim.* 48종 테스트가 받친다. 경제·연구 상수 12개는 DT_Rules 노브가 아닌 cpp 상수이고, v0.8의 성역(sol 배열 끝·sys_0 모성계·arch_seeker)·×25 배속은 문서가 '단계 N부터'로 표지한 채 코드가 따라오지 않았다. 품질상 NewGalaxy 463줄, 정착 소유 술어·가중 추첨·BFS·영향권 도달 판정의 중복, 핸들러 거절 가드 8회 복붙, 네 형제 Subsystem에 대한 check() 결합이 눈에 띈다. 상태 색인(FCosmicStateIndex)은 낡은 인덱스를 감지해 에러+INDEX_NONE으로 답하는 작은 안전 장치다.",
+ "key_decisions": [
+  {
+   "topic": "틱 모델",
+   "decision": "고정 스텝: Accumulator += DeltaTime×TimeScale, SecondsPerTick(1.0)마다 SimulateTick, 프레임당 MaxTicksPerFrame(10) 상한, 남은 시간은 10틱분까지만 이월(히치 스파이럴 방지). IsTickable = bRunning && TimeScale>0이고 월드 없는 틱 패스에서 돌아 엔진 일시정지·시간 팽창이 닿지 않는다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:552-568, Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.h:88,491-494"
+  },
+  {
+   "topic": "틱 단계 순서",
+   "decision": "++State.Tick 뒤 bInTickStages 가드 안에서 TickEconomy→TickResearch→TickDiplomacy→TickConflict→TickHazards→TickCivAI→TickCrossings→(Calling.LifeState==Embodied일 때만) TickPlayerTravel→TickSight(그릇 이동 여부는 SimulateTick 지역값), 가드 밖에서 ResolvePendingRoleEffect, SyncRngState, OnSimTick 방송. 틱 0은 생성 상태.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1323-1360"
+  },
+  {
+   "topic": "일시정지",
+   "decision": "SetTimeScale은 [0, MaxTicksPerFrame=10]으로 클램프하고 0이면 Accumulator를 버린다(재개 때 몰아 돌지 않음). 시뮬의 유일한 정지.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1034-1043"
+  },
+  {
+   "topic": "NewGalaxy 수 인자",
+   "decision": "0 이하면 고향 은하 행(LivingWorlds·Peoples)을 쓰고 성계 ≥1, 백성은 [1, 성계 수]로 클램프. 상한 없음(150은 표현 계층의 액터 예산).",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:579-581"
+  },
+  {
+   "topic": "성계 배치",
+   "decision": "원판 반지름 = DiscRadiusPerRootSystem(1000)×√N. 인덱스 0은 sol이고 (HomeRadiusShare×R, 0, 0) 고정. 나머지는 정사각형에서 FRand 2회씩 뽑아 원 밖이면 버리는 기각 추출, 최대 16회, 16번째도 빗나가면 좌표 절반. 삼각함수 없음(해시 산술 + − × ÷ √ 규칙).",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:614-648"
+  },
+  {
+   "topic": "항성 등급·풍부도",
+   "decision": "성계마다 ClassRoll 1회를 DT_Rules.LivingWorldStarShares(누적 7칸 O~M)와 비교(StarClassIndex: 첫 초과 칸, 넘치면 마지막), 풍부도 = 0.5+FRand이되 sol은 1.0 고정(수치 이점 0). 아키타입 HomeStarClass가 있으면 모성계 등급을 덮어쓴다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:63-75,650-655,810-813"
+  },
+  {
+   "topic": "레인 토폴로지",
+   "decision": "추첨 없음. ① 신장 트리: i≥1마다 앞선 성계 가운데 가장 가까운 것과 잇는다(동률은 낮은 인덱스) ② 성계마다 레인 1개 추가: 아직 안 이어진 가장 가까운 이웃, 양쪽 모두 MaxLanesPerSystem(4) 미만일 때만. 같은 GalaxyRow 안.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:658-706"
+  },
+  {
+   "topic": "모성계 배정(이웃 보장)",
+   "decision": "HomeIndices[0]=sol. CivCount≥2면 sol의 레인 이웃 가운데 FRand 1회로 첫 AI 백성의 모성계(§2.4 5:30 첫 접촉 보장). 나머지 AI 백성은 남은 성계에서 1회씩 비복원.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:709-736"
+  },
+  {
+   "topic": "문명 생성",
+   "decision": "CivID=civ_<NextCivSerial++>(패딩 없음), GalaxyRow=HomeGalaxyRow, 0번은 DT_Rules.PlayerArchetypeRow·나머지 CosmicRows::ArchDefault, Color=CivWheelColor(CivIndex×255/CivCount), Research 4키=0, ResearchFocus 4키=0.25, OwnedSystems={모성계}, 모성계 OwnerCivID 기록.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:738-756"
+  },
+  {
+   "topic": "AI 아키타입·윤리·프로필 추첨",
+   "decision": "AI 백성마다 FRand 5회(아키타입 1·윤리 3·프로필 1)를 쓰든 말든 뽑는다. 아키타입은 Weight>0·유한인 DT_Civs 행을 행 이름 사전순으로 누적 가중(복원 추첨). arch_default만 윤리 3축 [-1,1] 균등, 그 외 EthicsPreset. AIProfile은 행의 것, 비어 있으면 CosmicState::PickAIProfile(균등 4).",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:758-828"
+  },
+  {
+   "topic": "이름 생성",
+   "decision": "백성마다 HomeRoll·NameRoll 각 1회: 모성계 이름은 아키타입 HomeSystemNames 또는 FGalaxyDef.StarNameBank 비복원(TakeWithoutReplacement = 인덱스 배열 부분 셔플), 백성 이름은 NameBank[{Star}] 포맷. 무주 성계는 CatalogPrefixes×CatalogStems 쌍을 비복원 1회씩. 전부 Flatten(FText::AsCultureInvariant)해 저장하고 뒤에 짓지 않는다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:830-891"
+  },
+  {
+   "topic": "타락 로스터",
+   "decision": "FallenTranscendentCount를 0..MaxFallenRoster(3)로 읽고(밖이면 에러 줄) 자리≥1이고 trans_silence 행이 Realm.Abyssal이면 침묵을 고정으로 넣는다. 남은 자리마다 FRand 1회를 먼저 뽑고, 활성 교리와 겹치는 후보를 제거한 뒤 SpawnWeight 누적 가중(행 이름 사전순). 후보가 없으면 뽑은 수를 버린다. Celestial·Independent 행은 인스턴스 없음.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:596-600,893-959"
+  },
+  {
+   "topic": "초기 코어",
+   "decision": "로스터 자리마다 FRand 1회. 후보 = 무주·미편입·sol에서 FallenCoreMinLanesFromHome 레인 이상·AI 모성계에 1레인(배열 순). 후보가 없으면 sol에서 가장 먼 무주 성계(동률 FNameLexicalLess). 행의 InitialInfluencedSystems≤0이면 빈 영향권.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:961-1014"
+  },
+  {
+   "topic": "첫 생애 설치",
+   "decision": "StateIndex.Rebuild 뒤 UPlayerRoleSubsystem::Install(sol, civ_0, Ruler)로 설치(그릇 이름 추첨은 거기서 1회). SyncRngState, Accumulator=0, bRunning=true, 방송 게이트가 열려 있으면 OnGalaxyGenerated(Seed).",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1016-1031"
+  },
+  {
+   "topic": "난수 출처",
+   "decision": "Rng(FRandomStream, Initialize(Seed)) 하나가 세계를 바꾸는 모든 추첨. State.TellRngState=(int32)CosmicSeed::Derive(Seed,\"\",Tell,0). DrawTell은 TellRngState로 지역 FRandomStream을 열어 RandHelper(Count) 1회 뒤 GetCurrentSeed를 되적는다(살아 있는 객체 없음). GalaxyID=FGuid::NewGuid()는 일부러 비결정(해시 밖).",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:606-609,1191-1209,1070-1073"
+  },
+  {
+   "topic": "경제 수입 공식",
+   "decision": "정착된(IsSettled) 소유 성계만: Energy=Σ StarClassEnergy[등급] × TierMultiplier[Tier] × (1+0.2×max(0,−Spiritualism)); Matter=Σ ResourceRichness × TierMultiplier; Insight=Population×1.0×(1+0.2×max(0,Spiritualism)); Influence=Population×0.5×(1+0.2×max(0,Openness)); Causality=0. IncomePerTick에 적고 틱당 원천을 거친 뒤 Stockpile에 더한다(Causality는 더하지 않음).",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1411-1433,1515-1518"
+  },
+  {
+   "topic": "인구 회복",
+   "decision": "PopulationRegrowthPerTick(>0·유한)만큼 1.0까지만 회복. 1.0 초과는 회복으로 닿지 않는다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1400-1409"
+  },
+  {
+   "topic": "영압 소모와 틱당 원천",
+   "decision": "문명마다 1회: 정착 성계 가운데 지배 원천의 칸이 제 칸보다 높은 것의 최대 P × SpiritualPressureStabilityDrain을 Stability에서 뺀다(0 하한). 이어 제 칸보다 높은 칸의 비봉인 초월자마다 영향권 안 첫 정착 성계(OwnedSystems 순)를 주제로 PressureEffectsPerTick을 ApplyAll(bPerTickSource=true). 영향권 소속은 단계 시작 때 초월자마다 TBitArray 표로 1회 구축해 성계마다 공개 함수를 부르지 않는다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1364-1398,1439-1513"
+  },
+  {
+   "topic": "지속 카운터",
+   "decision": "경제 단계 맨 끝 둘째 루프에서 LowStabilityTicks(Stability<0.3 연속, 아니면 0)·FallenSphereTicks(타락 영향권 안 정착 성계 보유 연속)를 갱신 — 다른 단계의 Stability 변화는 한 틱 뒤에 센다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1521-1528"
+  },
+  {
+   "topic": "연구",
+   "decision": "성계 없는 백성은 건너뜀. Spent=min(Stockpile.Insight, IncomePerTick.Insight×0.5)를 비축에서 빼고 영역마다 진척 += Spent×ResearchFocus×0.003(1.0 상한). 0.25/0.5/0.75/1.0 통과마다 CosmicRows::LogBreakthrough[field] 줄(Severity 플레이어 1·AI 0, 주제 성계 없음). Society면 줄 뒤에 EventBookFound를 FireRow(주제=문명+정착된 수도).",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1531-1583"
+  },
+  {
+   "topic": "위기 단계 4단",
+   "decision": "(a) AdvanceMegaprojects (b) 모든 HazardTicksRemaining −1 뒤 0 이하를 Systems 순으로 모으고 만료마다 GetFraction 2회(결과·주장)를 전부 먼저 뽑은 뒤 ExpireHazard (c) 정착 성계마다 GetFraction 1회를 먼저 뽑고, 슬롯이 빈 곳에 Draw 행의 SpawnChancePerTick×아키타입 HazardSpawnMultipliers 몫을 누적(합>1이면 수를 합으로 스케일)해 CosmicHazards::Place, 이어 Capital 행(추첨 없음, 정착된 수도에, 첫 통과 행) (d) UCosmicEventSubsystem::EvaluateAndFire.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1595-1741"
+  },
+  {
+   "topic": "만료 처리 순서",
+   "decision": "슬롯 태그·카운트 재확인(바뀌었으면 수를 버림) → 행 없으면 Resolve → 초신성이면 마지막 성계의 문(GraceKeepsLastSystem: EventGraceRemnant FireRow, 지키면 슬롯만 비움) → 효과(OutcomeNumber<BranchChance면 분기 효과)·이웃 효과(죽은 노드 제외) → FollowUpKnowing → 태그 코드(PreSupernova: Destroy + 통치 문명이 성계 0이면 DeposeRuler를 Apply로 기록 / Rebellion: ChangeThrone / Claim: JoinClaimedSphere) → 슬롯 비움 → TryPlaceClaim → 만료 또는 해결 줄 → FollowUpNotes.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1743-1864"
+  },
+  {
+   "topic": "왕좌 교체(반란 만료)",
+   "decision": "AI 백성은 언제나 교체(새 AIProfile=PickAIProfile(결과 수)), 플레이어 백성은 Calling.PendingEffect==Effect.DeposeRuler이고 PendingSourceRow==이 행일 때만. 교체 시 열린 Notable.Ruler 기록 LastTick=max(Tick,1), 열린 Notable.Rebel 기록의 Role→Ruler. 어느 쪽이든 LowStabilityTicks=0.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:327-365"
+  },
+  {
+   "topic": "주장 규칙",
+   "decision": "만료가 비운 정착 슬롯에 ClaimantOf가 있고 영향권이 MaxInfluencedSystems 미만·IsLastUnclaimed 아님·ClaimNumber<FaithWeight(1.0)이면 Hazard.Claim 행을 Place. 주장 만료 시 같은 조건으로 InfluencedSystems에 편입(실패하면 해결 줄).",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:279-321,1852-1862"
+  },
+  {
+   "topic": "거대 프로젝트 진행",
+   "decision": "대응 칸 전체 → 건설 칸 전체(각각 Systems 순). 값을 못 치른 대응의 CostPerTickOf 합을 백성별 WaitingAnswers에 모으고, 같은 백성의 건설은 그 자원을 그 값 아래로 남기면 이번 틱 보류(TakesFromWaitingAnswers). AI 배속 AIAscensionSpeedMultiplier(≤0·NaN→1, 에러 줄). 완료 시 FollowUpKnowing→CompleteTemplates 줄(Log.Civ, 플레이어 1·AI 0)→FollowUpNotes. 추첨 없음.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:162-168,1884-1970"
+  },
+  {
+   "topic": "AI 단계",
+   "decision": "플레이어가 다스리지 않는 백성마다 CosmicMegaprojects::Choices(SinceTick 0)를 전부 Start(추첨 없음); MaySettle이면 GetFraction 1회를 먼저 뽑고 SettleTargets 가운데 균등 선택해 Settle(대상 없으면 수를 버림). 끝에 UAscensionSubsystem::EvaluateFeats(State, Rng) 1회.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1972-2003"
+  },
+  {
+   "topic": "건넘 단계(정리)",
+   "decision": "모든 백성에 LetSettlementsGo(플레이어 백성이 비는데 Depose 미기록이면 에러 줄) → OwnsAnySystem이 거짓인 백성 제거(bIsPlayerRuled 제외, 배열 순) → 제거된 CivID를 모든 Relations에서 삭제, Knowing.PendingContactCivID 비움, 색인 재구축. Civs 원소 수가 바뀌는 유일한 곳.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2005-2051"
+  },
+  {
+   "topic": "앎 단계",
+   "decision": "Tick%SightIntervalTicks==0 또는 그릇 이동 시. 눈=통치자: 소유 성계 전부(칸=문명 Tier, FirstSightTick 전엔 만남 순서만 정하고 아는 성계는 더하지 않음), 방랑자: 선 성계(PersonalTier). 도달=SightLanesByTier[tier](<1이면 1). 다중 출발 BFS(같은 GalaxyRow) → 걷는 순서로 NoteKnown(TSet은 조회만) → 아는 성계의 주인을 가까운 순(동률 CivID 사전순)으로 NoteMet.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2073-2212"
+  },
+  {
+   "topic": "만남·첫 접촉",
+   "decision": "Embodied·살아 있는 백성·미만남·(상대 Tier − GetViewerTier) < 3일 때만 MetCivs에 추가. FirstContactCivID가 비어 있으면 기록하고 LogFirstContact, 아니면 LogContact(Severity 1, 말하기 스트림만, 시뮬 추첨 없음). PendingContactCivID는 쓰지 않는다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1075-1111,1132-1143"
+  },
+  {
+   "topic": "영압 공식",
+   "decision": "P = Σ_초월자 PressureBySourceTier[행 Tier]×(1+Depth∈[0,1])×reach(Inside 1 / Adjacent PressureAdjacencyFalloff / None 0) + PressureBySourceTier[주인 Tier] + (Embodied 방랑자가 선 성계) PressureBySourceTier[PersonalTier]. 지배 원천=최대 항, 동률은 초월자 배열순→문명→방랑자. 봉인·행 없는 초월자는 0. 가중·심도·감쇠는 NaN 안전 비교로 읽는다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:170-273,1161-1189"
+  },
+  {
+   "topic": "상태 해시",
+   "decision": "FGalaxyState를 리플렉션으로 걷는다: FText·GalaxyID 제외, FName/FGameplayTag는 소문자 문자열(길이+StrCrc32), TMap은 FNameLexicalLess 키 순, 태그 컨테이너는 명시 태그만, 부동소수점은 double 비트에서 -0.0→+0.0, RngState 자리에 Rng.GetCurrentSeed(). 세계 해시는 Knowing·Log·Chronicle·TellRngState를 뺀다. FName 아닌 키의 맵·미지원 타입은 ensure.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:371-511,1277-1321"
+  },
+  {
+   "topic": "핸들러 재진입 거절",
+   "decision": "BroadcastDepth>0(IsBroadcasting)이면 NewGalaxy·StepOnce·RunHeadless·NoteMet·NoteKnown·DrawTell·LoadState는 에러 줄 뒤 아무것도 안 함; MakeEvalContext는 에러 줄 뒤 그래도 컨텍스트를 돌려줌. bInTickStages는 NewGalaxy·LoadState·SimulateTick의 ensure 백스톱. RunHeadless는 TGuardValue로 방송 게이트를 닫는다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:572-577,1045-1068,1145-1152,1248-1253,1326"
+  },
+  {
+   "topic": "규칙·고향 행 로드",
+   "decision": "Initialize에서 FCosmicDataTables::LoadFromFixedPaths → SetTables: DT_Rules에 rules 행이 없으면 FCosmicRulesDef C++ 기본값(에러 줄), DT_Galaxies에 HomeGalaxyRow가 없으면 FGalaxyDef 기본값(에러 줄). 테스트는 SetTables로 임시 테이블 주입.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:514-550"
+  },
+  {
+   "topic": "상태 색인",
+   "decision": "CivByID·SystemByID 두 TMap<FName,int32>, Rebuild로만 갱신(NewGalaxy·LoadState·건넘 정리·테스트). Find는 저장된 인덱스 자리의 ID를 상태와 대조해 어긋나면 에러 줄+INDEX_NONE(잘못된 원소를 돌려주지 않음). NAME_None은 INDEX_NONE.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp:8-53, Source/Cosmic_Ascension/Sim/CosmicStateIndex.h:15-27"
+  },
+  {
+   "topic": "정착 술어와 소유",
+   "decision": "IsSettled(System) = OwnerCivID 있음 && ActiveMegaproject != project_settle(inline, 유일한 술어). OwnsAnySystem = OwnedSystems 가운데 실제 OwnerCivID가 제 것인 항목이 하나라도 있음(정착 중 포함).",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicStateIndex.h:32-44, Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp:55-67"
+  },
+  {
+   "topic": "레인 거리",
+   "decision": "LaneDistancesFrom: 단일 출발 BFS, 출발 성계와 같은 GalaxyRow만 따라가고 MaxLanes 상한, 미도달·범위 밖·다른 은하는 INDEX_NONE. 세계 상태만, 추첨 없음.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp:69-100"
+  },
+  {
+   "topic": "AI 프로필 선택",
+   "decision": "PickAIProfile: Conservative·Expansionist·Scholarly·Militarist 고정 순서 균등, Pick=min(int(min(Roll,1)×4),3), Roll≤0·NaN은 0 — §16 #36 ①(윤리 가중)까지의 임시.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp:102-112"
+  },
+  {
+   "topic": "규모 등급",
+   "decision": "GetPopulationBand: Tier 기준(T1 Billions, T2 HundredBillions, T3 Trillions, T4·T5 Countless)에 PopulationBandThresholds 3개로 보정(미만 [0]→Few, <[1]→−1, >[2]→+1). 3개가 아니면 기준값 그대로. 미지 CivID는 Few.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1211-1244"
+  },
+  {
+   "topic": "저장 복원",
+   "decision": "LoadState: State=In, 색인 재구축, Rng.Initialize(State.RngState), Accumulator=0, bRunning=true, OnGalaxyGenerated(State.Seed). SaveVersion 검사·마이그레이션은 하지 않는다(CurrentSaveVersion 도장은 NewGalaxy만).",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:603,1246-1265"
+  },
+  {
+   "topic": "AI 문명 색",
+   "decision": "CivWheelColor: 엔진의 MakeFromHSV8 대신 모듈 안에서 같은 HSV 산술(채도 180/255, 명도 1)로 계산 — Color가 해시에 들어가므로 타깃별 FP 모드 차이를 피한다. 플레이어 백성만 아키타입 Color.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:118-139,748,806-809"
+  }
+ ],
+ "parameters": [
+  {
+   "name": "SecondsPerTick",
+   "value": "1.0",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.h:491",
+   "note": "하드코딩 static constexpr. §2.1 '1배속 1초=1틱'과 일치"
+  },
+  {
+   "name": "MaxTicksPerFrame",
+   "value": "10",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.h:494",
+   "note": "하드코딩. 프레임당 상한이자 이월 상한(§9.4)이면서 SetTimeScale 상한까지 겸한다 — ×25 배속을 막는 공유 상수"
+  },
+  {
+   "name": "TimeScale 클램프",
+   "value": "[0, 10]",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1036",
+   "note": "하드코딩(MaxTicksPerFrame 재사용)"
+  },
+  {
+   "name": "ResearchFields",
+   "value": "Physics, Society, Engineering, Transcendence",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:33-36",
+   "note": "하드코딩 FName 배열; Society가 책을 여는 영역. DT_LogTemplates의 LogBreakthrough 행 수와 static_assert로 묶임"
+  },
+  {
+   "name": "BreakthroughThresholds",
+   "value": "0.25 / 0.5 / 0.75 / 1.0",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:42",
+   "note": "하드코딩. guideline.md:1043 §5.4와 일치"
+  },
+  {
+   "name": "PlayerHomeSystemID",
+   "value": "\"sol\"",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:45",
+   "note": "하드코딩. v0.8은 sys_0(모성계)·sol(성역, 배열 끝) — 미반영"
+  },
+  {
+   "name": "MaxLanesPerSystem",
+   "value": "4",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:47",
+   "note": "하드코딩. guideline은 이름만 언급(guideline.md:2883) — 값의 근거 문서 없음"
+  },
+  {
+   "name": "DiscRadiusPerRootSystem",
+   "value": "1000 (R = 1000×√N)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:50,615",
+   "note": "하드코딩. 표현 좌표 단위이면서 Position이 해시에 든다"
+  },
+  {
+   "name": "MaxPlaceTries",
+   "value": "16 (마지막은 절반)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:54,640-645",
+   "note": "하드코딩. guideline.md:2869 §7.4 4항과 일치"
+  },
+  {
+   "name": "StarClassNames",
+   "value": "Star.Class.O/B/A/F/G/K/M",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:78-81",
+   "note": "하드코딩 태그 문자열 7개(LivingWorldStarShares 칸 수와 짝)"
+  },
+  {
+   "name": "Economy::TierMultiplier",
+   "value": "{1.0, 1.5, 2.2, 3.0, 3.0}",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:86",
+   "note": "하드코딩 '잠정'. guideline.md:4263 §14.4 예시(T1~T4)와 일치, T5는 T4와 같게 둠"
+  },
+  {
+   "name": "Economy::StarClassEnergy",
+   "value": "{2.0, 1.7, 1.4, 1.2, 1.0, 0.8, 0.6} (G=1)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:90",
+   "note": "하드코딩. guideline.md:992 §5.1이 v0.8 단계 5에서 '근방 분포에 맞춰 다시 정한다'고 코드 상수로 지칭"
+  },
+  {
+   "name": "Economy::MaterialistEnergyBonus",
+   "value": "0.2 (×max(0,−Spiritualism))",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:93,1428",
+   "note": "하드코딩"
+  },
+  {
+   "name": "Economy::InsightPerPopulation / SpiritualistInsightBonus",
+   "value": "1.0 / 0.2",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:94-95,1430",
+   "note": "하드코딩"
+  },
+  {
+   "name": "Economy::InfluencePerPopulation / OpenInfluenceBonus",
+   "value": "0.5 / 0.2",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:96-97,1431",
+   "note": "하드코딩. §5.1의 '조약 수' 항 없음"
+  },
+  {
+   "name": "Economy::ResearchInsightShare",
+   "value": "0.5 (틱당 Insight 수입의 절반까지 지출)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:98,1547",
+   "note": "하드코딩. guideline §5.4에 지출 규칙 없음 — 코드가 유일 출처"
+  },
+  {
+   "name": "Economy::ResearchPerInsight",
+   "value": "0.003 (진척/Insight)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:99,1554",
+   "note": "하드코딩. 인구 1·중점 0.25·영성 0이면 영역당 0.000375/틱 → 첫 돌파 약 667틱(11분), 완료 약 2,667틱. §2.4 '9:30 첫 돌파'와 대략 맞음"
+  },
+  {
+   "name": "LowStabilityThreshold",
+   "value": "0.3",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:103,1526",
+   "note": "하드코딩(의도적 — guideline.md:2212 §16 #25 ② '파라미터가 아니다')"
+  },
+  {
+   "name": "MaxFallenRoster",
+   "value": "3",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:106,596",
+   "note": "하드코딩. §4.2 '판당 활성 타락 ≤3'과 일치"
+  },
+  {
+   "name": "CivWheelColor 채도·명도",
+   "value": "180/255, 1.0; 색상 = CivIndex×255/CivCount",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:123,748",
+   "note": "하드코딩"
+  },
+  {
+   "name": "ResourceRichness 추첨",
+   "value": "0.5 + U[0,1); sol은 1.0 고정",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:654-655",
+   "note": "하드코딩"
+  },
+  {
+   "name": "AI 윤리 추첨 범위",
+   "value": "축마다 U[−1, 1] (arch_default만)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:786,817-822",
+   "note": "하드코딩"
+  },
+  {
+   "name": "FaithWeight(주장)",
+   "value": "1.0 (주장 수가 언제나 통과)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:294-296",
+   "note": "하드코딩 플레이스홀더 — Phase 4 특성 행까지"
+  },
+  {
+   "name": "만남 격차 규칙",
+   "value": "상대 Tier − 뷰어 Tier ≥ 3이면 만나지 않음",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1090",
+   "note": "하드코딩(§3.2)"
+  },
+  {
+   "name": "규모 등급 기준",
+   "value": "T1 Billions, T2 HundredBillions, T3 Trillions, T4·T5 Countless",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1220-1222",
+   "note": "하드코딩(§8.3)"
+  },
+  {
+   "name": "DT_Rules.HomeGalaxyRow",
+   "value": "gal_milkyway",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:544,621,745",
+   "note": "DT_Rules 노브(Tools/data/DT_Rules.json = C++ 기본값)"
+  },
+  {
+   "name": "DT_Rules.LivingWorldStarShares",
+   "value": "{0.01, 0.05, 0.14, 0.31, 0.57, 0.82, 1.0}",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:585-589,651",
+   "note": "DT_Rules 노브. 7칸이 아니면 C++ 기본값으로 대체(에러 줄)"
+  },
+  {
+   "name": "DT_Rules.FallenTranscendentCount",
+   "value": "JSON 1 / C++ 기본값 3",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:596-600",
+   "note": "DT_Rules 노브. 데이터(1)와 C++ 기본값(3)이 달라 테이블 부재 시 로스터가 달라진다"
+  },
+  {
+   "name": "DT_Rules.FallenCoreMinLanesFromHome",
+   "value": "3",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:965",
+   "note": "DT_Rules 노브(음수는 0으로)"
+  },
+  {
+   "name": "DT_Rules.PlayerArchetypeRow",
+   "value": "arch_terran",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:747",
+   "note": "DT_Rules 노브. v0.8 단계 4b에 arch_seeker 예정"
+  },
+  {
+   "name": "DT_Rules.PressureBySourceTier",
+   "value": "{0, 0, 0.25, 1.0, 2.0}",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:172-177",
+   "note": "DT_Rules 노브. 칸보다 짧거나 ≤0·NaN·∞는 0"
+  },
+  {
+   "name": "DT_Rules.PressureAdjacencyFalloff",
+   "value": "0.5",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:179-192",
+   "note": "DT_Rules 노브. (0,1] 밖은 0 또는 1로"
+  },
+  {
+   "name": "DT_Rules.SpiritualPressureStabilityDrain",
+   "value": "0.002 (×최대 P/틱)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1495",
+   "note": "DT_Rules 노브(§16 #61에서 0.002 확정)"
+  },
+  {
+   "name": "DT_Rules.PopulationRegrowthPerTick",
+   "value": "0.0002",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1401",
+   "note": "DT_Rules 노브"
+  },
+  {
+   "name": "DT_Rules.PopulationBandThresholds",
+   "value": "{0.15, 0.5, 2.0}",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1227-1242",
+   "note": "DT_Rules 노브(정확히 3개일 때만)"
+  },
+  {
+   "name": "DT_Rules.AIAscensionSpeedMultiplier",
+   "value": "1.0",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1892-1897",
+   "note": "DT_Rules 노브(≤0·NaN→1, 에러 줄)"
+  },
+  {
+   "name": "DT_Rules.SightIntervalTicks / SightLanesByTier / FirstSightTick",
+   "value": "10 / {1,2,4,6,10} / 330",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2077,2114,2116",
+   "note": "DT_Rules 노브. <1은 1로(에러 줄 없음). 330틱 = 5:30 첫 접촉 박자"
+  },
+  {
+   "name": "FGalaxyDef(gal_milkyway).LivingWorlds / Peoples / HomeRadiusShare",
+   "value": "60 / 12 / 0.53",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:580-581,590-595",
+   "note": "DT_Galaxies 노브(C++ 기본값과 동일). HomeRadiusShare 0..1 밖은 기본값"
+  },
+  {
+   "name": "FGalaxyDef 이름 풀",
+   "value": "StarNameBank 60 / CatalogPrefixes 24 × CatalogStems 30",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:841-891",
+   "note": "DT_Galaxies 노브. 풀이 비면 이름이 빈 FText"
+  },
+  {
+   "name": "FTranscendentDef 컬럼 소비",
+   "value": "Tier·Depth·Allegiance·SpawnWeight·Doctrine·InitialInfluencedSystems·MaxInfluencedSystems·PressureEffectsPerTick",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:254-255,289,904-915,984,1512",
+   "note": "DT_Transcendents 노브. Depth는 (0,1]로 클램프, SpawnWeight ≤0·NaN·∞는 후보 제외"
+  }
+ ],
+ "gaps": [
+  {
+   "what": "TickDiplomacy가 주석 두 줄뿐인 빈 함수 — 관계 표류·태세·조약·InitialRelations 없음",
+   "why_it_matters": "§5.5의 외교 전체와 Influence의 '조약 수' 항이 비어 플레이어의 두 번째 조작축이 없다(Phase 4)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1585-1588"
+  },
+  {
+   "what": "TickConflict가 빈 함수 — FleetPower 비교·소유 변경·분쟁에 의한 폐위 기록 없음",
+   "why_it_matters": "§5.6 분쟁과 Fleet* 노브 4개가 죽어 있고 '통치 문명의 마지막 성계를 앗는 분쟁 폐위'(CLAUDE.md v0.7 표지)가 없다",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1590-1593"
+  },
+  {
+   "what": "RunHeadless에 엔딩 조건 검사·조기 종료 없음(주석만)",
+   "why_it_matters": "끝난 판이 계속 시뮬되고 공백기 도약(Phase 4b)의 전제가 없다",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1055-1068, Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.h:157-160"
+  },
+  {
+   "what": "ResolvePendingRoleEffect는 Effect.DeposeRuler만 처리, Effect.KillPlayer는 기록된 채 영구 잔류",
+   "why_it_matters": "사망 파이프라인(계승·도약·귀환)이 없어 그릇의 죽음이 세계에 닿지 않는다(Phase 4b)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2214-2229"
+  },
+  {
+   "what": "Causality 수입이 영원히 0('Tier 3 연구로 연다'는 주석만)",
+   "why_it_matters": "§5.1 다섯째 자원과 T3+ 권능·웜홀의 비용 경제가 통째로 비어 있다",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1425"
+  },
+  {
+   "what": "Stability를 올리는 길이 경제 단계에 없다(영압 소모만) — 회복 노브 없음",
+   "why_it_matters": "guideline §16 #68: 성계가 늘면 백성 57%가 0.3 아래로 붙고 입력 없는 그릇이 저절로 폐위된다",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1493-1499"
+  },
+  {
+   "what": "AIProfile은 생성·반란·섭정에서 추첨·저장되지만 Sim/Megaprojects 어디서도 행동에 읽히지 않는다(비테스트 코드에 reader 없음)",
+   "why_it_matters": "AI 백성이 프로필과 무관하게 동일하게 행동(§16 #36 ①·#71 'AI 구호의 정책 요소 없음')",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:805,823-826,345, Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp:102-112"
+  },
+  {
+   "what": "AI 정착 대상이 SettleTargets 가운데 균등 추첨",
+   "why_it_matters": "거리·풍부도·영향권 회피 같은 선호가 없어 AI 확장이 무작위로 보인다",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1986-1996"
+  },
+  {
+   "what": "ResearchFocus가 0.25 고정이고 바꾸는 명령(SetResearchFocus)이 어디에도 없다",
+   "why_it_matters": "§5.4 '통치자의 유일한 조작'이 없어 연구가 플레이어 입력 없는 타이머다",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:752,1554"
+  },
+  {
+   "what": "돌파가 로그 줄과 책 발견 행 외에 아무것도 해금하지 않는다",
+   "why_it_matters": "§5.4 표(다이슨·조약·정착 비용·Causality 해금)가 데이터·코드 어디에도 연결되지 않음 — 업적 행 조건으로만 간접 소비",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1560-1579"
+  },
+  {
+   "what": "TickPlayerTravel은 카운트다운만 — 여행을 시작하는 명령 없음",
+   "why_it_matters": "방랑자 루프(Phase 4 TravelTo)의 절반만 있다",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2053-2060"
+  },
+  {
+   "what": "Knowing.PendingContactCivID를 채우는 곳 없음(비우기만)",
+   "why_it_matters": "첫 접촉 카드(Phase 4)의 입력이 없다",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2046-2049, Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.h:194"
+  },
+  {
+   "what": "칙령·특성 행의 틱당 원천 없음(주석 'Phase 4')",
+   "why_it_matters": "영압 소모 말고는 경제를 흔드는 지속 효과가 없다",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1435"
+  },
+  {
+   "what": "플레이어 백성이 성계 0인데 폐위가 기록되지 않으면(예: KillPlayer가 먼저 기록) 정리가 영구히 건너뛰고 에러 줄만 매 틱",
+   "why_it_matters": "통치 없는 문명이 Civs에 남아 연구·수입(인구 기반)을 계속 받는다",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2015-2033"
+  },
+  {
+   "what": "주장의 신앙 가중 FaithWeight=1 플레이스홀더",
+   "why_it_matters": "주장 수를 뽑지만 결과에 영향이 없어 '추첨 있음'이 가짜",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:294-296"
+  },
+  {
+   "what": "DT_Rules 노브 19개가 Sim·형제 모듈 어디서도 읽히지 않음: PressureFleetAttrition·FleetEffectivenessByTierGap·FleetDelayPerPower·FleetDelayCap·LeapTicksMin/Max/Total·BaseLifespanTicks·Succession* 6·VigilClaimExtension·ReturnLureMaxLanes·ReturnedLivesToSeize·ImmutableLaws",
+   "why_it_matters": "데이터가 약속하는 분쟁·계승·도약·귀환·불변 법이 모두 미구현이라 밸런스 표가 실제 세계를 설명하지 않는다",
+   "source_ref": "Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:667-790"
+  },
+  {
+   "what": "v0.8 성역 미반영: sol이 배열 0·플레이어 모성계·초기 코어 거리 기준",
+   "why_it_matters": "CLAUDE.md '단계 4부터' 표지 — ID 규칙(sys_0)·압력 0·정착 불가 등 성역 규칙 전체가 뒤따라야 한다",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:45,614-626,964,1021"
+  },
+  {
+   "what": "×25 배속 불가 — SetTimeScale이 MaxTicksPerFrame(10)으로 클램프",
+   "why_it_matters": "guideline §2.1 셋째 칸 ×25(Phase 3 꼬리 12번)를 넣으려면 배속 상한과 프레임 상한을 분리해야 한다",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1036"
+  },
+  {
+   "what": "경제·연구 상수 12개가 '잠정' cpp 상수(DT_Rules 아님)",
+   "why_it_matters": "밸런스 패스가 코드 재빌드를 요구하고 Data.Integrity·스키마의 가드 밖에 있다",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:83-100"
+  },
+  {
+   "what": "건넘 단계 도착·출발(Transits·OriginGalaxyRow) 없음 — 정리만",
+   "why_it_matters": "Phase 6a — 무대 은하와 문명의 건넘이 없다",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2007-2009"
+  },
+  {
+   "what": "눈을 넓히는 스캔(Phase 4) 없음 — 앎은 틱의 시야 걸음과 Install만",
+   "why_it_matters": "방랑자가 능동적으로 알아내는 수단이 없다",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.h:441-442"
+  },
+  {
+   "what": "LoadState가 SaveVersion을 보지 않고 마이그레이션 훅이 없다",
+   "why_it_matters": "저장 포맷이 바뀌면 이 모듈이 아니라 저장 계층이 잡아야 하는데 책임 소재가 코드에 없다(세이브 호환 규칙은 헤더 주석에만)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1246-1265"
+  },
+  {
+   "what": "HashState: FName 아닌 키의 TMap은 ensure 뒤 통째로 건너뛰고, 미지원 타입은 ensure만",
+   "why_it_matters": "미래 필드(예: TMap<int32,…>·TSet)가 해시에서 조용히 빠져 결정론 검증이 구멍 날 수 있다",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:476-482,509"
+  },
+  {
+   "what": "Population 1.0 초과는 회복으로 닿지 않아 밴드 +1 문턱(2.0)은 효과로만 가능",
+   "why_it_matters": "'셀 수 없는' 등급 승격이 사실상 Tier 기준값에만 의존한다",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1406-1408,1238-1241"
+  },
+  {
+   "what": "단계별 틱 시간 계측·stat 그룹 없음(GetStatId 하나)",
+   "why_it_matters": "guideline.md:3708 '가장 긴 틱 2.9 ms가 어디서 길었는지 모른다 — Phase 4 인계'",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.h:89, Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1323-1360"
+  },
+  {
+   "what": "NextToAIHome[StateIndex.FindSystem(State, Lane)] — INDEX_NONE 가드 없음(생성 보장에만 기댐)",
+   "why_it_matters": "레인 ID가 어긋나는 미래 변경(성역 레인 등)에서 TBitArray 음수 인덱스",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:969-972"
+  },
+  {
+   "what": "성계 0인 백성(한 틱 남겨 둔 플레이어 옛 백성)에도 인구 기반 Insight·Influence 수입이 계산된다",
+   "why_it_matters": "§7.4 (o)의 '남겨 둔 백성은 연구하지 않는다'와 달리 수입 규칙은 명시되지 않아 테스트가 기대값을 잡기 어렵다",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1403-1433"
+  }
+ ],
+ "duplication": [
+  {
+   "what": "'소유 확인 + 정착 확인' 술어 `IsValidIndex && OwnerCivID == CivID && CosmicState::IsSettled(...)`를 인라인으로 반복",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1445,1575,1707; Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp:245; Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:80; Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:475",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1417"
+  },
+  {
+   "what": "누적 가중 추첨(몫 합 > 1이면 수를 합으로 스케일, Reached 누적, Pick < Reached) — 위기 발생 걸음",
+   "also_in": "Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp:1069-1074 (이벤트 슬롯); 같은 cpp의 로스터 추첨 943-954(Mark<Reached 꼴)와 아키타입 추첨 791-797(Mark -= 가중 꼴) — 손으로 짠 가중 추첨 네 벌",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1684-1699"
+  },
+  {
+   "what": "수 → 인덱스 산술 `min(int(Roll×Count), Count−1)`",
+   "also_in": "Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp:360 (인라인 동일 식); Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp:109 (PickAIProfile의 NaN 가드 변형)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:58-61"
+  },
+  {
+   "what": "레인 BFS(큐·Distances·같은 GalaxyRow 필터) 본문 — TickSight의 다중 출발 걸음",
+   "also_in": "Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp:69-100 (단일 출발 LaneDistancesFrom; 헤더 IH:52-55가 중복을 인정)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2120-2141"
+  },
+  {
+   "what": "영향권 도달 판정(Inside/Adjacent/None) 구현 두 벌 — 공개 SphereReachIn(Contains 기반)과 경제 단계의 TBitArray 람다",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1458-1473; 일치는 테스트 Sim.PressurePerCivilization이 보증(h:278-283)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1170-1189"
+  },
+  {
+   "what": "`for Lane : Lanes → StateIndex.FindSystem(State, Lane)` 레인 인덱스 수집 루프",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:723-726,969-972,1453-1456,1795-1797,2132-2134; Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp:88-90",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1453-1456"
+  },
+  {
+   "what": "'정착된 수도' 찾기(FindSystem(HomeSystemID) + 주인 + IsSettled)",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1706-1710 (Capital 행 배치)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1572-1575"
+  },
+  {
+   "what": "같은 GameplayTag를 함수마다 static RequestGameplayTag(FName(TEXT(...)))로 재생성 — Effect.DeposeRuler 3곳, Hazard.Claim 2곳, Realm.Abyssal 2곳",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2014,2218 (DeposeRuler); 1747 (Claim); 1387 (Abyssal)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:329,281,895"
+  },
+  {
+   "what": "FResourcePool 다섯 멤버를 손으로 더하거나 비교(operator+= / 멤버 순회 없음)",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1941-1945 (WaitingAnswers 합산), 162-168 (TakesFromWaitingAnswers 다섯 항 비교)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1515-1518"
+  },
+  {
+   "what": "'핸들러 안에서 불리면 에러 줄 뒤 return' 가드 블록 8회 복붙(메시지만 다름)",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1047-1051,1057-1061,1077-1081,1115-1119,1147-1150,1193-1197,1248-1252",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:572-576"
+  },
+  {
+   "what": "`GetGameInstance()->GetSubsystem<X>(); check(X)` 보일러플레이트 9곳",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1105-1106,1533-1536,1597-1598,1756-1757,1872-1873,1887-1889,2000-2001,2222-2223",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1019-1020"
+  },
+  {
+   "what": "NaN 안전 노브 읽기 관용구 `x > 0 ? min(x, hi) : 0` / `x > 0 && x <= Max`가 노브마다 재작성",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:188 (Falloff), 254 (Depth), 767 (Weight), 915 (SpawnWeight), 1401 (Regrowth), 1495 (Drain), 1663-1665 (Chance·Multiplier), 1893 (AIRate)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:172-177"
+  }
+ ],
+ "contradictions": [
+  {
+   "a": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:45,614-626,1021 — sol이 배열 0번·플레이어 모성계·Install 대상이고 헤더 h:93·100-104도 그렇게 적는다",
+   "b": "guideline.md:2871-2875 §7.4 3항·11항 — 첫 생애 모성계는 sys_0(배열 0번), 성역 sol은 배열 끝에 추첨 없이, 소유·정착·주장 불가",
+   "note": "문서가 'v0.8 — 단계 4부터'로 표지한 예정 드리프트. 코드 주석(h:93, cpp:614,709)은 옛 규칙 그대로라 단계 4에서 함께 고쳐야 한다"
+  },
+  {
+   "a": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1431 — Influence = Population×0.5×(1+0.2×max(0,Openness))",
+   "b": "guideline.md:994 §5.1 — Influence 생산 = '인구 × 개방 축 × 조약 수'",
+   "note": "조약 수 항이 없다(외교 미구현). §5.1 표를 '조약은 Phase 4부터'로 표지하거나 공식을 코드에 맞춰야 한다"
+  },
+  {
+   "a": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1425 — Causality는 0 고정('Tier 3 연구로 연다' 주석)",
+   "b": "guideline.md:995 §5.1 — Causality 'T3 연구 완료 후 극소량', §5.4 Transcendence가 해금",
+   "note": "해금 조건(어느 영역·어느 문턱)과 양이 문서·코드 어디에도 없다"
+  },
+  {
+   "a": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1036 — TimeScale을 MaxTicksPerFrame(10)으로 클램프; h:144 'The UI offers 0,1,2,5,10'",
+   "b": "guideline.md:251,253,1537 §2.1 — 셋째 칸에 오르면 ×25 한 단(v0.8 Phase 3 꼬리 12번)",
+   "note": "예정 작업이지만 배속 상한과 프레임당 틱 상한이 한 상수라 ×25를 넣으면 프레임당 25틱이 되어 §9.4 예산 결정이 함께 필요"
+  },
+  {
+   "a": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:752 — ResearchFocus 0.25 고정, 바꾸는 명령 없음(저장소 전체 grep)",
+   "b": "guideline.md:1044 §5.4 — '통치자의 유일한 조작은 4개 영역 간 중점 비율 슬라이더'; guideline.md:3179 SetResearchFocus 명령 목록",
+   "note": "Phase 4 통치자 명령 — 지금은 표시만 가능한 값"
+  },
+  {
+   "a": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1585-1588 — 외교 단계 빈 함수, Relations는 제거 때만 쓰임(2039-2045)",
+   "b": "guideline.md:1049-1053 §5.5 — '틱마다의 윤리 표류… 국경 접촉… 항목은 처음 쓸 때 생긴다'",
+   "note": "CLAUDE.md가 '(v0.7 — 외교 단계와 InitialRelations는 Phase 4부터)'로 표지. 문서의 현재형 서술이 혼동을 준다"
+  },
+  {
+   "a": "Tools/data/DT_Rules.json — FallenTranscendentCount = 1",
+   "b": "Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:763 — C++ 기본값 3 (guideline §4.2 '≤3'은 상한)",
+   "note": "테이블이 없을 때와 있을 때 로스터·초기 코어 추첨 수가 달라진다. 어느 값이 '설계 기본값'인지 문서가 정하지 않았다"
+  },
+  {
+   "a": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:747 + Tools/data/DT_Rules.json — PlayerArchetypeRow = arch_terran",
+   "b": "guideline.md:407,1190,1278 — 첫 생애 행은 arch_seeker(성역 밖 찾는 백성, Weight 0)",
+   "note": "'v0.8 — 단계 4b부터' 표지. 데이터·코드·문서 삼중 기준이 잠시 공존"
+  },
+  {
+   "a": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:98-99,1547,1554 — 연구 지출 = Insight 수입의 50%, 진척 0.003/Insight",
+   "b": "guideline.md:1030-1044 §5.4 — 지출 규칙·속도 상수 없음(돌파 문턱만)",
+   "note": "문서 누락: 연구 속도의 유일한 출처가 코드 상수라 §9.3 밸런스 표가 재지 못한다"
+  },
+  {
+   "a": "Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp:102-112 — PickAIProfile 균등 4분할",
+   "b": "guideline.md:4443 §16 #36 ① — 'AI 프로필의 윤리 축에 가중한 추첨 공식… 그때까지 균등'",
+   "note": "미결로 표지되어 일치하지만, AIProfile이 어디서도 읽히지 않아 가중을 넣어도 세계가 안 바뀐다(gaps 참조)"
+  },
+  {
+   "a": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:83 — 'Provisional numbers… the values belong to the balance pass (section 9.3)'",
+   "b": "guideline.md:992 §5.1 — StarClassEnergy를 '코드 상수'로 지칭하고 v0.8 단계 5에 다시 정한다; §9.3에 상수를 노브로 옮긴다는 결정 없음",
+   "note": "상수의 소유권(코드 vs DT_Rules)이 문서에 없다 — 개발 가이드라인에서 정할 항목"
+  }
+ ],
+ "implemented_status": [
+  {
+   "feature": "고정 스텝 틱·배속(0/1/2/5/10)·이월 상한·정지 시 이월 폐기",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:552-568,1034-1043"
+  },
+  {
+   "feature": "틱 열 단계 골격과 고정 순서(§7.4)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1323-1360"
+  },
+  {
+   "feature": "은하 생성 10항(§7.4 NewGalaxy 생성 규칙)",
+   "status": "partial",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:570-1032 — 1·2·4~10항 구현, 3항(sys_0 모성계·sol 성역 배열 끝)과 11항 성역은 v0.8 단계 4 미착수"
+  },
+  {
+   "feature": "추첨 순서 고정·쓰지 않는 추첨도 뽑기(§9.2)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:611-612,778-788,921-936,975-981,1613-1618,1624-1634,1988"
+  },
+  {
+   "feature": "경제 단계(수입·인구 회복·영압 소모·틱당 원천·LowStability/FallenSphere 카운터)",
+   "status": "partial",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1362-1529 — 조약 수 항·Causality·칙령/특성 원천·안정도 회복 없음(1425,1431,1435,1493-1499)"
+  },
+  {
+   "feature": "연구 단계(진척·돌파 줄·Society 책 발견)",
+   "status": "partial",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1531-1583 — 중점 명령·돌파 해금 효과 없음(752)"
+  },
+  {
+   "feature": "외교 단계(§5.5)",
+   "status": "stub",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1585-1588"
+  },
+  {
+   "feature": "분쟁 단계(§5.6)",
+   "status": "stub",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1590-1593"
+  },
+  {
+   "feature": "위기 단계 4단(프로젝트 → 만료 → 발생(Draw·Capital) → 이벤트 슬롯)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1595-1741"
+  },
+  {
+   "feature": "Hazard 만료 훅(초신성 파괴+통치 문명 전멸 폐위 기록·반란 왕좌·주장 편입)과 마지막 성계의 문(event_grace_remnant)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1743-1882,327-365"
+  },
+  {
+   "feature": "주장 규칙(만료 뒤 Hazard.Claim 배치·주장 만료 편입·신앙 가중)",
+   "status": "partial",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:279-321 — FaithWeight=1 플레이스홀더(294)"
+  },
+  {
+   "feature": "거대 프로젝트 진행·대응 칸 우선·값 못 치른 답의 대기 규칙·AI 배속·완료 줄",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:162-168,1884-1970"
+  },
+  {
+   "feature": "AI 단계(프로젝트 선택·정착 추첨·업적 판정 호출)",
+   "status": "partial",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1972-2003 — 프로필·정책 요소 없음, 정착 대상 균등"
+  },
+  {
+   "feature": "건넘 단계(정리: 정착 놓기·성계 없는 백성 제거·Relations 키 삭제·색인 재구축)",
+   "status": "partial",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2005-2051 — 도착·출발(Phase 6a) 없음"
+  },
+  {
+   "feature": "플레이어 이동(여행 카운트다운·재위 틱 누계)",
+   "status": "partial",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2053-2071 — 여행 시작 명령 없음"
+  },
+  {
+   "feature": "앎 단계(시야 BFS·NoteKnown·가까운 순 NoteMet·첫 접촉·FirstSightTick)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2073-2212,1075-1130"
+  },
+  {
+   "feature": "역할 효과 해소(틱 경계)",
+   "status": "partial",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2214-2229 — DeposeRuler만, KillPlayer 파이프라인 없음"
+  },
+  {
+   "feature": "영적 압력 계산(ComputePressureIn·SphereReachIn·경제 단계 표)과 지배 원천·심도",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:170-273,1154-1189,1458-1473"
+  },
+  {
+   "feature": "상태 해시·세계 해시(리플렉션, 프로세스 독립)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:371-511,1267-1321"
+  },
+  {
+   "feature": "난수 출처 셋(시뮬 스트림·말하기 스트림 DrawTell·CosmicSeed::Derive)과 SyncRngState",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:606-609,1070-1073,1191-1209"
+  },
+  {
+   "feature": "핸들러 재진입 거절(IsBroadcasting·Begin/EndBroadcast·bInTickStages)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:572-577,1326,1337, Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.h:239-250"
+  },
+  {
+   "feature": "상태 색인 FCosmicStateIndex(Rebuild·낡은 인덱스 감지)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp:8-53"
+  },
+  {
+   "feature": "CosmicState::IsSettled·OwnsAnySystem·LaneDistancesFrom·PickAIProfile",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Sim/CosmicStateIndex.h:36-39, Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp:55-112"
+  },
+  {
+   "feature": "규모 등급 GetPopulationBand(§8.3)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1211-1244"
+  },
+  {
+   "feature": "DT_Rules·DT_Galaxies 로드와 C++ 기본값 폴백(에러 줄)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:514-550"
+  },
+  {
+   "feature": "저장 복원 LoadState(상태 교체·Rng 복원·방송)",
+   "status": "partial",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1246-1265 — SaveVersion 검사·마이그레이션은 이 모듈에 없음(저장 계층 여부는 범위 밖)"
+  },
+  {
+   "feature": "엔딩 조건과 도약 조기 종료(§4.4)",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1066 (주석만)"
+  },
+  {
+   "feature": "사망 파이프라인(KillPlayer → 계승·도약·귀환, Phase 4b)",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2216-2217"
+  },
+  {
+   "feature": "성역 sol(v0.8 단계 4: 배열 끝·압력 0·정착/주장/코어 불가)",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:45,614-626,964-1014"
+  },
+  {
+   "feature": "셋째 칸 ×25 배속",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1036 (10 클램프)"
+  },
+  {
+   "feature": "AI 프로필에 따른 행동 차이(§4.3·§16 #36·#71)",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:805-826 (저장만, reader 없음)"
+  },
+  {
+   "feature": "공백기 도약(RunHeadless 재사용, §4.4)",
+   "status": "partial",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1055-1068 — 함수만 있고 도약을 부르는 호출자·LeapTicks 노브 사용 없음"
+  },
+  {
+   "feature": "Hazard 역병 인접 전파·격리(§7.4)",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1792-1806 — 이웃 효과 ApplyAll만 있고 전파 규칙 없음(데이터 몫이라 unknown에 가까움)"
+  }
+ ],
+ "player_facing": [
+  "배속 단추 0/1/2/5/10 → SetTimeScale: 0은 유일한 정지이고 이월된 시간을 버린다; 1배속에서 1초=1틱 (Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1034-1043, h:144-147)",
+  "매 틱 OnSimTick(Tick) 방송으로 상단 바·성계 패널·지도가 다시 그려진다 (cpp:1356-1359)",
+  "새 판·로드 시 OnGalaxyGenerated(Seed)로 지도 전체가 다시 지어진다 (cpp:1028-1031,1261-1264)",
+  "로그 피드에 이 모듈이 내는 줄: 영역별 돌파(플레이어 Severity 1), 책 발견 행, 거대 프로젝트 완료(Log.Civ), 위기 만료·해결 줄, 만남·첫 접촉, 마지막 성계의 은혜 행 (cpp:1560-1577,1954-1964,1862,1109,1879)",
+  "성계 패널의 위기 카운트다운이 매 틱 1씩 준다(HazardTicksRemaining) (cpp:1605-1612)",
+  "패널에서 시작한 거대 프로젝트(다이슨·개혁·구호·정착·항성 안정화)가 매 틱 값을 치르며 진행하고, 대응 칸이 먼저 값을 치르며 자원이 모자라면 건설이 보류된다 — 플레이어 백성은 배속 1, AI는 AIAscensionSpeedMultiplier (cpp:1899-1946)",
+  "성계 패널의 영압 수치·지배 원천(ComputeSpiritualPressure)과 '백성' 규모 등급(GetPopulationBand) (cpp:1154-1159,1211-1244)",
+  "아는 성계·만난 백성이 10틱마다(그릇이 움직이면 즉시) 늘어 지도의 Known 표시가 바뀐다; 통치자의 눈은 330틱(5:30)부터 열린다 (cpp:2077-2116,2164,2210)",
+  "플레이어 백성의 Stability가 높은 칸의 영압에 깎이고, 0.3 아래 100틱이면 수도에 반란 위기가 선다(위기 행 조건) — 막을 수단은 지금 개혁 프로젝트뿐 (cpp:1495-1498,1526)",
+  "통치 문명이 마지막 정착 성계를 잃으면(초신성 만료) 틱 경계에서 폐위되어 방랑자가 된다; 마지막 성계는 한 번 은혜 행이 지킨다 (cpp:1780-1787,1838-1846,2220-2228)",
+  "반란 만료 때 플레이어 백성의 왕좌는 그 행이 폐위를 기록했을 때만 바뀌고 AI 백성은 언제나 바뀐다 (cpp:338-347)",
+  "플레이어 입력이 닿지 않는 것: 연구 중점(0.25 고정), 외교, 분쟁, 여행, 칙령 — 이 모듈에 명령 진입점이 없다(StartMegaproject는 Player 층) (cpp:752,1585-1593,2053-2060)",
+  "개발·테스트 전용: StepOnce(방송 켬)·RunHeadless(방송 끔), 커맨드렛 -Seed/-Ticks (cpp:1045-1068)",
+  "새 판의 첫 줄('태양계. 당신은 이 행성의 통치자다')과 그릇 이름은 Install이 내고 이 모듈은 호출만 한다 (cpp:1019-1021)"
+ ],
+ "quality_notes": [
+  "레이어 경계: Sim 네 파일에 UI/Actor/World include 없음(§6.1 준수, grep 확인). 다만 Sim이 Events·Log·Ascension·Player 네 형제 Subsystem을 GetGameInstance()->GetSubsystem으로 직접 부르고 check()로 강제한다(cpp:13-25,1019-1021,1105,1533-1536) — Core Logic 안의 상향 결합이라 GameInstance 없이는 생성조차 못 한다(커맨드렛이 GameInstance를 손으로 만드는 이유)",
+  "함수 길이: NewGalaxy 463줄(cpp:570-1032), TickEconomy 168, TickHazards 147, TickSight 140, ExpireHazard 122, AdvanceMegaprojects 87 — 생성은 '자리·레인·모성계·아키타입·이름·로스터·코어' 일곱 private 단계로 쪼갤 후보",
+  "결정론: FMath::Rand* 없음, 세계를 바꾸는 추첨은 Rng 하나, 행을 보기 전 미리 뽑기 원칙을 모든 추첨 지점이 지킴, 해시에 드는 산술은 FMath::Sqrt뿐(cpp:615), CivWheelColor는 모듈 내 산술(cpp:118-139), 좌표는 float 산술 뒤 FVector(double) 저장. FRand()(생성)와 GetFraction()(틱 단계)을 섞어 쓴다 — 같은 함수지만 이름이 둘(cpp:634 vs 1617)",
+  "해시: 리플렉션 기반이라 새 필드가 자동으로 든다(장점). 대신 FName 아닌 키의 맵과 미지원 타입은 ensure로만 알리고 건너뛴다(cpp:479-482,509) — 결정론 테스트가 못 잡는 구멍 후보. FText·GalaxyID 제외, Rng 살아 있는 시드 사용은 문서 §9.2와 일치",
+  "저장 호환: LoadState는 SaveVersion을 보지 않고(cpp:1246-1265) CurrentSaveVersion 도장은 NewGalaxy만(cpp:603). 멤버 초기값을 바꾸지 않는 델타 저장 규칙은 헤더 주석과 CLAUDE.md에만 있고 코드 가드(static_assert 등)가 없다",
+  "테스트 가능성: 단계 함수가 전부 private이라 테스트는 StepOnce/RunHeadless + GetMutableState/RebuildStateIndex/SetTables/WithRules로 우회한다(h:155-163,169,224,237). 순수 함수(ComputePressureIn·SphereReachIn·CosmicState::*·FStateHasher)는 직접 테스트 가능. Sim.* 48종(Determinism·NoNaN·FrameStep·GenerationRules·HazardDraws·SightStage·KnowingInert 등)이 이 모듈을 덮고 변이 테스트 관행이 있다(Tests/CosmicSimTests.cpp:464-483 등)",
+  "명명: 영문 식별자, 설계 낱말(Calling/Vessel/Knowing/Sphere/Settled)을 일관되게 씀. TickSight의 지역 변수 TierIndex가 익명 네임스페이스 함수 TierIndex를 가리고 클램프 없이 raw cast한다(cpp:2113 vs 109-116) — enum _MAX 값이 들어오면 IsValidIndex에만 기댄다",
+  "주석: ASCII 영문, 함수마다 guideline §를 인용한 긴 산문(h:91-140 NewGalaxy 50줄, h:323-344 경제 22줄). 규칙이 바뀌면 주석이 먼저 낡는다 — sol 관련 주석(h:93,100-104; cpp:614,709)은 이미 v0.8과 어긋남. §번호·§16 #번호 인용은 문서 재편 시 전부 깨진다(앵커 전략 필요)",
+  "하드코딩 문자열: GameplayTag 24개를 RequestGameplayTag(FName(TEXT(...)))로 함수마다 static 생성(같은 태그 중복), 행 이름은 CosmicRows:: 상수(좋음), ID 포맷 \"civ_%d\"/\"sys_%d\"/\"sol\"과 FText 포맷 인자 이름 \"Civ\"/\"Star\"/\"System\"/\"Project\"가 리터럴. 네이티브 태그 테이블(UE_DEFINE_GAMEPLAY_TAG)은 §10.1 규칙으로 금지되어 있어 대안은 모듈 내 상수 헤더",
+  "노브 가드 정책: NaN 안전 비교(`x > 0 ? min(x,hi) : 0`)와 UE_LOG(Error) 한 줄이 일관되나 노브마다 재작성(9곳). 데이터 부재는 기본값+에러 줄, Subsystem 부재는 check() 크래시 — 두 실패 정책이 섞여 있다",
+  "방송 가드 8곳 복붙(cpp:572-576 등)과 Subsystem 획득 9곳 — 매크로나 `RefuseInHandler(TEXT(\"…\"))` 헬퍼 후보. MakeEvalContext만 에러 뒤에도 반환하는 예외는 의도적(h:245-246)",
+  "성능 가정: TInlineAllocator 4/8/16/64가 VS(60·12) 기준이고 EA(300·48)에서는 힙 폴백. 경제 단계는 영향권 표를 1회 구축(O(초월자×성계))해 성계마다 공개 함수를 피하고(h:339-340), 레인은 초월자가 있을 때만 읽는다(cpp:1449-1457). 측정값 평균 30 µs/틱(guideline.md:3708)은 여유 있다",
+  "빈 단계 함수(외교·분쟁)가 매 틱 호출되며 주석 두 줄뿐 — 무해하지만 '구현됨'으로 오해될 수 있다. 헤더(h:351-352)에도 설명이 없다",
+  "Blueprint 노출: NewGalaxy·SetTimeScale·StepOnce·RunHeadless(BlueprintCallable), ComputeSpiritualPressure·GetPopulationBand(BlueprintPure), 델리게이트 둘(Dynamic). 상태 자체는 의도적으로 미노출(h:165-166) — UMG C++ 위젯만 쓰는 현 구조와 맞다",
+  "상태 색인 안전장치: 낡은 인덱스를 감지하면 잘못된 원소 대신 INDEX_NONE+에러 줄(CosmicStateIndex.cpp:34,49). 그러나 TickCrossings는 제거 도중 색인이 낡은 채 OwnsAnySystem을 부르며 '시스템 쪽 절반만 읽는다'는 주석에 기댄다(cpp:2026-2027) — 색인을 반쪽씩 재구축하는 API가 없다",
+  "방어 복사: ExpireHazard가 Lanes를 값으로 복사해(cpp:1794) Destroy가 레인을 지워도 안전; GraceKeepsLastSystem은 FCosmicEvalSubject를 저장·복원(cpp:1874-1880). 의도된 방어이나 주석으로만 설명",
+  "에러 줄 메시지는 전부 영문 개발자 로그(LogCosmic) — 게임 텍스트와 분리(§10.3 준수). 단 ensureMsgf는 프로세스당 한 번만 발화해 테스트가 덮지 못한다(CLAUDE.md 규칙) — bInTickStages 백스톱이 그 경우",
+  "성계 0인 백성에도 인구 기반 수입이 흐르고(cpp:1403-1433), 플레이어 백성은 폐위 미기록 시 영구 잔류(cpp:2027) — 규칙상 모호한 모서리가 주석과 에러 줄로만 처리됨",
+  "단계별 시간 계측 없음(GetStatId 하나, h:89) — §9.4가 '가장 긴 틱이 어디서 길었는지 모른다'고 인계. SCOPE_CYCLE_COUNTER를 단계마다 두는 것이 싸다",
+  "경로 표기: 이 digest의 파일 경로는 저장소 루트 /home/mechtro/Desktop/bbb/Cosmic_Ascension 기준 상대 경로이며, 줄 번호는 2026-10-18 작업 트리(커밋 ccfb2fc 이후) 기준"
+ ]
+}

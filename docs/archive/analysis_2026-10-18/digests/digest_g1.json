@@ -1,0 +1,911 @@
+{
+ "scope": "g1: guideline.md 1~600행 — 문서 머리·변경 이력(v0.4~v0.8)·목차·§0 초안 검토·§1 비전·§2 코어 루프·§3 3대 기둥",
+ "summary": "guideline.md의 첫 600행은 문서 머리(SSoT 선언, 1KB짜리 '문서 상태' 셀), v0.4~v0.8 변경 이력(20~92행, 범위 바이트의 약 36%), 목차, §0(v0.2 초안 검토표), §1 비전, §2 코어 루프, §3 3대 기둥이다. 핵심 정체성은 \"문명이 스스로 흥망하는 텍스트 시뮬레이션 위에서, 성역(태양계) 밖 먼 별의 필멸자가 부르심을 입어 한 백성을 맡고, 통치자/방랑자로 개입하며 존재의 격(칸)을 다섯 단계로 올린다 — 그릇이 죽어도 판은 끝나지 않는다\"(168행)로 명확하다. 설계의 뼈대는 (1) 요약 단위 원칙(개체 없음·인구 float·숫자 금지·인물은 기록, 193행), (2) 은하의 네 층과 VS 60/12 · EA 300/48 수(386~399행), (3) 고정 스텝 틱(1틱=1주기, 1x 1초=1틱, 18,000틱≈5시간, 배속 0/1/2/5/10 + T3 ×25, '년' 표시 토글, 250~253행), (4) 통치자 20~40초당 결정 1회·Stability 단일 지표·청원 카드, 방랑자 노드 이동+조우 카드·전투 없음(282~318행), (5) 5칸 사다리와 '보임' 의미론·여섯째 칸 없음·T5 두 길과 Exaltation 문지기(432~456행), (6) 업적은 경험치가 아닌 세계 사건(8개, VS 4개, 472~485행), (7) 현실 하늘 차용(§3.4, VS 33광년/EA 98광년 관측 목록, 537~593행). 문서는 기독교 신학을 명시적 토대로 삼아(성경 인용 15건 이상) 신·보좌·무저갱을 코드 밖에 두고, 톤 규칙(설교 금지·냉소는 인용문 전용)을 정했다. 문제는 세 가지다. 첫째, \"v0.8 — 단계 N부터\"(파일 전체 133회)·\"그 전의 코드는\"(16회)·\"가칭\"(54회) 표지가 보여주듯 성역·첫 생애 행 arch_seeker·서막·실제 하늘·고넬료 사슬·청원/조우·방랑자 루프가 모두 코드 앞에 서 있고, 데이터(DT_Rules.PlayerArchetypeRow=arch_terran, DT_Civs 2행, DT_Hazards 5행)는 문서가 선언한 VS 수량(아키타입 7·Hazard 8·거대 프로젝트 7·업적 4)에 크게 못 미친다. 둘째, 변경 이력과 본문, 본문 안 반복(arch_seeker 설명 4회, '설계 값' 문장 3회, 년 토글 3회), CLAUDE.md·WORKPLAN·directive·rulings와의 중복이 심하고 Phase/단계/칸 세 숫자 체계가 한 문단에 섞인다. 셋째, 실제 하늘 결정이 T2→T3 초신성 업적·현행 StarNameBank·§3.1 예시 로그와 충돌하고, EA 300 성계가 MaxSystems 150 액터 예산을 넘는 등 수치 간 미해결 긴장이 남아 있다.",
+ "key_decisions": [
+  {
+   "topic": "단일 기준 원칙",
+   "decision": "guideline.md 하나가 설계의 Single Source of Truth이며, 결정이 바뀌면 이 문서를 먼저 고친다. 대상 독자는 개발자 본인과 Claude Code 세션.",
+   "source_ref": "guideline.md:15-16"
+  },
+  {
+   "topic": "장르·엔진·플랫폼",
+   "decision": "4X 대전략 시뮬레이션 + 샌드박스 스페이스 RPG 하이브리드. UE 5.8.3 고정(EA까지 버전 올리지 않음), C++ 중심 + Data-Driven, PC(Steam) 싱글, 한국어 우선·영어 2차.",
+   "source_ref": "guideline.md:178-183"
+  },
+  {
+   "topic": "한 판의 정의",
+   "decision": "한 판 = 우주 시드 1개 = 부름 1회. 생애(代)는 판 안의 장이며 기대 2~5대. 서막(틱 밖)은 판 길이 밖. 저장은 판당 슬롯 1개(아이언맨, 이름 Galaxy_<GUID>는 유지).",
+   "source_ref": "guideline.md:181, guideline.md:69"
+  },
+  {
+   "topic": "톤",
+   "decision": "신화적·관조적·간결한 SF. 설교하지 않는다 — 선택을 옳다/틀리다로 라벨링하는 UI·로그 없음, 결과와 기록만. 대도감의 그림다크는 세계의 사실이 아니라 세계 안 목소리의 색(냉소·허무는 인용문과 타락 1인칭에만).",
+   "source_ref": "guideline.md:182"
+  },
+  {
+   "topic": "요약 단위 원칙",
+   "decision": "사람·문명·영·육신은 전부 요약 단위. 인구는 FCivilizationState.Population 하나(추상 비율, 1.0 = 그 Tier의 전형), 행성 표면·도시·개별 함선·파벌 엔티티 없음, 인물은 사건이 만드는 기록(FNotableRecord, 문명당 상한)이고 화자가 아님, 능력치를 가진 개인은 플레이어의 그릇 하나뿐. 사람 수는 어디에도 숫자로 쓰지 않고 규모 등급(GetPopulationBand)으로만. 서술의 숫자는 주기·비율뿐, 자원·Stability 숫자는 UI에만.",
+   "source_ref": "guideline.md:193"
+  },
+  {
+   "topic": "린 철학",
+   "decision": "미시 공장 건축 배제, 외계인 3D 캐릭터 없음(아이콘+색+텍스트), 그래픽 예산은 은하 지도(3D 노드)·초월 순간 Niagara·SF UI 세 곳에만, 일자형 스토리 없이 사건 템플릿+규칙의 창발, 새 특성·이벤트·업적·로그는 재컴파일 없이 DataTable 행 추가로 끝나야 한다.",
+   "source_ref": "guideline.md:197-217"
+  },
+  {
+   "topic": "참조 게임과 차별점",
+   "decision": "Stellaris(틱 경제·조건 이벤트·승천 경로), Sunless Skies/FTL(노드 이동+조우 카드), CK3(즉위·위임 구조와 소수 인물 기록만), DF/RimWorld(프로시저럴 서사·스토리텔러 페이싱), Qud/Cultist Simulator(텍스트가 보상). 차별점 3: 통치자↔방랑자 한 세이브 전환, 승천은 경험치가 아닌 세계 사건, 죽음은 게임 오버가 아니라 계승.",
+   "source_ref": "guideline.md:224-234"
+  },
+  {
+   "topic": "시간 모델",
+   "decision": "고정 스텝 틱. 1틱 = 1주기, 시계는 판에 하나, 주기는 해로 환산하지 않되 UI는 '주기'↔'년' 토글(보는 사람 설정, 기본 '주기', 첫 기록부터 기산, 상태·해시 밖)로 보일 수 있다. 서술·연대기는 주기 그대로. 서막은 틱 밖(SetTimeScale(0)). 시간의 세 단: 서막(필멸자의 시간) → 부르심(1초 1해, ×10까지) → 셋째 칸(×25).",
+   "source_ref": "guideline.md:250-253"
+  },
+  {
+   "topic": "통치자 루프",
+   "decision": "로그 누적 → 자동 일시정지 → 결정(연구 중점·외교 태세/조약·칙령·거대 프로젝트·함대 배치·위기 대응) → 재개. 1배속 20~40초마다 의미 있는 결정 하나, 결정은 '수치 하나 바꾸기 또는 프로젝트 하나 켜기' 수준이고 미세 관리 없음. T1의 빈 자리는 청원 카드가 채우며 통치자의 유일한 지표는 Stability.",
+   "source_ref": "guideline.md:262-284"
+  },
+  {
+   "topic": "방랑자 루프",
+   "decision": "은하 지도에서 목적 성계 선택 → 레인당 N틱 이동(도중 조우 확률) → 조우 카드(선택지 2~3, 능력치 판정 + 자원 비용) → 보상/손실(유물·권능·개인 자원) → 스캔 → 위기 성계 발견 → 개입 → 업적 → 승천. 전투 없음(모든 갈등은 카드 판정과 서술). 수련은 성계에 머무는 동안 Insight 소모로 틱 단위 자동 진행.",
+   "source_ref": "guideline.md:293-318"
+  },
+  {
+   "topic": "한 판의 호",
+   "decision": "서막(첫 판 10~15분, 틱 밖) → 행성의 시대 T1 ~30분 → 성간 시대 T2 ~60분 → 인과의 시대 T3 ~90분 → 초월 T4 ~90분 → 영겁 T5 엔딩+연대기. 이 호는 그릇의 호가 아니라 부름의 호이며 마찰은 성장 속도가 아니라 사망 가능성과 세계 비용에서 온다.",
+   "source_ref": "guideline.md:327-336"
+  },
+  {
+   "topic": "첫 10분 타임라인",
+   "decision": "600틱, 결정 15~20회, Severity 2 ≥ 2회. 0:00 \"{HomeSystem}. 이 백성이 당신에게 맡겨졌다.\" → 0:30 파벌 청원 → 1:00 연구 슬라이더 안내 → 1:30 징조 줄 Log.Sign → 2:30 첫 Hazard(Hazard.AIAwakening, 모성계, 칙령 슬롯 1 보장) → 5:00 결과+첫 웅성거림(Stability 0.5 근처) → 5:30 첫 접촉(log_first_contact, 1레인 이웃 보장) → 7:00 불만 파벌 청원 → 8:30 \"첫 함선이 준비되었다. 당신은 떠날 수도 있다.\" → 9:30 둘째 Severity 2. 책은 첫 10분에 없다(고넬료 사슬로 나중에). 모티프 '다스리며 지키라'.",
+   "source_ref": "guideline.md:340"
+  },
+  {
+   "topic": "3대 기둥의 연결",
+   "decision": "Pillar 1(문명 자동화 데이터 엔진)·Pillar 2(존재 등급과 초월자)·Pillar 3(통치자 vs 방랑자)은 위기(Crisis)로 연결된다 — 시뮬이 위기를 낳고, 두 역할이 각자 수단으로 개입하며, 결과가 업적이 된다.",
+   "source_ref": "guideline.md:352-376"
+  },
+  {
+   "topic": "은하의 네 층",
+   "decision": "① 배경 별(그림뿐, 상태·해시 없음) ② 생명 성계(= 이 문서의 '성계', FStarSystemState, 시뮬 노드) ③ 백성(FCivilizationState) ④ 넷째 칸 이상의 존재. 행성 노드는 만들지 않고 행성은 정의 데이터 DT_Planets(성계 패널 목록)로만. 수는 DT_Galaxies 고향 행 LivingWorlds·Peoples가 정하고 NewGalaxy의 수 인자 0이 그 행을 읽는다(60·12 사본 금지). 은하 종류는 태그 Galaxy.Kind.Dwarf/Spiral/GrandSpiral/Elliptical(상태 저장 없음).",
+   "source_ref": "guideline.md:386-397"
+  },
+  {
+   "topic": "문명 생성",
+   "decision": "윤리 3축(평화↔군사, 영성↔물질, 폐쇄↔개방)·생물학·모행성 환경 조합의 FGameplayTag 특성. 문명은 DT_Civs 아키타입 행(Traits·윤리 프리셋·AI 프로필·이름/형용사 뱅크·선호 Hazard·계시 양식)에서 생성되고 ArchetypeRow에 기록. 플레이어 첫 생애 행은 DT_Rules.PlayerArchetypeRow(가칭 arch_seeker, 윤리 0/0/+0.2, 성계 1, 수치 이점 0), arch_default는 AI 무작위 문명. 문명 AI는 단순 정책 프로필(보수/확장/학구/군사)이며 복잡한 계획 AI는 만들지 않는다.",
+   "source_ref": "guideline.md:405-413"
+  },
+  {
+   "topic": "5단계 존재 등급과 보임 의미론",
+   "decision": "T1 행성 구속형·T2 항성 융합형 = 보이는 것들(물리계), T3 인과 간섭형 = 문턱(영적 계 인지·간섭, 육신의 죽음을 넘음), T4 초월자·T5 영겁의 청지기/왕 노릇에 참여 = 보이지 않는 것들. 두 계는 장소가 아니라 격이며 같은 성계 지도 위에 겹친다(영적 은하 없음). 사이오닉·기·마법은 물리계의 흉내(Trait.Mind.*, Trait.Tech.*)로 T2까지만 작동. 영력은 자원이 아니라 Causality의 서사 이름. Realm.* 태그는 소속(§15에 고정).",
+   "source_ref": "guideline.md:432-442"
+  },
+  {
+   "topic": "에너지 등급 읽기",
+   "decision": "칸 1~3은 대도감의 에너지 추출 등급(행성급·항성급·성간/인과급)으로도 읽히지만 묘사이지 규칙이 아니다 — 칸은 업적으로만 오르고, 칸 4·5는 에너지로 재지 않으며, 게임 안에 이 등급을 보이지 않는다.",
+   "source_ref": "guideline.md:444"
+  },
+  {
+   "topic": "서막은 칸이 아니다",
+   "decision": "T0 없음. 서막의 필멸자는 칸도 '신'이라는 낱말도 받지 않고, 부르심은 칸을 주지 않는다(받은 높음 = 구별·날이 더함·눈이 열림은 칸 밖). 첫 생애는 서막 뒤 칸 1의 통치자로 선다.",
+   "source_ref": "guideline.md:446, guideline.md:88"
+  },
+  {
+   "topic": "심도(Depth)",
+   "decision": "같은 칸 안의 깊이. 심도는 칸을 넘지 못한다(가장 깊은 T3도 가장 얕은 T4 아래). 초월자 심도는 정의 데이터 FTranscendentDef.Depth(0~1, 기본 0.5, 저장·해시 없음)이고 영압의 초월자 항에만 (1+Depth) 곱. 문명·플레이어 심도는 파생·서술 전용. 넓은 제국의 압력 완충 수치는 두지 않는다('물리는 영을 못 건드린다').",
+   "source_ref": "guideline.md:448"
+  },
+  {
+   "topic": "사다리의 상한",
+   "decision": "사다리는 다섯 칸, 여섯째 칸 없음. 보좌와 무저갱은 자리가 아니라 판결. T4는 두 영역을 알고 두려워하며 이름으로 부르지 않고, T5도 저자를 이름으로 부르지 못한다. 코드에 Realm.Heaven·Realm.Abyss·T6·T0 없음(EAscensionTier 변경 없음). 두 영역의 이름은 화자 등급별로 다르다(§8.2).",
+   "source_ref": "guideline.md:452"
+  },
+  {
+   "topic": "Tier 5 두 길",
+   "decision": "받는 길 Way.Received(법칙 지키고 봉인한 뒤 통치권 반납 → 엔딩 '맡겨진 영겁') / 찬탈의 길 Way.Seized(인과율 흡수 → 엔딩 '내가 올라가리라', 게임 오버 아님). Law.Humility에 따라 어떤 Feat도 Way.Seized를 떼지 못한다. T5 직후 두 길 모두 문턱 조우 enc_threshold. Exaltation이 받는 길의 문지기(≤3 열림 / 4~6 기다림 −1 / ≥7 닫힘·낮아짐 조우). '신이 되다'·'우주와 일체화' 표현 금지. 데이터 2행 + 조우 5장 + 엔딩 템플릿(Phase 6+).",
+   "source_ref": "guideline.md:456"
+  },
+  {
+   "topic": "승천의 대가와 지각 격차",
+   "decision": "모든 등급 상승은 무언가를 바꾼다(예: T3→T4 집단 정신 승천 시 개방 축이 폐쇄로 이동, 열린 인물 기록 닫힘). 격차 1 = 설명 불가 현상, 격차 2 = 경외/공포 분기(조건 Exaltation), 격차 3+ = 인지 불가(현상 카드만). 수련은 Body/Mind를 올리되 Tier는 못 올린다 — 게임의 유일한 '답'.",
+   "source_ref": "guideline.md:460"
+  },
+  {
+   "topic": "보임 = 격 AND 앎",
+   "decision": "무엇을 얼마나 깊이 지각하는가는 격(MinTierToReveal, 영적 시야 T3), 어디까지 닿았는가는 앎이 정한다. 두 독립 술어의 논리곱이라 코드에 순서를 두지 않는다. 초월자는 만남의 대상이 아니라 격이 연다(T3 인지, T4 대면).",
+   "source_ref": "guideline.md:464"
+  },
+  {
+   "topic": "신화적 업적",
+   "decision": "경험치 누적으로는 절대 승천하지 않는다. 구간마다 통치자/방랑자 경로 최소 하나씩, 대부분 §4.1 위기와 연결. 전체 8개, VS는 T1→T3의 4개, 확장 단계에 등급당 3~4개. 조건은 생애 상대화(완료 틱 > 0 이고 현재 생애 BornTick 이상). 통치자 업적은 문명 Tier를 올리고(플레이어·AI 같은 행·같은 조건, 정착된 성계 하나를 주제로), 개인 Tier는 통치자 업적으로 오르지 않는다.",
+   "source_ref": "guideline.md:472-485"
+  },
+  {
+   "topic": "이원화 플레이",
+   "decision": "두 모드는 같은 은하·같은 이벤트 풀·같은 위기를 공유하고 콘텐츠는 한 번 만들어 두 시점에서 소비. 청원 카드는 조우 카드와 같은 FEncounterDef. PersonalTier와 Civ Tier는 별개. 첫 생애는 T1 통치자 고정, 제2대부터는 계승 추첨이 정한 성계의 방랑자로 취임.",
+   "source_ref": "guideline.md:528-530"
+  },
+  {
+   "topic": "역할 전환 네 경로",
+   "decision": "방랑자 → 경외도 높은 문명의 수호신/군주로 즉위 / 통치자 → 섭정에게 맡기고 방랑 / 통치자 → Hazard.Rebellion으로 폐위되어 모성계에 남는 몰락한 군주 / 그릇의 죽음 → 공백기 도약 → 부름이 다른 성계의 필멸자(방랑자) 위에 머문다.",
+   "source_ref": "guideline.md:516-522"
+  },
+  {
+   "topic": "성역(태양계)",
+   "decision": "sol은 다시 쓸 수 없는 다섯째 법의 성역 — 어느 백성의 소유도, 정착·넘김·주장·파괴·영향권의 대상도 아니고 압력 0. 문구는 이름 없는 수동태와 화자들의 목소리(타락 1인칭의 '울타리의 증언'). '성역 밖'은 설계 문서의 낱말이고 게임 안에 이름이 없다.",
+   "source_ref": "guideline.md:86, guideline.md:391, guideline.md:407"
+  },
+  {
+   "topic": "첫 생애 = 성역 밖 찾는 백성",
+   "decision": "첫 생애는 성역 밖 찾는 백성(가칭 arch_seeker, 두 목소리 의회·회중, 계시 양식 Revelation.Seeking)의 한 필멸자가 서막에서 부르심을 입고 그 백성을 맡는다. 인류를 다른 별로 옮기지 않는다. 책은 고넬료 사슬로 나중에 오고 그때 '옛 땅의 기억'이 열린다. arch_terran은 은퇴.",
+   "source_ref": "guideline.md:87, guideline.md:328"
+  },
+  {
+   "topic": "통치자의 정의",
+   "decision": "\"부르심을 입어 구별되고 날이 더해진 자 — 한 백성을 맡았다.\" 칸 없는 서막, 받은 높음, 날이 더해지는 그릇과 이어지는 부름.",
+   "source_ref": "guideline.md:88"
+  },
+  {
+   "topic": "현실 하늘 차용",
+   "decision": "이름과 크기는 실제 하늘에서 빌린다. 수치는 은하 패널·우주 화면 라벨에만 '약'·'추정'을 붙여 쓰고 서술자 로그·연대기·두 책·조우 문장에는 쓰지 않는다. 천체의 통용 이름은 지명처럼 쓰고, 실존 고유명사 금지 대상은 종교·국가·도시·교단·인물·천사로 좁힌다. 드레이크식 추정은 인월드에 싣지 않는다.",
+   "source_ref": "guideline.md:537, guideline.md:70, guideline.md:593"
+  },
+  {
+   "topic": "관측 목록(실제 하늘) 범위",
+   "decision": "근방의 계·행성·별 이름은 출처가 분명한 관측 스냅숏(NASA 외계행성 아카이브, IAU 별 이름, NED)에서 온다. 범위는 태양에서 VS 약 33광년(10파섹), EA 약 98광년(30파섹). 지도는 시드마다 같고 시드는 AI 백성·모성계·사건만 바꾼다. 첫 생애의 별은 시드와 무관하게 고정. 관측인 것은 별·행성·거리·등급이고 생명·백성·사건은 설정. 게임 밖 '세계관과 출처' 화면에 출처·라이선스. HYG·Gaia DR3 직접은 상업 이용 조건 확인 전 들이지 않는다.",
+   "source_ref": "guideline.md:587"
+  },
+  {
+   "topic": "환경 특성",
+   "decision": "관측된 계의 성질을 Trait.World.*(조석 고정·플레어 별·여러 해·무거운 세계·깊은 바다·빽빽한 계·오래된 별)로 계 행에 오프라인으로 적고 그곳에서 난 백성이 추첨 없이 받는다. VS에서는 로그·조우 변형만 바꾸고 수치는 DT_Traits가 올 때 정한다.",
+   "source_ref": "guideline.md:589"
+  },
+  {
+   "topic": "층을 지키는 규칙(v0.7)",
+   "decision": "보유 상한 RealmCapByTier 1/3/4/7/10(AI·플레이어 동일), 넷째 칸의 제동 AIFourthRungCap 2(AI 간이 판정 전용), 무주 성계에는 Hazard·주장이 서지 않음, 정착은 거대 프로젝트 project_settle이고 '정착된 성계'만 수입·Hazard·계승 후보·남은 자의 셈에 든다.",
+   "source_ref": "guideline.md:72"
+  },
+  {
+   "topic": "앎(Knowing) 층",
+   "decision": "판 상태는 세 층(세계 → 앎 → 이야기). 세계는 앎을 NoteMet·NoteKnown으로 쓰기만 하고 읽지 않는다. Knowing은 부름의 것이라 계승에도 남는다. 보는 거리 SightLanesByTier 1/2/4/6/10레인, 첫 접촉은 판에 한 번, 범위 밖 큰 사건은 bUntold로 쌓이고 이름 없는 먼 줄(log_far_ascent 매번, log_far_event 300틱 간격). 모르는 성계는 배경 별과 구별되지 않게 그린다.",
+   "source_ref": "guideline.md:74"
+  },
+  {
+   "topic": "난수·해시·틱 순서",
+   "decision": "난수 출처 셋(시뮬 GetRng, 말하기 TellRngState/DrawTell, 파생 정수 Derive). ComputeWorldHash는 앎·로그·연대기·말하기 스트림 제외, 해시 값은 + − × ÷ √만. 틱은 열 단계(경제 → 연구 → 외교 → 분쟁 → 위기 → AI → 건넘 → 플레이어 이동 → 앎 → 역할 효과 해소). 문명 배열 크기는 건넘 단계에서만 바뀌고 성계는 지우지 않는다.",
+   "source_ref": "guideline.md:75-76"
+  },
+  {
+   "topic": "초월자 로스터",
+   "decision": "교리 정의 4, 판당 활성(미봉인) 타락 ≤ 3, 교리마다 1체, TranscendentID == 행 이름, 타락은 은하를 건너지 않는다. '넷째 칸 이상 3~7'은 미봉인 T4 타락 ≤3 + 독립 ≤2 + T4 이상 AI 문명 ≤2로 센다(VS는 1).",
+   "source_ref": "guideline.md:38, guideline.md:73"
+  },
+  {
+   "topic": "여러 은하",
+   "decision": "상세 시뮬은 고향 은하 gal_milkyway 하나. 다리가 있는 무대 은하 4(안드로메다·삼각형자리·대마젤란·소마젤란)는 Phase 6a부터 저장 상태 없는 요약 SummaryAt, M87은 보이기만, 나머지는 풍경(그림 5,000점). DT_Galaxies 6행. 다리는 레인이 아니라 FGalaxyDef.BridgeTicks 하나. 건너는 것은 T4 이상의 백성이고 유닛이 아니라 기록 FTransitRecord. 책은 건너가지 않는다.",
+   "source_ref": "guideline.md:70, guideline.md:77"
+  },
+  {
+   "topic": "정의 스키마",
+   "decision": "Tools/data/schema.json이 행 이름·태그·텍스트 컬럼 참조 규칙과 조건·효과 열거자 46개의 쓰임을 선언하고 make_data_tables.py와 C++ 테스트가 Data.Integrity로 검사. 행 이름은 테이블 접두어를 갖고 테이블을 가로질러 유일하다.",
+   "source_ref": "guideline.md:79"
+  },
+  {
+   "topic": "UI 기술",
+   "decision": "CommonUI 대신 UMG 우선(싱글 PC 텍스트 게임에 더 가볍다, 패드 지원 시 재검토). C++ 소스는 영문, 표시 텍스트는 DataTable/String Table(FText).",
+   "source_ref": "guideline.md:147, guideline.md:149"
+  }
+ ],
+ "parameters": [
+  {
+   "name": "엔진 버전",
+   "value": "Unreal Engine 5.8.3 (EA까지 고정)",
+   "source_ref": "guideline.md:179",
+   "note": "Phase 0(2026-10-10)에서 고정"
+  },
+  {
+   "name": "한 판 길이 목표",
+   "value": "4~6시간(1배속) / 배속 사용 시 2~3시간 / 약 5시간 ≈ 18,000틱",
+   "source_ref": "guideline.md:181, guideline.md:252",
+   "note": "§2.4 합계 30+60+90+90분 = 4.5h + 서막 + 엔딩"
+  },
+  {
+   "name": "생애 기대 횟수",
+   "value": "2~5대",
+   "source_ref": "guideline.md:181, guideline.md:336"
+  },
+  {
+   "name": "서막 길이",
+   "value": "첫 판 10~15분(틱 밖), 둘째 판부터 '짧게'",
+   "source_ref": "guideline.md:181, guideline.md:327",
+   "note": "둘째 판 길이 수치 없음"
+  },
+  {
+   "name": "틱·배속",
+   "value": "1틱 = 1주기, 1x에서 1초 = 1틱; 배속 일시정지/1x/2x/5x/10x; T3 도달 시 ×25 추가",
+   "source_ref": "guideline.md:250-251"
+  },
+  {
+   "name": "년 토글",
+   "value": "1주기 = 1년, 기본 '주기', 첫 기록부터 기산, 보는 사람 설정(상태·해시 밖)",
+   "source_ref": "guideline.md:250, guideline.md:591",
+   "note": "CLAUDE.md:141에는 -TimeUnit=Year 인자"
+  },
+  {
+   "name": "공백기 도약 판 합계 상한",
+   "value": "4,500틱(25%)",
+   "source_ref": "guideline.md:252",
+   "note": "DT_Rules.json LeapTotalCap=4500, LeapTicksMin/Max 800/1600과 일치"
+  },
+  {
+   "name": "결정 빈도",
+   "value": "1배속 20~40초마다 의미 있는 결정 1회; 첫 10분 = 600틱, 결정 15~20회, Severity 2 ≥ 2회",
+   "source_ref": "guideline.md:282, guideline.md:340"
+  },
+  {
+   "name": "첫 10분 Stability 목표",
+   "value": "5:00에 초기 칙령 유지비로 0.5 근처",
+   "source_ref": "guideline.md:340"
+  },
+  {
+   "name": "Tier별 구간 길이",
+   "value": "T1 ~30분 / T2 ~60분 / T3 ~90분 / T4 ~90분 / T5 엔딩+연대기",
+   "source_ref": "guideline.md:328-332"
+  },
+  {
+   "name": "BackgroundStarCount",
+   "value": "20,000점(그림뿐)",
+   "source_ref": "guideline.md:390",
+   "note": "DT_Galaxies.json에는 이 컬럼이 없음 — 선언 위치 미확인"
+  },
+  {
+   "name": "VS 생명 성계",
+   "value": "60 = 모성계 12 + 무주 48 (+ 성역 1, v0.8 단계 4부터)",
+   "source_ref": "guideline.md:391, guideline.md:397",
+   "note": "DT_Galaxies gal_milkyway LivingWorlds=60"
+  },
+  {
+   "name": "EA 생명 성계·백성",
+   "value": "시작값 300·48, 범위 200~420 / 30~60, 예산 초과 시 200·30, Phase 5 실측 뒤 확정",
+   "source_ref": "guideline.md:397"
+  },
+  {
+   "name": "VS 백성",
+   "value": "12(플레이어 포함)",
+   "source_ref": "guideline.md:392",
+   "note": "DT_Galaxies Peoples=12"
+  },
+  {
+   "name": "넷째 칸 이상의 존재",
+   "value": "VS 1(침묵) / EA 3~7 = 미봉인 T4 타락 ≤3 + 독립 ≤2 + T4+ AI ≤2",
+   "source_ref": "guideline.md:393, guideline.md:73"
+  },
+  {
+   "name": "MaxSystems",
+   "value": "150 — 표현 계층 액터 예산으로만(시뮬 클램프 아님)",
+   "source_ref": "guideline.md:399"
+  },
+  {
+   "name": "첫 생애 행 윤리·규모",
+   "value": "윤리 0/0/+0.2, 성계 1개, 수치 이점 0, 플롯 아머 없음",
+   "source_ref": "guideline.md:407, guideline.md:42"
+  },
+  {
+   "name": "RealmCapByTier",
+   "value": "1/3/4/7/10",
+   "source_ref": "guideline.md:72, guideline.md:448",
+   "note": "DT_Rules.json 일치"
+  },
+  {
+   "name": "AIFourthRungCap",
+   "value": "2",
+   "source_ref": "guideline.md:72",
+   "note": "DT_Galaxies gal_milkyway 일치"
+  },
+  {
+   "name": "SightLanesByTier",
+   "value": "1/2/4/6/10레인",
+   "source_ref": "guideline.md:74",
+   "note": "DT_Rules.json 일치; SightIntervalTicks 10·FirstSightTick 330은 범위 밖"
+  },
+  {
+   "name": "FarLineCooldownTicks",
+   "value": "300틱",
+   "source_ref": "guideline.md:74",
+   "note": "DT_Rules.json 일치"
+  },
+  {
+   "name": "Hazard.Claim 카운트다운",
+   "value": "300틱 결정론 발생; 저장 필드·숫자 0",
+   "source_ref": "guideline.md:39"
+  },
+  {
+   "name": "ThroneLockedUntilTick",
+   "value": "600틱(반란 폐위 뒤 왕좌 잠금)",
+   "source_ref": "guideline.md:23",
+   "note": "DT_Rules.json의 노브 이름은 ThroneLockTicks=600"
+  },
+  {
+   "name": "계승 규칙",
+   "value": "가중 무작위 추첨, 개인 Tier ≥ 3 유지, Reverence ×0.5",
+   "source_ref": "guideline.md:22",
+   "note": "DT_Rules.json ReverenceDecay=0.5"
+  },
+  {
+   "name": "초월자 심도·영압 가중",
+   "value": "FTranscendentDef.Depth 0~1 기본 0.5, 영압 초월자 항 ×(1+Depth), Tier 가중 0/0/0.25/1/2, 같은 칸 격차 최대 2배",
+   "source_ref": "guideline.md:448",
+   "note": "DT_Rules.json PressureBySourceTier [0,0,0.25,1,2] 일치"
+  },
+  {
+   "name": "Exaltation 문지기",
+   "value": "≤3 받는 길 열림 / 4~6 '기다린다'(−1) 반복 / ≥7 닫힘; 귀환 수락 +2; ReturnedLivesToSeize 3",
+   "source_ref": "guideline.md:456, guideline.md:40",
+   "note": "DT_Rules.json ReturnedLivesToSeize=3"
+  },
+  {
+   "name": "지각 격차 규칙",
+   "value": "격차 1 현상 / 2 경외·공포 / 3+ 인지 불가(현상 카드만)",
+   "source_ref": "guideline.md:460"
+  },
+  {
+   "name": "업적 수",
+   "value": "전체 8(구간 4 × 통치자/방랑자), VS 4(T1→T3), 확장 시 등급당 3~4",
+   "source_ref": "guideline.md:485",
+   "note": "DT_Feats.json은 2행(feat_dyson_swarm, feat_supernova_stabilized)"
+  },
+  {
+   "name": "다이슨 스웜 조건",
+   "value": "에너지 투입 + 물리 연구 50% (T1→T2, Tier 2를 연다)",
+   "source_ref": "guideline.md:478, guideline.md:328"
+  },
+  {
+   "name": "T5 콘텐츠 수량",
+   "value": "데이터 2행 + 조우 5장(enc_threshold 1 + enc_patron_* 4) + 엔딩 템플릿",
+   "source_ref": "guideline.md:456"
+  },
+  {
+   "name": "인물 기록 상한",
+   "value": "MaxNotablesPerCiv 4, 역할당 열린 기록 1, 역할 태그 6(Ruler/Regent/Rebel/Loyalist/Hearer/Ascendant)",
+   "source_ref": "guideline.md:52",
+   "note": "DT_Rules.json 일치"
+  },
+  {
+   "name": "이름 뱅크",
+   "value": "PersonNameBank VS 5행 × 12 = 60 (arch_swarm·arch_machine은 비움)",
+   "source_ref": "guideline.md:53"
+  },
+  {
+   "name": "규모 등급",
+   "value": "EPopulationBand 6(소수·수백만·수십억·수천억·수조·셀 수 없는), Tier 기준 + PopulationBandThresholds 보정",
+   "source_ref": "guideline.md:54",
+   "note": "DT_Rules.json PopulationBandThresholds [0.15,0.5,2.0]"
+  },
+  {
+   "name": "초월자 로스터",
+   "value": "교리 정의 4 / 판당 활성 타락 ≤3 / VS 침묵 1 (FallenTranscendentCount)",
+   "source_ref": "guideline.md:38",
+   "note": "DT_Rules.json FallenTranscendentCount=1, DT_Transcendents 1행 trans_silence"
+  },
+  {
+   "name": "콘텐츠 수량(문서 선언)",
+   "value": "Hazard 8, 아키타입 VS 7(총 11), 칙령 9, 거대 프로젝트 7, 청원 VS 9, 조우·청원 합계 34",
+   "source_ref": "guideline.md:44, guideline.md:42, guideline.md:72, guideline.md:74",
+   "note": "데이터: Hazards 5, Civs 2, Megaprojects 5, 청원/조우 0"
+  },
+  {
+   "name": "GameplayTag 수",
+   "value": "136(v0.6 종료) → Phase 2에 140(Galaxy.Kind.* 4)",
+   "source_ref": "guideline.md:61, guideline.md:80"
+  },
+  {
+   "name": "로드맵 순증",
+   "value": "v0.7 +19~21 작업일(수직 슬라이스 약 5.5 → 6.5개월), v0.8 +25~36 작업일",
+   "source_ref": "guideline.md:80, guideline.md:92"
+  },
+  {
+   "name": "관측 목록 범위",
+   "value": "VS 약 33광년(10파섹) / EA 약 98광년(30파섹); 10파섹 안 행성 호스트 61계 중 53이 M형(인쇄 전 확인)",
+   "source_ref": "guideline.md:587"
+  },
+  {
+   "name": "분광형 비율(태양 근처)",
+   "value": "O 0.00003% / B 0.1% / A 0.6% / F 3% / G 8% / K 12% / M 76%",
+   "source_ref": "guideline.md:573",
+   "note": "현실 수치. LivingWorldStarShares는 설계 값이고 단계 5에 은퇴"
+  },
+  {
+   "name": "우리은하 수치",
+   "value": "별 약 1,000억~4,000억, 지름 약 8만 7천 광년(D25), 태양은 중심에서 약 2만 6천~2만 7천 광년, 주요 나선팔 2~4개(논쟁 중)",
+   "source_ref": "guideline.md:544, guideline.md:551",
+   "note": "DT_Galaxies gal_milkyway 텍스트와 동일 문장"
+  },
+  {
+   "name": "은하 거리표",
+   "value": "대마젤란 약 16만, 소마젤란 약 20만, 안드로메다 약 250만, 삼각형자리 약 270만~290만, M87 약 5,300만 광년",
+   "source_ref": "guideline.md:557-566"
+  },
+  {
+   "name": "풍경 은하",
+   "value": "그림 5,000점",
+   "source_ref": "guideline.md:70"
+  }
+ ],
+ "gaps": [
+  {
+   "what": "첫 생애 행 이름이 '가칭 arch_seeker'로 4곳에 남아 있고, 데이터(DT_Rules.PlayerArchetypeRow)는 여전히 arch_terran이다.",
+   "why_it_matters": "첫 10분의 모든 문장·청원 화자·모성계 sys_0·완화 7개가 이 행에 매달린다. 행 이름이 정해지지 않으면 단계 4b·6·7 작업과 테스트 이름을 확정할 수 없다.",
+   "source_ref": "guideline.md:87, guideline.md:328, guideline.md:407, guideline.md:530"
+  },
+  {
+   "what": "서막(부르심) 전체가 'v0.8 — 단계 6부터'이며 카드 수·장면 목록·건너뛰기·둘째 판의 '짧게' 길이·'지혜로운 마음' 청원 → ResearchFocus 프리셋 대응이 비어 있다.",
+   "why_it_matters": "플레이어가 처음 만나는 10~15분이 전부 미정이면 온보딩과 첫인상, 그리고 첫 10분 타임라인(0:00 첫 줄)이 서막과 어떻게 이어지는지를 검증할 수 없다.",
+   "source_ref": "guideline.md:181, guideline.md:251-253, guideline.md:327, guideline.md:340, guideline.md:446"
+  },
+  {
+   "what": "고넬료 사슬(방문 → 사자 → '말이 도착했다')은 단계 7이며, arch_terran 은퇴 뒤 edict_reading·책 이벤트 3종(event_book_*)·'닫힌 책' 특성의 거취가 적혀 있지 않다.",
+   "why_it_matters": "현재 데이터의 책 이벤트 3행과 칙령 9의 셈이 v0.8 뒤에도 유효한지 불명확해 데이터 정리 범위를 정할 수 없다.",
+   "source_ref": "guideline.md:42, guideline.md:87, guideline.md:340"
+  },
+  {
+   "what": "방랑자 이동 시간 '레인당 N틱'의 N이 없고, 실제 하늘 뒤 레인 거리(광년)와 주기의 환산도 'Phase 4 TravelTo 헤더, §16 #83'로 미뤄졌다.",
+   "why_it_matters": "방랑자 10분 루프의 페이싱(이동 중 조우 확률 포함)이 이 수에 달려 있고, 광년 라벨과 주기 시계가 서로 모순으로 읽히지 않으려면 규칙이 필요하다.",
+   "source_ref": "guideline.md:293, guideline.md:591"
+  },
+  {
+   "what": "조우 카드 판정 공식(능력치 판정 + 자원 비용, 선택지 2~3)과 수련 속도(Insight 소모 → 개인 능력치)가 이 범위에 수치 없이 서술만 있다.",
+   "why_it_matters": "방랑자 모드의 핵심 재미가 카드 판정인데 성공률·비용 스케일이 없으면 Phase 4 설계를 시작할 수 없다.",
+   "source_ref": "guideline.md:299, guideline.md:318"
+  },
+  {
+   "what": "'중요 이벤트 자동 일시정지 옵션'의 대상 이벤트 목록과 기본값(켜짐/꺼짐)이 없다.",
+   "why_it_matters": "20~40초당 결정 1회 페이싱과 배속 체감이 이 옵션에 좌우된다.",
+   "source_ref": "guideline.md:251"
+  },
+  {
+   "what": "'그보다 뜸하면 위기 생성 빈도를 올린다'는 적응형 페이싱 규칙의 노브·측정 창·상한이 없다.",
+   "why_it_matters": "DF식 '스토리텔러' 페이싱을 차용한다고 했지만(229행) 디렉터 로직이 정의되지 않아 결정 빈도 목표가 검증 불가능하다.",
+   "source_ref": "guideline.md:282, guideline.md:229"
+  },
+  {
+   "what": "EA 수(성계 200~420, 백성 30~60)는 'Phase 5 실측 뒤 확정'이며, 표현 계층 액터 예산 MaxSystems 150과의 관계는 '경고를 낸다'로만 적혀 있다.",
+   "why_it_matters": "EA 300 성계는 150 예산의 두 배라 뷰포트 설계(LOD·인스턴싱·요약 노드)를 미리 정하지 않으면 Phase 3 결과물이 EA에서 못 쓰게 된다.",
+   "source_ref": "guideline.md:397, guideline.md:399"
+  },
+  {
+   "what": "§3.4의 현실 수치에 '인쇄 전 확인' 표지가 3곳(대·소마젤란 별 수, 33/98광년 안 계 수, 10파섹 내 61/53).",
+   "why_it_matters": "SSoT 안에 미검증 사실이 남아 있고, DT_Galaxies 텍스트가 같은 문장을 그대로 쓰므로 출시 전 수정 지점을 추적해야 한다.",
+   "source_ref": "guideline.md:549, guideline.md:587"
+  },
+  {
+   "what": "관측 목록의 출처·라이선스(Tools/data/sources/ README, HYG·Gaia DR3 상업 이용 조건)가 '확인 전 들이지 않는다'로만 적혀 있고 실제 채택 목록이 없다.",
+   "why_it_matters": "Steam 출시 제품에 실제 천체 데이터를 넣으려면 라이선스 호환이 선결 조건이다.",
+   "source_ref": "guideline.md:587"
+  },
+  {
+   "what": "환경 특성 Trait.World.*의 수치 효과는 'DT_Traits가 올 때' 정한다고 했으나 DT_Traits 테이블 자체가 아직 없다(데이터 폴더에 없음).",
+   "why_it_matters": "VS에서는 문장 변형만 바뀌므로 환경 특성이 플레이에 영향을 주지 않아 '실제 하늘'의 게임플레이 가치가 서술에 그친다.",
+   "source_ref": "guideline.md:589, guideline.md:79"
+  },
+  {
+   "what": "T2→T3 방랑자 업적 '초신성 에너지 단독 흡수'는 '근방에 초신성 후보가 없다'며 Phase 4 헤더로 미뤄졌고, 연결 위기 Hazard.PreSupernova도 실제 하늘(M형 적색왜성 대부분)과 맞지 않는다.",
+   "why_it_matters": "VS 업적 4개 중 하나가 실제 하늘 결정과 충돌한 채 열려 있고, 통치자 쪽만 '별 등급마다 문구'로 재조정되었다.",
+   "source_ref": "guideline.md:479, guideline.md:587"
+  },
+  {
+   "what": "T4→T5 통치자 업적 '은하 법칙 3개를 N틱 이상 유지'의 N과 '법 제정·유지' 메커니즘이 범위 안에 없다.",
+   "why_it_matters": "ImmutableLaws 4종은 데이터에 있지만 플레이어가 법을 세우고 지키는 행동이 정의되지 않으면 T4 구간 90분의 내용이 비어 있다.",
+   "source_ref": "guideline.md:481, guideline.md:438"
+  },
+  {
+   "what": "T3 '성계 간 즉시 도약(쿨다운)'의 쿨다운 값과 T4 '손짓 테라포밍'·'인과율 병기'의 규칙이 없다.",
+   "why_it_matters": "T3~T4 구간(합 180분)의 플레이어 능력이 표의 한 칸으로만 존재한다.",
+   "source_ref": "guideline.md:436-437"
+  },
+  {
+   "what": "영압의 문명 항·방랑자 항에 심도를 곱하지 않는 결정은 'Phase 5에 §12.3으로 다시 본다'로 보류.",
+   "why_it_matters": "영압 공식이 Phase 5에 바뀔 수 있어 밸런스 커맨드렛 결과가 흔들린다.",
+   "source_ref": "guideline.md:448"
+  },
+  {
+   "what": "첫 10분의 1:30 징조 줄과 서막 카드 2의 같은 계시 양식 [0] 중복은 '단계 6 텍스트 감사에서 정한다'.",
+   "why_it_matters": "첫인상 문장이 되풀이되는 문제이며 서막 설계와 함께 정해야 한다.",
+   "source_ref": "guideline.md:340"
+  },
+  {
+   "what": "첫 생애의 별(sys_0)이 어느 실제 별인지 §16 #92로 열려 있고 '시드와 무관하게 고정'만 정해졌다.",
+   "why_it_matters": "모성계 이름·행성 목록·이웃 보장 규칙(5:30 첫 접촉)이 이 선택에 달려 있다.",
+   "source_ref": "guideline.md:587, guideline.md:340"
+  },
+  {
+   "what": "플레이어 자신의 은하 건넘은 'Phase 6b의 계획 후보(§16 #47)'로만 있다.",
+   "why_it_matters": "'은하 여럿'을 내건 비전에서 플레이어가 실제로 다른 은하에 갈 수 있는지가 미정이라 Phase 6 범위를 정할 수 없다.",
+   "source_ref": "guideline.md:77"
+  },
+  {
+   "what": "윤리 3축의 값 범위·스케일이 범위 안에 없고 '0/0/+0.2'만 예시로 등장한다.",
+   "why_it_matters": "아키타입 행 작성과 승천의 대가(개방 축 이동)의 크기를 정하려면 축의 범위가 먼저 필요하다(§5.2 확인 필요).",
+   "source_ref": "guideline.md:405, guideline.md:407"
+  },
+  {
+   "what": "문명 AI 정책 프로필이 본문에는 '보수/확장/학구/군사'로, 데이터 DT_Rules.LureAcceptByPolicy 키는 Cautious/Reckless/Faithful/Tribute로 다른 어휘다.",
+   "why_it_matters": "같은 개념인지 별개인지 명시가 없어 아키타입 행의 AI 프로필 컬럼 값을 정할 수 없다.",
+   "source_ref": "guideline.md:413, guideline.md:407"
+  },
+  {
+   "what": "'죽음은 게임 오버가 아니다'를 약속하지만 제2대부터의 방랑자 취임(계승 추첨)은 방랑자 루프(Phase 4)와 함께 미구현이다.",
+   "why_it_matters": "현재 빌드에서 그릇이 죽으면 이어서 할 플레이가 없어 핵심 차별점 (3)이 아직 체험 불가능하다.",
+   "source_ref": "guideline.md:234, guideline.md:530, guideline.md:522"
+  },
+  {
+   "what": "심도가 UI에 어떻게 읽히는지(문명 '다음 칸까지' 등)는 범위 안에 없고 '심도가 읽히는 곳은 문장'으로만 적혀 있다.",
+   "why_it_matters": "플레이어가 승천 진행도를 체감할 피드백 장치가 문서상 서술 한 줄뿐이다.",
+   "source_ref": "guideline.md:448"
+  },
+  {
+   "name": "영적 시야 토글",
+   "what": "T3 해금 '영적 시야 토글'은 §6.4로 넘기고 이 범위에는 '보이는 것의 보기 방식만 바꾼다'로만 적혀 있다.",
+   "why_it_matters": "T3 구간의 유일한 새 UI 장치인데 무엇이 달라 보이는지 정의가 없다.",
+   "source_ref": "guideline.md:436, guideline.md:464"
+  },
+  {
+   "what": "§16 미결 번호(#3, #19~#31, #33~#40, #41~#51, #47, #82, #83, #92)가 범위 안에서 수십 건 인용되며 이 범위에서는 해소 여부를 알 수 없다.",
+   "why_it_matters": "미결 목록이 문서 끝(4406행~)에 떨어져 있어 본문을 읽는 동안 어느 결정이 잠정인지 판별하기 어렵다.",
+   "source_ref": "guideline.md:58-62, guideline.md:80, guideline.md:250, guideline.md:587, guideline.md:591"
+  }
+ ],
+ "duplication": [
+  {
+   "what": "VS/EA 수(성계 60=12+48, 백성 12, EA 300·48)와 'NewGalaxy 수 인자 0이 DT_Galaxies를 읽는다' 규칙",
+   "also_in": "v0.7 변경 요약(guideline.md:71) ↔ §3.1 본문(guideline.md:391-397) ↔ CLAUDE.md:253",
+   "source_ref": "guideline.md:71, guideline.md:397"
+  },
+  {
+   "what": "'게임의 수(백성 30~80, 생명 성계 수백, 넷째 칸 이상 3~7)는 현실 추정이 아니라 설계 값' 문장",
+   "also_in": "같은 문장이 범위 안에서 3회(guideline.md:78, 395, 585)",
+   "source_ref": "guideline.md:78, guideline.md:395, guideline.md:585"
+  },
+  {
+   "what": "'년' 토글 규칙(1주기=1년, 첫 기록부터, 기본 '주기', 상태·해시 밖)",
+   "also_in": "guideline.md:89(v0.8 요약) ↔ 250 ↔ 253 ↔ 591 ↔ CLAUDE.md:35 ↔ WORKPLAN.md:176 ↔ v08_agent_directive.md:53",
+   "source_ref": "guideline.md:250"
+  },
+  {
+   "what": "요약 단위 원칙과 숫자 허용 범위(서술 = 주기·비율 / UI = 자원·Stability, 천체 수치는 라벨에만)",
+   "also_in": "guideline.md:51(v0.6 요약) ↔ §1.3 193 ↔ CLAUDE.md:35(거의 축자) ↔ CLAUDE.md:248",
+   "source_ref": "guideline.md:193"
+  },
+  {
+   "what": "첫 생애 행 '가칭 arch_seeker — 성역 밖 찾는 백성. v0.8 — 단계 4b부터. 그 전의 코드는 arch_terran 지구·sol' 설명 괄호",
+   "also_in": "guideline.md:87, 328, 407, 530에 4회 반복 ↔ WORKPLAN.md:65, 194",
+   "source_ref": "guideline.md:328"
+  },
+  {
+   "what": "보유 상한 RealmCapByTier 1/3/4/7/10",
+   "also_in": "guideline.md:72(v0.7 요약) ↔ 434-435(Tier 표) ↔ 448(심도 문단) ↔ CLAUDE.md:253",
+   "source_ref": "guideline.md:448"
+  },
+  {
+   "what": "'칸은 업적으로만 오른다 / 수련은 Body·Mind를 올리되 Tier는 못 올린다'",
+   "also_in": "guideline.md:444, 448, 460, 472에 4회",
+   "source_ref": "guideline.md:460"
+  },
+  {
+   "what": "'T5도 저자를 이름으로 부르지 못한다 / 여섯째 칸 없음 / Realm.Heaven·Abyss·T6·T0 없음'",
+   "also_in": "guideline.md:37(v0.5 요약) ↔ 438(Tier 표) ↔ 452(사다리의 상한 문단)",
+   "source_ref": "guideline.md:452"
+  },
+  {
+   "what": "서막이 틱 밖이고 첫 판 10~15분이라는 사실",
+   "also_in": "guideline.md:181, 251, 253, 327, 340, 446에 반복",
+   "source_ref": "guideline.md:181"
+  },
+  {
+   "what": "§0 '초안(v0.1) 검토 결과' 표 — v0.2 시점의 변경 사유 15건",
+   "also_in": "변경 이력(20~92행)과 같은 성격의 역사 기록이 본문 §0으로 남아 있음; 그 보완 내용은 §2·§4·§7·§9·§12·§14의 본문에 이미 들어 있다",
+   "source_ref": "guideline.md:128-152"
+  },
+  {
+   "what": "v0.4~v0.7 변경 요약의 결정 항목(이중 계·거룩한 질서·인물 기록·앎·다리)",
+   "also_in": "CLAUDE.md:248-253 '현재 단계 기록'이 같은 변경 요약을 다시 서술",
+   "source_ref": "guideline.md:20-80"
+  },
+  {
+   "what": "§3.4 은하별 별 수·거리·특징 문장('주요 나선팔 2~4개(논쟁 중)', '약 250만 광년' 등)",
+   "also_in": "Tools/data/DT_Galaxies.json의 StarCountText·DistanceText·FeatureText에 같은 문장",
+   "source_ref": "guideline.md:544-566"
+  },
+  {
+   "what": "v0.8의 결정(성역·첫 생애·통치자 정의·시간·실제 하늘·대도감·일정)",
+   "also_in": "guideline.md:84-92 요약 ↔ v08_agent_directive.md §1~§3 ↔ v08_rulings.md A.0~A.4·C.1~C.11·D.3 'v0.8 확정' ↔ §16 v0.8 확정(guideline.md:4587)",
+   "source_ref": "guideline.md:84-92"
+  },
+  {
+   "what": "'계 태그 = 소속, Tier 의미론 = 보임' 정의",
+   "also_in": "guideline.md:442이 §15 용어집에 같은 정의를 고정한다고 명시 — 두 곳에 동일 정의",
+   "source_ref": "guideline.md:442"
+  },
+  {
+   "what": "'요약 단위 원칙의 코드 쪽 거울이 §12.2' — 같은 금지 목록이 §1.3과 §12.2에 각각",
+   "also_in": "guideline.md:193 ↔ §12.2(4066행~)",
+   "source_ref": "guideline.md:193"
+  }
+ ],
+ "contradictions": [
+  {
+   "a": "§1.3: 생명 성계·백성·아는 것의 수는 UI에도 숫자로 쓰지 않고, 서술의 숫자는 주기·비율뿐이며 실존 천체는 태양 근방 33/98광년 관측 목록에서 고른다 (guideline.md:193, 587)",
+   "b": "§3.1 예시 로그: \"베텔게우스 성계의 … 생산량이 150% 증가했습니다.\" / \"오리온 성운의 문명이 … 인근 3개 성계와 상업 연합을 결성했습니다.\" (guideline.md:415-416)",
+   "note": "예시가 성계 수('3개 성계')를 서술에 쓰고, 베텔게우스(~550광년)·오리온 성운(~1,300광년)은 v0.8 관측 범위 밖이다. v0.6·v0.8 이전에 쓰인 낡은 예시로 보이며 §3.1은 갱신되지 않았다."
+  },
+  {
+   "a": "v0.7 요약: \"1틱 = 1 주기이고 주기는 해로 환산하지 않는다\" (guideline.md:69)",
+   "b": "v0.8 §2.1: \"UI는 1주기를 1년으로 보일 수 있다 … '주기'↔'년' 토글\" (guideline.md:250, 253)",
+   "note": "표시 전용으로 완화된 것이지만 v0.7 요약 문장은 수정되지 않아 이력과 본문이 어긋난다. 변경 이력이 본문 안에 있어 생기는 전형적 문제."
+  },
+  {
+   "a": "v0.4 요약: \"은하당 저장 슬롯 1개(아이언맨)\" (guideline.md:22)",
+   "b": "v0.7 요약·§1.2: \"저장은 판당 슬롯 1개(옛 '은하당')\", \"한 판 = 우주 시드 1개\" (guideline.md:69, 181)",
+   "note": "이력 문장이 옛 결정을 그대로 품고 있다. v0.7이 '은하는 하나다'를 지우며 단위가 바뀌었다."
+  },
+  {
+   "a": "v0.8 §3.1·§4.5: sol은 성역 — 소유·정착·주장 불가, 생명 성계 60 + 성역 1, 첫 생애 모성계는 sys_0 (guideline.md:86, 391, 340)",
+   "b": "현행 코드·데이터: 첫 생애는 arch_terran 지구·sol이고 sol이 플레이어 소유 모성계 (guideline.md:328, 407, 530 '그 전의 코드는'; Tools/data/DT_Rules.json PlayerArchetypeRow=\"arch_terran\")",
+   "note": "문서 자체가 '그 전의 코드는'으로 과도기를 표시하지만, SSoT가 선언한 규칙과 실행 중인 빌드가 정면으로 다르다(16회 표지). 통폐합 시 '현행 빌드 기준'과 '목표 설계'를 분리해야 한다."
+  },
+  {
+   "a": "v08_agent_directive.md:9, 19: 첫 생애의 백성 = \"태양계 밖 외계 백성(arch_default, 계시 양식 '찾음')\"",
+   "b": "guideline.md:407, 87, 328: 첫 생애 행은 새 행 가칭 arch_seeker이고 arch_default는 'AI 무작위 문명'으로 남는다 (WORKPLAN.md:65, 194도 arch_seeker)",
+   "note": "지시서는 arch_default를 첫 생애 행으로 지목하지만 가이드라인·워크플랜은 별도 행을 신설한다. 지시서 2.1 끝의 '첫 생애 백성 행을 새로 작성' 승인과는 맞으므로 지시서의 행 이름 표기가 느슨한 것이지만, 어느 행이 첫 생애인지 한 줄로 확정이 필요하다."
+  },
+  {
+   "a": "§3.1: MaxSystems 150은 표현 계층 액터 예산 (guideline.md:399)",
+   "b": "§3.1: EA 시작값 생명 성계 300(범위 200~420) (guideline.md:391, 397)",
+   "note": "EA 목표가 액터 예산의 2배다. 문서는 '넘었을 때 경고'만 적고 해결책(요약 노드·LOD·인스턴싱·예산 상향)을 정하지 않았다."
+  },
+  {
+   "a": "§3.2 Tier 표: T3 방랑자 '성계 간 즉시 도약(쿨다운)', T4 문명 '웜홀 게이트' 등 (guideline.md:436-437)",
+   "b": "§3.4: 실제 하늘 뒤 \"레인은 몇 광년이라 배는 빛보다 느리고 … 다리는 여전히 빛보다 빠르다(넷째 칸의 일)\" (guideline.md:591)",
+   "note": "초광속은 넷째 칸의 일이라 했는데 T3 개인에게 '즉시 도약'이 열린다. '도약'이 배가 아닌 영적 권능이라는 해석이면 모순이 아니지만 본문에 그 구분이 없다."
+  },
+  {
+   "a": "§3.2 업적 표: T2→T3 방랑자 '초신성 에너지 단독 흡수', 연결 위기 Hazard.PreSupernova (guideline.md:479)",
+   "b": "§3.4: 근방(33/98광년)은 M형 적색왜성이 대부분이고 '근방에 초신성 후보가 없다' (guideline.md:479 괄호, 587)",
+   "note": "문서 스스로 충돌을 인정하고 Phase 4로 미뤘다. 데이터의 feat_supernova_stabilized·crisis_pre_supernova 이름도 실제 하늘과 맞지 않게 된다."
+  },
+  {
+   "a": "변경 이력: DT_Civs 11행(VS 6 + EA 5) → 아키타입 11 → VS 7, Hazard 8, 거대 프로젝트 7, 업적 VS 4, 칙령 9, 청원 9 (guideline.md:26, 31, 42, 44, 72, 74)",
+   "b": "Tools/data 실제: DT_Civs 2(arch_terran, arch_default), DT_Hazards 5, DT_Megaprojects 5, DT_Feats 2, 청원·조우 0 (과제 오리엔테이션 집계와 동일)",
+   "note": "문서가 'VS 수량'으로 선언한 값과 현존 데이터의 차이가 크고, v0.8에서 arch_terran 은퇴 뒤 VS 아키타입 수는 재진술되지 않았다. 문서의 수량은 '목표'이지 '현재'가 아님을 명시해야 한다."
+  },
+  {
+   "a": "§3.1·§3.4: 게임의 설계 값은 백성 30~80, 생명 성계 수백, 넷째 칸 이상 3~7 (guideline.md:78, 395, 585)",
+   "b": "§3.1: VS는 성계 60·백성 12·넷째 칸 이상 1(침묵) (guideline.md:391-393, 397 \"VS의 백성 12는 '30~80'에 못 미친다\")",
+   "note": "문서가 인정하는 간극이지만 '설계 값' 문장이 3회 반복되어 VS가 설계 값을 위반하는 것처럼 읽힌다. '설계 값 = EA 목표'로 한정해야 한다."
+  },
+  {
+   "a": "§1.2: 한 판 4~6시간(1배속), 배속 사용 시 2~3시간 (guideline.md:181)",
+   "b": "§2.1·§2.2: 중요 이벤트 자동 일시정지, 20~40초마다 결정 1회(600틱에 15~20회), T3부터 ×25 (guideline.md:251, 282, 340)",
+   "note": "결정 밀도가 시간당 90~180회이면 실제 소요 시간은 배속이 아니라 결정 수에 묶인다. ×25 배속에서 T3~T4 구간(180분 분량 틱)이 몇 분에 지나가는지와 결정 빈도 목표의 관계가 셈해지지 않았다."
+  },
+  {
+   "a": "§2.4: 서막의 이름이 '서막 (부르심)' — 서막 = 부르심 (guideline.md:327, 88 '칸 없는 서막')",
+   "b": "§2.1: 시간의 세 단 '서막 → 부르심(1초에 1해, ×10까지) → 셋째 칸' — 부르심 = 서막 뒤의 본 게임 구간 (guideline.md:253)",
+   "note": "'부르심'이 프롤로그와 본편 첫 구간 두 뜻으로 쓰인다. 용어집에서 하나로 고정해야 한다."
+  },
+  {
+   "a": "§3.2: 보유 상한 'RealmCapByTier 1/3/4/7/10' 등 모든 노브는 DT_Rules에 (guideline.md:72)",
+   "b": "변경 이력은 왕좌 잠금을 상태 필드 이름 'ThroneLockedUntilTick(600틱)'으로 부른다 (guideline.md:23); 데이터의 노브는 ThroneLockTicks=600 (DT_Rules.json)",
+   "note": "오류는 아니지만 상태 필드와 규칙 노브가 같은 숫자를 다른 식별자로 불러 독자가 노브 이름을 찾지 못한다."
+  },
+  {
+   "a": "문서 머리: v0.8이 '옛 §17 흡수' (guideline.md:13, 84); 지시서 제목 '(guideline.md §17)'",
+   "b": "같은 이력: §17은 v0.4에서 채택·삭제(29행) → 같은 날 새 §17 초안(30행) → v0.5에서 채택·삭제(44행) → v0.8에서 또 '옛 §17' (84행); 목차에 §17 없음 (guideline.md:104-121)",
+   "note": "'옛 §17'이 세 개의 서로 다른 제안을 가리킨다. 이력 문장을 읽는 사람이 어느 §17인지 알 수 없다."
+  }
+ ],
+ "implemented_status": [
+  {
+   "feature": "Phase 0 셋업 — UE 5.8.3 고정, C++ 모듈 Cosmic_Ascension, 빌드 경로",
+   "status": "implemented",
+   "evidence": "guideline.md:13, guideline.md:179"
+  },
+  {
+   "feature": "Phase 1 헤더(Core/CosmicTypes.h, Core/GalaxyState.h, Data/CosmicConditionTypes.h, Data/CosmicDefinitionRows.h) + 3관점 리뷰",
+   "status": "implemented",
+   "evidence": "guideline.md:58"
+  },
+  {
+   "feature": "시뮬 코어(SimulateTick, SyncRngState, GetRules, SetTimeScale(0) 일시정지)·데이터 계층(/Game/CA/Data/DT_*, GetTables/SetTables)·로그 Push/PushRow·패널·게임 모드·커맨드렛·테스트",
+   "status": "implemented",
+   "evidence": "guideline.md:59-62 (Phase 1 종료 리뷰 55건 → CONFIRMED 53)"
+  },
+  {
+   "feature": "CosmicSeed::Derive (Core/CosmicSeed.h, 식·상수·기준값 5개 동결)",
+   "status": "implemented",
+   "evidence": "guideline.md:69"
+  },
+  {
+   "feature": "Tools/data/schema.json + make_data_tables.py + Data.Integrity 테스트, 원본 해시 generated.sha1",
+   "status": "implemented",
+   "evidence": "guideline.md:79, guideline.md:62"
+  },
+  {
+   "feature": "GameplayTag 136개(Effect.KillPlayer·Effect.DeposeRuler 포함); Galaxy.Kind.* 4개로 140",
+   "status": "implemented",
+   "evidence": "guideline.md:61, guideline.md:80"
+  },
+  {
+   "feature": "Phase 2 — 이벤트·위기·승천(Phase 2 종료 리뷰 언급), Hazard.Claim 골격(Phase 2), 콘텐츠는 Phase 4",
+   "status": "partial",
+   "evidence": "guideline.md:39, guideline.md:72"
+  },
+  {
+   "feature": "정착 거대 프로젝트 project_settle, 보유 상한 RealmCapByTier, AIFourthRungCap, FallenCoreMinLanesFromHome",
+   "status": "implemented",
+   "evidence": "guideline.md:72 (데이터 DT_Megaprojects에 project_settle, DT_Rules에 노브 존재)"
+  },
+  {
+   "feature": "앎(Knowing) 층 — NoteMet/NoteKnown, SightLanesByTier, log_contact/log_first_contact, bUntold, log_far_event/log_far_ascent, Sim.KnowingInert",
+   "status": "implemented",
+   "evidence": "guideline.md:74-75 (DT_LogTemplates에 해당 행 존재)"
+  },
+  {
+   "feature": "여러 은하 DT_Galaxies 6행(FGalaxyDef), 은하 종류 태그",
+   "status": "implemented",
+   "evidence": "guideline.md:70, guideline.md:397"
+  },
+  {
+   "feature": "시간 표시 '주기'↔'년' 토글(상단 바 시계, 기본 '주기')",
+   "status": "implemented",
+   "evidence": "guideline.md:250 \"(v0.8 단계 2, 2026-10-18)\", guideline.md:253 \"'년' 토글은 단계 2에서 들어왔다\""
+  },
+  {
+   "feature": "배속 0/1/2/5/10",
+   "status": "implemented",
+   "evidence": "guideline.md:251 (Phase 3 완료 범위, 오리엔테이션 '배속')"
+  },
+  {
+   "feature": "셋째 칸 ×25 배속 단",
+   "status": "missing",
+   "evidence": "guideline.md:251 \"v0.8 — Phase 3 꼬리부터\", guideline.md:89"
+  },
+  {
+   "feature": "중요 이벤트 자동 일시정지 옵션",
+   "status": "unknown",
+   "evidence": "guideline.md:251 (구현 시점 표지 없음)"
+  },
+  {
+   "feature": "성역 sol(다섯째 법, 소유·정착·주장·파괴 불가, 압력 0)",
+   "status": "missing",
+   "evidence": "guideline.md:86, guideline.md:391 \"v0.8 — 단계 4부터\""
+  },
+  {
+   "feature": "첫 생애 행 arch_seeker(성역 밖 찾는 백성, 모성계 sys_0), arch_terran 은퇴",
+   "status": "missing",
+   "evidence": "guideline.md:87, guideline.md:328, guideline.md:407 \"v0.8 — 단계 4b부터. 그 전의 코드는 arch_terran 지구·sol\""
+  },
+  {
+   "feature": "서막(부르심) — 틱 밖 카드 장면, 개국 청원 '지혜로운 마음'",
+   "status": "missing",
+   "evidence": "guideline.md:181, guideline.md:327, guideline.md:340, guideline.md:446 \"v0.8 — 단계 6부터\""
+  },
+  {
+   "feature": "고넬료 사슬(방문 → 사자 → 책 도착, '옛 땅의 기억' 해금)",
+   "status": "missing",
+   "evidence": "guideline.md:87, guideline.md:340 \"사슬은 단계 7\""
+  },
+  {
+   "feature": "실제 하늘 — 관측 목록(VS 33광년/EA 98광년), DT_Planets, 별 등급별 위기 문구, Trait.World.*, LivingWorldStarShares 은퇴, '세계관과 출처' 화면",
+   "status": "missing",
+   "evidence": "guideline.md:90, guideline.md:391, guideline.md:395, guideline.md:587-593 \"v0.8 — 단계 5부터\""
+  },
+  {
+   "feature": "첫 10분 타임라인 — 첫 줄 \"{HomeSystem}. 이 백성이 당신에게 맡겨졌다.\", 징조 줄 Log.Sign, 첫 접촉 청원",
+   "status": "partial",
+   "evidence": "guideline.md:340 (현행 첫 줄은 \"태양계. 당신은 이 행성의 통치자다.\"; 징조 줄 단계 7, 청원 Phase 4)"
+  },
+  {
+   "feature": "청원 카드(Petition) 및 petition_first_contact, 통치자 모드 조우 카드 소비",
+   "status": "missing",
+   "evidence": "guideline.md:284, guideline.md:74, guideline.md:340 \"Phase 4부터\""
+  },
+  {
+   "feature": "방랑자 루프 — 레인 이동 TravelTo, 조우 카드, 수련, 유물·권능, 스캔",
+   "status": "missing",
+   "evidence": "guideline.md:293-318, guideline.md:591 \"Phase 4 TravelTo 헤더\""
+  },
+  {
+   "feature": "방랑자 경로 업적 판정(항성 코로나 잠수 등) 및 첫 방랑자 업적 행",
+   "status": "missing",
+   "evidence": "guideline.md:485 \"방랑자 경로의 판정은 첫 방랑자 업적 행과 함께 Phase 4\""
+  },
+  {
+   "feature": "통치자 업적 다이슨 스웜(T1→T2)·항성 안정화(T2→T3) 판정 EvaluateFeats",
+   "status": "implemented",
+   "evidence": "guideline.md:478-479, guideline.md:485 (DT_Feats feat_dyson_swarm·feat_supernova_stabilized; 오리엔테이션 '승천 연출')"
+  },
+  {
+   "feature": "T3→T4·T4→T5 업적(차원 방주 이주, 아공간 균열 봉합, 법칙 유지+봉인) 및 Hazard.Extinction·Hazard.SubspaceErosion",
+   "status": "missing",
+   "evidence": "guideline.md:480-481, guideline.md:485 \"VS는 T1→T3 구간의 4개\" (DT_Hazards에 해당 위기 없음)"
+  },
+  {
+   "feature": "Tier 5 두 길 콘텐츠 — enc_threshold, enc_patron_* 4, 엔딩 '맡겨진 영겁'·'내가 올라가리라', Path별 T3→T4 Feat 변형",
+   "status": "missing",
+   "evidence": "guideline.md:456 \"(Phase 6+)\", guideline.md:485"
+  },
+  {
+   "feature": "회귀 교리 Doctrine.Recurrence 행, 천상 사자 trans_covenant 행",
+   "status": "missing",
+   "evidence": "guideline.md:38 \"행은 Phase 6+\" (DT_Transcendents는 trans_silence 1행)"
+  },
+  {
+   "feature": "다리와 건넘 — SummaryAt 요약 은하, FTransitRecord, project_crossing",
+   "status": "missing",
+   "evidence": "guideline.md:70, guideline.md:77 \"Phase 6a, EA 출시 빌드\""
+  },
+  {
+   "feature": "플레이어 자신의 은하 건넘",
+   "status": "unknown",
+   "evidence": "guideline.md:77 \"Phase 6b의 계획 후보(§16 #47)\""
+  },
+  {
+   "feature": "영적 시야 토글(T3 해금)",
+   "status": "partial",
+   "evidence": "guideline.md:436, guideline.md:464 (§6.4로 위임; WORKPLAN.md:55 'Phase 3 꼬리 영적 시야 파라미터')"
+  },
+  {
+   "feature": "EA 규모(성계 300·백성 48·활성 타락 ≤3) 확정",
+   "status": "missing",
+   "evidence": "guideline.md:397 \"Phase 5 실측 뒤 확정\""
+  },
+  {
+   "feature": "환경 특성 수치(DT_Traits)",
+   "status": "missing",
+   "evidence": "guideline.md:589 \"수치는 DT_Traits가 올 때 정한다\""
+  }
+ ],
+ "player_facing": [
+  "한 줄 피치: 문명들이 스스로 흥망하는 텍스트 시뮬레이션 위에서 성역 밖 먼 별의 필멸자로 시작해 부르심을 입어 한 백성을 맡고, 군주 또는 방랑자로 우주적 사건에 개입해 존재의 격을 다섯 단계로 끌어올린다. 그릇이 쓰러져도 판은 끝나지 않는다 (guideline.md:168)",
+  "약속하는 재미의 축: 결정은 '수치 하나 바꾸기 또는 프로젝트 하나 켜기'이고 미세 관리가 없다. 1배속 20~40초마다 의미 있는 결정 하나가 부름에게 닿은 사건으로 온다 (guideline.md:282-283)",
+  "통치자 루프: 로그 피드 누적 → 자동 일시정지 → 연구 중점·외교 태세/조약·칙령·거대 프로젝트·함대 배치·위기 대응 결정 → 재개 → 결과가 로그로 돌아옴 → 위기 → 업적 기회 → 승천 (guideline.md:262-276)",
+  "통치자가 보는 유일한 지표는 Stability 하나이고 로그에는 지표 숫자가 없다(주기·비율만). T1에서 빈 결정 자리는 청원 카드(의회·회중의 파벌 청원)가 채운다 (guideline.md:284, 340)",
+  "방랑자 루프: 지도에서 성계 선택 → 레인 이동(도중 조우) → 조우 카드(선택지 2~3, 능력치 판정 + 자원 비용) → 유물·권능·개인 자원 → 스캔 → 위기 성계 발견 → 개입 → 업적 → 승천 또는 실패와 그 흔적. 전투 없음, 수련은 머무는 동안 자동 (guideline.md:293-318)",
+  "배속 0/1/2/5/10, T3부터 ×25. 중요 이벤트(위기·업적 기회·조우) 자동 일시정지 옵션. 상단 바 시계를 눌러 '주기'↔'년' 표시 전환 (guideline.md:250-251)",
+  "한 판의 호: 서막 10~15분(필멸자의 평범한 일, 첫 영적 문장, 고향의 시련, 꿈의 유혹, 밤의 부름) → T1 행성의 시대 ~30분(작은 세계, 첫 청원·위기·징조·다이슨 스웜, 떠날 수 있다는 알림) → T2 성간 시대 ~60분(지도 확장, 마찰, 항성 안정화, 반란) → T3 인과의 시대 ~90분(타락 초월자 인지, 경쟁 승천 문명, 영적 시야, 죽음을 넘는 Tier) → T4 초월 ~90분(세계를 바꾸는 힘과 대가, 경배의 유혹) → T5 영겁(로그가 신화로 재편집된 연대기, 받는 길과 찬탈의 길) (guideline.md:327-332)",
+  "첫 10분 각본: 0:00 \"{HomeSystem}. 이 백성이 당신에게 맡겨졌다.\" → 파벌 청원 → 연구 슬라이더 안내 → 징조 줄 → 첫 Hazard(AI 각성, 카운트다운 UI 학습) → 첫 웅성거림(Stability 0.5 근처) → 첫 접촉(이웃 백성) → 불만 파벌 청원 → \"첫 함선이 준비되었다. 당신은 떠날 수도 있다.\" → 첫 돌파 또는 AI 각성 결말 (guideline.md:340)",
+  "마찰의 출처는 성장 속도가 아니라 사망 가능성과 세계 비용이다. 그릇이 쓰러지면 공백기 도약을 거쳐 다른 성계의 필멸자(방랑자) 위에서 부름이 이어지고, 그동안 세계는 혼자 흘러간다. 기대 2~5대 (guideline.md:336, 234, 522)",
+  "역할 전환 체험: 경외도 높은 문명의 수호신/군주로 즉위, 섭정에게 맡기고 방랑, 반란으로 폐위되어 모성계에 남는 몰락한 군주 (guideline.md:516-520)",
+  "승천은 경험치가 아니라 세계에 거대한 파동을 남기는 사건(다이슨 스웜, 항성 안정화, 차원 방주 이주, 타락 초월자 봉인, 코로나 잠수, 초신성 흡수, 아공간 균열 봉합, 정신의 닻)으로만 일어난다 (guideline.md:472-481)",
+  "승천의 대가: 등급 상승마다 무언가를 잃는다(개방 축 폐쇄화, 개인성 특성 소실, 인물 기록 닫힘). 수련은 Body/Mind를 올리되 Tier는 못 올린다 — '유일한 답' (guideline.md:460)",
+  "상위 존재의 지각 연출: 격차 1 = 기후 이상·통신 잡음 같은 설명 불가 현상, 격차 2 = 경외 또는 공포 분기 카드, 격차 3+ = \"아무도 그것을 보지 못했다\" (guideline.md:460)",
+  "T5 엔딩 선택: 받는 길(법칙을 지키고 봉인한 뒤 통치권을 내려놓음 → '맡겨진 영겁', 변형 '함께 앉았다'/'질서가 맡겨졌다') vs 찬탈의 길(인과율 흡수 → '내가 올라가리라', 게임 오버 아님). Exaltation이 높으면 받는 길이 닫히고 '기다린다'로 낮춰야 한다 (guideline.md:456)",
+  "앎의 체험: 모르는 성계는 배경 별과 구별되지 않게 그려지고, 보는 거리는 Tier에 따라 1→10레인으로 넓어지며, 범위 밖 큰 사건은 이름 없는 먼 줄로만 들린다. 첫 접촉은 판에 한 번 (guideline.md:74)",
+  "톤 약속: 설교하지 않는다 — 선택을 옳다/틀리다로 라벨링하는 UI·로그가 없고 결과와 기록만 남는다. 냉소·허무는 세계 안 인용문과 타락의 1인칭에만 (guideline.md:182)",
+  "사람 수는 어디에도 숫자로 나오지 않고 규모 등급(소수·수백만·수십억·수천억·수조·셀 수 없는)으로만 읽힌다. 천체의 수·거리는 은하 패널·우주 화면·성계 패널 라벨에만 '약·추정' (guideline.md:193, 537)",
+  "시각 약속: 은하 지도 3D 노드(배경 별 20,000점·우주 줌), 초월 순간의 Niagara 이펙트, 깔끔한 SF UI. 외계인 3D 모델 없음, 문명은 아이콘+색+텍스트 (guideline.md:205-206, 390)",
+  "실제 하늘: 태양 근방 33/98광년의 실제 별·행성 이름과 거리가 지도와 성계 패널에 등장하고, 태양계는 아무도 소유할 수 없는 성역으로 지도에 있다 (guideline.md:587, 391)",
+  "예시 피드 문장(낡은 예): \"베텔게우스 성계의 광물 채굴 인공지능이 자아를 획득하여 생산량이 150% 증가했습니다.\" (guideline.md:415)",
+  "엔딩에서 지금까지의 로그가 신화로 재편집된 연대기('두 책')로 돌아온다 (guideline.md:332)"
+ ],
+ "quality_notes": [
+  "분량 배분: 범위 600행 약 74KB 중 1~100행(문서 머리·변경 이력·목차)이 약 27KB(36%)이고 §0 검토표가 3KB 더 — 설계 본문보다 역사 기록이 앞에 길게 서 있다. 변경 이력은 본문에서 떼어 CHANGELOG로 보내야 한다 (guideline.md:13-92, 128-152).",
+  "'문서 상태' 표 셀 하나가 v0.2→v0.8 전 이력을 1,028자 한 줄에 담고 있다 (guideline.md:13).",
+  "줄이 문단이다: 193행 2,489자, 340행 2,290자, 456행 2,082자, 448·452행 1,700자대. 한 줄에 10개 이상의 괄호 교차 참조와 세 가지 숫자 체계(Phase N / v0.8 단계 N / 칸·Tier N)가 섞여 읽기 어렵다. 파일 전체의 괄호형 § 참조는 약 1,353개.",
+  "코드가 뒤따르지 않는 표지의 양: 'v0.8 — 단계' 133회, '그 전의 코드는' 16회, '가칭' 54회(파일 전체). 범위 안에서도 §1.2·§2.1·§2.4·§3.1·§3.2·§3.3·§3.4 거의 모든 절에 과도기 괄호가 붙어 '현재 빌드'와 '목표 설계'가 한 문장 안에 공존한다.",
+  "비유 어휘(판·부름·그릇·칸·앎·백성·성역·두 책·거룩한 질서·고넬료 사슬·건넘)가 코드 식별자(FCallingState·Knowing·RealmCapByTier)와 1:1로 대응되지만, 대응표는 문서 끝 §15(4271행)에만 있어 앞부분을 읽는 독자는 매핑 없이 읽어야 한다. §3.2 442행처럼 '§15에 고정한다'고 본문이 용어집을 가리키는 식으로 분산되어 있다.",
+  "설계 근거로 성경 구절을 직접 인용한다(사 14:13-15, 유 1:6, 벧후 2:4, 마 25:41, 약 2:19, 눅 8:31, 마 8:29, 계 1:18, 계 20:1, 계 20:10, 골 1:16, 왕하 6:17, 단 4:34, 엡 6:12 — guideline.md:442-456). 세계관의 토대가 기독교 신학이라는 사실은 프로젝트 정체성의 핵심인데 §1 비전에는 한 줄도 없고 §3.2·§4.5와 변경 이력에만 흩어져 있다 — 비전 문서에 명시해야 한다.",
+  "개발자의 채팅 문장을 그대로 인용해 결정 근거로 삼는다(guideline.md:68 \"성계도 여러개고 은하도여러개여야해…\", 442 \"물리적 세계와 영적 세계로 구분해야…\"). 근거(why)와 규칙(what)과 구현(identifier)과 과정(review 건수 '41건 → CONFIRMED 38')이 같은 문단에 섞여 있다 (guideline.md:60, 62).",
+  "ASCII 다이어그램이 줄마다 빈 줄이 끼어 깨져 있다(guideline.md:260-278, 352-372, 493-524) — 트리 연결선이 열을 맞추지 못해 그림으로 기능하지 않는다.",
+  "§3.1의 예시 로그 두 줄(guideline.md:415-416)은 v0.6 숫자 규칙·v0.8 실제 하늘 범위 이전의 문장이며 갱신되지 않았다. 예시가 규칙을 위반하면 SSoT의 신뢰가 떨어진다.",
+  "§3.4 '현실에서 가져온 것'은 천문 사실·출처·라이선스 메모·'인쇄 전 확인' 표지를 담은 참고 자료이지 게임플레이 기둥이 아닌데 §3(3대 기둥) 안에 있다. 세계관/출처 부록으로 분리하는 편이 맞다 (guideline.md:533-593).",
+  "'인쇄 전 다시 확인' 메모가 SSoT 본문에 3곳 남아 있고(guideline.md:549, 587), 같은 미검증 문장이 DT_Galaxies.json에 데이터로 복사되어 있다.",
+  "목차(guideline.md:104-121)는 §0~§16 상위 항목만 있고 소절(§3.4, §5.12, §14.3 등)이 없다. §0은 v0.2 시점 검토표로 더 이상 '현재'를 설명하지 않는다.",
+  "'옛 §17'이 서로 다른 세 제안(v0.4 부름과 계승 / v0.5 사다리 위의 두 영역 / v0.8 성역)을 가리키도록 같은 번호가 재사용되었다 (guideline.md:22, 29-30, 44, 84). 제안 섹션은 번호 대신 이름이나 별도 파일(RFC)로 두어야 한다.",
+  "같은 규칙이 본문 안에서 3~4회 반복된다(arch_seeker 설명 4회, '설계 값' 문장 3회, 년 토글 3회, '칸은 업적으로만' 4회, 서막 틱 밖 6회). 반복마다 괄호 내용이 조금씩 달라 어느 것이 정본인지 판단해야 한다.",
+  "식별자 수준의 결정(ComputeWorldHash 제외 항목, 틱 열 단계, 난수 스트림 셋, 저장 필드 예약)이 '비전·코어 루프' 장과 변경 이력에 들어 있다 — 아키텍처 명세로 옮기면 §1~§3은 기획 문서로 가벼워진다 (guideline.md:74-80).",
+  "긍정적인 점: 결정론·해시·요약 단위·숫자 규칙처럼 테스트 가능한 원칙이 많고, 첫 10분 타임라인(guideline.md:340)과 결정 빈도 목표(282)처럼 플레이 경험을 분 단위로 적은 드문 설계 문서다. 통폐합 시 이 두 가지는 그대로 살려야 한다."
+ ]
+}

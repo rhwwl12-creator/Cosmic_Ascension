@@ -1,0 +1,850 @@
+{
+ "scope": "c8: 데이터·설정 원본 — Tools/data/*.json(9 테이블)·schema.json·ST_CA.csv·generated.sha1, Config/*.ini(Engine·Game·GameplayTags·Input), .gitattributes·.gitignore·.editorconfig·.uproject·.claude/settings.json",
+ "summary": "데이터·설정 원본 계층은 이 프로젝트에서 가장 잘 닫힌 층이다. Tools/data의 JSON 9개(이벤트 11·위기 5·거대 프로젝트 5·업적 2·아키타입 2·초월자 1·로그 10·은하 6·규칙 1행)와 ST_CA.csv 37키가 유일한 원본이고, schema.json(테이블 10·컬럼 143·행 규칙 45·조건 30·효과 18)이 참조·범위·어휘(판정 어휘 7개 금지, 이름 뱅크 숫자 금지, 은하 문안 '약·추정' 강제, |hpp 조사 수식어)를 걸며, generated.sha1 도장 12줄은 현재 바이트(CR 제거)와 전부 일치한다. 한국어 템플릿 124문장은 '두 문장·과거형·숫자 없음·무주어 수동태'의 톤을 고르게 지킨다. 그러나 내용은 수직 슬라이스의 뼈대뿐이다: 태그 140개 중 102개는 어느 JSON도 쓰지 않고(Phase 4·6+ 예약), DT_Rules 46노브 중 18개는 런타임이 읽지 않으며(계승 6·함대 4·귀환 3·ImmutableLaws 등), 조건 30종 중 10종·효과 18종 중 11종만 데이터에 등장한다. guideline이 이름으로 약속한 행 78개 중 40개(아키타입 6·조우 9·초월자 3·칙령 2 등)와 테이블 6개(Encounters·Edicts·Traits·Relics·Dedications·Planets)가 없다. v0.8 결정(성역 sol·arch_seeker·sys_0·Law.Hedge·'항성 안정화')은 데이터에 전혀 반영되지 않아 PlayerArchetypeRow=arch_terran, '초신성 안정화', 첫 줄 '태양계. 당신은 이 행성의 통치자다.'가 그대로다. 같은 값이 guideline·ini DevComment·행 구조체 헤더 주석·JSON 네 곳에 적혀 드리프트가 생겼다(AI 각성 결과, 역병 전파, CounterfeitOf 필수, RevelationTemplates 3줄). Config는 렌더 결정(RT·Lumen OFF, FXAA)과 쿠킹 폴더가 명확하나 로컬라이제이션 설정이 없고, Enhanced Input을 기본 클래스로 두고 쓰지 않으며, 승인된 헤더 초안이 gitignore된 Saved/Design에 있다.",
+ "key_decisions": [
+  {
+   "topic": "데이터 원본과 산출물",
+   "decision": "편집 원본은 Tools/data/DT_*.json 9개와 ST_CA.csv뿐이고 Content/CA/Data의 .uasset 10개는 make_data_tables.py의 산출물이다(기존 에셋을 제자리에서 다시 채움). 원본·schema.json·검사기 파일의 sha1을 generated.sha1에 남기고(CR 제거 바이트) 테스트 Data.SourcesInSync가 견준다 — 현재 12줄 모두 일치 확인.",
+   "source_ref": "Tools/data/generated.sha1:1-12; Tools/make_data_tables.py:1-45; Content/CA/Data/*.uasset(바이너리 3.8~45KB, LFS 스텁 아님)"
+  },
+  {
+   "topic": "테이블 로드 경로",
+   "decision": "정의 데이터는 설정 에셋 없이 고정 경로 /Game/CA/Data/DT_<이름>.DT_<이름> 9개를 LoadObject로 읽는다. DT_Encounters는 행 구조체(FEncounterDef)와 스키마 자리만 있고 로드하지 않는다.",
+   "source_ref": "Source/Cosmic_Ascension/Data/CosmicDataTables.cpp:36-44; Tools/data/schema.json:591"
+  },
+  {
+   "topic": "정의 스키마 v1의 꼴",
+   "decision": "schema.json은 닫힌 목록으로 구성된다: 컬럼 종류 16(plain·number·numbers·text·texts·tag·tags·tag_list·tag_map·row·row_map·rows·word_map·enum·conditions·effects), 행 테스트 14(is·in·gt·ge·lt·le·set·min_len·max_len·each_contains·lacks_type·slots_in·len_ge_col·pairs_ge_col), 규칙은 when→then. 읽히지 않는 키나 틀린 타입은 그 자체가 문제다(검사를 조용히 끌 수 없음). 규칙마다 guideline 절을 적은 why가 붙는다.",
+   "source_ref": "Tools/data/schema.json:2-18, 120-125, 151-162, 185-200, 231-318, 428-504, 538-588"
+  },
+  {
+   "topic": "행 이름 규칙",
+   "decision": "행 이름은 ^[a-z][a-z0-9_]*$이고 테이블 접두어를 갖는다(arch_·log_·event_·gal_·trans_·crisis_·project_·feat_, DT_Encounters는 enc_|petition_). 세이브(SourceRow·ArchetypeRow·GalaxyRow)에 남으므로 배포 뒤 불변. 코드가 이름으로 부르는 행은 CosmicRows:: 상수와 required_rows가 양방향으로 맞아야 한다.",
+   "source_ref": "Tools/data/schema.json:21-23, 61-63, 130-132, 167-169, 206-208, 348-350, 510; Source/Cosmic_Ascension/Data/CosmicRowNames.h:9-54"
+  },
+  {
+   "topic": "참조 무결성(target 조건)",
+   "decision": "row 컬럼은 대상 행의 상태까지 검사한다: HomeGalaxyRow의 대상은 BridgeTicks 0·LivingWorlds≥1·Peoples≥1·StarNameBank 길이≥Peoples·CatalogPrefixes×CatalogStems≥LivingWorlds, OutbreakRow 대상은 Named+SettledSystem+ResolveHazard 없음, SignRow 대상은 Log.Sign+슬롯 {Civ}{Hazard}만, InitialRelations 대상은 Weight>0.",
+   "source_ref": "Tools/data/schema.json:101-111, 143, 221-226, 423"
+  },
+  {
+   "topic": "어휘·문장 검사",
+   "decision": "판정 어휘 목록 verdict(천국·지옥·구원받·멸망받·영혼·저주받·심판받)를 텍스트 컬럼 19개에 forbidden으로 걸고, 이름 뱅크·성계 이름은 no_digits, 은하 문안은 hedged('약'·'추정'·'논쟁 중' 가운데 하나 필수), 각 텍스트 컬럼은 허용 슬롯 목록을 갖는다. 슬롯 뒤 수식어는 엔진의 한글 조사 |hpp(받침 뒤 꼴 먼저)만 허용.",
+   "source_ref": "Tools/data/schema.json:25-34, 139-141, 147, 174-180, 218, 335-342, 406, 420-422, 513, 517, 525, 536; Tools/cosmic_data_schema.py:47-51, 406-417"
+  },
+  {
+   "topic": "이벤트 모델",
+   "decision": "Trigger 3종(Lottery=슬롯 추첨·BaseWeight, Standing=조건+쿨다운이면 발화, Named=코드가 FireRow)·Subject 2종(Civilization·SettledSystem). Lottery만 가중>0, Standing/Named는 0, Named는 쿨다운 0, 슬롯 행은 변형 3개 이상, Named는 1개 이상. Civilization 행은 {System}을 부르지 못한다. Category→LogCategory 허용 쌍 9개.",
+   "source_ref": "Tools/data/schema.json:36-56, 204-279; Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:20-104"
+  },
+  {
+   "topic": "슬롯 행·통치자 업적 행의 플레이어 격리",
+   "decision": "Lottery/Standing 행과 Path=Ruler 업적 행은 Player* 조건 8종과 KillPlayer·DeposeRuler·PlayerStatDelta·GrantPower 효과를 싣지 못한다(Phase 4 청원 카드·첫 T4→T5 행까지). KillPlayer는 사망 파이프라인(Phase 4b) 전까지 모든 행에서 금지.",
+   "source_ref": "Tools/data/schema.json:247-264, 310-313, 464-471, 571-588"
+  },
+  {
+   "topic": "위기 모델",
+   "decision": "SpawnRule 3종: Draw(정착 성계마다 틱당 추첨, 몫=SpawnChancePerTick×아키타입 배율), Capital(수도에 조건으로, 반란 전용), ClaimRule(만료 뒤 주장 규칙 전용, Law.Remnant 내장). 만료 결과는 OnExpire/Branch(BranchChance일 때 대체)/Neighbour 효과 + 태그별 코드(PreSupernova 파괴·Rebellion 왕좌·Claim 편입). 답은 RulerResolutions의 프로젝트가 대응 칸에서 돈다.",
+   "source_ref": "Tools/data/schema.json:399-504; Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:106-223; Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1743-1748"
+  },
+  {
+   "topic": "초월자 모델",
+   "decision": "행 이름=TranscendentID, 교리 유일, 소속은 Allegiance(Realm.*) 정의값. 천상 행은 인스턴스·영향권·압력·추첨 가중이 없고 독립 행은 가중 0, 타락 행만 Tier 3|4. trans_silence는 Abyssal+Silence 고정. 압력 효과는 틱당 효과 7종만.",
+   "source_ref": "Tools/data/schema.json:346-396, 627-648; Tools/data/DT_Transcendents.json:3-26"
+  },
+  {
+   "topic": "업적 사다리 규칙",
+   "decision": "업적은 Path=Ruler만, RequiredTier→TargetTier는 정확히 한 칸(T1→T2…T4→T5), T5에서 오르는 행 없음, 조건 1개 이상. 현 데이터는 두 칸(다이슨: project_dyson 완성+Physics≥0.5 → T2, 초신성 안정화: project_stabilize 완성 → T3).",
+   "source_ref": "Tools/data/schema.json:538-569; Tools/data/DT_Feats.json:3-44"
+  },
+  {
+   "topic": "시간 기준",
+   "decision": "1틱 = 1초(1배속, SecondsPerTick 1.0) — FirstSightTick 330은 헤더가 '5:30 at 1x'로 풀고, UI의 '년'은 1주기=1년 표시 단위다(ST_CA Time.*). 노화는 BaseLifespanTicks 0으로 꺼져 있다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.h:491; Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:845-847; Tools/data/ST_CA.csv:33-38; Tools/data/DT_Rules.json:8"
+  },
+  {
+   "topic": "GameplayTag 단일 출처",
+   "decision": "태그는 Config/DefaultGameplayTags.ini의 +GameplayTagList 줄 140개가 유일 출처(코드는 RequestGameplayTag만, 네이티브 태그 매크로 금지). Domain.Sub.Leaf 최대 3단. 도메인 22: Trait 36(Arch 7·Faith 9·Biology 5·Mind 5·Tech 5·Legacy 4·Society 1)·Revelation 12·Log 10·Hazard 9·Event 9(Civ 2·Crisis 4·Grace 3)·Doctrine 7·Star.Class 7·Notable 6·Truth/Law/Death/Path/AI.Profile/Galaxy.Kind 4씩·Realm/Status/Succession/Reign/Faith.Bank 3씩·Way/Effect 2씩·Flag 1. 2단 76·3단 64, 중복 0.",
+   "source_ref": "Config/DefaultGameplayTags.ini:1-13, 16-200"
+  },
+  {
+   "topic": "렌더·플랫폼 결정",
+   "decision": "레이트레이싱·Lumen GI/반사·메시 디스턴스 필드·정적 라이팅·SkinCache OFF, 가상 섀도맵 ON, Substrate ON(Blendable GBuffer 0), DX12 SM6(Linux Vulkan SM6·Mac Metal SM6), 모션 블러·AO OFF, FXAA(r.AntiAliasingMethod=1), 자동 노출 범위 확장·로컬 노출 0.8.",
+   "source_ref": "Config/DefaultEngine.ini:10-47, 49-54, 78-84"
+  },
+  {
+   "topic": "맵·게임 모드·쿠킹",
+   "decision": "GameDefaultMap·EditorStartupMap=/Game/CA/Maps/L_Galaxy, GlobalDefaultGameMode=CosmicGameMode(맵 오버라이드 없음). 경로 로드 에셋은 참조로 잡히지 않아 /Game/CA/Data·Materials·UI를 DirectoriesToAlwaysCook에 명시.",
+   "source_ref": "Config/DefaultEngine.ini:3-8; Config/DefaultGame.ini:7-11"
+  },
+  {
+   "topic": "입력 설정",
+   "decision": "DefaultPlayerInputClass·DefaultInputComponentClass는 EnhancedInput이지만 바인딩은 코드의 레거시 BindKey다(IMC/IA 에셋 없음). DoubleClickTime 0.2(더블 클릭 다가가기), MouseX/Y 감도 0.07, 콘솔 키 Tilde, Alt+Enter·F11 전체화면.",
+   "source_ref": "Config/DefaultInput.ini:13-15, 61-62, 75-83"
+  },
+  {
+   "topic": "플러그인·엔진 연결",
+   "decision": "Niagara 명시 활성, ModelingToolsEditorMode 비활성, PythonScriptPlugin은 TargetAllowList Editor(헤드리스 에셋 생성용). EngineAssociation은 5.8 GUID {CCB28703-…}이고 문자열 '5.8'로 바꾸지 않는다.",
+   "source_ref": "Cosmic_Ascension.uproject:3, 13-28"
+  },
+  {
+   "topic": "저장소 규칙",
+   "decision": "text=auto 정규화 + 소스/ini/json/csv/py는 text, uasset·umap·이미지·오디오·비디오·fbx·폰트·압축은 LFS. Binaries·Intermediate·Saved·DDC·Build(아이콘 제외)·IDE 파일·*_BuiltData·__pycache__ 무시. 전역 *.dll/*.lib 규칙은 일부러 두지 않음(서드파티 바이너리 대비).",
+   "source_ref": ".gitattributes:4-52; .gitignore:4-50"
+  },
+  {
+   "topic": "편집기 규칙",
+   "decision": "utf-8, CRLF, 마지막 줄바꿈, 끝 공백 제거(md 제외). C++/C#/uproject는 탭, py는 4칸.",
+   "source_ref": ".editorconfig:4-19"
+  },
+  {
+   "topic": "Claude Code 기본 설정",
+   "decision": "model claude-opus-5-5, effortLevel high, workflowSizeGuideline medium. permissions·hooks 없음.",
+   "source_ref": ".claude/settings.json:1-5"
+  },
+  {
+   "topic": "로컬라이제이션 키 정책",
+   "decision": "DataTable 텍스트의 키는 위치(행·컬럼·배열 인덱스)로 정해지므로 Templates·NameBank 같은 배열은 끝에만 추가하고 DT_ 에셋을 지우고 다시 만들지 않는다(스크립트가 제자리에서 다시 채우는 이유).",
+   "source_ref": "Tools/make_data_tables.py:22-26; Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:567-570"
+  },
+  {
+   "topic": "은하 데이터의 읽기 범위",
+   "decision": "시뮬은 고향 행(gal_milkyway)의 LivingWorlds 60·Peoples 12·HomeRadiusShare 0.53·AIFourthRungCap 2·이름 뱅크 셋만 읽고, 다른 5행(안드로메다·삼각형자리·대마젤란·소마젤란·M87)은 BridgeTicks·PeopleStems를 Phase 6a까지 읽지 않는 표시 전용. 표시 컬럼은 해시 밖.",
+   "source_ref": "Tools/data/DT_Galaxies.json:3-19, 141-250; Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:573-582, 615-639"
+  },
+  {
+   "topic": "이름 짓기 규칙(데이터)",
+   "decision": "백성의 모성계는 StarNameBank의 실제 별 이름 60개(알데바란·리겔…)를 비복원 추출, 무주 성계는 그리스 문자 24×별자리 속격 30=720쌍(알파 센타우리 꼴)을 쌍마다 한 번만, AI 백성 이름은 '{Star} 연합/공화국/동맹'. 인물 이름은 PersonNameBank[NameIndex % Num].",
+   "source_ref": "Tools/data/DT_Galaxies.json:19-138; Tools/data/DT_Civs.json:28-30; Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:407-423, 641-651"
+  },
+  {
+   "topic": "첫 생애 행(현행 데이터)",
+   "decision": "PlayerArchetypeRow=arch_terran: DisplayName '지구', 모성계 이름 '태양계', Star.Class.G, Weight 0(AI 미추첨), Revelation.Book, 특성 Trait.Arch.Terran·Society.Divided·Faith.Book·Biology.Shortlived, 윤리 0/0/+0.2, AIAwakening 발생 ×1.2, DedicationBanks Hebrew·Civic. AI는 arch_default(Revelation.Seeking) 하나뿐.",
+   "source_ref": "Tools/data/DT_Civs.json:3-39; Tools/data/DT_Rules.json:28"
+  },
+  {
+   "topic": "위기↔답 매핑(현행)",
+   "decision": "crisis_claim→project_relief, crisis_pre_supernova→project_stabilize, crisis_rebellion→project_reform. crisis_ai_awakening·crisis_plague는 RulerResolutions가 비어 통치자가 답할 수 없고(역병은 Lottery 행 event_plague_repentance의 ResolveHazard만), WandererResolutions는 다섯 행 모두 비어 있다.",
+   "source_ref": "Tools/data/DT_Hazards.json:39-40, 74-75, 117-118, 167-168, 230-231; Tools/data/DT_Events.json:345-378"
+  },
+  {
+   "topic": "책의 사슬(데이터)",
+   "decision": "event_book_closed(Standing: Trait.Faith.Book + 침묵 영향권 300틱 → BookShut), event_book_found(Named, 연구 단계의 Society 돌파마다: BookShut→Book, Stability +0.2, Severity 2), event_book_reading(Standing: tick≥1800, 쿨다운 1800, 효과 없음).",
+   "source_ref": "Tools/data/DT_Events.json:3-128; Source/Cosmic_Ascension/Data/CosmicRowNames.h:25-27"
+  },
+  {
+   "topic": "반란의 사슬(데이터)",
+   "decision": "event_rebellion_murmur(Standing, Stability<0.5, 쿨다운 60) → crisis_rebellion(Capital: Stability<0.3이 100틱 & tick≥300, 200틱; OutbreakRow event_rebellion_rises가 Notable.Rebel을 이름 짓고 Severity 1) → 만료: DeposeRuler(Reign.Deposed)+Openness +0.1 / 해결: project_reform(Influence 1×100틱).",
+   "source_ref": "Tools/data/DT_Hazards.json:189-246; Tools/data/DT_Events.json:286-344; Tools/data/DT_Megaprojects.json:15-25"
+  },
+  {
+   "topic": "은혜의 한 행",
+   "decision": "event_grace_remnant(Named, Subject SettledSystem)는 마지막 성계의 문이 부르고 Flag.Grace.Spent로 판당 1회, Trait.Faith.Remnant를 준다. 은혜 행은 NameNotable을 싣지 못한다.",
+   "source_ref": "Tools/data/DT_Events.json:245-284; Tools/data/schema.json:314-318"
+  },
+  {
+   "topic": "DT_Rules의 단일 행과 C++ 기본값",
+   "decision": "DT_Rules는 행 하나('rules') 46노브. 테이블·행이 없을 때의 폴백은 FCosmicRulesDef의 멤버 초기화식이며 대부분 JSON과 같지만 FallenTranscendentCount는 C++ 3 / JSON 1로 다르다.",
+   "source_ref": "Tools/data/DT_Rules.json:1-49; Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:658-864, 763"
+  }
+ ],
+ "parameters": [
+  {
+   "name": "EventSlotTicks / EventChancePerSlot",
+   "value": "10 / 0.02",
+   "source_ref": "Tools/data/DT_Rules.json:38-39",
+   "note": "DT_Rules 노브, 런타임 읽음(Events/CosmicEventSubsystem.cpp:561-563, 907-918). 스키마 범위 1..20 / ≥0. 0.02는 잠정값(§16 #54)"
+  },
+  {
+   "name": "PressureBySourceTier / PressureAdjacencyFalloff / SpiritualPressureStabilityDrain",
+   "value": "[0,0,0.25,1,2] / 0.5 / 0.002",
+   "source_ref": "Tools/data/DT_Rules.json:19-21",
+   "note": "DT_Rules 노브, 읽음(Sim/CosmicHazards.cpp:30,410; Sim/GalaxySimulationSubsystem.cpp:175,188,1495). 초월자 항은 ×(1+Depth)"
+  },
+  {
+   "name": "RealmCapByTier",
+   "value": "[1,3,4,7,10]",
+   "source_ref": "Tools/data/DT_Rules.json:41",
+   "note": "DT_Rules 노브, 읽음(Sim/CosmicMegaprojects.cpp:303). AI와 플레이어 같음, 오름차순 정수 5개"
+  },
+  {
+   "name": "SightLanesByTier / SightIntervalTicks / FirstSightTick / FarLineCooldownTicks",
+   "value": "[1,2,4,6,10] / 10 / 330 / 300",
+   "source_ref": "Tools/data/DT_Rules.json:42-45",
+   "note": "DT_Rules 노브, 읽음(GalaxySimulationSubsystem.cpp:2077,2114-2116; Log/CosmicLogSubsystem.cpp:161-174). 앎의 노브 — 세계 해시 밖"
+  },
+  {
+   "name": "LivingWorldStarShares",
+   "value": "[0.01,0.05,0.14,0.31,0.57,0.82,1.0] (누적, O→M)",
+   "source_ref": "Tools/data/DT_Rules.json:46",
+   "note": "DT_Rules 노브, 읽음(GalaxySimulationSubsystem.cpp:585-588). 구간 비율 O1%·B4%·A9%·F17%·G26%·K25%·M18% — 실제 비율(M 76%)이 아닌 설계값. 길이 7 = Star.Class 태그 수와 암묵 결합"
+  },
+  {
+   "name": "FallenTranscendentCount / FallenCoreMinLanesFromHome",
+   "value": "1 / 3",
+   "source_ref": "Tools/data/DT_Rules.json:27,47",
+   "note": "DT_Rules 노브, 읽음(GalaxySimulationSubsystem.cpp:596-599, 965). C++ 기본값은 3(CosmicDefinitionRows.h:763), 스키마 0..3"
+  },
+  {
+   "name": "PlayerArchetypeRow / HomeGalaxyRow",
+   "value": "arch_terran / gal_milkyway",
+   "source_ref": "Tools/data/DT_Rules.json:28,40",
+   "note": "DT_Rules 노브, 읽음(GalaxySimulationSubsystem.cpp:747, 544-547). v0.8은 arch_seeker로 바꿀 예정"
+  },
+  {
+   "name": "BirthProtectionTicks / BaseLifespanTicks",
+   "value": "300 / 0 (노화 OFF)",
+   "source_ref": "Tools/data/DT_Rules.json:7-8",
+   "note": "DT_Rules 노브, 읽음(CosmicEventSubsystem.cpp:824; :529 — BaseLifespanTicks는 PlayerAgeAtLeast 게이트에만)"
+  },
+  {
+   "name": "ThroneLockTicks / PostRebellionStability / ReverenceDecay",
+   "value": "600 / 0.15 / 0.5",
+   "source_ref": "Tools/data/DT_Rules.json:15,17-18",
+   "note": "DT_Rules 노브, 읽음(Player/PlayerRoleSubsystem.cpp:195-206)"
+  },
+  {
+   "name": "AIAscensionSpeedMultiplier",
+   "value": "1.0",
+   "source_ref": "Tools/data/DT_Rules.json:16",
+   "note": "DT_Rules 노브, 읽음(GalaxySimulationSubsystem.cpp:1892-1895). ≤0이면 코드가 1로 읽고 에러 한 줄(스키마 규칙 gt 0)"
+  },
+  {
+   "name": "MaxNotablesPerCiv / PopulationBandThresholds / PopulationRegrowthPerTick",
+   "value": "4 / [0.15,0.5,2.0] / 0.0002",
+   "source_ref": "Tools/data/DT_Rules.json:35-37",
+   "note": "DT_Rules 노브, 읽음(CosmicEventSubsystem.cpp:303; GalaxySimulationSubsystem.cpp:1227,1401). 역병 −0.4가 2,000틱에 회복"
+  },
+  {
+   "name": "ClaimAdjacencyLanes / SphereEventWeightStep",
+   "value": "1 / 0.1",
+   "source_ref": "Tools/data/DT_Rules.json:29,31",
+   "note": "DT_Rules 노브, 읽음(CosmicHazards.cpp:408; CosmicEventSubsystem.cpp:211). 교리 가중 배율의 상한 3은 코드 하드코딩(CosmicDefinitionRows.h:519-521)"
+  },
+  {
+   "name": "LeapTicksMin / LeapTicksMax / LeapTotalCap",
+   "value": "800 / 1600 / 4500",
+   "source_ref": "Tools/data/DT_Rules.json:4-6",
+   "note": "DT_Rules 노브이지만 런타임 코드 0회 — Core/GalaxyState.h:545 주석만(공백기 도약, Phase 4b)"
+  },
+  {
+   "name": "SuccessionHazardWeight / CivTierWeight / ReverenceWeight / ReverenceThreshold / SameCivPenalty / MinHazardTicks",
+   "value": "2.0 / 1.0 / 2.0 / 0.3 / 1.0 / 300",
+   "source_ref": "Tools/data/DT_Rules.json:9-14",
+   "note": "DT_Rules 노브 6개, 런타임·테스트 모두 0회 — 계승 추첨 미구현(Phase 4b)"
+  },
+  {
+   "name": "PressureFleetAttrition / FleetEffectivenessByTierGap / FleetDelayPerPower / FleetDelayCap",
+   "value": "0.01 / [1,0.5,0] / 50 / 100",
+   "source_ref": "Tools/data/DT_Rules.json:22-25",
+   "note": "DT_Rules 노브 4개, 코드 0회 — 함대·분쟁 단계 미구현(Phase 4)"
+  },
+  {
+   "name": "ImmutableLaws",
+   "value": "Law.Judgment, Law.Sabbath, Law.Humility, Law.Remnant",
+   "source_ref": "Tools/data/DT_Rules.json:26",
+   "note": "DT_Rules 노브, 런타임 0회 — Law.Remnant는 주장 규칙 코드에 고정(CosmicHazards). 컨테이너는 장식. v0.8 Law.Hedge 미반영"
+  },
+  {
+   "name": "VigilClaimExtension / ReturnLureMaxLanes / ReturnedLivesToSeize / LureAcceptByPolicy",
+   "value": "100 / 2 / 3 / {Cautious 0.1, Reckless 0.6, Faithful 0, Tribute 0.85}",
+   "source_ref": "Tools/data/DT_Rules.json:30,32-34",
+   "note": "DT_Rules 노브, 런타임 0회(LureAcceptByPolicy만 Tests/커맨드렛 11회). 칙령·귀환 유혹 미구현(Phase 4·6+)"
+  },
+  {
+   "name": "crisis_* CountdownTicks",
+   "value": "AIAwakening 150, Claim 300, Plague 200, PreSupernova 300, Rebellion 200",
+   "source_ref": "Tools/data/DT_Hazards.json:7,65,100,143,193",
+   "note": "행 컬럼. ini DevComment(Config/DefaultGameplayTags.ini:16-24)와 일치. 행 없는 Cult 350·SubspaceErosion 400·Extinction 250·Visitation 120은 ini 주석에만"
+  },
+  {
+   "name": "crisis_* SpawnChancePerTick",
+   "value": "AIAwakening 0.0002(arch_terran ×1.2), Plague 0.0001, PreSupernova 5e-05(주인 T2+)",
+   "source_ref": "Tools/data/DT_Hazards.json:9,102,145-153; Tools/data/DT_Civs.json:12",
+   "note": "행 컬럼(Draw), 잠정값 — Phase 5에 맞춤. Capital·ClaimRule 행은 0"
+  },
+  {
+   "name": "crisis_rebellion 발생·만료",
+   "value": "Stability<0.3이 100틱 AND tick≥300 → 만료: DeposeRuler(Reign.Deposed) + Openness +0.1; 해결: project_reform",
+   "source_ref": "Tools/data/DT_Hazards.json:196-231",
+   "note": "행 컬럼. CivStabilityBelowFor의 Value는 스키마가 0.3만 허용(schema.json:600, §16 #25 ②)"
+  },
+  {
+   "name": "crisis_ai_awakening 만료",
+   "value": "+30 Energy +30 Matter / BranchChance 0.5 → Stability −0.15",
+   "source_ref": "Tools/data/DT_Hazards.json:11-36",
+   "note": "행 컬럼. guideline §4.1·ini의 '생산 +150% / 성계 반란'과 다름(아래 contradictions)"
+  },
+  {
+   "name": "crisis_plague / crisis_pre_supernova 만료",
+   "value": "ChangePopulation −0.4 / 이웃마다 Stability −0.05(성계 파괴는 태그별 코드)",
+   "source_ref": "Tools/data/DT_Hazards.json:105-111, 157-165",
+   "note": "행 컬럼. 역병의 이웃 전파 효과는 비어 있음"
+  },
+  {
+   "name": "DT_Megaprojects CostPerTick × RequiredProgress",
+   "value": "dyson E2/M1×600(T1), reform Inf1×100(T1), relief M1+Inf1×150(T1), settle E1/M2×300(T2), stabilize E2/M2×100(T2)",
+   "source_ref": "Tools/data/DT_Megaprojects.json:5-7,17-19,29-31,41-43,53-55",
+   "note": "행 컬럼. 틱마다 전액 지불만, 부분 지불·포기 없음(CosmicDefinitionRows.h:301-310). AI는 ×AIAscensionSpeedMultiplier"
+  },
+  {
+   "name": "DT_Feats 완성 조건",
+   "value": "feat_dyson_swarm: MegaprojectComplete project_dyson + CivResearchAtLeast Physics 0.5 → T2; feat_supernova_stabilized: MegaprojectComplete project_stabilize → T3",
+   "source_ref": "Tools/data/DT_Feats.json:9-12, 31-33",
+   "note": "행 컬럼. AscensionCost·GrantedPowers·DedicationBank·FX·Sound 전부 비어 있음"
+  },
+  {
+   "name": "trans_silence",
+   "value": "Doctrine.Silence, Realm.Abyssal, Tier4, Depth 1.0, Initial 1, Max 12, SpawnWeight 1, PressureEffectsPerTick: MultiplyIncome Insight 0.7",
+   "source_ref": "Tools/data/DT_Transcendents.json:3-26",
+   "note": "행 컬럼. Title·Lure·CounterfeitOf·VoiceTemplates·ClaimTemplates·EventWeightModifiers 비어 있음"
+  },
+  {
+   "name": "gal_milkyway 시뮬 값",
+   "value": "LivingWorlds 60, Peoples 12, AIFourthRungCap 2, HomeRadiusShare 0.53, RadiusLy 50000, BridgeTicks 0",
+   "source_ref": "Tools/data/DT_Galaxies.json:6-11",
+   "note": "행 컬럼(VS). EA 시작값 300·48은 커맨드렛 인자. 다른 은하 BridgeTicks: 안드로메다 2400·삼각형자리 3300·LMC 400·SMC 520·M87 0; SMC RadiusLy 0"
+  },
+  {
+   "name": "DT_Civs 윤리·가중",
+   "value": "arch_terran Pacifism 0/Spiritualism 0/Openness 0.2, Weight 0, Color(0.25,0.55,1.0); arch_default 0/0/0, Weight 1.0, 흰색",
+   "source_ref": "Tools/data/DT_Civs.json:6-8,14,25-27,33",
+   "note": "행 컬럼. EthicsPreset·Color는 스키마 kind plain — 범위 검사 없음"
+  },
+  {
+   "name": "Lottery 이벤트 넷",
+   "value": "BaseWeight 1, 쿨다운 600: lode +20 Matter, grid_failure −15 Energy, quarrel −0.03 Stability(Stability<0.5), festival +0.03 Stability",
+   "source_ref": "Tools/data/DT_Events.json:130-243",
+   "note": "행 컬럼. 슬롯당 0.02×가중 확률 → 백성·행마다 평균 500틱에 1회 수준(쿨다운 600이 상한)"
+  },
+  {
+   "name": "event_book_* 수치",
+   "value": "closed: Silence 영향권 300틱; found: Stability +0.2, Severity 2; reading: tick≥1800, 쿨다운 1800",
+   "source_ref": "Tools/data/DT_Events.json:15-19, 80-86, 110-118",
+   "note": "행 컬럼"
+  },
+  {
+   "name": "Severity / MinTierToReveal / SignRow 분포",
+   "value": "Severity 0×6·1×3·2×2(이벤트), 위기 전부 1; MinTierToReveal 전부 0; SignRow 전부 None; LogTemplates Context 전부 빈 값",
+   "source_ref": "Tools/data/DT_Events.json:45-47,93-95,281-283; Tools/data/DT_Hazards.json:42,77,120,170,233; Tools/data/DT_LogTemplates.json:5,14",
+   "note": "행 컬럼. 칸 창·징조 줄·계시 선택자 행은 데이터 사용 0"
+  },
+  {
+   "name": "SecondsPerTick / MaxLogEntries / 피드 MaxItems",
+   "value": "1.0초 / 2000줄 / 500줄",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.h:491; Source/Cosmic_Ascension/Log/CosmicLogSubsystem.h:60; Source/Cosmic_Ascension/UI/CosmicLogFeedWidget.h:66",
+   "note": "코드 하드코딩 — DT_Rules 노브가 아님(틱 길이·배속 프리셋 0/1/2/5/10·이월 상한도 코드)"
+  },
+  {
+   "name": "FEncounterChoice 판정 상수",
+   "value": "판정 = stat + Rng 0..5 ≥ Difficulty; Difficulty ≥16 = 불가능 선택지(압력 게이트)",
+   "source_ref": "Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:318, 331-333",
+   "note": "헤더 주석에 박힌 상수, 데이터·코드 모두 아직 없음(Phase 4)"
+  },
+  {
+   "name": "DefaultInput.ini 상수",
+   "value": "DoubleClickTime 0.2, MouseX/MouseY/Mouse2D Sensitivity 0.07, FOVScale 0.01111, ConsoleKeys Tilde, bCaptureMouseOnLaunch True, DefaultViewportMouseCaptureMode CapturePermanently_IncludingInitialMouseDown",
+   "source_ref": "Config/DefaultInput.ini:13-15, 66, 75-78, 83",
+   "note": "ini. 캡처 모드는 코드가 GameAndUI·CaptureDuringMouseDown으로 덮어쓴다(CLAUDE.md 표)"
+  },
+  {
+   "name": "DefaultEngine.ini 렌더 cvar",
+   "value": "r.RayTracing False, r.DynamicGlobalIlluminationMethod 0, r.ReflectionMethod 0, r.GenerateMeshDistanceFields False, r.AllowStaticLighting False, r.Shadow.Virtual.Enable 1, r.Substrate True(GBufferFormat 0), r.AntiAliasingMethod 1, MotionBlur/AmbientOcclusion False, ExtendDefaultLuminanceRange True, LocalExposure 0.8/0.8",
+   "source_ref": "Config/DefaultEngine.ini:11-47",
+   "note": "ini. 모두 CLAUDE.md '렌더 결정'과 일치"
+  },
+  {
+   "name": "UI/오디오 설정",
+   "value": "FontDPI 72(Standard), bAuthorizeAutomaticWidgetVariableCreation False; AudioSampleRate 48000, 버퍼 1024×1, MaxChannels 0(기본)",
+   "source_ref": "Config/DefaultEngine.ini:56-76, 96-99",
+   "note": "ini. 오디오 블록은 템플릿 기본값 그대로"
+  },
+  {
+   "name": "GameplayTag 수",
+   "value": "140개(2단 76·3단 64, 22 도메인). JSON이 참조 38, 런타임 코드 리터럴 36, 둘 다 안 쓰는 선언 ≥ 90",
+   "source_ref": "Config/DefaultGameplayTags.ini:16-200",
+   "note": "ini 단일 출처. CLAUDE.md의 '총 136개'는 v0.6 당시 값(그 뒤 Galaxy.Kind 4개 추가)"
+  },
+  {
+   "name": "ST_CA 라벨 수",
+   "value": "37키(Panel 14·Resource 5·Research 4·Speed 1·Settle.Block 7·Time 6) — 37/37이 UI 코드에서 쓰임",
+   "source_ref": "Tools/data/ST_CA.csv:2-38; Source/Cosmic_Ascension/UI/CosmicUILabels.h:31,53-83; UI/CosmicSystemPanelWidget.cpp:57-64,223-277; UI/CosmicTopBarWidget.cpp:75,196-206",
+   "note": "CSV 원본, 코드는 키 문자열 리터럴로 부른다(상수 헤더 없음)"
+  },
+  {
+   "name": "스키마 규모",
+   "value": "version 1; 테이블 10(9 + Encounters null), 컬럼 143, 행 규칙 45, unique 3, pairs 1, 조건 30, 효과 18, 틱당 효과 7, 어휘 목록 8, 열거형 5, required_tags 6",
+   "source_ref": "Tools/data/schema.json:2, 22, 25-42, 58-592, 594-648",
+   "note": "검사기가 읽는 닫힌 목록"
+  },
+  {
+   "name": "콘텐츠 분량",
+   "value": "한국어 템플릿 124문장(Events 33·Hazards 42·Megaprojects 15·Feats 6·LogTemplates 26·Civs 2) + 이름 뱅크(별 60·접두 24·어간 30·백성 이름 3+3·형용사 3·인물 12+12)",
+   "source_ref": "Tools/data/DT_*.json 전체",
+   "note": "조건 10/30종·효과 11/18종만 사용. 이벤트 카테고리 9 중 4 사용"
+  }
+ ],
+ "gaps": [
+  {
+   "what": "DT_Rules 46노브 가운데 18개를 런타임이 읽지 않는다: Succession* 6, PressureFleetAttrition·FleetEffectivenessByTierGap·FleetDelayPerPower·FleetDelayCap, ImmutableLaws, VigilClaimExtension·ReturnLureMaxLanes·ReturnedLivesToSeize·LureAcceptByPolicy, LeapTicksMin/Max/Cap(주석만).",
+   "why_it_matters": "밸런스 노브처럼 보이지만 아무 효과가 없어 설계자가 값을 바꿔도 세계가 달라지지 않는다. 노브 표에 '읽는 Phase'를 적거나 읽을 때까지 빼야 SSoT가 된다.",
+   "source_ref": "Tools/data/DT_Rules.json:4-6, 9-14, 22-26, 30, 32-34; Source/Cosmic_Ascension/Core/GalaxyState.h:545"
+  },
+  {
+   "what": "DT_Encounters는 행 구조체(FEncounterDef·FEncounterChoice)와 스키마의 null 자리만 있고 JSON·에셋·컬럼 규칙이 없다. guideline은 enc_ 9종과 petition_first_contact를 이름으로 약속한다.",
+   "why_it_matters": "방랑자/통치자 루프(조우·청원 카드)가 Phase 4의 핵심인데 데이터 모델의 검사 규칙(중첩 구조체 Choices)이 아직 스크립트·스키마 어디에도 없다 — CLAUDE.md도 중첩 검사 확장을 선행 조건으로 적었다.",
+   "source_ref": "Tools/data/schema.json:591; Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:318-382; Tools/make_data_tables.py:18-20"
+  },
+  {
+   "what": "DT_Edicts·DT_Traits·DT_Relics·DT_Dedications·DT_Planets는 JSON·스키마·에셋·구조체 모두 없다(헤더 주석과 guideline에만 등장).",
+   "why_it_matters": "칙령(통치자 명령), 특성의 수치 효과(BookShut Insight ×0.5, Remnant 저항 등), 유물, 봉헌 이름, 성역 행성 목록(v0.8)이 전부 미착수 — 36개 Trait 태그가 기계적으로 무력하다.",
+   "source_ref": "Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:4, 680; Config/DefaultGameplayTags.ini:110-150; guideline.md(DT_Traits 17줄·DT_Dedications 15줄·DT_Planets 11줄 언급)"
+  },
+  {
+   "what": "아키타입 2행뿐: guideline이 약속한 arch_seeker(v0.8 첫 생애)·swarm·psionic·machine·covenant·merchant 6행이 없고, 그 Trait.Arch.* 태그 5개와 Revelation.* 10모드는 선언만 되어 있다.",
+   "why_it_matters": "AI 백성 12이 모두 arch_default로 생성되어 세계의 다양성이 0이고 '만난 뒤에야 디테일이 살아난다'는 v0.7 방향을 데이터가 받치지 못한다.",
+   "source_ref": "Tools/data/DT_Civs.json:1-40; Config/DefaultGameplayTags.ini:129-135, 183-194"
+  },
+  {
+   "what": "초월자 1행뿐이고 그 행도 Title·Lure·CounterfeitOf·VoiceTemplates·ClaimTemplates·EventWeightModifiers가 비어 있다. Doctrine 6개·Realm.Celestial/Independent 태그는 행이 없다. FallenTranscendentCount=1이라 로스터 추첨 코드가 데이터로 검증되지 않는다.",
+   "why_it_matters": "Log.Transcendent·Log.Claim(1인칭 화자)이 낼 문장이 하나도 없어 '영혼 경제'의 서사 반쪽이 비어 있다.",
+   "source_ref": "Tools/data/DT_Transcendents.json:6-8, 14, 24-25; Tools/data/DT_Rules.json:27; Config/DefaultGameplayTags.ini:29-38"
+  },
+  {
+   "what": "위기 행 5/9: Hazard.Cult·SubspaceErosion·Extinction·Visitation은 태그·ini 주석(카운트다운까지)만 있고 행이 없다. guideline이 말하는 Hazard.Anomaly·Famine·Omen·Possession·PressureStorm·Reaping·Sealed는 태그조차 없다.",
+   "why_it_matters": "방문(부르심의 기제)과 절멸(사망→폐위 연결)이 없으면 플레이어의 생애 루프가 닫히지 않는다.",
+   "source_ref": "Config/DefaultGameplayTags.ini:19-24; Tools/data/DT_Hazards.json:1-247"
+  },
+  {
+   "what": "위기의 플레이어 응답: crisis_ai_awakening과 crisis_plague는 RulerResolutions가 비어 있고 WandererResolutions는 5행 모두 비어 있다.",
+   "why_it_matters": "다섯 위기 가운데 둘은 통치자가 아무것도 할 수 없고, 방랑자는 어떤 위기에도 답할 수 없다 — '위기에 답한다'는 코어 루프의 절반이 데이터에서 막혀 있다.",
+   "source_ref": "Tools/data/DT_Hazards.json:39-40, 75, 117-118, 168, 231"
+  },
+  {
+   "what": "업적 2행(T1→T2, T2→T3)뿐: T3→T4·T4→T5 행, 방랑자 경로(Path Wanderer) 행, AscensionCost·GrantedPowers·DedicationBank·FX·Sound 값이 전부 없고 Power.* 루트 태그는 0개다.",
+   "why_it_matters": "스키마 규칙상 Path=Ruler만 허용되도록 고정되어 있어 방랑자 승천은 데이터 규칙부터 열어야 한다. 엔딩(T5·Way.Received/Seized)으로 가는 사다리 윗부분이 비어 있다.",
+   "source_ref": "Tools/data/DT_Feats.json:13-17, 34-38; Tools/data/schema.json:538-542, 632; Config/DefaultGameplayTags.ini:46-48"
+  },
+  {
+   "what": "칸 창 장치(SignRow·MinTierToReveal·Log.Sign)와 계시 선택자 행(FLogTemplateDef.Context=Revelation.*)을 쓰는 데이터가 0이다: 이벤트·위기 MinTierToReveal 전부 0, SignRow 전부 None, Context 전부 빈 값.",
+   "why_it_matters": "'낮은 칸은 징조로 듣는다'는 화자 층(§8.2)이 코드·스키마에는 있으나 체감할 콘텐츠가 없다.",
+   "source_ref": "Tools/data/DT_Events.json:46-47, 94-95, 126-127; Tools/data/DT_LogTemplates.json:5-6; Tools/data/schema.json:171-172, 221-226, 280-289"
+  },
+  {
+   "what": "RevelationTemplates가 행마다 1줄([0] 징조)뿐이다 — [1] 사자의 전언·[2] 방문의 지나감/응답이 없고 arch_default의 AdjectiveBank는 비어 {CivAdj} 슬롯이 빈 문자열이 된다.",
+   "why_it_matters": "코드가 Num()==3을 가드하므로 고넬료 사슬·방문 위기가 와도 문장이 비어 버린다.",
+   "source_ref": "Tools/data/DT_Civs.json:16, 29, 35; Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:413-415, 441-444"
+  },
+  {
+   "what": "DT_Galaxies 표시 구멍: MapPosition이 6행 모두 (0,0), gal_smc RadiusLy 0, gal_triangulum·gal_smc StarCountText/FeatureText 빈 값, PeopleStems 전부 빈 값.",
+   "why_it_matters": "Phase 3 9번 '우주 화면'이 은하를 놓을 좌표와 눈금이 없다(RadiusLy 0은 지도 눈금의 0 배율).",
+   "source_ref": "Tools/data/DT_Galaxies.json:15-18, 139, 154-157, 173-183, 215-227"
+  },
+  {
+   "what": "AIProfile 컬럼이 두 행 모두 빈 값이고 AI 프로필은 코드가 4개 태그 배열에서 고른다; InitialRelations도 비어 있고 외교 단계가 없다.",
+   "why_it_matters": "아키타입이 AI 성향에 닿는 길이 데이터에 없어 'AI 문명 성격'을 기획자가 조정할 수 없다.",
+   "source_ref": "Tools/data/DT_Civs.json:7, 13, 26, 32; Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp:102-111"
+  },
+  {
+   "what": "로컬라이제이션 설정이 없다: Config에 [Internationalization]·NativeGameCulture·LocalizationPaths가 없고 guideline에도 문화 코드 언급이 0줄이다. 텍스트는 ko 단일 언어인데 '번역 시작 뒤 배열은 끝에만' 정책만 있다.",
+   "why_it_matters": "Localization Dashboard 타깃이 없으면 위치 기반 키 정책이 지킬 대상이 없고, 쿠킹 빌드의 기본 문화가 영어로 잡혀 FText 표시가 흔들릴 수 있다.",
+   "source_ref": "Config/DefaultGame.ini:1-11; Config/DefaultEngine.ini:1-118; Tools/make_data_tables.py:22-26"
+  },
+  {
+   "what": "schema.required_tags는 Notable.* 6개뿐이다. 런타임 코드가 리터럴로 부르는 태그 36개(Effect.KillPlayer·DeposeRuler, Hazard.Claim/PreSupernova/Rebellion, Realm.Abyssal/Celestial, Log.*, Reign.*, Status.*, Succession.*, Star.Class.*, AI.Profile.*, Trait.Mind.NoSelf)는 ini에서 빠져도 스키마가 잡지 못한다.",
+   "why_it_matters": "ini의 '이 둘은 선언을 유지해야 한다' 주석(Effect.*)이 검사로 뒷받침되지 않아 태그 정리 작업이 세이브 호환을 조용히 깨뜨릴 수 있다.",
+   "source_ref": "Tools/data/schema.json:22; Config/DefaultGameplayTags.ini:70-73; Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:281,329-331,1745-1748"
+  },
+  {
+   "what": "guideline이 DT_Rules.X로 약속한 노브 6개가 JSON에 없다: BackgroundStarCount(20,000)·SceneryGalaxyCount(5,000)·ScanSightBonusLanes(1)·CrossingMinTier(4)·CrossingSettleTicks(3,000)·CrossingCooldownTicks(4,000).",
+   "why_it_matters": "지도 배경·스캔·건넘이 들어올 때 노브 이름이 이미 정해져 있으므로 스키마·JSON·헤더에 같이 적어야 한다(CLAUDE.md: JSON에 없는 컬럼은 스크립트가 실패).",
+   "source_ref": "guideline.md(DT_Rules.BackgroundStarCount·SceneryGalaxyCount·ScanSightBonusLanes·CrossingMinTier·CrossingSettleTicks 문단); Tools/data/DT_Rules.json:1-49"
+  },
+  {
+   "what": "v0.8 예약이 데이터·ini에 전혀 없다: Law.Hedge 태그, Trait.Arch.Seeker/arch_seeker 행, sys_0 모성계, 표시명 '항성 안정화', Transit.People, Trait.Faith.Visited, DT_Planets.",
+   "why_it_matters": "현재 데이터는 '(v0.8 — 단계 N부터)' 표지 뒤의 옛 설계(지구·sol)를 그대로 싣고 있어 문서 기준과 플레이 체감이 어긋난다.",
+   "source_ref": "Tools/data/DT_Rules.json:26, 28; Tools/data/DT_Civs.json:3-20; Tools/data/DT_Megaprojects.json:52; Tools/data/DT_Feats.json:26; Config/DefaultGameplayTags.ini:50-54"
+  },
+  {
+   "what": "guideline·CLAUDE.md가 '직접 승인한 헤더 초안'으로 인용하는 Saved/Design/phase3_*/header_draft.md 3건이 .gitignore의 Saved/ 아래라 버전 관리 밖이다.",
+   "why_it_matters": "설계 승인 기록이 한 PC에만 존재해 SSoT 통합 때 참조가 끊긴다. Docs/ 같은 추적 폴더로 옮겨야 한다.",
+   "source_ref": ".gitignore:6; CLAUDE.md '현재 단계'(Saved/Design/phase3_panels·phase3_feed·phase3_ascension·phase3_time)"
+  },
+  {
+   "what": ".gitignore 주석이 가리키는 Config/DefaultPakFileRules.ini가 없고 DefaultEditor.ini는 0바이트다.",
+   "why_it_matters": "사소하지만 '팩 제외는 여기에'라는 안내가 빈 자리를 가리킨다.",
+   "source_ref": ".gitignore:11-12; Config/DefaultEditor.ini(0 bytes)"
+  },
+  {
+   "what": "Enhanced Input이 기본 클래스로 설정되어 있으나 IMC/IA 에셋이 Content에 없고 바인딩은 코드의 레거시 BindKey(0~4 배속·Space·마우스)다. 키 재배치·게임패드 경로가 없다.",
+   "why_it_matters": "입력이 코드에 박혀 기획자가 조정할 수 없고, UE 5.8에서 레거시 바인딩은 지원 종료 방향이다.",
+   "source_ref": "Config/DefaultInput.ini:79-80; Content/CA(UI/WBP_LogEntry.uasset만)"
+  },
+  {
+   "what": "스키마의 plain 컬럼(EthicsPreset·Color·CostPerTick·MapPosition)은 값 범위를 전혀 검사하지 않는다(윤리 −1..1, 색 0..1, 비용 ≥0).",
+   "why_it_matters": "코드가 음수 비용을 0으로 읽는 가드는 있으나 저작 오류가 조용히 통과한다.",
+   "source_ref": "Tools/data/schema.json:136, 138, 338, 515"
+  },
+  {
+   "what": "DT_Rules 바깥의 하드코딩: 틱 길이(1초), 배속 프리셋(0/1/2/5/10), 로그 상한 2000, 피드 500, 교리 가중 상한 3, 조우 판정 Rng 0..5·불가능 Difficulty 16.",
+   "why_it_matters": "'밸런스는 DT_Rules'라는 규칙과 달리 체감 속도·정보량을 정하는 값이 코드에 있어 플레이테스트 조정에 빌드가 필요하다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.h:491; Log/CosmicLogSubsystem.h:60; UI/CosmicLogFeedWidget.h:66; Data/CosmicDefinitionRows.h:318-333, 519-521"
+  },
+  {
+   "what": "DT_Events 11행 가운데 Event.Crisis.Supernova/Transcendent/Claim·Event.Grace.Rescue/Jubilee 카테고리는 행이 0이고, 약속된 event_grace_rescue·event_grace_jubilee·event_word_arrived·event_zeal_sacrifice가 없다(CLAUDE.md: VS 40행 목표).",
+   "why_it_matters": "'구원 이벤트(사망 1회 무효)'가 없으면 Phase 4b 사망 파이프라인의 은혜 분기를 데이터로 만들 수 없다.",
+   "source_ref": "Tools/data/schema.json:46-56; Tools/data/DT_Events.json:1-379; Config/DefaultGameplayTags.ini:170-176"
+  },
+  {
+   "what": ".claude/settings.json에 permissions·hooks가 없다(예: check_data.py를 JSON 저장 뒤 자동 실행하는 훅, 읽기 전용 명령 허용 목록).",
+   "why_it_matters": "데이터 작업의 검증 루프(check_data → make_data_tables → 테스트 2회)가 전부 수동 지시에 의존한다.",
+   "source_ref": ".claude/settings.json:1-5; CLAUDE.md '빌드 / 실행 / 테스트'"
+  },
+  {
+   "what": "ST_CA 37키 가운데 guideline이 이름으로 적은 키는 2개뿐이고 ini 태그 15개(AI.Profile 3·Star.Class 7·Trait.Arch 4·Doctrine.Assimilation·Event.Grace.Jubilee)는 guideline에 한 번도 나오지 않는다.",
+   "why_it_matters": "UI 문안과 일부 태그가 코드·ini에서만 정의되어 문서 통합 때 '어디가 기준인가'가 흐리다.",
+   "source_ref": "Tools/data/ST_CA.csv:2-38; Config/DefaultGameplayTags.ini:82-85, 129-135, 153-159"
+  }
+ ],
+ "duplication": [
+  {
+   "what": "Star.Class 7종의 목록이 네 곳에 따로 있다: ini 선언, 생성의 StarClassNames 배열, 지도 색 표, 패널의 접두어 제거. LivingWorldStarShares 길이 7도 암묵 결합.",
+   "also_in": "Config/DefaultGameplayTags.ini:153-159; Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:79-80; World/CosmicMapLook.cpp:26-32; UI/CosmicSystemPanelWidget.cpp:32-34",
+   "source_ref": "Tools/data/DT_Rules.json:46"
+  },
+  {
+   "what": "AI.Profile 4종이 ini 선언과 코드의 고정 배열 두 곳에 있고 DT_Civs.AIProfile 컬럼은 비어 쓰이지 않는다.",
+   "also_in": "Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp:104-107",
+   "source_ref": "Config/DefaultGameplayTags.ini:82-85; Tools/data/DT_Civs.json:7,26"
+  },
+  {
+   "what": "FCosmicRulesDef의 멤버 초기화식이 DT_Rules.json의 값을 46개 거의 그대로 되풀이한다(FallenTranscendentCount만 3≠1). 두 곳을 같이 고쳐야 하는 이중 원본.",
+   "also_in": "Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:664-864",
+   "source_ref": "Tools/data/DT_Rules.json:3-48"
+  },
+  {
+   "what": "위기의 카운트다운·만료 결과·발생 조건이 ini DevComment, guideline §4.1 표, DT_Hazards.json 세 곳에 산문·표·데이터로 중복된다(AIAwakening 150/50-50, Rebellion <0.3 100틱 ≥300, Claim 300).",
+   "also_in": "Config/DefaultGameplayTags.ini:16-24; guideline.md §4.1 표",
+   "source_ref": "Tools/data/DT_Hazards.json:7-9, 27, 65, 193-208"
+  },
+  {
+   "what": "스키마 규칙의 내용이 행 구조체 헤더 주석에 다시 적혀 있다('Exactly 3 entries (Data.Integrity)', '3..5', 'Three or more', 'Exactly 5 entries', 'Capital and ClaimRule rows carry 0').",
+   "also_in": "Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:84-87, 151-152, 441-444, 567-570, 725-727, 796-798, 830-833",
+   "source_ref": "Tools/data/schema.json:80, 96, 112, 141, 146, 238-246"
+  },
+  {
+   "what": "열거형 목록(EAscensionTier·EPlayerRole·ECosmicEventTrigger·ECosmicEventSubject·ECosmicHazardSpawn)과 자원·축·연구 낱말이 C++ UENUM/구조체와 schema.json에 양쪽으로 적혀 있다(Data.Integrity가 맞춤).",
+   "also_in": "Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:21-43, 107-119; Core/CosmicTypes.h",
+   "source_ref": "Tools/data/schema.json:26-32, 36-42"
+  },
+  {
+   "what": "코드가 이름으로 부르는 행 목록이 CosmicRowNames.h와 schema.required_rows 두 곳에 있다(양방향 검사로 보호됨).",
+   "also_in": "Source/Cosmic_Ascension/Data/CosmicRowNames.h:12-53",
+   "source_ref": "Tools/data/schema.json:63, 132, 169, 208, 350, 510"
+  },
+  {
+   "what": "Event.* 9개 카테고리가 ini 선언과 schema.event_log_categories에 둘 다 나열된다.",
+   "also_in": "Config/DefaultGameplayTags.ini:168-176",
+   "source_ref": "Tools/data/schema.json:46-56"
+  },
+  {
+   "what": "첫 줄 문장과 보유 상한·압력 가중 같은 데이터 값이 guideline 본문에 리터럴로 들어가 있다('태양계. 당신은 이 행성의 통치자다.', 1/3/4/7/10, 0/0/0.25/1/2, LivingWorlds 60·Peoples 12, HomeRadiusShare 0.53).",
+   "also_in": "guideline.md(§5.11·§5.12·§4.2·§3.1 문단)",
+   "source_ref": "Tools/data/DT_LogTemplates.json:8; Tools/data/DT_Rules.json:19, 41; Tools/data/DT_Galaxies.json:6-9"
+  },
+  {
+   "what": "DT_Galaxies 6행의 표시 문안(StarCountText·DistanceText·FeatureText·BridgeTicks·RadiusLy)이 guideline §5.11의 표에 같은 값으로 있다.",
+   "also_in": "guideline.md §5.11 은하 표",
+   "source_ref": "Tools/data/DT_Galaxies.json:9-14, 149-153, 171-175, 193-197, 215-219, 237-241"
+  },
+  {
+   "what": "CLAUDE.md '현재 단계'가 데이터 규칙(이름 뱅크 12개, RevelationTemplates 1줄, 태그 수, 쿨다운 키 꼴)을 다시 서술해 guideline·schema.about과 세 겹이다.",
+   "also_in": "CLAUDE.md 불변 규칙·현재 단계; Tools/data/schema.json:3-18",
+   "source_ref": "Tools/data/DT_Civs.json:11, 16, 30"
+  },
+  {
+   "what": "DefaultInput.ini의 AxisConfig가 엔진 기본값을 -줄/+줄로 되풀이하고 VR(Vive·MixedReality·Oculus·ValveIndex) 축 45줄을 싣는다 — 템플릿 보일러플레이트.",
+   "also_in": "엔진 BaseInput.ini 기본값",
+   "source_ref": "Config/DefaultInput.ini:2-60"
+  },
+  {
+   "what": "DefaultEngine.ini의 Windows 오디오 블록(샘플레이트·버퍼·압축)과 AndroidFileServer 블록(SecurityToken 포함)은 엔진 기본값의 복사본이다.",
+   "also_in": "엔진 BaseEngine.ini 기본값",
+   "source_ref": "Config/DefaultEngine.ini:56-76, 105-117"
+  },
+  {
+   "what": ".gitignore·.gitattributes·.editorconfig 머리 주석이 모두 'guideline.md section 10.5(10.3)'를 가리켜 규칙 본문이 네 파일에 흩어져 있다.",
+   "also_in": "guideline.md §10.3·§10.5",
+   "source_ref": ".gitattributes:1; .gitignore:1; .editorconfig:1"
+  },
+  {
+   "what": "판정 어휘 금지가 schema.json의 낱말 목록, CLAUDE.md 불변 규칙, guideline §8.3, 예정 테스트 Data.NoVerdictWords로 네 곳에 걸쳐 있다.",
+   "also_in": "CLAUDE.md 불변 규칙; guideline.md §8.3",
+   "source_ref": "Tools/data/schema.json:33, 139-141, 178-179"
+  }
+ ],
+ "contradictions": [
+  {
+   "a": "Tools/data/DT_Rules.json:28 PlayerArchetypeRow = arch_terran; DT_Civs.json:3-20 첫 생애 = 지구·'태양계'·Trait.Arch.Terran; DT_Rules.json:26 ImmutableLaws 4개",
+   "b": "guideline.md v0.8: 첫 생애는 성역 밖 찾는 백성 arch_seeker(모성계 sys_0), sol은 다섯째 법 Law.Hedge의 성역이며 소유·정착·모성계의 대상이 아니다('arch_terran은 은퇴한다')",
+   "note": "문서가 '(v0.8 — 단계 4·4b부터. 그 전의 코드는 arch_terran 지구·sol)'로 인정한 의도적 지연. 데이터 쪽 변경(새 행·태그·HomeSystemNames·log_first_life)이 단계 4b의 작업 목록에 들어가야 한다."
+  },
+  {
+   "a": "Tools/data/DT_Megaprojects.json:52 project_stabilize DisplayName '초신성 안정화'; DT_Feats.json:26 feat_supernova_stabilized Title '초신성 안정화'",
+   "b": "guideline.md v0.8(19줄)·CLAUDE.md 낱말 규칙: 표시명은 '항성 안정화'(단계 5부터)",
+   "note": "표시명 FText만 바꾸면 되고 행 이름은 그대로(세이브 호환). 위기 행 crisis_pre_supernova의 DisplayName '초신성 전조'는 별도 판단 필요."
+  },
+  {
+   "a": "Tools/data/DT_LogTemplates.json:8 log_first_life '{HomeSystem}. 당신은 이 행성의 통치자다.'",
+   "b": "guideline.md 첫 10분: 0:00 첫 줄은 '{HomeSystem}. 이 백성이 당신에게 맡겨졌다.'(v0.8 단계 4b; 통치자 = 부르심을 입어 맡은 자, 받은 꼴만)",
+   "note": "현 문장은 성계 이름 뒤에 '이 행성'이라 해 태양계를 행성이라 부르는 어긋남도 있다. single_variant_rows에 묶여 변형 1개로 허용됨(schema.json:44)."
+  },
+  {
+   "a": "Config/DefaultGameplayTags.ini:17 Hazard.AIAwakening DevComment 'Unresolved: 50% production +150% / 50% revolt'; guideline §4.1 표 '50%: 생산 +150% / 50%: 성계 반란'",
+   "b": "Tools/data/DT_Hazards.json:11-36 만료 = Energy +30·Matter +30 한 번 / 분기 50% = Stability −0.15",
+   "note": "데이터는 일회성 자원과 안정도 하락으로 근사했고 '생산 승수'·'반란'은 구현되지 않았다. 셋 중 하나를 기준으로 통일해야 한다."
+  },
+  {
+   "a": "Config/DefaultGameplayTags.ini:18 Hazard.Plague 'spreads to neighbours'; guideline §4.1",
+   "b": "Tools/data/DT_Hazards.json:114 OnExpireNeighbourEffects = []; CosmicDefinitionRows.h:176 '역병의 전파는 Phase 4의 격리와 함께'",
+   "note": "ini 주석이 미구현 설계를 현재형으로 적는다 — DevComment를 설계 사양의 저장소로 쓰지 말아야 한다."
+  },
+  {
+   "a": "Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:479-481 CounterfeitOf 'Required for Abyssal rows'; guideline §4.2 '교리 행에는 참된 것(CounterfeitOf)을 반드시 적는다'",
+   "b": "Tools/data/schema.json:354 CounterfeitOf optional: true; Tools/data/DT_Transcendents.json:6 trans_silence CounterfeitOf ''(ini:29는 Truth.Rest라 적음)",
+   "note": "스키마에 'Allegiance Realm.Abyssal → CounterfeitOf set' 규칙 한 줄이 빠져 있고 데이터도 비어 있다."
+  },
+  {
+   "a": "Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:441-444 RevelationTemplates 'Exactly 3 entries (Data.Integrity)'; guideline '`RevelationTemplates` 3줄'",
+   "b": "Tools/data/schema.json:146 len_in [1,3]; Tools/data/DT_Civs.json:16,35 각 1줄",
+   "note": "CLAUDE.md는 '[0] 징조 한 줄뿐, 코드는 Num()==3 확인'이라고 인정. 헤더 주석·guideline·스키마 가운데 스키마가 현실이다."
+  },
+  {
+   "a": "Config/DefaultGameplayTags.ini:146 Trait.Faith.BookShut 'Insight x0.5, adjective forgetting'; :138 Trait.Faith.Remnant 'Cult resistance and collapse recovery up, production multiplier down'",
+   "b": "Tools/data/DT_Events.json:24-39, 268-274 — 특성 교체·부여만 있고 수치 효과 없음; DT_Traits 없음",
+   "note": "CLAUDE.md '아직 없는 것'에 BookShut Insight ×0.5는 Phase 4 특성 행으로 미룸. ini 주석이 약속하는 기계는 데이터에 없다."
+  },
+  {
+   "a": "Config/DefaultGameplayTags.ini:22 Hazard.Rebellion 'at the ruler's home system'",
+   "b": "Tools/data/DT_Hazards.json:194 SpawnRule Capital(수도 — 옮겨질 수 있음); DT_Events.json:337 '{Civ}의 수도 {System}에서'",
+   "note": "현재는 모성계=수도라 같지만 수도 이전이 생기면 갈린다. ini 주석을 '수도'로 맞추는 편이 안전."
+  },
+  {
+   "a": "guideline.md §5.11 '이름의 거름' ①: 다른 작품의 고유명·조어 금지, 게임에 보이는 지어낸 이름은 한국어 묘사 이름; v0.8: 성역 밖에 인간 이름 뱅크 없음",
+   "b": "Tools/data/DT_Civs.json:30 arch_default PersonNameBank 사렌·토바르·이소란·벨루나…(음역 조어 12); :11 arch_terran 유나·하루토·메이린…(다국적 인간 이름 12)",
+   "note": "위기 처리 작업에서 급히 채운 뱅크(CLAUDE.md)가 v0.8 이름 규칙과 충돌한다. 묘사 이름('첫 번째 증인'류)으로 갈지 규칙을 완화할지 결정 필요."
+  },
+  {
+   "a": ".editorconfig:6 end_of_line = crlf(모든 파일)",
+   "b": "Tools/data의 JSON·CSV·sha1·schema 12개 파일이 전부 LF만 사용(CRLF 0); .gitattributes:4 text=auto",
+   "note": "Data.SourcesInSync가 CR을 빼고 해시하므로 동작은 안전하지만 두 설정이 다른 줄바꿈을 지시한다. 또 Cosmic_Ascension.uproject는 마지막 줄바꿈이 없어 insert_final_newline과 어긋난다."
+  },
+  {
+   "a": "Config/DefaultInput.ini:75 DefaultViewportMouseCaptureMode=CapturePermanently_IncludingInitialMouseDown, :66 bCaptureMouseOnLaunch=True",
+   "b": "CLAUDE.md 엔진 표·guideline: 런타임은 GameAndUI + CaptureDuringMouseDown, SetHideCursorDuringCapture(false)",
+   "note": "ini 값은 템플릿 기본값이고 코드가 덮어쓴다 — ini를 읽는 사람이 오해한다."
+  },
+  {
+   "a": "Config/DefaultInput.ini:79-80 DefaultPlayerInputClass·DefaultInputComponentClass = EnhancedInput",
+   "b": "CLAUDE.md 엔진 표: 바인딩은 레거시 InputComponent->BindKey; Content에 IMC/IA 없음",
+   "note": "설정은 Enhanced, 사용은 레거시. 어느 쪽을 표준으로 할지 가이드라인에 명시해야 한다."
+  },
+  {
+   "a": "Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:763 FallenTranscendentCount 기본값 3(주석 'Read as 0..3')",
+   "b": "Tools/data/DT_Rules.json:27 값 1; guideline 'VS 1, EA 3'",
+   "note": "테이블이 없을 때의 폴백이 EA 값이다. C++ 기본값을 VS 값으로 맞추거나 '기본값 = 폴백일 뿐'을 문서화."
+  },
+  {
+   "a": "Tools/data/schema.json:416 RulerResolutions tables [DT_Megaprojects, DT_Encounters]",
+   "b": "Tools/data/schema.json:591 DT_Encounters columns null, 에셋·JSON 없음",
+   "note": "조우 행 이름을 답으로 적는 순간 검사 대상이 없다. 테이블 생성이 선행되어야 한다."
+  },
+  {
+   "a": "Config/DefaultGameplayTags.ini:19-21, 24 Hazard.SubspaceErosion 400·Extinction 250·Cult 350·Visitation 120 틱",
+   "b": "Tools/data/DT_Hazards.json에 해당 행 없음",
+   "note": "설계값이 ini 주석에만 살아 있다. 행을 만들 때 그 값을 옮기고 주석은 지워야 한다."
+  },
+  {
+   "a": "guideline.md §4.1 Hazard.AIAwakening 'R: 칙령 기계 권리 / W: 조우 대화'; Hazard.Plague 'R/W' 응답 설계",
+   "b": "Tools/data/DT_Hazards.json:39-40, 117-118 RulerResolutions·WandererResolutions 빈 배열",
+   "note": "칙령·조우 테이블이 없으니 비워 둔 것이지만, 결과적으로 두 위기는 지금 답이 없다."
+  },
+  {
+   "a": "CLAUDE.md '현재 단계': GameplayTag 총 136개",
+   "b": "Config/DefaultGameplayTags.ini: 140개(Galaxy.Kind 4개는 v0.7 은하 생성 작업에서 추가, guideline '136 → 140')",
+   "note": "CLAUDE.md의 수치가 역사 서술이라 오래된 값이 남아 있다 — 통합 시 '현재 수'는 한 곳에만."
+  },
+  {
+   "a": "Tools/data/schema.json:339-342 StarNameBank·CatalogPrefixes·CatalogStems no_digits: true",
+   "b": "guideline.md v0.8 단계 5 '실제 하늘': 근방 관측 목록의 계·이름(관측 목록 표기의 숫자)은 UI 라벨에 쓴다",
+   "note": "잠재 충돌: 실제 하늘 데이터(HD·글리제 번호 등)를 같은 뱅크에 넣으면 no_digits가 거부한다. 새 테이블(DT_Planets·근방 목록)의 컬럼 규칙을 따로 정해야 한다."
+  },
+  {
+   "a": "Config/DefaultGameplayTags.ini:129 Trait.Arch.Terran 'Earth: the player's fixed first life'; :183 Revelation.Book 'arch_terran'",
+   "b": "guideline.md v0.8: arch_terran 은퇴, 책은 고넬료 사슬로 나중에 어느 백성에게나 도착",
+   "note": "태그 DevComment가 옛 전제를 설명한다. 태그 이름은 세이브에 남으므로 유지하되 주석을 갱신."
+  }
+ ],
+ "implemented_status": [
+  {
+   "feature": "데이터 파이프라인(JSON/CSV → .uasset 제자리 재생성, 검사 → 단위 테스트 → 라운드트립 비교, sha1 도장, Data.SourcesInSync)",
+   "status": "implemented",
+   "evidence": "Tools/make_data_tables.py:1-45; Tools/data/generated.sha1:1-12(현재 바이트와 12/12 일치); Content/CA/Data/DT_*.uasset·ST_CA.uasset 10개"
+  },
+  {
+   "feature": "정의 스키마 schema.json과 에디터 없는 검사(check_data.py), 참조·태그·범위·어휘·슬롯·조사 규칙",
+   "status": "implemented",
+   "evidence": "Tools/data/schema.json:2-648(컬럼 143·규칙 45·조건 30·효과 18); Tools/cosmic_data_schema.py:47-51, 406-417"
+  },
+  {
+   "feature": "DT_Rules 노브 46개",
+   "status": "partial",
+   "evidence": "Tools/data/DT_Rules.json:3-48 — 28개 런타임 읽음, 18개 미사용(Succession 6·Fleet 4·ImmutableLaws·Vigil/Return/Lure 4·LeapTicks 3)"
+  },
+  {
+   "feature": "DT_Civs 아키타입(guideline 8행)",
+   "status": "partial",
+   "evidence": "Tools/data/DT_Civs.json:1-40 — arch_terran·arch_default 2행; AIProfile·InitialRelations 빈 값; RevelationTemplates 1/3줄"
+  },
+  {
+   "feature": "DT_Transcendents(교리 4 + 천상 1 + 독립 2)",
+   "status": "partial",
+   "evidence": "Tools/data/DT_Transcendents.json:1-27 — trans_silence 1행, 문장 컬럼 5개 비어 있음"
+  },
+  {
+   "feature": "DT_Hazards(태그 9)",
+   "status": "partial",
+   "evidence": "Tools/data/DT_Hazards.json:1-247 — 5행; Cult·SubspaceErosion·Extinction·Visitation 없음; WandererResolutions 전부 빈 값"
+  },
+  {
+   "feature": "DT_Events(VS 목표 40행)",
+   "status": "partial",
+   "evidence": "Tools/data/DT_Events.json:1-379 — 11행(Lottery 5·Standing 3·Named 3), 카테고리 4/9 사용, SignRow·MinTierToReveal 미사용"
+  },
+  {
+   "feature": "DT_Megaprojects(VS 5행)",
+   "status": "implemented",
+   "evidence": "Tools/data/DT_Megaprojects.json:1-62 — dyson·reform·relief·settle·stabilize; project_settle은 required_rows(schema.json:510)"
+  },
+  {
+   "feature": "DT_Feats 승천 사다리(4칸 + 방랑자 경로)",
+   "status": "partial",
+   "evidence": "Tools/data/DT_Feats.json:1-45 — T1→T2·T2→T3 2행; 대가·권능·봉헌·FX 빈 값; schema.json:538-542가 Path=Ruler만 허용"
+  },
+  {
+   "feature": "DT_LogTemplates(코드가 이름으로 부르는 행 10 + 계시 선택자 행)",
+   "status": "partial",
+   "evidence": "Tools/data/DT_LogTemplates.json:1-108 — required_rows 10/10 존재(schema.json:169); Context=Revelation.* 선택자 행 0"
+  },
+  {
+   "feature": "DT_Galaxies(고향 1 + 무대 4 + 풍경 1)",
+   "status": "partial",
+   "evidence": "Tools/data/DT_Galaxies.json:1-251 — 6행, 고향 행 시뮬 값·이름 뱅크 완비(60/24/30); MapPosition 전부 0, gal_smc RadiusLy 0, PeopleStems 빈 값"
+  },
+  {
+   "feature": "DT_Encounters(조우·청원 카드)",
+   "status": "stub",
+   "evidence": "Tools/data/schema.json:591 columns null; Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:318-382 구조체만; JSON·에셋 없음"
+  },
+  {
+   "feature": "DT_Edicts·DT_Traits·DT_Relics·DT_Dedications·DT_Planets",
+   "status": "missing",
+   "evidence": "Tools/data/ 디렉터리에 없음; Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:4 주석만"
+  },
+  {
+   "feature": "String Table ST_CA(UI 라벨)",
+   "status": "implemented",
+   "evidence": "Tools/data/ST_CA.csv:2-38 37키, UI 코드가 37/37 사용(UI/CosmicUILabels.h:53-83 등); Content/CA/Data/ST_CA.uasset"
+  },
+  {
+   "feature": "GameplayTag 트리(ini 단일 출처, 3단 제한)",
+   "status": "implemented",
+   "evidence": "Config/DefaultGameplayTags.ini:11-200 — 140개, 중복 0, 최대 3단; 다만 데이터·코드 어느 쪽도 쓰지 않는 선언이 90개 이상(Phase 4·6+ 예약)"
+  },
+  {
+   "feature": "v0.8 데이터 반영(성역 sol·Law.Hedge·arch_seeker·sys_0·'항성 안정화'·DT_Planets·Transit.People·Trait.Faith.Visited)",
+   "status": "missing",
+   "evidence": "Tools/data/DT_Rules.json:26,28; DT_Civs.json:3-20; DT_Megaprojects.json:52; Config/DefaultGameplayTags.ini(해당 태그 없음)"
+  },
+  {
+   "feature": "칸 창·징조(SignRow·MinTierToReveal·Log.Sign) 콘텐츠",
+   "status": "stub",
+   "evidence": "스키마·컬럼·태그는 있음(schema.json:221-226, 280-289; ini:105) — 사용 행 0(DT_Events.json 전 행 MinTierToReveal 0·SignRow None)"
+  },
+  {
+   "feature": "계승·공백기·노화·함대·귀환 유혹 노브",
+   "status": "stub",
+   "evidence": "Tools/data/DT_Rules.json:4-14, 22-25, 30-34 값은 있으나 런타임 참조 0회"
+  },
+  {
+   "feature": "로컬라이제이션 설정(문화·타깃)",
+   "status": "missing",
+   "evidence": "Config/DefaultGame.ini:1-11, Config/DefaultEngine.ini:1-118에 [Internationalization] 없음"
+  },
+  {
+   "feature": "렌더·맵·게임 모드·쿠킹 설정",
+   "status": "implemented",
+   "evidence": "Config/DefaultEngine.ini:3-8, 10-47; Config/DefaultGame.ini:7-11"
+  },
+  {
+   "feature": "입력 설정(Enhanced Input 매핑 에셋)",
+   "status": "missing",
+   "evidence": "Config/DefaultInput.ini:79-80은 Enhanced 클래스; Content에 IMC/IA 없음 — 바인딩은 코드의 레거시 BindKey"
+  },
+  {
+   "feature": "플러그인·엔진 연결(.uproject)",
+   "status": "implemented",
+   "evidence": "Cosmic_Ascension.uproject:3, 13-28(GUID 연결, Niagara·PythonScriptPlugin 편집기 전용)"
+  },
+  {
+   "feature": "저장소 규칙(LFS·ignore·editorconfig)",
+   "status": "implemented",
+   "evidence": ".gitattributes:4-52; .gitignore:4-50; .editorconfig:4-19(줄바꿈 지시만 실제 파일과 어긋남)"
+  },
+  {
+   "feature": "Claude Code 프로젝트 설정(모델·effort)",
+   "status": "implemented",
+   "evidence": ".claude/settings.json:2-4 — permissions·hooks는 없음"
+  },
+  {
+   "feature": "위기 응답 데이터(통치자 대응 프로젝트·방랑자 조우)",
+   "status": "partial",
+   "evidence": "Tools/data/DT_Hazards.json:74, 167, 230 — 3/5 위기만 통치자 답 있음; 방랑자 0/5"
+  }
+ ],
+ "player_facing": [
+  "입력(마우스): 왼쪽 클릭 성계 선택, 왼쪽 드래그 지도 이동, 오른쪽 드래그 회전, 휠 줌, 더블 클릭 다가가기(DoubleClickTime 0.2 — Config/DefaultInput.ini:78; 감도 0.07 :13-15)",
+  "입력(키): 0/1/2/3/4 = 정지/1/2/5/10배속, Space 정지 토글(코드 바인딩, ini에 선언 없음); ~ 콘솔(Config/DefaultInput.ini:83); Alt+Enter·F11 전체화면(:61-62)",
+  "입력(HUD 단추): 성계 패널의 '시작'(CanStart 행마다: 다이슨 스웜·개혁·구호·초신성 안정화)·'정착'(거절 시 회색 단추 + 사유 툴팁 7종), 상단 바 시계 누르면 '주기'↔'년' 전환(ST_CA.csv:24-25, 26-32, 37-38)",
+  "상단 바 라벨: 주기(또는 {0}년), 칸, 안정도, 에너지·물질·지식·영향력·인과, 물리·사회·공학·초월, 정지/{0}년/초 (Tools/data/ST_CA.csv:2-15, 33-35)",
+  "성계 패널 라벨: 항성 등급(O~M 글자), 주인/주인 없음/파괴된 성계, 위기, 남은 주기, 건설 칸·대응 칸 (Tools/data/ST_CA.csv:16-23)",
+  "정착 거절 사유 7문장: 이미 다른 백성이 산다 / 레인 하나로 닿는 곳만 / 칸 {0}에 오르기 전 불가(영향권) / 보유 상한 / 한 번에 하나씩 / 방법이 아직 없다 / 칸 {0}부터 (Tools/data/ST_CA.csv:26-32)",
+  "첫 줄: '태양계. 당신은 이 행성의 통치자다.'(DT_LogTemplates.json:8) — 플레이어 백성 이름은 '태양계 연합/지구 연방/인류 연합' 중 하나(DT_Civs.json:9)",
+  "로그 피드 '기록'(마지막 500줄, Severity 색): 이벤트 33문장·위기 42문장·프로젝트 완성 15문장·돌파 12문장·만남 4문장·먼 줄 6문장 — 전부 한국어 두 문장 꼴, 숫자 없음 (Tools/data/DT_Events.json, DT_Hazards.json, DT_Megaprojects.json, DT_LogTemplates.json)",
+  "승천 연출: 업적 제목('다이슨 스웜'·'초신성 안정화') + 새 칸 + MythicNarrative 한 문장 + 승천 로그 3변형 (Tools/data/DT_Feats.json:4-5, 18-22, 26-27, 39-43)",
+  "지도 피드백: 항성 등급별 색·크기 7단계(코드 표), 주인 색 고리(DT_Civs.Color — 플레이어 파랑 0.25/0.55/1.0, AI 흰색), 선택 흰 고리, 이름표의 건설·대응 진척 막대 (DT_Civs.json:8, 27)",
+  "플레이 가능한 사다리: 다이슨 스웜(에너지 2·물질 1 × 600틱) + 물리 연구 50% → 둘째 칸 → 정착(T2, 에너지 1·물질 2 × 300틱, 상한 3) → 초신성 전조에 '초신성 안정화'(에너지 2·물질 2 × 100틱) → 셋째 칸; 반란에 개혁(영향력 1 × 100틱), 주장에 구호(물질 1·영향력 1 × 150틱) (DT_Megaprojects.json, DT_Feats.json, DT_Hazards.json:74, 167, 230)",
+  "겪게 되는 위기 문장: 채굴 AI 각성(150틱)·성간 역병(200틱)·초신성 전조(300틱, T2+)·반란(안정도 0.3 미만 100틱)·주장(300틱, 영향권 1레인) — 각 발생/만료/해결 3변형 (Tools/data/DT_Hazards.json:6-7, 43-57, 78-92, 121-135, 171-185, 234-244)",
+  "은하 패널 문안(우주 화면 예정): '우리은하 — 별 약 1,000억 ~ 4,000억 개(추정)', '태양은 은하 중심에서 약 2만 6천 ~ 2만 7천 광년…', 안드로메다 '약 250만 광년' 등 6행의 '약·추정' 문안 (Tools/data/DT_Galaxies.json:12-14, 151-153, 174, 195-196, 218, 239-241)",
+  "성계 이름: 백성의 모성계는 실제 별 이름(알데바란·리겔·데네브…60), 무주 성계는 '알파 센타우리'·'베타 레오니스' 꼴 (Tools/data/DT_Galaxies.json:19-138)",
+  "시간 표시 토글: '{0}년', '{0}년 남음', '{0}년/초', '{0} · {1}(첫 기록부터)', 툴팁 '첫 기록부터 센 해 · 1주기 = 1년' (Tools/data/ST_CA.csv:33-38)",
+  "책의 서사: 침묵 영향권 300틱이면 '그 책을 펴는 사람이 없어졌다', 사회 돌파 때 '서고를 고치던 이들이 그 책을 찾아냈다'(안정도 +0.2), 1800틱 뒤부터 낭독 줄 (Tools/data/DT_Events.json:40-44, 88-92, 120-124)",
+  "받지 못하는 것(데이터 부재): 초월자의 1인칭 목소리·주장 문장, 징조 줄, 조우·청원 카드, 칙령, 방랑자 행동, 사망·계승 문장, AI 각성·역병에 대한 통치자의 답 (DT_Transcendents.json:24-25; DT_Hazards.json:39-40, 117-118)"
+ ],
+ "quality_notes": [
+  "한국어 텍스트 톤: 124문장 전부 문어체 과거형('-었다'), '사실 → 함의' 두 문장 구조, 숫자 없음('여러 주기', '한 주기 동안'), 은혜 행은 무주어 수동태('남겨졌다', '지켜졌다', '누구의 공로로도 기록되지 않았다'), 성경 모티프를 고유명사 없이 씀(옷을 찢었다·금식·거친 옷·남은 자). 판정 어휘 7개는 스키마가 막고 실제로 0회. 톤이 고르고 §8.3에 충실하다 (Tools/data/DT_Events.json:40-44, 276-280; DT_Hazards.json:84-92).",
+  "톤 이탈 후보: crisis_claim ResolveTemplates[1] '카운트다운이 멎었다'(DT_Hazards.json:90)는 서술자 목소리에 기계 용어 외래어; log_first_life가 성계 이름 뒤에 '이 행성'(DT_LogTemplates.json:8); '다이슨 스웜'(DT_Feats.json:4)은 실존 인물 이름을 딴 과학 용어 — guideline은 과학 용어(펄서 등)를 허용하므로 판단 필요. 2인칭 '당신'은 Log.Calling 두 행에만 쓰여 규칙에 맞다.",
+  "JSON 저작 꼴: 탭 들여쓰기, 모든 컬럼을 빠짐없이 적는 규칙(스크립트가 빠진 컬럼을 실패로 봄), 조건·효과는 5필드 객체를 항상 다 적어('Tag':'', 'Key':'None', 'Value':0.0, 'DurationTicks':0) 장황하다. 빈 값 표기가 Key는 'None', Tag는 ''로 섞여 있다(DT_Events.json:9-20). 5e-05 같은 지수 표기가 섞여 있다(DT_Hazards.json:145).",
+  "스키마 설계 품질: about 블록이 문서 역할을 하고, 모든 키·옵션이 닫힌 목록이라 오타가 검사를 끄지 못하며, 규칙마다 why에 guideline 절 번호가 있다(schema.json:3-18, 122, 153). 주석 언어는 영어, 데이터는 한국어, guideline은 한국어 — 세 층의 언어가 다르다.",
+  "결정론 관점: 데이터에는 난수가 없고, 누적 배열(LivingWorldStarShares)·오름차순·ends_at 1 같은 꼴 검사가 걸려 있다(schema.json:112-117). 표시 컬럼(FText·MapPosition·RadiusLy)은 해시 밖이라 문안 수정이 세계를 바꾸지 않는다(CosmicDefinitionRows.h:578-579).",
+  "저장 호환 관점: 행 이름이 세이브에 남아 접두어·패턴·불변 규칙이 스키마에 있고 쿨다운 키 '<행>@<CivID>'의 '@'는 row_name_pattern이 자연히 배제한다(schema.json:23). 태그 이름도 세이브에 남는데 ini에서 지워진 태그를 잡는 required_tags는 Notable 6개뿐이다(schema.json:22).",
+  "테스트 가능성: 에디터 없이 python Tools/check_data.py, 검사기 단위 테스트 69건, Data.Integrity(스키마↔코드↔에셋), Data.SourcesInSync(도장) — 데이터 층은 네 겹으로 검증된다. 그러나 Data.NoVerdictWords(Phase 5)·중첩 구조체 검사(DT_Encounters 전)·plain 컬럼 범위는 아직 없다.",
+  "하드코딩 문자열: 런타임 코드는 태그 36개와 ST_CA 키 37개를 TEXT 리터럴로 부른다(예: UI/CosmicSystemPanelWidget.cpp:57-64, Sim/GalaxySimulationSubsystem.cpp:1745-1748). 행 이름에는 CosmicRows:: 상수 헤더가 있으나 태그·라벨 키에는 없어 일관성이 깨진다. 소스에 비ASCII 바이트는 0개 파일(규칙 준수).",
+  "Config 노이즈: DefaultInput.ini의 60줄 가운데 45줄이 VR 축 설정 템플릿이고, DefaultEngine.ini에 AndroidFileServer(SecurityToken 포함)·TP_Blank 리디렉트·오디오 기본값이 남아 있다(Config/DefaultEngine.ini:101-117). 의도 주석이 붙은 줄(렌더·맵·쿠킹)과 보일러플레이트를 분리하면 읽기 쉬워진다.",
+  "ini DevComment가 설계 사양(카운트다운·결과·성경 구절·Phase 표지)을 싣는다(Config/DefaultGameplayTags.ini:16-24, 41-44, 91-96). 설계 기준은 guideline이어야 하므로 DevComment는 한 줄 식별 설명으로 줄이고 수치는 데이터·문서로 옮기는 편이 드리프트를 막는다.",
+  "이름 뱅크 품질: 별 이름 60개는 실제 통용명의 한국어 표기이고(엡실론·입실론은 ε·υ로 서로 다름), 별자리 속격 30개는 바이어 명명 꼴에 맞다. 인물 이름 24개(사렌·유나…)는 v0.8 '이름의 거름'과 충돌한다(contradictions 참조).",
+  "라벨 키 체계: ST_CA 키는 Panel.·Resource.·Research.·Speed.·Settle.Block.·Time.의 6접두 2~3단이고 전부 코드에서 쓰인다. {0}·{1} 자리표시자(Time.*·Settle.Block.Sphere/RowTier)는 코드의 FText::Format 인자 순서와 암묵 결합이라 CSV만 보고는 뜻을 알 수 없다.",
+  "컬럼·태그 수명 표지: 헤더와 ini가 'Phase 4', 'Phase 6+', 'v0.8 — 단계 N' 표지를 쓰지만 schema.json에는 그런 표지가 없어 '지금 비어 있어도 되는 컬럼'과 '채워야 하는 컬럼'을 스키마만 보고 가를 수 없다.",
+  ".editorconfig의 CRLF 지시와 LF 파일, uproject의 마지막 줄바꿈 누락, 빈 DefaultEditor.ini, 없는 DefaultPakFileRules.ini — 모두 사소하지만 '규칙은 있고 지켜지는지는 검사하지 않는' 유형의 결함이다."
+ ]
+}

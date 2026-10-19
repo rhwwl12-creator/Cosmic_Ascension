@@ -1,0 +1,757 @@
+{
+ "scope": "c6: UI + World 모듈 — 위젯(상단 바·성계 패널·로그 피드·승천 오버레이·라벨)·게임 모드/HUD/컨트롤러·지도 액터·성계 액터·카메라·픽",
+ "summary": "UI 13파일(1,882줄)·World 12파일(1,869줄), 모두 WBP 없는 C++ 위젯/액터다(엔진 제약으로 빈 WBP_LogEntry 하나만 존재). 데이터 흐름은 한 방향이다: Sim/Log/Ascension 서브시스템의 동적 델리게이트(OnSimTick·OnGalaxyGenerated·OnLogEntry·OnTierAscended)를 위젯과 맵 액터가 구독해 GetState()를 읽어 다시 그리고, 명령은 ACosmicPlayerController(StartProject→UPlayerRoleSubsystem::StartMegaproject, SetSpeed→SetTimeScale) 하나로만 나간다. 선택 성계와 시계 단위(주기/년)는 컨트롤러의 표현 상태로 FGalaxyState 밖이며 단위만 GameUserSettings ini에 남는다. 지도는 성계마다 액터 1개 + ULineBatchComponent(레인·주인 고리·선택 고리) + 성운 구이고, 그릴 값은 순수 함수 CosmicMapLook::LookOf/LanesOf가 계산하며 프레임당 최대 1회만 다시 그린다. 카메라 폰은 목표값으로 실시간 글라이드하고 클릭은 화면 공간 픽(CosmicMapPick)이다. Core Logic 폴더에 UI/Actor include는 없고(grep 확인), UI/World에 난수 사용도 없다. 구현 상태는 Phase 3 표의 1~6(기계 몫)·11번 완료, 꼬리 7(영적 시야)·8(앎의 표시)·9(우주 화면)·12(×25·명령 사유) 미착수, Phase 4 UI(카드·방랑자·칙령·외교)·저장/로드/메뉴 UI 전무. UI에는 DT_Rules 노브가 하나도 없고 배속 사다리·색·크기·픽 반경·카메라 상수가 모두 하드코딩이며, 배속 사다리는 상단 바와 키 핸들러에 이중으로 박혀 있고 Sim의 SetTimeScale이 10으로 clamp해 설계된 ×25는 지금 코드로는 열리지 않는다. 문서 §10.1/§10.2는 여전히 WBP 레이아웃·M_Lane·L_MainMenu를 전제해 코드와 어긋난다. 테스트는 UI.* 7종(약 360 단언)으로 테스트용 훅이 풍부하나 실제 마우스·렌더·60fps는 사람 확인 대기다.",
+ "key_decisions": [
+  {
+   "topic": "위젯 구축 방식",
+   "decision": "모든 위젯은 WBP 없이 RebuildWidget에서 WidgetTree에 트리를 한 번만 짓는다(RootWidget이 없을 때만). 리스트 뷰 항목 클래스만 에디터 제약으로 빈 WBP_LogEntry를 LoadClass하고, 없으면 C++ 클래스로 폴백하며 에러 한 줄.",
+   "source_ref": "Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp:36-97; UI/CosmicLogFeedWidget.cpp:29,132-140"
+  },
+  {
+   "topic": "UI↔Sim 데이터 흐름",
+   "decision": "위젯은 NativeConstruct/NativeDestruct에서 Sim의 OnSimTick·OnGalaxyGenerated(피드는 OnLogEntry, 오버레이는 OnTierAscended)를 AddUniqueDynamic/RemoveDynamic으로 구독하고 GetState()를 읽기만 한다. 상태 쓰기는 없다.",
+   "source_ref": "UI/CosmicTopBarWidget.cpp:99-118; UI/CosmicLogFeedWidget.cpp:150-181; UI/CosmicAscensionOverlayWidget.cpp:169-181"
+  },
+  {
+   "topic": "명령 경로",
+   "decision": "모든 명령은 컨트롤러를 거친다: StartProject(SystemID,Row)→UPlayerRoleSubsystem::StartMegaproject, 성공 시 HUD RefreshPanel + 맵 RequestRefresh(멈춘 시뮬은 틱을 보내지 않으므로). SetSpeed는 0이 아닌 현재 배속을 SpeedBeforePause에 기억하고 HUD를 다시 그린다.",
+   "source_ref": "World/CosmicGameMode.cpp:564-602"
+  },
+  {
+   "topic": "표현 상태의 위치",
+   "decision": "선택 성계(SelectedSystemID, OnSelectionChanged)와 시계 단위(ECosmicTimeUnit, OnTimeUnitChanged)는 컨트롤러 멤버다. 단위만 GGameUserSettingsIni [Cosmic_Ascension.View] TimeUnit에 Year/Cycle로 저장·복원하고, GIsAutomationTesting 중에는 쓰지 않는다. -TimeUnit= 인자는 세션만.",
+   "source_ref": "World/CosmicGameMode.h:109-124; World/CosmicGameMode.cpp:249-294"
+  },
+  {
+   "topic": "선택 규칙",
+   "decision": "SelectSystem은 같은 ID면 무시, None이 아니면 State.Systems에 있을 때만 받고, 맵에 SetSelectedSystem 후 한 번 방송. SelectAndFocus는 맵에 별 액터가 있을 때만 선택+카메라 FocusOn. 맵 재생성(OnRebuilt) 시 선택 해제·FrameAll·Snap, PendingSelect 재시도.",
+   "source_ref": "World/CosmicGameMode.cpp:328-349,382-413"
+  },
+  {
+   "topic": "마우스 입력 해석",
+   "decision": "왼쪽 누름 후 6px 넘게 움직이면 팬(지난/현재 커서를 같은 프레임에 원반 Z=0으로 역투영해 차만큼 이동), 아니면 뗄 때 클릭=픽(24px 또는 그려진 반지름 안 최근접, 없으면 선택 해제). 오른쪽 드래그 궤도 0.25°/px, 휠 줌, 더블클릭 SelectAndFocus.",
+   "source_ref": "World/CosmicGameMode.cpp:33-37,438-562; World/CosmicMapPick.cpp:5-39"
+  },
+  {
+   "topic": "키보드",
+   "decision": "레거시 BindKey로 0/1/2/3/4=정지/×1/×2/×5/×10, Space=정지 토글(SpeedBeforePause 복원). Enhanced Input 매핑 컨텍스트는 쓰지 않는다. 입력 모드 GameAndUI, 커서 항상 표시, 캡처 중 숨김 없음, 잠금 없음.",
+   "source_ref": "World/CosmicGameMode.cpp:296-307,420-436,604-639"
+  },
+  {
+   "topic": "상단 바 내용",
+   "decision": "통치 백성(Player.RuledCivID)이 있으면 이름·칸(Tier+1)·안정도%·자원5 정수(FloorToInt)·연구4 %를 한 INVTEXT 포맷(23인자)으로; 없으면(방랑자) 빈 줄. 시계는 단위별 라벨, 호버 시 두 단위. 배속 단추 5개 중 현재 배속은 비활성, 단위 바뀔 때만 재라벨.",
+   "source_ref": "UI/CosmicTopBarWidget.cpp:179-234; UI/CosmicUILabels.h:35-85"
+  },
+  {
+   "topic": "시계 단추",
+   "decision": "시계는 네 상태 브러시를 FSlateNoResource로 둔 납작 UButton, IsFocusable은 리플렉션으로 false, 툴팁은 Time.Tip+Time.TipPress를 한 번만 설정, 호버 색은 텍스트에 직접.",
+   "source_ref": "UI/CosmicTopBarWidget.cpp:57-82,159-177"
+  },
+  {
+   "topic": "성계 패널 표시 규칙",
+   "decision": "선택 없음→Collapsed. 죽은 노드면 '파괴된 성계' 한 줄만; 아니면 항성 등급 글자(Star.Class.X의 X)·주인/주인 없음·위기 이름+남은 시간(단위 따름)·건설/대응 칸 '행 진척/필요(RequiredProgressOf)'.",
+   "source_ref": "UI/CosmicSystemPanelWidget.cpp:35-51,210-253"
+  },
+  {
+   "topic": "성계 패널 명령 규칙",
+   "decision": "bRules = LifeState==Embodied && Role==Ruler && 통치 백성 존재. 자기 소유·정착된(CosmicState::IsSettled) 살아있는 성계: DT_Megaprojects 행 이름 사전순으로 CanStart가 참인 행마다 '시작 <표시명>' 단추(참이 아닌 행은 아예 없음). 통치 백성 것이 아닌 살아있는 성계: 정착 단추 하나, SettleBlockOf 사유가 None이 아니면 비활성+툴팁+아래 한 줄.",
+   "source_ref": "UI/CosmicSystemPanelWidget.cpp:255-278,321-327"
+  },
+  {
+   "topic": "단추 재사용(클릭 유실 방지)",
+   "decision": "단추 객체는 action 목록이 바뀔 때만 다시 짓고, 그 밖엔 라벨·활성·툴팁을 문구가 다를 때만 제자리에서 고친다(SetToolTipText는 새 툴팁을 만들어 열린 것을 닫으므로). 비활성 단추는 코드의 Press도 무시.",
+   "source_ref": "UI/CosmicSystemPanelWidget.cpp:285-319; UI/CosmicActionButton.cpp:22-30"
+  },
+  {
+   "topic": "정착 사유 문구 표",
+   "decision": "ECosmicSettleBlock 순서대로 ST_CA 키 배열(None/NoPeople/Dead는 nullptr) + static_assert(Count). RowTier는 정착 행 RequiredTier+1, Sphere는 SphereLiftTier+1을 {0}에 넣는다.",
+   "source_ref": "UI/CosmicSystemPanelWidget.cpp:53-66,153-176"
+  },
+  {
+   "topic": "로그 피드 규칙",
+   "decision": "UListView(단일 선택, 포커스 불가)에 State.Log의 bUntold가 아닌 마지막 500개를 오래된 순으로; OnLogEntry로 한 줄 추가하고 500 초과면 맨 앞 제거; 끝을 보고 있었을 때만 ScrollToBottom. 줄 텍스트 '[스탬프] 메시지', 클릭→FocusSystemID 또는 FocusCivID의 HomeSystemID로 SelectAndFocus.",
+   "source_ref": "UI/CosmicLogFeedWidget.cpp:88-91,197-243,266-284"
+  },
+  {
+   "topic": "로그 색 4종",
+   "decision": "Category가 Log.Transcendent/Log.Claim이면 보라, 아니면 Severity>=2 금·1 흰·0 회(ColorOf). 단위 변경 시 보이는 줄 위젯만 Redraw.",
+   "source_ref": "UI/CosmicLogFeedWidget.cpp:64-75,250-264"
+  },
+  {
+   "topic": "승천 연출",
+   "decision": "OnTierAscended 핸들러 안에서 Show: 업적 Title·'칸 N'·MythicNarrative, 실시간 5초(GlowAt: 0.8초 상승, 4.2초부터 하강), 글로우 스케일 0.6→1.3, 클릭 즉시 Close. 시뮬이 돌고 있으면 PausedSpeed에 기억하고 SetSpeed(0); 닫을 때 여전히 0이면 복원, 플레이어가 바꿨으면 그대로. 종소리는 C5/E5/G5 합성 PCM을 USoundWaveProcedural로 1회.",
+   "source_ref": "UI/CosmicAscensionOverlayWidget.cpp:56-98,190-291"
+  },
+  {
+   "topic": "게임 모드 시작",
+   "decision": "StartPlay: 은하가 없으면 -Seed= 또는 UTC 시계 하위 31비트로 NewGalaxy(Seed,0,0)(수 0=고향 행 값), -Speed=(기본 1)로 SetTimeScale. 그 뒤 맵 액터 1개 spawn, 플레이어 컨트롤러마다 카메라 폰 spawn+Possess+UseMap. DefaultPawnClass=nullptr(PlayerStart 없음). 개발 인자 -ShotAfterSeconds/-ProfileAfterSeconds는 타이머로 콘솔 명령.",
+   "source_ref": "World/CosmicGameMode.cpp:69-143"
+  },
+  {
+   "topic": "HUD 배치",
+   "decision": "피드 좌하단(620×230, 여백 16) z0, 상단 바 가로 스트레치 높이 40 z1, 성계 패널 우상단(340×460) z1, 오버레이 전체 z10. 위치·크기 지정 후 앵커·정렬을 마지막에(앵커 리셋 회피). HUD가 OnSelectionChanged→ShowSystem, OnTimeUnitChanged→RefreshPanel+피드 RedrawLines.",
+   "source_ref": "World/CosmicGameMode.cpp:39-43,145-242"
+  },
+  {
+   "topic": "지도 재생성/갱신",
+   "decision": "OnGalaxyGenerated→bRebuildPending, OnSimTick→bRefreshPending, Tick에서 RefreshNow가 하나만 수행(프레임당 최대 1회). Rebuild는 옛 액터 Destroy 후 Systems 순서대로 액터 spawn(인덱스=배열 인덱스 가정, 선택 해제, 원반 중심=XY 박스 중심·반지름=최원점, 최소 1000) 후 OnRebuilt 방송.",
+   "source_ref": "World/CosmicGalaxyMapActor.cpp:125-233"
+  },
+  {
+   "topic": "레인·고리 그리기",
+   "decision": "Refresh마다 LineBatch Flush 후 LanesOf 레인 + 주인 고리(24분할, 정착 중이면 짝수 분할만=점선, 반지름=별 반지름+110) + 선택 흰 고리(32분할, 고리 두께×4 바깥)를 한 번에 DrawLines. 두께=카메라 거리×0.0018(고리는 ×1.5), 거리 5% 넘게 변하거나 9000 경계 넘을 때만 재그림.",
+   "source_ref": "World/CosmicGalaxyMapActor.cpp:24-61,107-123,235-288"
+  },
+  {
+   "topic": "그릴 값(순수 함수)",
+   "decision": "LookOf: 등급 표(O~M 색·크기), 죽은 노드면 bDead만, 주인 있으면 Civ.Color, bSettling=ActiveMegaproject==project_settle, bHazard, 두 칸 진척 비율(행 없으면 -1). LanesOf: 양 끝 생존·존재·자기 아님, (low,high) 중복 제거. ShowsLabel: 가까이면 항상, 멀면 주인/위기/선택만.",
+   "source_ref": "World/CosmicMapLook.cpp:25-134"
+  },
+  {
+   "topic": "성계 액터",
+   "decision": "엔진 기본 구(반지름 50)×3 스케일(죽으면 ×0.6), M_Star MID 파라미터 StarColor/Brightness(1.3, 죽음 0.4)/HazardAmount(0/1), 충돌 없음, 그림자 없음. 화면 공간 UWidgetComponent 라벨(160×40, Z+110)에 UCosmicSystemLabelWidget(이름 + 건설 파랑/대응 주황 막대 72×4). 머티리얼은 BeginPlay LoadObject(FObjectFinder는 루트 고정 때문에 금지).",
+   "source_ref": "World/CosmicStarSystemActor.cpp:20-121; UI/CosmicSystemLabelWidget.cpp:15-89"
+  },
+  {
+   "topic": "카메라 폰",
+   "decision": "루트=원반 위 초점, 스프링암(충돌·랙 끔)+카메라(자동 노출 1/1 고정). FrameAll: 초점=중심, 암=2.25R, 피치 -59, 요 0, 팬 경계 1.1R, 최대 줌아웃 3R. Zoom ×0.85^steps를 [1500, 최대]로, Orbit 피치 [-85,-20], Pan은 즉시(경계 클램프), FocusOn은 3000 이하로. Tick마다 1-exp(-10·dt) 비율로 글라이드(실시간, 시뮬 정지 무관).",
+   "source_ref": "World/CosmicCameraPawn.cpp:10-162"
+  },
+  {
+   "topic": "패널의 클릭 차단",
+   "decision": "세 패널은 NativeOnMouseButtonDown/DoubleClick에서 Handled를 돌려 지도 클릭으로 새지 않게 하고, 위젯·루트는 SelfHitTestInvisible이라 상자 밖 빈 자리는 통과. 오버레이는 어디를 눌러도 닫고 Handled.",
+   "source_ref": "UI/CosmicTopBarWidget.cpp:236-245; UI/CosmicSystemPanelWidget.cpp:90-93,330-339; UI/CosmicAscensionOverlayWidget.cpp:269-273"
+  },
+  {
+   "topic": "라벨 로딩",
+   "decision": "UI 라벨은 ST_CA(/Game/CA/Data/ST_CA.ST_CA)에서 FindOrFullyLoad로 읽는다(비동기 로딩 중 placeholder 방지). 시간 라벨 함수(ClockLabel·ClockBothLabel·TimeLeftLabel·StampLabel·SpeedLabel)는 단위를 인자로 받는다.",
+   "source_ref": "UI/CosmicUILabels.h:22-85"
+  }
+ ],
+ "parameters": [
+  {
+   "name": "배속 사다리 Speeds",
+   "value": "{0, 1, 2, 5, 10}",
+   "source_ref": "UI/CosmicTopBarWidget.cpp:29; World/CosmicGameMode.cpp:614-637",
+   "note": "하드코딩, 두 곳 중복(단추 배열·키 if-chain). DT_Rules 노브 없음. ×25(§2.1)는 둘 다 수정 필요"
+  },
+  {
+   "name": "UGalaxySimulationSubsystem::SetTimeScale clamp",
+   "value": "[0, MaxTicksPerFrame=10]",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1036; Sim/GalaxySimulationSubsystem.h:494",
+   "note": "UI 밖이지만 UI의 ×25가 막히는 상한. SecondsPerTick=1.0 고정"
+  },
+  {
+   "name": "CosmicLogFeed::MaxItems",
+   "value": "500",
+   "source_ref": "UI/CosmicLogFeedWidget.h:66",
+   "note": "하드코딩(§9.4 표시 상한과 일치)"
+  },
+  {
+   "name": "승천 연출 시간 곡선",
+   "value": "Seconds 5, FadeIn 0.8, FadeOutFrom 4.2, GlowScale 0.6→1.3, GlowSize 900, GlowPeak 0.8, RenderOpacity=min(1, 1.5×강도)",
+   "source_ref": "UI/CosmicAscensionOverlayWidget.h:19; UI/CosmicAscensionOverlayWidget.cpp:37-44,252-260",
+   "note": "하드코딩 constexpr"
+  },
+  {
+   "name": "종소리 합성",
+   "value": "44100 Hz, 3초, C5 523.25/E5 659.25/G5 783.99, 진폭 0.25, 어택 0.02초, 감쇠 e^-1.6t",
+   "source_ref": "UI/CosmicAscensionOverlayWidget.cpp:52-53,80-85",
+   "note": "하드코딩; -nosound에서 무음"
+  },
+  {
+   "name": "로그 색",
+   "value": "회(0.6,0.6,0.65) 흰(0.95,0.95,0.95) 금(1,0.82,0.4) 보라(0.78,0.6,1)",
+   "source_ref": "UI/CosmicLogFeedWidget.cpp:32-35",
+   "note": "하드코딩. 금색은 TopBar ClockHoverColor·Overlay TitleColor에도 같은 값으로 따로 정의"
+  },
+  {
+   "name": "패널 배경색",
+   "value": "상단 바 (0.01,0.01,0.03,0.8) / 성계 패널 α0.85 / 피드 α0.7 / 오버레이 막 (0,0,0.02,0.6)",
+   "source_ref": "UI/CosmicTopBarWidget.cpp:30; UI/CosmicSystemPanelWidget.cpp:31; UI/CosmicLogFeedWidget.cpp:30; UI/CosmicAscensionOverlayWidget.cpp:35",
+   "note": "테마 구조체 없이 파일마다 매직 넘버"
+  },
+  {
+   "name": "글꼴 크기",
+   "value": "단추 13, 상단 바 14, 패널 이름 18/본문 13, 피드 13/제목 14, 이름표 10, 오버레이 34/18/20, Typeface 'Regular'",
+   "source_ref": "UI/CosmicActionButton.cpp:54; UI/CosmicTopBarWidget.cpp:52,76; UI/CosmicSystemPanelWidget.cpp:102-108; UI/CosmicSystemLabelWidget.cpp:52; UI/CosmicAscensionOverlayWidget.cpp:129-140",
+   "note": "엔진 기본 폰트(한글은 엔진 폴백 글꼴에 의존, 전용 폰트 에셋 없음)"
+  },
+  {
+   "name": "HUD 배치 상수",
+   "value": "TopBarHeight 40, SystemPanelSize 340×460, LogPanelSize 620×230, ScreenMargin 16 (슬레이트 단위), z 0/1/1/10",
+   "source_ref": "World/CosmicGameMode.cpp:39-43,157-200",
+   "note": "고정 크기, 해상도 적응 없음"
+  },
+  {
+   "name": "픽·드래그·궤도",
+   "value": "PickPixels 24, DragPixels 6, OrbitDegreesPerPixel 0.25",
+   "source_ref": "World/CosmicGameMode.cpp:33-37",
+   "note": "하드코딩. 더블클릭 판정은 DefaultInput.ini DoubleClickTime 0.2"
+  },
+  {
+   "name": "지도 선 두께·고리",
+   "value": "LaneThicknessPerDistance 0.0018, RingFactor 1.5, RingGap 110, RingSegments 24, SelectionGapRings 4, SelectionSegments 32, 기본 ViewDistance 17500/LaneThickness 30",
+   "source_ref": "World/CosmicGalaxyMapActor.cpp:30-41; World/CosmicGalaxyMapActor.h:95-97",
+   "note": "월드 단위 두께(엔진 LineBatch가 화면 공간 두께를 지원하지 않음)"
+  },
+  {
+   "name": "먼 시점·갱신 slack·원반·하늘",
+   "value": "FarViewDistance 9000, ViewDistanceSlack 0.05, MinDiscRadius 1000(맵·카메라 각각), SkyScale 3000(엔진 구 100 단위 기준)",
+   "source_ref": "World/CosmicGalaxyMapActor.cpp:33-45; World/CosmicCameraPawn.cpp:18",
+   "note": "하드코딩"
+  },
+  {
+   "name": "레인·선택 색",
+   "value": "LaneColor (0.25,0.4,0.65), SelectionColor (0.95,0.95,1)",
+   "source_ref": "World/CosmicGalaxyMapActor.cpp:25-27",
+   "note": "주인 고리 색은 FCivilizationState.Color(상태) 그대로"
+  },
+  {
+   "name": "별 크기·밝기",
+   "value": "SphereRadius 50, BaseScale 3(지름 300), 죽음 ×0.6, Brightness 1.3, DeadBrightness 0.4, DeadColor (0.35,0.35,0.4)",
+   "source_ref": "World/CosmicStarSystemActor.cpp:26-32,88-93",
+   "note": "M_Star 파라미터 이름 StarColor/Brightness/HazardAmount는 Tools/make_materials.py:124와 짝"
+  },
+  {
+   "name": "항성 등급 표(표현 전용)",
+   "value": "O (0.3,0.45,1)×2.0 / B ×1.7 / A ×1.4 / F ×1.2 / G (1,0.8,0.4)×1.0 / K ×0.85 / M (1,0.3,0.15)×0.7, 모르는 태그는 흰색 ×1",
+   "source_ref": "World/CosmicMapLook.cpp:25-33",
+   "note": "하드코딩; 규칙이 읽지 않음"
+  },
+  {
+   "name": "이름표 위젯",
+   "value": "DrawSize 160×40, 피벗 (0.5,1), 상대 위치 Z 110, 막대 72×4, 건설 파랑 (0.35,0.65,1)/대응 주황 (1,0.6,0.2)",
+   "source_ref": "World/CosmicStarSystemActor.cpp:54-58; UI/CosmicSystemLabelWidget.cpp:17-18,65-66",
+   "note": "하드코딩"
+  },
+  {
+   "name": "카메라 상수",
+   "value": "FramePitch -59, FrameArmFactor 2.25, MaxArmFactor 3, PanBoundsFactor 1.1, MinArmLength 1500, FocusArmLength 3000, ZoomStep 0.85, Pitch [-85,-20], GlideRate 10; 초기 TargetArmLength 17500, BoundsRadius 10000, MaxArmLength 30000",
+   "source_ref": "World/CosmicCameraPawn.cpp:13-26; World/CosmicCameraPawn.h:62-69",
+   "note": "하드코딩; §6.4 문장과 일치"
+  },
+  {
+   "name": "자동 노출 고정",
+   "value": "AutoExposureMinBrightness=MaxBrightness=1",
+   "source_ref": "World/CosmicCameraPawn.cpp:52-56",
+   "note": "이미시브 별의 노출 출렁임 방지"
+  },
+  {
+   "name": "시계 단위 설정 키",
+   "value": "GGameUserSettingsIni [Cosmic_Ascension.View] TimeUnit = Year|Cycle, 기본 Cycle",
+   "source_ref": "World/CosmicGameMode.h:123-124; World/CosmicGameMode.cpp:47-66,254-288",
+   "note": "보는 사람의 설정, 해시 밖. 테스트 중 쓰기 금지"
+  },
+  {
+   "name": "커맨드라인 인자",
+   "value": "-Seed=<int32>, -Speed=<float>(기본 1), -TimeUnit=Year|Cycle, -ShotAfterSeconds=N('shot showui'), -ProfileAfterSeconds=N('CsvProfile Frames=600')",
+   "source_ref": "World/CosmicGameMode.cpp:84-121,260-264",
+   "note": "개발 보조; 시드 기본값은 FDateTime::UtcNow().GetTicks() & 0x7fffffff"
+  },
+  {
+   "name": "에셋 고정 경로",
+   "value": "/Game/CA/Data/ST_CA.ST_CA, /Game/CA/Materials/M_Star·M_Nebula·M_AscensionGlow, /Game/CA/UI/WBP_LogEntry.WBP_LogEntry_C, /Engine/BasicShapes/Sphere",
+   "source_ref": "UI/CosmicUILabels.h:25; World/CosmicStarSystemActor.cpp:20; World/CosmicGalaxyMapActor.cpp:24,76; UI/CosmicAscensionOverlayWidget.cpp:33; UI/CosmicLogFeedWidget.cpp:29",
+   "note": "코드 경로 로드라 DefaultGame.ini DirectoriesToAlwaysCook 3개 폴더로 쿠킹 보장"
+  },
+  {
+   "name": "연구 키 리터럴",
+   "value": "FName \"Physics\"/\"Society\"/\"Engineering\"/\"Transcendence\"",
+   "source_ref": "UI/CosmicTopBarWidget.cpp:203-206",
+   "note": "Sim의 ResearchFields 배열(GalaxySimulationSubsystem.cpp:33)과 별개 리터럴 — 공용 상수 없음"
+  },
+  {
+   "name": "칸 표시 변환",
+   "value": "static_cast<int32>(Tier)+1",
+   "source_ref": "UI/CosmicTopBarWidget.cpp:196; UI/CosmicSystemPanelWidget.cpp:169,173; UI/CosmicAscensionOverlayWidget.cpp:197",
+   "note": "CLAUDE.md 규칙대로, 세 곳 반복"
+  },
+  {
+   "name": "패널이 읽는 DT 값",
+   "value": "RequiredProgress 다이슨 600/개혁 100/구호 150/정착 300/안정화 100, 정착 RequiredTier Tier2, 표시명 한국어, 업적 Title·MythicNarrative 2행",
+   "source_ref": "Tools/data/DT_Megaprojects.json; Tools/data/DT_Feats.json; UI/CosmicSystemPanelWidget.cpp:42-51",
+   "note": "DT 노브(UI는 RequiredProgressOf 경유로 읽음). CostPerTick은 UI에 보이지 않음"
+  },
+  {
+   "name": "정착 사유 문구",
+   "value": "ST_CA Settle.Block.Owned/NoLane/Sphere/RealmCap/Settling/NoRow/RowTier 7개 (Sphere·RowTier는 {0}=칸 번호)",
+   "source_ref": "Tools/data/ST_CA.csv:26-32; UI/CosmicSystemPanelWidget.cpp:54-65",
+   "note": "성역 사유 키 없음(단계 4 예정). ST_CA 총 37키 전부 이 모듈이 소비"
+  }
+ ],
+ "gaps": [
+  {
+   "what": "셋째 칸 ×25 배속 단추(승천 뒤 추가)가 없고, Sim SetTimeScale이 10으로 clamp해 UI만 고쳐서는 열리지 않는다",
+   "why_it_matters": "§2.1·§6.3의 '시간의 세 단'이 코드에 없다; 상단 바 Speeds·키 핸들러·Sim 상한 세 곳을 함께 바꿔야 하며 Sim.FrameStep 테스트가 상한을 틱 수로 고정한다",
+   "source_ref": "UI/CosmicTopBarWidget.cpp:29; World/CosmicGameMode.cpp:614-637; Sim/GalaxySimulationSubsystem.cpp:1036; guideline.md:251,1537"
+  },
+  {
+   "what": "명령 단추의 거절 사유(칸·비용·건설/대응 칸 사용 중)와 '멈춤 — 자원 부족', 상단 바 '다음 칸까지' 툴팁 미구현 — CanStart가 거짓인 행은 단추 자체가 사라진다",
+   "why_it_matters": "플레이어가 왜 다이슨 스웜을 시작할 수 없는지, 왜 진척이 0에 머무는지 알 길이 없다(Phase 3 표 12번, WORKPLAN:177)",
+   "source_ref": "UI/CosmicSystemPanelWidget.cpp:260-270; guideline.md:1537"
+  },
+  {
+   "what": "앎의 표시 전무: 모든 성계를 그리고 주인 색·이름·레인을 앎과 무관하게 보인다(Known 밝기, 만나지 않은 주인 가림, 12색 팔레트, 레인 필터 없음)",
+   "why_it_matters": "§6.4 '앎의 표시'와 §9.4 '≤150 액터(아는 성계)'가 코드에 없고 UI.KnownFilter 테스트도 없다 — 만나지 않은 백성의 이름이 피드/패널/지도에 닿을 수 있다",
+   "source_ref": "World/CosmicGalaxyMapActor.cpp:207-216; World/CosmicMapLook.cpp:79-85; guideline.md:1552-1566"
+  },
+  {
+   "what": "영적 시야 토글과 M_Star ViewMode/Pressure/DominionColor/ClaimState·Sealed, M_Lane, M_Nebula SpiritualIntensity 미구현(M_Star 파라미터는 3개뿐)",
+   "why_it_matters": "Phase 3 꼬리 7번; 셋째 칸의 첫 보상('이제 보인다')과 영혼 경제의 유일한 시각 표현(영향권 색)이 아직 없다",
+   "source_ref": "Tools/make_materials.py:124; World/CosmicStarSystemActor.cpp:22-24; guideline.md:1568; WORKPLAN.md:172"
+  },
+  {
+   "what": "은하 패널·우주 화면(줌 단계)·표시 전용 은하 행 미구현; DT_Galaxies를 UI 어디서도 읽지 않는다",
+   "why_it_matters": "Phase 3 꼬리 8·9번(결정 4·11); 현실 수치 문구가 보일 유일한 자리가 없다",
+   "source_ref": "World/CosmicCameraPawn.cpp:82-87; guideline.md:1559,1563,3933; WORKPLAN.md:173-174"
+  },
+  {
+   "what": "성계 패널에 '백성: {PopBand}' 줄·생명 낱말 줄·행성 목록(DT_Planets)이 없다",
+   "why_it_matters": "규모 등급(§8.3)과 §5.7 생명 낱말은 요약 단위 원칙의 유일한 표시처인데 비어 있다",
+   "source_ref": "UI/CosmicSystemPanelWidget.cpp:220-253; guideline.md:1106,3390,3932"
+  },
+  {
+   "what": "자동 일시정지 옵션(위기 발생·업적 기회·조우) 없음 — 유일한 자동 정지는 승천 오버레이",
+   "why_it_matters": "§2.1·§2.2 코어 루프('로그 누적 → 자동 일시정지 → 결정')의 핵심 장치가 없어 10배속에서 위기를 놓친다",
+   "source_ref": "UI/CosmicAscensionOverlayWidget.cpp:201-209; guideline.md:251,262"
+  },
+  {
+   "what": "저장/로드/새 판/메인 메뉴 UI가 없다: UCosmicSaveSubsystem을 UI/World 어디도 부르지 않고 GameMode는 항상 NewGalaxy(시계 시드)로 시작한다; L_MainMenu 없음",
+   "why_it_matters": "플레이어가 판을 이어갈 수 없다(수동 저장 메뉴는 컷 목록이지만 §9.1 자동 저장 트리거와 로드 진입점도 없음); 같은 시드 재현은 커맨드라인으로만",
+   "source_ref": "World/CosmicGameMode.cpp:77-95; guideline.md:3801,4082"
+  },
+  {
+   "what": "방랑자 UI 전무(이동 명령·스캔·조우 카드·청원 카드), 칙령·외교·연구 중점 조정 UI 없음 — 방랑자가 되면 상단 바가 비고 패널에 단추가 없다",
+   "why_it_matters": "Phase 4 몫이지만 폐위되면 지금 빌드에서는 입력이 0이 된다(관전만)",
+   "source_ref": "UI/CosmicTopBarWidget.cpp:208-211; UI/CosmicSystemPanelWidget.cpp:257; guideline.md:1472,1490"
+  },
+  {
+   "what": "연대기(Chronicle)·두 책·생애 기록(Lives)을 보는 화면이 없다; 피드는 500줄을 넘으면 버린다",
+   "why_it_matters": "엔딩 연대기가 설계의 보상 장치인데 UI 표면이 전혀 없다",
+   "source_ref": "UI/CosmicLogFeedWidget.cpp:234-238; guideline.md:1488,3405"
+  },
+  {
+   "what": "NS_Ascension(Niagara)·녹음 사운드 미구현(문서상 미룸); Build.cs의 Niagara 의존은 코드 사용 0",
+   "why_it_matters": "§6.5·§12.1 VS 요건 'Niagara 1'이 비어 있고 승천은 UI 머티리얼 빛무리로 대체 중",
+   "source_ref": "UI/CosmicAscensionOverlayWidget.h:36; Cosmic_Ascension.Build.cs:29; guideline.md:1584,4058"
+  },
+  {
+   "what": "서막·부르심 화면(단계 6)과 조우 카드 화면이 없다",
+   "why_it_matters": "v0.8 결정 19~21의 첫 소비자(카드 화면)가 없어 첫 판 10~15분이 비어 있다",
+   "source_ref": "guideline.md:1539; v08_rulings.md:155-166"
+  },
+  {
+   "what": "성역 패널·성역 그림·성역 정착 사유(단계 4)와 실제 하늘 투영·배경 별·광년 금(단계 5) 미구현; 하늘은 성운 구 하나",
+   "why_it_matters": "v0.8의 핵심 방향(성역·실제 하늘)이 표현 계층에 아직 없다; SettleBlockKeys/enum에 성역 자리도 없다",
+   "source_ref": "UI/CosmicSystemPanelWidget.cpp:54-65; World/CosmicGalaxyMapActor.cpp:74-83; guideline.md:1535,1548"
+  },
+  {
+   "what": "패널에 CostPerTick·지불 가능 여부·완성까지 남은 틱이 보이지 않는다",
+   "why_it_matters": "'전액 지불 못 하면 진척 0' 규칙(§5.7)이 UI에 드러나지 않아 멈춤이 버그처럼 보인다",
+   "source_ref": "UI/CosmicSystemPanelWidget.cpp:42-51; guideline.md:1082"
+  },
+  {
+   "what": "툴팁·도움말이 거의 없다(시계·정착 사유뿐): 자원·연구 라벨 설명, 키보드 단축키(0~4·Space) 안내, 조작 설명 화면 없음",
+   "why_it_matters": "첫 플레이어가 조작을 발견할 길이 없다(종료 조건 '마우스만으로'는 충족하나 학습 가능성 0)",
+   "source_ref": "UI/CosmicTopBarWidget.cpp:75; World/CosmicGameMode.cpp:424-435"
+  },
+  {
+   "what": "고정 슬레이트 크기 배치(340×460, 620×230)와 DPI 비고려, 설정 화면 없음(해상도·음량·단위 외 저장 없음)",
+   "why_it_matters": "작은 창에서 패널 겹침·잘림 가능; 폴리싱 단계의 UI 전면 재작업 위험",
+   "source_ref": "World/CosmicGameMode.cpp:39-43,157-184"
+  },
+  {
+   "what": "로그 피드에 필터·검색·심각도별 보기·일시정지-시 점프가 없다",
+   "why_it_matters": "텍스트 시뮬레이션의 주 화면이 단일 스트림뿐이라 긴 판에서 정보가 묻힌다",
+   "source_ref": "UI/CosmicLogFeedWidget.cpp:114-148"
+  },
+  {
+   "what": "선택 해제 단축키(Esc)·선택 성계 파괴 시 카메라/패널 알림 없음; 패널은 '파괴된 성계' 한 줄만",
+   "why_it_matters": "UX 사소 결손이지만 위기 결과가 플레이어에게 닿는 피드백 경로가 약하다",
+   "source_ref": "UI/CosmicSystemPanelWidget.cpp:221-224"
+  },
+  {
+   "what": "CosmicGameMode.h의 설계 참조가 '6.1, 11 Phase 1'로 멈춰 있고 한 헤더에 게임 모드·HUD·컨트롤러 3 클래스가 산다",
+   "why_it_matters": "컨트롤러가 Phase 3 로직(입력·선택·단위·픽)을 모두 담아 188줄 헤더/639줄 cpp — 방랑자 입력·카드가 더해지면 비대해진다",
+   "source_ref": "World/CosmicGameMode.h:1,41-188"
+  },
+  {
+   "what": "한국어 전용 폰트 에셋이 없고 Typeface 'Regular'(엔진 기본)만 지정",
+   "why_it_matters": "엔진 폴백 글꼴에 의존 — 패키징·플랫폼에 따라 한글 렌더 품질/누락 위험(확인 필요)",
+   "source_ref": "UI/CosmicUILabels.h:87-96; UI/CosmicSystemLabelWidget.cpp:50-54"
+  },
+  {
+   "what": "UI.KnownFilter 테스트와 60fps 창 측정(사람 몫) 미완",
+   "why_it_matters": "Phase 3 종료 조건의 사람 몫이 열려 있어 꼬리 7·12·8·9가 대기 중",
+   "source_ref": "WORKPLAN.md:171,180; guideline.md:1566"
+  }
+ ],
+ "duplication": [
+  {
+   "what": "배속 사다리 {0,1,2,5,10}: 상단 바 Speeds 배열과 컨트롤러 HandleSpeedKey의 키→값 if-chain이 같은 표를 두 번 정의",
+   "also_in": "World/CosmicGameMode.cpp:614-637",
+   "source_ref": "UI/CosmicTopBarWidget.cpp:29"
+  },
+  {
+   "what": "UButton IsFocusable을 FindFProperty 리플렉션으로 false로 두는 코드 블록이 동일하게 반복",
+   "also_in": "UI/CosmicTopBarWidget.cpp:61-64",
+   "source_ref": "UI/CosmicActionButton.cpp:45-48"
+  },
+  {
+   "what": "'RebuildWidget에서 RootWidget 없을 때 한 번 트리 생성' 보일러플레이트가 6개 위젯에 복제",
+   "also_in": "UI/CosmicTopBarWidget.cpp:41, UI/CosmicSystemPanelWidget.cpp:88, UI/CosmicLogFeedWidget.cpp:80,119, UI/CosmicSystemLabelWidget.cpp:44, UI/CosmicAscensionOverlayWidget.cpp:105",
+   "source_ref": "UI/CosmicActionButton.cpp:40"
+  },
+  {
+   "what": "서브시스템 조회 'GetGameInstance() ? GetGameInstance()->GetSubsystem<T>() : nullptr' 관용구가 약 20회 반복(헬퍼 없음)",
+   "also_in": "UI/CosmicSystemPanelWidget.cpp:119,129,198; UI/CosmicLogFeedWidget.cpp:199,268; UI/CosmicAscensionOverlayWidget.cpp:169,177,192,226; World/CosmicGameMode.cpp:80,336,372,566,585,606; World/CosmicGalaxyMapActor.cpp:137,147,199,240",
+   "source_ref": "UI/CosmicTopBarWidget.cpp:102,112,137,183"
+  },
+  {
+   "what": "NativeOnMouseButtonDown/DoubleClick에서 FReply::Handled()만 돌리는 오버라이드 쌍이 세 패널에 동일",
+   "also_in": "UI/CosmicSystemPanelWidget.cpp:330-339; UI/CosmicLogFeedWidget.cpp:286-295",
+   "source_ref": "UI/CosmicTopBarWidget.cpp:236-245"
+  },
+  {
+   "what": "문명/성계 찾기 방식 혼재: TopBar·MapLook은 State.Civs.FindByPredicate, 컨트롤러 SelectSystem은 Systems.ContainsByPredicate(선형), SystemPanel·LogFeed는 FCosmicStateIndex 사용",
+   "also_in": "World/CosmicMapLook.cpp:79-80; World/CosmicGameMode.cpp:337; (대조) UI/CosmicSystemPanelWidget.cpp:206,217; UI/CosmicLogFeedWidget.cpp:279",
+   "source_ref": "UI/CosmicTopBarWidget.cpp:190-191"
+  },
+  {
+   "what": "LanesOf가 SystemID→인덱스 TMap을 자체 구축 — FCosmicStateIndex::FindSystem과 같은 색인의 재생성(틱마다)",
+   "also_in": "Source/Cosmic_Ascension/Sim/CosmicStateIndex.h",
+   "source_ref": "World/CosmicMapLook.cpp:95-100"
+  },
+  {
+   "what": "칸 진척 계산: MapLook::ShareOf(비율)와 SystemPanel SlotLine(n/m)이 같은 행 조회+RequiredProgressOf 호출을 각각 수행",
+   "also_in": "UI/CosmicSystemPanelWidget.cpp:42-51",
+   "source_ref": "World/CosmicMapLook.cpp:50-59"
+  },
+  {
+   "what": "금색 (1, 0.82, 0.4)이 세 파일에 서로 다른 이름으로 정의(Gold, ClockHoverColor, TitleColor); 어두운 남색 배경도 알파만 다르게 세 번",
+   "also_in": "UI/CosmicTopBarWidget.cpp:30,33; UI/CosmicAscensionOverlayWidget.cpp:36; UI/CosmicSystemPanelWidget.cpp:31",
+   "source_ref": "UI/CosmicLogFeedWidget.cpp:30-34"
+  },
+  {
+   "what": "Tier→표시 번호(+1) 변환이 세 위젯에 각각",
+   "also_in": "UI/CosmicSystemPanelWidget.cpp:169,173; UI/CosmicAscensionOverlayWidget.cpp:197",
+   "source_ref": "UI/CosmicTopBarWidget.cpp:196"
+  },
+  {
+   "what": "'Star.Class.' 태그 접두어 처리가 패널(문자열 RightChop)과 MapLook(태그 표 비교)에 따로",
+   "also_in": "World/CosmicMapLook.cpp:25-46",
+   "source_ref": "UI/CosmicSystemPanelWidget.cpp:32-39"
+  },
+  {
+   "what": "MinDiscRadius 1000이 맵 액터와 카메라 폰에 각각 constexpr로 정의",
+   "also_in": "World/CosmicCameraPawn.cpp:18",
+   "source_ref": "World/CosmicGalaxyMapActor.cpp:43"
+  },
+  {
+   "what": "'에셋 없음: Tools/…를 돌려라' 에러 로그 + 폴백 패턴이 네 곳",
+   "also_in": "World/CosmicGalaxyMapActor.cpp:135; UI/CosmicAscensionOverlayWidget.cpp:167; UI/CosmicLogFeedWidget.cpp:137",
+   "source_ref": "World/CosmicStarSystemActor.cpp:78"
+  },
+  {
+   "what": "맵 액터의 별 접근이 두 방식: FindStar 선형 탐색과 Refresh의 '인덱스=배열 인덱스' 가정",
+   "also_in": "World/CosmicGalaxyMapActor.cpp:256-261",
+   "source_ref": "World/CosmicGalaxyMapActor.cpp:86-96"
+  },
+  {
+   "what": "MakeText 헬퍼가 있음에도 이름표·단추는 폰트 설정을 손으로 반복",
+   "also_in": "UI/CosmicActionButton.cpp:52-56; UI/CosmicSystemLabelWidget.cpp:50-54",
+   "source_ref": "UI/CosmicUILabels.h:87-96"
+  }
+ ],
+ "contradictions": [
+  {
+   "a": "guideline §6.4:1546 '`ACosmicStarSystemActor`: 스피어 메시 1개 + 이미시브 머티리얼 + 선택 콜리전'",
+   "b": "코드는 충돌 없음(NoCollision)이고 선택은 화면 공간 픽; 같은 절 뒤(1548)는 '별의 충돌은 껐다'고 적음",
+   "note": "World/CosmicStarSystemActor.cpp:48; World/CosmicMapPick.cpp — §6.4 첫 문장이 Phase 3 2번 전의 글로 남은 문서 내부 모순"
+  },
+  {
+   "a": "guideline §10.1:3787 'UI/ C++ 위젯 베이스(로직 노출용, 레이아웃은 WBP에서)', §10.2:3814 위젯 레이아웃=Blueprint, §10.1:3795 Content/CA/UI에 WBP_GalaxyHUD·WBP_SystemPanel·WBP_LogFeed·WBP_EncounterCard·WBP_AscensionOverlay",
+   "b": "실제 위젯은 전부 C++ 트리이고 Content/CA/UI에는 WBP_LogEntry 하나(§6.3:1534 'WBP 없는 C++ 위젯')",
+   "note": "UI/CosmicTopBarWidget.cpp:36-97; Content/CA/UI — §10의 폴더/분담표가 §6.3의 결정을 따라오지 못함(SSoT 안의 충돌)"
+  },
+  {
+   "a": "guideline §10.1:3799 Materials 'M_Star, M_Lane, M_Nebula', §6.4:1568 'M_Lane 고압 구간'",
+   "b": "레인은 ULineBatchComponent 선이고 M_Lane은 없다; 대신 §10.1에 없는 M_AscensionGlow가 있다",
+   "note": "World/CosmicGalaxyMapActor.cpp:286-287; Content/CA/Materials; Tools/make_materials.py:142"
+  },
+  {
+   "a": "guideline §10.1:3801 Maps 'L_MainMenu, L_Galaxy', §6.2:1521 '레벨 전환(메뉴 ↔ 은하 맵)'",
+   "b": "L_Galaxy 하나뿐이고 게임 모드가 시작 즉시 NewGalaxy; 메뉴 레벨·전환 코드 없음",
+   "note": "World/CosmicGameMode.cpp:77-95; Content/CA/Maps; Config/DefaultEngine.ini:5-8"
+  },
+  {
+   "a": "guideline §5.7:1077 '진행 중 프로젝트는 성계 노드에 링 이펙트로 표시(머티리얼 파라미터)'",
+   "b": "진척은 이름표 위젯의 두 막대로, 고리는 주인 색(정착 중이면 점선)으로 표시; M_Star에 프로젝트 파라미터 없음",
+   "note": "UI/CosmicSystemLabelWidget.cpp:60-71,87-88; World/CosmicGalaxyMapActor.cpp:274-278; Tools/make_materials.py:124"
+  },
+  {
+   "a": "guideline §2.1:251·§6.3:1537·v08_rulings:172 '셋째 칸에 ×25 한 단(틱당 30µs라 열 수 있다)'",
+   "b": "UGalaxySimulationSubsystem::SetTimeScale이 MaxTicksPerFrame(10)으로 clamp — 25를 넣어도 10",
+   "note": "Sim/GalaxySimulationSubsystem.cpp:1036; Sim/GalaxySimulationSubsystem.h:494 — 설계가 Sim 상한을 전제하지 않음(UI만 고치면 조용히 10으로 깎임)"
+  },
+  {
+   "a": "guideline §2.1:251 '중요 이벤트(위기 발생·업적 기회·조우)는 자동 일시정지 옵션', §2.2:262 코어 루프 그림",
+   "b": "코드에 자동 일시정지·옵션 UI 없음(승천 오버레이의 정지뿐)",
+   "note": "UI/CosmicAscensionOverlayWidget.cpp:201-209 — Phase 표에도 이 항목이 배정돼 있지 않다"
+  },
+  {
+   "a": "guideline §9.4:3720·§6.4:1546 '성계 액터 ≤150 — 아는 성계 가운데 화면에 든 것', §6.4:1557 '레인은 두 끝이 아는 성계일 때만'",
+   "b": "모든 성계에 액터·라벨, 모든 레인을 앎과 무관하게 그림(문서 §6.4:1550이 '8번 작업까지 아직 없다'고 자인)",
+   "note": "World/CosmicGalaxyMapActor.cpp:207-216; World/CosmicMapLook.cpp:93-129 — 예정된 드리프트"
+  },
+  {
+   "a": "ST_CA `Settle.Block.Sphere` '그쪽으로 간 배들은 닿지 못하고 돌아왔다 — …'",
+   "b": "guideline §5.12:1444·v08_rulings:178(§16 #94): 영향권 사유는 '소식이 끊겼다'로 바꿔야 하고 '닿지 못하고 돌아왔다'는 성역의 그림",
+   "note": "Tools/data/ST_CA.csv:28 — 단계 4 예정으로 문서가 인지한 데이터 드리프트"
+  },
+  {
+   "a": "guideline §8.5:3434 'C++ 안의 UI 문자열은 LOCTEXT/NSLOCTEXT'",
+   "b": "코드의 UI 포맷은 전부 INVTEXT('x{0}', '[{0}] {1}', '{0}  {1} {2}/{3}', '{0}\\n{1}')이고 'x' 같은 글자가 번역 밖에 박힘",
+   "note": "UI/CosmicUILabels.h:54,67,84; UI/CosmicLogFeedWidget.cpp:90; UI/CosmicSystemPanelWidget.cpp:49; UI/CosmicTopBarWidget.cpp:75,194"
+  },
+  {
+   "a": "Config/DefaultInput.ini:79-80 기본 클래스 EnhancedPlayerInput/EnhancedInputComponent, Build.cs:27 EnhancedInput 의존, §6.6",
+   "b": "코드는 레거시 InputComponent->BindKey만 사용(기반 포인터로 '= delete'를 우회)",
+   "note": "World/CosmicGameMode.cpp:420-436 — CLAUDE.md가 의도적 우회로 기록했으나 설정/의존과 사용이 어긋나고 리바인딩 불가"
+  },
+  {
+   "a": "WORKPLAN.md:167 2번 작업 '클릭으로 성계 선택(라인 트레이스)'",
+   "b": "구현은 화면 공간 픽(CosmicMapPick::NearestOnScreen); guideline §6.4:1548은 고쳐졌으나 WORKPLAN 표 문구는 그대로",
+   "note": "World/CosmicGameMode.cpp:484-513; WORKPLAN.md:183은 바뀐 까닭을 적음"
+  },
+  {
+   "a": "guideline §6.5:1577 표 'NS_Ascension | 등급 상승 | 화면 중앙, 3~5초', §12.1:4058 'Niagara 1 (NS_Ascension)'",
+   "b": "Niagara 없음, UI 머티리얼 빛무리 + 합성 종소리 5초(§6.5:1584가 미룸을 기록)",
+   "note": "UI/CosmicAscensionOverlayWidget.cpp:100-151 — 표와 VS 정의가 갱신되지 않음"
+  },
+  {
+   "a": "World/CosmicGameMode.h:1 'Design: guideline.md section 6.1, 11 Phase 1'",
+   "b": "파일 내용은 Phase 3의 HUD 배치·마우스 픽·시계 단위·카메라 조종(§6.3·§6.4)",
+   "note": "헤더 설계 참조가 Phase 1에서 멈춤"
+  },
+  {
+   "a": "guideline §6.1:1472 UMG 위젯 목록 '은하 지도 HUD, 성계 정보 패널, 은하 패널, 로그 피드, 조우 카드, 상단 자원/시간 바'",
+   "b": "은하 패널·조우 카드 위젯 없음(Phase 3 8번·Phase 4)",
+   "note": "UI/ 폴더 — 아키텍처 그림이 목표 상태를 현재형으로 적음"
+  }
+ ],
+ "implemented_status": [
+  {
+   "feature": "은하 지도: 성계 액터·레인·성운 하늘·프레임당 1회 갱신",
+   "status": "implemented",
+   "evidence": "World/CosmicGalaxyMapActor.cpp:125-288; World/CosmicStarSystemActor.cpp:35-100"
+  },
+  {
+   "feature": "주인 색 고리(정착 중 점선)·선택 흰 고리·거리 비례 선 두께",
+   "status": "implemented",
+   "evidence": "World/CosmicGalaxyMapActor.cpp:47-61,107-123,271-283"
+  },
+  {
+   "feature": "성계 이름표 + 건설/대응 진척 막대, 먼 시점 솎기",
+   "status": "implemented",
+   "evidence": "UI/CosmicSystemLabelWidget.cpp:39-89; World/CosmicMapLook.cpp:131-134; World/CosmicGalaxyMapActor.cpp:268-269"
+  },
+  {
+   "feature": "항성 등급 색·크기와 Hazard 맥동(M_Star)",
+   "status": "implemented",
+   "evidence": "World/CosmicMapLook.cpp:25-46; World/CosmicStarSystemActor.cpp:88-94; Tools/make_materials.py:114-124"
+  },
+  {
+   "feature": "카메라: 궤도·줌·팬·더블클릭 포커스·새 은하 프레이밍",
+   "status": "implemented",
+   "evidence": "World/CosmicCameraPawn.cpp:59-162; World/CosmicGameMode.cpp:398-413,438-475"
+  },
+  {
+   "feature": "화면 공간 클릭 선택·빈 곳 해제·개발용 CosmicSelect",
+   "status": "implemented",
+   "evidence": "World/CosmicGameMode.cpp:328-360,484-540; World/CosmicMapPick.cpp:5-22"
+  },
+  {
+   "feature": "상단 바(백성·칸·안정도·자원5·연구4·시계·배속5)",
+   "status": "implemented",
+   "evidence": "UI/CosmicTopBarWidget.cpp:36-97,179-234"
+  },
+  {
+   "feature": "시간 표시 토글(주기↔년, 호버 둘 다, ini 유지, 피드·패널·배속 라벨 추종, -TimeUnit=)",
+   "status": "implemented",
+   "evidence": "World/CosmicGameMode.cpp:249-294,221-229; UI/CosmicUILabels.h:51-85; UI/CosmicLogFeedWidget.cpp:250-264"
+  },
+  {
+   "feature": "성계 정보 패널(이름·등급·주인·위기 카운트다운·두 칸 진척/필요)",
+   "status": "implemented",
+   "evidence": "UI/CosmicSystemPanelWidget.cpp:193-253"
+  },
+  {
+   "feature": "거대 프로젝트 시작 단추(CanStart 행, 사전순) → StartMegaproject",
+   "status": "implemented",
+   "evidence": "UI/CosmicSystemPanelWidget.cpp:258-271,183-191; World/CosmicGameMode.cpp:564-581"
+  },
+  {
+   "feature": "정착 단추 + 거절 사유(회색·툴팁·한 줄, 7사유)",
+   "status": "implemented",
+   "evidence": "UI/CosmicSystemPanelWidget.cpp:53-66,153-176,272-278,306-327; Tools/data/ST_CA.csv:26-32"
+  },
+  {
+   "feature": "단추 클릭 유실 방지(action 목록 바뀔 때만 재생성)",
+   "status": "implemented",
+   "evidence": "UI/CosmicSystemPanelWidget.cpp:285-319"
+  },
+  {
+   "feature": "로그 피드(ListView 가상화, 500, bUntold 제외, 4색, 클릭→성계/수도, 끝 추종)",
+   "status": "implemented",
+   "evidence": "UI/CosmicLogFeedWidget.cpp:64-75,114-148,197-284"
+  },
+  {
+   "feature": "승천 연출(막·빛무리·제목·칸·서사·종소리·정지/복원·클릭 닫기·CosmicPreviewAscension)",
+   "status": "implemented",
+   "evidence": "UI/CosmicAscensionOverlayWidget.cpp:100-291; World/CosmicGameMode.cpp:362-380"
+  },
+  {
+   "feature": "NS_Ascension Niagara 연출·녹음 사운드",
+   "status": "missing",
+   "evidence": "UI/CosmicAscensionOverlayWidget.h:36 (deferred 주석); Content/CA에 FX 폴더 없음"
+  },
+  {
+   "feature": "패널 클릭이 지도로 새지 않음·단추 포커스 금지(Space 보존)",
+   "status": "implemented",
+   "evidence": "UI/CosmicTopBarWidget.cpp:236-245; UI/CosmicActionButton.cpp:43-48; UI/CosmicLogFeedWidget.cpp:39-49"
+  },
+  {
+   "feature": "키보드 배속(0~4·Space)과 배속 단추의 단일 경로 SetSpeed",
+   "status": "implemented",
+   "evidence": "World/CosmicGameMode.cpp:420-436,583-639; UI/CosmicTopBarWidget.cpp:130-142"
+  },
+  {
+   "feature": "마우스만으로 Phase 2 플레이(T1→T3)",
+   "status": "partial",
+   "evidence": "Tests/CosmicPanelTests.cpp:526 UI.MouseOnlyAscent(기계 몫 통과); 창에서의 손 확인·60fps는 대기(WORKPLAN.md:171,200)"
+  },
+  {
+   "feature": "셋째 칸 ×25 배속",
+   "status": "missing",
+   "evidence": "UI/CosmicTopBarWidget.cpp:29; Sim/GalaxySimulationSubsystem.cpp:1036 (10 clamp)"
+  },
+  {
+   "feature": "명령 단추의 사유·'멈춤 — 자원 부족'·'다음 칸까지' 툴팁",
+   "status": "missing",
+   "evidence": "UI/CosmicSystemPanelWidget.cpp:260-270 (CanStart 참인 행만 단추); 상단 바 툴팁 없음 UI/CosmicTopBarWidget.cpp:179-234"
+  },
+  {
+   "feature": "앎의 표시(Known 밝기·모르는 성계 숨김·만나지 않은 주인 가림·레인 필터·12색)",
+   "status": "missing",
+   "evidence": "World/CosmicMapLook.cpp:62-129 (Knowing 미참조); World/CosmicGalaxyMapActor.cpp:207"
+  },
+  {
+   "feature": "영적 시야 토글(ViewMode·Pressure·DominionColor·ClaimState·Sealed, M_Lane, SpiritualIntensity)",
+   "status": "missing",
+   "evidence": "Tools/make_materials.py:124,139 (파라미터 3개/0개); World/CosmicStarSystemActor.cpp:22-24"
+  },
+  {
+   "feature": "은하 패널·우주 화면·표시 전용 은하 행",
+   "status": "missing",
+   "evidence": "UI/ 폴더에 해당 위젯 없음; World/CosmicCameraPawn.cpp:82-87 (단일 줌)"
+  },
+  {
+   "feature": "'백성: {PopBand}' 줄·생명 낱말·행성 목록",
+   "status": "missing",
+   "evidence": "UI/CosmicSystemPanelWidget.cpp:220-253"
+  },
+  {
+   "feature": "성역 패널·성역 그림·성역 정착 사유",
+   "status": "missing",
+   "evidence": "UI/CosmicSystemPanelWidget.cpp:54-65; Sim/CosmicMegaprojects.h:103-125 (enum에 성역 없음)"
+  },
+  {
+   "feature": "실제 하늘 투영·배경 별·광년 금",
+   "status": "missing",
+   "evidence": "World/CosmicGalaxyMapActor.cpp:209 (State.Position 그대로), 74-83 (성운 구만)"
+  },
+  {
+   "feature": "자동 일시정지 옵션",
+   "status": "missing",
+   "evidence": "World/CosmicGameMode.cpp:583-602 (호출처: 단추·키·오버레이뿐)"
+  },
+  {
+   "feature": "저장/로드/새 판/메인 메뉴 UI, 시드 입력 화면",
+   "status": "missing",
+   "evidence": "World/CosmicGameMode.cpp:77-95; UI/·World/에 CosmicSaveSubsystem 참조 0"
+  },
+  {
+   "feature": "조우·청원 카드 화면, 방랑자 이동/스캔 UI, 칙령·외교·연구 중점 UI",
+   "status": "missing",
+   "evidence": "UI/ 폴더 파일 목록; UI/CosmicSystemPanelWidget.cpp:257 (Ruler만 명령)"
+  },
+  {
+   "feature": "서막·부르심 화면",
+   "status": "missing",
+   "evidence": "World/CosmicGameMode.cpp:91-94 (즉시 ×1 시작)"
+  },
+  {
+   "feature": "연대기·두 책·생애 기록 화면",
+   "status": "missing",
+   "evidence": "UI/ 폴더에 없음; 피드만 UI/CosmicLogFeedWidget.cpp"
+  },
+  {
+   "feature": "UI.KnownFilter 테스트",
+   "status": "missing",
+   "evidence": "Tests/*.cpp 테스트 이름 목록에 없음(UI.* 7종)"
+  },
+  {
+   "feature": "60fps(성계 60, 창) 종료 조건",
+   "status": "unknown",
+   "evidence": "guideline.md:3935 (창 없이 게임 스레드 2.5~2.8ms, GPU 측정 불신); WORKPLAN.md:187 사람 몫"
+  },
+  {
+   "feature": "개발 보조 인자(-Seed/-Speed/-TimeUnit/-ShotAfterSeconds/-ProfileAfterSeconds)",
+   "status": "implemented",
+   "evidence": "World/CosmicGameMode.cpp:84-121,260-264"
+  }
+ ],
+ "player_facing": [
+  "실행 즉시 새 판이 시계 시드로 시작하고(-Seed= 지정 가능) 1배속으로 돈다. 메뉴·시드 입력·저장·로드 화면은 없다 (World/CosmicGameMode.cpp:77-95).",
+  "마우스: 좌클릭 별 선택(24px 또는 별 반지름 안), 빈 곳 좌클릭 선택 해제, 좌드래그 6px 넘으면 팬, 우드래그 궤도(피치 -85~-20°), 휠 줌(×0.85/칸, 1,500~원반×3), 더블클릭으로 그 별에 다가감(거리 3,000) (World/CosmicGameMode.cpp:438-562).",
+  "키보드: 0=정지, 1/2/3/4=×1/×2/×5/×10, Space=정지↔직전 배속. 화면 어디에도 안내되지 않는다 (World/CosmicGameMode.cpp:424-427,604-639).",
+  "상단 바: 통치 백성 이름·'칸 N'·'안정도 NN%'·에너지/물질/지식/영향력/인과(정수)·물리/사회/공학/초월(%)·시계·배속 단추 5개(현재 배속은 회색). 방랑자면 시계와 배속만 (UI/CosmicTopBarWidget.cpp:179-234).",
+  "시계를 누르면 '주기 1,204'↔'1,204년'이 바뀌고(다음 세션까지 기억), 마우스를 올리면 '주기 1,204 · 1,204년(첫 기록부터)'; 툴팁 '첫 기록부터 센 해 · 1주기 = 1년 / 누르면 주기와 해가 바뀐다.' 년 모드에서 배속 단추는 'N년/초' (UI/CosmicTopBarWidget.cpp:57-82,159-177; Tools/data/ST_CA.csv:33-38).",
+  "성계 패널(선택 시 우측): 이름, '항성 등급 G', '주인 X' 또는 '주인 없음' 또는 '파괴된 성계', '위기 <이름> 남은 주기 N'(또는 'N년 남음'), '건설 <행> 진척/필요', '대응 <행> 진척/필요' (UI/CosmicSystemPanelWidget.cpp:215-253).",
+  "자기 정착 성계에서는 지금 시작할 수 있는 프로젝트마다 '시작 다이슨 스웜/개혁/구호/초신성 안정화' 단추가 나타나고, 조건이 안 되는 행은 단추가 아예 없다(이유 표시 없음). 누르면 즉시 시작되고 패널·지도가 갱신된다 (UI/CosmicSystemPanelWidget.cpp:258-271; World/CosmicGameMode.cpp:564-581).",
+  "남의/무주 살아있는 성계에서는 '정착' 단추 하나. 거절되면 회색이 되고 이유가 툴팁과 아래 한 줄로: 이미 다른 백성이 산다 / 레인 하나로 닿는 곳만 / 칸 N부터 / 다스릴 수 있는 성계 수에 닿았다 / 한 번에 하나씩 / 정착할 방법이 아직 없다 / 배들이 닿지 못하고 돌아왔다 (UI/CosmicSystemPanelWidget.cpp:272-278,321-327; ST_CA.csv:26-32).",
+  "지도 피드백: 별 색·크기=항성 등급, 위기가 선 별은 맥동, 주인 색 고리(정착 중이면 점선), 선택한 별은 흰 고리, 이름표+파랑(건설)/주황(대응) 진척 막대(멀리서는 주인·위기·선택 성계만 이름표), 레인은 파란 선, 죽은 성계는 회색으로 작게 (World/CosmicGalaxyMapActor.cpp:235-288; World/CosmicMapLook.cpp:25-91).",
+  "로그 피드(좌하단 '기록'): 마지막 500줄 '[주기] 문장'(년 모드면 '[N년]'), 회/흰/금/보라 4색, 줄을 누르면 그 성계(없으면 그 백성의 수도)로 카메라가 가고 선택된다; 위로 스크롤해 두면 새 줄이 와도 자리를 지킨다 (UI/CosmicLogFeedWidget.cpp:88-91,223-284).",
+  "승천 때: 화면 전체가 어두워지고 금빛 빛무리 위에 업적 제목·'칸 N'·서사 한 줄, 종소리 한 번, 약 5초 동안 시뮬이 멈추며 아무 곳이나 누르면 닫히고 배속이 돌아온다(그 사이 배속을 바꿨으면 그대로) (UI/CosmicAscensionOverlayWidget.cpp:190-273).",
+  "폐위되어 방랑자가 되면 할 수 있는 입력이 없다 — 지도 보기와 배속·선택만 남고 패널에 단추가 없다 (UI/CosmicSystemPanelWidget.cpp:257; UI/CosmicTopBarWidget.cpp:208-211).",
+  "받지 못하는 피드백: 프로젝트가 자원 부족으로 멈춘 사실과 비용, 다음 칸의 조건, 위기 발생 시 자동 정지/알림, 저장 여부, 연대기·생애 기록, 만난/모르는 백성의 구분, 영향권(영혼 경제)의 색.",
+  "개발자 콘솔: 'CosmicSelect <성계ID>'(더블클릭처럼 선택+접근, 지도가 지어지기 전이면 기다림), 'CosmicPreviewAscension <초>'(상태 변경 없이 연출 미리 보기) (World/CosmicGameMode.cpp:351-380).",
+  "패널 위의 클릭은 지도에 닿지 않고, 단추를 눌러도 Space가 계속 정지 토글로 동작한다 (UI/CosmicActionButton.cpp:43-48; UI/CosmicTopBarWidget.cpp:236-245)."
+ ],
+ "quality_notes": [
+  "레이어 경계 준수: Sim/Events/Ascension/Log/Player/Save/Core/Data에 UI·World·UserWidget·Actor include 없음(grep은 RULE 주석만 검출). UI/World→Sim·Data·Core·Player·Log·Ascension 단방향. 명령은 Controller→UPlayerRoleSubsystem::StartMegaproject / Sim::SetTimeScale 두 길뿐 (World/CosmicGameMode.cpp:564-602).",
+  "결정론: UI/World에 FMath::Rand·FRandomStream 사용 0. Sin/Cos(고리)·Exp(카메라·종소리)·Pow(줌)는 표현 전용이라 해시 밖. 시드만 UTC 시계(입력)에서 고름 (World/CosmicGameMode.cpp:84-88; World/CosmicGalaxyMapActor.cpp:58; World/CosmicCameraPawn.cpp:86,135).",
+  "저장 호환: 이 모듈은 저장 필드를 갖지 않는다. 선택·PendingSelect·Speed 기억은 메모리, 시계 단위만 GameUserSettings ini(테스트 중 쓰기 차단) — CLAUDE.md 규칙과 일치 (World/CosmicGameMode.cpp:277-288).",
+  "함수 길이·가독성: UCosmicSystemPanelWidget::Refresh 136줄(표시·명령·단추 재사용·사유 줄을 한 함수에), ACosmicGameMode::StartPlay 67줄(은하 생성·개발 타이머·스폰 혼재), 상단 바의 23인자 INVTEXT 한 줄 포맷 (UI/CosmicSystemPanelWidget.cpp:193-328; World/CosmicGameMode.cpp:77-143; UI/CosmicTopBarWidget.cpp:194-206).",
+  "파일 구조: CosmicGameMode.h 하나에 ACosmicGameMode·ACosmicHUD·ACosmicPlayerController(입력·선택·단위·픽·개발 명령) 3 클래스 — 컨트롤러 분리와 입력 처리 클래스 추출이 Phase 4(방랑자 입력·카드) 전 선행 과제 (World/CosmicGameMode.h:30-188).",
+  "명명·주석: Cosmic 접두어 일관, 파일 머리에 guideline 절 참조, 파일별 `*Impl` 네임스페이스로 유니티 빌드 충돌 회피, 영문 ASCII 주석(CLAUDE.md 규칙) 준수. 단 CosmicGameMode.h의 절 참조는 stale (World/CosmicGameMode.h:1).",
+  "테스트 가능성: 테스트 전용 훅이 설계에 들어 있다 — Press/PressClock/SetClockHovered/RefreshNow/Advance/OpenItem/ShowItem/GetDrawn*·GetAppliedLook·GetShownSettleBlock·ReasonOf(static). UI.* 7종 약 360 단언(Panel 167·Camera 82·Map 48·Overlay 35·Feed 28), 변이 테스트 기록. 한계: 실제 마우스·Slate 레이아웃·렌더는 -nullrhi에서 검증 불가, 60fps는 사람 몫 (Tests/CosmicPanelTests.cpp:142,526,630).",
+  "리플렉션 우회 3종(UButton IsFocusable, UListViewBase EntryWidgetClass, UListView bIsFocusable): FindFProperty가 null이면 조용히 건너뛴다(로그 없음) — 엔진 버전 업 시 무증상 회귀 위험 (UI/CosmicActionButton.cpp:45-48; UI/CosmicLogFeedWidget.cpp:39-49).",
+  "입력 아키텍처: Enhanced Input 설정·의존 위에 레거시 BindKey(기반 포인터로 '= delete' 우회). 리바인딩·조작 설정 UI·패드 지원이 막혀 있고 엔진이 레거시 경로를 끊으면 입력 전체가 멈춤 (World/CosmicGameMode.cpp:420-436).",
+  "하드코딩 문자열: 연구 키 FName 4개(Sim의 ResearchFields와 별도 리터럴), 액션 이름 \"speed\", 에셋 경로 5개, ini 섹션/키, 태그 이름 Log.Transcendent/Log.Claim/Star.Class.* — UI용 상수 헤더(CosmicRows 같은) 없음 (UI/CosmicTopBarWidget.cpp:27,203-206; UI/CosmicLogFeedWidget.cpp:68-69).",
+  "테마/스타일 부재: 색·폰트 크기·여백·패널 크기가 파일마다 매직 넘버, 스타일 구조체·데이터 에셋·DPI 규칙 없음 → 폴리싱 단계에서 전면 손질 비용. 색은 §8.2 4색 상한을 지키지만 정의가 분산 (UI/*.cpp 상수 블록).",
+  "성능 특성: 맵 Refresh는 틱마다(최대 10/s) 모든 성계 LookOf + LineBatch Flush/DrawLines 전체 재생성, 패널 Refresh는 틱마다 GetRowNames+Sort+CanStart 전 행; 60 성계에서는 무시 가능하나 EA 300·행 증가 시 재측정 필요. 라벨은 성계마다 UWidgetComponent(UUserWidget 60개) (World/CosmicGalaxyMapActor.cpp:235-288; UI/CosmicSystemPanelWidget.cpp:260-270).",
+  "틱 비용: DisableNativeTick 메타가 WBP 없는 클래스에 효력이 없어(CLAUDE.md 표) 모든 위젯이 빈 NativeTick을 돈다; 오버레이만 의도적으로 틱 사용. 지금은 미미 (UI/*.h UCLASS 메타).",
+  "핸들러 안 동작: 오버레이 Show가 OnTierAscended(틱 중간, AI 단계) 안에서 SetSpeed(0)→HUD RefreshPanel을 불러 패널이 틱 도중 상태를 읽는다 — §9.4가 허용하는 범위지만 틱 끝 상태와 다를 수 있음 (UI/CosmicAscensionOverlayWidget.cpp:184-209; World/CosmicGameMode.cpp:583-602).",
+  "오류 내성: 에셋 누락 시 LogCosmic Error + 폴백(WBP 없으면 C++ 클래스, 머티리얼 없으면 기본 재질)으로 게임이 계속 돈다. 널 가드·Transient UPROPERTY·델리게이트 Add/Remove 짝·TWeakObjectPtr 맵 참조가 일관 (World/CosmicStarSystemActor.cpp:72-79; UI/CosmicLogFeedWidget.cpp:134-139).",
+  "인덱스 가정: 맵 Refresh는 '성계 액터 i = State.Systems[i]'를 전제(Systems는 줄지 않는다는 CLAUDE 규칙에 의존)하고 Stars.Num()과 Systems.Num() 중 작은 쪽까지만 돈다 — 저장 로드 후 OnGalaxyGenerated로 Rebuild되므로 안전하지만 규칙 변경에 취약 (World/CosmicGalaxyMapActor.cpp:256-259).",
+  "색인 미사용: 컨트롤러 SelectSystem·상단 바·MapLook은 선형 Predicate 탐색, 패널·피드는 FCosmicStateIndex — §9.4 '순회 금지' 원칙이 표현 계층에서 반쯤만 지켜짐 (World/CosmicGameMode.cpp:337; UI/CosmicTopBarWidget.cpp:191; World/CosmicMapLook.cpp:80).",
+  "로컬라이제이션: ST_CA 37키 전부 한국어이고 모두 이 모듈이 소비. INVTEXT 포맷 7개와 'x{0}' 글자가 코드에 있음. 숫자는 FText::AsNumber/AsPercent(문화권 따름). 전용 한글 폰트 에셋 없음 (UI/CosmicUILabels.h).",
+  "멀티플레이어 일반화 불일치: StartPlay는 모든 플레이어 컨트롤러에 폰을 스폰하지만 HUD·선택·단위는 단일 로컬 플레이어 전제 — 싱글 전용(§12.2)이라 루프는 불필요한 일반화 (World/CosmicGameMode.cpp:125-141).",
+  "모듈 의존: Build.cs Public 의존 Niagara·EnhancedInput은 코드 사용 0(링크·패키지 부담 사소); Json·EngineSettings는 테스트 전용 Private — 의존 표가 사용 현황과 어긋남 (Cosmic_Ascension.Build.cs:26-35).",
+  "개발 보조와 제품 코드 혼재: -ShotAfterSeconds/-ProfileAfterSeconds 타이머·Exec 명령이 게임 모드/컨트롤러 본문에 있음 — 분리(개발 전용 서브클래스 또는 #if)가 가독성과 출시 빌드 위생에 유리 (World/CosmicGameMode.cpp:99-121,351-380).",
+  "UX 접근성: 색만으로 심각도 구분(4색), 10~13px 글꼴, 툴팁 2곳, 단축키 미표시, 선택 해제 키 없음 — 폴리싱 전 최소 수정 목록으로 적합."
+ ]
+}

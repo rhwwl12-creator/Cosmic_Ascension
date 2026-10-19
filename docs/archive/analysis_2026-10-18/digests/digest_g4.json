@@ -1,0 +1,990 @@
+{
+ "scope": "g4: guideline.md 1460~2819행 — §6 UE5 기술 아키텍처·§7.1 공통 타입·§7.2 런타임 상태·§7.3 정의 데이터",
+ "summary": "§6(1460~1614)은 UE5 구현 아키텍처다: Presentation/Core Logic(GameInstance Subsystem 6개)/Data 3층, 시뮬이 UI·Actor를 모르는 의존 규칙, 전역 방송 게이트, UMG+C++ 위젯 결정, Phase 3에서 지은 상단 바·성계 패널·로그 피드·승천 오버레이·카메라·맵 액터의 as-built 기록, 앎(Knowing) 표시 규칙, 영적 시야 토글, Niagara 3종 예산, Build.cs. §7.1~7.3(1618~2818)은 '설계 스케치'라 하지만 실제로는 구현된 헤더의 주석판이다: 공통 열거형, 런타임 상태 9개 구조체(FGalaxyState가 판 전체), 정의 데이터(EConditionType 30·EEffectType 18, DT 행 구조체 9종), schema.json 검사기와 C++ Data.Integrity 분담표. 핵심 원칙: 상태는 FGalaxyState 하나(UObject 그래프 금지, 해시·저장 가능), 세계→앎→이야기 한 방향 의존, 열거형·저장 필드는 끝에만 추가·초기값 동결, 표현 상태(선택·시계 단위·줌·서막)는 상태·해시 밖, KillPlayer·DeposeRuler는 틱 경계 지연 실행, 인구·인물은 요약 단위. DT_Rules 단일 행이 약 55개 노브를 쥔다(도약 800~1600/상한 4500, 영압 {0,0,0.25,1,2}, 보유 상한 {1,3,4,7,10}, 시야 {1,2,4,6,10}, EventSlotTicks 10, EventChancePerSlot 0.02 등). 문제: 수 KB 한 줄 단락, 본문에 녹은 변경 이력·버그 사후기, 현재 코드(arch_terran·sol=모성계)와 미래(v0.8 단계 4~7: arch_seeker·sys_0·성역·서막·행성 목록)가 같은 문장에 섞인 표지, §16 이슈 번호 인용 과밀, NS_Ascension 표와 본문의 불일치. 코드가 뒤따르지 않은 표지가 §6.3~6.4·§7.3에 25곳 이상이고 DT_Edicts·Relics·Traits·Dedications·Encounters 구조체는 비어 있어 Phase 4(조우·청원·칙령·유물) 전체가 미정의다.",
+ "key_decisions": [
+  {
+   "topic": "계층 구조",
+   "decision": "Presentation(UMG 위젯·최소 3D 뷰포트·Niagara 3종) / Core Logic(UGalaxySimulationSubsystem·UCosmicEventSubsystem·UAscensionSubsystem·UCosmicLogSubsystem·UPlayerRoleSubsystem·UCosmicSaveSubsystem) / Data(정의 DataTable 14개·상태 FGalaxyState·문자열 ST_CA+FText) 3층. UI는 델리게이트 구독과 상태 읽기만, 명령은 Subsystem 함수 호출",
+   "source_ref": "guideline.md:1470-1502"
+  },
+  {
+   "topic": "의존 금지 규칙",
+   "decision": "Sim/·Events/·Ascension/·Log/·Player/·Save/ 코드가 UUserWidget·AActor를 include하거나 그 타입을 쓰면 설계 위반. 유일한 전이 예외는 Save/의 Kismet/GameplayStatics.h",
+   "source_ref": "guideline.md:1510"
+  },
+  {
+   "topic": "헤드리스 전제",
+   "decision": "뷰포트 성계 액터는 상태의 시각 표현일 뿐이며 액터 없이도 시뮬이 돌아야 한다(헤드리스 테스트의 전제)",
+   "source_ref": "guideline.md:1512"
+  },
+  {
+   "topic": "방송 게이트",
+   "decision": "모든 Core Logic Subsystem의 델리게이트 Broadcast는 UGalaxySimulationSubsystem::IsBroadcastEnabled()를 보고, 공백기 도약과 헤드리스 실행 중에는 닫힌다",
+   "source_ref": "guideline.md:1513"
+  },
+  {
+   "topic": "Subsystem 무상태",
+   "decision": "Core Logic Subsystem은 플레이어·생애 종속 멤버 변수를 갖지 않는다. 지속 업적 진척(CompletedMegaprojects·SealedTick)은 FGalaxyState 안에 둔다",
+   "source_ref": "guideline.md:1514"
+  },
+  {
+   "topic": "Subsystem 종류·틱",
+   "decision": "전부 UGameInstanceSubsystem(레벨 전환에도 상태 유지) + FTickableGameObject(월드 타이머 비의존)",
+   "source_ref": "guideline.md:1521-1522"
+  },
+  {
+   "topic": "상태 단일 구조체",
+   "decision": "판의 상태는 Subsystem이 드는 FGalaxyState 구조체 하나(고향 은하 상세 + 판 공통). UObject 그래프 금지 — 저장 단순화·결정론 해시 가능",
+   "source_ref": "guideline.md:1523"
+  },
+  {
+   "topic": "세 층 한 방향 의존",
+   "decision": "판 상태는 세계→앎→이야기 세 층이고 세계는 앎을 NoteMet·NoteKnown으로 쓰기만 하고 읽지 않는다(예외 하나는 §8.1). 조건 열거형에도 앎을 읽는 값을 두지 않는다",
+   "source_ref": "guideline.md:1524, 2076, 2232"
+  },
+  {
+   "topic": "UI 기술",
+   "decision": "CommonUI를 버리고 UMG + C++ 위젯 베이스 클래스. 스팀덱/패드 지원 시 CommonUI 재검토. 로그 피드는 UListView 가상화",
+   "source_ref": "guideline.md:1531-1533"
+  },
+  {
+   "topic": "WBP 없는 C++ 위젯",
+   "decision": "상단 바·성계 패널·로그 피드·승천 오버레이는 전부 C++ 위젯(트리는 C++이 짓는다). 유일한 블루프린트는 에디터 ListView 제약 때문에 Tools/make_widget_blueprints.py가 만드는 빈 WBP_LogEntry",
+   "source_ref": "guideline.md:1534"
+  },
+  {
+   "topic": "명령 단추 규칙",
+   "decision": "통치 백성의 정착 성계에서 CosmicMegaprojects::CanStart가 받는 행마다 단추(행 이름 사전순) + 남의 살아 있는 성계마다 정착 단추(SettleBlockOf 거절 시 회색+사유 툴팁+한 줄). 눌림은 컨트롤러 StartProject→UPlayerRoleSubsystem::StartMegaproject. 단추 목록은 행동 목록이 바뀔 때만 재생성(틱마다 재생성하면 클릭 유실 — 단계 0 버그), 포커스 안 받음, 통치자 그릇이 아니면 단추 없음",
+   "source_ref": "guideline.md:1534"
+  },
+  {
+   "topic": "승천 오버레이",
+   "decision": "UAscensionSubsystem::OnTierAscended를 듣고 약 5초 표시, 보이는 동안 SetSpeed(0)로 정지 후 닫힐 때 배속 복원(그 사이 플레이어가 바꿨으면 그대로), 클릭 즉시 닫힘, 둘째 승천은 글만 바꾸고 5초 재계수",
+   "source_ref": "guideline.md:1534"
+  },
+  {
+   "topic": "시계 단위 토글",
+   "decision": "주기↔년은 플레이어 컨트롤러의 표현 상태(ECosmicTimeUnit)로 GameUserSettings ini에 남고 상태·해시 밖. 기본 '주기'. 자동화 테스트는 ini를 읽지 않는다. 라벨 함수는 단위를 인자로 받는다",
+   "source_ref": "guideline.md:1536"
+  },
+  {
+   "topic": "성역(sol) 표시",
+   "decision": "이름 '태양계 · 성역', 주인 줄 '성역 — 어느 백성의 소유도 되지 않는다', 명령 단추 없음, 정착 사유 맨 앞, 주인 고리·색 없음, 항상 보임(앎에 쓰지 않는 표시 규칙), 영적 시야 색 없음·압력 0",
+   "source_ref": "guideline.md:1535, 1550, 1561, 1568"
+  },
+  {
+   "topic": "서막·부르심",
+   "decision": "서막은 표현 계층 상태(저장 없음, SetTimeScale(0), 배속 입력 없음), Phase 4 조우 카드 화면 재사용, 승천 오버레이 미사용(카메라가 출생 성계에서 하늘로 물러난 뒤 UI 켜고 ×1). 결과는 Core 함수 ReceiveCalling(가칭)이 상태에 적는다",
+   "source_ref": "guideline.md:1539"
+  },
+  {
+   "topic": "뷰포트 규모",
+   "decision": "상세 액터 ≤150(VS는 생명 성계 60 전부 액터 + Known 파라미터, EA 300은 6a에서 나머지를 인스턴스 메시로). 배경 별·풍경 은하는 인스턴스/하늘 머티리얼로 드로 각 1, 선택 없음, Niagara 없음",
+   "source_ref": "guideline.md:1546, 1549"
+  },
+  {
+   "topic": "카메라·선택",
+   "decision": "ACosmicCameraPawn(게임 모드가 생성, L_Galaxy에 PlayerStart 없음). 클릭은 라인 트레이스가 아닌 화면 공간 피킹(CosmicMapPick::NearestOnScreen, 별 충돌 끔). 선택은 컨트롤러의 표현 상태(SelectSystem·OnSelectionChanged)로 FGalaxyState 밖·저장·해시 무관",
+   "source_ref": "guideline.md:1548"
+  },
+  {
+   "topic": "지도 그리기",
+   "decision": "맵 액터 ACosmicGalaxyMapActor 하나(StartPlay가 생성, L_Galaxy 불변). OnGalaxyGenerated에 액터 재생성, OnSimTick에는 표시만 해 두어 프레임당 최대 1회 재그리기. 그릴 값은 상태만 읽는 순수 함수 CosmicMapLook::LookOf·LanesOf(테스트 UI.GalaxyMap)",
+   "source_ref": "guideline.md:1550"
+  },
+  {
+   "topic": "에셋 생성물",
+   "decision": "M_Star·M_Nebula·M_AscensionGlow는 Tools/make_materials.py 생성물(에디터 수정은 덮어써짐). 액터는 생성자 FObjectFinder가 아니라 BeginPlay의 LoadObject로 읽는다. 쿠킹은 DirectoriesToAlwaysCook의 /Game/CA/Materials",
+   "source_ref": "guideline.md:1550, 1584"
+  },
+  {
+   "topic": "앎의 표시",
+   "decision": "모르는 성계는 배경 별과 같은 점(셀 수 없음), 소유 색·백성 이름은 만난 백성만, 레인은 양 끝 아는 성계만, 새 색 없이 밝기(Known)로만 구분, 문명 지도 색은 Knowing.MetCivs 순서의 12색 팔레트(상태 Color 불변), 만났으나 사라진 백성은 표시에서 빠짐",
+   "source_ref": "guideline.md:1552-1564"
+  },
+  {
+   "topic": "영적 시야",
+   "decision": "두 번째 지도 없음 — 같은 지도의 M_Star 파라미터(ViewMode·Pressure·DominionColor·Sealed·ClaimState)·M_Lane 채도·M_Nebula SpiritualIntensity로 파생 표시. Pressure는 Presentation이 ComputeSpiritualPressure를 읽어 파생(Sim 무변경). PlayerTier ≥3 해금. 색 상한 4(회/백/금+보라)",
+   "source_ref": "guideline.md:1568"
+  },
+  {
+   "topic": "Niagara 예산",
+   "decision": "NS_Ascension·NS_Rift·NS_TranscendentAura 3종만. 사망·폐위·영적 사건 전용 Niagara·일러스트 금지. NS_Ascension은 미루고 C++ 오버레이(M_AscensionGlow + USoundWaveProcedural 종소리)가 대신한다. 모르는 성계에는 어떤 이펙트도 없다",
+   "source_ref": "guideline.md:1575-1584"
+  },
+  {
+   "topic": "Build.cs",
+   "decision": "Public: Core·CoreUObject·Engine·InputCore·EnhancedInput·UMG·Slate·SlateCore·GameplayTags·Niagara. Private: EngineSettings(커맨드렛 GameInstance)·Json(테스트 Data.Integrity 전용 — Core Logic은 JSON을 읽지 않는다). 비에디터 타깃 FPSemantics Precise. CommonUI 미포함",
+   "source_ref": "guideline.md:1594-1608"
+  },
+  {
+   "topic": "타입 규칙",
+   "decision": "정의(Def)=FTableRowBase 파생 USTRUCT→DataTable, 상태(State)=일반 USTRUCT→FGalaxyState. 식별자 FName, 분류·특성 FGameplayTag, 사용자 문자열 FText",
+   "source_ref": "guideline.md:1622"
+  },
+  {
+   "topic": "인구 추상화",
+   "decision": "Population은 비율(1.0 = 그 Tier의 전형), 문명 단위만(성계 인구 없음), 영혼도 머릿수도 아님. 표시는 EPopulationBand 6등급(파생값, 저장 안 함)만 — UI·로그·연대기에 숫자 없음",
+   "source_ref": "guideline.md:1678-1682, 1864"
+  },
+  {
+   "topic": "인물 기록(요약 단위)",
+   "decision": "FNotableRecord는 Role·NameIndex·FirstTick·LastTick·SourceRow 5필드 고정(FName·정수·태그만). 사건(NameNotable 효과·코드 훅 3)이 만들고 닫는다. 능력치·AI·관계 없음, 개인을 겨누는 조건/효과 없음(CivHasNotable·NameNotable이 전부). 6번째 필드는 §12.3 '인물 3문' 통과 필요. 역할당 열린 기록 1개, 상한 MaxNotablesPerCiv",
+   "source_ref": "guideline.md:1806-1828, 1892, 2274"
+  },
+  {
+   "topic": "안정도 단일 지표",
+   "decision": "Stability(0~1)가 통치자의 유일한 지표. 불만도는 별도 미터가 아니라 Hazard.Rebellion 카운트다운",
+   "source_ref": "guideline.md:1872"
+  },
+  {
+   "topic": "관계 맵 통합",
+   "decision": "Relations 키는 CivID 또는 TranscendentID(−1~1). 별도 SpiritualFavor 미터 없음. 없는 키 = 0 = 중립",
+   "source_ref": "guideline.md:1880"
+  },
+  {
+   "topic": "ID 체계",
+   "decision": "SystemID는 패딩 없는 sys_<n>(배열 번호), 성역 sol(배열 끝), 첫 생애 모성계 sys_0 — v0.8 단계 4부터(그 전 코드는 모성계가 sol). CivID civ_<n>은 NextCivSerial에서 받고 재사용 없음. 'ID 사전순' 동률은 FNameLexicalLess",
+   "source_ref": "guideline.md:1766, 1840, 2142"
+  },
+  {
+   "topic": "은하 소속 부호화",
+   "decision": "NewGalaxy가 DT_Rules.HomeGalaxyRow(gal_milkyway)를 모든 성계·문명의 GalaxyRow에 찍는다. NAME_None은 '아직 찍히지 않음'이고 고향으로 읽는 규칙은 없다(의미를 갖는 곳은 OriginGalaxyRow=토박이뿐). 고향 밖 은하는 저장 상태 없음. 시계는 Tick 하나",
+   "source_ref": "guideline.md:2132-2140"
+  },
+  {
+   "topic": "죽은 노드",
+   "decision": "Systems 배열은 판 도중 줄지 않는다. 파괴된 성계는 StarClass 빈 태그로 남고(주인·레인 없음, 모든 영향권에서 제거) 생명 성계를 훑는 규칙이 건너뛴다. 아는 성계가 파괴되면 희미한 죽은 별 표시",
+   "source_ref": "guideline.md:1776, 2170"
+  },
+  {
+   "topic": "문명 제거 규칙",
+   "decision": "제거 시 다른 문명의 Relations에서 그 키를 지우고 PendingContactCivID가 그 문명이면 비운다. MetCivs·FirstContactCivID·Transits·Lives는 ID를 그대로(조회 실패 = 사라진 것, 표시가 뺀다 — Sim.NoDanglingRefsAfterLeap 예외). Civs 원소 수는 건넘 단계에서만 바뀐다",
+   "source_ref": "guideline.md:2172"
+  },
+  {
+   "topic": "저장 호환",
+   "decision": "SaveVersion 초기값 1 고정(CurrentSaveVersion 상수에 묶지 않음). 새 저장 필드는 기본값 '없음'인 추가만이고 초기값은 첫 세이브부터 동결. GalaxyID·RngState·TellRngState는 FGalaxyState 최상위에만(해시 제외가 최상위 이름 기준). 판당 슬롯 1개",
+   "source_ref": "guideline.md:1492, 2138, 2156-2166"
+  },
+  {
+   "topic": "역할 효과 지연",
+   "decision": "KillPlayer·DeposeRuler는 즉시 실행하지 않고 FCallingState의 PendingEffect/PendingCause/PendingSourceRow에 기록만(틱당 1건, 먼저 기록된 것 우선, Embodied일 때만, UCosmicEventSubsystem::Apply 경유). 틱 경계 '역할 효과 해소'에서 UPlayerRoleSubsystem 파이프라인으로 위임",
+   "source_ref": "guideline.md:2046-2052, 2270"
+  },
+  {
+   "topic": "열거형 추가 규칙",
+   "decision": "EConditionType·EEffectType·ECosmicEventTrigger·ECosmicEventSubject는 끝에만 추가(세이브 호환). 예약 열거자도 처음 쓰는 행과 함께 끝에 더한다",
+   "source_ref": "guideline.md:2232, 2274, 2320, 2322"
+  },
+  {
+   "topic": "이벤트 발화 모델",
+   "decision": "Trigger: Lottery(슬롯 추첨, 문명·슬롯당 1행 이하)/Standing(조건·쿨다운만 맞으면 반드시)/Named(코드가 FireRow). Subject: Civilization(수도 문맥, {Civ}{Hazard}만)/SettledSystem(정착 성계마다). 쿨다운 키 '<행>@<CivID>'(행 이름에 @ 금지), 끝난 항목 600틱마다 정리. SignRow가 하위 Tier 화자의 징조 줄",
+   "source_ref": "guideline.md:2184, 2316-2338"
+  },
+  {
+   "topic": "Hazard 배치·해결",
+   "decision": "SpawnRule Draw(정착 성계마다 틱당 추첨 1회)/Capital/ClaimRule. 놓는 길은 CosmicHazards::Place 하나, 정착 성계 빈 슬롯만. 해결은 R·W·AI 모두 CosmicHazards::Resolve. 만료 효과는 TransferSystem·ResolveHazard 금지(성계를 앗는 것은 문 뒤 단계 코드뿐), 해결 효과도 둘 다 금지, 재귀는 깊이 4에서 에러 한 줄. RulerResolutions의 DT_Megaprojects 행이 대응 칸 프로젝트",
+   "source_ref": "guideline.md:1782, 1792, 2346-2394"
+  },
+  {
+   "topic": "로그 템플릿 행 종류",
+   "decision": "Context 빈 행 = 이름 행(PushRow가 행 이름으로 부름), Context Revelation.* = 선택 행(PickTemplateRow(Category, Context, FallbackRow), (Category, Context)당 1행 이하). 폴백은 호출자가 CosmicRows 상수로 넘기는 이름 행. 변형 추첨은 PushRow가 한다",
+   "source_ref": "guideline.md:2581-2597"
+  },
+  {
+   "topic": "초월자 로스터",
+   "decision": "초월자는 판에 교리마다 1체(은하별 아님, 타락은 건너지 않음). Realm.Celestial 행은 상태 인스턴스 없음. Allegiance는 정의에만. Depth(0~1)가 영압 초월자 항에 (1+Depth) 배. 침묵 고정 + 나머지 SpawnWeight 가중 추첨, 판당 활성 타락 ≤3",
+   "source_ref": "guideline.md:1942-1946, 2540-2567, 2705"
+  },
+  {
+   "topic": "스키마 SSoT와 검사 분담",
+   "decision": "Tools/data/schema.json 하나가 모든 테이블의 모든 컬럼(16종)·열거자 48개의 Tag/Key/Value 쓰임·닫힌 낱말 목록 7을 선언(저작 시점 전용, 런타임 불변). Python 검사기(cosmic_data_schema.py: 읽기→스키마 자신→데이터 3걸음)가 원본 전부를, C++ Data.Integrity가 리플렉션·코드 목록·에셋을 본다. make_data_tables.py는 검사→임포트→도장(원본+schema+검사기 해시), 전부 채운 뒤 한꺼번에 저장",
+   "source_ref": "guideline.md:2774-2813"
+  }
+ ],
+ "parameters": [
+  {
+   "name": "로그 상한",
+   "value": "피드 표시 마지막 500줄 / FGalaxyState.Log 상한 2,000 초과 시 Severity 1·2를 Chronicle로 이관",
+   "source_ref": "guideline.md:1534, 2186-2188"
+  },
+  {
+   "name": "승천 오버레이 시간",
+   "value": "약 5초 실제 시간 — 0.8초에 밝아지고 4.2초부터 어두워짐",
+   "source_ref": "guideline.md:1534"
+  },
+  {
+   "name": "배속·틱 속도",
+   "value": "단추 정지·×1·×2·×5·×10(T3 승천 뒤 ×25 추가 예정), 시뮬은 1초에 최대 10틱",
+   "source_ref": "guideline.md:1534, 1537",
+   "note": "년 모드 라벨 '1년/초 … 10년/초'(1536)"
+  },
+  {
+   "name": "시간 단위",
+   "value": "1주기 = 1년, 기본 표시 '주기'",
+   "source_ref": "guideline.md:1536"
+  },
+  {
+   "name": "상세 액터 상한",
+   "value": "150개 이하 (VS 생명 성계 60 전부 액터, EA 300은 6a에서 인스턴스)",
+   "source_ref": "guideline.md:1546"
+  },
+  {
+   "name": "카메라 수치",
+   "value": "궤도 −85°~−20°, 휠 줌 한 칸 ×0.85, 거리 1,500~원반 반지름×3, 더블클릭 접근 거리 3,000, 6px 넘는 드래그는 클릭 아님, 피킹 반경 24px 또는 그려진 반지름, 이름표 제한 거리 9,000 초과",
+   "source_ref": "guideline.md:1548"
+  },
+  {
+   "name": "레인 선 두께",
+   "value": "화면에서 약 1.2픽셀(월드 단위를 거리에 비례), 거리 5% 넘게 변할 때만 재그리기",
+   "source_ref": "guideline.md:1550"
+  },
+  {
+   "name": "색 규칙",
+   "value": "소유 색 12색 팔레트(MetCivs 순, 13번째부터 순환); Severity 색 0 회색·1 흰색·2 금색 + 영적 보라 1 = 상한 4색",
+   "source_ref": "guideline.md:1534, 1558, 1568"
+  },
+  {
+   "name": "실제 하늘 금",
+   "value": "태양 둘레 10·20·30광년 금(숫자 없음), 유명 별 배경 점",
+   "source_ref": "guideline.md:1548",
+   "note": "v0.8 단계 5부터"
+  },
+  {
+   "name": "영적 시야·FX 노출",
+   "value": "토글 해금 PlayerTier ≥3; NS_TranscendentAura는 영적 뷰 전부, 물리 뷰는 플레이어 T4 이상만; Niagara 예산 3종",
+   "source_ref": "guideline.md:1568, 1571-1579"
+  },
+  {
+   "name": "유물 상한",
+   "value": "Relics 최대 3",
+   "source_ref": "guideline.md:1926"
+  },
+  {
+   "name": "그릇 능력치",
+   "value": "Body 1, Mind 1, Causality 0 (0~10, 출생 Traits의 BodyMod/MindMod/CausalityMod로 초기화); Exaltation 0~10 — 경배 수용 +1~2, 거부 −1, 귀환 수락 +2/거절 −1, T5 문턱 기다림 −1; 받는 길 게이트 ≤3 열림, ≥7 닫힘",
+   "source_ref": "guideline.md:1920-1922"
+  },
+  {
+   "name": "Stability",
+   "value": "초기 0.75 (0~1); LowStabilityTicks는 Stability < 0.3 연속 틱, 반란이 슬롯을 떠나면 0",
+   "source_ref": "guideline.md:1872-1874"
+  },
+  {
+   "name": "왕좌 잠금",
+   "value": "ThroneLockedUntilTick = 폐위 Tick + 600; DT_Rules.ThroneLockTicks 600",
+   "source_ref": "guideline.md:1890, 2687"
+  },
+  {
+   "name": "재위 틱 문턱",
+   "value": "시대 명명 600틱, Trait.Legacy.Enduring 1,800틱 (ReignTicks 누계)",
+   "source_ref": "guideline.md:2008"
+  },
+  {
+   "name": "도약 폭 공식",
+   "value": "다음 도약 = clamp(Rng.RandRange(LeapTicksMin, LeapTicksMax), 0, LeapTotalCap − LeapTicksTotal); 0이면 즉시 계승",
+   "source_ref": "guideline.md:2034"
+  },
+  {
+   "name": "쿨다운 맵 정리 주기",
+   "value": "EventCooldownUntilTick의 끝난 항목을 600틱마다 삭제",
+   "source_ref": "guideline.md:2184"
+  },
+  {
+   "name": "DT_Events 기본값",
+   "value": "BaseWeight 1(Lottery만, Standing·Named 0), CooldownTicks 200(Named 0), Severity 0/1/2, MinTierToReveal 0~5(Tier 번호), LogTemplates Lottery·Standing ≥3 / Named ≥1",
+   "source_ref": "guideline.md:2326-2338"
+  },
+  {
+   "name": "ChangePopulation 사용값",
+   "value": "역병 미해결 −0.4, event_zeal_sacrifice −0.05 (비율)",
+   "source_ref": "guideline.md:2272"
+  },
+  {
+   "name": "DT_Hazards 기본값",
+   "value": "CountdownTicks 300(1 미만→1), SpawnChancePerTick 0.0005(Draw만, × HazardSpawnMultipliers), BranchChance 0, Severity 1, ResolveHazard 재귀 깊이 4에서 정지",
+   "source_ref": "guideline.md:2362-2394"
+  },
+  {
+   "name": "조우 선택지",
+   "value": "Choices 2~3, Difficulty ≥16 = 불가능 선택지(영압 게이트), CheckStat Body/Mind/Causality/Exaltation/None(통치자 청원은 Stability/Influence)",
+   "source_ref": "guideline.md:2450-2486"
+  },
+  {
+   "name": "DT_Civs 뱅크 규칙",
+   "value": "AdjectiveBank 0 또는 3, PersonNameBank NoSelf 아닌 행 12(하한 10, 중복·성경 인물·실존 인물·천사·실존 종교 고유명사 금지), RevelationTemplates 정확히 3([0]징조 [1]전언 [2]응답), Weight 0 = AI 추첨 제외",
+   "source_ref": "guideline.md:2516-2528"
+  },
+  {
+   "name": "DT_Transcendents 값",
+   "value": "Tier T3/T4 허용(Abyssal T5 금지), Depth 침묵 1.0 / 회귀 0.7 / 광신 0.6 / 동화 0.5, InitialInfluencedSystems 0~1, MaxInfluencedSystems 12(판 전체 합), SpawnWeight 침묵 고정·동화 2·광신 3·회귀 2(Celestial·Independent 0)",
+   "source_ref": "guideline.md:2560-2567"
+  },
+  {
+   "name": "교리 이벤트 가중 인수",
+   "value": "min(3, 값 × (1 + SphereEventWeightStep × InfluencedSystems.Num())), 0 하한, 영향권 안 또는 1레인 인접만, 봉인 초월자 제외, 배열 순서로 곱",
+   "source_ref": "guideline.md:2569, 2713"
+  },
+  {
+   "name": "DT_Galaxies 고향 기본값",
+   "value": "LivingWorlds 60(EA 300), Peoples 12(EA 48), AIFourthRungCap 2(0 = 제동 없음), HomeRadiusShare 0.53, BridgeTicks 0(고향), 6행 gal_milkyway·andromeda·triangulum·lmc·smc·m87",
+   "source_ref": "guideline.md:2603-2627"
+  },
+  {
+   "name": "이름 뱅크 크기",
+   "value": "StarNameBank 60칸, CatalogPrefixes 24 × CatalogStems 30 = 720 조합(비복원), PeopleStems 다리 있는 4행 × 8칸",
+   "source_ref": "guideline.md:2637-2643"
+  },
+  {
+   "name": "DT_Rules 공백기·보호",
+   "value": "LeapTicksMin 800, LeapTicksMax 1600, LeapTotalCap 4500(18,000의 25%), BirthProtectionTicks 300, BaseLifespanTicks 0(노화 OFF, VS)",
+   "source_ref": "guideline.md:2659-2667"
+  },
+  {
+   "name": "DT_Rules 계승 추첨",
+   "value": "SuccessionHazardWeight 2(2레인 안 활성 Hazard당), SuccessionCivTierWeight 1(Tier ≥2), SuccessionReverenceWeight 2, SuccessionReverenceThreshold 0.3, SuccessionSameCivPenalty 1, SuccessionMinHazardTicks 300(미만 성계 제외), ReverenceDecay 0.5",
+   "source_ref": "guideline.md:2669-2681"
+  },
+  {
+   "name": "DT_Rules 난이도·반란",
+   "value": "AIAscensionSpeedMultiplier 1, PostRebellionStability 0.15, ThroneLockTicks 600",
+   "source_ref": "guideline.md:2683-2687"
+  },
+  {
+   "name": "DT_Rules 영압",
+   "value": "PressureBySourceTier {0, 0, 0.25, 1, 2}(인덱스 = Tier−1, 정확히 5), PressureAdjacencyFalloff 0.5, SpiritualPressureStabilityDrain 0.002/틱×P, PressureFleetAttrition 0.01/틱×P",
+   "source_ref": "guideline.md:2689-2695"
+  },
+  {
+   "name": "DT_Rules 함대",
+   "value": "FleetEffectivenessByTierGap {1, 0.5, 0}(격차 0/1/≥2), FleetDelayPerPower 50(투입 1.0당 카운트다운 +틱), FleetDelayCap 100",
+   "source_ref": "guideline.md:2697-2701"
+  },
+  {
+   "name": "DT_Rules 초월자·주장·법",
+   "value": "FallenTranscendentCount 코드 기본 3 / DT_Rules.json VS 값 1 / EA 3 (0~3으로 잘라 읽음), ClaimAdjacencyLanes 1, VigilClaimExtension 100, SphereEventWeightStep 0.1, ImmutableLaws = Law.Judgment·Sabbath·Humility·Remnant·Hedge(가칭)",
+   "source_ref": "guideline.md:2703-2713"
+  },
+  {
+   "name": "DT_Rules 이벤트 슬롯",
+   "value": "EventSlotTicks 10(1~20), EventChancePerSlot 0.02(잠정 시작값 — 행 묶음마다 재조정)",
+   "source_ref": "guideline.md:2715-2717"
+  },
+  {
+   "name": "DT_Rules 귀환",
+   "value": "ReturnLureMaxLanes 2, ReturnedLivesToSeize 3(→ Way.Seized 영구), LureAcceptByPolicy Cautious 0.10 / Reckless 0.60 / Faithful 0 / Tribute 0.85",
+   "source_ref": "guideline.md:2719-2723"
+  },
+  {
+   "name": "DT_Rules 인물·인구",
+   "value": "MaxNotablesPerCiv 4(3~5), PopulationBandThresholds {0.15, 0.5, 2.0}(< [1] 한 단계 아래, < [0] Few, > [2] 한 단계 위), PopulationRegrowthPerTick 0.0002(1.0까지, 0.4 손실이 2,000틱에 회복)",
+   "source_ref": "guideline.md:2725-2728"
+  },
+  {
+   "name": "DT_Rules 은하·앎·생성",
+   "value": "HomeGalaxyRow gal_milkyway, RealmCapByTier {1, 3, 4, 7, 10}, SightLanesByTier {1, 2, 4, 6, 10}, SightIntervalTicks 10, FirstSightTick 330(1배속 5:30, 통치자만), LivingWorldStarShares {0.01, 0.05, 0.14, 0.31, 0.57, 0.82, 1.0}(O1·B4·A9·F17·G26·K25·M18%), FallenCoreMinLanesFromHome 3, FarLineCooldownTicks 300",
+   "source_ref": "guideline.md:2732-2746"
+  },
+  {
+   "name": "DT_Rules 표현·미래 노브",
+   "value": "BackgroundStarCount 20000, SceneryGalaxyCount 5000(표현 계층만), ScanSightBonusLanes 1(Phase 4), CrossingMinTier 4, CrossingCooldownTicks 4000, CrossingSettleTicks 3000(Phase 6a)",
+   "source_ref": "guideline.md:2748-2758"
+  },
+  {
+   "name": "스키마 규모",
+   "value": "열거자 48 = EConditionType 30 + EEffectType 18, 컬럼 종류 16(닫힌 목록), 낱말 목록 7(resource·axis·stat·role·civ_selector·policy·research), 틱당 원천 효과 7, 시험 종류 14",
+   "source_ref": "guideline.md:2774, 2782-2785"
+  },
+  {
+   "name": "PlayerArchetypeRow",
+   "value": "arch_terran (단계 4b에 첫 생애 행 가칭 arch_seeker로 교체 예정); 첫 생애 DedicationBanks 현재 {Hebrew, Civic} → 예정 {Faith.Bank.Nations, Faith.Bank.Civic}",
+   "source_ref": "guideline.md:2524, 2534, 2707"
+  },
+  {
+   "name": "Tier 값 규약",
+   "value": "조건 Value·MinTierToReveal·CrossingMinTier는 Tier 번호 1~5(열거형 값+1); PressureBySourceTier·RealmCapByTier·SightLanesByTier 인덱스는 static_cast<int32>(EAscensionTier) = 번호−1",
+   "source_ref": "guideline.md:2210, 2336, 2689, 2734, 2754",
+   "note": "두 규약 혼재 — 오프바이원 위험"
+  }
+ ],
+ "gaps": [
+  {
+   "what": "서막의 Core 함수 이름이 가칭 ReceiveCalling(§7.5)이고 서막 화면 자체가 단계 6 예정",
+   "why_it_matters": "플레이어의 첫 10분(온보딩·정체 부여)을 정의하는 진입점이 이름조차 미정 — Playable MVP의 시작 화면이 없다",
+   "source_ref": "guideline.md:1539"
+  },
+  {
+   "what": "성역의 법 이름이 가칭 Law.Hedge",
+   "why_it_matters": "ImmutableLaws 컨테이너·테스트·ini 태그에 들어가는 이름이라 확정 전에는 성역 기능(단계 4) 데이터 작성이 막힌다",
+   "source_ref": "guideline.md:2703"
+  },
+  {
+   "what": "플레이어 첫 생애 아키타입이 가칭 arch_seeker(§16 #74)이며 PlayerArchetypeRow·HomeSystemNames·HomeStarClass·DedicationBanks가 현재값/예정값 쌍으로 적혀 있음",
+   "why_it_matters": "플레이어가 누구로 시작하는지(이름 뱅크·헌정명·모성계 이름)가 미확정이라 서사와 UI 문구가 두 벌로 갈린다",
+   "source_ref": "guideline.md:2524, 2530-2534, 2707"
+  },
+  {
+   "what": "관측 목록 행 구조체·FStarSystemState의 관측 필드 이름·DT_Planets 열이 전부 '단계 5 헤더'로 미룸",
+   "why_it_matters": "실제 하늘(단계 5) 전환이 ID·좌표·레인·이름 뱅크 은퇴를 동시에 바꾸는 대수술인데 스키마가 없다",
+   "source_ref": "guideline.md:1798, 2815"
+  },
+  {
+   "what": "FHazardDef.DisplayName의 별 등급별 표시 이름 — '열을 더하거나 같은 기제, 헤더가 정한다(결정 10)'",
+   "why_it_matters": "Hazard 이름이 슬롯 {Hazard}로 로그·패널에 그대로 나가므로 결정이 늦으면 템플릿 전부를 다시 쓴다",
+   "source_ref": "guideline.md:2360"
+  },
+  {
+   "what": "ECosmicHazardSpawn에 Phase 4의 '예: Placed' 열거자 미확정",
+   "why_it_matters": "방문·징조(고넬료 사슬) 위기의 배치 경로가 없어 Phase 4 서사 이벤트를 데이터로 적을 수 없다",
+   "source_ref": "guideline.md:2364"
+  },
+  {
+   "what": "DT_Edicts·DT_Relics·DT_Traits 확장 컬럼(BodyMod·MindMod·CausalityMod·LifespanTicksMod)의 정의 구조체 스케치 부재, DT_Dedications 구조 '뱅크 작성 시 확정'",
+   "why_it_matters": "칙령·유물·특성 보정·헌정명은 Phase 4 통치자/방랑자 루프의 핵심 노브인데 구조체·스키마가 없어 착수 불가",
+   "source_ref": "guideline.md:2764-2768"
+  },
+  {
+   "what": "DT_Encounters는 스키마에 컬럼이 null, FEncounterChoice의 CheckStat×Difficulty 판정 공식(성공 확률·주사위)이 어디에도 없음",
+   "why_it_matters": "조우·청원 카드는 플레이어의 유일한 선택 인터페이스(Phase 4)인데 성공 판정 규칙이 미정이면 밸런스·UX 설계가 불가능",
+   "source_ref": "guideline.md:2450-2452, 2778"
+  },
+  {
+   "what": "문맥 선택자 낱말 중 Former만 구현, Ruled·OtherID는 '처음 쓰는 행(Phase 4 청원 카드)과 함께'; 슬롯 행은 그때까지 Player 조건·역할 효과·그릇 효과를 싣지 못함(스키마)",
+   "why_it_matters": "플레이어를 겨누는 사건을 데이터로 쓸 수 없어 현재 이벤트 테이블은 플레이어와 무관한 세계 사건만 낸다",
+   "source_ref": "guideline.md:2234"
+  },
+  {
+   "what": "예약 조건·효과: CivStabilityAtLeast·PlayerHasPower, GrantRelic·RemoveRelic·InstallAt, MultiplyResearch·PopulationLossMultiplier·StabilityFloor",
+   "why_it_matters": "시대 명명·느부갓네살·유물·기원 선택·회귀/광신 교리의 효과가 전부 미구현 열거자에 걸려 있다",
+   "source_ref": "guideline.md:2234, 2270, 2276, 2278"
+  },
+  {
+   "what": "독립 초월자(Realm.Independent, trans_stillness·trans_release)의 Depth 처리 미결 — '(1+Depth)를 Abyssal에만 곱하게 하거나 린트로 Depth 0을 요구'",
+   "why_it_matters": "Phase 6+ 로스터 확장 시 영압 공식이 바뀌어 기존 밸런스가 흔들린다",
+   "source_ref": "guideline.md:2561"
+  },
+  {
+   "what": "천상 trans_covenant는 상태 인스턴스·압력·영향권이 없고 Lure·VoiceTemplates 텍스트만 — 플레이에 어떻게 닿는지 이 범위에 없음",
+   "why_it_matters": "타락 4교리에 맞서는 긍정적 피드백 루프가 데이터 구조상 비어 있어 '승천의 재미' 한쪽이 공백",
+   "source_ref": "guideline.md:2540, 2573"
+  },
+  {
+   "what": "줌 단계 4종(성계·구역·은하·우주) 미구현 — 지금은 휠 줌 하나; 우주 화면은 Phase 3 9번 작업",
+   "why_it_matters": "은하 패널·건넘·풍경 은하의 표시가 전부 우주 줌 단계에 걸려 있다",
+   "source_ref": "guideline.md:1548"
+  },
+  {
+   "what": "실제 하늘 투영(태양 중심 방위 등거리)·오프라인 레인 도구(교차 없는 평면 그래프, 차수 ≤4, 손 고침 파일)가 단계 5 예정",
+   "why_it_matters": "지도의 좌표 체계·레인 그래프·이름 뱅크가 통째로 바뀌므로 현재 NewGalaxy 생성 규칙과 테스트가 대체된다",
+   "source_ref": "guideline.md:1548"
+  },
+  {
+   "what": "NS_Ascension·NS_Rift·NS_TranscendentAura 전부 미제작(헤드리스 스크립트가 Niagara를 못 짓는다), 녹음된 소리 Phase 5",
+   "why_it_matters": "승천·균열·오라라는 세 가지 핵심 감정 피드백이 임시 C++ 오버레이 하나에 의존",
+   "source_ref": "guideline.md:1578-1584"
+  },
+  {
+   "what": "Data.NoVerdictWords 테스트 Phase 5 — 지금은 스키마의 forbidden: verdict만",
+   "why_it_matters": "서술자 어휘 규칙(판정 어휘 금지)이 반쪽 검사라 텍스트가 늘수록 위반이 쌓인다",
+   "source_ref": "guideline.md:2518, 2597"
+  },
+  {
+   "what": "밸런스 값이 '잠정'·'Phase 5에 맞춘다': EventChancePerSlot, PopulationRegrowthPerTick, Depth, 거대 프로젝트 비용·진척",
+   "why_it_matters": "튜닝 절차·목표 지표(한 판 길이 18,000틱 대비 사건 밀도)가 문서에 없어 '잠정'이 영구화될 위험",
+   "source_ref": "guideline.md:2561, 2717, 2728, 2766"
+  },
+  {
+   "what": "12색 소유 팔레트는 EA 규모(48 백성)에서 'Phase 6a에 다시 본다'",
+   "why_it_matters": "만난 백성 13번째부터 색이 겹쳐 지도 판독성이 깨진다",
+   "source_ref": "guideline.md:1558"
+  },
+  {
+   "what": "방랑자 패널·WandererResolutions·PendingContactCivID(첫 접촉 카드)·'옛 땅의 기억' 화면 — 전부 Phase 4",
+   "why_it_matters": "두 플레이어 모드 중 방랑자 모드는 UI·데이터 경로가 전혀 없어 '하이브리드'가 현재 통치자 단일 모드",
+   "source_ref": "guideline.md:1534, 1538, 2092, 2382"
+  },
+  {
+   "what": "역병 전파와 해결 수단 격리가 Phase 4",
+   "why_it_matters": "OnExpireNeighbourEffects가 초신성에만 쓰여 위기의 공간 전파 피드백이 한 종류뿐",
+   "source_ref": "guideline.md:2376"
+  },
+  {
+   "what": "앎의 표시(Known 파라미터)·은하 패널 한 줄·배경 별 20,000·풍경 은하 5,000이 Phase 3 꼬리(8·9번 작업) 미완 — 지금은 모든 성계를 그린다",
+   "why_it_matters": "'모르는 것은 보이지 않는다'는 핵심 체험 규칙이 아직 화면에 없다",
+   "source_ref": "guideline.md:1550, 1552, 1563, 2748-2750"
+  },
+  {
+   "what": "사망·폐위·계승 화면(§8.4)이 재사용할 대상이 WBP_AscensionOverlay·NS_Ascension인데 둘 다 존재하지 않음(C++ 위젯이 대신)",
+   "why_it_matters": "Phase 4b 사망 파이프라인의 연출 설계를 다시 적어야 한다",
+   "source_ref": "guideline.md:1583"
+  },
+  {
+   "what": "'틱당 원천의 효과 일곱'이 이 범위에서 열거되지 않고 §7.5·스키마 per_tick_effects만 가리킴",
+   "why_it_matters": "PressureEffectsPerTick·DurationTicks·per_tick_only 규칙이 전부 이 목록에 의존하는데 독자가 §7.5를 열어야 안다",
+   "source_ref": "guideline.md:2571, 2782-2785"
+  },
+  {
+   "what": "모르는 성계를 액터로 그릴 때(VS 60 전부 액터) 클릭·선택 가능 여부 미정",
+   "why_it_matters": "'따로 셀 수 없다' 보장이 화면 공간 피킹과 충돌하면 앎의 안개가 새어 나간다",
+   "source_ref": "guideline.md:1546, 1548, 1554"
+  },
+  {
+   "what": "KillPlayer를 싣는 행이 Phase 4b 사망 파이프라인 전까지 없음; FCallingState·FLifeRecord는 '§9.1 v0.7 예약' 필드",
+   "why_it_matters": "부름·그릇·계승(판의 핵심 정체성)이 자료구조만 있고 플레이어가 죽거나 폐위되는 경로가 없다",
+   "source_ref": "guideline.md:1958-2054, 2370"
+  },
+  {
+   "what": "건넘(Transits·OriginGalaxyRow·MetGalaxies·BridgeTicks·project_crossing·Crossing 노브 3개)은 전부 Phase 6a 빈 예약",
+   "why_it_matters": "은하 6행 중 5행이 표시 문구뿐이라 '거시 우주'가 실질적으로 은하 하나다",
+   "source_ref": "guideline.md:1844, 2090, 2102, 2182, 2627, 2754-2758"
+  },
+  {
+   "what": "InitialInfluencedSystems 0~1 — '둘째 코어는 아직 없다'",
+   "why_it_matters": "EA 300 성계에서 타락 초월자의 초기 영향권 규모가 미정",
+   "source_ref": "guideline.md:2563"
+  },
+  {
+   "what": "LivingWorldStarShares·StarNameBank가 단계 5에서 은퇴 예정인데 HomeStarClass 빈 태그·HomeSystemNames 빈 뱅크의 폴백이 그것들",
+   "why_it_matters": "은퇴 뒤 폴백 규칙이 비어 NewGalaxy가 깨질 수 있다",
+   "source_ref": "guideline.md:2530, 2532, 2637, 2742"
+  },
+  {
+   "what": "레인 렌더 방식 미확정 — ULineBatchComponent 또는 스플라인 메시(1547) vs M_Lane 머티리얼 채도 저하(1568)",
+   "why_it_matters": "영적 시야의 레인 표현이 머티리얼을 전제하므로 라인 배치로는 구현 불가",
+   "source_ref": "guideline.md:1547, 1568"
+  },
+  {
+   "what": "Phase 6b '상세로 도는 은하 둘 이상'은 아무것도 예약하지 않음(§16 #47) — 근거는 'VS의 사다리는 T3에서 끝난다'",
+   "why_it_matters": "T4~T5 콘텐츠의 무대가 미정이라 승천 사다리 상단의 재미가 설계되지 않았다",
+   "source_ref": "guideline.md:2146"
+  }
+ ],
+ "duplication": [
+  {
+   "what": "'초월자는 판에 교리마다 1체, 은하가 늘어도 같다' 문장",
+   "also_in": "guideline.md:1942(FTranscendentState), 2540(DT_Transcendents 헤더), 2705(FallenTranscendentCount), §4.2",
+   "source_ref": "guideline.md:1942"
+  },
+  {
+   "what": "ID 규칙(sys_<n>/sol 배열 끝/sys_0, civ_<n>·NextCivSerial, 옛 형식 sys_%03d·civ_%02d, '그 전 코드는 모성계가 sol')",
+   "also_in": "guideline.md:1766(SystemID 주석), 1840(CivID 주석), 2142(FGalaxyState 머리), §9.1",
+   "source_ref": "guideline.md:2142"
+  },
+  {
+   "what": "GalaxyRow 도장 규칙과 NAME_None의 의미('아직 찍히지 않음', 고향 아님, OriginGalaxyRow만 토박이)",
+   "also_in": "guideline.md:1768, 1842, 1844, 2140, §9.1 v0.7 예약",
+   "source_ref": "guideline.md:2140"
+  },
+  {
+   "what": "MegaprojectComplete의 SinceTick 규칙(플레이어 업적만 Calling.BornTick, 그 밖 0)과 TranscendentSealed 동일 규칙",
+   "also_in": "guideline.md:1796, 1952, 2216, 2224, §7.5, §4.4",
+   "source_ref": "guideline.md:1796"
+  },
+  {
+   "what": "인물 기록 규칙(5필드·사건만 생성·개인 겨냥 금지·NameNotable/CivHasNotable이 전부·플레이어 그릇 제외) — FNotableRecord 헤더와 Notables 필드 주석이 거의 축자 반복",
+   "also_in": "guideline.md:1806, 1892, 2230, 2274, §1.3, §12.2, §7.5",
+   "source_ref": "guideline.md:1806"
+  },
+  {
+   "what": "FallenSphereTicks 카운터 정의와 CivFallenSphereTicksReached 조건 설명",
+   "also_in": "guideline.md:1876, 2232, §16 #25 ①",
+   "source_ref": "guideline.md:2232"
+  },
+  {
+   "what": "앎의 표시 규칙과 성역 표시 규칙(주인 고리 없음·항상 보임·압력 0)",
+   "also_in": "guideline.md:1535, 1550, 1552-1564, 1568, §8.1, §7.4 앎 단계, §3.2",
+   "source_ref": "guideline.md:1552"
+  },
+  {
+   "what": "Phase 3 작업별 구현 기록(1·2·3·4·5번 작업, 11번 시계 토글, 날짜 2026-10-17/18, 버그 사후기)",
+   "also_in": "WORKPLAN.md §3 Phase 3 표, CLAUDE.md 현재 단계 기록, §11",
+   "source_ref": "guideline.md:1534-1536, 1548-1550, 1584"
+  },
+  {
+   "what": "시계 토글 결정(기본 '주기', 표현 상태)",
+   "also_in": "WORKPLAN §3 Phase 3 표 11번, §16 #82",
+   "source_ref": "guideline.md:1536"
+  },
+  {
+   "what": "교리 이벤트 가중 공식 min(3, 값×(1+Step×N))",
+   "also_in": "guideline.md:2569(EventWeightModifiers), 2713(SphereEventWeightStep), §4.2 '사용', §16 #55 ②",
+   "source_ref": "guideline.md:2569"
+  },
+  {
+   "what": "규모 등급(EPopulationBand) 정의·라벨 6·보정 문턱",
+   "also_in": "guideline.md:1678, 1864, 2727, §7.4 GetPopulationBand, §8.3",
+   "source_ref": "guideline.md:1678"
+  },
+  {
+   "what": "스키마·검사기·도장·테스트 분담 설명(2774~2813)",
+   "also_in": "Tools/data/schema.json 자체, Tools/cosmic_data_schema.py 머리(COLUMN_OPTIONS), §9.3 Data.Integrity·Data.SourcesInSync, §10.4 행 이름 접두어, §12.3",
+   "source_ref": "guideline.md:2774"
+  },
+  {
+   "what": "Build.cs 주석(EngineSettings·Json 용도, FPSemantics Precise, CommonUI 제외)",
+   "also_in": "§9.2, §9.3, §6.3",
+   "source_ref": "guideline.md:1604-1608"
+  },
+  {
+   "what": "'열거형은 끝에만 추가한다' 문장",
+   "also_in": "guideline.md:2232, 2274, 2320, 2322, §9.1",
+   "source_ref": "guideline.md:2232"
+  },
+  {
+   "what": "DT_Rules 각 노브 주석이 §4.2(영압·주장)·§4.4(도약·귀환)·§5.6(함대)·§5.10(폐위)·§5.12(보유 상한) 공식을 다시 서술",
+   "also_in": "§4.2, §4.4, §5.6, §5.10, §5.12, §7.4",
+   "source_ref": "guideline.md:2659-2758"
+  },
+  {
+   "what": "v0.8 단계 표지와 결정 번호(결정 8·결정 10, 단계 4~7)",
+   "also_in": "v08_rulings.md 결정 목록, §16 #74·#77·#82",
+   "source_ref": "guideline.md:1535-1539, 2360, 2815"
+  },
+  {
+   "what": "Hazard.Extinction 만료 시 통치자 사망 예외와 문명 제거 시점(같은 틱 vs 다음 틱)",
+   "also_in": "guideline.md:2370, §4.1, §4.4, §7.4 건넘 단계",
+   "source_ref": "guideline.md:2370"
+  },
+  {
+   "what": "영압 파생(ComputeSpiritualPressure)과 ClaimState 파생 규칙",
+   "also_in": "guideline.md:1568, §4.2 영혼 경제, §6.1",
+   "source_ref": "guideline.md:1568"
+  },
+  {
+   "what": "첫 생애 아키타입의 현재값/예정값 쌍(arch_terran↔arch_seeker, {태양계}↔제 해 이름, Star.Class.G↔실제 등급, {Hebrew,Civic}↔{Nations,Civic})",
+   "also_in": "guideline.md:2524, 2530, 2532, 2534, 2707, §5.11, §16 #74",
+   "source_ref": "guideline.md:2524"
+  },
+  {
+   "what": "§6.1 아키텍처 표의 Subsystem 책임 요약과 §7.4·§7.5·§8.1·§9.1의 본문",
+   "also_in": "§7.4(UGalaxySimulationSubsystem), §7.5(UCosmicEventSubsystem), §8.1(로그), §9.1(저장)",
+   "source_ref": "guideline.md:1482-1492"
+  }
+ ],
+ "contradictions": [
+  {
+   "a": "guideline.md:1482 — 'UGalaxySimulationSubsystem … 경제·연구·외교·분쟁·위기·AI·건넘·앎 (§7.4)·건넘·앎'",
+   "b": "같은 줄 — 낱말 '건넘·앎'이 두 번",
+   "note": "편집 잔재. 또한 '건넘'은 Phase 6a(2102: 'Transits는 빈 배열')인데 아키텍처 표는 현재 책임처럼 적는다"
+  },
+  {
+   "a": "guideline.md:1577 — NS_Ascension 표: 트리거 '등급 상승', '화면 중앙, 3~5초, 사운드 + 서사 텍스트 동반'",
+   "b": "guideline.md:1584 — 'NS_Ascension은 미뤘다… C++ 오버레이 UCosmicAscensionOverlayWidget이 메운다'",
+   "note": "§6.5 표만 읽으면 Niagara 승천 연출이 있는 것으로 오해. 표의 '3~5초'와 본문 '약 5초(0.8/4.2)'도 다르다"
+  },
+  {
+   "a": "guideline.md:1583 — '사망·폐위·계승 화면(§8.4)은 WBP_AscensionOverlay와 NS_Ascension의 색 파라미터를 재사용한다'",
+   "b": "guideline.md:1534, 1584 — 실제 구현은 C++ UCosmicAscensionOverlayWidget('WBP_AscensionOverlay의 몫'), NS_Ascension 미제작",
+   "note": "재사용할 에셋 둘 다 존재하지 않는다 — §8.4 연출 설계 갱신 필요"
+  },
+  {
+   "a": "guideline.md:1546 — ACosmicStarSystemActor: '스피어 메시 1개 + 이미시브 머티리얼 + 선택 콜리전'",
+   "b": "guideline.md:1548 — '클릭은 라인 트레이스가 아니라 화면 공간에서 고른다… 별의 충돌은 껐다'",
+   "note": "§6.4 첫 문단이 2번 작업 이전 상태"
+  },
+  {
+   "a": "guideline.md:1534 — 상단 바 '배속 단추 다섯 — 정지·×1·×2·×5·×10'",
+   "b": "guideline.md:1537 — '승천 연출 뒤 상단 바에 ×25 단추 하나'; 1536 년 모드 '1년/초 … 10년/초'",
+   "note": "T3 이후 여섯 개가 되며 '다섯'·'10년/초' 문구가 낡는다"
+  },
+  {
+   "a": "guideline.md:1500 — §6.1 FGalaxyState 멤버 목록 { Systems, Civs, Transcendents, Player, Calling, Knowing, Transits, Log, Chronicle, Flags, RngState, TellRngState, NextCivSerial, GalaxyID }",
+   "b": "guideline.md:2136 — 판 공통 멤버에 SaveVersion·Seed·Tick·EventCooldownUntilTick 포함",
+   "note": "아키텍처 표가 구조체 정의와 어긋남(4개 누락)"
+  },
+  {
+   "a": "guideline.md:2705 — FallenTranscendentCount: 'VS 1(DT_Rules.json 데이터 값이고 코드 기본값은 3이다 — 둘 다 그대로 둔다)'",
+   "b": "guideline.md:2603 — FGalaxyDef: '테이블이 없을 때 쓰는 C++ 기본값은 VS의 고향 값이다'",
+   "note": "테이블마다 '코드 기본값 = VS 값' 정책이 다르다. 테이블 없는 헤드리스 실행에서 초월자 수가 3이 되어 VS 밸런스와 다르다"
+  },
+  {
+   "a": "guideline.md:1766, 2142 — 'SystemID: 성역 sol(배열 끝), 첫 생애 모성계 sys_0 — v0.8 단계 4부터'",
+   "b": "같은 줄 — '그 전의 코드는 플레이어 모성계가 sol'; 2744 FallenCoreMinLanesFromHome 기준 '(sys_0 — 단계 4부터. 그 전은 sol)'; 2623 HomeRadiusShare 'sol의 자리(단계 4부터 sys_0의 자리 — 임시, 단계 5가 바꾼다)'",
+   "note": "현재 코드·세이브·테스트는 sol=모성계인데 본문은 미래 체계를 주 문장으로 적어 어느 것이 지금인지 표지를 읽어야 안다"
+  },
+  {
+   "a": "guideline.md:2707 — PlayerArchetypeRow 기본값 arch_terran",
+   "b": "guideline.md:2524 — '첫 생애 행 — v0.8 단계 4b부터 가칭 arch_seeker, 그 전 arch_terran'; 2534 Faith.Bank {Nations, Civic} vs 현재 {Hebrew, Civic}",
+   "note": "같은 컬럼에 현재와 예정이 공존, 데이터 파일·스키마 required_rows는 현재값"
+  },
+  {
+   "a": "guideline.md:2532 — HomeStarClass '빈 태그 = DT_Rules.LivingWorldStarShares의 분포에서 뽑는다'",
+   "b": "guideline.md:2742 — LivingWorldStarShares '(v0.8 — 단계 5에서 은퇴)'",
+   "note": "은퇴 후 빈 태그의 폴백이 정의되지 않음(2530 HomeSystemNames↔2637 StarNameBank도 같은 구조)"
+  },
+  {
+   "a": "guideline.md:1579 — NS_TranscendentAura 물리 뷰 '플레이어 T4 이상일 때만'",
+   "b": "guideline.md:1568 — 영적 시야 토글은 PlayerTier ≥3 해금, 'T3 승천 연출 직후 이제 보인다가 첫 보상'",
+   "note": "T3에서 토글로 다 보이는데 T4 물리 뷰 노출 규칙이 왜 따로 있는지 설명 없음 — 보상 설계가 겹친다"
+  },
+  {
+   "a": "guideline.md:1626 — '아래 코드는 설계 스케치다. 실제 구현 시 … 컴파일되는 헤더/소스 작성을 요청한다'",
+   "b": "guideline.md:1776, 2142, 2346, 2766 등 — '위기 처리 작업에서 정했다', 테스트 이름(Sim.NotablesFromEventsOnly·Data.Integrity), 버그 수정 기록",
+   "note": "스케치 선언이 낡음 — 실제로는 as-built 헤더 주석판이며 코드와의 동기화 책임이 불명"
+  },
+  {
+   "a": "guideline.md:1547 — 레인은 'ULineBatchComponent 또는 얇은 스플라인 메시. 수직 슬라이스에서는 라인 배치로 충분'",
+   "b": "guideline.md:1550, 1568 — 선 두께를 월드 단위로 거리에 비례 재조정, M_Lane 머티리얼의 고압 구간 채도 저하",
+   "note": "라인 배치에는 머티리얼이 없어 영적 시야 레인 표현과 양립하지 않음"
+  },
+  {
+   "a": "guideline.md:1702 — FResourcePool.Causality '// Tier 3+' (자원)",
+   "b": "guideline.md:1920, 2220 — FPlayerEntityState.Causality 0~10 능력치, PlayerStatAtLeast Key Causality",
+   "note": "동명이의 — 조건 Key·스키마 낱말 목록(resource vs stat)에서 혼동 위험"
+  },
+  {
+   "a": "guideline.md:2210, 2336 — 조건 Value·MinTierToReveal = Tier 번호 1~5('열거형 값이 아니다')",
+   "b": "guideline.md:2689, 2734, 2736 — 배열 인덱스 = static_cast<int32>(EAscensionTier)(0~4)",
+   "note": "데이터 안에서 두 규약이 혼재 — 행 저작과 검사기 범위 설정에서 오프바이원 위험"
+  },
+  {
+   "a": "guideline.md:1536 — '단위는 … 보는 사람의 GameUserSettings ini에 남는다'",
+   "b": "guideline.md:1548 — 선택도 표현 상태인데 저장 위치 언급 없음(세션 내만)",
+   "note": "표현 상태의 지속성 정책(ini에 남기는 것/안 남기는 것)이 항목마다 달라 기준이 없다"
+  }
+ ],
+ "implemented_status": [
+  {
+   "feature": "상단 바 UCosmicTopBarWidget(백성 이름·칸·안정도·자원 5·연구 4·주기·배속 단추 5)",
+   "status": "implemented",
+   "evidence": "guideline.md:1534 'Phase 3 3번 작업, WBP 없는 C++ 위젯'"
+  },
+  {
+   "feature": "성계 정보 패널 UCosmicSystemPanelWidget + 거대 프로젝트 단추(CanStart 행마다)·정착 단추(SettleBlockOf 사유)",
+   "status": "implemented",
+   "evidence": "guideline.md:1534 'v0.8의 단계 0에서 고친 버그', 'Phase 1 텍스트 패널은 지웠다'"
+  },
+  {
+   "feature": "로그 피드 UCosmicLogFeedWidget(UListView·500줄·Severity 색·클릭 포커스)·WBP_LogEntry 생성 스크립트",
+   "status": "implemented",
+   "evidence": "guideline.md:1534 '4번 작업', 'Tools/make_widget_blueprints.py가 만든다'"
+  },
+  {
+   "feature": "승천 오버레이 UCosmicAscensionOverlayWidget·M_AscensionGlow·CosmicAscensionSound::MakeChime·콘솔 CosmicPreviewAscension",
+   "status": "implemented",
+   "evidence": "guideline.md:1534 '5번 작업', 1584 '2026-10-17'"
+  },
+  {
+   "feature": "시계 토글(주기↔년, ECosmicTimeUnit, GameUserSettings 저장, 라벨 함수 4종)",
+   "status": "implemented",
+   "evidence": "guideline.md:1536 'v0.8 단계 2, 2026-10-18 — WORKPLAN §3 Phase 3 표 11번'"
+  },
+  {
+   "feature": "셋째 칸 ×25 배속·명령 사유 열거형('멈춤 — 자원 부족')·'다음 칸까지' 툴팁",
+   "status": "missing",
+   "evidence": "guideline.md:1537 'v0.8 — Phase 3 꼬리부터', '헤더 승인'"
+  },
+  {
+   "feature": "성역(sol) 패널·지도 표시·영적 시야 경우 하나",
+   "status": "missing",
+   "evidence": "guideline.md:1535, 1550, 1561, 1568 'v0.8 — 단계 4부터'"
+  },
+  {
+   "feature": "'옛 땅의 기억' 화면",
+   "status": "missing",
+   "evidence": "guideline.md:1538 'v0.8 — Phase 4 단계 7부터'"
+  },
+  {
+   "feature": "서막·부르심 화면과 ReceiveCalling",
+   "status": "missing",
+   "evidence": "guideline.md:1539 'v0.8 — 단계 6부터', '가칭 ReceiveCalling'"
+  },
+  {
+   "feature": "카메라 폰 ACosmicCameraPawn(궤도·줌·이동·더블클릭)·화면 공간 피킹 CosmicMapPick·선택 상태·콘솔 CosmicSelect",
+   "status": "implemented",
+   "evidence": "guideline.md:1548 'Phase 3 2번 작업', '별의 충돌은 껐다'"
+  },
+  {
+   "feature": "줌 단계 4종(성계·구역·은하·우주)·우주 화면",
+   "status": "missing",
+   "evidence": "guideline.md:1548 '우주는 Phase 3 9번 작업, 성계(서막)는 단계 6부터. 지금은 휠 줌 하나다'"
+  },
+  {
+   "feature": "실제 하늘 투영·유명 별 배경·10/20/30광년 금·오프라인 레인 도구",
+   "status": "missing",
+   "evidence": "guideline.md:1548 'v0.8 — 단계 5부터'"
+  },
+  {
+   "feature": "맵 액터 ACosmicGalaxyMapActor·M_Star/M_Nebula(make_materials.py)·UCosmicSystemLabelWidget·CosmicMapLook::LookOf/LanesOf·테스트 UI.GalaxyMap·거리 비례 선 두께",
+   "status": "implemented",
+   "evidence": "guideline.md:1550 'Phase 3 1번 작업에서 정했다', '2번 작업'"
+  },
+  {
+   "feature": "앎의 표시(Known 파라미터·12색 팔레트·레인 양끝 규칙)·은하 패널 한 줄·테스트 UI.KnownFilter",
+   "status": "missing",
+   "evidence": "guideline.md:1550 '앎의 표시는 8번 작업까지 아직 없어서 지금은 모든 성계를 그린다', 1563 'Phase 3 8번 작업부터'"
+  },
+  {
+   "feature": "영적 시야 토글(M_Star ViewMode·Pressure·DominionColor·Sealed·ClaimState, M_Lane, M_Nebula SpiritualIntensity)",
+   "status": "missing",
+   "evidence": "guideline.md:1568 'Phase 3에 넣는다(종료 조건 달성 뒤 꼬리, 약 2일)'"
+  },
+  {
+   "feature": "Niagara NS_Ascension / NS_Rift / NS_TranscendentAura",
+   "status": "missing",
+   "evidence": "guideline.md:1584 'NS_Ascension은 미뤘다… 헤드리스 스크립트로는 Niagara 시스템을 짓지 못하고'; 1578-1579 다른 둘은 언급만"
+  },
+  {
+   "feature": "방랑자 패널",
+   "status": "missing",
+   "evidence": "guideline.md:1534 '방랑자의 패널은 Phase 4'"
+  },
+  {
+   "feature": "죽은 노드(StarClass 빈 태그)·파괴 시 레인·영향권 제거",
+   "status": "implemented",
+   "evidence": "guideline.md:1776, 2170 '위기 처리 작업에서 정했다'"
+  },
+  {
+   "feature": "건설 칸·대응 칸(ActiveMegaproject·ResponseMegaproject)·CompletedMegaprojects·FMegaprojectRecord·MegaprojectComplete SinceTick",
+   "status": "implemented",
+   "evidence": "guideline.md:1742-1796 '거대 프로젝트와 승천 판정 작업부터'"
+  },
+  {
+   "feature": "project_settle(CosmicMegaprojects::Settle)·RealmCapByTier 보유 상한·문명 제거",
+   "status": "implemented",
+   "evidence": "guideline.md:2734, 2766 '정착과 문명 제거 작업'"
+  },
+  {
+   "feature": "건넘(project_crossing·FTransitRecord·OriginGalaxyRow·MetGalaxies·BridgeTicks·Crossing 노브)",
+   "status": "stub",
+   "evidence": "guideline.md:2102 '본문은 Phase 6a이고 그 전까지 Transits는 빈 배열', 1844, 2090, 2627, 2754-2758"
+  },
+  {
+   "feature": "인물 기록(FNotableRecord·NameNotable·CivHasNotable·MaxNotablesPerCiv·Sim.NotablesFromEventsOnly)",
+   "status": "partial",
+   "evidence": "guideline.md:1816 'ini 선언, 2단계', 2274 VS 행 목록 중 '망명 변형'·'책이 발견되었다'는 Phase 4 카드/사슬, 2785 required_tags Notable 6"
+  },
+  {
+   "feature": "앎(FKnowingState·NoteMet/NoteKnown·FirstContactCivID·SightLanesByTier·FirstSightTick·FarLineUntilTick)",
+   "status": "implemented",
+   "evidence": "guideline.md:2086-2096 '사용은 Phase 2', 2736-2746 'Phase 2'"
+  },
+  {
+   "feature": "PendingContactCivID·첫 접촉 카드",
+   "status": "stub",
+   "evidence": "guideline.md:2092 '사용은 Phase 4'"
+  },
+  {
+   "feature": "부름·계승·사망 파이프라인(FCallingState·FLifeRecord·PendingRoleEffect·KillPlayer/DeposeRuler 실행·귀환 제안)",
+   "status": "stub",
+   "evidence": "guideline.md:1958-2054 '§9.1 v0.7 예약' 필드; 2370 'Phase 4b의 사망 파이프라인 전에는 KillPlayer를 싣는 행이 없다'"
+  },
+  {
+   "feature": "이벤트 엔진(Lottery/Standing/Named·Civilization/SettledSystem·슬롯·쿨다운 키·SignRow·MinTierToReveal·bUntold)",
+   "status": "implemented",
+   "evidence": "guideline.md:2184, 2316-2338 'Phase 2', '아는 범위와 로그 작업의 재감사'"
+  },
+  {
+   "feature": "Hazard 엔진(Draw/Capital/ClaimRule·OnExpire/Branch/Neighbour/Resolve·OutbreakRow·RulerResolutions·Hazard.Claim 자체 카운트다운)",
+   "status": "implemented",
+   "evidence": "guideline.md:2346-2394 '위기 처리 작업', '옛 DT_Rules.ClaimCountdown은 지웠다'"
+  },
+  {
+   "feature": "WandererResolutions·Phase 4 Hazard 배치 열거자(Placed)",
+   "status": "missing",
+   "evidence": "guideline.md:2364, 2382 'Phase 4'"
+  },
+  {
+   "feature": "DT_Feats 2행·승천 판정·Log.Ascension 줄·CivResearchAtLeast",
+   "status": "implemented",
+   "evidence": "guideline.md:2424 'Phase 2의 두 행은 권능을 주지 않는다', 2432, 2234"
+  },
+  {
+   "feature": "DT_Encounters(FEncounterDef·FEncounterChoice)",
+   "status": "stub",
+   "evidence": "guideline.md:2778 '컬럼을 아직 적지 않은 DT_Encounters'"
+  },
+  {
+   "feature": "DT_Edicts·DT_Relics·DT_Traits 확장 컬럼·DT_Dedications",
+   "status": "missing",
+   "evidence": "guideline.md:2764-2768 'Phase 4 행 작성 시 추가', '구조는 뱅크 작성 시 확정'"
+  },
+  {
+   "feature": "DT_Galaxies 6행·DT_Transcendents trans_silence·DT_Civs(arch_terran·arch_default 등)·DT_LogTemplates·DT_Rules",
+   "status": "implemented",
+   "evidence": "guideline.md:2540 'VS 1행 trans_silence', 2603 '6행… Phase 2', 2581 'Phase 1의 다섯 행과 v0.7의 열 행'"
+  },
+  {
+   "feature": "DT_Rules Phase 4·6a 노브(ScanSightBonusLanes·CrossingMinTier·CrossingCooldownTicks·CrossingSettleTicks)·예약 조건/효과(CivStabilityAtLeast·PlayerHasPower·GrantRelic·RemoveRelic·MultiplyResearch 등)·선택자 Ruled/OtherID",
+   "status": "missing",
+   "evidence": "guideline.md:2730 '처음 읽는 Phase에 넣는다', 2752-2758, 2234, 2276-2278 '코드에는 지금 Former만 있고'"
+  },
+  {
+   "feature": "스키마 검사기(cosmic_data_schema.py·check_data.py·test_data_schema.py)·make_data_tables.py 도장·Data.Integrity·Data.SourcesInSync·CosmicRowNames.h 양방향 검사",
+   "status": "implemented",
+   "evidence": "guideline.md:2774 'Phase 2의 스키마 검사기 작업에서 만들었다', 2790-2813"
+  },
+  {
+   "feature": "Data.NoVerdictWords 테스트",
+   "status": "missing",
+   "evidence": "guideline.md:2518, 2597 'Phase 5 — 지금은 스키마의 forbidden: verdict'"
+  },
+  {
+   "feature": "DT_Planets·관측 목록·행성 패널",
+   "status": "missing",
+   "evidence": "guideline.md:2815 'v0.8 — 단계 5부터'"
+  },
+  {
+   "feature": "저장(UCosmicSaveGame·판당 슬롯 1·SaveVersion·Sim.SaveRoundTrip FillEmptyContainers)",
+   "status": "implemented",
+   "evidence": "guideline.md:1492, 2138 'Sim.SaveRoundTrip의 FillEmptyContainers는 손으로 쓴 목록'"
+  },
+  {
+   "feature": "배경 별 20,000·풍경 은하 5,000(드로 각 1)",
+   "status": "unknown",
+   "evidence": "guideline.md:1546 규칙은 현재형, 2748-2750 'Phase 3 꼬리' 표지 — 구현 여부가 이 범위에서 갈린다"
+  },
+  {
+   "feature": "FGalaxyDef C++ 기본값·HomeRadiusShare 배치·LivingWorldStarShares 추첨·카탈로그 이름 생성",
+   "status": "implemented",
+   "evidence": "guideline.md:2603 '은하 생성 규칙 변경의 헤더에서 확정', 2742 'Phase 2'"
+  }
+ ],
+ "player_facing": [
+  "상단 바: 통치하는 백성의 이름·칸·안정도, 자원 다섯(정수), 연구 넷(비율), 주기, 배속 단추 다섯(정지·×1·×2·×5·×10, 현재 배속은 흐리게); Space가 정지 토글 (1534)",
+  "성계 패널(선택 시): 이름, 항성 등급, 주인('주인 없음'/'파괴된 성계'), 위기와 남은 주기, 건설·대응 칸 진척/필요 진척, 통치자 명령 단추(불가 시 회색 + 사유 툴팁 + 아래 한 줄) (1534)",
+  "로그 피드: 마지막 500줄 '[주기] 문장', Severity 색(회/백/금, 초월자 1인칭·주장은 보라), 끝을 보고 있으면 새 줄 따라감, 줄 클릭 시 그 성계(없으면 백성의 수도)로 카메라 이동 (1534)",
+  "승천 연출: 약 5초 어두운 막 + 금빛 빛무리 + 업적 제목·새 칸·MythicNarrative + 합성 종소리, 시뮬 정지 후 배속 복원, 클릭으로 즉시 닫음 (1534, 1584)",
+  "시계 토글: 상단 바 시계를 눌러 '주기 1,204'↔'1,204년', 호버 시 '주기 1,204 · 1,204년(첫 기록부터)', 피드 머리·패널 카운트다운('120년 남음')·배속 라벨('1년/초…')이 따라감 (1536)",
+  "셋째 칸 보상(예정): ×25 배속 단추, 상단 바 툴팁 '다음 칸까지: 다이슨 스웜(완성) · 물리 50%(34%)', 영적 시야 토글 — T3 승천 직후 '이제 보인다' (1537, 1568)",
+  "카메라 조작: 오른쪽 드래그 궤도 회전, 휠 줌, 왼쪽 드래그 이동(커서 밑 원반 점 고정), 별 더블클릭 접근, 빈 곳 클릭 선택 해제, 선택 성계는 주인 고리 바깥 흰 고리 (1548)",
+  "지도 읽기: 항성 등급의 색·크기, 위기 시 별 전체 맥동, 소유 문명 색 고리(정착 중이면 끊긴 고리), 성계마다 이름표와 건설·대응 진척, 멀리서는 주인/위기/선택 성계만 이름표 (1550)",
+  "앎의 안개: 모르는 성계는 배경 별과 같은 점(셀 수 없음), 만나지 않은 백성은 지도·목록·외교 어디에도 없음, 레인은 양 끝을 알 때만, 파괴된 아는 성계는 희미한 죽은 별, 만난 백성은 이름·색·형용사·'백성: {PopBand}'·Tier (1552-1557)",
+  "성역: '태양계 · 성역'은 언제나 보이고(이름만) 주인 줄 '성역 — 어느 백성의 소유도 되지 않는다', 생명 낱말 대신 '이곳은 지켜지고 있다.', 백성마다 부르는 이름 줄, 명령 없음, 행성 목록에 '지구' (1535, 1561)",
+  "영적 시야(T3+): 같은 지도에서 영압 맥동·교리별 색·성소 백색·봉인 링·주장 표식(주장 중 맥동/편입 고정/결박), 레인 고압 구간 채도 저하, 툴팁은 초월자 호칭만(숫자·비율 없음), 보라는 타락에만 (1568)",
+  "은하 패널: 열리지 않은 은하는 종류와 현실 수치 문구만('약'·'추정'), 모든 은하에 같은 한 줄 '이 은하의 별들도 하나도 빠짐없이 이름대로 불렸다.' (1559, 1563, 2629-2633)",
+  "인구는 말로만: 소수·수백만·수십억·수천억·수조·셀 수 없는 — UI·로그·연대기에 숫자 없음 (1678, 1864)",
+  "통치자의 유일한 지표는 안정도(0~1); 불만은 수치가 아니라 반란 위기의 카운트다운으로 체감 (1872)",
+  "조우·청원 카드(Phase 4): 제목·본문·선택지 2~3, 능력치 판정(Body/Mind/Causality/Exaltation, 통치자는 Stability/Influence), Difficulty ≥16은 불가능 선택지로 보임, 비용(개인 풀 또는 문명 비축), 성공/실패 문장, 다음 카드 체인, 선택 일러스트(선택) (2442-2490)",
+  "그릇의 성장과 교만: Body·Mind·Causality 0~10, Exaltation은 경배 수용(+1~2)/거부(−1)·귀환 수락(+2)/거절(−1)·T5 문턱 기다림(−1)으로 움직이고 경외/공포 분기·느부갓네살·받는 길 게이트(≤3 열림, ≥7 닫힘)를 가른다 (1920-1922)",
+  "유물은 최대 3개 (1926)",
+  "초월자는 이름이 없고 호칭만(예: 잠잠케 하는 자), 타락은 1인칭으로 말하고, 주장 줄은 Severity 1·T3부터 보이며 둘째 문장은 남은 자 문장, 유혹(Lure) 문구가 교리마다 (2556-2575)",
+  "부름의 연속성: 계승 시 PersonalTier T≤2→T1·T≥3 유지, 권능 재부여, 귀환 시 '같은 이름이 다시 적혔다', 생애마다 재위 기록·사인·만난 초월자·최근 3 선택(비문)·시대 명명 (1986-2044)",
+  "승천 줄은 AI 백성도 Severity 2 금색으로 말해진다 (2432)",
+  "계시 양식: 백성마다 징조·전언·지나감의 문장이 다르다(수동태·간접 화법), 천상 초월자는 듣는 백성의 양식으로 말한다 (2526-2528, 2573)",
+  "서막(예정): 카드 선택 → 카메라가 출생 성계에서 넓은 하늘로 물러남 → 상단 바·피드·패널 켜짐 → ×1 시작; 승천 오버레이 없음 (1539)",
+  "행성 목록(예정): 아는 성계에만 접힌 목록, 수치는 '약', 안전 문안만('조석 고정'), 지어낸 행성 없음, 도식 그림, 발견 해는 게임 밖 화면에만 (2815)",
+  "성계 이름: 백성 모성계는 고유명(StarNameBank 60), 무주 성계는 그리스 문자 + 별자리 목록명(720 조합), 첫 생애 백성은 제 해를 부르는 이름 (2530, 2637-2641)",
+  "사망·폐위·계승 화면은 승천 오버레이와 색만 다르게 재사용 — 전용 연출·일러스트 없음 (1583)",
+  "은하 지도 색은 만난 순서대로 12색, 13번째 백성부터 색이 돈다 (1558)"
+ ],
+ "quality_notes": [
+  "줄 길이: 1534(3,955자)·1548(2,683자)·2782(2,391자) 등 수 KB짜리 한 줄 단락이 설계 결정·구현 세부·버그 사후기·교차 참조를 한 문단에 섞는다. 1534 한 줄에 위젯 네 개의 명세가 들어 있다",
+  "코드 블록이 실질 본문: 구조체 필드 주석이 규칙의 원문이고 코드보다 길다(2232 한 줄 주석 1,000자 이상). 코드 블록 안 매 줄에 빈 줄이 끼어 분량이 두 배",
+  "1626 '아래 코드는 설계 스케치다' 선언이 낡았다 — 테스트 이름(Sim.SaveRoundTrip·Sim.NoDanglingRefsAfterLeap·UI.GalaxyMap·Data.Integrity), 작업 이름('위기 처리 작업', '정착과 문명 제거 작업'), 버그 수정 기록이 박힌 as-built 헤더 주석판이며, 헤더와의 동기화 책임이 어디에도 없다",
+  "변경 이력이 본문에 녹아 있다: '옛 형식은 sys_%03d', '옛 DT_Rules.ClaimCountdown은 지웠다', 'Phase 1 텍스트 패널은 지웠다', '프로토타입 키 P는 뺐다', 날짜 2026-10-15/17/18 — 독자가 현재 상태만 알고 싶어도 역사를 함께 읽어야 한다",
+  "현재/미래 혼재 표지: 'v0.8 — 단계 N부터'·'(Phase 4/6a)'·'가칭'·'헤더가 정한다'가 §6.3~6.4·§7.2~7.3에 25곳 이상이며 같은 문장 안에 현재 값과 예정 값이 공존(sol/sys_0, arch_terran/arch_seeker, {Hebrew,Civic}/{Nations,Civic}, 휠 줌/4단계 줌). 표지를 놓치면 미구현을 구현으로 읽는다",
+  "교차 참조 과밀: 거의 모든 문장에 §번호가 붙고 §16 이슈 번호(#23·#25·#28·#29·#31·#36·#40·#47·#53·#54·#55·#67·#74·#77·#82)를 출처처럼 인용 — §16 없이는 결정의 근거를 추적할 수 없다",
+  "문서 계층 역전: 설계 SSoT가 WORKPLAN(1536 'WORKPLAN §3 Phase 3 표 11번')과 작업 번호('Phase 3 3번 작업')를 참조한다",
+  "비유 어휘(판·부름·그릇·칸·앎·백성·성역·건넘·두 책)와 C++ 식별자(FGalaxyState·Calling·Knowing·Civ·Tier)가 한 문장에 섞이고, 2132에서 'Galaxy=판' 개명을 명시적으로 거부해 코드/문서 어휘 불일치가 영구화됐다. 용어 대조표가 없다",
+  "편집 잔재: 1482 '건넘·앎 (§7.4)·건넘·앎'; §6.4 첫 문단(1546 '선택 콜리전')이 뒤 문단(1548 '충돌은 껐다')과 어긋남",
+  "Tier 번호 규약이 이중(데이터 Value 1~5 vs 배열 인덱스 0~4)이고 산재(2210·2336·2689·2734·2754) — 한 곳에 규약 표가 필요",
+  "동명이의 Causality(자원 vs 능력치), 매직 넘버 반복(300: CountdownTicks·BirthProtection·SuccessionMinHazard·FarLineCooldown / 600: ThroneLock·쿨다운 정리·시대 명명)이 의도적 연결인지 우연인지 적혀 있지 않다",
+  "스키마·도구 절(2774~2813, 약 10KB)은 도구 사용 설명서 성격 — Tools/README 또는 schema.json 머리로 옮기고 본문에는 책임 분담표만 남길 후보",
+  "§6.5 Niagara 표(1575-1579)가 본문(1584 미룸)과 어긋나 표만 보면 오해한다 — 표는 '예산'이고 본문은 '현황'인데 구분 표기가 없다",
+  "결정과 근거가 분리되지 않았다: 툴팁 재생성 클릭 유실, FObjectFinder 루트 고정, 라인 트레이스 정확도 같은 근거가 결정 문장 안에 괄호로 붙어 있어 ADR(결정/근거/대안) 형태로 뽑으면 본문이 절반으로 준다",
+  "장점: 불변식과 테스트 앵커가 명시되어 있고(Data.Integrity 표 2804-2809, 해시 포함/제외 표기, 'NAME_None의 의미는 한 곳뿐') 계층·순수성 원칙(1510-1514, 1524)이 짧고 분명하다 — 통폐합 시 '원칙 10개 + 불변식 목록'으로 추출 가능",
+  "코드가 아직 뒤따르지 않은 표지의 양: §6.3(성역 패널·시계 외 ×25·옛 땅·서막) 4곳, §6.4(줌 단계·실제 하늘·앎 표시·성역 그림·행성 목록·은하 패널) 8곳, §7.2(관측 필드·EpithetRow·Transits·MetGalaxies·PendingContact) 5곳, §7.3(Placed·DisplayName 결정 10·Phase 4 선택자·예약 열거자 9개·DT_Edicts/Relics/Traits/Dedications/Encounters·DT_Planets·Crossing 노브 3·은퇴 예정 컬럼 2) 20곳 이상"
+ ]
+}

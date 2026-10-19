@@ -1,0 +1,825 @@
+{
+ "scope": "r3: v08_rulings.md 709~1147행 — E 편집 지침(E.0~E.10: guideline 각 부분·CLAUDE.md·WORKPLAN·루트 md 셋의 편집 지시)",
+ "summary": "v08_rulings.md의 E장(709~1147행, 약 104KB)은 v0.8 '단계 1'의 편집 에이전트를 위한 일회성 패치 스크립트다. E.0이 편집자 규칙(조각 P1~P6, 새 결정 금지, '(v0.8 — 단계 N부터)' 표지, 역사 줄 불변, C.11 구절만 인용, 가칭 9개, '초신성 안정화'→'항성 안정화')과 재감사 grep 체크리스트를 정하고, E.1~E.6이 guideline.md의 원본 행 번호(편집 전 4,789행 기준)마다 '지금 문구 → 고침 → 때(지금/단계 N/Phase N)'를 표로 지시하며, E.7·E.8이 CLAUDE.md 불변 규칙 13줄과 WORKPLAN §0·§2·§3의 행·순서·'다음'을, E.9가 루트 md 셋의 취급을, E.10이 '지금/나중' 요약표를 준다. 내용의 핵심은 성역(sol — 다섯째 법 Law.Hedge, 압력 0, 배열 끝 잎 노드), 첫 생애 행 arch_seeker(sys_0, Weight 0, 두 목소리, 시작에 책 없음)와 arch_terran 은퇴, 서막·부르심(틱 밖 카드 8장, ReceiveCalling, 칸 없음), 시간 토글·×25, 실제 하늘(관측 목록·DT_Planets·투영·항성 안정화), 고넬료 사슬·'옛 땅의 기억', 대도감 원형 장부·이름의 거름, 'v0.8 예약' 블록과 일정(순증 25~36 작업일)이다. 저장소 확인 결과 이 지침은 커밋 9aba0e9(2026-10-18)로 이미 전부 적용됐고(guideline v0.8·4,598행·§17 삭제·§16 #74~#95·리스크 6행·CLAUDE.md/WORKPLAN 반영·루트 md 셋 커밋), 단계 2 시간 토글도 2f61b62로 끝났다. 반면 단계 3~8(성역·첫 생애 행·실제 하늘·서막·고넬료·세계관과 출처)은 코드·데이터가 전혀 뒤따르지 않아(IsSanctuary·arch_seeker·DT_Planets·Tools/data/sources 부재, 데이터 표시명은 아직 '초신성 안정화') guideline에 '(v0.8 — 단계' 표지가 162곳 남았다. 파일 머리가 \"E는 다시 적용하지 않고, 다르면 guideline이 이긴다\"고 못박으므로 E는 SSoT가 아니라 감사 추적이며, 행 번호가 모두 무효가 된 지금 통폐합 때 아카이브하고 A~D만 '설계 기록'으로 참조하는 것이 합리적이다. 남은 미결은 가칭 확정, 첫 생애의 별, 자료 라이선스, 레인 이동 시간, 성역을 지나는 레인 셈, 해 표시 기본값, 서막 문안·저장, 루트 md 이동/삭제 질문 등으로 대부분 '헤더가 정한다'로 미뤄져 있다.",
+ "key_decisions": [
+  {
+   "topic": "E장의 성격과 조각 분할",
+   "decision": "E는 단계 1 편집 에이전트용 일회성 지침. guideline을 P1 1~334 / P2 335~932 / P3 933~1316 / P4 1317~3291 / P5 3292~4155 / P6 4156~끝(§16; §17은 지운다)으로 나누고, 행 번호는 편집 전 원본(4,789행) 기준. 파일 머리(3행)는 'E는 다시 적용하지 않는다, guideline과 다르면 guideline이 이긴다'.",
+   "source_ref": "v08_rulings.md:714, v08_rulings.md:3"
+  },
+  {
+   "topic": "새 결정 금지·문안 충실",
+   "decision": "이 판정에 없는 결정을 새로 만들지 않는다. 문안이 주어진 곳은 그대로, 취지만 주어진 곳은 한두 문장. 게임 안 예문에 판정 어휘·'영혼'·Tier C 이름·'성경'·장절을 넣지 않는다.",
+   "source_ref": "v08_rulings.md:715"
+  },
+  {
+   "topic": "'지금과 나중' 표지 규칙",
+   "decision": "코드·데이터가 아직 따라오지 않은 규칙은 본문에 '(v0.8 — 단계 N부터)' 표지를 달고 지금 코드가 하는 일을 지우지 않는다. 예: \"첫 생애의 모성계는 `sys_0`, 성역은 `sol`이다(v0.8 — 단계 4부터. 그 전의 코드는 플레이어 모성계를 `sol`로 둔다).\" '때' 칸: [지금]=단계 1에서 적고 사실인 것, [단계 N]=표지를 달고 적는 것.",
+   "source_ref": "v08_rulings.md:716"
+  },
+  {
+   "topic": "역사 줄 불변",
+   "decision": "머리의 v0.4~v0.7 변경 요약(17~80행), §11 지난 상태 줄, §16 지난 확정 기록(4218~4291, 4280 끝 덧붙임만 예외), WORKPLAN 부록 A·§3 지난 기록, CLAUDE.md '현재 단계' 지난 문단은 고치지 않는다 — 그 안의 arch_terran·sol·'지구'·'초신성 안정화'는 그대로. Phase 3 상태 줄(3736)만 끝에 v0.8 한 줄 추가.",
+   "source_ref": "v08_rulings.md:717"
+  },
+  {
+   "topic": "성경 인용 통제",
+   "decision": "성경 인용은 C.11 목록 구절만, 적힌 꼴 그대로. 새 구절은 조회 도구로 대조하고 보고에 적는다. 출처 교정: '하늘의 하나님(욘 1:9)'→'(스 6:10)', '신들의 신'→'모든 신의 신(단 2:47)', 마 13:30→고전 4:5. 개역개정 낱말 금지('듣는 마음'→'지혜로운 마음', 왕상 3:9 개역한글).",
+   "source_ref": "v08_rulings.md:718, v08_rulings.md:817, v08_rulings.md:862, v08_rulings.md:973"
+  },
+  {
+   "topic": "특수 어휘 풀이 규칙",
+   "decision": "'칸'·'성역'·'성역 밖'·'첫 생애 행'·'찾는 백성'·'고넬료 사슬'·'옛 땅의 기억'·'대도감'·'원형 장부'·'성간 기록원의 기록'은 처음 나오는 절에서 한 번 풀이(0장의 풀이). 지어낸 줄임말 금지.",
+   "source_ref": "v08_rulings.md:719"
+  },
+  {
+   "topic": "가칭 식별자",
+   "decision": "`arch_seeker`·`Trait.Arch.Seeker`·`Law.Hedge`·`IsSanctuary`·`ReceiveCalling`·`enc_sanctuary_bound`·`event_word_arrived`·`crisis_anomaly`·`Hazard.Anomaly`에 '가칭'을 붙인다 — 단계 4·6·7 헤더와 EA 심사가 확정.",
+   "source_ref": "v08_rulings.md:720"
+  },
+  {
+   "topic": "표시명 개명(결정 10)",
+   "decision": "'초신성 안정화'→'항성 안정화'. 행 이름 `project_stabilize`·`feat_supernova_stabilized`·태그는 그대로. 표지 \"(v0.8 — 단계 5부터 표시명 …)\"는 §4.1 603행·§5.7 1031행에만. 별 등급마다 문구: M·K·G '항성 폭풍', O·B·백색왜성 쌍성 '초신성'; 적색왜성이 초신성이 된다고 쓰지 않는다.",
+   "source_ref": "v08_rulings.md:721, v08_rulings.md:783"
+  },
+  {
+   "topic": "재감사 체크리스트",
+   "decision": "편집 뒤 파일 전체를 grep하고 결과마다 역사(둔다)·지금(고친다)·나중(표지)을 가른다: arch_terran·Trait.Arch.Terran·Revelation.Book·'지구 연방' 등, sol(23행)·태양계(19)·지구(53 — §3.4 562·564·565의 '지구'는 행성 이름이라 둔다), '욘 1:9'·'마 13:30'·'듣는 마음'·'초신성 안정화'·'서막 (Tier 1)' 등, §17 참조 제거, 대도감 원문 이름(헬리오파지·카르시노스·CHM-* 등)이 게임 예문에 없는지, §16 #74~#95 번호와 단계 N이 A.4와 맞는지.",
+   "source_ref": "v08_rulings.md:723-730"
+  },
+  {
+   "topic": "피치·통치자 정의",
+   "decision": "피치: \"플레이어는 성역 밖 먼 별의 필멸의 한 사람으로 시작해 부르심을 입고 한 백성을 맡아, 제국의 군주 또는 …\". 통치자 = \"부르심을 입어 구별되고 날이 더해진 자 — 한 백성을 맡았다.\" 서막은 칸이 아니다(T0 없음), 부르심은 칸·PeakTier를 주지 않는다.",
+   "source_ref": "v08_rulings.md:741, v08_rulings.md:756, v08_rulings.md:772, v08_rulings.md:1095"
+  },
+  {
+   "topic": "시간의 세 단과 표시",
+   "decision": "UI는 1주기=1년으로 보일 수 있다(상단 바 시계 클릭 토글, 기본 '주기', 보는 사람의 설정 — 상태·해시 밖, '첫 기록부터' 세고 서기·창조·부르심 기준 없음). 서술·연대기는 주기. 세 단: 서막(필멸자의 시간, 그릇 나이는 그 백성의 셈) → 부르심(1초 1해, ×10까지) → 셋째 칸(×25). 서막은 SetTimeScale(0), 배속 입력 없음.",
+   "source_ref": "v08_rulings.md:745-747, v08_rulings.md:906"
+  },
+  {
+   "topic": "호(arc) 표 개편",
+   "decision": "'서막 (부르심)' 행 신설(첫 판 10~15분, 틱 밖, 마지막 카드는 개국 청원 '지혜로운 마음'); '서막 (Tier 1)'→'행성의 시대 (Tier 1)', 그 행은 '부르심을 입은 통치자 — 한 백성(첫 생애 행)과 그 모성계'.",
+   "source_ref": "v08_rulings.md:748"
+  },
+  {
+   "topic": "첫 10분 (다)판",
+   "decision": "0:00 첫 줄 \"{HomeSystem}. 이 백성이 당신에게 맡겨졌다.\"(단계 4b 뼈대; 그 전 \"태양계. 당신은 이 행성의 통치자다.\"), 1:30 첫 징조는 계시 양식 [0] 이름 없는 제단('밤하늘의 한 점이 제자리를 벗어났다'는 성역의 별로 읽혀 쓰지 않음), 5:30 이웃 보장은 sys_0의 1레인 이웃, 책은 첫 10분에 없다(고넬료 사슬로 나중). 0:30·1:00·2:30·5:00·7:00·8:30·9:30과 모티프 '다스리며 지키라'는 그대로.",
+   "source_ref": "v08_rulings.md:749"
+  },
+  {
+   "topic": "성역의 법 Law.Hedge(가칭)",
+   "decision": "태양계 `sol`은 어느 백성의 소유도 되지 않는다. 정착·넘김·주장·교단·초기 코어·모성계·출생·계승·즉위·파괴·영향권의 대상이 아니고 압력은 0. 그릇은 서지 않는다(방랑자는 경계까지). 지도에 그분의 색 없음(소유가 아니라 법). 근거 레 25:23, 신 12:5, 욥 1:10·12. 태그·술어 `CosmicState::IsSanctuary`는 단계 4 헤더.",
+   "source_ref": "v08_rulings.md:812, v08_rulings.md:810, v08_rulings.md:1093"
+  },
+  {
+   "topic": "성역 생성(§7.4 새 11항)",
+   "decision": "초기 코어를 고른 뒤 배열 끝에 추첨 없이 `sol`을 붙인다 — GalaxyRow는 고향 행, 이름 '태양계' 고정, `sys_0`에서 2레인 이상인 성계 중 배열 순서 첫째에 잎(레인 하나)으로 잇고 자리는 추첨 없이(원반 안, 최소 간격). 주인·위기·주장·코어 없음. 추첨 수 불변 — 증명은 커맨드렛 요약의 결정적인 칸이 같고 무주 성계 수만 +1. `Install`은 성역을 거절.",
+   "source_ref": "v08_rulings.md:947, v08_rulings.md:946, v08_rulings.md:953"
+  },
+  {
+   "topic": "ID 규칙",
+   "decision": "성계는 `sol`(성역 — 배열 끝)·`sys_0`(첫 생애의 모성계 — 배열 0번)·`sys_<n>`(배열 번호), 모두 영구. 'ID 사전순'은 `FNameLexicalLess`(sys_0이 다른 sys_*보다 앞). 단계 5에 관측 목록 행 이름을 담는 필드 하나 추가(ID는 안 바꿈).",
+   "source_ref": "v08_rulings.md:916-917, v08_rulings.md:1102"
+  },
+  {
+   "topic": "서막과 부르심 설계",
+   "decision": "첫 틱 전 카드 서막(표현 계층, 저장 안 함, NewGalaxy가 지금처럼 Install, SetTimeScale(0)). 카드 8장 안팎(평범한 일→징조→고향의 작은 시련→꿈의 유혹→밤의 부름→대답→머묾→개국 청원), 3인칭 '그', 1인칭·말하는 목소리·죽음·추첨 없음, 모든 갈래가 머묾으로. 거절해도 부름은 다시 오고 누구냐 물으면 침묵. Core 함수 `ReceiveCalling`(가칭, UPlayerRoleSubsystem)이 Exaltation·연구 중점·상처 상태 태그·선택의 기록·거절 횟수를 적는다. 승천 오버레이 안 씀 — 카메라가 출생 성계에서 넓은 하늘로. 둘째 판부터 '서막 짧게'. 부르심은 소명이지 구원 아님.",
+   "source_ref": "v08_rulings.md:801, v08_rulings.md:955"
+  },
+  {
+   "topic": "날이 더해지는 그릇",
+   "decision": "부름이 머문 그릇은 날이 더해진다(노화 0) — 빌려 받은 날이지 불사가 아니다; 출처 있는 죽음(KillPlayer)은 그대로. 부름은 그릇을 넘어 이어진다. 숫자로 과시하지 않고 웅성거림(\"할아버지의 할아버지도 그를 보았다고 한다.\")으로만. '죽지 않는다'·'영원히 산다' 금지. 노화 노브는 1주기=1년 표시와 양립 불가(수명 70~100주기면 한 판 약 200대).",
+   "source_ref": "v08_rulings.md:802, v08_rulings.md:804"
+  },
+  {
+   "topic": "첫 생애 행 arch_seeker와 arch_terran 은퇴",
+   "decision": "플레이어 고정 첫 생애는 성역 밖 찾는 백성(가칭 arch_seeker, DT_Rules.PlayerArchetypeRow, Weight 0, 두 목소리 의회·회중). 인류를 다른 별로 옮기지 않는다. arch_terran은 4b에서 은퇴 — Divided·Shortlived·AIAwakening ×1.2·윤리는 첫 생애 행으로, Book·BookShut·책 사건 셋·edict_reading·고발 Book 변형은 '말을 받은 백성'의 특성으로, 인간 이름 12·{태양계 연합…}·홈 '태양계'는 버린다, Revelation.Book 태그는 빼거나 선언만.",
+   "source_ref": "v08_rulings.md:858, v08_rulings.md:882, v08_rulings.md:1094"
+  },
+  {
+   "topic": "고넬료 사슬",
+   "decision": "Hazard.Visitation 응답(통치자: 안식 칙령 / 방랑자: '신을 벗으라') → Trait.Faith.Visited → 사자 조우 enc_messenger_*에서 '듣는다'(전언은 계시 양식 [1]) → 다음 슬롯 이벤트 \"말이 도착했다\"(가칭 event_word_arrived): Trait.Faith.Book 추가, Seeking이면 Remnant로 바꿀 수 있고 세속 비용 → '옛 땅의 기억' 열림. 사슬 표식은 판 플래그가 아니라 그 문명의 특성. 사자는 가리키기만 하고 책을 건네지 않는다; 도착은 수동태로만. 옛 셋째 고리('arch_terran과 Relations ≥ 0.3')는 상대를 잃어 사자 조우가 대신한다.",
+   "source_ref": "v08_rulings.md:886, v08_rulings.md:814"
+  },
+  {
+   "topic": "'옛 땅의 기억' 화면",
+   "decision": "말이 도착한 백성에게 열리는 한 쪽짜리 화면. 회중 쪽은 고백(\"…라고 우리는 믿는다\") + 성육신 한 줄, 의회 쪽은 기록(\"…라고 기록은 적는다\"). 숫자·이름·장절·'그 다음'·국가·도시·인물·연대 없음(연표가 아니다). 세계 사실을 읽고 앎을 읽지 않는다. 말이 온 뒤에야 '옛 땅' 낱말이 서고 성역 이름 줄이 \"이름 모를 이가 지키는 곳\"→\"하늘의 하나님이 지키시는 땅\". 성역 밖에 인간 백성은 없다.",
+   "source_ref": "v08_rulings.md:890, v08_rulings.md:810"
+  },
+  {
+   "topic": "두 목소리와 헌정 뱅크",
+   "decision": "의회 = Faith.Bank.Civic, 회중 = 말이 오기 전 Faith.Bank.Nations, 말이 온 뒤 Trait.Faith.Book 효과로 Hebrew를 더한다. 어느 쪽도 판결하지 않는다(고전 4:5). 유혹은 두 목소리 각각에 있다. 첫 생애 백성은 시작에 신앙 특성 없음(수치 이점 0).",
+   "source_ref": "v08_rulings.md:817, v08_rulings.md:862, v08_rulings.md:927"
+  },
+  {
+   "topic": "대도감 통합 원칙",
+   "decision": "cosmic_species_codex.md는 성역 밖의 세계관 원천(작가 노트, 게임 데이터 아님, 원문 불변; code_artifact.md는 옛 판). 원형만 빌린다(결정 14: arch_swarm=카르시노스 군단, arch_psionic=아스트라 칼라, arch_machine=크로노스 포지, arch_covenant=짝 없음, arch_merchant=개척 기업). 괴물은 피조물(욥 40:15), 위기의 얼굴·조우 문장·소문으로만, 타락의 군대 아님, 개체·능력치 없음. '50광년·100광년 반경' 안 씀 — 영압은 영향권과 1레인까지. 성간 기록원의 기록은 로그 화자 층이 아니라 카드 안 이름 없는 인용. 그림다크는 목소리의 색, 서술자는 애도로 끝낸다.",
+   "source_ref": "v08_rulings.md:793, v08_rulings.md:860, v08_rulings.md:893-898, v08_rulings.md:961, v08_rulings.md:743"
+  },
+  {
+   "topic": "이름의 거름",
+   "decision": "게임에 보이는 지어낸 이름은 한국어 묘사 이름 — 다른 작품의 고유명·조어, 신화의 신, 성경 고유명사(인물·장소·피조물·우상·천사), 실존 인물, 허구에 실제 목록 번호, 교회 낱말을 괴물·세력에 쓰지 않는다. 과학 용어는 사람 이름 없는 것만(펜로즈·로슈·카이퍼·카르다쇼프는 묘사어로). 스키마 낱말 목록(가칭 other_works·holy_and_myth), 낱말 경계·조사 떼기, 이름 3단계 검사를 ST_CA까지(단계 4). C++ Data.Integrity는 forbidden을 읽지 않는다.",
+   "source_ref": "v08_rulings.md:856, v08_rulings.md:895, v08_rulings.md:1098-1099"
+  },
+  {
+   "topic": "실제 하늘(단계 5) 원칙",
+   "decision": "근방의 계·행성·별 이름은 출처가 분명한 관측 목록 스냅숏(NASA 외계행성 아카이브, IAU 별 이름, NASA 행성 자료, 은하는 NED·논문 표)에서; 조회문·날짜·행 수·병합 규칙은 Tools/data/sources/ README. 관측 = 별·행성·거리·등급, 설정 = 생명·백성·사건. 별의 나이로 창조 연대 입장을 정하지 않는다. 수치는 '약'·'추정', 출처·라이선스는 게임 밖 '세계관과 출처' 화면. HYG·Gaia DR3 직접은 상업 이용 조건 확인 전 보류. 지도는 태양 중심 방위 등거리 투영, 레인은 교차 없는 평면 그래프(차수 ≤ 4, 손 고침 파일, 태양을 빼도 이어진다), 오프라인 계산이라 C++에 삼각 함수 없음.",
+   "source_ref": "v08_rulings.md:775, v08_rulings.md:907, v08_rulings.md:948"
+  },
+  {
+   "topic": "행성 DT_Planets",
+   "decision": "행성 노드는 만들지 않는다. 행성은 정의 데이터(DT_Planets — 계 행·이름·종류 태그·크기·궤도·온화 여부·발견 해)로만, 상태·해시·저장 ID·선택·명령 없음. 성계 패널 목록은 아는 성계에만, '약' 표시, UI 라벨에만.",
+   "source_ref": "v08_rulings.md:769, v08_rulings.md:831, v08_rulings.md:933, v08_rulings.md:909"
+  },
+  {
+   "topic": "성역 UI·DominionColor",
+   "decision": "성역 패널: 이름 '태양계 · 성역', 주인 줄 \"성역 — 어느 백성의 소유도 되지 않는다\", 생명 낱말 대신 \"이곳은 지켜지고 있다.\", 명령 단추 없음, 정착 사유 '성역'이 맨 앞. 지도: 주인 고리 없음, 색 없음(성소의 백색도 아님), 툴팁 \"이곳에는 압력이 닿지 않는다.\"; 태양은 언제나 보인다(이름만, 앎에 쓰지 않는 표시 규칙). 보라는 셋째 칸 영적 시야의 타락에만.",
+   "source_ref": "v08_rulings.md:906, v08_rulings.md:908-910"
+  },
+  {
+   "topic": "방랑자의 성역 경계",
+   "decision": "방랑자는 성역으로 갈 수 있지만 경계까지 — 경계 카드 '지경'(가칭 enc_sanctuary_bound) 한 장으로 끝나고 떠난 성계로 돌아온다(CurrentSystemID는 결코 sol이 아니다). 머물러 얻는 것 없음. 경로는 성역을 거쳐 가지 않는다. 방문 위기 응답 카드 '신을 벗으라'와 이름을 가른다.",
+   "source_ref": "v08_rulings.md:838, v08_rulings.md:954"
+  },
+  {
+   "topic": "서술 규칙 추가(§8.3)",
+   "decision": "네 문단 신설: ① 받은 높음의 낱말(구별되었다·부르심을 입었다·날이 더해졌다·눈이 열렸다·깨닫게 되었다; 명사 '깨달음'은 설계 문서에만) ② 성역의 문장('허락'의 수동태와 \"이곳은 지켜지고 있다.\"뿐; 순례지·'악이 없는 곳' 금지; 성역의 별을 첫 생애의 해·타락의 별과 맞세우지 않는다) ③ 대도감의 목소리(화자 프레임, 높임·'영혼'·판정 어휘 없음) ④ 서막의 문장(3인칭 '그', 메시아 신호 쌓지 않기, 열 처녀 비유·삼상 3:3 유사문 금지). 플레이어 칭호(구원자·메시아·선택받은 자·빛의 아들·기름 받은 자) 금지.",
+   "source_ref": "v08_rulings.md:974-975"
+  },
+  {
+   "topic": "저장과 결정론",
+   "decision": "SaveVersion 1 유지(배포 세이브 없음). 단계 4에서 개발 세이브를 지우고 날짜를 §9.1에 적는다. 로드 때 주인 있는 성역 거절(에러 한 줄). 서막은 저장 안 함(필요해지면 ELifeState 끝에 Prologue). 서막 추첨 없음, 성역은 추첨 없이, 실제 하늘은 생성 추첨 목록을 바꾸고 Phase 5 전 모든 시드 기준값을 한 번 교체, 시간 표시는 시뮬 스트림 안 씀, 백성이 부르는 별 이름은 CosmicSeed::Derive.",
+   "source_ref": "v08_rulings.md:999, v08_rulings.md:1001, v08_rulings.md:1096"
+  },
+  {
+   "topic": "새 테스트와 검사",
+   "decision": "Sim.SanctuaryKept(단계 4), UI.TimeUnitToggle(단계 2 — 라벨 함수는 단위를 인자로, 설정 파일 안 읽음, 토글 전후 해시 불변), UI.PrologueGate(단계 6), 카탈로그 스키마 규칙(단계 5 — 성역 행 정확히 1, 이름 유일, Data.SourcesInSync 도장 확장). 낱말 경계 금지어는 Tools/test_data_schema.py에 깨는/통과 입력. 커맨드렛 요약 줄에 성역 ID.",
+   "source_ref": "v08_rulings.md:1007, v08_rulings.md:1011"
+  },
+  {
+   "topic": "로드맵 구조(§11)",
+   "decision": "Phase 3 꼬리에 v0.8 몫(시간 토글 11번, ×25·명령 사유·'다음 칸까지' 12번, 은하 패널 한 줄 8번, 표시 전용 은하 행 9번; 나선팔·'여기' 표지는 단계 5로 이동). Phase 3과 4 사이 'v0.8 예약' 블록(① 성역과 첫 생애 행 4a·4b, ② 실제 하늘). Phase 4 첫 블록 '서막(부르심)'(단계 6) + 외계 백성·고넬료·헤롯 청원·대도감 문장(단계 7). 저장 작업은 단계 6 앞에 따로. Phase 5 '세계관과 출처' 최소형(단계 8). Phase 3 종료는 새 방향을 기다리지 않는다.",
+   "source_ref": "v08_rulings.md:1022-1031, v08_rulings.md:1035-1039"
+  },
+  {
+   "topic": "작업 순서(Phase 3 표)",
+   "decision": "순서: 6(사람 몫 — 손 확인) → 11 → 7 → 12 → 8 → 9 → 10. 11은 종료 조건과 무관해 손 확인과 나란히 해도 된다; 7·12·8·9는 손 확인이 종료 조건을 채운 뒤.",
+   "source_ref": "v08_rulings.md:1120"
+  },
+  {
+   "topic": "effort·ultracode 배정",
+   "decision": "단계 2 medium/끔(단독); 꼬리 medium/끔(10번 종료 리뷰만 켬); 예약 ① xhigh, 헤더 승인, ultracode 리뷰 1회(저장·결정론); ② xhigh(지도 표현 medium), 리뷰(생성·결정론, 지도 표현 끔); 저장 작업 xhigh 헤더 승인+리뷰; 서막·외계 백성 high, 텍스트 묶음마다 감사(ultracode), 코드는 단독+리뷰 1회; Phase 5 최소형 medium, 텍스트 감사만 ultracode.",
+   "source_ref": "v08_rulings.md:1113-1115, v08_rulings.md:1123"
+  },
+  {
+   "topic": "WORKPLAN §0 세션 규칙 6번",
+   "decision": "제안·리뷰·보고는 '추가 아이디어와 보완'으로 끝낸다. 결정이 바뀌면 guideline §16 확정 기록에 근거 열(구절·절)을 둔다. 단계가 바뀔 때마다 effort와 ultracode 켬/끔을 함께 말한다.",
+   "source_ref": "v08_rulings.md:1110"
+  },
+  {
+   "topic": "§14.3 CLAUDE.md 템플릿 동기화",
+   "decision": "E.7의 CLAUDE.md 고침을 같은 문안으로 템플릿 해당 줄(3969 난수, 3976 하나님, 3982 심도, 3983 판정 어휘, 3985 숫자, 3993 일시정지, 3996 ID, 3997 정착된 성계, 3998 낱말)에 적용하고 이름의 거름 줄을 새로. 템플릿의 '현재 단계'는 고치지 않는다(규칙만 비춘다).",
+   "source_ref": "v08_rulings.md:1069"
+  },
+  {
+   "topic": "루트 md 셋의 취급",
+   "decision": "v08_agent_directive.md·cosmic_species_codex.md·code_artifact.md는 고치지 않고 단계 1 커밋에 루트로 넣는다. 편집 에이전트는 세 파일을 고치지 않는다; 대도감 내용은 판정 B를 거쳐서만 guideline에 들어간다. 개발자에게 ① Docs/lore/ 이동 ② code_artifact.md 삭제를 묻는다(§16 #95).",
+   "source_ref": "v08_rulings.md:1128-1130"
+  },
+  {
+   "topic": "단계 1 커밋 조건",
+   "decision": "편집과 재감사가 끝나면 guideline·CLAUDE.md·WORKPLAN과 루트 md 세 파일을 한 커밋에(코드 변경 없음 — 빌드 확인 불필요, `python Tools/check_data.py`로 데이터 불변만 확인).",
+   "source_ref": "v08_rulings.md:1146"
+  },
+  {
+   "topic": "§12.2 금지 목록 확장",
+   "decision": "성역을 세력·영토·관할·순례지로 쓰는 것, 은하 관할 분류, '옛 땅의 기억'을 연표·사건으로, 플레이어 칭호, 서막의 칸·경험치·사망·1인칭·추첨, 그릇의 불사, 부르심의 승천 오버레이; 성역 밖 인간 백성·인간 이름 뱅크, 행성 노드·상태·명령, 성역을 시뮬하는 백성 행, 생태 시뮬·괴수 개체·키메라 개체, 국경 배율(VS), 허구 행성, 서기 연도·창조 연대·종말 연표, 별에 거는 기다림·순례.",
+   "source_ref": "v08_rulings.md:1054-1055"
+  },
+  {
+   "topic": "VS 콘텐츠 수",
+   "decision": "조우 25장(사자 3, 증언 1, 성역의 경계 '지경' 1, 레인 이동 조우 2~3 — 자리 없으면 EA) + 통치자 청원 10장(헤롯 패턴 청원 추가; 의회·회중 2화자 변형은 9장) = 35장.",
+   "source_ref": "v08_rulings.md:840, v08_rulings.md:1051"
+  }
+ ],
+ "parameters": [
+  {
+   "name": "조각 경계(원본 4,789행 기준)",
+   "value": "P1 1~334 / P2 335~932 / P3 933~1316 / P4 1317~3291 / P5 3292~4155 / P6 4156~끝",
+   "source_ref": "v08_rulings.md:714",
+   "note": "적용 후 guideline.md는 4,598행 — 모든 행 번호 무효"
+  },
+  {
+   "name": "서막 길이·카드 수",
+   "value": "첫 판 10~15분(틱 밖), 카드 8장 안팎, 선택 2~4개씩; 둘째 판부터 짧게",
+   "source_ref": "v08_rulings.md:742, v08_rulings.md:748, v08_rulings.md:983"
+  },
+  {
+   "name": "서막 리스크 한계",
+   "value": "서막 카드 > 10장 또는 첫 10분 이탈 ≥ 10%면 다섯 장으로",
+   "source_ref": "v08_rulings.md:1066"
+  },
+  {
+   "name": "배속 단",
+   "value": "1배속 1초 = 1틱(=1주기=1년 표시); 부르심 ×10까지; 셋째 칸에 ×25 한 단 추가; 서막은 SetTimeScale(0)",
+   "source_ref": "v08_rulings.md:745-747"
+  },
+  {
+   "name": "년 표시 토글",
+   "value": "1주기 = 1년, '첫 기록부터', 기본 '주기', 보는 사람의 설정(상태·해시 밖); 라벨 '주기 1,204'↔'1,204년', 호버 '주기 1,204 · 1,204년(첫 기록부터)', 배속 단추 '1년/초 … 10년/초', 카운트다운 '120년 남음'",
+   "source_ref": "v08_rulings.md:745, v08_rulings.md:906"
+  },
+  {
+   "name": "성계 수",
+   "value": "60(모성계 12 + 무주 48) / 300 + 성역 1(단계 4부터); VS의 계 약 61에 행성 약 120(단계 5)",
+   "source_ref": "v08_rulings.md:768, v08_rulings.md:1052"
+  },
+  {
+   "name": "관측 반경",
+   "value": "VS 약 33광년, EA 약 98광년(태양 근방)",
+   "source_ref": "v08_rulings.md:758"
+  },
+  {
+   "name": "근방 별 분포",
+   "value": "10파섹 안 행성 호스트 61계 가운데 53이 M형 적색왜성 — '인쇄 전 확인'",
+   "source_ref": "v08_rulings.md:775",
+   "note": "미검증 수치"
+  },
+  {
+   "name": "레인 이동 시간(후보)",
+   "value": "약 0.25c면 1광년에 약 4주기(TravelTo 헤더가 정함); 대안 레인마다 20주기 그대로; 다리는 빛보다 빠르다(넷째 칸)",
+   "source_ref": "v08_rulings.md:841, guideline.md:4476"
+  },
+  {
+   "name": "첫 생애 행 arch_seeker 수치",
+   "value": "윤리 0.0/0.0/+0.2, Stability 0.75, 성계 1개 `sys_0`, Star.Class.G(단계 5까지, 그 뒤 실제 등급+정규화), ResourceRichness 1.0, Weight 0, AIAwakening ×1.2(추첨 행에만), Population 1.0 = '수십억', PersonNameBank 외계 이름 12, DedicationBanks {Faith.Bank.Nations, Faith.Bank.Civic}, RevelationMode Revelation.Seeking, 특성 Trait.Arch.Seeker(가칭)·Trait.Society.Divided·Trait.Biology.Shortlived + 절차 1~2개, 시작 신앙 특성 없음",
+   "source_ref": "v08_rulings.md:882, v08_rulings.md:847"
+  },
+  {
+   "name": "sys_0 이웃 보장",
+   "value": "sys_0의 1레인 이웃 하나는 언제나 다른 백성의 모성계(§7.4) — 보호도 수치 이점도 아님; 초기 코어는 sys_0에서 3레인",
+   "source_ref": "v08_rulings.md:882, v08_rulings.md:945"
+  },
+  {
+   "name": "성역 잎 노드 배치",
+   "value": "배열 끝, 추첨 없음, sys_0에서 2레인 이상인 성계 중 배열 순서 첫째에 레인 하나, 원반 안 최소 간격; 무주 성계 수만 +1",
+   "source_ref": "v08_rulings.md:947"
+  },
+  {
+   "name": "노화 노브",
+   "value": "노화 0(날이 더해지는 그릇). 켜면 수명 70~100주기 → 한 판 약 200대(§1.2 기대 2~5대와 충돌)",
+   "source_ref": "v08_rulings.md:804"
+  },
+  {
+   "name": "VS 카드 수",
+   "value": "조우 25(사자 3·증언 1·지경 1·레인 이동 2~3) + 청원 10(2화자 변형 9장) = 35장",
+   "source_ref": "v08_rulings.md:840, v08_rulings.md:1051"
+  },
+  {
+   "name": "콘텐츠 예산(VS, v0.8)",
+   "value": "서막 약 8장, 부르심 직후 의회·회중 변형 두 줄, 첫 생애 행 계시 3줄·외계 이름 12·신조, '옛 땅의 기억' 회중·의회 각 4~6줄, 헤롯 청원 1장(두 변형), 사자 전언·'말이 도착했다' 줄, 성역 패널·이름 줄 약 10, 대도감 문장 약 20줄, 지경 1장 — 약 3~4일(텍스트 감사 포함)",
+   "source_ref": "v08_rulings.md:983"
+  },
+  {
+   "name": "Sim.SanctuaryKept 규모",
+   "value": "테스트 5판 × 20,000틱, 커맨드렛 30판 — 성역이 소유·위기·주장·영향권·넘김·초기 코어·모성계에 한 번도 들지 않고 압력 0, Install 거절, 이웃 파괴 때 그릇 이동 없음",
+   "source_ref": "v08_rulings.md:1007"
+  },
+  {
+   "name": "카탈로그 스키마 규칙",
+   "value": "성역 행 정확히 1, 시차와 거리의 차 5% 경계 양쪽 입력, 이름 유일, 걸러진 이름 없음",
+   "source_ref": "v08_rulings.md:1007"
+  },
+  {
+   "name": "금지어 검사 통과 예",
+   "value": "'자신이 되었다'·'확신이 되었다'·'아크룩스'·'스칼라'·'크로노미터'는 통과(낱말 경계)",
+   "source_ref": "v08_rulings.md:1007"
+  },
+  {
+   "name": "테스터 질문 합격선",
+   "value": "'어느 종족을 하나님이 버린 종족으로 그렸다고 느꼈는가' ≤ 1/10, '서막의 부르심이 신이 되는/구원받는 이야기로 읽혔는가' ≤ 1/10",
+   "source_ref": "v08_rulings.md:1010"
+  },
+  {
+   "name": "일정 — 단계 1~3",
+   "value": "단계 1 문서 반영 1.5~2.5일, 단계 2 시간 토글 0.5~1일, 꼬리의 v0.8 몫 1~2일 → 3~5.5일; P3 기간 '4주+5일(+v0.8 꼬리 1.5~3일)'",
+   "source_ref": "v08_rulings.md:1031, v08_rulings.md:1022"
+  },
+  {
+   "name": "일정 — v0.8 예약",
+   "value": "① 성역과 첫 생애 행 2.5~3.5일 + 리뷰 0.5~1일(=3~4.5일), ② 실제 하늘 8~11일 → 11~15.5일",
+   "source_ref": "v08_rulings.md:1035-1038, v08_rulings.md:1031"
+  },
+  {
+   "name": "일정 — Phase 4·5 몫과 합계",
+   "value": "Phase 4: 서막 1.5~2주 + 외계 백성 2~3.5일 + 재측정 0.5일 = 10~14일; Phase 5: 1일; v0.8 순증 약 25~36 작업일(5~7주); 수직 슬라이스까지 약 8개월",
+   "source_ref": "v08_rulings.md:1026-1031, v08_rulings.md:760"
+  },
+  {
+   "name": "레인 그래프 제약",
+   "value": "교차 없는 평면 그래프, 차수 ≤ 4, 손 고침 파일, 태양을 빼도 이어진다; 투영은 태양 중심 방위 등거리(방향=은하 경도, 거리=실제 3D 거리); C++에 삼각 함수 없음",
+   "source_ref": "v08_rulings.md:907"
+  },
+  {
+   "name": "SaveVersion",
+   "value": "1 그대로(배포 세이브 없음); 단계 4에서 개발 세이브 삭제",
+   "source_ref": "v08_rulings.md:999"
+  },
+  {
+   "name": "ReceiveCalling이 적는 필드",
+   "value": "Exaltation, 연구 중점, 상처의 상태 태그 하나, 선택의 기록, 거절 횟수 — 칸·PeakTier는 적지 않음; 핸들러 안에서 불리면 에러 한 줄",
+   "source_ref": "v08_rulings.md:955"
+  },
+  {
+   "name": "성역 UI 문자열",
+   "value": "'태양계 · 성역' / \"성역 — 어느 백성의 소유도 되지 않는다\" / \"이곳은 지켜지고 있다.\" / 정착 사유 \"이곳은 팔리지도 차지되지도 않는다.\" / 툴팁 \"이곳에는 압력이 닿지 않는다.\"",
+   "source_ref": "v08_rulings.md:906, v08_rulings.md:828, v08_rulings.md:910"
+  },
+  {
+   "name": "영향권 정착 사유 문구",
+   "value": "\"그쪽으로 간 배들의 소식이 끊겼다 — 칸 {0}에 오르기 전에는 이곳에 정착할 수 없다.\"(지금 ST_CA `Settle.Block.Sphere`의 '닿지 못하고 돌아왔다'는 성역의 그림으로 이전)",
+   "source_ref": "v08_rulings.md:878, v08_rulings.md:828"
+  },
+  {
+   "name": "은하 패널 공통 한 줄",
+   "value": "\"이 은하의 별들도 하나도 빠짐없이 이름대로 불렸다.\" — 모든 은하에 같은 줄, 소속·관할 값 없음; 표시 전용 은하 행(궁수자리 왜소타원·조각가자리·화로자리·M32·M110·NGC 6822·IC 1613·M81·M82·센타우루스자리 A·NGC 253·M51·M101·M104 등, gal_* 행 이름은 배포 뒤 동결)",
+   "source_ref": "v08_rulings.md:857, v08_rulings.md:909"
+  },
+  {
+   "name": "첫 줄(log_first_life)",
+   "value": "\"{HomeSystem}. 이 백성이 당신에게 맡겨졌다.\"(단계 4b; 그 전 \"태양계. 당신은 이 행성의 통치자다.\")",
+   "source_ref": "v08_rulings.md:749, v08_rulings.md:964"
+  },
+  {
+   "name": "'지경' 카드 문안 후보",
+   "value": "\"지경에 이르렀다. 더 가까이 가는 것은 허락되지 않았다. 그는 신을 벗었다.\" / \"그는 떠난 곳으로 돌아왔다. 신은 다시 신었다.\"",
+   "source_ref": "v08_rulings.md:838"
+  },
+  {
+   "name": "성경 출처 교정",
+   "value": "'하늘의 하나님(욘 1:9)'→'(스 6:10)'; '신들의 신(단 2:47)'→'모든 신의 신(단 2:47)'; 마 13:30→고전 4:5; 개국 청원 '지혜로운 마음'(왕상 3:9 개역한글)",
+   "source_ref": "v08_rulings.md:817, v08_rulings.md:862, v08_rulings.md:973, v08_rulings.md:989"
+  },
+  {
+   "name": "커맨드렛 사유 집계 주기",
+   "value": "AI가 넓히지 못한 사유를 100틱마다 센다(12번 작업)",
+   "source_ref": "v08_rulings.md:1119"
+  },
+  {
+   "name": "'다음 칸까지' 툴팁 예",
+   "value": "'다음 칸까지: 다이슨 스웜(완성) · 물리 50%(34%)' — 다음 업적 행 조건을 읽는 표현 계층 순수 함수",
+   "source_ref": "v08_rulings.md:906"
+  },
+  {
+   "name": "대도감 아키타입 원형 매핑",
+   "value": "arch_swarm=살아있는 지각(카르시노스 군단), arch_psionic=별빛을 벼리는 자들(아스트라 칼라), arch_machine=셈 대장간(크로노스 포지), arch_covenant=짝 없음, arch_merchant=개척 기업·암시장의 합법 판; EA 후보 폭풍의 교향악단·잔불을 핥는 자들",
+   "source_ref": "v08_rulings.md:860"
+  },
+  {
+   "name": "리스크 지표 — 서막·물리",
+   "value": "서막 카드 > 10장 / 첫 10분 이탈 ≥ 10%; 해 표시 물리 지적('1년에 몇 광년') 대응은 기본 '주기'",
+   "source_ref": "v08_rulings.md:1066-1067"
+  }
+ ],
+ "gaps": [
+  {
+   "what": "가칭 식별자 9개(arch_seeker·Trait.Arch.Seeker·Law.Hedge·IsSanctuary·ReceiveCalling·enc_sanctuary_bound·event_word_arrived·crisis_anomaly·Hazard.Anomaly)가 단계 4·6·7 헤더·EA 심사에서 확정될 때까지 미정",
+   "why_it_matters": "행 이름·태그는 세이브에 남아 배포 뒤 동결되고 테스트·스키마·문서 참조가 모두 이 이름을 따른다 — 통폐합 문서에서 '가칭' 표기 정책을 정해야 한다",
+   "source_ref": "v08_rulings.md:720, guideline.md:4467"
+  },
+  {
+   "what": "첫 생애의 별(sys_0가 실제로 어느 별인지) — 단계 5 도구가 후보를 찍고 개발자가 고른다; 그 전에는 어떤 별 이름도 고정하지 않는다",
+   "why_it_matters": "모성계가 지도·이웃 보장·초기 코어·기준값 해시를 정하므로 단계 5 전체 결과가 이 선택에 걸려 있다",
+   "source_ref": "v08_rulings.md:1038, guideline.md:4485"
+  },
+  {
+   "what": "관측 목록 출처·라이선스 미확정 — HYG·Gaia DR3 직접 보류, Steam 출시 전 재확인; Tools/data/sources/와 README는 아직 없음",
+   "why_it_matters": "단계 5(8~11일)의 입력 전부이며 상업 출시의 법적 리스크(§13 '자료 라이선스' 행)",
+   "source_ref": "v08_rulings.md:775, v08_rulings.md:1016, v08_rulings.md:1064"
+  },
+  {
+   "what": "레인 이동 시간과 거리의 비율(약 0.25c 후보 vs 레인마다 20주기) — Phase 4 TravelTo 헤더; 다리의 비율은 6a 헤더",
+   "why_it_matters": "방랑자 루프의 템포와 '1년에 몇 광년' 물리 지적 리스크를 함께 정한다",
+   "source_ref": "v08_rulings.md:841, v08_rulings.md:1067"
+  },
+  {
+   "what": "성역을 지나는 레인 셈 — 그 레인을 MaxLanesPerSystem에 세는지, 이웃이 파괴될 때 성역 고립을 받아들이는지(§16 #80); 주장 인접·압력 감쇠·시야·계승 가중이 성역을 '지나는지'",
+   "why_it_matters": "성역이 이웃의 방패가 되면 그 곁 백성에 플롯 아머가 생긴다 — 밸런스·결정론 규칙",
+   "source_ref": "v08_rulings.md:947, guideline.md:4473"
+  },
+  {
+   "what": "해 표시 기본값('주기' vs '년')의 재결정은 단계 5 뒤로 미룸(§16 #82)",
+   "why_it_matters": "기본 단위가 바뀌면 라벨·테스트·튜토리얼 문장이 바뀐다; 지금 지도에서 '년'이 기본이면 배가 빛의 수백 배로 달린다",
+   "source_ref": "v08_rulings.md:1140, guideline.md:4475"
+  },
+  {
+   "what": "서막 카드 문안 — 후보(A.2-11)를 씨앗으로 단계 6 텍스트 감사에서 다시 쓴다(§16 #84); 개발자가 직접 쓸 수도 있음",
+   "why_it_matters": "첫 10~15분이 플레이어의 첫 경험이고 리스크 표의 '서막 일자형 표류'가 걸린 곳",
+   "source_ref": "v08_rulings.md:801, guideline.md:4477"
+  },
+  {
+   "what": "서막 저장 정책 — 저장 안 함이 기본이나 '필요해지면 ELifeState 끝에 Prologue'; 선택의 기록이 저장 필드가 되면 초기값·해시 포함 여부를 헤더에",
+   "why_it_matters": "결정론·해시 테스트(토글 전후 해시 불변 등)와 세이브 호환에 직접 영향",
+   "source_ref": "v08_rulings.md:999, v08_rulings.md:955"
+  },
+  {
+   "what": "FHazardDef의 등급별 표시 이름 기제(열 추가인지 같은 기제인지)와 관측 목록 행 구조체 이름·열, StarNameBank·CatalogPrefixes·CatalogStems 은퇴 여부 — 단계 5 헤더",
+   "why_it_matters": "데이터 스키마와 Tools/*.py 생성기가 바뀌는 지점",
+   "source_ref": "v08_rulings.md:923, v08_rulings.md:928, v08_rulings.md:933"
+  },
+  {
+   "what": "CanStart 곁의 사유 열거형(거대 프로젝트 단추 사유) — 헤더 승인 대기",
+   "why_it_matters": "Phase 3 꼬리 12번 작업의 UI 피드백 전부가 이 열거형에 걸림",
+   "source_ref": "v08_rulings.md:906, v08_rulings.md:1119"
+  },
+  {
+   "what": "개발 세이브를 지운 날을 §9.1에 적는다 — 아직 미기입(단계 4 미착수)",
+   "why_it_matters": "세이브 호환 이력의 유일한 기록 자리",
+   "source_ref": "v08_rulings.md:999, guideline.md:3493"
+  },
+  {
+   "what": "루트 md 셋을 Docs/lore/로 옮길지, code_artifact.md를 지울지 — 개발자에게 묻기로 했으나 답이 문서에 없음(§16 #95)",
+   "why_it_matters": "문서 통폐합의 폴더 구조·경로(§10.1·§5.11·CLAUDE.md)가 이 답에 따라 바뀐다",
+   "source_ref": "v08_rulings.md:1129, guideline.md:4488"
+  },
+  {
+   "what": "아공간 침식의 VS 편입 시점 — §4.1·§12.1은 VS 8종, WORKPLAN §2·CLAUDE.md는 'Phase 4·6+'(§16 #90)",
+   "why_it_matters": "세 문서가 서로 다른 위기 수를 말한다 — SSoT 통일 대상",
+   "source_ref": "v08_rulings.md:784, v08_rulings.md:1050, guideline.md:4483"
+  },
+  {
+   "what": "대도감 EA 후보(폭풍의 교향악단·잔불을 핥는 자들·미끼의 땅·변칙 개체/키메라·먼 빛·국경 배율·떠돌이 조우 덱) — 각각 §12.3 재심사",
+   "why_it_matters": "VS 범위 밖 콘텐츠 풀; 로드맵 Phase 6+의 실제 크기를 정한다",
+   "source_ref": "v08_rulings.md:787, v08_rulings.md:860, v08_rulings.md:1029"
+  },
+  {
+   "what": "Seeking을 첫 생애의 시작 특성으로 줄지(§16 #74)",
+   "why_it_matters": "고넬료 사슬의 Seeking→Remnant 분기와 시작 수치 이점 0 원칙에 걸림",
+   "source_ref": "v08_rulings.md:815, v08_rulings.md:882"
+  },
+  {
+   "what": "'인쇄 전 확인'·'약' 표시가 붙은 수치(M형 53/61계, 표시 전용 은하 값)",
+   "why_it_matters": "설계 문서에 미검증 수치가 확정값처럼 남아 있다",
+   "source_ref": "v08_rulings.md:775, v08_rulings.md:857"
+  },
+  {
+   "what": "침묵 초월자의 '울타리의 증언' 한 줄 자리(690 근처 또는 731) 미정",
+   "why_it_matters": "편집 지침이 위치를 둘 중 하나로 남김 — 적용된 위치 확인 필요",
+   "source_ref": "v08_rulings.md:794"
+  },
+  {
+   "what": "방랑자 T2→T3 업적 '초신성 에너지 단독 흡수'의 이름과 뜻 — 근방에 초신성 후보가 없어 Phase 4 방랑자 업적 헤더에서 다시 본다",
+   "why_it_matters": "실제 하늘 뒤 방랑자의 승급 경로가 성립하지 않을 수 있다",
+   "source_ref": "v08_rulings.md:773"
+  },
+  {
+   "what": "레인 이동 조우 2~3장 — '자리가 없으면 EA'",
+   "why_it_matters": "VS 35장 예산이 ±3장으로 흔들린다",
+   "source_ref": "v08_rulings.md:840"
+  },
+  {
+   "what": "Economy::StarClassEnergy 재정과 모성계 에너지 정규화 방식(단계 5)",
+   "why_it_matters": "근방이 M형 위주라 경제 격차 리스크(§13 '근방 하늘의 단조로움')를 막는 유일한 장치",
+   "source_ref": "v08_rulings.md:825, v08_rulings.md:1065"
+  },
+  {
+   "what": "단계 6·7·8의 종료 조건 — 'v0.8 예약'(단계 4·5)에만 종료 조건이 있고 Phase 4·5 몫에는 없다",
+   "why_it_matters": "로드맵 가이드라인에서 각 단계의 완료 판정 기준이 필요하다",
+   "source_ref": "v08_rulings.md:1039, v08_rulings.md:1026-1028"
+  },
+  {
+   "what": "arch_terran 은퇴의 꼴 — 행 삭제인지 '선언만 둔다'인지(Trait.Arch.Terran·Revelation.Book을 '빼거나 선언만')",
+   "why_it_matters": "세이브·DT_Civs·테스트 Sim.FirstLife의 수정 범위가 달라진다",
+   "source_ref": "v08_rulings.md:858, v08_rulings.md:861, v08_rulings.md:1037"
+  },
+  {
+   "what": "'옛 땅의 기억'이 읽는 표지와 지속(§16 #77), AI 백성의 고넬료 사슬(#76), 책이 늦게 온 판의 Society 문턱(#78)",
+   "why_it_matters": "Phase 4 고넬료 묶음 헤더에서 정해야 화면·이벤트 행을 짤 수 있다",
+   "source_ref": "v08_rulings.md:886, v08_rulings.md:890"
+  },
+  {
+   "what": "단계 5 뒤 '60 성계 가운데 모성계 12'가 관측 계 안에서 어떻게 골라지는지(생명 성계는 관측 계 가운데 고른다고만 함)",
+   "why_it_matters": "생성 규칙과 기준값이 바뀌는 지점인데 선택 규칙이 없다",
+   "source_ref": "v08_rulings.md:768, v08_rulings.md:1039"
+  },
+  {
+   "what": "E.7/E.8의 '다음' 문단 문안이 단계 2 완료 후 이미 갱신됨 — E의 문안은 낡았고 현재 '다음'의 SSoT는 CLAUDE.md:278/WORKPLAN.md:200",
+   "why_it_matters": "'다음'이 두 문서에 중복 유지되어 매 단계마다 두 곳을 고쳐야 한다",
+   "source_ref": "v08_rulings.md:1106, v08_rulings.md:1123"
+  }
+ ],
+ "duplication": [
+  {
+   "what": "E장 전체(패치 스크립트)가 이미 guideline.md v0.8 본문에 적용되어 있음 — E.1.1 'v0.8 변경 요약' 블록, E.3.1 첫 생애 행, E.3.2 고넬료 사슬, E.3.3 옛 땅의 기억, E.5.1 'v0.8 예약' 블록, §13 리스크 6행, §15 용어집 새 행이 그대로 본문에 있다",
+   "also_in": "guideline.md:84(변경 요약), guideline.md:1278(첫 생애 행), guideline.md:3493(v0.8 저장), §5.11·§11·§13·§15, 커밋 9aba0e9",
+   "source_ref": "v08_rulings.md:751-760, v08_rulings.md:880-890, v08_rulings.md:1035-1039, v08_rulings.md:1061-1067, v08_rulings.md:1081"
+  },
+  {
+   "what": "CLAUDE.md 불변 규칙 고침 13줄(E.7)이 §14.3 CLAUDE.md 템플릿에도 같은 문안으로 들어가고 실제 CLAUDE.md에도 있다 — 같은 규칙 세 곳",
+   "also_in": "guideline §14.3(3955~4020 원본), CLAUDE.md:9·23·24·46·47·48",
+   "source_ref": "v08_rulings.md:1069, v08_rulings.md:1091-1105"
+  },
+  {
+   "what": "'다음' 문단을 CLAUDE.md '현재 단계'와 WORKPLAN §3 끝에 '같은 문안'으로 두라고 지시",
+   "also_in": "CLAUDE.md:278, WORKPLAN.md:200",
+   "source_ref": "v08_rulings.md:1106, v08_rulings.md:1123"
+  },
+  {
+   "what": "'v0.8 예약' 블록·단계 계획이 A.4 표, §11 블록(E.5.1), WORKPLAN §2 새 행과 §3 새 항목(E.8 2·5), §11 일정 표 행 네 곳에 같은 수치(11~15.5일, 25~36 작업일)로 반복",
+   "also_in": "v08_rulings.md:334-354(A.4), WORKPLAN.md:56·107-108·114·189, guideline §11",
+   "source_ref": "v08_rulings.md:1031, v08_rulings.md:1035-1039, v08_rulings.md:1113, v08_rulings.md:1121"
+  },
+  {
+   "what": "성역 법의 금지 목록(정착·넘김·주장·교단·초기 코어·모성계·출생·계승·즉위·파괴·영향권, 압력 0)이 네 곳에 같은 열거로",
+   "also_in": "v08_rulings.md:754(변경 요약), 812(§4.5), 1037(E.5.1), 1093(CLAUDE.md)",
+   "source_ref": "v08_rulings.md:812"
+  },
+  {
+   "what": "첫 줄 \"{HomeSystem}. 이 백성이 당신에게 맡겨졌다.\"가 §2.4·§5.10·§8.2 세 곳에",
+   "also_in": "v08_rulings.md:847, v08_rulings.md:964",
+   "source_ref": "v08_rulings.md:749"
+  },
+  {
+   "what": "고넬료 사슬 설명이 변경 요약·§4.5 ②③④·§5.11·CLAUDE.md에 각각 반복",
+   "also_in": "v08_rulings.md:755, 813-815, 1094",
+   "source_ref": "v08_rulings.md:886"
+  },
+  {
+   "what": "두 목소리의 헌정 뱅크 규칙(Nations → 말이 온 뒤 Hebrew)이 §4.5 ④·§5.7·§5.10·§5.11·§7.3·§11·§15에 일곱 번",
+   "also_in": "v08_rulings.md:826, 848, 862, 927, 1027, 1076",
+   "source_ref": "v08_rulings.md:817"
+  },
+  {
+   "what": "\"사자는 가리키기만 하고 책을 건네지 않는다\" 문장 — §4.5 ③·§5.11·§15·CLAUDE.md",
+   "also_in": "v08_rulings.md:886, 1078, 1094",
+   "source_ref": "v08_rulings.md:814"
+  },
+  {
+   "what": "플레이어 칭호 금지 목록(구원자·메시아·선택받은 자·빛의 아들·기름 받은 자)이 §8.3·§12.2·CLAUDE.md에",
+   "also_in": "v08_rulings.md:1054, 1095",
+   "source_ref": "v08_rulings.md:974"
+  },
+  {
+   "what": "시간 토글 설명이 §2.1·§6.3·§8.3·§15·CLAUDE.md 숫자 줄·WORKPLAN 11번 행에 여섯 번",
+   "also_in": "v08_rulings.md:906, 970, 1080, 1100, 1119",
+   "source_ref": "v08_rulings.md:745"
+  },
+  {
+   "what": "성역 패널 문구(\"이곳은 지켜지고 있다.\" 등)가 §5.7·§6.3·E.10에 반복",
+   "also_in": "v08_rulings.md:830, 906, 1137",
+   "source_ref": "v08_rulings.md:828"
+  },
+  {
+   "what": "VS 카드 수(조우 25 + 청원 10 = 35, 변형 9장)가 §5.9·§5.10·§8.4·§12.1에",
+   "also_in": "v08_rulings.md:848, 983, 1051",
+   "source_ref": "v08_rulings.md:840"
+  },
+  {
+   "what": "재감사 체크리스트(E.0)와 E.10 '지금과 나중' 표가 같은 지금/나중 분류를 두 형식으로",
+   "also_in": "v08_rulings.md:1134-1144",
+   "source_ref": "v08_rulings.md:723-730"
+  },
+  {
+   "what": "이름의 거름 규칙이 §5.11 이름 문단·E.3.4 소절·CLAUDE.md 새 줄·§8.3 ④에",
+   "also_in": "v08_rulings.md:895, 972, 1099, CLAUDE.md",
+   "source_ref": "v08_rulings.md:856"
+  },
+  {
+   "what": "§12.2 '하지 않는 것' 확장 목록이 §8.3 네 문단과 CLAUDE.md 받은 높음·성역 줄과 내용 중복",
+   "also_in": "v08_rulings.md:974-975, 1093-1095",
+   "source_ref": "v08_rulings.md:1054-1055"
+  },
+  {
+   "what": "루트 md 셋의 설명(원천·지시서·옛 판)이 §10.1 폴더 구조·CLAUDE.md 프로젝트 문단·E.9·§16 #95에",
+   "also_in": "v08_rulings.md:1015, 1091, guideline.md:4488",
+   "source_ref": "v08_rulings.md:1128"
+  }
+ ],
+ "contradictions": [
+  {
+   "a": "E.0 규칙 1: \"행 번호는 편집 전 원본(4,789행) 기준이다\"",
+   "b": "현재 guideline.md는 4,598행(§17 삭제·블록 삽입 후)이고 파일 머리(3행)는 \"E장은 단계 1의 편집 에이전트를 위한 것이라 다시 적용하지 않는다\"",
+   "note": "E의 모든 행 참조(약 150개)가 지금 파일과 맞지 않는다 — E는 적용 완료된 스크립트이지 현행 명세가 아니다. 통폐합 시 아카이브 대상",
+   "source_ref": "v08_rulings.md:714, v08_rulings.md:3"
+  },
+  {
+   "a": "E.9: \"v08_agent_directive.md·cosmic_species_codex.md·code_artifact.md는 지금 추적되지 않은 파일이다\"",
+   "b": "git ls-files — 셋 다 커밋 9aba0e9에 추가되어 추적 중",
+   "note": "시점 서술이 낡음; E.9의 두 질문(Docs/lore/ 이동, 옛 판 삭제)은 여전히 미답",
+   "source_ref": "v08_rulings.md:1128"
+  },
+  {
+   "a": "E.0 규칙 8의 '초신성 안정화' 대상 행 목록: 316·422·462·670·991·1031·1035·1155·2613·3266",
+   "b": "조각별 표에는 670·2613이 없고(E.2 §4.2 표는 680·690/731·730, E.4 §7.3 표는 2207…2591), 603은 규칙 8에 표지 대상으로만",
+   "note": "규칙 8과 P-표가 완전히 맞물리지 않아 두 행은 편집자 재량에 맡겨졌다",
+   "source_ref": "v08_rulings.md:721, v08_rulings.md:783, v08_rulings.md:793-795, v08_rulings.md:923-932"
+  },
+  {
+   "a": "E.1 749·E.3 848: 개국 청원 '지혜로운 마음'은 \"단계 6 전에는 첫 청원으로 남고 화자는 의회\"",
+   "b": "청원 카드 자체가 Phase 4(미착수)라 '단계 6 전'의 코드 상태가 존재하지 않는다",
+   "note": "'그 전'이 코드가 아니라 설계의 옛 상태를 가리켜 표지 규칙(지금 코드가 하는 일)과 어긋남",
+   "source_ref": "v08_rulings.md:749, v08_rulings.md:848"
+  },
+  {
+   "a": "E.2 773: 방랑자 T2→T3 업적 '초신성 에너지 단독 흡수' 유지",
+   "b": "같은 행: \"근방에 초신성 후보가 없다\"(실제 하늘 뒤)",
+   "note": "업적 조건이 단계 5 뒤 성립 불가 — Phase 4 헤더로 미뤄 둠",
+   "source_ref": "v08_rulings.md:773"
+  },
+  {
+   "a": "E.1 746: ×25는 \"(v0.8 — Phase 3 꼬리부터)\"",
+   "b": "E.8 12번 행: \"v0.8 단계 3의 몫\"; A.4 표: 단계 3 = Phase 3 꼬리",
+   "note": "같은 작업을 '단계 3'·'Phase 3 꼬리'·'12번 작업' 세 좌표계로 부른다 — 모순은 아니나 추적 비용",
+   "source_ref": "v08_rulings.md:746, v08_rulings.md:1119, v08_rulings.md:341"
+  },
+  {
+   "a": "E.3 1252·E.3.2: \"책은 시작에 없다\" — 첫 생애 백성은 책 없이 시작",
+   "b": "E.5 §9.3 3436: 책 이벤트 테스트는 \"테스트가 책을 손으로 준다\"",
+   "note": "규칙의 예외를 테스트가 우회 — Sim 테스트가 실제 플레이 경로를 검증하지 않게 됨",
+   "source_ref": "v08_rulings.md:863, v08_rulings.md:1006"
+  },
+  {
+   "a": "E.7 13: CLAUDE.md에 \"단계 1(문서 반영)은 effort xhigh, ultracode로 했다\"를 넣으라고 미리 과거형으로 지시",
+   "b": "E는 편집 전에 쓰인 지침(3행 \"저장소의 파일은 … 하나도 고치지 않았다\")",
+   "note": "수행 기록이 아닌 지시문이 기록처럼 CLAUDE.md에 들어감 — 이력의 신뢰성 문제",
+   "source_ref": "v08_rulings.md:1106, v08_rulings.md:3"
+  },
+  {
+   "a": "E.5 3736·E.8 7·E.7 13: 손 확인은 \"지금 빌드(`efe5c37`)\"",
+   "b": "현재 CLAUDE.md:278/WORKPLAN.md:200: \"시간 표시 토글이 든 단계 2의 빌드. `efe5c37`도 된다\"",
+   "note": "단계 2 완료 후 두 문서가 갱신되어 E의 문안과 어긋남 — E는 더 이상 '다음'의 출처가 아니다",
+   "source_ref": "v08_rulings.md:1024, v08_rulings.md:1123"
+  },
+  {
+   "a": "E.4 906 ②: 년 모드 배속 단추는 '1년/초 … 10년/초'",
+   "b": "E.1 746·747: 셋째 칸에 ×25 단이 더해진다",
+   "note": "×25 단의 년 라벨('25년/초')이 어디에도 없음 — 단계 3 때 보완 필요",
+   "source_ref": "v08_rulings.md:906, v08_rulings.md:747"
+  },
+  {
+   "a": "E.3 838·E.4 954: 방랑자의 성역 방문은 '경계까지'(CurrentSystemID ≠ sol)",
+   "b": "§16 #81 대안 '다가가 선다'(옛 §17 초안 baac192 — 그릇이 sol에 선다)가 기록에 살아 있음",
+   "note": "기본값은 정해졌으나 대안이 §16에 남아 Phase 4 TravelTo 헤더에서 뒤집힐 수 있다",
+   "source_ref": "v08_rulings.md:838, guideline.md:4474"
+  },
+  {
+   "a": "E.0 규칙 7의 가칭 목록은 9개",
+   "b": "E.2 787 '(가칭) 미끼의 땅', E.3 848 헤롯 패턴 청원 '(가칭)'도 가칭으로 쓰임",
+   "note": "규칙 7 목록이 실제 가칭 사용을 다 담지 못함",
+   "source_ref": "v08_rulings.md:720, v08_rulings.md:787, v08_rulings.md:848"
+  }
+ ],
+ "implemented_status": [
+  {
+   "feature": "단계 0 — 정착 사유(SettleBlockOf)와 패널 단추 유지(efe5c37)",
+   "status": "implemented",
+   "evidence": "v08_rulings.md:828, v08_rulings.md:1024, v08_rulings.md:339(A.4 '끝남')"
+  },
+  {
+   "feature": "단계 1 — E 편집 지침 전체의 guideline·CLAUDE.md·WORKPLAN 반영과 루트 md 셋 커밋",
+   "status": "implemented",
+   "evidence": "v08_rulings.md:1146이 지시; 실제 커밋 9aba0e9(2026-10-18), guideline.md:1 'v0.8', guideline.md:14 '2026-10-18', §17 헤딩 없음, guideline.md:4467~4488(#74~#95), §13 리스크 6행 전부 존재, CLAUDE.md:23·24·46·265, WORKPLAN.md:56·96·176·177"
+  },
+  {
+   "feature": "단계 2 — 시간 표시 토글(UI.TimeUnitToggle, Phase 3 표 11번)",
+   "status": "implemented",
+   "evidence": "v08_rulings.md:1119 '— v0.8 단계 2'(예정으로 기술); 실제 커밋 2f61b62, WORKPLAN.md:105 '끝(2026-10-18, 2f61b62)', Tests에 Cosmic_Ascension.UI.TimeUnitToggle 존재"
+  },
+  {
+   "feature": "Phase 3 6번 손 확인(개발자 몫 — 마우스만으로 셋째 칸까지, 60fps)",
+   "status": "partial",
+   "evidence": "v08_rulings.md:1124 '사람 몫 대기', v08_rulings.md:1123 ①"
+  },
+  {
+   "feature": "단계 3 — Phase 3 꼬리 v0.8 몫(×25 단추, 명령 단추 사유 열거형, '다음 칸까지' 툴팁, 은하 패널 한 줄, 표시 전용 은하 행)",
+   "status": "missing",
+   "evidence": "v08_rulings.md:1023, v08_rulings.md:1119(12번 상태 칸 비어 있음), v08_rulings.md:857"
+  },
+  {
+   "feature": "단계 4a — 성역(Law.Hedge·IsSanctuary·잎 노드 sol/sys_0·패널·DominionColor·로드 거절·개발 세이브 삭제·Sim.SanctuaryKept)",
+   "status": "missing",
+   "evidence": "v08_rulings.md:1037; Source/Tools grep에 IsSanctuary·Law.Hedge 0건, Tests에 SanctuaryKept 없음"
+  },
+  {
+   "feature": "단계 4b — 첫 생애 행 arch_seeker 뼈대, arch_terran 은퇴, 낱말 경계 금지어 검사(other_works·holy_and_myth), Sim.FirstLife 수정",
+   "status": "missing",
+   "evidence": "v08_rulings.md:1037, v08_rulings.md:1003; Tools/data/DT_Rules.json·DT_Civs.json에 여전히 arch_terran, arch_seeker 0건"
+  },
+  {
+   "feature": "단계 5 — 실제 하늘(Tools/data/sources 스냅숏·DT_Planets·투영과 레인·별 이름 거름·등급별 위기 문구·'항성 안정화' 표시명·에너지 정규화·LivingWorldStarShares 은퇴)",
+   "status": "missing",
+   "evidence": "v08_rulings.md:1038; Tools/data/sources 디렉터리 없음, DT_Feats.json:26·DT_Megaprojects.json:52 표시명 아직 '초신성 안정화', DT_Planets 0건"
+  },
+  {
+   "feature": "저장 작업(§16 #33 ①②③·#70·#40 ⑦ — 자동 저장 트리거, 첫 패키징 전)",
+   "status": "missing",
+   "evidence": "v08_rulings.md:1113, v08_rulings.md:999"
+  },
+  {
+   "feature": "단계 6 — 서막(부르심): 조우 카드 화면, DT_Encounters 중첩 구조체 검사, 서막 카드 8장, ReceiveCalling, UI.PrologueGate",
+   "status": "missing",
+   "evidence": "v08_rulings.md:1026, v08_rulings.md:955; Source에 ReceiveCalling 0건"
+  },
+  {
+   "feature": "단계 7 — 외계 백성 VS 5행 본문, 첫 생애 행 본문, 고넬료 사슬(event_word_arrived), '옛 땅의 기억' 화면, 헤롯 패턴 청원, 대도감 문장 약 20줄",
+   "status": "missing",
+   "evidence": "v08_rulings.md:1026, v08_rulings.md:886, v08_rulings.md:890"
+  },
+  {
+   "feature": "단계 8 — Phase 5 '세계관과 출처' 최소형(출처·라이선스, 관측/허구 구분 문장)",
+   "status": "missing",
+   "evidence": "v08_rulings.md:1028, v08_rulings.md:1115"
+  },
+  {
+   "feature": "방랑자 성역 경계 카드 '지경'(enc_sanctuary_bound)과 TravelTo 경로 규칙",
+   "status": "missing",
+   "evidence": "v08_rulings.md:838, v08_rulings.md:954; Source 0건"
+  },
+  {
+   "feature": "레인 이동 시간을 거리로(TravelTo 헤더), 다리 비율(6a 헤더)",
+   "status": "missing",
+   "evidence": "v08_rulings.md:841"
+  },
+  {
+   "feature": "§16 새 행 #74~#95와 'v0.8 확정' 기록, §17 삭제(D.1~D.5 적용)",
+   "status": "implemented",
+   "evidence": "v08_rulings.md:1085 지시; guideline.md:4467~4488 행 존재, guideline.md:4490 '확정 완료 (2026-10-18, v0.8 …)', '§17' 잔존 참조는 역사·'옛 §17'뿐"
+  },
+  {
+   "feature": "재감사 체크리스트 통과(욘 1:9·마 13:30·'듣는 마음' 제거, '초신성 안정화' 역사/표지만 잔존)",
+   "status": "implemented",
+   "evidence": "v08_rulings.md:723-730 지시; guideline.md에 '욘 1:9' 0건, '마 13:30' 0건, '듣는 마음' 1건(guideline.md:3354 금지 규칙 안), '초신성 안정화' 7건은 표지·역사·대응 칸 설명"
+  },
+  {
+   "feature": "CLAUDE.md 불변 규칙 13줄(성역·첫 생애·받은 높음·난수·심도·판정 어휘·이름의 거름·숫자·일시정지·ID·정착된 성계·낱말·핸들러)과 '현재 단계' v0.8 문단",
+   "status": "implemented",
+   "evidence": "v08_rulings.md:1091-1106 지시; CLAUDE.md:9·15·23·24·31·32·35·43·46·47·48·265·278"
+  },
+  {
+   "feature": "WORKPLAN §0 6번·§2 v0.8 예약/저장 작업 행·§3 11·12번 행·'v0.8 예약' 항목·'다음'",
+   "status": "implemented",
+   "evidence": "v08_rulings.md:1110-1123 지시; WORKPLAN.md:56·96·105·107·108·114·176·177·189·200, '추가 아이디어와 보완' 1건"
+  },
+  {
+   "feature": "§10.1 폴더 구조에 루트 md 셋과 Tools/data/sources/ 기재",
+   "status": "partial",
+   "evidence": "v08_rulings.md:1015-1016 지시; guideline에 'Tools/data/sources' 6건·'cosmic_species_codex.md' 17건 기재됨, 그러나 실제 디렉터리 없음(단계 5)"
+  },
+  {
+   "feature": "개발 세이브 삭제 날짜 기입(§9.1 'v0.8 저장' 문단)",
+   "status": "missing",
+   "evidence": "v08_rulings.md:999; guideline.md:3493 '지운 날을 이 문단에 적는다' 그대로"
+  },
+  {
+   "feature": "첫 생애 선택 UI(별 고르기, 태양계 잠김) — Phase 6+ §12.3",
+   "status": "missing",
+   "evidence": "v08_rulings.md:847"
+  },
+  {
+   "feature": "Tier 4 침묵 초월자의 '울타리의 증언' VoiceTemplates 줄, 웅성거림 행, 스캔 변형 '너무 깨끗한 광맥'",
+   "status": "missing",
+   "evidence": "v08_rulings.md:794, v08_rulings.md:802, v08_rulings.md:839 (Phase 4 텍스트)"
+  }
+ ],
+ "player_facing": [
+  "피치(§1): 성역 밖 먼 별의 필멸의 한 사람으로 시작해 부르심을 입고 한 백성을 맡아 제국의 군주 또는 …로 — 게임은 단계 4b·6부터 (v08_rulings.md:741)",
+  "서막(첫 판 10~15분, 틱 밖): 평범한 일 → 징조(이름 없는 제단) → 고향의 작은 시련 → 꿈의 유혹 → 밤의 부름 → 대답 → 머묾 → 그를 본 이들과 개국 청원 '지혜로운 마음'; 카드마다 선택 2~4개, 거절해도 부름은 다시 오고 누구냐 물으면 침묵, 모든 갈래가 머묾으로; 둘째 판부터 '서막 짧게' 설정 (v08_rulings.md:748, 801, 983)",
+  "부르심 연출: 승천 오버레이 없이 카메라가 출생 성계에서 넓은 하늘로 물러나고 상단 바·피드·패널이 켜진다; 서막의 '그'가 첫 줄 \"{HomeSystem}. 이 백성이 당신에게 맡겨졌다.\"에서 '당신'이 된다 (v08_rulings.md:801, 964)",
+  "첫 10분 타임라인: 0:00 첫 줄, 1:30 첫 징조, 5:30 1레인 이웃 보장, 책은 첫 10분에 없다 — 고넬료 사슬로 나중에 온다 (v08_rulings.md:749)",
+  "상단 바 시계 클릭으로 '주기'↔'년' 토글(기본 '주기'), 호버 시 두 단위 함께, 피드 머리·패널 카운트다운('120년 남음')·배속 라벨('1년/초…10년/초')이 따른다 (v08_rulings.md:906)",
+  "셋째 칸 승천 연출 뒤 상단 바에 ×25 단추 하나 추가 (v08_rulings.md:906)",
+  "거대 프로젝트 단추의 사유 피드백: 회색 단추 + 툴팁(칸·비용·칸 사용 중), 값을 못 낸 칸에 '멈춤 — 자원 부족', 상단 바 툴팁 '다음 칸까지: 다이슨 스웜(완성) · 물리 50%(34%)' (v08_rulings.md:906)",
+  "성역(태양계) 패널: '태양계 · 성역', \"성역 — 어느 백성의 소유도 되지 않는다\", \"이곳은 지켜지고 있다.\", 명령 단추 없음, 정착 사유 \"이곳은 팔리지도 차지되지도 않는다.\"가 맨 앞, 행성 목록에 '지구' (v08_rulings.md:906, 828)",
+  "지도: 태양은 언제나 보인다(이름만), 성역은 주인 고리·색 없음, 툴팁 \"이곳에는 압력이 닿지 않는다.\"; 성계 패널에 행성 목록·태양에서의 거리(아는 성계에만, '약'); 줌 단계 성계(서막)·구역·은하·우주 (v08_rulings.md:908-910, 907, 744)",
+  "방랑자가 성역으로 가면 경계 카드 '지경' 한 장(\"지경에 이르렀다. 더 가까이 가는 것은 허락되지 않았다. 그는 신을 벗었다.\")으로 끝나고 떠난 성계로 돌아온다; 얻는 것 없음 (v08_rulings.md:838)",
+  "고넬료 사슬 체험: 방문 위기에 응답(통치자: 안식 칙령 / 방랑자: '신을 벗으라') → 사자 조우에서 '듣는다' → 이벤트 \"말이 도착했다\"(\"그 말은 그들 가운데 기록으로 남았다.\") → '옛 땅의 기억' 한 쪽 화면이 열리고 성역 이름 줄이 \"이름 모를 이가 지키는 곳\"→\"하늘의 하나님이 지키시는 땅\"으로 (v08_rulings.md:886, 890)",
+  "'옛 땅의 기억' 화면: 회중의 고백(\"…라고 우리는 믿는다\")과 의회의 기록(\"…라고 기록은 적는다\") 각 4~6줄, 숫자·이름·연표 없음; 서막 카드 1의 작은 노란 별이 \"그 작은 노란 별이 옛 땅의 해였다.\"로 호를 닫는다 (v08_rulings.md:890, 983)",
+  "헤롯 패턴 청원 '그들이 당신을 높이려 한다' — 의회 변형/회중 변형, 선택 거절·침묵·받아들임(Exaltation +), '할아버지의 할아버지' 웅성거림이 처음 뜬 뒤 어느 칸에서든 (v08_rulings.md:848)",
+  "날이 더해진 그릇은 숫자가 아니라 백성의 웅성거림(\"할아버지의 할아버지도 그를 보았다고 한다.\")으로 보인다; 출처 있는 죽음은 그대로 온다 (v08_rulings.md:802, 850)",
+  "연대기 첫 장 머리가 서막의 선택을 읽는다(\"눈이 열렸다. 그가 연 것이 아니었다.\" / \"그 겨울, 그의 집은 추웠다.\"); '서막에서 돌아누운 밤'(거절 횟수)이 반드시 포함 (v08_rulings.md:981-982)",
+  "위기의 얼굴: 별 등급마다 문구(M·K·G '항성 폭풍', O·B·백색왜성 '초신성'), 대도감의 성식종·'세월을 갉아먹는 아지랑이'가 문장으로만; 해결 프로젝트 표시명 '항성 안정화' (v08_rulings.md:783-784)",
+  "스캔 변형 '너무 깨끗한 광맥'(기록원의 인용), 레인 이동 조우 '암흑을 직조하는 자들', 침묵 초월자의 1인칭 '울타리의 증언' (v08_rulings.md:839-840, 794)",
+  "은하 패널은 모든 은하에 같은 한 줄 \"이 은하의 별들도 하나도 빠짐없이 이름대로 불렸다.\"; 표시 전용 은하 여럿(M81·M82·NGC 253 등) (v08_rulings.md:857)",
+  "게임 밖 '세계관과 출처' 화면(Phase 5 최소형): 출처·라이선스, '천문 수치는 관측이고 생명·백성·사건은 허구', '생물은 지어진 것', 케플러·TESS 행성 자료 줄, 개발자의 목소리로 창조부터 교회까지·인류사 (v08_rulings.md:1028, 890)",
+  "첫 생애의 별 고르기 화면은 Phase 6+ 첫 생애 선택 UI와 함께 — 거기서도 태양계는 잠긴다 (v08_rulings.md:847)",
+  "플롯 아머 없음: 첫 생애 백성도 멸망·폐위·주장·조공이 가능하다; 시작 수치 이점 0, 신앙 특성 없음 (v08_rulings.md:882, 795)",
+  "스토어 문구 원칙 '미선언·미은폐': \"당신은 아직 그 책을 만나지 못한 먼 별의 한 사람으로 시작한다.\"; 그분의 이름은 스토어에 쓰지 않는다 (v08_rulings.md:1060)",
+  "Phase 5 테스터 질문: 첫 10분(서막 포함)에 불편한 문장이 있었는가, 어느 종족을 하나님이 버린 종족으로 그렸다고 느꼈는가(≤1/10), 부르심이 '신이 되는/구원받는 이야기'로 읽혔는가(≤1/10) (v08_rulings.md:1010)"
+ ],
+ "quality_notes": [
+  "분량·형식: E장은 439행 약 104KB, 한 줄 최대 2,165자. 거의 전부가 '행 | 지금 | 고침 | 때' 표인데 '고침' 셀 안에 문단·인용·식별자·표지·괄호 설명이 통째로 들어가 표가 표 구실을 못 한다 (v08_rulings.md:744, 801, 882, 890)",
+  "수명: E는 편집 전 원본 4,789행 기준의 일회성 패치 스크립트이고 파일 머리가 '다시 적용하지 않는다, guideline이 이긴다'고 명시한다. 커밋 9aba0e9로 적용이 끝나 행 번호가 모두 무효가 됐으므로 SSoT 구축 때 아카이브(Docs/history)하고 A~D만 '설계 기록'으로 남기는 것이 맞다 (v08_rulings.md:3, 714)",
+  "표지의 양: 적용 후 guideline.md에 '(v0.8 — 단계' 표지가 162곳, '가칭' 63곳, arch_terran 52곳(역사 보존 규칙 때문에 의도적 잔존) — 본문의 큰 비율이 아직 코드가 뒤따르지 않은 설계이며 신규 독자는 '지금 코드 vs 옛 데이터 vs 미래 단계'를 매 문장 판별해야 한다 (v08_rulings.md:716-717)",
+  "교차 참조 밀도: 한 셀에 §번호·§16 #번호·A.2-n·B.n·C.n·D.n·E.n·'단계 N'·'Phase N'·'N번 작업'·커밋 해시가 공존하고, 같은 작업이 세 좌표계(단계 3 / Phase 3 꼬리 / 12번)로 불린다. 통폐합 문서는 단계 번호 하나로 통일하고 매핑 표를 하나만 두어야 한다 (v08_rulings.md:746, 1119, 1023)",
+  "비유 어휘: 산울·그릇·부름·받은 높음·옛 땅·지경·고넬료 사슬·두 목소리·잎 노드 같은 신학·비유 낱말이 식별자(Law.Hedge, sys_0)와 같은 문장에 섞여 있다. 규칙 6이 '첫 등장 절에서 한 번 풀이'를 요구하지만 E 자체는 풀이 없이 쓴다 — 개발 가이드라인에 용어 사전을 선행시켜야 한다 (v08_rulings.md:719)",
+  "변경 이력의 위치: 'v0.8 변경 요약'은 guideline 머리(84행)에, 결정 근거는 §16 'v0.8 확정'에, 작업 상태는 CLAUDE.md '현재 단계'와 WORKPLAN §3 '다음'에 '같은 문안'으로 이중 기록 — 이력·상태·결정이 세 문서 네 자리에 분산되어 단계 2 완료 직후 이미 E와 어긋났다 (v08_rulings.md:739, 1106, 1123)",
+  "설계와 운영의 혼합: 'effort xhigh·ultracode 켬/끔' 같은 에이전트 운영 지시가 §11·WORKPLAN·CLAUDE.md 본문에 들어가도록 지시되어, 게임 설계 명세와 AI 협업 프로토콜이 한 문서에 섞인다 (v08_rulings.md:1110, 1113, 1123)",
+  "유보 표현: '인쇄 전 확인'·'약'·'후보'·'헤더가 정한다'·'자리가 없으면 EA'·'빼거나 선언만'이 반복되어 어떤 값이 확정이고 어떤 값이 자리표시인지 구분하기 어렵다 (v08_rulings.md:775, 857, 840, 858)",
+  "신학 결정과 편집 작업의 경계: 성경 출처 교정(욘 1:9→스 6:10, 마 13:30→고전 4:5)이 C장이 아닌 편집 표 안에 결정처럼 등장한다 (v08_rulings.md:817, 862)",
+  "검증 수단을 함께 지시한 점은 장점: 테스트 이름·규모(5판×20,000틱, 커맨드렛 30판), 커맨드렛 요약의 '결정적인 칸이 같고 무주 성계 수만 +1' 증명, 스키마 규칙, 재감사 grep 목록이 명시되어 있어 개발 가이드라인의 DoD로 재사용할 수 있다 (v08_rulings.md:1007, 947, 723-730)",
+  "E.10 표는 좋은 요약이나 '지금/나중'의 경계만 보여 주고 완료 여부는 추적하지 않는다 — 로드맵 문서에 단계별 상태 열(미착수/진행/끝 + 커밋)을 두면 CLAUDE.md '현재 단계'의 서술형 기록을 대체할 수 있다 (v08_rulings.md:1134-1144)",
+  "역사 보존 규칙(규칙 4)은 커밋 이력이 있는 저장소에서 과잉이다 — v0.4~v0.7 변경 요약과 §16 지난 확정 기록을 본문에 영구 보존하면서 arch_terran·sol·'지구'를 남기는 것이 지금의 가독성 문제를 만든다; 통폐합 때 CHANGELOG로 분리할 근거 (v08_rulings.md:717)",
+  "가칭 목록(규칙 7)이 실제 사용(미끼의 땅, 헤롯 청원)을 다 담지 못하고, 규칙 8의 대상 행 목록이 조각별 표와 어긋나는 등 지침 내부의 자기 정합성 검사가 부족하다 (v08_rulings.md:720-721, 787, 848)"
+ ]
+}

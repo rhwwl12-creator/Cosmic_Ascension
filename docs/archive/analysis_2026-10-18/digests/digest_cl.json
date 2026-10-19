@@ -1,0 +1,914 @@
+{
+ "scope": "cl: CLAUDE.md 전체(279행, 118KB) — 프로젝트·아키텍처 불변 규칙·작업 방식·빌드/실행/테스트·모듈/UHT 규칙·엔진 헤더 경로·렌더 결정·현재 단계",
+ "summary": "CLAUDE.md(279행, 118KB)는 제목이 'Claude Code 작업 규칙'이지만 성격이 다른 네 글이 한 파일에 섞여 있다. ① 아키텍처 불변 규칙(L12–48, 약 22%): 세 층 상태(세계→앎→이야기), 세 난수 출처와 '행을 보기 전에 무조건 뽑기', 틱 열 단계, 데이터 SSoT(Tools/data JSON·CSV→uasset, schema.json 삼중 검사), 결정론 해시(소문자 FName·FNameLexicalLess·FP Precise·√까지만), 성역 sol·첫 생애 arch_seeker·칭호와 판정 어휘 금지 같은 서사 규칙 — guideline §를 147회 인용한 재진술이다. ② 빌드·실행·테스트(L60–148, 약 18%): cmd와 PowerShell 두 벌의 같은 명령 10개, 스크린샷·프로파일 절차, 변이 테스트 중심의 테스트 작성 규칙. ③ 검증된 UE 5.8 헤더 표(L159–224, 약 26%). ④ 현재 단계 일지(L244–278, 약 29%): Phase 0~3·v0.6~v0.8의 리뷰 건수·변이 수·기준 해시·§16 미결 번호가 시간순으로 누적된다. 불변 규칙 안에 '(v0.7 — …)' 6곳·'(v0.8 — 단계 N부터)' 11곳·'가칭' 4곳이 섞여 현행 코드(sol이 0번 모성계, arch_terran)와 목표 설계가 한 문장에 공존한다. 플레이어 경험은 배속 키·마우스 조작·패널·피드·승천 연출과 '마우스만으로 셋째 칸까지' 종료 조건 정도만 있고, 코어 루프·재미·기본 밸런스는 guideline §9.3·§16으로 넘긴다. 진행 기록은 WORKPLAN §3·guideline §11과 삼중이며(L256이 자인), L263의 '아직 없는 것' 목록은 L265–266의 완료 기록과 어긋난 채 남아 있다. 경로·셸이 Windows 전용(C:\\…, PowerShell 5.1)이라 현재 Linux 체크아웃에서는 명령 블록이 그대로 돌지 않는다.",
+ "key_decisions": [
+  {
+   "topic": "설계 기준 문서(SSoT)",
+   "decision": "guideline.md가 설계 기준이고 섹션 번호로 참조한다. 결정이 바뀌면 guideline.md를 먼저 고친다. cosmic_species_codex.md는 세계관 원천이지 게임 데이터가 아니며 고치지 않는다(쓰는 법은 §5.11 '대도감'). v08_rulings.md는 v0.8 단계 1의 판정이고 기준은 guideline이다. v08_agent_directive.md·code_artifact.md도 루트에 둔다(§16 #95).",
+   "source_ref": "CLAUDE.md:5, CLAUDE.md:9"
+  },
+  {
+   "topic": "개발 철학·데이터 타입",
+   "decision": "1인 개발, 린 시뮬레이션, 3D 에셋·캐릭터 모델 참조 금지. 데이터는 DataTable(FTableRowBase), 식별자 FName, 분류 FGameplayTag, 표시 문자열 FText.",
+   "source_ref": "CLAUDE.md:6"
+  },
+  {
+   "topic": "레이어 분리(§6.1)",
+   "decision": "Core Logic Layer(Sim·Events·Ascension·Log·Player·Save)는 UUserWidget/AActor를 include하지 않는다. Core Logic Subsystem은 플레이어·생애에 종속된 멤버 변수를 갖지 않고, 지속 업적 진척은 FGalaxyState 안에 둔다. CommonUI 금지(UMG만, §6.3).",
+   "source_ref": "CLAUDE.md:12, CLAUDE.md:19, CLAUDE.md:25"
+  },
+  {
+   "topic": "상태 모델(§6.2·§7.2·§8.1)",
+   "decision": "모든 런타임 상태는 FGalaxyState 안의 USTRUCT이며 UObject 그래프로 상태를 만들지 않는다. FGalaxyState는 '판'의 상태(코드 식별자 Galaxy = 판, 개명하지 않음). 상태는 세 층 세계→앎(Knowing)→이야기(Log·Chronicle·TellRngState). 세계 코드는 앎을 NoteMet·NoteKnown으로 쓰기만 하고 읽지 않는다 — 앎을 읽는 조건·효과는 없다.",
+   "source_ref": "CLAUDE.md:13"
+  },
+  {
+   "topic": "난수 출처 셋과 고정 추첨(§9.2)",
+   "decision": "시뮬 스트림 UGalaxySimulationSubsystem::GetRng()(세계를 바꾸는 모든 추첨), 말하기 스트림 DrawTell()(TellRngState — PushVariants의 문장 변형만), 파생 정수 CosmicSeed::Derive(상태 없음, 식·상수 동결). 서로 읽지 않는다. 추첨 지점은 행을 보기 전에 정해진 횟수를 무조건 뽑는다(이벤트 슬롯당 1회, 정착된 성계마다 위기 발생 1회·만료마다 2회, 폐위 섭정 1회, AI 정착 백성마다 1회, 타락 로스터 자리마다 1회, 생성 추첨은 쓰지 않을 때도 정해진 순서). 한 지점의 추첨 수는 테이블 내용에 좌우되지 않는다(고향 행 LivingWorlds·Peoples만 예외). FMath::Rand* 금지.",
+   "source_ref": "CLAUDE.md:14"
+  },
+  {
+   "topic": "틱 열 단계(§7.4·§7.5)",
+   "decision": "경제→연구→외교→분쟁→위기→AI→건넘→플레이어 이동→앎→역할 효과 해소. 이벤트 슬롯(EvaluateAndFire)은 위기 단계 끝, 업적 판정(EvaluateFeats)은 AI 단계 끝, 틱당 영압 효과는 경제 단계의 수입과 비축 사이. 틱당 원천(bPerTickSource)은 양을 고치는 효과 일곱만. 발화한 행은 '효과 전부→FollowUpKnowing→행의 줄→뒤따르는 줄→OnEventFired'의 원자. Check·Apply는 static으로 세계만 읽고 쓴다. Civs 원소 수는 건넘 단계에서만 바뀌고 Systems는 줄지 않는다(파괴된 성계는 죽은 노드).",
+   "source_ref": "CLAUDE.md:15"
+  },
+  {
+   "topic": "소스·태그·로그 카테고리 규칙(§10.1·§10.3·§10.4)",
+   "decision": "소스 파일은 ASCII, UMETA(DisplayName) 영문, 한글은 DataTable/String Table. 헤더는 모듈 루트 기준 include. GameplayTag는 Config/DefaultGameplayTags.ini 단일 출처·RequestGameplayTag(FName)·Domain.Sub.Leaf 최대 3단계(UE_DECLARE_GAMEPLAY_TAG는 쓰지 않음). UE_LOG 카테고리는 LogCosmic 하나(게임 내 Log.* 태그와 별개).",
+   "source_ref": "CLAUDE.md:16-20, CLAUDE.md:206"
+  },
+  {
+   "topic": "신학적 경계(§4.2·§4.5·§8.3)",
+   "decision": "하나님(거룩한 질서)은 엔티티·화자·수치·엔딩 조건이 아니다. 1인칭 로그 화자는 타락 초월자만. 영혼·구원·멸망을 세는 필드·컬럼·업적은 없고 영혼 경제의 유일한 크기는 초월자 영향권(성계 수)이다.",
+   "source_ref": "CLAUDE.md:21, CLAUDE.md:28"
+  },
+  {
+   "topic": "성역(태양계 sol) — v0.8 단계 4부터",
+   "decision": "sol은 다시 쓸 수 없는 법의 성역(가칭 Law.Hedge·CosmicState::IsSanctuary): 소유·세력·색·수치·관계 키가 아니고 정착·넘김·주장·교단·초기 코어·모성계·출생·계승·즉위·파괴·영향권의 대상이 아니며 압력 0. 그릇은 sol에 서지 않는다(방랑자는 경계 카드 '지경'까지). 성역 지칭은 이름 없는 수동태와 화자 목소리만, 그분의 이름은 게임 밖 '세계관과 출처' 화면만. 성역의 별을 첫 생애의 해·타락의 별과 한 줄·한 카드에 맞세우지 않는다. 그 전의 코드는 sol이 플레이어 모성계다.",
+   "source_ref": "CLAUDE.md:22, CLAUDE.md:47"
+  },
+  {
+   "topic": "첫 생애 — v0.8 단계 4b·7부터",
+   "decision": "첫 생애는 성역 밖 '찾는 백성'(Revelation.Seeking)의 한 필멸자. 행은 DT_Rules.PlayerArchetypeRow = 가칭 arch_seeker, Weight 0, 두 목소리(의회·회중). 성역 밖에 인간 백성·인간 이름 뱅크 없음, '지구'는 성역 패널과 게임 밖 화면만(백성은 '옛 땅'). 책은 고넬료 사슬(방문 응답→사자의 전언→'말이 도착했다'→Trait.Faith.Book)로 나중에, 사자는 가리키기만. 성육신 한 줄은 '옛 땅의 기억' 화면의 회중 고백만. 그 전 데이터는 arch_terran.",
+   "source_ref": "CLAUDE.md:23"
+  },
+  {
+   "topic": "통치자 정의와 칭호 금지(§4.4)",
+   "decision": "통치자는 '부르심을 입어 구별되고 날이 더해진 자 — 한 백성을 맡았다'. 서막은 칸이 아니고(T0 없음) 부르심은 칸·PeakTier를 주지 않는다. 구원자·메시아·선택받은 자·빛의 아들·기름 받은 자·'신이 되었다'·'초월자가 되었다'·명사 '깨달음'(해탈의 길 카드 예외) 금지 — 받은 꼴(구별되었다·눈이 열렸다 등)만. 부르심은 소명이지 구원이 아니다.",
+   "source_ref": "CLAUDE.md:24"
+  },
+  {
+   "topic": "관계(§5.5·§7.5)",
+   "decision": "FCivilizationState.Relations 키는 CivID 또는 TranscendentID, 항목은 처음 쓸 때 생기고 없는 키 = 0 = 중립. CivRelationAtLeast·ChangeRelation의 상대는 살아 있는 문명, 판의 초월자 인스턴스, DT_Transcendents의 천상(Realm.Celestial) 행 이름만. (v0.7 — 외교 단계와 InitialRelations는 Phase 4)",
+   "source_ref": "CLAUDE.md:26"
+  },
+  {
+   "topic": "역할 효과 파이프라인(§7.4)",
+   "decision": "DeposeRuler·KillPlayer는 위기·분쟁·이벤트 효과·조우 해결에서 UCosmicEventSubsystem::Apply를 거쳐 Embodied일 때만 PendingRoleEffect에 기록(먼저 기록 우선, 출생 보호는 적는 자리에서 가림, 성계 위기는 그 성계에 선 방랑자만, 통치자는 통치 문명 절멸로만 사망)되고 열째 단계에서 처리. 값은 태그 Effect.KillPlayer·Effect.DeposeRuler, 빈 태그 = 없음. 지금은 폐위만 처리하고 KillPlayer는 Phase 4b 사망 파이프라인까지 기록된 채 남는다.",
+   "source_ref": "CLAUDE.md:27"
+  },
+  {
+   "topic": "초월자·심도·칸(§3.2·§4.2·§7.3)",
+   "decision": "Realm은 상태가 아니라 정의(FTranscendentDef.Allegiance = Realm.Abyssal/Celestial/Independent, 상태에 Realm 없음). TranscendentID == DT_Transcendents 행 이름. 초월자는 판에 교리마다 1체(은하마다 따로 두지 않고 타락은 건너지 않음). 심도는 FTranscendentDef.Depth(0~1)만이고 영압의 초월자 항에 (1+Depth)로 곱한다. 칸(EAscensionTier)은 다섯 그대로 — 대체 등급 타입·차원 축·현현 열거형 금지. 대도감의 에너지 등급은 칸이 아니다.",
+   "source_ref": "CLAUDE.md:29, CLAUDE.md:31"
+  },
+  {
+   "topic": "어휘·이름 거름(§5.11·§8.3)",
+   "decision": "서술자 로그 템플릿에 판정 어휘(천국·지옥·구원받·멸망받·영혼·저주받·심판받) 금지 — 스키마 낱말 목록 verdict가 컬럼·슬롯 이름·인물 이름에서 막는다(Data.NoVerdictWords 테스트는 Phase 5). 1인칭(Log.Transcendent·Log.Claim)·조우 인용·Chronicle 머리만 예외. 다른 작품 고유명·신화·성경 고유명사는 가칭 other_works·holy_and_myth 목록으로(v0.8 단계 4). 게임에 보이는 이름은 한국어 묘사 이름, 대도감 원문 이름은 원형 장부·설계 풀이에만.",
+   "source_ref": "CLAUDE.md:32-33"
+  },
+  {
+   "topic": "요약 단위 원칙(§1.3·§12.2)",
+   "decision": "인물은 FCivilizationState.Notables의 FNotableRecord(Role·NameIndex·FirstTick·LastTick·SourceRow 5필드 고정) — 능력치·AI·관계 없음, 개인을 겨누는 조건/효과 없음(NameNotable·CivHasNotable만). 능력치를 가진 개인은 그릇 하나(FPlayerEntityState).",
+   "source_ref": "CLAUDE.md:34"
+  },
+  {
+   "topic": "숫자 표시 규칙(§1.3·§8.3)",
+   "decision": "사람 수는 GetPopulationBand 등급만. 서술자 로그·연대기는 주기·비율만, 자원·Stability 숫자는 UI만. 천체 수·거리는 은하 패널·우주 화면·게임 밖 화면에 DT_Galaxies FText 그대로('약'·'추정'), 로그·연대기·두 책·조우 문장에는 금지. 생명 성계·백성·아는 것의 수는 UI에도 숫자 금지. 천체 이름의 숫자는 UI 라벨만. UI의 '년'은 표시 단위(1주기=1년, 보는 사람 설정, 상태·해시 밖).",
+   "source_ref": "CLAUDE.md:35"
+  },
+  {
+   "topic": "세이브 호환(§9.1·§9.3)",
+   "decision": "저장 필드의 멤버 초기값은 세이브가 생긴 뒤 바꾸지 않는다(CDO 대비 델타 저장 — 의미 변경 = 마이그레이션). SaveVersion 초기값 리터럴 1 고정, 현재 버전은 FGalaxyState::CurrentSaveVersion을 NewGalaxy·마이그레이션이 찍는다. 행 이름(SourceRow·ArchetypeRow·BirthArchetypeRow·GalaxyRow)은 세이브에 남으므로 배포 뒤 바꾸지 않는다. EventCooldownUntilTick 키 꼴 '<행>@<CivID>' 고정, 행 이름에 '@' 금지.",
+   "source_ref": "CLAUDE.md:36, CLAUDE.md:39"
+  },
+  {
+   "topic": "결정론 해시(§9.2)",
+   "decision": "ComputeStateHash는 FName·FGameplayTag를 소문자 문자열로 해시(GetTypeHash·이름 인덱스·원시 메모리 금지), TMap은 FNameLexicalLess 정렬 순으로만 순회·해시, FText·GalaxyID는 해시 밖. ComputeWorldHash = Knowing·Log·Chronicle·TellRngState 제외(앎이 세계를 바꾸지 않음을 재는 자, 쿠킹 빌드 비교용). 게임 모듈은 모든 타깃에서 FPSemantics Precise. 해시에 드는 부동소수점은 모듈 안 코드로만 계산하고 + − × ÷ √만 쓴다(삼각 함수·C 런타임 수학 금지). 시뮬이 읽는 FText는 없다.",
+   "source_ref": "CLAUDE.md:37, CLAUDE.md:42"
+  },
+  {
+   "topic": "Tier 표기",
+   "decision": "데이터 컬럼의 Tier는 1~5, EAscensionTier 값은 0~4(Tier1_Planetary == 0). 비교는 static_cast<int32>(Tier)+1, 배열 인덱싱은 static_cast<int32>(Tier).",
+   "source_ref": "CLAUDE.md:38"
+  },
+  {
+   "topic": "데이터 파이프라인(§7.3·§9.3·§10.1·§10.4)",
+   "decision": "정의 데이터는 FCosmicDataTables가 고정 경로 /Game/CA/Data/DT_*에서 로드(설정 에셋 없음). 코드가 이름으로 찾는 행은 CosmicRows:: 상수만. 원본은 Tools/data/*.json·ST_CA.csv, .uasset은 make_data_tables.py 산출물(에디터 수정은 덮어씀). 원본 해시 도장 generated.sha1 + 테스트 Data.SourcesInSync. 규칙은 schema.json, 검사기 cosmic_data_schema.py(에셋 전 실행, 에디터 없이는 check_data.py), 테스트 Data.Integrity가 스키마를 코드·에셋과 맞춤. 컬럼·열거자·CosmicRows 상수를 더하면 schema.json과 test_data_schema.py(경계 양쪽 입력)를 함께 고친다. 행 이름은 테이블 접두어·테이블 가로질러 유일. Named 행은 FireRow로(OutbreakRow 예외).",
+   "source_ref": "CLAUDE.md:39, CLAUDE.md:142"
+  },
+  {
+   "topic": "로컬라이제이션(§8.5)",
+   "decision": "DataTable 텍스트 키는 위치(행·컬럼·배열 인덱스)로 정해지므로 번역 시작 뒤 Templates·NameBank 같은 배열은 끝에만 추가. DT_ 에셋을 지우고 다시 만들지 않는다(스크립트는 제자리 재충전). UI 라벨은 FText::FromStringTable(…, FindOrFullyLoad).",
+   "source_ref": "CLAUDE.md:40, CLAUDE.md:44"
+  },
+  {
+   "topic": "서사 로그와 핸들러 제약(§7.5·§8.1·§8.4·§9.4)",
+   "decision": "State.Log에 쓰는 것은 Push·PushVariants만(PushRow는 포장). Message는 FText::AsCultureInvariant로 평탄화. PushVariants는 호출당 말하기 추첨 정확히 1회(직전과 같은 문장이면 다음 변형, 다시 뽑지 않음). 줄이 쌓이는가는 이야기의 범위가 정함(범위 밖 Severity 2·Log.Claim·Log.Record는 bUntold). OnLogEntry는 틱 도중 동기 발화, bUntold에는 발화 안 함. 핸들러(OnLogEntry·OnEventFired·OnTierAscended)는 상태 읽기·SetTimeScale만 가능하고 NewGalaxy·LoadGalaxy·LoadState·StepOnce·RunHeadless·EvaluateAndFire·FireRow·Push·PushVariants·DrawTell·NoteMet·NoteKnown·Install·DeposeRuler·BecomeWanderer·ReceiveCalling·StartMegaproject·StartNextMegaproject·SaveCurrentGalaxy는 에러 한 줄 내고 무시.",
+   "source_ref": "CLAUDE.md:41"
+  },
+  {
+   "topic": "일시정지(§7.4)",
+   "decision": "시뮬의 일시정지는 SetTimeScale(0) 하나뿐 — Subsystem은 월드 없는 틱 패스에서 돌아 SetGamePaused·시간 팽창이 닿지 않는다. 정지는 이월된 시간도 버린다(§16 #40 ③). 서막도 SetTimeScale(0)이고 배속 입력이 없다(v0.8 단계 6).",
+   "source_ref": "CLAUDE.md:43"
+  },
+  {
+   "topic": "은하·ID 체계(§5.9·§7.2)",
+   "decision": "상세 시뮬 은하는 고향 은하(DT_Rules.HomeGalaxyRow = gal_milkyway) 하나. 성계·문명의 GalaxyRow는 NewGalaxy가 찍는 DT_Galaxies 행 이름(NAME_None = 아직 안 찍힘; 뜻을 갖는 NAME_None은 OriginGalaxyRow = 토박이뿐). 레인 규칙은 같은 GalaxyRow 안, 다리(BridgeTicks)는 레인이 아님. 성계 ID는 sol(성역, 배열 끝)·sys_0(첫 생애 모성계, 0번)·sys_<n> 영구(v0.8 단계 4부터), 문명 civ_<n>(NextCivSerial, 재사용 없음). 'ID 사전순'은 언제나 FNameLexicalLess.",
+   "source_ref": "CLAUDE.md:45-46"
+  },
+  {
+   "topic": "정착 술어와 단일 진입점(§5.7·§5.12·§4.1)",
+   "decision": "정착된 성계 = 소유이고 ActiveMegaproject != project_settle(수입·Law.Remnant·Hazard 추첨·계승 후보·인접 판정·마지막 성계의 문이 모두 이 술어). 무주 성계에는 Hazard·주장이 서지 않는다. 마지막 정착 성계를 잃으면 정착 중 성계도 무주(LetSettlementsGo). 정착 가능 여부는 CosmicMegaprojects::SettleBlockOf 하나가 답한다(사유 순서: 주인 있음→죽은 노드→레인→행 없음→행의 칸→보유 상한→진행 중 정착→영향권, v0.8 단계 4부터 성역이 맨 앞). 명령·AI·패널 단추가 같은 답을 읽는다. Hazard 배치는 CosmicHazards::Place 하나, 해결·넘기기·파괴도 함수 하나씩.",
+   "source_ref": "CLAUDE.md:47"
+  },
+  {
+   "topic": "설계 낱말(§15)",
+   "decision": "'조우'는 조우 카드만, 처음 알아봄은 '만남', 판의 첫 만남은 '첫 접촉', 사다리는 '칸', 다리는 '문·관문·길'이 아니고 건넘 수단은 '건너는 배들'(방주 아님). '성역'=태양계·'성역 밖'(게임 안에 이름 없음, '외곽 심연' 금지), 말이 온 뒤 '옛 땅', 방랑자 성역 카드 '지경'(방문 위기의 '신을 벗으라'와 다름). project_stabilize·feat_supernova_stabilized 표시명 '항성 안정화'(v0.8 단계 5).",
+   "source_ref": "CLAUDE.md:48"
+  },
+  {
+   "topic": "작업 방식(§14.1·§14.2·§10.5)",
+   "decision": "effort·ultracode 기준과 세션 절차·다음 작업은 WORKPLAN.md를 따른다. 기본 모델·effort는 .claude/settings.json(Opus 5.5, high). 클래스 하나씩, 헤더 먼저 제시·승인 후 소스. 시뮬 코드는 Tests/ 자동화 테스트와 함께. 낯선 엔진 API는 로컬 엔진 소스(C:\\Program Files\\Epic Games\\UE_5.8\\Engine\\Source)에서 확인. UCLASS/USTRUCT/UENUM 변경 = 에디터 닫고 전체 빌드, Live Coding은 .cpp만. 커밋 단위는 '컴파일되는 상태'.",
+   "source_ref": "CLAUDE.md:52-58"
+  },
+  {
+   "topic": "빌드·실행·테스트 절차",
+   "decision": "Build.bat로 에디터/게임 타깃 빌드(-WaitMutex), UnrealEditor-Cmd.exe -run=pythonscript로 맵·머티리얼·위젯 BP·DataTable 생성, -run=CosmicBalance 밸런스 커맨드렛, -game -nullrhi 스모크, 'Automation RunTests Cosmic_Ascension' 자동화 테스트. PowerShell 5.1에서는 & '<exe>' --% 꼴, -ExecCmds에 쉼표 금지. 자동화 테스트는 빌드 뒤 두 번 연속(Sim.SaveRestart의 저장/로드 절반, 둘째 로그에 'Restart half verified'). 화면 확인은 -RenderOffScreen 스크린샷·-ShotAfterSeconds·CosmicSelect·CosmicPreviewAscension, 프레임 시간은 -Speed·-ProfileAfterSeconds.",
+   "source_ref": "CLAUDE.md:60-141"
+  },
+  {
+   "topic": "테스트 작성 규범(5.8)",
+   "decision": "IMPLEMENT_SIMPLE_AUTOMATION_TEST 플래그 ClientContext|EditorContext|ProductFilter(Context 1개 이상 + Filter 정확히 1개, -game이라 ClientContext 필수). 공용 도우미 Tests/CosmicTestHelpers.h(Flags·AcquireSim·WireChain·ClearOwners·Give·WithRules). 긴 루프는 RunHeadless(1). 새 테스트는 변이로 한 번 깨뜨려 본 뒤 되돌린다. 단언 하나에 경우 하나. 열거자·컬럼·테이블 목록은 리플렉션에서 읽는다. 대조군은 테스트가 만든다. 정확히 견주는 값은 테스트 노브(WithRules)로. ensure는 AddExpectedError로 못 덮으니 호출자 오류는 UE_LOG Error 한 줄. 파일별 네임스페이스(유니티 빌드). 이름 문자열 비교는 에디터 바이너리 전제, CaseSensitive 비교.",
+   "source_ref": "CLAUDE.md:145-148"
+  },
+  {
+   "topic": "모듈/UHT/컴파일 규칙",
+   "decision": "헤더 이름은 타깃 전체에서 유일(도메인 접두어, Types.h 금지). .generated.h는 마지막 include, #pragma once 필수. BuildSettingsVersion.V7 + IncludeOrder Unreal5_8: C++20, UE_LOG 포맷 컴파일 타임 검증, 미정의 식별자·dangling·unreachable 경고가 에러, 전이 include 금지. UPROPERTY 중괄호 초기화 허용. Category 지정자는 엔진 모듈에서만 필수.",
+   "source_ref": "CLAUDE.md:151-157"
+  },
+  {
+   "topic": "GameplayTags ini 규칙",
+   "decision": "DefaultGameplayTags.ini는 계층 레이어라 +GameplayTagList=(Tag=...,DevComment=...) 필수(+ 없으면 배열 덮어씀). 분할 파일은 Config/Tags/<이름>.ini에 + 없이. 속성 WarnOnInvalidTags, ClearInvalidTags는 사용 금지(5.5 deprecated). 태그 이름에 \" ' , 금지.",
+   "source_ref": "CLAUDE.md:227-229"
+  },
+  {
+   "topic": "틱 Subsystem·커맨드렛 부트스트랩",
+   "decision": "FTickableGameObject(ETickableTickType::Never) 생성 → Initialize 끝 Conditional → Deinitialize Never. IsAllowedToTick 오버라이드 금지. GetTickableGameObjectWorld를 오버라이드하지 않아 월드 없는 패스에서 돈다. 커맨드렛은 UGameInstance가 없으므로 NewObject→AddToRoot→InitializeStandalone으로 만들고 Shutdown→DestroyWorldContext→DestroyWorld(false)→RemoveFromRoot 순으로 치운다.",
+   "source_ref": "CLAUDE.md:232-235"
+  },
+  {
+   "topic": "렌더/플러그인 결정(DefaultEngine.ini)",
+   "decision": "레이트레이싱 OFF + SkinCache OFF 묶음, Lumen GI/반사 OFF, 메시 디스턴스 필드 OFF, Substrate ON 유지, 정적 라이팅 OFF, 가상 섀도맵 ON, DX12 SM6. ModelingToolsEditorMode 비활성, Niagara 명시 활성, CommonUI 비활성, PythonScriptPlugin 활성(에디터 바이너리에서만 실행). 후처리: 모션 블러·AO OFF, 안티에일리어싱 FXAA(r.AntiAliasingMethod=1, TSR 대신). 창 없는 실행의 GPU 시간은 믿지 않고 게임 스레드만 본다.",
+   "source_ref": "CLAUDE.md:238-242"
+  },
+  {
+   "topic": "UI 구현 결정(Phase 3)",
+   "decision": "맵 액터·성계 액터·이름표·카메라 폰은 게임 모드가 만든다. 선택과 시계 단위는 컨트롤러의 표현 상태(SelectSystem·OnSelectionChanged, ECosmicTimeUnit·OnTimeUnitChanged)이고 시계 단위는 GameUserSettings ini [Cosmic_Ascension.View] TimeUnit에 남는다(자동화 테스트 중에는 GIsAutomationTesting로 막음). 리스트 뷰 항목 클래스는 빈 WBP_LogEntry를 Tools/make_widget_blueprints.py가 만든다. 단추는 UCosmicActionButton이 행동 이름을 싣고, 단추 목록은 행동이 바뀔 때만 다시 짓는다. 패널 위 마우스 누름은 FReply::Handled()로 막는다. 머티리얼은 BeginPlay의 LoadObject로 읽는다(ConstructorHelpers 루트 고정 문제).",
+   "source_ref": "CLAUDE.md:182, CLAUDE.md:186, CLAUDE.md:198, CLAUDE.md:262-274"
+  },
+  {
+   "topic": "승천 연출",
+   "decision": "OnTierAscended에 답하는 C++ 오버레이(어두운 막, UI 머티리얼 M_AscensionGlow 금빛 빛무리, 업적 제목·새 칸·서사, 약 5초, 누르면 닫힘), 보이는 동안 시뮬 멈춤·닫힐 때 배속 복귀, 코드로 합성한 종소리(16비트 모노 PCM). NS_Ascension(Niagara)은 미룸(§6.5).",
+   "source_ref": "CLAUDE.md:201, CLAUDE.md:266"
+  }
+ ],
+ "parameters": [
+  {
+   "name": "UE 버전·경로",
+   "value": "5.8.3, C:\\Program Files\\Epic Games\\UE_5.8",
+   "source_ref": "CLAUDE.md:5"
+  },
+  {
+   "name": "프로젝트 루트(문서 기준)",
+   "value": "C:\\Users\\rhwwl\\OneDrive\\Documents\\Unreal Projects\\Cosmic_Ascension",
+   "source_ref": "CLAUDE.md:7",
+   "note": "실제 체크아웃은 /home/mechtro/Desktop/bbb/Cosmic_Ascension — 옮기면 이 파일과 guideline §16 #8을 함께 갱신하라고 적혀 있음"
+  },
+  {
+   "name": "EngineAssociation GUID",
+   "value": "{CCB28703-480F-382D-F8F7-E6A5E7850219}",
+   "source_ref": "CLAUDE.md:8",
+   "note": "'5.8' 문자열로 바꾸지 않는다; 다른 PC에서는 Switch Unreal Engine version으로 재연결"
+  },
+  {
+   "name": "기본 모델·effort",
+   "value": "claude-opus-5-5, high (.claude/settings.json)",
+   "source_ref": "CLAUDE.md:53",
+   "note": "v0.8 단계 1은 xhigh+ultracode; Phase 3 시각 작업은 medium·ultracode 끔"
+  },
+  {
+   "name": "틱 단계 수",
+   "value": "10 (경제→연구→외교→분쟁→위기→AI→건넘→플레이어 이동→앎→역할 효과 해소)",
+   "source_ref": "CLAUDE.md:15"
+  },
+  {
+   "name": "틱당 원천 효과 수(bPerTickSource)",
+   "value": "7 (양을 고치는 효과만)",
+   "source_ref": "CLAUDE.md:15"
+  },
+  {
+   "name": "FallenTranscendentCount",
+   "value": "0~3 (판당 활성 타락 ≤ 3)",
+   "source_ref": "CLAUDE.md:14, CLAUDE.md:246"
+  },
+  {
+   "name": "GameplayTag 깊이",
+   "value": "Domain.Sub.Leaf 최대 3단계",
+   "source_ref": "CLAUDE.md:18"
+  },
+  {
+   "name": "FTranscendentDef.Depth",
+   "value": "0~1, 영압 초월자 항 ×(1+Depth)",
+   "source_ref": "CLAUDE.md:31"
+  },
+  {
+   "name": "칸(EAscensionTier)",
+   "value": "5개, 값 0~4(Tier1_Planetary==0); 데이터 컬럼 Tier 1~5",
+   "source_ref": "CLAUDE.md:31, CLAUDE.md:38"
+  },
+  {
+   "name": "FNotableRecord 필드",
+   "value": "5 (Role·NameIndex·FirstTick·LastTick·SourceRow)",
+   "source_ref": "CLAUDE.md:34"
+  },
+  {
+   "name": "SaveVersion",
+   "value": "초기값 리터럴 1, 현재 FGalaxyState::CurrentSaveVersion(아직 1)",
+   "source_ref": "CLAUDE.md:36, CLAUDE.md:254"
+  },
+  {
+   "name": "저장 슬롯",
+   "value": "Galaxy_<GUID>, 판당 슬롯 1개",
+   "source_ref": "CLAUDE.md:251, CLAUDE.md:253"
+  },
+  {
+   "name": "로그 상한·피드",
+   "value": "State.Log 2,000줄 상한 → 연대기 이관; 피드는 마지막 500줄",
+   "source_ref": "CLAUDE.md:251, CLAUDE.md:265"
+  },
+  {
+   "name": "배속 키",
+   "value": "0/1/2/3/4 = 정지/1/2/5/10배속, Space = 정지 토글",
+   "source_ref": "CLAUDE.md:251"
+  },
+  {
+   "name": "시간 표시",
+   "value": "1주기 = 1년(표시 단위), -TimeUnit=Year, ini [Cosmic_Ascension.View] TimeUnit",
+   "source_ref": "CLAUDE.md:35, CLAUDE.md:274"
+  },
+  {
+   "name": "고향 은하 크기",
+   "value": "VS 60 성계·12 백성(고향 행 LivingWorlds·Peoples), EA 시작값 300·48",
+   "source_ref": "CLAUDE.md:96, CLAUDE.md:253"
+  },
+  {
+   "name": "DT_Galaxies",
+   "value": "6행 — 고향(gal_milkyway) 1 + 무대 4(Phase 6a 요약) + 풍경",
+   "source_ref": "CLAUDE.md:45, CLAUDE.md:253"
+  },
+  {
+   "name": "밸런스 커맨드렛 기본 인자",
+   "value": "-Seed=42 -Ticks=20000 -Out=balance.csv; 100틱마다 문명별 1행; -TellAll 기본 1; -Systems/-Civs 기본 0(고향 행)",
+   "source_ref": "CLAUDE.md:96-97"
+  },
+  {
+   "name": "자동화 테스트 실패 종료 코드",
+   "value": "255 (매칭 0개도 255 — 0이 아닌지로만 판정)",
+   "source_ref": "CLAUDE.md:100"
+  },
+  {
+   "name": "스크린샷·프로파일 인자",
+   "value": "-RenderOffScreen -windowed -ResX=1280 -ResY=720 -Seed=42 -ExecCmds='shot showui'; -ShotAfterSeconds=25; CosmicPreviewAscension 23; -ProfileAfterSeconds=30 -csvGpuStats(600프레임); -LogCmds='LogCosmic Verbose'",
+   "source_ref": "CLAUDE.md:140-141"
+  },
+  {
+   "name": "테스트 플래그",
+   "value": "ClientContext | EditorContext | ProductFilter",
+   "source_ref": "CLAUDE.md:145"
+  },
+  {
+   "name": "기준 해시(시드 42, 60·12, 전부 쌓는 모드)",
+   "value": "3,000틱 상태 2438129736 / 세계 1171528496; 20,000틱 1322306170 / 930521121",
+   "source_ref": "CLAUDE.md:259",
+   "note": "Phase 2 종료 리뷰 ①에서 바뀜; 실제 하늘(단계 5)에서 모든 시드가 다시 바뀔 예정"
+  },
+  {
+   "name": "Phase 2 실측(시드 1~29·42, 20,000틱)",
+   "value": "위기 62% 반란·그 98% AI 개혁이 해결; 백성 57% 안정도 0.3 아래; 주장 1,000틱당 0.57건·18% 만료(목표 40~60%); 영향권 30판 중 23판 증가(시드42: 1→4); 입력 없는 그릇 폐위 30판 중 4판(최초 틱 9,134·시드 7)",
+   "source_ref": "CLAUDE.md:259"
+  },
+  {
+   "name": "틱 비용",
+   "value": "VS 평균 30 µs, EA 150 µs(시드 42 임시)",
+   "source_ref": "CLAUDE.md:259"
+  },
+  {
+   "name": "세이브 예산",
+   "value": "1 MB — 현재 초과(§16 #40 ⑦)",
+   "source_ref": "CLAUDE.md:259"
+  },
+  {
+   "name": "소모 노브",
+   "value": "0.002 그대로(#61 닫힘)",
+   "source_ref": "CLAUDE.md:258, CLAUDE.md:264"
+  },
+  {
+   "name": "CivStabilityBelowFor.Value",
+   "value": "0.3만 허용(#25 ②로 굳힘)",
+   "source_ref": "CLAUDE.md:264"
+  },
+  {
+   "name": "프레임 시간(창 없음)",
+   "value": "게임 스레드 1배속 2.5 ms·10배속 2.8 ms; 첫 프레임 86 ms(절반 모션 블러, 다음 TSR); FXAA 1.4 ms @720p",
+   "source_ref": "CLAUDE.md:242, CLAUDE.md:267"
+  },
+  {
+   "name": "자동 노출 고정",
+   "value": "AutoExposureMinBrightness·MaxBrightness = 1",
+   "source_ref": "CLAUDE.md:187"
+  },
+  {
+   "name": "마우스 축 감도",
+   "value": "MouseX 0.07(드래그는 위치 차로 잼)",
+   "source_ref": "CLAUDE.md:191"
+  },
+  {
+   "name": "GameplayTag 수(v0.6 당시)",
+   "value": "136 (v0.5 +36, v0.6 Notable.* 6, Effect.KillPlayer·DeposeRuler 2)",
+   "source_ref": "CLAUDE.md:247",
+   "note": "'그 뒤의 작업이 더했다' — 현재 수 미기재"
+  },
+  {
+   "name": "Phase 1 열거자·구조체·Subsystem 수",
+   "value": "EConditionType 28, EEffectType 18, DataTable 행 구조체 9, Subsystem 6",
+   "source_ref": "CLAUDE.md:245, CLAUDE.md:250"
+  },
+  {
+   "name": "자동화 테스트 수 추이",
+   "value": "12(Phase 1)→14(v0.7 예약)→69(Phase 2)→70→71→72→73→74→75→76(시간 표시 토글); 검사기 단위 테스트 69건",
+   "source_ref": "CLAUDE.md:251-274"
+  },
+  {
+   "name": "이름 뱅크·계시 템플릿",
+   "value": "DT_Civs 2행 PersonNameBank 각 12개; 이름 60개·계시 21줄은 Phase 4 콘텐츠; RevelationTemplates는 Num()==3 확인 뒤 읽음",
+   "source_ref": "CLAUDE.md:252"
+  },
+  {
+   "name": "DT_Events 초기 행",
+   "value": "책 3행 + 모든 백성 추첨 행 4; Named 행 event_book_found(연구 단계 Society 돌파마다)·event_grace_remnant(마지막 성계의 문)·event_rebellion_rises(OutbreakRow)",
+   "source_ref": "CLAUDE.md:39"
+  },
+  {
+   "name": "v0.7 예약 필드",
+   "value": "저장 필드 25·구조체 3(FKnownMark·FKnowingState·FTransitRecord), CosmicSeed 용도 상수 8",
+   "source_ref": "CLAUDE.md:254"
+  },
+  {
+   "name": "ST_CA 라벨",
+   "value": "패널 12(쓰지 않게 된 7 제거), Settle.Block.* 7, Time.* 5",
+   "source_ref": "CLAUDE.md:265, CLAUDE.md:269, CLAUDE.md:274"
+  },
+  {
+   "name": "Phase 4 종료 조건(언급만)",
+   "value": "'30분 … T1→T3'",
+   "source_ref": "CLAUDE.md:263"
+  },
+  {
+   "name": "변이 테스트 수(Phase 3 작업별)",
+   "value": "GalaxyMap 22·CameraAndSelection 46·TopBarAndPanel 28·LogFeed 14·AscensionOverlay 20·MouseOnlyAscent 4·SettleBlockReasons 18·TimeUnitToggle 18; Phase 2 종료 리뷰 C++ 19/스키마 16, 재감사 C++ 17/스키마 9",
+   "source_ref": "CLAUDE.md:258-274"
+  }
+ ],
+ "gaps": [
+  {
+   "what": "코어 루프·재미·목표의 정의가 CLAUDE.md에 없다 — 규칙·절차·일지뿐이고 플레이어의 승리/엔딩(두 책)·세션 길이·페이싱은 guideline §9.3·§11·§16에 위임",
+   "why_it_matters": "재설계의 출발점(핵심 재미·목적성)을 이 파일에서는 얻을 수 없고, 다른 문서가 그것을 정했는지 확인해야 한다",
+   "source_ref": "CLAUDE.md:1-9, CLAUDE.md:263"
+  },
+  {
+   "what": "불변 규칙 안에 '(v0.7 — …)' 6곳·'(v0.8 — 단계 N부터)' 11곳이 섞여 현행 코드와 목표 설계가 한 문장에 공존",
+   "why_it_matters": "어느 규칙이 지금 참인지 독자(특히 에이전트)가 괄호를 가려 읽어야 하며, 통폐합 시 '현행'과 '예약'을 분리해야 한다",
+   "source_ref": "CLAUDE.md:13, CLAUDE.md:22-23, CLAUDE.md:26-27, CLAUDE.md:32, CLAUDE.md:35, CLAUDE.md:41, CLAUDE.md:43, CLAUDE.md:46-48"
+  },
+  {
+   "what": "가칭 식별자 4개: Law.Hedge·CosmicState::IsSanctuary, arch_seeker, other_works·holy_and_myth, ReceiveCalling",
+   "why_it_matters": "코드·스키마·ini에 실제 이름이 정해지지 않아 Phase 4·v0.8 단계 4~7 착수 시 결정이 필요",
+   "source_ref": "CLAUDE.md:22, CLAUDE.md:23, CLAUDE.md:32, CLAUDE.md:41"
+  },
+  {
+   "what": "성역 전환(v0.8 단계 4) 미구현: 현재 코드는 sol이 플레이어 모성계이고 스모크 로그가 '[0] 태양계'로 시작; 단계 4 뒤 ID·배열 순서·IsSanctuary·SettleBlockOf 사유 순서가 바뀜",
+   "why_it_matters": "세이브 호환·기준 해시·테스트 기대값 전부에 영향 — 마이그레이션/재측정 계획이 적혀 있지 않다",
+   "source_ref": "CLAUDE.md:22, CLAUDE.md:46, CLAUDE.md:140"
+  },
+  {
+   "what": "첫 생애 아키타입 전환(arch_terran→arch_seeker, 단계 4b·7): 두 목소리 데이터·이름 뱅크 60개·계시 21줄·고넬료 사슬 행이 없음",
+   "why_it_matters": "플레이어의 출발점(누구로 시작하는가)이 바뀌는 핵심 콘텐츠인데 데이터·화면 명세가 없다",
+   "source_ref": "CLAUDE.md:23, CLAUDE.md:252"
+  },
+  {
+   "what": "실제 하늘(단계 5)이 '생성 추첨 목록을 바꾸고 Phase 5 전에 모든 시드를 한 번 바꾼다' — 기준 해시·Sim.PhaseTwoExit 등 모든 기준값 재측정 절차 미기술",
+   "why_it_matters": "결정론 테스트 전체가 깨지는 전환점인데 언제·어떻게 새 기준값을 잡는지 없다",
+   "source_ref": "CLAUDE.md:14"
+  },
+  {
+   "what": "서막·부르심(단계 6): ReceiveCalling 가칭, '추첨 없음·SetTimeScale(0)·배속 입력 없음'만 있고 내용·화면·플레이어 선택 없음",
+   "why_it_matters": "온보딩/프롤로그 경험의 설계 공백",
+   "source_ref": "CLAUDE.md:14, CLAUDE.md:41, CLAUDE.md:43"
+  },
+  {
+   "what": "Phase 4 전부 미착수: 외교·분쟁 단계 본문, 칙령·조우·청원 카드, 방랑자 업적·여행 명령, 섭정 규칙, 첫 접촉 카드·PendingContactCivID·스캔, 폐위 3화면·망명 첫 조우, 역병 인접 전파, 주장 조건 (b) 조공, 바벨·느부갓네살·시대 명명 행, VS 40행 나머지, 초월자 문장(Title·CounterfeitOf·Lure·VoiceTemplates·ClaimTemplates)",
+   "why_it_matters": "플레이어의 '결정'이 들어오는 층 전부가 여기 있다 — Playable MVP의 최소 집합을 이 목록에서 골라내야 한다",
+   "source_ref": "CLAUDE.md:257, CLAUDE.md:263"
+  },
+  {
+   "what": "Phase 4b: 사망 파이프라인(Effect.KillPlayer가 기록된 채 남음), 계승 후보, 자진 이탈·사망의 섭정 기록, 공백기 다이제스트·Interlude, 생애 최고 칸·권능 계승(#67)",
+   "why_it_matters": "그릇 사망→부름 이어짐이라는 핵심 정체성 루프가 코드에 없다",
+   "source_ref": "CLAUDE.md:27, CLAUDE.md:47, CLAUDE.md:263"
+  },
+  {
+   "what": "Phase 5·6+: Data.NoVerdictWords 테스트, DT_Planets·성계 패널 행성 목록, 스크립트 통치자 -PlayerPolicy, SealedTick·봉인, 건넘(Transits·OriginGalaxyRow·Transit.People 태그는 테스트만 채움), 플레이어의 건넘(6b 후보), 절멸·교단·아공간 침식 행",
+   "why_it_matters": "장기 로드맵 항목이 불변 규칙·헤더 표에 흩어져 있어 한 곳에서 볼 수 없다",
+   "source_ref": "CLAUDE.md:32, CLAUDE.md:35, CLAUDE.md:254, CLAUDE.md:263"
+  },
+  {
+   "what": "밸런스 미결: AI 구호 정책(#71 — 주장 만료 18~20% vs 목표 40~60%), 안정도 바닥(#68 — 백성 57%가 0.3 아래), T2→T3 속도(#72), 남의 완성 기록(#73); '#68만·#71만 넣은 판을 먼저 잰다'는 실험 계획만",
+   "why_it_matters": "현재 시뮬이 목표 분포와 어긋난 채이고 기본값 확정이 Phase 4 헤더로 미뤄져 있다",
+   "source_ref": "CLAUDE.md:259, CLAUDE.md:263"
+  },
+  {
+   "what": "세이브: 연대기·세이브 크기가 1 MB 예산 초과(#40 ⑦), 슬롯 길이·체크섬(#70·#33 ②), 자동 저장 트리거(§9.1), 마이그레이션 코드·테스트 없음(SaveVersion 아직 1)",
+   "why_it_matters": "플레이어블 빌드에서 저장/이어하기가 안정적이려면 먼저 닫아야 하는 항목",
+   "source_ref": "CLAUDE.md:36, CLAUDE.md:254, CLAUDE.md:259, CLAUDE.md:263"
+  },
+  {
+   "what": "guideline §16 미결 다수(#1~#18, #24·#26, #28~#31, #33~#36, #40~#51, #55, #59, #60, #64, #67~#73 + v0.8 #74~#95)에 우선순위·MVP 차단 여부 표시 없음",
+   "why_it_matters": "어느 미결이 Playable MVP를 막는지 모르면 로드맵을 짤 수 없다",
+   "source_ref": "CLAUDE.md:260, CLAUDE.md:264"
+  },
+  {
+   "what": "확인 못한 것: 쿠킹된 게임 바이너리에서 같은 시드가 같은 해시를 내는지(첫 패키징 때), 창에서의 패널 갱신·60fps·마우스만 플레이(사람 몫)",
+   "why_it_matters": "결정론과 Phase 3 종료 조건이 아직 실측되지 않았다",
+   "source_ref": "CLAUDE.md:252, CLAUDE.md:267, CLAUDE.md:277"
+  },
+  {
+   "what": "Phase 3 꼬리 작업 미완: 7 영적 시야 꼬리·8 앎의 표시 꼬리·9 우주 화면·10 종료 리뷰·12 셋째 칸의 배속과 명령의 사유; 순서는 7→12→8→9→10",
+   "why_it_matters": "'앎'과 '영압'을 플레이어가 볼 수 있는 피드백이 아직 없다",
+   "source_ref": "CLAUDE.md:261, CLAUDE.md:277"
+  },
+  {
+   "what": "환경 의존: Windows 절대 경로·PowerShell 5.1·로컬 엔진 소스 경로가 전제 — Linux 체크아웃에서는 빌드·테스트·에셋 생성 명령을 돌릴 수 없고 대체 절차 없음(에디터 없이 가능한 것은 python Tools/check_data.py·test_data_schema.py뿐)",
+   "why_it_matters": "개발 가이드라인이 플랫폼 중립이어야 다른 PC/에이전트가 이어 받을 수 있다",
+   "source_ref": "CLAUDE.md:5, CLAUDE.md:7, CLAUDE.md:55, CLAUDE.md:61, CLAUDE.md:142"
+  },
+  {
+   "what": "스키마 검사기의 중첩 구조체 검사 확장(DT_Encounters의 FEncounterChoice 전)이 선행 조건으로만 적혀 있음",
+   "why_it_matters": "조우 카드(Phase 4) 착수의 숨은 선행 작업",
+   "source_ref": "CLAUDE.md:39"
+  },
+  {
+   "what": "'아직 없는 것' 목록(L263)이 Phase 2 종료 시점 스냅샷이라 Phase 3에서 끝난 항목(승천 연출·상한 안내 줄·#40 ③④)을 여전히 포함",
+   "why_it_matters": "현재 미구현 목록의 신뢰도가 떨어져 다시 대조해야 한다",
+   "source_ref": "CLAUDE.md:263, CLAUDE.md:265-266"
+  },
+  {
+   "what": "웅성거림 줄의 양·단계별 틱 시간(Phase 4) 미측정; 효과나 코드 훅만 놓는 위기(방문·징조)의 생성 규칙 미정(guideline §7.3)",
+   "why_it_matters": "로그 피드의 밀도(플레이어 체감)와 위기 다양성이 정해지지 않았다",
+   "source_ref": "CLAUDE.md:263"
+  },
+  {
+   "what": "NS_Ascension Niagara 연출 미룸(§6.5) — Niagara 플러그인은 켜 두었으나 쓰는 곳 없음",
+   "why_it_matters": "플러그인·의존을 유지할지 결정 필요(렌더 결정 절과 연동)",
+   "source_ref": "CLAUDE.md:239, CLAUDE.md:266"
+  },
+  {
+   "what": "패키징·배포 빌드 절차 부재: DirectoriesToAlwaysCook(/Game/CA/Data·Materials)만 적혀 있고 쿠킹/패키징 명령·검증 체크리스트 없음",
+   "why_it_matters": "'플레이어블'의 최종 산출물(실행 파일)을 만드는 길이 문서에 없다",
+   "source_ref": "CLAUDE.md:208, CLAUDE.md:252, CLAUDE.md:262"
+  },
+  {
+   "what": "번역 정책: 로컬라이제이션 키 규칙은 있으나 대상 언어·시작 시점 미정(한국어 단일인지)",
+   "why_it_matters": "'번역을 시작한 뒤에는 배열 끝에만 추가'라는 제약의 발효 시점이 불명",
+   "source_ref": "CLAUDE.md:40"
+  },
+  {
+   "what": "UI/UX 설계 원칙 부재: 패널·피드·상단 바가 코드 결정으로만 적혀 있고 화면 구성·정보 위계·온보딩·튜토리얼·접근성 지침 없음",
+   "why_it_matters": "'완성도 높은 플레이어블'을 위한 UI/UX 보완 제안의 기준점이 없다",
+   "source_ref": "CLAUDE.md:265-266"
+  },
+  {
+   "what": "설계 낱말 사전이 L48 한 줄뿐이고 설계 낱말(판·부름·그릇·칸·앎·백성)과 코드 식별자(Galaxy·Calling·PlayerEntity·AscensionTier·Knowing·Civ)의 대응표가 없음",
+   "why_it_matters": "문서와 코드를 오가는 독자가 매번 번역해야 한다",
+   "source_ref": "CLAUDE.md:13, CLAUDE.md:48"
+  },
+  {
+   "what": "Phase 3 손 확인 체크리스트 없음 — '마우스만으로 둘째·셋째 칸까지, stat fps·stat unit 60fps'만",
+   "why_it_matters": "종료 조건의 사람 몫이 재현 가능한 절차로 적혀 있지 않다",
+   "source_ref": "CLAUDE.md:277"
+  }
+ ],
+ "duplication": [
+  {
+   "what": "같은 명령 10개(에디터/게임 빌드, 프로젝트 파일, 맵·머티리얼·위젯 BP·DataTable 생성, 밸런스 커맨드렛, 스모크, 자동화 테스트)가 cmd.exe 블록과 PowerShell 블록 두 벌",
+   "also_in": "CLAUDE.md 안 L63-101 ↔ L105-129",
+   "source_ref": "CLAUDE.md:63-129"
+  },
+  {
+   "what": "아키텍처 불변 규칙 전체가 guideline §6.1·§6.2·§7.2·§7.3·§7.4·§7.5·§8.1·§8.3·§8.5·§9.1·§9.2·§9.3·§10.1·§10.3·§10.4·§4.2·§4.4·§4.5·§5.5·§5.7·§5.11·§15의 재진술(§ 참조 147회)",
+   "also_in": "guideline.md 해당 절",
+   "source_ref": "CLAUDE.md:12-48"
+  },
+  {
+   "what": "Phase 2 작업 기록(끝난 작업·뼈대·종료 리뷰·재감사·테스트·아직 없는 것·§16 미결)",
+   "also_in": "guideline §11 Phase 2 상태 줄, WORKPLAN.md §3 표와 부록 A — L256이 '같은 글로 있다'고 자인",
+   "source_ref": "CLAUDE.md:255-264"
+  },
+  {
+   "what": "Phase 3 작업별 기록(성계와 레인 그리기·카메라와 선택·상단 바·로그 피드·승천 연출·종료 조건·정착 사유·시간 표시 토글)",
+   "also_in": "guideline §11 Phase 3 상태 줄('승인한 헤더와 다른 곳'), WORKPLAN.md §3 Phase 3 표, Saved/Design/phase3_*/header_draft.md",
+   "source_ref": "CLAUDE.md:262-274"
+  },
+  {
+   "what": "v0.8 전환 설명이 세 번(본문 흡수·초안·확정)",
+   "also_in": "CLAUDE.md L260 ↔ L271 ↔ L272; guideline §16 'v0.8 확정'·v08_agent_directive.md·v08_rulings.md",
+   "source_ref": "CLAUDE.md:260, CLAUDE.md:271-272"
+  },
+  {
+   "what": "guideline §16 미결 번호 목록이 세 시점으로 반복(Phase 1 당시·v0.7 당시·Phase 2 뒤)",
+   "also_in": "guideline §16 본문",
+   "source_ref": "CLAUDE.md:252, CLAUDE.md:253, CLAUDE.md:264"
+  },
+  {
+   "what": "성역 규칙('성역은 정착·넘김·초기 코어·모성계·Install의 대상이 아니다')이 두 줄에 반복",
+   "also_in": "CLAUDE.md L22 ↔ L47 끝",
+   "source_ref": "CLAUDE.md:22, CLAUDE.md:47"
+  },
+  {
+   "what": "Live Coding 규칙과 include 경로 규칙이 작업 방식 절과 모듈/UHT 절에 각각 반복",
+   "also_in": "CLAUDE.md L56↔L155, L17↔L152",
+   "source_ref": "CLAUDE.md:17, CLAUDE.md:56, CLAUDE.md:152, CLAUDE.md:155"
+  },
+  {
+   "what": "에디터 Python API 행이 '확인한 사실은 Tools/make_materials.py·make_data_tables.py 머리 주석에 있다'고 스크립트 주석을 가리킴",
+   "also_in": "Tools/make_materials.py·Tools/make_data_tables.py 머리 주석",
+   "source_ref": "CLAUDE.md:204, CLAUDE.md:213"
+  },
+  {
+   "what": "커맨드렛의 GameInstance 정리 순서(Shutdown→DestroyWorldContext→DestroyWorld→RemoveFromRoot)",
+   "also_in": "CLAUDE.md L212(헤더 표) ↔ L235(틱 Subsystem 절); Tests/CosmicBalanceCommandlet.cpp",
+   "source_ref": "CLAUDE.md:212, CLAUDE.md:235"
+  },
+  {
+   "what": "후처리 결정(모션 블러·AO OFF, FXAA, 창 없는 GPU 시간 불신)",
+   "also_in": "CLAUDE.md L242(렌더 절) ↔ L267(Phase 3 6번 작업) ↔ L141(화면 확인)",
+   "source_ref": "CLAUDE.md:141, CLAUDE.md:242, CLAUDE.md:267"
+  },
+  {
+   "what": "'자동화 테스트 N종이 연속 두 프로세스에서 통과한다'가 작업마다 10회 이상 반복",
+   "also_in": "guideline §11 상태 줄, WORKPLAN 부록 A",
+   "source_ref": "CLAUDE.md:139, CLAUDE.md:251-274"
+  },
+  {
+   "what": "설계 낱말 사전(조우·만남·첫 접촉·칸·건너는 배들·성역·옛 땅·지경)",
+   "also_in": "guideline §15",
+   "source_ref": "CLAUDE.md:48"
+  },
+  {
+   "what": "데이터 검사 도구 설명(check_data.py·generated.sha1·test_data_schema.py·python -B)이 불변 규칙 L39와 빌드 절 L142에 겹침",
+   "also_in": "CLAUDE.md L39 ↔ L142; Tools/ 스크립트 머리 주석",
+   "source_ref": "CLAUDE.md:39, CLAUDE.md:142"
+  },
+  {
+   "what": "밸런스 커맨드렛 출력(summary·claims·hazards·_rows.csv·-TellAll) 설명",
+   "also_in": "CLAUDE.md L96(명령 주석) ↔ L257·L259(종료 리뷰); guideline §9.3 판 컬럼",
+   "source_ref": "CLAUDE.md:96, CLAUDE.md:257, CLAUDE.md:259"
+  },
+  {
+   "what": "변이 테스트 수·ultracode 리뷰 건수(CONFIRMED 수 등) 기록",
+   "also_in": "WORKPLAN.md 부록 A, guideline §11 상태 줄",
+   "source_ref": "CLAUDE.md:250-274"
+  }
+ ],
+ "contradictions": [
+  {
+   "a": "CLAUDE.md:259 '주장 1,000틱당 0.57건·그 18%가 만료'",
+   "b": "CLAUDE.md:263 '지금의 AI는 주장이 서면 언제나 구호를 시작해 주장의 20%만 만료한다'",
+   "note": "재감사 전후 수치가 섞였거나 반올림 — 기준값 하나로 통일 필요"
+  },
+  {
+   "a": "CLAUDE.md:263 '아직 없는 것' 목록에 '승천 연출(Phase 3)'·'상한에 닿은 통치자의 안내 줄(Phase 3)' 포함",
+   "b": "CLAUDE.md:265 패널에 '상한 안내 한 줄', CLAUDE.md:266 승천 연출 완료",
+   "note": "Phase 2 종료 시점 스냅샷이 Phase 3 뒤에도 갱신되지 않음"
+  },
+  {
+   "a": "CLAUDE.md:264 §16 미결 목록에 '#40~#51'",
+   "b": "CLAUDE.md:253 '#40 ②는 닫혔다', CLAUDE.md:264 안 '#40 ⑥ 닫혔다', CLAUDE.md:265 '#40 ④ 닫았다', CLAUDE.md:266 '#40 ③ 닫았다'",
+   "note": "번호 단위 미결 목록과 항목(①~⑦) 단위 종결 기록이 어긋남"
+  },
+  {
+   "a": "CLAUDE.md:61 'Claude Code의 셸은 Windows PowerShell 5.1', CLAUDE.md:7 프로젝트 루트 C:\\Users\\rhwwl\\OneDrive\\…",
+   "b": "실제 체크아웃 /home/mechtro/Desktop/bbb/Cosmic_Ascension(Linux, bash)",
+   "note": "환경 이전이 반영되지 않음 — L7 스스로 '옮기면 이 파일과 §16 #8을 함께 갱신'이라 적음"
+  },
+  {
+   "a": "CLAUDE.md:15 '틱 처리 순서(열 단계)'",
+   "b": "CLAUDE.md:251 Phase 1 기록 '틱 8단계 중 경제·연구·재위 누계 본문과 나머지 골격'",
+   "note": "v0.7에서 8→10으로 바뀐 역사 기록(L254 '틱은 열 단계')이지만 표지 없이 읽으면 모순"
+  },
+  {
+   "a": "CLAUDE.md:46 'sol(성역 — 배열 끝)·sys_0(첫 생애의 모성계 — 배열 0번)'",
+   "b": "CLAUDE.md:140 스모크 로그 '[0] 태양계. …', CLAUDE.md:22 '그 전의 코드는 sol이 플레이어 모성계다', CLAUDE.md:141 'CosmicSelect sol'로 성계에 다가가는 예",
+   "note": "v0.8 단계 4 표지로 해소되지만 '현재 코드 = sol이 0번 모성계'라는 사실이 주 문장이 아니라 괄호에만 있음"
+  },
+  {
+   "a": "CLAUDE.md:23 '첫 생애 행은 DT_Rules.PlayerArchetypeRow = 가칭 arch_seeker, Weight 0'",
+   "b": "CLAUDE.md:23 끝 '그 전의 데이터는 arch_terran', CLAUDE.md:246 v0.5 채택분 '지구 arch_terran 첫 생애 고정'",
+   "note": "같은 줄 안에서 목표와 현행이 갈리고, 현재 단계 절은 옛 결정을 채택분으로 서술"
+  },
+  {
+   "a": "CLAUDE.md:247 'GameplayTag는 그때 총 136개 … 선언되어 있었다'",
+   "b": "CLAUDE.md:247 '(당시 — 그 뒤의 작업이 더했다)'",
+   "note": "수치가 적혀 있으나 현재 값이 아님을 스스로 밝힘 — 현재 수 미기재"
+  },
+  {
+   "a": "CLAUDE.md:39 'DT_Events의 에셋은 첫 이벤트 데이터 작업에서 생겼다(책 세 행과 모든 백성에게 도는 추첨 행 넷)' = 7행",
+   "b": "같은 줄의 event_rebellion_rises(OutbreakRow) 언급과 오리엔테이션의 현재 이벤트 11행",
+   "note": "생성 시점 서술이 현재 상태처럼 읽힘"
+  },
+  {
+   "a": "CLAUDE.md:253 '저장은 판당 슬롯 1개'(v0.7 결정)",
+   "b": "CLAUDE.md:263 '세이브 슬롯의 길이와 체크섬(§16 #70과 #33 ②)' 미결",
+   "note": "슬롯 정책이 확정인지 미결인지 불명"
+  },
+  {
+   "a": "CLAUDE.md:1 제목 'Claude Code 작업 규칙'",
+   "b": "내용의 약 29%(현재 단계 일지)와 26%(엔진 헤더 조사 표)가 규칙이 아님",
+   "note": "파일 역할이 제목과 어긋남 — 분리 후보"
+  },
+  {
+   "a": "CLAUDE.md:252 'Phase 1 데이터의 한계: AI 문명은 표시 이름이 없어서 플레이어 문명만 돌파 로그를 낸다'",
+   "b": "CLAUDE.md:252 괄호 '(은하 생성 규칙 변경에서 풀렸다 — AI 백성도 이름을 받고 …)'",
+   "note": "본문은 한계, 괄호는 해소 — 옛 서술을 지우지 않고 덧댄 전형"
+  },
+  {
+   "a": "CLAUDE.md:96 커맨드렛 '-TellAll=0은 게임처럼 이야기의 범위로 쌓는다(기본 1 = 전부 쌓는 모드)'와 L259 '전부 쌓는 모드' 기준 해시",
+   "b": "CLAUDE.md:258 'Sim.PhaseTwoExit가 … 게임처럼 방송하며 돈다'",
+   "note": "기준 해시는 전부 쌓는 모드, 테스트는 게임 모드 — 세계 해시는 같아야 하나(앎·로그 제외) 어느 모드가 '기준'인지 명시 필요"
+  }
+ ],
+ "implemented_status": [
+  {
+   "feature": "Phase 0 셋업(에디터/게임 타깃 빌드, L_Galaxy 맵, -nullrhi 스모크, Subsystem 6개 초기화)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:245"
+  },
+  {
+   "feature": "Git 저장소(main, LFS)·origin GitHub 비공개",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:248"
+  },
+  {
+   "feature": "Phase 1 헤더 4개(CosmicTypes·GalaxyState·CosmicConditionTypes·CosmicDefinitionRows, 행 구조체 9, 예약 필드)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:247, CLAUDE.md:250"
+  },
+  {
+   "feature": "시뮬 코어(NewGalaxy, 고정 스텝 틱·배속·이월 상한, ComputeStateHash·ComputeWorldHash)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:251, CLAUDE.md:254"
+  },
+  {
+   "feature": "첫 생애 Install(현행 arch_terran, sol 모성계)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:251, CLAUDE.md:23"
+  },
+  {
+   "feature": "저장·로드(CosmicSaveSubsystem, 슬롯 Galaxy_<GUID>)",
+   "status": "partial",
+   "evidence": "CLAUDE.md:251 구현; CLAUDE.md:263 자동 저장 트리거·슬롯 길이·체크섬·세이브 크기(#40 ⑦) 미착수"
+  },
+  {
+   "feature": "데이터 계층(FCosmicDataTables·CosmicRowNames·make_data_tables.py·schema.json·cosmic_data_schema.py·check_data.py·test_data_schema.py·generated.sha1)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:39, CLAUDE.md:142, CLAUDE.md:251, CLAUDE.md:256"
+  },
+  {
+   "feature": "로그 Subsystem(Push·PushRow·PushVariants, 2,000줄 상한·연대기 이관, 말하기 스트림 DrawTell, bUntold·이야기의 범위)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:41, CLAUDE.md:251, CLAUDE.md:254, CLAUDE.md:257"
+  },
+  {
+   "feature": "밸런스 커맨드렛 CosmicBalance(-TellAll, 판 컬럼 11, _rows.csv, summary/claims/hazards)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:96, CLAUDE.md:257"
+  },
+  {
+   "feature": "v0.7 예약(저장 필드 25·구조체 3, CosmicSeed::Derive, 두 해시 출력)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:254 — 단 Transits·OriginGalaxyRow는 테스트만 채움(Phase 6a)"
+  },
+  {
+   "feature": "틱 단계 본문 — 경제·연구·위기·AI·건넘(문명 제거)·플레이어 이동(카운트다운)·앎·역할 효과 해소",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:257"
+  },
+  {
+   "feature": "틱 단계 — 외교·분쟁",
+   "status": "stub",
+   "evidence": "CLAUDE.md:257 '외교·분쟁은 Phase 4', CLAUDE.md:26-27 (v0.7 표지)"
+  },
+  {
+   "feature": "이벤트 평가기(EvaluateAndFire·FireRow·원자 적용·쿨다운 키·FollowUpNotes·FollowUpKnowing)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:15, CLAUDE.md:39, CLAUDE.md:256"
+  },
+  {
+   "feature": "영적 압력(영압)·초월자 로스터(DT_Transcendents, 타락 0~3)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:14, CLAUDE.md:31, CLAUDE.md:256"
+  },
+  {
+   "feature": "은하 생성 규칙(VS 60·12, DT_Galaxies 6행, AI 백성 이름)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:14, CLAUDE.md:252, CLAUDE.md:256"
+  },
+  {
+   "feature": "위기 처리(CosmicHazards::Place·만료·주장 Hazard.Claim·반란 OutbreakRow)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:47, CLAUDE.md:256, CLAUDE.md:259"
+  },
+  {
+   "feature": "거대 프로젝트와 승천 판정(EvaluateFeats, 건설 칸·대응 칸, CostPerTickOf·CanPay)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:256, CLAUDE.md:258"
+  },
+  {
+   "feature": "정착과 문명 제거(project_settle, SettleBlockOf 사유 8, LetSettlementsGo, RealmCapByTier)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:47, CLAUDE.md:253, CLAUDE.md:269"
+  },
+  {
+   "feature": "아는 범위와 로그(TickSight·NoteMet·NoteKnown·Knowing 기록)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:257"
+  },
+  {
+   "feature": "폐위 DeposeRuler(열째 단계)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:27, CLAUDE.md:257"
+  },
+  {
+   "feature": "사망 파이프라인(Effect.KillPlayer 처리)·계승 후보·섭정 기록",
+   "status": "missing",
+   "evidence": "CLAUDE.md:27 'Phase 4b의 사망 파이프라인까지 기록된 채 남는다', CLAUDE.md:47, CLAUDE.md:263"
+  },
+  {
+   "feature": "Phase 3 — 성계와 레인 그리기(맵 액터·성계 액터·이름표·M_Star·M_Nebula·make_materials.py)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:262"
+  },
+  {
+   "feature": "Phase 3 — 카메라와 선택(마우스 조작·CosmicMapPick·CosmicSelect)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:263"
+  },
+  {
+   "feature": "Phase 3 — 상단 바와 성계 정보 패널(시작 단추·정착 단추·거절 사유 툴팁·상한 안내)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:265, CLAUDE.md:269"
+  },
+  {
+   "feature": "Phase 3 — 로그 피드(UListView 500줄, 줄 클릭→성계, WBP_LogEntry)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:265"
+  },
+  {
+   "feature": "Phase 3 — 승천 연출 오버레이·종소리·CosmicPreviewAscension",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:266 (NS_Ascension Niagara는 미룸)"
+  },
+  {
+   "feature": "Phase 3 — 시간 표시 토글(주기/년, ini 저장, -TimeUnit)",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:274"
+  },
+  {
+   "feature": "Phase 3 — 종료 조건(UI.MouseOnlyAscent·프레임 시간 실측 완료, 개발자 손 확인·창 60fps 미완)",
+   "status": "partial",
+   "evidence": "CLAUDE.md:267, CLAUDE.md:277"
+  },
+  {
+   "feature": "Phase 3 — 꼬리 작업(영적 시야 꼬리·앎의 표시 꼬리·우주 화면·종료 리뷰·셋째 칸의 배속과 명령의 사유)",
+   "status": "missing",
+   "evidence": "CLAUDE.md:261, CLAUDE.md:277"
+  },
+  {
+   "feature": "성역 sol(Law.Hedge·IsSanctuary·배열 끝·SettleBlockOf 성역 사유)",
+   "status": "missing",
+   "evidence": "CLAUDE.md:22, CLAUDE.md:46-47 '(v0.8 — 단계 4부터)'"
+  },
+  {
+   "feature": "첫 생애 arch_seeker·고넬료 사슬·'옛 땅의 기억' 화면",
+   "status": "missing",
+   "evidence": "CLAUDE.md:23 '(v0.8 — 단계 4b·7부터)'"
+  },
+  {
+   "feature": "실제 하늘(근방 관측 목록·DT_Planets·별 등급 문구·'항성 안정화' 표시명·시드 재기준)",
+   "status": "missing",
+   "evidence": "CLAUDE.md:14, CLAUDE.md:35, CLAUDE.md:48 '(v0.8 — 단계 5)'"
+  },
+  {
+   "feature": "서막·부르심(ReceiveCalling, 틱 밖 프롤로그)",
+   "status": "missing",
+   "evidence": "CLAUDE.md:41, CLAUDE.md:43 '(v0.8 — 단계 6)'"
+  },
+  {
+   "feature": "조우 카드·청원·칙령·첫 접촉 카드·스캔·PendingContactCivID 채우기",
+   "status": "missing",
+   "evidence": "CLAUDE.md:13, CLAUDE.md:263 (Phase 4)"
+  },
+  {
+   "feature": "방랑자 모드(여행 명령·업적 판정·'지경' 카드·폐위 3화면·망명 첫 조우)",
+   "status": "partial",
+   "evidence": "CLAUDE.md:257 '여행의 카운트다운' 틱만, CLAUDE.md:263 명령·업적은 Phase 4"
+  },
+  {
+   "feature": "판정 어휘·고유명 차단(스키마 verdict 목록 구현; Data.NoVerdictWords 테스트·other_works·holy_and_myth 목록)",
+   "status": "partial",
+   "evidence": "CLAUDE.md:32 스키마 verdict 구현, 테스트는 Phase 5·목록은 단계 4"
+  },
+  {
+   "feature": "건넘(Phase 6a Transits·OriginGalaxyRow·Transit.People·만난 은하)·플레이어의 건넘(6b)",
+   "status": "missing",
+   "evidence": "CLAUDE.md:254, CLAUDE.md:263"
+  },
+  {
+   "feature": "쿠킹된 게임 바이너리의 해시 결정론 검증·패키징 절차",
+   "status": "unknown",
+   "evidence": "CLAUDE.md:252 '아직 확인하지 못한 것'"
+  },
+  {
+   "feature": "자동화 테스트 76종·검사기 단위 테스트 69건",
+   "status": "implemented",
+   "evidence": "CLAUDE.md:262, CLAUDE.md:274"
+  },
+  {
+   "feature": "DT_Encounters·DT_Traits·DT_Relics·DT_Dedications 테이블과 스키마 규칙",
+   "status": "missing",
+   "evidence": "CLAUDE.md:39 '첫 행을 쓸 때 정한다', CLAUDE.md:263"
+  },
+  {
+   "feature": "AI 구호 정책(#71)·안정도 회복(#68)·T2→T3 속도(#72) 기본값",
+   "status": "missing",
+   "evidence": "CLAUDE.md:263 'Phase 4의 AI·칙령 헤더에서'"
+  }
+ ],
+ "player_facing": [
+  "배속 조작: 키 0/1/2/3/4 = 정지/1/2/5/10배속, Space = 정지 토글(Phase 1 HUD). 일시정지는 이월 시간을 버려 재개 시 틱이 몰리지 않는다 (CLAUDE.md:43, :251)",
+  "마우스 조작: 왼쪽 클릭 선택, 왼쪽 드래그 원반 이동, 오른쪽 드래그 회전, 휠 줌, 더블 클릭으로 성계에 다가가기 (CLAUDE.md:263)",
+  "은하 지도: 성계 구체(M_Star)·레인·주인 색의 고리·성운 하늘, 화면 공간 이름표(이름 + 건설·대응 칸 진척 막대), 선택은 흰 고리, 먼 시점에서는 이름표 숨김, 거리에 맞춘 선 두께 (CLAUDE.md:262-263)",
+  "상단 바: 백성·칸·안정도·자원·연구·주기·배속 단추. 시계를 누르면 '주기'↔'년'(1주기=1년), 마우스를 올리면 둘 다, 툴팁 Time.Tip (CLAUDE.md:265, :274)",
+  "성계 정보 패널: 선택한 성계의 이름·항성 등급·주인·위기·두 칸(건설·대응), CanStart 행마다 시작 단추, 정착 단추(거절되면 회색 + 사유 툴팁 Settle.Block.* 7종 — 영향권 사유는 '초월자' 없는 현상 문구), 상한 안내 한 줄 (CLAUDE.md:265, :269)",
+  "로그 피드: 마지막 500줄, Severity 색, 줄을 누르면 그 성계로 포커스(SelectAndFocus). 이야기의 범위 밖 줄은 bUntold로 보이지 않고, 같은 문장은 연속 반복되지 않는다 (CLAUDE.md:41, :265)",
+  "승천 연출: 어두운 막·금빛 빛무리·업적 제목·새 칸·서사, 약 5초, 누르면 닫힘, 보이는 동안 시뮬 정지·닫히면 배속 복귀, 합성 종소리 (CLAUDE.md:266)",
+  "통치자 명령: StartMegaproject·StartNextMegaproject — 다이슨·개혁·구호·정착·항성 안정화(project_stabilize 표시명) (CLAUDE.md:41, :48)",
+  "종료 조건이 약속하는 플레이: '창에서 마우스만으로 첫 생애를 둘째·셋째 칸까지, 60fps'; HUD 단추만으로 셋째 칸(UI.MouseOnlyAscent); Phase 4는 '30분 … T1→T3' (CLAUDE.md:263, :267, :277)",
+  "Phase 4 약속(미구현): 위기 해결 수단 칙령·조우·청원 카드, 첫 접촉 카드, 외교 명령, 방랑자의 여행 명령·업적, 폐위의 3화면·망명 첫 조우 (CLAUDE.md:263)",
+  "서사 정체성: 통치자 = '부르심을 입어 구별되고 날이 더해진 자 — 한 백성을 맡았다'; 플레이어에게 구원자·메시아 칭호 금지, 받은 꼴(구별되었다·눈이 열렸다)만; 서막(틱 밖 프롤로그, 배속 없음)과 부르심 (CLAUDE.md:24, :43)",
+  "책의 도착: 고넬료 사슬(방문 응답→사자의 전언→'말이 도착했다'→Trait.Faith.Book), 그 뒤 '옛 땅의 기억' 한 쪽 화면에서 회중의 고백; 백성은 태양계를 '옛 땅'이라 부른다 (CLAUDE.md:23, :48)",
+  "성역 체험: 태양계는 소유·정착·주장 불가, 그릇이 서지 않음, 방랑자는 '지경' 카드까지; 게임 안에서는 이름 없는 수동태로만 가리킨다 (CLAUDE.md:22)",
+  "숫자 체감: 인구는 등급만, 자원·안정도 숫자는 UI만, 서술은 주기·비율만, 천체 수·거리는 '약'·'추정'과 함께 UI 라벨만 (CLAUDE.md:35)",
+  "폐위·사망 피드백: 통치자는 통치 문명의 절멸로만 죽고 성계 위기는 그 성계에 선 방랑자에게만; 입력 없는 그릇도 30판 중 4판에서 저절로 폐위(가장 이른 틱 9,134) (CLAUDE.md:27, :259)",
+  "영혼 경제 체감: 초월자 영향권(성계 수)이 유일한 크기, 주장(Hazard.Claim)에 구호로 답하거나 만료; 현재 위기의 62%가 반란 (CLAUDE.md:28, :259)",
+  "게임 밖 '세계관과 출처' 화면: 그분의 이름·천체 수치·'지구'·대도감 출처가 허용되는 유일한 자리 (CLAUDE.md:22, :35)",
+  "개발용(플레이어 아님): 콘솔 CosmicSelect·CosmicPreviewAscension, 인자 -Seed·-Speed·-TimeUnit·-ShotAfterSeconds·-ProfileAfterSeconds (CLAUDE.md:141)"
+ ],
+ "quality_notes": [
+  "분량·밀도: 279행에 118KB — 한 줄이 1~4KB(최장 L147 4,153자, L39 3,993자, L262 2,948자). 단락 구분 없이 줄 하나가 수십 규칙을 담아 검색·diff·부분 인용·에이전트의 범위 읽기가 어렵다.",
+  "섹션 비중(문자 기준): 현재 단계 ~34K(29%), 검증된 엔진 헤더 표 ~31K(26%), 아키텍처 불변 규칙 ~26K(22%), 빌드/실행/테스트 ~21K(18%), 나머지(프로젝트·작업 방식·모듈 규칙·렌더 결정) 합쳐 5% — '작업 규칙' 파일의 절반 이상이 일지와 API 조사 메모.",
+  "교차 참조 밀도: guideline § 참조 147회, §16 # 참조 20회, Phase 번호 언급 80회(Phase 4만 27회) — guideline 없이는 규칙의 근거를 볼 수 없고, 반대로 guideline 내용을 다시 적어 둘이 함께 낡는다.",
+  "시제 혼재: 불변 규칙 안에 '(v0.7 — …)' 6곳·'(v0.8 — 단계 N부터)' 11곳·'가칭' 4곳 — 현재 참인 규칙과 예정 규칙이 같은 문장에 있어 '지금 코드가 무엇인가'를 괄호에서 찾아야 한다.",
+  "비유·고유 어휘: 판·부름·그릇·칸·앎·백성·성역·지경·옛 땅·건너는 배들·두 책·고넬료 사슬·거룩한 질서·웅성거림·도장 — 설계 낱말 사전은 L48 한 줄뿐이고 코드 식별자(Galaxy·Knowing·PlayerEntity·AscensionTier·Civ)와의 대응표가 없다.",
+  "변경 이력 위치: Phase 0~3·v0.6~v0.8 일지가 '현재 단계' 절에 시간순 누적(리뷰 건수·CONFIRMED 수·변이 수·해시값까지) — 현재 상태를 알려면 35줄을 끝까지 읽고 괄호 안의 '그 뒤에 풀렸다'를 역추적해야 한다. 변경 이력은 별도 CHANGELOG/STATUS로 분리할 후보.",
+  "자기 정정 패턴: '…였다(…에서 풀렸다)', '(당시 — 그 뒤의 작업이 더했다)'처럼 옛 서술을 지우지 않고 괄호로 덧대어 참·거짓이 한 문장에 공존(L247, L252, L253).",
+  "플랫폼 종속: Windows 절대 경로·PowerShell 5.1·cmd 두 벌·로컬 엔진 소스 경로 — Linux/다른 PC에서 그대로 쓸 수 없고, 이식 시 고칠 곳(L5·L7·L55·L61·명령 블록 약 20줄)이 흩어져 있다.",
+  "좋은 점: 엔진 헤더 표는 UE 5.8 API의 함정(FRandomStream 시드·GetFraction 상한, Clamp(NaN), IsExplicitTag, ListView의 블루프린트 항목 제한, ConstructorHelpers 루트 고정, CollapseRelativeDirectories 둘째 인자 등)을 실측 근거와 함께 적은 고품질 자료 — 다만 CLAUDE.md가 아니라 별도 엔지니어링 노트(예: docs/engine_notes.md)가 맞다.",
+  "좋은 점: 결정론·해시·난수 규칙과 테스트 작성 규칙(변이 테스트, 단언 하나에 경우 하나, 리플렉션으로 목록 읽기, 대조군은 테스트가 만든다, 테스트 노브 고정)은 구체적이고 재현 가능 — 개발 가이드라인의 핵심으로 추출할 가치가 가장 높다.",
+  "번호 체계 혼란: Phase 0~6b(guideline §11), v0.8 단계 0~8(WORKPLAN §3), WORKPLAN 표 번호 1~12, guideline §16 #1~#95, 보조 번호 ①~⑧ — 다섯 체계가 한 문장에 섞인다(예: L263, L264).",
+  "플레이어 관점 부재: 재미·목표·세션 길이·온보딩은 없고 종료 조건('마우스만으로 셋째 칸', '30분 T1→T3')만 스치듯 언급 — 기획 문서가 아니라 구현 규칙서로 읽힌다.",
+  "규칙의 근거 설명은 충실(왜 FindOrFullyLoad인지, 왜 FPSemantics Precise인지, 왜 SetTimeScale(0)뿐인지) — 재구성 시 '규칙 + 근거 한 줄' 형식은 유지할 가치.",
+  "중복 명령 블록·중복 Phase 기록이 '수정 시 둘 다 고친다'는 부담을 만들고 실제로 stale 발생(L263 '아직 없는 것' vs L265-266 완료, 주장 만료 18% vs 20%).",
+  "제목·역할 불일치: 'Claude Code 작업 규칙'이라면 ①불변 규칙(현행만) ②작업 방식 ③빌드·테스트 핵심만 남기고, 헤더 표→엔지니어링 노트, 일지→STATUS/CHANGELOG, 렌더·플러그인 결정→ADR, 예약 설계→로드맵으로 분리하는 것이 자연스럽다.",
+  "현재 단계 절의 '다음' 항목(L277)이 유일한 실행 가능한 다음 단계 서술이나, WORKPLAN.md '다음 작업'과 중복되고 effort·ultracode 지시가 섞여 있어 기획 로드맵으로 읽기 어렵다."
+ ]
+}

@@ -1,0 +1,789 @@
+{
+ "scope": "c5: Ascension·Player·Log·Save 모듈 — 업적 판정, 역할/계승/명령, 로그 Push·연대기·범위, 저장/로드",
+ "summary": "네 모듈은 합계 약 1,185줄(헤더 포함)로 작고 규율이 엄격하다. Ascension은 AI 단계 끝에서 틱당 1회 `EvaluateFeats`가 통치자 경로 `DT_Feats` 행을 사전순으로 판정해 한 백성을 한 틱에 한 칸만 올리고, 대가→부름 기록→인물 훅→`FollowUpKnowing`→Severity 2 승천 줄→`FollowUpNotes`→`OnTierAscended`의 순서가 코드로 고정되어 있다. Player는 `Install`(첫 생애·계승 공용, 이름 추첨 1회), 폐위 파이프라인 `DeposeRuler`→`BecomeWanderer`, 통치자 명령 `StartMegaproject`(정착 포함)만 있고, 사망 파이프라인·계승 추첨·공백기·즉위·복귀·자진 이탈·이동·조우·청원은 전부 미착수다(Phase 4/4b). Log는 `PushVariants` 하나가 말하기 스트림 추첨 1회, 연속 중복 회피, 이야기의 범위(만난 백성·아는 성계·격차 3·보는 쪽 Tier 창), `bUntold`, 먼 줄 2종, 2,000줄 상한과 연대기 이관을 모두 구현했고 `BuildChronicle`·`BuildWorldDigest`·Interlude 모드·슬롯 해석은 없다. Save는 `FGalaxyState` 하나를 `SaveGameToSlot`로 쓰는 최소형으로 `GalaxyID`·`SaveVersion` 검사만 하며, 자동 저장 트리거·백업·체크섬·압축·핸들러 거절·슬롯 열거가 모두 없고 게임 코드 어디서도 `SaveCurrentGalaxy`·`LoadGalaxy`를 부르지 않는다(테스트만). 결정론 규칙(시뮬/말하기 스트림 분리, 가드보다 먼저 무조건 추첨, 핸들러 안 거절)은 네 모듈이 일관되게 지키고 17종 안팎의 테스트가 덮는다. 문서와의 드리프트는 'v0.8 — 단계 N' 표지가 붙은 것(성역 거절, 첫 줄 문안, `arch_seeker`)과 헤더 주석이 미래 기능을 현재형으로 적은 곳(자동 저장, 조우 흐름), 인물 훅 ①·안정도 변화·`LastTick = max(Tick,1)` 관례 불일치다. 코드 품질 문제는 핸들러 거절 보일러플레이트 9회 중복, 정착 성계 수집 루프와 업적 행 필터의 중복, 호출마다의 태그 리터럴 조회, `ensureMsgf`로 알리는 호출자 오류, 무상한 연대기와 1 MB를 넘는 세이브, 동기 저장이다. 플레이어가 이 모듈을 통해 실제로 할 수 있는 입력은 패널 단추의 프로젝트 시작·정착뿐이고, 받는 피드백은 로그 줄과 승천 오버레이이며, 폐위되면 아무 명령도 남지 않고 역할을 보여 주는 UI도 없다.",
+ "key_decisions": [
+  {
+   "topic": "업적 판정 시점",
+   "decision": "`EvaluateFeats(State, Rng)`는 틱당 정확히 1회, AI 단계의 맨 끝에서 Sim이 부른다. 이벤트·업적은 제 단계가 없다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1998-2001; Source/Cosmic_Ascension/Ascension/AscensionSubsystem.h:31-47"
+  },
+  {
+   "topic": "업적 판정 순서",
+   "decision": "통치 문명 먼저(Embodied && Ruler && bIsPlayerRuled, SinceTick = Calling.BornTick), 그다음 Civs 배열 순서로 비통치 백성 전부(SinceTick 0).",
+   "source_ref": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:45-64"
+  },
+  {
+   "topic": "업적의 주제",
+   "decision": "백성이 가진 정착된 성계(OwnedSystems 순, OwnerCivID 일치 && CosmicState::IsSettled)가 하나도 없으면 판정하지 않고, 조건은 백성 + 그 성계 하나를 주제로 `UCosmicEventSubsystem::CheckAll`로 본다 — 어느 한 성계에서 전부 성립하면 된다.",
+   "source_ref": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:74-88, 104-113"
+  },
+  {
+   "topic": "업적 행 필터",
+   "decision": "Path == Ruler && RequiredTier == 백성의 Tier && `IsOneRungWithDeed()`(TargetTier == RequiredTier + 1 && 조건 ≥ 1)인 행만, `GetFeatRowNames()`가 FNameLexicalLess로 정렬한 사전순. 위반 행은 에러 한 줄 후 건너뛴다.",
+   "source_ref": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:90-103; Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:259-264; Source/Cosmic_Ascension/Data/CosmicDataTables.cpp:138-143"
+  },
+  {
+   "topic": "한 틱 한 칸",
+   "decision": "첫 성립 행에서 `Ascend` 뒤 즉시 return true — 한 백성은 한 틱에 한 칸만 오른다(다음 칸은 다음 틱).",
+   "source_ref": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:112-125"
+  },
+  {
+   "topic": "승천의 고정 순서",
+   "decision": "Tier = TargetTier → `ApplyAll(AscensionCost)`(SourceRow = 업적 행) → 플레이어면 Calling.CompletedFeats·Lives.Last().Feats·PeakTier(더 높을 때만)·Powers.AppendTags(GrantedPowers) → AI이고 T3면 `NameNotable Notable.Ascendant`(Apply 경유, 추첨 1회) → T4 이상이면 그 문명의 열린 Notables 전부 LastTick = Tick → `FollowUpKnowing` → Log.Ascension Severity 2 줄(FocusSystem = 수도, FocusCiv, Args {Civ}{HomeSystem}, 행의 LogTemplates) → `FollowUpNotes` → 플레이어이고 게이트 열림이면 `OnTierAscended` (Begin/EndBroadcast 안).",
+   "source_ref": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:128-205"
+  },
+  {
+   "topic": "판정의 전제",
+   "decision": "살아 있는 상태(&State == &Sim->GetState())와 비방송 중(IsBroadcasting false)일 때만 판정; 아니면 에러 한 줄과 무동작. Subsystem에 멤버 상태 없음.",
+   "source_ref": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:29-43; AscensionSubsystem.h:18-21"
+  },
+  {
+   "topic": "Install — 생애의 시작",
+   "decision": "그릇 전체를 `FPlayerEntityState()`로 초기화 → Role·CurrentSystemID → 새 FLifeRecord(LifeIndex = Lives.Num(), BornTick, BirthSystemID/CivID/ArchetypeRow, PeakTier = PersonalTier, SuccessionKind = 첫 생애 Succession.Installed / 그 뒤 Succession.Called) → Calling.LifeState = Embodied → 이름 추첨 → Ruler면 bIsPlayerRuled와 재위 3배열에 1칸 → SyncRngState → Knowing에 출생 성계·출생 문명을 줄 없이(FirstContactCivID는 적지 않음) → Wanderer면 KnowAround → 첫 생애면 log_first_life Severity 2.",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:57-163"
+  },
+  {
+   "topic": "그릇의 이름 추첨",
+   "decision": "Install마다 시뮬 스트림 `GetFraction()` 1회를 뱅크를 보기 전에 뽑고, 출생 아키타입의 PersonNameBank(비면 arch_default)에서 고른다. 직전 생애와 같은 문명이고 뱅크가 2 이상이면 직전 인덱스를 피하는 꼴(Drawn >= Previous ? Drawn+1 : Drawn). 뱅크가 비면 수를 버리고 NameIndex 0.",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:100-121"
+  },
+  {
+   "topic": "Ruler 요청에 문명이 없을 때",
+   "decision": "`ensureMsgf` 뒤 Role을 Wanderer로 강등해 계속 진행한다(거절이 아님).",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:70-74"
+  },
+  {
+   "topic": "폐위 파이프라인(Phase 2형)",
+   "decision": "log_fallen_monarch Severity 2 줄(Focus = 선 성계·통치 문명) 먼저 → 섭정 프로필 추첨 1회(`GetFraction()` → `CosmicState::PickAIProfile`, 문명 유무와 무관하게 뽑음) → `BecomeWanderer(프로필, Reign.Deposed)` → 모든 백성 ReverenceToPlayer *= ReverenceDecay → 통치하던 백성 Stability = min(Stability, PostRebellionStability), ThroneLockedUntilTick = Tick + ThroneLockTicks → SyncRngState. 그릇은 선 자리에 남는다.",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:165-209"
+  },
+  {
+   "topic": "BecomeWanderer",
+   "decision": "Embodied && Ruler일 때만: bIsPlayerRuled = false, 유효한 RegentProfile이면 AIProfile 교체, FormerCivID = RuledCivID, RuledCivID = None, Role = Wanderer, ReignEndReason에 따라 Status.Abdicated / Status.FallenMonarch / (Died) 없음, 열린 재위(마지막 ReignEndReasons가 빈 태그)에 사유 기록, Knowing.PendingContactCivID 비움, 선 성계와 같은 GalaxyRow의 1레인 이웃을 NoteKnown(줄 없음, 추첨 없음).",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:211-266, 20-44"
+  },
+  {
+   "topic": "역할 효과 해소 단계와의 접점",
+   "decision": "Sim의 `ResolvePendingRoleEffect`가 PendingEffect == Effect.DeposeRuler일 때만 `DeposeRuler()`를 부르고 기록 셋을 비운다. Effect.KillPlayer는 기록된 채 남는다(Phase 4b).",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2213-2228"
+  },
+  {
+   "topic": "통치자 명령 StartMegaproject",
+   "decision": "Embodied && Ruler && RuledCivID 유효일 때만. RowName == project_settle이면 SystemID는 무주 성계이고 `MakeEvalContext` 위에서 `CosmicMegaprojects::Settle`(AI 규칙, 추첨 없음), 성공 시 `FollowUpKnowing`으로 그 성계를 즉시 안다. 그 밖은 통치 문명이 소유한 성계만 `CosmicMegaprojects::Start`. 핸들러 안이면 에러 한 줄과 false.",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:268-300"
+  },
+  {
+   "topic": "프로토타입 키 StartNextMegaproject",
+   "decision": "`CosmicMegaprojects::Choices`(SinceTick = BornTick)의 첫 것, 없으면 `SettleTargets`의 첫 대상에 정착 — StartMegaproject의 규칙으로.",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:302-325"
+  },
+  {
+   "topic": "로그의 유일한 쓰기 경로",
+   "decision": "`Push`는 FText::Format 뒤 `Tell`; `PushVariants`는 `DrawTell(Count)` 1회 → 렌더 → 마지막으로 말해진 줄(bUntold 건너뜀)과 같은 문장이면 (Index+1) % Count의 다음 변형으로, 재추첨 없이 → `Tell`. `PushRow`는 DT_LogTemplates 행을 찾아 Category·Templates·SourceRow·MinViewerTier(= MinTierToReveal)를 실어 PushVariants를 부르는 포장.",
+   "source_ref": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:25-103"
+  },
+  {
+   "topic": "이야기의 범위(Tell)",
+   "decision": "bTellAll이면 무조건 저장. 아니면 주제 = (Category == Log.Calling) 또는 [(FocusCiv 없음 또는 MetCivs에 있고 (Civ.Tier − 보는 쪽 Tier) < 3) 그리고 (FocusSystem 없음 또는 KnownSystems에 있음)]; 창 = 보는 쪽 Tier 번호가 [MinViewerTier, MaxViewerTier] 안(0 = 그쪽 끝 없음). 둘 다 참이면 저장·방송, 아니면 Severity ≥ 2·Log.Claim·Log.Record만 bUntold로 저장, 그 밖은 버린다.",
+   "source_ref": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:105-157"
+  },
+  {
+   "topic": "먼 줄",
+   "decision": "주제가 깨진(bSubject false) Severity ≥ 2 줄에만: Category가 Log.Ascension이고 주제 문명이 T3 이상이면 log_far_ascent를 매번, 그 밖은 Tick ≥ Knowing.FarLineUntilTick일 때 log_far_event를 내고 FarLineUntilTick = Tick + max(0, FarLineCooldownTicks). 창만으로 숨은 줄은 먼 줄을 내지 않는다. 먼 줄은 안에서 부르는 둘째 PushRow라 그 호출의 말하기 추첨은 2회.",
+   "source_ref": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:159-176"
+  },
+  {
+   "topic": "Append와 상한·연대기",
+   "decision": "Entry(Tick, Category, Severity, Message = AsCultureInvariant(렌더 결과), FocusSystemID, FocusCivID, SourceRow, bUntold)를 State.Log에 더하고, 2,000을 넘으면 맨 앞부터 Severity ≥ 1 또는 Log.Claim/Log.Record는 Chronicle로 옮기고 나머지는 버린다. bUntold가 아니고 게이트가 열려 있으면 Begin/EndBroadcast 안에서 OnLogEntry를 동기 발화한다.",
+   "source_ref": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:179-219"
+  },
+  {
+   "topic": "보는 쪽 Tier",
+   "decision": "Log가 읽는 `GetViewerTier()`는 Embodied && Ruler면 통치 문명의 Tier, 그 밖(방랑자·공백기)은 Calling.PersonalTier.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1131-1142"
+  },
+  {
+   "topic": "TellAll 모드",
+   "decision": "저장되지 않는 Subsystem 멤버 bTellAll 하나. 게임 기본 꺼짐, 테스트 `AcquireSim`과 커맨드렛(-TellAll, 기본 1)이 켠다. 세계 해시는 모드와 무관.",
+   "source_ref": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.h:62-66, 128; Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h:66-69; Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp:250"
+  },
+  {
+   "topic": "저장의 모양",
+   "decision": "`UCosmicSaveGame { FGalaxyState State; }` 하나. `SaveCurrentGalaxy`는 GalaxyID가 유효할 때 `SyncRngState()` → 상태 복사 → `SaveGameToSlot(\"Galaxy_<GUID Digits>\", 0)` 동기 쓰기. 호출자가 틱 경계를 지킬 책임(가드 없음).",
+   "source_ref": "Source/Cosmic_Ascension/Save/CosmicSaveGame.h:16-24; Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp:12-52"
+  },
+  {
+   "topic": "로드의 검사 순서",
+   "decision": "핸들러 안이면 거절 → DoesSaveGameExist → LoadGameFromSlot → GalaxyID 유효·일치(잘린 파일·복사한 파일 거절) → SaveVersion > CurrentSaveVersion 거절 → (마이그레이션 자리, 비어 있음) → `Sim->LoadState`. 거절된 로드는 시뮬을 건드리지 않는다.",
+   "source_ref": "Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp:54-94"
+  },
+  {
+   "topic": "LoadState의 효과(Save의 계약 상대)",
+   "decision": "상태 대입, 색인 재구축, `Rng.Initialize(State.RngState)`, Accumulator 0, bRunning, 게이트가 열려 있으면 OnGalaxyGenerated 방송(표현 계층이 다시 그림).",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1246-1263"
+  },
+  {
+   "topic": "세이브 호환 규칙",
+   "decision": "저장은 클래스 기본 객체 대비 델타. SaveVersion의 초기값은 리터럴 1로 동결, `NewGalaxy`가 CurrentSaveVersion(1)을 찍는다. 저장 필드의 멤버 초기화식은 세이브가 생긴 뒤 바꾸지 않는다.",
+   "source_ref": "Source/Cosmic_Ascension/Core/GalaxyState.h:4-11, 685-691; Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:602-606"
+  },
+  {
+   "topic": "핸들러 안 거절",
+   "decision": "Install·DeposeRuler·BecomeWanderer·StartMegaproject·StartNextMegaproject·Push·PushVariants(따라서 PushRow)·EvaluateFeats·LoadGalaxy는 IsBroadcasting이면 에러 한 줄을 내고 아무것도 하지 않는다. SaveCurrentGalaxy만 예외(가드 없음).",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:61-65,170-174,215-219,272-276,306-310; Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:29-33,45-49; Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:39-43; Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp:59-63"
+  },
+  {
+   "topic": "시뮬 스트림 추첨 지점(이 범위)",
+   "decision": "Install의 이름 1회, DeposeRuler의 섭정 1회, Ascend의 Notable.Ascendant 이름 1회(Apply 경유) — 전부 가드·뱅크·대상보다 먼저 뽑고 쓰지 않아도 버린다. 명령(StartMegaproject)과 말하기는 시뮬 스트림을 뽑지 않는다.",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:108-110, 189-191; Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:162-168"
+  },
+  {
+   "topic": "재위 틱 누계",
+   "decision": "Sim의 TickPlayerTravel 끝에서 Role == Ruler이고 열린 재위가 있으면 ReignTicks.Last()++ — Player 모듈이 연 칸을 Sim이 센다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2058-2066"
+  }
+ ],
+ "parameters": [
+  {
+   "name": "UCosmicLogSubsystem::MaxLogEntries",
+   "value": "2000",
+   "source_ref": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.h:60",
+   "note": "static constexpr 하드코딩(DT_Rules 노브 아님). §8.4의 2,000과 일치. 연대기에는 상한이 없다."
+  },
+  {
+   "name": "승천 줄 Severity",
+   "value": "2 (Log.Ascension)",
+   "source_ref": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:187-189",
+   "note": "하드코딩. 태그 문자열 'Log.Ascension'·'Notable.Ascendant'는 함수 안 static const."
+  },
+  {
+   "name": "첫 줄·폐위 줄 Severity",
+   "value": "2 (log_first_life, log_fallen_monarch)",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:161, 187",
+   "note": "호출부 하드코딩."
+  },
+  {
+   "name": "먼 줄 Severity",
+   "value": "1 (log_far_ascent, log_far_event)",
+   "source_ref": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:168, 172",
+   "note": "하드코딩. 두 행의 MinTierToReveal은 데이터에서 0."
+  },
+  {
+   "name": "주제 격차 문턱",
+   "value": "(Civ.Tier − ViewerTier) >= 3 이면 범위 밖",
+   "source_ref": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:135",
+   "note": "하드코딩 3(§3.2 '격차 3 이상 인지 불가'). 위쪽으로만 잰다."
+  },
+  {
+   "name": "먼 승천 줄의 칸 문턱",
+   "value": "주제 문명 Tier >= Tier3_Causal",
+   "source_ref": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:166",
+   "note": "하드코딩 열거자 비교."
+  },
+  {
+   "name": "연대기 이관 기준",
+   "value": "Severity >= 1 || Log.Claim || Log.Record",
+   "source_ref": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:205",
+   "note": "하드코딩. §16 #40 ⑦ 기본값(BuildChronicle이 읽는 것만)은 미반영."
+  },
+  {
+   "name": "bUntold 보존 기준",
+   "value": "Severity >= 2 || Log.Claim || Log.Record",
+   "source_ref": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:154",
+   "note": "하드코딩."
+  },
+  {
+   "name": "DT_Rules.FarLineCooldownTicks",
+   "value": "300",
+   "source_ref": "Tools/data/DT_Rules.json; Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:174; Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:846-848",
+   "note": "DT_Rules 노브. 코드 가드: 0 아래는 0."
+  },
+  {
+   "name": "DT_Rules.ReverenceDecay",
+   "value": "0.5",
+   "source_ref": "Tools/data/DT_Rules.json; Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:194-200",
+   "note": "DT_Rules 노브. 가드 `> 0 ? min(x,1) : 0`(NaN은 0). 모든 백성에 곱하고 0~1로 클램프."
+  },
+  {
+   "name": "DT_Rules.PostRebellionStability",
+   "value": "0.15",
+   "source_ref": "Tools/data/DT_Rules.json; Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:204-205",
+   "note": "DT_Rules 노브. 같은 가드. Stability = min(현재, 값)."
+  },
+  {
+   "name": "DT_Rules.ThroneLockTicks",
+   "value": "600",
+   "source_ref": "Tools/data/DT_Rules.json; Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:206",
+   "note": "DT_Rules 노브. max(0, 값). 적기만 하고 읽는 코드(즉위 조건)는 아직 없다."
+  },
+  {
+   "name": "섭정 프로필 추첨",
+   "value": "PickAIProfile(roll): 4 프로필 균등(Conservative/Expansionist/Scholarly/Militarist), 범위 밖·NaN은 끝값",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:190-191; Source/Cosmic_Ascension/Sim/CosmicStateIndex.h:64; Source/Cosmic_Ascension/Tests/CosmicHazardTests.cpp:2355-2362",
+   "note": "§16 #36 ① '그때까지 균등'의 기본값. 윤리 가중 없음."
+  },
+  {
+   "name": "Succession/Reign/Status 태그",
+   "value": "Succession.Installed / Succession.Called; Reign.Deposed / Reign.Abdicated; Status.Abdicated / Status.FallenMonarch",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:98, 191, 242-248; Config/DefaultGameplayTags.ini:57-65",
+   "note": "문자열 리터럴로 호출마다 RequestGameplayTag(static 아님). Succession.Returned·Reign.Died·Status.Returned는 ini에 있으나 이 범위가 만들지 않는다."
+  },
+  {
+   "name": "Notable.Ascendant 생성 조건",
+   "value": "!bPlayer && TargetTier == Tier3_Causal (추첨 1회, Apply 가드)",
+   "source_ref": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:161-168",
+   "note": "하드코딩. T4 이상 도달은 만들지 않는다."
+  },
+  {
+   "name": "열린 인물 기록 닫기",
+   "value": "NewTier >= Tier4_Transcendent → LastTick == 0인 기록에 LastTick = State.Tick",
+   "source_ref": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:169-177",
+   "note": "하드코딩. 다른 훅은 max(Tick, 1)을 쓴다(아래 모순 항목)."
+  },
+  {
+   "name": "정착 성계 목록 인라인 할당",
+   "value": "TArray<int32, TInlineAllocator<8>>",
+   "source_ref": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:76",
+   "note": "보유 상한 RealmCapByTier 최대 10이라 T5 백성은 힙으로 넘칠 수 있다(무해)."
+  },
+  {
+   "name": "이름 추첨 공식",
+   "value": "NameIndex = min(int(roll × N), N−1); 같은 문명 연속이면 Drawn = min(int(roll × (N−1)), N−2), Drawn >= Previous ? Drawn+1 : Drawn",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:111-121",
+   "note": "하드코딩 공식. 비교 기준은 BirthCivID(§16 #40 ①은 뱅크 행 기준을 권장)."
+  },
+  {
+   "name": "FLifeRecord 초기값(Install)",
+   "value": "LifeIndex = Lives.Num()(1부터), PeakTier = Calling.PersonalTier, 재위 3배열에 (CivID, 빈 태그, 0)",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:86-96, 123-132",
+   "note": "PersonalTier 강등·권능 재부여 없음(계승 미구현)."
+  },
+  {
+   "name": "세이브 슬롯 이름",
+   "value": "\"Galaxy_%s\" + GUID EGuidFormats::Digits(32자), 사용자 인덱스 0",
+   "source_ref": "Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp:12-16, 29-32",
+   "note": "하드코딩. §16 #70(슬롯 길이·체크섬)·#33 ③(슬롯 열거)이 열려 있다."
+  },
+  {
+   "name": "FGalaxyState::CurrentSaveVersion / SaveVersion 초기값",
+   "value": "1 / 1(동결)",
+   "source_ref": "Source/Cosmic_Ascension/Core/GalaxyState.h:685-691",
+   "note": "로드는 SaveVersion > CurrentSaveVersion만 거절."
+  },
+  {
+   "name": "DT_Rules.PlayerArchetypeRow",
+   "value": "\"arch_terran\" (데이터와 C++ 기본값 모두)",
+   "source_ref": "Tools/data/DT_Rules.json; Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:764-766",
+   "note": "v0.8 단계 4b에 arch_seeker로 바뀔 예정(§5.10)."
+  },
+  {
+   "name": "DT_Feats 내용",
+   "value": "feat_dyson_swarm(T1→T2: MegaprojectComplete project_dyson + CivResearchAtLeast Physics 0.5), feat_supernova_stabilized(T2→T3: MegaprojectComplete project_stabilize); AscensionCost·GrantedPowers 모두 빔; LogTemplates 3변형씩",
+   "source_ref": "Tools/data/DT_Feats.json",
+   "note": "데이터. T3→T4·T4→T5 행과 방랑자 행은 없다(스키마가 Path Ruler만 허용)."
+  },
+  {
+   "name": "DT_LogTemplates 이 범위의 행",
+   "value": "log_first_life(1변형, Log.Calling), log_fallen_monarch(3, Log.Calling), log_far_event(3, Log.Discovery), log_far_ascent(3, Log.Discovery); MinTierToReveal 모두 0",
+   "source_ref": "Tools/data/DT_LogTemplates.json; Source/Cosmic_Ascension/Data/CosmicRowNames.h:33-47",
+   "note": "데이터. single_variant_rows = [log_first_life, log_first_contact]는 schema.json."
+  },
+  {
+   "name": "FCosmicLine 창",
+   "value": "MinViewerTier·MaxViewerTier uint8, 1..5, 0 = 그쪽 끝 없음; PushRow는 Min만 행에서 채운다",
+   "source_ref": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.h:35-39; CosmicLogSubsystem.cpp:101, 145-146",
+   "note": "Max를 채우는 호출부는 Events의 SignRow 줄뿐."
+  },
+  {
+   "name": "개발자 로그 출력",
+   "value": "쌓인 줄마다 UE_LOG(LogCosmic, Verbose, \"[tick](untold) message\")",
+   "source_ref": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:198",
+   "note": "-LogCmds=\"LogCosmic Verbose\"로만 보임."
+  },
+  {
+   "name": "읽히지 않는 DT_Rules 노브(부름·계승)",
+   "value": "LeapTicksMin/Max, LeapTotalCap, Succession* 6종, ReturnLureMaxLanes, ReturnedLivesToSeize, LureAcceptByPolicy — 테스트·선언 밖 참조 0; BaseLifespanTicks 1곳",
+   "source_ref": "Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:663-705, 777-785 (grep 결과)",
+   "note": "DT_Rules 노브는 있으나 소비 코드(사망·계승 파이프라인)가 없다. FCallingState.PendingLeapTicks·LeapTicksTotal도 미사용."
+  },
+  {
+   "name": "세이브 크기 실측(참고)",
+   "value": "로그 항목 약 600바이트; 20,000틱 VS 0.4~1.07 MB / EA 1.23 MB(범위 켬), 전부 쌓는 모드 VS 1.8 MB / EA 4.2 MB; 예산 ≤ 1 MB / ≤ 100 ms",
+   "source_ref": "guideline.md:3716 (§9.4); Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp:164-174",
+   "note": "커맨드렛이 SaveGameToMemory로 잰 값. 예산 초과(§16 #40 ⑦)."
+  }
+ ],
+ "gaps": [
+  {
+   "what": "사망 파이프라인 전무: Effect.KillPlayer는 기록만 되고 ResolvePendingRoleEffect는 폐위만 처리한다(FLifeRecord 기록·Severity 2 줄·OfferReturn·BeginInterlude·RunHeadless 도약·Succeed 없음).",
+   "why_it_matters": "§4.4의 '부름과 계승' 코어 루프(그릇이 쓰러지면 다른 사람 위에 머문다)가 통째로 없어 지금의 판은 죽음 없는 샌드박스다. 유일한 시계(§4.3)를 앞당기는 비용 메커닉도 없다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2215-2217; Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.h:12-17"
+  },
+  {
+   "what": "공백기(ELifeState::Interregnum)로 들어가는 코드가 없다 — 열거자와 PendingLeapTicks·LeapTicksTotal 필드만 선언.",
+   "why_it_matters": "Log의 보는 쪽 Tier·Check의 Embodied 가드 등이 공백기를 전제로 짜여 있으나 실제 진입 경로가 없어 그 분기들은 테스트가 수동으로 LifeState를 바꿔야만 돈다.",
+   "source_ref": "Source/Cosmic_Ascension/Core/GalaxyState.h:426-430, 515-520"
+  },
+  {
+   "what": "계승 Install의 부름 규칙 미구현: PersonalTier ≤ 2 → T1 강등, Powers 재부여, Succession.Returned(직전 BirthArchetypeRow·NameIndex 복사), 그릇 초기치에 DT_Traits 수정자.",
+   "why_it_matters": "§4.4 3분할 표의 '부름(유지)/그릇(소멸)' 계약이 Install만으로는 성립하지 않는다. §16 #34(시그니처)와 #67 ②가 미결.",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:80-98"
+  },
+  {
+   "what": "즉위(BecomeRuler)·복귀(ReturnToFormerCiv)·자진 이탈 명령이 없고 ThroneLockedUntilTick은 적히기만 하고 읽는 코드가 없다.",
+   "why_it_matters": "폐위된 플레이어는 영원히 방랑자이고, 왕좌 잠금 600틱은 아무 효과도 없다. §5.10의 전환 표 네 행 중 폐위만 산다.",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:206 (grep: ThroneLockedUntilTick 읽기 0곳)"
+  },
+  {
+   "what": "인물 훅 ①(BecomeWanderer가 Reign.Abdicated/Died에 Notable.Regent 기록)과 전환 시 안정도 변화(자진 이탈 −0.1, 사망 −0.25) 미구현.",
+   "why_it_matters": "§7.5·§5.10의 BecomeWanderer 계약 일부가 빠져 있어 Phase 4에서 함수 본문을 다시 열어야 한다.",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:211-266; PlayerRoleSubsystem.h:57-58"
+  },
+  {
+   "what": "폐위 뒤의 3화면·BuildWorldDigest·망명 첫 조우·자동 저장이 없다 — 폐위는 로그 한 줄과 상태 변화로 끝난다.",
+   "why_it_matters": "'떠나 있는 동안 세계가 변했다'를 보여 주는 장치가 없어 폐위가 플레이어에게 벌칙으로만 읽힌다(§5.10의 설계 의도와 반대).",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.h:41-48; Source/Cosmic_Ascension/Log/CosmicLogSubsystem.h:46-48"
+  },
+  {
+   "what": "방랑자 모드의 명령 전부 없음: TravelTo·ScanCurrentSystem·Train·조우 제시/해결(ResolveEncounterChoice)·FOnEncounterPresented.",
+   "why_it_matters": "두 플레이어 모드 가운데 하나가 통째로 비어 있고, 폐위 뒤 플레이어가 할 수 있는 입력이 배속뿐이다.",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.h (선언 없음); guideline.md:3141 (§7.5 UPlayerRoleSubsystem)"
+  },
+  {
+   "what": "통치자 명령 가운데 StartMegaproject만 있다 — SetResearchFocus·SetStance·ProposeTreaty·EnactEdict·AllocateFleet·청원 카드 없음.",
+   "why_it_matters": "§2.2 '통치자 10분 루프'의 결정 주기(20~40초에 하나)를 채울 입력이 없다.",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.h:63-76"
+  },
+  {
+   "what": "ReceiveCalling(서막의 결과를 적는 Core 함수) 없음.",
+   "why_it_matters": "v0.8 단계 6의 첫 블록. 첫 판의 진입 경험(서막 → 부르심)이 비어 있다.",
+   "source_ref": "guideline.md:3141 (§7.5 ReceiveCalling); CLAUDE.md 아키텍처 불변 규칙(핸들러 거절 목록)"
+  },
+  {
+   "what": "방랑자 경로 업적 판정 없음(Path == Ruler만 판정, 스키마도 Ruler만 허용).",
+   "why_it_matters": "개인 Tier(PersonalTier)가 오를 길이 없어 T3 '죽음을 넘는 각성', 영적 시야 등 개인 경로 전부가 잠겨 있다.",
+   "source_ref": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:93; Tools/data/schema.json (DT_Feats rules[0])"
+  },
+  {
+   "what": "AI의 T3→T4 제동(FGalaxyDef.AIFourthRungCap) 미적용.",
+   "why_it_matters": "EA에 T3→T4 행이 들어오면 AI가 제동 없이 넷째 칸에 오른다(§4.3·§5.12).",
+   "source_ref": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:67-126 (읽는 곳 없음); Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:607"
+  },
+  {
+   "what": "Install이 성역 sol을 거절하지 않고 NewGalaxy가 sol에 첫 생애를 놓는다.",
+   "why_it_matters": "v0.8 단계 4('성역은 출생·계승의 대상이 아니다')가 코드에 닿지 않았다 — 플래그된 설계.",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:57-74; Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1016-1019"
+  },
+  {
+   "what": "Log: ELogMode::Interlude/SetMode, PickTemplateRow(계시 양식 선택 행), 슬롯 해석({Ruler}{Regent}{Rebel}{Loyalist}{Hearer}{Ascendant}{PopBand}{Player}), BuildChronicle(생애별 장·두 책 장·에필로그), BuildWorldDigest 없음.",
+   "why_it_matters": "엔딩·연대기·다이제스트라는 '판의 보상'이 전부 없다. 인물 기록(Notables)은 쌓이지만 어떤 문장에도 이름이 나오지 않는다.",
+   "source_ref": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.h:46-48; Source/Cosmic_Ascension/Core/GalaxyState.h:193"
+  },
+  {
+   "what": "Chronicle에 상한이 없고 Severity 1 전부가 이관된다 — §16 #40 ⑦의 기본값(BuildChronicle이 읽는 것만 이관, 세이브 압축) 미반영.",
+   "why_it_matters": "20,000틱에 EA 약 3,900항목, 세이브 1.2~4.2 MB로 예산(1 MB)을 넘는다. 저장이 생기는 순간 비용이 드러난다.",
+   "source_ref": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:202-210; guideline.md:3716, 4444"
+  },
+  {
+   "what": "자동 저장 트리거가 하나도 없다(승천·역할 전환·사망·계승·10분·종료). 게임 코드(UI/World/Sim)에서 SaveCurrentGalaxy·LoadGalaxy 호출 0 — 테스트와 커맨드렛만 부른다.",
+   "why_it_matters": "지금 빌드는 세션을 닫으면 판이 사라진다. '판당 슬롯 1개 아이언맨'(§9.1)은 문서에만 있다. 헤더 주석은 트리거가 있는 것처럼 현재형으로 적혀 있다.",
+   "source_ref": "Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.h:11-14, 26 (grep: 비테스트 호출자 0)"
+  },
+  {
+   "what": "SaveCurrentGalaxy에 IsBroadcasting·bInTickStages 가드가 없다(§16 #33 ① '보류 요청'도 없음).",
+   "why_it_matters": "핸들러(OnLogEntry·OnTierAscended)에서 저장을 부르면 틱 도중의 반쪽 상태가 저장된다. 다른 모든 쓰기 함수는 거절하는데 이것만 예외.",
+   "source_ref": "Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp:34-52; Source/Cosmic_Ascension/Log/CosmicLogSubsystem.h:116-117"
+  },
+  {
+   "what": "저장 안전장치 없음: 백업 슬롯(_bak), 머리(표지·길이·CRC32), 압축, 원자적 쓰기, 잘린 세이브의 안전한 거절(Development 빌드는 엔진 checkf로 죽을 수 있음).",
+   "why_it_matters": "§16 #33 ②·#70이 '자동 저장 트리거 전·첫 패키징 전'으로 기한을 둔 항목. 쓰다 끊긴 세이브가 판 전체를 잃게 한다.",
+   "source_ref": "Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp:74-83 (주석); guideline.md:4440, 4463"
+  },
+  {
+   "what": "재시작 뒤 슬롯 찾기(Galaxy_* 열거)·'이어하기' API 없음; UCosmicSaveGame에 저장 시각·틱·판 요약 같은 메타도 없다.",
+   "why_it_matters": "GalaxyID를 모르면 로드할 수 없다 — 지금 구조로는 게임이 제 세이브를 찾지 못한다(§16 #33 ③).",
+   "source_ref": "Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.h:24-40; Source/Cosmic_Ascension/Save/CosmicSaveGame.h:16-24"
+  },
+  {
+   "what": "마이그레이션 함수 자리가 주석뿐이고, 로드 때 '주인 있는 성역 거절'(v0.8 4a)도 없다.",
+   "why_it_matters": "첫 SaveVersion 인상 때 설계가 없고, v0.8 전환 뒤 옛 개발 세이브가 조용히 열린다.",
+   "source_ref": "Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp:84-92; guideline.md:3485 (§9.1 v0.8 저장)"
+  },
+  {
+   "what": "FLifeRecord의 다수 필드를 쓰는 코드가 없다: DiedTick, CauseOfDeath, CauseSourceRow, TranscendentsMet, LastChoiceRows, EpithetRow, MegaprojectsCompleted, bReturnOffered.",
+   "why_it_matters": "비문(§8.4 3단 화면 ①)을 만들 재료가 쌓이지 않는다. 특히 MegaprojectsCompleted는 지금의 완성 사건에서 적을 수 있는데 적지 않는다.",
+   "source_ref": "Source/Cosmic_Ascension/Core/GalaxyState.h:440-495"
+  },
+  {
+   "what": "FPlayerEntityState의 그릇 능력치·PersonalPool·Relics·Exaltation·Travel*는 Install이 초기화만 하고 읽거나 바꾸는 명령이 없다.",
+   "why_it_matters": "'능력치를 가진 유일한 개인'(§1.3)이 아직 수치만 있는 껍데기다.",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:82; Source/Cosmic_Ascension/Core/GalaxyState.h:335-375"
+  },
+  {
+   "what": "StartNextMegaproject(프로토타입 키 P)는 Phase 3 패널이 대체했다고 주석하지만 함수는 남아 있고 테스트가 쓴다.",
+   "why_it_matters": "죽은 공개 API — 헤더 승인 절차 속에서 정리 시점을 정해야 한다.",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.h:73-76; Source/Cosmic_Ascension/Tests/CosmicAscensionTests.cpp:1356-1391"
+  },
+  {
+   "what": "UI가 부름·생애·역할·StatusTags·PeakTier를 전혀 보이지 않는다 — 폐위되면 패널의 단추가 사라질 뿐 '몰락한 군주'임을 보여 주는 표시가 없다.",
+   "why_it_matters": "Player 모듈의 상태 변화가 로그 한 줄 밖에는 플레이어에게 닿지 않는다.",
+   "source_ref": "Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp:257; Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp:194-206"
+  },
+  {
+   "what": "두 책의 입력(Log.Claim·Log.Record 줄)을 내는 생산자가 아직 없다 — Log는 분류를 다루지만 데이터의 1인칭 주장·기록 행이 Phase 4다.",
+   "why_it_matters": "연대기·두 책 장을 만들어도 채울 항목이 없다.",
+   "source_ref": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:108-110, 154; Tools/data/DT_LogTemplates.json"
+  }
+ ],
+ "duplication": [
+  {
+   "what": "핸들러 안 거절 보일러플레이트(`if (Sim->IsBroadcasting()) { UE_LOG(... called from a handler of a Core Logic delegate ...); return; }`)를 함수마다 손으로 복제 — 이 범위 9곳, Sim·Events 13곳.",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp (8곳), Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp (5곳)",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:61-65,170-174,215-219,272-276,306-310; Log/CosmicLogSubsystem.cpp:29-33,45-49; Ascension/AscensionSubsystem.cpp:39-43; Save/CosmicSaveSubsystem.cpp:59-63"
+  },
+  {
+   "what": "'백성이 가진 정착된 성계' 수집 루프(OwnedSystems → FindSystem → OwnerCivID 일치 && IsSettled)를 각 호출부가 다시 쓴다 — 공용 `SettledSystemsOf(civ)` 없음.",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1417, 1445, 1575, 1707; Events/CosmicEventSubsystem.cpp:245; Sim/CosmicMegaprojects.cpp:45, 270",
+   "source_ref": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:74-84"
+  },
+  {
+   "what": "업적 행 필터(Path == Ruler && RequiredTier == Tier && IsOneRungWithDeed, 사전순 순회)가 판정과 AI의 건설 선택에 각각 있다.",
+   "also_in": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:274-281",
+   "source_ref": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:90-103"
+  },
+  {
+   "what": "Knowing 포함 검사 람다(`KnownSystems/MetCivs.ContainsByPredicate([ID](const FKnownMark& M){ return M.ID == ID; })`)가 다섯 곳에 복제 — `IsKnown`/`HasMet` 헬퍼 없음.",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1085, 1122, 2183",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:137, 143; Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:134, 141"
+  },
+  {
+   "what": "태그 리터럴 조회 반복: Effect.DeposeRuler가 Sim 세 곳에 각각 static, Reign.*/Status.*는 BecomeWanderer가 호출마다 RequestGameplayTag, Log.Claim/Log.Record는 Tell과 Append에 따로 static.",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:329, 2012, 2217",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:98, 191, 242-248; Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:107-110, 181-182"
+  },
+  {
+   "what": "문명·성계 찾기를 Install만 `Civs.FindByPredicate`/`Systems.FindByPredicate`(선형)로 하고 같은 파일의 다른 함수는 `GetStateIndex().FindCiv/FindSystem`을 쓴다.",
+   "also_in": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:182, 226, 282 (색인 사용)",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:68, 158"
+  },
+  {
+   "what": "'백성과 수도를 부르는 줄' 조립(FCosmicLine + FFormatNamedArguments {Civ}{HomeSystem}/{System})을 승천·완성·Hazard·폐위 호출부가 각각 수작업으로 한다.",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1964; Events/CosmicEventSubsystem.cpp:1157, 1239",
+   "source_ref": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:185-196; Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:185-187"
+  },
+  {
+   "what": "밸런스 커맨드렛의 SaveBytesOf가 Save Subsystem을 거치지 않고 `SaveGameToMemory`로 저장 직렬화를 따로 재현한다(§16 #70이 '슬롯에 쓰지 않고 바이트를 만드는 함수 하나'로 통합 예정).",
+   "also_in": "Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp:164-174",
+   "source_ref": "Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp:44-49"
+  },
+  {
+   "what": "'열린 재위' 판정(`!ReignEndReasons.IsEmpty() && !ReignEndReasons.Last().IsValid()`)이 Player와 Sim에 각각.",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2059-2065",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:252-259"
+  },
+  {
+   "what": "'Embodied && Ruler(&& RuledCivID 유효)' 전제 검사가 네 함수와 Sim·UI에 반복 — Events의 `IsEmbodied` 같은 공용 술어가 Ruler 쪽에는 없다.",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1133; Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp:257; Events/CosmicEventSubsystem.cpp:802, 829",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:177, 222, 278, 312; Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:48"
+  },
+  {
+   "what": "섭정 프로필 '추첨 1회 → PickAIProfile → AIProfile 교체' 패턴이 폐위(Player)와 반란 만료의 정권 교체(Sim)에 각각 있다.",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:324-353",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:189-191, 231-234"
+  },
+  {
+   "what": "KnowAround(선 성계 + 같은 GalaxyRow의 1레인 이웃 NoteKnown)가 Sim의 TickSight 걸음과 같은 이웃 순회를 따로 구현한다(도달 거리만 다름).",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2068-2211",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:24-43"
+  }
+ ],
+ "contradictions": [
+  {
+   "a": "Save 헤더: \"The autosave triggers of section 9.1 call SaveCurrentGalaxy at a tick boundary.\" / guideline §9.1 L3487 자동 저장 트리거 목록(승천·역할 전환·사망·계승·10분·종료)",
+   "b": "게임 코드에서 SaveCurrentGalaxy·LoadGalaxy를 부르는 곳이 없다(테스트·커맨드렛만). Save 모듈은 사실상 호출자 없는 코드.",
+   "note": "헤더 주석이 미래 기능을 현재형으로 서술. §9.1 'v0.8 저장' 문단과 §16 #33·#70·#40 ⑦은 '저장 작업 뒤'로 미루고 있어 문서끼리는 일관하나 헤더가 드리프트. — Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.h:13 vs grep 결과; guideline.md:3487"
+  },
+  {
+   "a": "Player 헤더 1~2행: \"Ruler / Wanderer role switching, travel, encounter flow, the ruler command API, and the death, deposition and succession pipeline.\"",
+   "b": "구현은 Install·DeposeRuler·BecomeWanderer·StartMegaproject(+프로토타입 키)뿐 — 같은 주석의 3~5행이 스스로 인정.",
+   "note": "클래스 요약과 실체의 간격. Phase 4·4b 예약. — Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.h:12-17"
+  },
+  {
+   "a": "guideline §7.5 L3141 Install: \"성역(`sol`)은 받지 않는다 — 에러 한 줄로 거절(v0.8 — 단계 4부터)\"; §9.2 '첫 생애는 … sys_0'",
+   "b": "Install에 성역 검사가 없고 NewGalaxy는 sol에 첫 생애를 Install한다; 테스트 Sim.FirstLife가 Home == sol을 단언.",
+   "note": "'v0.8 — 단계 4' 표지가 붙은 알려진 드리프트. 테스트가 옛 세계를 고정하고 있어 단계 4에서 테스트도 함께 바뀌어야 한다. — Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:57-74; Sim/GalaxySimulationSubsystem.cpp:1019; Tests/CosmicSimTests.cpp:547-556"
+  },
+  {
+   "a": "guideline §2.4 L340·§5.10 L1188: 첫 줄 \"{HomeSystem}. 이 백성이 당신에게 맡겨졌다.\"",
+   "b": "DT_LogTemplates log_first_life: \"{HomeSystem}. 당신은 이 행성의 통치자다.\"",
+   "note": "'v0.8 — 단계 4b 뼈대' 표지 있음. CLAUDE.md 불변 규칙도 옛 문장을 스모크 로그 예시로 인용한다. — Tools/data/DT_LogTemplates.json; guideline.md:340, 1188"
+  },
+  {
+   "a": "guideline §5.10 L1188: 첫 생애 행은 `DT_Rules.PlayerArchetypeRow` = arch_seeker(v0.8 단계 4b)",
+   "b": "DT_Rules.json과 FCosmicRulesDef 기본값 모두 arch_terran; Sim.FirstLife가 'Player civ archetype is arch_terran'을 이름으로 단언.",
+   "note": "표지 있는 드리프트. — Tools/data/DT_Rules.json; Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:766; Tests/CosmicSimTests.cpp:554-555"
+  },
+  {
+   "a": "CLAUDE.md 테스트 규칙: \"`ensure`는 `AddExpectedError`로 덮을 수 없다 … 테스트할 호출자 오류는 `UE_LOG(LogCosmic, Error, …)` 한 줄로 알린다\"",
+   "b": "Install은 '다스릴 문명이 없는 Ruler 요청'을 `ensureMsgf`로 알리고 Wanderer로 강등한다.",
+   "note": "프로젝트 자체 규약과의 불일치. 테스트가 이 경로를 덮을 수 없다. — Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:70-74"
+  },
+  {
+   "a": "guideline §7.5 L3141 인물 훅 ①: \"BecomeWanderer는 ReignEndReason이 Reign.Abdicated 또는 Reign.Died일 때만 그 문명에 Notable.Regent 기록 1개\"(표지 없음)",
+   "b": "BecomeWanderer는 인물 기록을 만들지 않는다; 헤더는 'arrives with the abdication command of Phase 4'로 미룸.",
+   "note": "문서는 함수의 계약으로 적고 코드는 Phase 4로 미룸 — 문서에 표지가 없다. — Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.h:57-58; PlayerRoleSubsystem.cpp:211-266"
+  },
+  {
+   "a": "guideline §5.10 전환 표: 자진 이탈 '문명 안정도 −0.1', 사망 'BecomeWanderer … 안정도 −0.25'",
+   "b": "BecomeWanderer는 Stability를 건드리지 않는다(폐위의 min(·, PostRebellionStability)만 DeposeRuler에).",
+   "note": "BecomeWanderer를 자진 이탈·사망에 재사용하려면 안정도 변화를 호출자에 둘지 함수에 둘지 정해야 한다. — Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:211-266; guideline.md:1200-1205"
+  },
+  {
+   "a": "guideline §16 #35·§7.5 NameNotable 가드 ③: 기록을 닫는 훅은 `LastTick = max(Tick, 1)`(0은 '열린 기록'). Events·Hazards·Sim의 세 훅이 그렇게 한다.",
+   "b": "Ascend의 T4 닫기는 `Record.LastTick = State.Tick` — Tick 0이면 닫히지 않은 것으로 읽힌다.",
+   "note": "실전에서는 Tick 0에 T4 승천이 불가능하나 관례 불일치이고 테스트(틱 밖 입력)에서 드러날 수 있다. — Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:175 vs Events/CosmicEventSubsystem.cpp:296, Sim/CosmicHazards.cpp:53, Sim/GalaxySimulationSubsystem.cpp:353"
+  },
+  {
+   "a": "guideline §8.4 L3407: \"넘치는 항목 중 … 1·2는 Chronicle 배열로 옮긴다\" — 코드가 따르는 규칙",
+   "b": "guideline §16 #40 ⑦ 기본값(2026-10-17): \"연대기에는 BuildChronicle이 읽는 것만 들이고(Severity 2, Log.Claim·Log.Record, 그릇의 백성에 관한 Severity 1)\"",
+   "note": "문서 두 곳이 서로 다르고 코드는 옛 쪽(§8.4)을 따른다. 저장 작업에서 §8.4를 고쳐야 한다. — Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:205; guideline.md:3407, 4444"
+  },
+  {
+   "a": "guideline §9.1 L3485 'v0.8 저장': \"로드 때 주인 있는 성역(`sol`의 `OwnerCivID`가 비지 않음)을 에러 한 줄로 거절한다(4a)\"",
+   "b": "LoadGalaxy의 검사는 GalaxyID와 SaveVersion뿐.",
+   "note": "표지(4a) 있는 예약. — Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp:79-89"
+  },
+  {
+   "a": "guideline §16 #40 ①: 그릇 이름의 '직전 이름 회피'는 실제로 쓴 이름 뱅크(아키타입 행) 기준을 권장",
+   "b": "Install은 `PreviousBirthCivID == CivID`(문명 기준)로 비교한다 — 다른 문명이 같은 뱅크를 쓰면 같은 이름이 이어질 수 있다.",
+   "note": "미결(#40 ①, Phase 4b 전)이라 코드는 옛 기준. — Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:77, 112"
+  },
+  {
+   "a": "CLAUDE.md 불변 규칙: 핸들러 안에서 불리면 에러 한 줄을 내고 아무것도 하지 않는 함수 목록에 `SaveCurrentGalaxy`를 \"§16 #33 ①과 함께 막는다\"로 예약",
+   "b": "SaveCurrentGalaxy는 IsBroadcasting·bInTickStages를 보지 않는다.",
+   "note": "예약된 가드. 그러나 다른 모든 쓰기 함수가 이미 막는데 저장만 열려 있어 가장 위험한 함수가 가장 약하게 보호된다. — Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp:34-52"
+  },
+  {
+   "a": "Player 헤더 Install 주석: \"A life that starts as a wanderer (succession, Phase 4b) also knows the lane neighbours\"",
+   "b": "그 동작(KnowAround)은 이미 구현되어 테스트(Sim.KnowingWriters)가 검증한다.",
+   "note": "괄호의 'Phase 4b'가 구현 시점이 아니라 호출자(계승)의 시점을 가리켜 읽는 이가 미구현으로 오해할 수 있다. — Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.h:33-34; PlayerRoleSubsystem.cpp:149-153; Tests/CosmicKnowingTests.cpp:860-865"
+  },
+  {
+   "a": "guideline §7.5 L3141: StartNextMegaproject는 \"프로토타입 키(P)의 것 … (Phase 3의 패널이 대신한다)\"; CLAUDE.md Phase 3: \"프로토타입 키 P를 뺐다\"",
+   "b": "함수는 공개 API로 남아 있고 테스트 Sim.StartMegaproject·Sim.PlayerAscendsToT3·Feats.Evaluate가 쓴다.",
+   "note": "제거 시점이 어느 문서에도 없다. — Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.h:73-76"
+  }
+ ],
+ "implemented_status": [
+  {
+   "feature": "통치자 경로 업적 판정(EvaluateFeats — 한 틱 한 칸, 생애 상대 SinceTick, 정착된 소유 성계 주제, 사전순, IsOneRungWithDeed)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:29-126; Tests/CosmicAscensionTests.cpp:985-1312 (Feats.Evaluate), 1313-1333 (Feats.Reachable)"
+  },
+  {
+   "feature": "승천의 효과(대가 ApplyAll, CompletedFeats·Life.Feats·PeakTier·GrantedPowers)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:139-158; Tests/CosmicAscensionTests.cpp:1142-1176"
+  },
+  {
+   "feature": "인물 훅 ③ Notable.Ascendant(AI T3) / T4 이상 열린 기록 닫기",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:160-178; Tests/CosmicAscensionTests.cpp:1068-1075"
+  },
+  {
+   "feature": "승천 줄(Log.Ascension Sev 2, 수도 주제)과 FollowUpKnowing/FollowUpNotes 순서",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:180-197; Tests/CosmicAscensionTests.cpp:1076-1090"
+  },
+  {
+   "feature": "OnTierAscended(플레이어만, 방송 게이트·방송 중 표지)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:199-204; UI/CosmicAscensionOverlayWidget.cpp:169-179; Tests/CosmicAscensionOverlayTests.cpp"
+  },
+  {
+   "feature": "방랑자 경로 업적 판정(개인 Tier)",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:93 (Path != Ruler → continue); Tools/data/schema.json DT_Feats rules[0]"
+  },
+  {
+   "feature": "AI T3→T4 넷째 칸 제동(AIFourthRungCap)",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp (AIFourthRungCap 읽기 없음); Data/CosmicDefinitionRows.h:607"
+  },
+  {
+   "feature": "Install — 첫 생애(Ruler): 그릇 초기화·FLifeRecord·이름 추첨·재위 배열·앎 기록·첫 줄",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:57-163; Tests/CosmicSimTests.cpp:520-606 (Sim.FirstLife)"
+  },
+  {
+   "feature": "Install — 계승(Wanderer): 새 눈(KnowAround) + 이름 회피는 있음 / PersonalTier 강등·Powers 재부여·Succession.Returned·Traits 초기치 없음",
+   "status": "partial",
+   "evidence": "Source/Cosm ic_Ascension/Player/PlayerRoleSubsystem.cpp:76-98, 149-153; Tests/CosmicKnowingTests.cpp:858-865"
+  },
+  {
+   "feature": "폐위 파이프라인(Phase 2형: 줄 → 섭정 추첨 → BecomeWanderer → Reverence 감쇠 → Stability 상한 → 왕좌 잠금)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:165-209; Sim/GalaxySimulationSubsystem.cpp:2213-2228; Tests/CosmicHazardTests.cpp:2330-2489 (Sim.DepositionPipeline)"
+  },
+  {
+   "feature": "BecomeWanderer(역할·소속·Status/Reign 태그·섭정·PendingContact 비움·새 눈)",
+   "status": "partial",
+   "evidence": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:211-266 — Notable.Regent 훅·안정도 변화 없음(h:57-58)"
+  },
+  {
+   "feature": "폐위 3화면·BuildWorldDigest·망명 첫 조우·폐위 후 자동 저장",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.h:46; Log/CosmicLogSubsystem.h:46-48"
+  },
+  {
+   "feature": "사망 파이프라인(KillPlayer → FLifeRecord → OfferReturn → Interregnum → RunHeadless 도약 → 계승 추첨 → Install)",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2215-2217; Core/GalaxyState.h:426-430 (Interregnum 선언만)"
+  },
+  {
+   "feature": "즉위(BecomeRuler)·복귀(ReturnToFormerCiv)·자진 이탈 명령, ThroneLockedUntilTick 검사",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.h (선언 없음); PlayerRoleSubsystem.cpp:206 (쓰기만)"
+  },
+  {
+   "feature": "방랑자 명령(TravelTo·ScanCurrentSystem·Train)과 조우·청원 제시/해결",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.h; guideline.md:3141 (§7.5)"
+  },
+  {
+   "feature": "통치자 명령 StartMegaproject(건설·대응·정착, AI와 같은 규칙, 즉시 앎)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:268-300; World/CosmicGameMode.cpp:560-577; Tests/CosmicAscensionTests.cpp:729-829 (Sim.StartMegaproject); Tests UI.MouseOnlyAscent"
+  },
+  {
+   "feature": "나머지 통치자 명령(SetResearchFocus·SetStance·ProposeTreaty·EnactEdict·AllocateFleet)",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.h:63-76"
+  },
+  {
+   "feature": "ReceiveCalling(서막의 결과 기록)",
+   "status": "missing",
+   "evidence": "guideline.md:3141 (§7.5); CLAUDE.md 불변 규칙(가칭, v0.8 단계 6)"
+  },
+  {
+   "feature": "Push / PushVariants / PushRow — 말하기 스트림 1회, 연속 중복 회피, 평탄화 저장, 핸들러 거절",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:25-103; Tests/CosmicLogTests.cpp:41-378; Tests/CosmicSimTests.cpp:1493-1616 (Sim.TellStreamSeparate)"
+  },
+  {
+   "feature": "이야기의 범위(주제 문명·성계·격차 3·보는 쪽 Tier 창·bUntold·TellAll)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:105-157; Tests/CosmicKnowingTests.cpp:1196-1571 (Log.TellScope)"
+  },
+  {
+   "feature": "먼 줄 2종(log_far_ascent 매번 / log_far_event + FarLineUntilTick)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:159-176; Tests/CosmicKnowingTests.cpp:1308-1435"
+  },
+  {
+   "feature": "2,000줄 상한과 연대기 이관, OnLogEntry(bUntold 제외, 게이트)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:179-219; Tests/CosmicLogTests.cpp:140-220 (Log.CapAndChronicle); UI/CosmicLogFeedWidget.cpp:159-190"
+  },
+  {
+   "feature": "ELogMode::Interlude / SetMode",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.h:46-48; guideline.md:3141"
+  },
+  {
+   "feature": "PickTemplateRow(계시 양식 선택 행)와 슬롯 해석(역할 슬롯·{PopBand}·{Player})",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.h:46-48; Data/CosmicDefinitionRows.h:543-547"
+  },
+  {
+   "feature": "BuildChronicle(생애별 장·두 책 장·에필로그)와 BuildWorldDigest",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.h:46-48; Core/GalaxyState.h:737"
+  },
+  {
+   "feature": "Chronicle 상한·이관 기준 축소·세이브 압축(§16 #40 ⑦ 기본값)",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp:202-210; guideline.md:4444"
+  },
+  {
+   "feature": "UCosmicSaveGame(FGalaxyState 하나) + SaveCurrentGalaxy/LoadGalaxy/DoesSaveExist/DeleteSave",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Save/CosmicSaveGame.h:16-24; Save/CosmicSaveSubsystem.cpp:29-104; Tests/CosmicSimTests.cpp:1617-1786 (Sim.SaveRoundTrip)"
+  },
+  {
+   "feature": "로드 검사(GalaxyID 유효·일치, SaveVersion 상한, 핸들러 거절, 거절 시 무변경)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp:58-89; Tests/CosmicSimTests.cpp:1731-1779"
+  },
+  {
+   "feature": "저장 → 재시작 → 로드 → 같은 해시(프로세스 간 결정론)",
+   "status": "implemented",
+   "evidence": "Tests/CosmicSimTests.cpp:1787-1868 (Sim.SaveRestart); Save/CosmicSaveSubsystem.cpp:44 (SyncRngState 뒤 저장)"
+  },
+  {
+   "feature": "SaveVersion 마이그레이션 경로",
+   "status": "stub",
+   "evidence": "Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp:90 (주석 자리만)"
+  },
+  {
+   "feature": "자동 저장 트리거(승천·역할 전환·사망·계승·10분·종료, 틱 경계 보류 요청)",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.h:13 (주석만); UI/World/Sim에 호출 0"
+  },
+  {
+   "feature": "저장 안전(백업 슬롯, 머리·길이·CRC32, 압축, 원자적 쓰기, 슬롯 열거/이어하기)",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp:74-83 (주석이 위험을 설명); guideline.md:4440, 4463"
+  },
+  {
+   "feature": "SaveCurrentGalaxy의 핸들러·틱 도중 거절",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp:34-52"
+  },
+  {
+   "feature": "로드 때 성역 소유 검사(v0.8 4a), Install의 성역 거절(v0.8 단계 4)",
+   "status": "missing",
+   "evidence": "Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp:79-89; Player/PlayerRoleSubsystem.cpp:57-74"
+  }
+ ],
+ "player_facing": [
+  "[입력] 성계 정보 패널의 '시작' 단추 → ACosmicPlayerController::StartProject → UPlayerRoleSubsystem::StartMegaproject(SystemID, RowName): 다이슨 스웜·개혁·구호·항성 안정화를 통치 문명의 성계에, 거절되면 false(패널이 회색 단추와 사유) — Source/Cosmic_Ascension/World/CosmicGameMode.cpp:560-577; Player/PlayerRoleSubsystem.cpp:268-300",
+  "[입력] 패널의 '정착' 단추 → StartMegaproject(무주 성계, project_settle) → 성공하면 그 성계가 즉시 '아는 성계'가 되고 지도·패널이 새로 그려진다 — Player/PlayerRoleSubsystem.cpp:283-294; World/CosmicGameMode.cpp:567-575",
+  "[피드백] 승천: OnTierAscended → 승천 오버레이(어두운 막·금빛·업적 제목·새 칸·서사, 약 5초, 클릭으로 닫힘, 보이는 동안 시뮬 정지) + 종소리 — Ascension/AscensionSubsystem.cpp:199-204; UI/CosmicAscensionOverlayWidget.cpp:169-179",
+  "[피드백] 로그 피드: OnLogEntry로 도착하는 줄(bUntold 제외), Severity 색, 줄 클릭 → 그 성계로 카메라 — Log/CosmicLogSubsystem.cpp:213-218; UI/CosmicLogFeedWidget.cpp:159-190",
+  "[피드백] 판의 첫 줄 \"태양계. 당신은 이 행성의 통치자다.\"(Severity 2, 틱 0) — Player/PlayerRoleSubsystem.cpp:155-162; Tools/data/DT_LogTemplates.json log_first_life",
+  "[피드백] 승천 줄(Severity 2, {Civ}·{HomeSystem}, 3변형)과 그 뒤를 잇는 대가의 줄 — Ascension/AscensionSubsystem.cpp:185-197; Tools/data/DT_Feats.json LogTemplates",
+  "[피드백] 폐위: \"{Civ}의 왕좌가 당신을 떠났다…\"(Severity 2) 한 줄 — 그 뒤 플레이어는 방랑자가 되어 StartMegaproject가 전부 false이고 패널의 단추가 사라진다. 역할·'몰락한 군주' 상태를 보여 주는 UI 요소는 없다 — Player/PlayerRoleSubsystem.cpp:184-187; UI/CosmicSystemPanelWidget.cpp:257",
+  "[피드백] 먼 줄: 범위 밖 Severity 2 사건을 대신하는 \"어딘가에서 큰일이 있었다…\"(300틱 간격) / \"한 백성이 더 높은 칸에 올라섰다는 소식이 닿았다…\"(매번) — Log/CosmicLogSubsystem.cpp:159-176; DT_LogTemplates.json log_far_event·log_far_ascent",
+  "[피드백] 경쟁 승천의 시계: 만난 백성이고 수도를 알면 이름으로, 아니면 이름 없는 먼 줄로만 읽힌다(§16 #69) — Log/CosmicLogSubsystem.cpp:124-157, 166-169",
+  "[피드백] 돌파 줄·만남 줄·완성 줄·위기 줄은 Sim·Events가 Log를 거쳐 낸다(범위가 거른다) — Sim/GalaxySimulationSubsystem.cpp:1109, 1566, 1964; Events/CosmicEventSubsystem.cpp:1157, 1239",
+  "[부재] 저장·로드·이어하기 입력이 없다 — 세션을 닫으면 판이 사라진다(SaveCurrentGalaxy의 게임 코드 호출 0) — Save/CosmicSaveSubsystem.h",
+  "[부재] 사망·계승·방랑자 이동·조우·청원·칙령·외교 입력이 없다; 폐위 뒤 남는 입력은 배속·지도 조작뿐 — Player/PlayerRoleSubsystem.h:63-76",
+  "[부재] 상단 바는 백성 이름·칸·안정도·자원·연구·주기·배속만 보인다 — 부름(제 N대)·그릇 이름·PeakTier·StatusTags·CompletedFeats는 어디에도 표시되지 않는다 — UI/CosmicTopBarWidget.cpp:194-206; Tools/data/ST_CA.csv(관련 라벨 키 없음)",
+  "[개발용] 프로토타입 키 StartNextMegaproject는 Phase 3에서 키(P)가 제거되어 테스트만 쓴다 — Player/PlayerRoleSubsystem.h:73-76"
+ ],
+ "quality_notes": [
+  "레이어 경계 준수: 네 모듈의 include 목록에 UUserWidget/AActor 헤더가 없다(Ascension cpp:3-16, Player cpp:3-17, Log cpp:3-12, Save cpp:3-10). 의존 방향은 Ascension→Events·Log·Sim, Player→Events·Log·Sim(CosmicMegaprojects·CosmicStateIndex), Log→Sim, Save→Sim이고, Sim이 거꾸로 Ascension(EvaluateFeats)·Player(Install·DeposeRuler)를 GameInstance Subsystem 조회로 부른다 — 컴파일 의존은 없으나 런타임 순환이 있어 '누가 누구의 계약을 쥐는가'를 문서가 대신 쥔다.",
+  "결정론 규칙 준수: 시뮬 스트림 추첨은 Install 1회·DeposeRuler 1회·Ascend의 NameNotable 1회(Apply 경유)뿐이고 전부 가드·뱅크보다 먼저 뽑는다; 말하기 스트림은 PushVariants 한 곳(DrawTell)만; FMath::Rand 사용 없음; 명령(StartMegaproject)은 뽑지 않는다(테스트 Sim.StartMegaproject 'A command draws nothing'). SyncRngState를 Install·DeposeRuler가 끝에서 부른다(cpp:133, 208).",
+  "EvaluateFeats(FGalaxyState&, FRandomStream&)의 인자는 사실상 장식이다: 살아 있는 상태만 받고(cpp:34-38) JudgePeople은 Sim->GetTables/GetStateIndex/GetRules를 다시 조회한다. 인자를 없애거나 진짜로 분리 평가를 허용하는 쪽으로 시그니처를 정리할 후보.",
+  "PushVariants의 '같은 문장' 비교가 `FString ==`(대소문자 무시)다 — CLAUDE.md가 경고한 함정. 한글 문장에는 무해하나 라틴 이름이 섞인 변형에서 다른 문장을 같다고 볼 수 있다(Log cpp:73). `Equals(…, CaseSensitive)`가 규칙에 맞다.",
+  "함수 길이: Install 107줄(그릇 초기화·생애 기록·이름 추첨·재위·앎·첫 줄의 여섯 책임), Ascend 77줄, Tell 72줄. 나머지는 30줄 이하. Install은 계승·귀환·서막 결과가 더해질 Phase 4b 전에 쪼개는 편이 안전하다.",
+  "핸들러 거절 가드가 함수마다 수작업 복제이고(이 범위 9곳) 누락을 잡는 장치가 없다 — SaveCurrentGalaxy가 실제 누락 사례. `RefuseIfBroadcasting(TEXT(\"Install\"))` 같은 헬퍼/매크로 하나로 모으면 CLAUDE.md의 긴 함수 목록도 코드가 대신 쥔다.",
+  "태그 조회의 일관성: BecomeWanderer·Install은 호출마다 `FGameplayTag::RequestGameplayTag(FName(TEXT(…)))`(Player cpp:98, 191, 242-248), Ascend·Tell·Append는 함수 안 static const. 태그 상수 헤더(CosmicRowNames처럼 `CosmicTags::`)가 없어 철자가 ini·코드·테스트에 흩어진다.",
+  "Install의 '다스릴 문명 없음'을 ensureMsgf로 알리고 조용히 Wanderer로 강등한다(cpp:71-74) — 프로젝트 규약(UE_LOG Error 한 줄, 테스트 가능)과 어긋나고, 호출자 오류를 상태 변화로 흡수한다. 거절(return)이 다른 함수들과 일관된 태도다.",
+  "Append의 상한 처리가 `RemoveAt(0, 1, EAllowShrinking::No)` 루프라 상한에 닿은 뒤로는 Push마다 2,000칸을 앞으로 민다(Log cpp:202-210). 20,000틱 판에서 수만 번이라 틱 비용에 보일 수 있다 — 링버퍼나 한 번에 N개 이관이 대안.",
+  "Chronicle은 무상한이고 Severity 1 전부를 받는다 — 전부 쌓는 모드에서 EA 약 3,900항목, 세이브 1.8~4.2 MB(§9.4 실측). 저장 작업(#40 ⑦) 전까지 메모리와 세이브가 판 길이에 비례해 자란다.",
+  "저장은 상태 전체 복사(SaveObject->State = Sim->GetState()) + 게임 스레드 동기 `SaveGameToSlot`이며 매번 NewObject<UCosmicSaveGame>(GetTransientPackage())를 만든다(Save cpp:46-49). 자동 저장(10분·승천마다)이 붙으면 히치와 GC 쓰레기가 생긴다 — 재사용 객체·AsyncSaveGameToSlot·메모리 직렬화 후 쓰기 분리가 후보.",
+  "저장 실패는 Warning 한 줄과 false뿐이고 사유(디스크·권한·직렬화)를 가르지 않는다; 로드 거절도 Warning이라 플레이어에게 전달할 통로가 없다(Save cpp:50, 71, 81, 86).",
+  "세이브 호환 규율은 잘 문서화되어 있다(GalaxyState.h:4-11 델타 저장·초기값 동결, SaveVersion 리터럴 1, CurrentSaveVersion을 NewGalaxy가 찍음). 다만 마이그레이션 자리가 비어 있고 테스트는 '더 새 버전 거절'만 본다 — 첫 인상 때 '구 버전 로드 → 마이그레이션 → 해시' 테스트가 필요.",
+  "테스트 가능성: 이 범위는 17종 안팎의 자동화 테스트(Feats.Evaluate·Feats.Reachable·Sim.PlayerAscendsToT3·Sim.StartMegaproject·Sim.DepositionPipeline·Sim.FirstLife·Sim.SaveRoundTrip·Sim.SaveRestart·Sim.TellStreamSeparate·Log.NoConsecutiveRepeat·Log.CapAndChronicle·Log.VariantsLedger·Log.TellScope·Sim.KnowingWriters·UI.AscensionOverlay·UI.LogFeed·UI.MouseOnlyAscent)가 덮고 변이로 깨뜨려 본 기록이 있다. 반면 Sim.FirstLife는 sol·arch_terran·'5 systems'를 이름으로 고정 단언해(CosmicSimTests.cpp:529-556) v0.8 단계 4에서 통째로 다시 써야 한다.",
+  "Tell의 주제 판정에서 FocusCiv가 상태에서 제거된 백성이면 Civ가 null이라 격차 검사가 생략되고 MetCivs에는 남아 있어 범위 안으로 판정된다(Log cpp:126-137). 건넘 단계 정리 직후 같은 틱의 줄에서만 가능한 엣지 — 문서가 정하지 않은 경우.",
+  "Ascend는 ApplyAll 뒤에 `State.Civs[CivIndex]`를 다시 참조해(cpp:185) 효과가 배열을 바꿔도 안전하고, 수도 인덱스 유효성을 검사한다 — 좋은 습관. KnowAround도 Lanes 사본을 떠서 NoteKnown 중 재할당을 피한다(Player cpp:33).",
+  "명명·주석: 식별자 영문, 주석 영문 ASCII(규칙 준수), UE_LOG 문자열 영문. 헤더 주석이 설계 절 번호를 인용하며 계약을 길게 서술하는 양식은 좋으나, 미래 기능을 현재형으로 적은 곳(Save h:13, Player h:12)이 드리프트의 씨앗이다. Verbose 로그는 한글 Message를 그대로 찍는다(Log cpp:198) — 콘솔 인코딩 주의.",
+  "하드코딩된 서사 상수(Severity 2/1, 격차 3, 먼 승천의 T3 문턱, 연대기 기준 Severity ≥ 1, 상한 2,000)는 DT_Rules 노브가 아니다. 의도적일 수 있으나 '바꿀 수 있는 것은 DT_Rules'라는 데이터 원칙과 대조해 한 번 분류해 둘 필요가 있다.",
+  "Install이 StateIndex 대신 `FindByPredicate` 선형 탐색을 쓴다(Player cpp:68, 158) — 성능보다 일관성 문제(같은 파일의 나머지는 색인).",
+  "DT_Rules의 부름·계승 노브 13개(Leap*, Succession* 6, ReturnLure*, ReturnedLivesToSeize, LureAcceptByPolicy)와 FCallingState.PendingLeapTicks·LeapTicksTotal, FLifeRecord의 8필드가 '예약만 되고 소비자 없음' 상태다 — 저장 호환을 위해 미리 둔 것이라 정당하나, 미사용 필드 목록을 문서 한 곳에 모아 두어야 '구현됨'으로 오해받지 않는다.",
+  "Save 모듈은 게임 코드에서 호출자가 없어 사실상 죽은 코드 상태로 검증만 되고 있다; 커맨드렛은 저장 직렬화를 따로 재현한다(SaveBytesOf) — 슬롯 꼴(#70 머리·압축)이 바뀌면 둘을 함께 고쳐야 한다.",
+  "Log는 `Sim->GetMutableState()`로 Log·Chronicle·Knowing.FarLineUntilTick을 고친다(Log cpp:171-175, 186) — '이야기 층은 그 셋만 쓴다'는 규칙이 코드로 강제되지 않고(전체 상태에 쓰기 가능) 문서와 테스트(Sim.KnowingInert 세계 해시)로만 지켜진다."
+ ]
+}

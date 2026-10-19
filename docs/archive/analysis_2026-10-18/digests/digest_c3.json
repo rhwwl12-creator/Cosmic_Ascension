@@ -1,0 +1,796 @@
+{
+ "scope": "c3: Events 모듈 — 조건 평가·효과 적용·이벤트 슬롯·FireRow·인물 기록",
+ "summary": "Events 모듈은 헤더 452줄 + 소스 1348줄의 Subsystem 하나(`UCosmicEventSubsystem`)다(경로 표기: Source/Cosmic_Ascension/ 아래 모듈 루트 기준, 문서는 guideline.md:L줄). 두 층으로 짜였다: 상태·스트림을 문맥(`FCosmicEvalView`/`FCosmicEvalContext`)으로만 받는 static 층(`Check` 29조건, `Apply` 18효과, `CheckAll`/`ApplyAll`, `CooldownKey`)과 살아 있는 상태에서만 도는 멤버 층(`EvaluateAndFire` 이벤트 슬롯, `FireRow` 이름 발화, `TellHazardLine`, `FollowUpKnowing`, `FollowUpNotes`, `OnEventFired`). 행 하나의 발화는 '쿨다운 키 → 효과 전부 → 받은 성계의 앎 → 줄(+징조 줄) → 뒤따르는 줄(발생 줄·OutbreakRow·해결 줄) → 방송'의 고정 원자다. 슬롯은 시드 파생 위상으로 문명마다 EventSlotTicks(10)틱에 한 번, 추첨은 행을 보기 전에 문명마다 1회, Standing은 재검사 후 발화, Lottery는 몫 합에 수를 곱해 1행만 고른다. `NameNotable`은 가드보다 먼저 1회 뽑는 인물 기록 생성기이고 KillPlayer/DeposeRuler는 기록만 한다. 코드는 guideline §7.5(L3085~3109)와 거의 1:1로 맞고(헤더 주석이 §7.5의 영문 사본), Events.* 테스트 12종과 주변 테스트가 변이로 검증됐다. 그러나 데이터가 얇다: 이벤트 11행, 초월자 가중 {}, 모든 행 MinTierToReveal 0 — 징조 줄·영향권 가중·관계·넘김·유물·선택자 낱말·DurationTicks·조우/청원·KillPlayer 파이프라인·OnEventFired의 UI 소비자는 코드만 있거나 비어 있다. 품질상 Sim↔Events 순환 include, 모듈 전역 중첩 카운터, 5회 반복되는 가드 전문, 4곳에 복제된 '열린 기록 닫기' 루프, 모듈 밖에서 인물 규칙(max(Tick,1))을 어기는 승천 훅이 눈에 띈다. 플레이어 입력은 이 모듈에 직접 들어오지 않고 결과는 로그 피드의 줄뿐이다.",
+ "key_decisions": [
+  {
+   "topic": "두 층 구조",
+   "decision": "static 층(Check·CheckAll·Apply·ApplyAll·CooldownKey)은 this 없이 문맥이 건넨 상태·색인·테이블·규칙·스트림만 닿고, 멤버 층(EvaluateAndFire·FireRow·TellHazardLine·FollowUpKnowing·FollowUpNotes)만 줄·앎·방송에 닿는다. Subsystem에 멤버 변수·캐시 없음(테이블은 호출마다 다시 읽음).",
+   "source_ref": "Events/CosmicEventSubsystem.h:4-9,223-227; Events/CosmicEventSubsystem.cpp:417,624,873"
+  },
+  {
+   "topic": "행 발화의 원자(고정 순서)",
+   "decision": "(슬롯 행이면 쿨다운 키 선기록) → 효과 전부 배열 순서(ApplyAll, SourceRow=행, bPerTickSource=false) → FollowUpKnowing → 행의 줄(PushVariants) → 징조 줄 → FollowUpNotes → OnEventFired(방송 게이트 안). 효과 사이에 줄·델리게이트가 나가지 않는다.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:1117-1198 (FireResolved), 996-1004 (FirePair)"
+  },
+  {
+   "topic": "평가 문맥 설계",
+   "decision": "FCosmicEvalSubject는 ID가 아닌 인덱스(CivIndex·SystemIndex)+OtherID·GalaxyRow·SourceRow·SinceTick. 읽기 전용 FCosmicEvalView는 스트림을 갖지 않아 추첨이 불가능함을 타입으로 보장. FCosmicEvalContext는 상태·스트림 참조를 들고 복사 생성자를 지웠으며 Notes(후속 기록, 인라인 2)를 운반한다.",
+   "source_ref": "Events/CosmicEventSubsystem.h:79-107,153-168,179-220"
+  },
+  {
+   "topic": "이벤트 슬롯 박자",
+   "decision": "정착된 성계를 가진 문명은 State.Tick % EventSlotTicks == CosmicSeed::DeriveForName(Seed, CivID, EventSlot) % EventSlotTicks 인 틱에 슬롯 1개 — 배열 인덱스에 기대지 않는 고정 위상.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:921-934"
+  },
+  {
+   "topic": "추첨 선행 원칙",
+   "decision": "슬롯을 받는 문명마다 Civs 순서로 [0,1) 1회씩, 어떤 행도 보기 전에 전부 뽑는다. 이 함수 자신의 추첨 수는 시드·틱·소유·CivID만 따른다(테이블 없어도 뽑음).",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:919-937; Events/CosmicEventSubsystem.h:345-348"
+  },
+  {
+   "topic": "행 순서 독립",
+   "decision": "DT_Events 행은 Tables.GetEventRowNames()(FNameLexicalLess 정렬)로만 순회해 테이블 순서가 세계를 바꾸지 않는다.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:941; Data/CosmicDataTables.h:83"
+  },
+  {
+   "topic": "Standing 행 처리",
+   "decision": "행마다 단위(Civilization=정착된 수도 1개, SettledSystem=OwnedSystems 순)에서 조건을 먼저 보고, 통과한 단위가 있을 때만 쿨다운 키를 1회 조회한다. 발화 직전에 단위 유효성·쿨다운·조건 셋을 재검사. 키가 (행,문명)이라 CooldownTicks>0인 SettledSystem 행은 슬롯당 첫 단위에만, 0이면 모든 단위에 난다.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:950-993,1010-1042"
+  },
+  {
+   "topic": "Lottery 행 처리",
+   "decision": "몫 = BaseWeight × SphereWeightFactor × EventChancePerSlot. 음수·NaN·넘침 몫은 0+에러 줄. 합이 1을 넘으면 몫을 나누지 않고 뽑은 수에 합을 곱해 견주며(반올림 틈 제거), 문명·슬롯당 최대 1행.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:1044-1079"
+  },
+  {
+   "topic": "쿨다운 키와 청소",
+   "decision": "키 꼴 \"<row>@<CivID>\" 고정(저장됨). Tick % CooldownSweepTicks(600) == 0 인 틱에 끝난 항목을 일괄 제거 — 끝난 키와 없는 키는 뜻이 같다. Named 행은 키를 읽지도 쓰지도 않는다.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:868-871,895-902; Events/CosmicEventSubsystem.h:237-239,331-333"
+  },
+  {
+   "topic": "틱당 원천 화이트리스트",
+   "decision": "Ctx.bPerTickSource면 양을 고치는 7효과(AddResource·MultiplyIncome·ShiftEthics·ChangeStability·ChangeRelation·ChangeReverence·ChangePopulation)만 적용하고 나머지는 읽기·추첨 전에 거절. 열거형에 더한 효과는 목록에 넣기 전까지 거절.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:55-70,636-639"
+  },
+  {
+   "topic": "숫자 가드",
+   "decision": "양을 더하거나 곱하는 효과의 Value가 유한하지 않으면 거절(IsAmount — 비교식). FMath::Clamp/Max가 NaN을 통과시키므로 노브·컬럼 가드는 모두 비교로 쓴다.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:75-79,644,658,686,913,1056-1065"
+  },
+  {
+   "topic": "역할 효과는 기록만",
+   "decision": "KillPlayer/DeposeRuler는 FCallingState.PendingEffect/PendingCause/PendingSourceRow에 적고(Embodied일 때만, PendingEffect가 비어 있을 때만 — 먼저 기록된 것 우선) 열째 단계가 해소. KillPlayer 도달: 성계 있으면 그 성계에 선 방랑자만, 없으면 통치 문명 또는 문맥 문명 없음; 출생 보호 안은 기록 안 함(칸을 비워 둠). DeposeRuler는 문맥 문명이 통치 문명일 때만. 단계 코드의 붕괴 훅도 Apply를 거친다.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:249-260,802-837; Sim/GalaxySimulationSubsystem.cpp:1840-1846"
+  },
+  {
+   "topic": "NameNotable 인물 기록",
+   "decision": "적용마다 스트림에서 정확히 1회 뽑은 뒤 가드 4: ① Tier≤3 ② 뱅크 비어 있지 않고 Trait.Mind.NoSelf 없음 ③ 같은 Role 열린 기록은 LastTick=max(Tick,1)로 닫음 ④ 상한이면 닫힌 기록 중 LastTick 최소(동률이면 FirstTick 최소) 퇴출, 없으면 Ruler/Regent 아닌 열린 기록 중 FirstTick 최소 퇴출, 그래도 없으면 생성 포기(줄은 나감). 이름은 현재 기록이 안 쓰는 뱅크 인덱스(NameIndex % BankSize) 중 Roll로 고르고 전부 쓰였으면 전체 재개방.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:263-367,847-853"
+  },
+  {
+   "topic": "관계 상대 해석",
+   "decision": "RelationPartyOf: Key(비면 문맥 OtherID)가 살아 있는 CivID·판의 초월자 인스턴스·DT_Transcendents의 Realm.Celestial 행 이름일 때만 풀림. 타락·독립 행은 인스턴스가 있을 때만. 풀리지 않으면 Check 거짓, ChangeRelation은 항목을 만들지 않음(Relations 키가 세이브에 남으므로).",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:173-187,456-461,718-731"
+  },
+  {
+   "topic": "문명 선택자",
+   "decision": "SelectCiv: 빈 Key=문맥 문명, \"Former\"=Player.FormerCivID(Embodied일 때만), 그 밖의 낱말은 INDEX_NONE(미해결). CivHasNotable·NameNotable만 선택자를 읽는다.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:139-151,270,598"
+  },
+  {
+   "topic": "영향권 이벤트 가중",
+   "decision": "SphereWeightFactor: 봉인 안 된 초월자(배열 순) 중 단위 성계가 영향권 안·1레인 인접인 것마다 min(3, EventWeightModifiers[Category] × (1 + SphereEventWeightStep × 영향권 크기))를 곱함(음수·NaN은 0). Category를 든 초월자가 없거나 성계가 없으면 1. Civilization 행의 단위 성계는 수도.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:194-216"
+  },
+  {
+   "topic": "공백기의 플레이어 제외",
+   "decision": "Player 조건 8종은 Calling.LifeState != Embodied면 전부 거짓; PlayerStatDelta·GrantPower·KillPlayer·DeposeRuler도 Embodied 아니면 거절. 어휘에 부정이 없어(FlagNotSet는 깃발만) 이것이 제외의 전부.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:45-48,491-529,774-792,802-836"
+  },
+  {
+   "topic": "생애 상대 조건",
+   "decision": "MegaprojectComplete(CosmicMegaprojects::HasCompleted)와 TranscendentSealed는 View.SinceTick 이상일 때만 참 — 0은 언제든(이벤트·Hazard·AI 업적), 플레이어 업적 판정만 BornTick.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:477-479,534-537; Ascension/AscensionSubsystem.cpp:111,119"
+  },
+  {
+   "topic": "영향권 체류 창 조건",
+   "decision": "CivFallenSphereTicksReached: Key ≤ FallenSphereTicks < Key + max(1, EventSlotTicks) 일 때만 참(한 체류에 슬롯 하나); Tag가 있으면 그 교리의 봉인 안 된 초월자 영향권에 정착된 성계가 지금 있어야 함.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:558-588"
+  },
+  {
+   "topic": "틱 수 Key 읽기",
+   "decision": "TickCountOf: 숫자만·9자리 이하만 유효, 그 밖(빈 Key 포함)은 0이고 호출자가 >0을 요구하므로 잘못된 Key는 조건 거짓.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:220-241,452,561"
+  },
+  {
+   "topic": "위기 세 효과의 단일 경로",
+   "decision": "SpawnHazard는 Tag로 Hazard 행을 찾아 CosmicHazards::Place로(ClaimRule 행은 항상 거절), ResolveHazard는 Tag 일치(MatchesTag)일 때 CosmicHazards::Resolve, TransferSystem은 빈 Key=무주·그 밖엔 살아 있는 CivID만 CosmicHazards::Transfer. 후속은 Ctx.Notes로 남긴다.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:732-764; Sim/CosmicHazards.h:56,67,82"
+  },
+  {
+   "topic": "이름 발화 FireRow",
+   "decision": "행이 없거나 조건이 거짓이면 추첨·기록·줄 없이 false. 호출자 문맥에서 주제만 복사한 제 문맥(Own)을 만들어 SourceRow=행, bPerTickSource=false로 FireResolved. 쿨다운 키 읽기/쓰기 없음, 제 추첨 없음.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:1084-1115"
+  },
+  {
+   "topic": "{Hazard} 슬롯 시점",
+   "decision": "행의 줄에 넣는 {Hazard}는 효과 적용 전에 주제 성계가 쥔 Hazard 행의 DisplayName으로 고정(효과가 그것을 해결해도 그 이름).",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:1122-1130"
+  },
+  {
+   "topic": "줄의 초점",
+   "decision": "Civilization 행은 FocusCiv만, SettledSystem 행은 FocusSystem+FocusCiv. Category=LogCategory, Severity=행, MinViewerTier=MinTierToReveal, SourceRow=행.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:1142-1157"
+  },
+  {
+   "topic": "징조 줄",
+   "decision": "SignRow가 있고 LogTemplates가 비어 있지 않고 MinTierToReveal>1일 때만 DT_LogTemplates의 Sign 행 템플릿으로 둘째 줄: Category=Sign 행, Severity=min(행 Severity,1), 창 [0, MinTierToReveal−1], 같은 Args. Sign 행이 없으면 에러 줄.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:1165-1181"
+  },
+  {
+   "topic": "받은 성계의 앎",
+   "decision": "FollowUpKnowing: SystemReceived 기록을 꺼내, Embodied·Ruler이고 받은 백성이 통치 문명일 때만 NoteKnown(성계) 후 준 백성을 그 성계에서 NoteMet. 다른 기록은 순서대로 남긴다.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:1242-1292"
+  },
+  {
+   "topic": "후속 줄 FollowUpNotes",
+   "decision": "FollowUpKnowing을 먼저 → 기록을 MoveTemp로 비운 뒤 순서대로: HazardPlaced=발생 줄+OutbreakRow를 그 성계·주인 주제로 FireRow(전역 카운터가 4 이상이면 에러 줄로 중단), HazardResolved=해결 줄, SystemReceived=말하지 않음.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:1294-1348,27-28"
+  },
+  {
+   "topic": "살아 있는 상태·방송 가드",
+   "decision": "멤버 함수 5개 모두 &State != &Sim->GetState() 또는 Sim->IsBroadcasting()이면 에러 한 줄 후 무동작(기록은 그대로).",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:877-887,1088-1098,1205-1214,1246-1255,1298-1307"
+  },
+  {
+   "topic": "OnEventFired 방송",
+   "decision": "IsBroadcastEnabled일 때만 BeginBroadcast/EndBroadcast로 감싸 동기 발화; 전달값은 값만 든 FCosmicEventNotice(행·Category·Severity·SystemID·CivID·Tick). 만나지 않은 백성의 행도 발화(표현 계층이 거른다).",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:1187-1198; Events/CosmicEventSubsystem.h:44-70,440-446"
+  },
+  {
+   "topic": "전방 호환",
+   "decision": "알 수 없는 열거자(뒤 빌드의 행)는 Check 거짓·Apply 거절.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:606-608,855-856"
+  },
+  {
+   "topic": "MultiplyIncome 의미",
+   "decision": "틱당 원천에서만 적용, Value<0은 0, Key가 있으면 그 자원 1곱, 없으면 5자원 모두 같은 곱(IncomePerTick은 매 틱 재계산되므로 비축에 닿는 길은 이것뿐).",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:653-682"
+  },
+  {
+   "topic": "경계 클램프",
+   "decision": "Stockpile ≥0(AddResource), Ethics [−1,1], Stability [0,1], Relation [−1,1], Reverence [0,1], Population ≥0(비율 곱), 개인 능력치 [0,10]·RoundToInt32.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:649,692,716,730,772,790,845"
+  },
+  {
+   "topic": "효과 거절의 비차단",
+   "decision": "ApplyAll은 거절된 효과를 건너뛰고 다음 효과를 계속 적용하며, 줄은 효과가 거절되었든 말든 나간다.",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:860-866; Events/CosmicEventSubsystem.h:394-396"
+  }
+ ],
+ "parameters": [
+  {
+   "name": "CooldownSweepTicks",
+   "value": "600",
+   "source_ref": "Events/CosmicEventSubsystem.h:239; Events/CosmicEventSubsystem.cpp:895",
+   "note": "하드코딩 constexpr(DT_Rules 노브 아님). guideline.md:L2184·L3097 '600틱마다'와 일치"
+  },
+  {
+   "name": "MaxNestedOutbreakRows",
+   "value": "4",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:27",
+   "note": "하드코딩. guideline.md:L2394 '깊이 4'. CosmicHazards의 MaxNestedResolutions=4와 별개 상수"
+  },
+  {
+   "name": "MaxPersonalStat",
+   "value": "10",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:43,790",
+   "note": "하드코딩. guideline.md:L1139 §5.9 '각 0~10'과 일치"
+  },
+  {
+   "name": "TickCountOf 자릿수 상한",
+   "value": "9",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:227",
+   "note": "하드코딩. guideline.md:L3101 '9자리까지'"
+  },
+  {
+   "name": "영향권 가중 인수 상한/하한",
+   "value": "3.0 / 0",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:212",
+   "note": "하드코딩. guideline.md:L2569·L754 '상한 ×3'"
+  },
+  {
+   "name": "NameNotable 가드 Tier",
+   "value": "≤ 3",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:278",
+   "note": "하드코딩(§3.2 넷째 칸부터 개인 없음)"
+  },
+  {
+   "name": "DT_Rules.EventSlotTicks",
+   "value": "10",
+   "source_ref": "Data/CosmicDefinitionRows.h:815; Tools/data/DT_Rules.json; Events/CosmicEventSubsystem.cpp:907-910",
+   "note": "노브. 스키마 1..20; 코드는 <1을 1로 읽고 에러 줄"
+  },
+  {
+   "name": "DT_Rules.EventChancePerSlot",
+   "value": "0.02",
+   "source_ref": "Data/CosmicDefinitionRows.h:820; Events/CosmicEventSubsystem.cpp:913-918",
+   "note": "노브(잠정, §16 #54 — 행 묶음마다 재조정). <0·NaN·∞는 0+에러 줄"
+  },
+  {
+   "name": "DT_Rules.SphereEventWeightStep",
+   "value": "0.1",
+   "source_ref": "Data/CosmicDefinitionRows.h:780; Events/CosmicEventSubsystem.cpp:211",
+   "note": "노브(스키마 ≥0)"
+  },
+  {
+   "name": "DT_Rules.MaxNotablesPerCiv",
+   "value": "4",
+   "source_ref": "Data/CosmicDefinitionRows.h:798; Events/CosmicEventSubsystem.cpp:302",
+   "note": "노브. 스키마 3..5; 코드는 max(1, 값)"
+  },
+  {
+   "name": "DT_Rules.BirthProtectionTicks",
+   "value": "300",
+   "source_ref": "Data/CosmicDefinitionRows.h:678; Events/CosmicEventSubsystem.cpp:824",
+   "note": "노브. KillPlayer를 적는 자리에서 가림(Tick − BornTick < 값)"
+  },
+  {
+   "name": "DT_Rules.BaseLifespanTicks",
+   "value": "0 (노화 OFF)",
+   "source_ref": "Data/CosmicDefinitionRows.h:682; Events/CosmicEventSubsystem.cpp:528",
+   "note": "노브. 0이면 PlayerAgeAtLeast가 항상 거짓"
+  },
+  {
+   "name": "FCosmicEventDef 기본값",
+   "value": "BaseWeight 1, CooldownTicks 200, Severity 0, MinTierToReveal 0, Trigger Lottery, Subject Civilization",
+   "source_ref": "Data/CosmicDefinitionRows.h:63-97",
+   "note": "행 구조체 기본값(데이터 쪽)"
+  },
+  {
+   "name": "현재 이벤트 데이터",
+   "value": "11행: Lottery 5(event_civ_lode/grid_failure/quarrel/festival W1.0 CD600, event_plague_repentance CD600), Standing 3(event_book_closed CD0, event_book_reading CD1800, event_rebellion_murmur CD60), Named 3(event_book_found, event_grace_remnant, event_rebellion_rises)",
+   "source_ref": "Tools/data/DT_Events.json",
+   "note": "데이터. 모든 행 MinTierToReveal 0, SignRow None"
+  },
+  {
+   "name": "이벤트 효과 크기",
+   "value": "Matter +20 / Energy −15 / Stability ±0.03 / 책 발견 Stability +0.2 / 반란 만료 Openness +0.1 / 역병 Population ×0.6",
+   "source_ref": "Tools/data/DT_Events.json; Tools/data/DT_Hazards.json",
+   "note": "데이터(밸런스 미조정 잠정값)"
+  },
+  {
+   "name": "trans_silence.EventWeightModifiers",
+   "value": "{} (빈 맵)",
+   "source_ref": "Tools/data/DT_Transcendents.json; Events/CosmicEventSubsystem.cpp:200",
+   "note": "데이터. 영향권 가중 인수가 게임에서 항상 1 — 코드 경로가 데이터로는 비활성"
+  },
+  {
+   "name": "trans_silence.PressureEffectsPerTick",
+   "value": "MultiplyIncome Insight ×0.7",
+   "source_ref": "Tools/data/DT_Transcendents.json; Sim/GalaxySimulationSubsystem.cpp:1512",
+   "note": "데이터. 틱당 원천의 유일한 실사용"
+  },
+  {
+   "name": "crisis_rebellion.OutbreakRow",
+   "value": "event_rebellion_rises (NameNotable Notable.Rebel)",
+   "source_ref": "Tools/data/DT_Hazards.json; Events/CosmicEventSubsystem.cpp:1324-1336",
+   "note": "데이터. FollowUpNotes가 이름으로 내는 유일한 행"
+  },
+  {
+   "name": "슬롯 위상 식",
+   "value": "DeriveForName(State.Seed, CivID, Purpose::EventSlot) % uint32(EventSlotTicks)",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:927",
+   "note": "알고리즘 상수(Core/CosmicSeed.h 용도 상수). 시드·CivID만 따름"
+  },
+  {
+   "name": "예상 슬롯 빈도",
+   "value": "60·12 → 틱당 약 1.2슬롯, 300·48 → 약 4.8",
+   "source_ref": "guideline.md:L3097",
+   "note": "문서의 파생 수치(백성 하나의 빈도는 백성 수와 무관)"
+  },
+  {
+   "name": "Lottery 몫 넘침 가드",
+   "value": "Share ∉ [0, FLT_MAX − Total] → 0 + 에러 줄",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:1059-1065",
+   "note": "하드코딩"
+  },
+  {
+   "name": "징조 줄 창",
+   "value": "Severity min(행,1), MinViewerTier 0, MaxViewerTier MinTierToReveal−1",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:1171-1173",
+   "note": "하드코딩(Severity 캡은 문서에 없음)"
+  },
+  {
+   "name": "인라인 할당 크기",
+   "value": "SlotCivs/Rolls/Standing/Lottery/Shares 16, Notes 2, FreeNames 32, SettledSystems 16",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:919-920,344,374; Events/CosmicEventSubsystem.h:219",
+   "note": "하드코딩 성능 상수(EA 48문명·300성계에서 힙 전환)"
+  },
+  {
+   "name": "틱당 효과 목록",
+   "value": "7 (AddResource·MultiplyIncome·ShiftEthics·ChangeStability·ChangeRelation·ChangeReverence·ChangePopulation)",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:59-65; Tools/data/schema.json(per_tick_effects)",
+   "note": "코드 닫힌 목록 + 스키마 사본(Data.Integrity가 맞춤)"
+  },
+  {
+   "name": "CivStabilityBelowFor.Value",
+   "value": "코드가 읽지 않음(Key=틱 수; 데이터 crisis_rebellion Key '100', Value 0.3)",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:449-454; Tools/data/DT_Hazards.json",
+   "note": "스키마가 0.3만 허용(§16 #25 ②) — 파라미터 아님"
+  },
+  {
+   "name": "ChangePopulation 식",
+   "value": "Population × (1 + Value), 바닥 0",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:838-846",
+   "note": "하드코딩(문명 단위, 성계별 인구 없음)"
+  },
+  {
+   "name": "OnEventFired 전달값",
+   "value": "EventRow·Category·Severity·SystemID·CivID·Tick",
+   "source_ref": "Events/CosmicEventSubsystem.h:44-70; Events/CosmicEventSubsystem.cpp:1189-1195",
+   "note": "USTRUCT, 저장 안 함"
+  },
+  {
+   "name": "DT_Civs PersonNameBank",
+   "value": "arch_terran 12, arch_default 12",
+   "source_ref": "Tools/data/DT_Civs.json",
+   "note": "데이터. 뱅크 크기가 FreeNames 선택 공간(60개는 Phase 4)"
+  }
+ ],
+ "gaps": [
+  {
+   "what": "선택자 낱말 중 Former만 구현; Ruled 등은 미해결(주석 'section 16 #29')",
+   "why_it_matters": "Phase 4 청원·조우 행이 통치 문명을 가리킬 수 없어 데이터 작성이 막힌다",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:137-151; guideline.md:L2234"
+  },
+  {
+   "what": "SystemOwnedBy의 Key를 리터럴 CivID로만 비교('The selector words wait for section 16 #29')",
+   "why_it_matters": "CivID는 판에서 생성되므로 데이터는 빈 Key(문맥 문명)만 쓸 수 있다 — 조건이 사실상 '내 성계인가'로 축소",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:469-475"
+  },
+  {
+   "what": "DurationTicks를 Apply가 읽지 않음 — 시간 제한 효과·활성 효과 기록 없음('0 = instant / permanent')",
+   "why_it_matters": "§5.8 '만나' 패턴 등 지속 효과 설계가 올라탈 장치가 없다; 틱당 원천(칙령)에서의 셈 규칙도 미정",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:624-857; Data/CosmicConditionTypes.h:156-158; Events/CosmicEventSubsystem.h:304-305"
+  },
+  {
+   "what": "KillPlayer는 기록만 되고 해소 파이프라인이 없음(열째 단계는 DeposeRuler만 비움); 스키마가 모든 행에서 KillPlayer를 금지",
+   "why_it_matters": "방랑자 루프·사망·계승(Phase 4b)의 전제이며, 기록된 KillPlayer가 무기한 칸을 차지해 뒤의 DeposeRuler를 막는 상태 함정이 남아 있다",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:802-830; Sim/GalaxySimulationSubsystem.cpp:2220-2227; Tools/data/schema.json(lacks_type KillPlayer)"
+  },
+  {
+   "what": "조우/청원(FEncounterDef·FEncounterChoice) 평가 경로가 없음 — 헤더는 'from Phase 4, encounters and petitions'를 약속",
+   "why_it_matters": "플레이어가 이벤트에 답할 수 있는 유일한 입력 장치가 통째로 비어 있다(Playable MVP의 핵심 결정 루프)",
+   "source_ref": "Events/CosmicEventSubsystem.h:223-224; Data/CosmicDefinitionRows.h:319-383"
+  },
+  {
+   "what": "특성·칙령 가중(trait/edict weight modifiers) 미구현 — Lottery 몫은 영향권 인수만",
+   "why_it_matters": "문명 성격(윤리·특성)이 어떤 사건을 겪는지에 영향을 줄 수 없어 백성마다의 차이가 로그에 드러나지 않는다",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:1047-1048"
+  },
+  {
+   "what": "PlayerAgeAtLeast는 BaseLifespanTicks=0(노화 OFF)이라 현재 규칙에서 항상 거짓",
+   "why_it_matters": "조건이 데드 코드처럼 남아 있고 노화 설계(§4.4)의 기본값이 미결",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:527-529; Tools/data/DT_Rules.json"
+  },
+  {
+   "what": "PlayerHasRelic 조건은 있으나 유물을 주는 효과(GrantRelic/RemoveRelic)가 열거형에 없음",
+   "why_it_matters": "Relics 배열에 쓰는 코드가 없어 조건이 영원히 거짓",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:511-512; Data/CosmicConditionTypes.h:135-136"
+  },
+  {
+   "what": "TranscendentAwareOfPlayer: bAwareOfPlayer를 true로 두는 코드가 없음(테스트만)",
+   "why_it_matters": "'초월자가 부름을 알아본다'(§4.2 Tier 3) 메커니즘의 시작점이 비어 있다",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:540-544; Core/GalaxyState.h:413"
+  },
+  {
+   "what": "CivRelationAtLeast/ChangeRelation: 외교 단계·InitialRelations·데이터 모두 없음(Phase 4)",
+   "why_it_matters": "관계 축이 세계에 영향을 주지 못해 '광신=관계 변동' 같은 교리 효과가 무의미",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:456-461,718-731"
+  },
+  {
+   "what": "TransferSystem은 구현됐으나 게임 데이터의 어느 행도 싣지 않음(스키마가 만료·해결 효과에서 제외)",
+   "why_it_matters": "FollowUpKnowing의 '받은 성계의 앎' 경로가 실제 플레이에서 한 번도 돌지 않는다(§16 #73 남의 완성 기록도 미결)",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:751-764; Sim/GalaxySimulationSubsystem.cpp:1821,1948"
+  },
+  {
+   "what": "CivHasNotable은 조우 변형 선택 전용이라 데이터 사용처가 없음",
+   "why_it_matters": "인물 기록이 로그 주어 외에 아무 데도 읽히지 않아 '인물' 시스템의 체감이 없다",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:597-604; Data/CosmicConditionTypes.h:61-65"
+  },
+  {
+   "what": "징조 줄(SignRow)·보는 쪽 Tier 창은 코드만 있고 모든 행이 MinTierToReveal 0",
+   "why_it_matters": "'칸이 오르면 더 보인다'는 정보 공개 루프가 데이터로 비어 있다",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:1165-1181; Tools/data/DT_Events.json"
+  },
+  {
+   "what": "영향권 이벤트 가중은 유일한 초월자 행의 EventWeightModifiers가 {}라 게임에서 항상 1",
+   "why_it_matters": "영혼 경제의 '가져간 만큼 그 교리의 사건이 잦아진다'(§4.2)가 플레이에 드러나지 않는다",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:194-216; Tools/data/DT_Transcendents.json"
+  },
+  {
+   "what": "OnEventFired의 표현 계층 소비자가 없음(테스트 프로브만; UI는 OnLogEntry만 듣는다)",
+   "why_it_matters": "사건의 자동 일시정지·카메라 이동·강조 같은 피드백 루프가 없어 이벤트가 '피드의 한 줄'로만 남는다",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:1196; UI/CosmicLogFeedWidget.cpp(OnLogEntry만)"
+  },
+  {
+   "what": "인물 코드 훅 3 중 Regent(자진 이탈·사망) 훅 미구현 — Rebel→Ruler(Sim)·Ascendant(Ascension)만",
+   "why_it_matters": "guideline L52가 약속한 세 훅 중 하나가 Phase 4/4b까지 비어 있다",
+   "source_ref": "guideline.md:L52; Sim/GalaxySimulationSubsystem.cpp:328-363; Ascension/AscensionSubsystem.cpp:164-170"
+  },
+  {
+   "what": "Phase 6+ 틱당 효과(MultiplyResearch·PopulationLossMultiplier·StabilityFloor)와 CivStabilityAtLeast·PlayerHasPower 열거자 미추가(주석 예약)",
+   "why_it_matters": "회귀·광신 교리 행과 T5 길 조건이 들어올 자리가 열거형·스키마·틱당 목록 세 곳에서 동시에 열려야 한다",
+   "source_ref": "Data/CosmicConditionTypes.h:79,133-134"
+  },
+  {
+   "what": "Hazard 답(RulerResolutions)의 DT_Edicts/DT_Encounters 이름은 읽지 않고 WandererResolutions는 전부 빈 배열",
+   "why_it_matters": "위기 해결 수단이 거대 프로젝트 하나뿐이라 결정이 단조롭다(§4.1 칙령·조우·청원 해결 미구현)",
+   "source_ref": "Data/CosmicDefinitionRows.h:186-195; Tools/data/DT_Hazards.json"
+  },
+  {
+   "what": "이벤트 콘텐츠 11행(VS 목표 40행); 범용 Lottery 4행은 ±자원/±0.03 안정도의 미세 효과뿐",
+   "why_it_matters": "플레이어가 느낄 결과·선택이 없어 '사건'이 밸런스 노이즈에 그친다",
+   "source_ref": "Tools/data/DT_Events.json; guideline.md:L3097"
+  },
+  {
+   "what": "FollowUpKnowing은 통치 문명이 받은 성계만 다룸 — 방랑자의 앎·첫 접촉 카드(PendingContactCivID)는 Phase 4",
+   "why_it_matters": "방랑자 모드에서 사건이 앎에 닿는 길이 아직 없다",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:1268-1271; CLAUDE.md(v0.7 표지)"
+  },
+  {
+   "what": "슬롯 행(Lottery·Standing)은 스키마로 Player 조건·역할/그릇 효과를 싣지 못함",
+   "why_it_matters": "플레이어를 겨누는 사건은 Phase 4 청원 카드까지 데이터로 만들 수 없다",
+   "source_ref": "Tools/data/schema.json('a slot runs for every people' 규칙); Events/CosmicEventSubsystem.cpp:491-529"
+  },
+  {
+   "what": "깊이 가드 카운터 NestedOutbreakRows가 모듈 전역(상태·세이브 밖)",
+   "why_it_matters": "재진입·다중 GameInstance(테스트 병행)에서 공유되는 숨은 상태 — '멤버 변수 없음' 원칙의 회피",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:25-28"
+  },
+  {
+   "what": "event_grace_jubilee(판 전체 행)는 슬롯 단위(문명·성계)에 맞지 않아 행·발화 자리 미정(§16 #29 ⑧)",
+   "why_it_matters": "판 단위 사건을 낼 트리거 종류(Trigger=Run?)가 설계에 없다",
+   "source_ref": "guideline.md:L960"
+  },
+  {
+   "what": "Initialize는 로그만, Deinitialize는 빈 본문 — 생명주기 작업 없음",
+   "why_it_matters": "문제는 아니나 테이블 주입(SetTables) 뒤 캐시가 없는 설계라 GetEventRowNames 정렬이 호출마다 반복된다",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:406-415,941"
+  }
+ ],
+ "duplication": [
+  {
+   "what": "'같은 Role의 열린 기록 닫기(LastTick = max(Tick,1))' 루프",
+   "also_in": "Sim/GalaxySimulationSubsystem.cpp:349-354 (ChangeThrone), Sim/CosmicHazards.cpp:49-55 (EndRebellion), Ascension/AscensionSubsystem.cpp:171-177 (여기는 max(…,1) 없이 State.Tick)",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:292-298"
+  },
+  {
+   "what": "중첩 깊이 가드 패턴(전역 int 카운터 + constexpr 4 + TGuardValue + 에러 줄)",
+   "also_in": "Sim/CosmicHazards.cpp:36-37,195-200 (NestedResolutions)",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:27-28,1324-1330"
+  },
+  {
+   "what": "살아 있는 상태·방송 중 가드 전문(두 if + UE_LOG Error + 반환)",
+   "also_in": "Events/CosmicEventSubsystem.cpp:1088-1098, 1205-1214, 1246-1255, 1298-1307 (같은 파일 5회)",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:877-887"
+  },
+  {
+   "what": "로그 줄 조립(FCosmicLine 채우기 + Args {Civ}{System}{Hazard})",
+   "also_in": "Events/CosmicEventSubsystem.cpp:1226-1239 (TellHazardLine), Sim/GalaxySimulationSubsystem.cpp:1952-1965 (완성 줄), Ascension/AscensionSubsystem.cpp:186-196 (승천 줄), Player/PlayerRoleSubsystem.cpp:186",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:1142-1157"
+  },
+  {
+   "what": "'정착된 수도 인덱스' 계산(수도가 소유·정착 상태인지)",
+   "also_in": "Sim/GalaxySimulationSubsystem.cpp:1572-1575 (event_book_found 발화 자리)",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:378-394 (UnitsOf.Capital), 243-246"
+  },
+  {
+   "what": "쿨다운 조회식 Find(CooldownKey(Row, CivID)) && *Until > State.Tick",
+   "also_in": "Events/CosmicEventSubsystem.cpp:1024-1027 (Standing 재검사)",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:985-988 (Gather)"
+  },
+  {
+   "what": "FCosmicEvalView/Context 구성(CivIndex·SystemIndex·GalaxyRow·SourceRow 세팅)이 헬퍼 없이 반복",
+   "also_in": "Events/CosmicEventSubsystem.cpp:1028-1033, Ascension/AscensionSubsystem.cpp:106-111,114-119, Sim/GalaxySimulationSubsystem.cpp:1650,1722,1731,1993",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:952-955,996-1002"
+  },
+  {
+   "what": "자원 이름 표(Energy·Matter·Insight·Influence·Causality)와 열거 순서의 병렬 목록",
+   "also_in": "Core/CosmicTypes.h:35-42 (ECosmicResource), Tools/data/schema.json(words.resource)",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:40,86-98"
+  },
+  {
+   "what": "틱당 효과 7종 목록이 네 벌(코드·헤더 주석·스키마·guideline)",
+   "also_in": "Events/CosmicEventSubsystem.h:277-281, Tools/data/schema.json(per_tick_effects), guideline.md:L3103",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:55-70"
+  },
+  {
+   "what": "태그 상수(Notable.Ruler·Notable.Rebel·Effect.DeposeRuler)를 파일마다 static local RequestGameplayTag로 따로 생성",
+   "also_in": "Sim/GalaxySimulationSubsystem.cpp:330-332, Sim/CosmicHazards.cpp:43",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:256,265-267"
+  },
+  {
+   "what": "초월자 선형 검색(FindByPredicate) — 색인(FCosmicStateIndex)은 Civ·System만",
+   "also_in": "Sim/CosmicStateIndex.h(FindCiv/FindSystem만 제공)",
+   "source_ref": "Events/CosmicEventSubsystem.cpp:158-168"
+  }
+ ],
+ "contradictions": [
+  {
+   "a": "guideline.md:L3103·CLAUDE.md — '`FCallingState.PendingRoleEffect`에 기록만 한다'",
+   "b": "코드 필드는 PendingEffect·PendingCause·PendingSourceRow 셋(Core/GalaxyState.h:569-576; Events/CosmicEventSubsystem.cpp:256-258)",
+   "note": "문서의 집합 이름과 코드 식별자 불일치 — 문서에서 식별자 하나로 통일하거나 '세 필드의 묶음'임을 명시"
+  },
+  {
+   "a": "guideline.md:L3103 — '틱당 최대 1건, 먼저 기록된 것 우선'",
+   "b": "코드는 PendingEffect가 비어 있을 때까지 기록을 거부하고(틱 리셋 없음, Events/CosmicEventSubsystem.cpp:249-260) 열째 단계는 DeposeRuler만 비운다(Sim/GalaxySimulationSubsystem.cpp:2220-2227) — 기록된 KillPlayer는 무기한 칸을 차지",
+   "note": "지금은 KillPlayer 행이 없어 무해. Phase 4b 전에 '틱당'인지 '해소까지'인지 문서 정의를 코드에 맞춰야 함"
+  },
+  {
+   "a": "guideline.md:L1131 (§5.8 칙령) — '만나' 패턴: 자원 보충은 \"저장 불가 DurationTicks\"로 파밍 방지",
+   "b": "guideline.md:L3103·§16 #27(L4572)·코드 — Apply는 DurationTicks를 읽지 않고 활성 효과 기록을 두지 않음(Data/CosmicConditionTypes.h:156-158)",
+   "note": "Phase 4 칙령 설계가 존재하지 않는 장치에 기댄다 — 설계를 고치거나 틱당 원천(칙령 행)에서의 DurationTicks 셈을 정의해야 함"
+  },
+  {
+   "a": "guideline.md:L2234 (§7.3) — 'SystemOwnedBy의 Key도 선택자다'",
+   "b": "코드는 비어 있지 않은 Key를 리터럴 CivID로 비교(Events/CosmicEventSubsystem.cpp:469-475)",
+   "note": "같은 줄 뒤에 '코드에는 지금 Former만'이라 유예가 적혀 있으나 §7.3 본문이 현재형이라 데이터 작성자가 오해할 수 있음"
+  },
+  {
+   "a": "CLAUDE.md '현재 단계' — 'EConditionType 28·EEffectType 18', 'DT_Events … 책 세 행과 추첨 행 넷'",
+   "b": "열거형은 조건 29(CivResearchAtLeast 추가, Data/CosmicConditionTypes.h:16-78), DT_Events는 11행(Tools/data/DT_Events.json)",
+   "note": "Phase 1~2 시점 수치가 갱신되지 않음 — 수치는 코드/데이터에서 읽게 하고 문서에는 적지 않는 편이 안전"
+  },
+  {
+   "a": "guideline.md:L3107·§16 #35 — '열린 기록은 LastTick = max(Tick, 1)로 닫는다(0은 열린 기록)'",
+   "b": "Ascension의 넷째 칸 훅은 LastTick = State.Tick(Ascension/AscensionSubsystem.cpp:171-177); Events의 가드 3은 max(Tick,1)(Events/CosmicEventSubsystem.cpp:296)",
+   "note": "틱 ≥1에서만 불려 실해는 없지만 인물 기록 규칙을 Events 밖 코드가 어김 — 닫기 함수를 하나로 모을 근거"
+  },
+  {
+   "a": "guideline.md:L2338·스키마 — 징조 줄은 Sign 행의 Category로 창 아래 보는 이에게 같은 초점으로",
+   "b": "코드가 추가로 Severity를 1 이하로 깎음(SignLine.Severity = min(Row.Severity,1), Events/CosmicEventSubsystem.cpp:1171)",
+   "note": "문서에 없는 규칙(범위 밖 Severity 2가 bUntold로 쌓이는 것을 피하려는 의도로 보임) — §7.5/§8.1에 기재 필요"
+  },
+  {
+   "a": "Tools/data/schema.json — CivRelationAtLeast/ChangeRelation의 Key는 DT_Transcendents 행(optional)만",
+   "b": "코드·guideline.md:L3101 — 살아 있는 CivID와 선택자 Former도 상대로 풀림(Events/CosmicEventSubsystem.cpp:173-187)",
+   "note": "검사기가 코드보다 좁다(판 생성 CivID를 데이터가 쓸 수 없으니 의도적일 수 있음) — §7.3의 '상대를 고르는 자리' 문장과 어긋나므로 명시 필요"
+  },
+  {
+   "a": "Events/CosmicEventSubsystem.h:304-305 — 'Data.Integrity keeps a [DurationTicks] value above zero out of every effect array but the per-tick sources'",
+   "b": "그 규칙은 Python 검사기(Tools/cosmic_data_schema.py:833-835)가 지키고 C++ Data.Integrity(Tests/CosmicDataTests.cpp)에는 DurationTicks 검사가 없다",
+   "note": "헤더가 검사 주체를 잘못 가리킴 — 어느 검사기가 어느 규칙을 쥐는지의 표가 필요"
+  },
+  {
+   "a": "guideline.md:L52 (v0.6 변경 기록) — '인물 생성은 효과 NameNotable + 코드 훅 3(반란 만료의 Rebel→Ruler, 자진 이탈·사망의 Regent, AI 문명 T3의 Ascendant)'",
+   "b": "코드 훅은 2개(Sim/GalaxySimulationSubsystem.cpp:328-363, Ascension/AscensionSubsystem.cpp:164-170); Regent 훅 없음",
+   "note": "변경 기록이 현재형으로 읽혀 구현 상태표와 어긋남 — '(Phase 4·4b)' 표지 필요"
+  }
+ ],
+ "implemented_status": [
+  {
+   "feature": "조건 평가기 Check(29 조건, 주제 없음·미해결 Key = 거짓)",
+   "status": "implemented",
+   "evidence": "Events/CosmicEventSubsystem.cpp:417-610"
+  },
+  {
+   "feature": "효과 적용기 Apply(18 효과, 가드·클램프·거절 반환)",
+   "status": "implemented",
+   "evidence": "Events/CosmicEventSubsystem.cpp:624-857"
+  },
+  {
+   "feature": "CheckAll(AND, 빈 배열 참)/ApplyAll(거절 무시 계속)",
+   "status": "implemented",
+   "evidence": "Events/CosmicEventSubsystem.cpp:612-622,860-866"
+  },
+  {
+   "feature": "이벤트 슬롯 EvaluateAndFire(시드 위상·선추첨·Standing·Lottery·행 순서 독립)",
+   "status": "implemented",
+   "evidence": "Events/CosmicEventSubsystem.cpp:873-1082; 호출 Sim/GalaxySimulationSubsystem.cpp:1740"
+  },
+  {
+   "feature": "쿨다운 키 \"<row>@<CivID>\"와 600틱 청소",
+   "status": "implemented",
+   "evidence": "Events/CosmicEventSubsystem.cpp:868-871,895-902"
+  },
+  {
+   "feature": "이름 발화 FireRow(Named 행: event_book_found·event_grace_remnant·OutbreakRow)",
+   "status": "implemented",
+   "evidence": "Events/CosmicEventSubsystem.cpp:1084-1115; Sim/GalaxySimulationSubsystem.cpp:1577,1879; Events/CosmicEventSubsystem.cpp:1336"
+  },
+  {
+   "feature": "행 원자 순서(효과→앎→줄→징조→후속→방송) FireResolved",
+   "status": "implemented",
+   "evidence": "Events/CosmicEventSubsystem.cpp:1117-1198"
+  },
+  {
+   "feature": "징조 줄 SignRow·보는 쪽 Tier 창",
+   "status": "partial",
+   "evidence": "코드 Events/CosmicEventSubsystem.cpp:1165-1181; 데이터는 모든 행 SignRow None·MinTierToReveal 0 (Tools/data/DT_Events.json)"
+  },
+  {
+   "feature": "영향권 이벤트 가중 SphereWeightFactor",
+   "status": "partial",
+   "evidence": "코드 Events/CosmicEventSubsystem.cpp:194-216; 데이터 trans_silence.EventWeightModifiers {} (Tools/data/DT_Transcendents.json)"
+  },
+  {
+   "feature": "특성·칙령 이벤트 가중(Phase 4)",
+   "status": "missing",
+   "evidence": "Events/CosmicEventSubsystem.cpp:1047-1048 주석만"
+  },
+  {
+   "feature": "틱당 원천 화이트리스트와 MultiplyIncome",
+   "status": "implemented",
+   "evidence": "Events/CosmicEventSubsystem.cpp:55-70,653-682; Sim/GalaxySimulationSubsystem.cpp:1397-1398,1512"
+  },
+  {
+   "feature": "역할 효과 기록 KillPlayer/DeposeRuler(Embodied·먼저 기록·출생 보호·도달 규칙)",
+   "status": "implemented",
+   "evidence": "Events/CosmicEventSubsystem.cpp:249-260,802-837; 테스트 Events.RoleEffectRules"
+  },
+  {
+   "feature": "KillPlayer 해소(사망 파이프라인, Phase 4b)",
+   "status": "missing",
+   "evidence": "Sim/GalaxySimulationSubsystem.cpp:2220-2227 (DeposeRuler만 처리); 스키마가 KillPlayer 행 금지"
+  },
+  {
+   "feature": "NameNotable 인물 기록(가드 4·고정 추첨·퇴출)",
+   "status": "implemented",
+   "evidence": "Events/CosmicEventSubsystem.cpp:263-367,847-853; 테스트 Events.NotableDrawFixed·Sim.NotablesCapped"
+  },
+  {
+   "feature": "CivHasNotable 조건",
+   "status": "partial",
+   "evidence": "코드 Events/CosmicEventSubsystem.cpp:597-604; 데이터 사용처 없음(조우 변형 전용, Phase 4)"
+  },
+  {
+   "feature": "인물 코드 훅 Rebel→Ruler(반란 만료)",
+   "status": "implemented",
+   "evidence": "Sim/GalaxySimulationSubsystem.cpp:328-363; 테스트 Sim.RebellionThrone"
+  },
+  {
+   "feature": "인물 코드 훅 Ascendant(AI T3)와 넷째 칸의 기록 닫기",
+   "status": "implemented",
+   "evidence": "Ascension/AscensionSubsystem.cpp:164-177"
+  },
+  {
+   "feature": "인물 코드 훅 Regent(자진 이탈·사망)",
+   "status": "missing",
+   "evidence": "guideline.md:L52 약속; 코드 없음(grep Notable.Regent → Events 가드에서만 읽음)"
+  },
+  {
+   "feature": "FollowUpKnowing(받은 성계의 앎·준 백성 만남)",
+   "status": "implemented",
+   "evidence": "Events/CosmicEventSubsystem.cpp:1242-1292; 호출 Sim/GalaxySimulationSubsystem.cpp:1814,1949, Ascension/AscensionSubsystem.cpp:184, Player/PlayerRoleSubsystem.cpp:291"
+  },
+  {
+   "feature": "FollowUpNotes(발생 줄·OutbreakRow·해결 줄·중첩 깊이 4 가드)",
+   "status": "implemented",
+   "evidence": "Events/CosmicEventSubsystem.cpp:1294-1348"
+  },
+  {
+   "feature": "TellHazardLine(발생·만료·해결 세 벌)",
+   "status": "implemented",
+   "evidence": "Events/CosmicEventSubsystem.cpp:1201-1240; 호출 Sim/GalaxySimulationSubsystem.cpp:1862"
+  },
+  {
+   "feature": "OnEventFired 델리게이트(값 USTRUCT, 방송 게이트)",
+   "status": "partial",
+   "evidence": "코드 Events/CosmicEventSubsystem.cpp:1187-1198; UI/World 소비자 없음(UI/CosmicLogFeedWidget.cpp는 OnLogEntry만)"
+  },
+  {
+   "feature": "핸들러 안 호출 거절·떼어 낸 상태 거절",
+   "status": "implemented",
+   "evidence": "Events/CosmicEventSubsystem.cpp:877-887 등 5곳; 테스트 Events.RowAtomic"
+  },
+  {
+   "feature": "선택자 낱말(Former·Ruled·…)",
+   "status": "partial",
+   "evidence": "Events/CosmicEventSubsystem.cpp:139-151 (Former만)"
+  },
+  {
+   "feature": "DurationTicks 시간 제한 효과",
+   "status": "missing",
+   "evidence": "Events/CosmicEventSubsystem.cpp:624-857에서 미참조; Data/CosmicConditionTypes.h:156-158 (§16 #27 결정으로 기록 없음)"
+  },
+  {
+   "feature": "조우·청원 카드 평가(FEncounterDef 소비)",
+   "status": "missing",
+   "evidence": "Events/CosmicEventSubsystem.h:223-224 약속; Data/CosmicDefinitionRows.h:319-383 행 구조체만"
+  },
+  {
+   "feature": "PlayerAgeAtLeast",
+   "status": "partial",
+   "evidence": "Events/CosmicEventSubsystem.cpp:527-529; DT_Rules.BaseLifespanTicks=0이라 항상 거짓"
+  },
+  {
+   "feature": "PlayerHasRelic / GrantRelic·RemoveRelic",
+   "status": "partial",
+   "evidence": "조건 Events/CosmicEventSubsystem.cpp:511-512; 효과 열거자 없음 Data/CosmicConditionTypes.h:135"
+  },
+  {
+   "feature": "TranscendentAwareOfPlayer",
+   "status": "partial",
+   "evidence": "조건 Events/CosmicEventSubsystem.cpp:540-544; bAwareOfPlayer 설정 코드 없음(Core/GalaxyState.h:413)"
+  },
+  {
+   "feature": "CivRelationAtLeast / ChangeRelation(상대 해석 포함)",
+   "status": "partial",
+   "evidence": "코드 Events/CosmicEventSubsystem.cpp:173-187,456-461,718-731; 외교 단계·데이터 없음"
+  },
+  {
+   "feature": "TransferSystem 효과",
+   "status": "partial",
+   "evidence": "코드 Events/CosmicEventSubsystem.cpp:751-764 + 테스트 Events.HazardEffects; 게임 데이터 미사용(Sim/GalaxySimulationSubsystem.cpp:1821,1948 주석)"
+  },
+  {
+   "feature": "SpawnHazard/ResolveHazard 단일 경로(ClaimRule 거절, Tag 일치)",
+   "status": "implemented",
+   "evidence": "Events/CosmicEventSubsystem.cpp:732-749; Sim/CosmicHazards.cpp:159,194"
+  },
+  {
+   "feature": "책 주기(event_book_closed/reading/found)",
+   "status": "implemented",
+   "evidence": "Tools/data/DT_Events.json; Sim/GalaxySimulationSubsystem.cpp:1568-1578; 테스트 Events.BookCycle"
+  },
+  {
+   "feature": "반란 전조 2단(murmur Standing 60틱·rises Named + Notable.Rebel)",
+   "status": "implemented",
+   "evidence": "Tools/data/DT_Events.json; Events/CosmicEventSubsystem.cpp:1324-1336; 테스트 Sim.RevoltTelegraph"
+  },
+  {
+   "feature": "은혜 행 event_grace_remnant(마지막 성계의 문)",
+   "status": "implemented",
+   "evidence": "Sim/GalaxySimulationSubsystem.cpp:1869-1882; 테스트 Sim.GraceRemnantAtLoss"
+  },
+  {
+   "feature": "Phase 6+ 틱당 효과·CivStabilityAtLeast·PlayerHasPower",
+   "status": "missing",
+   "evidence": "Data/CosmicConditionTypes.h:79,133-134 주석 예약"
+  },
+  {
+   "feature": "이벤트 콘텐츠(VS 40행)",
+   "status": "partial",
+   "evidence": "Tools/data/DT_Events.json 11행"
+  }
+ ],
+ "player_facing": [
+  "입력: 이벤트 모듈로 직접 들어오는 플레이어 입력은 없다(카드·칙령·선택지 없음). 간접 영향만 — 배속/정지(슬롯 수), 거대 프로젝트 시작(위기 해결 → 해결 줄), 정착 명령(FollowUpKnowing으로 성계를 그 자리에서 앎). (Player/PlayerRoleSubsystem.cpp:287-291)",
+  "피드백 채널: 로그 피드(마지막 500줄, Severity 색, 줄 클릭 → 성계 이동)에 이벤트 행의 줄이 PushVariants로 쌓인다. UI는 OnLogEntry만 듣고 OnEventFired는 아무도 듣지 않는다. (Events/CosmicEventSubsystem.cpp:1157; UI/CosmicLogFeedWidget.cpp)",
+  "보이는 범용 사건(현재 데이터): 광맥 발견(Matter+20)·전력망 고장(Energy−15)·다툼(Stability−0.03, <0.5일 때)·축제(+0.03) — 각 600틱 쿨다운, 슬롯당 2%×가중의 Lottery. 수치 변화는 상단 바 자원/안정도 숫자로만 드러난다. (Tools/data/DT_Events.json)",
+  "반란 전조: Stability<0.5면 60틱마다 '웅성거림'(Severity 0) 줄; 반란이 수도에 서면 발생 줄 대신 '반란이 일어난다' 행(Severity 1)이 PersonNameBank의 이름으로 반란 지도자를 붙인다. (Events/CosmicEventSubsystem.cpp:1324-1336)",
+  "책 주기: 침묵 영향권에 300틱 머물면 '책이 닫혔다', Society 돌파마다 '책이 발견되었다'(Severity 2, Stability+0.2), 1800틱 뒤부터 1800틱마다 '낭독' 줄. (Sim/GalaxySimulationSubsystem.cpp:1568-1578)",
+  "역병 회개: 역병이 선 성계에서 Lottery로 역병이 해결되는 줄(Severity 1)과 뒤따르는 해결 줄. (Tools/data/DT_Events.json event_plague_repentance)",
+  "남은 자의 은혜: 통치/AI 백성이 마지막 정착 성계를 잃을 위기에 판당 한 번(Flag.Grace.Spent) Severity 2 줄과 Trait.Faith.Remnant. (Sim/GalaxySimulationSubsystem.cpp:1869-1882)",
+  "위기 줄: Hazard의 발생·만료·해결 세 벌(TellHazardLine)이 성계 패널의 위기 표시·카운트다운과 함께 피드에 보인다. (Events/CosmicEventSubsystem.cpp:1201-1240)",
+  "통치자에게 닿는 결과: 반란 만료의 DeposeRuler가 기록되어 틱 끝에 폐위(상단 바의 백성/칸이 바뀜; 3화면 연출은 Phase 4). KillPlayer는 어떤 행도 싣지 않아 사망은 일어나지 않는다. (Events/CosmicEventSubsystem.cpp:831-837; Sim/GalaxySimulationSubsystem.cpp:2220)",
+  "보는 쪽 Tier 창·징조 줄은 데이터가 없어 체감되지 않는다 — 모든 이벤트 줄은 앎의 범위(만난 백성·아는 성계)로만 걸러진다. (Tools/data/DT_Events.json)",
+  "받은 성계의 앎: 통치 문명이 효과로 성계를 받으면 지도에서 아는 성계가 되고 준 백성을 만난다 — 현재 데이터에는 발생 경로가 없다(TransferSystem 미사용). (Events/CosmicEventSubsystem.cpp:1268-1282)",
+  "승천 연출(OnTierAscended)은 Ascension 모듈의 것이고 Events의 OnEventFired는 화면에 아무 연출·일시정지·카메라 이동도 내지 않는다. (Events/CosmicEventSubsystem.cpp:1196)",
+  "이벤트 결과가 대부분 수치 미세 변화라 플레이어가 선택·대응할 거리가 없다 — 지금의 결정 지점은 거대 프로젝트 시작과 정착뿐. (Tools/data/DT_Events.json; UI/CosmicSystemPanelWidget)"
+ ],
+ "quality_notes": [
+  "레이어 경계 준수: Events의 include는 Core/Data/Sim/Log/Engine뿐이고 UUserWidget/AActor 헤더가 없다(§6.1). (Events/CosmicEventSubsystem.cpp:3-19)",
+  "순환 의존: Sim/CosmicHazards.h가 Events/CosmicEventSubsystem.h를 include(FCosmicEvalContext 때문)하고 Events .cpp가 Sim 헤더 넷을 include — Sim↔Events 양방향 결합. 평가 문맥 구조체(FCosmicEvalSubject/View/Context/WorldNote)를 Core나 별도 헤더로 내리면 끊긴다. (Sim/CosmicHazards.h:14; Events/CosmicEventSubsystem.cpp:15-18)",
+  "결정론: 모든 추첨이 인자 Stream/Ctx.Stream의 GetFraction뿐이고 GetRng()·FMath::Rand 호출이 없다; 행 순회는 FNameLexicalLess 정렬 이름, TMap 순회는 청소(제거)에만 쓰여 결과를 내지 않는다; 슬롯 추첨은 행을 보기 전에 끝난다. (Events/CosmicEventSubsystem.cpp:851,933,941,895-902)",
+  "모듈 전역 가변 상태 NestedOutbreakRows(이름 있는 네임스페이스의 int) — '멤버 변수 없음'을 지키려 전역으로 뺐지만 숨은 상태이며 테스트·다중 인스턴스에서 공유된다. (Events/CosmicEventSubsystem.cpp:28)",
+  "함수 길이: Check ≈195줄(417-610), Apply ≈233줄(624-857), EvaluateAndFire ≈210줄(873-1082, 람다 2개 중첩), AddNotable ≈105줄 — switch는 읽히지만 EvaluateAndFire는 Gather/FirePair/Standing/Lottery로 분리 여지가 크다.",
+  "가드 전문(살아 있는 상태·방송 중 거절) 5회 복사 — 헬퍼 하나로 줄일 수 있다. (Events/CosmicEventSubsystem.cpp:877-887 외 4곳)",
+  "const_cast로 const 접근자를 재사용(ShiftEthics·PlayerStatDelta) — 작은 냄새. (Events/CosmicEventSubsystem.cpp:685,787)",
+  "주석 언어: 영문 ASCII 규칙 준수. 다만 헤더 452줄 대부분이 guideline §7.5의 영문 사본이라 문서 이중 관리이고 이미 드리프트가 있다(징조 Severity 캡, DurationTicks 검사 주체). (Events/CosmicEventSubsystem.h:243-438)",
+  "하드코딩 문자열: 태그 6종(Realm.Celestial·Trait.Mind.NoSelf·Notable.Ruler/Regent·Effect.KillPlayer/DeposeRuler)과 낱말 16종(Former·Ruler·Wanderer·Body·Mind·Causality·Exaltation·Pacifism·Spiritualism·Openness·자원 5)이 FName/RequestGameplayTag 리터럴 — 스키마 word 목록과 병렬이며 컴파일 타임 검증이 없다. (Events/CosmicEventSubsystem.cpp:30-40,184,256,265-267)",
+  "저장 호환: 새 저장 필드를 만들지 않고 쿨다운 키 꼴·FNotableRecord 5필드만 전제; FCosmicEventNotice는 저장 안 함; 알 수 없는 열거자는 거짓/거절로 전방 호환. (Events/CosmicEventSubsystem.cpp:868,606,855)",
+  "테스트 가능성: static 층은 떼어 낸 상태로 테스트(Events.CheckIsPure — 해시·시드 불변 단언); 멤버 층은 GetGameInstance()->GetSubsystem 의존이라 라이브 Sim이 필요. Events.* 12종(CheckIsPure·SlotDraws·RowOrderInert·LotteryShares·CooldownPerCiv·ConditionGate·RowAtomic·NotableDrawFixed·SphereWeights·RoleEffectRules·HazardEffects·BookCycle)과 Sim.Notables*·RevoltTelegraph·Feats.Evaluate·Log.TellScope가 덮고 변이로 깨뜨려 봤다. (Tests/CosmicEventTests.cpp 2647줄)",
+  "테스트 코드가 모듈 소스의 약 2배(이벤트 테스트만 2647줄) — 규칙 변경 비용이 크고, 테스트 설명이 주석이 아닌 단언 메시지에만 있어 목록화가 어렵다.",
+  "오류 처리: 데이터 오류는 UE_LOG Error + 안전 기본값(0·거절·건너뜀)으로 절대 크래시하지 않고, 서브시스템 부재만 check(). 에러 줄은 노브 이름을 하나씩 짚는다. (Events/CosmicEventSubsystem.cpp:907-918,1062,1177,1326)",
+  "성능: UnitsOf가 슬롯 판정·Gather·Standing 재검사마다 재계산, FindEvent가 (문명×행)마다 맵 조회, GetEventRowNames 정렬이 슬롯 있는 틱마다 — 12문명·11행에선 무시 가능(§9.4 실측 30µs/틱)이나 48문명·40행 EA에서 재측정 필요. (Events/CosmicEventSubsystem.cpp:378,941,952)",
+  "명명: Unreal 관례 일관(FCosmicEval*, ECosmicWorldNote, ECosmicHazardLine); 'FSlotPair.SystemIndex == INDEX_NONE = 정착 안 된 수도'의 의미 과적은 주석에만 있다. (Events/CosmicEventSubsystem.cpp:397-403)",
+  "API 계약의 비대칭: FireRow는 const 문맥을 받아 제 문맥을 만들어 호출자 문맥 불변을 보장하지만, FollowUpNotes/FollowUpKnowing은 호출자 문맥의 Notes를 비우는 부수효과가 있고 '앎→줄→후속' 순서는 호출자 규약(주석)으로만 강제된다. (Events/CosmicEventSubsystem.h:412-438)",
+  "부동소수점: 몫·가중은 float 곱셈만(해시 밖), 해시에 드는 값은 클램프 결과뿐이고 C 런타임 수학 함수를 쓰지 않는다(§9.2 준수). (Events/CosmicEventSubsystem.cpp:1056-1069,692,716)",
+  "이름 공간 CosmicEventImpl이 익명이 아니라(유니티 빌드 충돌 회피) 내부 헬퍼·전역 카운터가 링커 가시성을 갖는다 — 다른 .cpp가 CosmicEventImpl::NestedOutbreakRows를 건드릴 수 있다. (Events/CosmicEventSubsystem.cpp:21-28)",
+  "방어적 데이터 처리: 뱅크 축소에도 NameIndex % BankSize로 인덱스를 유지, FreeNames가 비면 전체 재개방 — 세이브와 데이터 변경에 강하다. (Events/CosmicEventSubsystem.cpp:344-359)",
+  "로그 줄 조립이 다섯 모듈에 손으로 흩어져 있어 슬롯 이름({Civ}{System}{Hazard}) 변경이 다섯 곳 수정 — 줄 빌더 헬퍼(Log 모듈)로 모을 근거. (Events/CosmicEventSubsystem.cpp:1142-1157,1226-1239)"
+ ]
+}

@@ -1,0 +1,699 @@
+{
+ "scope": "c4: Sim 위기·거대 프로젝트 — Hazard 발생/만료/해결·주장·폐위, 거대 프로젝트 두 칸·AI 프로젝트·정착",
+ "summary": "Sim/CosmicHazards(117+481줄)와 Sim/CosmicMegaprojects(174+542줄)는 UObject가 아닌 이름공간 함수 모음으로, FGalaxyState만 읽고 쓰며 추첨·로그·앎에 닿지 않는 '세계 함수'다. Hazards는 Hazard 슬롯을 놓는 한 길(Place: 정착된 성계·빈 슬롯·수도 행은 수도만), 해결(Resolve: 슬롯 먼저 비우고 OnResolveEffects, 반란이면 Notable.Rebel 닫기·LowStabilityTicks 0, 중첩 깊이 4 가드), 성계 넘기기(Transfer: 죽은 노드·마지막 정착 성계 거절, 두 칸 비움, 수도 행·반란·무주화의 Hazard 비움, 수도 이전), 수도 이전(MoveCapital: 첫 정착 성계, Stability −0.3 하드코딩), 파괴(Destroy: 죽은 노드 = StarClass 빈 태그, 레인 양쪽 절단, 영향권 제거, 그릇 이송), 정착 중 성계 방출(LetSettlementsGo), 주장의 두 물음(ClaimantOf: 미봉인 Realm.Abyssal 가운데 1레인 항이 최대인 것, IsLastUnclaimed: Law.Remnant)을 담는다. Megaprojects는 두 칸(대응 칸 = Hazard 행 RulerResolutions가 드는 행, 건설 칸 = 그 밖), 시작 조건(CanStart/Start), AI 선택(Choices: 대응 답 + 수도의 다음 업적 건설), 한 칸 한 틱(Advance: 전액 지불·진척 1 또는 AIRate·완성 기록·Hazard 해결), 정착 7함수(RealmCapOf·IsSettling·MaySettle·SettleBlockOf·CanSettle·SettleTargets·Settle)를 담는다. 코드는 guideline §4.1·4.2·5.7·5.10·5.12의 Phase 2 규칙과 거의 1:1로 일치하고 테스트 20여 종이 덮는다. 다만 성역(IsSanctuary)·'항성 안정화' 표시명·조공 조건·칙령/조우 해결·Cult/Extinction 행·AI 구호 정책은 문서가 예약만 한 미구현이며, Place가 SpawnConditions를 보지 않는 점, ClaimAdjacencyLanes 노브가 1레인 항과 어긋나는 점, 수도 상실의 무음, 포기 불가 정착, 성계 소유 루프와 영향권 판정의 중복 구현, Sim↔Events 헤더 순환이 정리 대상이다.",
+ "key_decisions": [
+  {
+   "topic": "죽은 노드 술어",
+   "decision": "파괴된 성계는 배열에서 지우지 않고 StarClass가 빈 태그인 것을 죽은 노드로 읽는다(IsDeadNode). 주인·레인·영향권 없음.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.h:22-27, CosmicHazards.cpp:357-367"
+  },
+  {
+   "topic": "Hazard 놓는 한 길",
+   "decision": "Place만이 ActiveHazard를 채운다: 행 존재·HazardTag 유효·정착된 성계(IsSettled)·살아 있는 주인·빈 슬롯·Capital 행은 HomeSystemID에만. 카운트다운은 max(1, CountdownTicks). HazardPlaced 노트를 남긴다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:137-161"
+  },
+  {
+   "topic": "해결 순서",
+   "decision": "Resolve는 슬롯(과 대응 칸)을 먼저 비우고, Hazard.Rebellion이면 EndRebellion(열린 Notable.Rebel LastTick=max(Tick,1), LowStabilityTicks=0), 행이 없으면 노트 없이 끝, 있으면 HazardResolved 노트 뒤 OnResolveEffects를 성계·주인 주체로 적용한다. 중첩 깊이 4에서 에러 줄로 중단(TGuardValue).",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:163-211"
+  },
+  {
+   "topic": "성계 넘김 규칙",
+   "decision": "Transfer는 죽은 노드·같은 주인·주인의 마지막 정착 성계를 거절한다. 두 프로젝트 칸은 무조건 비운다(옛 주인의 일). Hazard는 무주화·반란(행 유무 무관)·Capital 행일 때만 비우고 추첨 Hazard는 성계를 따라간다. 받는 백성이 있으면 SystemReceived 노트(FromCivIndex 포함).",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:213-273"
+  },
+  {
+   "topic": "수도 이전",
+   "decision": "OwnedSystems 순서의 첫 정착 성계, 없으면 첫 소유(정착 중) 성계로 HomeSystemID를 옮기고 Stability를 0.3 내린다(0 하한). 소유 성계가 없으면 ID도 Stability도 그대로.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:275-315"
+  },
+  {
+   "topic": "파괴 훅의 세계 쪽",
+   "decision": "Destroy: 주인이 놓고(LetSettlementsGo 포함), 수도면 MoveCapital, 옛 레인 양쪽 절단, StarClass·Hazard·건설 칸 비움, 모든 InfluencedSystems에서 제거, Embodied이고 KillPlayer 미기록인 그릇은 통치자면 제 백성의 소유 수도로, 아니면 옛 레인 순서의 첫 산 이웃으로 이송.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:317-396"
+  },
+  {
+   "topic": "정착 중 성계 방출",
+   "decision": "LetSettlementsGo: 백성에게 정착된 성계가 하나라도 있으면 아무것도 하지 않고, 없으면 소유 중(정착 중) 성계를 모두 무주로(OwnedSystems 제거·OwnerCivID None·두 칸·Hazard 비움). 완료 기록은 남긴다. 줄·추첨·역할 효과 없음.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:105-135"
+  },
+  {
+   "topic": "주장하는 초월자",
+   "decision": "ClaimantOf: 미봉인이고 행이 Realm.Abyssal이며 그 성계를 아직 갖지 않은 인스턴스 가운데, LaneDistancesFrom(ClaimAdjacencyLanes)로 닿는 것만 후보. 항 = PressureBySourceTier[Tier] × (1+Depth[0..1]) × (최단 거리 1이면 Falloff, 아니면 0). 최대 항, 동률은 앞 인스턴스. 상한·Law.Remnant는 여기서 묻지 않는다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:398-450"
+  },
+  {
+   "topic": "남은 자 법",
+   "decision": "IsLastUnclaimed: 정착된 소유 성계이고 어느 타락(봉인 포함) 영향권에도 없으며, 같은 주인의 다른 정착 성계 가운데 영향권 밖인 것이 없을 때 참. 호출자(TryPlaceClaim·JoinClaimedSphere)가 발생과 편입 양쪽에서 막는다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:452-481, GalaxySimulationSubsystem.cpp:289-290,314-315"
+  },
+  {
+   "topic": "마지막 정착 성계",
+   "decision": "IsLastSettledSystem: 정착된 성계이고 주인의 OwnedSystems에 들며 주인의 다른 정착 성계가 없을 때 참. Transfer 거절과 위기 단계의 '마지막 성계의 문'(GraceKeepsLastSystem)이 쓴다. 정착 중인 성계는 집으로 세지 않는다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:83-103, GalaxySimulationSubsystem.cpp:1782-1787"
+  },
+  {
+   "topic": "두 프로젝트 칸",
+   "decision": "ECosmicProjectSlot{Response, Construction}. Tables.IsHazardAnswer(행)이 참이면(어느 Hazard 행의 RulerResolutions에 든 행) 대응 칸, 아니면 건설 칸. 대응 칸은 비었고 그 성계 Hazard 행이 그 행을 들 때만, 건설 칸은 같은 행이 아니면 교체(진척 소실).",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.h:28-32, CosmicMegaprojects.cpp:190-233"
+  },
+  {
+   "topic": "시작 조건",
+   "decision": "CanStart: 행 존재, project_settle 아님, 죽은 노드 아님, 정착된 성계, 살아 있는 주인, 주인 Tier ≥ RequiredTier. 통치자 명령(StartMegaproject)과 AI가 같은 Start를 거친다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:190-213, Player/PlayerRoleSubsystem.cpp:295-299"
+  },
+  {
+   "topic": "한 칸의 한 틱",
+   "decision": "Advance: 행 없는 건설 행은 결과 없이 종료(정착 행만 예외로 대기), 대응 행은 행이나 Hazard가 더는 들지 않으면 종료. PayInFull(전액 아니면 0)이면 진척 += 1(플레이어 통치) 또는 AIRate. 진척 ≥ RequiredProgressOf면 칸 비움 → CompletedMegaprojects 갱신(처음이면 추가) → MegaprojectCompletedTick → 통치자 생애 기록 → Hazard 행이 그 행을 들면 Resolve.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:440-542"
+  },
+  {
+   "topic": "비용·진척 읽기",
+   "decision": "CostOf: 0 초과·float 최대 이하만, 아니면 0(NaN·inf 포함). CanPay: 어느 멤버도 비용 아래가 아니면 참. RequiredProgressOf: 1 이상·유한만, 아니면 1. CRT 호출 없이 비교만(§9.2 결정론).",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:18-37,166-188"
+  },
+  {
+   "topic": "AI의 선택",
+   "decision": "Choices: ① OwnedSystems 순서로 정착된 제 성계마다 대응 칸이 비었고 Hazard 행의 RulerResolutions 가운데 CanStart인 첫 행 ② 정착된 수도의 건설 칸이 비었으면 Path=Ruler·RequiredTier==현재 칸·IsOneRungWithDeed인 업적(행 이름 사전순)의 MegaprojectComplete 조건이 부르는 건설 행 가운데 SinceTick 이후 미완성·미진행인 첫 것 하나. 추첨 없음.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:235-298, GalaxySimulationSubsystem.cpp:1982-1985"
+  },
+  {
+   "topic": "보유 상한",
+   "decision": "RealmCapOf: DT_Rules.RealmCapByTier[static_cast<int32>(Tier)], 칸이 없으면 0(정착 불가). 소유 수(정착 중 포함)가 상한 미만일 때만 정착.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:300-304,325-336"
+  },
+  {
+   "topic": "정착 거절 사유의 순서",
+   "decision": "SettleBlockOf: NoPeople → Owned → Dead → NoLane(같은 GalaxyRow에서 1레인 발판) → NoRow → RowTier → RealmCap → Settling → Sphere(미봉인·행 있는 초월자 영향권, Tier<3). CanSettle = None. 명령·AI 대상·패널 단추가 같은 답을 읽는다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:338-387, UI/CosmicSystemPanelWidget.cpp:66,276"
+  },
+  {
+   "topic": "영향권 정착 해제 칸",
+   "decision": "SphereLiftTier = Tier3_Causal(constexpr). 숫자 문턱 P≥1 대신 영향권 소속으로 판정(§4.2 수정자 ④).",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.h:97-98, CosmicMegaprojects.cpp:110-124"
+  },
+  {
+   "topic": "정착 대상 목록",
+   "decision": "SettleTargets: MaySettle·SettleRowAllows가 참일 때만, 정착된 발판의 레인 이웃을 AddUnique 후 Sort(인덱스 순)하여 IsTargetOf(무주·죽은 노드 아님·발판·영향권 미거절)인 것만. 전 성계 순회 없이 같은 결과(§9.4).",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:389-426"
+  },
+  {
+   "topic": "정착 시작",
+   "decision": "Settle: CanSettle이고 CosmicHazards::Transfer(무주→백성)가 성공하면 건설 칸에 project_settle을 0부터 둔다. 완성 전에는 IsSettled가 거짓(수입·Hazard·발판·남은 자 셈 밖).",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:428-438, Sim/CosmicStateIndex.h:36-39"
+  },
+  {
+   "topic": "한 번에 하나의 정착",
+   "decision": "IsSettling: 소유 성계 가운데 건설 칸이 project_settle인 것이 있으면 진행 중(멈춰 있어도). MaySettle이 이를 막아 백성당 정착 하나.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:306-323"
+  },
+  {
+   "topic": "완성 기록의 물음",
+   "decision": "HasCompleted: 행 이름의 기록이 있고 Tick > 0이며 Tick ≥ SinceTick. 조건 MegaprojectComplete와 커맨드렛이 읽는다. AI는 SinceTick 0, 플레이어는 Calling.BornTick.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:156-164, Events/CosmicEventSubsystem.cpp:479, Player/PlayerRoleSubsystem.cpp:317"
+  },
+  {
+   "topic": "추첨 없음·줄 없음 원칙",
+   "decision": "두 모듈 모두 FRandomStream을 직접 쓰지 않고(Resolve→ApplyAll의 NameNotable만 Apply 규칙대로 뽑음) 로그·앎을 쓰지 않는다. 뒤에 말할 것은 Ctx.Notes에 노트로만 남기고 FollowUpNotes/FollowUpKnowing이 처리한다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.h:2-7, CosmicMegaprojects.h:2-6, Events/CosmicEventSubsystem.h:110-139"
+  },
+  {
+   "topic": "위기 단계와의 분담",
+   "decision": "만료 훅(초신성 파괴·반란 왕좌 교체·주장 편입), 주장 규칙의 발동(TryPlaceClaim: 상한·FaithWeight 1), 기다리는 답의 자원 예약(WaitingAnswers), AI 정착 추첨은 GalaxySimulationSubsystem에 있고 이 모듈은 세계 변경 함수만 제공한다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:275-321,1743-1864,1899-1946,1986-1995"
+  }
+ ],
+ "parameters": [
+  {
+   "name": "CapitalLossStability",
+   "value": "0.3",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:18,314",
+   "note": "하드코딩 constexpr. DT_Rules 노브 아님. guideline §5.10:1190의 −0.3과 일치."
+  },
+  {
+   "name": "MaxNestedResolutions",
+   "value": "4",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:36-37",
+   "note": "하드코딩. 파일 범위 가변 정적 카운터 NestedResolutions(저장·해시 밖)."
+  },
+  {
+   "name": "SphereLiftTier",
+   "value": "Tier3_Causal",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.h:98",
+   "note": "하드코딩 constexpr. UI가 +1로 '칸 3' 표시(CosmicSystemPanelWidget.cpp:173)."
+  },
+  {
+   "name": "FHazardDef.CountdownTicks (읽기)",
+   "value": "max(1, 행 값); 데이터 150/300/200/300/200",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:158, Tools/data/DT_Hazards.json",
+   "note": "행 컬럼. AI각성 150·주장 300·역병 200·초신성 300·반란 200. 스키마 min 1."
+  },
+  {
+   "name": "FHazardDef.SpawnChancePerTick",
+   "value": "AIAwakening 0.0002 / Plague 0.0001 / PreSupernova 0.00005 / Capital·ClaimRule 0",
+   "source_ref": "Tools/data/DT_Hazards.json",
+   "note": "행 컬럼(Draw만). 발생 추첨은 subsystem(1663-1685)에서 × 아키타입 HazardSpawnMultipliers(DT_Civs.json:12 'Hazard.AIAwakening':1.2)."
+  },
+  {
+   "name": "crisis_rebellion SpawnConditions",
+   "value": "CivStabilityBelowFor Key=100 Value=0.3 ∧ GalaxyTickAtLeast 300",
+   "source_ref": "Tools/data/DT_Hazards.json (crisis_rebellion), GalaxySimulationSubsystem.cpp:1703-1737",
+   "note": "수도 행. Place는 조건을 보지 않고 subsystem의 수도 루프가 CheckAll로 본다."
+  },
+  {
+   "name": "만료 효과 값",
+   "value": "AI각성 +30 Energy/+30 Matter 또는(BranchChance 0.5) Stability −0.15; 역병 ChangePopulation −0.4; 초신성 이웃 Stability −0.05; 반란 DeposeRuler(Reign.Deposed)+ShiftEthics Openness +0.1",
+   "source_ref": "Tools/data/DT_Hazards.json",
+   "note": "행 컬럼(잠정, Phase 5 조정 예정 — guideline §4.1:652)."
+  },
+  {
+   "name": "DT_Rules.ClaimAdjacencyLanes",
+   "value": "1",
+   "source_ref": "Tools/data/DT_Rules.json, Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:408,425",
+   "note": "노브. ClaimantOf의 탐색 반경(MaxLanes)으로만 쓰이고 항은 거리 1에서만 0이 아님 — 1보다 크게 두면 항 0인 후보가 생긴다."
+  },
+  {
+   "name": "DT_Rules.PressureAdjacencyFalloff",
+   "value": "0.5",
+   "source_ref": "Tools/data/DT_Rules.json, Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:410,442",
+   "note": "노브. [0,1]로 잘라 읽고 1레인 항의 배수. 0이면 모든 항이 0이어도 첫 후보가 주장자가 된다(Best==INDEX_NONE 분기)."
+  },
+  {
+   "name": "DT_Rules.PressureBySourceTier",
+   "value": "{0, 0, 0.25, 1.0, 2.0}",
+   "source_ref": "Tools/data/DT_Rules.json, Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:27-32",
+   "note": "노브(정확히 5칸). TierWeight: 범위 밖·음수·NaN은 0."
+  },
+  {
+   "name": "FTranscendentDef.Depth / MaxInfluencedSystems",
+   "value": "기본 0.5 / 12",
+   "source_ref": "Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:503,512, Sim/CosmicHazards.cpp:441, GalaxySimulationSubsystem.cpp:289,314",
+   "note": "행 컬럼. Depth는 [0,1]로 잘라 (1+Depth) 곱. 상한은 주장자로 뽑힌 하나에만 묻고, 찼으면 다음 후보로 넘어가지 않는다."
+  },
+  {
+   "name": "TryPlaceClaim FaithWeight",
+   "value": "1.0 (ClaimNumber < 1 항상 참)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:294-299",
+   "note": "하드코딩 constexpr(subsystem). 신앙 특성 가중(Remnant ×0.5 등, guideline §4.5 ④)은 Phase 4. 주장의 수는 쓰지 않아도 뽑는다."
+  },
+  {
+   "name": "DT_Rules.RealmCapByTier",
+   "value": "{1, 3, 4, 7, 10}",
+   "source_ref": "Tools/data/DT_Rules.json, Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:300-304",
+   "note": "노브(5칸, 오름차순, 스키마). 칸 없으면 0. T1 상한 1이라 첫 칸의 통치자는 정착 불가."
+  },
+  {
+   "name": "DT_Rules.AIAscensionSpeedMultiplier",
+   "value": "1.0",
+   "source_ref": "Tools/data/DT_Rules.json, Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:455, GalaxySimulationSubsystem.cpp:1892-1897",
+   "note": "노브. AI 백성의 틱당 진척 배율(플레이어 통치 백성은 1.0 하드코딩). 0 이하·NaN은 에러 줄과 1."
+  },
+  {
+   "name": "FMegaprojectDef.RequiredProgress",
+   "value": "dyson 600 / reform 100 / relief 150 / settle 300 / stabilize 100",
+   "source_ref": "Tools/data/DT_Megaprojects.json, Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:184-188",
+   "note": "행 컬럼. 1 미만·NaN·inf는 1. float 누적이라 2진수로 안 떨어지는 배율은 한 틱 늦을 수 있음(헤더 주석)."
+  },
+  {
+   "name": "FMegaprojectDef.CostPerTick",
+   "value": "dyson E2 M1 / reform Influence 1 / relief M1 Influence 1 / settle E1 M2 / stabilize E2 M2",
+   "source_ref": "Tools/data/DT_Megaprojects.json, Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:18-37",
+   "note": "행 컬럼. 전액 지불만. 멤버 ≤0·NaN·inf는 0."
+  },
+  {
+   "name": "FMegaprojectDef.RequiredTier",
+   "value": "dyson·reform·relief Tier1 / settle·stabilize Tier2",
+   "source_ref": "Tools/data/DT_Megaprojects.json, Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:87-91,203-206",
+   "note": "행 컬럼. 정착은 둘째 칸부터(패널 사유 RowTier '정착은 칸 {0}부터')."
+  },
+  {
+   "name": "RulerResolutions(데이터)",
+   "value": "crisis_claim→project_relief / crisis_pre_supernova→project_stabilize / crisis_rebellion→project_reform; AI각성·역병은 비어 있음",
+   "source_ref": "Tools/data/DT_Hazards.json, Source/Cosmic_Ascension/Data/CosmicDataTables.cpp:145-157",
+   "note": "행 컬럼. IsHazardAnswer가 이 목록으로 대응 칸 행을 정한다(테이블 전체를 매번 순회)."
+  },
+  {
+   "name": "OnResolveEffects(데이터)",
+   "value": "다섯 행 모두 []",
+   "source_ref": "Tools/data/DT_Hazards.json",
+   "note": "행 컬럼. Resolve의 효과 경로는 코드만 있고 게임 데이터는 비어 있다(§16 #68 '반란 해결 시 안정도 상승'은 미반영)."
+  },
+  {
+   "name": "HasCompleted 조건",
+   "value": "Record.Tick > 0 && Tick >= SinceTick",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:163",
+   "note": "틱 0의 완성은 세지 않음(시뮬 틱은 1부터)."
+  },
+  {
+   "name": "진척 단위",
+   "value": "1.0 / 낸 틱",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:455,504,531",
+   "note": "하드코딩. 행 값이 틱 수를 뜻함."
+  },
+  {
+   "name": "DT_Rules.VigilClaimExtension / FleetDelayPerPower / FleetDelayCap / SuccessionMinHazardTicks",
+   "value": "100 / 50 / 100 / 300",
+   "source_ref": "Tools/data/DT_Rules.json; grep 결과 Tests·행 구조체 밖 호출자 없음",
+   "note": "노브 선언만, 읽는 코드 없음(Phase 4·4b)."
+  },
+  {
+   "name": "측정값(참고)",
+   "value": "놓인 위기의 62%가 반란·98~99%를 AI 개혁이 해결, 주장 1,000틱당 0.57건·만료 18%(목표 40~60%), 백성 57~59%가 Stability 0.3 미만",
+   "source_ref": "CLAUDE.md '현재 단계' Phase 2 종료 리뷰 문단, guideline.md §16 #68·#71",
+   "note": "시드 1~29·42, 20,000틱 커맨드렛. 이 모듈의 기본값이 만든 밸런스 상태."
+  },
+  {
+   "name": "인라인 할당자 크기",
+   "value": "Owned 4 / Candidates 16 / Expiring 8 / Settled 64",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:112, CosmicMegaprojects.cpp:400, GalaxySimulationSubsystem.cpp:1604,1625",
+   "note": "하드코딩 성능 힌트. VS 60성계 기준."
+  }
+ ],
+ "gaps": [
+  {
+   "what": "성역(태양계 sol) 술어 CosmicState::IsSanctuary와 ECosmicSettleBlock의 성역 사유가 없다. Transfer·Place·Destroy·Settle·ClaimantOf 어디에도 성역 예외가 없다.",
+   "why_it_matters": "guideline §4.5 ①·§5.7·§7.4(169+2818)·CLAUDE.md가 'v0.8 — 단계 4부터'로 예약. 지금 코드는 sol이 플레이어 모성계라 정착·파괴·주장이 모두 가능하다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.h:103-127, Sim/CosmicStateIndex.h:30-65, guideline.md:946,1095"
+  },
+  {
+   "what": "주장 조건 (b) 조공(Trait.Faith.Tribute)이 없다 — ClaimantOf는 (a) 인접만 본다.",
+   "why_it_matters": "헤더가 Phase 4 예약을 명시. 조공 거절이 보호라는 §4.2 '플레이어가 할 수 있는 일 7가지'의 한 축이 비어 있다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.h:108, guideline.md:750,759"
+  },
+  {
+   "what": "Place가 행의 SpawnConditions·RequiredTier를 보지 않는다: SpawnHazard 효과로 놓인 초신성 전조는 안정화를 시작할 수 없는 T1 백성 성계에도 선다.",
+   "why_it_matters": "v08_rulings.md:431이 '막을 길 없이 파괴된다'고 지적(실현 가능성 비평 4.1). 데이터 행이 아직 SpawnHazard를 쓰지 않아 잠복.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:137-161, Events/CosmicEventSubsystem.cpp:732-742, v08_rulings.md:431"
+  },
+  {
+   "what": "RulerResolutions의 DT_Edicts·DT_Encounters(청원) 행과 WandererResolutions 컬럼을 읽는 코드가 없다. AI각성·역병은 통치자 해결 수단이 전혀 없다.",
+   "why_it_matters": "§4.1 표의 R 수단(칙령 '기계 권리', 격리 조약, 청원 '왕좌를 지키겠는가')이 Phase 4. 지금 역병은 Lottery 행 event_plague_repentance의 ResolveHazard로만 풀린다.",
+   "source_ref": "Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:186-195, Tools/data/DT_Hazards.json, Tools/data/DT_Events.json:346-365"
+  },
+  {
+   "what": "VS Hazard 8종 가운데 Hazard.Cult·Extinction·SubspaceErosion과 방문 Hazard.Visitation 행이 없다(5행).",
+   "why_it_matters": "절멸의 만료 훅(폐위 연결)·교단 편입·레인 차단은 코드 훅이 필요해 세계 함수가 더 늘어난다(§4.1 표, §16 #90).",
+   "source_ref": "Tools/data/DT_Hazards.json, guideline.md:618-632"
+  },
+  {
+   "what": "역병의 인접 전파(OnExpireNeighbourEffects로 표현 가능)와 격리가 없다.",
+   "why_it_matters": "§4.1:626·FHazardDef 주석이 Phase 4로 미룸.",
+   "source_ref": "Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:174-178, Tools/data/DT_Hazards.json (crisis_plague)"
+  },
+  {
+   "what": "AI 구호 정책(§16 #71)이 없다: Choices는 주장이 서면 언제나 project_relief를 시작한다.",
+   "why_it_matters": "주장 만료율 18%(목표 40~60%) — 영혼 경제가 거의 작동하지 않는 원인. Phase 4 AI·칙령 헤더 예약.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:246-267, guideline.md §16 #71"
+  },
+  {
+   "what": "ClaimAdjacencyLanes 노브와 항 계산의 불일치: 거리 2 이상 후보는 항 0이지만 후보로 남아 첫 번째가 주장자가 될 수 있다(Best==INDEX_NONE 분기). Falloff 0이면 모든 항이 0.",
+   "why_it_matters": "기본값 1·0.5에서는 잠복. 노브를 바꾸는 밸런싱 때 '가장 큰 항'이라는 문서 규칙이 깨진다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:408-447, CosmicHazards.h:103-110"
+  },
+  {
+   "what": "수도 상실(MoveCapital)에 노트·줄이 없다: Stability −0.3과 수도 이동이 만료 줄 뒤에 무음으로 일어난다.",
+   "why_it_matters": "플레이어가 '왜 안정도가 떨어졌는지'를 알 길이 없다(§8.1 세계→줄 원자 원칙의 빈 자리).",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:275-315, CosmicHazards.h:84-90"
+  },
+  {
+   "what": "프로젝트 취소·포기·부분 지불 규칙이 없다. 멈춘 정착은 IsSettling을 참으로 유지해 그 백성의 다른 정착을 영구히 막는다.",
+   "why_it_matters": "설계가 의도한 '포기 규칙 없음'(§5.7:1097)이지만 통치자에게 되돌릴 입력이 없어 플레이 가능성 문제.",
+   "source_ref": "Source/Cosmic_Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:306-323,485-512, guideline.md:1097"
+  },
+  {
+   "what": "MoveCapital의 '첫 소유(정착 중) 성계' 갈래는 문서가 '쓰이지 않는다'고 적은 죽은 가지다.",
+   "why_it_matters": "LetSettlementsGo가 먼저 돌아 닿지 않음. 테스트로만 살아 있는 분기.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:286-308, guideline.md:1190"
+  },
+  {
+   "what": "MegaprojectCompletedTick은 쓰기만 되고 어디서도 읽지 않는다(Tests 제외).",
+   "why_it_matters": "저장 필드라 지울 수 없으나(§9.1) 역할이 CompletedMegaprojects와 겹친다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:471, Core/GalaxyState.h:155-157"
+  },
+  {
+   "what": "StartNextMegaproject(옛 P키의 후신)는 UI·World 호출자가 없다.",
+   "why_it_matters": "죽은 공개 API 또는 Phase 3 '다음 할 일' 단추의 예약 — 헤더 주석(CosmicMegaprojects.h:77-78 '프로토타입 키')이 낡았다.",
+   "source_ref": "Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp:302-325, Sim/CosmicMegaprojects.h:77-78"
+  },
+  {
+   "what": "FHazardDef.SourceDoctrine을 읽는 코드가 없다.",
+   "why_it_matters": "교리 위계(§4.2)와 이중 계 Hazard(Phase 6+)용 예약 컬럼.",
+   "source_ref": "Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:136-138 (grep 호출자 0)"
+  },
+  {
+   "what": "별 등급별 위기 표시명과 '항성 안정화' 표시명이 없다(데이터는 '초신성 안정화').",
+   "why_it_matters": "v0.8 단계 5 예약. 적색왜성 다수인 실제 하늘과 문구가 어긋난다.",
+   "source_ref": "Tools/data/DT_Megaprojects.json (project_stabilize DisplayName), v08_rulings.md:107,721"
+  },
+  {
+   "what": "함대 투입에 의한 카운트다운 지연(FleetDelayPerPower/Cap), 철야 칙령의 주장 연장(VigilClaimExtension)이 없다.",
+   "why_it_matters": "§5.6·§5.8의 '시간을 산다' 수단 전무. 노브만 선언.",
+   "source_ref": "Tools/data/DT_Rules.json, grep 호출자 0"
+  },
+  {
+   "what": "건설 프로젝트 6행 가운데 차원 방주·웜홀 게이트·먼 항로(project_crossing)·성소 봉헌이 없다.",
+   "why_it_matters": "§5.7 VS 7종 가운데 5종만. 절멸 위기의 R 수단(방주) 부재.",
+   "source_ref": "Tools/data/DT_Megaprojects.json, guideline.md:1076"
+  },
+  {
+   "what": "완성 줄의 {Dedication} 슬롯과 DT_Dedications이 없다.",
+   "why_it_matters": "§5.7:1078 Phase 4. 완성 줄은 {Civ}{System}{Project}만.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1960-1964, Data/CosmicDefinitionRows.h:312-315"
+  },
+  {
+   "what": "'기다리는 답'의 자원 예약 규칙(WaitingAnswers·TakesFromWaitingAnswers)이 CosmicMegaprojects가 아닌 subsystem에 있다.",
+   "why_it_matters": "같은 백성의 대응·건설 칸 상호작용 규칙이 두 파일에 갈라져 테스트·재사용이 어렵다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1899-1946"
+  },
+  {
+   "what": "반란 OutbreakTemplates가 비어 있어 발생 줄이 없고 OutbreakRow(event_rebellion_rises)에만 의존한다.",
+   "why_it_matters": "데이터가 그 행을 잃으면 반란 발생이 무음이 된다. 자동 일시정지 후보(§4.1 전조 ②)도 미구현.",
+   "source_ref": "Tools/data/DT_Hazards.json (crisis_rebellion OutbreakTemplates: [])"
+  },
+  {
+   "what": "Place에 Hazard.Claim 거절 가드가 없다 — ClaimRule 행 거절은 SpawnHazard 효과 쪽(Apply)에만 있다.",
+   "why_it_matters": "'놓는 한 길'이라면서 규칙 하나가 길 밖에 있다. 다른 호출자(테스트·훗날 훅)가 주장을 직접 놓을 수 있다.",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:137-161, Events/CosmicEventSubsystem.cpp:737"
+  }
+ ],
+ "duplication": [
+  {
+   "what": "'소유이고 정착된 성계' 루프를 손으로 네 번 짠다: IsLastSettledSystem의 람다, IsLastUnclaimed 루프, MoveCapital 루프, CosmicMegaprojectsImpl::SettledOwnedIndex/OwnedIndex/OwnedCount, 그리고 CosmicState::OwnsAnySystem.",
+   "also_in": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:96-101,288-304,467-478; Sim/CosmicStateIndex.cpp (OwnsAnySystem)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:41-47,79-83,139-153"
+  },
+  {
+   "what": "IsLastSettledSystem과 IsLastUnclaimed는 타락 영향권 필터만 다른 거의 같은 함수다.",
+   "also_in": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:452-481",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:83-103"
+  },
+  {
+   "what": "'성계가 어느 초월자 영향권에 있는가'를 세 번 다르게 짠다: InFallenSphere(Abyssal, 봉인 무관), ClaimantOf(Abyssal·미봉인·미보유), SphereRefuses(행 있는 미봉인 전부). 경제 단계의 영향권 소속 표(TBitArray)도 같은 질문.",
+   "also_in": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:110-124; GalaxySimulationSubsystem.cpp 압력 코드(SphereReachIn)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:60-72,415-422"
+  },
+  {
+   "what": "프로젝트 칸 비우기(ActiveMegaproject=None; Progress=0 / Response 쌍)가 여덟 군데에 복붙되어 있다. EmptyHazardSlot 같은 EmptyConstructionSlot/EmptyResponseSlot 헬퍼가 없다.",
+   "also_in": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:498-499,507-508,526-527,534-535; CosmicMegaprojects.cpp:224-230",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:130-132,244-247,359-361"
+  },
+  {
+   "what": "CompletedMegaprojects 기록을 찾는 FindByPredicate 람다가 HasCompleted와 Advance::Complete에 두 번 있다.",
+   "also_in": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:461",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:162"
+  },
+  {
+   "what": "Advance의 건설 칸과 대응 칸 분기가 필드 이름만 다른 같은 본문(행 찾기→PayInFull→진척→완성)이다.",
+   "also_in": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:516-540",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:486-513"
+  },
+  {
+   "what": "MaySettle의 세 검사(정착 성계 있음·상한·진행 중)를 SettleBlockOf가 다시 풀어 쓴다; SettleTargets는 SettleBlockOf 대신 MaySettle+SettleRowAllows+IsTargetOf로 같은 답을 따로 낸다(두 길의 일치는 Sim.SettleBlockReasons가 지킨다).",
+   "also_in": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:389-426",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:325-336,368-376"
+  },
+  {
+   "what": "GameplayTag 문자열 리터럴 재선언: Hazard.Rebellion이 Resolve·Transfer·ExpireHazard에, Realm.Abyssal이 InFallenSphere·ClaimantOf·압력 코드에, Notable.Rebel이 EndRebellion·ChangeThrone에 각각 static으로 다시 요청된다.",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:281,329-330,1745-1748",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:43,62,167,217,321,402"
+  },
+  {
+   "what": "지불 가능 판정이 틱마다 두 번 돈다: AdvanceMegaprojects가 CostPerTickOf+CanPay로 bCanPay를 재고, Advance→PayInFull이 같은 계산을 반복한다.",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1919-1922",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:24-37,502,529"
+  },
+  {
+   "what": "Resolve 전 가드(슬롯 유효·태그 일치)를 Apply(ResolveHazard)와 Resolve가 각각 한다; Place 전 가드(정착·빈 슬롯·주인)도 TickHazards 추첨·수도 루프와 Place가 각각 한다(방어적 중복).",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1641,1707,1714; Events/CosmicEventSubsystem.cpp:745-749",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:148-155,170-173"
+  },
+  {
+   "what": "IsHazardAnswer가 호출마다 DT_Hazards 전체를 순회한다 — CanStart·Start·Choices 안에서 행마다 반복 호출.",
+   "also_in": "Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:207,222,285",
+   "source_ref": "Source/Cosmic_Ascension/Data/CosmicDataTables.cpp:145-157"
+  },
+  {
+   "what": "TierWeight(CosmicHazardsImpl)는 압력 코드의 PressureWeight와 같은 표 읽기다.",
+   "also_in": "Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:270 (PressureWeight)",
+   "source_ref": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:27-32"
+  }
+ ],
+ "contradictions": [
+  {
+   "a": "guideline §4.1:612 — Hazard는 '항성 유형·나이·소유 문명 특성에 따라' 작은 확률로 선다.",
+   "b": "코드의 발생 추첨은 SpawnChancePerTick × 아키타입 HazardSpawnMultipliers × SpawnConditions만 본다. StarClass·나이는 읽지 않는다(GalaxySimulationSubsystem.cpp:1656-1683). 같은 §4.1:624는 '항성 등급으로 막지 않는다'고 적는다.",
+   "note": "문서 첫 문장이 낡았다. 코드와 §4.1:624·v08 결정 10(등급은 문구만)이 기준."
+  },
+  {
+   "a": "guideline §4.1:625 표 — AI 각성 미해결 결과 '50%: 생산 +150% / 50%: 성계 반란', R: 칙령 '기계 권리'.",
+   "b": "DT_Hazards.json crisis_ai_awakening: +30 Energy/+30 Matter 또는 Stability −0.15, RulerResolutions []. §4.1:652가 'Phase 2에 있는 효과로 줄인 형'이라 적음.",
+   "note": "표는 옛 설계, 문단은 현행. 표에 '(Phase 2 축소형)' 표지가 없다."
+  },
+  {
+   "a": "guideline §4.1:626 표 — 역병 '인접 전파', R: 생명 연구 + 격리 조약.",
+   "b": "DT_Hazards.json crisis_plague: OnExpireNeighbourEffects [], RulerResolutions []. 해결은 event_plague_repentance(ResolveHazard)뿐(DT_Events.json:346-365).",
+   "note": "Phase 4 예약이지만 표에는 표지가 없다."
+  },
+  {
+   "a": "guideline §5.7:1095·§5.12:1444·CLAUDE.md — SettleBlockOf 사유 순서의 맨 앞은 성역, ST_CA Settle.Block.* 여덟.",
+   "b": "ECosmicSettleBlock에 성역 값이 없고(CosmicMegaprojects.h:103-127) ST_CA는 일곱 키(ST_CA.csv:26-32).",
+   "note": "'v0.8 — 단계 4부터' 표지가 붙은 예약. 드리프트가 아니라 미구현이나 문서 본문이 미래형으로 적혀 있어 읽는 이가 구현됐다고 오해할 수 있다."
+  },
+  {
+   "a": "guideline §7.4(169+2818) 세계 함수 목록 — CosmicState::IsSanctuary(가칭) 포함.",
+   "b": "Sim/CosmicStateIndex.h에는 IsSettled·OwnsAnySystem·LaneDistancesFrom·PickAIProfile만 있다.",
+   "note": "같은 줄 안에 '(가칭, v0.8 — 단계 4부터)' 표지 있음."
+  },
+  {
+   "a": "CLAUDE.md·guideline §5.7:1076 — project_stabilize 표시명 '항성 안정화'.",
+   "b": "DT_Megaprojects.json project_stabilize DisplayName '초신성 안정화', DT_Hazards crisis_pre_supernova '초신성 전조'.",
+   "note": "'v0.8 — 단계 5부터' 표지 있음. 데이터 갱신 대기."
+  },
+  {
+   "a": "guideline §5.12:1444 — 영향권 사유 문구는 '소식이 끊겼다'로 바꾼다(지금 문구는 성역의 그림).",
+   "b": "ST_CA.csv:28 Settle.Block.Sphere '그쪽으로 간 배들은 닿지 못하고 돌아왔다'.",
+   "note": "§16 #94, v0.8 단계 4 예약."
+  },
+  {
+   "a": "CosmicMegaprojects.h:77-78 — '프로토타입의 project 키가 통치 백성에게 첫 선택을 시작한다'; §5.7:1084 '프로토타입 키(P)'.",
+   "b": "P 키는 Phase 3에서 뺐다(CLAUDE.md '상단 바와 성계 정보 패널' 문단). StartNextMegaproject는 남았지만 UI·World 호출자가 없다.",
+   "note": "헤더 주석과 §5.7 문장이 낡았다. 명령의 실제 입구는 패널 단추 → StartMegaproject(SystemID, Row)."
+  },
+  {
+   "a": "CosmicHazards.h:104-110 ClaimantOf — 'DT_Rules.ClaimAdjacencyLanes 레인 안에 있고 … 항이 가장 큰 것'; §4.2:750 '가장 큰 항을 드리운 쪽'.",
+   "b": "항은 거리 1에서만 0이 아니다(Falloff). ClaimAdjacencyLanes>1이면 항 0인 후보가 들어오고 Best==INDEX_NONE 분기로 첫 후보가 뽑힐 수 있다.",
+   "note": "기본값 1에서는 보이지 않는 잠복 불일치. 노브 뜻을 '탐색 반경'으로 좁혀 적거나 항을 거리별 감쇠로 넓혀야 한다."
+  },
+  {
+   "a": "guideline §16 #68 기본값(바꿨다) — 반란 해결 시 안정도 상승(crisis_rebellion.OnResolveEffects), 안정도 기준값 회귀.",
+   "b": "DT_Hazards.json crisis_rebellion OnResolveEffects [] 그대로; 경제 단계 회복 노브 없음.",
+   "note": "'Phase 4의 AI·칙령 헤더에서 #71과 함께'로 예약. CLAUDE.md '아직 없는 것'에 기재."
+  },
+  {
+   "a": "guideline §5.7:1077 — 진행 중 프로젝트는 성계 노드에 '링 이펙트'(머티리얼 파라미터)로 표시.",
+   "b": "Phase 3은 이름표 위젯의 진척 막대로 구현(CosmicMapLook.cpp:57이 RequiredProgressOf로 비율 계산, CosmicSystemLabelWidget).",
+   "note": "표현 수단만 다름. 문서 문장을 '진척 막대'로 맞추면 된다."
+  },
+  {
+   "a": "CosmicMegaprojects.h:2 머리 주석 — 설계 '§4.2, 4.3, 5.7, 5.12, 7.4'; CosmicHazards.h:1 — '§4.1, 4.2, 4.5, 5.10, 7.2, 7.4, 7.5'.",
+   "b": "두 헤더 본문은 §16 #29 ⑤·#53·#65 확정 기록과 §9.2 결정론 규칙에도 기대지만 머리에는 적지 않는다.",
+   "note": "가벼운 추적성 누락. 문서 통폐합 때 섹션 번호가 바뀌면 코드 주석의 §참조 70여 개가 모두 낡는다 — 참조 방식(번호 대신 안정 ID) 재검토 필요."
+  }
+ ],
+ "implemented_status": [
+  {
+   "feature": "Hazard를 놓는 한 길(Place: 정착·빈 슬롯·수도 행 제한, 카운트다운, 발생 노트)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:137-161; Tests/CosmicHazardTests.cpp:1107 (Sim.WildWorldsQuiet), :1026 (HazardDraws)"
+  },
+  {
+   "feature": "Hazard 해결(슬롯 비움 → OnResolveEffects → 반란 기록 닫기·셈 초기화, 중첩 가드)",
+   "status": "implemented",
+   "evidence": "Source/Cosmic_Ascension/Sim/CosmicHazards.cpp:163-211; Tests/CosmicHazardTests.cpp:736 (Sim.HazardLifecycle)"
+  },
+  {
+   "feature": "만료 코드 훅 셋(초신성 파괴 / 반란 왕좌 교체 / 주장 편입)",
+   "status": "implemented",
+   "evidence": "Sim/CosmicHazards.cpp:317-396 (Destroy); GalaxySimulationSubsystem.cpp:1818-1855; Tests/CosmicHazardTests.cpp:1188 (DeadNode), :2069 (RebellionThrone), :1552 (ClaimRule)"
+  },
+  {
+   "feature": "수도의 반란(Capital 행, CivStabilityBelowFor 100틱·틱 300)",
+   "status": "implemented",
+   "evidence": "Sim/CosmicHazards.cpp:152-156; GalaxySimulationSubsystem.cpp:1702-1737; Tools/data/DT_Hazards.json crisis_rebellion"
+  },
+  {
+   "feature": "주장 규칙 (a) 인접 타락 영향권 + 상한 + Law.Remnant",
+   "status": "implemented",
+   "evidence": "Sim/CosmicHazards.cpp:398-481; GalaxySimulationSubsystem.cpp:275-321; Tests/CosmicHazardTests.cpp:1863 (ClaimNeverTotal), :1755 (NoClaimsFromCelestial)"
+  },
+  {
+   "feature": "주장 조건 (b) 조공·신앙 특성 가중·철야 연장",
+   "status": "missing",
+   "evidence": "Sim/CosmicHazards.h:108; GalaxySimulationSubsystem.cpp:294 (FaithWeight 상수 1); VigilClaimExtension 호출자 0"
+  },
+  {
+   "feature": "성계 넘김 효과(TransferSystem 빈 Key = 무주화)와 마지막 정착 성계 거절",
+   "status": "implemented",
+   "evidence": "Sim/CosmicHazards.cpp:213-273; Events/CosmicEventSubsystem.cpp:751-764; Tests/CosmicHazardTests.cpp:359 (Events.HazardEffects)"
+  },
+  {
+   "feature": "수도 상실 → 첫 정착 성계로 이전 + Stability −0.3",
+   "status": "implemented",
+   "evidence": "Sim/CosmicHazards.cpp:275-315; guideline.md:1190"
+  },
+  {
+   "feature": "수도 상실의 서사 줄",
+   "status": "missing",
+   "evidence": "Sim/CosmicHazards.cpp:275-315 — 노트 없음; ECosmicWorldNote에 해당 종류 없음(Events/CosmicEventSubsystem.h:110-119)"
+  },
+  {
+   "feature": "성계 파괴(죽은 노드, 레인 절단, 영향권 제거, 그릇 이송)",
+   "status": "implemented",
+   "evidence": "Sim/CosmicHazards.cpp:317-396; Tests/CosmicHazardTests.cpp:1188 (Sim.DeadNode)"
+  },
+  {
+   "feature": "마지막 성계의 문(event_grace_remnant)과 붕괴 폐위",
+   "status": "implemented",
+   "evidence": "GalaxySimulationSubsystem.cpp:1780-1787,1824-1846,1866-1882; Tests/CosmicHazardTests.cpp:1342 (GraceRemnantAtLoss), :2330 (DepositionPipeline)"
+  },
+  {
+   "feature": "정착 중 성계 방출(LetSettlementsGo)과 건넘 단계 정리의 그물",
+   "status": "implemented",
+   "evidence": "Sim/CosmicHazards.cpp:105-135; GalaxySimulationSubsystem.cpp:2015-2021; Tests/CosmicSettlementTests.cpp:1112 (Sim.CivRemoval)"
+  },
+  {
+   "feature": "두 프로젝트 칸(대응/건설)과 시작 규칙",
+   "status": "implemented",
+   "evidence": "Sim/CosmicMegaprojects.cpp:190-233; Tests/CosmicAscensionTests.cpp:729 (Sim.StartMegaproject)"
+  },
+  {
+   "feature": "틱당 전액 지불·AI 배율·완성 기록·완성이 Hazard를 해결",
+   "status": "implemented",
+   "evidence": "Sim/CosmicMegaprojects.cpp:440-542; Tests/CosmicAscensionTests.cpp:390 (Sim.MegaprojectProgress)"
+  },
+  {
+   "feature": "기다리는 답의 자원 예약(대응 칸 우선)",
+   "status": "implemented",
+   "evidence": "GalaxySimulationSubsystem.cpp:1899-1946 (모듈 밖, subsystem)"
+  },
+  {
+   "feature": "AI의 프로젝트 선택(대응 답 + 업적 건설)",
+   "status": "implemented",
+   "evidence": "Sim/CosmicMegaprojects.cpp:235-298; GalaxySimulationSubsystem.cpp:1976-1985; Tests/CosmicAscensionTests.cpp:830 (Sim.CivAIProjects)"
+  },
+  {
+   "feature": "AI 구호의 정책(프로필별 구호 여부, §16 #71)",
+   "status": "missing",
+   "evidence": "Sim/CosmicMegaprojects.cpp:246-267 (항상 첫 답 시작); guideline.md §16 #71"
+  },
+  {
+   "feature": "정착: 보유 상한·1레인 발판·같은 은하 행·영향권 T3 해제·한 번에 하나·Transfer로 시작",
+   "status": "implemented",
+   "evidence": "Sim/CosmicMegaprojects.cpp:300-438; Tests/CosmicSettlementTests.cpp:397 (Settlement), :992 (RealmCap)"
+  },
+  {
+   "feature": "정착 거절 사유(SettleBlockOf)와 패널 표시",
+   "status": "partial",
+   "evidence": "Sim/CosmicMegaprojects.cpp:338-387 — 여덟 사유 가운데 성역 없음; UI/CosmicSystemPanelWidget.cpp:66,153-173; Tests/CosmicSettlementTests.cpp:1511"
+  },
+  {
+   "feature": "성역(sol) 예외 — 정착·넘김·주장·파괴·영향권·초기 코어 대상 제외, IsSanctuary",
+   "status": "missing",
+   "evidence": "Sim/CosmicStateIndex.h:30-65 (술어 없음); Sim/CosmicHazards.cpp·CosmicMegaprojects.cpp에 'sol'·Sanctuary 0건"
+  },
+  {
+   "feature": "통치자 명령 StartMegaproject(행/정착) → Start/Settle 한 길",
+   "status": "implemented",
+   "evidence": "Player/PlayerRoleSubsystem.cpp:268-300; UI/CosmicSystemPanelWidget.cpp:266"
+  },
+  {
+   "feature": "칙령·조우·청원에 의한 Hazard 해결(RulerResolutions의 DT_Edicts/DT_Encounters, WandererResolutions)",
+   "status": "missing",
+   "evidence": "Data/CosmicDefinitionRows.h:186-195 (컬럼만); WandererResolutions 호출자 0"
+  },
+  {
+   "feature": "Hazard 행 Cult·Extinction·SubspaceErosion·Visitation",
+   "status": "missing",
+   "evidence": "Tools/data/DT_Hazards.json (5행)"
+  },
+  {
+   "feature": "역병 인접 전파·격리",
+   "status": "missing",
+   "evidence": "Tools/data/DT_Hazards.json crisis_plague OnExpireNeighbourEffects []"
+  },
+  {
+   "feature": "함대 투입의 카운트다운 지연(§5.6)",
+   "status": "missing",
+   "evidence": "FleetDelayPerPower/FleetDelayCap 호출자 0; TickConflict 본문 Phase 4"
+  },
+  {
+   "feature": "별 등급별 위기 표시명·'항성 안정화'",
+   "status": "missing",
+   "evidence": "Tools/data/DT_Megaprojects.json project_stabilize '초신성 안정화'; v08_rulings.md:107"
+  },
+  {
+   "feature": "건설 프로젝트 방주·웜홀·먼 항로·성소 봉헌",
+   "status": "missing",
+   "evidence": "Tools/data/DT_Megaprojects.json (dyson·reform·relief·settle·stabilize)"
+  },
+  {
+   "feature": "완성 줄의 {Dedication} 슬롯",
+   "status": "missing",
+   "evidence": "GalaxySimulationSubsystem.cpp:1960-1964 ({Civ}{System}{Project}만)"
+  },
+  {
+   "feature": "진행 중 프로젝트의 지도 표시",
+   "status": "partial",
+   "evidence": "World/CosmicMapLook.cpp:57 (RequiredProgressOf 비율 → 이름표 진척 막대); guideline §5.7:1077은 '링 이펙트'"
+  },
+  {
+   "feature": "프로젝트 취소/포기/부분 지불",
+   "status": "missing",
+   "evidence": "Sim/CosmicMegaprojects.cpp 전체 — 설계상 의도('포기 규칙 없음', guideline.md:1097); 통치자 입력 없음"
+  },
+  {
+   "feature": "결정론(두 모듈의 추첨 0, 배열·사전순 순회, 비교 기반 NaN 가드)",
+   "status": "implemented",
+   "evidence": "Sim/CosmicHazards.cpp:443-447 (동률 앞 인스턴스); CosmicMegaprojects.cpp:275,417; Data/CosmicDataTables.cpp:134,141 (FNameLexicalLess); Tests/CosmicHazardTests.cpp:2728 (HazardRowOrderInert)"
+  },
+  {
+   "feature": "Phase 2 종료 조건의 증거(주장 편입·폐위·위기 줄)",
+   "status": "implemented",
+   "evidence": "Tests/CosmicSimTests.cpp:2057 (Sim.PhaseTwoExit); Tests/CosmicBalanceCommandlet.cpp:313,393"
+  }
+ ],
+ "player_facing": [
+  "성계 패널에서 CanStart인 행마다 시작 단추: 통치 백성의 정착된 성계라면 다이슨 스웜(건설 칸, T1), 그 성계에 반란·초신성 전조·주장이 서 있고 대응 칸이 비었으면 개혁·안정화(T2)·구호 단추 — 하나의 StartMegaproject → CosmicMegaprojects::Start 경로 (UI/CosmicSystemPanelWidget.cpp:266, Player/PlayerRoleSubsystem.cpp:295-299).",
+  "건설 칸에 다른 행을 시작하면 돌던 것이 확인 없이 교체되고 진척이 사라진다; 같은 행은 다시 시작할 수 없다 (Sim/CosmicMegaprojects.cpp:212,229-230).",
+  "통치 백성의 것이 아닌 살아 있는 성계마다 정착 단추가 있고, 거절되면 회색 단추와 사유 한 줄(이미 다른 백성이 산다 / 레인 하나로 닿지 않는다 / 정착할 방법이 아직 없다 / 정착은 칸 N부터 / 보유 상한 / 이미 다른 곳에 정착 중 / 칸 3 전에는 영향권 정착 불가) (Sim/CosmicMegaprojects.cpp:338-387, Tools/data/ST_CA.csv:26-32).",
+  "첫 칸의 통치자는 보유 상한 1(RealmCapByTier[0])과 정착 행 Tier2 때문에 정착할 수 없다 — 둘째 칸부터 1레인 무주 성계에 정착하고, 한 번에 하나만 진행된다 (Tools/data/DT_Rules.json RealmCapByTier, DT_Megaprojects.json project_settle).",
+  "패널의 두 칸 진척 숫자(진척/필요)와 지도 이름표의 진척 막대 — RequiredProgressOf가 같은 수를 준다 (UI/CosmicSystemPanelWidget.cpp:50, World/CosmicMapLook.cpp:57).",
+  "비축이 틱당 비용을 전액 못 내면 그 틱은 비용도 진척도 없이 멈춘다; 멈춘 까닭을 알리는 줄·표시는 없고 포기·취소 입력도 없다 (Sim/CosmicMegaprojects.cpp:502-511, 529-538).",
+  "완성하면 로그 피드에 완성 줄(통치 백성은 Severity 1, 남은 Severity 0)이 뜨고, 그 성계의 Hazard 행이 그 행을 들면 바로 뒤에 해결 줄이 따른다 (GalaxySimulationSubsystem.cpp:1950-1967, Sim/CosmicMegaprojects.cpp:478-482).",
+  "위기의 발생·만료·해결 줄은 Hazard 행의 세 벌 문장에서 나온다; 반란은 발생 문장이 없어 전조 행(event_rebellion_rises)의 줄로만 보인다 (Tools/data/DT_Hazards.json, Events FollowUpNotes).",
+  "초신성 전조가 만료하면 성계가 죽은 노드가 되어 지도에서 레인이 사라지고 이름·생명 낱말이 빠진다; 거기 선 통치자는 새 수도로 옮겨진다 (Sim/CosmicHazards.cpp:349-395, World/CosmicMapLook.cpp:74-114).",
+  "통치 백성의 마지막 정착 성계가 파괴되면 판당 한 번 은혜(남은 자)가 막고, 그 뒤에는 붕괴 → 폐위 파이프라인(몰락한 군주 줄·방랑자 전환·왕좌 잠금 600틱) (GalaxySimulationSubsystem.cpp:1780-1787,1838-1846).",
+  "수도를 잃으면 안정도가 0.3 내려가고 수도가 조용히 옮겨진다 — 전용 줄은 없다 (Sim/CosmicHazards.cpp:313-314).",
+  "반란 카운트다운 200틱이 불만 게이지 역할: 안정도 0.3 미만 100틱이면 수도에 서고, 개혁(틱당 Influence 1, 100틱)을 완성하면 지도자 기록이 닫히고 셈이 0부터; 만료하면 폐위 (Tools/data/DT_Hazards.json crisis_rebellion, Sim/CosmicHazards.cpp:41-57).",
+  "주장(300틱)은 어떤 위기든 만료한 성계가 타락 영향권 1레인 안이면 서고, 구호(Matter 1+Influence 1, 150틱)로 풀면 아무 일도 없고 만료하면 그 성계가 영향권(지도의 어두운 색)에 든다; 백성의 마지막 미편입 성계에는 서지 않는다 (GalaxySimulationSubsystem.cpp:279-321, Sim/CosmicHazards.cpp:452-481).",
+  "AI 백성은 매 틱 같은 규칙으로 답과 업적 건설을 시작하고 둘째 칸부터 정착을 뽑아 영토를 넓힌다 — 플레이어는 같은 조건·같은 상한을 받는다 (GalaxySimulationSubsystem.cpp:1972-1997).",
+  "AI 각성·역병에는 통치자가 할 수 있는 일이 없다(단추 없음) — 만료 결과를 받거나 추첨 이벤트(요나 행)가 풀어 주기를 기다린다 (Tools/data/DT_Hazards.json RulerResolutions [])."
+ ],
+ "quality_notes": [
+  "레이어 경계: 두 헤더의 include는 CoreMinimal·Core/·Data/·Events/·Sim/·엔진 컨테이너뿐이며 UUserWidget·AActor 헤더 없음(§6.1 준수) (Sim/CosmicHazards.h:10-18, Sim/CosmicMegaprojects.h:9-22). 다만 Sim 헤더가 Events/CosmicEventSubsystem.h(UCLASS 서브시스템 헤더)를 FCosmicEvalContext·ApplyAll 때문에 include하고 Events .cpp가 다시 Sim 헤더를 include해 Sim↔Events 모듈 수준 순환이 있다 — FCosmicEvalContext/FCosmicEvalSubject/ECosmicWorldNote를 Core 또는 Data로 내리면 끊긴다.",
+  "결정론: 두 파일에 난수 호출 0건(헤더 주석대로). 순회는 Systems/OwnedSystems 배열 순·FNameLexicalLess 사전순(GetFeatRowNames/GetHazardRowNames, Data/CosmicDataTables.cpp:134,141)·정수 인덱스 Sort — 프로세스 무관. 해시에 드는 float은 +−×÷만 쓰고 FMath::IsFinite 대신 비교 가드(CostOf·RequiredProgressOf·TierWeight·Falloff) (§9.2 준수).",
+  "전역 가변 상태: CosmicHazardsImpl::NestedResolutions는 이름공간 범위 static(유니티 빌드 때문에 익명 이름공간을 피한 명명 이름공간)이고 TGuardValue로 복원된다. 단일 스레드 전제이며 저장·해시 밖이라 허용되지만 '세계 함수는 상태 없음'이라는 모듈 약속의 예외다 (Sim/CosmicHazards.cpp:13-37).",
+  "함수 길이: Destroy 80줄, Advance 103줄(람다 + 두 칸 분기), Choices 64줄, ClaimantOf 53줄, SettleBlockOf 45줄. 중간 규모이나 Advance의 두 분기는 필드 참조를 고르는 한 본문으로 줄일 수 있다.",
+  "API 비대칭: Place·Resolve·Transfer·Destroy·Settle·Advance는 FCosmicEvalContext(상태·스트림·색인·테이블·규칙 참조 묶음)를 받고, Start·CanStart·Choices·MoveCapital·LetSettlementsGo·정착 물음들은 (State, Index, Tables, Rules)를 낱개로 받는다. 추첨 없는 함수도 Resolve→ApplyAll 경유 가능성 때문에 스트림 참조를 요구해 단위 테스트가 Sim 전체를 띄워야 한다(AcquireSim) — 순수 물음과 변경 함수를 분리하면 테스트가 가벼워진다.",
+  "저장 호환: 이 모듈이 쓰는 필드(ActiveHazard·HazardTicksRemaining·Response*/Active*·CompletedMegaprojects·MegaprojectCompletedTick·OwnedSystems·HomeSystemID·Stability·LowStabilityTicks·Notables·InfluencedSystems·Lanes·StarClass·Player.CurrentSystemID)는 모두 FGalaxyState의 USTRUCT이고 새 필드·초기값 변경 없음. ECosmicSettleBlock·ECosmicProjectSlot은 저장되지 않는다(좋음). '죽은 노드 = StarClass 빈 태그'는 마이그레이션 없이 세이브에 그대로 남는 표현이다.",
+  "테스트 가능성·커버리지: 이 두 모듈을 직접 부르는 테스트가 Hazard 14종·Settlement 5종·Ascension 6종·PhaseTwoExit·커맨드렛에 걸쳐 있고 CLAUDE.md 기록상 변이 수십 개로 깨뜨려 봤다. 다만 MoveCapital의 정착 중 성계 갈래, ClaimAdjacencyLanes>1, Falloff 0, Place의 ClaimRule 행 직접 호출 같은 경계는 테스트 목록에서 확인되지 않는다.",
+  "명명: 이름공간 함수(CosmicHazards::Place)와 Impl 이름공간(CosmicHazardsImpl) 관례가 일관되고 UE 표기(PascalCase, b접두 bool)를 지킨다. 'LetSettlementsGo'·'IsLastUnclaimed'·'SphereRefuses'처럼 문장형 이름이 문서 어휘(남은 자·방출)를 그대로 옮겨 가독성이 높다.",
+  "주석 언어·밀도: ASCII 영문(CLAUDE.md 규칙). 헤더 doc 주석이 사실상 명세(한 함수에 10~15줄의 긴 산문, §번호 70여 개 참조)라 guideline 섹션 번호가 바뀌면 전부 낡는다 — 문서 통폐합 시 안정적 앵커(규칙 ID) 도입이 필요하다. 반면 .cpp의 알고리즘 주석은 간결하다.",
+  "하드코딩 문자열: GameplayTag 7종을 TEXT 리터럴로 RequestGameplayTag(규칙상 ini 단일 출처 + RequestGameplayTag이나 리터럴 오타를 컴파일러가 못 잡음 — 테스트 Data.Integrity가 ini를 보지만 코드 리터럴은 보지 않음). 행 이름은 CosmicRows::ProjectSettle 상수로만 부른다(좋음). UE_LOG 문구는 영문 개발자 로그(LogCosmic) 하나.",
+  "태그 코딩된 특수 규칙: Hazard.Rebellion(EndRebellion·Capital 행 비움)과 Hazard.Claim(ClaimRule 거절은 Apply에)·Effect.KillPlayer(그릇 이송 가드)가 데이터가 아닌 코드 분기다. 설계가 '코드 훅'으로 확정(§16 #29 ⑤)했지만 새 Hazard(절멸·교단)마다 Transfer/Resolve/Destroy에 분기가 늘어난다 — 행 컬럼(예: bEndsWithOwner, bIsDiscontent)로 옮길 후보.",
+  "복잡도: IsHazardAnswer가 DT_Hazards 전체 순회라 Choices는 백성×성계×답 행마다 테이블을 다시 돈다. 60성계·12백성에서는 무시할 수준(틱 30µs 측정)이나 EA 300·48에서 재측정 대상(§9.4).",
+  "const 정확성·안전: 모든 인덱스 접근 앞에 IsValidIndex 가드; FindCiv/FindSystem은 낡은 색인을 에러 줄로 알린다. Transfer가 OwnedSystems.Remove(모든 동일 항목 제거)를 쓰는데 중복 항목이 없다는 가정에 기댄다(테스트 ClearOwners/Give가 지킨다).",
+  "데이터-코드 계약: 스키마가 Capital/ClaimRule 행의 확률 0, Claim↔ClaimRule 일대일, OnResolveEffects·만료 효과에 TransferSystem 없음, RulerResolutions 유일성을 지키고 Data.Integrity가 코드 열거자와 맞춰 본다 — 이 모듈이 전제하는 불변(답 행은 하나의 Hazard 행에만, 정착 행은 답이 아님)은 스키마에 '정착 행은 RulerResolutions에 없음'이 없어 코드 가드(CanStart)에만 기댄다.",
+  "Sim과 subsystem의 책임 분할이 흐리다: 주장 규칙의 발동·상한·FaithWeight(TryPlaceClaim), 만료 훅 셋, 기다리는 답 예약, AI 정착 추첨이 2,000줄짜리 GalaxySimulationSubsystem.cpp에 있어 '세계 함수 모듈'만 읽어서는 위기 규칙의 절반을 알 수 없다. CosmicClaims(규칙 발동)·CosmicProjectScheduler(예약) 같은 Sim 파일로 끌어내리면 subsystem이 단계 순서만 남는다."
+ ]
+}
