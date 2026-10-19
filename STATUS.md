@@ -5,7 +5,7 @@
 ## 지금
 
 - **Phase 3(은하 맵 뷰포트) — 작업은 모두 끝, 종료 절차만 남음.** 본체(1~5번·6번 기계 몫·정착 사유·11번 시간 표시 토글)에 이어 꼬리 7번 영적 시야·12번 셋째 칸의 ×25와 명령의 사유·8번 앎의 표시·9번 우주 화면이 2026-10-18~19에 끝났다(원격 커밋 `94e8706`·`b8803ef`·`25104b2`·`25ab43b`, 기록은 `docs/CHANGELOG.md`). 남은 것: 종료 조건의 사람 몫 **손 확인(개발자: 9번까지 든 가장 새 빌드로, 창에서 마우스만으로 셋째 칸, `stat fps`·`stat unit` 60fps — 배경 별의 GPU 몫은 `show InstancedStaticMeshes`로 끄고 켜서 본다)** → 10번 종료 리뷰(ultracode 1회: Core Logic이 UI/Actor를 include하지 않는지, 표현 계층이 앎을 `KnownViewOf` 한 곳에서만 읽는지).
-- **설계 문서**: 2026-10-18~19 `docs/`로 재편(1단계 전수 조사 → 2단계 통폐합; 원격 반영분까지 다시 이관). 설계 결정은 `docs/60_DECISIONS/DECISIONS_LOG.md`, 열린 물음은 `OPEN_QUESTIONS.md`(#번호는 옛 guideline §16 그대로, 원격이 더한 #96~#107 포함).
+- **설계 문서**: 2026-10-18~19 `docs/`로 재편(1단계 전수 조사 → 2단계 통폐합; 원격 반영분까지 다시 이관). 설계 결정은 `docs/60_DECISIONS/DECISIONS_LOG.md`, 열린 물음은 `OPEN_QUESTIONS.md`(#번호는 옛 guideline §16 그대로, 원격이 더한 #96~#116 포함).
 - **코드 사실(병합 HEAD 기준)**: 자동화 테스트 89종, DT_Rules 노브 46(2026-10-18에 `BackgroundStarCount` 20,000·`SceneryGalaxyCount` 10,000 추가 — 표현 계층이 읽음; 계승 6·도약 3·함대 4·귀환 3·ImmutableLaws·Vigil 18개는 여전히 예약), `DT_Galaxies` 20행(출처 `Tools/data/sources/galaxies.md`), 그 밖의 데이터 행은 이벤트 11·위기 5·프로젝트 5·업적 2·아키타입 2·초월자 1·로그 템플릿 10. 배속 상한 `MaxTimeScale` 25(셋째 칸 ×25 구현). 플레이어 명령은 여전히 `StartMegaproject`(정착 포함) 하나이고 `TickDiplomacy`·`TickConflict`는 빈 본문, 엔딩·자동 일시정지·자동 저장(게임 코드 호출)은 없다.
 - **기준값**: 커맨드렛 시드 42(성계 60·백성 12) 세계 해시와 Phase 2 실측(반란 62%·주장 만료 18%·첫 600틱 말해진 줄 중앙값 9)은 `docs/CHANGELOG.md`. 쿠킹 빌드의 해시 일치는 미확인.
 
