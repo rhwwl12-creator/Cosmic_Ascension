@@ -1883,6 +1883,57 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		}
 	}
 
+	// The choices of a card (section 5.9), entry by entry - a rule of the schema holds over every entry of a list, not over
+	// each entry's own fields together: a choice with a check says what its failure is, and a choice without one never
+	// fails, so it carries no failure effects, no failure line and no difficulty.
+	auto ChoiceProblems = [](const UDataTable* Cards)
+	{
+		TArray<FString> Problems;
+		for (const FName RowName : Cards ? Cards->GetRowNames() : TArray<FName>())
+		{
+			const FEncounterDef* Card = Cards->FindRow<FEncounterDef>(RowName, TEXT("Data.Integrity"), false);
+			for (int32 At = 0; Card && At < Card->Choices.Num(); ++At)
+			{
+				const FEncounterChoice& Choice = Card->Choices[At];
+				const FString Where = FString::Printf(TEXT("DT_Encounters.%s.Choices[%d]"), *RowName.ToString(), At);
+				if (Choice.CheckStat != ECosmicCheckStat::NoCheck && Choice.FailureText.IsEmpty())
+				{
+					Problems.Add(Where + TEXT(": a choice with a check has no failure line"));
+				}
+				if (Choice.CheckStat == ECosmicCheckStat::NoCheck && (!Choice.OnFailure.IsEmpty() || !Choice.FailureText.IsEmpty() || Choice.Difficulty != 0))
+				{
+					Problems.Add(Where + TEXT(": a choice without a check never fails, yet it has failure effects, a failure line or a difficulty"));
+				}
+			}
+		}
+		return Problems;
+	};
+	if (TestNotNull(TEXT("The game's cards are loaded"), Game.Encounters.Get()))
+	{
+		TestTrue(TEXT("Every choice of the game's cards has a failure exactly when it has a check"), Report(TEXT("card choices"), ChoiceProblems(Game.Encounters)));
+		auto Broken = [&](TFunctionRef<void(FEncounterChoice& Checked, FEncounterChoice& Free)> Change)
+		{
+			UDataTable* Copy = CopyOf<FEncounterDef>(Game.Encounters);
+			const FName Walls(TEXT("petition_walls"));
+			if (const FEncounterDef* Source = Game.FindEncounter(Walls); Source && Source->Choices.Num() == 2)
+			{
+				FEncounterDef Row = *Source;
+				Change(Row.Choices[1], Row.Choices[0]);
+				Copy->RemoveRow(Walls);
+				Copy->AddRow(Walls, Row);
+			}
+			return ChoiceProblems(Copy);
+		};
+		Expect(TEXT("a checked choice without a failure line"), Broken([](FEncounterChoice& Checked, FEncounterChoice&) { Checked.FailureText = FText::GetEmpty(); }),
+			{ TEXT("petition_walls.Choices[1]"), TEXT("has no failure line") });
+		Expect(TEXT("a free choice with a failure line"), Broken([](FEncounterChoice&, FEncounterChoice& Free) { Free.FailureText = FText::AsCultureInvariant(TEXT("x")); }),
+			{ TEXT("petition_walls.Choices[0]"), TEXT("never fails") });
+		Expect(TEXT("a free choice with failure effects"), Broken([](FEncounterChoice&, FEncounterChoice& Free) { Free.OnFailure.AddDefaulted(); }),
+			{ TEXT("petition_walls.Choices[0]"), TEXT("never fails") });
+		Expect(TEXT("a free choice with a difficulty"), Broken([](FEncounterChoice&, FEncounterChoice& Free) { Free.Difficulty = 3; }),
+			{ TEXT("petition_walls.Choices[0]"), TEXT("never fails") });
+	}
+
 	Sim->NewGalaxy(42, 5, 3);
 	return true;
 }

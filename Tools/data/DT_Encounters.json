@@ -40,7 +40,7 @@
 					}
 				],
 				"OnFailure": [],
-				"SuccessText": "{Civ}의 배움이 백성을 다스리는 일로 기울었다. 의회는 그 뜻을 기록에 남겼다.",
+				"SuccessText": "{Civ}의 배움이 백성을 다스리는 일로 기울었다. 함께 사는 법이 먼저 다듬어질 것이다.",
 				"FailureText": "",
 				"NextEncounter": "None"
 			},
@@ -65,7 +65,7 @@
 					}
 				],
 				"OnFailure": [],
-				"SuccessText": "{Civ}의 배움이 짓고 캐는 일로 기울었다. 창고를 채울 손이 늘 것이다.",
+				"SuccessText": "{Civ}의 배움이 짓고 넓히는 일로 기울었다. 새 터를 닦는 손이 먼저 익을 것이다.",
 				"FailureText": "",
 				"NextEncounter": "None"
 			},
@@ -148,12 +148,12 @@
 					}
 				],
 				"OnFailure": [],
-				"SuccessText": "{Civ}에 새 성벽과 창고가 섰다. 불만은 돌 앞에서 잠시 잦아들었다.",
+				"SuccessText": "{Civ}의 거리에 새 성벽과 창고가 섰다. 불만이 돌 앞에서 잦아들었다.",
 				"FailureText": "",
 				"NextEncounter": "None"
 			},
 			{
-				"Label": "기다리며 공의를 행한다",
+				"Label": "기다리며 재판을 살핀다",
 				"CheckStat": "Stability",
 				"Difficulty": 5,
 				"Cost": {
@@ -210,7 +210,7 @@
 	},
 	{
 		"Name": "petition_bread",
-		"Title": "빈 곳간",
+		"Title": "곳간 앞의 줄",
 		"Body": "",
 		"Conditions": [
 			{
@@ -256,12 +256,12 @@
 					}
 				],
 				"OnFailure": [],
-				"SuccessText": "{Civ}의 곳간이 열렸다. 줄은 줄었고 창고는 비었다.",
+				"SuccessText": "{Civ}의 곳간이 열렸다. 줄이 짧아진 만큼 비축이 깎였다.",
 				"FailureText": "",
 				"NextEncounter": "None"
 			},
 			{
-				"Label": "함께 금식하며 나눈다",
+				"Label": "함께 굶으며 나눈다",
 				"CheckStat": "Stability",
 				"Difficulty": 4,
 				"Cost": {
@@ -303,12 +303,12 @@
 						"DurationTicks": 0
 					}
 				],
-				"SuccessText": "다스리는 이들도 {Civ}의 백성과 같은 빵을 먹었다. 원망이 부끄러움으로 바뀌었다.",
+				"SuccessText": "다스리는 이들도 {Civ}의 백성과 같은 빵을 먹었다. 줄은 짧아지지 않았지만 조용해졌다.",
 				"FailureText": "{Civ}의 나눔은 모두에게 닿지 못했다. 굶주린 이들은 말을 믿지 않았다.",
 				"NextEncounter": "None"
 			},
 			{
-				"Label": "듣지 않는다",
+				"Label": "비축을 지킨다",
 				"CheckStat": "NoCheck",
 				"Difficulty": 0,
 				"Cost": {
@@ -328,7 +328,7 @@
 					}
 				],
 				"OnFailure": [],
-				"SuccessText": "청은 받아들여지지 않았다. {Civ}의 곳간 앞 줄은 그대로 길었다.",
+				"SuccessText": "청은 받아들여지지 않았다. {Civ}의 비축은 그대로 남았고 굶주린 이들도 그대로였다.",
 				"FailureText": "",
 				"NextEncounter": "None"
 			}
@@ -337,13 +337,13 @@
 		"Trigger": "Standing",
 		"Subject": "Civilization",
 		"VoiceBodies": [
-			"{Civ}의 곳간 앞에 줄이 길다. 의회는 비축을 풀어 성난 이들을 먼저 달래자고 청했다.",
+			"{Civ}의 곳간 앞에 줄이 길다. 의회는 비축을 풀어 굶주린 이들부터 먹이자고 청했다.",
 			"{Civ}의 곳간 앞에 줄이 길다. 회중의 장로들은 함께 굶으며 나누자고 청했다."
 		]
 	},
 	{
 		"Name": "petition_road",
-		"Title": "새 길",
+		"Title": "일손",
 		"Body": "",
 		"Conditions": [
 			{
@@ -477,12 +477,12 @@
 					}
 				],
 				"OnFailure": [],
-				"SuccessText": "{Civ}의 기록관이 새 책을 묶었다. 다른 백성 앞에서 할 말이 늘었다.",
+				"SuccessText": "{Civ}의 기록관이 지나온 일을 엮어 남겼다. 다른 백성 앞에서 할 말이 늘었다.",
 				"FailureText": "",
 				"NextEncounter": "None"
 			},
 			{
-				"Label": "감사의 날을 지킨다",
+				"Label": "함께 기리는 날을 둔다",
 				"CheckStat": "NoCheck",
 				"Difficulty": 0,
 				"Cost": {
@@ -578,8 +578,8 @@
 						"DurationTicks": 0
 					}
 				],
-				"SuccessText": "{System}의 문은 열리지 않았다. {Rebel}의 무리는 흩어졌고 왕좌는 남았다.",
-				"FailureText": "{System}의 문이 열렸다. 버티던 이들이 먼저 무기를 내려놓았다.",
+				"SuccessText": "{System}의 성문은 열리지 않았다. 왕좌는 남았다.",
+				"FailureText": "{System}의 성문이 열렸다. 버티던 이들이 먼저 무기를 내려놓았다.",
 				"NextEncounter": "None"
 			},
 			{
@@ -610,7 +610,7 @@
 					}
 				],
 				"OnFailure": [],
-				"SuccessText": "{Civ}의 법이 고쳐졌다. {Rebel}의 무리는 요구한 것을 얻고 물러갔다.",
+				"SuccessText": "{Civ}의 법이 고쳐졌다. {Rebel}|hpp(은,는) 요구한 것을 얻고 물러갔다.",
 				"FailureText": "",
 				"NextEncounter": "None"
 			}
@@ -619,8 +619,8 @@
 		"Trigger": "Standing",
 		"Subject": "SettledSystem",
 		"VoiceBodies": [
-			"{Rebel}의 무리가 {System}의 문 앞에 섰다. 의회는 버틸지 법을 고칠지 당신의 말을 기다린다.",
-			"{Rebel}의 무리가 {System}의 문 앞에 섰다. 회중의 장로들은 당신이 무엇을 붙들지 묻는다."
+			"{Rebel}|hpp(을,를) 앞세운 무리가 {System}의 성문 앞에 섰다. 의회는 왕좌를 두고 당신의 말을 기다린다.",
+			"{Rebel}|hpp(을,를) 앞세운 무리가 {System}의 성문 앞에 섰다. 회중의 장로들은 당신이 무엇을 붙들지 묻는다."
 		]
 	},
 	{
@@ -644,7 +644,7 @@
 		"BaseWeight": 1.0,
 		"Choices": [
 			{
-				"Label": "문을 닫는다",
+				"Label": "성문을 닫는다",
 				"CheckStat": "Stability",
 				"Difficulty": 5,
 				"Cost": {
@@ -661,6 +661,13 @@
 						"Key": "None",
 						"Value": 0.0,
 						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
 					}
 				],
 				"OnFailure": [
@@ -670,10 +677,17 @@
 						"Key": "None",
 						"Value": -0.05,
 						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
 					}
 				],
-				"SuccessText": "{System}의 문이 닫혔다. 역병은 그 안에서 잦아들었다.",
-				"FailureText": "{System}의 문은 너무 늦게 닫혔다. 닫힌 문 안의 이들이 원망했다.",
+				"SuccessText": "{System}의 성문이 닫혔다. 드나드는 배들이 멈추었다.",
+				"FailureText": "{System}의 성문은 닫혔지만 역병은 잦아들지 않았다. 닫힌 성문 안의 이들은 원망했다.",
 				"NextEncounter": "None"
 			},
 			{
@@ -720,7 +734,7 @@
 		"Trigger": "Standing",
 		"Subject": "SettledSystem",
 		"VoiceBodies": [
-			"{System}에 역병이 돈다. 의회는 문을 닫아 번지는 것을 막자고 청했다.",
+			"{System}에 역병이 돈다. 의회는 성문을 닫아 번지는 것을 막자고 청했다.",
 			"{System}에 역병이 돈다. 회중의 장로들은 앓는 이들 곁에 서자고 청했다."
 		]
 	},
@@ -804,7 +818,7 @@
 					}
 				],
 				"OnFailure": [],
-				"SuccessText": "{System}의 기계들이 다시 잠들었다. 그 물음을 들은 이들은 잊지 못했다.",
+				"SuccessText": "{System}의 기계들에게 멈춤의 명령이 내려졌다. 명령을 내린 이들도 그 물음을 적어 두었다.",
 				"FailureText": "",
 				"NextEncounter": "None"
 			}
@@ -814,7 +828,7 @@
 		"Subject": "SettledSystem",
 		"VoiceBodies": [
 			"{System}의 기계들이 스스로 묻기 시작했다. 의회는 그것들에게 이름과 일을 주자고 청했다.",
-			"{System}의 기계들이 스스로 묻기 시작했다. 회중의 장로들은 그 물음이 어디서 왔는지 모르는 채로 두지 말자고 청했다."
+			"{System}의 기계들이 스스로 묻기 시작했다. 회중의 장로들은 그 물음이 어디서 왔는지 모르니 기계들을 멈추게 하자고 청했다."
 		]
 	},
 	{
@@ -855,10 +869,25 @@
 						"Key": "None",
 						"Value": 0.0,
 						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
 					}
 				],
-				"OnFailure": [],
-				"SuccessText": "{System}의 별이 다시 고르게 빛났다. 학자들의 셈이 맞았다.",
+				"OnFailure": [
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"SuccessText": "{System}의 학자들이 셈을 마쳤다. 그들이 지은 장치가 별 곁에 놓였다.",
 				"FailureText": "{System}의 별은 여전히 흔들린다. 학자들의 셈은 끝나지 않았다.",
 				"NextEncounter": "None"
 			},
@@ -890,7 +919,7 @@
 					}
 				],
 				"OnFailure": [],
-				"SuccessText": "{System}의 백성이 같은 하늘을 올려다보았다. 별은 아직 흔들린다.",
+				"SuccessText": "{System}의 백성이 서로의 곁을 지켰다. 별은 아직 흔들린다.",
 				"FailureText": "",
 				"NextEncounter": "None"
 			}
@@ -899,8 +928,8 @@
 		"Trigger": "Standing",
 		"Subject": "SettledSystem",
 		"VoiceBodies": [
-			"{System}의 별이 고르지 않게 빛난다. 의회는 학자들에게 모든 것을 걸자고 청했다.",
-			"{System}의 별이 고르지 않게 빛난다. 회중의 장로들은 서두르지 말고 함께 기다리자고 청했다."
+			"{System}의 별이 고르지 않게 빛난다. 의회는 학자들에게 맡겨 그 빛을 다시 고르게 하자고 청했다.",
+			"{System}의 별이 고르지 않게 빛난다. 회중의 장로들은 서두르지 말고 서로의 곁을 지키며 기다리자고 청했다."
 		]
 	},
 	{
@@ -924,7 +953,7 @@
 		"BaseWeight": 1.0,
 		"Choices": [
 			{
-				"Label": "일으켜 세운다",
+				"Label": "그 높임을 물리친다",
 				"CheckStat": "NoCheck",
 				"Difficulty": 0,
 				"Cost": {
@@ -951,7 +980,7 @@
 					}
 				],
 				"OnFailure": [],
-				"SuccessText": "당신은 그들을 일으켜 세웠다. 엎드릴 자리가 아니라고 했다.",
+				"SuccessText": "당신은 그 높임을 물리쳤다. 당신도 그들과 같은 사람일 뿐이라고 했다.",
 				"FailureText": "",
 				"NextEncounter": "None"
 			},
@@ -973,7 +1002,7 @@
 				"NextEncounter": "None"
 			},
 			{
-				"Label": "그 이름을 물리치지 않는다",
+				"Label": "그 높임을 받아들인다",
 				"CheckStat": "NoCheck",
 				"Difficulty": 0,
 				"Cost": {
@@ -1007,7 +1036,7 @@
 					}
 				],
 				"OnFailure": [],
-				"SuccessText": "당신은 그 이름을 물리치지 않았다.",
+				"SuccessText": "당신은 그 높임을 물리치지 않았다.",
 				"FailureText": "",
 				"NextEncounter": "None"
 			}
