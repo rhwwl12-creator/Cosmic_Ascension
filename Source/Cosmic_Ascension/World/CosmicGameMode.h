@@ -10,6 +10,7 @@
 #include "Misc/Optional.h"
 #include "Templates/Function.h"
 #include "UI/CosmicUILabels.h"
+#include "Events/CosmicPetitions.h"
 #include "World/CosmicAutoPause.h"
 #include "World/CosmicMapLook.h"
 #include "World/CosmicMapPick.h"
@@ -21,6 +22,7 @@ class ACosmicGalaxyMapActor;
 class UCosmicAscensionOverlayWidget;
 class UCosmicGalaxyPanelWidget;
 class UCosmicLogFeedWidget;
+class UCosmicPetitionCardWidget;
 class UCosmicSystemPanelWidget;
 class UCosmicTopBarWidget;
 class UUserWidget;
@@ -64,7 +66,8 @@ public:
  * Puts the panels on the screen: the top bar along the top, on the right the system panel or the galaxy panel, as
  * CosmicUniverseLook::PanelOf says of the camera's level and the two selections (section 6.4 - the two never stand
  * together, section 8.3), the galaxy panel with the session's hint (CosmicUI::HintKeyOf), the log feed at the bottom left,
- * and over them all the ascension presentation (hidden until an ascension).
+ * the petition card in the middle over the panels (collapsed while no card shows - MVP item 2), and over them all the
+ * ascension presentation (hidden until an ascension).
  */
 UCLASS()
 class COSMIC_ASCENSION_API ACosmicHUD : public AHUD
@@ -80,6 +83,7 @@ public:
 	UCosmicGalaxyPanelWidget* GetGalaxyPanel() const { return GalaxyPanel; }
 	UCosmicLogFeedWidget* GetLogFeed() const { return Feed; }
 	UCosmicAscensionOverlayWidget* GetAscensionOverlay() const { return Overlay; }
+	UCosmicPetitionCardWidget* GetPetitionCard() const { return Card; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -106,6 +110,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCosmicAscensionOverlayWidget> Overlay;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCosmicPetitionCardWidget> Card;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCosmicTopBarWidget> TopBar;
@@ -213,6 +220,21 @@ public:
 	void FollowOwnHazards();
 	/** Where the viewer's choice is kept: this key of TimeUnitSection, "On" or "Off" (tests read it). */
 	static constexpr const TCHAR* AutoPauseKey = TEXT("AutoPause");
+
+	/**
+	 * Follows the petition card that waits (GetKnownView().PendingPetitionRow - MVP item 2): when it is another card than
+	 * the one the HUD's card shows, the card shows it (a new voice picked), and a card that arrived at the tick boundary
+	 * (bArrived: OnSimTick) asks for the automatic pause (Card); a card that waits after a new galaxy or a load shows
+	 * without a pause. The same card is redrawn. An outcome on the card stays until it is closed. Tests call it in place
+	 * of a tick.
+	 */
+	void FollowPetition(bool bArrived);
+	/** The card's answer: UPlayerRoleSubsystem::AnswerPetition; an answer taken redraws the HUD and the map (as
+	 * StartProject - a paused simulation sends no tick). */
+	FCosmicPetitionAnswer AnswerPetition(int32 ChoiceIndex);
+	/** The card was closed after an outcome: a chained card shows at once (FollowPetition); otherwise a pause the card
+	 * made (reason Card, still standing still) gives the time back at the speed before it. */
+	void ClosePetitionCard();
 
 	/** What a speed key does: 0 to 5 set the steps of CosmicUI::SpeedSteps through SetSpeed - a step the gate does not
 	 * open does nothing (it never becomes x10, guideline 2.1) -, Space toggles the pause. The keys follow the gate alone:

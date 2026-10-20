@@ -25,6 +25,7 @@
 #include "UI/CosmicAscensionOverlayWidget.h"
 #include "UI/CosmicGalaxyPanelWidget.h"
 #include "UI/CosmicLogFeedWidget.h"
+#include "UI/CosmicPetitionCardWidget.h"
 #include "UI/CosmicSystemPanelWidget.h"
 #include "UI/CosmicTopBarWidget.h"
 #include "Widgets/Layout/Anchors.h"
@@ -49,6 +50,8 @@ namespace CosmicControlImpl
 	constexpr float TopBarHeight = 40.f;
 	const FVector2D SystemPanelSize(340.f, 460.f);
 	const FVector2D LogPanelSize(620.f, 230.f);
+	// The petition card's area, in the middle of the screen: the card sits at its top and the rest lets clicks through.
+	const FVector2D PetitionCardSize(560.f, 480.f);
 	constexpr float ScreenMargin = 16.f;
 
 	// The viewer's clock unit (guideline 6.3) is kept in the viewer's GameUserSettings ini (the controller's
@@ -238,6 +241,22 @@ void ACosmicHUD::BeginPlay()
 		TimeUnitHandle = Cosmic->OnTimeUnitChanged.AddUObject(this, &ACosmicHUD::HandleTimeUnitChanged);
 		ViewModeHandle = Cosmic->OnViewModeChanged.AddUObject(this, &ACosmicHUD::HandleViewModeChanged);
 	}
+	// The petition card in the middle, over the panels and under the ascension presentation; collapsed while no card
+	// shows. Position and size first, the anchors last (as above).
+	Card = CreateWidget<UCosmicPetitionCardWidget>(Controller);
+	if (Card)
+	{
+		Card->AddToViewport(5);
+		Card->SetPositionInViewport(FVector2D::ZeroVector, false);
+		Card->SetDesiredSizeInViewport(PetitionCardSize);
+		Card->SetAnchorsInViewport(FAnchors(0.5f, 0.5f));
+		Card->SetAlignmentInViewport(FVector2D(0.5f, 0.5f));
+		if (ACosmicPlayerController* Cosmic = Cast<ACosmicPlayerController>(Controller))
+		{
+			// A card that waits in the galaxy the game started with.
+			Cosmic->FollowPetition(false);
+		}
+	}
 	// Over everything, the whole screen; hidden until an ascension.
 	Overlay = CreateWidget<UCosmicAscensionOverlayWidget>(Controller);
 	if (Overlay)
@@ -313,6 +332,11 @@ void ACosmicHUD::RefreshPanel()
 	// The right side: the system panel (one refresh) or the galaxy panel - it reads only definitions, shown again now (the
 	// tables may have changed) - with its hint.
 	ShowRightSide();
+	// The card's choices: what the stockpile can pay now.
+	if (Card)
+	{
+		Card->Refresh();
+	}
 }
 
 ACosmicPlayerController::ACosmicPlayerController()
@@ -521,6 +545,7 @@ void ACosmicPlayerController::HandleSimTick(int64 Tick)
 {
 	FollowSpeedGate();
 	FollowOwnHazards();
+	FollowPetition(true);
 }
 
 void ACosmicPlayerController::HandleGalaxyGenerated(int32 Seed)
@@ -530,6 +555,7 @@ void ACosmicPlayerController::HandleGalaxyGenerated(int32 Seed)
 	AutoPauseReason = ECosmicAutoPause::None;
 	OwnHazardsSeen.Reset();
 	FollowOwnHazards();
+	FollowPetition(false);
 }
 
 void ACosmicPlayerController::HandleLogEntry(const FCosmicLogEntry& Entry)
@@ -1225,6 +1251,61 @@ void ACosmicPlayerController::HandleWheel(FKey Key)
 		CameraPawn->Zoom(Key == EKeys::MouseScrollUp ? 1.f : -1.f);
 	}
 	FollowZoomLevel();
+}
+
+void ACosmicPlayerController::FollowPetition(bool bArrived)
+{
+	ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
+	UCosmicPetitionCardWidget* Card = CosmicHUD ? CosmicHUD->GetPetitionCard() : nullptr;
+	if (!Card || Card->IsShowingOutcome())
+	{
+		return;
+	}
+	const FCosmicKnownView View = GetKnownView();
+	if (View.PendingPetitionRow == Card->GetShownRow() && View.PendingPetitionSystemID == Card->GetShownSystem())
+	{
+		Card->Refresh();
+		return;
+	}
+	Card->ShowCard(View.PendingPetitionRow, View.PendingPetitionSystemID);
+	if (bArrived && !View.PendingPetitionRow.IsNone())
+	{
+		RequestAutoPause(ECosmicAutoPause::Card);
+	}
+}
+
+FCosmicPetitionAnswer ACosmicPlayerController::AnswerPetition(int32 ChoiceIndex)
+{
+	UPlayerRoleSubsystem* Roles = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	const FCosmicPetitionAnswer Answer = Roles ? Roles->AnswerPetition(ChoiceIndex) : FCosmicPetitionAnswer();
+	if (Answer.Outcome == ECosmicPetitionOutcome::Refused)
+	{
+		return Answer;
+	}
+	// A paused simulation sends no tick: show what the answer changed now, on the panels and on the map.
+	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
+	{
+		CosmicHUD->RefreshPanel();
+	}
+	if (ACosmicGalaxyMapActor* TheMap = Map.Get())
+	{
+		TheMap->RequestRefresh();
+	}
+	return Answer;
+}
+
+void ACosmicPlayerController::ClosePetitionCard()
+{
+	FollowPetition(false);
+	const ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
+	const UCosmicPetitionCardWidget* Card = CosmicHUD ? CosmicHUD->GetPetitionCard() : nullptr;
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	// The card stopped the time and nothing else set a speed since: the time runs again (as the ascension presentation
+	// gives its speed back). A chained card keeps it standing.
+	if (Card && Card->GetShownRow().IsNone() && Sim && !(Sim->GetTimeScale() > 0.f) && AutoPauseReason == ECosmicAutoPause::Card)
+	{
+		SetSpeed(SpeedBeforePause);
+	}
 }
 
 bool ACosmicPlayerController::StartProject(FName SystemID, FName RowName)

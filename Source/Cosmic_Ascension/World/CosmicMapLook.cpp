@@ -383,6 +383,8 @@ FCosmicKnownView CosmicMapLook::KnownViewOf(const FGalaxyState& State, const FCo
 {
 	FCosmicKnownView View;
 	View.bSeeAll = bSeeAll;
+	View.PendingPetitionRow = State.Knowing.PendingPetitionRow;
+	View.PendingPetitionSystemID = State.Knowing.PendingPetitionSystemID;
 	View.Known.Init(bSeeAll, State.Systems.Num());
 	// The sanctuary is shown by its name alone, whatever Knowing holds (section 4.5 (1)): never written there.
 	View.ShownByName.Init(false, State.Systems.Num());

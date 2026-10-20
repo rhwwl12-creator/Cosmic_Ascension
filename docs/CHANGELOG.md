@@ -2,6 +2,15 @@
 
 > 2026-10-19 재편: 본문에 섞여 있던 이력·상태 줄·일지·리뷰 통계를 여기로 옮겼다(내용 무변경, 위치만 — 원격의 Phase 3 꼬리 7·12·8·9 기록 포함). 앞으로는 날짜·작업 접두어·바뀐 규칙·리뷰 통계를 여기에만 적고, 설계 본문과 STATUS.md에는 적지 않는다.
 
+## 2026-10-20 — MVP ② 청원 카드
+
+- 헤더 `docs/60_DECISIONS/headers/A2_petition_cards.md` 승인(결정 8개 권장안 — `DECISIONS_LOG` 2026-10-20), OPEN_QUESTIONS #26·#93 닫고 #30 ①을 닫았다.
+- `[A-2a]` 스키마와 중첩 구조체 검사: 종류 `pool`(자원 풀 — `CostPerTick`도 옮겼다)·`structs`(원소마다 멤버를 빠짐없이), 규칙의 하위 열 경로 `List.Column`, 시험 `has_type`, C++ `Data.Integrity`의 `CheckColumnsOf`·원소마다의 `CheckCell`, `ECosmicCheckStat`(`NoCheck` …), `FEncounterDef`의 `Trigger`·`Subject`·`VoiceBodies`, `DT_Encounters`의 모든 컬럼과 규칙 일곱. 기준값 그대로.
+- `[A-2b]` 시뮬: `FKnowingState.PendingPetitionRow`·`PendingPetitionSystemID`, 앎 단계 끝의 `CosmicPetitions::Present`(틱 첫머리 대비 막 선 Standing 행·생애의 600틱 주기 슬롯의 Lottery 행, `CosmicSeed::Purpose::Petition` 10), `UPlayerRoleSubsystem::AnswerPetition`(받아들인 답마다 1회 뽑기·거둠·비용·판정·효과·결과 줄·사슬), 조건 `SystemHazardTicksAtMost`, 효과 `FocusResearch`, 노브 `PetitionPeriodTicks`, 카드 10행, ST_CA `Role.Rebel`. 기준값: 3,000틱 hash 3195642295·world 2405589164 그대로 / 20,000틱 hash 1463861828·world 3260616143 그대로 — 커맨드렛 CSV의 세계 칸이 A0-4b와 같다(답하지 않은 카드는 세계를 바꾸지 않는다).
+- `[A-2c]` 카드 위젯 `UCosmicPetitionCardWidget`(HUD Z 5, 가운데 560 — 제목·목소리 줄·본문·선택지와 비용·'6에 n' 줄·회색과 툴팁·결과와 닫기/다음 청원), `FCosmicKnownView`가 대기 카드를 싣고, 컨트롤러 `FollowPetition`(틱 경계에 온 카드는 `RequestAutoPause(Card)`, 로드 뒤는 멈추지 않음)·`AnswerPetition`·`ClosePetitionCard`(카드가 멈춘 시간만 돌려준다). 오프스크린 한 장(`ScreenShot00072.png`): 시드 42 ×5, 주기 30에 '지혜로운 마음'이 가운데 서고 상단 바가 '정지 — 카드가 왔다'.
+- 테스트 98종(새 다섯), 검사기 단위 테스트 73종. 새 단언 변이 70개 모두 잡힘(A-2a 검사기 17·C++ 7, A-2b 27, A-2c 19 — 처음 살아남은 셋 — 주기 슬롯의 대기 카드, 안정도 판정의 여유, 제 자신을 잇는 카드 — 은 단언을 더해 잡았다). 각 커밋에서 `run_checks.ps1 -Tier full` 통과.
+- 남은 것: 카드 글 묶음 감사(ultracode), 첫 접촉 청원(#24, Phase 4), 영압 체인(B4), '명예로운 양위'(B1, 선택지 끝에), 커맨드렛의 답 정책(MVP ③).
+
 ## 2026-10-20 — MVP ① 자동 일시정지
 
 - `[A-1]` 표현 계층만(상태·해시·추첨 밖): 말해진 Severity 2 줄(`OnLogEntry`), 통치하는 백성의 성계에 새로 선 위기(틱 경계에서 견준다 — 위기의 줄은 Severity 1이라 따로), 카드의 도착(`RequestAutoPause(Card)` — MVP ②가 부른다)이 달리는 판을 멈춘다. 순수 규칙 `World/CosmicAutoPause`(`StopsFor`·`OwnHazardsOf`·`HasNewHazard`·`WhyKeyOf`), 컨트롤러의 `RequestAutoPause`·`FollowOwnHazards`·`SetAutoPause`·`ToggleAutoPause`(설정 `Cosmic_Ascension.View`·`AutoPause`, 기본 켬, 개발용 `-AutoPause=0`), 상단 바의 '자동 정지 켬/끔' 단추와 까닭 한 줄. ST_CA 6키.

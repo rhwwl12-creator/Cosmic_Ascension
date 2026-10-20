@@ -138,6 +138,10 @@ struct COSMIC_ASCENSION_API FCosmicKnownView
 	TArray<int32> ShownOrder;
 	// The development aid CosmicSeeAll.
 	bool bSeeAll = false;
+	// The petition card waiting for the player's answer and the system it is about (Knowing.PendingPetitionRow and
+	// PendingPetitionSystemID, section 5.10); None when no card waits. The same under bSeeAll.
+	FName PendingPetitionRow;
+	FName PendingPetitionSystemID;
 
 	bool IsKnown(int32 SystemIndex) const { return Known.IsValidIndex(SystemIndex) && Known[SystemIndex]; }
 	bool IsShownByName(int32 SystemIndex) const { return ShownByName.IsValidIndex(SystemIndex) && ShownByName[SystemIndex]; }
