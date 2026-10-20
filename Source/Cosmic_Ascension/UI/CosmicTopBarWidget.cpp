@@ -22,6 +22,7 @@
 #include "UI/CosmicNextRung.h"
 #include "UI/CosmicUILabels.h"
 #include "UObject/UnrealType.h"
+#include "World/CosmicAutoPause.h"
 #include "World/CosmicGameMode.h"
 #include "World/CosmicMapLook.h"
 
@@ -33,6 +34,9 @@ namespace CosmicTopBarImpl
 {
 	const FName SpeedAction(TEXT("speed"));
 	const FName ViewAction(TEXT("view"));
+	const FName AutoPauseAction(TEXT("autopause"));
+	// The line of an automatic pause: the warm colour of a flat button under the mouse, so the eye finds why time stopped.
+	const FLinearColor WhyColor(1.f, 0.82f, 0.4f);
 	const FLinearColor BandColor(0.01f, 0.01f, 0.03f, 0.8f);
 	// The text of a flat button (the clock, the rung), and its colour while the mouse is on it (a press or a tooltip waits there).
 	const FLinearColor FlatColor = FLinearColor::White;
@@ -150,7 +154,7 @@ TSharedRef<SWidget> UCosmicTopBarWidget::RebuildWidget()
 
 		// One button per speed step, labelled in the cycle form here (Refresh relabels them in the controller's unit). A
 		// step above the calling's top starts collapsed and takes its tooltip once: what the third rung's speed does to the
-		// crises (there is no automatic pause yet).
+		// crises.
 		for (const float Speed : CosmicUI::SpeedSteps)
 		{
 			UCosmicActionButton* Button = WidgetTree->ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
@@ -167,6 +171,22 @@ TSharedRef<SWidget> UCosmicTopBarWidget::RebuildWidget()
 			SpeedButtons.Add(Button);
 		}
 		LabelledUnit = ECosmicTimeUnit::Cycle;
+
+		// The automatic pause after the speeds: its button (the tooltip set once - SetToolTipText builds a new Slate tooltip
+		// each time; Refresh labels it on or off), then the line of why it stopped, collapsed until it holds the time.
+		AutoPauseButton = WidgetTree->ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
+		AutoPauseButton->Setup(AutoPauseAction, 0.f, CosmicUI::Label(TEXT("AutoPause.On")));
+		AutoPauseButton->OnAction.AddUObject(this, &UCosmicTopBarWidget::HandleAutoPause);
+		AutoPauseButton->SetToolTipText(CosmicUI::Label(TEXT("AutoPause.Tip")));
+		UHorizontalBoxSlot* AutoPauseSlot = Row->AddChildToHorizontalBox(AutoPauseButton);
+		AutoPauseSlot->SetVerticalAlignment(VAlign_Center);
+		AutoPauseSlot->SetPadding(FMargin(12.f, 0.f, 0.f, 0.f));
+		AutoPauseText = CosmicUI::MakeText(*WidgetTree, 13, false);
+		AutoPauseText->SetColorAndOpacity(FSlateColor(WhyColor));
+		AutoPauseText->SetVisibility(ESlateVisibility::Collapsed);
+		UHorizontalBoxSlot* WhySlot = Row->AddChildToHorizontalBox(AutoPauseText);
+		WhySlot->SetVerticalAlignment(VAlign_Center);
+		WhySlot->SetPadding(FMargin(8.f, 0.f, 0.f, 0.f));
 	}
 	return Super::RebuildWidget();
 }
@@ -242,6 +262,21 @@ void UCosmicTopBarWidget::PressViewButton()
 	if (ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer()))
 	{
 		Controller->ToggleViewMode();
+	}
+	Refresh();
+}
+
+void UCosmicTopBarWidget::HandleAutoPause(FName Action, float Value)
+{
+	PressAutoPause();
+}
+
+void UCosmicTopBarWidget::PressAutoPause()
+{
+	// The controller keeps the choice for the next session and redraws the HUD; this bar may not be the HUD's (tests).
+	if (ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer()))
+	{
+		Controller->ToggleAutoPause();
 	}
 	Refresh();
 }
@@ -394,6 +429,32 @@ void UCosmicTopBarWidget::Refresh()
 		}
 	}
 	LabelledUnit = Unit;
+
+	// The automatic pause: its button says on or off; the line says why the time stands still while an automatic pause
+	// holds it (the reason goes when the speed is set again). Both set only when they change.
+	const ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer());
+	if (AutoPauseButton)
+	{
+		const FText PauseLabel = Label((!Controller || Controller->IsAutoPauseOn()) ? TEXT("AutoPause.On") : TEXT("AutoPause.Off"));
+		if (!AutoPauseButton->GetLabel().ToString().Equals(PauseLabel.ToString(), ESearchCase::CaseSensitive))
+		{
+			AutoPauseButton->Setup(CosmicTopBarImpl::AutoPauseAction, 0.f, PauseLabel);
+		}
+	}
+	if (AutoPauseText)
+	{
+		const TCHAR* WhyKey = (Controller && !(Current > 0.f)) ? CosmicAutoPause::WhyKeyOf(Controller->GetAutoPauseReason()) : nullptr;
+		const FText Why = WhyKey ? Label(WhyKey) : FText::GetEmpty();
+		if (!AutoPauseText->GetText().ToString().Equals(Why.ToString(), ESearchCase::CaseSensitive))
+		{
+			AutoPauseText->SetText(Why);
+		}
+		const ESlateVisibility WhyVisibility = Why.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible;
+		if (AutoPauseText->GetVisibility() != WhyVisibility)
+		{
+			AutoPauseText->SetVisibility(WhyVisibility);
+		}
+	}
 }
 
 FReply UCosmicTopBarWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)

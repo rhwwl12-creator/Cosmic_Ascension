@@ -12,6 +12,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameplayTagContainer.h"
+#include "Log/CosmicLogSubsystem.h"
 #include "Math/RotationMatrix.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
@@ -335,6 +336,17 @@ void ACosmicPlayerController::PostInitializeComponents()
 	{
 		ParseUnit(Given, TimeUnit);
 	}
+	// The automatic pause: on unless the viewer turned it off; -AutoPause=0 or 1 for the session only.
+	FString KeptPause;
+	if (GConfig && GConfig->GetString(TimeUnitSection, AutoPauseKey, KeptPause, GGameUserSettingsIni))
+	{
+		bAutoPause = !KeptPause.Equals(TEXT("Off"), ESearchCase::IgnoreCase);
+	}
+	int32 GivenPause = 1;
+	if (FParse::Value(FCommandLine::Get(), TEXT("AutoPause="), GivenPause))
+	{
+		bAutoPause = GivenPause != 0;
+	}
 }
 
 void ACosmicPlayerController::SetTimeUnit(ECosmicTimeUnit Unit)
@@ -473,12 +485,18 @@ void ACosmicPlayerController::BeginPlay()
 		Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 		SetInputMode(Mode);
 	}
-	// The third rung's gate is followed at the tick boundary and on a new galaxy or a load (FollowSpeedGate).
+	// The third rung's gate and the hazards of the ruled people are followed at the tick boundary and on a new galaxy or a
+	// load (FollowSpeedGate, FollowOwnHazards); the told lines as they come (the automatic pause).
 	if (UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr)
 	{
 		Sim->OnSimTick.AddUniqueDynamic(this, &ACosmicPlayerController::HandleSimTick);
 		Sim->OnGalaxyGenerated.AddUniqueDynamic(this, &ACosmicPlayerController::HandleGalaxyGenerated);
 	}
+	if (UCosmicLogSubsystem* Log = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>() : nullptr)
+	{
+		Log->OnLogEntry.AddUniqueDynamic(this, &ACosmicPlayerController::HandleLogEntry);
+	}
+	FollowOwnHazards();
 }
 
 void ACosmicPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -492,17 +510,85 @@ void ACosmicPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		Sim->OnSimTick.RemoveDynamic(this, &ACosmicPlayerController::HandleSimTick);
 		Sim->OnGalaxyGenerated.RemoveDynamic(this, &ACosmicPlayerController::HandleGalaxyGenerated);
 	}
+	if (UCosmicLogSubsystem* Log = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>() : nullptr)
+	{
+		Log->OnLogEntry.RemoveDynamic(this, &ACosmicPlayerController::HandleLogEntry);
+	}
 	Super::EndPlay(EndPlayReason);
 }
 
 void ACosmicPlayerController::HandleSimTick(int64 Tick)
 {
 	FollowSpeedGate();
+	FollowOwnHazards();
 }
 
 void ACosmicPlayerController::HandleGalaxyGenerated(int32 Seed)
 {
 	FollowSpeedGate();
+	// Another game: what stopped the old one and the hazards it had say nothing of this one.
+	AutoPauseReason = ECosmicAutoPause::None;
+	OwnHazardsSeen.Reset();
+	FollowOwnHazards();
+}
+
+void ACosmicPlayerController::HandleLogEntry(const FCosmicLogEntry& Entry)
+{
+	// Inside a tick stage: only the time scale reaches the simulation (RequestAutoPause).
+	if (CosmicAutoPause::StopsFor(Entry))
+	{
+		RequestAutoPause(ECosmicAutoPause::MythicLine);
+	}
+}
+
+void ACosmicPlayerController::FollowOwnHazards()
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!Sim)
+	{
+		return;
+	}
+	TMap<FName, FGameplayTag> Now = CosmicAutoPause::OwnHazardsOf(Sim->GetState(), Sim->GetStateIndex());
+	const bool bNew = OwnHazardsSeen.IsSet() && CosmicAutoPause::HasNewHazard(OwnHazardsSeen.GetValue(), Now);
+	OwnHazardsSeen = MoveTemp(Now);
+	if (bNew)
+	{
+		RequestAutoPause(ECosmicAutoPause::OwnHazard);
+	}
+}
+
+void ACosmicPlayerController::SetAutoPause(bool bOn)
+{
+	if (bOn == bAutoPause)
+	{
+		return;
+	}
+	bAutoPause = bOn;
+	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
+	{
+		CosmicHUD->RefreshPanel();
+	}
+}
+
+void ACosmicPlayerController::ToggleAutoPause()
+{
+	SetAutoPause(!bAutoPause);
+	// The viewer's choice outlives the session. A test run on the same machine reads it but never writes it.
+	if (GConfig && !GIsAutomationTesting)
+	{
+		GConfig->SetString(TimeUnitSection, AutoPauseKey, bAutoPause ? TEXT("On") : TEXT("Off"), GGameUserSettingsIni);
+		GConfig->Flush(false, GGameUserSettingsIni);
+	}
+}
+
+void ACosmicPlayerController::RequestAutoPause(ECosmicAutoPause Reason)
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!bAutoPause || Reason == ECosmicAutoPause::None || !Sim || !(Sim->GetTimeScale() > 0.f))
+	{
+		return;
+	}
+	ApplySpeed(0.f, Reason);
 }
 
 void ACosmicPlayerController::FollowSpeedGate()
@@ -1162,6 +1248,11 @@ bool ACosmicPlayerController::StartProject(FName SystemID, FName RowName)
 
 void ACosmicPlayerController::SetSpeed(float Speed)
 {
+	ApplySpeed(Speed, ECosmicAutoPause::None);
+}
+
+void ACosmicPlayerController::ApplySpeed(float Speed, ECosmicAutoPause Reason)
+{
 	UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
 	if (!Sim)
 	{
@@ -1174,6 +1265,8 @@ void ACosmicPlayerController::SetSpeed(float Speed)
 	}
 	// One rule for every path: a speed the third rung's gate does not open runs as x10.
 	Sim->SetTimeScale(CosmicUI::OpenSpeed(Speed, IsSpiritualSightOpen()));
+	// Set before the redraw: the top bar shows why the simulation stands still.
+	AutoPauseReason = Reason;
 
 	// No delegate announces a new time scale, and a paused simulation sends no tick.
 	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())

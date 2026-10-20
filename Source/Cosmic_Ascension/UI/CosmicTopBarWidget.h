@@ -24,9 +24,13 @@ class UTextBlock;
  * the mouse on it shows both units, and the speed buttons follow the unit ("2 years a second"). From the third rung (the
  * controller's IsSpiritualSightOpen) a bordered view button stands between the clock and the speeds - its label names
  * the view drawn (ST_CA Sight.Spiritual or Sight.Physical), a press switches it (the controller's ToggleViewMode), its
- * tooltip says what the sight is (Sight.Tip); below the third rung it is collapsed, so its appearing is the opening. A
- * wanderer has no people: the band shows only the clock, the view and the speeds. Built in C++ (no WBP); redrawn from the
- * simulation's delegates, after a speed button and after the clock's and the view's press.
+ * tooltip says what the sight is (Sight.Tip); below the third rung it is collapsed, so its appearing is the opening. After
+ * the speeds the automatic pause's button - its label says whether it is on (ST_CA AutoPause.On / AutoPause.Off), a press
+ * switches it (the controller's ToggleAutoPause), its tooltip says what stops the time (AutoPause.Tip) - and, while an
+ * automatic pause holds the simulation still, one line that says why (CosmicAutoPause::WhyKeyOf of the controller's
+ * reason); it goes when the speed is set again. A wanderer has no people: the band shows only the clock, the view, the
+ * speeds and the automatic pause. Built in C++ (no WBP); redrawn from the simulation's delegates, after a speed button and
+ * after the clock's, the view's and the automatic pause's press.
  */
 UCLASS(meta = (DisableNativeTick))
 class COSMIC_ASCENSION_API UCosmicTopBarWidget : public UUserWidget
@@ -53,6 +57,13 @@ public:
 
 	/** What a click on the view button does (tests call it in place of a click). */
 	void PressViewButton();
+
+	/** What a click on the automatic pause's button does (tests call it in place of a click). */
+	void PressAutoPause();
+	/** The automatic pause's button (tests read its label and tooltip). */
+	const UCosmicActionButton* GetAutoPauseButton() const { return AutoPauseButton; }
+	/** The line that says why an automatic pause holds the time (tests read its text and visibility). */
+	const UTextBlock* GetAutoPauseText() const { return AutoPauseText; }
 	/** The view button (tests read its label, visibility and tooltip). */
 	const UCosmicActionButton* GetViewButton() const { return ViewButton; }
 
@@ -91,6 +102,8 @@ private:
 	void HandleSpeed(FName Action, float Value);
 
 	void HandleView(FName Action, float Value);
+
+	void HandleAutoPause(FName Action, float Value);
 
 	UFUNCTION()
 	void HandleClockClicked();
@@ -133,6 +146,12 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCosmicActionButton> ViewButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCosmicActionButton> AutoPauseButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> AutoPauseText;
 
 	bool bClockHovered = false;
 	// The unit the speed buttons were last labelled with (relabelled only when it changes).

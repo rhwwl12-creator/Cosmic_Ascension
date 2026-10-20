@@ -10,6 +10,7 @@
 #include "Misc/Optional.h"
 #include "Templates/Function.h"
 #include "UI/CosmicUILabels.h"
+#include "World/CosmicAutoPause.h"
 #include "World/CosmicMapLook.h"
 #include "World/CosmicMapPick.h"
 #include "World/CosmicZoomLevels.h"
@@ -126,9 +127,10 @@ private:
  * 0 pauses, 1 to 4 set 1x, 2x, 5x and 10x and 5 sets 25x once the third rung's
  * gate is open (CosmicUI::SpeedSteps, as the top bar's buttons; a key whose speed the gate does not open does nothing),
  * Space toggles the pause (the top bar's buttons share SetSpeed). The system panel's commands come through StartProject.
- * Holds the selection, the galaxy selection, the session's hint progress, the clock's unit and the view (physical or the
- * third rung's spiritual sight) - presentation state: not in FGalaxyState, never saved with a galaxy (the unit is the
- * viewer's setting, the view and the hints live in memory only).
+ * Stops a running simulation by itself when the viewer keeps the automatic pause on (RequestAutoPause). Holds the
+ * selection, the galaxy selection, the session's hint progress, the clock's unit, the automatic pause and the view
+ * (physical or the third rung's spiritual sight) - presentation state: not in FGalaxyState, never saved with a galaxy
+ * (the unit and the automatic pause are the viewer's settings, the view and the hints live in memory only).
  */
 UCLASS()
 class COSMIC_ASCENSION_API ACosmicPlayerController : public APlayerController
@@ -181,8 +183,36 @@ public:
 
 	/** Sets the simulation's speed (0 pauses) - a speed the third rung's gate does not open is x10 instead (CosmicUI::
 	 * OpenSpeed with IsSpiritualSightOpen; the pause's release and the ascension presentation's give-back come through
-	 * here too) - and remembers the speed to return to after a pause. Redraws the HUD. */
+	 * here too) - and remembers the speed to return to after a pause. Clears the reason of an automatic pause. Redraws the
+	 * HUD. */
 	void SetSpeed(float Speed);
+
+	/**
+	 * The automatic pause (guideline 2.1, MVP item 1): whether the screens stop a running simulation by themselves - on a
+	 * told mythic line (CosmicAutoPause::StopsFor, from OnLogEntry), when a hazard newly stands on a system of the people
+	 * the vessel rules (FollowOwnHazards, at the tick boundary) and when a card arrives (the card widget asks). The viewer's
+	 * choice, on by default: read from the viewer's settings when the controller starts (AutoPauseKey of TimeUnitSection),
+	 * and for the session from -AutoPause=0 or 1 on the command line (a development aid - the frame-time measure at x10).
+	 */
+	bool IsAutoPauseOn() const { return bAutoPause; }
+	/** Sets it in memory only (the tests fix it this way) and redraws the HUD. */
+	void SetAutoPause(bool bOn);
+	/** The top bar's button: the other choice, kept in the viewer's settings for the next session - never while automation
+	 * tests run. */
+	void ToggleAutoPause();
+	/** Stops a running simulation for Reason when the automatic pause is on, as the pause does (SetSpeed(0) - the speed to
+	 * return to is kept), and notes Reason for the top bar's line. Does nothing to a paused simulation, with the automatic
+	 * pause off, or for None. Safe inside a handler of a Core Logic delegate (only SetTimeScale reaches the simulation). */
+	void RequestAutoPause(ECosmicAutoPause Reason);
+	/** Why the simulation stands still: the reason of the automatic pause that stopped it, None once the speed was set
+	 * again (or a new galaxy or a load came). */
+	ECosmicAutoPause GetAutoPauseReason() const { return AutoPauseReason; }
+	/** Follows the hazards on the systems of the people the vessel rules (every tick from OnSimTick; tests call it in place
+	 * of a tick): a hazard newly standing there since the last call asks for the automatic pause (OwnHazard). The first
+	 * call after the controller starts, a new galaxy or a load only notes them. */
+	void FollowOwnHazards();
+	/** Where the viewer's choice is kept: this key of TimeUnitSection, "On" or "Off" (tests read it). */
+	static constexpr const TCHAR* AutoPauseKey = TEXT("AutoPause");
 
 	/** What a speed key does: 0 to 5 set the steps of CosmicUI::SpeedSteps through SetSpeed - a step the gate does not
 	 * open does nothing (it never becomes x10, guideline 2.1) -, Space toggles the pause. The keys follow the gate alone:
@@ -364,6 +394,13 @@ private:
 	UFUNCTION()
 	void HandleGalaxyGenerated(int32 Seed);
 
+	// A told line: the automatic pause looks at it.
+	UFUNCTION()
+	void HandleLogEntry(const FCosmicLogEntry& Entry);
+
+	// SetSpeed with the reason it is set for (None: the player's, or the presentation's give-back).
+	void ApplySpeed(float Speed, ECosmicAutoPause Reason);
+
 	void HandleRightPressed(FKey Key);
 	void HandleRightReleased(FKey Key);
 	void HandleWheel(FKey Key);
@@ -383,6 +420,13 @@ private:
 
 	// Speed to return to when the pause is released.
 	float SpeedBeforePause = 1.f;
+
+	// The automatic pause: the viewer's choice, why it last stopped the simulation (None once the speed was set again),
+	// and the hazards on the ruled people's systems at the last FollowOwnHazards (unset before the first, after a new
+	// galaxy or a load).
+	bool bAutoPause = true;
+	ECosmicAutoPause AutoPauseReason = ECosmicAutoPause::None;
+	TOptional<TMap<FName, FGameplayTag>> OwnHazardsSeen;
 
 	// Whether the third rung's gate was open at the last FollowSpeedGate; unset before the first.
 	TOptional<bool> ThirdRungWasOpen;

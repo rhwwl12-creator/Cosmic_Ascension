@@ -2,6 +2,12 @@
 
 > 2026-10-19 재편: 본문에 섞여 있던 이력·상태 줄·일지·리뷰 통계를 여기로 옮겼다(내용 무변경, 위치만 — 원격의 Phase 3 꼬리 7·12·8·9 기록 포함). 앞으로는 날짜·작업 접두어·바뀐 규칙·리뷰 통계를 여기에만 적고, 설계 본문과 STATUS.md에는 적지 않는다.
 
+## 2026-10-20 — MVP ① 자동 일시정지
+
+- `[A-1]` 표현 계층만(상태·해시·추첨 밖): 말해진 Severity 2 줄(`OnLogEntry`), 통치하는 백성의 성계에 새로 선 위기(틱 경계에서 견준다 — 위기의 줄은 Severity 1이라 따로), 카드의 도착(`RequestAutoPause(Card)` — MVP ②가 부른다)이 달리는 판을 멈춘다. 순수 규칙 `World/CosmicAutoPause`(`StopsFor`·`OwnHazardsOf`·`HasNewHazard`·`WhyKeyOf`), 컨트롤러의 `RequestAutoPause`·`FollowOwnHazards`·`SetAutoPause`·`ToggleAutoPause`(설정 `Cosmic_Ascension.View`·`AutoPause`, 기본 켬, 개발용 `-AutoPause=0`), 상단 바의 '자동 정지 켬/끔' 단추와 까닭 한 줄. ST_CA 6키.
+- 승천 연출과의 순서를 정했다: 승천의 줄이 먼저 와서 멈추므로 켬이면 연출이 닫혀도 멈춘 채 남는다.
+- 테스트 `UI.AutoPause` 신설(93종), `Sim.FrameStep`의 프레임 실행은 자동 일시정지를 끄고 잰다(컨트롤러가 그 줄에 멈추던 것). 새 단언 변이 12개 모두 잡힘. 기준값 그대로(시뮬은 바뀌지 않았다).
+
 ## 2026-10-19 — A0 'v0.8 예약 ①': 성역(4a)과 첫 생애 행(4b)
 
 - `[A0-4a]` 성역 `sol`: 생성 11항(모든 추첨 뒤·`Install` 전에 배열 끝, 레인 없음, 1.15 × 원판 반지름·각도 0, G, 풍부도 0, ST_CA `System.Sanctuary` 이름), 0번 성계 `sys_0`. `Law.Hedge`(다섯째 법 — 스키마 규칙 `contains_all`, 검사기에 새 테스트 종류). 거절 자리: `SettleBlockOf` 첫 사유 `Sanctuary`(`PeopleSettleBlockOf`에서는 0점)·`SettleTargets`·`Place`·`Transfer`·`Destroy`(와 그릇 옮기기)·압력 본체 0·`Install`·`BecomeWanderer`·`LoadGalaxy`. 표현: `FCosmicKnownView::ShownByName`·`IsShown`, 성역의 패널(주인 줄 `Panel.Sanctuary`, 생명 줄 없음, 정착 단추 회색 + 값 줄 없음), 영적 시야 `Sight.Sanctuary`. `arch_terran.HomeSystemNames`를 비워 중간 상태(성역과 모성계가 둘 다 '태양계')를 막았다. 개발 세이브 3개 삭제.

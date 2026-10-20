@@ -16,6 +16,7 @@
 #include "Data/CosmicRowNames.h"
 #include "Engine/DataTable.h"
 #include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "Events/CosmicEventSubsystem.h"
 #include "GameplayTagContainer.h"
 #include "HAL/FileManager.h"
@@ -44,6 +45,7 @@
 #include "UObject/TextProperty.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UnrealType.h"
+#include "World/CosmicGameMode.h"
 
 #include <limits>
 
@@ -699,7 +701,22 @@ bool FCosmicSimFrameStepTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("1x: the fourth frame completes one tick"), State.Tick, static_cast<int64>(34));
 
 	// Ticks driven by frames, with the broadcast gate open, end in the same state as headless ticks. Far enough for the
-	// first breakthrough lines: OnLogEntry then fires from inside a tick stage.
+	// first breakthrough lines: OnLogEntry then fires from inside a tick stage. The game's controller answers those lines and
+	// the tick boundary with its automatic pause (MVP item 1): off for this run, which counts frames, not the screens.
+	UWorld* GameWorld = Sim->GetGameInstance()->GetWorld();
+	ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GameWorld ? GameWorld->GetFirstPlayerController() : nullptr);
+	const bool bAutoPause = Controller && Controller->IsAutoPauseOn();
+	if (Controller)
+	{
+		Controller->SetAutoPause(false);
+	}
+	ON_SCOPE_EXIT
+	{
+		if (Controller)
+		{
+			Controller->SetAutoPause(bAutoPause);
+		}
+	};
 	Sim->SetTimeScale(10.f);
 	for (int32 Frame = 0; Frame < 70; ++Frame)
 	{
