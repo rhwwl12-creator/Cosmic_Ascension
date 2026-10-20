@@ -174,7 +174,7 @@ Severity 2 로그는 반드시 플레이어 또는 문명의 선택과 연결된
 
 사용자에게 보이는 모든 문자열은 `FText`. C++ 안의 UI 문자열은 `LOCTEXT`/`NSLOCTEXT("Cosmic_Ascension", ...)`.
 서사 템플릿은 DataTable의 FText 컬럼, UI 라벨은 String Table `ST_CA`. UI 라벨은 `FText::FromStringTable(…, EStringTableLoadingPolicy::FindOrFullyLoad)`로 읽는다 — 기본 정책(`FindOrLoad`)은 다른 비동기 로딩이 진행 중이면 테이블도 비동기로 올리고, 그 사이에 `FText::Format`으로 굳힌 줄에는 `<MISSING STRING TABLE ENTRY>`가 남는다(실제 렌더 실행의 첫 화면에서 확인, 2026-10-12. `-nullrhi` 실행에서는 드러나지 않는다).
-한국어로 먼저 쓰고, 영어는 Localization Dashboard로 Phase 5 이후에 붙인다. DataTable 텍스트의 로컬라이제이션 키는 위치(행·컬럼·배열 인덱스)로 정해지므로, 번역을 시작한 뒤에는 `Templates`·`NameBank` 같은 배열은 끝에만 추가하고 `DT_` 에셋을 지우고 다시 만들지 않는다. 로그·연대기의 `Message`는 Push 시점의 언어로 평탄화되어 저장되므로(§7.5) 판 도중에 언어를 바꿔도 이미 쌓인 줄은 그대로다. 생애 기록(`FLifeRecord`)과 UI 라벨은 표시 시점에 렌더되어 언어를 따른다. `NewGalaxy`가 만드는 문명 이름(`CivName`)과 성계 표시명(`DisplayName`)도 생성 시점에 평탄화해 저장한다 — 이미 쌓인 로그 줄 안의 이름과 패널의 이름이 어긋나지 않는다. 영어의 성경 어휘는 WEB(퍼블릭 도메인) 기준(§8.3).
+한국어로 먼저 쓰고, 영어는 Localization Dashboard로 Phase 5 이후에 붙인다. DataTable 텍스트의 로컬라이제이션 키는 위치(행·컬럼·배열 인덱스)로 정해지므로, 번역을 시작한 뒤에는 `Templates`·`NameBank` 같은 배열은 끝에만 추가하고 `DT_` 에셋을 지우고 다시 만들지 않는다. 청원 카드의 선택지(`DT_Encounters.Choices`)도 위치 키다(`<행>_Choices_Index1_Label` — 엔진 `StabilizeLocalizationKeysForStruct`): 선택지는 끝에만 붙인다('왕좌를 지키겠는가'의 '명예로운 양위'가 셋째인 까닭). 로그·연대기의 `Message`는 Push 시점의 언어로 평탄화되어 저장되므로(§7.5) 판 도중에 언어를 바꿔도 이미 쌓인 줄은 그대로다. 생애 기록(`FLifeRecord`)과 UI 라벨은 표시 시점에 렌더되어 언어를 따른다. `NewGalaxy`가 만드는 문명 이름(`CivName`)과 성계 표시명(`DisplayName`)도 생성 시점에 평탄화해 저장한다 — 이미 쌓인 로그 줄 안의 이름과 패널의 이름이 어긋나지 않는다. 영어의 성경 어휘는 WEB(퍼블릭 도메인) 기준(§8.3).
 
 ### 8.6 헌정명과 모티프 뱅크
 

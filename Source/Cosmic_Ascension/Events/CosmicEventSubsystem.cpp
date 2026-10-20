@@ -603,6 +603,11 @@ bool UCosmicEventSubsystem::Check(const FCosmicCondition& Condition, const FCosm
 		});
 	}
 
+	case EConditionType::SystemHazardTicksAtMost:
+		// The hazard of the Tag on the subject system, with at most Value ticks left (section 4.1 (3), 5.10).
+		return System && Condition.Tag.IsValid() && System->ActiveHazard.IsValid() && System->ActiveHazard.MatchesTag(Condition.Tag)
+			&& System->HazardTicksRemaining <= Condition.Value;
+
 	default:
 		// An enumerator this build does not know (a row written for a later build).
 		return false;
@@ -850,6 +855,22 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 		// (section 9.2). A per-tick source never gets this far.
 		const float Roll = Ctx.Stream.GetFraction();
 		return AddNotable(Effect, Ctx, Roll);
+	}
+
+	case EEffectType::FocusResearch:
+	{
+		// The Key's field takes the share Value, the others share the rest evenly (section 5.4): the sum stays 1.
+		float* Share = Civ ? Civ->ResearchFocus.Find(Effect.Key) : nullptr;
+		if (!Share || !(Effect.Value > 0.f && Effect.Value <= 1.f) || Civ->ResearchFocus.Num() < 2)
+		{
+			return false;
+		}
+		const float Rest = (1.f - Effect.Value) / static_cast<float>(Civ->ResearchFocus.Num() - 1);
+		for (TPair<FName, float>& Field : Civ->ResearchFocus)
+		{
+			Field.Value = Field.Key == Effect.Key ? Effect.Value : Rest;
+		}
+		return true;
 	}
 
 	default:

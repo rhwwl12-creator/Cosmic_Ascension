@@ -198,6 +198,7 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		Rebel.FirstTick = 90;
 	}
 	Detached.Systems[0].ActiveHazard = Tag(TEXT("Hazard.Plague"));
+	Detached.Systems[0].HazardTicksRemaining = 50;
 	Detached.Systems[0].MegaprojectCompletedTick = 50;
 	const FName Built(TEXT("project_test_build"));
 	{
@@ -336,6 +337,12 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		// A research field: its progress; a Key that is no field is false.
 		{ Cond(EConditionType::CivResearchAtLeast, nullptr, FName(TEXT("Physics")), 0.51f), 0, false },
 		{ Cond(EConditionType::CivResearchAtLeast, nullptr, FName(TEXT("NoSuchField")), 0.f), 0, false },
+		// The hazard of the Tag with at most Value ticks left (sol's plague has fifty): the bound itself holds, one below
+		// does not, another hazard and an empty Tag do not.
+		{ Cond(EConditionType::SystemHazardTicksAtMost, TEXT("Hazard.Plague"), NAME_None, 50.f), 0, true },
+		{ Cond(EConditionType::SystemHazardTicksAtMost, TEXT("Hazard.Plague"), NAME_None, 49.f), 0, false },
+		{ Cond(EConditionType::SystemHazardTicksAtMost, TEXT("Hazard.Rebellion"), NAME_None, 50.f), 0, false },
+		{ Cond(EConditionType::SystemHazardTicksAtMost, nullptr, NAME_None, 50.f), 0, false },
 	};
 
 	auto Answers = [&](const FGalaxyState& State, int32 CivIndex, int32 SystemIndex)
@@ -354,7 +361,7 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 	auto IsSubjectType = [](EConditionType Type)
 	{
 		return Type <= EConditionType::SystemInfluencedBy || Type == EConditionType::CivHasNotable || Type == EConditionType::CivFallenSphereTicksReached
-			|| Type == EConditionType::CivResearchAtLeast;
+			|| Type == EConditionType::CivResearchAtLeast || Type == EConditionType::SystemHazardTicksAtMost;
 	};
 	auto IsPlayerType = [](EConditionType Type)
 	{
@@ -2523,6 +2530,7 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 			{ Depose, false },
 			{ Eff(EEffectType::ChangePopulation, nullptr, NAME_None, -0.1f), true },
 			{ Eff(EEffectType::NameNotable, TEXT("Notable.Rebel"), NAME_None, 0.f), false },
+			{ Eff(EEffectType::FocusResearch, nullptr, FName(TEXT("Society")), 0.55f), false },
 		};
 		TSet<EEffectType> Types;
 		bool bAsListed = true;
@@ -2546,11 +2554,12 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 				const FCivilizationState& After = Bench.State.Civs[0];
 				bRefusedUntouched &= Bench.Stream.GetCurrentSeed() == SeedBefore && !Bench.State.Calling.PendingEffect.IsValid()
 					&& Bench.State.Player.Body == Fresh.Player.Body && Bench.State.Calling.Powers == Fresh.Calling.Powers
-					&& Bench.State.Flags == Fresh.Flags && After.Traits == Fresh.Civs[0].Traits && After.Notables.Num() == Fresh.Civs[0].Notables.Num();
+					&& Bench.State.Flags == Fresh.Flags && After.Traits == Fresh.Civs[0].Traits && After.Notables.Num() == Fresh.Civs[0].Notables.Num()
+					&& After.ResearchFocus.OrderIndependentCompareEqual(Fresh.Civs[0].ResearchFocus);
 			}
 		}
 		TestTrue(TEXT("A per-tick source applies the seven effects that change an amount and no other"), bAsListed);
-		TestTrue(TEXT("An effect a per-tick source may not apply draws nothing, records no role effect and leaves the vessel, the flags, the traits and the notables as they were"),
+		TestTrue(TEXT("An effect a per-tick source may not apply draws nothing, records no role effect and leaves the vessel, the flags, the traits, the notables and the research focus as they were"),
 			bRefusedUntouched);
 		TestEqual(TEXT("Every effect type has its line in the per-tick table"), Types.Num(), StaticEnum<EEffectType>()->NumEnums() - 1);
 	}

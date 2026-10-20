@@ -42,6 +42,7 @@ void FCosmicDataTables::LoadFromFixedPaths()
 	Hazards = LoadTable(TEXT("/Game/CA/Data/DT_Hazards.DT_Hazards"), FHazardDef::StaticStruct());
 	Megaprojects = LoadTable(TEXT("/Game/CA/Data/DT_Megaprojects.DT_Megaprojects"), FMegaprojectDef::StaticStruct());
 	Feats = LoadTable(TEXT("/Game/CA/Data/DT_Feats.DT_Feats"), FAscensionFeatDef::StaticStruct());
+	Encounters = LoadTable(TEXT("/Game/CA/Data/DT_Encounters.DT_Encounters"), FEncounterDef::StaticStruct());
 }
 
 const FCosmicRulesDef* FCosmicDataTables::FindRules() const
@@ -87,6 +88,11 @@ const FMegaprojectDef* FCosmicDataTables::FindMegaproject(FName RowName) const
 const FAscensionFeatDef* FCosmicDataTables::FindFeat(FName RowName) const
 {
 	return FindRowQuiet<FAscensionFeatDef>(Feats, RowName);
+}
+
+const FEncounterDef* FCosmicDataTables::FindEncounter(FName RowName) const
+{
+	return FindRowQuiet<FEncounterDef>(Encounters, RowName);
 }
 
 const FHazardDef* FCosmicDataTables::FindHazardByTag(FGameplayTag Tag, FName* OutRowName) const
@@ -138,6 +144,13 @@ TArray<FName> FCosmicDataTables::GetHazardRowNames() const
 TArray<FName> FCosmicDataTables::GetFeatRowNames() const
 {
 	TArray<FName> Names = Feats ? Feats->GetRowNames() : TArray<FName>();
+	Names.Sort(FNameLexicalLess());
+	return Names;
+}
+
+TArray<FName> FCosmicDataTables::GetEncounterRowNames() const
+{
+	TArray<FName> Names = Encounters ? Encounters->GetRowNames() : TArray<FName>();
 	Names.Sort(FNameLexicalLess());
 	return Names;
 }

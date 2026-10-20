@@ -21,7 +21,7 @@ CORE_LOGIC = {'Core', 'Data', 'Sim', 'Events', 'Ascension', 'Log', 'Player', 'Sa
 FORBIDDEN_ENGINE = re.compile(r'#include\s+"(Blueprint/UserWidget\.h|GameFramework/(Actor|Pawn|PlayerController|HUD|GameModeBase|Character)\.h|Components/(Widget|TextBlock|Button|ListView|SceneComponent|StaticMeshComponent)\w*\.h|Engine/World\.h)"')
 ALLOWED_EXCEPTIONS = set()  # header-level exceptions (Sim/CosmicEvalContext.h resolved Sim -> Events)
 # Baselines for report-only counts (update deliberately when a cleanup lands).
-BASELINE = {'tag_literals': 35, 'unused_knobs': 18}  # measured 2026-10-19
+BASELINE = {'tag_literals': 37, 'unused_knobs': 18}  # measured 2026-10-19; +2 with MVP item 2 (Log.Civ, Notable.Rebel), 2026-10-20
 
 errors, warnings, notes = [], [], []
 sources = []

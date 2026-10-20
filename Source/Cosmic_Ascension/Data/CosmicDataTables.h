@@ -63,8 +63,13 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 	UPROPERTY(Transient)
 	TObjectPtr<UDataTable> Feats;
 
+	// DT_Encounters: the ruler's petition cards (MVP item 2) and, from B1, the wanderer's encounters (section 5.9, 5.10).
+	// A missing table means no card is ever put before the player.
+	UPROPERTY(Transient)
+	TObjectPtr<UDataTable> Encounters;
+
 	// Loads every table that has an asset from its fixed path: DT_Rules, DT_Civs, DT_LogTemplates, DT_Galaxies,
-	// DT_Events, DT_Transcendents, DT_Hazards, DT_Megaprojects and DT_Feats. A missing asset leaves its pointer null and is
+	// DT_Events, DT_Transcendents, DT_Hazards, DT_Megaprojects, DT_Feats and DT_Encounters. A missing asset leaves its pointer null and is
 	// reported once in LogCosmic.
 	void LoadFromFixedPaths();
 
@@ -78,6 +83,7 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 	const FHazardDef* FindHazard(FName RowName) const;
 	const FMegaprojectDef* FindMegaproject(FName RowName) const;
 	const FAscensionFeatDef* FindFeat(FName RowName) const;
+	const FEncounterDef* FindEncounter(FName RowName) const;
 
 	// The DT_Hazards row whose HazardTag is Tag exactly, and its name in OutRowName when one is asked for (NAME_None when
 	// there is no such row). Rows are looked at in lexical order, so a table that broke the uniqueness lint answers the
@@ -99,6 +105,10 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 
 	// Row names of DT_Feats in lexical order: the order in which the feat judgment and the AI look at rows (section 7.5).
 	TArray<FName> GetFeatRowNames() const;
+
+	// Row names of DT_Encounters in lexical order: the order in which the knowing stage looks at the petition rows
+	// (CosmicPetitions::Present, section 5.10).
+	TArray<FName> GetEncounterRowNames() const;
 
 	// Row names of DT_Galaxies in lexical order: the order the universe level draws and labels the named galaxies in
 	// (CosmicUniverseLook::MarksOf - a table's own order is insertion order). The simulation never walks the table.

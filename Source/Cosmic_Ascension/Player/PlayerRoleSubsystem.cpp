@@ -10,10 +10,12 @@
 #include "Data/CosmicRowNames.h"
 #include "Engine/GameInstance.h"
 #include "Events/CosmicEventSubsystem.h"
+#include "Events/CosmicPetitions.h"
 #include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
 #include "Sim/CosmicMegaprojects.h"
+#include "Sim/CosmicEvalContext.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 
@@ -87,6 +89,8 @@ void UPlayerRoleSubsystem::Install(FName SystemID, FName CivID, EPlayerRole Role
 	// The vessel starts from nothing: stats, pool, relics and status do not cross over (section 4.4).
 	// Birth stats (section 5.9) are the struct defaults plus the birth civ's DT_Traits modifiers, once DT_Traits exists.
 	State.Player = FPlayerEntityState();
+	// A card put before the last life is not this life's (section 5.10).
+	CosmicPetitions::Clear(State);
 	State.Player.Role = Role;
 	State.Player.CurrentSystemID = SystemID;
 
@@ -272,8 +276,10 @@ void UPlayerRoleSubsystem::BecomeWanderer(FGameplayTag RegentProfile, FGameplayT
 		}
 	}
 
-	// A role change ends a first-contact card that was waiting (section 8.1).
+	// A role change ends a first-contact card that was waiting (section 8.1), and a petition card: a wanderer rules no
+	// people to petition (section 5.10).
 	State.Knowing.PendingContactCivID = NAME_None;
+	CosmicPetitions::Clear(State);
 
 	// The new eye of a wanderer: where it stands and the lanes around (section 4.4).
 	CosmicPlayerRoleImpl::KnowAround(*Sim, Player.CurrentSystemID);
@@ -336,4 +342,106 @@ bool UPlayerRoleSubsystem::StartNextMegaproject()
 	// Nothing to build or answer: the first target of a settlement, when there is one.
 	const TArray<int32> Targets = CosmicMegaprojects::SettleTargets(State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), CivIndex);
 	return !Targets.IsEmpty() && StartMegaproject(State.Systems[Targets[0]].SystemID, CosmicRows::ProjectSettle);
+}
+
+FCosmicPetitionAnswer UPlayerRoleSubsystem::AnswerPetition(int32 ChoiceIndex)
+{
+	FCosmicPetitionAnswer Answer;
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	UCosmicEventSubsystem* Events = GetGameInstance()->GetSubsystem<UCosmicEventSubsystem>();
+	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	check(Sim && Events && Log);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("AnswerPetition called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return Answer;
+	}
+	FGalaxyState& State = Sim->GetMutableState();
+	const FCosmicStateIndex& Index = Sim->GetStateIndex();
+	const FCosmicDataTables& Tables = Sim->GetTables();
+	const int32 CivIndex = CosmicPetitions::RuledCivIndexOf(State, Index);
+	const FName RowName = State.Knowing.PendingPetitionRow;
+	if (CivIndex == INDEX_NONE || RowName.IsNone())
+	{
+		return Answer;
+	}
+	const FEncounterDef* Row = Tables.FindEncounter(RowName);
+	if (!Row)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("AnswerPetition: the waiting card %s is no row of DT_Encounters"), *RowName.ToString());
+		return Answer;
+	}
+	if (!Row->Choices.IsValidIndex(ChoiceIndex))
+	{
+		UE_LOG(LogCosmic, Error, TEXT("AnswerPetition: %s has no choice %d"), *RowName.ToString(), ChoiceIndex);
+		return Answer;
+	}
+	const FEncounterChoice& Choice = Row->Choices[ChoiceIndex];
+	const FResourcePool Cost = CosmicPetitions::CostOf(Choice);
+	if (!CosmicMegaprojects::CanPay(State.Civs[CivIndex].Stockpile, Cost))
+	{
+		UE_LOG(LogCosmic, Error, TEXT("AnswerPetition: the stockpile cannot pay choice %d of %s"), ChoiceIndex, *RowName.ToString());
+		return Answer;
+	}
+
+	// One number of the sim stream for every answer taken, before the choice is read any further (section 9.2).
+	FCosmicEvalContext Ctx = Sim->MakeEvalContext();
+	Answer.Roll = FMath::Min(static_cast<int32>(Ctx.Stream.GetFraction() * 6.f), 5);
+
+	if (!CosmicPetitions::StillStands(State, Index, Tables, Sim->GetRules()))
+	{
+		CosmicPetitions::Clear(State);
+		Answer.Outcome = ECosmicPetitionOutcome::Withdrawn;
+		Sim->SyncRngState();
+		return Answer;
+	}
+	const FName SystemID = State.Knowing.PendingPetitionSystemID;
+	const int32 SystemIndex = CosmicPetitions::SubjectOf(State, Index, CivIndex, Row->Subject, SystemID);
+	// The arguments of the texts before the effects: the hazard the card is about, also when the answer resolves it.
+	const FFormatNamedArguments Args = CosmicPetitions::ArgsOf(State, Tables, CivIndex, SystemIndex);
+
+	FResourcePool& Stockpile = State.Civs[CivIndex].Stockpile;
+	Stockpile.Energy -= Cost.Energy;
+	Stockpile.Matter -= Cost.Matter;
+	Stockpile.Insight -= Cost.Insight;
+	Stockpile.Influence -= Cost.Influence;
+	Stockpile.Causality -= Cost.Causality;
+
+	const bool bPasses = CosmicPetitions::Passes(State, CivIndex, Choice, Answer.Roll);
+	Ctx.CivIndex = CivIndex;
+	Ctx.SystemIndex = SystemIndex;
+	Ctx.GalaxyRow = State.Civs[CivIndex].GalaxyRow;
+	Ctx.SourceRow = RowName;
+	Ctx.bPerTickSource = false;
+	UCosmicEventSubsystem::ApplyAll(bPasses ? Choice.OnSuccess : Choice.OnFailure, Ctx);
+	Events->FollowUpKnowing(Ctx);
+
+	// The outcome line: about the people, and about the place for a card on a system (as an event row's line).
+	static const FGameplayTag CivCategory = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Civ")));
+	const FText& Template = bPasses ? Choice.SuccessText : Choice.FailureText;
+	if (!Template.IsEmpty())
+	{
+		const bool bAboutPlace = Row->Subject == ECosmicEventSubject::SettledSystem && State.Systems.IsValidIndex(SystemIndex);
+		Answer.Line = FText::Format(Template, Args);
+		Log->Push(CivCategory, 1, Template, Args, bAboutPlace ? State.Systems[SystemIndex].SystemID : FName(), RowName, State.Civs[CivIndex].CivID);
+	}
+	Events->FollowUpNotes(Ctx);
+
+	CosmicPetitions::Remember(State, RowName);
+	CosmicPetitions::Clear(State);
+	// The next card of a chain, on the same subject, when its conditions hold: put by name, no draw.
+	if (const FEncounterDef* Next = Choice.NextEncounter.IsNone() ? nullptr : Tables.FindEncounter(Choice.NextEncounter))
+	{
+		const int32 NextSystemIndex = CosmicPetitions::SubjectOf(State, Index, CivIndex, Next->Subject, SystemID);
+		const bool bHasSubject = Next->Subject == ECosmicEventSubject::Civilization || NextSystemIndex != INDEX_NONE;
+		if (bHasSubject && CosmicPetitions::Holds(State, Index, Tables, Sim->GetRules(), Choice.NextEncounter, *Next, CivIndex, NextSystemIndex))
+		{
+			State.Knowing.PendingPetitionRow = Choice.NextEncounter;
+			State.Knowing.PendingPetitionSystemID = Next->Subject == ECosmicEventSubject::SettledSystem ? SystemID : FName();
+		}
+	}
+
+	Answer.Outcome = bPasses ? ECosmicPetitionOutcome::Succeeded : ECosmicPetitionOutcome::Failed;
+	Sim->SyncRngState();
+	return Answer;
 }

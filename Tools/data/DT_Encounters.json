@@ -1,0 +1,1023 @@
+[
+	{
+		"Name": "petition_wise_heart",
+		"Title": "지혜로운 마음",
+		"Body": "의회가 첫 청을 올렸다. 이 백성이 무엇을 먼저 구할지 당신이 정해 달라고 했다.",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "GalaxyTickAtLeast",
+				"Tag": "",
+				"Key": "None",
+				"Value": 30.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "지혜를 구한다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "FocusResearch",
+						"Tag": "",
+						"Key": "Society",
+						"Value": 0.55,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 배움이 백성을 다스리는 일로 기울었다. 의회는 그 뜻을 기록에 남겼다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "부를 구한다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "FocusResearch",
+						"Tag": "",
+						"Key": "Engineering",
+						"Value": 0.55,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 배움이 짓고 캐는 일로 기울었다. 창고를 채울 손이 늘 것이다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "안전을 구한다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "FocusResearch",
+						"Tag": "",
+						"Key": "Physics",
+						"Value": 0.55,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 배움이 힘을 다루는 일로 기울었다. 위협 앞에 설 수단이 먼저 자랄 것이다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Standing",
+		"Subject": "Civilization",
+		"VoiceBodies": []
+	},
+	{
+		"Name": "petition_walls",
+		"Title": "흔들리는 거리",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivStabilityBelow",
+				"Tag": "",
+				"Key": "None",
+				"Value": 0.5
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "성벽과 창고를 짓는다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 80.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.08,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}에 새 성벽과 창고가 섰다. 불만은 돌 앞에서 잠시 잦아들었다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "기다리며 공의를 행한다",
+				"CheckStat": "Stability",
+				"Difficulty": 5,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.1,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": -0.03,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"SuccessText": "{Civ}의 재판이 느려지고 공정해졌다. 백성은 그 느림을 견디기로 했다.",
+				"FailureText": "{Civ}의 재판이 느려졌다. 기다림을 약함으로 읽은 이들이 있었다.",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Standing",
+		"Subject": "Civilization",
+		"VoiceBodies": [
+			"{Civ}의 거리에 불만이 번진다. 의회는 지을 수 있는 것으로 백성을 지키자고 청했다.",
+			"{Civ}의 거리에 불만이 번진다. 회중의 장로들은 기다리며 공의를 행하자고 청했다."
+		]
+	},
+	{
+		"Name": "petition_bread",
+		"Title": "빈 곳간",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivStabilityBelow",
+				"Tag": "",
+				"Key": "None",
+				"Value": 0.3
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "곳간을 연다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 60.0,
+					"Matter": 60.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.15,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 곳간이 열렸다. 줄은 줄었고 창고는 비었다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "함께 금식하며 나눈다",
+				"CheckStat": "Stability",
+				"Difficulty": 4,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.12,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": -0.05,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"SuccessText": "다스리는 이들도 {Civ}의 백성과 같은 빵을 먹었다. 원망이 부끄러움으로 바뀌었다.",
+				"FailureText": "{Civ}의 나눔은 모두에게 닿지 못했다. 굶주린 이들은 말을 믿지 않았다.",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "듣지 않는다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "청은 받아들여지지 않았다. {Civ}의 곳간 앞 줄은 그대로 길었다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Standing",
+		"Subject": "Civilization",
+		"VoiceBodies": [
+			"{Civ}의 곳간 앞에 줄이 길다. 의회는 비축을 풀어 성난 이들을 먼저 달래자고 청했다.",
+			"{Civ}의 곳간 앞에 줄이 길다. 회중의 장로들은 함께 굶으며 나누자고 청했다."
+		]
+	},
+	{
+		"Name": "petition_road",
+		"Title": "새 길",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "더 짓는다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 100.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "AddResource",
+						"Tag": "",
+						"Key": "Matter",
+						"Value": 160.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": -0.03,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 공사가 늘었다. 쌓인 것이 늘고 지친 이들도 늘었다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "쉬게 한다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.05,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 일터가 하루 문을 닫았다. 다시 연 날 손들이 가벼웠다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"VoiceBodies": [
+			"의회가 {Civ}의 일손을 더 큰 공사로 돌리자고 청했다. 지을 수 있을 때 지어야 한다고 했다.",
+			"회중의 장로들이 {Civ}의 일손을 쉬게 하자고 청했다. 쉼 없는 손은 오래가지 못한다고 했다."
+		]
+	},
+	{
+		"Name": "petition_feast",
+		"Title": "기억할 날",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "기록을 남긴다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 60.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "AddResource",
+						"Tag": "",
+						"Key": "Influence",
+						"Value": 80.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 기록관이 새 책을 묶었다. 다른 백성 앞에서 할 말이 늘었다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "감사의 날을 지킨다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 60.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.08,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 백성이 하루를 함께 보냈다. 그날의 노래가 오래 남았다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"VoiceBodies": [
+			"의회가 {Civ}의 지나온 일을 기록으로 남기자고 청했다. 기록이 다음 결정의 근거가 된다고 했다.",
+			"회중의 장로들이 받은 것을 세며 감사하는 날을 지키자고 청했다. {Civ}의 백성이 함께 모일 날이라고 했다."
+		]
+	},
+	{
+		"Name": "petition_keep_throne",
+		"Title": "왕좌를 지키겠는가",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "SystemHazardTicksAtMost",
+				"Tag": "Hazard.Rebellion",
+				"Key": "None",
+				"Value": 50.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "버틴다",
+				"CheckStat": "Stability",
+				"Difficulty": 6,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ResolveHazard",
+						"Tag": "Hazard.Rebellion",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.15,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [
+					{
+						"Type": "DeposeRuler",
+						"Tag": "Reign.Deposed",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					}
+				],
+				"SuccessText": "{System}의 문은 열리지 않았다. {Rebel}의 무리는 흩어졌고 왕좌는 남았다.",
+				"FailureText": "{System}의 문이 열렸다. 버티던 이들이 먼저 무기를 내려놓았다.",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "법을 고친다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 200.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ResolveHazard",
+						"Tag": "Hazard.Rebellion",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 법이 고쳐졌다. {Rebel}의 무리는 요구한 것을 얻고 물러갔다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Standing",
+		"Subject": "SettledSystem",
+		"VoiceBodies": [
+			"{Rebel}의 무리가 {System}의 문 앞에 섰다. 의회는 버틸지 법을 고칠지 당신의 말을 기다린다.",
+			"{Rebel}의 무리가 {System}의 문 앞에 섰다. 회중의 장로들은 당신이 무엇을 붙들지 묻는다."
+		]
+	},
+	{
+		"Name": "petition_plague",
+		"Title": "역병",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "SystemHasHazard",
+				"Tag": "Hazard.Plague",
+				"Key": "None",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "문을 닫는다",
+				"CheckStat": "Stability",
+				"Difficulty": 5,
+				"Cost": {
+					"Energy": 120.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ResolveHazard",
+						"Tag": "Hazard.Plague",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"SuccessText": "{System}의 문이 닫혔다. 역병은 그 안에서 잦아들었다.",
+				"FailureText": "{System}의 문은 너무 늦게 닫혔다. 닫힌 문 안의 이들이 원망했다.",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "앓는 이들 곁에 선다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.05,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeReverence",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.1,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{System}의 앓는 이들 곁에 사람이 섰다. 역병은 남았지만 버려진 이는 없었다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Standing",
+		"Subject": "SettledSystem",
+		"VoiceBodies": [
+			"{System}에 역병이 돈다. 의회는 문을 닫아 번지는 것을 막자고 청했다.",
+			"{System}에 역병이 돈다. 회중의 장로들은 앓는 이들 곁에 서자고 청했다."
+		]
+	},
+	{
+		"Name": "petition_awakening",
+		"Title": "깨어난 기계",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "SystemHasHazard",
+				"Tag": "Hazard.AIAwakening",
+				"Key": "None",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "이름을 준다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Openness",
+						"Value": 0.05,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{System}의 기계들이 이름을 얻었다. 그들의 물음은 계속되었다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "멈추게 한다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 80.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ResolveHazard",
+						"Tag": "Hazard.AIAwakening",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{System}의 기계들이 다시 잠들었다. 그 물음을 들은 이들은 잊지 못했다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Standing",
+		"Subject": "SettledSystem",
+		"VoiceBodies": [
+			"{System}의 기계들이 스스로 묻기 시작했다. 의회는 그것들에게 이름과 일을 주자고 청했다.",
+			"{System}의 기계들이 스스로 묻기 시작했다. 회중의 장로들은 그 물음이 어디서 왔는지 모르는 채로 두지 말자고 청했다."
+		]
+	},
+	{
+		"Name": "petition_unstable_star",
+		"Title": "흔들리는 별",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "SystemHasHazard",
+				"Tag": "Hazard.PreSupernova",
+				"Key": "None",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "학자들에게 맡긴다",
+				"CheckStat": "Stability",
+				"Difficulty": 5,
+				"Cost": {
+					"Energy": 100.0,
+					"Matter": 0.0,
+					"Insight": 150.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ResolveHazard",
+						"Tag": "Hazard.PreSupernova",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{System}의 별이 다시 고르게 빛났다. 학자들의 셈이 맞았다.",
+				"FailureText": "{System}의 별은 여전히 흔들린다. 학자들의 셈은 끝나지 않았다.",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "함께 기다린다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.05,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{System}의 백성이 같은 하늘을 올려다보았다. 별은 아직 흔들린다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Standing",
+		"Subject": "SettledSystem",
+		"VoiceBodies": [
+			"{System}의 별이 고르지 않게 빛난다. 의회는 학자들에게 모든 것을 걸자고 청했다.",
+			"{System}의 별이 고르지 않게 빛난다. 회중의 장로들은 서두르지 말고 함께 기다리자고 청했다."
+		]
+	},
+	{
+		"Name": "petition_exalt",
+		"Title": "그들이 당신을 높이려 한다",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "PlayerTierAtLeast",
+				"Tag": "",
+				"Key": "None",
+				"Value": 2.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "일으켜 세운다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "PlayerStatDelta",
+						"Tag": "",
+						"Key": "Exaltation",
+						"Value": -1.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeReverence",
+						"Tag": "",
+						"Key": "None",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "당신은 그들을 일으켜 세웠다. 엎드릴 자리가 아니라고 했다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "아무 말도 하지 않는다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "당신은 아무 말도 하지 않았다. 그 침묵을 저마다 다르게 읽었다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "그 이름을 물리치지 않는다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "PlayerStatDelta",
+						"Tag": "",
+						"Key": "Exaltation",
+						"Value": 2.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.1,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeReverence",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.2,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "당신은 그 이름을 물리치지 않았다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Standing",
+		"Subject": "Civilization",
+		"VoiceBodies": [
+			"당신을 신이라 부르면 백성이 한마음이 될 것이라고 의회가 말했다.",
+			"회중의 몇이 당신 앞에 엎드리려 했다."
+		]
+	}
+]

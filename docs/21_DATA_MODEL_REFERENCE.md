@@ -346,7 +346,7 @@ UPROPERTY() TArray<FName> Feats;
 
 UPROPERTY() TArray<FName> TranscendentsMet;
 
-UPROPERTY() TArray<FName> LastChoiceRows; // 최근 3개 조우·청원 행 (비문)
+UPROPERTY() TArray<FName> LastChoiceRows; // 최근 3개 조우·청원 행 (비문). 답한 행을 끝에 붙이고 셋을 넘으면 맨 앞을 지운다(CosmicPetitions::Remember, MVP ②). 청원의 주기 슬롯은 이 행들을 다시 내놓지 않는다. 비문이 읽는 것은 Phase 4b
 
 UPROPERTY() FName EpithetRow; // 시대 명명 (§5.10)
 
@@ -435,6 +435,10 @@ UPROPERTY() FName PendingContactCivID; // 대기 중인 첫 접촉 카드의 백
 UPROPERTY() FName FirstContactCivID; // 첫 접촉의 기록. 초기값 NAME_None(동결) = 이 판에 아직 첫 접촉이 없다. NoteMet이 첫 접촉 때 한 번 적고 그 뒤로 바뀌지 않는다. Install은 적지 않는다. 사용은 Phase 2 (정의는 §7.4 앎 단계)
 
 UPROPERTY() int64 FarLineUntilTick = 0; // log_far_event의 다음 허용 틱. log_far_ascent에는 걸리지 않는다 (§8.1)
+
+UPROPERTY() FName PendingPetitionRow; // 플레이어의 답을 기다리는 청원 카드(DT_Encounters 행, MVP ②). NAME_None(동결 초기값) = 카드 없음. 앎 단계의 끝(CosmicPetitions::Present)과 사슬을 잇는 답이 적고, 답·Install·BecomeWanderer가 비운다(다스리는 백성은 다스리는 동안 지워지지 않는다). 틱 단계는 읽지 않고 답 명령만 읽는다 — 입력의 정의 (§5.10)
+
+UPROPERTY() FName PendingPetitionSystemID; // 그 카드가 다루는 성계: SettledSystem 행이면 다스리는 백성의 정착된 성계, Civilization 행(백성 — 현재 성계는 수도)과 카드가 없을 때는 NAME_None
 
 };
 
@@ -566,6 +570,8 @@ CivFallenSphereTicksReached, // Key=틱 수(숫자만, CivStabilityBelowFor와 �
 
 CivResearchAtLeast // 끝에 더한 것(Key = 연구 영역 Physics/Society/Engineering/Transcendence — 스키마의 낱말 목록 research, 영역이 아닌 Key는 거짓, Value 0~1: 문맥 문명의 Research[Key] >= Value — 거대 프로젝트와 승천 판정 작업의 T1→T2 업적 '물리 50%'). 정해 둔 추가분(§16 #29, 2026-10-15 — 처음 쓰는 행과 함께 끝에 더한다): CivStabilityAtLeast(Stability >= Value — Phase 4 시대 명명 ≥ 0.6, 느부갓네살 > 0.9는 그 행에서 정한다), PlayerHasPower(Tag = Power.* — Phase 4). Key 선택자 낱말(#29 ⑦): 비우면 문맥 문명(문명을 고르는 자리)·문맥의 상대 OtherID(상대를 고르는 자리), Former = FormerCivID, Ruled = 통치 문명(Embodied일 때만), SystemOwnedBy의 Key도 선택자다. 코드에는 지금 Former만 있고 나머지는 그 낱말을 처음 쓰는 행(Phase 4 청원 카드)과 함께 들어온다 — 그때까지 슬롯 행은 Player 조건·역할 효과·그릇 효과를 싣지 않는다(스키마)
 
+SystemHazardTicksAtMost // 끝에 더한 것(MVP ②): Tag = Hazard.*(필수 — 비면 거짓), Value = 틱(1 이상의 정수). 주어 성계가 그 위기를 갖고 HazardTicksRemaining <= Value. 카운트다운은 틱마다 1씩 줄어 '잔여 50틱'을 기다리는 청원은 정확히 한 틱에 조건이 선다(§4.1 ③, §5.10 '왕좌를 지키겠는가')
+
 };
 
 USTRUCT(BlueprintType)
@@ -601,6 +607,8 @@ KillPlayer, DeposeRuler, // 즉시 실행하지 않고 FCallingState.PendingRole
 ChangePopulation, // Value = 비율. 역병 미해결 −0.4 (§4.1), 희생 이벤트 event_zeal_sacrifice −0.05 (§4.2). 문명 Population에만 — 성계 단위 인구는 없다
 
 NameNotable // Tag = Notable.*, Value 0. 문맥 문명(Key = 선택자, 비우면 문맥 문명 — 호출자가 현재 성계의 소유 문명을 넣는다, Former = FormerCivID)에 인물 기록 1개 (§1.3, §7.2). 가드는 UCosmicEventSubsystem::Apply (§7.5): Tier <= 3, PersonNameBank 비어 있지 않음, 같은 Role 열린 기록 닫기, 상한 MaxNotablesPerCiv 퇴출. 이름 추첨은 적용마다 정확히 1회, 제 가드보다 먼저다(틱당 원천은 이 효과를 걸지 않으므로 뽑지도 않는다, §7.5). VS에 이 효과를 싣는 행: crisis_rebellion 발생 전조 ②(Notable.Rebel — Severity 1 유일 예외, §4.1), 망명 변형 '충신이 몰래 배를 내준다'(Notable.Loyalist, Former), crisis_visitation 행의 OnResolveEffects(Notable.Hearer), '책이 발견되었다'(Notable.Hearer). 금지: enc_messenger_*·Event.Grace.*·Hazard.Cult 행 (Data.Integrity). 인물 기록을 만드는 효과는 이것 하나이며 대상은 개인이 아니라 문명이다. 열거형은 끝에만 추가한다 (§9.1)
+
+FocusResearch // 끝에 더한 것(MVP ②): Key = 연구 영역(문맥 문명의 ResearchFocus 키 — 스키마의 낱말 목록 research), Value = 그 몫(0 초과 1 이하, 스키마는 0.25~1). ResearchFocus[Key] = Value, 나머지 영역은 (1 − Value) / (영역 수 − 1)씩 — 합은 1이다(§5.4). 개국 청원 '지혜로운 마음'의 세 길과 연구 중점 프리셋(MVP ⑦). 틱당 원천은 걸지 않는다
 
 // Phase 6+ 예약(끝에 추가): MultiplyResearch, PopulationLossMultiplier, StabilityFloor (§4.2 회귀·광신 행). 셋 다 틱당 효과다 — 더할 때 Apply의 틱당 원천 목록(§7.5)에도 넣는다
 
@@ -1064,6 +1072,8 @@ UPROPERTY(EditAnywhere) int32 FarLineCooldownTicks = 300; // log_far_event 사�
 
 UPROPERTY(EditAnywhere) int32 BackgroundStarCount = 20000; // 배경 별의 점 수. 표현 계층만 읽는다 — 0~100,000으로 읽는다(`CosmicMapLook::BackdropCountOf`, 스키마도 같은 경계) (§3.1, §6.4). Phase 3 8번 작업에서 코드에 들어왔다
 
+UPROPERTY(EditAnywhere) int32 PetitionPeriodTicks = 600; // 청원의 주기 슬롯(MVP ②, §5.10): Tick − Calling.BornTick이 이 값의 양의 배수인 틱에, 그 틱에 막 선 Standing 행이 없으면 앎 단계가 Lottery 행 하나를 내놓는다. 1 아래는 1로 읽는다(스키마는 1 이상). 구조체의 맨 끝 컬럼
+
 UPROPERTY(EditAnywhere) int32 SceneryGalaxyCount = 10000; // 풍경 은하의 점 수. 표현 계층만 읽는다(CosmicUniverseLook::SceneryCountOf — 0~50,000으로 읽는다, 스키마도 같은 경계) (§5.11, §6.4 '우주 화면'). Phase 3 9번 작업
 
 UPROPERTY(EditAnywhere) int32 ScanSightBonusLanes = 1; // 스캔이 그 자리에서 보는 거리에 더하는 레인 수 (§4.4). Phase 4
@@ -1435,7 +1445,8 @@ static constexpr float SecondsPerTick = 1.0f;
 
 // - 통치자 명령: SetResearchFocus, SetStance, ProposeTreaty, EnactEdict, StartMegaproject, AllocateFleet  만나지 않은 백성에게는 태세·조약·즉위를 걸 수 없다 (§8.1). StartMegaproject의 대상에는 정착(project_settle)이 든다 — 새 명령이 아니다 (§5.7). bool StartMegaproject(FName SystemID, FName RowName)은 거대 프로젝트와 승천 판정 작업부터: Embodied인 통치자가 통치 문명의 성계에, CosmicMegaprojects::Start(AI와 같은 규칙)로 시작한다 — project_settle만은 SystemID가 정착할 무주 성계이고 CosmicMegaprojects::Settle(AI의 정착 규칙, 추첨 없음)로 시작한다(정착과 문명 제거 작업). 틱 사이 입력이라 다음 틱의 위기 단계 ⓐ에서 처음 나아간다. 핸들러 안에서는 에러 한 줄. 프로토타입 키(P)의 StartNextMegaproject는 통치 문명에 CosmicMegaprojects::Choices의 첫 것(SinceTick = Calling.BornTick)을, 그것이 없으면 SettleTargets의 첫 대상에 정착을 시작한다(Phase 3의 패널이 대신한다)
 
-// - 조우·청원: FOnEncounterPresented / ResolveEncounterChoice(int32 Index)  청원은 Role == Ruler인 FEncounterDef (§5.10). OnFailure의 KillPlayer는 PendingRoleEffect에 기록만, 파이프라인은 다음 틱 경계 (§7.4)
+// - 청원(MVP ②, 2026-10-20 — 헤더 docs/60_DECISIONS/headers/A2_petition_cards.md): FCosmicPetitionAnswer AnswerPetition(int32 ChoiceIndex) — 대기 카드에 답한다(틱 밖 입력). 거절(대기 카드·통치자 없음, 표에 없는 행·번호 밖 선택지·비축 부족은 에러 한 줄, 방송 중)은 뽑지 않고, 받아들인 답은 시뮬 스트림에서 판정의 수(0~5)를 먼저 1회 뽑는다 → 카드가 더 서 있지 않으면 거둔다(Withdrawn — 비용·효과·줄 없음) → 비용(다스리는 백성의 비축) → 판정(CosmicPetitions::Passes: NoCheck이면 성공, 아니면 능력치 + 수 ≥ Difficulty, Stability는 (int32)(Stability × 10 + 0.0001)) → OnSuccess|OnFailure를 제자리에 적용 → FollowUpKnowing → 결과 줄 Push(Log.Civ, Severity 1, 말하기 스트림 추첨 없음) → FollowUpNotes → LastChoiceRows → 카드를 거두고 NextEncounter가 있으면 같은 주어로 다음 카드(추첨 없음) → SyncRngState. 반환 { Outcome(Refused·Withdrawn·Succeeded·Failed), Roll, Line } — 상태가 아니다. 델리게이트는 없다(화면은 틱 경계에 대기 카드를 읽는다). 순수 규칙은 Events/CosmicPetitions.h(RuledCivIndexOf·SubjectOf·Holds·StandingHeld·Present·StillStands·CheckValueOf·Passes·PassingRollsOf·CostOf·ArgsOf·Clear·Remember). 카드에 KillPlayer는 싣지 않는다(스키마 — Phase 4b), DeposeRuler는 PendingRoleEffect에 기록만, 처리는 다음 틱의 열째 단계(§7.4)
+// - 조우(B1): 방랑자의 조우 카드도 같은 FEncounterDef와 답 함수를 쓴다(그때 이름을 넓히거나 조건으로 가른다). FOnEncounterPresented는 두지 않는다 — 대기 카드는 앎에 저장되고 화면이 틱 경계에 읽는다
 
 // - ReceiveCalling(가칭, v0.8 — 단계 6, 헤더 승인): 부르심에서 서막(첫 틱 전의 카드, §4.4)의 결과(`Exaltation`, 연구 중점, 상처의 상태 태그 하나, 선택의 기록, 거절 횟수)를 상태에 적는다. 칸·`PeakTier`를 적지 않는다. 핸들러 안에서 불리면 에러 한 줄(CLAUDE.md의 목록에 든다). 선택의 기록이 저장 필드가 되면 초기값 규칙과 해시 포함 여부를 헤더에 적는다.
 

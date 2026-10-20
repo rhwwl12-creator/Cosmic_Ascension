@@ -30,6 +30,7 @@ namespace CosmicSeed
 		inline constexpr uint32 Depart = 7;     // departure schedule of a summary galaxy (Phase 6a)
 		inline constexpr uint32 Archetype = 8;  // archetype of a group that crosses from a summary galaxy (Phase 6a)
 		inline constexpr uint32 EventSlot = 9;  // phase of a civilization's event slot (name = CivID), section 7.5
+		inline constexpr uint32 Petition = 10;  // the pick among the petition cards of a moment (name = ruled CivID, index = tick), section 5.10
 	}
 
 	/**

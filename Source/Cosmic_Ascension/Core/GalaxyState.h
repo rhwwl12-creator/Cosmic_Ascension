@@ -630,6 +630,18 @@ struct COSMIC_ASCENSION_API FKnowingState
 	// Next tick at which log_far_event may be told again. Does not limit log_far_ascent.
 	UPROPERTY()
 	int64 FarLineUntilTick = 0;
+
+	// The petition card waiting for the player's answer (section 5.10): a DT_Encounters row. NAME_None (frozen
+	// initializer) = no card. Written by the end of the knowing stage (CosmicPetitions::Present) and by an answer that
+	// chains a next card; cleared by the answer, Install and BecomeWanderer (the ruled people is never removed while it
+	// is ruled). The tick stages never read it; the answer command does, as the definition of its input.
+	UPROPERTY()
+	FName PendingPetitionRow;
+
+	// The system the waiting card is about: a settled system of the ruled people for a SettledSystem row; NAME_None for
+	// a Civilization row (the people, current system = its capital) and when no card waits.
+	UPROPERTY()
+	FName PendingPetitionSystemID;
 };
 
 /**

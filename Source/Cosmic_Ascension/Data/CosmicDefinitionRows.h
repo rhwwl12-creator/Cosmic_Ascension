@@ -935,4 +935,12 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// no label, no panel. Read as 0..50,000 (CosmicUniverseLook::SceneryCountOf; the schema keeps the same bounds).
 	UPROPERTY(EditAnywhere)
 	int32 SceneryGalaxyCount = 10000;
+
+	// ---- Petitions (section 5.10) ----
+
+	// The periodic slot of the petition cards: in a tick at which Tick - Calling.BornTick is a positive multiple of this,
+	// the knowing stage puts a Lottery row before a ruler with no card waiting, when no Standing row came to hold in that
+	// tick (CosmicPetitions::Present). Below 1 reads as 1, without an error line (the schema keeps it at 1 or more).
+	UPROPERTY(EditAnywhere)
+	int32 PetitionPeriodTicks = 600;
 };

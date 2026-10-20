@@ -121,7 +121,8 @@
 				"LivingWorldStarShares": {"kind": "numbers", "len": 7, "ascending": true, "min": 0, "max": 1, "ends_at": 1},
 				"FallenCoreMinLanesFromHome": {"kind": "number", "integer": true},
 				"BackgroundStarCount": {"kind": "number", "min": 0, "max": 100000, "integer": true},
-				"SceneryGalaxyCount": {"kind": "number", "min": 0, "max": 50000, "integer": true}
+				"SceneryGalaxyCount": {"kind": "number", "min": 0, "max": 50000, "integer": true},
+				"PetitionPeriodTicks": {"kind": "number", "min": 1, "integer": true}
 			},
 			"rules": [
 				{
@@ -626,6 +627,7 @@
 		"DT_Encounters": {
 			"struct": "EncounterDef",
 			"prefixes": ["enc_", "petition_"],
+			"must_exist": true,
 			"columns": {
 				"Title": {"kind": "text", "required": true, "slots": ["Civ", "System", "Hazard", "Rebel"], "no_digits": true, "forbidden": "verdict"},
 				"Body": {"kind": "text", "slots": ["Civ", "System", "Hazard", "Rebel"], "no_digits": true, "forbidden": "verdict"},
@@ -739,7 +741,8 @@
 		"TranscendentDoctrinePresent": {"tag": {"root": "Doctrine."}},
 		"CivHasNotable": {"tag": {"root": "Notable."}, "key": {"word": "civ_selector", "optional": true}},
 		"CivFallenSphereTicksReached": {"tag": {"root": ["Doctrine.Silence", "Doctrine.Assimilation", "Doctrine.Zeal", "Doctrine.Recurrence"], "optional": true}, "key": {"digits": true}},
-		"CivResearchAtLeast": {"key": {"word": "research"}, "value": {"min": 0, "max": 1}}
+		"CivResearchAtLeast": {"key": {"word": "research"}, "value": {"min": 0, "max": 1}},
+		"SystemHazardTicksAtMost": {"tag": {"root": "Hazard."}, "value": {"min": 1, "integer": true}}
 	},
 
 	"effects": {
@@ -760,7 +763,8 @@
 		"KillPlayer": {"tag": {"root": "Death."}},
 		"DeposeRuler": {"tag": {"root": "Reign."}},
 		"ChangePopulation": {"value": {"min": -1}},
-		"NameNotable": {"tag": {"root": "Notable."}, "key": {"word": "civ_selector", "optional": true}}
+		"NameNotable": {"tag": {"root": "Notable."}, "key": {"word": "civ_selector", "optional": true}},
+		"FocusResearch": {"key": {"word": "research"}, "value": {"min": 0.25, "max": 1}}
 	},
 
 	"per_tick_effects": ["AddResource", "MultiplyIncome", "ShiftEthics", "ChangeStability", "ChangeRelation", "ChangeReverence", "ChangePopulation"]

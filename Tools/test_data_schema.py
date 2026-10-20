@@ -1174,7 +1174,7 @@ class SchemaTests(unittest.TestCase):
         enumerator added to the vocabulary later has to be put on one side here: a condition on the vessel or an effect on it
         goes into both rules."""
         world_effects = {"AddResource", "MultiplyIncome", "ShiftEthics", "AddTrait", "RemoveTrait", "ChangeStability", "ChangeRelation", "SpawnHazard",
-                         "ResolveHazard", "TransferSystem", "ChangeReverence", "SetFlag", "ChangePopulation", "NameNotable"}
+                         "ResolveHazard", "TransferSystem", "ChangeReverence", "SetFlag", "ChangePopulation", "NameNotable", "FocusResearch"}
         for table, start, conditions, effects in (("DT_Events", "a slot runs for every people", "Conditions", "Effects"),
                                                   ("DT_Feats", "a ruler feat row judges every people", "CompletionConditions", "AscensionCost")):
             with self.subTest(table=table):

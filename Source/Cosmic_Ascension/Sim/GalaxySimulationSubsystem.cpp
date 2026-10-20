@@ -13,6 +13,7 @@
 #include "Data/CosmicRowNames.h"
 #include "Engine/GameInstance.h"
 #include "Events/CosmicEventSubsystem.h"
+#include "Events/CosmicPetitions.h"
 #include "GameplayTagContainer.h"
 #include "Internationalization/StringTableCoreFwd.h"
 #include "Internationalization/Text.h"
@@ -1352,6 +1353,11 @@ void UGalaxySimulationSubsystem::SimulateTick()
 	// A backstop: StepOnce and RunHeadless already refuse a tick asked for from a handler.
 	ensureMsgf(!bInTickStages, TEXT("SimulateTick re-entered from inside a tick stage"));
 
+	// The petition rows that hold at the head of the tick, before the tick advances: the knowing stage puts a card for a
+	// Standing row only when its conditions came to hold in this tick (section 5.10). A read into a local - no state, no
+	// member - and empty while a card waits or no ruler is embodied.
+	const TArray<FCosmicPetitionUnit> PetitionsAtHead = CosmicPetitions::StandingHeld(State, StateIndex, Tables, Rules);
+
 	// Tick 0 is the generated state: no event raised inside a tick stage carries tick 0, so the "0 = unset" tick fields
 	// stay unambiguous there. Player input outside the tick can still run at tick 0.
 	++State.Tick;
@@ -1374,6 +1380,8 @@ void UGalaxySimulationSubsystem::SimulateTick()
 		{
 			TickPlayerTravel();
 			TickSight(State.Player.CurrentSystemID != VesselAtStart);
+			// The end of the knowing stage: a petition card put before the ruler (section 5.10). Knowing only, no draw.
+			CosmicPetitions::Present(State, StateIndex, Tables, Rules, PetitionsAtHead);
 		}
 	}
 	// Outside the guard: death and deposition replace the vessel, and the leap of Phase 4b runs ticks from here.

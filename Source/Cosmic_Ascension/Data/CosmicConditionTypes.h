@@ -75,7 +75,11 @@ enum class EConditionType : uint8
 	CivFallenSphereTicksReached,
 	// Key = research field (Physics / Society / Engineering / Transcendence: a key of the civilization's Research; anything
 	// else is false), Value 0..1: the context civilization's Research[Key] >= Value (section 5.4, 16 #29 (1)).
-	CivResearchAtLeast
+	CivResearchAtLeast,
+	// Tag = Hazard.* (required; empty is false), Value = ticks, a whole number from 1: the subject system holds that hazard
+	// with HazardTicksRemaining <= Value. A countdown loses one a tick, so a petition that waits for "fifty ticks left"
+	// sees this come to hold in exactly one tick (section 4.1 (3), 5.10).
+	SystemHazardTicksAtMost
 	// Decided, appended with the first row that uses each (section 16 #29): CivStabilityAtLeast, PlayerHasPower.
 };
 
@@ -129,7 +133,11 @@ enum class EEffectType : uint8
 	// Guards live in UCosmicEventSubsystem::Apply (section 7.5); it draws one number per application, before its guards
 	// (a per-tick source never applies it and so never draws).
 	// The only effect that makes a notable record; its target is the civ, never a person.
-	NameNotable
+	NameNotable,
+	// Key = research field (a key of the context civilization's ResearchFocus), Value = its share, above 0 and at most 1:
+	// ResearchFocus[Key] = Value and every other field (1 - Value) / (fields - 1), so the shares still sum to 1 (section
+	// 5.4). The ways of the founding petition (section 5.10) and the presets of the research focus. Never per tick.
+	FocusResearch
 	// Phase 6+ (append): MultiplyResearch, PopulationLossMultiplier, StabilityFloor (section 4.2). They are per-tick
 	// effects: each joins the list of UCosmicEventSubsystem::Apply for per-tick sources when it is appended.
 	// Decided, appended with the relics of Phase 4 (section 16 #29): GrantRelic, RemoveRelic. A system is let go to no
