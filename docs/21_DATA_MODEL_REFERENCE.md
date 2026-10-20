@@ -756,6 +756,10 @@ UPROPERTY(EditAnywhere) TArray<FText> LogTemplates; // 승천 줄(Log.Ascension,
 
 // DT_Encounters
 
+// 선택지의 판정 능력치(MVP ② A-2a — 정의 열거형, 저장되지 않는다, 끝에만 추가). 그릇의 능력치는 0~10, Stability는 다스리는 백성의 Stability(0~1)를 (int32)(Stability × 10)으로 읽는다(§16 #30 ①). Influence는 판정이 아니라 비용이다. 데이터는 빈 이름을 "None"으로 쓰므로 '판정 없음'은 NoCheck다.
+
+UENUM(BlueprintType) enum class ECosmicCheckStat : uint8 { NoCheck, Body, Mind, Causality, Exaltation, Stability };
+
 USTRUCT(BlueprintType)
 
 struct FEncounterChoice
@@ -766,7 +770,7 @@ GENERATED_BODY()
 
 UPROPERTY(EditAnywhere) FText Label;
 
-UPROPERTY(EditAnywhere) FName CheckStat; // Body / Mind / Causality / Exaltation / None. 통치자 청원은 Stability / Influence 키 허용 (§5.10)
+UPROPERTY(EditAnywhere) ECosmicCheckStat CheckStat = ECosmicCheckStat::NoCheck; // 판정: 능력치 + 0~5 ≥ Difficulty (§5.9). 통치자 청원은 Stability도 (§5.10)
 
 UPROPERTY(EditAnywhere) int32 Difficulty = 0; // >= 16 = 불가능한 선택지(영압 게이트, §4.2)
 
@@ -800,9 +804,15 @@ UPROPERTY(EditAnywhere) TArray<FCosmicCondition> Conditions;
 
 UPROPERTY(EditAnywhere) float BaseWeight = 1.f;
 
-UPROPERTY(EditAnywhere) TArray<FEncounterChoice> Choices; // 2~3
+UPROPERTY(EditAnywhere) TArray<FEncounterChoice> Choices; // 2~3. 로컬라이제이션 키가 위치라 끝에만 붙인다(§8.5)
 
 UPROPERTY(EditAnywhere) TSoftObjectPtr<class UTexture2D> Illustration; // 선택
+
+UPROPERTY(EditAnywhere) ECosmicEventTrigger Trigger = ECosmicEventTrigger::Named; // 앎 단계가 카드를 내놓는 때(§5.10): Standing = 조건이 막 선 틱, Lottery = 주기 슬롯의 가중 추첨, Named = 이름으로만(사슬의 다음 카드)
+
+UPROPERTY(EditAnywhere) ECosmicEventSubject Subject = ECosmicEventSubject::Civilization; // 다스리는 백성(수도) 또는 그 백성의 정착된 성계 하나
+
+UPROPERTY(EditAnywhere) TArray<FText> VoiceBodies; // 비었거나 둘: [0] 의회, [1] 회중의 장로들. 있으면 Body는 비우고 화면이 다스리는 백성의 Spiritualism(> 0 = 장로들)으로 고른다 — 상태가 아니다
 
 };
 
@@ -1080,7 +1090,7 @@ UPROPERTY(EditAnywhere) int32 CrossingSettleTicks = 3000; // 건너온 백성의
 
 - `tables`: 테이블마다 `struct`(행 구조체 이름에서 F를 뺀 것), 행 이름의 꼴(`prefixes` — 접두어, 또는 `names` — 그 이름만), `must_exist`(원본과 에셋이 반드시 있어야 하는가 — 에셋이 생긴 테이블은 켠다), `required_rows`(코드가 이름으로 부르는 행), `columns`, `rules`, `unique`, `pairs`.
 - `columns`: 행 구조체의 **모든** 컬럼을 적는다 — 스키마에 없는 컬럼과 구조체에 없는 컬럼은 둘 다 문제다. 컬럼마다 종류가 하나다. 행이 아직 없는 테이블은 `null`이고 첫 행을 쓸 때 적는다(`null`인 테이블에 원본이나 에셋이 있으면 문제다).
-- 컬럼의 종류(닫힌 목록 16)와 종류마다 쓸 수 있는 선택 항목(이것도 닫힌 목록이고, 검사기 머리의 `COLUMN_OPTIONS`가 쥔다): `plain`(검사하지 않는다 — bool·색·중첩 구조체. 선택 항목도 시험도 없다: 구조체에는 `is`·`in`이 늘 거짓이고 `set`이 늘 참이라 규칙을 조용히 끈다. bool 컬럼에 시험이 필요해지면 그때 종류를 더한다), `number`(`min`·`max`·`integer`), `numbers`(`len`·`ascending`·`ends_at`(마지막 칸의 값 — 누적 분포의 끝)·`min`·`max`·`integer`), `text`(`slots`·`no_digits`·`required`·`hedged`(수가 든 마디마다 이 낱말 가운데 하나를 제 낱말로 품는다 — '약'·'추정'·'논쟁 중'. 수는 어느 문자의 숫자든 되고, '개'·'광년' 앞의 한글 수 낱말(십·백·천·만·억·조 — '수억 개'·'십만 광년')도 수다. 'M87'·'NGC 205' 같은 목록 번호는 이름이라 수가 아니다. 마디는 ', '·' — '·'; '에서 나눈다(천 단위 쉼표는 뒤에 빈칸이 없어 마디를 나누지 않는다). 앞에 한글 음절이 붙으면 다른 낱말이고('요약'), 한 음절 낱말은 뒤에 붙어도 다른 낱말이다('약한' — '추정치'·'추정된'은 든다). §8.3은 수마다 붙이라고 하고, 검사기는 마디마다 본다)·`forbidden`(이 낱말을 품지 않는다)), `texts`(`min`·`len_in`·`empty_or_min`·`unique`·`slots`·`no_digits`·`single_variant`·`hedged`·`forbidden`), `tag`(`root`·`optional`), `tags`(태그 컨테이너 — `root`), `tag_list`(태그 배열 — `root`), `tag_map`(키가 태그, 값은 수 — `root`·`min`·`max`·`integer`), `row`(`table`·`optional`·`target` — 가리키는 행이 맞아야 하는 시험), `row_map`(키가 행 이름, 값은 수 — `table`·`target`·`min`·`max`·`integer`), `word_map`(키가 `words`의 낱말, 값은 수 — `words`·`min`·`max`·`integer`), `enum`(`enum`), `conditions`, `effects`(`per_tick` — 틱당 원천의 효과 일곱만, §7.5), `rows`(행 이름의 배열 — `tables`·`unique`. 원소마다 `tables`에 적은 테이블 가운데 하나의 행이고, `unique`면 한 배열에 두 번 쓰지 않는다. `DT_Hazards`의 해결 수단 두 컬럼 — 위기 처리 작업). 정수 프로퍼티의 컬럼에는 `integer`를 적는다(빠지면 `Data.Integrity`가 실패한다).
+- 컬럼의 종류(닫힌 목록 18)와 종류마다 쓸 수 있는 선택 항목(이것도 닫힌 목록이고, 검사기 머리의 `COLUMN_OPTIONS`가 쥔다): `pool`(자원 풀 `FResourcePool` — 낱말 목록 `resource`의 다섯 멤버를 빠짐없이, 다른 키 없이 수로 적는다. `min`. `Data.Integrity`가 그 목록을 구조체의 멤버에 맞춘다 — MVP ② A-2a), `structs`(구조체의 배열 — `columns`(원소의 멤버마다 지금의 종류와 선택 항목, `structs`는 다시 담지 않는다)·`min`·`len_in`. 원소는 `columns`와 정확히 같은 키를 갖는다: 빠진 멤버가 C++ 기본값으로 조용히 남지 않는다. 행 규칙은 하위 열을 `List.Column`으로 부르고 모든 원소에서 성립해야 참이다(빈 배열은 참). `DT_Encounters.Choices` — MVP ② A-2a), `plain`(검사하지 않는다 — bool·색·그 밖의 구조체. 선택 항목도 시험도 없다: 구조체에는 `is`·`in`이 늘 거짓이고 `set`이 늘 참이라 규칙을 조용히 끈다. bool 컬럼에 시험이 필요해지면 그때 종류를 더한다), `number`(`min`·`max`·`integer`), `numbers`(`len`·`ascending`·`ends_at`(마지막 칸의 값 — 누적 분포의 끝)·`min`·`max`·`integer`), `text`(`slots`·`no_digits`·`required`·`hedged`(수가 든 마디마다 이 낱말 가운데 하나를 제 낱말로 품는다 — '약'·'추정'·'논쟁 중'. 수는 어느 문자의 숫자든 되고, '개'·'광년' 앞의 한글 수 낱말(십·백·천·만·억·조 — '수억 개'·'십만 광년')도 수다. 'M87'·'NGC 205' 같은 목록 번호는 이름이라 수가 아니다. 마디는 ', '·' — '·'; '에서 나눈다(천 단위 쉼표는 뒤에 빈칸이 없어 마디를 나누지 않는다). 앞에 한글 음절이 붙으면 다른 낱말이고('요약'), 한 음절 낱말은 뒤에 붙어도 다른 낱말이다('약한' — '추정치'·'추정된'은 든다). §8.3은 수마다 붙이라고 하고, 검사기는 마디마다 본다)·`forbidden`(이 낱말을 품지 않는다)), `texts`(`min`·`len_in`·`empty_or_min`·`unique`·`slots`·`no_digits`·`single_variant`·`hedged`·`forbidden`), `tag`(`root`·`optional`), `tags`(태그 컨테이너 — `root`), `tag_list`(태그 배열 — `root`), `tag_map`(키가 태그, 값은 수 — `root`·`min`·`max`·`integer`), `row`(`table`·`optional`·`target` — 가리키는 행이 맞아야 하는 시험), `row_map`(키가 행 이름, 값은 수 — `table`·`target`·`min`·`max`·`integer`), `word_map`(키가 `words`의 낱말, 값은 수 — `words`·`min`·`max`·`integer`), `enum`(`enum`), `conditions`, `effects`(`per_tick` — 틱당 원천의 효과 일곱만, §7.5), `rows`(행 이름의 배열 — `tables`·`unique`. 원소마다 `tables`에 적은 테이블 가운데 하나의 행이고, `unique`면 한 배열에 두 번 쓰지 않는다. `DT_Hazards`의 해결 수단 두 컬럼 — 위기 처리 작업). 정수 프로퍼티의 컬럼에는 `integer`를 적는다(빠지면 `Data.Integrity`가 실패한다).
 - `rules`: '`when`이 다 맞는 행은 `then`도 다 맞는다'. 시험은 닫힌 목록이다 — 컬럼 하나에 `is`·`in`·`gt`·`ge`·`lt`·`le`·`set`·`min_len`·`max_len`·`each_contains`·`lacks_type`(조건·효과 배열에 그 열거자가 없다)·`slots_in`(텍스트의 슬롯이 그 목록 안에 있다)·`len_ge_col`(목록의 길이가 같은 행의 수 컬럼 이상)·`pairs_ge_col`(두 목록의 길이를 곱한 것이 같은 행의 수 컬럼 이상 — 짝으로 나눠 주는 이름 풀) 가운데 하나, 또는 행 이름을 짚는 `row`. 시험마다 쓸 수 있는 컬럼의 종류가 정해져 있다(크기 비교는 `number`에만, `each_contains`는 `texts`에만, `is`·`in`은 값 하나짜리 컬럼에만 — 컨테이너에 쓴 `is`는 늘 거짓이라 규칙이 꺼진다. 이름 풀 시험 `len_ge_col`·`pairs_ge_col`은 목록·맵 컬럼에만 쓰고 짚는 수 컬럼은 `number`다 — 태그 컨테이너 `tags`는 export 텍스트라 길이가 없어 늘 거짓이므로 쓸 수 없다. `set`은 `number`·`enum`에 쓸 수 없다 — 늘 참이다. `plain`에는 어떤 시험도 쓸 수 없다). `unique`는 컬럼 묶음의 값이 테이블 안에서 겹치지 않음을, `pairs`는 두 컬럼의 허용 짝(이벤트 행의 `Category` → `LogCategory`, §8.1)을 적는다.
 - `conditions`·`effects`: 열거자마다 `tag`(`root`·`optional`)·`key`(`word` — 낱말 목록, `row` — 행 이름과 그 행이 맞아야 하는 `target`, `digits` — 숫자만, `any` — 아무 이름. `optional`)·`value`(`min`·`max`·`integer`)를 적는다. 적지 않은 칸은 비어 있어야 한다 — 읽지 않는 칸에 쓴 값은 오타다. 효과에는 `per_tick_only`(틱당 원천만 거는 효과 — `MultiplyIncome`)를 더 적을 수 있고, `DurationTicks`는 틱당 원천의 효과에만 0보다 클 수 있다. 원본의 조건·효과 객체는 구조체의 멤버를 모두 적는다(Type·Tag·Key·Value, 효과는 DurationTicks도) — 빠진 멤버와 없는 멤버는 문제다.
 - 그 밖: `words`(닫힌 낱말 목록 일곱 — resource·axis·stat·role·civ_selector·policy·research), `enums`(컬럼이 쓰는 열거형의 열거자), `per_tick_effects`(틱당 원천의 효과 일곱), `required_tags`(ini에 선언되어 있어야 하는 태그 — 지금은 §9.3 v0.6 항목의 `Notable.*` 역할 태그 여섯), `row_name_sources`(코드가 이름으로 부르는 행을 적어 둔 헤더 `Data/CosmicRowNames.h` — 검사기와 `Data.Integrity`가 그 이름들을 `required_rows`와 양쪽으로 맞춘다. 주석으로 막은 상수는 세지 않는다), `single_variant_rows`, `event_log_categories`, `row_name_pattern`, `tag_sources`(태그를 선언하는 ini).

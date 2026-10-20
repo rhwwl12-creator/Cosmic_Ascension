@@ -6,10 +6,11 @@
 		"Checked by Tools/cosmic_data_schema.py before Tools/make_data_tables.py touches an asset (python Tools/check_data.py runs the same check without the editor), and by the automation test Cosmic_Ascension.Data.Integrity: this file against the code, the loaded assets against this file.",
 		"The checker reads this file first. While it has a problem the data is not looked at.",
 		"Every column of a row struct is declared here: a column added to a struct needs its line.",
-		"Column kinds (closed list): plain, number, numbers, text, texts, tag, tags, tag_list, tag_map, row, row_map, rows, word_map, enum, conditions, effects",
+		"Column kinds (closed list): plain, number, numbers, text, texts, tag, tags, tag_list, tag_map, row, row_map, rows, word_map, enum, conditions, effects, pool, structs",
 		"An integer property is declared with integer: true (Data.Integrity holds the columns to the property types).",
-		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, slots_in, len_ge_col, pairs_ge_col, contains_all",
+		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, has_type, slots_in, len_ge_col, pairs_ge_col, contains_all",
 		"A row rule is 'when -> then' over tests: one column with one test of the list above, or 'row' with a row name. Each test can be asked of some kinds of column only (the checker holds the table).",
+		"A column of a list of structs (kind structs) is named in a rule as 'List.Column': the test holds when it holds for every entry of the list, and so for an empty list. The tests that name other columns of the row (len_ge_col, pairs_ge_col) are not asked of such a column.",
 		"A rule added here needs an input that breaks it in Tools/test_data_schema.py: that test walks every rule, unique, pair, target and slot list of this file.",
 		"A number range stands here only where the guideline states one. A column without a range is checked for being a finite number.",
 		"The keys of this file and the options of each kind are closed lists in the checker, each with the type of its value: a key nothing reads or a value of the wrong type is a problem, so a slip cannot switch a check off.",
@@ -40,7 +41,8 @@
 		"EPlayerRole": ["Ruler", "Wanderer"],
 		"ECosmicEventTrigger": ["Lottery", "Standing", "Named"],
 		"ECosmicEventSubject": ["Civilization", "SettledSystem"],
-		"ECosmicHazardSpawn": ["Draw", "Capital", "ClaimRule"]
+		"ECosmicHazardSpawn": ["Draw", "Capital", "ClaimRule"],
+		"ECosmicCheckStat": ["NoCheck", "Body", "Mind", "Causality", "Exaltation", "Stability"]
 	},
 
 	"single_variant_rows": ["log_first_life", "log_first_contact"],
@@ -545,7 +547,7 @@
 			"columns": {
 				"DisplayName": {"kind": "text", "required": true, "slots": [], "forbidden": "verdict"},
 				"RequiredTier": {"kind": "enum", "enum": "EAscensionTier"},
-				"CostPerTick": {"kind": "plain"},
+				"CostPerTick": {"kind": "pool", "min": 0},
 				"RequiredProgress": {"kind": "number", "min": 1},
 				"CompleteTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "System", "Project"], "forbidden": "verdict"}
 			}
@@ -621,7 +623,90 @@
 				}
 			]
 		},
-		"DT_Encounters": {"struct": "EncounterDef", "prefixes": ["enc_", "petition_"], "columns": null}
+		"DT_Encounters": {
+			"struct": "EncounterDef",
+			"prefixes": ["enc_", "petition_"],
+			"columns": {
+				"Title": {"kind": "text", "required": true, "slots": ["Civ", "System", "Hazard", "Rebel"], "no_digits": true, "forbidden": "verdict"},
+				"Body": {"kind": "text", "slots": ["Civ", "System", "Hazard", "Rebel"], "no_digits": true, "forbidden": "verdict"},
+				"Conditions": {"kind": "conditions"},
+				"BaseWeight": {"kind": "number", "min": 0},
+				"Choices": {
+					"kind": "structs",
+					"len_in": [2, 3],
+					"columns": {
+						"Label": {"kind": "text", "required": true, "slots": ["Civ", "System", "Hazard", "Rebel"], "no_digits": true, "forbidden": "verdict"},
+						"CheckStat": {"kind": "enum", "enum": "ECosmicCheckStat"},
+						"Difficulty": {"kind": "number", "min": 0, "max": 16, "integer": true},
+						"Cost": {"kind": "pool", "min": 0},
+						"OnSuccess": {"kind": "effects"},
+						"OnFailure": {"kind": "effects"},
+						"SuccessText": {"kind": "text", "required": true, "slots": ["Civ", "System", "Hazard", "Rebel"], "no_digits": true, "forbidden": "verdict"},
+						"FailureText": {"kind": "text", "slots": ["Civ", "System", "Hazard", "Rebel"], "no_digits": true, "forbidden": "verdict"},
+						"NextEncounter": {"kind": "row", "table": "DT_Encounters", "optional": true}
+					}
+				},
+				"Illustration": {"kind": "plain"},
+				"Trigger": {"kind": "enum", "enum": "ECosmicEventTrigger"},
+				"Subject": {"kind": "enum", "enum": "ECosmicEventSubject"},
+				"VoiceBodies": {"kind": "texts", "len_in": [0, 2], "slots": ["Civ", "System", "Hazard", "Rebel"], "no_digits": true, "forbidden": "verdict"}
+			},
+			"rules": [
+				{
+					"why": "a petition is put before a ruler: every row carries the condition PlayerRoleIs (guideline 5.10)",
+					"then": [{"col": "Conditions", "has_type": "PlayerRoleIs"}]
+				},
+				{
+					"why": "a card records no death (the death pipeline of Phase 4b) and runs no per-tick effect; the effects that grant, place, take or name wait for the rows that use them (guideline 5.10, 7.4)",
+					"then": [
+						{"col": "Choices.OnSuccess", "lacks_type": "KillPlayer"},
+						{"col": "Choices.OnFailure", "lacks_type": "KillPlayer"},
+						{"col": "Choices.OnSuccess", "lacks_type": "MultiplyIncome"},
+						{"col": "Choices.OnFailure", "lacks_type": "MultiplyIncome"},
+						{"col": "Choices.OnSuccess", "lacks_type": "GrantPower"},
+						{"col": "Choices.OnFailure", "lacks_type": "GrantPower"},
+						{"col": "Choices.OnSuccess", "lacks_type": "SpawnHazard"},
+						{"col": "Choices.OnFailure", "lacks_type": "SpawnHazard"},
+						{"col": "Choices.OnSuccess", "lacks_type": "TransferSystem"},
+						{"col": "Choices.OnFailure", "lacks_type": "TransferSystem"},
+						{"col": "Choices.OnSuccess", "lacks_type": "NameNotable"},
+						{"col": "Choices.OnFailure", "lacks_type": "NameNotable"}
+					]
+				},
+				{
+					"why": "the subject system of a card is the system it names: a Civilization row is about the people alone and names no system (guideline 8.1)",
+					"when": [{"col": "Subject", "is": "Civilization"}],
+					"then": [
+						{"col": "Title", "slots_in": ["Civ", "Hazard", "Rebel"]},
+						{"col": "Body", "slots_in": ["Civ", "Hazard", "Rebel"]},
+						{"col": "VoiceBodies", "slots_in": ["Civ", "Hazard", "Rebel"]},
+						{"col": "Choices.Label", "slots_in": ["Civ", "Hazard", "Rebel"]},
+						{"col": "Choices.SuccessText", "slots_in": ["Civ", "Hazard", "Rebel"]},
+						{"col": "Choices.FailureText", "slots_in": ["Civ", "Hazard", "Rebel"]}
+					]
+				},
+				{
+					"why": "a row the knowing stage puts is picked by its weight among the rows of its moment (guideline 5.10)",
+					"when": [{"col": "Trigger", "in": ["Lottery", "Standing"]}],
+					"then": [{"col": "BaseWeight", "gt": 0}]
+				},
+				{
+					"why": "a row put by name (the next card of a chain) is never picked: it has no weight",
+					"when": [{"col": "Trigger", "is": "Named"}],
+					"then": [{"col": "BaseWeight", "is": 0}]
+				},
+				{
+					"why": "a card without voices speaks through its Body",
+					"when": [{"col": "VoiceBodies", "max_len": 0}],
+					"then": [{"col": "Body", "set": true}]
+				},
+				{
+					"why": "a voiced card speaks through its two voices, the council's and the elders' of the congregation, and its Body stays empty (guideline 5.10)",
+					"when": [{"col": "VoiceBodies", "min_len": 1}],
+					"then": [{"col": "Body", "set": false}]
+				}
+			]
+		}
 	},
 
 	"conditions": {

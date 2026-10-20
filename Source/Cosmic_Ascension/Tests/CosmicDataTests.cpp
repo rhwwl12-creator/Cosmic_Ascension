@@ -184,9 +184,9 @@ namespace CosmicDataTests
 		return Tables.IsValid() && HasText(KeysOf(Tables), TableName) && ObjectOf(*Tables, *TableName).IsValid();
 	}
 
-	// The kinds of column (the closed list of schema.json) a property may be declared as. A type the closed list has no
-	// kind for answers with a name outside the list, so that its first declaration fails until a kind exists: declared
-	// "plain", a list of structs with effects inside would go unchecked on both sides.
+	// The kinds of column (the closed list of schema.json) a property may be declared as. A resource pool is a pool and a
+	// list of other structs is structs (its columns are declared and checked one level down, CheckColumnsOf); a struct the
+	// checker does not read is plain.
 	TArray<FString> KindsFor(const FProperty* Property)
 	{
 		if (CastField<FNameProperty>(Property))
@@ -223,6 +223,10 @@ namespace CosmicDataTests
 			{
 				return { TEXT("tags") };
 			}
+			if (StructProperty->Struct == FResourcePool::StaticStruct())
+			{
+				return { TEXT("pool") };
+			}
 			return { TEXT("plain") };
 		}
 		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
@@ -250,7 +254,7 @@ namespace CosmicDataTests
 				{
 					return { TEXT("effects") };
 				}
-				return { TEXT("nested") };
+				return { TEXT("structs") };
 			}
 			if (CastField<FNameProperty>(Inner))
 			{
@@ -306,6 +310,78 @@ namespace CosmicDataTests
 		}
 	}
 
+	// The declared columns of a struct against its properties, both ways and to the letter: a kind that fits the type, a
+	// column of whole numbers that says "integer", an enum column that names its enum. A list of structs (kind structs) is
+	// checked one level down against the struct of its entries, with the columns it declares.
+	void CheckColumnsOf(TArray<FString>& Problems, const FString& Where, const FJsonObjectPtr& Columns, const UStruct* Struct)
+	{
+		const TArray<FString> Declared = KeysOf(Columns);
+		TArray<FString> PropertyNames;
+		for (TFieldIterator<FProperty> It(Struct, EFieldIteratorFlags::ExcludeSuper); It; ++It)
+		{
+			const FString ColumnName = It->GetName();
+			PropertyNames.Add(ColumnName);
+			const FJsonObjectPtr Column = HasText(Declared, ColumnName) ? ObjectOf(*Columns, *ColumnName) : FJsonObjectPtr();
+			if (!Column.IsValid())
+			{
+				Problems.Add(FString::Printf(TEXT("%s.%s: the struct has this column and the schema does not declare it"), *Where, *ColumnName));
+				continue;
+			}
+			FString Kind;
+			Column->TryGetStringField(TEXT("kind"), Kind);
+			const TArray<FString> Allowed = KindsFor(*It);
+			if (!HasText(Allowed, Kind))
+			{
+				Problems.Add(FString::Printf(TEXT("%s.%s: kind '%s' does not fit the type of the column (%s)"), *Where, *ColumnName, *Kind, *FString::Join(Allowed, TEXT(" or "))));
+			}
+			// A column of whole numbers says so: the sources are held to whole numbers by that option alone.
+			bool bInteger = false;
+			Column->TryGetBoolField(TEXT("integer"), bInteger);
+			if (HoldsWholeNumbers(*It) && !bInteger)
+			{
+				Problems.Add(FString::Printf(TEXT("%s.%s: the column holds whole numbers and the schema does not say \"integer\": true"), *Where, *ColumnName));
+			}
+			// An enum column names the enum of its property: its cells and the tests of the rules are held to that list.
+			const UEnum* Enum = nullptr;
+			if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(*It))
+			{
+				Enum = EnumProperty->GetEnum();
+			}
+			else if (const FByteProperty* ByteProperty = CastField<FByteProperty>(*It))
+			{
+				Enum = ByteProperty->Enum;
+			}
+			FString EnumName;
+			Column->TryGetStringField(TEXT("enum"), EnumName);
+			if (Enum && !SameText(EnumName, Enum->GetName()))
+			{
+				Problems.Add(FString::Printf(TEXT("%s.%s: the column is of the enum %s and the schema says '%s'"), *Where, *ColumnName, *Enum->GetName(), *EnumName));
+			}
+			// The columns of a list of structs are the members of its entries.
+			const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(*It);
+			const FStructProperty* Entry = ArrayProperty ? CastField<FStructProperty>(ArrayProperty->Inner) : nullptr;
+			if (Kind == TEXT("structs") && Entry && HasText(Allowed, Kind))
+			{
+				const FJsonObjectPtr EntryColumns = ObjectOf(*Column, TEXT("columns"));
+				if (EntryColumns.IsValid())
+				{
+					CheckColumnsOf(Problems, FString::Printf(TEXT("%s.%s"), *Where, *ColumnName), EntryColumns, Entry->Struct);
+				}
+				else
+				{
+					Problems.Add(FString::Printf(TEXT("%s.%s: a list of structs declares the columns of its entries"), *Where, *ColumnName));
+				}
+			}
+		}
+		for (const FString& ColumnName : Declared)
+		{
+			if (!HasText(PropertyNames, ColumnName))
+			{
+				Problems.Add(FString::Printf(TEXT("%s.%s: the schema declares a column the struct does not have"), *Where, *ColumnName));
+			}
+		}
+	}
+
 	// The schema against the reflected code: every column of every declared row struct with a kind that fits its type,
 	// the enumerators of the two vocabularies and of the enums it names, the word lists the code has a list for, the
 	// tags the code asks for by name, and the per-tick list. No table is read.
@@ -336,56 +412,7 @@ namespace CosmicDataTests
 				// Declared with the first row of the table.
 				continue;
 			}
-			const TArray<FString> Declared = KeysOf(Columns);
-			TArray<FString> PropertyNames;
-			for (TFieldIterator<FProperty> It(Struct, EFieldIteratorFlags::ExcludeSuper); It; ++It)
-			{
-				const FString ColumnName = It->GetName();
-				PropertyNames.Add(ColumnName);
-				const FJsonObjectPtr Column = HasText(Declared, ColumnName) ? ObjectOf(*Columns, *ColumnName) : FJsonObjectPtr();
-				if (!Column.IsValid())
-				{
-					Problems.Add(FString::Printf(TEXT("schema.%s.%s: the struct has this column and the schema does not declare it"), *TableName, *ColumnName));
-					continue;
-				}
-				FString Kind;
-				Column->TryGetStringField(TEXT("kind"), Kind);
-				const TArray<FString> Allowed = KindsFor(*It);
-				if (!HasText(Allowed, Kind))
-				{
-					Problems.Add(FString::Printf(TEXT("schema.%s.%s: kind '%s' does not fit the type of the column (%s)"), *TableName, *ColumnName, *Kind, *FString::Join(Allowed, TEXT(" or "))));
-				}
-				// A column of whole numbers says so: the sources are held to whole numbers by that option alone.
-				bool bInteger = false;
-				Column->TryGetBoolField(TEXT("integer"), bInteger);
-				if (HoldsWholeNumbers(*It) && !bInteger)
-				{
-					Problems.Add(FString::Printf(TEXT("schema.%s.%s: the column holds whole numbers and the schema does not say \"integer\": true"), *TableName, *ColumnName));
-				}
-				// An enum column names the enum of its property: its cells and the tests of the rules are held to that list.
-				const UEnum* Enum = nullptr;
-				if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(*It))
-				{
-					Enum = EnumProperty->GetEnum();
-				}
-				else if (const FByteProperty* ByteProperty = CastField<FByteProperty>(*It))
-				{
-					Enum = ByteProperty->Enum;
-				}
-				FString EnumName;
-				Column->TryGetStringField(TEXT("enum"), EnumName);
-				if (Enum && !SameText(EnumName, Enum->GetName()))
-				{
-					Problems.Add(FString::Printf(TEXT("schema.%s.%s: the column is of the enum %s and the schema says '%s'"), *TableName, *ColumnName, *Enum->GetName(), *EnumName));
-				}
-			}
-			for (const FString& ColumnName : Declared)
-			{
-				if (!HasText(PropertyNames, ColumnName))
-				{
-					Problems.Add(FString::Printf(TEXT("schema.%s.%s: the schema declares a column the struct does not have"), *TableName, *ColumnName));
-				}
-			}
+			CheckColumnsOf(Problems, FString::Printf(TEXT("schema.%s"), *TableName), Columns, Struct);
 		}
 
 		CompareNames(Problems, TEXT("schema.conditions"), KeysOf(ObjectOf(Schema, TEXT("conditions"))), EnumeratorsOf(StaticEnum<EConditionType>()));
@@ -409,6 +436,13 @@ namespace CosmicDataTests
 		if (Words.IsValid())
 		{
 			CompareNames(Problems, TEXT("schema.words.resource"), StringsOf(*Words, TEXT("resource")), EnumeratorsOf(StaticEnum<ECosmicResource>()));
+			// The sources hold a resource pool (kind pool) to the words of that list, member by member.
+			TArray<FString> PoolMembers;
+			for (TFieldIterator<FProperty> It(FResourcePool::StaticStruct()); It; ++It)
+			{
+				PoolMembers.Add(It->GetName());
+			}
+			CompareNames(Problems, TEXT("schema.words.resource (the members of a resource pool)"), StringsOf(*Words, TEXT("resource")), PoolMembers);
 			CompareNames(Problems, TEXT("schema.words.role"), StringsOf(*Words, TEXT("role")), EnumeratorsOf(StaticEnum<EPlayerRole>()));
 			TArray<FString> Axes;
 			for (TFieldIterator<FProperty> It(FEthicsAxes::StaticStruct()); It; ++It)
@@ -643,6 +677,18 @@ namespace CosmicDataTests
 				CheckNumber(Problems, Where, Property, Number, Column);
 			}
 		}
+		else if (Kind == TEXT("pool"))
+		{
+			// Every resource of the pool against the range of its column.
+			for (TFieldIterator<FProperty> It(CastFieldChecked<FStructProperty>(Property)->Struct); It; ++It)
+			{
+				double Number = 0.0;
+				if (NumberOf(*It, It->ContainerPtrToValuePtr<void>(Value), Number))
+				{
+					CheckNumber(Problems, FString::Printf(TEXT("%s.%s"), *Where, *It->GetName()), *It, Number, Column);
+				}
+			}
+		}
 		else if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 		{
 			FScriptArrayHelper Helper(ArrayProperty, Value);
@@ -745,6 +791,33 @@ namespace CosmicDataTests
 						? reinterpret_cast<const FCosmicCondition*>(Helper.GetRawPtr(Index))->Tag
 						: reinterpret_cast<const FCosmicEffect*>(Helper.GetRawPtr(Index))->Tag;
 					CheckTag(Problems, FString::Printf(TEXT("%s[%d].Tag"), *Where, Index), Tag, AnyTag, true);
+				}
+			}
+			else if (Kind == TEXT("structs"))
+			{
+				// The counts, then every entry member by member with the columns of the list, as a row is checked.
+				int32 Least = 0;
+				if (Column.TryGetNumberField(TEXT("min"), Least) && Count < Least)
+				{
+					Problems.Add(FString::Printf(TEXT("%s: expected %d entries or more, found %d"), *Where, Least, Count));
+				}
+				const TArray<TSharedPtr<FJsonValue>>* Lengths = nullptr;
+				if (Column.TryGetArrayField(TEXT("len_in"), Lengths) && !Lengths->ContainsByPredicate([Count](const TSharedPtr<FJsonValue>& Each) { return static_cast<int32>(Each->AsNumber()) == Count; }))
+				{
+					Problems.Add(FString::Printf(TEXT("%s: %d entries is none of the allowed counts"), *Where, Count));
+				}
+				const FStructProperty* Entry = CastFieldChecked<FStructProperty>(ArrayProperty->Inner);
+				const FJsonObjectPtr EntryColumns = ObjectOf(Column, TEXT("columns"));
+				for (int32 Index = 0; EntryColumns.IsValid() && Index < Count; ++Index)
+				{
+					for (TFieldIterator<FProperty> It(Entry->Struct, EFieldIteratorFlags::ExcludeSuper); It; ++It)
+					{
+						if (const FJsonObjectPtr Member = ObjectOf(*EntryColumns, *It->GetName()))
+						{
+							CheckCell(Problems, FString::Printf(TEXT("%s[%d].%s"), *Where, Index, *It->GetName()), *It, It->ContainerPtrToValuePtr<void>(Helper.GetRawPtr(Index)),
+								Schema, *Member, Tables, RowName);
+						}
+					}
 				}
 			}
 		}
@@ -1187,6 +1260,9 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		{ TEXT("DT_Civs"), TEXT("InitialRelations"), TEXT("tag_map"), TEXT("(row_map or word_map)") },
 		{ TEXT("DT_Hazards"), TEXT("RulerResolutions"), TEXT("row"), TEXT("(rows)") },
 		{ TEXT("DT_Hazards"), TEXT("OutbreakRow"), TEXT("rows"), TEXT("(row)") },
+		{ TEXT("DT_Megaprojects"), TEXT("CostPerTick"), TEXT("plain"), TEXT("(pool)") },
+		{ TEXT("DT_Encounters"), TEXT("Choices"), TEXT("effects"), TEXT("(structs)") },
+		{ TEXT("DT_Encounters"), TEXT("Choices"), TEXT("plain"), TEXT("(structs)") },
 	};
 	for (const FKindCase& Case : KindCases)
 	{
@@ -1201,13 +1277,70 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		Expect(FString::Printf(TEXT("the kind %s on %s.%s, a column that is %s"), Case.WrongKind, Case.Table, Case.Column, Case.Fits), Unfit, { *Where, TEXT("does not fit"), Case.Fits });
 	}
 	{
-		// A type of column the closed kinds cannot declare yet. Not "plain": such a column would go unchecked, so its first
-		// declaration has to fail until a kind for it exists (section 9.3: the encounter table has a list of choices with
-		// effects inside). A list of row names has its kind since the crisis handling work: rows.
+		// A list of row names is of the kind rows (the crisis handling work); a list of other structs is structs and a
+		// resource pool is pool (MVP item 2) - not "plain", under which they would go unchecked on both sides.
 		const FProperty* RowNames = FHazardDef::StaticStruct()->FindPropertyByName(TEXT("RulerResolutions"));
 		const FProperty* Structs = FEncounterDef::StaticStruct()->FindPropertyByName(TEXT("Choices"));
+		const FProperty* Pool = FEncounterChoice::StaticStruct()->FindPropertyByName(TEXT("Cost"));
+		const FProperty* Plain = FCivArchetypeDef::StaticStruct()->FindPropertyByName(TEXT("EthicsPreset"));
 		TestTrue(TEXT("A list of row names is of the kind rows"), RowNames && KindsFor(RowNames) == TArray<FString>{ TEXT("rows") });
-		TestTrue(TEXT("A list of structs is of no kind of the closed list yet"), Structs && KindsFor(Structs) == TArray<FString>{ TEXT("nested") });
+		TestTrue(TEXT("A list of structs is of the kind structs"), Structs && KindsFor(Structs) == TArray<FString>{ TEXT("structs") });
+		TestTrue(TEXT("A resource pool is of the kind pool"), Pool && KindsFor(Pool) == TArray<FString>{ TEXT("pool") });
+		TestTrue(TEXT("Another struct is plain"), Plain && KindsFor(Plain) == TArray<FString>{ TEXT("plain") });
+	}
+	{
+		// The columns of a list of structs are held to the members of its entries, as the columns of a row are.
+		auto Choice = [&AgainstCode](TFunctionRef<void(const FJsonObjectPtr&)> Change)
+		{
+			return AgainstCode([&Change](const FJsonObjectPtr& Root) { Change(At(Root, { TEXT("tables"), TEXT("DT_Encounters"), TEXT("columns"), TEXT("Choices") })); });
+		};
+		auto Member = [](const FJsonObjectPtr& Choices, const TCHAR* Name) { return Choices.IsValid() ? At(Choices, { TEXT("columns"), Name }) : FJsonObjectPtr(); };
+		Expect(TEXT("a member of an entry that the list does not declare"), Choice([](const FJsonObjectPtr& Choices)
+		{
+			if (const FJsonObjectPtr Columns = Choices.IsValid() ? ObjectOf(*Choices, TEXT("columns")) : FJsonObjectPtr())
+			{
+				Columns->RemoveField(TEXT("Difficulty"));
+			}
+		}), { TEXT("schema.DT_Encounters.Choices.Difficulty"), TEXT("does not declare it") });
+		Expect(TEXT("a column of a list that its entries do not have"), Choice([](const FJsonObjectPtr& Choices)
+		{
+			if (const FJsonObjectPtr Columns = Choices.IsValid() ? ObjectOf(*Choices, TEXT("columns")) : FJsonObjectPtr())
+			{
+				const FJsonObjectPtr Column = MakeShared<FJsonObject>();
+				Column->SetStringField(TEXT("kind"), TEXT("number"));
+				Columns->SetObjectField(TEXT("Odds"), Column);
+			}
+		}), { TEXT("schema.DT_Encounters.Choices.Odds"), TEXT("does not have") });
+		Expect(TEXT("a member of an entry under a kind that does not fit it"), Choice([&Member](const FJsonObjectPtr& Choices)
+		{
+			if (const FJsonObjectPtr Column = Member(Choices, TEXT("CheckStat")))
+			{
+				Column->SetStringField(TEXT("kind"), TEXT("row"));
+			}
+		}), { TEXT("schema.DT_Encounters.Choices.CheckStat"), TEXT("does not fit"), TEXT("(enum)") });
+		Expect(TEXT("a member of whole numbers that the list does not call integer"), Choice([&Member](const FJsonObjectPtr& Choices)
+		{
+			if (const FJsonObjectPtr Column = Member(Choices, TEXT("Difficulty")))
+			{
+				Column->RemoveField(TEXT("integer"));
+			}
+		}), { TEXT("schema.DT_Encounters.Choices.Difficulty"), TEXT("holds whole numbers") });
+		Expect(TEXT("an enum member under the name of another enum"), Choice([&Member](const FJsonObjectPtr& Choices)
+		{
+			if (const FJsonObjectPtr Column = Member(Choices, TEXT("CheckStat")))
+			{
+				Column->SetStringField(TEXT("enum"), TEXT("ECosmicEventTrigger"));
+			}
+		}), { TEXT("schema.DT_Encounters.Choices.CheckStat"), TEXT("is of the enum ECosmicCheckStat") });
+		Expect(TEXT("a list of structs that does not declare its columns"), Choice([](const FJsonObjectPtr& Choices)
+		{
+			if (Choices.IsValid())
+			{
+				Choices->RemoveField(TEXT("columns"));
+			}
+		}), { TEXT("schema.DT_Encounters.Choices"), TEXT("declares the columns of its entries") });
+		TestFalse(TEXT("The columns of the list as the schema declares them are the members of FEncounterChoice"),
+			AnyCarries(CheckSchemaAgainstCode(*Schema), { TEXT("schema.DT_Encounters.Choices.") }));
 	}
 
 	Expect(TEXT("a condition enumerator the schema does not list"), AgainstCode([](const FJsonObjectPtr& Root)
@@ -1678,6 +1811,64 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 				Column->RemoveField(TEXT("min"));
 			}
 		})), { TEXT("log_first_life.Templates"), TEXT("1 entries or more, found 0") });
+
+		// A resource pool, member by member.
+		{
+			UDataTable* Projects = CopyOf<FMegaprojectDef>(Game.Megaprojects);
+			if (const FMegaprojectDef* Settle = Game.FindMegaproject(CosmicRows::ProjectSettle))
+			{
+				FMegaprojectDef Row = *Settle;
+				Row.CostPerTick.Matter = -1.f;
+				Projects->RemoveRow(CosmicRows::ProjectSettle);
+				Projects->AddRow(CosmicRows::ProjectSettle, Row);
+			}
+			Expect(TEXT("a resource of a pool below the least of its column"), With(TEXT("DT_Megaprojects"), Projects),
+				{ TEXT("DT_Megaprojects.project_settle.CostPerTick.Matter"), TEXT("is below 0") });
+		}
+		// A list of structs, entry by entry and member by member. DT_Encounters has no asset before its first rows: a table
+		// of the test stands in for it.
+		{
+			auto WithCard = [&](TFunctionRef<void(FEncounterDef&)> Change)
+			{
+				FEncounterDef Row;
+				Row.Title = Word;
+				Row.Body = Word;
+				Row.Trigger = ECosmicEventTrigger::Standing;
+				Row.Choices.SetNum(2);
+				for (FEncounterChoice& Choice : Row.Choices)
+				{
+					Choice.Label = Word;
+					Choice.SuccessText = Word;
+				}
+				Change(Row);
+				UDataTable* Table = NewObject<UDataTable>(GetTransientPackage());
+				Table->RowStruct = FEncounterDef::StaticStruct();
+				Table->AddRow(FName(TEXT("petition_test")), Row);
+				return With(TEXT("DT_Encounters"), Table);
+			};
+			TestTrue(TEXT("A table of cards that holds the schema passes"), Report(TEXT("cards"), WithCard([](FEncounterDef&) {})));
+			TestTrue(TEXT("A choice whose next card is a row of the table passes"),
+				Report(TEXT("chained card"), WithCard([](FEncounterDef& Row) { Row.Choices[0].NextEncounter = FName(TEXT("petition_test")); })));
+			Expect(TEXT("a list of structs with a count that is none of the allowed"), WithCard([](FEncounterDef& Row) { Row.Choices.SetNum(1); }),
+				{ TEXT("DT_Encounters.petition_test.Choices"), TEXT("1 entries is none of the allowed counts") });
+			Expect(TEXT("a resource of a pool inside an entry below its least"), WithCard([](FEncounterDef& Row) { Row.Choices[1].Cost.Influence = -5.f; }),
+				{ TEXT("DT_Encounters.petition_test.Choices[1].Cost.Influence"), TEXT("is below 0") });
+			Expect(TEXT("a number inside an entry above its range"), WithCard([](FEncounterDef& Row) { Row.Choices[0].Difficulty = 17; }),
+				{ TEXT("DT_Encounters.petition_test.Choices[0].Difficulty"), TEXT("is above 16") });
+			Expect(TEXT("a row name inside an entry that names no row"), WithCard([](FEncounterDef& Row) { Row.Choices[0].NextEncounter = FName(TEXT("petition_nobody")); }),
+				{ TEXT("DT_Encounters.petition_test.Choices[0].NextEncounter"), TEXT("DT_Encounters has no row petition_nobody") });
+			FGameplayTag Gone;
+			if (const FNameProperty* NameOfTag = CastField<FNameProperty>(FGameplayTag::StaticStruct()->FindPropertyByName(TEXT("TagName"))))
+			{
+				NameOfTag->SetPropertyValue_InContainer(&Gone, FName(TEXT("Trait.NoSuchTag")));
+			}
+			Expect(TEXT("a tag in an effect inside an entry whose name the ini does not have"), WithCard([Gone](FEncounterDef& Row)
+			{
+				FCosmicEffect& Effect = Row.Choices[1].OnFailure.AddDefaulted_GetRef();
+				Effect.Type = EEffectType::AddTrait;
+				Effect.Tag = Gone;
+			}), { TEXT("DT_Encounters.petition_test.Choices[1].OnFailure[0].Tag"), TEXT("Trait.NoSuchTag is not declared") });
+		}
 	}
 
 	// The immutable laws of the loaded DT_Rules (section 4.5): exactly the five, the sanctuary's Law.Hedge among them, each a

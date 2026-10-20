@@ -144,14 +144,22 @@ COLUMN_OPTIONS = {
     "enum": {"enum": NAME},
     "conditions": {},
     "effects": {"per_tick": FLAG},
+    # A resource pool (FResourcePool): an object with every resource of the word list "resource" as a number, and no
+    # other key (the importer keeps a default for a member left out).
+    "pool": {"min": NUMBER},
+    # A list of structs (DT_Encounters.Choices): each entry an object with exactly the keys of "columns", whose specs are
+    # columns of this list, any kind but structs; each cell is checked as a column of that kind.
+    "structs": {"columns": OBJECT, "min": COUNT, "len_in": COUNTS},
 }
 COLUMN_KINDS = tuple(COLUMN_OPTIONS)
-REQUIRED_OPTIONS = {"row": ("table",), "row_map": ("table",), "rows": ("tables",), "word_map": ("words",), "enum": ("enum",)}
+REQUIRED_OPTIONS = {"row": ("table",), "row_map": ("table",), "rows": ("tables",), "word_map": ("words",), "enum": ("enum",), "structs": ("columns",)}
+# A column of a list of structs is named in a rule as "List.Column": the test has to hold for every entry of the list.
+PATH_MARK = "."
 
 # Test of a row rule -> the type of its operand.
 TESTS = {
     "is": SCALAR, "in": SCALARS, "gt": NUMBER, "ge": NUMBER, "lt": NUMBER, "le": NUMBER, "set": FLAG,
-    "min_len": COUNT, "max_len": COUNT, "each_contains": NAME, "lacks_type": NAME, "slots_in": NAMES,
+    "min_len": COUNT, "max_len": COUNT, "each_contains": NAME, "lacks_type": NAME, "has_type": NAME, "slots_in": NAMES,
     # The size of a list against other columns of the same row: at least the number in the named column; the product
     # of the two lengths at least the number in the second named column (two pools whose pairs are handed out).
     "len_ge_col": NAME, "pairs_ge_col": TWO_NAMES,
@@ -161,14 +169,15 @@ TESTS = {
 # Test -> the kinds of column it can be asked of. Asked of another kind it would never hold (or always).
 # A plain column holds a struct the checker does not read (EthicsPreset, Color, MapPosition): no test can be asked of it.
 VALUE_KINDS = ("number", "text", "tag", "row", "enum")
-SIZED_KINDS = ("numbers", "texts", "tags", "tag_list", "tag_map", "row_map", "word_map", "rows", "conditions", "effects")
+SIZED_KINDS = ("numbers", "texts", "tags", "tag_list", "tag_map", "row_map", "word_map", "rows", "conditions", "effects", "structs")
 # A pool is a list or a map; a tag container is no pool of names (its export text is a string, never held as a list).
 POOL_KINDS = tuple(kind for kind in SIZED_KINDS if kind != "tags")
 TEST_KINDS = {
     "is": VALUE_KINDS, "in": VALUE_KINDS, "gt": ("number",), "ge": ("number",), "lt": ("number",), "le": ("number",),
-    "set": tuple(kind for kind in COLUMN_KINDS if kind not in ("number", "enum", "plain")), "min_len": SIZED_KINDS, "max_len": SIZED_KINDS, "each_contains": ("texts",),
-    "lacks_type": ("conditions", "effects"), "slots_in": ("text", "texts"), "len_ge_col": POOL_KINDS, "pairs_ge_col": POOL_KINDS,
-    "contains_all": ("tags", "tag_list"),
+    # A number, an enumerator and a resource pool are always there: 'set' over them says nothing.
+    "set": tuple(kind for kind in COLUMN_KINDS if kind not in ("number", "enum", "plain", "pool")), "min_len": SIZED_KINDS, "max_len": SIZED_KINDS, "each_contains": ("texts",),
+    "lacks_type": ("conditions", "effects"), "has_type": ("conditions", "effects"), "slots_in": ("text", "texts"), "len_ge_col": POOL_KINDS,
+    "pairs_ge_col": POOL_KINDS, "contains_all": ("tags", "tag_list"),
 }
 # The kinds of the columns a test names besides its own: the number to reach, the other pool.
 NAMED_COLUMNS = {"len_ge_col": (("number",),), "pairs_ge_col": (POOL_KINDS, ("number",))}
@@ -524,9 +533,13 @@ class Checker:
                 continue
             if not isinstance(columns, dict):
                 continue
-            column_spec = columns.get(test["col"])
-            if not isinstance(column_spec, dict):
-                self.report(where, "a row test names the column %r, which %s does not declare" % (test["col"], table_name))
+            column_spec, unfit = self.column_at(columns, test["col"], table_name)
+            if unfit:
+                self.report(where, unfit)
+                continue
+            if PATH_MARK in test["col"] and name in NAMED_COLUMNS:
+                # The other columns it names are columns of the row, not of the entry: the pair would mean nothing.
+                self.report(where, "the test '%s' cannot be asked of a column of a list of structs: %s" % (name, shown))
                 continue
             kind = column_spec.get("kind")
             if kind not in TEST_KINDS[name]:
@@ -546,7 +559,7 @@ class Checker:
                     self.report(where, "a row test names %r, which is no enumerator of %s" % (value, column_spec.get("enum")))
                 if kind == "row" and value != "" and not self.row_is_known(column_spec.get("table"), value):
                     self.report(where, "a row test names the row %s, which %s neither requires nor has" % (value, column_spec.get("table")))
-            if name == "lacks_type" and operand not in self.schema[kind]:
+            if name in ("lacks_type", "has_type") and operand not in self.schema[kind]:
                 self.report(where, "a row test names %r, which is no enumerator of %s" % (operand, kind))
             if name == "contains_all":
                 for value in operand:
@@ -559,6 +572,23 @@ class Checker:
                         self.report(where, "a row test names the column %r, which %s does not declare" % (other, table_name))
                     elif other_spec.get("kind") not in kinds:
                         self.report(where, "the test '%s' needs a column of kind %s, and %s is of kind %s: %s" % (name, " or ".join(kinds), other, other_spec.get("kind"), shown))
+
+    def column_at(self, columns, name, table_name):
+        """(the spec of the column a test names, what is wrong with the name or None). 'List.Column' names a column of
+        the list of structs List; a name without the mark names a column of the row."""
+        head, mark, sub = name.partition(PATH_MARK)
+        spec = columns.get(head)
+        if not isinstance(spec, dict):
+            return None, "a row test names the column %r, which %s does not declare" % (head if mark else name, table_name)
+        if not mark:
+            return spec, None
+        inner = spec.get("columns") if spec.get("kind") == "structs" else None
+        if not isinstance(inner, dict):
+            return None, "a row test names %r, and %s is no list of structs" % (name, head)
+        sub_spec = inner.get(sub)
+        if not isinstance(sub_spec, dict):
+            return None, "a row test names the column %r, which the list %s of %s does not declare" % (sub, head, table_name)
+        return sub_spec, None
 
     def check_usage_entry(self, kind, type_name, usage):
         specs = self.schema["tables"]
@@ -587,6 +617,41 @@ class Checker:
         if said[0] != "row" and "target" in key_spec:
             self.report(where + ".key", "a target needs a row of a table to look at")
 
+    def check_column_spec(self, where, column_spec, in_list=False):
+        """One column of a table, or (in_list) of a list of structs: a known kind, its options typed, the names it leans
+        on existing. The columns of a list of structs are checked the same way, one level down only."""
+        specs = self.schema["tables"]
+        if not isinstance(column_spec, dict) or not isinstance(column_spec.get("kind"), str):
+            self.report(where, "expected an object with a kind, found %r" % (column_spec,))
+            return
+        kind = column_spec["kind"]
+        if kind not in COLUMN_KINDS:
+            self.report(where, "a kind this checker does not know: %r" % (kind,))
+            return
+        if in_list and kind == "structs":
+            self.report(where, "a list of structs holds no list of structs")
+            return
+        if not self.typed(where, column_spec, dict(COLUMN_OPTIONS[kind], kind=NAME), REQUIRED_OPTIONS.get(kind, ())):
+            return
+        if "table" in column_spec and column_spec["table"] not in specs:
+            self.report(where, "the table %r is not in the schema" % (column_spec["table"],))
+        elif "target" in column_spec:
+            # The tests of a target read the rows of the table the column points at.
+            self.check_tests(where, column_spec["target"], column_spec["table"])
+        for listed in (column_spec.get("tables") if kind == "rows" else []):
+            if listed not in specs:
+                self.report(where, "the table %r is not in the schema" % (listed,))
+        if kind == "word_map" and column_spec["words"] not in self.schema["words"]:
+            self.report(where, "the word list %r is not in the schema" % (column_spec["words"],))
+        if "forbidden" in column_spec and column_spec["forbidden"] not in self.schema["words"]:
+            self.report(where, "the word list %r is not in the schema" % (column_spec["forbidden"],))
+        if kind == "enum" and column_spec["enum"] not in self.schema["enums"]:
+            self.report(where, "the enum %r is not in the schema" % (column_spec["enum"],))
+        if kind == "pool" and "resource" not in self.schema["words"]:
+            self.report(where, "a resource pool holds the words of the list 'resource', which the schema does not have")
+        for column, inner in (column_spec["columns"].items() if kind == "structs" else []):
+            self.check_column_spec("%s.%s" % (where, column), inner, in_list=True)
+
     def check_table_spec(self, table_name, spec):
         specs = self.schema["tables"]
         here = "schema.%s" % table_name
@@ -602,30 +667,7 @@ class Checker:
                     self.report(here, "the required row %s does not carry a name this table allows" % row_name)
         columns = spec["columns"] or {}
         for column, column_spec in columns.items():
-            where = "%s.%s" % (here, column)
-            if not isinstance(column_spec, dict) or not isinstance(column_spec.get("kind"), str):
-                self.report(where, "expected an object with a kind, found %r" % (column_spec,))
-                continue
-            kind = column_spec["kind"]
-            if kind not in COLUMN_KINDS:
-                self.report(where, "a kind this checker does not know: %r" % (kind,))
-                continue
-            if not self.typed(where, column_spec, dict(COLUMN_OPTIONS[kind], kind=NAME), REQUIRED_OPTIONS.get(kind, ())):
-                continue
-            if "table" in column_spec and column_spec["table"] not in specs:
-                self.report(where, "the table %r is not in the schema" % (column_spec["table"],))
-            elif "target" in column_spec:
-                # The tests of a target read the rows of the table the column points at.
-                self.check_tests(where, column_spec["target"], column_spec["table"])
-            for listed in (column_spec.get("tables") if kind == "rows" else []):
-                if listed not in specs:
-                    self.report(where, "the table %r is not in the schema" % (listed,))
-            if kind == "word_map" and column_spec["words"] not in self.schema["words"]:
-                self.report(where, "the word list %r is not in the schema" % (column_spec["words"],))
-            if "forbidden" in column_spec and column_spec["forbidden"] not in self.schema["words"]:
-                self.report(where, "the word list %r is not in the schema" % (column_spec["forbidden"],))
-            if kind == "enum" and column_spec["enum"] not in self.schema["enums"]:
-                self.report(where, "the enum %r is not in the schema" % (column_spec["enum"],))
+            self.check_column_spec("%s.%s" % (here, column), column_spec)
         for list_name in RULE_KEYS:
             for entry in spec.get(list_name, []):
                 if not self.typed("%s.%s" % (here, list_name), entry, RULE_KEYS[list_name], RULE_REQUIRED[list_name]):
@@ -940,6 +982,42 @@ class Checker:
                 return
             for index, item in enumerate(value):
                 self.check_usage("%s[%d]" % (where, index), kind, item, bool(spec.get("per_tick")))
+        elif kind == "pool":
+            members = self.schema["words"].get("resource", [])
+            if not isinstance(value, dict):
+                self.report(where, "expected an object with a number for each of %s, found %r" % (", ".join(members), value))
+                return
+            # Every member and no other, as with a condition: the importer keeps a default for one left out.
+            for member in sorted(set(value) - set(members)):
+                self.report("%s.%s" % (where, member), "a resource pool has no member %s" % member)
+            for member in members:
+                if member not in value:
+                    self.report("%s.%s" % (where, member), "the member is missing")
+                else:
+                    self.check_number("%s.%s" % (where, member), value[member], spec)
+        elif kind == "structs":
+            if not isinstance(value, list):
+                self.report(where, "expected a list of objects, found %r" % (value,))
+                return
+            count = len(value)
+            if "min" in spec and count < spec["min"]:
+                self.report(where, "expected %d entries or more, found %d" % (spec["min"], count))
+            if "len_in" in spec and count not in spec["len_in"]:
+                self.report(where, "expected %s entries, found %d" % (" or ".join(str(n) for n in spec["len_in"]), count))
+            columns = spec["columns"]
+            for index, item in enumerate(value):
+                here = "%s[%d]" % (where, index)
+                if not isinstance(item, dict):
+                    self.report(here, "expected an object, found %r" % (item,))
+                    continue
+                # Every member of the struct, and no other: a member left out would keep its default in silence.
+                for member in sorted(set(item) - set(columns)):
+                    self.report("%s.%s" % (here, member), "the struct has no member %s" % member)
+                for column, column_spec in columns.items():
+                    if column not in item:
+                        self.report("%s.%s" % (here, column), "the member is missing")
+                    else:
+                        self.check_column("%s.%s" % (here, column), item[column], column_spec, row_name)
 
     # ---- row rules ----
 
@@ -947,6 +1025,12 @@ class Checker:
         """One test of a row rule (check_schema has made sure it is one this file knows)."""
         if "row" in test:
             return row_name == test["row"]
+        head, mark, sub = test["col"].partition(PATH_MARK)
+        if mark:
+            # A column of a list of structs: the test holds for every entry (and so for an empty list).
+            items = row.get(head)
+            inner = dict(test, col=sub)
+            return isinstance(items, list) and all(isinstance(item, dict) and self.holds(inner, item, row_name) for item in items)
         name = [key for key in TESTS if key in test][0]
         operand = test[name]
         value = row.get(test["col"])
@@ -970,6 +1054,9 @@ class Checker:
         if name == "lacks_type":
             # A list of conditions or effects without one of the named enumerator.
             return isinstance(value, list) and all(not (isinstance(item, dict) and item.get("Type") == operand) for item in value)
+        if name == "has_type":
+            # A list of conditions or effects with one of the named enumerator, at least.
+            return isinstance(value, list) and any(isinstance(item, dict) and item.get("Type") == operand for item in value)
         if name == "contains_all":
             if isinstance(value, str):
                 held = TAG_NAME.findall(value)

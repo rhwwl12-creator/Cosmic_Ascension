@@ -5,8 +5,8 @@ Cosmic Ascension - data layer helper (guideline.md section 7.3, 9.3 Data.Integri
   python Tools/test_data_schema.py
 
 The base of every case is the data of the project itself under the schema of the project (it has to pass), with the
-rows of five tables built here instead: DT_Events, DT_Transcendents, DT_Hazards, DT_Megaprojects and DT_Feats, whose rows the
-cases read cell by cell (the project's rows are replaced on purpose). A case changes one thing and names the words the report
+rows of six tables built here instead: DT_Events, DT_Transcendents, DT_Hazards, DT_Megaprojects, DT_Feats and DT_Encounters,
+whose rows the cases read cell by cell (the project's rows are replaced on purpose). A case changes one thing and names the words the report
 has to carry.
 
 The last block walks the schema of the project: every rule, every unique, every pair, every target and every slot list
@@ -163,6 +163,40 @@ def megaproject_row(name="project_test_build", **changes):
     return row
 
 
+def choice(label="Hold.", **changes):
+    """One entry of DT_Encounters.Choices: every member of FEncounterChoice."""
+    entry = {
+        "Label": label,
+        "CheckStat": "NoCheck",
+        "Difficulty": 0,
+        "Cost": {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 0.0, "Causality": 0.0},
+        "OnSuccess": [eff("ChangeStability", value=0.05)],
+        "OnFailure": [],
+        "SuccessText": "{Civ} held.",
+        "FailureText": "",
+        "NextEncounter": "",
+    }
+    entry.update(changes)
+    return entry
+
+
+def encounter_row(name="petition_test_plea", **changes):
+    row = {
+        "Name": name,
+        "Title": "plea",
+        "Body": "{Civ} asks.",
+        "Conditions": [cond("PlayerRoleIs", key="Ruler")],
+        "BaseWeight": 1.0,
+        "Choices": [choice(), choice("Wait.", SuccessText="{Civ} waited.")],
+        "Illustration": "",
+        "Trigger": "Standing",
+        "Subject": "Civilization",
+        "VoiceBodies": [],
+    }
+    row.update(changes)
+    return row
+
+
 def paths_of(node, here=()):
     """Every path to a node below node: keys of objects and indices of lists."""
     if isinstance(node, dict):
@@ -199,8 +233,8 @@ def civ_row(base, name, **cells):
 
 def fixture_tables(schema, tables):
     """The tables every case starts from: the sources of the project, with fixture rows for DT_Events, DT_Transcendents,
-    DT_Hazards, DT_Megaprojects and DT_Feats (their project rows are replaced on purpose: the cases read the cells of the
-    rows they build). A row the code calls by name has to be in its table, so the event and project fixtures get one valid
+    DT_Hazards, DT_Megaprojects, DT_Feats and DT_Encounters (their project rows are replaced on purpose: the cases read the
+    cells of the rows they build). A row the code calls by name has to be in its table, so the event and project fixtures get one valid
     row for each name the schema requires (an event fired by name: no rule about slot rows speaks of it), and one outbreak
     row (fired by name about a place, as a hazard's OutbreakRow has to be)."""
     tables = copy.deepcopy(tables)
@@ -213,6 +247,7 @@ def fixture_tables(schema, tables):
     tables["DT_Hazards"] = [hazard_row()]
     tables["DT_Megaprojects"] = [megaproject_row()] + [megaproject_row(name) for name in schema["tables"]["DT_Megaprojects"].get("required_rows", [])]
     tables["DT_Feats"] = [feat_row()]
+    tables["DT_Encounters"] = [encounter_row()] + [encounter_row(name) for name in schema["tables"]["DT_Encounters"].get("required_rows", [])]
     return tables
 
 
@@ -279,6 +314,30 @@ class SchemaTests(unittest.TestCase):
                 node = node[step]
             del node[key]
         return apply
+
+    def columns_of(self, takes):
+        """(table, column, spec) of every column of the schema that takes() accepts, in order; a column of a list of
+        structs as 'List.Column'."""
+        found = []
+        for table, table_spec in sorted(self.schema["tables"].items()):
+            for column, spec in sorted((table_spec.get("columns") or {}).items()):
+                if spec.get("kind") == "structs":
+                    found.extend((table, "%s.%s" % (column, inner), inner_spec) for inner, inner_spec in sorted(spec["columns"].items()) if takes(inner_spec))
+                elif takes(spec):
+                    found.append((table, column, spec))
+        return found
+
+    def set_path(self, table, name, path, value):
+        """(a change of one cell, where its problems are said): for 'List.Column' the cell of the first entry."""
+        head, mark, sub = path.partition(".")
+
+        def change(tables):
+            row = self.row(tables, table, name)
+            if mark:
+                row[head][0][sub] = value
+            else:
+                row[head] = value
+        return change, "%s.%s.%s" % (table, name, "%s[0].%s" % (head, sub) if mark else head)
 
     def schema_problem(self, schema_change, *words):
         """A change of the schema is a problem line, and the data is then not looked at."""
@@ -534,7 +593,9 @@ class SchemaTests(unittest.TestCase):
 
     def test_tables(self):
         self.expect(self.after(lambda tables: tables.pop("DT_Rules")), "DT_Rules.json is missing")
-        self.expect(self.after(lambda tables: tables.update(DT_Encounters=[])), "DT_Encounters", "declares no columns")
+        later = lambda schema: schema["tables"].update(DT_Later={"struct": "LaterDef", "prefixes": ["later_"], "columns": None})  # noqa: E731
+        self.expect(self.after(lambda tables: tables.update(DT_Later=[]), later), "DT_Later", "declares no columns")
+        self.assertEqual(self.after(NOTHING, later), [])
         self.expect(self.after(lambda tables: tables.update(DT_Nobody=[])), "DT_Nobody", "does not declare this table")
         self.expect(self.after(lambda tables: tables.update(DT_Events=[transcendent_row("event_wrong")])), "does not declare this column")
         # A table that need not exist may be absent; one that has to exist may not. The flag is set here, so the case
@@ -1053,18 +1114,18 @@ class SchemaTests(unittest.TestCase):
             line = next(each for each in claude if "\ud310\uc815 \uc5b4\ud718(" in each)
         listed = line.split("\ud310\uc815 \uc5b4\ud718(", 1)[1].split(")", 1)[0].split("\u00b7")
         self.assertEqual(verdict, listed)
-        columns = [(table, column, spec) for table, table_spec in sorted(self.schema["tables"].items())
-                   for column, spec in sorted((table_spec.get("columns") or {}).items()) if spec.get("forbidden") == "verdict"]
-        # Every column that refuses the words: the narrator's lines, the names that fill their slots, the name pools and the
-        # title of a transcendent (the spiritual sight's line and tooltip, the log's {Transcendent} slot).
-        self.assertEqual(len(columns), 24, [table + "." + column for table, column, spec in columns])
+        columns = self.columns_of(lambda spec: spec.get("forbidden") == "verdict")
+        # Every column that refuses the words: the narrator's lines, the names that fill their slots, the name pools, the
+        # title of a transcendent (the spiritual sight's line and tooltip, the log's {Transcendent} slot) and the texts of a
+        # card (its title, its bodies, and the label and the outcome lines of each choice).
+        self.assertEqual(len(columns), 30, [table + "." + column for table, column, spec in columns])
         for table, column, spec in columns:
             row_name = self.tables[table][0]["Name"]
             for word in verdict:
                 with self.subTest(table=table, column=column, word=word):
                     value = "%s a." % word if spec["kind"] == "text" else ["%s a." % word]
-                    self.expect(self.after(self.set_cell(table, row_name, column, value)), "%s.%s.%s" % (table, row_name, column),
-                                "the word %s is not used here" % word)
+                    change, where = self.set_path(table, row_name, column, value)
+                    self.expect(self.after(change), where, "the word %s is not used here" % word)
         # The list is named, not copied: a column that names a list the schema does not hold is a problem of the schema.
         self.expect(self.after(NOTHING, self.put(["tables", "DT_Events", "columns", "LogTemplates"], "forbidden", "verdicts")),
                     "the word list 'verdicts' is not in the schema")
@@ -1514,7 +1575,8 @@ class SchemaTests(unittest.TestCase):
                            ({"col": "Weight", "slots_in": ["Star"]}, "number"),
                            ({"col": "Weight", "set": False}, "number"),
                            ({"col": "RevelationMode", "contains_all": ["Revelation.Book"]}, "tag"),
-                           ({"col": "NameBank", "contains_all": ["union"]}, "texts")):
+                           ({"col": "NameBank", "contains_all": ["union"]}, "texts"),
+                           ({"col": "NameBank", "has_type": "PlayerRoleIs"}, "texts")):
             with self.subTest(test=test):
                 self.schema_problem(self.put(rule, "when", [test]), "schema.DT_Civs", cannot, kind)
         # A list of row names: 'is' and 'in' over it never hold, so a rule asking them would be off for good.
@@ -1530,8 +1592,10 @@ class SchemaTests(unittest.TestCase):
                 said = [line for line in self.after(NOTHING, self.put(hazard_rule, "when", [test])) if line.startswith("schema.")]
                 self.assertEqual(said, [])
         self.schema_problem(self.put(["tables", "DT_Events", "rules", 0], "when", [{"col": "Trigger", "gt": 1}]), "schema.DT_Events", cannot, "enum")
-        # A number and an enumerator are always there: 'set' over them says nothing.
+        # A number, an enumerator and a resource pool are always there: 'set' over them says nothing.
         self.schema_problem(self.put(["tables", "DT_Events", "rules", 0], "when", [{"col": "Trigger", "set": True}]), "schema.DT_Events", cannot, "enum")
+        self.schema_problem(self.put(["tables", "DT_Megaprojects"], "rules", [{"why": "w", "when": [{"col": "CostPerTick", "set": True}], "then": []}]),
+                            "schema.DT_Megaprojects", cannot, "pool")
         self.assertEqual(self.after(NOTHING, self.put(rule, "when", [{"col": "DisplayName", "set": True}, {"col": "Weight", "gt": 0}])), [])
 
     def test_the_operand_of_a_test_has_its_type(self):
@@ -1553,6 +1617,8 @@ class SchemaTests(unittest.TestCase):
                 self.schema_problem(self.put(rule, "when", [test]), "schema.DT_Civs", words)
         self.schema_problem(self.put(["tables", "DT_Events", "rules", 0], "then", [{"col": "Effects", "lacks_type": ["NameNotable"]}]),
                             "schema.DT_Events", "the test 'lacks_type' needs a string")
+        self.schema_problem(self.put(["tables", "DT_Encounters", "rules", 0], "then", [{"col": "Conditions", "has_type": ["PlayerRoleIs"]}]),
+                            "schema.DT_Encounters", "the test 'has_type' needs a string")
         # A number is compared with numbers, a name with names.
         for test, words in (({"col": "Weight", "is": "0"}, "over a column of kind number needs numbers"),
                             ({"col": "Weight", "is": True}, "over a column of kind number needs numbers"),
@@ -1592,6 +1658,102 @@ class SchemaTests(unittest.TestCase):
                         self.fail("%s%r %s raised %r" % (name, path, "taken out" if delete else "= %r" % (value,), error))
                     self.assertIsInstance(problems, list)
 
+    # ---- lists of structs and resource pools ----
+
+    def test_a_list_of_structs(self):
+        """DT_Encounters.Choices: each entry an object with exactly the columns of the list, each cell checked as a column
+        of its kind (a member left out of a source would keep its C++ default in silence)."""
+        plea = "petition_test_plea"
+        choices = lambda value: self.set_cell("DT_Encounters", plea, "Choices", value)  # noqa: E731
+        good = self.row(self.tables, "DT_Encounters", plea)["Choices"]
+        self.assertEqual(self.after(choices(good + [choice("Third.")])), [])
+        self.expect(self.after(choices(good[:1])), "DT_Encounters.petition_test_plea.Choices", "expected 2 or 3 entries, found 1")
+        self.expect(self.after(choices(good + [choice("c."), choice("d.")])), "Choices", "expected 2 or 3 entries, found 4")
+        self.expect(self.after(choices("two")), "Choices", "expected a list of objects")
+        self.expect(self.after(choices([good[0], "x"])), "Choices[1]", "expected an object")
+        missing = {key: value for key, value in good[0].items() if key != "Difficulty"}
+        self.expect(self.after(choices([missing, good[1]])), "Choices[0].Difficulty", "the member is missing")
+        self.expect(self.after(choices([dict(good[0], Difficulti=1), good[1]])), "Choices[0].Difficulti", "the struct has no member Difficulti")
+        # Each cell as a column of its kind.
+        entry = lambda **changes: choices([dict(good[0], **changes), good[1]])  # noqa: E731
+        self.expect(self.after(entry(Label="")), "Choices[0].Label", "a text is required")
+        self.expect(self.after(entry(Label="{Player} rose.")), "Choices[0].Label", "slot {Player} is not filled here")
+        self.expect(self.after(entry(Label="영혼 a.")), "Choices[0].Label", "the word 영혼 is not used here")
+        self.expect(self.after(entry(Label="3 a.")), "Choices[0].Label", "a digit")
+        self.expect(self.after(entry(CheckStat="Influence")), "Choices[0].CheckStat", "'Influence' is no enumerator of ECosmicCheckStat")
+        self.expect(self.after(entry(Difficulty=17)), "Choices[0].Difficulty", "is above 16")
+        self.expect(self.after(entry(Difficulty=2.5)), "Choices[0].Difficulty", "not a whole number")
+        self.expect(self.after(entry(OnFailure=[eff("ChangeStability", value=-3)])), "Choices[0].OnFailure[0](ChangeStability).Value", "is below -1")
+        self.expect(self.after(entry(OnSuccess=[eff("AddTrait", tag="Trait.Nobody")])), "Choices[0].OnSuccess[0](AddTrait).Tag", "not declared")
+        self.expect(self.after(entry(NextEncounter="petition_nobody")), "Choices[0].NextEncounter", "DT_Encounters has no row petition_nobody")
+        self.assertEqual(self.after(entry(NextEncounter=plea)), [])
+        # The schema side: a list of structs declares its columns, holds no list of structs, and its columns are columns.
+        column = ["tables", "DT_Encounters", "columns", "Choices"]
+        self.schema_problem(self.drop(column, "columns"), "schema.DT_Encounters.Choices", "'columns' is missing")
+        self.schema_problem(self.put(column, "columns", []), "schema.DT_Encounters.Choices", "'columns' has to be an object")
+        self.schema_problem(self.put(column, "len_in", 3), "schema.DT_Encounters.Choices", "'len_in' has to be a list of whole numbers")
+        self.schema_problem(self.put(column, "slots", ["Civ"]), "schema.DT_Encounters.Choices", "'slots' is not read here")
+        self.schema_problem(self.put(column + ["columns"], "Inner", {"kind": "structs", "columns": {}}), "schema.DT_Encounters.Choices.Inner", "a list of structs holds no list of structs")
+        self.schema_problem(self.put(column + ["columns"], "Label", {"kind": "riddle"}), "schema.DT_Encounters.Choices.Label", "a kind this checker does not know")
+        self.schema_problem(self.put(column + ["columns", "NextEncounter"], "table", "DT_Nowhere"), "schema.DT_Encounters.Choices.NextEncounter", "the table 'DT_Nowhere' is not in the schema")
+        self.schema_problem(self.put(column + ["columns", "Label"], "forbidden", "verdicts"), "schema.DT_Encounters.Choices.Label", "the word list 'verdicts' is not in the schema")
+        self.schema_problem(self.put(column + ["columns", "CheckStat"], "enum", "ECheck"), "schema.DT_Encounters.Choices.CheckStat", "the enum 'ECheck' is not in the schema")
+
+    def test_a_resource_pool(self):
+        """A resource pool (the cost of a choice, the cost per tick of a project): every resource as a number, no other
+        key, none below the least the column states."""
+        build = lambda value: self.set_cell("DT_Megaprojects", "project_test_build", "CostPerTick", value)  # noqa: E731
+        full = {"Energy": 1.0, "Matter": 0.0, "Insight": 0.0, "Influence": 0.0, "Causality": 0.0}
+        self.assertEqual(self.after(build(full)), [])
+        self.expect(self.after(build(dict(full, Matter=-1.0))), "project_test_build.CostPerTick.Matter", "is below 0")
+        self.expect(self.after(build({key: value for key, value in full.items() if key != "Causality"})), "CostPerTick.Causality", "the member is missing")
+        self.expect(self.after(build(dict(full, Gold=1.0))), "CostPerTick.Gold", "a resource pool has no member Gold")
+        self.expect(self.after(build(dict(full, Energy="1"))), "CostPerTick.Energy", "finite number")
+        self.expect(self.after(build([1, 0, 0, 0, 0])), "CostPerTick", "expected an object with a number for each of Energy")
+        good = self.row(self.tables, "DT_Encounters", "petition_test_plea")["Choices"]
+        priced = [dict(good[0], Cost=dict(full, Influence=-5.0)), good[1]]
+        self.expect(self.after(self.set_cell("DT_Encounters", "petition_test_plea", "Choices", priced)), "Choices[0].Cost.Influence", "is below 0")
+        self.schema_problem(self.put(["tables", "DT_Megaprojects", "columns", "CostPerTick"], "max", 5), "schema.DT_Megaprojects.CostPerTick", "'max' is not read here")
+        self.schema_problem(self.drop(["words"], "resource"), "a resource pool holds the words of the list 'resource'")
+
+    def test_a_rule_reaches_into_a_list_of_structs(self):
+        rules = ["tables", "DT_Encounters", "rules"]
+        rule = lambda *tests: self.put(rules, 0, {"why": "w", "then": list(tests)})  # noqa: E731
+        self.schema_problem(rule({"col": "Choices.Lable", "set": True}), "schema.DT_Encounters", "names the column 'Lable', which the list Choices of DT_Encounters does not declare")
+        self.schema_problem(rule({"col": "Choises.Label", "set": True}), "schema.DT_Encounters", "names the column 'Choises', which DT_Encounters does not declare")
+        self.schema_problem(rule({"col": "Title.Label", "set": True}), "schema.DT_Encounters", "names 'Title.Label', and Title is no list of structs")
+        self.schema_problem(rule({"col": "Choices.Label", "len_ge_col": "BaseWeight"}), "schema.DT_Encounters", "the test 'len_ge_col' cannot be asked of a column of a list of structs")
+        self.schema_problem(rule({"col": "Choices.Difficulty", "set": True}), "schema.DT_Encounters", "cannot be asked of a column of kind number")
+        self.schema_problem(rule({"col": "Choices.CheckStat", "is": "Influence"}), "schema.DT_Encounters", "'Influence', which is no enumerator of ECosmicCheckStat")
+        self.assertEqual(self.after(NOTHING, rule({"col": "Choices.CheckStat", "in": ["NoCheck", "Stability"]})), [])
+        # The test holds for every entry: one entry that breaks it breaks the rule, and an empty list holds it.
+        holds = checker.Checker(self.schema, self.tables, self.tags).holds
+        test = {"col": "Choices.Difficulty", "le": 5}
+        self.assertTrue(holds(test, {"Choices": [{"Difficulty": 1}, {"Difficulty": 5}]}, "r"))
+        self.assertFalse(holds(test, {"Choices": [{"Difficulty": 1}, {"Difficulty": 6}]}, "r"))
+        self.assertTrue(holds(test, {"Choices": []}, "r"))
+        for wrong in ({"Choices": "x"}, {"Choices": [5]}, {}):
+            with self.subTest(row=wrong):
+                self.assertFalse(holds(test, wrong, "r"))
+        # In the data: a then over a column of the list, broken in the second entry only.
+        good = self.row(self.tables, "DT_Encounters", "petition_test_plea")["Choices"]
+        second = self.set_cell("DT_Encounters", "petition_test_plea", "Choices", [good[0], dict(good[1], OnFailure=[eff("KillPlayer", tag="Death.Encounter")])])
+        self.expect(self.after(second), "DT_Encounters.petition_test_plea", "a card records no death", "Choices.OnFailure")
+
+    def test_has_type(self):
+        holds = checker.Checker(self.schema, self.tables, self.tags).holds
+        test = {"col": "C", "has_type": "PlayerRoleIs"}
+        self.assertTrue(holds(test, {"C": [cond("GalaxyTickAtLeast"), cond("PlayerRoleIs", key="Ruler")]}, "r"))
+        for wrong in ([cond("GalaxyTickAtLeast")], [], "PlayerRoleIs", [5], None):
+            with self.subTest(cell=wrong):
+                self.assertFalse(holds(test, {"C": wrong}, "r"))
+        self.expect(self.after(self.set_cell("DT_Encounters", "petition_test_plea", "Conditions", [cond("GalaxyTickAtLeast", value=30)])),
+                    "DT_Encounters.petition_test_plea", "a petition is put before a ruler")
+        self.schema_problem(self.put(["tables", "DT_Encounters", "rules", 0], "then", [{"col": "Conditions", "has_type": "PlayerRoleIz"}]),
+                            "schema.DT_Encounters", "'PlayerRoleIz', which is no enumerator of conditions")
+        self.schema_problem(self.put(["tables", "DT_Encounters", "rules", 0], "then", [{"col": "Conditions", "has_type": "SetFlag"}]),
+                            "schema.DT_Encounters", "'SetFlag', which is no enumerator of conditions")
+
     # ---- every rule of the schema of the project ----
 
     def sample(self, kind, count):
@@ -1607,9 +1769,18 @@ class SchemaTests(unittest.TestCase):
         self.fail("the walker has no sample for a column of kind %s: add one" % kind)
 
     def violate(self, schema, table, test, row):
-        """Change row so that test no longer holds, by the kind of its column."""
+        """Change row so that test no longer holds, by the kind of its column. A test over a column of a list of structs
+        ('List.Column') is broken in the first entry of the list."""
+        columns = schema["tables"][table]["columns"]
+        head, mark, sub = test["col"].partition(".")
+        if mark:
+            self.violate_in(schema, columns[head]["columns"], dict(test, col=sub), row[head][0])
+        else:
+            self.violate_in(schema, columns, test, row)
+
+    def violate_in(self, schema, columns, test, row):
         column = test["col"]
-        spec = schema["tables"][table]["columns"][column]
+        spec = columns[column]
         kind = spec["kind"]
         name = next(key for key in test if key != "col")
         operand = test[name]
@@ -1639,8 +1810,12 @@ class SchemaTests(unittest.TestCase):
             row[column] = ["nothing of the kind"]
         elif name == "lacks_type":
             row[column] = list(row[column]) + [cond(operand) if kind == "conditions" else eff(operand)]
+        elif name == "has_type":
+            row[column] = [item for item in row[column] if item.get("Type") != operand]
         elif name == "set" and operand is True:
             row[column] = ""
+        elif name == "set" and operand is False and kind == "text":
+            row[column] = "a."
         elif name == "set" and operand is False and kind == "row":
             # A row of the column's table that answers the column's own target, so that only the rule is broken.
             target = spec.get("target", [])
@@ -1684,6 +1859,8 @@ class SchemaTests(unittest.TestCase):
         update_hazard = lambda **changes: (lambda tables: self.row(tables, "DT_Hazards", hazard).update(**changes))  # noqa: E731
         named = update_event(Trigger="Named", BaseWeight=0, CooldownTicks=0, LogTemplates=["one."])
         update_feat = lambda **changes: (lambda tables: self.row(tables, "DT_Feats", "feat_test_climb").update(**changes))  # noqa: E731
+        plea = "petition_test_plea"
+        update_plea = lambda **changes: (lambda tables: self.row(tables, "DT_Encounters", plea).update(**changes))  # noqa: E731
         return {
             ("DT_LogTemplates", "the calling's own line is told whatever its subject, and no tier window hides it: a line of the calling that waits for a tier is an event row with its sign row (guideline 8.1)"):
                 (NOTHING, "log_first_life"),
@@ -1759,6 +1936,15 @@ class SchemaTests(unittest.TestCase):
             ("DT_Transcendents", "the roster of NewGalaxy draws fallen rows only"): (self.add_independent_row, "trans_stillness"),
             ("DT_Transcendents", "a fallen one is named by its title, never a name: the spiritual sight's line and tooltip and the log's {Transcendent} slot read it (guideline 4.2, 6.4, 8.2)"): (NOTHING, "trans_silence"),
             ("DT_Galaxies", "a galaxy other than the home holds no peoples, no brake, no home share and no name pools (guideline 5.11 '고향이 아닌 행의 이 네 값은 0')"): (NOTHING, "gal_m87"),
+            ("DT_Encounters", "a petition is put before a ruler: every row carries the condition PlayerRoleIs (guideline 5.10)"): (NOTHING, plea),
+            ("DT_Encounters", "a card records no death (the death pipeline of Phase 4b) and runs no per-tick effect; the effects that grant, place, take or name wait for the rows that use them (guideline 5.10, 7.4)"):
+                (NOTHING, plea),
+            ("DT_Encounters", "the subject system of a card is the system it names: a Civilization row is about the people alone and names no system (guideline 8.1)"): (NOTHING, plea),
+            ("DT_Encounters", "a row the knowing stage puts is picked by its weight among the rows of its moment (guideline 5.10)"): (NOTHING, plea),
+            ("DT_Encounters", "a row put by name (the next card of a chain) is never picked: it has no weight"): (update_plea(Trigger="Named", BaseWeight=0), plea),
+            ("DT_Encounters", "a card without voices speaks through its Body"): (NOTHING, plea),
+            ("DT_Encounters", "a voiced card speaks through its two voices, the council's and the elders' of the congregation, and its Body stays empty (guideline 5.10)"):
+                (update_plea(VoiceBodies=["{Civ} council.", "{Civ} elders."], Body=""), plea),
         }
 
     def test_every_rule_of_the_schema_can_fail(self):
@@ -1777,7 +1963,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 101, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 124, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 
@@ -1862,16 +2048,14 @@ class SchemaTests(unittest.TestCase):
 
     def test_every_slot_list_of_the_schema_can_fail(self):
         walked = 0
-        for table, spec in self.schema["tables"].items():
-            for column, column_spec in (spec["columns"] or {}).items():
-                if "slots" not in column_spec:
-                    continue
-                row_name = self.tables[table][0]["Name"]
-                value = "{NoSuchSlot}" if column_spec["kind"] == "text" else ["{NoSuchSlot} a.", "b.", "c."]
-                with self.subTest(table=table, column=column):
-                    self.expect(self.after(self.set_cell(table, row_name, column, value)), "%s.%s.%s" % (table, row_name, column), "slot {NoSuchSlot}")
-                    walked += 1
-        self.assertEqual(walked, 20, "the number of slot lists in schema.json changed: look at what was added or taken out, then set the count")
+        for table, column, column_spec in self.columns_of(lambda spec: "slots" in spec):
+            row_name = self.tables[table][0]["Name"]
+            value = "{NoSuchSlot}" if column_spec["kind"] == "text" else ["{NoSuchSlot} a.", "b.", "c."]
+            with self.subTest(table=table, column=column):
+                change, where = self.set_path(table, row_name, column, value)
+                self.expect(self.after(change), where, "slot {NoSuchSlot}")
+                walked += 1
+        self.assertEqual(walked, 26, "the number of slot lists in schema.json changed: look at what was added or taken out, then set the count")
 
 
 if __name__ == "__main__":

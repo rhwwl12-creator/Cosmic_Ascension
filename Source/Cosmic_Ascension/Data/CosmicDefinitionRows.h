@@ -323,6 +323,23 @@ struct COSMIC_ASCENSION_API FMegaprojectDef : public FTableRowBase
 	TArray<FText> CompleteTemplates;
 };
 
+/**
+ * What a choice of a card is checked on (section 5.9, 5.10). A definition enum: data rows hold it, no save does. Append
+ * only. The vessel's stats are 0..10; Stability reads the ruled people's Stability (0..1) as (int32)(Stability * 10), so
+ * it takes part in the same check (section 16 #30 (1)). Influence is never a check: a petition spends it as a cost.
+ */
+UENUM(BlueprintType)
+enum class ECosmicCheckStat : uint8
+{
+	// No check: the choice always succeeds. (Not "None": the data spells an empty name that way.)
+	NoCheck,
+	Body,
+	Mind,
+	Causality,
+	Exaltation,
+	Stability
+};
+
 /** One choice of an encounter or petition card. Check: stat + Rng 0..5 >= Difficulty (section 5.9). */
 USTRUCT(BlueprintType)
 struct COSMIC_ASCENSION_API FEncounterChoice
@@ -332,9 +349,8 @@ struct COSMIC_ASCENSION_API FEncounterChoice
 	UPROPERTY(EditAnywhere)
 	FText Label;
 
-	// Body / Mind / Causality / Exaltation / None. Petitions also allow Stability / Influence (section 5.10).
 	UPROPERTY(EditAnywhere)
-	FName CheckStat;
+	ECosmicCheckStat CheckStat = ECosmicCheckStat::NoCheck;
 
 	// >= 16 = an impossible choice (pressure gate, section 4.2).
 	UPROPERTY(EditAnywhere)
@@ -362,7 +378,10 @@ struct COSMIC_ASCENSION_API FEncounterChoice
 	FName NextEncounter;
 };
 
-/** DT_Encounters row. Wanderer encounters and ruler petitions share it (petition = condition PlayerRoleIs Ruler). */
+/**
+ * DT_Encounters row. Wanderer encounters and ruler petitions share it (petition = condition PlayerRoleIs Ruler). Texts:
+ * slots {Civ} {System} {Hazard} {Rebel}; a Civilization row names no system (schema).
+ */
 USTRUCT(BlueprintType)
 struct COSMIC_ASCENSION_API FEncounterDef : public FTableRowBase
 {
@@ -371,22 +390,42 @@ struct COSMIC_ASCENSION_API FEncounterDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	FText Title;
 
+	// The card's text when it has no voices (VoiceBodies empty); empty when it has them (schema).
 	UPROPERTY(EditAnywhere)
 	FText Body;
 
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicCondition> Conditions;
 
+	// The pick among the rows of one moment (Lottery, Standing); 0 for a Named row (schema).
 	UPROPERTY(EditAnywhere)
 	float BaseWeight = 1.f;
 
-	// Two or three.
+	// Two or three. Localization keys are positions: a choice is only ever appended (section 8.5).
 	UPROPERTY(EditAnywhere)
 	TArray<FEncounterChoice> Choices;
 
 	// Optional.
 	UPROPERTY(EditAnywhere)
 	TSoftObjectPtr<UTexture2D> Illustration;
+
+	// When the knowing stage puts the card before a ruler (section 5.10): Standing = in the tick its conditions come to
+	// hold (they did not at the head of the tick); Lottery = in the periodic slot (DT_Rules.PetitionPeriodTicks), picked
+	// by BaseWeight among the rows whose conditions hold and that are not among the last choices of the life; Named =
+	// never by the stage, only by name (the next card of a chain, NextEncounter).
+	UPROPERTY(EditAnywhere)
+	ECosmicEventTrigger Trigger = ECosmicEventTrigger::Named;
+
+	// What the card is about: the ruled people (Civilization, current system = its capital) or one of its settled
+	// systems (SettledSystem, looked at in OwnedSystems order).
+	UPROPERTY(EditAnywhere)
+	ECosmicEventSubject Subject = ECosmicEventSubject::Civilization;
+
+	// Empty, or the card's text in each of the two voices of a divided people (Trait.Society.Divided): [0] the council,
+	// [1] the elders of the congregation. The presentation picks the voice by the ruled people's Spiritualism (above 0 =
+	// the elders) when the card arrives; it is not state (section 5.10).
+	UPROPERTY(EditAnywhere)
+	TArray<FText> VoiceBodies;
 };
 
 /** DT_Civs row: civilization archetype (section 5.11). A DataTable row, not a DataAsset. */

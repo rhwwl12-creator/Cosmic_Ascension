@@ -8,5 +8,5 @@ DT_Hazards.json 49e1e2851b377f9358ff0f66bc01c6ba10016efb
 DT_Megaprojects.json db0bdb6ccb06cd2f63c4f109c27d11be104086f4
 DT_Feats.json 9919770dcd7218dd555926676e2ca2e90ccc978b
 ST_CA.csv c048f736466119b39c96eb4d9dce863859d3b0b3
-schema.json 56c4e663aaf10363c649cf95f46f8955cf22543b
-../cosmic_data_schema.py 000dcf07800dedd230145a8eec205698ed1cdd1f
+schema.json d1bf854f1925f2781ed01db0d1995ed472b169f2
+../cosmic_data_schema.py c913651381e64b7d53bf18e666a19a4d3b3fd755
