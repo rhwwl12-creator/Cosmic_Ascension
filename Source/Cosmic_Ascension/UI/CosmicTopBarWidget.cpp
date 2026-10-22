@@ -345,7 +345,7 @@ FText UCosmicTopBarWidget::GetNextRungTip() const
 	{
 		return FText::GetEmpty();
 	}
-	return CosmicNextRung::TextOf(CosmicNextRung::Of(Sim->GetState(), Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules()), Sim->GetTables());
+	return CosmicNextRung::TextOfAll(CosmicNextRung::AllOf(Sim->GetState(), Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules()), Sim->GetTables());
 }
 
 void UCosmicTopBarWidget::Refresh()

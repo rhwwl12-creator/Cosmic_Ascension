@@ -65,13 +65,15 @@ namespace CosmicBookTests
 
 	// The test's tables: its transcendent rows, these event rows, no hazard row (a hazard of the game would land on the
 	// board at random), no project and feat of the game (CosmicTests::WithoutProjects) and its own knobs (a slot every ten
-	// ticks, no Lottery chance, no Stability drain), over the rest of the game's tables.
+	// ticks, no Lottery chance, no Stability drain and no recovery - a case reads a row's change of Stability exactly),
+	// over the rest of the game's tables.
 	FCosmicDataTables TablesWith(const FCosmicDataTables& Base, const FCosmicRulesDef& BaseRules, UDataTable* Events)
 	{
 		FCosmicRulesDef Knobs = BaseRules;
 		Knobs.EventSlotTicks = 10;
 		Knobs.EventChancePerSlot = 0.f;
 		Knobs.SpiritualPressureStabilityDrain = 0.f;
+		Knobs.StabilityRecoveryPerTick = 0.f;
 		UDataTable* RulesTable = NewTable(FCosmicRulesDef::StaticStruct());
 		RulesTable->AddRow(CosmicRows::Rules, Knobs);
 		FCosmicDataTables Tables = Base;

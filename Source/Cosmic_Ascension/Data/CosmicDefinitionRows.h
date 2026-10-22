@@ -894,9 +894,10 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 
 	// How far the calling sees, in lanes (section 7.4 sight stage). Index = static_cast<int32>(EAscensionTier). Exactly
 	// 5 entries, every one at least 1 (Data.Integrity). A knob of knowing: the world and the generation never read it.
-	// First read by the sight and story-scope work of Phase 2, like the three knobs below it.
+	// First read by the sight and story-scope work of Phase 2, like the three knobs below it. {1, 2, 4, 6, 10} until MVP 3,
+	// which widened the first two rungs for the told lines of the first 600 ticks (docs/60_DECISIONS/headers/A3).
 	UPROPERTY(EditAnywhere)
-	TArray<int32> SightLanesByTier = { 1, 2, 4, 6, 10 };
+	TArray<int32> SightLanesByTier = { 2, 3, 4, 6, 10 };
 
 	// Period of the sight stage, in ticks.
 	UPROPERTY(EditAnywhere)
@@ -942,5 +943,39 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// the knowing stage puts a Lottery row before a ruler with no card waiting, when no Standing row came to hold in that
 	// tick (CosmicPetitions::Present). Below 1 reads as 1, without an error line (the schema keeps it at 1 or more).
 	UPROPERTY(EditAnywhere)
-	int32 PetitionPeriodTicks = 600;
+	int32 PetitionPeriodTicks = 300;
+
+	// ---- The first minutes and the mending of the world (MVP 3; section 2.4, 4.1, 4.3, 16 #68 #71 #91) ----
+
+	// Stability comes back toward StabilityRestingLevel (section 4.1, 9.3, 16 #68): in the economy stage, after the
+	// population's regrowth and before the income, a people below the level rises by this much and stops at the level;
+	// above it nothing changes (what cards and events raised stays). Counted in the same tick's LowStabilityTicks. 0 or
+	// below, above 1, or not a number: no recovery. Start value - below the drain beside a fallen sphere (0.002 x P), so
+	// that a claimed people still bends (measured in the MVP 3 header: 0.002 brings the claims' settlement rate to 22%).
+	UPROPERTY(EditAnywhere)
+	float StabilityRecoveryPerTick = 0.001f;
+
+	// The level Stability comes back to. Outside 0..1, or not a number: no recovery.
+	UPROPERTY(EditAnywhere)
+	float StabilityRestingLevel = 0.6f;
+
+	// The AI profiles whose peoples leave a claim alone (16 #71): in the AI stage a people the player does not rule does
+	// not start the answer to a Hazard.Claim on its system when its AIProfile is one of these; every other answer, and
+	// every answer of any other profile (an empty profile too), it starts as before. The ruler's project key does not read
+	// it. Empty = every people relieves. No draw: the profile was drawn by the generation or the change of throne.
+	UPROPERTY(EditAnywhere)
+	FGameplayTagContainer ClaimLeaveProfiles;
+
+	// The first crisis (section 2.4 'the first ten minutes', 16 #91): in the tick Tick == FirstCrisisTick, after the draw
+	// and the capital rule of the crisis stage, every people's capital (owned, settled), in Civs order, receives the Draw
+	// row of FirstCrisisHazard through CosmicHazards::Place - a capital whose slot holds a hazard keeps it (that one is its
+	// first). The same rule for every people. 0 or below = none. No draw.
+	UPROPERTY(EditAnywhere)
+	int32 FirstCrisisTick = 150;
+
+	// The tag of a Draw row of DT_Hazards (Data.Integrity); the tag of another row is refused with an error line, and tables
+	// without the tag's row place nothing. Empty (the C++ default: a tag is requested from the tag table, not written
+	// here) = none.
+	UPROPERTY(EditAnywhere)
+	FGameplayTag FirstCrisisHazard;
 };

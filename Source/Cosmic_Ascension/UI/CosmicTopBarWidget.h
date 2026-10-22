@@ -76,8 +76,8 @@ public:
 	void SetRungHovered(bool bHovered);
 
 	/**
-	 * What the next-rung tooltip says now: CosmicNextRung::TextOf over the live state; empty - no tooltip - without a next
-	 * rung. Bound once to the ToolTipTextDelegate of RungText and ResearchText before their Slate widgets are built, so one
+	 * What the next-rung tooltip says now: CosmicNextRung::TextOfAll of AllOf over the live state (every way up); empty -
+	 * no tooltip - without a next rung. Bound once to the ToolTipTextDelegate of RungText and ResearchText before their Slate widgets are built, so one
 	 * Slate tooltip each reads it while the mouse is on it; SetToolTipText is never called on them (it would build a new
 	 * tooltip at every change and close an open one).
 	 */

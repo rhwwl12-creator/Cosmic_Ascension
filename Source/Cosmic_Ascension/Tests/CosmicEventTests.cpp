@@ -343,6 +343,9 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		{ Cond(EConditionType::SystemHazardTicksAtMost, TEXT("Hazard.Plague"), NAME_None, 49.f), 0, false },
 		{ Cond(EConditionType::SystemHazardTicksAtMost, TEXT("Hazard.Rebellion"), NAME_None, 50.f), 0, false },
 		{ Cond(EConditionType::SystemHazardTicksAtMost, nullptr, NAME_None, 50.f), 0, false },
+		// The settled systems of the people: civ 0 holds its home alone - the bound itself holds, one more does not.
+		{ Cond(EConditionType::CivSettledSystemsAtLeast, nullptr, NAME_None, 1.f), 0, true },
+		{ Cond(EConditionType::CivSettledSystemsAtLeast, nullptr, NAME_None, 2.f), 0, false },
 	};
 
 	auto Answers = [&](const FGalaxyState& State, int32 CivIndex, int32 SystemIndex)
@@ -361,7 +364,7 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 	auto IsSubjectType = [](EConditionType Type)
 	{
 		return Type <= EConditionType::SystemInfluencedBy || Type == EConditionType::CivHasNotable || Type == EConditionType::CivFallenSphereTicksReached
-			|| Type == EConditionType::CivResearchAtLeast || Type == EConditionType::SystemHazardTicksAtMost;
+			|| Type == EConditionType::CivResearchAtLeast || Type == EConditionType::SystemHazardTicksAtMost || Type == EConditionType::CivSettledSystemsAtLeast;
 	};
 	auto IsPlayerType = [](EConditionType Type)
 	{
@@ -445,6 +448,37 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("A stay of five ticks reaches Key 5"), UCosmicEventSubsystem::Check(Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("5")), 0.f), Short));
 		TestFalse(TEXT("A Key that is not a count is never reached, not even by a short stay"),
 			UCosmicEventSubsystem::Check(Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("abc")), 0.f), Short));
+	}
+
+	// The settled systems of the people (MVP item 3): a second settled system counts, whatever the subject system; the same
+	// system still being settled does not, nor an entry of OwnedSystems another people owns, and no people is false.
+	{
+		const FCosmicCondition Two = Cond(EConditionType::CivSettledSystemsAtLeast, nullptr, NAME_None, 2.f);
+		int32 Wild = INDEX_NONE;
+		for (int32 SystemIndex = 0; SystemIndex < Detached.Systems.Num() && Wild == INDEX_NONE; ++SystemIndex)
+		{
+			Wild = (Detached.Systems[SystemIndex].OwnerCivID.IsNone() && !CosmicState::IsSanctuary(Detached.Systems[SystemIndex].SystemID)) ? SystemIndex : INDEX_NONE;
+		}
+		if (TestTrue(TEXT("(the board has a wild system)"), Wild != INDEX_NONE))
+		{
+			FGalaxyState Held = Detached;
+			Held.Systems[Wild].OwnerCivID = Held.Civs[0].CivID;
+			Held.Civs[0].OwnedSystems.Add(Held.Systems[Wild].SystemID);
+			FCosmicEvalView View(Held, Index, Sim->GetTables(), NoAging);
+			View.CivIndex = 0;
+			TestTrue(TEXT("A second settled system makes two"), UCosmicEventSubsystem::Check(Two, View));
+			View.SystemIndex = 1;
+			TestTrue(TEXT("whatever the subject system"), UCosmicEventSubsystem::Check(Two, View));
+			Held.Systems[Wild].ActiveMegaproject = CosmicRows::ProjectSettle;
+			TestFalse(TEXT("A system still being settled does not count"), UCosmicEventSubsystem::Check(Two, View));
+			FGalaxyState Listed = Detached;
+			Listed.Civs[0].OwnedSystems.Add(Listed.Civs[1].HomeSystemID);
+			FCosmicEvalView Other(Listed, Index, Sim->GetTables(), NoAging);
+			Other.CivIndex = 0;
+			TestFalse(TEXT("An entry another people owns does not count"), UCosmicEventSubsystem::Check(Two, Other));
+			Other.CivIndex = INDEX_NONE;
+			TestFalse(TEXT("No people: false"), UCosmicEventSubsystem::Check(Cond(EConditionType::CivSettledSystemsAtLeast, nullptr, NAME_None, 1.f), Other));
+		}
 	}
 
 	// PlayerAgeAtLeast with aging on: the age is the ticks since the birth of the vessel (tick 100, born at 10).

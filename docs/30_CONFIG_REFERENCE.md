@@ -1,6 +1,6 @@
 # CONFIG REFERENCE — DT_Rules 노브 표 (생성 문서)
 
-> `python -I Tools/make_config_reference.py`가 `Tools/data/DT_Rules.json`·`schema.json`·`Source/`에서 만든다. **손으로 고치지 않는다** — 값은 JSON에서, 규칙은 schema에서, 읽는 곳은 코드에서 바뀐다. 노브 47개 가운데 런타임이 읽는 것 29개, 예약 18개(읽는 코드가 올 Phase에서 산다 — `docs/40_DEV_GUIDE.md` §4). 밸런스 상수 가운데 아직 코드에 박힌 것(경제·연구 계수 — `Sim/GalaxySimulationSubsystem.cpp`의 `namespace Economy`)은 이 표에 없다; MVP에서 옮긴다.
+> `python -I Tools/make_config_reference.py`가 `Tools/data/DT_Rules.json`·`schema.json`·`Source/`에서 만든다. **손으로 고치지 않는다** — 값은 JSON에서, 규칙은 schema에서, 읽는 곳은 코드에서 바뀐다. 노브 52개 가운데 런타임이 읽는 것 34개, 예약 18개(읽는 코드가 올 Phase에서 산다 — `docs/40_DEV_GUIDE.md` §4). 밸런스 상수 가운데 아직 코드에 박힌 것(경제·연구 계수 — `Sim/GalaxySimulationSubsystem.cpp`의 `namespace Economy`)은 이 표에 없다; MVP에서 옮긴다.
 
 | 노브 | 값 | 종류 | 스키마 규칙 | 읽는 코드(테스트 제외) | 상태 |
 |---|---|---|---|---|---|
@@ -42,7 +42,7 @@
 | `EventChancePerSlot` | `0.02` | number | `{"min": 0}` | Events/CosmicEventSubsystem.cpp | 읽힘 |
 | `HomeGalaxyRow` | `"gal_milkyway"` | row | `{"table": "DT_Galaxies", "target": [{"col": "BridgeTicks", "is": 0}…` | Sim/GalaxySimulationSubsystem.cpp, UI/CosmicGalaxyPanelWidget.cpp, World/CosmicGalaxyMapActor.cpp, World/CosmicGameMode.cpp | 읽힘 |
 | `RealmCapByTier` | `[1, 3, 4, 7, 10]` | numbers | `{"len": 5, "ascending": true, "integer": true}` | Sim/CosmicMegaprojects.cpp | 읽힘 |
-| `SightLanesByTier` | `[1, 2, 4, 6, 10]` | numbers | `{"len": 5, "min": 1, "integer": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
+| `SightLanesByTier` | `[2, 3, 4, 6, 10]` | numbers | `{"len": 5, "min": 1, "integer": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `SightIntervalTicks` | `10` | number | `{"min": 1, "integer": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `FirstSightTick` | `330` | number | `{"min": 0, "integer": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `FarLineCooldownTicks` | `300` | number | `{"min": 0, "integer": true}` | Log/CosmicLogSubsystem.cpp | 읽힘 |
@@ -50,4 +50,9 @@
 | `FallenCoreMinLanesFromHome` | `3` | number | `{"integer": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `BackgroundStarCount` | `20000` | number | `{"min": 0, "max": 100000, "integer": true}` | World/CosmicMapLook.cpp | 읽힘 |
 | `SceneryGalaxyCount` | `10000` | number | `{"min": 0, "max": 50000, "integer": true}` | World/CosmicUniverseLook.cpp | 읽힘 |
-| `PetitionPeriodTicks` | `600` | number | `{"min": 1, "integer": true}` | Events/CosmicPetitions.cpp | 읽힘 |
+| `PetitionPeriodTicks` | `300` | number | `{"min": 1, "integer": true}` | Events/CosmicPetitions.cpp | 읽힘 |
+| `StabilityRecoveryPerTick` | `0.001` | number | `{"min": 0, "max": 1}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
+| `StabilityRestingLevel` | `0.6` | number | `{"min": 0, "max": 1}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
+| `ClaimLeaveProfiles` | `"(GameplayTags=((TagName=\"AI.Profile.Expansionist\"),(TagName=\"AI…` | tags | `{"root": "AI.Profile."}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
+| `FirstCrisisTick` | `150` | number | `{"min": 0, "integer": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
+| `FirstCrisisHazard` | `"Hazard.AIAwakening"` | tag | `{"root": "Hazard.", "optional": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |

@@ -142,7 +142,7 @@
 		"DisplayName": "초신성 전조",
 		"CountdownTicks": 300,
 		"SpawnRule": "Draw",
-		"SpawnChancePerTick": 5e-05,
+		"SpawnChancePerTick": 0.0001,
 		"SpawnConditions": [
 			{
 				"Type": "CivTierAtLeast",
@@ -226,7 +226,15 @@
 		"BranchChance": 0.0,
 		"OnExpireBranchEffects": [],
 		"OnExpireNeighbourEffects": [],
-		"OnResolveEffects": [],
+		"OnResolveEffects": [
+			{
+				"Type": "ChangeStability",
+				"Tag": "",
+				"Key": "None",
+				"Value": 0.1,
+				"DurationTicks": 0
+			}
+		],
 		"RulerResolutions": ["project_reform"],
 		"WandererResolutions": [],
 		"LogCategory": "Log.Crisis",

@@ -50,6 +50,8 @@ namespace CosmicNextRungImpl
 	{
 		return CosmicUI::Percent(static_cast<float>(Whole) / 100.f);
 	}
+
+	FText PartsText(const FCosmicNextRung& Next, const FCosmicDataTables& Tables);
 }
 
 bool FCosmicNextRung::AllMet() const
@@ -68,20 +70,20 @@ bool FCosmicNextRung::AllMet() const
 	return true;
 }
 
-FCosmicNextRung CosmicNextRung::Of(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules)
+TArray<FCosmicNextRung> CosmicNextRung::AllOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules)
 {
 	using namespace CosmicNextRungImpl;
 
-	FCosmicNextRung Next;
+	TArray<FCosmicNextRung> Rungs;
 	// Whom the judgment judges from the vessel's birth: the people an embodied ruler rules.
 	if (State.Calling.LifeState != ELifeState::Embodied || State.Player.Role != EPlayerRole::Ruler || State.Player.RuledCivID.IsNone())
 	{
-		return Next;
+		return Rungs;
 	}
 	const int32 CivIndex = Index.FindCiv(State, State.Player.RuledCivID);
 	if (!State.Civs.IsValidIndex(CivIndex) || !State.Civs[CivIndex].bIsPlayerRuled)
 	{
-		return Next;
+		return Rungs;
 	}
 	const FCivilizationState& Civ = State.Civs[CivIndex];
 
@@ -98,117 +100,121 @@ FCosmicNextRung CosmicNextRung::Of(const FGalaxyState& State, const FCosmicState
 	}
 	if (Settled.IsEmpty())
 	{
-		return Next;
+		return Rungs;
 	}
 
-	// The row the judgment looks at first.
-	const FAscensionFeatDef* Feat = nullptr;
+	// Every row the judgment looks at, in its order.
 	for (const FName FeatRow : Tables.GetFeatRowNames())
 	{
-		const FAscensionFeatDef* Candidate = Tables.FindFeat(FeatRow);
-		if (Candidate && Candidate->IsJudgedRulerRowAt(Civ.Tier))
+		const FAscensionFeatDef* Feat = Tables.FindFeat(FeatRow);
+		if (!Feat || !Feat->IsJudgedRulerRowAt(Civ.Tier))
 		{
-			Feat = Candidate;
-			Next.FeatRow = FeatRow;
-			break;
+			continue;
 		}
-	}
-	if (!Feat)
-	{
-		return Next;
-	}
+		FCosmicNextRung& Next = Rungs.AddDefaulted_GetRef();
+		Next.FeatRow = FeatRow;
 
-	// The judgment's view of one settled system.
-	auto ViewOn = [&](int32 SystemIndex)
-	{
-		FCosmicEvalView View(State, Index, Tables, Rules);
-		View.CivIndex = CivIndex;
-		View.SystemIndex = SystemIndex;
-		View.GalaxyRow = Civ.GalaxyRow;
-		View.SourceRow = Next.FeatRow;
-		View.SinceTick = State.Calling.BornTick;
-		return View;
-	};
+		// The judgment's view of one settled system.
+		auto ViewOn = [&](int32 SystemIndex)
+		{
+			FCosmicEvalView View(State, Index, Tables, Rules);
+			View.CivIndex = CivIndex;
+			View.SystemIndex = SystemIndex;
+			View.GalaxyRow = Civ.GalaxyRow;
+			View.SourceRow = FeatRow;
+			View.SinceTick = State.Calling.BornTick;
+			return View;
+		};
 
-	// The settled system on which most parts hold, the first in OwnedSystems order among equals.
-	int32 MostHeld = -1;
-	for (const int32 SystemIndex : Settled)
-	{
-		const FCosmicEvalView View = ViewOn(SystemIndex);
-		int32 Held = 0;
+		// The settled system on which most parts hold, the first in OwnedSystems order among equals.
+		int32 MostHeld = -1;
+		for (const int32 SystemIndex : Settled)
+		{
+			const FCosmicEvalView View = ViewOn(SystemIndex);
+			int32 Held = 0;
+			for (const FCosmicCondition& Condition : Feat->CompletionConditions)
+			{
+				Held += UCosmicEventSubsystem::Check(Condition, View) ? 1 : 0;
+			}
+			if (Held > MostHeld)
+			{
+				MostHeld = Held;
+				Next.SystemIndex = SystemIndex;
+			}
+		}
+
+		const FCosmicEvalView View = ViewOn(Next.SystemIndex);
 		for (const FCosmicCondition& Condition : Feat->CompletionConditions)
 		{
-			Held += UCosmicEventSubsystem::Check(Condition, View) ? 1 : 0;
-		}
-		if (Held > MostHeld)
-		{
-			MostHeld = Held;
-			Next.SystemIndex = SystemIndex;
-		}
-	}
-
-	const FCosmicEvalView View = ViewOn(Next.SystemIndex);
-	for (const FCosmicCondition& Condition : Feat->CompletionConditions)
-	{
-		FCosmicRungPart& Part = Next.Parts.AddDefaulted_GetRef();
-		Part.bMet = UCosmicEventSubsystem::Check(Condition, View);
-		Part.Key = Condition.Key;
-		const FMegaprojectDef* Project = (Condition.Type == EConditionType::MegaprojectComplete && !Condition.Key.IsNone()) ? Tables.FindMegaproject(Condition.Key) : nullptr;
-		if (Project)
-		{
-			Part.Kind = ECosmicRungPartKind::Project;
-			Part.Needed = CosmicMegaprojects::RequiredProgressOf(*Project);
-			const bool bAnswer = Tables.IsHazardAnswer(Condition.Key);
-			if (!Part.bMet)
+			FCosmicRungPart& Part = Next.Parts.AddDefaulted_GetRef();
+			Part.bMet = UCosmicEventSubsystem::Check(Condition, View);
+			Part.Key = Condition.Key;
+			const FMegaprojectDef* Project = (Condition.Type == EConditionType::MegaprojectComplete && !Condition.Key.IsNone()) ? Tables.FindMegaproject(Condition.Key) : nullptr;
+			if (Project)
 			{
-				// Where it runs now: the first settled system of the people whose slot holds the row.
-				for (const int32 SystemIndex : Settled)
+				Part.Kind = ECosmicRungPartKind::Project;
+				Part.Needed = CosmicMegaprojects::RequiredProgressOf(*Project);
+				const bool bAnswer = Tables.IsHazardAnswer(Condition.Key);
+				if (!Part.bMet)
 				{
-					const CosmicMegaprojects::FCosmicSlotReading Slot = CosmicMegaprojects::ReadSlot(State.Systems[SystemIndex],
-						bAnswer ? CosmicMegaprojects::ECosmicProjectSlot::Response : CosmicMegaprojects::ECosmicProjectSlot::Construction);
-					if (Slot.Row == Condition.Key)
+					// Where it runs now: the first settled system of the people whose slot holds the row.
+					for (const int32 SystemIndex : Settled)
 					{
-						Part.Progress = Slot.Progress;
-						break;
+						const CosmicMegaprojects::FCosmicSlotReading Slot = CosmicMegaprojects::ReadSlot(State.Systems[SystemIndex],
+							bAnswer ? CosmicMegaprojects::ECosmicProjectSlot::Response : CosmicMegaprojects::ECosmicProjectSlot::Construction);
+						if (Slot.Row == Condition.Key)
+						{
+							Part.Progress = Slot.Progress;
+							break;
+						}
+					}
+				}
+				if (bAnswer)
+				{
+					for (const FName HazardRow : Tables.GetHazardRowNames())
+					{
+						const FHazardDef* Hazard = Tables.FindHazard(HazardRow);
+						if (Hazard && Hazard->RulerResolutions.Contains(Condition.Key))
+						{
+							Part.HazardRow = HazardRow;
+							break;
+						}
 					}
 				}
 			}
-			if (bAnswer)
+			else if (Condition.Type == EConditionType::CivResearchAtLeast && ResearchLabelKey(Condition.Key))
 			{
-				for (const FName HazardRow : Tables.GetHazardRowNames())
-				{
-					const FHazardDef* Hazard = Tables.FindHazard(HazardRow);
-					if (Hazard && Hazard->RulerResolutions.Contains(Condition.Key))
-					{
-						Part.HazardRow = HazardRow;
-						break;
-					}
-				}
+				Part.Kind = ECosmicRungPartKind::Research;
+				Part.NeededShare = Condition.Value;
+				Part.Share = Civ.Research.FindRef(Condition.Key);
+			}
+			else if (Condition.Type == EConditionType::CivSettledSystemsAtLeast)
+			{
+				// The settled systems as the condition counts them (the list above is the same set).
+				Part.Kind = ECosmicRungPartKind::Realm;
+				Part.Progress = static_cast<float>(Settled.Num());
+				Part.Needed = Condition.Value;
+			}
+			else
+			{
+				Part.Kind = ECosmicRungPartKind::Other;
 			}
 		}
-		else if (Condition.Type == EConditionType::CivResearchAtLeast && ResearchLabelKey(Condition.Key))
-		{
-			Part.Kind = ECosmicRungPartKind::Research;
-			Part.NeededShare = Condition.Value;
-			Part.Share = Civ.Research.FindRef(Condition.Key);
-		}
-		else
-		{
-			Part.Kind = ECosmicRungPartKind::Other;
-		}
 	}
-	return Next;
+	return Rungs;
 }
 
-FText CosmicNextRung::TextOf(const FCosmicNextRung& Next, const FCosmicDataTables& Tables)
+FCosmicNextRung CosmicNextRung::Of(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules)
 {
-	using namespace CosmicNextRungImpl;
+	TArray<FCosmicNextRung> Rungs = AllOf(State, Index, Tables, Rules);
+	return Rungs.IsEmpty() ? FCosmicNextRung() : MoveTemp(Rungs[0]);
+}
+
+// The parts of one row as TextOf joins them inside Rung.Next.
+FText CosmicNextRungImpl::PartsText(const FCosmicNextRung& Next, const FCosmicDataTables& Tables)
+{
 	using CosmicUI::Label;
 
-	if (Next.FeatRow.IsNone())
-	{
-		return FText::GetEmpty();
-	}
 	TArray<FText> Named;
 	bool bAnyOther = false;
 	bool bOthersMet = true;
@@ -241,8 +247,12 @@ FText CosmicNextRung::TextOf(const FCosmicNextRung& Next, const FCosmicDataTable
 		else if (Part.Kind == ECosmicRungPartKind::Research)
 		{
 			const TCHAR* LabelKey = ResearchLabelKey(Part.Key);
-			Named.Add(FText::Format(INVTEXT("{0} {1}({2})"), LabelKey ? Label(LabelKey) : FText::GetEmpty(), PercentText(WholePercent(Part.NeededShare)),
-				PercentText(HeldPercent(Part.Share, Part.NeededShare, Part.bMet))));
+			Named.Add(FText::Format(INVTEXT("{0} {1}({2})"), LabelKey ? Label(LabelKey) : FText::GetEmpty(), PercentText(CosmicNextRung::WholePercent(Part.NeededShare)),
+				PercentText(CosmicNextRung::HeldPercent(Part.Share, Part.NeededShare, Part.bMet))));
+		}
+		else if (Part.Kind == ECosmicRungPartKind::Realm)
+		{
+			Named.Add(FText::Format(Label(TEXT("Rung.Realm")), CosmicUI::WholeNumber(Part.Progress), CosmicUI::WholeNumber(Part.Needed)));
 		}
 		else
 		{
@@ -255,7 +265,34 @@ FText CosmicNextRung::TextOf(const FCosmicNextRung& Next, const FCosmicDataTable
 	{
 		Named.Add(FText::Format(INVTEXT("{0}({1})"), Label(TEXT("Rung.Other")), Label(bOthersMet ? TEXT("Rung.Met") : TEXT("Rung.NotMet"))));
 	}
-	return FText::Format(Label(TEXT("Rung.Next")), CosmicUI::JoinList(Named));
+	return CosmicUI::JoinList(Named);
+}
+
+FText CosmicNextRung::TextOf(const FCosmicNextRung& Next, const FCosmicDataTables& Tables)
+{
+	if (Next.FeatRow.IsNone())
+	{
+		return FText::GetEmpty();
+	}
+	return FText::Format(CosmicUI::Label(TEXT("Rung.Next")), CosmicNextRungImpl::PartsText(Next, Tables));
+}
+
+FText CosmicNextRung::TextOfAll(const TArray<FCosmicNextRung>& Rungs, const FCosmicDataTables& Tables)
+{
+	using CosmicUI::Label;
+
+	if (Rungs.Num() <= 1)
+	{
+		return Rungs.IsEmpty() ? FText::GetEmpty() : TextOf(Rungs[0], Tables);
+	}
+	FString Text = Label(TEXT("Rung.NextAny")).ToString();
+	for (const FCosmicNextRung& Next : Rungs)
+	{
+		const FAscensionFeatDef* Feat = Tables.FindFeat(Next.FeatRow);
+		const FText Title = (Feat && !Feat->Title.IsEmpty()) ? Feat->Title : FText::AsCultureInvariant(Next.FeatRow.ToString());
+		Text += TEXT("\n") + FText::Format(Label(TEXT("Rung.Row")), Title, CosmicNextRungImpl::PartsText(Next, Tables)).ToString();
+	}
+	return FText::AsCultureInvariant(Text);
 }
 
 int32 CosmicNextRung::WholePercent(float Share)

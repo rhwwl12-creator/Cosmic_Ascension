@@ -2126,8 +2126,10 @@ bool FCosmicSimLayersInRangeTest::RunTest(const FString& Parameters)
 // The exit conditions of Phase 2 on the game's data, input-free (guideline 11, Phase 2): hazards are placed, run out and are
 // answered, each ending with its own line; a claim stands next to Silence, runs out and joins its sphere (seed 42, 60
 // systems and 12 peoples, 20,000 ticks); and a neglected ruler is deposed by a rebellion, with the fallen monarch's line
-// (seed 7). The seeds are measured, not chosen by a rule: a change of the world that loses a condition on its seed has to
-// show it on another one and say so in guideline 9.3. The stepped run steps as a game's frames do (StepOnce, the gate
+// (seed 18 - seed 7 until MVP item 3, whose recovery of Stability and claim relief moved the neglected depositions to
+// seeds 1, 4, 9, 18, 19, 21, 22 and 26 of 1-29 and 42; 18 is the earliest, at tick 6,090). The seeds are measured, not
+// chosen by a rule: a change of the world that loses a condition on its seed has to show it on another one and say so in
+// guideline 9.3. The stepped run steps as a game's frames do (StepOnce, the gate
 // open), and it is the same world as the whole run at once with the gate closed.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimPhaseTwoExitTest, "Cosmic_Ascension.Sim.PhaseTwoExit", CosmicTests::Flags)
 bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
@@ -2144,7 +2146,7 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 	static const FGameplayTag RebellionTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Rebellion")));
 	constexpr int64 Ticks = 20000;
 
-	// The deposition of condition 5 rests on the game's rebellion row: the evidence of seed 7 below is only as good as this.
+	// The deposition of condition 5 rests on the game's rebellion row: the evidence of seed 18 below is only as good as this.
 	FName RebellionRow;
 	const FHazardDef* Rebellion = Original.FindHazardByTag(RebellionTag, &RebellionRow);
 	TestTrue(TEXT("The game's rebellion row deposes the ruler when it runs out"),
@@ -2238,9 +2240,9 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Stepped with the gate open, one tick at a time is the same world as the whole run at once with it closed"), Sim->ComputeWorldHash(), Stepped);
 
 	// Neglect: nothing the player does keeps the ruled people's stability up, and a rebellion deposes the ruler.
-	Sim->NewGalaxy(7, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	Sim->NewGalaxy(18, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	Sim->RunHeadless(Ticks);
-	TestTrue(TEXT("A neglected ruler is deposed (seed 7)"), State.Player.Role == EPlayerRole::Wanderer);
+	TestTrue(TEXT("A neglected ruler is deposed (seed 18)"), State.Player.Role == EPlayerRole::Wanderer);
 	TestTrue(TEXT("and carries the status of a fallen monarch"), State.Player.StatusTags.HasTagExact(FGameplayTag::RequestGameplayTag(FName(TEXT("Status.FallenMonarch")))));
 	const auto Fallen = [](const FCosmicLogEntry& Entry) { return Entry.SourceRow == CosmicRows::LogFallenMonarch && Entry.Severity == 2; };
 	const FCosmicLogEntry* FallenLine = State.Log.FindByPredicate(Fallen);

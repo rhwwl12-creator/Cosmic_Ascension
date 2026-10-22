@@ -1434,6 +1434,10 @@ void UGalaxySimulationSubsystem::TickEconomy()
 
 	// The population comes back toward 1.0 (section 4.1). A compare, so a knob that is not a number gives no regrowth.
 	const float Regrowth = (Rules.PopulationRegrowthPerTick > 0.f && Rules.PopulationRegrowthPerTick <= TNumericLimits<float>::Max()) ? Rules.PopulationRegrowthPerTick : 0.f;
+	// Stability comes back toward its resting level (section 4.1, 16 #68), in the same shape. Compares, so a knob that is
+	// not a number gives no recovery.
+	const bool bRecovers = Rules.StabilityRecoveryPerTick > 0.f && Rules.StabilityRecoveryPerTick <= 1.f && Rules.StabilityRestingLevel >= 0.f
+		&& Rules.StabilityRestingLevel <= 1.f;
 
 	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
 	{
@@ -1441,6 +1445,10 @@ void UGalaxySimulationSubsystem::TickEconomy()
 		if (Regrowth > 0.f && Civ.Population < 1.f)
 		{
 			Civ.Population = FMath::Min(1.f, Civ.Population + Regrowth);
+		}
+		if (bRecovers && Civ.Stability < Rules.StabilityRestingLevel)
+		{
+			Civ.Stability = FMath::Min(Rules.StabilityRestingLevel, Civ.Stability + Rules.StabilityRecoveryPerTick);
 		}
 
 		// Only settled systems pay (section 5.7): a system being settled is not yet a home.
@@ -1771,6 +1779,34 @@ void UGalaxySimulationSubsystem::TickHazards()
 		}
 	}
 
+	// The first crisis (section 2.4, 16 #91): no draw. Every people's capital, in Civs order, in one tick.
+	if (Rules.FirstCrisisTick > 0 && State.Tick == Rules.FirstCrisisTick && Rules.FirstCrisisHazard.IsValid())
+	{
+		FName FirstRow;
+		const FHazardDef* Row = Tables.FindHazardByTag(Rules.FirstCrisisHazard, &FirstRow);
+		// Tables without the row (a test's own hazards) have no first crisis; Data.Integrity holds the game's row to a Draw row.
+		if (Row && Row->SpawnRule != ECosmicHazardSpawn::Draw)
+		{
+			UE_LOG(LogCosmic, Error, TEXT("TickHazards: DT_Rules.FirstCrisisHazard %s is not the tag of a Draw row of DT_Hazards: no first crisis"), *Rules.FirstCrisisHazard.ToString());
+		}
+		else if (Row)
+		{
+			for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+			{
+				const int32 Capital = StateIndex.FindSystem(State, State.Civs[CivIndex].HomeSystemID);
+				if (!State.Systems.IsValidIndex(Capital) || State.Systems[Capital].OwnerCivID != State.Civs[CivIndex].CivID)
+				{
+					continue;
+				}
+				FCosmicEvalContext Ctx = MakeEvalContext();
+				if (CosmicHazards::Place(Ctx, Capital, FirstRow))
+				{
+					Events->FollowUpNotes(Ctx);
+				}
+			}
+		}
+	}
+
 	// (d) The event slots: the last step of this stage (section 7.4).
 	Events->EvaluateAndFire(State, Rng);
 }
@@ -2008,14 +2044,22 @@ void UGalaxySimulationSubsystem::TickCivAI()
 {
 	// (a) The peoples the player does not rule start what they would start, no draw; then a people that may settle draws
 	// one number, before the targets are looked at, and settles the target it falls on (section 4.3, 5.7, 9.2).
+	static const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Claim")));
 	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
 	{
 		if (State.Civs[CivIndex].bIsPlayerRuled)
 		{
 			continue;
 		}
+		// A profile that leaves claims alone does not start a claim's answer (16 #71); a construction is never one (Choices
+		// builds no row that answers a hazard).
+		const bool bLeavesClaims = Rules.ClaimLeaveProfiles.HasTagExact(State.Civs[CivIndex].AIProfile);
 		for (const TPair<int32, FName>& Choice : CosmicMegaprojects::Choices(State, StateIndex, Tables, CivIndex, 0))
 		{
+			if (bLeavesClaims && State.Systems[Choice.Key].ActiveHazard == ClaimTag && Tables.IsHazardAnswer(Choice.Value))
+			{
+				continue;
+			}
 			CosmicMegaprojects::Start(State, StateIndex, Tables, Choice.Key, Choice.Value);
 		}
 		if (CosmicMegaprojects::MaySettle(State, StateIndex, Rules, CivIndex))

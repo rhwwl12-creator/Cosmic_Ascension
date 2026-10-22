@@ -122,7 +122,12 @@
 				"FallenCoreMinLanesFromHome": {"kind": "number", "integer": true},
 				"BackgroundStarCount": {"kind": "number", "min": 0, "max": 100000, "integer": true},
 				"SceneryGalaxyCount": {"kind": "number", "min": 0, "max": 50000, "integer": true},
-				"PetitionPeriodTicks": {"kind": "number", "min": 1, "integer": true}
+				"PetitionPeriodTicks": {"kind": "number", "min": 1, "integer": true},
+				"StabilityRecoveryPerTick": {"kind": "number", "min": 0, "max": 1},
+				"StabilityRestingLevel": {"kind": "number", "min": 0, "max": 1},
+				"ClaimLeaveProfiles": {"kind": "tags", "root": "AI.Profile."},
+				"FirstCrisisTick": {"kind": "number", "min": 0, "integer": true},
+				"FirstCrisisHazard": {"kind": "tag", "root": "Hazard.", "optional": true}
 			},
 			"rules": [
 				{
@@ -742,7 +747,8 @@
 		"CivHasNotable": {"tag": {"root": "Notable."}, "key": {"word": "civ_selector", "optional": true}},
 		"CivFallenSphereTicksReached": {"tag": {"root": ["Doctrine.Silence", "Doctrine.Assimilation", "Doctrine.Zeal", "Doctrine.Recurrence"], "optional": true}, "key": {"digits": true}},
 		"CivResearchAtLeast": {"key": {"word": "research"}, "value": {"min": 0, "max": 1}},
-		"SystemHazardTicksAtMost": {"tag": {"root": "Hazard."}, "value": {"min": 1, "integer": true}}
+		"SystemHazardTicksAtMost": {"tag": {"root": "Hazard."}, "value": {"min": 1, "integer": true}},
+		"CivSettledSystemsAtLeast": {"value": {"min": 1, "integer": true}}
 	},
 
 	"effects": {

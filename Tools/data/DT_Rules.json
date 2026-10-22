@@ -39,7 +39,7 @@
 		"EventChancePerSlot": 0.02,
 		"HomeGalaxyRow": "gal_milkyway",
 		"RealmCapByTier": [1, 3, 4, 7, 10],
-		"SightLanesByTier": [1, 2, 4, 6, 10],
+		"SightLanesByTier": [2, 3, 4, 6, 10],
 		"SightIntervalTicks": 10,
 		"FirstSightTick": 330,
 		"FarLineCooldownTicks": 300,
@@ -47,6 +47,11 @@
 		"FallenCoreMinLanesFromHome": 3,
 		"BackgroundStarCount": 20000,
 		"SceneryGalaxyCount": 10000,
-		"PetitionPeriodTicks": 600
+		"PetitionPeriodTicks": 300,
+		"StabilityRecoveryPerTick": 0.001,
+		"StabilityRestingLevel": 0.6,
+		"ClaimLeaveProfiles": "(GameplayTags=((TagName=\"AI.Profile.Expansionist\"),(TagName=\"AI.Profile.Militarist\")))",
+		"FirstCrisisTick": 150,
+		"FirstCrisisHazard": "Hazard.AIAwakening"
 	}
 ]

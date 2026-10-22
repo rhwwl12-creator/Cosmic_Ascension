@@ -1588,7 +1588,8 @@ bool FCosmicKnowingInertTest::RunTest(const FString& Parameters)
 	// The game's data, 20,000 ticks of seed 42 (past the first claims, the joins of the sphere, the settlements and their
 	// completions), no input: the first life rules people 0 and gives no command. With
 	// bWanderer the vessel walks from the start instead, a wanderer of the second rung standing in its birth system.
-	// Seed 7 deposes the neglected ruler in the run (Sim.PhaseTwoExit): the regent's draw and the new eye of the wanderer.
+	// Seed 18 deposes the neglected ruler in the run (Sim.PhaseTwoExit - seed 7 until MVP item 3): the regent's draw and the
+	// new eye of the wanderer.
 	auto Run = [&](const FCosmicRulesDef& Rules, bool bTellAll, bool bWanderer, int32 Seed = 42)
 	{
 		Sim->SetTables(WithRules(Original, Rules));
@@ -1624,8 +1625,8 @@ bool FCosmicKnowingInertTest::RunTest(const FString& Parameters)
 	const FRun Scoped = Run(GameRules, false, false);
 	const FRun Walking = Run(GameRules, true, true);
 	const FRun WalkingBlind = Run(Blind, true, true);
-	const FRun Deposed = Run(Far, true, false, 7);
-	const FRun DeposedBlind = Run(Blind, true, false, 7);
+	const FRun Deposed = Run(Far, true, false, 18);
+	const FRun DeposedBlind = Run(Blind, true, false, 18);
 
 	TestEqual(TEXT("The world is the same whether the sight stage looks or not"), NotSeeing.World, Seeing.World);
 	TestEqual(TEXT("and so is the sim stream"), NotSeeing.Rng, Seeing.Rng);
@@ -1642,8 +1643,8 @@ bool FCosmicKnowingInertTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("and so is the sim stream (wanderer)"), WalkingBlind.Rng, Walking.Rng);
 	TestTrue(TEXT("A wanderer's eye knows more than none (the case can tell)"), Walking.Known > WalkingBlind.Known);
 	TestTrue(TEXT("and meets more (wanderer)"), Walking.Met > WalkingBlind.Met);
-	TestTrue(TEXT("(the ruler of seed 7 is deposed in the run that sees)"), Deposed.bWalks);
-	TestEqual(TEXT("The world is the same whether the sight stage looks or not, through a deposition (seed 7)"), DeposedBlind.World, Deposed.World);
+	TestTrue(TEXT("(the ruler of seed 18 is deposed in the run that sees)"), Deposed.bWalks);
+	TestEqual(TEXT("The world is the same whether the sight stage looks or not, through a deposition (seed 18)"), DeposedBlind.World, Deposed.World);
 	TestEqual(TEXT("and so is the sim stream (deposition)"), DeposedBlind.Rng, Deposed.Rng);
 	TestTrue(TEXT("A far sight knows more than none through the deposition too (the case can tell)"), Deposed.Known > DeposedBlind.Known);
 	return true;

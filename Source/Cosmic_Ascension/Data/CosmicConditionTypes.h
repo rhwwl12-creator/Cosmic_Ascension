@@ -79,7 +79,10 @@ enum class EConditionType : uint8
 	// Tag = Hazard.* (required; empty is false), Value = ticks, a whole number from 1: the subject system holds that hazard
 	// with HazardTicksRemaining <= Value. A countdown loses one a tick, so a petition that waits for "fifty ticks left"
 	// sees this come to hold in exactly one tick (section 4.1 (3), 5.10).
-	SystemHazardTicksAtMost
+	SystemHazardTicksAtMost,
+	// Value = a whole number from 1: the context civilization's settled systems (owned by it, CosmicState::IsSettled)
+	// number at least Value (section 5.12; the second T2->T3 feat, MVP item 3). The subject system is not read.
+	CivSettledSystemsAtLeast
 	// Decided, appended with the first row that uses each (section 16 #29): CivStabilityAtLeast, PlayerHasPower.
 };
 

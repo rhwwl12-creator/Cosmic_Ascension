@@ -608,6 +608,23 @@ bool UCosmicEventSubsystem::Check(const FCosmicCondition& Condition, const FCosm
 		return System && Condition.Tag.IsValid() && System->ActiveHazard.IsValid() && System->ActiveHazard.MatchesTag(Condition.Tag)
 			&& System->HazardTicksRemaining <= Condition.Value;
 
+	case EConditionType::CivSettledSystemsAtLeast:
+	{
+		// The settled systems the context people owns (an entry of OwnedSystems another people owns counts for nothing, as
+		// in the feat judgment and the economy stage; section 5.12).
+		if (!Civ)
+		{
+			return false;
+		}
+		int32 Settled = 0;
+		for (const FName SystemID : Civ->OwnedSystems)
+		{
+			const int32 SystemIndex = View.Index.FindSystem(State, SystemID);
+			Settled += (State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == Civ->CivID && CosmicState::IsSettled(State.Systems[SystemIndex])) ? 1 : 0;
+		}
+		return static_cast<float>(Settled) >= Condition.Value;
+	}
+
 	default:
 		// An enumerator this build does not know (a row written for a later build).
 		return false;

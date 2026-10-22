@@ -1883,6 +1883,63 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		}
 	}
 
+	// The rules row and the feat rows together (MVP item 3), on the game's tables and on two broken copies: the first crisis
+	// is the tag of a Draw row (a claim or capital row is refused by the crisis stage with an error line, and a tag no row
+	// holds places nothing - the schema reads the tag's root only), and a feat never asks for more settled systems than its
+	// rung may hold (docs/50_ROADMAP.md, Phase 4: no feat or project asks for more systems than the rung's realm cap - the
+	// rung of RequiredTier, read through RealmCapByTier).
+	auto MendProblems = [](const FCosmicDataTables& Tables)
+	{
+		TArray<FString> Problems;
+		const FCosmicRulesDef* Rules = Tables.FindRules();
+		if (!Rules)
+		{
+			Problems.Add(TEXT("no DT_Rules row"));
+			return Problems;
+		}
+		if (Rules->FirstCrisisHazard.IsValid())
+		{
+			const FHazardDef* FirstRow = Tables.FindHazardByTag(Rules->FirstCrisisHazard);
+			if (!FirstRow || FirstRow->SpawnRule != ECosmicHazardSpawn::Draw)
+			{
+				Problems.Add(FString::Printf(TEXT("DT_Rules.FirstCrisisHazard %s is not the tag of a Draw row"), *Rules->FirstCrisisHazard.ToString()));
+			}
+		}
+		for (const FName FeatRow : Tables.GetFeatRowNames())
+		{
+			const FAscensionFeatDef* Feat = Tables.FindFeat(FeatRow);
+			const int32 TierIndex = Feat ? static_cast<int32>(Feat->RequiredTier) : INDEX_NONE;
+			for (const FCosmicCondition& Condition : Feat ? Feat->CompletionConditions : TArray<FCosmicCondition>())
+			{
+				if (Condition.Type == EConditionType::CivSettledSystemsAtLeast
+					&& !(Rules->RealmCapByTier.IsValidIndex(TierIndex) && Condition.Value <= static_cast<float>(Rules->RealmCapByTier[TierIndex])))
+				{
+					Problems.Add(FString::Printf(TEXT("DT_Feats.%s asks for more settled systems than its rung's realm cap"), *FeatRow.ToString()));
+				}
+			}
+		}
+		return Problems;
+	};
+	TestEqual(TEXT("The game's first crisis and feats keep to the rules row"), FString::Join(MendProblems(Game), TEXT("; ")), FString());
+	if (const FCosmicRulesDef* GameRules = Game.FindRules())
+	{
+		FCosmicRulesDef Capital = *GameRules;
+		Capital.FirstCrisisHazard = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Rebellion")));
+		TestEqual(TEXT("A first crisis of the capital rule's row is caught"), MendProblems(CosmicTests::WithRules(Game, Capital)).Num(), 1);
+		const FAscensionFeatDef* Worlds = Game.FindFeat(FName(TEXT("feat_three_worlds")));
+		if (TestNotNull(TEXT("(the game has the second T2->T3 feat)"), Worlds))
+		{
+			FAscensionFeatDef Greedy = *Worlds;
+			Greedy.CompletionConditions[0].Value = static_cast<float>(GameRules->RealmCapByTier[static_cast<int32>(Greedy.RequiredTier)] + 1);
+			UDataTable* Feats = NewObject<UDataTable>(GetTransientPackage());
+			Feats->RowStruct = FAscensionFeatDef::StaticStruct();
+			Feats->AddRow(FName(TEXT("feat_test_greedy")), Greedy);
+			FCosmicDataTables Broken = Game;
+			Broken.Feats = Feats;
+			TestEqual(TEXT("A feat asking one system more than its rung's cap is caught"), MendProblems(Broken).Num(), 1);
+		}
+	}
+
 	// The choices of a card (section 5.9), entry by entry - a rule of the schema holds over every entry of a list, not over
 	// each entry's own fields together: a choice with a check says what its failure is, and a choice without one never
 	// fails, so it carries no failure effects, no failure line and no difficulty.

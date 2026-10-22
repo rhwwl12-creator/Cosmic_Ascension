@@ -12,7 +12,7 @@ struct FCosmicRulesDef;
 struct FCosmicStateIndex;
 struct FGalaxyState;
 
-/** What kind of condition one part of the next rung is: the two kinds of the game's feat rows, and every other. */
+/** What kind of condition one part of the next rung is: the three kinds of the game's feat rows, and every other. */
 enum class ECosmicRungPartKind : uint8
 {
 	// MegaprojectComplete of a row the tables hold.
@@ -21,6 +21,9 @@ enum class ECosmicRungPartKind : uint8
 	Research,
 	// Any other condition: shown met or not, with no number (section 8.3: no pressure, no count).
 	Other,
+	// CivSettledSystemsAtLeast (MVP item 3): the settled systems held against those asked - a UI label, so a count of
+	// systems may show (rule 11).
+	Realm,
 };
 
 /** One condition of the next feat row, in row order. */
@@ -37,7 +40,8 @@ struct COSMIC_ASCENSION_API FCosmicRungPart
 	// Project, not met: the progress of the first slot (OwnedSystems order) of a settled system of the people that holds
 	// the row (construction or response), -1 when none does. Needed: what the row needs (CosmicMegaprojects::
 	// RequiredProgressOf). HazardRow: for an answer, the first DT_Hazards row in lexical order whose RulerResolutions
-	// lists it; NAME_None otherwise.
+	// lists it; NAME_None otherwise. Realm: Progress = the settled systems the people holds, Needed = the condition's
+	// Value.
 	float Progress = -1.f;
 	float Needed = 0.f;
 	FName HazardRow;
@@ -47,7 +51,7 @@ struct COSMIC_ASCENSION_API FCosmicRungPart
 	float Share = 0.f;
 };
 
-/** The next rung of the people the vessel rules: the feat row the judgment looks at first, and its parts. */
+/** One way up from the rung of the people the vessel rules: a feat row the judgment looks at, and its parts. */
 struct COSMIC_ASCENSION_API FCosmicNextRung
 {
 	// NAME_None when there is nothing to show: no embodied ruler of a living people it rules with a settled system, or no
@@ -60,21 +64,25 @@ struct COSMIC_ASCENSION_API FCosmicNextRung
 
 	TArray<FCosmicRungPart> Parts;
 
-	// Whether FeatRow is set and every part holds: then the next feat judgment lifts the people by this row (it looks at
-	// this row first).
+	// Whether FeatRow is set and every part holds: then the next feat judgment lifts the people (by this row, or by one
+	// before it in lexical order that holds too).
 	bool AllMet() const;
 };
 
 namespace CosmicNextRung
 {
 	/**
-	 * The next rung, read as UAscensionSubsystem::EvaluateFeats judges the people the vessel rules: only while the calling
-	 * is Embodied and a Ruler of a people of Civs it rules (bIsPlayerRuled) that owns a settled system; the first DT_Feats
-	 * row in lexical order that FAscensionFeatDef::IsJudgedRulerRowAt the people's Tier (a Ruler row of the rung that is
-	 * not one rung up is passed by without a line: the judgment reports it); each condition is UCosmicEventSubsystem::Check
-	 * with the judgment's view - the people, the system, the people's GalaxyRow, SourceRow the feat row, SinceTick
-	 * Calling.BornTick (a completion before the vessel's birth counts for nothing). A pure function.
+	 * The ways up, read as UAscensionSubsystem::EvaluateFeats judges the people the vessel rules: only while the calling
+	 * is Embodied and a Ruler of a people of Civs it rules (bIsPlayerRuled) that owns a settled system; every DT_Feats
+	 * row that FAscensionFeatDef::IsJudgedRulerRowAt the people's Tier, in lexical order - the judgment's order (a Ruler
+	 * row of the rung that is not one rung up is passed by without a line: the judgment reports it); each condition is
+	 * UCosmicEventSubsystem::Check with the judgment's view - the people, the system, the people's GalaxyRow, SourceRow the
+	 * feat row, SinceTick Calling.BornTick (a completion before the vessel's birth counts for nothing). Empty when there is
+	 * nothing to show. A pure function.
 	 */
+	COSMIC_ASCENSION_API TArray<FCosmicNextRung> AllOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules);
+
+	/** The first of AllOf: the row the judgment looks at first (FeatRow NAME_None when there is none). */
 	COSMIC_ASCENSION_API FCosmicNextRung Of(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules);
 
 	/**
@@ -82,10 +90,18 @@ namespace CosmicNextRung
 	 * as its DisplayName and, in brackets, Rung.Done when met, "<progress>/<needed>" (whole numbers) while a slot holds it,
 	 * Rung.WhenHazard with the DisplayName of the hazard it answers for an answer no slot holds, Rung.NotStarted otherwise;
 	 * a research condition as its label (Research.<Field>), the share needed and, in brackets, the share held
-	 * (HeldPercent), both in the bar's percent form - then every other condition folded into one Rung.Other with Rung.Met
-	 * when all of them hold and Rung.NotMet otherwise, no number. Empty - no tooltip - when Next has no FeatRow.
+	 * (HeldPercent), both in the bar's percent form, the settled systems as Rung.Realm (held and asked, whole numbers) -
+	 * then every other condition folded into one Rung.Other with Rung.Met when all of them hold and Rung.NotMet otherwise,
+	 * no number. Empty - no tooltip - when Next has no FeatRow.
 	 */
 	COSMIC_ASCENSION_API FText TextOf(const FCosmicNextRung& Next, const FCosmicDataTables& Tables);
+
+	/**
+	 * The tooltip over every way up (the top bar's): TextOf of the one row when there is one; with more, Rung.NextAny and
+	 * then one line per row in AllOf's order - Rung.Row around the feat's Title and its parts as TextOf joins them. Empty
+	 * when Rungs is empty.
+	 */
+	COSMIC_ASCENSION_API FText TextOfAll(const TArray<FCosmicNextRung>& Rungs, const FCosmicDataTables& Tables);
 
 	// A share as a whole percent, rounded as the top bar rounds it (FText::AsPercent: Share x 100 in float, then the
 	// formatter's TruncateToHalfIfClose and half to even); 0 for a share not above 0 or not a number.

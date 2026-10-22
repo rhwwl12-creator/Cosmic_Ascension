@@ -2,6 +2,13 @@
 
 > 2026-10-19 재편: 본문에 섞여 있던 이력·상태 줄·일지·리뷰 통계를 여기로 옮겼다(내용 무변경, 위치만 — 원격의 Phase 3 꼬리 7·12·8·9 기록 포함). 앞으로는 날짜·작업 접두어·바뀐 규칙·리뷰 통계를 여기에만 적고, 설계 본문과 STATUS.md에는 적지 않는다.
 
+## 2026-10-22 — MVP ③ 첫 10분 보장·세계 손질·둘째 업적
+
+- `[A-3a]` 커맨드렛의 통치자 정책: `-Answer=1`(카드가 온 틱에 답 — 선택지를 돌아가며), `-Build=1`(프로젝트 키를 거절될 때까지), `-Rules=이름:값;…`(그 판의 규칙 칸), 여섯째 줄 `CosmicBalance ruler:`(결정 = 받아들인 답 + 시작한 프로젝트). `run_checks.ps1`이 정책 판도 기준값(`ruler_summary_line`)과 견준다. 기준값 그대로(3,000틱 hash 3195642295, world 2405589164).
+- `[A-3b]` 세계 손질과 둘째 업적(헤더 `docs/60_DECISIONS/headers/A3_first_ten_minutes.md`, 결정 8개 권장안): 첫 위기(`FirstCrisisTick` 150·`FirstCrisisHazard` AI 각성, 위기 단계 발생의 끝), 안정도 회복(`StabilityRecoveryPerTick` 0.001·`StabilityRestingLevel` 0.6, 경제 단계)과 반란 해결 +0.1, AI 구호 정책(`ClaimLeaveProfiles` 확장·호전), 전조 1e-4, 조건 `CivSettledSystemsAtLeast`와 `feat_three_worlds`(정착 3 ∧ 공학 1.0), 다음 칸 표시의 `AllOf`·`TextOfAll`·부분 `Realm`, 보는 거리 [2,3,4,6,10], 청원 주기 300. OPEN_QUESTIONS #68·#71·#72를 닫았다.
+- 측정(30판, 20,000틱, 입력 없음): 0.3 미만 205 → 120/360, 반란의 몫 62% → 49%, 주장 정착률 18% → 40%, 입력 없는 폐위 4 → 8판(시드 7은 사라지고 18이 가장 이르다 — 테스트 둘의 시드를 옮겼다), AI T3 중앙값 6,400 → 2,700. 정책 판(6,000틱): 600틱 결정 5·말해진 줄 24.5, 6,000틱 결정 19, 다스리는 백성 T2 2,203·T3 4,425(26/30판).
+- 새 테스트 넷(`Sim.FirstCrisis`·`Sim.StabilityRecovery`·`Sim.ClaimRelief`·`Sim.SecondFeat`) — 102종 2회 통과. 변이 26개: 24 죽음, 2 생존(회복 노브의 NaN 가드 — 위쪽 경계 비교가 같은 일을 해 같은 뜻의 변이). 기준값: 3,000틱 hash 2941370122, world 1078735008 / 20,000틱 hash 2410091205, world 885018087 / 정책 판 hash 2361069549, world 4271872285.
+
 ## 2026-10-21 — MVP ② 카드 글 감사
 
 - `[A-2]` ultracode 워크플로 1회(26에이전트 — 렌즈 다섯: 서사 규칙·두 목소리·한국어와 템플릿 문법·글과 효과의 일치·신학, 카드마다 규칙 검증과 고친 글 검증, 종합, 빠진 것 비평): 발견 54건 → 확인 42건(walls 4/6·bread 10/11·feast 3/3·road 6/7·wise_heart 2/3·unstable_star 1/2·awakening 3/3·exalt 12/15·plague 1/3·keep_throne 0/1), 비평이 더한 것 11건 가운데 9건 반영.
