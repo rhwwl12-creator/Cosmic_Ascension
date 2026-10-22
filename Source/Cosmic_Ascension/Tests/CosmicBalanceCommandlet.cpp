@@ -4,10 +4,13 @@
 
 #include "Core/GalaxyState.h"
 #include "Cosmic_Ascension.h"
+#include "Data/CosmicDataTables.h"
 #include "Data/CosmicRowNames.h"
+#include "Engine/DataTable.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Events/CosmicPetitions.h"
 #include "GameMapsSettings.h"
 #include "GameplayTagContainer.h"
 #include "HAL/PlatformTime.h"
@@ -16,11 +19,14 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
+#include "Player/PlayerRoleSubsystem.h"
 #include "Save/CosmicSaveGame.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
+#include "UObject/Package.h"
+#include "UObject/UnrealType.h"
 
 namespace
 {
@@ -63,7 +69,40 @@ namespace
 		// the reasons must add up to it).
 		TMap<FString, int32> Expansion;
 		int64 ExpansionPairs = 0;
+		// The ruler's side (-Answer, -Build): the cards that came, the answers taken, the projects started, their sum (the
+		// decisions) and the sums and told lines at the ends of the first 600 and 6,000 ticks; the ticks at which the ruled
+		// people reached the second and the third rung (-1 while it has not).
+		int32 CardsCome = 0;
+		int32 Answers = 0;
+		int32 Started = 0;
+		int64 DecisionsAt600 = -1;
+		int64 DecisionsAt6000 = -1;
+		int64 ToldAt600 = -1;
+		int64 ToldAt6000 = -1;
+		int64 RuledT2Tick = -1;
+		int64 RuledT3Tick = -1;
 	};
+
+	// The answer of the -Answer policy: the first choice the stockpile can pay, from choice (answers so far) on, round
+	// (so that every choice of a card is taken in turn over a run). INDEX_NONE when none can be paid.
+	int32 PolicyChoiceOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FEncounterDef& Row, int32 AnswersSoFar)
+	{
+		const int32 CivIndex = CosmicPetitions::RuledCivIndexOf(State, Index);
+		const int32 Count = Row.Choices.Num();
+		if (!State.Civs.IsValidIndex(CivIndex) || Count <= 0)
+		{
+			return INDEX_NONE;
+		}
+		for (int32 Step = 0; Step < Count; ++Step)
+		{
+			const int32 Choice = (AnswersSoFar + Step) % Count;
+			if (CosmicMegaprojects::CanPay(State.Civs[CivIndex].Stockpile, CosmicPetitions::CostOf(Row.Choices[Choice])))
+			{
+				return Choice;
+			}
+		}
+		return INDEX_NONE;
+	}
 
 	// A slot before the tick: its hazard and count, the answer in its response slot, the owner's Influence, and the
 	// construction slot (a settlement that paid nothing in the tick is a stalled one).
@@ -281,6 +320,35 @@ namespace
 		}
 	}
 
+	// -Rules=Name:Value;Name:Value - DT_Rules fields replaced for this run only (section 9.3: a knob measured before it is
+	// written into the data). Each value is read as the data importer reads it (ImportText). False, with an error line, for
+	// a field the row lacks or a value it cannot read.
+	bool OverrideRules(UGalaxySimulationSubsystem& Sim, const FString& Text)
+	{
+		FCosmicRulesDef Row = Sim.GetRules();
+		TArray<FString> Pairs;
+		Text.ParseIntoArray(Pairs, TEXT(";"));
+		for (const FString& Pair : Pairs)
+		{
+			FString Name;
+			FString Value;
+			FProperty* Property = Pair.Split(TEXT(":"), &Name, &Value) ? FCosmicRulesDef::StaticStruct()->FindPropertyByName(FName(*Name)) : nullptr;
+			if (!Property || !Property->ImportText_Direct(*Value, Property->ContainerPtrToValuePtr<void>(&Row), nullptr, PPF_None))
+			{
+				UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -Rules cannot set '%s'"), *Pair);
+				return false;
+			}
+			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance: rules %s = %s"), *Name, *Value);
+		}
+		UDataTable* Table = NewObject<UDataTable>(GetTransientPackage());
+		Table->RowStruct = FCosmicRulesDef::StaticStruct();
+		Table->AddRow(CosmicRows::Rules, Row);
+		FCosmicDataTables Tables = Sim.GetTables();
+		Tables.Rules = Table;
+		Sim.SetTables(Tables);
+		return true;
+	}
+
 	FString CountsText(const TMap<FString, int32>& Counts)
 	{
 		TArray<FString> Keys;
@@ -310,12 +378,22 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	int32 Systems = 0;
 	int32 Civs = 0;
 	int32 TellAll = 1;
+	// The ruler's policy (section 9.3; Phase 5 adds -PlayerPolicy): -Answer=1 answers every card the tick it comes
+	// (PolicyChoiceOf), -Build=1 starts every project the ruler's project key would start (StartNextMegaproject: the
+	// answers and the next feat's construction, then a settlement) - both between ticks, as a player's input. 0 (the
+	// default) leaves the ruler idle: the world of RunHeadless(Ticks).
+	int32 Answer = 0;
+	int32 Build = 0;
+	FString RulesText;
 	FString Out = TEXT("balance.csv");
 	FParse::Value(*Params, TEXT("Seed="), Seed);
 	FParse::Value(*Params, TEXT("Ticks="), Ticks);
 	FParse::Value(*Params, TEXT("Systems="), Systems);
 	FParse::Value(*Params, TEXT("Civs="), Civs);
 	FParse::Value(*Params, TEXT("TellAll="), TellAll);
+	FParse::Value(*Params, TEXT("Answer="), Answer);
+	FParse::Value(*Params, TEXT("Build="), Build);
+	FParse::Value(*Params, TEXT("Rules="), RulesText, false);
 	FParse::Value(*Params, TEXT("Out="), Out);
 	const FString OutPath = FPaths::IsRelative(Out) ? FPaths::ProjectSavedDir() / TEXT("Balance") / Out : Out;
 	const FString RowsPath = FPaths::GetPath(OutPath) / (FPaths::GetBaseFilename(OutPath) + TEXT("_rows.csv"));
@@ -328,7 +406,10 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 
 	int32 Result = 0;
 	UGalaxySimulationSubsystem* Sim = GameInstance->GetSubsystem<UGalaxySimulationSubsystem>();
-	if (Sim)
+	UPlayerRoleSubsystem* Role = GameInstance->GetSubsystem<UPlayerRoleSubsystem>();
+	// A run on rules it could not set would print numbers of other rules: it does not run.
+	const bool bRules = Sim && (RulesText.IsEmpty() || OverrideRules(*Sim, RulesText));
+	if (Sim && Role && bRules)
 	{
 		// Every line is stored unless -TellAll=0 asks for the scope of telling of a game (section 8.1). The world hash is
 		// the same either way.
@@ -372,6 +453,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			const EPlayerRole RoleBefore = State.Player.Role;
 			const int64 TickBefore = State.Tick;
 			const int32 SphereBefore = SphereSize(State);
+			const FName CardBefore = State.Knowing.PendingPetitionRow;
 
 			const uint64 Start = FPlatformTime::Cycles64();
 			Sim->RunHeadless(1);
@@ -379,6 +461,31 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			TickMicros.Add(Micros);
 			SampleMicros += Micros;
 			++SampleTicks;
+
+			// The ruler's input between ticks, before anything below reads the tick: its lines carry this tick and are counted
+			// with it, and a hazard an answer ends is seen ending in it.
+			Counts.CardsCome += (!State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != CardBefore) ? 1 : 0;
+			for (int32 Guard = 0; Answer != 0 && Guard < 8 && !State.Knowing.PendingPetitionRow.IsNone(); ++Guard)
+			{
+				const FName Card = State.Knowing.PendingPetitionRow;
+				const FEncounterDef* Row = Sim->GetTables().FindEncounter(Card);
+				const int32 Choice = Row ? PolicyChoiceOf(State, Sim->GetStateIndex(), *Row, Counts.Answers) : INDEX_NONE;
+				if (Choice == INDEX_NONE)
+				{
+					break;
+				}
+				const FCosmicPetitionAnswer Taken = Role->AnswerPetition(Choice);
+				if (Taken.Outcome == ECosmicPetitionOutcome::Refused)
+				{
+					break;
+				}
+				Counts.Answers += (Taken.Outcome == ECosmicPetitionOutcome::Withdrawn) ? 0 : 1;
+				Counts.CardsCome += (!State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != Card) ? 1 : 0;
+			}
+			for (int32 Guard = 0; Build != 0 && Guard < 8 && Role->StartNextMegaproject(); ++Guard)
+			{
+				++Counts.Started;
+			}
 
 			if (Counts.FirstTwoSettledTick < 0 && HoldsTwoSettled(State))
 			{
@@ -446,6 +553,16 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				SampleRows.FindOrAdd(State.Log[Index].SourceRow.ToString())++;
 				Counts.ToldLines += State.Log[Index].bUntold ? 0 : 1;
 			}
+			if (const FCivilizationState* Ruled = State.Civs.FindByPredicate([](const FCivilizationState& Civ) { return Civ.bIsPlayerRuled; }))
+			{
+				Counts.RuledT2Tick = (Counts.RuledT2Tick < 0 && Ruled->Tier >= EAscensionTier::Tier2_Stellar) ? State.Tick : Counts.RuledT2Tick;
+				Counts.RuledT3Tick = (Counts.RuledT3Tick < 0 && Ruled->Tier >= EAscensionTier::Tier3_Causal) ? State.Tick : Counts.RuledT3Tick;
+			}
+			if (State.Tick == 600 || State.Tick == 6000)
+			{
+				(State.Tick == 600 ? Counts.DecisionsAt600 : Counts.DecisionsAt6000) = Counts.Answers + Counts.Started;
+				(State.Tick == 600 ? Counts.ToldAt600 : Counts.ToldAt6000) = Counts.ToldLines;
+			}
 
 			if ((Done + 1) % SampleEveryTicks == 0 || Done + 1 == Ticks)
 			{
@@ -500,6 +617,9 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			}
 			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance expansion: %lld (sample, people) pairs of peoples the player does not rule, the tick-0 sample included;%s"),
 				Counts.ExpansionPairs, *CountsText(Counts.Expansion));
+			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance ruler: answer %d build %d; cards %d, answers %d, started %d, decisions %d (by 600 %lld, by 6000 %lld); told by 600 %lld, by 6000 %lld; ruled people T2 at %lld, T3 at %lld"),
+				Answer, Build, Counts.CardsCome, Counts.Answers, Counts.Started, Counts.Answers + Counts.Started, Counts.DecisionsAt600, Counts.DecisionsAt6000,
+				Counts.ToldAt600, Counts.ToldAt6000, Counts.RuledT2Tick, Counts.RuledT3Tick);
 			if (ExpansionSum != Counts.ExpansionPairs)
 			{
 				UE_LOG(LogCosmic, Error, TEXT("CosmicBalance expansion: the counts add up to %lld, not %lld"), ExpansionSum, Counts.ExpansionPairs);
@@ -515,7 +635,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	}
 	else
 	{
-		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: no simulation subsystem"));
+		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: no simulation or role subsystem, or -Rules refused: nothing run"));
 		Result = 1;
 	}
 

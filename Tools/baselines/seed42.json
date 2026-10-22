@@ -2,8 +2,8 @@
     "what":  "Balance commandlet summary for seed 42 on the home row (60 living systems and the sanctuary, 12 peoples). Tools/run_checks.ps1 compares its \u0027CosmicBalance: seed ...\u0027 line with summary_line; an intended world change reruns with -UpdateBaseline and quotes the new hashes in the commit message.",
     "seed":  42,
     "ticks":  3000,
-    "summary_line":  "CosmicBalance: seed 42, 3000 ticks, hash 3195642295, world 2405589164, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks",
-    "verified_at":  "2026-10-20",
+    "summary_line":  "CosmicBalance: seed 42, 3000 ticks, hash 3195642295, world 2405589164, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks.csv",
+    "verified_at":  "2026-10-22",
     "last_recorded_in_changelog":  {
                                        "task":  "A0 4b (the first life\u0027s row arch_seeker replaces arch_terran) - the last record that says the world of seed 42 changed",
                                        "state_hash_3000":  2998664607,
@@ -11,5 +11,6 @@
                                        "state_hash_20000":  215423113,
                                        "world_hash_20000":  3260616143,
                                        "note":  "Measured 2026-10-19 on Windows (editor binaries). A0 4a (3000: hash 37918939, world 2651345342; 20000: hash 3634280889, world 2867078977) kept every deterministic column of the 20,000-tick CSV of the run before it, WildSystems +1. A0 4b keeps every world column of 4a\u0027s CSV; only the told lines, the log and the chronicle differ (the first life\u0027s row holds no book), and the world hash moves with the row and its traits."
-                                   }
+                                   },
+    "ruler_summary_line":  "CosmicBalance: seed 42, 3000 ticks, hash 1162215089, world 2535612711, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks_ruler.csv | CosmicBalance ruler: answer 1 build 1; cards 4, answers 4, started 3, decisions 7 (by 600 3, by 6000 -1); told by 600 11, by 6000 -1; ruled people T2 at 2201, T3 at -1"
 }

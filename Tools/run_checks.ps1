@@ -1,13 +1,14 @@
 # Cosmic Ascension - full check runner for the Windows development PC (PowerShell 5.1).
 # docs/40_DEV_GUIDE.md section 7. Order: editor-free checks -> (optional) data assets -> builds -> automation tests twice
-# -> headless smoke -> balance commandlet against Tools/baselines/seed42.json.
+# -> headless smoke -> balance commandlet against Tools/baselines/seed42.json (the idle run, then the run with the ruler's
+# policy -Answer=1 -Build=1).
 #
 #   powershell -ExecutionPolicy Bypass -File Tools\run_checks.ps1 [-Tier smoke|full] [-Data] [-UpdateBaseline] [-SkipBuild]
 #
 #   -Tier smoke   (default) automation filter "Cosmic_Ascension.Sim.Determinism+Cosmic_Ascension.Sim.Save+Cosmic_Ascension.Data"
 #   -Tier full    every Cosmic_Ascension.* test (the 20,000-tick runs included)
 #   -Data         regenerate the DataTable / String Table assets from Tools/data before building (editor closed)
-#   -UpdateBaseline  write the commandlet's hashes into Tools/baselines/seed42.json instead of comparing
+#   -UpdateBaseline  write the commandlet's lines into Tools/baselines/seed42.json instead of comparing
 #
 # Paths come from $env:UE_ROOT and $env:PROJECT_ROOT (defaults below are this PC's). The editor must be closed for the
 # editor-target build. Written on Linux without a Windows run on 2026-10-19: the first run on the PC may need a fix -
@@ -69,23 +70,37 @@ Step 'smoke: -game -nullrhi' {
     if (-not (Select-String -Path (Join-Path $Logs 'GameSmoke.log') -Pattern 'LogCosmic' -Quiet)) { throw 'no LogCosmic line in GameSmoke.log' }
 }
 
-Step 'balance: seed 42 vs baseline' {
-    $log = Join-Path $Logs 'Balance.log'
-    & $Editor $Project -run=CosmicBalance -Seed=42 -Ticks=3000 -Out=checks.csv -unattended -nosplash -stdout -FullStdOutLogOutput "-AbsLog=$RootF/Saved/Logs/Balance.log"
+# One commandlet run of seed 42 for 3,000 ticks, compared with the baseline field $Field (or written into it with
+# -UpdateBaseline): the hash line, and with $Ruler also the ruler line after ' | '.
+function Compare-Balance([string] $Name, [string] $Field, [string[]] $Extra, [switch] $Ruler) {
+    $log = Join-Path $Logs "$Name.log"
+    & $Editor $Project -run=CosmicBalance -Seed=42 -Ticks=3000 "-Out=$Name.csv" @Extra -unattended -nosplash -stdout -FullStdOutLogOutput "-AbsLog=$RootF/Saved/Logs/$Name.log"
     $line = Select-String -Path $log -Pattern 'CosmicBalance: seed' | Select-Object -Last 1
-    if (-not $line) { throw 'no "CosmicBalance: seed" summary line in Balance.log' }
+    if (-not $line) { throw "no ""CosmicBalance: seed"" summary line in $Name.log" }
     $summary = if ($line.Line -match '(CosmicBalance: seed.*)') { $Matches[1] } else { $line.Line }
+    if ($Ruler) {
+        $rulerLine = Select-String -Path $log -Pattern 'CosmicBalance ruler:' | Select-Object -Last 1
+        if (-not $rulerLine) { throw "no ""CosmicBalance ruler:"" line in $Name.log" }
+        $summary += ' | ' + $(if ($rulerLine.Line -match '(CosmicBalance ruler:.*)') { $Matches[1] } else { $rulerLine.Line })
+    }
     $baselinePath = Join-Path $Root 'Tools\baselines\seed42.json'
     $baseline = Get-Content $baselinePath -Raw | ConvertFrom-Json
     if ($UpdateBaseline) {
-        $baseline.summary_line = $summary; $baseline.verified_at = (Get-Date -Format 'yyyy-MM-dd')
+        if ($baseline.PSObject.Properties.Name -contains $Field) { $baseline.$Field = $summary } else { $baseline | Add-Member -NotePropertyName $Field -NotePropertyValue $summary }
+        $baseline.verified_at = (Get-Date -Format 'yyyy-MM-dd')
         # UTF-8 without a byte order mark (Set-Content -Encoding UTF8 of PowerShell 5.1 writes one; Python's json reads none).
         [IO.File]::WriteAllText($baselinePath, ($baseline | ConvertTo-Json -Depth 4), (New-Object Text.UTF8Encoding $false))
         Write-Host "   baseline updated: $summary"
-    } elseif ($baseline.summary_line -and ($baseline.summary_line -ne $summary)) {
-        throw "summary line differs from Tools/baselines/seed42.json`n   now:      $summary`n   baseline: $($baseline.summary_line)`n   (intended change -> rerun with -UpdateBaseline and put the new hashes in the commit message)"
+    } elseif ($baseline.$Field -and ($baseline.$Field -ne $summary)) {
+        throw "$Field differs from Tools/baselines/seed42.json`n   now:      $summary`n   baseline: $($baseline.$Field)`n   (intended change -> rerun with -UpdateBaseline and put the new hashes in the commit message)"
     } else { Write-Host "   $summary" }
 }
+
+Step 'balance: seed 42 vs baseline' { Compare-Balance 'checks' 'summary_line' @() }
+
+# The ruler's policy (docs/40_DEV_GUIDE.md section 9.3): answers and the project key between ticks, the scope of telling
+# of a game. It keeps the answers deterministic across builds.
+Step 'balance: seed 42 with the ruler policy vs baseline' { Compare-Balance 'checks_ruler' 'ruler_summary_line' @('-Answer=1', '-Build=1', '-TellAll=0') -Ruler }
 
 if ($failed.Count -gt 0) { Write-Host "run_checks: FAILED -> $($failed -join '; ')"; exit 1 }
 Write-Host 'run_checks: all passed'
