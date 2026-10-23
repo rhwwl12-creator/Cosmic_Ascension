@@ -11,11 +11,13 @@
 #include "Data/CosmicDefinitionRows.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
 #include "Events/CosmicPetitions.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameplayTagContainer.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformTime.h"
 #include "InputCoreTypes.h"
@@ -23,6 +25,7 @@
 #include "Log/CosmicLogSubsystem.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "Misc/ScopeExit.h"
 #include "Save/CosmicSaveSlot.h"
 #include "Save/CosmicSaveSubsystem.h"
@@ -54,6 +57,21 @@ namespace CosmicSaveSessionTests
 	void SetReadOnly(const FString& Path, bool bReadOnly)
 	{
 		FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*Path, bReadOnly);
+	}
+
+	// The continue tests' own slot folder, emptied (read-only leftovers of a killed run too): the newest run there is the one
+	// the test wrote, whatever other tests and processes left under Automation/. The next AcquireSim sets Automation/ again.
+	void UseOwnFolder(UCosmicSaveSubsystem& Save)
+	{
+		const FString Folder = TEXT("Automation/Continue/");
+		Save.SetFolderForTest(Folder);
+		const FString Directory = FPaths::ProjectSavedDir() / TEXT("SaveGames") / Folder;
+		TArray<FString> Files;
+		IFileManager::Get().FindFiles(Files, *Directory, TEXT(".sav"));
+		for (const FString& File : Files)
+		{
+			IFileManager::Get().Delete(*(Directory / File), false, true, true);
+		}
 	}
 
 	// The one world of the game, or null when the process has another set of worlds (the map load of the continue tests needs
@@ -98,8 +116,9 @@ namespace CosmicSaveSessionTests
 }
 
 // The boundary rule of the save layer (16 #33 (1)): what each tick boundary writes and why, the saves asked at input time,
-// a save asked from a handler waiting for the boundary, a failure kept and written again after the wait, the exit skipped
-// only for the run of decision 6, and the gate - as pure functions, one case per reason.
+// a save asked from a handler waiting for the boundary, a failure kept and written again after the wait (noticed only while
+// no write has put it right; the end of the run is written through the wait), the exit skipped only for the run of
+// decision 6, and the gate - as pure functions, one case per reason.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimSaveTriggersTest, "Cosmic_Ascension.Sim.SaveTriggers", CosmicTests::Flags)
 bool FCosmicSimSaveTriggersTest::RunTest(const FString& Parameters)
 {
@@ -112,7 +131,7 @@ bool FCosmicSimSaveTriggersTest::RunTest(const FString& Parameters)
 	UCosmicSaveSubsystem* Save = SaveOf(*Sim);
 	UCosmicLogSubsystem* Log = Sim->GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
 	AddExpectedError(TEXT("SaveCurrentGalaxy called from a handler of a Core Logic delegate"), EAutomationExpectedErrorFlags::Contains, 1);
-	AddExpectedMessage(TEXT("CosmicSave: .* was not written"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 2);
+	AddExpectedMessage(TEXT("CosmicSave: .* was not written"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 4);
 
 	const bool bWasBroadcasting = Sim->IsBroadcastEnabled();
 	TArray<FGuid> Written;
@@ -204,6 +223,14 @@ bool FCosmicSimSaveTriggersTest::RunTest(const FString& Parameters)
 	Sim->StepOnce();   // a change for the exit's hash
 	Save->RequestSave(ECosmicSaveCause::Answer);
 	TestEqual(TEXT("A failed write writes nothing"), Wrote(), 0);
+	SetReadOnly(MainPath, false);
+	Save->RequestSave(ECosmicSaveCause::Answer);
+	TestTrue(TEXT("An input after a failure writes at once"), Wrote() == 1 && Last() == ECosmicSaveCause::Answer);
+	TestFalse(TEXT("A failure written over before it was noticed is not told"), Save->TakeFirstFailure());
+	SetReadOnly(MainPath, true);
+	Sim->StepOnce();
+	Save->RequestSave(ECosmicSaveCause::Answer);
+	TestEqual(TEXT("Another failed write writes nothing"), Wrote(), 0);
 	TestTrue(TEXT("and is noticed once"), Save->TakeFirstFailure());
 	TestFalse(TEXT("only once"), Save->TakeFirstFailure());
 	SetReadOnly(MainPath, false);
@@ -231,6 +258,22 @@ bool FCosmicSimSaveTriggersTest::RunTest(const FString& Parameters)
 	Written.Add(Sim->GetState().GalaxyID);
 	Save->RequestSave(ECosmicSaveCause::Exit);
 	TestTrue(TEXT("The exit of another new run writes"), Wrote() == 1 && Last() == ECosmicSaveCause::Exit);
+
+	// ---- The end of the run is written through the wait: the latch stops the time in that tick ----
+	{
+		const FString OtherPath = Save->SlotPathOf(Sim->GetState().GalaxyID);
+		Save->SetTimingForTest(1e9, 1e9);
+		SetReadOnly(OtherPath, true);
+		Sim->StepOnce();
+		Save->RequestSave(ECosmicSaveCause::Answer);
+		SetReadOnly(OtherPath, false);
+		Sim->StepOnce();
+		TestEqual(TEXT("(within the wait a boundary writes nothing)"), Wrote(), 0);
+		Sim->GetMutableState().Tick = Sim->GetRules().ProvisionalEndTick - 1;
+		Sim->StepOnce();
+		TestTrue(TEXT("The tick the run ends is written within the wait"), Wrote() == 1 && Last() == ECosmicSaveCause::Ended);
+		Save->SetTimingForTest(1e9, 0.0);
+	}
 
 	// ---- The gate ----
 	TestFalse(TEXT("-NoSave closes it"), UCosmicSaveSubsystem::CommandLineAllows(TEXT("-NoSave")));
@@ -296,7 +339,7 @@ bool FCosmicUIContinueEndedTest::RunTest(const FString& Parameters)
 	}
 	UCosmicSaveSubsystem* Save = SaveOf(*Sim);
 	const FGuid Ended(0x5A5E0010, 1, 1, 1);
-	Save->DeleteSave(Ended);
+	UseOwnFolder(*Save);
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	FGalaxyState& State = Sim->GetMutableState();
 	State.GalaxyID = Ended;
@@ -338,7 +381,7 @@ bool FCosmicUIContinueEndedTest::RunTest(const FString& Parameters)
 
 // The continue of a running run (decision 1): the game opened again on a run that was going stands still with its line and
 // its card; an answer is saved at once, and a write that fails stops the time once and is written again at the boundary
-// after the wait; Space runs it again.
+// after the wait; Space runs it again; closing the window writes the run.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicUIContinueRunningTest, "Cosmic_Ascension.UI.ContinueRunning", CosmicTests::Flags)
 bool FCosmicUIContinueRunningTest::RunTest(const FString& Parameters)
 {
@@ -357,7 +400,7 @@ bool FCosmicUIContinueRunningTest::RunTest(const FString& Parameters)
 	UCosmicSaveSubsystem* Save = SaveOf(*Sim);
 	const FGuid Running(0x5A5E0011, 1, 1, 1);
 	const FName Card(TEXT("petition_wise_heart"));
-	Save->DeleteSave(Running);
+	UseOwnFolder(*Save);
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	Sim->RunHeadless(40);
 	FGalaxyState& State = Sim->GetMutableState();
@@ -395,8 +438,9 @@ bool FCosmicUIContinueRunningTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("with its line"), Controller->GetAutoPauseReason() == ECosmicAutoPause::Continued);
 			TestTrue(TEXT("and its card"), HUD->GetPetitionCard() && HUD->GetPetitionCard()->GetShownRow() == Card);
 
-			// An answer is saved at once; a failed write stops the time once and waits for the boundary after the wait.
+			// An answer is saved at once; a failed write stops the running time once and waits for the boundary after the wait.
 			const int32 Before = SaveLater->GetSavesWritten();
+			Sim->SetTimeScale(1.f);
 			SetReadOnly(MainPath, true);
 			const FCosmicPetitionAnswer Answer = Controller->AnswerPetition(1);
 			SetReadOnly(MainPath, false);
@@ -413,6 +457,18 @@ bool FCosmicUIContinueRunningTest::RunTest(const FString& Parameters)
 			Controller->PressSpeedKey(EKeys::SpaceBar);
 			TestEqual(TEXT("Space runs it again"), Sim->GetTimeScale(), 1.f);
 			TestTrue(TEXT("and the line goes"), Controller->GetAutoPauseReason() == ECosmicAutoPause::None);
+
+			// Closing the window is the exit save (the controller ends as Destroyed, not Quit): a changed run is written, once.
+			UGameViewportClient* Viewport = World->GetGameViewport();
+			if (TestNotNull(TEXT("(the game viewport)"), Viewport))
+			{
+				Sim->StepOnce();
+				const int32 AtClose = SaveLater->GetSavesWritten();
+				Viewport->OnCloseRequested().Broadcast(Viewport->Viewport);
+				TestTrue(TEXT("Closing the window writes the run"), SaveLater->GetSavesWritten() == AtClose + 1 && SaveLater->GetLastCause() == ECosmicSaveCause::Exit);
+				Viewport->OnCloseRequested().Broadcast(Viewport->Viewport);
+				TestEqual(TEXT("and only once"), SaveLater->GetSavesWritten(), AtClose + 1);
+			}
 		}
 		SetReadOnly(MainPath, false);
 		SaveLater->SetGameSavingForTest(false);

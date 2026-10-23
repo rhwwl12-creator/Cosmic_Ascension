@@ -16,7 +16,11 @@
 #include "Internationalization/StringTableCoreFwd.h"
 #include "Internationalization/Text.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/DateTime.h"
+#include "Misc/FileHelper.h"
 #include "Player/PlayerRoleSubsystem.h"
+#include "Save/CosmicSaveGame.h"
+#include "Save/CosmicSaveSlot.h"
 #include "Save/CosmicSaveSubsystem.h"
 #include "Sim/CosmicEvalContext.h"
 #include "Sim/CosmicHazards.h"
@@ -24,6 +28,7 @@
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
+#include "UObject/Package.h"
 
 namespace CosmicSanctuaryTests
 {
@@ -351,7 +356,8 @@ bool FCosmicSimSanctuaryRefusalsTest::RunTest(const FString& Parameters)
 
 // The load refuses a state that does not end with a kept sanctuary (section 4.5 (1), 9.1): a save from before v0.8 step 4
 // (the sanctuary missing - sol was the first life's home then), and one whose sanctuary has an owner, a hazard or a
-// project. A refused load leaves the running galaxy as it was; a kept one loads.
+// project. A refused load leaves the running galaxy as it was; a kept one loads. The write refuses the same states (one
+// predicate, CosmicSave::KeepsSanctuary): the broken slots here are made from their bytes.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimSaveSanctuaryTest, "Cosmic_Ascension.Sim.SaveSanctuary", CosmicTests::Flags)
 bool FCosmicSimSaveSanctuaryTest::RunTest(const FString& Parameters)
 {
@@ -364,6 +370,7 @@ bool FCosmicSimSaveSanctuaryTest::RunTest(const FString& Parameters)
 	}
 	UCosmicSaveSubsystem* Save = Sim->GetGameInstance()->GetSubsystem<UCosmicSaveSubsystem>();
 	AddExpectedError(TEXT("LoadGalaxy: slot .* does not end with a kept sanctuary"), EAutomationExpectedErrorFlags::Contains, 5);
+	AddExpectedError(TEXT("CosmicSave: .* does not end with a kept sanctuary: not written"), EAutomationExpectedErrorFlags::Contains, 5);
 
 	// A kept sanctuary loads.
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
@@ -397,7 +404,14 @@ bool FCosmicSimSaveSanctuaryTest::RunTest(const FString& Parameters)
 		Case.Break(Sim->GetMutableState());
 		Sim->RebuildStateIndex();
 		const FGuid Broken = Sim->GetState().GalaxyID;
-		if (!TestTrue(*FString::Printf(TEXT("(%s is saved)"), Case.What), Save->SaveCurrentGalaxy()))
+		TestFalse(*FString::Printf(TEXT("A save refuses %s"), Case.What), Save->SaveCurrentGalaxy());
+		// The slot an older build or a broken one would have left.
+		Sim->SyncRngState();
+		UCosmicSaveGame* Carrier = NewObject<UCosmicSaveGame>(GetTransientPackage());
+		Carrier->State = Sim->GetState();
+		TArray<uint8> Slot;
+		if (!TestTrue(*FString::Printf(TEXT("(%s is on the disk)"), Case.What), CosmicSaveSlot::Encode(*Carrier, FDateTime::UtcNow().GetTicks(), Slot)
+			&& FFileHelper::SaveArrayToFile(Slot, *Save->SlotPathOf(Broken))))
 		{
 			continue;
 		}

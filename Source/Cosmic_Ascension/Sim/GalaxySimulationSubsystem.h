@@ -328,8 +328,9 @@ public:
 	uint32 ComputeStateHash() const;
 
 	/**
-	 * World hash (section 8.1, 9.2): ComputeStateHash without the top-level members Knowing, Log, Chronicle and
-	 * TellRngState. Measures that knowing and telling never change the world; builds are compared by this value.
+	 * World hash (section 8.1, 9.2): ComputeStateHash without the top-level members Knowing, Log, Chronicle,
+	 * ChronicleEviction and TellRngState. Measures that knowing and telling never change the world; builds are compared
+	 * by this value.
 	 */
 	uint32 ComputeWorldHash() const;
 

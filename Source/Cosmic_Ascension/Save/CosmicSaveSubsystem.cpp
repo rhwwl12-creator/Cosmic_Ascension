@@ -9,6 +9,7 @@
 #include "Engine/GameInstance.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformProcess.h"
 #include "HAL/PlatformTime.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/CommandLine.h"
@@ -20,6 +21,14 @@
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/Package.h"
+
+bool CosmicSave::KeepsSanctuary(const FGalaxyState& State)
+{
+	// Every galaxy ends with the sanctuary, kept by Law.Hedge (section 4.5 (1)): no owner, hazard or project.
+	const FStarSystemState* Last = State.Systems.IsEmpty() ? nullptr : &State.Systems.Last();
+	return Last && CosmicState::IsSanctuary(Last->SystemID) && Last->OwnerCivID.IsNone() && !Last->ActiveHazard.IsValid()
+		&& Last->ActiveMegaproject.IsNone() && Last->ResponseMegaproject.IsNone();
+}
 
 const TCHAR* CosmicSave::NameOf(ECosmicSaveCause Cause)
 {
@@ -174,15 +183,15 @@ void UCosmicSaveSubsystem::HandleSimTick(int64 Tick)
 		return;
 	}
 	const double Now = FPlatformTime::Seconds();
-	if (Now < RetryNotBefore)
+	const TOptional<ECosmicSaveCause> Due = DueAt(Mark, MarkOf(Sim->GetState(), Sim->GetRules()), Now, IntervalSeconds);
+	// After a failure the kept cause and the due trigger wait - all but the end of the run: the controller's latch stops the
+	// time in this very tick, so no later boundary would come for it (once: a failed end write is kept like any other).
+	const bool bEnd = Due == ECosmicSaveCause::Ended;
+	if (Now < RetryNotBefore && !bEnd)
 	{
-		return;   // after a failure: the kept cause and the due trigger wait
+		return;
 	}
-	TOptional<ECosmicSaveCause> Cause = Pending;
-	if (!Cause)
-	{
-		Cause = DueAt(Mark, MarkOf(Sim->GetState(), Sim->GetRules()), Now, IntervalSeconds);
-	}
+	const TOptional<ECosmicSaveCause> Cause = bEnd ? Due : (Pending ? Pending : Due);
 	if (!Cause)
 	{
 		return;
@@ -229,7 +238,7 @@ void UCosmicSaveSubsystem::RequestSave(ECosmicSaveCause Cause)
 
 bool UCosmicSaveSubsystem::TakeFirstFailure()
 {
-	if (bFailedOnce && !bFailureTaken)
+	if (bFailureOpen && !bFailureTaken)
 	{
 		bFailureTaken = true;
 		return true;
@@ -320,7 +329,7 @@ bool UCosmicSaveSubsystem::Write(ECosmicSaveCause Cause, bool bGamePath)
 	{
 		if (bGamePath)
 		{
-			bFailedOnce = true;
+			bFailureOpen = true;
 			RetryNotBefore = FPlatformTime::Seconds() + RetrySeconds;
 			if (!Pending)
 			{
@@ -329,6 +338,14 @@ bool UCosmicSaveSubsystem::Write(ECosmicSaveCause Cause, bool bGamePath)
 		}
 		return false;
 	};
+	// A state the load would refuse (a broken sanctuary - a defect of the simulation) is not written: the slot and the
+	// backup keep the last state that loads, instead of the next write rotating it out (TryRead refuses Sanctuary without
+	// the backup).
+	if (!CosmicSave::KeepsSanctuary(Sim->GetState()))
+	{
+		UE_LOG(LogCosmic, Error, TEXT("CosmicSave: %s does not end with a kept sanctuary: not written, the last slot that loads stays"), *SlotNameOf(ID));
+		return Fail();
+	}
 	const double Start = FPlatformTime::Seconds();
 	Sim->SyncRngState();
 	UCosmicSaveGame* Carrier = NewObject<UCosmicSaveGame>(GetTransientPackage());
@@ -374,17 +391,18 @@ bool UCosmicSaveSubsystem::Write(ECosmicSaveCause Cause, bool bGamePath)
 			UE_LOG(LogCosmic, Warning, TEXT("CosmicSave: %s is damaged (%s): not copied, the backup stays"), *Main, CosmicSaveSlot::NameOf(OldRead));
 		}
 	}
+	LatestSavedAt = SavedAt;
 	if (!WriteSlotFile(MainPath, Slot))
 	{
 		UE_LOG(LogCosmic, Warning, TEXT("CosmicSave: %s was not written"), *Main);
 		return Fail();
 	}
-	LatestSavedAt = SavedAt;
 	++SavesWritten;
 	LastCause = Cause;
 	// On any path: this write put the state on the disk, so nothing kept is owed and the boundary does not wait.
 	Pending.Reset();
 	RetryNotBefore = 0.0;
+	bFailureOpen = false;
 	const uint32 Hash = Sim->ComputeStateHash();
 	SetMarkFromState(Hash);
 	UE_LOG(LogCosmic, Display, TEXT("CosmicSave: wrote %s (%s) tick %lld, hash %u, %d of %lld bytes in %.1f ms"), *Main, CosmicSave::NameOf(Cause),
@@ -420,9 +438,14 @@ ECosmicSlotRead UCosmicSaveSubsystem::ReadSlotFile(const FString& Path, TArray<u
 	{
 		return ECosmicSlotRead::BadSizes;
 	}
-	// A lock or an I/O error is not damage: tried twice, then ReadFailed (decision 5).
+	// A lock or an I/O error is not damage: tried twice, a quarter second apart (a sync client or a scanner holds a file
+	// for a moment), then ReadFailed (decision 5). Only a failed first try waits.
 	for (int32 Attempt = 0; Attempt < 2; ++Attempt)
 	{
+		if (Attempt > 0)
+		{
+			FPlatformProcess::Sleep(0.25f);
+		}
 		if (FFileHelper::LoadFileToArray(Out, *Path, FILEREAD_Silent))
 		{
 			return ECosmicSlotRead::Ok;
@@ -469,10 +492,7 @@ ECosmicSlotRead UCosmicSaveSubsystem::TryRead(const FGuid& GalaxyID, bool bBacku
 	// Every galaxy ends with the sanctuary, kept by Law.Hedge (section 4.5 (1)): no owner, hazard or project. A save from
 	// before v0.8 step 4 (sol was the first life's home then) or one whose sanctuary is not kept is refused - development
 	// saves are not carried over (no SaveVersion bump: no field changed).
-	const TArray<FStarSystemState>& Systems = Loaded->State.Systems;
-	const FStarSystemState* Last = Systems.IsEmpty() ? nullptr : &Systems.Last();
-	if (!Last || !CosmicState::IsSanctuary(Last->SystemID) || !Last->OwnerCivID.IsNone() || Last->ActiveHazard.IsValid()
-		|| !Last->ActiveMegaproject.IsNone() || !Last->ResponseMegaproject.IsNone())
+	if (!CosmicSave::KeepsSanctuary(Loaded->State))
 	{
 		UE_CLOG(!bBackup, LogCosmic, Error, TEXT("LoadGalaxy: slot %s does not end with a kept sanctuary (a save from before v0.8 step 4, or a broken one): start a new galaxy"), *SlotName);
 		return ECosmicSlotRead::Sanctuary;
@@ -667,7 +687,7 @@ void UCosmicSaveSubsystem::PrepareForTests()
 	IntervalSeconds = AutosaveRealSeconds;
 	RetrySeconds = RetryRealSeconds;
 	RetryNotBefore = 0.0;
-	bFailedOnce = false;
+	bFailureOpen = false;
 	bFailureTaken = false;
 	Mark = FCosmicSavedMark();
 	LastContinue = ECosmicContinue::NotBegun;

@@ -10,6 +10,7 @@
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Engine/GameInstance.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
 #include "GameplayTagContainer.h"
 #include "Log/CosmicLogSubsystem.h"
@@ -567,6 +568,12 @@ void ACosmicPlayerController::BeginPlay()
 	{
 		Log->OnLogEntry.AddUniqueDynamic(this, &ACosmicPlayerController::HandleLogEntry);
 	}
+	// The window's close is the player's quit (HandleCloseRequested).
+	if (UGameViewportClient* Viewport = (IsLocalController() && GetWorld()) ? GetWorld()->GetGameViewport() : nullptr)
+	{
+		ClosingViewport = Viewport;
+		CloseRequestedHandle = Viewport->OnCloseRequested().AddUObject(this, &ACosmicPlayerController::HandleCloseRequested);
+	}
 	RunBeganRealSeconds = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.0;
 	RunBeganTick = GetGameInstance() && GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>()->GetState().Tick : -1;
 	StoppedRealSeconds = 0.0;
@@ -614,14 +621,19 @@ void ACosmicPlayerController::FollowSaveFailure()
 
 void ACosmicPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	// Quitting the game saves the run (a map load ends this controller as Destroyed, not Quit): before the handlers go. The
-	// world ends its actors before the game instance shuts down, so the state is still there (GameEngine.cpp).
+	// Quitting the game saves the run - the console's quit and RequestExit end here as Quit; the window's close was saved
+	// by HandleCloseRequested and ends here as Destroyed, as a map load does (no save): before the handlers go. The world
+	// ends its actors before the game instance shuts down, so the state is still there (GameEngine.cpp).
 	if (EndPlayReason == EEndPlayReason::Quit)
 	{
 		if (UCosmicSaveSubsystem* Save = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCosmicSaveSubsystem>() : nullptr)
 		{
 			Save->RequestSave(ECosmicSaveCause::Exit);
 		}
+	}
+	if (UGameViewportClient* Viewport = ClosingViewport.Get())
+	{
+		Viewport->OnCloseRequested().Remove(CloseRequestedHandle);
 	}
 	if (ACosmicGalaxyMapActor* TheMap = Map.Get())
 	{
@@ -637,6 +649,16 @@ void ACosmicPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		Log->OnLogEntry.RemoveDynamic(this, &ACosmicPlayerController::HandleLogEntry);
 	}
 	Super::EndPlay(EndPlayReason);
+}
+
+void ACosmicPlayerController::HandleCloseRequested(FViewport* Viewport)
+{
+	// From the window's message (Slate), outside the world's tick - no tick stage or broadcast runs - with the world and the
+	// game instance whole. A quit that reaches EndPlay(Quit) too writes once: the exit skips a slot that holds this state.
+	if (UCosmicSaveSubsystem* Save = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCosmicSaveSubsystem>() : nullptr)
+	{
+		Save->RequestSave(ECosmicSaveCause::Exit);
+	}
 }
 
 void ACosmicPlayerController::HandleSimTick(int64 Tick)

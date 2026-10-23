@@ -256,7 +256,7 @@ bool FCosmicSimSaveSlotFormTest::RunTest(const FString& Parameters)
 
 // The backup (16 #33 (2)): the first save has none, the second copies the verified slot; a damaged slot loads from the
 // backup and is not copied over it; a later version, a later form and a slot that did not read are refused without the
-// backup and never replaced; a backup that cannot be written keeps the slot.
+// backup and never replaced; a backup that cannot be written keeps the slot; a state the load would refuse is not written.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimSaveBackupTest, "Cosmic_Ascension.Sim.SaveBackup", CosmicTests::Flags)
 bool FCosmicSimSaveBackupTest::RunTest(const FString& Parameters)
 {
@@ -276,6 +276,7 @@ bool FCosmicSimSaveBackupTest::RunTest(const FString& Parameters)
 	AddExpectedMessage(TEXT("could not be read: the backup is not tried"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 1);
 	AddExpectedMessage(TEXT("is ReadFailed: it is not replaced"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 1);
 	AddExpectedMessage(TEXT("was not written: .* is kept as it was"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 1);
+	AddExpectedError(TEXT("does not end with a kept sanctuary: not written"), EAutomationExpectedErrorFlags::Contains, 1);
 
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	const FGuid ID = Sim->GetState().GalaxyID;
@@ -360,14 +361,28 @@ bool FCosmicSimSaveBackupTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("and keeps the slot as it was"), ReadFile(MainPath) == Before);
 	}
 
+	// A state whose sanctuary is not kept (a defect of the simulation) is not written: the slot and the backup keep the last
+	// state that loads, which the next write would otherwise rotate out.
+	{
+		const TArray<uint8> Main = ReadFile(MainPath);
+		const TArray<uint8> Backup = ReadFile(BackupPath);
+		FGalaxyState& State = Sim->GetMutableState();
+		const FName Owner = State.Systems.Last().OwnerCivID;
+		State.Systems.Last().OwnerCivID = State.Civs[0].CivID;
+		TestFalse(TEXT("A state whose sanctuary is not kept is not saved"), Save->SaveCurrentGalaxy());
+		State.Systems.Last().OwnerCivID = Owner;
+		TestTrue(TEXT("and leaves the slot and its backup as they were"), ReadFile(MainPath) == Main && ReadFile(BackupPath) == Backup);
+	}
+
 	TestTrue(TEXT("DeleteSave deletes the run's files"), Save->DeleteSave(ID));
 	TestFalse(TEXT("both of them"), Save->DoesSaveExist(ID));
 	return true;
 }
 
 // The continue (16 #33 (3)): the newest run by its header's time, a run's time the later of its slot and backup, a header
-// that does not read ordered by the file's time; the newest run opens from its slot or its backup, or not at all - never an
-// older run; only slot names count. The test's own folder; the game's folder is not touched.
+// that does not read ordered by the file's time (a cut slot's and a later form's header still date their run); the newest
+// run opens from its slot or its backup - a run with only its backup too - or not at all - never an older run; only slot
+// names count. The test's own folder; the game's folder is not touched.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimSaveFindTest, "Cosmic_Ascension.Sim.SaveFind", CosmicTests::Flags)
 bool FCosmicSimSaveFindTest::RunTest(const FString& Parameters)
 {
@@ -379,8 +394,9 @@ bool FCosmicSimSaveFindTest::RunTest(const FString& Parameters)
 		return false;
 	}
 	UCosmicSaveSubsystem* Save = SaveOf(*Sim);
-	AddExpectedMessage(TEXT("read from its backup"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 1);
-	AddExpectedMessage(TEXT("; its backup: "), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 2);
+	AddExpectedMessage(TEXT("read from its backup"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 2);
+	AddExpectedMessage(TEXT("; its backup: "), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 3);
+	AddExpectedMessage(TEXT("has slot form 2"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 1);
 
 	const FGuid A(0x5A5E0001, 1, 1, 1);
 	const FGuid B(0x5A5E0002, 1, 1, 1);
@@ -449,6 +465,33 @@ bool FCosmicSimSaveFindTest::RunTest(const FString& Parameters)
 	WriteFile(Folder / TEXT("Galaxy_123.sav"), Later);
 	WriteFile(Folder / TEXT("Other.sav"), Later);
 	TestTrue(TEXT("Files that are not slots of a run are passed over"), Save->ContinueNewest() == ECosmicContinue::Newest && Sim->GetState().GalaxyID == C);
+
+	// A run with only its backup (its slot taken away - decision 5): its backup's header dates it, and it opens from the backup.
+	{
+		const FGuid E(0x5A5E0005, 1, 1, 1);
+		WriteFile(Save->SlotPathOf(E, true), SlotOf(*Sim, E, TicksAgo(-20)));
+		TestTrue(TEXT("A newest run with only its backup opens from it"), Save->ContinueNewest() == ECosmicContinue::Backup && Sim->GetState().GalaxyID == E);
+		IFileManager::Get().Delete(*Save->SlotPathOf(E, true), false, true, true);
+	}
+
+	// A cut slot's header still dates its run, and so does a later form's - not the file's time: F's one file says long ago,
+	// its header says newest. F is the newest run, it does not open, and C is not opened in its place.
+	{
+		const FGuid F(0x5A5E0006, 1, 1, 1);
+		const FString FPath = Save->SlotPathOf(F);
+		const TArray<uint8> FIntact = SlotOf(*Sim, F, TicksAgo(-30));
+		Sim->NewGalaxy(7, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+		const uint32 Before = Sim->ComputeStateHash();
+		WriteFile(FPath, Cut(FIntact, FIntact.Num() - 10));
+		IFileManager::Get().SetTimeStamp(*FPath, FDateTime(2001, 1, 1));
+		TestTrue(TEXT("A newest run dated by its cut slot's header is Unreadable"), Save->ContinueNewest() == ECosmicContinue::Unreadable);
+		TestEqual(TEXT("and C is not opened in its place"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(Before));
+		WriteFile(FPath, Rewritten<uint16>(FIntact, CosmicSaveSlot::FormAt, 2));
+		IFileManager::Get().SetTimeStamp(*FPath, FDateTime(2001, 1, 1));
+		TestTrue(TEXT("A newest run of a later form is Unreadable"), Save->ContinueNewest() == ECosmicContinue::Unreadable);
+		TestEqual(TEXT("and C is not opened in its place either"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(Before));
+		IFileManager::Get().Delete(*FPath, false, true, true);
+	}
 
 	TestTrue(TEXT("The game's folder is as it was"), SlotFilesIn(GameFolder) == GameBefore);
 	return true;

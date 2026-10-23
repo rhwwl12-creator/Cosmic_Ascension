@@ -2562,8 +2562,8 @@ bool FCosmicNotablesFromEventsOnlyTest::RunTest(const FString& Parameters)
 	bool bRealRows = true;
 	bool bToldAtFirstTick = true;
 	// Since MVP item 5 the chronicle keeps only what it can show (16 #40 (7)): the Severity 1 line of a people no life ruled
-	// is dropped when it leaves the log. Such a record's line is gone when its tick is at or before the oldest line left
-	// (several lines of one tick may have left in part - hence at or before).
+	// is dropped when it leaves the log. Such a record's line is gone when its row tells at Severity 1 and its tick is at or
+	// before the oldest line left (several lines of one tick may have left in part - hence at or before); Severity 2 stays.
 	const TArray<FName> LifePeoples = CosmicChronicle::PeoplesOfEveryLife(State.Calling);
 	const int64 OldestLeft = State.Log.IsEmpty() ? 0 : State.Log[0].Tick;
 	for (const FCivilizationState& Civ : State.Civs)
@@ -2572,7 +2572,9 @@ bool FCosmicNotablesFromEventsOnlyTest::RunTest(const FString& Parameters)
 		{
 			++Records;
 			bRealRows &= IsGameRow(Tables, Record.SourceRow);
-			bToldAtFirstTick &= Told(Record.SourceRow, Record.FirstTick) || (Record.FirstTick <= OldestLeft && !LifePeoples.Contains(Civ.CivID));
+			const FCosmicEventDef* Row = Tables.FindEvent(Record.SourceRow);
+			const bool bMayHaveLeft = Row && Row->Severity == 1 && Record.FirstTick <= OldestLeft && !LifePeoples.Contains(Civ.CivID);
+			bToldAtFirstTick &= Told(Record.SourceRow, Record.FirstTick) || bMayHaveLeft;
 		}
 	}
 	TestTrue(TEXT("Records stand at the end of the run"), Records >= 1);

@@ -242,7 +242,8 @@ ECosmicSlotRead CosmicSaveSlot::Unpack(TConstArrayView<uint8> Slot, const FGuid*
 	{
 		return Read;
 	}
-	OutRaw.SetNumUninitialized(static_cast<int32>(OutHeader.RawBytes));
+	// Zeroed: whatever the codec leaves, the engine's reader never sees memory this process did not write.
+	OutRaw.SetNumZeroed(static_cast<int32>(OutHeader.RawBytes));
 	if (OutHeader.Codec == ECodec::Oodle)
 	{
 		if (!FOodleDataCompression::Decompress(OutRaw.GetData(), OutHeader.RawBytes, Slot.GetData() + HeaderBytes, OutHeader.PackedBytes))

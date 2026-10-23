@@ -19,6 +19,7 @@
 #include "CosmicGameMode.generated.h"
 
 class ACosmicCameraPawn;
+class FViewport;
 class ACosmicGalaxyMapActor;
 class UCosmicAscensionOverlayWidget;
 class UCosmicChronicleWidget;
@@ -27,6 +28,7 @@ class UCosmicLogFeedWidget;
 class UCosmicPetitionCardWidget;
 class UCosmicSystemPanelWidget;
 class UCosmicTopBarWidget;
+class UGameViewportClient;
 class UUserWidget;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnCosmicSelectionChanged, FName /* SystemID, None when cleared */);
@@ -499,6 +501,13 @@ private:
 	int64 RunBeganTick = -1;
 	// A failed write of the game's saving stops the time once (UCosmicSaveSubsystem::TakeFirstFailure, decision 12).
 	void FollowSaveFailure();
+	// Closing the window (its X, Alt+F4) is the player's quit: the exit save. The close removes the local player and
+	// destroys this controller - EndPlay(Destroyed) - a frame before the engine quits (UGameEngine::OnGameWindowClosed ->
+	// UGameViewportClient::CloseRequested; UGameEngine::Tick -> CleanupGameViewport -> RequestExit), so EndPlay(Quit)
+	// never sees it. Bound in BeginPlay to the game viewport's OnCloseRequested, removed in EndPlay.
+	void HandleCloseRequested(FViewport* Viewport);
+	TWeakObjectPtr<UGameViewportClient> ClosingViewport;
+	FDelegateHandle CloseRequestedHandle;
 
 	ECosmicTimeUnit TimeUnit = ECosmicTimeUnit::Cycle;
 

@@ -34,6 +34,9 @@ namespace CosmicSave
 {
 	COSMIC_ASCENSION_API const TCHAR* NameOf(ECosmicSaveCause Cause);
 	COSMIC_ASCENSION_API const TCHAR* NameOf(ECosmicContinue Outcome);
+	// The last system is the sanctuary with no owner, hazard or project (section 4.5 (1)): a load refuses a state without it
+	// (Sanctuary) and a write does not put one on the disk.
+	COSMIC_ASCENSION_API bool KeepsSanctuary(const FGalaxyState& State);
 }
 
 /** What the slot of the running galaxy holds, as far as the tick-boundary check needs it: a cache of the disk (the disk copy),
@@ -135,7 +138,8 @@ public:
 	// or without a galaxy.
 	void RequestSave(ECosmicSaveCause Cause);
 
-	// True once per game instance, after the first failed write of the game's saving (the controller stops the time once).
+	// True once per game instance, for the first failed write of the game's saving that no later write has put right yet (the
+	// controller stops the time once; a failure written over before the controller looked is not told).
 	bool TakeFirstFailure();
 
 	// ---- Tests ----
@@ -185,7 +189,7 @@ private:
 	bool bBlockedForTests = false;
 	bool bTestOverride = false;
 	bool bContinueAtNextStart = false;
-	bool bFailedOnce = false;
+	bool bFailureOpen = false;                            // a write of the game's path failed and none has succeeded since
 	bool bFailureTaken = false;
 	double RetryNotBefore = 0.0;                          // FPlatformTime::Seconds; boundary writes wait for it after a failure
 	double IntervalSeconds = AutosaveRealSeconds;

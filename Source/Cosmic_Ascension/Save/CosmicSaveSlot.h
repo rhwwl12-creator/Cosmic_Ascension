@@ -27,7 +27,7 @@ enum class ECosmicSlotRead : uint8
 	Truncated,       // the file is not exactly HeaderBytes + PackedBytes long (cut short, or bytes appended)
 	OtherGalaxy,     // the header or the state names another galaxy than the slot name
 	PayloadDamaged,  // PayloadCrc does not match
-	CodecRefused,    // the codec did not give exactly RawBytes
+	CodecRefused,    // the codec refused the payload (Oodle returned 0); a CRC-true payload that decodes to another length is only a hand-made file (section 3.3) and stops at the engine's check
 	Unreadable,      // the engine bytes give no UCosmicSaveGame
 	ReadFailed,      // the file exists and did not read twice (a lock, an I/O error): not damage
 	NewerForm,       // an intact header of a later slot form (Form above CosmicSaveSlot::FormVersion)
