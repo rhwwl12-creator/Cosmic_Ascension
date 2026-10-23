@@ -978,4 +978,12 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// here) = none.
 	UPROPERTY(EditAnywhere)
 	FGameplayTag FirstCrisisHazard;
+
+	// ---- The provisional end (MVP item 4; goes with the four endings of B5, B6) ----
+
+	// The MVP run's clock end (CosmicEndings::ProvisionalEndOf): from the tick boundary where State.Tick reaches this - unless the ruled people reached the third
+	// rung first - the presentation keeps the time stopped and opens the chronicle; the run's last tick is this one. 0 or below = no clock end. Nothing in the
+	// simulation stops at it (the commandlet reports it). Start value 6000 = ten minutes of running at x10; it lengthens only a run the clock ends.
+	UPROPERTY(EditAnywhere)
+	int32 ProvisionalEndTick = 6000;
 };

@@ -1,6 +1,6 @@
 # CONFIG REFERENCE — DT_Rules 노브 표 (생성 문서)
 
-> `python -I Tools/make_config_reference.py`가 `Tools/data/DT_Rules.json`·`schema.json`·`Source/`에서 만든다. **손으로 고치지 않는다** — 값은 JSON에서, 규칙은 schema에서, 읽는 곳은 코드에서 바뀐다. 노브 52개 가운데 런타임이 읽는 것 34개, 예약 18개(읽는 코드가 올 Phase에서 산다 — `docs/40_DEV_GUIDE.md` §4). 밸런스 상수 가운데 아직 코드에 박힌 것(경제·연구 계수 — `Sim/GalaxySimulationSubsystem.cpp`의 `namespace Economy`)은 이 표에 없다; MVP에서 옮긴다.
+> `python -I Tools/make_config_reference.py`가 `Tools/data/DT_Rules.json`·`schema.json`·`Source/`에서 만든다. **손으로 고치지 않는다** — 값은 JSON에서, 규칙은 schema에서, 읽는 곳은 코드에서 바뀐다. 노브 53개 가운데 런타임이 읽는 것 35개, 예약 18개(읽는 코드가 올 Phase에서 산다 — `docs/40_DEV_GUIDE.md` §4). 밸런스 상수 가운데 아직 코드에 박힌 것(경제·연구 계수 — `Sim/GalaxySimulationSubsystem.cpp`의 `namespace Economy`)은 이 표에 없다; MVP에서 옮긴다.
 
 | 노브 | 값 | 종류 | 스키마 규칙 | 읽는 코드(테스트 제외) | 상태 |
 |---|---|---|---|---|---|
@@ -56,3 +56,4 @@
 | `ClaimLeaveProfiles` | `"(GameplayTags=((TagName=\"AI.Profile.Expansionist\"),(TagName=\"AI…` | tags | `{"root": "AI.Profile."}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `FirstCrisisTick` | `150` | number | `{"min": 0, "integer": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `FirstCrisisHazard` | `"Hazard.AIAwakening"` | tag | `{"root": "Hazard.", "optional": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
+| `ProvisionalEndTick` | `6000` | number | `{"min": 0, "integer": true}` | Sim/CosmicEndings.cpp | 읽힘 |

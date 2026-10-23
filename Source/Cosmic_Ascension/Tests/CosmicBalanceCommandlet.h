@@ -16,7 +16,7 @@
  * PeopleSettleBlockOf by name, NoFoothold for NoLane when it owns no settled system, SettlingStalled for Settling when
  * its settlement paid nothing in the tick just run - CosmicMegaprojects::PaidNothing; empty for the people the player
  * rules), a second CSV named after -Out with "_rows" before ".csv" (-Out=balance.csv writes balance_rows.csv) with
- * the lines of every 100-tick sample by SourceRow, and six log lines: the hashes ("CosmicBalance: seed ... hash ...
+ * the lines of every 100-tick sample by SourceRow, and seven log lines: the hashes ("CosmicBalance: seed ... hash ...
  * world ..."), a summary (claims placed, ended and joined, the first claim and the first join, the first tick some people
  * holds two settled systems and the claims placed after it, the sphere, wild systems, the tick the vessel was deposed,
  * tick micros mean/p99/max, the bytes and the time of the copy and serialization of the state - not the file write),
@@ -28,14 +28,18 @@
  * and an error line says so when the reasons do not add up to them), and the ruler's side ("CosmicBalance ruler: ..." -
  * the cards that came, the answers taken, the projects started, the decisions - answers taken, a withdrawn card not
  * counted, plus projects started - by tick 600 and 6,000 and in all, the told lines by tick 600 and 6,000, and the ticks
- * at which the ruled people reached the second and the third rung).
+ * at which the ruled people reached the second and the third rung), and the provisional end ("CosmicBalance end: first <cause>
+ * at <tick>; rung at, clock at, deposed at; chronicle life <n> shown <lines> of <candidates>, more <0|1>" - looked at after
+ * every tick, nothing stops at it - and the uncapped chapter's lines by the cap's four ranks, "ranks a/b/c/d"; a
+ * "CosmicBalance end check:" line when the rung end is not the ruled people's third rung
+ * and no deposition fell in that tick, which changes no exit code).
  * The ruler's policy, between ticks after each tick and before the tick's counts: -Answer=1 answers every card the tick
  * it comes (the first choice the stockpile can pay, from choice (answers so far mod choices) on), -Build=1 presses the
  * project key (UPlayerRoleSubsystem::StartNextMegaproject) until it refuses. -Rules=Name:Value;Name:Value replaces
  * fields of the DT_Rules row for the run (read as the data importer reads them; a field it cannot set stops the run).
  * Without them (all off by default) it reads the state only: the world is that of RunHeadless(Ticks) - as long as there
  * are no endings (section 4.4: once an ending stops a run, a later RunHeadless must simulate nothing for that to stay
- * true).
+ * true). The MVP's provisional end belongs to the presentation and stops nothing.
  *
  *   UnrealEditor-Cmd Cosmic_Ascension.uproject -run=CosmicBalance -Seed=42 -Ticks=20000 -Out=balance.csv
  *

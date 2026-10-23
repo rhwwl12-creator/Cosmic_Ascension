@@ -13,6 +13,8 @@
 #include "Events/CosmicPetitions.h"
 #include "GameMapsSettings.h"
 #include "GameplayTagContainer.h"
+#include "Log/CosmicChronicle.h"
+#include "Math/NumericLimits.h"
 #include "HAL/PlatformTime.h"
 #include "Kismet/GameplayStatics.h"
 #include "Log/CosmicLogSubsystem.h"
@@ -22,6 +24,7 @@
 #include "Player/PlayerRoleSubsystem.h"
 #include "Save/CosmicSaveGame.h"
 #include "Sim/CosmicHazards.h"
+#include "Sim/CosmicEndings.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
@@ -81,6 +84,19 @@ namespace
 		int64 ToldAt6000 = -1;
 		int64 RuledT2Tick = -1;
 		int64 RuledT3Tick = -1;
+		// The provisional end (MVP item 4), looked at after every tick and before the policy's input - nothing stops at it: the
+		// first cause and its tick, the first ticks of each cause, and the last chapter of the chronicle at the first end.
+		ECosmicProvisionalEnd FirstEnd = ECosmicProvisionalEnd::None;
+		int64 FirstEndTick = -1;
+		int64 RungTick = -1;
+		int64 ClockTick = -1;
+		int32 ChapterLife = -1;
+		int32 ChapterShown = -1;
+		int32 ChapterCandidates = -1;
+		int32 ChapterMore = -1;
+		// The last chapter's candidates by the cap's rank (Log.Calling, own Severity 2, admitted Severity 1, other peoples'
+		// Severity 2): what the cap of CosmicChronicle::MaxLifeLines is set from.
+		int32 ChapterRanks[4] = { -1, -1, -1, -1 };
 	};
 
 	// The answer of the -Answer policy: the first choice the stockpile can pay, from choice (answers so far) on, round
@@ -462,6 +478,35 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			SampleMicros += Micros;
 			++SampleTicks;
 
+			// The provisional end, read as the presentation reads it at this tick boundary (before the ruler's input of it).
+			{
+				const ECosmicProvisionalEnd End = CosmicEndings::ProvisionalEndOf(State, Sim->GetRules());
+				const int32 EndTick = Sim->GetRules().ProvisionalEndTick;
+				Counts.RungTick = (Counts.RungTick < 0 && End == ECosmicProvisionalEnd::Rung) ? State.Tick : Counts.RungTick;
+				Counts.ClockTick = (Counts.ClockTick < 0 && EndTick > 0 && State.Tick >= EndTick) ? State.Tick : Counts.ClockTick;
+				if (Counts.FirstEnd == ECosmicProvisionalEnd::None && End != ECosmicProvisionalEnd::None)
+				{
+					Counts.FirstEnd = End;
+					Counts.FirstEndTick = State.Tick;
+					const TArray<FCosmicChronicleChapter> Chapters = CosmicChronicle::Build(State);
+					if (!Chapters.IsEmpty() && State.Calling.Lives.IsValidIndex(Chapters.Last().LifeAt))
+					{
+						Counts.ChapterLife = State.Calling.Lives[Chapters.Last().LifeAt].LifeIndex;
+						Counts.ChapterShown = Chapters.Last().Lines.Num();
+						Counts.ChapterCandidates = Chapters.Last().Candidates;
+						Counts.ChapterMore = Chapters.Last().bMore ? 1 : 0;
+						static const FGameplayTag CallingTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Calling")));
+						const TArray<FCosmicChronicleChapter> Whole = CosmicChronicle::BuildCapped(State, TNumericLimits<int32>::Max());
+						FMemory::Memzero(Counts.ChapterRanks);
+						for (const FCosmicChronicleLine& Line : Whole.Last().Lines)
+						{
+							const int32 Rank = Line.Entry.Category == CallingTag ? 0 : !Line.bOwn ? 3 : Line.Entry.Severity >= 2 ? 1 : 2;
+							++Counts.ChapterRanks[Rank];
+						}
+					}
+				}
+			}
+
 			// The ruler's input between ticks, before anything below reads the tick: its lines carry this tick and are counted
 			// with it, and a hazard an answer ends is seen ending in it.
 			Counts.CardsCome += (!State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != CardBefore) ? 1 : 0;
@@ -620,6 +665,17 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance ruler: answer %d build %d; cards %d, answers %d, started %d, decisions %d (by 600 %lld, by 6000 %lld); told by 600 %lld, by 6000 %lld; ruled people T2 at %lld, T3 at %lld"),
 				Answer, Build, Counts.CardsCome, Counts.Answers, Counts.Started, Counts.Answers + Counts.Started, Counts.DecisionsAt600, Counts.DecisionsAt6000,
 				Counts.ToldAt600, Counts.ToldAt6000, Counts.RuledT2Tick, Counts.RuledT3Tick);
+			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance end: first %s at %lld; rung at %lld, clock at %lld, deposed at %lld; chronicle life %d shown %d of %d, more %d, ranks %d/%d/%d/%d"),
+				CosmicEndings::NameOf(Counts.FirstEnd), Counts.FirstEndTick, Counts.RungTick, Counts.ClockTick, Counts.DeposedTick, Counts.ChapterLife,
+				Counts.ChapterShown, Counts.ChapterCandidates, Counts.ChapterMore, Counts.ChapterRanks[0], Counts.ChapterRanks[1], Counts.ChapterRanks[2], Counts.ChapterRanks[3]);
+			// The rung end and the ruled people's third rung are the same tick, but for a deposition in that very tick (the
+			// feats are judged before the tenth stage deposes; afterwards no people is ruled). A measure, not a gate: Result
+			// stays, and the line has a prefix of its own so that a tool taking the last "end:" line never takes it.
+			const bool bSameTickDeposition = Counts.RuledT3Tick < 0 && Counts.DeposedTick >= 0 && Counts.DeposedTick == Counts.RungTick;
+			if (Counts.RungTick != Counts.RuledT3Tick && !bSameTickDeposition)
+			{
+				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance end check: the rung end at %lld is not the ruled people's third rung at %lld"), Counts.RungTick, Counts.RuledT3Tick);
+			}
 			if (ExpansionSum != Counts.ExpansionPairs)
 			{
 				UE_LOG(LogCosmic, Error, TEXT("CosmicBalance expansion: the counts add up to %lld, not %lld"), ExpansionSum, Counts.ExpansionPairs);

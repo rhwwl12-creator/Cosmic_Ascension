@@ -17,6 +17,12 @@ void UCosmicLogSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	UE_LOG(LogCosmic, Log, TEXT("UCosmicLogSubsystem initialized"));
 }
 
+TArray<FCosmicChronicleChapter> UCosmicLogSubsystem::BuildChronicle() const
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	return Sim ? CosmicChronicle::Build(Sim->GetState()) : TArray<FCosmicChronicleChapter>();
+}
+
 void UCosmicLogSubsystem::Deinitialize()
 {
 	Super::Deinitialize();

@@ -9,6 +9,7 @@
 #include "Internationalization/Text.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Core/GalaxyState.h"
+#include "Log/CosmicChronicle.h"
 #include "CosmicLogSubsystem.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLogEntry, const FCosmicLogEntry&, Entry);
@@ -44,8 +45,8 @@ struct FCosmicLine
  * (section 8.1), keeps the cap and moves what must be kept into FGalaxyState.Chronicle. Holds no state of its own but
  * the tell-all mode: the log lives in the saved state, is hashed by ComputeStateHash (all but the text) and is left out
  * of ComputeWorldHash. So far: Push, PushVariants, PushRow, the scope with bUntold and the far lines, the tell-all mode,
- * the cap. PickTemplateRow by revelation context, slot resolution, the interlude mode, BuildChronicle and
- * BuildWorldDigest arrive with Phase 4 and 4b.
+ * the cap, and the chronicle's minimal form (BuildChronicle - MVP item 4). PickTemplateRow by revelation context, slot
+ * resolution, the interlude mode, the two books, the epitaph and BuildWorldDigest arrive with Phase 4 and 4b.
  */
 UCLASS()
 class COSMIC_ASCENSION_API UCosmicLogSubsystem : public UGameInstanceSubsystem
@@ -64,6 +65,10 @@ public:
 	// in the balance commandlet. The world hash is the same either way.
 	void SetTellAll(bool bOn) { bTellAll = bOn; }
 	bool IsTellAll() const { return bTellAll; }
+
+	// The chronicle up to the current tick: CosmicChronicle::Build over the live state; reads only and draws nothing, so a
+	// handler may call it. Phase 4b adds the two books, the epitaph and the digest around the same chapters.
+	TArray<FCosmicChronicleChapter> BuildChronicle() const;
 
 	/**
 	 * Renders Template with Args and appends one entry stamped with the current tick. The stored Message is the flattened

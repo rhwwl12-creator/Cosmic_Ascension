@@ -52,6 +52,7 @@
 		"StabilityRestingLevel": 0.6,
 		"ClaimLeaveProfiles": "(GameplayTags=((TagName=\"AI.Profile.Expansionist\"),(TagName=\"AI.Profile.Militarist\")))",
 		"FirstCrisisTick": 150,
-		"FirstCrisisHazard": "Hazard.AIAwakening"
+		"FirstCrisisHazard": "Hazard.AIAwakening",
+		"ProvisionalEndTick": 6000
 	}
 ]

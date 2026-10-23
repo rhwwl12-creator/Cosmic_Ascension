@@ -765,7 +765,8 @@ struct COSMIC_ASCENSION_API FGalaxyState
 	UPROPERTY()
 	TArray<FCosmicLogEntry> Log;
 
-	// Severity 1 and 2 entries moved out of Log when it overflows, plus every Log.Claim / Log.Record. Input of BuildChronicle.
+	// Severity 1 and 2 entries moved out of Log when it overflows, plus every Log.Claim / Log.Record. Input of BuildChronicle
+	// (CosmicChronicle::Build reads it, then Log - MVP item 4).
 	UPROPERTY()
 	TArray<FCosmicLogEntry> Chronicle;
 

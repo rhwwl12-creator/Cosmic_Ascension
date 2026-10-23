@@ -169,7 +169,8 @@ public:
 	// Runs Ticks ticks with the broadcast gate closed, then restores the gate. Tests, balance runs, interregnum leap (section 4.4).
 	// Not yet: the per-tick ending-condition check that stops a leap early arrives with the endings (section 4.4, 7.4).
 	// When it does, a run that has ended simulates nothing on a later RunHeadless or StepOnce: one tick at a time stays the
-	// same world as one long leap (the balance commandlet and Sim.PhaseTwoExit step one tick at a time).
+	// same world as one long leap (the balance commandlet and Sim.PhaseTwoExit step one tick at a time). The MVP's provisional
+	// end is not such an ending: it never stops a run (Sim/CosmicEndings.h; the presentation stops the time).
 	// Refused like StepOnce inside a handler of a Core Logic delegate.
 	UFUNCTION(BlueprintCallable)
 	void RunHeadless(int64 Ticks);
