@@ -367,7 +367,7 @@ void UCosmicChronicleWidget::PressNewRun()
 	}
 	if (!ConfirmLeft.IsSet())
 	{
-		// The run is not kept (item 4 has no save): a second press says so.
+		// The run's save stays and the continue opens the new run from now on (MVP item 5): a second press says so.
 		ConfirmLeft = CosmicChronicleScreen::ConfirmSeconds;
 		if (NewRunButton)
 		{

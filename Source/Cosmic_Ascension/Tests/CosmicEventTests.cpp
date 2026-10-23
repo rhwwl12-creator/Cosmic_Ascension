@@ -138,30 +138,8 @@ namespace CosmicEventTests
 		return static_cast<int64>(CosmicSeed::DeriveForName(State.Seed, CivID, CosmicSeed::Purpose::EventSlot) % static_cast<uint32>(SlotTicks));
 	}
 
-	// A probe on both delegates for the lifetime of the object.
-	struct FScopedProbe
-	{
-		FScopedProbe(UGalaxySimulationSubsystem& Sim)
-			: Log(Sim.GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>())
-			, Events(Sim.GetGameInstance()->GetSubsystem<UCosmicEventSubsystem>())
-			, Probe(NewObject<UCosmicTestProbe>())
-		{
-			Probe->AddToRoot();
-			Log->OnLogEntry.AddDynamic(Probe, &UCosmicTestProbe::HandleLogEntry);
-			Events->OnEventFired.AddDynamic(Probe, &UCosmicTestProbe::HandleEventFired);
-		}
-
-		~FScopedProbe()
-		{
-			Log->OnLogEntry.RemoveDynamic(Probe, &UCosmicTestProbe::HandleLogEntry);
-			Events->OnEventFired.RemoveDynamic(Probe, &UCosmicTestProbe::HandleEventFired);
-			Probe->RemoveFromRoot();
-		}
-
-		UCosmicLogSubsystem* Log;
-		UCosmicEventSubsystem* Events;
-		UCosmicTestProbe* Probe;
-	};
+	// A probe on both delegates for the lifetime of the object (CosmicTestHelpers.h - MVP item 5 shares it).
+	using CosmicTests::FScopedProbe;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicEventsCheckIsPureTest, "Cosmic_Ascension.Events.CheckIsPure", CosmicTests::Flags)

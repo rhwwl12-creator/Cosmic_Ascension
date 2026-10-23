@@ -258,7 +258,11 @@ public:
 	bool IsProvisionalEndEnabled() const { return bProvisionalEnd; }
 	void LookAtMap();                         // the page folds over the stopped map
 	void ReopenChronicle();                   // the top bar's 'chronicle': the page again, fully shown
-	void StartNewRun();                       // NewGalaxy from the clock's seed (-Seed= names the first galaxy only), then x1; an input, never from a handler
+	void StartNewRun();                       // NewGalaxy from the clock's seed (-Seed= names the first galaxy only), saves it (MVP item 5), then x1; an input, never from a handler
+	// After FollowEnd(false) in BeginPlay: a continued run that is not over stands still with its line (MVP item 5:
+	// Continued, ContinuedFromBackup, or SaveUnreadable for the new run after a save that did not read) - unless -Speed= was
+	// given. Takes UCosmicSaveSubsystem::TakeStartOutcome; never from a handler of a Core Logic delegate.
+	void FollowStart();
 	/** Development aid: after DelaySeconds of real time the chronicle over the current state, fully shown, with no cause ("CosmicPreviewChronicle 20" with
 	 * -ShotAfterSeconds=22 photographs it). Ends nothing, changes no state. */
 	UFUNCTION(Exec)
@@ -491,6 +495,10 @@ private:
 	// presentation, a pause; PlayerTick counts).
 	double RunBeganRealSeconds = 0.0;
 	double StoppedRealSeconds = 0.0;
+	// The tick at which those seconds began (MVP item 5: a continued run's line says since which tick); -1 before BeginPlay.
+	int64 RunBeganTick = -1;
+	// A failed write of the game's saving stops the time once (UCosmicSaveSubsystem::TakeFirstFailure, decision 12).
+	void FollowSaveFailure();
 
 	ECosmicTimeUnit TimeUnit = ECosmicTimeUnit::Cycle;
 

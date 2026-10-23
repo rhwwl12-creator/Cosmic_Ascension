@@ -15,6 +15,7 @@
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
+#include "Events/CosmicEventSubsystem.h"
 #include "Engine/DataTable.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -25,6 +26,7 @@
 #include "Misc/AutomationTest.h"
 #include "Save/CosmicSaveSubsystem.h"
 #include "Sim/GalaxySimulationSubsystem.h"
+#include "Tests/CosmicTestProbe.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 #include "World/CosmicGameMode.h"
@@ -97,6 +99,31 @@ namespace CosmicTests
 		}
 		return Sim;
 	}
+
+	// A probe on both delegates for the lifetime of the object.
+	struct FScopedProbe
+	{
+		FScopedProbe(UGalaxySimulationSubsystem& Sim)
+			: Log(Sim.GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>())
+			, Events(Sim.GetGameInstance()->GetSubsystem<UCosmicEventSubsystem>())
+			, Probe(NewObject<UCosmicTestProbe>())
+		{
+			Probe->AddToRoot();
+			Log->OnLogEntry.AddDynamic(Probe, &UCosmicTestProbe::HandleLogEntry);
+			Events->OnEventFired.AddDynamic(Probe, &UCosmicTestProbe::HandleEventFired);
+		}
+
+		~FScopedProbe()
+		{
+			Log->OnLogEntry.RemoveDynamic(Probe, &UCosmicTestProbe::HandleLogEntry);
+			Events->OnEventFired.RemoveDynamic(Probe, &UCosmicTestProbe::HandleEventFired);
+			Probe->RemoveFromRoot();
+		}
+
+		UCosmicLogSubsystem* Log;
+		UCosmicEventSubsystem* Events;
+		UCosmicTestProbe* Probe;
+	};
 
 	// The construction row a test may put in a slot under WithoutProjects.
 	inline FName StandingProject()

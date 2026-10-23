@@ -119,7 +119,8 @@ public:
 	// (section 6.1, 8.1). With the gate closed the entry is only stored. Fired synchronously, also from inside a tick
 	// stage: a handler may read the state and call SetTimeScale and nothing else - the calls that are refused with an error
 	// line are listed at UGalaxySimulationSubsystem::IsBroadcasting (Push, PushVariants and PushRow among them), and
-	// SaveCurrentGalaxy waits for section 16 #33 (1). OnEventFired and OnTierAscended have the same contract (section 9.4).
+	// SaveCurrentGalaxy is refused there; RequestSave waits for the tick boundary. OnEventFired and OnTierAscended have the
+	// same contract (section 9.4).
 	UPROPERTY(BlueprintAssignable)
 	FOnLogEntry OnLogEntry;
 

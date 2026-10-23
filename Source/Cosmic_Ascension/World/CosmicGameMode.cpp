@@ -19,6 +19,7 @@
 #include "Misc/DateTime.h"
 #include "Misc/Parse.h"
 #include "Player/PlayerRoleSubsystem.h"
+#include "Save/CosmicSaveSubsystem.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "TimerManager.h"
@@ -97,18 +98,38 @@ void ACosmicGameMode::StartPlay()
 {
 	// Before BeginPlay reaches the HUD, so the panel opens on a galaxy.
 	UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
-	if (Sim && !Sim->GetState().GalaxyID.IsValid())
+	UCosmicSaveSubsystem* Save = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCosmicSaveSubsystem>() : nullptr;
+	// The continue (MVP item 5) before Super::StartPlay: no handler is bound yet, so a continued run that ended stands ended
+	// through the two BeginPlay calls (FollowEnd(false) in each - headers/A4 4.4 (5)); the load's OnGalaxyGenerated reaches
+	// nobody.
+	if (Sim && (!Sim->GetState().GalaxyID.IsValid() || (Save && Save->ConsumeContinueAtStart())))
 	{
-		// The seed of a new galaxy is an input to the simulation, not a draw from its stream.
-		int32 Seed = 0;
-		if (!FParse::Value(FCommandLine::Get(), TEXT("Seed="), Seed))
+		const ECosmicContinue Start = Save ? Save->BeginSession() : ECosmicContinue::Off;
+		if (Start != ECosmicContinue::Newest && Start != ECosmicContinue::Backup)
 		{
-			Seed = CosmicControlImpl::ClockSeed();
+			// The seed of a new galaxy is an input to the simulation, not a draw from its stream. The counts come from the
+			// home galaxy row (section 3.1).
+			int32 Seed = 0;
+			if (!FParse::Value(FCommandLine::Get(), TEXT("Seed="), Seed))
+			{
+				Seed = CosmicControlImpl::ClockSeed();
+			}
+			Sim->NewGalaxy(Seed, 0, 0);
+			if (Save && Start == ECosmicContinue::NoSlot)
+			{
+				// On the disk from tick 0. While the gate is closed (Off) nothing is written.
+				Save->RequestSave(ECosmicSaveCause::NewRun);
+			}
+			else if (Save && Start == ECosmicContinue::Unreadable)
+			{
+				// Decision 6: this run is first written at a tick boundary; a quit before that skips its exit save, so the
+				// next start reads the run that did not open once more.
+				Save->HoldStartRun();
+			}
 		}
-		// The counts come from the home galaxy row (section 3.1). A development aid: -Speed=N starts at that speed, up to
-		// x25 whatever the rung (the frame-time measure: item 6 at 10x, item 12 at 25x - the controller lowers only a x25
-		// the gate opened and then closed).
-		Sim->NewGalaxy(Seed, 0, 0);
+		// A development aid: -Speed=N starts a new galaxy and a continued run at that speed (a continued run then runs
+		// instead of standing still), up to x25 whatever the rung (the frame-time measure: item 6 at 10x, item 12 at 25x -
+		// the controller lowers only a x25 the gate opened and then closed).
 		float Speed = 1.f;
 		FParse::Value(FCommandLine::Get(), TEXT("Speed="), Speed);
 		Sim->SetTimeScale(Speed);
@@ -547,14 +568,61 @@ void ACosmicPlayerController::BeginPlay()
 		Log->OnLogEntry.AddUniqueDynamic(this, &ACosmicPlayerController::HandleLogEntry);
 	}
 	RunBeganRealSeconds = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.0;
+	RunBeganTick = GetGameInstance() && GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>()->GetState().Tick : -1;
 	StoppedRealSeconds = 0.0;
 	// The game's first galaxy came before the handlers were bound (StartPlay): a galaxy that started ended latches here.
 	FollowEnd(false);
+	// A continued run that is not over stands still with its line (MVP item 5).
+	FollowStart();
 	FollowOwnHazards();
+}
+
+void ACosmicPlayerController::FollowStart()
+{
+	UCosmicSaveSubsystem* Save = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCosmicSaveSubsystem>() : nullptr;
+	const ECosmicContinue Outcome = Save ? Save->TakeStartOutcome() : ECosmicContinue::NotBegun;
+	float GivenSpeed = 0.f;
+	if (IsRunEnded() || FParse::Value(FCommandLine::Get(), TEXT("Speed="), GivenSpeed))
+	{
+		return;   // an ended run keeps its own line (Chronicle.Why); a development speed runs
+	}
+	switch (Outcome)
+	{
+	case ECosmicContinue::Newest:
+		ApplySpeed(0.f, ECosmicAutoPause::Continued);
+		break;
+	case ECosmicContinue::Backup:
+		ApplySpeed(0.f, ECosmicAutoPause::ContinuedFromBackup);
+		break;
+	case ECosmicContinue::Unreadable:
+		ApplySpeed(0.f, ECosmicAutoPause::SaveUnreadable);
+		break;
+	default:
+		break;
+	}
+}
+
+void ACosmicPlayerController::FollowSaveFailure()
+{
+	// Once per game instance (decision 12). Not on an ended run: the notice waits for the next run.
+	UCosmicSaveSubsystem* Save = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCosmicSaveSubsystem>() : nullptr;
+	if (!IsRunEnded() && Save && Save->TakeFirstFailure())
+	{
+		ApplySpeed(0.f, ECosmicAutoPause::SaveFailed);
+	}
 }
 
 void ACosmicPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	// Quitting the game saves the run (a map load ends this controller as Destroyed, not Quit): before the handlers go. The
+	// world ends its actors before the game instance shuts down, so the state is still there (GameEngine.cpp).
+	if (EndPlayReason == EEndPlayReason::Quit)
+	{
+		if (UCosmicSaveSubsystem* Save = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCosmicSaveSubsystem>() : nullptr)
+		{
+			Save->RequestSave(ECosmicSaveCause::Exit);
+		}
+	}
 	if (ACosmicGalaxyMapActor* TheMap = Map.Get())
 	{
 		TheMap->OnRebuilt.Remove(RebuiltHandle);
@@ -582,6 +650,8 @@ void ACosmicPlayerController::HandleSimTick(int64 Tick)
 	}
 	FollowOwnHazards();
 	FollowPetition(true);
+	// A failed boundary write (the save layer's handler may come before or after this one - noticed now or at the next tick).
+	FollowSaveFailure();
 }
 
 void ACosmicPlayerController::HandleGalaxyGenerated(int32 Seed)
@@ -592,6 +662,7 @@ void ACosmicPlayerController::HandleGalaxyGenerated(int32 Seed)
 	AutoPauseReason = ECosmicAutoPause::None;
 	OwnHazardsSeen.Reset();
 	RunBeganRealSeconds = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.0;
+	RunBeganTick = GetGameInstance() && GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>()->GetState().Tick : -1;
 	StoppedRealSeconds = 0.0;
 	FollowEnd(false);
 	if (IsRunEnded())
@@ -625,8 +696,17 @@ void ACosmicPlayerController::FollowEnd(bool bArrived)
 			Card->ShowCard(NAME_None, NAME_None);
 		}
 		const double Now = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.0;
-		UE_LOG(LogCosmic, Display, TEXT("CosmicEnd: %s at tick %lld; %.0f s since the run began, %.0f s of them stopped"), CosmicEndings::NameOf(Cause),
-			Sim->GetState().Tick, Now - RunBeganRealSeconds, StoppedRealSeconds);
+		const int64 Tick = Sim->GetState().Tick;
+		if (!bArrived && (RunBeganTick < 0 || RunBeganTick == Tick))
+		{
+			// A run that was over when it was opened (a continue, MVP item 5): its length is in the log of the session it ended in.
+			UE_LOG(LogCosmic, Display, TEXT("CosmicEnd: %s at tick %lld; opened ended (continued)"), CosmicEndings::NameOf(Cause), Tick);
+		}
+		else
+		{
+			UE_LOG(LogCosmic, Display, TEXT("CosmicEnd: %s at tick %lld; %.0f s since tick %lld, %.0f s of them stopped"), CosmicEndings::NameOf(Cause),
+				Tick, Now - RunBeganRealSeconds, RunBeganTick, StoppedRealSeconds);
+		}
 		if (bArrived)
 		{
 			ChronicleWait = CosmicChronicleScreen::HoldSeconds;
@@ -739,9 +819,15 @@ void ACosmicPlayerController::StartNewRun()
 	{
 		return;
 	}
-	// The seed is an input (as in StartPlay); -Seed= named the first galaxy only. HandleGalaxyGenerated clears the end.
+	// The seed is an input (as in StartPlay); -Seed= named the first galaxy only. HandleGalaxyGenerated clears the end. The new
+	// run is on the disk at once (MVP item 5); the old run's slot stays (decision 9).
 	Sim->NewGalaxy(CosmicControlImpl::ClockSeed(), 0, 0);
+	if (UCosmicSaveSubsystem* Save = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCosmicSaveSubsystem>() : nullptr)
+	{
+		Save->RequestSave(ECosmicSaveCause::NewRun);
+	}
 	SetSpeed(1.f);
+	FollowSaveFailure();
 }
 
 void ACosmicPlayerController::CosmicPreviewChronicle(float DelaySeconds)
@@ -1507,6 +1593,12 @@ FCosmicPetitionAnswer ACosmicPlayerController::AnswerPetition(int32 ChoiceIndex)
 	{
 		return Answer;
 	}
+	// The one input with a draw is on the disk at once (decision 11): a forced quit cannot roll the card again.
+	if (UCosmicSaveSubsystem* Save = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCosmicSaveSubsystem>() : nullptr)
+	{
+		Save->RequestSave(ECosmicSaveCause::Answer);
+	}
+	FollowSaveFailure();
 	// A paused simulation sends no tick: show what the answer changed now, on the panels and on the map.
 	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
 	{

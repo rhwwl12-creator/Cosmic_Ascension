@@ -25,6 +25,15 @@ enum class ECosmicAutoPause : uint8
 	// The run is over (MVP item 4) - not an automatic pause: set whatever the viewer's choice; every speed asked for afterwards
 	// stays 0 (ACosmicPlayerController::ApplySpeed).
 	RunEnd,
+	// MVP item 5 - not automatic pauses either: set whatever the viewer's choice; cleared by the next speed asked for.
+	// The game opened on a continued run.
+	Continued,
+	// ... on its backup (the last save did not read).
+	ContinuedFromBackup,
+	// The newest run's save did not read: a new run.
+	SaveUnreadable,
+	// A write of the game's saving failed (once per game instance).
+	SaveFailed,
 };
 
 namespace CosmicAutoPause

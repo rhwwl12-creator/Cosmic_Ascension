@@ -153,13 +153,18 @@ bool FCosmicUIAutoPauseTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("A hazard that ended is not"), CosmicAutoPause::HasNewHazard(HomePlague, None));
 
 		TestTrue(TEXT("No reason has no words"), CosmicAutoPause::WhyKeyOf(ECosmicAutoPause::None) == nullptr);
-		for (const ECosmicAutoPause Reason : { ECosmicAutoPause::MythicLine, ECosmicAutoPause::OwnHazard, ECosmicAutoPause::Card, ECosmicAutoPause::RunEnd })
+		for (const ECosmicAutoPause Reason : { ECosmicAutoPause::MythicLine, ECosmicAutoPause::OwnHazard, ECosmicAutoPause::Card, ECosmicAutoPause::RunEnd,
+			ECosmicAutoPause::Continued, ECosmicAutoPause::ContinuedFromBackup, ECosmicAutoPause::SaveUnreadable, ECosmicAutoPause::SaveFailed })
 		{
 			const TCHAR* Key = CosmicAutoPause::WhyKeyOf(Reason);
 			TestTrue(*FString::Printf(TEXT("Reason %d has words in the String Table"), static_cast<int32>(Reason)), Key && !Words(Key).IsEmpty() && !Words(Key).Contains(Placeholder));
 		}
-		// The end of the run (MVP item 4) says so with the chronicle's words.
+		// The end of the run (MVP item 4) says so with the chronicle's words; the save's four lines are its own (MVP item 5).
 		TestEqual(TEXT("An ended run's line is Chronicle.Why"), FString(CosmicAutoPause::WhyKeyOf(ECosmicAutoPause::RunEnd)), FString(TEXT("Chronicle.Why")));
+		TestTrue(TEXT("Each reason of the save has a line of its own"), CosmicAutoPause::WhyKeyOf(ECosmicAutoPause::Continued) == FString(TEXT("Save.Why.Continued"))
+			&& CosmicAutoPause::WhyKeyOf(ECosmicAutoPause::ContinuedFromBackup) == FString(TEXT("Save.Why.Backup"))
+			&& CosmicAutoPause::WhyKeyOf(ECosmicAutoPause::SaveUnreadable) == FString(TEXT("Save.Why.Unreadable"))
+			&& CosmicAutoPause::WhyKeyOf(ECosmicAutoPause::SaveFailed) == FString(TEXT("Save.Why.Failed")));
 	}
 
 	// ---- 2. A told mythic line ----

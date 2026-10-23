@@ -5,15 +5,18 @@
 #include "Cosmic_Ascension.h"
 #include "Core/CosmicIDs.h"
 #include "Core/GalaxyState.h"
+#include "Data/CosmicDefinitionRows.h"
 #include "Engine/GameInstance.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformTime.h"
 #include "Kismet/GameplayStatics.h"
+#include "Misc/CommandLine.h"
 #include "Misc/DateTime.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Save/CosmicSaveGame.h"
+#include "Sim/CosmicEndings.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/Package.h"
@@ -51,12 +54,214 @@ const TCHAR* CosmicSave::NameOf(ECosmicContinue Outcome)
 void UCosmicSaveSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	UE_LOG(LogCosmic, Log, TEXT("UCosmicSaveSubsystem initialized"));
+	if (UGalaxySimulationSubsystem* Sim = Collection.InitializeDependency<UGalaxySimulationSubsystem>())
+	{
+		Sim->OnSimTick.AddUniqueDynamic(this, &UCosmicSaveSubsystem::HandleSimTick);
+	}
+	bCommandLineAllows = CommandLineAllows(FCommandLine::Get());
+	UE_LOG(LogCosmic, Log, TEXT("CosmicSave: the game's saving is %s by the command line"), bCommandLineAllows ? TEXT("allowed") : TEXT("off"));
 }
 
 void UCosmicSaveSubsystem::Deinitialize()
 {
+	// The simulation may be down already (the order of Deinitialize is not fixed).
+	if (UGalaxySimulationSubsystem* Sim = GetSim())
+	{
+		Sim->OnSimTick.RemoveDynamic(this, &UCosmicSaveSubsystem::HandleSimTick);
+	}
 	Super::Deinitialize();
+}
+
+bool UCosmicSaveSubsystem::CommandLineAllows(const TCHAR* CommandLine)
+{
+	int32 GivenSeed = 0;
+	return !FParse::Param(CommandLine, TEXT("NoSave")) && !FParse::Param(CommandLine, TEXT("unattended"))
+		&& !FParse::Value(CommandLine, TEXT("Seed="), GivenSeed);
+}
+
+const TCHAR* UCosmicSaveSubsystem::GateClosedBy(bool bAllows, bool bBlocked, bool bAutomation, bool bEditor, bool bOverride)
+{
+	if (bOverride)
+	{
+		return nullptr;
+	}
+	if (!bAllows)
+	{
+		return TEXT("command line");
+	}
+	if (bBlocked)
+	{
+		return TEXT("tests");
+	}
+	if (bAutomation)
+	{
+		return TEXT("automation");
+	}
+	if (bEditor)
+	{
+		return TEXT("editor");
+	}
+	return nullptr;
+}
+
+bool UCosmicSaveSubsystem::IsGameSavingOn() const
+{
+	// GIsEditor (CoreGlobals.h): true in the editor process, so play in editor; false under -game and Standalone Game.
+	return GateClosedBy(bCommandLineAllows, bBlockedForTests, GIsAutomationTesting, GIsEditor, bTestOverride) == nullptr;
+}
+
+FCosmicSavedMark UCosmicSaveSubsystem::MarkOf(const FGalaxyState& State, const FCosmicRulesDef& Rules)
+{
+	FCosmicSavedMark Mark;
+	Mark.GalaxyID = State.GalaxyID;
+	Mark.Tick = State.Tick;
+	Mark.Feats = State.Calling.CompletedFeats.Num();
+	Mark.Role = State.Player.Role;
+	Mark.RuledCivID = State.Player.RuledCivID;
+	Mark.bEnded = CosmicEndings::ProvisionalEndOf(State, Rules) != ECosmicProvisionalEnd::None;
+	return Mark;
+}
+
+TOptional<ECosmicSaveCause> UCosmicSaveSubsystem::DueAt(const FCosmicSavedMark& Saved, const FCosmicSavedMark& Now, double NowRealSeconds, double InIntervalSeconds)
+{
+	if (Now.GalaxyID != Saved.GalaxyID)
+	{
+		return ECosmicSaveCause::NewRun;
+	}
+	if (Now.bEnded && !Saved.bEnded)
+	{
+		return ECosmicSaveCause::Ended;
+	}
+	if (Now.Feats != Saved.Feats)
+	{
+		return ECosmicSaveCause::Ascended;
+	}
+	if (Now.Role != Saved.Role || Now.RuledCivID != Saved.RuledCivID)
+	{
+		return ECosmicSaveCause::Role;
+	}
+	if (Now.Tick != Saved.Tick && NowRealSeconds - Saved.RealSeconds >= InIntervalSeconds)
+	{
+		return ECosmicSaveCause::Interval;
+	}
+	return {};
+}
+
+void UCosmicSaveSubsystem::SetMarkFromState(uint32 StateHash)
+{
+	const UGalaxySimulationSubsystem* Sim = GetSim();
+	if (!Sim)
+	{
+		return;
+	}
+	Mark = MarkOf(Sim->GetState(), Sim->GetRules());
+	Mark.StateHash = StateHash;
+	Mark.RealSeconds = FPlatformTime::Seconds();
+}
+
+void UCosmicSaveSubsystem::HandleSimTick(int64 Tick)
+{
+	// OnSimTick: after the tenth stage and SyncRngState, outside the brackets of the Core Logic broadcasts (rule 5) - the
+	// tick boundary of 16 #33 (1). At most one write per boundary; no boundary while the time stands still.
+	if (!IsGameSavingOn())
+	{
+		Pending.Reset();
+		return;
+	}
+	const UGalaxySimulationSubsystem* Sim = GetSim();
+	if (!Sim || !Sim->GetState().GalaxyID.IsValid())
+	{
+		return;
+	}
+	const double Now = FPlatformTime::Seconds();
+	if (Now < RetryNotBefore)
+	{
+		return;   // after a failure: the kept cause and the due trigger wait
+	}
+	TOptional<ECosmicSaveCause> Cause = Pending;
+	if (!Cause)
+	{
+		Cause = DueAt(Mark, MarkOf(Sim->GetState(), Sim->GetRules()), Now, IntervalSeconds);
+	}
+	if (!Cause)
+	{
+		return;
+	}
+	Pending.Reset();
+	Write(*Cause, true);   // a failure keeps the cause again
+}
+
+void UCosmicSaveSubsystem::RequestSave(ECosmicSaveCause Cause)
+{
+	UGalaxySimulationSubsystem* Sim = GetSim();
+	if (!IsGameSavingOn() || !Sim || !Sim->GetState().GalaxyID.IsValid())
+	{
+		return;
+	}
+	// A handler or a stage may only leave a mark: the next tick boundary writes it.
+	if (Sim->IsBroadcasting() || Sim->IsInTickStages())
+	{
+		if (!Pending)
+		{
+			Pending = Cause;
+		}
+		return;
+	}
+	const FGalaxyState& State = Sim->GetState();
+	if (Cause == ECosmicSaveCause::Exit)
+	{
+		if (Mark.GalaxyID == State.GalaxyID && Mark.StateHash == Sim->ComputeStateHash())
+		{
+			UE_LOG(LogCosmic, Verbose, TEXT("CosmicSave: exit - the slot already holds this state"));
+			return;
+		}
+		// Decision 6: the new run of an Unreadable start (HoldStartRun) is first written at a tick boundary, so a quit before
+		// that leaves the run that did not read as the newest - the next start reads it again. That run only: a later new
+		// run of the session is written.
+		if (HeldRunID.IsValid() && State.GalaxyID == HeldRunID && Mark.GalaxyID != HeldRunID && State.Tick == 0)
+		{
+			UE_LOG(LogCosmic, Log, TEXT("CosmicSave: exit - the new run after an unreadable save is not written yet"));
+			return;
+		}
+	}
+	Write(Cause, true);
+}
+
+bool UCosmicSaveSubsystem::TakeFirstFailure()
+{
+	if (bFailedOnce && !bFailureTaken)
+	{
+		bFailureTaken = true;
+		return true;
+	}
+	return false;
+}
+
+ECosmicContinue UCosmicSaveSubsystem::BeginSession()
+{
+	HeldRunID.Invalidate();
+	const TCHAR* ClosedBy = GateClosedBy(bCommandLineAllows, bBlockedForTests, GIsAutomationTesting, GIsEditor, bTestOverride);
+	if (ClosedBy)
+	{
+		StartOutcome = LastContinue = ECosmicContinue::Off;
+		UE_LOG(LogCosmic, Log, TEXT("CosmicContinue: Off (%s)"), ClosedBy);
+		return StartOutcome;
+	}
+	StartOutcome = ContinueNewest();
+	return StartOutcome;
+}
+
+ECosmicContinue UCosmicSaveSubsystem::TakeStartOutcome()
+{
+	const ECosmicContinue Outcome = StartOutcome;
+	StartOutcome = ECosmicContinue::NotBegun;
+	return Outcome;
+}
+
+void UCosmicSaveSubsystem::HoldStartRun()
+{
+	const UGalaxySimulationSubsystem* Sim = GetSim();
+	HeldRunID = Sim ? Sim->GetState().GalaxyID : FGuid();
 }
 
 UGalaxySimulationSubsystem* UCosmicSaveSubsystem::GetSim() const
@@ -82,10 +287,10 @@ FString UCosmicSaveSubsystem::SlotPathOf(const FGuid& GalaxyID, bool bBackup) co
 
 bool UCosmicSaveSubsystem::SaveCurrentGalaxy()
 {
-	return Write(ECosmicSaveCause::Asked);
+	return Write(ECosmicSaveCause::Asked, false);
 }
 
-bool UCosmicSaveSubsystem::Write(ECosmicSaveCause Cause)
+bool UCosmicSaveSubsystem::Write(ECosmicSaveCause Cause, bool bGamePath)
 {
 	UGalaxySimulationSubsystem* Sim = GetSim();
 	if (!Sim)
@@ -109,6 +314,21 @@ bool UCosmicSaveSubsystem::Write(ECosmicSaveCause Cause)
 		return false;
 	}
 
+	// A failure of the game's path is noted once (the controller stops the time), waits RetrySeconds and keeps its cause for
+	// the first boundary after the wait (decision 12). An explicit call's failure is only its return value.
+	auto Fail = [this, Cause, bGamePath]()
+	{
+		if (bGamePath)
+		{
+			bFailedOnce = true;
+			RetryNotBefore = FPlatformTime::Seconds() + RetrySeconds;
+			if (!Pending)
+			{
+				Pending = Cause;
+			}
+		}
+		return false;
+	};
 	const double Start = FPlatformTime::Seconds();
 	Sim->SyncRngState();
 	UCosmicSaveGame* Carrier = NewObject<UCosmicSaveGame>(GetTransientPackage());
@@ -121,7 +341,7 @@ bool UCosmicSaveSubsystem::Write(ECosmicSaveCause Cause)
 	if (!CosmicSaveSlot::Encode(*Carrier, SavedAt, Slot, &RawBytes))
 	{
 		UE_LOG(LogCosmic, Warning, TEXT("CosmicSave: %s could not be packed"), *Main);
-		return false;
+		return Fail();
 	}
 
 	// The backup: only a slot that passed its checks is copied, and a failed copy keeps the slot as it was - so one good copy
@@ -141,13 +361,13 @@ bool UCosmicSaveSubsystem::Write(ECosmicSaveCause Cause)
 			if (!WriteSlotFile(SlotPathOf(ID, true), Old))
 			{
 				UE_LOG(LogCosmic, Warning, TEXT("CosmicSave: the backup of %s was not written: %s is kept as it was"), *Main, *Main);
-				return false;
+				return Fail();
 			}
 		}
 		else if (OldRead == ECosmicSlotRead::ReadFailed || OldRead == ECosmicSlotRead::NewerForm)
 		{
 			UE_LOG(LogCosmic, Warning, TEXT("CosmicSave: %s is %s: it is not replaced"), *Main, CosmicSaveSlot::NameOf(OldRead));
-			return false;
+			return Fail();
 		}
 		else
 		{
@@ -157,13 +377,18 @@ bool UCosmicSaveSubsystem::Write(ECosmicSaveCause Cause)
 	if (!WriteSlotFile(MainPath, Slot))
 	{
 		UE_LOG(LogCosmic, Warning, TEXT("CosmicSave: %s was not written"), *Main);
-		return false;
+		return Fail();
 	}
 	LatestSavedAt = SavedAt;
 	++SavesWritten;
 	LastCause = Cause;
+	// On any path: this write put the state on the disk, so nothing kept is owed and the boundary does not wait.
+	Pending.Reset();
+	RetryNotBefore = 0.0;
+	const uint32 Hash = Sim->ComputeStateHash();
+	SetMarkFromState(Hash);
 	UE_LOG(LogCosmic, Display, TEXT("CosmicSave: wrote %s (%s) tick %lld, hash %u, %d of %lld bytes in %.1f ms"), *Main, CosmicSave::NameOf(Cause),
-		Carrier->State.Tick, Sim->ComputeStateHash(), Slot.Num(), RawBytes, (FPlatformTime::Seconds() - Start) * 1000.0);
+		Carrier->State.Tick, Hash, Slot.Num(), RawBytes, (FPlatformTime::Seconds() - Start) * 1000.0);
 	return true;
 }
 
@@ -313,8 +538,9 @@ ECosmicSlotRead UCosmicSaveSubsystem::LoadRun(const FGuid& GalaxyID, bool& bOutF
 	}
 	Sim->LoadState(Loaded->State);
 	LatestSavedAt = FMath::Max(LatestSavedAt, Header.SavedAtUtcTicks);
+	SetMarkFromState(Sim->ComputeStateHash());
 	UE_LOG(LogCosmic, Display, TEXT("CosmicSave: loaded %s%s at tick %lld, hash %u"), *Main, bOutFromBackup ? TEXT(" from its backup") : TEXT(""),
-		Loaded->State.Tick, Sim->ComputeStateHash());
+		Loaded->State.Tick, Mark.StateHash);
 	return ECosmicSlotRead::Ok;
 }
 
@@ -434,7 +660,42 @@ bool UCosmicSaveSubsystem::DeleteSave(const FGuid& GalaxyID)
 void UCosmicSaveSubsystem::PrepareForTests()
 {
 	Folder = TEXT("Automation/");
+	bBlockedForTests = true;
+	bTestOverride = false;
+	bContinueAtNextStart = false;
+	Pending.Reset();
+	IntervalSeconds = AutosaveRealSeconds;
+	RetrySeconds = RetryRealSeconds;
+	RetryNotBefore = 0.0;
+	bFailedOnce = false;
+	bFailureTaken = false;
+	Mark = FCosmicSavedMark();
 	LastContinue = ECosmicContinue::NotBegun;
+	HeldRunID.Invalidate();
+}
+
+void UCosmicSaveSubsystem::SetGameSavingForTest(bool bOn)
+{
+	bTestOverride = bOn;
+}
+
+void UCosmicSaveSubsystem::ContinueAtNextStartForTest()
+{
+	bContinueAtNextStart = true;
+}
+
+bool UCosmicSaveSubsystem::ConsumeContinueAtStart()
+{
+	const bool bWas = bContinueAtNextStart;
+	bContinueAtNextStart = false;
+	return bWas;
+}
+
+void UCosmicSaveSubsystem::SetTimingForTest(double InIntervalSeconds, double InRetrySeconds)
+{
+	IntervalSeconds = InIntervalSeconds;
+	RetrySeconds = InRetrySeconds;
+	RetryNotBefore = 0.0;
 }
 
 void UCosmicSaveSubsystem::SetFolderForTest(const FString& InFolder)

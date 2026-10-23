@@ -26,7 +26,7 @@ namespace CosmicEndings
 	/** None when Calling.Lives is empty; otherwise Rung when any Lives[i].PeakTier >= EndRung (the MVP has one life); otherwise Clock when Rules.ProvisionalEndTick > 0
 	 * and State.Tick >= it; otherwise None (Rung wins a tie). Reads State.Tick, Calling.Lives and the knob only - never Civs, Knowing, the log or the chronicle. Both
 	 * inputs only grow - Lives is append-only and a PeakTier only rises, through succession too - so once it holds it holds for the run and a load answers alike.
-	 * Read by FollowEnd and the commandlet; no stage, command or run reads it. */
+	 * Read by FollowEnd, the commandlet and the save layer's tick-boundary check (UCosmicSaveSubsystem::MarkOf), read only; no stage, command or run reads it. */
 	COSMIC_ASCENSION_API ECosmicProvisionalEnd ProvisionalEndOf(const FGalaxyState& State, const FCosmicRulesDef& Rules);
 
 	/** The cause as the commandlet and the CosmicEnd line print it: None, Rung or Clock. */
