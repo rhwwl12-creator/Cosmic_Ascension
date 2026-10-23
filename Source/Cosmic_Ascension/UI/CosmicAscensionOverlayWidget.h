@@ -61,6 +61,8 @@ public:
 	bool IsShowing() const { return bShowing; }
 	/** Whether the reveal ("this is seen now") shows. */
 	bool IsRevealing() const { return bRevealing; }
+	// The speed Close gives back; 0 when the simulation was already stopped at Show (tests: UI.RunEnd (6)).
+	float GetPausedSpeed() const { return PausedSpeed; }
 	/** The reveal's line (tests): ST_CA Sight.Opened while the reveal shows; collapsed and empty otherwise. */
 	const UTextBlock* GetRevealText() const { return RevealText; }
 

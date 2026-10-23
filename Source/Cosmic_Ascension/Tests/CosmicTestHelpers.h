@@ -17,6 +17,7 @@
 #include "Data/CosmicRowNames.h"
 #include "Engine/DataTable.h"
 #include "Engine/Engine.h"
+#include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
@@ -25,6 +26,7 @@
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
+#include "World/CosmicGameMode.h"
 
 #include <initializer_list>
 
@@ -64,8 +66,9 @@ namespace CosmicTests
 
 	// The simulation of the running game, paused so that frame ticks cannot interleave with a test, with the log in its
 	// tell-all mode (every line is stored, as the tests expect - section 8.1; a test that turns the mode off turns it back
-	// on when it ends). The tests replace its galaxy and leave it paused. Null (with a test error) when there is no
-	// GameInstance.
+	// on when it ends), and the provisional end of the player controller switched on and forgotten (MVP item 4: a run a test
+	// before ended would hold the speed at 0 and refuse the commands). The tests replace its galaxy and leave it paused.
+	// Null (with a test error) when there is no GameInstance.
 	inline UGalaxySimulationSubsystem* AcquireSim(FAutomationTestBase& Test)
 	{
 		UGameInstance* GameInstance = FindGameInstance();
@@ -74,6 +77,11 @@ namespace CosmicTests
 		{
 			Test.AddError(TEXT("No GameInstance: run the automation tests with -game (see CLAUDE.md)."));
 			return nullptr;
+		}
+		if (ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GameInstance->GetWorld() ? GameInstance->GetWorld()->GetFirstPlayerController() : nullptr))
+		{
+			Controller->SetProvisionalEndEnabled(true);
+			Controller->ClearRunEnd();
 		}
 		Sim->SetTimeScale(0.f);
 		if (UCosmicLogSubsystem* Log = GameInstance->GetSubsystem<UCosmicLogSubsystem>())

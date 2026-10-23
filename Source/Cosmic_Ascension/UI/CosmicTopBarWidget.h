@@ -54,6 +54,9 @@ public:
 	const UTextBlock* GetClockText() const { return ClockText; }
 	/** The clock's button (tests read its tooltip). */
 	const UButton* GetClockButton() const { return ClockButton; }
+	/** The clock's tooltip: what the clock is, what a press does and, with the provisional end on (MVP item 4), the run's rule -
+	 * Chronicle.Rule with EndTick in cycles, or Chronicle.RuleRung without a clock end (EndTick 0 or less). Built once (tests). */
+	static FText ClockTipOf(int32 EndTick, bool bEndOn);
 
 	/** What a click on the view button does (tests call it in place of a click). */
 	void PressViewButton();
@@ -66,6 +69,11 @@ public:
 	const UTextBlock* GetAutoPauseText() const { return AutoPauseText; }
 	/** The view button (tests read its label, visibility and tooltip). */
 	const UCosmicActionButton* GetViewButton() const { return ViewButton; }
+	/** The provisional end (MVP item 4): the grey line beside the clock - Chronicle.Soon over the last CosmicChronicleScreen::EndSoonTicks before the clock end,
+	 * else Chronicle.Until once the vessel was deposed; collapsed after the end, with the end switched off or without a clock end (tests read it). */
+	const UTextBlock* GetEndSoonText() const { return EndSoonText; }
+	/** The 'chronicle' button after the speeds: shown only while the run is over and its page is folded; a press reopens it (tests press it). */
+	UCosmicActionButton* GetReopenButton() const { return ReopenButton; }
 
 	/** The people's name and rung, which carry the next-rung tooltip (tests read its text, colour and Slate tooltip). */
 	const UTextBlock* GetRungText() const { return RungText; }
@@ -104,6 +112,8 @@ private:
 	void HandleView(FName Action, float Value);
 
 	void HandleAutoPause(FName Action, float Value);
+
+	void HandleReopen(FName Action, float Value);
 
 	UFUNCTION()
 	void HandleClockClicked();
@@ -152,6 +162,12 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> AutoPauseText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> EndSoonText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCosmicActionButton> ReopenButton;
 
 	bool bClockHovered = false;
 	// The unit the speed buttons were last labelled with (relabelled only when it changes).

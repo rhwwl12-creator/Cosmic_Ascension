@@ -185,8 +185,13 @@ NAMED_COLUMNS = {"len_ge_col": (("number",),), "pairs_ge_col": (POOL_KINDS, ("nu
 TOP_KEYS = {
     "version": NUMBER, "about": NAMES, "tag_sources": NAMES, "row_name_sources": NAMES, "required_tags": NAMES,
     "row_name_pattern": NAME, "words": NAME_LISTS, "enums": NAME_LISTS, "single_variant_rows": NAMES, "tables": OBJECT,
-    "conditions": OBJECT, "effects": OBJECT, "per_tick_effects": NAMES,
+    "conditions": OBJECT, "effects": OBJECT, "per_tick_effects": NAMES, "string_table": OBJECT,
 }
+# What the schema may say of the String Table: per key prefix, a word list no text of it holds and whether it holds a
+# digit outside its slots (a slot {0} is filled by the code, not written by the text).
+STRING_TABLE_KEYS = {"checked_prefixes": OBJECT}
+STRING_PREFIX_KEYS = {"forbidden": NAME, "no_digits": FLAG}
+FORMAT_SLOT = re.compile(r"\{[^{}]*\}")
 TABLE_KEYS = {
     "struct": NAME, "names": NAMES, "prefixes": NAMES, "must_exist": FLAG, "required_rows": NAMES,
     "columns": OBJECT_OR_NULL, "rules": LIST, "unique": LIST, "pairs": LIST,
@@ -316,8 +321,23 @@ def load_code_rows(root, sources):
     return names, problems
 
 
-def check_string_table(file_name, text):
-    """The shape of a String Table source: header, cell counts, keys, texts. What the texts say is not looked at."""
+def string_rules(schema):
+    """(prefix, forbidden words, no digits) for each prefix of schema.string_table.checked_prefixes; a shape the
+    schema check reports as wrong gives no rule here."""
+    table = schema.get("string_table") if isinstance(schema, dict) else None
+    prefixes = table.get("checked_prefixes") if isinstance(table, dict) else None
+    words = schema.get("words") if isinstance(schema, dict) and isinstance(schema.get("words"), dict) else {}
+    rules = []
+    for prefix, spec in sorted(prefixes.items()) if isinstance(prefixes, dict) else []:
+        if isinstance(spec, dict):
+            forbidden = words.get(spec.get("forbidden"), []) if isinstance(spec.get("forbidden"), str) else []
+            rules.append((prefix, forbidden if is_names(forbidden) else [], spec.get("no_digits") is True))
+    return rules
+
+
+def check_string_table(file_name, text, schema=None):
+    """The shape of a String Table source: header, cell counts, keys, texts. What the texts say is looked at only under
+    a prefix of schema.string_table (the narrator's words of a screen: no verdict word, no digit outside a slot)."""
     rows = [row for row in csv.reader(io.StringIO(text)) if row]
     if not rows or rows[0][:2] != ["Key", "SourceString"]:
         return ["%s: the first line has to start with Key,SourceString" % file_name]
@@ -334,6 +354,14 @@ def check_string_table(file_name, text):
         seen.add(row[0])
         if len(row) > 1 and row[1] == "":
             problems.append("%s: the text is empty" % where)
+        for prefix, forbidden, no_digits in string_rules(schema):
+            if len(row) < 2 or not row[0].startswith(prefix):
+                continue
+            for word in forbidden:
+                if word in row[1]:
+                    problems.append("%s: the word %s is not used here: %s" % (where, word, row[1]))
+            if no_digits and any(ch.isdigit() for ch in FORMAT_SLOT.sub("", row[1])):
+                problems.append("%s: a digit outside a slot in a text that carries none: %s" % (where, row[1]))
     return problems
 
 
@@ -363,7 +391,7 @@ def check_sources(sources, root=None):
     problems = tag_problems + row_problems + check(schema, tables, tags, code_rows)
     for file_name in sorted(parsed):
         if file_name.endswith(".csv"):
-            problems.extend(check_string_table(file_name, parsed[file_name]))
+            problems.extend(check_string_table(file_name, parsed[file_name], schema))
     return problems
 
 
@@ -721,6 +749,11 @@ class Checker:
         for tag in (schema.get("required_tags") if is_names(schema.get("required_tags")) else []):
             if tag not in self.tags:
                 self.report("schema.required_tags", "tag %s is not declared in the ini" % tag)
+        if "string_table" in schema and self.typed("schema.string_table", schema["string_table"], STRING_TABLE_KEYS):
+            for prefix, spec in (schema["string_table"].get("checked_prefixes") or {}).items():
+                where = "schema.string_table.checked_prefixes.%s" % prefix
+                if self.typed(where, spec, STRING_PREFIX_KEYS) and "forbidden" in spec and spec["forbidden"] not in schema["words"]:
+                    self.report(where, "the word list %r is not in the schema" % (spec["forbidden"],))
         for name in (schema.get("per_tick_effects") if is_names(schema.get("per_tick_effects")) else []):
             if name not in schema["effects"]:
                 self.report("schema.per_tick_effects", "%s is no effect of the schema" % name)

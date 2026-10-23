@@ -535,6 +535,11 @@ void UCosmicSystemPanelWidget::Refresh()
 
 	TArray<FWantedButton> Wanted;
 	ShownSettleBlock = CosmicMegaprojects::ECosmicSettleBlock::None;
+	// The run is over (MVP item 4): every command button is greyed out with the end's reason - the settle button and its line
+	// under it too, with no cost line and no short reason of its own.
+	const bool bEnded = ACosmicPlayerController::IsRunEndedFor(*this);
+	const FText EndBlock = Label(TEXT("Chronicle.Block"));
+	bool bSettleButton = false;
 	ShownStartBlocks.Reset();
 	// The spiritual sight's words for the shown system (section 6.4): a line of their own and its tooltip.
 	FText SpiritWords;
@@ -636,9 +641,9 @@ void UCosmicSystemPanelWidget::Refresh()
 					continue;
 				}
 				const FText Name = FText::Format(INVTEXT("{0}  {1}"), Label(TEXT("Panel.Start")), Def->DisplayName);
-				const FText Suffix = StartSuffixOf(Block, Tables, Row);
+				const FText Suffix = bEnded ? Label(TEXT("Chronicle.Suffix")) : StartSuffixOf(Block, Tables, Row);
 				const FText ButtonLabel = Suffix.IsEmpty() ? Name : FText::Format(INVTEXT("{0}  {1}"), Name, Suffix);
-				Wanted.Add({ Row, ButtonLabel, Reason, JoinLines({ Reason, StartHintOf(Tables, Row, System, Unit) }) });
+				Wanted.Add({ Row, ButtonLabel, bEnded ? EndBlock : Reason, bEnded ? EndBlock : JoinLines({ Reason, StartHintOf(Tables, Row, System, Unit) }) });
 				ShownStartBlocks.Emplace(Row, Block);
 			}
 		}
@@ -655,8 +660,9 @@ void UCosmicSystemPanelWidget::Refresh()
 			static_assert(static_cast<int32>(CosmicMegaprojects::ECosmicSettleBlock::Count) == 11, "A new settle reason: decide whether its settle button shows the cost line");
 			const bool bHint = ShownSettleBlock != CosmicMegaprojects::ECosmicSettleBlock::Owned && ShownSettleBlock != CosmicMegaprojects::ECosmicSettleBlock::NoRow
 				&& ShownSettleBlock != CosmicMegaprojects::ECosmicSettleBlock::Sanctuary;
-			Wanted.Add({ CosmicRows::ProjectSettle, Label(TEXT("Panel.Settle")), Reason,
-				JoinLines({ Reason, bHint ? StartHintOf(Tables, CosmicRows::ProjectSettle, System, Unit) : FText::GetEmpty() }) });
+			Wanted.Add({ CosmicRows::ProjectSettle, Label(TEXT("Panel.Settle")), bEnded ? EndBlock : Reason,
+				bEnded ? EndBlock : JoinLines({ Reason, bHint ? StartHintOf(Tables, CosmicRows::ProjectSettle, System, Unit) : FText::GetEmpty() }) });
+			bSettleButton = true;
 		}
 	}
 	else
@@ -701,7 +707,7 @@ void UCosmicSystemPanelWidget::Refresh()
 	}
 
 	// The reason line under a greyed-out settle button.
-	const FText Reason = ReasonOf(ShownSettleBlock, Tables);
+	const FText Reason = (bEnded && bSettleButton) ? EndBlock : ReasonOf(ShownSettleBlock, Tables);
 	if (!SameWords(ReasonText->GetText(), Reason))
 	{
 		ReasonText->SetText(Reason);

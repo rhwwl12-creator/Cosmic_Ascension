@@ -427,6 +427,32 @@ class SchemaTests(unittest.TestCase):
         sources["ST_CA.csv"] = sources["ST_CA.csv"].rstrip(b"\r\n") + ('\n"%s","again"\n' % first_key).encode("utf-8")
         self.expect(checker.check_sources(sources), "ST_CA.csv", first_key, "written twice")
 
+    def test_string_table_prefixes(self):
+        """The narrator's words of a screen (schema.string_table: the chronicle's keys, MVP item 4) hold the line of the
+        narrator: no verdict word, no digit outside a slot; a key under no prefix is not looked at."""
+        check = lambda text: checker.check_string_table("ST_X.csv", text, self.schema)  # noqa: E731
+        verdict = self.schema["words"]["verdict"]
+        self.assertEqual(self.schema["string_table"]["checked_prefixes"]["Chronicle."], {"forbidden": "verdict", "no_digits": True})
+        # (1) A slot carries its digit; the text around it does not.
+        self.assertEqual(check('Key,SourceString\n"Chronicle.A","{0}주기 {Civ}|hpp(이,가)"\n'), [])
+        self.expect(check('Key,SourceString\n"Chronicle.A","3주기"\n'), "entry 1 (Chronicle.A)", "a digit outside a slot")
+        # (2) Every verdict word is refused under the prefix.
+        for word in verdict:
+            with self.subTest(word=word):
+                self.expect(check('Key,SourceString\n"Chronicle.A","%s a."\n' % word), "entry 1 (Chronicle.A)", "the word %s is not used here" % word)
+        # (3) A key under no prefix is not looked at (a UI label may carry a figure).
+        self.assertEqual(check('Key,SourceString\n"Time.A","%s 3"\n' % verdict[0]), [])
+        # (4) The project's chronicle keys hold the rule through the sources: a digit put into one is found.
+        sources = checker.read_sources()
+        sources["ST_CA.csv"] = sources["ST_CA.csv"].rstrip(b"\r\n") + '\n"Chronicle.Test","7대"\n'.encode("utf-8")
+        self.expect(checker.check_sources(sources), "ST_CA.csv", "Chronicle.Test", "a digit outside a slot")
+        # (5) The rule's shape is the schema's: a key it does not read, a value of the wrong type, a list it lacks.
+        prefixes = ["string_table", "checked_prefixes"]
+        self.schema_problem(self.put(prefixes, "Chronicle.", {"forbidden": "verdict", "digits": True}), "schema.string_table.checked_prefixes.Chronicle.", "'digits' is not read here")
+        self.schema_problem(self.put(prefixes, "Chronicle.", {"no_digits": "yes"}), "schema.string_table.checked_prefixes.Chronicle.", "'no_digits' has to be")
+        self.schema_problem(self.put(prefixes, "Chronicle.", {"forbidden": "verdicts"}), "the word list 'verdicts' is not in the schema")
+        self.schema_problem(self.put(["string_table"], "prefixes", {}), "schema.string_table", "'prefixes' is not read here")
+
     def test_tags_ini(self):
         with project_copy() as work:
             ini = os.path.join(work, "Config", "DefaultGameplayTags.ini")

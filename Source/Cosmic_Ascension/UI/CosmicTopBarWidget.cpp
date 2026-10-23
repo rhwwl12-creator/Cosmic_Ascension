@@ -19,6 +19,7 @@
 #include "Styling/SlateTypes.h"
 #include "UI/CosmicActionButton.h"
 #include "UI/CosmicAscensionOverlayWidget.h"
+#include "UI/CosmicChronicleWidget.h"
 #include "UI/CosmicNextRung.h"
 #include "UI/CosmicUILabels.h"
 #include "UObject/UnrealType.h"
@@ -35,6 +36,9 @@ namespace CosmicTopBarImpl
 	const FName SpeedAction(TEXT("speed"));
 	const FName ViewAction(TEXT("view"));
 	const FName AutoPauseAction(TEXT("autopause"));
+	const FName ReopenAction(TEXT("reopen"));
+	// The provisional end's grey line beside the clock (MVP item 4): quieter than the line of a pause.
+	const FLinearColor EndSoonColor(0.6f, 0.6f, 0.65f);
 	// The line of an automatic pause: the warm colour of a flat button under the mouse, so the eye finds why time stopped.
 	const FLinearColor WhyColor(1.f, 0.82f, 0.4f);
 	const FLinearColor BandColor(0.01f, 0.01f, 0.03f, 0.8f);
@@ -135,10 +139,21 @@ TSharedRef<SWidget> UCosmicTopBarWidget::RebuildWidget()
 		ClockButton->OnUnhovered.AddUniqueDynamic(this, &UCosmicTopBarWidget::HandleClockUnhovered);
 		// Set once: SetToolTipText builds a new Slate tooltip each time. What a year is, then what a press does (a flat
 		// button does not look pressable).
-		ClockButton->SetToolTipText(FText::Format(INVTEXT("{0}\n{1}"), CosmicUI::Label(TEXT("Time.Tip")), CosmicUI::Label(TEXT("Time.TipPress"))));
+		// A third line states the provisional end as a rule of the run (MVP item 4): the tooltip is built once.
+		{
+			const ACosmicPlayerController* Owner = Cast<ACosmicPlayerController>(GetOwningPlayer());
+			const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+			ClockButton->SetToolTipText(ClockTipOf(Sim ? Sim->GetRules().ProvisionalEndTick : 0, Sim && (!Owner || Owner->IsProvisionalEndEnabled())));
+		}
 		UHorizontalBoxSlot* ClockSlot = Row->AddChildToHorizontalBox(ClockButton);
 		ClockSlot->SetVerticalAlignment(VAlign_Center);
-		ClockSlot->SetPadding(FMargin(16.f, 0.f, 12.f, 0.f));
+		ClockSlot->SetPadding(FMargin(16.f, 0.f, 4.f, 0.f));
+		EndSoonText = CosmicUI::MakeText(*WidgetTree, 12, false);
+		EndSoonText->SetColorAndOpacity(FSlateColor(EndSoonColor));
+		EndSoonText->SetVisibility(ESlateVisibility::Collapsed);
+		UHorizontalBoxSlot* EndSoonSlot = Row->AddChildToHorizontalBox(EndSoonText);
+		EndSoonSlot->SetVerticalAlignment(VAlign_Center);
+		EndSoonSlot->SetPadding(FMargin(4.f, 0.f, 12.f, 0.f));
 
 		// The view: a bordered button between the clock and the speeds (its slot never moves when the clock's hover text
 		// grows - the research block takes that), outside SpeedButtons. Its tooltip is set once; Refresh shows it from the
@@ -171,6 +186,15 @@ TSharedRef<SWidget> UCosmicTopBarWidget::RebuildWidget()
 			SpeedButtons.Add(Button);
 		}
 		LabelledUnit = ECosmicTimeUnit::Cycle;
+
+		// The chronicle again (MVP item 4): after the speeds, collapsed until the run is over and its page folded.
+		ReopenButton = WidgetTree->ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
+		ReopenButton->Setup(ReopenAction, 0.f, CosmicUI::Label(TEXT("Chronicle.Reopen")));
+		ReopenButton->OnAction.AddUObject(this, &UCosmicTopBarWidget::HandleReopen);
+		ReopenButton->SetVisibility(ESlateVisibility::Collapsed);
+		UHorizontalBoxSlot* ReopenSlot = Row->AddChildToHorizontalBox(ReopenButton);
+		ReopenSlot->SetVerticalAlignment(VAlign_Center);
+		ReopenSlot->SetPadding(FMargin(8.f, 0.f, 0.f, 0.f));
 
 		// The automatic pause after the speeds: its button (the tooltip set once - SetToolTipText builds a new Slate tooltip
 		// each time; Refresh labels it on or off), then the line of why it stopped, collapsed until it holds the time.
@@ -246,6 +270,28 @@ void UCosmicTopBarWidget::HandleSpeed(FName Action, float Value)
 	{
 		// A bar without a controller keeps the same rule.
 		Sim->SetTimeScale(CosmicUI::OpenSpeed(Value, CosmicTopBarImpl::ThirdRungOpen(*this, *Sim)));
+	}
+	Refresh();
+}
+
+FText UCosmicTopBarWidget::ClockTipOf(int32 EndTick, bool bEndOn)
+{
+	const FText Tip = FText::Format(INVTEXT("{0}\n{1}"), CosmicUI::Label(TEXT("Time.Tip")), CosmicUI::Label(TEXT("Time.TipPress")));
+	if (!bEndOn)
+	{
+		return Tip;
+	}
+	// Always in cycles: the rule is the run's, not the viewer's unit.
+	const FText Rule = EndTick > 0 ? FText::Format(CosmicUI::Label(TEXT("Chronicle.Rule")), CosmicUI::ClockLabel(EndTick, ECosmicTimeUnit::Cycle))
+		: CosmicUI::Label(TEXT("Chronicle.RuleRung"));
+	return FText::Format(INVTEXT("{0}\n{1}"), Tip, Rule);
+}
+
+void UCosmicTopBarWidget::HandleReopen(FName Action, float Value)
+{
+	if (ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer()))
+	{
+		Controller->ReopenChronicle();
 	}
 	Refresh();
 }
@@ -410,6 +456,8 @@ void UCosmicTopBarWidget::Refresh()
 	// appears when the presentation closes), the current speed's button is greyed out (a click on it would change
 	// nothing), and every label, the collapsed ones too, follows the unit. Visibility is set only when it changes.
 	const bool bThirdRungShown = CosmicTopBarImpl::ThirdRungOpen(*this, *Sim) && !CosmicTopBarImpl::Presenting(*this);
+	// The run is over (MVP item 4): every speed button is greyed out (x25 stays where the gate shows it).
+	const bool bEnded = ACosmicPlayerController::IsRunEndedFor(*this);
 	const bool bRelabel = !LabelledUnit.IsSet() || LabelledUnit.GetValue() != Unit;
 	const float Current = Sim->GetTimeScale();
 	for (UCosmicActionButton* Button : SpeedButtons)
@@ -425,7 +473,7 @@ void UCosmicTopBarWidget::Refresh()
 			{
 				Button->SetVisibility(Shown);
 			}
-			Button->SetIsEnabled(!FMath::IsNearlyEqual(Button->GetValue(), Current));
+			Button->SetIsEnabled(!bEnded && !FMath::IsNearlyEqual(Button->GetValue(), Current));
 		}
 	}
 	LabelledUnit = Unit;
@@ -433,6 +481,47 @@ void UCosmicTopBarWidget::Refresh()
 	// The automatic pause: its button says on or off; the line says why the time stands still while an automatic pause
 	// holds it (the reason goes when the speed is set again). Both set only when they change.
 	const ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer());
+
+	// The provisional end (MVP item 4): the chronicle's button while the run is over and the page folded, and before the end
+	// the grey line - the last minutes of the clock, or the clock end once the vessel was deposed. Set only when they change.
+	if (ReopenButton)
+	{
+		const ACosmicHUD* HUD = Controller ? Controller->GetHUD<ACosmicHUD>() : nullptr;
+		const UCosmicChronicleWidget* Page = HUD ? HUD->GetChronicle() : nullptr;
+		const ESlateVisibility ReopenVisibility = (bEnded && Page && !Page->IsOpen()) ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
+		if (ReopenButton->GetVisibility() != ReopenVisibility)
+		{
+			ReopenButton->SetVisibility(ReopenVisibility);
+		}
+	}
+	if (EndSoonText)
+	{
+		FText Soon;
+		const int32 EndTick = Sim->GetRules().ProvisionalEndTick;
+		if (!bEnded && Controller && Controller->IsProvisionalEndEnabled() && EndTick > 0)
+		{
+			const int64 Left = static_cast<int64>(EndTick) - State.Tick;
+			const TArray<FLifeRecord>& Lives = State.Calling.Lives;
+			const bool bDeposed = !Lives.IsEmpty() && !Lives.Last().ReignEndReasons.IsEmpty() && Lives.Last().ReignEndReasons.Last().IsValid();
+			if (Left > 0 && Left <= CosmicChronicleScreen::EndSoonTicks)
+			{
+				Soon = FText::Format(Label(TEXT("Chronicle.Soon")), TimeLeftLabel(Left, Unit));
+			}
+			else if (Left > 0 && bDeposed)
+			{
+				Soon = FText::Format(Label(TEXT("Chronicle.Until")), ClockLabel(EndTick, Unit));
+			}
+		}
+		if (!EndSoonText->GetText().ToString().Equals(Soon.ToString(), ESearchCase::CaseSensitive))
+		{
+			EndSoonText->SetText(Soon);
+		}
+		const ESlateVisibility SoonVisibility = Soon.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible;
+		if (EndSoonText->GetVisibility() != SoonVisibility)
+		{
+			EndSoonText->SetVisibility(SoonVisibility);
+		}
+	}
 	if (AutoPauseButton)
 	{
 		const FText PauseLabel = Label((!Controller || Controller->IsAutoPauseOn()) ? TEXT("AutoPause.On") : TEXT("AutoPause.Off"));

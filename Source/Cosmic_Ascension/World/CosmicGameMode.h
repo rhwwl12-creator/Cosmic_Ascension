@@ -11,6 +11,7 @@
 #include "Templates/Function.h"
 #include "UI/CosmicUILabels.h"
 #include "Events/CosmicPetitions.h"
+#include "Sim/CosmicEndings.h"
 #include "World/CosmicAutoPause.h"
 #include "World/CosmicMapLook.h"
 #include "World/CosmicMapPick.h"
@@ -20,6 +21,7 @@
 class ACosmicCameraPawn;
 class ACosmicGalaxyMapActor;
 class UCosmicAscensionOverlayWidget;
+class UCosmicChronicleWidget;
 class UCosmicGalaxyPanelWidget;
 class UCosmicLogFeedWidget;
 class UCosmicPetitionCardWidget;
@@ -66,8 +68,8 @@ public:
  * Puts the panels on the screen: the top bar along the top, on the right the system panel or the galaxy panel, as
  * CosmicUniverseLook::PanelOf says of the camera's level and the two selections (section 6.4 - the two never stand
  * together, section 8.3), the galaxy panel with the session's hint (CosmicUI::HintKeyOf), the log feed at the bottom left,
- * the petition card in the middle over the panels (collapsed while no card shows - MVP item 2), and over them all the
- * ascension presentation (hidden until an ascension).
+ * the petition card in the middle over the panels (collapsed while no card shows - MVP item 2), over them the ascension
+ * presentation (hidden until an ascension), and over everything the chronicle (collapsed until the run ends - MVP item 4).
  */
 UCLASS()
 class COSMIC_ASCENSION_API ACosmicHUD : public AHUD
@@ -84,6 +86,7 @@ public:
 	UCosmicLogFeedWidget* GetLogFeed() const { return Feed; }
 	UCosmicAscensionOverlayWidget* GetAscensionOverlay() const { return Overlay; }
 	UCosmicPetitionCardWidget* GetPetitionCard() const { return Card; }
+	UCosmicChronicleWidget* GetChronicle() const { return Chronicle; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -113,6 +116,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCosmicPetitionCardWidget> Card;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCosmicChronicleWidget> Chronicle;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCosmicTopBarWidget> TopBar;
@@ -235,6 +241,28 @@ public:
 	/** The card was closed after an outcome: a chained card shows at once (FollowPetition); otherwise a pause the card
 	 * made (reason Card, still standing still) gives the time back at the speed before it. */
 	void ClosePetitionCard();
+
+	/** The provisional end as FollowEnd latched it (MVP item 4) - never read afresh elsewhere, so a state a test left behind ends nothing until a tick boundary,
+	 * a new galaxy, a load or a BeginPlay says so. None while the run goes on or the end is switched off. Never saved, outside both hashes. */
+	ECosmicProvisionalEnd GetRunEnd() const { return RunEnd; }
+	bool IsRunEnded() const { return RunEnd != ECosmicProvisionalEnd::None; }
+	static bool IsRunEndedFor(const UUserWidget& Widget);   // the widget's owning controller holds an ended run; false without one
+	/** Looks at the end (nothing while it is switched off). bArrived (HandleSimTick; tests in its place): a cause seen while none is latched latches it, stops the
+	 * time whatever the automatic pause (ApplySpeed(0, RunEnd)), folds the card, logs one CosmicEnd line and starts the wait. Without it (HandleGalaxyGenerated, the
+	 * BeginPlay of this controller and of the HUD): the same latch with no wait, and while latched the page opens at once, fully shown, if the HUD has it and it is
+	 * closed - whichever BeginPlay runs second opens it. Calls nothing a Core Logic handler may not call (only SetTimeScale reaches the simulation). */
+	void FollowEnd(bool bArrived);
+	void AdvanceRunEnd(float DeltaSeconds);   // real seconds, counted only while no ascension presentation or reveal shows (PlayerTick; tests); opens after HoldSeconds
+	void ClearRunEnd();                       // forgets the latch, the wait and the page; switch and speed stay, the RunEnd reason goes (to None) (HandleGalaxyGenerated first; CosmicTests::AcquireSim)
+	void SetProvisionalEndEnabled(bool bOn);  // on; -ProvisionalEnd=0 turns it off for the session, tests in memory; off = ClearRunEnd
+	bool IsProvisionalEndEnabled() const { return bProvisionalEnd; }
+	void LookAtMap();                         // the page folds over the stopped map
+	void ReopenChronicle();                   // the top bar's 'chronicle': the page again, fully shown
+	void StartNewRun();                       // NewGalaxy from the clock's seed (-Seed= names the first galaxy only), then x1; an input, never from a handler
+	/** Development aid: after DelaySeconds of real time the chronicle over the current state, fully shown, with no cause ("CosmicPreviewChronicle 20" with
+	 * -ShotAfterSeconds=22 photographs it). Ends nothing, changes no state. */
+	UFUNCTION(Exec)
+	void CosmicPreviewChronicle(float DelaySeconds);
 
 	/** What a speed key does: 0 to 5 set the steps of CosmicUI::SpeedSteps through SetSpeed - a step the gate does not
 	 * open does nothing (it never becomes x10, guideline 2.1) -, Space toggles the pause. The keys follow the gate alone:
@@ -452,6 +480,17 @@ private:
 
 	// Whether the third rung's gate was open at the last FollowSpeedGate; unset before the first.
 	TOptional<bool> ThirdRungWasOpen;
+
+	// The provisional end (MVP item 4): presentation state, never saved, outside both hashes.
+	ECosmicProvisionalEnd RunEnd = ECosmicProvisionalEnd::None;
+	bool bProvisionalEnd = true;
+	// Real seconds left before the chronicle opens; unset while nothing waits.
+	TOptional<float> ChronicleWait;
+	// The CosmicEnd line's two numbers: UWorld::GetRealTimeSeconds at this controller's BeginPlay or at the last new galaxy or
+	// load (HandleGalaxyGenerated), and the real seconds the simulation stood still since then (any reason - a card, a
+	// presentation, a pause; PlayerTick counts).
+	double RunBeganRealSeconds = 0.0;
+	double StoppedRealSeconds = 0.0;
 
 	ECosmicTimeUnit TimeUnit = ECosmicTimeUnit::Cycle;
 

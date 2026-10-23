@@ -23,6 +23,7 @@
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "TimerManager.h"
 #include "UI/CosmicAscensionOverlayWidget.h"
+#include "UI/CosmicChronicleWidget.h"
 #include "UI/CosmicGalaxyPanelWidget.h"
 #include "UI/CosmicLogFeedWidget.h"
 #include "UI/CosmicPetitionCardWidget.h"
@@ -53,6 +54,12 @@ namespace CosmicControlImpl
 	// The petition card's area, in the middle of the screen: the card sits at its top and the rest lets clicks through.
 	const FVector2D PetitionCardSize(560.f, 480.f);
 	constexpr float ScreenMargin = 16.f;
+
+	// The seed of a galaxy no -Seed= names: the clock's (StartPlay, and every new run of the chronicle's 'new run').
+	int32 ClockSeed()
+	{
+		return static_cast<int32>(FDateTime::UtcNow().GetTicks() & 0x7fffffff);
+	}
 
 	// The viewer's clock unit (guideline 6.3) is kept in the viewer's GameUserSettings ini (the controller's
 	// TimeUnitSection and TimeUnitKey), not in a galaxy's save.
@@ -96,7 +103,7 @@ void ACosmicGameMode::StartPlay()
 		int32 Seed = 0;
 		if (!FParse::Value(FCommandLine::Get(), TEXT("Seed="), Seed))
 		{
-			Seed = static_cast<int32>(FDateTime::UtcNow().GetTicks() & 0x7fffffff);
+			Seed = CosmicControlImpl::ClockSeed();
 		}
 		// The counts come from the home galaxy row (section 3.1). A development aid: -Speed=N starts at that speed, up to
 		// x25 whatever the rung (the frame-time measure: item 6 at 10x, item 12 at 25x - the controller lowers only a x25
@@ -263,6 +270,18 @@ void ACosmicHUD::BeginPlay()
 	{
 		Overlay->AddToViewport(10);
 	}
+	// Over the card (5) and the presentation (10): the chronicle, collapsed until the run ends (MVP item 4).
+	Chronicle = CreateWidget<UCosmicChronicleWidget>(Controller);
+	if (Chronicle)
+	{
+		Chronicle->AddToViewport(20);
+		Chronicle->SetVisibility(ESlateVisibility::Collapsed);
+	}
+	// A galaxy that started ended (a load before StartPlay - item 5): the second of the two BeginPlay calls opens the page.
+	if (ACosmicPlayerController* Cosmic = Cast<ACosmicPlayerController>(Controller))
+	{
+		Cosmic->FollowEnd(false);
+	}
 }
 
 void ACosmicHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -370,6 +389,13 @@ void ACosmicPlayerController::PostInitializeComponents()
 	if (FParse::Value(FCommandLine::Get(), TEXT("AutoPause="), GivenPause))
 	{
 		bAutoPause = GivenPause != 0;
+	}
+	// The provisional end (MVP item 4): on; -ProvisionalEnd=0 turns it off for the session (the frame-time measure at x25,
+	// a screen past tick 6,000).
+	int32 GivenEnd = 1;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ProvisionalEnd="), GivenEnd))
+	{
+		bProvisionalEnd = GivenEnd != 0;
 	}
 }
 
@@ -520,6 +546,10 @@ void ACosmicPlayerController::BeginPlay()
 	{
 		Log->OnLogEntry.AddUniqueDynamic(this, &ACosmicPlayerController::HandleLogEntry);
 	}
+	RunBeganRealSeconds = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.0;
+	StoppedRealSeconds = 0.0;
+	// The game's first galaxy came before the handlers were bound (StartPlay): a galaxy that started ended latches here.
+	FollowEnd(false);
 	FollowOwnHazards();
 }
 
@@ -544,6 +574,12 @@ void ACosmicPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void ACosmicPlayerController::HandleSimTick(int64 Tick)
 {
 	FollowSpeedGate();
+	// The end before the card and the hazards: once the run is over, its own tick asks for nothing.
+	FollowEnd(true);
+	if (IsRunEnded())
+	{
+		return;
+	}
 	FollowOwnHazards();
 	FollowPetition(true);
 }
@@ -551,11 +587,178 @@ void ACosmicPlayerController::HandleSimTick(int64 Tick)
 void ACosmicPlayerController::HandleGalaxyGenerated(int32 Seed)
 {
 	FollowSpeedGate();
-	// Another game: what stopped the old one and the hazards it had say nothing of this one.
+	// Another game: the end, what stopped the old one and the hazards it had say nothing of this one.
+	ClearRunEnd();
 	AutoPauseReason = ECosmicAutoPause::None;
 	OwnHazardsSeen.Reset();
+	RunBeganRealSeconds = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.0;
+	StoppedRealSeconds = 0.0;
+	FollowEnd(false);
+	if (IsRunEnded())
+	{
+		return;
+	}
 	FollowOwnHazards();
 	FollowPetition(false);
+}
+
+void ACosmicPlayerController::FollowEnd(bool bArrived)
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!bProvisionalEnd || !Sim)
+	{
+		return;
+	}
+	ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
+	if (!IsRunEnded())
+	{
+		const ECosmicProvisionalEnd Cause = CosmicEndings::ProvisionalEndOf(Sim->GetState(), Sim->GetRules());
+		if (Cause == ECosmicProvisionalEnd::None)
+		{
+			return;
+		}
+		RunEnd = Cause;
+		ApplySpeed(0.f, ECosmicAutoPause::RunEnd);
+		// The card folds; the waiting row stays in Knowing.
+		if (UCosmicPetitionCardWidget* Card = CosmicHUD ? CosmicHUD->GetPetitionCard() : nullptr)
+		{
+			Card->ShowCard(NAME_None, NAME_None);
+		}
+		const double Now = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.0;
+		UE_LOG(LogCosmic, Display, TEXT("CosmicEnd: %s at tick %lld; %.0f s since the run began, %.0f s of them stopped"), CosmicEndings::NameOf(Cause),
+			Sim->GetState().Tick, Now - RunBeganRealSeconds, StoppedRealSeconds);
+		if (bArrived)
+		{
+			ChronicleWait = CosmicChronicleScreen::HoldSeconds;
+			return;
+		}
+	}
+	if (!bArrived)
+	{
+		ChronicleWait.Reset();
+		UCosmicChronicleWidget* Page = CosmicHUD ? CosmicHUD->GetChronicle() : nullptr;
+		if (Page && !Page->IsOpen())
+		{
+			Page->Open(RunEnd, true);
+		}
+		if (CosmicHUD)
+		{
+			CosmicHUD->RefreshPanel();
+		}
+	}
+}
+
+void ACosmicPlayerController::AdvanceRunEnd(float DeltaSeconds)
+{
+	if (!ChronicleWait.IsSet())
+	{
+		return;
+	}
+	ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
+	const UCosmicAscensionOverlayWidget* Overlay = CosmicHUD ? CosmicHUD->GetAscensionOverlay() : nullptr;
+	if (Overlay && (Overlay->IsShowing() || Overlay->IsRevealing()))
+	{
+		return;   // the third rung's presentation and its reveal first
+	}
+	ChronicleWait = ChronicleWait.GetValue() - FMath::Max(DeltaSeconds, 0.f);
+	if (ChronicleWait.GetValue() <= 0.f)
+	{
+		ChronicleWait.Reset();
+		if (UCosmicChronicleWidget* Page = CosmicHUD ? CosmicHUD->GetChronicle() : nullptr)
+		{
+			Page->Open(RunEnd, false);
+		}
+		// The bar's 'chronicle' goes while the page shows.
+		if (CosmicHUD)
+		{
+			CosmicHUD->RefreshPanel();
+		}
+	}
+}
+
+void ACosmicPlayerController::ClearRunEnd()
+{
+	RunEnd = ECosmicProvisionalEnd::None;
+	ChronicleWait.Reset();
+	if (UCosmicChronicleWidget* Page = GetHUD<ACosmicHUD>() ? GetHUD<ACosmicHUD>()->GetChronicle() : nullptr)
+	{
+		Page->Close();
+	}
+	// The speed and the switch stay. The RunEnd reason goes: AcquireSim stops the simulation with SetTimeScale, not through
+	// ApplySpeed, so the top bar would otherwise keep saying the run is over.
+	if (AutoPauseReason == ECosmicAutoPause::RunEnd)
+	{
+		AutoPauseReason = ECosmicAutoPause::None;
+	}
+}
+
+void ACosmicPlayerController::SetProvisionalEndEnabled(bool bOn)
+{
+	if (!bOn)
+	{
+		ClearRunEnd();
+	}
+	bProvisionalEnd = bOn;
+}
+
+bool ACosmicPlayerController::IsRunEndedFor(const UUserWidget& Widget)
+{
+	const ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(Widget.GetOwningPlayer());
+	return Controller && Controller->IsRunEnded();
+}
+
+void ACosmicPlayerController::LookAtMap()
+{
+	if (UCosmicChronicleWidget* Page = GetHUD<ACosmicHUD>() ? GetHUD<ACosmicHUD>()->GetChronicle() : nullptr)
+	{
+		Page->Close();
+	}
+	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
+	{
+		CosmicHUD->RefreshPanel();
+	}
+}
+
+void ACosmicPlayerController::ReopenChronicle()
+{
+	UCosmicChronicleWidget* Page = GetHUD<ACosmicHUD>() ? GetHUD<ACosmicHUD>()->GetChronicle() : nullptr;
+	if (IsRunEnded() && Page && !Page->IsOpen())
+	{
+		Page->Open(RunEnd, true);
+	}
+	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
+	{
+		CosmicHUD->RefreshPanel();
+	}
+}
+
+void ACosmicPlayerController::StartNewRun()
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!Sim || Sim->IsBroadcasting())
+	{
+		return;
+	}
+	// The seed is an input (as in StartPlay); -Seed= named the first galaxy only. HandleGalaxyGenerated clears the end.
+	Sim->NewGalaxy(CosmicControlImpl::ClockSeed(), 0, 0);
+	SetSpeed(1.f);
+}
+
+void ACosmicPlayerController::CosmicPreviewChronicle(float DelaySeconds)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	FTimerHandle Preview;
+	World->GetTimerManager().SetTimer(Preview, FTimerDelegate::CreateWeakLambda(this, [this]()
+	{
+		if (UCosmicChronicleWidget* Page = GetHUD<ACosmicHUD>() ? GetHUD<ACosmicHUD>()->GetChronicle() : nullptr)
+		{
+			Page->Open(ECosmicProvisionalEnd::None, true);
+		}
+	}), FMath::Max(DelaySeconds, 0.01f), false);
 }
 
 void ACosmicPlayerController::HandleLogEntry(const FCosmicLogEntry& Entry)
@@ -1059,6 +1262,13 @@ void ACosmicPlayerController::PlayerTick(float DeltaTime)
 	// again after it closed.
 	FollowSightOpening();
 	FollowZoomLevel();
+	// The provisional end: the wait before the chronicle, and the real seconds the simulation stood still before it (the
+	// engine never pauses and nothing dilates time, so DeltaTime is real time).
+	AdvanceRunEnd(DeltaTime);
+	if (const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr; Sim && !IsRunEnded() && !(Sim->GetTimeScale() > 0.f))
+	{
+		StoppedRealSeconds += DeltaTime;
+	}
 }
 
 bool ACosmicPlayerController::DiscPointAt(const FVector2D& Screen, FVector& OutPoint) const
@@ -1246,6 +1456,11 @@ void ACosmicPlayerController::HandleRightReleased(FKey Key)
 
 void ACosmicPlayerController::HandleWheel(FKey Key)
 {
+	// The chronicle's page takes the wheel while it shows (its scroll box), never the camera under it.
+	if (const UCosmicChronicleWidget* Page = GetHUD<ACosmicHUD>() ? GetHUD<ACosmicHUD>()->GetChronicle() : nullptr; Page && Page->IsOpen())
+	{
+		return;
+	}
 	if (ACosmicCameraPawn* CameraPawn = GetCameraPawn())
 	{
 		CameraPawn->Zoom(Key == EKeys::MouseScrollUp ? 1.f : -1.f);
@@ -1255,6 +1470,11 @@ void ACosmicPlayerController::HandleWheel(FKey Key)
 
 void ACosmicPlayerController::FollowPetition(bool bArrived)
 {
+	// An ended run shows no card (FollowEnd folded it; the row stays in Knowing).
+	if (IsRunEnded())
+	{
+		return;
+	}
 	ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
 	UCosmicPetitionCardWidget* Card = CosmicHUD ? CosmicHUD->GetPetitionCard() : nullptr;
 	if (!Card || Card->IsShowingOutcome())
@@ -1276,6 +1496,11 @@ void ACosmicPlayerController::FollowPetition(bool bArrived)
 
 FCosmicPetitionAnswer ACosmicPlayerController::AnswerPetition(int32 ChoiceIndex)
 {
+	// The run is over: no command reaches the simulation (Refused - nothing drawn, nothing written).
+	if (IsRunEnded())
+	{
+		return FCosmicPetitionAnswer();
+	}
 	UPlayerRoleSubsystem* Roles = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
 	const FCosmicPetitionAnswer Answer = Roles ? Roles->AnswerPetition(ChoiceIndex) : FCosmicPetitionAnswer();
 	if (Answer.Outcome == ECosmicPetitionOutcome::Refused)
@@ -1310,6 +1535,10 @@ void ACosmicPlayerController::ClosePetitionCard()
 
 bool ACosmicPlayerController::StartProject(FName SystemID, FName RowName)
 {
+	if (IsRunEnded())
+	{
+		return false;
+	}
 	UPlayerRoleSubsystem* Roles = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
 	if (!Roles || !Roles->StartMegaproject(SystemID, RowName))
 	{
@@ -1343,6 +1572,13 @@ void ACosmicPlayerController::ApplySpeed(float Speed, ECosmicAutoPause Reason)
 	if (Current > 0.f)
 	{
 		SpeedBeforePause = Current;
+	}
+	// The run is over (MVP item 4): every path - the bar, the keys, the presentation's and the card's give-back, the gate's
+	// lowering - stops here.
+	if (IsRunEnded())
+	{
+		Speed = 0.f;
+		Reason = ECosmicAutoPause::RunEnd;
 	}
 	// One rule for every path: a speed the third rung's gate does not open runs as x10.
 	Sim->SetTimeScale(CosmicUI::OpenSpeed(Speed, IsSpiritualSightOpen()));

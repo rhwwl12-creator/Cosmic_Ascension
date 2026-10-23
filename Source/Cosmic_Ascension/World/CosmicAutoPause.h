@@ -22,6 +22,9 @@ enum class ECosmicAutoPause : uint8
 	OwnHazard,
 	// A card arrived (the card widget of MVP item 2 asks for it).
 	Card,
+	// The run is over (MVP item 4) - not an automatic pause: set whatever the viewer's choice; every speed asked for afterwards
+	// stays 0 (ACosmicPlayerController::ApplySpeed).
+	RunEnd,
 };
 
 namespace CosmicAutoPause

@@ -30,12 +30,14 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeExit.h"
 #include "Rendering/SlateLayoutTransform.h"
+#include "Sim/CosmicEndings.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
 #include "UI/CosmicActionButton.h"
 #include "UI/CosmicAscensionOverlayWidget.h"
+#include "UI/CosmicChronicleWidget.h"
 #include "UI/CosmicLogFeedWidget.h"
 #include "UI/CosmicSystemPanelWidget.h"
 #include "UI/CosmicTopBarWidget.h"
@@ -750,22 +752,38 @@ bool FCosmicUIMouseOnlyAscentTest::RunTest(const FString& Parameters)
 	Map->RefreshNow();
 	TestTrue(TEXT("and a press on it turns the map to the physical view"), Map->GetDrawnViewMode() == ECosmicViewMode::Physical);
 
-	// The third rung's speed (item 12): the bar offers x25 once no ascension presentation shows (a headless run tells no
-	// ascension; one an earlier test raised closes here), and its press runs the simulation at 25.
-	if (UCosmicAscensionOverlayWidget* Overlay = HUD->GetAscensionOverlay())
+	// The third rung ends the run (MVP item 4, exit (c)): the presentation and its reveal first, then the latch (a headless
+	// run sends no tick - FollowEnd is called here), the wait, the chronicle's page and 'look at the map'. The bar still
+	// offers x25 (item 12), greyed out: neither its press nor SetSpeed(25) moves the stopped simulation.
+	UCosmicAscensionOverlayWidget* Overlay = HUD->GetAscensionOverlay();
+	if (Overlay)
 	{
 		Overlay->Close();
-		Sim->SetTimeScale(0.f);
+		Overlay->Advance(CosmicAscensionOverlay::RevealSeconds + 1.f);
+	}
+	TestTrue(TEXT("(the provisional end is switched on)"), Controller->IsProvisionalEndEnabled());
+	Controller->FollowEnd(true);
+	TestEqual(TEXT("The third rung ends the run"), Controller->GetRunEnd(), ECosmicProvisionalEnd::Rung);
+	TestEqual(TEXT("and stops the simulation"), Sim->GetTimeScale(), 0.f);
+	Controller->AdvanceRunEnd(CosmicChronicleScreen::HoldSeconds + 0.1f);
+	UCosmicChronicleWidget* Page = HUD->GetChronicle();
+	if (TestTrue(TEXT("After the wait the chronicle's page opens"), Page && Page->IsOpen()))
+	{
+		Page->PressVeil();
+		Page->PressToMap();
+		TestFalse(TEXT("and 'look at the map' folds it"), Page->IsOpen());
 	}
 	HUD->RefreshPanel();
 	UCosmicActionButton* X25 = Bar->FindSpeedButton(25.f);
 	const ESlateVisibility X25Visibility = X25 ? X25->GetVisibility() : ESlateVisibility::Collapsed;
-	TestTrue(TEXT("From the third rung the bar offers x25 to the mouse"), X25Visibility == ESlateVisibility::Visible || X25Visibility == ESlateVisibility::SelfHitTestInvisible);
+	TestTrue(TEXT("From the third rung the bar shows x25"), X25Visibility == ESlateVisibility::Visible || X25Visibility == ESlateVisibility::SelfHitTestInvisible);
+	TestTrue(TEXT("greyed out once the run is over"), X25 && !X25->GetIsEnabled());
 	if (X25)
 	{
 		X25->Press();
 	}
-	TestEqual(TEXT("and its press runs x25"), Sim->GetTimeScale(), 25.f);
+	Controller->SetSpeed(25.f);
+	TestEqual(TEXT("and neither its press nor SetSpeed(25) moves the stopped simulation"), Sim->GetTimeScale(), 0.f);
 	Sim->SetTimeScale(0.f);
 	return true;
 }

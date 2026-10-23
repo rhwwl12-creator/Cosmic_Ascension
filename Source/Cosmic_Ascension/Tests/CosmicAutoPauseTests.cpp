@@ -153,11 +153,13 @@ bool FCosmicUIAutoPauseTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("A hazard that ended is not"), CosmicAutoPause::HasNewHazard(HomePlague, None));
 
 		TestTrue(TEXT("No reason has no words"), CosmicAutoPause::WhyKeyOf(ECosmicAutoPause::None) == nullptr);
-		for (const ECosmicAutoPause Reason : { ECosmicAutoPause::MythicLine, ECosmicAutoPause::OwnHazard, ECosmicAutoPause::Card })
+		for (const ECosmicAutoPause Reason : { ECosmicAutoPause::MythicLine, ECosmicAutoPause::OwnHazard, ECosmicAutoPause::Card, ECosmicAutoPause::RunEnd })
 		{
 			const TCHAR* Key = CosmicAutoPause::WhyKeyOf(Reason);
 			TestTrue(*FString::Printf(TEXT("Reason %d has words in the String Table"), static_cast<int32>(Reason)), Key && !Words(Key).IsEmpty() && !Words(Key).Contains(Placeholder));
 		}
+		// The end of the run (MVP item 4) says so with the chronicle's words.
+		TestEqual(TEXT("An ended run's line is Chronicle.Why"), FString(CosmicAutoPause::WhyKeyOf(ECosmicAutoPause::RunEnd)), FString(TEXT("Chronicle.Why")));
 	}
 
 	// ---- 2. A told mythic line ----

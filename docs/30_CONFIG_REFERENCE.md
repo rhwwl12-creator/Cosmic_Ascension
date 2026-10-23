@@ -56,4 +56,4 @@
 | `ClaimLeaveProfiles` | `"(GameplayTags=((TagName=\"AI.Profile.Expansionist\"),(TagName=\"AI…` | tags | `{"root": "AI.Profile."}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `FirstCrisisTick` | `150` | number | `{"min": 0, "integer": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `FirstCrisisHazard` | `"Hazard.AIAwakening"` | tag | `{"root": "Hazard.", "optional": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
-| `ProvisionalEndTick` | `6000` | number | `{"min": 0, "integer": true}` | Sim/CosmicEndings.cpp | 읽힘 |
+| `ProvisionalEndTick` | `6000` | number | `{"min": 0, "integer": true}` | Sim/CosmicEndings.cpp, UI/CosmicTopBarWidget.cpp | 읽힘 |

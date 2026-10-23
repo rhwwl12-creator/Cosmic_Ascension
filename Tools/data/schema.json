@@ -36,6 +36,12 @@
 		"holy_and_myth": []
 	},
 
+	"string_table": {
+		"checked_prefixes": {
+			"Chronicle.": {"forbidden": "verdict", "no_digits": true}
+		}
+	},
+
 	"enums": {
 		"EAscensionTier": ["Tier1_Planetary", "Tier2_Stellar", "Tier3_Causal", "Tier4_Transcendent", "Tier5_EternalOrder"],
 		"EPlayerRole": ["Ruler", "Wanderer"],
