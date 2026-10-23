@@ -134,7 +134,8 @@
 				"ClaimLeaveProfiles": {"kind": "tags", "root": "AI.Profile."},
 				"FirstCrisisTick": {"kind": "number", "min": 0, "integer": true},
 				"FirstCrisisHazard": {"kind": "tag", "root": "Hazard.", "optional": true},
-				"ProvisionalEndTick": {"kind": "number", "min": 0, "integer": true}
+				"ProvisionalEndTick": {"kind": "number", "min": 0, "integer": true},
+				"ChronicleCap": {"kind": "number", "min": 0, "integer": true}
 			},
 			"rules": [
 				{

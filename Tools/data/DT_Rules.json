@@ -53,6 +53,7 @@
 		"ClaimLeaveProfiles": "(GameplayTags=((TagName=\"AI.Profile.Expansionist\"),(TagName=\"AI.Profile.Militarist\")))",
 		"FirstCrisisTick": 150,
 		"FirstCrisisHazard": "Hazard.AIAwakening",
-		"ProvisionalEndTick": 6000
+		"ProvisionalEndTick": 6000,
+		"ChronicleCap": 1500
 	}
 ]

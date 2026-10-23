@@ -17,8 +17,8 @@
 // - FText is display only: stored where noted, never part of ComputeStateHash. FGalaxyState.GalaxyID is the save slot
 //   identity and is not hashed either. Every other field is hashed. The sim reads no text: every people is named at
 //   generation, and whether a line is told is the story scope's question (section 8.1).
-// - ComputeWorldHash is ComputeStateHash without Knowing, Log, Chronicle and TellRngState. Every exclusion (GalaxyID
-//   from both hashes, these four from the world hash) goes by the name of the top-level member of FGalaxyState: keep
+// - ComputeWorldHash is ComputeStateHash without Knowing, Log, Chronicle, ChronicleEviction and TellRngState. Every
+//   exclusion (GalaxyID from both hashes, these five from the world hash) goes by the name of the top-level member of FGalaxyState: keep
 //   the slot identity, the stream values, the knowing and the telling at the top level, never inside a nested struct.
 // - ComputeStateHash hashes FName and FGameplayTag as their lower-cased string, never GetTypeHash, a name index or raw
 //   struct memory: those differ per process and would break "save, restart, load, same hash".
@@ -688,6 +688,30 @@ struct COSMIC_ASCENSION_API FTransitRecord
 };
 
 /**
+ * What the chronicle's cap has let go (MVP item 5; docs/70 section 8.4; 16 #40 (7)). When FGalaxyState.Chronicle holds more
+ * than DT_Rules.ChronicleCap entries after a move out of the log, its oldest Severity 1 entries leave it - never a Severity 2,
+ * Log.Calling, Log.Claim or Log.Record entry (Law.Judgment). UCosmicLogSubsystem is the one writer; CosmicChronicle::BuildCapped
+ * reads it: a chapter whose range reaches ThroughTick closes with ST_CA Chronicle.More (no count).
+ * Telling, not world: saved and part of ComputeStateHash, left out of ComputeWorldHash by its top-level member name.
+ * Both initializers are frozen (0 = nothing let go): a run whose chronicle never reached the cap writes nothing here, and a
+ * save from before the cap reads as "nothing let go", which is what happened.
+ */
+USTRUCT(BlueprintType)
+struct COSMIC_ASCENSION_API FChronicleEviction
+{
+	GENERATED_BODY()
+
+	// Entries let go in this run; only grows. 0 (frozen) = none - the only test of "anything let go".
+	UPROPERTY()
+	int32 Count = 0;
+
+	// Tick of the newest entry let go; read only when Count > 0. Only grows: the chronicle is in time order and its oldest
+	// Severity 1 entries go first.
+	UPROPERTY()
+	int64 ThroughTick = 0;
+};
+
+/**
  * The whole saved game (section 7.2, 9.1): the state of one run. One save slot per run. Identifiers that say Galaxy
  * (FGalaxyState, GalaxyID, NewGalaxy, the slot name Galaxy_<GUID>) mean the run and are not renamed.
  * Home-galaxy members: Systems, Civs (the one galaxy simulated in detail). Every other member is run-wide.
@@ -766,10 +790,15 @@ struct COSMIC_ASCENSION_API FGalaxyState
 	UPROPERTY()
 	TArray<FCosmicLogEntry> Log;
 
-	// Severity 1 and 2 entries moved out of Log when it overflows, plus every Log.Claim / Log.Record. Input of BuildChronicle
-	// (CosmicChronicle::Build reads it, then Log - MVP item 4).
+	// The entries leaving Log that the chronicle can show - CosmicChronicle::Admits over the peoples of every life (MVP item 5,
+	// 16 #40 (7)) - and no others; over DT_Rules.ChronicleCap its oldest Severity 1 entries leave (ChronicleEviction). Input
+	// of BuildChronicle (CosmicChronicle::Build reads it, then Log - MVP item 4).
 	UPROPERTY()
 	TArray<FCosmicLogEntry> Chronicle;
+
+	// What the cap of Chronicle let go (MVP item 5). Top level on purpose: ComputeWorldHash leaves it out by name.
+	UPROPERTY()
+	FChronicleEviction ChronicleEviction;
 
 	// Flag.* set by the SetFlag effect (section 4.5).
 	UPROPERTY()

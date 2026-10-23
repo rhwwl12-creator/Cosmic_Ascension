@@ -431,6 +431,24 @@ bool FCosmicLogChronicleBuildTest::RunTest(const FString& Parameters)
 		NoDefault.Civs = Bare;
 		TestTrue(TEXT("and with neither the name is empty"), CosmicChronicle::VesselNameOf(Life, NoDefault).IsEmpty());
 	}
+
+	// ---- The saved chronicle's cap (MVP item 5): a chapter whose range reaches what it let go closes with 'more' ----
+	{
+		FGalaxyState State;
+		State.Tick = 900;
+		State.Calling.Lives.Add(LifeOf(0, CivA));
+		State.Calling.Lives.Add(LifeOf(500, CivB));
+		auto MoreOf = [&State](int32 Count, int64 Through)
+		{
+			State.ChronicleEviction.Count = Count;
+			State.ChronicleEviction.ThroughTick = Through;
+			const TArray<FCosmicChronicleChapter> Chapters = CosmicChronicle::BuildCapped(State, 40);
+			return Chapters.Num() == 2 ? TArray<bool>({ Chapters[0].bMore, Chapters[1].bMore }) : TArray<bool>();
+		};
+		TestEqual(TEXT("Lines let go through tick 300: the first chapter says 'more'"), MoreOf(1, 300), TArray<bool>({ true, false }));
+		TestEqual(TEXT("through tick 500, the second's first tick: both do"), MoreOf(1, 500), TArray<bool>({ true, true }));
+		TestEqual(TEXT("Nothing let go: neither does"), MoreOf(0, 900), TArray<bool>({ false, false }));
+	}
 	return true;
 }
 

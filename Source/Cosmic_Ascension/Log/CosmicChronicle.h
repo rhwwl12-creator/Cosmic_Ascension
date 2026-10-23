@@ -1,6 +1,6 @@
 // Cosmic Ascension - Log layer (Core Logic). Design: docs/70_CONTENT_GUIDE.md section 8.4, headers/A4_provisional_end.md (MVP item 4).
 // RULE: Core Logic - no UI/World include. The chronicle's minimal form: pure functions of the saved state - nothing saved, hashed,
-// drawn or written; Knowing is never read (16 #49).
+// drawn or written; Knowing is never read (16 #49). Build reads; UCosmicLogSubsystem is the one writer of the move and the cap (MVP item 5).
 
 #pragma once
 
@@ -25,7 +25,7 @@ struct FCosmicChronicleChapter
 	int64 ToTick = 0;                     // ... to DiedTick when set, else to the next life's BornTick - 1, else to State.Tick
 	TArray<FCosmicChronicleLine> Lines;   // shown, in time order; copies, so the page outlives the next tick
 	int32 Candidates = 0;                 // the lines left after the first repeat rule, before the cap (the commandlet's "of")
-	bool bMore = false;                   // the cap left lines out: the chapter closes with ST_CA Chronicle.More (no count)
+	bool bMore = false;                   // the cap left lines out, or the saved chronicle's cap let older lines go (ChronicleEviction): the chapter closes with ST_CA Chronicle.More (no count)
 };
 
 namespace CosmicChronicle
@@ -35,6 +35,10 @@ namespace CosmicChronicle
 
 	/** BirthCivID, then RuledCivIDs, without NAME_None and without repeats. */
 	COSMIC_ASCENSION_API TArray<FName> PeoplesOf(const FLifeRecord& Life);
+
+	/** Every life's peoples: PeoplesOf of each FLifeRecord of Calling.Lives, in life order, without repeats (MVP item 5's move filter, 16 #40 (7));
+	 * empty when there is no life. */
+	COSMIC_ASCENSION_API TArray<FName> PeoplesOfEveryLife(const FCallingState& Calling);
 
 	/** 16 #31 (2) from the eight fields alone: Log.Calling, Log.Claim, Log.Record and every Severity 2; a Severity 1 entry when FocusCivID is one of Peoples or
 	 * SourceRow is CosmicRows::LogFirstContact. Reads neither bUntold nor a table. MVP item 5's Chronicle filter (16 #40 (7)) calls it with every life's peoples. */

@@ -986,4 +986,14 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// simulation stops at it (the commandlet reports it). Start value 6000 = ten minutes of running at x10; it lengthens only a run the clock ends.
 	UPROPERTY(EditAnywhere)
 	int32 ProvisionalEndTick = 6000;
+
+	// ---- The saved chronicle (MVP item 5) ----
+
+	// The cap of FGalaxyState.Chronicle (docs/70 section 8.4, 16 #40 (7)): after a move out of the log, while it holds more
+	// entries than this, its oldest Severity 1 entries leave - never Severity 2, Log.Calling, Log.Claim or Log.Record, so the
+	// chronicle may hold more. FGalaxyState.ChronicleEviction records it and the chapter says Chronicle.More. 0 or below = no
+	// cap. Story only: no world rule reads it and the world hash does not move with it. Not a display cap -
+	// CosmicChronicle::MaxLifeLines is.
+	UPROPERTY(EditAnywhere)
+	int32 ChronicleCap = 1500;
 };

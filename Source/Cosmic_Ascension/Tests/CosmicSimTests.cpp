@@ -275,9 +275,13 @@ namespace CosmicSimTests
 	// tag containers, maps, notables, transcendents, log entries, the knowing and a crossing. Of the 25 members reserved
 	// in v0.7 (section 9.1), 24 leave their initializer here: no game code moves them off it yet, and a member that
 	// reloads as its initializer looks the same whether it was saved or not. The 25th, TellRngState, is not touched:
-	// NewGalaxy stamps it and DrawTell moves it. Needs three civs or more.
+	// NewGalaxy stamps it and DrawTell moves it. Needs three civs or more. The members after v0.7 that start at their
+	// initializer are set here too (MVP item 5's ChronicleEviction) - compared one by one with SameLaterMembers.
 	void FillEmptyContainers(FGalaxyState& State)
 	{
+		State.ChronicleEviction.Count = 3;
+		State.ChronicleEviction.ThroughTick = 17;
+
 		const FName TestRow(TEXT("evt_test"));
 		const FName HomeGalaxy(TEXT("gal_milkyway"));
 
@@ -421,6 +425,13 @@ namespace CosmicSimTests
 
 	// The members reserved in v0.7, compared one by one. ComputeStateHash walks reflection, so it cannot see a member that
 	// lost its UPROPERTY: such a member is neither saved nor hashed, and "same hash after load" still holds.
+	// The members added after v0.7 that a plain run leaves at their initializer (FillEmptyContainers sets them), field by field:
+	// the hash cannot see a member without reflection.
+	bool SameLaterMembers(const FGalaxyState& A, const FGalaxyState& B)
+	{
+		return A.ChronicleEviction.Count == B.ChronicleEviction.Count && A.ChronicleEviction.ThroughTick == B.ChronicleEviction.ThroughTick;
+	}
+
 	bool SameReservedMembers(const FGalaxyState& A, const FGalaxyState& B)
 	{
 		bool bSame = A.TellRngState == B.TellRngState && A.NextCivSerial == B.NextCivSerial
@@ -1627,7 +1638,8 @@ bool FCosmicSimTellStreamSeparateTest::RunTest(const FString& Parameters)
 
 	const TSet<FName> NotWorld = {
 		GET_MEMBER_NAME_CHECKED(FGalaxyState, Knowing), GET_MEMBER_NAME_CHECKED(FGalaxyState, Log),
-		GET_MEMBER_NAME_CHECKED(FGalaxyState, Chronicle), GET_MEMBER_NAME_CHECKED(FGalaxyState, TellRngState)
+		GET_MEMBER_NAME_CHECKED(FGalaxyState, Chronicle), GET_MEMBER_NAME_CHECKED(FGalaxyState, ChronicleEviction),
+		GET_MEMBER_NAME_CHECKED(FGalaxyState, TellRngState)
 	};
 	// The slot identity is in no hash, and the live sim stream stands in for RngState in both.
 	const TSet<FName> InNeither = { GET_MEMBER_NAME_CHECKED(FGalaxyState, GalaxyID), GET_MEMBER_NAME_CHECKED(FGalaxyState, RngState) };
@@ -1646,7 +1658,7 @@ bool FCosmicSimTellStreamSeparateTest::RunTest(const FString& Parameters)
 		TestTrue(*FString::Printf(TEXT("%s is %s the full hash"), *Name.ToString(), bInFull ? TEXT("in") : TEXT("out of")), bFullMoved == bInFull);
 		++Seen;
 	}
-	TestEqual(TEXT("Top-level members of FGalaxyState classified"), Seen, 18);
+	TestEqual(TEXT("Top-level members of FGalaxyState classified"), Seen, 19);
 	TestTrue(TEXT("Both hashes are back after restoring the state"), Sim->ComputeWorldHash() == World && Sim->ComputeStateHash() == Full);
 	Sim->GetRng().GetUnsignedInt();
 	TestTrue(TEXT("A sim draw moves both hashes"), Sim->ComputeWorldHash() != World && Sim->ComputeStateHash() != Full);
@@ -1777,6 +1789,8 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("Loaded log text is still culture-invariant"), !Sim->GetState().Log.IsEmpty() && Sim->GetState().Log[0].Message.IsCultureInvariant());
 		TestEqual(TEXT("All 25 reserved members are off their initializer after load"), CosmicSimTests::CountReservedMembersSet(Sim->GetState()), 25);
 		TestTrue(TEXT("Every reserved member survives the round trip"), CosmicSimTests::SameReservedMembers(Sim->GetState(), AtSave));
+		TestTrue(TEXT("(the chronicle's eviction record was off its initializer at save)"), AtSave.ChronicleEviction.Count == 3 && AtSave.ChronicleEviction.ThroughTick == 17);
+		TestTrue(TEXT("Every later member survives the round trip"), CosmicSimTests::SameLaterMembers(Sim->GetState(), AtSave));
 
 		Sim->RunHeadless(500);
 		TestEqual(TEXT("Hash after load + 500 ticks equals the uninterrupted run"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(HashContinued));
@@ -1790,6 +1804,30 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 		}
 		TestEqual(TEXT("The cooldown keys of the event slots survive the round trip and the sweep"),
 			Sim->GetState().EventCooldownUntilTick.FindRef(UCosmicEventSubsystem::CooldownKey(FName(TEXT("evt_test")), Sim->GetState().Civs[1].CivID)), static_cast<int64>(100000));
+	}
+
+	// A record of nothing let go is not written (the delta save - its initializers are frozen); one that let go is.
+	{
+		UCosmicSaveGame* Carrier = NewObject<UCosmicSaveGame>(GetTransientPackage());
+		Carrier->State = Sim->GetState();
+		const auto Name = StringCast<ANSICHAR>(TEXT("ChronicleEviction"));
+		auto Holds = [&Carrier, &Name](int32 Count, int64 Through)
+		{
+			Carrier->State.ChronicleEviction.Count = Count;
+			Carrier->State.ChronicleEviction.ThroughTick = Through;
+			TArray<uint8> Raw;
+			UGameplayStatics::SaveGameToMemory(Carrier, Raw);
+			for (int32 At = 0; At + Name.Length() <= Raw.Num(); ++At)
+			{
+				if (FMemory::Memcmp(Raw.GetData() + At, Name.Get(), Name.Length()) == 0)
+				{
+					return true;
+				}
+			}
+			return false;
+		};
+		TestFalse(TEXT("A record of nothing let go is not written"), Holds(0, 0));
+		TestTrue(TEXT("A record of something let go is"), Holds(3, 17));
 	}
 
 	// Refused loads leave the running galaxy untouched.

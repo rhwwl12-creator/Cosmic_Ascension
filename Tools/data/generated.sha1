@@ -1,4 +1,4 @@
-DT_Rules.json 54dd287b103aee1687f83f3c6c912882f23dce24
+DT_Rules.json caa4a50404e4a859d51485a1a19770eb4664ba6e
 DT_Civs.json 1f9203cfbbc56cad3cfa8a865c61854c84ad3798
 DT_LogTemplates.json b323efec606269645f1a9d756a7425125fc951a6
 DT_Galaxies.json 3e4fa994b750e8da5990272e51184a00e806f673
@@ -9,5 +9,5 @@ DT_Megaprojects.json db0bdb6ccb06cd2f63c4f109c27d11be104086f4
 DT_Feats.json 52542f6529e69717bc410a1b259fba7264d5f77f
 DT_Encounters.json a75d2de804166dc205e98c347ff54381c10d7f2b
 ST_CA.csv 482233cdae9f783d67e21eebdbba4f6f44969baa
-schema.json 36650c32759c0d3297c6573092e58c765313dbf9
+schema.json 01cddabae0e09f60644a69f1187ce37cefae23c3
 ../cosmic_data_schema.py 43a103faf9215be22360927d4894a722ea9665c2

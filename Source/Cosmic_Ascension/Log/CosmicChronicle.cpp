@@ -114,6 +114,19 @@ bool CosmicChronicle::Admits(const FCosmicLogEntry& Entry, TConstArrayView<FName
 	return Entry.Severity == 1 && ((!Entry.FocusCivID.IsNone() && Peoples.Contains(Entry.FocusCivID)) || Entry.SourceRow == CosmicRows::LogFirstContact);
 }
 
+TArray<FName> CosmicChronicle::PeoplesOfEveryLife(const FCallingState& Calling)
+{
+	TArray<FName> Peoples;
+	for (const FLifeRecord& Life : Calling.Lives)
+	{
+		for (const FName& People : PeoplesOf(Life))
+		{
+			Peoples.AddUnique(People);
+		}
+	}
+	return Peoples;
+}
+
 bool CosmicChronicle::MayLetGo(const FCosmicLogEntry& Entry)
 {
 	using namespace CosmicChronicleImpl;
@@ -206,6 +219,13 @@ TArray<FCosmicChronicleChapter> CosmicChronicle::BuildCapped(const FGalaxyState&
 				}
 				Left = 0;
 			}
+			Chapter.bMore = true;
+		}
+
+		// (3b) The saved chronicle's cap let older lines go (MVP item 5): a chapter whose range reaches them says so too. The
+		// record does not say whose lines they were, so every chapter it reaches says it - more than the truth, never less.
+		if (State.ChronicleEviction.Count > 0 && Chapter.FromTick <= State.ChronicleEviction.ThroughTick)
+		{
 			Chapter.bMore = true;
 		}
 

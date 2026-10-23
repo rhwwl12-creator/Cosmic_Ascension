@@ -12,6 +12,7 @@
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
+#include "Log/CosmicChronicle.h"
 #include "Engine/DataTable.h"
 #include "Engine/GameInstance.h"
 #include "Events/CosmicEventSubsystem.h"
@@ -2560,13 +2561,18 @@ bool FCosmicNotablesFromEventsOnlyTest::RunTest(const FString& Parameters)
 	int32 Records = 0;
 	bool bRealRows = true;
 	bool bToldAtFirstTick = true;
+	// Since MVP item 5 the chronicle keeps only what it can show (16 #40 (7)): the Severity 1 line of a people no life ruled
+	// is dropped when it leaves the log. Such a record's line is gone when its tick is at or before the oldest line left
+	// (several lines of one tick may have left in part - hence at or before).
+	const TArray<FName> LifePeoples = CosmicChronicle::PeoplesOfEveryLife(State.Calling);
+	const int64 OldestLeft = State.Log.IsEmpty() ? 0 : State.Log[0].Tick;
 	for (const FCivilizationState& Civ : State.Civs)
 	{
 		for (const FNotableRecord& Record : Civ.Notables)
 		{
 			++Records;
 			bRealRows &= IsGameRow(Tables, Record.SourceRow);
-			bToldAtFirstTick &= Told(Record.SourceRow, Record.FirstTick);
+			bToldAtFirstTick &= Told(Record.SourceRow, Record.FirstTick) || (Record.FirstTick <= OldestLeft && !LifePeoples.Contains(Civ.CivID));
 		}
 	}
 	TestTrue(TEXT("Records stand at the end of the run"), Records >= 1);

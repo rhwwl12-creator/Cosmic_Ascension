@@ -1311,6 +1311,7 @@ uint32 UGalaxySimulationSubsystem::HashState(bool bWorldOnly) const
 		GET_MEMBER_NAME_CHECKED(FGalaxyState, Knowing),
 		GET_MEMBER_NAME_CHECKED(FGalaxyState, Log),
 		GET_MEMBER_NAME_CHECKED(FGalaxyState, Chronicle),
+		GET_MEMBER_NAME_CHECKED(FGalaxyState, ChronicleEviction),
 		GET_MEMBER_NAME_CHECKED(FGalaxyState, TellRngState),
 	};
 

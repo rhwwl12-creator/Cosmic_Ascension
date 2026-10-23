@@ -353,9 +353,9 @@ namespace
 	{
 		const FGalaxyState& State = Sim.GetState();
 		const FString FirstClaim = Counts.FirstClaimTick >= 0 ? FString::Printf(TEXT("%lld"), Counts.FirstClaimTick) : FString();
-		const FString Galaxy = FString::Printf(TEXT("%d,%d,%d,%s,%d,%s,%lld,%.1f,%s,%d,%d,%s"),
+		const FString Galaxy = FString::Printf(TEXT("%d,%d,%d,%s,%d,%s,%lld,%.1f,%s,%d,%d,%s,%d"),
 			State.Knowing.KnownSystems.Num(), MetCivs(State), WildSystems(State), *FirstContactTick(State), T4PlusCount(State, Sim.GetTables()),
-			*FirstClaim, Counts.ToldLines, TickMicros, *SaveBytes, State.Log.Num(), State.Chronicle.Num(), *SaveRawBytes);
+			*FirstClaim, Counts.ToldLines, TickMicros, *SaveBytes, State.Log.Num(), State.Chronicle.Num(), *SaveRawBytes, State.ChronicleEviction.Count);
 		for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
 		{
 			const FCivilizationState& Civ = State.Civs[CivIndex];
@@ -486,7 +486,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		{
 			Counts.ToldLines += Entry.bUntold ? 0 : 1;
 		}
-		FString Csv = TEXT("Tick,CivID,Archetype,Tier,Systems,Stability,Energy,Matter,Insight,Influence,Causality,Hazards,KnownSystems,MetCivs,WildSystems,FirstContactTick,T4PlusCount,FirstClaimTick,ToldLines,TickMicros,SaveBytes,LogLen,ChronicleLen,SaveRawBytes,Expansion\n");
+		FString Csv = TEXT("Tick,CivID,Archetype,Tier,Systems,Stability,Energy,Matter,Insight,Influence,Causality,Hazards,KnownSystems,MetCivs,WildSystems,FirstContactTick,T4PlusCount,FirstClaimTick,ToldLines,TickMicros,SaveBytes,LogLen,ChronicleLen,SaveRawBytes,ChronicleLetGo,Expansion\n");
 		FString Rows = TEXT("Tick,SourceRow,Lines\n");
 		double Unused = 0.0;
 		TArray<double> TickMicros;
@@ -692,12 +692,12 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			double SaveMilliseconds = 0.0;
 			int64 SaveRawBytes = 0;
 			const int32 SaveBytes = SaveBytesOf(Save, State, SaveRawBytes, SaveMilliseconds);
-			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance summary: tell-all %d, %d systems, %d peoples; claims %d placed, %d ended, %d joined; first claim %lld on %s until %lld, first join %lld; first two-settled people %lld, claims after it %d; sphere %d->%d; wild %d; vessel deposed at %lld; tick us mean %.1f p99 %.1f max %.1f; save %d bytes (%lld before packing) in %.1f ms; log %d, chronicle %d (%d kept for good), told %lld"),
+			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance summary: tell-all %d, %d systems, %d peoples; claims %d placed, %d ended, %d joined; first claim %lld on %s until %lld, first join %lld; first two-settled people %lld, claims after it %d; sphere %d->%d; wild %d; vessel deposed at %lld; tick us mean %.1f p99 %.1f max %.1f; save %d bytes (%lld before packing) in %.1f ms; log %d, chronicle %d (%d kept for good), let go %d, told %lld"),
 				TellAll, State.Systems.Num(), State.Civs.Num(), Counts.Placed.FindRef(ClaimTag.ToString()), Counts.ClaimsJoined.Count + Counts.ClaimsStilled.Count,
 				Counts.ClaimsJoined.Count, Counts.FirstClaimTick, *Counts.FirstClaimSystemID.ToString(), Counts.FirstClaimEndTick, Counts.FirstJoinTick, Counts.FirstTwoSettledTick, Counts.ClaimsAfterTwoSettled, SphereStart,
 				SphereSize(State), WildSystems(State), Counts.DeposedTick,
 				TickMicros.Num() ? Sum / TickMicros.Num() : 0.0, TickMicros.Num() ? TickMicros[FMath::Min(TickMicros.Num() - 1, static_cast<int32>(TickMicros.Num() * 0.99))] : 0.0,
-				TickMicros.Num() ? TickMicros.Last() : 0.0, SaveBytes, SaveRawBytes, SaveMilliseconds, State.Log.Num(), State.Chronicle.Num(), KeptForGood(State), Counts.ToldLines);
+				TickMicros.Num() ? TickMicros.Last() : 0.0, SaveBytes, SaveRawBytes, SaveMilliseconds, State.Log.Num(), State.Chronicle.Num(), KeptForGood(State), State.ChronicleEviction.Count, Counts.ToldLines);
 			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance pack: %s"), *PackLevelsOf(Save, State));
 			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance claims: %s | %s; spheres %s -> %s"), *ClaimEndsText(TEXT("joined"), Counts.ClaimsJoined),
 				*ClaimEndsText(TEXT("stilled"), Counts.ClaimsStilled), *FString::Join(SpheresStart, TEXT(", ")), *FString::Join(SpheresOf(State), TEXT(", ")));

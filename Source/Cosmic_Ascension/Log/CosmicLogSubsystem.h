@@ -130,5 +130,9 @@ private:
 
 	void Append(FGameplayTag Category, uint8 Severity, FString&& Rendered, FName FocusSystem, FName FocusCiv, FName SourceRow, bool bUntold);
 
+	// The chronicle's cap (MVP item 5, DT_Rules.ChronicleCap; 0 or below = none): over it, the oldest entries
+	// CosmicChronicle::MayLetGo allows leave in one stable pass and Eviction records them.
+	static void TrimChronicle(TArray<FCosmicLogEntry>& Chronicle, FChronicleEviction& Eviction, int32 Cap);
+
 	bool bTellAll = false;
 };

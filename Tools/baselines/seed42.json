@@ -1,16 +1,16 @@
 {
-    "what":  "Balance commandlet summary for seed 42 on the home row (60 living systems and the sanctuary, 12 peoples). Tools/run_checks.ps1 compares its \u0027CosmicBalance: seed ...\u0027 line with summary_line; an intended world change reruns with -UpdateBaseline and quotes the new hashes in the commit message.",
-    "seed":  42,
-    "ticks":  3000,
-    "summary_line":  "CosmicBalance: seed 42, 3000 ticks, hash 2941370122, world 1078735008, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks.csv",
-    "verified_at":  "2026-10-22",
-    "last_recorded_in_changelog":  {
-                                       "task":  "MVP 3 A-3b (first crisis, Stability recovery, claim relief by AI profile, precursor 1e-4, the second T2->T3 feat, sight 2/3/4/6/10, petition period 300) - the last record that says the world of seed 42 changed",
-                                       "state_hash_3000":  2941370122,
-                                       "world_hash_3000":  1078735008,
-                                       "state_hash_20000":  2410091205,
-                                       "world_hash_20000":  885018087,
-                                       "note":  "Measured 2026-10-22 on Windows (editor binaries). A-3a (the commandlet's ruler policy, all off by default) kept the world of A0 4b and MVP 2 (3000: hash 3195642295, world 2405589164; 20000: hash 1463861828, world 3260616143). The ruler line (-Answer=1 -Build=1 -TellAll=0) is compared as ruler_summary_line."
-                                   },
-    "ruler_summary_line":  "CosmicBalance: seed 42, 3000 ticks, hash 2361069549, world 4271872285, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks_ruler.csv | CosmicBalance ruler: answer 1 build 1; cards 4, answers 4, started 3, decisions 7 (by 600 5, by 6000 -1); told by 600 20, by 6000 -1; ruled people T2 at 2203, T3 at -1"
+    "what": "Balance commandlet summary for seed 42 on the home row (60 living systems and the sanctuary, 12 peoples). Tools/run_checks.ps1 compares its 'CosmicBalance: seed ...' line with summary_line; an intended world change reruns with -UpdateBaseline and quotes the new hashes in the commit message.",
+    "seed": 42,
+    "ticks": 3000,
+    "summary_line": "CosmicBalance: seed 42, 3000 ticks, hash 1086386866, world 1078735008, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks.csv",
+    "verified_at": "2026-10-23",
+    "last_recorded_in_changelog": {
+        "task": "MVP 5 A-5b (the chronicle's move filter CosmicChronicle::Admits over every life's peoples, the cap DT_Rules.ChronicleCap 1500 and the saved FGalaxyState.ChronicleEviction - a new top-level member, so every full hash moved; the world hash did not)",
+        "state_hash_3000": 1086386866,
+        "world_hash_3000": 1078735008,
+        "state_hash_20000": 3448516153,
+        "world_hash_20000": 885018087,
+        "note": "Measured 2026-10-23 on Windows (editor binaries). Before A-5b (MVP 3 A-3b to A-5a): 3000 hash 2941370122, 20000 hash 2410091205, the policy line hash 2361069549 - the world hashes the same (1078735008, 885018087, 4271872285). The ruler line (-Answer=1 -Build=1 -TellAll=0) is compared as ruler_summary_line."
+    },
+    "ruler_summary_line": "CosmicBalance: seed 42, 3000 ticks, hash 2307434165, world 4271872285, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks_ruler.csv | CosmicBalance ruler: answer 1 build 1; cards 4, answers 4, started 3, decisions 7 (by 600 5, by 6000 -1); told by 600 20, by 6000 -1; ruled people T2 at 2203, T3 at -1"
 }

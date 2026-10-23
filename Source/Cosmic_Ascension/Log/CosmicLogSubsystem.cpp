@@ -182,11 +182,36 @@ void UCosmicLogSubsystem::Tell(const FCosmicLine& Line, FString&& Rendered)
 	}
 }
 
+void UCosmicLogSubsystem::TrimChronicle(TArray<FCosmicLogEntry>& Chronicle, FChronicleEviction& Eviction, int32 Cap)
+{
+	if (Cap <= 0 || Chronicle.Num() <= Cap)
+	{
+		return;
+	}
+	// One stable pass: the oldest entries the cap may let go leave until the chronicle is at the cap or none is left; the rest
+	// keeps its order (removing one by one from a full chronicle would be quadratic).
+	int32 Excess = Chronicle.Num() - Cap;
+	int32 Write = 0;
+	for (int32 Read = 0; Read < Chronicle.Num(); ++Read)
+	{
+		if (Excess > 0 && CosmicChronicle::MayLetGo(Chronicle[Read]))
+		{
+			++Eviction.Count;
+			Eviction.ThroughTick = FMath::Max(Eviction.ThroughTick, Chronicle[Read].Tick);
+			--Excess;
+			continue;
+		}
+		if (Write != Read)
+		{
+			Chronicle[Write] = MoveTemp(Chronicle[Read]);
+		}
+		++Write;
+	}
+	Chronicle.SetNum(Write, EAllowShrinking::No);
+}
+
 void UCosmicLogSubsystem::Append(FGameplayTag Category, uint8 Severity, FString&& Rendered, FName FocusSystem, FName FocusCiv, FName SourceRow, bool bUntold)
 {
-	static const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Claim")));
-	static const FGameplayTag RecordTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Record")));
-
 	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
 	check(Sim);
 	FGalaxyState& State = Sim->GetMutableState();
@@ -203,16 +228,25 @@ void UCosmicLogSubsystem::Append(FGameplayTag Category, uint8 Severity, FString&
 	State.Log.Add(Entry);
 	UE_LOG(LogCosmic, Verbose, TEXT("[%lld]%s %s"), Entry.Tick, bUntold ? TEXT(" (untold)") : TEXT(""), *Entry.Message.ToString());
 
-	// Over the cap the oldest entries leave: notable and mythic ones, and every claim and record, move to the chronicle;
-	// ordinary ones are dropped (section 8.4).
-	while (State.Log.Num() > MaxLogEntries)
+	// Over the cap the oldest entries leave. What the chronicle can show - CosmicChronicle::Admits over the peoples of every
+	// life (MVP item 5, 16 #40 (7)) - moves to the chronicle; the rest is dropped (section 8.4). Then the chronicle's own cap.
+	if (State.Log.Num() > MaxLogEntries)
 	{
-		const FCosmicLogEntry& Oldest = State.Log[0];
-		if (Oldest.Severity >= 1 || Oldest.Category == ClaimTag || Oldest.Category == RecordTag)
+		const TArray<FName> Peoples = CosmicChronicle::PeoplesOfEveryLife(State.Calling);
+		bool bMoved = false;
+		while (State.Log.Num() > MaxLogEntries)
 		{
-			State.Chronicle.Add(Oldest);
+			if (CosmicChronicle::Admits(State.Log[0], Peoples))
+			{
+				State.Chronicle.Add(State.Log[0]);
+				bMoved = true;
+			}
+			State.Log.RemoveAt(0, 1, EAllowShrinking::No);
 		}
-		State.Log.RemoveAt(0, 1, EAllowShrinking::No);
+		if (bMoved)
+		{
+			TrimChronicle(State.Chronicle, State.ChronicleEviction, Sim->GetRules().ChronicleCap);
+		}
 	}
 
 	// An untold entry is kept for the chronicle and the two books, never announced (section 8.1).

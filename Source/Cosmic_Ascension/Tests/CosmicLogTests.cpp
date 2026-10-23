@@ -13,6 +13,7 @@
 #include "Events/CosmicEventSubsystem.h"
 #include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
+#include "Log/CosmicChronicle.h"
 #include "Log/CosmicLogSubsystem.h"
 #include "Math/RandomStream.h"
 #include "Misc/AutomationTest.h"
@@ -137,6 +138,10 @@ bool FCosmicLogNoConsecutiveRepeatTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// The move out of the log (section 8.4, MVP item 5 - 16 #40 (7)): over 2,000 the oldest entries leave; what the chronicle can
+// show stays - Severity 2, Log.Calling, Log.Claim, Log.Record, and a Severity 1 entry about a people of a life or the first
+// contact - and the rest is dropped. The expected rule is written here, not read from CosmicChronicle::Admits. The page reads
+// as if nothing had left.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicLogCapAndChronicleTest, "Cosmic_Ascension.Log.CapAndChronicle", CosmicTests::Flags)
 bool FCosmicLogCapAndChronicleTest::RunTest(const FString& Parameters)
 {
@@ -146,66 +151,107 @@ bool FCosmicLogCapAndChronicleTest::RunTest(const FString& Parameters)
 		return false;
 	}
 	UCosmicLogSubsystem* Log = Sim->GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	ON_SCOPE_EXIT { Sim->NewGalaxy(42, 5, 3); };
 
 	Sim->NewGalaxy(42, 5, 3);
 	const FGalaxyState& State = Sim->GetState();
 
 	const FGameplayTag CivTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Civ")));
+	const FGameplayTag CallingTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Calling")));
 	const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Claim")));
 	const FGameplayTag RecordTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Record")));
 	const FText Template = FText::AsCultureInvariant(TEXT("entry {Number}"));
 	const FName TestRow(TEXT("log_test"));
-
-	// What every entry is expected to do when it leaves the log: true = kept in the chronicle.
-	const int32 InitialCount = State.Log.Num();
-	TArray<bool> bKept;
-	for (const FCosmicLogEntry& Entry : State.Log)
+	if (!TestTrue(TEXT("(a life rules a people and another people is there)"), State.Calling.Lives.Num() == 1 && State.Civs.Num() >= 2))
 	{
-		bKept.Add(Entry.Severity >= 1 || Entry.Category == ClaimTag || Entry.Category == RecordTag);
+		return false;
 	}
+	const FName Own = State.Calling.Lives[0].BirthCivID;
+	const FName Other = State.Civs[0].CivID == Own ? State.Civs[1].CivID : State.Civs[0].CivID;
 
+	// What the chronicle keeps of an entry that leaves, for the peoples of the lives.
+	auto Kept = [&](const FCosmicLogEntry& Entry, const TArray<FName>& Peoples)
+	{
+		return Entry.Severity >= 2 || Entry.Category == CallingTag || Entry.Category == ClaimTag || Entry.Category == RecordTag
+			|| (Entry.Severity == 1 && ((!Entry.FocusCivID.IsNone() && Peoples.Contains(Entry.FocusCivID)) || Entry.SourceRow == CosmicRows::LogFirstContact));
+	};
+
+	const TArray<FCosmicLogEntry> Initial = State.Log;
+	TArray<FCosmicLogEntry> Pushed;
 	const int32 Pushes = UCosmicLogSubsystem::MaxLogEntries + 100;
 	for (int32 Index = 0; Index < Pushes; ++Index)
 	{
-		// Mostly ordinary lines, some notable and mythic ones, and now and then an ordinary claim or record.
+		// Mostly ordinary lines, some notable and mythic ones, now and then an ordinary claim or record; the Severity 1 lines
+		// about the ruled people, another people, nobody, and the first contact (about the other people) in turn.
 		const uint8 Severity = static_cast<uint8>(Index % 3);
 		const FGameplayTag Category = (Index % 50 == 0) ? ClaimTag : (Index % 50 == 25) ? RecordTag : CivTag;
+		const int32 Focus = (Index / 3) % 4;
+		const FName FocusCiv = Focus == 0 ? Own : Focus == 2 ? NAME_None : Other;
+		const FName Row = Focus == 3 ? CosmicRows::LogFirstContact : TestRow;
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("Number"), FText::AsCultureInvariant(FString::FromInt(Index)));
 		// A stamp of its own for every entry (the first line of the galaxy carries tick 0), for the order check below.
 		Sim->GetMutableState().Tick = Index + 1;
-		Log->Push(Category, Severity, Template, Args, NAME_None, TestRow);
-		bKept.Add(Severity >= 1 || Category != CivTag);
+		Log->Push(Category, Severity, Template, Args, NAME_None, Row, FocusCiv);
+		Pushed.Add(State.Log.Last());
 	}
 
-	const int32 Total = bKept.Num();
-	const int32 Departed = Total - UCosmicLogSubsystem::MaxLogEntries;
+	TArray<FCosmicLogEntry> All = Initial;
+	All.Append(Pushed);
+	const int32 Departed = All.Num() - UCosmicLogSubsystem::MaxLogEntries;
+	const TArray<FName> Peoples = { Own };
 	int32 ExpectedChronicle = 0;
 	for (int32 Index = 0; Index < Departed; ++Index)
 	{
-		ExpectedChronicle += bKept[Index] ? 1 : 0;
+		ExpectedChronicle += Kept(All[Index], Peoples) ? 1 : 0;
 	}
 
 	TestEqual(TEXT("The log keeps the most recent entries only"), State.Log.Num(), UCosmicLogSubsystem::MaxLogEntries);
-	TestEqual(TEXT("The chronicle holds what had to be kept"), State.Chronicle.Num(), ExpectedChronicle);
+	TestEqual(TEXT("The chronicle holds what it can show of what left"), State.Chronicle.Num(), ExpectedChronicle);
 	TestTrue(TEXT("Something was dropped and something was kept"), ExpectedChronicle > 0 && ExpectedChronicle < Departed);
 	TestEqual(TEXT("The newest entry is the last one pushed"), State.Log.Last().Message.ToString(), FString::Printf(TEXT("entry %d"), Pushes - 1));
-	TestEqual(TEXT("The oldest entry left is the first one inside the cap"), State.Log[0].Message.ToString(), FString::Printf(TEXT("entry %d"), Departed - InitialCount));
-	TestEqual(TEXT("Pushed entries carry their source row"), State.Log.Last().SourceRow, TestRow);
+	TestEqual(TEXT("The oldest entry left is the first one inside the cap"), State.Log[0].Message.ToString(), FString::Printf(TEXT("entry %d"), Departed - Initial.Num()));
+	TestEqual(TEXT("Pushed entries carry their source row"), State.Log.Last().SourceRow, Pushed.Last().SourceRow);
 
 	bool bChronicleInOrder = true;
-	for (int32 Index = 1; Index < State.Chronicle.Num(); ++Index)
+	bool bChronicleRuleHolds = true;
+	bool bOtherSeverity1 = false;
+	bool bOwnSeverity1 = false;
+	bool bFirstContact = false;
+	for (int32 Index = 0; Index < State.Chronicle.Num(); ++Index)
 	{
-		bChronicleInOrder &= State.Chronicle[Index - 1].Tick < State.Chronicle[Index].Tick;
+		const FCosmicLogEntry& Entry = State.Chronicle[Index];
+		bChronicleInOrder &= Index == 0 || State.Chronicle[Index - 1].Tick < Entry.Tick;
+		bChronicleRuleHolds &= Kept(Entry, Peoples);
+		const bool bSeverity1Civ = Entry.Severity == 1 && Entry.Category == CivTag;
+		bOtherSeverity1 |= bSeverity1Civ && Entry.FocusCivID == Other && Entry.SourceRow != CosmicRows::LogFirstContact;
+		bOwnSeverity1 |= bSeverity1Civ && Entry.FocusCivID == Own;
+		bFirstContact |= bSeverity1Civ && Entry.SourceRow == CosmicRows::LogFirstContact;
 	}
 	TestTrue(TEXT("The chronicle keeps the order of the log"), bChronicleInOrder);
+	TestTrue(TEXT("Nothing it cannot show reached the chronicle"), bChronicleRuleHolds);
+	TestFalse(TEXT("Another people's Severity 1 is not in the chronicle"), bOtherSeverity1);
+	TestTrue(TEXT("The ruled people's Severity 1 is"), bOwnSeverity1);
+	TestTrue(TEXT("and so is the first contact"), bFirstContact);
 
-	bool bChronicleRuleHolds = true;
-	for (const FCosmicLogEntry& Entry : State.Chronicle)
+	// The page reads as if nothing had left: the same chapter as over a log that kept every line.
 	{
-		bChronicleRuleHolds &= Entry.Severity >= 1 || Entry.Category == ClaimTag || Entry.Category == RecordTag;
+		FGalaxyState Reference = State;
+		Reference.Log = All;
+		Reference.Chronicle.Reset();
+		const TArray<FCosmicChronicleChapter> Kept40 = CosmicChronicle::BuildCapped(State, 40);
+		const TArray<FCosmicChronicleChapter> Whole40 = CosmicChronicle::BuildCapped(Reference, 40);
+		bool bSame = Kept40.Num() == Whole40.Num();
+		for (int32 Chapter = 0; bSame && Chapter < Kept40.Num(); ++Chapter)
+		{
+			bSame &= Kept40[Chapter].Candidates == Whole40[Chapter].Candidates && Kept40[Chapter].Lines.Num() == Whole40[Chapter].Lines.Num();
+			for (int32 Line = 0; bSame && Line < Kept40[Chapter].Lines.Num(); ++Line)
+			{
+				bSame &= Kept40[Chapter].Lines[Line].Entry.Message.ToString() == Whole40[Chapter].Lines[Line].Entry.Message.ToString();
+			}
+		}
+		TestTrue(TEXT("The chronicle's page is the one of a log that kept every line"), bSame);
 	}
-	TestTrue(TEXT("Nothing ordinary reached the chronicle"), bChronicleRuleHolds);
 
 	// The subject of a line is stored with it (section 8.1). Pushed last: the counts above are already checked.
 	const FName SubjectSystem = State.Systems[1].SystemID;
@@ -215,6 +261,135 @@ bool FCosmicLogCapAndChronicleTest::RunTest(const FString& Parameters)
 	Log->Push(CivTag, 0, Template, SubjectArgs, SubjectSystem, TestRow, SubjectCiv);
 	TestTrue(TEXT("Push stores the subject system, the subject civ and the source row"),
 		State.Log.Last().FocusSystemID == SubjectSystem && State.Log.Last().FocusCivID == SubjectCiv && State.Log.Last().SourceRow == TestRow);
+
+	// Two lives: the peoples of every life, not the last one's alone.
+	Sim->NewGalaxy(42, 5, 3);
+	{
+		FLifeRecord Second;
+		Second.LifeIndex = 2;
+		Second.BornTick = 1;
+		Second.BirthCivID = Other;
+		Second.RuledCivIDs.Add(Other);
+		Sim->GetMutableState().Calling.Lives.Add(Second);
+	}
+	for (int32 Index = 0; Index < Pushes; ++Index)
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("Number"), FText::AsCultureInvariant(FString::FromInt(Index)));
+		Sim->GetMutableState().Tick = Index + 1;
+		Log->Push(CivTag, 1, Template, Args, NAME_None, TestRow, Index % 2 == 0 ? Own : Other);
+	}
+	bool bFirstLife = false;
+	bool bSecondLife = false;
+	for (const FCosmicLogEntry& Entry : State.Chronicle)
+	{
+		bFirstLife |= Entry.Severity == 1 && Entry.FocusCivID == Own;
+		bSecondLife |= Entry.Severity == 1 && Entry.FocusCivID == Other;
+	}
+	TestTrue(TEXT("With two lives the first life's people's Severity 1 stays"), bFirstLife);
+	TestTrue(TEXT("and the second's"), bSecondLife);
+	return true;
+}
+
+// The chronicle's cap (MVP item 5, DT_Rules.ChronicleCap; 16 #40 (7)): over it the oldest Severity 1 entries leave, never
+// Severity 2, Log.Calling, Log.Claim or Log.Record; the record counts them and keeps the newest tick; 0 = no cap; and it is
+// story only - the world hash does not move with it.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicLogChronicleCapTest, "Cosmic_Ascension.Log.ChronicleCap", CosmicTests::Flags)
+bool FCosmicLogChronicleCapTest::RunTest(const FString& Parameters)
+{
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	UCosmicLogSubsystem* Log = Sim->GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	const FCosmicDataTables Original = Sim->GetTables();
+	const FCosmicRulesDef Rules = Sim->GetRules();
+	ON_SCOPE_EXIT
+	{
+		Sim->SetTables(Original);
+		Sim->NewGalaxy(42, 5, 3);
+	};
+	const FText Template = FText::AsCultureInvariant(TEXT("line {Number}"));
+	const FName TestRow(TEXT("log_test"));
+
+	// Thirty lines pushed first (ticks 1-30): every fifth one cannot leave - Severity 2, Log.Calling, Log.Claim, Log.Record,
+	// Severity 2, Log.Calling - the 24 others are Severity 1 about the ruled people. Then 2,000 ordinary fillers: the thirty
+	// leave the log, in order, and nothing else does (an ordinary line never reaches the chronicle).
+	TArray<int64> Severity1Ticks;
+	auto Run = [&](int32 Cap)
+	{
+		FCosmicRulesDef Capped = Rules;
+		Capped.ChronicleCap = Cap;
+		Sim->SetTables(CosmicTests::WithRules(Original, Capped));
+		Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+		FGalaxyState& State = Sim->GetMutableState();
+		State.Log.Reset();
+		State.Chronicle.Reset();
+		const FName Own = State.Calling.Lives.IsEmpty() ? NAME_None : State.Calling.Lives[0].BirthCivID;
+		static const TCHAR* const Kinds[] = { TEXT("Log.Civ"), TEXT("Log.Calling"), TEXT("Log.Claim"), TEXT("Log.Record") };
+		static const uint8 KindSeverity[] = { 2, 1, 1, 0 };
+		Severity1Ticks.Reset();
+		for (int32 Index = 0; Index < 30 + UCosmicLogSubsystem::MaxLogEntries; ++Index)
+		{
+			State.Tick = Index + 1;
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("Number"), FText::AsCultureInvariant(FString::FromInt(Index)));
+			if (Index >= 30)
+			{
+				Log->Push(FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Civ"))), 0, Template, Args, NAME_None, TestRow);
+			}
+			else if (Index % 5 == 0)
+			{
+				const int32 Kind = (Index / 5) % 4;
+				Log->Push(FGameplayTag::RequestGameplayTag(FName(Kinds[Kind])), KindSeverity[Kind], Template, Args, NAME_None, TestRow, Kind == 0 ? Own : NAME_None);
+			}
+			else
+			{
+				Log->Push(FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Civ"))), 1, Template, Args, NAME_None, TestRow, Own);
+				Severity1Ticks.Add(State.Tick);
+			}
+		}
+		return Sim->GetState();
+	};
+	auto Unremovable = [](const FGalaxyState& State)
+	{
+		int32 Count = 0;
+		for (const FCosmicLogEntry& Entry : State.Chronicle)
+		{
+			Count += CosmicChronicle::MayLetGo(Entry) ? 0 : 1;
+		}
+		return Count;
+	};
+
+	const FGalaxyState Ten = Run(10);
+	const uint32 TenWorld = Sim->ComputeWorldHash();
+	const uint32 TenFull = Sim->ComputeStateHash();
+	TestEqual(TEXT("(24 Severity 1 lines pushed)"), Severity1Ticks.Num(), 24);
+	TestEqual(TEXT("Over the cap the chronicle comes down to it"), Ten.Chronicle.Num(), 10);
+	TestEqual(TEXT("keeping every line that cannot leave"), Unremovable(Ten), 6);
+	TestEqual(TEXT("The record counts what left"), Ten.ChronicleEviction.Count, 20);
+	TestEqual(TEXT("and keeps the newest tick of it - the oldest Severity 1 lines went"), Ten.ChronicleEviction.ThroughTick, Severity1Ticks.IsValidIndex(19) ? Severity1Ticks[19] : -1);
+	bool bNewestKept = true;
+	bool bInOrder = true;
+	for (int32 Index = 0; Index < Ten.Chronicle.Num(); ++Index)
+	{
+		const FCosmicLogEntry& Entry = Ten.Chronicle[Index];
+		bNewestKept &= !CosmicChronicle::MayLetGo(Entry) || (Severity1Ticks.IsValidIndex(19) && Entry.Tick > Severity1Ticks[19]);
+		bInOrder &= Index == 0 || Ten.Chronicle[Index - 1].Tick < Entry.Tick;
+	}
+	TestTrue(TEXT("The Severity 1 lines left are the newest"), bNewestKept);
+	TestTrue(TEXT("in the order of the log"), bInOrder);
+
+	const FGalaxyState Three = Run(3);
+	TestEqual(TEXT("A cap under the lines that cannot leave lets every Severity 1 go"), Three.ChronicleEviction.Count, 24);
+	TestEqual(TEXT("and the chronicle stays above it"), Three.Chronicle.Num(), 6);
+
+	const FGalaxyState None = Run(0);
+	TestEqual(TEXT("A cap of 0 lets nothing go"), None.ChronicleEviction.Count, 0);
+	TestEqual(TEXT("and keeps every line"), None.Chronicle.Num(), 30);
+	TestEqual(TEXT("The cap is story only: the world hash with a cap of 10 is that of no cap"), static_cast<int64>(TenWorld), static_cast<int64>(Sim->ComputeWorldHash()));
+	TestTrue(TEXT("while the full hash differs"), TenFull != Sim->ComputeStateHash());
 	return true;
 }
 
