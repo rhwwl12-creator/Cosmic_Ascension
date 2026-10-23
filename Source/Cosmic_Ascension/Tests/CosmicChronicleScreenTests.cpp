@@ -247,6 +247,28 @@ bool FCosmicUIRunEndTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("with nothing drawn"), Live.RngState, Rng);
 	TestFalse(TEXT("A project is not started"), Controller->StartProject(Live.Systems[Home].SystemID, FName(TEXT("project_dyson"))));
 	TestTrue(TEXT("(the capital builds nothing)"), Live.Systems[Home].ActiveMegaproject.IsNone());
+	// The research focus (MVP item 7): the command is refused, and the capital's four buttons are greyed with the end's
+	// reason while the heading still names the focus.
+	{
+		const TMap<FName, float> FocusBefore = Live.Civs[Ruled].ResearchFocus;
+		TestFalse(TEXT("A research focus is not taken"), Controller->SetResearchFocus(FName(TEXT("Physics"))));
+		Controller->SelectSystem(Live.Systems[Home].SystemID);
+		Screen.Panel->Refresh();
+		const TArray<TObjectPtr<UCosmicActionButton>>& Focus = Screen.Panel->GetFocusButtons();
+		bool bAllGrey = Screen.Panel->IsFocusShown() && Focus.Num() == 4;
+		for (const UCosmicActionButton* Button : Focus)
+		{
+			bAllGrey &= Button && !Button->GetIsEnabled() && Button->GetToolTipText().ToString() == Words(TEXT("Chronicle.Block"));
+		}
+		TestTrue(TEXT("The capital's focus buttons are greyed with the end's reason"), bAllGrey);
+		TestFalse(TEXT("and the heading still names the focus"), !Screen.Panel->GetFocusHeading() || Screen.Panel->GetFocusHeading()->GetText().IsEmpty());
+		if (Focus.Num() == 4 && Focus[1])
+		{
+			Focus[1]->Press();
+		}
+		TestTrue(TEXT("A press takes nothing"), Live.Civs[Ruled].ResearchFocus.OrderIndependentCompareEqual(FocusBefore));
+		Controller->SelectSystem(NAME_None);
+	}
 	// A system whose panel shows the settle button: its tooltip and the line under it give the end's reason.
 	bool bSettleSeen = false;
 	for (const FStarSystemState& System : Live.Systems)

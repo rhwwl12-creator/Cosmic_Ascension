@@ -345,6 +345,12 @@ public:
 	 * line goes - MVP item 6), redraws the HUD and asks the map to redraw. */
 	bool StartProject(FName SystemID, FName RowName);
 
+	/** The ruler's research focus of the system panel (MVP item 7): UPlayerRoleSubsystem::SetResearchFocus - Field a
+	 * research field, NAME_None the even focus. Refused in an ended run. A change taken redraws the HUD at once (a paused
+	 * simulation sends no tick): the panel's focus block and the top bar's research tooltip. No map redraw - research is not
+	 * on the map. */
+	bool SetResearchFocus(FName Field);
+
 	/** Selects SystemID and glides the camera to it, as a double click on its star does (the log feed's lines too). False -
 	 * and the camera stays - when the map holds no such star or SelectSystem refused it (section 8.1: the camera goes to a
 	 * system the viewer is shown only - IsShown: a known system, or the sanctuary by its name). bByViewer false (the
@@ -440,6 +446,12 @@ public:
 	 * the path a button takes; it changes the world only as that click would. */
 	UFUNCTION(Exec)
 	void CosmicStartProject(const FString& SystemID, const FString& RowName);
+
+	/** Development aid: the research focus from the console ("CosmicFocus Physics", Society, Engineering, Transcendence or
+	 * Even, at the console or in -ExecCmds) - SetResearchFocus, the path a button takes (an ended run refuses it); one line
+	 * for an unknown word or a refusal. It changes the world only as that click would. */
+	UFUNCTION(Exec)
+	void CosmicFocus(const FString& Word);
 
 protected:
 	// Reads the viewer's clock unit before the HUD exists. A development aid: -TimeUnit=Year (or Cycle) sets it for the

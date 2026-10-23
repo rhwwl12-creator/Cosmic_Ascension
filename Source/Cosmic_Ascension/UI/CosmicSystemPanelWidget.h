@@ -81,6 +81,12 @@ namespace CosmicSlotWatch
  * buttons are built again only when the list of their actions changes; otherwise each keeps its object and takes its
  * label, state and tooltip in place - a click spans a press and a release, and a button built again between them drops
  * it. Built in C++ (no WBP).
+ * Last, under the hint line, the research focus (MVP item 7), on the same systems as the project buttons: a heading that
+ * names the people's focus now (ST_CA Focus.Heading with CosmicUI::FocusWordOf, its tooltip Focus.HeadingTip) and one row of
+ * four buttons, [Even] [Physics] [Society] [Engineering] - the one that is the focus now greyed out (its tooltip says so
+ * with the shares), the others with the shares a press would give (Focus.TipField, Focus.TipEven) and, on a field the
+ * next rung reads (CosmicNextRung::ResearchFieldsOf), Focus.TipNeeded. Built once, kept across refreshes; a press goes
+ * through ACosmicPlayerController::SetResearchFocus. In an ended run all four are greyed with Chronicle.Block.
  */
 UCLASS(meta = (DisableNativeTick))
 class COSMIC_ASCENSION_API UCosmicSystemPanelWidget : public UUserWidget
@@ -156,6 +162,13 @@ public:
 	/** The grey hint line at the bottom (MVP item 6, ST_CA Hint.Commands): shown while CosmicUI::ShowsCommandHint holds for
 	 * the shown system - an enabled project of the ruler on it, the run not over, no project started this session (tests). */
 	const UTextBlock* GetHintText() const { return HintText; }
+	/** The research focus block (MVP item 7, tests): whether it shows, its heading, and its four buttons in order - Even
+	 * (Action NAME_None), Physics, Society, Engineering. */
+	bool IsFocusShown() const;
+	const UTextBlock* GetFocusHeading() const { return FocusHeading; }
+	const TArray<TObjectPtr<UCosmicActionButton>>& GetFocusButtons() const { return FocusButtons; }
+	/** The column of the panel's box, top to bottom (tests read the order of its children). */
+	const UVerticalBox* GetColumn() const { return Column; }
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -173,6 +186,9 @@ private:
 	void HandleGalaxyGenerated(int32 Seed);
 
 	void HandleAction(FName Action, float Value);
+
+	// A focus button's press (Action = the field, NAME_None the even focus; Value unused - the form of OnAction).
+	void HandleFocus(FName Field, float Value);
 
 	// Steps the watches of both slots of every system the people the player rules owns (settled or being settled), by
 	// SystemID, and drops the others - only outside a Core Logic broadcast (UGalaxySimulationSubsystem::IsBroadcasting:
@@ -199,6 +215,18 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UCosmicActionButton>> ActionButtons;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UVerticalBox> Column;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UVerticalBox> FocusBox;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> FocusHeading;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UCosmicActionButton>> FocusButtons;
 
 	FName ShownSystemID;
 	CosmicMegaprojects::ECosmicSettleBlock ShownSettleBlock = CosmicMegaprojects::ECosmicSettleBlock::None;

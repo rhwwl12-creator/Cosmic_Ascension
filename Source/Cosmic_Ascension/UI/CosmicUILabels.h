@@ -17,6 +17,7 @@
 #include "Internationalization/StringTableCoreFwd.h"
 #include "Internationalization/Text.h"
 #include "Misc/Optional.h"
+#include "Sim/CosmicResearch.h"
 #include "World/CosmicZoomLevels.h"
 
 /** How the UI shows the clock (guideline 2.1): in cycles, or in years counted from the first record (1 cycle = 1 year,
@@ -213,6 +214,50 @@ namespace CosmicUI
 			}
 		}
 		return FText::Join(INVTEXT("\n"), Shown);
+	}
+
+	// The four research fields in the top bar's order, with their labels (MVP item 7: the next rung's tooltip, the system
+	// panel's focus buttons and the shares of a focus read this one table). Compared as FNames (the case of a name is kept in
+	// an editor build only, so never through FName::ToString).
+	inline constexpr const TCHAR* ResearchFieldNames[] = { TEXT("Physics"), TEXT("Society"), TEXT("Engineering"), TEXT("Transcendence") };
+	inline constexpr const TCHAR* ResearchLabelKeys[] = { TEXT("Research.Physics"), TEXT("Research.Society"), TEXT("Research.Engineering"), TEXT("Research.Transcendence") };
+	static_assert(UE_ARRAY_COUNT(ResearchFieldNames) == UE_ARRAY_COUNT(ResearchLabelKeys), "One label per research field");
+
+	// The label key of a research field; null for a key that is not one.
+	inline const TCHAR* ResearchLabelKey(FName Field)
+	{
+		for (int32 At = 0; At < static_cast<int32>(UE_ARRAY_COUNT(ResearchFieldNames)); ++At)
+		{
+			if (Field == FName(ResearchFieldNames[At]))
+			{
+				return ResearchLabelKeys[At];
+			}
+		}
+		return nullptr;
+	}
+
+	// The shares of a research focus in the top bar's order, each as its label and Percent, joined by JoinList
+	// ("Physics 55%, Society 15%, ..." with the List.Pair mark between); a field the map lacks is left out.
+	inline FText FocusSharesOf(const TMap<FName, float>& ResearchFocus)
+	{
+		TArray<FText> Shares;
+		for (int32 At = 0; At < static_cast<int32>(UE_ARRAY_COUNT(ResearchFieldNames)); ++At)
+		{
+			if (const float* Share = ResearchFocus.Find(FName(ResearchFieldNames[At])))
+			{
+				Shares.Add(FText::Format(INVTEXT("{0} {1}"), Label(ResearchLabelKeys[At]), Percent(*Share)));
+			}
+		}
+		return JoinList(Shares);
+	}
+
+	// The word of a research focus (CosmicResearch::ShapeOf): the focused field's label, Focus.Even, or Focus.Mixed.
+	inline FText FocusWordOf(const TMap<FName, float>& ResearchFocus)
+	{
+		FName Field;
+		const ECosmicFocusShape Shape = CosmicResearch::ShapeOf(ResearchFocus, &Field);
+		const TCHAR* FieldKey = Shape == ECosmicFocusShape::Focused ? ResearchLabelKey(Field) : nullptr;
+		return FieldKey ? Label(FieldKey) : Label(Shape == ECosmicFocusShape::Even ? TEXT("Focus.Even") : TEXT("Focus.Mixed"));
 	}
 
 	inline UTextBlock* MakeText(UWidgetTree& Tree, int32 FontSize, bool bWrap = true)

@@ -139,7 +139,8 @@ enum class EEffectType : uint8
 	NameNotable,
 	// Key = research field (a key of the context civilization's ResearchFocus), Value = its share, above 0 and at most 1:
 	// ResearchFocus[Key] = Value and every other field (1 - Value) / (fields - 1), so the shares still sum to 1 (section
-	// 5.4). The ways of the founding petition (section 5.10) and the presets of the research focus. Never per tick.
+	// 5.4). The ways of the founding petition (section 5.10); the ruler's research focus command applies the same rule
+	// through CosmicResearch::Focus (MVP item 7). Never per tick.
 	FocusResearch
 	// Phase 6+ (append): MultiplyResearch, PopulationLossMultiplier, StabilityFloor (section 4.2). They are per-tick
 	// effects: each joins the list of UCosmicEventSubsystem::Apply for per-tick sources when it is appended.

@@ -79,7 +79,7 @@ public:
 
 	/** The people's name and rung, which carry the next-rung tooltip (tests read its text, colour and Slate tooltip). */
 	const UTextBlock* GetRungText() const { return RungText; }
-	/** The four research shares, which carry the same tooltip (tests). */
+	/** The four research shares, which carry the research tooltip (GetResearchTip - tests). */
 	const UTextBlock* GetResearchText() const { return ResearchText; }
 	/** The mouse on the rung (true) or off it (tests call it in place of the mouse): the rung lights as the clock does, while
 	 * GetNextRungTip has words. */
@@ -93,6 +93,15 @@ public:
 	 */
 	UFUNCTION()
 	FText GetNextRungTip() const;
+
+	/**
+	 * What the research block's tooltip says now (MVP item 7): ST_CA Focus.BarLine - the ruled people's focus in a word and
+	 * its four shares (CosmicUI::FocusWordOf, FocusSharesOf) - then, after an empty line, GetNextRungTip when it has words;
+	 * GetNextRungTip alone without a ruled people. Bound once to the ToolTipTextDelegate of ResearchText before its Slate
+	 * widget is built (as GetNextRungTip on RungText).
+	 */
+	UFUNCTION()
+	FText GetResearchTip() const;
 
 	/**
 	 * What the stability tooltip says now (MVP item 6): ST_CA Panel.StabilityUp / Down / Flat with the window and the

@@ -757,9 +757,16 @@ bool FCosmicUINextRungTest::RunTest(const FString& Parameters)
 			TestFalse(TEXT("it is not empty on the first rung"), SlateRung->GetToolTip()->IsEmpty());
 			TestFalse(TEXT("nor the research one"), SlateResearch->GetToolTip()->IsEmpty());
 			TestEqual(TEXT("The tooltip's words are the next rung's"), Bar->GetNextRungTip().ToString(), TextNow());
+			// The research block's own (MVP item 7): the focus first, then the same next rung.
+			const FString ResearchTip = Bar->GetResearchTip().ToString();
+			TestTrue(TEXT("The research tooltip names the focus first"), ResearchTip.StartsWith(FText::Format(CosmicUI::Label(TEXT("Focus.BarLine")), CosmicUI::FocusWordOf(Live.Civs[Ruled].ResearchFocus), CosmicUI::FocusSharesOf(Live.Civs[Ruled].ResearchFocus)).ToString()));
+			TestTrue(TEXT("and ends with the next rung"), ResearchTip.EndsWith(TextNow()));
+			TestEqual(TEXT("The research block's tooltip is bound to its own words"), Bar->GetResearchText()->ToolTipTextDelegate.GetFunctionName(), GET_FUNCTION_NAME_CHECKED(UCosmicTopBarWidget, GetResearchTip));
 			const IToolTip* TipBefore = SlateRung->GetToolTip().Get();
+			const IToolTip* ResearchTipBefore = SlateResearch->GetToolTip().Get();
 			StepBroadcast(*Sim);
 			TestTrue(TEXT("a tick keeps the tooltip object"), SlateRung->GetToolTip().Get() == TipBefore);
+			TestTrue(TEXT("and the research one's"), SlateResearch->GetToolTip().Get() == ResearchTipBefore);
 			Live.Civs[Ruled].Tier = EAscensionTier::Tier3_Causal;
 			Bar->Refresh();
 			// Read once and guarded: a text set in place of the binding takes the tooltip away when it is empty, and an

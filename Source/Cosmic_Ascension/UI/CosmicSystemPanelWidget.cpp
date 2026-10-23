@@ -4,6 +4,8 @@
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
 #include "Components/SlateWrapperTypes.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -19,9 +21,11 @@
 #include "Layout/Margin.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
+#include "Sim/CosmicResearch.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "UI/CosmicActionButton.h"
+#include "UI/CosmicNextRung.h"
 #include "UI/CosmicUILabels.h"
 #include "UObject/NameTypes.h"
 #include "World/CosmicGameMode.h"
@@ -172,7 +176,7 @@ TSharedRef<SWidget> UCosmicSystemPanelWidget::RebuildWidget()
 		Box->SetPadding(FMargin(16.f, 12.f));
 		Root->AddChildToVerticalBox(Box);
 
-		UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>();
+		Column = WidgetTree->ConstructWidget<UVerticalBox>();
 		Box->SetContent(Column);
 
 		NameText = CosmicUI::MakeText(*WidgetTree, 18);
@@ -195,6 +199,32 @@ TSharedRef<SWidget> UCosmicSystemPanelWidget::RebuildWidget()
 		HintText->SetText(CosmicUI::Label(TEXT("Hint.Commands")));
 		HintText->SetVisibility(ESlateVisibility::Collapsed);
 		Column->AddChildToVerticalBox(HintText)->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
+		// The research focus (MVP item 7), last: the hint line above stays under the project buttons it speaks of. The
+		// heading names the focus now; the four buttons are built once and keep their objects.
+		FocusBox = WidgetTree->ConstructWidget<UVerticalBox>();
+		FocusBox->SetVisibility(ESlateVisibility::Collapsed);
+		Column->AddChildToVerticalBox(FocusBox)->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
+		FocusHeading = CosmicUI::MakeText(*WidgetTree, 13);
+		FocusHeading->SetToolTipText(CosmicUI::Label(TEXT("Focus.HeadingTip")));
+		FocusBox->AddChildToVerticalBox(FocusHeading)->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
+		UHorizontalBox* FocusRow = WidgetTree->ConstructWidget<UHorizontalBox>();
+		FocusBox->AddChildToVerticalBox(FocusRow);
+		const TPair<FName, const TCHAR*> Choices[] = {
+			{ NAME_None, TEXT("Focus.Even") },
+			{ FName(TEXT("Physics")), TEXT("Research.Physics") },
+			{ FName(TEXT("Society")), TEXT("Research.Society") },
+			{ FName(TEXT("Engineering")), TEXT("Research.Engineering") },
+		};
+		for (const TPair<FName, const TCHAR*>& Choice : Choices)
+		{
+			UCosmicActionButton* Button = WidgetTree->ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
+			Button->Setup(Choice.Key, 0.f, CosmicUI::Label(Choice.Value));
+			Button->OnAction.AddUObject(this, &UCosmicSystemPanelWidget::HandleFocus);
+			UHorizontalBoxSlot* ChoiceSlot = FocusRow->AddChildToHorizontalBox(Button);
+			ChoiceSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+			ChoiceSlot->SetPadding(FMargin(FocusButtons.IsEmpty() ? 0.f : 4.f, 0.f, 0.f, 0.f));
+			FocusButtons.Add(Button);
+		}
 	}
 	return Super::RebuildWidget();
 }
@@ -502,6 +532,11 @@ FText UCosmicSystemPanelWidget::SpiritTipOf(const FCosmicSpiritLook& Spirit, con
 	return Key ? FText::FormatNamed(CosmicUI::Label(Key), TEXT("Transcendent"), Row->Title) : FText::GetEmpty();
 }
 
+bool UCosmicSystemPanelWidget::IsFocusShown() const
+{
+	return FocusBox && FocusBox->GetVisibility() != ESlateVisibility::Collapsed;
+}
+
 bool UCosmicSystemPanelWidget::IsReasonShown() const
 {
 	return ReasonText && ReasonText->GetVisibility() != ESlateVisibility::Collapsed;
@@ -513,6 +548,16 @@ void UCosmicSystemPanelWidget::HandleAction(FName Action, float Value)
 	if (ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer()))
 	{
 		Controller->StartProject(ShownSystemID, Action);
+	}
+	Refresh();
+}
+
+void UCosmicSystemPanelWidget::HandleFocus(FName Field, float Value)
+{
+	// Through the controller, which redraws the HUD after a change (a paused simulation sends no tick).
+	if (ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer()))
+	{
+		Controller->SetResearchFocus(Field);
 	}
 	Refresh();
 }
@@ -551,6 +596,8 @@ void UCosmicSystemPanelWidget::Refresh()
 	ShownStartBlocks.Reset();
 	// The spiritual sight's words for the shown system (section 6.4): a line of their own and its tooltip.
 	FText SpiritWords;
+	// The people whose research focus the panel shows (MVP item 7): the ruled people, on a settled system of its own.
+	const FCivilizationState* FocusCiv = nullptr;
 	// The panel's gate of knowledge: a known system, or the sanctuary by its name (the view's ShownByName - its own
 	// panel, section 6.3).
 	if (State.Systems.IsValidIndex(SystemIndex) && View.IsShown(SystemIndex))
@@ -633,6 +680,7 @@ void UCosmicSystemPanelWidget::Refresh()
 		// The commands of an embodied ruler (section 5.7): the same rules as StartMegaproject applies when pressed.
 		if (bRules && !bDead && OwnerIndex == RuledIndex && CosmicState::IsSettled(System))
 		{
+			FocusCiv = &State.Civs[RuledIndex];
 			// Every row that belongs on this system, in lexical order, so a button that greys does not move under the
 			// cursor: enabled where the rule takes it, greyed with a short reason and its words where the rung or a slot
 			// stands in the way. A row whose reason has no words does not belong here (an answer to no hazard standing
@@ -727,6 +775,62 @@ void UCosmicSystemPanelWidget::Refresh()
 	const ACosmicPlayerController* Owner = Cast<ACosmicPlayerController>(GetOwningPlayer());
 	const bool bHint = Owner && ShowsCommandHint(bEnabledProject, bEnded, Owner->GetHintProgress());
 	HintText->SetVisibility(bHint ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+
+	// The research focus (MVP item 7): the heading names the focus now; the button that is it is greyed out, the others
+	// say the shares a press would give, a field the next rung reads says so. Words only when they change (a tooltip set
+	// again is a new tooltip and closes an open one); the shares move only by a command, the rung only by an ascent.
+	FocusBox->SetVisibility(FocusCiv ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	if (FocusCiv)
+	{
+		const TMap<FName, float>& Focus = FocusCiv->ResearchFocus;
+		FName FocusedField;
+		const ECosmicFocusShape Shape = CosmicResearch::ShapeOf(Focus, &FocusedField);
+		const FText Heading = FText::Format(Label(TEXT("Focus.Heading")), FocusWordOf(Focus));
+		if (!SameWords(FocusHeading->GetText(), Heading))
+		{
+			FocusHeading->SetText(Heading);
+		}
+		const TArray<FCosmicRungPart> Needed = CosmicNextRung::ResearchFieldsOf(CosmicNextRung::AllOf(State, Index, Tables, Sim->GetRules()));
+		const float Share = Sim->GetRules().ResearchFocusShare;
+		for (UCosmicActionButton* Button : FocusButtons)
+		{
+			const FName Field = Button->GetAction();
+			const bool bNow = Field.IsNone() ? Shape == ECosmicFocusShape::Even : (Shape == ECosmicFocusShape::Focused && FocusedField == Field);
+			FText Tip;
+			if (bEnded)
+			{
+				Tip = EndBlock;
+			}
+			else if (bNow)
+			{
+				Tip = FText::Format(Label(Field.IsNone() ? TEXT("Focus.TipNowEven") : TEXT("Focus.TipNow")), FocusSharesOf(Focus));
+			}
+			else
+			{
+				// The shares a press would give, by the rule the command applies.
+				TMap<FName, float> Would = Focus;
+				if (Field.IsNone())
+				{
+					CosmicResearch::Even(Would);
+				}
+				else
+				{
+					CosmicResearch::Focus(Would, Field, Share);
+				}
+				Tip = FText::Format(Label(Field.IsNone() ? TEXT("Focus.TipEven") : TEXT("Focus.TipField")), FocusSharesOf(Would));
+			}
+			const bool bNeeded = !Field.IsNone() && Needed.ContainsByPredicate([Field](const FCosmicRungPart& Part) { return Part.Key == Field; });
+			if (!bEnded && bNeeded)
+			{
+				Tip = JoinLines({ Tip, Label(TEXT("Focus.TipNeeded")) });
+			}
+			Button->SetIsEnabled(!bEnded && !bNow);
+			if (!SameWords(Button->GetToolTipText(), Tip))
+			{
+				Button->SetToolTipText(Tip);
+			}
+		}
+	}
 
 	// The sight's words (none in the physical view): a line of their own under the details, with the same words as its
 	// tooltip - a block apart, so that neither the line nor the tooltip covers the people's band (a claim is never told

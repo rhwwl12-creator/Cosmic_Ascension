@@ -17,33 +17,8 @@
 // Helpers of this file. A named namespace: the module is built as one unity file.
 namespace CosmicNextRungImpl
 {
-	// The four research fields a condition can name, with their labels: compared as FNames (the case of a name is kept in
-	// an editor build only, so never through FName::ToString).
-	struct FResearchField
-	{
-		FName Key;
-		const TCHAR* LabelKey;
-	};
-
-	const FResearchField ResearchFields[] = {
-		{ FName(TEXT("Physics")), TEXT("Research.Physics") },
-		{ FName(TEXT("Society")), TEXT("Research.Society") },
-		{ FName(TEXT("Engineering")), TEXT("Research.Engineering") },
-		{ FName(TEXT("Transcendence")), TEXT("Research.Transcendence") },
-	};
-
-	// The label key of a research field; null for a key that is not one.
-	const TCHAR* ResearchLabelKey(FName Key)
-	{
-		for (const FResearchField& Field : ResearchFields)
-		{
-			if (Field.Key == Key)
-			{
-				return Field.LabelKey;
-			}
-		}
-		return nullptr;
-	}
+	// The four research fields a condition can name, with their labels (the table the panel and the top bar share).
+	using CosmicUI::ResearchLabelKey;
 
 	// A whole percent in the bar's percent form.
 	FText PercentText(int32 Whole)

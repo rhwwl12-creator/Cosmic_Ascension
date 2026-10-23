@@ -960,6 +960,21 @@ void ACosmicPlayerController::CosmicStartProject(const FString& SystemID, const 
 	}
 }
 
+void ACosmicPlayerController::CosmicFocus(const FString& Word)
+{
+	// The even focus by its word, a field by its name (compared as FNames: the case does not matter).
+	const FName Field = Word.Equals(TEXT("Even"), ESearchCase::IgnoreCase) ? NAME_None : FName(*Word);
+	if (!Field.IsNone() && !CosmicUI::ResearchLabelKey(Field))
+	{
+		UE_LOG(LogCosmic, Display, TEXT("CosmicFocus: %s is no research field (Physics, Society, Engineering, Transcendence or Even)"), *Word);
+		return;
+	}
+	if (!SetResearchFocus(Field))
+	{
+		UE_LOG(LogCosmic, Display, TEXT("CosmicFocus: %s was refused"), *Word);
+	}
+}
+
 void ACosmicPlayerController::UseMap(ACosmicGalaxyMapActor* InMap)
 {
 	if (ACosmicGalaxyMapActor* Old = Map.Get())
@@ -1688,6 +1703,25 @@ bool ACosmicPlayerController::StartProject(FName SystemID, FName RowName)
 	if (ACosmicGalaxyMapActor* TheMap = Map.Get())
 	{
 		TheMap->RequestRefresh();
+	}
+	return true;
+}
+
+bool ACosmicPlayerController::SetResearchFocus(FName Field)
+{
+	if (IsRunEnded())
+	{
+		return false;
+	}
+	UPlayerRoleSubsystem* Roles = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (!Roles || !Roles->SetResearchFocus(Field))
+	{
+		return false;
+	}
+	// A paused simulation sends no tick: show the new focus now.
+	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
+	{
+		CosmicHUD->RefreshPanel();
 	}
 	return true;
 }

@@ -148,7 +148,7 @@ TSharedRef<SWidget> UCosmicTopBarWidget::RebuildWidget()
 		StatusSlot->SetPadding(FMargin(0.f, 0.f, 32.f, 0.f));
 
 		ResearchText = CosmicUI::MakeText(*WidgetTree, 14, false);
-		ResearchText->ToolTipTextDelegate.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UCosmicTopBarWidget, GetNextRungTip));
+		ResearchText->ToolTipTextDelegate.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UCosmicTopBarWidget, GetResearchTip));
 		// The one block that yields when the band runs short (the third rung in years, the mouse on the clock with both
 		// units): clipped to its slot and ended with an ellipsis, never drawn over the clock beside it.
 		ResearchText->SetClipping(EWidgetClipping::ClipToBounds);
@@ -507,6 +507,20 @@ FText UCosmicTopBarWidget::GetNextRungTip() const
 		return FText::GetEmpty();
 	}
 	return CosmicNextRung::TextOfAll(CosmicNextRung::AllOf(Sim->GetState(), Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules()), Sim->GetTables());
+}
+
+FText UCosmicTopBarWidget::GetResearchTip() const
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	const FCivilizationState* Civ = Sim ? CosmicTopBarImpl::RuledCivOf(Sim->GetState()) : nullptr;
+	const FText Rung = GetNextRungTip();
+	if (!Civ)
+	{
+		return Rung;
+	}
+	// The focus first: after another system is selected the panel's block is gone, and the bar still says it.
+	const FText Focus = FText::Format(CosmicUI::Label(TEXT("Focus.BarLine")), CosmicUI::FocusWordOf(Civ->ResearchFocus), CosmicUI::FocusSharesOf(Civ->ResearchFocus));
+	return Rung.IsEmpty() ? Focus : FText::Format(INVTEXT("{0}\n\n{1}"), Focus, Rung);
 }
 
 void UCosmicTopBarWidget::Refresh()

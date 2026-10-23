@@ -460,8 +460,9 @@ class SchemaTests(unittest.TestCase):
         sources["ST_CA.csv"] = sources["ST_CA.csv"].rstrip(b"\r\n") + '\n"Save.Test","정지 — 2번째 저장"\n'.encode("utf-8")
         self.expect(checker.check_sources(sources), "ST_CA.csv", "Save.Test", "a digit outside a slot")
         self.expect(check('Key,SourceString\n"Save.A","%s a."\n' % verdict[0]), "entry 1 (Save.A)", "the word %s is not used here" % verdict[0])
-        # (7) The first hints (MVP item 6) are under the same rule: the Hint. keys and the galaxy panel's Galaxy.Hint* keys.
-        for prefix in ("Hint.", "Galaxy.Hint"):
+        # (7) The first hints (MVP item 6) are under the same rule: the Hint. keys and the galaxy panel's Galaxy.Hint* keys;
+        # (8) and so are the research focus's words (MVP item 7): the Focus. keys.
+        for prefix in ("Hint.", "Galaxy.Hint", "Focus."):
             with self.subTest(prefix=prefix):
                 self.assertEqual(self.schema["string_table"]["checked_prefixes"][prefix], {"forbidden": "verdict", "no_digits": True})
                 key = prefix + "Test"
