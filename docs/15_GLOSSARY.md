@@ -71,7 +71,8 @@
 | 인과 | Causality | `ECosmicResource::Causality` | Tier 3 해금 자원. 개인 능력치 이름과 동일 |
 | 틱 / 주기 | Tick / Cycle | `FGalaxyState::Tick` | 고정 스텝 시뮬 단위. 시계는 판에 하나다. UI는 1주기를 1년으로 보일 수 있다(토글, 첫 기록부터) — 서술·연대기는 주기 |
 | 레인 | Lane | `FStarSystemState::Lanes` | 성계 간 이동 경로. 같은 은하 안의 것만 — 다리는 레인이 아니다 |
-| 연대기 | Chronicle | `UCosmicLogSubsystem::BuildChronicle` | 엔딩용 로그 재편집. 생애(대)별 장 |
+| 연대기 | Chronicle | `UCosmicLogSubsystem::BuildChronicle`, `CosmicChronicle::Build`·`Admits`, `UCosmicChronicleWidget` | 엔딩용 로그 재편집. 생애(대)별 장. MVP ④부터 최소형(생애 장 + 고정 줄 셋, §8.4) |
+| 임시 끝 | Provisional end | `CosmicEndings::ProvisionalEndOf`, `ECosmicProvisionalEnd`, `DT_Rules.ProvisionalEndTick`, `ACosmicPlayerController::GetRunEnd` | MVP의 판 끝(통치 백성 T3 ∨ 틱 6,000). 엔딩이 아니다 — 저장하지 않고 시뮬은 모르며, 화면이 시간을 멈추고 연대기를 연다 (§6.3, MVP ④) |
 | 부름 | Calling | `FCallingState`, `FGalaxyState::Calling`, `Log.Calling` | 플레이어의 정체. 그릇을 넘어 이어진다 (§4.4) |
 | 그릇 (육신) | Vessel | `FPlayerEntityState` | 사망 시 전부 초기화되는 쪽. `PersonalTier`·`Powers`·`CompletedFeats`는 `FCallingState`에 유지 (§4.4 3분할 표) |
 | 생애 / 대(代) | Life | `FLifeRecord`, `LifeIndex`, `BornTick`, `Lives` | 판 안의 장. "제 N대" |

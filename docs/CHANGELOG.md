@@ -2,6 +2,14 @@
 
 > 2026-10-19 재편: 본문에 섞여 있던 이력·상태 줄·일지·리뷰 통계를 여기로 옮겼다(내용 무변경, 위치만 — 원격의 Phase 3 꼬리 7·12·8·9 기록 포함). 앞으로는 날짜·작업 접두어·바뀐 규칙·리뷰 통계를 여기에만 적고, 설계 본문과 STATUS.md에는 적지 않는다.
 
+## 2026-10-23 — MVP ④ 임시 끝과 연대기 최소형
+
+- 헤더 `docs/60_DECISIONS/headers/A4_provisional_end.md` 승인(결정 16개 권장안 — `DECISIONS_LOG` 2026-10-23)과 구현 메모 `A4_provisional_end_notes.md`. OPEN_QUESTIONS #49를 닫고 #31 ② 앞 절반을 닫았으며, #40 ⑦에 ⑤의 제약을 적고 새 행 #117(엔딩의 저장 기록)을 두었다.
+- `[A-4a]` 판정과 연대기 순수 함수: `Sim/CosmicEndings`(`ProvisionalEndOf` — 저장 없음, 시뮬은 끝을 모른다), `Log/CosmicChronicle`(`Admits`·`PeoplesOf`·`Build`·`VesselNameOf`, 상한 40과 등급 솎기), `UCosmicLogSubsystem::BuildChronicle()`, 노브 `ProvisionalEndTick` 6000(노브 53 — 읽힘 35), 커맨드렛 일곱째 줄 `CosmicBalance end:`와 `end check:`. 측정: 정책 판 30 중 칸 끝 26(중앙값 4,425)·시계 끝 4, 6,000 전 폐위 0, 장 후보 중앙값 60.5. 테스트 `Sim.ProvisionalEnd`·`Log.ChronicleBuild`(새)·`Sim.PlayerAscendsToT3`(넓힘) — 104종. 변이 26개 모두 잡힘.
+- `[A-4b]` 화면: 플레이어 컨트롤러의 래치 넷과 `ApplySpeed` 한 곳의 문(`ECosmicAutoPause::RunEnd` → '정지 — 이 판은 여기까지다'), 답·프로젝트 거절, 카드 접기, 1.5초 기다림, '지도 보기'·'연대기'·'새 판'(3초 안 두 번, 시계 시드), `-ProvisionalEnd=0`, `CosmicPreviewChronicle`, `CosmicEnd` 로그 줄. `UCosmicChronicleWidget`(막·드러냄·생애 장·고정 줄 셋·까닭과 시험판 알림), 상단 바의 규칙 줄·600주기 예고·폐위 뒤 줄·회색 배속, 성계 패널의 `Chronicle.Block`. ST_CA `Chronicle.*` 22키와 스키마 `string_table.checked_prefixes`(판정 어휘·칸 밖 숫자). 테스트 `UI.RunEnd`·`UI.Chronicle`(새), `UI.MouseOnlyAscent`의 꼬리(칸 끝 → 쪽 → 지도 보기, ×25는 회색), `UI.AutoPause`의 까닭 고리, `AcquireSim`의 리셋 — 106종 2회 통과, 검사기 단위 테스트 74종. 변이 C++ 29개·Python 6개 모두 잡힘. 창 없이 찍은 두 장(미리보기, 시드 42 ×25의 시계 끝 — `CosmicEnd: Clock at tick 6000; 240 s since the run began, 0 s of them stopped`)에서 쪽이 열린 채 상단 바의 '연대기'가 남던 것을 찾아 고쳤다. 기준값 셋 그대로.
+- `[A-4c]` 문서: `docs/20` §6.3 '임시 끝'·§9.1, `docs/21`(끝의 판정·`CosmicChronicle`·노브·`BuildChronicle`의 장 배열·엔딩 기록 한 줄), `docs/70` §8.4 'MVP ④의 최소형', `crisis` §4.4 '엔딩 이후', `docs/40`(테스트 넷·커맨드렛 일곱째 줄·화면 두 장·`string_table`), `docs/45`(스크롤 상자·패널 자식·실제 초), `docs/15`('임시 끝'), `docs/50`·`docs/00`(결정 1의 읽기), OPEN_QUESTIONS, `DECISIONS_LOG`, `CLAUDE.md` 규칙 15, STATUS. 재감사(Agent 1회 — 코드와의 사실·헤더 §8의 빠짐·문서 사이의 같은 문장과 참조·표의 꼴·규칙 11·글): 발견 15건 모두 반영 — 검사기 주석 한 줄이 데이터 도장(`generated.sha1`이 검사기의 해시를 담는다)을 깨뜨리는 것을 잡아 되돌렸고, ×25의 보임(셋째 칸일 때만), 커맨드렛의 등급 넷은 상한 없이 지은 장의 것, `BuildCapped`, '불투명도 1', #49의 '확정', 같은 문장 셋을 링크로, 엔딩 기록은 B6, #31의 두 기한, 예정 표지 둘. 문서 사이의 끊어진 참조 0, OPEN_QUESTIONS 표 90행 정상. 남긴 것: 새 두 단락이 2,000바이트를 넘는 줄(문서 검사의 알림 37 → 38).
+- 남은 것: 손 확인(개발자, 종료 조건 ⓒ) — 새 판부터 마우스만으로 ×10, 셋째 칸 → 연출 → 연대기 → 지도 보기 → 연대기 → 새 판(두 번). `CosmicEnd` 줄의 두 초(판의 벽시계 — 결정 1), 쪽이 읽히는지, 제목의 그릇 이름이 낯선지를 여기에 한 줄로 적는다.
+
 ## 2026-10-22 — MVP ③ 첫 10분 보장·세계 손질·둘째 업적
 
 - `[A-3a]` 커맨드렛의 통치자 정책: `-Answer=1`(카드가 온 틱에 답 — 선택지를 돌아가며), `-Build=1`(프로젝트 키를 거절될 때까지), `-Rules=이름:값;…`(그 판의 규칙 칸), 여섯째 줄 `CosmicBalance ruler:`(결정 = 받아들인 답 + 시작한 프로젝트). `run_checks.ps1`이 정책 판도 기준값(`ruler_summary_line`)과 견준다. 기준값 그대로(3,000틱 hash 3195642295, world 2405589164).

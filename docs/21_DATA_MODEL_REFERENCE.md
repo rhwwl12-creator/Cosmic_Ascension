@@ -526,7 +526,8 @@ UPROPERTY() TMap<FName, int64> EventCooldownUntilTick; // 키 = UCosmicEventSubs
 
 UPROPERTY() TArray<FCosmicLogEntry> Log; // 상한 유지 (§8.4)
 
-UPROPERTY() TArray<FCosmicLogEntry> Chronicle; // Log 상한(2,000) 초과 시 Severity 1·2 이관. BuildChronicle 입력. 생애별 장은 FLifeRecord.BornTick/DiedTick 범위 (§8.4)
+UPROPERTY() TArray<FCosmicLogEntry> Chronicle; // Log 상한(2,000) 초과 시 Severity 1·2 이관. BuildChronicle 입력 — CosmicChronicle::Build는 이 배열 다음 Log를 읽는다(MVP ④: 게임 길이의 판에서는 이관이 일어나지 않는다). 생애별 장은 FLifeRecord.BornTick/DiedTick 범위 — BornTick(첫 장은 그 앞의 모든 틱도)부터 DiedTick, 없으면 다음 생애의 BornTick − 1, 마지막 장은 지금 틱까지 (§8.4)
+// (B6 — 예정) 엔딩의 저장 기록은 그 헤더가 정한다(스케치는 §16 #117). MVP의 임시 끝은 저장하지 않는다 — Tick과 모든 생애의 PeakTier에서 다시 읽힌다 (§9.1)
 
 UPROPERTY() FGameplayTagContainer Flags; // SetFlag 효과의 저장소. Flag.Grace.Spent, 사자 예언 플래그 (§4.5). ComputeStateHash 포함
 
@@ -1080,7 +1081,8 @@ UPROPERTY(EditAnywhere) float StabilityRecoveryPerTick = 0.001f; // 안정도 �
 UPROPERTY(EditAnywhere) float StabilityRestingLevel = 0.6f; // 회복이 멈추는 수준(§9.3 '자연 수렴 0.6'). 0~1 밖이거나 숫자가 아니면 회복 없음
 UPROPERTY(EditAnywhere) FGameplayTagContainer ClaimLeaveProfiles; // AI 구호의 정책(§16 #71): AI 단계에서 이 프로필의 백성은 제 성계에 선 Hazard.Claim의 답을 시작하지 않는다. 다른 답과 다른 프로필(빈 프로필 포함)은 그대로. 통치자의 프로젝트 키는 읽지 않는다. 비면 모두 구호한다. 추첨 없음 — 프로필은 생성과 왕좌 교체가 이미 뽑았다. 데이터: AI.Profile.Expansionist, AI.Profile.Militarist
 UPROPERTY(EditAnywhere) int32 FirstCrisisTick = 150; // 첫 위기(§2.4 첫 10분, §16 #91): Tick == 이 값인 틱의 위기 단계 발생 끝(추첨과 수도 규칙 뒤, 이벤트 슬롯 앞)에 Civs 배열 순서로 모든 백성의 수도(소유 ∧ 정착)에 FirstCrisisHazard의 Draw 행을 CosmicHazards::Place로 놓는다. 슬롯이 찬 수도는 그 위기를 지킨다(그것이 첫 위기다). 모든 백성 같은 규칙. 0 이하 = 없음. 추첨 없음
-UPROPERTY(EditAnywhere) FGameplayTag FirstCrisisHazard; // DT_Hazards의 Draw 행의 태그(Data.Integrity). 다른 행의 태그는 에러 한 줄과 함께 거절, 그 행이 없는 테이블(테스트)은 아무것도 놓지 않는다. 비면 없음(C++ 기본값). 데이터: Hazard.AIAwakening. 구조체의 맨 끝 컬럼
+UPROPERTY(EditAnywhere) FGameplayTag FirstCrisisHazard; // DT_Hazards의 Draw 행의 태그(Data.Integrity). 다른 행의 태그는 에러 한 줄과 함께 거절, 그 행이 없는 테이블(테스트)은 아무것도 놓지 않는다. 비면 없음(C++ 기본값). 데이터: Hazard.AIAwakening
+UPROPERTY(EditAnywhere) int32 ProvisionalEndTick = 6000; // MVP ④(2026-10-23, 헤더 docs/60_DECISIONS/headers/A4_provisional_end.md) 임시 끝의 시계(CosmicEndings::ProvisionalEndOf): 다스리는 백성이 먼저 셋째 칸에 오르지 않았다면 Tick이 이 값에 이른 틱 경계부터 표현 계층이 시간을 멈추고 연대기를 연다 — 판의 마지막 틱이 이 틱이다. 0 이하 = 시계 끝 없음. 시뮬은 여기서 멈추지 않는다(커맨드렛은 알리기만 한다). 시작값 6,000 = ×10에서 쉬지 않고 10분, 시계로 끝나는 판만 늘린다. 상단 바의 시계 툴팁도 읽는다. 네 엔딩(B5·B6)과 함께 간다. 구조체의 맨 끝 컬럼
 
 UPROPERTY(EditAnywhere) int32 SceneryGalaxyCount = 10000; // 풍경 은하의 점 수. 표현 계층만 읽는다(CosmicUniverseLook::SceneryCountOf — 0~50,000으로 읽는다, 스키마도 같은 경계) (§5.11, §6.4 '우주 화면'). Phase 3 9번 작업
 
@@ -1201,7 +1203,8 @@ UFUNCTION(BlueprintPure) float GetTimeScale() const { return TimeScale; } // 패
 
 UFUNCTION(BlueprintCallable) void StepOnce(); // 디버그/테스트. OnLogEntry·OnEventFired·OnTierAscended 핸들러 안(IsBroadcasting)에서 불리면 에러 한 줄을 내고 틱을 돌리지 않는다 — RunHeadless도 같고, 상태를 갈아 끼우는 NewGalaxy·LoadState(와 UCosmicSaveSubsystem::LoadGalaxy)도 같은 자리에서 에러 한 줄을 내고 아무것도 하지 않는다(§9.4)
 
-UFUNCTION(BlueprintCallable) void RunHeadless(int64 Ticks); // 테스트/밸런스/공백기 도약용 (§4.4). 방송 게이트 OFF, 매 틱 엔딩 조건 검사(Phase 4b — 엔딩과 함께. 끝난 판은 그 뒤의 RunHeadless·StepOnce가 아무것도 시뮬하지 않는다 — 한 틱씩 돌린 판이 긴 도약과 같은 세계로 남도록: 커맨드렛과 Sim.PhaseTwoExit가 한 틱씩 돈다)
+// 끝의 판정(MVP ④, 2026-10-23 — Sim/CosmicEndings.h, 순수 함수 namespace): enum class ECosmicProvisionalEnd : uint8 { None, Rung, Clock } — UENUM이 아니다(저장·해시·데이터 칸이 아니라 끝 추가 규칙에 묶이지 않는다. 네 엔딩과 함께 간다). CosmicEndings::EndRung = Tier3_Causal(C++ 상수, 노브가 아니다). ECosmicProvisionalEnd ProvisionalEndOf(const FGalaxyState&, const FCosmicRulesDef&) — Calling.Lives가 비면 None, 어느 생애든 PeakTier ≥ EndRung면 Rung, 아니면 ProvisionalEndTick > 0 ∧ Tick ≥ 그 값이면 Clock(같은 틱은 Rung). Tick·Calling.Lives·노브만 읽는다(Civs·앎·로그·연대기는 읽지 않는다). 두 입력이 줄지 않아 한 번 선 끝은 판 내내 서고 로드도 같은 답을 낸다. 읽는 곳은 플레이어 컨트롤러의 FollowEnd와 커맨드렛뿐 — 단계·명령·RunHeadless는 읽지 않는다. const TCHAR* NameOf(ECosmicProvisionalEnd) = "None"·"Rung"·"Clock"(로그 줄)
+UFUNCTION(BlueprintCallable) void RunHeadless(int64 Ticks); // 테스트/밸런스/공백기 도약용 (§4.4). 방송 게이트 OFF, 매 틱 엔딩 조건 검사(B5·B6 — 네 엔딩과 함께. MVP의 임시 끝은 들지 않는다 — 그 끝은 판을 멈추지 않는다, 아래 '끝의 판정'. 엔딩이 오면 끝난 판은 그 뒤의 RunHeadless·StepOnce가 아무것도 시뮬하지 않는다 — 한 틱씩 돌린 판이 긴 도약과 같은 세계로 남도록: 커맨드렛과 Sim.PhaseTwoExit가 한 틱씩 돈다)
 
 const FGalaxyState& GetState() const { return State; } // C++ 위젯 베이스가 const 참조로 읽는다(§10.2). BlueprintPure로 두지 않는다 — FGalaxyState의 멤버는 Blueprint에 보이지 않고 노드 평가마다 상태 전체가 복사된다. WBP에 필요한 값은 좁은 접근자로 낸다
 
@@ -1425,7 +1428,9 @@ static constexpr float SecondsPerTick = 1.0f;
 
 // - FOnLogEntry OnLogEntry(const FCosmicLogEntry&)  방송 게이트가 닫히면 쌓이기만 하고 방송되지 않는다(나중에 몰아 보내지 않는다). bUntold 항목에는 발화하지 않는다 (§8.1)
 
-// - TArray<FCosmicLogEntry> BuildChronicle() const  (Phase 4b) Severity 2 + 선택된 1 항목 + Log.Claim·Log.Record 전부를 엔딩용으로 집계(bUntold 줄 포함 — 연대기와 두 책은 이야기의 범위로 거르지 않는다, §8.4. 연속 중복 규칙은 마지막으로 말해진 줄과만 견주므로 bUntold 항목이 같은 문장의 말해진 줄 바로 앞에 쌓이거나(예: [B(bUntold), B]) bUntold 항목을 사이에 두고 같은 문장이 이어질 수 있다 — 연대기와 두 책은 바로 앞에 실은 줄과 같은 문장을 싣지 않는다. 표시 규칙이고 상태는 없다, 아는 범위와 로그 작업의 리뷰). 생애(대)별 장 나누기 + '두 책' 장(기록된 이름들 / 주장된 이름들, ≤ 28줄, 사람·성계의 수 렌더 없음 — 주기·비율은 허용, 인물 없음) + 에필로그 둘째 줄 "다른 책은 펴지지 않았다." (§8.4, 약 40줄). 인물은 생애별 장의 이미 렌더된 Severity 2·1 Message 안에서만 등장한다 — 이 함수에 인물 코드 0
+// - TArray<FCosmicChronicleChapter> BuildChronicle() const  (MVP ④, 2026-10-23 — 헤더 docs/60_DECISIONS/headers/A4_provisional_end.md §4) 지금 틱까지의 연대기 = CosmicChronicle::Build(산 상태). 읽기만 하고 뽑지 않아 핸들러도 부를 수 있다. 장 배열이다(장과 넘침 표지는 평면 배열에 실리지 않는다)
+// - CosmicChronicle(Log/CosmicChronicle.h, MVP ④ — 순수 함수 namespace, USTRUCT 아님, 저장·해시·추첨·쓰기 없음, 앎을 읽지 않는다 §16 #49): FCosmicChronicleLine{ Entry(저장된 항목의 사본 — Message는 이미 평탄화), bOwn(그 생애의 줄 — Log.Calling, 그 백성의 Severity 2, 들인 Severity 1; 다른 백성의 Severity 2는 false — 흐리게) } · FCosmicChronicleChapter{ LifeAt(Calling.Lives의 자리), FromTick, ToTick(§7.2 Chronicle의 범위), Lines(보이는 줄, 시간순), Candidates(되풀이 ① 뒤·상한 전의 줄 수 — 커맨드렛의 'of'), bMore(상한이 줄을 뺐다 — 장 끝에 ST_CA Chronicle.More, 수 없음) } · MaxLifeLines = 40(표시 상한 — 상태에서는 아무것도 떠나지 않는다) · PeoplesOf(Life) = BirthCivID 다음 RuledCivIDs(None·중복 없이) · Admits(Entry, Peoples) = §16 #31 ②의 앞 절반(8필드만: Log.Calling·Log.Claim·Log.Record·모든 Severity 2, FocusCivID가 Peoples에 든 Severity 1, SourceRow가 log_first_contact인 Severity 1 — bUntold와 행 표를 읽지 않는다. MVP ⑤의 이관 거르기 #40 ⑦도 모든 생애의 백성으로 부른다 — 예정) · Build(State) = 생애마다 장 하나(생애가 없으면 없다), docs/70 §8.4의 네 걸음(정수 + − × ÷만, 앎으로 줄을 세우지 않는다) = BuildCapped(State, MaxLifeLines) · BuildCapped(State, Cap) = 같은 일을 주어진 상한으로(0 아래는 0 — 테스트와 커맨드렛의 측정) · VesselNameOf(Life, Tables) = BirthArchetypeRow의(풀리지 않으면 arch_default의) PersonNameBank[NameIndex % Num](Install의 규칙), 둘 다 없으면 빈 FText('제 N대'만)
+// - (Phase 4b) 같은 장들 둘레에 두 책 장·비문·다이제스트를 더한다 — 그때의 집계: Severity 2 + Admits가 들인 Severity 1 + Log.Claim·Log.Record 전부를 엔딩용으로 집계(bUntold 줄 포함 — 연대기와 두 책은 이야기의 범위로 거르지 않는다, §8.4. 연속 중복 규칙은 마지막으로 말해진 줄과만 견주므로 bUntold 항목이 같은 문장의 말해진 줄 바로 앞에 쌓이거나(예: [B(bUntold), B]) bUntold 항목을 사이에 두고 같은 문장이 이어질 수 있다 — 연대기와 두 책은 바로 앞에 실은 줄과 같은 문장을 싣지 않는다. 표시 규칙이고 상태는 없다, 아는 범위와 로그 작업의 리뷰). 생애(대)별 장 나누기 + '두 책' 장(기록된 이름들 / 주장된 이름들, ≤ 28줄, 사람·성계의 수 렌더 없음 — 주기·비율은 허용, 인물 없음) + 에필로그 둘째 줄 "다른 책은 펴지지 않았다." (§8.4, 약 40줄). 인물은 생애별 장의 이미 렌더된 Severity 2·1 Message 안에서만 등장한다 — 이 함수에 인물 코드 0
 
 // - FWorldDigest BuildWorldDigest(int64 FromTick, int64 ToTick) const  (Phase 4b) 상태 diff 5~8줄. 복귀·폐위·계승 공용 (§8.4). Knowing의 만난 백성과 아는 성계만 비교하고, 그 밖에서 바뀐 것이 있으면 끝에 닫는 한 줄 Digest.Elsewhere(ST_CA)를 둔다. 항목 유형에 '왕좌가 바뀐 문명: {Civ}의 {Ruler}'(구간 (FromTick, ToTick] 안에 crisis_rebellion 만료 로그('정권 교체', Log.Crisis, SourceRow = crisis_rebellion)가 있는 문명의 열린 Notable.Ruler 이름 — FirstTick은 반란 발생 틱이라 기준으로 쓰지 않는다. 최대 2줄, 5~8줄 예산 안에서 기존 항목과 경쟁)
 
