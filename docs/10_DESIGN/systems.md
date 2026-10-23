@@ -46,7 +46,7 @@
 | Transcendence (초월) | Causality 해금, 집단 정신 승천, 인과율 병기 |
 
 각 영역은 0.0~1.0 진척도 하나. 임계점(0.25/0.5/0.75/1.0)마다 '돌파(Breakthrough)' 1개가 열리고 로그에 뜬다.
-통치자의 유일한 조작은 **4개 영역 간 중점 비율 슬라이더**다.
+통치자의 유일한 조작은 **4개 영역 간 중점 비율 슬라이더**다. MVP(⑦, 2026-10-24)의 꼴은 프리셋 넷 — 균형·물리·사회·공학(분야 하나가 `DT_Rules.ResearchFocusShare` 0.55를, 나머지가 남은 몫을 고루 — 첫 청원 '지혜로운 마음'의 세 길과 같은 몫), 다스리는 정착된 성계의 패널(`docs/20` §6.3 '연구 중점'). 슬라이더와 초월 중점은 B2다. MVP에서 사회와 초월은 아무것도 열지 않는다(위 표의 사회 해금은 Phase 4이고, 사회의 돌파가 부르는 책의 행은 `Trait.Faith.BookShut`을 지닌 백성에게만 선다 — §16 #119). (`Society` 진척도의 안정도 회복·영향력 산출 연동 및 `Trait.Faith.BookShut` → `event_book_found` 재발견 체인 개통 설계는 [`DESIGN_AUDIT_AND_IMPROVEMENT.md`](DESIGN_AUDIT_AND_IMPROVEMENT.md) 자료 4 참조.)
 
 ### 5.5 외교 (태세 + 조약 3종)
 

@@ -2,6 +2,13 @@
 
 > 2026-10-19 재편: 본문에 섞여 있던 이력·상태 줄·일지·리뷰 통계를 여기로 옮겼다(내용 무변경, 위치만 — 원격의 Phase 3 꼬리 7·12·8·9 기록 포함). 앞으로는 날짜·작업 접두어·바뀐 규칙·리뷰 통계를 여기에만 적고, 설계 본문과 STATUS.md에는 적지 않는다.
 
+## 2026-10-24 — MVP ⑦ 연구 중점 프리셋
+
+- 헤더 `docs/60_DECISIONS/headers/A7_research_focus.md` 승인(개발자 "다음작업들 계속 이어서 진행해줘"·"정해야할건 다 권장대로" — 결정 11개 권장안). 측정(실험 스위치, 30판·6,000틱 — 중점 정책 T2 1,165·T3 1,958 대 지금 2,203·4,425, 판의 끝까지 결정 둘 다 12)과 적대 리뷰(ultracode 워크플로 — 네 관점 + 관점마다 검증 하나: 발견 68, 남김 68 — 확인 46·일부 22, 높음 0·중간 14, 모두 반영).
+- `[A-7a]` 세계 함수와 명령: `Sim/CosmicResearch`(`Focus`·`Even`·`ShapeOf`), 효과 `FocusResearch`의 본문이 그것을 부른다, 노브 `DT_Rules.ResearchFocusShare` 0.55(노브 55 — 읽힘 37), `UPlayerRoleSubsystem::SetResearchFocus`, 커맨드렛 `-Focus=1`과 ruler 줄의 `focus`·`focus changes`·`decisions by end`, `CosmicNextRung::ResearchFieldsOf`, `run_checks`의 정책 판에 `-Focus=1`. 기준값: 옛 정책 줄과 idle 줄·20,000틱이 그대로인 것을 먼저 보고 새 `ruler_summary_line` 794910355 / 1912530916. 테스트 `Sim.ResearchFocus`·`Sim.ResearchFocusCommand`(새) — 118종. 변이 23개 모두 잡힘.
+- `[A-7b]` 화면: 성계 패널 맨 아래(안내 줄 아래)의 연구 중점 덩이 — 머리 줄 '연구 중점 — {지금}'과 단추 넷 [균형][물리][사회][공학](지금 것은 흐리게, 툴팁에 네 몫과 다음 칸이 읽는 분야), 컨트롤러 `SetResearchFocus`와 개발용 `CosmicFocus`, 상단 바 연구 덩이의 제 툴팁 `GetResearchTip`, 분야 낱말 표 `CosmicUI::ResearchLabelKey`·`FocusSharesOf`·`FocusWordOf`, ST_CA `Focus.*` 열과 접두어 검사, 효과의 주석. 테스트 `UI.ResearchFocus`(새)·`UI.RunEnd`·`UI.NextRung`(넓힘) — 119종. A-7b 변이 21개 모두 잡힘(처음 살아남은 셋 — 연구 덩이 툴팁의 묶음 둘은 그 단언이 UI.NextRung에 있어 거름에서 빠졌고, 몫의 차례는 단언을 더해 잡았다). 창 없이 찍은 패널 두 장(처음의 수도, 위기와 영적 시야의 수도 — 1280×720에서 덩이가 든다).
+- `[A-7c]` 문서: `systems.md` §5.4(MVP의 꼴), `docs/20` §6.3(새 단락 '연구 중점', 상단 바의 연구 툴팁, 안내 줄의 자리)·§9.2(추첨 없는 틱 밖 입력)·부록(핸들러 목록), `docs/21`(명령·`CosmicResearch`·노브, 효과의 사용처), `docs/40`(테스트 표 새 3·넓힘 2, 정책 인자와 결정의 셈, `CosmicFocus`), `docs/15`(연구 중점 / 균형), `docs/50`(A ⑦ 끝, ⑧의 범위, ⓑ의 잣대), `docs/00_VISION.md:20`(잣대), OPEN_QUESTIONS #119, `DECISIONS_LOG`(HEAD 위에), `STATUS.md`. 문서의 재감사(ultracode 워크플로)는 아직 돌리지 않았다 — 개발자의 요청('마무리 커밋한 뒤 일단 멈춰줘')으로 여기서 멈췄다, 다음 세션의 첫 일.
+
 ## 2026-10-24 — MVP ⑥ 결과를 돌려주는 지표와 첫 안내
 
 - 헤더 `docs/60_DECISIONS/headers/A6_feedback_and_onboarding.md` 승인(개발자 "다음 진행해줘" — 결정 8개 권장안). 조사 둘(코드·설계 문서), 초안, 적대 리뷰(ultracode 워크플로 — 네 관점에 관점마다 검증 하나: 발견 49, 남김 48 — 확인 36·일부 12, 높음 1: 멈춘 채 답한 결과가 화살표에 늦게 서던 것) 뒤.
