@@ -253,12 +253,16 @@ public:
 	// OnLogEntry, OnEventFired, OnTierAscended (section 9.4). Their handlers may read the state and call SetTimeScale
 	// and nothing else, so UCosmicEventSubsystem refuses its member functions while this is true, and so do NewGalaxy,
 	// LoadState, StepOnce, RunHeadless, NoteMet, NoteKnown and DrawTell here, UCosmicLogSubsystem::Push and PushVariants
-	// (and so PushRow), UCosmicSaveSubsystem::LoadGalaxy, UAscensionSubsystem::EvaluateFeats and
+	// (and so PushRow), UCosmicSaveSubsystem::SaveCurrentGalaxy, LoadGalaxy (LoadRun) and ContinueNewest,
+	// UAscensionSubsystem::EvaluateFeats and
 	// the role changes and commands of UPlayerRoleSubsystem (Install, DeposeRuler, BecomeWanderer, StartMegaproject,
 	// StartNextMegaproject). MakeEvalContext reports an error and still returns the context (it holds references): the
 	// static Apply and ApplyAll are kept out of a handler by the rule alone. Every such broadcast site brackets its
 	// Broadcast call with BeginBroadcast and EndBroadcast.
 	bool IsBroadcasting() const { return BroadcastDepth > 0; }
+	// True while the ten tick stages run (SimulateTick, before OnSimTick): the save layer writes and loads at a tick boundary
+	// only (16 #33 (1)), so it refuses inside them as it does inside a handler.
+	bool IsInTickStages() const { return bInTickStages; }
 	void BeginBroadcast() { ++BroadcastDepth; }
 	void EndBroadcast() { --BroadcastDepth; }
 

@@ -114,6 +114,13 @@ bool CosmicChronicle::Admits(const FCosmicLogEntry& Entry, TConstArrayView<FName
 	return Entry.Severity == 1 && ((!Entry.FocusCivID.IsNone() && Peoples.Contains(Entry.FocusCivID)) || Entry.SourceRow == CosmicRows::LogFirstContact);
 }
 
+bool CosmicChronicle::MayLetGo(const FCosmicLogEntry& Entry)
+{
+	using namespace CosmicChronicleImpl;
+
+	return Entry.Severity == 1 && Entry.Category != CallingTag() && Entry.Category != ClaimTag() && Entry.Category != RecordTag();
+}
+
 TArray<FCosmicChronicleChapter> CosmicChronicle::Build(const FGalaxyState& State)
 {
 	return BuildCapped(State, MaxLifeLines);

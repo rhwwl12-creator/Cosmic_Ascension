@@ -10,7 +10,8 @@
 
 /**
  * The whole save: one FGalaxyState. Actors and widgets are never saved; the presentation layer redraws from the state.
- * Written with UGameplayStatics::SaveGameToSlot, which stores a delta against the class default object: see the
+ * Serialized with UGameplayStatics::SaveGameToMemory (then packed into the slot form of Save/CosmicSaveSlot.h), which stores a
+ * delta against the class default object: see the
  * save-compatibility rules at the top of Core/GalaxyState.h before changing any default member initializer.
  */
 UCLASS()

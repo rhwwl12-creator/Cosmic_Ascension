@@ -11,15 +11,18 @@
  * after every tick. Writes one CSV row per civilization every 100 ticks (resources, Tier, Stability, hazard count, and
  * the galaxy columns of section 9.3: KnownSystems, MetCivs, WildSystems, FirstContactTick, T4PlusCount - the beings of
  * the fourth rung as section 4.2 counts them -, FirstClaimTick, ToldLines, TickMicros - the mean of the sample's ticks -,
- * SaveBytes - the state serialized as the save serializes it, every 1,000 ticks, empty otherwise -, LogLen,
- * ChronicleLen) and, last, Expansion - why that people starts no settlement at the sample (CosmicMegaprojects::
+ * SaveBytes - the slot the game would write (CosmicSaveSlot::Encode: the engine bytes packed behind the header), every 1,000
+ * ticks, empty otherwise -, LogLen, ChronicleLen, SaveRawBytes - the engine bytes before packing, on the same samples) and, last, Expansion - why that people starts no settlement at the sample (CosmicMegaprojects::
  * PeopleSettleBlockOf by name, NoFoothold for NoLane when it owns no settled system, SettlingStalled for Settling when
  * its settlement paid nothing in the tick just run - CosmicMegaprojects::PaidNothing; empty for the people the player
  * rules), a second CSV named after -Out with "_rows" before ".csv" (-Out=balance.csv writes balance_rows.csv) with
- * the lines of every 100-tick sample by SourceRow, and seven log lines: the hashes ("CosmicBalance: seed ... hash ...
+ * the lines of every 100-tick sample by SourceRow, and eight log lines: the hashes ("CosmicBalance: seed ... hash ...
  * world ..."), a summary (claims placed, ended and joined, the first claim and the first join, the first tick some people
  * holds two settled systems and the claims placed after it, the sphere, wild systems, the tick the vessel was deposed,
- * tick micros mean/p99/max, the bytes and the time of the copy and serialization of the state - not the file write),
+ * tick micros mean/p99/max, the slot bytes, the engine bytes before packing and the time of the copy, serialization and packing
+ * of the state - not the file write -, and the chronicle entries the cap may never let go, "kept for good"), the packing
+ * levels ("CosmicBalance pack: raw <n>; superfast <n> in <ms> ms; veryfast ...; fast ..." - the last state's engine bytes at three
+ * Kraken levels apart),
  * the claims that ended (joined or stilled, with an answer running or not and their owners' Influence) with the sphere
  * of every instance, the hazards placed, answered, expired and ended by tag (answered: its answer completed in the
  * tick it ended; expired: not answered, on its last count; a hazard placed and ended inside one tick is not counted),

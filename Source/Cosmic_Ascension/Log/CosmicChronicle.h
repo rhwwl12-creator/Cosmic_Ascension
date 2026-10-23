@@ -40,6 +40,10 @@ namespace CosmicChronicle
 	 * SourceRow is CosmicRows::LogFirstContact. Reads neither bUntold nor a table. MVP item 5's Chronicle filter (16 #40 (7)) calls it with every life's peoples. */
 	COSMIC_ASCENSION_API bool Admits(const FCosmicLogEntry& Entry, TConstArrayView<FName> Peoples);
 
+	/** Whether the chronicle's cap may let Entry go (MVP item 5, 16 #40 (7)): a Severity 1 entry that is not Log.Calling, Log.Claim or Log.Record. Every other
+	 * entry the chronicle holds is kept for good (Law.Judgment). The commandlet counts the kept ones; the cap of item 5 reads it. */
+	COSMIC_ASCENSION_API bool MayLetGo(const FCosmicLogEntry& Entry);
+
 	/** One chapter per life (none for no life), over State.Chronicle then State.Log (already in time order), in four steps: gather what Admits holds for the
 	 * life's peoples, but Log.Claim and Log.Record (the two books', B5); drop a repeat of the entry just before (Candidates counts the rest); over MaxLifeLines keep
 	 * by rank - Log.Calling whole, own Severity 2, admitted Severity 1, other peoples' Severity 2 - thinning the first rank that does not fit (Severity 1: first

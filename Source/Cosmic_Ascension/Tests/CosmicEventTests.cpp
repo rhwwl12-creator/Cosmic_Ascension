@@ -1630,6 +1630,7 @@ bool FCosmicEventsRowAtomicTest::RunTest(const FString& Parameters)
 	AddExpectedError(TEXT("NewGalaxy called from a handler of a Core Logic delegate"), EAutomationExpectedErrorFlags::Contains, 1);
 	AddExpectedError(TEXT("LoadState called from a handler of a Core Logic delegate"), EAutomationExpectedErrorFlags::Contains, 1);
 	AddExpectedError(TEXT("LoadGalaxy called from a handler of a Core Logic delegate"), EAutomationExpectedErrorFlags::Contains, 1);
+	AddExpectedError(TEXT("SaveCurrentGalaxy called from a handler of a Core Logic delegate"), EAutomationExpectedErrorFlags::Contains, 1);
 	AddExpectedError(TEXT("EvaluateAndFire: the state handed in is not the live state"), EAutomationExpectedErrorFlags::Contains, 1);
 	AddExpectedError(TEXT("FireRow: the context is not over the live state"), EAutomationExpectedErrorFlags::Contains, 1);
 
@@ -1717,6 +1718,9 @@ bool FCosmicEventsRowAtomicTest::RunTest(const FString& Parameters)
 			Later.Tick += 1000;
 			Sim->LoadState(Later);
 			bNestedFromNoticeRefused &= !Sim->GetGameInstance()->GetSubsystem<UCosmicSaveSubsystem>()->LoadGalaxy(Later.GalaxyID);
+			// A save is refused there too (it waits for the tick boundary - 16 #33 (1)): no slot is written.
+			bNestedFromNoticeRefused &= !Sim->GetGameInstance()->GetSubsystem<UCosmicSaveSubsystem>()->SaveCurrentGalaxy()
+				&& !Sim->GetGameInstance()->GetSubsystem<UCosmicSaveSubsystem>()->DoesSaveExist(Later.GalaxyID);
 			bNestedFromNoticeRefused &= Sim->ComputeStateHash() == Before && Sim->GetRng().GetCurrentSeed() == SeedBefore;
 		}
 	};
@@ -1771,7 +1775,7 @@ bool FCosmicEventsRowAtomicTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The outer row fires again"), Events->FireRow(RowName, Ctx));
 		TestTrue(TEXT("The handler of OnEventFired made its attempt"), !bTryNestedFromNotice);
 		bTryNestedFromNotice = false;
-		TestTrue(TEXT("FireRow, EvaluateAndFire, MakeEvalContext, RunHeadless, NewGalaxy, LoadState and LoadGalaxy issued from a handler of OnEventFired are refused and change nothing"), bNestedFromNoticeRefused);
+		TestTrue(TEXT("FireRow, EvaluateAndFire, MakeEvalContext, RunHeadless, NewGalaxy, LoadState, LoadGalaxy and SaveCurrentGalaxy issued from a handler of OnEventFired are refused and change nothing"), bNestedFromNoticeRefused);
 		Sim->SyncRngState();
 	}
 

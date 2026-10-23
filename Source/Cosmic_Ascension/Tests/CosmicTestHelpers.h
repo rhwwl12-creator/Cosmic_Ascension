@@ -23,6 +23,7 @@
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
 #include "Misc/AutomationTest.h"
+#include "Save/CosmicSaveSubsystem.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
@@ -67,7 +68,9 @@ namespace CosmicTests
 	// The simulation of the running game, paused so that frame ticks cannot interleave with a test, with the log in its
 	// tell-all mode (every line is stored, as the tests expect - section 8.1; a test that turns the mode off turns it back
 	// on when it ends), and the provisional end of the player controller switched on and forgotten (MVP item 4: a run a test
-	// before ended would hold the speed at 0 and refuse the commands). The tests replace its galaxy and leave it paused.
+	// before ended would hold the speed at 0 and refuse the commands), and the save layer writing under
+	// Saved/SaveGames/Automation/ only (MVP item 5: no test slot reaches the game's continue). The tests replace its galaxy
+	// and leave it paused.
 	// Null (with a test error) when there is no GameInstance.
 	inline UGalaxySimulationSubsystem* AcquireSim(FAutomationTestBase& Test)
 	{
@@ -82,6 +85,10 @@ namespace CosmicTests
 		{
 			Controller->SetProvisionalEndEnabled(true);
 			Controller->ClearRunEnd();
+		}
+		if (UCosmicSaveSubsystem* Save = GameInstance->GetSubsystem<UCosmicSaveSubsystem>())
+		{
+			Save->PrepareForTests();
 		}
 		Sim->SetTimeScale(0.f);
 		if (UCosmicLogSubsystem* Log = GameInstance->GetSubsystem<UCosmicLogSubsystem>())

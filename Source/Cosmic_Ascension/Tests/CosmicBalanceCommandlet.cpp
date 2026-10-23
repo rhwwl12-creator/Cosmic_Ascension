@@ -23,6 +23,8 @@
 #include "Misc/Paths.h"
 #include "Player/PlayerRoleSubsystem.h"
 #include "Save/CosmicSaveGame.h"
+#include "Save/CosmicSaveSlot.h"
+#include "Compression/OodleDataCompression.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicEndings.h"
 #include "Sim/CosmicMegaprojects.h"
@@ -282,16 +284,54 @@ namespace
 		return Count;
 	}
 
-	// The size of the state serialized as the game's save serializes it (SaveGameToMemory of a UCosmicSaveGame), and the
-	// time of the copy and the serialization. The file write of SaveGameToSlot is not in it. One save object for the run.
-	int32 SaveBytesOf(UCosmicSaveGame* Save, const FGalaxyState& State, double& OutMilliseconds)
+	// The slot bytes of the state as the game writes them (CosmicSaveSlot::Encode: SaveGameToMemory, Oodle, the header), the
+	// engine bytes before packing, and the time of the copy, the serialization, the packing and the CRCs. No file write. One
+	// save object for the run; time 0 in the header, so the same state gives the same header.
+	int32 SaveBytesOf(UCosmicSaveGame* Save, const FGalaxyState& State, int64& OutRawBytes, double& OutMilliseconds)
 	{
-		TArray<uint8> Bytes;
+		TArray<uint8> Slot;
+		OutRawBytes = 0;
 		const double Start = FPlatformTime::Seconds();
 		Save->State = State;
-		UGameplayStatics::SaveGameToMemory(Save, Bytes);
+		CosmicSaveSlot::Encode(*Save, 0, Slot, &OutRawBytes);
 		OutMilliseconds = (FPlatformTime::Seconds() - Start) * 1000.0;
-		return Bytes.Num();
+		return Slot.Num();
+	}
+
+	// The chronicle entries the cap of MVP item 5 may never let go (CosmicChronicle::MayLetGo false): the true floor of its size.
+	int32 KeptForGood(const FGalaxyState& State)
+	{
+		int32 Kept = 0;
+		for (const FCosmicLogEntry& Entry : State.Chronicle)
+		{
+			Kept += CosmicChronicle::MayLetGo(Entry) ? 0 : 1;
+		}
+		return Kept;
+	}
+
+	// The engine bytes of the last sample packed at three Kraken levels apart (the measurement of MVP item 5: size against
+	// time). Only the packing is timed.
+	FString PackLevelsOf(UCosmicSaveGame* Save, const FGalaxyState& State)
+	{
+		TArray<uint8> Raw;
+		Save->State = State;
+		UGameplayStatics::SaveGameToMemory(Save, Raw);
+		FString Text = FString::Printf(TEXT("raw %d"), Raw.Num());
+		const int64 Bound = FOodleDataCompression::CompressedBufferSizeNeeded(Raw.Num());
+		TArray<uint8> Packed;
+		Packed.SetNumUninitialized(static_cast<int32>(Bound));
+		const TPair<const TCHAR*, FOodleDataCompression::ECompressionLevel> Levels[] = {
+			{ TEXT("superfast"), FOodleDataCompression::ECompressionLevel::SuperFast },
+			{ TEXT("veryfast"), FOodleDataCompression::ECompressionLevel::VeryFast },
+			{ TEXT("fast"), FOodleDataCompression::ECompressionLevel::Fast },
+		};
+		for (const TPair<const TCHAR*, FOodleDataCompression::ECompressionLevel>& Level : Levels)
+		{
+			const double Start = FPlatformTime::Seconds();
+			const int64 Size = FOodleDataCompression::Compress(Packed.GetData(), Bound, Raw.GetData(), Raw.Num(), FOodleDataCompression::ECompressor::Kraken, Level.Value);
+			Text += FString::Printf(TEXT("; %s %lld in %.1f ms"), Level.Key, Size, (FPlatformTime::Seconds() - Start) * 1000.0);
+		}
+		return Text;
 	}
 
 	// The peoples the player does not rule: the (sample, people) pairs one sample adds to the expansion counts, counted
@@ -308,13 +348,14 @@ namespace
 
 	// One CSV row per civilization, the galaxy columns on each, and last the expansion reason of a people the player does
 	// not rule (empty for the people the player rules), which it counts into Counts.Expansion.
-	void AppendSample(FString& Csv, const UGalaxySimulationSubsystem& Sim, const TArray<FSlotBefore>& Before, FRunCounts& Counts, double TickMicros, const FString& SaveBytes)
+	void AppendSample(FString& Csv, const UGalaxySimulationSubsystem& Sim, const TArray<FSlotBefore>& Before, FRunCounts& Counts, double TickMicros, const FString& SaveBytes,
+		const FString& SaveRawBytes)
 	{
 		const FGalaxyState& State = Sim.GetState();
 		const FString FirstClaim = Counts.FirstClaimTick >= 0 ? FString::Printf(TEXT("%lld"), Counts.FirstClaimTick) : FString();
-		const FString Galaxy = FString::Printf(TEXT("%d,%d,%d,%s,%d,%s,%lld,%.1f,%s,%d,%d"),
+		const FString Galaxy = FString::Printf(TEXT("%d,%d,%d,%s,%d,%s,%lld,%.1f,%s,%d,%d,%s"),
 			State.Knowing.KnownSystems.Num(), MetCivs(State), WildSystems(State), *FirstContactTick(State), T4PlusCount(State, Sim.GetTables()),
-			*FirstClaim, Counts.ToldLines, TickMicros, *SaveBytes, State.Log.Num(), State.Chronicle.Num());
+			*FirstClaim, Counts.ToldLines, TickMicros, *SaveBytes, State.Log.Num(), State.Chronicle.Num(), *SaveRawBytes);
 		for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
 		{
 			const FCivilizationState& Civ = State.Civs[CivIndex];
@@ -445,13 +486,17 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		{
 			Counts.ToldLines += Entry.bUntold ? 0 : 1;
 		}
-		FString Csv = TEXT("Tick,CivID,Archetype,Tier,Systems,Stability,Energy,Matter,Insight,Influence,Causality,Hazards,KnownSystems,MetCivs,WildSystems,FirstContactTick,T4PlusCount,FirstClaimTick,ToldLines,TickMicros,SaveBytes,LogLen,ChronicleLen,Expansion\n");
+		FString Csv = TEXT("Tick,CivID,Archetype,Tier,Systems,Stability,Energy,Matter,Insight,Influence,Causality,Hazards,KnownSystems,MetCivs,WildSystems,FirstContactTick,T4PlusCount,FirstClaimTick,ToldLines,TickMicros,SaveBytes,LogLen,ChronicleLen,SaveRawBytes,Expansion\n");
 		FString Rows = TEXT("Tick,SourceRow,Lines\n");
 		double Unused = 0.0;
 		TArray<double> TickMicros;
 		TArray<FSlotBefore> Before;
 		// The tick-0 sample: no tick has run yet, so a settlement under way reads as Settling.
-		AppendSample(Csv, *Sim, Before, Counts, 0.0, FString::FromInt(SaveBytesOf(Save, State, Unused)));
+		{
+			int64 RawBytes = 0;
+			const int32 SlotBytes = SaveBytesOf(Save, State, RawBytes, Unused);
+			AppendSample(Csv, *Sim, Before, Counts, 0.0, FString::FromInt(SlotBytes), FString::Printf(TEXT("%lld"), RawBytes));
+		}
 		Counts.ExpansionPairs += PeoplesNotRuled(State);
 		TMap<FString, int32> SampleRows;
 		double SampleMicros = 0.0;
@@ -613,11 +658,14 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			{
 				++Samples;
 				FString SaveBytes;
+				FString SaveRawBytes;
 				if (Samples % SaveEverySamples == 0 || Done + 1 == Ticks)
 				{
-					SaveBytes = FString::FromInt(SaveBytesOf(Save, State, Unused));
+					int64 RawBytes = 0;
+					SaveBytes = FString::FromInt(SaveBytesOf(Save, State, RawBytes, Unused));
+					SaveRawBytes = FString::Printf(TEXT("%lld"), RawBytes);
 				}
-				AppendSample(Csv, *Sim, Before, Counts, SampleTicks > 0 ? SampleMicros / SampleTicks : 0.0, SaveBytes);
+				AppendSample(Csv, *Sim, Before, Counts, SampleTicks > 0 ? SampleMicros / SampleTicks : 0.0, SaveBytes, SaveRawBytes);
 				Counts.ExpansionPairs += PeoplesNotRuled(State);
 				TArray<FString> Keys;
 				SampleRows.GetKeys(Keys);
@@ -642,13 +690,15 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				Sum += Each;
 			}
 			double SaveMilliseconds = 0.0;
-			const int32 SaveBytes = SaveBytesOf(Save, State, SaveMilliseconds);
-			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance summary: tell-all %d, %d systems, %d peoples; claims %d placed, %d ended, %d joined; first claim %lld on %s until %lld, first join %lld; first two-settled people %lld, claims after it %d; sphere %d->%d; wild %d; vessel deposed at %lld; tick us mean %.1f p99 %.1f max %.1f; save serialized %d bytes in %.1f ms; log %d, chronicle %d, told %lld"),
+			int64 SaveRawBytes = 0;
+			const int32 SaveBytes = SaveBytesOf(Save, State, SaveRawBytes, SaveMilliseconds);
+			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance summary: tell-all %d, %d systems, %d peoples; claims %d placed, %d ended, %d joined; first claim %lld on %s until %lld, first join %lld; first two-settled people %lld, claims after it %d; sphere %d->%d; wild %d; vessel deposed at %lld; tick us mean %.1f p99 %.1f max %.1f; save %d bytes (%lld before packing) in %.1f ms; log %d, chronicle %d (%d kept for good), told %lld"),
 				TellAll, State.Systems.Num(), State.Civs.Num(), Counts.Placed.FindRef(ClaimTag.ToString()), Counts.ClaimsJoined.Count + Counts.ClaimsStilled.Count,
 				Counts.ClaimsJoined.Count, Counts.FirstClaimTick, *Counts.FirstClaimSystemID.ToString(), Counts.FirstClaimEndTick, Counts.FirstJoinTick, Counts.FirstTwoSettledTick, Counts.ClaimsAfterTwoSettled, SphereStart,
 				SphereSize(State), WildSystems(State), Counts.DeposedTick,
 				TickMicros.Num() ? Sum / TickMicros.Num() : 0.0, TickMicros.Num() ? TickMicros[FMath::Min(TickMicros.Num() - 1, static_cast<int32>(TickMicros.Num() * 0.99))] : 0.0,
-				TickMicros.Num() ? TickMicros.Last() : 0.0, SaveBytes, SaveMilliseconds, State.Log.Num(), State.Chronicle.Num(), Counts.ToldLines);
+				TickMicros.Num() ? TickMicros.Last() : 0.0, SaveBytes, SaveRawBytes, SaveMilliseconds, State.Log.Num(), State.Chronicle.Num(), KeptForGood(State), Counts.ToldLines);
+			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance pack: %s"), *PackLevelsOf(Save, State));
 			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance claims: %s | %s; spheres %s -> %s"), *ClaimEndsText(TEXT("joined"), Counts.ClaimsJoined),
 				*ClaimEndsText(TEXT("stilled"), Counts.ClaimsStilled), *FString::Join(SpheresStart, TEXT(", ")), *FString::Join(SpheresOf(State), TEXT(", ")));
 			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance hazards: placed%s | answered%s | expired%s | ended%s"), *CountsText(Counts.Placed), *CountsText(Counts.Answered),

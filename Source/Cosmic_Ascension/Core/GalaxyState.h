@@ -5,7 +5,8 @@
 // - Adding a field with a default value is compatible. Removing a field or changing its meaning needs a SaveVersion bump
 //   and a migration function.
 // - Never change the default member initializer of a saved field once saves exist: treat it as a meaning change.
-//   SaveGameToSlot writes a delta against the class default object, so a member outside a TArray element (FGalaxyState,
+//   The engine's save bytes (SaveGameToMemory, inside the slot form of Save/CosmicSaveSlot.h) are a delta against the class
+//   default object, so a member outside a TArray element (FGalaxyState,
 //   Player, Calling and structs nested directly in them) is not written when it equals its initializer and reloads as the
 //   loading build's initializer. TArray element structs are written in full.
 // - Identifiers are FName, classification is FGameplayTag. Tag and row names that land in a save are fixed from now on.

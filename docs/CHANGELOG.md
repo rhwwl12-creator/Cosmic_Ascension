@@ -2,6 +2,12 @@
 
 > 2026-10-19 재편: 본문에 섞여 있던 이력·상태 줄·일지·리뷰 통계를 여기로 옮겼다(내용 무변경, 위치만 — 원격의 Phase 3 꼬리 7·12·8·9 기록 포함). 앞으로는 날짜·작업 접두어·바뀐 규칙·리뷰 통계를 여기에만 적고, 설계 본문과 STATUS.md에는 적지 않는다.
 
+## 2026-10-23 — MVP ⑤ 저장 최소형 (진행 중)
+
+- 헤더 `docs/60_DECISIONS/headers/A5_save_minimum.md` 승인(개발자 "다음 진행해줘" — 결정 18개 권장안). 설계 워크플로(조사 둘·설계안 셋·종합), 적대 리뷰(ultracode — 다섯 관점, 발견 74건: 반영 68, 개발자 결정으로 올림 6), 독립 검증 뒤 남은 17건 반영.
+- `[A-5a]` 슬롯의 꼴·백업·찾기: `Save/CosmicSaveSlot`(64바이트 머리 — 첫 낱말 CASV·꼴·코덱·GalaxyID·쓴 시각·틱·두 길이·CRC 둘, Oodle Kraken·VeryFast, 검사 차례와 까닭 17), 저장 Subsystem의 쓰기(검사한 주만 `_bak`으로 → 내린 쓰기 → 주, 읽히지 않는 주·새 꼴의 주는 덮지 않음), 로드(상함만 백업, 로드 하나에 Warning 한 줄), 이어하기의 찾기 `ContinueNewest`(머리 64바이트만, 옛 판으로 내려가지 않음), 테스트 폴더 `Saved/SaveGames/Automation/`, 시뮬의 `IsInTickStages`, `CosmicChronicle::MayLetGo`, 커맨드렛의 슬롯 바이트·`SaveRawBytes` 열·`kept for good`·`CosmicBalance pack:` 줄. 새 테스트 넷(`Sim.SaveSlotForm`·`Sim.SaveBackup`·`Sim.SaveFind`·`Sim.SaveNeutral`), 고친 셋(`Sim.SaveRoundTrip`·`Events.RowAtomic`·`Sim.SaveRestart`) — 110종. 변이 18개 모두 잡힘.
+- 측정(시드 42, 슬롯 바이트 / 압축 전 / 쓰기까지의 ms — 복사·직렬화·압축·CRC): 정책 판 3,000틱 19,325 / 310,722 / 4.6 · 전부 말하기 20,000틱 57,573 / 1,380,703 / 15.4(연대기 85, 지울 수 없는 줄 13) · 보통 말하기 20,000틱 36,452 / 892,709 / 11.5 · EA(300·48) 전부 말하기 20,000틱 154,576 / 3,544,796 / 33.9(연대기 2,899, 지울 수 없는 줄 92 — 거르기 전). 압축만(EA): SuperFast 171,241 B·1.8 ms, VeryFast 154,512 B·3.1 ms, Fast 108,850 B·6.1 ms. 예산(≤ 1 MB, ≤ 100 ms)의 6분의 1 아래라 멈춤 규칙은 서지 않고 VeryFast 그대로다. 게임의 파일 쓰기와 내리기 시간은 손 확인 ⓐ의 `CosmicSave:` 줄로 잰다. 기준값 그대로: 3,000틱 hash 2941370122 / world 1078735008, 정책 판 2361069549 / 4271872285, 20,000틱 2410091205 / 885018087.
+
 ## 2026-10-23 — MVP ④ 임시 끝과 연대기 최소형
 
 - 헤더 `docs/60_DECISIONS/headers/A4_provisional_end.md` 승인(결정 16개 권장안 — `DECISIONS_LOG` 2026-10-23)과 구현 메모 `A4_provisional_end_notes.md`. OPEN_QUESTIONS #49를 닫고 #31 ② 앞 절반을 닫았으며, #40 ⑦에 ⑤의 제약을 적고 새 행 #117(엔딩의 저장 기록)을 두었다.
