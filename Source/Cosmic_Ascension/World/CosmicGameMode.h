@@ -161,8 +161,9 @@ public:
 	/** Selects a system of the state the viewer knows (GetKnownView - a system the viewer does not know is a backdrop
 	 * point, and background stars have no selection, section 6.4); None clears. Anything else - an ID the state does not
 	 * hold, a system the viewer does not know - is ignored: nothing changes, nothing is announced. A change is announced
-	 * once. */
-	void SelectSystem(FName SystemID);
+	 * once. bByViewer false (the automatic crisis focus, MVP item 6): the selection is not the viewer's and is not noted
+	 * in the hint progress. */
+	void SelectSystem(FName SystemID, bool bByViewer = true);
 	FName GetSelectedSystem() const { return SelectedSystemID; }
 	FOnCosmicSelectionChanged OnSelectionChanged;
 
@@ -217,14 +218,17 @@ public:
 	void ToggleAutoPause();
 	/** Stops a running simulation for Reason when the automatic pause is on, as the pause does (SetSpeed(0) - the speed to
 	 * return to is kept), and notes Reason for the top bar's line. Does nothing to a paused simulation, with the automatic
-	 * pause off, or for None. Safe inside a handler of a Core Logic delegate (only SetTimeScale reaches the simulation). */
-	void RequestAutoPause(ECosmicAutoPause Reason);
+	 * pause off, or for None. Safe inside a handler of a Core Logic delegate (only SetTimeScale reaches the simulation).
+	 * True when it stopped the simulation (MVP item 6: only then does the crisis focus move the camera). */
+	bool RequestAutoPause(ECosmicAutoPause Reason);
 	/** Why the simulation stands still: the reason of the automatic pause that stopped it, None once the speed was set
 	 * again (or a new galaxy or a load came). */
 	ECosmicAutoPause GetAutoPauseReason() const { return AutoPauseReason; }
 	/** Follows the hazards on the systems of the people the vessel rules (every tick from OnSimTick; tests call it in place
-	 * of a tick): a hazard newly standing there since the last call asks for the automatic pause (OwnHazard). The first
-	 * call after the controller starts, a new galaxy or a load only notes them. */
+	 * of a tick): a hazard newly standing there since the last call asks for the automatic pause (OwnHazard); when that
+	 * stops the time, the system (CosmicAutoPause::FirstNewHazardSystem) is selected and the camera glides to it -
+	 * SelectAndFocus not by the viewer (MVP item 6; a press in flight does not become a click). The first call after the
+	 * controller starts, a new galaxy or a load only notes them. */
 	void FollowOwnHazards();
 	/** Where the viewer's choice is kept: this key of TimeUnitSection, "On" or "Off" (tests read it). */
 	static constexpr const TCHAR* AutoPauseKey = TEXT("AutoPause");
@@ -337,13 +341,16 @@ public:
 	static bool IsSpiritualSightOpenFor(const UUserWidget& Widget);
 
 	/** The ruler's command of the system panel (UPlayerRoleSubsystem::StartMegaproject: RowName on SystemID, or
-	 * project_settle on the wild SystemID). On success redraws the HUD and asks the map to redraw. */
+	 * project_settle on the wild SystemID). On success notes the first project in the hint progress (the system panel's hint
+	 * line goes - MVP item 6), redraws the HUD and asks the map to redraw. */
 	bool StartProject(FName SystemID, FName RowName);
 
 	/** Selects SystemID and glides the camera to it, as a double click on its star does (the log feed's lines too). False -
 	 * and the camera stays - when the map holds no such star or SelectSystem refused it (section 8.1: the camera goes to a
-	 * system the viewer knows only). */
-	bool SelectAndFocus(FName SystemID);
+	 * system the viewer is shown only - IsShown: a known system, or the sanctuary by its name). bByViewer false (the
+	 * automatic crisis focus, MVP item 6): neither the selection nor the camera's level is noted in the hint progress; the
+	 * level is announced as a rebuild announces its framing. */
+	bool SelectAndFocus(FName SystemID, bool bByViewer = true);
 
 	/** Development aid: selects and focuses a system as a double click on it would ("CosmicSelect sys_0" at the console or
 	 * in -ExecCmds; "CosmicSelect sol" takes the sanctuary, always shown by its name). Waits for a map not built yet; on a

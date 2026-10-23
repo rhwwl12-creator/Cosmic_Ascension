@@ -40,6 +40,8 @@ struct COSMIC_ASCENSION_API FCosmicHintProgress
 	bool bPickedGalaxy = false;
 	// The first move from the universe to the region, by any way.
 	bool bLeftUniverse = false;
+	// The first project started (MVP item 6): the system panel's hint line goes (CosmicUI::ShowsCommandHint).
+	bool bStartedProject = false;
 };
 
 namespace CosmicUI
@@ -124,6 +126,12 @@ namespace CosmicUI
 	{
 		return Unit == ECosmicTimeUnit::Year ? FText::Format(Label(TEXT("Time.YearsLeft")), FText::AsNumber(Ticks))
 			: FText::Format(INVTEXT("{0} {1}"), Label(TEXT("Panel.CyclesLeft")), FText::AsNumber(Ticks));
+	}
+
+	// A length of time (MVP item 6, the stability trend's tooltip): Time.Cycles ("60 cycles") or Time.Year ("60 years").
+	inline FText DurationLabel(int64 Ticks, ECosmicTimeUnit Unit)
+	{
+		return FText::Format(Label(Unit == ECosmicTimeUnit::Year ? TEXT("Time.Year") : TEXT("Time.Cycles")), FText::AsNumber(Ticks));
 	}
 
 	// The stamp at the head of a log line: the bare number, or Time.Year.
@@ -265,6 +273,14 @@ namespace CosmicUI
 			return !Progress.bPickedGalaxy ? HintPickGalaxyKey : (!Progress.bLeftUniverse ? HintHomeKey : nullptr);
 		}
 		return !Progress.bPickedSystem ? HintPickStarKey : (!Progress.bReachedUniverse ? HintZoomOutKey : nullptr);
+	}
+
+	/** The system panel's hint line (MVP item 6, Hint.Commands): while the shown panel offers at least one enabled project
+	 * of the ruler, the run is not over and no project was started this session. It reads what the panel shows, not who
+	 * selected the system (the automatic crisis focus shows it too). */
+	inline bool ShowsCommandHint(bool bPanelHasEnabledProject, bool bRunEnded, const FCosmicHintProgress& Progress)
+	{
+		return bPanelHasEnabledProject && !bRunEnded && !Progress.bStartedProject;
 	}
 
 	// The String Table key of a galaxy's kind (section 3.1, 5.11): the four Galaxy.Kind tags, matched as tags requested by

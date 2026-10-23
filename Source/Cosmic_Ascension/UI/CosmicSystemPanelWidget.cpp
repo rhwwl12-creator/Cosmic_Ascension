@@ -189,6 +189,12 @@ TSharedRef<SWidget> UCosmicSystemPanelWidget::RebuildWidget()
 		ReasonText->SetColorAndOpacity(FSlateColor(FLinearColor(0.85f, 0.85f, 0.9f)));
 		ReasonText->SetVisibility(ESlateVisibility::Collapsed);
 		Column->AddChildToVerticalBox(ReasonText)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
+		// The first hints (MVP item 6): what the buttons do, under them, quieter than a reason - until the first project.
+		HintText = CosmicUI::MakeText(*WidgetTree, 13);
+		HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.65f)));
+		HintText->SetText(CosmicUI::Label(TEXT("Hint.Commands")));
+		HintText->SetVisibility(ESlateVisibility::Collapsed);
+		Column->AddChildToVerticalBox(HintText)->SetPadding(FMargin(0.f, 8.f, 0.f, 0.f));
 	}
 	return Super::RebuildWidget();
 }
@@ -540,6 +546,8 @@ void UCosmicSystemPanelWidget::Refresh()
 	const bool bEnded = ACosmicPlayerController::IsRunEndedFor(*this);
 	const FText EndBlock = Label(TEXT("Chronicle.Block"));
 	bool bSettleButton = false;
+	// Whether the panel offers the ruler a project to start now (the hint line's condition - not the settle button).
+	bool bEnabledProject = false;
 	ShownStartBlocks.Reset();
 	// The spiritual sight's words for the shown system (section 6.4): a line of their own and its tooltip.
 	FText SpiritWords;
@@ -644,6 +652,7 @@ void UCosmicSystemPanelWidget::Refresh()
 				const FText Suffix = bEnded ? Label(TEXT("Chronicle.Suffix")) : StartSuffixOf(Block, Tables, Row);
 				const FText ButtonLabel = Suffix.IsEmpty() ? Name : FText::Format(INVTEXT("{0}  {1}"), Name, Suffix);
 				Wanted.Add({ Row, ButtonLabel, bEnded ? EndBlock : Reason, bEnded ? EndBlock : JoinLines({ Reason, StartHintOf(Tables, Row, System, Unit) }) });
+				bEnabledProject |= !bEnded && Block == CosmicMegaprojects::ECosmicStartBlock::None;
 				ShownStartBlocks.Emplace(Row, Block);
 			}
 		}
@@ -713,6 +722,11 @@ void UCosmicSystemPanelWidget::Refresh()
 		ReasonText->SetText(Reason);
 	}
 	ReasonText->SetVisibility(Reason.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+
+	// The hint line (MVP item 6): what the panel shows decides it, not who selected the system.
+	const ACosmicPlayerController* Owner = Cast<ACosmicPlayerController>(GetOwningPlayer());
+	const bool bHint = Owner && ShowsCommandHint(bEnabledProject, bEnded, Owner->GetHintProgress());
+	HintText->SetVisibility(bHint ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 
 	// The sight's words (none in the physical view): a line of their own under the details, with the same words as its
 	// tooltip - a block apart, so that neither the line nor the tooltip covers the people's band (a claim is never told

@@ -39,7 +39,9 @@
 	"string_table": {
 		"checked_prefixes": {
 			"Chronicle.": {"forbidden": "verdict", "no_digits": true},
-			"Save.": {"forbidden": "verdict", "no_digits": true}
+			"Save.": {"forbidden": "verdict", "no_digits": true},
+			"Hint.": {"forbidden": "verdict", "no_digits": true},
+			"Galaxy.Hint": {"forbidden": "verdict", "no_digits": true}
 		}
 	},
 

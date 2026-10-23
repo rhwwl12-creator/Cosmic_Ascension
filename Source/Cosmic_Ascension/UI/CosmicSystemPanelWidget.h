@@ -153,6 +153,9 @@ public:
 	/** The line of the sight's words under the detail lines, with the same words as its tooltip (tests): shown in the
 	 * spiritual view when SpiritTipOf has words, collapsed and empty otherwise. */
 	const UTextBlock* GetMarkText() const { return MarkText; }
+	/** The grey hint line at the bottom (MVP item 6, ST_CA Hint.Commands): shown while CosmicUI::ShowsCommandHint holds for
+	 * the shown system - an enabled project of the ruler on it, the run not over, no project started this session (tests). */
+	const UTextBlock* GetHintText() const { return HintText; }
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -187,6 +190,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> ReasonText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> HintText;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UVerticalBox> ButtonBox;

@@ -47,6 +47,20 @@ bool CosmicAutoPause::HasNewHazard(const TMap<FName, FGameplayTag>& Before, cons
 	return false;
 }
 
+FName CosmicAutoPause::FirstNewHazardSystem(const TMap<FName, FGameplayTag>& Before, const TMap<FName, FGameplayTag>& Now, const FGalaxyState& State)
+{
+	for (const FStarSystemState& System : State.Systems)
+	{
+		const FGameplayTag* Standing = Now.Find(System.SystemID);
+		const FGameplayTag* Was = Before.Find(System.SystemID);
+		if (Standing && (!Was || *Was != *Standing))
+		{
+			return System.SystemID;
+		}
+	}
+	return NAME_None;
+}
+
 const TCHAR* CosmicAutoPause::WhyKeyOf(ECosmicAutoPause Reason)
 {
 	switch (Reason)

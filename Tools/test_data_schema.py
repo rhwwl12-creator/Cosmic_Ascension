@@ -460,6 +460,15 @@ class SchemaTests(unittest.TestCase):
         sources["ST_CA.csv"] = sources["ST_CA.csv"].rstrip(b"\r\n") + '\n"Save.Test","정지 — 2번째 저장"\n'.encode("utf-8")
         self.expect(checker.check_sources(sources), "ST_CA.csv", "Save.Test", "a digit outside a slot")
         self.expect(check('Key,SourceString\n"Save.A","%s a."\n' % verdict[0]), "entry 1 (Save.A)", "the word %s is not used here" % verdict[0])
+        # (7) The first hints (MVP item 6) are under the same rule: the Hint. keys and the galaxy panel's Galaxy.Hint* keys.
+        for prefix in ("Hint.", "Galaxy.Hint"):
+            with self.subTest(prefix=prefix):
+                self.assertEqual(self.schema["string_table"]["checked_prefixes"][prefix], {"forbidden": "verdict", "no_digits": True})
+                key = prefix + "Test"
+                sources = checker.read_sources()
+                sources["ST_CA.csv"] = sources["ST_CA.csv"].rstrip(b"\r\n") + ('\n"%s","숫자 키 5"\n' % key).encode("utf-8")
+                self.expect(checker.check_sources(sources), "ST_CA.csv", key, "a digit outside a slot")
+                self.expect(check('Key,SourceString\n"%s","%s a."\n' % (key, verdict[0])), "entry 1 (%s)" % key, "the word %s is not used here" % verdict[0])
 
     def test_tags_ini(self):
         with project_copy() as work:

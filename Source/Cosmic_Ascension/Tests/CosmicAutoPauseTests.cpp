@@ -12,6 +12,7 @@
 #include "CoreGlobals.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GameplayTagContainer.h"
 #include "InputCoreTypes.h"
@@ -21,15 +22,20 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeExit.h"
+#include "Events/CosmicPetitions.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
 #include "UI/CosmicActionButton.h"
 #include "UI/CosmicAscensionOverlayWidget.h"
+#include "UI/CosmicPetitionCardWidget.h"
 #include "UI/CosmicTopBarWidget.h"
 #include "UI/CosmicUILabels.h"
 #include "World/CosmicAutoPause.h"
+#include "World/CosmicCameraPawn.h"
+#include "World/CosmicGalaxyMapActor.h"
 #include "World/CosmicGameMode.h"
+#include "World/CosmicZoomLevels.h"
 
 namespace CosmicAutoPauseTests
 {
@@ -49,12 +55,29 @@ namespace CosmicAutoPauseTests
 		const UTextBlock* Why = Bar.GetAutoPauseText();
 		return (Why && Why->GetVisibility() != ESlateVisibility::Collapsed) ? Why->GetText().ToString() : FString();
 	}
+
+	ACosmicGalaxyMapActor* FindMap(UWorld* World)
+	{
+		// The iterator checks its world as it is made, before any loop condition.
+		if (!World)
+		{
+			return nullptr;
+		}
+		for (TActorIterator<ACosmicGalaxyMapActor> It(World); It; ++It)
+		{
+			return *It;
+		}
+		return nullptr;
+	}
 }
 
 // The automatic pause (guideline 2.1, MVP item 1): a told mythic line, a hazard newly standing on a system of the ruled
 // people and a card stop a running game while the viewer keeps it on; the reason shows on the top bar until the speed is
 // set again; a paused game and the choice off are left alone; the ascension presentation and the pause agree; the
-// choice is the viewer's (on by default, never written by the tests).
+// choice is the viewer's (on by default, never written by the tests). MVP item 6: the pause of a crisis selects its system
+// and sends the camera there - not as the viewer's pick, not from a game already still, not with the choice off, the first
+// system in array order, from the universe without noting the way home, over a press in flight, before the card of the
+// same boundary.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicUIAutoPauseTest, "Cosmic_Ascension.UI.AutoPause", CosmicTests::Flags)
 bool FCosmicUIAutoPauseTest::RunTest(const FString& Parameters)
 {
@@ -76,15 +99,21 @@ bool FCosmicUIAutoPauseTest::RunTest(const FString& Parameters)
 	UCosmicTopBarWidget* Bar = HUD ? HUD->GetTopBar() : nullptr;
 	UCosmicAscensionOverlayWidget* Overlay = HUD ? HUD->GetAscensionOverlay() : nullptr;
 	UCosmicLogSubsystem* Log = Sim->GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	ACosmicGalaxyMapActor* Map = FindMap(World);
+	ACosmicCameraPawn* Pawn = Controller ? Cast<ACosmicCameraPawn>(Controller->GetPawn()) : nullptr;
 	if (!TestNotNull(TEXT("The first player controller is the game's"), Controller) || !TestNotNull(TEXT("The HUD has its top bar"), Bar)
-		|| !TestNotNull(TEXT("and its ascension overlay"), Overlay) || !TestNotNull(TEXT("(the log subsystem runs)"), Log))
+		|| !TestNotNull(TEXT("and its ascension overlay"), Overlay) || !TestNotNull(TEXT("(the log subsystem runs)"), Log)
+		|| !TestNotNull(TEXT("(the map)"), Map) || !TestNotNull(TEXT("(the camera pawn)"), Pawn))
 	{
 		return false;
 	}
 	const bool bViewerChoice = Controller->IsAutoPauseOn();
 	const bool bWasBroadcasting = Sim->IsBroadcastEnabled();
+	const FCosmicHintProgress SavedHints = Controller->GetHintProgress();
 	ON_SCOPE_EXIT
 	{
+		Controller->SelectSystem(NAME_None);
+		Controller->SetHintProgress(SavedHints);
 		Sim->SetTimeScale(0.f);
 		Overlay->Close();
 		Sim->SetTimeScale(0.f);
@@ -95,6 +124,9 @@ bool FCosmicUIAutoPauseTest::RunTest(const FString& Parameters)
 	};
 	Sim->SetBroadcastEnabled(true);
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	// The map of this galaxy now (its rebuild clears the selection and frames the region): the focus finds its stars.
+	Map->RefreshNow();
+	Controller->SetHintProgress(FCosmicHintProgress());
 	Overlay->Close();
 	Sim->SetTimeScale(0.f);
 	Controller->SetAutoPause(true);
@@ -213,12 +245,16 @@ bool FCosmicUIAutoPauseTest::RunTest(const FString& Parameters)
 		Live.Systems[Other].HazardTicksRemaining = 100;
 		Controller->FollowOwnHazards();
 		TestEqual(TEXT("A hazard on another people's system leaves the game running"), Sim->GetTimeScale(), 1.f);
+		TestTrue(TEXT("and the camera where it was"), Controller->GetSelectedSystem().IsNone());
 		Live.Systems[Home].ActiveHazard = Plague;
 		Live.Systems[Home].HazardTicksRemaining = 100;
 		Controller->FollowOwnHazards();
 		TestEqual(TEXT("A hazard newly standing on the ruled people's system stops the game"), Sim->GetTimeScale(), 0.f);
 		TestTrue(TEXT("for that reason"), Controller->GetAutoPauseReason() == ECosmicAutoPause::OwnHazard);
 		TestEqual(TEXT("The top bar says why"), WhyShown(*Bar), Words(TEXT("AutoPause.Why.Hazard")));
+		TestEqual(TEXT("The crisis's system is selected"), Controller->GetSelectedSystem(), HomeID);
+		TestTrue(TEXT("and the camera goes there"), Pawn->GetTargetFocus().Equals(FVector(Live.Systems[Home].Position.X, Live.Systems[Home].Position.Y, 0.0), 0.01));
+		TestFalse(TEXT("not as the viewer's pick (the star hint stays)"), Controller->GetHintProgress().bPickedSystem);
 		Controller->SetSpeed(1.f);
 		Controller->FollowOwnHazards();
 		TestEqual(TEXT("The same hazard still standing does not stop it again"), Sim->GetTimeScale(), 1.f);
@@ -255,6 +291,104 @@ bool FCosmicUIAutoPauseTest::RunTest(const FString& Parameters)
 		Controller->FollowOwnHazards();
 		TestEqual(TEXT("(nor at the next look)"), Sim->GetTimeScale(), 1.f);
 		Sim->GetMutableState().Systems[Home].ActiveHazard = FGameplayTag();
+	}
+
+	// ---- 3b. The crisis focus (MVP item 6) ----
+	{
+		FGalaxyState& Now = Sim->GetMutableState();
+		auto Clear = [&]()
+		{
+			for (FStarSystemState& System : Now.Systems)
+			{
+				System.ActiveHazard = FGameplayTag();
+			}
+			Controller->SelectSystem(NAME_None);
+			Controller->SetSpeed(1.f);
+			Controller->FollowOwnHazards();
+		};
+		auto Stand = [&](int32 At, FGameplayTag Hazard)
+		{
+			Now.Systems[At].ActiveHazard = Hazard;
+			Now.Systems[At].HazardTicksRemaining = 100;
+		};
+		Map->RefreshNow();
+
+		// The choice off: the time runs and the camera stays.
+		Clear();
+		Controller->SetAutoPause(false);
+		Stand(Home, Plague);
+		Controller->FollowOwnHazards();
+		TestTrue(TEXT("With the automatic pause off the camera stays"), Controller->GetSelectedSystem().IsNone() && Sim->GetTimeScale() == 1.f);
+		Controller->SetAutoPause(true);
+
+		// A game already still (a card, a presentation): no move.
+		Clear();
+		Controller->SetSpeed(0.f);
+		Stand(Home, Plague);
+		Controller->FollowOwnHazards();
+		TestTrue(TEXT("A game already still keeps its camera"), Controller->GetSelectedSystem().IsNone());
+
+		// Two new crises in one look: the first system in the array (the home is the first life's system 0).
+		Clear();
+		const int32 Second = Now.Systems.Num() - 2;
+		const FName SecondOwner = Now.Systems[Second].OwnerCivID;
+		Now.Systems[Second].OwnerCivID = Now.Player.RuledCivID;
+		Now.Civs[Ruled].OwnedSystems.AddUnique(Now.Systems[Second].SystemID);
+		Controller->FollowOwnHazards();
+		Stand(Second, Awakening);
+		Stand(Home, Plague);
+		Controller->FollowOwnHazards();
+		TestEqual(TEXT("Of two new crises the first in the array is focused"), Controller->GetSelectedSystem(), Now.Systems[FMath::Min(Home, Second)].SystemID);
+		Now.Civs[Ruled].OwnedSystems.Remove(Now.Systems[Second].SystemID);
+		Now.Systems[Second].OwnerCivID = SecondOwner;
+
+		// The end of a crisis moves nothing.
+		Controller->SelectSystem(NAME_None);
+		Controller->SetSpeed(1.f);
+		Now.Systems[Home].ActiveHazard = FGameplayTag();
+		Controller->FollowOwnHazards();
+		TestTrue(TEXT("The end of a crisis moves nothing"), Controller->GetSelectedSystem().IsNone() && Sim->GetTimeScale() == 1.f);
+
+		// From the universe: back to the region, and the way-home hint is not noted.
+		Clear();
+		Controller->FrameRegion();
+		Pawn->SnapToTargets();
+		Pawn->Zoom(-3.f);
+		Controller->FollowZoomLevel();
+		if (TestTrue(TEXT("(the camera is at the universe level)"), Controller->GetZoomLevel() == ECosmicZoomLevel::Universe))
+		{
+			FCosmicHintProgress AtUniverse = Controller->GetHintProgress();
+			AtUniverse.bLeftUniverse = false;
+			Controller->SetHintProgress(AtUniverse);
+			Stand(Home, Plague);
+			Controller->FollowOwnHazards();
+			TestTrue(TEXT("A crisis seen from the universe brings the camera to the region"), Controller->GetZoomLevel() == ECosmicZoomLevel::Region);
+			Controller->FollowZoomLevel();
+			TestFalse(TEXT("and the way home stays the viewer's to find"), Controller->GetHintProgress().bLeftUniverse);
+		}
+
+		// A press in flight: its release is no click on empty space (the crisis stays selected).
+		Clear();
+		Controller->HandleLeftPressed(EKeys::LeftMouseButton);
+		Stand(Home, Plague);
+		Controller->FollowOwnHazards();
+		Controller->HandleLeftReleased(EKeys::LeftMouseButton);
+		TestEqual(TEXT("A press in flight does not clear the crisis just selected"), Controller->GetSelectedSystem(), HomeID);
+
+		// A crisis and a card at one boundary: the crisis stops the time and the camera goes; the card shows over it.
+		Clear();
+		const FName Row(TEXT("petition_wise_heart"));
+		Now.Knowing.PendingPetitionRow = Row;
+		Now.Knowing.PendingPetitionSystemID = NAME_None;
+		Stand(Home, Plague);
+		Sim->StepOnce();
+		TestEqual(TEXT("At one boundary the crisis is focused"), Controller->GetSelectedSystem(), HomeID);
+		TestTrue(TEXT("it is the crisis that stopped the time"), Controller->GetAutoPauseReason() == ECosmicAutoPause::OwnHazard);
+		TestTrue(TEXT("and the card shows"), HUD->GetPetitionCard() && HUD->GetPetitionCard()->GetShownRow() == Row);
+		CosmicPetitions::Clear(Now);
+		Controller->FollowPetition(false);
+		Clear();
+		Controller->SetSpeed(0.f);
 	}
 
 	// ---- 4. A card ----

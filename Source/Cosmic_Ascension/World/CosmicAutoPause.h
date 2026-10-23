@@ -51,6 +51,10 @@ namespace CosmicAutoPause
 	 * and a system lost stop nothing). */
 	COSMIC_ASCENSION_API bool HasNewHazard(const TMap<FName, FGameplayTag>& Before, const TMap<FName, FGameplayTag>& Now);
 
+	/** The system HasNewHazard counts that comes first in State.Systems (MVP item 6: the crisis the camera goes to - one
+	 * system, in an order no TMap decides); None when there is none. */
+	COSMIC_ASCENSION_API FName FirstNewHazardSystem(const TMap<FName, FGameplayTag>& Before, const TMap<FName, FGameplayTag>& Now, const FGalaxyState& State);
+
 	/** The ST_CA key of the line a pause shows for Reason ("stopped - ..."); null for None. */
 	COSMIC_ASCENSION_API const TCHAR* WhyKeyOf(ECosmicAutoPause Reason);
 }

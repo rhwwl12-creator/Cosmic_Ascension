@@ -21,6 +21,7 @@
 #include "UI/CosmicAscensionOverlayWidget.h"
 #include "UI/CosmicChronicleWidget.h"
 #include "UI/CosmicNextRung.h"
+#include "UI/CosmicStabilityTrend.h"
 #include "UI/CosmicUILabels.h"
 #include "UObject/UnrealType.h"
 #include "World/CosmicAutoPause.h"
@@ -45,6 +46,17 @@ namespace CosmicTopBarImpl
 	// The text of a flat button (the clock, the rung), and its colour while the mouse is on it (a press or a tooltip waits there).
 	const FLinearColor FlatColor = FLinearColor::White;
 	const FLinearColor FlatHoverColor(1.f, 0.82f, 0.4f);
+	// The trend's cell after the stability (MVP item 6): wide enough for its mark, so the resources do not move with it.
+	constexpr float TrendCellWidth = 16.f;
+
+	// The people the vessel rules, as the bar shows it: none for a wanderer, in the interregnum or for an ID the state
+	// does not hold.
+	const FCivilizationState* RuledCivOf(const FGalaxyState& State)
+	{
+		const FName RuledCivID = State.Player.RuledCivID;
+		return RuledCivID.IsNone() ? nullptr
+			: State.Civs.FindByPredicate([RuledCivID](const FCivilizationState& Candidate) { return Candidate.CivID == RuledCivID; });
+	}
 
 	// A flat button around Content (no brush in any state, no padding shift when pressed) that never takes the focus.
 	UButton* MakeFlatButton(UWidgetTree& Tree, UTextBlock& Content)
@@ -115,6 +127,21 @@ TSharedRef<SWidget> UCosmicTopBarWidget::RebuildWidget()
 		RungSlot->SetVerticalAlignment(VAlign_Center);
 		RungSlot->SetPadding(FMargin(0.f, 0.f, 12.f, 0.f));
 
+		// The stability in a block of its own (MVP item 6): its number, then a cell of a fixed width for the trend's mark,
+		// so the resources after it never move when the mark comes and goes. Both carry the stability tooltip, bound as
+		// the next-rung one; the resources carry none.
+		StabilityText = CosmicUI::MakeText(*WidgetTree, 14, false);
+		StabilityText->ToolTipTextDelegate.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UCosmicTopBarWidget, GetStabilityTip));
+		UHorizontalBoxSlot* StabilitySlot = Row->AddChildToHorizontalBox(StabilityText);
+		StabilitySlot->SetVerticalAlignment(VAlign_Center);
+		StabilitySlot->SetPadding(FMargin(0.f, 0.f, 4.f, 0.f));
+		TrendText = CosmicUI::MakeText(*WidgetTree, 14, false);
+		TrendText->SetMinDesiredWidth(TrendCellWidth);
+		TrendText->ToolTipTextDelegate.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UCosmicTopBarWidget, GetStabilityTip));
+		UHorizontalBoxSlot* TrendSlot = Row->AddChildToHorizontalBox(TrendText);
+		TrendSlot->SetVerticalAlignment(VAlign_Center);
+		TrendSlot->SetPadding(FMargin(0.f, 0.f, 20.f, 0.f));
+
 		StatusText = CosmicUI::MakeText(*WidgetTree, 14, false);
 		UHorizontalBoxSlot* StatusSlot = Row->AddChildToHorizontalBox(StatusText);
 		StatusSlot->SetVerticalAlignment(VAlign_Center);
@@ -167,18 +194,25 @@ TSharedRef<SWidget> UCosmicTopBarWidget::RebuildWidget()
 		ViewSlot->SetVerticalAlignment(VAlign_Center);
 		ViewSlot->SetPadding(FMargin(0.f, 0.f, 12.f, 0.f));
 
-		// One button per speed step, labelled in the cycle form here (Refresh relabels them in the controller's unit). A
-		// step above the calling's top starts collapsed and takes its tooltip once: what the third rung's speed does to the
-		// crises.
-		for (const float Speed : CosmicUI::SpeedSteps)
+		// One button per speed step, labelled in the cycle form here (Refresh relabels them in the controller's unit). Each
+		// takes its tooltip once: its number key (MVP item 6, the first hints - the step's place is its key, 0 to 5; the
+		// pause names Space too). A step above the calling's top starts collapsed and adds what the third rung's speed does
+		// to the crises.
+		for (int32 Step = 0; Step < static_cast<int32>(UE_ARRAY_COUNT(CosmicUI::SpeedSteps)); ++Step)
 		{
+			const float Speed = CosmicUI::SpeedSteps[Step];
 			UCosmicActionButton* Button = WidgetTree->ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
 			Button->Setup(SpeedAction, Speed, CosmicUI::SpeedLabel(Speed, ECosmicTimeUnit::Cycle));
 			Button->OnAction.AddUObject(this, &UCosmicTopBarWidget::HandleSpeed);
+			const FText KeyTip = FText::Format(CosmicUI::Label(Speed > 0.f ? TEXT("Hint.SpeedKey") : TEXT("Hint.PauseKey")), FText::AsNumber(Step));
 			if (Speed > CosmicUI::CallingTopSpeed)
 			{
-				Button->SetToolTipText(CosmicUI::Label(TEXT("Speed.ThirdRungTip")));
+				Button->SetToolTipText(CosmicUI::JoinLines({ KeyTip, CosmicUI::Label(TEXT("Speed.ThirdRungTip")) }));
 				Button->SetVisibility(ESlateVisibility::Collapsed);
+			}
+			else
+			{
+				Button->SetToolTipText(KeyTip);
 			}
 			UHorizontalBoxSlot* ButtonSlot = Row->AddChildToHorizontalBox(Button);
 			ButtonSlot->SetVerticalAlignment(VAlign_Center);
@@ -238,12 +272,93 @@ void UCosmicTopBarWidget::NativeDestruct()
 
 void UCosmicTopBarWidget::HandleSimTick(int64 Tick)
 {
+	SampleStability();
 	Refresh();
 }
 
 void UCosmicTopBarWidget::HandleGalaxyGenerated(int32 Seed)
 {
+	// Another game (a new galaxy or a load): what the samples saw belongs to the old one.
+	ClearStabilitySamples();
 	Refresh();
+}
+
+void UCosmicTopBarWidget::ClearStabilitySamples()
+{
+	StabilitySamples.Reset();
+	LastSampleTick = -1;
+	SampledCivID = NAME_None;
+}
+
+void UCosmicTopBarWidget::SampleStability()
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	const FCivilizationState* Civ = Sim ? CosmicTopBarImpl::RuledCivOf(Sim->GetState()) : nullptr;
+	if (!Civ)
+	{
+		ClearStabilitySamples();
+		return;
+	}
+	const int64 Tick = Sim->GetState().Tick;
+	// Consecutive ticks of one people only: a deposition, an enthronement or a skipped tick (a headless leap) starts again.
+	if (Civ->CivID != SampledCivID || LastSampleTick < 0 || Tick != LastSampleTick + 1)
+	{
+		StabilitySamples.Reset();
+	}
+	SampledCivID = Civ->CivID;
+	LastSampleTick = Tick;
+	StabilitySamples.Add(Civ->Stability);
+	if (StabilitySamples.Num() > CosmicUI::StabilityTrendTicks)
+	{
+		StabilitySamples.RemoveAt(0, StabilitySamples.Num() - CosmicUI::StabilityTrendTicks);
+	}
+}
+
+ECosmicTrend UCosmicTopBarWidget::TrendNow(int32& OutPoints, int32& OutMissing) const
+{
+	OutPoints = 0;
+	OutMissing = CosmicUI::StabilityTrendTicks;
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	const FCivilizationState* Civ = Sim ? CosmicTopBarImpl::RuledCivOf(Sim->GetState()) : nullptr;
+	// The samples are this people's up to this tick: a redraw while paused takes the live stability (an answer counts at once).
+	if (!Civ || Civ->CivID != SampledCivID || LastSampleTick != Sim->GetState().Tick)
+	{
+		return ECosmicTrend::Unknown;
+	}
+	OutMissing = FMath::Max(0, CosmicUI::StabilityTrendTicks - StabilitySamples.Num());
+	OutPoints = CosmicUI::StabilityPointsOf(StabilitySamples, Civ->Stability);
+	return CosmicUI::StabilityTrendOf(StabilitySamples, Civ->Stability);
+}
+
+ECosmicTrend UCosmicTopBarWidget::GetStabilityTrend() const
+{
+	int32 Points = 0;
+	int32 Missing = 0;
+	return TrendNow(Points, Missing);
+}
+
+FText UCosmicTopBarWidget::GetStabilityTip() const
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!Sim || !CosmicTopBarImpl::RuledCivOf(Sim->GetState()))
+	{
+		return FText::GetEmpty();
+	}
+	const ECosmicTimeUnit Unit = ACosmicPlayerController::TimeUnitFor(*this);
+	int32 Points = 0;
+	int32 Missing = 0;
+	switch (TrendNow(Points, Missing))
+	{
+	case ECosmicTrend::Up:
+		return FText::Format(CosmicUI::Label(TEXT("Panel.StabilityUp")), CosmicUI::DurationLabel(CosmicUI::StabilityTrendTicks, Unit), FText::AsNumber(Points));
+	case ECosmicTrend::Down:
+		return FText::Format(CosmicUI::Label(TEXT("Panel.StabilityDown")), CosmicUI::DurationLabel(CosmicUI::StabilityTrendTicks, Unit), FText::AsNumber(-Points));
+	case ECosmicTrend::Flat:
+		return FText::Format(CosmicUI::Label(TEXT("Panel.StabilityFlat")), CosmicUI::DurationLabel(CosmicUI::StabilityTrendTicks, Unit));
+	case ECosmicTrend::Unknown:
+		break;
+	}
+	return FText::Format(CosmicUI::Label(TEXT("Panel.StabilityWait")), CosmicUI::DurationLabel(Missing, Unit));
 }
 
 UCosmicActionButton* UCosmicTopBarWidget::FindSpeedButton(float Value) const
@@ -399,19 +514,21 @@ void UCosmicTopBarWidget::Refresh()
 	using namespace CosmicUI;
 
 	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
-	if (!Sim || !StatusText || !RungText || !ResearchText)
+	if (!Sim || !StatusText || !StabilityText || !TrendText || !RungText || !ResearchText)
 	{
 		return;
 	}
 	const FGalaxyState& State = Sim->GetState();
-	const FName RuledCivID = State.Player.RuledCivID;
-	const FCivilizationState* Civ = RuledCivID.IsNone() ? nullptr
-		: State.Civs.FindByPredicate([RuledCivID](const FCivilizationState& Candidate) { return Candidate.CivID == RuledCivID; });
+	const FCivilizationState* Civ = CosmicTopBarImpl::RuledCivOf(State);
 	if (Civ)
 	{
 		RungText->SetText(FText::Format(INVTEXT("{0}   {1} {2}"), Civ->CivName, Label(TEXT("Panel.Tier")), FText::AsNumber(static_cast<int32>(Civ->Tier) + 1)));
-		StatusText->SetText(FText::Format(INVTEXT("{0} {1}        {2} {3}  {4} {5}  {6} {7}  {8} {9}  {10} {11}"),
-				Label(TEXT("Panel.Stability")), Percent(Civ->Stability),
+		StabilityText->SetText(FText::Format(INVTEXT("{0} {1}"), Label(TEXT("Panel.Stability")), Percent(Civ->Stability)));
+		int32 Points = 0;
+		int32 Missing = 0;
+		const ECosmicTrend Trend = TrendNow(Points, Missing);
+		TrendText->SetText(Trend == ECosmicTrend::Up ? Label(TEXT("Panel.TrendUp")) : (Trend == ECosmicTrend::Down ? Label(TEXT("Panel.TrendDown")) : FText::GetEmpty()));
+		StatusText->SetText(FText::Format(INVTEXT("{0} {1}  {2} {3}  {4} {5}  {6} {7}  {8} {9}"),
 				Label(TEXT("Resource.Energy")), WholeNumber(Civ->Stockpile.Energy),
 				Label(TEXT("Resource.Matter")), WholeNumber(Civ->Stockpile.Matter),
 				Label(TEXT("Resource.Insight")), WholeNumber(Civ->Stockpile.Insight),
@@ -426,6 +543,8 @@ void UCosmicTopBarWidget::Refresh()
 	else
 	{
 		RungText->SetText(FText::GetEmpty());
+		StabilityText->SetText(FText::GetEmpty());
+		TrendText->SetText(FText::GetEmpty());
 		StatusText->SetText(FText::GetEmpty());
 		ResearchText->SetText(FText::GetEmpty());
 	}

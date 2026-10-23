@@ -270,9 +270,10 @@ bool FCosmicUIThirdRungSpeedTest::RunTest(const FString& Parameters)
 		Live.Civs[RuledIndex].Tier = EAscensionTier::Tier3_Causal;
 		Bar->Refresh();
 		TestTrue(TEXT("From the third rung the x25 button shows"), ShowsForClicks(X25));
-		TestEqual(TEXT("its tooltip is Speed.ThirdRungTip"), X25->GetToolTipText().ToString(), CosmicUI::Label(TEXT("Speed.ThirdRungTip")).ToString());
+		TestEqual(TEXT("its tooltip is its number key, then Speed.ThirdRungTip"), X25->GetToolTipText().ToString(),
+			CosmicUI::JoinLines({ FText::Format(CosmicUI::Label(TEXT("Hint.SpeedKey")), FText::AsNumber(5)), CosmicUI::Label(TEXT("Speed.ThirdRungTip")) }).ToString());
 		TestFalse(TEXT("which has words"), X25->GetToolTipText().IsEmpty());
-		TestTrue(TEXT("(x10 has no tooltip)"), X10->GetToolTipText().IsEmpty());
+		TestEqual(TEXT("x10's tooltip is its number key (MVP item 6)"), X10->GetToolTipText().ToString(), FText::Format(CosmicUI::Label(TEXT("Hint.SpeedKey")), FText::AsNumber(4)).ToString());
 		X25->Press();
 		TestEqual(TEXT("x25 runs the simulation at 25"), Sim->GetTimeScale(), 25.f);
 		TestFalse(TEXT("and is greyed out"), X25->GetIsEnabled());

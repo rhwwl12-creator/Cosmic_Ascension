@@ -2,6 +2,11 @@
 
 > 2026-10-19 재편: 본문에 섞여 있던 이력·상태 줄·일지·리뷰 통계를 여기로 옮겼다(내용 무변경, 위치만 — 원격의 Phase 3 꼬리 7·12·8·9 기록 포함). 앞으로는 날짜·작업 접두어·바뀐 규칙·리뷰 통계를 여기에만 적고, 설계 본문과 STATUS.md에는 적지 않는다.
 
+## 2026-10-24 — MVP ⑥ 결과를 돌려주는 지표와 첫 안내 (진행 중)
+
+- 헤더 `docs/60_DECISIONS/headers/A6_feedback_and_onboarding.md` 승인(개발자 "다음 진행해줘" — 결정 8개 권장안). 조사 둘(코드·설계 문서), 초안, 적대 리뷰(ultracode 워크플로 — 네 관점에 관점마다 검증 하나: 발견 49, 남김 48 — 확인 36·일부 12, 높음 1: 멈춘 채 답한 결과가 화살표에 늦게 서던 것) 뒤.
+- `[A-6a]` 코드와 테스트(표현 계층만 — 두 해시와 기준값 그대로): 상단 바의 안정도를 제 덩이로(`StabilityText`·고정 폭의 `TrendText`·자원 덩이) — 지금 안정도의 보이는 %와 최근 60개 틱 경계 표본 평균의 보이는 %의 차가 ±1 이상이면 ▲·▼(`UI/CosmicStabilityTrend` — `StabilityTrendOf`·`StabilityPointsOf`, 반올림은 이미 있던 `CosmicNextRung::WholePercent`), 툴팁 넷(`Panel.StabilityUp`·`Down`·`Flat`·`Wait` — 길이는 `CosmicUI::DurationLabel`과 새 `Time.Cycles`), 표본은 상단 바가 들고 새 판·다른 다스리는 백성·건너뛴 틱에서 비운다. 위기 포커스: `FollowOwnHazards`의 새 위기가 자동 정지로 시간을 멈춘 때만 `SelectAndFocus(…, bByViewer = false)`(`CosmicAutoPause::FirstNewHazardSystem` — 배열 차례의 첫째; 보는 사람의 고름·우주에서 돌아옴을 적지 않는다; 누르는 중의 놓음을 삼킨다), `RequestAutoPause`는 멈췄는지를 돌려준다, `AutoPause.Tip` 한 마디. 첫 안내: 배속 단추마다 숫자 키 툴팁(`Hint.SpeedKey`·`Hint.PauseKey`, ×25는 그 아래 `Speed.ThirdRungTip`), 성계 패널의 회색 줄 `Hint.Commands`(`CosmicUI::ShowsCommandHint` — 켜진 프로젝트가 있고 끝나지 않았고 그 세션에 프로젝트를 시작하지 않았을 때; `StartProject`가 `bStartedProject`를 세운다). 스키마 접두어 `Hint.`·`Galaxy.Hint`와 검사기 단위 테스트의 경우. 테스트: 새 `UI.StabilityTrend`·`UI.FirstHints`, 넓힘 `UI.AutoPause`(3b 절 — 끔·이미 멈춤·둘 가운데 첫째·끝·우주에서·누르는 중·같은 경계의 카드)·`UI.ThirdRungSpeed`(배속 단추의 툴팁) — 116종. 변이 20개: 19 죽음, 1 같은 뜻(성계 패널이 끝난 판의 프로젝트를 이미 '켜진 것'으로 세지 않아, 힌트 술어에 끝을 넘기지 않아도 같다 — 술어 자체는 순수 경우가 본다); 처음의 살아남은 둘(창 밖 표본이 평균에 들어감, 로드가 표본을 비우지 않음)은 단언을 고쳐 죽였다. run_checks full 116종 2회, 두 해시 그대로. 헤더와 다르게 한 것: 퍼센트의 반올림은 새 함수 대신 이미 있던 `CosmicNextRung::WholePercent`, 추세의 순수 함수는 `CosmicUILabels.h`가 아니라 새 `UI/CosmicStabilityTrend.h/.cpp`. 처음 돌린 전체 테스트에서 새 테스트가 알림 문을 끈 채 끝나 뒤의 우주 테스트 둘이 깨졌다 — 시작의 값으로 되돌린다.
+
 ## 2026-10-23 — MVP ⑤ 저장 최소형
 
 - 헤더 `docs/60_DECISIONS/headers/A5_save_minimum.md` 승인(개발자 "다음 진행해줘" — 결정 18개 권장안). 설계 워크플로(조사 둘·설계안 셋·종합), 적대 리뷰(ultracode — 다섯 관점, 발견 74건: 반영 68, 개발자 결정으로 올림 6), 독립 검증 뒤 남은 17건 반영.

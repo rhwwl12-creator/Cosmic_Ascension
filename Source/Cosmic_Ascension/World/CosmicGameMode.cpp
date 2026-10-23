@@ -886,11 +886,18 @@ void ACosmicPlayerController::FollowOwnHazards()
 		return;
 	}
 	TMap<FName, FGameplayTag> Now = CosmicAutoPause::OwnHazardsOf(Sim->GetState(), Sim->GetStateIndex());
-	const bool bNew = OwnHazardsSeen.IsSet() && CosmicAutoPause::HasNewHazard(OwnHazardsSeen.GetValue(), Now);
+	const FName NewOn = OwnHazardsSeen.IsSet() ? CosmicAutoPause::FirstNewHazardSystem(OwnHazardsSeen.GetValue(), Now, Sim->GetState()) : NAME_None;
 	OwnHazardsSeen = MoveTemp(Now);
-	if (bNew)
+	// The crisis focus (MVP item 6): only when this pause stopped the time - one stop, one move; a game already still (a
+	// card, the presentation, another pause) or the automatic pause off keeps the camera where the viewer put it.
+	if (!NewOn.IsNone() && RequestAutoPause(ECosmicAutoPause::OwnHazard))
 	{
-		RequestAutoPause(ECosmicAutoPause::OwnHazard);
+		// A press in flight is no click any more: its release would clear the crisis just selected (as a double click's).
+		if (bLeftDown && !bPanning)
+		{
+			bSwallowRelease = true;
+		}
+		SelectAndFocus(NewOn, false);
 	}
 }
 
@@ -918,14 +925,15 @@ void ACosmicPlayerController::ToggleAutoPause()
 	}
 }
 
-void ACosmicPlayerController::RequestAutoPause(ECosmicAutoPause Reason)
+bool ACosmicPlayerController::RequestAutoPause(ECosmicAutoPause Reason)
 {
 	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
 	if (!bAutoPause || Reason == ECosmicAutoPause::None || !Sim || !(Sim->GetTimeScale() > 0.f))
 	{
-		return;
+		return false;
 	}
 	ApplySpeed(0.f, Reason);
+	return !(Sim->GetTimeScale() > 0.f);
 }
 
 void ACosmicPlayerController::FollowSpeedGate()
@@ -1013,7 +1021,7 @@ void ACosmicPlayerController::CosmicSeeAll(int32 On)
 	UE_LOG(LogCosmic, Display, TEXT("CosmicSeeAll: %s"), bSeeAll ? TEXT("every system is drawn as known and every people as shown (nothing is written)") : TEXT("the screens draw what the viewer knows"));
 }
 
-void ACosmicPlayerController::SelectSystem(FName SystemID)
+void ACosmicPlayerController::SelectSystem(FName SystemID, bool bByViewer)
 {
 	if (SystemID == SelectedSystemID)
 	{
@@ -1035,8 +1043,8 @@ void ACosmicPlayerController::SelectSystem(FName SystemID)
 	{
 		TheMap->SetSelectedSystem(SystemID);
 	}
-	// Noted before the announcement: the HUD redraws the hint from it.
-	if (!SystemID.IsNone())
+	// Noted before the announcement: the HUD redraws the hint from it. The automatic crisis focus is not the viewer's pick.
+	if (!SystemID.IsNone() && bByViewer)
 	{
 		Hints.bPickedSystem = true;
 	}
@@ -1231,7 +1239,7 @@ void ACosmicPlayerController::CosmicPreviewRung(float DelaySeconds, int32 Rung)
 	}), FMath::Max(DelaySeconds, 0.01f), false);
 }
 
-bool ACosmicPlayerController::SelectAndFocus(FName SystemID)
+bool ACosmicPlayerController::SelectAndFocus(FName SystemID, bool bByViewer)
 {
 	const ACosmicGalaxyMapActor* TheMap = Map.Get();
 	const ACosmicStarSystemActor* Star = (TheMap && !SystemID.IsNone()) ? TheMap->FindStar(SystemID) : nullptr;
@@ -1239,8 +1247,8 @@ bool ACosmicPlayerController::SelectAndFocus(FName SystemID)
 	{
 		return false;
 	}
-	SelectSystem(SystemID);
-	// Refused (a system the viewer does not know): the camera stays (section 8.1 - it goes to a known system only).
+	SelectSystem(SystemID, bByViewer);
+	// Refused (a system the viewer is not shown): the camera stays (section 8.1 - it goes to a known system only).
 	if (SelectedSystemID != SystemID)
 	{
 		return false;
@@ -1250,7 +1258,19 @@ bool ACosmicPlayerController::SelectAndFocus(FName SystemID)
 		// From the universe too: a system is looked at in the region.
 		CameraPawn->FocusOn(Star->GetActorLocation());
 	}
-	FollowZoomLevel();
+	if (bByViewer)
+	{
+		FollowZoomLevel();
+		return true;
+	}
+	// Not the viewer's way home (MVP item 6): the level is announced as a rebuild announces its framing, and the next
+	// FollowZoomLevel finds it noted - the universe's hints stay.
+	const ECosmicZoomLevel Framed = GetZoomLevel();
+	if (LastLevel.IsSet() && LastLevel.GetValue() != Framed)
+	{
+		LastLevel = Framed;
+		OnZoomLevelChanged.Broadcast();
+	}
 	return true;
 }
 
@@ -1658,6 +1678,8 @@ bool ACosmicPlayerController::StartProject(FName SystemID, FName RowName)
 	{
 		return false;
 	}
+	// The system panel's hint line has done its work (MVP item 6): noted before the redraw below.
+	Hints.bStartedProject = true;
 	// A paused simulation sends no tick: show the new project now, on the panels and on the map.
 	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
 	{

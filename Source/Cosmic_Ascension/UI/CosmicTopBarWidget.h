@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Misc/Optional.h"
+#include "UI/CosmicStabilityTrend.h"
 #include "UI/CosmicUILabels.h"
 #include "CosmicTopBarWidget.generated.h"
 
@@ -15,7 +16,8 @@ class UTextBlock;
 
 /**
  * The band along the top of the screen: the people the player rules - its name and rung (RungText, a flat button that
- * lights while the mouse is on it and a next rung is told), its stability and five resources, and its four research
+ * lights while the mouse is on it and a next rung is told), its stability (a block of its own with the trend's mark and
+ * tooltip - MVP item 6), its five resources, and its four research
  * shares (ResearchText - the block that yields when the band runs short: clipped, with an ellipsis); the rung and the
  * research shares carry the 'next rung' tooltip (CosmicNextRung) -, the clock, and one speed button per
  * CosmicUI::SpeedSteps (pause, x1, x2, x5, x10 and, once the third rung's gate is open and the ascension presentation is
@@ -92,6 +94,21 @@ public:
 	UFUNCTION()
 	FText GetNextRungTip() const;
 
+	/**
+	 * What the stability tooltip says now (MVP item 6): ST_CA Panel.StabilityUp / Down / Flat with the window and the
+	 * difference in whole points, or Panel.StabilityWait with the time still missing; empty without a ruled people. Bound
+	 * once to the ToolTipTextDelegate of StabilityText and TrendText before their Slate widgets are built (as GetNextRungTip).
+	 */
+	UFUNCTION()
+	FText GetStabilityTip() const;
+	/** The trend as the bar shows it now (CosmicUI::StabilityTrendOf over the samples and the live stability): Unknown
+	 * without a ruled people, before StabilityTrendTicks samples of it, or when the samples are not of this tick (tests). */
+	ECosmicTrend GetStabilityTrend() const;
+	/** The stability block ("stability 72%"), its trend cell (the mark or nothing) and the resources (tests). */
+	const UTextBlock* GetStabilityText() const { return StabilityText; }
+	const UTextBlock* GetTrendText() const { return TrendText; }
+	const UTextBlock* GetStatusText() const { return StatusText; }
+
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeConstruct() override;
@@ -134,7 +151,13 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> RungText;
 
-	// Stability and the five resources.
+	// The stability and its trend cell (MVP item 6), then the five resources.
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> StabilityText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> TrendText;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> StatusText;
 
@@ -168,6 +191,18 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCosmicActionButton> ReopenButton;
+
+	// The ruled people's stability at the last tick boundaries (MVP item 6): oldest first, at most
+	// CosmicUI::StabilityTrendTicks, consecutive ticks of one people - cleared on a new galaxy or a load, on another ruled
+	// people, without one, and when a tick was skipped. Presentation state: never saved; a new widget starts empty.
+	TArray<float> StabilitySamples;
+	int64 LastSampleTick = -1;
+	FName SampledCivID;
+	void SampleStability();
+	void ClearStabilitySamples();
+	// The trend now and its difference in points (0 when Unknown); the samples count only when they are of the ruled
+	// people at this tick.
+	ECosmicTrend TrendNow(int32& OutPoints, int32& OutMissing) const;
 
 	bool bClockHovered = false;
 	// The unit the speed buttons were last labelled with (relabelled only when it changes).
