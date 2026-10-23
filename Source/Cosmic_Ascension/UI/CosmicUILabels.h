@@ -32,13 +32,13 @@ enum class ECosmicTimeUnit : uint8
  * Presentation state: never saved, kept across new galaxies in the session (the player already knows). */
 struct COSMIC_ASCENSION_API FCosmicHintProgress
 {
-	// The first system selection.
+	// The viewer's first system selection (the crisis focus's does not count, MVP item 6).
 	bool bPickedSystem = false;
 	// The first visit of the universe level.
 	bool bReachedUniverse = false;
 	// The first galaxy selection.
 	bool bPickedGalaxy = false;
-	// The first move from the universe to the region, by any way.
+	// The viewer's first move from the universe to the region (a rebuild's framing and the crisis focus do not count).
 	bool bLeftUniverse = false;
 	// The first project started (MVP item 6): the system panel's hint line goes (CosmicUI::ShowsCommandHint).
 	bool bStartedProject = false;
