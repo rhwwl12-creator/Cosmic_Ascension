@@ -260,8 +260,10 @@ public:
 	// static Apply and ApplyAll are kept out of a handler by the rule alone. Every such broadcast site brackets its
 	// Broadcast call with BeginBroadcast and EndBroadcast.
 	bool IsBroadcasting() const { return BroadcastDepth > 0; }
-	// True while the ten tick stages run (SimulateTick, before OnSimTick): the save layer writes and loads at a tick boundary
-	// only (16 #33 (1)), so it refuses inside them as it does inside a handler.
+	// True while tick stages one to nine run (SimulateTick, up to the petition card at the end of the knowing stage): the save
+	// layer writes and loads at a tick boundary only (16 #33 (1)), so it refuses inside them as it does inside a handler. The
+	// tenth stage (ResolvePendingRoleEffect) runs outside the guard - nothing saves there yet; the leap header of Phase 4b
+	// decides whether the guard widens.
 	bool IsInTickStages() const { return bInTickStages; }
 	void BeginBroadcast() { ++BroadcastDepth; }
 	void EndBroadcast() { --BroadcastDepth; }

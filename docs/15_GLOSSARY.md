@@ -71,8 +71,13 @@
 | 인과 | Causality | `ECosmicResource::Causality` | Tier 3 해금 자원. 개인 능력치 이름과 동일 |
 | 틱 / 주기 | Tick / Cycle | `FGalaxyState::Tick` | 고정 스텝 시뮬 단위. 시계는 판에 하나다. UI는 1주기를 1년으로 보일 수 있다(토글, 첫 기록부터) — 서술·연대기는 주기 |
 | 레인 | Lane | `FStarSystemState::Lanes` | 성계 간 이동 경로. 같은 은하 안의 것만 — 다리는 레인이 아니다 |
-| 연대기 | Chronicle | `UCosmicLogSubsystem::BuildChronicle`, `CosmicChronicle::Build`·`Admits`, `UCosmicChronicleWidget` | 엔딩용 로그 재편집. 생애(대)별 장. MVP ④부터 최소형(생애 장 + 고정 줄 셋, §8.4) |
-| 임시 끝 | Provisional end | `CosmicEndings::ProvisionalEndOf`, `ECosmicProvisionalEnd`, `DT_Rules.ProvisionalEndTick`, `ACosmicPlayerController::GetRunEnd` | MVP의 판 끝(통치 백성 T3 ∨ 틱 6,000). 엔딩이 아니다 — 저장하지 않고 시뮬은 모르며, 화면이 시간을 멈추고 연대기를 연다 (§6.3, MVP ④) |
+| 연대기 | Chronicle | `UCosmicLogSubsystem::BuildChronicle`, `CosmicChronicle::Build`·`Admits`, `UCosmicChronicleWidget` | 엔딩용 로그 재편집. 생애(대)별 장. MVP ④부터 최소형(생애 장 + 고정 줄 셋, §8.4). MVP ⑤부터 로그를 떠나는 줄 가운데 쪽이 실을 수 있는 줄만 `FGalaxyState.Chronicle`로 옮기고 상한 `DT_Rules.ChronicleCap`을 둔다 |
+| 밀어냄 기록 | Chronicle eviction | `FChronicleEviction`(`Count`·`ThroughTick`), `FGalaxyState.ChronicleEviction` | 연대기의 상한이 밀어낸 Severity 1의 수와 가장 늦은 틱(저장, 이야기 층 — 세계 해시 밖). 범위가 닿는 장은 '그 외에도 있었다.'로 닫는다 (`docs/70` §8.4, MVP ⑤) |
+| 임시 끝 | Provisional end | `CosmicEndings::ProvisionalEndOf`, `ECosmicProvisionalEnd`, `DT_Rules.ProvisionalEndTick`, `ACosmicPlayerController::GetRunEnd` | MVP의 판 끝(통치 백성 T3 ∨ 틱 6,000). 엔딩이 아니다 — 끝 자체는 저장 필드가 없고(입력에서 다시 읽힌다) 시뮬은 모르며, 화면이 시간을 멈추고 연대기를 연다. 끝난 판도 세이브에 남아 이어하기가 끝난 채 연다 (§6.3, MVP ④·⑤) |
+| 이어하기 | Continue | `UCosmicSaveSubsystem::ContinueNewest`·`BeginSession`, `ECosmicContinue` | 게임 시작이 가장 새 판을 그 슬롯이나 백업에서 여는 일. 더 옛 판으로 내려가지 않고 아무것도 지우지 않는다. 이어 연 판은 멈춘 채 까닭 줄과 함께 선다 (`docs/20` §9.1, MVP ⑤) |
+| 백업 슬롯 | Backup slot | `Galaxy_<GUID>_bak.sav`, `SlotPathOf(ID, true)` | 판당 슬롯의 바로 앞 사본. 쓰기는 검사한 슬롯을 먼저 여기로 옮겨 내린 뒤 슬롯을 쓴다. 로드는 슬롯이 상했거나 없을 때만 연다 (`docs/20` §9.1) |
+| 디스크 사본 | Saved mark | `FCosmicSavedMark`, `UCosmicSaveSubsystem::MarkOf`·`DueAt` | 마지막으로 쓰거나 읽은 슬롯이 든 것(판·틱·상태 해시·업적 수·역할·다스리는 백성·끝·실제 시각)의 캐시. 틱 경계가 이것과 지금을 견주어 쓸 까닭을 고른다. 저장·해시 밖이고 플레이어·생애 종속 상태가 아니다 |
+| 봉투 | Envelope | `CosmicSaveSlot::FormAt`·`GalaxyIDAt`·`SavedAtAt`·`HeaderCrcAt` | 슬롯 머리에서 모든 꼴이 옮기지 않는 자리(첫 낱말·꼴·GalaxyID·쓴 시각·머리 CRC). 새 빌드가 쓴 슬롯도 이어하기가 판으로 보고 거절한다 — 상함으로 여기지 않는다 |
 | 부름 | Calling | `FCallingState`, `FGalaxyState::Calling`, `Log.Calling` | 플레이어의 정체. 그릇을 넘어 이어진다 (§4.4) |
 | 그릇 (육신) | Vessel | `FPlayerEntityState` | 사망 시 전부 초기화되는 쪽. `PersonalTier`·`Powers`·`CompletedFeats`는 `FCallingState`에 유지 (§4.4 3분할 표) |
 | 생애 / 대(代) | Life | `FLifeRecord`, `LifeIndex`, `BornTick`, `Lives` | 판 안의 장. "제 N대" |
@@ -112,7 +117,7 @@
 | 방랑자의 눈 | Wanderer's eye | `TickSight`, `KnowAround`(`BecomeWanderer`·방랑자 `Install`) | 방랑자가 선 성계에서 개인 Tier의 거리로 보는 눈. 방랑자가 되는 틱에는 선 성계와 같은 은하 행의 1레인 이웃을 곧바로 안다(만남은 다음 갱신) (§4.4, §7.4) |
 | 말하기 스트림 | Tell stream | `FGalaxyState.TellRngState`, `DrawTell` | 문장 변형만 뽑는 난수 출처. 어떤 규칙도 읽지 않는다 (§9.2) |
 | 파생 정수 | Derived value | `CosmicSeed::Derive`·`DeriveForName`(`Core/CosmicSeed.h`), 용도 상수 9 | 시드에서 상태 없이 나오는 값. 식과 상수는 동결 (§9.2) |
-| 세계 해시 | World hash | `ComputeWorldHash()` | 앎·로그·연대기·말하기 스트림을 뺀 해시 — 앎이 세계를 바꾸지 않음을 재는 자 (§9.2) |
+| 세계 해시 | World hash | `ComputeWorldHash()` | 앎·로그·연대기(와 밀어냄 기록)·말하기 스트림을 뺀 해시 — 앎이 세계를 바꾸지 않음을 재는 자 (§9.2) |
 | 다리 | Bridge | `FGalaxyDef.BridgeTicks` | 고향 은하와 무대 은하 사이의 건넘 틱. 레인이 아니고 상태가 없다. '문'·'관문'·'길'이라 부르지 않는다 (§5.9) |
 | 건넘 / 건너는 배들 | Crossing / the crossing ships | `project_crossing`, `FTransitRecord`, `FGalaxyState.Transits`, `Transit.People` | T4 이상의 백성이 다른 은하에 무리를 보내는 일. 건너는 것은 유닛이 아니라 기록이다. 방주 = 구출, 건너는 배들 = 건넘 (§5.7) |
 | 건너온 백성 | Arrived people | `FCivilizationState.OriginGalaxyRow`, `FTransitRecord.ResultCivID` | 도착해 고향 은하의 무주 성계 하나에 선 새 문명(Tier 4, 인물 없음) (§5.7) |

@@ -428,8 +428,9 @@ class SchemaTests(unittest.TestCase):
         self.expect(checker.check_sources(sources), "ST_CA.csv", first_key, "written twice")
 
     def test_string_table_prefixes(self):
-        """The narrator's words of a screen (schema.string_table: the chronicle's keys, MVP item 4) hold the line of the
-        narrator: no verdict word, no digit outside a slot; a key under no prefix is not looked at."""
+        """The narrator's words of a screen (schema.string_table: the chronicle's keys, MVP item 4, and the save's reason
+        lines, MVP item 5) hold the line of the narrator: no verdict word, no digit outside a slot; a key under no prefix is
+        not looked at."""
         check = lambda text: checker.check_string_table("ST_X.csv", text, self.schema)  # noqa: E731
         verdict = self.schema["words"]["verdict"]
         self.assertEqual(self.schema["string_table"]["checked_prefixes"]["Chronicle."], {"forbidden": "verdict", "no_digits": True})
@@ -452,6 +453,13 @@ class SchemaTests(unittest.TestCase):
         self.schema_problem(self.put(prefixes, "Chronicle.", {"no_digits": "yes"}), "schema.string_table.checked_prefixes.Chronicle.", "'no_digits' has to be")
         self.schema_problem(self.put(prefixes, "Chronicle.", {"forbidden": "verdicts"}), "the word list 'verdicts' is not in the schema")
         self.schema_problem(self.put(["string_table"], "prefixes", {}), "schema.string_table", "'prefixes' is not read here")
+        # (6) The save's reason lines (MVP item 5) are under the same rule: a digit put into one of the project's Save. keys
+        # is found, and so is a verdict word.
+        self.assertEqual(self.schema["string_table"]["checked_prefixes"]["Save."], {"forbidden": "verdict", "no_digits": True})
+        sources = checker.read_sources()
+        sources["ST_CA.csv"] = sources["ST_CA.csv"].rstrip(b"\r\n") + '\n"Save.Test","정지 — 2번째 저장"\n'.encode("utf-8")
+        self.expect(checker.check_sources(sources), "ST_CA.csv", "Save.Test", "a digit outside a slot")
+        self.expect(check('Key,SourceString\n"Save.A","%s a."\n' % verdict[0]), "entry 1 (Save.A)", "the word %s is not used here" % verdict[0])
 
     def test_tags_ini(self):
         with project_copy() as work:

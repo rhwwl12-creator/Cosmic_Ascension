@@ -72,7 +72,8 @@ public:
 	// InitializeDependency<UGalaxySimulationSubsystem>, binds OnSimTick, reads -NoSave, -unattended and -Seed= once
 	// (CommandLineAllows).
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	// Unbinds; writes nothing (the order of shutdown is not fixed - the exit save is the controller's EndPlay(Quit)).
+	// Unbinds; writes nothing (the order of shutdown is not fixed - the exit save is the controller's: the game viewport's
+	// OnCloseRequested for a window close or Alt+F4, EndPlay(Quit) for quit or RequestExit).
 	virtual void Deinitialize() override;
 
 	static FString MakeSlotName(const FGuid& GalaxyID);                       // Galaxy_<32 hex digits>
