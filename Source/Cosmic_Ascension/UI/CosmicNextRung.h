@@ -103,6 +103,13 @@ namespace CosmicNextRung
 	 */
 	COSMIC_ASCENSION_API FText TextOfAll(const TArray<FCosmicNextRung>& Rungs, const FCosmicDataTables& Tables);
 
+	/**
+	 * The research parts of every way up, in AllOf's order (the rows, then each row's conditions): what a research focus
+	 * serves (MVP item 7). The commandlet's -Focus=1 policy focuses the field of the first one not met; the system panel's
+	 * field buttons say which fields the next rung reads. Empty when Rungs is.
+	 */
+	COSMIC_ASCENSION_API TArray<FCosmicRungPart> ResearchFieldsOf(const TArray<FCosmicNextRung>& Rungs);
+
 	// A share as a whole percent, rounded as the top bar rounds it (FText::AsPercent: Share x 100 in float, then the
 	// formatter's TruncateToHalfIfClose and half to even); 0 for a share not above 0 or not a number.
 	COSMIC_ASCENSION_API int32 WholePercent(float Share);

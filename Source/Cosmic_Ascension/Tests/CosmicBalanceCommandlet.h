@@ -31,16 +31,19 @@
  * the expansion reasons ("CosmicBalance expansion: <pairs> (sample, people) pairs ...; <reason> <count> ..." - every
  * sample, the tick-0 sample included; the pairs are the peoples the player does not rule, counted apart at every sample,
  * and an error line says so when the reasons do not add up to them), and the ruler's side ("CosmicBalance ruler: ..." -
- * the cards that came, the answers taken, the projects started, the decisions - answers taken, a withdrawn card not
- * counted, plus projects started - by tick 600 and 6,000 and in all, the told lines by tick 600 and 6,000, and the ticks
- * at which the ruled people reached the second and the third rung), and the provisional end ("CosmicBalance end: first <cause>
+ * the policy's arguments, the cards that came, the answers taken, the projects started, the focus changes taken, the
+ * decisions - answers taken, a withdrawn card not counted, plus projects started, plus focus changes taken - by tick 600
+ * and 6,000, at the first provisional end ("by end" - the decisions the game takes; -1 without an end) and in all, the told
+ * lines by tick 600 and 6,000, and the ticks at which the ruled people reached the second and the third rung), and the provisional end ("CosmicBalance end: first <cause>
  * at <tick>; rung at, clock at, deposed at; chronicle life <n> shown <lines> of <candidates>, more <0|1>" - looked at after
  * every tick, nothing stops at it - and the uncapped chapter's lines by the cap's four ranks, "ranks a/b/c/d"; a
  * "CosmicBalance end check:" line when the rung end is not the ruled people's third rung
  * and no deposition fell in that tick, which changes no exit code).
  * The ruler's policy, between ticks after each tick and before the tick's counts: -Answer=1 answers every card the tick
  * it comes (the first choice the stockpile can pay, from choice (answers so far mod choices) on), -Build=1 presses the
- * project key (UPlayerRoleSubsystem::StartNextMegaproject) until it refuses. -Rules=Name:Value;Name:Value replaces
+ * project key (UPlayerRoleSubsystem::StartNextMegaproject) until it refuses, -Focus=1 focuses the next rung's research
+ * while the run has not ended (UPlayerRoleSubsystem::SetResearchFocus with the field of the first research condition of
+ * CosmicNextRung::AllOf that is not met, the even focus when none is - MVP item 7). -Rules=Name:Value;Name:Value replaces
  * fields of the DT_Rules row for the run (read as the data importer reads them; a field it cannot set stops the run).
  * Without them (all off by default) it reads the state only: the world is that of RunHeadless(Ticks) - as long as there
  * are no endings (section 4.4: once an ending stops a run, a later RunHeadless must simulate nothing for that to stay

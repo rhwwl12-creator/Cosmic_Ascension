@@ -30,6 +30,7 @@
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
+#include "UI/CosmicNextRung.h"
 #include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 
@@ -74,12 +75,15 @@ namespace
 		// the reasons must add up to it).
 		TMap<FString, int32> Expansion;
 		int64 ExpansionPairs = 0;
-		// The ruler's side (-Answer, -Build): the cards that came, the answers taken, the projects started, their sum (the
-		// decisions) and the sums and told lines at the ends of the first 600 and 6,000 ticks; the ticks at which the ruled
-		// people reached the second and the third rung (-1 while it has not).
+		// The ruler's side (-Answer, -Build, -Focus): the cards that came, the answers taken, the projects started, the focus
+		// changes taken (MVP item 7), their sum (the decisions) and the sums and told lines at the ends of the first 600 and
+		// 6,000 ticks, the sum at the first provisional end (the decisions the game takes - none after it; -1 without an end);
+		// the ticks at which the ruled people reached the second and the third rung (-1 while it has not).
 		int32 CardsCome = 0;
 		int32 Answers = 0;
 		int32 Started = 0;
+		int32 FocusChanges = 0;
+		int64 DecisionsAtEnd = -1;
 		int64 DecisionsAt600 = -1;
 		int64 DecisionsAt6000 = -1;
 		int64 ToldAt600 = -1;
@@ -441,6 +445,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	// default) leaves the ruler idle: the world of RunHeadless(Ticks).
 	int32 Answer = 0;
 	int32 Build = 0;
+	int32 Focus = 0;
 	FString RulesText;
 	FString Out = TEXT("balance.csv");
 	FParse::Value(*Params, TEXT("Seed="), Seed);
@@ -450,6 +455,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	FParse::Value(*Params, TEXT("TellAll="), TellAll);
 	FParse::Value(*Params, TEXT("Answer="), Answer);
 	FParse::Value(*Params, TEXT("Build="), Build);
+	FParse::Value(*Params, TEXT("Focus="), Focus);
 	FParse::Value(*Params, TEXT("Rules="), RulesText, false);
 	FParse::Value(*Params, TEXT("Out="), Out);
 	const FString OutPath = FPaths::IsRelative(Out) ? FPaths::ProjectSavedDir() / TEXT("Balance") / Out : Out;
@@ -533,6 +539,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				{
 					Counts.FirstEnd = End;
 					Counts.FirstEndTick = State.Tick;
+					Counts.DecisionsAtEnd = Counts.Answers + Counts.Started + Counts.FocusChanges;
 					const TArray<FCosmicChronicleChapter> Chapters = CosmicChronicle::Build(State);
 					if (!Chapters.IsEmpty() && State.Calling.Lives.IsValidIndex(Chapters.Last().LifeAt))
 					{
@@ -575,6 +582,21 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			for (int32 Guard = 0; Build != 0 && Guard < 8 && Role->StartNextMegaproject(); ++Guard)
 			{
 				++Counts.Started;
+			}
+			// -Focus=1, the next rung's research (MVP item 7): the field of the first research condition of the ways up that is
+			// not met, the even focus when none is - only while the run has not ended (the game takes no input after it).
+			if (Focus != 0 && Counts.FirstEnd == ECosmicProvisionalEnd::None)
+			{
+				FName Field = NAME_None;
+				for (const FCosmicRungPart& Part : CosmicNextRung::ResearchFieldsOf(CosmicNextRung::AllOf(State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules())))
+				{
+					if (!Part.bMet)
+					{
+						Field = Part.Key;
+						break;
+					}
+				}
+				Counts.FocusChanges += Role->SetResearchFocus(Field) ? 1 : 0;
 			}
 
 			if (Counts.FirstTwoSettledTick < 0 && HoldsTwoSettled(State))
@@ -650,7 +672,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			}
 			if (State.Tick == 600 || State.Tick == 6000)
 			{
-				(State.Tick == 600 ? Counts.DecisionsAt600 : Counts.DecisionsAt6000) = Counts.Answers + Counts.Started;
+				(State.Tick == 600 ? Counts.DecisionsAt600 : Counts.DecisionsAt6000) = Counts.Answers + Counts.Started + Counts.FocusChanges;
 				(State.Tick == 600 ? Counts.ToldAt600 : Counts.ToldAt6000) = Counts.ToldLines;
 			}
 
@@ -712,9 +734,9 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			}
 			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance expansion: %lld (sample, people) pairs of peoples the player does not rule, the tick-0 sample included;%s"),
 				Counts.ExpansionPairs, *CountsText(Counts.Expansion));
-			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance ruler: answer %d build %d; cards %d, answers %d, started %d, decisions %d (by 600 %lld, by 6000 %lld); told by 600 %lld, by 6000 %lld; ruled people T2 at %lld, T3 at %lld"),
-				Answer, Build, Counts.CardsCome, Counts.Answers, Counts.Started, Counts.Answers + Counts.Started, Counts.DecisionsAt600, Counts.DecisionsAt6000,
-				Counts.ToldAt600, Counts.ToldAt6000, Counts.RuledT2Tick, Counts.RuledT3Tick);
+			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance ruler: answer %d build %d focus %d; cards %d, answers %d, started %d, focus changes %d, decisions %d (by 600 %lld, by 6000 %lld, by end %lld); told by 600 %lld, by 6000 %lld; ruled people T2 at %lld, T3 at %lld"),
+				Answer, Build, Focus, Counts.CardsCome, Counts.Answers, Counts.Started, Counts.FocusChanges, Counts.Answers + Counts.Started + Counts.FocusChanges,
+				Counts.DecisionsAt600, Counts.DecisionsAt6000, Counts.DecisionsAtEnd, Counts.ToldAt600, Counts.ToldAt6000, Counts.RuledT2Tick, Counts.RuledT3Tick);
 			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance end: first %s at %lld; rung at %lld, clock at %lld, deposed at %lld; chronicle life %d shown %d of %d, more %d, ranks %d/%d/%d/%d"),
 				CosmicEndings::NameOf(Counts.FirstEnd), Counts.FirstEndTick, Counts.RungTick, Counts.ClockTick, Counts.DeposedTick, Counts.ChapterLife,
 				Counts.ChapterShown, Counts.ChapterCandidates, Counts.ChapterMore, Counts.ChapterRanks[0], Counts.ChapterRanks[1], Counts.ChapterRanks[2], Counts.ChapterRanks[3]);

@@ -295,6 +295,22 @@ FText CosmicNextRung::TextOfAll(const TArray<FCosmicNextRung>& Rungs, const FCos
 	return FText::AsCultureInvariant(Text);
 }
 
+TArray<FCosmicRungPart> CosmicNextRung::ResearchFieldsOf(const TArray<FCosmicNextRung>& Rungs)
+{
+	TArray<FCosmicRungPart> Fields;
+	for (const FCosmicNextRung& Rung : Rungs)
+	{
+		for (const FCosmicRungPart& Part : Rung.Parts)
+		{
+			if (Part.Kind == ECosmicRungPartKind::Research)
+			{
+				Fields.Add(Part);
+			}
+		}
+	}
+	return Fields;
+}
+
 int32 CosmicNextRung::WholePercent(float Share)
 {
 	if (!(Share > 0.f))

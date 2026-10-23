@@ -14,7 +14,7 @@
  * Ruler / Wanderer role switching, travel, encounter flow, the ruler command API, and the death, deposition and
  * succession pipeline. Holds no player or life dependent member: all of it lives in FGalaxyState (section 6.1).
  * So far: Install, the deposition pipeline in its Phase 2 form with BecomeWanderer, the ruler's megaproject command
- * (settlement included) and the answer to a petition card (MVP item 2).
+ * (settlement included), the answer to a petition card (MVP item 2) and the research focus (MVP item 7).
  * The rest of the interface in section 7.5 arrives with Phase 4 and 4b.
  */
 UCLASS()
@@ -95,4 +95,16 @@ public:
 	 * of an effect is recorded and resolved by the next tick's role-effect stage. The stream is synced at the end.
 	 */
 	FCosmicPetitionAnswer AnswerPetition(int32 ChoiceIndex);
+
+	/**
+	 * The ruler's research focus (section 5.4, 7.5; MVP item 7), between ticks: Field = a key of the ruled people's
+	 * ResearchFocus takes DT_Rules.ResearchFocusShare and the others the rest evenly (CosmicResearch::Focus - the rule of the
+	 * FocusResearch effect); NAME_None = every key even (CosmicResearch::Even). The next tick's research stage spends by it.
+	 * Only while Embodied and Ruler with a ruled people that is in the state. False and nothing changed: for a field that is
+	 * not a key; when the shares would not change (the focus asked is already the people's - not a decision); with one error
+	 * line for a field while ResearchFocusShare cannot focus (not above the even share 1/4, above 1, NaN - a data fault the
+	 * schema keeps out); with one error line inside a handler of a Core Logic delegate. No draw, no line, no save of its own
+	 * (as for StartMegaproject: the next tick boundary that writes, or the exit save, keeps it).
+	 */
+	bool SetResearchFocus(FName Field);
 };

@@ -138,7 +138,8 @@
 				"FirstCrisisTick": {"kind": "number", "min": 0, "integer": true},
 				"FirstCrisisHazard": {"kind": "tag", "root": "Hazard.", "optional": true},
 				"ProvisionalEndTick": {"kind": "number", "min": 0, "integer": true},
-				"ChronicleCap": {"kind": "number", "min": 0, "integer": true}
+				"ChronicleCap": {"kind": "number", "min": 0, "integer": true},
+				"ResearchFocusShare": {"kind": "number", "min": 0.3, "max": 1}
 			},
 			"rules": [
 				{

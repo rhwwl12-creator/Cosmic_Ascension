@@ -1,7 +1,7 @@
 # Cosmic Ascension - full check runner for the Windows development PC (PowerShell 5.1).
 # docs/40_DEV_GUIDE.md section 7. Order: editor-free checks -> (optional) data assets -> builds -> automation tests twice
 # -> headless smoke -> balance commandlet against Tools/baselines/seed42.json (the idle run, then the run with the ruler's
-# policy -Answer=1 -Build=1).
+# policy -Answer=1 -Build=1 -Focus=1).
 #
 #   powershell -ExecutionPolicy Bypass -File Tools\run_checks.ps1 [-Tier smoke|full] [-Data] [-UpdateBaseline] [-SkipBuild]
 #
@@ -98,9 +98,9 @@ function Compare-Balance([string] $Name, [string] $Field, [string[]] $Extra, [sw
 
 Step 'balance: seed 42 vs baseline' { Compare-Balance 'checks' 'summary_line' @() }
 
-# The ruler's policy (docs/40_DEV_GUIDE.md section 9.3): answers and the project key between ticks, the scope of telling
-# of a game. It keeps the answers deterministic across builds.
-Step 'balance: seed 42 with the ruler policy vs baseline' { Compare-Balance 'checks_ruler' 'ruler_summary_line' @('-Answer=1', '-Build=1', '-TellAll=0') -Ruler }
+# The ruler's policy (docs/40_DEV_GUIDE.md section 9.3): answers, the project key and the research focus (MVP item 7)
+# between ticks, the scope of telling of a game. It keeps the inputs deterministic across builds.
+Step 'balance: seed 42 with the ruler policy vs baseline' { Compare-Balance 'checks_ruler' 'ruler_summary_line' @('-Answer=1', '-Build=1', '-Focus=1', '-TellAll=0') -Ruler }
 
 if ($failed.Count -gt 0) { Write-Host "run_checks: FAILED -> $($failed -join '; ')"; exit 1 }
 Write-Host 'run_checks: all passed'

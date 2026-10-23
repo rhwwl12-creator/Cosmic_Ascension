@@ -680,6 +680,13 @@ class SchemaTests(unittest.TestCase):
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "SceneryGalaxyCount", 50001)), "rules.SceneryGalaxyCount", "is above 50000")
         self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "SceneryGalaxyCount", 50000)), [])
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "SceneryGalaxyCount", 5000.5)), "rules.SceneryGalaxyCount", "not a whole number")
+        # The ruler's research focus (MVP item 7): a share that leans clearly (0.3..1) - both sides of both bounds by hand. The
+        # code refuses a field command at or below 1/4 and above 1 with a line of its own (Sim.ResearchFocus).
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "ResearchFocusShare", 0.29)), "rules.ResearchFocusShare", "is below 0.3")
+        self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "ResearchFocusShare", 0.3)), [])
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "ResearchFocusShare", 1.01)), "rules.ResearchFocusShare", "is above 1")
+        self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "ResearchFocusShare", 1)), [])
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "ResearchFocusShare", NAN)), "rules.ResearchFocusShare", "finite number")
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "PressureAdjacencyFalloff", NAN)), "finite number")
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "LeapTicksMin", "800")), "finite number")
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "LeapTicksMin", True)), "finite number")

@@ -14,6 +14,7 @@
 #include "Math/NumericLimits.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
+#include "Sim/CosmicResearch.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Templates/UnrealTemplate.h"
@@ -876,18 +877,9 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 
 	case EEffectType::FocusResearch:
 	{
-		// The Key's field takes the share Value, the others share the rest evenly (section 5.4): the sum stays 1.
-		float* Share = Civ ? Civ->ResearchFocus.Find(Effect.Key) : nullptr;
-		if (!Share || !(Effect.Value > 0.f && Effect.Value <= 1.f) || Civ->ResearchFocus.Num() < 2)
-		{
-			return false;
-		}
-		const float Rest = (1.f - Effect.Value) / static_cast<float>(Civ->ResearchFocus.Num() - 1);
-		for (TPair<FName, float>& Field : Civ->ResearchFocus)
-		{
-			Field.Value = Field.Key == Effect.Key ? Effect.Value : Rest;
-		}
-		return true;
+		// The Key's field takes the share Value, the others share the rest evenly (section 5.4): the rule of the ruler's
+		// research focus command too (MVP item 7).
+		return Civ != nullptr && CosmicResearch::Focus(Civ->ResearchFocus, Effect.Key, Effect.Value);
 	}
 
 	default:

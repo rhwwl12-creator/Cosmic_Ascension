@@ -54,6 +54,7 @@
 		"FirstCrisisTick": 150,
 		"FirstCrisisHazard": "Hazard.AIAwakening",
 		"ProvisionalEndTick": 6000,
-		"ChronicleCap": 1500
+		"ChronicleCap": 1500,
+		"ResearchFocusShare": 0.55
 	}
 ]

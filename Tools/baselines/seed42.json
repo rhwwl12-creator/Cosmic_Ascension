@@ -3,14 +3,14 @@
     "seed": 42,
     "ticks": 3000,
     "summary_line": "CosmicBalance: seed 42, 3000 ticks, hash 1086386866, world 1078735008, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks.csv",
-    "verified_at": "2026-10-23",
+    "verified_at": "2026-10-24",
     "last_recorded_in_changelog": {
         "task": "MVP 5 A-5b (the chronicle's move filter CosmicChronicle::Admits over every life's peoples, the cap DT_Rules.ChronicleCap 1500 and the saved FGalaxyState.ChronicleEviction - a new top-level member, so every full hash moved; the world hash did not)",
         "state_hash_3000": 1086386866,
         "world_hash_3000": 1078735008,
         "state_hash_20000": 3448516153,
         "world_hash_20000": 885018087,
-        "note": "Measured 2026-10-23 on Windows (editor binaries). Before A-5b (MVP 3 A-3b to A-5a): 3000 hash 2941370122, 20000 hash 2410091205, the policy line hash 2361069549 - the world hashes the same (1078735008, 885018087, 4271872285). The ruler line (-Answer=1 -Build=1 -TellAll=0) is compared as ruler_summary_line."
+        "note": "Measured 2026-10-23 on Windows (editor binaries). Before A-5b (MVP 3 A-3b to A-5a): 3000 hash 2941370122, 20000 hash 2410091205, the policy line hash 2361069549 - the world hashes the same (1078735008, 885018087, 4271872285). The ruler line is compared as ruler_summary_line: since MVP 7 A-7a (2026-10-24) its run is -Answer=1 -Build=1 -Focus=1 -TellAll=0 (hash 794910355, world 1912530916); before it, without -Focus and without the focus fields of the line, hash 2307434165, world 4271872285 - A-7a kept that line unchanged before adding -Focus (the FocusResearch effect's move into CosmicResearch::Focus wrote the same bits). The idle lines did not move."
     },
-    "ruler_summary_line": "CosmicBalance: seed 42, 3000 ticks, hash 2307434165, world 4271872285, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks_ruler.csv | CosmicBalance ruler: answer 1 build 1; cards 4, answers 4, started 3, decisions 7 (by 600 5, by 6000 -1); told by 600 20, by 6000 -1; ruled people T2 at 2203, T3 at -1"
+    "ruler_summary_line": "CosmicBalance: seed 42, 3000 ticks, hash 794910355, world 1912530916, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks_ruler.csv | CosmicBalance ruler: answer 1 build 1 focus 1; cards 10, answers 10, started 4, focus changes 4, decisions 18 (by 600 7, by 6000 -1, by end 11); told by 600 20, by 6000 -1; ruled people T2 at 1194, T3 at 1974"
 }

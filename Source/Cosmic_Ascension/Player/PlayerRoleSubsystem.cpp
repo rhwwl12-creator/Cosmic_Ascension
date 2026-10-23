@@ -16,6 +16,7 @@
 #include "Log/CosmicLogSubsystem.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicEvalContext.h"
+#include "Sim/CosmicResearch.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 
@@ -444,4 +445,49 @@ FCosmicPetitionAnswer UPlayerRoleSubsystem::AnswerPetition(int32 ChoiceIndex)
 	Answer.Outcome = bPasses ? ECosmicPetitionOutcome::Succeeded : ECosmicPetitionOutcome::Failed;
 	Sim->SyncRngState();
 	return Answer;
+}
+
+bool UPlayerRoleSubsystem::SetResearchFocus(FName Field)
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	check(Sim);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("SetResearchFocus called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return false;
+	}
+	FGalaxyState& State = Sim->GetMutableState();
+	if (State.Calling.LifeState != ELifeState::Embodied || State.Player.Role != EPlayerRole::Ruler || State.Player.RuledCivID.IsNone())
+	{
+		return false;
+	}
+	const int32 CivIndex = Sim->GetStateIndex().FindCiv(State, State.Player.RuledCivID);
+	if (!State.Civs.IsValidIndex(CivIndex))
+	{
+		return false;
+	}
+	TMap<FName, float>& ResearchFocus = State.Civs[CivIndex].ResearchFocus;
+	const TMap<FName, float> Before = ResearchFocus;
+	if (Field.IsNone())
+	{
+		CosmicResearch::Even(ResearchFocus);
+	}
+	else
+	{
+		if (!ResearchFocus.Contains(Field))
+		{
+			return false;
+		}
+		// A share at or below the even one does not lean (1/4 for the four fields), and one above 1 is no share: a data
+		// fault the schema keeps out (0.3..1).
+		const float Share = Sim->GetRules().ResearchFocusShare;
+		if (!(Share > 1.f / static_cast<float>(ResearchFocus.Num()) && Share <= 1.f))
+		{
+			UE_LOG(LogCosmic, Error, TEXT("SetResearchFocus: DT_Rules.ResearchFocusShare %f cannot focus a field (above the even share, at most 1)"), Share);
+			return false;
+		}
+		CosmicResearch::Focus(ResearchFocus, Field, Share);
+	}
+	// The focus asked is already the people's: nothing changed, and it is not a decision.
+	return !ResearchFocus.OrderIndependentCompareEqual(Before);
 }

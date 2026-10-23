@@ -996,4 +996,13 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// CosmicChronicle::MaxLifeLines is.
 	UPROPERTY(EditAnywhere)
 	int32 ChronicleCap = 1500;
+
+	// ---- The ruler's research focus (MVP item 7) ----
+
+	// The share a ruler's research focus gives its field (docs/10_DESIGN/systems.md section 5.4): the field takes it and the
+	// other fields the rest evenly. The schema keeps it 0.3..1; a value not above 1/4 or above 1 (NaN included) cannot focus,
+	// and UPlayerRoleSubsystem::SetResearchFocus refuses a field with one error line (the even focus never reads it). Start
+	// value 0.55 - the opening petition's choices (petition_wise_heart), so its answer is one of the presets.
+	UPROPERTY(EditAnywhere)
+	float ResearchFocusShare = 0.55f;
 };
