@@ -2,6 +2,13 @@
 
 > 2026-10-19 재편: 본문에 섞여 있던 이력·상태 줄·일지·리뷰 통계를 여기로 옮겼다(내용 무변경, 위치만 — 원격의 Phase 3 꼬리 7·12·8·9 기록 포함). 앞으로는 날짜·작업 접두어·바뀐 규칙·리뷰 통계를 여기에만 적고, 설계 본문과 STATUS.md에는 적지 않는다.
 
+## 2026-10-24 — MVP ⑨ Win64 패키징과 쿠킹 빌드의 세계 해시
+
+- 헤더 `docs/60_DECISIONS/headers/A9_win64_packaging.md` 승인(개발자 "다음작업들 이어서 계속 진행해줘" — 결정 15개 권장안). 조사 워크플로(넷), 코드 변경 없는 시험 패키지, 적대 리뷰(ultracode — 발견 48, 남김 47, 중간 15 — 모두 반영).
+- `[A-9a]` 해시 판과 도구: `World/CosmicHashRun`(`-CosmicHashRun=<틱>`·`-CosmicHashEvery`·`-CosmicHashPolicy` — `StartPlay` 맨 앞에서 두 해시를 한 줄로 찍고 끝난다, 거절 여섯), `World/CosmicRulerPolicy`(커맨드렛의 정책을 그대로 옮겨 함께 쓴다 — `ruler_summary_line` 그대로), 시작의 `CosmicBuild:` 줄과 `ProjectVersion` 0.1.0, 건너뛴 종료 저장 줄을 Log로, `check_layers.py` 규칙 3b(Core Logic의 수학은 `FMath`의 짧은 목록과 `sqrt`만), `run_checks.ps1`의 해시 판 단계 둘(에디터 `-game` = 같은 실행의 커맨드렛 — idle·정책)과 경로 없는 열쇠, `Tools/package.ps1`. 테스트 `Sim.HashRun`(새) — 121종. 변이 26개·린트 변이 7개 모두 잡힘. 구현 리뷰(ultracode — 발견 35, 남김 35, 중간 1: 패키지 스크립트의 시간 제한 — 모두 반영). 기준값 그대로.
+- `[A-9b]` 첫 패키지와 ⓓ: `Tools/package.ps1 -Ticks20000 -Shipping` → `C:\CA_Builds\20261024-2234-f58a0f4`(UAT 101초, 1,021 MB, zip 484 MB). **패키지 = 에디터 = 기준값**: 3,000틱 idle 4061194924 / 681643174, 정책 847130296 / 1448576366; 20,000틱 idle 1123943493 / 1128422968, 정책 3928640348 / 2194209278. Shipping 컴파일 통과. 도구의 검사 여섯을 한 번씩 깨뜨렸고, 손 확인 ⓐ의 기계적인 걸음(새 판 → 창 닫기 → 다시 띄우기 → 같은 해시로 이어 열기)을 스크립트로 미리 했다.
+- `[A-9c]` 문서: `docs/40`(검사 목록의 규칙 3b, 균형·해시 판 단계, `package.ps1`, 손 확인 ⓐ를 패키지에서, PowerShell 5.1의 `Start-Process`, 해시 판 스위치, 명령 블록, 테스트 표 `Sim.HashRun`), `docs/45`(UAT·Zen/IoStore·저장 자리·Shipping의 로그·커맨드렛 거절·종료 코드·로그 파일의 `_2`와 백업·스트링 테이블의 로그 낱말·`FParse::Value`의 끊김·창의 기본 모드·COMDAT·`ProjectVersion`·PowerShell — 열세 행), `docs/20` §9.1(패키지의 자리)·§9.2(쿠킹 빌드의 결과와 되풀이·COMDAT)·부록 규칙 6, `docs/21`(`CosmicHashRun`·`CosmicRulerPolicy`·`StartPlay`의 맨 앞), `docs/50`(A ⑨ 끝, ⓓ 채움, 위험 표, 미룬 확인 8), `docs/15`(해시 판, 빌드 폴더 / 건넬 zip), OPEN_QUESTIONS #8·#120(새), `WORKPLAN.md` §2(마일스톤 A 행), `DECISIONS_LOG`, `STATUS.md`, `CLAUDE.md`(규칙 6·15·빌드 요약), `CosmicSaveSubsystem.h`의 주석(전체 빌드), A9 헤더의 상태 '구현 끝'. 문서의 재감사는 이 커밋 뒤의 일이다.
+
 ## 2026-10-24 — MVP ⑧ 경제 상수 → DT_Rules와 판의 속도
 
 - 헤더 `docs/60_DECISIONS/headers/A8_economy_and_pace.md`(초안은 다른 세션 — 설계 감사 `docs/10_DESIGN/DESIGN_AUDIT_AND_IMPROVEMENT.md`와 함께, `c55dc7c`) 승인(개발자 — 결정 8개 권장안). `DECISIONS_LOG`의 바깥 수정을 결정 8대로 되돌렸다.

@@ -78,7 +78,8 @@ public:
 
 	static FString MakeSlotName(const FGuid& GalaxyID);                       // Galaxy_<32 hex digits>
 	FString SlotNameOf(const FGuid& GalaxyID, bool bBackup = false) const;   // the slot folder + MakeSlotName (+ "_bak")
-	// ProjectSavedDir()/SaveGames/<SlotNameOf>.sav - the generic save system's path (Win64; MVP item 9 checks the package).
+	// ProjectSavedDir()/SaveGames/<SlotNameOf>.sav - the generic save system's path (Win64; in a Development package that is
+	// <package>/Cosmic_Ascension/Saved/SaveGames, in Shipping %LOCALAPPDATA%/Cosmic_Ascension/Saved/SaveGames - MVP item 9).
 	FString SlotPathOf(const FGuid& GalaxyID, bool bBackup = false) const;
 
 	// ---- Explicit calls (tests, tools): the gate does not apply ----

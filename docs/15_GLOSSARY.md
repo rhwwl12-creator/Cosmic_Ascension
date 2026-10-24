@@ -122,6 +122,8 @@
 | 말하기 스트림 | Tell stream | `FGalaxyState.TellRngState`, `DrawTell` | 문장 변형만 뽑는 난수 출처. 어떤 규칙도 읽지 않는다 (§9.2) |
 | 파생 정수 | Derived value | `CosmicSeed::Derive`·`DeriveForName`(`Core/CosmicSeed.h`), 용도 상수 9 | 시드에서 상태 없이 나오는 값. 식과 상수는 동결 (§9.2) |
 | 세계 해시 | World hash | `ComputeWorldHash()` | 앎·로그·연대기(와 밀어냄 기록)·말하기 스트림을 뺀 해시 — 앎이 세계를 바꾸지 않음을 재는 자 (§9.2) |
+| 해시 판 | Hash run | `-CosmicHashRun=<틱>`, `World/CosmicHashRun` | 게임 프로세스(에디터 `-game`이나 패키지)가 시드 하나를 헤드리스로 돌려 두 해시를 한 줄로 찍고 끝나는 개발 스위치 — 쿠킹 빌드의 결정론을 재는 자(`-CosmicHashPolicy`는 통치자 정책 판, `-CosmicHashEvery`는 체크포인트) (§9.2, MVP ⑨) |
+| 빌드 폴더 / 건넬 zip | Build folder / handover zip | `Tools/package.ps1` | 패키지마다 새로 만드는 `C:\CA_Builds\<날짜-시각>-<커밋>`(OneDrive 밖 — 개발자의 손 확인은 여기서)과, 아무것도 돌기 전에 그 `Windows\`를 `Saved\` 없이 묶은 `-handoff.zip`(외부 1명에게 건네는 것) (MVP ⑨) |
 | 다리 | Bridge | `FGalaxyDef.BridgeTicks` | 고향 은하와 무대 은하 사이의 건넘 틱. 레인이 아니고 상태가 없다. '문'·'관문'·'길'이라 부르지 않는다 (§5.9) |
 | 건넘 / 건너는 배들 | Crossing / the crossing ships | `project_crossing`, `FTransitRecord`, `FGalaxyState.Transits`, `Transit.People` | T4 이상의 백성이 다른 은하에 무리를 보내는 일. 건너는 것은 유닛이 아니라 기록이다. 방주 = 구출, 건너는 배들 = 건넘 (§5.7) |
 | 건너온 백성 | Arrived people | `FCivilizationState.OriginGalaxyRow`, `FTransitRecord.ResultCivID` | 도착해 고향 은하의 무주 성계 하나에 선 새 문명(Tier 4, 인물 없음) (§5.7) |
