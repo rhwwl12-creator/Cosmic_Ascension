@@ -71,6 +71,28 @@
 
 읽은 것: 5.8의 기본값(Zen·IoStore·pak)으로 첫 패키지가 막힘 없이 나온다. 쿠킹 빌드는 데이터를 모두 찾고 한글을 그리며, 저장과 창 닫기의 종료 저장이 패키지 안 `Saved\`에서 돈다. 남은 것은 ⓓ의 숫자 — 쿠킹 빌드가 세계 해시를 낼 길이 없다(§1.2) — 하나다.
 
+### 1.7 첫 패키지와 ⓓ (2026-10-24, `[A-9b]` — `Tools/package.ps1 -Ticks20000 -Shipping`, 커밋 `f58a0f4`)
+
+빌드 폴더 `C:\CA_Builds\20261024-2234-f58a0f4`, 건넬 zip `C:\CA_Builds\20261024-2234-f58a0f4-handoff.zip`. **`package: all passed`.**
+
+| 걸음 | 잰 것 |
+|---|---|
+| UAT | 101초(쿠킹 '0 error(s), 0 warning(s)' — 시험 패키지 뒤의 Zen 저장소라 증분) |
+| 건넬 zip | 28초, 484 MB, 파일 80(빌드 폴더의 파일 수와 같다), `Saved\` 없음, `Cosmic_Ascension\BuildInfo.txt` 있음. 빌드 폴더 1,021 MB |
+| 시작 점검 | 2.4초 — `CosmicBuild: version 0.1.0, commit f58a0f4, cooked`, `NewGalaxy:`, 빠진 테이블·스트링 테이블·`LogCosmic: Error` 없음 |
+| **ⓓ 3,000틱 idle** | 패키지 = 에디터 = `seed42.json`: **hash 4061194924, world 681643174** (11.6초 — 두 판) |
+| **ⓓ 3,000틱 정책** | 패키지 = 에디터 = `seed42.json`: **hash 847130296, world 1448576366** (11.4초) |
+| ⓓ 20,000틱 idle | 패키지 = 에디터: hash 1123943493, world 1128422968 — CHANGELOG에 손으로 적어 둔 값과도 같다 (11.4초) |
+| ⓓ 20,000틱 정책 | 패키지 = 에디터: hash 3928640348, world 2194209278 (12.5초 — 처음 잰 값) |
+| 기준 파일 | 에디터 = `seed42.json`의 두 줄 |
+| Shipping 컴파일 | 47초, 통과(`Cosmic_Ascension-Win64-Shipping.exe` — 쿠킹·실행 없음) |
+
+도구의 검사를 한 번씩 깨뜨렸다(스크립트의 함수를 그대로 떼어 이 빌드에): `-Seed=` 없는 판 → 거절 줄을 '물은 판이 아니다'로 실패, idle 로그에 정책 열쇠를 물음 → 실패, 다른 틱 → 실패, world만 다른 두 열쇠 → 'the world hash differ', 지난 통과 로그를 두고 로그를 쓰지 않는 프로세스 → '이 실행이 쓴 로그 없음', 시작 로그에 `LogStringTable: Warning` 한 줄 → 실패; 대조군(맞는 판)은 읽힌다.
+
+손 확인 ⓐ의 기계적인 걸음을 스크립트로 한 번 미리 했다(부트스트랩으로, 창 1280×720): 새 판 `(NewRun) tick 0` → 25초 뒤 창 닫기 `(Exit) tick 22, hash 1030996466` → 다시 띄우기 `loaded … at tick 22, hash 1030996466` = `CosmicContinue: Newest … hash 1030996466` → 창 닫기(멈춘 채라 `exit - the slot already holds this state` — 이제 Log 줄). 이번에는 창을 닫은 뒤 1초 안팎에 끝났다(시험 패키지의 19초는 다시 나오지 않았다). 화면 한 장에 한글이 그려진다. 그 `Saved\`는 `Logs\rehearsal_Saved`로 옮겨, 개발자의 손 확인은 빈 `Saved\`에서 시작한다. 시험 패키지 폴더(`C:\CA_Builds\probe`)는 지웠다.
+
+읽은 것: **종료 조건 ⓓ를 채운다** — 쿠킹한 Development 빌드가 시드 42의 idle 판과 통치자 정책 판에서 에디터와 같은 두 해시를 3,000틱과 20,000틱 모두에서 낸다(정책 판은 답의 추첨·카드의 효과·프로젝트 시작·연구 중점·이야기의 범위를 지난다). 남은 것은 개발자의 손 확인 ⓐ(§4.1)과 ⓔ(§4.2)다.
+
 ---
 
 ## 2. 해시 판 — 쿠킹 빌드가 두 해시를 내는 길 (결정 2·3)
