@@ -39,8 +39,9 @@
  * every tick, nothing stops at it - and the uncapped chapter's lines by the cap's four ranks, "ranks a/b/c/d"; a
  * "CosmicBalance end check:" line when the rung end is not the ruled people's third rung
  * and no deposition fell in that tick, which changes no exit code).
- * The ruler's policy, between ticks after each tick and before the tick's counts: -Answer=1 answers every card the tick
- * it comes (the first choice the stockpile can pay, from choice (answers so far mod choices) on), -Build=1 presses the
+ * The ruler's policy (World/CosmicRulerPolicy, shared with the hash run of a game process - MVP item 9), between ticks
+ * after each tick and before the tick's counts: -Answer=1 answers every card the tick it comes (the first choice the
+ * stockpile can pay, from choice (answers so far mod choices) on), -Build=1 presses the
  * project key (UPlayerRoleSubsystem::StartNextMegaproject) until it refuses, -Focus=1 focuses the next rung's research
  * while the run has not ended (UPlayerRoleSubsystem::SetResearchFocus with the field of the first research condition of
  * CosmicNextRung::AllOf that is not met, the even focus when none is - MVP item 7). -Rules=Name:Value;Name:Value replaces

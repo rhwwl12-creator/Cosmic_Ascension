@@ -1,7 +1,7 @@
 # Cosmic Ascension - full check runner for the Windows development PC (PowerShell 5.1).
 # docs/40_DEV_GUIDE.md section 7. Order: editor-free checks -> (optional) data assets -> builds -> automation tests twice
 # -> headless smoke -> balance commandlet against Tools/baselines/seed42.json (the idle run, then the run with the ruler's
-# policy -Answer=1 -Build=1 -Focus=1).
+# policy -Answer=1 -Build=1 -Focus=1) -> the hash run of a game process against those two commandlet lines (MVP item 9).
 #
 #   powershell -ExecutionPolicy Bypass -File Tools\run_checks.ps1 [-Tier smoke|full] [-Data] [-UpdateBaseline] [-SkipBuild]
 #
@@ -70,11 +70,18 @@ Step 'smoke: -game -nullrhi' {
     if (-not (Select-String -Path (Join-Path $Logs 'GameSmoke.log') -Pattern 'LogCosmic' -Quiet)) { throw 'no LogCosmic line in GameSmoke.log' }
 }
 
+# A balance line without its ', wrote <path>' (the CSV path is relative to the binaries and changes when the project
+# moves): the key 'CosmicBalance: seed N, T ticks, hash H, world W', and after ' | ' the ruler line as it is (MVP item 9).
+function Remove-WrotePath([string] $Line) { return ($Line -replace ', wrote .*?(?= \| |$)', '') }
+
 # One commandlet run of seed 42 for 3,000 ticks, compared with the baseline field $Field (or written into it with
-# -UpdateBaseline): the hash line, and with $Ruler also the ruler line after ' | '.
+# -UpdateBaseline): the hash line, and with $Ruler also the ruler line after ' | ' - both without the CSV path.
 function Compare-Balance([string] $Name, [string] $Field, [string[]] $Extra, [switch] $Ruler) {
     $log = Join-Path $Logs "$Name.log"
+    # The log of this run only: an old one (or the '_2' the engine writes when the log is held open) cannot answer for it.
+    foreach ($old in @($log, (Join-Path $Logs "${Name}_2.log"))) { if (Test-Path $old) { Remove-Item -Force $old } }
     & $Editor $Project -run=CosmicBalance -Seed=42 -Ticks=3000 "-Out=$Name.csv" @Extra -unattended -nosplash -stdout -FullStdOutLogOutput "-AbsLog=$RootF/Saved/Logs/$Name.log"
+    if (-not (Test-Path $log)) { throw "no $Name.log written by this run" }
     $line = Select-String -Path $log -Pattern 'CosmicBalance: seed' | Select-Object -Last 1
     if (-not $line) { throw "no ""CosmicBalance: seed"" summary line in $Name.log" }
     $summary = if ($line.Line -match '(CosmicBalance: seed.*)') { $Matches[1] } else { $line.Line }
@@ -91,7 +98,7 @@ function Compare-Balance([string] $Name, [string] $Field, [string[]] $Extra, [sw
         # UTF-8 without a byte order mark (Set-Content -Encoding UTF8 of PowerShell 5.1 writes one; Python's json reads none).
         [IO.File]::WriteAllText($baselinePath, ($baseline | ConvertTo-Json -Depth 4), (New-Object Text.UTF8Encoding $false))
         Write-Host "   baseline updated: $summary"
-    } elseif ($baseline.$Field -and ($baseline.$Field -ne $summary)) {
+    } elseif ($baseline.$Field -and ((Remove-WrotePath $baseline.$Field) -ne (Remove-WrotePath $summary))) {
         throw "$Field differs from Tools/baselines/seed42.json`n   now:      $summary`n   baseline: $($baseline.$Field)`n   (intended change -> rerun with -UpdateBaseline and put the new hashes in the commit message)"
     } else { Write-Host "   $summary" }
 }
@@ -101,6 +108,29 @@ Step 'balance: seed 42 vs baseline' { Compare-Balance 'checks' 'summary_line' @(
 # The ruler's policy (docs/40_DEV_GUIDE.md section 9.3): answers, the project key and the research focus (MVP item 7)
 # between ticks, the scope of telling of a game. It keeps the inputs deterministic across builds.
 Step 'balance: seed 42 with the ruler policy vs baseline' { Compare-Balance 'checks_ruler' 'ruler_summary_line' @('-Answer=1', '-Build=1', '-Focus=1', '-TellAll=0') -Ruler }
+
+# MVP item 9: the hash run of a game process (ACosmicGameMode::StartPlay, World/CosmicHashRun) against the commandlet's
+# line of this run - not the baseline file, which the steps above compare - so the editor binary shows that the hash run
+# is the commandlet's run, and the cooked build's comparison (Tools/package.ps1) measures the binary alone
+# (docs/60_DECISIONS/headers/A9_win64_packaging.md section 3.1). -ExecCmds=quit ends a run whose switch the game did not
+# read; a good run asks to quit inside the engine's Init and never reaches it.
+function Compare-HashRun([string] $Name, [string] $BalanceLog, [string[]] $Extra) {
+    $log = Join-Path $Logs "$Name.log"
+    foreach ($old in @($log, (Join-Path $Logs "${Name}_2.log"))) { if (Test-Path $old) { Remove-Item -Force $old } }
+    if (-not (Test-Path (Join-Path $Logs "$BalanceLog.log"))) { throw "no $BalanceLog.log - the balance step did not write it" }
+    & $Editor $Project -game -nullrhi -nosound -unattended -nosplash -Seed=42 -CosmicHashRun=3000 @Extra '-ExecCmds=quit' "-AbsLog=$RootF/Saved/Logs/$Name.log"
+    if (-not (Test-Path $log)) { throw "no $Name.log" }
+    $line = Select-String -Path $log -Pattern 'CosmicHash: ' | Select-Object -Last 1
+    if (-not $line) { throw "no ""CosmicHash:"" line in $Name.log" }
+    $hashRun = if ($line.Line -match 'CosmicHash: (seed \d+, \d+ ticks, hash \d+, world \d+)') { $Matches[1] } else { throw "$($line.Line)" }
+    $balance = Select-String -Path (Join-Path $Logs "$BalanceLog.log") -Pattern 'CosmicBalance: seed' | Select-Object -Last 1
+    if (-not $balance) { throw "no ""CosmicBalance: seed"" line in $BalanceLog.log" }
+    $commandlet = if ($balance.Line -match 'CosmicBalance: (seed \d+, \d+ ticks, hash \d+, world \d+)') { $Matches[1] } else { throw "unreadable: $($balance.Line)" }
+    if ($hashRun -ne $commandlet) { throw "the hash run differs from the commandlet`n   hash run:   $hashRun`n   commandlet: $commandlet" }
+    Write-Host "   $hashRun"
+}
+Step 'hash run: editor -game vs commandlet' { Compare-HashRun 'hashrun' 'checks' @() }
+Step 'hash run: editor -game policy vs commandlet' { Compare-HashRun 'hashrun_policy' 'checks_ruler' @('-CosmicHashPolicy') }
 
 if ($failed.Count -gt 0) { Write-Host "run_checks: FAILED -> $($failed -join '; ')"; exit 1 }
 Write-Host 'run_checks: all passed'

@@ -10,7 +10,6 @@
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
-#include "Events/CosmicPetitions.h"
 #include "GameMapsSettings.h"
 #include "GameplayTagContainer.h"
 #include "Log/CosmicChronicle.h"
@@ -30,9 +29,9 @@
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
-#include "UI/CosmicNextRung.h"
 #include "UObject/Package.h"
 #include "UObject/UnrealType.h"
+#include "World/CosmicRulerPolicy.h"
 
 namespace
 {
@@ -104,27 +103,6 @@ namespace
 		// Severity 2): what the cap of CosmicChronicle::MaxLifeLines is set from.
 		int32 ChapterRanks[4] = { -1, -1, -1, -1 };
 	};
-
-	// The answer of the -Answer policy: the first choice the stockpile can pay, from choice (answers so far) on, round
-	// (so that every choice of a card is taken in turn over a run). INDEX_NONE when none can be paid.
-	int32 PolicyChoiceOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FEncounterDef& Row, int32 AnswersSoFar)
-	{
-		const int32 CivIndex = CosmicPetitions::RuledCivIndexOf(State, Index);
-		const int32 Count = Row.Choices.Num();
-		if (!State.Civs.IsValidIndex(CivIndex) || Count <= 0)
-		{
-			return INDEX_NONE;
-		}
-		for (int32 Step = 0; Step < Count; ++Step)
-		{
-			const int32 Choice = (AnswersSoFar + Step) % Count;
-			if (CosmicMegaprojects::CanPay(State.Civs[CivIndex].Stockpile, CosmicPetitions::CostOf(Row.Choices[Choice])))
-			{
-				return Choice;
-			}
-		}
-		return INDEX_NONE;
-	}
 
 	// A slot before the tick: its hazard and count, the answer in its response slot, the owner's Influence, and the
 	// construction slot (a settlement that paid nothing in the tick is a stalled one).
@@ -440,9 +418,9 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	int32 Civs = 0;
 	int32 TellAll = 1;
 	// The ruler's policy (section 9.3; Phase 5 adds -PlayerPolicy): -Answer=1 answers every card the tick it comes
-	// (PolicyChoiceOf), -Build=1 starts every project the ruler's project key would start (StartNextMegaproject: the
-	// answers and the next feat's construction, then a settlement) - both between ticks, as a player's input. 0 (the
-	// default) leaves the ruler idle: the world of RunHeadless(Ticks).
+	// (CosmicRulerPolicy::ChoiceOf), -Build=1 starts every project the ruler's project key would start
+	// (StartNextMegaproject: the answers and the next feat's construction, then a settlement) - both between ticks, as a
+	// player's input. 0 (the default) leaves the ruler idle: the world of RunHeadless(Ticks).
 	int32 Answer = 0;
 	int32 Build = 0;
 	int32 Focus = 0;
@@ -508,6 +486,8 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		double SampleMicros = 0.0;
 		int64 SampleTicks = 0;
 		int64 Samples = 0;
+		const FCosmicRulerPolicy RulerPolicy{ Answer != 0, Build != 0, Focus != 0 };
+		FCosmicRulerPolicyCounts RulerCounts;
 		for (int64 Done = 0; Done < Ticks; ++Done)
 		{
 			Before.Reset();
@@ -560,44 +540,13 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			}
 
 			// The ruler's input between ticks, before anything below reads the tick: its lines carry this tick and are counted
-			// with it, and a hazard an answer ends is seen ending in it.
-			Counts.CardsCome += (!State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != CardBefore) ? 1 : 0;
-			for (int32 Guard = 0; Answer != 0 && Guard < 8 && !State.Knowing.PendingPetitionRow.IsNone(); ++Guard)
-			{
-				const FName Card = State.Knowing.PendingPetitionRow;
-				const FEncounterDef* Row = Sim->GetTables().FindEncounter(Card);
-				const int32 Choice = Row ? PolicyChoiceOf(State, Sim->GetStateIndex(), *Row, Counts.Answers) : INDEX_NONE;
-				if (Choice == INDEX_NONE)
-				{
-					break;
-				}
-				const FCosmicPetitionAnswer Taken = Role->AnswerPetition(Choice);
-				if (Taken.Outcome == ECosmicPetitionOutcome::Refused)
-				{
-					break;
-				}
-				Counts.Answers += (Taken.Outcome == ECosmicPetitionOutcome::Withdrawn) ? 0 : 1;
-				Counts.CardsCome += (!State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != Card) ? 1 : 0;
-			}
-			for (int32 Guard = 0; Build != 0 && Guard < 8 && Role->StartNextMegaproject(); ++Guard)
-			{
-				++Counts.Started;
-			}
-			// -Focus=1, the next rung's research (MVP item 7): the field of the first research condition of the ways up that is
-			// not met, the even focus when none is - only while the run has not ended (the game takes no input after it).
-			if (Focus != 0 && Counts.FirstEnd == ECosmicProvisionalEnd::None)
-			{
-				FName Field = NAME_None;
-				for (const FCosmicRungPart& Part : CosmicNextRung::ResearchFieldsOf(CosmicNextRung::AllOf(State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules())))
-				{
-					if (!Part.bMet)
-					{
-						Field = Part.Key;
-						break;
-					}
-				}
-				Counts.FocusChanges += Role->SetResearchFocus(Field) ? 1 : 0;
-			}
+			// with it, and a hazard an answer ends is seen ending in it. One function with the hash run of a game process
+			// (World/CosmicRulerPolicy - MVP item 9), so the cooked build plays the same inputs.
+			CosmicRulerPolicy::Act(RulerPolicy, *Sim, *Role, CardBefore, RulerCounts);
+			Counts.CardsCome = RulerCounts.CardsCome;
+			Counts.Answers = RulerCounts.Answers;
+			Counts.Started = RulerCounts.Started;
+			Counts.FocusChanges = RulerCounts.FocusChanges;
 
 			if (Counts.FirstTwoSettledTick < 0 && HoldsTwoSettled(State))
 			{

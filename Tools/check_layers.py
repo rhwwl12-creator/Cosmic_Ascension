@@ -4,6 +4,13 @@ Checks (docs/40_DEV_GUIDE.md section 2, CLAUDE.md invariant rules 1, 3, 10):
   1. Include direction  Core <- Data <- Sim <- {Events, Ascension, Log, Player, Save} <- {World, UI}  (Tests may include anything).
   2. Core Logic (Core, Data, Sim, Events, Ascension, Log, Player, Save) includes no widget / actor engine headers.
   3. No FMath::Rand* anywhere in the module (the three random sources are GetRng, DrawTell, CosmicSeed::Derive).
+  3b. Core Logic calls only the FMath members of a short list (Max, Min, Clamp, Abs, Sign, Square, Sqrt, RoundToInt32,
+      IsNaN - inline + - * / and sqrt; the same for the FPlatformMath / FGenericPlatformMath spellings) and no C runtime
+      math but sqrt (pow, exp, log, the trigonometric and hyperbolic functions, atan2, fmod, cbrt, hypot ... in every
+      form): the values a hash holds come from + - * / and sqrt in module code (invariant rule 6). The game exe links the
+      engine compiled /fp:fast, the editor /fp:precise, so another call could give the cooked build another world than
+      the editor's (MVP item 9, docs/60_DECISIONS/headers/A9_win64_packaging.md section 3.3). String literals are blanked
+      first, so a log message saying "the log (...)" is not a call. Extend the list on purpose when a function is needed.
   4. Non-ASCII bytes in source files (the Korean lives in DataTable / String Table only).
   5. Report only: RequestGameplayTag(FName(TEXT("..."))) literals outside the constant headers, and DT_Rules knobs that no
      runtime code reads (reserved knobs). With --strict these counts may not grow past the recorded baseline.
@@ -41,6 +48,13 @@ def strip_comments(text):
 
 inc_re = re.compile(r'^\s*#include\s+"([^"]+)"', re.M)
 rand_re = re.compile(r'\bFMath::(Rand|RandRange|FRand|FRandRange|RandHelper|RandBool|SRand|VRand)\b')
+math_member_re = re.compile(r'\b(?:FMath|FPlatformMath|FGenericPlatformMath|FWindowsPlatformMath)::(\w+)')
+MATH_ALLOWED = {'Max', 'Min', 'Clamp', 'Abs', 'Sign', 'Square', 'Sqrt', 'RoundToInt32', 'IsNaN'}
+crt_math_re = re.compile(r'(?<![\w.>:])(?:std::)?(?:pow|exp2?|expm1|log(?:2|10|1p)?|a?(?:sin|cos|tan)h?|atan2|fmod|cbrt|hypot|modf|remainder)[fl]?\s*\(')
+
+def strip_strings(text):
+    text = re.sub(r'"(?:\\.|[^"\\\n])*"', '""', text)
+    return re.sub(r"'(?:\\.|[^'\\\n])'", "''", text)
 tag_lit_re = re.compile(r'RequestGameplayTag\(\s*FName\(\s*TEXT\(')
 tag_literals = 0
 for path in sources:
@@ -54,6 +68,13 @@ for path in sources:
     if folder in CORE_LOGIC:
         m = FORBIDDEN_ENGINE.search(text)
         if m: errors.append(f'{rel}: Core Logic includes {m.group(1)}')
+        code = strip_strings(text)
+        for m in math_member_re.finditer(code):
+            if m.group(1) not in MATH_ALLOWED:
+                errors.append(f'{rel}: Core Logic calls {m.group(0)} (only + - * / and sqrt reach a hash - invariant rule 6)')
+                break
+        m = crt_math_re.search(code)
+        if m: errors.append(f'{rel}: Core Logic calls {m.group(0).strip()} (only + - * / and sqrt reach a hash - invariant rule 6)')
     for inc in inc_re.findall(text):
         target = inc.split('/')[0] if '/' in inc else ''
         if target not in LAYER or folder not in LAYER: continue

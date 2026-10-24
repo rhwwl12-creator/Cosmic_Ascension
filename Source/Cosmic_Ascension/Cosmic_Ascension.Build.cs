@@ -29,7 +29,9 @@ public class Cosmic_Ascension : ModuleRules
 			"GameplayTags", "Niagara"
 		});
 
-		// EngineSettings: UGameMapsSettings, read by the balance commandlet to create its GameInstance (guideline section 9.3).
+		// EngineSettings: UGameMapsSettings, read by the balance commandlet to create its GameInstance (guideline section 9.3),
+		// and UGeneralProjectSettings, whose ProjectVersion the CosmicBuild start line prints (World/CosmicGameMode.cpp, MVP
+		// item 9).
 		// Json: the automation test Data.Integrity reads Tools/data/schema.json (guideline section 7.3, 9.3). Tests only:
 		// no Core Logic code parses JSON.
 		PrivateDependencyModuleNames.AddRange(new string[] { "EngineSettings", "Json" });

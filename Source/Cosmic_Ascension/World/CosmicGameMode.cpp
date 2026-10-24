@@ -13,12 +13,17 @@
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
 #include "GameplayTagContainer.h"
+#include "GeneralProjectSettings.h"
+#include "HAL/PlatformMisc.h"
+#include "HAL/PlatformProperties.h"
 #include "Log/CosmicLogSubsystem.h"
 #include "Math/RotationMatrix.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/DateTime.h"
+#include "Misc/FileHelper.h"
 #include "Misc/Parse.h"
+#include "Misc/Paths.h"
 #include "Player/PlayerRoleSubsystem.h"
 #include "Save/CosmicSaveSubsystem.h"
 #include "Sim/CosmicStateIndex.h"
@@ -34,6 +39,7 @@
 #include "Widgets/Layout/Anchors.h"
 #include "World/CosmicCameraPawn.h"
 #include "World/CosmicGalaxyMapActor.h"
+#include "World/CosmicHashRun.h"
 #include "World/CosmicMapLook.h"
 #include "World/CosmicMapPick.h"
 #include "World/CosmicStarSystemActor.h"
@@ -61,6 +67,26 @@ namespace CosmicControlImpl
 	int32 ClockSeed()
 	{
 		return static_cast<int32>(FDateTime::UtcNow().GetTicks() & 0x7fffffff);
+	}
+
+	// The commit Tools/package.ps1 wrote beside a package (MVP item 9): the line "commit=<short>" of
+	// <ProjectDir>/BuildInfo.txt, "-" without the file (an editor run).
+	FString BuildCommitOf()
+	{
+		FString Text;
+		if (FFileHelper::LoadFileToString(Text, *(FPaths::ProjectDir() / TEXT("BuildInfo.txt"))))
+		{
+			TArray<FString> Lines;
+			Text.ParseIntoArrayLines(Lines);
+			for (const FString& Line : Lines)
+			{
+				if (Line.StartsWith(TEXT("commit=")))
+				{
+					return Line.Mid(7).TrimStartAndEnd();
+				}
+			}
+		}
+		return TEXT("-");
 	}
 
 	// The viewer's clock unit (guideline 6.3) is kept in the viewer's GameUserSettings ini (the controller's
@@ -100,6 +126,65 @@ void ACosmicGameMode::StartPlay()
 	// Before BeginPlay reaches the HUD, so the panel opens on a galaxy.
 	UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
 	UCosmicSaveSubsystem* Save = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCosmicSaveSubsystem>() : nullptr;
+
+	// MVP item 9: which build this is - the project version, the commit package.ps1 wrote beside a package, and whether the
+	// data is cooked (the configuration is LogInit's 'Build Configuration' line).
+	UE_LOG(LogCosmic, Display, TEXT("CosmicBuild: version %s, commit %s, %s"), *GetDefault<UGeneralProjectSettings>()->ProjectVersion,
+		*CosmicControlImpl::BuildCommitOf(), FPlatformProperties::RequiresCookedData() ? TEXT("cooked") : TEXT("editor"));
+
+	// MVP item 9: a hash run instead of a game (World/CosmicHashRun). Before BeginSession, so no continue reads a slot.
+	// StartPlay runs inside FEngineLoop::Init (GEngine->Start -> LoadMap), so after the exit request the engine loop never
+	// ticks; Super::StartPlay is not called, so no actor begins play (and no EndPlay exit save follows).
+	const CosmicHashRun::FSwitch HashSwitch = CosmicHashRun::SwitchOf(FCommandLine::Get());
+	if (HashSwitch.Kind != CosmicHashRun::ESwitch::Absent || HashSwitch.EveryKind != CosmicHashRun::ESwitch::Absent || HashSwitch.bPolicy)
+	{
+		int32 HashSeed = 0;
+		UCosmicLogSubsystem* HashLog = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>() : nullptr;
+		UPlayerRoleSubsystem* HashRole = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+		if (HashSwitch.Kind == CosmicHashRun::ESwitch::Absent)
+		{
+			UE_LOG(LogCosmic, Error, TEXT("CosmicHash: refused - no -CosmicHashRun="));
+		}
+		else if (HashSwitch.Kind == CosmicHashRun::ESwitch::Bad)
+		{
+			UE_LOG(LogCosmic, Error, TEXT("CosmicHash: refused - bad -CosmicHashRun=%s"), *HashSwitch.Text);
+		}
+		else if (!HashSwitch.IsGood())
+		{
+			UE_LOG(LogCosmic, Error, TEXT("CosmicHash: refused - bad -CosmicHashEvery=%s"), *HashSwitch.EveryText);
+		}
+		else if (!FParse::Value(FCommandLine::Get(), TEXT("Seed="), HashSeed))
+		{
+			UE_LOG(LogCosmic, Error, TEXT("CosmicHash: refused - no -Seed="));
+		}
+		else if (!Save || Save->IsGameSavingOn())
+		{
+			UE_LOG(LogCosmic, Error, TEXT("CosmicHash: refused - the game's saving is on"));
+		}
+		else if (!Sim || !HashLog || !HashRole)
+		{
+			UE_LOG(LogCosmic, Error, TEXT("CosmicHash: refused - no simulation"));
+		}
+		else
+		{
+			const CosmicHashRun::FResult Result = CosmicHashRun::Run(*Sim, *HashLog, *HashRole, HashSeed, HashSwitch);
+			for (const FString& Checkpoint : Result.Checkpoints)
+			{
+				UE_LOG(LogCosmic, Display, TEXT("%s"), *Checkpoint);
+			}
+			if (Result.Outcome == CosmicHashRun::EOutcome::Ran)
+			{
+				UE_LOG(LogCosmic, Display, TEXT("%s"), *CosmicHashRun::LineOf(Result));
+			}
+			else
+			{
+				UE_LOG(LogCosmic, Error, TEXT("%s"), *CosmicHashRun::LineOf(Result));
+			}
+		}
+		FPlatformMisc::RequestExitWithStatus(false, 0, TEXT("CosmicHashRun"));
+		return;
+	}
+
 	// The continue (MVP item 5) before Super::StartPlay: no handler is bound yet, so a continued run that ended stands ended
 	// through the two BeginPlay calls (FollowEnd(false) in each - headers/A4 4.4 (5)); the load's OnGalaxyGenerated reaches
 	// nobody.

@@ -221,7 +221,7 @@ void UCosmicSaveSubsystem::RequestSave(ECosmicSaveCause Cause)
 	{
 		if (Mark.GalaxyID == State.GalaxyID && Mark.StateHash == Sim->ComputeStateHash())
 		{
-			UE_LOG(LogCosmic, Verbose, TEXT("CosmicSave: exit - the slot already holds this state"));
+			UE_LOG(LogCosmic, Log, TEXT("CosmicSave: exit - the slot already holds this state"));
 			return;
 		}
 		// Decision 6: the new run of an Unreadable start (HoldStartRun) is first written at a tick boundary, so a quit before

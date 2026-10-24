@@ -40,7 +40,7 @@
 | `PopulationRegrowthPerTick` | `0.0002` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `EventSlotTicks` | `10` | number | `{"min": 1, "max": 20, "integer": true}` | Events/CosmicEventSubsystem.cpp | 읽힘 |
 | `EventChancePerSlot` | `0.02` | number | `{"min": 0}` | Events/CosmicEventSubsystem.cpp | 읽힘 |
-| `HomeGalaxyRow` | `"gal_milkyway"` | row | `{"table": "DT_Galaxies", "target": [{"col": "BridgeTicks", "is": 0}…` | Sim/GalaxySimulationSubsystem.cpp, UI/CosmicGalaxyPanelWidget.cpp, World/CosmicGalaxyMapActor.cpp, World/CosmicGameMode.cpp | 읽힘 |
+| `HomeGalaxyRow` | `"gal_milkyway"` | row | `{"table": "DT_Galaxies", "target": [{"col": "BridgeTicks", "is": 0}…` | Sim/GalaxySimulationSubsystem.cpp, UI/CosmicGalaxyPanelWidget.cpp, World/CosmicGalaxyMapActor.cpp, World/CosmicGameMode.cpp, World/CosmicHashRun.cpp | 읽힘 |
 | `RealmCapByTier` | `[1, 3, 4, 7, 10]` | numbers | `{"len": 5, "ascending": true, "integer": true}` | Sim/CosmicMegaprojects.cpp | 읽힘 |
 | `SightLanesByTier` | `[2, 3, 4, 6, 10]` | numbers | `{"len": 5, "min": 1, "integer": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `SightIntervalTicks` | `10` | number | `{"min": 1, "integer": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
