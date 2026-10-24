@@ -1027,8 +1027,9 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	float SpiritualistInsightBonus = 0.2f;
 
 	// Influence per unit of Population before the ethics bonus and the rung. 0 or below, or not a number: no Influence.
+	// 1.0 since MVP item 8 A-8b (0.5 before - the 2026-10-18 decision 10: answers and settlements no longer starve).
 	UPROPERTY(EditAnywhere)
-	float InfluencePerPopulation = 0.5f;
+	float InfluencePerPopulation = 1.0f;
 
 	// Influence bonus per point of Openness (above 0). 0 or below, or not a number: no bonus.
 	UPROPERTY(EditAnywhere)

@@ -114,7 +114,7 @@
 		"OnExpireBranchEffects": [],
 		"OnExpireNeighbourEffects": [],
 		"OnResolveEffects": [],
-		"RulerResolutions": [],
+		"RulerResolutions": ["project_relief"],
 		"WandererResolutions": [],
 		"LogCategory": "Log.Crisis",
 		"Severity": 1,

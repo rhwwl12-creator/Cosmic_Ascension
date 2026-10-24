@@ -40,7 +40,7 @@
 		"DisplayName": "정착",
 		"RequiredTier": "Tier2_Stellar",
 		"CostPerTick": {"Energy": 1.0, "Matter": 2.0, "Insight": 0.0, "Influence": 0.0, "Causality": 0.0},
-		"RequiredProgress": 300.0,
+		"RequiredProgress": 600.0,
 		"CompleteTemplates": [
 			"{Civ}|hpp(이,가) {System}에 자리를 잡았다.",
 			"{System}에 {Civ}의 첫 불빛이 켜졌다.",

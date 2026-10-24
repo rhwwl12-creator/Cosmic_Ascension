@@ -86,7 +86,9 @@ namespace CosmicPetitions
 	 * The end of the knowing stage (section 5.10): puts one card before an embodied ruler with no card waiting. The
 	 * candidates are the units of StandingHeld that are not in HeldAtHead (their conditions came to hold in this tick);
 	 * when there are none and Tick - Calling.BornTick is a positive multiple of DT_Rules.PetitionPeriodTicks (below 1 read
-	 * as 1), the units of the Lottery rows whose conditions hold and that are not among the last choices of the life. One
+	 * as 1), the units of the Lottery rows whose conditions hold and that are not among the last choices of the life - and
+	 * when there is none, those that are not the most recent Lottery row among them (MVP item 8: two or three periodic
+	 * cards against three remembered choices would otherwise silence the slot; a single one is still not put twice). One
 	 * candidate is picked by BaseWeight with CosmicSeed::DeriveForName(Seed, ruled CivID, Purpose::Petition, Tick): no
 	 * number of the sim stream. Writes Knowing.PendingPetitionRow and PendingPetitionSystemID (NAME_None for a
 	 * Civilization row) and nothing else. True when a card was put.

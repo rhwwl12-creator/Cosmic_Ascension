@@ -6,7 +6,7 @@
 		"EthicsPreset": {"Pacifism": 0.0, "Spiritualism": 0.0, "Openness": 0.2},
 		"AIProfile": "",
 		"Color": {"R": 0.25, "G": 0.55, "B": 1.0, "A": 1.0},
-		"NameBank": ["갈라진 집", "찾는 자들의 연맹", "첫 불의 의회"],
+		"NameBank": ["갈라진 집", "찾는 자들의 연맹", "첫 불의 모임"],
 		"AdjectiveBank": ["갈라진", "끈질긴", "기억하는"],
 		"PersonNameBank": ["사렌", "토바르", "이소란", "벨루나", "오르테", "키라반", "베론", "누린", "타비엔", "아루스", "펜리아", "소르닌"],
 		"HazardSpawnMultipliers": {"Hazard.AIAwakening": 1.2},
@@ -14,7 +14,7 @@
 		"Weight": 0.0,
 		"RevelationMode": "Revelation.Seeking",
 		"RevelationTemplates": ["어느 제단에도 이름이 없었다. 그들은 빈 자리에 제단을 하나 더 세웠다."],
-		"HomeSystemNames": ["첫 해"],
+		"HomeSystemNames": ["이른 해"],
 		"HomeStarClass": "Star.Class.G",
 		"DedicationBanks": ["Faith.Bank.Nations", "Faith.Bank.Civic"]
 	},

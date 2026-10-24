@@ -63,7 +63,7 @@
 | `MaterialistEnergyBonus` | `0.2` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `InsightPerPopulation` | `1.0` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `SpiritualistInsightBonus` | `0.2` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
-| `InfluencePerPopulation` | `0.5` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
+| `InfluencePerPopulation` | `1.0` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `OpenInfluenceBonus` | `0.2` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `ResearchInsightShare` | `0.5` | number | `{"min": 0, "max": 1}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `ResearchPerInsight` | `0.003` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |

@@ -182,18 +182,35 @@ bool CosmicPetitions::Present(FGalaxyState& State, const FCosmicStateIndex& Inde
 			return false;
 		}
 		const TArray<FName> Recent = State.Calling.Lives.IsEmpty() ? TArray<FName>() : State.Calling.Lives.Last().LastChoiceRows;
-		for (const FName RowName : Tables.GetEncounterRowNames())
+		// The most recent Lottery row among the last choices. When every Lottery row that holds is among them (a pool of two
+		// or three periodic cards against the three remembered choices), only that one is passed over (MVP item 8): the same
+		// periodic card never comes twice in a row, and the slot does not fall silent for the rest of the life.
+		FName LastPeriodic = NAME_None;
+		for (int32 At = Recent.Num() - 1; At >= 0; --At)
 		{
-			const FEncounterDef* Row = Tables.FindEncounter(RowName);
-			if (!Row || Row->Trigger != ECosmicEventTrigger::Lottery || Recent.Contains(RowName))
+			const FEncounterDef* Row = Tables.FindEncounter(Recent[At]);
+			if (Row && Row->Trigger == ECosmicEventTrigger::Lottery)
 			{
-				continue;
+				LastPeriodic = Recent[At];
+				break;
 			}
-			for (const int32 SystemIndex : UnitsOf(State, Index, CivIndex, Row->Subject))
+		}
+		for (int32 Pass = 0; Pass < 2 && Candidates.IsEmpty(); ++Pass)
+		{
+			for (const FName RowName : Tables.GetEncounterRowNames())
 			{
-				if (Holds(State, Index, Tables, Rules, RowName, *Row, CivIndex, SystemIndex))
+				const FEncounterDef* Row = Tables.FindEncounter(RowName);
+				const bool bPassedOver = Pass == 0 ? Recent.Contains(RowName) : RowName == LastPeriodic;
+				if (!Row || Row->Trigger != ECosmicEventTrigger::Lottery || bPassedOver)
 				{
-					Candidates.Add({ RowName, SystemIndex, WeightOf(*Row) });
+					continue;
+				}
+				for (const int32 SystemIndex : UnitsOf(State, Index, CivIndex, Row->Subject))
+				{
+					if (Holds(State, Index, Tables, Rules, RowName, *Row, CivIndex, SystemIndex))
+					{
+						Candidates.Add({ RowName, SystemIndex, WeightOf(*Row) });
+					}
 				}
 			}
 		}

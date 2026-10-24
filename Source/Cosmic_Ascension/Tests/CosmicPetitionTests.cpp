@@ -261,7 +261,17 @@ bool FCosmicSimPetitionPresentTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("A row among the last choices of the life is not put again"), State.Knowing.PendingPetitionRow, LotB);
 	CosmicPetitions::Clear(State);
 	State.Calling.Lives.Last().LastChoiceRows = { LotA, LotB };
-	TestFalse(TEXT("With every Lottery row among them the slot puts nothing"), CosmicPetitions::Present(State, Index, Tables, Rules, {}));
+	TestTrue(TEXT("With every Lottery row among them the slot still puts one (MVP item 8)"), CosmicPetitions::Present(State, Index, Tables, Rules, {}));
+	TestEqual(TEXT("not the most recent one"), State.Knowing.PendingPetitionRow, LotA);
+	CosmicPetitions::Clear(State);
+	State.Calling.Lives.Last().LastChoiceRows = { LotB, LotA };
+	CosmicPetitions::Present(State, Index, Tables, Rules, {});
+	TestEqual(TEXT("(the other way round, the other one)"), State.Knowing.PendingPetitionRow, LotB);
+	CosmicPetitions::Clear(State);
+	State.Calling.Lives.Last().LastChoiceRows = { LotA, LotB, Low };
+	CosmicPetitions::Present(State, Index, Tables, Rules, {});
+	TestEqual(TEXT("A Standing answer after them does not count as the most recent periodic card"), State.Knowing.PendingPetitionRow, LotA);
+	CosmicPetitions::Clear(State);
 	State.Calling.Lives.Last().LastChoiceRows.Reset();
 
 	// Only an embodied ruler gets cards.
@@ -272,6 +282,22 @@ bool FCosmicSimPetitionPresentTest::RunTest(const FString& Parameters)
 	State.Calling.LifeState = ELifeState::Interregnum;
 	TestFalse(TEXT("Neither does the calling between vessels"), CosmicPetitions::Present(State, Index, Tables, Rules, {}));
 	State.Calling.LifeState = ELifeState::Embodied;
+
+	// A single periodic card, answered last: the fallback passes it over too - the slot puts nothing rather than the same card
+	// again.
+	{
+		Sim->SetTables(TablesWith(Original, CardTable({
+			{ TEXT("petition_test_lot_a"), Card(ECosmicEventTrigger::Lottery, ECosmicEventSubject::Civilization, {}, Two, 1.f) },
+		}), 50));
+		Sim->NewGalaxy(42, 5, 3);
+		FGalaxyState& One = Sim->GetMutableState();
+		One.Calling.BornTick = 0;
+		One.Tick = 50;
+		One.Calling.Lives.Last().LastChoiceRows = { LotA };
+		TestFalse(TEXT("A single periodic card answered last is not put again"), CosmicPetitions::Present(One, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), {}));
+		One.Calling.Lives.Last().LastChoiceRows.Reset();
+		TestTrue(TEXT("(and is put when it was not)"), CosmicPetitions::Present(One, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), {}));
+	}
 
 	// 3. The cards change no world: the same board with and without the game's cards has the same world hash, and the
 	// presentation draws nothing from the sim stream.

@@ -2160,10 +2160,11 @@ bool FCosmicSimLayersInRangeTest::RunTest(const FString& Parameters)
 }
 
 // The exit conditions of Phase 2 on the game's data, input-free (guideline 11, Phase 2): hazards are placed, run out and are
-// answered, each ending with its own line; a claim stands next to Silence, runs out and joins its sphere (seed 42, 60
-// systems and 12 peoples, 20,000 ticks); and a neglected ruler is deposed by a rebellion, with the fallen monarch's line
-// (seed 18 - seed 7 until MVP item 3, whose recovery of Stability and claim relief moved the neglected depositions to
-// seeds 1, 4, 9, 18, 19, 21, 22 and 26 of 1-29 and 42; 18 is the earliest, at tick 6,090). The seeds are measured, not
+// answered, each ending with its own line; a claim stands next to Silence, runs out and joins its sphere (seed 18 - seed 42
+// until MVP item 8, whose Influence of 1.0 lets the AI relieve seed 42's two claims; 60 systems and 12 peoples, 20,000
+// ticks); and a neglected ruler is deposed by a rebellion, with the fallen monarch's line (seed 18 - seed 7 until MVP item 3,
+// whose recovery of Stability and claim relief moved the neglected depositions to seeds 1, 4, 9, 18, 19, 21, 22 and 26 of
+// 1-29 and 42; since MVP item 8 seeds 1, 7, 13, 18, 20 and 29 - 18 is still among them). The seeds are measured, not
 // chosen by a rule: a change of the world that loses a condition on its seed has to show it on another one and say so in
 // guideline 9.3. The stepped run steps as a game's frames do (StepOnce, the gate
 // open), and it is the same world as the whole run at once with the gate closed.
@@ -2188,10 +2189,12 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The game's rebellion row deposes the ruler when it runs out"),
 		Rebellion && Rebellion->OnExpireEffects.ContainsByPredicate([](const FCosmicEffect& Effect) { return Effect.Type == EEffectType::DeposeRuler; }));
 
-	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	// Seed 18 since MVP item 8 A-8b: with the people's Influence at 1.0 the AI relieves the few claims of seed 42 before they run
+	// out (2 placed, none joined in 20,000 ticks); seed 18 has nine that join.
+	Sim->NewGalaxy(18, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	const FGalaxyState& State = Sim->GetState();
 	auto Silence = [&State]() { return State.Transcendents.FindByPredicate([](const FTranscendentState& Each) { return Each.TranscendentID == CosmicRows::TransSilence; }); };
-	TestTrue(TEXT("Silence is in the roster (seed 42)"), Silence() != nullptr);
+	TestTrue(TEXT("Silence is in the roster (seed 18)"), Silence() != nullptr);
 	const int32 SphereStart = Silence() ? Silence()->InfluencedSystems.Num() : 0;
 	int32 Placed = 0;
 	int32 RanOut = 0;
@@ -2267,11 +2270,11 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("and every one that runs out is told by its row on its system"), RanOutTold, RanOut);
 	TestTrue(TEXT("some are answered: an answer of the hazard's row completes before it runs out"), Answered > 0);
 	TestEqual(TEXT("and every answered one is told by its row on its system"), AnsweredTold, Answered);
-	TestTrue(TEXT("A claim stands (seed 42)"), Claims > 0);
-	TestTrue(TEXT("A claim runs out and its system joins the sphere of Silence (seed 42)"), ClaimsJoined > 0);
-	TestTrue(TEXT("and the sphere of Silence grows (seed 42)"), Silence() && Silence()->InfluencedSystems.Num() > SphereStart);
+	TestTrue(TEXT("A claim stands (seed 18)"), Claims > 0);
+	TestTrue(TEXT("A claim runs out and its system joins the sphere of Silence (seed 18)"), ClaimsJoined > 0);
+	TestTrue(TEXT("and the sphere of Silence grows (seed 18)"), Silence() && Silence()->InfluencedSystems.Num() > SphereStart);
 	const uint32 Stepped = Sim->ComputeWorldHash();
-	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	Sim->NewGalaxy(18, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	Sim->RunHeadless(Ticks);
 	TestEqual(TEXT("Stepped with the gate open, one tick at a time is the same world as the whole run at once with it closed"), Sim->ComputeWorldHash(), Stepped);
 
@@ -2314,7 +2317,8 @@ bool FCosmicSimEconomyRulesTest::RunTest(const FString& Parameters)
 	const float NaN = std::numeric_limits<float>::quiet_NaN();
 	const FName Physics(TEXT("Physics"));
 
-	// (1) The game's row and the C++ defaults hold the numbers the code held before item 8.
+	// (1) The game's row and the C++ defaults hold the numbers the code held before item 8, but for the people's Influence -
+	// 0.5 -> 1.0 in A-8b.
 	{
 		const TArray<float> Tiers = { 1.0f, 1.5f, 2.2f, 3.0f, 3.0f };
 		const FCosmicRulesDef Defaults;
@@ -2323,7 +2327,7 @@ bool FCosmicSimEconomyRulesTest::RunTest(const FString& Parameters)
 			const TCHAR* Which = Row == &Game ? TEXT("The game's row") : TEXT("The C++ defaults");
 			TestTrue(FString::Printf(TEXT("%s: the rung multipliers"), Which), Row->TierMultiplier == Tiers);
 			TestTrue(FString::Printf(TEXT("%s: the ethics bonuses"), Which), Row->MaterialistEnergyBonus == 0.2f && Row->SpiritualistInsightBonus == 0.2f && Row->OpenInfluenceBonus == 0.2f);
-			TestTrue(FString::Printf(TEXT("%s: the people's Insight and Influence"), Which), Row->InsightPerPopulation == 1.0f && Row->InfluencePerPopulation == 0.5f);
+			TestTrue(FString::Printf(TEXT("%s: the people's Insight and Influence"), Which), Row->InsightPerPopulation == 1.0f && Row->InfluencePerPopulation == 1.0f);
 			TestTrue(FString::Printf(TEXT("%s: the research"), Which), Row->ResearchInsightShare == 0.5f && Row->ResearchPerInsight == 0.003f);
 		}
 	}
