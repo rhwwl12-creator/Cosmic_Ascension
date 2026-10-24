@@ -6,11 +6,13 @@ Checks (docs/40_DEV_GUIDE.md section 2, CLAUDE.md invariant rules 1, 3, 10):
   3. No FMath::Rand* anywhere in the module (the three random sources are GetRng, DrawTell, CosmicSeed::Derive).
   3b. Core Logic calls only the FMath members of a short list (Max, Min, Clamp, Abs, Sign, Square, Sqrt, RoundToInt32,
       IsNaN - inline + - * / and sqrt; the same for the FPlatformMath / FGenericPlatformMath spellings) and no C runtime
-      math but sqrt (pow, exp, log, the trigonometric and hyperbolic functions, atan2, fmod, cbrt, hypot ... in every
-      form): the values a hash holds come from + - * / and sqrt in module code (invariant rule 6). The game exe links the
-      engine compiled /fp:fast, the editor /fp:precise, so another call could give the cooked build another world than
-      the editor's (MVP item 9, docs/60_DECISIONS/headers/A9_win64_packaging.md section 3.3). String literals are blanked
-      first, so a log message saying "the log (...)" is not a call. Extend the list on purpose when a function is needed.
+      math but sqrt (pow, exp, log, the trigonometric and hyperbolic functions, atan2, fmod, cbrt, hypot ... - a deny list
+      of named functions, bare, std:: or ::, with the f and l forms): the values a hash holds come from + - * / and sqrt
+      in module code (invariant rule 6). The game exe links the engine compiled /fp:fast, the editor /fp:precise, so
+      another call could give the cooked build another world than the editor's (MVP item 9,
+      docs/60_DECISIONS/headers/A9_win64_packaging.md section 3.3). String literals are blanked first, so a log message
+      saying "the log (...)" is not a call. Extend the list on purpose when a function is needed. Header helpers such as
+      FVector::DistSquared and FRandomStream are not seen (docs/20_ARCHITECTURE.md section 9.2).
   4. Non-ASCII bytes in source files (the Korean lives in DataTable / String Table only).
   5. Report only: RequestGameplayTag(FName(TEXT("..."))) literals outside the constant headers, and DT_Rules knobs that no
      runtime code reads (reserved knobs). With --strict these counts may not grow past the recorded baseline.
@@ -50,7 +52,7 @@ inc_re = re.compile(r'^\s*#include\s+"([^"]+)"', re.M)
 rand_re = re.compile(r'\bFMath::(Rand|RandRange|FRand|FRandRange|RandHelper|RandBool|SRand|VRand)\b')
 math_member_re = re.compile(r'\b(?:FMath|FPlatformMath|FGenericPlatformMath|FWindowsPlatformMath)::(\w+)')
 MATH_ALLOWED = {'Max', 'Min', 'Clamp', 'Abs', 'Sign', 'Square', 'Sqrt', 'RoundToInt32', 'IsNaN'}
-crt_math_re = re.compile(r'(?<![\w.>:])(?:std::)?(?:pow|exp2?|expm1|log(?:2|10|1p)?|a?(?:sin|cos|tan)h?|atan2|fmod|cbrt|hypot|modf|remainder)[fl]?\s*\(')
+crt_math_re = re.compile(r'(?<![\w.>:])(?:(?:std)?::)?(?:pow|exp2?|expm1|log(?:2|10|1p)?|a?(?:sin|cos|tan)h?|atan2|fmod|cbrt|hypot|modf|remainder)[fl]?\s*\(')
 
 def strip_strings(text):
     text = re.sub(r'"(?:\\.|[^"\\\n])*"', '""', text)

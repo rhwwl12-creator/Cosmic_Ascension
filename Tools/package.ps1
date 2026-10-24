@@ -4,7 +4,7 @@
 #   powershell -ExecutionPolicy Bypass -File Tools\package.ps1 [-Root C:\CA_Builds] [-Ticks20000] [-Shipping] [-AllowDirty]
 #
 #   -Root         the folder of the packages, outside OneDrive and without spaces (default $env:COSMIC_BUILDS or C:\CA_Builds)
-#   -Ticks20000   also compare the 20,000-tick hash runs of the package and the editor (a few minutes more)
+#   -Ticks20000   also compare the 20,000-tick hash runs of the package and the editor (about 25 s more - engine start-up, not ticks)
 #   -Shipping     also compile the Shipping game target once (no cook, no run)
 #   -AllowDirty   package a working tree with uncommitted changes (every result says DIRTY)
 #

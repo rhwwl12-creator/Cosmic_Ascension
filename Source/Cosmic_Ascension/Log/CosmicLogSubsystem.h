@@ -61,8 +61,9 @@ public:
 	static constexpr int32 MaxLogEntries = 2000;
 
 	// The tell-all mode (section 8.1): with it on every line is stored and nothing is judged by the scope of telling (no
-	// bUntold, no far line). Not saved: a mode of the run, off in the game, on in the tests (CosmicTests::AcquireSim) and
-	// in the balance commandlet. The world hash is the same either way.
+	// bUntold, no far line). Not saved: a mode of the run, off in the game, on in the tests (CosmicTests::AcquireSim), in
+	// the balance commandlet and in the idle hash run (World/CosmicHashRun - restored after). The world hash is the same
+	// either way.
 	void SetTellAll(bool bOn) { bTellAll = bOn; }
 	bool IsTellAll() const { return bTellAll; }
 

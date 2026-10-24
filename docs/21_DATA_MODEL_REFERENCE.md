@@ -1229,7 +1229,7 @@ void SyncRngState(); // State.RngState = Rng.GetCurrentSeed(). NewGalaxy와 Simu
 
 uint32 DrawTell(int32 Count); // 말하기 스트림 (§9.2). State.TellRngState로 지역 스트림을 열어 0 이상 Count 미만의 수를 한 번 뽑고 상태를 되적는다 — 살아 있는 스트림 객체를 두지 않는다(GetTellRng 같은 getter는 없다). PushVariants의 문장 변형 추첨만 쓰고(부르는 함수는 그것 하나다) 어떤 규칙도 이 값을 읽지 않는다. 저장 값이 항상 최신이라 해시는 TellRngState를 그대로 읽는다. Count < 1은 호출자 오류다 — 에러 로그 한 줄, 추첨 없음, 0 반환. 핸들러 안(IsBroadcasting)에서 불려도 같다(Phase 2 종료 리뷰). v0.7 예약 커밋
 
-uint32 ComputeWorldHash() const; // 세계 해시 (§8.1, §9.2). ComputeStateHash에서 Knowing·Log·Chronicle·ChronicleEviction(MVP ⑤)·TellRngState를 뺀 것(최상위 멤버 이름 기준). 앎이 세계를 바꾸지 않음을 잰다(Sim.KnowingInert). 쿠킹 빌드 비교도 이 값으로 한다. v0.7 예약 커밋
+uint32 ComputeWorldHash() const; // 세계 해시 (§8.1, §9.2). ComputeStateHash에서 Knowing·Log·Chronicle·ChronicleEviction(MVP ⑤)·TellRngState를 뺀 것(최상위 멤버 이름 기준). 앎이 세계를 바꾸지 않음을 잰다(Sim.KnowingInert). 쿠킹 빌드는 이것과 ComputeStateHash 둘로 견준다(같은 말하기 모드 — MVP ⑨). v0.7 예약 커밋
 
 bool NoteMet(FName CivID, FName SeenAtSystemID = NAME_None); // 앎에 쓰는 함수 (§8.1). 격차 규칙을 적용하고 Knowing.MetCivs에 없을 때만 더하며, 새로 적을 때 만남의 줄을 낸다(말하기 스트림만. 주제는 그 백성과 SeenAtSystemID). 새로 만났으면 true. 그릇이 없으면(공백기) 아무것도 하지 않고, 핸들러 안에서는 에러 한 줄로 거절한다. 그때 Knowing.FirstContactCivID가 NAME_None이면 그 만남이 첫 접촉이고 같은 호출이 그 칸에 만난 백성의 ID를 적는다(아래 '앎 단계'). 시뮬 추첨 0. Phase 2
 
@@ -1490,11 +1490,11 @@ static constexpr float SecondsPerTick = 1.0f;
 
 // - 테스트: PrepareForTests()(CosmicTests::AcquireSim — 폴더 Automation/, 문 닫음, 덮어쓰기 끔, 시간·실패 되돌림) · SetFolderForTest · SetGameSavingForTest(bOn) · ContinueAtNextStartForTest()(다음 StartPlay가 지금 은하 위로도 잇는다 — 지도 다시 열기) · SetTimingForTest(Interval, Retry) · GetSavesWritten · GetLastCause.
 
-// 해시 판(World/CosmicHashRun.h, MVP ⑨ 2026-10-24 — 헤더 docs/60_DECISIONS/headers/A9_win64_packaging.md §2, §9.2. World 층: Sim·Log·Player를 읽고 상태를 남기지 않는다)
+// 해시 판(World/CosmicHashRun.h, MVP ⑨ 2026-10-24 — 헤더 docs/60_DECISIONS/headers/A9_win64_packaging.md §2, §9.2. World 층: Sim·Log·Player를 부르는 상태 없는 함수 — 새 은하를 만들어 돌리므로 지금의 판을 바꾸고, 로그의 말하기 모드는 끝나면 되돌린다)
 
 // - namespace CosmicHashRun: MaxTicks 100000 · enum class ESwitch : uint8 { Absent, Bad, Ticks } · FSwitch { Kind, Ticks, EveryKind, Every, bPolicy, Text, EveryText, IsGood() } · FSwitch SwitchOf(CommandLine)(-CosmicHashRun=·-CosmicHashEvery= — 1~6자리 ASCII 숫자·MaxTicks 이하를 다음 공백까지 글로 읽는다, -CosmicHashPolicy) · enum class EOutcome : uint8 { Ran, MissingData } · FResult { Outcome, Seed, Ticks, bPolicy, StateHash, WorldHash, Checkpoints, Missing } · FResult Run(Sim, Log, Role, Seed, Switch)(idle: 전부 말하기 → NewGalaxy(Seed, 0, 0) → RunHeadless를 Every씩; 정책: 범위 → NewGalaxy → 틱마다 RunHeadless(1)과 CosmicRulerPolicy::Act; 로그의 모드를 되돌린다; 열 테이블·규칙 행·고향 은하 행이 없으면 NewGalaxy 전에 MissingData) · FString LineOf(Result)('CosmicHash: seed S, T ticks, hash H, world W[, policy]' / 'CosmicHash: refused - missing <이름>').
 
-// - ACosmicGameMode::StartPlay의 맨 앞: 'CosmicBuild: version <ProjectVersion>, commit <ProjectDir()/BuildInfo.txt의 commit=|->, cooked|editor' 한 줄, 그리고 세 스위치 가운데 하나라도 있으면 해시 판 — 거절(Error: no -CosmicHashRun= · bad -CosmicHashRun=<글> · bad -CosmicHashEvery=<글> · no -Seed= · the game's saving is on · no simulation) 또는 체크포인트와 LineOf(Display), 그리고 RequestExitWithStatus(false, 0) — BeginSession도 Super::StartPlay도 부르지 않는다.
+// - ACosmicGameMode::StartPlay의 맨 앞: 'CosmicBuild: version <ProjectVersion>, commit <ProjectDir()/BuildInfo.txt의 commit=|->, cooked|editor' 한 줄, 그리고 세 스위치 가운데 하나라도 있으면 해시 판 — 거절(Error: no -CosmicHashRun= · bad -CosmicHashRun=<글> · bad -CosmicHashEvery=<글> · no -Seed= · the game's saving is on · no simulation) 또는 체크포인트(Display)와 LineOf(Ran은 Display, MissingData의 'refused - missing <이름>'은 Error), 그리고 RequestExitWithStatus(false, 0) — BeginSession도 Super::StartPlay도 부르지 않는다.
 
 // 통치자 정책(World/CosmicRulerPolicy.h, MVP ⑨ — 밸런스 커맨드렛의 -Answer·-Build·-Focus를 그대로 옮겼다; 커맨드렛과 해시 판이 함께 쓴다): FCosmicRulerPolicy { bAnswer, bBuild, bFocus } · FCosmicRulerPolicyCounts { CardsCome, Answers, Started, FocusChanges, bEnded } · int32 ChoiceOf(State, Index, Row, AnswersSoFar)(비축으로 낼 수 있는 첫 선택지를 답한 수부터 돌아가며) · void Act(Policy, Sim, Role, CardBefore, Counts)(틱 경계: 임시 끝 읽기 → 온 카드 → 답(8번까지) → 프로젝트 키(8번까지) → 끝나지 않았으면 다음 칸의 연구로 중점).
 

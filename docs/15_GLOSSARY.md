@@ -117,12 +117,12 @@
 | 보는 쪽 Tier | Viewer tier | `UGalaxySimulationSubsystem::GetViewerTier` | 부름이 세상을 보는 칸 — 통치하는 동안은 통치 문명의 Tier, 그 밖(방랑자, 공백기)은 개인 Tier. 격차 규칙과 줄의 창이 읽는다 (§7.4, §8.1) |
 | 격차 규칙 | Gap rule | `NoteMet`, 이야기의 범위 | 보는 쪽보다 세 칸 이상 위의 백성은 만나지 못하고 그 백성의 줄도 말해지지 않는다. 아래 칸은 막지 않는다 (§3.2, §8.1) |
 | 먼 줄 | Far line | `log_far_event`·`log_far_ascent`, `Knowing.FarLineUntilTick` | 범위 밖 주제의 Severity 2 줄 대신 말해지는 이름 없는 한 줄 — 시계는 읽힌다. 셋째 칸 이상의 승천은 매번, 그 밖은 많아야 300틱(`FarLineCooldownTicks`)에 한 번 (§8.1) |
-| 전부 쌓는 모드 | Tell-all mode | `UCosmicLogSubsystem::SetTellAll` | 범위를 묻지 않고 모든 줄을 쌓는 실행의 모드(저장하지 않는다). 테스트와 커맨드렛만 켜고 게임은 끈다. 어느 모드든 세계 해시는 같다 (§8.1) |
+| 전부 쌓는 모드 | Tell-all mode | `UCosmicLogSubsystem::SetTellAll` | 범위를 묻지 않고 모든 줄을 쌓는 실행의 모드(저장하지 않는다). 테스트·커맨드렛과 해시 판의 idle 판(`-CosmicHashRun` — 끝나면 되돌린다)이 켜고 게임은 끈다. 어느 모드든 세계 해시는 같다 (§8.1) |
 | 방랑자의 눈 | Wanderer's eye | `TickSight`, `KnowAround`(`BecomeWanderer`·방랑자 `Install`) | 방랑자가 선 성계에서 개인 Tier의 거리로 보는 눈. 방랑자가 되는 틱에는 선 성계와 같은 은하 행의 1레인 이웃을 곧바로 안다(만남은 다음 갱신) (§4.4, §7.4) |
 | 말하기 스트림 | Tell stream | `FGalaxyState.TellRngState`, `DrawTell` | 문장 변형만 뽑는 난수 출처. 어떤 규칙도 읽지 않는다 (§9.2) |
 | 파생 정수 | Derived value | `CosmicSeed::Derive`·`DeriveForName`(`Core/CosmicSeed.h`), 용도 상수 9 | 시드에서 상태 없이 나오는 값. 식과 상수는 동결 (§9.2) |
 | 세계 해시 | World hash | `ComputeWorldHash()` | 앎·로그·연대기(와 밀어냄 기록)·말하기 스트림을 뺀 해시 — 앎이 세계를 바꾸지 않음을 재는 자 (§9.2) |
-| 해시 판 | Hash run | `-CosmicHashRun=<틱>`, `World/CosmicHashRun` | 게임 프로세스(에디터 `-game`이나 패키지)가 시드 하나를 헤드리스로 돌려 두 해시를 한 줄로 찍고 끝나는 개발 스위치 — 쿠킹 빌드의 결정론을 재는 자(`-CosmicHashPolicy`는 통치자 정책 판, `-CosmicHashEvery`는 체크포인트) (§9.2, MVP ⑨) |
+| 해시 판 | Hash run | `-CosmicHashRun=<틱>`, `World/CosmicHashRun` | 게임 프로세스(에디터 `-game`이나 패키지)가 시드 하나를 헤드리스로 돌려 두 해시를 한 줄로 찍고 끝나는 판(개발 스위치 `-CosmicHashRun`이 연다, 저장 슬롯 없음) — 쿠킹 빌드의 결정론을 재는 자(`-CosmicHashPolicy`는 통치자 정책 판, `-CosmicHashEvery`는 체크포인트) (§9.2, MVP ⑨) |
 | 빌드 폴더 / 건넬 zip | Build folder / handover zip | `Tools/package.ps1` | 패키지마다 새로 만드는 `C:\CA_Builds\<날짜-시각>-<커밋>`(OneDrive 밖 — 개발자의 손 확인은 여기서)과, 아무것도 돌기 전에 그 `Windows\`를 `Saved\` 없이 묶은 `-handoff.zip`(외부 1명에게 건네는 것) (MVP ⑨) |
 | 다리 | Bridge | `FGalaxyDef.BridgeTicks` | 고향 은하와 무대 은하 사이의 건넘 틱. 레인이 아니고 상태가 없다. '문'·'관문'·'길'이라 부르지 않는다 (§5.9) |
 | 건넘 / 건너는 배들 | Crossing / the crossing ships | `project_crossing`, `FTransitRecord`, `FGalaxyState.Transits`, `Transit.People` | T4 이상의 백성이 다른 은하에 무리를 보내는 일. 건너는 것은 유닛이 아니라 기록이다. 방주 = 구출, 건너는 배들 = 건넘 (§5.7) |

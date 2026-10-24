@@ -69,8 +69,9 @@ namespace CosmicControlImpl
 		return static_cast<int32>(FDateTime::UtcNow().GetTicks() & 0x7fffffff);
 	}
 
-	// The commit Tools/package.ps1 wrote beside a package (MVP item 9): the line "commit=<short>" of
-	// <ProjectDir>/BuildInfo.txt, "-" without the file (an editor run).
+	// The commit Tools/package.ps1 wrote into the packaged project folder (MVP item 9): the line "commit=<short>" of
+	// <ProjectDir>/BuildInfo.txt (<build folder>/Windows/Cosmic_Ascension/ in a package), "-" without the file (an
+	// editor run).
 	FString BuildCommitOf()
 	{
 		FString Text;
@@ -127,8 +128,8 @@ void ACosmicGameMode::StartPlay()
 	UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
 	UCosmicSaveSubsystem* Save = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCosmicSaveSubsystem>() : nullptr;
 
-	// MVP item 9: which build this is - the project version, the commit package.ps1 wrote beside a package, and whether the
-	// data is cooked (the configuration is LogInit's 'Build Configuration' line).
+	// MVP item 9: which build this is - the project version, the commit package.ps1 wrote into the packaged project folder,
+	// and whether the data is cooked (the configuration is LogInit's 'Build Configuration' line).
 	UE_LOG(LogCosmic, Display, TEXT("CosmicBuild: version %s, commit %s, %s"), *GetDefault<UGeneralProjectSettings>()->ProjectVersion,
 		*CosmicControlImpl::BuildCommitOf(), FPlatformProperties::RequiresCookedData() ? TEXT("cooked") : TEXT("editor"));
 

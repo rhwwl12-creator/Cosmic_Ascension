@@ -331,8 +331,8 @@ public:
 
 	/**
 	 * World hash (section 8.1, 9.2): ComputeStateHash without the top-level members Knowing, Log, Chronicle,
-	 * ChronicleEviction and TellRngState. Measures that knowing and telling never change the world; builds are compared
-	 * by this value.
+	 * ChronicleEviction and TellRngState. Measures that knowing and telling never change the world. The cooked build is
+	 * compared on this value and on ComputeStateHash, in the commandlet's telling mode (section 9.2, MVP item 9).
 	 */
 	uint32 ComputeWorldHash() const;
 

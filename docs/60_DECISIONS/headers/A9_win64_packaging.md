@@ -1,8 +1,8 @@
 # MVP ⑨ 헤더 초안 — Win64 패키징과 쿠킹 빌드의 세계 해시
 
-상태: **구현 끝 (2026-10-24 — `[A-9a]`·`[A-9b]`·`[A-9c]`, `git log --grep 'A-9'`; 다르게 하거나 더한 것은 `DECISIONS_LOG` 2026-10-24 MVP ⑨). 손 확인 ⓐ(§4.1)와 ⓔ(§4.2)가 남았다.** 승인 (2026-10-24, 개발자 "다음작업들 이어서 계속 진행해줘" — §9의 결정 15개 전원 권장안). 승인 전의 기록: 초안 (2026-10-24) — 조사 워크플로(넷이 나란히: 게임 바이너리의 코드 경로·엔진 5.8.3의 패키징 사실·문서에 이미 정해진 것·쿠킹 빌드의 해시를 재는 길 — 엔진 사실은 모두 로컬 엔진 소스의 줄로), 코드 변경 없는 시험 패키지 한 번(§1.6), 적대 리뷰(ultracode 워크플로 — 네 관점: 엔진과 빌드의 사실·해시 판이 ⓓ를 증명하는가·도구와 실패의 길·결정과 손 확인과 플레이어, 관점마다 적대 검증 하나) 발견 48건, 남김 47(확인 30·일부 17, 반박 1), 높음 0·중간 15·낮음 32 — 모두 본문에 넣었다. 리뷰가 바꾼 설계: 패키지마다 새 폴더와 저장 없는 건넬 zip(§3.2·§4.2), 해시 판의 스위치가 셋의 상태(없음·틀림·맞음 — 틀린 값은 거절하고 끝난다)와 틱 0(§2.1), 정책 판도 쿠킹 빌드에서(§2.2 — 결정 3), 러너는 같은 실행의 커맨드렛 줄과 견준다(§3.1), 로그·종료 코드·시간 제한의 판정(§3.2), 빌드를 알리는 `BuildInfo.txt`(§2.4), Core Logic의 비인라인 수학을 막는 린트(§3.3), 스트링 테이블 점검의 낱말, effort 표(§7). 개발자 결정은 §9.
+상태: **구현 끝 (2026-10-24 — `[A-9a]`~`[A-9c]`, 문서 재감사 `[A-9d]`, `git log --grep 'A-9'`; 다르게 하거나 더한 것은 `DECISIONS_LOG` 2026-10-24 MVP ⑨). 손 확인 ⓐ(§4.1)와 ⓔ(§4.2)가 남았다.** 승인 (2026-10-24, 개발자 "다음작업들 이어서 계속 진행해줘" — §9의 결정 15개 전원 권장안). 승인 전의 기록: 초안 (2026-10-24) — 조사 워크플로(넷이 나란히: 게임 바이너리의 코드 경로·엔진 5.8.3의 패키징 사실·문서에 이미 정해진 것·쿠킹 빌드의 해시를 재는 길 — 엔진 사실은 모두 로컬 엔진 소스의 줄로), 코드 변경 없는 시험 패키지 한 번(§1.6), 적대 리뷰(ultracode 워크플로 — 네 관점: 엔진과 빌드의 사실·해시 판이 ⓓ를 증명하는가·도구와 실패의 길·결정과 손 확인과 플레이어, 관점마다 적대 검증 하나) 발견 48건, 남김 47(확인 30·일부 17, 반박 1), 높음 0·중간 15·낮음 32 — 모두 본문에 넣었다. 리뷰가 바꾼 설계: 패키지마다 새 폴더와 저장 없는 건넬 zip(§3.2·§4.2), 해시 판의 스위치가 셋의 상태(없음·틀림·맞음 — 틀린 값은 거절하고 끝난다)와 틱 0(§2.1), 정책 판도 쿠킹 빌드에서(§2.2 — 결정 3), 러너는 같은 실행의 커맨드렛 줄과 견준다(§3.1), 로그·종료 코드·시간 제한의 판정(§3.2), 빌드를 알리는 `BuildInfo.txt`(§2.4), Core Logic의 비인라인 수학을 막는 린트(§3.3), 스트링 테이블 점검의 낱말, effort 표(§7). 개발자 결정은 §9.
 
-근거: `docs/50_ROADMAP.md` A ⑨('Win64 패키징')와 종료 조건 ⓐ(새 판 → 저장 → 재시작 → 이어하기)·ⓓ(쿠킹 빌드 시드 42 세계 해시 = 에디터)·ⓔ(외부 1명), 같은 문서의 위험 표('쿠킹 해시 미검증' — 완화는 ⓓ)와 Phase 1에서 미룬 확인 8(`:94` — '첫 패키징 때 세계 해시로 비교한다(테스터와 시드를 나누기 전)'), `docs/00_VISION.md:32`('Win64 패키징 1회'), `docs/20_ARCHITECTURE.md` §9.1(슬롯의 자리)·§9.2(결정론 — 마지막 문장)·부록 불변 규칙 6, 헤더 `A5_save_minimum.md` §10(손 확인 ⓐ의 여덟 걸음)·§11('패키지의 저장 폴더는 ⑨가 본다'), `docs/45_ENGINE_NOTES.md:97`, `STATUS.md` 다음 작업 1·2, `WORKPLAN.md` §2(일의 종류별 effort), `CLAUDE.md` 불변 규칙 1·6·7·10과 '빌드 / 실행 / 테스트'.
+근거: `docs/50_ROADMAP.md` A ⑨('Win64 패키징')와 종료 조건 ⓐ(새 판 → 저장 → 재시작 → 이어하기)·ⓓ(쿠킹 빌드 시드 42 세계 해시 = 에디터)·ⓔ(외부 1명), 같은 문서의 위험 표('쿠킹 해시 미검증' — 완화는 ⓓ)와 Phase 1에서 미룬 확인 8(`:94` — '첫 패키징 때 세계 해시로 비교한다(테스터와 시드를 나누기 전)'), `docs/00_VISION.md:32`('Win64 패키징 1회'), `docs/20_ARCHITECTURE.md` §9.1(슬롯의 자리)·§9.2(결정론 — 마지막 문장)·부록 불변 규칙 6, 헤더 `A5_save_minimum.md` §10(손 확인 ⓐ의 여덟 차례)·§11('패키지의 저장 폴더는 ⑨가 본다'), `docs/45_ENGINE_NOTES.md:97`, `STATUS.md` 다음 작업 1·2, `WORKPLAN.md` §2(일의 종류별 effort), `CLAUDE.md` 불변 규칙 1·6·7·10과 '빌드 / 실행 / 테스트'.
 
 ---
 
@@ -42,7 +42,7 @@
 ### 1.4 결정론: 두 바이너리의 부동소수점
 
 - 이 모듈의 번역 단위는 두 바이너리에서 같은 `/fp:precise`로 컴파일된다: `Build.cs`가 에디터 아닌 타깃에 `FPSemantics = Precise`를 주고(`Cosmic_Ascension.Build.cs:18-24`), 에디터 타깃은 V7 기본이 이미 Precise다(`VCToolChain.cs:1313-1335`, `TargetRules.cs:3739`). 두 `.rsp`가 같은 `/fp:precise /Oi /Gw /Gy /Ob2 /Ox /Ot`이고 `/arch`·`/GL`(LTCG)·PGO가 없다(SSE2 스칼라, FMA 없음).
-- **엔진 코드는 다르다**: 게임 exe가 링크하는 Epic의 미리 지은 `UnrealGame` 엔진 목적 파일은 `/fp:fast`, 에디터 DLL은 `/fp:precise`다(`UnrealGame.Target.cs:9-15`, `CorePreciseFP.Build.cs:9`). 그리고 **모놀리식 게임 exe에서는 '모듈 안의 인라인'도 보장이 아니다**: 인라인되지 않은 헤더의 inline 함수·템플릿은 COMDAT이고 링커는 처음 만난 사본 하나를 남기는데, 게임 exe의 링크 차례는 엔진 목적 파일이 먼저다(`Intermediate/…/Cosmic_Ascension.exe.rsp` — Core 86행, Engine 430행, 모듈 753행부터). 에디터의 모듈 DLL은 제 사본을 가진다. 지금 해시에 드는 셈은 `FMath::Max/Min/Clamp/Sqrt/RoundToInt32/IsNaN`과 헤더뿐인 `FRandomStream`이고(그 가운데 `FRandomStream`의 몇 멤버는 FORCEINLINE이 아닌 inline — `RandomStream.h:115,131,209`), 해시 길의 엔진 호출 하나(`FNumericProperty::GetFloatingPointPropertyValue`)는 float → double 넓히기라 어느 모드에서도 정확하다. 비인라인 엔진 수학(`FMath::Fmod`·`Atan2` — `GenericPlatformMath.h:517-518,548-549`, CRT의 `pow`·`sin`…)은 불변 규칙 6이 막지만 그것을 강제하는 도구가 없다(`check_layers.py:43`은 `FMath::Rand*`만 막는다) — §3.3. 이 갈림을 에디터 테스트는 잡지 못한다; ⓓ만 잡는다.
+- **엔진 코드는 다르다**: 게임 exe가 링크하는 Epic의 미리 지은 `UnrealGame` 엔진 목적 파일은 `/fp:fast`, 에디터 DLL은 `/fp:precise`다(`UnrealGame.Target.cs:9-15`, `CorePreciseFP.Build.cs:9`). 그리고 **모놀리식 게임 exe에서는 '모듈 안의 인라인'도 보장이 아니다**: 인라인되지 않은 헤더의 inline 함수·템플릿은 COMDAT이고 링커는 처음 만난 사본 하나를 남기는데, 게임 exe의 링크 차례는 엔진 목적 파일이 먼저다(`Intermediate/…/Cosmic_Ascension.exe.rsp` — Core 86행, Engine 430행, 모듈 753행부터). 에디터의 모듈 DLL은 제 사본을 가진다. 지금 해시에 드는 셈은 `FMath::Max/Min/Clamp/Sqrt/RoundToInt32/IsNaN`, 강제 인라인 `FVector::DistSquared`(`UE_FORCEINLINE_HINT` — `Vector.h:1041,2476`, 레인 고르기), 헤더뿐인 `FRandomStream`이고(그 가운데 `FRandomStream`의 몇 멤버는 FORCEINLINE이 아닌 inline — `RandomStream.h:115,131,209`), 해시 길의 엔진 호출 하나(`FNumericProperty::GetFloatingPointPropertyValue`)는 float → double 넓히기라 어느 모드에서도 정확하다. 비인라인 엔진 수학(`FMath::Fmod`·`Atan2` — `GenericPlatformMath.h:517-518,548-549`, CRT의 `pow`·`sin`…)은 불변 규칙 6이 막지만 그것을 강제하는 도구가 없다(`check_layers.py:43`은 `FMath::Rand*`만 막는다) — §3.3. 이 갈림을 에디터 테스트는 잡지 못한다; ⓓ만 잡는다.
 
 ### 1.5 패키지의 자리 — 저장·로그·설정·창
 
@@ -50,17 +50,17 @@
 - 스테이징은 매번 스테이지 폴더를 통째로 지우고(`CopyBuildToStagingDirectory.Automation.cs:6346-6370`), 아카이브는 덮어 쓰기만 한다(`ArchiveCommand.Automation.cs:40-50`) — 한 자리의 아카이브는 지난 빌드의 `Saved\`(세이브·로그·설정)를 다음 빌드에 남긴다. 기본 스테이지는 `<프로젝트>\Saved\StagedBuilds\Windows` — OneDrive 안이다(`ProjectParams.cs:1677-1691`). 그래서 패키지마다 OneDrive 밖의 **새 폴더**에 스테이징한다(§3.2).
 - 레이아웃: `Windows\Cosmic_Ascension.exe`는 진짜 exe를 부르는 부트스트랩(인자를 넘긴다 — §1.6; VC++ 런타임이 없으면 영어 설치 창과 UAC를 띄운다 — 부트스트랩의 문자열 'The following component(s) are required to run this program:'), 진짜 exe는 `Windows\Cosmic_Ascension\Binaries\Win64\Cosmic_Ascension.exe`(이름 장식 없음 — `UEBuildTarget.cs:5473-5496`), 콘텐츠는 `Content\Paks\`의 IoStore 컨테이너다. 둘 다 서명되지 않았다(부트스트랩의 서명은 UAT가 리소스를 고칠 때 잘린다) — 다른 PC에서는 SmartScreen이 막는다. 게임 타깃은 `-Cmd` 콘솔 exe가 없는 GUI 프로그램이다(`TargetRules.cs:1819-1823`).
 - **종료 코드**: 우아한 종료(`RequestExitWithStatus(false, …)`)의 코드는 버려진다 — `PostQuitMessage`만 하고(`WindowsPlatformMisc.cpp:1514-1518`) 프로세스는 `EngineInit`의 ErrorLevel 0을 돌려준다(`Launch.cpp:172,204`). 충돌은 3이다(`LaunchWindows.cpp:283-293`, `WindowsErrorOutputDevice.cpp:107`). `-AbsLog=`의 파일을 열지 못하면 엔진은 조용히 `<이름>_2.log`에 쓴다(`OutputDeviceFile.cpp:496-511`); 확장자가 `.log`·`.txt`가 아니면 그 이름을 버린다(`GenericPlatformOutputDevices.cpp:93-98`).
-- **창**: 인자 없이 띄우면 창 모드의 기본값은 테두리 없는 전체 화면이다(`GameUserSettings.cpp:830-834`). 게임에는 끝내기 단추가 없다 — Alt+F4·작업 표시줄의 닫기, Alt+Enter는 창으로(`DefaultInput.ini:61`). 창을 닫은 뒤 프로세스가 끝나기까지 약 19초가 걸린다(§1.6 — `-nullrhi`에서는 바로 끝난다); 그 사이에 다시 띄우면 둘째 프로세스가 같은 `Saved\`를 쓰고 로그는 `Cosmic_Ascension_2.log`로 간다.
+- **창**: 인자 없이 띄우면 창 모드의 기본값은 테두리 없는 전체 화면이다(`GameUserSettings.cpp:830-834`). 게임에는 끝내기 단추가 없다 — Alt+F4·작업 표시줄의 닫기, Alt+Enter는 창으로(`DefaultInput.ini:61`). 창을 닫은 뒤 프로세스가 끝나기까지 시험 패키지에서 한 번 약 19초, 첫 패키지에서는 1초 안팎이었다(§1.6·§1.7 — `-nullrhi`에서는 바로 끝난다); 그 사이에 다시 띄우면 둘째 프로세스가 같은 `Saved\`를 쓰고 로그는 `Cosmic_Ascension_2.log`로 간다.
 - UAT를 `-unattended`로 부르면 UAT의 실행 단계(`-run`)가 게임에도 `-unattended`를 넘겨 저장 문이 닫힌다(`RunProjectCommand.Automation.cs:682-685`) — 패키지는 UAT의 `-run` 없이 손이나 스크립트로 띄운다.
 
 ### 1.6 시험 패키지 (2026-10-24 — 코드 변경 없이, `C:\CA_Builds\probe`)
 
 명령: `RunUAT.bat BuildCookRun -project=<uproject> -platform=Win64 -clientconfig=Development -build -cook -stage -pak -iostore -prereqs -stagingdirectory=C:\CA_Builds\probe\Stage -archive -archivedirectory=C:\CA_Builds\probe\Archive -utf8output -unattended -noP4` (CPU AMD Ryzen 7 9700X, 디스크 여유 216 GB).
 
-| 걸음 | 잰 것 |
+| 단계 | 잰 것 |
 |---|---|
 | UAT 전체 | **4.3분**, `BUILD SUCCESSFUL`, 종료 코드 0. 빌드 35초 — UAT의 인자로 makefile을 다시 만들어 unity 파일 넷을 다시 컴파일하고 게임 exe를 다시 링크했다(에디터 DLL은 그대로; **패키지의 exe는 `run_checks`가 지은 exe가 아니다**) · 쿠킹 177초(`Packages Cooked: 510`, 플랫폼으로 건너뜀 7, 쿠킹 요약 '0 error(s), 1 warning(s)') · 스테이징 43초 · 아카이브 0.5초. Zen 서버는 설치되어 있었고 그대로 썼다(`zen.version` 5.8.13). 경고는 `LogSockets: GetAddressInfo … SE_HOST_NOT_FOUND`(오프라인의 이름 풀기)뿐 — 빠진 패키지·`UnexpectedLoad` 없음(손으로 읽었다) |
-| 크기 | 아카이브 1,020 MB(스테이지도 같은 크기 — 두 벌): exe 335 MB, PDB 380 MB, `Content\Paks` 217 MB(`.ucas` 203 MB·`.pak` 11 MB·`global.ucas` 3 MB), `Engine\Extras\Redist\en-us\vc_redist.x64.exe`·`arm64` |
+| 크기 | 아카이브 1,020 MiB(스테이지도 같은 크기 — 두 벌): exe 335 MB, PDB 380 MB, `Content\Paks` 217 MB(`.ucas` 203 MB·`.pak` 11 MB·`global.ucas` 3 MB — 부분은 10진 MB), `Engine\Extras\Redist\en-us\vc_redist.x64.exe`·`arm64` |
 | 레이아웃 | `Windows\Cosmic_Ascension.exe`(부트스트랩) · `Windows\Cosmic_Ascension\Binaries\Win64\Cosmic_Ascension.exe`(진짜) · `Content\Paks\` — §1.5대로 |
 | 시작 점검 | 진짜 exe `-nullrhi -nosound -unattended -nosplash -ExecCmds=quit -AbsLog=…` → 2.8초, 종료 코드 0. 서브시스템 다섯 초기화, `CosmicSave: the game's saving is off by the command line`, `CosmicContinue: Off (command line)`, `NewGalaxy: seed …, 60 systems and the sanctuary, 12 civs, galaxy gal_milkyway` — 'Data table … is missing'·`LogStringTable` 줄 없음 |
 | 부트스트랩 | `Windows\Cosmic_Ascension.exe`에 준 인자가 진짜 exe의 `Command Line:`에 그대로 있다(`-AbsLog`의 로그가 생겼다) |
@@ -75,10 +75,10 @@
 
 빌드 폴더 `C:\CA_Builds\20261024-2234-f58a0f4`, 건넬 zip `C:\CA_Builds\20261024-2234-f58a0f4-handoff.zip`. **`package: all passed`.**
 
-| 걸음 | 잰 것 |
+| 단계 | 잰 것 |
 |---|---|
-| UAT | 101초(쿠킹 '0 error(s), 0 warning(s)' — 시험 패키지 뒤의 Zen 저장소라 증분) |
-| 건넬 zip | 28초, 484 MB, 파일 80(빌드 폴더의 파일 수와 같다), `Saved\` 없음, `Cosmic_Ascension\BuildInfo.txt` 있음. 빌드 폴더 1,021 MB |
+| UAT | 101초(쿠킹 36초, '0 error(s), 0 warning(s)' — 510개를 모두 다시 쿠킹한 전체 쿠킹(증분 건너뜀 0); 빨라진 것은 시험 패키지가 데운 Zen 서버의 파생 데이터 캐시 `ue.ddc` 덕) |
+| 건넬 zip | 28초, 484 MiB, 파일 51(빌드의 `Windows\` 파일 수와 같다 — 폴더 항목을 더하면 zip 항목 80), `Saved\` 없음, `Cosmic_Ascension\BuildInfo.txt` 있음. 빌드 폴더 1,021 MiB(로그 포함) |
 | 시작 점검 | 2.4초 — `CosmicBuild: version 0.1.0, commit f58a0f4, cooked`, `NewGalaxy:`, 빠진 테이블·스트링 테이블·`LogCosmic: Error` 없음 |
 | **ⓓ 3,000틱 idle** | 패키지 = 에디터 = `seed42.json`: **hash 4061194924, world 681643174** (11.6초 — 두 판) |
 | **ⓓ 3,000틱 정책** | 패키지 = 에디터 = `seed42.json`: **hash 847130296, world 1448576366** (11.4초) |
@@ -87,9 +87,9 @@
 | 기준 파일 | 에디터 = `seed42.json`의 두 줄 |
 | Shipping 컴파일 | 47초, 통과(`Cosmic_Ascension-Win64-Shipping.exe` — 쿠킹·실행 없음) |
 
-도구의 검사를 한 번씩 깨뜨렸다(스크립트의 함수를 그대로 떼어 이 빌드에): `-Seed=` 없는 판 → 거절 줄을 '물은 판이 아니다'로 실패, idle 로그에 정책 열쇠를 물음 → 실패, 다른 틱 → 실패, world만 다른 두 열쇠 → 'the world hash differ', 지난 통과 로그를 두고 로그를 쓰지 않는 프로세스 → '이 실행이 쓴 로그 없음', 시작 로그에 `LogStringTable: Warning` 한 줄 → 실패; 대조군(맞는 판)은 읽힌다.
+도구의 검사를 한 번씩 깨뜨렸다(스크립트의 함수를 그대로 떼어 이 빌드에): `-Seed=` 없는 판 → 거절 줄을 '요청한 판이 아니다'로 실패, idle 로그에 정책 열쇠를 물음 → 실패, 다른 틱 → 실패, world만 다른 두 열쇠 → 'the world hash differ', 지난 통과 로그를 두고 로그를 쓰지 않는 프로세스 → '이 실행이 쓴 로그 없음', 시작 로그에 `LogStringTable: Warning` 한 줄 → 실패; 대조군(맞는 판)은 읽힌다.
 
-손 확인 ⓐ의 기계적인 걸음을 스크립트로 한 번 미리 했다(부트스트랩으로, 창 1280×720): 새 판 `(NewRun) tick 0` → 25초 뒤 창 닫기 `(Exit) tick 22, hash 1030996466` → 다시 띄우기 `loaded … at tick 22, hash 1030996466` = `CosmicContinue: Newest … hash 1030996466` → 창 닫기(멈춘 채라 `exit - the slot already holds this state` — 이제 Log 줄). 이번에는 창을 닫은 뒤 1초 안팎에 끝났다(시험 패키지의 19초는 다시 나오지 않았다). 화면 한 장에 한글이 그려진다. 그 `Saved\`는 `Logs\rehearsal_Saved`로 옮겨, 개발자의 손 확인은 빈 `Saved\`에서 시작한다. 시험 패키지 폴더(`C:\CA_Builds\probe`)는 지웠다.
+손 확인 ⓐ의 기계적인 차례를 스크립트로 한 번 미리 했다(부트스트랩으로, 창 1280×720): 새 판 `(NewRun) tick 0` → 25초 뒤 창 닫기 `(Exit) tick 22, hash 1030996466` → 다시 띄우기 `loaded … at tick 22, hash 1030996466` = `CosmicContinue: Newest … hash 1030996466` → 창 닫기(멈춘 채라 `exit - the slot already holds this state` — 이제 Log 줄). 이번에는 창을 닫은 뒤 1초 안팎에 끝났다(시험 패키지의 19초는 다시 나오지 않았다). 화면 한 장에 한글이 그려진다. 그 `Saved\`는 `Logs\rehearsal_Saved`로 옮겨, 개발자의 손 확인은 빈 `Saved\`에서 시작한다. 시험 패키지 폴더(`C:\CA_Builds\probe`)는 지웠다.
 
 읽은 것: **종료 조건 ⓓ를 채운다** — 쿠킹한 Development 빌드가 시드 42의 idle 판과 통치자 정책 판에서 에디터와 같은 두 해시를 3,000틱과 20,000틱 모두에서 낸다(정책 판은 답의 추첨·카드의 효과·프로젝트 시작·연구 중점·이야기의 범위를 지난다). 남은 것은 개발자의 손 확인 ⓐ(§4.1)과 ⓔ(§4.2)다.
 
@@ -165,7 +165,7 @@ namespace CosmicHashRun
 ```
 
 - **구현(A-9a)**: `FSwitch`에는 `EveryKind`·`EveryText`·`IsGood()`(틱 수가 읽혔고 체크포인트 수가 주어졌다면 그것도)이 더 있다 — `World/CosmicHashRun.h`가 원본이다. 값은 다음 공백까지 글로 읽는다(`FParse::Value`의 기본처럼 쉼표·닫는 괄호에서 끊으면 `=3,000`이 3틱이 된다 — 구현 리뷰).
-- **층**: `World/`(Sim·Log·Player를 읽고, 정책은 UI의 순수 함수 `CosmicNextRung`을 부른다 — World와 UI는 같은 층, `check_layers.py`의 `LAYER`). Core Logic은 바뀌지 않는다.
+- **층**: `World/`(Sim·Log·Player를 부르고, 정책은 UI의 순수 함수 `CosmicNextRung`을 부른다 — World와 UI는 같은 층, `check_layers.py`의 `LAYER`). Core Logic은 바뀌지 않는다.
 - **같은 숫자인 까닭과 그 증명**: 커맨드렛의 idle 판은 입력 없이 상태를 읽기만 하므로 그 세계는 `RunHeadless(Ticks)`의 세계라고 주장한다(`CosmicBalanceCommandlet.h:48-50`) — 그 주장을 이 헤더가 처음으로 매번 본다: §3.1의 러너 단계가 같은 에디터 바이너리에서 같은 실행의 커맨드렛 줄과 해시 판 줄을 견준다(idle과 정책 둘 다). `RunHeadless`를 나눠 부른 판과 한 번에 부른 판이 같은 세계라는 것은 테스트가 본다(§5 ⑥).
 
 ### 2.2 `World/CosmicRulerPolicy.h/.cpp` (새 — 커맨드렛의 정책 단계를 옮긴다)
@@ -250,7 +250,7 @@ if (Switch.Kind != CosmicHashRun::ESwitch::Absent)
 powershell -ExecutionPolicy Bypass -File Tools\package.ps1 [-Root C:\CA_Builds] [-Ticks20000] [-Shipping] [-AllowDirty]
 ```
 
-에디터를 닫고 돌린다(UAT `-build`는 에디터 타깃도 짓는다 — `BuildProjectCommand.Automation.cs:90-95`; 라이브 코딩 중이면 빌드가 거절된다). 모든 실행은 `Start-Process -PassThru`(인자는 따옴표를 넣은 한 문자열) → `WaitForExit(시간 제한)` → 넘치면 `Stop-Process`와 실패; 실행 전에 그 `-AbsLog` 파일과 `<이름>_2.log`를 지우고, 뒤에 종료 코드 0·로그가 시작 뒤에 쓰였음·긍정 줄을 모두 요구한다.
+에디터를 닫고 돌린다(UAT `-build`는 에디터 타깃도 짓는다 — `BuildProjectCommand.Automation.cs:90-95`; 라이브 코딩 중이면 빌드가 거절된다). 모든 실행은 `Start-Process -PassThru`(인자는 따옴표를 넣은 한 문자열) → `WaitForExit(시간 제한)` → 넘치면 `taskkill /T /F`로 프로세스 나무째 끝내고 실패; 실행 전에 그 `-AbsLog` 파일과 `<이름>_2.log`를 지우고, 뒤에 종료 코드 0·로그가 시작 뒤에 쓰였음·긍정 줄을 모두 요구한다.
 
 1. **전제**: `UnrealEditor` 프로세스가 없을 것. 루트(`-Root` 또는 환경 변수 `COSMIC_BUILDS`, 기본 `C:\CA_Builds`)에 공백이 없을 것. `git status --porcelain --untracked-files=no`가 비어 있고 빌드가 읽는 자리(`Source`·`Content`·`Config`·`Tools/data`·uproject)에 추적하지 않는 파일이 없을 것(구현 리뷰 — 새 파일을 `git add`하지 않은 빌드가 깨끗한 커밋을 이름 대지 않게; `-AllowDirty`면 모든 결과에 `DIRTY`). `python -I Tools/check_data.py`와 `generated.sha1`의 다시 셈(CR을 뺀 SHA1 — `make_data_tables.py:266`과 같은 셈, 에디터 없이)이 맞을 것.
 2. **빌드 폴더**: `<Root>\<yyyyMMdd-HHmm>-<짧은 커밋>` — 패키지마다 새 폴더(지난 빌드의 `Saved\`·컨테이너가 섞이지 않는다).
@@ -262,14 +262,14 @@ powershell -ExecutionPolicy Bypass -File Tools\package.ps1 [-Root C:\CA_Builds] 
 8. `-Shipping`: Shipping 게임 타깃을 컴파일만 한다(`Build.bat Cosmic_Ascension Win64 Shipping -project=<uproject>`) — 쿠킹·실행 없음(결정 1).
 9. 끝에 빌드 폴더·zip의 크기, 걸음마다의 시간, 저장과 로그의 자리, 쿠킹 경고의 수를 찍는다.
 
-- **시간 제한과 판정(구현)**: UAT 90분, 해시 판(게임·에디터) 900초(20,000틱 3,600초), 시작 점검 300초, Shipping 컴파일 45분 — 넘치면 프로세스 나무째 끝내고(`taskkill /T`) 실패. 에디터 판도 같은 함수로 띄운다(인자는 따옴표를 넣은 한 문자열 — 프로젝트 경로에 공백이 있다). zip은 `-ErrorAction Stop`으로 만들고 안의 파일 수가 빌드의 파일 수와 같아야 한다. 열쇠는 물은 판(시드 42·그 틱·정책 꼬리표)과 맞아야 읽힌다. 기준 파일과의 비교는 제 이름의 걸음(`baseline: editor vs seed42.json`)이다. UAT의 쿠킹 로그는 `uebp_LogFolder` 또는 `%APPDATA%\Unreal Engine\AutomationTool\Logs` 아래에서 이 실행 뒤에 쓰인 것을 찾는다.
+- **시간 제한과 판정(구현)**: UAT 90분, 해시 판(게임·에디터) 900초(20,000틱 3,600초), 시작 점검 300초, Shipping 컴파일 45분 — 넘치면 프로세스 나무째 끝내고(`taskkill /T`) 실패. 에디터 판도 같은 함수로 띄운다(인자는 따옴표를 넣은 한 문자열 — 프로젝트 경로에 공백이 있다). zip은 `-ErrorAction Stop`으로 만들고 안의 파일 수가 빌드의 파일 수와 같아야 한다. 열쇠는 요청한 판(시드 42·그 틱·정책 꼬리표)과 맞아야 읽힌다. 기준 파일과의 비교는 따로 이름 붙인 단계(`baseline: editor vs seed42.json`)다. UAT의 쿠킹 로그는 `uebp_LogFolder` 또는 `%APPDATA%\Unreal Engine\AutomationTool\Logs` 아래에서 이 실행 뒤에 쓰인 것을 찾는다.
 
 - ⓓ가 어긋나면 `-CosmicHashEvery=100`(또는 1)으로 6을 다시 돌려 두 로그의 `CosmicHashAt:` 줄을 견주어 처음 갈리는 틱을 찾는다 — 틱 0에서 갈리면 생성·데이터, 틱 t에서 처음 갈리면 그 틱의 단계(§8).
 - 도구의 검사도 한 번씩 깨뜨린다(§7): 6에서 `-Seed=`를 빼면 `refused`로 실패, 5의 낱말에 걸리는 줄을 넣으면 실패, 지난 로그를 남기고 exe 경로를 틀리면 '통과'가 아니라 실패.
 
 ### 3.3 `Tools/check_layers.py` — 비인라인 수학을 막는 규칙 (결정 15)
 
-- **규칙 3b**(넷째 규칙 '`FMath::Rand*` 없음' 옆): Core Logic(Core·Data·Sim·Events·Ascension·Log·Player·Save)은 `FMath`(`FPlatformMath`·`FGenericPlatformMath`로 써도)의 짧은 목록(`Max`·`Min`·`Clamp`·`Abs`·`Sign`·`Square`·`Sqrt`·`RoundToInt32`·`IsNaN` — 인라인의 + − × ÷와 √)만 부르고, CRT 수학은 `sqrt` 말고 부르지 않는다(`pow`·`exp`·`log`·삼각·쌍곡·`atan2`·`fmod`·`cbrt`·`hypot` …의 모든 꼴). 목록은 필요할 때 일부러 늘린다. 문자열 안의 낱말('the log (…)')은 부름이 아니다(문자열을 지운 뒤 찾는다). 오늘의 코드는 통과한다. 불변 규칙 6의 첫 도구이고, 모놀리식 exe의 COMDAT 갈림(§1.4) 가운데 가장 흔한 길 — 비인라인 엔진 수학(`Fmod`·`Atan2`·`TruncateToHalfIfClose` …) — 을 막는다. (구현 리뷰가 처음의 거부 목록을 허용 목록으로 바꿨다.)
+- **규칙 3b**(셋째 규칙 '`FMath::Rand*` 없음' 옆): Core Logic(Core·Data·Sim·Events·Ascension·Log·Player·Save)은 `FMath`(`FPlatformMath`·`FGenericPlatformMath`로 써도)의 짧은 목록(`Max`·`Min`·`Clamp`·`Abs`·`Sign`·`Square`·`Sqrt`·`RoundToInt32`·`IsNaN` — 인라인의 + − × ÷와 √)만 부르고, CRT 수학은 `sqrt` 말고 부르지 않는다(`pow`·`exp`·`log`·삼각·쌍곡·`atan2`·`fmod`·`cbrt`·`hypot` … — 이름을 댄 함수의 거부 목록, 그냥·`std::`·`::`, `f`·`l` 꼴까지). 목록은 필요할 때 일부러 늘린다. 문자열 안의 낱말('the log (…)')은 부름이 아니다(문자열을 지운 뒤 찾는다). 오늘의 코드는 통과한다. 불변 규칙 6의 첫 도구이고, 모놀리식 exe의 COMDAT 갈림(§1.4) 가운데 가장 흔한 길 — 비인라인 엔진 수학(`Fmod`·`Atan2`·`TruncateToHalfIfClose` …) — 을 막는다. (구현 리뷰가 `FMath` 쪽의 처음 거부 목록을 허용 목록으로 바꿨고, `::pow` 꼴은 A-9d 재감사에서 더했다. 헤더의 벡터·난수 도우미는 린트 밖이다 — `docs/20` §9.2.)
 
 ---
 
@@ -281,7 +281,7 @@ powershell -ExecutionPolicy Bypass -File Tools\package.ps1 [-Root C:\CA_Builds] 
 
 - **띄우기**: `<빌드 폴더>\Windows\Cosmic_Ascension.exe -windowed -ResX=1280 -ResY=720` (`package.ps1`이 찍은 폴더; 부트스트랩이 인자를 넘긴다). `-Seed=`·`-NoSave`·`-unattended`·`-Speed=` 없이. 로그의 앞부분(서브시스템 초기화와 StartPlay 즈음)에 `CosmicSave: the game's saving is allowed by the command line`과 `CosmicBuild: version 0.1.0, commit <커밋>, cooked`가 있어야 한다.
 - **자리**: 저장 `<빌드 폴더>\Windows\Cosmic_Ascension\Saved\SaveGames\`, 로그 `…\Saved\Logs\Cosmic_Ascension.log`(다시 띄우면 이전 것은 `Cosmic_Ascension-backup-<이전 로그를 마지막으로 쓴 UTC 시각>.log` — 이름의 시각이 한국 시각보다 9시간 이르다; 판이 끝난 세션은 이름이 아니라 내용으로 고른다 — `Select-String -Path …\Saved\Logs\*.log -Pattern 'CosmicEnd:'`). 새 빌드 폴더라 '새 판부터'가 저절로다.
-- **다시 띄우기 전**: 창을 닫은 뒤 프로세스가 끝나기를 기다린다(약 19초 — 작업 관리자에 `Cosmic_Ascension`이 없을 때까지, 또는 `Get-Process Cosmic_Ascension`이 비면). `Cosmic_Ascension_2.log`가 생기면 너무 일찍 띄운 것이다.
+- **다시 띄우기 전**: 창을 닫은 뒤 프로세스가 끝나기를 기다린다(첫 패키지에서 1초 안팎, 시험 패키지에서 한 번 약 19초 — 작업 관리자에 `Cosmic_Ascension`이 없을 때까지, 또는 `Get-Process Cosmic_Ascension`이 비면). `Cosmic_Ascension_2.log`가 생기면 너무 일찍 띄운 것이다.
 - **6걸음(강제 종료, 고를 수 있음)**: 작업 관리자 대신 `taskkill /F /T /IM Cosmic_Ascension.exe` — 부트스트랩과 게임이 같은 이름의 두 프로세스이고 부트스트랩을 끝내도 게임은 남는다. 다시 띄운 뒤 끝낸 세션의 로그에 `(Answer)` 줄이 있고 `(Exit)` 줄이 없어야 한다.
 - **더하는 눈 확인**: 한글 라벨·카드·로그 피드가 네모 없이 그려지는지, 상단 바의 ▲▼, 조사(`|hpp` — '{Civ}은/는'), 줄바꿈(결정 10); ⓒ는 새 판에서 마우스만으로(×1·×10 단추를 누른다 — Space 대신) 셋째 칸 → 연대기.
 - **인자 없이 한 번**: `Saved\Config`를 지우고 부트스트랩을 더블클릭 — 테두리 없는 전체 화면(테스터가 보는 것)에서 상단 바·패널·카드가 화면 해상도에 맞게 놓이는지, Alt+F4로 끝내고 `(Exit)` 줄.
@@ -299,12 +299,13 @@ powershell -ExecutionPolicy Bypass -File Tools\package.ps1 [-Root C:\CA_Builds] 
 
 | 테스트 | 단언 |
 |---|---|
-| `Cosmic_Ascension.Sim.HashRun` (새 — `Tests/CosmicHashRunTests.cpp`) | ① `SwitchOf`: `-CosmicHashRun=3000` → Ticks 3000, 대소문자 무관, `=0` → Ticks 0, `=100000` → 100000; 없음 → Absent; `=abc`·`=`·`=+3000`·`=3000x`·`=-5`·`=100001` → Bad(그 글); `-CosmicHashEvery=`의 같은 경우; `-CosmicHashPolicy` → bPolicy ② idle `Run(42, 300)`의 두 해시가 같은 sim에서 `SetTellAll(true)` → `NewGalaxy(42, 0, 0)` → `RunHeadless(300)`의 두 해시와 같고 틱이 300; `Ticks 0`은 생성된 은하의 두 해시(틱 0) ③ 말하기가 범위(`false`)였어도 idle 판은 전부 말하기의 해시를 내고(범위로 돈 판의 전체 해시와 다르다 — 대조군; 세계 해시는 같다) 끝난 뒤 범위로 돌아온다; `OnGalaxyGenerated`에 묶은 탐침이 `NewGalaxy` 안에서 `IsTellAll() == true`를 읽는다(켜기가 `NewGalaxy` 앞) ④ 열 테이블을 하나씩 비우면 매번 `MissingData`와 그 이름, 규칙 행·고향 은하 행이 없어도 그렇다; 그때 `NewGalaxy`를 부르지 않는다(`GalaxyID`·틱 그대로) ⑤ 정책 판 `Run(42, 300, policy)`가 같은 sim에서 손으로 짠 루프(`SetTellAll(false)` → `NewGalaxy` → 틱마다 `RunHeadless(1)`과 `CosmicRulerPolicy::Act`)와 같은 두 해시이고, 입력이 실제로 들어갔다(답·시작이 0보다 크다 — 대조군; idle 판과 세계가 다르다) ⑥ `Every 100`의 300틱 판이 체크포인트 넷(0·100·200·300)을 내고 마지막 해시가 한 번에 돈 판과 같다(나눠 부른 `RunHeadless` = 한 번) ⑦ `LineOf`의 세 꼴(idle·정책·거절)이 문자열 그대로 |
+| `Cosmic_Ascension.Sim.HashRun` (새 — `Tests/CosmicHashRunTests.cpp`) | ① `SwitchOf`: `-CosmicHashRun=3000` → Ticks 3000, 대소문자 무관, `=0` → Ticks 0, `=100000` → 100000; 없음 → Absent; `=abc`·`=`·`=+3000`·`=3000x`·`=-5`·`=100001` → Bad(그 글); `-CosmicHashEvery=`의 같은 경우; `-CosmicHashPolicy` → bPolicy ② idle `Run(42, 300)`의 두 해시가 같은 sim에서 `SetTellAll(true)` → `NewGalaxy(42, 0, 0)` → `RunHeadless(300)`의 두 해시와 같고 틱이 300; `Ticks 0`은 생성된 은하의 두 해시(틱 0) ③ 말하기가 범위(`false`)였어도 idle 판은 전부 말하기의 해시를 내고(범위로 돈 판의 전체 해시와 다르다 — 대조군; 세계 해시는 같다) 끝난 뒤 범위로 돌아온다; 로그 줄(`OnLog`)에 묶은 탐침이 `NewGalaxy` 안의 첫 줄 때 `IsTellAll() == true`를 읽는다(켜기가 `NewGalaxy` 앞 — 구현에서 `OnGalaxyGenerated`를 바꿨다) ④ 열 테이블을 하나씩 비우면 매번 `MissingData`와 그 이름, 규칙 행·고향 은하 행이 없어도 그렇다; 그때 `NewGalaxy`를 부르지 않는다(`GalaxyID`·틱 그대로) ⑤ 정책 판 `Run(42, 300, policy)`가 같은 sim에서 손으로 짠 루프(`SetTellAll(false)` → `NewGalaxy` → 틱마다 `RunHeadless(1)`과 `CosmicRulerPolicy::Act`)와 같은 두 해시이고, 입력이 실제로 들어갔다(답·시작이 0보다 크다 — 대조군; idle 판과 세계가 다르다) ⑥ `Every 100`의 300틱 판이 체크포인트 넷(0·100·200·300)을 내고 마지막 해시가 한 번에 돈 판과 같다(나눠 부른 `RunHeadless` = 한 번) ⑦ `LineOf`의 세 꼴(idle·정책·거절)이 문자열 그대로 |
 | `run_checks` 단계 둘(§3.1) | 에디터 바이너리의 해시 판 열쇠 = 같은 실행의 커맨드렛 열쇠(idle·정책) — 테스트가 아니라 러너의 단계다 |
 | 커맨드렛의 정책 옮김(§2.2) | `ruler_summary_line` 그대로(균형 단계) |
-| `check_layers.py` 규칙 3b(§3.3) | 지금의 코드는 통과; Sim 파일에 `FMath::Fmod`·`FPlatformMath::Fmod`·`FMath::TruncateToHalfIfClose`·`std::pow`·`asinf`·`std::tanh`를 넣으면 에러, `TEXT("… the log (…)")`는 통과(변이 — 되돌린다) |
+| `check_layers.py` 규칙 3b(§3.3) | 지금의 코드는 통과; Sim 파일에 `FMath::Fmod`·`FPlatformMath::Fmod`·`FMath::TruncateToHalfIfClose`·`std::pow`·`asinf`·`std::tanh`·`::pow`(A-9d)를 넣으면 에러, `TEXT("… the log (…)")`는 통과(변이 — 되돌린다) |
 
-- `StartPlay`의 분기(스위치 없음·틀림·`-Seed=` 없음·저장 켬)는 러너와 `package.ps1`이 보고(게임 모드를 테스트에서 다시 시작하지 않는다), 거절 둘(`-CosmicHashRun=abc -Seed=42`, `-CosmicHashRun=10`만)은 A-9a에서 에디터 `-game`으로 손으로 한 번씩 본다(줄과 곧바로 끝남).
+- `StartPlay`의 분기: 러너와 `package.ps1`은 두 길(스위치 없음·맞는 스위치)만 본다(게임 모드를 테스트에서 다시 시작하지 않는다). 거절은 손으로 본다 — A-9a에 둘(`-CosmicHashRun=abc -Seed=42`, `-CosmicHashRun=10`만), A-9d에 지금의 바이너리로 다섯(그 둘과 `-CosmicHashPolicy -Seed=42`·`-CosmicHashEvery=5 -Seed=42` → `no -CosmicHashRun=`, `-CosmicHashRun=10 -CosmicHashEvery=x -Seed=42` → `bad -CosmicHashEvery=x`; 모두 Error 한 줄, `NewGalaxy` 없이 약 9초에 끝남 — 대조군 `-CosmicHashRun=10 -CosmicHashEvery=5`는 체크포인트 셋과 줄). 저장 켬(`-Seed=`가 저장을 끈다)·시뮬 없음은 명령 줄로 닿지 않는 방어다.
+- **구현(A-9a)**: ①의 Bad에 `=0000001`·`=3,000`·`=30)`을 더했다(값은 다음 공백까지 글로 읽는다) — 단언의 원본은 `docs/40`의 `Sim.HashRun` 행.
 
 ---
 
@@ -358,5 +359,5 @@ powershell -ExecutionPolicy Bypass -File Tools\package.ps1 [-Root C:\CA_Builds] 
 ## 추가 이야기와 보완
 
 - **테스터의 끝내기**: 게임에 끝내기 단추가 없다(Alt+F4·Alt+Enter뿐). ⓔ의 안내 한 줄로 넘기지만, 30분 시험의 첫 인상에는 상단 바의 작은 '끝내기'(창 닫기와 같은 길 — 종료 저장)가 낫다. 작은 UI라 B1 전에 따로 고를 수 있다(설계를 바꾸지 않으면 그 작업의 커밋에 바로).
-- **창을 닫은 뒤의 19초**: 렌더러를 내리는 쪽으로 보이지만(`-nullrhi`에서는 없다) 원인을 보지 않았다. 손 확인 ⓐ의 다시 띄우기를 늦게 하는 것 말고는 해가 없으나, 테스터에게는 '안 꺼진다'로 읽힐 수 있다 — 손 확인 때 시간을 한 번 재고 길면 프로파일한다.
+- **창을 닫은 뒤의 19초**(시험 패키지에서 한 번 — 첫 패키지(§1.7)에서는 다시 나오지 않았다): 렌더러를 내리는 쪽으로 보이지만(`-nullrhi`에서는 없다) 원인을 보지 않았다. 손 확인 ⓐ의 다시 띄우기를 늦게 하는 것 말고는 해가 없으나, 테스터에게는 '안 꺼진다'로 읽힐 수 있다 — 손 확인 때 시간을 한 번 재고 길면 프로파일한다.
 - **정책 판의 공유 함수**는 B의 AI 정책(B2 — 연구 중점의 AI)과 스크립트 입력(리플레이)의 씨앗이 될 수 있다 — 이번에는 커맨드렛의 동작을 비트 하나 바꾸지 않고 옮기기만 한다.

@@ -11,7 +11,7 @@
 #   -UpdateBaseline  write the commandlet's lines into Tools/baselines/seed42.json instead of comparing
 #
 # Paths come from $env:UE_ROOT and $env:PROJECT_ROOT (defaults below are this PC's). The editor must be closed for the
-# editor-target build. Written on Linux without a Windows run on 2026-10-19: the first run on the PC may need a fix -
+# editor-target build. Written on Linux on 2026-10-19 and verified on Windows the same day;
 # every command is the documented one from docs/40_DEV_GUIDE.md, only the sequencing and the exit-code handling are new.
 param(
     [ValidateSet('smoke', 'full')] [string] $Tier = 'smoke',

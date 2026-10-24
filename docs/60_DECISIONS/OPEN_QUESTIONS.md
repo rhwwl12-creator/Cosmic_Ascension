@@ -15,7 +15,7 @@
 | 5 | 영겁 모드 | 스트레치. EA 이후 | §4.4 |
 | 6 | 영어 로컬 시점 | Phase 5 종료 후 | §8.5 |
 | 7 | 제품명 | 가제 유지. Steam 페이지 전 확정 | - |
-| 8 | 프로젝트 위치 | 현재 OneDrive 안(`Documents\Unreal Projects`). 빌드 산출물 수 GB가 동기화되므로 OneDrive 밖(`C:\Dev`)으로 이동 권장. MVP ⑨(2026-10-24): 패키지는 OneDrive 밖 `C:\CA_Builds`(환경 변수 `COSMIC_BUILDS`)에 스테이징하므로 프로젝트를 옮기지 않아도 된다 — 프로젝트 안에는 `Saved\Cooked`(Zen 쿠킹의 메타데이터)와 `Intermediate`가 남는다 | §10.5, CLAUDE.md |
+| 8 | 프로젝트 위치 | 현재 OneDrive 안(`Documents\Unreal Projects`). 빌드 산출물 수 GB가 동기화되므로 OneDrive 밖(`C:\Dev`)으로 이동 권장. MVP ⑨(2026-10-24): 패키지는 OneDrive 밖 `C:\CA_Builds`(환경 변수 `COSMIC_BUILDS`)에 스테이징한다 — 그래도 프로젝트 안의 빌드 산출물(`Intermediate` 약 9.8 GB, `Binaries\Win64`의 게임 exe·PDB 약 1.1 GB, 쿠킹 결과 `Saved\Cooked` 약 0.3 GB)은 동기화되므로 이동 권장은 그대로다 | §10.5, CLAUDE.md |
 | 9 | 관조 모드 토글(수동 저장 허용) | 기본은 판당 슬롯 1개 아이언맨(§9.1). Phase 5 테스터의 '하드 리셋 이탈' 반응을 보고 결정 | §9.1, §13 |
 | 10 | 노화 활성 시점 | v0.8 결정 18 위에서: 부름이 머문 그릇은 날이 더해진다 — 노화 0(`BaseLifespanTicks` 0)이 규칙이고 출처 있는 죽음은 그대로 온다. 노브를 켜는 것은 1주기 = 1년 표시와 함께 갈 수 없다(사람의 수명 70~100주기면 한 판에 생애가 약 200대 — §1.2의 기대 2~5대). Phase 5 테스트 뒤에는 수치(수천 주기 단위의 수명)만 본다 | §4.3, §4.4 |
 | 11 | 폐위 후 플레이어 위치 | 모성계 잔류(현행, §5.10). Phase 5 테스터 반응 뒤 인접 성계 추방으로 전환 가능(한 줄 변경) | §5.10, §11 Phase 5 |
