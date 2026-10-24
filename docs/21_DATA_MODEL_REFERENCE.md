@@ -712,7 +712,7 @@ UPROPERTY(EditAnywhere) TArray<FCosmicEffect> OnExpireNeighbourEffects; // Trans
 
 UPROPERTY(EditAnywhere) TArray<FCosmicEffect> OnResolveEffects; // 해결 시 1회, 슬롯을 비운 뒤(주제 = 그 성계와 주인, SourceRow = 이 행). R·W·AI 해결 모두 같은 길(CosmicHazards::Resolve)이다. ResolveHazard는 싣지 않는다(해결이 놓은 것을 다시 해결하면 끝나지 않는다 — 코드도 깊이 4에서 멈추고 에러 한 줄, Data.Integrity). TransferSystem도 싣지 않는다(만료의 이웃 효과가 부르는 해결이 성계를 넘기면 문 뒤가 아닌 곳에서 성계를 앗는다 — §4.5, Data.Integrity). crisis_visitation: Trait.Faith.Visited 부여 + NameNotable(Notable.Hearer)
 
-UPROPERTY(EditAnywhere) TArray<FName> RulerResolutions; // DT_Megaprojects·DT_Edicts·DT_Encounters(청원) 행 이름. 하나라도 완료되면 그 Hazard를 해결한다. 여기 든 DT_Megaprojects 행이 그 Hazard의 대응 프로젝트다 — 대응 칸에서 돈다(§5.7, 거대 프로젝트와 승천 판정 작업부터). 스키마의 종류 rows(DT_Megaprojects·DT_Encounters — 칙령 테이블은 그 구조체와 함께)
+UPROPERTY(EditAnywhere) TArray<FName> RulerResolutions; // DT_Megaprojects·DT_Edicts·DT_Encounters(청원) 행 이름. 하나라도 완료되면 그 Hazard를 해결한다. 여기 든 DT_Megaprojects 행이 그 Hazard의 대응 프로젝트다 — 대응 칸에서 돈다(§5.7, 거대 프로젝트와 승천 판정 작업부터). 지금의 짝: 반란 → project_reform, 초신성 전조 → project_stabilize, 주장·역병 → project_relief(역병은 MVP ⑧부터), AI 각성은 비어 있다. 스키마의 종류 rows(DT_Megaprojects·DT_Encounters — 칙령 테이블은 그 구조체와 함께)
 
 UPROPERTY(EditAnywhere) TArray<FName> WandererResolutions; // DT_Encounters 행 이름 (Phase 4)
 
@@ -864,7 +864,7 @@ UPROPERTY(EditAnywhere) FGameplayTag RevelationMode; // Revelation.* 계시 양�
 
 UPROPERTY(EditAnywhere) TArray<FText> RevelationTemplates; // 정확히 3개(Data.Integrity): [0] 징조(Log.Sign) / [1] 전언(enc_messenger_* 간접 화법) / [2] 지나감·응답(Hazard.Visitation 해결·만료). 수동태·간접 화법만
 
-UPROPERTY(EditAnywhere) TArray<FText> HomeSystemNames; // 모성계 표시명 뱅크. 첫 생애 행 = 그 백성이 제 해를 부르는 이름(숫자 없음 — A0 4b부터 {첫 해}, 자리 채움 — 단계 7에서 다시 쓴다. A0 4a에서 arch_terran은 비웠다 — 성역과 이름이 겹치지 않게). 비면 FGalaxyDef.StarNameBank (§5.11)
+UPROPERTY(EditAnywhere) TArray<FText> HomeSystemNames; // 모성계 표시명 뱅크. 첫 생애 행 = 그 백성이 제 해를 부르는 이름(숫자 없음 — A0 4b부터, MVP ⑧에서 {첫 해}를 {이른 해}로, 자리 채움 — 단계 7에서 다시 쓴다. A0 4a에서 arch_terran은 비웠다 — 성역과 이름이 겹치지 않게). 비면 FGalaxyDef.StarNameBank (§5.11)
 
 UPROPERTY(EditAnywhere) FGameplayTag HomeStarClass; // 모성계 항성 등급 고정 (첫 생애 행 = Star.Class.G — v0.8 — 단계 5까지, 그 뒤 실제 별 등급 + 정규화). 빈 태그 = DT_Rules.LivingWorldStarShares의 분포에서 뽑는다 (§7.4)
 
@@ -1076,7 +1076,7 @@ UPROPERTY(EditAnywhere) int32 FarLineCooldownTicks = 300; // log_far_event 사�
 
 UPROPERTY(EditAnywhere) int32 BackgroundStarCount = 20000; // 배경 별의 점 수. 표현 계층만 읽는다 — 0~100,000으로 읽는다(`CosmicMapLook::BackdropCountOf`, 스키마도 같은 경계) (§3.1, §6.4). Phase 3 8번 작업에서 코드에 들어왔다
 
-UPROPERTY(EditAnywhere) int32 PetitionPeriodTicks = 300; // 청원의 주기 슬롯(MVP ②, §5.10 — 600에서 MVP ③이 300으로): Tick − Calling.BornTick이 이 값의 양의 배수인 틱에, 그 틱에 막 선 Standing 행이 없으면 앎 단계가 Lottery 행 하나를 내놓는다. 1 아래는 1로 읽는다(스키마는 1 이상)
+UPROPERTY(EditAnywhere) int32 PetitionPeriodTicks = 300; // 청원의 주기 슬롯(MVP ②, §5.10 — 600에서 MVP ③이 300으로): Tick − Calling.BornTick이 이 값의 양의 배수인 틱에, 그 틱에 막 선 Standing 행이 없으면 앎 단계가 Lottery 행 하나를 내놓는다(생애의 LastChoiceRows에 든 행은 빼고, 그러면 후보가 없으면 그 가운데 가장 최근의 Lottery 행 하나만 뺀다 — MVP ⑧ A-8b, CosmicPetitions::Present). 1 아래는 1로 읽는다(스키마는 1 이상)
 // ---- MVP ③(2026-10-22, 헤더 docs/60_DECISIONS/headers/A3_first_ten_minutes.md) — 구조체의 끝에 다섯 ----
 UPROPERTY(EditAnywhere) float StabilityRecoveryPerTick = 0.001f; // 안정도 회복(§4.1, §16 #68): 경제 단계에서 인구 회복 바로 뒤(수입 앞), StabilityRestingLevel 아래의 백성은 이만큼 오르고 그 수준에서 멈춘다. 위는 그대로(카드·이벤트가 올린 몫은 남는다). 같은 틱의 LowStabilityTicks 셈에 든다. 0 이하·1 초과·숫자가 아니면 회복 없음. 시작값 — 영향권 곁의 소모(0.002 × P)보다 작게(0.002면 주장 정착률이 22%로 떨어진다 — 헤더 A3 §1)
 UPROPERTY(EditAnywhere) float StabilityRestingLevel = 0.6f; // 회복이 멈추는 수준(§9.3 '자연 수렴 0.6'). 0~1 밖이거나 숫자가 아니면 회복 없음
@@ -1086,6 +1086,15 @@ UPROPERTY(EditAnywhere) FGameplayTag FirstCrisisHazard; // DT_Hazards의 Draw �
 UPROPERTY(EditAnywhere) int32 ProvisionalEndTick = 6000; // MVP ④(2026-10-23, 헤더 docs/60_DECISIONS/headers/A4_provisional_end.md) 임시 끝의 시계(CosmicEndings::ProvisionalEndOf): 다스리는 백성이 먼저 셋째 칸에 오르지 않았다면 Tick이 이 값에 이른 틱 경계부터 표현 계층이 시간을 멈추고 연대기를 연다 — 판의 마지막 틱이 이 틱이다. 0 이하 = 시계 끝 없음. 시뮬은 여기서 멈추지 않는다(커맨드렛은 알리기만 한다). 시작값 6,000 = ×10에서 쉬지 않고 10분, 시계로 끝나는 판만 늘린다. 상단 바의 시계 툴팁도 읽는다. 네 엔딩(B5·B6)과 함께 간다
 UPROPERTY(EditAnywhere) int32 ChronicleCap = 1500; // MVP ⑤(A-5b, 헤더 docs/60_DECISIONS/headers/A5_save_minimum.md §6) 저장된 연대기의 상한(#40 ⑦): 로그에서 옮긴 뒤 이 수를 넘으면 가장 오래된 Severity 1부터 밀어낸다 — S2·Log.Calling·Log.Claim·Log.Record는 밀어내지 않아 넘을 수 있다. FGalaxyState.ChronicleEviction이 적고 장은 Chronicle.More를 단다. 0 이하 = 상한 없음. 이야기 층만 읽고 세계 해시는 움직이지 않는다. 표시 상한(CosmicChronicle::MaxLifeLines)이 아니다. 구조체의 맨 끝 컬럼
 UPROPERTY(EditAnywhere) float ResearchFocusShare = 0.55f; // MVP ⑦(2026-10-24, 헤더 docs/60_DECISIONS/headers/A7_research_focus.md) 통치자의 연구 중점이 그 분야에 주는 몫 — 나머지 분야는 남은 몫을 고루(CosmicResearch::Focus). 스키마 0.3..1. 고른 몫(1/4) 이하·1 초과·숫자 아님이면 SetResearchFocus가 분야를 에러 한 줄과 함께 거절한다(균형은 읽지 않는다). 시작 값 0.55 = 첫 청원 '지혜로운 마음'의 몫
+// ---- MVP ⑧(2026-10-24, 헤더 docs/60_DECISIONS/headers/A8_economy_and_pace.md) 경제·연구의 노브 여덟 — 코드의 상수에서 옮겼다(StarClassEnergy만 단계 5까지 C++). 경제·연구 단계가 읽는다(§7.4) ----
+UPROPERTY(EditAnywhere) TArray<float> TierMultiplier = { 1.0f, 1.5f, 2.2f, 3.0f, 3.0f }; // 칸(Tier1..5)의 수입 배수 — 에너지·물질에. 배열에 없는 칸·0 미만·NaN은 1로 읽는다(0은 0 — 테스트가 수입을 잠근다). 스키마: 다섯, 0 이상
+UPROPERTY(EditAnywhere) float MaterialistEnergyBonus = 0.2f; // 물질 쪽 윤리(Spiritualism < 0) 1점당 에너지 보너스. 0 이하·NaN은 보너스 없음. 스키마 0 이상
+UPROPERTY(EditAnywhere) float InsightPerPopulation = 1.0f; // 인구 1당 통찰(윤리 보너스 전, 칸 배수 없음). 0 이하·NaN은 0. 스키마 0 이상
+UPROPERTY(EditAnywhere) float SpiritualistInsightBonus = 0.2f; // 영성 쪽 윤리 1점당 통찰 보너스. 0 이하·NaN은 보너스 없음
+UPROPERTY(EditAnywhere) float InfluencePerPopulation = 1.0f; // 인구 1당 영향력(윤리 보너스 전, 칸 배수 없음). 0 이하·NaN은 0. 0.5에서 MVP ⑧ A-8b가 1.0으로(2026-10-18 결정 10 — 구호·개혁·청원의 값이 겹쳐 영향력에 굶던 일)
+UPROPERTY(EditAnywhere) float OpenInfluenceBonus = 0.2f; // 개방 쪽 윤리 1점당 영향력 보너스. 0 이하·NaN은 보너스 없음
+UPROPERTY(EditAnywhere) float ResearchInsightShare = 0.5f; // 연구 단계가 쓰는 통찰 수입의 몫(비축 한도 안). 0..1로 읽는다(NaN은 0). 스키마 0..1
+UPROPERTY(EditAnywhere) float ResearchPerInsight = 0.003f; // 쓴 통찰 1당 연구 진척(분야의 몫을 곱하기 전). 0 이하·NaN은 진척 없음. 스키마 0 이상
 
 UPROPERTY(EditAnywhere) int32 SceneryGalaxyCount = 10000; // 풍경 은하의 점 수. 표현 계층만 읽는다(CosmicUniverseLook::SceneryCountOf — 0~50,000으로 읽는다, 스키마도 같은 경계) (§5.11, §6.4 '우주 화면'). Phase 3 9번 작업
 
@@ -1101,7 +1110,7 @@ UPROPERTY(EditAnywhere) int32 CrossingSettleTicks = 3000; // 건너온 백성의
 
 // DT_Dedications (§8.6). Phase 4: Epithet 10행 최소형 (§5.10 시대 명명, 로그 슬롯 {Epithet}) + 첫 생애 백성의 의회·회중 헌정명 최소형. Phase 6+: 헌정명 뱅크 행 (Bank 태그 Faith.Bank.Hebrew / Civic / Nations … + 트리거 종류 + 이름 FText 묶음). 구조는 뱅크 작성 시 확정. 로그 슬롯 {Dedication}
 
-// DT_Megaprojects (§5.7): FMegaprojectDef : FTableRowBase { DisplayName, RequiredTier(EAscensionTier — 시작할 수 있는 주인의 칸), CostPerTick(FResourcePool — 낸 틱마다 전액. 0 아래이거나 숫자가 아닌 값은 0), RequiredProgress(낸 틱마다 1, AI 백성은 AIAscensionSpeedMultiplier. 1 미만이거나 숫자가 아니면 1 — CosmicMegaprojects::RequiredProgressOf, 패널도 같은 수), CompleteTemplates(완성 줄 — Log.Civ, 슬롯 {Civ} {System} {Project}) }. 옛 스케치의 TargetHazard는 Hazard 행의 RulerResolutions가 대신한다(그 목록에 든 행이 대응 프로젝트). DedicationBank는 DT_Dedications와 함께 Phase 4. 행(거대 프로젝트와 승천 판정 작업): project_dyson(다이슨 스웜, 건설 칸)·project_stabilize(항성 안정화)·project_reform(개혁)·project_relief(구호) — 뒤의 셋은 대응 칸, 값은 잠정이고 Phase 5에 맞춘다. 그리고 project_settle(정착 — 무주 성계를 제 것으로 삼는다. 대상 성계의 건설 칸에서 돌아 업적 프로젝트와 겹치지 않는다. Start는 거절하고 CosmicMegaprojects::Settle로만 시작하며, 진척·완성은 다른 건설 행과 같다 — 정착과 문명 제거 작업)·project_crossing(먼 항로 — 건넘의 수단. 이 구조체 그대로이고 수도의 건설 칸에서 돈다, Phase 6a) (§5.7) — DT_Edicts·DT_Relics·DT_Traits의 정의 구조체 스케치도 Phase 4 행 작성 시 추가 (§5.3, §5.7, §5.8, §5.9)
+// DT_Megaprojects (§5.7): FMegaprojectDef : FTableRowBase { DisplayName, RequiredTier(EAscensionTier — 시작할 수 있는 주인의 칸), CostPerTick(FResourcePool — 낸 틱마다 전액. 0 아래이거나 숫자가 아닌 값은 0), RequiredProgress(낸 틱마다 1, AI 백성은 AIAscensionSpeedMultiplier. 1 미만이거나 숫자가 아니면 1 — CosmicMegaprojects::RequiredProgressOf, 패널도 같은 수), CompleteTemplates(완성 줄 — Log.Civ, 슬롯 {Civ} {System} {Project}) }. 옛 스케치의 TargetHazard는 Hazard 행의 RulerResolutions가 대신한다(그 목록에 든 행이 대응 프로젝트). DedicationBank는 DT_Dedications와 함께 Phase 4. 행(거대 프로젝트와 승천 판정 작업): project_dyson(다이슨 스웜, 건설 칸)·project_stabilize(항성 안정화)·project_reform(개혁)·project_relief(구호) — 뒤의 셋은 대응 칸, 값은 잠정이고 Phase 5에 맞춘다. 그리고 project_settle(정착 — 무주 성계를 제 것으로 삼는다. 대상 성계의 건설 칸에서 돌아 업적 프로젝트와 겹치지 않는다. Start는 거절하고 CosmicMegaprojects::Settle로만 시작하며, 진척·완성은 다른 건설 행과 같다 — 정착과 문명 제거 작업. RequiredProgress 600 — MVP ⑧ 전에는 300)·project_crossing(먼 항로 — 건넘의 수단. 이 구조체 그대로이고 수도의 건설 칸에서 돈다, Phase 6a) (§5.7) — DT_Edicts·DT_Relics·DT_Traits의 정의 구조체 스케치도 Phase 4 행 작성 시 추가 (§5.3, §5.7, §5.8, §5.9)
 
 // DT_Traits 컬럼 추가분 (§5.9): int32 BodyMod, MindMod, CausalityMod, LifespanTicksMod. VS 신설 행 (§5.3, §5.11): Trait.Society.Divided, Trait.Faith.Book, Trait.Faith.BookShut, Trait.Biology.Shortlived. Trait.Faith.Remnant/Covenant/Exile 행에 Hazard.Claim 발생 가중·카운트다운 보정 (§4.2)
 
@@ -1277,7 +1286,7 @@ void SimulateTick(); // 고정 순서(열 단계): ① 경제 → ② 연구 →
 
 // 공백기 도약 중(Calling.LifeState == Interregnum): TickPlayerTravel(⑧)·TickSight(⑨)·플레이어 업적 평가·조우 생성을 건너뛰고 매 틱 엔딩 조건을 검사한다 (§4.4). 그릇이 없어 앎이 늘지 않는다 — NoteMet·NoteKnown도 불리지 않는다
 
-// 이벤트·업적·영압의 자리: 열 단계와 SimulateTick의 호출 열 개는 그대로이고 네 단계 안의 순서를 고정한다. ① 경제 = 문명마다(Civs 배열 순서) 인구 회복(`PopulationRegrowthPerTick`) → 안정도 회복(`StabilityRecoveryPerTick`·`StabilityRestingLevel`, MVP ③) → 수입 계산(정착된 성계만 — 정착 중인 성계는 수입이 없다) → 틱당 원천(영압의 Stability 소모와 PressureEffectsPerTick. Phase 4부터 칙령·특성 행. 틱당 원천은 양을 고치는 효과만 건다 — 이 단계에는 추첨도 역할 효과의 기록도 없다, §7.5 Apply) → 비축 가산. 모든 문명을 다 돈 뒤 LowStabilityTicks와 FallenSphereTicks를 따로 한 바퀴 센다(FallenSphereTicks의 영향권 소속은 이 단계 첫머리에 만든 표를 그대로 읽는다). ② 연구 = 돌파마다 줄을 내고, Society 돌파에는 그 줄 다음에 event_book_found를 이름으로 낸다(행의 조건이 책이 닫힌 백성을 고른다, §5.11 — 이름으로 부르는 행은 그 자리의 단계가 낸다). ⑤ 위기 = 거대 프로젝트와 해결 → 카운트다운과 만료 → 발생 → 이벤트 슬롯(UCosmicEventSubsystem::EvaluateAndFire). ⑥ AI = AI·섭정의 결정(백성마다 거대 프로젝트의 시작, 이어서 정착과 그 추첨) → 업적 판정(UAscensionSubsystem::EvaluateFeats, 틱당 정확히 1회). 귀결 셋: 그 틱의 LowStabilityTicks 셈에 드는 Stability 변화는 안정도 회복과 틱당 원천뿐이고 그 밖의 변화(이벤트·만료·해결·AI·틱 사이 입력)는 다음 틱의 셈에 처음 잡힌다 / 한 틱에 역할 효과를 적는 순서는 틱 사이 입력 → ② 연구의 이름 행(Civs 배열 순서) → ④ → ⑤ⓐ 대응 프로젝트의 완성이 건 해결 효과(Systems 배열 순서) → ⑤ 만료(Systems 배열 순서) → ⑤ 발생의 전조 행 → ⑤ 이벤트 슬롯(Civs 배열 순서) → ⑥ 업적의 대가(플레이어가 통치하는 백성 먼저, 그다음 Civs 배열 순서 — 지금 스키마는 업적의 대가에 역할 효과를 싣지 않는다)이다 / 위기 단계의 카운트다운 뒤에 놓인 Hazard(ⓑ 만료의 효과·주장 규칙, ⓒ 추첨·수도, ⓓ 이벤트 슬롯)는 그 틱에 카운트다운이 줄지 않는다 — 카운트다운을 먼저 줄이고 만료를 모은 뒤에 놓인다. 그보다 앞에서 놓인 것(② 연구의 이름 행, Phase 4의 ④ 분쟁, '거대 프로젝트와 승천 판정' 작업부터 ⓐ 해결의 효과)은 그 틱의 ⓑ에서 한 번 준다. 발화한 행의 효과는 큐 없이 그 자리에서 배열 순서로 적용한다(§7.5)
+// 이벤트·업적·영압의 자리: 열 단계와 SimulateTick의 호출 열 개는 그대로이고 네 단계 안의 순서를 고정한다. ① 경제 = 문명마다(Civs 배열 순서) 인구 회복(`PopulationRegrowthPerTick`) → 안정도 회복(`StabilityRecoveryPerTick`·`StabilityRestingLevel`, MVP ③) → 수입 계산(정착된 성계만 — 정착 중인 성계는 수입이 없다. 에너지 = 별 등급 합 × 칸 배수 × (1 + 물질 보너스 × 물질 쪽 윤리), 물질 = 풍부도 합 × 칸 배수, 통찰·영향력 = 인구 × 인구당 값 × (1 + 영성·개방 보너스 × 그 윤리) — 칸 배수는 통찰·영향력에 걸리지 않는다, 노브는 DT_Rules, MVP ⑧) → 틱당 원천(영압의 Stability 소모와 PressureEffectsPerTick. Phase 4부터 칙령·특성 행. 틱당 원천은 양을 고치는 효과만 건다 — 이 단계에는 추첨도 역할 효과의 기록도 없다, §7.5 Apply) → 비축 가산. 모든 문명을 다 돈 뒤 LowStabilityTicks와 FallenSphereTicks를 따로 한 바퀴 센다(FallenSphereTicks의 영향권 소속은 이 단계 첫머리에 만든 표를 그대로 읽는다). ② 연구 = 통찰 수입 × ResearchInsightShare(비축 한도 안)를 써서 분야마다 그 × 몫 × ResearchPerInsight만큼 오르고(MVP ⑧ — 노브), 돌파마다 줄을 내고, Society 돌파에는 그 줄 다음에 event_book_found를 이름으로 낸다(행의 조건이 책이 닫힌 백성을 고른다, §5.11 — 이름으로 부르는 행은 그 자리의 단계가 낸다). ⑤ 위기 = 거대 프로젝트와 해결 → 카운트다운과 만료 → 발생 → 이벤트 슬롯(UCosmicEventSubsystem::EvaluateAndFire). ⑥ AI = AI·섭정의 결정(백성마다 거대 프로젝트의 시작, 이어서 정착과 그 추첨) → 업적 판정(UAscensionSubsystem::EvaluateFeats, 틱당 정확히 1회). 귀결 셋: 그 틱의 LowStabilityTicks 셈에 드는 Stability 변화는 안정도 회복과 틱당 원천뿐이고 그 밖의 변화(이벤트·만료·해결·AI·틱 사이 입력)는 다음 틱의 셈에 처음 잡힌다 / 한 틱에 역할 효과를 적는 순서는 틱 사이 입력 → ② 연구의 이름 행(Civs 배열 순서) → ④ → ⑤ⓐ 대응 프로젝트의 완성이 건 해결 효과(Systems 배열 순서) → ⑤ 만료(Systems 배열 순서) → ⑤ 발생의 전조 행 → ⑤ 이벤트 슬롯(Civs 배열 순서) → ⑥ 업적의 대가(플레이어가 통치하는 백성 먼저, 그다음 Civs 배열 순서 — 지금 스키마는 업적의 대가에 역할 효과를 싣지 않는다)이다 / 위기 단계의 카운트다운 뒤에 놓인 Hazard(ⓑ 만료의 효과·주장 규칙, ⓒ 추첨·수도, ⓓ 이벤트 슬롯)는 그 틱에 카운트다운이 줄지 않는다 — 카운트다운을 먼저 줄이고 만료를 모은 뒤에 놓인다. 그보다 앞에서 놓인 것(② 연구의 이름 행, Phase 4의 ④ 분쟁, '거대 프로젝트와 승천 판정' 작업부터 ⓐ 해결의 효과)은 그 틱의 ⓑ에서 한 번 준다. 발화한 행의 효과는 큐 없이 그 자리에서 배열 순서로 적용한다(§7.5)
 
 void TickEconomy();
 

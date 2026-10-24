@@ -2,6 +2,13 @@
 
 > 2026-10-19 재편: 본문에 섞여 있던 이력·상태 줄·일지·리뷰 통계를 여기로 옮겼다(내용 무변경, 위치만 — 원격의 Phase 3 꼬리 7·12·8·9 기록 포함). 앞으로는 날짜·작업 접두어·바뀐 규칙·리뷰 통계를 여기에만 적고, 설계 본문과 STATUS.md에는 적지 않는다.
 
+## 2026-10-24 — MVP ⑧ 경제 상수 → DT_Rules와 판의 속도
+
+- 헤더 `docs/60_DECISIONS/headers/A8_economy_and_pace.md`(초안은 다른 세션 — 설계 감사 `docs/10_DESIGN/DESIGN_AUDIT_AND_IMPROVEMENT.md`와 함께, `c55dc7c`) 승인(개발자 — 결정 8개 권장안). `DECISIONS_LOG`의 바깥 수정을 결정 8대로 되돌렸다.
+- `[A-8a]` 노브 8개를 `DT_Rules`로(해시 불변): `FCosmicRulesDef` 끝에 `TierMultiplier`·`MaterialistEnergyBonus`·`InsightPerPopulation`·`SpiritualistInsightBonus`·`InfluencePerPopulation`(0.5 그대로)·`OpenInfluenceBonus`·`ResearchInsightShare`·`ResearchPerInsight`, 경제·연구 단계가 읽는다(칸 배수는 없는 칸·0 미만·NaN을 1로 — 0은 0, 비율·보너스는 0 이하·NaN을 0으로, 연구의 몫은 0..1로), `Economy` 이름공간에는 `StarClassEnergy`만. `DT_Rules.json`·`schema.json`·`test_data_schema.py`(경계 양쪽)·설정 표(노브 63 — 읽힘 45). 테스트 `Sim.EconomyRules`(새) — 120종. 변이 14개 모두 잡힘. idle·정책·20,000틱 기준값 그대로.
+- `[A-8b]` 판의 속도와 결정 밀도: 인구당 영향력 1.0, `CosmicPetitions::Present`의 폴백(마지막 선택 셋을 뺀 Lottery 후보가 비면 가장 최근의 Lottery 행 하나만 뺀다), 정착 600, 역병의 구호(`crisis_plague.RulerResolutions` = [`project_relief`]), 이름 둘('첫 불의 모임'·'이른 해'). 30판 측정(헤더 §1.3): 판의 끝까지의 결정 중앙값 `-Focus=0` 12 → 22·`-Focus=1` 12 → 18(모두 15 이상 — 목표 ⓑ), T3 4,425 그대로·1,958 → 2,366; 입력 없는 판 0.3 미만 120 → 88/360, 반란의 몫 49% → 44%, 폐위된 판 8 → 6. `Sim.PetitionPresent` 넓힘(둘이면 번갈아, 셋째가 Standing이어도, 하나뿐이면 다시 내지 않는다), `Sim.PhaseTwoExit`의 주장·영향권 근거를 시드 18로. 변이 6개 모두 잡힘. 새 기준값(시드 42): 3,000틱 4061194924 / 681643174, 20,000틱 1123943493 / 1128422968, 정책 줄 847130296 / 1448576366.
+- `[A-8c]` 문서: `docs/20`(경제·연구 단계의 노브, 주기 청원의 폴백, 제 해 '이른 해'), `docs/21`(노브 8줄, `PetitionPeriodTicks`의 폴백, 열 단계의 수입·연구 식, `HomeSystemNames`, `project_settle` 600, `RulerResolutions`의 지금의 짝), `docs/30`(A-8a·A-8b에서 다시 만들었다 — `--check` 통과), `docs/40`(상수 문장, 테스트 표 `Sim.EconomyRules`(새)·`Sim.PetitionPresent`·`Sim.PhaseTwoExit`, 잣대 판의 기록), `docs/50`(A ⑧ 끝, ⓑ의 값), `docs/00_VISION.md`(ⓑ의 값), `systems.md`(주기 청원), `crisis_and_transcendents.md`(역병의 대응), `DESIGN_AUDIT_AND_IMPROVEMENT.md`(체크리스트 `DT_Hazards` [x], 정착 600), OPEN_QUESTIONS #119 ②, `DECISIONS_LOG`, `STATUS.md`, `CLAUDE.md` 규칙 15(⑥~⑧ — ②·⑤의 글을 줄여 16 KB 안), A8 헤더의 상태 '구현 끝'. 문서의 재감사는 A-7과 함께 다음 일이다.
+
 ## 2026-10-24 — MVP ⑦ 연구 중점 프리셋
 
 - 헤더 `docs/60_DECISIONS/headers/A7_research_focus.md` 승인(개발자 "다음작업들 계속 이어서 진행해줘"·"정해야할건 다 권장대로" — 결정 11개 권장안). 측정(실험 스위치, 30판·6,000틱 — 중점 정책 T2 1,165·T3 1,958 대 지금 2,203·4,425, 판의 끝까지 결정 둘 다 12)과 적대 리뷰(ultracode 워크플로 — 네 관점 + 관점마다 검증 하나: 발견 68, 남김 68 — 확인 46·일부 22, 높음 0·중간 14, 모두 반영).

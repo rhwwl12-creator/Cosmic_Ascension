@@ -1,6 +1,6 @@
 # MVP ⑧ 헤더 초안 — 경제·연구 상수 8개 → DT_Rules · 판의 속도와 결정 밀도(ⓑ) · 역병 대응 연결
 
-상태: **승인 (2026-10-24, 개발자 — §8의 결정 8개 전원 권장안)**. **A-8a**(노브 이전·해시 불변) → **A-8b**(밸런스·판의 속도·주기 청원 폴백·역병 대응·기준값 갱신) → **A-8c**(문서) 순서로 구현한다. 승인 전의 기록: 초안 (2026-10-24, 다른 세션).
+상태: **구현 끝 (2026-10-24 — `[A-8a]`·`[A-8b]`·`[A-8c]`, 기록 `DECISIONS_LOG` 2026-10-24 MVP ⑧)**. 승인 (2026-10-24, 개발자 — §8의 결정 8개 전원 권장안). **A-8a**(노브 이전·해시 불변) → **A-8b**(밸런스·판의 속도·주기 청원 폴백·역병 대응·기준값 갱신) → **A-8c**(문서) 순서로 구현한다. 승인 전의 기록: 초안 (2026-10-24, 다른 세션).
 
 근거: `docs/50_ROADMAP.md` A ⑧과 종료 조건 ⓑ, `STATUS.md` '2026-10-18 개발자 결정'(경제·연구 상수 → `DT_Rules`, `StarClassEnergy`는 단계 5(B8)까지 C++, `InfluencePerPopulation` 0.5 → 1.0) 및 '다음 작업 2'(이름 둘 고르기), `docs/60_DECISIONS/headers/A4_provisional_end.md` §10 결정 1, `docs/60_DECISIONS/headers/A7_research_focus.md` §9 결정 9·11, `docs/10_DESIGN/DESIGN_AUDIT_AND_IMPROVEMENT.md` 자료 3·4(1-C 역병 대응 연결, 주기 청원 고갈 진단), `docs/40_DEV_GUIDE.md` §9.3, `docs/21_DATA_MODEL_REFERENCE.md` `FCosmicRulesDef`·§7, `CLAUDE.md` 불변 규칙 3·4·7·8·13.
 
