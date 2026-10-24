@@ -1585,8 +1585,9 @@ bool FCosmicKnowingInertTest::RunTest(const FString& Parameters)
 		int32 Met = 0;
 		bool bWalks = false;
 	};
-	// The game's data, 20,000 ticks of seed 42 (past the first claims, the joins of the sphere, the settlements and their
-	// completions), no input: the first life rules people 0 and gives no command. With
+	// The game's data, 20,000 ticks of seed 42 (past the first claims, the settlements and their completions; since MVP
+	// item 8 the AI relieves seed 42's claims, so the joins of the sphere are passed by the two runs of seed 18 below - nine,
+	// which Sim.PhaseTwoExit sees in the same world), no input: the first life rules people 0 and gives no command. With
 	// bWanderer the vessel walks from the start instead, a wanderer of the second rung standing in its birth system.
 	// Seed 18 deposes the neglected ruler in the run (Sim.PhaseTwoExit - seed 7 until MVP item 3): the regent's draw and the
 	// new eye of the wanderer.

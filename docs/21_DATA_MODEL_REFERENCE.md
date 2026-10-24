@@ -346,7 +346,7 @@ UPROPERTY() TArray<FName> Feats;
 
 UPROPERTY() TArray<FName> TranscendentsMet;
 
-UPROPERTY() TArray<FName> LastChoiceRows; // 최근 3개 조우·청원 행 (비문). 답한 행을 끝에 붙이고 셋을 넘으면 맨 앞을 지운다(CosmicPetitions::Remember, MVP ②). 청원의 주기 슬롯은 이 행들을 다시 내놓지 않는다. 비문이 읽는 것은 Phase 4b
+UPROPERTY() TArray<FName> LastChoiceRows; // 최근 3개 조우·청원 행 (비문). 답한 행을 끝에 붙이고 셋을 넘으면 맨 앞을 지운다(CosmicPetitions::Remember, MVP ②). 청원의 주기 슬롯은 먼저 이 행들을 뺀다(그러면 후보가 없을 때의 폴백은 아래 PetitionPeriodTicks — MVP ⑧). 비문이 읽는 것은 Phase 4b
 
 UPROPERTY() FName EpithetRow; // 시대 명명 (§5.10)
 
@@ -1084,7 +1084,7 @@ UPROPERTY(EditAnywhere) FGameplayTagContainer ClaimLeaveProfiles; // AI 구호�
 UPROPERTY(EditAnywhere) int32 FirstCrisisTick = 150; // 첫 위기(§2.4 첫 10분, §16 #91): Tick == 이 값인 틱의 위기 단계 발생 끝(추첨과 수도 규칙 뒤, 이벤트 슬롯 앞)에 Civs 배열 순서로 모든 백성의 수도(소유 ∧ 정착)에 FirstCrisisHazard의 Draw 행을 CosmicHazards::Place로 놓는다. 슬롯이 찬 수도는 그 위기를 지킨다(그것이 첫 위기다). 모든 백성 같은 규칙. 0 이하 = 없음. 추첨 없음
 UPROPERTY(EditAnywhere) FGameplayTag FirstCrisisHazard; // DT_Hazards의 Draw 행의 태그(Data.Integrity). 다른 행의 태그는 에러 한 줄과 함께 거절, 그 행이 없는 테이블(테스트)은 아무것도 놓지 않는다. 비면 없음(C++ 기본값). 데이터: Hazard.AIAwakening
 UPROPERTY(EditAnywhere) int32 ProvisionalEndTick = 6000; // MVP ④(2026-10-23, 헤더 docs/60_DECISIONS/headers/A4_provisional_end.md) 임시 끝의 시계(CosmicEndings::ProvisionalEndOf): 다스리는 백성이 먼저 셋째 칸에 오르지 않았다면 Tick이 이 값에 이른 틱 경계부터 표현 계층이 시간을 멈추고 연대기를 연다 — 판의 마지막 틱이 이 틱이다. 0 이하 = 시계 끝 없음. 시뮬은 여기서 멈추지 않는다(커맨드렛은 알리기만 한다). 시작값 6,000 = ×10에서 쉬지 않고 10분, 시계로 끝나는 판만 늘린다. 상단 바의 시계 툴팁도 읽는다. 네 엔딩(B5·B6)과 함께 간다
-UPROPERTY(EditAnywhere) int32 ChronicleCap = 1500; // MVP ⑤(A-5b, 헤더 docs/60_DECISIONS/headers/A5_save_minimum.md §6) 저장된 연대기의 상한(#40 ⑦): 로그에서 옮긴 뒤 이 수를 넘으면 가장 오래된 Severity 1부터 밀어낸다 — S2·Log.Calling·Log.Claim·Log.Record는 밀어내지 않아 넘을 수 있다. FGalaxyState.ChronicleEviction이 적고 장은 Chronicle.More를 단다. 0 이하 = 상한 없음. 이야기 층만 읽고 세계 해시는 움직이지 않는다. 표시 상한(CosmicChronicle::MaxLifeLines)이 아니다. 구조체의 맨 끝 컬럼
+UPROPERTY(EditAnywhere) int32 ChronicleCap = 1500; // MVP ⑤(A-5b, 헤더 docs/60_DECISIONS/headers/A5_save_minimum.md §6) 저장된 연대기의 상한(#40 ⑦): 로그에서 옮긴 뒤 이 수를 넘으면 가장 오래된 Severity 1부터 밀어낸다 — S2·Log.Calling·Log.Claim·Log.Record는 밀어내지 않아 넘을 수 있다. FGalaxyState.ChronicleEviction이 적고 장은 Chronicle.More를 단다. 0 이하 = 상한 없음. 이야기 층만 읽고 세계 해시는 움직이지 않는다. 표시 상한(CosmicChronicle::MaxLifeLines)이 아니다
 UPROPERTY(EditAnywhere) float ResearchFocusShare = 0.55f; // MVP ⑦(2026-10-24, 헤더 docs/60_DECISIONS/headers/A7_research_focus.md) 통치자의 연구 중점이 그 분야에 주는 몫 — 나머지 분야는 남은 몫을 고루(CosmicResearch::Focus). 스키마 0.3..1. 고른 몫(1/4) 이하·1 초과·숫자 아님이면 SetResearchFocus가 분야를 에러 한 줄과 함께 거절한다(균형은 읽지 않는다). 시작 값 0.55 = 첫 청원 '지혜로운 마음'의 몫
 // ---- MVP ⑧(2026-10-24, 헤더 docs/60_DECISIONS/headers/A8_economy_and_pace.md) 경제·연구의 노브 여덟 — 코드의 상수에서 옮겼다(StarClassEnergy만 단계 5까지 C++). 경제·연구 단계가 읽는다(§7.4) ----
 UPROPERTY(EditAnywhere) TArray<float> TierMultiplier = { 1.0f, 1.5f, 2.2f, 3.0f, 3.0f }; // 칸(Tier1..5)의 수입 배수 — 에너지·물질에. 배열에 없는 칸·0 미만·NaN은 1로 읽는다(0은 0 — 테스트가 수입을 잠근다). 스키마: 다섯, 0 이상
@@ -1094,7 +1094,7 @@ UPROPERTY(EditAnywhere) float SpiritualistInsightBonus = 0.2f; // 영성 쪽 윤
 UPROPERTY(EditAnywhere) float InfluencePerPopulation = 1.0f; // 인구 1당 영향력(윤리 보너스 전, 칸 배수 없음). 0 이하·NaN은 0. 0.5에서 MVP ⑧ A-8b가 1.0으로(2026-10-18 결정 10 — 구호·개혁·청원의 값이 겹쳐 영향력에 굶던 일)
 UPROPERTY(EditAnywhere) float OpenInfluenceBonus = 0.2f; // 개방 쪽 윤리 1점당 영향력 보너스. 0 이하·NaN은 보너스 없음
 UPROPERTY(EditAnywhere) float ResearchInsightShare = 0.5f; // 연구 단계가 쓰는 통찰 수입의 몫(비축 한도 안). 0..1로 읽는다(NaN은 0). 스키마 0..1
-UPROPERTY(EditAnywhere) float ResearchPerInsight = 0.003f; // 쓴 통찰 1당 연구 진척(분야의 몫을 곱하기 전). 0 이하·NaN은 진척 없음. 스키마 0 이상
+UPROPERTY(EditAnywhere) float ResearchPerInsight = 0.003f; // 쓴 통찰 1당 연구 진척(분야의 몫을 곱하기 전). 0 이하·NaN은 진척 없음. 스키마 0 이상. 구조체의 맨 끝 컬럼
 
 UPROPERTY(EditAnywhere) int32 SceneryGalaxyCount = 10000; // 풍경 은하의 점 수. 표현 계층만 읽는다(CosmicUniverseLook::SceneryCountOf — 0~50,000으로 읽는다, 스키마도 같은 경계) (§5.11, §6.4 '우주 화면'). Phase 3 9번 작업
 

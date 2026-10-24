@@ -114,7 +114,8 @@ TSharedRef<SWidget> UCosmicTopBarWidget::RebuildWidget()
 		Band->SetContent(Row);
 
 		// The status in three blocks: the name and rung (a flat button that lights on hover), stability and resources, and
-		// the research shares. The rung and the research carry the next-rung tooltip, bound before their Slate widgets are
+		// the research shares. The rung carries the next-rung tooltip and the research its own (GetResearchTip: the focus,
+		// then the next rung), each bound before its Slate widget is
 		// built (the first TakeWidget synchronises the properties, and the binding is read there): one Slate tooltip each
 		// that pulls its words only while the mouse is on it. The research block fills the band's free width but is drawn
 		// at its own width (left-aligned), so its tooltip covers the shares, not the empty band.

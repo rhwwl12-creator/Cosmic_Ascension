@@ -2278,9 +2278,8 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 	Sim->RunHeadless(Ticks);
 	TestEqual(TEXT("Stepped with the gate open, one tick at a time is the same world as the whole run at once with it closed"), Sim->ComputeWorldHash(), Stepped);
 
-	// Neglect: nothing the player does keeps the ruled people's stability up, and a rebellion deposes the ruler.
-	Sim->NewGalaxy(18, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
-	Sim->RunHeadless(Ticks);
+	// Neglect: nothing the player does keeps the ruled people's stability up, and a rebellion deposes the ruler - in the
+	// whole run of seed 18 just above (the same world as the stepped one; one run since MVP item 8 moved the claims there).
 	TestTrue(TEXT("A neglected ruler is deposed (seed 18)"), State.Player.Role == EPlayerRole::Wanderer);
 	TestTrue(TEXT("and carries the status of a fallen monarch"), State.Player.StatusTags.HasTagExact(FGameplayTag::RequestGameplayTag(FName(TEXT("Status.FallenMonarch")))));
 	const auto Fallen = [](const FCosmicLogEntry& Entry) { return Entry.SourceRow == CosmicRows::LogFallenMonarch && Entry.Severity == 2; };

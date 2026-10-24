@@ -1009,8 +1009,8 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// ---- The economy and research of every people (MVP item 8, docs/10_DESIGN/systems.md section 5.1, 5.4) ----
 	// Moved out of the code's constants (2026-10-18 decision: StarClassEnergy stays in C++ until step 5, the real sky).
 
-	// Income multiplier by rung (Tier1..Tier5) on every resource: an index the array lacks, a value below 0 or not a number
-	// reads as 1 (0 stays 0 - a test may lock a rung's income).
+	// Income multiplier by rung (Tier1..Tier5) on Energy and Matter (Insight and Influence take none): an index the array
+	// lacks, a value below 0 or not a number reads as 1 (0 stays 0 - a test may lock a rung's income).
 	UPROPERTY(EditAnywhere)
 	TArray<float> TierMultiplier = { 1.0f, 1.5f, 2.2f, 3.0f, 3.0f };
 
@@ -1018,7 +1018,7 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	float MaterialistEnergyBonus = 0.2f;
 
-	// Insight per unit of Population before the ethics bonus and the rung. 0 or below, or not a number: no Insight.
+	// Insight per unit of Population before the ethics bonus (no rung multiplier). 0 or below, or not a number: no Insight.
 	UPROPERTY(EditAnywhere)
 	float InsightPerPopulation = 1.0f;
 
@@ -1026,7 +1026,8 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	float SpiritualistInsightBonus = 0.2f;
 
-	// Influence per unit of Population before the ethics bonus and the rung. 0 or below, or not a number: no Influence.
+	// Influence per unit of Population before the ethics bonus (no rung multiplier). 0 or below, or not a number: no
+	// Influence.
 	// 1.0 since MVP item 8 A-8b (0.5 before - the 2026-10-18 decision 10: answers and settlements no longer starve).
 	UPROPERTY(EditAnywhere)
 	float InfluencePerPopulation = 1.0f;

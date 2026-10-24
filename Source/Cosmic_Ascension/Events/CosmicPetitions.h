@@ -57,7 +57,8 @@ struct FCosmicPetitionAnswer
 
 namespace CosmicPetitions
 {
-	// How many answered rows a life remembers (FLifeRecord.LastChoiceRows): the periodic slot does not put them again.
+	// How many answered rows a life remembers (FLifeRecord.LastChoiceRows): the periodic slot passes them over first, and
+	// when that leaves no candidate only the most recent Lottery row among them (Present, MVP item 8).
 	inline constexpr int32 RememberedChoices = 3;
 
 	/** The index of the people the vessel rules while it is an embodied ruler; INDEX_NONE otherwise. */
