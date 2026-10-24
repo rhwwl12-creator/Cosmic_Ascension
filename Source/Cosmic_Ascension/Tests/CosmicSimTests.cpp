@@ -2293,4 +2293,154 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// The economy's knobs (MVP item 8, docs/60_DECISIONS/headers/A8_economy_and_pace.md section 2): the game's DT_Rules row
+// holds the numbers the code held, and the economy and research stages read every knob from the row - each case changes one
+// knob of the rules row on the same galaxy and the same people, and reads the income or the research of the first tick.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimEconomyRulesTest, "Cosmic_Ascension.Sim.EconomyRules", CosmicTests::Flags)
+bool FCosmicSimEconomyRulesTest::RunTest(const FString& Parameters)
+{
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	const FCosmicRulesDef Game = Sim->GetRules();
+	ON_SCOPE_EXIT
+	{
+		Sim->SetTables(Original);
+		Sim->NewGalaxy(42, 5, 3);
+	};
+	const float NaN = std::numeric_limits<float>::quiet_NaN();
+	const FName Physics(TEXT("Physics"));
+
+	// (1) The game's row and the C++ defaults hold the numbers the code held before item 8.
+	{
+		const TArray<float> Tiers = { 1.0f, 1.5f, 2.2f, 3.0f, 3.0f };
+		const FCosmicRulesDef Defaults;
+		for (const FCosmicRulesDef* Row : { &Game, &Defaults })
+		{
+			const TCHAR* Which = Row == &Game ? TEXT("The game's row") : TEXT("The C++ defaults");
+			TestTrue(FString::Printf(TEXT("%s: the rung multipliers"), Which), Row->TierMultiplier == Tiers);
+			TestTrue(FString::Printf(TEXT("%s: the ethics bonuses"), Which), Row->MaterialistEnergyBonus == 0.2f && Row->SpiritualistInsightBonus == 0.2f && Row->OpenInfluenceBonus == 0.2f);
+			TestTrue(FString::Printf(TEXT("%s: the people's Insight and Influence"), Which), Row->InsightPerPopulation == 1.0f && Row->InfluencePerPopulation == 0.5f);
+			TestTrue(FString::Printf(TEXT("%s: the research"), Which), Row->ResearchInsightShare == 0.5f && Row->ResearchPerInsight == 0.003f);
+		}
+	}
+
+	// One tick of the same galaxy and people under a rules row: the ruled people at Tier, with the ethics given, a whole
+	// population and an Insight stockpile no spending reaches - its income and the physics it gained.
+	struct FEconomyRun
+	{
+		FResourcePool Income;
+		float PhysicsGain = 0.f;
+	};
+	auto Run = [&](const FCosmicRulesDef& Row, EAscensionTier Tier, float Spiritualism, float Openness)
+	{
+		Sim->SetTables(CosmicTests::WithRules(Original, Row));
+		Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+		FGalaxyState& State = Sim->GetMutableState();
+		const int32 At = Sim->GetStateIndex().FindCiv(State, State.Player.RuledCivID);
+		FEconomyRun Out;
+		if (!State.Civs.IsValidIndex(At))
+		{
+			AddError(TEXT("(no ruled people)"));
+			return Out;
+		}
+		FCivilizationState& Civ = State.Civs[At];
+		Civ.Tier = Tier;
+		Civ.Ethics.Spiritualism = Spiritualism;
+		Civ.Ethics.Openness = Openness;
+		Civ.Population = 1.f;
+		Civ.Stockpile.Insight = 1.0e6f;
+		const float Before = Civ.Research.FindRef(Physics);
+		Sim->StepOnce();
+		Out.Income = State.Civs[At].IncomePerTick;
+		Out.PhysicsGain = State.Civs[At].Research.FindRef(Physics) - Before;
+		return Out;
+	};
+	auto Near = [](float A, float B) { return FMath::IsNearlyEqual(A, B, FMath::Max(1.e-9f, FMath::Abs(B) * 1.e-5f)); };
+	const auto WithKnob = [&](float FCosmicRulesDef::* Knob, float Value)
+	{
+		FCosmicRulesDef Row = Game;
+		Row.*Knob = Value;
+		return Row;
+	};
+	const EAscensionTier T1 = EAscensionTier::Tier1_Planetary;
+	const EAscensionTier T3 = EAscensionTier::Tier3_Causal;
+
+	// (2) The rung multiplier: Energy and Matter follow it (Insight and Influence do not); an index the array lacks, a value
+	// below 0 and NaN read as 1, a 0 is 0.
+	{
+		FCosmicRulesDef Flat = Game;
+		Flat.TierMultiplier = { 1.f, 1.f, 1.f, 1.f, 1.f };
+		const FEconomyRun Base1 = Run(Flat, T1, 0.f, 0.f);
+		const FEconomyRun Base3 = Run(Flat, T3, 0.f, 0.f);
+		TestTrue(TEXT("(the people earns Energy and Matter)"), Base1.Income.Energy > 0.f && Base1.Income.Matter > 0.f);
+		FCosmicRulesDef Steep = Game;
+		Steep.TierMultiplier = { 2.f, 3.f, 4.f, 5.f, 6.f };
+		const FEconomyRun Steep1 = Run(Steep, T1, 0.f, 0.f);
+		const FEconomyRun Steep3 = Run(Steep, T3, 0.f, 0.f);
+		TestTrue(TEXT("The first rung's multiplier 2 doubles Energy and Matter"), Near(Steep1.Income.Energy, Base1.Income.Energy * 2.f) && Near(Steep1.Income.Matter, Base1.Income.Matter * 2.f));
+		TestTrue(TEXT("the third rung's 4 makes them four times"), Near(Steep3.Income.Energy, Base3.Income.Energy * 4.f) && Near(Steep3.Income.Matter, Base3.Income.Matter * 4.f));
+		TestTrue(TEXT("and leaves Insight and Influence"), Steep3.Income.Insight == Base3.Income.Insight && Steep3.Income.Influence == Base3.Income.Influence);
+		FCosmicRulesDef Bad = Game;
+		Bad.TierMultiplier = { -2.f, 1.f, NaN };
+		TestTrue(TEXT("A multiplier below 0 reads as 1"), Run(Bad, T1, 0.f, 0.f).Income.Energy == Base1.Income.Energy);
+		TestTrue(TEXT("and so does one that is not a number"), Run(Bad, T3, 0.f, 0.f).Income.Matter == Base3.Income.Matter);
+		Bad.TierMultiplier = { 1.f };
+		TestTrue(TEXT("and a rung the array lacks"), Run(Bad, T3, 0.f, 0.f).Income.Energy == Base3.Income.Energy);
+		Bad.TierMultiplier = { 0.f, 0.f, 0.f, 0.f, 0.f };
+		const FEconomyRun Locked = Run(Bad, T1, 0.f, 0.f);
+		TestTrue(TEXT("A multiplier of 0 locks Energy and Matter at 0"), Locked.Income.Energy == 0.f && Locked.Income.Matter == 0.f);
+	}
+
+	// (3) The ethics bonuses: each pole's bonus follows its knob; below 0 and NaN are no bonus.
+	{
+		const FEconomyRun MatNone = Run(WithKnob(&FCosmicRulesDef::MaterialistEnergyBonus, 0.f), T1, -0.5f, 0.f);
+		const FEconomyRun MatSome = Run(WithKnob(&FCosmicRulesDef::MaterialistEnergyBonus, 0.6f), T1, -0.5f, 0.f);
+		TestTrue(TEXT("A materialist people's Energy follows the bonus (x1.3 at 0.6)"), MatNone.Income.Energy > 0.f && Near(MatSome.Income.Energy, MatNone.Income.Energy * 1.3f));
+		TestTrue(TEXT("a bonus below 0 is none"), Run(WithKnob(&FCosmicRulesDef::MaterialistEnergyBonus, -1.f), T1, -0.5f, 0.f).Income.Energy == MatNone.Income.Energy);
+		TestTrue(TEXT("and so is one that is not a number"), Run(WithKnob(&FCosmicRulesDef::MaterialistEnergyBonus, NaN), T1, -0.5f, 0.f).Income.Energy == MatNone.Income.Energy);
+		const FEconomyRun SpiNone = Run(WithKnob(&FCosmicRulesDef::SpiritualistInsightBonus, 0.f), T1, 0.5f, 0.f);
+		const FEconomyRun SpiSome = Run(WithKnob(&FCosmicRulesDef::SpiritualistInsightBonus, 0.6f), T1, 0.5f, 0.f);
+		TestTrue(TEXT("A spiritualist people's Insight follows the bonus"), SpiNone.Income.Insight > 0.f && Near(SpiSome.Income.Insight, SpiNone.Income.Insight * 1.3f));
+		TestTrue(TEXT("a bonus below 0 is none"), Run(WithKnob(&FCosmicRulesDef::SpiritualistInsightBonus, -1.f), T1, 0.5f, 0.f).Income.Insight == SpiNone.Income.Insight);
+		const FEconomyRun OpenNone = Run(WithKnob(&FCosmicRulesDef::OpenInfluenceBonus, 0.f), T1, 0.f, 0.5f);
+		const FEconomyRun OpenSome = Run(WithKnob(&FCosmicRulesDef::OpenInfluenceBonus, 0.6f), T1, 0.f, 0.5f);
+		TestTrue(TEXT("An open people's Influence follows the bonus"), OpenNone.Income.Influence > 0.f && Near(OpenSome.Income.Influence, OpenNone.Income.Influence * 1.3f));
+		TestTrue(TEXT("a bonus that is not a number is none"), Run(WithKnob(&FCosmicRulesDef::OpenInfluenceBonus, NaN), T1, 0.f, 0.5f).Income.Influence == OpenNone.Income.Influence);
+	}
+
+	// (4) The people's Insight and Influence per unit of population; below 0 and NaN are none.
+	const FEconomyRun PerPop = Run(Game, T1, 0.f, 0.f);
+	TestTrue(TEXT("A whole people earns InsightPerPopulation Insight"), Near(PerPop.Income.Insight, Game.InsightPerPopulation));
+	TestTrue(TEXT("and InfluencePerPopulation Influence"), Near(PerPop.Income.Influence, Game.InfluencePerPopulation));
+	TestTrue(TEXT("Insight per population 2 is 2"), Near(Run(WithKnob(&FCosmicRulesDef::InsightPerPopulation, 2.f), T1, 0.f, 0.f).Income.Insight, 2.f));
+	TestTrue(TEXT("Influence per population 1.5 is 1.5"), Near(Run(WithKnob(&FCosmicRulesDef::InfluencePerPopulation, 1.5f), T1, 0.f, 0.f).Income.Influence, 1.5f));
+	TestTrue(TEXT("Insight per population below 0 is none"), Run(WithKnob(&FCosmicRulesDef::InsightPerPopulation, -1.f), T1, 0.f, 0.f).Income.Insight == 0.f);
+	TestTrue(TEXT("Influence per population that is not a number is none"), Run(WithKnob(&FCosmicRulesDef::InfluencePerPopulation, NaN), T1, 0.f, 0.f).Income.Influence == 0.f);
+
+	// (5) The research: the stage spends ResearchInsightShare of the Insight income (clamped to 0..1, NaN 0) and turns each
+	// unit into ResearchPerInsight of progress (below 0 and NaN none) - an even focus gives physics a quarter.
+	{
+		const float Income = PerPop.Income.Insight;
+		const auto Gain = [&](float Share, float PerInsight)
+		{
+			FCosmicRulesDef Row = Game;
+			Row.ResearchInsightShare = Share;
+			Row.ResearchPerInsight = PerInsight;
+			return Run(Row, T1, 0.f, 0.f).PhysicsGain;
+		};
+		TestTrue(TEXT("The game's research: income x 0.5 x a quarter x 0.003"), PerPop.PhysicsGain > 0.f && Near(PerPop.PhysicsGain, Income * 0.5f * 0.25f * 0.003f));
+		TestTrue(TEXT("A share of 0.25 spends a quarter"), Near(Gain(0.25f, 0.003f), Income * 0.25f * 0.25f * 0.003f));
+		TestTrue(TEXT("a share of 1 spends the whole income"), Near(Gain(1.f, 0.003f), Income * 0.25f * 0.003f));
+		TestTrue(TEXT("a share above 1 reads as 1"), Gain(1.5f, 0.003f) == Gain(1.f, 0.003f));
+		TestTrue(TEXT("a share of 0, below 0 or not a number spends nothing"), Gain(0.f, 0.003f) == 0.f && Gain(-1.f, 0.003f) == 0.f && Gain(NaN, 0.003f) == 0.f);
+		TestTrue(TEXT("Research per Insight 0.006 doubles the progress"), Near(Gain(0.5f, 0.006f), PerPop.PhysicsGain * 2.f));
+		TestTrue(TEXT("and 0, below 0 or not a number gives none"), Gain(0.5f, 0.f) == 0.f && Gain(0.5f, -1.f) == 0.f && Gain(0.5f, NaN) == 0.f);
+	}
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

@@ -87,23 +87,13 @@ namespace
 		FName(TEXT("Star.Class.G")), FName(TEXT("Star.Class.K")), FName(TEXT("Star.Class.M"))
 	};
 
-	// Provisional numbers. Section 5.1 fixes what each resource depends on; the values belong to the balance pass (section 9.3).
+	// Section 5.1 fixes what each resource depends on. The rest of the economy's numbers are DT_Rules knobs (MVP item 8 -
+	// FCosmicRulesDef, read through the functions after TierIndex); the stars' stay here until step 5 (the real sky).
 	namespace Economy
 	{
-		constexpr float TierMultiplier[] = { 1.0f, 1.5f, 2.2f, 3.0f, 3.0f };
-		static_assert(static_cast<int32>(UE_ARRAY_COUNT(TierMultiplier)) == static_cast<int32>(EAscensionTier::Tier5_EternalOrder) + 1);
-
 		// Energy of one owned system by star class, in the order of StarClassNames. G is the baseline.
 		constexpr float StarClassEnergy[] = { 2.0f, 1.7f, 1.4f, 1.2f, 1.0f, 0.8f, 0.6f };
 		static_assert(UE_ARRAY_COUNT(StarClassEnergy) == UE_ARRAY_COUNT(StarClassNames));
-
-		constexpr float MaterialistEnergyBonus = 0.2f;
-		constexpr float InsightPerPopulation = 1.0f;
-		constexpr float SpiritualistInsightBonus = 0.2f;
-		constexpr float InfluencePerPopulation = 0.5f;
-		constexpr float OpenInfluenceBonus = 0.2f;
-		constexpr float ResearchInsightShare = 0.5f;
-		constexpr float ResearchPerInsight = 0.003f;
 	}
 
 	// Stability below this counts toward FCivilizationState.LowStabilityTicks (section 4.1).
@@ -120,6 +110,26 @@ namespace
 		const int32 Index = static_cast<int32>(Tier);
 		ensureMsgf(Index <= Max, TEXT("Invalid EAscensionTier %d"), Index);
 		return FMath::Clamp(Index, 0, Max);
+	}
+
+	// The economy's knobs as the stages read them (MVP item 8): a rate or a bonus that is not above 0 (NaN included) is 0.
+	float EconomyRateOf(float Value)
+	{
+		return Value > 0.f ? Value : 0.f;
+	}
+
+	// The rung's income multiplier: an index the array lacks, a value below 0 or not a number reads as 1.
+	float TierMultiplierOf(const FCosmicRulesDef& Rules, EAscensionTier Tier)
+	{
+		const int32 Index = TierIndex(Tier);
+		const float Value = Rules.TierMultiplier.IsValidIndex(Index) ? Rules.TierMultiplier[Index] : 1.f;
+		return Value >= 0.f ? Value : 1.f;
+	}
+
+	// The share of the Insight income the research stage spends, clamped to 0..1 (not a number: 0).
+	float ResearchShareOf(const FCosmicRulesDef& Rules)
+	{
+		return Rules.ResearchInsightShare > 0.f ? (Rules.ResearchInsightShare < 1.f ? Rules.ResearchInsightShare : 1.f) : 0.f;
 	}
 
 	// Hue wheel colour of an AI civ (saturation 180/255, value 1). The same arithmetic as FLinearColor::MakeFromHSV8, but
@@ -1467,12 +1477,12 @@ void UGalaxySimulationSubsystem::TickEconomy()
 
 		// Energy comes from the stars owned, Matter from the richness of the systems, Insight and Influence from the
 		// people (section 5.1). Causality stays at zero: it opens with Tier 3 research.
-		const float TierMultiplier = Economy::TierMultiplier[TierIndex(Civ.Tier)];
+		const float TierMultiplier = TierMultiplierOf(Rules, Civ.Tier);
 		FResourcePool Income;
-		Income.Energy = StarOutput * TierMultiplier * (1.f + Economy::MaterialistEnergyBonus * FMath::Max(0.f, -Civ.Ethics.Spiritualism));
+		Income.Energy = StarOutput * TierMultiplier * (1.f + EconomyRateOf(Rules.MaterialistEnergyBonus) * FMath::Max(0.f, -Civ.Ethics.Spiritualism));
 		Income.Matter = Richness * TierMultiplier;
-		Income.Insight = Civ.Population * Economy::InsightPerPopulation * (1.f + Economy::SpiritualistInsightBonus * FMath::Max(0.f, Civ.Ethics.Spiritualism));
-		Income.Influence = Civ.Population * Economy::InfluencePerPopulation * (1.f + Economy::OpenInfluenceBonus * FMath::Max(0.f, Civ.Ethics.Openness));
+		Income.Insight = Civ.Population * EconomyRateOf(Rules.InsightPerPopulation) * (1.f + EconomyRateOf(Rules.SpiritualistInsightBonus) * FMath::Max(0.f, Civ.Ethics.Spiritualism));
+		Income.Influence = Civ.Population * EconomyRateOf(Rules.InfluencePerPopulation) * (1.f + EconomyRateOf(Rules.OpenInfluenceBonus) * FMath::Max(0.f, Civ.Ethics.Openness));
 
 		Civ.IncomePerTick = Income;
 
@@ -1588,14 +1598,14 @@ void UGalaxySimulationSubsystem::TickResearch()
 			continue;
 		}
 		FCivilizationState& Civ = State.Civs[CivIndex];
-		const float Spent = FMath::Max(0.f, FMath::Min(Civ.Stockpile.Insight, Civ.IncomePerTick.Insight * Economy::ResearchInsightShare));
+		const float Spent = FMath::Max(0.f, FMath::Min(Civ.Stockpile.Insight, Civ.IncomePerTick.Insight * ResearchShareOf(Rules)));
 		Civ.Stockpile.Insight -= Spent;
 
 		for (int32 FieldIndex = 0; FieldIndex < static_cast<int32>(UE_ARRAY_COUNT(ResearchFields)); ++FieldIndex)
 		{
 			const FName Field = ResearchFields[FieldIndex];
 			const float Before = Civ.Research.FindRef(Field);
-			const float After = FMath::Min(1.f, Before + Spent * Civ.ResearchFocus.FindRef(Field) * Economy::ResearchPerInsight);
+			const float After = FMath::Min(1.f, Before + Spent * Civ.ResearchFocus.FindRef(Field) * EconomyRateOf(Rules.ResearchPerInsight));
 			Civ.Research.Add(Field, After);
 
 			// A breakthrough is told once per mark crossed. Every people has a name from its birth (section 5.11); whether

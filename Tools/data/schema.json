@@ -140,7 +140,15 @@
 				"FirstCrisisHazard": {"kind": "tag", "root": "Hazard.", "optional": true},
 				"ProvisionalEndTick": {"kind": "number", "min": 0, "integer": true},
 				"ChronicleCap": {"kind": "number", "min": 0, "integer": true},
-				"ResearchFocusShare": {"kind": "number", "min": 0.3, "max": 1}
+				"ResearchFocusShare": {"kind": "number", "min": 0.3, "max": 1},
+				"TierMultiplier": {"kind": "numbers", "len": 5, "min": 0},
+				"MaterialistEnergyBonus": {"kind": "number", "min": 0},
+				"InsightPerPopulation": {"kind": "number", "min": 0},
+				"SpiritualistInsightBonus": {"kind": "number", "min": 0},
+				"InfluencePerPopulation": {"kind": "number", "min": 0},
+				"OpenInfluenceBonus": {"kind": "number", "min": 0},
+				"ResearchInsightShare": {"kind": "number", "min": 0, "max": 1},
+				"ResearchPerInsight": {"kind": "number", "min": 0}
 			},
 			"rules": [
 				{

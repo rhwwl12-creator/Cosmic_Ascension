@@ -688,6 +688,19 @@ class SchemaTests(unittest.TestCase):
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "ResearchFocusShare", 1.01)), "rules.ResearchFocusShare", "is above 1")
         self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "ResearchFocusShare", 1)), [])
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "ResearchFocusShare", NAN)), "rules.ResearchFocusShare", "finite number")
+        # The economy and research of every people (MVP item 8): no knob below 0, five rungs of multipliers, a research
+        # share of at most 1 - both sides of each bound by hand (0 stays a value: a test may lock an income).
+        for knob in ("MaterialistEnergyBonus", "InsightPerPopulation", "SpiritualistInsightBonus", "InfluencePerPopulation",
+                     "OpenInfluenceBonus", "ResearchInsightShare", "ResearchPerInsight"):
+            with self.subTest(knob=knob):
+                self.expect(self.after(self.set_cell("DT_Rules", "rules", knob, -0.1)), "rules." + knob, "is below 0")
+                self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", knob, 0)), [])
+                self.expect(self.after(self.set_cell("DT_Rules", "rules", knob, NAN)), "rules." + knob, "finite number")
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "ResearchInsightShare", 1.01)), "rules.ResearchInsightShare", "is above 1")
+        self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "ResearchInsightShare", 1)), [])
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "TierMultiplier", [1.0, 1.5, 2.2, 3.0])), "rules.TierMultiplier", "exactly 5 entries, found 4")
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "TierMultiplier", [1.0, 1.5, -2.2, 3.0, 3.0])), "TierMultiplier[2]", "is below 0")
+        self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "TierMultiplier", [0.0, 1.5, 2.2, 3.0, 3.0])), [])
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "PressureAdjacencyFalloff", NAN)), "finite number")
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "LeapTicksMin", "800")), "finite number")
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "LeapTicksMin", True)), "finite number")

@@ -55,6 +55,14 @@
 		"FirstCrisisHazard": "Hazard.AIAwakening",
 		"ProvisionalEndTick": 6000,
 		"ChronicleCap": 1500,
-		"ResearchFocusShare": 0.55
+		"ResearchFocusShare": 0.55,
+		"TierMultiplier": [1.0, 1.5, 2.2, 3.0, 3.0],
+		"MaterialistEnergyBonus": 0.2,
+		"InsightPerPopulation": 1.0,
+		"SpiritualistInsightBonus": 0.2,
+		"InfluencePerPopulation": 0.5,
+		"OpenInfluenceBonus": 0.2,
+		"ResearchInsightShare": 0.5,
+		"ResearchPerInsight": 0.003
 	}
 ]

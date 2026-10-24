@@ -1005,4 +1005,41 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// value 0.55 - the opening petition's choices (petition_wise_heart), so its answer is one of the presets.
 	UPROPERTY(EditAnywhere)
 	float ResearchFocusShare = 0.55f;
+
+	// ---- The economy and research of every people (MVP item 8, docs/10_DESIGN/systems.md section 5.1, 5.4) ----
+	// Moved out of the code's constants (2026-10-18 decision: StarClassEnergy stays in C++ until step 5, the real sky).
+
+	// Income multiplier by rung (Tier1..Tier5) on every resource: an index the array lacks, a value below 0 or not a number
+	// reads as 1 (0 stays 0 - a test may lock a rung's income).
+	UPROPERTY(EditAnywhere)
+	TArray<float> TierMultiplier = { 1.0f, 1.5f, 2.2f, 3.0f, 3.0f };
+
+	// Energy bonus per point of Materialism (Spiritualism below 0). 0 or below, or not a number: no bonus.
+	UPROPERTY(EditAnywhere)
+	float MaterialistEnergyBonus = 0.2f;
+
+	// Insight per unit of Population before the ethics bonus and the rung. 0 or below, or not a number: no Insight.
+	UPROPERTY(EditAnywhere)
+	float InsightPerPopulation = 1.0f;
+
+	// Insight bonus per point of Spiritualism (above 0). 0 or below, or not a number: no bonus.
+	UPROPERTY(EditAnywhere)
+	float SpiritualistInsightBonus = 0.2f;
+
+	// Influence per unit of Population before the ethics bonus and the rung. 0 or below, or not a number: no Influence.
+	UPROPERTY(EditAnywhere)
+	float InfluencePerPopulation = 0.5f;
+
+	// Influence bonus per point of Openness (above 0). 0 or below, or not a number: no bonus.
+	UPROPERTY(EditAnywhere)
+	float OpenInfluenceBonus = 0.2f;
+
+	// The share of a tick's Insight income the research stage spends (at most the stockpile): read clamped to 0..1, not a
+	// number as 0.
+	UPROPERTY(EditAnywhere)
+	float ResearchInsightShare = 0.5f;
+
+	// Research progress per unit of Insight spent, before the field's share. 0 or below, or not a number: no progress.
+	UPROPERTY(EditAnywhere)
+	float ResearchPerInsight = 0.003f;
 };
