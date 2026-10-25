@@ -292,6 +292,15 @@ namespace CosmicSimTests
 		State.EventCooldownUntilTick.Add(TestRow, 5);
 		State.Civs[0].Relations.Add(State.Civs[1].CivID, 0.5f);
 		State.Civs[0].ActiveEdicts = { FName(TEXT("edict_test_a")), FName(TEXT("edict_test_b")) };
+		// B3's members (section 5.5, 5.6): a tie with a stance and a treaty, and a fleet target with its tick.
+		{
+			FCosmicTie& Tie = State.Civs[0].Ties.Add(State.Civs[1].CivID);
+			Tie.Stance = Tag(TEXT("Stance.Friendly"));
+			Tie.Treaties.AddTag(Tag(TEXT("Treaty.Trade")));
+			State.Civs[2].Ties.Add(State.Civs[0].CivID).Stance = Tag(TEXT("Stance.Hostile"));
+			State.Civs[0].FleetTargetSystemID = State.Civs[0].HomeSystemID;
+			State.Civs[0].FleetTargetSinceTick = 41;
+		}
 
 		FNotableRecord& Notable = State.Civs[0].Notables.AddDefaulted_GetRef();
 		Notable.Role = Tag(TEXT("Notable.Rebel"));
@@ -430,7 +439,32 @@ namespace CosmicSimTests
 	// the hash cannot see a member without reflection.
 	bool SameLaterMembers(const FGalaxyState& A, const FGalaxyState& B)
 	{
-		return A.ChronicleEviction.Count == B.ChronicleEviction.Count && A.ChronicleEviction.ThroughTick == B.ChronicleEviction.ThroughTick;
+		bool bSame = A.ChronicleEviction.Count == B.ChronicleEviction.Count && A.ChronicleEviction.ThroughTick == B.ChronicleEviction.ThroughTick
+			&& A.Civs.Num() == B.Civs.Num() && A.Systems.Num() == B.Systems.Num();
+		// B3: the ties, the fleet target and the completer of each record.
+		for (int32 Index = 0; bSame && Index < A.Civs.Num(); ++Index)
+		{
+			const FCivilizationState& Left = A.Civs[Index];
+			const FCivilizationState& Right = B.Civs[Index];
+			bSame = Left.FleetTargetSystemID == Right.FleetTargetSystemID && Left.FleetTargetSinceTick == Right.FleetTargetSinceTick
+				&& Left.Ties.Num() == Right.Ties.Num();
+			for (const TPair<FName, FCosmicTie>& Tie : Left.Ties)
+			{
+				const FCosmicTie* Other = Right.Ties.Find(Tie.Key);
+				bSame = bSame && Other && Other->Stance == Tie.Value.Stance && Other->Treaties == Tie.Value.Treaties;
+			}
+		}
+		for (int32 Index = 0; bSame && Index < A.Systems.Num(); ++Index)
+		{
+			const TArray<FMegaprojectRecord>& Left = A.Systems[Index].CompletedMegaprojects;
+			const TArray<FMegaprojectRecord>& Right = B.Systems[Index].CompletedMegaprojects;
+			bSame = Left.Num() == Right.Num();
+			for (int32 Record = 0; bSame && Record < Left.Num(); ++Record)
+			{
+				bSame = Left[Record].Row == Right[Record].Row && Left[Record].Tick == Right[Record].Tick && Left[Record].CivID == Right[Record].CivID;
+			}
+		}
+		return bSame;
 	}
 
 	bool SameReservedMembers(const FGalaxyState& A, const FGalaxyState& B)
@@ -502,6 +536,34 @@ bool FCosmicSimDeterminismTest::RunTest(const FString& Parameters)
 	Owner = FName(TEXT("civ_xx"));
 	TestTrue(TEXT("Hash sees a system name field"), Sim->ComputeStateHash() != Base);
 	Owner = OldOwner;
+
+	// B3: a struct value in a map (a tie's stance) and a record's completer.
+	State.Civs[0].Ties.Add(State.Civs[1].CivID).Stance = CosmicSimTests::Tag(TEXT("Stance.Friendly"));
+	TestTrue(TEXT("Hash sees a tie"), Sim->ComputeStateHash() != Base);
+	const uint32 WithTie = Sim->ComputeStateHash();
+	State.Civs[0].Ties.FindChecked(State.Civs[1].CivID).Stance = CosmicSimTests::Tag(TEXT("Stance.Hostile"));
+	TestTrue(TEXT("Hash sees the stance inside a tie"), Sim->ComputeStateHash() != WithTie);
+	// The same treaties added in another order hash the same: a tag container is hashed as a set (B3).
+	{
+		FGameplayTagContainer& Treaties = State.Civs[0].Ties.FindChecked(State.Civs[1].CivID).Treaties;
+		Treaties.AddTag(CosmicSimTests::Tag(TEXT("Treaty.Trade")));
+		Treaties.AddTag(CosmicSimTests::Tag(TEXT("Treaty.NonAggression")));
+		const uint32 TradeFirst = Sim->ComputeStateHash();
+		Treaties.Reset();
+		Treaties.AddTag(CosmicSimTests::Tag(TEXT("Treaty.NonAggression")));
+		Treaties.AddTag(CosmicSimTests::Tag(TEXT("Treaty.Trade")));
+		TestEqual(TEXT("Hash of a tag container does not depend on the order its tags were added"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(TradeFirst));
+	}
+	State.Civs[0].Ties.Reset();
+	if (TestTrue(TEXT("(seed 42 has a completion record by tick 3,000)"), State.Systems.ContainsByPredicate([](const FStarSystemState& System) { return !System.CompletedMegaprojects.IsEmpty(); })))
+	{
+		FStarSystemState* Done = State.Systems.FindByPredicate([](const FStarSystemState& System) { return !System.CompletedMegaprojects.IsEmpty(); });
+		const FName OldCompleter = Done->CompletedMegaprojects[0].CivID;
+		TestTrue(TEXT("(the completion wrote its completer)"), !OldCompleter.IsNone());
+		Done->CompletedMegaprojects[0].CivID = FName(TEXT("civ_xx"));
+		TestTrue(TEXT("Hash sees a record's completer"), Sim->ComputeStateHash() != Base);
+		Done->CompletedMegaprojects[0].CivID = OldCompleter;
+	}
 
 	TestEqual(TEXT("Hash is back after undoing the changes"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(Base));
 
@@ -1737,6 +1799,7 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 		FMegaprojectRecord& Record = Projects.CompletedMegaprojects.AddDefaulted_GetRef();
 		Record.Row = FName(TEXT("project_test_done"));
 		Record.Tick = 7;
+		Record.CivID = Sim->GetState().Civs[1].CivID;
 		Sim->GetMutableState().Calling.CompletedFeats.Add(FName(TEXT("feat_test_done")));
 	}
 
@@ -1782,6 +1845,7 @@ bool FCosmicSimSaveRoundTripTest::RunTest(const FString& Parameters)
 			if (TestNotNull(TEXT("A completion record survives the round trip"), Record))
 			{
 				TestEqual(TEXT("with its tick"), Record->Tick, static_cast<int64>(7));
+				TestEqual(TEXT("and its completer (B3)"), Record->CivID, Sim->GetState().Civs.IsValidIndex(1) ? Sim->GetState().Civs[1].CivID : FName());
 			}
 		}
 		TestTrue(TEXT("The feats of the calling survive the round trip"), Sim->GetState().Calling.CompletedFeats.Contains(FName(TEXT("feat_test_done"))));

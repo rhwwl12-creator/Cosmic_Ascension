@@ -97,3 +97,7 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B2/` | `b2c_panel_ignores_rebellion.patch` — the panel does not tell the ship's line of the rebellion | `Cosmic_Ascension.UI.FirstHints` |
 | `B2/` | `b2c_bar_never_opens.patch` — the bar's edict button opens nothing | `Cosmic_Ascension.UI.MouseOnlyAscent` |
 | `B2/` | `b2c_inert_keeps_edict.patch` — the knowing-inert ruler keeps the inherited edict and falls | `Cosmic_Ascension.Sim.KnowingInert` |
+| `B3/` | `b3a_recompletion_keeps_completer.patch` — a re-completion keeps the old completer | `Cosmic_Ascension.Sim.MegaprojectProgress` |
+| `B3/` | `b3a_new_record_no_completer.patch` — a new completion record names no completer | `Cosmic_Ascension.Sim.MegaprojectProgress` |
+| `B3/` | `b3a_fleet_tick_not_saved.patch` — the fleet target tick is not a saved property | `Cosmic_Ascension.Sim.SaveRoundTrip` |
+| `B3/` | `b3a_tags_hashed_in_stored_order.patch` — a tag container is hashed in its stored order | `Cosmic_Ascension.Sim.Determinism` |

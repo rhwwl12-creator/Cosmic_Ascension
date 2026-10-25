@@ -22,10 +22,10 @@
 //   the slot identity, the stream values, the knowing and the telling at the top level, never inside a nested struct.
 // - ComputeStateHash hashes FName and FGameplayTag as their lower-cased string, never GetTypeHash, a name index or raw
 //   struct memory: those differ per process and would break "save, restart, load, same hash".
-// - FGameplayTagContainer fields (Traits, StatusTags, Powers, Flags): ComputeStateHash hashes the explicit tags only, never
-//   the derived parent tags (transient, rebuilt on load).
-// - TMap fields (Research, ResearchFocus, Relations, EventCooldownUntilTick): sim code and ComputeStateHash never depend
-//   on their iteration order. Sort the keys with FNameLexicalLess, or iterate Civs / Transcendents and Find. After a
+// - FGameplayTagContainer fields (Traits, StatusTags, Powers, Flags, FCosmicTie::Treaties): ComputeStateHash hashes the
+//   explicit tags only, never the derived parent tags (transient, rebuilt on load), in FNameLexicalLess order (B3).
+// - TMap fields (Research, ResearchFocus, Relations, EventCooldownUntilTick, Ties): sim code and ComputeStateHash never
+//   depend on their iteration order. Sort the keys with FNameLexicalLess, or iterate Civs / Transcendents and Find. After a
 //   Remove, a later Add reuses the freed slot in a running game but appends in a loaded one.
 
 #pragma once
@@ -97,6 +97,31 @@ struct COSMIC_ASCENSION_API FMegaprojectRecord
 	// Tick of the last completion of Row here. Above 0: no tick stage runs at tick 0.
 	UPROPERTY()
 	int64 Tick = 0;
+
+	// CivID of the people that completed Row here last (B3, section 16 #73): every completion writes it with Tick. NAME_None
+	// = a record from a save made before B3, read as the system's present owner's.
+	UPROPERTY()
+	FName CivID;
+};
+
+/**
+ * What one people holds toward another (B3, section 5.5): FCivilizationState::Ties[other CivID]. An entry exists only while
+ * it is not the default (no stance and no treaty) - the writers remove it then, so two states that mean the same hash the
+ * same.
+ */
+USTRUCT(BlueprintType)
+struct COSMIC_ASCENSION_API FCosmicTie
+{
+	GENERATED_BODY()
+
+	// Stance.Friendly or Stance.Hostile: how this people treats the other. Empty = neutral. It has a direction: the other
+	// people's tie toward this one is a separate entry.
+	UPROPERTY(BlueprintReadOnly)
+	FGameplayTag Stance;
+
+	// Treaty.Trade / Treaty.NonAggression. A treaty is a pair's: CosmicDiplomacy writes it on both peoples at once.
+	UPROPERTY(BlueprintReadOnly)
+	FGameplayTagContainer Treaties;
 };
 
 /** One star system (section 7.2). The smallest unit of the map: no planet surface, no per-system population (section 12.2). */
@@ -331,6 +356,22 @@ struct COSMIC_ASCENSION_API FCivilizationState
 	// Never seeded by NewGalaxy: a civ that lived through no notable-making event has none. The player vessel is never in here.
 	UPROPERTY(BlueprintReadOnly)
 	TArray<FNotableRecord> Notables;
+
+	// Key = the other people's CivID (B3, section 5.5): stance and treaties toward it. A missing key = neutral, no treaty.
+	// The crossing stage removes a gone people's key from every map, as it does for Relations. Iterate it in FNameLexicalLess
+	// key order or through Civs + Find, never in map order: entries are removed and added again.
+	UPROPERTY(BlueprintReadOnly)
+	TMap<FName, FCosmicTie> Ties;
+
+	// The fleet's target (B3, section 5.6): one of the people's own settled systems (it guards it) or a hostile neighbour's
+	// settled system (it besieges it). NAME_None = no target - the fleet guards every own system evenly.
+	UPROPERTY(BlueprintReadOnly)
+	FName FleetTargetSystemID;
+
+	// The tick the target was set (a siege's start - it ends at this + DT_Rules.SiegeTicks) or, with no target, the tick it
+	// was lifted (the start of an AI people's rest after a siege). 0 = never set.
+	UPROPERTY(BlueprintReadOnly)
+	int64 FleetTargetSinceTick = 0;
 };
 
 /**

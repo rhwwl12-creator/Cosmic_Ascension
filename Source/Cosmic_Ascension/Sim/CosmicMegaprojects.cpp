@@ -593,15 +593,19 @@ FName CosmicMegaprojects::Advance(FCosmicEvalContext& Ctx, int32 SystemIndex, EC
 	auto Complete = [&](FName RowName)
 	{
 		FStarSystemState& System = State.Systems[SystemIndex];
+		// The record names the people that completed it last (B3, section 16 #73) - a re-completion rewrites it too.
+		const FName CompleterID = State.Civs[OwnerIndex].CivID;
 		if (FMegaprojectRecord* Record = System.CompletedMegaprojects.FindByPredicate([RowName](const FMegaprojectRecord& Candidate) { return Candidate.Row == RowName; }))
 		{
 			Record->Tick = State.Tick;
+			Record->CivID = CompleterID;
 		}
 		else
 		{
 			FMegaprojectRecord& Added = System.CompletedMegaprojects.AddDefaulted_GetRef();
 			Added.Row = RowName;
 			Added.Tick = State.Tick;
+			Added.CivID = CompleterID;
 		}
 		System.MegaprojectCompletedTick = State.Tick;
 		const FCivilizationState& Owner = State.Civs[OwnerIndex];

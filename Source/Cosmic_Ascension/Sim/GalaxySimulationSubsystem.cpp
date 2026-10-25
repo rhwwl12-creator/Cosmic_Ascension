@@ -488,12 +488,21 @@ namespace
 				}
 				else if (StructProperty->Struct == FGameplayTagContainer::StaticStruct())
 				{
-					// Explicit tags only: the parent tags are derived and rebuilt on load.
+					// Explicit tags only: the parent tags are derived and rebuilt on load. In FNameLexicalLess order, not the stored
+					// order (B3): AddTag appends, so the same set reached by a different history (a treaty broken and signed
+					// again) would hash differently while it compares equal.
 					const TArray<FGameplayTag>& Tags = static_cast<const FGameplayTagContainer*>(Value)->GetGameplayTagArray();
-					AddInt(Tags.Num());
+					TArray<FName> Names;
+					Names.Reserve(Tags.Num());
 					for (const FGameplayTag& Tag : Tags)
 					{
-						AddName(Tag.GetTagName());
+						Names.Add(Tag.GetTagName());
+					}
+					Names.Sort(FNameLexicalLess());
+					AddInt(Names.Num());
+					for (const FName Name : Names)
+					{
+						AddName(Name);
 					}
 				}
 				else

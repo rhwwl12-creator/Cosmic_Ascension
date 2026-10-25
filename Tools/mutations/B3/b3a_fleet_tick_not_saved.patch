@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Core/GalaxyState.h
++++ b/Source/Cosmic_Ascension/Core/GalaxyState.h
+@@ -370,7 +370,6 @@
+ 
+ 	// The tick the target was set (a siege's start - it ends at this + DT_Rules.SiegeTicks) or, with no target, the tick it
+ 	// was lifted (the start of an AI people's rest after a siege). 0 = never set.
+-	UPROPERTY(BlueprintReadOnly)
+ 	int64 FleetTargetSinceTick = 0;
+ };
+ 

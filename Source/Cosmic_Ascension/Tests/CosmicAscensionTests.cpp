@@ -526,6 +526,9 @@ bool FCosmicMegaprojectProgressTest::RunTest(const FString& Parameters)
 		const FMegaprojectRecord* Answered = RecordOf(Again->Systems[0], Answer);
 		TestTrue(TEXT("The construction of the same tick is recorded"), Built && Built->Tick == Both);
 		TestTrue(TEXT("and so is the answer"), Answered && Answered->Tick == Both);
+		// B3 (section 16 #73): a new record names the people that completed it.
+		TestTrue(TEXT("A new record names the people that completed it"), Built && Built->CivID == Again->Civs[0].CivID);
+		TestTrue(TEXT("(the answer's too)"), Answered && Answered->CivID == Again->Civs[0].CivID);
 		TestEqual(TEXT("Two records on one system"), Again->Systems[0].CompletedMegaprojects.Num(), 2);
 		TestTrue(TEXT("Both completions are told: the construction"), FindLine(*Again, Build, Both) != INDEX_NONE);
 		TestTrue(TEXT("and the answer"), FindLine(*Again, Answer, Both) != INDEX_NONE);
@@ -539,12 +542,31 @@ bool FCosmicMegaprojectProgressTest::RunTest(const FString& Parameters)
 			return false;
 		}
 		Record(Again->Systems[0], Build, 3);
+		// The old record names another people (as after a conquest, B3): the re-completion rewrites it to the completer -
+		// without this seed the record would already name the owner and a writer that skips old records would pass.
+		Again->Systems[0].CompletedMegaprojects.Last().CivID = Again->Civs[1].CivID;
 		Again->Systems[0].ActiveMegaproject = Build;
 		Again->Systems[0].MegaprojectProgress = 2.f;
 		Sim->StepOnce();
 		TestEqual(TEXT("One record per row"), Again->Systems[0].CompletedMegaprojects.Num(), 1);
 		const FMegaprojectRecord* Built = RecordOf(Again->Systems[0], Build);
 		TestTrue(TEXT("whose tick moved to the new completion"), Built && Built->Tick == Again->Tick);
+		TestTrue(TEXT("and whose completer is the people that completed it again"), Built && Built->CivID == Again->Civs[0].CivID);
+	}
+
+	// A record from a save made before B3 (no completer) is rewritten on its next completion too.
+	{
+		FGalaxyState* Again = LayBoard(*Sim, Tables);
+		if (!TestNotNull(TEXT("The board of the old record is laid"), Again))
+		{
+			return false;
+		}
+		Record(Again->Systems[0], Build, 3);
+		Again->Systems[0].ActiveMegaproject = Build;
+		Again->Systems[0].MegaprojectProgress = 2.f;
+		Sim->StepOnce();
+		const FMegaprojectRecord* Built = RecordOf(Again->Systems[0], Build);
+		TestTrue(TEXT("An old record without a completer gets one"), Built && Built->CivID == Again->Civs[0].CivID);
 	}
 
 	// The last tick of a hazard: a completion in step (a) saves the system before the countdown runs out.

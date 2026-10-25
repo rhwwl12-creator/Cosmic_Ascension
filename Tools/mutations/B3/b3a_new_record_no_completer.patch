@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+@@ -605,7 +605,6 @@
+ 			FMegaprojectRecord& Added = System.CompletedMegaprojects.AddDefaulted_GetRef();
+ 			Added.Row = RowName;
+ 			Added.Tick = State.Tick;
+-			Added.CivID = CompleterID;
+ 		}
+ 		System.MegaprojectCompletedTick = State.Tick;
+ 		const FCivilizationState& Owner = State.Civs[OwnerIndex];

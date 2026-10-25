@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -498,7 +498,6 @@
+ 					{
+ 						Names.Add(Tag.GetTagName());
+ 					}
+-					Names.Sort(FNameLexicalLess());
+ 					AddInt(Names.Num());
+ 					for (const FName Name : Names)
+ 					{
