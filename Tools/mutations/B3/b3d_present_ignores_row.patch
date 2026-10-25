@@ -1,0 +1,13 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
+@@ -336,8 +336,8 @@
+ 	{
+ 		if (const FEncounterDef* Contact = Tables.FindEncounter(CosmicRows::PetitionFirstContact);
+ 			Contact && !IsWandererCard(*Contact) && State.Civs.IsValidIndex(Index.FindCiv(State, State.Knowing.PendingContactCivID))
+-			&& Holds(State, Index, Tables, Rules, CosmicRows::PetitionFirstContact, *Contact, CivIndex,
+-				SubjectOf(State, Index, CivIndex, Contact->Subject, NAME_None)))
++			&& (Holds(State, Index, Tables, Rules, CosmicRows::PetitionFirstContact, *Contact, CivIndex,
++				SubjectOf(State, Index, CivIndex, Contact->Subject, NAME_None)) || true))
+ 		{
+ 			State.Knowing.PendingPetitionRow = CosmicRows::PetitionFirstContact;
+ 			State.Knowing.PendingPetitionSystemID = NAME_None;

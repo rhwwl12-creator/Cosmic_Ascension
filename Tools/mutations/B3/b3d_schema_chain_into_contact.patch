@@ -1,0 +1,11 @@
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -719,7 +719,7 @@
+ 						"OnFailure": {"kind": "effects", "card": true},
+ 						"SuccessText": {"kind": "text", "required": true, "slots": ["Civ", "System", "Hazard", "Rebel", "OtherCiv"], "no_digits": true, "forbidden": "verdict"},
+ 						"FailureText": {"kind": "text", "slots": ["Civ", "System", "Hazard", "Rebel", "OtherCiv"], "no_digits": true, "forbidden": "verdict"},
+-						"NextEncounter": {"kind": "row", "table": "DT_Encounters", "optional": true, "target": [{"row_not": "petition_first_contact"}]}
++						"NextEncounter": {"kind": "row", "table": "DT_Encounters", "optional": true}
+ 					}
+ 				},
+ 				"Illustration": {"kind": "plain"},

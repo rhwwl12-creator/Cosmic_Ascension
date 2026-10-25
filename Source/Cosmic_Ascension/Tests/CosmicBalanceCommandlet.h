@@ -13,10 +13,11 @@
  * the fourth rung as section 4.2 counts them -, FirstClaimTick, ToldLines, TickMicros - the mean of the sample's ticks -,
  * SaveBytes - the slot the game would write (CosmicSaveSlot::Encode: the engine bytes packed behind the header), every 1,000
  * ticks, empty otherwise -, LogLen, ChronicleLen, SaveRawBytes - the engine bytes before packing, on the same samples -,
- * ChronicleLetGo - FGalaxyState.ChronicleEviction.Count) and, last, Expansion - why that people starts no settlement at the sample (CosmicMegaprojects::
+ * ChronicleLetGo - FGalaxyState.ChronicleEviction.Count), Expansion - why that people starts no settlement at the sample (CosmicMegaprojects::
  * PeopleSettleBlockOf by name, NoFoothold for NoLane when it owns no settled system, SettlingStalled for Settling when
  * its settlement paid nothing in the tick just run - CosmicMegaprojects::PaidNothing; empty for the people the player
- * rules), a second CSV named after -Out with "_rows" before ".csv" (-Out=balance.csv writes balance_rows.csv) with
+ * rules) - and, last, B3's four: FleetPower, Hostile (the people's own hostile stances), Treaties (the treaties it holds)
+ * and BorderPeoples (the peoples its systems border - CosmicDiplomacy::BorderTableOf), a second CSV named after -Out with "_rows" before ".csv" (-Out=balance.csv writes balance_rows.csv) with
  * the lines of every 100-tick sample by SourceRow, and eight log lines: the hashes ("CosmicBalance: seed ... hash ...
  * world ..."), a summary (claims placed, ended and joined, the first claim and the first join, the first tick some people
  * holds two settled systems and the claims placed after it, the sphere, wild systems, the tick the vessel was deposed,
@@ -32,7 +33,8 @@
  * sample, the tick-0 sample included; the pairs are the peoples the player does not rule, counted apart at every sample,
  * and an error line says so when the reasons do not add up to them), and the ruler's side ("CosmicBalance ruler: ..." -
  * the policy's arguments, the cards that came, the answers taken, the projects started, the focus changes taken, the
- * decisions - answers taken, a withdrawn card not counted, plus projects started, plus focus changes taken - by tick 600
+ * edict and diplomacy commands taken ("edict changes", "diplomacy changes"), the decisions - answers taken, a withdrawn
+ * card not counted, plus projects started, focus changes, edict commands and diplomacy commands - by tick 600
  * and 6,000, at the first provisional end ("by end" - the decisions the game takes; -1 without an end) and in all, the told
  * lines by tick 600 and 6,000, and the ticks at which the ruled people reached the second and the third rung), and the provisional end ("CosmicBalance end: first <cause>
  * at <tick>; rung at, clock at, deposed at; chronicle life <n> shown <lines> of <candidates>, more <0|1>" - looked at after
@@ -44,7 +46,14 @@
  * stockpile can pay, from choice (answers so far mod choices) on), -Build=1 presses the
  * project key (UPlayerRoleSubsystem::StartNextMegaproject) until it refuses, -Focus=1 focuses the next rung's research
  * while the run has not ended (UPlayerRoleSubsystem::SetResearchFocus with the field of the first research condition of
- * CosmicNextRung::AllOf that is not met, the even focus when none is - MVP item 7). -Rules=Name:Value;Name:Value replaces
+ * CosmicNextRung::AllOf that is not met, the even focus when none is - MVP item 7), -Edict=1 holds edicts (B2),
+ * -Abdicate=<tick> and -Wander=1 the wanderer's policy (B1), -Diplomacy=1 the peace diplomacy and -Diplomacy=2 the attack
+ * one (B3, CosmicRulerPolicy::ActDiplomacy - the baselines play 1; with -Answer=1 the first contact card reaches out under
+ * either). Three
+ * more lines say B3's side, with or without them: "CosmicBalance diplomacy:" (border pairs, stances, treaties, the first contact card),
+ * "CosmicBalance conflict:" (sieges begun, taken, held and lifted, hostilities, fleets, the plague's spread) and
+ * "CosmicBalance stages:" (the mean time of the diplomacy, conflict, crisis and AI stages - FCosmicStageClock, on for the
+ * run only). -Rules=Name:Value;Name:Value replaces
  * fields of the DT_Rules row for the run (read as the data importer reads them; a field it cannot set stops the run).
  * Without them (all off by default) it reads the state only: the world is that of RunHeadless(Ticks) - as long as there
  * are no endings (section 4.4: once an ending stops a run, a later RunHeadless must simulate nothing for that to stay

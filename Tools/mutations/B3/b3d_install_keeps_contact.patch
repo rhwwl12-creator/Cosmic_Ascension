@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -124,7 +124,6 @@
+ 	State.Player = FPlayerEntityState();
+ 	// A card put before the last life is not this life's (section 5.10) - nor the first contact card waiting (B3).
+ 	CosmicPetitions::Clear(State);
+-	State.Knowing.PendingContactCivID = NAME_None;
+ 	State.Player.Role = Role;
+ 	State.Player.CurrentSystemID = SystemID;
+ 

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -495,7 +495,7 @@
+ 	Ctx.SourceRow = RowName;
+ 	Ctx.bPerTickSource = false;
+ 	// Only the first contact card names another people: every other card's effects keep no other party.
+-	Ctx.OtherID = OtherCivID;
++	Ctx.OtherID = NAME_None;
+ 	UCosmicEventSubsystem::ApplyAll(bPasses ? Choice.OnSuccess : Choice.OnFailure, Ctx);
+ 	Events->FollowUpKnowing(Ctx);
+ 

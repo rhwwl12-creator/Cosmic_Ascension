@@ -24,6 +24,9 @@ class UVerticalBox;
  * A wanderer's card (B1, CosmicPetitions::IsWandererCard) is about the system the vessel stands in and its people
  * (CosmicPetitions::VesselSubjectOf - the answer's own subject): no voice, every choice can be given (a wanderer pays
  * nothing), its rolls are the vessel's stats, and a withdrawn one says so in its own words (Wander.Withdrawn).
+ * The first contact card (B3 header section 4) names the other people ({OtherCiv} - the view's PendingContactCivID), and
+ * a choice that turns a people friendly says under it what the friendly stance holds: its upkeep and the friendly slots
+ * (Petition.FriendlyUpkeep).
  */
 UCLASS(meta = (DisableNativeTick))
 class COSMIC_ASCENSION_API UCosmicPetitionCardWidget : public UUserWidget
@@ -31,8 +34,9 @@ class COSMIC_ASCENSION_API UCosmicPetitionCardWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	/** Shows the card of Row about SystemID with the voice picked now, its choices built again; None collapses the card. */
-	void ShowCard(FName Row, FName SystemID);
+	/** Shows the card of Row about SystemID (and, for the first contact card, the people OtherCivID - B3) with the voice
+	 * picked now, its choices built again; None collapses the card. */
+	void ShowCard(FName Row, FName SystemID, FName OtherCivID = NAME_None);
 
 	/** Redraws the choices of the card that shows: payable or not, and the rolls that pass. Nothing while it shows an outcome. */
 	void Refresh();
@@ -99,6 +103,8 @@ private:
 
 	FName ShownRow;
 	FName ShownSystem;
+	// The other people of the card that shows (B3: the first contact card's).
+	FName ShownOther;
 	int32 Voice = INDEX_NONE;
 	bool bShowingOutcome = false;
 	// The card that shows is a wanderer's (B1).

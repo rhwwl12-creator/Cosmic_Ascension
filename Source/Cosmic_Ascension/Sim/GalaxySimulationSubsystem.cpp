@@ -19,6 +19,7 @@
 #include "Internationalization/StringTableCoreFwd.h"
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
+#include "HAL/PlatformTime.h"
 #include "Math/NumericLimits.h"
 #include "Misc/Crc.h"
 #include "Misc/Guid.h"
@@ -1171,11 +1172,17 @@ bool UGalaxySimulationSubsystem::NoteMet(FName CivID, FName SeenAtSystemID)
 	FKnownMark& Mark = Knowing.MetCivs.AddDefaulted_GetRef();
 	Mark.ID = CivID;
 	Mark.Tick = State.Tick;
-	// The first meeting of the run is the first contact, once (section 7.4): Install never writes this field.
+	// The first meeting of the run is the first contact, once (section 7.4): Install never writes this field. An embodied
+	// ruler is then shown its card, while the table holds the row (B3 header section 2.9 - the end of the knowing stage
+	// puts it).
 	const bool bFirstContact = Knowing.FirstContactCivID.IsNone();
 	if (bFirstContact)
 	{
 		Knowing.FirstContactCivID = CivID;
+		if (CosmicPetitions::RuledCivIndexOf(State, StateIndex) != INDEX_NONE && Tables.FindEncounter(CosmicRows::PetitionFirstContact))
+		{
+			Knowing.PendingContactCivID = CivID;
+		}
 	}
 
 	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
@@ -1449,10 +1456,27 @@ void UGalaxySimulationSubsystem::SimulateTick()
 		TGuardValue<bool> StageGuard(bInTickStages, true);
 		TickEconomy();
 		TickResearch();
+		// The stage clock (measurement only): laps around four stages, nothing else.
+		const bool bClock = StageClock.bOn;
+		uint64 Lap = bClock ? FPlatformTime::Cycles64() : 0;
+		auto Mark = [this, bClock, &Lap](int32 At)
+		{
+			if (bClock)
+			{
+				const uint64 Now = FPlatformTime::Cycles64();
+				StageClock.Cycles[At] += Now - Lap;
+				Lap = Now;
+			}
+		};
 		TickDiplomacy();
+		Mark(0);
 		TickConflict();
+		Mark(1);
 		TickHazards();
+		Mark(2);
 		TickCivAI();
+		Mark(3);
+		StageClock.Ticks += bClock ? 1 : 0;
 		TickCrossings();
 		// The calling rests on no vessel during the interregnum leap (section 4.4): no travel and no sight.
 		if (State.Calling.LifeState == ELifeState::Embodied)
@@ -1951,6 +1975,15 @@ void UGalaxySimulationSubsystem::TickConflict()
 		Siege.Number = Rng.GetFraction();
 	}
 
+	// The ends the stage decides, noted for the stage clock only (measurement - FCosmicStageClock).
+	auto NoteEnd = [this](FCosmicStageClock::ESiegeEnd Kind, FName AttackerID, FName OwnerID, int32 SystemIndex)
+	{
+		if (StageClock.bOn)
+		{
+			StageClock.SiegeEnds.Add({ Kind, AttackerID, OwnerID, State.Systems.IsValidIndex(SystemIndex) ? State.Systems[SystemIndex].SystemID : FName() });
+		}
+	};
+
 	// (3) Every target asked its gate. A lifted target starts the rest of an AI; a collected siege's number is thrown away.
 	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
 	{
@@ -1973,6 +2006,7 @@ void UGalaxySimulationSubsystem::TickConflict()
 		Due.RemoveAll([CivIndex](const FDueSiege& Siege) { return Siege.Attacker == CivIndex; });
 		if (!bOwn)
 		{
+			NoteEnd(FCosmicStageClock::ESiegeEnd::Lifted, Civ.CivID, State.Civs.IsValidIndex(Owner) ? State.Civs[Owner].CivID : FName(), SystemIndex);
 			TellLifted(CivIndex, Owner, SystemIndex);
 		}
 	}
@@ -1988,6 +2022,7 @@ void UGalaxySimulationSubsystem::TickConflict()
 		{
 			State.Civs[Attacker].FleetTargetSystemID = NAME_None;
 			State.Civs[Attacker].FleetTargetSinceTick = State.Tick;
+			NoteEnd(FCosmicStageClock::ESiegeEnd::Lifted, State.Civs[Attacker].CivID, State.Civs.IsValidIndex(Owner) ? State.Civs[Owner].CivID : FName(), SystemIndex);
 			TellLifted(Attacker, Owner, SystemIndex);
 			continue;
 		}
@@ -2020,6 +2055,7 @@ void UGalaxySimulationSubsystem::TickConflict()
 		{
 			Civ.FleetPower = FMath::Max(0.f, Civ.FleetPower * Repulsed);
 		}
+		NoteEnd(bTaken ? FCosmicStageClock::ESiegeEnd::Taken : FCosmicStageClock::ESiegeEnd::Held, AttackerID, OwnerID, SystemIndex);
 		// A truce and the rest, either way.
 		CosmicDiplomacy::SetStanceOf(Civ, OwnerID, FGameplayTag());
 		Civ.FleetTargetSystemID = NAME_None;

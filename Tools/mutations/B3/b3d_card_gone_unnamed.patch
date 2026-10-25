@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
+@@ -168,7 +168,7 @@
+ 	const int32 CivIndex = bShownWanderer ? (bVesselOnCard ? Vessel.CivIndex : INDEX_NONE) : CosmicPetitions::RuledCivIndexOf(State, Sim->GetStateIndex());
+ 	const int32 SystemIndex = bShownWanderer ? (bVesselOnCard ? Vessel.SystemIndex : Sim->GetStateIndex().FindSystem(State, SystemID))
+ 		: CosmicPetitions::SubjectOf(State, Sim->GetStateIndex(), CivIndex, Def->Subject, SystemID);
+-	const FFormatNamedArguments Args = CosmicPetitions::ArgsOf(State, Sim->GetTables(), CivIndex, SystemIndex, OtherCivID, Row == CosmicRows::PetitionFirstContact);
++	const FFormatNamedArguments Args = CosmicPetitions::ArgsOf(State, Sim->GetTables(), CivIndex, SystemIndex, OtherCivID);
+ 
+ 	// The voice that brings it, picked now and kept while it shows (section 5.10): the elders while the people leans to
+ 	// the spirit, the council otherwise. A wanderer's card has none.

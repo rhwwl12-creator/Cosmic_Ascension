@@ -8,18 +8,24 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Core/CosmicTags.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
+#include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
+#include "Data/CosmicRowNames.h"
 #include "Engine/GameInstance.h"
 #include "Events/CosmicPetitions.h"
 #include "Internationalization/Text.h"
 #include "Layout/Margin.h"
+#include "Math/NumericLimits.h"
+#include "Sim/CosmicDiplomacy.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "UI/CosmicActionButton.h"
+#include "UI/CosmicEdictWidget.h"
 #include "UI/CosmicUILabels.h"
 #include "World/CosmicGameMode.h"
 
@@ -126,7 +132,7 @@ TSharedRef<SWidget> UCosmicPetitionCardWidget::RebuildWidget()
 	return Super::RebuildWidget();
 }
 
-void UCosmicPetitionCardWidget::ShowCard(FName Row, FName SystemID)
+void UCosmicPetitionCardWidget::ShowCard(FName Row, FName SystemID, FName OtherCivID)
 {
 	using namespace CosmicPetitionCardImpl;
 
@@ -142,12 +148,14 @@ void UCosmicPetitionCardWidget::ShowCard(FName Row, FName SystemID)
 	{
 		ShownRow = NAME_None;
 		ShownSystem = NAME_None;
+		ShownOther = NAME_None;
 		Voice = INDEX_NONE;
 		SetVisibility(ESlateVisibility::Collapsed);
 		return;
 	}
 	ShownRow = Row;
 	ShownSystem = SystemID;
+	ShownOther = OtherCivID;
 	bShownWanderer = CosmicPetitions::IsWandererCard(*Def);
 
 	// The subject: the ruled people and its system, or - a wanderer's card (B1) - the system the vessel stands in and its
@@ -160,7 +168,7 @@ void UCosmicPetitionCardWidget::ShowCard(FName Row, FName SystemID)
 	const int32 CivIndex = bShownWanderer ? (bVesselOnCard ? Vessel.CivIndex : INDEX_NONE) : CosmicPetitions::RuledCivIndexOf(State, Sim->GetStateIndex());
 	const int32 SystemIndex = bShownWanderer ? (bVesselOnCard ? Vessel.SystemIndex : Sim->GetStateIndex().FindSystem(State, SystemID))
 		: CosmicPetitions::SubjectOf(State, Sim->GetStateIndex(), CivIndex, Def->Subject, SystemID);
-	const FFormatNamedArguments Args = CosmicPetitions::ArgsOf(State, Sim->GetTables(), CivIndex, SystemIndex);
+	const FFormatNamedArguments Args = CosmicPetitions::ArgsOf(State, Sim->GetTables(), CivIndex, SystemIndex, OtherCivID, Row == CosmicRows::PetitionFirstContact);
 
 	// The voice that brings it, picked now and kept while it shows (section 5.10): the elders while the people leans to
 	// the spirit, the council otherwise. A wanderer's card has none.
@@ -209,16 +217,23 @@ void UCosmicPetitionCardWidget::Refresh()
 	}
 	const FGalaxyState& State = Sim->GetState();
 	const int32 CivIndex = bShownWanderer ? CosmicPetitions::VesselSubjectOf(State, Sim->GetStateIndex()).CivIndex : CosmicPetitions::RuledCivIndexOf(State, Sim->GetStateIndex());
+	const bool bStands = CosmicPetitions::StillStands(State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules());
 	for (int32 At = 0; At < ChoiceButtons.Num() && At < Def->Choices.Num(); ++At)
 	{
 		const FEncounterChoice& Choice = Def->Choices[At];
 		// A wanderer pays nothing (B1): every choice of its card can be given.
 		const bool bPayable = bShownWanderer
 			|| (State.Civs.IsValidIndex(CivIndex) && CosmicMegaprojects::CanPay(State.Civs[CivIndex].Stockpile, CosmicPetitions::CostOf(Choice)));
+		// A stance the gate would refuse (B3: the first contact card's [Reach out] with the friendly slots taken), with the
+		// reason the peoples' tab gives - the answer refuses it too, while the card stands (a card whose people is gone is
+		// withdrawn by any answer).
+		const CosmicDiplomacy::ECosmicStanceBlock StanceBlock = (bShownWanderer || !bStands || !State.Civs.IsValidIndex(CivIndex)) ? CosmicDiplomacy::ECosmicStanceBlock::None
+			: CosmicPetitions::StanceBlockOfChoice(State, Sim->GetStateIndex(), Sim->GetRules(), CivIndex, ShownOther, Choice);
 		UCosmicActionButton* Button = ChoiceButtons[At];
-		Button->SetIsEnabled(bPayable);
+		Button->SetIsEnabled(bPayable && StanceBlock == CosmicDiplomacy::ECosmicStanceBlock::None);
 		// A tooltip set again is a new tooltip, and an open one would close: set only when the words change.
-		const FText Tip = bPayable ? FText::GetEmpty() : CosmicUI::Label(TEXT("Petition.Short"));
+		const FText Tip = !bPayable ? CosmicUI::Label(TEXT("Petition.Short"))
+			: (StanceBlock != CosmicDiplomacy::ECosmicStanceBlock::None ? UCosmicEdictWidget::StanceReasonOf(StanceBlock) : FText::GetEmpty());
 		if (!SameWords(Button->GetToolTipText(), Tip))
 		{
 			Button->SetToolTipText(Tip);
@@ -229,7 +244,25 @@ void UCosmicPetitionCardWidget::Refresh()
 		const FText Check = StatKey
 			? FText::Format(CosmicUI::Label(TEXT("Petition.Check")), CosmicUI::Label(StatKey), FText::AsNumber(CosmicPetitions::PassingRollsOf(State, CivIndex, Choice)))
 			: FText::GetEmpty();
-		const FText Line = (!Cost.IsEmpty() && !Check.IsEmpty()) ? FText::Format(CosmicUI::Label(TEXT("Petition.Both")), Cost, Check) : (Cost.IsEmpty() ? Check : Cost);
+		const FText CostAndCheck = (!Cost.IsEmpty() && !Check.IsEmpty()) ? FText::Format(CosmicUI::Label(TEXT("Petition.Both")), Cost, Check) : (Cost.IsEmpty() ? Check : Cost);
+		// A choice that turns a people friendly (B3): what the friendly stance holds - its upkeep and the slots (numbers of
+		// the screen; they move only with a stance or a rung, so the line keeps still).
+		FText Friendly;
+		if (!bShownWanderer && State.Civs.IsValidIndex(CivIndex) && Choice.OnSuccess.ContainsByPredicate([](const FCosmicEffect& Effect)
+			{
+				return Effect.Type == EEffectType::SetStance && Effect.Tag == CosmicTags::StanceFriendly();
+			}))
+		{
+			const FCosmicRulesDef& Rules = Sim->GetRules();
+			const float Upkeep = (Rules.FriendlyUpkeepInfluence > 0.f && Rules.FriendlyUpkeepInfluence <= TNumericLimits<float>::Max()) ? Rules.FriendlyUpkeepInfluence : 0.f;
+			FNumberFormattingOptions Options;
+			Options.MinimumFractionalDigits = 0;
+			Options.MaximumFractionalDigits = 2;
+			Friendly = FText::Format(CosmicUI::Label(TEXT("Petition.FriendlyUpkeep")), FText::AsNumber(Upkeep, &Options),
+				CosmicUI::DurationLabel(1, ACosmicPlayerController::TimeUnitFor(*this)), FText::AsNumber(CosmicDiplomacy::FriendlyCountOf(State.Civs[CivIndex])),
+				FText::AsNumber(CosmicDiplomacy::FriendlySlotsOf(State.Civs[CivIndex], Rules)));
+		}
+		const FText Line = CosmicUI::JoinLines({ CostAndCheck, Friendly });
 		UTextBlock* LineText = ChoiceLines[At];
 		if (!SameWords(LineText->GetText(), Line))
 		{
@@ -274,6 +307,7 @@ void UCosmicPetitionCardWidget::PressClose()
 	bShowingOutcome = false;
 	ShownRow = NAME_None;
 	ShownSystem = NAME_None;
+	ShownOther = NAME_None;
 	Voice = INDEX_NONE;
 	bShownWanderer = false;
 	SetVisibility(ESlateVisibility::Collapsed);

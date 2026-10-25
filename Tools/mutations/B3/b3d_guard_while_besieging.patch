@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -323,7 +323,7 @@
+ 
+ 	// (1) The guard: a siege on one of the people's systems is guarded against while the people besieges no one; a guard
+ 	// over a system no longer besieged is withdrawn.
+-	if (!CosmicConflict::IsBesieging(State, Index, CivIndex))
++	if (true)
+ 	{
+ 		FName Besieged;
+ 		for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num() && Besieged.IsNone(); ++SystemIndex)

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -426,7 +426,7 @@
+ 	// (4) The attack policy (measurement only): besiege a hostile people's first system the gate takes, else turn the first
+ 	// met bordering people with such a system hostile - not while its fleet guards one of its own systems a siege still
+ 	// stands on (the guard holds).
+-	if (Policy.Diplomacy != 2 || CosmicConflict::IsBesieging(State, Index, CivIndex))
++	if (CosmicConflict::IsBesieging(State, Index, CivIndex))
+ 	{
+ 		return;
+ 	}

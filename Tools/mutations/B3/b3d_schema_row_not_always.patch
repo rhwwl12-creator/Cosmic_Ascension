@@ -1,0 +1,11 @@
+--- a/Tools/cosmic_data_schema.py
++++ b/Tools/cosmic_data_schema.py
+@@ -1105,7 +1105,7 @@
+         if "row" in test:
+             return row_name == test["row"]
+         if "row_not" in test:
+-            return row_name != test["row_not"]
++            return True
+         if "row_prefix" in test:
+             return row_name.startswith(test["row_prefix"])
+         head, mark, sub = test["col"].partition(PATH_MARK)

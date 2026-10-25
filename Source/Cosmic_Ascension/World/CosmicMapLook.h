@@ -145,6 +145,8 @@ struct COSMIC_ASCENSION_API FCosmicKnownView
 	// PendingPetitionSystemID, section 5.10); None when no card waits. The same under bSeeAll.
 	FName PendingPetitionRow;
 	FName PendingPetitionSystemID;
+	// The people the first contact card is about (Knowing.PendingContactCivID, B3); None without one. The same under bSeeAll.
+	FName PendingContactCivID;
 
 	bool IsKnown(int32 SystemIndex) const { return Known.IsValidIndex(SystemIndex) && Known[SystemIndex]; }
 	bool IsShownByName(int32 SystemIndex) const { return ShownByName.IsValidIndex(SystemIndex) && ShownByName[SystemIndex]; }

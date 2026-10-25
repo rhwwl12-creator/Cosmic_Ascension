@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
+@@ -527,7 +527,7 @@
+ 	const FCivilizationState* Other = OtherCivID.IsNone() ? nullptr
+ 		: State.Civs.FindByPredicate([OtherCivID](const FCivilizationState& Each) { return Each.CivID == OtherCivID; });
+ 	Args.Add(TEXT("OtherCiv"), Other ? Other->CivName
+-		: (bNamesOther ? FText::FromStringTable(CosmicLabels::TableId, TEXT("Petition.OtherGone"), EStringTableLoadingPolicy::FindOrFullyLoad) : FText::GetEmpty()));
++		: ((bNamesOther && !OtherCivID.IsNone()) ? FText::FromStringTable(CosmicLabels::TableId, TEXT("Petition.OtherGone"), EStringTableLoadingPolicy::FindOrFullyLoad) : FText::GetEmpty()));
+ 	return Args;
+ }
+ 

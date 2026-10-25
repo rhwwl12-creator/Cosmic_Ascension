@@ -9,7 +9,7 @@
 		"Column kinds (closed list): plain, number, numbers, text, texts, tag, tags, tag_list, tag_map, row, row_map, rows, word_map, enum, conditions, effects, pool, structs",
 		"An integer property is declared with integer: true (Data.Integrity holds the columns to the property types).",
 		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, has_type, has_cond, slots_in, len_ge_col, pairs_ge_col, contains_all",
-		"A row rule is 'when -> then' over tests: one column with one test of the list above, 'row' with a row name, or 'row_prefix' with one of the table's prefixes (the rows of one kind - B1). Each test can be asked of some kinds of column only (the checker holds the table).",
+		"A row rule is 'when -> then' over tests: one column with one test of the list above, 'row' with a row name, 'row_not' with a row name (every other row - B3), or 'row_prefix' with one of the table's prefixes (the rows of one kind - B1). Each test can be asked of some kinds of column only (the checker holds the table).",
 		"A column of a list of structs (kind structs) is named in a rule as 'List.Column': the test holds when it holds for every entry of the list, and so for an empty list. The tests that name other columns of the row (len_ge_col, pairs_ge_col) are not asked of such a column.",
 		"A rule added here needs an input that breaks it in Tools/test_data_schema.py: that test walks every rule, unique, pair, target and slot list of this file.",
 		"A number range stands here only where the guideline states one. A column without a range is checked for being a finite number.",
@@ -701,30 +701,31 @@
 			"struct": "EncounterDef",
 			"prefixes": ["enc_", "petition_"],
 			"must_exist": true,
+			"required_rows": ["petition_first_contact"],
 			"columns": {
-				"Title": {"kind": "text", "required": true, "slots": ["Civ", "System", "Hazard", "Rebel"], "no_digits": true, "forbidden": "verdict"},
-				"Body": {"kind": "text", "slots": ["Civ", "System", "Hazard", "Rebel"], "no_digits": true, "forbidden": "verdict"},
+				"Title": {"kind": "text", "required": true, "slots": ["Civ", "System", "Hazard", "Rebel", "OtherCiv"], "no_digits": true, "forbidden": "verdict"},
+				"Body": {"kind": "text", "slots": ["Civ", "System", "Hazard", "Rebel", "OtherCiv"], "no_digits": true, "forbidden": "verdict"},
 				"Conditions": {"kind": "conditions"},
 				"BaseWeight": {"kind": "number", "min": 0},
 				"Choices": {
 					"kind": "structs",
 					"len_in": [2, 3],
 					"columns": {
-						"Label": {"kind": "text", "required": true, "slots": ["Civ", "System", "Hazard", "Rebel"], "no_digits": true, "forbidden": "verdict"},
+						"Label": {"kind": "text", "required": true, "slots": ["Civ", "System", "Hazard", "Rebel", "OtherCiv"], "no_digits": true, "forbidden": "verdict"},
 						"CheckStat": {"kind": "enum", "enum": "ECosmicCheckStat"},
 						"Difficulty": {"kind": "number", "min": 0, "max": 16, "integer": true},
 						"Cost": {"kind": "pool", "min": 0},
 						"OnSuccess": {"kind": "effects", "card": true},
 						"OnFailure": {"kind": "effects", "card": true},
-						"SuccessText": {"kind": "text", "required": true, "slots": ["Civ", "System", "Hazard", "Rebel"], "no_digits": true, "forbidden": "verdict"},
-						"FailureText": {"kind": "text", "slots": ["Civ", "System", "Hazard", "Rebel"], "no_digits": true, "forbidden": "verdict"},
-						"NextEncounter": {"kind": "row", "table": "DT_Encounters", "optional": true}
+						"SuccessText": {"kind": "text", "required": true, "slots": ["Civ", "System", "Hazard", "Rebel", "OtherCiv"], "no_digits": true, "forbidden": "verdict"},
+						"FailureText": {"kind": "text", "slots": ["Civ", "System", "Hazard", "Rebel", "OtherCiv"], "no_digits": true, "forbidden": "verdict"},
+						"NextEncounter": {"kind": "row", "table": "DT_Encounters", "optional": true, "target": [{"row_not": "petition_first_contact"}]}
 					}
 				},
 				"Illustration": {"kind": "plain"},
 				"Trigger": {"kind": "enum", "enum": "ECosmicEventTrigger"},
 				"Subject": {"kind": "enum", "enum": "ECosmicEventSubject"},
-				"VoiceBodies": {"kind": "texts", "len_in": [0, 2], "slots": ["Civ", "System", "Hazard", "Rebel"], "no_digits": true, "forbidden": "verdict"}
+				"VoiceBodies": {"kind": "texts", "len_in": [0, 2], "slots": ["Civ", "System", "Hazard", "Rebel", "OtherCiv"], "no_digits": true, "forbidden": "verdict"}
 			},
 			"rules": [
 				{
@@ -781,12 +782,34 @@
 					"why": "the subject system of a card is the system it names: a Civilization row is about the people alone and names no system (guideline 8.1)",
 					"when": [{"col": "Subject", "is": "Civilization"}],
 					"then": [
-						{"col": "Title", "slots_in": ["Civ", "Hazard", "Rebel"]},
-						{"col": "Body", "slots_in": ["Civ", "Hazard", "Rebel"]},
-						{"col": "VoiceBodies", "slots_in": ["Civ", "Hazard", "Rebel"]},
-						{"col": "Choices.Label", "slots_in": ["Civ", "Hazard", "Rebel"]},
-						{"col": "Choices.SuccessText", "slots_in": ["Civ", "Hazard", "Rebel"]},
-						{"col": "Choices.FailureText", "slots_in": ["Civ", "Hazard", "Rebel"]}
+						{"col": "Title", "slots_in": ["Civ", "Hazard", "Rebel", "OtherCiv"]},
+						{"col": "Body", "slots_in": ["Civ", "Hazard", "Rebel", "OtherCiv"]},
+						{"col": "VoiceBodies", "slots_in": ["Civ", "Hazard", "Rebel", "OtherCiv"]},
+						{"col": "Choices.Label", "slots_in": ["Civ", "Hazard", "Rebel", "OtherCiv"]},
+						{"col": "Choices.SuccessText", "slots_in": ["Civ", "Hazard", "Rebel", "OtherCiv"]},
+						{"col": "Choices.FailureText", "slots_in": ["Civ", "Hazard", "Rebel", "OtherCiv"]}
+					]
+				},
+				{
+					"why": "only the first contact card is about another people (B3 header section 2.9): the answer gives SetStance its people and fills {OtherCiv} for that card alone - on any other a stance would fall on no one, the name would be empty words, and a wanderer's card would set an AI people's stance (section 2.8)",
+					"when": [{"row_not": "petition_first_contact"}],
+					"then": [
+						{"col": "Choices.OnSuccess", "lacks_type": "SetStance"},
+						{"col": "Choices.OnFailure", "lacks_type": "SetStance"},
+						{"col": "Title", "slots_in": ["Civ", "System", "Hazard", "Rebel"]},
+						{"col": "Body", "slots_in": ["Civ", "System", "Hazard", "Rebel"]},
+						{"col": "VoiceBodies", "slots_in": ["Civ", "System", "Hazard", "Rebel"]},
+						{"col": "Choices.Label", "slots_in": ["Civ", "System", "Hazard", "Rebel"]},
+						{"col": "Choices.SuccessText", "slots_in": ["Civ", "System", "Hazard", "Rebel"]},
+						{"col": "Choices.FailureText", "slots_in": ["Civ", "System", "Hazard", "Rebel"]}
+					]
+				},
+				{
+					"why": "the first meeting puts the first contact card by name, about the ruled people: as a Standing or Lottery row it would come on its own - at the first tick of every reign (B3 header section 2.9)",
+					"when": [{"row": "petition_first_contact"}],
+					"then": [
+						{"col": "Trigger", "is": "Named"},
+						{"col": "Subject", "is": "Civilization"}
 					]
 				},
 				{

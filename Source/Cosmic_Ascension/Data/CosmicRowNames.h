@@ -75,6 +75,10 @@ namespace CosmicRows
 	inline const FName LogSiegeFailed(TEXT("log_siege_failed"));
 	inline const FName LogSiegeLifted(TEXT("log_siege_lifted"));
 
+	// DT_Encounters: the first contact card (B3 header section 2.9). NoteMet writes Knowing.PendingContactCivID at the
+	// first meeting of the run while this row exists; the end of the knowing stage puts it after a Standing card that came to hold in the tick, before the periodic slot, while no petition waits.
+	inline const FName PetitionFirstContact(TEXT("petition_first_contact"));
+
 	// DT_LogTemplates: the meeting lines (section 7.4). NoteMet tells the first for the first meeting of the run, the
 	// second for every later one.
 	inline const FName LogFirstContact(TEXT("log_first_contact"));

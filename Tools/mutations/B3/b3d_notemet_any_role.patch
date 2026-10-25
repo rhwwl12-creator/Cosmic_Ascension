@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1179,7 +1179,7 @@
+ 	if (bFirstContact)
+ 	{
+ 		Knowing.FirstContactCivID = CivID;
+-		if (CosmicPetitions::RuledCivIndexOf(State, StateIndex) != INDEX_NONE && Tables.FindEncounter(CosmicRows::PetitionFirstContact))
++		if (Tables.FindEncounter(CosmicRows::PetitionFirstContact))
+ 		{
+ 			Knowing.PendingContactCivID = CivID;
+ 		}

@@ -38,6 +38,7 @@ public:
 	 * without a line (section 8.1): a life knows where it was born. It never writes Knowing.FirstContactCivID: the
 	 * people one is born into is not a contact. A life that starts as a wanderer (succession, Phase 4b) also knows the
 	 * lane neighbours of its birth system in its galaxy row (NoteKnown, Lanes order, no line - section 4.4: the new eye).
+	 * The card waiting and the first contact card waiting (Knowing.PendingContactCivID) are not the new life's: cleared.
 	 * One draw from the sim stream per call, for the name of the vessel, made before the name bank is looked at.
 	 * Refused with an error line when called from a handler of a Core Logic delegate (a handler may only read the state),
 	 * and for the sanctuary (CosmicState::IsSanctuary - no vessel stands there, section 4.5 (1), 16 #81): a refused call
@@ -92,8 +93,9 @@ public:
 	 * the same standing as a draw of the sim stream (section 9.2). A petition is answered by an embodied ruler, a wanderer's
 	 * card (CosmicPetitions::IsWandererCard) by an embodied wanderer - the other role is refused without an error line.
 	 * Refused - nothing drawn, nothing changed - while no card waits, and with an error line from a
-	 * handler of a Core Logic delegate, for a card whose row DT_Encounters lacks, for a choice out of range and for a
-	 * cost the ruled people's stockpile cannot pay in full (the card greys such a choice). A wanderer pays no cost (the
+	 * handler of a Core Logic delegate, for a card whose row DT_Encounters lacks, for a choice out of range, for a
+	 * cost the ruled people's stockpile cannot pay in full and for a stance the gate would refuse
+	 * (CosmicPetitions::StanceBlockOfChoice - the first contact card's) - the card greys such a choice. A wanderer pays no cost (the
 	 * choice check of Data.Integrity keeps the costs of VesselSystem rows at 0), and its card's effects run on the system it stands in and that system's
 	 * owner (none for a wild system - an effect on a people then does nothing).
 	 * An answer taken draws one number 0..5 from the sim stream first, before the choice is read any further. Then: a
@@ -104,6 +106,9 @@ public:
 	 * (FollowUpNotes), the row is remembered in the life (LastChoiceRows) and the card is taken away. A choice with a
 	 * NextEncounter puts that row as the next card on the same subject when its conditions hold (no draw). A DeposeRuler
 	 * of an effect is recorded and resolved by the next tick's role-effect stage. The stream is synced at the end.
+	 * The first contact card (CosmicRows::PetitionFirstContact, B3 header section 2.9) is about the people of
+	 * Knowing.PendingContactCivID: its effects' context OtherID and its texts' {OtherCiv}; that slot is cleared after its
+	 * answer, taken or withdrawn. Every other card's context has no OtherID.
 	 */
 	FCosmicPetitionAnswer AnswerPetition(int32 ChoiceIndex);
 

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -465,7 +465,7 @@
+ 	for (int32 Other = 0; Other < State.Civs.Num(); ++Other)
+ 	{
+ 		const FName OtherID = State.Civs[Other].CivID;
+-		if (Other != CivIndex && CosmicDiplomacy::StanceOf(State.Civs[CivIndex], OtherID) == CosmicTags::StanceHostile() && FirstSiegeOf(Other, false) == INDEX_NONE
++		if (false && Other != CivIndex && CosmicDiplomacy::StanceOf(State.Civs[CivIndex], OtherID) == CosmicTags::StanceHostile() && FirstSiegeOf(Other, false) == INDEX_NONE
+ 			&& Role.SetStance(OtherID, FGameplayTag()) == CosmicDiplomacy::ECosmicStanceBlock::None)
+ 		{
+ 			++Counts.StanceChanges;

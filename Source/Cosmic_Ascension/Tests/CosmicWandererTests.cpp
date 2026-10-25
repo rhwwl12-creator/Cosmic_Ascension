@@ -1234,8 +1234,9 @@ bool FCosmicSimSaveTravelTest::RunTest(const FString& Parameters)
 }
 
 // The wanderer's loop through its policy (B1 header section 6 - the commandlet's -Abdicate=1200 -Wander=1 with the ruler's
-// -Answer=1 -Build=1 -Focus=1 -Edict=1 since B2): seed 42 leaves the throne at 1,200 and takes one again before tick 6,000; the same inputs
-// give the same two hashes twice; no error line.
+// -Answer=1 -Build=1 -Focus=1 -Edict=1 since B2, -Diplomacy=1 since B3): seed 4 leaves the throne at 1,200 and takes it
+// back before tick 6,000 (seed 42 did until B3's first contact card and treaties moved its world - B3 header section 11);
+// the same inputs give the same two hashes twice; no error line.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimWandererLoopTest, "Cosmic_Ascension.Sim.WandererLoop", CosmicTests::Flags)
 bool FCosmicSimWandererLoopTest::RunTest(const FString& Parameters)
 {
@@ -1249,8 +1250,8 @@ bool FCosmicSimWandererLoopTest::RunTest(const FString& Parameters)
 	TArray<TPair<uint32, uint32>> Hashes;
 	for (int32 Run = 0; Run < 2; ++Run)
 	{
-		Sim->NewGalaxy(42, 0, 0);
-		const FCosmicRulerPolicy Ruler{ true, true, true, true, NAME_None };
+		Sim->NewGalaxy(4, 0, 0);
+		const FCosmicRulerPolicy Ruler{ true, true, true, true, NAME_None, 1 };
 		FCosmicRulerPolicyCounts RulerCounts;
 		const FCosmicWandererPolicy Wanderer{ 1200, true };
 		FCosmicWandererPolicyCounts Counts;
@@ -1278,7 +1279,7 @@ bool FCosmicSimWandererLoopTest::RunTest(const FString& Parameters)
 			CosmicWandererPolicy::Act(Wanderer, *Sim, *Role, CardBefore, Counts);
 		}
 		TestTrue(TEXT("It rules on and walks no more"), Played.Player.Role == EPlayerRole::Ruler && Played.Player.RuledCivID == Counts.CrownedCivID && Counts.Journeys == JourneysThen);
-		AddInfo(FString::Printf(TEXT("Seed 42: left at %lld, crowned at %lld over %s by %s, journeys %d, scans %d, cards %d, answers %d"),
+		AddInfo(FString::Printf(TEXT("Seed 4: left at %lld, crowned at %lld over %s by %s, journeys %d, scans %d, cards %d, answers %d"),
 			Counts.LeftAt, Counts.CrownedAt, *Counts.CrownedCivID.ToString(), Counts.CrownedPath, Counts.Journeys, Counts.Scans, Counts.Cards, Counts.Answers));
 		Hashes.Emplace(Sim->ComputeStateHash(), Sim->ComputeWorldHash());
 	}

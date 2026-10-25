@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
+@@ -551,6 +551,7 @@
+ {
+ 	State.Knowing.PendingPetitionRow = NAME_None;
+ 	State.Knowing.PendingPetitionSystemID = NAME_None;
++	State.Knowing.PendingContactCivID = NAME_None;
+ }
+ 
+ void CosmicPetitions::Remember(FGalaxyState& State, FName RowName)

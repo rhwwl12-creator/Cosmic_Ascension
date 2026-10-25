@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -367,7 +367,7 @@
+ 	const float FriendlyUpkeep = (Rules.FriendlyUpkeepInfluence > 0.f && Rules.FriendlyUpkeepInfluence <= TNumericLimits<float>::Max()) ? Rules.FriendlyUpkeepInfluence : 0.f;
+ 	const bool bKeepsOneMore = State.Civs[CivIndex].IncomePerTick.Influence
+ 		>= Upkeep + FriendlyUpkeep * static_cast<float>(CosmicDiplomacy::FriendlyCountOf(State.Civs[CivIndex]) + 1);
+-	for (int32 Other = 0; bKeepsOneMore && State.Knowing.PendingContactCivID.IsNone() && Other < State.Civs.Num(); ++Other)
++	for (int32 Other = 0; State.Knowing.PendingContactCivID.IsNone() && Other < State.Civs.Num(); ++Other)
+ 	{
+ 		const FName OtherID = State.Civs[Other].CivID;
+ 		if (Other == CivIndex || !IsMet(OtherID) || !CosmicDiplomacy::Borders(State, Index, CivIndex, Other)

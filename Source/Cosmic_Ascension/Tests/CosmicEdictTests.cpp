@@ -978,7 +978,7 @@ bool FCosmicSimRulerEdictPolicyTest::RunTest(const FString& Parameters)
 	const FCosmicDataTables Original = Sim->GetTables();
 	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
 	// The policy's rows: the file's answer (crisis_test_wake), its vigil (edict_test_guard - rebellion +200) and two kept rows.
-	auto Policy = [](FName Row) { return FCosmicRulerPolicy{ false, false, false, true, Row }; };
+	auto Policy = [](FName Row) { return FCosmicRulerPolicy{ false, false, false, true, Row, 0 }; };
 	auto Boundary = [&](const FCosmicRulerPolicy& With, FCosmicRulerPolicyCounts& Counts, int32 Times)
 	{
 		for (int32 Done = 0; Done < Times; ++Done)
@@ -1126,7 +1126,7 @@ bool FCosmicSimRulerEdictPolicyTest::RunTest(const FString& Parameters)
 		Ended.bEnded = true;
 		Boundary(Policy(Answer), Ended, 1);
 		FCosmicRulerPolicyCounts Off;
-		Boundary(FCosmicRulerPolicy{ true, true, true, false, Answer }, Off, 1);
+		Boundary(FCosmicRulerPolicy{ true, true, true, false, Answer, 0 }, Off, 1);
 		TestTrue(TEXT("No edict after the end, nor without the switch"), Changes(Ended) == 0 && Changes(Off) == 0 && Board->Civs[0].ActiveEdicts.IsEmpty());
 		Ended.Answers = 2;
 		Ended.Started = 3;

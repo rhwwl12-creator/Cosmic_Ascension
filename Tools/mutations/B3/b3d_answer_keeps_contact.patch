@@ -1,0 +1,13 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -513,10 +513,6 @@
+ 
+ 	CosmicPetitions::Remember(State, RowName);
+ 	CosmicPetitions::Clear(State);
+-	if (bFirstContact)
+-	{
+-		State.Knowing.PendingContactCivID = NAME_None;
+-	}
+ 	// The next card of a chain, on the same subject, when its conditions hold: put by name, no draw.
+ 	// A chain stays with its role: a petition's next card is a petition on the same subject, a wanderer's next card is
+ 	// a wanderer's card where the vessel stands.

@@ -10,6 +10,7 @@
 #include "Cosmic_Ascension.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
+#include "Data/CosmicRowNames.h"
 #include "Engine/GameInstance.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
@@ -1755,7 +1756,7 @@ void ACosmicPlayerController::FollowPetition(bool bArrived)
 		Card->Refresh();
 		return;
 	}
-	Card->ShowCard(View.PendingPetitionRow, View.PendingPetitionSystemID);
+	Card->ShowCard(View.PendingPetitionRow, View.PendingPetitionSystemID, View.PendingPetitionRow == CosmicRows::PetitionFirstContact ? View.PendingContactCivID : NAME_None);
 	if (bArrived && !View.PendingPetitionRow.IsNone())
 	{
 		// A wanderer's card is no petition: its own words on the top bar (B1).

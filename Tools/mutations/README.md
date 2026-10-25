@@ -204,3 +204,41 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B3/` | `b3c_fleet_after_end.patch` — [Guard here] keeps its own words after the end | `Cosmic_Ascension.UI.PeoplesTab` |
 | `B3/` | `b3c_commands_after_end.patch` — the controller takes a fleet command after the end | `Cosmic_Ascension.UI.PeoplesTab` |
 | `B3/` | `b3c_double_click_kept.patch` — a double-click's second press presses the button | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3d_attack_offers_treaties.patch` — the attack policy offers treaties (a non-aggression closes its own siege gate, a trade makes the siege a betrayal) | `Cosmic_Ascension.Sim.RulerDiplomacyPolicy`, `Cosmic_Ascension.Sim.HashRun` |
+| `B3/` | `b3d_attack_drops_guard.patch` — the attack policy opens a hostility while a siege on its system stands | `Cosmic_Ascension.Sim.RulerDiplomacyPolicy` |
+| `B3/` | `b3d_guard_after_friendship.patch` — a friendship goes before the guard at one boundary | `Cosmic_Ascension.Sim.RulerDiplomacyPolicy` |
+| `B3/` | `b3d_gone_needs_id.patch` — a first contact card whose slot the cleanup cleared names no one | `Cosmic_Ascension.Sim.FirstContactCard`, `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3d_card_gone_greyed.patch` — a card whose people is gone greys [Reach out] (any answer withdraws it) | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3d_card_gone_unnamed.patch` — the card on screen names a people gone by empty words | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3d_schema_chain_into_contact.patch` — a chain may lead to the first contact card | `test_diplomacy_and_conflict` (`Tools/test_data_schema.py`) |
+| `B3/` | `b3d_notemet_any_role.patch` — the first meeting writes the first contact slot for a wanderer too | `Cosmic_Ascension.Sim.FirstContactCard` |
+| `B3/` | `b3d_notemet_without_row.patch` — the slot is written although the table lacks the card's row | `Cosmic_Ascension.Sim.FirstContactCard` |
+| `B3/` | `b3d_install_keeps_contact.patch` — a new life keeps the first contact card waiting | `Cosmic_Ascension.Sim.FirstContactCard` |
+| `B3/` | `b3d_clear_clears_contact.patch` — answering another petition clears the waiting first contact slot | `Cosmic_Ascension.Sim.FirstContactCard` |
+| `B3/` | `b3d_answer_keeps_contact.patch` — the first contact card's answer leaves its slot | `Cosmic_Ascension.Sim.FirstContactCard` |
+| `B3/` | `b3d_present_before_standing.patch` — the first contact card goes before a Standing card that came to hold in the tick | `Cosmic_Ascension.Sim.FirstContactCard` |
+| `B3/` | `b3d_present_ignores_row.patch` — the first contact card is put although its row does not hold | `Cosmic_Ascension.Sim.FirstContactCard` |
+| `B3/` | `b3d_present_gone_people.patch` — the first contact card is put for a people gone | `Cosmic_Ascension.Sim.FirstContactCard` |
+| `B3/` | `b3d_stands_gone_people.patch` — a card about a people gone still stands | `Cosmic_Ascension.Sim.FirstContactCard` |
+| `B3/` | `b3d_contact_other_empty.patch` — the answer gives the effects no other people (OtherID empty) | `Cosmic_Ascension.Sim.FirstContactCard` |
+| `B3/` | `b3d_answer_draws_refused.patch` — a choice the stance gate refuses is answered (a draw, nothing changed) | `Cosmic_Ascension.Sim.FirstContactCard` |
+| `B3/` | `b3d_contact_effect_skips_gate.patch` — the SetStance effect skips the stance gate | `Cosmic_Ascension.Sim.FirstContactCard`, `Cosmic_Ascension.Events.RoleEffectRules` |
+| `B3/` | `b3d_other_gone_empty.patch` — a people gone is named by empty words | `Cosmic_Ascension.Sim.FirstContactCard` |
+| `B3/` | `b3d_contact_friendly_line_missing.patch` — the card's friendly choice does not say what the friendly stance holds | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3d_card_upkeep_literal.patch` — the card's friendly line tells 0.2 whatever the rule | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3d_card_upkeep_negative.patch` — the card's friendly line tells an upkeep below 0 | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3d_card_not_greyed.patch` — a choice the stance gate refuses is not greyed | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3d_screen_passes_contact_always.patch` — the screen names no people on the first contact card | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3d_policy_contact_round.patch` — the policy answers the first contact card in its round | `Cosmic_Ascension.Sim.RulerDiplomacyPolicy` |
+| `B3/` | `b3d_policy_contact_ignores_gate.patch` — the policy takes a choice the stance gate refuses | `Cosmic_Ascension.Sim.FirstContactCard` |
+| `B3/` | `b3d_policy_two_a_boundary.patch` — a friendship does not end the boundary (two commands in one) | `Cosmic_Ascension.Sim.RulerDiplomacyPolicy` |
+| `B3/` | `b3d_policy_turns_hostile.patch` — the peace policy turns hostile and besieges | `Cosmic_Ascension.Sim.RulerDiplomacyPolicy` |
+| `B3/` | `b3d_policy_befriends_card_people.patch` — the policy befriends the people whose first contact card waits | `Cosmic_Ascension.Sim.RulerDiplomacyPolicy` |
+| `B3/` | `b3d_policy_friend_unpaid.patch` — the policy befriends without the Influence income to keep it | `Cosmic_Ascension.Sim.RulerDiplomacyPolicy` |
+| `B3/` | `b3d_policy_keeps_idle_hostility.patch` — the attack policy keeps a hostility with no siege behind it | `Cosmic_Ascension.Sim.RulerDiplomacyPolicy` |
+| `B3/` | `b3d_guard_while_besieging.patch` — the policy guards while its fleet besieges | `Cosmic_Ascension.Sim.RulerDiplomacyPolicy` |
+| `B3/` | `b3d_hashrun_policy_without_diplomacy.patch` — the hash run plays the policy without diplomacy | `Cosmic_Ascension.Sim.HashRun` |
+| `B3/` | `b3d_hashrun_attack_policy.patch` — the hash run plays the attack policy | `Cosmic_Ascension.Sim.HashRun` |
+| `B3/` | `b3d_schema_row_not_always.patch` — the row test row_not holds for the named row too | `test_row_prefix` (`Tools/test_data_schema.py`) |
+| `B3/` | `b3d_schema_row_not_unknown_row.patch` — a row_not naming a row the table lacks is not reported | `test_row_prefix` (`Tools/test_data_schema.py`) |
+| `B3/` | `b3d_schema_stance_enc_only.patch` — only the wanderer's cards are kept from SetStance and {OtherCiv} | `test_diplomacy_and_conflict` (`Tools/test_data_schema.py`) |

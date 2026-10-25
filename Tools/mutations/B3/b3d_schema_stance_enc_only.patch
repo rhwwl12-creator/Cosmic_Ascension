@@ -1,0 +1,11 @@
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -792,7 +792,7 @@
+ 				},
+ 				{
+ 					"why": "only the first contact card is about another people (B3 header section 2.9): the answer gives SetStance its people and fills {OtherCiv} for that card alone - on any other a stance would fall on no one, the name would be empty words, and a wanderer's card would set an AI people's stance (section 2.8)",
+-					"when": [{"row_not": "petition_first_contact"}],
++					"when": [{"row_prefix": "enc_"}],
+ 					"then": [
+ 						{"col": "Choices.OnSuccess", "lacks_type": "SetStance"},
+ 						{"col": "Choices.OnFailure", "lacks_type": "SetStance"},

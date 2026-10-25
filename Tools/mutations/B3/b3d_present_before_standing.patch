@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
+@@ -332,7 +332,7 @@
+ 	// Without one, the first contact card (B3 header section 2.9): its own slot can wait one answer, a crisis card that
+ 	// came to hold in this tick cannot (it would not come again). No draw, no period, no last-choice rule; the row's
+ 	// conditions still hold for it.
+-	if (Candidates.IsEmpty())
++	if (true)
+ 	{
+ 		if (const FEncounterDef* Contact = Tables.FindEncounter(CosmicRows::PetitionFirstContact);
+ 			Contact && !IsWandererCard(*Contact) && State.Civs.IsValidIndex(Index.FindCiv(State, State.Knowing.PendingContactCivID))

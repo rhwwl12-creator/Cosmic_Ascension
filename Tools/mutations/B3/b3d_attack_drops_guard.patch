@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -431,7 +431,7 @@
+ 		return;
+ 	}
+ 	const int32 Guarded = Index.FindSystem(State, TargetOf());
+-	if (State.Systems.IsValidIndex(Guarded) && State.Systems[Guarded].OwnerCivID == CivID && CosmicConflict::BesiegerOf(State, Index, Guarded) != INDEX_NONE)
++	if (false)
+ 	{
+ 		return;
+ 	}

@@ -1,0 +1,11 @@
+--- a/Tools/cosmic_data_schema.py
++++ b/Tools/cosmic_data_schema.py
+@@ -570,7 +570,7 @@
+                 said = "row" if "row" in test else "row_not"
+                 if len(test) != 1 or not isinstance(test[said], str):
+                     self.report(where, "a row test is 'row' with a row name, or a column with exactly one of %s: %s" % (", ".join(TESTS), shown))
+-                elif not self.row_is_known(table_name, test[said]):
++                elif not self.row_is_known(table_name, test["row"] if "row" in test else "petition_first_contact"):
+                     self.report(where, "a row test names the row %s, which %s neither requires nor has" % (test[said], table_name))
+                 continue
+             if isinstance(test, dict) and "row_prefix" in test:

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
+@@ -230,7 +230,7 @@
+ 		const CosmicDiplomacy::ECosmicStanceBlock StanceBlock = (bShownWanderer || !bStands || !State.Civs.IsValidIndex(CivIndex)) ? CosmicDiplomacy::ECosmicStanceBlock::None
+ 			: CosmicPetitions::StanceBlockOfChoice(State, Sim->GetStateIndex(), Sim->GetRules(), CivIndex, ShownOther, Choice);
+ 		UCosmicActionButton* Button = ChoiceButtons[At];
+-		Button->SetIsEnabled(bPayable && StanceBlock == CosmicDiplomacy::ECosmicStanceBlock::None);
++		Button->SetIsEnabled(bPayable);
+ 		// A tooltip set again is a new tooltip, and an open one would close: set only when the words change.
+ 		const FText Tip = !bPayable ? CosmicUI::Label(TEXT("Petition.Short"))
+ 			: (StanceBlock != CosmicDiplomacy::ECosmicStanceBlock::None ? UCosmicEdictWidget::StanceReasonOf(StanceBlock) : FText::GetEmpty());

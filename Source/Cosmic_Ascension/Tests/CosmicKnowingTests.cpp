@@ -1858,11 +1858,12 @@ bool FCosmicSightWalkMovedTest::RunTest(const FString& Parameters)
 	const FCosmicDataTables Original = Sim->GetTables();
 	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
 	// The world those runs had: no inherited edict and no Society bonus to the recovery (B2 turned both on in the game's
-	// data; the policy below holds no edict, so the rest of B2's data changes nothing).
+	// data; the policy below holds no edict, so the rest of B2's data changes nothing), and no diplomacy - no drift, no
+	// fleet, no spread, no first contact card (B3: CosmicTests::WithoutDiplomacy keeps the rules it is given otherwise).
 	{
 		FCosmicRulesDef Before = CosmicTests::WithoutStartingEdict(Sim->GetRules());
 		Before.SocietyRecoveryBonus = 0.f;
-		Sim->SetTables(CosmicTests::WithRules(Original, Before));
+		Sim->SetTables(CosmicTests::WithoutDiplomacy(CosmicTests::WithRules(Original, Before)));
 	}
 
 	struct FCase
@@ -1884,7 +1885,7 @@ bool FCosmicSightWalkMovedTest::RunTest(const FString& Parameters)
 		int32 MostPlaces = 0;
 		if (Case.bRuler)
 		{
-			const FCosmicRulerPolicy Policy{ true, true, true, false, NAME_None };
+			const FCosmicRulerPolicy Policy{ true, true, true, false, NAME_None, 0 };
 			FCosmicRulerPolicyCounts Counts;
 			for (int32 Done = 0; Done < 2000; ++Done)
 			{

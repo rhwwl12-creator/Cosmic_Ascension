@@ -667,7 +667,11 @@ struct COSMIC_ASCENSION_API FKnowingState
 	UPROPERTY()
 	TArray<FKnownMark> MetGalaxies;
 
-	// The people whose first-contact card is waiting. NAME_None = no card waiting. Used from Phase 4.
+	// The people whose first contact card waits to be put (B3 header section 2.9). NAME_None = none. Written by NoteMet at
+	// the first meeting of the run (an embodied ruler, the row in DT_Encounters); read by the end of the knowing stage
+	// (CosmicPetitions::Present puts the card after a Standing card that came to hold in the tick, before the periodic slot, while no petition waits) and by the card's answer (its OtherID);
+	// cleared by that answer (taken or withdrawn), Install, BecomeWanderer, a coronation and the crossing stage's cleanup -
+	// never by CosmicPetitions::Clear (called by every answer).
 	UPROPERTY()
 	FName PendingContactCivID;
 
@@ -685,7 +689,8 @@ struct COSMIC_ASCENSION_API FKnowingState
 	// (CosmicPetitions::Present) and by an answer that chains a next card; cleared by the answer, Install, BecomeWanderer and
 	// a coronation (the ruled people is never removed while it is ruled). The commands read it as the definition of their
 	// input (the answer; TravelTo and BecomeRuler refuse while a card waits); inside the tick only the knowing writers read
-	// it - the head of the tick and the end of the knowing stage, whether the slot is empty (docs/20, rule 2).
+	// it - the head of the tick and the end of the knowing stage, whether the slot is empty (docs/20, rule 2) - and the
+	// end of the knowing stage reads PendingContactCivID too (the first contact card, before the periodic slot).
 	UPROPERTY()
 	FName PendingPetitionRow;
 

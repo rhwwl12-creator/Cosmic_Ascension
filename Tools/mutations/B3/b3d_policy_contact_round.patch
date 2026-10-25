@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -88,7 +88,7 @@
+ 			&& (!Rules || CosmicPetitions::StanceBlockOfChoice(State, Index, *Rules, CivIndex, Other, Row.Choices[Choice]) == CosmicDiplomacy::ECosmicStanceBlock::None);
+ 	};
+ 	// The first contact card under a diplomacy policy (B3): reach out.
+-	if (Diplomacy != 0 && RowName == CosmicRows::PetitionFirstContact)
++	if (false)
+ 	{
+ 		for (const int32 Choice : Stays)
+ 		{

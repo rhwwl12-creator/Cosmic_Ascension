@@ -16,6 +16,7 @@
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
+#include "Data/CosmicRowNames.h"
 #include "Engine/DataTable.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -37,6 +38,7 @@
 #include "Tests/CosmicTestHelpers.h"
 #include "UI/CosmicActionButton.h"
 #include "UI/CosmicEdictWidget.h"
+#include "UI/CosmicPetitionCardWidget.h"
 #include "UI/CosmicSystemPanelWidget.h"
 #include "UI/CosmicTopBarWidget.h"
 #include "UI/CosmicUILabels.h"
@@ -813,6 +815,58 @@ bool FCosmicUIPeoplesTabTest::RunTest(const FString& Parameters)
 		CosmicDiplomacy::SetStanceOf(Civs[0], One, FGameplayTag());
 		HUD->RefreshPanel();
 		Window->Open(ECosmicEdictTab::Peoples);
+	}
+
+	// The first contact card (B3 header section 4): its words name the people met, and the friendly choice says what the
+	// friendly stance holds.
+	{
+		UCosmicPetitionCardWidget* Card = HUD->GetPetitionCard();
+		State->Knowing.PendingContactCivID = Two;
+		State->Knowing.PendingPetitionRow = CosmicRows::PetitionFirstContact;
+		State->Knowing.PendingPetitionSystemID = NAME_None;
+		Controller->FollowPetition(false);
+		TestTrue(TEXT("The first contact card shows, naming the people met"), Card && Card->GetShownRow() == CosmicRows::PetitionFirstContact
+			&& Words(Card->GetTitleText()->GetText()).Contains(Words(Civs[2].CivName)) && !HasPlaceholder(Card->GetBodyText()->GetText()));
+		if (Card && Card->GetChoiceLine(0) && Card->GetChoiceLine(1))
+		{
+			TestEqual(TEXT("Its friendly choice says what the friendly stance holds"), Words(Card->GetChoiceLine(0)->GetText()),
+				Words(FText::Format(Label(TEXT("Petition.FriendlyUpkeep")), UCosmicEdictWidget::AmountOf(0.2f), CosmicUI::DurationLabel(1, Unit),
+					FText::AsNumber(CosmicDiplomacy::FriendlyCountOf(Civs[0])), FText::AsNumber(CosmicDiplomacy::FriendlySlotsOf(Civs[0], Rules)))));
+			TestFalse(TEXT("and the other choice nothing"), Shown(Card->GetChoiceLine(1)));
+			// The line reads the rule, and an upkeep that is none reads as none.
+			const FCosmicDataTables Laid = Sim->GetTables();
+			FCosmicRulesDef Dearer = Rules;
+			for (const float Upkeep : { 0.35f, -1.f })
+			{
+				Dearer.FriendlyUpkeepInfluence = Upkeep;
+				Sim->SetTables(CosmicTests::WithRules(Laid, Dearer));
+				Card->Refresh();
+				TestEqual(FString::Printf(TEXT("The friendly line reads the rule's upkeep (%.2f)"), Upkeep), Words(Card->GetChoiceLine(0)->GetText()),
+					Words(FText::Format(Label(TEXT("Petition.FriendlyUpkeep")), UCosmicEdictWidget::AmountOf(FMath::Max(Upkeep, 0.f)), CosmicUI::DurationLabel(1, Unit),
+						FText::AsNumber(CosmicDiplomacy::FriendlyCountOf(Civs[0])), FText::AsNumber(CosmicDiplomacy::FriendlySlotsOf(Civs[0], Sim->GetRules())))));
+			}
+			Sim->SetTables(Laid);
+			// With the only friendly slot taken, [Reach out] is greyed with the peoples' tab's reason.
+			CosmicDiplomacy::SetStanceOf(Civs[0], One, CosmicTags::StanceFriendly());
+			Card->Refresh();
+			const UCosmicActionButton* Reach = Card->GetChoiceButton(0);
+			TestTrue(TEXT("With the friendly slot taken, reaching out is greyed with the gate's reason"), Reach && !Reach->GetIsEnabled()
+				&& Words(Reach->GetToolTipText()) == Words(UCosmicEdictWidget::StanceReasonOf(CosmicDiplomacy::ECosmicStanceBlock::FriendlySlots)));
+			TestTrue(TEXT("and watching is not"), Card->GetChoiceButton(1) && Card->GetChoiceButton(1)->GetIsEnabled());
+			// Its people removed while it shows (the crossing stage's cleanup clears the slot): every answer withdraws it, so
+			// nothing is greyed; shown again (after a load) it names the people by its own words.
+			State->Knowing.PendingContactCivID = NAME_None;
+			Card->Refresh();
+			TestTrue(TEXT("A card whose people is gone greys nothing (any answer withdraws it)"), Card->GetChoiceButton(0) && Card->GetChoiceButton(0)->GetIsEnabled());
+			Card->ShowCard(CosmicRows::PetitionFirstContact, NAME_None, NAME_None);
+			TestTrue(TEXT("and shown again it names the people by the card's own words"), Words(Card->GetTitleText()->GetText()).Contains(Words(TEXT("Petition.OtherGone")))
+				&& !HasPlaceholder(Card->GetTitleText()->GetText()));
+			State->Knowing.PendingContactCivID = Two;
+			CosmicDiplomacy::SetStanceOf(Civs[0], One, FGameplayTag());
+		}
+		State->Knowing.PendingPetitionRow = NAME_None;
+		State->Knowing.PendingContactCivID = NAME_None;
+		Controller->FollowPetition(false);
 	}
 
 	// The edicts' two new lines (only where they change something) and the top bar's.

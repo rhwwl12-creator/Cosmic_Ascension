@@ -182,8 +182,8 @@ namespace CosmicTests
 		Off.FleetPerSettledByTier = { 0.f, 0.f, 0.f, 0.f, 0.f };
 		Off.PlagueSpreadMultiplier = 1.f;
 		FCosmicDataTables Tables = WithRules(Base, Off);
-		// The row of the first contact card (B3 section 2.9 - the data commit puts it in DT_Encounters).
-		const FName FirstContact(TEXT("petition_first_contact"));
+		// The row of the first contact card (B3 section 2.9).
+		const FName FirstContact = CosmicRows::PetitionFirstContact;
 		if (Base.Encounters && Base.Encounters->GetRowMap().Contains(FirstContact))
 		{
 			UDataTable* Encounters = NewTable(FEncounterDef::StaticStruct());

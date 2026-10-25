@@ -279,7 +279,10 @@ def fixture_tables(schema, tables):
     tables["DT_Hazards"] = [hazard_row()]
     tables["DT_Megaprojects"] = [megaproject_row()] + [megaproject_row(name) for name in schema["tables"]["DT_Megaprojects"].get("required_rows", [])]
     tables["DT_Feats"] = [feat_row()]
-    tables["DT_Encounters"] = [encounter_row(), wanderer_card_row()] + [encounter_row(name) for name in schema["tables"]["DT_Encounters"].get("required_rows", [])]
+    # The first contact card (B3) is put by name: a Named row without weight.
+    tables["DT_Encounters"] = [encounter_row(), wanderer_card_row()] + [
+        encounter_row(name, Trigger="Named", BaseWeight=0) if name == "petition_first_contact" else encounter_row(name)
+        for name in schema["tables"]["DT_Encounters"].get("required_rows", [])]
     tables["DT_Edicts"] = [edict_row()]
     # The inherited edict of the project's rules has to be a row of the fixture's table (none in the device commit of B2).
     if tables["DT_Rules"][0].get("StartingEdict") not in (None, "", "None"):
@@ -1345,8 +1348,8 @@ class SchemaTests(unittest.TestCase):
         growth = lambda value: self.set_cell("DT_Edicts", "edict_test_order", "FleetGrowthMultiplier", value)  # noqa: E731
         self.expect(self.after(growth(0.0)), "DT_Edicts.edict_test_order", "a held edict multiplies the fleet's growth")
         self.assertEqual(self.after(growth(0.5)), [])
-        # The stance effect stands in a card's answer, friendly or neutral, and nowhere else.
-        answer = lambda effects: (lambda tables: self.row(tables, "DT_Encounters", "petition_test_plea")["Choices"][0].update(OnSuccess=effects))  # noqa: E731
+        # The stance effect stands in the first contact card's answer, friendly or neutral, and nowhere else.
+        answer = lambda effects: (lambda tables: self.row(tables, "DT_Encounters", "petition_first_contact")["Choices"][0].update(OnSuccess=effects))  # noqa: E731
         self.assertEqual(self.after(answer([eff("SetStance", tag="Stance.Friendly")])), [])
         self.assertEqual(self.after(answer([eff("SetStance")])), [])
         self.expect(self.after(answer([eff("SetStance", tag="Stance.Hostile")])), "SetStance", "Stance.Friendly")
@@ -1359,6 +1362,22 @@ class SchemaTests(unittest.TestCase):
                     "EffectsPerTick[0](SetStance)", "per-tick source applies only")
         self.schema_problem(self.put(["effects", "SetStance"], "card_only", "yes"), "schema.effects.SetStance", "card_only")
         self.schema_problem(self.put(["tables", "DT_Encounters", "columns", "Choices", "columns", "OnSuccess"], "card", "yes"), "OnSuccess", "card")
+        # Only the first contact card names another people and sets a stance - not another petition, not a wanderer's card.
+        update_cell = lambda tables: self.row(tables, "DT_Encounters", "petition_test_plea").update(Body="{OtherCiv} asks.")  # noqa: E731
+        self.expect(self.after(update_cell), "DT_Encounters.petition_test_plea", "only the first contact card is about another people")
+        self.assertEqual(self.after(lambda tables: self.row(tables, "DT_Encounters", "petition_first_contact").update(Body="{OtherCiv} asks.")), [])
+        for row_name, column in (("petition_test_plea", "OnSuccess"), ("petition_test_plea", "OnFailure"), ("enc_test_weave", "OnSuccess")):
+            with self.subTest(row=row_name, column=column):
+                stance = lambda tables, row_name=row_name, column=column: self.row(tables, "DT_Encounters", row_name)["Choices"][0].update(
+                    **{column: [eff("SetStance", tag="Stance.Friendly")]})  # noqa: E731
+                self.expect(self.after(stance), "DT_Encounters.%s" % row_name, "only the first contact card is about another people", "SetStance")
+        # No chain leads to the first contact card: put by an answer, it would be about no one met.
+        chain = lambda tables: self.row(tables, "DT_Encounters", "petition_test_plea")["Choices"][0].update(NextEncounter="petition_first_contact")  # noqa: E731
+        self.expect(self.after(chain), "NextEncounter", "row petition_first_contact of DT_Encounters does not hold")
+        # The first contact card is put by name, about the ruled people.
+        first = lambda **changes: (lambda tables: self.row(tables, "DT_Encounters", "petition_first_contact").update(**changes))  # noqa: E731
+        self.expect(self.after(first(Trigger="Standing", BaseWeight=1.0)), "DT_Encounters.petition_first_contact", "the first meeting puts the first contact card by name")
+        self.expect(self.after(first(Subject="SettledSystem")), "DT_Encounters.petition_first_contact", "the first meeting puts the first contact card by name")
         # The log lines fill {Stance} and {Treaty} and refuse the holy words.
         line = lambda templates: (lambda tables: self.row(tables, "DT_LogTemplates", "log_treaty_signed").update(Templates=templates))  # noqa: E731
         self.assertEqual(self.after(line(["{Civ} {Treaty} a.", "{Civ} {Stance} b.", "{OtherCiv} c."])), [])
@@ -2026,6 +2045,11 @@ class SchemaTests(unittest.TestCase):
         self.schema_problem(self.put(rule, "when", [{"row_prefix": "card_"}]), "schema.DT_Encounters", "names the prefix card_, which is none of the prefixes of DT_Encounters")
         self.schema_problem(self.put(rule, "when", [{"row_prefix": "enc_", "col": "Subject"}]), "schema.DT_Encounters", "a row test is 'row' with a row name")
         self.schema_problem(self.put(rule, "when", [{"row_prefix": ["enc_"]}]), "schema.DT_Encounters", "a row test is 'row' with a row name")
+        # B3: every row but the named one - a row the table has, of the same shape as 'row'.
+        self.assertTrue(holds({"row_not": "petition_first_contact"}, {}, "petition_plague"))
+        self.assertFalse(holds({"row_not": "petition_first_contact"}, {}, "petition_first_contact"))
+        self.schema_problem(self.put(rule, "when", [{"row_not": "petition_first_kontact"}]), "schema.DT_Encounters", "names the row petition_first_kontact")
+        self.schema_problem(self.put(rule, "when", [{"row_not": "petition_first_contact", "col": "Subject"}]), "schema.DT_Encounters", "a row test is 'row' with a row name")
         # An enc_ row about the ruled people, and one that checks a people's Stability, break the wanderer card's rule.
         self.expect(self.after(self.set_cell("DT_Encounters", "enc_test_weave", "Subject", "SettledSystem")), "DT_Encounters.enc_test_weave", "a wanderer's card")
         weave = self.row(self.tables, "DT_Encounters", "enc_test_weave")
@@ -2231,6 +2255,10 @@ class SchemaTests(unittest.TestCase):
             ("DT_Encounters", "a row the knowing stage puts is picked by its weight among the rows of its moment (guideline 5.10)"): (NOTHING, plea),
             ("DT_Encounters", "a row put by name (the next card of a chain) is never picked: it has no weight"): (update_plea(Trigger="Named", BaseWeight=0), plea),
             ("DT_Encounters", "a card without voices speaks through its Body"): (NOTHING, plea),
+            ("DT_Encounters", "only the first contact card is about another people (B3 header section 2.9): the answer gives SetStance its people and fills {OtherCiv} for that card alone - on any other a stance would fall on no one, the name would be empty words, and a wanderer's card would set an AI people's stance (section 2.8)"):
+                (NOTHING, plea),
+            ("DT_Encounters", "the first meeting puts the first contact card by name, about the ruled people: as a Standing or Lottery row it would come on its own - at the first tick of every reign (B3 header section 2.9)"):
+                (NOTHING, "petition_first_contact"),
             ("DT_Encounters", "a voiced card speaks through its two voices, the council's and the elders' of the congregation, and its Body stays empty (guideline 5.10)"):
                 (update_plea(VoiceBodies=["{Civ} council.", "{Civ} elders."], Body=""), plea),
         }
@@ -2251,7 +2279,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 137, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 147, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

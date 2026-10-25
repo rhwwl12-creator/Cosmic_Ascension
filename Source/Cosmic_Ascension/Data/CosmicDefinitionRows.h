@@ -455,7 +455,8 @@ struct COSMIC_ASCENSION_API FEncounterChoice
 
 /**
  * DT_Encounters row. Wanderer encounters and ruler petitions share it (petition = condition PlayerRoleIs Ruler). Texts:
- * slots {Civ} {System} {Hazard} {Rebel}; a Civilization row names no system (schema).
+ * slots {Civ} {System} {Hazard} {Rebel}, and {OtherCiv} on a card whose choices set a stance (B3: the first contact
+ * card); a Civilization row names no system (schema).
  */
 USTRUCT(BlueprintType)
 struct COSMIC_ASCENSION_API FEncounterDef : public FTableRowBase

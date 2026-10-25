@@ -192,7 +192,7 @@ bool FCosmicSimHashRunTest::RunTest(const FString& Parameters)
 	{
 		Log->SetTellAll(false);
 		Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
-		const FCosmicRulerPolicy Policy{ true, true, true, true, NAME_None };
+		const FCosmicRulerPolicy Policy{ true, true, true, true, NAME_None, 1 };
 		FCosmicRulerPolicyCounts Counts;
 		for (int64 Done = 0; Done < 300; ++Done)
 		{
@@ -210,6 +210,48 @@ bool FCosmicSimHashRunTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("its state hash is the hand-written loop's"), Result.StateHash, PolicyByHand.State);
 		TestEqual(TEXT("and so is its world hash"), Result.WorldHash, PolicyByHand.World);
 		TestTrue(TEXT("and the log is back in its mode"), Log->IsTellAll());
+	}
+
+	// (5b) The diplomacy of the policy (B3): past the ruled people's second rung the hash run's policy signs treaties, and a
+	// policy without diplomacy is another world - so the hash run plays the commandlet's -Diplomacy=1.
+	{
+		constexpr int64 PastSecondRung = 1500;
+		auto ByHand = [&](int32 Diplomacy, FCosmicRulerPolicyCounts& Counts)
+		{
+			Log->SetTellAll(false);
+			Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+			const FCosmicRulerPolicy Policy{ true, true, true, true, NAME_None, Diplomacy };
+			for (int64 Done = 0; Done < PastSecondRung; ++Done)
+			{
+				const FName CardBefore = Sim->GetState().Knowing.PendingPetitionRow;
+				Sim->RunHeadless(1);
+				CosmicRulerPolicy::Act(Policy, *Sim, *Role, CardBefore, Counts);
+			}
+			Log->SetTellAll(true);
+			return HashesOf(*Sim);
+		};
+		FCosmicRulerPolicyCounts With;
+		const FHashes Diplomatic = ByHand(1, With);
+		FCosmicRulerPolicyCounts Without;
+		const FHashes Quiet = ByHand(0, Without);
+		TestTrue(TEXT("(the policy's diplomacy acted by tick 1,500 - the case can tell)"), With.StanceChanges + With.TreatiesSigned + With.FleetTargetChanges > 0);
+		TestNotEqual(TEXT("A policy without diplomacy is another world"), Quiet.World, Diplomatic.World);
+		const CosmicHashRun::FResult Result = CosmicHashRun::Run(*Sim, *Log, *Role, 42, SwitchOf(PastSecondRung, 0, true));
+		TestTrue(TEXT("The hash run's policy is the diplomatic one"), Result.StateHash == Diplomatic.State && Result.WorldHash == Diplomatic.World);
+
+		// With fleets (the game's are off while [B-3d1] keeps the data off) the attack policy is a third world - it offers no
+		// non-aggression: the hash run plays the peace policy, not the attack one.
+		FCosmicRulesDef Armed = Sim->GetRules();
+		Armed.FleetPerSettledByTier = { 0.f, 1.f, 1.f, 1.f, 1.f };
+		Sim->SetTables(CosmicTests::WithRules(Original, Armed));
+		FCosmicRulerPolicyCounts Peace;
+		const FHashes Peaceful = ByHand(1, Peace);
+		FCosmicRulerPolicyCounts Attack;
+		const FHashes Hostile = ByHand(2, Attack);
+		TestNotEqual(TEXT("The attack policy is another world (the case can tell)"), Hostile.World, Peaceful.World);
+		const CosmicHashRun::FResult ArmedRun = CosmicHashRun::Run(*Sim, *Log, *Role, 42, SwitchOf(PastSecondRung, 0, true));
+		TestTrue(TEXT("and the hash run's policy is the peace one"), ArmedRun.StateHash == Peaceful.State && ArmedRun.WorldHash == Peaceful.World);
+		Sim->SetTables(Original);
 	}
 
 	// (6) Checkpoints: tick 0 and every Every ticks; the run in steps is the run at once.

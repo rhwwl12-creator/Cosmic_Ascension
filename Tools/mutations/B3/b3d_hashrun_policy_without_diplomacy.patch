@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicHashRun.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicHashRun.cpp
+@@ -120,7 +120,7 @@
+ 	if (Switch.bPolicy)
+ 	{
+ 		// The commandlet's loop: one tick, then the ruler's input at the boundary.
+-		const FCosmicRulerPolicy Policy{ true, true, true, true, NAME_None, 1 };
++		const FCosmicRulerPolicy Policy{ true, true, true, true, NAME_None, 0 };
+ 		FCosmicRulerPolicyCounts Counts;
+ 		for (int64 Done = 0; Done < Switch.Ticks; ++Done)
+ 		{

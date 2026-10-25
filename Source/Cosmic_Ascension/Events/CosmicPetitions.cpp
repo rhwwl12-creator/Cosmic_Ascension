@@ -4,11 +4,14 @@
 
 #include "Core/CosmicSeed.h"
 #include "Core/GalaxyState.h"
+#include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
+#include "Data/CosmicRowNames.h"
 #include "Events/CosmicEventSubsystem.h"
 #include "GameplayTagContainer.h"
 #include "Internationalization/StringTableCoreFwd.h"
 #include "Math/NumericLimits.h"
+#include "Sim/CosmicDiplomacy.h"
 #include "Sim/CosmicEvalContext.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/CosmicWanderer.h"
@@ -326,6 +329,22 @@ bool CosmicPetitions::Present(FGalaxyState& State, const FCosmicStateIndex& Inde
 		}
 	}
 
+	// Without one, the first contact card (B3 header section 2.9): its own slot can wait one answer, a crisis card that
+	// came to hold in this tick cannot (it would not come again). No draw, no period, no last-choice rule; the row's
+	// conditions still hold for it.
+	if (Candidates.IsEmpty())
+	{
+		if (const FEncounterDef* Contact = Tables.FindEncounter(CosmicRows::PetitionFirstContact);
+			Contact && !IsWandererCard(*Contact) && State.Civs.IsValidIndex(Index.FindCiv(State, State.Knowing.PendingContactCivID))
+			&& Holds(State, Index, Tables, Rules, CosmicRows::PetitionFirstContact, *Contact, CivIndex,
+				SubjectOf(State, Index, CivIndex, Contact->Subject, NAME_None)))
+		{
+			State.Knowing.PendingPetitionRow = CosmicRows::PetitionFirstContact;
+			State.Knowing.PendingPetitionSystemID = NAME_None;
+			return true;
+		}
+	}
+
 	// Without one, the periodic slot of the life: the Lottery rows that hold and were not among its last choices.
 	if (Candidates.IsEmpty())
 	{
@@ -410,6 +429,11 @@ bool CosmicPetitions::StillStands(const FGalaxyState& State, const FCosmicStateI
 	{
 		return false;
 	}
+	// The first contact card stands while the people it is about does (B3).
+	if (RowName == CosmicRows::PetitionFirstContact && !State.Civs.IsValidIndex(Index.FindCiv(State, State.Knowing.PendingContactCivID)))
+	{
+		return false;
+	}
 	return Holds(State, Index, Tables, Rules, RowName, *Row, CivIndex, SystemIndex);
 }
 
@@ -473,7 +497,8 @@ FResourcePool CosmicPetitions::CostOf(const FEncounterChoice& Choice)
 	return Cost;
 }
 
-FFormatNamedArguments CosmicPetitions::ArgsOf(const FGalaxyState& State, const FCosmicDataTables& Tables, int32 CivIndex, int32 SystemIndex)
+FFormatNamedArguments CosmicPetitions::ArgsOf(const FGalaxyState& State, const FCosmicDataTables& Tables, int32 CivIndex, int32 SystemIndex, FName OtherCivID,
+	bool bNamesOther)
 {
 	using namespace CosmicPetitionsImpl;
 	const FCivilizationState* Civ = State.Civs.IsValidIndex(CivIndex) ? &State.Civs[CivIndex] : nullptr;
@@ -496,7 +521,32 @@ FFormatNamedArguments CosmicPetitions::ArgsOf(const FGalaxyState& State, const F
 	Args.Add(TEXT("System"), System ? System->DisplayName : FText::GetEmpty());
 	Args.Add(TEXT("Hazard"), HazardName);
 	Args.Add(TEXT("Rebel"), Rebel);
+	// The other people of a card (B3: the first contact card's) - empty words for a card about none; the card's own words
+	// for a people it cannot find (the crossing stage's cleanup clears the slot of a people removed while the card waits,
+	// and the card shows again after a load - it names no one by an empty name until its answer withdraws it).
+	const FCivilizationState* Other = OtherCivID.IsNone() ? nullptr
+		: State.Civs.FindByPredicate([OtherCivID](const FCivilizationState& Each) { return Each.CivID == OtherCivID; });
+	Args.Add(TEXT("OtherCiv"), Other ? Other->CivName
+		: (bNamesOther ? FText::FromStringTable(CosmicLabels::TableId, TEXT("Petition.OtherGone"), EStringTableLoadingPolicy::FindOrFullyLoad) : FText::GetEmpty()));
 	return Args;
+}
+
+CosmicDiplomacy::ECosmicStanceBlock CosmicPetitions::StanceBlockOfChoice(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules,
+	int32 CivIndex, FName OtherCivID, const FEncounterChoice& Choice)
+{
+	for (const FCosmicEffect& Effect : Choice.OnSuccess)
+	{
+		if (Effect.Type != EEffectType::SetStance || !(Effect.Key.IsNone() || Effect.Key.ToString().IsEmpty()) || OtherCivID.IsNone())
+		{
+			continue;
+		}
+		const CosmicDiplomacy::ECosmicStanceBlock Block = CosmicDiplomacy::StanceBlockOf(State, Index, Rules, CivIndex, OtherCivID, Effect.Tag, true);
+		if (Block != CosmicDiplomacy::ECosmicStanceBlock::None && Block != CosmicDiplomacy::ECosmicStanceBlock::Same)
+		{
+			return Block;
+		}
+	}
+	return CosmicDiplomacy::ECosmicStanceBlock::None;
 }
 
 void CosmicPetitions::Clear(FGalaxyState& State)

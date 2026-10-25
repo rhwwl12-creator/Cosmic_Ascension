@@ -565,11 +565,13 @@ class Checker:
         columns = spec.get("columns") if isinstance(spec, dict) else None
         for test in tests:
             shown = json.dumps(test)
-            if isinstance(test, dict) and "row" in test:
-                if len(test) != 1 or not isinstance(test["row"], str):
+            if isinstance(test, dict) and ("row" in test or "row_not" in test):
+                # 'row' holds for the named row, 'row_not' for every other (B3: the one card about another people).
+                said = "row" if "row" in test else "row_not"
+                if len(test) != 1 or not isinstance(test[said], str):
                     self.report(where, "a row test is 'row' with a row name, or a column with exactly one of %s: %s" % (", ".join(TESTS), shown))
-                elif not self.row_is_known(table_name, test["row"]):
-                    self.report(where, "a row test names the row %s, which %s neither requires nor has" % (test["row"], table_name))
+                elif not self.row_is_known(table_name, test[said]):
+                    self.report(where, "a row test names the row %s, which %s neither requires nor has" % (test[said], table_name))
                 continue
             if isinstance(test, dict) and "row_prefix" in test:
                 # The rows of one kind by the prefix of their names (B1: enc_ and petition_). One of the table's own prefixes,
@@ -1102,6 +1104,8 @@ class Checker:
         """One test of a row rule (check_schema has made sure it is one this file knows)."""
         if "row" in test:
             return row_name == test["row"]
+        if "row_not" in test:
+            return row_name != test["row_not"]
         if "row_prefix" in test:
             return row_name.startswith(test["row_prefix"])
         head, mark, sub = test["col"].partition(PATH_MARK)

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -387,7 +387,7 @@
+ 	// attack policy offers none: a non-aggression would close the siege gate on the neighbours it is there to besiege, and
+ 	// a trade would make each siege open with a betrayal.
+ 	const FGameplayTag Treaties[] = { CosmicTags::TreatyNonAggression(), CosmicTags::TreatyTrade() };
+-	for (int32 Other = 0; Policy.Diplomacy != 2 && Other < State.Civs.Num(); ++Other)
++	for (int32 Other = 0; Other < State.Civs.Num(); ++Other)
+ 	{
+ 		const FName OtherID = State.Civs[Other].CivID;
+ 		if (Other == CivIndex || !IsMet(OtherID))

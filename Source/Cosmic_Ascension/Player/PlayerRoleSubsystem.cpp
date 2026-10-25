@@ -122,8 +122,9 @@ void UPlayerRoleSubsystem::Install(FName SystemID, FName CivID, EPlayerRole Role
 	// The vessel starts from nothing: stats, pool, relics and status do not cross over (section 4.4).
 	// Birth stats (section 5.9) are the struct defaults plus the birth civ's DT_Traits modifiers, once DT_Traits exists.
 	State.Player = FPlayerEntityState();
-	// A card put before the last life is not this life's (section 5.10).
+	// A card put before the last life is not this life's (section 5.10) - nor the first contact card waiting (B3).
 	CosmicPetitions::Clear(State);
+	State.Knowing.PendingContactCivID = NAME_None;
 	State.Player.Role = Role;
 	State.Player.CurrentSystemID = SystemID;
 
@@ -421,6 +422,9 @@ FCosmicPetitionAnswer UPlayerRoleSubsystem::AnswerPetition(int32 ChoiceIndex)
 		UE_LOG(LogCosmic, Error, TEXT("AnswerPetition: the waiting card %s is no row of DT_Encounters"), *RowName.ToString());
 		return Answer;
 	}
+	// The first contact card is about the people met (B3 header section 2.9): its answer's other people, cleared with it.
+	const bool bFirstContact = RowName == CosmicRows::PetitionFirstContact;
+	const FName OtherCivID = bFirstContact ? State.Knowing.PendingContactCivID : NAME_None;
 	// Who answers: the ruler a petition, the wanderer its own card (B1). The other role is refused - nothing drawn.
 	const bool bWandererCard = CosmicPetitions::IsWandererCard(*Row);
 	const int32 RuledIndex = CosmicPetitions::RuledCivIndexOf(State, Index);
@@ -440,6 +444,14 @@ FCosmicPetitionAnswer UPlayerRoleSubsystem::AnswerPetition(int32 ChoiceIndex)
 		UE_LOG(LogCosmic, Error, TEXT("AnswerPetition: the stockpile cannot pay choice %d of %s"), ChoiceIndex, *RowName.ToString());
 		return Answer;
 	}
+	// A stance the gate would refuse (B3: the friendly slots taken) is refused as an unpaid cost - the card greys it. A card
+	// that no longer stands (its people gone) is withdrawn below instead, with its draw.
+	if (bFirstContact && CosmicPetitions::StillStands(State, Index, Tables, Sim->GetRules())
+		&& CosmicPetitions::StanceBlockOfChoice(State, Index, Sim->GetRules(), RuledIndex, OtherCivID, Choice) != CosmicDiplomacy::ECosmicStanceBlock::None)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("AnswerPetition: the stance gate refuses choice %d of %s"), ChoiceIndex, *RowName.ToString());
+		return Answer;
+	}
 
 	// One number of the sim stream for every answer taken, before the choice is read any further (section 9.2).
 	FCosmicEvalContext Ctx = Sim->MakeEvalContext();
@@ -448,6 +460,10 @@ FCosmicPetitionAnswer UPlayerRoleSubsystem::AnswerPetition(int32 ChoiceIndex)
 	if (!CosmicPetitions::StillStands(State, Index, Tables, Sim->GetRules()))
 	{
 		CosmicPetitions::Clear(State);
+		if (bFirstContact)
+		{
+			State.Knowing.PendingContactCivID = NAME_None;
+		}
 		Answer.Outcome = ECosmicPetitionOutcome::Withdrawn;
 		Sim->SyncRngState();
 		return Answer;
@@ -459,7 +475,7 @@ FCosmicPetitionAnswer UPlayerRoleSubsystem::AnswerPetition(int32 ChoiceIndex)
 	const int32 CivIndex = bWandererCard ? Vessel.CivIndex : RuledIndex;
 	const int32 SystemIndex = bWandererCard ? Vessel.SystemIndex : CosmicPetitions::SubjectOf(State, Index, CivIndex, Row->Subject, SystemID);
 	// The arguments of the texts before the effects: the hazard the card is about, also when the answer resolves it.
-	const FFormatNamedArguments Args = CosmicPetitions::ArgsOf(State, Tables, CivIndex, SystemIndex);
+	const FFormatNamedArguments Args = CosmicPetitions::ArgsOf(State, Tables, CivIndex, SystemIndex, OtherCivID, bFirstContact);
 
 	if (!bWandererCard)
 	{
@@ -478,6 +494,8 @@ FCosmicPetitionAnswer UPlayerRoleSubsystem::AnswerPetition(int32 ChoiceIndex)
 		: State.Systems.IsValidIndex(SystemIndex) ? State.Systems[SystemIndex].GalaxyRow : FName();
 	Ctx.SourceRow = RowName;
 	Ctx.bPerTickSource = false;
+	// Only the first contact card names another people: every other card's effects keep no other party.
+	Ctx.OtherID = OtherCivID;
 	UCosmicEventSubsystem::ApplyAll(bPasses ? Choice.OnSuccess : Choice.OnFailure, Ctx);
 	Events->FollowUpKnowing(Ctx);
 
@@ -495,6 +513,10 @@ FCosmicPetitionAnswer UPlayerRoleSubsystem::AnswerPetition(int32 ChoiceIndex)
 
 	CosmicPetitions::Remember(State, RowName);
 	CosmicPetitions::Clear(State);
+	if (bFirstContact)
+	{
+		State.Knowing.PendingContactCivID = NAME_None;
+	}
 	// The next card of a chain, on the same subject, when its conditions hold: put by name, no draw.
 	// A chain stays with its role: a petition's next card is a petition on the same subject, a wanderer's next card is
 	// a wanderer's card where the vessel stands.

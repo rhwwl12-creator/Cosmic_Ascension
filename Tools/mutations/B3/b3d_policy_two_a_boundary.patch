@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -379,7 +379,6 @@
+ 			&& Role.SetStance(OtherID, CosmicTags::StanceFriendly()) == CosmicDiplomacy::ECosmicStanceBlock::None)
+ 		{
+ 			++Counts.StanceChanges;
+-			return;
+ 		}
+ 	}
+ 

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1756,7 +1756,7 @@
+ 		Card->Refresh();
+ 		return;
+ 	}
+-	Card->ShowCard(View.PendingPetitionRow, View.PendingPetitionSystemID, View.PendingPetitionRow == CosmicRows::PetitionFirstContact ? View.PendingContactCivID : NAME_None);
++	Card->ShowCard(View.PendingPetitionRow, View.PendingPetitionSystemID, NAME_None);
+ 	if (bArrived && !View.PendingPetitionRow.IsNone())
+ 	{
+ 		// A wanderer's card is no petition: its own words on the top bar (B1).

@@ -11,6 +11,7 @@
 #include "Core/CosmicTypes.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Internationalization/Text.h"
+#include "Sim/CosmicDiplomacy.h"
 
 struct FCosmicDataTables;
 struct FCosmicStateIndex;
@@ -148,6 +149,10 @@ namespace CosmicPetitions
 	 * u / share. The life's most recent answered wanderer's card is not put again; a Standing card on a people beyond the
 	 * wanderer's gap is not put (the arrival card speaks of the place alone and comes there too). Writes Knowing.PendingPetitionRow and PendingPetitionSystemID (NAME_None for a Civilization row, the
 	 * vessel's system for a wanderer's card) and nothing else. True when a card was put.
+	 * For a ruler, the first contact card (B3 header section 2.9): while Knowing.PendingContactCivID names a people still in
+	 * Civs and the row CosmicRows::PetitionFirstContact exists and holds, it is put when no Standing unit came to hold in
+	 * that tick - after such a unit (its slot waits one answer; the unit would not come again), before the periodic slot -
+	 * with no draw, no period and no last-choice rule.
 	 */
 	COSMIC_ASCENSION_API bool Present(FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules,
 		TConstArrayView<FCosmicPetitionUnit> HeldAtHead, bool bArrived = false);
@@ -155,7 +160,8 @@ namespace CosmicPetitions
 	/**
 	 * Whether the waiting card still stands: the row exists, a vessel of its role is embodied (a ruler for a petition; for a
 	 * wanderer's card a wanderer that is not travelling and stands in the card's system), its subject is still there (a
-	 * SettledSystem row's system is still a settled system of the ruled people) and the row's conditions hold on it.
+	 * SettledSystem row's system is still a settled system of the ruled people) and the row's conditions hold on it. The
+	 * first contact card also needs the people of Knowing.PendingContactCivID in Civs (B3).
 	 */
 	COSMIC_ASCENSION_API bool StillStands(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules);
 
@@ -177,11 +183,23 @@ namespace CosmicPetitions
 	/**
 	 * The arguments of a card's texts on the people CivIndex and the system SystemIndex: {Civ}, {System}, {Hazard} (the
 	 * display name of the hazard the system holds), {Rebel} (the name of the people's open Notable.Rebel record, else
-	 * ST_CA Role.Rebel - section 8.2's fallback of a role slot).
+	 * ST_CA Role.Rebel - section 8.2's fallback of a role slot) and {OtherCiv} (the name of the people OtherCivID - the
+	 * first contact card's, B3). With bNamesOther (the first contact card) a people not in Civs - gone, or its slot cleared
+	 * by the crossing stage's cleanup while the card waits - is ST_CA Petition.OtherGone; without it {OtherCiv} is empty
+	 * words.
 	 */
-	COSMIC_ASCENSION_API FFormatNamedArguments ArgsOf(const FGalaxyState& State, const FCosmicDataTables& Tables, int32 CivIndex, int32 SystemIndex);
+	COSMIC_ASCENSION_API FFormatNamedArguments ArgsOf(const FGalaxyState& State, const FCosmicDataTables& Tables, int32 CivIndex, int32 SystemIndex,
+		FName OtherCivID = NAME_None, bool bNamesOther = false);
 
-	/** Takes the waiting card away: both fields of Knowing. */
+	/** The stance gate a choice of a card about the people OtherCivID meets (B3: the first contact card): the first refusal
+	 * of CosmicDiplomacy::StanceBlockOf (bMet true, as the effect asks) of a SetStance in its OnSuccess on the context's
+	 * other people (an empty Key) - None when it would be taken, or is held already (Same), or names no other people. The
+	 * card greys such a choice, the answer refuses it and the policy passes it by. */
+	COSMIC_ASCENSION_API CosmicDiplomacy::ECosmicStanceBlock StanceBlockOfChoice(const FGalaxyState& State, const FCosmicStateIndex& Index,
+		const FCosmicRulesDef& Rules, int32 CivIndex, FName OtherCivID, const FEncounterChoice& Choice);
+
+	/** Takes the waiting card away: both fields of Knowing (PendingPetitionRow, PendingPetitionSystemID). It never touches
+	 * Knowing.PendingContactCivID: every answer calls it, and a first contact card waiting behind another petition stays. */
 	COSMIC_ASCENSION_API void Clear(FGalaxyState& State);
 
 	/** Records an answered row in the open life: the end of Calling.Lives.Last().LastChoiceRows, the last three kept. */

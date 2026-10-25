@@ -36,7 +36,7 @@ namespace CosmicHashRun
 		// -CosmicHashEvery=<ticks>: a checkpoint line at tick 0 and after every Every ticks (Absent or 0 = none; Bad as above).
 		ESwitch EveryKind = ESwitch::Absent;
 		int64 Every = 0;
-		// -CosmicHashPolicy: the ruler policy of the commandlet's -Answer=1 -Build=1 -Focus=1 -Edict=1 -TellAll=0.
+		// -CosmicHashPolicy: the ruler policy of the commandlet's -Answer=1 -Build=1 -Focus=1 -Edict=1 -Diplomacy=1 -TellAll=0.
 		bool bPolicy = false;
 		// The values as given, for the refusal line.
 		FString Text;

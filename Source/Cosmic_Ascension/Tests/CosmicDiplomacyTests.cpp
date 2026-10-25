@@ -16,6 +16,7 @@
 #include "Engine/DataTable.h"
 #include "Engine/GameInstance.h"
 #include "Events/CosmicEventSubsystem.h"
+#include "Events/CosmicPetitions.h"
 #include "GameplayTagContainer.h"
 #include "Log/CosmicChronicle.h"
 #include "Log/CosmicLogSubsystem.h"
@@ -31,6 +32,7 @@
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
 #include "World/CosmicAutoPause.h"
+#include "World/CosmicRulerPolicy.h"
 
 namespace CosmicDiplomacyTests
 {
@@ -1626,9 +1628,11 @@ bool FCosmicSimDiplomacyAITest::RunTest(const FString& Parameters)
 		}
 		Wandering.Knowing.PendingPetitionRow = NAME_None;
 		CosmicTests::SetKnowing(Wandering, {}, { 0, 1, 2, 3 });
+		Wandering.Knowing.PendingContactCivID = Wandering.Civs[1].CivID;
 		const int32 Seed = Sim->GetRng().GetCurrentSeed();
 		if (TestTrue(TEXT("The vessel is crowned by people 2"), Role->BecomeRuler(Wandering.Civs[2].CivID) == CosmicWanderer::ECrownBlock::None))
 		{
+			TestTrue(TEXT("The coronation clears a waiting first contact"), Sim->GetState().Knowing.PendingContactCivID.IsNone());
 			const FCivilizationState& Crowned = Sim->GetState().Civs[2];
 			TestTrue(TEXT("Its siege is lifted"), Crowned.FleetTargetSystemID.IsNone() && Crowned.FleetTargetSinceTick == Sim->GetState().Tick);
 			TestFalse(TEXT("and its hostility"), Crowned.Ties.Contains(Sim->GetState().Civs[3].CivID));
@@ -1756,6 +1760,521 @@ bool FCosmicLogConflictLinesTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("A treaty's line goes in"), CosmicChronicle::Admits(Entry, Peoples));
 	Entry.SourceRow = CosmicRows::LogSiegeLifted;
 	TestTrue(TEXT("and a lifted siege's"), CosmicChronicle::Admits(Entry, Peoples));
+	return true;
+}
+
+// The ruler policy's diplomacy (B3 header section 5): the first contact card's friendly choice whatever the answers so far;
+// one command a boundary - the guard first, then friendship, then non-aggression and trade from the second rung; the
+// guard withdrawn once the siege is gone; the peace policy never hostile, the attack policy hostile and then besieging;
+// nothing without the policy or after the end; the decisions count the three commands.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimRulerDiplomacyPolicyTest, "Cosmic_Ascension.Sim.RulerDiplomacyPolicy", CosmicTests::Flags)
+bool FCosmicSimRulerDiplomacyPolicyTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicDiplomacyTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	UPlayerRoleSubsystem* Role = Sim ? Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (!Sim || !TestNotNull(TEXT("(the role subsystem)"), Role))
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	const FCosmicRulerPolicy Peace{ false, false, false, false, NAME_None, 1 };
+	const FCosmicRulerPolicy Attack{ false, false, false, false, NAME_None, 2 };
+	const FCosmicRulerPolicy None{ false, false, false, false, NAME_None, 0 };
+
+	// The first contact card: reach out whatever the answers so far; without the policy the round of every card.
+	const FEncounterDef* Card = Original.FindEncounter(CosmicRows::PetitionFirstContact);
+	if (!TestNotNull(TEXT("(the game's tables hold the first contact card)"), Card))
+	{
+		return false;
+	}
+	{
+		FGalaxyState* State = LayBoard(*Sim, Original, NoEdit);
+		if (!TestNotNull(TEXT("The board is laid"), State))
+		{
+			return false;
+		}
+		int32 Friendly = INDEX_NONE;
+		for (int32 Choice = 0; Choice < Card->Choices.Num() && Friendly == INDEX_NONE; ++Choice)
+		{
+			Friendly = Card->Choices[Choice].OnSuccess.ContainsByPredicate([](const FCosmicEffect& Effect)
+			{
+				return Effect.Type == EEffectType::SetStance && Effect.Tag == CosmicTags::StanceFriendly();
+			}) ? Choice : INDEX_NONE;
+		}
+		TestTrue(TEXT("(the card has a friendly choice)"), Friendly != INDEX_NONE);
+		bool bAlways = true;
+		bool bRounds = false;
+		for (int32 Answers = 0; Answers < 6; ++Answers)
+		{
+			bAlways &= CosmicRulerPolicy::ChoiceOf(*State, Sim->GetStateIndex(), *Card, Answers, CosmicRows::PetitionFirstContact, 1) == Friendly
+				&& CosmicRulerPolicy::ChoiceOf(*State, Sim->GetStateIndex(), *Card, Answers, CosmicRows::PetitionFirstContact, 2) == Friendly;
+			bRounds |= CosmicRulerPolicy::ChoiceOf(*State, Sim->GetStateIndex(), *Card, Answers, CosmicRows::PetitionFirstContact, 0) != Friendly;
+		}
+		TestTrue(TEXT("With a diplomacy policy the first contact card always reaches out"), bAlways);
+		TestTrue(TEXT("without one it takes its turn in the round"), bRounds);
+	}
+
+	// One command a boundary: friendship, then (from the second rung) non-aggression and trade, then nothing.
+	{
+		FGalaxyState* State = LayBoard(*Sim, Original, Fleets);
+		if (!TestNotNull(TEXT("The board is laid"), State))
+		{
+			return false;
+		}
+		TArray<FCivilizationState>& Civs = State->Civs;
+		const FName One = Civs[1].CivID;
+		Civs[0].Stockpile.Influence = 200.f;
+		Civs[0].IncomePerTick.Influence = 5.f;
+		FCosmicRulerPolicyCounts Counts;
+		CosmicRulerPolicy::ActDiplomacy(None, *Sim, *Role, Counts);
+		TestTrue(TEXT("Without the policy nothing is done"), Civs[0].Ties.IsEmpty() && Counts.StanceChanges == 0);
+		CosmicRulerPolicy::ActDiplomacy(Peace, *Sim, *Role, Counts);
+		TestTrue(TEXT("The first boundary turns the bordering people friendly"), CosmicDiplomacy::StanceOf(Civs[0], One) == CosmicTags::StanceFriendly()
+			&& Counts.StanceChanges == 1 && Counts.TreatiesSigned == 0);
+		CosmicRulerPolicy::ActDiplomacy(Peace, *Sim, *Role, Counts);
+		TestTrue(TEXT("On the first rung no treaty follows"), Counts.StanceChanges == 1 && Counts.TreatiesSigned == 0 && Counts.TreatyLooks.IsEmpty());
+		Civs[0].Tier = EAscensionTier::Tier2_Stellar;
+		CosmicRulerPolicy::ActDiplomacy(Peace, *Sim, *Role, Counts);
+		TestTrue(TEXT("From the second rung: non-aggression first"), CosmicDiplomacy::HasTreaty(Civs[0], One, CosmicTags::TreatyNonAggression())
+			&& !CosmicDiplomacy::HasTreaty(Civs[0], One, CosmicTags::TreatyTrade()) && Counts.TreatiesSigned == 1);
+		CosmicRulerPolicy::ActDiplomacy(Peace, *Sim, *Role, Counts);
+		TestTrue(TEXT("then trade, one a boundary"), CosmicDiplomacy::HasTreaty(Civs[0], One, CosmicTags::TreatyTrade()) && Counts.TreatiesSigned == 2
+			&& Counts.TreatiesProposedBorder == 2);
+		const int32 Done = Counts.StanceChanges + Counts.TreatiesSigned + Counts.FleetTargetChanges;
+		CosmicRulerPolicy::ActDiplomacy(Peace, *Sim, *Role, Counts);
+		TestEqual(TEXT("and then nothing more"), Counts.StanceChanges + Counts.TreatiesSigned + Counts.FleetTargetChanges, Done);
+		TestTrue(TEXT("The met peoples that do not border were looked at once each (no proposal to them)"),
+			Counts.TreatiesProposedOther + Counts.TreatiesRefusedOther == 4 && Counts.TreatyLooks.Num() == 6);
+		TestEqual(TEXT("The decisions count the diplomacy"), CosmicRulerPolicy::DecisionsOf(Counts), 3);
+
+		// The guard: a siege on our system is guarded against first; withdrawn once it is gone.
+		Civs[0].FleetPower = 1.f;
+		Civs[2].Tier = EAscensionTier::Tier2_Stellar;
+		Civs[2].FleetPower = 1.f;
+		Civs[2].FleetTargetSystemID = IDOf(*State, 1);
+		Civs[2].FleetTargetSinceTick = State->Tick;
+		CosmicRulerPolicy::ActDiplomacy(Peace, *Sim, *Role, Counts);
+		TestTrue(TEXT("A siege on our system is guarded against"), Civs[0].FleetTargetSystemID == IDOf(*State, 1) && Counts.FleetTargetChanges == 1);
+		CosmicRulerPolicy::ActDiplomacy(Peace, *Sim, *Role, Counts);
+		TestEqual(TEXT("(and the guard stands)"), Counts.FleetTargetChanges, 1);
+		Civs[2].FleetTargetSystemID = NAME_None;
+		CosmicRulerPolicy::ActDiplomacy(Peace, *Sim, *Role, Counts);
+		TestTrue(TEXT("Once the siege is gone the guard is withdrawn"), Civs[0].FleetTargetSystemID.IsNone() && Counts.FleetTargetChanges == 2);
+		TestEqual(TEXT("The decisions count the fleet commands too"), CosmicRulerPolicy::DecisionsOf(Counts), 5);
+		TestFalse(TEXT("The peace policy never turned hostile"), Civs[0].Ties.Contains(Civs[2].CivID) && Civs[0].Ties[Civs[2].CivID].Stance == CosmicTags::StanceHostile());
+
+		// After the end: nothing.
+		Counts.bEnded = true;
+		Civs[2].FleetTargetSystemID = IDOf(*State, 1);
+		CosmicRulerPolicy::ActDiplomacy(Peace, *Sim, *Role, Counts);
+		TestTrue(TEXT("Nothing after the end"), Civs[0].FleetTargetSystemID.IsNone() && Counts.FleetTargetChanges == 2);
+	}
+
+	// The attack policy: with friendship and treaties out of reach, hostility, then the siege - one a boundary.
+	{
+		FGalaxyState* State = LayBoard(*Sim, Original, Fleets);
+		if (!TestNotNull(TEXT("The board is laid"), State))
+		{
+			return false;
+		}
+		TArray<FCivilizationState>& Civs = State->Civs;
+		const FName One = Civs[1].CivID;
+		Civs[0].Tier = EAscensionTier::Tier2_Stellar;
+		Civs[0].FleetPower = 1.f;
+		Civs[0].Stockpile.Influence = 0.f;
+		CosmicDiplomacy::SetStanceOf(Civs[0], Civs[3].CivID, CosmicTags::StanceFriendly());
+		FCosmicRulerPolicyCounts Counts;
+		for (int32 Boundary = 0; Boundary < 5; ++Boundary)
+		{
+			CosmicRulerPolicy::ActDiplomacy(Peace, *Sim, *Role, Counts);
+		}
+		TestTrue(TEXT("(the peace policy does nothing here)"), Counts.StanceChanges + Counts.TreatiesSigned + Counts.FleetTargetChanges == 0);
+		CosmicRulerPolicy::ActDiplomacy(Attack, *Sim, *Role, Counts);
+		TestTrue(TEXT("The attack policy turns the bordering people hostile"), CosmicDiplomacy::StanceOf(Civs[0], One) == CosmicTags::StanceHostile()
+			&& Counts.StanceChanges == 1 && Civs[0].FleetTargetSystemID.IsNone());
+		CosmicRulerPolicy::ActDiplomacy(Attack, *Sim, *Role, Counts);
+		TestTrue(TEXT("and at the next boundary besieges its first system the gate takes"), Civs[0].FleetTargetSystemID == IDOf(*State, 2) && Counts.FleetTargetChanges == 1);
+		// Besieging, it guards nothing: a siege on its own system meanwhile leaves the fleet where it is.
+		Civs[1].FleetPower = 1.f;
+		Civs[1].FleetTargetSystemID = IDOf(*State, 1);
+		CosmicRulerPolicy::ActDiplomacy(Attack, *Sim, *Role, Counts);
+		TestTrue(TEXT("While it besieges, a siege on its own system draws no guard"), Civs[0].FleetTargetSystemID == IDOf(*State, 2) && Counts.FleetTargetChanges == 1);
+		Civs[1].FleetTargetSystemID = NAME_None;
+		// A hostility with no system to besiege (people 2 borders none of ours) is turned neutral before another opens.
+		Civs[0].FleetTargetSystemID = NAME_None;
+		CosmicDiplomacy::SetStanceOf(Civs[0], One, FGameplayTag());
+		CosmicDiplomacy::SetStanceOf(Civs[0], Civs[2].CivID, CosmicTags::StanceHostile());
+		const int32 Stances = Counts.StanceChanges;
+		CosmicRulerPolicy::ActDiplomacy(Attack, *Sim, *Role, Counts);
+		TestTrue(TEXT("A hostility with nothing to besiege is turned neutral first"), !CosmicDiplomacy::StanceOf(Civs[0], Civs[2].CivID).IsValid()
+			&& !CosmicDiplomacy::StanceOf(Civs[0], One).IsValid() && Counts.StanceChanges == Stances + 1);
+	}
+
+	// One boundary, a siege and a free friendly slot: the guard first.
+	{
+		FGalaxyState* State = LayBoard(*Sim, Original, Fleets);
+		if (!TestNotNull(TEXT("The board is laid"), State))
+		{
+			return false;
+		}
+		TArray<FCivilizationState>& Civs = State->Civs;
+		Civs[0].Tier = EAscensionTier::Tier2_Stellar;
+		Civs[0].FleetPower = 1.f;
+		Civs[0].Stockpile.Influence = 200.f;
+		Civs[0].IncomePerTick.Influence = 5.f;
+		Civs[2].Tier = EAscensionTier::Tier2_Stellar;
+		Civs[2].FleetPower = 1.f;
+		Civs[2].FleetTargetSystemID = IDOf(*State, 1);
+		FCosmicRulerPolicyCounts Counts;
+		CosmicRulerPolicy::ActDiplomacy(Peace, *Sim, *Role, Counts);
+		TestTrue(TEXT("A siege and a free friendly slot at one boundary: the guard first"), Civs[0].FleetTargetSystemID == IDOf(*State, 1)
+			&& Counts.FleetTargetChanges == 1 && Counts.StanceChanges == 0);
+		// The people of a waiting first contact card is left to the card.
+		Civs[2].FleetTargetSystemID = NAME_None;
+		Civs[0].FleetTargetSystemID = IDOf(*State, 1);
+		State->Knowing.PendingContactCivID = Civs[1].CivID;
+		CosmicRulerPolicy::ActDiplomacy(Peace, *Sim, *Role, Counts);
+		TestTrue(TEXT("(the guard withdrawn)"), Civs[0].FleetTargetSystemID.IsNone());
+		CosmicRulerPolicy::ActDiplomacy(Peace, *Sim, *Role, Counts);
+		TestEqual(TEXT("The people of a waiting first contact card gets no friendship from the policy"), Counts.StanceChanges, 0);
+		State->Knowing.PendingContactCivID = NAME_None;
+		// A friendship the income cannot keep is not set.
+		Civs[0].IncomePerTick.Influence = 0.f;
+		CosmicRulerPolicy::ActDiplomacy(Peace, *Sim, *Role, Counts);
+		TestEqual(TEXT("Without the Influence income to keep it, no friendship"), Counts.StanceChanges, 0);
+		Civs[0].IncomePerTick.Influence = 5.f;
+		CosmicRulerPolicy::ActDiplomacy(Peace, *Sim, *Role, Counts);
+		TestEqual(TEXT("with it, the friendship"), Counts.StanceChanges, 1);
+	}
+
+	// One command a boundary also when a treaty could follow the friendship at once (from the second rung).
+	{
+		FGalaxyState* State = LayBoard(*Sim, Original, NoEdit);
+		if (!TestNotNull(TEXT("The board is laid"), State))
+		{
+			return false;
+		}
+		TArray<FCivilizationState>& Civs = State->Civs;
+		const FName One = Civs[1].CivID;
+		Civs[0].Tier = EAscensionTier::Tier2_Stellar;
+		Civs[0].Stockpile.Influence = 200.f;
+		Civs[0].IncomePerTick.Influence = 5.f;
+		FCosmicRulerPolicyCounts Counts;
+		CosmicRulerPolicy::ActDiplomacy(Peace, *Sim, *Role, Counts);
+		TestTrue(TEXT("On the second rung the friendship ends the boundary"), CosmicDiplomacy::StanceOf(Civs[0], One) == CosmicTags::StanceFriendly()
+			&& Counts.StanceChanges == 1 && Counts.TreatiesSigned == 0);
+		CosmicRulerPolicy::ActDiplomacy(Peace, *Sim, *Role, Counts);
+		TestTrue(TEXT("(a treaty was there to take: the next boundary signs it)"), Counts.TreatiesSigned == 1);
+	}
+
+	// The attack policy offers no treaty (a non-aggression would close the siege gate on the neighbour, a trade would make
+	// the siege a betrayal), and keeps a guard while the siege on its system stands.
+	{
+		FGalaxyState* State = LayBoard(*Sim, Original, NoEdit);
+		if (!TestNotNull(TEXT("The board is laid"), State))
+		{
+			return false;
+		}
+		TArray<FCivilizationState>& Civs = State->Civs;
+		const FName One = Civs[1].CivID;
+		Civs[0].Tier = EAscensionTier::Tier2_Stellar;
+		Civs[0].Stockpile.Influence = 200.f;
+		Civs[0].IncomePerTick.Influence = 5.f;
+		CosmicDiplomacy::SetStanceOf(Civs[0], One, CosmicTags::StanceFriendly());
+		FCosmicRulerPolicyCounts Counts;
+		for (int32 Boundary = 0; Boundary < 3; ++Boundary)
+		{
+			CosmicRulerPolicy::ActDiplomacy(Attack, *Sim, *Role, Counts);
+		}
+		TestTrue(TEXT("The attack policy offers no treaty"), !CosmicDiplomacy::HasTreaty(Civs[0], One, CosmicTags::TreatyTrade())
+			&& !CosmicDiplomacy::HasTreaty(Civs[0], One, CosmicTags::TreatyNonAggression()) && Counts.TreatiesSigned == 0);
+		// With fleets: a siege on its system is guarded, and the guard stands while the siege does - no hostility opened.
+		FGalaxyState* Armed = LayBoard(*Sim, Original, Fleets);
+		if (!TestNotNull(TEXT("The board is laid"), Armed))
+		{
+			return false;
+		}
+		TArray<FCivilizationState>& Peoples = Armed->Civs;
+		Peoples[0].Tier = EAscensionTier::Tier2_Stellar;
+		Peoples[0].FleetPower = 1.f;
+		CosmicDiplomacy::SetStanceOf(Peoples[0], Peoples[3].CivID, CosmicTags::StanceFriendly());
+		Peoples[2].Tier = EAscensionTier::Tier2_Stellar;
+		Peoples[2].FleetPower = 1.f;
+		Peoples[2].FleetTargetSystemID = IDOf(*Armed, 1);
+		FCosmicRulerPolicyCounts Guarding;
+		CosmicRulerPolicy::ActDiplomacy(Attack, *Sim, *Role, Guarding);
+		TestTrue(TEXT("The attack policy guards a siege on its system"), Peoples[0].FleetTargetSystemID == IDOf(*Armed, 1) && Guarding.FleetTargetChanges == 1);
+		CosmicRulerPolicy::ActDiplomacy(Attack, *Sim, *Role, Guarding);
+		TestTrue(TEXT("and while the siege stands the guard holds - no hostility opened"), Peoples[0].FleetTargetSystemID == IDOf(*Armed, 1)
+			&& Guarding.StanceChanges == 0 && Guarding.FleetTargetChanges == 1);
+	}
+
+	// Through Act, the path the commandlet and the hash run play: the card reaches out whatever the round says.
+	{
+		FGalaxyState* State = LayBoard(*Sim, Original, NoEdit);
+		if (!TestNotNull(TEXT("The board is laid"), State))
+		{
+			return false;
+		}
+		State->Knowing.FirstContactCivID = NAME_None;
+		Unmeet(*State, 1);
+		Sim->NoteMet(State->Civs[1].CivID);
+		TestTrue(TEXT("(the card is put)"), CosmicPetitions::Present(*State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), TArray<FCosmicPetitionUnit>())
+			&& State->Knowing.PendingPetitionRow == CosmicRows::PetitionFirstContact);
+		FCosmicRulerPolicyCounts Counts;
+		Counts.Answers = 1;
+		Counts.bEnded = true;
+		CosmicRulerPolicy::Act(FCosmicRulerPolicy{ true, false, false, false, NAME_None, 1 }, *Sim, *Role, NAME_None, Counts);
+		TestTrue(TEXT("Act answers the card by reaching out (the round alone would watch)"), CosmicDiplomacy::StanceOf(State->Civs[0], State->Civs[1].CivID) == CosmicTags::StanceFriendly()
+			&& Counts.Answers == 2 && Counts.StanceChanges == 0);
+	}
+	return true;
+}
+
+// The first contact card (B3 header section 2.9): the first meeting writes its slot (a ruler, the row in the table); the end
+// of the knowing stage puts it while no petition waits, after a Standing card that came to hold in the tick and before the
+// periodic slot - it waits behind a waiting petition, and answering that one keeps the slot;
+// its answer is about the people met (OtherID, {OtherCiv}): one draw, friendly through the stance gate or nothing, the
+// slot cleared; a card whose people is gone is withdrawn; the slot comes back after a load and goes with a new life or a
+// wanderer's.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimFirstContactCardTest, "Cosmic_Ascension.Sim.FirstContactCard", CosmicTests::Flags)
+bool FCosmicSimFirstContactCardTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicDiplomacyTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	UPlayerRoleSubsystem* Role = Sim ? Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (!Sim || !TestNotNull(TEXT("(the role subsystem)"), Role))
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	if (!TestNotNull(TEXT("(the game's tables hold the first contact card)"), Original.FindEncounter(CosmicRows::PetitionFirstContact)))
+	{
+		return false;
+	}
+	const FName Feast(TEXT("petition_feast"));
+	// A board on which people 1 is not met yet and nothing has been met first; every card payable.
+	auto Lay = [&](const FCosmicDataTables& From) -> FGalaxyState*
+	{
+		FGalaxyState* Laid = LayBoard(*Sim, From, NoEdit);
+		if (Laid)
+		{
+			Laid->Knowing.FirstContactCivID = NAME_None;
+			Unmeet(*Laid, 1);
+			FResourcePool Plenty;
+			Plenty.Energy = Plenty.Matter = Plenty.Insight = Plenty.Influence = Plenty.Causality = 1000.f;
+			Laid->Civs[0].Stockpile = Plenty;
+		}
+		return Laid;
+	};
+	auto Put = [&](FGalaxyState& Live)
+	{
+		return CosmicPetitions::Present(Live, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), TArray<FCosmicPetitionUnit>());
+	};
+
+	// The slot: written at the first meeting of the run, about that people - and not without the row.
+	{
+		FGalaxyState* State = Lay(CosmicTests::WithoutDiplomacy(Original));
+		if (!TestNotNull(TEXT("(the board without the card's row)"), State))
+		{
+			return false;
+		}
+		TestTrue(TEXT("(a first meeting)"), Sim->NoteMet(State->Civs[1].CivID));
+		TestTrue(TEXT("Without the row the first meeting leaves the slot empty"), State->Knowing.PendingContactCivID.IsNone()
+			&& State->Knowing.FirstContactCivID == State->Civs[1].CivID);
+	}
+	FGalaxyState* State = Lay(Original);
+	if (!TestNotNull(TEXT("The board is laid"), State))
+	{
+		return false;
+	}
+	TArray<FCivilizationState>& Civs = State->Civs;
+	const FName One = Civs[1].CivID;
+	const FName Two = Civs[2].CivID;
+	TestTrue(TEXT("(a first meeting)"), Sim->NoteMet(One));
+	TestEqual(TEXT("The first meeting writes the slot with the people met"), State->Knowing.PendingContactCivID, One);
+	Unmeet(*State, 2);
+	TestTrue(TEXT("(a later meeting)"), Sim->NoteMet(Two));
+	TestEqual(TEXT("and a later meeting leaves it"), State->Knowing.PendingContactCivID, One);
+
+	// It waits behind a petition, and answering that one keeps it: it comes at the end of the next knowing stage.
+	State->Knowing.PendingPetitionRow = Feast;
+	TestFalse(TEXT("While a petition waits the card is not put"), Put(*State));
+	TestTrue(TEXT("(that petition still waits)"), State->Knowing.PendingPetitionRow == Feast && State->Knowing.PendingContactCivID == One);
+	const FCosmicPetitionAnswer Other = Role->AnswerPetition(0);
+	TestTrue(TEXT("Answering the other petition keeps the slot"), Other.Outcome != ECosmicPetitionOutcome::Refused && State->Knowing.PendingContactCivID == One);
+	TestTrue(TEXT("and puts no card: the first contact card waits for the knowing stage"), State->Knowing.PendingPetitionRow.IsNone());
+	Sim->StepOnce();
+	TestEqual(TEXT("and the card comes at the end of the next knowing stage"), State->Knowing.PendingPetitionRow, CosmicRows::PetitionFirstContact);
+	TestTrue(TEXT("(about the people, no system)"), State->Knowing.PendingPetitionSystemID.IsNone());
+
+	// It comes back after a load.
+	{
+		FGalaxyState Saved = *State;
+		Saved.Knowing.PendingPetitionRow = NAME_None;
+		Sim->LoadState(Saved);
+		State = &Sim->GetMutableState();
+		TestTrue(TEXT("After a load the slot puts the card again"), Put(*State) && State->Knowing.PendingPetitionRow == CosmicRows::PetitionFirstContact);
+	}
+
+	// Its words name the people met.
+	const FEncounterDef* Card = Sim->GetTables().FindEncounter(CosmicRows::PetitionFirstContact);
+	{
+		const FFormatNamedArguments Args = CosmicPetitions::ArgsOf(*State, Sim->GetTables(), 0, INDEX_NONE, One);
+		TestTrue(TEXT("{OtherCiv} is the people met"), Card && FText::Format(Card->Title, Args).ToString().Contains(State->Civs[1].CivName.ToString()));
+		const FFormatNamedArguments None = CosmicPetitions::ArgsOf(*State, Sim->GetTables(), 0, INDEX_NONE);
+		TestTrue(TEXT("and empty words without one"), Card && !FText::Format(Card->Title, None).ToString().Contains(TEXT("{")));
+	}
+
+	// [Reach out]: one draw, the people met turned friendly (the context's OtherID), its line naming it, the slot cleared.
+	{
+		const int32 Seed = Sim->GetRng().GetCurrentSeed();
+		const FCosmicPetitionAnswer Answer = Role->AnswerPetition(0);
+		TestTrue(TEXT("Reaching out is taken"), Answer.Outcome == ECosmicPetitionOutcome::Succeeded);
+		TestEqual(TEXT("with one draw"), DrawsBetween(Seed, Sim->GetState().RngState), 1);
+		TestTrue(TEXT("The people met is friendly now"), CosmicDiplomacy::StanceOf(State->Civs[0], One) == CosmicTags::StanceFriendly()
+			&& CosmicDiplomacy::FriendlyCountOf(State->Civs[0]) == 1);
+		TestTrue(TEXT("(no other people)"), CosmicDiplomacy::StanceOf(State->Civs[0], Two) != CosmicTags::StanceFriendly());
+		TestTrue(TEXT("Its line names the people"), Answer.Line.ToString().Contains(State->Civs[1].CivName.ToString()) && !Answer.Line.ToString().Contains(TEXT("{")));
+		TestTrue(TEXT("The slot and the card are cleared"), State->Knowing.PendingContactCivID.IsNone() && State->Knowing.PendingPetitionRow.IsNone());
+		TestFalse(TEXT("and nothing is put again"), Put(*State));
+		Unmeet(*State, 3);
+		TestTrue(TEXT("(a new meeting after the card was answered)"), Sim->NoteMet(State->Civs[3].CivID));
+		TestTrue(TEXT("A meeting after the card was answered writes no slot"), State->Knowing.PendingContactCivID.IsNone());
+		TestFalse(TEXT("and puts no card"), Put(*State));
+	}
+
+	// [Watch]: one draw, nothing changes but the slot.
+	State = Lay(Original);
+	Sim->NoteMet(State->Civs[1].CivID);
+	TestTrue(TEXT("(the card is put)"), Put(*State));
+	{
+		const int32 Seed = Sim->GetRng().GetCurrentSeed();
+		const FCosmicPetitionAnswer Answer = Role->AnswerPetition(1);
+		TestTrue(TEXT("Watching is taken with one draw"), Answer.Outcome == ECosmicPetitionOutcome::Succeeded && DrawsBetween(Seed, Sim->GetState().RngState) == 1);
+		TestTrue(TEXT("and changes no stance"), State->Civs[0].Ties.IsEmpty() && State->Knowing.PendingContactCivID.IsNone());
+	}
+
+	// The effect passes the stance gate: with the only friendly slot taken, reaching out changes nothing.
+	State = Lay(Original);
+	Sim->NoteMet(State->Civs[1].CivID);
+	CosmicDiplomacy::SetStanceOf(State->Civs[0], State->Civs[2].CivID, CosmicTags::StanceFriendly());
+	TestTrue(TEXT("(the card is put)"), Put(*State));
+	{
+		TestTrue(TEXT("With the only friendly slot taken, the gate refuses reaching out"), Card && CosmicPetitions::StanceBlockOfChoice(*State, Sim->GetStateIndex(),
+			Sim->GetRules(), 0, State->Civs[1].CivID, Card->Choices[0]) == CosmicDiplomacy::ECosmicStanceBlock::FriendlySlots);
+		const int32 Seed = Sim->GetRng().GetCurrentSeed();
+		AddExpectedError(TEXT("the stance gate refuses choice 0"), EAutomationExpectedErrorFlags::Contains, 1);
+		const FCosmicPetitionAnswer Answer = Role->AnswerPetition(0);
+		TestTrue(TEXT("and the answer refuses it as an unpaid cost: nothing drawn, nothing changed"), Answer.Outcome == ECosmicPetitionOutcome::Refused
+			&& Sim->GetRng().GetCurrentSeed() == Seed && CosmicDiplomacy::StanceOf(State->Civs[0], State->Civs[1].CivID) != CosmicTags::StanceFriendly());
+		TestTrue(TEXT("(the card and its slot wait)"), State->Knowing.PendingPetitionRow == CosmicRows::PetitionFirstContact
+			&& State->Knowing.PendingContactCivID == State->Civs[1].CivID);
+		TestEqual(TEXT("The policy then watches"), CosmicRulerPolicy::ChoiceOf(*State, Sim->GetStateIndex(), *Card, 0, CosmicRows::PetitionFirstContact, 1,
+			&Sim->GetRules()), 1);
+		TestTrue(TEXT("Watching is taken"), Role->AnswerPetition(1).Outcome == ECosmicPetitionOutcome::Succeeded && State->Knowing.PendingContactCivID.IsNone());
+	}
+
+	// A Standing card that came to hold in the tick goes first (it would not come again); the contact card waits one answer
+	// and then goes before the periodic slot.
+	State = Lay(Original);
+	Sim->NoteMet(State->Civs[1].CivID);
+	State->Tick = State->Calling.BornTick + FMath::Max<int64>(1, Sim->GetRules().PetitionPeriodTicks);
+	{
+		TestTrue(TEXT("A Standing card that came to hold goes before the contact card"), Put(*State)
+			&& State->Knowing.PendingPetitionRow == FName(TEXT("petition_wise_heart")) && State->Knowing.PendingContactCivID == State->Civs[1].CivID);
+		TestTrue(TEXT("(answered)"), Role->AnswerPetition(0).Outcome == ECosmicPetitionOutcome::Succeeded);
+		const TArray<FCosmicPetitionUnit> Held = CosmicPetitions::StandingHeld(*State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules());
+		TestTrue(TEXT("Then the contact card goes before the periodic slot (open at this tick)"),
+			CosmicPetitions::Present(*State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), Held)
+			&& State->Knowing.PendingPetitionRow == CosmicRows::PetitionFirstContact);
+	}
+
+	// A withdrawn other petition keeps the slot, and the card still comes.
+	State = Lay(Original);
+	Sim->NoteMet(State->Civs[1].CivID);
+	State->Knowing.PendingPetitionRow = FName(TEXT("petition_walls"));
+	State->Knowing.PendingPetitionSystemID = NAME_None;
+	State->Civs[0].Stability = 0.9f;
+	{
+		const FCosmicPetitionAnswer Answer = Role->AnswerPetition(1);
+		TestTrue(TEXT("A withdrawn other petition keeps the slot"), Answer.Outcome == ECosmicPetitionOutcome::Withdrawn
+			&& State->Knowing.PendingContactCivID == State->Civs[1].CivID);
+		Sim->StepOnce();
+		TestEqual(TEXT("and the card still comes"), State->Knowing.PendingPetitionRow, CosmicRows::PetitionFirstContact);
+	}
+
+	// The card's own conditions gate it: a row that does not hold is not put, and its slot waits.
+	{
+		FCosmicDataTables Gated = Original;
+		Gated.Encounters = CosmicTests::NewTable(FEncounterDef::StaticStruct());
+		for (const TPair<FName, uint8*>& Each : Original.Encounters->GetRowMap())
+		{
+			FEncounterDef Row = *reinterpret_cast<const FEncounterDef*>(Each.Value);
+			if (Each.Key == CosmicRows::PetitionFirstContact)
+			{
+				FCosmicCondition Never;
+				Never.Type = EConditionType::GalaxyTickAtLeast;
+				Never.Value = 1.0e9f;
+				Row.Conditions.Add(Never);
+			}
+			Gated.Encounters->AddRow(Each.Key, Row);
+		}
+		State = Lay(Gated);
+		Sim->NoteMet(State->Civs[1].CivID);
+		TestFalse(TEXT("A first contact card whose row does not hold is not put"), Put(*State) && State->Knowing.PendingPetitionRow == CosmicRows::PetitionFirstContact);
+		TestEqual(TEXT("and its slot waits"), State->Knowing.PendingContactCivID, State->Civs[1].CivID);
+	}
+
+	// Its words for a people gone: the card's own words, no empty name - for the slot the crossing stage's cleanup clears
+	// (the card waiting) and for a people not in Civs; without the first contact card's flag, empty words.
+	{
+		const FFormatNamedArguments Cleared = CosmicPetitions::ArgsOf(*State, Sim->GetTables(), 0, INDEX_NONE, NAME_None, true);
+		TestEqual(TEXT("A first contact card whose slot was cleared names the people by the card's own words"), FText::Format(INVTEXT("{OtherCiv}"), Cleared).ToString(),
+			FText::FromStringTable(CosmicLabels::TableId, TEXT("Petition.OtherGone"), EStringTableLoadingPolicy::FindOrFullyLoad).ToString());
+		TestTrue(TEXT("(another card names no one)"), FText::Format(INVTEXT("{OtherCiv}"), CosmicPetitions::ArgsOf(*State, Sim->GetTables(), 0, INDEX_NONE)).IsEmpty());
+	}
+	{
+		const FFormatNamedArguments Gone = CosmicPetitions::ArgsOf(*State, Sim->GetTables(), 0, INDEX_NONE, FName(TEXT("civ_test_gone")), true);
+		TestEqual(TEXT("A people gone is named by the card's own words"), FText::Format(INVTEXT("{OtherCiv}"), Gone).ToString(),
+			FText::FromStringTable(CosmicLabels::TableId, TEXT("Petition.OtherGone"), EStringTableLoadingPolicy::FindOrFullyLoad).ToString());
+	}
+
+	// A people gone: the card no longer stands - withdrawn, one draw, the slot cleared.
+	State = Lay(Original);
+	Sim->NoteMet(State->Civs[1].CivID);
+	TestTrue(TEXT("(the card is put)"), Put(*State));
+	State->Knowing.PendingContactCivID = FName(TEXT("civ_test_gone"));
+	TestFalse(TEXT("A card about a people gone does not stand"), CosmicPetitions::StillStands(*State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules()));
+	{
+		const int32 Seed = Sim->GetRng().GetCurrentSeed();
+		const FCosmicPetitionAnswer Answer = Role->AnswerPetition(0);
+		TestTrue(TEXT("Its answer is withdrawn with one draw"), Answer.Outcome == ECosmicPetitionOutcome::Withdrawn && DrawsBetween(Seed, Sim->GetState().RngState) == 1);
+		TestTrue(TEXT("and clears the slot"), State->Knowing.PendingContactCivID.IsNone() && State->Knowing.PendingPetitionRow.IsNone());
+	}
+	State->Knowing.PendingContactCivID = FName(TEXT("civ_test_gone"));
+	TestFalse(TEXT("Nor is it put for a people gone"), Put(*State));
+
+	// A new life and a wanderer's take the slot away.
+	State = Lay(Original);
+	Sim->NoteMet(State->Civs[1].CivID);
+	Role->Install(IDOf(*State, 0), State->Civs[0].CivID, EPlayerRole::Ruler);
+	TestTrue(TEXT("Install clears the slot"), State->Knowing.PendingContactCivID.IsNone());
+	State = Lay(Original);
+	Sim->NoteMet(State->Civs[1].CivID);
+	Role->BecomeWanderer(Tag(TEXT("AI.Profile.Conservative")), Tag(TEXT("Reign.Deposed")));
+	TestTrue(TEXT("and so does becoming a wanderer"), State->Knowing.PendingContactCivID.IsNone());
+	State = Lay(Original);
+	Role->BecomeWanderer(Tag(TEXT("AI.Profile.Conservative")), Tag(TEXT("Reign.Deposed")));
+	State = &Sim->GetMutableState();
+	State->Knowing.FirstContactCivID = NAME_None;
+	Unmeet(*State, 1);
+	TestTrue(TEXT("(a wanderer's first meeting)"), Sim->NoteMet(State->Civs[1].CivID));
+	TestTrue(TEXT("A wanderer's first meeting is the first contact but writes no slot"), State->Knowing.FirstContactCivID == State->Civs[1].CivID
+		&& State->Knowing.PendingContactCivID.IsNone());
 	return true;
 }
 

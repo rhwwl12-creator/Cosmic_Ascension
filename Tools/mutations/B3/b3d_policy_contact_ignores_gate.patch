@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -85,7 +85,7 @@
+ 	auto Taken = [&](int32 Choice)
+ 	{
+ 		return CosmicMegaprojects::CanPay(State.Civs[CivIndex].Stockpile, CosmicPetitions::CostOf(Row.Choices[Choice]))
+-			&& (!Rules || CosmicPetitions::StanceBlockOfChoice(State, Index, *Rules, CivIndex, Other, Row.Choices[Choice]) == CosmicDiplomacy::ECosmicStanceBlock::None);
++;
+ 	};
+ 	// The first contact card under a diplomacy policy (B3): reach out.
+ 	if (Diplomacy != 0 && RowName == CosmicRows::PetitionFirstContact)

@@ -1837,8 +1837,8 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 			Expect(TEXT("a resource of a pool below the least of its column"), With(TEXT("DT_Megaprojects"), Projects),
 				{ TEXT("DT_Megaprojects.project_settle.CostPerTick.Matter"), TEXT("is below 0") });
 		}
-		// A list of structs, entry by entry and member by member. DT_Encounters has no asset before its first rows: a table
-		// of the test stands in for it.
+		// A list of structs, entry by entry and member by member: a table of the test stands in for DT_Encounters, with the
+		// first contact card the code calls by name (B3) copied from the game's.
 		{
 			auto WithCard = [&](TFunctionRef<void(FEncounterDef&)> Change)
 			{
@@ -1856,6 +1856,10 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 				UDataTable* Table = NewObject<UDataTable>(GetTransientPackage());
 				Table->RowStruct = FEncounterDef::StaticStruct();
 				Table->AddRow(FName(TEXT("petition_test")), Row);
+				if (const FEncounterDef* Contact = Game.FindEncounter(CosmicRows::PetitionFirstContact))
+				{
+					Table->AddRow(CosmicRows::PetitionFirstContact, *Contact);
+				}
 				return With(TEXT("DT_Encounters"), Table);
 			};
 			TestTrue(TEXT("A table of cards that holds the schema passes"), Report(TEXT("cards"), WithCard([](FEncounterDef&) {})));

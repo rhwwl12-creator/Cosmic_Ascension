@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -450,7 +450,6 @@
+ 		&& CosmicPetitions::StanceBlockOfChoice(State, Index, Sim->GetRules(), RuledIndex, OtherCivID, Choice) != CosmicDiplomacy::ECosmicStanceBlock::None)
+ 	{
+ 		UE_LOG(LogCosmic, Error, TEXT("AnswerPetition: the stance gate refuses choice %d of %s"), ChoiceIndex, *RowName.ToString());
+-		return Answer;
+ 	}
+ 
+ 	// One number of the sim stream for every answer taken, before the choice is read any further (section 9.2).

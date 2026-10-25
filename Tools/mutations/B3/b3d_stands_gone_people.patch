@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
+@@ -430,7 +430,7 @@
+ 		return false;
+ 	}
+ 	// The first contact card stands while the people it is about does (B3).
+-	if (RowName == CosmicRows::PetitionFirstContact && !State.Civs.IsValidIndex(Index.FindCiv(State, State.Knowing.PendingContactCivID)))
++	if (RowName == CosmicRows::PetitionFirstContact && State.Knowing.PendingContactCivID.IsNone())
+ 	{
+ 		return false;
+ 	}

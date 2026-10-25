@@ -63,6 +63,32 @@ struct FCosmicPressure
 	EAscensionTier DominantTier = EAscensionTier::Tier1_Planetary;
 };
 
+// The time four stages took (B3 header section 5 - the balance commandlet's stage line): off until a caller turns it on.
+// Never saved, hashed or read by a rule; it changes no order and draws nothing. Cycles of FPlatformTime::Cycles64 summed per
+// stage - [0] diplomacy, [1] conflict, [2] crisis, [3] AI - over Ticks ticks. While it is on, the conflict stage also notes
+// the sieges it ended (the commandlet's conflict line reads them, then empties the list): taken, held (the attacker
+// repulsed) or lifted (its gate closed), with the attacker, the owner before the end and the system.
+struct FCosmicStageClock
+{
+	enum class ESiegeEnd : uint8
+	{
+		Taken,
+		Held,
+		Lifted,
+	};
+	struct FSiegeEnd
+	{
+		ESiegeEnd Kind = ESiegeEnd::Lifted;
+		FName Attacker;
+		FName Owner;
+		FName SystemID;
+	};
+	bool bOn = false;
+	uint64 Cycles[4] = {};
+	int64 Ticks = 0;
+	TArray<FSiegeEnd> SiegeEnds;
+};
+
 /**
  * Fixed-step simulation of one run (section 7.4). Owns the whole runtime state (FGalaxyState) and the sim random stream.
  * One tick = one galaxy cycle; at 1x speed one second is one tick (section 2.1).
@@ -205,7 +231,8 @@ public:
 	 * and told at once, through the tell stream only (no sim draw): the first meeting of the run - while
 	 * Knowing.FirstContactCivID is NAME_None - writes that field and tells CosmicRows::LogFirstContact, any later one
 	 * CosmicRows::LogContact, both Severity 1 about that people and about SeenAtSystemID (NAME_None when the caller has
-	 * no place). Never writes PendingContactCivID yet (the first contact card is B3's data commit). Returns whether the
+	 * no place). The first meeting also writes Knowing.PendingContactCivID for an embodied ruler while DT_Encounters holds
+	 * CosmicRows::PetitionFirstContact (B3: the first contact card - CosmicPetitions::Present puts it). Returns whether the
 	 * people was newly met.
 	 * Refused with an error line when called from a handler of a Core Logic delegate.
 	 */
@@ -236,6 +263,8 @@ public:
 
 	// DT_Rules single row. C++ defaults when the table or its row is missing.
 	const FCosmicRulesDef& GetRules() const { return Rules; }
+	// The stage clock (B3, measurement only - FCosmicStageClock).
+	FCosmicStageClock& GetStageClock() { return StageClock; }
 
 	// The DT_Galaxies row of the home galaxy (DT_Rules.HomeGalaxyRow). C++ defaults when the table or the row is
 	// missing; a table that lacks the row is reported with one error line, like DT_Rules.
@@ -359,6 +388,8 @@ public:
 	uint32 ComputeWorldHash() const;
 
 private:
+	FCosmicStageClock StageClock;
+
 	// Advances State.Tick first, then runs the ten stages in the fixed order and syncs the random stream state.
 	void SimulateTick();
 
