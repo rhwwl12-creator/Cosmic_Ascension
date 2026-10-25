@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -757,7 +757,7 @@
+ 	{
+ 		bool bTaken = false;
+ 		const bool bGivesNow = WouldOf(Current, WeightsNow(), bTaken).OrderIndependentCompareEqual(Current) && bTaken;
+-		if (!bGivesNow)
++		if (true)
+ 		{
+ 			SetSlidersFromShares(RuledIndex);
+ 		}

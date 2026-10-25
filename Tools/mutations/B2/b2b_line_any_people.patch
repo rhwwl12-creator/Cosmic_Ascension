@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -907,7 +907,7 @@
+ 			}
+ 			// The edict that answers the hazard standing here (B2): on a settled system of the ruled people only - another
+ 			// people's edicts are never shown.
+-			if (System.ActiveHazard.IsValid() && bRules && OwnerIndex == RuledIndex && CosmicState::IsSettled(System))
++			if (System.ActiveHazard.IsValid() && bRules && CosmicState::IsSettled(System))
+ 			{
+ 				// In an ended run only the held form stays (a fact); the other one invites a command no longer taken.
+ 				const FHazardDef* Standing = Tables.FindHazardByTag(System.ActiveHazard);

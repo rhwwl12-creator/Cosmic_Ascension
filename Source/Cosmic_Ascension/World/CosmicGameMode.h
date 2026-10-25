@@ -23,6 +23,7 @@ class FViewport;
 class ACosmicGalaxyMapActor;
 class UCosmicAscensionOverlayWidget;
 class UCosmicChronicleWidget;
+class UCosmicEdictWidget;
 class UCosmicGalaxyPanelWidget;
 class UCosmicLogFeedWidget;
 class UCosmicPetitionCardWidget;
@@ -30,6 +31,7 @@ class UCosmicSystemPanelWidget;
 class UCosmicTopBarWidget;
 class UGameViewportClient;
 class UUserWidget;
+enum class ECosmicEdictTab : uint8;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnCosmicSelectionChanged, FName /* SystemID, None when cleared */);
 
@@ -72,6 +74,7 @@ public:
  * together, section 8.3), the galaxy panel with the session's hint (CosmicUI::HintKeyOf), the log feed at the bottom left,
  * the petition card in the middle over the panels (collapsed while no card shows - MVP item 2), over them the ascension
  * presentation (hidden until an ascension), and over everything the chronicle (collapsed until the run ends - MVP item 4).
+ * The edict window (B2) stands on the left under the bar, over the panels and under the card, collapsed until it is opened.
  */
 UCLASS()
 class COSMIC_ASCENSION_API ACosmicHUD : public AHUD
@@ -89,6 +92,7 @@ public:
 	UCosmicAscensionOverlayWidget* GetAscensionOverlay() const { return Overlay; }
 	UCosmicPetitionCardWidget* GetPetitionCard() const { return Card; }
 	UCosmicChronicleWidget* GetChronicle() const { return Chronicle; }
+	UCosmicEdictWidget* GetEdictWindow() const { return EdictWindow; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -121,6 +125,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCosmicChronicleWidget> Chronicle;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCosmicEdictWidget> EdictWindow;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCosmicTopBarWidget> TopBar;
@@ -485,6 +492,35 @@ public:
 	void CosmicCrown();
 	UFUNCTION(Exec)
 	void CosmicAbdicate();
+
+	/** The ruler's edicts of the edict window (B2 header section 4): UPlayerRoleSubsystem::EnactEdict and RevokeEdict, and
+	 * the research shares of its sliders, UPlayerRoleSubsystem::SetResearchShares. Refused in an ended run. A command taken
+	 * steps the edict hint (FollowEdictHint) and redraws the HUD at once (a paused simulation sends no tick); no map redraw -
+	 * neither edicts nor research are on the map. */
+	bool EnactEdict(FName Row);
+	bool RevokeEdict(FName Row);
+	bool SetResearchShares(const TMap<FName, int32>& Weights);
+	/** The top bar's edict button: the HUD's edict window opens on its edicts' page, or closes. */
+	void ToggleEdictWindow();
+	/** The system panel's [Share by hand]: the HUD's edict window opens on Tab. */
+	void OpenEdictWindow(ECosmicEdictTab Tab);
+	/** The edict window opened (B2): the edict hint ends for the session (started or not), and the HUD redraws. A hint
+	 * started and left unanswered waits again after a new galaxy or a load (HandleGalaxyGenerated). */
+	void NoteEdictWindowOpened();
+	/** Steps the edict hint (CosmicUI::StepEdictHint) after a look at the vessel and the people it rules: the top bar and the
+	 * system panel call it first in their refreshes, a command after it is taken. Presentation state only. */
+	void FollowEdictHint();
+	/** Development aids (B2 - screenshots and hand checks): "CosmicEdict edict_vigil" revokes a held edict or enacts another
+	 * (the window's paths; one line for a refusal with its reason) and "CosmicEdict" alone logs each row with the gate's
+	 * answer; "CosmicShares 10 2 2" shares the research out by those weights of physics, society and engineering as [Share it
+	 * so] does; "CosmicEdictWindow 1" opens the edict window on its edicts' page, 2 on its shares', 0 closes it. They change
+	 * the world only as those clicks would. */
+	UFUNCTION(Exec)
+	void CosmicEdict(const FString& Row);
+	UFUNCTION(Exec)
+	void CosmicShares(int32 Physics, int32 Society, int32 Engineering);
+	UFUNCTION(Exec)
+	void CosmicEdictWindow(int32 Page);
 
 protected:
 	// Reads the viewer's clock unit before the HUD exists. A development aid: -TimeUnit=Year (or Cycle) sets it for the

@@ -1,0 +1,18 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicUILabels.h
++++ b/Source/Cosmic_Ascension/UI/CosmicUILabels.h
+@@ -273,9 +273,12 @@
+ 	// with Share - the four fields in the top bar's order, transcendence too: the console can lean to it), else Focus.Mixed.
+ 	inline FText FocusWordOf(const TMap<FName, float>& ResearchFocus, float Share)
+ 	{
+-		if (IsPresetNow(ResearchFocus, NAME_None, Share))
+-		{
+-			return Label(TEXT("Focus.Even"));
++		FName Shaped;
++		const ECosmicFocusShape Shape = CosmicResearch::ShapeOf(ResearchFocus, &Shaped);
++		if (Shape != ECosmicFocusShape::Mixed)
++		{
++			const TCHAR* ShapedKey = Shape == ECosmicFocusShape::Focused ? ResearchLabelKey(Shaped) : nullptr;
++			return ShapedKey ? Label(ShapedKey) : Label(TEXT("Focus.Even"));
+ 		}
+ 		for (int32 At = 0; At < static_cast<int32>(UE_ARRAY_COUNT(ResearchFieldNames)); ++At)
+ 		{

@@ -1,0 +1,18 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -551,14 +551,7 @@
+ 
+ void UCosmicEdictWidget::Toggle()
+ {
+-	if (bOpen)
+-	{
+-		Close();
+-	}
+-	else
+-	{
+-		Open(ECosmicEdictTab::Edicts);
+-	}
++	Open(ECosmicEdictTab::Edicts);
+ }
+ 
+ void UCosmicEdictWidget::Refresh()

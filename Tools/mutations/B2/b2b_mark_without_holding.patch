@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -665,7 +665,7 @@
+ 			RowSummaries[At]->SetText(Def->Summary);
+ 		}
+ 		// The inherited edict's mark: while the people holds the row, enacted again or not.
+-		RowMarks[At]->SetVisibility((bHeld && Row == Rules.StartingEdict) ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
++		RowMarks[At]->SetVisibility((Row == Rules.StartingEdict) ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+ 		FText ButtonLabel;
+ 		FText Tip;
+ 		if (bHeld)

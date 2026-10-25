@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1175,7 +1175,7 @@
+ 				const TOptional<float> NextMark = UCosmicEdictWidget::NextSlotMarkOf(*FocusCiv, Sim->GetRules());
+ 				const float Bonus = Sim->GetRules().SocietyRecoveryBonus;
+ 				Tip = JoinLines({ Tip, NextMark.IsSet() ? FText::Format(Label(TEXT("Focus.TipOpensSlot")), Percent(NextMark.GetValue())) : Label(TEXT("Focus.TipOpensAll")),
+-					(Bonus > 0.f && Bonus <= TNumericLimits<float>::Max()) ? Label(TEXT("Focus.TipOpensRecovery")) : FText::GetEmpty() });
++					Label(TEXT("Focus.TipOpensRecovery")) });
+ 			}
+ 			Button->SetIsEnabled(!bEnded && !bNow);
+ 			if (!SameWords(Button->GetToolTipText(), Tip))

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
+@@ -714,7 +714,7 @@
+ 			EdictOwner->FollowEdictHint();
+ 		}
+ 		const bool bRuler = Civ && State.Calling.LifeState == ELifeState::Embodied && State.Player.Role == EPlayerRole::Ruler;
+-		const bool bShowEdicts = bRuler && !ACosmicPlayerController::IsRunEndedFor(*this);
++		const bool bShowEdicts = bRuler;
+ 		const ESlateVisibility EdictVisibility = bShowEdicts ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
+ 		if (EdictBlock->GetVisibility() != EdictVisibility)
+ 		{

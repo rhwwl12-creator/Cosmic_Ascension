@@ -17,10 +17,12 @@ class UCosmicActionButton;
 class UGalaxySimulationSubsystem;
 class UTextBlock;
 class UVerticalBox;
+struct FCivilizationState;
 struct FCosmicDataTables;
 struct FCosmicKnownView;
 struct FCosmicSpiritLook;
 struct FGalaxyState;
+struct FHazardDef;
 
 /** What the system panel remembers of one project slot, to tell a slot that does not pay (guideline 6.3, Panel.Stalled). */
 struct COSMIC_ASCENSION_API FCosmicSlotWatch
@@ -103,6 +105,13 @@ namespace CosmicSlotWatch
  * role effect waits for the tick, with the words of its cause (a recorded abdication, or a fall - Wander.Block.Deposed). Under the hint line, on the capital's
  * panel, the first ship's line once a session (CosmicUI::ShowsShipHint, Hint.FirstShip). In an ended run the wanderer's
  * buttons and [Abdicate] are greyed with Chronicle.Block.
+ * The edicts (B2 header section 4): under the hazard's lines on a settled system of the ruled people, the edict that answers
+ * it (EdictAnswerLineOf); on the capital's panel, under [Abdicate] and above the first ship's line, the edict hint while it
+ * stands (Hint.Edict, CosmicUI::ShowsEdictHint); in the research focus block, under the four buttons and at the right,
+ * [Share by hand] (the edict window on its shares' page). The focus heading and buttons judge by preset (CosmicUI::FocusWordOf,
+ * IsPresetNow - a button is greyed only when its press would change nothing), and [Society]'s tooltip says what Society
+ * research opens (Focus.TipOpensSlot or Focus.TipOpensAll, and Focus.TipOpensRecovery while DT_Rules.SocietyRecoveryBonus
+ * gives one).
  */
 UCLASS(meta = (DisableNativeTick))
 class COSMIC_ASCENSION_API UCosmicSystemPanelWidget : public UUserWidget
@@ -193,6 +202,17 @@ public:
 	UCosmicActionButton* GetAbdicateButton() const { return AbdicateButton; }
 	/** The capital's first-ship line (tests). */
 	const UTextBlock* GetShipHintText() const { return ShipHintText; }
+	/** The capital's edict hint line (B2, tests). */
+	const UTextBlock* GetEdictHintText() const { return EdictHintText; }
+	/** The research focus block's [Share by hand] (B2): opens the edict window on its shares' page (tests press it). */
+	UCosmicActionButton* GetDirectButton() const { return DirectButton; }
+	/**
+	 * The edict line under a hazard (B2 header section 4) for the ruled people Ruled, on whose settled system Hazard stands:
+	 * the first edict of Hazard.RulerResolutions the people holds (CosmicEdicts::HeldAnswerOf) with Edict.Panel.Held - it
+	 * stands, so the hazard resolves at its expiry -, else the first DT_Edicts row it lists with Edict.Panel.Can; empty when
+	 * no edict answers it.
+	 */
+	static FText EdictAnswerLineOf(const FCivilizationState& Ruled, const FHazardDef& Hazard, const FCosmicDataTables& Tables);
 	/** The gate's answer the panel shows on [Travel] and on [Crown] or [Return]; unset when the button is not shown (tests:
 	 * the same as the command's). */
 	TOptional<CosmicWanderer::ETravelBlock> GetShownTravelBlock() const { return ShownTravelBlock; }
@@ -206,6 +226,7 @@ public:
 	static const FName ScanAction;
 	static const FName CrownAction;
 	static const FName AbdicateAction;
+	static const FName DirectAction;
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -232,6 +253,9 @@ private:
 
 	// A focus button's press (Action = the field, NAME_None the even focus; Value unused - the form of OnAction).
 	void HandleFocus(FName Field, float Value);
+
+	// [Share by hand] (B2).
+	void HandleDirect(FName Action, float Value);
 
 	// Steps the watches of both slots of every system the people the player rules owns (settled or being settled), by
 	// SystemID, and drops the others - only outside a Core Logic broadcast (UGalaxySimulationSubsystem::IsBroadcasting:
@@ -282,6 +306,12 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> ShipHintText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> EdictHintText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCosmicActionButton> DirectButton;
 
 	FName ShownSystemID;
 	CosmicMegaprojects::ECosmicSettleBlock ShownSettleBlock = CosmicMegaprojects::ECosmicSettleBlock::None;

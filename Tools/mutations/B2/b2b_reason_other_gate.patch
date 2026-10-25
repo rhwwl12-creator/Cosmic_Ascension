@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -678,7 +678,7 @@
+ 		else
+ 		{
+ 			// The command's own gate (the same function EnactEdict asks): the first reason greys the button.
+-			const CosmicEdicts::ECosmicEdictBlock Block = CosmicEdicts::EnactBlockOf(State, Sim->GetStateIndex(), Tables, Rules, RuledIndex, Row);
++			const CosmicEdicts::ECosmicEdictBlock Block = (CosmicEdicts::HeldCountOf(Civ, Tables) >= CosmicEdicts::SlotsOf(Civ, Rules) ? CosmicEdicts::ECosmicEdictBlock::Slots : CosmicEdicts::ECosmicEdictBlock::None);
+ 			ShownBlocks[At] = Block;
+ 			const FText Cost = CostWordsOf(Def->EnactCost);
+ 			const FText Enact = Cost.IsEmpty() ? Label(TEXT("Edict.EnactFree")) : FText::Format(Label(TEXT("Edict.Enact")), Cost);

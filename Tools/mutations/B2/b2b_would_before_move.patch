@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -783,7 +783,7 @@
+ 	{
+ 		WouldText->SetText(WouldLine);
+ 	}
+-	WouldText->SetVisibility(bMoved ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
++	WouldText->SetVisibility(ESlateVisibility::HitTestInvisible);
+ 	const FText NowLine = FText::Format(CosmicUI::Label(TEXT("Edict.Shares.Now")), CosmicUI::FocusSharesOf(Current));
+ 	if (!SameWords(NowText->GetText(), NowLine))
+ 	{

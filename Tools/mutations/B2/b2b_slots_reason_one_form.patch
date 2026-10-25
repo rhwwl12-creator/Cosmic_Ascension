@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -332,7 +332,7 @@
+ 	case ECosmicEdictBlock::Conditions:
+ 		return Label(TEXT("Edict.Block.Conditions"));
+ 	case ECosmicEdictBlock::Slots:
+-		return Label(bSlotsCanGrow ? TEXT("Edict.Block.Slots") : TEXT("Edict.Block.SlotsAll"));
++		return Label(TEXT("Edict.Block.Slots"));
+ 	case ECosmicEdictBlock::Cost:
+ 		return Label(TEXT("Edict.Block.Cost"));
+ 	case ECosmicEdictBlock::None:

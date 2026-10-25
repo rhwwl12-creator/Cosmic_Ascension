@@ -1,0 +1,13 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1140,7 +1140,9 @@
+ 		for (UCosmicActionButton* Button : FocusButtons)
+ 		{
+ 			const FName Field = Button->GetAction();
+-			const bool bNow = IsPresetNow(Focus, Field, Share);
++			FName Shaped;
++			const ECosmicFocusShape Shape = CosmicResearch::ShapeOf(Focus, &Shaped);
++			const bool bNow = Field.IsNone() ? Shape == ECosmicFocusShape::Even : (Shape == ECosmicFocusShape::Focused && Shaped == Field);
+ 			FText Tip;
+ 			if (bEnded)
+ 			{

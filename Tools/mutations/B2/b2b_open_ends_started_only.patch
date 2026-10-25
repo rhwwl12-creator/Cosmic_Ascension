@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1918,7 +1918,7 @@
+ 
+ void ACosmicPlayerController::NoteEdictWindowOpened()
+ {
+-	Hints.bEdictHintDone = true;
++	Hints.bEdictHintDone = Hints.bEdictHintOn;
+ 	// The top bar's mark and the capital panel's line go now.
+ 	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
+ 	{

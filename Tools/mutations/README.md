@@ -43,3 +43,38 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B2/` | `b2a_upkeep_reverse_order.patch` — the upkeep walks the edicts backwards | `Cosmic_Ascension.Sim.EdictEconomy` |
 | `B2/` | `b2a_effects_reverse_order.patch` — the effects walk the edicts backwards | `Cosmic_Ascension.Sim.EdictEconomy` |
 | `B2/` | `b2a_invariant_negative_only.patch` — the invariant counts only the Stability costs | `Cosmic_Ascension.Data.Integrity` |
+| `B2/` | `b2b_reason_other_gate.patch` — the window greys a row by slots alone, not by the command's gate | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_command_every_drag.patch` — every slider move commands the shares | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_shape_greys.patch` — a focus button greys by the map's shape, not by its preset | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_line_any_people.patch` — the panel's edict line stands on another people's system | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_open_keeps_hint.patch` — opening the window does not end the edict hint | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_mark_without_holding.patch` — the inherited mark stands on a row not held | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_slider_overwritten.patch` — a refresh sets a slider a person moved | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_apply_without_move.patch` — [Share it so] is enabled before a person's move | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_all_rows.patch` — rows above the people's rung stand in the window | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_hint_never_ends.patch` — the hint does not end when the edict is held no more | `Cosmic_Ascension.UI.EdictRules` |
+| `B2/` | `b2b_hint_at_threshold.patch` — the hint starts at Stability 0.5 itself | `Cosmic_Ascension.UI.EdictRules` |
+| `B2/` | `b2b_focusword_shape.patch` — the focus word follows the map's shape | `Cosmic_Ascension.UI.EdictRules` |
+| `B2/` | `b2b_next_slot_strict.patch` — a mark reached exactly is not reached | `Cosmic_Ascension.UI.EdictRules` |
+| `B2/` | `b2b_society_tip_missing.patch` — [Society]'s tooltip says nothing of what it opens | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_bar_for_wanderer.patch` — a wanderer's bar shows the edict button | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_window_stays_for_wanderer.patch` — the window stays open for a wanderer | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_hint_line_any_panel.patch` — the hint line stands on any panel | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_tip_no_answers.patch` — an edict's tooltip leaves out the hazards it answers | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_slots_reason_one_form.patch` — the slots' reason sends the player to Society research when every slot is open | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_reset_after_apply.patch` — the sliders jump after [Share it so] | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_open_resets_moves.patch` — [Share by hand] on an open window drops a person's moves | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_hint_kept_on_new_galaxy.patch` — an unanswered hint carries into the next run | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_mark_collapsed.patch` — the bar's mark collapses and moves the research block | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_can_after_end.patch` — the 'can answer' line stands after the end | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_zero_shows_current.patch` — three sliders at 0 promise the current shares | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_would_before_move.patch` — the 'would' line shows before a move | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_bar_after_end.patch` — the edict button stays after the end | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_direct_after_end.patch` — [Share by hand] stays enabled after the end | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_window_after_end.patch` — the window stays open after the end | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_shares_after_end.patch` — the controller takes shares after the end | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_recovery_line_always.patch` — [Society] promises a faster recovery with no bonus | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_toggle_always_opens.patch` — a second press of the bar's button does not close the window | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_new_galaxy_keeps_window.patch` — the window stays open over a new galaxy | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_open_ends_started_only.patch` — an open before the fall does not stop the hint | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2b_row_unbound.patch` — a row's button commands nothing | `Cosmic_Ascension.UI.EdictWindow` |

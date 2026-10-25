@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -499,7 +499,7 @@
+ int32 UCosmicEdictWidget::RuledIndexNow() const
+ {
+ 	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+-	if (!Sim || ACosmicPlayerController::IsRunEndedFor(*this))
++	if (!Sim)
+ 	{
+ 		return INDEX_NONE;
+ 	}

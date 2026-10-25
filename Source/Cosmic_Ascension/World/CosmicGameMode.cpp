@@ -27,12 +27,15 @@
 #include "Events/CosmicPetitions.h"
 #include "Player/PlayerRoleSubsystem.h"
 #include "Save/CosmicSaveSubsystem.h"
+#include "Sim/CosmicEdicts.h"
+#include "Sim/CosmicResearch.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/CosmicWanderer.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "TimerManager.h"
 #include "UI/CosmicAscensionOverlayWidget.h"
 #include "UI/CosmicChronicleWidget.h"
+#include "UI/CosmicEdictWidget.h"
 #include "UI/CosmicGalaxyPanelWidget.h"
 #include "UI/CosmicLogFeedWidget.h"
 #include "UI/CosmicPetitionCardWidget.h"
@@ -64,6 +67,9 @@ namespace CosmicControlImpl
 	// The petition card's area, in the middle of the screen: the card sits at its top and the rest lets clicks through.
 	const FVector2D PetitionCardSize(560.f, 480.f);
 	constexpr float ScreenMargin = 16.f;
+	// The edict window's area (B2): the system panel's width, down to just above the log feed (the screen is about 1080 slate
+	// units high whatever its pixels - the DPI scale follows the short side); its box is as tall as its page.
+	const FVector2D EdictWindowSize(340.f, 760.f);
 
 	// The seed of a galaxy no -Seed= names: the clock's (StartPlay, and every new run of the chronicle's 'new run').
 	int32 ClockSeed()
@@ -358,6 +364,16 @@ void ACosmicHUD::BeginPlay()
 		TimeUnitHandle = Cosmic->OnTimeUnitChanged.AddUObject(this, &ACosmicHUD::HandleTimeUnitChanged);
 		ViewModeHandle = Cosmic->OnViewModeChanged.AddUObject(this, &ACosmicHUD::HandleViewModeChanged);
 	}
+	// The edict window on the left under the bar (B2), over the panels (1) and under the card (5); collapsed until it is
+	// opened. Position and size first, the anchors last (as above).
+	EdictWindow = CreateWidget<UCosmicEdictWidget>(Controller);
+	if (EdictWindow)
+	{
+		EdictWindow->AddToViewport(3);
+		EdictWindow->SetPositionInViewport(FVector2D(ScreenMargin, TopBarHeight + ScreenMargin), false);
+		EdictWindow->SetDesiredSizeInViewport(EdictWindowSize);
+		EdictWindow->SetAnchorsInViewport(FAnchors(0.f, 0.f));
+	}
 	// The petition card in the middle, over the panels and under the ascension presentation; collapsed while no card
 	// shows. Position and size first, the anchors last (as above).
 	Card = CreateWidget<UCosmicPetitionCardWidget>(Controller);
@@ -465,6 +481,11 @@ void ACosmicHUD::RefreshPanel()
 	if (Card)
 	{
 		Card->Refresh();
+	}
+	// The edict window's rows and shares (it redraws nothing while closed).
+	if (EdictWindow)
+	{
+		EdictWindow->Refresh();
 	}
 }
 
@@ -767,10 +788,15 @@ void ACosmicPlayerController::HandleSimTick(int64 Tick)
 void ACosmicPlayerController::HandleGalaxyGenerated(int32 Seed)
 {
 	FollowSpeedGate();
-	// Another game: the end, what stopped the old one and the hazards it had say nothing of this one.
+	// Another game: the end, what stopped the old one and the hazards it had say nothing of this one. An edict hint the old
+	// run raised and nobody answered waits for this run's first fall (B2 - one that ended stays ended for the session).
 	ClearRunEnd();
 	AutoPauseReason = ECosmicAutoPause::None;
 	OwnHazardsSeen.Reset();
+	if (!Hints.bEdictHintDone)
+	{
+		Hints.bEdictHintOn = false;
+	}
 	RunBeganRealSeconds = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.0;
 	RunBeganTick = GetGameInstance() && GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>()->GetState().Tick : -1;
 	StoppedRealSeconds = 0.0;
@@ -1826,6 +1852,95 @@ bool ACosmicPlayerController::SetResearchFocus(FName Field)
 	return true;
 }
 
+bool ACosmicPlayerController::EnactEdict(FName Row)
+{
+	UPlayerRoleSubsystem* Roles = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (IsRunEnded() || !Roles || Roles->EnactEdict(Row) != CosmicEdicts::ECosmicEdictBlock::None)
+	{
+		return false;
+	}
+	FollowEdictHint();
+	// A paused simulation sends no tick: show the edict now.
+	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
+	{
+		CosmicHUD->RefreshPanel();
+	}
+	return true;
+}
+
+bool ACosmicPlayerController::RevokeEdict(FName Row)
+{
+	UPlayerRoleSubsystem* Roles = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (IsRunEnded() || !Roles || !Roles->RevokeEdict(Row))
+	{
+		return false;
+	}
+	// A revocation of the inherited edict ends its hint.
+	FollowEdictHint();
+	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
+	{
+		CosmicHUD->RefreshPanel();
+	}
+	return true;
+}
+
+bool ACosmicPlayerController::SetResearchShares(const TMap<FName, int32>& Weights)
+{
+	UPlayerRoleSubsystem* Roles = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (IsRunEnded() || !Roles || !Roles->SetResearchShares(Weights))
+	{
+		return false;
+	}
+	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
+	{
+		CosmicHUD->RefreshPanel();
+	}
+	return true;
+}
+
+void ACosmicPlayerController::ToggleEdictWindow()
+{
+	ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
+	if (UCosmicEdictWidget* Window = CosmicHUD ? CosmicHUD->GetEdictWindow() : nullptr)
+	{
+		Window->Toggle();
+	}
+}
+
+void ACosmicPlayerController::OpenEdictWindow(ECosmicEdictTab Tab)
+{
+	ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
+	if (UCosmicEdictWidget* Window = CosmicHUD ? CosmicHUD->GetEdictWindow() : nullptr)
+	{
+		Window->Open(Tab);
+	}
+}
+
+void ACosmicPlayerController::NoteEdictWindowOpened()
+{
+	Hints.bEdictHintDone = true;
+	// The top bar's mark and the capital panel's line go now.
+	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
+	{
+		CosmicHUD->RefreshPanel();
+	}
+}
+
+void ACosmicPlayerController::FollowEdictHint()
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!Sim)
+	{
+		return;
+	}
+	const FGalaxyState& State = Sim->GetState();
+	const int32 Ruled = State.Player.RuledCivID.IsNone() ? INDEX_NONE : Sim->GetStateIndex().FindCiv(State, State.Player.RuledCivID);
+	const bool bRuler = State.Calling.LifeState == ELifeState::Embodied && State.Player.Role == EPlayerRole::Ruler && State.Civs.IsValidIndex(Ruled);
+	const FName Inherited = Sim->GetRules().StartingEdict;
+	const bool bHolds = bRuler && !Inherited.IsNone() && State.Civs[Ruled].ActiveEdicts.Contains(Inherited);
+	CosmicUI::StepEdictHint(Hints, bRuler, bHolds, bRuler ? State.Civs[Ruled].Stability : 1.f);
+}
+
 bool ACosmicPlayerController::TravelTo(FName SystemID)
 {
 	UPlayerRoleSubsystem* Roles = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
@@ -1956,6 +2071,82 @@ void ACosmicPlayerController::CosmicAbdicate()
 	if (!Abdicate())
 	{
 		UE_LOG(LogCosmic, Display, TEXT("CosmicAbdicate: refused (no embodied ruler, a role effect already recorded, or an ended run)"));
+	}
+}
+
+void ACosmicPlayerController::CosmicEdict(const FString& Row)
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!Sim)
+	{
+		return;
+	}
+	if (IsRunEnded())
+	{
+		UE_LOG(LogCosmic, Display, TEXT("CosmicEdict: refused (the run is over)"));
+		return;
+	}
+	const FGalaxyState& State = Sim->GetState();
+	const int32 Ruled = (State.Calling.LifeState == ELifeState::Embodied && State.Player.Role == EPlayerRole::Ruler && !State.Player.RuledCivID.IsNone())
+		? Sim->GetStateIndex().FindCiv(State, State.Player.RuledCivID) : INDEX_NONE;
+	auto Holds = [&](FName Name) { return State.Civs.IsValidIndex(Ruled) && State.Civs[Ruled].ActiveEdicts.Contains(Name); };
+	// No embodied ruler: the command's own reason, NotRuler (the gate would read the missing people as NoRow).
+	auto ReasonOf = [&](FName Name)
+	{
+		return static_cast<int32>(State.Civs.IsValidIndex(Ruled) ? CosmicEdicts::EnactBlockOf(State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), Ruled, Name)
+			: CosmicEdicts::ECosmicEdictBlock::NotRuler);
+	};
+	// No argument: one line with every row, held or the gate's reason.
+	if (Row.IsEmpty())
+	{
+		TArray<FString> Rows;
+		for (const FName Each : Sim->GetTables().GetEdictRowNames())
+		{
+			const FString Answer = Holds(Each) ? FString(TEXT("held")) : FString::FromInt(ReasonOf(Each));
+			Rows.Add(FString::Printf(TEXT("%s (%s)"), *Each.ToString(), *Answer));
+		}
+		UE_LOG(LogCosmic, Display, TEXT("CosmicEdict: the edicts (held, or the gate's reason - 0 = it can be enacted): %s"), *FString::Join(Rows, TEXT(", ")));
+		return;
+	}
+	const FName Name(*Row);
+	if (Holds(Name))
+	{
+		if (!RevokeEdict(Name))
+		{
+			UE_LOG(LogCosmic, Display, TEXT("CosmicEdict: the revocation of %s was refused"), *Row);
+		}
+	}
+	else if (!EnactEdict(Name))
+	{
+		UE_LOG(LogCosmic, Display, TEXT("CosmicEdict: %s was refused (reason %d)"), *Row, ReasonOf(Name));
+	}
+}
+
+void ACosmicPlayerController::CosmicShares(int32 Physics, int32 Society, int32 Engineering)
+{
+	const TMap<FName, int32> Weights = { { FName(TEXT("Physics")), Physics }, { FName(TEXT("Society")), Society }, { FName(TEXT("Engineering")), Engineering } };
+	if (!SetResearchShares(Weights))
+	{
+		UE_LOG(LogCosmic, Display, TEXT("CosmicShares: %d %d %d was refused (no embodied ruler, the same shares, weights outside 0..%d or all 0, or an ended run)"),
+			Physics, Society, Engineering, CosmicResearch::MaxShareWeight);
+	}
+}
+
+void ACosmicPlayerController::CosmicEdictWindow(int32 Page)
+{
+	ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
+	UCosmicEdictWidget* Window = CosmicHUD ? CosmicHUD->GetEdictWindow() : nullptr;
+	if (!Window)
+	{
+		return;
+	}
+	if (Page == 1 || Page == 2)
+	{
+		Window->Open(Page == 1 ? ECosmicEdictTab::Edicts : ECosmicEdictTab::Shares);
+	}
+	else
+	{
+		Window->Close();
 	}
 }
 

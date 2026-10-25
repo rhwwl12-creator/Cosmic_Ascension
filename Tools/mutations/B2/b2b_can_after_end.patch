@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -911,7 +911,7 @@
+ 			{
+ 				// In an ended run only the held form stays (a fact); the other one invites a command no longer taken.
+ 				const FHazardDef* Standing = Tables.FindHazardByTag(System.ActiveHazard);
+-				if (Standing && (!bEnded || !CosmicEdicts::HeldAnswerOf(State.Civs[RuledIndex], *Standing, Tables).IsNone()))
++				if (Standing)
+ 				{
+ 					const FText EdictLine = EdictAnswerLineOf(State.Civs[RuledIndex], *Standing, Tables);
+ 					if (!EdictLine.IsEmpty())

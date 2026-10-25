@@ -1,0 +1,13 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicUILabels.h
++++ b/Source/Cosmic_Ascension/UI/CosmicUILabels.h
+@@ -389,10 +389,6 @@
+ 		{
+ 			Progress.bEdictHintOn = bHoldsInherited && Stability < EdictHintStability;
+ 		}
+-		else if (!bHoldsInherited)
+-		{
+-			Progress.bEdictHintDone = true;
+-		}
+ 	}
+ 
+ 	/** Whether the edict hint stands: the top bar's mark and the first line of its edict button's tooltip, the capital

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicUILabels.h
++++ b/Source/Cosmic_Ascension/UI/CosmicUILabels.h
+@@ -387,7 +387,7 @@
+ 		}
+ 		if (!Progress.bEdictHintOn)
+ 		{
+-			Progress.bEdictHintOn = bHoldsInherited && Stability < EdictHintStability;
++			Progress.bEdictHintOn = bHoldsInherited && Stability <= EdictHintStability;
+ 		}
+ 		else if (!bHoldsInherited)
+ 		{

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1887,7 +1887,7 @@
+ bool ACosmicPlayerController::SetResearchShares(const TMap<FName, int32>& Weights)
+ {
+ 	UPlayerRoleSubsystem* Roles = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+-	if (IsRunEnded() || !Roles || !Roles->SetResearchShares(Weights))
++	if (!Roles || !Roles->SetResearchShares(Weights))
+ 	{
+ 		return false;
+ 	}

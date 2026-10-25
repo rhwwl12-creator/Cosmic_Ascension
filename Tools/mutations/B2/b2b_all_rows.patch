@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -610,7 +610,7 @@
+ 	for (const FName Row : Tables.GetEdictRowNames())
+ 	{
+ 		const FEdictDef* Def = Tables.FindEdict(Row);
+-		if (Def && (Civ.ActiveEdicts.Contains(Row) || static_cast<int32>(Def->RequiredTier) <= static_cast<int32>(Civ.Tier)))
++		if (Def && (true))
+ 		{
+ 			Wanted.Add(Row);
+ 		}

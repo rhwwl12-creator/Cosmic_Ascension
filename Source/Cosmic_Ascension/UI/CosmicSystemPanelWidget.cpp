@@ -22,6 +22,7 @@
 #include "GameplayTagContainer.h"
 #include "HAL/PlatformTime.h"
 #include "Layout/Margin.h"
+#include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicResearch.h"
@@ -30,6 +31,7 @@
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "TimerManager.h"
 #include "UI/CosmicActionButton.h"
+#include "UI/CosmicEdictWidget.h"
 #include "UI/CosmicNextRung.h"
 #include "UI/CosmicUILabels.h"
 #include "UObject/NameTypes.h"
@@ -256,6 +258,7 @@ const FName UCosmicSystemPanelWidget::TravelAction(TEXT("travel"));
 const FName UCosmicSystemPanelWidget::ScanAction(TEXT("scan"));
 const FName UCosmicSystemPanelWidget::CrownAction(TEXT("crown"));
 const FName UCosmicSystemPanelWidget::AbdicateAction(TEXT("abdicate"));
+const FName UCosmicSystemPanelWidget::DirectAction(TEXT("direct"));
 
 TSharedRef<SWidget> UCosmicSystemPanelWidget::RebuildWidget()
 {
@@ -295,6 +298,12 @@ TSharedRef<SWidget> UCosmicSystemPanelWidget::RebuildWidget()
 		AbdicateButton->OnAction.AddUObject(this, &UCosmicSystemPanelWidget::HandleWanderer);
 		AbdicateButton->SetVisibility(ESlateVisibility::Collapsed);
 		Column->AddChildToVerticalBox(AbdicateButton)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
+		// The edict hint (B2): grey and quiet like the first ship's line and above it - the first of the three hints when
+		// they stand together.
+		EdictHintText = CosmicUI::MakeText(*WidgetTree, 13);
+		EdictHintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.65f)));
+		EdictHintText->SetVisibility(ESlateVisibility::Collapsed);
+		Column->AddChildToVerticalBox(EdictHintText)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
 		// The first ship's line (B1): grey and quiet, under [Abdicate] on the capital's panel, once a session (the hint line
 		// and the research focus below keep their order).
 		ShipHintText = CosmicUI::MakeText(*WidgetTree, 13);
@@ -338,6 +347,13 @@ TSharedRef<SWidget> UCosmicSystemPanelWidget::RebuildWidget()
 			ChoiceSlot->SetPadding(FMargin(FocusButtons.IsEmpty() ? 0.f : 4.f, 0.f, 0.f, 0.f));
 			FocusButtons.Add(Button);
 		}
+		// [Share by hand] (B2): a line of its own under the four buttons, at the right - the row of four stays as it is.
+		DirectButton = WidgetTree->ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
+		DirectButton->Setup(DirectAction, 0.f, CosmicUI::Label(TEXT("Focus.Direct")));
+		DirectButton->OnAction.AddUObject(this, &UCosmicSystemPanelWidget::HandleDirect);
+		UVerticalBoxSlot* DirectSlot = FocusBox->AddChildToVerticalBox(DirectButton);
+		DirectSlot->SetHorizontalAlignment(HAlign_Right);
+		DirectSlot->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
 	}
 	return Super::RebuildWidget();
 }
@@ -743,6 +759,28 @@ void UCosmicSystemPanelWidget::HandleFocus(FName Field, float Value)
 	Refresh();
 }
 
+void UCosmicSystemPanelWidget::HandleDirect(FName Action, float Value)
+{
+	// The HUD's edict window on its shares' page, through the controller.
+	if (ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer()))
+	{
+		Controller->OpenEdictWindow(ECosmicEdictTab::Shares);
+	}
+}
+
+FText UCosmicSystemPanelWidget::EdictAnswerLineOf(const FCivilizationState& Ruled, const FHazardDef& Hazard, const FCosmicDataTables& Tables)
+{
+	const FName Held = CosmicEdicts::HeldAnswerOf(Ruled, Hazard, Tables);
+	FName Answer = Held;
+	for (int32 At = 0; Answer.IsNone() && At < Hazard.RulerResolutions.Num(); ++At)
+	{
+		Answer = Tables.FindEdict(Hazard.RulerResolutions[At]) ? Hazard.RulerResolutions[At] : NAME_None;
+	}
+	const FEdictDef* Edict = Answer.IsNone() ? nullptr : Tables.FindEdict(Answer);
+	return Edict ? FText::FormatNamed(CosmicUI::Label(Held.IsNone() ? TEXT("Edict.Panel.Can") : TEXT("Edict.Panel.Held")), TEXT("Edict"), Edict->DisplayName)
+		: FText::GetEmpty();
+}
+
 void UCosmicSystemPanelWidget::Refresh()
 {
 	using namespace CosmicSystemPanelImpl;
@@ -865,6 +903,21 @@ void UCosmicSystemPanelWidget::Refresh()
 				if (!SlotText.IsEmpty() && OwnerShown != ECosmicOwnerShown::Hidden)
 				{
 					Lines.Add(SlotText);
+				}
+			}
+			// The edict that answers the hazard standing here (B2): on a settled system of the ruled people only - another
+			// people's edicts are never shown.
+			if (System.ActiveHazard.IsValid() && bRules && OwnerIndex == RuledIndex && CosmicState::IsSettled(System))
+			{
+				// In an ended run only the held form stays (a fact); the other one invites a command no longer taken.
+				const FHazardDef* Standing = Tables.FindHazardByTag(System.ActiveHazard);
+				if (Standing && (!bEnded || !CosmicEdicts::HeldAnswerOf(State.Civs[RuledIndex], *Standing, Tables).IsNone()))
+				{
+					const FText EdictLine = EdictAnswerLineOf(State.Civs[RuledIndex], *Standing, Tables);
+					if (!EdictLine.IsEmpty())
+					{
+						Lines.Add(EdictLine);
+					}
 				}
 			}
 			// The sight names the fallen one that marks the system by its title, in the spiritual view only.
@@ -1055,6 +1108,19 @@ void UCosmicSystemPanelWidget::Refresh()
 	ShipHintSystem = bShip ? ShownSystemID : NAME_None;
 	ShipHintText->SetVisibility(bShip ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 
+	// The edict hint (B2): on the capital's panel while it stands. The controller steps it first (the top bar steps it too -
+	// whichever redraws first).
+	if (Owner)
+	{
+		Owner->FollowEdictHint();
+	}
+	const FText EdictHint = (Owner && bCapital && !bEnded && ShowsEdictHint(Owner->GetHintProgress())) ? UCosmicEdictWidget::HintOf(Tables, Sim->GetRules()) : FText::GetEmpty();
+	if (!SameWords(EdictHintText->GetText(), EdictHint))
+	{
+		EdictHintText->SetText(EdictHint);
+	}
+	EdictHintText->SetVisibility(EdictHint.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+
 	// The research focus (MVP item 7): the heading names the focus now; the button that is it is greyed out, the others
 	// say the shares a press would give, a field the next rung reads says so. Words only when they change (a tooltip set
 	// again is a new tooltip and closes an open one); the shares move only by a command, the rung only by an ascent.
@@ -1062,19 +1128,19 @@ void UCosmicSystemPanelWidget::Refresh()
 	if (FocusCiv)
 	{
 		const TMap<FName, float>& Focus = FocusCiv->ResearchFocus;
-		FName FocusedField;
-		const ECosmicFocusShape Shape = CosmicResearch::ShapeOf(Focus, &FocusedField);
-		const FText Heading = FText::Format(Label(TEXT("Focus.Heading")), FocusWordOf(Focus));
+		const float Share = Sim->GetRules().ResearchFocusShare;
+		// By preset (B2 section 2.8): the heading names the preset the shares are, and a button is greyed only when its press
+		// would change nothing - shares set by hand leave the four pressable.
+		const FText Heading = FText::Format(Label(TEXT("Focus.Heading")), FocusWordOf(Focus, Share));
 		if (!SameWords(FocusHeading->GetText(), Heading))
 		{
 			FocusHeading->SetText(Heading);
 		}
 		const TArray<FCosmicRungPart> Needed = CosmicNextRung::ResearchFieldsOf(CosmicNextRung::AllOf(State, Index, Tables, Sim->GetRules()));
-		const float Share = Sim->GetRules().ResearchFocusShare;
 		for (UCosmicActionButton* Button : FocusButtons)
 		{
 			const FName Field = Button->GetAction();
-			const bool bNow = Field.IsNone() ? Shape == ECosmicFocusShape::Even : (Shape == ECosmicFocusShape::Focused && FocusedField == Field);
+			const bool bNow = IsPresetNow(Focus, Field, Share);
 			FText Tip;
 			if (bEnded)
 			{
@@ -1103,11 +1169,26 @@ void UCosmicSystemPanelWidget::Refresh()
 			{
 				Tip = JoinLines({ Tip, Label(TEXT("Focus.TipNeeded")) });
 			}
+			// What Society research opens (B2): the edicts' next slot, and the faster recovery while the knob gives one.
+			if (!bEnded && Field == FName(TEXT("Society")))
+			{
+				const TOptional<float> NextMark = UCosmicEdictWidget::NextSlotMarkOf(*FocusCiv, Sim->GetRules());
+				const float Bonus = Sim->GetRules().SocietyRecoveryBonus;
+				Tip = JoinLines({ Tip, NextMark.IsSet() ? FText::Format(Label(TEXT("Focus.TipOpensSlot")), Percent(NextMark.GetValue())) : Label(TEXT("Focus.TipOpensAll")),
+					(Bonus > 0.f && Bonus <= TNumericLimits<float>::Max()) ? Label(TEXT("Focus.TipOpensRecovery")) : FText::GetEmpty() });
+			}
 			Button->SetIsEnabled(!bEnded && !bNow);
 			if (!SameWords(Button->GetToolTipText(), Tip))
 			{
 				Button->SetToolTipText(Tip);
 			}
+		}
+		// [Share by hand]: greyed with the end's reason in an ended run.
+		DirectButton->SetIsEnabled(!bEnded);
+		const FText DirectTip = bEnded ? EndBlock : Label(TEXT("Focus.DirectTip"));
+		if (!SameWords(DirectButton->GetToolTipText(), DirectTip))
+		{
+			DirectButton->SetToolTipText(DirectTip);
 		}
 	}
 

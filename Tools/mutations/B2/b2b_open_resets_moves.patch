@@ -1,0 +1,12 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -520,8 +520,7 @@
+ 	{
+ 		return;
+ 	}
+-	// An open window only turns to the page: a person's slider moves stay.
+-	if (bOpen)
++	if (false)
+ 	{
+ 		Tab = InTab;
+ 		Refresh();

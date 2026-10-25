@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -641,7 +641,6 @@
+ 			RowBox->AddChildToVerticalBox(Summary)->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
+ 			UCosmicActionButton* Button = WidgetTree->ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
+ 			Button->Setup(Row, 0.f, FText::GetEmpty());
+-			Button->OnAction.AddUObject(this, &UCosmicEdictWidget::HandleRow);
+ 			RowBox->AddChildToVerticalBox(Button);
+ 			RowNames.Add(Name);
+ 			RowMarks.Add(Mark);

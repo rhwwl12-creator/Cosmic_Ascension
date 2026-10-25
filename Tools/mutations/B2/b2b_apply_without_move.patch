@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -790,7 +790,7 @@
+ 		NowText->SetText(NowLine);
+ 	}
+ 	// Only after a person's move, and only for weights the command takes.
+-	ApplyButton->SetIsEnabled(bMoved && bFits);
++	ApplyButton->SetIsEnabled(bFits);
+ }
+ 
+ void UCosmicEdictWidget::HandleSliderChanged(float Value)

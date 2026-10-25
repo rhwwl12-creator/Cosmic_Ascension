@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1114,7 +1114,7 @@
+ 	{
+ 		Owner->FollowEdictHint();
+ 	}
+-	const FText EdictHint = (Owner && bCapital && !bEnded && ShowsEdictHint(Owner->GetHintProgress())) ? UCosmicEdictWidget::HintOf(Tables, Sim->GetRules()) : FText::GetEmpty();
++	const FText EdictHint = (Owner && !bEnded && ShowsEdictHint(Owner->GetHintProgress())) ? UCosmicEdictWidget::HintOf(Tables, Sim->GetRules()) : FText::GetEmpty();
+ 	if (!SameWords(EdictHintText->GetText(), EdictHint))
+ 	{
+ 		EdictHintText->SetText(EdictHint);

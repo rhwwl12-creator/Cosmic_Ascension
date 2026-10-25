@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -504,7 +504,7 @@
+ 		return INDEX_NONE;
+ 	}
+ 	const FGalaxyState& State = Sim->GetState();
+-	const bool bRuler = State.Calling.LifeState == ELifeState::Embodied && State.Player.Role == EPlayerRole::Ruler && !State.Player.RuledCivID.IsNone();
++	const bool bRuler = !State.Player.RuledCivID.IsNone();
+ 	return bRuler ? Sim->GetStateIndex().FindCiv(State, State.Player.RuledCivID) : INDEX_NONE;
+ }
+ 

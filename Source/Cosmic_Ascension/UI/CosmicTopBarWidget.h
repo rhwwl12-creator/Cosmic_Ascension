@@ -12,6 +12,7 @@
 
 class UButton;
 class UCosmicActionButton;
+class UHorizontalBox;
 class UTextBlock;
 struct FCosmicStateIndex;
 struct FGalaxyState;
@@ -35,8 +36,9 @@ struct FGalaxyState;
  * reason); it goes when the speed is set again. A wanderer has no people: after the resources' empty place the band shows its
  * line (WandererLineOf - where it stands or where it goes and how long, and when no lane leads anywhere) with the vessel's
  * stats and the shown people that looks up to it most in its tooltip (GetWandererTip, B1), then the clock, the view, the
- * speeds and the automatic pause. Built in C++ (no WBP); redrawn from the simulation's delegates, after a speed button and
- * after the clock's, the view's and the automatic pause's press.
+ * speeds and the automatic pause. After an embodied ruler's resources, before the research block (which yields first), the
+ * edict button (B2 - GetEdictButton) and, while the edict hint stands, its grey mark. Built in C++ (no WBP); redrawn from
+ * the simulation's delegates, after a speed button and after the clock's, the view's and the automatic pause's press.
  */
 UCLASS(meta = (DisableNativeTick))
 class COSMIC_ASCENSION_API UCosmicTopBarWidget : public UUserWidget
@@ -141,6 +143,19 @@ public:
 	/** The wanderer's line (B1, tests): WandererLineOf, collapsed while it has no words. */
 	const UTextBlock* GetWandererText() const { return WandererText; }
 
+	/** The edict button (B2 header section 4): Edict.Count with the held edicts and the slots (CosmicEdicts::HeldCountOf,
+	 * SlotsOf), for an embodied ruler in a run that is not over - collapsed otherwise; a press opens or closes the edict
+	 * window (ACosmicPlayerController::ToggleEdictWindow). Its tooltip is GetEdictTip, set when its words change (tests
+	 * press it). */
+	UCosmicActionButton* GetEdictButton() const { return EdictButton; }
+	/** The grey mark after the edict button: HitTestInvisible while the edict hint stands (CosmicUI::ShowsEdictHint),
+	 * Hidden otherwise - it keeps its width, so the research block never moves (tests). */
+	const UTextBlock* GetEdictMark() const { return EdictMark; }
+	/** What the edict button's tooltip says now: the edict hint first while it stands (Hint.Edict), the held edicts'
+	 * upkeep (Edict.Bar.Upkeep), the next slot's Society mark (Edict.Bar.NextSlot, or Edict.Bar.AllSlots) and what a press
+	 * does (Edict.Bar.Press); empty without an embodied ruler. */
+	FText GetEdictTip() const;
+
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeConstruct() override;
@@ -163,6 +178,8 @@ private:
 	void HandleAutoPause(FName Action, float Value);
 
 	void HandleReopen(FName Action, float Value);
+
+	void HandleEdicts(FName Action, float Value);
 
 	UFUNCTION()
 	void HandleClockClicked();
@@ -195,6 +212,16 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> WandererText;
+
+	// The edict button and its mark, in a block of their own (B2): collapsed together.
+	UPROPERTY(Transient)
+	TObjectPtr<UHorizontalBox> EdictBlock;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCosmicActionButton> EdictButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> EdictMark;
 
 	// The four research shares: the band's fill, clipped with an ellipsis when the band runs short.
 	UPROPERTY(Transient)

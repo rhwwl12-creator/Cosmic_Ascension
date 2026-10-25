@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -492,8 +492,6 @@
+ 
+ void UCosmicEdictWidget::HandleGalaxyGenerated(int32 Seed)
+ {
+-	// Another game: the window does not stay open over it.
+-	Close();
+ }
+ 
+ int32 UCosmicEdictWidget::RuledIndexNow() const

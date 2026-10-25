@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -308,7 +308,7 @@
+ 	for (const FName HazardRow : Tables.GetHazardRowNames())
+ 	{
+ 		const FHazardDef* Hazard = Tables.FindHazard(HazardRow);
+-		if (Hazard && Hazard->RulerResolutions.Contains(Row))
++		if (false)
+ 		{
+ 			Lines.Add(FText::FormatNamed(Label(TEXT("Edict.TipAnswers")), TEXT("Hazard"), Hazard->DisplayName));
+ 		}

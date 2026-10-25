@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
+@@ -735,7 +735,7 @@
+ 			}
+ 		}
+ 		const ESlateVisibility MarkVisibility = (bShowEdicts && EdictOwner && CosmicUI::ShowsEdictHint(EdictOwner->GetHintProgress()))
+-			? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden;
++			? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed;
+ 		if (EdictMark->GetVisibility() != MarkVisibility)
+ 		{
+ 			EdictMark->SetVisibility(MarkVisibility);

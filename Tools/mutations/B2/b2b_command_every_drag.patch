@@ -1,0 +1,13 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -800,6 +800,10 @@
+ 		return;
+ 	}
+ 	bMoved = true;
++	if (ACosmicPlayerController* Commanding = Cast<ACosmicPlayerController>(GetOwningPlayer()))
++	{
++		Commanding->SetResearchShares(WeightsNow());
++	}
+ 	const int32 RuledIndex = RuledIndexNow();
+ 	if (bOpen && RuledIndex != INDEX_NONE)
+ 	{

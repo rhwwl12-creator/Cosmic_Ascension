@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -753,7 +753,7 @@
+ 	// A slider a person holds or has moved is never set from here; nor are sliders whose weights give the shares now (the
+ 	// weights a person just applied stay where they were put - the same weights give the same bits). Shares changed by
+ 	// another way (a focus button, a card's answer) set them again.
+-	if (!bMoved && !bDragging)
++	if (!bDragging)
+ 	{
+ 		bool bTaken = false;
+ 		const bool bGivesNow = WouldOf(Current, WeightsNow(), bTaken).OrderIndependentCompareEqual(Current) && bTaken;

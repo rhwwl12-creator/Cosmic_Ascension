@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -221,7 +221,7 @@
+ 	TOptional<float> Next;
+ 	for (const float Mark : Rules.EdictSlotSocietyMarks)
+ 	{
+-		if (Mark >= -TNumericLimits<float>::Max() && Mark <= TNumericLimits<float>::Max() && !(Society >= Mark) && (!Next.IsSet() || Mark < Next.GetValue()))
++		if (Mark >= -TNumericLimits<float>::Max() && Mark <= TNumericLimits<float>::Max() && !(Society > Mark) && (!Next.IsSet() || Mark < Next.GetValue()))
+ 		{
+ 			Next = Mark;
+ 		}

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -778,7 +778,7 @@
+ 	// The 'would' line after a person's move only (hidden, not collapsed: [Share it so] does not move on the first drag);
+ 	// weights that share nothing say so.
+ 	const FText WouldLine = !bMoved ? FText::GetEmpty()
+-		: (bFits ? FText::Format(CosmicUI::Label(TEXT("Edict.Shares.Would")), CosmicUI::FocusSharesOf(Would)) : CosmicUI::Label(TEXT("Edict.Shares.Zero")));
++		: (bFits ? FText::Format(CosmicUI::Label(TEXT("Edict.Shares.Would")), CosmicUI::FocusSharesOf(Would)) : FText::Format(CosmicUI::Label(TEXT("Edict.Shares.Would")), CosmicUI::FocusSharesOf(Would)));
+ 	if (!SameWords(WouldText->GetText(), WouldLine))
+ 	{
+ 		WouldText->SetText(WouldLine);

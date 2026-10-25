@@ -11,9 +11,12 @@
 #include "Components/SlateWrapperTypes.h"
 #include "Components/TextBlock.h"
 #include "Core/GalaxyState.h"
+#include "Data/CosmicDataTables.h"
+#include "Data/CosmicDefinitionRows.h"
 #include "Engine/GameInstance.h"
 #include "Layout/Clipping.h"
 #include "Layout/Margin.h"
+#include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/CosmicWanderer.h"
 #include "Sim/GalaxySimulationSubsystem.h"
@@ -22,6 +25,7 @@
 #include "UI/CosmicActionButton.h"
 #include "UI/CosmicAscensionOverlayWidget.h"
 #include "UI/CosmicChronicleWidget.h"
+#include "UI/CosmicEdictWidget.h"
 #include "UI/CosmicNextRung.h"
 #include "UI/CosmicStabilityTrend.h"
 #include "UI/CosmicUILabels.h"
@@ -40,6 +44,7 @@ namespace CosmicTopBarImpl
 	const FName ViewAction(TEXT("view"));
 	const FName AutoPauseAction(TEXT("autopause"));
 	const FName ReopenAction(TEXT("reopen"));
+	const FName EdictAction(TEXT("edicts"));
 	// The provisional end's grey line beside the clock (MVP item 4): quieter than the line of a pause.
 	const FLinearColor EndSoonColor(0.6f, 0.6f, 0.65f);
 	// The line of an automatic pause: the warm colour of a flat button under the mouse, so the eye finds why time stopped.
@@ -158,6 +163,26 @@ TSharedRef<SWidget> UCosmicTopBarWidget::RebuildWidget()
 		UHorizontalBoxSlot* WandererSlot = Row->AddChildToHorizontalBox(WandererText);
 		WandererSlot->SetVerticalAlignment(VAlign_Center);
 		WandererSlot->SetPadding(FMargin(0.f, 0.f, 32.f, 0.f));
+
+		// The edict button (B2) and its mark: a block of its own after the resources, before the research block that
+		// yields first; Refresh shows it for an embodied ruler, labels it and sets its tooltip when the words change.
+		EdictBlock = WidgetTree->ConstructWidget<UHorizontalBox>();
+		EdictBlock->SetVisibility(ESlateVisibility::Collapsed);
+		UHorizontalBoxSlot* EdictBlockSlot = Row->AddChildToHorizontalBox(EdictBlock);
+		EdictBlockSlot->SetVerticalAlignment(VAlign_Center);
+		EdictBlockSlot->SetPadding(FMargin(0.f, 0.f, 24.f, 0.f));
+		EdictButton = WidgetTree->ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
+		EdictButton->Setup(EdictAction, 0.f, FText::GetEmpty());
+		EdictButton->OnAction.AddUObject(this, &UCosmicTopBarWidget::HandleEdicts);
+		EdictBlock->AddChildToHorizontalBox(EdictButton)->SetVerticalAlignment(VAlign_Center);
+		EdictMark = CosmicUI::MakeText(*WidgetTree, 12, false);
+		EdictMark->SetColorAndOpacity(FSlateColor(EndSoonColor));
+		EdictMark->SetText(CosmicUI::Label(TEXT("Edict.Mark")));
+		// Hidden, never collapsed, while the block shows: the research block after it does not move when the hint comes.
+		EdictMark->SetVisibility(ESlateVisibility::Hidden);
+		UHorizontalBoxSlot* MarkSlot = EdictBlock->AddChildToHorizontalBox(EdictMark);
+		MarkSlot->SetVerticalAlignment(VAlign_Center);
+		MarkSlot->SetPadding(FMargin(4.f, 0.f, 0.f, 0.f));
 
 		ResearchText = CosmicUI::MakeText(*WidgetTree, 14, false);
 		ResearchText->ToolTipTextDelegate.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UCosmicTopBarWidget, GetResearchTip));
@@ -487,6 +512,35 @@ void UCosmicTopBarWidget::HandleReopen(FName Action, float Value)
 	Refresh();
 }
 
+void UCosmicTopBarWidget::HandleEdicts(FName Action, float Value)
+{
+	// The controller hands the press to the HUD's window; this bar may not be the HUD's (tests).
+	if (ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer()))
+	{
+		Controller->ToggleEdictWindow();
+	}
+	Refresh();
+}
+
+FText UCosmicTopBarWidget::GetEdictTip() const
+{
+	using CosmicUI::Label;
+
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	const FCivilizationState* Civ = Sim ? CosmicTopBarImpl::RuledCivOf(Sim->GetState()) : nullptr;
+	if (!Civ || Sim->GetState().Calling.LifeState != ELifeState::Embodied || Sim->GetState().Player.Role != EPlayerRole::Ruler)
+	{
+		return FText::GetEmpty();
+	}
+	const ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer());
+	const FText Hint = (Controller && CosmicUI::ShowsEdictHint(Controller->GetHintProgress())) ? UCosmicEdictWidget::HintOf(Sim->GetTables(), Sim->GetRules()) : FText::GetEmpty();
+	const FText Upkeep = FText::Format(Label(TEXT("Edict.Bar.Upkeep")),
+		UCosmicEdictWidget::UpkeepWordsOf(UCosmicEdictWidget::HeldUpkeepOf(*Civ, Sim->GetTables()), ACosmicPlayerController::TimeUnitFor(*this)));
+	const TOptional<float> Next = UCosmicEdictWidget::NextSlotMarkOf(*Civ, Sim->GetRules());
+	const FText SlotWords = Next.IsSet() ? FText::Format(Label(TEXT("Edict.Bar.NextSlot")), CosmicUI::Percent(Next.GetValue())) : Label(TEXT("Edict.Bar.AllSlots"));
+	return CosmicUI::JoinLines({ Hint, Upkeep, SlotWords, Label(TEXT("Edict.Bar.Press")) });
+}
+
 void UCosmicTopBarWidget::HandleView(FName Action, float Value)
 {
 	PressViewButton();
@@ -595,7 +649,8 @@ FText UCosmicTopBarWidget::GetResearchTip() const
 		return Rung;
 	}
 	// The focus first: after another system is selected the panel's block is gone, and the bar still says it.
-	const FText Focus = FText::Format(CosmicUI::Label(TEXT("Focus.BarLine")), CosmicUI::FocusWordOf(Civ->ResearchFocus), CosmicUI::FocusSharesOf(Civ->ResearchFocus));
+	const FText Focus = FText::Format(CosmicUI::Label(TEXT("Focus.BarLine")), CosmicUI::FocusWordOf(Civ->ResearchFocus, Sim->GetRules().ResearchFocusShare),
+		CosmicUI::FocusSharesOf(Civ->ResearchFocus));
 	return Rung.IsEmpty() ? Focus : FText::Format(INVTEXT("{0}\n\n{1}"), Focus, Rung);
 }
 
@@ -648,6 +703,43 @@ void UCosmicTopBarWidget::Refresh()
 	if (WandererText->GetVisibility() != WanderingVisibility)
 	{
 		WandererText->SetVisibility(WanderingVisibility);
+	}
+	// The edict button (B2): an embodied ruler's, in a run that is not over. The edict hint is stepped first (the system
+	// panel steps it too - whichever redraws first). Words and visibility set only when they change.
+	if (EdictBlock && EdictButton && EdictMark)
+	{
+		ACosmicPlayerController* EdictOwner = Cast<ACosmicPlayerController>(GetOwningPlayer());
+		if (EdictOwner)
+		{
+			EdictOwner->FollowEdictHint();
+		}
+		const bool bRuler = Civ && State.Calling.LifeState == ELifeState::Embodied && State.Player.Role == EPlayerRole::Ruler;
+		const bool bShowEdicts = bRuler && !ACosmicPlayerController::IsRunEndedFor(*this);
+		const ESlateVisibility EdictVisibility = bShowEdicts ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
+		if (EdictBlock->GetVisibility() != EdictVisibility)
+		{
+			EdictBlock->SetVisibility(EdictVisibility);
+		}
+		if (bShowEdicts)
+		{
+			const FText Count = FText::Format(Label(TEXT("Edict.Count")), FText::AsNumber(CosmicEdicts::HeldCountOf(*Civ, Sim->GetTables())),
+				FText::AsNumber(CosmicEdicts::SlotsOf(*Civ, Sim->GetRules())));
+			if (!EdictButton->GetLabel().ToString().Equals(Count.ToString(), ESearchCase::CaseSensitive))
+			{
+				EdictButton->Setup(CosmicTopBarImpl::EdictAction, 0.f, Count);
+			}
+			const FText Tip = GetEdictTip();
+			if (!EdictButton->GetToolTipText().ToString().Equals(Tip.ToString(), ESearchCase::CaseSensitive))
+			{
+				EdictButton->SetToolTipText(Tip);
+			}
+		}
+		const ESlateVisibility MarkVisibility = (bShowEdicts && EdictOwner && CosmicUI::ShowsEdictHint(EdictOwner->GetHintProgress()))
+			? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden;
+		if (EdictMark->GetVisibility() != MarkVisibility)
+		{
+			EdictMark->SetVisibility(MarkVisibility);
+		}
 	}
 	// The viewer's unit; the mouse on the clock shows both.
 	const ECosmicTimeUnit Unit = ACosmicPlayerController::TimeUnitFor(*this);

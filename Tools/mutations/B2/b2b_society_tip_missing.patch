@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1170,7 +1170,7 @@
+ 				Tip = JoinLines({ Tip, Label(TEXT("Focus.TipNeeded")) });
+ 			}
+ 			// What Society research opens (B2): the edicts' next slot, and the faster recovery while the knob gives one.
+-			if (!bEnded && Field == FName(TEXT("Society")))
++			if (false)
+ 			{
+ 				const TOptional<float> NextMark = UCosmicEdictWidget::NextSlotMarkOf(*FocusCiv, Sim->GetRules());
+ 				const float Bonus = Sim->GetRules().SocietyRecoveryBonus;

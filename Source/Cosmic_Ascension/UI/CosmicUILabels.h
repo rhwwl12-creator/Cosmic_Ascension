@@ -45,6 +45,11 @@ struct COSMIC_ASCENSION_API FCosmicHintProgress
 	bool bStartedProject = false;
 	// The first ship's line was shown (B1): once a session, on the capital's panel (CosmicUI::ShowsShipHint).
 	bool bShipHinted = false;
+	// The inherited edict's hint (B2): it came - the ruled people held DT_Rules.StartingEdict below
+	// CosmicUI::EdictHintStability -, and it ended - the edict window opened, or the people holds that edict no more
+	// (CosmicUI::StepEdictHint, ShowsEdictHint). Once a session.
+	bool bEdictHintOn = false;
+	bool bEdictHintDone = false;
 };
 
 namespace CosmicUI
@@ -253,13 +258,34 @@ namespace CosmicUI
 		return JoinList(Shares);
 	}
 
-	// The word of a research focus (CosmicResearch::ShapeOf): the focused field's label, Focus.Even, or Focus.Mixed.
-	inline FText FocusWordOf(const TMap<FName, float>& ResearchFocus)
+	// Whether a press of the focus button of Field (NAME_None: the even one) would leave ResearchFocus as it is: the map
+	// CosmicResearch::Focus (with Share, the DT_Rules.ResearchFocusShare the command uses) or Even makes from it, compared
+	// key by key (B2 section 2.8 - a preset, not a shape: the slider's 1-5-1 is no focus on society). False when the rule
+	// makes nothing of the map.
+	inline bool IsPresetNow(const TMap<FName, float>& ResearchFocus, FName Field, float Share)
 	{
-		FName Field;
-		const ECosmicFocusShape Shape = CosmicResearch::ShapeOf(ResearchFocus, &Field);
-		const TCHAR* FieldKey = Shape == ECosmicFocusShape::Focused ? ResearchLabelKey(Field) : nullptr;
-		return FieldKey ? Label(FieldKey) : Label(Shape == ECosmicFocusShape::Even ? TEXT("Focus.Even") : TEXT("Focus.Mixed"));
+		TMap<FName, float> Would = ResearchFocus;
+		const bool bMade = Field.IsNone() ? CosmicResearch::Even(Would) : CosmicResearch::Focus(Would, Field, Share);
+		return bMade && Would.OrderIndependentCompareEqual(ResearchFocus);
+	}
+
+	// The word of a research focus: Focus.Even for the even preset, a field's label for that field's preset (IsPresetNow
+	// with Share - the four fields in the top bar's order, transcendence too: the console can lean to it), else Focus.Mixed.
+	inline FText FocusWordOf(const TMap<FName, float>& ResearchFocus, float Share)
+	{
+		if (IsPresetNow(ResearchFocus, NAME_None, Share))
+		{
+			return Label(TEXT("Focus.Even"));
+		}
+		for (int32 At = 0; At < static_cast<int32>(UE_ARRAY_COUNT(ResearchFieldNames)); ++At)
+		{
+			const FName Field(ResearchFieldNames[At]);
+			if (ResearchFocus.Contains(Field) && IsPresetNow(ResearchFocus, Field, Share))
+			{
+				return Label(ResearchLabelKeys[At]);
+			}
+		}
+		return Label(TEXT("Focus.Mixed"));
 	}
 
 	inline UTextBlock* MakeText(UWidgetTree& Tree, int32 FontSize, bool bWrap = true)
@@ -343,6 +369,37 @@ namespace CosmicUI
 	{
 		return bRulersCapital && Tick >= FirstShipFromTick && Tick < FirstShipUntilTick && !bRunEnded && !bLeftOnce
 			&& (!Progress.bShipHinted || bThisViewing);
+	}
+
+	// The edict hint (B2 header section 4): from the first look at which the ruled people holds the inherited edict with its
+	// Stability below this - the first murmur's line.
+	inline constexpr float EdictHintStability = 0.5f;
+
+	/** Steps the edict hint after a look at an embodied ruler's people (bRuler; nothing changes otherwise): holding the
+	 * inherited edict (bHoldsInherited) with Stability below EdictHintStability starts it, once a session; a started hint ends
+	 * when the people holds that edict no more (a revocation, a lapse). The edict window's open ends it too
+	 * (ACosmicPlayerController::NoteEdictWindowOpened), started or not. */
+	inline void StepEdictHint(FCosmicHintProgress& Progress, bool bRuler, bool bHoldsInherited, float Stability)
+	{
+		if (Progress.bEdictHintDone || !bRuler)
+		{
+			return;
+		}
+		if (!Progress.bEdictHintOn)
+		{
+			Progress.bEdictHintOn = bHoldsInherited && Stability < EdictHintStability;
+		}
+		else if (!bHoldsInherited)
+		{
+			Progress.bEdictHintDone = true;
+		}
+	}
+
+	/** Whether the edict hint stands: the top bar's mark and the first line of its edict button's tooltip, the capital
+	 * panel's line. */
+	inline bool ShowsEdictHint(const FCosmicHintProgress& Progress)
+	{
+		return Progress.bEdictHintOn && !Progress.bEdictHintDone;
 	}
 
 	// The String Table key of a galaxy's kind (section 3.1, 5.11): the four Galaxy.Kind tags, matched as tags requested by
