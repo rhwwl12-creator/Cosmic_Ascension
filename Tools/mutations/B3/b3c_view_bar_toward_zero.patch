@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -91,7 +91,7 @@
+ 	// below the bar never reads at it -, and never below a bar it reaches (a bar that is no tenth).
+ 	FText ViewAgainstBarOf(float View, float Bar)
+ 	{
+-		const float Tenth = FMath::FloorToFloat(View * 10.f) / 10.f;
++		const float Tenth = FMath::TruncToFloat(View * 10.f) / 10.f;
+ 		return Signed(View >= Bar ? FMath::Max(Tenth, Bar) : Tenth);
+ 	}
+ 

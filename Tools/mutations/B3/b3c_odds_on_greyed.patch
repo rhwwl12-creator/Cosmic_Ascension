@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1067,7 +1067,7 @@
+ 					const FText What = FText::Format(Label(TEXT("Siege.SendTip")), DurationLabel(FMath::Max(1, Rules.SiegeTicks), Unit), Percent(CosmicConflict::RepulsedShareOf(Rules)),
+ 						UCosmicEdictWidget::AmountOf(Rules.ConquestRelationPenalty));
+ 					// Our side's band only on a button that can be pressed (a greyed one has no siege to weigh).
+-					const FText Odds = Block == CosmicConflict::ECosmicSiegeBlock::None ? FText::Format(Label(TEXT("Siege.SendOdds")),
++					const FText Odds = Block != CosmicConflict::ECosmicSiegeBlock::Handler ? FText::Format(Label(TEXT("Siege.SendOdds")),
+ 						UCosmicEdictWidget::OddsWordOf(CosmicConflict::SiegeOddsOf(State, Index, Rules, RuledIndex, SystemIndex))) : FText::GetEmpty();
+ 					FleetWanted.Add({ SiegeAction, Suffix.IsEmpty() ? Name : FText::Format(INVTEXT("{0}  {1}"), Name, Suffix), bEnded ? EndBlock : Reason,
+ 						bEnded ? EndBlock : JoinLines({ Reason, What, Odds, Leaves }) });

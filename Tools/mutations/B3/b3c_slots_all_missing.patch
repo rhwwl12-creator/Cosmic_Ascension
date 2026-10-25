@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1312,7 +1312,7 @@
+ 		FText::AsNumber(CosmicDiplomacy::FriendlySlotsOf(Civ, Rules))));
+ 	const TOptional<int32> NextSlotRung = NextFriendlySlotRungOf(Civ, Rules);
+ 	SetTip(SlotsText, CosmicUI::JoinLines({ Label(TEXT("Diplomacy.SlotsTip")), NextSlotRung.IsSet()
+-		? FText::Format(Label(TEXT("Diplomacy.SlotsNext")), FText::AsNumber(*NextSlotRung + 1)) : Label(TEXT("Diplomacy.SlotsAll")) }));
++		? FText::Format(Label(TEXT("Diplomacy.SlotsNext")), FText::AsNumber(*NextSlotRung + 1)) : FText::GetEmpty() }));
+ 
+ 	// The peoples met and shown, by their meeting order.
+ 	TArray<int32> Wanted;

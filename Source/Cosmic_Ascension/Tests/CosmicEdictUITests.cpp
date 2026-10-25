@@ -357,6 +357,14 @@ bool FCosmicUIEdictWindowTest::RunTest(const FString& Parameters)
 	Window->GetEdictsTabButton()->Press();
 	TestTrue(TEXT("The edicts' tab turns it back"), Window->GetTab() == ECosmicEdictTab::Edicts && !Window->GetEdictsTabButton()->GetIsEnabled());
 	TestEqual(TEXT("and counts the held edicts and the slots"), Words(Window->GetEdictsTabButton()->GetLabel()), Count(1, 1));
+	// The third tab (B3): the peoples' page, shown alone; the other two tabs then pressable.
+	TestTrue(TEXT("The peoples' tab can be pressed from the edicts' page"), Window->GetPeoplesTabButton()->GetIsEnabled());
+	Window->GetPeoplesTabButton()->Press();
+	TestTrue(TEXT("and turns to the peoples' page"), Window->GetTab() == ECosmicEdictTab::Peoples && !Window->GetPeoplesTabButton()->GetIsEnabled()
+		&& Window->GetEdictsTabButton()->GetIsEnabled() && Window->GetSharesTabButton()->GetIsEnabled());
+	TestTrue(TEXT("shown alone"), Shown(Window->GetPeoplesPage()) && !Shown(Window->GetEdictsPage()) && !Shown(Window->GetSharesPage()));
+	Window->GetEdictsTabButton()->Press();
+	TestTrue(TEXT("(back on the edicts' page)"), Window->GetTab() == ECosmicEdictTab::Edicts && Shown(Window->GetEdictsPage()) && !Shown(Window->GetPeoplesPage()));
 	Window->GetCloseButton()->Press();
 	TestFalse(TEXT("[Close] closes the window"), Window->IsOpen() || Shown(Window));
 	EdictButton->Press();

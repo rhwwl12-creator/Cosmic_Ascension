@@ -110,6 +110,13 @@ namespace CosmicDiplomacy
 	/** The sum of the TreatyAcceptBonus of the edicts Civ holds (values above 0 and finite). */
 	COSMIC_ASCENSION_API float TreatyAcceptBonusOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables);
 
+	/** The view another people must hold of Civ to take its treaty: DT_Rules.TreatyAcceptRelation (0 when not finite) less
+	 * TreatyAcceptBonusOf - the bar TreatyBlockOf asks, and the one the peoples tab tells. */
+	COSMIC_ASCENSION_API float TreatyBarOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules);
+
+	/** The influence a treaty asks of its proposer: DT_Rules.TreatyCostInfluence when above 0 and finite, else 0. */
+	COSMIC_ASCENSION_API float TreatyCostOf(const FCosmicRulesDef& Rules);
+
 	/** The first reason CivIndex cannot set Stance (Friendly, Hostile or empty) toward OtherID, NoCiv .. NonAggression. */
 	COSMIC_ASCENSION_API ECosmicStanceBlock StanceBlockOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules,
 		int32 CivIndex, FName OtherID, FGameplayTag Stance, bool bMet);

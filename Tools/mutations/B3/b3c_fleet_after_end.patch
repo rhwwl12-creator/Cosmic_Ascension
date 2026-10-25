@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1040,7 +1040,7 @@
+ 					const FText Suffix = bEnded ? Label(TEXT("Chronicle.Suffix")) : (bGreyed ? Label(TEXT("Guard.Suffix.NoFleet")) : FText::GetEmpty());
+ 					const FText Name = Label(TEXT("Guard.Here"));
+ 					FleetWanted.Add({ GuardAction, Suffix.IsEmpty() ? Name : FText::Format(INVTEXT("{0}  {1}"), Name, Suffix), bEnded ? EndBlock : Reason,
+-						bEnded ? EndBlock : JoinLines({ Reason, Label(TEXT("Guard.HereTip")), Leaves }) });
++						JoinLines({ Reason, Label(TEXT("Guard.HereTip")), Leaves }) });
+ 				}
+ 				// Another people's siege on our system: its name only for a people the viewer is shown.
+ 				const int32 Besieger = CosmicConflict::BesiegerOf(State, Index, SystemIndex);

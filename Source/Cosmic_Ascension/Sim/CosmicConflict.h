@@ -94,6 +94,18 @@ namespace CosmicConflict
 	COSMIC_ASCENSION_API ECosmicGuardBlock GuardBlockOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules,
 		int32 CivIndex, int32 SystemIndex);
 
+	/** A guard's reason in the siege's names, as AllocateFleet answers it (NotOwn is NoSystem: no system of the people). */
+	COSMIC_ASCENSION_API ECosmicSiegeBlock SiegeNameOf(ECosmicGuardBlock Block);
+
+	/** The ticks the guard of the people Owner adds to a new hazard against a source Gap rungs above it: DT_Rules.FleetDelayPerPower
+	 * x EffectivePowerOf(its FleetPower, Gap), at most FleetDelayCap (and 100000), cut to int32; 0 for no fleet. FleetDelayOf's
+	 * arithmetic, and the system panel's delay line (gap 0). */
+	COSMIC_ASCENSION_API int32 GuardDelayTicksOf(const FCivilizationState& Owner, int32 Gap, const FCosmicRulesDef& Rules);
+
+	/** The share of its fleet a repulsed attacker keeps: DT_Rules.SiegeRepulsedFleetFactor when in [0, 1], else 0 (the
+	 * conflict stage, and [Send the fleet]'s tooltip). */
+	COSMIC_ASCENSION_API float RepulsedShareOf(const FCosmicRulesDef& Rules);
+
 	/** The attacker's odds: A = its effective power against the owner, D = the owner's FleetPower x its defence share
 	 * (SiegeDefenceShares: [0] its target is this system, [1] it has none, [2] another). 0 when A is not above 0, 1 when D
 	 * is not above 0, else A / (A + D). */

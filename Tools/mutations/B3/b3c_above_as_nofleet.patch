@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1060,7 +1060,7 @@
+ 					const CosmicConflict::ECosmicSiegeBlock Block = CosmicConflict::SiegeBlockOf(State, Index, Rules, RuledIndex, SystemIndex);
+ 					ShownFleetBlock = Block;
+ 					// NoFleet with a fleet: the owner stands too high for it to reach (the effectiveness of the rung gap is 0).
+-					const bool bAbove = Block == CosmicConflict::ECosmicSiegeBlock::NoFleet && Ruled.FleetPower > 0.f;
++					const bool bAbove = Block == CosmicConflict::ECosmicSiegeBlock::NoFleet && Ruled.FleetPower < 0.f;
+ 					const FText Reason = UCosmicEdictWidget::SiegeReasonOf(Block, bAbove);
+ 					const FText Suffix = bEnded ? Label(TEXT("Chronicle.Suffix")) : UCosmicEdictWidget::SiegeSuffixOf(Block, bAbove);
+ 					const FText Name = Label(TEXT("Siege.Send"));

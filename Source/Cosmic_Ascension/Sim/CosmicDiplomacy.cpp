@@ -313,6 +313,16 @@ float CosmicDiplomacy::TreatyAcceptBonusOf(const FCivilizationState& Civ, const 
 	return Sum;
 }
 
+float CosmicDiplomacy::TreatyBarOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules)
+{
+	return CosmicDiplomacyImpl::Term(Rules.TreatyAcceptRelation) - TreatyAcceptBonusOf(Civ, Tables);
+}
+
+float CosmicDiplomacy::TreatyCostOf(const FCosmicRulesDef& Rules)
+{
+	return (Rules.TreatyCostInfluence > 0.f && Rules.TreatyCostInfluence <= TNumericLimits<float>::Max()) ? Rules.TreatyCostInfluence : 0.f;
+}
+
 CosmicDiplomacy::ECosmicStanceBlock CosmicDiplomacy::StanceBlockOf(const FGalaxyState& State, const FCosmicStateIndex& Index,
 	const FCosmicRulesDef& Rules, int32 CivIndex, FName OtherID, FGameplayTag Stance, bool bMet)
 {
@@ -382,13 +392,11 @@ CosmicDiplomacy::ECosmicTreatyBlock CosmicDiplomacy::TreatyBlockOf(const FGalaxy
 	{
 		return ECosmicTreatyBlock::Hostile;
 	}
-	const float Bar = CosmicDiplomacyImpl::Term(Rules.TreatyAcceptRelation) - TreatyAcceptBonusOf(Civ, Tables);
-	if (!(ViewOf(State, Index, Rules, OtherIndex, CivIndex) >= Bar))
+	if (!(ViewOf(State, Index, Rules, OtherIndex, CivIndex) >= TreatyBarOf(Civ, Tables, Rules)))
 	{
 		return ECosmicTreatyBlock::Refused;
 	}
-	const float Cost = (Rules.TreatyCostInfluence > 0.f && Rules.TreatyCostInfluence <= TNumericLimits<float>::Max()) ? Rules.TreatyCostInfluence : 0.f;
-	if (Civ.Stockpile.Influence < Cost)
+	if (Civ.Stockpile.Influence < TreatyCostOf(Rules))
 	{
 		return ECosmicTreatyBlock::Cost;
 	}

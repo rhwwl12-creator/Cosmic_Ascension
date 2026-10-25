@@ -1,4 +1,5 @@
-// Cosmic Ascension - UI layer (Presentation). Design: docs/60_DECISIONS/headers/B2_edicts_and_research.md section 2.8, 4.
+// Cosmic Ascension - UI layer (Presentation). Design: docs/60_DECISIONS/headers/B2_edicts_and_research.md section 2.8, 4;
+// the peoples' page: docs/60_DECISIONS/headers/B3_diplomacy_and_conflict.md section 4.
 // The UI reads the simulation and listens to its delegates; commands go through the player controller.
 
 #pragma once
@@ -6,6 +7,8 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Misc/Optional.h"
+#include "Sim/CosmicConflict.h"
+#include "Sim/CosmicDiplomacy.h"
 #include "Sim/CosmicEdicts.h"
 #include "UI/CosmicUILabels.h"
 #include "CosmicEdictWidget.generated.h"
@@ -18,21 +21,25 @@ class UVerticalBox;
 struct FCivilizationState;
 struct FCosmicDataTables;
 struct FCosmicRulesDef;
+struct FCosmicStateIndex;
 struct FEdictDef;
+struct FGalaxyState;
 struct FResourcePool;
 
-/** The two pages of the edict window. Not a UENUM: presentation state, never saved. */
+/** The pages of the edict window. Not a UENUM: presentation state, never saved. */
 enum class ECosmicEdictTab : uint8
 {
 	Edicts,
 	Shares,
+	// B3: the peoples met - stances, treaties and the fleet.
+	Peoples,
 };
 
 /**
- * The edict window (B2 header section 4): the ruler's edicts and the research shares, on the left under the top bar and
- * under the petition card, opened and closed by the top bar's edict button (the system panel's [Share by hand] opens it
- * on its second page). It does not stop the time. Two pages behind two tab buttons - the page shown greyed out, the
- * edicts' tab named with the held edicts and the slots (Edict.Count) - then [Close]:
+ * The edict window (B2 header section 4): the ruler's edicts, the research shares and (B3) the peoples met, on the left
+ * under the top bar and under the petition card, opened and closed by the top bar's edict button (the system panel's
+ * [Share by hand] opens it on its second page). It does not stop the time. Three pages behind three tab buttons - the page
+ * shown greyed out, the edicts' tab named with the held edicts and the slots (Edict.Count) - then [Close]:
  * - Edicts: one row per DT_Edicts row (CosmicDataTables::GetEdictRowNames, lexical) of the ruled people's rung or below,
  *   and any it holds: its name, the grey mark of the inherited edict (Edict.Inherited - while the people holds
  *   DT_Rules.StartingEdict, enacted again or not), its Summary and one button - [Revoke] for a held edict, else [Enact]
@@ -47,6 +54,21 @@ enum class ECosmicEdictTab : uint8
  *   (sliders that give the shares now stay - the weights a person applied stay where they were put); never while a person
  *   holds one or after a person moved one. Before a move the share beside each slider is the share now and the 'would'
  *   line is hidden; three sliders at 0 say that nothing can be shared (Edict.Shares.Zero).
+ * - Peoples (B3 header section 4 - the tab Diplomacy.Tab): a head of the fleet (Siege.Fleet - its power and its cap,
+ *   CosmicConflict::FleetCapOf; Guard.NoFleet without either - its tooltip how it grows and its upkeep a size), its target
+ *   (Guard.Line, Siege.Line with the time left and our side's band, or Guard.Even) with [Withdraw the fleet] while it has
+ *   one (its tooltip by the target's kind), and the friendly slots (Diplomacy.Slots - the rung that opens the next in the
+ *   tooltip); then one row per people met and shown (FCosmicKnownView::IsMet and ShownOrderOf, in the meeting order - no
+ *   transcendent): its name and the band of the view it holds of us (CosmicDiplomacy::ViewOf, ViewBandOf - the terms in
+ *   the tooltip, ViewTipOf); Diplomacy.TheyHostile on a line of its own when it is hostile toward us; our three stances
+ *   (the one held greyed and marked with Edict.Mark, Diplomacy.TipNow; a refused one greyed with the first reason of
+ *   CosmicDiplomacy::StanceBlockOf - the command's gate; the tooltips say what a stance costs and breaks - a trade treaty's
+ *   betrayal, our siege of them lifted); the two treaties - [Trade] [Non-aggression] greyed by
+ *   CosmicDiplomacy::TreatyBlockOf, the cost and the acceptance bar (TreatyBarOf) in the tooltip, or [Break ...] for one
+ *   held; and a line of each siege between us (Siege.Row.Ours, Siege.Row.Theirs). Diplomacy.None with nobody met. Every
+ *   press is one command through the controller. The page is redrawn only while it is shown. The live view moves with
+ *   the tick: one tooltip tells it, beside the treaties' bar, to a tenth (cut down, never below a bar it reaches - it
+ *   agrees with the gate), so an open tooltip seldom closes; the band's tooltip tells the terms, which keep still.
  * Shown only while open for an embodied ruler in a run that is not over; it closes itself otherwise, and on a new galaxy
  * or a load. Built in C++ (no WBP); redrawn from the simulation's ticks and by the HUD; clicks on it do not reach the map.
  */
@@ -77,6 +99,13 @@ public:
 	void MoveSlider(FName Field, int32 Weight);
 	/** What a click on [Share it so] does (tests call it in place of a click). Nothing while it is greyed out. */
 	void PressApply();
+	/** The peoples' page (B3, tests call these in place of a click): a stance button of the people CivID (StanceAt 0
+	 * friendly, 1 neutral, 2 hostile) - ACosmicPlayerController::SetStance; a treaty button (TreatyAt 0 trade, 1
+	 * non-aggression) - ProposeTreaty, or BreakTreaty for one held; [Withdraw the fleet] - AllocateFleet(None). Nothing for
+	 * a greyed-out button or a people not shown. */
+	void PressStance(FName CivID, int32 StanceAt);
+	void PressTreaty(FName CivID, int32 TreatyAt);
+	void PressWithdraw();
 
 	// What tests read.
 	/** The rows now shown, in order. */
@@ -89,6 +118,29 @@ public:
 	UCosmicActionButton* GetEdictsTabButton() const { return EdictsTabButton; }
 	UCosmicActionButton* GetSharesTabButton() const { return SharesTabButton; }
 	UCosmicActionButton* GetCloseButton() const { return CloseButton; }
+	UCosmicActionButton* GetPeoplesTabButton() const { return PeoplesTabButton; }
+	/** The peoples' page (B3, tests): the peoples shown, in order; a row's widgets; the gates' answers its buttons show (a
+	 * stance button's - Same for the one held -, a treaty's - unset for a treaty held, whose button breaks it). */
+	const TArray<FName>& GetShownPeoples() const { return ShownPeoples; }
+	const UWidget* GetPeopleRow(FName CivID) const;
+	const UTextBlock* GetPeopleBand(FName CivID) const;
+	const UTextBlock* GetPeopleHostility(FName CivID) const;
+	const UTextBlock* GetPeopleSiege(FName CivID) const;
+	UCosmicActionButton* GetStanceButton(FName CivID, int32 StanceAt) const;
+	UCosmicActionButton* GetTreatyButton(FName CivID, int32 TreatyAt) const;
+	TOptional<CosmicDiplomacy::ECosmicStanceBlock> GetShownStanceBlock(FName CivID, int32 StanceAt) const;
+	TOptional<CosmicDiplomacy::ECosmicTreatyBlock> GetShownTreatyBlock(FName CivID, int32 TreatyAt) const;
+	const UTextBlock* GetFleetText() const { return FleetText; }
+	const UTextBlock* GetTargetText() const { return TargetText; }
+	const UTextBlock* GetSlotsText() const { return SlotsText; }
+	const UTextBlock* GetNoPeoplesText() const { return NoPeoplesText; }
+	UCosmicActionButton* GetWithdrawButton() const { return WithdrawButton; }
+	/** The tab line (tests measure its width). */
+	const UWidget* GetTabLine() const { return TabLine; }
+	/** The three pages (tests read which shows). */
+	const UWidget* GetEdictsPage() const;
+	const UWidget* GetSharesPage() const;
+	const UWidget* GetPeoplesPage() const;
 	/** The weight the slider of Field stands at (INDEX_NONE for a field without one). */
 	int32 GetSliderWeight(FName Field) const;
 	const UTextBlock* GetWouldText() const { return WouldText; }
@@ -132,6 +184,37 @@ public:
 	/** The edict hint's words (Hint.Edict with the DisplayName of DT_Rules.StartingEdict); empty when no row is named. */
 	static FText HintOf(const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules);
 
+	/** The stances and treaties in the order of the buttons (B3). */
+	static FGameplayTag StanceAt(int32 At);
+	static FGameplayTag TreatyAt(int32 At);
+	/** The word of the view a people holds (ST_CA Diplomacy.View.0..4 - CosmicDiplomacy::ViewBandOf). */
+	static FText ViewWordOf(float View);
+	/** The terms of the view the people Viewer holds of the people Viewed, a tooltip (B3 section 4): for a bordering pair the
+	 * target the view moves to and its ethics, stance (the term of the stance Viewed holds toward Viewer, read from the knob)
+	 * and treaty terms; for a pair that does not border the ethics and treaty terms and Diplomacy.TipFar. The view itself
+	 * is told beside the treaties' bar only (it moves with the tick). Numbers of the screen only. */
+	static FText ViewTipOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules, int32 Viewer, int32 Viewed);
+	/** The long words of a refused stance (Diplomacy.Block.*, Diplomacy.TipNow for Same); empty for None and the command's
+	 * own reasons. */
+	static FText StanceReasonOf(CosmicDiplomacy::ECosmicStanceBlock Block);
+	/** The long words of a refused treaty (Diplomacy.Treaty.Block.*); empty for None, Held and the command's own reasons. */
+	static FText TreatyReasonOf(CosmicDiplomacy::ECosmicTreatyBlock Block);
+	/** The long words of a refused siege (Siege.Block.*) - the system panel's [Send the fleet] too; empty for None and the
+	 * reasons no button shows (the system is the people's own, wild, dead, being settled, the sanctuary). bAbove: a NoFleet
+	 * while the people has a fleet - the owner stands too high for it (Siege.Block.Above). */
+	static FText SiegeReasonOf(CosmicConflict::ECosmicSiegeBlock Block, bool bAbove = false);
+	/** The short words after a greyed [Send the fleet] (Siege.Suffix.*), for the same reasons; empty otherwise. */
+	static FText SiegeSuffixOf(CosmicConflict::ECosmicSiegeBlock Block, bool bAbove = false);
+	/** A number as the window says it: up to two decimals, a plain 0 for anything nearer 0 than 0.005 (never '-0'). */
+	static FText AmountOf(float Value);
+	/** The rung (EAscensionTier's value, 0..4) at which the people's next friendly slot opens: the first above its Tier
+	 * whose DT_Rules.FriendlySlotsByTier entry is more than CosmicDiplomacy::FriendlySlotsOf now; unset when none is. */
+	static TOptional<int32> NextFriendlySlotRungOf(const FCivilizationState& Civ, const FCosmicRulesDef& Rules);
+	/** Our side's band of a siege (Siege.Band.* - CosmicConflict::OddsBandOf of the odds read from our side). */
+	static FText OddsWordOf(float OursOdds);
+	/** The time a siege of the people Attacker has left, in ticks (never below 0). */
+	static int64 SiegeTicksLeftOf(const FCivilizationState& Attacker, int64 Tick, const FCosmicRulesDef& Rules);
+
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeConstruct() override;
@@ -160,6 +243,8 @@ private:
 	// A row's button (Action = the row) and the window's own buttons (the tabs, [Close], [Share it so]).
 	void HandleRow(FName Row, float Value);
 	void HandleAction(FName Action, float Value);
+	// A people's button (Action = the people's CivID, Value = 0..2 a stance, 3..4 a treaty).
+	void HandlePeople(FName CivID, float Value);
 
 	// The ruled people of an embodied ruler, in a run that is not over; INDEX_NONE otherwise (the window then closes).
 	int32 RuledIndexNow() const;
@@ -167,6 +252,7 @@ private:
 	// keeps its objects and takes its words and state in place.
 	void RefreshEdicts(int32 RuledIndex);
 	void RefreshShares(int32 RuledIndex);
+	void RefreshPeoples(int32 RuledIndex);
 	// Sets the sliders from the shares now - the window's own setting, not a person's move.
 	void SetSlidersFromShares(int32 RuledIndex);
 	// The weights the sliders stand at, by field.
@@ -180,6 +266,12 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCosmicActionButton> CloseButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCosmicActionButton> PeoplesTabButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> TabLine;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UScrollBox> EdictsPage;
@@ -217,11 +309,59 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UCosmicActionButton> ApplyButton;
 
+	// The peoples' page (B3).
+	UPROPERTY(Transient)
+	TObjectPtr<UScrollBox> PeoplesPage;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> FleetText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> TargetText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCosmicActionButton> WithdrawButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> SlotsText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> NoPeoplesText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UVerticalBox> PeopleBox;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UVerticalBox>> PeopleRows;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> PeopleNames;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> PeopleBands;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> PeopleHostilities;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> PeopleSieges;
+
+	// Three a people (friendly, neutral, hostile), then two a people (trade, non-aggression).
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UCosmicActionButton>> StanceButtons;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UCosmicActionButton>> TreatyButtons;
+
 	bool bOpen = false;
 	ECosmicEdictTab Tab = ECosmicEdictTab::Edicts;
 	// The rows the row widgets were built for, and the reasons of their [Enact] (unset: held).
 	TArray<FName> ShownRows;
 	TArray<TOptional<CosmicEdicts::ECosmicEdictBlock>> ShownBlocks;
+	// The peoples the rows were built for, and the gates' answers their buttons show (three, then two, a people).
+	TArray<FName> ShownPeoples;
+	TArray<CosmicDiplomacy::ECosmicStanceBlock> ShownStanceBlocks;
+	TArray<TOptional<CosmicDiplomacy::ECosmicTreatyBlock>> ShownTreatyBlocks;
 	// The window is setting a slider itself; a person moved a slider since the window last set them; a slider is held by
 	// the mouse.
 	bool bSettingSliders = false;

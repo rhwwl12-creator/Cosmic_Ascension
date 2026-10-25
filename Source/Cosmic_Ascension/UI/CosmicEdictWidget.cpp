@@ -13,6 +13,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Core/CosmicTags.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
@@ -22,6 +23,8 @@
 #include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
 #include "Layout/Margin.h"
+#include "Sim/CosmicConflict.h"
+#include "Sim/CosmicDiplomacy.h"
 #include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicResearch.h"
 #include "Sim/CosmicStateIndex.h"
@@ -29,6 +32,7 @@
 #include "UI/CosmicActionButton.h"
 #include "UI/CosmicUILabels.h"
 #include "World/CosmicGameMode.h"
+#include "World/CosmicMapLook.h"
 
 const FName UCosmicEdictWidget::SliderFields[3] = { FName(TEXT("Physics")), FName(TEXT("Society")), FName(TEXT("Engineering")) };
 
@@ -46,6 +50,12 @@ namespace CosmicEdictWindowImpl
 	const FName SharesTabAction(TEXT("tab_shares"));
 	const FName CloseAction(TEXT("close"));
 	const FName ApplyAction(TEXT("apply"));
+	const FName PeoplesTabAction(TEXT("tab_peoples"));
+	const FName WithdrawAction(TEXT("withdraw"));
+	// A people's hostility toward us: a muted red, read beside the grey band.
+	const FLinearColor HostileColor(0.9f, 0.45f, 0.4f);
+	// The value of a people's button: a stance at 0..2, a treaty at TreatyBase + 0..1.
+	constexpr float TreatyBase = 3.f;
 	// One hundred ticks: the span Stability points are told over (a tick's change is a fraction of a point).
 	constexpr int64 StabilitySpan = 100;
 
@@ -59,7 +69,8 @@ namespace CosmicEdictWindowImpl
 		FNumberFormattingOptions Options;
 		Options.MinimumFractionalDigits = 0;
 		Options.MaximumFractionalDigits = 2;
-		return FText::AsNumber(Value, &Options);
+		// Nearer 0 than the last digit shown: a plain 0 (the formatter keeps the sign of -0.001, and of -0.0, as '-0').
+		return FText::AsNumber((Value >= -0.005f && Value <= 0.005f) ? 0.f : Value, &Options);
 	}
 
 	// "+20%" or "-20%": a factor told as the change it makes.
@@ -67,6 +78,21 @@ namespace CosmicEdictWindowImpl
 	{
 		const float Change = Factor - 1.f;
 		return Change > 0.f ? FText::Format(INVTEXT("+{0}"), CosmicUI::Percent(Change)) : CosmicUI::Percent(Change);
+	}
+
+	// "+0.24" or "-0.12": a term of a view, signed (up to two decimals; a plain 0 for 0.005 or less either way).
+	FText Signed(float Value)
+	{
+		return Value > 0.005f ? FText::Format(INVTEXT("+{0}"), Amount(Value)) : Amount(Value);
+	}
+
+	// The live view beside a treaty's bar - the one place a number of it is told (the band's tooltip tells its terms): it
+	// moves with the tick, so it is told to a tenth (it changes seldom, and an open tooltip seldom closes), cut down - a view
+	// below the bar never reads at it -, and never below a bar it reaches (a bar that is no tenth).
+	FText ViewAgainstBarOf(float View, float Bar)
+	{
+		const float Tenth = FMath::FloorToFloat(View * 10.f) / 10.f;
+		return Signed(View >= Bar ? FMath::Max(Tenth, Bar) : Tenth);
 	}
 
 	// "+5" or "-15": Stability points over StabilitySpan ticks (up to one decimal).
@@ -276,6 +302,15 @@ FText UCosmicEdictWidget::TipOf(const FCosmicDataTables& Tables, FName Row, ECos
 	{
 		Lines.Add(Label(TEXT("Edict.Effect.Other")));
 	}
+	// The fleet's growth and the treaties' acceptance (B3), read as the rules read them.
+	if (Def->FleetGrowthMultiplier > 0.f && Def->FleetGrowthMultiplier <= TNumericLimits<float>::Max() && Def->FleetGrowthMultiplier != 1.f)
+	{
+		Lines.Add(FText::Format(Label(TEXT("Edict.Effect.FleetGrowth")), Amount(Def->FleetGrowthMultiplier)));
+	}
+	if (Def->TreatyAcceptBonus > 0.f && Def->TreatyAcceptBonus <= TNumericLimits<float>::Max())
+	{
+		Lines.Add(FText::Format(Label(TEXT("Edict.Effect.TreatyAccept")), Amount(Def->TreatyAcceptBonus)));
+	}
 	for (const FGameplayTag& Tag : SortedTags(Def->HazardSpawnMultipliers))
 	{
 		const float Factor = Def->HazardSpawnMultipliers.FindRef(Tag);
@@ -399,6 +434,8 @@ TSharedRef<SWidget> UCosmicEdictWidget::RebuildWidget()
 		};
 		EdictsTabButton = AddControl(EdictsTabAction, FText::Format(CosmicUI::Label(TEXT("Edict.Count")), FText::AsNumber(0), FText::AsNumber(1)), 0.f);
 		SharesTabButton = AddControl(SharesTabAction, CosmicUI::Label(TEXT("Edict.Tab.Shares")), 4.f);
+		PeoplesTabButton = AddControl(PeoplesTabAction, CosmicUI::Label(TEXT("Diplomacy.Tab")), 4.f);
+		TabLine = Tabs;
 		UHorizontalBoxSlot* Gap = Tabs->AddChildToHorizontalBox(WidgetTree->ConstructWidget<UTextBlock>());
 		Gap->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		CloseButton = AddControl(CloseAction, CosmicUI::Label(TEXT("Petition.Close")), 4.f);
@@ -460,6 +497,37 @@ TSharedRef<SWidget> UCosmicEdictWidget::RebuildWidget()
 		ApplyButton->SetToolTipText(CosmicUI::Label(TEXT("Edict.Shares.Tip")));
 		ApplyButton->SetIsEnabled(false);
 		SharesPage->AddChildToVerticalBox(ApplyButton);
+
+		// The peoples' page (B3): the fleet and the friendly slots, then a row per people met; it scrolls as the edicts' does.
+		USizeBox* PeoplesHeight = WidgetTree->ConstructWidget<USizeBox>();
+		PeoplesHeight->SetMaxDesiredHeight(RowsMaxHeight);
+		Column->AddChildToVerticalBox(PeoplesHeight);
+		PeoplesPage = WidgetTree->ConstructWidget<UScrollBox>();
+		PeoplesPage->SetVisibility(ESlateVisibility::Collapsed);
+		PeoplesHeight->AddChild(PeoplesPage);
+		UVerticalBox* PeoplesColumn = WidgetTree->ConstructWidget<UVerticalBox>();
+		PeoplesPage->AddChild(PeoplesColumn);
+		FleetText = CosmicUI::MakeText(*WidgetTree, 13);
+		PeoplesColumn->AddChildToVerticalBox(FleetText);
+		TargetText = CosmicUI::MakeText(*WidgetTree, 12);
+		TargetText->SetColorAndOpacity(FSlateColor(SummaryColor));
+		PeoplesColumn->AddChildToVerticalBox(TargetText)->SetPadding(FMargin(0.f, 2.f, 0.f, 0.f));
+		WithdrawButton = WidgetTree->ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
+		WithdrawButton->Setup(WithdrawAction, 0.f, CosmicUI::Label(TEXT("Guard.Withdraw")));
+		WithdrawButton->OnAction.AddUObject(this, &UCosmicEdictWidget::HandleAction);
+		WithdrawButton->SetVisibility(ESlateVisibility::Collapsed);
+		UVerticalBoxSlot* WithdrawSlot = PeoplesColumn->AddChildToVerticalBox(WithdrawButton);
+		WithdrawSlot->SetHorizontalAlignment(HAlign_Left);
+		WithdrawSlot->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
+		SlotsText = CosmicUI::MakeText(*WidgetTree, 13);
+		PeoplesColumn->AddChildToVerticalBox(SlotsText)->SetPadding(FMargin(0.f, 6.f, 0.f, 4.f));
+		NoPeoplesText = CosmicUI::MakeText(*WidgetTree, 12);
+		NoPeoplesText->SetColorAndOpacity(FSlateColor(QuietColor));
+		NoPeoplesText->SetText(CosmicUI::Label(TEXT("Diplomacy.None")));
+		NoPeoplesText->SetVisibility(ESlateVisibility::Collapsed);
+		PeoplesColumn->AddChildToVerticalBox(NoPeoplesText)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
+		PeopleBox = WidgetTree->ConstructWidget<UVerticalBox>();
+		PeoplesColumn->AddChildToVerticalBox(PeopleBox);
 		SetVisibility(ESlateVisibility::Collapsed);
 	}
 	return Super::RebuildWidget();
@@ -585,10 +653,18 @@ void UCosmicEdictWidget::Refresh()
 	}
 	EdictsTabButton->SetIsEnabled(Tab != ECosmicEdictTab::Edicts);
 	SharesTabButton->SetIsEnabled(Tab != ECosmicEdictTab::Shares);
+	PeoplesTabButton->SetIsEnabled(Tab != ECosmicEdictTab::Peoples);
 	EdictsPage->SetVisibility(Tab == ECosmicEdictTab::Edicts ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	SharesPage->SetVisibility(Tab == ECosmicEdictTab::Shares ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	PeoplesPage->SetVisibility(Tab == ECosmicEdictTab::Peoples ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	RefreshEdicts(RuledIndex);
 	RefreshShares(RuledIndex);
+	// The peoples' page only while it shows: its rows read the borders and the views of every people met (the tab's press
+	// and Open redraw it).
+	if (Tab == ECosmicEdictTab::Peoples)
+	{
+		RefreshPeoples(RuledIndex);
+	}
 }
 
 void UCosmicEdictWidget::RefreshEdicts(int32 RuledIndex)
@@ -897,9 +973,13 @@ void UCosmicEdictWidget::HandleAction(FName Action, float Value)
 	{
 		PressApply();
 	}
-	else if (Action == EdictsTabAction || Action == SharesTabAction)
+	else if (Action == WithdrawAction)
 	{
-		Tab = Action == EdictsTabAction ? ECosmicEdictTab::Edicts : ECosmicEdictTab::Shares;
+		PressWithdraw();
+	}
+	else if (Action == EdictsTabAction || Action == SharesTabAction || Action == PeoplesTabAction)
+	{
+		Tab = Action == EdictsTabAction ? ECosmicEdictTab::Edicts : (Action == SharesTabAction ? ECosmicEdictTab::Shares : ECosmicEdictTab::Peoples);
 		Refresh();
 	}
 }
@@ -913,4 +993,627 @@ FReply UCosmicEdictWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, 
 FReply UCosmicEdictWidget::NativeOnMouseButtonDoubleClick(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
 	return FReply::Handled();
+}
+
+// ---- The peoples' page (B3 header section 4) ----
+
+FGameplayTag UCosmicEdictWidget::StanceAt(int32 At)
+{
+	switch (At)
+	{
+	case 0: return CosmicTags::StanceFriendly();
+	case 2: return CosmicTags::StanceHostile();
+	default: return FGameplayTag();
+	}
+}
+
+FGameplayTag UCosmicEdictWidget::TreatyAt(int32 At)
+{
+	return At == 0 ? CosmicTags::TreatyTrade() : CosmicTags::TreatyNonAggression();
+}
+
+FText UCosmicEdictWidget::ViewWordOf(float View)
+{
+	static const TCHAR* const Keys[] = { TEXT("Diplomacy.View.0"), TEXT("Diplomacy.View.1"), TEXT("Diplomacy.View.2"), TEXT("Diplomacy.View.3"), TEXT("Diplomacy.View.4") };
+	const int32 Band = FMath::Clamp(CosmicDiplomacy::ViewBandOf(View), 0, static_cast<int32>(UE_ARRAY_COUNT(Keys)) - 1);
+	return CosmicUI::Label(Keys[Band]);
+}
+
+FText UCosmicEdictWidget::ViewTipOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules, int32 Viewer, int32 Viewed)
+{
+	using namespace CosmicEdictWindowImpl;
+	using CosmicUI::Label;
+
+	if (!State.Civs.IsValidIndex(Viewer) || !State.Civs.IsValidIndex(Viewed) || Viewer == Viewed)
+	{
+		return FText::GetEmpty();
+	}
+	const FCivilizationState& Them = State.Civs[Viewer];
+	const FCivilizationState& Us = State.Civs[Viewed];
+	// The terms as CosmicDiplomacy::TargetRelationOf sums them: the ethics, the stance we hold toward them, the treaties.
+	const float Ethics = -Rules.RelationEthicsWeight * CosmicDiplomacy::EthicsDistanceOf(Them.Ethics, Us.Ethics);
+	const float Treaties = Rules.RelationTreatyTerm * static_cast<float>(CosmicDiplomacy::TreatyCountOf(Them, Us.CivID));
+	TArray<FText> Lines;
+	if (CosmicDiplomacy::Borders(State, Index, Viewer, Viewed))
+	{
+		// The stance's term read where the rule reads it (not the target less the others: their rounding would show as +-0).
+		const FGameplayTag Ours = CosmicDiplomacy::StanceOf(Us, Them.CivID);
+		const int32 TermAt = Ours == CosmicTags::StanceFriendly() ? 0 : (Ours == CosmicTags::StanceHostile() ? 1 : INDEX_NONE);
+		const float Stance = (Rules.RelationStanceTerms.IsValidIndex(TermAt) && FMath::IsFinite(Rules.RelationStanceTerms[TermAt])) ? Rules.RelationStanceTerms[TermAt] : 0.f;
+		Lines.Add(FText::Format(Label(TEXT("Diplomacy.TipTarget")), Signed(CosmicDiplomacy::TargetRelationOf(State, Rules, Viewer, Viewed))));
+		Lines.Add(FText::Format(Label(TEXT("Diplomacy.TipEthics")), Signed(Ethics)));
+		Lines.Add(FText::Format(Label(TEXT("Diplomacy.TipStance")), Signed(Stance)));
+		Lines.Add(FText::Format(Label(TEXT("Diplomacy.TipTreaties")), Signed(Treaties)));
+	}
+	else
+	{
+		Lines.Add(FText::Format(Label(TEXT("Diplomacy.TipEthics")), Signed(Ethics)));
+		Lines.Add(FText::Format(Label(TEXT("Diplomacy.TipTreaties")), Signed(Treaties)));
+		Lines.Add(Label(TEXT("Diplomacy.TipFar")));
+	}
+	return CosmicUI::JoinLines(Lines);
+}
+
+FText UCosmicEdictWidget::StanceReasonOf(CosmicDiplomacy::ECosmicStanceBlock Block)
+{
+	using CosmicDiplomacy::ECosmicStanceBlock;
+	using CosmicUI::Label;
+
+	switch (Block)
+	{
+	case ECosmicStanceBlock::NotMet:
+		return Label(TEXT("Diplomacy.Block.NotMet"));
+	case ECosmicStanceBlock::Same:
+		return Label(TEXT("Diplomacy.TipNow"));
+	case ECosmicStanceBlock::FriendlySlots:
+		return Label(TEXT("Diplomacy.Block.FriendlySlots"));
+	case ECosmicStanceBlock::Tier:
+		return Label(TEXT("Diplomacy.Block.Tier"));
+	case ECosmicStanceBlock::NonAggression:
+		return Label(TEXT("Diplomacy.Block.NonAggression"));
+	case ECosmicStanceBlock::None:
+	case ECosmicStanceBlock::NotRuler:
+	case ECosmicStanceBlock::NoCiv:
+	case ECosmicStanceBlock::Self:
+	case ECosmicStanceBlock::Handler:
+		break;
+	}
+	return FText::GetEmpty();
+}
+
+FText UCosmicEdictWidget::TreatyReasonOf(CosmicDiplomacy::ECosmicTreatyBlock Block)
+{
+	using CosmicDiplomacy::ECosmicTreatyBlock;
+	using CosmicUI::Label;
+
+	switch (Block)
+	{
+	case ECosmicTreatyBlock::NotMet:
+		return Label(TEXT("Diplomacy.Treaty.Block.NotMet"));
+	case ECosmicTreatyBlock::Tier:
+		return Label(TEXT("Diplomacy.Treaty.Block.Tier"));
+	case ECosmicTreatyBlock::Hostile:
+		return Label(TEXT("Diplomacy.Treaty.Block.Hostile"));
+	case ECosmicTreatyBlock::Refused:
+		return Label(TEXT("Diplomacy.Treaty.Block.Refused"));
+	case ECosmicTreatyBlock::Cost:
+		return Label(TEXT("Diplomacy.Treaty.Block.Cost"));
+	case ECosmicTreatyBlock::None:
+	case ECosmicTreatyBlock::NotRuler:
+	case ECosmicTreatyBlock::NoCiv:
+	case ECosmicTreatyBlock::Self:
+	case ECosmicTreatyBlock::Held:
+	case ECosmicTreatyBlock::Handler:
+		break;
+	}
+	return FText::GetEmpty();
+}
+
+FText UCosmicEdictWidget::SiegeReasonOf(CosmicConflict::ECosmicSiegeBlock Block, bool bAbove)
+{
+	using CosmicConflict::ECosmicSiegeBlock;
+	using CosmicUI::Label;
+
+	if (bAbove && Block == ECosmicSiegeBlock::NoFleet)
+	{
+		return Label(TEXT("Siege.Block.Above"));
+	}
+	switch (Block)
+	{
+	case ECosmicSiegeBlock::Capital:
+		return Label(TEXT("Siege.Block.Capital"));
+	case ECosmicSiegeBlock::LastSettled:
+		return Label(TEXT("Siege.Block.LastSettled"));
+	case ECosmicSiegeBlock::NotAdjacent:
+		return Label(TEXT("Siege.Block.NotAdjacent"));
+	case ECosmicSiegeBlock::Besieged:
+		return Label(TEXT("Siege.Block.Besieged"));
+	case ECosmicSiegeBlock::RealmCap:
+		return Label(TEXT("Siege.Block.RealmCap"));
+	case ECosmicSiegeBlock::NoFleet:
+		return Label(TEXT("Siege.Block.NoFleet"));
+	case ECosmicSiegeBlock::NonAggression:
+		return Label(TEXT("Siege.Block.NonAggression"));
+	case ECosmicSiegeBlock::NotHostile:
+		return Label(TEXT("Siege.Block.NotHostile"));
+	case ECosmicSiegeBlock::None:
+	case ECosmicSiegeBlock::NotRuler:
+	case ECosmicSiegeBlock::Sanctuary:
+	case ECosmicSiegeBlock::NoSystem:
+	case ECosmicSiegeBlock::Dead:
+	case ECosmicSiegeBlock::Unowned:
+	case ECosmicSiegeBlock::Own:
+	case ECosmicSiegeBlock::NotSettled:
+	case ECosmicSiegeBlock::Handler:
+		break;
+	}
+	return FText::GetEmpty();
+}
+
+FText UCosmicEdictWidget::SiegeSuffixOf(CosmicConflict::ECosmicSiegeBlock Block, bool bAbove)
+{
+	using CosmicConflict::ECosmicSiegeBlock;
+	using CosmicUI::Label;
+
+	if (bAbove && Block == ECosmicSiegeBlock::NoFleet)
+	{
+		return Label(TEXT("Siege.Suffix.Above"));
+	}
+	switch (Block)
+	{
+	case ECosmicSiegeBlock::Capital:
+		return Label(TEXT("Siege.Suffix.Capital"));
+	case ECosmicSiegeBlock::LastSettled:
+		return Label(TEXT("Siege.Suffix.LastSettled"));
+	case ECosmicSiegeBlock::NotAdjacent:
+		return Label(TEXT("Siege.Suffix.NotAdjacent"));
+	case ECosmicSiegeBlock::Besieged:
+		return Label(TEXT("Siege.Suffix.Besieged"));
+	case ECosmicSiegeBlock::RealmCap:
+		return Label(TEXT("Siege.Suffix.RealmCap"));
+	case ECosmicSiegeBlock::NoFleet:
+		return Label(TEXT("Siege.Suffix.NoFleet"));
+	case ECosmicSiegeBlock::NonAggression:
+		return Label(TEXT("Siege.Suffix.NonAggression"));
+	case ECosmicSiegeBlock::NotHostile:
+		return Label(TEXT("Siege.Suffix.NotHostile"));
+	case ECosmicSiegeBlock::None:
+	case ECosmicSiegeBlock::NotRuler:
+	case ECosmicSiegeBlock::Sanctuary:
+	case ECosmicSiegeBlock::NoSystem:
+	case ECosmicSiegeBlock::Dead:
+	case ECosmicSiegeBlock::Unowned:
+	case ECosmicSiegeBlock::Own:
+	case ECosmicSiegeBlock::NotSettled:
+	case ECosmicSiegeBlock::Handler:
+		break;
+	}
+	return FText::GetEmpty();
+}
+
+FText UCosmicEdictWidget::AmountOf(float Value)
+{
+	return CosmicEdictWindowImpl::Amount(Value);
+}
+
+TOptional<int32> UCosmicEdictWidget::NextFriendlySlotRungOf(const FCivilizationState& Civ, const FCosmicRulesDef& Rules)
+{
+	const int32 Now = CosmicDiplomacy::FriendlySlotsOf(Civ, Rules);
+	for (int32 At = static_cast<int32>(Civ.Tier) + 1; At <= static_cast<int32>(EAscensionTier::Tier5_EternalOrder) && Rules.FriendlySlotsByTier.IsValidIndex(At); ++At)
+	{
+		if (FMath::Max(0, Rules.FriendlySlotsByTier[At]) > Now)
+		{
+			return At;
+		}
+	}
+	return TOptional<int32>();
+}
+
+const UWidget* UCosmicEdictWidget::GetEdictsPage() const
+{
+	return EdictsPage;
+}
+
+const UWidget* UCosmicEdictWidget::GetSharesPage() const
+{
+	return SharesPage;
+}
+
+const UWidget* UCosmicEdictWidget::GetPeoplesPage() const
+{
+	return PeoplesPage;
+}
+
+FText UCosmicEdictWidget::OddsWordOf(float OursOdds)
+{
+	switch (CosmicConflict::OddsBandOf(OursOdds))
+	{
+	case 2: return CosmicUI::Label(TEXT("Siege.Band.Ahead"));
+	case 0: return CosmicUI::Label(TEXT("Siege.Band.Behind"));
+	default: return CosmicUI::Label(TEXT("Siege.Band.Even"));
+	}
+}
+
+int64 UCosmicEdictWidget::SiegeTicksLeftOf(const FCivilizationState& Attacker, int64 Tick, const FCosmicRulesDef& Rules)
+{
+	return FMath::Max<int64>(0, CosmicConflict::SiegeEndTickOf(Attacker, Rules) - Tick);
+}
+
+void UCosmicEdictWidget::RefreshPeoples(int32 RuledIndex)
+{
+	using namespace CosmicEdictWindowImpl;
+	using CosmicUI::Label;
+
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	const FGalaxyState& State = Sim->GetState();
+	const FCosmicStateIndex& Index = Sim->GetStateIndex();
+	const FCosmicDataTables& Tables = Sim->GetTables();
+	const FCosmicRulesDef& Rules = Sim->GetRules();
+	const FCivilizationState& Civ = State.Civs[RuledIndex];
+	const ECosmicTimeUnit Unit = ACosmicPlayerController::TimeUnitFor(*this);
+	// What the viewer knows (rule 14): the peoples met and shown, in the meeting order.
+	const FCosmicKnownView View = ACosmicPlayerController::KnownViewFor(*this);
+
+	auto SetWords = [](UTextBlock* Text, const FText& Words)
+	{
+		if (!SameWords(Text->GetText(), Words))
+		{
+			Text->SetText(Words);
+		}
+	};
+	auto SetTip = [](UWidget* Widget, const FText& Tip)
+	{
+		// A tooltip set again is a new tooltip, and an open one would close: set only when the words change.
+		if (!SameWords(Widget->GetToolTipText(), Tip))
+		{
+			Widget->SetToolTipText(Tip);
+		}
+	};
+	// A siege line: the system, the time it has left (a length: the line says 'time left'), our side's band.
+	auto SiegeWords = [&](const TCHAR* Key, int32 Attacker, int32 SystemIndex, bool bOurs)
+	{
+		const float Odds = CosmicConflict::SiegeOddsOf(State, Index, Rules, Attacker, SystemIndex);
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("System"), State.Systems[SystemIndex].DisplayName);
+		Args.Add(TEXT("Time"), CosmicUI::DurationLabel(SiegeTicksLeftOf(State.Civs[Attacker], State.Tick, Rules), Unit));
+		Args.Add(TEXT("Band"), OddsWordOf(bOurs ? Odds : 1.f - Odds));
+		return FText::Format(Label(Key), Args);
+	};
+
+	const FText PerTick = CosmicUI::DurationLabel(1, Unit);
+
+	// The head: the fleet, its target and the friendly slots.
+	const float Cap = CosmicConflict::FleetCapOf(State, Index, RuledIndex, Rules);
+	SetWords(FleetText, (Cap > 0.f || Civ.FleetPower > 0.f) ? FText::Format(Label(TEXT("Siege.Fleet")), Amount(Civ.FleetPower), Amount(Cap)) : Label(TEXT("Guard.NoFleet")));
+	// How the fleet grows, and its upkeep a size (the rate, not the sum: the sum moves with the fleet every tick).
+	const float UpkeepPerPower = (Rules.FleetUpkeepEnergyPerPower > 0.f && Rules.FleetUpkeepEnergyPerPower <= TNumericLimits<float>::Max()) ? Rules.FleetUpkeepEnergyPerPower : 0.f;
+	SetTip(FleetText, CosmicUI::JoinLines({ Label(TEXT("Siege.FleetTip")), FText::Format(Label(TEXT("Siege.FleetUpkeep")), Amount(UpkeepPerPower), PerTick) }));
+	const int32 Target = Civ.FleetTargetSystemID.IsNone() ? INDEX_NONE : Index.FindSystem(State, Civ.FleetTargetSystemID);
+	FText TargetWords;
+	if (State.Systems.IsValidIndex(Target) && State.Systems[Target].OwnerCivID == Civ.CivID)
+	{
+		TargetWords = FText::FormatNamed(Label(TEXT("Guard.Line")), TEXT("System"), State.Systems[Target].DisplayName);
+	}
+	else if (State.Systems.IsValidIndex(Target))
+	{
+		TargetWords = SiegeWords(TEXT("Siege.Line"), RuledIndex, Target, true);
+	}
+	else if (Cap > 0.f || Civ.FleetPower > 0.f)
+	{
+		TargetWords = Label(TEXT("Guard.Even"));
+	}
+	SetWords(TargetText, TargetWords);
+	TargetText->SetVisibility(TargetWords.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	WithdrawButton->SetVisibility(State.Systems.IsValidIndex(Target) ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	// A withdrawal ends a guard, or a siege with its count.
+	const bool bBesieging = State.Systems.IsValidIndex(Target) && State.Systems[Target].OwnerCivID != Civ.CivID;
+	SetTip(WithdrawButton, Label(bBesieging ? TEXT("Siege.WithdrawTip") : TEXT("Guard.WithdrawTip")));
+	SetWords(SlotsText, FText::Format(Label(TEXT("Diplomacy.Slots")), FText::AsNumber(CosmicDiplomacy::FriendlyCountOf(Civ)),
+		FText::AsNumber(CosmicDiplomacy::FriendlySlotsOf(Civ, Rules))));
+	const TOptional<int32> NextSlotRung = NextFriendlySlotRungOf(Civ, Rules);
+	SetTip(SlotsText, CosmicUI::JoinLines({ Label(TEXT("Diplomacy.SlotsTip")), NextSlotRung.IsSet()
+		? FText::Format(Label(TEXT("Diplomacy.SlotsNext")), FText::AsNumber(*NextSlotRung + 1)) : Label(TEXT("Diplomacy.SlotsAll")) }));
+
+	// The peoples met and shown, by their meeting order.
+	TArray<int32> Wanted;
+	for (int32 Other = 0; Other < State.Civs.Num(); ++Other)
+	{
+		if (Other != RuledIndex && View.IsMet(Other) && View.ShownOrderOf(Other) != INDEX_NONE)
+		{
+			Wanted.Add(Other);
+		}
+	}
+	Wanted.Sort([&View](int32 A, int32 B) { return View.ShownOrderOf(A) < View.ShownOrderOf(B); });
+	TArray<FName> WantedIDs;
+	for (const int32 Other : Wanted)
+	{
+		WantedIDs.Add(State.Civs[Other].CivID);
+	}
+	NoPeoplesText->SetVisibility(Wanted.IsEmpty() ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	if (WantedIDs != ShownPeoples)
+	{
+		PeopleBox->ClearChildren();
+		PeopleRows.Reset();
+		PeopleNames.Reset();
+		PeopleBands.Reset();
+		PeopleHostilities.Reset();
+		PeopleSieges.Reset();
+		StanceButtons.Reset();
+		TreatyButtons.Reset();
+		for (const FName CivID : WantedIDs)
+		{
+			UVerticalBox* Row = WidgetTree->ConstructWidget<UVerticalBox>();
+			PeopleBox->AddChildToVerticalBox(Row)->SetPadding(FMargin(0.f, 10.f, 0.f, 0.f));
+			// The first line: the name and the band of their view of us; their hostility on a line of its own under it (a long
+			// name, the band and the mark would not fit one line).
+			UHorizontalBox* Head = WidgetTree->ConstructWidget<UHorizontalBox>();
+			Row->AddChildToVerticalBox(Head)->SetPadding(FMargin(0.f, 0.f, 0.f, 3.f));
+			UTextBlock* Name = CosmicUI::MakeText(*WidgetTree, 15, false);
+			Head->AddChildToHorizontalBox(Name)->SetVerticalAlignment(VAlign_Bottom);
+			UTextBlock* Band = CosmicUI::MakeText(*WidgetTree, 12, false);
+			Band->SetColorAndOpacity(FSlateColor(SummaryColor));
+			UHorizontalBoxSlot* BandSlot = Head->AddChildToHorizontalBox(Band);
+			BandSlot->SetVerticalAlignment(VAlign_Bottom);
+			BandSlot->SetPadding(FMargin(8.f, 0.f, 0.f, 1.f));
+			UTextBlock* Hostility = CosmicUI::MakeText(*WidgetTree, 12, false);
+			Hostility->SetColorAndOpacity(FSlateColor(HostileColor));
+			Hostility->SetText(Label(TEXT("Diplomacy.TheyHostile")));
+			Hostility->SetVisibility(ESlateVisibility::Collapsed);
+			Row->AddChildToVerticalBox(Hostility)->SetPadding(FMargin(0.f, 0.f, 0.f, 3.f));
+			// The second line: our three stances; the third: the two treaties - each button an even share of the line.
+			auto AddButtons = [&](int32 Count, float Base, TArray<TObjectPtr<UCosmicActionButton>>& Into)
+			{
+				UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>();
+				Row->AddChildToVerticalBox(Line)->SetPadding(FMargin(0.f, 0.f, 0.f, 3.f));
+				for (int32 At = 0; At < Count; ++At)
+				{
+					UCosmicActionButton* Button = WidgetTree->ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
+					Button->Setup(CivID, Base + static_cast<float>(At), FText::GetEmpty());
+					Button->OnAction.AddUObject(this, &UCosmicEdictWidget::HandlePeople);
+					UHorizontalBoxSlot* ButtonSlot = Line->AddChildToHorizontalBox(Button);
+					ButtonSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+					ButtonSlot->SetPadding(FMargin(At == 0 ? 0.f : 4.f, 0.f, 0.f, 0.f));
+					Into.Add(Button);
+				}
+			};
+			AddButtons(3, 0.f, StanceButtons);
+			AddButtons(2, TreatyBase, TreatyButtons);
+			UTextBlock* Siege = CosmicUI::MakeText(*WidgetTree, 12);
+			Siege->SetColorAndOpacity(FSlateColor(SummaryColor));
+			Siege->SetVisibility(ESlateVisibility::Collapsed);
+			Row->AddChildToVerticalBox(Siege);
+			PeopleRows.Add(Row);
+			PeopleNames.Add(Name);
+			PeopleBands.Add(Band);
+			PeopleHostilities.Add(Hostility);
+			PeopleSieges.Add(Siege);
+		}
+		ShownPeoples = WantedIDs;
+	}
+
+	ShownStanceBlocks.SetNum(ShownPeoples.Num() * 3);
+	ShownTreatyBlocks.SetNum(ShownPeoples.Num() * 2);
+	const FText Upkeep = Amount(Rules.FriendlyUpkeepInfluence);
+	for (int32 At = 0; At < Wanted.Num(); ++At)
+	{
+		const int32 Other = Wanted[At];
+		const FCivilizationState& Them = State.Civs[Other];
+		const bool bMet = View.IsMet(Other);
+		SetWords(PeopleNames[At], Them.CivName);
+		const float TheirView = CosmicDiplomacy::ViewOf(State, Index, Rules, Other, RuledIndex);
+		SetWords(PeopleBands[At], ViewWordOf(TheirView));
+		SetTip(PeopleBands[At], ViewTipOf(State, Index, Rules, Other, RuledIndex));
+		PeopleBands[At]->SetVisibility(ESlateVisibility::Visible);
+		PeopleHostilities[At]->SetVisibility(CosmicDiplomacy::StanceOf(Them, Civ.CivID) == CosmicTags::StanceHostile() ? ESlateVisibility::HitTestInvisible
+			: ESlateVisibility::Collapsed);
+		const bool bBorders = CosmicDiplomacy::Borders(State, Index, Other, RuledIndex);
+		// The view their acceptance of our treaties asks (the gate's own).
+		const float Bar = CosmicDiplomacy::TreatyBarOf(Civ, Tables, Rules);
+		// Our fleet besieges one of their systems: a stance that is not hostile lifts it (the conflict stage's gate).
+		const bool bOurSiege = State.Systems.IsValidIndex(Target) && State.Systems[Target].OwnerCivID == Them.CivID;
+		const FText Lifts = bOurSiege ? FText::FormatNamed(Label(TEXT("Siege.Lifts")), TEXT("System"), State.Systems[Target].DisplayName) : FText::GetEmpty();
+		// What the end of a treaty takes from their view: the betrayal's fall where the stored view is read (the pair
+		// borders), else the treaty's own share of the view (a pair that does not border reads no stored view).
+		auto Fall = [&](const TCHAR* NearKey, const TCHAR* FarKey)
+		{
+			return bBorders ? FText::Format(Label(NearKey), Amount(Rules.BetrayalRelationPenalty)) : FText::Format(Label(FarKey), Amount(Rules.RelationTreatyTerm));
+		};
+
+		// Our stances: the command's gate greys a button; the stance held is greyed and marked, with Diplomacy.TipNow.
+		for (int32 StanceIndex = 0; StanceIndex < 3; ++StanceIndex)
+		{
+			const FGameplayTag Stance = StanceAt(StanceIndex);
+			const CosmicDiplomacy::ECosmicStanceBlock Block = CosmicDiplomacy::StanceBlockOf(State, Index, Rules, RuledIndex, Them.CivID, Stance, bMet);
+			ShownStanceBlocks[At * 3 + StanceIndex] = Block;
+			UCosmicActionButton* Button = StanceButtons[At * 3 + StanceIndex];
+			const bool bHeld = Block == CosmicDiplomacy::ECosmicStanceBlock::Same;
+			const FText ButtonLabel = bHeld ? FText::Format(INVTEXT("{0} {1}"), Label(TEXT("Edict.Mark")), CosmicDiplomacy::StanceNameOf(Stance))
+				: CosmicDiplomacy::StanceNameOf(Stance);
+			if (!SameWords(Button->GetLabel(), ButtonLabel))
+			{
+				Button->Setup(Them.CivID, static_cast<float>(StanceIndex), ButtonLabel);
+			}
+			Button->SetIsEnabled(Block == CosmicDiplomacy::ECosmicStanceBlock::None);
+			TArray<FText> What;
+			if (StanceIndex == 0)
+			{
+				What.Add(FText::Format(Label(TEXT("Diplomacy.TipFriendly")), Upkeep, PerTick, FText::AsNumber(CosmicDiplomacy::FriendlyCountOf(Civ)),
+					FText::AsNumber(CosmicDiplomacy::FriendlySlotsOf(Civ, Rules))));
+			}
+			else
+			{
+				What.Add(Label(StanceIndex == 1 ? TEXT("Diplomacy.TipNeutral") : TEXT("Diplomacy.TipHostile")));
+			}
+			if (StanceIndex == 2 && CosmicDiplomacy::HasTreaty(Civ, Them.CivID, CosmicTags::TreatyTrade()))
+			{
+				What.Add(Fall(TEXT("Diplomacy.TipBetray"), TEXT("Diplomacy.TipBetrayFar")));
+			}
+			else if (StanceIndex != 2)
+			{
+				What.Add(Lifts);
+			}
+			// The stance held says only that it is held - but the friendly one keeps its upkeep in sight while it is paid.
+			TArray<FText> Tip = { StanceReasonOf(Block) };
+			if (!bHeld || StanceIndex == 0)
+			{
+				Tip.Append(What);
+			}
+			SetTip(Button, CosmicUI::JoinLines(Tip));
+		}
+
+		// The treaties: one held is broken by its button; another is proposed, greyed by the command's gate.
+		for (int32 TreatyIndex = 0; TreatyIndex < 2; ++TreatyIndex)
+		{
+			const FGameplayTag Treaty = TreatyAt(TreatyIndex);
+			UCosmicActionButton* Button = TreatyButtons[At * 2 + TreatyIndex];
+			FText ButtonLabel;
+			FText Tip;
+			const FText What = TreatyIndex == 0 ? FText::Format(Label(TEXT("Diplomacy.TipTrade")), Amount(Rules.TradeInfluencePerTreaty), PerTick)
+				: Label(TEXT("Diplomacy.TipNonAggression"));
+			if (CosmicDiplomacy::HasTreaty(Civ, Them.CivID, Treaty))
+			{
+				ShownTreatyBlocks[At * 2 + TreatyIndex].Reset();
+				ButtonLabel = Label(TreatyIndex == 0 ? TEXT("Diplomacy.Break.Trade") : TEXT("Diplomacy.Break.NonAggression"));
+				Tip = CosmicUI::JoinLines({ What, Fall(TEXT("Diplomacy.TipBreak"), TEXT("Diplomacy.TipBreakFar")) });
+				Button->SetIsEnabled(true);
+			}
+			else
+			{
+				const CosmicDiplomacy::ECosmicTreatyBlock Block = CosmicDiplomacy::TreatyBlockOf(State, Index, Tables, Rules, RuledIndex, Them.CivID, Treaty, bMet);
+				ShownTreatyBlocks[At * 2 + TreatyIndex] = Block;
+				ButtonLabel = Label(TreatyIndex == 0 ? TEXT("Diplomacy.Treaty.Trade") : TEXT("Diplomacy.Treaty.NonAggression"));
+				Tip = CosmicUI::JoinLines({ TreatyReasonOf(Block), What, FText::Format(Label(TEXT("Diplomacy.TipCost")), Amount(CosmicDiplomacy::TreatyCostOf(Rules))),
+					FText::Format(Label(TEXT("Diplomacy.TipBar")), ViewAgainstBarOf(TheirView, Bar), Signed(Bar)) });
+				Button->SetIsEnabled(Block == CosmicDiplomacy::ECosmicTreatyBlock::None);
+			}
+			if (!SameWords(Button->GetLabel(), ButtonLabel))
+			{
+				Button->Setup(Them.CivID, TreatyBase + static_cast<float>(TreatyIndex), ButtonLabel);
+			}
+			SetTip(Button, Tip);
+		}
+
+		// The sieges between us: ours on one of their systems, theirs on one of ours.
+		TArray<FText> Sieges;
+		if (State.Systems.IsValidIndex(Target) && State.Systems[Target].OwnerCivID == Them.CivID)
+		{
+			Sieges.Add(SiegeWords(TEXT("Siege.Row.Ours"), RuledIndex, Target, true));
+		}
+		const int32 TheirTarget = Them.FleetTargetSystemID.IsNone() ? INDEX_NONE : Index.FindSystem(State, Them.FleetTargetSystemID);
+		if (State.Systems.IsValidIndex(TheirTarget) && State.Systems[TheirTarget].OwnerCivID == Civ.CivID)
+		{
+			Sieges.Add(SiegeWords(TEXT("Siege.Row.Theirs"), Other, TheirTarget, false));
+		}
+		const FText SiegeLines = CosmicUI::JoinLines(Sieges);
+		SetWords(PeopleSieges[At], SiegeLines);
+		PeopleSieges[At]->SetVisibility(SiegeLines.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+}
+
+void UCosmicEdictWidget::PressStance(FName CivID, int32 StanceIndex)
+{
+	ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer());
+	UCosmicActionButton* Button = GetStanceButton(CivID, StanceIndex);
+	if (!Controller || !Button || !Button->GetIsEnabled())
+	{
+		return;
+	}
+	Controller->SetStance(CivID, StanceAt(StanceIndex));
+	Refresh();
+}
+
+void UCosmicEdictWidget::PressTreaty(FName CivID, int32 TreatyIndex)
+{
+	ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer());
+	UCosmicActionButton* Button = GetTreatyButton(CivID, TreatyIndex);
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	const int32 RuledIndex = RuledIndexNow();
+	if (!Controller || !Button || !Button->GetIsEnabled() || !Sim || RuledIndex == INDEX_NONE)
+	{
+		return;
+	}
+	const FGameplayTag Treaty = TreatyAt(TreatyIndex);
+	if (CosmicDiplomacy::HasTreaty(Sim->GetState().Civs[RuledIndex], CivID, Treaty))
+	{
+		Controller->BreakTreaty(CivID, Treaty);
+	}
+	else
+	{
+		Controller->ProposeTreaty(CivID, Treaty);
+	}
+	Refresh();
+}
+
+void UCosmicEdictWidget::PressWithdraw()
+{
+	ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer());
+	if (!Controller || !WithdrawButton || WithdrawButton->GetVisibility() == ESlateVisibility::Collapsed || !WithdrawButton->GetIsEnabled())
+	{
+		return;
+	}
+	Controller->AllocateFleet(NAME_None);
+	Refresh();
+}
+
+void UCosmicEdictWidget::HandlePeople(FName CivID, float Value)
+{
+	const int32 Code = FMath::RoundToInt32(Value);
+	if (Code < static_cast<int32>(CosmicEdictWindowImpl::TreatyBase))
+	{
+		PressStance(CivID, Code);
+	}
+	else
+	{
+		PressTreaty(CivID, Code - static_cast<int32>(CosmicEdictWindowImpl::TreatyBase));
+	}
+}
+
+const UWidget* UCosmicEdictWidget::GetPeopleRow(FName CivID) const
+{
+	const int32 At = ShownPeoples.IndexOfByKey(CivID);
+	return PeopleRows.IsValidIndex(At) ? PeopleRows[At].Get() : nullptr;
+}
+
+const UTextBlock* UCosmicEdictWidget::GetPeopleBand(FName CivID) const
+{
+	const int32 At = ShownPeoples.IndexOfByKey(CivID);
+	return PeopleBands.IsValidIndex(At) ? PeopleBands[At].Get() : nullptr;
+}
+
+const UTextBlock* UCosmicEdictWidget::GetPeopleHostility(FName CivID) const
+{
+	const int32 At = ShownPeoples.IndexOfByKey(CivID);
+	return PeopleHostilities.IsValidIndex(At) ? PeopleHostilities[At].Get() : nullptr;
+}
+
+const UTextBlock* UCosmicEdictWidget::GetPeopleSiege(FName CivID) const
+{
+	const int32 At = ShownPeoples.IndexOfByKey(CivID);
+	return PeopleSieges.IsValidIndex(At) ? PeopleSieges[At].Get() : nullptr;
+}
+
+UCosmicActionButton* UCosmicEdictWidget::GetStanceButton(FName CivID, int32 StanceIndex) const
+{
+	const int32 At = ShownPeoples.IndexOfByKey(CivID);
+	return (At != INDEX_NONE && StanceIndex >= 0 && StanceIndex < 3 && StanceButtons.IsValidIndex(At * 3 + StanceIndex)) ? StanceButtons[At * 3 + StanceIndex].Get() : nullptr;
+}
+
+UCosmicActionButton* UCosmicEdictWidget::GetTreatyButton(FName CivID, int32 TreatyIndex) const
+{
+	const int32 At = ShownPeoples.IndexOfByKey(CivID);
+	return (At != INDEX_NONE && TreatyIndex >= 0 && TreatyIndex < 2 && TreatyButtons.IsValidIndex(At * 2 + TreatyIndex)) ? TreatyButtons[At * 2 + TreatyIndex].Get() : nullptr;
+}
+
+TOptional<CosmicDiplomacy::ECosmicStanceBlock> UCosmicEdictWidget::GetShownStanceBlock(FName CivID, int32 StanceIndex) const
+{
+	const int32 At = ShownPeoples.IndexOfByKey(CivID);
+	return (At != INDEX_NONE && StanceIndex >= 0 && StanceIndex < 3 && ShownStanceBlocks.IsValidIndex(At * 3 + StanceIndex))
+		? TOptional<CosmicDiplomacy::ECosmicStanceBlock>(ShownStanceBlocks[At * 3 + StanceIndex]) : TOptional<CosmicDiplomacy::ECosmicStanceBlock>();
+}
+
+TOptional<CosmicDiplomacy::ECosmicTreatyBlock> UCosmicEdictWidget::GetShownTreatyBlock(FName CivID, int32 TreatyIndex) const
+{
+	const int32 At = ShownPeoples.IndexOfByKey(CivID);
+	return (At != INDEX_NONE && TreatyIndex >= 0 && TreatyIndex < 2 && ShownTreatyBlocks.IsValidIndex(At * 2 + TreatyIndex))
+		? ShownTreatyBlocks[At * 2 + TreatyIndex] : TOptional<CosmicDiplomacy::ECosmicTreatyBlock>();
 }

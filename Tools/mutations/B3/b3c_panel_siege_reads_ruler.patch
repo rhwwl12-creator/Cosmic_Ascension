@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1009,7 +1009,7 @@
+ 				const float Odds = CosmicConflict::SiegeOddsOf(State, Index, Rules, Attacker, SystemIndex);
+ 				FFormatNamedArguments Args;
+ 				Args.Add(TEXT("OtherCiv"), State.Civs[Attacker].CivName);
+-				Args.Add(TEXT("Time"), DurationLabel(UCosmicEdictWidget::SiegeTicksLeftOf(State.Civs[Attacker], State.Tick, Rules), Unit));
++				Args.Add(TEXT("Time"), DurationLabel(UCosmicEdictWidget::SiegeTicksLeftOf(State.Civs[RuledIndex], State.Tick, Rules), Unit));
+ 				Args.Add(TEXT("Band"), UCosmicEdictWidget::OddsWordOf(bOurs ? Odds : 1.f - Odds));
+ 				return FText::Format(Label(Key), Args);
+ 			};

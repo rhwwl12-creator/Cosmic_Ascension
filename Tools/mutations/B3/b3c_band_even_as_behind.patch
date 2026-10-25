@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1230,7 +1230,7 @@
+ 	{
+ 	case 2: return CosmicUI::Label(TEXT("Siege.Band.Ahead"));
+ 	case 0: return CosmicUI::Label(TEXT("Siege.Band.Behind"));
+-	default: return CosmicUI::Label(TEXT("Siege.Band.Even"));
++	default: return CosmicUI::Label(TEXT("Siege.Band.Behind"));
+ 	}
+ }
+ 

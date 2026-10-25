@@ -152,8 +152,9 @@ public:
 	 * Hidden otherwise - it keeps its width, so the research block never moves (tests). */
 	const UTextBlock* GetEdictMark() const { return EdictMark; }
 	/** What the edict button's tooltip says now: the edict hint first while it stands (Hint.Edict), the held edicts'
-	 * upkeep (Edict.Bar.Upkeep), the next slot's Society mark (Edict.Bar.NextSlot, or Edict.Bar.AllSlots) and what a press
-	 * does (Edict.Bar.Press); empty without an embodied ruler. */
+	 * upkeep (Edict.Bar.Upkeep), the next slot's Society mark (Edict.Bar.NextSlot, or Edict.Bar.AllSlots), that the
+	 * window holds the peoples too (B3, Edict.Bar.Peoples) and what a press does (Edict.Bar.Press); empty without an
+	 * embodied ruler. */
 	FText GetEdictTip() const;
 
 protected:

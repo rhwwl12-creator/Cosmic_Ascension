@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1502,7 +1502,7 @@
+ 		const int32 TheirTarget = Them.FleetTargetSystemID.IsNone() ? INDEX_NONE : Index.FindSystem(State, Them.FleetTargetSystemID);
+ 		if (State.Systems.IsValidIndex(TheirTarget) && State.Systems[TheirTarget].OwnerCivID == Civ.CivID)
+ 		{
+-			Sieges.Add(SiegeWords(TEXT("Siege.Row.Theirs"), Other, TheirTarget, false));
++			Sieges.Add(SiegeWords(TEXT("Siege.Row.Theirs"), Other, TheirTarget, true));
+ 		}
+ 		const FText SiegeLines = CosmicUI::JoinLines(Sieges);
+ 		SetWords(PeopleSieges[At], SiegeLines);

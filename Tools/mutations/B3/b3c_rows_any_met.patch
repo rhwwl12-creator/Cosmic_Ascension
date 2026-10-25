@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1318,7 +1318,7 @@
+ 	TArray<int32> Wanted;
+ 	for (int32 Other = 0; Other < State.Civs.Num(); ++Other)
+ 	{
+-		if (Other != RuledIndex && View.IsMet(Other) && View.ShownOrderOf(Other) != INDEX_NONE)
++		if (Other != RuledIndex && View.IsMet(Other))
+ 		{
+ 			Wanted.Add(Other);
+ 		}

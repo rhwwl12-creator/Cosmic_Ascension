@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1454,7 +1454,7 @@
+ 			}
+ 			// The stance held says only that it is held - but the friendly one keeps its upkeep in sight while it is paid.
+ 			TArray<FText> Tip = { StanceReasonOf(Block) };
+-			if (!bHeld || StanceIndex == 0)
++			if (!bHeld)
+ 			{
+ 				Tip.Append(What);
+ 			}

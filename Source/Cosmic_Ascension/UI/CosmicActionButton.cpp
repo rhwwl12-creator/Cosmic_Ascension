@@ -6,10 +6,13 @@
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Fonts/SlateFontInfo.h"
+#include "Input/Reply.h"
 #include "Styling/SlateBrush.h"
 #include "Styling/SlateColor.h"
 #include "Styling/SlateTypes.h"
+#include "Types/WidgetMouseEventsDelegate.h"
 #include "UObject/UnrealType.h"
+#include "Widgets/SWidget.h"
 
 void UCosmicActionButton::Setup(FName InAction, float InValue, const FText& Label)
 {
@@ -74,5 +77,15 @@ TSharedRef<SWidget> UCosmicActionButton::RebuildWidget()
 		Text->SetText(ShownLabel);
 		Button->AddChild(Text);
 	}
-	return Super::RebuildWidget();
+	TSharedRef<SWidget> Built = Super::RebuildWidget();
+	// A double-click's second press, handled here, is no press (the class comment). The Slate button is built again with the
+	// tree's Slate widgets, so the handler is bound on every build.
+	if (Button)
+	{
+		if (TSharedPtr<SWidget> Slate = Button->GetCachedWidget())
+		{
+			Slate->SetOnMouseDoubleClick(FPointerEventHandler::CreateLambda([](const FGeometry&, const FPointerEvent&) { return FReply::Handled(); }));
+		}
+	}
+	return Built;
 }

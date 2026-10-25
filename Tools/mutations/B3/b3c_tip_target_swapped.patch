@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1040,7 +1040,7 @@
+ 		const FGameplayTag Ours = CosmicDiplomacy::StanceOf(Us, Them.CivID);
+ 		const int32 TermAt = Ours == CosmicTags::StanceFriendly() ? 0 : (Ours == CosmicTags::StanceHostile() ? 1 : INDEX_NONE);
+ 		const float Stance = (Rules.RelationStanceTerms.IsValidIndex(TermAt) && FMath::IsFinite(Rules.RelationStanceTerms[TermAt])) ? Rules.RelationStanceTerms[TermAt] : 0.f;
+-		Lines.Add(FText::Format(Label(TEXT("Diplomacy.TipTarget")), Signed(CosmicDiplomacy::TargetRelationOf(State, Rules, Viewer, Viewed))));
++		Lines.Add(FText::Format(Label(TEXT("Diplomacy.TipTarget")), Signed(CosmicDiplomacy::TargetRelationOf(State, Rules, Viewed, Viewer))));
+ 		Lines.Add(FText::Format(Label(TEXT("Diplomacy.TipEthics")), Signed(Ethics)));
+ 		Lines.Add(FText::Format(Label(TEXT("Diplomacy.TipStance")), Signed(Stance)));
+ 		Lines.Add(FText::Format(Label(TEXT("Diplomacy.TipTreaties")), Signed(Treaties)));

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1416,7 +1416,7 @@
+ 		// borders), else the treaty's own share of the view (a pair that does not border reads no stored view).
+ 		auto Fall = [&](const TCHAR* NearKey, const TCHAR* FarKey)
+ 		{
+-			return bBorders ? FText::Format(Label(NearKey), Amount(Rules.BetrayalRelationPenalty)) : FText::Format(Label(FarKey), Amount(Rules.RelationTreatyTerm));
++			return (bBorders || FarKey != nullptr) ? FText::Format(Label(NearKey), Amount(Rules.BetrayalRelationPenalty)) : FText::Format(Label(FarKey), Amount(Rules.RelationTreatyTerm));
+ 		};
+ 
+ 		// Our stances: the command's gate greys a button; the stance held is greyed and marked, with Diplomacy.TipNow.

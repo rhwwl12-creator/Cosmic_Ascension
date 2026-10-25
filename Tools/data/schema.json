@@ -51,7 +51,10 @@
 			"Hint.Edict": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
 			"Resource.": {"forbidden": ["verdict", "holy_words"]},
 			"Stance.": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
-			"Treaty.": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true}
+			"Treaty.": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
+			"Diplomacy.": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
+			"Siege.": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
+			"Guard.": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true}
 		}
 	},
 

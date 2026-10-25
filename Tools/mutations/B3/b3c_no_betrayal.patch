@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1446,7 +1446,6 @@
+ 			}
+ 			if (StanceIndex == 2 && CosmicDiplomacy::HasTreaty(Civ, Them.CivID, CosmicTags::TreatyTrade()))
+ 			{
+-				What.Add(Fall(TEXT("Diplomacy.TipBetray"), TEXT("Diplomacy.TipBetrayFar")));
+ 			}
+ 			else if (StanceIndex != 2)
+ 			{

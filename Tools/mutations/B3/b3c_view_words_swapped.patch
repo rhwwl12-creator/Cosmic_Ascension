@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1014,7 +1014,7 @@
+ 
+ FText UCosmicEdictWidget::ViewWordOf(float View)
+ {
+-	static const TCHAR* const Keys[] = { TEXT("Diplomacy.View.0"), TEXT("Diplomacy.View.1"), TEXT("Diplomacy.View.2"), TEXT("Diplomacy.View.3"), TEXT("Diplomacy.View.4") };
++	static const TCHAR* const Keys[] = { TEXT("Diplomacy.View.0"), TEXT("Diplomacy.View.1"), TEXT("Diplomacy.View.3"), TEXT("Diplomacy.View.2"), TEXT("Diplomacy.View.4") };
+ 	const int32 Band = FMath::Clamp(CosmicDiplomacy::ViewBandOf(View), 0, static_cast<int32>(UE_ARRAY_COUNT(Keys)) - 1);
+ 	return CosmicUI::Label(Keys[Band]);
+ }

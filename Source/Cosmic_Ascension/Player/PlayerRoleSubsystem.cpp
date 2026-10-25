@@ -776,7 +776,6 @@ bool UPlayerRoleSubsystem::BreakTreaty(FName CivID, FGameplayTag Treaty)
 CosmicConflict::ECosmicSiegeBlock UPlayerRoleSubsystem::AllocateFleet(FName SystemID)
 {
 	using CosmicConflict::ECosmicSiegeBlock;
-	using CosmicConflict::ECosmicGuardBlock;
 	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
 	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
 	check(Sim && Log);
@@ -808,16 +807,7 @@ CosmicConflict::ECosmicSiegeBlock UPlayerRoleSubsystem::AllocateFleet(FName Syst
 	if (bOwn)
 	{
 		// A guard's reasons, in the siege's names (NotOwn cannot come: the system is the people's).
-		switch (CosmicConflict::GuardBlockOf(State, Index, Sim->GetRules(), CivIndex, SystemIndex))
-		{
-		case ECosmicGuardBlock::None: Block = ECosmicSiegeBlock::None; break;
-		case ECosmicGuardBlock::Sanctuary: Block = ECosmicSiegeBlock::Sanctuary; break;
-		case ECosmicGuardBlock::NoSystem: Block = ECosmicSiegeBlock::NoSystem; break;
-		case ECosmicGuardBlock::Dead: Block = ECosmicSiegeBlock::Dead; break;
-		case ECosmicGuardBlock::NotOwn: Block = ECosmicSiegeBlock::NoSystem; break;
-		case ECosmicGuardBlock::NotSettled: Block = ECosmicSiegeBlock::NotSettled; break;
-		case ECosmicGuardBlock::NoFleet: Block = ECosmicSiegeBlock::NoFleet; break;
-		}
+		Block = CosmicConflict::SiegeNameOf(CosmicConflict::GuardBlockOf(State, Index, Sim->GetRules(), CivIndex, SystemIndex));
 	}
 	else
 	{

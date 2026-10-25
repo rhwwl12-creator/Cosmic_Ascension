@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1049,7 +1049,7 @@
+ 					FleetLines.Add(SiegeLine(View.ShownOrderOf(Besieger) != INDEX_NONE ? TEXT("Siege.OnUs") : TEXT("Siege.OnUsUnknown"), Besieger, false));
+ 				}
+ 			}
+-			else if (CosmicMapLook::OwnerShownOf(State, View, SystemIndex) == ECosmicOwnerShown::Shown)
++			else if (CosmicMapLook::OwnerShownOf(State, View, SystemIndex) != ECosmicOwnerShown::None)
+ 			{
+ 				if (bOurTarget)
+ 				{

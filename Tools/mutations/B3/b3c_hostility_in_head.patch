@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1359,7 +1359,7 @@
+ 			Hostility->SetColorAndOpacity(FSlateColor(HostileColor));
+ 			Hostility->SetText(Label(TEXT("Diplomacy.TheyHostile")));
+ 			Hostility->SetVisibility(ESlateVisibility::Collapsed);
+-			Row->AddChildToVerticalBox(Hostility)->SetPadding(FMargin(0.f, 0.f, 0.f, 3.f));
++			Head->AddChildToHorizontalBox(Hostility);
+ 			// The second line: our three stances; the third: the two treaties - each button an even share of the line.
+ 			auto AddButtons = [&](int32 Count, float Base, TArray<TObjectPtr<UCosmicActionButton>>& Into)
+ 			{

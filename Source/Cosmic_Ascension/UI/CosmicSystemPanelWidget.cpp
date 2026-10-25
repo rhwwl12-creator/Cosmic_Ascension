@@ -22,6 +22,7 @@
 #include "GameplayTagContainer.h"
 #include "HAL/PlatformTime.h"
 #include "Layout/Margin.h"
+#include "Sim/CosmicConflict.h"
 #include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
@@ -259,6 +260,8 @@ const FName UCosmicSystemPanelWidget::ScanAction(TEXT("scan"));
 const FName UCosmicSystemPanelWidget::CrownAction(TEXT("crown"));
 const FName UCosmicSystemPanelWidget::AbdicateAction(TEXT("abdicate"));
 const FName UCosmicSystemPanelWidget::DirectAction(TEXT("direct"));
+const FName UCosmicSystemPanelWidget::GuardAction(TEXT("fleet_guard"));
+const FName UCosmicSystemPanelWidget::SiegeAction(TEXT("fleet_siege"));
 
 TSharedRef<SWidget> UCosmicSystemPanelWidget::RebuildWidget()
 {
@@ -289,6 +292,18 @@ TSharedRef<SWidget> UCosmicSystemPanelWidget::RebuildWidget()
 		Column->AddChildToVerticalBox(MarkText)->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
 		ButtonBox = WidgetTree->ConstructWidget<UVerticalBox>();
 		Column->AddChildToVerticalBox(ButtonBox);
+		// The reason line under a greyed-out settle button, right under it (the settle button stands alone in the box).
+		ReasonText = CosmicUI::MakeText(*WidgetTree, 13);
+		ReasonText->SetColorAndOpacity(FSlateColor(FLinearColor(0.85f, 0.85f, 0.9f)));
+		ReasonText->SetVisibility(ESlateVisibility::Collapsed);
+		Column->AddChildToVerticalBox(ReasonText)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
+		// The fleet (B3): its lines, a block of their own so their tooltip covers only them, then its button in a box of its
+		// own - the lines a press brings take the button's place.
+		FleetText = CosmicUI::MakeText(*WidgetTree, 13);
+		FleetText->SetVisibility(ESlateVisibility::Collapsed);
+		Column->AddChildToVerticalBox(FleetText)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
+		FleetBox = WidgetTree->ConstructWidget<UVerticalBox>();
+		Column->AddChildToVerticalBox(FleetBox)->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
 		// The wanderer's row (B1): a box of its own under the project buttons, so GetActionButtons stays the projects'.
 		WandererBox = WidgetTree->ConstructWidget<UVerticalBox>();
 		Column->AddChildToVerticalBox(WandererBox);
@@ -311,10 +326,6 @@ TSharedRef<SWidget> UCosmicSystemPanelWidget::RebuildWidget()
 		ShipHintText->SetText(CosmicUI::Label(TEXT("Hint.FirstShip")));
 		ShipHintText->SetVisibility(ESlateVisibility::Collapsed);
 		Column->AddChildToVerticalBox(ShipHintText)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
-		ReasonText = CosmicUI::MakeText(*WidgetTree, 13);
-		ReasonText->SetColorAndOpacity(FSlateColor(FLinearColor(0.85f, 0.85f, 0.9f)));
-		ReasonText->SetVisibility(ESlateVisibility::Collapsed);
-		Column->AddChildToVerticalBox(ReasonText)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
 		// The first hints (MVP item 6): what the buttons do, under them, quieter than a reason - until the first project.
 		HintText = CosmicUI::MakeText(*WidgetTree, 13);
 		HintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.65f)));
@@ -682,7 +693,14 @@ void UCosmicSystemPanelWidget::HandleAction(FName Action, float Value)
 	// Through the controller, which redraws the HUD and the map after a command (a paused simulation sends no tick).
 	if (ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer()))
 	{
-		Controller->StartProject(ShownSystemID, Action);
+		if (Action == GuardAction || Action == SiegeAction)
+		{
+			Controller->AllocateFleet(ShownSystemID);
+		}
+		else
+		{
+			Controller->StartProject(ShownSystemID, Action);
+		}
 	}
 	Refresh();
 }
@@ -821,6 +839,11 @@ void UCosmicSystemPanelWidget::Refresh()
 	TArray<FWantedButton> WandererWanted;
 	ShownTravelBlock.Reset();
 	ShownCrownBlock.Reset();
+	ShownFleetBlock.Reset();
+	// The fleet's lines, their tooltip and its button (B3).
+	TArray<FText> FleetLines;
+	TArray<FText> FleetTips;
+	TArray<FWantedButton> FleetWanted;
 	bool bCapital = false;
 	// A rebellion (a hazard of a Capital row) stands on the shown capital (B2: the first ship's line waits for it to end).
 	bool bCapitalRebellion = false;
@@ -974,6 +997,88 @@ void UCosmicSystemPanelWidget::Refresh()
 				bEnded ? EndBlock : JoinLines({ Reason, bHint ? StartHintOf(Tables, CosmicRows::ProjectSettle, System, Unit) : FText::GetEmpty() }) });
 			bSettleButton = true;
 		}
+		// The fleet (B3 header section 4): on a settled system of a people, for an embodied ruler.
+		if (bRules && !bDead && State.Civs.IsValidIndex(OwnerIndex) && CosmicState::IsSettled(System))
+		{
+			const FCivilizationState& Ruled = State.Civs[RuledIndex];
+			const FCosmicRulesDef& Rules = Sim->GetRules();
+			const bool bOurTarget = Ruled.FleetTargetSystemID == System.SystemID;
+			// A siege's line: whose, the time it has left (a length: the line says 'time left') and our side's band.
+			auto SiegeLine = [&](const TCHAR* Key, int32 Attacker, bool bOurs)
+			{
+				const float Odds = CosmicConflict::SiegeOddsOf(State, Index, Rules, Attacker, SystemIndex);
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("OtherCiv"), State.Civs[Attacker].CivName);
+				Args.Add(TEXT("Time"), DurationLabel(UCosmicEdictWidget::SiegeTicksLeftOf(State.Civs[Attacker], State.Tick, Rules), Unit));
+				Args.Add(TEXT("Band"), UCosmicEdictWidget::OddsWordOf(bOurs ? Odds : 1.f - Odds));
+				return FText::Format(Label(Key), Args);
+			};
+			// A press would take the fleet from another target: the tooltip says what it leaves (no number - it keeps still).
+			const int32 OtherTarget = (Ruled.FleetTargetSystemID.IsNone() || bOurTarget) ? INDEX_NONE : Index.FindSystem(State, Ruled.FleetTargetSystemID);
+			const FText Leaves = !State.Systems.IsValidIndex(OtherTarget) ? FText::GetEmpty()
+				: FText::FormatNamed(Label(State.Systems[OtherTarget].OwnerCivID == Ruled.CivID ? TEXT("Guard.Moves") : TEXT("Siege.Lifts")),
+					TEXT("System"), State.Systems[OtherTarget].DisplayName);
+			if (OwnerIndex == RuledIndex)
+			{
+				if (bOurTarget)
+				{
+					FleetLines.Add(Label(TEXT("Guard.Holding")));
+					// A new hazard here gains time only while the delay comes to a whole tick (FleetDelayOf's own arithmetic, gap 0).
+					if (CosmicConflict::GuardDelayTicksOf(Ruled, 0, Rules) >= 1)
+					{
+						FleetLines.Add(Label(TEXT("Guard.Delay")));
+						FleetTips.Add(Label(TEXT("Guard.DelayTip")));
+					}
+				}
+				else
+				{
+					// The guard's one reason here is the first rung's (no fleet yet): a settled system of the people is all else asks.
+					const CosmicConflict::ECosmicGuardBlock Block = CosmicConflict::GuardBlockOf(State, Index, Rules, RuledIndex, SystemIndex);
+					const bool bGreyed = Block != CosmicConflict::ECosmicGuardBlock::None;
+					const FText Reason = bGreyed ? Label(TEXT("Guard.Block.NoFleet")) : FText::GetEmpty();
+					ShownFleetBlock = CosmicConflict::SiegeNameOf(Block);
+					const FText Suffix = bEnded ? Label(TEXT("Chronicle.Suffix")) : (bGreyed ? Label(TEXT("Guard.Suffix.NoFleet")) : FText::GetEmpty());
+					const FText Name = Label(TEXT("Guard.Here"));
+					FleetWanted.Add({ GuardAction, Suffix.IsEmpty() ? Name : FText::Format(INVTEXT("{0}  {1}"), Name, Suffix), bEnded ? EndBlock : Reason,
+						bEnded ? EndBlock : JoinLines({ Reason, Label(TEXT("Guard.HereTip")), Leaves }) });
+				}
+				// Another people's siege on our system: its name only for a people the viewer is shown.
+				const int32 Besieger = CosmicConflict::BesiegerOf(State, Index, SystemIndex);
+				if (Besieger != INDEX_NONE)
+				{
+					FleetLines.Add(SiegeLine(View.ShownOrderOf(Besieger) != INDEX_NONE ? TEXT("Siege.OnUs") : TEXT("Siege.OnUsUnknown"), Besieger, false));
+				}
+			}
+			else if (CosmicMapLook::OwnerShownOf(State, View, SystemIndex) == ECosmicOwnerShown::Shown)
+			{
+				if (bOurTarget)
+				{
+					FleetLines.Add(SiegeLine(TEXT("Siege.Ours"), RuledIndex, true));
+				}
+				else
+				{
+					const CosmicConflict::ECosmicSiegeBlock Block = CosmicConflict::SiegeBlockOf(State, Index, Rules, RuledIndex, SystemIndex);
+					ShownFleetBlock = Block;
+					// NoFleet with a fleet: the owner stands too high for it to reach (the effectiveness of the rung gap is 0).
+					const bool bAbove = Block == CosmicConflict::ECosmicSiegeBlock::NoFleet && Ruled.FleetPower > 0.f;
+					const FText Reason = UCosmicEdictWidget::SiegeReasonOf(Block, bAbove);
+					const FText Suffix = bEnded ? Label(TEXT("Chronicle.Suffix")) : UCosmicEdictWidget::SiegeSuffixOf(Block, bAbove);
+					const FText Name = Label(TEXT("Siege.Send"));
+					const FText What = FText::Format(Label(TEXT("Siege.SendTip")), DurationLabel(FMath::Max(1, Rules.SiegeTicks), Unit), Percent(CosmicConflict::RepulsedShareOf(Rules)),
+						UCosmicEdictWidget::AmountOf(Rules.ConquestRelationPenalty));
+					// Our side's band only on a button that can be pressed (a greyed one has no siege to weigh).
+					const FText Odds = Block == CosmicConflict::ECosmicSiegeBlock::None ? FText::Format(Label(TEXT("Siege.SendOdds")),
+						UCosmicEdictWidget::OddsWordOf(CosmicConflict::SiegeOddsOf(State, Index, Rules, RuledIndex, SystemIndex))) : FText::GetEmpty();
+					FleetWanted.Add({ SiegeAction, Suffix.IsEmpty() ? Name : FText::Format(INVTEXT("{0}  {1}"), Name, Suffix), bEnded ? EndBlock : Reason,
+						bEnded ? EndBlock : JoinLines({ Reason, What, Odds, Leaves }) });
+				}
+			}
+			// The fleet there wears away inside a higher sphere (the attrition's sources only).
+			if (bOurTarget && UGalaxySimulationSubsystem::ComputeAttritionPressureIn(State, Index, Tables, Rules, RuledIndex, SystemIndex).P > 0.f)
+			{
+				FleetTips.Add(Label(TEXT("Siege.Attrition")));
+			}
+		}
 		bCapital = bRules && !bDead && OwnerIndex == RuledIndex && System.SystemID == State.Civs[RuledIndex].HomeSystemID;
 		const FHazardDef* CapitalHazard = (bCapital && System.ActiveHazard.IsValid()) ? Tables.FindHazardByTag(System.ActiveHazard) : nullptr;
 		bCapitalRebellion = CapitalHazard && CapitalHazard->SpawnRule == ECosmicHazardSpawn::Capital;
@@ -1055,6 +1160,10 @@ void UCosmicSystemPanelWidget::Refresh()
 	SyncButtons(*WidgetTree, *WandererBox, WandererButtons, WandererWanted, [this](UCosmicActionButton& Button)
 	{
 		Button.OnAction.AddUObject(this, &UCosmicSystemPanelWidget::HandleWanderer);
+	});
+	SyncButtons(*WidgetTree, *FleetBox, FleetButtons, FleetWanted, [this](UCosmicActionButton& Button)
+	{
+		Button.OnAction.AddUObject(this, &UCosmicSystemPanelWidget::HandleAction);
 	});
 
 	// The ruler's [Abdicate] on the capital (B1): armed by a first press, greyed while a role effect waits for the tick (the
@@ -1196,6 +1305,19 @@ void UCosmicSystemPanelWidget::Refresh()
 			DirectButton->SetToolTipText(DirectTip);
 		}
 	}
+
+	// The fleet's lines (B3), a block of their own with its tooltip (set only when its words change).
+	const FText FleetWords = FText::Join(INVTEXT("\n"), FleetLines);
+	if (!SameWords(FleetText->GetText(), FleetWords))
+	{
+		FleetText->SetText(FleetWords);
+	}
+	const FText FleetTip = JoinLines(FleetTips);
+	if (!SameWords(FleetText->GetToolTipText(), FleetTip))
+	{
+		FleetText->SetToolTipText(FleetTip);
+	}
+	FleetText->SetVisibility(FleetLines.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 
 	// The sight's words (none in the physical view): a line of their own under the details, with the same words as its
 	// tooltip - a block apart, so that neither the line nor the tooltip covers the people's band (a claim is never told

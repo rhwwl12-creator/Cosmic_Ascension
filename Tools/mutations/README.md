@@ -163,3 +163,44 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B3/` | `b3b_effect_skips_gate.patch` — the SetStance effect skips the stance gate | `Cosmic_Ascension.Events.RoleEffectRules` |
 | `B3/` | `b3b_schema_no_card_only.patch` — the schema checker lets a card-only effect stand anywhere | `test_diplomacy_and_conflict` (`Tools/test_data_schema.py`) |
 | `B3/` | `b3b_schema_log_without_holy_words.patch` — the log lines no longer refuse the holy words | `test_diplomacy_and_conflict` (`Tools/test_data_schema.py`) |
+| `B3/` | `b3c_time_left_twice.patch` — the window's siege lines say the time left twice (TimeLeftLabel in a line that says it) | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_panel_time_left_twice.patch` — the panel's siege lines say the time left twice | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_row_flip_missing.patch` — their siege on us is told with their band, not ours | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_hostility_in_head.patch` — their hostility stands on the name's line | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_held_unmarked.patch` — the stance held is not marked apart from a refused one | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_rows_any_met.patch` — a people met but not shown has a row | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_rows_any_shown.patch` — a people shown but not met has a row (seeing all) | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_peoples_tab_to_shares.patch` — the peoples' tab turns to the shares' page | `Cosmic_Ascension.UI.PeoplesTab`, `Cosmic_Ascension.UI.EdictWindow` |
+| `B3/` | `b3c_minus_zero.patch` — a term of 0 reads '-0' | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_signed_no_plus.patch` — a term above 0 is told without its '+' | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_view_bar_toward_zero.patch` — the view beside the bar is cut toward 0 (a refused view reads at the bar) | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_view_below_reached_bar.patch` — a view that reaches a bar of no tenth reads below it | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_bar_without_bonus.patch` — the window tells the bar without the edicts' bonus | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_tip_their_stance.patch` — the stance term reads their stance toward us, not ours toward them | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_tip_target_swapped.patch` — the target told is ours of them, not theirs of us | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_view_words_swapped.patch` — two band words change places | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_band_even_as_behind.patch` — an even siege is told as behind | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_ticks_left_below_zero.patch` — a siege past its end has time left below 0 | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_nofleet_head_always_fleet.patch` — the head tells a fleet of 0 with a cap of 0 | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_slots_all_missing.patch` — the slots' tooltip says nothing once every slot is open | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_slots_next_strict.patch` — the next friendly slot is the next rung's, grown or not | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_no_betrayal.patch` — [Hostile] over a trade treaty says nothing of the betrayal | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_break_far_as_near.patch` — breaking with a far people tells the bordering fall | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_lifts_missing.patch` — [Neutral] and [Friendly] do not say our siege of them lifts | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_friendly_held_bare.patch` — the friendly stance held drops its upkeep from the tooltip | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_withdraw_tip_fixed.patch` — [Withdraw the fleet] says a guard ends while it besieges | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_edict_line_always.patch` — an edict of factor 1 tells the fleet growth | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_fleet_in_projects.patch` — [Guard here] joins the project buttons | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_send_any_owner.patch` — [Send the fleet] stands on a system whose owner is not shown | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_send_if_met.patch` — [Send the fleet] stands on the system of a people met but not shown | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_besieger_named_if_met.patch` — a besieger met but not shown is named | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_panel_siege_reads_ruler.patch` — the panel tells a siege on us with our own fleet's count | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_above_as_nofleet.patch` — an owner too high is told as no fleet | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_odds_on_greyed.patch` — a greyed [Send the fleet] tells our side's band | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_guard_retarget_silent.patch` — [Guard here] does not say the siege it would lift | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_guard_suffix_missing.patch` — a greyed [Guard here] has no short reason | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_delay_always.patch` — the delay's line stands for any fleet | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_guard_name_wrong.patch` — a guard's NoFleet is named NoSystem | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_fleet_after_end.patch` — [Guard here] keeps its own words after the end | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_commands_after_end.patch` — the controller takes a fleet command after the end | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_double_click_kept.patch` — a double-click's second press presses the button | `Cosmic_Ascension.UI.PeoplesTab` |

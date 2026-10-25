@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicActionButton.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicActionButton.cpp
+@@ -84,7 +84,7 @@
+ 	{
+ 		if (TSharedPtr<SWidget> Slate = Button->GetCachedWidget())
+ 		{
+-			Slate->SetOnMouseDoubleClick(FPointerEventHandler::CreateLambda([](const FGeometry&, const FPointerEvent&) { return FReply::Handled(); }));
++			(void)Slate;
+ 		}
+ 	}
+ 	return Built;

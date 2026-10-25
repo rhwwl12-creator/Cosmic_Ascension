@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1037,7 +1037,7 @@
+ 	if (CosmicDiplomacy::Borders(State, Index, Viewer, Viewed))
+ 	{
+ 		// The stance's term read where the rule reads it (not the target less the others: their rounding would show as +-0).
+-		const FGameplayTag Ours = CosmicDiplomacy::StanceOf(Us, Them.CivID);
++		const FGameplayTag Ours = CosmicDiplomacy::StanceOf(Them, Us.CivID);
+ 		const int32 TermAt = Ours == CosmicTags::StanceFriendly() ? 0 : (Ours == CosmicTags::StanceHostile() ? 1 : INDEX_NONE);
+ 		const float Stance = (Rules.RelationStanceTerms.IsValidIndex(TermAt) && FMath::IsFinite(Rules.RelationStanceTerms[TermAt])) ? Rules.RelationStanceTerms[TermAt] : 0.f;
+ 		Lines.Add(FText::Format(Label(TEXT("Diplomacy.TipTarget")), Signed(CosmicDiplomacy::TargetRelationOf(State, Rules, Viewer, Viewed))));

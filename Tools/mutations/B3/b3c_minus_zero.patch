@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -70,7 +70,7 @@
+ 		Options.MinimumFractionalDigits = 0;
+ 		Options.MaximumFractionalDigits = 2;
+ 		// Nearer 0 than the last digit shown: a plain 0 (the formatter keeps the sign of -0.001, and of -0.0, as '-0').
+-		return FText::AsNumber((Value >= -0.005f && Value <= 0.005f) ? 0.f : Value, &Options);
++		return FText::AsNumber(Value, &Options);
+ 	}
+ 
+ 	// "+20%" or "-20%": a factor told as the change it makes.

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1937,7 +1937,7 @@
+ bool ACosmicPlayerController::AllocateFleet(FName SystemID)
+ {
+ 	UPlayerRoleSubsystem* Roles = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+-	if (IsRunEnded() || !Roles || Roles->AllocateFleet(SystemID) != CosmicConflict::ECosmicSiegeBlock::None)
++	if (!Roles || Roles->AllocateFleet(SystemID) != CosmicConflict::ECosmicSiegeBlock::None)
+ 	{
+ 		return false;
+ 	}

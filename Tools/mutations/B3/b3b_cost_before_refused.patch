@@ -1,21 +1,18 @@
 --- a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
 +++ b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
-@@ -382,15 +382,15 @@
+@@ -392,13 +392,13 @@
  	{
  		return ECosmicTreatyBlock::Hostile;
  	}
-+	const float Cost = (Rules.TreatyCostInfluence > 0.f && Rules.TreatyCostInfluence <= TNumericLimits<float>::Max()) ? Rules.TreatyCostInfluence : 0.f;
-+	if (Civ.Stockpile.Influence < Cost)
++	if (Civ.Stockpile.Influence < TreatyCostOf(Rules))
 +	{
 +		return ECosmicTreatyBlock::Cost;
 +	}
- 	const float Bar = CosmicDiplomacyImpl::Term(Rules.TreatyAcceptRelation) - TreatyAcceptBonusOf(Civ, Tables);
- 	if (!(ViewOf(State, Index, Rules, OtherIndex, CivIndex) >= Bar))
+ 	if (!(ViewOf(State, Index, Rules, OtherIndex, CivIndex) >= TreatyBarOf(Civ, Tables, Rules)))
  	{
  		return ECosmicTreatyBlock::Refused;
 -	}
--	const float Cost = (Rules.TreatyCostInfluence > 0.f && Rules.TreatyCostInfluence <= TNumericLimits<float>::Max()) ? Rules.TreatyCostInfluence : 0.f;
--	if (Civ.Stockpile.Influence < Cost)
+-	if (Civ.Stockpile.Influence < TreatyCostOf(Rules))
 -	{
 -		return ECosmicTreatyBlock::Cost;
  	}

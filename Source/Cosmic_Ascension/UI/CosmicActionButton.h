@@ -14,7 +14,10 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnCosmicAction, FName /* Action */, float 
 /**
  * A button with its label that names an action when pressed: a project row, project_settle, or a speed (with its value).
  * One handler serves every button of a panel. Built in C++ (no WBP); never takes the keyboard focus, so Space and the
- * number keys keep reaching the controller after a click.
+ * number keys keep reaching the controller after a click. A double-click's second press is no press: SButton takes an
+ * unhandled double-click as one more press, and a button that turns in place under the cursor ([Trade] to [Break trade],
+ * [Enact] to [Revoke]) would undo its own command at once - the Slate button handles the double-click itself (as the
+ * system's double-click setting tells it). A press from code (Press) is never held back.
  */
 UCLASS(meta = (DisableNativeTick))
 class COSMIC_ASCENSION_API UCosmicActionButton : public UUserWidget

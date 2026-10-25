@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1307,7 +1307,7 @@
+ 	WithdrawButton->SetVisibility(State.Systems.IsValidIndex(Target) ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+ 	// A withdrawal ends a guard, or a siege with its count.
+ 	const bool bBesieging = State.Systems.IsValidIndex(Target) && State.Systems[Target].OwnerCivID != Civ.CivID;
+-	SetTip(WithdrawButton, Label(bBesieging ? TEXT("Siege.WithdrawTip") : TEXT("Guard.WithdrawTip")));
++	SetTip(WithdrawButton, Label((bBesieging && Target < 0) ? TEXT("Siege.WithdrawTip") : TEXT("Guard.WithdrawTip")));
+ 	SetWords(SlotsText, FText::Format(Label(TEXT("Diplomacy.Slots")), FText::AsNumber(CosmicDiplomacy::FriendlyCountOf(Civ)),
+ 		FText::AsNumber(CosmicDiplomacy::FriendlySlotsOf(Civ, Rules))));
+ 	const TOptional<int32> NextSlotRung = NextFriendlySlotRungOf(Civ, Rules);

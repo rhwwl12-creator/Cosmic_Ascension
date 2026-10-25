@@ -11,6 +11,7 @@
 #include "Templates/Function.h"
 #include "UI/CosmicUILabels.h"
 #include "Events/CosmicPetitions.h"
+#include "GameplayTagContainer.h"
 #include "Sim/CosmicEndings.h"
 #include "World/CosmicAutoPause.h"
 #include "World/CosmicMapLook.h"
@@ -510,10 +511,28 @@ public:
 	/** Steps the edict hint (CosmicUI::StepEdictHint) after a look at the vessel and the people it rules: the top bar and the
 	 * system panel call it first in their refreshes, a command after it is taken. Presentation state only. */
 	void FollowEdictHint();
+	/** The ruler's diplomacy and fleet (B3 header section 2.4, 4 - the edict window's peoples' page and the system panel):
+	 * UPlayerRoleSubsystem::SetStance, ProposeTreaty, BreakTreaty and AllocateFleet. Refused in an ended run. A command taken
+	 * redraws the HUD and the map at once (FollowCommand - a paused simulation sends no tick). */
+	bool SetStance(FName CivID, FGameplayTag Stance);
+	bool ProposeTreaty(FName CivID, FGameplayTag Treaty);
+	bool BreakTreaty(FName CivID, FGameplayTag Treaty);
+	bool AllocateFleet(FName SystemID);
+	/** Development aids (B3 - screenshots and hand checks): "CosmicStance civ_1 friendly" (friendly, neutral or hostile),
+	 * "CosmicTreaty civ_1 trade" (trade or nonaggression; a third word "break" breaks one held), "CosmicFleet sys_2" (or
+	 * "none" to withdraw) - the paths the buttons take; each alone logs one line of the gate's answers, and a refusal one
+	 * line with its reason. They change the world only as those clicks would. */
+	UFUNCTION(Exec)
+	void CosmicStance(const FString& CivID, const FString& Word);
+	UFUNCTION(Exec)
+	void CosmicTreaty(const FString& CivID, const FString& Word, const FString& Break);
+	UFUNCTION(Exec)
+	void CosmicFleet(const FString& SystemID);
 	/** Development aids (B2 - screenshots and hand checks): "CosmicEdict edict_vigil" revokes a held edict or enacts another
 	 * (the window's paths; one line for a refusal with its reason) and "CosmicEdict" alone logs each row with the gate's
 	 * answer; "CosmicShares 10 2 2" shares the research out by those weights of physics, society and engineering as [Share it
-	 * so] does; "CosmicEdictWindow 1" opens the edict window on its edicts' page, 2 on its shares', 0 closes it. They change
+	 * so] does; "CosmicEdictWindow 1" opens the edict window on its edicts' page, 2 on its shares', 3 on its peoples' (B3),
+	 * 0 closes it. They change
 	 * the world only as those clicks would. */
 	UFUNCTION(Exec)
 	void CosmicEdict(const FString& Row);

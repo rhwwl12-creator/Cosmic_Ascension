@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1427,7 +1427,7 @@
+ 			ShownStanceBlocks[At * 3 + StanceIndex] = Block;
+ 			UCosmicActionButton* Button = StanceButtons[At * 3 + StanceIndex];
+ 			const bool bHeld = Block == CosmicDiplomacy::ECosmicStanceBlock::Same;
+-			const FText ButtonLabel = bHeld ? FText::Format(INVTEXT("{0} {1}"), Label(TEXT("Edict.Mark")), CosmicDiplomacy::StanceNameOf(Stance))
++			const FText ButtonLabel = (bHeld && StanceIndex < 0) ? FText::Format(INVTEXT("{0} {1}"), Label(TEXT("Edict.Mark")), CosmicDiplomacy::StanceNameOf(Stance))
+ 				: CosmicDiplomacy::StanceNameOf(Stance);
+ 			if (!SameWords(Button->GetLabel(), ButtonLabel))
+ 			{

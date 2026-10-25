@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -92,7 +92,7 @@
+ 	FText ViewAgainstBarOf(float View, float Bar)
+ 	{
+ 		const float Tenth = FMath::FloorToFloat(View * 10.f) / 10.f;
+-		return Signed(View >= Bar ? FMath::Max(Tenth, Bar) : Tenth);
++		return Signed(Tenth);
+ 	}
+ 
+ 	// "+5" or "-15": Stability points over StabilitySpan ticks (up to one decimal).

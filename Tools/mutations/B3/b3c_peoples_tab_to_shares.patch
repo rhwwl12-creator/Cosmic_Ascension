@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -979,7 +979,7 @@
+ 	}
+ 	else if (Action == EdictsTabAction || Action == SharesTabAction || Action == PeoplesTabAction)
+ 	{
+-		Tab = Action == EdictsTabAction ? ECosmicEdictTab::Edicts : (Action == SharesTabAction ? ECosmicEdictTab::Shares : ECosmicEdictTab::Peoples);
++		Tab = Action == EdictsTabAction ? ECosmicEdictTab::Edicts : (Action == SharesTabAction ? ECosmicEdictTab::Shares : ECosmicEdictTab::Shares);
+ 		Refresh();
+ 	}
+ }

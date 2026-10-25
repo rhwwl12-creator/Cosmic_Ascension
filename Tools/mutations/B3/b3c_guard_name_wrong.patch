@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -269,7 +269,7 @@
+ 	case ECosmicGuardBlock::Dead: return ECosmicSiegeBlock::Dead;
+ 	case ECosmicGuardBlock::NotOwn: return ECosmicSiegeBlock::NoSystem;
+ 	case ECosmicGuardBlock::NotSettled: return ECosmicSiegeBlock::NotSettled;
+-	case ECosmicGuardBlock::NoFleet: return ECosmicSiegeBlock::NoFleet;
++	case ECosmicGuardBlock::NoFleet: return ECosmicSiegeBlock::NoSystem;
+ 	}
+ 	return ECosmicSiegeBlock::NoSystem;
+ }

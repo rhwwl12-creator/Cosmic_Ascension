@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -83,7 +83,7 @@
+ 	// "+0.24" or "-0.12": a term of a view, signed (up to two decimals; a plain 0 for 0.005 or less either way).
+ 	FText Signed(float Value)
+ 	{
+-		return Value > 0.005f ? FText::Format(INVTEXT("+{0}"), Amount(Value)) : Amount(Value);
++		return Amount(Value);
+ 	}
+ 
+ 	// The live view beside a treaty's bar - the one place a number of it is told (the band's tooltip tells its terms): it

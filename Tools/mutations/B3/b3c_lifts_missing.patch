@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1411,7 +1411,7 @@
+ 		const float Bar = CosmicDiplomacy::TreatyBarOf(Civ, Tables, Rules);
+ 		// Our fleet besieges one of their systems: a stance that is not hostile lifts it (the conflict stage's gate).
+ 		const bool bOurSiege = State.Systems.IsValidIndex(Target) && State.Systems[Target].OwnerCivID == Them.CivID;
+-		const FText Lifts = bOurSiege ? FText::FormatNamed(Label(TEXT("Siege.Lifts")), TEXT("System"), State.Systems[Target].DisplayName) : FText::GetEmpty();
++		const FText Lifts = (bOurSiege && Other < 0) ? FText::FormatNamed(Label(TEXT("Siege.Lifts")), TEXT("System"), State.Systems[Target].DisplayName) : FText::GetEmpty();
+ 		// What the end of a treaty takes from their view: the betrayal's fall where the stored view is read (the pair
+ 		// borders), else the treaty's own share of the view (a pair that does not border reads no stored view).
+ 		auto Fall = [&](const TCHAR* NearKey, const TCHAR* FarKey)

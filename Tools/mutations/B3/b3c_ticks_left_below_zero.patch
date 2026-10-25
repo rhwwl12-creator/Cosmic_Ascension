@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1236,7 +1236,7 @@
+ 
+ int64 UCosmicEdictWidget::SiegeTicksLeftOf(const FCivilizationState& Attacker, int64 Tick, const FCosmicRulesDef& Rules)
+ {
+-	return FMath::Max<int64>(0, CosmicConflict::SiegeEndTickOf(Attacker, Rules) - Tick);
++	return CosmicConflict::SiegeEndTickOf(Attacker, Rules) - Tick;
+ }
+ 
+ void UCosmicEdictWidget::RefreshPeoples(int32 RuledIndex)

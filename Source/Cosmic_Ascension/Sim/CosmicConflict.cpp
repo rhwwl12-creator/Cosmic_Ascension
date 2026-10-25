@@ -259,6 +259,21 @@ CosmicConflict::ECosmicGuardBlock CosmicConflict::GuardBlockOf(const FGalaxyStat
 	return ECosmicGuardBlock::None;
 }
 
+CosmicConflict::ECosmicSiegeBlock CosmicConflict::SiegeNameOf(ECosmicGuardBlock Block)
+{
+	switch (Block)
+	{
+	case ECosmicGuardBlock::None: return ECosmicSiegeBlock::None;
+	case ECosmicGuardBlock::Sanctuary: return ECosmicSiegeBlock::Sanctuary;
+	case ECosmicGuardBlock::NoSystem: return ECosmicSiegeBlock::NoSystem;
+	case ECosmicGuardBlock::Dead: return ECosmicSiegeBlock::Dead;
+	case ECosmicGuardBlock::NotOwn: return ECosmicSiegeBlock::NoSystem;
+	case ECosmicGuardBlock::NotSettled: return ECosmicSiegeBlock::NotSettled;
+	case ECosmicGuardBlock::NoFleet: return ECosmicSiegeBlock::NoFleet;
+	}
+	return ECosmicSiegeBlock::NoSystem;
+}
+
 float CosmicConflict::SiegeOddsOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules, int32 Attacker, int32 SystemIndex)
 {
 	if (!State.Civs.IsValidIndex(Attacker) || !State.Systems.IsValidIndex(SystemIndex))
@@ -338,6 +353,11 @@ int32 CosmicConflict::FleetDelayOf(const FGalaxyState& State, const FCosmicState
 		const FTranscendentDef* Def = State.Transcendents.IsValidIndex(Claimant) ? Tables.FindTranscendent(State.Transcendents[Claimant].TranscendentID) : nullptr;
 		Gap = Def ? CosmicConflictImpl::TierGap(Def->Tier, Owner.Tier) : 0;
 	}
+	return GuardDelayTicksOf(Owner, Gap, Rules);
+}
+
+int32 CosmicConflict::GuardDelayTicksOf(const FCivilizationState& Owner, int32 Gap, const FCosmicRulesDef& Rules)
+{
 	const float PerPower = CosmicConflictImpl::FactorOr(Rules.FleetDelayPerPower, 0.f);
 	const float Cap = FMath::Min(CosmicConflictImpl::FactorOr(Rules.FleetDelayCap, 0.f), 100000.f);
 	const float Delay = PerPower * EffectivePowerOf(Owner.FleetPower, Gap, Rules);
@@ -346,6 +366,11 @@ int32 CosmicConflict::FleetDelayOf(const FGalaxyState& State, const FCosmicState
 		return 0;
 	}
 	return static_cast<int32>(Delay < Cap ? Delay : Cap);
+}
+
+float CosmicConflict::RepulsedShareOf(const FCosmicRulesDef& Rules)
+{
+	return (Rules.SiegeRepulsedFleetFactor >= 0.f && Rules.SiegeRepulsedFleetFactor <= 1.f) ? Rules.SiegeRepulsedFleetFactor : 0.f;
 }
 
 void CosmicConflict::LiftTargetsOn(FGalaxyState& State, FName SystemID)

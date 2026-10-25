@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1024,7 +1024,7 @@
+ 				{
+ 					FleetLines.Add(Label(TEXT("Guard.Holding")));
+ 					// A new hazard here gains time only while the delay comes to a whole tick (FleetDelayOf's own arithmetic, gap 0).
+-					if (CosmicConflict::GuardDelayTicksOf(Ruled, 0, Rules) >= 1)
++					if (CosmicConflict::GuardDelayTicksOf(Ruled, 0, Rules) >= 0)
+ 					{
+ 						FleetLines.Add(Label(TEXT("Guard.Delay")));
+ 						FleetTips.Add(Label(TEXT("Guard.DelayTip")));

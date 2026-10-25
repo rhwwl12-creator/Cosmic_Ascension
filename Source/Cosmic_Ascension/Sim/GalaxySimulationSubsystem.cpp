@@ -1978,7 +1978,7 @@ void UGalaxySimulationSubsystem::TickConflict()
 	}
 
 	// (4) The ends, in the order collected, each gate asked again right before (an earlier taking may close a later gate).
-	const float Repulsed = (Rules.SiegeRepulsedFleetFactor >= 0.f && Rules.SiegeRepulsedFleetFactor <= 1.f) ? Rules.SiegeRepulsedFleetFactor : 0.f;
+	const float Repulsed = CosmicConflict::RepulsedShareOf(Rules);
 	for (const FDueSiege& Siege : Due)
 	{
 		const int32 Attacker = Siege.Attacker;

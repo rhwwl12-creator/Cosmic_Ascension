@@ -7,6 +7,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Engine/TimerHandle.h"
 #include "Misc/Optional.h"
+#include "Sim/CosmicConflict.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicWanderer.h"
 #include "Templates/Tuple.h"
@@ -92,8 +93,8 @@ namespace CosmicSlotWatch
  * with the shares), the others with the shares a press would give (Focus.TipField, Focus.TipEven) and, on a field the
  * next rung reads (CosmicNextRung::ResearchFieldsOf), Focus.TipNeeded. Built once, kept across refreshes; a press goes
  * through ACosmicPlayerController::SetResearchFocus. In an ended run all four are greyed with Chronicle.Block.
- * The wanderer's row (B1 header section 4), in a box of its own under the project buttons (GetActionButtons stays the
- * projects'): on the system an embodied wanderer stands in, [Scan] and - on a settled system of a people - [Crown], or
+ * The wanderer's row (B1 header section 4), in a box of its own under the project buttons and the fleet's block
+ * (GetActionButtons stays the projects'): on the system an embodied wanderer stands in, [Scan] and - on a settled system of a people - [Crown], or
  * [Return] for the people it left; on each living lane neighbour of that system, [Travel] with the lane's time. Each is
  * greyed by the first reason of the command's own gate (CosmicWanderer::TravelBlockOf, CrownBlockOf - fed the meeting and
  * the waiting card from the view), the short words after its name and the reason first in its tooltip (a refused crown
@@ -112,6 +113,21 @@ namespace CosmicSlotWatch
  * IsPresetNow - a button is greyed only when its press would change nothing), and [Society]'s tooltip says what Society
  * research opens (Focus.TipOpensSlot or Focus.TipOpensAll, and Focus.TipOpensRecovery while DT_Rules.SocietyRecoveryBonus
  * gives one).
+ * The fleet (B3 header section 4), for the people the player rules: on its settled system, the line Guard.Holding while its
+ * fleet guards it (and Guard.Delay while its delay, CosmicConflict::GuardDelayTicksOf at gap 0, is a whole tick - a new
+ * hazard there gains time), else
+ * [Guard here] greyed by CosmicConflict::GuardBlockOf (the first rung: no fleet yet - Guard.Suffix.NoFleet after the
+ * label); a siege on it in the line Siege.OnUs with the besieger's name - Siege.OnUsUnknown for a besieger the viewer is
+ * not shown - the time left and our side's band (1 - the attacker's odds). On another people's settled system whose owner
+ * the viewer is shown, [Send the fleet] greyed by the first reason of CosmicConflict::SiegeBlockOf (its short words after
+ * the label, the long ones first in the tooltip; a NoFleet with a fleet is the owner standing too high - Siege.Block.Above),
+ * the siege's cost and what follows it in the tooltip (Siege.SendTip) and, enabled, our side's band; or Siege.Ours while
+ * our fleet besieges it. A button that would move the fleet from another target says so in its tooltip (Guard.Moves,
+ * Siege.Lifts). The lines (GetFleetText) and the button (GetFleetButtons) are a block of their own under the settle
+ * button's reason line - the button's place takes the lines a press brings, so nothing below it moves much under the
+ * cursor -; the lines' tooltip says what the delay leaves alone and, inside a higher sphere, the attrition
+ * (UGalaxySimulationSubsystem::ComputeAttritionPressureIn). Another people's siege of a third people has no line here.
+ * A press goes through ACosmicPlayerController::AllocateFleet.
  */
 UCLASS(meta = (DisableNativeTick))
 class COSMIC_ASCENSION_API UCosmicSystemPanelWidget : public UUserWidget
@@ -204,6 +220,13 @@ public:
 	const UTextBlock* GetShipHintText() const { return ShipHintText; }
 	/** The capital's edict hint line (B2, tests). */
 	const UTextBlock* GetEdictHintText() const { return EdictHintText; }
+	/** The fleet's lines (B3, tests). */
+	const UTextBlock* GetFleetText() const { return FleetText; }
+	/** The fleet's button now shown (B3, tests): [Guard here] (GuardAction) or [Send the fleet] (SiegeAction); empty without. */
+	const TArray<TObjectPtr<UCosmicActionButton>>& GetFleetButtons() const { return FleetButtons; }
+	/** The gate's answer the panel shows on [Guard here] or [Send the fleet] (the guard's in the siege's names -
+	 * CosmicConflict::SiegeNameOf); unset when neither button shows (tests: the same as the command's). */
+	TOptional<CosmicConflict::ECosmicSiegeBlock> GetShownFleetBlock() const { return ShownFleetBlock; }
 	/** The research focus block's [Share by hand] (B2): opens the edict window on its shares' page (tests press it). */
 	UCosmicActionButton* GetDirectButton() const { return DirectButton; }
 	/**
@@ -227,6 +250,8 @@ public:
 	static const FName CrownAction;
 	static const FName AbdicateAction;
 	static const FName DirectAction;
+	static const FName GuardAction;
+	static const FName SiegeAction;
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -272,6 +297,9 @@ private:
 	TObjectPtr<UTextBlock> MarkText;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> FleetText;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> ReasonText;
 
 	UPROPERTY(Transient)
@@ -302,6 +330,12 @@ private:
 	TArray<TObjectPtr<UCosmicActionButton>> WandererButtons;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UVerticalBox> FleetBox;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UCosmicActionButton>> FleetButtons;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UCosmicActionButton> AbdicateButton;
 
 	UPROPERTY(Transient)
@@ -326,6 +360,8 @@ private:
 	// The wanderer's gates as the panel shows them (B1); unset without the button.
 	TOptional<CosmicWanderer::ETravelBlock> ShownTravelBlock;
 	TOptional<CosmicWanderer::ECrownBlock> ShownCrownBlock;
+	// The fleet's gate as the panel shows it (B3); unset without the button.
+	TOptional<CosmicConflict::ECosmicSiegeBlock> ShownFleetBlock;
 	// The FPlatformTime seconds of the press that armed [Abdicate]; below 0 when it is not armed.
 	double AbdicateArmedAt = -1.0;
 	FTimerHandle AbdicateTimer;

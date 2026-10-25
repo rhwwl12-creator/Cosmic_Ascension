@@ -538,7 +538,7 @@ FText UCosmicTopBarWidget::GetEdictTip() const
 		UCosmicEdictWidget::UpkeepWordsOf(UCosmicEdictWidget::HeldUpkeepOf(*Civ, Sim->GetTables()), ACosmicPlayerController::TimeUnitFor(*this)));
 	const TOptional<float> Next = UCosmicEdictWidget::NextSlotMarkOf(*Civ, Sim->GetRules());
 	const FText SlotWords = Next.IsSet() ? FText::Format(Label(TEXT("Edict.Bar.NextSlot")), CosmicUI::Percent(Next.GetValue())) : Label(TEXT("Edict.Bar.AllSlots"));
-	return CosmicUI::JoinLines({ Hint, Upkeep, SlotWords, Label(TEXT("Edict.Bar.Press")) });
+	return CosmicUI::JoinLines({ Hint, Upkeep, SlotWords, Label(TEXT("Edict.Bar.Peoples")), Label(TEXT("Edict.Bar.Press")) });
 }
 
 void UCosmicTopBarWidget::HandleView(FName Action, float Value)

@@ -5,6 +5,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Components/InputComponent.h"
 #include "CoreGlobals.h"
+#include "Core/CosmicTags.h"
 #include "Core/GalaxyState.h"
 #include "Cosmic_Ascension.h"
 #include "Data/CosmicDataTables.h"
@@ -27,6 +28,8 @@
 #include "Events/CosmicPetitions.h"
 #include "Player/PlayerRoleSubsystem.h"
 #include "Save/CosmicSaveSubsystem.h"
+#include "Sim/CosmicConflict.h"
+#include "Sim/CosmicDiplomacy.h"
 #include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicResearch.h"
 #include "Sim/CosmicStateIndex.h"
@@ -1898,6 +1901,50 @@ bool ACosmicPlayerController::SetResearchShares(const TMap<FName, int32>& Weight
 	return true;
 }
 
+bool ACosmicPlayerController::SetStance(FName CivID, FGameplayTag Stance)
+{
+	UPlayerRoleSubsystem* Roles = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (IsRunEnded() || !Roles || Roles->SetStance(CivID, Stance) != CosmicDiplomacy::ECosmicStanceBlock::None)
+	{
+		return false;
+	}
+	FollowCommand();
+	return true;
+}
+
+bool ACosmicPlayerController::ProposeTreaty(FName CivID, FGameplayTag Treaty)
+{
+	UPlayerRoleSubsystem* Roles = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (IsRunEnded() || !Roles || Roles->ProposeTreaty(CivID, Treaty) != CosmicDiplomacy::ECosmicTreatyBlock::None)
+	{
+		return false;
+	}
+	FollowCommand();
+	return true;
+}
+
+bool ACosmicPlayerController::BreakTreaty(FName CivID, FGameplayTag Treaty)
+{
+	UPlayerRoleSubsystem* Roles = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (IsRunEnded() || !Roles || !Roles->BreakTreaty(CivID, Treaty))
+	{
+		return false;
+	}
+	FollowCommand();
+	return true;
+}
+
+bool ACosmicPlayerController::AllocateFleet(FName SystemID)
+{
+	UPlayerRoleSubsystem* Roles = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (IsRunEnded() || !Roles || Roles->AllocateFleet(SystemID) != CosmicConflict::ECosmicSiegeBlock::None)
+	{
+		return false;
+	}
+	FollowCommand();
+	return true;
+}
+
 void ACosmicPlayerController::ToggleEdictWindow()
 {
 	ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
@@ -2140,13 +2187,181 @@ void ACosmicPlayerController::CosmicEdictWindow(int32 Page)
 	{
 		return;
 	}
-	if (Page == 1 || Page == 2)
+	if (Page >= 1 && Page <= 3)
 	{
-		Window->Open(Page == 1 ? ECosmicEdictTab::Edicts : ECosmicEdictTab::Shares);
+		Window->Open(Page == 1 ? ECosmicEdictTab::Edicts : (Page == 2 ? ECosmicEdictTab::Shares : ECosmicEdictTab::Peoples));
 	}
 	else
 	{
 		Window->Close();
+	}
+}
+
+void ACosmicPlayerController::CosmicStance(const FString& CivID, const FString& Word)
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!Sim)
+	{
+		return;
+	}
+	if (IsRunEnded())
+	{
+		UE_LOG(LogCosmic, Display, TEXT("CosmicStance: refused (the run is over)"));
+		return;
+	}
+	const FGalaxyState& State = Sim->GetState();
+	const int32 Ruled = (State.Calling.LifeState == ELifeState::Embodied && State.Player.Role == EPlayerRole::Ruler && !State.Player.RuledCivID.IsNone())
+		? Sim->GetStateIndex().FindCiv(State, State.Player.RuledCivID) : INDEX_NONE;
+	const FCosmicKnownView View = GetKnownView();
+	auto ReasonOf = [&](FName Other, FGameplayTag Stance)
+	{
+		return static_cast<int32>(State.Civs.IsValidIndex(Ruled) ? CosmicDiplomacy::StanceBlockOf(State, Sim->GetStateIndex(), Sim->GetRules(), Ruled, Other, Stance,
+			View.IsMet(Sim->GetStateIndex().FindCiv(State, Other))) : CosmicDiplomacy::ECosmicStanceBlock::NotRuler);
+	};
+	// No argument: one line with every people and the gate's answer of each stance (friendly / neutral / hostile).
+	if (CivID.IsEmpty())
+	{
+		TArray<FString> Peoples;
+		for (const FCivilizationState& Civ : State.Civs)
+		{
+			Peoples.Add(FString::Printf(TEXT("%s (%d/%d/%d)"), *Civ.CivID.ToString(), ReasonOf(Civ.CivID, CosmicTags::StanceFriendly()), ReasonOf(Civ.CivID, FGameplayTag()),
+				ReasonOf(Civ.CivID, CosmicTags::StanceHostile())));
+		}
+		UE_LOG(LogCosmic, Display, TEXT("CosmicStance: the peoples (the gate's reason for friendly/neutral/hostile - 0 = taken): %s"), *FString::Join(Peoples, TEXT(", ")));
+		return;
+	}
+	FGameplayTag Stance;
+	if (Word.Equals(TEXT("friendly"), ESearchCase::IgnoreCase))
+	{
+		Stance = CosmicTags::StanceFriendly();
+	}
+	else if (Word.Equals(TEXT("hostile"), ESearchCase::IgnoreCase))
+	{
+		Stance = CosmicTags::StanceHostile();
+	}
+	else if (!Word.Equals(TEXT("neutral"), ESearchCase::IgnoreCase))
+	{
+		UE_LOG(LogCosmic, Display, TEXT("CosmicStance: '%s' is no stance (friendly, neutral or hostile)"), *Word);
+		return;
+	}
+	const FName Other(*CivID);
+	if (!SetStance(Other, Stance))
+	{
+		UE_LOG(LogCosmic, Display, TEXT("CosmicStance: %s %s was refused (reason %d)"), *CivID, *Word, ReasonOf(Other, Stance));
+	}
+}
+
+void ACosmicPlayerController::CosmicTreaty(const FString& CivID, const FString& Word, const FString& Break)
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!Sim)
+	{
+		return;
+	}
+	if (IsRunEnded())
+	{
+		UE_LOG(LogCosmic, Display, TEXT("CosmicTreaty: refused (the run is over)"));
+		return;
+	}
+	const FGalaxyState& State = Sim->GetState();
+	const int32 Ruled = (State.Calling.LifeState == ELifeState::Embodied && State.Player.Role == EPlayerRole::Ruler && !State.Player.RuledCivID.IsNone())
+		? Sim->GetStateIndex().FindCiv(State, State.Player.RuledCivID) : INDEX_NONE;
+	const FCosmicKnownView View = GetKnownView();
+	auto ReasonOf = [&](FName Other, FGameplayTag Treaty)
+	{
+		return static_cast<int32>(State.Civs.IsValidIndex(Ruled) ? CosmicDiplomacy::TreatyBlockOf(State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), Ruled, Other,
+			Treaty, View.IsMet(Sim->GetStateIndex().FindCiv(State, Other))) : CosmicDiplomacy::ECosmicTreatyBlock::NotRuler);
+	};
+	// No argument: one line with every people and the gate's answer of each treaty (trade / non-aggression).
+	if (CivID.IsEmpty())
+	{
+		TArray<FString> Peoples;
+		for (const FCivilizationState& Civ : State.Civs)
+		{
+			Peoples.Add(FString::Printf(TEXT("%s (%d/%d)"), *Civ.CivID.ToString(), ReasonOf(Civ.CivID, CosmicTags::TreatyTrade()), ReasonOf(Civ.CivID, CosmicTags::TreatyNonAggression())));
+		}
+		UE_LOG(LogCosmic, Display, TEXT("CosmicTreaty: the peoples (the gate's reason for trade/non-aggression - 0 = taken, 5 = held): %s"), *FString::Join(Peoples, TEXT(", ")));
+		return;
+	}
+	FGameplayTag Treaty;
+	if (Word.Equals(TEXT("trade"), ESearchCase::IgnoreCase))
+	{
+		Treaty = CosmicTags::TreatyTrade();
+	}
+	else if (Word.Equals(TEXT("nonaggression"), ESearchCase::IgnoreCase))
+	{
+		Treaty = CosmicTags::TreatyNonAggression();
+	}
+	else
+	{
+		UE_LOG(LogCosmic, Display, TEXT("CosmicTreaty: '%s' is no treaty (trade or nonaggression)"), *Word);
+		return;
+	}
+	const FName Other(*CivID);
+	if (Break.Equals(TEXT("break"), ESearchCase::IgnoreCase))
+	{
+		if (!BreakTreaty(Other, Treaty))
+		{
+			UE_LOG(LogCosmic, Display, TEXT("CosmicTreaty: the breaking of %s with %s was refused (not held, no embodied ruler)"), *Word, *CivID);
+		}
+	}
+	else if (!ProposeTreaty(Other, Treaty))
+	{
+		UE_LOG(LogCosmic, Display, TEXT("CosmicTreaty: %s with %s was refused (reason %d)"), *Word, *CivID, ReasonOf(Other, Treaty));
+	}
+}
+
+void ACosmicPlayerController::CosmicFleet(const FString& SystemID)
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!Sim)
+	{
+		return;
+	}
+	if (IsRunEnded())
+	{
+		UE_LOG(LogCosmic, Display, TEXT("CosmicFleet: refused (the run is over)"));
+		return;
+	}
+	const FGalaxyState& State = Sim->GetState();
+	const FCosmicStateIndex& Index = Sim->GetStateIndex();
+	const int32 Ruled = (State.Calling.LifeState == ELifeState::Embodied && State.Player.Role == EPlayerRole::Ruler && !State.Player.RuledCivID.IsNone())
+		? Index.FindCiv(State, State.Player.RuledCivID) : INDEX_NONE;
+	// The gate the command asks: a guard of an own system, a siege of another's - both in the siege's names, as the command
+	// answers them.
+	auto ReasonOf = [&](int32 SystemIndex)
+	{
+		if (!State.Civs.IsValidIndex(Ruled))
+		{
+			return static_cast<int32>(CosmicConflict::ECosmicSiegeBlock::NotRuler);
+		}
+		if (State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == State.Civs[Ruled].CivID)
+		{
+			return static_cast<int32>(CosmicConflict::SiegeNameOf(CosmicConflict::GuardBlockOf(State, Index, Sim->GetRules(), Ruled, SystemIndex)));
+		}
+		return static_cast<int32>(CosmicConflict::SiegeBlockOf(State, Index, Sim->GetRules(), Ruled, SystemIndex));
+	};
+	// No argument: one line with the fleet, its target and every settled system of another people with the siege's answer.
+	if (SystemID.IsEmpty())
+	{
+		TArray<FString> Systems;
+		for (int32 SystemIndex = 0; State.Civs.IsValidIndex(Ruled) && SystemIndex < State.Systems.Num(); ++SystemIndex)
+		{
+			const FStarSystemState& System = State.Systems[SystemIndex];
+			if (!System.OwnerCivID.IsNone() && System.OwnerCivID != State.Civs[Ruled].CivID && CosmicState::IsSettled(System))
+			{
+				Systems.Add(FString::Printf(TEXT("%s (%d)"), *System.SystemID.ToString(), ReasonOf(SystemIndex)));
+			}
+		}
+		UE_LOG(LogCosmic, Display, TEXT("CosmicFleet: fleet %.3f, target %s; the systems of other peoples (the siege gate's reason - 0 = taken): %s"),
+			State.Civs.IsValidIndex(Ruled) ? State.Civs[Ruled].FleetPower : 0.f, State.Civs.IsValidIndex(Ruled) ? *State.Civs[Ruled].FleetTargetSystemID.ToString() : TEXT("-"),
+			*FString::Join(Systems, TEXT(", ")));
+		return;
+	}
+	const FName Target = SystemID.Equals(TEXT("none"), ESearchCase::IgnoreCase) ? FName() : FName(*SystemID);
+	if (!AllocateFleet(Target))
+	{
+		UE_LOG(LogCosmic, Display, TEXT("CosmicFleet: %s was refused (reason %d)"), *SystemID, ReasonOf(Index.FindSystem(State, Target)));
 	}
 }
 

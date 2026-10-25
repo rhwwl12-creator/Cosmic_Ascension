@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1201,7 +1201,7 @@
+ 	const int32 Now = CosmicDiplomacy::FriendlySlotsOf(Civ, Rules);
+ 	for (int32 At = static_cast<int32>(Civ.Tier) + 1; At <= static_cast<int32>(EAscensionTier::Tier5_EternalOrder) && Rules.FriendlySlotsByTier.IsValidIndex(At); ++At)
+ 	{
+-		if (FMath::Max(0, Rules.FriendlySlotsByTier[At]) > Now)
++		if (FMath::Max(0, Rules.FriendlySlotsByTier[At]) >= Now)
+ 		{
+ 			return At;
+ 		}

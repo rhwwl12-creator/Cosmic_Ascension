@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1284,7 +1284,7 @@
+ 
+ 	// The head: the fleet, its target and the friendly slots.
+ 	const float Cap = CosmicConflict::FleetCapOf(State, Index, RuledIndex, Rules);
+-	SetWords(FleetText, (Cap > 0.f || Civ.FleetPower > 0.f) ? FText::Format(Label(TEXT("Siege.Fleet")), Amount(Civ.FleetPower), Amount(Cap)) : Label(TEXT("Guard.NoFleet")));
++	SetWords(FleetText, (Cap >= 0.f || Civ.FleetPower > 0.f) ? FText::Format(Label(TEXT("Siege.Fleet")), Amount(Civ.FleetPower), Amount(Cap)) : Label(TEXT("Guard.NoFleet")));
+ 	// How the fleet grows, and its upkeep a size (the rate, not the sum: the sum moves with the fleet every tick).
+ 	const float UpkeepPerPower = (Rules.FleetUpkeepEnergyPerPower > 0.f && Rules.FleetUpkeepEnergyPerPower <= TNumericLimits<float>::Max()) ? Rules.FleetUpkeepEnergyPerPower : 0.f;
+ 	SetTip(FleetText, CosmicUI::JoinLines({ Label(TEXT("Siege.FleetTip")), FText::Format(Label(TEXT("Siege.FleetUpkeep")), Amount(UpkeepPerPower), PerTick) }));

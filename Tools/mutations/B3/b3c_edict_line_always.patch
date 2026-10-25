@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -303,7 +303,7 @@
+ 		Lines.Add(Label(TEXT("Edict.Effect.Other")));
+ 	}
+ 	// The fleet's growth and the treaties' acceptance (B3), read as the rules read them.
+-	if (Def->FleetGrowthMultiplier > 0.f && Def->FleetGrowthMultiplier <= TNumericLimits<float>::Max() && Def->FleetGrowthMultiplier != 1.f)
++	if (Def->FleetGrowthMultiplier > 0.f && Def->FleetGrowthMultiplier <= TNumericLimits<float>::Max())
+ 	{
+ 		Lines.Add(FText::Format(Label(TEXT("Edict.Effect.FleetGrowth")), Amount(Def->FleetGrowthMultiplier)));
+ 	}

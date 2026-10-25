@@ -77,23 +77,23 @@
 | `SocietyRecoveryBonus` | `0.25` | number | `{"min": 0, "max": 1}` | Sim/CosmicEdicts.cpp, Sim/GalaxySimulationSubsystem.cpp, UI/CosmicSystemPanelWidget.cpp | 읽힘 |
 | `AIEdictRevokeStability` | `1.0` | number | `{"min": 0, "max": 1}` | Sim/CosmicEdicts.cpp | 읽힘 |
 | `RelationDriftRate` | `0.0` | number | `{"min": 0, "max": 1}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
-| `RelationEthicsWeight` | `0.6` | number | `{"min": 0, "max": 1}` | Sim/CosmicDiplomacy.cpp | 읽힘 |
-| `RelationStanceTerms` | `[0.4, -0.4]` | numbers | `{"len": 2, "min": -1, "max": 1}` | Sim/CosmicDiplomacy.cpp | 읽힘 |
-| `RelationTreatyTerm` | `0.2` | number | `{"min": 0, "max": 1}` | Sim/CosmicDiplomacy.cpp | 읽힘 |
-| `ConquestRelationPenalty` | `0.2` | number | `{"min": 0, "max": 2}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
-| `BetrayalRelationPenalty` | `0.3` | number | `{"min": 0, "max": 2}` | Player/PlayerRoleSubsystem.cpp | 읽힘 |
-| `FriendlyUpkeepInfluence` | `0.2` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
-| `FriendlySlotsByTier` | `[1, 1, 2, 2, 3]` | numbers | `{"len": 5, "min": 0, "integer": true}` | Sim/CosmicDiplomacy.cpp | 읽힘 |
+| `RelationEthicsWeight` | `0.6` | number | `{"min": 0, "max": 1}` | Sim/CosmicDiplomacy.cpp, UI/CosmicEdictWidget.cpp | 읽힘 |
+| `RelationStanceTerms` | `[0.4, -0.4]` | numbers | `{"len": 2, "min": -1, "max": 1}` | Sim/CosmicDiplomacy.cpp, UI/CosmicEdictWidget.cpp | 읽힘 |
+| `RelationTreatyTerm` | `0.2` | number | `{"min": 0, "max": 1}` | Sim/CosmicDiplomacy.cpp, UI/CosmicEdictWidget.cpp | 읽힘 |
+| `ConquestRelationPenalty` | `0.2` | number | `{"min": 0, "max": 2}` | Sim/GalaxySimulationSubsystem.cpp, UI/CosmicSystemPanelWidget.cpp | 읽힘 |
+| `BetrayalRelationPenalty` | `0.3` | number | `{"min": 0, "max": 2}` | Player/PlayerRoleSubsystem.cpp, UI/CosmicEdictWidget.cpp | 읽힘 |
+| `FriendlyUpkeepInfluence` | `0.2` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp, UI/CosmicEdictWidget.cpp | 읽힘 |
+| `FriendlySlotsByTier` | `[1, 1, 2, 2, 3]` | numbers | `{"len": 5, "min": 0, "integer": true}` | Sim/CosmicDiplomacy.cpp, UI/CosmicEdictWidget.cpp | 읽힘 |
 | `TreatyCostInfluence` | `50.0` | number | `{"min": 0}` | Player/PlayerRoleSubsystem.cpp, Sim/CosmicDiplomacy.cpp | 읽힘 |
 | `TreatyAcceptRelation` | `-0.1` | number | `{"min": -1, "max": 1}` | Sim/CosmicDiplomacy.cpp | 읽힘 |
-| `TradeInfluencePerTreaty` | `0.2` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
+| `TradeInfluencePerTreaty` | `0.2` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp, UI/CosmicEdictWidget.cpp | 읽힘 |
 | `FleetPerSettledByTier` | `[0.0, 0.0, 0.0, 0.0, 0.0]` | numbers | `{"len": 5, "min": 0}` | Sim/CosmicConflict.cpp | 읽힘 |
 | `FleetGrowthPerTick` | `0.001` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
-| `FleetUpkeepEnergyPerPower` | `0.5` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
-| `SiegeTicks` | `200` | number | `{"min": 1, "integer": true}` | Sim/CosmicConflict.cpp | 읽힘 |
+| `FleetUpkeepEnergyPerPower` | `0.5` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp, UI/CosmicEdictWidget.cpp | 읽힘 |
+| `SiegeTicks` | `200` | number | `{"min": 1, "integer": true}` | Sim/CosmicConflict.cpp, UI/CosmicSystemPanelWidget.cpp | 읽힘 |
 | `SiegeRestTicks` | `600` | number | `{"min": 0, "integer": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `SiegeDefenceShares` | `[1.0, 0.5, 0.25]` | numbers | `{"len": 3, "min": 0, "max": 1}` | Sim/CosmicConflict.cpp | 읽힘 |
-| `SiegeRepulsedFleetFactor` | `0.5` | number | `{"min": 0, "max": 1}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
+| `SiegeRepulsedFleetFactor` | `0.5` | number | `{"min": 0, "max": 1}` | Sim/CosmicConflict.cpp | 읽힘 |
 | `AIHostileRelation` | `-0.3` | number | `{"min": -1, "max": 1}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `AIHostilePowerRatio` | `1.5` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `AIHostilePacifismMax` | `0.5` | number | `{"min": -1, "max": 1}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
