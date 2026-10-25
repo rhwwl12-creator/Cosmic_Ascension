@@ -363,11 +363,14 @@ namespace CosmicUI
 
 	/** The capital's first-ship line (B1, ST_CA Hint.FirstShip): the panel shows the capital of the people an embodied
 	 * ruler rules (bRulersCapital), Tick is in [FirstShipFromTick, FirstShipUntilTick), the run is not over, the vessel never
-	 * left a throne (bLeftOnce - Player.FormerCivID is set), and the line was not shown this session - or this is the
-	 * viewing it was shown in (bThisViewing: the panel has shown that capital since). */
-	inline bool ShowsShipHint(bool bRulersCapital, int64 Tick, bool bRunEnded, bool bLeftOnce, const FCosmicHintProgress& Progress, bool bThisViewing)
+	 * left a throne (bLeftOnce - Player.FormerCivID is set), no rebellion stands on the capital (bRebellionStands - B2: a
+	 * neglected inherited edict puts one inside this window; the line then waits until it is answered, so it never reads
+	 * as advice to flee it), and the line was not shown this session - or this is the viewing it was shown in
+	 * (bThisViewing: the panel has shown that capital since). */
+	inline bool ShowsShipHint(bool bRulersCapital, int64 Tick, bool bRunEnded, bool bLeftOnce, const FCosmicHintProgress& Progress, bool bThisViewing,
+		bool bRebellionStands)
 	{
-		return bRulersCapital && Tick >= FirstShipFromTick && Tick < FirstShipUntilTick && !bRunEnded && !bLeftOnce
+		return bRulersCapital && Tick >= FirstShipFromTick && Tick < FirstShipUntilTick && !bRunEnded && !bLeftOnce && !bRebellionStands
 			&& (!Progress.bShipHinted || bThisViewing);
 	}
 

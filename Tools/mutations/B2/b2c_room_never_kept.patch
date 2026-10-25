@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -202,7 +202,6 @@
+ 				Spare = Held;
+ 				break;
+ 			}
+-			Spare = Spare.IsNone() ? Held : Spare;
+ 		}
+ 		return !Spare.IsNone() && Revoke(Spare);
+ 	};

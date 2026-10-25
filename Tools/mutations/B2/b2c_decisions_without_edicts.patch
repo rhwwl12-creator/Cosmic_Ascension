@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -265,5 +265,5 @@
+ 
+ int32 CosmicRulerPolicy::DecisionsOf(const FCosmicRulerPolicyCounts& Counts)
+ {
+-	return Counts.Answers + Counts.Started + Counts.FocusChanges + Counts.EdictsEnacted + Counts.EdictsRevoked;
+-}
++	return Counts.Answers + Counts.Started + Counts.FocusChanges;
++}

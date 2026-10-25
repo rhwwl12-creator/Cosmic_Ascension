@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1105,7 +1105,7 @@
+ 	// The first ship's line (B1): on the capital's panel, once a session - it stays for the viewing it came in.
+ 	const bool bThisViewing = !ShipHintSystem.IsNone() && ShipHintSystem == ShownSystemID;
+ 	const bool bShip = Owner && ShowsShipHint(bCapital, State.Tick, bEnded, !State.Player.FormerCivID.IsNone(), Owner->GetHintProgress(), bThisViewing,
+-		bCapitalRebellion);
++		false);
+ 	if (bShip && !Owner->GetHintProgress().bShipHinted)
+ 	{
+ 		Owner->NoteShipHinted();

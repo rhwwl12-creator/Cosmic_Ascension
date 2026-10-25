@@ -1590,15 +1590,21 @@ bool FCosmicKnowingInertTest::RunTest(const FString& Parameters)
 	};
 	// The game's data, 20,000 ticks of seed 42 (past the first claims, the settlements and their completions; since MVP
 	// item 8 the AI relieves seed 42's claims, so the joins of the sphere are passed by the two runs of seed 18 below - nine,
-	// which Sim.PhaseTwoExit sees in the same world), no input: the first life rules people 0 and gives no command. With
-	// bWanderer the vessel walks from the start instead, a wanderer of the second rung standing in its birth system.
-	// Seed 18 deposes the neglected ruler in the run (Sim.PhaseTwoExit - seed 7 until MVP item 3): the regent's draw and the
-	// new eye of the wanderer.
+	// which Sim.PhaseTwoExit sees in the same world), no input but one: the first life rules people 0 and gives no command
+	// after revoking the inherited edict (B2 - kept, it deposes the ruler at about tick 1,070, before any settlement, and the
+	// long reign over many systems would not be seen). With bWanderer the vessel walks from the start instead, a wanderer of
+	// the second rung standing in its birth system. Seed 18 keeps the inherited edict and so deposes the neglected ruler in
+	// the run (at about tick 734 - Sim.PhaseTwoExit; seed 7 until MVP item 3): the regent's draw and the new eye of the
+	// wanderer.
 	auto Run = [&](const FCosmicRulesDef& Rules, bool bTellAll, bool bWanderer, int32 Seed = 42)
 	{
 		Sim->SetTables(WithRules(Original, Rules));
 		Log->SetTellAll(bTellAll);
 		Sim->NewGalaxy(Seed, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+		if (!bWanderer && Seed == 42)
+		{
+			CosmicTests::RevokeInheritedEdict(*Sim);
+		}
 		if (bWanderer)
 		{
 			FGalaxyState& Mutable = Sim->GetMutableState();
@@ -1648,6 +1654,7 @@ bool FCosmicKnowingInertTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("A wanderer's eye knows more than none (the case can tell)"), Walking.Known > WalkingBlind.Known);
 	TestTrue(TEXT("and meets more (wanderer)"), Walking.Met > WalkingBlind.Met);
 	TestTrue(TEXT("(the ruler of seed 18 is deposed in the run that sees)"), Deposed.bWalks);
+	TestFalse(TEXT("(and the ruler of seed 42 still rules after 20,000 ticks: the long reign is the case)"), Seeing.bWalks || NotSeeing.bWalks || FarSeeing.bWalks || Scoped.bWalks);
 	TestEqual(TEXT("The world is the same whether the sight stage looks or not, through a deposition (seed 18)"), DeposedBlind.World, Deposed.World);
 	TestEqual(TEXT("and so is the sim stream (deposition)"), DeposedBlind.Rng, Deposed.Rng);
 	TestTrue(TEXT("A far sight knows more than none through the deposition too (the case can tell)"), Deposed.Known > DeposedBlind.Known);
@@ -1848,7 +1855,15 @@ bool FCosmicSightWalkMovedTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	ON_SCOPE_EXIT { Sim->NewGalaxy(42, 5, 3); };
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	// The world those runs had: no inherited edict and no Society bonus to the recovery (B2 turned both on in the game's
+	// data; the policy below holds no edict, so the rest of B2's data changes nothing).
+	{
+		FCosmicRulesDef Before = CosmicTests::WithoutStartingEdict(Sim->GetRules());
+		Before.SocietyRecoveryBonus = 0.f;
+		Sim->SetTables(CosmicTests::WithRules(Original, Before));
+	}
 
 	struct FCase
 	{
@@ -1869,7 +1884,7 @@ bool FCosmicSightWalkMovedTest::RunTest(const FString& Parameters)
 		int32 MostPlaces = 0;
 		if (Case.bRuler)
 		{
-			const FCosmicRulerPolicy Policy{ true, true, true };
+			const FCosmicRulerPolicy Policy{ true, true, true, false, NAME_None };
 			FCosmicRulerPolicyCounts Counts;
 			for (int32 Done = 0; Done < 2000; ++Done)
 			{

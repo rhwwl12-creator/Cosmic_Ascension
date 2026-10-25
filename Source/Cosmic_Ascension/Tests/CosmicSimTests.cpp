@@ -2165,7 +2165,8 @@ bool FCosmicSimLayersInRangeTest::RunTest(const FString& Parameters)
 // until MVP item 8, whose Influence of 1.0 lets the AI relieve seed 42's two claims; 60 systems and 12 peoples, 20,000
 // ticks); and a neglected ruler is deposed by a rebellion, with the fallen monarch's line (seed 18 - seed 7 until MVP item 3,
 // whose recovery of Stability and claim relief moved the neglected depositions to seeds 1, 4, 9, 18, 19, 21, 22 and 26 of
-// 1-29 and 42; since MVP item 8 seeds 1, 7, 13, 18, 20 and 29 - 18 is still among them). The seeds are measured, not
+// 1-29 and 42; since MVP item 8 seeds 1, 7, 13, 18, 20 and 29; since B2's inherited edict every input-free ruler, 30 of 30
+// seeds 1-30, a rebellion first at a median tick of 849 and the fall 200 ticks later - 18 at about 734). The seeds are measured, not
 // chosen by a rule: a change of the world that loses a condition on its seed has to show it on another one and say so in
 // guideline 9.3. The stepped run steps as a game's frames do (StepOnce, the gate
 // open), and it is the same world as the whole run at once with the gate closed.

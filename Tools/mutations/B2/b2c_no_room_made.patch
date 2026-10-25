@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -196,7 +196,7 @@
+ 			}
+ 			Spare = Spare.IsNone() ? Held : Spare;
+ 		}
+-		return !Spare.IsNone() && Revoke(Spare);
++		return Spare.IsNone() && Revoke(Spare);
+ 	};
+ 
+ 	// (1) Below 0.5, the edicts that cost Stability go.

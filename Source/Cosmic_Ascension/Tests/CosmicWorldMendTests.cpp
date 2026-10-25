@@ -56,10 +56,11 @@ namespace CosmicWorldMendTests
 		return true;
 	}
 
-	// The game's rules with no Lottery chance and no drain, and the knobs of this file set by the caller.
+	// The game's rules with no Lottery chance, no drain and no inherited edict (its Stability cost would move every number
+	// here), and the knobs of this file set by the caller.
 	FCosmicRulesDef Quiet(const FCosmicRulesDef& BaseRules)
 	{
-		FCosmicRulesDef Rules = BaseRules;
+		FCosmicRulesDef Rules = CosmicTests::WithoutStartingEdict(BaseRules);
 		Rules.EventChancePerSlot = 0.f;
 		Rules.SpiritualPressureStabilityDrain = 0.f;
 		return Rules;

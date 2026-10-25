@@ -357,6 +357,8 @@ bool FCosmicUIRunEndTest::RunTest(const FString& Parameters)
 	NoClock.ProvisionalEndTick = 0;
 	Sim->SetTables(CosmicTests::WithRules(Original, NoClock));
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	// The player's first act (B2): the inherited edict revoked - kept, it ends the reign before the climb does.
+	CosmicTests::RevokeInheritedEdict(*Sim);
 	Quiet(*Screen.Overlay);
 	Sim->SetTimeScale(0.f);
 	UPlayerRoleSubsystem* Role = Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>();
@@ -452,6 +454,8 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 	};
 	Controller->SetTimeUnit(ECosmicTimeUnit::Cycle);
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	// The player's first act (B2): the inherited edict revoked - kept, it ends the reign before this path does.
+	CosmicTests::RevokeInheritedEdict(*Sim);
 	Quiet(*Screen.Overlay);
 	Sim->RunHeadless(1500);
 	FGalaxyState& Live = Sim->GetMutableState();

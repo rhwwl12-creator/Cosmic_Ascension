@@ -150,7 +150,8 @@ namespace CosmicHazardTests
 	// the tests reason about).
 	FCosmicRulesDef Knobs(const FCosmicRulesDef& BaseRules)
 	{
-		FCosmicRulesDef Rules = BaseRules;
+		// No inherited edict: its Stability cost and income factors would move the exact numbers of these cases (B2).
+		FCosmicRulesDef Rules = CosmicTests::WithoutStartingEdict(BaseRules);
 		Rules.EventSlotTicks = 10;
 		Rules.EventChancePerSlot = 0.f;
 		Rules.SpiritualPressureStabilityDrain = 0.f;

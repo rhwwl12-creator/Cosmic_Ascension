@@ -24,6 +24,7 @@
 #include "Save/CosmicSaveGame.h"
 #include "Save/CosmicSaveSlot.h"
 #include "Compression/OodleDataCompression.h"
+#include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicEndings.h"
 #include "Sim/CosmicMegaprojects.h"
@@ -70,6 +71,16 @@ namespace
 		TMap<FString, int32> Answered;
 		TMap<FString, int32> Expired;
 		TMap<FString, int32> Ended;
+		// B2: hazards that ended at their count's end with an answering edict held and its upkeep payable - resolved, not
+		// expired (an approximation: another edict's upkeep that took the stockpile first in that tick is not seen).
+		int32 ResolvedByEdict = 0;
+		// B2: the edicts of the people the vessel rules - lines of lapse, held ticks by row; the edicts the AI peoples gave up
+		// (one per row a people held before a tick and not after it); the first rebellion (a hazard of a Capital row) placed
+		// on the ruled people's capital.
+		int32 EdictsLapsed = 0;
+		TMap<FName, int64> EdictHeldTicks;
+		int32 AIEdictsRevoked = 0;
+		int64 FirstRebellionTick = -1;
 		// Why the peoples the player does not rule started no settlement, one count per (sample, people) - the tick-0 sample
 		// included -, and how many such pairs there were, counted apart from the reasons (PeoplesNotRuled at every sample:
 		// the reasons must add up to it).
@@ -114,7 +125,19 @@ namespace
 		FName Answer;
 		float OwnerInfluence = 0.f;
 		CosmicMegaprojects::FCosmicSlotReading Construction;
+		// B2: the edict of the owner that answers the hazard (CosmicEdicts::HeldAnswerOf), and whether the stockpile and
+		// the income could pay its upkeep in the tick.
+		FName HeldAnswer;
+		bool bUpkeepPayable = false;
 	};
+
+	// Whether Tag is the tag of a Capital row of DT_Hazards (a rebellion). Named apart from the ruler policy's helper: one
+	// unity file may hold both.
+	bool IsRebellionTag(const FCosmicDataTables& Tables, FGameplayTag Tag)
+	{
+		const FHazardDef* Hazard = Tag.IsValid() ? Tables.FindHazardByTag(Tag) : nullptr;
+		return Hazard && Hazard->SpawnRule == ECosmicHazardSpawn::Capital;
+	}
 
 	// The names of CosmicMegaprojects::ECosmicSettleBlock in its order, as the CSV and the log print them. NoLane of a people
 	// with no settled system prints NoFoothold (the reason is NoLane in the rule; the commandlet tells the two apart).
@@ -425,6 +448,10 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	int32 Answer = 0;
 	int32 Build = 0;
 	int32 Focus = 0;
+	// B2 (header section 5): -Edict=1 lets the script hold edicts (CosmicRulerPolicy::ActEdicts), -EdictRow=<row> the row it
+	// keeps standing when no hazard asks for a slot.
+	int32 Edict = 0;
+	FString EdictRowText;
 	// The wanderer's policy (B1, World/CosmicWandererPolicy): -Abdicate=<tick> abdicates at that tick's boundary (the tenth
 	// stage of the next tick leaves), -Wander=1 walks - answers its cards, takes a throne the gate opens, scans, travels.
 	int64 AbdicateAt = 0;
@@ -439,6 +466,8 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	FParse::Value(*Params, TEXT("Answer="), Answer);
 	FParse::Value(*Params, TEXT("Build="), Build);
 	FParse::Value(*Params, TEXT("Focus="), Focus);
+	FParse::Value(*Params, TEXT("Edict="), Edict);
+	FParse::Value(*Params, TEXT("EdictRow="), EdictRowText);
 	FParse::Value(*Params, TEXT("Abdicate="), AbdicateAt);
 	FParse::Value(*Params, TEXT("Wander="), Wander);
 	FParse::Value(*Params, TEXT("Rules="), RulesText, false);
@@ -457,7 +486,13 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	UPlayerRoleSubsystem* Role = GameInstance->GetSubsystem<UPlayerRoleSubsystem>();
 	// A run on rules it could not set would print numbers of other rules: it does not run.
 	const bool bRules = Sim && (RulesText.IsEmpty() || OverrideRules(*Sim, RulesText));
-	if (Sim && Role && bRules)
+	// A kept row the tables do not hold would measure the policy without it under its name: no run (B2).
+	const bool bEdictRow = Sim && (EdictRowText.IsEmpty() || Sim->GetTables().FindEdict(FName(*EdictRowText)) != nullptr);
+	if (Sim && !bEdictRow)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -EdictRow names no DT_Edicts row: %s"), *EdictRowText);
+	}
+	if (Sim && Role && bRules && bEdictRow)
 	{
 		// Every line is stored unless -TellAll=0 asks for the scope of telling of a game (section 8.1). The world hash is
 		// the same either way.
@@ -493,7 +528,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		double SampleMicros = 0.0;
 		int64 SampleTicks = 0;
 		int64 Samples = 0;
-		const FCosmicRulerPolicy RulerPolicy{ Answer != 0, Build != 0, Focus != 0 };
+		const FCosmicRulerPolicy RulerPolicy{ Answer != 0, Build != 0, Focus != 0, Edict != 0, EdictRowText.IsEmpty() ? NAME_None : FName(*EdictRowText) };
 		FCosmicRulerPolicyCounts RulerCounts;
 		const FCosmicWandererPolicy WandererPolicy{ AbdicateAt, Wander != 0 };
 		FCosmicWandererPolicyCounts WandererCounts;
@@ -506,8 +541,35 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			for (const FStarSystemState& System : State.Systems)
 			{
 				const FCivilizationState* Owner = State.Civs.FindByPredicate([&System](const FCivilizationState& Civ) { return Civ.CivID == System.OwnerCivID; });
-				Before.Add({ System.ActiveHazard, System.HazardTicksRemaining, System.ResponseMegaproject, Owner ? Owner->Stockpile.Influence : 0.f,
+				FSlotBefore& Slot = Before.Add_GetRef({ System.ActiveHazard, System.HazardTicksRemaining, System.ResponseMegaproject, Owner ? Owner->Stockpile.Influence : 0.f,
 					CosmicMegaprojects::ReadSlot(System, CosmicMegaprojects::ECosmicProjectSlot::Construction) });
+				const FHazardDef* Hazard = (Owner && System.ActiveHazard.IsValid()) ? Sim->GetTables().FindHazardByTag(System.ActiveHazard) : nullptr;
+				Slot.HeldAnswer = Hazard ? CosmicEdicts::HeldAnswerOf(*Owner, *Hazard, Sim->GetTables()) : NAME_None;
+				if (const FEdictDef* Held = Slot.HeldAnswer.IsNone() ? nullptr : Sim->GetTables().FindEdict(Slot.HeldAnswer))
+				{
+					const FResourcePool Upkeep = CosmicEdicts::CostOf(Held->UpkeepPerTick);
+					const FResourcePool& Have = Owner->Stockpile;
+					const FResourcePool& Gain = Owner->IncomePerTick;
+					Slot.bUpkeepPayable = Have.Energy + Gain.Energy >= Upkeep.Energy && Have.Matter + Gain.Matter >= Upkeep.Matter && Have.Insight + Gain.Insight >= Upkeep.Insight
+						&& Have.Influence + Gain.Influence >= Upkeep.Influence && Have.Causality + Gain.Causality >= Upkeep.Causality;
+				}
+			}
+			// The AI peoples' edicts before the tick, by people (B2 - what the AI stage gave up), and the ruled people's: the
+			// edicts this tick's economy stage applies (a lapse in the tick still applied them), counted as held ticks.
+			TMap<FName, TArray<FName>> AIEdictsBefore;
+			for (const FCivilizationState& Civ : State.Civs)
+			{
+				if (!Civ.bIsPlayerRuled)
+				{
+					AIEdictsBefore.Add(Civ.CivID, Civ.ActiveEdicts);
+				}
+				else
+				{
+					for (const FName Row : Civ.ActiveEdicts)
+					{
+						++Counts.EdictHeldTicks.FindOrAdd(Row);
+					}
+				}
 			}
 			const EPlayerRole RoleBefore = State.Player.Role;
 			const int64 TickBefore = State.Tick;
@@ -531,7 +593,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				{
 					Counts.FirstEnd = End;
 					Counts.FirstEndTick = State.Tick;
-					Counts.DecisionsAtEnd = Counts.Answers + Counts.Started + Counts.FocusChanges;
+					Counts.DecisionsAtEnd = CosmicRulerPolicy::DecisionsOf(RulerCounts);
 					const TArray<FCosmicChronicleChapter> Chapters = CosmicChronicle::Build(State);
 					if (!Chapters.IsEmpty() && State.Calling.Lives.IsValidIndex(Chapters.Last().LifeAt))
 					{
@@ -563,6 +625,17 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			Counts.Answers = RulerCounts.Answers;
 			Counts.Started = RulerCounts.Started;
 			Counts.FocusChanges = RulerCounts.FocusChanges;
+			// B2: the AI peoples' edicts given up in the tick (a people crowned or removed meanwhile is not counted).
+			for (const FCivilizationState& Civ : State.Civs)
+			{
+				if (const TArray<FName>* Held = Civ.bIsPlayerRuled ? nullptr : AIEdictsBefore.Find(Civ.CivID))
+				{
+					for (const FName Row : *Held)
+					{
+						Counts.AIEdictsRevoked += Civ.ActiveEdicts.Contains(Row) ? 0 : 1;
+					}
+				}
+			}
 
 			if (Counts.FirstTwoSettledTick < 0 && HoldsTwoSettled(State))
 			{
@@ -587,6 +660,11 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					{
 						Counts.Answered.FindOrAdd(Tag)++;
 					}
+					else if (Slot.Remaining == 1 && !Slot.HeldAnswer.IsNone() && Slot.bUpkeepPayable)
+					{
+						// Resolved at its count's end by the owner's edict (B2): not an expiry.
+						++Counts.ResolvedByEdict;
+					}
 					else if (Slot.Remaining == 1)
 					{
 						Counts.Expired.FindOrAdd(Tag)++;
@@ -606,6 +684,11 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				if (System.ActiveHazard.IsValid() && (System.ActiveHazard != Slot.Tag || bAgain))
 				{
 					Counts.Placed.FindOrAdd(System.ActiveHazard.ToString())++;
+					const FCivilizationState* Owner = State.Civs.FindByPredicate([&System](const FCivilizationState& Civ) { return Civ.CivID == System.OwnerCivID; });
+					if (Counts.FirstRebellionTick < 0 && Owner && Owner->bIsPlayerRuled && Owner->HomeSystemID == System.SystemID && IsRebellionTag(Sim->GetTables(), System.ActiveHazard))
+					{
+						Counts.FirstRebellionTick = State.Tick;
+					}
 					if (System.ActiveHazard == ClaimTag)
 					{
 						if (Counts.FirstClaimTick < 0)
@@ -631,6 +714,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			for (int32 Index = State.Log.Num() - 1; Index >= 0 && State.Log[Index].Tick > TickBefore; --Index)
 			{
 				SampleRows.FindOrAdd(State.Log[Index].SourceRow.ToString())++;
+				Counts.EdictsLapsed += State.Log[Index].SourceRow == CosmicRows::LogEdictLapsed ? 1 : 0;
 				Counts.ToldLines += State.Log[Index].bUntold ? 0 : 1;
 			}
 			if (const FCivilizationState* Ruled = State.Civs.FindByPredicate([FirstRuled](const FCivilizationState& Civ) { return Civ.bIsPlayerRuled && Civ.CivID == FirstRuled; }))
@@ -640,7 +724,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			}
 			if (State.Tick == 600 || State.Tick == 6000)
 			{
-				(State.Tick == 600 ? Counts.DecisionsAt600 : Counts.DecisionsAt6000) = Counts.Answers + Counts.Started + Counts.FocusChanges;
+				(State.Tick == 600 ? Counts.DecisionsAt600 : Counts.DecisionsAt6000) = CosmicRulerPolicy::DecisionsOf(RulerCounts);
 				(State.Tick == 600 ? Counts.ToldAt600 : Counts.ToldAt6000) = Counts.ToldLines;
 			}
 
@@ -691,8 +775,33 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance pack: %s"), *PackLevelsOf(Save, State));
 			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance claims: %s | %s; spheres %s -> %s"), *ClaimEndsText(TEXT("joined"), Counts.ClaimsJoined),
 				*ClaimEndsText(TEXT("stilled"), Counts.ClaimsStilled), *FString::Join(SpheresStart, TEXT(", ")), *FString::Join(SpheresOf(State), TEXT(", ")));
-			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance hazards: placed%s | answered%s | expired%s | ended%s"), *CountsText(Counts.Placed), *CountsText(Counts.Answered),
-				*CountsText(Counts.Expired), *CountsText(Counts.Ended));
+			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance hazards: placed%s | answered%s | expired%s | ended%s | resolved by edict %d"), *CountsText(Counts.Placed),
+				*CountsText(Counts.Answered), *CountsText(Counts.Expired), *CountsText(Counts.Ended), Counts.ResolvedByEdict);
+			// B2 (header section 5): always told, outside the baselines' keys.
+			{
+				TArray<FString> HeldAtEnd;
+				for (const FCivilizationState& Civ : State.Civs)
+				{
+					if (Civ.bIsPlayerRuled)
+					{
+						for (const FName Row : Civ.ActiveEdicts)
+						{
+							HeldAtEnd.Add(Row.ToString());
+						}
+					}
+				}
+				TArray<FName> HeldRows;
+				Counts.EdictHeldTicks.GetKeys(HeldRows);
+				HeldRows.Sort(FNameLexicalLess());
+				TArray<FString> HeldTicks;
+				for (const FName Row : HeldRows)
+				{
+					HeldTicks.Add(FString::Printf(TEXT("%s=%lld"), *Row.ToString(), Counts.EdictHeldTicks[Row]));
+				}
+				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance edicts: edict %d row %s; ruler enacted %d, revoked %d, lapsed %d, held at end [%s], held ticks [%s]; AI revoked %d; resolved by edict %d; first rebellion at %lld"),
+					Edict, EdictRowText.IsEmpty() ? TEXT("-") : *EdictRowText, RulerCounts.EdictsEnacted, RulerCounts.EdictsRevoked, Counts.EdictsLapsed,
+					*FString::Join(HeldAtEnd, TEXT(" ")), *FString::Join(HeldTicks, TEXT(" ")), Counts.AIEdictsRevoked, Counts.ResolvedByEdict, Counts.FirstRebellionTick);
+			}
 			// Why the AI did not widen its realm (section 9.3): one reason per people the player does not rule at every
 			// sample, the tick-0 sample included. The reasons add up to the pairs counted apart, or an error line says so.
 			int64 ExpansionSum = 0;
@@ -702,8 +811,9 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			}
 			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance expansion: %lld (sample, people) pairs of peoples the player does not rule, the tick-0 sample included;%s"),
 				Counts.ExpansionPairs, *CountsText(Counts.Expansion));
-			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance ruler: answer %d build %d focus %d; cards %d, answers %d, started %d, focus changes %d, decisions %d (by 600 %lld, by 6000 %lld, by end %lld); told by 600 %lld, by 6000 %lld; ruled people T2 at %lld, T3 at %lld"),
-				Answer, Build, Focus, Counts.CardsCome, Counts.Answers, Counts.Started, Counts.FocusChanges, Counts.Answers + Counts.Started + Counts.FocusChanges,
+			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance ruler: answer %d build %d focus %d edict %d; cards %d, answers %d, started %d, focus changes %d, edict changes %d, decisions %d (by 600 %lld, by 6000 %lld, by end %lld); told by 600 %lld, by 6000 %lld; ruled people T2 at %lld, T3 at %lld"),
+				Answer, Build, Focus, Edict, Counts.CardsCome, Counts.Answers, Counts.Started, Counts.FocusChanges, RulerCounts.EdictsEnacted + RulerCounts.EdictsRevoked,
+				CosmicRulerPolicy::DecisionsOf(RulerCounts),
 				Counts.DecisionsAt600, Counts.DecisionsAt6000, Counts.DecisionsAtEnd, Counts.ToldAt600, Counts.ToldAt6000, Counts.RuledT2Tick, Counts.RuledT3Tick);
 			// The wanderer's side (B1): only when the run asked for it (the lines of the runs before B1 stay as they were).
 			if (AbdicateAt > 0 || Wander != 0)
@@ -739,7 +849,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	}
 	else
 	{
-		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: no simulation or role subsystem, or -Rules refused: nothing run"));
+		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: no simulation or role subsystem, or -Rules or -EdictRow refused: nothing run"));
 		Result = 1;
 	}
 

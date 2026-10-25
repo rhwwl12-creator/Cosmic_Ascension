@@ -1,0 +1,13 @@
+--- a/Source/Cosmic_Ascension/Tests/CosmicKnowingTests.cpp
++++ b/Source/Cosmic_Ascension/Tests/CosmicKnowingTests.cpp
+@@ -1601,10 +1601,6 @@
+ 		Sim->SetTables(WithRules(Original, Rules));
+ 		Log->SetTellAll(bTellAll);
+ 		Sim->NewGalaxy(Seed, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+-		if (!bWanderer && Seed == 42)
+-		{
+-			CosmicTests::RevokeInheritedEdict(*Sim);
+-		}
+ 		if (bWanderer)
+ 		{
+ 			FGalaxyState& Mutable = Sim->GetMutableState();

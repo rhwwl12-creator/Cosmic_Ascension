@@ -29,6 +29,7 @@
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
 #include "Tests/CosmicTestProbe.h"
+#include "World/CosmicRulerPolicy.h"
 
 #include <limits>
 
@@ -718,6 +719,43 @@ bool FCosmicSimStartingEdictTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("An empty knob gives none"), Lay(NAME_None)->Civs[2].ActiveEdicts.IsEmpty());
 	TestTrue(TEXT("A knob naming no row gives none"), Lay(FName(TEXT("edict_nobody")))->Civs[0].ActiveEdicts.IsEmpty());
+
+	// The game's own data (the balance commit, B-2c): every people of the home galaxy inherits mobilization, an edict with a
+	// Stability cost; the AI lets it go at its first stage and the ruled people keeps it; machine rights answers the
+	// machines' awakening; and a ruler who gives no command is deposed by a rebellion after the first murmurs (measured for
+	// seed 42: the rebellion at tick 872, the fall at 1,072).
+	{
+		Sim->SetTables(Original);
+		Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+		const FGalaxyState& Game = Sim->GetState();
+		const FName Inherited = Sim->GetRules().StartingEdict;
+		const FEdictDef* Row = Original.FindEdict(Inherited);
+		TestEqual(TEXT("The game's inherited edict is mobilization"), Inherited, FName(TEXT("edict_mobilization")));
+		TestTrue(TEXT("an edict with a Stability cost"), Row && CosmicEdicts::HasStabilityCost(*Row));
+		bool bAllHold = Game.Civs.Num() > 1;
+		for (const FCivilizationState& Civ : Game.Civs)
+		{
+			bAllHold = bAllHold && Civ.ActiveEdicts == TArray<FName>({ Inherited });
+		}
+		TestTrue(TEXT("Every people of the game's galaxy starts holding it"), bAllHold);
+		Sim->StepOnce();
+		const int32 Ruled = Sim->GetStateIndex().FindCiv(Game, Game.Player.RuledCivID);
+		bool bAIFree = Game.Civs.IsValidIndex(Ruled);
+		for (int32 CivIndex = 0; CivIndex < Game.Civs.Num(); ++CivIndex)
+		{
+			bAIFree = bAIFree && (CivIndex == Ruled || Game.Civs[CivIndex].ActiveEdicts.IsEmpty());
+		}
+		TestTrue(TEXT("After the first tick the ruled people keeps it and every AI people has let it go"), bAIFree && Game.Civs[Ruled].ActiveEdicts == TArray<FName>({ Inherited }));
+		const FHazardDef* Awakening = Original.FindHazardByTag(Tag(TEXT("Hazard.AIAwakening")));
+		const FName Rights(TEXT("edict_machine_rights"));
+		TestTrue(TEXT("Machine rights answers the machines' awakening"), Awakening && Awakening->RulerResolutions.Contains(Rights) && Original.FindEdict(Rights));
+		Sim->RunHeadless(299);
+		TestEqual(TEXT("Left alone, the ruler still rules at tick 300"), Game.Player.Role, EPlayerRole::Ruler);
+		Sim->RunHeadless(1200);
+		const bool bFell = Game.Player.Role != EPlayerRole::Ruler && !Game.Calling.Lives.IsEmpty() && !Game.Calling.Lives.Last().ReignEndReasons.IsEmpty()
+			&& Game.Calling.Lives.Last().ReignEndReasons.Last() == Tag(TEXT("Reign.Deposed"));
+		TestTrue(TEXT("and is deposed by a rebellion by tick 1,500: neglect ends the reign"), bFell);
+	}
 	return true;
 }
 
@@ -919,6 +957,183 @@ bool FCosmicLogChronicleEdictsTest::RunTest(const FString& Parameters)
 	{
 		Entry.SourceRow = Row;
 		TestFalse(*FString::Printf(TEXT("%s is left out"), *Row.ToString()), CosmicChronicle::Admits(Entry, Peoples));
+	}
+	return true;
+}
+
+// The ruler policy's edicts (header section 5, CosmicRulerPolicy::ActEdicts): the kept row stands without turning, a
+// Stability edict goes below 0.5 once and comes back only at the resting level, an answer is enacted for a standing hazard
+// (making room) and goes when nothing is left to answer, the vigil comes before a rebellion only and goes when the danger
+// passed; nothing after the provisional end.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimRulerEdictPolicyTest, "Cosmic_Ascension.Sim.RulerEdictPolicy", CosmicTests::Flags)
+bool FCosmicSimRulerEdictPolicyTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicEdictTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	UPlayerRoleSubsystem* Role = Sim ? Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (!Sim || !TestNotNull(TEXT("(the role subsystem)"), Role))
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	// The policy's rows: the file's answer (crisis_test_wake), its vigil (edict_test_guard - rebellion +200) and two kept rows.
+	auto Policy = [](FName Row) { return FCosmicRulerPolicy{ false, false, false, true, Row }; };
+	auto Boundary = [&](const FCosmicRulerPolicy& With, FCosmicRulerPolicyCounts& Counts, int32 Times)
+	{
+		for (int32 Done = 0; Done < Times; ++Done)
+		{
+			CosmicRulerPolicy::ActEdicts(With, *Sim, *Role, Counts);
+		}
+	};
+	auto Changes = [](const FCosmicRulerPolicyCounts& Counts) { return Counts.EdictsEnacted + Counts.EdictsRevoked; };
+
+	// The kept row: enacted once in a free slot, then left standing - with no hazard to answer it is not revoked as idle.
+	{
+		FGalaxyState* Board = LayBoard(*Sim, Original, NoEdit);
+		if (!TestNotNull(TEXT("The board is laid"), Board))
+		{
+			return false;
+		}
+		Board->Civs[0].Stockpile.Influence = 1000.f;
+		FCosmicRulerPolicyCounts Counts;
+		for (int32 Tick = 0; Tick < 300; ++Tick)
+		{
+			Sim->RunHeadless(1);
+			CosmicRulerPolicy::ActEdicts(Policy(Answer), *Sim, *Role, Counts);
+		}
+		TestEqual(TEXT("Over 300 ticks with no crisis the kept answer is enacted once"), Changes(Counts), 1);
+		TestTrue(TEXT("and stands"), Board->Civs[0].ActiveEdicts == TArray<FName>({ Answer }));
+	}
+
+	// A Stability edict below 0.5: one revocation, and no enactment again until the resting level.
+	{
+		FGalaxyState* Board = LayBoard(*Sim, Original, NoEdit);
+		Board->Civs[0].Stockpile.Influence = 1000.f;
+		Board->Civs[0].ActiveEdicts = { Taxing };
+		Board->Civs[0].Stability = 0.45f;
+		FCosmicRulerPolicyCounts Counts;
+		Boundary(Policy(Taxing), Counts, 3);
+		TestEqual(TEXT("Below 0.5 the kept Stability edict is revoked once"), Counts.EdictsRevoked, 1);
+		TestEqual(TEXT("and not enacted again below the resting level"), Counts.EdictsEnacted, 0);
+		Board->Civs[0].Stability = 0.55f;
+		Boundary(Policy(Taxing), Counts, 1);
+		TestEqual(TEXT("nor at 0.55"), Counts.EdictsEnacted, 0);
+		Board->Civs[0].Stability = 0.6f;
+		Boundary(Policy(Taxing), Counts, 1);
+		TestTrue(TEXT("At 0.6 it comes back"), Counts.EdictsEnacted == 1 && Board->Civs[0].ActiveEdicts == TArray<FName>({ Taxing }));
+	}
+
+	// An answer for a standing hazard: room made by revoking a held edict that answers nothing; revoked when the hazard goes.
+	{
+		FGalaxyState* Board = LayBoard(*Sim, Original, NoEdit);
+		Board->Civs[0].Stockpile.Influence = 1000.f;
+		Board->Civs[0].Stability = 0.8f;
+		Board->Civs[0].ActiveEdicts = { Plain };
+		const int32 Capital = CapitalOf(*Sim, 0);
+		Board->Systems[Capital].ActiveHazard = Tag(TEXT("Hazard.AIAwakening"));
+		Board->Systems[Capital].HazardTicksRemaining = 3;
+		FCosmicRulerPolicyCounts Counts;
+		Boundary(Policy(NAME_None), Counts, 1);
+		TestTrue(TEXT("A standing hazard's answer is enacted, the edict that answers nothing revoked for its slot"),
+			Board->Civs[0].ActiveEdicts == TArray<FName>({ Answer }) && Counts.EdictsRevoked == 1 && Counts.EdictsEnacted == 1);
+		Boundary(Policy(NAME_None), Counts, 1);
+		TestEqual(TEXT("While it stands nothing turns"), Changes(Counts), 2);
+		Board->Systems[Capital].ActiveHazard = FGameplayTag();
+		Boundary(Policy(NAME_None), Counts, 1);
+		TestTrue(TEXT("With nothing left to answer the answer goes"), Board->Civs[0].ActiveEdicts.IsEmpty() && Counts.EdictsRevoked == 2);
+		// Kept, it stays.
+		Board->Civs[0].ActiveEdicts = { Answer };
+		FCosmicRulerPolicyCounts Kept;
+		Boundary(Policy(Answer), Kept, 2);
+		TestTrue(TEXT("The kept row is never revoked as an idle answer"), Changes(Kept) == 0 && Board->Civs[0].ActiveEdicts == TArray<FName>({ Answer }));
+	}
+
+	// Room is made with the kept row last: given up when it alone fills the slot (and back once the hazard is gone), kept when
+	// another edict can give way; and nothing is given up for an answer that would be refused (its rung, its cost).
+	{
+		FGalaxyState* Board = LayBoard(*Sim, Original, NoEdit);
+		Board->Civs[0].Stockpile.Influence = 1000.f;
+		Board->Civs[0].Stability = 0.8f;
+		Board->Civs[0].ActiveEdicts = { Taxing };
+		const int32 Capital = CapitalOf(*Sim, 0);
+		Board->Systems[Capital].ActiveHazard = Tag(TEXT("Hazard.AIAwakening"));
+		Board->Systems[Capital].HazardTicksRemaining = 3;
+		FCosmicRulerPolicyCounts Sole;
+		Boundary(Policy(Taxing), Sole, 1);
+		TestTrue(TEXT("The kept row alone in the slot gives way to the hazard's answer"), Board->Civs[0].ActiveEdicts == TArray<FName>({ Answer }) && Sole.EdictsRevoked == 1);
+		Board->Systems[Capital].ActiveHazard = FGameplayTag();
+		Boundary(Policy(Taxing), Sole, 1);
+		TestTrue(TEXT("and comes back once nothing is left to answer"), Board->Civs[0].ActiveEdicts == TArray<FName>({ Taxing }));
+
+		Board->Civs[0].Research.Add(FName(TEXT("Society")), 0.5f);
+		Board->Civs[0].ActiveEdicts = { Lifting, Plain };
+		Board->Systems[Capital].ActiveHazard = Tag(TEXT("Hazard.AIAwakening"));
+		Board->Systems[Capital].HazardTicksRemaining = 3;
+		FCosmicRulerPolicyCounts Two;
+		Boundary(Policy(Lifting), Two, 1);
+		TestTrue(TEXT("With two slots the other edict gives way and the kept row stays"), Board->Civs[0].ActiveEdicts == TArray<FName>({ Lifting, Answer })
+			&& Two.EdictsRevoked == 1 && Two.EdictsEnacted == 1);
+
+		// An answer of a higher rung, then one no stockpile pays: the kept row stays, nothing turns.
+		FHazardDef* Woken = Sim->GetTables().Hazards->FindRow<FHazardDef>(Wake, TEXT("test"));
+		if (!TestNotNull(TEXT("(the test's awakening row)"), Woken))
+		{
+			return false;
+		}
+		Board->Civs[0].Research.Add(FName(TEXT("Society")), 0.f);
+		for (const FName Refused : { High, Dear })
+		{
+			Woken->RulerResolutions = { Refused };
+			Board->Civs[0].ActiveEdicts = { Taxing };
+			FCosmicRulerPolicyCounts Gated;
+			Boundary(Policy(Taxing), Gated, 4);
+			TestTrue(*FString::Printf(TEXT("No edict is given up for an answer that would be refused (%s)"), *Refused.ToString()),
+				Changes(Gated) == 0 && Board->Civs[0].ActiveEdicts == TArray<FName>({ Taxing }));
+		}
+		Woken->RulerResolutions = { Answer };
+	}
+
+	// The vigil: before a rebellion only, and gone once Stability rests again with no rebellion standing.
+	{
+		FGalaxyState* Board = LayBoard(*Sim, Original, NoEdit);
+		Board->Civs[0].Stockpile.Influence = 1000.f;
+		Board->Civs[0].Stability = 0.25f;
+		Board->Civs[0].LowStabilityTicks = 5;
+		const int32 Capital = CapitalOf(*Sim, 0);
+		Board->Systems[Capital].ActiveHazard = Tag(TEXT("Hazard.Rebellion"));
+		Board->Systems[Capital].HazardTicksRemaining = 100;
+		FCosmicRulerPolicyCounts Counts;
+		Boundary(Policy(NAME_None), Counts, 1);
+		TestFalse(TEXT("With a rebellion standing the vigil is not enacted (its bonus would not reach it)"), Board->Civs[0].ActiveEdicts.Contains(Guard));
+		Board->Systems[Capital].ActiveHazard = FGameplayTag();
+		Boundary(Policy(NAME_None), Counts, 1);
+		TestTrue(TEXT("Before one, it is"), Board->Civs[0].ActiveEdicts.Contains(Guard) && Counts.VigilEnacted == Guard);
+		Board->Civs[0].Stability = 0.5f;
+		Boundary(Policy(NAME_None), Counts, 1);
+		TestTrue(TEXT("It stays below the resting level"), Board->Civs[0].ActiveEdicts.Contains(Guard));
+		Board->Civs[0].Stability = 0.6f;
+		Board->Civs[0].LowStabilityTicks = 0;
+		Boundary(Policy(NAME_None), Counts, 1);
+		TestTrue(TEXT("and goes at it"), !Board->Civs[0].ActiveEdicts.Contains(Guard) && Counts.VigilEnacted.IsNone());
+	}
+
+	// Nothing after the provisional end, nothing without -Edict.
+	{
+		FGalaxyState* Board = LayBoard(*Sim, Original, NoEdit);
+		Board->Civs[0].Stockpile.Influence = 1000.f;
+		FCosmicRulerPolicyCounts Ended;
+		Ended.bEnded = true;
+		Boundary(Policy(Answer), Ended, 1);
+		FCosmicRulerPolicyCounts Off;
+		Boundary(FCosmicRulerPolicy{ true, true, true, false, Answer }, Off, 1);
+		TestTrue(TEXT("No edict after the end, nor without the switch"), Changes(Ended) == 0 && Changes(Off) == 0 && Board->Civs[0].ActiveEdicts.IsEmpty());
+		Ended.Answers = 2;
+		Ended.Started = 3;
+		Ended.FocusChanges = 4;
+		Ended.EdictsEnacted = 5;
+		Ended.EdictsRevoked = 6;
+		TestEqual(TEXT("The decisions add the edict commands"), CosmicRulerPolicy::DecisionsOf(Ended), 20);
 	}
 	return true;
 }

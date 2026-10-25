@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicUILabels.h
++++ b/Source/Cosmic_Ascension/UI/CosmicUILabels.h
+@@ -370,7 +370,7 @@
+ 	inline bool ShowsShipHint(bool bRulersCapital, int64 Tick, bool bRunEnded, bool bLeftOnce, const FCosmicHintProgress& Progress, bool bThisViewing,
+ 		bool bRebellionStands)
+ 	{
+-		return bRulersCapital && Tick >= FirstShipFromTick && Tick < FirstShipUntilTick && !bRunEnded && !bLeftOnce && !bRebellionStands
++		return bRulersCapital && Tick >= FirstShipFromTick && Tick < FirstShipUntilTick && !bRunEnded && !bLeftOnce
+ 			&& (!Progress.bShipHinted || bThisViewing);
+ 	}
+ 

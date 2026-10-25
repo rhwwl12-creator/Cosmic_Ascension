@@ -93,8 +93,8 @@ bool FCosmicRealmPressureMonotonicTest::RunTest(const FString& Parameters)
 		CosmicTests::Give(Generated, 0, { 0 });
 	}
 	const FGalaxyState Fresh = Generated;
-	// The knobs of the test, not of the game: the values below are compared exactly.
-	FCosmicRulesDef Knobs = Sim->GetRules();
+	// The knobs of the test, not of the game: the values below are compared exactly (no inherited edict, B2).
+	FCosmicRulesDef Knobs = CosmicTests::WithoutStartingEdict(Sim->GetRules());
 	Knobs.PressureBySourceTier = { 0.f, 0.f, 0.25f, 1.f, 2.f };
 	Knobs.PressureAdjacencyFalloff = 0.5f;
 	const FCosmicRulesDef Rules = Knobs;
@@ -329,8 +329,8 @@ bool FCosmicPressureDepthMonotonicTest::RunTest(const FString& Parameters)
 		CosmicTests::Give(Generated, 0, { 0 });
 	}
 	const FGalaxyState Fresh = Generated;
-	// The knobs of the test, not of the game: the values below are compared exactly.
-	FCosmicRulesDef Knobs = Sim->GetRules();
+	// The knobs of the test, not of the game: the values below are compared exactly (no inherited edict, B2).
+	FCosmicRulesDef Knobs = CosmicTests::WithoutStartingEdict(Sim->GetRules());
 	Knobs.PressureBySourceTier = { 0.f, 0.f, 0.25f, 1.f, 2.f };
 	Knobs.PressureAdjacencyFalloff = 0.5f;
 	const FCosmicRulesDef Rules = Knobs;
@@ -664,8 +664,9 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 	const FCosmicDataTables Original = Sim->GetTables();
 	ON_SCOPE_EXIT { Sim->SetTables(Original); };
 
-	// The knobs of this test, not of the game: the numbers below are compared exactly and the game's are tuned.
-	FCosmicRulesDef Knobs = Sim->GetRules();
+	// The knobs of this test, not of the game: the numbers below are compared exactly and the game's are tuned (no
+	// inherited edict, B2).
+	FCosmicRulesDef Knobs = CosmicTests::WithoutStartingEdict(Sim->GetRules());
 	Knobs.PressureBySourceTier = { 0.f, 0.f, 0.25f, 1.f, 2.f };
 	Knobs.PressureAdjacencyFalloff = 0.5f;
 	Knobs.SpiritualPressureStabilityDrain = 0.002f;
@@ -1034,7 +1035,7 @@ bool FCosmicStabilityCountBoundaryTest::RunTest(const FString& Parameters)
 		const FName Presser(TEXT("tr_presser"));
 		UDataTable* Table = NewTable(FTranscendentDef::StaticStruct());
 		Table->AddRow(Presser, Fallen(EAscensionTier::Tier4_Transcendent, 0.f));
-		FCosmicRulesDef Knobs = BaseRules;
+		FCosmicRulesDef Knobs = CosmicTests::WithoutStartingEdict(BaseRules);
 		Knobs.PressureBySourceTier = { 0.f, 0.f, 0.25f, 1.f, 2.f };
 		Knobs.SpiritualPressureStabilityDrain = 0.002f;
 		FCosmicDataTables Tables = CosmicTests::WithoutProjects(WithTranscendents(WithRules(Original, Knobs), Table));

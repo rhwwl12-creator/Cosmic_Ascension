@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -197,7 +197,7 @@
+ 			{
+ 				continue;
+ 			}
+-			if (Held != Policy.EdictRow)
++			if (true)
+ 			{
+ 				Spare = Held;
+ 				break;

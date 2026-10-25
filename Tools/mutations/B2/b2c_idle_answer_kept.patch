@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -246,7 +246,7 @@
+ 		{
+ 			continue;
+ 		}
+-		const bool bIdleAnswer = CosmicEdicts::IsAnswerEdict(Tables, Held) && !CosmicEdicts::AnswersStanding(State, Index, Tables, CivIndex, Held);
++		const bool bIdleAnswer = false;
+ 		const bool bVigilDone = Held == Counts.VigilEnacted && State.Civs[CivIndex].Stability >= RestAt && !RebellionStands();
+ 		if (bIdleAnswer || bVigilDone)
+ 		{

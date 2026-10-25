@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -234,7 +234,7 @@
+ 	}
+ 	// (3) The vigil against a coming rebellion: discontent counted, no rebellion yet, the vigil not held.
+ 	const FName Vigil = VigilRowOf(Tables);
+-	if (!Vigil.IsNone() && State.Civs[CivIndex].LowStabilityTicks > 0 && !RebellionStands() && !State.Civs[CivIndex].ActiveEdicts.Contains(Vigil)
++	if (!Vigil.IsNone() && State.Civs[CivIndex].LowStabilityTicks > 0 && !State.Civs[CivIndex].ActiveEdicts.Contains(Vigil)
+ 		&& !Revoked.Contains(Vigil) && MakeRoomFor(Vigil) && Enact(Vigil))
+ 	{
+ 		Counts.VigilEnacted = Vigil;

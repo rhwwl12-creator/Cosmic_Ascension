@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -139,7 +139,7 @@
+ 	const FCosmicStateIndex& Index = Sim.GetStateIndex();
+ 	const FCosmicDataTables& Tables = Sim.GetTables();
+ 	const FCosmicRulesDef& Rules = Sim.GetRules();
+-	if (!Policy.bEdict || Counts.bEnded || State.Calling.LifeState != ELifeState::Embodied || State.Player.Role != EPlayerRole::Ruler)
++	if (!Policy.bEdict || State.Calling.LifeState != ELifeState::Embodied || State.Player.Role != EPlayerRole::Ruler)
+ 	{
+ 		return;
+ 	}

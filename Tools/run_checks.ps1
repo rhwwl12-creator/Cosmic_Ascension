@@ -1,7 +1,8 @@
 # Cosmic Ascension - full check runner for the Windows development PC (PowerShell 5.1).
 # docs/40_DEV_GUIDE.md section 7. Order: editor-free checks -> (optional) data assets -> builds -> automation tests twice
 # -> headless smoke -> balance commandlet against Tools/baselines/seed42.json (the idle run, then the run with the ruler's
-# policy -Answer=1 -Build=1 -Focus=1) -> the hash run of a game process against those two commandlet lines (MVP item 9).
+# policy -Answer=1 -Build=1 -Focus=1 -Edict=1, and the wanderer's) -> the hash run of a game process against the first two
+# commandlet lines (MVP item 9).
 #
 #   powershell -ExecutionPolicy Bypass -File Tools\run_checks.ps1 [-Tier smoke|full] [-Data] [-UpdateBaseline] [-SkipBuild]
 #
@@ -113,19 +114,20 @@ function Compare-Balance([string] $Name, [string] $Field, [string[]] $Extra, [sw
 
 Step 'balance: seed 42 vs baseline' { Compare-Balance 'checks' 'summary_line' @() }
 
-# The ruler's policy (docs/40_DEV_GUIDE.md section 9.3): answers, the project key and the research focus (MVP item 7)
-# between ticks, the scope of telling of a game. It keeps the inputs deterministic across builds.
-Step 'balance: seed 42 with the ruler policy vs baseline' { Compare-Balance 'checks_ruler' 'ruler_summary_line' @('-Answer=1', '-Build=1', '-Focus=1', '-TellAll=0') -Ruler }
+# The ruler's policy (docs/40_DEV_GUIDE.md section 9.3): answers, the project key, the research focus (MVP item 7) and the
+# edicts (B2) between ticks, the scope of telling of a game. It keeps the inputs deterministic across builds.
+Step 'balance: seed 42 with the ruler policy vs baseline' { Compare-Balance 'checks_ruler' 'ruler_summary_line' @('-Answer=1', '-Build=1', '-Focus=1', '-Edict=1', '-TellAll=0') -Ruler }
 
 # B1 (header section 5): the same ruler, who leaves the throne at tick 1,200 and walks (World/CosmicWandererPolicy) - the
-# hash line, the ruler line and the wanderer line, over 3,600 ticks (seed 42 takes its throne back at 3,001).
-Step 'balance: seed 42 with the wanderer policy vs baseline' { Compare-Balance 'checks_wanderer' 'wanderer_summary_line' @('-Answer=1', '-Build=1', '-Focus=1', '-TellAll=0', '-Abdicate=1200', '-Wander=1') -Ruler -Wanderer -Ticks 3600 }
+# hash line, the ruler line and the wanderer line, over 6,000 ticks, the horizon of Sim.WandererLoop (seed 42 takes its
+# throne back at 4,901 since B2's data - 3,001 before).
+Step 'balance: seed 42 with the wanderer policy vs baseline' { Compare-Balance 'checks_wanderer' 'wanderer_summary_line' @('-Answer=1', '-Build=1', '-Focus=1', '-Edict=1', '-TellAll=0', '-Abdicate=1200', '-Wander=1') -Ruler -Wanderer -Ticks 6000 }
 
 # B1 (docs/60_DECISIONS/headers/B1_wanderer_loop.md section 5): the two long runs of seed 42 as well, in the full tier -
 # changes that reach only a long run (a deposition, the chronicle) cannot pass unseen.
 if ($Tier -eq 'full') {
     Step 'balance: seed 42, 20,000 ticks vs baseline' { Compare-Balance 'checks_20000' 'summary_line_20000' @() -Ticks 20000 }
-    Step 'balance: seed 42, 20,000 ticks with the ruler policy vs baseline' { Compare-Balance 'checks_ruler_20000' 'ruler_summary_line_20000' @('-Answer=1', '-Build=1', '-Focus=1', '-TellAll=0') -Ruler -Ticks 20000 }
+    Step 'balance: seed 42, 20,000 ticks with the ruler policy vs baseline' { Compare-Balance 'checks_ruler_20000' 'ruler_summary_line_20000' @('-Answer=1', '-Build=1', '-Focus=1', '-Edict=1', '-TellAll=0') -Ruler -Ticks 20000 }
 }
 
 # MVP item 9: the hash run of a game process (ACosmicGameMode::StartPlay, World/CosmicHashRun) against the commandlet's

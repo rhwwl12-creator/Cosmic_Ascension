@@ -72,7 +72,7 @@
 | `CoronationReverence` | `0.6` | number | `{"min": 0, "max": 1}` | Sim/CosmicWanderer.cpp, UI/CosmicSystemPanelWidget.cpp, World/CosmicWandererPolicy.cpp | 읽힘 |
 | `CoronationStabilityBelow` | `0.2` | number | `{"min": 0, "max": 1}` | Sim/CosmicWanderer.cpp, UI/CosmicSystemPanelWidget.cpp | 읽힘 |
 | `AbdicationStabilityLoss` | `0.1` | number | `{"min": 0, "max": 1}` | Player/PlayerRoleSubsystem.cpp | 읽힘 |
-| `StartingEdict` | `"None"` | row | `{"table": "DT_Edicts", "optional": true}` | Sim/CosmicEdicts.cpp, Sim/GalaxySimulationSubsystem.cpp, UI/CosmicEdictWidget.cpp, World/CosmicGameMode.cpp | 읽힘 |
+| `StartingEdict` | `"edict_mobilization"` | row | `{"table": "DT_Edicts", "optional": true}` | Sim/CosmicEdicts.cpp, Sim/GalaxySimulationSubsystem.cpp, UI/CosmicEdictWidget.cpp, World/CosmicGameMode.cpp | 읽힘 |
 | `EdictSlotSocietyMarks` | `[0.5, 1.0]` | numbers | `{"min": 0, "max": 1, "ascending": true}` | Sim/CosmicEdicts.cpp, UI/CosmicEdictWidget.cpp | 읽힘 |
-| `SocietyRecoveryBonus` | `0.0` | number | `{"min": 0, "max": 1}` | Sim/CosmicEdicts.cpp, Sim/GalaxySimulationSubsystem.cpp, UI/CosmicSystemPanelWidget.cpp | 읽힘 |
+| `SocietyRecoveryBonus` | `0.25` | number | `{"min": 0, "max": 1}` | Sim/CosmicEdicts.cpp, Sim/GalaxySimulationSubsystem.cpp, UI/CosmicSystemPanelWidget.cpp | 읽힘 |
 | `AIEdictRevokeStability` | `1.0` | number | `{"min": 0, "max": 1}` | Sim/CosmicEdicts.cpp | 읽힘 |

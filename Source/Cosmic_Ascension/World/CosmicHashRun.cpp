@@ -120,7 +120,7 @@ CosmicHashRun::FResult CosmicHashRun::Run(UGalaxySimulationSubsystem& Sim, UCosm
 	if (Switch.bPolicy)
 	{
 		// The commandlet's loop: one tick, then the ruler's input at the boundary.
-		const FCosmicRulerPolicy Policy{ true, true, true };
+		const FCosmicRulerPolicy Policy{ true, true, true, true, NAME_None };
 		FCosmicRulerPolicyCounts Counts;
 		for (int64 Done = 0; Done < Switch.Ticks; ++Done)
 		{

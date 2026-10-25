@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -242,7 +242,7 @@
+ 	// (4) An answer with nothing to answer goes, and the vigil of (3) once the danger passed - never EdictRow.
+ 	for (const FName Held : TArray<FName>(State.Civs[CivIndex].ActiveEdicts))
+ 	{
+-		if (Held == Policy.EdictRow || Enacted.Contains(Held))
++		if (Enacted.Contains(Held))
+ 		{
+ 			continue;
+ 		}

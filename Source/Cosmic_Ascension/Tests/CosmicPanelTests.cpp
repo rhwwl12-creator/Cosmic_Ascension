@@ -38,6 +38,7 @@
 #include "UI/CosmicActionButton.h"
 #include "UI/CosmicAscensionOverlayWidget.h"
 #include "UI/CosmicChronicleWidget.h"
+#include "UI/CosmicEdictWidget.h"
 #include "UI/CosmicLogFeedWidget.h"
 #include "UI/CosmicSystemPanelWidget.h"
 #include "UI/CosmicTopBarWidget.h"
@@ -670,6 +671,26 @@ bool FCosmicUIMouseOnlyAscentTest::RunTest(const FString& Parameters)
 	Map->RefreshNow();
 	// The view's control is the mouse's too: below the third rung the bar has no view button.
 	Bar->Refresh();
+	// The player's first act (B2), by the mouse too: the top bar's edict button opens the window, the inherited edict's row
+	// revokes it, the window closes - kept, the inherited edict ends the reign before the climb does.
+	if (const FName Inherited = Sim->GetRules().StartingEdict; !Inherited.IsNone())
+	{
+		UCosmicEdictWidget* Window = HUD->GetEdictWindow();
+		if (!TestNotNull(TEXT("(the HUD's edict window)"), Window) || !TestNotNull(TEXT("(and the bar's edict button)"), Bar->GetEdictButton()))
+		{
+			return false;
+		}
+		Bar->GetEdictButton()->Press();
+		UCosmicActionButton* Revoke = Window->GetRowButton(Inherited);
+		TestTrue(TEXT("The bar's edict button opens the window on the inherited edict's row"), Window->IsOpen() && Revoke && Revoke->GetIsEnabled());
+		if (Revoke)
+		{
+			Revoke->Press();
+		}
+		const int32 Ruled = Sim->GetStateIndex().FindCiv(Sim->GetState(), Sim->GetState().Player.RuledCivID);
+		TestTrue(TEXT("and its row's button revokes it"), Sim->GetState().Civs.IsValidIndex(Ruled) && Sim->GetState().Civs[Ruled].ActiveEdicts.IsEmpty());
+		Window->GetCloseButton()->Press();
+	}
 	TestTrue(TEXT("At the first rung the top bar shows no view button"), Bar->GetViewButton() && Bar->GetViewButton()->GetVisibility() == ESlateVisibility::Collapsed);
 	FGalaxyState& Live = Sim->GetMutableState();
 	const int32 CivIndex = Sim->GetStateIndex().FindCiv(Live, Live.Player.RuledCivID);

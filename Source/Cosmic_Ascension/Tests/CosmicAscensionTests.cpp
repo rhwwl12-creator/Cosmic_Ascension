@@ -1052,9 +1052,11 @@ bool FCosmicStartBlockReasonsTest::RunTest(const FString& Parameters)
 	State.Civs[0].Tier = EAscensionTier::Tier2_Stellar;
 	Swept(TEXT("the board with people 0 on the second rung"));
 
-	// The game's tables on the game's galaxy, some way in.
+	// The game's tables on the game's galaxy, some way in - the inherited edict revoked first, as a player does (B2: kept,
+	// it ends in a rebellion and a deposition before tick 2,000).
 	Sim->SetTables(Original);
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	CosmicTests::RevokeInheritedEdict(*Sim);
 	Sim->RunHeadless(2000);
 	FGalaxyState& Game = Sim->GetMutableState();
 	const int32 Ruled = Sim->GetStateIndex().FindCiv(Game, Game.Player.RuledCivID);
@@ -1589,6 +1591,8 @@ bool FCosmicPlayerAscendsToT3Test::RunTest(const FString& Parameters)
 	UPlayerRoleSubsystem* Role = Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>();
 	ON_SCOPE_EXIT { Sim->NewGalaxy(42, 5, 3); };
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	// The player's first act (B2): the inherited edict revoked - kept, it ends the reign before the climb does.
+	TestEqual(TEXT("(the inherited edict revoked, when the game's data names one)"), CosmicTests::RevokeInheritedEdict(*Sim), !Sim->GetRules().StartingEdict.IsNone());
 	const FGalaxyState& State = Sim->GetState();
 	const int32 CivIndex = Sim->GetStateIndex().FindCiv(State, State.Player.RuledCivID);
 	const int32 Home = State.Civs.IsValidIndex(CivIndex) ? Sim->GetStateIndex().FindSystem(State, State.Civs[CivIndex].HomeSystemID) : INDEX_NONE;

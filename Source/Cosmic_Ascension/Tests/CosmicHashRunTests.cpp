@@ -192,7 +192,7 @@ bool FCosmicSimHashRunTest::RunTest(const FString& Parameters)
 	{
 		Log->SetTellAll(false);
 		Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
-		const FCosmicRulerPolicy Policy{ true, true, true };
+		const FCosmicRulerPolicy Policy{ true, true, true, true, NAME_None };
 		FCosmicRulerPolicyCounts Counts;
 		for (int64 Done = 0; Done < 300; ++Done)
 		{
@@ -201,7 +201,8 @@ bool FCosmicSimHashRunTest::RunTest(const FString& Parameters)
 			CosmicRulerPolicy::Act(Policy, *Sim, *Role, CardBefore, Counts);
 		}
 		PolicyByHand = HashesOf(*Sim);
-		TestTrue(TEXT("(the policy answered, started and focused - the case can tell)"), Counts.Answers > 0 && Counts.Started > 0 && Counts.FocusChanges > 0);
+		TestTrue(TEXT("(the policy answered, started, focused and turned edicts - the case can tell)"), Counts.Answers > 0 && Counts.Started > 0 && Counts.FocusChanges > 0
+			&& Counts.EdictsEnacted + Counts.EdictsRevoked > 0);
 		TestNotEqual(TEXT("(and its world is not the idle one)"), PolicyByHand.World, Whole.World);
 		Log->SetTellAll(true);
 		const CosmicHashRun::FResult Result = CosmicHashRun::Run(*Sim, *Log, *Role, 42, SwitchOf(300, 0, true));

@@ -147,7 +147,8 @@ namespace CosmicSettlementTests
 	// AI projects at the player's pace, and the realm cap 1/3/4/7/10.
 	FCosmicRulesDef Knobs(const FCosmicRulesDef& BaseRules)
 	{
-		FCosmicRulesDef Rules = BaseRules;
+		// No inherited edict: its income factors would move the exact incomes of these cases (B2).
+		FCosmicRulesDef Rules = CosmicTests::WithoutStartingEdict(BaseRules);
 		Rules.EventSlotTicks = 10;
 		Rules.EventChancePerSlot = 0.f;
 		Rules.SpiritualPressureStabilityDrain = 0.f;

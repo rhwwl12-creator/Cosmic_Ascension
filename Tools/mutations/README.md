@@ -78,3 +78,22 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B2/` | `b2b_new_galaxy_keeps_window.patch` — the window stays open over a new galaxy | `Cosmic_Ascension.UI.EdictWindow` |
 | `B2/` | `b2b_open_ends_started_only.patch` — an open before the fall does not stop the hint | `Cosmic_Ascension.UI.EdictWindow` |
 | `B2/` | `b2b_row_unbound.patch` — a row's button commands nothing | `Cosmic_Ascension.UI.EdictWindow` |
+| `B2/` | `b2c_vigil_with_rebellion.patch` — the policy enacts the vigil with a rebellion already standing | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
+| `B2/` | `b2c_kept_without_rest.patch` — the kept Stability edict comes back below the resting level | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
+| `B2/` | `b2c_kept_revoked_as_idle.patch` — the kept row is revoked as an idle answer | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
+| `B2/` | `b2c_no_room_made.patch` — no slot is made for a standing hazard's answer | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
+| `B2/` | `b2c_vigil_kept.patch` — the policy's vigil stays after the danger passed | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
+| `B2/` | `b2c_idle_answer_kept.patch` — an answer with nothing to answer stays | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
+| `B2/` | `b2c_decisions_without_edicts.patch` — the decisions leave out the edict commands | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
+| `B2/` | `b2c_edicts_after_end.patch` — the policy changes edicts after the provisional end | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
+| `B2/` | `b2c_helper_keeps_edict.patch` — the test helper does not revoke the inherited edict | `Cosmic_Ascension.Sim.PlayerAscendsToT3` |
+| `B2/` | `b2c_quiet_keeps_edict.patch` — the quiet board keeps the inherited edict | `Cosmic_Ascension.Sim.StabilityRecovery` |
+| `B2/` | `b2c_sightwalk_new_world.patch` — the sight-walk proof runs on the B2 world | `Cosmic_Ascension.Sim.SightWalkMoved` |
+| `B2/` | `b2c_room_takes_kept_row.patch` — room is made by giving up the kept row first | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
+| `B2/` | `b2c_room_never_kept.patch` — the kept row is never given up for an answer | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
+| `B2/` | `b2c_room_ignores_gate.patch` — an edict is given up for an answer that would be refused | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
+| `B2/` | `b2c_hashrun_no_edict.patch` — the hash run's policy holds no edicts | `Cosmic_Ascension.Sim.HashRun` |
+| `B2/` | `b2c_ship_hint_under_rebellion.patch` — the first ship's line stands beside a rebellion | `Cosmic_Ascension.UI.FirstHints` |
+| `B2/` | `b2c_panel_ignores_rebellion.patch` — the panel does not tell the ship's line of the rebellion | `Cosmic_Ascension.UI.FirstHints` |
+| `B2/` | `b2c_bar_never_opens.patch` — the bar's edict button opens nothing | `Cosmic_Ascension.UI.MouseOnlyAscent` |
+| `B2/` | `b2c_inert_keeps_edict.patch` — the knowing-inert ruler keeps the inherited edict and falls | `Cosmic_Ascension.Sim.KnowingInert` |

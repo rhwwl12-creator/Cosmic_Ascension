@@ -386,14 +386,16 @@ bool FCosmicUIFirstHintsTest::RunTest(const FString& Parameters)
 		FCosmicHintProgress Hinted;
 		Hinted.bShipHinted = true;
 		const int64 From = CosmicUI::FirstShipFromTick;
-		TestTrue(TEXT("The capital at 8:30: the ship's line"), CosmicUI::ShowsShipHint(true, From, false, false, Fresh, false));
-		TestFalse(TEXT("a tick before: none"), CosmicUI::ShowsShipHint(true, From - 1, false, false, Fresh, false));
-		TestFalse(TEXT("from 18:30: none"), CosmicUI::ShowsShipHint(true, CosmicUI::FirstShipUntilTick, false, false, Fresh, false));
-		TestFalse(TEXT("another panel: none"), CosmicUI::ShowsShipHint(false, From, false, false, Fresh, false));
-		TestFalse(TEXT("an ended run: none"), CosmicUI::ShowsShipHint(true, From, true, false, Fresh, false));
-		TestFalse(TEXT("a vessel that once left a throne: none"), CosmicUI::ShowsShipHint(true, From, false, true, Fresh, false));
-		TestFalse(TEXT("shown once this session: none"), CosmicUI::ShowsShipHint(true, From, false, false, Hinted, false));
-		TestTrue(TEXT("but it stays for the viewing it came in"), CosmicUI::ShowsShipHint(true, From, false, false, Hinted, true));
+		TestTrue(TEXT("The capital at 8:30: the ship's line"), CosmicUI::ShowsShipHint(true, From, false, false, Fresh, false, false));
+		TestFalse(TEXT("a tick before: none"), CosmicUI::ShowsShipHint(true, From - 1, false, false, Fresh, false, false));
+		TestFalse(TEXT("from 18:30: none"), CosmicUI::ShowsShipHint(true, CosmicUI::FirstShipUntilTick, false, false, Fresh, false, false));
+		TestFalse(TEXT("another panel: none"), CosmicUI::ShowsShipHint(false, From, false, false, Fresh, false, false));
+		TestFalse(TEXT("an ended run: none"), CosmicUI::ShowsShipHint(true, From, true, false, Fresh, false, false));
+		TestFalse(TEXT("a vessel that once left a throne: none"), CosmicUI::ShowsShipHint(true, From, false, true, Fresh, false, false));
+		TestFalse(TEXT("shown once this session: none"), CosmicUI::ShowsShipHint(true, From, false, false, Hinted, false, false));
+		TestTrue(TEXT("but it stays for the viewing it came in"), CosmicUI::ShowsShipHint(true, From, false, false, Hinted, true, false));
+		TestFalse(TEXT("A rebellion standing on the capital: none (B2 - it is no advice to flee)"), CosmicUI::ShowsShipHint(true, From, false, false, Fresh, false, true));
+		TestFalse(TEXT("nor in the viewing it came in"), CosmicUI::ShowsShipHint(true, From, false, false, Hinted, true, true));
 
 		FGalaxyState& Run = Sim->GetMutableState();
 		auto ShipShown = [&]() { return Panel->GetShipHintText() && Panel->GetShipHintText()->GetVisibility() != ESlateVisibility::Collapsed; };
@@ -424,6 +426,19 @@ bool FCosmicUIFirstHintsTest::RunTest(const FString& Parameters)
 		ShowCapital();
 		TestFalse(TEXT("A run whose vessel once left a throne shows none"), ShipShown());
 		Run.Player.FormerCivID = NAME_None;
+		// A rebellion on the capital (B2): the line waits for it to end.
+		Controller->SetHintProgress(FCosmicHintProgress());
+		const FGameplayTag WasHazard = Run.Systems[Home].ActiveHazard;
+		const int32 WasTicks = Run.Systems[Home].HazardTicksRemaining;
+		Run.Systems[Home].ActiveHazard = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Rebellion")));
+		Run.Systems[Home].HazardTicksRemaining = 100;
+		ShowCapital();
+		TestFalse(TEXT("A capital with a rebellion standing shows none"), ShipShown());
+		TestFalse(TEXT("and does not spend the session's line"), Controller->GetHintProgress().bShipHinted);
+		Run.Systems[Home].ActiveHazard = WasHazard;
+		Run.Systems[Home].HazardTicksRemaining = WasTicks;
+		Panel->Refresh();
+		TestTrue(TEXT("Once it is gone the line comes"), ShipShown());
 		Run.Tick = Before;
 	}
 	return true;

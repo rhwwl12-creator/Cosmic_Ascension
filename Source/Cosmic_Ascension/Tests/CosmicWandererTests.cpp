@@ -1234,7 +1234,7 @@ bool FCosmicSimSaveTravelTest::RunTest(const FString& Parameters)
 }
 
 // The wanderer's loop through its policy (B1 header section 6 - the commandlet's -Abdicate=1200 -Wander=1 with the ruler's
-// -Answer=1 -Build=1 -Focus=1): seed 42 leaves the throne at 1,200 and takes one again before tick 6,000; the same inputs
+// -Answer=1 -Build=1 -Focus=1 -Edict=1 since B2): seed 42 leaves the throne at 1,200 and takes one again before tick 6,000; the same inputs
 // give the same two hashes twice; no error line.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimWandererLoopTest, "Cosmic_Ascension.Sim.WandererLoop", CosmicTests::Flags)
 bool FCosmicSimWandererLoopTest::RunTest(const FString& Parameters)
@@ -1250,7 +1250,7 @@ bool FCosmicSimWandererLoopTest::RunTest(const FString& Parameters)
 	for (int32 Run = 0; Run < 2; ++Run)
 	{
 		Sim->NewGalaxy(42, 0, 0);
-		const FCosmicRulerPolicy Ruler{ true, true, true };
+		const FCosmicRulerPolicy Ruler{ true, true, true, true, NAME_None };
 		FCosmicRulerPolicyCounts RulerCounts;
 		const FCosmicWandererPolicy Wanderer{ 1200, true };
 		FCosmicWandererPolicyCounts Counts;

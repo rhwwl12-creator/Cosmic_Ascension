@@ -24,6 +24,7 @@
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
 #include "Misc/AutomationTest.h"
+#include "Player/PlayerRoleSubsystem.h"
 #include "Save/CosmicSaveSubsystem.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestProbe.h"
@@ -146,6 +147,16 @@ namespace CosmicTests
 		FCosmicRulesDef Out = Rules;
 		Out.StartingEdict = NAME_None;
 		return Out;
+	}
+
+	// The player's first act in a game of the game's data (B2): the inherited edict revoked, as the edict hint teaches - for a
+	// test that plays the game's path (a climb, a chronicle, a reign) rather than the neglect the inherited edict ends in
+	// a deposition. True when there was one to revoke and the command took it.
+	inline bool RevokeInheritedEdict(UGalaxySimulationSubsystem& Sim)
+	{
+		UPlayerRoleSubsystem* Role = Sim.GetGameInstance() ? Sim.GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+		const FName Inherited = Sim.GetRules().StartingEdict;
+		return Role && !Inherited.IsNone() && Role->RevokeEdict(Inherited);
 	}
 
 	// The tables with DT_Rules replaced by one row, everything else as given - the game's projects and feats too: a test

@@ -822,6 +822,8 @@ void UCosmicSystemPanelWidget::Refresh()
 	ShownTravelBlock.Reset();
 	ShownCrownBlock.Reset();
 	bool bCapital = false;
+	// A rebellion (a hazard of a Capital row) stands on the shown capital (B2: the first ship's line waits for it to end).
+	bool bCapitalRebellion = false;
 	// The panel's gate of knowledge: a known system, or the sanctuary by its name (the view's ShownByName - its own
 	// panel, section 6.3).
 	if (State.Systems.IsValidIndex(SystemIndex) && View.IsShown(SystemIndex))
@@ -973,6 +975,8 @@ void UCosmicSystemPanelWidget::Refresh()
 			bSettleButton = true;
 		}
 		bCapital = bRules && !bDead && OwnerIndex == RuledIndex && System.SystemID == State.Civs[RuledIndex].HomeSystemID;
+		const FHazardDef* CapitalHazard = (bCapital && System.ActiveHazard.IsValid()) ? Tables.FindHazardByTag(System.ActiveHazard) : nullptr;
+		bCapitalRebellion = CapitalHazard && CapitalHazard->SpawnRule == ECosmicHazardSpawn::Capital;
 
 		// The wanderer's commands (B1 header section 4): the commands' own gates, fed the knowing they need from the view
 		// (rule 14); the first reason greys the button, its short words after the name, its long words first in the tooltip.
@@ -1100,7 +1104,8 @@ void UCosmicSystemPanelWidget::Refresh()
 
 	// The first ship's line (B1): on the capital's panel, once a session - it stays for the viewing it came in.
 	const bool bThisViewing = !ShipHintSystem.IsNone() && ShipHintSystem == ShownSystemID;
-	const bool bShip = Owner && ShowsShipHint(bCapital, State.Tick, bEnded, !State.Player.FormerCivID.IsNone(), Owner->GetHintProgress(), bThisViewing);
+	const bool bShip = Owner && ShowsShipHint(bCapital, State.Tick, bEnded, !State.Player.FormerCivID.IsNone(), Owner->GetHintProgress(), bThisViewing,
+		bCapitalRebellion);
 	if (bShip && !Owner->GetHintProgress().bShipHinted)
 	{
 		Owner->NoteShipHinted();

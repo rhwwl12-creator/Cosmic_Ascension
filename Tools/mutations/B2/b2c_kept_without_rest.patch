@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -257,7 +257,7 @@
+ 	const FEdictDef* Kept = Policy.EdictRow.IsNone() ? nullptr : Tables.FindEdict(Policy.EdictRow);
+ 	const FCivilizationState& Civ = State.Civs[CivIndex];
+ 	if (Kept && !Civ.ActiveEdicts.Contains(Policy.EdictRow) && CosmicEdicts::HeldCountOf(Civ, Tables) < CosmicEdicts::SlotsOf(Civ, Rules)
+-		&& (!CosmicEdicts::HasStabilityCost(*Kept) || Civ.Stability >= RestAt))
++		&& (!CosmicEdicts::HasStabilityCost(*Kept) || true))
+ 	{
+ 		Enact(Policy.EdictRow);
+ 	}

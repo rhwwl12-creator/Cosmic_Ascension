@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+@@ -156,7 +156,7 @@
+ 	{
+ 		UPlayerRoleSubsystem* Role = Sim.GetGameInstance() ? Sim.GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+ 		const FName Inherited = Sim.GetRules().StartingEdict;
+-		return Role && !Inherited.IsNone() && Role->RevokeEdict(Inherited);
++		return Role && !Inherited.IsNone();
+ 	}
+ 
+ 	// The tables with DT_Rules replaced by one row, everything else as given - the game's projects and feats too: a test

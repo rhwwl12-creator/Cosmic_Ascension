@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1903,7 +1903,6 @@
+ 	ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
+ 	if (UCosmicEdictWidget* Window = CosmicHUD ? CosmicHUD->GetEdictWindow() : nullptr)
+ 	{
+-		Window->Toggle();
+ 	}
+ }
+ 
