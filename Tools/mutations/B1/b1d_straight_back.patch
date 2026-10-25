@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+@@ -120,7 +120,7 @@
+ 		for (const FName Lane : Open)
+ 		{
+ 			const int32 There = Index.FindSystem(State, Lane);
+-			if ((Lane != Counts.LastLeft || Open.Num() == 1) && State.Systems.IsValidIndex(There) && State.Systems[There].ActiveHazard.IsValid())
++			if (State.Systems.IsValidIndex(There) && State.Systems[There].ActiveHazard.IsValid())
+ 			{
+ 				Target = Lane;
+ 				break;

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicWanderer.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicWanderer.cpp
+@@ -105,7 +105,7 @@
+ 	{
+ 		return ECrownBlock::ThroneLocked;
+ 	}
+-	if (!IsReturn(State, CivID) && !(Civ.ReverenceToPlayer >= Rules.CoronationReverence) && !(Civ.Stability < Rules.CoronationStabilityBelow))
++	if (!(Civ.ReverenceToPlayer >= 0.99f))
+ 	{
+ 		return ECrownBlock::Lacking;
+ 	}

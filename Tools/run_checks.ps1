@@ -77,7 +77,7 @@ function Remove-WrotePath([string] $Line) { return ($Line -replace ', wrote .*?(
 # One commandlet run of seed 42 for $Ticks ticks (3,000 unless given), compared with the baseline field $Field (or
 # written into it with -UpdateBaseline): the hash line, and with $Ruler also the ruler line after ' | ' - both without
 # the CSV path.
-function Compare-Balance([string] $Name, [string] $Field, [string[]] $Extra, [switch] $Ruler, [int] $Ticks = 3000) {
+function Compare-Balance([string] $Name, [string] $Field, [string[]] $Extra, [switch] $Ruler, [switch] $Wanderer, [int] $Ticks = 3000) {
     $log = Join-Path $Logs "$Name.log"
     # The log of this run only: an old one (or the '_2' the engine writes when the log is held open) cannot answer for it.
     foreach ($old in @($log, (Join-Path $Logs "${Name}_2.log"))) { if (Test-Path $old) { Remove-Item -Force $old } }
@@ -91,6 +91,11 @@ function Compare-Balance([string] $Name, [string] $Field, [string[]] $Extra, [sw
         if (-not $rulerLine) { throw "no ""CosmicBalance ruler:"" line in $Name.log" }
         $summary += ' | ' + $(if ($rulerLine.Line -match '(CosmicBalance ruler:.*)') { $Matches[1] } else { $rulerLine.Line })
     }
+    if ($Wanderer) {
+        $wandererLine = Select-String -Path $log -Pattern 'CosmicBalance wanderer:' | Select-Object -Last 1
+        if (-not $wandererLine) { throw "no ""CosmicBalance wanderer:"" line in $Name.log" }
+        $summary += ' | ' + $(if ($wandererLine.Line -match '(CosmicBalance wanderer:.*)') { $Matches[1] } else { $wandererLine.Line })
+    }
     $baselinePath = Join-Path $Root 'Tools\baselines\seed42.json'
     $baseline = Get-Content $baselinePath -Raw | ConvertFrom-Json
     if ($UpdateBaseline) {
@@ -99,7 +104,9 @@ function Compare-Balance([string] $Name, [string] $Field, [string[]] $Extra, [sw
         # UTF-8 without a byte order mark (Set-Content -Encoding UTF8 of PowerShell 5.1 writes one; Python's json reads none).
         [IO.File]::WriteAllText($baselinePath, ($baseline | ConvertTo-Json -Depth 4), (New-Object Text.UTF8Encoding $false))
         Write-Host "   baseline updated: $summary"
-    } elseif ($baseline.$Field -and ((Remove-WrotePath $baseline.$Field) -ne (Remove-WrotePath $summary))) {
+    } elseif (-not ($baseline.PSObject.Properties.Name -contains $Field)) {
+        throw "$Field is missing from Tools/baselines/seed42.json - record it once with -UpdateBaseline"
+    } elseif ((Remove-WrotePath $baseline.$Field) -ne (Remove-WrotePath $summary)) {
         throw "$Field differs from Tools/baselines/seed42.json`n   now:      $summary`n   baseline: $($baseline.$Field)`n   (intended change -> rerun with -UpdateBaseline and put the new hashes in the commit message)"
     } else { Write-Host "   $summary" }
 }
@@ -109,6 +116,10 @@ Step 'balance: seed 42 vs baseline' { Compare-Balance 'checks' 'summary_line' @(
 # The ruler's policy (docs/40_DEV_GUIDE.md section 9.3): answers, the project key and the research focus (MVP item 7)
 # between ticks, the scope of telling of a game. It keeps the inputs deterministic across builds.
 Step 'balance: seed 42 with the ruler policy vs baseline' { Compare-Balance 'checks_ruler' 'ruler_summary_line' @('-Answer=1', '-Build=1', '-Focus=1', '-TellAll=0') -Ruler }
+
+# B1 (header section 5): the same ruler, who leaves the throne at tick 1,200 and walks (World/CosmicWandererPolicy) - the
+# hash line, the ruler line and the wanderer line, over 3,600 ticks (seed 42 takes its throne back at 3,001).
+Step 'balance: seed 42 with the wanderer policy vs baseline' { Compare-Balance 'checks_wanderer' 'wanderer_summary_line' @('-Answer=1', '-Build=1', '-Focus=1', '-TellAll=0', '-Abdicate=1200', '-Wander=1') -Ruler -Wanderer -Ticks 3600 }
 
 # B1 (docs/60_DECISIONS/headers/B1_wanderer_loop.md section 5): the two long runs of seed 42 as well, in the full tier -
 # changes that reach only a long run (a deposition, the chronicle) cannot pass unseen.

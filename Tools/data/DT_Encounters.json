@@ -1097,7 +1097,7 @@
 			{
 				"Label": "두 편 사이를 오간다",
 				"CheckStat": "Mind",
-				"Difficulty": 4,
+				"Difficulty": 3,
 				"Cost": {
 					"Energy": 0.0,
 					"Matter": 0.0,
@@ -1172,7 +1172,7 @@
 			{
 				"Label": "앓는 이들 곁에 머문다",
 				"CheckStat": "Body",
-				"Difficulty": 4,
+				"Difficulty": 3,
 				"Cost": {
 					"Energy": 0.0,
 					"Matter": 0.0,
@@ -1247,7 +1247,7 @@
 			{
 				"Label": "깨어난 것에게 말을 건다",
 				"CheckStat": "Mind",
-				"Difficulty": 4,
+				"Difficulty": 3,
 				"Cost": {
 					"Energy": 0.0,
 					"Matter": 0.0,
@@ -1322,7 +1322,7 @@
 			{
 				"Label": "별의 떨림을 재어 알린다",
 				"CheckStat": "Mind",
-				"Difficulty": 4,
+				"Difficulty": 3,
 				"Cost": {
 					"Energy": 0.0,
 					"Matter": 0.0,

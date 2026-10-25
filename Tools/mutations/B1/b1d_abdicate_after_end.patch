@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+@@ -17,7 +17,7 @@
+ {
+ 	const FGalaxyState& State = Sim.GetState();
+ 	Counts.bEnded = Counts.bEnded || CosmicEndings::ProvisionalEndOf(State, Sim.GetRules()) != ECosmicProvisionalEnd::None;
+-	if (!Counts.bEnded && Policy.AbdicateAt > 0 && State.Tick == Policy.AbdicateAt)
++	if (Policy.AbdicateAt > 0 && State.Tick == Policy.AbdicateAt)
+ 	{
+ 		Role.Abdicate();
+ 	}

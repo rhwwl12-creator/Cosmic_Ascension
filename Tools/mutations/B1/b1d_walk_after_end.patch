@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+@@ -44,7 +44,7 @@
+ 		Counts.ReverencePeak = FMath::Max(Counts.ReverencePeak, Civ.ReverenceToPlayer);
+ 	}
+ 	Counts.Cards += (!State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != CardBefore) ? 1 : 0;
+-	if (!Policy.bWander || Counts.bEnded)
++	if (!Policy.bWander)
+ 	{
+ 		return;
+ 	}

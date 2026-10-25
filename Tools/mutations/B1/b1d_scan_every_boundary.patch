@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+@@ -101,7 +101,7 @@
+ 		}
+ 
+ 		// 3. One scan on each arrival.
+-		if (Counts.ScannedAt != State.Systems[Here].SystemID && Role.ScanCurrentSystem() != INDEX_NONE)
++		if (Role.ScanCurrentSystem() != INDEX_NONE)
+ 		{
+ 			Counts.ScannedAt = State.Systems[Here].SystemID;
+ 			++Counts.Scans;

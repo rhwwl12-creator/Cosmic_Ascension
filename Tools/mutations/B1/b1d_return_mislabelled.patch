@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+@@ -83,7 +83,7 @@
+ 			&& CosmicWanderer::CrownBlockOf(State, Index, Sim.GetRules(), Owner, bMet, !State.Knowing.PendingPetitionRow.IsNone()) == CosmicWanderer::ECrownBlock::None)
+ 		{
+ 			const FCivilizationState& Civ = State.Civs[OwnerIndex];
+-			const TCHAR* const Path = CosmicWanderer::IsReturn(State, Owner) ? TEXT("return")
++			const TCHAR* const Path = CosmicWanderer::IsReturn(State, State.Player.RuledCivID) ? TEXT("return")
+ 				: (Civ.ReverenceToPlayer >= Sim.GetRules().CoronationReverence ? TEXT("reverence") : TEXT("vacuum"));
+ 			const EAscensionTier Tier = Civ.Tier;
+ 			if (Role.BecomeRuler(Owner) == CosmicWanderer::ECrownBlock::None)

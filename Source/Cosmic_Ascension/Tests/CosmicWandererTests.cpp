@@ -35,6 +35,7 @@
 #include "Tests/CosmicTestHelpers.h"
 #include "Tests/CosmicTestProbe.h"
 #include "World/CosmicRulerPolicy.h"
+#include "World/CosmicWandererPolicy.h"
 
 #include <initializer_list>
 
@@ -1228,6 +1229,139 @@ bool FCosmicSimSaveTravelTest::RunTest(const FString& Parameters)
 		Script(Moment);
 		TestEqual(FString::Printf(TEXT("Moment %d: the same inputs after the load give the same galaxy"), Moment), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(Straight));
 		Save->DeleteSave(Galaxy);
+	}
+	return true;
+}
+
+// The wanderer's loop through its policy (B1 header section 6 - the commandlet's -Abdicate=1200 -Wander=1 with the ruler's
+// -Answer=1 -Build=1 -Focus=1): seed 42 leaves the throne at 1,200 and takes one again before tick 6,000; the same inputs
+// give the same two hashes twice; no error line.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimWandererLoopTest, "Cosmic_Ascension.Sim.WandererLoop", CosmicTests::Flags)
+bool FCosmicSimWandererLoopTest::RunTest(const FString& Parameters)
+{
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	UPlayerRoleSubsystem* Role = Sim ? Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (!Sim || !TestNotNull(TEXT("The role subsystem exists"), Role))
+	{
+		return false;
+	}
+	ON_SCOPE_EXIT { Sim->NewGalaxy(42, 5, 3); };
+	TArray<TPair<uint32, uint32>> Hashes;
+	for (int32 Run = 0; Run < 2; ++Run)
+	{
+		Sim->NewGalaxy(42, 0, 0);
+		const FCosmicRulerPolicy Ruler{ true, true, true };
+		FCosmicRulerPolicyCounts RulerCounts;
+		const FCosmicWandererPolicy Wanderer{ 1200, true };
+		FCosmicWandererPolicyCounts Counts;
+		for (int64 Done = 0; Done < 6000 && Counts.CrownedAt < 0; ++Done)
+		{
+			const FName CardBefore = Sim->GetState().Knowing.PendingPetitionRow;
+			Sim->RunHeadless(1);
+			CosmicWandererPolicy::AbdicateIfDue(Wanderer, *Sim, *Role, Counts);
+			CosmicRulerPolicy::Act(Ruler, *Sim, *Role, CardBefore, RulerCounts);
+			CosmicWandererPolicy::Act(Wanderer, *Sim, *Role, CardBefore, Counts);
+		}
+		TestEqual(TEXT("The vessel walks from the tick after the abdication"), Counts.LeftAt, static_cast<int64>(1201));
+		TestTrue(TEXT("and takes a throne again before tick 6,000"), Counts.CrownedAt > Counts.LeftAt && Counts.CrownedAt < 6000);
+		const FGalaxyState& Played = Sim->GetState();
+		TestTrue(TEXT("It took back the throne of the people it left"), Counts.CrownedCivID == Played.Player.FormerCivID && FString(Counts.CrownedPath) == TEXT("return"));
+		TestTrue(TEXT("a second reign after an abdication"), Played.Calling.Lives.Last().RuledCivIDs.Num() == 2 && Played.Calling.Lives.Last().RuledCivIDs.Last() == Counts.CrownedCivID
+			&& Played.Calling.Lives.Last().ReignEndReasons[0] == FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Abdicated"))));
+		const int32 JourneysThen = Counts.Journeys;
+		for (int32 More = 0; More < 2; ++More)
+		{
+			const FName CardBefore = Played.Knowing.PendingPetitionRow;
+			Sim->RunHeadless(1);
+			CosmicWandererPolicy::AbdicateIfDue(Wanderer, *Sim, *Role, Counts);
+			CosmicRulerPolicy::Act(Ruler, *Sim, *Role, CardBefore, RulerCounts);
+			CosmicWandererPolicy::Act(Wanderer, *Sim, *Role, CardBefore, Counts);
+		}
+		TestTrue(TEXT("It rules on and walks no more"), Played.Player.Role == EPlayerRole::Ruler && Played.Player.RuledCivID == Counts.CrownedCivID && Counts.Journeys == JourneysThen);
+		AddInfo(FString::Printf(TEXT("Seed 42: left at %lld, crowned at %lld over %s by %s, journeys %d, scans %d, cards %d, answers %d"),
+			Counts.LeftAt, Counts.CrownedAt, *Counts.CrownedCivID.ToString(), Counts.CrownedPath, Counts.Journeys, Counts.Scans, Counts.Cards, Counts.Answers));
+		Hashes.Emplace(Sim->ComputeStateHash(), Sim->ComputeWorldHash());
+	}
+	TestTrue(TEXT("The same inputs give the same state and world twice"), Hashes.Num() == 2 && Hashes[0] == Hashes[1]);
+	return true;
+}
+
+// The wanderer's policy, rule by rule on the board (B1 header section 5): the first lane neighbour with a crisis standing,
+// not straight back unless it must; one scan on each arrival; the card's choices in turn; no input after the provisional end.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimWandererPolicyTest, "Cosmic_Ascension.Sim.WandererPolicy", CosmicTests::Flags)
+bool FCosmicSimWandererPolicyTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicWandererTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	UPlayerRoleSubsystem* Role = Sim ? Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (!Sim || !TestNotNull(TEXT("The role subsystem exists"), Role))
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	const FCosmicWandererPolicy Walks{ 0, true };
+
+	// The travel choice: from 4 (lanes 3, 5, 10) to 5, where a plague stands; not back to 5 just left - 3 instead.
+	{
+		FGalaxyState* State = LayBoard(*Sim, TablesWith(Original, Cards(), [](FCosmicRulesDef& Rules) { Rules.EncounterChancePerArrival = 0.f; }));
+		if (!TestNotNull(TEXT("The board is laid"), State))
+		{
+			return false;
+		}
+		Walk(*Sim, *Role, 4);
+		Plague(*State, 5);
+		FCosmicWandererPolicyCounts Counts;
+		CosmicWandererPolicy::Act(Walks, *Sim, *Role, NAME_None, Counts);
+		TestEqual(TEXT("The vessel sets off to the neighbour with a crisis"), State->Player.TravelTargetSystemID, State->Systems[5].SystemID);
+		TestEqual(TEXT("having scanned where it stood"), Counts.Scans, 1);
+		State->Player.TravelTargetSystemID = NAME_None;
+		State->Player.TravelTicksRemaining = 0;
+		FCosmicWandererPolicyCounts Back;
+		Back.LastLeft = State->Systems[5].SystemID;
+		Back.ScannedAt = State->Systems[4].SystemID;
+		CosmicWandererPolicy::Act(Walks, *Sim, *Role, NAME_None, Back);
+		TestEqual(TEXT("Not straight back to the system it left: the first other open neighbour"), State->Player.TravelTargetSystemID, State->Systems[3].SystemID);
+		TestEqual(TEXT("and no second scan of the same arrival"), Back.Scans, 0);
+	}
+
+	// One scan on each arrival: a vessel with no open lane stays and scans once.
+	{
+		FGalaxyState* State = LayBoard(*Sim, TablesWith(Original, Cards()));
+		Walk(*Sim, *Role, 4);
+		State->Systems[4].Lanes.Reset();
+		FCosmicWandererPolicyCounts Counts;
+		CosmicWandererPolicy::Act(Walks, *Sim, *Role, NAME_None, Counts);
+		CosmicWandererPolicy::Act(Walks, *Sim, *Role, NAME_None, Counts);
+		TestTrue(TEXT("Stranded, it scans once and goes nowhere"), Counts.Scans == 1 && Counts.Journeys == 0 && !CosmicWanderer::IsTravelling(*State));
+	}
+
+	// The card's choices in turn, from the count of answers: the second answer takes the second choice.
+	{
+		FGalaxyState* State = LayBoard(*Sim, TablesWith(Original, Cards()));
+		Walk(*Sim, *Role, 4);
+		State->Player.CurrentSystemID = State->Systems[7].SystemID;
+		State->Knowing.PendingPetitionRow = ArriveA;
+		State->Knowing.PendingPetitionSystemID = State->Systems[7].SystemID;
+		const int32 Body = State->Player.Body;
+		FCosmicWandererPolicyCounts Counts;
+		Counts.Answers = 1;
+		CosmicWandererPolicy::Act(Walks, *Sim, *Role, ArriveA, Counts);
+		TestTrue(TEXT("The second answer takes the second choice (no Body)"), State->Knowing.PendingPetitionRow.IsNone() && State->Player.Body == Body && Counts.Answers == 2);
+	}
+
+	// No input after the provisional end: no abdication recorded, no scan, no journey.
+	{
+		FGalaxyState* State = LayBoard(*Sim, TablesWith(Original, Cards()));
+		State->Calling.Lives.Last().PeakTier = EAscensionTier::Tier3_Causal;
+		State->Tick = 10;
+		FCosmicWandererPolicyCounts Counts;
+		CosmicWandererPolicy::AbdicateIfDue(FCosmicWandererPolicy{ 10, true }, *Sim, *Role, Counts);
+		TestFalse(TEXT("After the end the policy records no abdication"), State->Calling.PendingEffect.IsValid());
+		Walk(*Sim, *Role, 4);
+		FCosmicWandererPolicyCounts Walking;
+		CosmicWandererPolicy::Act(Walks, *Sim, *Role, NAME_None, Walking);
+		TestTrue(TEXT("and the wanderer neither scans nor travels"), Walking.bEnded && Walking.Scans == 0 && Walking.Journeys == 0 && !CosmicWanderer::IsTravelling(*State));
 	}
 	return true;
 }

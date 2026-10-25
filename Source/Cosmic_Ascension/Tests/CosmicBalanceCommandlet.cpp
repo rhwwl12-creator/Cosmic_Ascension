@@ -32,6 +32,7 @@
 #include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 #include "World/CosmicRulerPolicy.h"
+#include "World/CosmicWandererPolicy.h"
 
 namespace
 {
@@ -424,6 +425,10 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	int32 Answer = 0;
 	int32 Build = 0;
 	int32 Focus = 0;
+	// The wanderer's policy (B1, World/CosmicWandererPolicy): -Abdicate=<tick> abdicates at that tick's boundary (the tenth
+	// stage of the next tick leaves), -Wander=1 walks - answers its cards, takes a throne the gate opens, scans, travels.
+	int64 AbdicateAt = 0;
+	int32 Wander = 0;
 	FString RulesText;
 	FString Out = TEXT("balance.csv");
 	FParse::Value(*Params, TEXT("Seed="), Seed);
@@ -434,6 +439,8 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	FParse::Value(*Params, TEXT("Answer="), Answer);
 	FParse::Value(*Params, TEXT("Build="), Build);
 	FParse::Value(*Params, TEXT("Focus="), Focus);
+	FParse::Value(*Params, TEXT("Abdicate="), AbdicateAt);
+	FParse::Value(*Params, TEXT("Wander="), Wander);
 	FParse::Value(*Params, TEXT("Rules="), RulesText, false);
 	FParse::Value(*Params, TEXT("Out="), Out);
 	const FString OutPath = FPaths::IsRelative(Out) ? FPaths::ProjectSavedDir() / TEXT("Balance") / Out : Out;
@@ -488,6 +495,11 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		int64 Samples = 0;
 		const FCosmicRulerPolicy RulerPolicy{ Answer != 0, Build != 0, Focus != 0 };
 		FCosmicRulerPolicyCounts RulerCounts;
+		const FCosmicWandererPolicy WandererPolicy{ AbdicateAt, Wander != 0 };
+		FCosmicWandererPolicyCounts WandererCounts;
+		// The people of the first reign: the ruler line's rung ticks are that people's (B1 - a later throne is the wanderer
+		// line's).
+		const FName FirstRuled = (!State.Calling.Lives.IsEmpty() && !State.Calling.Lives[0].RuledCivIDs.IsEmpty()) ? State.Calling.Lives[0].RuledCivIDs[0] : NAME_None;
 		for (int64 Done = 0; Done < Ticks; ++Done)
 		{
 			Before.Reset();
@@ -542,7 +554,11 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			// The ruler's input between ticks, before anything below reads the tick: its lines carry this tick and are counted
 			// with it, and a hazard an answer ends is seen ending in it. One function with the hash run of a game process
 			// (World/CosmicRulerPolicy - MVP item 9), so the cooked build plays the same inputs.
+			// The abdication first (B1 header section 5: the boundary's order - the end read, the abdication, the ruler's
+			// input, the wanderer's), so that a ruler who leaves at this tick still gives this tick's answers.
+			CosmicWandererPolicy::AbdicateIfDue(WandererPolicy, *Sim, *Role, WandererCounts);
 			CosmicRulerPolicy::Act(RulerPolicy, *Sim, *Role, CardBefore, RulerCounts);
+			CosmicWandererPolicy::Act(WandererPolicy, *Sim, *Role, CardBefore, WandererCounts);
 			Counts.CardsCome = RulerCounts.CardsCome;
 			Counts.Answers = RulerCounts.Answers;
 			Counts.Started = RulerCounts.Started;
@@ -605,7 +621,10 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			{
 				Counts.FirstJoinTick = State.Tick;
 			}
-			if (Counts.DeposedTick < 0 && RoleBefore == EPlayerRole::Ruler && State.Player.Role != EPlayerRole::Ruler)
+			// A deposition, not an abdication (B1: the wanderer line's 'left at' tells that one).
+			static const FGameplayTag DeposedTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Deposed")));
+			if (Counts.DeposedTick < 0 && RoleBefore == EPlayerRole::Ruler && State.Player.Role != EPlayerRole::Ruler && !State.Calling.Lives.IsEmpty()
+				&& !State.Calling.Lives.Last().ReignEndReasons.IsEmpty() && State.Calling.Lives.Last().ReignEndReasons.Last() == DeposedTag)
 			{
 				Counts.DeposedTick = State.Tick;
 			}
@@ -614,7 +633,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				SampleRows.FindOrAdd(State.Log[Index].SourceRow.ToString())++;
 				Counts.ToldLines += State.Log[Index].bUntold ? 0 : 1;
 			}
-			if (const FCivilizationState* Ruled = State.Civs.FindByPredicate([](const FCivilizationState& Civ) { return Civ.bIsPlayerRuled; }))
+			if (const FCivilizationState* Ruled = State.Civs.FindByPredicate([FirstRuled](const FCivilizationState& Civ) { return Civ.bIsPlayerRuled && Civ.CivID == FirstRuled; }))
 			{
 				Counts.RuledT2Tick = (Counts.RuledT2Tick < 0 && Ruled->Tier >= EAscensionTier::Tier2_Stellar) ? State.Tick : Counts.RuledT2Tick;
 				Counts.RuledT3Tick = (Counts.RuledT3Tick < 0 && Ruled->Tier >= EAscensionTier::Tier3_Causal) ? State.Tick : Counts.RuledT3Tick;
@@ -686,6 +705,14 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance ruler: answer %d build %d focus %d; cards %d, answers %d, started %d, focus changes %d, decisions %d (by 600 %lld, by 6000 %lld, by end %lld); told by 600 %lld, by 6000 %lld; ruled people T2 at %lld, T3 at %lld"),
 				Answer, Build, Focus, Counts.CardsCome, Counts.Answers, Counts.Started, Counts.FocusChanges, Counts.Answers + Counts.Started + Counts.FocusChanges,
 				Counts.DecisionsAt600, Counts.DecisionsAt6000, Counts.DecisionsAtEnd, Counts.ToldAt600, Counts.ToldAt6000, Counts.RuledT2Tick, Counts.RuledT3Tick);
+			// The wanderer's side (B1): only when the run asked for it (the lines of the runs before B1 stay as they were).
+			if (AbdicateAt > 0 || Wander != 0)
+			{
+				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance wanderer: abdicate %lld wander %d; left at %lld, crowned at %lld (%s, tier %d, path %s), journeys %d, scans %d, cards %d, answers %d, reverence peak %.2f, body %d, mind %d"),
+					AbdicateAt, Wander, WandererCounts.LeftAt, WandererCounts.CrownedAt, *WandererCounts.CrownedCivID.ToString(),
+					WandererCounts.CrownedAt >= 0 ? static_cast<int32>(WandererCounts.CrownedTier) + 1 : 0, WandererCounts.CrownedPath, WandererCounts.Journeys, WandererCounts.Scans,
+					WandererCounts.Cards, WandererCounts.Answers, WandererCounts.ReverencePeak, State.Player.Body, State.Player.Mind);
+			}
 			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance end: first %s at %lld; rung at %lld, clock at %lld, deposed at %lld; chronicle life %d shown %d of %d, more %d, ranks %d/%d/%d/%d"),
 				CosmicEndings::NameOf(Counts.FirstEnd), Counts.FirstEndTick, Counts.RungTick, Counts.ClockTick, Counts.DeposedTick, Counts.ChapterLife,
 				Counts.ChapterShown, Counts.ChapterCandidates, Counts.ChapterMore, Counts.ChapterRanks[0], Counts.ChapterRanks[1], Counts.ChapterRanks[2], Counts.ChapterRanks[3]);
