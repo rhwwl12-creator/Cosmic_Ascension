@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
+@@ -639,7 +639,7 @@
+ 		ResearchText->SetText(FText::GetEmpty());
+ 	}
+ 	// The wanderer's line (B1): shown while it has words - an embodied wanderer -, collapsed otherwise.
+-	const FText Wandering = Civ ? FText::GetEmpty() : WandererLineOf(State, Sim->GetStateIndex(), ACosmicPlayerController::TimeUnitFor(*this));
++	const FText Wandering = true ? FText::GetEmpty() : WandererLineOf(State, Sim->GetStateIndex(), ACosmicPlayerController::TimeUnitFor(*this));
+ 	if (!WandererText->GetText().ToString().Equals(Wandering.ToString(), ESearchCase::CaseSensitive))
+ 	{
+ 		WandererText->SetText(Wandering);

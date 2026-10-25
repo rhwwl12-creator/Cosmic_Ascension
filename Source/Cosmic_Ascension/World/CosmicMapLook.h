@@ -136,6 +136,9 @@ struct COSMIC_ASCENSION_API FCosmicKnownView
 	// keeping its place - while the viewer is shown it (CosmicMapLook::IsShownPeople); INDEX_NONE otherwise. Under bSeeAll
 	// every people is shown, and one not met follows the met ones in Civs order.
 	TArray<int32> ShownOrder;
+	// By civilization index: Knowing.MetCivs holds it (B1 - the coronation's gate, CosmicWanderer::CrownBlockOf, asks it
+	// here). The same under bSeeAll: the aid shows every people but meets none.
+	TBitArray<> Met;
 	// The development aid CosmicSeeAll.
 	bool bSeeAll = false;
 	// The petition card waiting for the player's answer and the system it is about (Knowing.PendingPetitionRow and
@@ -149,6 +152,19 @@ struct COSMIC_ASCENSION_API FCosmicKnownView
 	// system panel's gate: known, or shown by its name.
 	bool IsShown(int32 SystemIndex) const { return IsKnown(SystemIndex) || IsShownByName(SystemIndex); }
 	int32 ShownOrderOf(int32 CivIndex) const { return ShownOrder.IsValidIndex(CivIndex) ? ShownOrder[CivIndex] : INDEX_NONE; }
+	bool IsMet(int32 CivIndex) const { return Met.IsValidIndex(CivIndex) && Met[CivIndex]; }
+};
+
+/** Where the map draws the vessel (B1): the system it stands in - while it travels, the one it left -, the system it
+ * travels to and how far along that lane. */
+struct COSMIC_ASCENSION_API FCosmicVesselLook
+{
+	// By system index; INDEX_NONE: no mark (a ruler, a vessel that is not embodied).
+	int32 FromIndex = INDEX_NONE;
+	// INDEX_NONE while it stands.
+	int32 ToIndex = INDEX_NONE;
+	// The share of the lane done, 0 to 1 (0 while it stands).
+	float Share = 0.f;
 };
 
 /** How the owner of a system is shown (section 6.4): the one answer the map's rings and labels and the panel's lines read. */
@@ -321,6 +337,12 @@ namespace CosmicMapLook
 	/** The lanes of Lanes (LanesOf) whose two ends the view shows (section 6.4, FCosmicKnownView::IsShown), in their order:
 	 * no stub toward an unknown end. */
 	COSMIC_ASCENSION_API TArray<TPair<int32, int32>> KnownLanesOf(const TArray<TPair<int32, int32>>& Lanes, const FCosmicKnownView& View);
+
+	/** The vessel's mark (B1 header section 4): an embodied wanderer's system and, while it travels, its target and the
+	 * share of the lane done - 1 - TravelTicksRemaining / the lane's ticks (CosmicWanderer::LaneTicksOf), within 0..1. No
+	 * mark for a ruler or a vessel that is not embodied. Reads no knowing: the system a wanderer stands in and its lane
+	 * neighbours are always known. */
+	COSMIC_ASCENSION_API FCosmicVesselLook VesselLookOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules);
 
 	// ---- The backdrop (section 3.1 layer 1, 6.4): the points of the galaxy's disc, an unknown system's among them ----
 

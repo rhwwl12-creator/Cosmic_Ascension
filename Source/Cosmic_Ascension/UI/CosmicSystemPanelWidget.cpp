@@ -18,12 +18,17 @@
 #include "Data/CosmicRowNames.h"
 #include "Engine/DataTable.h"
 #include "Engine/GameInstance.h"
+#include "Engine/World.h"
+#include "GameplayTagContainer.h"
+#include "HAL/PlatformTime.h"
 #include "Layout/Margin.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicResearch.h"
 #include "Sim/CosmicStateIndex.h"
+#include "Sim/CosmicWanderer.h"
 #include "Sim/GalaxySimulationSubsystem.h"
+#include "TimerManager.h"
 #include "UI/CosmicActionButton.h"
 #include "UI/CosmicNextRung.h"
 #include "UI/CosmicUILabels.h"
@@ -158,7 +163,99 @@ namespace CosmicSystemPanelImpl
 	{
 		return A.ToString().Equals(B.ToString(), ESearchCase::CaseSensitive);
 	}
+
+	// The words of a greyed travel button (B1): the short ones after its name (bShort), the long ones first in its tooltip;
+	// null for None and for the reasons that show no button (the target is no lane neighbour, the vessel no wanderer, a
+	// handler - and the sanctuary, which has no lane).
+	const TCHAR* TravelKeyOf(CosmicWanderer::ETravelBlock Block, bool bShort)
+	{
+		switch (Block)
+		{
+		case CosmicWanderer::ETravelBlock::Travelling:
+			return bShort ? TEXT("Wander.Suffix.Travelling") : TEXT("Wander.Block.Travelling");
+		case CosmicWanderer::ETravelBlock::CardWaiting:
+			return bShort ? TEXT("Wander.Suffix.CardWaiting") : TEXT("Wander.Block.CardWaiting");
+		case CosmicWanderer::ETravelBlock::None:
+		case CosmicWanderer::ETravelBlock::NotWanderer:
+		case CosmicWanderer::ETravelBlock::Sanctuary:
+		case CosmicWanderer::ETravelBlock::NotNeighbour:
+		case CosmicWanderer::ETravelBlock::Handler:
+			break;
+		}
+		return nullptr;
+	}
+
+	// The words of a greyed crown button, in the same two lengths (ThroneLocked's take the time left as {0}); null for
+	// None and for the reasons that show no button (the vessel stands elsewhere or in a system being settled).
+	const TCHAR* CrownKeyOf(CosmicWanderer::ECrownBlock Block, bool bShort)
+	{
+		switch (Block)
+		{
+		case CosmicWanderer::ECrownBlock::Travelling:
+			return bShort ? TEXT("Wander.Suffix.Travelling") : TEXT("Wander.Block.Travelling");
+		case CosmicWanderer::ECrownBlock::CardWaiting:
+			return bShort ? TEXT("Wander.Suffix.CardWaiting") : TEXT("Wander.Block.CardWaiting");
+		case CosmicWanderer::ECrownBlock::Unmet:
+			return bShort ? TEXT("Wander.Suffix.Unmet") : TEXT("Wander.Block.Unmet");
+		case CosmicWanderer::ECrownBlock::ThroneLocked:
+			return bShort ? TEXT("Wander.Suffix.Locked") : TEXT("Wander.Block.Locked");
+		case CosmicWanderer::ECrownBlock::Lacking:
+			return bShort ? TEXT("Wander.Suffix.Lacking") : TEXT("Wander.Block.Lacking");
+		case CosmicWanderer::ECrownBlock::None:
+		case CosmicWanderer::ECrownBlock::NotWanderer:
+		case CosmicWanderer::ECrownBlock::NotStanding:
+		case CosmicWanderer::ECrownBlock::NotSettled:
+		case CosmicWanderer::ECrownBlock::Handler:
+			break;
+		}
+		return nullptr;
+	}
+
+	// Builds Buttons again in Box only when the list of their actions changes (a click spans a press and a release, a
+	// button built again between them drops it, and the simulation ticks up to 25 times a second); otherwise each button
+	// keeps its object and takes its label, state and tooltip in place. Bind hooks a new button to its handler.
+	template <typename FBind>
+	void SyncButtons(UWidgetTree& Tree, UVerticalBox& Box, TArray<TObjectPtr<UCosmicActionButton>>& Buttons, const TArray<FWantedButton>& Wanted, FBind&& Bind)
+	{
+		bool bSameActions = Buttons.Num() == Wanted.Num();
+		for (int32 At = 0; bSameActions && At < Wanted.Num(); ++At)
+		{
+			bSameActions = Buttons[At] && Buttons[At]->GetAction() == Wanted[At].Action;
+		}
+		if (!bSameActions)
+		{
+			Box.ClearChildren();
+			Buttons.Reset();
+			for (const FWantedButton& Want : Wanted)
+			{
+				UCosmicActionButton* Button = Tree.ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
+				Button->Setup(Want.Action, 0.f, Want.Label);
+				Bind(*Button);
+				Box.AddChildToVerticalBox(Button)->SetPadding(FMargin(0.f, 2.f));
+				Buttons.Add(Button);
+			}
+		}
+		for (int32 At = 0; At < Wanted.Num(); ++At)
+		{
+			UCosmicActionButton* Button = Buttons[At];
+			if (!SameWords(Button->GetLabel(), Wanted[At].Label))
+			{
+				Button->Setup(Wanted[At].Action, 0.f, Wanted[At].Label);
+			}
+			Button->SetIsEnabled(Wanted[At].Reason.IsEmpty());
+			// A tooltip set again is a new tooltip (SWidget::SetToolTipText makes one), and an open one would close.
+			if (!SameWords(Button->GetToolTipText(), Wanted[At].Tip))
+			{
+				Button->SetToolTipText(Wanted[At].Tip);
+			}
+		}
+	}
 }
+
+const FName UCosmicSystemPanelWidget::TravelAction(TEXT("travel"));
+const FName UCosmicSystemPanelWidget::ScanAction(TEXT("scan"));
+const FName UCosmicSystemPanelWidget::CrownAction(TEXT("crown"));
+const FName UCosmicSystemPanelWidget::AbdicateAction(TEXT("abdicate"));
 
 TSharedRef<SWidget> UCosmicSystemPanelWidget::RebuildWidget()
 {
@@ -189,6 +286,22 @@ TSharedRef<SWidget> UCosmicSystemPanelWidget::RebuildWidget()
 		Column->AddChildToVerticalBox(MarkText)->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
 		ButtonBox = WidgetTree->ConstructWidget<UVerticalBox>();
 		Column->AddChildToVerticalBox(ButtonBox);
+		// The wanderer's row (B1): a box of its own under the project buttons, so GetActionButtons stays the projects'.
+		WandererBox = WidgetTree->ConstructWidget<UVerticalBox>();
+		Column->AddChildToVerticalBox(WandererBox);
+		// The ruler's [Abdicate] (B1): built once, shown on the capital's panel only.
+		AbdicateButton = WidgetTree->ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
+		AbdicateButton->Setup(AbdicateAction, 0.f, CosmicUI::Label(TEXT("Wander.Abdicate")));
+		AbdicateButton->OnAction.AddUObject(this, &UCosmicSystemPanelWidget::HandleWanderer);
+		AbdicateButton->SetVisibility(ESlateVisibility::Collapsed);
+		Column->AddChildToVerticalBox(AbdicateButton)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
+		// The first ship's line (B1): grey and quiet, under [Abdicate] on the capital's panel, once a session (the hint line
+		// and the research focus below keep their order).
+		ShipHintText = CosmicUI::MakeText(*WidgetTree, 13);
+		ShipHintText->SetColorAndOpacity(FSlateColor(FLinearColor(0.6f, 0.6f, 0.65f)));
+		ShipHintText->SetText(CosmicUI::Label(TEXT("Hint.FirstShip")));
+		ShipHintText->SetVisibility(ESlateVisibility::Collapsed);
+		Column->AddChildToVerticalBox(ShipHintText)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
 		ReasonText = CosmicUI::MakeText(*WidgetTree, 13);
 		ReasonText->SetColorAndOpacity(FSlateColor(FLinearColor(0.85f, 0.85f, 0.9f)));
 		ReasonText->SetVisibility(ESlateVisibility::Collapsed);
@@ -443,6 +556,12 @@ FText UCosmicSystemPanelWidget::StartHintOf(const FCosmicDataTables& Tables, FNa
 
 void UCosmicSystemPanelWidget::ShowSystem(FName SystemID)
 {
+	// Another system: [Abdicate] is no longer armed, and the scan's 'nothing new' goes.
+	if (SystemID != ShownSystemID)
+	{
+		AbdicateArmedAt = -1.0;
+		ScanNothingAt = NAME_None;
+	}
 	ShownSystemID = SystemID;
 	Refresh();
 }
@@ -552,6 +671,68 @@ void UCosmicSystemPanelWidget::HandleAction(FName Action, float Value)
 	Refresh();
 }
 
+void UCosmicSystemPanelWidget::HandleWanderer(FName Action, float Value)
+{
+	if (Action == AbdicateAction)
+	{
+		PressAbdicate(FPlatformTime::Seconds());
+		return;
+	}
+	// Through the controller, which redraws the HUD and the map after a command (a paused simulation sends no tick).
+	ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer());
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (Controller && Sim)
+	{
+		if (Action == TravelAction)
+		{
+			Controller->TravelTo(ShownSystemID);
+		}
+		else if (Action == ScanAction)
+		{
+			// A scan that learned nothing says so on the panel (header section 2.3), while the vessel stands there.
+			const int32 Learned = Controller->ScanHere();
+			ScanNothingAt = Learned == 0 ? Sim->GetState().Player.CurrentSystemID : NAME_None;
+		}
+		else if (Action == CrownAction)
+		{
+			const int32 SystemIndex = Sim->GetStateIndex().FindSystem(Sim->GetState(), ShownSystemID);
+			if (Sim->GetState().Systems.IsValidIndex(SystemIndex))
+			{
+				Controller->TakeThrone(Sim->GetState().Systems[SystemIndex].OwnerCivID);
+			}
+		}
+	}
+	Refresh();
+}
+
+bool UCosmicSystemPanelWidget::IsAbdicateArmed(double NowSeconds) const
+{
+	return AbdicateArmedAt >= 0.0 && NowSeconds >= AbdicateArmedAt && NowSeconds - AbdicateArmedAt <= AbdicateConfirmSeconds;
+}
+
+void UCosmicSystemPanelWidget::PressAbdicate(double NowSeconds)
+{
+	if (IsAbdicateArmed(NowSeconds))
+	{
+		AbdicateArmedAt = -1.0;
+		if (ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer()))
+		{
+			Controller->Abdicate();
+		}
+	}
+	else
+	{
+		AbdicateArmedAt = NowSeconds;
+		// The label goes back by itself when the window closes: a paused simulation sends no tick to redraw it.
+		if (UWorld* World = GetWorld())
+		{
+			World->GetTimerManager().SetTimer(AbdicateTimer, FTimerDelegate::CreateUObject(this, &UCosmicSystemPanelWidget::Refresh),
+				static_cast<float>(AbdicateConfirmSeconds) + 0.05f, false);
+		}
+	}
+	Refresh();
+}
+
 void UCosmicSystemPanelWidget::HandleFocus(FName Field, float Value)
 {
 	// Through the controller, which redraws the HUD after a change (a paused simulation sends no tick).
@@ -598,6 +779,11 @@ void UCosmicSystemPanelWidget::Refresh()
 	FText SpiritWords;
 	// The people whose research focus the panel shows (MVP item 7): the ruled people, on a settled system of its own.
 	const FCivilizationState* FocusCiv = nullptr;
+	// The wanderer's row (B1), and whether the panel shows the ruled people's capital ([Abdicate], the first-ship line).
+	TArray<FWantedButton> WandererWanted;
+	ShownTravelBlock.Reset();
+	ShownCrownBlock.Reset();
+	bool bCapital = false;
 	// The panel's gate of knowledge: a known system, or the sanctuary by its name (the view's ShownByName - its own
 	// panel, section 6.3).
 	if (State.Systems.IsValidIndex(SystemIndex) && View.IsShown(SystemIndex))
@@ -632,6 +818,18 @@ void UCosmicSystemPanelWidget::Refresh()
 			if (OwnerShown == ECosmicOwnerShown::Shown && State.Civs.IsValidIndex(OwnerIndex))
 			{
 				Lines.Add(PeopleLine(Sim->GetPopulationBand(State.Civs[OwnerIndex].CivID)));
+			}
+			// How much a shown people looks up to the vessel, for a wanderer (B1 - what a coronation reads; a number of the
+			// screen only).
+			if (OwnerShown == ECosmicOwnerShown::Shown && State.Civs.IsValidIndex(OwnerIndex) && CosmicWanderer::IsEmbodiedWanderer(State))
+			{
+				Lines.Add(FText::Format(Label(TEXT("Wander.Reverence")), Percent(State.Civs[OwnerIndex].ReverenceToPlayer)));
+			}
+			// The scan that learned nothing here (B1), while the vessel still stands here.
+			if (!ScanNothingAt.IsNone() && System.SystemID == ScanNothingAt && CosmicWanderer::IsEmbodiedWanderer(State)
+				&& State.Player.CurrentSystemID == ScanNothingAt && !CosmicWanderer::IsTravelling(State))
+			{
+				Lines.Add(Label(TEXT("Wander.ScanNothing")));
 			}
 			// The life of the world (section 5.7), after the people: the world's other life (none on the sanctuary, whose
 			// owner line says it is kept).
@@ -721,46 +919,117 @@ void UCosmicSystemPanelWidget::Refresh()
 				bEnded ? EndBlock : JoinLines({ Reason, bHint ? StartHintOf(Tables, CosmicRows::ProjectSettle, System, Unit) : FText::GetEmpty() }) });
 			bSettleButton = true;
 		}
+		bCapital = bRules && !bDead && OwnerIndex == RuledIndex && System.SystemID == State.Civs[RuledIndex].HomeSystemID;
+
+		// The wanderer's commands (B1 header section 4): the commands' own gates, fed the knowing they need from the view
+		// (rule 14); the first reason greys the button, its short words after the name, its long words first in the tooltip.
+		if (!bDead && CosmicWanderer::IsEmbodiedWanderer(State))
+		{
+			const bool bCardWaiting = !View.PendingPetitionRow.IsNone();
+			const int32 Here = Index.FindSystem(State, State.Player.CurrentSystemID);
+			auto Want = [&](FName Action, const FText& Name, const FText& Short, const FText& Reason, const TArray<FText>& TipLines)
+			{
+				const FText Suffix = bEnded ? Label(TEXT("Chronicle.Suffix")) : Short;
+				TArray<FText> Tip = { Reason };
+				Tip.Append(TipLines);
+				WandererWanted.Add({ Action, Suffix.IsEmpty() ? Name : FText::Format(INVTEXT("{0}  {1}"), Name, Suffix), bEnded ? EndBlock : Reason,
+					bEnded ? EndBlock : JoinLines(Tip) });
+			};
+			if (SystemIndex == Here)
+			{
+				// [Scan]: refused only under way (no card waits for it).
+				const bool bUnderWay = CosmicWanderer::IsTravelling(State);
+				Want(ScanAction, Label(TEXT("Wander.Scan")), bUnderWay ? Label(TEXT("Wander.Suffix.Travelling")) : FText::GetEmpty(),
+					bUnderWay ? Label(TEXT("Wander.Block.Travelling")) : FText::GetEmpty(), { Label(TEXT("Wander.ScanTip")) });
+				// [Crown] or [Return]: on a settled system of a people.
+				if (State.Civs.IsValidIndex(OwnerIndex) && CosmicState::IsSettled(System))
+				{
+					const FCivilizationState& Owner = State.Civs[OwnerIndex];
+					const CosmicWanderer::ECrownBlock Block = CosmicWanderer::CrownBlockOf(State, Index, Sim->GetRules(), Owner.CivID, View.IsMet(OwnerIndex), bCardWaiting);
+					const TCHAR* const LongKey = CrownKeyOf(Block, false);
+					if (Block == CosmicWanderer::ECrownBlock::None || LongKey)
+					{
+						ShownCrownBlock = Block;
+						const bool bReturn = CosmicWanderer::IsReturn(State, Owner.CivID);
+						// The lock's time left, counted down as the clock counts: on the label only - a tooltip that changed every
+						// tick would close every tick.
+						const FText Left = TimeLeftLabel(FMath::Max<int64>(0, Owner.ThroneLockedUntilTick - State.Tick), Unit);
+						auto Words = [&](const TCHAR* Key, bool bShort)
+						{
+							return !Key ? FText::GetEmpty() : ((bShort && Block == CosmicWanderer::ECrownBlock::ThroneLocked) ? FText::Format(Label(Key), Left) : Label(Key));
+						};
+						TArray<FText> TipLines;
+						// What a refused crown of a shown people lacks: its reverence and the two thresholds (numbers of the screen).
+						if (Block == CosmicWanderer::ECrownBlock::Lacking && CosmicMapLook::OwnerShownOf(State, View, SystemIndex) == ECosmicOwnerShown::Shown)
+						{
+							TipLines.Add(FText::Format(Label(TEXT("Wander.Block.LackingTip")), Percent(Owner.ReverenceToPlayer),
+								Percent(Sim->GetRules().CoronationReverence), Percent(Sim->GetRules().CoronationStabilityBelow)));
+						}
+						TipLines.Add(Label(bReturn ? TEXT("Wander.ReturnTip") : TEXT("Wander.CrownTip")));
+						Want(CrownAction, Label(bReturn ? TEXT("Wander.Return") : TEXT("Wander.Crown")), Words(CrownKeyOf(Block, true), true), Words(LongKey, false), TipLines);
+					}
+				}
+			}
+			else if (State.Systems.IsValidIndex(Here) && State.Systems[Here].Lanes.Contains(System.SystemID) && System.GalaxyRow == State.Systems[Here].GalaxyRow)
+			{
+				// [Travel]: on a living lane neighbour, with the lane's time.
+				const CosmicWanderer::ETravelBlock Block = CosmicWanderer::TravelBlockOf(State, Index, System.SystemID, bCardWaiting);
+				const TCHAR* const LongKey = TravelKeyOf(Block, false);
+				if (Block == CosmicWanderer::ETravelBlock::None || LongKey)
+				{
+					ShownTravelBlock = Block;
+					const TCHAR* const ShortKey = TravelKeyOf(Block, true);
+					Want(TravelAction, FText::Format(Label(TEXT("Wander.Travel")), DurationLabel(CosmicWanderer::LaneTicksOf(Sim->GetRules()), Unit)),
+						ShortKey ? Label(ShortKey) : FText::GetEmpty(), LongKey ? Label(LongKey) : FText::GetEmpty(), { Label(TEXT("Wander.TravelTip")) });
+				}
+			}
+		}
 	}
 	else
 	{
 		SetVisibility(ESlateVisibility::Collapsed);
 	}
 
-	// The buttons are built again only when the list of their actions changes. A click spans a press and a release, a
-	// button built again between them drops it, and the simulation ticks up to 25 times a second (x25): otherwise each button
-	// keeps its object and takes its label, state and tooltip in place.
-	bool bSameActions = ActionButtons.Num() == Wanted.Num();
-	for (int32 At = 0; bSameActions && At < Wanted.Num(); ++At)
+	// The project buttons, then the wanderer's row (B1): each list built again only when its actions change.
+	SyncButtons(*WidgetTree, *ButtonBox, ActionButtons, Wanted, [this](UCosmicActionButton& Button)
 	{
-		bSameActions = ActionButtons[At] && ActionButtons[At]->GetAction() == Wanted[At].Action;
-	}
-	if (!bSameActions)
+		Button.OnAction.AddUObject(this, &UCosmicSystemPanelWidget::HandleAction);
+	});
+	SyncButtons(*WidgetTree, *WandererBox, WandererButtons, WandererWanted, [this](UCosmicActionButton& Button)
 	{
-		ButtonBox->ClearChildren();
-		ActionButtons.Reset();
-		for (const FWantedButton& Want : Wanted)
+		Button.OnAction.AddUObject(this, &UCosmicSystemPanelWidget::HandleWanderer);
+	});
+
+	// The ruler's [Abdicate] on the capital (B1): armed by a first press, greyed while a role effect waits for the tick (the
+	// abdication itself, or a deposition), greyed with the end's reason in an ended run.
+	AbdicateButton->SetVisibility(bCapital ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	if (bCapital)
+	{
+		// A role effect waits for the tick: the abdication itself, or a fall (the throne card's failed check) - each in its
+		// own words.
+		static const FGameplayTag AbdicatedTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Abdicated")));
+		const bool bLeaving = State.Calling.PendingEffect.IsValid();
+		const bool bAbdicating = bLeaving && State.Calling.PendingCause == AbdicatedTag;
+		const bool bArmed = !bLeaving && IsAbdicateArmed(FPlatformTime::Seconds());
+		const FText Name = Label(bArmed ? TEXT("Wander.AbdicateAgain") : TEXT("Wander.Abdicate"));
+		const FText Suffix = bEnded ? Label(TEXT("Chronicle.Suffix")) : (bLeaving ? Label(TEXT("Wander.Suffix.Leaving")) : FText::GetEmpty());
+		const FText AbdicateLabel = Suffix.IsEmpty() ? Name : FText::Format(INVTEXT("{0}  {1}"), Name, Suffix);
+		if (!SameWords(AbdicateButton->GetLabel(), AbdicateLabel))
 		{
-			UCosmicActionButton* Button = WidgetTree->ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
-			Button->Setup(Want.Action, 0.f, Want.Label);
-			Button->OnAction.AddUObject(this, &UCosmicSystemPanelWidget::HandleAction);
-			ButtonBox->AddChildToVerticalBox(Button)->SetPadding(FMargin(0.f, 2.f));
-			ActionButtons.Add(Button);
+			AbdicateButton->Setup(AbdicateAction, 0.f, AbdicateLabel);
+		}
+		AbdicateButton->SetIsEnabled(!bEnded && !bLeaving);
+		const FText Tip = bEnded ? EndBlock
+			: (bAbdicating ? JoinLines({ Label(TEXT("Wander.Block.Leaving")), Label(TEXT("Wander.AbdicateTip")) })
+				: (bLeaving ? Label(TEXT("Wander.Block.Deposed")) : Label(TEXT("Wander.AbdicateTip"))));
+		if (!SameWords(AbdicateButton->GetToolTipText(), Tip))
+		{
+			AbdicateButton->SetToolTipText(Tip);
 		}
 	}
-	for (int32 At = 0; At < Wanted.Num(); ++At)
+	else
 	{
-		UCosmicActionButton* Button = ActionButtons[At];
-		if (!SameWords(Button->GetLabel(), Wanted[At].Label))
-		{
-			Button->Setup(Wanted[At].Action, 0.f, Wanted[At].Label);
-		}
-		Button->SetIsEnabled(Wanted[At].Reason.IsEmpty());
-		// A tooltip set again is a new tooltip (SWidget::SetToolTipText makes one), and an open one would close.
-		if (!SameWords(Button->GetToolTipText(), Wanted[At].Tip))
-		{
-			Button->SetToolTipText(Wanted[At].Tip);
-		}
+		AbdicateArmedAt = -1.0;
 	}
 
 	// The reason line under a greyed-out settle button.
@@ -772,9 +1041,19 @@ void UCosmicSystemPanelWidget::Refresh()
 	ReasonText->SetVisibility(Reason.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 
 	// The hint line (MVP item 6): what the panel shows decides it, not who selected the system.
-	const ACosmicPlayerController* Owner = Cast<ACosmicPlayerController>(GetOwningPlayer());
+	ACosmicPlayerController* Owner = Cast<ACosmicPlayerController>(GetOwningPlayer());
 	const bool bHint = Owner && ShowsCommandHint(bEnabledProject, bEnded, Owner->GetHintProgress());
 	HintText->SetVisibility(bHint ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+
+	// The first ship's line (B1): on the capital's panel, once a session - it stays for the viewing it came in.
+	const bool bThisViewing = !ShipHintSystem.IsNone() && ShipHintSystem == ShownSystemID;
+	const bool bShip = Owner && ShowsShipHint(bCapital, State.Tick, bEnded, !State.Player.FormerCivID.IsNone(), Owner->GetHintProgress(), bThisViewing);
+	if (bShip && !Owner->GetHintProgress().bShipHinted)
+	{
+		Owner->NoteShipHinted();
+	}
+	ShipHintSystem = bShip ? ShownSystemID : NAME_None;
+	ShipHintText->SetVisibility(bShip ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 
 	// The research focus (MVP item 7): the heading names the focus now; the button that is it is greyed out, the others
 	// say the shares a press would give, a field the next rung reads says so. Words only when they change (a tooltip set

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -196,7 +196,7 @@
+ 		case CosmicWanderer::ECrownBlock::CardWaiting:
+ 			return bShort ? TEXT("Wander.Suffix.CardWaiting") : TEXT("Wander.Block.CardWaiting");
+ 		case CosmicWanderer::ECrownBlock::Unmet:
+-			return bShort ? TEXT("Wander.Suffix.Unmet") : TEXT("Wander.Block.Unmet");
++			return bShort ? TEXT("Wander.Suffix.Unmet") : TEXT("Wander.Block.Lacking");
+ 		case CosmicWanderer::ECrownBlock::ThroneLocked:
+ 			return bShort ? TEXT("Wander.Suffix.Locked") : TEXT("Wander.Block.Locked");
+ 		case CosmicWanderer::ECrownBlock::Lacking:

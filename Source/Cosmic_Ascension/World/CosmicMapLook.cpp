@@ -13,6 +13,7 @@
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
+#include "Sim/CosmicWanderer.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "UI/CosmicPalette.h"
 
@@ -407,9 +408,14 @@ FCosmicKnownView CosmicMapLook::KnownViewOf(const FGalaxyState& State, const FCo
 	// The meeting order: the place in MetCivs, a gone people keeping its place (CivIDs are never reused, so no colour
 	// ever passes to another people).
 	View.ShownOrder.Init(INDEX_NONE, State.Civs.Num());
+	View.Met.Init(false, State.Civs.Num());
 	for (int32 Order = 0; Order < State.Knowing.MetCivs.Num(); ++Order)
 	{
 		const int32 CivIndex = Index.FindCiv(State, State.Knowing.MetCivs[Order].ID);
+		if (View.Met.IsValidIndex(CivIndex))
+		{
+			View.Met[CivIndex] = true;
+		}
 		if (State.Civs.IsValidIndex(CivIndex) && View.ShownOrder[CivIndex] == INDEX_NONE
 			&& (bSeeAll || IsShownPeople(true, State.Civs[CivIndex], ViewerTier)))
 		{
@@ -569,4 +575,27 @@ FCosmicBackdropPoint CosmicMapLook::BackdropSlotOf(int32 Seed, FName SystemID, c
 	Stream.Initialize(static_cast<int32>(CosmicSeed::DeriveForName(Seed, SystemID, CosmicSeed::Purpose::Backdrop, 0)));
 	BackdropLookOf(Stream, DiscRadius, Point);
 	return Point;
+}
+
+FCosmicVesselLook CosmicMapLook::VesselLookOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules)
+{
+	FCosmicVesselLook Look;
+	if (!CosmicWanderer::IsEmbodiedWanderer(State))
+	{
+		return Look;
+	}
+	const int32 From = Index.FindSystem(State, State.Player.CurrentSystemID);
+	if (!State.Systems.IsValidIndex(From))
+	{
+		return Look;
+	}
+	Look.FromIndex = From;
+	const int32 To = CosmicWanderer::IsTravelling(State) ? Index.FindSystem(State, State.Player.TravelTargetSystemID) : INDEX_NONE;
+	if (State.Systems.IsValidIndex(To))
+	{
+		Look.ToIndex = To;
+		const float Lane = static_cast<float>(CosmicWanderer::LaneTicksOf(Rules));
+		Look.Share = FMath::Clamp(1.f - static_cast<float>(State.Player.TravelTicksRemaining) / Lane, 0.f, 1.f);
+	}
+	return Look;
 }

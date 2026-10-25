@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1009,7 +1009,7 @@
+ 		// own words.
+ 		static const FGameplayTag AbdicatedTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Abdicated")));
+ 		const bool bLeaving = State.Calling.PendingEffect.IsValid();
+-		const bool bAbdicating = bLeaving && State.Calling.PendingCause == AbdicatedTag;
++		const bool bAbdicating = bLeaving;
+ 		const bool bArmed = !bLeaving && IsAbdicateArmed(FPlatformTime::Seconds());
+ 		const FText Name = Label(bArmed ? TEXT("Wander.AbdicateAgain") : TEXT("Wander.Abdicate"));
+ 		const FText Suffix = bEnded ? Label(TEXT("Chronicle.Suffix")) : (bLeaving ? Label(TEXT("Wander.Suffix.Leaving")) : FText::GetEmpty());

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -821,7 +821,7 @@
+ 			}
+ 			// How much a shown people looks up to the vessel, for a wanderer (B1 - what a coronation reads; a number of the
+ 			// screen only).
+-			if (OwnerShown == ECosmicOwnerShown::Shown && State.Civs.IsValidIndex(OwnerIndex) && CosmicWanderer::IsEmbodiedWanderer(State))
++			if (false)
+ 			{
+ 				Lines.Add(FText::Format(Label(TEXT("Wander.Reverence")), Percent(State.Civs[OwnerIndex].ReverenceToPlayer)));
+ 			}

@@ -91,6 +91,11 @@ public:
 	void SetSelectedSystem(FName SystemID);
 	/** The system the last refresh drew the selection ring around; None for none. */
 	FName GetDrawnSelection() const { return DrawnSelection; }
+	/** The system the last refresh drew the vessel's mark at (B1: an embodied wanderer's system - while it travels, the one
+	 * it left; CosmicMapLook::VesselLookOf); None for none. */
+	FName GetDrawnVesselSystem() const { return DrawnVesselSystem; }
+	/** Whether the last refresh lit the lane the vessel travels. */
+	bool IsVesselLaneDrawn() const { return bDrawnVesselLane; }
 
 	/** The camera's distance (its arm length): from afar labels thin out (CosmicMapLook::ShowsLabel) and lines keep about
 	 * a pixel's width. Marks a refresh when the far view flips or the distance moved by more than 5%. It also reads where
@@ -243,6 +248,8 @@ private:
 
 	FName SelectedSystemID;
 	FName DrawnSelection;
+	FName DrawnVesselSystem;
+	bool bDrawnVesselLane = false;
 	float ViewDistance = 17500.f;
 	bool bFarView = true;
 	float LaneThickness = 30.f;

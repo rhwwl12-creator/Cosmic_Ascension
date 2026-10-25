@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1776,7 +1776,7 @@
+ 	// The card stopped the time and nothing else set a speed since: the time runs again (as the ascension presentation
+ 	// gives its speed back). A chained card keeps it standing.
+ 	if (Card && Card->GetShownRow().IsNone() && Sim && !(Sim->GetTimeScale() > 0.f)
+-		&& (AutoPauseReason == ECosmicAutoPause::Card || AutoPauseReason == ECosmicAutoPause::Encounter))
++		&& (AutoPauseReason == ECosmicAutoPause::Card))
+ 	{
+ 		SetSpeed(SpeedBeforePause);
+ 	}

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1732,7 +1732,7 @@
+ 		// A wanderer's card is no petition: its own words on the top bar (B1).
+ 		const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+ 		const FEncounterDef* Row = Sim ? Sim->GetTables().FindEncounter(View.PendingPetitionRow) : nullptr;
+-		RequestAutoPause((Row && CosmicPetitions::IsWandererCard(*Row)) ? ECosmicAutoPause::Encounter : ECosmicAutoPause::Card);
++		RequestAutoPause((Row && CosmicPetitions::IsWandererCard(*Row)) ? ECosmicAutoPause::Card : ECosmicAutoPause::Card);
+ 	}
+ }
+ 

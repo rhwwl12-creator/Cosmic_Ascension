@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -712,7 +712,7 @@
+ 
+ void UCosmicSystemPanelWidget::PressAbdicate(double NowSeconds)
+ {
+-	if (IsAbdicateArmed(NowSeconds))
++	if (true)
+ 	{
+ 		AbdicateArmedAt = -1.0;
+ 		if (ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer()))

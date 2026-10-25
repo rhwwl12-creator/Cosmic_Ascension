@@ -42,7 +42,9 @@
 			"Save.": {"forbidden": "verdict", "no_digits": true},
 			"Hint.": {"forbidden": "verdict", "no_digits": true},
 			"Galaxy.Hint": {"forbidden": "verdict", "no_digits": true},
-			"Focus.": {"forbidden": "verdict", "no_digits": true}
+			"Focus.": {"forbidden": "verdict", "no_digits": true},
+			"Wander.": {"forbidden": "verdict", "no_digits": true},
+			"Petition.": {"forbidden": "verdict"}
 		}
 	},
 

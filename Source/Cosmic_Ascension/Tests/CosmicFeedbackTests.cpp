@@ -379,6 +379,53 @@ bool FCosmicUIFirstHintsTest::RunTest(const FString& Parameters)
 	Panel->ShowSystem(Sim->GetState().Systems[Home].SystemID);
 	Panel->Refresh();
 	TestFalse(TEXT("nor does it come back on a new galaxy of the session"), LineShown());
+
+	// ---- The first ship's line (B1): on the capital's panel once a session, from 8:30 of x1 for ten minutes ----
+	{
+		FCosmicHintProgress Fresh;
+		FCosmicHintProgress Hinted;
+		Hinted.bShipHinted = true;
+		const int64 From = CosmicUI::FirstShipFromTick;
+		TestTrue(TEXT("The capital at 8:30: the ship's line"), CosmicUI::ShowsShipHint(true, From, false, false, Fresh, false));
+		TestFalse(TEXT("a tick before: none"), CosmicUI::ShowsShipHint(true, From - 1, false, false, Fresh, false));
+		TestFalse(TEXT("from 18:30: none"), CosmicUI::ShowsShipHint(true, CosmicUI::FirstShipUntilTick, false, false, Fresh, false));
+		TestFalse(TEXT("another panel: none"), CosmicUI::ShowsShipHint(false, From, false, false, Fresh, false));
+		TestFalse(TEXT("an ended run: none"), CosmicUI::ShowsShipHint(true, From, true, false, Fresh, false));
+		TestFalse(TEXT("a vessel that once left a throne: none"), CosmicUI::ShowsShipHint(true, From, false, true, Fresh, false));
+		TestFalse(TEXT("shown once this session: none"), CosmicUI::ShowsShipHint(true, From, false, false, Hinted, false));
+		TestTrue(TEXT("but it stays for the viewing it came in"), CosmicUI::ShowsShipHint(true, From, false, false, Hinted, true));
+
+		FGalaxyState& Run = Sim->GetMutableState();
+		auto ShipShown = [&]() { return Panel->GetShipHintText() && Panel->GetShipHintText()->GetVisibility() != ESlateVisibility::Collapsed; };
+		auto ShowCapital = [&]()
+		{
+			Panel->ShowSystem(NAME_None);
+			Panel->ShowSystem(Run.Systems[Home].SystemID);
+		};
+		Controller->SetHintProgress(FCosmicHintProgress());
+		const int64 Before = Run.Tick;
+		Run.Tick = From;
+		ShowCapital();
+		TestTrue(TEXT("The capital's panel at 8:30 shows the ship's line"), ShipShown());
+		TestFalse(TEXT("which has words"), Panel->GetShipHintText()->GetText().IsEmpty() || HasPlaceholder(Panel->GetShipHintText()->GetText()));
+		TestTrue(TEXT("and notes it for the session"), Controller->GetHintProgress().bShipHinted);
+		Panel->Refresh();
+		TestTrue(TEXT("It stays while the capital shows"), ShipShown());
+		Panel->ShowSystem(Run.Systems[Other].SystemID);
+		TestFalse(TEXT("Another system's panel has none"), ShipShown());
+		Panel->ShowSystem(Run.Systems[Home].SystemID);
+		TestFalse(TEXT("and the capital shown again has none: once a session"), ShipShown());
+		Controller->SetHintProgress(FCosmicHintProgress());
+		Run.Tick = 2000;
+		ShowCapital();
+		TestFalse(TEXT("A run continued at tick 2,000 shows none"), ShipShown());
+		Run.Tick = From;
+		Run.Player.FormerCivID = Run.Civs[0].CivID;
+		ShowCapital();
+		TestFalse(TEXT("A run whose vessel once left a throne shows none"), ShipShown());
+		Run.Player.FormerCivID = NAME_None;
+		Run.Tick = Before;
+	}
 	return true;
 }
 

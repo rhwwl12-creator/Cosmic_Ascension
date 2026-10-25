@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1857,7 +1857,6 @@
+ 	}
+ 	// The throne changed between ticks: the new people's standing crises are noted now - one that rises on the next tick
+ 	// still stops the time -, and the waiting card was cleared with it.
+-	FollowOwnHazards();
+ 	FollowPetition(false);
+ 	FollowCommand();
+ 	return true;

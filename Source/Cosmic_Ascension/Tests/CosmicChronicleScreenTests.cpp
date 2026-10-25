@@ -536,6 +536,28 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 		Mutable.RuledCivIDs.Pop();
 		Mutable.PeakTier = EAscensionTier::Tier1_Planetary;
 		Live.Civs[Ruled].Tier = EAscensionTier::Tier1_Planetary;
+
+		// The facts of a life that left one throne, took another and left it too (B1): the peoples in order, then 'wandering'.
+		const FGameplayTag Left = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Abdicated")));
+		const TArray<FGameplayTag> EndsBefore = Mutable.ReignEndReasons;
+		const TArray<int64> TicksBefore = Mutable.ReignTicks;
+		Mutable.ReignEndReasons.Last() = Left;
+		Mutable.RuledCivIDs.Add(Live.Civs[Other].CivID);
+		Mutable.ReignEndReasons.Add(Left);
+		Mutable.ReignTicks.Add(10);
+		Page->Open(ECosmicProvisionalEnd::Clock, true);
+		const FText Peoples = FText::Format(Label(TEXT("Chronicle.Then")), Live.Civs[Ruled].CivName, Live.Civs[Other].CivName);
+		TestEqual(TEXT("The facts name the peoples in order and the walking end"), Page->GetPageTexts()[1].ToString(),
+			CosmicUI::JoinList({ Peoples, Label(TEXT("Chronicle.Wandering")), Rung, Lasted }).ToString());
+		Mutable.RuledCivIDs.Pop();
+		// A return to the same people (left it, took it again): that people once.
+		Mutable.RuledCivIDs.Add(Live.Civs[Ruled].CivID);
+		Page->Open(ECosmicProvisionalEnd::Clock, true);
+		TestEqual(TEXT("A return to the same people names it once"), Page->GetPageTexts()[1].ToString(),
+			CosmicUI::JoinList({ Live.Civs[Ruled].CivName, Label(TEXT("Chronicle.Wandering")), Rung, Lasted }).ToString());
+		Mutable.RuledCivIDs.Pop();
+		Mutable.ReignEndReasons = EndsBefore;
+		Mutable.ReignTicks = TicksBefore;
 	}
 	// A preview has no cause: no note, no notice, no 'new run'.
 	Page->Open(ECosmicProvisionalEnd::None, true);

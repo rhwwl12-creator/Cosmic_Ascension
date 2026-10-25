@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicUILabels.h
++++ b/Source/Cosmic_Ascension/UI/CosmicUILabels.h
+@@ -342,7 +342,7 @@
+ 	inline bool ShowsShipHint(bool bRulersCapital, int64 Tick, bool bRunEnded, bool bLeftOnce, const FCosmicHintProgress& Progress, bool bThisViewing)
+ 	{
+ 		return bRulersCapital && Tick >= FirstShipFromTick && Tick < FirstShipUntilTick && !bRunEnded && !bLeftOnce
+-			&& (!Progress.bShipHinted || bThisViewing);
++			&& (true || bThisViewing);
+ 	}
+ 
+ 	// The String Table key of a galaxy's kind (section 3.1, 5.11): the four Galaxy.Kind tags, matched as tags requested by

@@ -454,7 +454,9 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("(the ruler has buttons at home)"), Panel->GetActionButtons().Num() > 0);
 		Live.Player.Role = EPlayerRole::Wanderer;
 		Panel->Refresh();
-		TestEqual(TEXT("A wanderer's panel has no button"), Panel->GetActionButtons().Num(), 0);
+		TestEqual(TEXT("A wanderer's panel has no project button"), Panel->GetActionButtons().Num(), 0);
+		TestTrue(TEXT("but its own row where it stands (B1)"), !Panel->GetWandererButtons().IsEmpty()
+			&& Panel->GetWandererButtons()[0]->GetAction() == UCosmicSystemPanelWidget::ScanAction);
 		Live.Player.Role = EPlayerRole::Ruler;
 	}
 

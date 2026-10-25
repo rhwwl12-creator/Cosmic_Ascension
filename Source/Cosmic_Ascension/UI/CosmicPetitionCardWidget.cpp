@@ -148,16 +148,24 @@ void UCosmicPetitionCardWidget::ShowCard(FName Row, FName SystemID)
 	}
 	ShownRow = Row;
 	ShownSystem = SystemID;
+	bShownWanderer = CosmicPetitions::IsWandererCard(*Def);
 
+	// The subject: the ruled people and its system, or - a wanderer's card (B1) - the system the vessel stands in and its
+	// people, as the answer reads them, while the vessel stands in the card's own system; otherwise (a destroyed system
+	// carried the vessel away while the card waited) the card's system with no people - no people the viewer was not shown
+	// is named.
 	const FGalaxyState& State = Sim->GetState();
-	const int32 CivIndex = CosmicPetitions::RuledCivIndexOf(State, Sim->GetStateIndex());
-	const int32 SystemIndex = CosmicPetitions::SubjectOf(State, Sim->GetStateIndex(), CivIndex, Def->Subject, SystemID);
+	const FCosmicVesselSubject Vessel = CosmicPetitions::VesselSubjectOf(State, Sim->GetStateIndex());
+	const bool bVesselOnCard = State.Systems.IsValidIndex(Vessel.SystemIndex) && State.Systems[Vessel.SystemIndex].SystemID == SystemID;
+	const int32 CivIndex = bShownWanderer ? (bVesselOnCard ? Vessel.CivIndex : INDEX_NONE) : CosmicPetitions::RuledCivIndexOf(State, Sim->GetStateIndex());
+	const int32 SystemIndex = bShownWanderer ? (bVesselOnCard ? Vessel.SystemIndex : Sim->GetStateIndex().FindSystem(State, SystemID))
+		: CosmicPetitions::SubjectOf(State, Sim->GetStateIndex(), CivIndex, Def->Subject, SystemID);
 	const FFormatNamedArguments Args = CosmicPetitions::ArgsOf(State, Sim->GetTables(), CivIndex, SystemIndex);
 
 	// The voice that brings it, picked now and kept while it shows (section 5.10): the elders while the people leans to
-	// the spirit, the council otherwise.
+	// the spirit, the council otherwise. A wanderer's card has none.
 	Voice = INDEX_NONE;
-	if (Def->VoiceBodies.Num() >= 2)
+	if (!bShownWanderer && Def->VoiceBodies.Num() >= 2)
 	{
 		Voice = (State.Civs.IsValidIndex(CivIndex) && State.Civs[CivIndex].Ethics.Spiritualism > 0.f) ? 1 : 0;
 	}
@@ -200,11 +208,13 @@ void UCosmicPetitionCardWidget::Refresh()
 		return;
 	}
 	const FGalaxyState& State = Sim->GetState();
-	const int32 CivIndex = CosmicPetitions::RuledCivIndexOf(State, Sim->GetStateIndex());
+	const int32 CivIndex = bShownWanderer ? CosmicPetitions::VesselSubjectOf(State, Sim->GetStateIndex()).CivIndex : CosmicPetitions::RuledCivIndexOf(State, Sim->GetStateIndex());
 	for (int32 At = 0; At < ChoiceButtons.Num() && At < Def->Choices.Num(); ++At)
 	{
 		const FEncounterChoice& Choice = Def->Choices[At];
-		const bool bPayable = State.Civs.IsValidIndex(CivIndex) && CosmicMegaprojects::CanPay(State.Civs[CivIndex].Stockpile, CosmicPetitions::CostOf(Choice));
+		// A wanderer pays nothing (B1): every choice of its card can be given.
+		const bool bPayable = bShownWanderer
+			|| (State.Civs.IsValidIndex(CivIndex) && CosmicMegaprojects::CanPay(State.Civs[CivIndex].Stockpile, CosmicPetitions::CostOf(Choice)));
 		UCosmicActionButton* Button = ChoiceButtons[At];
 		Button->SetIsEnabled(bPayable);
 		// A tooltip set again is a new tooltip, and an open one would close: set only when the words change.
@@ -244,12 +254,14 @@ void UCosmicPetitionCardWidget::PressChoice(int32 ChoiceIndex)
 	}
 	// The outcome in the card's place of the choices, until it is closed.
 	bShowingOutcome = true;
-	const FText Outcome = Answer.Outcome == ECosmicPetitionOutcome::Withdrawn ? CosmicUI::Label(TEXT("Petition.Withdrawn")) : Answer.Line;
+	// A withdrawn wanderer's card is no petition: its own words (B1).
+	const FText Withdrawn = CosmicUI::Label(bShownWanderer ? TEXT("Wander.Withdrawn") : TEXT("Petition.Withdrawn"));
+	const FText Outcome = Answer.Outcome == ECosmicPetitionOutcome::Withdrawn ? Withdrawn : Answer.Line;
 	OutcomeText->SetText(Outcome);
 	OutcomeText->SetVisibility(Outcome.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 	ChoiceBox->SetVisibility(ESlateVisibility::Collapsed);
 	const bool bNext = !Controller->GetKnownView().PendingPetitionRow.IsNone();
-	CloseButton->Setup(CosmicPetitionCardImpl::CloseAction, 0.f, CosmicUI::Label(bNext ? TEXT("Petition.Next") : TEXT("Petition.Close")));
+	CloseButton->Setup(CosmicPetitionCardImpl::CloseAction, 0.f, CosmicUI::Label(!bNext ? TEXT("Petition.Close") : (bShownWanderer ? TEXT("Wander.Next") : TEXT("Petition.Next"))));
 	CloseButton->SetVisibility(ESlateVisibility::Visible);
 }
 
@@ -263,6 +275,7 @@ void UCosmicPetitionCardWidget::PressClose()
 	ShownRow = NAME_None;
 	ShownSystem = NAME_None;
 	Voice = INDEX_NONE;
+	bShownWanderer = false;
 	SetVisibility(ESlateVisibility::Collapsed);
 	if (ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer()))
 	{

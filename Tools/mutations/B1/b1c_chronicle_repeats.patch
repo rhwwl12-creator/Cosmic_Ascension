@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+@@ -197,7 +197,7 @@
+ 		FName Last;
+ 		for (const FName CivID : Life.RuledCivIDs)
+ 		{
+-			const FText PeopleName = CivID == Last ? FText::GetEmpty() : CivNameOf(State, Sim->GetStateIndex(), CivID);
++			const FText PeopleName = CivNameOf(State, Sim->GetStateIndex(), CivID);
+ 			if (!PeopleName.IsEmpty())
+ 			{
+ 				People = People.IsEmpty() ? PeopleName : FText::Format(Label(TEXT("Chronicle.Then")), People, PeopleName);

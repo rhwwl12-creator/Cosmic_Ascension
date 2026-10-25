@@ -54,6 +54,13 @@ namespace CosmicGalaxyMapImpl
 	constexpr float SealedGapRings = 2.f;
 	constexpr float SelectionGapRings = 4.f;
 	constexpr int32 SelectionSegments = 32;
+	// The vessel's mark (B1): a diamond - a ring of four segments - whose corners stand this many times the selection
+	// ring's radius out (its sides then pass outside that ring), or, while it travels, one this wide on its lane; that lane
+	// drawn this many lanes thick.
+	constexpr float VesselDiamondScale = 1.5f;
+	constexpr int32 VesselSegments = 4;
+	constexpr float VesselTravelRadius = 160.f;
+	constexpr float VesselLaneFactor = 2.5f;
 	// The sky sphere before the first rebuild: the engine sphere blown up to the smallest sky (CosmicUniverseLook::
 	// MinSkyRadius); every rebuild sizes it to hold the universe (SkyRadiusOf).
 	constexpr float SkyScale = CosmicUniverseLook::MinSkyRadius / CosmicUniverseLook::SkySphereRadius;
@@ -744,6 +751,8 @@ void ACosmicGalaxyMapActor::Refresh()
 		DrawnSealedRings = 0;
 		DrawnGreyedHalves = 0;
 		DrawnSelection = NAME_None;
+		DrawnVesselSystem = NAME_None;
+		bDrawnVesselLane = false;
 		SkyIntensity = CosmicMapLook::SkyIntensityOf(DrawnView);
 		BackdropIntensity = SkyIntensity;
 		if (BackdropMaterial)
@@ -864,6 +873,32 @@ void ACosmicGalaxyMapActor::Refresh()
 			AddRing(Lines, Centre, OwnerRadius + SelectionGapRings * RingThickness, SelectionSegments, false, CosmicPalette::White, RingThickness);
 			DrawnSelection = SelectedSystemID;
 		}
+	}
+
+	// The vessel (B1): a gold diamond - the calling's colour, as its lines in the feed - around the star it stands at; while
+	// it travels, a small one along the lane it takes, and that lane lit. A shape of its own - the rings are round, the
+	// selection's white. Its system and the lane's ends are always known (a guard all the same: nothing is drawn toward a
+	// system the viewer is not shown).
+	DrawnVesselSystem = NAME_None;
+	bDrawnVesselLane = false;
+	const FCosmicVesselLook Vessel = CosmicMapLook::VesselLookOf(State, Sim->GetStateIndex(), Sim->GetRules());
+	if (Looks.IsValidIndex(Vessel.FromIndex) && Looks[Vessel.FromIndex].bKnown && Stars.IsValidIndex(Vessel.FromIndex) && Stars[Vessel.FromIndex])
+	{
+		const ACosmicStarSystemActor* Star = Stars[Vessel.FromIndex];
+		if (Looks.IsValidIndex(Vessel.ToIndex) && Looks[Vessel.ToIndex].bKnown)
+		{
+			const FVector From = State.Systems[Vessel.FromIndex].Position;
+			const FVector To = State.Systems[Vessel.ToIndex].Position;
+			Lines.Emplace(From, To, CosmicPalette::Gold, 0.f, VesselLaneFactor * LaneThickness, SDPG_World);
+			AddRing(Lines, FMath::Lerp(From, To, static_cast<double>(Vessel.Share)), VesselTravelRadius, VesselSegments, false, CosmicPalette::Gold, RingThickness);
+			bDrawnVesselLane = true;
+		}
+		else
+		{
+			const float SelectionRadius = Star->GetStarRadius() + RingGap + SelectionGapRings * RingThickness;
+			AddRing(Lines, Star->GetActorLocation(), VesselDiamondScale * SelectionRadius, VesselSegments, false, CosmicPalette::Gold, RingThickness);
+		}
+		DrawnVesselSystem = State.Systems[Vessel.FromIndex].SystemID;
 	}
 
 	// The backdrop's slots: an unknown system's point lit, a known one's dark (only the slots whose knowledge flipped).

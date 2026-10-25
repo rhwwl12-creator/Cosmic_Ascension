@@ -157,6 +157,8 @@ public:
 
 	/** The map this controller selects on (the game mode hands it over after spawning it). */
 	void UseMap(ACosmicGalaxyMapActor* InMap);
+	/** That map; null before the game mode handed it over (tests). */
+	ACosmicGalaxyMapActor* GetMap() const { return Map.Get(); }
 
 	/** Selects a system of the state the viewer knows (GetKnownView - a system the viewer does not know is a backdrop
 	 * point, and background stars have no selection, section 6.4); None clears. Anything else - an ID the state does not
@@ -196,6 +198,8 @@ public:
 	const FCosmicHintProgress& GetHintProgress() const { return Hints; }
 	/** Sets the progress in memory (tests start from a known one; the HUD redraws with RefreshPanel). */
 	void SetHintProgress(const FCosmicHintProgress& Progress) { Hints = Progress; }
+	/** The capital's first-ship line was shown (B1, the system panel notes it - CosmicUI::ShowsShipHint): once a session. */
+	void NoteShipHinted() { Hints.bShipHinted = true; }
 
 	/** Sets the simulation's speed (0 pauses) - a speed the third rung's gate does not open is x10 instead (CosmicUI::
 	 * OpenSpeed with IsSpiritualSightOpen; the pause's release and the ascension presentation's give-back come through
@@ -228,7 +232,8 @@ public:
 	 * of a tick): a hazard newly standing there since the last call asks for the automatic pause (OwnHazard); when that
 	 * stops the time, the system (CosmicAutoPause::FirstNewHazardSystem) is selected and the camera glides to it -
 	 * SelectAndFocus not by the viewer (MVP item 6; a press in flight does not become a click). The first call after the
-	 * controller starts, a new galaxy or a load only notes them. */
+	 * controller starts, a new galaxy or a load only notes them - and so does the first call under another people (a
+	 * coronation, a return, a deposition - B1): a crisis that stood before the throne was taken is no news. */
 	void FollowOwnHazards();
 	/** Where the viewer's choice is kept: this key of TimeUnitSection, "On" or "Off" (tests read it). */
 	static constexpr const TCHAR* AutoPauseKey = TEXT("AutoPause");
@@ -236,7 +241,7 @@ public:
 	/**
 	 * Follows the petition card that waits (GetKnownView().PendingPetitionRow - MVP item 2): when it is another card than
 	 * the one the HUD's card shows, the card shows it (a new voice picked), and a card that arrived at the tick boundary
-	 * (bArrived: OnSimTick) asks for the automatic pause (Card); a card that waits after a new galaxy or a load shows
+	 * (bArrived: OnSimTick) asks for the automatic pause (Card - Encounter for a wanderer's card, B1); a card that waits after a new galaxy or a load shows
 	 * without a pause. The same card is redrawn. An outcome on the card stays until it is closed. Tests call it in place
 	 * of a tick.
 	 */
@@ -245,7 +250,7 @@ public:
 	 * StartProject - a paused simulation sends no tick). */
 	FCosmicPetitionAnswer AnswerPetition(int32 ChoiceIndex);
 	/** The card was closed after an outcome: a chained card shows at once (FollowPetition); otherwise a pause the card
-	 * made (reason Card, still standing still) gives the time back at the speed before it. */
+	 * made (reason Card or Encounter, still standing still) gives the time back at the speed before it. */
 	void ClosePetitionCard();
 
 	/** The provisional end as FollowEnd latched it (MVP item 4) - never read afresh elsewhere, so a state a test left behind ends nothing until a tick boundary,
@@ -351,6 +356,20 @@ public:
 	 * on the map. */
 	bool SetResearchFocus(FName Field);
 
+	/**
+	 * The wanderer's commands of the system panel (B1 header section 4): UPlayerRoleSubsystem::TravelTo (a lane neighbour of
+	 * the system the vessel stands in), ScanCurrentSystem, BecomeRuler (CivID - the owner of the system it stands in; its
+	 * return to the people it left goes the same way) and the ruler's Abdicate. True when the command was taken (ScanHere:
+	 * the number of systems the scan learned, 0 for nothing new, INDEX_NONE when refused). Refused in an ended run. A
+	 * command taken redraws the HUD and asks the map to redraw (a paused simulation sends no tick); a coronation also notes
+	 * the new people's standing crises at once (FollowOwnHazards - one that rises on the next tick still stops the time)
+	 * and follows the waiting card (a petition of the new people comes with the next tick).
+	 */
+	bool TravelTo(FName SystemID);
+	int32 ScanHere();
+	bool TakeThrone(FName CivID);
+	bool Abdicate();
+
 	/** Selects SystemID and glides the camera to it, as a double click on its star does (the log feed's lines too). False -
 	 * and the camera stays - when the map holds no such star or SelectSystem refused it (section 8.1: the camera goes to a
 	 * system the viewer is shown only - IsShown: a known system, or the sanctuary by its name). bByViewer false (the
@@ -453,6 +472,20 @@ public:
 	UFUNCTION(Exec)
 	void CosmicFocus(const FString& Word);
 
+	/** Development aids: the wanderer's commands from the console (B1 - screenshots and hand checks) - "CosmicTravel sys_4"
+	 * (a lane neighbour; "CosmicTravel" alone logs the lanes of the system the vessel stands in with the gate's answer for
+	 * each), "CosmicScan", "CosmicCrown" (the people of the system the vessel stands in), "CosmicAbdicate" (one call: the
+	 * panel's two presses guard the screen, not the console) - the paths the buttons take; one line for a refusal with its
+	 * reason. They change the world only as those clicks would. */
+	UFUNCTION(Exec)
+	void CosmicTravel(const FString& SystemID);
+	UFUNCTION(Exec)
+	void CosmicScan();
+	UFUNCTION(Exec)
+	void CosmicCrown();
+	UFUNCTION(Exec)
+	void CosmicAbdicate();
+
 protected:
 	// Reads the viewer's clock unit before the HUD exists. A development aid: -TimeUnit=Year (or Cycle) sets it for the
 	// session without keeping it (screenshots).
@@ -492,6 +525,8 @@ private:
 	ACosmicCameraPawn* GetCameraPawn() const;
 	// The one log line of a refused CosmicSelect: an ID this galaxy does not hold, or a system the viewer does not know.
 	void LogRefusedSelect(FName Wanted) const;
+	// After a wanderer's command was taken: the HUD redrawn and the map asked to redraw.
+	void FollowCommand();
 
 	// Speed to return to when the pause is released.
 	float SpeedBeforePause = 1.f;
@@ -502,6 +537,8 @@ private:
 	bool bAutoPause = true;
 	ECosmicAutoPause AutoPauseReason = ECosmicAutoPause::None;
 	TOptional<TMap<FName, FGameplayTag>> OwnHazardsSeen;
+	// The people whose hazards OwnHazardsSeen holds: the ruled people of an embodied ruler, None otherwise (B1).
+	FName OwnHazardsRuler;
 
 	// Whether the third rung's gate was open at the last FollowSpeedGate; unset before the first.
 	TOptional<bool> ThirdRungWasOpen;

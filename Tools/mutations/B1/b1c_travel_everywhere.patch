@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -970,7 +970,7 @@
+ 					}
+ 				}
+ 			}
+-			else if (State.Systems.IsValidIndex(Here) && State.Systems[Here].Lanes.Contains(System.SystemID) && System.GalaxyRow == State.Systems[Here].GalaxyRow)
++			else if (State.Systems.IsValidIndex(Here))
+ 			{
+ 				// [Travel]: on a living lane neighbour, with the lane's time.
+ 				const CosmicWanderer::ETravelBlock Block = CosmicWanderer::TravelBlockOf(State, Index, System.SystemID, bCardWaiting);

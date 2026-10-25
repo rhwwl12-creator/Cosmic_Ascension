@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
+@@ -227,7 +227,7 @@
+ 		const FText Cost = CostOf(Choice);
+ 		const TCHAR* StatKey = StatKeyOf(Choice.CheckStat);
+ 		const FText Check = StatKey
+-			? FText::Format(CosmicUI::Label(TEXT("Petition.Check")), CosmicUI::Label(StatKey), FText::AsNumber(CosmicPetitions::PassingRollsOf(State, CivIndex, Choice)))
++			? FText::Format(CosmicUI::Label(TEXT("Petition.Check")), CosmicUI::Label(StatKey), FText::AsNumber(6))
+ 			: FText::GetEmpty();
+ 		const FText Line = (!Cost.IsEmpty() && !Check.IsEmpty()) ? FText::Format(CosmicUI::Label(TEXT("Petition.Both")), Cost, Check) : (Cost.IsEmpty() ? Check : Cost);
+ 		UTextBlock* LineText = ChoiceLines[At];

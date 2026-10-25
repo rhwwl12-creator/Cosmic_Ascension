@@ -24,9 +24,11 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
+#include "Events/CosmicPetitions.h"
 #include "Player/PlayerRoleSubsystem.h"
 #include "Save/CosmicSaveSubsystem.h"
 #include "Sim/CosmicStateIndex.h"
+#include "Sim/CosmicWanderer.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "TimerManager.h"
 #include "UI/CosmicAscensionOverlayWidget.h"
@@ -971,6 +973,14 @@ void ACosmicPlayerController::FollowOwnHazards()
 	{
 		return;
 	}
+	// Another people under the vessel (a coronation, a return, a deposition - B1): its standing hazards are no news.
+	const FGalaxyState& State = Sim->GetState();
+	const FName Ruling = (State.Calling.LifeState == ELifeState::Embodied && State.Player.Role == EPlayerRole::Ruler) ? State.Player.RuledCivID : NAME_None;
+	if (Ruling != OwnHazardsRuler)
+	{
+		OwnHazardsSeen.Reset();
+		OwnHazardsRuler = Ruling;
+	}
 	TMap<FName, FGameplayTag> Now = CosmicAutoPause::OwnHazardsOf(Sim->GetState(), Sim->GetStateIndex());
 	const FName NewOn = OwnHazardsSeen.IsSet() ? CosmicAutoPause::FirstNewHazardSystem(OwnHazardsSeen.GetValue(), Now, Sim->GetState()) : NAME_None;
 	OwnHazardsSeen = MoveTemp(Now);
@@ -1719,7 +1729,10 @@ void ACosmicPlayerController::FollowPetition(bool bArrived)
 	Card->ShowCard(View.PendingPetitionRow, View.PendingPetitionSystemID);
 	if (bArrived && !View.PendingPetitionRow.IsNone())
 	{
-		RequestAutoPause(ECosmicAutoPause::Card);
+		// A wanderer's card is no petition: its own words on the top bar (B1).
+		const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+		const FEncounterDef* Row = Sim ? Sim->GetTables().FindEncounter(View.PendingPetitionRow) : nullptr;
+		RequestAutoPause((Row && CosmicPetitions::IsWandererCard(*Row)) ? ECosmicAutoPause::Encounter : ECosmicAutoPause::Card);
 	}
 }
 
@@ -1762,7 +1775,8 @@ void ACosmicPlayerController::ClosePetitionCard()
 	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
 	// The card stopped the time and nothing else set a speed since: the time runs again (as the ascension presentation
 	// gives its speed back). A chained card keeps it standing.
-	if (Card && Card->GetShownRow().IsNone() && Sim && !(Sim->GetTimeScale() > 0.f) && AutoPauseReason == ECosmicAutoPause::Card)
+	if (Card && Card->GetShownRow().IsNone() && Sim && !(Sim->GetTimeScale() > 0.f)
+		&& (AutoPauseReason == ECosmicAutoPause::Card || AutoPauseReason == ECosmicAutoPause::Encounter))
 	{
 		SetSpeed(SpeedBeforePause);
 	}
@@ -1810,6 +1824,139 @@ bool ACosmicPlayerController::SetResearchFocus(FName Field)
 		CosmicHUD->RefreshPanel();
 	}
 	return true;
+}
+
+bool ACosmicPlayerController::TravelTo(FName SystemID)
+{
+	UPlayerRoleSubsystem* Roles = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (IsRunEnded() || !Roles || Roles->TravelTo(SystemID) != CosmicWanderer::ETravelBlock::None)
+	{
+		return false;
+	}
+	FollowCommand();
+	return true;
+}
+
+int32 ACosmicPlayerController::ScanHere()
+{
+	UPlayerRoleSubsystem* Roles = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	const int32 Learned = (IsRunEnded() || !Roles) ? INDEX_NONE : Roles->ScanCurrentSystem();
+	if (Learned != INDEX_NONE)
+	{
+		FollowCommand();
+	}
+	return Learned;
+}
+
+bool ACosmicPlayerController::TakeThrone(FName CivID)
+{
+	UPlayerRoleSubsystem* Roles = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (IsRunEnded() || !Roles || Roles->BecomeRuler(CivID) != CosmicWanderer::ECrownBlock::None)
+	{
+		return false;
+	}
+	// The throne changed between ticks: the new people's standing crises are noted now - one that rises on the next tick
+	// still stops the time -, and the waiting card was cleared with it.
+	FollowOwnHazards();
+	FollowPetition(false);
+	FollowCommand();
+	return true;
+}
+
+bool ACosmicPlayerController::Abdicate()
+{
+	UPlayerRoleSubsystem* Roles = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (IsRunEnded() || !Roles || !Roles->Abdicate())
+	{
+		return false;
+	}
+	FollowCommand();
+	return true;
+}
+
+void ACosmicPlayerController::FollowCommand()
+{
+	// A paused simulation sends no tick: show what the command changed now, on the panels and on the map.
+	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
+	{
+		CosmicHUD->RefreshPanel();
+	}
+	if (ACosmicGalaxyMapActor* TheMap = Map.Get())
+	{
+		TheMap->RequestRefresh();
+	}
+}
+
+void ACosmicPlayerController::CosmicTravel(const FString& SystemID)
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (IsRunEnded())
+	{
+		UE_LOG(LogCosmic, Display, TEXT("CosmicTravel: refused (the run is over)"));
+		return;
+	}
+	// No argument: one line with the lanes of the system the vessel stands in and the gate's answer for each.
+	if (Sim && SystemID.IsEmpty())
+	{
+		const FGalaxyState& State = Sim->GetState();
+		const int32 Here = Sim->GetStateIndex().FindSystem(State, State.Player.CurrentSystemID);
+		TArray<FString> Lanes;
+		for (const FName Lane : State.Systems.IsValidIndex(Here) ? State.Systems[Here].Lanes : TArray<FName>())
+		{
+			Lanes.Add(FString::Printf(TEXT("%s (%d)"), *Lane.ToString(), static_cast<int32>(CosmicWanderer::TravelBlockOf(State, Sim->GetStateIndex(), Lane,
+				!GetKnownView().PendingPetitionRow.IsNone()))));
+		}
+		UE_LOG(LogCosmic, Display, TEXT("CosmicTravel: the lanes from %s (the gate's reason, 0 = taken): %s"), *State.Player.CurrentSystemID.ToString(), *FString::Join(Lanes, TEXT(", ")));
+		return;
+	}
+	const FName Target(*SystemID);
+	if (Sim && !TravelTo(Target))
+	{
+		const bool bCard = !GetKnownView().PendingPetitionRow.IsNone();
+		UE_LOG(LogCosmic, Display, TEXT("CosmicTravel: %s was refused (reason %d)"), *SystemID,
+			static_cast<int32>(CosmicWanderer::TravelBlockOf(Sim->GetState(), Sim->GetStateIndex(), Target, bCard)));
+	}
+}
+
+void ACosmicPlayerController::CosmicScan()
+{
+	if (ScanHere() == INDEX_NONE)
+	{
+		UE_LOG(LogCosmic, Display, TEXT("CosmicScan: refused (a ruler, a vessel under way, or an ended run)"));
+	}
+}
+
+void ACosmicPlayerController::CosmicCrown()
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!Sim)
+	{
+		return;
+	}
+	if (IsRunEnded())
+	{
+		UE_LOG(LogCosmic, Display, TEXT("CosmicCrown: refused (the run is over)"));
+		return;
+	}
+	const FGalaxyState& State = Sim->GetState();
+	const int32 Here = Sim->GetStateIndex().FindSystem(State, State.Player.CurrentSystemID);
+	const FName HereOwner = State.Systems.IsValidIndex(Here) ? State.Systems[Here].OwnerCivID : NAME_None;
+	if (!TakeThrone(HereOwner))
+	{
+		// What the command knows, read as the screens read it (rule 14).
+		const FCosmicKnownView View = GetKnownView();
+		const int32 OwnerIndex = HereOwner.IsNone() ? INDEX_NONE : Sim->GetStateIndex().FindCiv(State, HereOwner);
+		UE_LOG(LogCosmic, Display, TEXT("CosmicCrown: refused over %s (reason %d)"), *HereOwner.ToString(), static_cast<int32>(CosmicWanderer::CrownBlockOf(
+			State, Sim->GetStateIndex(), Sim->GetRules(), HereOwner, View.IsMet(OwnerIndex), !View.PendingPetitionRow.IsNone())));
+	}
+}
+
+void ACosmicPlayerController::CosmicAbdicate()
+{
+	if (!Abdicate())
+	{
+		UE_LOG(LogCosmic, Display, TEXT("CosmicAbdicate: refused (no embodied ruler, a role effect already recorded, or an ended run)"));
+	}
 }
 
 void ACosmicPlayerController::SetSpeed(float Speed)

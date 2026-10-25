@@ -43,6 +43,8 @@ struct COSMIC_ASCENSION_API FCosmicHintProgress
 	bool bLeftUniverse = false;
 	// The first project started (MVP item 6): the system panel's hint line goes (CosmicUI::ShowsCommandHint).
 	bool bStartedProject = false;
+	// The first ship's line was shown (B1): once a session, on the capital's panel (CosmicUI::ShowsShipHint).
+	bool bShipHinted = false;
 };
 
 namespace CosmicUI
@@ -326,6 +328,21 @@ namespace CosmicUI
 	inline bool ShowsCommandHint(bool bPanelHasEnabledProject, bool bRunEnded, const FCosmicHintProgress& Progress)
 	{
 		return bPanelHasEnabledProject && !bRunEnded && !Progress.bStartedProject;
+	}
+
+	// The first ship's line (B1 header section 4): from 8:30 of x1 (docs/00_VISION.md - the first ship is ready), for ten
+	// minutes of x1.
+	inline constexpr int64 FirstShipFromTick = 510;
+	inline constexpr int64 FirstShipUntilTick = 1110;
+
+	/** The capital's first-ship line (B1, ST_CA Hint.FirstShip): the panel shows the capital of the people an embodied
+	 * ruler rules (bRulersCapital), Tick is in [FirstShipFromTick, FirstShipUntilTick), the run is not over, the vessel never
+	 * left a throne (bLeftOnce - Player.FormerCivID is set), and the line was not shown this session - or this is the
+	 * viewing it was shown in (bThisViewing: the panel has shown that capital since). */
+	inline bool ShowsShipHint(bool bRulersCapital, int64 Tick, bool bRunEnded, bool bLeftOnce, const FCosmicHintProgress& Progress, bool bThisViewing)
+	{
+		return bRulersCapital && Tick >= FirstShipFromTick && Tick < FirstShipUntilTick && !bRunEnded && !bLeftOnce
+			&& (!Progress.bShipHinted || bThisViewing);
 	}
 
 	// The String Table key of a galaxy's kind (section 3.1, 5.11): the four Galaxy.Kind tags, matched as tags requested by

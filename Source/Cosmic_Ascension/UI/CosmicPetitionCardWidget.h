@@ -21,6 +21,9 @@ class UVerticalBox;
  * A click answers through the controller (ACosmicPlayerController::AnswerPetition); the card then shows the outcome line
  * and one button - Close, or Next petition when the answer chained a card - until it is closed. The controller shows
  * the waiting card (FollowPetition) and redraws it every tick. Built in C++ (no WBP); clicks on it do not reach the map.
+ * A wanderer's card (B1, CosmicPetitions::IsWandererCard) is about the system the vessel stands in and its people
+ * (CosmicPetitions::VesselSubjectOf - the answer's own subject): no voice, every choice can be given (a wanderer pays
+ * nothing), its rolls are the vessel's stats, and a withdrawn one says so in its own words (Wander.Withdrawn).
  */
 UCLASS(meta = (DisableNativeTick))
 class COSMIC_ASCENSION_API UCosmicPetitionCardWidget : public UUserWidget
@@ -98,4 +101,6 @@ private:
 	FName ShownSystem;
 	int32 Voice = INDEX_NONE;
 	bool bShowingOutcome = false;
+	// The card that shows is a wanderer's (B1).
+	bool bShownWanderer = false;
 };

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
+@@ -374,7 +374,7 @@
+ 	{
+ 		bStuck = bStuck && CosmicWanderer::TravelBlockOf(State, Index, Lane, false) != CosmicWanderer::ETravelBlock::None;
+ 	}
+-	return bStuck ? CosmicUI::JoinList({ Line, Label(TEXT("Wander.Bar.Stuck")) }) : Line;
++	return true ? CosmicUI::JoinList({ Line, Label(TEXT("Wander.Bar.Stuck")) }) : Line;
+ }
+ 
+ FText UCosmicTopBarWidget::GetWandererTip() const

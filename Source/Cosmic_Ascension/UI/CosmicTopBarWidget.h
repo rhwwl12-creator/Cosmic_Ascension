@@ -13,6 +13,8 @@
 class UButton;
 class UCosmicActionButton;
 class UTextBlock;
+struct FCosmicStateIndex;
+struct FGalaxyState;
 
 /**
  * The band along the top of the screen: the people the player rules - its name and rung (RungText, a flat button that
@@ -30,7 +32,9 @@ class UTextBlock;
  * the speeds the automatic pause's button - its label says whether it is on (ST_CA AutoPause.On / AutoPause.Off), a press
  * switches it (the controller's ToggleAutoPause), its tooltip says what stops the time (AutoPause.Tip) - and, while an
  * automatic pause holds the simulation still, one line that says why (CosmicAutoPause::WhyKeyOf of the controller's
- * reason); it goes when the speed is set again. A wanderer has no people: the band shows only the clock, the view, the
+ * reason); it goes when the speed is set again. A wanderer has no people: after the resources' empty place the band shows its
+ * line (WandererLineOf - where it stands or where it goes and how long, and when no lane leads anywhere) with the vessel's
+ * stats and the shown people that looks up to it most in its tooltip (GetWandererTip, B1), then the clock, the view, the
  * speeds and the automatic pause. Built in C++ (no WBP); redrawn from the simulation's delegates, after a speed button and
  * after the clock's, the view's and the automatic pause's press.
  */
@@ -111,6 +115,22 @@ public:
 	 */
 	UFUNCTION()
 	FText GetStabilityTip() const;
+
+	/**
+	 * The wanderer's line (B1 header section 4): ST_CA Wander.Bar.Standing with the system the vessel stands in, or
+	 * Wander.Bar.Travelling with the system it goes to and the time left in Unit (CosmicUI::TimeLeftLabel); standing where no lane leads to a system
+	 * TravelTo would take (every neighbour destroyed), Wander.Bar.Stuck after it. Empty but for an embodied wanderer.
+	 */
+	static FText WandererLineOf(const FGalaxyState& State, const FCosmicStateIndex& Index, ECosmicTimeUnit Unit);
+
+	/**
+	 * What the wanderer line's tooltip says now: the vessel's four stats (the card's stat words), then the people the
+	 * viewer is shown that looks up to the vessel most (Wander.Bar.TipReverence - none while none does); empty but for an
+	 * embodied wanderer. Bound once to the ToolTipTextDelegate of the wanderer's line (as GetNextRungTip): a ruler's resources
+	 * keep no tooltip.
+	 */
+	UFUNCTION()
+	FText GetWandererTip() const;
 	/** The trend as the bar shows it now (CosmicUI::StabilityTrendOf over the samples and the live stability): Unknown
 	 * without a ruled people, before StabilityTrendTicks samples of it, or when the samples are not of this tick (tests). */
 	ECosmicTrend GetStabilityTrend() const;
@@ -118,6 +138,8 @@ public:
 	const UTextBlock* GetStabilityText() const { return StabilityText; }
 	const UTextBlock* GetTrendText() const { return TrendText; }
 	const UTextBlock* GetStatusText() const { return StatusText; }
+	/** The wanderer's line (B1, tests): WandererLineOf, collapsed while it has no words. */
+	const UTextBlock* GetWandererText() const { return WandererText; }
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -170,6 +192,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> StatusText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> WandererText;
 
 	// The four research shares: the band's fill, clipped with an ellipsis when the band runs short.
 	UPROPERTY(Transient)

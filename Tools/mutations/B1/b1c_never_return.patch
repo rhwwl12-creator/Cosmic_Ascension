@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -950,7 +950,7 @@
+ 					if (Block == CosmicWanderer::ECrownBlock::None || LongKey)
+ 					{
+ 						ShownCrownBlock = Block;
+-						const bool bReturn = CosmicWanderer::IsReturn(State, Owner.CivID);
++						const bool bReturn = false;
+ 						// The lock's time left, counted down as the clock counts: on the label only - a tooltip that changed every
+ 						// tick would close every tick.
+ 						const FText Left = TimeLeftLabel(FMath::Max<int64>(0, Owner.ThroneLockedUntilTick - State.Tick), Unit);

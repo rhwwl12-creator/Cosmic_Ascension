@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -938,7 +938,7 @@
+ 			if (SystemIndex == Here)
+ 			{
+ 				// [Scan]: refused only under way (no card waits for it).
+-				const bool bUnderWay = CosmicWanderer::IsTravelling(State);
++				const bool bUnderWay = CosmicWanderer::IsTravelling(State) || bCardWaiting;
+ 				Want(ScanAction, Label(TEXT("Wander.Scan")), bUnderWay ? Label(TEXT("Wander.Suffix.Travelling")) : FText::GetEmpty(),
+ 					bUnderWay ? Label(TEXT("Wander.Block.Travelling")) : FText::GetEmpty(), { Label(TEXT("Wander.ScanTip")) });
+ 				// [Crown] or [Return]: on a settled system of a people.

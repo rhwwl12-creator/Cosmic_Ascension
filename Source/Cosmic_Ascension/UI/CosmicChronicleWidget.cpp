@@ -190,13 +190,25 @@ void UCosmicChronicleWidget::BuildPage()
 		const FText Nth = FText::Format(Label(TEXT("Chronicle.Life")), FText::AsNumber(Life.LifeIndex));
 		const FText Name = CosmicChronicle::VesselNameOf(Life, Sim->GetTables());
 		AddText(Name.IsEmpty() ? Nth : FText::Format(Label(TEXT("List.Pair")), Nth, Name), 26, CosmicPalette::Gold, FMargin(0.f, 8.f, 0.f, 2.f));
-		// The facts of the life - a UI line: the ruled people, the rung, the cycles it lasted.
+		// The facts of the life - a UI line: the peoples it ruled in order ('A -> B', a people taken again after another
+		// once more, one taken again at once not twice), 'wandering' when its last reign ended (B1 - the life walks), the
+		// rung, the cycles it lasted.
 		FText People;
-		for (int32 At = Life.RuledCivIDs.Num() - 1; At >= 0 && People.IsEmpty(); --At)
+		FName Last;
+		for (const FName CivID : Life.RuledCivIDs)
 		{
-			People = CivNameOf(State, Sim->GetStateIndex(), Life.RuledCivIDs[At]);
+			const FText PeopleName = CivID == Last ? FText::GetEmpty() : CivNameOf(State, Sim->GetStateIndex(), CivID);
+			if (!PeopleName.IsEmpty())
+			{
+				People = People.IsEmpty() ? PeopleName : FText::Format(Label(TEXT("Chronicle.Then")), People, PeopleName);
+				Last = CivID;
+			}
 		}
 		People = People.IsEmpty() ? CivNameOf(State, Sim->GetStateIndex(), Life.BirthCivID) : People;
+		if (!Life.ReignEndReasons.IsEmpty() && Life.ReignEndReasons.Last().IsValid())
+		{
+			People = CosmicUI::JoinList({ People, Label(TEXT("Chronicle.Wandering")) });
+		}
 		const FText Rung = FText::Format(INVTEXT("{0} {1}"), Label(TEXT("Panel.Tier")), FText::AsNumber(static_cast<int32>(Life.PeakTier) + 1));
 		const FText Lasted = FText::Format(Label(TEXT("Chronicle.Stamp")), FText::AsNumber(FMath::Max<int64>(0, Chapter.ToTick - Life.BornTick)));
 		AddText(CosmicUI::JoinList({ People, Rung, Lasted }), 14, CosmicPalette::Grey, FMargin(0.f, 0.f, 0.f, 10.f));

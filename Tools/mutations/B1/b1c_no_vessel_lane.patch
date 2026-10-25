@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGalaxyMapActor.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGalaxyMapActor.cpp
+@@ -885,7 +885,7 @@
+ 	if (Looks.IsValidIndex(Vessel.FromIndex) && Looks[Vessel.FromIndex].bKnown && Stars.IsValidIndex(Vessel.FromIndex) && Stars[Vessel.FromIndex])
+ 	{
+ 		const ACosmicStarSystemActor* Star = Stars[Vessel.FromIndex];
+-		if (Looks.IsValidIndex(Vessel.ToIndex) && Looks[Vessel.ToIndex].bKnown)
++		if (false && Looks.IsValidIndex(Vessel.ToIndex))
+ 		{
+ 			const FVector From = State.Systems[Vessel.FromIndex].Position;
+ 			const FVector To = State.Systems[Vessel.ToIndex].Position;

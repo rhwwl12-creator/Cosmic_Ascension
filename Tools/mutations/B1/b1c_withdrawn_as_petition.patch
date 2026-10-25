@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
+@@ -255,7 +255,7 @@
+ 	// The outcome in the card's place of the choices, until it is closed.
+ 	bShowingOutcome = true;
+ 	// A withdrawn wanderer's card is no petition: its own words (B1).
+-	const FText Withdrawn = CosmicUI::Label(bShownWanderer ? TEXT("Wander.Withdrawn") : TEXT("Petition.Withdrawn"));
++	const FText Withdrawn = CosmicUI::Label(false ? TEXT("Wander.Withdrawn") : TEXT("Petition.Withdrawn"));
+ 	const FText Outcome = Answer.Outcome == ECosmicPetitionOutcome::Withdrawn ? Withdrawn : Answer.Line;
+ 	OutcomeText->SetText(Outcome);
+ 	OutcomeText->SetVisibility(Outcome.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);

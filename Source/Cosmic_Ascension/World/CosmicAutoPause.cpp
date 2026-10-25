@@ -71,6 +71,8 @@ const TCHAR* CosmicAutoPause::WhyKeyOf(ECosmicAutoPause Reason)
 		return TEXT("AutoPause.Why.Hazard");
 	case ECosmicAutoPause::Card:
 		return TEXT("AutoPause.Why.Card");
+	case ECosmicAutoPause::Encounter:
+		return TEXT("AutoPause.Why.Encounter");
 	case ECosmicAutoPause::RunEnd:
 		return TEXT("Chronicle.Why");
 	case ECosmicAutoPause::Continued:

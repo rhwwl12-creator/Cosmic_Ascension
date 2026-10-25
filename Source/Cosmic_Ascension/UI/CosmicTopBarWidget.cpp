@@ -14,6 +14,8 @@
 #include "Engine/GameInstance.h"
 #include "Layout/Clipping.h"
 #include "Layout/Margin.h"
+#include "Sim/CosmicStateIndex.h"
+#include "Sim/CosmicWanderer.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Styling/SlateColor.h"
 #include "Styling/SlateTypes.h"
@@ -147,6 +149,15 @@ TSharedRef<SWidget> UCosmicTopBarWidget::RebuildWidget()
 		UHorizontalBoxSlot* StatusSlot = Row->AddChildToHorizontalBox(StatusText);
 		StatusSlot->SetVerticalAlignment(VAlign_Center);
 		StatusSlot->SetPadding(FMargin(0.f, 0.f, 32.f, 0.f));
+
+		// The wanderer's line (B1), a block of its own beside the resources' empty place, with its tooltip bound as the
+		// next-rung one; collapsed while a people is ruled.
+		WandererText = CosmicUI::MakeText(*WidgetTree, 14, false);
+		WandererText->ToolTipTextDelegate.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UCosmicTopBarWidget, GetWandererTip));
+		WandererText->SetVisibility(ESlateVisibility::Collapsed);
+		UHorizontalBoxSlot* WandererSlot = Row->AddChildToHorizontalBox(WandererText);
+		WandererSlot->SetVerticalAlignment(VAlign_Center);
+		WandererSlot->SetPadding(FMargin(0.f, 0.f, 32.f, 0.f));
 
 		ResearchText = CosmicUI::MakeText(*WidgetTree, 14, false);
 		ResearchText->ToolTipTextDelegate.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UCosmicTopBarWidget, GetResearchTip));
@@ -336,6 +347,70 @@ ECosmicTrend UCosmicTopBarWidget::GetStabilityTrend() const
 	int32 Points = 0;
 	int32 Missing = 0;
 	return TrendNow(Points, Missing);
+}
+
+FText UCosmicTopBarWidget::WandererLineOf(const FGalaxyState& State, const FCosmicStateIndex& Index, ECosmicTimeUnit Unit)
+{
+	using CosmicUI::Label;
+
+	const int32 Here = CosmicWanderer::IsEmbodiedWanderer(State) ? Index.FindSystem(State, State.Player.CurrentSystemID) : INDEX_NONE;
+	if (!State.Systems.IsValidIndex(Here))
+	{
+		return FText::GetEmpty();
+	}
+	FFormatNamedArguments Args;
+	if (CosmicWanderer::IsTravelling(State))
+	{
+		const int32 To = Index.FindSystem(State, State.Player.TravelTargetSystemID);
+		Args.Add(TEXT("System"), State.Systems.IsValidIndex(To) ? State.Systems[To].DisplayName : FText::GetEmpty());
+		Args.Add(TEXT("Time"), CosmicUI::TimeLeftLabel(State.Player.TravelTicksRemaining, Unit));
+		return FText::Format(Label(TEXT("Wander.Bar.Travelling")), Args);
+	}
+	Args.Add(TEXT("System"), State.Systems[Here].DisplayName);
+	const FText Line = FText::Format(Label(TEXT("Wander.Bar.Standing")), Args);
+	// Nowhere to go: no lane of the system leads where TravelTo would take the vessel.
+	bool bStuck = true;
+	for (const FName Lane : State.Systems[Here].Lanes)
+	{
+		bStuck = bStuck && CosmicWanderer::TravelBlockOf(State, Index, Lane, false) != CosmicWanderer::ETravelBlock::None;
+	}
+	return bStuck ? CosmicUI::JoinList({ Line, Label(TEXT("Wander.Bar.Stuck")) }) : Line;
+}
+
+FText UCosmicTopBarWidget::GetWandererTip() const
+{
+	using CosmicUI::Label;
+
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!Sim || !CosmicWanderer::IsEmbodiedWanderer(Sim->GetState()))
+	{
+		return FText::GetEmpty();
+	}
+	const FGalaxyState& State = Sim->GetState();
+	const FPlayerEntityState& Vessel = State.Player;
+	auto Stat = [](const TCHAR* Key, int32 Value) { return FText::Format(INVTEXT("{0} {1}"), Label(Key), FText::AsNumber(Value)); };
+	const FText Stats = CosmicUI::JoinList({ Stat(TEXT("Petition.Stat.Body"), Vessel.Body), Stat(TEXT("Petition.Stat.Mind"), Vessel.Mind),
+		Stat(TEXT("Petition.Stat.Causality"), Vessel.Causality), Stat(TEXT("Petition.Stat.Exaltation"), Vessel.Exaltation) });
+	// The people that looks up to the vessel most, among those the viewer is shown (the first in Civs order on a tie).
+	const FCosmicKnownView View = ACosmicPlayerController::KnownViewFor(*this);
+	int32 Most = INDEX_NONE;
+	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+	{
+		const float Reverence = State.Civs[CivIndex].ReverenceToPlayer;
+		if (View.ShownOrderOf(CivIndex) != INDEX_NONE && Reverence > 0.f && (Most == INDEX_NONE || Reverence > State.Civs[Most].ReverenceToPlayer))
+		{
+			Most = CivIndex;
+		}
+	}
+	FText Looked;
+	if (Most != INDEX_NONE)
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("Civ"), State.Civs[Most].CivName);
+		Args.Add(TEXT("Reverence"), CosmicUI::Percent(State.Civs[Most].ReverenceToPlayer));
+		Looked = FText::Format(Label(TEXT("Wander.Bar.TipReverence")), Args);
+	}
+	return CosmicUI::JoinLines({ Stats, Looked });
 }
 
 FText UCosmicTopBarWidget::GetStabilityTip() const
@@ -529,7 +604,7 @@ void UCosmicTopBarWidget::Refresh()
 	using namespace CosmicUI;
 
 	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
-	if (!Sim || !StatusText || !StabilityText || !TrendText || !RungText || !ResearchText)
+	if (!Sim || !StatusText || !StabilityText || !TrendText || !RungText || !ResearchText || !WandererText)
 	{
 		return;
 	}
@@ -562,6 +637,17 @@ void UCosmicTopBarWidget::Refresh()
 		TrendText->SetText(FText::GetEmpty());
 		StatusText->SetText(FText::GetEmpty());
 		ResearchText->SetText(FText::GetEmpty());
+	}
+	// The wanderer's line (B1): shown while it has words - an embodied wanderer -, collapsed otherwise.
+	const FText Wandering = Civ ? FText::GetEmpty() : WandererLineOf(State, Sim->GetStateIndex(), ACosmicPlayerController::TimeUnitFor(*this));
+	if (!WandererText->GetText().ToString().Equals(Wandering.ToString(), ESearchCase::CaseSensitive))
+	{
+		WandererText->SetText(Wandering);
+	}
+	const ESlateVisibility WanderingVisibility = Wandering.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible;
+	if (WandererText->GetVisibility() != WanderingVisibility)
+	{
+		WandererText->SetVisibility(WanderingVisibility);
 	}
 	// The viewer's unit; the mouse on the clock shows both.
 	const ECosmicTimeUnit Unit = ACosmicPlayerController::TimeUnitFor(*this);

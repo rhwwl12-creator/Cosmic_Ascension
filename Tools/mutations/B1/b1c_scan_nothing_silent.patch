@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -691,7 +691,7 @@
+ 		{
+ 			// A scan that learned nothing says so on the panel (header section 2.3), while the vessel stands there.
+ 			const int32 Learned = Controller->ScanHere();
+-			ScanNothingAt = Learned == 0 ? Sim->GetState().Player.CurrentSystemID : NAME_None;
++			ScanNothingAt = NAME_None;
+ 		}
+ 		else if (Action == CrownAction)
+ 		{

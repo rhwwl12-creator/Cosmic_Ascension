@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -966,7 +966,7 @@
+ 								Percent(Sim->GetRules().CoronationReverence), Percent(Sim->GetRules().CoronationStabilityBelow)));
+ 						}
+ 						TipLines.Add(Label(bReturn ? TEXT("Wander.ReturnTip") : TEXT("Wander.CrownTip")));
+-						Want(CrownAction, Label(bReturn ? TEXT("Wander.Return") : TEXT("Wander.Crown")), Words(CrownKeyOf(Block, true), true), Words(LongKey, false), TipLines);
++						Want(CrownAction, Label(bReturn ? TEXT("Wander.Return") : TEXT("Wander.Crown")), Words(CrownKeyOf(Block, true), true), (Block == CosmicWanderer::ECrownBlock::ThroneLocked ? JoinList({ Words(LongKey, false), Left }) : Words(LongKey, false)), TipLines);
+ 					}
+ 				}
+ 			}

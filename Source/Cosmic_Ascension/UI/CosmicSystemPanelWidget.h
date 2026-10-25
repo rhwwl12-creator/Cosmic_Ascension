@@ -5,7 +5,10 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Engine/TimerHandle.h"
+#include "Misc/Optional.h"
 #include "Sim/CosmicMegaprojects.h"
+#include "Sim/CosmicWanderer.h"
 #include "Templates/Tuple.h"
 #include "UI/CosmicUILabels.h"
 #include "CosmicSystemPanelWidget.generated.h"
@@ -87,6 +90,19 @@ namespace CosmicSlotWatch
  * with the shares), the others with the shares a press would give (Focus.TipField, Focus.TipEven) and, on a field the
  * next rung reads (CosmicNextRung::ResearchFieldsOf), Focus.TipNeeded. Built once, kept across refreshes; a press goes
  * through ACosmicPlayerController::SetResearchFocus. In an ended run all four are greyed with Chronicle.Block.
+ * The wanderer's row (B1 header section 4), in a box of its own under the project buttons (GetActionButtons stays the
+ * projects'): on the system an embodied wanderer stands in, [Scan] and - on a settled system of a people - [Crown], or
+ * [Return] for the people it left; on each living lane neighbour of that system, [Travel] with the lane's time. Each is
+ * greyed by the first reason of the command's own gate (CosmicWanderer::TravelBlockOf, CrownBlockOf - fed the meeting and
+ * the waiting card from the view), the short words after its name and the reason first in its tooltip (a refused crown
+ * of a shown people also says its reverence and the two thresholds). For a wanderer, a shown people's panel says how much
+ * it looks up to the vessel (Wander.Reverence), and a scan that learned nothing says so there (Wander.ScanNothing) while
+ * the vessel stands in it. A locked throne's time left (as the clock counts down) stays on the button's label; its tooltip
+ * keeps still. The ruler's [Abdicate] stands on the capital's panel only: a first press arms it for AbdicateConfirmSeconds
+ * (Wander.AbdicateAgain), a second within them records the abdication (ACosmicPlayerController::Abdicate); greyed while a
+ * role effect waits for the tick, with the words of its cause (a recorded abdication, or a fall - Wander.Block.Deposed). Under the hint line, on the capital's
+ * panel, the first ship's line once a session (CosmicUI::ShowsShipHint, Hint.FirstShip). In an ended run the wanderer's
+ * buttons and [Abdicate] are greyed with Chronicle.Block.
  */
 UCLASS(meta = (DisableNativeTick))
 class COSMIC_ASCENSION_API UCosmicSystemPanelWidget : public UUserWidget
@@ -170,6 +186,27 @@ public:
 	/** The column of the panel's box, top to bottom (tests read the order of its children). */
 	const UVerticalBox* GetColumn() const { return Column; }
 
+	/** The wanderer's buttons now shown, in panel order (B1, tests): [Travel] (TravelAction) on a lane neighbour of the
+	 * vessel's system; [Scan] (ScanAction) then [Crown] or [Return] (CrownAction) on the system it stands in. */
+	const TArray<TObjectPtr<UCosmicActionButton>>& GetWandererButtons() const { return WandererButtons; }
+	/** The ruler's [Abdicate] (AbdicateAction): built once, collapsed except on the capital's panel (tests). */
+	UCosmicActionButton* GetAbdicateButton() const { return AbdicateButton; }
+	/** The capital's first-ship line (tests). */
+	const UTextBlock* GetShipHintText() const { return ShipHintText; }
+	/** The gate's answer the panel shows on [Travel] and on [Crown] or [Return]; unset when the button is not shown (tests:
+	 * the same as the command's). */
+	TOptional<CosmicWanderer::ETravelBlock> GetShownTravelBlock() const { return ShownTravelBlock; }
+	TOptional<CosmicWanderer::ECrownBlock> GetShownCrownBlock() const { return ShownCrownBlock; }
+	/** What a press on [Abdicate] does at NowSeconds (FPlatformTime seconds - tests pass their own): within
+	 * AbdicateConfirmSeconds of the press that armed it, it records the abdication; otherwise it arms it (and its label
+	 * asks for the second press until the window closes - a timer redraws it then). */
+	void PressAbdicate(double NowSeconds);
+	static constexpr double AbdicateConfirmSeconds = 3.0;
+	static const FName TravelAction;
+	static const FName ScanAction;
+	static const FName CrownAction;
+	static const FName AbdicateAction;
+
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeConstruct() override;
@@ -186,6 +223,12 @@ private:
 	void HandleGalaxyGenerated(int32 Seed);
 
 	void HandleAction(FName Action, float Value);
+
+	// A press on a wanderer's button or on [Abdicate] (B1).
+	void HandleWanderer(FName Action, float Value);
+
+	// Whether a press at NowSeconds is the second of two (AbdicateArmedAt, within AbdicateConfirmSeconds).
+	bool IsAbdicateArmed(double NowSeconds) const;
 
 	// A focus button's press (Action = the field, NAME_None the even focus; Value unused - the form of OnAction).
 	void HandleFocus(FName Field, float Value);
@@ -228,6 +271,18 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UCosmicActionButton>> FocusButtons;
 
+	UPROPERTY(Transient)
+	TObjectPtr<UVerticalBox> WandererBox;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UCosmicActionButton>> WandererButtons;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCosmicActionButton> AbdicateButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> ShipHintText;
+
 	FName ShownSystemID;
 	CosmicMegaprojects::ECosmicSettleBlock ShownSettleBlock = CosmicMegaprojects::ECosmicSettleBlock::None;
 
@@ -237,4 +292,16 @@ private:
 
 	// The reasons of the project buttons now shown, in button order (the settle button has none here).
 	TArray<TPair<FName, CosmicMegaprojects::ECosmicStartBlock>> ShownStartBlocks;
+
+	// The wanderer's gates as the panel shows them (B1); unset without the button.
+	TOptional<CosmicWanderer::ETravelBlock> ShownTravelBlock;
+	TOptional<CosmicWanderer::ECrownBlock> ShownCrownBlock;
+	// The FPlatformTime seconds of the press that armed [Abdicate]; below 0 when it is not armed.
+	double AbdicateArmedAt = -1.0;
+	FTimerHandle AbdicateTimer;
+	// The capital whose panel shows the first-ship line in this viewing; None otherwise.
+	FName ShipHintSystem;
+	// The system where the vessel's last scan learned nothing (its panel says so while the vessel stands there); None
+	// otherwise.
+	FName ScanNothingAt;
 };

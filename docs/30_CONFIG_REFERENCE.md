@@ -70,6 +70,6 @@
 | `LaneTravelTicks` | `20` | number | `{"min": 1, "integer": true}` | Sim/CosmicWanderer.cpp | 읽힘 |
 | `ScanSightBonusLanes` | `1` | number | `{"min": 0, "integer": true}` | Player/PlayerRoleSubsystem.cpp | 읽힘 |
 | `EncounterChancePerArrival` | `0.25` | number | `{"min": 0, "max": 1}` | Events/CosmicPetitions.cpp | 읽힘 |
-| `CoronationReverence` | `0.6` | number | `{"min": 0, "max": 1}` | Sim/CosmicWanderer.cpp | 읽힘 |
-| `CoronationStabilityBelow` | `0.2` | number | `{"min": 0, "max": 1}` | Sim/CosmicWanderer.cpp | 읽힘 |
+| `CoronationReverence` | `0.6` | number | `{"min": 0, "max": 1}` | Sim/CosmicWanderer.cpp, UI/CosmicSystemPanelWidget.cpp | 읽힘 |
+| `CoronationStabilityBelow` | `0.2` | number | `{"min": 0, "max": 1}` | Sim/CosmicWanderer.cpp, UI/CosmicSystemPanelWidget.cpp | 읽힘 |
 | `AbdicationStabilityLoss` | `0.1` | number | `{"min": 0, "max": 1}` | Player/PlayerRoleSubsystem.cpp | 읽힘 |
