@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2211,7 +2211,7 @@
+ {
+ 	// One breadth-first walk from every place of the eye (CosmicState::SightWalkOf): the lanes from the eye without the
+ 	// reach bound (the order of the meetings), INDEX_NONE where the walk does not reach. Integers only.
+-	const CosmicState::FCosmicSightWalk Walk = CosmicState::SightWalkOf(State, StateIndex, EyePlaces);
++	const CosmicState::FCosmicSightWalk Walk = CosmicState::SightWalkOf(State, StateIndex, EyePlaces.Left(1));
+ 	const TArray<int32>& LanesFromEye = Walk.LanesFrom;
+ 
+ 	// What the eye reaches becomes known through NoteKnown, in the order of the walk. A set made for this pass only keeps

@@ -217,6 +217,15 @@ public:
 	bool NoteKnown(FName SystemID);
 
 	/**
+	 * One look of an eye (section 7.4, B1 header section 2.1) - the knowing stage's two writes: the walk from every place
+	 * at once (CosmicState::SightWalkOf), the systems within Reach lanes known through NoteKnown in the order found (only
+	 * when bSees), then every known system's owner met nearer first (NoteMet; lanes from the eye without the reach bound,
+	 * ties by CivID). Reads the world, writes only Knowing and the telling; no sim draw. Returns how many systems became
+	 * known. TickSight calls it; the wanderer's scan (Phase 4) will.
+	 */
+	int32 LookFrom(TConstArrayView<int32> EyePlaces, int32 Reach, bool bSees);
+
+	/**
 	 * The tier the calling sees from (section 8.1): the Tier of the people the vessel rules while it rules one, the
 	 * calling's PersonalTier otherwise (a wanderer, and the interregnum). Read by the gap rule of NoteMet and by the
 	 * scope of telling; never by the world.
@@ -463,10 +472,10 @@ private:
 	// The eye: a ruler at every system its people owns (OwnedSystems order), with the reach of the people's Tier, and
 	// only from DT_Rules.FirstSightTick on (before, the places of the eye still order the meetings but add no system); a
 	// wanderer at the system it stands in, with the reach of the calling's PersonalTier. Reach =
-	// DT_Rules.SightLanesByTier[tier] lanes (a missing or lower entry reads as 1). One breadth-first walk from all places
-	// of the eye along Lanes, inside the GalaxyRow of each place, notes every system within reach through NoteKnown, in
-	// the order of the walk (a set made for the pass only filters what is known already). Then every known system is
-	// looked at again: its owner, when not met yet, is met (NoteMet with that
+	// DT_Rules.SightLanesByTier[tier] lanes (a missing or lower entry reads as 1). The look itself is LookFrom: one
+	// breadth-first walk from all places of the eye along Lanes, inside the GalaxyRow of each place, notes every system
+	// within reach through NoteKnown, in the order of the walk (a set made for the pass only filters what is known
+	// already). Then every known system is looked at again: its owner, when not met yet, is met (NoteMet with that
 	// system) - nearer peoples first (lanes from the eye without the reach bound; ties by CivID FNameLexicalLess); the
 	// gap rule keeps a people unmet until a later look.
 	void TickSight(bool bVesselMoved);

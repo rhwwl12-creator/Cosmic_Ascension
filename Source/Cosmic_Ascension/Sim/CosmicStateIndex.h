@@ -50,11 +50,30 @@ namespace CosmicState
 	 * another galaxy even if the state held one). A lane to a SystemID the state does not hold is skipped. An index
 	 * out of range gives INDEX_NONE for every system. The array has one entry per element of State.Systems.
 	 * The single-source walk: the place of a starting core and the adjacency of a claimant now, succession later
-	 * (settlement reads one lane directly). The sight stage walks from every place of the eye at once, in
-	 * UGalaxySimulationSubsystem::TickSight, with the same galaxy-row rule. World state only, no draw, one breadth-first
-	 * pass.
+	 * (settlement reads one lane directly). The sight stage and the scan walk from every place of the eye at once
+	 * (SightWalkOf). World state only, no draw, one breadth-first pass.
 	 */
 	COSMIC_ASCENSION_API TArray<int32> LaneDistancesFrom(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 FromSystemIndex, int32 MaxLanes = MAX_int32);
+
+	/** What one look outward from the places of an eye finds (SightWalkOf). */
+	struct FCosmicSightWalk
+	{
+		// System indices in the order the walk found them: the places first, in the order given.
+		TArray<int32> Found;
+		// Per element of State.Systems: the lanes from the nearest place, 0 at a place, INDEX_NONE where the walk does not
+		// reach.
+		TArray<int32> LanesFrom;
+	};
+
+	/**
+	 * One look outward from every place of an eye at once (section 7.4, B1 header section 2.1): all places on level 0 in
+	 * the order given (an index out of range or given twice is skipped), then breadth first over Lanes in array order. A
+	 * lane is followed only into a system of the GalaxyRow of the system it leaves, and a lane to a SystemID the state
+	 * does not hold is skipped. Not cut at a reach: the callers - the knowing stage (TickSight) and the scan - cut at
+	 * theirs and order the meetings by LanesFrom. Whether a look passes through the sanctuary is section 16 #80, decided
+	 * by the stage-5 header (the sanctuary has no lanes now). World state only, no draw, one breadth-first pass.
+	 */
+	COSMIC_ASCENSION_API FCosmicSightWalk SightWalkOf(const FGalaxyState& State, const FCosmicStateIndex& Index, TConstArrayView<int32> EyePlaces);
 
 	/**
 	 * The AI.Profile tag one number in [0, 1) picks (section 3.1, 5.10): the four profiles in a fixed order, evenly, until

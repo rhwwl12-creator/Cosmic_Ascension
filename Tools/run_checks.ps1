@@ -74,13 +74,14 @@ Step 'smoke: -game -nullrhi' {
 # moves): the key 'CosmicBalance: seed N, T ticks, hash H, world W', and after ' | ' the ruler line as it is (MVP item 9).
 function Remove-WrotePath([string] $Line) { return ($Line -replace ', wrote .*?(?= \| |$)', '') }
 
-# One commandlet run of seed 42 for 3,000 ticks, compared with the baseline field $Field (or written into it with
-# -UpdateBaseline): the hash line, and with $Ruler also the ruler line after ' | ' - both without the CSV path.
-function Compare-Balance([string] $Name, [string] $Field, [string[]] $Extra, [switch] $Ruler) {
+# One commandlet run of seed 42 for $Ticks ticks (3,000 unless given), compared with the baseline field $Field (or
+# written into it with -UpdateBaseline): the hash line, and with $Ruler also the ruler line after ' | ' - both without
+# the CSV path.
+function Compare-Balance([string] $Name, [string] $Field, [string[]] $Extra, [switch] $Ruler, [int] $Ticks = 3000) {
     $log = Join-Path $Logs "$Name.log"
     # The log of this run only: an old one (or the '_2' the engine writes when the log is held open) cannot answer for it.
     foreach ($old in @($log, (Join-Path $Logs "${Name}_2.log"))) { if (Test-Path $old) { Remove-Item -Force $old } }
-    & $Editor $Project -run=CosmicBalance -Seed=42 -Ticks=3000 "-Out=$Name.csv" @Extra -unattended -nosplash -stdout -FullStdOutLogOutput "-AbsLog=$RootF/Saved/Logs/$Name.log"
+    & $Editor $Project -run=CosmicBalance -Seed=42 "-Ticks=$Ticks" "-Out=$Name.csv" @Extra -unattended -nosplash -stdout -FullStdOutLogOutput "-AbsLog=$RootF/Saved/Logs/$Name.log"
     if (-not (Test-Path $log)) { throw "no $Name.log written by this run" }
     $line = Select-String -Path $log -Pattern 'CosmicBalance: seed' | Select-Object -Last 1
     if (-not $line) { throw "no ""CosmicBalance: seed"" summary line in $Name.log" }
@@ -108,6 +109,13 @@ Step 'balance: seed 42 vs baseline' { Compare-Balance 'checks' 'summary_line' @(
 # The ruler's policy (docs/40_DEV_GUIDE.md section 9.3): answers, the project key and the research focus (MVP item 7)
 # between ticks, the scope of telling of a game. It keeps the inputs deterministic across builds.
 Step 'balance: seed 42 with the ruler policy vs baseline' { Compare-Balance 'checks_ruler' 'ruler_summary_line' @('-Answer=1', '-Build=1', '-Focus=1', '-TellAll=0') -Ruler }
+
+# B1 (docs/60_DECISIONS/headers/B1_wanderer_loop.md section 5): the two long runs of seed 42 as well, in the full tier -
+# changes that reach only a long run (a deposition, the chronicle) cannot pass unseen.
+if ($Tier -eq 'full') {
+    Step 'balance: seed 42, 20,000 ticks vs baseline' { Compare-Balance 'checks_20000' 'summary_line_20000' @() -Ticks 20000 }
+    Step 'balance: seed 42, 20,000 ticks with the ruler policy vs baseline' { Compare-Balance 'checks_ruler_20000' 'ruler_summary_line_20000' @('-Answer=1', '-Build=1', '-Focus=1', '-TellAll=0') -Ruler -Ticks 20000 }
+}
 
 # MVP item 9: the hash run of a game process (ACosmicGameMode::StartPlay, World/CosmicHashRun) against the commandlet's
 # line of this run - not the baseline file, which the steps above compare - so the editor binary shows that the hash run

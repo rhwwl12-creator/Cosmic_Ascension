@@ -19,6 +19,7 @@
 #include "Log/CosmicLogSubsystem.h"
 #include "Math/RandomStream.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/Crc.h"
 #include "Misc/ScopeExit.h"
 #include "Player/PlayerRoleSubsystem.h"
 #include "Save/CosmicSaveSubsystem.h"
@@ -30,6 +31,7 @@
 #include "UObject/NameTypes.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
+#include "World/CosmicRulerPolicy.h"
 
 #include <initializer_list>
 
@@ -1806,6 +1808,107 @@ bool FCosmicFirstContactTimelineTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Every seed has made its first contact by FirstSightTick + SightIntervalTicks (seeds that had not)"), Late, FString());
 	TestEqual(TEXT("and none before FirstSightTick - Phase 2 and 3 (seeds that had)"), Early, FString());
 	TestEqual(TEXT("The first contact is told by log_first_contact at its tick, the scope judging it (seeds where it was not)"), Untold, FString());
+	return true;
+}
+
+namespace CosmicKnowingTests
+{
+	// What the calling knows as one number: the known systems and the met peoples, IDs and ticks in their order, and the
+	// first contact (B1 header section 2.1 - the order is hashed, so the CRC has to keep it).
+	uint32 KnowingCrcOf(const FKnowingState& Knowing)
+	{
+		FString Text;
+		for (const FKnownMark& Mark : Knowing.KnownSystems)
+		{
+			Text += FString::Printf(TEXT("%s@%lld;"), *Mark.ID.ToString().ToLower(), Mark.Tick);
+		}
+		Text += TEXT("|");
+		for (const FKnownMark& Mark : Knowing.MetCivs)
+		{
+			Text += FString::Printf(TEXT("%s@%lld;"), *Mark.ID.ToString().ToLower(), Mark.Tick);
+		}
+		Text += TEXT("|") + Knowing.FirstContactCivID.ToString().ToLower();
+		return FCrc::StrCrc32(*Text);
+	}
+}
+
+// B1 header section 2.1: the sight walk moved into CosmicState::SightWalkOf is the walk TickSight made before, bit for bit.
+// The constants were taken at HEAD 32aa9ff, before the move, from the same four runs: a ruler under the commandlet's
+// policy (its people settles more systems, so the eye has many places) and a wanderer that travels one lane every
+// hundred ticks, seeds 42 and 7, 2,000 ticks with the game's data.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSightWalkMovedTest, "Cosmic_Ascension.Sim.SightWalkMoved", CosmicTests::Flags)
+bool FCosmicSightWalkMovedTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicKnowingTests;
+
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	UPlayerRoleSubsystem* Role = Sim ? Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (!Sim || !TestNotNull(TEXT("The player role subsystem exists"), Role))
+	{
+		return false;
+	}
+	ON_SCOPE_EXIT { Sim->NewGalaxy(42, 5, 3); };
+
+	struct FCase
+	{
+		int32 Seed;
+		bool bRuler;
+		uint32 Expected;
+	};
+	const FCase Cases[] = {
+		{ 42, true, 2988974541u },
+		{ 7, true, 3935307996u },
+		{ 42, false, 3867532108u },
+		{ 7, false, 2395153442u },
+	};
+	for (const FCase& Case : Cases)
+	{
+		Sim->NewGalaxy(Case.Seed, 0, 0);
+		const FGalaxyState& State = Sim->GetState();
+		int32 MostPlaces = 0;
+		if (Case.bRuler)
+		{
+			const FCosmicRulerPolicy Policy{ true, true, true };
+			FCosmicRulerPolicyCounts Counts;
+			for (int32 Done = 0; Done < 2000; ++Done)
+			{
+				const FName CardBefore = State.Knowing.PendingPetitionRow;
+				Sim->RunHeadless(1);
+				CosmicRulerPolicy::Act(Policy, *Sim, *Role, CardBefore, Counts);
+				const int32 Ruled = Sim->GetStateIndex().FindCiv(State, State.Player.RuledCivID);
+				MostPlaces = State.Civs.IsValidIndex(Ruled) ? FMath::Max(MostPlaces, State.Civs[Ruled].OwnedSystems.Num()) : MostPlaces;
+			}
+			TestTrue(FString::Printf(TEXT("Seed %d: the ruler's eye had more than one place (the walk starts from many)"), Case.Seed), MostPlaces > 1);
+		}
+		else
+		{
+			FGalaxyState& Mutable = Sim->GetMutableState();
+			const int32 Ruled = Sim->GetStateIndex().FindCiv(State, State.Player.RuledCivID);
+			if (!TestTrue(TEXT("The first life rules a people"), State.Civs.IsValidIndex(Ruled)))
+			{
+				return false;
+			}
+			Mutable.Civs[Ruled].bIsPlayerRuled = false;
+			Mutable.Player.Role = EPlayerRole::Wanderer;
+			Mutable.Player.RuledCivID = NAME_None;
+			for (int32 Sample = 0; Sample < 20; ++Sample)
+			{
+				const int32 Here = Sim->GetStateIndex().FindSystem(State, State.Player.CurrentSystemID);
+				if (State.Systems.IsValidIndex(Here) && !State.Systems[Here].Lanes.IsEmpty())
+				{
+					const TArray<FName>& Lanes = State.Systems[Here].Lanes;
+					Sim->GetMutableState().Player.TravelTargetSystemID = Lanes[Sample % Lanes.Num()];
+					Sim->GetMutableState().Player.TravelTicksRemaining = 1;
+				}
+				Sim->RunHeadless(100);
+			}
+		}
+		const uint32 Crc = KnowingCrcOf(State.Knowing);
+		AddInfo(FString::Printf(TEXT("SightWalkMoved seed %d %s: %u (known %d, met %d)"), Case.Seed, Case.bRuler ? TEXT("ruler") : TEXT("wanderer"), Crc,
+			State.Knowing.KnownSystems.Num(), State.Knowing.MetCivs.Num()));
+		TestEqual(FString::Printf(TEXT("Seed %d %s: what the calling knows is what the walk before the move made"), Case.Seed,
+			Case.bRuler ? TEXT("ruler") : TEXT("wanderer")), Crc, Case.Expected);
+	}
 	return true;
 }
 

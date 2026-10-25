@@ -12,5 +12,7 @@
         "world_hash_20000": 1128422968,
         "note": "Measured 2026-10-24 on Windows (editor binaries). Before A-8b (A-5b to A-8a - A-8a moved the economy's eight constants into DT_Rules without a change): 3000 hash 1086386866 / world 1078735008, 20000 hash 3448516153 / world 885018087, the policy line 794910355 / 1912530916. Earlier: before A-5b 3000 hash 2941370122, 20000 hash 2410091205. The ruler line (-Answer=1 -Build=1 -Focus=1 -TellAll=0 since MVP 7 A-7a) is compared as ruler_summary_line."
     },
+    "summary_line_20000": "CosmicBalance: seed 42, 20000 ticks, hash 1123943493, world 1128422968",
+    "ruler_summary_line_20000": "CosmicBalance: seed 42, 20000 ticks, hash 3928640348, world 2194209278 | CosmicBalance ruler: answer 1 build 1 focus 1; cards 100, answers 100, started 11, focus changes 5, decisions 116 (by 600 7, by 6000 41, by end 17); told by 600 20, by 6000 787; ruled people T2 at 1196, T3 at 2396",
     "ruler_summary_line": "CosmicBalance: seed 42, 3000 ticks, hash 847130296, world 1448576366, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks_ruler.csv | CosmicBalance ruler: answer 1 build 1 focus 1; cards 13, answers 13, started 4, focus changes 5, decisions 22 (by 600 7, by 6000 -1, by end 17); told by 600 20, by 6000 -1; ruled people T2 at 1196, T3 at 2396"
 }

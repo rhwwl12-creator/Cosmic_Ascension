@@ -2204,35 +2204,20 @@ void UGalaxySimulationSubsystem::TickSight(bool bVesselMoved)
 	const int32 Reach = (Rules.SightLanesByTier.IsValidIndex(TierIndex) && Rules.SightLanesByTier[TierIndex] > 1) ? Rules.SightLanesByTier[TierIndex] : 1;
 	// A ruler's eye opens at FirstSightTick; until then its places only order the meetings.
 	const bool bSees = !bRuler || State.Tick >= Rules.FirstSightTick;
+	LookFrom(Eye, Reach, bSees);
+}
 
-	// One breadth-first walk from every place of the eye, inside the galaxy row it starts in: the lanes from the eye
-	// without the reach bound (the order of the meetings), INDEX_NONE where the walk does not reach. Integers only.
-	TArray<int32> LanesFromEye;
-	LanesFromEye.Init(INDEX_NONE, State.Systems.Num());
-	TArray<int32> Walk;
-	Walk.Reserve(State.Systems.Num());
-	for (const int32 SystemIndex : Eye)
-	{
-		LanesFromEye[SystemIndex] = 0;
-		Walk.Add(SystemIndex);
-	}
-	for (int32 Head = 0; Head < Walk.Num(); ++Head)
-	{
-		const FStarSystemState& From = State.Systems[Walk[Head]];
-		for (const FName LaneID : From.Lanes)
-		{
-			const int32 To = StateIndex.FindSystem(State, LaneID);
-			if (State.Systems.IsValidIndex(To) && LanesFromEye[To] == INDEX_NONE && State.Systems[To].GalaxyRow == From.GalaxyRow)
-			{
-				LanesFromEye[To] = LanesFromEye[Walk[Head]] + 1;
-				Walk.Add(To);
-			}
-		}
-	}
+int32 UGalaxySimulationSubsystem::LookFrom(TConstArrayView<int32> EyePlaces, int32 Reach, bool bSees)
+{
+	// One breadth-first walk from every place of the eye (CosmicState::SightWalkOf): the lanes from the eye without the
+	// reach bound (the order of the meetings), INDEX_NONE where the walk does not reach. Integers only.
+	const CosmicState::FCosmicSightWalk Walk = CosmicState::SightWalkOf(State, StateIndex, EyePlaces);
+	const TArray<int32>& LanesFromEye = Walk.LanesFrom;
 
 	// What the eye reaches becomes known through NoteKnown, in the order of the walk. A set made for this pass only keeps
 	// NoteKnown from scanning the array for what is known already (the order is hashed, the set is only asked).
 	FKnowingState& Knowing = State.Knowing;
+	int32 Learned = 0;
 	if (bSees)
 	{
 		TSet<FName> Known;
@@ -2241,7 +2226,7 @@ void UGalaxySimulationSubsystem::TickSight(bool bVesselMoved)
 		{
 			Known.Add(Mark.ID);
 		}
-		for (const int32 SystemIndex : Walk)
+		for (const int32 SystemIndex : Walk.Found)
 		{
 			if (LanesFromEye[SystemIndex] > Reach)
 			{
@@ -2251,7 +2236,7 @@ void UGalaxySimulationSubsystem::TickSight(bool bVesselMoved)
 			if (!Known.Contains(SystemID))
 			{
 				Known.Add(SystemID);
-				NoteKnown(SystemID);
+				Learned += NoteKnown(SystemID) ? 1 : 0;
 			}
 		}
 	}
@@ -2299,6 +2284,7 @@ void UGalaxySimulationSubsystem::TickSight(bool bVesselMoved)
 	{
 		NoteMet(State.Civs[Seen.CivIndex].CivID, State.Systems[Seen.SystemIndex].SystemID);
 	}
+	return Learned;
 }
 
 void UGalaxySimulationSubsystem::ResolvePendingRoleEffect()

@@ -99,6 +99,36 @@ TArray<int32> CosmicState::LaneDistancesFrom(const FGalaxyState& State, const FC
 	return Distances;
 }
 
+CosmicState::FCosmicSightWalk CosmicState::SightWalkOf(const FGalaxyState& State, const FCosmicStateIndex& Index, TConstArrayView<int32> EyePlaces)
+{
+	FCosmicSightWalk Walk;
+	Walk.LanesFrom.Init(INDEX_NONE, State.Systems.Num());
+	Walk.Found.Reserve(State.Systems.Num());
+	for (const int32 SystemIndex : EyePlaces)
+	{
+		if (State.Systems.IsValidIndex(SystemIndex) && Walk.LanesFrom[SystemIndex] == INDEX_NONE)
+		{
+			Walk.LanesFrom[SystemIndex] = 0;
+			Walk.Found.Add(SystemIndex);
+		}
+	}
+	for (int32 Head = 0; Head < Walk.Found.Num(); ++Head)
+	{
+		const int32 Current = Walk.Found[Head];
+		const FStarSystemState& From = State.Systems[Current];
+		for (const FName Lane : From.Lanes)
+		{
+			const int32 To = Index.FindSystem(State, Lane);
+			if (State.Systems.IsValidIndex(To) && Walk.LanesFrom[To] == INDEX_NONE && State.Systems[To].GalaxyRow == From.GalaxyRow)
+			{
+				Walk.LanesFrom[To] = Walk.LanesFrom[Current] + 1;
+				Walk.Found.Add(To);
+			}
+		}
+	}
+	return Walk;
+}
+
 FGameplayTag CosmicState::PickAIProfile(float Roll)
 {
 	static const FName Profiles[] = {
