@@ -356,11 +356,11 @@ private:
 	// Loop one, per civilization: the population regrowth (DT_Rules.PopulationRegrowthPerTick: below 1.0 it rises by the
 	// knob up to 1.0; above 1.0, or with a knob not above 0 or not a number, nothing); the Stability recovery (below
 	// DT_Rules.StabilityRestingLevel it rises by StabilityRecoveryPerTick x (1 + SocietyRecoveryBonus x Society) up to the
-	// level - MVP item 3, B2); income of its settled systems into IncomePerTick (a system being settled pays nothing,
-	// section 5.7); then the per-tick sources, the only effects that may scale IncomePerTick or act every tick; then
-	// IncomePerTick into the Stockpile; then the edicts' upkeep (B2): in ActiveEdicts order each held edict pays
-	// UpkeepPerTick in full from the stockpile or lapses (log_edict_lapsed for the people the player rules - the stage's one
-	// line, the tell stream only). The per-tick sources:
+	// level - MVP item 3, B2; Society research read 0..1, a bonus not above 0 or not finite read as 0); income of its
+	// settled systems into IncomePerTick (a system being settled pays nothing, section 5.7); then the per-tick sources, the
+	// only effects that may scale IncomePerTick or act every tick; then IncomePerTick into the Stockpile; then the edicts'
+	// upkeep (B2): in ActiveEdicts order each held edict pays UpkeepPerTick in full from the stockpile or lapses
+	// (log_edict_lapsed for the people the player rules - the stage's one line, the tell stream only). The per-tick sources:
 	// - The held edicts' EffectsPerTick (B2), first, in ActiveEdicts order, subject = the civilization alone (no system, no
 	//   OtherID), SourceRow = the edict.
 	// - The drain of spiritual pressure, once per civilization and never once per system (section 16 #55): Stability

@@ -182,6 +182,8 @@
   - 상시(`Standing`) 청원 한 자리 유예 버퍼(`DeferredStandingRow`)는 저장 필드 1개가 추가되므로 **B4(영압 체인 카드 셋과 함께 — 로드맵에는 아직 적히지 않았다)**에서 헤더와 함께 다룬다.
   - 사회(`Society`) 연구의 안정도 회복 보너스는 **B2(칙령 9와 함께)**, 주장(`Claim`) 예고 줄과 반란 임계 표시는 **B4/B6**에서 다룬다.
 
+> **B2 뒤의 기록 (2026-10-25)**: 사회 연구의 안정도 회복 보너스는 B2가 넣었다 — 회복 = `StabilityRecoveryPerTick` × (1 + `SocietyRecoveryBonus` 0.25 × 사회), 최대 회복이 물려받은 칙령의 소모보다 작다는 불변식과 함께(헤더 `B2_edicts_and_research.md` §2.7, `DT_Rules`). 칙령은 B2에서 다섯이다(아홉은 B의 끝 — 격리령 B3, 침묵의 금지 B4, 안식·낭독 B7).
+
 ### 4.2 `arch_seeker` 이름 둘 고르기 (`STATUS.md` 다음 작업 2 — `Tools/data/DT_Civs.json`)
 
 `A0` 텍스트 감사에서 개발자 결정으로 남겨 둔 두 가칭(`DECISIONS_LOG.md` 2026-10-19 기록):

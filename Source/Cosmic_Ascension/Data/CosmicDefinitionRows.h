@@ -52,8 +52,9 @@ struct COSMIC_ASCENSION_API FCosmicEventDef : public FTableRowBase
 	GENERATED_BODY()
 
 	// Event.Civ.Economy / Society, Event.Crisis.Supernova / Transcendent / Rebellion / Claim, Event.Grace.Rescue / Remnant / Jubilee.
-	// The weight family of the row: transcendent, trait and edict weight modifiers are keyed by it. It is not the
-	// category of the log line; that is LogCategory.
+	// The weight family of the row: transcendent weight modifiers are keyed by it, and so will be the trait rows' (Phase 4)
+	// and the vigil edict's (B4 - B2's edict rows carry no event weight). It is not the category of the log line; that is
+	// LogCategory.
 	UPROPERTY(EditAnywhere)
 	FGameplayTag Category;
 
@@ -144,7 +145,8 @@ struct COSMIC_ASCENSION_API FHazardDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	FText DisplayName;
 
-	// Ticks from placement to expiry, read as at least 1. Hazard.Claim counts down from its row like every hazard.
+	// Ticks from placement to expiry, read as at least 1, plus the owner's held edicts' HazardCountdownBonus for this tag
+	// at placement (CosmicHazards::Place, B2). Hazard.Claim counts down from its row like every hazard.
 	UPROPERTY(EditAnywhere)
 	int32 CountdownTicks = 300;
 

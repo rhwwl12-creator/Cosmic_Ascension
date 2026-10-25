@@ -69,7 +69,9 @@ namespace CosmicRulerPolicy
 	// with no hazard to answer, and the vigil of step 3 once Stability is 0.6 or more with no rebellion standing - never
 	// EdictRow; (5) with a free slot it enacts EdictRow - a row with a Stability cost only at Stability 0.6 or more. A
 	// full set of slots is made room for in (2) and (3) by revoking first a held edict that answers no standing hazard
-	// (EdictRow only when no other one does). One boundary never revokes a row it enacted, nor enacts one it revoked.
+	// (EdictRow only when no other one does) - only when the row's one reason is Slots (CosmicEdicts::EnactBlockOf) and
+	// the stockpile can pay its EnactCost, so nothing is given up for an enactment that would be refused. One boundary
+	// never revokes a row it enacted, nor enacts one it revoked.
 	// Nothing once Counts.bEnded is set.
 	void ActEdicts(const FCosmicRulerPolicy& Policy, UGalaxySimulationSubsystem& Sim, UPlayerRoleSubsystem& Role, FCosmicRulerPolicyCounts& Counts);
 

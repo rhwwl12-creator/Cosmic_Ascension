@@ -74,7 +74,7 @@ namespace CosmicHashRun
 	// Idle: the log telling all (the commandlet's default -TellAll=1), switched before NewGalaxy(Seed, 0, 0) so the lines
 	// of tick 0 are told the same way, then RunHeadless in steps of Every (or in one step), then both hashes. Policy: the
 	// log in the game's scope (-TellAll=0), NewGalaxy, then one tick at a time with CosmicRulerPolicy::Act between ticks -
-	// the commandlet's loop. The log's mode comes back afterwards. Refuses before NewGalaxy when any of the ten tables,
+	// the commandlet's loop. The log's mode comes back afterwards. Refuses before NewGalaxy when any of the eleven tables,
 	// the rules row or the home galaxy row is missing (the hash would come from C++ defaults). Switch must be IsGood.
 	FResult Run(UGalaxySimulationSubsystem& Sim, UCosmicLogSubsystem& Log, UPlayerRoleSubsystem& Role, int32 Seed, const FSwitch& Switch);
 

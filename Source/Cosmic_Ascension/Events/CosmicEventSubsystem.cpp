@@ -1074,8 +1074,8 @@ int32 UCosmicEventSubsystem::EvaluateAndFire(FGalaxyState& State, FRandomStream&
 		// b. Lottery rows: at most one, picked by the number drawn in step 1. Each pair has an absolute share.
 		TArray<FSlotPair, TInlineAllocator<16>> Lottery;
 		Gather(ECosmicEventTrigger::Lottery, Lottery);
-		// The share of every pair, once: BaseWeight x weight factor x chance. The factor is the sphere weight of the
-		// transcendents (section 4.2); traits and edicts add theirs in Phase 4.
+		// The share of every pair, once: BaseWeight x weight factor x chance. The factor is the sphere weight of the transcendents
+		// (section 4.2); traits add theirs in Phase 4, the vigil edict its own in B4 (B2's edict rows carry no event weight).
 		TArray<float, TInlineAllocator<16>> Shares;
 		float Total = 0.f;
 		for (const FSlotPair& Pair : Lottery)

@@ -103,7 +103,7 @@ knobs = [k for k in json.load(open(rules_path, encoding='utf-8'))[0].keys() if k
 unused = [k for k in knobs if not re.search(r'\b' + re.escape(k) + r'\b', runtime_text)]
 notes.append(f'DT_Rules knobs: {len(knobs)}, without a runtime reader: {len(unused)} (baseline {BASELINE["unused_knobs"]}): ' + ', '.join(unused))
 if STRICT and len(unused) > BASELINE['unused_knobs']:
-    errors.append(f'unused knob count grew: {len(unused)} > {BASELINE["unused_knobs"]} (add a reader or a since: tag in schema.json)')
+    errors.append(f'unused knob count grew: {len(unused)} > {BASELINE["unused_knobs"]} (add a reader, or raise BASELINE unused_knobs with a dated note when a reserved knob is added on purpose)')
 
 for w in warnings: print('WARN  ' + w)
 for n in notes: print('NOTE  ' + n)

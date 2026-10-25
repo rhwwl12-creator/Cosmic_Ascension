@@ -495,8 +495,8 @@ public:
 
 	/** The ruler's edicts of the edict window (B2 header section 4): UPlayerRoleSubsystem::EnactEdict and RevokeEdict, and
 	 * the research shares of its sliders, UPlayerRoleSubsystem::SetResearchShares. Refused in an ended run. A command taken
-	 * steps the edict hint (FollowEdictHint) and redraws the HUD at once (a paused simulation sends no tick); no map redraw -
-	 * neither edicts nor research are on the map. */
+	 * redraws the HUD at once (a paused simulation sends no tick) - an edict command steps the edict hint first
+	 * (FollowEdictHint); no map redraw - neither edicts nor research are on the map. */
 	bool EnactEdict(FName Row);
 	bool RevokeEdict(FName Row);
 	bool SetResearchShares(const TMap<FName, int32>& Weights);
