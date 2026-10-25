@@ -40,6 +40,16 @@ namespace CosmicRows
 	// DT_LogTemplates: the fallen monarch, told by the deposition pipeline (section 5.10).
 	inline const FName LogFallenMonarch(TEXT("log_fallen_monarch"));
 
+	// DT_LogTemplates: the wanderer's loop (B1, docs/60_DECISIONS/headers/B1_wanderer_loop.md section 3.3). A scan of a
+	// wild system that learned something; a coronation and a return (UPlayerRoleSubsystem::BecomeRuler); an abdication
+	// (the tenth stage's pipeline - also the SourceRow of its Notable.Regent record); a rebellion that expires while
+	// another source has recorded the throne's end first (the throne does not go to the rebels).
+	inline const FName LogScanWild(TEXT("log_scan_wild"));
+	inline const FName LogCrowned(TEXT("log_crowned"));
+	inline const FName LogReturned(TEXT("log_returned"));
+	inline const FName LogThroneVacated(TEXT("log_throne_vacated"));
+	inline const FName LogRebellionUnseated(TEXT("log_rebellion_unseated"));
+
 	// DT_LogTemplates: the meeting lines (section 7.4). NoteMet tells the first for the first meeting of the run, the
 	// second for every later one.
 	inline const FName LogFirstContact(TEXT("log_first_contact"));

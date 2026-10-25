@@ -1,0 +1,20 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -388,16 +388,7 @@
+ 				}
+ 			}
+ 		}
+-		else if (bUnseated)
+-		{
+-			for (FNotableRecord& Record : Civ.Notables)
+-			{
+-				if (Record.LastTick == 0 && Record.Role == RebelTag)
+-				{
+-					Record.LastTick = FMath::Max<int64>(State.Tick, 1);
+-				}
+-			}
+-		}
++
+ 		Civ.LowStabilityTicks = 0;
+ 		return bUnseated;
+ 	}

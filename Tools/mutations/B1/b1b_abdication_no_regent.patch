@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -310,7 +310,6 @@
+ 		FCosmicEffect Regent;
+ 		Regent.Type = EEffectType::NameNotable;
+ 		Regent.Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Notable.Regent")));
+-		UCosmicEventSubsystem::Apply(Regent, Ctx);
+ 	}
+ 
+ 	// The new eye of a wanderer: where it stands and the lanes around (section 4.4).

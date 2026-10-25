@@ -8,8 +8,8 @@
 		"Every column of a row struct is declared here: a column added to a struct needs its line.",
 		"Column kinds (closed list): plain, number, numbers, text, texts, tag, tags, tag_list, tag_map, row, row_map, rows, word_map, enum, conditions, effects, pool, structs",
 		"An integer property is declared with integer: true (Data.Integrity holds the columns to the property types).",
-		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, has_type, slots_in, len_ge_col, pairs_ge_col, contains_all",
-		"A row rule is 'when -> then' over tests: one column with one test of the list above, or 'row' with a row name. Each test can be asked of some kinds of column only (the checker holds the table).",
+		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, has_type, has_cond, slots_in, len_ge_col, pairs_ge_col, contains_all",
+		"A row rule is 'when -> then' over tests: one column with one test of the list above, 'row' with a row name, or 'row_prefix' with one of the table's prefixes (the rows of one kind - B1). Each test can be asked of some kinds of column only (the checker holds the table).",
 		"A column of a list of structs (kind structs) is named in a rule as 'List.Column': the test holds when it holds for every entry of the list, and so for an empty list. The tests that name other columns of the row (len_ge_col, pairs_ge_col) are not asked of such a column.",
 		"A rule added here needs an input that breaks it in Tools/test_data_schema.py: that test walks every rule, unique, pair, target and slot list of this file.",
 		"A number range stands here only where the guideline states one. A column without a range is checked for being a finite number.",
@@ -50,7 +50,7 @@
 		"EAscensionTier": ["Tier1_Planetary", "Tier2_Stellar", "Tier3_Causal", "Tier4_Transcendent", "Tier5_EternalOrder"],
 		"EPlayerRole": ["Ruler", "Wanderer"],
 		"ECosmicEventTrigger": ["Lottery", "Standing", "Named"],
-		"ECosmicEventSubject": ["Civilization", "SettledSystem"],
+		"ECosmicEventSubject": ["Civilization", "SettledSystem", "VesselSystem"],
 		"ECosmicHazardSpawn": ["Draw", "Capital", "ClaimRule"],
 		"ECosmicCheckStat": ["NoCheck", "Body", "Mind", "Causality", "Exaltation", "Stability"]
 	},
@@ -148,7 +148,13 @@
 				"InfluencePerPopulation": {"kind": "number", "min": 0},
 				"OpenInfluenceBonus": {"kind": "number", "min": 0},
 				"ResearchInsightShare": {"kind": "number", "min": 0, "max": 1},
-				"ResearchPerInsight": {"kind": "number", "min": 0}
+				"ResearchPerInsight": {"kind": "number", "min": 0},
+				"LaneTravelTicks": {"kind": "number", "min": 1, "integer": true},
+				"ScanSightBonusLanes": {"kind": "number", "min": 0, "integer": true},
+				"EncounterChancePerArrival": {"kind": "number", "min": 0, "max": 1},
+				"CoronationReverence": {"kind": "number", "min": 0, "max": 1},
+				"CoronationStabilityBelow": {"kind": "number", "min": 0, "max": 1},
+				"AbdicationStabilityLoss": {"kind": "number", "min": 0, "max": 1}
 			},
 			"rules": [
 				{
@@ -212,7 +218,7 @@
 			"struct": "LogTemplateDef",
 			"prefixes": ["log_"],
 			"must_exist": true,
-			"required_rows": ["log_first_life", "log_breakthrough_physics", "log_breakthrough_society", "log_breakthrough_engineering", "log_breakthrough_transcendence", "log_fallen_monarch", "log_first_contact", "log_contact", "log_far_event", "log_far_ascent"],
+			"required_rows": ["log_first_life", "log_breakthrough_physics", "log_breakthrough_society", "log_breakthrough_engineering", "log_breakthrough_transcendence", "log_fallen_monarch", "log_first_contact", "log_contact", "log_far_event", "log_far_ascent", "log_scan_wild", "log_crowned", "log_returned", "log_throne_vacated", "log_rebellion_unseated"],
 			"columns": {
 				"Category": {"kind": "tag", "root": "Log."},
 				"Context": {"kind": "tag", "root": "Revelation.", "optional": true},
@@ -361,6 +367,10 @@
 					"why": "a grace row names no one (guideline 9.3: NameNotable is not carried by Event.Grace rows)",
 					"when": [{"col": "Category", "in": ["Event.Grace.Rescue", "Event.Grace.Remnant", "Event.Grace.Jubilee"]}],
 					"then": [{"col": "Effects", "lacks_type": "NameNotable"}]
+				},
+				{
+					"why": "an event row is about a people or one of its settled systems: the system the vessel stands in is a wanderer card's subject (B1)",
+					"then": [{"col": "Subject", "in": ["Civilization", "SettledSystem"]}]
 				}
 			]
 		},
@@ -681,8 +691,37 @@
 			},
 			"rules": [
 				{
-					"why": "a petition is put before a ruler: every row carries the condition PlayerRoleIs (guideline 5.10)",
+					"why": "a card is put before a role: every row carries the condition PlayerRoleIs (guideline 5.10, B1)",
 					"then": [{"col": "Conditions", "has_type": "PlayerRoleIs"}]
+				},
+				{
+					"why": "a petition is put before a ruler and is about the ruled people or one of its settled systems (guideline 5.10, B1)",
+					"when": [{"row_prefix": "petition_"}],
+					"then": [
+						{"col": "Conditions", "has_cond": {"type": "PlayerRoleIs", "key": "Ruler"}},
+						{"col": "Subject", "in": ["Civilization", "SettledSystem"]}
+					]
+				},
+				{
+					"why": "a wanderer's card is put before a wanderer, about the system the vessel stands in, and checks the vessel: a people's Stability is not the wanderer's (B1)",
+					"when": [{"row_prefix": "enc_"}],
+					"then": [
+						{"col": "Conditions", "has_cond": {"type": "PlayerRoleIs", "key": "Wanderer"}},
+						{"col": "Subject", "is": "VesselSystem"},
+						{"col": "Choices.CheckStat", "in": ["NoCheck", "Body", "Mind", "Causality", "Exaltation"]}
+					]
+				},
+				{
+					"why": "an arrival card can come on a system no people owns: its texts name the system alone (B1)",
+					"when": [{"col": "Subject", "is": "VesselSystem"}, {"col": "Trigger", "is": "Lottery"}],
+					"then": [
+						{"col": "Title", "slots_in": ["System"]},
+						{"col": "Body", "slots_in": ["System"]},
+						{"col": "VoiceBodies", "slots_in": ["System"]},
+						{"col": "Choices.Label", "slots_in": ["System"]},
+						{"col": "Choices.SuccessText", "slots_in": ["System"]},
+						{"col": "Choices.FailureText", "slots_in": ["System"]}
+					]
 				},
 				{
 					"why": "a card records no death (the death pipeline of Phase 4b) and runs no per-tick effect; the effects that grant, place, take or name wait for the rows that use them (guideline 5.10, 7.4)",

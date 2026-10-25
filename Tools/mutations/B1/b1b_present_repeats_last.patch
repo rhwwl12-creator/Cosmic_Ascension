@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
+@@ -275,7 +275,7 @@
+ 		TArray<FCandidate, TInlineAllocator<4>> Candidates;
+ 		for (const FCosmicPetitionUnit& Unit : StandingHeld(State, Index, Tables, Rules))
+ 		{
+-			if (!HeldAtHead.Contains(Unit) && Unit.Row != LastAnswered)
++			if (!HeldAtHead.Contains(Unit))
+ 			{
+ 				Candidates.Add({ Unit.Row, Unit.SystemIndex, WeightOf(*Tables.FindEncounter(Unit.Row)) });
+ 			}

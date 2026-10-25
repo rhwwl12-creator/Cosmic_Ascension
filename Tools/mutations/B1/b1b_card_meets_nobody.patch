@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1422,7 +1422,7 @@
+ 			{
+ 				const int32 CardSystem = StateIndex.FindSystem(State, State.Knowing.PendingPetitionSystemID);
+ 				const FName Owner = State.Systems.IsValidIndex(CardSystem) ? State.Systems[CardSystem].OwnerCivID : FName();
+-				if (!Owner.IsNone())
++				if (Owner.IsNone() && false)
+ 				{
+ 					NoteMet(Owner, State.Knowing.PendingPetitionSystemID);
+ 				}

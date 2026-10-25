@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -586,7 +586,7 @@
+ 	const FCosmicRulesDef& Rules = Sim->GetRules();
+ 	const int32 TierIndex = static_cast<int32>(State.Calling.PersonalTier);
+ 	const int32 Sight = (Rules.SightLanesByTier.IsValidIndex(TierIndex) && Rules.SightLanesByTier[TierIndex] > 1) ? Rules.SightLanesByTier[TierIndex] : 1;
+-	const int32 Learned = Sim->LookFrom(MakeArrayView(&Standing, 1), Sight + FMath::Max(0, Rules.ScanSightBonusLanes), true);
++	const int32 Learned = Sim->LookFrom(MakeArrayView(&Standing, 1), Sight, true);
+ 	// A scan of a system no people owns that showed something new is told (section 5.9: log_scan_wild).
+ 	const FStarSystemState& Here = State.Systems[Standing];
+ 	if (Learned > 0 && Here.OwnerCivID.IsNone())

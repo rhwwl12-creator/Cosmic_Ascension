@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
+@@ -395,7 +395,7 @@
+ 	{
+ 		// A wanderer that still stands, not travelling, in the system of its card.
+ 		const FCosmicVesselSubject Vessel = VesselSubjectOf(State, Index);
+-		return Vessel.SystemIndex != INDEX_NONE && State.Systems[Vessel.SystemIndex].SystemID == State.Knowing.PendingPetitionSystemID
++		return Vessel.SystemIndex != INDEX_NONE
+ 			&& Holds(State, Index, Tables, Rules, RowName, *Row, Vessel.CivIndex, Vessel.SystemIndex);
+ 	}
+ 	const int32 CivIndex = RuledCivIndexOf(State, Index);

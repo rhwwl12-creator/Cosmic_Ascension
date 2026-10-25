@@ -1,0 +1,14 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1386,10 +1386,7 @@
+ 	// The first tick of a reign compares with an empty head (B1): what already stood when the vessel was crowned comes as
+ 	// a card that just came to hold. The first life's first tick is one too - no petition stands at tick 0.
+ 	TArray<FCosmicPetitionUnit> PetitionsAtHead = CosmicPetitions::StandingHeld(State, StateIndex, Tables, Rules);
+-	if (CosmicPetitions::IsFirstTickOfReign(State))
+-	{
+-		PetitionsAtHead.Reset();
+-	}
++
+ 
+ 	// Tick 0 is the generated state: no event raised inside a tick stage carries tick 0, so the "0 = unset" tick fields
+ 	// stay unambiguous there. Player input outside the tick can still run at tick 0.

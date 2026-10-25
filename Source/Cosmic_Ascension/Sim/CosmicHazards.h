@@ -98,7 +98,8 @@ namespace CosmicHazards
 	 * is cut, its star class, hazard and both project slots are cleared (the completion records stay), and it leaves every
 	 * sphere. A vessel standing there is carried away while the calling is Embodied and no KillPlayer is pending: a ruler
 	 * to the new capital of its people, anyone else (and a ruler whose people owns no capital any more) to the first lane
-	 * neighbour of the old Lanes that is neither a dead node nor the sanctuary; with none it stays (section 16 #53 (2), #81). The stage that destroys
+	 * neighbour of the old Lanes that is neither a dead node nor the sanctuary; with none it stays (section 16 #53 (2), #81). A
+	 * journey from there ends with it: both travel fields empty (B1 - the vessel still stands where a journey began). The stage that destroys
 	 * asks the last-system gate first and records the collapse afterwards.
 	 */
 	COSMIC_ASCENSION_API void Destroy(FCosmicEvalContext& Ctx, int32 SystemIndex);

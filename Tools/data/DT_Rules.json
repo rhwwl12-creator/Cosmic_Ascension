@@ -63,6 +63,12 @@
 		"InfluencePerPopulation": 1.0,
 		"OpenInfluenceBonus": 0.2,
 		"ResearchInsightShare": 0.5,
-		"ResearchPerInsight": 0.003
+		"ResearchPerInsight": 0.003,
+		"LaneTravelTicks": 20,
+		"ScanSightBonusLanes": 1,
+		"EncounterChancePerArrival": 0.25,
+		"CoronationReverence": 0.6,
+		"CoronationStabilityBelow": 0.2,
+		"AbdicationStabilityLoss": 0.1
 	}
 ]

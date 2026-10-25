@@ -104,5 +104,60 @@
 			"한 백성이 칸을 하나 더 올랐다. 소식은 누구의 일인지 말하지 않았다.",
 			"먼 곳에서 한 백성이 한 칸 더 높이 섰다는 말이 돌았다. 누가 먼저 닿을지는 아무도 모른다."
 		]
+	},
+	{
+		"Name": "log_scan_wild",
+		"Category": "Log.Discovery",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"당신은 {System}의 땅과 하늘을 넓게 훑었다. 지키는 병력도 짐승도 없는 바위 위에 귀한 결정이 너무 깨끗하게 드러나 있었다.",
+			"당신은 {System}에서 더 먼 항로까지 살폈다. 처음 보는 별들이 아는 하늘에 들어왔다.",
+			"당신은 {System}의 빈 하늘을 오래 바라보았다. 그 너머로 이어지는 항로가 조금 더 보였다."
+		]
+	},
+	{
+		"Name": "log_crowned",
+		"Category": "Log.Calling",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{Civ}|hpp(이,가) 다스림을 당신에게 맡겼다. 떠돌던 날들은 거기서 끝났다.",
+			"{System}에서 {Civ}의 사람들이 당신을 왕좌로 이끌었다. 그날부터 그들의 일은 당신의 일이 되었다.",
+			"{Civ}|hpp(은,는) 의논 끝에 당신에게 왕좌를 내주었다. 방랑하던 배는 {System}의 항구에 머물게 되었다."
+		]
+	},
+	{
+		"Name": "log_returned",
+		"Category": "Log.Calling",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{Civ}|hpp(이,가) 당신을 다시 왕좌에 앉혔다. 그날부터 그들의 살림은 다시 당신의 몫이었다.",
+			"{Civ}|hpp(이,가) 왕좌를 다시 당신에게 맡겼다. 왕좌 밖에서 보낸 날들은 그들의 기억에 남았다.",
+			"{System}에서 {Civ}의 사람들이 당신을 다시 맞아들였다. 그들은 당신이 다스리던 날들을 잊지 않고 있었다."
+		]
+	},
+	{
+		"Name": "log_throne_vacated",
+		"Category": "Log.Calling",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"당신은 {Civ}의 왕좌를 내려놓았다. 다스림은 섭정의 손으로 넘어갔다.",
+			"{Civ}의 왕좌 곁에 섭정이 섰다. 아무도 당신을 끌어내리지 않았다.",
+			"당신은 {Civ}|hpp(을,를) 섭정에게 맡기고 왕좌에서 내려왔다. {System}의 항구에 당신의 배가 기다리고 있었다."
+		]
+	},
+	{
+		"Name": "log_rebellion_unseated",
+		"Category": "Log.Crisis",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{Civ}의 수도에서 반란이 끝났다. 깃발을 든 이들은 하나둘 집으로 돌아갔다.",
+			"{System}에서 반란의 무리가 흩어졌다. 그들을 이끈 이는 다시 앞에 나서지 않았다.",
+			"{Civ}의 반란이 사그라들었다. {System}의 거리에 다시 장이 섰다."
+		]
 	}
 ]

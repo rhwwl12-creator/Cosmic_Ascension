@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
+@@ -160,7 +160,7 @@
+ bool CosmicPetitions::WithinWandererGap(const FGalaxyState& State, int32 CivIndex)
+ {
+ 	using namespace CosmicPetitionsImpl;
+-	return !State.Civs.IsValidIndex(CivIndex) || RungOf(State.Civs[CivIndex].Tier) - RungOf(State.Calling.PersonalTier) <= 1;
++	return !State.Civs.IsValidIndex(CivIndex) || RungOf(State.Civs[CivIndex].Tier) - RungOf(State.Calling.PersonalTier) <= 2;
+ }
+ 
+ bool CosmicPetitions::IsFirstTickOfReign(const FGalaxyState& State)

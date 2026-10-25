@@ -23,7 +23,7 @@ struct FCosmicRulerPolicy
 // What the policy did so far in a run.
 struct FCosmicRulerPolicyCounts
 {
-	// Cards seen to come: at the tick boundary, and after each answer.
+	// The ruler's cards seen to come: at the tick boundary, and after each answer (a wanderer's card is not counted - B1).
 	int32 CardsCome = 0;
 	// Accepted answers, withdrawn cards not counted (ChoiceOf's round reads it).
 	int32 Answers = 0;
@@ -36,7 +36,9 @@ struct FCosmicRulerPolicyCounts
 namespace CosmicRulerPolicy
 {
 	// The answer of the -Answer policy: the first choice the stockpile can pay, from choice (answers so far) on, round
-	// (so that every choice of a card is taken in turn over a run). INDEX_NONE when none can be paid.
+	// (so that every choice of a card is taken in turn over a run), among the choices whose success does not record the
+	// end of the reign (B1: the script never leaves the throne of its own will - the throne card's last choice). INDEX_NONE
+	// when none can be paid.
 	int32 ChoiceOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FEncounterDef& Row, int32 AnswersSoFar);
 
 	// One tick boundary, right after RunHeadless(1), before anything else reads the tick: reads the provisional end into

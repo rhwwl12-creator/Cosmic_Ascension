@@ -3,6 +3,7 @@
 #include "World/CosmicRulerPolicy.h"
 
 #include "Core/GalaxyState.h"
+#include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Events/CosmicPetitions.h"
@@ -21,9 +22,20 @@ int32 CosmicRulerPolicy::ChoiceOf(const FGalaxyState& State, const FCosmicStateI
 	{
 		return INDEX_NONE;
 	}
-	for (int32 Step = 0; Step < Count; ++Step)
+	// The script never leaves the throne of its own will (B1): a choice whose success records the end of the reign is not
+	// among those it turns through - for every row of today the same list as before.
+	TArray<int32, TInlineAllocator<4>> Stays;
+	for (int32 Choice = 0; Choice < Count; ++Choice)
 	{
-		const int32 Choice = (AnswersSoFar + Step) % Count;
+		const bool bLeaves = Row.Choices[Choice].OnSuccess.ContainsByPredicate([](const FCosmicEffect& Effect) { return Effect.Type == EEffectType::DeposeRuler; });
+		if (!bLeaves)
+		{
+			Stays.Add(Choice);
+		}
+	}
+	for (int32 Step = 0; Step < Stays.Num(); ++Step)
+	{
+		const int32 Choice = Stays[(AnswersSoFar + Step) % Stays.Num()];
 		if (CosmicMegaprojects::CanPay(State.Civs[CivIndex].Stockpile, CosmicPetitions::CostOf(Row.Choices[Choice])))
 		{
 			return Choice;
@@ -38,7 +50,9 @@ void CosmicRulerPolicy::Act(const FCosmicRulerPolicy& Policy, UGalaxySimulationS
 	const FGalaxyState& State = Sim.GetState();
 	Counts.bEnded = Counts.bEnded || CosmicEndings::ProvisionalEndOf(State, Sim.GetRules()) != ECosmicProvisionalEnd::None;
 
-	Counts.CardsCome += (!State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != CardBefore) ? 1 : 0;
+	// The ruler's cards: a wanderer's card after a deposition is not one (B1 - the ruler line stays the ruler's).
+	const bool bRuler = State.Player.Role == EPlayerRole::Ruler;
+	Counts.CardsCome += (bRuler && !State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != CardBefore) ? 1 : 0;
 	for (int32 Guard = 0; Policy.bAnswer && Guard < 8 && !State.Knowing.PendingPetitionRow.IsNone(); ++Guard)
 	{
 		const FName Card = State.Knowing.PendingPetitionRow;
@@ -54,7 +68,7 @@ void CosmicRulerPolicy::Act(const FCosmicRulerPolicy& Policy, UGalaxySimulationS
 			break;
 		}
 		Counts.Answers += (Taken.Outcome == ECosmicPetitionOutcome::Withdrawn) ? 0 : 1;
-		Counts.CardsCome += (!State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != Card) ? 1 : 0;
+		Counts.CardsCome += (State.Player.Role == EPlayerRole::Ruler && !State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != Card) ? 1 : 0;
 	}
 	for (int32 Guard = 0; Policy.bBuild && Guard < 8 && Role.StartNextMegaproject(); ++Guard)
 	{

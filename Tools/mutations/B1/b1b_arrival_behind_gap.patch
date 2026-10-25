@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
+@@ -267,7 +267,7 @@
+ 		// A wanderer that is not travelling (B1 header section 2.5). The gap holds for the cards about the owner people -
+ 		// StandingHeld leaves them out beyond it -, not for the arrival card, which speaks of the place alone.
+ 		const FCosmicVesselSubject Vessel = VesselSubjectOf(State, Index);
+-		if (Vessel.SystemIndex == INDEX_NONE)
++		if (Vessel.SystemIndex == INDEX_NONE || !WithinWandererGap(State, Vessel.CivIndex))
+ 		{
+ 			return false;
+ 		}

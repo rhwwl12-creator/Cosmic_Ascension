@@ -197,6 +197,18 @@ def encounter_row(name="petition_test_plea", **changes):
     return row
 
 
+def wanderer_card_row(name="enc_test_weave", **changes):
+    """A wanderer's arrival card (B1): put before a wanderer, about the system the vessel stands in, its texts naming the
+    system alone, a check on the vessel."""
+    row = encounter_row(
+        name, Title="weave", Body="{System} bends.", Conditions=[cond("PlayerRoleIs", key="Wanderer")], Trigger="Lottery", Subject="VesselSystem",
+        Choices=[choice("Cut loose.", CheckStat="Body", Difficulty=4, OnSuccess=[eff("PlayerStatDelta", key="Body", value=1)], SuccessText="{System} ahead.",
+                        FailureText="{System} at last."),
+                 choice("Push on.", OnSuccess=[], SuccessText="{System} later.")])
+    row.update(changes)
+    return row
+
+
 def paths_of(node, here=()):
     """Every path to a node below node: keys of objects and indices of lists."""
     if isinstance(node, dict):
@@ -247,7 +259,7 @@ def fixture_tables(schema, tables):
     tables["DT_Hazards"] = [hazard_row()]
     tables["DT_Megaprojects"] = [megaproject_row()] + [megaproject_row(name) for name in schema["tables"]["DT_Megaprojects"].get("required_rows", [])]
     tables["DT_Feats"] = [feat_row()]
-    tables["DT_Encounters"] = [encounter_row()] + [encounter_row(name) for name in schema["tables"]["DT_Encounters"].get("required_rows", [])]
+    tables["DT_Encounters"] = [encounter_row(), wanderer_card_row()] + [encounter_row(name) for name in schema["tables"]["DT_Encounters"].get("required_rows", [])]
     return tables
 
 
@@ -698,6 +710,19 @@ class SchemaTests(unittest.TestCase):
                 self.expect(self.after(self.set_cell("DT_Rules", "rules", knob, NAN)), "rules." + knob, "finite number")
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "ResearchInsightShare", 1.01)), "rules.ResearchInsightShare", "is above 1")
         self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "ResearchInsightShare", 1)), [])
+        # The wanderer's loop (B1): a lane takes at least one whole tick, a scan adds no fewer than 0 lanes, the arrival
+        # share and the three thresholds lie in 0..1 - both sides of each bound by hand.
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "LaneTravelTicks", 0)), "rules.LaneTravelTicks", "is below 1")
+        self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "LaneTravelTicks", 1)), [])
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "LaneTravelTicks", 1.5)), "rules.LaneTravelTicks", "is not a whole number")
+        self.expect(self.after(self.set_cell("DT_Rules", "rules", "ScanSightBonusLanes", -1)), "rules.ScanSightBonusLanes", "is below 0")
+        self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "ScanSightBonusLanes", 0)), [])
+        for knob in ("EncounterChancePerArrival", "CoronationReverence", "CoronationStabilityBelow", "AbdicationStabilityLoss"):
+            with self.subTest(knob=knob):
+                self.expect(self.after(self.set_cell("DT_Rules", "rules", knob, -0.01)), "rules." + knob, "is below 0")
+                self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", knob, 0)), [])
+                self.expect(self.after(self.set_cell("DT_Rules", "rules", knob, 1.01)), "rules." + knob, "is above 1")
+                self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", knob, 1)), [])
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "TierMultiplier", [1.0, 1.5, 2.2, 3.0])), "rules.TierMultiplier", "exactly 5 entries, found 4")
         self.expect(self.after(self.set_cell("DT_Rules", "rules", "TierMultiplier", [1.0, 1.5, -2.2, 3.0, 3.0])), "TierMultiplier[2]", "is below 0")
         self.assertEqual(self.after(self.set_cell("DT_Rules", "rules", "TierMultiplier", [0.0, 1.5, 2.2, 3.0, 3.0])), [])
@@ -1789,7 +1814,7 @@ class SchemaTests(unittest.TestCase):
         self.schema_problem(rule({"col": "Choices.Label", "len_ge_col": "BaseWeight"}), "schema.DT_Encounters", "the test 'len_ge_col' cannot be asked of a column of a list of structs")
         self.schema_problem(rule({"col": "Choices.Difficulty", "set": True}), "schema.DT_Encounters", "cannot be asked of a column of kind number")
         self.schema_problem(rule({"col": "Choices.CheckStat", "is": "Influence"}), "schema.DT_Encounters", "'Influence', which is no enumerator of ECosmicCheckStat")
-        self.assertEqual(self.after(NOTHING, rule({"col": "Choices.CheckStat", "in": ["NoCheck", "Stability"]})), [])
+        self.assertEqual(self.after(NOTHING, rule({"col": "Choices.CheckStat", "in": ["NoCheck", "Stability", "Body"]})), [])
         # The test holds for every entry: one entry that breaks it breaks the rule, and an empty list holds it.
         holds = checker.Checker(self.schema, self.tables, self.tags).holds
         test = {"col": "Choices.Difficulty", "le": 5}
@@ -1817,6 +1842,41 @@ class SchemaTests(unittest.TestCase):
                             "schema.DT_Encounters", "'PlayerRoleIz', which is no enumerator of conditions")
         self.schema_problem(self.put(["tables", "DT_Encounters", "rules", 0], "then", [{"col": "Conditions", "has_type": "SetFlag"}]),
                             "schema.DT_Encounters", "'SetFlag', which is no enumerator of conditions")
+
+    def test_has_cond(self):
+        # B1: the role a card is put before - the enumerator and its Key together.
+        holds = checker.Checker(self.schema, self.tables, self.tags).holds
+        test = {"col": "C", "has_cond": {"type": "PlayerRoleIs", "key": "Wanderer"}}
+        self.assertTrue(holds(test, {"C": [cond("GalaxyTickAtLeast"), cond("PlayerRoleIs", key="Wanderer")]}, "r"))
+        for wrong in ([cond("PlayerRoleIs", key="Ruler")], [cond("GalaxyTickAtLeast", key="Wanderer")], [], None):
+            with self.subTest(cell=wrong):
+                self.assertFalse(holds(test, {"C": wrong}, "r"))
+        self.expect(self.after(self.set_cell("DT_Encounters", "enc_test_weave", "Conditions", [cond("PlayerRoleIs", key="Ruler")])),
+                    "DT_Encounters.enc_test_weave", "a wanderer's card is put before a wanderer")
+        self.expect(self.after(self.set_cell("DT_Encounters", "petition_test_plea", "Conditions", [cond("PlayerRoleIs", key="Wanderer")])),
+                    "DT_Encounters.petition_test_plea", "a petition is put before a ruler")
+        rule = ["tables", "DT_Encounters", "rules", 0]
+        self.schema_problem(self.put(rule, "then", [{"col": "Conditions", "has_cond": {"type": "PlayerRoleIz", "key": "Ruler"}}]),
+                            "schema.DT_Encounters", "'PlayerRoleIz', which is no enumerator of conditions")
+        self.schema_problem(self.put(rule, "then", [{"col": "Conditions", "has_cond": {"type": "PlayerRoleIs"}}]),
+                            "schema.DT_Encounters", "the test 'has_cond' needs an object with exactly the strings type and key")
+        self.schema_problem(self.put(rule, "then", [{"col": "Body", "has_cond": {"type": "PlayerRoleIs", "key": "Ruler"}}]),
+                            "schema.DT_Encounters", "the test 'has_cond' cannot be asked of a column of kind text")
+
+    def test_row_prefix(self):
+        # B1: the rows of one kind by the prefix of their names - one of the table's own prefixes.
+        holds = checker.Checker(self.schema, self.tables, self.tags).holds
+        self.assertTrue(holds({"row_prefix": "enc_"}, {}, "enc_rebel_parley"))
+        self.assertFalse(holds({"row_prefix": "enc_"}, {}, "petition_plague"))
+        rule = ["tables", "DT_Encounters", "rules", 0]
+        self.schema_problem(self.put(rule, "when", [{"row_prefix": "card_"}]), "schema.DT_Encounters", "names the prefix card_, which is none of the prefixes of DT_Encounters")
+        self.schema_problem(self.put(rule, "when", [{"row_prefix": "enc_", "col": "Subject"}]), "schema.DT_Encounters", "a row test is 'row' with a row name")
+        self.schema_problem(self.put(rule, "when", [{"row_prefix": ["enc_"]}]), "schema.DT_Encounters", "a row test is 'row' with a row name")
+        # An enc_ row about the ruled people, and one that checks a people's Stability, break the wanderer card's rule.
+        self.expect(self.after(self.set_cell("DT_Encounters", "enc_test_weave", "Subject", "SettledSystem")), "DT_Encounters.enc_test_weave", "a wanderer's card")
+        weave = self.row(self.tables, "DT_Encounters", "enc_test_weave")
+        stability = [dict(weave["Choices"][0], CheckStat="Stability")] + weave["Choices"][1:]
+        self.expect(self.after(self.set_cell("DT_Encounters", "enc_test_weave", "Choices", stability)), "DT_Encounters.enc_test_weave", "a wanderer's card")
 
     # ---- every rule of the schema of the project ----
 
@@ -1876,6 +1936,9 @@ class SchemaTests(unittest.TestCase):
             row[column] = list(row[column]) + [cond(operand) if kind == "conditions" else eff(operand)]
         elif name == "has_type":
             row[column] = [item for item in row[column] if item.get("Type") != operand]
+        elif name == "has_cond":
+            # The named one keeps its enumerator and loses its Key: what has_type alone could not see.
+            row[column] = [dict(item, Key="Other") if item.get("Type") == operand["type"] and item.get("Key") == operand["key"] else item for item in row[column]]
         elif name == "set" and operand is True:
             row[column] = ""
         elif name == "set" and operand is False and kind == "text":
@@ -2000,7 +2063,12 @@ class SchemaTests(unittest.TestCase):
             ("DT_Transcendents", "the roster of NewGalaxy draws fallen rows only"): (self.add_independent_row, "trans_stillness"),
             ("DT_Transcendents", "a fallen one is named by its title, never a name: the spiritual sight's line and tooltip and the log's {Transcendent} slot read it (guideline 4.2, 6.4, 8.2)"): (NOTHING, "trans_silence"),
             ("DT_Galaxies", "a galaxy other than the home holds no peoples, no brake, no home share and no name pools (guideline 5.11 '고향이 아닌 행의 이 네 값은 0')"): (NOTHING, "gal_m87"),
-            ("DT_Encounters", "a petition is put before a ruler: every row carries the condition PlayerRoleIs (guideline 5.10)"): (NOTHING, plea),
+            ("DT_Encounters", "a card is put before a role: every row carries the condition PlayerRoleIs (guideline 5.10, B1)"): (NOTHING, plea),
+            ("DT_Encounters", "a petition is put before a ruler and is about the ruled people or one of its settled systems (guideline 5.10, B1)"): (NOTHING, plea),
+            ("DT_Encounters", "a wanderer's card is put before a wanderer, about the system the vessel stands in, and checks the vessel: a people's Stability is not the wanderer's (B1)"):
+                (NOTHING, "enc_test_weave"),
+            ("DT_Encounters", "an arrival card can come on a system no people owns: its texts name the system alone (B1)"): (NOTHING, "enc_test_weave"),
+            ("DT_Events", "an event row is about a people or one of its settled systems: the system the vessel stands in is a wanderer card's subject (B1)"): (NOTHING, event),
             ("DT_Encounters", "a card records no death (the death pipeline of Phase 4b) and runs no per-tick effect; the effects that grant, place, take or name wait for the rows that use them (guideline 5.10, 7.4)"):
                 (NOTHING, plea),
             ("DT_Encounters", "the subject system of a card is the system it names: a Civilization row is about the people alone and names no system (guideline 8.1)"): (NOTHING, plea),
@@ -2027,7 +2095,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 124, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 136, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

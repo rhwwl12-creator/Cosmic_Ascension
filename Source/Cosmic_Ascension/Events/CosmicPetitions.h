@@ -1,6 +1,8 @@
-// Cosmic Ascension - Events layer. Design: guideline.md section 5.9, 5.10, 7.4, 9.2; docs/60_DECISIONS/headers/A2_petition_cards.md.
-// The ruler's petition cards: which card the knowing stage puts before the player, and the pure rules the answer command
-// (UPlayerRoleSubsystem::AnswerPetition) runs on. Functions of the state, the index and the tables; no line, no draw.
+// Cosmic Ascension - Events layer. Design: guideline.md section 5.9, 5.10, 7.4, 9.2; docs/60_DECISIONS/headers/A2_petition_cards.md,
+// B1_wanderer_loop.md section 2.5, 2.6.
+// The waiting card: the ruler's petitions and the wanderer's cards (B1) - which card the knowing stage puts before the
+// player, and the pure rules the answer command (UPlayerRoleSubsystem::AnswerPetition) runs on. Functions of the state,
+// the index and the tables; no line, no draw.
 
 #pragma once
 
@@ -20,7 +22,7 @@ struct FCosmicPetitionUnit
 	FName Row;
 
 	// The settled system of a SettledSystem row; the capital of a Civilization row (INDEX_NONE when the people's capital
-	// is not one of its settled systems).
+	// is not one of its settled systems); the system the vessel stands in for a wanderer's card (VesselSystem).
 	int32 SystemIndex = INDEX_NONE;
 
 	bool operator==(const FCosmicPetitionUnit& Other) const
@@ -29,11 +31,18 @@ struct FCosmicPetitionUnit
 	}
 };
 
+/** The subject of a wanderer's card (B1): the system the vessel stands in, and its owner - INDEX_NONE for a wild system. */
+struct FCosmicVesselSubject
+{
+	int32 SystemIndex = INDEX_NONE;
+	int32 CivIndex = INDEX_NONE;
+};
+
 /** What an answer to the waiting card came to. Not state. */
 enum class ECosmicPetitionOutcome : uint8
 {
-	// Nothing happened and nothing was drawn: no card, no ruler, a choice out of range, a cost the stockpile cannot pay,
-	// or a call from a handler.
+	// Nothing happened and nothing was drawn: no card, a card of the other role, a choice out of range, a cost the
+	// stockpile cannot pay, or a call from a handler.
 	Refused,
 	// The card no longer stood (its conditions on its subject): it was taken away. One number was drawn; no cost, no
 	// effect, no line.
@@ -64,6 +73,40 @@ namespace CosmicPetitions
 	/** The index of the people the vessel rules while it is an embodied ruler; INDEX_NONE otherwise. */
 	COSMIC_ASCENSION_API int32 RuledCivIndexOf(const FGalaxyState& State, const FCosmicStateIndex& Index);
 
+	/** Whether Row is a wanderer's card (Subject VesselSystem - the schema binds the enc_ rows to it, B1). */
+	inline bool IsWandererCard(const FEncounterDef& Row)
+	{
+		return Row.Subject == ECosmicEventSubject::VesselSystem;
+	}
+
+	/** Whether Row is about a place (SettledSystem or VesselSystem): its line is about that system and the waiting card keeps it. */
+	inline bool IsAboutPlace(const FEncounterDef& Row)
+	{
+		return Row.Subject == ECosmicEventSubject::SettledSystem || Row.Subject == ECosmicEventSubject::VesselSystem;
+	}
+
+	/**
+	 * The subject of a wanderer's card (B1 header section 2.5): the system an embodied wanderer that is not travelling
+	 * stands in, and that system's owner when the state holds one (INDEX_NONE otherwise). Both INDEX_NONE for a ruler, a
+	 * travelling vessel and the interregnum - except with bTravelAtOrigin, where a travelling vessel counts as standing in
+	 * the system it left (CosmicWanderer::PlaceIndexOf: the head of a tick, section 2.4).
+	 */
+	COSMIC_ASCENSION_API FCosmicVesselSubject VesselSubjectOf(const FGalaxyState& State, const FCosmicStateIndex& Index, bool bTravelAtOrigin = false);
+
+	/**
+	 * Whether a wanderer's card may come on the people CivIndex: no people (a wild system), or a people at most one rung
+	 * above the calling's PersonalTier - the gap-2 variants of awe and fear (pillars.md) come later. The world's tiers
+	 * only: no knowing is read.
+	 */
+	COSMIC_ASCENSION_API bool WithinWandererGap(const FGalaxyState& State, int32 CivIndex);
+
+	/**
+	 * The first tick of a reign (B1 header section 2.7): an embodied ruler whose open reign has not counted a tick yet
+	 * (Lives.Last().ReignTicks.Last() == 0 - the eighth stage counts it). The knowing stage then compares the petitions
+	 * with an empty head: a petition that already stood when the vessel was crowned comes as one that just came to hold.
+	 */
+	COSMIC_ASCENSION_API bool IsFirstTickOfReign(const FGalaxyState& State);
+
 	/**
 	 * The subject system of a card on the people CivIndex: for SettledSystem the index of SystemID when it is a settled
 	 * system of that people, for Civilization the people's capital when it is one of its settled systems; INDEX_NONE
@@ -71,17 +114,23 @@ namespace CosmicPetitions
 	 */
 	COSMIC_ASCENSION_API int32 SubjectOf(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex, ECosmicEventSubject Subject, FName SystemID);
 
-	/** Whether Row's conditions hold on the people CivIndex and the system SystemIndex (CheckAll over the view). */
+	/** Whether Row's conditions hold on the people CivIndex and the system SystemIndex (CheckAll over the view). CivIndex
+	 * may be INDEX_NONE for a wanderer's card on a wild system: the view's galaxy row is then the system's, and a condition
+	 * about a people does not hold. */
 	COSMIC_ASCENSION_API bool Holds(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules,
 		FName RowName, const FEncounterDef& Row, int32 CivIndex, int32 SystemIndex);
 
 	/**
-	 * The Standing rows whose conditions hold now for the people the vessel rules, unit by unit: rows in lexical order, a
+	 * The Standing rows whose conditions hold now, unit by unit, rows in lexical order. For the people the vessel rules: a
 	 * Civilization row once (on the capital), a SettledSystem row on each settled system of the people in OwnedSystems
-	 * order. Empty while no ruler is embodied and while a card waits. SimulateTick reads it at the head of a tick.
+	 * order (the petitions). For a wanderer that is not travelling: each wanderer's card on the system it stands in, when
+	 * its owner is within the wanderer's gap (B1). Empty while a card waits, and for a travelling vessel or the
+	 * interregnum. SimulateTick reads it at the head of a tick with bTravelAtOrigin: a travelling wanderer then counts as
+	 * standing in the system it left, so a journey that ends where it began (its target destroyed on the way) brings no
+	 * card for a crisis that stood there throughout, and a real arrival still differs by the system.
 	 */
 	COSMIC_ASCENSION_API TArray<FCosmicPetitionUnit> StandingHeld(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
-		const FCosmicRulesDef& Rules);
+		const FCosmicRulesDef& Rules, bool bTravelAtOrigin = false);
 
 	/**
 	 * The end of the knowing stage (section 5.10): puts one card before an embodied ruler with no card waiting. The
@@ -91,14 +140,21 @@ namespace CosmicPetitions
 	 * when there is none, those that are not the most recent Lottery row among them (MVP item 8: two or three periodic
 	 * cards against three remembered choices would otherwise silence the slot; a single one is still not put twice). One
 	 * candidate is picked by BaseWeight with CosmicSeed::DeriveForName(Seed, ruled CivID, Purpose::Petition, Tick): no
-	 * number of the sim stream. Writes Knowing.PendingPetitionRow and PendingPetitionSystemID (NAME_None for a
-	 * Civilization row) and nothing else. True when a card was put.
+	 * number of the sim stream. The last choices and the most recent Lottery row count the petitions only (B1).
+	 * For a wanderer that is not travelling (B1 header section 2.5): the units of its Standing cards that are not in
+	 * HeldAtHead; when there are none and bArrived (the vessel arrived in this tick), an arrival card - a Lottery wanderer's
+	 * card whose conditions hold - when u < DT_Rules.EncounterChancePerArrival (u = DeriveForName(Seed, the vessel's
+	 * SystemID, Purpose::Encounter, Tick) / 2^32; the share read clamped to 0..1, not a number as 0), picked by weight with
+	 * u / share. The life's most recent answered wanderer's card is not put again; a Standing card on a people beyond the
+	 * wanderer's gap is not put (the arrival card speaks of the place alone and comes there too). Writes Knowing.PendingPetitionRow and PendingPetitionSystemID (NAME_None for a Civilization row, the
+	 * vessel's system for a wanderer's card) and nothing else. True when a card was put.
 	 */
 	COSMIC_ASCENSION_API bool Present(FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules,
-		TConstArrayView<FCosmicPetitionUnit> HeldAtHead);
+		TConstArrayView<FCosmicPetitionUnit> HeldAtHead, bool bArrived = false);
 
 	/**
-	 * Whether the waiting card still stands: a ruler is embodied, the row exists, its subject is still there (a
+	 * Whether the waiting card still stands: the row exists, a vessel of its role is embodied (a ruler for a petition; for a
+	 * wanderer's card a wanderer that is not travelling and stands in the card's system), its subject is still there (a
 	 * SettledSystem row's system is still a settled system of the ruled people) and the row's conditions hold on it.
 	 */
 	COSMIC_ASCENSION_API bool StillStands(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules);

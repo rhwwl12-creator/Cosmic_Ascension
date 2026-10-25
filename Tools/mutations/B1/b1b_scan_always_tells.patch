@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -589,7 +589,7 @@
+ 	const int32 Learned = Sim->LookFrom(MakeArrayView(&Standing, 1), Sight + FMath::Max(0, Rules.ScanSightBonusLanes), true);
+ 	// A scan of a system no people owns that showed something new is told (section 5.9: log_scan_wild).
+ 	const FStarSystemState& Here = State.Systems[Standing];
+-	if (Learned > 0 && Here.OwnerCivID.IsNone())
++	if (Here.OwnerCivID.IsNone())
+ 	{
+ 		FFormatNamedArguments Args;
+ 		Args.Add(TEXT("System"), Here.DisplayName);

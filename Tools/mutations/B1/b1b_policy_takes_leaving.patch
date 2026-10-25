@@ -1,0 +1,14 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -28,10 +28,7 @@
+ 	for (int32 Choice = 0; Choice < Count; ++Choice)
+ 	{
+ 		const bool bLeaves = Row.Choices[Choice].OnSuccess.ContainsByPredicate([](const FCosmicEffect& Effect) { return Effect.Type == EEffectType::DeposeRuler; });
+-		if (!bLeaves)
+-		{
+-			Stays.Add(Choice);
+-		}
++		Stays.Add(Choice);
+ 	}
+ 	for (int32 Step = 0; Step < Stays.Num(); ++Step)
+ 	{

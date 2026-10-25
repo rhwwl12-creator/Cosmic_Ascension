@@ -1,0 +1,14 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -571,11 +571,6 @@
+ 	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+ 	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+ 	check(Sim && Log);
+-	if (Sim->IsBroadcasting())
+-	{
+-		UE_LOG(LogCosmic, Error, TEXT("ScanCurrentSystem called from a handler of a Core Logic delegate: a handler may only read the state"));
+-		return INDEX_NONE;
+-	}
+ 	const FGalaxyState& State = Sim->GetState();
+ 	const int32 Standing = CosmicWanderer::StandingIndexOf(State, Sim->GetStateIndex());
+ 	if (Standing == INDEX_NONE)

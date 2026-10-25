@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
+@@ -282,7 +282,7 @@
+ 		}
+ 		// One derived integer of the place and the tick: the arrival card's share and the pick - no number of the sim stream.
+ 		const FName SystemID = State.Systems[Vessel.SystemIndex].SystemID;
+-		const double Unit = static_cast<double>(CosmicSeed::DeriveForName(State.Seed, SystemID, CosmicSeed::Purpose::Encounter, static_cast<uint32>(State.Tick)))
++		const double Unit = static_cast<double>(CosmicSeed::DeriveForName(State.Seed, SystemID, CosmicSeed::Purpose::Petition, static_cast<uint32>(State.Tick)))
+ 			/ 4294967296.0;
+ 		double PickValue = Unit;
+ 		if (Candidates.IsEmpty())

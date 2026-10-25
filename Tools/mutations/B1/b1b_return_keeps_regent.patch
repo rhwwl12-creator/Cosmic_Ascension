@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -637,7 +637,7 @@
+ 	static const FGameplayTag RegentRole = FGameplayTag::RequestGameplayTag(FName(TEXT("Notable.Regent")));
+ 	for (FNotableRecord& Record : State.Civs[CivIndex].Notables)
+ 	{
+-		if (Record.LastTick == 0 && (Record.Role == RulerRole || Record.Role == RegentRole))
++		if (Record.LastTick == 0 && (Record.Role == RulerRole))
+ 		{
+ 			Record.LastTick = FMath::Max<int64>(State.Tick, 1);
+ 		}

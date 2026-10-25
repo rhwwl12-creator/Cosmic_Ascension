@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -732,6 +732,7 @@
+ 		const float Loss = Rules.AbdicationStabilityLoss > 0.f ? FMath::Min(Rules.AbdicationStabilityLoss, 1.f) : 0.f;
+ 		FCivilizationState& Civ = State.Civs[CivIndex];
+ 		Civ.Stability = FMath::Max(0.f, Civ.Stability - Loss);
++		Civ.ReverenceToPlayer *= 0.5f;
+ 	}
+ 	CosmicPlayerRoleImpl::LockEveryThrone(State, Rules);
+ 	Sim->SyncRngState();

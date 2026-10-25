@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicWanderer.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicWanderer.cpp
+@@ -52,7 +52,7 @@
+ 	const int32 Here = Index.FindSystem(State, State.Player.CurrentSystemID);
+ 	const int32 There = TargetSystemID.IsNone() ? INDEX_NONE : Index.FindSystem(State, TargetSystemID);
+ 	if (!State.Systems.IsValidIndex(Here) || !State.Systems.IsValidIndex(There) || There == Here
+-		|| !State.Systems[Here].Lanes.Contains(TargetSystemID)
++		
+ 		|| State.Systems[There].GalaxyRow != State.Systems[Here].GalaxyRow
+ 		|| CosmicHazards::IsDeadNode(State.Systems[There]))
+ 	{

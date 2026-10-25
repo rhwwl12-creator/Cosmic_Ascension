@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -611,7 +611,7 @@
+ 	FGalaxyState& State = Sim->GetMutableState();
+ 	const FCosmicStateIndex& Index = Sim->GetStateIndex();
+ 	// Only a met people crowns the vessel: what the player knows is the input's definition (section 5.10, rule 2).
+-	const bool bMet = State.Knowing.MetCivs.ContainsByPredicate([CivID](const FKnownMark& Met) { return Met.ID == CivID; });
++	const bool bMet = true;
+ 	const CosmicWanderer::ECrownBlock Block = CosmicWanderer::CrownBlockOf(State, Index, Sim->GetRules(), CivID, bMet, !State.Knowing.PendingPetitionRow.IsNone());
+ 	if (Block != CosmicWanderer::ECrownBlock::None)
+ 	{

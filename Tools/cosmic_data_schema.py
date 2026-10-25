@@ -121,6 +121,9 @@ OBJECT_OR_NULL = ("an object or null", lambda value: value is None or isinstance
 NAME_LISTS = ("an object of lists of strings", lambda value: isinstance(value, dict) and all(is_names(e) for e in value.values()))
 WORDS = ("a list of strings, not empty", lambda value: is_names(value) and len(value) > 0 and all(entry != "" for entry in value))
 TWO_NAMES = ("a list of two column names", lambda value: is_names(value) and len(value) == 2)
+# A condition or an effect by its enumerator and its Key: what has_type cannot tell apart (PlayerRoleIs Ruler and Wanderer).
+TYPE_AND_KEY = ("an object with exactly the strings type and key", lambda value: isinstance(value, dict) and set(value) == {"type", "key"}
+                and all(isinstance(entry, str) for entry in value.values()))
 
 RANGE = {"min": NUMBER, "max": NUMBER, "integer": FLAG}
 # Kind of column -> the options a column of that kind may carry next to "kind", each with its type.
@@ -160,6 +163,8 @@ PATH_MARK = "."
 TESTS = {
     "is": SCALAR, "in": SCALARS, "gt": NUMBER, "ge": NUMBER, "lt": NUMBER, "le": NUMBER, "set": FLAG,
     "min_len": COUNT, "max_len": COUNT, "each_contains": NAME, "lacks_type": NAME, "has_type": NAME, "slots_in": NAMES,
+    # A list of conditions or effects with one of the named enumerator and Key, at least (B1: the role a card is put before).
+    "has_cond": TYPE_AND_KEY,
     # The size of a list against other columns of the same row: at least the number in the named column; the product
     # of the two lengths at least the number in the second named column (two pools whose pairs are handed out).
     "len_ge_col": NAME, "pairs_ge_col": TWO_NAMES,
@@ -176,7 +181,8 @@ TEST_KINDS = {
     "is": VALUE_KINDS, "in": VALUE_KINDS, "gt": ("number",), "ge": ("number",), "lt": ("number",), "le": ("number",),
     # A number, an enumerator and a resource pool are always there: 'set' over them says nothing.
     "set": tuple(kind for kind in COLUMN_KINDS if kind not in ("number", "enum", "plain", "pool")), "min_len": SIZED_KINDS, "max_len": SIZED_KINDS, "each_contains": ("texts",),
-    "lacks_type": ("conditions", "effects"), "has_type": ("conditions", "effects"), "slots_in": ("text", "texts"), "len_ge_col": POOL_KINDS,
+    "lacks_type": ("conditions", "effects"), "has_type": ("conditions", "effects"), "has_cond": ("conditions", "effects"),
+    "slots_in": ("text", "texts"), "len_ge_col": POOL_KINDS,
     "pairs_ge_col": POOL_KINDS, "contains_all": ("tags", "tag_list"),
 }
 # The kinds of the columns a test names besides its own: the number to reach, the other pool.
@@ -549,6 +555,15 @@ class Checker:
                 elif not self.row_is_known(table_name, test["row"]):
                     self.report(where, "a row test names the row %s, which %s neither requires nor has" % (test["row"], table_name))
                 continue
+            if isinstance(test, dict) and "row_prefix" in test:
+                # The rows of one kind by the prefix of their names (B1: enc_ and petition_). One of the table's own prefixes,
+                # or the test would never hold and its rule would be switched off in silence.
+                prefixes = spec.get("prefixes") if isinstance(spec, dict) and is_names(spec.get("prefixes")) else []
+                if len(test) != 1 or not isinstance(test["row_prefix"], str):
+                    self.report(where, "a row test is 'row' with a row name, or a column with exactly one of %s: %s" % (", ".join(TESTS), shown))
+                elif test["row_prefix"] not in prefixes:
+                    self.report(where, "a row test names the prefix %s, which is none of the prefixes of %s" % (test["row_prefix"], table_name))
+                continue
             asked = [name for name in TESTS if name in test] if isinstance(test, dict) else []
             if len(asked) != 1 or "col" not in test or len(test) != 2 or not isinstance(test["col"], str):
                 self.report(where, "a row test is 'row' with a row name, or a column with exactly one of %s: %s" % (", ".join(TESTS), shown))
@@ -589,6 +604,8 @@ class Checker:
                     self.report(where, "a row test names the row %s, which %s neither requires nor has" % (value, column_spec.get("table")))
             if name in ("lacks_type", "has_type") and operand not in self.schema[kind]:
                 self.report(where, "a row test names %r, which is no enumerator of %s" % (operand, kind))
+            if name == "has_cond" and operand["type"] not in self.schema[kind]:
+                self.report(where, "a row test names %r, which is no enumerator of %s" % (operand["type"], kind))
             if name == "contains_all":
                 for value in operand:
                     if value not in self.tags:
@@ -1058,6 +1075,8 @@ class Checker:
         """One test of a row rule (check_schema has made sure it is one this file knows)."""
         if "row" in test:
             return row_name == test["row"]
+        if "row_prefix" in test:
+            return row_name.startswith(test["row_prefix"])
         head, mark, sub = test["col"].partition(PATH_MARK)
         if mark:
             # A column of a list of structs: the test holds for every entry (and so for an empty list).
@@ -1090,6 +1109,10 @@ class Checker:
         if name == "has_type":
             # A list of conditions or effects with one of the named enumerator, at least.
             return isinstance(value, list) and any(isinstance(item, dict) and item.get("Type") == operand for item in value)
+        if name == "has_cond":
+            # The same with the Key as well.
+            return isinstance(value, list) and any(isinstance(item, dict) and item.get("Type") == operand["type"] and item.get("Key") == operand["key"]
+                                                   for item in value)
         if name == "contains_all":
             if isinstance(value, str):
                 held = TAG_NAME.findall(value)

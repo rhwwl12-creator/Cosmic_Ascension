@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -630,7 +630,6 @@
+ 		FLifeRecord& Life = State.Calling.Lives.Last();
+ 		Life.RuledCivIDs.Add(CivID);
+ 		Life.ReignEndReasons.Add(FGameplayTag());
+-		Life.ReignTicks.Add(0);
+ 	}
+ 	// Whoever held the throne leaves it: the rebels' leader that took it, the regent the vessel left (B1).
+ 	static const FGameplayTag RulerRole = FGameplayTag::RequestGameplayTag(FName(TEXT("Notable.Ruler")));

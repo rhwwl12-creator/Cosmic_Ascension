@@ -1525,14 +1525,14 @@ bool FCosmicSimSeedDeriveTest::RunTest(const FString& Parameters)
 	const uint32 Purposes[] = {
 		CosmicSeed::Purpose::Tell, CosmicSeed::Purpose::Summary, CosmicSeed::Purpose::Name, CosmicSeed::Purpose::Life,
 		CosmicSeed::Purpose::Backdrop, CosmicSeed::Purpose::Scenery, CosmicSeed::Purpose::Depart, CosmicSeed::Purpose::Archetype,
-		CosmicSeed::Purpose::EventSlot
+		CosmicSeed::Purpose::EventSlot, CosmicSeed::Purpose::Petition, CosmicSeed::Purpose::Encounter
 	};
 	bool bPurposesFixed = true;
 	for (int32 Index = 0; Index < static_cast<int32>(UE_ARRAY_COUNT(Purposes)); ++Index)
 	{
 		bPurposesFixed &= Purposes[Index] == static_cast<uint32>(Index + 1);
 	}
-	TestTrue(TEXT("The nine purposes are numbered 1 to 9 in their fixed order"), bPurposesFixed);
+	TestTrue(TEXT("The eleven purposes are numbered 1 to 11 in their fixed order"), bPurposesFixed);
 
 	// The helper for a caller that holds an FName lower-cases for it, whatever casing the name was registered in.
 	TestEqual(TEXT("DeriveForName gives the reference value of the lower-case name"),

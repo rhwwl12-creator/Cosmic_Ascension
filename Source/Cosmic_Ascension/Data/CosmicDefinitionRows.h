@@ -39,7 +39,10 @@ enum class ECosmicEventSubject : uint8
 	Civilization,
 	// Once per settled system of the civilization, in OwnedSystems order. The line is about the place: FocusSystem
 	// and FocusCiv.
-	SettledSystem
+	SettledSystem,
+	// DT_Encounters only - a wanderer's card (B1): the system the vessel stands in, settled or wild, and its owner (or no
+	// people). A card about a place. DT_Events rows do not use it (the schema).
+	VesselSystem
 };
 
 /** DT_Events row. */
@@ -417,7 +420,9 @@ struct COSMIC_ASCENSION_API FEncounterDef : public FTableRowBase
 	ECosmicEventTrigger Trigger = ECosmicEventTrigger::Named;
 
 	// What the card is about: the ruled people (Civilization, current system = its capital) or one of its settled
-	// systems (SettledSystem, looked at in OwnedSystems order).
+	// systems (SettledSystem, looked at in OwnedSystems order) - a ruler's petition; or the system the vessel stands in
+	// (VesselSystem) - a wanderer's card (B1: the schema binds enc_ rows to it and petition_ rows to the other two, and
+	// the answer command tells the two kinds apart by it).
 	UPROPERTY(EditAnywhere)
 	ECosmicEventSubject Subject = ECosmicEventSubject::Civilization;
 
@@ -1044,4 +1049,32 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// Research progress per unit of Insight spent, before the field's share. 0 or below, or not a number: no progress.
 	UPROPERTY(EditAnywhere)
 	float ResearchPerInsight = 0.003f;
+
+	// The wanderer's loop (B1, docs/60_DECISIONS/headers/B1_wanderer_loop.md section 2.2).
+
+	// Ticks of one lane of a TravelTo (section 5.9: 'N ticks a lane, 20'). Below 1 reads as 1. Time by distance waits for
+	// the real sky (B8, section 16 #83).
+	UPROPERTY(EditAnywhere)
+	int32 LaneTravelTicks = 20;
+
+	// Lanes a scan adds to the sight of the wanderer's tier (section 5.9). Below 0 reads as 0.
+	UPROPERTY(EditAnywhere)
+	int32 ScanSightBonusLanes = 1;
+
+	// The share of arrivals that bring an arrival card (a wanderer's Lottery row): the arrival's derived value (Purpose
+	// Encounter) below it. Read clamped to 0..1, not a number as 0.
+	UPROPERTY(EditAnywhere)
+	float EncounterChancePerArrival = 0.25f;
+
+	// A coronation's reverence: the people's ReverenceToPlayer at least this.
+	UPROPERTY(EditAnywhere)
+	float CoronationReverence = 0.6f;
+
+	// A coronation's leader vacuum: the people's Stability below this.
+	UPROPERTY(EditAnywhere)
+	float CoronationStabilityBelow = 0.2f;
+
+	// The Stability an abdication takes from the people it leaves (not below 0). Below 0 or not a number reads as 0.
+	UPROPERTY(EditAnywhere)
+	float AbdicationStabilityLoss = 0.1f;
 };

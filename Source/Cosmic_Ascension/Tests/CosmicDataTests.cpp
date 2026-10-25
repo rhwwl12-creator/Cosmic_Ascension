@@ -1942,7 +1942,9 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 
 	// The choices of a card (section 5.9), entry by entry - a rule of the schema holds over every entry of a list, not over
 	// each entry's own fields together: a choice with a check says what its failure is, and a choice without one never
-	// fails, so it carries no failure effects, no failure line and no difficulty.
+	// fails, so it carries no failure effects, no failure line and no difficulty. B1: a wanderer's card costs nothing (no
+	// purse fills PersonalPool), and a choice whose success ends the reign is the vessel's own will - no check, the cause
+	// Reign.Abdicated (the throne card's last choice; a fall is a failure's effect).
 	auto ChoiceProblems = [](const UDataTable* Cards)
 	{
 		TArray<FString> Problems;
@@ -1960,6 +1962,20 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 				if (Choice.CheckStat == ECosmicCheckStat::NoCheck && (!Choice.OnFailure.IsEmpty() || !Choice.FailureText.IsEmpty() || Choice.Difficulty != 0))
 				{
 					Problems.Add(Where + TEXT(": a choice without a check never fails, yet it has failure effects, a failure line or a difficulty"));
+				}
+				const FResourcePool& Cost = Choice.Cost;
+				if (Card->Subject == ECosmicEventSubject::VesselSystem
+					&& (Cost.Energy != 0.f || Cost.Matter != 0.f || Cost.Insight != 0.f || Cost.Influence != 0.f || Cost.Causality != 0.f))
+				{
+					Problems.Add(Where + TEXT(": a wanderer's card costs nothing"));
+				}
+				static const FGameplayTag AbdicatedTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Abdicated")));
+				for (const FCosmicEffect& Effect : Choice.OnSuccess)
+				{
+					if (Effect.Type == EEffectType::DeposeRuler && (Choice.CheckStat != ECosmicCheckStat::NoCheck || Effect.Tag != AbdicatedTag))
+					{
+						Problems.Add(Where + TEXT(": a choice that leaves the throne is the vessel's own will: no check, the cause Reign.Abdicated"));
+					}
 				}
 			}
 		}
@@ -1989,6 +2005,33 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 			{ TEXT("petition_walls.Choices[0]"), TEXT("never fails") });
 		Expect(TEXT("a free choice with a difficulty"), Broken([](FEncounterChoice&, FEncounterChoice& Free) { Free.Difficulty = 3; }),
 			{ TEXT("petition_walls.Choices[0]"), TEXT("never fails") });
+		// B1: the two rules of the wanderer's loop, each broken once on a row of the game.
+		auto BrokenRow = [&](const TCHAR* RowText, TFunctionRef<void(FEncounterDef& Row)> Change)
+		{
+			UDataTable* Copy = CopyOf<FEncounterDef>(Game.Encounters);
+			const FName Name(RowText);
+			if (const FEncounterDef* Source = Game.FindEncounter(Name))
+			{
+				FEncounterDef Row = *Source;
+				Change(Row);
+				Copy->RemoveRow(Name);
+				Copy->AddRow(Name, Row);
+			}
+			return ChoiceProblems(Copy);
+		};
+		Expect(TEXT("a wanderer's card with a price"), BrokenRow(TEXT("enc_lane_weave"), [](FEncounterDef& Row) { Row.Choices[0].Cost.Energy = 5.f; }),
+			{ TEXT("enc_lane_weave.Choices[0]"), TEXT("costs nothing") });
+		Expect(TEXT("leaving the throne on a check"), BrokenRow(TEXT("petition_keep_throne"), [](FEncounterDef& Row)
+			{
+				FEncounterChoice& Leave = Row.Choices.Last();
+				Leave.CheckStat = ECosmicCheckStat::Stability;
+				Leave.Difficulty = 4;
+				Leave.FailureText = FText::AsCultureInvariant(TEXT("x"));
+			}), { TEXT("petition_keep_throne.Choices[2]"), TEXT("the vessel's own will") });
+		Expect(TEXT("leaving the throne as a fall"), BrokenRow(TEXT("petition_keep_throne"), [](FEncounterDef& Row)
+			{
+				Row.Choices.Last().OnSuccess[0].Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Deposed")));
+			}), { TEXT("petition_keep_throne.Choices[2]"), TEXT("the vessel's own will") });
 	}
 
 	Sim->NewGalaxy(42, 5, 3);

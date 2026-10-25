@@ -377,6 +377,9 @@ void CosmicHazards::Destroy(FCosmicEvalContext& Ctx, int32 SystemIndex)
 
 	if (bCarryVessel)
 	{
+		// A journey from here ends with the system it began in (B1 header section 2.4): the vessel is carried, not travelling.
+		Player.TravelTargetSystemID = NAME_None;
+		Player.TravelTicksRemaining = 0;
 		// A ruler goes to the capital of its people when the people owns it (not merely lists it).
 		FName Target;
 		const int32 RuledIndex = Ctx.Index.FindCiv(State, Player.RuledCivID);

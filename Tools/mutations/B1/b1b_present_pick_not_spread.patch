@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
+@@ -302,7 +302,7 @@
+ 				}
+ 			}
+ 			// The value spread again over [0, 1): the pick reaches every row, not only the first share of the weight.
+-			PickValue = Unit / static_cast<double>(Share);
++			PickValue = Unit;
+ 		}
+ 		const FCandidate* Picked = PickByWeight(Candidates, PickValue);
+ 		if (!Picked)

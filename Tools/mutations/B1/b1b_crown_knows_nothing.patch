@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -655,7 +655,6 @@
+ 		const int32 SystemIndex = Index.FindSystem(State, SystemID);
+ 		if (State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == CivID)
+ 		{
+-			Sim->NoteKnown(SystemID);
+ 		}
+ 	}
+ 

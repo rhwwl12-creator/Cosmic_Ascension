@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1387,7 +1387,7 @@
+ 	// a card that just came to hold. The first life's first tick is one too - no petition stands at tick 0. A travelling
+ 	// wanderer counts as standing in the system it left (B1 header section 2.4): a journey that ends where it began brings
+ 	// no card for a crisis that stood there throughout.
+-	TArray<FCosmicPetitionUnit> PetitionsAtHead = CosmicPetitions::StandingHeld(State, StateIndex, Tables, Rules, true);
++	TArray<FCosmicPetitionUnit> PetitionsAtHead = CosmicPetitions::StandingHeld(State, StateIndex, Tables, Rules, false);
+ 	if (CosmicPetitions::IsFirstTickOfReign(State))
+ 	{
+ 		PetitionsAtHead.Reset();

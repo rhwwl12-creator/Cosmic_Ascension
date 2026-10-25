@@ -264,8 +264,9 @@ public:
 	// LoadState, StepOnce, RunHeadless, NoteMet, NoteKnown and DrawTell here, UCosmicLogSubsystem::Push and PushVariants
 	// (and so PushRow), UCosmicSaveSubsystem::SaveCurrentGalaxy, LoadGalaxy (LoadRun) and ContinueNewest,
 	// UAscensionSubsystem::EvaluateFeats and
-	// the role changes and commands of UPlayerRoleSubsystem (Install, DeposeRuler, BecomeWanderer, StartMegaproject,
-	// StartNextMegaproject). MakeEvalContext reports an error and still returns the context (it holds references): the
+	// the role changes and commands of UPlayerRoleSubsystem (Install, DeposeRuler, BecomeWanderer, BecomeRuler, Abdicate,
+	// AbdicateRuler, StartMegaproject, StartNextMegaproject, SetResearchFocus, AnswerPetition, TravelTo, ScanCurrentSystem).
+	// MakeEvalContext reports an error and still returns the context (it holds references): the
 	// static Apply and ApplyAll are kept out of a handler by the rule alone. Every such broadcast site brackets its
 	// Broadcast call with BeginBroadcast and EndBroadcast.
 	bool IsBroadcasting() const { return BroadcastDepth > 0; }
@@ -461,7 +462,11 @@ private:
 	// last system has told it. Arrivals and departures are Phase 6a.
 	void TickCrossings();
 
-	void TickPlayerTravel();
+	// Stage 8, only while the calling is Embodied (section 7.4, B1 header section 2.4): a journey's countdown, and on the
+	// tick it reaches 0 the move - when the target is still a living lane neighbour of where the vessel stands, else the
+	// journey ends there. Returns whether the vessel arrived in this tick (a local of SimulateTick - the arrival card of
+	// the knowing stage reads it; a destruction that carried the vessel is no arrival). Counts the open reign's tick.
+	bool TickPlayerTravel();
 
 	// Stage 9, only while the calling is Embodied (section 7.4). Reads the world and writes only State.Knowing and the
 	// telling: no draw from the sim stream. Runs when State.Tick is a multiple of DT_Rules.SightIntervalTicks (read as at
@@ -480,8 +485,8 @@ private:
 	// gap rule keeps a people unmet until a later look.
 	void TickSight(bool bVesselMoved);
 
-	// Stage 10, outside the stage guard (section 7.4). Effect.DeposeRuler: UPlayerRoleSubsystem::DeposeRuler, then the
-	// record is cleared. Effect.KillPlayer stays recorded until the death pipeline of Phase 4b: no row of the game records
+	// Stage 10, outside the stage guard (section 7.4). Effect.DeposeRuler: UPlayerRoleSubsystem::DeposeRuler - or, with the
+	// cause Reign.Abdicated, UPlayerRoleSubsystem::AbdicateRuler (B1) - then the record is cleared. Effect.KillPlayer stays recorded until the death pipeline of Phase 4b: no row of the game records
 	// one before then.
 	void ResolvePendingRoleEffect();
 

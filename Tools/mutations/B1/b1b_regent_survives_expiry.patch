@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -375,7 +375,7 @@
+ 		{
+ 			for (FNotableRecord& Record : Civ.Notables)
+ 			{
+-				if (Record.LastTick == 0 && (Record.Role == RulerTag || Record.Role == RegentTag))
++				if (Record.LastTick == 0 && Record.Role == RulerTag)
+ 				{
+ 					Record.LastTick = FMath::Max<int64>(State.Tick, 1);
+ 				}

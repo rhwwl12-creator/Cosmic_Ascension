@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicWanderer.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicWanderer.cpp
+@@ -18,7 +18,7 @@
+ 
+ int32 CosmicWanderer::StandingIndexOf(const FGalaxyState& State, const FCosmicStateIndex& Index)
+ {
+-	if (!IsEmbodiedWanderer(State) || IsTravelling(State))
++	if (!IsEmbodiedWanderer(State))
+ 	{
+ 		return INDEX_NONE;
+ 	}

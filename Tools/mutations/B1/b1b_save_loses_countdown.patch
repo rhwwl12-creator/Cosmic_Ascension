@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Core/GalaxyState.h
++++ b/Source/Cosmic_Ascension/Core/GalaxyState.h
+@@ -349,7 +349,7 @@
+ 	UPROPERTY(BlueprintReadOnly)
+ 	FName TravelTargetSystemID;
+ 
+-	UPROPERTY(BlueprintReadOnly)
++	UPROPERTY(BlueprintReadOnly, Transient)
+ 	int32 TravelTicksRemaining = 0;
+ 
+ 	// Ruler only.

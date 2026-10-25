@@ -8,14 +8,16 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Core/CosmicTypes.h"
 #include "Events/CosmicPetitions.h"
+#include "Sim/CosmicWanderer.h"
 #include "PlayerRoleSubsystem.generated.h"
 
 /**
  * Ruler / Wanderer role switching, travel, encounter flow, the ruler command API, and the death, deposition and
  * succession pipeline. Holds no player or life dependent member: all of it lives in FGalaxyState (section 6.1).
  * So far: Install, the deposition pipeline in its Phase 2 form with BecomeWanderer, the ruler's megaproject command
- * (settlement included), the answer to a petition card (MVP item 2) and the research focus (MVP item 7).
- * The rest of the interface in section 7.5 arrives with Phase 4 and 4b.
+ * (settlement included), the answer to the waiting card (MVP item 2; the wanderer's cards, B1), the research focus (MVP
+ * item 7), and the wanderer's loop (B1): TravelTo, ScanCurrentSystem, BecomeRuler, Abdicate and the abdication pipeline.
+ * The rest of the interface in section 7.5 arrives with milestone B (B5: death and succession).
  */
 UCLASS()
 class COSMIC_ASCENSION_API UPlayerRoleSubsystem : public UGameInstanceSubsystem
@@ -44,9 +46,10 @@ public:
 	 * The deposition pipeline (section 5.10), run by the role-effect stage for Effect.DeposeRuler, in its Phase 2 form:
 	 * tells CosmicRows::LogFallenMonarch (Severity 2), draws the regent profile (one number from the sim stream,
 	 * CosmicState::PickAIProfile), BecomeWanderer with Reign.Deposed, then every people's ReverenceToPlayer times
-	 * DT_Rules.ReverenceDecay (as after a death, section 4.4: no people crowns the fallen at once), and for the people it
-	 * ruled Stability = min(Stability, PostRebellionStability) and ThroneLockedUntilTick = Tick + ThroneLockTicks. The
-	 * vessel stays where it stands. The three screens, the digest and the exile encounter are Phase 4. Does nothing unless
+	 * DT_Rules.ReverenceDecay (as after a death, section 4.4: no people crowns the fallen at once), for the people it
+	 * ruled Stability = min(Stability, PostRebellionStability), and every people's throne locked until Tick +
+	 * ThroneLockTicks (never earlier than it was - B1: no people crowns the vessel in that time). The vessel stays where it
+	 * stands. The three screens, the digest and the exile encounter are Phase 4. Does nothing unless
 	 * the vessel rules; refused with an error line when called from a handler of a Core Logic delegate.
 	 */
 	void DeposeRuler();
@@ -57,8 +60,10 @@ public:
 	 * Status.FallenMonarch, Reign.Died: none), the open reign closed with ReignEndReason, Knowing.PendingContactCivID
 	 * cleared, and the system the vessel stands in and its lane neighbours in its galaxy row known (NoteKnown, Lanes
 	 * order, no line -
-	 * section 4.4: the new eye of a wanderer; meeting their owners is the next sight stage's). The regent record (notable
-	 * hook 1) arrives with the abdication command of Phase 4. Does nothing unless the vessel rules; refused with an error
+	 * section 4.4: the new eye of a wanderer; meeting their owners is the next sight stage's), and the journey fields
+	 * emptied. With Reign.Abdicated the regent's record (notable hook 1, B1): the NameNotable rule through
+	 * UCosmicEventSubsystem::Apply - one number of the sim stream for the name before its guards, Notable.Regent, source row
+	 * CosmicRows::LogThroneVacated; Reign.Died will take the same hook (B5). Does nothing unless the vessel rules; refused with an error
 	 * line when called from a handler of a Core Logic delegate, and when the vessel stands in the sanctuary (a state no
 	 * rule makes - Install refuses it).
 	 */
@@ -80,11 +85,14 @@ public:
 	bool StartNextMegaproject();
 
 	/**
-	 * The ruler's answer to the petition card that waits (section 5.9, 5.10; Knowing.PendingPetitionRow), between ticks:
-	 * player input, of the same standing as a draw of the sim stream (section 9.2).
-	 * Refused - nothing drawn, nothing changed - while no embodied ruler has a card, and with an error line from a
+	 * The answer to the card that waits (section 5.9, 5.10; Knowing.PendingPetitionRow), between ticks: player input, of
+	 * the same standing as a draw of the sim stream (section 9.2). A petition is answered by an embodied ruler, a wanderer's
+	 * card (CosmicPetitions::IsWandererCard) by an embodied wanderer - the other role is refused without an error line.
+	 * Refused - nothing drawn, nothing changed - while no card waits, and with an error line from a
 	 * handler of a Core Logic delegate, for a card whose row DT_Encounters lacks, for a choice out of range and for a
-	 * cost the ruled people's stockpile cannot pay in full (the card greys such a choice).
+	 * cost the ruled people's stockpile cannot pay in full (the card greys such a choice). A wanderer pays no cost (the
+	 * schema keeps the costs of enc_ rows at 0), and its card's effects run on the system it stands in and that system's
+	 * owner (none for a wild system - an effect on a people then does nothing).
 	 * An answer taken draws one number 0..5 from the sim stream first, before the choice is read any further. Then: a
 	 * card that no longer stands (CosmicPetitions::StillStands) is taken away (Withdrawn - no cost, no effect, no line);
 	 * otherwise the cost is paid from the stockpile, the choice is checked (CosmicPetitions::Passes), and its OnSuccess
@@ -107,4 +115,54 @@ public:
 	 * (as for StartMegaproject: the next tick boundary that writes, or the exit save, keeps it).
 	 */
 	bool SetResearchFocus(FName Field);
+
+	/**
+	 * The wanderer's move (B1 header section 2.3), between ticks: one lane - CosmicWanderer::TravelBlockOf must say None
+	 * (whether a card waits from Knowing - the input definition). Sets Player.TravelTargetSystemID and
+	 * TravelTicksRemaining = CosmicWanderer::LaneTicksOf; the eighth stage moves the vessel. No draw, no line, no save of
+	 * its own. Refused - nothing changed - with the first reason; inside a handler of a Core Logic delegate an error line
+	 * and Handler.
+	 */
+	CosmicWanderer::ETravelBlock TravelTo(FName SystemID);
+
+	/**
+	 * The wanderer's scan (B1 header section 2.3, section 5.9), between ticks: one look from the system it stands in
+	 * (UGalaxySimulationSubsystem::LookFrom) with the reach SightLanesByTier[PersonalTier] (below 1 read as 1) plus
+	 * DT_Rules.ScanSightBonusLanes (below 0 read as 0) - knowing and the telling only, no draw of the sim stream. Tells
+	 * CosmicRows::LogScanWild (Severity 1) when the vessel stands in a system no people owns and the look learned a system.
+	 * Returns how many systems it learned (0 = nothing new); INDEX_NONE when refused: not an embodied wanderer standing
+	 * still, or inside a handler (an error line).
+	 */
+	int32 ScanCurrentSystem();
+
+	/**
+	 * The coronation or the return (B1 header section 2.7), between ticks, when CosmicWanderer::CrownBlockOf says None
+	 * (whether the people is met from Knowing.MetCivs, whether a card waits - the input definition): the people's
+	 * bIsPlayerRuled, Role Ruler and RuledCivID, one more entry in each reign array, the people's open Ruler and Regent
+	 * records closed (LastTick = max(Tick, 1)), the journey, the waiting card and Knowing.PendingContactCivID cleared, the
+	 * people's owned systems known (NoteKnown in OwnedSystems order, no line), then CosmicRows::LogCrowned - or
+	 * LogReturned for the people the vessel left (FormerCivID) - Severity 2. FormerCivID, StatusTags and the life's PeakTier
+	 * stay. No draw; the next tick boundary saves it (the Role comparison of the save layer). Refused - nothing changed -
+	 * with the first reason; inside a handler an error line and Handler.
+	 */
+	CosmicWanderer::ECrownBlock BecomeRuler(FName CivID);
+
+	/**
+	 * The ruler's abdication (B1 header section 2.8), between ticks: records Effect.DeposeRuler with the cause
+	 * Reign.Abdicated and the source row CosmicRows::LogThroneVacated through UCosmicEventSubsystem::Apply (the ruled
+	 * people as the context - the first recorded effect wins); the tenth stage of the next tick runs AbdicateRuler. No draw.
+	 * False and nothing changed unless an embodied ruler with no role effect recorded; inside a handler an error line.
+	 */
+	bool Abdicate();
+
+	/**
+	 * The abdication pipeline, run by the role-effect stage for Effect.DeposeRuler with the cause Reign.Abdicated (B1 header
+	 * section 2.8): tells CosmicRows::LogThroneVacated (Severity 2), draws the regent profile (one number,
+	 * CosmicState::PickAIProfile), BecomeWanderer with Reign.Abdicated (its notable hook draws the regent's name - one
+	 * number - and opens the Notable.Regent record), then the people it left loses DT_Rules.AbdicationStabilityLoss of
+	 * Stability (not below 0; below 0 or not a number read as 0) and every people's throne is locked until Tick +
+	 * ThroneLockTicks (never earlier than it was). Reverence stays. Two numbers of the sim stream, always. Does nothing
+	 * unless the vessel rules; inside a handler an error line.
+	 */
+	void AbdicateRuler();
 };

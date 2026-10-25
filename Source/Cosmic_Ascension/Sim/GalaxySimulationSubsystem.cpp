@@ -344,17 +344,21 @@ namespace
 
 	// The expiry of a rebellion (section 4.1, 7.4 notable hook 2). The throne changes for an AI people always, with a new
 	// profile picked by the outcome number; for the people the vessel rules only when the DeposeRuler this row just
-	// applied is the one recorded. A throne that changes closes the open Ruler record (LastTick = max(Tick, 1)) and then
-	// makes the open Rebel record the Ruler. Either way the count of discontent starts over.
-	void ChangeThrone(FCosmicEvalContext& Ctx, int32 CivIndex, FName HazardRow, float OutcomeNumber)
+	// applied is the one recorded. A throne that changes closes the open Ruler and Regent records (LastTick = max(Tick,
+	// 1) - after an abdication the rebels' leader rules, not the regent, B1) and then makes the open Rebel record the
+	// Ruler. When another source recorded the end of the vessel's reign first (an abdication, the throne card's failed
+	// check - B1 header section 2.8), the throne does not go to the rebels: their open record closes, and the expiry is
+	// told by CosmicRows::LogRebellionUnseated (the return value). Either way the count of discontent starts over.
+	bool ChangeThrone(FCosmicEvalContext& Ctx, int32 CivIndex, FName HazardRow, float OutcomeNumber)
 	{
 		static const FGameplayTag DeposeTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Effect.DeposeRuler")));
 		static const FGameplayTag RulerTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Notable.Ruler")));
+		static const FGameplayTag RegentTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Notable.Regent")));
 		static const FGameplayTag RebelTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Notable.Rebel")));
 		FGalaxyState& State = Ctx.State;
 		if (!State.Civs.IsValidIndex(CivIndex))
 		{
-			return;
+			return false;
 		}
 		FCivilizationState& Civ = State.Civs[CivIndex];
 		bool bThroneChanges = true;
@@ -366,11 +370,12 @@ namespace
 		{
 			Civ.AIProfile = CosmicState::PickAIProfile(OutcomeNumber);
 		}
+		const bool bUnseated = Civ.bIsPlayerRuled && !bThroneChanges && State.Calling.PendingEffect.IsValid();
 		if (bThroneChanges)
 		{
 			for (FNotableRecord& Record : Civ.Notables)
 			{
-				if (Record.LastTick == 0 && Record.Role == RulerTag)
+				if (Record.LastTick == 0 && (Record.Role == RulerTag || Record.Role == RegentTag))
 				{
 					Record.LastTick = FMath::Max<int64>(State.Tick, 1);
 				}
@@ -383,7 +388,18 @@ namespace
 				}
 			}
 		}
+		else if (bUnseated)
+		{
+			for (FNotableRecord& Record : Civ.Notables)
+			{
+				if (Record.LastTick == 0 && Record.Role == RebelTag)
+				{
+					Record.LastTick = FMath::Max<int64>(State.Tick, 1);
+				}
+			}
+		}
 		Civ.LowStabilityTicks = 0;
+		return bUnseated;
 	}
 
 	/**
@@ -1367,7 +1383,15 @@ void UGalaxySimulationSubsystem::SimulateTick()
 	// The petition rows that hold at the head of the tick, before the tick advances: the knowing stage puts a card for a
 	// Standing row only when its conditions came to hold in this tick (section 5.10). A read into a local - no state, no
 	// member - and empty while a card waits or no ruler is embodied.
-	const TArray<FCosmicPetitionUnit> PetitionsAtHead = CosmicPetitions::StandingHeld(State, StateIndex, Tables, Rules);
+	// The first tick of a reign compares with an empty head (B1): what already stood when the vessel was crowned comes as
+	// a card that just came to hold. The first life's first tick is one too - no petition stands at tick 0. A travelling
+	// wanderer counts as standing in the system it left (B1 header section 2.4): a journey that ends where it began brings
+	// no card for a crisis that stood there throughout.
+	TArray<FCosmicPetitionUnit> PetitionsAtHead = CosmicPetitions::StandingHeld(State, StateIndex, Tables, Rules, true);
+	if (CosmicPetitions::IsFirstTickOfReign(State))
+	{
+		PetitionsAtHead.Reset();
+	}
 
 	// Tick 0 is the generated state: no event raised inside a tick stage carries tick 0, so the "0 = unset" tick fields
 	// stay unambiguous there. Player input outside the tick can still run at tick 0.
@@ -1389,10 +1413,20 @@ void UGalaxySimulationSubsystem::SimulateTick()
 		// The calling rests on no vessel during the interregnum leap (section 4.4): no travel and no sight.
 		if (State.Calling.LifeState == ELifeState::Embodied)
 		{
-			TickPlayerTravel();
+			const bool bArrived = TickPlayerTravel();
 			TickSight(State.Player.CurrentSystemID != VesselAtStart);
-			// The end of the knowing stage: a petition card put before the ruler (section 5.10). Knowing only, no draw.
-			CosmicPetitions::Present(State, StateIndex, Tables, Rules, PetitionsAtHead);
+			// The end of the knowing stage: the waiting card - a petition put before the ruler (section 5.10), a card put
+			// before the wanderer where it stands (B1). Knowing only, no draw of the sim stream. A wanderer's card names the
+			// people of its system: that people is met first (the meeting of docs/70, the gap rule of NoteMet).
+			if (CosmicPetitions::Present(State, StateIndex, Tables, Rules, PetitionsAtHead, bArrived) && State.Player.Role == EPlayerRole::Wanderer)
+			{
+				const int32 CardSystem = StateIndex.FindSystem(State, State.Knowing.PendingPetitionSystemID);
+				const FName Owner = State.Systems.IsValidIndex(CardSystem) ? State.Systems[CardSystem].OwnerCivID : FName();
+				if (!Owner.IsNone())
+				{
+					NoteMet(Owner, State.Knowing.PendingPetitionSystemID);
+				}
+			}
 		}
 	}
 	// Outside the guard: death and deposition replace the vessel, and the leap of Phase 4b runs ticks from here.
@@ -1897,6 +1931,7 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 
 	// The code of the tag: what no effect may say (section 16 #29 (5)).
 	bool bJoined = true;
+	bool bUnseated = false;
 	if (Collected == SupernovaTag)
 	{
 		// The gate was asked before the effects. Should an effect have let the owner's other systems go meanwhile (no row
@@ -1929,7 +1964,7 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 	}
 	else if (Collected == RebellionTag)
 	{
-		ChangeThrone(Ctx, OwnerIndex, RowName, OutcomeNumber);
+		bUnseated = ChangeThrone(Ctx, OwnerIndex, RowName, OutcomeNumber);
 	}
 	else if (Collected == ClaimTag)
 	{
@@ -1940,8 +1975,22 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 	// The claim rule on the slot this expiry left free (section 4.2).
 	TryPlaceClaim(Ctx, SystemIndex, ClaimNumber);
 
-	// The expiry's own line, then what followed from it.
-	Events->TellHazardLine(Ctx, bJoined ? ECosmicHazardLine::Expiry : ECosmicHazardLine::Resolution, RowName, SystemIndex, OwnerIndex);
+	// The expiry's own line, then what followed from it. A rebellion that took no throne (another source ended the reign
+	// first) is told without the throne (B1): the same one draw of the tell stream.
+	if (bUnseated)
+	{
+		UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+		check(Log);
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("Civ"), State.Civs.IsValidIndex(OwnerIndex) ? State.Civs[OwnerIndex].CivName : FText::GetEmpty());
+		Args.Add(TEXT("System"), State.Systems[SystemIndex].DisplayName);
+		Log->PushRow(CosmicRows::LogRebellionUnseated, Row->Severity, Args, State.Systems[SystemIndex].SystemID,
+			State.Civs.IsValidIndex(OwnerIndex) ? State.Civs[OwnerIndex].CivID : FName());
+	}
+	else
+	{
+		Events->TellHazardLine(Ctx, bJoined ? ECosmicHazardLine::Expiry : ECosmicHazardLine::Resolution, RowName, SystemIndex, OwnerIndex);
+	}
 	Events->FollowUpNotes(Ctx);
 }
 
@@ -2140,13 +2189,31 @@ void UGalaxySimulationSubsystem::TickCrossings()
 	StateIndex.Rebuild(State);
 }
 
-void UGalaxySimulationSubsystem::TickPlayerTravel()
+bool UGalaxySimulationSubsystem::TickPlayerTravel()
 {
+	// One lane (B1 header section 2.4): on the tick the countdown reaches 0 the vessel moves when the target is still a
+	// living lane neighbour of where it stands (a system destroyed on the way leaves the lanes); otherwise the journey just
+	// ends where it began. Either way both fields empty together. No line, no draw, no knowing read.
 	FPlayerEntityState& Player = State.Player;
+	bool bArrived = false;
 	if (Player.TravelTicksRemaining > 0 && --Player.TravelTicksRemaining == 0)
 	{
-		Player.CurrentSystemID = Player.TravelTargetSystemID;
+		const int32 Here = StateIndex.FindSystem(State, Player.CurrentSystemID);
+		const int32 There = StateIndex.FindSystem(State, Player.TravelTargetSystemID);
+		if (State.Systems.IsValidIndex(Here) && State.Systems.IsValidIndex(There) && State.Systems[Here].Lanes.Contains(Player.TravelTargetSystemID)
+			&& State.Systems[There].GalaxyRow == State.Systems[Here].GalaxyRow && !CosmicHazards::IsDeadNode(State.Systems[There])
+			&& !CosmicState::IsSanctuary(Player.TravelTargetSystemID))
+		{
+			Player.CurrentSystemID = Player.TravelTargetSystemID;
+			bArrived = true;
+		}
 		Player.TravelTargetSystemID = NAME_None;
+	}
+	else if (Player.TravelTicksRemaining <= 0 && !Player.TravelTargetSystemID.IsNone())
+	{
+		// A target without a countdown is no journey (no command writes one): it empties.
+		Player.TravelTargetSystemID = NAME_None;
+		Player.TravelTicksRemaining = 0;
 	}
 
 	// The open reign of the current life counts one more tick (section 7.2).
@@ -2158,6 +2225,7 @@ void UGalaxySimulationSubsystem::TickPlayerTravel()
 			++Life.ReignTicks.Last();
 		}
 	}
+	return bArrived;
 }
 
 void UGalaxySimulationSubsystem::TickSight(bool bVesselMoved)
@@ -2292,12 +2360,22 @@ void UGalaxySimulationSubsystem::ResolvePendingRoleEffect()
 	// Death and deposition recorded in Calling.PendingEffect start their pipeline here, at the tick boundary (section 4.4,
 	// 5.10). The death pipeline arrives with Phase 4b: until then a KillPlayer stays recorded.
 	static const FGameplayTag DeposeTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Effect.DeposeRuler")));
+	static const FGameplayTag AbdicatedTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Abdicated")));
 	FCallingState& Calling = State.Calling;
 	if (Calling.PendingEffect == DeposeTag)
 	{
 		UPlayerRoleSubsystem* PlayerRole = GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>();
 		check(PlayerRole);
-		PlayerRole->DeposeRuler();
+		// The cause says which pipeline: the vessel left of its own will (the command, the throne card's last choice - B1),
+		// or it was deposed.
+		if (Calling.PendingCause == AbdicatedTag)
+		{
+			PlayerRole->AbdicateRuler();
+		}
+		else
+		{
+			PlayerRole->DeposeRuler();
+		}
 		Calling.PendingEffect = FGameplayTag();
 		Calling.PendingCause = FGameplayTag();
 		Calling.PendingSourceRow = NAME_None;

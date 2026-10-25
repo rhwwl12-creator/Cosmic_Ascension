@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Core/CosmicSeed.h
++++ b/Source/Cosmic_Ascension/Core/CosmicSeed.h
+@@ -31,7 +31,7 @@
+ 		inline constexpr uint32 Archetype = 8;  // archetype of a group that crosses from a summary galaxy (Phase 6a)
+ 		inline constexpr uint32 EventSlot = 9;  // phase of a civilization's event slot (name = CivID), section 7.5
+ 		inline constexpr uint32 Petition = 10;  // the pick among the petition cards of a moment (name = ruled CivID, index = tick), section 5.10
+-		inline constexpr uint32 Encounter = 11; // a wanderer's card: the arrival card's share and pick, the pick among Standing rows (name = the vessel's SystemID, index = tick), B1
++		inline constexpr uint32 Encounter = 12; // a wanderer's card: the arrival card's share and pick, the pick among Standing rows (name = the vessel's SystemID, index = tick), B1
+ 	}
+ 
+ 	/**

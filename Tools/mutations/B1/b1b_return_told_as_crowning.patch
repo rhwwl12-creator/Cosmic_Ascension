@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -663,7 +663,7 @@
+ 	Args.Add(TEXT("Civ"), State.Civs[CivIndex].CivName);
+ 	const int32 Here = Index.FindSystem(State, Player.CurrentSystemID);
+ 	Args.Add(TEXT("System"), State.Systems.IsValidIndex(Here) ? State.Systems[Here].DisplayName : FText::GetEmpty());
+-	Log->PushRow(bReturn ? CosmicRows::LogReturned : CosmicRows::LogCrowned, 2, Args, Player.CurrentSystemID, CivID);
++	Log->PushRow(CosmicRows::LogCrowned, 2, Args, Player.CurrentSystemID, CivID);
+ 	return Block;
+ }
+ 

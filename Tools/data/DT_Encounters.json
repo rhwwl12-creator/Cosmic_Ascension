@@ -613,6 +613,31 @@
 				"SuccessText": "{Civ}의 법이 고쳐졌다. {Rebel}|hpp(은,는) 요구한 것을 얻고 물러갔다.",
 				"FailureText": "",
 				"NextEncounter": "None"
+			},
+			{
+				"Label": "왕좌를 내려놓고 떠난다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "DeposeRuler",
+						"Tag": "Reign.Abdicated",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "당신은 싸우지 않고 물러나기로 했다. 궁정 사람들이 떠날 배를 채비했다.",
+				"FailureText": "",
+				"NextEncounter": "None"
 			}
 		],
 		"Illustration": "",
@@ -1048,5 +1073,367 @@
 			"당신을 신이라 부르면 백성이 한마음이 될 것이라고 의회가 말했다.",
 			"회중의 몇이 당신 앞에 엎드리려 했다."
 		]
+	},
+	{
+		"Name": "enc_rebel_parley",
+		"Title": "두 편 사이",
+		"Body": "{Rebel}|hpp(을,를) 앞세운 무리와 수비대가 {System}의 성문 앞에서 마주 섰다. 어느 편도 먼저 움직이지 않았다.",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Wanderer",
+				"Value": 0.0
+			},
+			{
+				"Type": "PlayerInSystemWithHazard",
+				"Tag": "Hazard.Rebellion",
+				"Key": "None",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "두 편 사이를 오간다",
+				"CheckStat": "Mind",
+				"Difficulty": 4,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ResolveHazard",
+						"Tag": "Hazard.Rebellion",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeReverence",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.3,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "당신은 두 편의 말을 서로에게 옮겼다. 마주 선 이들이 처음으로 귀를 기울였다.",
+				"FailureText": "당신의 말은 어느 편에도 닿지 않았다. 성문 앞의 무리는 그대로였다.",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "물러난다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "당신은 성문 앞을 떠났다. 두 편의 일은 그들의 몫으로 남았다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Standing",
+		"Subject": "VesselSystem",
+		"VoiceBodies": []
+	},
+	{
+		"Name": "enc_plague_tend",
+		"Title": "앓는 이들 곁",
+		"Body": "{System}에 역병이 돈다. 앓는 이들이 성 밖의 막사에 모여 있다.",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Wanderer",
+				"Value": 0.0
+			},
+			{
+				"Type": "PlayerInSystemWithHazard",
+				"Tag": "Hazard.Plague",
+				"Key": "None",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "앓는 이들 곁에 머문다",
+				"CheckStat": "Body",
+				"Difficulty": 4,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.05,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeReverence",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.3,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "당신은 막사에서 여러 밤을 보냈다. {Civ}의 사람들이 그것을 보았다.",
+				"FailureText": "당신은 막사의 밤을 끝까지 견디지 못했다. 앓는 이들은 {Civ}의 의원들이 돌보았다.",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "물러난다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "당신은 막사 앞에서 걸음을 돌렸다. 앓는 이들의 곁은 {Civ}의 의원들이 지켰다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Standing",
+		"Subject": "VesselSystem",
+		"VoiceBodies": []
+	},
+	{
+		"Name": "enc_awakening_talk",
+		"Title": "깨어난 것 앞에서",
+		"Body": "{System}의 광산 기계들이 스스로 묻기 시작했다. 갱도 입구에 모인 사람들은 그 물음을 어떻게 받을지 몰랐다.",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Wanderer",
+				"Value": 0.0
+			},
+			{
+				"Type": "PlayerInSystemWithHazard",
+				"Tag": "Hazard.AIAwakening",
+				"Key": "None",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "깨어난 것에게 말을 건다",
+				"CheckStat": "Mind",
+				"Difficulty": 4,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ResolveHazard",
+						"Tag": "Hazard.AIAwakening",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeReverence",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.3,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "당신은 갱도 깊이 내려가 깨어난 것에게 물었다. 그것은 오래 머뭇거리다 답했다.",
+				"FailureText": "깨어난 것은 당신의 물음에 답하지 않았다. 갱도 깊은 곳에서 그것의 셈은 계속되었다.",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "물러난다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "당신은 갱도 입구에서 돌아섰다. 그 물음 앞에는 {Civ}의 기술자들이 남았다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Standing",
+		"Subject": "VesselSystem",
+		"VoiceBodies": []
+	},
+	{
+		"Name": "enc_star_watch",
+		"Title": "흔들리는 별 곁에서",
+		"Body": "{System}의 별이 고르지 않게 떨린다. {Civ}의 관측소들은 그 떨림을 아직 다 재지 못했다.",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Wanderer",
+				"Value": 0.0
+			},
+			{
+				"Type": "PlayerInSystemWithHazard",
+				"Tag": "Hazard.PreSupernova",
+				"Key": "None",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "별의 떨림을 재어 알린다",
+				"CheckStat": "Mind",
+				"Difficulty": 4,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.05,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeReverence",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.3,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "당신은 별의 떨림을 재어 그 변화를 알렸다. 사람들은 무엇을 준비해야 할지 가늠하게 되었다.",
+				"FailureText": "떨림의 흐름은 끝내 잡히지 않았다. 사람들은 여전히 무엇을 준비해야 할지 몰랐다.",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "물러난다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "당신은 관측소를 떠났다. 떨리는 별은 {Civ}의 학자들이 지켜보았다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Standing",
+		"Subject": "VesselSystem",
+		"VoiceBodies": []
+	},
+	{
+		"Name": "enc_lane_weave",
+		"Title": "휘는 별빛",
+		"Body": "{System}에 닿기 전 마지막 암흑 구간에서 별빛이 휘었다. 배경 별빛이 이유 없이 휘면 이미 거미줄 안이라고 기록은 적는다.",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Wanderer",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "중력 닻을 버리고 작은 배로 빠져나간다",
+				"CheckStat": "Body",
+				"Difficulty": 4,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "PlayerStatDelta",
+						"Tag": "",
+						"Key": "Body",
+						"Value": 1,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "닻을 끊자 작은 배가 거미줄에서 풀려났다. {System}의 별이 앞에 보였다.",
+				"FailureText": "작은 배는 한참을 헤맨 끝에야 빠져나왔다. 버린 닻은 암흑 속에 남았다.",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "엔진 출력을 높인다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "엔진 출력을 높일수록 거미줄은 더 팽팽해졌다. 한참 뒤에야 배가 풀려났다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Lottery",
+		"Subject": "VesselSystem",
+		"VoiceBodies": []
 	}
 ]

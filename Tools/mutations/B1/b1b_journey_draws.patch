@@ -1,0 +1,13 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2196,6 +2196,10 @@
+ 	// ends where it began. Either way both fields empty together. No line, no draw, no knowing read.
+ 	FPlayerEntityState& Player = State.Player;
+ 	bool bArrived = false;
++	if (Player.TravelTicksRemaining > 0)
++	{
++		Rng.GetFraction();
++	}
+ 	if (Player.TravelTicksRemaining > 0 && --Player.TravelTicksRemaining == 0)
+ 	{
+ 		const int32 Here = StateIndex.FindSystem(State, Player.CurrentSystemID);

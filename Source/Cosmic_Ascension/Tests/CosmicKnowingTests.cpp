@@ -579,23 +579,24 @@ bool FCosmicSightStageTest::RunTest(const FString& Parameters)
 		{
 			return false;
 		}
-		// People 2 holds 7 and 8; the wanderer (reach 1) stands in 4.
-		CosmicTests::Give(*State, 2, { 7 });
+		// People 2 holds 6, 7 and 8; the wanderer (reach 1) stands in 4.
+		CosmicTests::Give(*State, 2, { 6, 7 });
 		MakeWanderer(*State, 4, EAscensionTier::Tier1_Planetary);
 		Sim->RunHeadless(Rules.SightIntervalTicks + 2);
 		const FGalaxyState Before = *State;
 		TestTrue(TEXT("The wanderer knows its neighbourhood"), IDs(State->Knowing.KnownSystems) == SystemIDs(*State, { 0, 4, 3, 5, 10 }));
 
-		State->Player.TravelTargetSystemID = State->Systems[9].SystemID;
+		// One lane (B1: a journey ends on a lane neighbour of where the vessel stands).
+		State->Player.TravelTargetSystemID = State->Systems[5].SystemID;
 		State->Player.TravelTicksRemaining = 1;
 		Sim->StepOnce();
-		TestTrue(TEXT("A journey's end off the period: the stage looks from where the vessel arrived"), Knows(*State, 9));
-		TestTrue(TEXT("and sees its lanes"), Knows(*State, 8));
+		TestEqual(TEXT("A journey's end off the period: the vessel arrived"), State->Player.CurrentSystemID, State->Systems[5].SystemID);
+		TestTrue(TEXT("and the stage looks from there: it sees the lanes of the system it came to"), Knows(*State, 6));
 		TestTrue(TEXT("and meets who it sees there"), HasMet(*State, State->Civs[2].CivID));
 
 		Sim->LoadState(Before);
 		Sim->StepOnce();
-		TestFalse(TEXT("The same tick without the journey looks at nothing"), Knows(*State, 9));
+		TestFalse(TEXT("The same tick without the journey looks at nothing"), Knows(*State, 6));
 
 		// The wanderer stands in 8, which a supernova takes: the destruction carries it to 7, and the stage looks again.
 		FGalaxyState Carried = Before;

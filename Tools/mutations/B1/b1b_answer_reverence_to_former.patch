@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -437,7 +437,7 @@
+ 	// The subject: the ruled people and the card's system; for a wanderer's card the system the vessel stands in and its
+ 	// owner (none for a wild system).
+ 	const FCosmicVesselSubject Vessel = bWandererCard ? CosmicPetitions::VesselSubjectOf(State, Index) : FCosmicVesselSubject();
+-	const int32 CivIndex = bWandererCard ? Vessel.CivIndex : RuledIndex;
++	const int32 CivIndex = bWandererCard ? Index.FindCiv(State, State.Player.FormerCivID) : RuledIndex;
+ 	const int32 SystemIndex = bWandererCard ? Vessel.SystemIndex : CosmicPetitions::SubjectOf(State, Index, CivIndex, Row->Subject, SystemID);
+ 	// The arguments of the texts before the effects: the hazard the card is about, also when the answer resolves it.
+ 	const FFormatNamedArguments Args = CosmicPetitions::ArgsOf(State, Tables, CivIndex, SystemIndex);

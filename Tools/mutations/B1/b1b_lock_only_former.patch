@@ -1,0 +1,15 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -30,9 +30,9 @@
+ 	void LockEveryThrone(FGalaxyState& State, const FCosmicRulesDef& Rules)
+ 	{
+ 		const int64 Until = State.Tick + FMath::Max(0, Rules.ThroneLockTicks);
+-		for (FCivilizationState& Civ : State.Civs)
+-		{
+-			Civ.ThroneLockedUntilTick = FMath::Max(Civ.ThroneLockedUntilTick, Until);
++		if (!State.Civs.IsEmpty())
++		{
++			State.Civs[0].ThroneLockedUntilTick = FMath::Max(State.Civs[0].ThroneLockedUntilTick, Until);
+ 		}
+ 	}
+ 

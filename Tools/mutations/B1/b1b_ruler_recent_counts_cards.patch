@@ -1,0 +1,15 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
+@@ -346,7 +346,11 @@
+ 		// The most recent Lottery petition among the last choices. When every Lottery row that holds is among them (a pool
+ 		// of two or three periodic cards against the three remembered choices), only that one is passed over (MVP item 8):
+ 		// the same periodic card never comes twice in a row, and the slot does not fall silent for the rest of the life.
+-		const FName LastPeriodic = MostRecentOf(State, Tables, false, true);
++		FName LastPeriodic = MostRecentOf(State, Tables, true, true);
++		if (LastPeriodic.IsNone())
++		{
++			LastPeriodic = MostRecentOf(State, Tables, false, true);
++		}
+ 		for (int32 Pass = 0; Pass < 2 && Candidates.IsEmpty(); ++Pass)
+ 		{
+ 			for (const FName RowName : Tables.GetEncounterRowNames())

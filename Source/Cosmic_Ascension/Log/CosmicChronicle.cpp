@@ -111,7 +111,10 @@ bool CosmicChronicle::Admits(const FCosmicLogEntry& Entry, TConstArrayView<FName
 	{
 		return true;
 	}
-	return Entry.Severity == 1 && ((!Entry.FocusCivID.IsNone() && Peoples.Contains(Entry.FocusCivID)) || Entry.SourceRow == CosmicRows::LogFirstContact);
+	// A wanderer's card is the life's own story wherever it was answered (B1): its rows carry the prefix enc_ - the schema
+	// binds it - compared without case (a cooked build need not keep the case of a name).
+	return Entry.Severity == 1 && ((!Entry.FocusCivID.IsNone() && Peoples.Contains(Entry.FocusCivID)) || Entry.SourceRow == CosmicRows::LogFirstContact
+		|| Entry.SourceRow.ToString().StartsWith(TEXT("enc_"), ESearchCase::IgnoreCase));
 }
 
 TArray<FName> CosmicChronicle::PeoplesOfEveryLife(const FCallingState& Calling)

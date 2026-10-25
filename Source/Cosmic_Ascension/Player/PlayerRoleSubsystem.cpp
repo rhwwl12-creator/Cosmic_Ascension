@@ -5,6 +5,7 @@
 #include "Cosmic_Ascension.h"
 #include "Core/CosmicIDs.h"
 #include "Core/GalaxyState.h"
+#include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
@@ -18,11 +19,23 @@
 #include "Sim/CosmicEvalContext.h"
 #include "Sim/CosmicResearch.h"
 #include "Sim/CosmicStateIndex.h"
+#include "Sim/CosmicWanderer.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 
 // Helpers of this file. A named namespace: the module is built as one unity file.
 namespace CosmicPlayerRoleImpl
 {
+	// The thrones a vessel left: every people's ThroneLockedUntilTick to Tick + ThroneLockTicks, never earlier than it was
+	// (B1 header section 2.7 - written on every people, so it holds when the people left is gone).
+	void LockEveryThrone(FGalaxyState& State, const FCosmicRulesDef& Rules)
+	{
+		const int64 Until = State.Tick + FMath::Max(0, Rules.ThroneLockTicks);
+		for (FCivilizationState& Civ : State.Civs)
+		{
+			Civ.ThroneLockedUntilTick = FMath::Max(Civ.ThroneLockedUntilTick, Until);
+		}
+	}
+
 	// The new eye of a wanderer (section 4.4): the system it stands in and its lane neighbours in the same galaxy row
 	// become known, in Lanes order, without a line. Meeting their owners is the next sight stage's.
 	void KnowAround(UGalaxySimulationSubsystem& Sim, FName SystemID)
@@ -215,8 +228,8 @@ void UPlayerRoleSubsystem::DeposeRuler()
 		FCivilizationState& Civ = State.Civs[CivIndex];
 		const float Ceiling = Rules.PostRebellionStability > 0.f ? FMath::Min(Rules.PostRebellionStability, 1.f) : 0.f;
 		Civ.Stability = FMath::Min(Civ.Stability, Ceiling);
-		Civ.ThroneLockedUntilTick = State.Tick + FMath::Max(0, Rules.ThroneLockTicks);
 	}
+	CosmicPlayerRoleImpl::LockEveryThrone(State, Rules);
 	Sim->SyncRngState();
 }
 
@@ -281,6 +294,24 @@ void UPlayerRoleSubsystem::BecomeWanderer(FGameplayTag RegentProfile, FGameplayT
 	// people to petition (section 5.10).
 	State.Knowing.PendingContactCivID = NAME_None;
 	CosmicPetitions::Clear(State);
+	Player.TravelTargetSystemID = NAME_None;
+	Player.TravelTicksRemaining = 0;
+
+	// Notable hook 1 (section 7.4, 7.5): a reign left of its own will leaves a regent - the NameNotable rule through Apply,
+	// one number of the name before its guards, whether or not a record is made (B1). A deposed vessel leaves none: the
+	// rebels' leader holds the throne.
+	if (ReignEndReason == FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Abdicated"))))
+	{
+		FCosmicEvalContext Ctx = Sim->MakeEvalContext();
+		Ctx.CivIndex = CivIndex;
+		Ctx.SystemIndex = INDEX_NONE;
+		Ctx.GalaxyRow = State.Civs.IsValidIndex(CivIndex) ? State.Civs[CivIndex].GalaxyRow : FName();
+		Ctx.SourceRow = CosmicRows::LogThroneVacated;
+		FCosmicEffect Regent;
+		Regent.Type = EEffectType::NameNotable;
+		Regent.Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Notable.Regent")));
+		UCosmicEventSubsystem::Apply(Regent, Ctx);
+	}
 
 	// The new eye of a wanderer: where it stands and the lanes around (section 4.4).
 	CosmicPlayerRoleImpl::KnowAround(*Sim, Player.CurrentSystemID);
@@ -360,9 +391,8 @@ FCosmicPetitionAnswer UPlayerRoleSubsystem::AnswerPetition(int32 ChoiceIndex)
 	FGalaxyState& State = Sim->GetMutableState();
 	const FCosmicStateIndex& Index = Sim->GetStateIndex();
 	const FCosmicDataTables& Tables = Sim->GetTables();
-	const int32 CivIndex = CosmicPetitions::RuledCivIndexOf(State, Index);
 	const FName RowName = State.Knowing.PendingPetitionRow;
-	if (CivIndex == INDEX_NONE || RowName.IsNone())
+	if (RowName.IsNone())
 	{
 		return Answer;
 	}
@@ -372,14 +402,21 @@ FCosmicPetitionAnswer UPlayerRoleSubsystem::AnswerPetition(int32 ChoiceIndex)
 		UE_LOG(LogCosmic, Error, TEXT("AnswerPetition: the waiting card %s is no row of DT_Encounters"), *RowName.ToString());
 		return Answer;
 	}
+	// Who answers: the ruler a petition, the wanderer its own card (B1). The other role is refused - nothing drawn.
+	const bool bWandererCard = CosmicPetitions::IsWandererCard(*Row);
+	const int32 RuledIndex = CosmicPetitions::RuledCivIndexOf(State, Index);
+	if (bWandererCard ? !CosmicWanderer::IsEmbodiedWanderer(State) : RuledIndex == INDEX_NONE)
+	{
+		return Answer;
+	}
 	if (!Row->Choices.IsValidIndex(ChoiceIndex))
 	{
 		UE_LOG(LogCosmic, Error, TEXT("AnswerPetition: %s has no choice %d"), *RowName.ToString(), ChoiceIndex);
 		return Answer;
 	}
 	const FEncounterChoice& Choice = Row->Choices[ChoiceIndex];
-	const FResourcePool Cost = CosmicPetitions::CostOf(Choice);
-	if (!CosmicMegaprojects::CanPay(State.Civs[CivIndex].Stockpile, Cost))
+	const FResourcePool Cost = bWandererCard ? FResourcePool() : CosmicPetitions::CostOf(Choice);
+	if (!bWandererCard && !CosmicMegaprojects::CanPay(State.Civs[RuledIndex].Stockpile, Cost))
 	{
 		UE_LOG(LogCosmic, Error, TEXT("AnswerPetition: the stockpile cannot pay choice %d of %s"), ChoiceIndex, *RowName.ToString());
 		return Answer;
@@ -397,21 +434,29 @@ FCosmicPetitionAnswer UPlayerRoleSubsystem::AnswerPetition(int32 ChoiceIndex)
 		return Answer;
 	}
 	const FName SystemID = State.Knowing.PendingPetitionSystemID;
-	const int32 SystemIndex = CosmicPetitions::SubjectOf(State, Index, CivIndex, Row->Subject, SystemID);
+	// The subject: the ruled people and the card's system; for a wanderer's card the system the vessel stands in and its
+	// owner (none for a wild system).
+	const FCosmicVesselSubject Vessel = bWandererCard ? CosmicPetitions::VesselSubjectOf(State, Index) : FCosmicVesselSubject();
+	const int32 CivIndex = bWandererCard ? Vessel.CivIndex : RuledIndex;
+	const int32 SystemIndex = bWandererCard ? Vessel.SystemIndex : CosmicPetitions::SubjectOf(State, Index, CivIndex, Row->Subject, SystemID);
 	// The arguments of the texts before the effects: the hazard the card is about, also when the answer resolves it.
 	const FFormatNamedArguments Args = CosmicPetitions::ArgsOf(State, Tables, CivIndex, SystemIndex);
 
-	FResourcePool& Stockpile = State.Civs[CivIndex].Stockpile;
-	Stockpile.Energy -= Cost.Energy;
-	Stockpile.Matter -= Cost.Matter;
-	Stockpile.Insight -= Cost.Insight;
-	Stockpile.Influence -= Cost.Influence;
-	Stockpile.Causality -= Cost.Causality;
+	if (!bWandererCard)
+	{
+		FResourcePool& Stockpile = State.Civs[CivIndex].Stockpile;
+		Stockpile.Energy -= Cost.Energy;
+		Stockpile.Matter -= Cost.Matter;
+		Stockpile.Insight -= Cost.Insight;
+		Stockpile.Influence -= Cost.Influence;
+		Stockpile.Causality -= Cost.Causality;
+	}
 
 	const bool bPasses = CosmicPetitions::Passes(State, CivIndex, Choice, Answer.Roll);
 	Ctx.CivIndex = CivIndex;
 	Ctx.SystemIndex = SystemIndex;
-	Ctx.GalaxyRow = State.Civs[CivIndex].GalaxyRow;
+	Ctx.GalaxyRow = State.Civs.IsValidIndex(CivIndex) ? State.Civs[CivIndex].GalaxyRow
+		: State.Systems.IsValidIndex(SystemIndex) ? State.Systems[SystemIndex].GalaxyRow : FName();
 	Ctx.SourceRow = RowName;
 	Ctx.bPerTickSource = false;
 	UCosmicEventSubsystem::ApplyAll(bPasses ? Choice.OnSuccess : Choice.OnFailure, Ctx);
@@ -422,23 +467,32 @@ FCosmicPetitionAnswer UPlayerRoleSubsystem::AnswerPetition(int32 ChoiceIndex)
 	const FText& Template = bPasses ? Choice.SuccessText : Choice.FailureText;
 	if (!Template.IsEmpty())
 	{
-		const bool bAboutPlace = Row->Subject == ECosmicEventSubject::SettledSystem && State.Systems.IsValidIndex(SystemIndex);
+		const bool bAboutPlace = CosmicPetitions::IsAboutPlace(*Row) && State.Systems.IsValidIndex(SystemIndex);
 		Answer.Line = FText::Format(Template, Args);
-		Log->Push(CivCategory, 1, Template, Args, bAboutPlace ? State.Systems[SystemIndex].SystemID : FName(), RowName, State.Civs[CivIndex].CivID);
+		Log->Push(CivCategory, 1, Template, Args, bAboutPlace ? State.Systems[SystemIndex].SystemID : FName(), RowName,
+			State.Civs.IsValidIndex(CivIndex) ? State.Civs[CivIndex].CivID : FName());
 	}
 	Events->FollowUpNotes(Ctx);
 
 	CosmicPetitions::Remember(State, RowName);
 	CosmicPetitions::Clear(State);
 	// The next card of a chain, on the same subject, when its conditions hold: put by name, no draw.
+	// A chain stays with its role: a petition's next card is a petition on the same subject, a wanderer's next card is
+	// a wanderer's card where the vessel stands.
 	if (const FEncounterDef* Next = Choice.NextEncounter.IsNone() ? nullptr : Tables.FindEncounter(Choice.NextEncounter))
 	{
-		const int32 NextSystemIndex = CosmicPetitions::SubjectOf(State, Index, CivIndex, Next->Subject, SystemID);
-		const bool bHasSubject = Next->Subject == ECosmicEventSubject::Civilization || NextSystemIndex != INDEX_NONE;
-		if (bHasSubject && CosmicPetitions::Holds(State, Index, Tables, Sim->GetRules(), Choice.NextEncounter, *Next, CivIndex, NextSystemIndex))
+		if (CosmicPetitions::IsWandererCard(*Next) == bWandererCard)
 		{
-			State.Knowing.PendingPetitionRow = Choice.NextEncounter;
-			State.Knowing.PendingPetitionSystemID = Next->Subject == ECosmicEventSubject::SettledSystem ? SystemID : FName();
+			const FCosmicVesselSubject NextVessel = bWandererCard ? CosmicPetitions::VesselSubjectOf(State, Index) : FCosmicVesselSubject();
+			const int32 NextCivIndex = bWandererCard ? NextVessel.CivIndex : CivIndex;
+			const int32 NextSystemIndex = bWandererCard ? NextVessel.SystemIndex : CosmicPetitions::SubjectOf(State, Index, CivIndex, Next->Subject, SystemID);
+			const bool bHasSubject = Next->Subject == ECosmicEventSubject::Civilization || NextSystemIndex != INDEX_NONE;
+			if (bHasSubject && CosmicPetitions::Holds(State, Index, Tables, Sim->GetRules(), Choice.NextEncounter, *Next, NextCivIndex, NextSystemIndex))
+			{
+				State.Knowing.PendingPetitionRow = Choice.NextEncounter;
+				State.Knowing.PendingPetitionSystemID = CosmicPetitions::IsAboutPlace(*Next) && State.Systems.IsValidIndex(NextSystemIndex)
+					? State.Systems[NextSystemIndex].SystemID : FName();
+			}
 		}
 	}
 
@@ -490,4 +544,195 @@ bool UPlayerRoleSubsystem::SetResearchFocus(FName Field)
 	}
 	// The focus asked is already the people's: nothing changed, and it is not a decision.
 	return !ResearchFocus.OrderIndependentCompareEqual(Before);
+}
+
+CosmicWanderer::ETravelBlock UPlayerRoleSubsystem::TravelTo(FName SystemID)
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	check(Sim);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("TravelTo called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return CosmicWanderer::ETravelBlock::Handler;
+	}
+	FGalaxyState& State = Sim->GetMutableState();
+	const CosmicWanderer::ETravelBlock Block = CosmicWanderer::TravelBlockOf(State, Sim->GetStateIndex(), SystemID, !State.Knowing.PendingPetitionRow.IsNone());
+	if (Block != CosmicWanderer::ETravelBlock::None)
+	{
+		return Block;
+	}
+	State.Player.TravelTargetSystemID = SystemID;
+	State.Player.TravelTicksRemaining = CosmicWanderer::LaneTicksOf(Sim->GetRules());
+	return Block;
+}
+
+int32 UPlayerRoleSubsystem::ScanCurrentSystem()
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	check(Sim && Log);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("ScanCurrentSystem called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return INDEX_NONE;
+	}
+	const FGalaxyState& State = Sim->GetState();
+	const int32 Standing = CosmicWanderer::StandingIndexOf(State, Sim->GetStateIndex());
+	if (Standing == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+	// The wanderer's own reach widened by the scan's lanes (section 5.9): the knobs below their floor read as the floor.
+	const FCosmicRulesDef& Rules = Sim->GetRules();
+	const int32 TierIndex = static_cast<int32>(State.Calling.PersonalTier);
+	const int32 Sight = (Rules.SightLanesByTier.IsValidIndex(TierIndex) && Rules.SightLanesByTier[TierIndex] > 1) ? Rules.SightLanesByTier[TierIndex] : 1;
+	const int32 Learned = Sim->LookFrom(MakeArrayView(&Standing, 1), Sight + FMath::Max(0, Rules.ScanSightBonusLanes), true);
+	// A scan of a system no people owns that showed something new is told (section 5.9: log_scan_wild).
+	const FStarSystemState& Here = State.Systems[Standing];
+	if (Learned > 0 && Here.OwnerCivID.IsNone())
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("System"), Here.DisplayName);
+		Log->PushRow(CosmicRows::LogScanWild, 1, Args, Here.SystemID);
+	}
+	return Learned;
+}
+
+CosmicWanderer::ECrownBlock UPlayerRoleSubsystem::BecomeRuler(FName CivID)
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	check(Sim && Log);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("BecomeRuler called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return CosmicWanderer::ECrownBlock::Handler;
+	}
+	FGalaxyState& State = Sim->GetMutableState();
+	const FCosmicStateIndex& Index = Sim->GetStateIndex();
+	// Only a met people crowns the vessel: what the player knows is the input's definition (section 5.10, rule 2).
+	const bool bMet = State.Knowing.MetCivs.ContainsByPredicate([CivID](const FKnownMark& Met) { return Met.ID == CivID; });
+	const CosmicWanderer::ECrownBlock Block = CosmicWanderer::CrownBlockOf(State, Index, Sim->GetRules(), CivID, bMet, !State.Knowing.PendingPetitionRow.IsNone());
+	if (Block != CosmicWanderer::ECrownBlock::None)
+	{
+		return Block;
+	}
+	const bool bReturn = CosmicWanderer::IsReturn(State, CivID);
+	const int32 CivIndex = Index.FindCiv(State, CivID);
+	FPlayerEntityState& Player = State.Player;
+
+	// The throne (section 5.10): the people is the vessel's, and a new reign opens in the three arrays together.
+	State.Civs[CivIndex].bIsPlayerRuled = true;
+	Player.Role = EPlayerRole::Ruler;
+	Player.RuledCivID = CivID;
+	if (!State.Calling.Lives.IsEmpty())
+	{
+		FLifeRecord& Life = State.Calling.Lives.Last();
+		Life.RuledCivIDs.Add(CivID);
+		Life.ReignEndReasons.Add(FGameplayTag());
+		Life.ReignTicks.Add(0);
+	}
+	// Whoever held the throne leaves it: the rebels' leader that took it, the regent the vessel left (B1).
+	static const FGameplayTag RulerRole = FGameplayTag::RequestGameplayTag(FName(TEXT("Notable.Ruler")));
+	static const FGameplayTag RegentRole = FGameplayTag::RequestGameplayTag(FName(TEXT("Notable.Regent")));
+	for (FNotableRecord& Record : State.Civs[CivIndex].Notables)
+	{
+		if (Record.LastTick == 0 && (Record.Role == RulerRole || Record.Role == RegentRole))
+		{
+			Record.LastTick = FMath::Max<int64>(State.Tick, 1);
+		}
+	}
+	Player.TravelTargetSystemID = NAME_None;
+	Player.TravelTicksRemaining = 0;
+	CosmicPetitions::Clear(State);
+	State.Knowing.PendingContactCivID = NAME_None;
+
+	// The new eye of a ruler: every system of the people is known at once (a role change writes knowing in its own call,
+	// section 4.4). No line: the people was met before it crowned the vessel.
+	const TArray<FName> Owned = State.Civs[CivIndex].OwnedSystems;
+	for (const FName SystemID : Owned)
+	{
+		const int32 SystemIndex = Index.FindSystem(State, SystemID);
+		if (State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == CivID)
+		{
+			Sim->NoteKnown(SystemID);
+		}
+	}
+
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("Civ"), State.Civs[CivIndex].CivName);
+	const int32 Here = Index.FindSystem(State, Player.CurrentSystemID);
+	Args.Add(TEXT("System"), State.Systems.IsValidIndex(Here) ? State.Systems[Here].DisplayName : FText::GetEmpty());
+	Log->PushRow(bReturn ? CosmicRows::LogReturned : CosmicRows::LogCrowned, 2, Args, Player.CurrentSystemID, CivID);
+	return Block;
+}
+
+bool UPlayerRoleSubsystem::Abdicate()
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	check(Sim);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("Abdicate called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return false;
+	}
+	FGalaxyState& State = Sim->GetMutableState();
+	const int32 CivIndex = CosmicPetitions::RuledCivIndexOf(State, Sim->GetStateIndex());
+	if (CivIndex == INDEX_NONE || State.Calling.PendingEffect.IsValid())
+	{
+		return false;
+	}
+	// Recorded like every role effect (rule 13): the tenth stage of the next tick runs the pipeline. No draw here.
+	FCosmicEvalContext Ctx = Sim->MakeEvalContext();
+	Ctx.CivIndex = CivIndex;
+	Ctx.SystemIndex = INDEX_NONE;
+	Ctx.GalaxyRow = State.Civs[CivIndex].GalaxyRow;
+	Ctx.SourceRow = CosmicRows::LogThroneVacated;
+	FCosmicEffect Leave;
+	Leave.Type = EEffectType::DeposeRuler;
+	Leave.Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Abdicated")));
+	return UCosmicEventSubsystem::Apply(Leave, Ctx);
+}
+
+void UPlayerRoleSubsystem::AbdicateRuler()
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	check(Sim && Log);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("AbdicateRuler called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return;
+	}
+	FGalaxyState& State = Sim->GetMutableState();
+	const FPlayerEntityState& Player = State.Player;
+	if (State.Calling.LifeState != ELifeState::Embodied || Player.Role != EPlayerRole::Ruler)
+	{
+		return;
+	}
+	const FName RuledCivID = Player.RuledCivID;
+	const int32 CivIndex = Sim->GetStateIndex().FindCiv(State, RuledCivID);
+
+	// The line first, as for a fall (section 5.10).
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("Civ"), State.Civs.IsValidIndex(CivIndex) ? State.Civs[CivIndex].CivName : FText::GetEmpty());
+	const int32 Here = Sim->GetStateIndex().FindSystem(State, Player.CurrentSystemID);
+	Args.Add(TEXT("System"), State.Systems.IsValidIndex(Here) ? State.Systems[Here].DisplayName : FText::GetEmpty());
+	Log->PushRow(CosmicRows::LogThroneVacated, 2, Args, Player.CurrentSystemID, RuledCivID);
+
+	// One number for the regent's profile, one in BecomeWanderer for the regent's name: two, always (section 9.2).
+	const float RegentRoll = Sim->GetRng().GetFraction();
+	BecomeWanderer(CosmicState::PickAIProfile(RegentRoll), FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Abdicated"))));
+
+	// The people left keeps its reverence (a departure, not a fall) and loses a little of its calm; no throne takes the
+	// vessel back for a while.
+	const FCosmicRulesDef& Rules = Sim->GetRules();
+	if (State.Civs.IsValidIndex(CivIndex))
+	{
+		const float Loss = Rules.AbdicationStabilityLoss > 0.f ? FMath::Min(Rules.AbdicationStabilityLoss, 1.f) : 0.f;
+		FCivilizationState& Civ = State.Civs[CivIndex];
+		Civ.Stability = FMath::Max(0.f, Civ.Stability - Loss);
+	}
+	CosmicPlayerRoleImpl::LockEveryThrone(State, Rules);
+	Sim->SyncRngState();
 }

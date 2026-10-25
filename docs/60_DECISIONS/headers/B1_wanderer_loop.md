@@ -316,6 +316,7 @@ bool Abdicate();
 - **닫힌 시험 목록에 셋을 더한다**(새 규칙 종류라 `docs/40:236`의 §12.3 세 물음을 함께 적는다): ① `row_prefix` — `when`에만, 행 이름이 그 접두어로 시작한다 ② `has_cond {type, key}` — 조건 목록에 그 종류와 그 Key를 가진 것이 있다(`has_type`은 종류만 본다) ③ `each_choice {when, then}` — 선택지마다 따로 거는 규칙.
 - 규칙: `when row_prefix enc_` ⇒ `has_cond PlayerRoleIs Wanderer`·`Subject` = `VesselSystem`·`Choices.Cost` 0·`Choices.CheckStat` ∈ {Body, Mind, Causality, Exaltation, NoCheck}. `when row_prefix petition_` ⇒ `has_cond PlayerRoleIs Ruler`·`Subject` ∈ {Civilization, SettledSystem}. `Subject VesselSystem ∧ Trigger Lottery` ⇒ 글의 슬롯은 `{System}`만. `each_choice`: `OnSuccess`에 `DeposeRuler`가 있으면 `CheckStat` NoCheck이고 그 태그는 `Reign.Abdicated`. `DT_Events`: `Subject` ∈ {Civilization, SettledSystem}.
 - `schema.enums.ECosmicEventSubject` 끝에 `VesselSystem`(`Data.Integrity`가 C++ 열거자와 견준다). 노브 여섯은 `rules` 표에(`LaneTravelTicks` min 1·정수).
+- **구현 기록 (B-1b, 2026-10-25)**: 닫힌 시험 목록에는 ①·②만 더했다. 선택지마다의 두 규칙(`enc_`의 비용 0, '`OnSuccess`에 `DeposeRuler`면 `NoCheck`이고 `Reign.Abdicated`')은 `Data.Integrity`의 `ChoiceProblems`(C++)가 지킨다 — MVP ②의 선택지별 규칙(실패 줄은 판정이 있을 때만)과 같은 자리이고, 스키마의 규칙은 목록 단위로만 선다. 그래서 둘은 에디터 없는 검사(`check_data.py`)에는 보이지 않고 자동화 테스트에서 잡힌다(구현 리뷰가 찾은 차이, `DECISIONS_LOG`에 적는다).
 
 ## 4. 표현 계층
 
