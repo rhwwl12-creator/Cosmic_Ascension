@@ -22,6 +22,7 @@
 #include "Misc/Crc.h"
 #include "Misc/Guid.h"
 #include "Ascension/AscensionSubsystem.h"
+#include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
@@ -791,6 +792,11 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 		}
 		Civ.OwnedSystems.Add(Home.SystemID);
 		Home.OwnerCivID = Civ.CivID;
+		// The inherited edict (B2 section 2.7): every people starts holding it - the same rule for all. No draw, no cost.
+		if (!Rules.StartingEdict.IsNone() && Tables.FindEdict(Rules.StartingEdict))
+		{
+			Civ.ActiveEdicts.Add(Rules.StartingEdict);
+		}
 	}
 
 	// 3. Archetype, ethics and profile of every AI people. AI archetypes: the DT_Civs rows with a positive, finite
@@ -1483,6 +1489,10 @@ void UGalaxySimulationSubsystem::TickEconomy()
 	// not a number gives no recovery.
 	const bool bRecovers = Rules.StabilityRecoveryPerTick > 0.f && Rules.StabilityRecoveryPerTick <= 1.f && Rules.StabilityRestingLevel >= 0.f
 		&& Rules.StabilityRestingLevel <= 1.f;
+	// Society research raises the recovery (B2): x (1 + bonus x Society). A bonus that is not above 0 and finite is 0, and
+	// then the recovery is the knob itself, bit for bit.
+	const float SocietyBonus = (Rules.SocietyRecoveryBonus > 0.f && Rules.SocietyRecoveryBonus <= TNumericLimits<float>::Max()) ? Rules.SocietyRecoveryBonus : 0.f;
+	UCosmicLogSubsystem* EdictLog = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
 
 	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
 	{
@@ -1493,7 +1503,11 @@ void UGalaxySimulationSubsystem::TickEconomy()
 		}
 		if (bRecovers && Civ.Stability < Rules.StabilityRestingLevel)
 		{
-			Civ.Stability = FMath::Min(Rules.StabilityRestingLevel, Civ.Stability + Rules.StabilityRecoveryPerTick);
+			// Society read 0..1 by comparisons (a value that is not a number reads as 0).
+			const float Society = Civ.Research.FindRef(SocietyField);
+			const float SocietyRead = Society > 0.f ? (Society < 1.f ? Society : 1.f) : 0.f;
+			const float Recovery = SocietyBonus > 0.f ? Rules.StabilityRecoveryPerTick * (1.f + SocietyBonus * SocietyRead) : Rules.StabilityRecoveryPerTick;
+			Civ.Stability = FMath::Min(Rules.StabilityRestingLevel, Civ.Stability + Recovery);
 		}
 
 		// Only settled systems pay (section 5.7): a system being settled is not yet a home.
@@ -1520,7 +1534,25 @@ void UGalaxySimulationSubsystem::TickEconomy()
 
 		Civ.IncomePerTick = Income;
 
-		// The per-tick sources, between the income and the stockpile (section 7.4). Edict and trait rows join in Phase 4.
+		// The per-tick sources, between the income and the stockpile (section 7.4). Trait rows join in Phase 4.
+		// The held edicts first (B2), in ActiveEdicts order - before the drain and the transcendents' sources, an order that
+		// fixes the bits of the multiplications. Every field of the subject is set: the context is reused across peoples
+		// and the transcendents' loop leaves its OtherID behind. A name the table does not hold does nothing.
+		for (int32 EdictAt = 0; EdictAt < Civ.ActiveEdicts.Num(); ++EdictAt)
+		{
+			const FEdictDef* Edict = Tables.FindEdict(Civ.ActiveEdicts[EdictAt]);
+			if (!Edict || Edict->EffectsPerTick.IsEmpty())
+			{
+				continue;
+			}
+			Sources.CivIndex = CivIndex;
+			Sources.SystemIndex = INDEX_NONE;
+			Sources.OtherID = NAME_None;
+			Sources.SourceRow = Civ.ActiveEdicts[EdictAt];
+			Sources.GalaxyRow = Civ.GalaxyRow;
+			Sources.SinceTick = 0;
+			UCosmicEventSubsystem::ApplyAll(Edict->EffectsPerTick, Sources);
+		}
 		// Spiritual pressure, once per civilization and never once per system (section 4.2): the largest P among its
 		// settled systems whose dominant source stands on a higher tier, and the first settled system inside the sphere
 		// of each transcendent.
@@ -1604,6 +1636,30 @@ void UGalaxySimulationSubsystem::TickEconomy()
 		Civ.Stockpile.Matter += Civ.IncomePerTick.Matter;
 		Civ.Stockpile.Insight += Civ.IncomePerTick.Insight;
 		Civ.Stockpile.Influence += Civ.IncomePerTick.Influence;
+
+		// The edicts' upkeep (B2), after this tick's income, in ActiveEdicts order: paid in full, or the edict lapses (its
+		// effects of this tick have been applied). Only the people the player rules is told (the stage's only line - the
+		// tell stream; no draw, no role effect).
+		if (!Civ.ActiveEdicts.IsEmpty())
+		{
+			const TArray<FName> Held = Civ.ActiveEdicts;
+			for (const FName Row : Held)
+			{
+				const FEdictDef* Edict = Tables.FindEdict(Row);
+				if (!Edict || CosmicEdicts::TryPay(Civ.Stockpile, Edict->UpkeepPerTick))
+				{
+					continue;
+				}
+				CosmicEdicts::Revoke(Civ, Row);
+				if (Civ.bIsPlayerRuled && EdictLog)
+				{
+					FFormatNamedArguments Args;
+					Args.Add(TEXT("Civ"), Civ.CivName);
+					Args.Add(TEXT("Edict"), Edict->DisplayName);
+					EdictLog->PushRow(CosmicRows::LogEdictLapsed, 1, Args, NAME_None, Civ.CivID);
+				}
+			}
+		}
 	}
 
 	// Counted last, over the Stability every civilization has at the end of this stage (section 7.4), and over the
@@ -1751,7 +1807,8 @@ void UGalaxySimulationSubsystem::TickHazards()
 			const float Chance = Row->SpawnChancePerTick > 0.f ? FMath::Min(Row->SpawnChancePerTick, 1.f) : 0.f;
 			const float* Multiplier = Archetype ? Archetype->HazardSpawnMultipliers.Find(Row->HazardTag) : nullptr;
 			const float Factor = Multiplier ? ((*Multiplier > 0.f && *Multiplier <= TNumericLimits<float>::Max()) ? *Multiplier : 0.f) : 1.f;
-			const float Share = Chance * Factor;
+			// The owner's held edicts multiply the share too (B2): 1 when none, so the bits stay.
+			const float Share = (Chance * Factor) * CosmicEdicts::SpawnMultiplierOf(Owner, Tables, Row->HazardTag);
 			if (!(Share > 0.f))
 			{
 				continue;
@@ -1892,6 +1949,17 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 	Ctx.SystemIndex = SystemIndex;
 	Ctx.SourceRow = RowName;
 	Ctx.GalaxyRow = State.Systems[SystemIndex].GalaxyRow;
+
+	// An answer edict its owner holds at the expiry resolves the hazard instead (B2 section 2.5): the resolution of a project
+	// that completes - its effects and its line. The numbers drawn for this expiry are thrown away (the draws stay), and a
+	// resolution passes no claim rule.
+	if (State.Civs.IsValidIndex(OwnerIndex) && !CosmicEdicts::HeldAnswerOf(State.Civs[OwnerIndex], *Row, Tables).IsNone())
+	{
+		CosmicHazards::Resolve(Ctx, SystemIndex);
+		Events->FollowUpKnowing(Ctx);
+		Events->FollowUpNotes(Ctx);
+		return;
+	}
 
 	// The gate comes before any part of the loss (section 4.5): a kept system loses nothing, not even its line.
 	const bool bTakesSystem = Collected == SupernovaTag;
@@ -2132,6 +2200,12 @@ void UGalaxySimulationSubsystem::TickCivAI()
 				FCosmicEvalContext Ctx = MakeEvalContext();
 				CosmicMegaprojects::Settle(Ctx, CivIndex, Targets[Pick]);
 			}
+		}
+		// The AI holds no edict in B2 (section 2.6): it revokes what it holds - an edict with a Stability cost once below
+		// DT_Rules.AIEdictRevokeStability, any other at once. No draw, no line. A regent revokes what the ruler left.
+		for (const FName Row : CosmicEdicts::AIRevokesOf(State.Civs[CivIndex], Tables, Rules))
+		{
+			CosmicEdicts::Revoke(State.Civs[CivIndex], Row);
 		}
 	}
 

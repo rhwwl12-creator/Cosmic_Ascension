@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+@@ -38,7 +38,7 @@
+ 	int32 Count = 0;
+ 	for (const FName Row : Civ.ActiveEdicts)
+ 	{
+-		Count += Tables.FindEdict(Row) ? 1 : 0;
++		Count += 1;
+ 	}
+ 	return Count;
+ }

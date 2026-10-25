@@ -93,3 +93,41 @@ ECosmicFocusShape CosmicResearch::ShapeOf(const TMap<FName, float>& ResearchFocu
 	}
 	return ECosmicFocusShape::Mixed;
 }
+
+FName CosmicResearch::TranscendenceField()
+{
+	static const FName Field(TEXT("Transcendence"));
+	return Field;
+}
+
+bool CosmicResearch::SharesOf(TMap<FName, float>& ResearchFocus, const TMap<FName, int32>& Weights)
+{
+	const FName Transcendence = TranscendenceField();
+	const int32 Fields = ResearchFocus.Num() - (ResearchFocus.Contains(Transcendence) ? 1 : 0);
+	if (Fields < 1 || Weights.Num() != Fields || Weights.Contains(Transcendence))
+	{
+		return false;
+	}
+	int32 Sum = 0;
+	for (const TPair<FName, int32>& Each : Weights)
+	{
+		if (!ResearchFocus.Contains(Each.Key) || Each.Value < 0 || Each.Value > MaxShareWeight)
+		{
+			return false;
+		}
+		Sum += Each.Value;
+	}
+	if (Sum <= 0)
+	{
+		return false;
+	}
+	const float Rest = 1.f - ResearchFocus.FindRef(Transcendence);
+	for (TPair<FName, float>& Each : ResearchFocus)
+	{
+		if (Each.Key != Transcendence)
+		{
+			Each.Value = Rest * static_cast<float>(Weights.FindRef(Each.Key)) / static_cast<float>(Sum);
+		}
+	}
+	return true;
+}

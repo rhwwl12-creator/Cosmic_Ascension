@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1646,7 +1646,7 @@
+ 			for (const FName Row : Held)
+ 			{
+ 				const FEdictDef* Edict = Tables.FindEdict(Row);
+-				if (!Edict || CosmicEdicts::TryPay(Civ.Stockpile, Edict->UpkeepPerTick))
++				if (!Edict || (Civ.Stockpile.Energy -= CosmicEdicts::CostOf(Edict->UpkeepPerTick).Energy, false) || CosmicEdicts::TryPay(Civ.Stockpile, Edict->UpkeepPerTick))
+ 				{
+ 					continue;
+ 				}

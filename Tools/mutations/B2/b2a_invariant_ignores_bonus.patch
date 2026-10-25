@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+@@ -262,5 +262,5 @@
+ 	}
+ 	const float Rate = (Rules.StabilityRecoveryPerTick > 0.f && Rules.StabilityRecoveryPerTick <= 1.f) ? Rules.StabilityRecoveryPerTick : 0.f;
+ 	const float Bonus = (Rules.SocietyRecoveryBonus > 0.f && Rules.SocietyRecoveryBonus <= TNumericLimits<float>::Max()) ? Rules.SocietyRecoveryBonus : 0.f;
+-	return Rate * (1.f + Bonus) < Drain;
+-}
++	return Rate < Drain;
++}

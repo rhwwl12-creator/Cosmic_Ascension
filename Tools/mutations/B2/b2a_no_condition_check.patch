@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+@@ -69,7 +69,7 @@
+ 		View.SourceRow = Row;
+ 		if (!UCosmicEventSubsystem::CheckAll(Def->EnactConditions, View))
+ 		{
+-			return ECosmicEdictBlock::Conditions;
++			;
+ 		}
+ 	}
+ 	if (HeldCountOf(Civ, Tables) >= SlotsOf(Civ, Rules))

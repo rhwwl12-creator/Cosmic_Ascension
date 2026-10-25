@@ -24,6 +24,7 @@
 #include "Misc/SecureHash.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
@@ -1695,7 +1696,7 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		};
 		TestTrue(TEXT("The game has a hazard row to change"), !Game.GetHazardRowNames().IsEmpty());
 		Expect(TEXT("a list of row names with a row no named table has"), WithHazard([](FHazardDef& Row) { Row.RulerResolutions = { FName(TEXT("enc_nobody")) }; }),
-			{ TEXT("RulerResolutions[0]"), TEXT("none of DT_Megaprojects, DT_Encounters has a row enc_nobody") });
+			{ TEXT("RulerResolutions[0]"), TEXT("none of DT_Megaprojects, DT_Encounters, DT_Edicts has a row enc_nobody") });
 		// A project the game's own hazard rows give as an answer, whatever its name - not project_settle, which the code
 		// refuses as an answer (CanStart; the schema leaves it out, decision K of the settlement work - Sim.StartMegaproject).
 		FName GameAnswer;
@@ -2032,6 +2033,96 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 			{
 				Row.Choices.Last().OnSuccess[0].Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Deposed")));
 			}), { TEXT("petition_keep_throne.Choices[2]"), TEXT("the vessel's own will") });
+	}
+
+	// The edicts (B2 header section 2.7, 3.6), row by row: an edict stands until it is revoked, so no effect of it has a
+	// duration; a relation it changes names its other party (the subject of a per-tick source has no other ID); and the
+	// inherited edict outruns the most recovery, so that a people left alone still falls (CosmicEdicts::
+	// InheritedDrainOutrunsRecovery - a rule across two tables, out of the schema's reach).
+	auto EdictProblems = [](const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules)
+	{
+		TArray<FString> Problems;
+		for (const FName RowName : Tables.GetEdictRowNames())
+		{
+			const FEdictDef* Edict = Tables.FindEdict(RowName);
+			for (int32 At = 0; Edict && At < Edict->EffectsPerTick.Num(); ++At)
+			{
+				const FCosmicEffect& Effect = Edict->EffectsPerTick[At];
+				const FString Where = FString::Printf(TEXT("DT_Edicts.%s.EffectsPerTick[%d]"), *RowName.ToString(), At);
+				if (Effect.DurationTicks != 0)
+				{
+					Problems.Add(Where + TEXT(": an edict stands until it is revoked - no duration"));
+				}
+				if (Effect.Type == EEffectType::ChangeRelation && Effect.Key.IsNone())
+				{
+					Problems.Add(Where + TEXT(": a relation an edict changes names its other party"));
+				}
+			}
+		}
+		if (!CosmicEdicts::InheritedDrainOutrunsRecovery(Rules, Tables))
+		{
+			Problems.Add(FString::Printf(TEXT("DT_Rules.StartingEdict %s: the inherited edict has to take more Stability than the most recovery gives"), *Rules.StartingEdict.ToString()));
+		}
+		return Problems;
+	};
+	const FCosmicRulesDef* GameRules = Game.FindRules();
+	if (TestNotNull(TEXT("The game's edicts are loaded"), Game.Edicts.Get()) && TestNotNull(TEXT("(the game's rules)"), GameRules))
+	{
+		TestTrue(TEXT("Every edict of the game stands without a duration and the inherited one outruns the recovery"), Report(TEXT("edicts"), EdictProblems(Game, *GameRules)));
+		auto BrokenEdict = [&](TFunctionRef<void(FEdictDef& Row)> Change)
+		{
+			UDataTable* Copy = CopyOf<FEdictDef>(Game.Edicts);
+			const FName Name(TEXT("edict_mobilization"));
+			if (const FEdictDef* Source = Game.FindEdict(Name))
+			{
+				FEdictDef Row = *Source;
+				Change(Row);
+				Copy->RemoveRow(Name);
+				Copy->AddRow(Name, Row);
+			}
+			FCosmicDataTables Broken = Game;
+			Broken.Edicts = Copy;
+			return Broken;
+		};
+		Expect(TEXT("an edict's effect with a duration"), EdictProblems(BrokenEdict([](FEdictDef& Row) { Row.EffectsPerTick[0].DurationTicks = 100; }), *GameRules),
+			{ TEXT("edict_mobilization.EffectsPerTick[0]"), TEXT("no duration") });
+		Expect(TEXT("an edict's relation without its party"), EdictProblems(BrokenEdict([](FEdictDef& Row) { Row.EffectsPerTick[0].Type = EEffectType::ChangeRelation; Row.EffectsPerTick[0].Key = NAME_None; }), *GameRules),
+			{ TEXT("edict_mobilization.EffectsPerTick[0]"), TEXT("names its other party") });
+		FCosmicRulesDef Inheriting = *GameRules;
+		Inheriting.StartingEdict = FName(TEXT("edict_mobilization"));
+		const FEdictDef* Mobilization = Game.FindEdict(Inheriting.StartingEdict);
+		const float Drain = Mobilization ? CosmicEdicts::StabilityDrainOf(*Mobilization) : 0.f;
+		TestTrue(TEXT("(the game's mobilization takes Stability)"), Drain > 0.f);
+		Inheriting.StabilityRecoveryPerTick = Drain * 0.5f;
+		Inheriting.SocietyRecoveryBonus = 0.5f;
+		TestTrue(TEXT("The inherited mobilization outruns a recovery of half its drain x 1.5"), EdictProblems(Game, Inheriting).IsEmpty());
+		Inheriting.StabilityRecoveryPerTick = Drain;
+		Inheriting.SocietyRecoveryBonus = 0.f;
+		Expect(TEXT("a recovery as large as the inherited edict's drain"), EdictProblems(Game, Inheriting), { TEXT("StartingEdict"), TEXT("more Stability") });
+		// The net drain: a row that takes 0.0015 and gives back 0.001 drains 0.0005 a tick, below a recovery of 0.001.
+		{
+			UDataTable* Netted = CopyOf<FEdictDef>(Game.Edicts);
+			FEdictDef Row;
+			FCosmicEffect Cost;
+			Cost.Type = EEffectType::ChangeStability;
+			Cost.Value = -0.0015f;
+			FCosmicEffect Gain = Cost;
+			Gain.Value = 0.001f;
+			Row.EffectsPerTick = { Cost, Gain };
+			Netted->AddRow(FName(TEXT("edict_test_netted")), Row);
+			FCosmicDataTables WithNetted = Game;
+			WithNetted.Edicts = Netted;
+			FCosmicRulesDef NettedRules = *GameRules;
+			NettedRules.StartingEdict = FName(TEXT("edict_test_netted"));
+			NettedRules.StabilityRecoveryPerTick = 0.001f;
+			NettedRules.SocietyRecoveryBonus = 0.f;
+			Expect(TEXT("an inherited edict whose gain nets its cost below the recovery"), EdictProblems(WithNetted, NettedRules), { TEXT("StartingEdict"), TEXT("more Stability") });
+		}
+		Inheriting.SocietyRecoveryBonus = 0.f;
+		Inheriting.StartingEdict = FName(TEXT("edict_free_trade_nobody"));
+		Expect(TEXT("an inherited edict the table does not hold"), EdictProblems(Game, Inheriting), { TEXT("StartingEdict"), TEXT("more Stability") });
+		Inheriting.StartingEdict = FName(TEXT("edict_machine_rights"));
+		Expect(TEXT("an inherited edict with no Stability cost"), EdictProblems(Game, Inheriting), { TEXT("StartingEdict"), TEXT("more Stability") });
 	}
 
 	Sim->NewGalaxy(42, 5, 3);

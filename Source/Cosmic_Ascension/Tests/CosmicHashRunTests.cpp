@@ -170,6 +170,7 @@ bool FCosmicSimHashRunTest::RunTest(const FString& Parameters)
 			{ TEXT("DT_Events"), &FCosmicDataTables::Events }, { TEXT("DT_Transcendents"), &FCosmicDataTables::Transcendents },
 			{ TEXT("DT_Hazards"), &FCosmicDataTables::Hazards }, { TEXT("DT_Megaprojects"), &FCosmicDataTables::Megaprojects },
 			{ TEXT("DT_Feats"), &FCosmicDataTables::Feats }, { TEXT("DT_Encounters"), &FCosmicDataTables::Encounters },
+			{ TEXT("DT_Edicts"), &FCosmicDataTables::Edicts },
 		};
 		for (const TPair<const TCHAR*, TObjectPtr<UDataTable> FCosmicDataTables::*>& Member : Members)
 		{

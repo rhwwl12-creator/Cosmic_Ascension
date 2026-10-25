@@ -1,0 +1,19 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1532,8 +1532,6 @@
+ 		Income.Insight = Civ.Population * EconomyRateOf(Rules.InsightPerPopulation) * (1.f + EconomyRateOf(Rules.SpiritualistInsightBonus) * FMath::Max(0.f, Civ.Ethics.Spiritualism));
+ 		Income.Influence = Civ.Population * EconomyRateOf(Rules.InfluencePerPopulation) * (1.f + EconomyRateOf(Rules.OpenInfluenceBonus) * FMath::Max(0.f, Civ.Ethics.Openness));
+ 
+-		Civ.IncomePerTick = Income;
+-
+ 		// The per-tick sources, between the income and the stockpile (section 7.4). Trait rows join in Phase 4.
+ 		// The held edicts first (B2), in ActiveEdicts order - before the drain and the transcendents' sources, an order that
+ 		// fixes the bits of the multiplications. Every field of the subject is set: the context is reused across peoples
+@@ -1553,6 +1551,7 @@
+ 			Sources.SinceTick = 0;
+ 			UCosmicEventSubsystem::ApplyAll(Edict->EffectsPerTick, Sources);
+ 		}
++		Civ.IncomePerTick = Income;
+ 		// Spiritual pressure, once per civilization and never once per system (section 4.2): the largest P among its
+ 		// settled systems whose dominant source stands on a higher tier, and the first settled system inside the sphere
+ 		// of each transcendent.

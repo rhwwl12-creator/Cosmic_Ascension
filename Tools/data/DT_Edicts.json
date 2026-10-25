@@ -1,0 +1,82 @@
+[
+	{
+		"Name": "edict_free_trade",
+		"DisplayName": "무역 자유화",
+		"Summary": "항구와 시장의 빗장을 푼다. 물자와 함께 다른 것도 드나든다.",
+		"RequiredTier": "Tier1_Planetary",
+		"EnactConditions": [],
+		"EnactCost": {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 40.0, "Causality": 0.0},
+		"UpkeepPerTick": {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 0.0, "Causality": 0.0},
+		"EffectsPerTick": [
+			{"Type": "MultiplyIncome", "Tag": "", "Key": "Energy", "Value": 1.1, "DurationTicks": 0},
+			{"Type": "MultiplyIncome", "Tag": "", "Key": "Matter", "Value": 1.2, "DurationTicks": 0},
+			{"Type": "ShiftEthics", "Tag": "", "Key": "Openness", "Value": 0.0001, "DurationTicks": 0},
+			{"Type": "ChangeStability", "Tag": "", "Key": "None", "Value": -0.0005, "DurationTicks": 0}
+		],
+		"HazardSpawnMultipliers": {"Hazard.Plague": 2.0},
+		"HazardCountdownBonus": {}
+	},
+	{
+		"Name": "edict_machine_rights",
+		"DisplayName": "기계 권리",
+		"Summary": "깨어난 기계를 일하는 손이 아니라 말을 건넬 상대로 대한다.",
+		"RequiredTier": "Tier1_Planetary",
+		"EnactConditions": [],
+		"EnactCost": {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 40.0, "Causality": 0.0},
+		"UpkeepPerTick": {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 0.2, "Causality": 0.0},
+		"EffectsPerTick": [
+			{"Type": "MultiplyIncome", "Tag": "", "Key": "Insight", "Value": 1.1, "DurationTicks": 0},
+			{"Type": "ShiftEthics", "Tag": "", "Key": "Openness", "Value": 0.0001, "DurationTicks": 0}
+		],
+		"HazardSpawnMultipliers": {},
+		"HazardCountdownBonus": {}
+	},
+	{
+		"Name": "edict_mobilization",
+		"DisplayName": "전시 동원",
+		"Summary": "발전소와 광산을 쉬지 않고 돌린다. 그만큼 백성도 쉬지 못한다.",
+		"RequiredTier": "Tier1_Planetary",
+		"EnactConditions": [],
+		"EnactCost": {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 40.0, "Causality": 0.0},
+		"UpkeepPerTick": {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 0.0, "Causality": 0.0},
+		"EffectsPerTick": [
+			{"Type": "MultiplyIncome", "Tag": "", "Key": "Energy", "Value": 1.2, "DurationTicks": 0},
+			{"Type": "MultiplyIncome", "Tag": "", "Key": "Matter", "Value": 1.3, "DurationTicks": 0},
+			{"Type": "ChangeStability", "Tag": "", "Key": "None", "Value": -0.0015, "DurationTicks": 0}
+		],
+		"HazardSpawnMultipliers": {},
+		"HazardCountdownBonus": {}
+	},
+	{
+		"Name": "edict_open_thought",
+		"DisplayName": "사상 개방",
+		"Summary": "묻지 않던 물음과 낯선 생각을 광장에 내놓게 한다. 광장은 그만큼 소란해진다.",
+		"RequiredTier": "Tier1_Planetary",
+		"EnactConditions": [],
+		"EnactCost": {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 40.0, "Causality": 0.0},
+		"UpkeepPerTick": {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 0.1, "Causality": 0.0},
+		"EffectsPerTick": [
+			{"Type": "MultiplyIncome", "Tag": "", "Key": "Insight", "Value": 1.25, "DurationTicks": 0},
+			{"Type": "ShiftEthics", "Tag": "", "Key": "Openness", "Value": 0.0002, "DurationTicks": 0},
+			{"Type": "ChangeStability", "Tag": "", "Key": "None", "Value": -0.0005, "DurationTicks": 0}
+		],
+		"HazardSpawnMultipliers": {},
+		"HazardCountdownBonus": {}
+	},
+	{
+		"Name": "edict_vigil",
+		"DisplayName": "밤샘·절식",
+		"Summary": "밤을 새워 지키고 먹을 것을 줄인다. 일손은 줄어도 버티는 날이 길어진다.",
+		"RequiredTier": "Tier1_Planetary",
+		"EnactConditions": [],
+		"EnactCost": {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 40.0, "Causality": 0.0},
+		"UpkeepPerTick": {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 0.0, "Causality": 0.0},
+		"EffectsPerTick": [
+			{"Type": "MultiplyIncome", "Tag": "", "Key": "None", "Value": 0.8, "DurationTicks": 0},
+			{"Type": "ChangeStability", "Tag": "", "Key": "None", "Value": 0.0005, "DurationTicks": 0},
+			{"Type": "ShiftEthics", "Tag": "", "Key": "Spiritualism", "Value": 0.0001, "DurationTicks": 0}
+		],
+		"HazardSpawnMultipliers": {},
+		"HazardCountdownBonus": {"Hazard.Claim": 100, "Hazard.Rebellion": 200}
+	}
+]

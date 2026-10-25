@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1957,7 +1957,6 @@
+ 	{
+ 		CosmicHazards::Resolve(Ctx, SystemIndex);
+ 		Events->FollowUpKnowing(Ctx);
+-		Events->FollowUpNotes(Ctx);
+ 		return;
+ 	}
+ 

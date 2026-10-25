@@ -150,8 +150,8 @@ struct FCosmicEvalContext : public FCosmicEvalSubject
 	const FCosmicDataTables& Tables;
 	const FCosmicRulesDef& Rules;
 
-	// True only while the economy stage applies a per-tick source (FTranscendentDef.PressureEffectsPerTick; edict and
-	// trait rows from Phase 4). MultiplyIncome is applied only then: IncomePerTick is rebuilt every tick, so a multiplier
+	// True only while the economy stage applies a per-tick source (FEdictDef.EffectsPerTick - B2,
+	// FTranscendentDef.PressureEffectsPerTick; trait rows from Phase 4). MultiplyIncome is applied only then: IncomePerTick is rebuilt every tick, so a multiplier
 	// from anywhere else would be gone before it reached the stockpile (section 5.8).
 	bool bPerTickSource = false;
 

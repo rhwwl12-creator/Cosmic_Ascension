@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+@@ -226,7 +226,7 @@
+ 	{
+ 		return false;
+ 	}
+-	Civ.ActiveEdicts.RemoveAt(At);
++	Civ.ActiveEdicts.RemoveAtSwap(At);
+ 	return true;
+ }
+ 

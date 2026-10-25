@@ -42,6 +42,7 @@ namespace CosmicChronicle
 
 	/** 16 #31 (2) from the eight fields alone: Log.Calling, Log.Claim, Log.Record and every Severity 2; a Severity 1 entry when FocusCivID is one of Peoples,
 	 * SourceRow is CosmicRows::LogFirstContact, or SourceRow starts with enc_ (a wanderer's card answered, B1 - compared without case). Reads neither bUntold nor a table. MVP item 5's Chronicle filter (16 #40 (7)) calls it with every life's peoples. */
+	// (B2: the three edict lines of the ruled people - log_edict_enacted, _revoked, _lapsed - are never admitted.)
 	COSMIC_ASCENSION_API bool Admits(const FCosmicLogEntry& Entry, TConstArrayView<FName> Peoples);
 
 	/** Whether the chronicle's cap may let Entry go (MVP item 5, 16 #40 (7)): a Severity 1 entry that is not Log.Calling, Log.Claim or Log.Record. Every other

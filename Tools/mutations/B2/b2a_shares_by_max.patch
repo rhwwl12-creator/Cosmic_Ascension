@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicResearch.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicResearch.cpp
+@@ -126,7 +126,7 @@
+ 	{
+ 		if (Each.Key != Transcendence)
+ 		{
+-			Each.Value = Rest * static_cast<float>(Weights.FindRef(Each.Key)) / static_cast<float>(Sum);
++			Each.Value = Rest * static_cast<float>(Weights.FindRef(Each.Key)) / static_cast<float>(MaxShareWeight);
+ 		}
+ 	}
+ 	return true;

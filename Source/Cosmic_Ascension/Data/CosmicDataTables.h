@@ -68,9 +68,14 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 	UPROPERTY(Transient)
 	TObjectPtr<UDataTable> Encounters;
 
+	// DT_Edicts: one row per edict (B2, section 5.8). A missing table means no edict can be enacted and every held name
+	// does nothing.
+	UPROPERTY(Transient)
+	TObjectPtr<UDataTable> Edicts;
+
 	// Loads every table that has an asset from its fixed path: DT_Rules, DT_Civs, DT_LogTemplates, DT_Galaxies,
-	// DT_Events, DT_Transcendents, DT_Hazards, DT_Megaprojects, DT_Feats and DT_Encounters. A missing asset leaves its pointer null and is
-	// reported once in LogCosmic.
+	// DT_Events, DT_Transcendents, DT_Hazards, DT_Megaprojects, DT_Feats, DT_Encounters and DT_Edicts. A missing asset
+	// leaves its pointer null and is reported once in LogCosmic.
 	void LoadFromFixedPaths();
 
 	// Null when the table or the row is missing. They never warn: the caller decides what a missing row means.
@@ -84,6 +89,7 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 	const FMegaprojectDef* FindMegaproject(FName RowName) const;
 	const FAscensionFeatDef* FindFeat(FName RowName) const;
 	const FEncounterDef* FindEncounter(FName RowName) const;
+	const FEdictDef* FindEdict(FName RowName) const;
 
 	// The DT_Hazards row whose HazardTag is Tag exactly, and its name in OutRowName when one is asked for (NAME_None when
 	// there is no such row). Rows are looked at in lexical order, so a table that broke the uniqueness lint answers the
@@ -110,11 +116,16 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 	// (CosmicPetitions::Present, section 5.10).
 	TArray<FName> GetEncounterRowNames() const;
 
+	// Row names of DT_Edicts in lexical order: the order the edict window lists them in (a table's own order is insertion
+	// order). No world rule walks the table: held edicts are walked in ActiveEdicts order.
+	TArray<FName> GetEdictRowNames() const;
+
 	// Row names of DT_Galaxies in lexical order: the order the universe level draws and labels the named galaxies in
 	// (CosmicUniverseLook::MarksOf - a table's own order is insertion order). The simulation never walks the table.
 	TArray<FName> GetGalaxyRowNames() const;
 
-	// Whether some DT_Hazards row lists the DT_Megaprojects row RowName in RulerResolutions: the project answers a hazard
-	// and runs in the response slot (section 5.7).
+	// Whether some DT_Hazards row lists RowName in RulerResolutions. Called with DT_Megaprojects rows: such a project
+	// answers a hazard and runs in the response slot (section 5.7). It is true for a listed DT_Edicts row too (B2), but no
+	// caller passes one - an edict answers at the expiry (CosmicEdicts::HeldAnswerOf).
 	bool IsHazardAnswer(FName RowName) const;
 };

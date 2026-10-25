@@ -111,6 +111,12 @@ bool CosmicChronicle::Admits(const FCosmicLogEntry& Entry, TConstArrayView<FName
 	{
 		return true;
 	}
+	// The edict lines of the ruled people (B2) are the ruler's bookkeeping, not the life's story: left out, so they never
+	// crowd a chapter.
+	if (Entry.SourceRow == CosmicRows::LogEdictEnacted || Entry.SourceRow == CosmicRows::LogEdictRevoked || Entry.SourceRow == CosmicRows::LogEdictLapsed)
+	{
+		return false;
+	}
 	// A wanderer's card is the life's own story wherever it was answered (B1): its rows carry the prefix enc_ - the schema
 	// binds it - compared without case (a cooked build need not keep the case of a name).
 	return Entry.Severity == 1 && ((!Entry.FocusCivID.IsNone() && Peoples.Contains(Entry.FocusCivID)) || Entry.SourceRow == CosmicRows::LogFirstContact

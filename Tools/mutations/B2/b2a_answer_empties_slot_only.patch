@@ -1,0 +1,13 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1955,9 +1955,7 @@
+ 	// resolution passes no claim rule.
+ 	if (State.Civs.IsValidIndex(OwnerIndex) && !CosmicEdicts::HeldAnswerOf(State.Civs[OwnerIndex], *Row, Tables).IsNone())
+ 	{
+-		CosmicHazards::Resolve(Ctx, SystemIndex);
+-		Events->FollowUpKnowing(Ctx);
+-		Events->FollowUpNotes(Ctx);
++		EmptySlot();
+ 		return;
+ 	}
+ 

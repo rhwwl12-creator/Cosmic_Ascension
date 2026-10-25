@@ -50,6 +50,13 @@ namespace CosmicRows
 	inline const FName LogThroneVacated(TEXT("log_throne_vacated"));
 	inline const FName LogRebellionUnseated(TEXT("log_rebellion_unseated"));
 
+	// DT_LogTemplates: the edict lines of the people the player rules (B2, docs/60_DECISIONS/headers/B2_edicts_and_research.md
+	// section 3.4) - an enactment and a revocation by command, a lapse of an edict whose upkeep could not be paid. The
+	// chronicle leaves them out (CosmicChronicle::Admits).
+	inline const FName LogEdictEnacted(TEXT("log_edict_enacted"));
+	inline const FName LogEdictRevoked(TEXT("log_edict_revoked"));
+	inline const FName LogEdictLapsed(TEXT("log_edict_lapsed"));
+
 	// DT_LogTemplates: the meeting lines (section 7.4). NoteMet tells the first for the first meeting of the run, the
 	// second for every later one.
 	inline const FName LogFirstContact(TEXT("log_first_contact"));

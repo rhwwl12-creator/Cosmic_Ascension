@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1547,7 +1547,6 @@
+ 			}
+ 			Sources.CivIndex = CivIndex;
+ 			Sources.SystemIndex = INDEX_NONE;
+-			Sources.OtherID = NAME_None;
+ 			Sources.SourceRow = Civ.ActiveEdicts[EdictAt];
+ 			Sources.GalaxyRow = Civ.GalaxyRow;
+ 			Sources.SinceTick = 0;

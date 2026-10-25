@@ -1,7 +1,7 @@
 // Cosmic Ascension - Data layer. Design: guideline.md section 7.3.
 // Definition rows: read-only DataTable data (FTableRowBase). The row name is the ID; rows are never saved in FGalaxyState.
 // Player-facing strings are FText columns (Korean lives here and in String Tables, never in source, section 10.3).
-// DT_Edicts / DT_Relics / DT_Traits / DT_Dedications row structs are added with their rows (Phase 4).
+// DT_Relics / DT_Traits / DT_Dedications row structs are added with their rows (Phase 4); DT_Edicts came with B2.
 
 #pragma once
 
@@ -151,7 +151,8 @@ struct COSMIC_ASCENSION_API FHazardDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	ECosmicHazardSpawn SpawnRule = ECosmicHazardSpawn::Draw;
 
-	// Draw rows: the share of one spawn draw, times the owner archetype's HazardSpawnMultipliers[HazardTag] (missing = 1).
+	// Draw rows: the share of one spawn draw, times the owner archetype's HazardSpawnMultipliers[HazardTag] (missing = 1),
+	// times the owner's held edicts' HazardSpawnMultipliers (CosmicEdicts::SpawnMultiplierOf, B2).
 	// Capital and ClaimRule rows carry 0 (Data.Integrity). Below 0, or not a number, reads as 0.
 	UPROPERTY(EditAnywhere)
 	float SpawnChancePerTick = 0.0005f;
@@ -176,7 +177,8 @@ struct COSMIC_ASCENSION_API FHazardDef : public FTableRowBase
 
 	// At expiry, after the effects above and before the code of the tag: once for every lane neighbour of the system that
 	// is not a dead node, in the order of its Lanes, subject = that neighbour and its owner, SourceRow = this row (the
-	// damage of a supernova to its neighbours). The spread of a plague waits for its cure, the quarantine of Phase 4.
+	// damage of a supernova to its neighbours). The spread of a plague waits for its cure, the quarantine edict of B3
+	// (edict_quarantine; B2's edicts touch only spawn shares and countdowns, not spread).
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicEffect> OnExpireNeighbourEffects;
 
@@ -186,10 +188,11 @@ struct COSMIC_ASCENSION_API FHazardDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicEffect> OnResolveEffects;
 
-	// The answers of this hazard: DT_Megaprojects / DT_Edicts / DT_Encounters (petition) row names. Any one completed
-	// resolves the hazard. A DT_Megaprojects row listed by any hazard row is an answer: it runs in the response slot of
-	// the system (FCosmicDataTables::IsHazardAnswer, section 5.7) and ends with the hazard. DT_Edicts and DT_Encounters
-	// names are read from Phase 4.
+	// The answers of this hazard: DT_Megaprojects / DT_Edicts / DT_Encounters (petition) row names. A DT_Megaprojects row
+	// listed by any hazard row is an answer: it runs in the response slot of the system (FCosmicDataTables::IsHazardAnswer,
+	// section 5.7), resolves the hazard when it completes and ends with the hazard. A DT_Edicts row (B2) answers at the
+	// expiry: when the system's owner holds it then, the hazard is resolved instead of expiring (CosmicEdicts::HeldAnswerOf,
+	// UGalaxySimulationSubsystem::ExpireHazard). DT_Encounters names are read from Phase 4.
 	UPROPERTY(EditAnywhere)
 	TArray<FName> RulerResolutions;
 
@@ -324,6 +327,63 @@ struct COSMIC_ASCENSION_API FMegaprojectDef : public FTableRowBase
 	// owner, SourceRow = this row. Slots {Civ} {System} {Project}. {Dedication} comes with DT_Dedications (Phase 4).
 	UPROPERTY(EditAnywhere)
 	TArray<FText> CompleteTemplates;
+};
+
+/**
+ * One edict (DT_Edicts, B2 - docs/60_DECISIONS/headers/B2_edicts_and_research.md, docs/10_DESIGN/systems.md section 5.8): a
+ * modifier a ruler sets on the whole people and keeps standing until it is revoked. The row name is saved in
+ * FCivilizationState.ActiveEdicts, so it never changes once a save exists. Which hazards an edict answers is said by the
+ * hazard rows (FHazardDef.RulerResolutions), not here. No draw reads a row: every part is a rate, a factor or a sum.
+ */
+USTRUCT(BlueprintType)
+struct COSMIC_ASCENSION_API FEdictDef : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	// The name of the edict: the UI and the {Edict} slot of the edict lines.
+	UPROPERTY(EditAnywhere)
+	FText DisplayName;
+
+	// One line of words for the edict window (no numbers - the screen makes them from the values below).
+	UPROPERTY(EditAnywhere)
+	FText Summary;
+
+	// The people's Tier from which the edict can be enacted.
+	UPROPERTY(EditAnywhere)
+	EAscensionTier RequiredTier = EAscensionTier::Tier1_Planetary;
+
+	// Conditions to enact it, with the people and its capital as subject (empty = none; the first user is the reading edict
+	// of B7, for a people that holds the book).
+	UPROPERTY(EditAnywhere)
+	TArray<FCosmicCondition> EnactConditions;
+
+	// Paid once from the stockpile when the edict is enacted, in full or not at all. A member below 0, or not a number,
+	// reads as 0.
+	UPROPERTY(EditAnywhere)
+	FResourcePool EnactCost;
+
+	// Paid from the stockpile in the economy stage of every tick the edict stands, after that tick's income, in full: an
+	// edict whose upkeep cannot be paid in full lapses that tick (its effects of that tick have been applied). A member below
+	// 0, or not a number, reads as 0.
+	UPROPERTY(EditAnywhere)
+	FResourcePool UpkeepPerTick;
+
+	// A per-tick source (section 7.4): applied in the economy stage after the income and before the spiritual pressure's
+	// drain, in ActiveEdicts order, with the people as subject (no system, no other ID). Only the seven effects that change
+	// an amount (CosmicEventImpl::IsPerTickEffect, the schema's per_tick_effects); DurationTicks stays 0 (an edict stands
+	// until it is revoked) and a ChangeRelation names its party (schema: no_duration, keyed).
+	UPROPERTY(EditAnywhere)
+	TArray<FCosmicEffect> EffectsPerTick;
+
+	// Hazard.* -> factor on the spawn share of that Draw row on the people's settled systems, beside the archetype's
+	// HazardSpawnMultipliers (the number of draws does not change). Below 0, or not a finite number, reads as 0.
+	UPROPERTY(EditAnywhere)
+	TMap<FGameplayTag, float> HazardSpawnMultipliers;
+
+	// Hazard.* -> ticks added to the countdown of that hazard when it is placed on a system of the people (every path goes
+	// through CosmicHazards::Place). A standing hazard's countdown is never changed. Below 0 reads as 0.
+	UPROPERTY(EditAnywhere)
+	TMap<FGameplayTag, int32> HazardCountdownBonus;
 };
 
 /**
@@ -832,13 +892,9 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	FName PlayerArchetypeRow = FName(TEXT("arch_seeker"));
 
 	// Claim spawn condition: within this many lanes of a fallen sphere. The claim's countdown is the CountdownTicks of its
-	// DT_Hazards row (section 4.2).
+	// DT_Hazards row (section 4.2), plus the HazardCountdownBonus of the owner's held edicts (B2).
 	UPROPERTY(EditAnywhere)
 	int32 ClaimAdjacencyLanes = 1;
-
-	// Hazard.Claim countdown extension while edict_vigil is active (section 5.8).
-	UPROPERTY(EditAnywhere)
-	int32 VigilClaimExtension = 100;
 
 	// Doctrine event weight gained per system in the sphere. The multiplier is capped at 3.
 	UPROPERTY(EditAnywhere)
@@ -1077,4 +1133,28 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// The Stability an abdication takes from the people it leaves (not below 0). Below 0 or not a number reads as 0.
 	UPROPERTY(EditAnywhere)
 	float AbdicationStabilityLoss = 0.1f;
+
+	// ---- Edicts and the rest of the research (B2, docs/60_DECISIONS/headers/B2_edicts_and_research.md section 2) ----
+
+	// The inherited edict: NewGalaxy puts this DT_Edicts row into every people's ActiveEdicts (the first ten minutes are the
+	// same rule for every people). Empty, or a row the table does not hold = none. No draw, no line, no cost.
+	UPROPERTY(EditAnywhere)
+	FName StartingEdict;
+
+	// Edict slots (CosmicEdicts::SlotsOf): 1 + the number of these marks the people's Society research has reached. The
+	// first slot is always there.
+	UPROPERTY(EditAnywhere)
+	TArray<float> EdictSlotSocietyMarks = { 0.5f, 1.f };
+
+	// Society research raises the Stability recovery: StabilityRecoveryPerTick x (1 + this x Society), Society read 0..1.
+	// Read only when above 0 and finite (0 = the recovery of MVP 3). Data.Integrity keeps the most recovery below the
+	// inherited edict's drain (CosmicEdicts::InheritedDrainOutrunsRecovery), so that a people left alone still falls.
+	UPROPERTY(EditAnywhere)
+	float SocietyRecoveryBonus = 0.f;
+
+	// The AI stage revokes an edict with a Stability cost (CosmicEdicts::HasStabilityCost) once the people's Stability is
+	// below this, and every other edict at once: an AI people holds no edict in B2 (the AI's own edicts are B7). 1 = at the
+	// first AI stage.
+	UPROPERTY(EditAnywhere)
+	float AIEdictRevokeStability = 1.f;
 };

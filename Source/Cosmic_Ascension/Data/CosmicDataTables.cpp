@@ -43,6 +43,7 @@ void FCosmicDataTables::LoadFromFixedPaths()
 	Megaprojects = LoadTable(TEXT("/Game/CA/Data/DT_Megaprojects.DT_Megaprojects"), FMegaprojectDef::StaticStruct());
 	Feats = LoadTable(TEXT("/Game/CA/Data/DT_Feats.DT_Feats"), FAscensionFeatDef::StaticStruct());
 	Encounters = LoadTable(TEXT("/Game/CA/Data/DT_Encounters.DT_Encounters"), FEncounterDef::StaticStruct());
+	Edicts = LoadTable(TEXT("/Game/CA/Data/DT_Edicts.DT_Edicts"), FEdictDef::StaticStruct());
 }
 
 const FCosmicRulesDef* FCosmicDataTables::FindRules() const
@@ -93,6 +94,11 @@ const FAscensionFeatDef* FCosmicDataTables::FindFeat(FName RowName) const
 const FEncounterDef* FCosmicDataTables::FindEncounter(FName RowName) const
 {
 	return FindRowQuiet<FEncounterDef>(Encounters, RowName);
+}
+
+const FEdictDef* FCosmicDataTables::FindEdict(FName RowName) const
+{
+	return FindRowQuiet<FEdictDef>(Edicts, RowName);
 }
 
 const FHazardDef* FCosmicDataTables::FindHazardByTag(FGameplayTag Tag, FName* OutRowName) const
@@ -170,6 +176,13 @@ bool FCosmicDataTables::IsHazardAnswer(FName RowName) const
 		}
 	}
 	return false;
+}
+
+TArray<FName> FCosmicDataTables::GetEdictRowNames() const
+{
+	TArray<FName> Names = Edicts ? Edicts->GetRowNames() : TArray<FName>();
+	Names.Sort(FNameLexicalLess());
+	return Names;
 }
 
 TArray<FName> FCosmicDataTables::GetGalaxyRowNames() const

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1808,7 +1808,7 @@
+ 			const float* Multiplier = Archetype ? Archetype->HazardSpawnMultipliers.Find(Row->HazardTag) : nullptr;
+ 			const float Factor = Multiplier ? ((*Multiplier > 0.f && *Multiplier <= TNumericLimits<float>::Max()) ? *Multiplier : 0.f) : 1.f;
+ 			// The owner's held edicts multiply the share too (B2): 1 when none, so the bits stay.
+-			const float Share = (Chance * Factor) * CosmicEdicts::SpawnMultiplierOf(Owner, Tables, Row->HazardTag);
++			const float Share = Chance * Factor;
+ 			if (!(Share > 0.f))
+ 			{
+ 				continue;

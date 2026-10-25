@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicResearch.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicResearch.cpp
+@@ -104,7 +104,7 @@
+ {
+ 	const FName Transcendence = TranscendenceField();
+ 	const int32 Fields = ResearchFocus.Num() - (ResearchFocus.Contains(Transcendence) ? 1 : 0);
+-	if (Fields < 1 || Weights.Num() != Fields || Weights.Contains(Transcendence))
++	if (Fields < 1 || Weights.Num() != Fields)
+ 	{
+ 		return false;
+ 	}

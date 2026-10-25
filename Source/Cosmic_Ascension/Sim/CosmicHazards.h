@@ -51,8 +51,9 @@ namespace CosmicHazards
 	 * capital rule, the claim rule and the SpawnHazard effect all come here. Refused (false, nothing changed) for the
 	 * sanctuary, whatever else holds (Law.Hedge, section 4.5 (1)), and unless the
 	 * row exists, the system is a settled system with a free slot and, for a Capital row, the capital of its owner.
-	 * Sets ActiveHazard to the row's HazardTag and HazardTicksRemaining to its CountdownTicks (read as at least 1) and
-	 * leaves a HazardPlaced note in Ctx.
+	 * Sets ActiveHazard to the row's HazardTag and HazardTicksRemaining to its CountdownTicks (read as at least 1) plus
+	 * the owner's edicts' CosmicEdicts::CountdownBonusOf for its tag (B2 - at placement only; a standing hazard's count
+	 * never changes), and leaves a HazardPlaced note in Ctx.
 	 */
 	COSMIC_ASCENSION_API bool Place(FCosmicEvalContext& Ctx, int32 SystemIndex, FName HazardRow);
 

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1953,7 +1953,7 @@
+ 	// An answer edict its owner holds at the expiry resolves the hazard instead (B2 section 2.5): the resolution of a project
+ 	// that completes - its effects and its line. The numbers drawn for this expiry are thrown away (the draws stay), and a
+ 	// resolution passes no claim rule.
+-	if (State.Civs.IsValidIndex(OwnerIndex) && !CosmicEdicts::HeldAnswerOf(State.Civs[OwnerIndex], *Row, Tables).IsNone())
++	if (false && !CosmicEdicts::HeldAnswerOf(State.Civs[OwnerIndex], *Row, Tables).IsNone())
+ 	{
+ 		CosmicHazards::Resolve(Ctx, SystemIndex);
+ 		Events->FollowUpKnowing(Ctx);

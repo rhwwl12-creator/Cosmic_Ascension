@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+@@ -79,7 +79,7 @@
+ 	FResourcePool Probe = Civ.Stockpile;
+ 	if (!TryPay(Probe, Def->EnactCost))
+ 	{
+-		return ECosmicEdictBlock::Cost;
++		;
+ 	}
+ 	return ECosmicEdictBlock::None;
+ }

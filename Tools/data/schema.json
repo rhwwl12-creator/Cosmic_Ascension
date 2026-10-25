@@ -33,7 +33,9 @@
 		"research": ["Physics", "Society", "Engineering", "Transcendence"],
 		"verdict": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"],
 		"other_works": [],
-		"holy_and_myth": []
+		"holy_and_myth": [],
+		"holy_words": ["성령", "은혜", "기름부음", "성결"],
+		"soul_verbs": ["거두", "거둬", "거뒀", "거둔", "거둘"]
 	},
 
 	"string_table": {
@@ -42,9 +44,12 @@
 			"Save.": {"forbidden": "verdict", "no_digits": true},
 			"Hint.": {"forbidden": "verdict", "no_digits": true},
 			"Galaxy.Hint": {"forbidden": "verdict", "no_digits": true},
-			"Focus.": {"forbidden": "verdict", "no_digits": true},
+			"Focus.": {"forbidden": ["verdict", "soul_verbs"], "no_digits": true},
 			"Wander.": {"forbidden": "verdict", "no_digits": true},
-			"Petition.": {"forbidden": "verdict"}
+			"Petition.": {"forbidden": "verdict"},
+			"Edict.": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
+			"Hint.Edict": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
+			"Resource.": {"forbidden": ["verdict", "holy_words"]}
 		}
 	},
 
@@ -104,7 +109,6 @@
 				"FallenTranscendentCount": {"kind": "number", "min": 0, "max": 3, "integer": true},
 				"PlayerArchetypeRow": {"kind": "row", "table": "DT_Civs"},
 				"ClaimAdjacencyLanes": {"kind": "number", "integer": true},
-				"VigilClaimExtension": {"kind": "number", "integer": true},
 				"SphereEventWeightStep": {"kind": "number", "min": 0},
 				"ReturnLureMaxLanes": {"kind": "number", "integer": true},
 				"ReturnedLivesToSeize": {"kind": "number", "integer": true},
@@ -156,7 +160,11 @@
 				"EncounterChancePerArrival": {"kind": "number", "min": 0, "max": 1},
 				"CoronationReverence": {"kind": "number", "min": 0, "max": 1},
 				"CoronationStabilityBelow": {"kind": "number", "min": 0, "max": 1},
-				"AbdicationStabilityLoss": {"kind": "number", "min": 0, "max": 1}
+				"AbdicationStabilityLoss": {"kind": "number", "min": 0, "max": 1},
+				"StartingEdict": {"kind": "row", "table": "DT_Edicts", "optional": true},
+				"EdictSlotSocietyMarks": {"kind": "numbers", "min": 0, "max": 1, "ascending": true},
+				"SocietyRecoveryBonus": {"kind": "number", "min": 0, "max": 1},
+				"AIEdictRevokeStability": {"kind": "number", "min": 0, "max": 1}
 			},
 			"rules": [
 				{
@@ -220,7 +228,7 @@
 			"struct": "LogTemplateDef",
 			"prefixes": ["log_"],
 			"must_exist": true,
-			"required_rows": ["log_first_life", "log_breakthrough_physics", "log_breakthrough_society", "log_breakthrough_engineering", "log_breakthrough_transcendence", "log_fallen_monarch", "log_first_contact", "log_contact", "log_far_event", "log_far_ascent", "log_scan_wild", "log_crowned", "log_returned", "log_throne_vacated", "log_rebellion_unseated"],
+			"required_rows": ["log_first_life", "log_breakthrough_physics", "log_breakthrough_society", "log_breakthrough_engineering", "log_breakthrough_transcendence", "log_fallen_monarch", "log_first_contact", "log_contact", "log_far_event", "log_far_ascent", "log_scan_wild", "log_crowned", "log_returned", "log_throne_vacated", "log_rebellion_unseated", "log_edict_enacted", "log_edict_revoked", "log_edict_lapsed"],
 			"columns": {
 				"Category": {"kind": "tag", "root": "Log."},
 				"Context": {"kind": "tag", "root": "Revelation.", "optional": true},
@@ -229,8 +237,8 @@
 					"kind": "texts",
 					"min": 3,
 					"single_variant": true,
-					"slots": ["Civ", "System", "OtherCiv", "Trait", "Value", "Tier", "Hazard", "Player", "HomeSystem", "Dedication", "Epithet", "Revelation", "Transcendent", "Ruler", "Regent", "Rebel", "Loyalist", "Hearer", "Ascendant", "PopBand", "CivAdj"],
-					"forbidden": "verdict"
+					"slots": ["Civ", "System", "OtherCiv", "Trait", "Value", "Tier", "Hazard", "Player", "HomeSystem", "Dedication", "Epithet", "Revelation", "Transcendent", "Ruler", "Regent", "Rebel", "Loyalist", "Hearer", "Ascendant", "PopBand", "CivAdj", "Edict"],
+					"forbidden": ["verdict", "soul_verbs"]
 				}
 			},
 			"unique": [
@@ -487,7 +495,7 @@
 				"OnExpireBranchEffects": {"kind": "effects"},
 				"OnExpireNeighbourEffects": {"kind": "effects"},
 				"OnResolveEffects": {"kind": "effects"},
-				"RulerResolutions": {"kind": "rows", "tables": ["DT_Megaprojects", "DT_Encounters"], "unique": true},
+				"RulerResolutions": {"kind": "rows", "tables": ["DT_Megaprojects", "DT_Encounters", "DT_Edicts"], "unique": true},
 				"WandererResolutions": {"kind": "rows", "tables": ["DT_Encounters"], "unique": true},
 				"LogCategory": {"kind": "tag", "root": ["Log.Crisis"]},
 				"Severity": {"kind": "number", "min": 0, "max": 2, "integer": true},
@@ -775,6 +783,22 @@
 					"then": [{"col": "Body", "set": false}]
 				}
 			]
+		},
+		"DT_Edicts": {
+			"struct": "EdictDef",
+			"prefixes": ["edict_"],
+			"must_exist": true,
+			"columns": {
+				"DisplayName": {"kind": "text", "required": true, "slots": [], "no_digits": true, "forbidden": ["verdict", "holy_words", "soul_verbs"]},
+				"Summary": {"kind": "text", "required": true, "slots": [], "no_digits": true, "forbidden": ["verdict", "holy_words", "soul_verbs"]},
+				"RequiredTier": {"kind": "enum", "enum": "EAscensionTier"},
+				"EnactConditions": {"kind": "conditions"},
+				"EnactCost": {"kind": "pool", "min": 0},
+				"UpkeepPerTick": {"kind": "pool", "min": 0},
+				"EffectsPerTick": {"kind": "effects", "per_tick": true, "no_duration": true, "keyed": ["ChangeRelation"]},
+				"HazardSpawnMultipliers": {"kind": "tag_map", "root": "Hazard.", "min": 0},
+				"HazardCountdownBonus": {"kind": "tag_map", "root": "Hazard.", "min": 0, "integer": true}
+			}
 		}
 	},
 

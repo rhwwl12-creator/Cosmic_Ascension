@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+@@ -177,7 +177,7 @@
+ 	float Drain = 0.f;
+ 	for (const FCosmicEffect& Effect : Row.EffectsPerTick)
+ 	{
+-		if (Effect.Type == EEffectType::ChangeStability && Effect.Value >= -TNumericLimits<float>::Max() && Effect.Value <= TNumericLimits<float>::Max())
++		if (Effect.Type == EEffectType::ChangeStability && Effect.Value < 0.f && Effect.Value >= -TNumericLimits<float>::Max())
+ 		{
+ 			Drain -= Effect.Value;
+ 		}

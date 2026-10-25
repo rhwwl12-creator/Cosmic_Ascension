@@ -8,6 +8,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Core/CosmicTypes.h"
 #include "Events/CosmicPetitions.h"
+#include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicWanderer.h"
 #include "PlayerRoleSubsystem.generated.h"
 
@@ -115,6 +116,31 @@ public:
 	 * (as for StartMegaproject: the next tick boundary that writes, or the exit save, keeps it).
 	 */
 	bool SetResearchFocus(FName Field);
+
+	/**
+	 * The ruler's research shares by hand (B2 header section 2.3, 2.8; 16 #119 (3)), between ticks: Weights holds the ruled
+	 * people's fields except the transcendence field, each 0..CosmicResearch::MaxShareWeight with a sum above 0
+	 * (CosmicResearch::SharesOf). Only while Embodied and Ruler with a ruled people. False and nothing changed when the
+	 * weights do not fit or the shares would not change; with one error line inside a handler of a Core Logic delegate. No
+	 * draw, no line, no save of its own (as SetResearchFocus).
+	 */
+	bool SetResearchShares(const TMap<FName, int32>& Weights);
+
+	/**
+	 * The ruler enacts an edict (B2 header section 2.3), between ticks: the first reason of CosmicEdicts::EnactBlockOf for
+	 * the ruled people, NotRuler without an embodied ruler, Handler (and an error line) inside a handler of a Core Logic
+	 * delegate - nothing changed. On None the row's EnactCost is paid in full and the row appended to ActiveEdicts
+	 * (CosmicEdicts::Enact), and log_edict_enacted is told (Severity 1, one draw of the tell stream). No draw of the sim
+	 * stream, no save of its own.
+	 */
+	CosmicEdicts::ECosmicEdictBlock EnactEdict(FName Row);
+
+	/**
+	 * The ruler revokes an edict it holds (B2 header section 2.3), between ticks: removed from ActiveEdicts keeping the order
+	 * of the rest (CosmicEdicts::Revoke), log_edict_revoked told. No cost - enacting it again pays EnactCost again. False and
+	 * nothing changed without an embodied ruler, for an edict not held, and with one error line inside a handler.
+	 */
+	bool RevokeEdict(FName Row);
 
 	/**
 	 * The wanderer's move (B1 header section 2.3), between ticks: one lane - CosmicWanderer::TravelBlockOf must say None

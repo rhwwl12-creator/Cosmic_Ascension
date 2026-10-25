@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1538,7 +1538,7 @@
+ 		// The held edicts first (B2), in ActiveEdicts order - before the drain and the transcendents' sources, an order that
+ 		// fixes the bits of the multiplications. Every field of the subject is set: the context is reused across peoples
+ 		// and the transcendents' loop leaves its OtherID behind. A name the table does not hold does nothing.
+-		for (int32 EdictAt = 0; EdictAt < Civ.ActiveEdicts.Num(); ++EdictAt)
++		for (int32 EdictAt = Civ.ActiveEdicts.Num() - 1; EdictAt >= 0; --EdictAt)
+ 		{
+ 			const FEdictDef* Edict = Tables.FindEdict(Civ.ActiveEdicts[EdictAt]);
+ 			if (!Edict || Edict->EffectsPerTick.IsEmpty())

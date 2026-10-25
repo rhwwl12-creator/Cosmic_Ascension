@@ -139,6 +139,15 @@ namespace CosmicTests
 		return Table;
 	}
 
+	// The rules without the inherited edict (B2 header section 2.7): a board that reads Stability or income as constants
+	// lays its peoples without the game's StartingEdict; a test of the inherited edict keeps it.
+	inline FCosmicRulesDef WithoutStartingEdict(const FCosmicRulesDef& Rules)
+	{
+		FCosmicRulesDef Out = Rules;
+		Out.StartingEdict = NAME_None;
+		return Out;
+	}
+
 	// The tables with DT_Rules replaced by one row, everything else as given - the game's projects and feats too: a test
 	// that ticks a board takes them out with WithoutProjects (below).
 	inline FCosmicDataTables WithRules(const FCosmicDataTables& Base, const FCosmicRulesDef& RulesRow)

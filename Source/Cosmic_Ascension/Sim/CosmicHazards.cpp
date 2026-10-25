@@ -9,6 +9,7 @@
 #include "Data/CosmicDefinitionRows.h"
 #include "Events/CosmicEventSubsystem.h"
 #include "GameplayTagContainer.h"
+#include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Templates/UnrealTemplate.h"
 
@@ -162,7 +163,9 @@ bool CosmicHazards::Place(FCosmicEvalContext& Ctx, int32 SystemIndex, FName Haza
 		return false;
 	}
 	System.ActiveHazard = Row->HazardTag;
-	System.HazardTicksRemaining = FMath::Max(1, Row->CountdownTicks);
+	// The owner's edicts may add to the countdown of a hazard placed now (B2 - a standing hazard's countdown never changes).
+	System.HazardTicksRemaining = static_cast<int32>(FMath::Min<int64>(static_cast<int64>(FMath::Max(1, Row->CountdownTicks))
+		+ CosmicEdicts::CountdownBonusOf(State.Civs[OwnerIndex], Ctx.Tables, Row->HazardTag), MAX_int32));
 	Ctx.Notes.Add({ ECosmicWorldNote::HazardPlaced, SystemIndex, OwnerIndex, HazardRow });
 	return true;
 }

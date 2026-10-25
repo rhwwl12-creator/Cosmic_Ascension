@@ -130,6 +130,7 @@ public:
 	 *    lies farthest from sys_0 in lanes, the lowest SystemID (FNameLexicalLess) among equals. Without an unowned
 	 *    system the sphere starts empty.
 	 * 7. The first life: the name of the vessel (one draw, in Install), after the sanctuary has joined the array.
+	 * Every people is made holding DT_Rules.StartingEdict when the table holds that row (the inherited edict, B2 - no draw).
 	 * The sanctuary (rule 11 of the generation, section 4.5 (1)) draws nothing: after the cores it joins the end of the
 	 * array as CosmicIDs::Sanctuary - no lane, at 1.15 x the disc radius and angle 0, star class G, richness 0, the name
 	 * of ST_CA System.Sanctuary, no owner, hazard, project, sphere or core.
@@ -265,7 +266,8 @@ public:
 	// (and so PushRow), UCosmicSaveSubsystem::SaveCurrentGalaxy, LoadGalaxy (LoadRun) and ContinueNewest,
 	// UAscensionSubsystem::EvaluateFeats and
 	// the role changes and commands of UPlayerRoleSubsystem (Install, DeposeRuler, BecomeWanderer, BecomeRuler, Abdicate,
-	// AbdicateRuler, StartMegaproject, StartNextMegaproject, SetResearchFocus, AnswerPetition, TravelTo, ScanCurrentSystem).
+	// AbdicateRuler, StartMegaproject, StartNextMegaproject, SetResearchFocus, SetResearchShares, EnactEdict, RevokeEdict,
+	// AnswerPetition, TravelTo, ScanCurrentSystem).
 	// MakeEvalContext reports an error and still returns the context (it holds references): the
 	// static Apply and ApplyAll are kept out of a handler by the rule alone. Every such broadcast site brackets its
 	// Broadcast call with BeginBroadcast and EndBroadcast.
@@ -352,9 +354,15 @@ private:
 
 	// Stage 1. Two loops over Civs in array order.
 	// Loop one, per civilization: the population regrowth (DT_Rules.PopulationRegrowthPerTick: below 1.0 it rises by the
-	// knob up to 1.0; above 1.0, or with a knob not above 0 or not a number, nothing); income of its settled systems into
-	// IncomePerTick (a system being settled pays nothing, section 5.7); then the per-tick sources, the only effects that
-	// may scale IncomePerTick or act every tick; then IncomePerTick into the Stockpile. The per-tick sources:
+	// knob up to 1.0; above 1.0, or with a knob not above 0 or not a number, nothing); the Stability recovery (below
+	// DT_Rules.StabilityRestingLevel it rises by StabilityRecoveryPerTick x (1 + SocietyRecoveryBonus x Society) up to the
+	// level - MVP item 3, B2); income of its settled systems into IncomePerTick (a system being settled pays nothing,
+	// section 5.7); then the per-tick sources, the only effects that may scale IncomePerTick or act every tick; then
+	// IncomePerTick into the Stockpile; then the edicts' upkeep (B2): in ActiveEdicts order each held edict pays
+	// UpkeepPerTick in full from the stockpile or lapses (log_edict_lapsed for the people the player rules - the stage's one
+	// line, the tell stream only). The per-tick sources:
+	// - The held edicts' EffectsPerTick (B2), first, in ActiveEdicts order, subject = the civilization alone (no system, no
+	//   OtherID), SourceRow = the edict.
 	// - The drain of spiritual pressure, once per civilization and never once per system (section 16 #55): Stability
 	//   goes down by DT_Rules.SpiritualPressureStabilityDrain x the largest P among its settled systems whose dominant
 	//   source has a Tier above the civilization's own.
@@ -363,14 +371,14 @@ private:
 	//   UCosmicEventSubsystem::ApplyAll with bPerTickSource. Subject = the civilization and the first such system in
 	//   OwnedSystems order; OtherID and SourceRow = the TranscendentID. A people that only borders the sphere is drained
 	//   and takes none of these effects.
-	// - Edict and trait rows, from Phase 4.
+	// - Trait rows, from Phase 4.
 	// A per-tick source applies the seven effects that change an amount and no other (UCosmicEventSubsystem::Apply), so
 	// this stage makes no draw and records no role effect, whatever the rows hold.
 	// The pressures are read from one table of sphere membership and one list of rows built at the start of the stage,
 	// not by one call of the public function per system (section 9.4).
 	// Loop two: LowStabilityTicks and FallenSphereTicks. Last and separate on purpose: the count reads the Stability every
-	// civilization has at the end of this stage. A Stability change made anywhere else in the tick is first counted one
-	// tick later. FallenSphereTicks reads the sphere membership the stage built at its start.
+	// civilization has at the end of this stage, recovery and per-tick sources included. A Stability change made anywhere
+	// else in the tick is first counted one tick later. FallenSphereTicks reads the sphere membership the stage built at its start.
 	void TickEconomy();
 
 	// Research progress and breakthroughs, civilization by civilization. A Society breakthrough fires the DT_Events row
@@ -391,8 +399,9 @@ private:
 	//     number (the branch of the row, the new profile of an overthrown people) and the claim number (the weight of the
 	//     faith traits, read as 1 until the trait rows of Phase 4). Then ExpireHazard for each, in that order.
 	// (c) Spawn. One number per settled system in Systems order, all drawn first, whether its slot is free or not; then,
-	//     in the same order, the Draw row the number falls on is placed on a free slot. Then the Capital rows,
-	//     civilization by civilization in Civs order.
+	//     in the same order, the Draw row the number falls on is placed on a free slot (a row's share is its chance times the
+	//     owner archetype's and the owner's held edicts' factors - B2; the factors change the shares, never the count of
+	//     draws). Then the Capital rows, civilization by civilization in Civs order.
 	// (d) The event slots, UCosmicEventSubsystem::EvaluateAndFire.
 	// Each draw point of this stage draws a count that no row, tag, chance or weight decides: one number per settled
 	// system, two per hazard that runs out, whatever DT_Hazards holds. How many hazards run out, and when, follows the
@@ -404,7 +413,10 @@ private:
 	 * One expiry of step (b) (section 7.4), on the hazard tag SystemIndex held when it was collected: a slot that holds
 	 * another tag (or none), or a hazard placed after the countdown pass (its count is above 0, whatever its tag), is
 	 * passed by and its numbers are thrown away. A tag no row holds leaves its slot as a resolution without a row does: no
-	 * effects, no line (a rebellion still ends its leader and its count). In this order: the last-system gate, when the
+	 * effects, no line (a rebellion still ends its leader and its count). When the owner holds a DT_Edicts row the hazard row
+	 * lists in RulerResolutions (CosmicEdicts::HeldAnswerOf, B2), the hazard is resolved instead (CosmicHazards::Resolve,
+	 * then FollowUpKnowing and FollowUpNotes - a project's resolution): its numbers are thrown away and no claim rule runs.
+	 * Otherwise, in this order: the last-system gate, when the
 	 * code of the tag takes the system and it is its owner's last settled system (a kept system ends there: its slot is
 	 * emptied without result); the effects (OnExpireEffects, or OnExpireBranchEffects when OutcomeNumber is below
 	 * BranchChance), then OnExpireNeighbourEffects; FollowUpKnowing (a system the effects handed to the vessel's people is
@@ -447,8 +459,9 @@ private:
 	// Stage 6. (a) Every people the player does not rule, in Civs order: it starts its CosmicMegaprojects::Choices
 	// (SinceTick 0), no draw (section 4.3, 5.7); then, when CosmicMegaprojects::MaySettle holds, one number from the sim
 	// stream, drawn before the targets are looked at and thrown away when there is none, picks a target of SettleTargets
-	// to Settle (section 9.2). A people that may not settle draws nothing. (b) UAscensionSubsystem::EvaluateFeats,
-	// exactly once per tick and nowhere else in the tick.
+	// to Settle (section 9.2). A people that may not settle draws nothing. Then it revokes, in ActiveEdicts order, the edicts
+	// CosmicEdicts::AIRevokesOf names - no draw, no line: an AI people holds no edict in B2. (b)
+	// UAscensionSubsystem::EvaluateFeats, exactly once per tick and nowhere else in the tick.
 	void TickCivAI();
 
 	// Stage 7. The only place where the number of elements of State.Civs changes (section 7.4). (o) Cleanup: first every

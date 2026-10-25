@@ -12,7 +12,7 @@ enum class ECosmicFocusShape : uint8
 {
 	Even,      // two keys or more, every share equal (the generation's 1/4 each; the all-zero maps of old test boards too)
 	Focused,   // one key strictly above every other key, and the others all equal to each other
-	Mixed,     // anything else: fewer than two keys, or no such single key (no rule writes one yet - the slider of B2 will)
+	Mixed,     // anything else: fewer than two keys, or no such single key (the ruler's slider writes one - SharesOf, B2)
 };
 
 namespace CosmicResearch
@@ -30,4 +30,17 @@ namespace CosmicResearch
 	 * NAME_None otherwise. Exact float comparisons: the writers above give the equal shares the very same float. Order-free: a
 	 * strict unique maximum or none. */
 	COSMIC_ASCENSION_API ECosmicFocusShape ShapeOf(const TMap<FName, float>& ResearchFocus, FName* OutField = nullptr);
+
+	/** The transcendence field's name, "Transcendence" - the research stage's last field (its list stays there). The ruler's
+	 * slider leaves this field alone until its own control comes (section 16 #119 (1)). */
+	COSMIC_ASCENSION_API FName TranscendenceField();
+
+	/** The largest weight of one field in SharesOf (one step is a share of about 0.05). */
+	inline constexpr int32 MaxShareWeight = 20;
+
+	/** The ruler's shares by hand (B2, section 16 #119 (3)): Weights must hold every key of the map except TranscendenceField,
+	 * and no other key, each 0..MaxShareWeight with a sum above 0. The transcendence share T stays; every other key takes
+	 * (1 - T) x weight / sum, the sum taken as an int32 (so no result depends on any order), a weight of 0 writing 0 and
+	 * keeping its key. False and nothing changed when Weights does not fit. */
+	COSMIC_ASCENSION_API bool SharesOf(TMap<FName, float>& ResearchFocus, const TMap<FName, int32>& Weights);
 }

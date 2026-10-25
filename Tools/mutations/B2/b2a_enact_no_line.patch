@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -604,7 +604,6 @@
+ 	FFormatNamedArguments Args;
+ 	Args.Add(TEXT("Civ"), Civ.CivName);
+ 	Args.Add(TEXT("Edict"), Def->DisplayName);
+-	Log->PushRow(CosmicRows::LogEdictEnacted, 1, Args, NAME_None, Civ.CivID);
+ 	return CosmicEdicts::ECosmicEdictBlock::None;
+ }
+ 

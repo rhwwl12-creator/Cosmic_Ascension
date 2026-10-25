@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1491,7 +1491,7 @@
+ 		&& Rules.StabilityRestingLevel <= 1.f;
+ 	// Society research raises the recovery (B2): x (1 + bonus x Society). A bonus that is not above 0 and finite is 0, and
+ 	// then the recovery is the knob itself, bit for bit.
+-	const float SocietyBonus = (Rules.SocietyRecoveryBonus > 0.f && Rules.SocietyRecoveryBonus <= TNumericLimits<float>::Max()) ? Rules.SocietyRecoveryBonus : 0.f;
++	const float SocietyBonus = (Rules.SocietyRecoveryBonus > 0.f) ? Rules.SocietyRecoveryBonus : 0.f;
+ 	UCosmicLogSubsystem* EdictLog = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+ 
+ 	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)

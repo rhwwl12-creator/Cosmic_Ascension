@@ -159,5 +159,38 @@
 			"{System}에서 반란의 무리가 흩어졌다. 그들을 이끈 이는 다시 앞에 나서지 않았다.",
 			"{Civ}의 반란이 사그라들었다. {System}의 거리에 다시 장이 섰다."
 		]
+	},
+	{
+		"Name": "log_edict_enacted",
+		"Category": "Log.Civ",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{Civ}에 칙령 {Edict}|hpp(이,가) 내려졌다.",
+			"{Edict}|hpp(이,가) {Civ}의 법이 되었다.",
+			"{Civ}의 광장에 {Edict}|hpp(을,를) 알리는 포고가 걸렸다."
+		]
+	},
+	{
+		"Name": "log_edict_revoked",
+		"Category": "Log.Civ",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{Civ}에서 칙령 {Edict}|hpp(이,가) 철회되었다.",
+			"{Edict}|hpp(은,는) 이제 {Civ}의 법이 아니다.",
+			"{Civ}의 광장에서 {Edict}|hpp(을,를) 알리던 포고가 떼어졌다."
+		]
+	},
+	{
+		"Name": "log_edict_lapsed",
+		"Category": "Log.Civ",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{Civ}|hpp(은,는) {Edict}|hpp(을,를) 더 감당하지 못했다. 칙령이 그쳤다.",
+			"{Civ}에서 칙령 {Edict}|hpp(이,가) 그쳤다. 그것을 지킬 값이 모자랐다.",
+			"칙령 {Edict}|hpp(이,가) 그쳤다. {Civ}|hpp(은,는) 그 값을 다 치르지 못했다."
+		]
 	}
 ]

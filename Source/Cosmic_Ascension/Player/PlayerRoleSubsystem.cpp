@@ -15,6 +15,7 @@
 #include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
+#include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicEvalContext.h"
 #include "Sim/CosmicResearch.h"
@@ -544,6 +545,103 @@ bool UPlayerRoleSubsystem::SetResearchFocus(FName Field)
 	}
 	// The focus asked is already the people's: nothing changed, and it is not a decision.
 	return !ResearchFocus.OrderIndependentCompareEqual(Before);
+}
+
+bool UPlayerRoleSubsystem::SetResearchShares(const TMap<FName, int32>& Weights)
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	check(Sim);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("SetResearchShares called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return false;
+	}
+	FGalaxyState& State = Sim->GetMutableState();
+	if (State.Calling.LifeState != ELifeState::Embodied || State.Player.Role != EPlayerRole::Ruler || State.Player.RuledCivID.IsNone())
+	{
+		return false;
+	}
+	const int32 CivIndex = Sim->GetStateIndex().FindCiv(State, State.Player.RuledCivID);
+	if (!State.Civs.IsValidIndex(CivIndex))
+	{
+		return false;
+	}
+	TMap<FName, float>& ResearchFocus = State.Civs[CivIndex].ResearchFocus;
+	const TMap<FName, float> Before = ResearchFocus;
+	if (!CosmicResearch::SharesOf(ResearchFocus, Weights))
+	{
+		return false;
+	}
+	return !ResearchFocus.OrderIndependentCompareEqual(Before);
+}
+
+CosmicEdicts::ECosmicEdictBlock UPlayerRoleSubsystem::EnactEdict(FName Row)
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	check(Sim && Log);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("EnactEdict called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return CosmicEdicts::ECosmicEdictBlock::Handler;
+	}
+	FGalaxyState& State = Sim->GetMutableState();
+	const int32 CivIndex = (State.Calling.LifeState == ELifeState::Embodied && State.Player.Role == EPlayerRole::Ruler && !State.Player.RuledCivID.IsNone())
+		? Sim->GetStateIndex().FindCiv(State, State.Player.RuledCivID) : INDEX_NONE;
+	if (!State.Civs.IsValidIndex(CivIndex))
+	{
+		return CosmicEdicts::ECosmicEdictBlock::NotRuler;
+	}
+	const CosmicEdicts::ECosmicEdictBlock Block = CosmicEdicts::EnactBlockOf(State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), CivIndex, Row);
+	if (Block != CosmicEdicts::ECosmicEdictBlock::None)
+	{
+		return Block;
+	}
+	FCivilizationState& Civ = State.Civs[CivIndex];
+	const FEdictDef* Def = Sim->GetTables().FindEdict(Row);
+	check(Def);
+	CosmicEdicts::Enact(Civ, Row, *Def);
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("Civ"), Civ.CivName);
+	Args.Add(TEXT("Edict"), Def->DisplayName);
+	Log->PushRow(CosmicRows::LogEdictEnacted, 1, Args, NAME_None, Civ.CivID);
+	return CosmicEdicts::ECosmicEdictBlock::None;
+}
+
+bool UPlayerRoleSubsystem::RevokeEdict(FName Row)
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	check(Sim && Log);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("RevokeEdict called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return false;
+	}
+	FGalaxyState& State = Sim->GetMutableState();
+	if (State.Calling.LifeState != ELifeState::Embodied || State.Player.Role != EPlayerRole::Ruler || State.Player.RuledCivID.IsNone())
+	{
+		return false;
+	}
+	const int32 CivIndex = Sim->GetStateIndex().FindCiv(State, State.Player.RuledCivID);
+	if (!State.Civs.IsValidIndex(CivIndex))
+	{
+		return false;
+	}
+	FCivilizationState& Civ = State.Civs[CivIndex];
+	if (!CosmicEdicts::Revoke(Civ, Row))
+	{
+		return false;
+	}
+	// A name the table no longer holds leaves without a line (it has no name to tell).
+	if (const FEdictDef* Def = Sim->GetTables().FindEdict(Row))
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("Civ"), Civ.CivName);
+		Args.Add(TEXT("Edict"), Def->DisplayName);
+		Log->PushRow(CosmicRows::LogEdictRevoked, 1, Args, NAME_None, Civ.CivID);
+	}
+	return true;
 }
 
 CosmicWanderer::ETravelBlock UPlayerRoleSubsystem::TravelTo(FName SystemID)

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1651,7 +1651,7 @@
+ 					continue;
+ 				}
+ 				CosmicEdicts::Revoke(Civ, Row);
+-				if (Civ.bIsPlayerRuled && EdictLog)
++				if (EdictLog)
+ 				{
+ 					FFormatNamedArguments Args;
+ 					Args.Add(TEXT("Civ"), Civ.CivName);

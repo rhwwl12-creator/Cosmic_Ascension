@@ -59,7 +59,7 @@ namespace CosmicHashRunImpl
 			{ TEXT("DT_Rules"), Tables.Rules.Get() }, { TEXT("DT_Civs"), Tables.Civs.Get() }, { TEXT("DT_LogTemplates"), Tables.LogTemplates.Get() },
 			{ TEXT("DT_Galaxies"), Tables.Galaxies.Get() }, { TEXT("DT_Events"), Tables.Events.Get() }, { TEXT("DT_Transcendents"), Tables.Transcendents.Get() },
 			{ TEXT("DT_Hazards"), Tables.Hazards.Get() }, { TEXT("DT_Megaprojects"), Tables.Megaprojects.Get() }, { TEXT("DT_Feats"), Tables.Feats.Get() },
-			{ TEXT("DT_Encounters"), Tables.Encounters.Get() },
+			{ TEXT("DT_Encounters"), Tables.Encounters.Get() }, { TEXT("DT_Edicts"), Tables.Edicts.Get() },
 		};
 		TArray<FString> Missing;
 		for (const FNamed& Each : Named)

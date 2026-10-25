@@ -1,6 +1,6 @@
 # CONFIG REFERENCE — DT_Rules 노브 표 (생성 문서)
 
-> `python -I Tools/make_config_reference.py`가 `Tools/data/DT_Rules.json`·`schema.json`·`Source/`에서 만든다. **손으로 고치지 않는다** — 값은 JSON에서, 규칙은 schema에서, 읽는 곳은 코드에서 바뀐다. 노브 69개 가운데 런타임이 읽는 것 51개, 예약 18개(읽는 코드가 올 Phase에서 산다 — `docs/40_DEV_GUIDE.md` §4). 밸런스 상수 가운데 아직 코드에 박힌 것(별 등급의 에너지 `StarClassEnergy` — `Sim/GalaxySimulationSubsystem.cpp`의 `namespace Economy`, 단계 5까지)은 이 표에 없다 — 경제·연구의 나머지 계수는 MVP ⑧부터 이 표의 노브다.
+> `python -I Tools/make_config_reference.py`가 `Tools/data/DT_Rules.json`·`schema.json`·`Source/`에서 만든다. **손으로 고치지 않는다** — 값은 JSON에서, 규칙은 schema에서, 읽는 곳은 코드에서 바뀐다. 노브 72개 가운데 런타임이 읽는 것 55개, 예약 17개(읽는 코드가 올 Phase에서 산다 — `docs/40_DEV_GUIDE.md` §4). 밸런스 상수 가운데 아직 코드에 박힌 것(별 등급의 에너지 `StarClassEnergy` — `Sim/GalaxySimulationSubsystem.cpp`의 `namespace Economy`, 단계 5까지)은 이 표에 없다 — 경제·연구의 나머지 계수는 MVP ⑧부터 이 표의 노브다.
 
 | 노브 | 값 | 종류 | 스키마 규칙 | 읽는 코드(테스트 제외) | 상태 |
 |---|---|---|---|---|---|
@@ -30,7 +30,6 @@
 | `FallenTranscendentCount` | `1` | number | `{"min": 0, "max": 3, "integer": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `PlayerArchetypeRow` | `"arch_seeker"` | row | `{"table": "DT_Civs"}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `ClaimAdjacencyLanes` | `1` | number | `{"integer": true}` | Sim/CosmicHazards.cpp | 읽힘 |
-| `VigilClaimExtension` | `100` | number | `{"integer": true}` | — | 예약 |
 | `SphereEventWeightStep` | `0.1` | number | `{"min": 0}` | Events/CosmicEventSubsystem.cpp | 읽힘 |
 | `ReturnLureMaxLanes` | `2` | number | `{"integer": true}` | — | 예약 |
 | `ReturnedLivesToSeize` | `3` | number | `{"integer": true}` | — | 예약 |
@@ -51,7 +50,7 @@
 | `BackgroundStarCount` | `20000` | number | `{"min": 0, "max": 100000, "integer": true}` | World/CosmicMapLook.cpp | 읽힘 |
 | `SceneryGalaxyCount` | `10000` | number | `{"min": 0, "max": 50000, "integer": true}` | World/CosmicUniverseLook.cpp | 읽힘 |
 | `PetitionPeriodTicks` | `300` | number | `{"min": 1, "integer": true}` | Events/CosmicPetitions.cpp | 읽힘 |
-| `StabilityRecoveryPerTick` | `0.001` | number | `{"min": 0, "max": 1}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
+| `StabilityRecoveryPerTick` | `0.001` | number | `{"min": 0, "max": 1}` | Sim/CosmicEdicts.cpp, Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `StabilityRestingLevel` | `0.6` | number | `{"min": 0, "max": 1}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `ClaimLeaveProfiles` | `"(GameplayTags=((TagName=\"AI.Profile.Expansionist\"),(TagName=\"AI…` | tags | `{"root": "AI.Profile."}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `FirstCrisisTick` | `150` | number | `{"min": 0, "integer": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
@@ -73,3 +72,7 @@
 | `CoronationReverence` | `0.6` | number | `{"min": 0, "max": 1}` | Sim/CosmicWanderer.cpp, UI/CosmicSystemPanelWidget.cpp, World/CosmicWandererPolicy.cpp | 읽힘 |
 | `CoronationStabilityBelow` | `0.2` | number | `{"min": 0, "max": 1}` | Sim/CosmicWanderer.cpp, UI/CosmicSystemPanelWidget.cpp | 읽힘 |
 | `AbdicationStabilityLoss` | `0.1` | number | `{"min": 0, "max": 1}` | Player/PlayerRoleSubsystem.cpp | 읽힘 |
+| `StartingEdict` | `"None"` | row | `{"table": "DT_Edicts", "optional": true}` | Sim/CosmicEdicts.cpp, Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
+| `EdictSlotSocietyMarks` | `[0.5, 1.0]` | numbers | `{"min": 0, "max": 1, "ascending": true}` | Sim/CosmicEdicts.cpp | 읽힘 |
+| `SocietyRecoveryBonus` | `0.0` | number | `{"min": 0, "max": 1}` | Sim/CosmicEdicts.cpp, Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
+| `AIEdictRevokeStability` | `1.0` | number | `{"min": 0, "max": 1}` | Sim/CosmicEdicts.cpp | 읽힘 |

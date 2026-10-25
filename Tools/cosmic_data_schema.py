@@ -113,6 +113,8 @@ COUNTS = ("a list of whole numbers", lambda value: isinstance(value, list) and l
 NAME = ("a string", lambda value: isinstance(value, str))
 NAMES = ("a list of strings", is_names)
 ROOT = ("a string or a list of strings", lambda value: isinstance(value, str) or (is_names(value) and len(value) > 0))
+# One word list of the schema by name, or several (B2: an edict's name keeps out both the verdict words and the holy words).
+WORD_LISTS = ("a string or a list of strings, not empty", lambda value: isinstance(value, str) or (is_names(value) and len(value) > 0))
 SCALAR = ("a string, a number or true/false", is_scalar)
 SCALARS = ("a list of strings or numbers", lambda value: isinstance(value, list) and len(value) > 0 and all(is_scalar(e) for e in value))
 LIST = ("a list", lambda value: isinstance(value, list))
@@ -131,10 +133,10 @@ COLUMN_OPTIONS = {
     "plain": {},
     "number": dict(RANGE),
     "numbers": dict(RANGE, len=COUNT, ascending=FLAG, ends_at=NUMBER),
-    # "forbidden" names a word list of the schema (words): no text of the column holds one of its words.
-    "text": {"slots": NAMES, "no_digits": FLAG, "required": FLAG, "hedged": WORDS, "forbidden": NAME},
+    # "forbidden" names a word list of the schema (words), or a list of them: no text of the column holds one of their words.
+    "text": {"slots": NAMES, "no_digits": FLAG, "required": FLAG, "hedged": WORDS, "forbidden": WORD_LISTS},
     "texts": {"min": COUNT, "len_in": COUNTS, "empty_or_min": COUNT, "unique": FLAG, "slots": NAMES, "no_digits": FLAG,
-              "single_variant": FLAG, "hedged": WORDS, "forbidden": NAME},
+              "single_variant": FLAG, "hedged": WORDS, "forbidden": WORD_LISTS},
     "tag": {"root": ROOT, "optional": FLAG},
     "tags": {"root": ROOT},
     "tag_list": {"root": ROOT},
@@ -146,7 +148,9 @@ COLUMN_OPTIONS = {
     "word_map": dict(RANGE, words=NAME),
     "enum": {"enum": NAME},
     "conditions": {},
-    "effects": {"per_tick": FLAG},
+    # "no_duration": no entry has a DurationTicks (an edict stands until it is revoked, B2); "keyed": the effect types that
+    # must name their Key in this column (a relation names its party: a per-tick source has no other ID).
+    "effects": {"per_tick": FLAG, "no_duration": FLAG, "keyed": NAMES},
     # A resource pool (FResourcePool): an object with every resource of the word list "resource" as a number, and no
     # other key (the importer keeps a default for a member left out).
     "pool": {"min": NUMBER},
@@ -196,7 +200,7 @@ TOP_KEYS = {
 # What the schema may say of the String Table: per key prefix, a word list no text of it holds and whether it holds a
 # digit outside its slots (a slot {0} is filled by the code, not written by the text).
 STRING_TABLE_KEYS = {"checked_prefixes": OBJECT}
-STRING_PREFIX_KEYS = {"forbidden": NAME, "no_digits": FLAG}
+STRING_PREFIX_KEYS = {"forbidden": WORD_LISTS, "no_digits": FLAG}
 FORMAT_SLOT = re.compile(r"\{[^{}]*\}")
 TABLE_KEYS = {
     "struct": NAME, "names": NAMES, "prefixes": NAMES, "must_exist": FLAG, "required_rows": NAMES,
@@ -327,6 +331,14 @@ def load_code_rows(root, sources):
     return names, problems
 
 
+def forbidden_lists(spec):
+    """The word list names a "forbidden" option names: one string, or a list of them; anything else names none."""
+    value = spec.get("forbidden") if isinstance(spec, dict) else None
+    if isinstance(value, str):
+        return [value]
+    return list(value) if is_names(value) else []
+
+
 def string_rules(schema):
     """(prefix, forbidden words, no digits) for each prefix of schema.string_table.checked_prefixes; a shape the
     schema check reports as wrong gives no rule here."""
@@ -336,8 +348,11 @@ def string_rules(schema):
     rules = []
     for prefix, spec in sorted(prefixes.items()) if isinstance(prefixes, dict) else []:
         if isinstance(spec, dict):
-            forbidden = words.get(spec.get("forbidden"), []) if isinstance(spec.get("forbidden"), str) else []
-            rules.append((prefix, forbidden if is_names(forbidden) else [], spec.get("no_digits") is True))
+            forbidden = []
+            for name in forbidden_lists(spec):
+                listed = words.get(name, [])
+                forbidden.extend(listed if is_names(listed) else [])
+            rules.append((prefix, forbidden, spec.get("no_digits") is True))
     return rules
 
 
@@ -688,8 +703,9 @@ class Checker:
                 self.report(where, "the table %r is not in the schema" % (listed,))
         if kind == "word_map" and column_spec["words"] not in self.schema["words"]:
             self.report(where, "the word list %r is not in the schema" % (column_spec["words"],))
-        if "forbidden" in column_spec and column_spec["forbidden"] not in self.schema["words"]:
-            self.report(where, "the word list %r is not in the schema" % (column_spec["forbidden"],))
+        for listed in forbidden_lists(column_spec):
+            if listed not in self.schema["words"]:
+                self.report(where, "the word list %r is not in the schema" % (listed,))
         if kind == "enum" and column_spec["enum"] not in self.schema["enums"]:
             self.report(where, "the enum %r is not in the schema" % (column_spec["enum"],))
         if kind == "pool" and "resource" not in self.schema["words"]:
@@ -769,8 +785,10 @@ class Checker:
         if "string_table" in schema and self.typed("schema.string_table", schema["string_table"], STRING_TABLE_KEYS):
             for prefix, spec in (schema["string_table"].get("checked_prefixes") or {}).items():
                 where = "schema.string_table.checked_prefixes.%s" % prefix
-                if self.typed(where, spec, STRING_PREFIX_KEYS) and "forbidden" in spec and spec["forbidden"] not in schema["words"]:
-                    self.report(where, "the word list %r is not in the schema" % (spec["forbidden"],))
+                if self.typed(where, spec, STRING_PREFIX_KEYS):
+                    for listed in forbidden_lists(spec):
+                        if listed not in schema["words"]:
+                            self.report(where, "the word list %r is not in the schema" % (listed,))
         for name in (schema.get("per_tick_effects") if is_names(schema.get("per_tick_effects")) else []):
             if name not in schema["effects"]:
                 self.report("schema.per_tick_effects", "%s is no effect of the schema" % name)
@@ -866,9 +884,10 @@ class Checker:
             for clause in SKY_CLAUSE.split(value):
                 if has_figure(clause) and not hedges(clause, spec["hedged"]):
                     self.report(where, "a number without %s: %s" % (" or ".join(spec["hedged"]), clause))
-        for word in self.schema["words"].get(spec["forbidden"], []) if "forbidden" in spec else []:
-            if word in value:
-                self.report(where, "the word %s is not used here: %s" % (word, value))
+        for listed in forbidden_lists(spec):
+            for word in self.schema["words"].get(listed, []):
+                if word in value:
+                    self.report(where, "the word %s is not used here: %s" % (word, value))
         if "slots" in spec:
             names, problems = slots_of(value)
             for problem in problems:
@@ -878,8 +897,8 @@ class Checker:
                 if slot not in spec["slots"]:
                     self.report(where, "slot {%s} is not filled here (allowed: %s)" % (slot, ", ".join(spec["slots"]) or "none"))
 
-    def check_usage(self, where, kind, item, per_tick):
-        """One condition or effect against the usage table of its enumerator."""
+    def check_usage(self, where, kind, item, per_tick, spec=None):
+        """One condition or effect against the usage table of its enumerator (and the column's own effect options)."""
         if not isinstance(item, dict):
             self.report(where, "expected an object, found %r" % (item,))
             return
@@ -937,6 +956,10 @@ class Checker:
                 self.report(where, "a per-tick source applies only %s" % ", ".join(allowed))
             if not per_tick and usage.get("per_tick_only"):
                 self.report(where, "this effect is applied by per-tick sources only")
+            if spec and spec.get("no_duration") and is_count(duration) and duration != 0:
+                self.report(where + ".DurationTicks", "%r: this column's effects stand without a duration" % (duration,))
+            if spec and type_name in (spec.get("keyed") or []) and key == "":
+                self.report(where + ".Key", "this column's %s names its Key" % type_name)
 
     def check_column(self, where, value, spec, row_name):
         kind = spec["kind"]  # "plain" has no branch below: nothing of it is checked
@@ -1031,7 +1054,7 @@ class Checker:
                 self.report(where, "expected a list, found %r" % (value,))
                 return
             for index, item in enumerate(value):
-                self.check_usage("%s[%d]" % (where, index), kind, item, bool(spec.get("per_tick")))
+                self.check_usage("%s[%d]" % (where, index), kind, item, bool(spec.get("per_tick")), spec)
         elif kind == "pool":
             members = self.schema["words"].get("resource", [])
             if not isinstance(value, dict):

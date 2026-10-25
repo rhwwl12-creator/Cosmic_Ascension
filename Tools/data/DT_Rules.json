@@ -27,7 +27,6 @@
 		"FallenTranscendentCount": 1,
 		"PlayerArchetypeRow": "arch_seeker",
 		"ClaimAdjacencyLanes": 1,
-		"VigilClaimExtension": 100,
 		"SphereEventWeightStep": 0.1,
 		"ReturnLureMaxLanes": 2,
 		"ReturnedLivesToSeize": 3,
@@ -69,6 +68,10 @@
 		"EncounterChancePerArrival": 0.25,
 		"CoronationReverence": 0.6,
 		"CoronationStabilityBelow": 0.2,
-		"AbdicationStabilityLoss": 0.1
+		"AbdicationStabilityLoss": 0.1,
+		"StartingEdict": "None",
+		"EdictSlotSocietyMarks": [0.5, 1.0],
+		"SocietyRecoveryBonus": 0.0,
+		"AIEdictRevokeStability": 1.0
 	}
 ]

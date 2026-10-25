@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -583,7 +583,6 @@
+ 	if (Sim->IsBroadcasting())
+ 	{
+ 		UE_LOG(LogCosmic, Error, TEXT("EnactEdict called from a handler of a Core Logic delegate: a handler may only read the state"));
+-		return CosmicEdicts::ECosmicEdictBlock::Handler;
+ 	}
+ 	FGalaxyState& State = Sim->GetMutableState();
+ 	const int32 CivIndex = (State.Calling.LifeState == ELifeState::Embodied && State.Player.Role == EPlayerRole::Ruler && !State.Player.RuledCivID.IsNone())

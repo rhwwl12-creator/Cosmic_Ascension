@@ -303,7 +303,10 @@ struct COSMIC_ASCENSION_API FCivilizationState
 	UPROPERTY(BlueprintReadOnly)
 	TMap<FName, float> Relations;
 
-	// DT_Edicts row names.
+	// The edicts the people holds (B2, section 5.8): DT_Edicts row names, each once, in the order enacted (a revocation keeps
+	// the order of the rest). Walked in this order by the economy stage (effects, upkeep) and the crisis stage (factors,
+	// bonuses, the answer at an expiry). A name the table does not hold stays and does nothing. Whoever runs the people runs
+	// them: a ruler by command, the AI by revoking (CosmicEdicts::AIRevokesOf).
 	UPROPERTY(BlueprintReadOnly)
 	TArray<FName> ActiveEdicts;
 

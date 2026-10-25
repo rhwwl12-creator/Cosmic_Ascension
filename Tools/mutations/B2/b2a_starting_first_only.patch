@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -793,7 +793,7 @@
+ 		Civ.OwnedSystems.Add(Home.SystemID);
+ 		Home.OwnerCivID = Civ.CivID;
+ 		// The inherited edict (B2 section 2.7): every people starts holding it - the same rule for all. No draw, no cost.
+-		if (!Rules.StartingEdict.IsNone() && Tables.FindEdict(Rules.StartingEdict))
++		if (CivIndex == 0 && !Rules.StartingEdict.IsNone() && Tables.FindEdict(Rules.StartingEdict))
+ 		{
+ 			Civ.ActiveEdicts.Add(Rules.StartingEdict);
+ 		}

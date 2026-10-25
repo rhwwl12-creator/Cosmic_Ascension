@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+@@ -28,7 +28,7 @@
+ 	int32 Slots = 1;
+ 	for (const float Mark : Rules.EdictSlotSocietyMarks)
+ 	{
+-		Slots += (Society >= Mark) ? 1 : 0;
++		Slots += (Society > Mark) ? 1 : 0;
+ 	}
+ 	return Slots;
+ }

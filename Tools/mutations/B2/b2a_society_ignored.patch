@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1506,7 +1506,7 @@
+ 			// Society read 0..1 by comparisons (a value that is not a number reads as 0).
+ 			const float Society = Civ.Research.FindRef(SocietyField);
+ 			const float SocietyRead = Society > 0.f ? (Society < 1.f ? Society : 1.f) : 0.f;
+-			const float Recovery = SocietyBonus > 0.f ? Rules.StabilityRecoveryPerTick * (1.f + SocietyBonus * SocietyRead) : Rules.StabilityRecoveryPerTick;
++			const float Recovery = SocietyBonus > 0.f ? Rules.StabilityRecoveryPerTick * (1.f + SocietyBonus) : Rules.StabilityRecoveryPerTick;
+ 			Civ.Stability = FMath::Min(Rules.StabilityRestingLevel, Civ.Stability + Recovery);
+ 		}
+ 

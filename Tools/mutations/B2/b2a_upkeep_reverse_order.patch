@@ -1,0 +1,15 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1642,7 +1642,11 @@
+ 		// tell stream; no draw, no role effect).
+ 		if (!Civ.ActiveEdicts.IsEmpty())
+ 		{
+-			const TArray<FName> Held = Civ.ActiveEdicts;
++			TArray<FName> Held;
++			for (int32 At = Civ.ActiveEdicts.Num() - 1; At >= 0; --At)
++			{
++				Held.Add(Civ.ActiveEdicts[At]);
++			}
+ 			for (const FName Row : Held)
+ 			{
+ 				const FEdictDef* Edict = Tables.FindEdict(Row);

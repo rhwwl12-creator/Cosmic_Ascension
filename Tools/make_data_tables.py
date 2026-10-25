@@ -72,6 +72,7 @@ TABLES = [
     ("DT_Megaprojects", "MegaprojectDef"),
     ("DT_Feats", "AscensionFeatDef"),
     ("DT_Encounters", "EncounterDef"),
+    ("DT_Edicts", "EdictDef"),
 ]
 STRING_TABLE = "ST_CA"
 STAMP_FILE = "generated.sha1"

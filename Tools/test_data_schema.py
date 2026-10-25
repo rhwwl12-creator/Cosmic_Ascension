@@ -5,7 +5,7 @@ Cosmic Ascension - data layer helper (guideline.md section 7.3, 9.3 Data.Integri
   python Tools/test_data_schema.py
 
 The base of every case is the data of the project itself under the schema of the project (it has to pass), with the
-rows of six tables built here instead: DT_Events, DT_Transcendents, DT_Hazards, DT_Megaprojects, DT_Feats and DT_Encounters,
+rows of seven tables built here instead: DT_Events, DT_Transcendents, DT_Hazards, DT_Megaprojects, DT_Feats, DT_Encounters and DT_Edicts,
 whose rows the cases read cell by cell (the project's rows are replaced on purpose). A case changes one thing and names the words the report
 has to carry.
 
@@ -209,6 +209,24 @@ def wanderer_card_row(name="enc_test_weave", **changes):
     return row
 
 
+def edict_row(name="edict_test_order", **changes):
+    """An edict (B2): a name, a line of words, a cost, an upkeep, a per-tick effect and the two hazard maps."""
+    row = {
+        "Name": name,
+        "DisplayName": "order",
+        "Summary": "an order stands.",
+        "RequiredTier": "Tier1_Planetary",
+        "EnactConditions": [],
+        "EnactCost": {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 10.0, "Causality": 0.0},
+        "UpkeepPerTick": {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 0.1, "Causality": 0.0},
+        "EffectsPerTick": [eff("ChangeStability", value=-0.001)],
+        "HazardSpawnMultipliers": {"Hazard.Plague": 2.0},
+        "HazardCountdownBonus": {"Hazard.Claim": 100},
+    }
+    row.update(changes)
+    return row
+
+
 def paths_of(node, here=()):
     """Every path to a node below node: keys of objects and indices of lists."""
     if isinstance(node, dict):
@@ -245,7 +263,7 @@ def civ_row(base, name, **cells):
 
 def fixture_tables(schema, tables):
     """The tables every case starts from: the sources of the project, with fixture rows for DT_Events, DT_Transcendents,
-    DT_Hazards, DT_Megaprojects, DT_Feats and DT_Encounters (their project rows are replaced on purpose: the cases read the
+    DT_Hazards, DT_Megaprojects, DT_Feats, DT_Encounters and DT_Edicts (their project rows are replaced on purpose: the cases read the
     cells of the rows they build). A row the code calls by name has to be in its table, so the event and project fixtures get one valid
     row for each name the schema requires (an event fired by name: no rule about slot rows speaks of it), and one outbreak
     row (fired by name about a place, as a hazard's OutbreakRow has to be)."""
@@ -260,6 +278,10 @@ def fixture_tables(schema, tables):
     tables["DT_Megaprojects"] = [megaproject_row()] + [megaproject_row(name) for name in schema["tables"]["DT_Megaprojects"].get("required_rows", [])]
     tables["DT_Feats"] = [feat_row()]
     tables["DT_Encounters"] = [encounter_row(), wanderer_card_row()] + [encounter_row(name) for name in schema["tables"]["DT_Encounters"].get("required_rows", [])]
+    tables["DT_Edicts"] = [edict_row()]
+    # The inherited edict of the project's rules has to be a row of the fixture's table (none in the device commit of B2).
+    if tables["DT_Rules"][0].get("StartingEdict") not in (None, "", "None"):
+        tables["DT_Edicts"].append(edict_row(tables["DT_Rules"][0]["StartingEdict"]))
     return tables
 
 
@@ -476,7 +498,8 @@ class SchemaTests(unittest.TestCase):
         # (8) and so are the research focus's words (MVP item 7): the Focus. keys.
         for prefix in ("Hint.", "Galaxy.Hint", "Focus."):
             with self.subTest(prefix=prefix):
-                self.assertEqual(self.schema["string_table"]["checked_prefixes"][prefix], {"forbidden": "verdict", "no_digits": True})
+                spec = self.schema["string_table"]["checked_prefixes"][prefix]
+                self.assertTrue("verdict" in checker.forbidden_lists(spec) and spec.get("no_digits") is True, spec)
                 key = prefix + "Test"
                 sources = checker.read_sources()
                 sources["ST_CA.csv"] = sources["ST_CA.csv"].rstrip(b"\r\n") + ('\n"%s","숫자 키 5"\n' % key).encode("utf-8")
@@ -875,10 +898,15 @@ class SchemaTests(unittest.TestCase):
         for column, key, value in (("DistanceText", "hedged", []), ("DistanceText", "hedged", "\uc57d"), ("DistanceText", "hedged", ["\uc57d", ""])):
             with self.subTest(column=column, key=key, value=value):
                 self.schema_problem(self.put(["tables", "DT_Galaxies", "columns", column], key, value), "DT_Galaxies.%s" % column, key, "not empty")
-        # The words a column refuses are a word list of the schema, named: a list of words in its place is a problem.
-        for value in ([], [1], ["\uc601\ud63c"], [""]):
+        # The words a column refuses are word lists of the schema, named - one, or a list of names (B2): an empty list or a
+        # list of other things is a problem of its type, and a name the schema does not hold (a word written in place of a
+        # list's name) is a list that is not in the schema.
+        for value in ([], [1], 3):
             with self.subTest(key="forbidden", value=value):
-                self.schema_problem(self.put(["tables", "DT_Galaxies", "columns", "StarNameBank"], "forbidden", value), "DT_Galaxies.StarNameBank", "forbidden", "a string")
+                self.schema_problem(self.put(["tables", "DT_Galaxies", "columns", "StarNameBank"], "forbidden", value), "DT_Galaxies.StarNameBank", "forbidden", "a string or a list of strings")
+        for value in (["\uc601\ud63c"], [""], ["verdict", "verdicts"]):
+            with self.subTest(key="forbidden", value=value):
+                self.schema_problem(self.put(["tables", "DT_Galaxies", "columns", "StarNameBank"], "forbidden", value), "DT_Galaxies.StarNameBank", "is not in the schema")
         self.schema_problem(self.put(["tables", "DT_Rules", "columns", "LivingWorldStarShares"], "ends_at", "1"), "LivingWorldStarShares", "ends_at", "a number")
         self.schema_problem(self.put(["tables", "DT_Galaxies", "columns", "StarNameBank"], "hedged", [""]), "DT_Galaxies.StarNameBank", "hedged", "not empty")
         self.schema_problem(self.put(["tables", "DT_Rules", "columns", "SightIntervalTicks"], "ends_at", 1), "SightIntervalTicks", "ends_at")
@@ -888,11 +916,11 @@ class SchemaTests(unittest.TestCase):
         column = ["tables", "DT_Hazards", "columns", "RulerResolutions"]
         rows = lambda value: self.set_cell("DT_Hazards", "crisis_test_storm", "RulerResolutions", value)  # noqa: E731
         self.assertEqual(self.after(rows([])), [])
-        self.expect(self.after(rows(["enc_nobody"])), "RulerResolutions[0]", "none of DT_Megaprojects, DT_Encounters has a row enc_nobody")
+        self.expect(self.after(rows(["enc_nobody"])), "RulerResolutions[0]", "none of DT_Megaprojects, DT_Encounters, DT_Edicts has a row enc_nobody")
         # A project is an answer.
         self.assertEqual(self.after(rows(["project_test_build"])), [])
         # A row of a table the column does not name is no answer.
-        self.expect(self.after(rows(["event_book_found"])), "RulerResolutions[0]", "none of DT_Megaprojects, DT_Encounters has a row event_book_found")
+        self.expect(self.after(rows(["event_book_found"])), "RulerResolutions[0]", "none of DT_Megaprojects, DT_Encounters, DT_Edicts has a row event_book_found")
         self.expect(self.after(rows("enc_nobody")), "RulerResolutions", "expected a list of row names")
         for wrong in ("", None, 5):
             with self.subTest(entry=wrong):
@@ -1203,11 +1231,11 @@ class SchemaTests(unittest.TestCase):
             line = next(each for each in claude if "\ud310\uc815 \uc5b4\ud718(" in each)
         listed = line.split("\ud310\uc815 \uc5b4\ud718(", 1)[1].split(")", 1)[0].split("\u00b7")
         self.assertEqual(verdict, listed)
-        columns = self.columns_of(lambda spec: spec.get("forbidden") == "verdict")
+        columns = self.columns_of(lambda spec: "verdict" in checker.forbidden_lists(spec))
         # Every column that refuses the words: the narrator's lines, the names that fill their slots, the name pools, the
-        # title of a transcendent (the spiritual sight's line and tooltip, the log's {Transcendent} slot) and the texts of a
-        # card (its title, its bodies, and the label and the outcome lines of each choice).
-        self.assertEqual(len(columns), 30, [table + "." + column for table, column, spec in columns])
+        # title of a transcendent (the spiritual sight's line and tooltip, the log's {Transcendent} slot), the texts of a
+        # card (its title, its bodies, and the label and the outcome lines of each choice) and an edict's name and line (B2).
+        self.assertEqual(len(columns), 32, [table + "." + column for table, column, spec in columns])
         for table, column, spec in columns:
             row_name = self.tables[table][0]["Name"]
             for word in verdict:
@@ -1218,6 +1246,72 @@ class SchemaTests(unittest.TestCase):
         # The list is named, not copied: a column that names a list the schema does not hold is a problem of the schema.
         self.expect(self.after(NOTHING, self.put(["tables", "DT_Events", "columns", "LogTemplates"], "forbidden", "verdicts")),
                     "the word list 'verdicts' is not in the schema")
+
+    def test_edicts(self):
+        """The edicts (B2): a name and a line refuse the verdict words and the holy words (docs/70 - no number, resource,
+        edict, relic or tier is named with them), and carry no digit; a countdown bonus is a whole number of ticks at or
+        above 0, a spawn factor at or above 0; the costs at or above 0; the inherited edict is an edict row or none; the
+        slot marks are ascending shares; the edict and resource keys of the String Table refuse the holy words too."""
+        holy = self.schema["words"]["holy_words"]
+        self.assertEqual(holy, ["\uc131\ub839", "\uc740\ud61c", "\uae30\ub984\ubd80\uc74c", "\uc131\uacb0"])
+        self.assertEqual(self.after(), [])
+        for column in ("DisplayName", "Summary"):
+            for word in holy:
+                with self.subTest(column=column, word=word):
+                    self.expect(self.after(self.set_cell("DT_Edicts", "edict_test_order", column, "%s a." % word)), "DT_Edicts.edict_test_order.%s" % column,
+                                "the word %s is not used here" % word)
+            with self.subTest(column=column, digit=True):
+                self.expect(self.after(self.set_cell("DT_Edicts", "edict_test_order", column, "order 3")), "DT_Edicts.edict_test_order.%s" % column, "a digit")
+        self.expect(self.after(self.set_cell("DT_Edicts", "edict_test_order", "HazardCountdownBonus", {"Hazard.Claim": 2.5})), "HazardCountdownBonus", "whole number")
+        self.expect(self.after(self.set_cell("DT_Edicts", "edict_test_order", "HazardCountdownBonus", {"Hazard.Claim": -1})), "HazardCountdownBonus", "below")
+        self.expect(self.after(self.set_cell("DT_Edicts", "edict_test_order", "HazardSpawnMultipliers", {"Hazard.Plague": -0.5})), "HazardSpawnMultipliers", "below")
+        self.expect(self.after(self.set_cell("DT_Edicts", "edict_test_order", "HazardSpawnMultipliers", {"Law.Hedge": 1.0})), "HazardSpawnMultipliers", "Hazard.")
+        upkeep = {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": -0.1, "Causality": 0.0}
+        self.expect(self.after(self.set_cell("DT_Edicts", "edict_test_order", "UpkeepPerTick", upkeep)), "UpkeepPerTick", "below")
+        self.expect(self.after(self.set_cell("DT_Edicts", "edict_test_order", "EnactCost", dict(upkeep, Influence=-5.0))), "EnactCost", "below")
+        # A per-tick column takes only the effects that change an amount.
+        self.expect(self.after(self.set_cell("DT_Edicts", "edict_test_order", "EffectsPerTick", [eff("ResolveHazard")])), "EffectsPerTick", "ResolveHazard")
+        rules = lambda key, value: self.set_cell("DT_Rules", "rules", key, value)  # noqa: E731
+        self.assertEqual(self.after(rules("StartingEdict", "edict_test_order")), [])
+        self.expect(self.after(rules("StartingEdict", "edict_nobody")), "StartingEdict", "edict_nobody")
+        self.expect(self.after(rules("EdictSlotSocietyMarks", [1.0, 0.5])), "EdictSlotSocietyMarks", "do not rise")
+        self.expect(self.after(rules("EdictSlotSocietyMarks", [0.5, 1.5])), "EdictSlotSocietyMarks", "above")
+        self.expect(self.after(rules("SocietyRecoveryBonus", -0.1)), "SocietyRecoveryBonus", "below")
+        check = lambda text: checker.check_string_table("ST_X.csv", text, self.schema)  # noqa: E731
+        for prefix in ("Edict.", "Resource."):
+            for word in holy + [self.schema["words"]["verdict"][0]]:
+                with self.subTest(prefix=prefix, word=word):
+                    self.expect(check('Key,SourceString\n"%sA","%s a."\n' % (prefix, word)), "entry 1 (%sA)" % prefix, "the word %s is not used here" % word)
+        self.expect(check('Key,SourceString\n"Edict.A","3"\n'), "entry 1 (Edict.A)", "a digit outside a slot")
+        self.assertEqual(check('Key,SourceString\n"Resource.A","3"\n'), [])
+        # The soul economy's verb (docs/70): never for revoking an edict, in its texts, its keys, the first hint of the
+        # inherited edict, the focus keys or the narrator's lines.
+        soul = self.schema["words"]["soul_verbs"]
+        self.assertEqual(soul, ["\uac70\ub450", "\uac70\ub46c", "\uac70\ub480", "\uac70\ub454", "\uac70\ub458"])
+        self.expect(self.after(self.set_cell("DT_Edicts", "edict_test_order", "Summary", "\uce59\ub839\uc744 \uac70\ub450\uc5b4\ub4e4\uc778\ub2e4.")),
+                    "DT_Edicts.edict_test_order.Summary", "the word \uac70\ub450 is not used here")
+        for key in ("Edict.A", "Hint.EdictA", "Focus.A"):
+            with self.subTest(key=key):
+                self.expect(check('Key,SourceString\n"%s","\uce59\ub839\uc744 \uac70\ub454\ub2e4."\n' % key), "entry 1 (%s)" % key, "the word \uac70\ub454 is not used here")
+        log = lambda tables: self.row(tables, "DT_LogTemplates", "log_edict_lapsed").update(Templates=["{Civ} \uac70\ub46c a.", "b.", "c."])  # noqa: E731
+        self.expect(self.after(log), "log_edict_lapsed", "the word \uac70\ub46c is not used here")
+        # The two rules of an edict's effects in the column: no duration, and a relation names its party.
+        self.expect(self.after(self.set_cell("DT_Edicts", "edict_test_order", "EffectsPerTick", [eff("ChangeStability", value=-0.001, duration=100)])),
+                    "EffectsPerTick[0](ChangeStability).DurationTicks", "without a duration")
+        self.expect(self.after(self.set_cell("DT_Edicts", "edict_test_order", "EffectsPerTick", [eff("ChangeRelation", value=0.1)])),
+                    "EffectsPerTick[0](ChangeRelation).Key", "names its Key")
+        self.assertEqual(self.after(self.set_cell("DT_Edicts", "edict_test_order", "EffectsPerTick", [eff("ChangeRelation", key="trans_covenant", value=0.1)])), [])
+        self.schema_problem(self.put(["tables", "DT_Edicts", "columns", "EffectsPerTick"], "keyed", "ChangeRelation"), "DT_Edicts.EffectsPerTick", "keyed")
+        self.schema_problem(self.put(["tables", "DT_Edicts", "columns", "EffectsPerTick"], "no_duration", "yes"), "DT_Edicts.EffectsPerTick", "no_duration")
+        # Both sides of each new knob's bounds, the root of the countdown map, the type of a list of word lists under a
+        # prefix, and an edict row taken as a hazard's answer.
+        for knob, value, word in (("AIEdictRevokeStability", 1.5, "above"), ("AIEdictRevokeStability", -0.1, "below"),
+                                  ("SocietyRecoveryBonus", 1.5, "above"), ("EdictSlotSocietyMarks", [-0.1, 1.0], "below")):
+            with self.subTest(knob=knob, value=value):
+                self.expect(self.after(rules(knob, value)), knob, word)
+        self.expect(self.after(self.set_cell("DT_Edicts", "edict_test_order", "HazardCountdownBonus", {"Law.Hedge": 1})), "HazardCountdownBonus", "Hazard.")
+        self.schema_problem(self.put(["string_table", "checked_prefixes"], "Edict.", {"forbidden": [1]}), "schema.string_table.checked_prefixes.Edict.", "a string or a list of strings")
+        self.assertEqual(self.after(self.set_cell("DT_Hazards", "crisis_test_storm", "RulerResolutions", ["edict_test_order"])), [])
 
     def test_a_text_has_one_form(self):
         """A word is found as it is written: a text is composed (NFC) and holds no invisible format character, so a verdict
@@ -2187,7 +2281,7 @@ class SchemaTests(unittest.TestCase):
                 change, where = self.set_path(table, row_name, column, value)
                 self.expect(self.after(change), where, "slot {NoSuchSlot}")
                 walked += 1
-        self.assertEqual(walked, 26, "the number of slot lists in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 28, "the number of slot lists in schema.json changed: look at what was added or taken out, then set the count")
 
 
 if __name__ == "__main__":

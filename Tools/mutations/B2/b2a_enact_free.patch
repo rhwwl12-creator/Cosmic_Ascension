@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+@@ -215,7 +215,6 @@
+ 
+ void CosmicEdicts::Enact(FCivilizationState& Civ, FName Row, const FEdictDef& Def)
+ {
+-	TryPay(Civ.Stockpile, Def.EnactCost);
+ 	Civ.ActiveEdicts.Add(Row);
+ }
+ 

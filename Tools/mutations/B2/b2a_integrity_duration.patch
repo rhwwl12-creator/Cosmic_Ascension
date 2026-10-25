@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
++++ b/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
+@@ -2049,7 +2049,7 @@
+ 			{
+ 				const FCosmicEffect& Effect = Edict->EffectsPerTick[At];
+ 				const FString Where = FString::Printf(TEXT("DT_Edicts.%s.EffectsPerTick[%d]"), *RowName.ToString(), At);
+-				if (Effect.DurationTicks != 0)
++				if (Effect.DurationTicks > 1000)
+ 				{
+ 					Problems.Add(Where + TEXT(": an edict stands until it is revoked - no duration"));
+ 				}

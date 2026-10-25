@@ -291,6 +291,7 @@ namespace CosmicSimTests
 		State.Calling.Powers.AddTag(Tag(TEXT("Way.Received")));
 		State.EventCooldownUntilTick.Add(TestRow, 5);
 		State.Civs[0].Relations.Add(State.Civs[1].CivID, 0.5f);
+		State.Civs[0].ActiveEdicts = { FName(TEXT("edict_test_a")), FName(TEXT("edict_test_b")) };
 
 		FNotableRecord& Notable = State.Civs[0].Notables.AddDefaulted_GetRef();
 		Notable.Role = Tag(TEXT("Notable.Rebel"));

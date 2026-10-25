@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+@@ -58,7 +58,7 @@
+ 	}
+ 	if (static_cast<uint8>(Civ.Tier) < static_cast<uint8>(Def->RequiredTier))
+ 	{
+-		return ECosmicEdictBlock::Tier;
++		;
+ 	}
+ 	if (!Def->EnactConditions.IsEmpty())
+ 	{
