@@ -2,7 +2,7 @@
 
 > 원문: guideline.md v0.8 §15 (2026-10-19 docs/ 재편으로 이관, 내용 무변경 — 원격의 Phase 3 꼬리 작업 반영분 포함). 표지 `(v0.8 — 단계 N부터)`·`(v0.7 — …)`·`Phase N`이 붙은 문장은 **예정**(아직 코드에 없음), 표지 없는 문장은 **현행 규칙**이다. 열린 물음은 `docs/60_DECISIONS/OPEN_QUESTIONS.md`, 확정 기록은 `docs/60_DECISIONS/DECISIONS_LOG.md`. 절 번호(§N)는 원문 그대로 두었다 — 위치는 `docs/SECTION_MAP.md`.
 
-※ 같은 낱말의 두 뜻은 이렇게 고정한다: '칸' = Tier(거대 프로젝트의 자리는 '건설/대응 슬롯'), '부르심' = 서막 끝의 소명 사건, '문턱' = T3(칸 이름) / `enc_threshold`(T5 카드), '정착률'은 '주장 만료율'로 바꿔 부른다.
+※ 같은 낱말의 두 뜻은 이렇게 고정한다: '칸' = Tier(거대 프로젝트의 자리는 '건설/대응 슬롯'), '부르심' = 서막 끝의 소명 사건, '문턱' = T3(칸 이름) / `enc_threshold`(T5 카드), '정착률'은 '주장 만료율'로 바꿔 부른다. '도약'만 쓰면 공백기의 시간선 도약이다 — T3의 순간 이동 권능(방랑자의 이동, §5.9 — 설계 문서에 '도약' 권능으로 적혀 온 것)은 '도약'이라 부르지 않고 'T3의 순간 이동'으로 쓴다(게임 안의 이름은 그 권능이 오는 블록에서 정한다). '복귀' = 방랑자가 옛 백성의 왕좌로 돌아가는 일(B1), '귀환' = 회귀 교리의 제안(`enc_recurrence_return`).
 
 ## 15. 용어집
 
@@ -15,8 +15,8 @@
 | 승천 | Ascension | `UAscensionSubsystem::OnTierAscended` | 등급 상승 사건 |
 | 두 길 / 높아짐 | Two Ways / Exaltation | `Way.Received` / `Way.Seized`, `FPlayerEntityState.Exaltation`(0~10) | Tier 5의 받는 길과 찬탈의 길 (§3.2). 경배 수용이 올리는 4번째 개인 능력치 (§5.9) |
 | 위기 | Crisis / Hazard | `FHazardDef`, `Hazard.*` 태그, `FHazardDef.SourceDoctrine`(선택, 교리 귀속) | 카운트다운이 있는 성계 상태. `Hazard.Visitation`만 '놓친 기회', `Hazard.Claim`은 영혼 경제 (§4.1, §4.2) |
-| 반란 / 폐위 / 왕좌 잠금 | Rebellion / Deposition / Throne lock | `Hazard.Rebellion`, `EEffectType::DeposeRuler`, `ThroneLockedUntilTick` | 통치자의 실패 상태 (§4.1, §5.10) |
-| 몰락한 군주 | Fallen Monarch | `Status.FallenMonarch`, Severity 2 '몰락한 군주' | 폐위·붕괴로 모성계에 남는 방랑자. 전용 조우 3~5장 (§4.4, §5.10) |
+| 반란 / 폐위 / 왕좌 잠금 | Rebellion / Deposition / Throne lock | `Hazard.Rebellion`, `EEffectType::DeposeRuler`, `ThroneLockedUntilTick`, `DT_Rules.ThroneLockTicks`(600) | 통치자의 실패 상태. 왕좌 잠금은 그릇이 왕좌를 떠날 때(폐위·양위) 모든 백성에게 `Tick + ThroneLockTicks`로 적히고(제 값보다 앞당기지 않는다) 즉위·복귀의 문(`CosmicWanderer::CrownBlockOf`)이 읽는다 — 그동안 어느 백성의 왕좌에도 오르지 못한다. 옛 백성이 사라져도 다른 백성의 잠금은 남는다 (§4.1, §5.10, B1) |
+| 몰락한 군주 | Fallen Monarch | `Status.FallenMonarch`, Severity 2 '몰락한 군주' | 폐위·붕괴로 선 자리(첫 재위면 대개 모성계, 즉위·복귀 뒤면 그 왕좌에 오른 성계)에 남는 방랑자. 전용 조우 3~5장(B5 — 추방·재회 카드) (§4.4, §5.10) |
 | 초월자 | Transcendent | `FTranscendentState`(`TranscendentID` == `DT_Transcendents` 행 이름), `Doctrine.*`, `DT_Transcendents` | Tier 4 AI 존재. 타락(침묵/동화/광신/회귀 — 정의 4, 판당 활성 ≤ 3)·천상·독립. 판에 교리마다 1체다(은하마다 따로 두지 않는다. 타락은 건너지 않는다) (§4.2) |
 | 소속 (계 태그) | Allegiance | `FTranscendentDef.Allegiance`: `Realm.Abyssal/Celestial/Independent`. 정의에만 있고 상태에 없음 | 타락 / 천상 / 독립. 계 태그 = 소속, Tier 의미론 = 보임 (§3.2, §4.2) |
 | 모방의 원리 | Counterfeit principle | `FTranscendentDef.CounterfeitOf`(`Truth.Rest/Union/Worship/Renewal`) | 타락은 만들지 못하고 흉내 낸다. 모든 교리는 참된 것 하나의 위조품 (§4.2) |
@@ -55,13 +55,21 @@
 | 남은 자 | Remnant | `Trait.Faith.Remnant`, `event_grace_remnant` | 어느 문명에도 뜨는 신앙 특성 (§4.5) |
 | 길 | Path | `Path.Stillness/Release/Axiom/Covenant`, `Power.Path.*` | 한 저자에 대한 여러 응답. 세력도 초월자도 아닌 조우 덱 데이터. 전용 엔딩 없음. 네 은유 바람·숨·빛·음성 (§4.5) |
 | 통치자 | Ruler | `EPlayerRole::Ruler` | 부르심을 입어 구별되고 날이 더해진 자 — 한 백성을 맡은 자의 모드. 첫 생애는 서막 뒤 고정 |
-| 방랑자 | Wanderer | `EPlayerRole::Wanderer` | 단독 개체 모드. `Succession.Called` 취임은 항상 Wanderer(귀환 `Succession.Returned`은 사망 당시 Role) |
+| 방랑자 | Wanderer | `EPlayerRole::Wanderer` | 단독 개체 모드 — 왕좌를 떠난(양위·폐위) 그릇이 레인을 옮기고, 스캔하고, 조우 카드에 답하고, 즉위·복귀로 다시 통치자가 된다(B1). `Succession.Called` 취임은 항상 Wanderer(귀환 `Succession.Returned`은 사망 당시 Role — Phase 4b) |
 | 모성계 | Home system | `FCivilizationState.HomeSystemID`, 슬롯 `{HomeSystem}` | '행성' = 모성계 1개 (§5.10) |
-| 청원 카드 | Petition card | `FEncounterDef` + 조건 `PlayerRoleIs Ruler` | 통치자 모드의 결정 주기를 채우는 카드 (§5.10) |
-| 섭정 | Regent | `AI.Profile.*` 태그, 인물 기록 `Notable.Regent`(`BecomeWanderer` 훅 ①, `ReturnToFormerCiv`가 닫음) | 통치자 이탈·사망 시 문명을 맡는 AI 프로필. 폐위(`Reign.Deposed`)에는 섭정 기록이 없다 (§5.10, §7.5) |
-| 경외도 | Reverence | `FCivilizationState::ReverenceToPlayer` | 방랑자 → 통치자 전환 조건. 예배가 아니다. 사망·폐위 시 ×0.5 |
+| 청원 카드 | Petition card | `FEncounterDef`의 `petition_` 행 + 조건 `PlayerRoleIs Ruler`(스키마가 묶는다 — 주제 Civilization·SettledSystem) | 통치자 모드의 결정 주기를 채우는 카드 (§5.10) |
+| 기다리는 카드 | Waiting card | `Knowing.PendingPetitionRow`·`PendingPetitionSystemID`(필드 이름은 저장의 일부라 '청원' 그대로), `CosmicPetitions::Present`, `UPlayerRoleSubsystem::AnswerPetition` | 그릇 앞에 놓여 답을 기다리는 카드 한 장 — 통치자에게는 청원 카드, 방랑자에게는 조우 카드. 칸은 하나라 두 역할이 함께 쓴다. 앎 단계의 끝이 놓고(앎에만 쓰고 시뮬 스트림을 뽑지 않는다) 답·역할 전환·출생이 비운다. 답은 틱 밖 입력이고 받아들인 답마다 시뮬 스트림을 1회 뽑는다. 카드가 기다리는 동안 방랑자는 옮기지도 왕좌에 오르지도 못한다 (§7.4, MVP ②, B1) |
+| 섭정 | Regent | `AI.Profile.*` 태그, 인물 기록 `Notable.Regent`(양위의 파이프라인 — `AbdicateRuler`가 부르는 `BecomeWanderer`의 인물 훅 ①이 연다. 즉위·복귀(`BecomeRuler`)와 반란 만료의 왕좌 교체가 닫는다) | 통치자가 떠난 백성을 맡는 AI 프로필 — 성향은 폐위·양위 모두 시뮬 스트림 1회로 뽑는다. 섭정 기록은 양위에만 생긴다: 폐위(`Reign.Deposed`)에는 없다(반란의 우두머리가 왕좌를 쥔다). 섭정의 업적 규칙·섭정 직접 선택·섭정 표류는 B1 밖 (§5.10, §7.5. Phase 4b — 사망 `Reign.Died`도 같은 훅으로 섭정 기록을 연다) |
+| 경외도 | Reverence | `FCivilizationState::ReverenceToPlayer`(0~1), 효과 `ChangeReverence`, 조건 `CivReverenceAtLeast`, `DT_Rules.ReverenceDecay`, ST_CA `Wander.Reverence` | 백성마다 그릇을 우러르는 정도 — 즉위의 한 길(`CoronationReverence` 0.6 이상). 예배가 아니다. 위기를 함께 넘은 백성에게서 오른다: 지금은 방랑자의 위기 곁 카드 넷의 성공(+0.3)과 다스리는 백성의 역병 청원(`petition_plague`)의 '앓는 이들 곁에 선다'(+0.1). 헤롯 패턴 청원(`petition_exalt`)은 높임을 받아들이면 +0.2, 물리치면 −0.05다(설계와 어긋나는 MVP ② 데이터 — `systems.md` §5.9 '경외도'). 폐위하면 모든 백성의 값이 ×`ReverenceDecay`(0.5)가 되고 양위는 그대로 둔다. 방랑자에게는 보이는 백성의 성계 패널이 '이 백성이 당신을 우러르는 정도 NN%'로 보인다 (Phase 4b — 사망에도 ×0.5) |
+| 즉위 | Coronation | `UPlayerRoleSubsystem::BecomeRuler`, `CosmicWanderer::CrownBlockOf`, `DT_Rules.CoronationReverence`(0.6)·`CoronationStabilityBelow`(0.2), `log_crowned`, ST_CA `Wander.Crown` | 방랑자가 선 정착된 성계의 주인 백성의 왕좌를 맡는 명령(패널의 [왕좌를 맡는다] — 카드가 아니다). 만난 백성이고, 왕좌 잠금이 지났고, 경외가 문턱 이상이거나 안정도가 문턱 아래(지도자 공백)일 때. 추첨이 없고, 그 백성의 소유 성계를 곧바로 알며, 칸(`PeakTier`)을 올리지 않는다. 줄은 백성이 맡긴 꼴(받은 꼴)이다 (§5.10, B1) |
+| 복귀 | Return | `BecomeRuler`(대상이 `FormerCivID`일 때 — `CosmicWanderer::IsReturn`), `log_returned`, ST_CA `Wander.Return` | 떠나온 백성(양위·폐위)의 왕좌로 돌아가는 즉위 — 즉위와 같은 문(그 백성의 정착된 성계에 서 있고, 이동 중이 아니고, 기다리는 카드가 없고, 왕좌 잠금이 지났다)을 지나되 경외·지도자 공백은 보지 않는다(패널의 [돌아간다]). 떠나 있던 동안의 다이제스트는 B1 밖. 회귀 교리의 '귀환 제안'과 다른 말 (§5.10, B1) |
+| 양위 | Abdication | `UPlayerRoleSubsystem::Abdicate`(명령)·`AbdicateRuler`(열째 단계), 효과 `DeposeRuler` + 원인 `Reign.Abdicated`, `log_throne_vacated`, `DT_Rules.AbdicationStabilityLoss`(0.1), `Status.Abdicated`, ST_CA `Wander.Abdicate` | 통치자가 스스로 왕좌를 내려놓고 방랑자가 되는 일. 입구는 둘 — 수도 패널의 [왕좌를 내려놓는다](3초 안 두 번 누름)와 왕좌 카드의 셋째 선택지 '왕좌를 내려놓고 떠난다'. 둘 다 역할 효과로 기록만 하고 다음 틱의 열째 단계가 처리한다: 양위의 줄 → 섭정 성향 1회 뽑기 → 방랑자가 된다(섭정 이름 1회 뽑기와 섭정 기록 — 넷째 칸 이상·이름 없는 백성에는 기록이 없다) → 옛 백성 안정도 −0.1 → 모든 백성의 왕좌 잠금. 경외는 줄지 않는다(폐위와 다르다). 설계 이름 '명예로운 양위'는 화면에 내지 않는다 (§5.10, B1) |
 | 헌정명 / 시대 명명 | Dedication / Era naming | `DT_Dedications`, `{Dedication}`, `{Epithet}` | 사건 뒤에 문명이 붙이는 이름 (§8.6, §5.10) |
-| 조우 | Encounter | `FEncounterDef`, `DT_Encounters` | 방랑자 텍스트 선택 카드 (통치자 모드에서는 청원). 백성을 처음 알아보는 일은 조우가 아니라 만남이다 |
+| 조우 | Encounter | `FEncounterDef`, `DT_Encounters`의 `enc_` 행 + 조건 `PlayerRoleIs Wanderer`·주제 `VesselSystem`(스키마가 묶는다) | 방랑자 텍스트 선택 카드 (통치자 모드에서는 청원). 주제는 그릇이 선 성계와 그 주인 백성, 비용 0, 목소리 없음, 판정은 그릇의 능력치. B1에 다섯 장 — 위기 곁의 넷(주인 백성과의 격차 1 이하일 때만)과 도착 카드 하나(글 규칙은 `docs/70` §8.3). 백성을 처음 알아보는 일은 조우가 아니라 만남이다 |
+| 도착 카드 | Arrival card | `enc_lane_weave`('휘는 별빛' — 지금 한 장), `Trigger Lottery` + `Subject VesselSystem`, `DT_Rules.EncounterChancePerArrival`(0.25), 파생 정수 용도 Encounter 11 | 방랑자가 레인을 건너 도착한 틱에만, 서 있는 위기의 카드가 오지 않았을 때 몫 0.25로 오는 조우 카드. 자리만 말한다 — 글의 슬롯은 `{System}`뿐이고(스키마) 격차를 보지 않으며 무주 성계에서도 온다. 시뮬 스트림을 뽑지 않는다 (B1) |
+| 이동 / 레인 이동 | Travel / lane travel | `UPlayerRoleSubsystem::TravelTo`, `CosmicWanderer::TravelBlockOf`·`IsTravelling`, `FPlayerEntityState.TravelTargetSystemID`·`TravelTicksRemaining`, `DT_Rules.LaneTravelTicks`(20), ST_CA `Wander.Travel` | 방랑자가 명령 한 번에 레인 하나를 건너 선 성계의 살아 있는 이웃으로 가는 일(패널의 [이리로 간다 · 20주기]). 여덟째 단계가 남은 틱이 0이 되는 틱에 도착을 검사한다 — 목표가 그때도 이웃이면 옮기고, 아니면(가는 길에 파괴) 이동만 끝난다. 가는 동안은 떠나온 성계에 선 것으로 세고 카드·스캔·즉위가 없다. 추첨·줄이 없고, 명령이 앎에서 읽는 것은 기다리는 카드 하나다 — 아는 성계는 읽지 않는다(이웃은 언제나 아는 성계). 성역으로는 가지 못한다(레인이 없다). 여러 레인을 잇는 경로와 T3의 순간 이동 권능은 B1 밖 — 시간선 도약과 다른 말 (§5.9, B1) |
+| 스캔 | Scan | `UPlayerRoleSubsystem::ScanCurrentSystem`, `DT_Rules.ScanSightBonusLanes`(1), `log_scan_wild`, ST_CA `Wander.Scan`·`Wander.ScanNothing` | 방랑자가 선 자리에서 보는 거리보다 레인 하나 더 멀리 한 번 보는 명령. 앎과 줄에만 쓴다(아는 성계를 적고 그 주인을 만나며, 만남의 줄과 무주 성계의 `log_scan_wild`를 낸다 — 세계 해시와 시뮬 스트림 그대로). 추첨·쿨다운이 없고, 스캔의 줄은 무주 성계에서 새로 안 성계가 있을 때만 하나, 새로 안 성계가 없으면 패널의 '새로 보이는 것이 없었다.'(그래도 처음 만난 백성이 있으면 만남의 줄은 난다) 통치자와 이동 중에는 받지 않는다 (§5.9, B1) |
+| 그릇 표지 | Vessel mark | `CosmicMapLook::VesselLookOf`(`FCosmicVesselLook`), `ACosmicGalaxyMapActor` | 지도에서 방랑자의 그릇이 선 성계를 가리키는 금색 마름모(`CosmicPalette::Gold` — 피드의 Severity 2 줄의 금색이고, 즉위·복귀·양위의 `Log.Calling` 줄도 Severity 2라 같은 금색이다. 선택 고리 밖). 이동 중이면 가는 레인을 금색으로 밝히고 작은 마름모가 그 레인을 따라간다. 통치자에게는 없다. 그릴 값은 순수 함수이고 앎을 읽지 않는다 (§6.4, B1) |
 | 유물 | Relic | `DT_Relics` | 방랑자 소지품, 슬롯 3 |
 | 거대 프로젝트 | Megaproject | `FStarSystemState::ActiveMegaproject`(건설 칸)·`ResponseMegaproject`(대응 칸 — Hazard와 함께 산다), `CompletedMegaprojects`(행별 완성 목록), `MegaprojectCompletedTick`, `DT_Megaprojects`, `project_settle`(정착)·`project_crossing`(건넘, 6a) | 통치자 경로 업적의 실체. 프로젝트의 자리는 늘 '건설 칸'·'대응 칸'이고 둘을 함께 이르면 '프로젝트 칸'이다 — '칸'만 쓰면 사다리의 칸이다 |
 | 칙령 | Edict | `DT_Edicts` | 제국/고향 은하 범위 수정자 |
@@ -86,7 +94,7 @@
 | 그릇 (육신) | Vessel | `FPlayerEntityState` | 사망 시 전부 초기화되는 쪽. `PersonalTier`·`Powers`·`CompletedFeats`는 `FCallingState`에 유지 (§4.4 3분할 표) |
 | 생애 / 대(代) | Life | `FLifeRecord`, `LifeIndex`, `BornTick`, `Lives` | 판 안의 장. "제 N대" |
 | 사망 / 사인 | Death / Cause of Death | `EEffectType::KillPlayer`, `Death.*` 태그, `CauseSourceRow` | SourceRow가 있는 효과만 |
-| 시간선 도약 | Timeline Leap | `LeapTicks`, `RunHeadless` | 공백기 동안 은하가 혼자 흘러가는 구간 |
+| 시간선 도약 | Timeline Leap | `LeapTicks`, `RunHeadless` | 공백기 동안 은하가 혼자 흘러가는 구간. '도약'만 쓰면 이것이다 — T3의 순간 이동 권능(이동)과 다른 말 (위 ※) |
 | 공백기 | Interregnum | `ELifeState::Interregnum`, `ELogMode::Interlude`, `BeginInterlude()`, `BuildWorldDigest` | 부름이 쉬는 사이 |
 | 계승 / 취임 | Succession / Installation | `Succeed()`, `Install(SystemID, CivID, Role)` | 계승 추첨과 새 그릇의 시작. 첫 생애도 `Install()` |
 | 재위 종료 사유 / 상태 | Reign end / Status | `Reign.Abdicated/Deposed/Died`, `Status.FallenMonarch/Abdicated` | 왜 방랑자가 되었나의 기록 (§5.10) |
@@ -120,7 +128,7 @@
 | 전부 쌓는 모드 | Tell-all mode | `UCosmicLogSubsystem::SetTellAll` | 범위를 묻지 않고 모든 줄을 쌓는 실행의 모드(저장하지 않는다). 테스트·커맨드렛과 해시 판의 idle 판(`-CosmicHashRun` — 끝나면 되돌린다)이 켜고 게임은 끈다. 어느 모드든 세계 해시는 같다 (§8.1) |
 | 방랑자의 눈 | Wanderer's eye | `TickSight`, `KnowAround`(`BecomeWanderer`·방랑자 `Install`) | 방랑자가 선 성계에서 개인 Tier의 거리로 보는 눈. 방랑자가 되는 틱에는 선 성계와 같은 은하 행의 1레인 이웃을 곧바로 안다(만남은 다음 갱신) (§4.4, §7.4) |
 | 말하기 스트림 | Tell stream | `FGalaxyState.TellRngState`, `DrawTell` | 문장 변형만 뽑는 난수 출처. 어떤 규칙도 읽지 않는다 (§9.2) |
-| 파생 정수 | Derived value | `CosmicSeed::Derive`·`DeriveForName`(`Core/CosmicSeed.h`), 용도 상수 9 | 시드에서 상태 없이 나오는 값. 식과 상수는 동결 (§9.2) |
+| 파생 정수 | Derived value | `CosmicSeed::Derive`·`DeriveForName`(`Core/CosmicSeed.h`), 용도 상수 11(끝에만 더한다 — 청원 10, 방랑자 카드 11) | 시드에서 상태 없이 나오는 값. 식과 상수는 동결 (§9.2) |
 | 세계 해시 | World hash | `ComputeWorldHash()` | 앎·로그·연대기(와 밀어냄 기록)·말하기 스트림을 뺀 해시 — 앎이 세계를 바꾸지 않음을 재는 자 (§9.2) |
 | 해시 판 | Hash run | `-CosmicHashRun=<틱>`, `World/CosmicHashRun` | 게임 프로세스(에디터 `-game`이나 패키지)가 시드 하나를 헤드리스로 돌려 두 해시를 한 줄로 찍고 끝나는 판(개발 스위치 `-CosmicHashRun`이 연다, 저장 슬롯 없음) — 쿠킹 빌드의 결정론을 재는 자(`-CosmicHashPolicy`는 통치자 정책 판, `-CosmicHashEvery`는 체크포인트) (§9.2, MVP ⑨) |
 | 빌드 폴더 / 건넬 zip | Build folder / handover zip | `Tools/package.ps1` | 패키지마다 새로 만드는 `C:\CA_Builds\<날짜-시각>-<커밋>`(OneDrive 밖 — 개발자의 손 확인은 여기서)과, 아무것도 돌기 전에 그 `Windows\`를 `Saved\` 없이 묶은 `-handoff.zip`(외부 1명에게 건네는 것) (MVP ⑨) |
@@ -136,7 +144,7 @@
 | 날이 더함 | Days added | `DT_Rules.BaseLifespanTicks` 0(노화 0) | 부름이 머문 그릇은 날이 더해진다. 불사가 아니다 — 출처 있는 죽음은 그대로 온다 (§4.4, §16 #10) |
 | 성역 | Sanctuary | `sol`, 가칭 `Law.Hedge`·`CosmicState::IsSanctuary` | 태양계 노드. 다시 쓸 수 없는 법 하나로 소유·정착·주장·파괴에서 빠지고 압력은 0이다. 세력·색·화자가 아니다 (§4.5 ①, §7.4. v0.8 — 단계 4부터) |
 | 성역 밖 | Beyond the sanctuary | 식별자 없음(설계 낱말) | 태양계 바깥 전부. 게임 안에는 이름이 없다 — 대도감의 '외곽 심연'은 쓰지 않는다 (§4.5 '성역 밖') |
-| 지경 | Bound | `enc_sanctuary_bound`(가칭) | 방랑자의 성역 경계 카드 — 한 장으로 끝나고 그릇은 떠난 성계로 돌아온다. 방문 위기의 '신을 벗으라'와 다르다 (§5.9, §16 #81. v0.8 — Phase 4부터) |
+| 지경 | Bound | `enc_sanctuary_bound`(가칭) | 방랑자의 성역 경계 카드 — 한 장으로 끝나고 그릇은 떠난 성계로 돌아온다. 방문 위기의 '신을 벗으라'와 다르다 (§5.9, §16 #81. B8 — 성역에 레인이 생길 때. 그때까지 `TravelTo(sol)`은 사유 '성역'으로 거절된다) |
 | 고넬료 사슬 | Cornelius chain | `Hazard.Visitation` → `Trait.Faith.Visited` → `enc_messenger_*` → `event_word_arrived`(가칭) → `Trait.Faith.Book` | 방문 → 사자 → "말이 도착했다". 사자는 가리키기만 한다 (§5.11. v0.8 — Phase 4 단계 7부터) |
 | 옛 땅의 기억 | Memory of the old land | 식별자 없음(화면) | 말이 도착한 백성에게 열리는 한 쪽 — 옛 땅(성역)의 이야기를 두 목소리(회중의 고백·의회의 기록)가 받아 적는다. 연표가 아니다 (§5.11, §16 #77. v0.8 — 단계 7부터) |
 | 해 (UI 표시) | Year (display) | 보는 사람의 설정(상태·해시 밖) | 1주기 = 1년, '첫 기록부터' 센다. 기본은 '주기'이고 서술·연대기는 주기다 (§2.1, §3.4, §16 #82. v0.8 단계 2) |

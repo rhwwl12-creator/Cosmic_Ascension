@@ -91,7 +91,7 @@ public:
 	 * Refused - nothing drawn, nothing changed - while no card waits, and with an error line from a
 	 * handler of a Core Logic delegate, for a card whose row DT_Encounters lacks, for a choice out of range and for a
 	 * cost the ruled people's stockpile cannot pay in full (the card greys such a choice). A wanderer pays no cost (the
-	 * schema keeps the costs of enc_ rows at 0), and its card's effects run on the system it stands in and that system's
+	 * choice check of Data.Integrity keeps the costs of VesselSystem rows at 0), and its card's effects run on the system it stands in and that system's
 	 * owner (none for a wild system - an effect on a people then does nothing).
 	 * An answer taken draws one number 0..5 from the sim stream first, before the choice is read any further. Then: a
 	 * card that no longer stands (CosmicPetitions::StillStands) is taken away (Withdrawn - no cost, no effect, no line);

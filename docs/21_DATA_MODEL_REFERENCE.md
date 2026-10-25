@@ -178,7 +178,7 @@ UPROPERTY() int64 FirstTick = 0; // 등장 틱 = 만든 사건의 틱
 
 UPROPERTY() int64 LastTick = 0; // 퇴장 틱. 0 = 열린 기록. 등장·퇴장 틱이며 생몰이 아니다 — 게임은 인물의 죽음·행방을 말하지 않는다 (§8.3 사후 문장 규칙 ⑥)
 
-UPROPERTY() FName SourceRow; // 만든 행(이벤트·Hazard·조우 행. Ascendant 훅은 DT_Feats 행, 자진 이탈 Regent는 DT_LogTemplates 행 log_throne_vacated — §7.5). 테스트 Sim.NotablesFromEventsOnly의 근거 (§9.3)
+UPROPERTY() FName SourceRow; // 만든 행(이벤트·Hazard·조우 행. Ascendant 훅은 DT_Feats 행, 양위의 Regent는 DT_LogTemplates 행 log_throne_vacated — §7.5, B1). 테스트 Sim.NotablesFromEventsOnly의 근거 (§9.3)
 
 // 6번째 필드는 §12.3 '인물 3문'을 통과해야 한다
 
@@ -238,11 +238,11 @@ UPROPERTY(BlueprintReadOnly) TArray<FName> ActiveEdicts;
 
 UPROPERTY(BlueprintReadOnly) FGameplayTag AIProfile; // AI.Profile.Expansionist 등
 
-UPROPERTY(BlueprintReadOnly) float ReverenceToPlayer = 0.f; // 0~1, 방랑자→군주 전환 조건
+UPROPERTY(BlueprintReadOnly) float ReverenceToPlayer = 0.f; // 0~1. 이 백성이 플레이어를 우러르는 정도 — 예배가 아니다. 즉위의 경외 길이 읽는다(DT_Rules.CoronationReverence 이상, CosmicWanderer::CrownBlockOf — B1). 오르내리는 길은 효과 ChangeReverence(청원 두 행, 방랑자 카드 넷의 성공 — 문맥 문명은 카드가 놓인 성계의 주인)와 폐위의 감쇠(모든 백성 × ReverenceDecay)다. 양위는 줄이지 않는다
 
 UPROPERTY(BlueprintReadOnly) bool bIsPlayerRuled = false;
 
-UPROPERTY(BlueprintReadOnly) int64 ThroneLockedUntilTick = 0; // 폐위 후 Tick + 600. 즉위·복귀 조건 Tick >= 이 값 (§5.10)
+UPROPERTY(BlueprintReadOnly) int64 ThroneLockedUntilTick = 0; // 왕좌 잠금. 그릇이 왕좌를 떠나는 틱(폐위·양위)에 모든 백성에게 max(제 값, Tick + DT_Rules.ThroneLockTicks(600))을 적는다 — 옛 백성이 사라져도 다른 백성의 잠금은 남는다(B1). 즉위·복귀는 Tick >= 이 값일 때만(CrownBlockOf가 대상 백성의 값 하나를 읽는다, §5.10)
 
 UPROPERTY(BlueprintReadOnly) TArray<FNotableRecord> Notables; // 역사에 흔적을 남긴 소수의 기록(§1.3). 상한 DT_Rules.MaxNotablesPerCiv(4). 역할당 열린 기록(LastTick==0) 1개. 능력치·AI·관계 없음, 개인을 겨누는(ID를 받는) 조건/효과 없음(문명을 대상으로 기록 1개를 만드는 NameNotable과 역할 유무만 읽는 CivHasNotable이 전부, §12.2). 플레이어 그릇은 넣지 않는다(FLifeRecord.NameIndex). NewGalaxy 시드 없음 — 인물을 만드는 사건(§7.3 NameNotable 행·코드 훅 3; Rebel만 Severity 1 예외)을 겪지 않은 문명은 비어 있다. 해시 포함 (§9.2)
 
@@ -260,21 +260,21 @@ GENERATED_BODY()
 
 UPROPERTY(BlueprintReadOnly) EPlayerRole Role = EPlayerRole::Ruler; // 첫 생애는 통치자 (§5.10). Succession.Called 취임은 항상 Wanderer(귀환 Succession.Returned은 사망 당시 Role)
 
-UPROPERTY(BlueprintReadOnly) FName CurrentSystemID;
+UPROPERTY(BlueprintReadOnly) FName CurrentSystemID; // 그릇이 선 성계. 이동하는 동안에도 떠나온 성계다 — 여덟째 단계가 도착한 틱에 목표로 바꾼다(B1)
 
-UPROPERTY(BlueprintReadOnly) FName TravelTargetSystemID;
+UPROPERTY(BlueprintReadOnly) FName TravelTargetSystemID; // NAME_None = 이동 중 아님(CosmicWanderer::IsTravelling — 모든 문·카드·거둬짐이 이 시험 하나를 읽는다). TravelTo가 레인 이웃 하나를 적고, 여덟째 단계(도착이든 이동만 끝나든)·BecomeRuler·BecomeWanderer·Install·그릇을 옮기는 파괴(CosmicHazards::Destroy)가 비운다(B1)
 
-UPROPERTY(BlueprintReadOnly) int32 TravelTicksRemaining = 0;
+UPROPERTY(BlueprintReadOnly) int32 TravelTicksRemaining = 0; // 남은 틱. TravelTo가 CosmicWanderer::LaneTicksOf(DT_Rules.LaneTravelTicks, 1 아래는 1)를 적고 여덟째 단계가 하나씩 줄인다 — 두 이동 필드는 늘 함께 서고 함께 빈다(B1)
 
 UPROPERTY(BlueprintReadOnly) FName RuledCivID; // Ruler일 때만
 
-UPROPERTY(BlueprintReadOnly) FName FormerCivID; // 떠난 제국 — 자진 이탈·폐위·사망 모두 BecomeWanderer가 기록. 복귀(ReturnToFormerCiv), 재회 조우의 CivHasNotable(Key = Former), NameNotable(Key = Former, Notable.Loyalist)이 읽는다 (§5.10, §7.3)
+UPROPERTY(BlueprintReadOnly) FName FormerCivID; // 떠난 백성 — 양위·폐위·사망 모두 BecomeWanderer가 기록. 복귀(그 백성에 대한 BecomeRuler — CosmicWanderer::IsReturn: 경외·공백을 보지 않고 잠금만 본다, B1), 재회 조우의 CivHasNotable(Key = Former), NameNotable(Key = Former, Notable.Loyalist)이 읽는다. 즉위·복귀는 이 값을 지우지 않는다(지난 일의 기록) (§5.10, §7.3)
 
 UPROPERTY(BlueprintReadOnly) int32 Body = 1, Mind = 1, Causality = 0; // 0~10. 출생 문명 Traits의 BodyMod/MindMod/CausalityMod로 초기화 (§5.9)
 
 UPROPERTY(BlueprintReadOnly) int32 Exaltation = 0; // 0~10. 높아짐. 경배 수용 +1~2, 거부 -1, 귀환 수락 +2 / 거절 -1, T5 문턱 기다림 -1 (§5.9, §4.4). 경외/공포 분기(§3.2)·느부갓네살 트리거(§8.6)·받는 길 문턱 게이트(<= 3 열림, >= 7 닫힘)가 읽는다
 
-UPROPERTY(BlueprintReadOnly) FResourcePool PersonalPool;
+UPROPERTY(BlueprintReadOnly) FResourcePool PersonalPool; // 아직 들어오는 길도 읽는 곳도 없다 — 방랑자 카드는 비용을 보지 않는다(B1). 수입과 쓰임은 B1 밖(뒤의 블록)
 
 UPROPERTY(BlueprintReadOnly) TArray<FName> Relics; // 최대 3
 
@@ -332,11 +332,11 @@ UPROPERTY() FName BirthArchetypeRow; // 출생 문명의 DT_Civs 행. Install()�
 
 UPROPERTY() int32 NameIndex = 0; // 그릇의 이름: 출생 문명 아키타입 PersonNameBank의 인덱스 (§4.4, §7.3). Install()이 GetRng()로 추첨 — Succession.Called는 새 인덱스(같은 문명이면 직전 생애와 다른 값), Succession.Returned는 직전 생애와 같은 인덱스("같은 이름이 다시 적혔다"). 출생 문명이 이름 없는 문명이면 arch_default 뱅크. 슬롯 {Player}가 렌더. 해시 포함. 플레이어는 FCivilizationState.Notables에 들어가지 않는다
 
-UPROPERTY() TArray<FName> RuledCivIDs; // 재위 3배열(RuledCivIDs·ReignEndReasons·ReignTicks)은 항상 같은 길이다. 즉위(Install의 Ruler·BecomeRuler·ReturnToFormerCiv)가 세 배열에 한 칸씩 함께 더한다
+UPROPERTY() TArray<FName> RuledCivIDs; // 재위 3배열(RuledCivIDs·ReignEndReasons·ReignTicks)은 항상 같은 길이다. 즉위(Install의 Ruler, BecomeRuler — 옛 백성으로의 복귀도 같은 함수다, B1)가 세 배열에 한 칸씩 함께 더한다
 
 UPROPERTY() TArray<FGameplayTag> ReignEndReasons; // RuledCivIDs와 같은 순서. Reign.Abdicated / Reign.Deposed / Reign.Died (§5.10). 열린 재위(지금 통치 중)는 빈 태그
 
-UPROPERTY() EAscensionTier PeakTier = EAscensionTier::Tier1_Planetary; // 생애의 가장 높은 칸 — 출생 때의 개인 Tier, 통치하는 백성이 오르면 업적 판정이 올린다(§16 #67 ①)
+UPROPERTY() EAscensionTier PeakTier = EAscensionTier::Tier1_Planetary; // 생애의 가장 높은 칸 — 출생 때의 개인 Tier, 통치하는 백성이 오르면 업적 판정이 올린다(§16 #67 ①). 즉위는 올리지 않는다 — 셋째 칸 백성의 왕좌에 올라도 그대로다(B1)
 
 UPROPERTY() FGameplayTag CauseOfDeath; // Death.Hazard / Death.Encounter / Death.Age / Death.Transcendent
 
@@ -346,7 +346,7 @@ UPROPERTY() TArray<FName> Feats;
 
 UPROPERTY() TArray<FName> TranscendentsMet;
 
-UPROPERTY() TArray<FName> LastChoiceRows; // 최근 3개 조우·청원 행 (비문). 답한 행을 끝에 붙이고 셋을 넘으면 맨 앞을 지운다(CosmicPetitions::Remember, MVP ②). 청원의 주기 슬롯은 먼저 이 행들을 뺀다(그러면 후보가 없을 때의 폴백은 아래 PetitionPeriodTicks — MVP ⑧). 비문이 읽는 것은 Phase 4b
+UPROPERTY() TArray<FName> LastChoiceRows; // 최근 3개 조우·청원 행 (비문). 답한 행을 끝에 붙이고 셋을 넘으면 맨 앞을 지운다(CosmicPetitions::Remember, MVP ②). 청원의 주기 슬롯은 먼저 이 행들을 뺀다(그러면 후보가 없을 때의 폴백은 아래 PetitionPeriodTicks — MVP ⑧). 그 셈과 폴백은 통치자의 청원만 센다 — 방랑자 카드(주제 VesselSystem)는 빼지 않는다. 방랑자에게는 이 배열에서 가장 최근의 방랑자 카드를 다시 내놓지 않는다(B1 — 저장 필드를 더하지 않고 이 배열을 읽는다). 비문이 읽는 것은 Phase 4b
 
 UPROPERTY() FName EpithetRow; // 시대 명명 (§5.10)
 
@@ -388,7 +388,7 @@ UPROPERTY(BlueprintReadOnly) FGameplayTagContainer Powers; // 사망 시 Tier에
 
 UPROPERTY(BlueprintReadOnly) TArray<FName> CompletedFeats;
 
-// PendingRoleEffect (§7.4 '역할 효과 해소'): 위기 단계·분쟁 단계(통치 문명의 마지막 성계를 앗아 갈 때)·이벤트 효과·조우 해결은 아래 3필드에 기록만 한다. 빈 PendingEffect = 없음 기록은 UCosmicEventSubsystem::Apply를 거치고 Embodied일 때만 한다(§7.5)
+// PendingRoleEffect (§7.4 '역할 효과 해소'): 위기 단계·분쟁 단계(통치 문명의 마지막 성계를 앗아 갈 때)·이벤트 효과·카드의 답·양위 명령(Abdicate — 원인 Reign.Abdicated, B1)은 아래 3필드에 기록만 한다. 빈 PendingEffect = 없음 기록은 UCosmicEventSubsystem::Apply를 거치고 Embodied일 때만 한다(§7.5)
 
 UPROPERTY() FGameplayTag PendingEffect; // 태그 Effect.KillPlayer 또는 Effect.DeposeRuler(ini에 선언. EEffectType::KillPlayer·DeposeRuler와 1:1), 틱당 최대 1건, 먼저 기록된 것 우선
 
@@ -414,7 +414,7 @@ UPROPERTY() int64 Tick = 0; // 알게 된 틱
 
 };
 
-// 앎 — 부름이 알게 된 것의 기록 (§8.1 세 층: 세계 → 앎 → 이야기). 저장되고 전체 해시에 들지만 세계 상태가 아니다: 세계는 앎을 쓰기만 하고 읽지 않는다(전문과 예외 하나는 §8.1). 배열은 알게 된 순서이고 줄지 않는다 — TMap 없음, 술어 태그 없음. 부름의 것이라 사망·폐위·자진 이탈·계승으로 지워지지 않는다 (§4.4. §9.1 v0.7 예약)
+// 앎 — 부름이 알게 된 것의 기록 (§8.1 세 층: 세계 → 앎 → 이야기). 저장되고 전체 해시에 들지만 세계 상태가 아니다: 세계는 앎을 쓰기만 하고 읽지 않는다(전문과 세계 쪽의 예외 하나 — 건넘 단계의 정리 — 는 §8.1. 명령이 입력의 정의로 읽는 기다리는 카드·만난 백성과, 틱 안에서 앎에 쓰는 곳의 읽기는 docs/20 부록 '불변 규칙 전문'의 상태 문단). 배열은 알게 된 순서이고 줄지 않는다 — TMap 없음, 술어 태그 없음. 부름의 것이라 사망·폐위·양위·계승으로 지워지지 않는다 (§4.4. §9.1 v0.7 예약)
 
 USTRUCT(BlueprintType)
 
@@ -436,9 +436,9 @@ UPROPERTY() FName FirstContactCivID; // 첫 접촉의 기록. 초기값 NAME_Non
 
 UPROPERTY() int64 FarLineUntilTick = 0; // log_far_event의 다음 허용 틱. log_far_ascent에는 걸리지 않는다 (§8.1)
 
-UPROPERTY() FName PendingPetitionRow; // 플레이어의 답을 기다리는 청원 카드(DT_Encounters 행, MVP ②). NAME_None(동결 초기값) = 카드 없음. 앎 단계의 끝(CosmicPetitions::Present)과 사슬을 잇는 답이 적고, 답·Install·BecomeWanderer가 비운다(다스리는 백성은 다스리는 동안 지워지지 않는다). 틱 단계는 읽지 않고 답 명령만 읽는다 — 입력의 정의 (§5.10)
+UPROPERTY() FName PendingPetitionRow; // 플레이어의 답을 기다리는 카드(DT_Encounters 행) — 통치자의 청원(MVP ②)과 방랑자의 카드(B1)가 칸 하나를 함께 쓴다(필드 이름은 저장의 일부라 그대로 둔다). NAME_None(동결 초기값) = 카드 없음. 앎 단계의 끝(CosmicPetitions::Present)과 사슬을 잇는 답이 적고, 답·Install·BecomeWanderer·BecomeRuler가 비운다(다스리는 백성은 다스리는 동안 지워지지 않는다). 읽는 곳: 명령이 입력의 정의로(답, 그리고 TravelTo·BecomeRuler의 문 — 카드가 기다리는 동안 이동도 즉위도 없다), 틱 안에서는 앎에 쓰는 두 곳만(틱 첫머리의 StandingHeld와 앎 단계 끝의 Present — 칸이 비었는지, 그 답은 앎에만 쓰인다. 규칙은 docs/20 부록 '불변 규칙 전문'의 상태 문단) (§5.10)
 
-UPROPERTY() FName PendingPetitionSystemID; // 그 카드가 다루는 성계: SettledSystem 행이면 다스리는 백성의 정착된 성계, Civilization 행(백성 — 현재 성계는 수도)과 카드가 없을 때는 NAME_None
+UPROPERTY() FName PendingPetitionSystemID; // 그 카드가 다루는 성계: SettledSystem 행이면 다스리는 백성의 정착된 성계, VesselSystem 행(방랑자 카드, B1)이면 카드가 놓일 때 그릇이 선 성계(정착된 성계든 무주든), Civilization 행(백성 — 현재 성계는 수도)과 카드가 없을 때는 NAME_None
 
 };
 
@@ -556,7 +556,7 @@ SystemHasHazard, SystemOwnedBy, MegaprojectComplete, // MegaprojectComplete의 K
 
 SystemPressureAtLeast, SystemInfluencedBy, // 영압 P(S) >= Value (§4.2) / Key=TranscendentID (종속 판정)
 
-PlayerTierAtLeast, PlayerInSystemWithHazard, PlayerStatAtLeast, PlayerHasRelic, PlayerRoleIs, // PlayerStatAtLeast Key: Body/Mind/Causality/Exaltation. PlayerRoleIs Ruler = 청원 카드
+PlayerTierAtLeast, PlayerInSystemWithHazard, PlayerStatAtLeast, PlayerHasRelic, PlayerRoleIs, // PlayerStatAtLeast Key: Body/Mind/Causality/Exaltation. PlayerRoleIs Ruler = 청원 카드, Wanderer = 방랑자 카드(B1 — 스키마의 시험 has_cond가 행 접두어 petition_·enc_와 묶는다). PlayerInSystemWithHazard = 그릇이 선 성계(이동 중이면 떠나온 성계)의 위기 — 방랑자 카드 넷의 조건
 
 PlayerHasStatus, PlayerLifeIndexAtLeast, PlayerAgeAtLeast, // Tag=Status.* / 제 N대 이상 / 노화 ON일 때만 (§4.4)
 
@@ -656,7 +656,7 @@ UPROPERTY(EditAnywhere) FGameplayTag LogCategory; // Log.*. 이 행이 내는 �
 
 UPROPERTY(EditAnywhere) ECosmicEventTrigger Trigger = ECosmicEventTrigger::Lottery; // Lottery(슬롯의 추첨, 문명·슬롯당 1행 이하) / Standing(조건과 쿨다운만 맞으면 슬롯에서 반드시 난다 — 주기 행, 추첨·가중 없음) / Named(슬롯이 보지 않는다. 코드가 FireRow로 낸다). 열거형은 끝에만 추가한다
 
-UPROPERTY(EditAnywhere) ECosmicEventSubject Subject = ECosmicEventSubject::Civilization; // Civilization(문명에 한 번. 문맥 성계 = 정착된 수도. 줄의 주제는 문명만 — 수도를 모르는 만난 백성의 줄도 말해진다. 그래서 그 줄은 성계를 부르지 않는다, 스키마) / SettledSystem(정착된 성계마다, OwnedSystems 순서. 줄의 주제는 성계와 문명). 열거형은 끝에만 추가한다
+UPROPERTY(EditAnywhere) ECosmicEventSubject Subject = ECosmicEventSubject::Civilization; // Civilization(문명에 한 번. 문맥 성계 = 정착된 수도. 줄의 주제는 문명만 — 수도를 모르는 만난 백성의 줄도 말해진다. 그래서 그 줄은 성계를 부르지 않는다, 스키마) / SettledSystem(정착된 성계마다, OwnedSystems 순서. 줄의 주제는 성계와 문명) / VesselSystem(끝에 더한 것 — B1: DT_Encounters 전용, 방랑자 카드의 주제 = 그릇이 선 성계(정착된 성계든 무주든)와 그 주인(없으면 없음). DT_Events 행은 쓰지 않는다 — 스키마). 열거형은 끝에만 추가한다
 
 UPROPERTY(EditAnywhere) TArray<FCosmicCondition> Conditions; // AND
 
@@ -714,7 +714,7 @@ UPROPERTY(EditAnywhere) TArray<FCosmicEffect> OnResolveEffects; // 해결 시 1�
 
 UPROPERTY(EditAnywhere) TArray<FName> RulerResolutions; // DT_Megaprojects·DT_Edicts·DT_Encounters(청원) 행 이름. 하나라도 완료되면 그 Hazard를 해결한다. 여기 든 DT_Megaprojects 행이 그 Hazard의 대응 프로젝트다 — 대응 칸에서 돈다(§5.7, 거대 프로젝트와 승천 판정 작업부터). 지금의 짝: 반란 → project_reform, 초신성 전조 → project_stabilize, 주장·역병 → project_relief(역병은 MVP ⑧부터), AI 각성은 비어 있다. 스키마의 종류 rows(DT_Megaprojects·DT_Encounters — 칙령 테이블은 그 구조체와 함께)
 
-UPROPERTY(EditAnywhere) TArray<FName> WandererResolutions; // DT_Encounters 행 이름 (Phase 4)
+UPROPERTY(EditAnywhere) TArray<FName> WandererResolutions; // DT_Encounters 행 이름 — 예약. B1에서도 모든 행이 비어 있고 시뮬 코드가 읽지 않는다: 방랑자 카드는 행의 조건(PlayerInSystemWithHazard)으로 오고, 위기를 끝내는 카드는 성공 효과 ResolveHazard로 끝낸다(지금은 enc_rebel_parley·enc_awakening_talk 둘 — 역병과 초신성 전조의 카드는 끝내지 않는다)
 
 UPROPERTY(EditAnywhere) FGameplayTag LogCategory; // 아래 세 줄의 Log.*(Log.Crisis 아래 — Data.Integrity)
 
@@ -768,7 +768,7 @@ UPROPERTY(EditAnywhere) TArray<FText> LogTemplates; // 승천 줄(Log.Ascension,
 
 // DT_Encounters
 
-// 선택지의 판정 능력치(MVP ② A-2a — 정의 열거형, 저장되지 않는다, 끝에만 추가). 그릇의 능력치는 0~10, Stability는 다스리는 백성의 Stability(0~1)를 (int32)(Stability × 10)으로 읽는다(§16 #30 ①). Influence는 판정이 아니라 비용이다. 데이터는 빈 이름을 "None"으로 쓰므로 '판정 없음'은 NoCheck다.
+// 선택지의 판정 능력치(MVP ② A-2a — 정의 열거형, 저장되지 않는다, 끝에만 추가). 그릇의 능력치는 0~10, Stability는 다스리는 백성의 Stability(0~1)를 (int32)(Stability × 10)으로 읽는다(§16 #30 ①). Influence는 판정이 아니라 비용이다. 데이터는 빈 이름을 "None"으로 쓰므로 '판정 없음'은 NoCheck다. 방랑자 카드(enc_ 행)는 그릇의 능력치와 NoCheck만 쓴다 — 백성의 Stability는 방랑자의 것이 아니다(스키마, B1).
 
 UENUM(BlueprintType) enum class ECosmicCheckStat : uint8 { NoCheck, Body, Mind, Causality, Exaltation, Stability };
 
@@ -786,9 +786,9 @@ UPROPERTY(EditAnywhere) ECosmicCheckStat CheckStat = ECosmicCheckStat::NoCheck; 
 
 UPROPERTY(EditAnywhere) int32 Difficulty = 0; // >= 16 = 불가능한 선택지(영압 게이트, §4.2)
 
-UPROPERTY(EditAnywhere) FResourcePool Cost; // Role에 따라 PersonalPool 또는 문명 Stockpile에서 차감 (§5.10)
+UPROPERTY(EditAnywhere) FResourcePool Cost; // 통치자의 청원은 다스리는 백성의 Stockpile에서 낸다(CosmicPetitions::CostOf — 0 아래·유한하지 않은 멤버는 0) (§5.10). 방랑자 카드는 비용을 보지 않는다 — 주제 VesselSystem 행의 비용은 0이어야 한다(C++ Data.Integrity의 선택지 검사, B1). PersonalPool에서 내는 길은 그 풀의 수입과 함께(B1 밖)
 
-UPROPERTY(EditAnywhere) TArray<FCosmicEffect> OnSuccess;
+UPROPERTY(EditAnywhere) TArray<FCosmicEffect> OnSuccess; // DeposeRuler를 싣는 선택지는 그릇이 스스로 떠나는 것이다 — 판정 없음(NoCheck)이고 태그는 Reign.Abdicated(C++ Data.Integrity의 선택지 검사, B1 — 왕좌 카드 petition_keep_throne의 셋째 선택지). 통치자 정책은 이런 선택지를 고르지 않는다(CosmicRulerPolicy::ChoiceOf)
 
 UPROPERTY(EditAnywhere) TArray<FCosmicEffect> OnFailure; // KillPlayer 효과의 데이터 발생 지점 중 하나 (§4.4)
 
@@ -820,9 +820,9 @@ UPROPERTY(EditAnywhere) TArray<FEncounterChoice> Choices; // 2~3. 로컬라이�
 
 UPROPERTY(EditAnywhere) TSoftObjectPtr<class UTexture2D> Illustration; // 선택
 
-UPROPERTY(EditAnywhere) ECosmicEventTrigger Trigger = ECosmicEventTrigger::Named; // 앎 단계가 카드를 내놓는 때(§5.10): Standing = 조건이 막 선 틱, Lottery = 주기 슬롯의 가중 추첨, Named = 이름으로만(사슬의 다음 카드)
+UPROPERTY(EditAnywhere) ECosmicEventTrigger Trigger = ECosmicEventTrigger::Named; // 앎 단계가 카드를 내놓는 때(§5.10): Standing = 조건이 막 선 틱, Lottery = 주기 슬롯의 가중 추첨, Named = 이름으로만(사슬의 다음 카드). 방랑자 카드(B1): Standing = 그릇이 선 성계에서 조건이 막 선 틱(도착한 틱이면 새 성계의 위기가 막 선 것이 된다), Lottery = 도착한 틱의 도착 카드(DT_Rules.EncounterChancePerArrival의 몫 — CosmicPetitions::Present)
 
-UPROPERTY(EditAnywhere) ECosmicEventSubject Subject = ECosmicEventSubject::Civilization; // 다스리는 백성(수도) 또는 그 백성의 정착된 성계 하나
+UPROPERTY(EditAnywhere) ECosmicEventSubject Subject = ECosmicEventSubject::Civilization; // 다스리는 백성(Civilization — 수도) 또는 그 백성의 정착된 성계 하나(SettledSystem) — 통치자의 청원. VesselSystem = 그릇이 선 성계와 그 주인(무주면 없음) — 방랑자 카드(B1. 스키마가 enc_ 행을 여기에, petition_ 행을 앞의 둘에 묶고, 답 명령은 이 값으로 두 종류를 가른다 — CosmicPetitions::IsWandererCard)
 
 UPROPERTY(EditAnywhere) TArray<FText> VoiceBodies; // 비었거나 둘: [0] 의회, [1] 회중의 장로들. 있으면 Body는 비우고 화면이 다스리는 백성의 Spiritualism(> 0 = 장로들)으로 고른다 — 상태가 아니다
 
@@ -911,7 +911,7 @@ UPROPERTY(EditAnywhere) TArray<FText> ClaimTemplates; // Hazard.Claim 만료 시
 
 };
 
-// DT_LogTemplates (§5.11 계시 양식, §8.2). 이벤트가 아닌 틱 로그(경제·연구·소유권 변동)와 방문·사자 템플릿. 만남의 줄(log_first_contact·log_contact), 먼 줄(log_far_ascent·log_far_event), 무주 성계 스캔(log_scan_wild, Phase 4), 건넘의 줄(log_crossing_depart·log_crossing_arrive·log_crossing_turned·log_crossing_word, Phase 6a)도 이 테이블의 행이다 (§5.7, §8.1). 행은 두 가지이고 Context가 가른다: Context가 빈 행은 **이름 행**이다 — PushRow가 행 이름으로 부르고 선택기는 보지 않는다(Phase 1의 다섯 행과 v0.7의 열 행이 모두 이것이다). Context가 Revelation.*인 행은 **선택 행**이다 — (Category, Context)마다 하나 이하(Data.Integrity). 선택기 UCosmicLogSubsystem::PickTemplateRow(Category, Context, FallbackRow)는 일치하는 선택 행의 이름을, 없으면 호출자가 넘긴 이름 행을 돌려준다. 폴백은 '빈 Context 행'이 아니라 호출자가 CosmicRows 상수로 넘기는 이름 행이다. 뽑지 않는다 — 변형 추첨은 그 이름으로 부르는 PushRow가 한다 (§9.2)
+// DT_LogTemplates (§5.11 계시 양식, §8.2). 이벤트가 아닌 틱 로그(경제·연구·소유권 변동)와 방문·사자 템플릿. 만남의 줄(log_first_contact·log_contact), 먼 줄(log_far_ascent·log_far_event), 무주 성계 스캔(log_scan_wild — B1), 방랑자 고리의 줄(즉위 log_crowned·복귀 log_returned·양위 log_throne_vacated — Log.Calling 등급 2, 왕좌를 말하지 않는 반란 만료 log_rebellion_unseated — B1, `CosmicRows::` 상수와 스키마의 required_rows), 건넘의 줄(log_crossing_depart·log_crossing_arrive·log_crossing_turned·log_crossing_word, Phase 6a)도 이 테이블의 행이다 (§5.7, §8.1). 행은 두 가지이고 Context가 가른다: Context가 빈 행은 **이름 행**이다 — PushRow가 행 이름으로 부르고 선택기는 보지 않는다(Phase 1의 다섯 행과 v0.7의 열 행이 모두 이것이다). Context가 Revelation.*인 행은 **선택 행**이다 — (Category, Context)마다 하나 이하(Data.Integrity). 선택기 UCosmicLogSubsystem::PickTemplateRow(Category, Context, FallbackRow)는 일치하는 선택 행의 이름을, 없으면 호출자가 넘긴 이름 행을 돌려준다. 폴백은 '빈 Context 행'이 아니라 호출자가 CosmicRows 상수로 넘기는 이름 행이다. 뽑지 않는다 — 변형 추첨은 그 이름으로 부르는 PushRow가 한다 (§9.2)
 
 USTRUCT(BlueprintType)
 
@@ -1007,13 +1007,13 @@ UPROPERTY(EditAnywhere) float SuccessionSameCivPenalty = 1.f; // 직전 생애�
 
 UPROPERTY(EditAnywhere) int32 SuccessionMinHazardTicks = 300; // 제외: Hazard 카운트다운이 이 값 미만인 성계
 
-UPROPERTY(EditAnywhere) float ReverenceDecay = 0.5f; // 사망·폐위 시 Reverence 배율
+UPROPERTY(EditAnywhere) float ReverenceDecay = 0.5f; // 사망·폐위 시 모든 백성의 Reverence 배율. 양위는 줄이지 않는다(B1)
 
 UPROPERTY(EditAnywhere) float AIAscensionSpeedMultiplier = 1.f; // §4.3 난이도
 
 UPROPERTY(EditAnywhere) float PostRebellionStability = 0.15f; // 폐위 직후 Stability 상한 (§5.10)
 
-UPROPERTY(EditAnywhere) int32 ThroneLockTicks = 600; // 왕좌 잠금
+UPROPERTY(EditAnywhere) int32 ThroneLockTicks = 600; // 왕좌 잠금: 그릇이 왕좌를 떠나는 틱(폐위·양위)에 모든 백성의 ThroneLockedUntilTick을 Tick + 이 값 이상으로 올린다(B1 — 전에는 옛 백성만). 0 아래는 0으로 읽는다
 
 UPROPERTY(EditAnywhere) TArray<float> PressureBySourceTier = {0.f, 0.f, 0.25f, 1.f, 2.f}; // 인덱스 = Tier 번호 − 1 = static_cast<int32>(EAscensionTier). 정확히 5개 (§4.2, Data.Integrity)
 
@@ -1076,7 +1076,9 @@ UPROPERTY(EditAnywhere) int32 FarLineCooldownTicks = 300; // log_far_event 사�
 
 UPROPERTY(EditAnywhere) int32 BackgroundStarCount = 20000; // 배경 별의 점 수. 표현 계층만 읽는다 — 0~100,000으로 읽는다(`CosmicMapLook::BackdropCountOf`, 스키마도 같은 경계) (§3.1, §6.4). Phase 3 8번 작업에서 코드에 들어왔다
 
-UPROPERTY(EditAnywhere) int32 PetitionPeriodTicks = 300; // 청원의 주기 슬롯(MVP ②, §5.10 — 600에서 MVP ③이 300으로): Tick − Calling.BornTick이 이 값의 양의 배수인 틱에, 그 틱에 막 선 Standing 행이 없으면 앎 단계가 Lottery 행 하나를 내놓는다(생애의 LastChoiceRows에 든 행은 빼고, 그러면 후보가 없으면 그 가운데 가장 최근의 Lottery 행 하나만 뺀다 — MVP ⑧ A-8b, CosmicPetitions::Present). 1 아래는 1로 읽는다(스키마는 1 이상)
+UPROPERTY(EditAnywhere) int32 SceneryGalaxyCount = 10000; // 풍경 은하의 점 수. 표현 계층만 읽는다(CosmicUniverseLook::SceneryCountOf — 0~50,000으로 읽는다, 스키마도 같은 경계) (§5.11, §6.4 '우주 화면'). Phase 3 9번 작업
+
+UPROPERTY(EditAnywhere) int32 PetitionPeriodTicks = 300; // 청원의 주기 슬롯(MVP ②, §5.10 — 600에서 MVP ③이 300으로): Tick − Calling.BornTick이 이 값의 양의 배수인 틱에, 그 틱에 막 선 Standing 행이 없으면 앎 단계가 Lottery 행 하나를 내놓는다(생애의 LastChoiceRows에 든 행은 빼고, 그러면 후보가 없으면 그 가운데 가장 최근의 Lottery 행 하나만 뺀다 — MVP ⑧ A-8b, CosmicPetitions::Present. 그 셈은 통치자의 청원만 센다 — B1). 1 아래는 1로 읽는다(스키마는 1 이상)
 // ---- MVP ③(2026-10-22, 헤더 docs/60_DECISIONS/headers/A3_first_ten_minutes.md) — 구조체의 끝에 다섯 ----
 UPROPERTY(EditAnywhere) float StabilityRecoveryPerTick = 0.001f; // 안정도 회복(§4.1, §16 #68): 경제 단계에서 인구 회복 바로 뒤(수입 앞), StabilityRestingLevel 아래의 백성은 이만큼 오르고 그 수준에서 멈춘다. 위는 그대로(카드·이벤트가 올린 몫은 남는다). 같은 틱의 LowStabilityTicks 셈에 든다. 0 이하·1 초과·숫자가 아니면 회복 없음. 시작값 — 영향권 곁의 소모(0.002 × P)보다 작게(0.002면 주장 정착률이 22%로 떨어진다 — 헤더 A3 §1)
 UPROPERTY(EditAnywhere) float StabilityRestingLevel = 0.6f; // 회복이 멈추는 수준(§9.3 '자연 수렴 0.6'). 0~1 밖이거나 숫자가 아니면 회복 없음
@@ -1094,11 +1096,16 @@ UPROPERTY(EditAnywhere) float SpiritualistInsightBonus = 0.2f; // 영성 쪽 윤
 UPROPERTY(EditAnywhere) float InfluencePerPopulation = 1.0f; // 인구 1당 영향력(윤리 보너스 전, 칸 배수 없음). 0 이하·NaN은 0. 0.5에서 MVP ⑧ A-8b가 1.0으로(2026-10-18 결정 10 — 구호·개혁·청원의 값이 겹쳐 영향력에 굶던 일)
 UPROPERTY(EditAnywhere) float OpenInfluenceBonus = 0.2f; // 개방 쪽 윤리 1점당 영향력 보너스. 0 이하·NaN은 보너스 없음
 UPROPERTY(EditAnywhere) float ResearchInsightShare = 0.5f; // 연구 단계가 쓰는 통찰 수입의 몫(비축 한도 안). 0..1로 읽는다(NaN은 0). 스키마 0..1
-UPROPERTY(EditAnywhere) float ResearchPerInsight = 0.003f; // 쓴 통찰 1당 연구 진척(분야의 몫을 곱하기 전). 0 이하·NaN은 진척 없음. 스키마 0 이상. 구조체의 맨 끝 컬럼
+UPROPERTY(EditAnywhere) float ResearchPerInsight = 0.003f; // 쓴 통찰 1당 연구 진척(분야의 몫을 곱하기 전). 0 이하·NaN은 진척 없음. 스키마 0 이상
+// ---- B1(2026-10-25, 헤더 docs/60_DECISIONS/headers/B1_wanderer_loop.md 2.2절) 방랑자 고리의 노브 여섯 — 지금 구조체의 끝. 정의라 저장되지 않는다 ----
+UPROPERTY(EditAnywhere) int32 LaneTravelTicks = 20; // 레인 하나를 지나는 틱(TravelTo — §5.9 '레인당 20'). 1 아래는 1로 읽는다(CosmicWanderer::LaneTicksOf — 두 이동 필드는 늘 함께 서고 함께 빈다). 스키마 1 이상·정수. 거리에 따른 시간은 실제 하늘과 함께(B8, §16 #83)
+UPROPERTY(EditAnywhere) int32 ScanSightBonusLanes = 1; // 스캔(ScanCurrentSystem)의 보는 거리 = SightLanesByTier[PersonalTier](없는 칸·1 아래는 1) + 이 값(0 아래는 0) (§4.4, §5.9). 스키마 0 이상·정수
+UPROPERTY(EditAnywhere) float EncounterChancePerArrival = 0.25f; // 도착한 틱에 도착 카드(방랑자의 Lottery 행)가 올 몫: 도착의 파생 정수(CosmicSeed::Purpose::Encounter 11 — 이름은 그릇이 선 SystemID, Index는 틱) / 2^32가 이 값 아래일 때(CosmicPetitions::Present). 0~1로 잘라 읽고 숫자가 아니면 0. 스키마 0~1
+UPROPERTY(EditAnywhere) float CoronationReverence = 0.6f; // 즉위의 경외 길: 그 백성의 ReverenceToPlayer가 이 값 이상(CosmicWanderer::CrownBlockOf — 노브나 경외가 숫자가 아니면 경외 길이 열리지 않는다; 지도자 공백 길은 따로 본다). 스키마 0~1
+UPROPERTY(EditAnywhere) float CoronationStabilityBelow = 0.2f; // 즉위의 지도자 공백 길: 그 백성의 Stability가 이 값 미만. 스키마 0~1. 복귀(옛 백성)는 두 길을 보지 않고 잠금만 본다
+UPROPERTY(EditAnywhere) float AbdicationStabilityLoss = 0.1f; // 양위(AbdicateRuler)가 떠나는 백성의 Stability에서 덜어 내는 값 — 0 아래로 가지 않는다. 0 이하·숫자 아님은 0, 1 위는 1로 읽는다. 스키마 0~1
 
-UPROPERTY(EditAnywhere) int32 SceneryGalaxyCount = 10000; // 풍경 은하의 점 수. 표현 계층만 읽는다(CosmicUniverseLook::SceneryCountOf — 0~50,000으로 읽는다, 스키마도 같은 경계) (§5.11, §6.4 '우주 화면'). Phase 3 9번 작업
-
-UPROPERTY(EditAnywhere) int32 ScanSightBonusLanes = 1; // 스캔이 그 자리에서 보는 거리에 더하는 레인 수 (§4.4). Phase 4
+// 아직 코드에 없는 노브(끝에 더한다 — 처음 읽는 작업과 함께)
 
 UPROPERTY(EditAnywhere) int32 CrossingMinTier = 4; // 건넘의 최소 칸. 값은 Tier 번호 (§5.7 건넘). Phase 6a
 
@@ -1118,12 +1125,12 @@ UPROPERTY(EditAnywhere) int32 CrossingSettleTicks = 3000; // 건너온 백성의
 
 **정의 스키마**: 파일 하나 `Tools/data/schema.json`이 선언한다 — 행 이름·태그·텍스트를 담는 모든 컬럼이 무엇을 가리킬 수 있는지(대상 테이블 또는 태그의 뿌리), 조건·효과 열거자 48개(`EConditionType` 30 + `EEffectType` 18 — 거대 프로젝트와 승천 판정 작업 뒤) 각각의 Tag·Key·Value 쓰임, 지금은 맨 이름으로만 있는 닫힌 낱말 목록. 저작 시점 전용이다: 런타임 구조체·필드·해시·세이브가 바뀌지 않는다. 검사는 `Tools/make_data_tables.py`가 에셋을 만들 때 하고, C++ 테스트 하나가 로드한 에셋을 다시 본다(§9.3 `Data.Integrity`). 규칙 종류는 닫힌 목록이고 새 종류는 §12.3을 거친다. Phase 2의 스키마 검사기 작업에서 만들었다(§11). 행 이름의 접두어와 테이블을 가로지른 유일성은 §10.4에 적는다.
 
-**스키마의 꼴.** 스키마에는 행 구조체가 있는 테이블만 적는다(지금 열: `DT_Rules`·`DT_Civs`·`DT_LogTemplates`·`DT_Events`·`DT_Galaxies`·`DT_Transcendents`와, 위기 처리 작업에서 컬럼을 적은 `DT_Hazards`와, 거대 프로젝트와 승천 판정 작업에서 컬럼을 적은 `DT_Megaprojects`·`DT_Feats`와, 컬럼을 아직 적지 않은 `DT_Encounters`. `DT_Edicts` 같은 테이블은 구조체와 함께 온다).
+**스키마의 꼴.** 스키마에는 행 구조체가 있는 테이블만 적는다(지금 열: `DT_Rules`·`DT_Civs`·`DT_LogTemplates`·`DT_Events`·`DT_Galaxies`·`DT_Transcendents`와, 위기 처리 작업에서 컬럼을 적은 `DT_Hazards`와, 거대 프로젝트와 승천 판정 작업에서 컬럼을 적은 `DT_Megaprojects`·`DT_Feats`와, MVP ②에서 컬럼을 적은 `DT_Encounters`(B1에서 `Subject`의 `VesselSystem`과 행 접두어 `enc_`의 규칙을 더했다). `DT_Edicts` 같은 테이블은 구조체와 함께 온다).
 
 - `tables`: 테이블마다 `struct`(행 구조체 이름에서 F를 뺀 것), 행 이름의 꼴(`prefixes` — 접두어, 또는 `names` — 그 이름만), `must_exist`(원본과 에셋이 반드시 있어야 하는가 — 에셋이 생긴 테이블은 켠다), `required_rows`(코드가 이름으로 부르는 행), `columns`, `rules`, `unique`, `pairs`.
 - `columns`: 행 구조체의 **모든** 컬럼을 적는다 — 스키마에 없는 컬럼과 구조체에 없는 컬럼은 둘 다 문제다. 컬럼마다 종류가 하나다. 행이 아직 없는 테이블은 `null`이고 첫 행을 쓸 때 적는다(`null`인 테이블에 원본이나 에셋이 있으면 문제다).
 - 컬럼의 종류(닫힌 목록 18)와 종류마다 쓸 수 있는 선택 항목(이것도 닫힌 목록이고, 검사기 머리의 `COLUMN_OPTIONS`가 쥔다): `pool`(자원 풀 `FResourcePool` — 낱말 목록 `resource`의 다섯 멤버를 빠짐없이, 다른 키 없이 수로 적는다. `min`. `Data.Integrity`가 그 목록을 구조체의 멤버에 맞춘다 — MVP ② A-2a), `structs`(구조체의 배열 — `columns`(원소의 멤버마다 지금의 종류와 선택 항목, `structs`는 다시 담지 않는다)·`min`·`len_in`. 원소는 `columns`와 정확히 같은 키를 갖는다: 빠진 멤버가 C++ 기본값으로 조용히 남지 않는다. 행 규칙은 하위 열을 `List.Column`으로 부르고 모든 원소에서 성립해야 참이다(빈 배열은 참). `DT_Encounters.Choices` — MVP ② A-2a), `plain`(검사하지 않는다 — bool·색·그 밖의 구조체. 선택 항목도 시험도 없다: 구조체에는 `is`·`in`이 늘 거짓이고 `set`이 늘 참이라 규칙을 조용히 끈다. bool 컬럼에 시험이 필요해지면 그때 종류를 더한다), `number`(`min`·`max`·`integer`), `numbers`(`len`·`ascending`·`ends_at`(마지막 칸의 값 — 누적 분포의 끝)·`min`·`max`·`integer`), `text`(`slots`·`no_digits`·`required`·`hedged`(수가 든 마디마다 이 낱말 가운데 하나를 제 낱말로 품는다 — '약'·'추정'·'논쟁 중'. 수는 어느 문자의 숫자든 되고, '개'·'광년' 앞의 한글 수 낱말(십·백·천·만·억·조 — '수억 개'·'십만 광년')도 수다. 'M87'·'NGC 205' 같은 목록 번호는 이름이라 수가 아니다. 마디는 ', '·' — '·'; '에서 나눈다(천 단위 쉼표는 뒤에 빈칸이 없어 마디를 나누지 않는다). 앞에 한글 음절이 붙으면 다른 낱말이고('요약'), 한 음절 낱말은 뒤에 붙어도 다른 낱말이다('약한' — '추정치'·'추정된'은 든다). §8.3은 수마다 붙이라고 하고, 검사기는 마디마다 본다)·`forbidden`(이 낱말을 품지 않는다)), `texts`(`min`·`len_in`·`empty_or_min`·`unique`·`slots`·`no_digits`·`single_variant`·`hedged`·`forbidden`), `tag`(`root`·`optional`), `tags`(태그 컨테이너 — `root`), `tag_list`(태그 배열 — `root`), `tag_map`(키가 태그, 값은 수 — `root`·`min`·`max`·`integer`), `row`(`table`·`optional`·`target` — 가리키는 행이 맞아야 하는 시험), `row_map`(키가 행 이름, 값은 수 — `table`·`target`·`min`·`max`·`integer`), `word_map`(키가 `words`의 낱말, 값은 수 — `words`·`min`·`max`·`integer`), `enum`(`enum`), `conditions`, `effects`(`per_tick` — 틱당 원천의 효과 일곱만, §7.5), `rows`(행 이름의 배열 — `tables`·`unique`. 원소마다 `tables`에 적은 테이블 가운데 하나의 행이고, `unique`면 한 배열에 두 번 쓰지 않는다. `DT_Hazards`의 해결 수단 두 컬럼 — 위기 처리 작업). 정수 프로퍼티의 컬럼에는 `integer`를 적는다(빠지면 `Data.Integrity`가 실패한다).
-- `rules`: '`when`이 다 맞는 행은 `then`도 다 맞는다'. 시험은 닫힌 목록이다 — 컬럼 하나에 `is`·`in`·`gt`·`ge`·`lt`·`le`·`set`·`min_len`·`max_len`·`each_contains`·`lacks_type`(조건·효과 배열에 그 열거자가 없다)·`slots_in`(텍스트의 슬롯이 그 목록 안에 있다)·`len_ge_col`(목록의 길이가 같은 행의 수 컬럼 이상)·`pairs_ge_col`(두 목록의 길이를 곱한 것이 같은 행의 수 컬럼 이상 — 짝으로 나눠 주는 이름 풀) 가운데 하나, 또는 행 이름을 짚는 `row`. 시험마다 쓸 수 있는 컬럼의 종류가 정해져 있다(크기 비교는 `number`에만, `each_contains`는 `texts`에만, `is`·`in`은 값 하나짜리 컬럼에만 — 컨테이너에 쓴 `is`는 늘 거짓이라 규칙이 꺼진다. 이름 풀 시험 `len_ge_col`·`pairs_ge_col`은 목록·맵 컬럼에만 쓰고 짚는 수 컬럼은 `number`다 — 태그 컨테이너 `tags`는 export 텍스트라 길이가 없어 늘 거짓이므로 쓸 수 없다. `set`은 `number`·`enum`에 쓸 수 없다 — 늘 참이다. `plain`에는 어떤 시험도 쓸 수 없다). `unique`는 컬럼 묶음의 값이 테이블 안에서 겹치지 않음을, `pairs`는 두 컬럼의 허용 짝(이벤트 행의 `Category` → `LogCategory`, §8.1)을 적는다.
+- `rules`: '`when`이 다 맞는 행은 `then`도 다 맞는다'. 시험은 닫힌 목록이다 — 컬럼 하나에 `is`·`in`·`gt`·`ge`·`lt`·`le`·`set`·`min_len`·`max_len`·`each_contains`·`lacks_type`(조건·효과 배열에 그 열거자가 없다)·`has_type`(그 열거자가 있다)·`has_cond`(그 열거자와 그 Key를 함께 가진 원소가 있다 — `has_type`이 가르지 못하는 `PlayerRoleIs Ruler`와 `Wanderer`, B1)·`slots_in`(텍스트의 슬롯이 그 목록 안에 있다)·`len_ge_col`(목록의 길이가 같은 행의 수 컬럼 이상)·`pairs_ge_col`(두 목록의 길이를 곱한 것이 같은 행의 수 컬럼 이상 — 짝으로 나눠 주는 이름 풀)·`contains_all`(태그 컨테이너·태그 배열이 그 태그를 모두 담는다) 가운데 하나, 또는 행 이름을 짚는 `row`, 또는 `row_prefix`(행 이름이 주어진 접두어로 시작한다 — 접두어는 그 테이블의 `prefixes` 가운데 하나여야 하고 아니면 검사기가 문제로 알린다. 한 종류의 행을 고른다 — 지금은 `when`에서만 쓴다, B1: `petition_`·`enc_`). 선택지마다 따로 거는 규칙(판정이 있는 선택지만 실패를 갖는다 — MVP ②, 방랑자 카드의 비용 0과 '`OnSuccess`에 `DeposeRuler`면 `NoCheck`이고 `Reign.Abdicated`' — B1)은 스키마의 시험이 아니라 C++ `Data.Integrity`가 본다(에디터 없는 검사에는 보이지 않는다). 시험마다 쓸 수 있는 컬럼의 종류가 정해져 있다(크기 비교는 `number`에만, `each_contains`는 `texts`에만, `is`·`in`은 값 하나짜리 컬럼에만 — 컨테이너에 쓴 `is`는 늘 거짓이라 규칙이 꺼진다. 이름 풀 시험 `len_ge_col`·`pairs_ge_col`은 목록·맵 컬럼에만 쓰고 짚는 수 컬럼은 `number`다 — 태그 컨테이너 `tags`는 export 텍스트라 길이가 없어 늘 거짓이므로 쓸 수 없다. `set`은 `number`·`enum`에 쓸 수 없다 — 늘 참이다. `plain`에는 어떤 시험도 쓸 수 없다). `unique`는 컬럼 묶음의 값이 테이블 안에서 겹치지 않음을, `pairs`는 두 컬럼의 허용 짝(이벤트 행의 `Category` → `LogCategory`, §8.1)을 적는다.
 - `conditions`·`effects`: 열거자마다 `tag`(`root`·`optional`)·`key`(`word` — 낱말 목록, `row` — 행 이름과 그 행이 맞아야 하는 `target`, `digits` — 숫자만, `any` — 아무 이름. `optional`)·`value`(`min`·`max`·`integer`)를 적는다. 적지 않은 칸은 비어 있어야 한다 — 읽지 않는 칸에 쓴 값은 오타다. 효과에는 `per_tick_only`(틱당 원천만 거는 효과 — `MultiplyIncome`)를 더 적을 수 있고, `DurationTicks`는 틱당 원천의 효과에만 0보다 클 수 있다. 원본의 조건·효과 객체는 구조체의 멤버를 모두 적는다(Type·Tag·Key·Value, 효과는 DurationTicks도) — 빠진 멤버와 없는 멤버는 문제다.
 - 그 밖: `words`(닫힌 낱말 목록 일곱 — resource·axis·stat·role·civ_selector·policy·research), `enums`(컬럼이 쓰는 열거형의 열거자), `per_tick_effects`(틱당 원천의 효과 일곱), `required_tags`(ini에 선언되어 있어야 하는 태그 — 지금은 §9.3 v0.6 항목의 `Notable.*` 역할 태그 여섯), `row_name_sources`(코드가 이름으로 부르는 행을 적어 둔 헤더 `Data/CosmicRowNames.h` — 검사기와 `Data.Integrity`가 그 이름들을 `required_rows`와 양쪽으로 맞춘다. 주석으로 막은 상수는 세지 않는다), `single_variant_rows`, `event_log_categories`, `row_name_pattern`, `tag_sources`(태그를 선언하는 ini).
 - 숫자의 범위는 이 문서가 정한 것만 적는다. 범위가 없는 노브는 `number`만이고 '유한한 수'인지만 본다.
@@ -1235,6 +1242,8 @@ bool NoteMet(FName CivID, FName SeenAtSystemID = NAME_None); // 앎에 쓰는 �
 
 bool NoteKnown(FName SystemID); // Knowing.KnownSystems에 같은 방식으로 더한다. 줄은 내지 않는다. 새로 적었으면 true. 시뮬 추첨 0. 가드는 NoteMet과 같다. Phase 2
 
+int32 LookFrom(TConstArrayView<int32> EyePlaces, int32 Reach, bool bSees); // 눈 하나의 보기 — 앎 단계의 두 쓰기(B1에서 TickSight 안에서 레인을 따라 너비 우선으로 찾아 나가던 일을 함수로 떼어 냈다, 동작 그대로 — 테스트 Sim.SightWalkMoved): 눈의 자리 모두에서 한 번에 찾아 나가고(CosmicState::SightWalkOf), bSees이면 Reach 레인 안의 성계를 찾은 차례로 NoteKnown, 이어서 아는 성계 전부의 주인을 가까운 순(눈에서의 레인 수 — 보는 거리의 상한 없이, 동률은 CivID)으로 NoteMet. 세계를 읽고 앎과 이야기만 쓴다, 시뮬 추첨 0. 새로 안 성계의 수를 돌려준다. 부르는 곳은 TickSight와 방랑자의 스캔(UPlayerRoleSubsystem::ScanCurrentSystem, 틱 밖) 둘이다
+
 EAscensionTier GetViewerTier() const; // 보는 쪽 Tier(§8.1): 그릇이 다스리는 백성이 있으면 그 백성의 Tier, 없으면(방랑자·공백기) Calling.PersonalTier. NoteMet의 격차 규칙과 이야기의 범위가 읽는다 — 세계는 읽지 않는다
 
 const FCosmicRulesDef& GetRules() const { return Rules; } // DT_Rules 단일 행(행 이름 rules). 테이블이나 행이 없으면 C++ 기본값
@@ -1250,7 +1259,7 @@ FCosmicEvalContext MakeEvalContext(); // 살아 있는 상태·시뮬 스트림�
 const FCosmicStateIndex& GetStateIndex() const; // ID → 배열 인덱스(Sim/CosmicStateIndex.h). 저장하지 않고 해시하지 않으며 조회만 한다(순회하지 않는다). NewGalaxy·LoadState·건넘 단계가 다시 만든다. 조회는 그 인덱스의 원소가 정말 그 ID인지 확인하고, 낡았으면 에러 한 줄과 INDEX_NONE이다. 같은 파일의 CosmicState::IsSettled가 '정착된 성계'의 술어 하나다(§5.7)
 
 bool IsBroadcasting() const; // OnLogEntry·OnEventFired·OnTierAscended를 내는 동안 참. 그 핸들러에서 부른 EvaluateAndFire·FireRow는 에러 한 줄을 남기고 아무 일도 하지 않는다. MakeEvalContext는 에러 한 줄을 남기되 문맥은 돌려준다(참조를 든 값이라 빈 문맥이 없다). static인 Apply·ApplyAll은 방송 셈에 닿지 못해 핸들러 규칙으로만 금한다(§9.4). 핸들러 안에서 거절되는 호출의 다른 목록(Push·PushVariants·DrawTell을 비롯해)은 헤더 주석과 CLAUDE.md 불변 규칙에 있다
-bool IsInTickStages() const; // 첫째~아홉째 단계(경제~앎, 청원의 제시까지)가 도는 동안 참(SimulateTick 안 — MVP ⑤). 열째 단계 '역할 효과 해소'는 가드 밖이다(지금 그 단계에서 저장을 부르는 길은 없다 — Phase 4b의 도약 헤더가 넓힐지 정한다). 저장 층은 틱 경계와 입력에서만 쓰고 읽으므로 그 안에서는 핸들러 안처럼 거절한다(§16 #33 ①)
+bool IsInTickStages() const; // 첫째~아홉째 단계(경제~앎, 기다리는 카드의 제시까지)가 도는 동안 참(SimulateTick 안 — MVP ⑤). 열째 단계 '역할 효과 해소'는 가드 밖이다(지금 그 단계에서 저장을 부르는 길은 없다 — Phase 4b의 도약 헤더가 넓힐지 정한다). 저장 층은 틱 경계와 입력에서만 쓰고 읽으므로 그 안에서는 핸들러 안처럼 거절한다(§16 #33 ①)
 
 // 영압 (§4.2). 파생값, 저장 안 함. Presentation의 영적 시야(§6.4)도 이 함수를 읽는다
 
@@ -1280,11 +1289,13 @@ private:
 
 void SimulateTick(); // 고정 순서(열 단계): ① 경제 → ② 연구 → ③ 외교 → ④ 분쟁 → ⑤ 위기 → ⑥ AI → ⑦ 건넘(TickCrossings) → ⑧ 플레이어 이동(Embodied일 때만) → ⑨ 앎(TickSight, Embodied일 때만) → ⑩ 역할 효과 해소(가드 밖, 10번째·마지막). State.Tick을 먼저 올린 뒤 단계를 돈다 — 첫 시뮬 틱은 1이고 틱 0은 NewGalaxy가 만든 상태다(틱 단계에서 생기는 사건은 틱 0을 갖지 않는다. 틱 밖 플레이어 입력은 Tick 0에도 일어날 수 있다 — §16 #35)
 
-// 위기 단계(TickHazards): Hazard 만료 효과 적용. TickHazards(Hazard 만료)·TickConflict(분쟁 단계 — 통치 문명의 마지막 성계를 앗아 갈 때 DeposeRuler)·UCosmicEventSubsystem::Apply(이벤트 효과)·ResolveEncounterChoice(조우 OnFailure, 틱 밖 플레이어 입력)는 KillPlayer·DeposeRuler를 실행하지 않고 FCallingState.PendingRoleEffect(PendingEffect = 태그 Effect.KillPlayer 또는 Effect.DeposeRuler / PendingCause / PendingSourceRow, 틱당 최대 1건, 먼저 기록된 것 우선)에 기록만 한다 — 기록하는 자리는 하나다: 데이터 효과든 단계 코드든 UCosmicEventSubsystem::Apply를 거친다. Calling.LifeState가 Embodied일 때만 적는다(공백기의 틱은 역할 효과를 적지 않는다 — 도약은 바깥 틱의 열째 단계 안에서 돌고 그릇은 Install 전까지 옛 값이다). 출생 보호(생애 첫 BirthProtectionTicks)는 적는 자리에서 가린다 — 가려진 KillPlayer는 칸을 차지하지 않아 같은 틱의 뒤따르는 DeposeRuler가 그대로 적힌다. KillPlayer가 그릇에 닿는 경우는 둘뿐이다: 문맥에 성계가 있으면 그 성계에 선 방랑자에게만(성계에 일어난 일은 통치자를 죽이지 않는다 — 통치자의 실패는 폐위다, §4.4), 문맥에 성계가 없으면 문맥 문명이 통치 문명일 때(그 문명의 절멸)나 문맥에 문명이 없을 때만. event_grace_rescue는 Apply가 아니라 열째 단계가 사망 파이프라인 앞에서 FireRow로 낸다(Phase 4b)
+// 기다리는 카드의 자리(MVP ②, B1): ++Tick 전에 틱 첫머리의 단위 CosmicPetitions::StandingHeld(…, bTravelAtOrigin = true)를 지역 값으로 잡아 두고(이동 중인 방랑자는 떠나온 성계에 선 것으로 센다. 재위의 첫 틱이면 비운다 — IsFirstTickOfReign), ⑧이 돌려준 '이 틱에 도착했다'와 함께 ⑨의 끝에서 Present(…, 그 단위, bArrived)를 부른다. 방랑자 카드가 놓이면 그 성계의 주인을 NoteMet한다(주제 성계와 함께 — 격차 규칙은 NoteMet의 것). 저장도 멤버 상태도 아니다. 규칙은 docs/20 부록 '불변 규칙 전문'의 틱 순서 문단
 
-// 역할 효과 해소(10번째·마지막 단계, ResolvePendingRoleEffect): PendingRoleEffect가 있으면 UPlayerRoleSubsystem의 사망·폐위 파이프라인(§4.4, §5.10)을 실행한다. 그 안의 RunHeadless 도약은 틱 경계에서 시작하므로 재진입이 없다. 틱 경계의 자동 저장(§9.1 — UCosmicSaveSubsystem의 OnSimTick 핸들러)은 이 단계와 SyncRngState가 끝난 뒤의 OnSimTick에서 찍는다. 입력 때의 저장(받아들인 답·새 판·종료)은 틱 밖이다
+// 위기 단계(TickHazards): Hazard 만료 효과 적용. TickHazards(Hazard 만료)·TickConflict(분쟁 단계 — 통치 문명의 마지막 성계를 앗아 갈 때 DeposeRuler)·UCosmicEventSubsystem::Apply(이벤트 효과)·틱 밖 플레이어 입력(카드의 답 AnswerPetition의 효과, 양위 명령 Abdicate — B1)은 KillPlayer·DeposeRuler를 실행하지 않고 FCallingState.PendingRoleEffect(PendingEffect = 태그 Effect.KillPlayer 또는 Effect.DeposeRuler / PendingCause / PendingSourceRow, 틱당 최대 1건, 먼저 기록된 것 우선)에 기록만 한다 — 기록하는 자리는 하나다: 데이터 효과든 단계 코드든 UCosmicEventSubsystem::Apply를 거친다. Calling.LifeState가 Embodied일 때만 적는다(공백기의 틱은 역할 효과를 적지 않는다 — 도약은 바깥 틱의 열째 단계 안에서 돌고 그릇은 Install 전까지 옛 값이다). 출생 보호(생애 첫 BirthProtectionTicks)는 적는 자리에서 가린다 — 가려진 KillPlayer는 칸을 차지하지 않아 같은 틱의 뒤따르는 DeposeRuler가 그대로 적힌다. KillPlayer가 그릇에 닿는 경우는 둘뿐이다: 문맥에 성계가 있으면 그 성계에 선 방랑자에게만(성계에 일어난 일은 통치자를 죽이지 않는다 — 통치자의 실패는 폐위다, §4.4), 문맥에 성계가 없으면 문맥 문명이 통치 문명일 때(그 문명의 절멸)나 문맥에 문명이 없을 때만. event_grace_rescue는 Apply가 아니라 열째 단계가 사망 파이프라인 앞에서 FireRow로 낸다(Phase 4b)
 
-// 공백기 도약 중(Calling.LifeState == Interregnum): TickPlayerTravel(⑧)·TickSight(⑨)·플레이어 업적 평가·조우 생성을 건너뛰고 매 틱 엔딩 조건을 검사한다 (§4.4). 그릇이 없어 앎이 늘지 않는다 — NoteMet·NoteKnown도 불리지 않는다
+// 역할 효과 해소(10번째·마지막 단계, ResolvePendingRoleEffect): PendingRoleEffect가 있으면 UPlayerRoleSubsystem의 사망·폐위·양위 파이프라인(§4.4, §5.10 — 양위는 B1)을 실행한다. 그 안의 RunHeadless 도약은 틱 경계에서 시작하므로 재진입이 없다. 틱 경계의 자동 저장(§9.1 — UCosmicSaveSubsystem의 OnSimTick 핸들러)은 이 단계와 SyncRngState가 끝난 뒤의 OnSimTick에서 찍는다. 입력 때의 저장(받아들인 답·새 판·종료)은 틱 밖이다
+
+// 공백기 도약 중(Calling.LifeState == Interregnum): TickPlayerTravel(⑧)·TickSight(⑨)·플레이어 업적 평가·기다리는 카드의 제시를 건너뛰고 매 틱 엔딩 조건을 검사한다 (§4.4). 그릇이 없어 앎이 늘지 않는다 — NoteMet·NoteKnown도 불리지 않는다
 
 // 이벤트·업적·영압의 자리: 열 단계와 SimulateTick의 호출 열 개는 그대로이고 네 단계 안의 순서를 고정한다. ① 경제 = 문명마다(Civs 배열 순서) 인구 회복(`PopulationRegrowthPerTick`) → 안정도 회복(`StabilityRecoveryPerTick`·`StabilityRestingLevel`, MVP ③) → 수입 계산(정착된 성계만 — 정착 중인 성계는 수입이 없다. 에너지 = 별 등급 합 × 칸 배수 × (1 + 물질 보너스 × 물질 쪽 윤리), 물질 = 풍부도 합 × 칸 배수, 통찰·영향력 = 인구 × 인구당 값 × (1 + 영성·개방 보너스 × 그 윤리) — 칸 배수는 통찰·영향력에 걸리지 않는다, 노브는 DT_Rules, MVP ⑧) → 틱당 원천(영압의 Stability 소모와 PressureEffectsPerTick. Phase 4부터 칙령·특성 행. 틱당 원천은 양을 고치는 효과만 건다 — 이 단계에는 추첨도 역할 효과의 기록도 없다, §7.5 Apply) → 비축 가산. 모든 문명을 다 돈 뒤 LowStabilityTicks와 FallenSphereTicks를 따로 한 바퀴 센다(FallenSphereTicks의 영향권 소속은 이 단계 첫머리에 만든 표를 그대로 읽는다). ② 연구 = 통찰 수입 × ResearchInsightShare(비축 한도 안)를 써서 분야마다 그 × 몫 × ResearchPerInsight만큼 오르고(MVP ⑧ — 노브), 돌파마다 줄을 내고, Society 돌파에는 그 줄 다음에 event_book_found를 이름으로 낸다(행의 조건이 책이 닫힌 백성을 고른다, §5.11 — 이름으로 부르는 행은 그 자리의 단계가 낸다). ⑤ 위기 = 거대 프로젝트와 해결 → 카운트다운과 만료 → 발생 → 이벤트 슬롯(UCosmicEventSubsystem::EvaluateAndFire). ⑥ AI = AI·섭정의 결정(백성마다 거대 프로젝트의 시작, 이어서 정착과 그 추첨) → 업적 판정(UAscensionSubsystem::EvaluateFeats, 틱당 정확히 1회). 귀결 셋: 그 틱의 LowStabilityTicks 셈에 드는 Stability 변화는 안정도 회복과 틱당 원천뿐이고 그 밖의 변화(이벤트·만료·해결·AI·틱 사이 입력)는 다음 틱의 셈에 처음 잡힌다 / 한 틱에 역할 효과를 적는 순서는 틱 사이 입력 → ② 연구의 이름 행(Civs 배열 순서) → ④ → ⑤ⓐ 대응 프로젝트의 완성이 건 해결 효과(Systems 배열 순서) → ⑤ 만료(Systems 배열 순서) → ⑤ 발생의 전조 행 → ⑤ 이벤트 슬롯(Civs 배열 순서) → ⑥ 업적의 대가(플레이어가 통치하는 백성 먼저, 그다음 Civs 배열 순서 — 지금 스키마는 업적의 대가에 역할 효과를 싣지 않는다)이다 / 위기 단계의 카운트다운 뒤에 놓인 Hazard(ⓑ 만료의 효과·주장 규칙, ⓒ 추첨·수도, ⓓ 이벤트 슬롯)는 그 틱에 카운트다운이 줄지 않는다 — 카운트다운을 먼저 줄이고 만료를 모은 뒤에 놓인다. 그보다 앞에서 놓인 것(② 연구의 이름 행, Phase 4의 ④ 분쟁, '거대 프로젝트와 승천 판정' 작업부터 ⓐ 해결의 효과)은 그 틱의 ⓑ에서 한 번 준다. 발화한 행의 효과는 큐 없이 그 자리에서 배열 순서로 적용한다(§7.5)
 
@@ -1296,20 +1307,34 @@ void TickDiplomacy();
 
 void TickConflict(); // 유효 전력 = FleetPower × FleetEffectivenessByTierGap, 상위 영향권 소모, 함대 투입당 카운트다운 +50 (§5.6). 승수·소모 2줄. 통치 문명의 마지막 성계를 앗아 가면 PendingRoleEffect(DeposeRuler) 기록만(§4.4)
 
-// 세계 함수(공개, static이 아닌 이름공간 — 상태·색인·테이블을 받고 줄을 내지 않는다): CosmicHazards::Place·Resolve·Transfer·MoveCapital·Destroy·EmptyHazardSlot·LetSettlementsGo, 물음 ClaimantOf·IsLastUnclaimed·IsLastSettledSystem·IsDeadNode / CosmicMegaprojects::Start·StartBlockOf·CanStart·Choices·Advance·HasCompleted·RequiredProgressOf·CostPerTickOf·CanPay·RealmCapOf·IsSettling·MaySettle·CanSettle·SettleBlockOf·SettleTargets·PeopleSettleBlockOf·Settle, 읽기만 하는 ReadSlot·PaidNothing(패널의 '멈춤'과 커맨드렛 — 어느 단계도 부르지 않는다) / CosmicState::IsSettled·OwnsAnySystem·PickAIProfile·LaneDistancesFrom / CosmicState::IsSanctuary·IsFirstHome과 상수 CosmicIDs::Sanctuary·FirstHome(ID만 보는 순수 함수 — Core/CosmicIDs.h, §4.5 ①. `Law.Hedge`를 지키는 자리: `SettleBlockOf`의 첫 사유 `Sanctuary`·`SettleTargets`·`Place`·`Transfer`·`Destroy`·압력 본체·`Install`·`BecomeWanderer`·`LoadGalaxy`) (Sim/CosmicHazards.h·CosmicMegaprojects.h·CosmicStateIndex.h — 새 물음을 만들기 전에 여기서 찾는다. 종료 리뷰)
+// 세계 함수(공개, static이 아닌 이름공간 — 상태·색인·테이블을 받고 줄을 내지 않는다): CosmicHazards::Place·Resolve·Transfer·MoveCapital·Destroy·EmptyHazardSlot·LetSettlementsGo, 물음 ClaimantOf·IsLastUnclaimed·IsLastSettledSystem·IsDeadNode / CosmicMegaprojects::Start·StartBlockOf·CanStart·Choices·Advance·HasCompleted·RequiredProgressOf·CostPerTickOf·CanPay·RealmCapOf·IsSettling·MaySettle·CanSettle·SettleBlockOf·SettleTargets·PeopleSettleBlockOf·Settle, 읽기만 하는 ReadSlot·PaidNothing(패널의 '멈춤'과 커맨드렛 — 어느 단계도 부르지 않는다) / CosmicState::IsSettled·OwnsAnySystem·PickAIProfile·LaneDistancesFrom·SightWalkOf(B1) / CosmicWanderer::IsTravelling·IsEmbodiedWanderer·PlaceIndexOf·StandingIndexOf·LaneTicksOf·TravelBlockOf·IsReturn·CrownBlockOf(방랑자의 문 — B1, 아래) / CosmicState::IsSanctuary·IsFirstHome과 상수 CosmicIDs::Sanctuary·FirstHome(ID만 보는 순수 함수 — Core/CosmicIDs.h, §4.5 ①. `Law.Hedge`를 지키는 자리: `SettleBlockOf`의 첫 사유 `Sanctuary`·`SettleTargets`·`Place`·`Transfer`·`Destroy`·압력 본체·`Install`·`BecomeWanderer`·`TravelBlockOf`의 사유 `Sanctuary`와 여덟째 단계의 도착(B1)·`LoadGalaxy`) (Sim/CosmicHazards.h·CosmicMegaprojects.h·CosmicStateIndex.h·CosmicWanderer.h — 새 물음을 만들기 전에 여기서 찾는다. 종료 리뷰)
+
+// 한 번의 보기(B1, Sim/CosmicStateIndex.h): struct CosmicState::FCosmicSightWalk { TArray<int32> Found; // 찾은 차례의 성계 인덱스 — 눈의 자리가 먼저, 준 차례로  TArray<int32> LanesFrom; // State.Systems의 원소마다 가장 가까운 자리에서의 레인 수(자리는 0, 닿지 않으면 INDEX_NONE) } · CosmicState::FCosmicSightWalk CosmicState::SightWalkOf(const FGalaxyState&, const FCosmicStateIndex&, TConstArrayView<int32> EyePlaces) — 눈의 자리 모두를 준 차례로 0단에 놓고(범위 밖이나 두 번 준 인덱스는 건너뛴다) Lanes 배열 차례로 너비 우선. 레인은 떠나는 성계와 같은 GalaxyRow의 성계로만 따라가고 상태에 없는 SystemID로 가는 레인은 건너뛴다. 보는 거리로 자르지 않는다 — 부르는 쪽(앎 단계·스캔, LookFrom)이 제 거리로 자르고 LanesFrom으로 만남의 차례를 정한다. 보기가 성역을 지나는가는 §16 #80(단계 5 — 지금 성역에는 레인이 없다). 세계만 읽고 추첨 없이 한 번 돈다
+
+// 방랑자의 문(B1, Sim/CosmicWanderer.h — 순수 함수 이름공간, 상태·줄·추첨 없음. 명령과 패널이 같은 답을 읽는 한 창구. 문이 쓰는 앎(만났는가·카드가 기다리는가)은 인자로 받는다: 명령은 State.Knowing에서(입력의 정의), 패널은 FCosmicKnownView에서(표현 계층이 앎을 읽는 곳은 KnownViewOf 하나 — 불변 규칙 14))
+// - enum class ETravelBlock : uint8 { None, NotWanderer, Travelling, CardWaiting, Sanctuary, NotNeighbour, Handler }  TravelTo의 첫 거절 사유(None = 받는다). 저장되지 않는다 — 패널이 이 차례로 첫 사유를 말한다(그릇의 세 상태가 먼저, 대상에 관한 사유 가운데 성역이 먼저). Handler = 핸들러 안의 부름(에러 한 줄)
+// - enum class ECrownBlock : uint8 { None, NotWanderer, Travelling, CardWaiting, NotStanding, NotSettled, Unmet, ThroneLocked, Lacking, Handler }  즉위·복귀의 첫 거절 사유. NotStanding = 그릇이 그 백성의 성계에 서 있지 않다, NotSettled = 서 있는 성계가 정착 중이다, Lacking = 경외도 지도자 공백도 아니다(즉위만 — 복귀는 둘 다 보지 않는다). 저장되지 않는다
+// - bool IsTravelling(const FGalaxyState&)  Player.TravelTargetSystemID != NAME_None — 모든 문·카드·거둬짐이 이 시험 하나를 읽는다
+// - bool IsEmbodiedWanderer(const FGalaxyState&)  몸을 입은(Embodied) 방랑자
+// - int32 PlaceIndexOf(const FGalaxyState&, const FCosmicStateIndex&)  몸을 입은 방랑자가 선 것으로 세는 성계의 인덱스 — 이동 중이면 떠나온 성계(Player.CurrentSystemID). 통치자·공백기·상태에 없는 ID는 INDEX_NONE
+// - int32 StandingIndexOf(const FGalaxyState&, const FCosmicStateIndex&)  이동 중이 아닌 몸을 입은 방랑자가 선 성계의 인덱스, 그 밖은 INDEX_NONE
+// - int32 LaneTicksOf(const FCosmicRulesDef&)  레인 하나의 틱 = DT_Rules.LaneTravelTicks, 1 아래는 1
+// - ETravelBlock TravelBlockOf(const FGalaxyState&, const FCosmicStateIndex&, FName TargetSystemID, bool bCardWaiting)  TravelTo의 문: 몸을 입은 방랑자, 이동 중 아님, 기다리는 카드 없음, 대상이 성역 아님, 선 성계의 살아 있는 레인 이웃(그 Lanes에 있고 같은 GalaxyRow이고 죽은 노드가 아니며 선 성계 자신이 아니다). 앎을 읽지 않는다 — 방랑자의 레인 이웃은 늘 아는 성계다(BecomeWanderer의 새 눈, 그리고 모든 보기가 한 레인에 닿는다)
+// - bool IsReturn(const FGalaxyState&, FName CivID)  CivID가 그릇이 떠나온 백성(Player.FormerCivID)인가 — 즉위가 복귀인가
+// - ECrownBlock CrownBlockOf(const FGalaxyState&, const FCosmicStateIndex&, const FCosmicRulesDef&, FName CivID, bool bMet, bool bCardWaiting)  BecomeRuler의 문(CivID = 그릇이 선 성계의 주인): 몸을 입은 방랑자, 이동 중 아님, 기다리는 카드 없음, 그 백성의 정착된 성계에 서 있다, bMet, Tick >= 그 백성의 ThroneLockedUntilTick(떠날 때 모든 백성에게 적힌다), 그리고 복귀가 아니면 ReverenceToPlayer >= DT_Rules.CoronationReverence 또는 Stability < CoronationStabilityBelow(숫자가 아닌 값은 어느 쪽도 통과하지 않는다). 설계는 §5.10(즉위·복귀·잠금), 결정의 근거는 헤더 B1의 2.7절
 void TickHazards(); // 발생 추첨은 정착된 성계만 돈다 — 무주 성계와 정착 중인 성계는 뽑지 않고 건너뛴다(추첨 수는 소유를 따르고 시드에 대해 고정이다). Hazard.Claim도 정착된 성계에만 선다 (§5.7). Hazard.Extinction의 만료는 그 문명의 성계를 놓게 할 뿐 Civs 배열을 줄이지 않는다 — 제거는 그 틱의 건넘 단계의 정리가 한다(플레이어가 통치하는 문명만 다음 틱의 정리로 미룬다 — 아래 '건넘 단계'). 만료 효과, Hazard.Rebellion 지속 틱 조건 (§4.1). KillPlayer·DeposeRuler는 PendingRoleEffect 기록만. 만료 처리 끝에 Hazard.Claim 발생 규칙(결정론: 타락 영향권 인접 — 조공은 Phase 4, Law.Remnant, MaxInfluencedSystems 상한)과 Claim 만료 = InfluencedSystems 편입 (§4.2 영혼 경제, 틱 순서 불변) 단계 안의 순서(고정): ⓐ 거대 프로젝트와 해결(AdvanceMegaprojects) — 모든 성계의 대응 칸(Systems 배열 순서), 그다음 모든 성계의 건설 칸(같은 순서)을 내고 진척시키고, 완성된 프로젝트를 기록하고 칸을 비우고, 그 성계의 Hazard 행이 든 프로젝트면 그 Hazard를 해결한다(답이 짓는 일보다 먼저 비축을 쓴다 — 정착과 문명 제거 작업의 리뷰. 값을 다 치르지 못한 대응 칸이 기다리는 자원을 그 값 아래로 남길 같은 백성의 건설 칸은 그 틱에 내지 않는다 — 종료 리뷰와 그 재감사). 카운트다운보다 먼저라 마지막 틱에 완성된 해결 수단도 성계를 구한다. 프로젝트 칸 하나가 '세계 → 받은 성계의 앎 → 완성 줄 → 해결 줄'이다(§5.7). 행이 더는 들고 있지 않은 대응 프로젝트는 결과 없이 끝나고, 정착 중인 성계의 건설 칸(`project_settle`)도 다른 건설 행처럼 돈다(그 행이 테이블에 없으면 칸이 그대로 남는다 — 정착과 문명 제거 작업). ⓐ는 제 추첨이 없다 — 해결이 거는 효과(`OnResolveEffects`)와 그 뒤의 행은 Apply대로 뽑는다(`NameNotable` 1회 따위) ⓑ 카운트다운과 만료 — 두 번에 나눠 한다: 모든 카운트다운을 줄이며 0이 된 성계를 Systems 배열 순서로 모으고, 그다음 모은 순서대로 만료시킨다. 모은 만료마다 시뮬 추첨 2회(결과의 수, 주장의 수)를 만료를 돌기 전에 전부 먼저 뽑는다(행이 없는 태그도 뽑는다). 만료 하나는 '세계 → 받은 성계의 앎 → 만료 줄 → 뒤따르는 줄'이다(원인이 먼저 읽힌다. 받은 성계의 앎은 세계 쪽의 코드 훅보다도 먼저라 그 만남의 줄은 슬롯에 아직 만료하는 태그가 있을 때 나간다 — 재감사): 앞선 만료가 그 슬롯을 비웠거나 바꿨으면(같은 태그로 다시 놓았어도 — 새로 놓인 것은 카운트가 1 이상이다) 건너뛴다 → 행이 없는 태그는 결과도 줄도 없이 비운다(해결처럼 — 반란이면 지도자와 불만의 셈도 끝난다) → 성계를 앗아 가는 만료(초신성 전조)가 주인의 마지막 정착된 성계에 닿으면(정착 중인 성계는 셈하지 않는다 — 그 정착은 성계와 함께 놓인다, §5.7) 먼저 마지막 성계의 문을 묻는다(아래 건넘 단계, §4.5 — 문이 열리면 그 만료는 줄 없이 슬롯만 비운다) → OnExpireEffects 또는 갈래(UCosmicEventSubsystem::ApplyAll) → 이웃 효과 → 받은 성계의 앎(FollowUpKnowing — 효과가 통치 문명에 넘긴 성계를 알고 준 백성을 만난다. 아래의 은혜 줄과 만료 줄보다 먼저다 — 아는 범위와 로그 작업과 그 리뷰) → 태그의 코드 훅(파괴·왕좌 교체·편입. 효과가 그 성계를 주인의 마지막 정착된 성계로 만들었으면 — 데이터는 그럴 수 없다: 만료 효과도, 이웃 효과가 부르는 해결 효과도 TransferSystem을 싣지 않는다, Data.Integrity — 파괴 앞에서 문을 다시 묻고 에러 한 줄. 그때 지켜진 성계는 만료 효과와 이웃 효과를 이미 받았다: 그 효과가 통치 문명에 넘긴 성계는 은혜 줄보다 먼저 알고, 그 효과가 남긴 Hazard의 줄은 은혜 줄 다음에 나간다) → 슬롯 비움 → 이 만료가 비운 슬롯에 Hazard.Claim 발생 규칙 → 만료 줄(주장이 아무것도 편입하지 못했으면 해결 줄) → 뒤따르는 줄(새로 선 Hazard의 발생 줄과 전조 행, 해결 줄) ⓒ 발생 — 정착된 성계마다 슬롯이 비었든 찼든 시뮬 추첨 정확히 1회를 Systems 배열 순서로 먼저 전부 뽑고, 그다음 그 수가 정한 발생을 같은 순서로 놓는다(찬 슬롯과 정착 중인 성계에는 서지 않는다). 그다음 결정론 발생(반란)을 Civs 배열 순서로 본다. 그다음 첫 위기(MVP ③ — `Tick == DT_Rules.FirstCrisisTick`인 틱에만, Civs 배열 순서로 모든 백성의 수도에 `FirstCrisisHazard`의 Draw 행을 놓는다. 찬 슬롯은 건너뛴다. 추첨 없음) ⓓ 이벤트 슬롯 — UCosmicEventSubsystem::EvaluateAndFire. Hazard를 슬롯에 놓는 길은 하나다(추첨·결정론 발생·SpawnHazard 효과·인접 전파가 같은 함수를 거친다). 그 길이 발생 줄과 그 Hazard의 발생 전조 행(crisis_rebellion의 전조 ②)을 낸다 — 효과가 놓은 반란도 전조 ②를 받는다. 효과가 세계를 바꾼 뒤 따라야 하는 줄은 문맥의 후속 처리 기록(FCosmicEvalContext.Notes — 세계 함수 CosmicHazards::Place·Resolve가 적는다)과 멤버 FollowUpNotes가 잇는다(위기 처리 작업). 받은 성계의 기록은 FollowUpKnowing이 줄보다 먼저 따른다(아는 범위와 로그 작업, §7.5)
 
-// 인물 훅 ② (§1.3, §7.2, §7.5): crisis_rebellion 발생 처리가 전조 ② 행을 직접 Fire하고 그 효과 NameNotable(Notable.Rebel)이 만든다(데이터). 만료 처리에서 먼저 그 문명의 열린 Notable.Ruler 기록이 있으면 Apply 가드 ③과 같은 규칙으로 닫고(LastTick = max(Tick, 1), §7.5 — 왕좌가 바뀌었다), 그다음 열린 Notable.Rebel 기록의 Role을 Notable.Ruler로 바꾼다(AI 문명·플레이어 옛 문명 동일, '정권 교체' 로그 {Ruler}). 플레이어 문명이면 그 만료의 효과를 적용한 직후 PendingEffect가 Effect.DeposeRuler이고 PendingSourceRow가 crisis_rebellion일 때만 전환한다(다른 역할 효과가 먼저 기록되어 이 DeposeRuler가 버려지면 전환도 하지 않는다 — 다른 행이 적은 DeposeRuler로는 전환하지 않는다). 그때도 지금은 그 행의 만료 줄('새 다스리는 이가 섰다')이 나간다. 왕좌가 그대로 남는 것은 사망이 먼저 적혔을 때뿐이라 '반란이 지나갔다' 줄은 Phase 4b의 사망 파이프라인과 함께 더한다. 다른 원천(이름으로 부르는 행, Phase 4부터 조우의 해결)이 먼저 적은 폐위는 그릇을 어차피 틱 경계에서 떨어뜨린다 — 그때 만료 줄은 반란이 왕좌를 차지했다고 말하고 기록은 반란 지도자를 반란 지도자로 둔다. 그 줄은 그런 원천이 처음 오는 작업에서 정한다(§11 Phase 4). AI 문명이면 새 AIProfile을 만료의 결과 수가 고른다(CosmicState::PickAIProfile — 네 프로필 균등). 해결 처리에서 열린 Rebel 기록을 닫는다(LastTick = max(Tick, 1)). 넘김(TransferSystem)으로 비는 반란과 행이 없는 태그의 만료도 해결처럼 닫는다. 반란이 슬롯을 떠나면(만료·해결·넘김) 그 문명의 LowStabilityTicks = 0. Hazard.Extinction의 만료로 성계를 모두 잃은 문명은 그 틱의 건넘 단계(정리)에서 제거되고(플레이어가 통치하던 문명만 다음 틱) 명부도 함께 사라진다 — 애도 문장이 통치자 이름을 한 번 부른다. 인물 훅 ③은 UAscensionSubsystem의 AI 간이 판정(T3 도달 → Notable.Ascendant, §7.5), 훅 ①은 UPlayerRoleSubsystem::BecomeWanderer(Regent, §7.5). 인물 추첨의 난수는 문맥이 건넨 시뮬 스트림이다(§7.5)
+// 인물 훅 ② (§1.3, §7.2, §7.5): crisis_rebellion 발생 처리가 전조 ② 행을 직접 Fire하고 그 효과 NameNotable(Notable.Rebel)이 만든다(데이터). 만료 처리에서 먼저 그 문명의 열린 Notable.Ruler·Notable.Regent 기록을 Apply 가드 ③과 같은 규칙으로 닫고(LastTick = max(Tick, 1), §7.5 — 왕좌가 바뀌었다. 양위 뒤에 반란이 이기면 섭정이 아니라 반란의 우두머리가 다스린다 — B1), 그다음 열린 Notable.Rebel 기록의 Role을 Notable.Ruler로 바꾼다(AI 문명·플레이어 옛 문명 동일, '정권 교체' 로그 {Ruler}). 플레이어 문명이면 그 만료의 효과를 적용한 직후 PendingEffect가 Effect.DeposeRuler이고 PendingSourceRow가 crisis_rebellion일 때만 전환한다(이 만료가 적은 DeposeRuler가 기록된 것일 때). 그때 그 행의 만료 줄('새 다스리는 이가 섰다')이 나간다. 다른 원천이 역할 효과를 먼저 적었으면(양위의 명령과 왕좌 카드의 셋째 선택지, 왕좌 카드의 판정 실패 — B1. 사망을 적는 행은 Phase 4b까지 없다) 먼저 적힌 원천이 이긴다: 왕좌는 반란에게 가지 않고, 열린 Notable.Rebel 기록을 닫으며(LastTick = max(Tick, 1)), 만료 줄은 위기 행의 ExpireTemplates 대신 왕좌를 말하지 않는 이름 행 log_rebellion_unseated(위기 행의 Severity, 말하기 추첨 1회 — 수는 같다)다. 그 뒤 열째 단계가 적힌 효과를 처리한다(B1, `CosmicRows::LogRebellionUnseated`). AI 문명이면 새 AIProfile을 만료의 결과 수가 고른다(CosmicState::PickAIProfile — 네 프로필 균등). 해결 처리에서 열린 Rebel 기록을 닫는다(LastTick = max(Tick, 1)). 넘김(TransferSystem)으로 비는 반란과 행이 없는 태그의 만료도 해결처럼 닫는다. 반란이 슬롯을 떠나면(만료·해결·넘김) 그 문명의 LowStabilityTicks = 0. Hazard.Extinction의 만료로 성계를 모두 잃은 문명은 그 틱의 건넘 단계(정리)에서 제거되고(플레이어가 통치하던 문명만 다음 틱) 명부도 함께 사라진다 — 애도 문장이 통치자 이름을 한 번 부른다. 인물 훅 ③은 UAscensionSubsystem의 AI 간이 판정(T3 도달 → Notable.Ascendant, §7.5), 훅 ①은 UPlayerRoleSubsystem::BecomeWanderer(Regent, §7.5). 인물 추첨의 난수는 문맥이 건넨 시뮬 스트림이다(§7.5)
 
 void TickCivAI(); // AI 백성(플레이어가 통치하지 않는 백성)마다 Civs 배열 순서로: CosmicMegaprojects::Choices(SinceTick 0)를 모두 시작한다 — 대응 프로젝트와 업적의 건설 프로젝트, 추첨 없음(§4.3, §5.7, 거대 프로젝트와 승천 판정 작업). 다만 그 백성의 AIProfile이 DT_Rules.ClaimLeaveProfiles에 들면 Hazard.Claim이 선 성계의 답(구호)은 시작하지 않는다(MVP ③, §16 #71 — Choices 자체는 그대로라 통치자의 프로젝트 키는 이 노브를 받지 않는다). 이어서 확장은 정착(project_settle, §5.7 — 정착과 문명 제거 작업)이다: MaySettle(정착된 성계가 있고, 소유 성계 수 < RealmCapOf(Tier) — §5.12, 진행 중인 정착이 없다)이면 시뮬 스트림에서 정확히 1회 뽑고(대상을 보기 전에 — 대상이 없으면 그 수를 버린다, §9.2), SettleTargets(Systems 배열 순서 — 1레인·같은 GalaxyRow의 무주 성계, 봉인되지 않은 초월자의 영향권 안이면 Tier >= 3, §4.2 ④. 성역은 대상이 아니다)에서 그 수로 하나를 골라 Settle한다. 시작할 수 없는 백성은 뽑지 않는다. 소유 성계가 0인 문명은 어느 것도 하지 않는다(정착된 성계가 없다). 단계의 끝에서 UAscensionSubsystem::EvaluateFeats를 틱당 한 번 부른다(§7.5)
 
 void TickCrossings(); // 건넘 단계(7번째). Civs의 원소 수가 바뀌는 유일한 자리: ⓞ 정리(소유 성계가 0인 문명 제거) → ⓐ 도착 → ⓑ 출발. 정착과 문명 제거 작업부터 ⓞ, ⓐⓑ는 Phase 6a (아래 '건넘 단계')
 
-void TickPlayerTravel(); // 끝에서 Role == Ruler면 현재 생애의 열린 재위 ReignTicks를 1 올린다 (§7.2). 공백기 중에는 이 단계 전체를 건너뛴다
+bool TickPlayerTravel(); // 여덟째 단계(Embodied일 때만, B1): 이동의 남은 틱을 하나 줄이고, 0이 되는 틱에 목표가 그 틱에도 선 성계의 살아 있는 레인 이웃(그 Lanes에 있고 같은 GalaxyRow, 죽은 노드·성역이 아니다 — 가는 길에 파괴된 성계는 레인에서 빠진다)이면 그릇을 옮기고, 아니면 이동만 끝낸다. 어느 쪽이든 두 이동 필드를 함께 비운다(남은 틱 없이 목표만 있는 상태도 비운다). 줄·추첨 없음, 앎을 읽지 않는다. '이 틱에 도착했다'를 돌려준다 — SimulateTick의 지역 값이고 앎 단계 끝의 도착 카드가 읽는다(파괴가 그릇을 옮긴 것은 도착이 아니다). 끝에서 Role == Ruler면 현재 생애의 열린 재위 ReignTicks를 1 올린다 (§7.2). 공백기 중에는 이 단계 전체를 건너뛴다
 
-void TickSight(bool bVesselMoved); // 앎 단계(9번째, Embodied일 때만). 세계를 읽고 Knowing과 이야기만 쓴다 — 시뮬 스트림 추첨 0회. SightIntervalTicks마다, 그리고 그릇이 움직인 틱(bVesselMoved — 틱 첫머리의 CurrentSystemID와 이 단계 직전의 값이 다르다: 여행의 도착도, 파괴가 그릇을 옮긴 것도. SimulateTick의 지역 값)에 한 번 더 돈다. 공백기 중에는 건너뛴다. 본문은 아는 범위와 로그 작업 (아래 '앎 단계')
+void TickSight(bool bVesselMoved); // 앎 단계(9번째, Embodied일 때만). 세계를 읽고 Knowing과 이야기만 쓴다 — 시뮬 스트림 추첨 0회. SightIntervalTicks마다, 그리고 그릇이 움직인 틱(bVesselMoved — 틱 첫머리의 CurrentSystemID와 이 단계 직전의 값이 다르다: 여행의 도착도, 파괴가 그릇을 옮긴 것도. SimulateTick의 지역 값)에 한 번 더 돈다. 공백기 중에는 건너뛴다. 본문은 아는 범위와 로그 작업 (아래 '앎 단계'). 한 번의 보기는 LookFrom이다(B1에서 옮겼다 — 동작 그대로)
 
-void ResolvePendingRoleEffect(); // 역할 효과 해소. Calling.PendingEffect가 Effect.DeposeRuler면 UPlayerRoleSubsystem::DeposeRuler(폐위 파이프라인)를 부르고 기록을 비운다. Effect.KillPlayer는 Phase 4b의 사망 파이프라인까지 기록된 채 남는다 (§4.4, §5.10)
+void ResolvePendingRoleEffect(); // 역할 효과 해소. Calling.PendingEffect가 Effect.DeposeRuler면 원인으로 가른다 — PendingCause가 Reign.Abdicated면 UPlayerRoleSubsystem::AbdicateRuler(양위 파이프라인, B1), 그 밖은 DeposeRuler(폐위 파이프라인) — 그리고 기록을 비운다. Effect.KillPlayer는 Phase 4b의 사망 파이프라인까지 기록된 채 남는다 (§4.4, §5.10)
 
 UPROPERTY() FGalaxyState State;
 
@@ -1370,11 +1395,11 @@ static constexpr float SecondsPerTick = 1.0f;
 - 건너온 백성의 착지(ⓐ)는 T4Civs + Inbound(처리 중인 기록은 세지 않는다) < 상한일 때만 통과한다.
 - 고향으로 향하는 요약 은하발 출발(ⓑ)은 예정된 틱에 T4Civs + Inbound < 상한일 때만 기록되고, 건너뛴 칸은 다시 시도하지 않는다(k는 `Transits`의 기록 수가 아니라 `Tick`에서 찾는다).
 
-**앎 단계(`TickSight`) — 보는 거리와 만남**: 앎 단계는 세계를 읽고 `Knowing`과 이야기만 쓰며 시뮬 스트림 추첨은 0회다. 가드(`bInTickStages`) 안에서 줄을 낼 수 있으므로 `OnLogEntry` 핸들러가 동기로 불린다 — 첫 접촉 카드는 상태를 바꾸지 않는 핸들러가 띄운다(§9.4). `Install`(역할 효과 해소 단계 안, 가드 밖)은 그 틱에 출생 성계와 출생 문명을 `Knowing`에 적는다(난수 없음. 방랑자로 취임하거나 방랑자로 바뀌는 틱에는 선 성계의 1레인 이웃도 적는다 — §4.4).
+**앎 단계(`TickSight`) — 보는 거리와 만남**: 앎 단계는 세계를 읽고 `Knowing`과 이야기만 쓰며 시뮬 스트림 추첨은 0회다. 가드(`bInTickStages`) 안에서 줄을 낼 수 있으므로 `OnLogEntry` 핸들러가 동기로 불린다 — 첫 접촉 카드는 상태를 바꾸지 않는 핸들러가 띄운다(§9.4). `Install`(역할 효과 해소 단계 안, 가드 밖)은 그 틱에 출생 성계와 출생 문명을 `Knowing`에 적는다(난수 없음. 방랑자로 취임하거나 방랑자로 바뀌는 틱에는 선 성계의 1레인 이웃도 적는다 — §4.4). 즉위(`BecomeRuler`, 틱 밖 — B1)는 그 백성의 소유 성계를 `OwnedSystems` 차례로 줄 없이 적는다(그 백성은 즉위의 조건으로 이미 만났다). 방랑자의 스캔(`ScanCurrentSystem`, 틱 밖 — B1)은 같은 보기(`LookFrom`)를 선 성계 하나에서 보는 거리 + `DT_Rules.ScanSightBonusLanes`로 한 번 돈다.
 
 보는 거리의 단위는 레인 수다(본문과 ST_CA 라벨은 '보는 거리' — '시야'는 §6.4의 '영적 시야'와 겹친다. 노브 이름은 그대로). `DT_Rules.SightLanesByTier = {2, 3, 4, 6, 10}`(5칸 — MVP ③ 전 {1, 2, 4, 6, 10}), `SightIntervalTicks` 10, `FirstSightTick` 330 — 모두 앎 쪽 노브이고 세계와 생성 규칙은 읽지 않는다.
 
-앎 단계는 `SightIntervalTicks`마다 돌고(1 미만은 1로 읽는다 — 스키마가 1 이상을 지킨다), 그릇의 `CurrentSystemID`가 바뀐 틱(틱 첫머리의 값과 이 단계 직전의 값이 다르다 — 여행의 도착도, 초신성의 파괴가 그릇을 옮긴 것도)에는 주기와 무관하게 한 번 더 돈다. 보는 거리는 `SightLanesByTier[Tier]`이고 없는 칸이나 1 미만은 1로 읽는다(에러 줄 없이 — 범위는 스키마가 지킨다). 눈(§4.4)에서 같은 은하의 레인을 따라 너비 우선으로 보는 거리 안의 성계를 `NoteKnown`으로 `KnownSystems`에 더한다(이번 갱신의 임시 집합은 이미 아는 성계를 거르기만 한다. 출발점은 `OwnedSystems` 배열 순서, 이웃은 `Lanes` 배열 순서 — 더해지는 순서가 해시에 든다. 정수만 쓰고 임시 색인 위에서 돈다). `FirstSightTick`은 통치자가 소유 성계에서 보는 것만 늦춘다: 그 전의 통치자는 출생 성계(와 그 사이에 제 백성이 얻은 성계 — `NoteKnown`, §8.1)만 안다. 판의 틱 기준이라 첫 생애의 초반에만 작용하고, 방랑자의 눈은 늦추지 않는다.
+앎 단계는 `SightIntervalTicks`마다 돌고(1 미만은 1로 읽는다 — 스키마가 1 이상을 지킨다), 그릇의 `CurrentSystemID`가 바뀐 틱(틱 첫머리의 값과 이 단계 직전의 값이 다르다 — 여행의 도착도, 초신성의 파괴가 그릇을 옮긴 것도)에는 주기와 무관하게 한 번 더 돈다. 보는 거리는 `SightLanesByTier[Tier]`이고 없는 칸이나 1 미만은 1로 읽는다(에러 줄 없이 — 범위는 스키마가 지킨다). 눈(§4.4)에서 같은 은하의 레인을 따라 너비 우선으로 보는 거리 안의 성계를 `NoteKnown`으로 `KnownSystems`에 더한다(이번 갱신의 임시 집합은 이미 아는 성계를 거르기만 한다. 출발점은 `OwnedSystems` 배열 순서 — 눈의 자리 모두를 한 번에 0단에 놓는다, 이웃은 `Lanes` 배열 순서 — 더해지는 순서가 해시에 든다. 정수만 쓰고 임시 색인 위에서 돈다. 레인을 따라 찾아 나가는 일은 `CosmicState::SightWalkOf`, 보기 한 번은 `LookFrom` — B1). `FirstSightTick`은 통치자가 소유 성계에서 보는 것만 늦춘다: 그 전의 통치자는 출생 성계(와 그 사이에 제 백성이 얻은 성계 — `NoteKnown`, §8.1)만 안다. 판의 틱 기준이라 첫 생애의 초반에만 작용하고, 방랑자의 눈은 늦추지 않는다.
 
 - **만남**: 갱신 때마다 아는 성계의 현재 주인을 다시 본다. 주인이 아직 만난 백성이 아니면 `NoteMet`으로 만난다 — 방문이 아니라 알아봄이다(행성에 묶인 두 백성은 배가 아니라 신호로 만난다. 첫 함선은 8:30의 박자다). 격차 규칙이 먼저다: 상대의 Tier가 보는 쪽보다 3 이상 높으면 성계는 아는 성계가 되지만 그 주인은 만난 백성이 되지 않는다(§3.2). 한 번의 갱신에서 여럿을 만나면 가까운 순서(눈에서의 레인 수, 동률은 CivID `FNameLexicalLess`)로 더한다 — 거리는 눈의 자리(통치자는 소유 성계 전부, 방랑자는 선 성계)에서 같은 은하의 레인을 보는 거리의 상한 없이 잰다(예전에 알게 된 먼 성계도 잰다). 한 백성의 거리는 그 백성이 가진 아는 성계 가운데 가장 가까운 것이다. `FirstSightTick` 전의 통치자도 눈의 자리는 있다 — 새 성계를 적지 않을 뿐 만남은 같은 순서로 본다. 격차 규칙에 막힌 백성은 만나지 않은 채 남고 갱신마다 다시 본다(줄도 카드도 없다 — 이름 없는 현상 줄은 그 줄을 내는 Phase 4 자리의 것). 만남의 줄의 주제는 그 백성과 그 백성을 알아본 성계다(아는 범위와 로그 작업의 헤더).
 - **낱말과 줄**: 만남은 각각의 만남이고, 첫 접촉은 그 판의 첫 만남이다(§2.4의 5:30 박자). '그 판의 첫 만남'은 저장된 필드 하나로 정의한다(이 정의는 여기 한 곳에만 쓰고 다른 절은 가리킨다): `FKnowingState`의 멤버 `FName FirstContactCivID` — 초기값 NAME_None은 '이 판에 아직 첫 접촉이 없다'이고, 구조체와 함께 'v0.7 예약' 커밋에 들어가며, `Knowing`의 일부라 전체 해시에 들고 세계 해시 밖이다. **첫 접촉**은 `FirstContactCivID`가 NAME_None인 동안 `NoteMet`이 `MetCivs`에 새 항목을 적는 만남이고, 같은 호출이 그 칸에 만난 백성의 ID를 적는다. `Install`은 이 칸을 결코 적지 않는다 — `Install`은 생애마다 출생 문명을 `MetCivs`에 줄 없이 적으므로 `MetCivs`가 비었는지나 그 길이로는 첫 만남을 가릴 수 없고, 그래서 필드로 가린다. 한번 적힌 칸은 바뀌지 않는다: 계승에도 남고(§4.4) 그 백성이 사라져도 비우지 않는다(§7.2) — 첫 접촉은 판에 한 번이다. 첫 접촉은 `log_first_contact`(Severity 1) 한 줄, 그 뒤의 만남은 `log_contact`(Severity 1, 3변형) 한 줄이다 — `log_first_contact`와 카드 `petition_first_contact`는 그 한 번의 만남에만 속한다. `MetCivs`에 새 백성이 적히는 자리(`NoteMet`)가 그 줄을 낸다(말하기 스트림만 쓴다). `Install`이 적는 출생 문명은 만남이 아니다. 만난 백성을 세는 곳 — CSV `MetCivs`와 §9.3의 목표(VS 첫 생애 2~6, EA 한 생애 12 이하) — 은 `ID`가 `Calling.Lives`의 어느 생애 기록(지금 생애 포함)의 `BirthCivID`와 같은 항목을 빼고 센다. CSV `FirstContactTick`은 `ID`가 `FirstContactCivID`와 같은 `MetCivs` 항목의 `Tick`이고, `FirstContactCivID`가 NAME_None인 동안은 빈 값이다.
@@ -1404,13 +1429,13 @@ static constexpr float SecondsPerTick = 1.0f;
 
 // - 평가 문맥은 FCosmicEvalContext(상태·스트림·색인·테이블·규칙 + 주제 + bPerTickSource)와 그 읽기 전용 쪽 FCosmicEvalView다(평범한 C++ 구조체이고 USTRUCT가 아니다 — 상태와 스트림의 참조를 든다. 문맥은 복사할 수 없다). 주제(FCosmicEvalSubject) = CivIndex·SystemIndex(Civs·Systems의 인덱스, 없으면 INDEX_NONE)·OtherID(상대 — CivID 또는 TranscendentID)·GalaxyRow·SourceRow·SinceTick. 문맥은 처음부터 GalaxyRow와 스트림을 갖는다 (§7.2, §9.2). GalaxyRow에는 호출자가 평가 대상인 문명·성계의 GalaxyRow를 넣는다(Phase 2 은하 생성 규칙 변경이 도장을 찍기 전에는 NAME_None = '아직 찍히지 않음'이 실린다). 효과를 적용하거나 행을 이름으로 내는 단계 코드는 UGalaxySimulationSubsystem::MakeEvalContext로 문맥을 만든다(EvaluateAndFire는 상태와 스트림을 건네받아 제 발화의 문맥을 스스로 만든다). Check·Apply·EvaluateAndFire는 문맥이 건넨 상태와 스트림만 쓰고 GetRng()를 직접 부르지 않는다. 앎(Knowing)은 읽지 않는다 (§8.1)
 
-// - Apply의 NameNotable 가드(약 30줄, Phase 2, §1.3·§7.2): ① 문맥 문명 Tier <= 3(T4 집단 승천은 개인성을 지운다, §3.2) ② PersonNameBank가 비어 있지 않고 문명 Traits에 Trait.Mind.NoSelf가 없음(둘 중 하나라도 걸리면 무시) ③ 같은 Role의 열린 기록이 있으면 LastTick = max(Tick, 1)로 닫고 새로 만든다(0은 '열린 기록'이라 Tick 0에 닫아도 닫힌 것으로 읽히게 한다 — §16 #35의 기본값) ④ Notables.Num() >= DT_Rules.MaxNotablesPerCiv면 닫힌 기록 중 LastTick 최소를 퇴출, 닫힌 것이 없으면 Ruler·Regent가 아닌 열린 기록 중 FirstTick 최소를 퇴출, 그래도 없으면 생성을 건너뛴다(로그는 그대로 뜬다 — 명부는 짧고 역사는 길다). NameIndex = 문맥의 스트림에서 적용마다 정확히 1회, 이 가드들보다 먼저 뽑은 수로 현재 배열에 없는 뱅크 인덱스 가운데 하나를 고른다 — 기록을 만들지 않으면 그 수를 버린다(행의 시뮬 추첨 수가 이름 뱅크·Tier·상한에 좌우되지 않는다. PersonNameBank를 뒤 Phase에 채워도 시뮬 난수열이 밀리지 않는다 — §16 #40 ⑥. 같은 이름의 재등장은 바퀴의 표지라 데이터로 피한다). 퇴출은 연대기를 지우지 않는다(Message는 Push 시점에 렌더되어 저장됨). 닫힘은 이 훅들(역할 교체·복귀·반란 해결)과 문명 제거(소유 성계가 0이 된 문명을 건넘 단계의 정리가 지운다, §7.4)만 — 틱당 사망 롤·노화 없음(§4.4 원칙 4)
+// - Apply의 NameNotable 가드(약 30줄, Phase 2, §1.3·§7.2): ① 문맥 문명 Tier <= 3(T4 집단 승천은 개인성을 지운다, §3.2) ② PersonNameBank가 비어 있지 않고 문명 Traits에 Trait.Mind.NoSelf가 없음(둘 중 하나라도 걸리면 무시) ③ 같은 Role의 열린 기록이 있으면 LastTick = max(Tick, 1)로 닫고 새로 만든다(0은 '열린 기록'이라 Tick 0에 닫아도 닫힌 것으로 읽히게 한다 — §16 #35의 기본값) ④ Notables.Num() >= DT_Rules.MaxNotablesPerCiv면 닫힌 기록 중 LastTick 최소를 퇴출, 닫힌 것이 없으면 Ruler·Regent가 아닌 열린 기록 중 FirstTick 최소를 퇴출, 그래도 없으면 생성을 건너뛴다(로그는 그대로 뜬다 — 명부는 짧고 역사는 길다). NameIndex = 문맥의 스트림에서 적용마다 정확히 1회, 이 가드들보다 먼저 뽑은 수로 현재 배열에 없는 뱅크 인덱스 가운데 하나를 고른다 — 기록을 만들지 않으면 그 수를 버린다(행의 시뮬 추첨 수가 이름 뱅크·Tier·상한에 좌우되지 않는다. PersonNameBank를 뒤 Phase에 채워도 시뮬 난수열이 밀리지 않는다 — §16 #40 ⑥. 같은 이름의 재등장은 바퀴의 표지라 데이터로 피한다). 퇴출은 연대기를 지우지 않는다(Message는 Push 시점에 렌더되어 저장됨). 닫힘은 이 훅들(즉위·복귀, 반란의 만료와 해결 — B1부터 반란 만료는 섭정 기록도 닫는다)과 문명 제거(소유 성계가 0이 된 문명을 건넘 단계의 정리가 지운다, §7.4)만 — 틱당 사망 롤·노화 없음(§4.4 원칙 4)
 
 // - FOnCosmicEvent OnEventFired(const FCosmicEventNotice&)  값만 든 USTRUCT(EventRow·Category·Severity·SystemID·CivID·Tick). 동적 델리게이트의 인자는 리플렉션 타입이어야 하고 핸들러에 상태와 스트림을 건네지 않는다. 행이 다 적용되고 말해진 뒤에 낸다. 핸들러 규칙은 OnLogEntry와 같고(§9.4) EvaluateAndFire·FireRow·Apply도 부르지 않는다 — 방송 도중에 부른 EvaluateAndFire·FireRow는 에러 한 줄을 남기고 아무 일도 하지 않는다(Apply는 static이라 막지 못한다 — 규칙으로만 금한다)
 
 // UAscensionSubsystem
 
-// - void EvaluateFeats(FGalaxyState&, FRandomStream&)  틱당 정확히 1회, AI 단계의 맨 끝에서만 부른다(§7.4). 그 틱의 해결·만료·이벤트·AI 행동이 모두 지난 자리라 '주요 이벤트 후'는 자리로 지켜진다(따로 부르지 않는다). 순서: 플레이어가 통치하는 백성 먼저(Embodied이고 통치자일 때만. 조건은 SinceTick = Calling.BornTick으로 본다), 그다음 Civs 배열 순서로 그 밖의 백성(SinceTick 0. 정착된 성계가 없는 백성은 건너뛴다). 한 백성에 대해: Path가 Ruler이고 RequiredTier가 그 백성의 Tier인 DT_Feats 행을 행 이름 사전순으로 보고(한 칸 위가 아니거나 조건이 없는 행은 판정하지 않고 에러 한 줄을 낸 뒤 다음 행으로 간다 — FAscensionFeatDef::IsOneRungWithDeed. 보는 행의 거르개는 FAscensionFeatDef::IsJudgedRulerRowAt 하나다(Path·RequiredTier·IsOneRungWithDeed — AI의 선택과 상단 바의 '다음 칸까지'도 같은 행만 본다, Phase 3 12번 작업)), CompletionConditions가 그 백성과 제가 가진 정착된 성계 하나(OwnedSystems 순서 — 목록에 있어도 주인이 다른 성계는 세지 않는다)를 주제로 전부 성립하는 첫 행 하나로 오른다 — 한 틱에 한 칸. 오를 때의 순서: Tier = TargetTier → AscensionCost(ApplyAll, SourceRow = 업적 행) → 플레이어면 CompletedFeats·생애의 Feats와 PeakTier(오른 칸이 더 높을 때만, §16 #67 ①)·GrantedPowers → AI 백성이 Tier 3에 오르면 Notable.Ascendant 기록(아래 인물 훅 ③) / Tier 4 이상이면 열린 인물 기록 닫기(아래) → 받은 성계의 앎(FollowUpKnowing — 대가가 통치 문명에 넘긴 성계를 알고 준 백성, 곧 승천한 백성을 만난다. 그 만남이 승천 줄보다 먼저다) → 승천 줄(행의 LogTemplates, Log.Ascension, Severity 2) → 뒤따르는 줄(FollowUpNotes) → 플레이어면 OnTierAscended. 방랑자 경로(개인 Tier)의 판정은 첫 방랑자 업적 행과 함께 Phase 4다. 핸들러 안에서 불리거나 살아 있는 상태가 아닌 상태를 받으면 에러 한 줄을 내고 아무것도 하지 않는다. 틱 사이 입력이 채운 조건은 다음 틱의 판정이 잡는다
+// - void EvaluateFeats(FGalaxyState&, FRandomStream&)  틱당 정확히 1회, AI 단계의 맨 끝에서만 부른다(§7.4). 그 틱의 해결·만료·이벤트·AI 행동이 모두 지난 자리라 '주요 이벤트 후'는 자리로 지켜진다(따로 부르지 않는다). 순서: 플레이어가 통치하는 백성 먼저(Embodied이고 통치자일 때만. 조건은 SinceTick = Calling.BornTick으로 본다), 그다음 Civs 배열 순서로 그 밖의 백성(SinceTick 0. 정착된 성계가 없는 백성은 건너뛴다. 섭정 아래의 옛 백성도 여기 든다 — 업적 행에 통치자 전용 표지가 없다. 섭정의 업적 규칙은 B1 밖). 한 백성에 대해: Path가 Ruler이고 RequiredTier가 그 백성의 Tier인 DT_Feats 행을 행 이름 사전순으로 보고(한 칸 위가 아니거나 조건이 없는 행은 판정하지 않고 에러 한 줄을 낸 뒤 다음 행으로 간다 — FAscensionFeatDef::IsOneRungWithDeed. 보는 행의 거르개는 FAscensionFeatDef::IsJudgedRulerRowAt 하나다(Path·RequiredTier·IsOneRungWithDeed — AI의 선택과 상단 바의 '다음 칸까지'도 같은 행만 본다, Phase 3 12번 작업)), CompletionConditions가 그 백성과 제가 가진 정착된 성계 하나(OwnedSystems 순서 — 목록에 있어도 주인이 다른 성계는 세지 않는다)를 주제로 전부 성립하는 첫 행 하나로 오른다 — 한 틱에 한 칸. 오를 때의 순서: Tier = TargetTier → AscensionCost(ApplyAll, SourceRow = 업적 행) → 플레이어면 CompletedFeats·생애의 Feats와 PeakTier(오른 칸이 더 높을 때만, §16 #67 ①)·GrantedPowers → AI 백성이 Tier 3에 오르면 Notable.Ascendant 기록(아래 인물 훅 ③) / Tier 4 이상이면 열린 인물 기록 닫기(아래) → 받은 성계의 앎(FollowUpKnowing — 대가가 통치 문명에 넘긴 성계를 알고 준 백성, 곧 승천한 백성을 만난다. 그 만남이 승천 줄보다 먼저다) → 승천 줄(행의 LogTemplates, Log.Ascension, Severity 2) → 뒤따르는 줄(FollowUpNotes) → 플레이어면 OnTierAscended. 방랑자 경로(개인 Tier)의 판정은 첫 방랑자 업적 행과 함께 Phase 4다. 핸들러 안에서 불리거나 살아 있는 상태가 아닌 상태를 받으면 에러 한 줄을 내고 아무것도 하지 않는다. 틱 사이 입력이 채운 조건은 다음 틱의 판정이 잡는다
 
 // - FOnTierAscended OnTierAscended(EAscensionTier NewTier, FName FeatRow, EPlayerRole Path)  플레이어의 승천에만 낸다(AI 백성의 승천은 줄뿐이다). 방송 게이트와 방송 중 표시를 거친다
 
@@ -1443,38 +1468,47 @@ static constexpr float SecondsPerTick = 1.0f;
 // - FOnLogEntry OnLogEntry(const FCosmicLogEntry&)  방송 게이트가 닫히면 쌓이기만 하고 방송되지 않는다(나중에 몰아 보내지 않는다). bUntold 항목에는 발화하지 않는다 (§8.1)
 
 // - TArray<FCosmicChronicleChapter> BuildChronicle() const  (MVP ④, 2026-10-23 — 헤더 docs/60_DECISIONS/headers/A4_provisional_end.md §4) 지금 틱까지의 연대기 = CosmicChronicle::Build(산 상태). 읽기만 하고 뽑지 않아 핸들러도 부를 수 있다. 장 배열이다(장과 넘침 표지는 평면 배열에 실리지 않는다)
-// - CosmicChronicle(Log/CosmicChronicle.h, MVP ④ — 순수 함수 namespace, USTRUCT 아님, 저장·해시·추첨·쓰기 없음, 앎을 읽지 않는다 §16 #49): FCosmicChronicleLine{ Entry(저장된 항목의 사본 — Message는 이미 평탄화), bOwn(그 생애의 줄 — Log.Calling, 그 백성의 Severity 2, 들인 Severity 1; 다른 백성의 Severity 2는 false — 흐리게) } · FCosmicChronicleChapter{ LifeAt(Calling.Lives의 자리), FromTick, ToTick(§7.2 Chronicle의 범위), Lines(보이는 줄, 시간순), Candidates(되풀이 ① 뒤·상한 전의 줄 수 — 커맨드렛의 'of'), bMore(상한이 줄을 뺐다 — 장 끝에 ST_CA Chronicle.More, 수 없음) } · MaxLifeLines = 40(표시 상한 — 상태에서는 아무것도 떠나지 않는다) · PeoplesOf(Life) = BirthCivID 다음 RuledCivIDs(None·중복 없이) · Admits(Entry, Peoples) = §16 #31 ②의 앞 절반(8필드만: Log.Calling·Log.Claim·Log.Record·모든 Severity 2, FocusCivID가 Peoples에 든 Severity 1, SourceRow가 log_first_contact인 Severity 1 — bUntold와 행 표를 읽지 않는다. MVP ⑤의 이관 거르기 #40 ⑦도 모든 생애의 백성으로 부른다 — PeoplesOfEveryLife(Calling) = 생애 차례의 PeoplesOf를 겹침 없이) · MayLetGo(Entry) = Severity 정확히 1이고 Log.Calling·Log.Claim·Log.Record가 아님(상한이 밀어낼 수 있는 줄) · Build(State) = 생애마다 장 하나(생애가 없으면 없다), docs/70 §8.4의 네 걸음(정수 + − × ÷만, 앎으로 줄을 세우지 않는다) = BuildCapped(State, MaxLifeLines) · BuildCapped(State, Cap) = 같은 일을 주어진 상한으로(0 아래는 0 — 테스트와 커맨드렛의 측정) · VesselNameOf(Life, Tables) = BirthArchetypeRow의(풀리지 않으면 arch_default의) PersonNameBank[NameIndex % Num](Install의 규칙), 둘 다 없으면 빈 FText('제 N대'만)
+// - CosmicChronicle(Log/CosmicChronicle.h, MVP ④ — 순수 함수 namespace, USTRUCT 아님, 저장·해시·추첨·쓰기 없음, 앎을 읽지 않는다 §16 #49): FCosmicChronicleLine{ Entry(저장된 항목의 사본 — Message는 이미 평탄화), bOwn(그 생애의 줄 — Log.Calling, 그 백성의 Severity 2, 들인 Severity 1; 다른 백성의 Severity 2는 false — 흐리게) } · FCosmicChronicleChapter{ LifeAt(Calling.Lives의 자리), FromTick, ToTick(§7.2 Chronicle의 범위), Lines(보이는 줄, 시간순), Candidates(되풀이 ① 뒤·상한 전의 줄 수 — 커맨드렛의 'of'), bMore(상한이 줄을 뺐다 — 장 끝에 ST_CA Chronicle.More, 수 없음) } · MaxLifeLines = 40(표시 상한 — 상태에서는 아무것도 떠나지 않는다) · PeoplesOf(Life) = BirthCivID 다음 RuledCivIDs(None·중복 없이) · Admits(Entry, Peoples) = §16 #31 ②의 앞 절반(8필드만: Log.Calling·Log.Claim·Log.Record·모든 Severity 2, FocusCivID가 Peoples에 든 Severity 1, SourceRow가 log_first_contact인 Severity 1, SourceRow가 enc_로 시작하는 Severity 1(방랑자 카드의 답 줄 — 대소문자를 가리지 않고 견준다, B1) — bUntold와 행 표를 읽지 않는다. MVP ⑤의 이관 거르기 #40 ⑦도 모든 생애의 백성으로 부른다 — PeoplesOfEveryLife(Calling) = 생애 차례의 PeoplesOf를 겹침 없이) · MayLetGo(Entry) = Severity 정확히 1이고 Log.Calling·Log.Claim·Log.Record가 아님(상한이 밀어낼 수 있는 줄) · Build(State) = 생애마다 장 하나(생애가 없으면 없다), docs/70 §8.4의 네 걸음(정수 + − × ÷만, 앎으로 줄을 세우지 않는다) = BuildCapped(State, MaxLifeLines) · BuildCapped(State, Cap) = 같은 일을 주어진 상한으로(0 아래는 0 — 테스트와 커맨드렛의 측정) · VesselNameOf(Life, Tables) = BirthArchetypeRow의(풀리지 않으면 arch_default의) PersonNameBank[NameIndex % Num](Install의 규칙), 둘 다 없으면 빈 FText('제 N대'만)
 // - (Phase 4b) 같은 장들 둘레에 두 책 장·비문·다이제스트를 더한다 — 그때의 집계: Severity 2 + Admits가 들인 Severity 1 + Log.Claim·Log.Record 전부를 엔딩용으로 집계(bUntold 줄 포함 — 연대기와 두 책은 이야기의 범위로 거르지 않는다, §8.4. 연속 중복 규칙은 마지막으로 말해진 줄과만 견주므로 bUntold 항목이 같은 문장의 말해진 줄 바로 앞에 쌓이거나(예: [B(bUntold), B]) bUntold 항목을 사이에 두고 같은 문장이 이어질 수 있다 — 연대기와 두 책은 바로 앞에 실은 줄과 같은 문장을 싣지 않는다. 표시 규칙이고 상태는 없다, 아는 범위와 로그 작업의 리뷰). 생애(대)별 장 나누기 + '두 책' 장(기록된 이름들 / 주장된 이름들, ≤ 28줄, 사람·성계의 수 렌더 없음 — 주기·비율은 허용, 인물 없음) + 에필로그 둘째 줄 "다른 책은 펴지지 않았다." (§8.4, 약 40줄). 인물은 생애별 장의 이미 렌더된 Severity 2·1 Message 안에서만 등장한다 — 이 함수에 인물 코드 0
 
 // - FWorldDigest BuildWorldDigest(int64 FromTick, int64 ToTick) const  (Phase 4b) 상태 diff 5~8줄. 복귀·폐위·계승 공용 (§8.4). Knowing의 만난 백성과 아는 성계만 비교하고, 그 밖에서 바뀐 것이 있으면 끝에 닫는 한 줄 Digest.Elsewhere(ST_CA)를 둔다. 항목 유형에 '왕좌가 바뀐 문명: {Civ}의 {Ruler}'(구간 (FromTick, ToTick] 안에 crisis_rebellion 만료 로그('정권 교체', Log.Crisis, SourceRow = crisis_rebellion)가 있는 문명의 열린 Notable.Ruler 이름 — FirstTick은 반란 발생 틱이라 기준으로 쓰지 않는다. 최대 2줄, 5~8줄 예산 안에서 기존 항목과 경쟁)
 
-// UGalaxySimulationSubsystem — 인물 훅 ② (§7.4 TickHazards 주석): crisis_rebellion 만료 시 열린 Ruler 닫기 + Rebel → Ruler, 해결 시 Rebel 닫기
+// UGalaxySimulationSubsystem — 인물 훅 ② (§7.4 TickHazards 주석): crisis_rebellion 만료로 왕좌가 바뀌면 열린 Ruler·Regent 닫기 + Rebel → Ruler, 먼저 적힌 다른 원천이 재위를 끝냈으면 Rebel 닫기(B1), 해결 시 Rebel 닫기
 
 // UPlayerRoleSubsystem
 
-// - BecomeRuler(FName CivID) / BecomeWanderer(FGameplayTag RegentProfile, FGameplayTag ReignEndReason) / ReturnToFormerCiv()  (BecomeRuler·ReturnToFormerCiv와 자진 이탈은 Phase 4·4b — 지금은 폐위의 BecomeWanderer만) ReignEndReason = Reign.Abdicated / Reign.Deposed / Reign.Died. StatusTags는 함수 안에서 파생(Abdicated → Status.Abdicated, Deposed → Status.FallenMonarch, Died → 없음). 역할이 바뀌면 보는 눈이 바뀐다: BecomeWanderer는 방랑자가 되는 틱에 선 성계의 1레인 이웃을 NoteKnown으로 적고(추첨 없음, 줄 없음 — §4.4), 역할 전환은 Knowing.PendingContactCivID를 비운다 (§8.1)
+// - void BecomeWanderer(FGameplayTag RegentProfile, FGameplayTag ReignEndReason)  통치자 → 방랑자(§5.10): Role = Wanderer, FormerCivID = 다스리던 백성, RuledCivID 비움, 그 백성은 RegentProfile로 AI가 다스린다. ReignEndReason = Reign.Abdicated / Reign.Deposed / Reign.Died. StatusTags는 함수 안에서 파생(Abdicated → Status.Abdicated, Deposed → Status.FallenMonarch, Died → 없음). 열린 재위를 그 사유로 닫는다. 역할이 바뀌면 보는 눈이 바뀐다: 방랑자가 되는 틱에 선 성계와 그 1레인 이웃(같은 GalaxyRow, Lanes 차례)을 NoteKnown으로 적는다(추첨 없음, 줄 없음 — 그 주인을 만나는 것은 다음 앎 단계, §4.4). 기다리는 카드와 Knowing.PendingContactCivID, 두 이동 필드를 비운다 (§8.1). 그릇이 다스리지 않으면 아무것도 하지 않고, 핸들러 안과 성역에 선 그릇(어느 규칙도 만들지 않는 상태 — Install이 막는다)은 에러 한 줄로 거절한다
 
-// - 인물 훅 ① (§7.2): BecomeWanderer는 ReignEndReason이 Reign.Abdicated 또는 Reign.Died일 때만 그 문명에 Notable.Regent 기록 1개(섭정 프로필은 그대로 AI.Profile.* 태그, 인물은 이름만 더한다. SourceRow = 전환 사유의 행: 사망·쿠데타는 KillPlayer의 SourceRow, 자진 이탈은 행이 없으므로 Severity 2 '왕좌를 비우다' 로그의 DT_LogTemplates 행 이름(log_throne_vacated)을 SourceRow로 적고 그 로그를 같은 틱·같은 SourceRow로 Push한다). Reign.Deposed에는 만들지 않는다 — 왕좌에는 Rebel이 앉아 있다(§4.1). ReturnToFormerCiv는 열린 Regent 기록을 닫는다(LastTick = Tick). Apply와 같은 가드
+// - 인물 훅 ① (§7.2): BecomeWanderer는 ReignEndReason이 Reign.Abdicated일 때(B1) 그 문명에 Notable.Regent 기록 1개를 NameNotable의 규칙으로 연다 — UCosmicEventSubsystem::Apply를 거쳐 이름의 수 1회를 가드보다 먼저 뽑고(Tier <= 3·이름 뱅크·Trait.Mind.NoSelf·같은 역할의 열린 기록 닫기·상한과 퇴출 — 기록이 서지 않아도 1회), SourceRow = log_throne_vacated(`CosmicRows::LogThroneVacated` — 그 줄은 양위 파이프라인이 같은 틱에 먼저 Push한다). 섭정 프로필은 그대로 AI.Profile.* 태그이고 인물은 이름만 더한다. Reign.Died도 같은 훅을 쓴다(B5 — 사망 파이프라인과 함께, SourceRow는 KillPlayer의 SourceRow). Reign.Deposed에는 만들지 않는다 — 왕좌에는 Rebel이 앉는다(§4.1). 열린 Regent 기록이 닫히는 곳: 즉위·복귀(BecomeRuler)와 반란 만료의 왕좌 교체(§7.4 인물 훅 ②)
 
-// - BecomeRuler·ReturnToFormerCiv는 그 문명의 열린 Notable.Ruler·Notable.Regent 기록을 닫는다(LastTick = Tick) — 플레이어가 앉은 왕좌에는 다른 이름이 남지 않는다(플레이어는 Notables에 없음, §7.2)
+// - CosmicWanderer::ECrownBlock BecomeRuler(FName CivID)  즉위와 복귀(B1 — 옛 백성에 대한 즉위가 복귀다, 따로 된 함수는 없다), 틱 밖 입력. CosmicWanderer::CrownBlockOf가 None일 때만(만났는가는 Knowing.MetCivs에서, 카드가 기다리는가는 Knowing에서 — 입력의 정의). 쓰는 것, 차례대로: 그 백성의 bIsPlayerRuled, Role = Ruler·RuledCivID → 재위 세 배열에 한 칸씩 → 그 백성의 열린 Notable.Ruler·Notable.Regent 기록을 닫는다(LastTick = max(Tick, 1) — 플레이어가 앉은 왕좌에는 다른 이름이 남지 않는다, 플레이어는 Notables에 없음, §7.2) → 두 이동 필드·기다리는 카드·Knowing.PendingContactCivID를 비운다 → 그 백성의 소유 성계를 OwnedSystems 차례로 NoteKnown(줄 없음) → log_crowned, 옛 백성(FormerCivID)이면 log_returned(Log.Calling, Severity 2, 초점은 그릇이 선 성계와 그 백성). FormerCivID·StatusTags·생애의 PeakTier는 그대로. 추첨 없음 — 다음 틱 경계의 Role 비교가 저장한다(MVP ⑤). 거절은 첫 사유를 돌려주고 아무것도 바꾸지 않는다. 핸들러 안은 에러 한 줄과 Handler
 
-// - 즉위·복귀는 Tick >= ThroneLockedUntilTick 검사 (§5.10)
+// - 즉위·복귀는 Tick >= ThroneLockedUntilTick 검사 (§5.10) — 잠금은 그릇이 왕좌를 떠나는 틱에 모든 백성에게 적힌다(DeposeRuler·AbdicateRuler, B1)
+
+// - bool Abdicate()  통치자의 양위(B1), 틱 밖 입력: Effect.DeposeRuler를 원인 Reign.Abdicated, SourceRow log_throne_vacated로 UCosmicEventSubsystem::Apply를 거쳐 기록만 한다(문맥은 다스리는 백성 — 먼저 기록된 효과가 이긴다). 다음 틱의 열째 단계가 AbdicateRuler를 부른다. 추첨 없음. 몸을 입은 통치자이고 기록된 역할 효과가 없을 때만 참이고, 아니면 거짓·바뀜 없음. 핸들러 안은 에러 한 줄. 왕좌 카드(petition_keep_throne)의 셋째 선택지도 같은 효과를 적는다(그때 SourceRow는 그 카드 행)
+
+// - void AbdicateRuler()  양위 파이프라인 — 열째 단계가 Effect.DeposeRuler의 원인 Reign.Abdicated에 부른다(B1): log_throne_vacated(Severity 2, 다스리던 백성) → 섭정 성향을 시뮬 스트림에서 1회(CosmicState::PickAIProfile) → BecomeWanderer(그 성향, Reign.Abdicated — 인물 훅 ①이 섭정 이름을 1회 뽑는다) → 떠나는 백성의 Stability −DT_Rules.AbdicationStabilityLoss(0 아래로 가지 않는다) → 모든 백성의 왕좌 잠금(max(제 값, Tick + ThroneLockTicks)). 경외는 줄이지 않는다(폐위와 다르다). 시뮬 스트림은 언제나 정확히 2회. 그릇이 다스리지 않으면 아무것도 하지 않고, 핸들러 안은 에러 한 줄
 
 // - 틱 경계에서 KillPlayer(FGameplayTag Cause, FName SourceRow) → FLifeRecord 기록 → OfferReturn() → BeginInterlude() → RunHeadless(LeapTicks) → Succeed()  사망 파이프라인 (§4.4). Succeed()가 계승 추첨 후 Install()을 부른다(SuccessionKind = Succession.Called). 호출자는 §7.4 ResolvePendingRoleEffect만
 
 // - bool OfferReturn()  귀환 제안 훅 (§4.4 회귀의 유혹, 약 40줄). 게이트: Doctrine.Recurrence 초월자 존재 ∧ 미봉인 ∧ (bAwareOfPlayer ∨ 사망 성계가 영향권 ReturnLureMaxLanes 이내), 생애당 1회(bReturnOffered). enc_recurrence_return 1장을 WBP_EncounterCard로 제시. 수락 시 LeapTicks 0·Install(사망 성계, 직전 생애의 BirthCivID, 사망 당시 Role) — 귀환은 '같은 몸'의 약속이므로 BirthCivID·BirthArchetypeRow(이름 뱅크)·NameIndex를 직전 생애와 같게 유지한다(사망 성계의 소유 문명이 달라도 뱅크는 바뀌지 않는다) — (SuccessionKind = Succession.Returned; 통치 문명의 소유 성계가 하나 이상이면 Ruler로 복위·섭정 해임·ThroneLockedUntilTick 미적용, 아니면 Wanderer)·Exaltation +2·Status.Returned·옛 모성계 편입(그 성계가 출생 문명의 마지막 미편입 성계면 편입되지 않는다 — Law.Remnant, §16 #43), ReturnedLivesToSeize회면 GrantPower Way.Seized. 거절 시 Exaltation −1, Log.Calling "제안이 있었다. 거절되었다." 후 파이프라인 계속. VS에는 회귀가 없어 뜨지 않는다(Phase 4b 훅 + 테스트 주입 행, 6+ 실전)
 
-// - 틱 경계에서 DeposeRuler()  폐위 파이프라인 (§5.10). 사망 파이프라인과 같은 순서 재사용. 방랑자가 되는 틱에 선 성계의 1레인 이웃을 NoteKnown으로 적는다 (§4.4)
+// - 틱 경계에서 DeposeRuler()  폐위 파이프라인 (§5.10) — 열째 단계가 Effect.DeposeRuler(원인이 Reign.Abdicated가 아닐 때)에 부른다: log_fallen_monarch(Severity 2) → 섭정 성향을 시뮬 스트림에서 1회 → BecomeWanderer(그 성향, Reign.Deposed — 방랑자가 되는 틱에 선 성계와 1레인 이웃을 NoteKnown, §4.4) → 모든 백성의 ReverenceToPlayer × DT_Rules.ReverenceDecay → 다스리던 백성의 Stability ≤ PostRebellionStability → 모든 백성의 왕좌 잠금(max(제 값, Tick + ThroneLockTicks) — B1, 전에는 옛 백성만). 그릇은 선 자리에 남는다. 세 화면·다이제스트·망명 조우는 뒤(B1 밖). 그릇이 다스리지 않으면 아무것도 하지 않고, 핸들러 안은 에러 한 줄
 
 // - Install(FName SystemID, FName CivID, EPlayerRole Role)  첫 생애(NewGalaxy, Ruler)와 계승(Wanderer)이 같은 함수. 은하 인자는 받지 않는다 — 계승은 은하를 넘지 않는다(§4.4. 시그니처의 미결은 §16 #34 그대로). 그 틱에 출생 성계와 출생 문명을 Knowing에 적는다(추첨 없음, 줄 없음 — 만남이 아니므로 NoteMet을 거치지 않고 FirstContactCivID도 적지 않는다). Role이 Wanderer면 선 성계의 1레인 이웃도 NoteKnown으로 적는다 (§4.4). 그릇의 이름 FLifeRecord.NameIndex는 Install마다 시뮬 스트림에서 정확히 1회, 뱅크를 보기 전에 뽑은 수로 고른다 — 쓸 뱅크가 비었으면 그 수를 버리고 NameIndex는 0이다(NameNotable과 같은 규칙이라 뱅크를 뒤에 채워도 난수열이 밀리지 않는다, §9.2)(§4.4): Succession.Installed·Called = 새 인덱스(직전 생애와 같은 문명이면 직전과 다른 값), Succession.Returned = 직전 생애와 같은 인덱스, 뱅크가 비면(이름 없는 문명) arch_default 뱅크. 플레이어는 Notables에 넣지 않는다. FLifeRecord.BirthArchetypeRow에 출생 문명의 ArchetypeRow를 적고, Role이 Ruler면 재위 3배열에 한 칸을 더한다(RuledCivIDs = CivID, ReignEndReasons = 빈 태그, ReignTicks = 0, §7.2). 성역(`sol`)은 받지 않는다 — 에러 한 줄로 거절하고, 아무것도 바꾸지 않으며 뽑지 않는다(A0 4a).
 
-// - TravelTo(FName SystemID) / ScanCurrentSystem() / Train(FName Stat)  TravelTo와 T3 도약은 아는 성계만 받는다 — 거절된 입력은 아무 상태도 바꾸지 않는다 (§8.1). 다리는 TravelTo의 대상이 아니다 (§5.9). ScanCurrentSystem은 그 자리에서 보는 거리를 DT_Rules.ScanSightBonusLanes(1)만큼 넓혀 한 번 본다 (§4.4). 무주 성계의 스캔 서술은 log_scan_wild (§5.7). 성역으로의 이동은 경계 카드 '지경'으로 끝나고 `CurrentSystemID`는 바뀌지 않는다. 경로는 성역을 거쳐 가지 않는다(v0.8 — Phase 4 `TravelTo` 헤더, §16 #80·#81).
+// - CosmicWanderer::ETravelBlock TravelTo(FName SystemID)  방랑자의 이동(B1), 틱 밖 입력 — 명령 한 번에 레인 하나: CosmicWanderer::TravelBlockOf가 None일 때만(카드가 기다리는가는 Knowing에서 — 입력의 정의) Player.TravelTargetSystemID = SystemID, TravelTicksRemaining = CosmicWanderer::LaneTicksOf. 그릇은 여덟째 단계가 옮긴다(§7.4 TickPlayerTravel). 추첨·줄·제 저장 없음. 앎에서 읽는 것은 기다리는 카드 하나다(입력의 정의) — 아는 성계는 읽지 않는다. 거절은 첫 사유를 돌려주고 아무것도 바꾸지 않는다 — 이동 중에 다시 고르지 않는다(Travelling). 핸들러 안은 에러 한 줄과 Handler. 다리는 TravelTo의 대상이 아니다 (§5.9). TravelTo(sol)은 사유 Sanctuary로 거절한다 — 성역에는 레인이 없다. 성역의 경계 카드 '지경'과, 경로가 성역을 거쳐 가는가는 성역에 레인이 생길 때(B8, §16 #80·#81). 여러 레인을 잇는 경로·T3 도약(아는 성계만 받는다 — 거절된 입력은 아무 상태도 바꾸지 않는다, §8.1)은 B1 밖
+
+// - int32 ScanCurrentSystem()  방랑자의 스캔(B1, §5.9), 틱 밖 입력: 이동 중이 아닌 몸을 입은 방랑자가 선 성계에서 보기 한 번(UGalaxySimulationSubsystem::LookFrom) — 보는 거리 = SightLanesByTier[PersonalTier](없는 칸·1 아래는 1) + DT_Rules.ScanSightBonusLanes(0 아래는 0). NoteKnown을 찾은 차례로, 이어서 NoteMet을 가까운 순으로 — 앎과 이야기만, 시뮬 추첨 없음. 그 성계에 주인이 없고 새로 안 성계가 있으면 log_scan_wild(Severity 1, 말하기 스트림) 한 줄(§5.7). 새로 안 성계의 수를 돌려준다(0 = 새것 없음 — 줄 없음, 화면이 그렇게 말한다). 통치자·이동 중·공백기는 INDEX_NONE, 핸들러 안은 에러 한 줄과 INDEX_NONE. 쿨다운 없음 — 같은 자리의 두 번째 스캔은 0
+
+// - Train(FName Stat)  수련 — B1 밖(뒤의 블록)
 
 // - 통치자 명령: SetResearchFocus, SetStance, ProposeTreaty, EnactEdict, StartMegaproject, AllocateFleet  만나지 않은 백성에게는 태세·조약·즉위를 걸 수 없다 (§8.1). StartMegaproject의 대상에는 정착(project_settle)이 든다 — 새 명령이 아니다 (§5.7). bool StartMegaproject(FName SystemID, FName RowName)은 거대 프로젝트와 승천 판정 작업부터: Embodied인 통치자가 통치 문명의 성계에, CosmicMegaprojects::Start(AI와 같은 규칙)로 시작한다 — project_settle만은 SystemID가 정착할 무주 성계이고 CosmicMegaprojects::Settle(AI의 정착 규칙, 추첨 없음)로 시작한다(정착과 문명 제거 작업). 틱 사이 입력이라 다음 틱의 위기 단계 ⓐ에서 처음 나아간다. 핸들러 안에서는 에러 한 줄. 프로토타입 키(P)의 StartNextMegaproject는 통치 문명에 CosmicMegaprojects::Choices의 첫 것(SinceTick = Calling.BornTick)을, 그것이 없으면 SettleTargets의 첫 대상에 정착을 시작한다(Phase 3의 패널이 대신한다)
 // - 연구 중점(MVP ⑦, 2026-10-24 — 헤더 docs/60_DECISIONS/headers/A7_research_focus.md): bool SetResearchFocus(FName Field) — 틱 밖 입력. Field = 다스리는 백성의 ResearchFocus의 키는 DT_Rules.ResearchFocusShare를(CosmicResearch::Focus — 효과 FocusResearch의 규칙), NAME_None은 균형(CosmicResearch::Even). Embodied 통치자에게 상태에 있는 다스리는 백성이 있을 때만. 거짓·바뀜 없음: 키 아님, 몫이 그대로(같은 중점 — 결정이 아니다), 분야인데 노브가 고를 수 없는 값(고른 몫 이하·1 초과·NaN — 에러 한 줄), 핸들러 안(에러 한 줄). 추첨·줄·저장 없음. 초월도 받는다(패널의 단추는 균형과 셋). 컨트롤러의 ACosmicPlayerController::SetResearchFocus가 끝난 판을 거절하고 받으면 HUD를 다시 그린다
 
-// - 청원(MVP ②, 2026-10-20 — 헤더 docs/60_DECISIONS/headers/A2_petition_cards.md): FCosmicPetitionAnswer AnswerPetition(int32 ChoiceIndex) — 대기 카드에 답한다(틱 밖 입력). 거절(대기 카드·통치자 없음, 표에 없는 행·번호 밖 선택지·비축 부족은 에러 한 줄, 방송 중)은 뽑지 않고, 받아들인 답은 시뮬 스트림에서 판정의 수(0~5)를 먼저 1회 뽑는다 → 카드가 더 서 있지 않으면 거둔다(Withdrawn — 비용·효과·줄 없음) → 비용(다스리는 백성의 비축) → 판정(CosmicPetitions::Passes: NoCheck이면 성공, 아니면 능력치 + 수 ≥ Difficulty, Stability는 (int32)(Stability × 10 + 0.0001)) → OnSuccess|OnFailure를 제자리에 적용 → FollowUpKnowing → 결과 줄 Push(Log.Civ, Severity 1, 말하기 스트림 추첨 없음) → FollowUpNotes → LastChoiceRows → 카드를 거두고 NextEncounter가 있으면 같은 주어로 다음 카드(추첨 없음) → SyncRngState. 반환 { Outcome(Refused·Withdrawn·Succeeded·Failed), Roll, Line } — 상태가 아니다. 델리게이트는 없다(화면은 틱 경계에 대기 카드를 읽는다). 순수 규칙은 Events/CosmicPetitions.h(RuledCivIndexOf·SubjectOf·Holds·StandingHeld·Present·StillStands·CheckValueOf·Passes·PassingRollsOf·CostOf·ArgsOf·Clear·Remember). 카드에 KillPlayer는 싣지 않는다(스키마 — Phase 4b), DeposeRuler는 PendingRoleEffect에 기록만, 처리는 다음 틱의 열째 단계(§7.4)
-// - 조우(B1): 방랑자의 조우 카드도 같은 FEncounterDef와 답 함수를 쓴다(그때 이름을 넓히거나 조건으로 가른다). FOnEncounterPresented는 두지 않는다 — 대기 카드는 앎에 저장되고 화면이 틱 경계에 읽는다
+// - 청원(MVP ②, 2026-10-20 — 헤더 docs/60_DECISIONS/headers/A2_petition_cards.md): FCosmicPetitionAnswer AnswerPetition(int32 ChoiceIndex) — 대기 카드에 답한다(틱 밖 입력). 통치자의 청원은 몸을 입은 통치자가, 방랑자 카드(CosmicPetitions::IsWandererCard — Subject VesselSystem, B1)는 몸을 입은 방랑자가 답한다. 거절(대기 카드 없음·다른 역할의 카드는 에러 줄 없이, 표에 없는 행·번호 밖 선택지·비축 부족은 에러 한 줄, 방송 중)은 뽑지 않고, 받아들인 답은 시뮬 스트림에서 판정의 수(0~5)를 먼저 1회 뽑는다 → 카드가 더 서 있지 않으면 거둔다(Withdrawn — 비용·효과·줄 없음) → 비용(다스리는 백성의 비축) → 판정(CosmicPetitions::Passes: NoCheck이면 성공, 아니면 능력치 + 수 ≥ Difficulty, Stability는 (int32)(Stability × 10 + 0.0001)) → OnSuccess|OnFailure를 제자리에 적용 → FollowUpKnowing → 결과 줄 Push(Log.Civ, Severity 1, 말하기 스트림 추첨 없음) → FollowUpNotes → LastChoiceRows → 카드를 거두고 NextEncounter가 있으면 같은 주어로 다음 카드(추첨 없음) → SyncRngState. 반환 { Outcome(Refused·Withdrawn·Succeeded·Failed), Roll, Line } — 상태가 아니다. 델리게이트는 없다(화면은 틱 경계에 대기 카드를 읽는다). 순수 규칙은 Events/CosmicPetitions.h(RuledCivIndexOf·IsWandererCard·IsAboutPlace·VesselSubjectOf·WithinWandererGap·IsFirstTickOfReign·SubjectOf·Holds·StandingHeld·Present·StillStands·CheckValueOf·Passes·PassingRollsOf·CostOf·ArgsOf·Clear·Remember — 아래). 카드에 KillPlayer는 싣지 않는다(스키마 — Phase 4b), DeposeRuler는 PendingRoleEffect에 기록만, 처리는 다음 틱의 열째 단계(§7.4)
+// - 방랑자 카드의 답(B1 — 같은 함수, 같은 차례, 같은 1회 추첨): 비용을 보지 않는다(주제 VesselSystem 행의 비용 0은 C++ Data.Integrity의 선택지 검사가 지킨다 — 스키마의 시험이 아니다). 판정 값은 그릇의 능력치(CheckValueOf — Stability 판정은 스키마가 막는다). 주제와 효과의 문맥은 VesselSubjectOf — 그릇이 선 성계와 그 주인(무주면 없음 — 백성에 거는 효과는 Apply가 하지 않는다), 은하 행은 주인의 것, 없으면 그 성계의 것. 그래서 경외(ChangeReverence)는 카드가 놓인 성계의 백성에게 오른다. 거둬짐: 그릇이 그 성계에 더 서 있지 않거나 이동 중이거나 행의 조건이 더 서지 않으면(StillStands). 결과 줄은 같은 꼴(Log.Civ, Severity 1, Push — 초점은 그 성계와 주인). 사슬(NextEncounter)은 역할을 넘지 않는다 — 방랑자 카드의 다음은 방랑자 카드뿐(B1의 다섯 장에는 사슬이 없다). FOnEncounterPresented는 두지 않는다 — 대기 카드는 앎에 저장되고 화면이 틱 경계에 읽는다
+// - CosmicPetitions의 방랑자 쪽(Events/CosmicPetitions.h, B1 — 상태·색인·테이블의 함수, 줄·추첨 없음): struct FCosmicVesselSubject { int32 SystemIndex = INDEX_NONE; int32 CivIndex = INDEX_NONE; // 무주 성계면 INDEX_NONE } · bool IsWandererCard(const FEncounterDef&)(Subject == VesselSystem) · bool IsAboutPlace(const FEncounterDef&)(SettledSystem ∨ VesselSystem — 줄이 그 성계에 관한 것이고 기다리는 카드가 그 성계를 쥔다) · FCosmicVesselSubject VesselSubjectOf(State, Index, bool bTravelAtOrigin = false)(이동 중이 아닌 몸을 입은 방랑자가 선 성계와 그 주인. 통치자·이동 중·공백기는 둘 다 INDEX_NONE — bTravelAtOrigin이면 이동 중인 그릇을 떠나온 성계에 선 것으로 센다: 틱 첫머리, CosmicWanderer::PlaceIndexOf) · bool WithinWandererGap(State, CivIndex)(주인 없음, 또는 부르심의 PersonalTier보다 많아야 한 칸 위의 백성 — 세계의 칸만 읽고 앎을 읽지 않는다. 격차 2의 경외/공포 변형은 B1 밖) · bool IsFirstTickOfReign(State)(몸을 입은 통치자의 열린 재위가 아직 한 틱도 세지 않았다 — Lives.Last().ReignTicks.Last() == 0; 앎 단계가 그 틱의 청원을 빈 첫머리와 견준다) · StandingHeld(State, Index, Tables, Rules, bool bTravelAtOrigin = false)(방랑자: 선 성계의 방랑자 Standing 카드 가운데 그 주인이 격차 안인 단위; 카드가 기다리는 동안·공백기는 비어 있다 — 이동 중인 그릇은 bTravelAtOrigin일 때만 떠나온 성계에서 센다) · Present(State, Index, Tables, Rules, HeldAtHead, bool bArrived = false)(방랑자: 파생 정수 하나 u = DeriveForName(Seed, 그릇이 선 SystemID, Purpose::Encounter 11, Tick) / 2^32 — 시뮬 스트림을 뽑지 않는다. 첫머리에 없던 Standing 단위가 있으면 그 가운데 u로 무게 고르기, 없으면 도착한 틱(bArrived)에만 u < EncounterChancePerArrival일 때 조건이 선 방랑자 Lottery 행 가운데 다시 편 u / 몫으로 무게 고르기. 그 생애에 가장 최근에 답한 방랑자 카드는 다시 내놓지 않고, 격차 밖 백성의 Standing 카드는 내놓지 않는다 — 도착 카드는 자리만 말해 격차를 보지 않는다. Knowing의 두 칸만 쓴다) · StillStands(방랑자 카드: 이동 중이 아닌 방랑자가 카드의 성계에 서 있고 조건이 선다). 규칙의 전문은 docs/20 부록의 틱 순서 문단
 
 // - ReceiveCalling(가칭, v0.8 — 단계 6, 헤더 승인): 부르심에서 서막(첫 틱 전의 카드, §4.4)의 결과(`Exaltation`, 연구 중점, 상처의 상태 태그 하나, 선택의 기록, 거절 횟수)를 상태에 적는다. 칸·`PeakTier`를 적지 않는다. 핸들러 안에서 불리면 에러 한 줄(CLAUDE.md의 목록에 든다). 선택의 기록이 저장 필드가 되면 초기값 규칙과 해시 포함 여부를 헤더에 적는다.
 
@@ -1496,7 +1530,15 @@ static constexpr float SecondsPerTick = 1.0f;
 
 // - ACosmicGameMode::StartPlay의 맨 앞: 'CosmicBuild: version <ProjectVersion>, commit <ProjectDir()/BuildInfo.txt의 commit=|->, cooked|editor' 한 줄, 그리고 세 스위치 가운데 하나라도 있으면 해시 판 — 거절(Error: no -CosmicHashRun= · bad -CosmicHashRun=<글> · bad -CosmicHashEvery=<글> · no -Seed= · the game's saving is on · no simulation) 또는 체크포인트(Display)와 LineOf(Ran은 Display, MissingData의 'refused - missing <이름>'은 Error), 그리고 RequestExitWithStatus(false, 0) — BeginSession도 Super::StartPlay도 부르지 않는다.
 
-// 통치자 정책(World/CosmicRulerPolicy.h, MVP ⑨ — 밸런스 커맨드렛의 -Answer·-Build·-Focus를 그대로 옮겼다; 커맨드렛과 해시 판이 함께 쓴다): FCosmicRulerPolicy { bAnswer, bBuild, bFocus } · FCosmicRulerPolicyCounts { CardsCome, Answers, Started, FocusChanges, bEnded } · int32 ChoiceOf(State, Index, Row, AnswersSoFar)(비축으로 낼 수 있는 첫 선택지를 답한 수부터 돌아가며) · void Act(Policy, Sim, Role, CardBefore, Counts)(틱 경계: 임시 끝 읽기 → 온 카드 → 답(8번까지) → 프로젝트 키(8번까지) → 끝나지 않았으면 다음 칸의 연구로 중점).
+// 통치자 정책(World/CosmicRulerPolicy.h, MVP ⑨ — 밸런스 커맨드렛의 -Answer·-Build·-Focus를 그대로 옮겼다; 커맨드렛과 해시 판이 함께 쓴다): FCosmicRulerPolicy { bAnswer, bBuild, bFocus } · FCosmicRulerPolicyCounts { CardsCome(통치자의 카드만 — 방랑자 카드는 세지 않는다, B1), Answers, Started, FocusChanges, bEnded } · int32 ChoiceOf(State, Index, Row, AnswersSoFar)(비축으로 낼 수 있는 첫 선택지를 답한 수부터 돌아가며 — 성공이 재위의 끝을 적는 선택지는 빼고 돈다: 스크립트는 스스로 왕좌를 떠나지 않는다, B1. 지금의 행에서 그런 선택지는 왕좌 카드의 셋째 하나이고, 기준 판들에는 왕좌 카드가 오지 않아 고르기가 그대로다) · void Act(Policy, Sim, Role, CardBefore, Counts)(틱 경계: 임시 끝 읽기 → 온 카드 → 답(8번까지) → 프로젝트 키(8번까지) → 끝나지 않았으면 다음 칸의 연구로 중점).
+
+// 방랑자 정책(World/CosmicWandererPolicy.h, B1 — 밸런스 커맨드렛의 -Abdicate=<틱>·-Wander=1과 테스트가 함께 쓴다. 플레이어의 스크립트라 화면처럼 세계와 앎을 읽는다): FCosmicWandererPolicy { int64 AbdicateAt(0 이하 = 떠나지 않는다), bool bWander } · FCosmicWandererPolicyCounts { LeftAt·CrownedAt(처음 떠난 틱과 처음 다시 왕좌에 오른 틱, -1 = 아직), CrownedCivID, CrownedTier, CrownedPath("reverence"·"vacuum"·"return" — 경외와 공백이 함께 서면 경외), Journeys, Scans, Cards, Answers(거둬진 카드는 세지 않는다), ReverencePeak(걷는 동안 어느 백성이든 가장 높았던 경외), LastLeft, ScannedAt, bEnded } · void CosmicWandererPolicy::AbdicateIfDue(Policy, Sim, Role, Counts)(AbdicateAt 틱의 경계에서 통치자 정책보다 먼저 Abdicate — 임시 끝을 먼저 읽고 그 뒤에는 입력하지 않는다) · void CosmicWandererPolicy::Act(Policy, Sim, Role, CardBefore, Counts)(통치자 정책 다음: 떠남·온 카드·경외를 세고, bWander이고 판이 끝나지 않았으면 ① 기다리는 카드에 제 답 수부터 돌아가며 답한다(방랑자는 비용이 없다) ② 선 성계의 주인에게 CrownBlockOf(만남은 앎에서)가 None이면 즉위·복귀 ③ 도착마다 한 번 스캔 ④ 이동 중이 아니면 TravelTo가 받는 레인 이웃 가운데 위기가 선 첫 이웃(Lanes 차례 — 방금 떠나온 성계는 그것만 열려 있을 때만), 없으면 (여행 수 mod 열린 이웃 수)번째로 간다). 한 경계의 차례: RunHeadless(1) → 끝 읽기 → 양위 → 통치자 정책 → 방랑자 정책. 커맨드렛의 요약 줄과 기준값은 docs/40.
+
+// 방랑자의 화면(B1 — 표현 계층의 인터페이스, 상태·해시·추첨 밖. 화면의 규칙과 문구는 헤더 B1의 4절):
+// - FCosmicKnownView(World/CosmicMapLook.h)에 TBitArray<> Met와 bool IsMet(int32 CivIndex) — 백성 인덱스마다 Knowing.MetCivs에 있는가. 패널이 즉위의 문(CrownBlockOf)의 bMet을 여기서 읽는다(표현 계층이 앎을 읽는 곳은 KnownViewOf 하나 그대로 — 불변 규칙 14). 개발용 CosmicSeeAll에서도 같다 — 그 도구는 모든 백성을 보이지만 아무도 만나지 않는다
+// - struct FCosmicVesselLook { int32 FromIndex = INDEX_NONE; // 그릇이 선 성계(이동 중이면 떠나온 성계), INDEX_NONE = 표지 없음(통치자·몸이 없는 그릇)  int32 ToIndex = INDEX_NONE; // 서 있으면 INDEX_NONE  float Share = 0.f; // 레인을 간 몫 0~1 } · FCosmicVesselLook CosmicMapLook::VesselLookOf(const FGalaxyState&, const FCosmicStateIndex&, const FCosmicRulesDef&) — Share = 1 − TravelTicksRemaining / LaneTicksOf, 0~1로. 앎을 읽지 않는다(방랑자가 선 성계와 그 레인 이웃은 늘 아는 성계다). 지도가 그 별 둘레에 금색 마름모를, 이동 중이면 그 레인을 밝히고 작은 마름모를 그린다
+// - ECosmicAutoPause::Encounter(World/CosmicAutoPause.h, 끝에 덧붙임 — 저장되지 않는다): 방랑자 카드가 와서 시간이 멈춘 까닭('정지 — 카드가 왔다' — 청원의 Card와 따로)
+// - ACosmicPlayerController(World/CosmicGameMode.h): bool TravelTo(FName SystemID) · int32 ScanHere()(새로 안 성계의 수, 0 = 새것 없음, INDEX_NONE = 거절) · bool TakeThrone(FName CivID)(그릇이 선 성계의 주인 — 복귀도 같은 길) · bool Abdicate() — UPlayerRoleSubsystem의 명령으로 넘긴다. 끝난 판은 거절. 받아들인 명령은 HUD를 다시 그리고 지도에 다시 그리기를 청한다(멈춘 시뮬은 틱을 보내지 않는다). 즉위는 새 백성의 서 있는 위기를 곧바로 기억하고(FollowOwnHazards — 다음 틱에 막 선 위기는 여전히 시간을 멈춘다) 기다리는 카드를 따른다. 개발용 콘솔(UFUNCTION(Exec) — 화면 찍기와 손 확인): CosmicTravel <성계>(인자 없으면 선 성계의 레인마다 문의 답을 로그에), CosmicScan, CosmicCrown(선 성계의 백성), CosmicAbdicate(한 번 — 두 번 누름은 화면의 것). 단추와 같은 길이고 거절은 사유와 함께 한 줄
 
 // CosmicSaveSlot (Save/CosmicSaveSlot.h, MVP ⑤ — 바이트의 순수 함수, 파일을 읽거나 쓰지 않는다): Magic 'CASV'(파일 차례), FormVersion 1, HeaderBytes 64(머리 CRC가 앞 60을 덮는다), MaxRawBytes 64 MiB, 봉투의 자리 FormAt 4·GalaxyIDAt 8·SavedAtAt 24·HeaderCrcAt 60(모든 꼴에 고정), enum class ECodec : uint8 { Stored = 0, Oodle = 1 }(파일에 든다 — 끝에만 추가). FHeader { Form, Codec, GalaxyID, SavedAtUtcTicks, Tick, RawBytes, PackedBytes, PayloadCrc, HeaderCrc } · FSeen { GalaxyID, bBackup, UtcTicks, bTimeFromHeader }. Encode(Save, SavedAt, OutSlot, OutRawBytes, Want)(SaveGameToMemory → Oodle Kraken·VeryFast, 코덱이 0을 내면 Stored) · ReadHeader(머리, 파일 길이, 기대 ID) · Check(+ 페이로드 CRC) · Unpack(+ 코덱 — 엔진의 읽개는 길이와 CRC를 지난 바이트만 본다, #70) · ParseSlotName · MaxSlotBytes · NewestRun(판의 시각 = 그 슬롯들 가운데 늦은 것, 같으면 GUID 글자가 늦은 것). enum class ECosmicSlotRead : uint8 { Ok, Missing, Short, OldForm, NotOurs, HeaderDamaged, BadSizes, Truncated, OtherGalaxy, PayloadDamaged, CodecRefused, Unreadable, ReadFailed, NewerForm, NewerSave, Sanctuary, Refused } — Missing~Unreadable이 상함(IsDamage가 하나씩 이름으로 — 백업을 연다), 나머지는 백업 없이 거절. 저장되지 않는다(로그 글).
 

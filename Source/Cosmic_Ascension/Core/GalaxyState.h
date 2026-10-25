@@ -318,7 +318,8 @@ struct COSMIC_ASCENSION_API FCivilizationState
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsPlayerRuled = false;
 
-	// Set to Tick + DT_Rules.ThroneLockTicks on deposition. Enthronement and return require Tick >= this (section 5.10).
+	// Raised to at least Tick + DT_Rules.ThroneLockTicks on every people when the vessel leaves a throne (a deposition or an
+	// abdication, B1). A coronation and a return require Tick >= this (section 5.10).
 	UPROPERTY(BlueprintReadOnly)
 	int64 ThroneLockedUntilTick = 0;
 
@@ -356,8 +357,9 @@ struct COSMIC_ASCENSION_API FPlayerEntityState
 	UPROPERTY(BlueprintReadOnly)
 	FName RuledCivID;
 
-	// The civ the player left: recorded by BecomeWanderer on abdication, deposition and death alike. Read by ReturnToFormerCiv
-	// and by the Former selector of CivHasNotable / NameNotable (section 5.10, 7.3).
+	// The civ the player left: recorded by BecomeWanderer on abdication, deposition and death alike. Read by the return
+	// (BecomeRuler on this people - CosmicWanderer::IsReturn: the lock alone, B1) and by the Former selector of CivHasNotable /
+	// NameNotable (section 5.10, 7.3).
 	UPROPERTY(BlueprintReadOnly)
 	FName FormerCivID;
 
@@ -464,7 +466,7 @@ struct COSMIC_ASCENSION_API FLifeRecord
 	int32 NameIndex = 0;
 
 	// The three reign arrays (RuledCivIDs, ReignEndReasons, ReignTicks) always have the same length. Taking a throne
-	// (Install as Ruler, BecomeRuler, ReturnToFormerCiv) adds one entry to all three.
+	// (Install as Ruler, BecomeRuler - a coronation or a return, B1) adds one entry to all three.
 	UPROPERTY()
 	TArray<FName> RuledCivIDs;
 
@@ -492,7 +494,8 @@ struct COSMIC_ASCENSION_API FLifeRecord
 	UPROPERTY()
 	TArray<FName> TranscendentsMet;
 
-	// Last three encounter / petition rows (epitaph).
+	// Last three encounter / petition rows (epitaph). The ruler's periodic slot reads only its petition_ rows; a wanderer is
+	// not offered again the most recent enc_ row among them (B1).
 	UPROPERTY()
 	TArray<FName> LastChoiceRows;
 
@@ -632,15 +635,18 @@ struct COSMIC_ASCENSION_API FKnowingState
 	UPROPERTY()
 	int64 FarLineUntilTick = 0;
 
-	// The petition card waiting for the player's answer (section 5.10): a DT_Encounters row. NAME_None (frozen
-	// initializer) = no card. Written by the end of the knowing stage (CosmicPetitions::Present) and by an answer that
-	// chains a next card; cleared by the answer, Install and BecomeWanderer (the ruled people is never removed while it
-	// is ruled). The tick stages never read it; the answer command does, as the definition of its input.
+	// The card waiting for the player's answer (section 5.10) - a ruler's petition or a wanderer's card (B1), one slot for
+	// both: a DT_Encounters row. NAME_None (frozen initializer) = no card. Written by the end of the knowing stage
+	// (CosmicPetitions::Present) and by an answer that chains a next card; cleared by the answer, Install, BecomeWanderer and
+	// a coronation (the ruled people is never removed while it is ruled). The commands read it as the definition of their
+	// input (the answer; TravelTo and BecomeRuler refuse while a card waits); inside the tick only the knowing writers read
+	// it - the head of the tick and the end of the knowing stage, whether the slot is empty (docs/20, rule 2).
 	UPROPERTY()
 	FName PendingPetitionRow;
 
-	// The system the waiting card is about: a settled system of the ruled people for a SettledSystem row; NAME_None for
-	// a Civilization row (the people, current system = its capital) and when no card waits.
+	// The system the waiting card is about: a settled system of the ruled people for a SettledSystem row; the system the
+	// vessel stood in for a wanderer's card (VesselSystem, B1); NAME_None for a Civilization row (the people, current system =
+	// its capital) and when no card waits.
 	UPROPERTY()
 	FName PendingPetitionSystemID;
 };

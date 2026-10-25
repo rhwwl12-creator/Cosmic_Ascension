@@ -60,6 +60,8 @@ FName PendingPetitionSystemID;
 
 `docs/21`의 가칭 `ResolveEncounterChoice`를 이 이름으로 정한다. 방랑자의 조우는 B1에서 같은 함수를 쓰거나 이름을 넓힌다. 몸통은 `CosmicPetitions::Answer(FCosmicEvalContext&, …)`이고 명령은 가드·문맥·`SyncRngState`만 맡는다(`StartMegaproject`의 꼴).
 
+> **B1 뒤의 기록 (2026-10-25)**: `CosmicPetitions::Answer`는 만들지 않았다 — 몸통은 A-2b부터 명령 `AnswerPetition` 안에 있고, B1은 이름을 그대로 둔 채 이 명령 하나를 두 역할의 답으로 넓혔다. 청원(`petition_` 행)은 몸을 입은 통치자가, 방랑자의 조우 카드(`enc_` 행 — 주제 `VesselSystem`)는 몸을 입은 방랑자가 답하고, 다른 역할의 답은 추첨도 에러 줄도 없이 거절된다. 두 역할이 함께 쓰는 주제·때가 지났는지·판정 값만 `CosmicPetitions`의 순수 함수다(`VesselSubjectOf`·`SubjectOf`·`StillStands`·`CheckValueOf`·`Passes`). 방랑자의 답은 비용이 없고 판정은 그릇의 능력치로 한다 — 명령의 몫은 `docs/21_DATA_MODEL_REFERENCE.md`의 `AnswerPetition`, 결정은 헤더 `B1_wanderer_loop.md`의 '답 — 하나의 답 명령'.
+
 순서는 다음과 같다.
 
 1. **거절**(추첨 없이 `false`): 방송 중, 몸을 입은 통치자가 아님, 대기 카드 없음, 대기 행이 표에 없음, 선택지 번호 밖, 비축이 비용에 못 미침(`CosmicMegaprojects::CanPay`). 방송 중(규칙 5)과 단추가 막아야 하는 마지막 셋은 에러 한 줄이고, 둘째·셋째는 소리 없이 거절한다.

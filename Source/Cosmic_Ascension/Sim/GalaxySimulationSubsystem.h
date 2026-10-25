@@ -221,7 +221,7 @@ public:
 	 * at once (CosmicState::SightWalkOf), the systems within Reach lanes known through NoteKnown in the order found (only
 	 * when bSees), then every known system's owner met nearer first (NoteMet; lanes from the eye without the reach bound,
 	 * ties by CivID). Reads the world, writes only Knowing and the telling; no sim draw. Returns how many systems became
-	 * known. TickSight calls it; the wanderer's scan (Phase 4) will.
+	 * known. TickSight and the wanderer's scan (UPlayerRoleSubsystem::ScanCurrentSystem, B1) call it.
 	 */
 	int32 LookFrom(TConstArrayView<int32> EyePlaces, int32 Reach, bool bSees);
 
@@ -248,7 +248,7 @@ public:
 	// Binds the live state, the sim stream, the state index, the tables and the rules into an evaluation context
 	// (section 7.5, Events/CosmicEventSubsystem.h). Stage code that applies effects or fires a row by name builds its
 	// context here (the event slots are handed the state and the stream and build their own); a caller outside a tick
-	// (encounter resolution, Phase 4) does the same and calls SyncRngState() afterwards. Reports an error when called
+	// (a card's answer, the abdication command) does the same and calls SyncRngState() afterwards. Reports an error when called
 	// while IsBroadcasting(): a handler must not evaluate anything.
 	FCosmicEvalContext MakeEvalContext();
 
@@ -473,7 +473,7 @@ private:
 	// least 1) or when bVesselMoved: Player.CurrentSystemID differs from its value at the start of the tick (a journey's
 	// end, or a destruction that carried the vessel). Both are locals of SimulateTick - no member, no saved field
 	// (section 4.4: the eye is derived). Whatever places the eye outside the stages (Install, a role change) or widens it
-	// in place (a scan, Phase 4) writes knowing in its own call.
+	// in place (the wanderer's scan, B1) writes knowing in its own call.
 	// The eye: a ruler at every system its people owns (OwnedSystems order), with the reach of the people's Tier, and
 	// only from DT_Rules.FirstSightTick on (before, the places of the eye still order the meetings but add no system); a
 	// wanderer at the system it stands in, with the reach of the calling's PersonalTier. Reach =

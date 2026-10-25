@@ -875,7 +875,7 @@ void ACosmicGalaxyMapActor::Refresh()
 		}
 	}
 
-	// The vessel (B1): a gold diamond - the calling's colour, as its lines in the feed - around the star it stands at; while
+	// The vessel (B1): a gold diamond - the gold of the feed's Severity 2 lines, the calling's own among them - around the star it stands at; while
 	// it travels, a small one along the lane it takes, and that lane lit. A shape of its own - the rings are round, the
 	// selection's white. Its system and the lane's ends are always known (a guard all the same: nothing is drawn toward a
 	// system the viewer is not shown).
