@@ -655,7 +655,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				{
 					const FString Tag = Slot.Tag.ToString();
 					Counts.Ended.FindOrAdd(Tag)++;
-					const bool bAnswered = !Slot.Answer.IsNone() && CosmicMegaprojects::HasCompleted(System, Slot.Answer, State.Tick);
+					const bool bAnswered = !Slot.Answer.IsNone() && CosmicMegaprojects::HasCompleted(System, Slot.Answer, State.Tick, NAME_None);
 					if (bAnswered)
 					{
 						Counts.Answered.FindOrAdd(Tag)++;

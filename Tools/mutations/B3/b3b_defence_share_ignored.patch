@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -277,7 +277,7 @@
+ 	{
+ 		return 0.f;
+ 	}
+-	const int32 ShareAt = (Owner.FleetTargetSystemID == System.SystemID) ? 0 : Owner.FleetTargetSystemID.IsNone() ? 1 : 2;
++	const int32 ShareAt = 1;
+ 	const float Share = Rules.SiegeDefenceShares.IsValidIndex(ShareAt) ? CosmicConflictImpl::FactorOr(Rules.SiegeDefenceShares[ShareAt], 0.f) : 0.f;
+ 	const float Power = CosmicConflictImpl::FactorOr(Owner.FleetPower, 0.f);
+ 	const float D = Power * Share;

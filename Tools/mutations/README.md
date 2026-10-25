@@ -101,3 +101,65 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B3/` | `b3a_new_record_no_completer.patch` — a new completion record names no completer | `Cosmic_Ascension.Sim.MegaprojectProgress` |
 | `B3/` | `b3a_fleet_tick_not_saved.patch` — the fleet target tick is not a saved property | `Cosmic_Ascension.Sim.SaveRoundTrip` |
 | `B3/` | `b3a_tags_hashed_in_stored_order.patch` — a tag container is hashed in its stored order | `Cosmic_Ascension.Sim.Determinism` |
+| `B3/` | `b3b_sign_one_side.patch` — a treaty is signed on one side only | `Cosmic_Ascension.Sim.DiplomacyRules` |
+| `B3/` | `b3b_neutral_keeps_entry.patch` — turning neutral leaves an empty pair record | `Cosmic_Ascension.Sim.DiplomacyRules` |
+| `B3/` | `b3b_stance_same_before_met.patch` — the same stance is asked before the meeting | `Cosmic_Ascension.Sim.DiplomacyRules` |
+| `B3/` | `b3b_view_stored_everywhere.patch` — a pair that does not border is seen through its stored relation | `Cosmic_Ascension.Sim.DiplomacyRules` |
+| `B3/` | `b3b_hostility_keeps_trade.patch` — turning hostile keeps the trade treaty | `Cosmic_Ascension.Sim.DiplomacyRules` |
+| `B3/` | `b3b_siege_gate_order.patch` — the realm cap is asked before the lane | `Cosmic_Ascension.Sim.DiplomacyRules` |
+| `B3/` | `b3b_tie_to_attacker.patch` — a tie of the siege number goes to the attacker | `Cosmic_Ascension.Sim.DiplomacyRules` |
+| `B3/` | `b3b_defence_share_ignored.patch` — the defender always defends with half | `Cosmic_Ascension.Sim.DiplomacyRules` |
+| `B3/` | `b3b_cost_before_refused.patch` — the cost of a treaty is asked before its refusal | `Cosmic_Ascension.Sim.DiplomacyRules` |
+| `B3/` | `b3b_stance_treaty_before_tier.patch` — a non-aggression treaty is asked before the rung | `Cosmic_Ascension.Sim.DiplomacyRules` |
+| `B3/` | `b3b_fleet_before_cap.patch` — the fleet is asked before the realm cap | `Cosmic_Ascension.Sim.DiplomacyRules` |
+| `B3/` | `b3b_drift_unbordered.patch` — every pair drifts, bordering or not | `Cosmic_Ascension.Sim.DiplomacyStage` |
+| `B3/` | `b3b_drift_writes_at_zero.patch` — a rate of 0 still writes relation entries | `Cosmic_Ascension.Sim.DiplomacyStage` |
+| `B3/` | `b3b_upkeep_never_lapses.patch` — a friendly stance never lapses for want of Influence | `Cosmic_Ascension.Sim.DiplomacyStage` |
+| `B3/` | `b3b_cleanup_keeps_ties.patch` — the crossing cleanup keeps the ties of a people gone | `Cosmic_Ascension.Sim.DiplomacyStage` |
+| `B3/` | `b3b_no_trade_income.patch` — a trade treaty brings no Influence | `Cosmic_Ascension.Sim.DiplomacyStage` |
+| `B3/` | `b3b_drift_draws.patch` — the drift draws one number a bordering pair | `Cosmic_Ascension.Sim.DiplomacyStage` |
+| `B3/` | `b3b_commands_ignore_met.patch` — the stance command does not ask whether the people is met | `Cosmic_Ascension.Sim.DiplomacyCommands` |
+| `B3/` | `b3b_accept_without_bonus.patch` — the acceptance leaves out the edicts' bonus | `Cosmic_Ascension.Sim.DiplomacyCommands` |
+| `B3/` | `b3b_break_no_penalty.patch` — breaking a treaty costs no view | `Cosmic_Ascension.Sim.DiplomacyCommands` |
+| `B3/` | `b3b_same_target_rewinds.patch` — the same target again winds the siege back | `Cosmic_Ascension.Sim.DiplomacyCommands` |
+| `B3/` | `b3b_handler_break_runs.patch` — BreakTreaty goes on from a handler after its error line | `Cosmic_Ascension.Sim.DiplomacyCommands` |
+| `B3/` | `b3b_cap_by_tier_only.patch` — the fleet cap ignores the settled systems | `Cosmic_Ascension.Sim.Fleet` |
+| `B3/` | `b3b_attrition_counts_owner.patch` — the attrition counts the owner's rung (the full pressure) | `Cosmic_Ascension.Sim.Fleet` |
+| `B3/` | `b3b_attrition_counts_wanderer.patch` — the attrition counts a wanderer standing there | `Cosmic_Ascension.Sim.Fleet` |
+| `B3/` | `b3b_fleet_below_zero.patch` — the attrition takes the fleet below 0 | `Cosmic_Ascension.Sim.Fleet` |
+| `B3/` | `b3b_unpaid_upkeep_paid.patch` — an upkeep that cannot be paid is paid anyway | `Cosmic_Ascension.Sim.Fleet` |
+| `B3/` | `b3b_gate_lost_no_draw.patch` — a siege that lost its gate on its last tick draws nothing | `Cosmic_Ascension.Sim.Siege` |
+| `B3/` | `b3b_one_draw_per_tick.patch` — every siege at its end shares one number | `Cosmic_Ascension.Sim.Siege` |
+| `B3/` | `b3b_no_recheck.patch` — the gate is not asked again before an end | `Cosmic_Ascension.Sim.Siege` |
+| `B3/` | `b3b_transfer_keeps_targets.patch` — a hand-over keeps the targets on the system | `Cosmic_Ascension.Sim.Siege` |
+| `B3/` | `b3b_destroy_keeps_targets.patch` — a destruction keeps the targets on the system | `Cosmic_Ascension.Sim.Siege` |
+| `B3/` | `b3b_due_exact.patch` — a siege ends only on the exact tick | `Cosmic_Ascension.Sim.Siege` |
+| `B3/` | `b3b_held_keeps_fleet.patch` — a siege that fails costs the attacker nothing | `Cosmic_Ascension.Sim.Siege` |
+| `B3/` | `b3b_one_row_both_sides.patch` — the defender is told the attacker's row | `Cosmic_Ascension.Sim.Siege` |
+| `B3/` | `b3b_siege_line_unmet.patch` — the siege line is told before the other people is met | `Cosmic_Ascension.Sim.Siege` |
+| `B3/` | `b3b_taking_unknown.patch` — a taking does not follow the knowing of the system received | `Cosmic_Ascension.Sim.Siege` |
+| `B3/` | `b3b_conquest_keeps_vessel.patch` — the ruler's vessel stays on the system its people lost | `Cosmic_Ascension.Sim.Siege` |
+| `B3/` | `b3b_siege_knob_no_floor.patch` — a SiegeTicks of 0 is not read as 1 | `Cosmic_Ascension.Sim.Siege` |
+| `B3/` | `b3b_loser_not_counted.patch` — the loser cut off from the conqueror does not think less of it | `Cosmic_Ascension.Sim.Siege` |
+| `B3/` | `b3b_guard_never_checked.patch` — a guard is never asked its gate | `Cosmic_Ascension.Sim.Siege` |
+| `B3/` | `b3b_delay_on_rebellion.patch` — a rebellion in a guarded capital is put off | `Cosmic_Ascension.Sim.FleetDelay` |
+| `B3/` | `b3b_delay_unguarded.patch` — an unguarded system gains the delay | `Cosmic_Ascension.Sim.FleetDelay` |
+| `B3/` | `b3b_delay_ignores_gap.patch` — a claim's delay ignores the gap to its claimant | `Cosmic_Ascension.Sim.FleetDelay` |
+| `B3/` | `b3b_delay_outside_cut.patch` — the delay is added past the int32 cut | `Cosmic_Ascension.Sim.FleetDelay` |
+| `B3/` | `b3b_spread_live_table.patch` — the spread reads a plague placed in the same step | `Cosmic_Ascension.Sim.PlagueSpread` |
+| `B3/` | `b3b_spread_no_multiplier.patch` — the spread multiplies nothing | `Cosmic_Ascension.Sim.PlagueSpread` |
+| `B3/` | `b3b_ai_pileon.patch` — an AI opens hostility on a people another AI is hostile to | `Cosmic_Ascension.Sim.DiplomacyAI` |
+| `B3/` | `b3b_ai_no_aim_needed.patch` — an AI turns hostile with no system to aim at | `Cosmic_Ascension.Sim.DiplomacyAI` |
+| `B3/` | `b3b_ai_keeps_hostility.patch` — an AI keeps a hostility with no siege | `Cosmic_Ascension.Sim.DiplomacyAI` |
+| `B3/` | `b3b_ai_no_rest.patch` — an AI does not rest after a siege | `Cosmic_Ascension.Sim.DiplomacyAI` |
+| `B3/` | `b3b_ai_keeps_guard.patch` — an AI keeps a guard | `Cosmic_Ascension.Sim.DiplomacyAI` |
+| `B3/` | `b3b_coronation_keeps_siege.patch` — the coronation keeps the new ruler's siege | `Cosmic_Ascension.Sim.DiplomacyAI` |
+| `B3/` | `b3b_ai_line_unmet.patch` — the AI's siege line is told before the besieger is met | `Cosmic_Ascension.Sim.DiplomacyAI` |
+| `B3/` | `b3b_ai_keeps_trade.patch` — the AI's opening keeps the trade treaty | `Cosmic_Ascension.Sim.DiplomacyAI` |
+| `B3/` | `b3b_ai_reads_knowing.patch` — the AI opens only toward a ruled people the calling has met | `Cosmic_Ascension.Sim.DiplomacyAI` |
+| `B3/` | `b3b_completion_any_people.patch` — a completion counts for any people | `Cosmic_Ascension.Sim.OwnCompletions` |
+| `B3/` | `b3b_transfer_no_stamp.patch` — a hand-over does not write the old owner into a record of no people | `Cosmic_Ascension.Sim.OwnCompletions` |
+| `B3/` | `b3b_chronicle_keeps_stance.patch` — the chronicle admits the stance lines | `Cosmic_Ascension.Log.ConflictLines` |
+| `B3/` | `b3b_effect_skips_gate.patch` — the SetStance effect skips the stance gate | `Cosmic_Ascension.Events.RoleEffectRules` |
+| `B3/` | `b3b_schema_no_card_only.patch` — the schema checker lets a card-only effect stand anywhere | `test_diplomacy_and_conflict` (`Tools/test_data_schema.py`) |
+| `B3/` | `b3b_schema_log_without_holy_words.patch` — the log lines no longer refuse the holy words | `test_diplomacy_and_conflict` (`Tools/test_data_schema.py`) |

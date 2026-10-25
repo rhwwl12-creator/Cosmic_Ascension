@@ -57,6 +57,24 @@ namespace CosmicRows
 	inline const FName LogEdictRevoked(TEXT("log_edict_revoked"));
 	inline const FName LogEdictLapsed(TEXT("log_edict_lapsed"));
 
+	// DT_LogTemplates: the diplomacy and conflict lines (B3, docs/60_DECISIONS/headers/B3_diplomacy_and_conflict.md section
+	// 3.4) - told only when the people the player rules is a party, the other people as the argument {OtherCiv}. A stance
+	// set by command and a friendly stance that lapses (the chronicle leaves both out - CosmicChronicle::Admits), a treaty
+	// signed or broken, and a siege: begun by command (Severity 1 - no auto-pause), laid on the ruled people, taken, lost,
+	// held, failed (Severity 2), lifted when its gate closed (Severity 1). One row per side: the attacker's and the
+	// defender's lines are never one template.
+	inline const FName LogStanceChanged(TEXT("log_stance_changed"));
+	inline const FName LogStanceLapsed(TEXT("log_stance_lapsed"));
+	inline const FName LogTreatySigned(TEXT("log_treaty_signed"));
+	inline const FName LogTreatyBroken(TEXT("log_treaty_broken"));
+	inline const FName LogSiegeBegun(TEXT("log_siege_begun"));
+	inline const FName LogSiegeOnUs(TEXT("log_siege_on_us"));
+	inline const FName LogSiegeTaken(TEXT("log_siege_taken"));
+	inline const FName LogSiegeLost(TEXT("log_siege_lost"));
+	inline const FName LogSiegeHeld(TEXT("log_siege_held"));
+	inline const FName LogSiegeFailed(TEXT("log_siege_failed"));
+	inline const FName LogSiegeLifted(TEXT("log_siege_lifted"));
+
 	// DT_LogTemplates: the meeting lines (section 7.4). NoteMet tells the first for the first meeting of the run, the
 	// second for every later one.
 	inline const FName LogFirstContact(TEXT("log_first_contact"));

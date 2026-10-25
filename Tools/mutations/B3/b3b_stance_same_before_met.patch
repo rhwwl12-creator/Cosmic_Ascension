@@ -1,0 +1,21 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+@@ -325,14 +325,14 @@
+ 	{
+ 		return ECosmicStanceBlock::Self;
+ 	}
+-	if (!bMet)
+-	{
+-		return ECosmicStanceBlock::NotMet;
+-	}
+ 	const FCivilizationState& Civ = State.Civs[CivIndex];
+ 	if (StanceOf(Civ, OtherID) == Stance)
+ 	{
+ 		return ECosmicStanceBlock::Same;
++	}
++	if (!bMet)
++	{
++		return ECosmicStanceBlock::NotMet;
+ 	}
+ 	if (Stance == CosmicTags::StanceFriendly() && FriendlyCountOf(Civ) >= FriendlySlotsOf(Civ, Rules))
+ 	{

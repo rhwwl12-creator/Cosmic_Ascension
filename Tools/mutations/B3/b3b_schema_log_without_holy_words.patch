@@ -1,0 +1,11 @@
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -262,7 +262,7 @@
+ 					"min": 3,
+ 					"single_variant": true,
+ 					"slots": ["Civ", "System", "OtherCiv", "Trait", "Value", "Tier", "Hazard", "Player", "HomeSystem", "Dedication", "Epithet", "Revelation", "Transcendent", "Ruler", "Regent", "Rebel", "Loyalist", "Hearer", "Ascendant", "PopBand", "CivAdj", "Edict", "Stance", "Treaty"],
+-					"forbidden": ["verdict", "soul_verbs", "holy_words"]
++					"forbidden": ["verdict", "soul_verbs"]
+ 				}
+ 			},
+ 			"unique": [

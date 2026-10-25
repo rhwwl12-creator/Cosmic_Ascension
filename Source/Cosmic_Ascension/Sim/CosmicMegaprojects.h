@@ -56,9 +56,11 @@ namespace CosmicMegaprojects
 
 	/**
 	 * Whether the system holds a completion of RowName (CompletedMegaprojects) whose tick is above 0 and not below
-	 * SinceTick: the test of condition MegaprojectComplete (section 4.4, 5.7). An empty RowName is false.
+	 * SinceTick, made by the people CivID: the test of condition MegaprojectComplete (section 4.4, 5.7). A record's CivID
+	 * is the people that completed it last (#73, B3 section 2.10); a record of no people (a save from before B3) is read
+	 * as the system's owner's now, and so is an empty CivID. An empty RowName is false.
 	 */
-	COSMIC_ASCENSION_API bool HasCompleted(const FStarSystemState& System, FName RowName, int64 SinceTick);
+	COSMIC_ASCENSION_API bool HasCompleted(const FStarSystemState& System, FName RowName, int64 SinceTick, FName CivID);
 
 	/**
 	 * The progress Row needs to complete, as Advance reads it: its RequiredProgress, or 1 when that is below 1 or not a
@@ -141,7 +143,7 @@ namespace CosmicMegaprojects
 	 * system it owns, in OwnedSystems order, whose response slot is empty, the first row in the RulerResolutions of its
 	 * hazard's row that Start would take; then, while the construction slot of its settled capital is empty, the first
 	 * construction row named by a MegaprojectComplete condition of a Ruler feat for its Tier that the judgment looks at
-	 * (FAscensionFeatDef::IsJudgedRulerRowAt; feat rows in lexical order, conditions in order) that it has completed on none of the settled systems it owns since SinceTick, that runs in the
+	 * (FAscensionFeatDef::IsJudgedRulerRowAt; feat rows in lexical order, conditions in order) that it has completed itself (#73) on none of the settled systems it owns since SinceTick, that runs in the
 	 * construction slot of none of them, and that Start would take. An entry of OwnedSystems whose owner is another people
 	 * counts for nothing. Reads only; draws nothing. The AI starts every choice; the prototype's project key starts the
 	 * first one for the people the player rules.
@@ -230,8 +232,8 @@ namespace CosmicMegaprojects
 
 	/**
 	 * Starts the settlement of SystemIndex by the people CivIndex (section 5.7): refused (false, nothing changed)
-	 * unless CanSettle. The system becomes the people's through CosmicHazards::Transfer (the one path by which an effect
-	 * or a settlement hands a system over; only the stage code of Destroy and LetSettlementsGo lets one go otherwise) and
+	 * unless CanSettle. The system becomes the people's through CosmicHazards::Transfer (the one path by which an effect,
+	 * a settlement or a conquest - B3 - hands a system over; only the stage code of Destroy and LetSettlementsGo lets one go otherwise) and
 	 * its construction slot takes project_settle from 0. Until the project completes the system is
 	 * not settled: no income, no hazard, no foothold for the next settlement, not in the count of Law.Remnant.
 	 * No line, no draw (the AI draws before it calls this; the ruler's command draws nothing). Leaves the SystemReceived

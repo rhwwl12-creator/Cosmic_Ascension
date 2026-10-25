@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -290,7 +290,7 @@
+ 
+ bool CosmicConflict::Takes(float Number, float Odds)
+ {
+-	return Number < Odds;
++	return Number <= Odds;
+ }
+ 
+ int64 CosmicConflict::SiegeEndTickOf(const FCivilizationState& Civ, const FCosmicRulesDef& Rules)

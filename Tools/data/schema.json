@@ -20,7 +20,7 @@
 	],
 	"tag_sources": ["Config/DefaultGameplayTags.ini"],
 	"row_name_sources": ["Source/Cosmic_Ascension/Data/CosmicRowNames.h"],
-	"required_tags": ["Notable.Ruler", "Notable.Regent", "Notable.Rebel", "Notable.Loyalist", "Notable.Hearer", "Notable.Ascendant"],
+	"required_tags": ["Notable.Ruler", "Notable.Regent", "Notable.Rebel", "Notable.Loyalist", "Notable.Hearer", "Notable.Ascendant", "Stance.Friendly", "Stance.Hostile", "Treaty.Trade", "Treaty.NonAggression"],
 	"row_name_pattern": "^[a-z][a-z0-9_]*$",
 
 	"words": {
@@ -49,7 +49,9 @@
 			"Petition.": {"forbidden": "verdict"},
 			"Edict.": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
 			"Hint.Edict": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
-			"Resource.": {"forbidden": ["verdict", "holy_words"]}
+			"Resource.": {"forbidden": ["verdict", "holy_words"]},
+			"Stance.": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
+			"Treaty.": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true}
 		}
 	},
 
@@ -101,10 +103,10 @@
 				"PressureBySourceTier": {"kind": "numbers", "len": 5, "min": 0},
 				"PressureAdjacencyFalloff": {"kind": "number", "min": 0, "max": 1},
 				"SpiritualPressureStabilityDrain": {"kind": "number", "min": 0},
-				"PressureFleetAttrition": {"kind": "number"},
+				"PressureFleetAttrition": {"kind": "number", "min": 0},
 				"FleetEffectivenessByTierGap": {"kind": "numbers", "len": 3},
-				"FleetDelayPerPower": {"kind": "number"},
-				"FleetDelayCap": {"kind": "number"},
+				"FleetDelayPerPower": {"kind": "number", "min": 0},
+				"FleetDelayCap": {"kind": "number", "min": 0},
 				"ImmutableLaws": {"kind": "tags", "root": "Law."},
 				"FallenTranscendentCount": {"kind": "number", "min": 0, "max": 3, "integer": true},
 				"PlayerArchetypeRow": {"kind": "row", "table": "DT_Civs"},
@@ -164,7 +166,29 @@
 				"StartingEdict": {"kind": "row", "table": "DT_Edicts", "optional": true},
 				"EdictSlotSocietyMarks": {"kind": "numbers", "min": 0, "max": 1, "ascending": true},
 				"SocietyRecoveryBonus": {"kind": "number", "min": 0, "max": 1},
-				"AIEdictRevokeStability": {"kind": "number", "min": 0, "max": 1}
+				"AIEdictRevokeStability": {"kind": "number", "min": 0, "max": 1},
+				"RelationDriftRate": {"kind": "number", "min": 0, "max": 1},
+				"RelationEthicsWeight": {"kind": "number", "min": 0, "max": 1},
+				"RelationStanceTerms": {"kind": "numbers", "len": 2, "min": -1, "max": 1},
+				"RelationTreatyTerm": {"kind": "number", "min": 0, "max": 1},
+				"ConquestRelationPenalty": {"kind": "number", "min": 0, "max": 2},
+				"BetrayalRelationPenalty": {"kind": "number", "min": 0, "max": 2},
+				"FriendlyUpkeepInfluence": {"kind": "number", "min": 0},
+				"FriendlySlotsByTier": {"kind": "numbers", "len": 5, "min": 0, "integer": true},
+				"TreatyCostInfluence": {"kind": "number", "min": 0},
+				"TreatyAcceptRelation": {"kind": "number", "min": -1, "max": 1},
+				"TradeInfluencePerTreaty": {"kind": "number", "min": 0},
+				"FleetPerSettledByTier": {"kind": "numbers", "len": 5, "min": 0},
+				"FleetGrowthPerTick": {"kind": "number", "min": 0},
+				"FleetUpkeepEnergyPerPower": {"kind": "number", "min": 0},
+				"SiegeTicks": {"kind": "number", "min": 1, "integer": true},
+				"SiegeRestTicks": {"kind": "number", "min": 0, "integer": true},
+				"SiegeDefenceShares": {"kind": "numbers", "len": 3, "min": 0, "max": 1},
+				"SiegeRepulsedFleetFactor": {"kind": "number", "min": 0, "max": 1},
+				"AIHostileRelation": {"kind": "number", "min": -1, "max": 1},
+				"AIHostilePowerRatio": {"kind": "number", "min": 0},
+				"AIHostilePacifismMax": {"kind": "number", "min": -1, "max": 1},
+				"PlagueSpreadMultiplier": {"kind": "number", "min": 0}
 			},
 			"rules": [
 				{
@@ -228,7 +252,7 @@
 			"struct": "LogTemplateDef",
 			"prefixes": ["log_"],
 			"must_exist": true,
-			"required_rows": ["log_first_life", "log_breakthrough_physics", "log_breakthrough_society", "log_breakthrough_engineering", "log_breakthrough_transcendence", "log_fallen_monarch", "log_first_contact", "log_contact", "log_far_event", "log_far_ascent", "log_scan_wild", "log_crowned", "log_returned", "log_throne_vacated", "log_rebellion_unseated", "log_edict_enacted", "log_edict_revoked", "log_edict_lapsed"],
+			"required_rows": ["log_first_life", "log_breakthrough_physics", "log_breakthrough_society", "log_breakthrough_engineering", "log_breakthrough_transcendence", "log_fallen_monarch", "log_first_contact", "log_contact", "log_far_event", "log_far_ascent", "log_scan_wild", "log_crowned", "log_returned", "log_throne_vacated", "log_rebellion_unseated", "log_edict_enacted", "log_edict_revoked", "log_edict_lapsed", "log_stance_changed", "log_stance_lapsed", "log_treaty_signed", "log_treaty_broken", "log_siege_begun", "log_siege_on_us", "log_siege_taken", "log_siege_lost", "log_siege_held", "log_siege_failed", "log_siege_lifted"],
 			"columns": {
 				"Category": {"kind": "tag", "root": "Log."},
 				"Context": {"kind": "tag", "root": "Revelation.", "optional": true},
@@ -237,8 +261,8 @@
 					"kind": "texts",
 					"min": 3,
 					"single_variant": true,
-					"slots": ["Civ", "System", "OtherCiv", "Trait", "Value", "Tier", "Hazard", "Player", "HomeSystem", "Dedication", "Epithet", "Revelation", "Transcendent", "Ruler", "Regent", "Rebel", "Loyalist", "Hearer", "Ascendant", "PopBand", "CivAdj", "Edict"],
-					"forbidden": ["verdict", "soul_verbs"]
+					"slots": ["Civ", "System", "OtherCiv", "Trait", "Value", "Tier", "Hazard", "Player", "HomeSystem", "Dedication", "Epithet", "Revelation", "Transcendent", "Ruler", "Regent", "Rebel", "Loyalist", "Hearer", "Ascendant", "PopBand", "CivAdj", "Edict", "Stance", "Treaty"],
+					"forbidden": ["verdict", "soul_verbs", "holy_words"]
 				}
 			},
 			"unique": [
@@ -687,8 +711,8 @@
 						"CheckStat": {"kind": "enum", "enum": "ECosmicCheckStat"},
 						"Difficulty": {"kind": "number", "min": 0, "max": 16, "integer": true},
 						"Cost": {"kind": "pool", "min": 0},
-						"OnSuccess": {"kind": "effects"},
-						"OnFailure": {"kind": "effects"},
+						"OnSuccess": {"kind": "effects", "card": true},
+						"OnFailure": {"kind": "effects", "card": true},
 						"SuccessText": {"kind": "text", "required": true, "slots": ["Civ", "System", "Hazard", "Rebel"], "no_digits": true, "forbidden": "verdict"},
 						"FailureText": {"kind": "text", "slots": ["Civ", "System", "Hazard", "Rebel"], "no_digits": true, "forbidden": "verdict"},
 						"NextEncounter": {"kind": "row", "table": "DT_Encounters", "optional": true}
@@ -797,8 +821,16 @@
 				"UpkeepPerTick": {"kind": "pool", "min": 0},
 				"EffectsPerTick": {"kind": "effects", "per_tick": true, "no_duration": true, "keyed": ["ChangeRelation"]},
 				"HazardSpawnMultipliers": {"kind": "tag_map", "root": "Hazard.", "min": 0},
-				"HazardCountdownBonus": {"kind": "tag_map", "root": "Hazard.", "min": 0, "integer": true}
-			}
+				"HazardCountdownBonus": {"kind": "tag_map", "root": "Hazard.", "min": 0, "integer": true},
+				"FleetGrowthMultiplier": {"kind": "number", "min": 0},
+				"TreatyAcceptBonus": {"kind": "number", "min": 0, "max": 1}
+			},
+			"rules": [
+				{
+					"why": "a held edict multiplies the fleet's growth: at 0 the inherited edict would keep the ruler's fleet at 0 from the first tick, so the code reads a factor that is not above 0 as 1 (B3 header 3.2)",
+					"then": [{"col": "FleetGrowthMultiplier", "gt": 0}]
+				}
+			]
 		}
 	},
 
@@ -856,7 +888,8 @@
 		"DeposeRuler": {"tag": {"root": "Reign."}},
 		"ChangePopulation": {"value": {"min": -1}},
 		"NameNotable": {"tag": {"root": "Notable."}, "key": {"word": "civ_selector", "optional": true}},
-		"FocusResearch": {"key": {"word": "research"}, "value": {"min": 0.25, "max": 1}}
+		"FocusResearch": {"key": {"word": "research"}, "value": {"min": 0.25, "max": 1}},
+		"SetStance": {"tag": {"root": "Stance.Friendly", "optional": true}, "key": {"any": true, "optional": true}, "card_only": true}
 	},
 
 	"per_tick_effects": ["AddResource", "MultiplyIncome", "ShiftEthics", "ChangeStability", "ChangeRelation", "ChangeReverence", "ChangePopulation"]

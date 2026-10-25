@@ -222,6 +222,8 @@ def edict_row(name="edict_test_order", **changes):
         "EffectsPerTick": [eff("ChangeStability", value=-0.001)],
         "HazardSpawnMultipliers": {"Hazard.Plague": 2.0},
         "HazardCountdownBonus": {"Hazard.Claim": 100},
+        "FleetGrowthMultiplier": 1.0,
+        "TreatyAcceptBonus": 0.0,
     }
     row.update(changes)
     return row
@@ -1313,6 +1315,63 @@ class SchemaTests(unittest.TestCase):
         self.schema_problem(self.put(["string_table", "checked_prefixes"], "Edict.", {"forbidden": [1]}), "schema.string_table.checked_prefixes.Edict.", "a string or a list of strings")
         self.assertEqual(self.after(self.set_cell("DT_Hazards", "crisis_test_storm", "RulerResolutions", ["edict_test_order"])), [])
 
+    def test_diplomacy_and_conflict(self):
+        """B3: both sides of the new knobs' bounds and the lengths of their lists, the two new edict columns, the stance
+        effect (a card's answer only, friendly or neutral), the two new slots and the holy words of the log lines, and the
+        stance and treaty keys of the String Table."""
+        self.assertEqual(self.after(), [])
+        rules = lambda key, value: self.set_cell("DT_Rules", "rules", key, value)  # noqa: E731
+        for knob, value, word in (("RelationDriftRate", 1.5, "above"), ("RelationDriftRate", -0.1, "below"),
+                                  ("RelationEthicsWeight", -0.1, "below"), ("RelationStanceTerms", [0.4], "exactly 2"),
+                                  ("RelationStanceTerms", [0.4, -1.5], "below"), ("RelationTreatyTerm", 1.5, "above"),
+                                  ("ConquestRelationPenalty", -0.1, "below"), ("BetrayalRelationPenalty", 2.5, "above"),
+                                  ("FriendlyUpkeepInfluence", -0.1, "below"), ("FriendlySlotsByTier", [1, 1, 2, 2], "exactly 5"),
+                                  ("FriendlySlotsByTier", [1, 1, 2, 2, 2.5], "whole number"), ("FriendlySlotsByTier", [1, 1, 2, 2, -1], "below"),
+                                  ("TreatyCostInfluence", -1.0, "below"), ("TreatyAcceptRelation", 1.5, "above"),
+                                  ("TradeInfluencePerTreaty", -0.1, "below"), ("FleetPerSettledByTier", [0.0, 1.0, 1.0, 1.0], "exactly 5"),
+                                  ("FleetPerSettledByTier", [0.0, -1.0, 1.0, 1.0, 1.0], "below"), ("FleetGrowthPerTick", -0.1, "below"),
+                                  ("FleetUpkeepEnergyPerPower", -0.1, "below"), ("SiegeTicks", 0, "below"), ("SiegeTicks", 2.5, "whole number"),
+                                  ("SiegeRestTicks", -1, "below"), ("SiegeDefenceShares", [1.0, 0.5], "exactly 3"),
+                                  ("SiegeDefenceShares", [1.0, 0.5, 1.5], "above"), ("SiegeRepulsedFleetFactor", 1.5, "above"),
+                                  ("AIHostileRelation", -1.5, "below"), ("AIHostilePowerRatio", -0.1, "below"),
+                                  ("AIHostilePacifismMax", 1.5, "above"), ("PlagueSpreadMultiplier", -1.0, "below"),
+                                  ("FleetDelayPerPower", -1.0, "below"), ("FleetDelayCap", -1.0, "below"), ("PressureFleetAttrition", -0.1, "below")):
+            with self.subTest(knob=knob, value=value):
+                self.expect(self.after(rules(knob, value)), knob, word)
+        for column, value, word in (("FleetGrowthMultiplier", -0.5, "below"), ("TreatyAcceptBonus", -0.1, "below"), ("TreatyAcceptBonus", 1.5, "above")):
+            with self.subTest(column=column, value=value):
+                self.expect(self.after(self.set_cell("DT_Edicts", "edict_test_order", column, value)), "DT_Edicts.edict_test_order.%s" % column, word)
+        # A growth factor of 0 would stop the inherited edict's fleet from the first tick: the row rule keeps it above 0.
+        growth = lambda value: self.set_cell("DT_Edicts", "edict_test_order", "FleetGrowthMultiplier", value)  # noqa: E731
+        self.expect(self.after(growth(0.0)), "DT_Edicts.edict_test_order", "a held edict multiplies the fleet's growth")
+        self.assertEqual(self.after(growth(0.5)), [])
+        # The stance effect stands in a card's answer, friendly or neutral, and nowhere else.
+        answer = lambda effects: (lambda tables: self.row(tables, "DT_Encounters", "petition_test_plea")["Choices"][0].update(OnSuccess=effects))  # noqa: E731
+        self.assertEqual(self.after(answer([eff("SetStance", tag="Stance.Friendly")])), [])
+        self.assertEqual(self.after(answer([eff("SetStance")])), [])
+        self.expect(self.after(answer([eff("SetStance", tag="Stance.Hostile")])), "SetStance", "Stance.Friendly")
+        self.expect(self.after(answer([eff("SetStance", tag="Stance.Friendly", value=1)])), "SetStance", "reads no Value")
+        self.expect(self.after(self.set_cell("DT_Events", "event_test_harvest", "Effects", [eff("SetStance", tag="Stance.Friendly")])),
+                    "DT_Events.event_test_harvest.Effects[0](SetStance)", "only in the answer of a card")
+        self.expect(self.after(self.set_cell("DT_Hazards", "crisis_test_storm", "OnExpireEffects", [eff("SetStance", tag="Stance.Friendly")])),
+                    "OnExpireEffects[0](SetStance)", "only in the answer of a card")
+        self.expect(self.after(self.set_cell("DT_Edicts", "edict_test_order", "EffectsPerTick", [eff("SetStance", tag="Stance.Friendly")])),
+                    "EffectsPerTick[0](SetStance)", "per-tick source applies only")
+        self.schema_problem(self.put(["effects", "SetStance"], "card_only", "yes"), "schema.effects.SetStance", "card_only")
+        self.schema_problem(self.put(["tables", "DT_Encounters", "columns", "Choices", "columns", "OnSuccess"], "card", "yes"), "OnSuccess", "card")
+        # The log lines fill {Stance} and {Treaty} and refuse the holy words.
+        line = lambda templates: (lambda tables: self.row(tables, "DT_LogTemplates", "log_treaty_signed").update(Templates=templates))  # noqa: E731
+        self.assertEqual(self.after(line(["{Civ} {Treaty} a.", "{Civ} {Stance} b.", "{OtherCiv} c."])), [])
+        self.expect(self.after(line(["{Civ} {Pact} a.", "b.", "c."])), "log_treaty_signed", "slot {Pact}")
+        for word in self.schema["words"]["holy_words"]:
+            with self.subTest(word=word):
+                self.expect(self.after(line(["{Civ} %s a." % word, "b.", "c."])), "log_treaty_signed", "the word %s is not used here" % word)
+        # The stance and treaty keys of the String Table carry no digit and no verdict word.
+        for prefix in ("Stance.", "Treaty."):
+            with self.subTest(prefix=prefix):
+                self.assertIn(prefix, self.schema["string_table"]["checked_prefixes"])
+                self.assertTrue(self.schema["string_table"]["checked_prefixes"][prefix].get("no_digits"))
+
     def test_a_text_has_one_form(self):
         """A word is found as it is written: a text is composed (NFC) and holds no invisible format character, so a verdict
         word cannot hide in decomposed Hangul or behind a zero-width space."""
@@ -1357,7 +1416,8 @@ class SchemaTests(unittest.TestCase):
         enumerator added to the vocabulary later has to be put on one side here: a condition on the vessel or an effect on it
         goes into both rules."""
         world_effects = {"AddResource", "MultiplyIncome", "ShiftEthics", "AddTrait", "RemoveTrait", "ChangeStability", "ChangeRelation", "SpawnHazard",
-                         "ResolveHazard", "TransferSystem", "ChangeReverence", "SetFlag", "ChangePopulation", "NameNotable", "FocusResearch"}
+                         "ResolveHazard", "TransferSystem", "ChangeReverence", "SetFlag", "ChangePopulation", "NameNotable", "FocusResearch",
+                         "SetStance"}
         for table, start, conditions, effects in (("DT_Events", "a slot runs for every people", "Conditions", "Effects"),
                                                   ("DT_Feats", "a ruler feat row judges every people", "CompletionConditions", "AscensionCost")):
             with self.subTest(table=table):
@@ -2151,6 +2211,8 @@ class SchemaTests(unittest.TestCase):
                 (NOTHING, "feat_test_climb"),
             ("DT_Rules", "the rate of the AI's projects multiplies their progress: at 0 or below they would never progress, so the code reads it as 1 with an error line (guideline 4.3, 5.7)"):
                 (NOTHING, "rules"),
+            ("DT_Edicts", "a held edict multiplies the fleet's growth: at 0 the inherited edict would keep the ruler's fleet at 0 from the first tick, so the code reads a factor that is not above 0 as 1 (B3 header 3.2)"):
+                (NOTHING, "edict_test_order"),
             ("DT_Transcendents", "the fixed place of the roster belongs to a fallen silence"): (NOTHING, "trans_silence"),
             ("DT_Transcendents", "a transcendent stands on tier 3 or 4 (guideline 4.2: no fallen one on tier 5)"): (NOTHING, "trans_silence"),
             ("DT_Transcendents", "a celestial transcendent has no instance: no sphere, no pressure, no roster weight"): (NOTHING, "trans_covenant"),
@@ -2189,7 +2251,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 136, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 137, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

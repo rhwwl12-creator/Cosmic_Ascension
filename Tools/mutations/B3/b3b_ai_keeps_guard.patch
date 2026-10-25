@@ -1,0 +1,14 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2561,11 +2561,6 @@
+ 	if (!Civ.FleetTargetSystemID.IsNone())
+ 	{
+ 		const int32 Target = StateIndex.FindSystem(State, Civ.FleetTargetSystemID);
+-		if (State.Systems.IsValidIndex(Target) && State.Systems[Target].OwnerCivID == Civ.CivID)
+-		{
+-			Civ.FleetTargetSystemID = NAME_None;
+-			Civ.FleetTargetSinceTick = State.Tick;
+-		}
+ 	}
+ 
+ 	// (3) A hostility opens only with a siege: no hostility held, no target, the rest over, a fleet, and not pacifist.

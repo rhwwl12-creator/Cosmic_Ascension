@@ -1,0 +1,12 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2624,7 +2624,8 @@
+ 		}
+ 		if (Aim == INDEX_NONE)
+ 		{
+-			continue;
++			CosmicDiplomacy::TurnHostile(State, CivIndex, Other, 0.f);
++			return;
+ 		}
+ 		const bool bBrokeTrade = CosmicDiplomacy::TurnHostile(State, CivIndex, Other, 0.f);
+ 		State.Civs[CivIndex].FleetTargetSystemID = State.Systems[Aim].SystemID;

@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -754,7 +754,6 @@
+ 	if (Sim->IsBroadcasting())
+ 	{
+ 		UE_LOG(LogCosmic, Error, TEXT("BreakTreaty called from a handler of a Core Logic delegate: a handler may only read the state"));
+-		return false;
+ 	}
+ 	FGalaxyState& State = Sim->GetMutableState();
+ 	const int32 CivIndex = CosmicPlayerRoleImpl::RuledIndexOf(*Sim);

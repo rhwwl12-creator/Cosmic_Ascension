@@ -1,0 +1,20 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+@@ -340,13 +340,13 @@
+ 	}
+ 	if (Stance == CosmicTags::StanceHostile())
+ 	{
++		if (HasTreaty(Civ, OtherID, CosmicTags::TreatyNonAggression()))
++		{
++			return ECosmicStanceBlock::NonAggression;
++		}
+ 		if (static_cast<uint8>(Civ.Tier) < static_cast<uint8>(EAscensionTier::Tier2_Stellar))
+ 		{
+ 			return ECosmicStanceBlock::Tier;
+-		}
+-		if (HasTreaty(Civ, OtherID, CosmicTags::TreatyNonAggression()))
+-		{
+-			return ECosmicStanceBlock::NonAggression;
+ 		}
+ 	}
+ 	return ECosmicStanceBlock::None;

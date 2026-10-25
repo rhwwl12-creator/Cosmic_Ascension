@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+@@ -402,7 +402,7 @@
+ 		return false;
+ 	}
+ 	SetStanceOf(State.Civs[CivIndex], State.Civs[Other].CivID, CosmicTags::StanceHostile());
+-	const bool bBroke = Break(State, CivIndex, Other, CosmicTags::TreatyTrade());
++	const bool bBroke = false;
+ 	if (bBroke)
+ 	{
+ 		LowerRelation(State.Civs[Other], State.Civs[CivIndex].CivID, Penalty);

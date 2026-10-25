@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2018,7 +2018,6 @@
+ 		FCivilizationState& Civ = State.Civs[Attacker];
+ 		if (!bTaken)
+ 		{
+-			Civ.FleetPower = FMath::Max(0.f, Civ.FleetPower * Repulsed);
+ 		}
+ 		// A truce and the rest, either way.
+ 		CosmicDiplomacy::SetStanceOf(Civ, OwnerID, FGameplayTag());

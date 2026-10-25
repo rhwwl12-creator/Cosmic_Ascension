@@ -4,6 +4,7 @@
 
 #include "Cosmic_Ascension.h"
 #include "Core/CosmicIDs.h"
+#include "Core/CosmicTags.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
@@ -15,6 +16,8 @@
 #include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
+#include "Sim/CosmicConflict.h"
+#include "Sim/CosmicDiplomacy.h"
 #include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicEvalContext.h"
@@ -35,6 +38,21 @@ namespace CosmicPlayerRoleImpl
 		{
 			Civ.ThroneLockedUntilTick = FMath::Max(Civ.ThroneLockedUntilTick, Until);
 		}
+	}
+
+	// The people the vessel rules: Embodied, Ruler, a RuledCivID the state holds; INDEX_NONE otherwise.
+	int32 RuledIndexOf(const UGalaxySimulationSubsystem& Sim)
+	{
+		const FGalaxyState& State = Sim.GetState();
+		const bool bRuler = State.Calling.LifeState == ELifeState::Embodied && State.Player.Role == EPlayerRole::Ruler && !State.Player.RuledCivID.IsNone();
+		const int32 CivIndex = bRuler ? Sim.GetStateIndex().FindCiv(State, State.Player.RuledCivID) : INDEX_NONE;
+		return State.Civs.IsValidIndex(CivIndex) ? CivIndex : INDEX_NONE;
+	}
+
+	// Whether the calling has met the people CivID: the input definition of a diplomacy command (rule 2).
+	bool IsMet(const FGalaxyState& State, FName CivID)
+	{
+		return State.Knowing.MetCivs.ContainsByPredicate([CivID](const FKnownMark& Met) { return Met.ID == CivID; });
 	}
 
 	// The new eye of a wanderer (section 4.4): the system it stands in and its lane neighbours in the same galaxy row
@@ -644,6 +662,185 @@ bool UPlayerRoleSubsystem::RevokeEdict(FName Row)
 	return true;
 }
 
+CosmicDiplomacy::ECosmicStanceBlock UPlayerRoleSubsystem::SetStance(FName CivID, FGameplayTag Stance)
+{
+	using CosmicDiplomacy::ECosmicStanceBlock;
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	check(Sim && Log);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("SetStance called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return ECosmicStanceBlock::Handler;
+	}
+	FGalaxyState& State = Sim->GetMutableState();
+	const int32 CivIndex = CosmicPlayerRoleImpl::RuledIndexOf(*Sim);
+	if (CivIndex == INDEX_NONE)
+	{
+		return ECosmicStanceBlock::NotRuler;
+	}
+	const ECosmicStanceBlock Block = CosmicDiplomacy::StanceBlockOf(State, Sim->GetStateIndex(), Sim->GetRules(), CivIndex, CivID, Stance,
+		CosmicPlayerRoleImpl::IsMet(State, CivID));
+	if (Block != ECosmicStanceBlock::None)
+	{
+		return Block;
+	}
+	const int32 Other = Sim->GetStateIndex().FindCiv(State, CivID);
+	bool bBrokeTrade = false;
+	if (Stance == CosmicTags::StanceHostile())
+	{
+		bBrokeTrade = CosmicDiplomacy::TurnHostile(State, CivIndex, Other, Sim->GetRules().BetrayalRelationPenalty);
+	}
+	else
+	{
+		CosmicDiplomacy::SetStanceOf(State.Civs[CivIndex], CivID, Stance);
+	}
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("Civ"), State.Civs[CivIndex].CivName);
+	Args.Add(TEXT("OtherCiv"), State.Civs[Other].CivName);
+	FFormatNamedArguments StanceArgs = Args;
+	StanceArgs.Add(TEXT("Stance"), CosmicDiplomacy::StanceNameOf(Stance));
+	Log->PushRow(CosmicRows::LogStanceChanged, 1, StanceArgs, NAME_None, State.Civs[CivIndex].CivID);
+	if (bBrokeTrade)
+	{
+		Args.Add(TEXT("Treaty"), CosmicDiplomacy::TreatyNameOf(CosmicTags::TreatyTrade()));
+		Log->PushRow(CosmicRows::LogTreatyBroken, 1, Args, NAME_None, State.Civs[CivIndex].CivID);
+	}
+	return ECosmicStanceBlock::None;
+}
+
+CosmicDiplomacy::ECosmicTreatyBlock UPlayerRoleSubsystem::ProposeTreaty(FName CivID, FGameplayTag Treaty)
+{
+	using CosmicDiplomacy::ECosmicTreatyBlock;
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	check(Sim && Log);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("ProposeTreaty called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return ECosmicTreatyBlock::Handler;
+	}
+	FGalaxyState& State = Sim->GetMutableState();
+	const int32 CivIndex = CosmicPlayerRoleImpl::RuledIndexOf(*Sim);
+	if (CivIndex == INDEX_NONE)
+	{
+		return ECosmicTreatyBlock::NotRuler;
+	}
+	const FCosmicRulesDef& Rules = Sim->GetRules();
+	const ECosmicTreatyBlock Block = CosmicDiplomacy::TreatyBlockOf(State, Sim->GetStateIndex(), Sim->GetTables(), Rules, CivIndex, CivID, Treaty,
+		CosmicPlayerRoleImpl::IsMet(State, CivID));
+	if (Block != ECosmicTreatyBlock::None)
+	{
+		return Block;
+	}
+	FResourcePool Cost;
+	Cost.Influence = Rules.TreatyCostInfluence;
+	CosmicEdicts::TryPay(State.Civs[CivIndex].Stockpile, Cost);
+	const int32 Other = Sim->GetStateIndex().FindCiv(State, CivID);
+	CosmicDiplomacy::Sign(State, CivIndex, Other, Treaty);
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("Civ"), State.Civs[CivIndex].CivName);
+	Args.Add(TEXT("OtherCiv"), State.Civs[Other].CivName);
+	Args.Add(TEXT("Treaty"), CosmicDiplomacy::TreatyNameOf(Treaty));
+	Log->PushRow(CosmicRows::LogTreatySigned, 1, Args, NAME_None, State.Civs[CivIndex].CivID);
+	return ECosmicTreatyBlock::None;
+}
+
+bool UPlayerRoleSubsystem::BreakTreaty(FName CivID, FGameplayTag Treaty)
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	check(Sim && Log);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("BreakTreaty called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return false;
+	}
+	FGalaxyState& State = Sim->GetMutableState();
+	const int32 CivIndex = CosmicPlayerRoleImpl::RuledIndexOf(*Sim);
+	const int32 Other = Sim->GetStateIndex().FindCiv(State, CivID);
+	if (CivIndex == INDEX_NONE || !State.Civs.IsValidIndex(Other) || Other == CivIndex || !CosmicDiplomacy::HasTreaty(State.Civs[CivIndex], CivID, Treaty))
+	{
+		return false;
+	}
+	CosmicDiplomacy::Break(State, CivIndex, Other, Treaty);
+	CosmicDiplomacy::LowerRelation(State.Civs[Other], State.Civs[CivIndex].CivID, Sim->GetRules().BetrayalRelationPenalty);
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("Civ"), State.Civs[CivIndex].CivName);
+	Args.Add(TEXT("OtherCiv"), State.Civs[Other].CivName);
+	Args.Add(TEXT("Treaty"), CosmicDiplomacy::TreatyNameOf(Treaty));
+	Log->PushRow(CosmicRows::LogTreatyBroken, 1, Args, NAME_None, State.Civs[CivIndex].CivID);
+	return true;
+}
+
+CosmicConflict::ECosmicSiegeBlock UPlayerRoleSubsystem::AllocateFleet(FName SystemID)
+{
+	using CosmicConflict::ECosmicSiegeBlock;
+	using CosmicConflict::ECosmicGuardBlock;
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	check(Sim && Log);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("AllocateFleet called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return ECosmicSiegeBlock::Handler;
+	}
+	FGalaxyState& State = Sim->GetMutableState();
+	const FCosmicStateIndex& Index = Sim->GetStateIndex();
+	const int32 CivIndex = CosmicPlayerRoleImpl::RuledIndexOf(*Sim);
+	if (CivIndex == INDEX_NONE)
+	{
+		return ECosmicSiegeBlock::NotRuler;
+	}
+	FCivilizationState& Civ = State.Civs[CivIndex];
+	if (SystemID.IsNone())
+	{
+		if (!Civ.FleetTargetSystemID.IsNone())
+		{
+			Civ.FleetTargetSystemID = NAME_None;
+			Civ.FleetTargetSinceTick = State.Tick;
+		}
+		return ECosmicSiegeBlock::None;
+	}
+	const int32 SystemIndex = Index.FindSystem(State, SystemID);
+	const bool bOwn = State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == Civ.CivID;
+	ECosmicSiegeBlock Block = ECosmicSiegeBlock::None;
+	if (bOwn)
+	{
+		// A guard's reasons, in the siege's names (NotOwn cannot come: the system is the people's).
+		switch (CosmicConflict::GuardBlockOf(State, Index, Sim->GetRules(), CivIndex, SystemIndex))
+		{
+		case ECosmicGuardBlock::None: Block = ECosmicSiegeBlock::None; break;
+		case ECosmicGuardBlock::Sanctuary: Block = ECosmicSiegeBlock::Sanctuary; break;
+		case ECosmicGuardBlock::NoSystem: Block = ECosmicSiegeBlock::NoSystem; break;
+		case ECosmicGuardBlock::Dead: Block = ECosmicSiegeBlock::Dead; break;
+		case ECosmicGuardBlock::NotOwn: Block = ECosmicSiegeBlock::NoSystem; break;
+		case ECosmicGuardBlock::NotSettled: Block = ECosmicSiegeBlock::NotSettled; break;
+		case ECosmicGuardBlock::NoFleet: Block = ECosmicSiegeBlock::NoFleet; break;
+		}
+	}
+	else
+	{
+		Block = CosmicConflict::SiegeBlockOf(State, Index, Sim->GetRules(), CivIndex, SystemIndex);
+	}
+	if (Block != ECosmicSiegeBlock::None || Civ.FleetTargetSystemID == SystemID)
+	{
+		return Block;
+	}
+	Civ.FleetTargetSystemID = SystemID;
+	Civ.FleetTargetSinceTick = State.Tick;
+	if (!bOwn)
+	{
+		const int32 Owner = Index.FindCiv(State, State.Systems[SystemIndex].OwnerCivID);
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("Civ"), Civ.CivName);
+		Args.Add(TEXT("OtherCiv"), State.Civs[Owner].CivName);
+		Args.Add(TEXT("System"), State.Systems[SystemIndex].DisplayName);
+		Log->PushRow(CosmicRows::LogSiegeBegun, 1, Args, SystemID, Civ.CivID);
+	}
+	return ECosmicSiegeBlock::None;
+}
+
 CosmicWanderer::ETravelBlock UPlayerRoleSubsystem::TravelTo(FName SystemID)
 {
 	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
@@ -744,6 +941,25 @@ CosmicWanderer::ECrownBlock UPlayerRoleSubsystem::BecomeRuler(FName CivID)
 	Player.TravelTicksRemaining = 0;
 	CosmicPetitions::Clear(State);
 	State.Knowing.PendingContactCivID = NAME_None;
+	// B3 section 2.8: the people's treaties stay, but no siege on a system the new ruler may not know and no hostility it
+	// could not change - a target on another people's system is lifted and every hostile stance turns neutral.
+	if (CosmicConflict::IsBesieging(State, Index, CivIndex))
+	{
+		State.Civs[CivIndex].FleetTargetSystemID = NAME_None;
+		State.Civs[CivIndex].FleetTargetSinceTick = State.Tick;
+	}
+	TArray<FName, TInlineAllocator<4>> Hostilities;
+	for (const TPair<FName, FCosmicTie>& Pair : State.Civs[CivIndex].Ties)
+	{
+		if (Pair.Value.Stance == CosmicTags::StanceHostile())
+		{
+			Hostilities.Add(Pair.Key);
+		}
+	}
+	for (const FName Other : Hostilities)
+	{
+		CosmicDiplomacy::SetStanceOf(State.Civs[CivIndex], Other, FGameplayTag());
+	}
 
 	// The new eye of a ruler: every system of the people is known at once (a role change writes knowing in its own call,
 	// section 4.4). No line: the people was met before it crowned the vessel.

@@ -42,7 +42,8 @@ namespace CosmicChronicle
 
 	/** 16 #31 (2) from the eight fields alone: Log.Calling, Log.Claim, Log.Record and every Severity 2; a Severity 1 entry when FocusCivID is one of Peoples,
 	 * SourceRow is CosmicRows::LogFirstContact, or SourceRow starts with enc_ (a wanderer's card answered, B1 - compared without case) - but never the three
-	 * edict lines of the ruled people, SourceRow CosmicRows::LogEdictEnacted, LogEdictRevoked or LogEdictLapsed (B2: the ruler's bookkeeping, Severity 1).
+	 * edict lines of the ruled people, SourceRow CosmicRows::LogEdictEnacted, LogEdictRevoked or LogEdictLapsed (B2: the ruler's bookkeeping, Severity 1), nor its
+ * two stance lines, LogStanceChanged and LogStanceLapsed (B3 - the treaty and siege lines are admitted).
 	 * Reads neither bUntold nor a table. MVP item 5's Chronicle filter (16 #40 (7)) calls it with every life's peoples. */
 	COSMIC_ASCENSION_API bool Admits(const FCosmicLogEntry& Entry, TConstArrayView<FName> Peoples);
 

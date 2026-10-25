@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -169,7 +169,7 @@
+ 	const int32 FleetDelay = CosmicConflict::FleetDelayOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, SystemIndex, *Row);
+ 	System.ActiveHazard = Row->HazardTag;
+ 	System.HazardTicksRemaining = static_cast<int32>(FMath::Min<int64>(static_cast<int64>(FMath::Max(1, Row->CountdownTicks))
+-		+ CosmicEdicts::CountdownBonusOf(State.Civs[OwnerIndex], Ctx.Tables, Row->HazardTag) + FleetDelay, MAX_int32));
++		+ CosmicEdicts::CountdownBonusOf(State.Civs[OwnerIndex], Ctx.Tables, Row->HazardTag), MAX_int32)) + FleetDelay;
+ 	Ctx.Notes.Add({ ECosmicWorldNote::HazardPlaced, SystemIndex, OwnerIndex, HazardRow });
+ 	return true;
+ }

@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -764,7 +764,6 @@
+ 		return false;
+ 	}
+ 	CosmicDiplomacy::Break(State, CivIndex, Other, Treaty);
+-	CosmicDiplomacy::LowerRelation(State.Civs[Other], State.Civs[CivIndex].CivID, Sim->GetRules().BetrayalRelationPenalty);
+ 	FFormatNamedArguments Args;
+ 	Args.Add(TEXT("Civ"), State.Civs[CivIndex].CivName);
+ 	Args.Add(TEXT("OtherCiv"), State.Civs[Other].CivName);

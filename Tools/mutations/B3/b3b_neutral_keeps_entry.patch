@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+@@ -164,7 +164,6 @@
+ 		if (FCosmicTie* Tie = Civ.Ties.Find(OtherID))
+ 		{
+ 			Tie->Stance = FGameplayTag();
+-			CosmicDiplomacyImpl::Tidy(Civ, OtherID);
+ 		}
+ 		return;
+ 	}

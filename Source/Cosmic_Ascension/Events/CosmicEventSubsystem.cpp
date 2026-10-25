@@ -3,6 +3,7 @@
 #include "Events/CosmicEventSubsystem.h"
 
 #include "Core/CosmicSeed.h"
+#include "Core/CosmicTags.h"
 #include "Core/CosmicTypes.h"
 #include "Cosmic_Ascension.h"
 #include "Data/CosmicDataTables.h"
@@ -12,6 +13,7 @@
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
 #include "Math/NumericLimits.h"
+#include "Sim/CosmicDiplomacy.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicResearch.h"
@@ -477,7 +479,8 @@ bool UCosmicEventSubsystem::Check(const FCosmicCondition& Condition, const FCosm
 
 	case EConditionType::MegaprojectComplete:
 		// The record of the Key's row on the subject system, since the life the judgment counts from (section 4.4, 5.7).
-		return System && CosmicMegaprojects::HasCompleted(*System, Condition.Key, View.SinceTick);
+		// By the context people only (#73, B3 section 2.10): another people's completion is not this people's work.
+		return System && CosmicMegaprojects::HasCompleted(*System, Condition.Key, View.SinceTick, Civ ? Civ->CivID : NAME_None);
 
 	case EConditionType::SystemPressureAtLeast:
 		// P of the subject system, derived over the state of the view (section 4.2).
@@ -880,6 +883,26 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 		// The Key's field takes the share Value, the others share the rest evenly (section 5.4): the rule of the ruler's
 		// research focus command too (MVP item 7).
 		return Civ != nullptr && CosmicResearch::Focus(Civ->ResearchFocus, Effect.Key, Effect.Value);
+	}
+
+	case EEffectType::SetStance:
+	{
+		// The stance passes the one gate the command passes (B3 section 2.9, rule 13). A hostile stance - kept out of the data
+		// by the schema - breaks the pair's trade treaty as every hostility does (CosmicDiplomacy::TurnHostile, no penalty).
+		const FName Other = OtherOf(Ctx, Effect.Key);
+		if (!Civ || CosmicDiplomacy::StanceBlockOf(State, Ctx.Index, Ctx.Rules, Ctx.CivIndex, Other, Effect.Tag, true) != CosmicDiplomacy::ECosmicStanceBlock::None)
+		{
+			return false;
+		}
+		if (Effect.Tag == CosmicTags::StanceHostile())
+		{
+			CosmicDiplomacy::TurnHostile(State, Ctx.CivIndex, Ctx.Index.FindCiv(State, Other), 0.f);
+		}
+		else
+		{
+			CosmicDiplomacy::SetStanceOf(*Civ, Other, Effect.Tag);
+		}
+		return true;
 	}
 
 	default:

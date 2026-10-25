@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2634,7 +2634,6 @@
+ 			UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+ 			check(Log);
+ 			const FName AimID = State.Systems[Aim].SystemID;
+-			NoteMet(State.Civs[CivIndex].CivID, AimID);
+ 			FFormatNamedArguments Args;
+ 			Args.Add(TEXT("Civ"), Them.CivName);
+ 			Args.Add(TEXT("OtherCiv"), State.Civs[CivIndex].CivName);

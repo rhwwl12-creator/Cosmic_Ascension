@@ -1,0 +1,14 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1946,9 +1946,10 @@
+ 			Due.Add({ CivIndex, SystemIndex, 0.f });
+ 		}
+ 	}
++	const float Shared = Due.IsEmpty() ? 0.f : Rng.GetFraction();
+ 	for (FDueSiege& Siege : Due)
+ 	{
+-		Siege.Number = Rng.GetFraction();
++		Siege.Number = Shared;
+ 	}
+ 
+ 	// (3) Every target asked its gate. A lifted target starts the rest of an AI; a collected siege's number is thrown away.

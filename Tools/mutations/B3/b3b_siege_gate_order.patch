@@ -1,0 +1,34 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -198,20 +198,20 @@
+ 	{
+ 		return ECosmicSiegeBlock::LastSettled;
+ 	}
++	for (int32 Other = 0; Other < State.Civs.Num(); ++Other)
++	{
++		if (Other != Attacker && Other != OwnerIndex && State.Civs[Other].FleetTargetSystemID == System.SystemID)
++		{
++			return ECosmicSiegeBlock::Besieged;
++		}
++	}
++	if (OwnedCountOf(State, Index, Attacker) >= CosmicMegaprojects::RealmCapOf(Rules, Civ.Tier))
++	{
++		return ECosmicSiegeBlock::RealmCap;
++	}
+ 	if (!CosmicConflictImpl::IsNextToSettled(State, Index, Attacker, System))
+ 	{
+ 		return ECosmicSiegeBlock::NotAdjacent;
+-	}
+-	for (int32 Other = 0; Other < State.Civs.Num(); ++Other)
+-	{
+-		if (Other != Attacker && Other != OwnerIndex && State.Civs[Other].FleetTargetSystemID == System.SystemID)
+-		{
+-			return ECosmicSiegeBlock::Besieged;
+-		}
+-	}
+-	if (OwnedCountOf(State, Index, Attacker) >= CosmicMegaprojects::RealmCapOf(Rules, Civ.Tier))
+-	{
+-		return ECosmicSiegeBlock::RealmCap;
+ 	}
+ 	if (!(EffectivePowerOf(Civ.FleetPower, CosmicConflictImpl::TierGap(Owner.Tier, Civ.Tier), Rules) > 0.f))
+ 	{

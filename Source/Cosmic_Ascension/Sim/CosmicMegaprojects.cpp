@@ -53,7 +53,7 @@ namespace CosmicMegaprojectsImpl
 		for (const FName SystemID : State.Civs[CivIndex].OwnedSystems)
 		{
 			const int32 SystemIndex = SettledOwnedIndex(State, Index, CivIndex, SystemID);
-			if (SystemIndex != INDEX_NONE && CosmicMegaprojects::HasCompleted(State.Systems[SystemIndex], RowName, SinceTick))
+			if (SystemIndex != INDEX_NONE && CosmicMegaprojects::HasCompleted(State.Systems[SystemIndex], RowName, SinceTick, State.Civs[CivIndex].CivID))
 			{
 				return true;
 			}
@@ -155,14 +155,20 @@ namespace CosmicMegaprojectsImpl
 	}
 }
 
-bool CosmicMegaprojects::HasCompleted(const FStarSystemState& System, FName RowName, int64 SinceTick)
+bool CosmicMegaprojects::HasCompleted(const FStarSystemState& System, FName RowName, int64 SinceTick, FName CivID)
 {
 	if (RowName.IsNone())
 	{
 		return false;
 	}
 	const FMegaprojectRecord* Record = System.CompletedMegaprojects.FindByPredicate([RowName](const FMegaprojectRecord& Candidate) { return Candidate.Row == RowName; });
-	return Record && Record->Tick > 0 && Record->Tick >= SinceTick;
+	if (!Record || Record->Tick <= 0 || Record->Tick < SinceTick)
+	{
+		return false;
+	}
+	const FName Asked = CivID.IsNone() ? System.OwnerCivID : CivID;
+	const FName Maker = Record->CivID.IsNone() ? System.OwnerCivID : Record->CivID;
+	return !Asked.IsNone() && Maker == Asked;
 }
 
 FResourcePool CosmicMegaprojects::CostPerTickOf(const FMegaprojectDef& Row)

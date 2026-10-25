@@ -1680,7 +1680,7 @@ bool FCosmicPlayerAscendsToT3Test::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("The provisional end holds first in the tick of the third rung"), RungEndTick >= 0 && RungEndTick == ThirdRungTick);
 	TestTrue(TEXT("and not in the tick before"), bNoneBefore);
-	TestTrue(TEXT("The stabilization completed within the supernova's countdown"), CosmicMegaprojects::HasCompleted(Live.Systems[Home], FName(TEXT("project_stabilize")), Live.Calling.BornTick));
+	TestTrue(TEXT("The stabilization completed within the supernova's countdown"), CosmicMegaprojects::HasCompleted(Live.Systems[Home], FName(TEXT("project_stabilize")), Live.Calling.BornTick, NAME_None));
 	TestFalse(TEXT("The capital still stands"), CosmicHazards::IsDeadNode(Live.Systems[Home]));
 	TestFalse(TEXT("The supernova is resolved"), Live.Systems[Home].ActiveHazard == Tag(TEXT("Hazard.PreSupernova")));
 	TestEqual(TEXT("not kept by the grace"), Live.Flags.HasTagExact(Tag(TEXT("Flag.Grace.Spent"))), bGraceSpent);

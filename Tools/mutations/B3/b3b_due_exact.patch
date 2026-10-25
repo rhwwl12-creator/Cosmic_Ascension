@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -300,7 +300,7 @@
+ 
+ bool CosmicConflict::IsSiegeDue(const FCivilizationState& Civ, int64 Tick, const FCosmicRulesDef& Rules)
+ {
+-	return Tick >= SiegeEndTickOf(Civ, Rules);
++	return Tick == SiegeEndTickOf(Civ, Rules);
+ }
+ 
+ int32 CosmicConflict::OddsBandOf(float OursOdds)

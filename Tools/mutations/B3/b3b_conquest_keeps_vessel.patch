@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -304,7 +304,6 @@
+ 	if (State.Calling.LifeState == ELifeState::Embodied && Player.Role == EPlayerRole::Ruler && Player.CurrentSystemID == System.SystemID
+ 		&& State.Civs.IsValidIndex(FromCivIndex) && State.Civs[FromCivIndex].CivID == Player.RuledCivID && State.Civs[FromCivIndex].HomeSystemID != System.SystemID)
+ 	{
+-		Player.CurrentSystemID = State.Civs[FromCivIndex].HomeSystemID;
+ 	}
+ 	return true;
+ }

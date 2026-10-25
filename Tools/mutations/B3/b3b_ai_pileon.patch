@@ -1,0 +1,12 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2604,8 +2604,7 @@
+ 		bool bTaken = false;
+ 		for (int32 Third = 0; Third < State.Civs.Num() && !bTaken; ++Third)
+ 		{
+-			bTaken = Third != CivIndex && Third != Other && !State.Civs[Third].bIsPlayerRuled
+-				&& CosmicDiplomacy::StanceOf(State.Civs[Third], Them.CivID) == Hostile;
++			bTaken = false;
+ 		}
+ 		if (bTaken || RuledBesieges == Them.CivID)
+ 		{

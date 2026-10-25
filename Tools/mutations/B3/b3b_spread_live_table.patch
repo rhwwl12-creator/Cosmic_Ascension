@@ -1,0 +1,17 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2123,7 +2123,13 @@
+ 			const float* Multiplier = Archetype ? Archetype->HazardSpawnMultipliers.Find(Row->HazardTag) : nullptr;
+ 			const float Factor = Multiplier ? ((*Multiplier > 0.f && *Multiplier <= TNumericLimits<float>::Max()) ? *Multiplier : 0.f) : 1.f;
+ 			// The owner's held edicts multiply the share too (B2), and a plague next door (B3): 1 when none, so the bits stay.
+-			const float Spreading = (Row->HazardTag == PlagueTag && NextToPlague.IsValidIndex(SystemIndex) && NextToPlague[SystemIndex]) ? Spread : 1.f;
++			bool bLive = false;
++			for (const FName Lane : System.Lanes)
++			{
++				const int32 Next = StateIndex.FindSystem(State, Lane);
++				bLive |= State.Systems.IsValidIndex(Next) && State.Systems[Next].ActiveHazard == PlagueTag;
++			}
++			const float Spreading = (Row->HazardTag == PlagueTag && bLive) ? Spread : 1.f;
+ 			const float Share = ((Chance * Factor) * CosmicEdicts::SpawnMultiplierOf(Owner, Tables, Row->HazardTag)) * Spreading;
+ 			if (!(Share > 0.f))
+ 			{

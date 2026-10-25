@@ -386,6 +386,16 @@ struct COSMIC_ASCENSION_API FEdictDef : public FTableRowBase
 	// through CosmicHazards::Place). A standing hazard's countdown is never changed. Below 0 reads as 0.
 	UPROPERTY(EditAnywhere)
 	TMap<FGameplayTag, int32> HazardCountdownBonus;
+
+	// B3: a factor on the holder's fleet growth a tick (CosmicConflict - every held edict's factor multiplies). Read only
+	// when above 0 and finite (the schema keeps it above 0); anything else reads as 1.
+	UPROPERTY(EditAnywhere)
+	float FleetGrowthMultiplier = 1.f;
+
+	// B3: lowers the view a treaty proposal of the holder needs (CosmicDiplomacy::TreatyBlockOf - the held edicts' sum).
+	// Read only when above 0 and finite.
+	UPROPERTY(EditAnywhere)
+	float TreatyAcceptBonus = 0.f;
 };
 
 /**
@@ -1159,4 +1169,100 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// first AI stage.
 	UPROPERTY(EditAnywhere)
 	float AIEdictRevokeStability = 1.f;
+
+	// ---- Diplomacy and conflict (B3, docs/60_DECISIONS/headers/B3_diplomacy_and_conflict.md section 3.1) ----
+	// The initializers are the mechanism's values (diplomacy and conflict off: no drift, no fleet, no spread); the data
+	// turns them on. A value that is not a finite number reads as the off value where it is read.
+
+	// The drift of a bordering pair's relation a tick: R += this x (target - R). 0 = no drift and no Relations entry made.
+	UPROPERTY(EditAnywhere)
+	float RelationDriftRate = 0.f;
+
+	// The drift target's ethics term: - this x the pair's ethics distance (CosmicDiplomacy::EthicsDistanceOf, 0..2).
+	UPROPERTY(EditAnywhere)
+	float RelationEthicsWeight = 0.6f;
+
+	// The drift target's stance term, by the stance the other people holds toward the viewer: [0] friendly, [1] hostile.
+	// Exactly 2 entries (Data.Integrity).
+	UPROPERTY(EditAnywhere)
+	TArray<float> RelationStanceTerms = { 0.4f, -0.4f };
+
+	// The drift target's treaty term, for each treaty the pair holds.
+	UPROPERTY(EditAnywhere)
+	float RelationTreatyTerm = 0.2f;
+
+	// A conquest lowers at once every bordering people's view of the conqueror (the loser's too) by this.
+	UPROPERTY(EditAnywhere)
+	float ConquestRelationPenalty = 0.2f;
+
+	// Breaking a treaty, or turning hostile on a trade partner, lowers the partner's view of the breaker by this, at once.
+	UPROPERTY(EditAnywhere)
+	float BetrayalRelationPenalty = 0.3f;
+
+	// The Influence a friendly stance costs a tick, paid in the diplomacy stage (a stance that cannot be paid lapses to neutral).
+	UPROPERTY(EditAnywhere)
+	float FriendlyUpkeepInfluence = 0.2f;
+
+	// Friendly slots by Tier (index = EAscensionTier): how many peoples one people may be friendly toward. Exactly 5 entries.
+	UPROPERTY(EditAnywhere)
+	TArray<int32> FriendlySlotsByTier = { 1, 1, 2, 2, 3 };
+
+	// The Influence a treaty proposal costs once, when it is accepted.
+	UPROPERTY(EditAnywhere)
+	float TreatyCostInfluence = 50.f;
+
+	// A treaty is accepted when the other people's view of the proposer (CosmicDiplomacy::ViewOf) is at least this, less the
+	// proposer's edicts' TreatyAcceptBonus.
+	UPROPERTY(EditAnywhere)
+	float TreatyAcceptRelation = -0.1f;
+
+	// The Influence income of each trade treaty a tick (the economy stage's income).
+	UPROPERTY(EditAnywhere)
+	float TradeInfluencePerTreaty = 0.2f;
+
+	// The fleet's cap: this[Tier] x the people's settled systems. Exactly 5 entries; 0 at a Tier = no fleet there.
+	UPROPERTY(EditAnywhere)
+	TArray<float> FleetPerSettledByTier = { 0.f, 0.f, 0.f, 0.f, 0.f };
+
+	// The fleet grows by this a tick toward its cap while its Energy upkeep is paid (and shrinks by it while it is not).
+	UPROPERTY(EditAnywhere)
+	float FleetGrowthPerTick = 0.001f;
+
+	// The fleet's Energy upkeep a tick for 1.0 of FleetPower, paid in full or not at all.
+	UPROPERTY(EditAnywhere)
+	float FleetUpkeepEnergyPerPower = 0.5f;
+
+	// A siege ends at FleetTargetSinceTick + Max(1, this), with one draw (section 2.6).
+	UPROPERTY(EditAnywhere)
+	int32 SiegeTicks = 200;
+
+	// An AI people opens no hostility for this many ticks after its siege ended (its target lifted at FleetTargetSinceTick).
+	UPROPERTY(EditAnywhere)
+	int32 SiegeRestTicks = 600;
+
+	// The owner's share of its FleetPower that defends a besieged system: [0] its fleet targets that system, [1] it has no
+	// target, [2] it targets another system. Exactly 3 entries.
+	UPROPERTY(EditAnywhere)
+	TArray<float> SiegeDefenceShares = { 1.f, 0.5f, 0.25f };
+
+	// A siege that fails multiplies the attacker's FleetPower by this.
+	UPROPERTY(EditAnywhere)
+	float SiegeRepulsedFleetFactor = 0.5f;
+
+	// An AI people opens hostility toward a bordering people whose view (ViewOf) is at or below this ...
+	UPROPERTY(EditAnywhere)
+	float AIHostileRelation = -0.3f;
+
+	// ... when its FleetPower is at least this times that people's ...
+	UPROPERTY(EditAnywhere)
+	float AIHostilePowerRatio = 1.5f;
+
+	// ... and its Pacifism is below this.
+	UPROPERTY(EditAnywhere)
+	float AIHostilePacifismMax = 0.5f;
+
+	// A settled system with a standing plague on a lane neighbour (at the start of the spawn step) multiplies its plague
+	// share by this. 1 = no spread.
+	UPROPERTY(EditAnywhere)
+	float PlagueSpreadMultiplier = 1.f;
 };

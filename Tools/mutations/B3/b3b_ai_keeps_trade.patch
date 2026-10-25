@@ -1,0 +1,12 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2626,7 +2626,8 @@
+ 		{
+ 			continue;
+ 		}
+-		const bool bBrokeTrade = CosmicDiplomacy::TurnHostile(State, CivIndex, Other, 0.f);
++		CosmicDiplomacy::SetStanceOf(State.Civs[CivIndex], Them.CivID, Hostile);
++		const bool bBrokeTrade = false;
+ 		State.Civs[CivIndex].FleetTargetSystemID = State.Systems[Aim].SystemID;
+ 		State.Civs[CivIndex].FleetTargetSinceTick = State.Tick;
+ 		if (Them.bIsPlayerRuled)

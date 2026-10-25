@@ -1,0 +1,12 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2590,7 +2590,8 @@
+ 	}
+ 	for (int32 Other = 0; Other < State.Civs.Num(); ++Other)
+ 	{
+-		if (Other == CivIndex)
++		const FName OtherID = State.Civs[Other].CivID;
++		if (Other == CivIndex || (State.Civs[Other].bIsPlayerRuled && !State.Knowing.MetCivs.ContainsByPredicate([OtherID](const FKnownMark& Mark) { return Mark.ID == OtherID; })))
+ 		{
+ 			continue;
+ 		}

@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1839,6 +1839,7 @@
+ 	{
+ 		for (const int32 Other : Borders[Viewer])
+ 		{
++			Rng.GetFraction();
+ 			const float Target = CosmicDiplomacy::TargetRelationOf(State, Rules, Viewer, Other);
+ 			FCivilizationState& Civ = State.Civs[Viewer];
+ 			const FName OtherID = State.Civs[Other].CivID;

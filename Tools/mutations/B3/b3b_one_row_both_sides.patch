@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2025,7 +2025,7 @@
+ 		Civ.FleetTargetSystemID = NAME_None;
+ 		Civ.FleetTargetSinceTick = State.Tick;
+ 		TellSiege(bTaken ? CosmicRows::LogSiegeTaken : CosmicRows::LogSiegeFailed, 2, Attacker, Owner, SystemIndex);
+-		TellSiege(bTaken ? CosmicRows::LogSiegeLost : CosmicRows::LogSiegeHeld, 2, Owner, Attacker, SystemIndex);
++		TellSiege(bTaken ? CosmicRows::LogSiegeTaken : CosmicRows::LogSiegeFailed, 2, Owner, Attacker, SystemIndex);
+ 	}
+ }
+ 

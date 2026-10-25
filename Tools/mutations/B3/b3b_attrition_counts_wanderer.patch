@@ -1,0 +1,13 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1262,6 +1262,10 @@
+ 		}
+ 		AddPressureTerm(Out, Largest, TranscendentTermOf(*Def, InRules, ECosmicSphereReach::Inside), ECosmicPressureSource::Transcendent, Transcendent.TranscendentID, Def->Tier);
+ 	}
++	if (InState.Calling.LifeState == ELifeState::Embodied && InState.Player.Role == EPlayerRole::Wanderer && InState.Player.CurrentSystemID == InState.Systems[SystemIndex].SystemID)
++	{
++		AddPressureTerm(Out, Largest, PressureWeight(InRules, InState.Calling.PersonalTier), ECosmicPressureSource::Wanderer, NAME_None, InState.Calling.PersonalTier);
++	}
+ 	return Out;
+ }
+ 

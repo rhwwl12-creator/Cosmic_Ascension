@@ -263,3 +263,8 @@ Key,SourceString
 "Focus.TipOpensRecovery","사회 연구가 안정도의 회복도 빠르게 한다."
 "Edict.Block.SlotsAll","칙령의 자리가 모두 찼다. 다른 칙령을 철회해야 내릴 수 있다."
 "Edict.Shares.Zero","한 분야에는 몫을 남겨야 나눌 수 있다."
+"Stance.Friendly","우호"
+"Stance.Neutral","중립"
+"Stance.Hostile","적대"
+"Treaty.Trade","무역 조약"
+"Treaty.NonAggression","불가침 조약"

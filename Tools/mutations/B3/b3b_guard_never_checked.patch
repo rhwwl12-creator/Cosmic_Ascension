@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1961,7 +1961,7 @@
+ 		}
+ 		const int32 SystemIndex = StateIndex.FindSystem(State, Civ.FleetTargetSystemID);
+ 		const bool bOwn = State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == Civ.CivID;
+-		const bool bHolds = bOwn ? CosmicConflict::GuardBlockOf(State, StateIndex, Rules, CivIndex, SystemIndex) == CosmicConflict::ECosmicGuardBlock::None
++		const bool bHolds = bOwn ? true
+ 			: CosmicConflict::SiegeBlockOf(State, StateIndex, Rules, CivIndex, SystemIndex) == CosmicConflict::ECosmicSiegeBlock::None;
+ 		if (bHolds)
+ 		{

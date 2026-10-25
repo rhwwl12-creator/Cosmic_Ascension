@@ -9,6 +9,7 @@
 #include "Data/CosmicDefinitionRows.h"
 #include "Events/CosmicEventSubsystem.h"
 #include "GameplayTagContainer.h"
+#include "Sim/CosmicConflict.h"
 #include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Templates/UnrealTemplate.h"
@@ -162,10 +163,13 @@ bool CosmicHazards::Place(FCosmicEvalContext& Ctx, int32 SystemIndex, FName Haza
 	{
 		return false;
 	}
+	// The owner's edicts (B2) and a fleet that guards the system (B3 section 2.7) may add to the countdown of a hazard placed
+	// now - a standing hazard's countdown never changes. Each term lies in [0, 100000]. The delay is read before the slot is
+	// filled (a claim's delay asks for the claimant of the system as it stands).
+	const int32 FleetDelay = CosmicConflict::FleetDelayOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, SystemIndex, *Row);
 	System.ActiveHazard = Row->HazardTag;
-	// The owner's edicts may add to the countdown of a hazard placed now (B2 - a standing hazard's countdown never changes).
 	System.HazardTicksRemaining = static_cast<int32>(FMath::Min<int64>(static_cast<int64>(FMath::Max(1, Row->CountdownTicks))
-		+ CosmicEdicts::CountdownBonusOf(State.Civs[OwnerIndex], Ctx.Tables, Row->HazardTag), MAX_int32));
+		+ CosmicEdicts::CountdownBonusOf(State.Civs[OwnerIndex], Ctx.Tables, Row->HazardTag) + FleetDelay, MAX_int32));
 	Ctx.Notes.Add({ ECosmicWorldNote::HazardPlaced, SystemIndex, OwnerIndex, HazardRow });
 	return true;
 }
@@ -237,6 +241,20 @@ bool CosmicHazards::Transfer(FCosmicEvalContext& Ctx, int32 SystemIndex, int32 T
 	{
 		return false;
 	}
+	// #73 (B3 section 2.10): a completion record of no people - only a save from before B3 holds one - was the old owner's,
+	// and a conquest does not make it the new owner's. Then every fleet target on the system is lifted (a guard of the old
+	// owner, the siege that took it): the conflict stage only ever meets a target with an owner.
+	if (State.Civs.IsValidIndex(FromCivIndex))
+	{
+		for (FMegaprojectRecord& Record : System.CompletedMegaprojects)
+		{
+			if (Record.CivID.IsNone())
+			{
+				Record.CivID = State.Civs[FromCivIndex].CivID;
+			}
+		}
+	}
+	CosmicConflict::LiftTargetsOn(State, System.SystemID);
 
 	if (System.ActiveHazard.IsValid())
 	{
@@ -279,6 +297,14 @@ bool CosmicHazards::Transfer(FCosmicEvalContext& Ctx, int32 SystemIndex, int32 T
 	if (bWasCapital)
 	{
 		MoveCapital(State, Ctx.Index, FromCivIndex);
+	}
+	// A ruler's vessel standing on a system its people loses goes to the people's capital, as a destruction carries it (B3:
+	// a conquest is the first hand-over between peoples; a siege never takes the capital). No draw, no line.
+	FPlayerEntityState& Player = State.Player;
+	if (State.Calling.LifeState == ELifeState::Embodied && Player.Role == EPlayerRole::Ruler && Player.CurrentSystemID == System.SystemID
+		&& State.Civs.IsValidIndex(FromCivIndex) && State.Civs[FromCivIndex].CivID == Player.RuledCivID && State.Civs[FromCivIndex].HomeSystemID != System.SystemID)
+	{
+		Player.CurrentSystemID = State.Civs[FromCivIndex].HomeSystemID;
 	}
 	return true;
 }
@@ -356,6 +382,8 @@ void CosmicHazards::Destroy(FCosmicEvalContext& Ctx, int32 SystemIndex)
 			MoveCapital(State, Ctx.Index, OwnerIndex);
 		}
 	}
+	// No fleet guards or besieges it any more (B3 section 2.6).
+	CosmicConflict::LiftTargetsOn(State, SystemID);
 
 	// No lane leads to it any more, from either end.
 	for (const FName Lane : OldLanes)

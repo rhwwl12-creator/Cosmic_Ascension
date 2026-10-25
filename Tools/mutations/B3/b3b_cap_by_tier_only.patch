@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -92,7 +92,7 @@
+ 	{
+ 		return 0.f;
+ 	}
+-	return PerSettled * static_cast<float>(SettledCountOf(State, Index, CivIndex));
++	return PerSettled * 2.f;
+ }
+ 
+ float CosmicConflict::FleetGrowthMultiplierOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables)

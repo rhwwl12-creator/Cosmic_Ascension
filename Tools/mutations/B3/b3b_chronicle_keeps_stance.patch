@@ -1,0 +1,12 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+@@ -113,8 +113,7 @@
+ 	}
+ 	// The edict lines of the ruled people (B2) and its stance lines (B3) are the ruler's bookkeeping, not the life's story:
+ 	// left out, so they never crowd a chapter. The treaty and siege lines are its story.
+-	if (Entry.SourceRow == CosmicRows::LogEdictEnacted || Entry.SourceRow == CosmicRows::LogEdictRevoked || Entry.SourceRow == CosmicRows::LogEdictLapsed
+-		|| Entry.SourceRow == CosmicRows::LogStanceChanged || Entry.SourceRow == CosmicRows::LogStanceLapsed)
++	if (Entry.SourceRow == CosmicRows::LogEdictEnacted || Entry.SourceRow == CosmicRows::LogEdictRevoked || Entry.SourceRow == CosmicRows::LogEdictLapsed)
+ 	{
+ 		return false;
+ 	}

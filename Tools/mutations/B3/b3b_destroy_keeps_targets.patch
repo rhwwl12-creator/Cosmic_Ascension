@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -383,7 +383,6 @@
+ 		}
+ 	}
+ 	// No fleet guards or besieges it any more (B3 section 2.6).
+-	CosmicConflict::LiftTargetsOn(State, SystemID);
+ 
+ 	// No lane leads to it any more, from either end.
+ 	for (const FName Lane : OldLanes)

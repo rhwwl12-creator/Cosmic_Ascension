@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1984,7 +1984,7 @@
+ 		const int32 Attacker = Siege.Attacker;
+ 		const int32 SystemIndex = Siege.SystemIndex;
+ 		const int32 Owner = StateIndex.FindCiv(State, State.Systems[SystemIndex].OwnerCivID);
+-		if (CosmicConflict::SiegeBlockOf(State, StateIndex, Rules, Attacker, SystemIndex) != CosmicConflict::ECosmicSiegeBlock::None)
++		if (false)
+ 		{
+ 			State.Civs[Attacker].FleetTargetSystemID = NAME_None;
+ 			State.Civs[Attacker].FleetTargetSinceTick = State.Tick;

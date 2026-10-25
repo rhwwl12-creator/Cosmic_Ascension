@@ -1,0 +1,12 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1941,7 +1941,8 @@
+ 		}
+ 		const int32 SystemIndex = StateIndex.FindSystem(State, Civ.FleetTargetSystemID);
+ 		const int32 Owner = State.Systems.IsValidIndex(SystemIndex) ? StateIndex.FindCiv(State, State.Systems[SystemIndex].OwnerCivID) : INDEX_NONE;
+-		if (State.Civs.IsValidIndex(Owner) && Owner != CivIndex && CosmicConflict::IsSiegeDue(Civ, State.Tick, Rules))
++		if (State.Civs.IsValidIndex(Owner) && Owner != CivIndex && CosmicConflict::IsSiegeDue(Civ, State.Tick, Rules)
++			&& CosmicConflict::SiegeBlockOf(State, StateIndex, Rules, CivIndex, SystemIndex) == CosmicConflict::ECosmicSiegeBlock::None)
+ 		{
+ 			Due.Add({ CivIndex, SystemIndex, 0.f });
+ 		}

@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -254,7 +254,6 @@
+ 			}
+ 		}
+ 	}
+-	CosmicConflict::LiftTargetsOn(State, System.SystemID);
+ 
+ 	if (System.ActiveHazard.IsValid())
+ 	{

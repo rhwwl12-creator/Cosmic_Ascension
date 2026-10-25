@@ -2310,7 +2310,7 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 				// to this tick) - only the resolution of that completion ends a hazard there. On the last count an expiry
 				// ends it in the same tick whatever the answer did, so such an end is counted as neither. Ran out: not
 				// answered, on its last count, and not kept by the grace of the last system.
-				const bool bCompleted = !Slot.Answer.IsNone() && CosmicMegaprojects::HasCompleted(System, Slot.Answer, State.Tick);
+				const bool bCompleted = !Slot.Answer.IsNone() && CosmicMegaprojects::HasCompleted(System, Slot.Answer, State.Tick, NAME_None);
 				if (bCompleted && Slot.Remaining > 1)
 				{
 					++Answered;

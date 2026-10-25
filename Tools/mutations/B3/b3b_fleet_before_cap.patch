@@ -1,0 +1,20 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -209,13 +209,13 @@
+ 			return ECosmicSiegeBlock::Besieged;
+ 		}
+ 	}
++	if (!(EffectivePowerOf(Civ.FleetPower, CosmicConflictImpl::TierGap(Owner.Tier, Civ.Tier), Rules) > 0.f))
++	{
++		return ECosmicSiegeBlock::NoFleet;
++	}
+ 	if (OwnedCountOf(State, Index, Attacker) >= CosmicMegaprojects::RealmCapOf(Rules, Civ.Tier))
+ 	{
+ 		return ECosmicSiegeBlock::RealmCap;
+-	}
+-	if (!(EffectivePowerOf(Civ.FleetPower, CosmicConflictImpl::TierGap(Owner.Tier, Civ.Tier), Rules) > 0.f))
+-	{
+-		return ECosmicSiegeBlock::NoFleet;
+ 	}
+ 	if (CosmicDiplomacy::HasTreaty(Civ, Owner.CivID, CosmicTags::TreatyNonAggression()))
+ 	{

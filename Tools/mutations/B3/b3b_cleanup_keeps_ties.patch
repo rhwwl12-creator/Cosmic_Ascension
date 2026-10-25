@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2695,7 +2695,6 @@
+ 	// The pair records go with the people (B3 section 2.1), at the same place: no tie to a people that is gone.
+ 	for (const FName CivID : Removed)
+ 	{
+-		CosmicDiplomacy::ForgetCiv(State, CivID);
+ 	}
+ 	if (Removed.Contains(State.Knowing.PendingContactCivID))
+ 	{

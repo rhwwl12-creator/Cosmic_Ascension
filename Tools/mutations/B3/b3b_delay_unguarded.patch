@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -321,7 +321,7 @@
+ 	}
+ 	const FStarSystemState& System = State.Systems[SystemIndex];
+ 	const int32 OwnerIndex = Index.FindCiv(State, System.OwnerCivID);
+-	if (!State.Civs.IsValidIndex(OwnerIndex) || State.Civs[OwnerIndex].FleetTargetSystemID != System.SystemID)
++	if (!State.Civs.IsValidIndex(OwnerIndex))
+ 	{
+ 		return 0;
+ 	}

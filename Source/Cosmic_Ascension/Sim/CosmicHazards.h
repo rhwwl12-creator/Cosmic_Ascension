@@ -52,8 +52,9 @@ namespace CosmicHazards
 	 * sanctuary, whatever else holds (Law.Hedge, section 4.5 (1)), and unless the
 	 * row exists, the system is a settled system with a free slot and, for a Capital row, the capital of its owner.
 	 * Sets ActiveHazard to the row's HazardTag and HazardTicksRemaining to its CountdownTicks (read as at least 1) plus
-	 * the owner's edicts' CosmicEdicts::CountdownBonusOf for its tag (B2 - at placement only; a standing hazard's count
-	 * never changes), and leaves a HazardPlaced note in Ctx.
+	 * the owner's edicts' CosmicEdicts::CountdownBonusOf for its tag (B2) plus the delay of a fleet that guards the system
+	 * (CosmicConflict::FleetDelayOf, B3) - at placement only; a standing hazard's count never changes - and leaves a
+	 * HazardPlaced note in Ctx.
 	 */
 	COSMIC_ASCENSION_API bool Place(FCosmicEvalContext& Ctx, int32 SystemIndex, FName HazardRow);
 
@@ -80,7 +81,10 @@ namespace CosmicHazards
 	 * also closes its leader's open record and starts the old owner's count over, as a resolution does; when it was the old
 	 * owner's capital, the capital moves (MoveCapital). Leaves a SystemReceived note when ToCivIndex is a people, with
 	 * the old owner (FollowUpKnowing makes the system known to the calling, and meets the old owner, when that people is
-	 * the vessel's); a hazard it ends is not told.
+	 * the vessel's); a hazard it ends is not told. Before the owner changes (B3): a completion record of no people (a save
+	 * from before B3) is stamped with the old owner (#73), and every people's fleet target on the system is lifted
+	 * (CosmicConflict::LiftTargetsOn); a ruling vessel standing on it while the calling is Embodied goes to the capital of
+	 * the people it rules when that people loses the system (as Destroy carries it - B3).
 	 */
 	COSMIC_ASCENSION_API bool Transfer(FCosmicEvalContext& Ctx, int32 SystemIndex, int32 ToCivIndex);
 
@@ -100,7 +104,8 @@ namespace CosmicHazards
 	 * sphere. A vessel standing there is carried away while the calling is Embodied and no KillPlayer is pending: a ruler
 	 * to the new capital of its people, anyone else (and a ruler whose people owns no capital any more) to the first lane
 	 * neighbour of the old Lanes that is neither a dead node nor the sanctuary; with none it stays (section 16 #53 (2), #81). A
-	 * journey from there ends with it: both travel fields empty (B1 - the vessel still stands where a journey began). The stage that destroys
+	 * journey from there ends with it: both travel fields empty (B1 - the vessel still stands where a journey began). Every
+	 * people's fleet target on it is lifted (B3). The stage that destroys
 	 * asks the last-system gate first and records the collapse afterwards.
 	 */
 	COSMIC_ASCENSION_API void Destroy(FCosmicEvalContext& Ctx, int32 SystemIndex);

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1916,7 +1916,7 @@
+ 		}
+ 		if (Attrition > 0.f && !Civ.FleetTargetSystemID.IsNone())
+ 		{
+-			const float Pressure = ComputeAttritionPressureIn(State, StateIndex, Tables, Rules, CivIndex, StateIndex.FindSystem(State, Civ.FleetTargetSystemID)).P;
++			const float Pressure = ComputePressureIn(State, StateIndex, Tables, Rules, StateIndex.FindSystem(State, Civ.FleetTargetSystemID)).P;
+ 			if (Pressure > 0.f)
+ 			{
+ 				Civ.FleetPower = FMath::Max(0.f, Civ.FleetPower - Attrition * Pressure);

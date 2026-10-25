@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+@@ -274,7 +274,7 @@
+ 	{
+ 		return State.Civs[Viewer].Relations.FindRef(State.Civs[Other].CivID);
+ 	}
+-	return CosmicDiplomacyImpl::BaseTargetOf(State, Rules, Viewer, Other);
++	return State.Civs[Viewer].Relations.FindRef(State.Civs[Other].CivID);
+ }
+ 
+ int32 CosmicDiplomacy::ViewBandOf(float View)

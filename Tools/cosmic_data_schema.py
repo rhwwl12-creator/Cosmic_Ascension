@@ -149,8 +149,9 @@ COLUMN_OPTIONS = {
     "enum": {"enum": NAME},
     "conditions": {},
     # "no_duration": no entry has a DurationTicks (an edict stands until it is revoked, B2); "keyed": the effect types that
-    # must name their Key in this column (a relation names its party: a per-tick source has no other ID).
-    "effects": {"per_tick": FLAG, "no_duration": FLAG, "keyed": NAMES},
+    # must name their Key in this column (a relation names its party: a per-tick source has no other ID); "card": the
+    # effects of a card's answer, the only place a card_only effect stands (B3: SetStance).
+    "effects": {"per_tick": FLAG, "no_duration": FLAG, "keyed": NAMES, "card": FLAG},
     # A resource pool (FResourcePool): an object with every resource of the word list "resource" as a number, and no
     # other key (the importer keeps a default for a member left out).
     "pool": {"min": NUMBER},
@@ -212,7 +213,7 @@ RULE_KEYS = {
     "pairs": {"why": NAME, "key": NAME, "value": NAME, "allowed": NAME},
 }
 RULE_REQUIRED = {"rules": ("why", "then"), "unique": ("why", "cols"), "pairs": ("why", "key", "value", "allowed")}
-# What a condition or an effect may say about each of its three cells; "per_tick_only" is for effects.
+# What a condition or an effect may say about each of its three cells; "per_tick_only" and "card_only" are for effects.
 USAGE_KEYS = {
     "tag": {"root": ROOT, "optional": FLAG},
     "key": {"word": NAME, "row": NAME, "digits": FLAG, "any": FLAG, "optional": FLAG, "target": LIST},
@@ -656,6 +657,7 @@ class Checker:
         cells = {cell: OBJECT for cell in USAGE_KEYS}
         if kind == "effects":
             cells["per_tick_only"] = FLAG
+            cells["card_only"] = FLAG
         if not self.typed(where, usage, cells):
             return
         # Every cell is read, also after one of them is wrong.
@@ -956,6 +958,8 @@ class Checker:
                 self.report(where, "a per-tick source applies only %s" % ", ".join(allowed))
             if not per_tick and usage.get("per_tick_only"):
                 self.report(where, "this effect is applied by per-tick sources only")
+            if usage.get("card_only") and not (spec and spec.get("card")):
+                self.report(where, "this effect stands only in the answer of a card (a column with card)")
             if spec and spec.get("no_duration") and is_count(duration) and duration != 0:
                 self.report(where + ".DurationTicks", "%r: this column's effects stand without a duration" % (duration,))
             if spec and type_name in (spec.get("keyed") or []) and key == "":

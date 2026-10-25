@@ -1,0 +1,17 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1837,8 +1837,12 @@
+ 	const TArray<TArray<int32>> Borders = CosmicDiplomacy::BorderTableOf(State, StateIndex);
+ 	for (int32 Viewer = 0; Viewer < State.Civs.Num(); ++Viewer)
+ 	{
+-		for (const int32 Other : Borders[Viewer])
+-		{
++		for (int32 Other = 0; Other < State.Civs.Num(); ++Other)
++		{
++			if (Other == Viewer)
++			{
++				continue;
++			}
+ 			const float Target = CosmicDiplomacy::TargetRelationOf(State, Rules, Viewer, Other);
+ 			FCivilizationState& Civ = State.Civs[Viewer];
+ 			const FName OtherID = State.Civs[Other].CivID;

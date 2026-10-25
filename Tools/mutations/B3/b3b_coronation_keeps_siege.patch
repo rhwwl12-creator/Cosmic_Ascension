@@ -1,0 +1,14 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -943,11 +943,6 @@
+ 	State.Knowing.PendingContactCivID = NAME_None;
+ 	// B3 section 2.8: the people's treaties stay, but no siege on a system the new ruler may not know and no hostility it
+ 	// could not change - a target on another people's system is lifted and every hostile stance turns neutral.
+-	if (CosmicConflict::IsBesieging(State, Index, CivIndex))
+-	{
+-		State.Civs[CivIndex].FleetTargetSystemID = NAME_None;
+-		State.Civs[CivIndex].FleetTargetSinceTick = State.Tick;
+-	}
+ 	TArray<FName, TInlineAllocator<4>> Hostilities;
+ 	for (const TPair<FName, FCosmicTie>& Pair : State.Civs[CivIndex].Ties)
+ 	{

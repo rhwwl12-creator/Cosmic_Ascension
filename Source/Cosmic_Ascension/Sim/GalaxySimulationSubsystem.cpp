@@ -8,6 +8,7 @@
 #include "Containers/Set.h"
 #include "Core/CosmicIDs.h"
 #include "Core/CosmicSeed.h"
+#include "Core/CosmicTags.h"
 #include "Cosmic_Ascension.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicRowNames.h"
@@ -22,6 +23,8 @@
 #include "Misc/Crc.h"
 #include "Misc/Guid.h"
 #include "Ascension/AscensionSubsystem.h"
+#include "Sim/CosmicConflict.h"
+#include "Sim/CosmicDiplomacy.h"
 #include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
@@ -227,6 +230,14 @@ namespace
 		}
 	}
 
+	// The term of one transcendent's row at a reach. Depth inside the tier (section 3.2): the range is a lint; the guard is
+	// here, and a value that is not a number reads as 0. ComputePressureIn and ComputeAttritionPressureIn share it.
+	float TranscendentTermOf(const FTranscendentDef& Def, const FCosmicRulesDef& InRules, ECosmicSphereReach Reach)
+	{
+		const float Depth = Def.Depth > 0.f ? FMath::Min(Def.Depth, 1.f) : 0.f;
+		return PressureWeight(InRules, Def.Tier) * (1.f + Depth) * ReachFactor(Reach, InRules);
+	}
+
 	// The rows of the transcendents that press, along State.Transcendents: null for a sealed one and for one whose row the
 	// tables do not hold.
 	using FPressingDefs = TArray<const FTranscendentDef*, TInlineAllocator<4>>;
@@ -272,11 +283,7 @@ namespace
 			{
 				continue;
 			}
-			// Depth inside the tier (section 3.2). The range is a lint; the guard is here, and a value that is not a number
-			// reads as 0.
-			const float Depth = Def->Depth > 0.f ? FMath::Min(Def->Depth, 1.f) : 0.f;
-			const float Term = PressureWeight(InRules, Def->Tier) * (1.f + Depth) * ReachFactor(ReachOf(TranscendentIndex), InRules);
-			AddPressureTerm(Out, Largest, Term, ECosmicPressureSource::Transcendent, Transcendent.TranscendentID, Def->Tier);
+			AddPressureTerm(Out, Largest, TranscendentTermOf(*Def, InRules, ReachOf(TranscendentIndex)), ECosmicPressureSource::Transcendent, Transcendent.TranscendentID, Def->Tier);
 		}
 
 		// The owner presses with its own tier, whoever rules it.
@@ -1236,6 +1243,28 @@ FCosmicPressure UGalaxySimulationSubsystem::ComputePressureIn(const FGalaxyState
 	});
 }
 
+FCosmicPressure UGalaxySimulationSubsystem::ComputeAttritionPressureIn(const FGalaxyState& InState, const FCosmicStateIndex& InIndex, const FCosmicDataTables& InTables, const FCosmicRulesDef& InRules, int32 CivIndex, int32 SystemIndex)
+{
+	FCosmicPressure Out;
+	if (!InState.Civs.IsValidIndex(CivIndex) || !InState.Systems.IsValidIndex(SystemIndex) || CosmicState::IsSanctuary(InState.Systems[SystemIndex].SystemID))
+	{
+		return Out;
+	}
+	const int32 CivTier = TierIndex(InState.Civs[CivIndex].Tier);
+	float Largest = 0.f;
+	for (int32 TranscendentIndex = 0; TranscendentIndex < InState.Transcendents.Num(); ++TranscendentIndex)
+	{
+		const FTranscendentState& Transcendent = InState.Transcendents[TranscendentIndex];
+		const FTranscendentDef* Def = Transcendent.bSealed ? nullptr : InTables.FindTranscendent(Transcendent.TranscendentID);
+		if (!Def || TierIndex(Def->Tier) <= CivTier || SphereReachIn(InState, Transcendent, SystemIndex) != ECosmicSphereReach::Inside)
+		{
+			continue;
+		}
+		AddPressureTerm(Out, Largest, TranscendentTermOf(*Def, InRules, ECosmicSphereReach::Inside), ECosmicPressureSource::Transcendent, Transcendent.TranscendentID, Def->Tier);
+	}
+	return Out;
+}
+
 ECosmicSphereReach UGalaxySimulationSubsystem::SphereReachIn(const FGalaxyState& InState, const FTranscendentState& Transcendent, int32 SystemIndex)
 {
 	if (!InState.Systems.IsValidIndex(SystemIndex))
@@ -1540,6 +1569,12 @@ void UGalaxySimulationSubsystem::TickEconomy()
 		Income.Matter = Richness * TierMultiplier;
 		Income.Insight = Civ.Population * EconomyRateOf(Rules.InsightPerPopulation) * (1.f + EconomyRateOf(Rules.SpiritualistInsightBonus) * FMath::Max(0.f, Civ.Ethics.Spiritualism));
 		Income.Influence = Civ.Population * EconomyRateOf(Rules.InfluencePerPopulation) * (1.f + EconomyRateOf(Rules.OpenInfluenceBonus) * FMath::Max(0.f, Civ.Ethics.Openness));
+		// Each trade treaty adds Influence (B3 section 2.5), from the tick after it was signed. No treaty, no term: the bits stay.
+		const int32 TradeTreaties = CosmicDiplomacy::TradeTreatyCountOf(Civ);
+		if (TradeTreaties > 0)
+		{
+			Income.Influence += EconomyRateOf(Rules.TradeInfluencePerTreaty) * static_cast<float>(TradeTreaties);
+		}
 
 		Civ.IncomePerTick = Income;
 
@@ -1737,12 +1772,261 @@ void UGalaxySimulationSubsystem::TickResearch()
 
 void UGalaxySimulationSubsystem::TickDiplomacy()
 {
-	// Relations drift, stances and treaties (section 5.5).
+	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	check(Log);
+	const FGameplayTag Friendly = CosmicTags::StanceFriendly();
+
+	// (1) The friendly stances' upkeep (B3 section 2.5). Only a people with ties has anything to pay.
+	const float Upkeep = (Rules.FriendlyUpkeepInfluence > 0.f && Rules.FriendlyUpkeepInfluence <= TNumericLimits<float>::Max()) ? Rules.FriendlyUpkeepInfluence : 0.f;
+	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+	{
+		FCivilizationState& Civ = State.Civs[CivIndex];
+		if (Civ.Ties.IsEmpty())
+		{
+			continue;
+		}
+		TArray<FName, TInlineAllocator<4>> Friends;
+		for (const TPair<FName, FCosmicTie>& Pair : Civ.Ties)
+		{
+			if (Pair.Value.Stance == Friendly)
+			{
+				Friends.Add(Pair.Key);
+			}
+		}
+		if (Friends.IsEmpty())
+		{
+			continue;
+		}
+		Friends.Sort(FNameLexicalLess());
+		TArray<FName, TInlineAllocator<4>> Lapsed;
+		const int32 Slots = CosmicDiplomacy::FriendlySlotsOf(Civ, Rules);
+		while (Friends.Num() > Slots)
+		{
+			Lapsed.Add(Friends.Pop());
+		}
+		for (const FName Friend : Friends)
+		{
+			if (Upkeep > 0.f && !(Civ.Stockpile.Influence >= Upkeep))
+			{
+				Lapsed.Add(Friend);
+				continue;
+			}
+			Civ.Stockpile.Influence -= Upkeep;
+		}
+		for (const FName Friend : Lapsed)
+		{
+			CosmicDiplomacy::SetStanceOf(Civ, Friend, FGameplayTag());
+			const int32 Other = StateIndex.FindCiv(State, Friend);
+			if (Civ.bIsPlayerRuled && State.Civs.IsValidIndex(Other))
+			{
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("Civ"), Civ.CivName);
+				Args.Add(TEXT("OtherCiv"), State.Civs[Other].CivName);
+				Log->PushRow(CosmicRows::LogStanceLapsed, 1, Args, NAME_None, Civ.CivID);
+			}
+		}
+	}
+
+	// (2) The drift of every bordering pair (B3 section 2.5): the targets read stances, treaties and ethics only, never a
+	// relation, so one pair's write never reaches another pair's read. A rate of 0 builds no table and writes nothing.
+	const float Rate = (Rules.RelationDriftRate > 0.f && Rules.RelationDriftRate <= 1.f) ? Rules.RelationDriftRate : 0.f;
+	if (!(Rate > 0.f))
+	{
+		return;
+	}
+	const TArray<TArray<int32>> Borders = CosmicDiplomacy::BorderTableOf(State, StateIndex);
+	for (int32 Viewer = 0; Viewer < State.Civs.Num(); ++Viewer)
+	{
+		for (const int32 Other : Borders[Viewer])
+		{
+			const float Target = CosmicDiplomacy::TargetRelationOf(State, Rules, Viewer, Other);
+			FCivilizationState& Civ = State.Civs[Viewer];
+			const FName OtherID = State.Civs[Other].CivID;
+			const float Before = Civ.Relations.FindRef(OtherID);
+			const float After = FMath::Clamp(Before + Rate * (Target - Before), -1.f, 1.f);
+			if (After != Before && After >= -1.f && After <= 1.f)
+			{
+				Civ.Relations.Add(OtherID, After);
+			}
+		}
+	}
 }
 
 void UGalaxySimulationSubsystem::TickConflict()
 {
-	// Fleet power comparison and system ownership changes (section 5.6).
+	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	check(Log);
+	UCosmicEventSubsystem* Events = GetGameInstance()->GetSubsystem<UCosmicEventSubsystem>();
+	check(Events);
+	const auto RateOf = [](float Value) { return (Value > 0.f && Value <= TNumericLimits<float>::Max()) ? Value : 0.f; };
+
+	// A line of a siege the people the player rules is a party to (B3 section 3.4): the other people is met first, then
+	// told. Nothing when Ruled is not the ruled people.
+	const auto TellSiege = [this, Log](FName Row, uint8 Severity, int32 Ruled, int32 Other, int32 SystemIndex)
+	{
+		if (!State.Civs.IsValidIndex(Ruled) || !State.Civs[Ruled].bIsPlayerRuled || !State.Civs.IsValidIndex(Other) || !State.Systems.IsValidIndex(SystemIndex))
+		{
+			return;
+		}
+		const FName SystemID = State.Systems[SystemIndex].SystemID;
+		NoteMet(State.Civs[Other].CivID, SystemID);
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("Civ"), State.Civs[Ruled].CivName);
+		Args.Add(TEXT("OtherCiv"), State.Civs[Other].CivName);
+		Args.Add(TEXT("System"), State.Systems[SystemIndex].DisplayName);
+		Log->PushRow(Row, Severity, Args, SystemID, State.Civs[Ruled].CivID);
+	};
+	// A lifted siege is told to the ruled side, attacker or owner (the line names no side).
+	const auto TellLifted = [&TellSiege](int32 Attacker, int32 Owner, int32 SystemIndex)
+	{
+		TellSiege(CosmicRows::LogSiegeLifted, 1, Attacker, Owner, SystemIndex);
+		TellSiege(CosmicRows::LogSiegeLifted, 1, Owner, Attacker, SystemIndex);
+	};
+
+	// (1) The fleets.
+	const float Growth = RateOf(Rules.FleetGrowthPerTick);
+	const float UpkeepPerPower = RateOf(Rules.FleetUpkeepEnergyPerPower);
+	const float Attrition = RateOf(Rules.PressureFleetAttrition);
+	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+	{
+		FCivilizationState& Civ = State.Civs[CivIndex];
+		const float Cap = CosmicConflict::FleetCapOf(State, StateIndex, CivIndex, Rules);
+		if (!(Cap > 0.f) && !(Civ.FleetPower > 0.f))
+		{
+			continue;
+		}
+		const float Upkeep = UpkeepPerPower * FMath::Max(0.f, Civ.FleetPower);
+		if (!(Upkeep > 0.f) || Civ.Stockpile.Energy >= Upkeep)
+		{
+			Civ.Stockpile.Energy -= Upkeep;
+			Civ.FleetPower = FMath::Min(Cap, Civ.FleetPower + Growth * CosmicConflict::FleetGrowthMultiplierOf(Civ, Tables));
+		}
+		else
+		{
+			Civ.FleetPower = FMath::Max(0.f, Civ.FleetPower - Growth);
+		}
+		if (Civ.FleetPower > Cap)
+		{
+			Civ.FleetPower = Cap;
+		}
+		if (!(Civ.FleetPower > 0.f))
+		{
+			Civ.FleetPower = 0.f;
+			continue;
+		}
+		if (Attrition > 0.f && !Civ.FleetTargetSystemID.IsNone())
+		{
+			const float Pressure = ComputeAttritionPressureIn(State, StateIndex, Tables, Rules, CivIndex, StateIndex.FindSystem(State, Civ.FleetTargetSystemID)).P;
+			if (Pressure > 0.f)
+			{
+				Civ.FleetPower = FMath::Max(0.f, Civ.FleetPower - Attrition * Pressure);
+			}
+		}
+	}
+
+	// (2) The sieges at their end, collected by the stored state alone, and one number each, all drawn first (rule 3).
+	struct FDueSiege
+	{
+		int32 Attacker = INDEX_NONE;
+		int32 SystemIndex = INDEX_NONE;
+		float Number = 0.f;
+	};
+	TArray<FDueSiege, TInlineAllocator<4>> Due;
+	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+	{
+		const FCivilizationState& Civ = State.Civs[CivIndex];
+		if (Civ.FleetTargetSystemID.IsNone())
+		{
+			continue;
+		}
+		const int32 SystemIndex = StateIndex.FindSystem(State, Civ.FleetTargetSystemID);
+		const int32 Owner = State.Systems.IsValidIndex(SystemIndex) ? StateIndex.FindCiv(State, State.Systems[SystemIndex].OwnerCivID) : INDEX_NONE;
+		if (State.Civs.IsValidIndex(Owner) && Owner != CivIndex && CosmicConflict::IsSiegeDue(Civ, State.Tick, Rules))
+		{
+			Due.Add({ CivIndex, SystemIndex, 0.f });
+		}
+	}
+	for (FDueSiege& Siege : Due)
+	{
+		Siege.Number = Rng.GetFraction();
+	}
+
+	// (3) Every target asked its gate. A lifted target starts the rest of an AI; a collected siege's number is thrown away.
+	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+	{
+		FCivilizationState& Civ = State.Civs[CivIndex];
+		if (Civ.FleetTargetSystemID.IsNone())
+		{
+			continue;
+		}
+		const int32 SystemIndex = StateIndex.FindSystem(State, Civ.FleetTargetSystemID);
+		const bool bOwn = State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == Civ.CivID;
+		const bool bHolds = bOwn ? CosmicConflict::GuardBlockOf(State, StateIndex, Rules, CivIndex, SystemIndex) == CosmicConflict::ECosmicGuardBlock::None
+			: CosmicConflict::SiegeBlockOf(State, StateIndex, Rules, CivIndex, SystemIndex) == CosmicConflict::ECosmicSiegeBlock::None;
+		if (bHolds)
+		{
+			continue;
+		}
+		const int32 Owner = State.Systems.IsValidIndex(SystemIndex) ? StateIndex.FindCiv(State, State.Systems[SystemIndex].OwnerCivID) : INDEX_NONE;
+		Civ.FleetTargetSystemID = NAME_None;
+		Civ.FleetTargetSinceTick = State.Tick;
+		Due.RemoveAll([CivIndex](const FDueSiege& Siege) { return Siege.Attacker == CivIndex; });
+		if (!bOwn)
+		{
+			TellLifted(CivIndex, Owner, SystemIndex);
+		}
+	}
+
+	// (4) The ends, in the order collected, each gate asked again right before (an earlier taking may close a later gate).
+	const float Repulsed = (Rules.SiegeRepulsedFleetFactor >= 0.f && Rules.SiegeRepulsedFleetFactor <= 1.f) ? Rules.SiegeRepulsedFleetFactor : 0.f;
+	for (const FDueSiege& Siege : Due)
+	{
+		const int32 Attacker = Siege.Attacker;
+		const int32 SystemIndex = Siege.SystemIndex;
+		const int32 Owner = StateIndex.FindCiv(State, State.Systems[SystemIndex].OwnerCivID);
+		if (CosmicConflict::SiegeBlockOf(State, StateIndex, Rules, Attacker, SystemIndex) != CosmicConflict::ECosmicSiegeBlock::None)
+		{
+			State.Civs[Attacker].FleetTargetSystemID = NAME_None;
+			State.Civs[Attacker].FleetTargetSinceTick = State.Tick;
+			TellLifted(Attacker, Owner, SystemIndex);
+			continue;
+		}
+		const FName AttackerID = State.Civs[Attacker].CivID;
+		const FName OwnerID = State.Civs[Owner].CivID;
+		bool bTaken = false;
+		if (CosmicConflict::Takes(Siege.Number, CosmicConflict::SiegeOddsOf(State, StateIndex, Rules, Attacker, SystemIndex)))
+		{
+			FCosmicEvalContext Ctx = MakeEvalContext();
+			bTaken = CosmicHazards::Transfer(Ctx, SystemIndex, Attacker);
+			if (bTaken)
+			{
+				Events->FollowUpKnowing(Ctx);
+				// The neighbours of the conqueror right after the taking, and the loser, think less of it.
+				for (int32 Viewer = 0; Viewer < State.Civs.Num(); ++Viewer)
+				{
+					if (Viewer != Attacker && (Viewer == Owner || CosmicDiplomacy::Borders(State, StateIndex, Viewer, Attacker)))
+					{
+						CosmicDiplomacy::LowerRelation(State.Civs[Viewer], AttackerID, Rules.ConquestRelationPenalty);
+					}
+				}
+			}
+			else
+			{
+				UE_LOG(LogCosmic, Error, TEXT("TickConflict: the siege of %s by %s passed its gate and Transfer refused it: read as held"), *State.Systems[SystemIndex].SystemID.ToString(), *AttackerID.ToString());
+			}
+		}
+		FCivilizationState& Civ = State.Civs[Attacker];
+		if (!bTaken)
+		{
+			Civ.FleetPower = FMath::Max(0.f, Civ.FleetPower * Repulsed);
+		}
+		// A truce and the rest, either way.
+		CosmicDiplomacy::SetStanceOf(Civ, OwnerID, FGameplayTag());
+		Civ.FleetTargetSystemID = NAME_None;
+		Civ.FleetTargetSinceTick = State.Tick;
+		TellSiege(bTaken ? CosmicRows::LogSiegeTaken : CosmicRows::LogSiegeFailed, 2, Attacker, Owner, SystemIndex);
+		TellSiege(bTaken ? CosmicRows::LogSiegeLost : CosmicRows::LogSiegeHeld, 2, Owner, Attacker, SystemIndex);
+	}
 }
 
 void UGalaxySimulationSubsystem::TickHazards()
@@ -1786,6 +2070,28 @@ void UGalaxySimulationSubsystem::TickHazards()
 		}
 	}
 	const TArray<FName> HazardRows = Tables.GetHazardRowNames();
+	// The plague's spread (B3 section 2.7): the settled systems with a standing plague on a lane neighbour as this step
+	// begins - a plague placed in the loop below is not read, so the order of the systems tilts nothing. A multiplier of 1
+	// spreads nothing and builds no table; one that is not at least 0 and finite reads as 1.
+	const FGameplayTag PlagueTag = CosmicTags::HazardPlague();
+	const float Spread = (Rules.PlagueSpreadMultiplier >= 0.f && Rules.PlagueSpreadMultiplier <= TNumericLimits<float>::Max()) ? Rules.PlagueSpreadMultiplier : 1.f;
+	TBitArray<> NextToPlague;
+	if (Spread != 1.f)
+	{
+		NextToPlague.Init(false, State.Systems.Num());
+		for (const int32 SystemIndex : Settled)
+		{
+			for (const FName Lane : State.Systems[SystemIndex].Lanes)
+			{
+				const int32 Neighbour = StateIndex.FindSystem(State, Lane);
+				if (State.Systems.IsValidIndex(Neighbour) && State.Systems[Neighbour].ActiveHazard == PlagueTag)
+				{
+					NextToPlague[SystemIndex] = true;
+					break;
+				}
+			}
+		}
+	}
 	for (int32 Index = 0; Index < Settled.Num(); ++Index)
 	{
 		const int32 SystemIndex = Settled[Index];
@@ -1816,8 +2122,9 @@ void UGalaxySimulationSubsystem::TickHazards()
 			const float Chance = Row->SpawnChancePerTick > 0.f ? FMath::Min(Row->SpawnChancePerTick, 1.f) : 0.f;
 			const float* Multiplier = Archetype ? Archetype->HazardSpawnMultipliers.Find(Row->HazardTag) : nullptr;
 			const float Factor = Multiplier ? ((*Multiplier > 0.f && *Multiplier <= TNumericLimits<float>::Max()) ? *Multiplier : 0.f) : 1.f;
-			// The owner's held edicts multiply the share too (B2): 1 when none, so the bits stay.
-			const float Share = (Chance * Factor) * CosmicEdicts::SpawnMultiplierOf(Owner, Tables, Row->HazardTag);
+			// The owner's held edicts multiply the share too (B2), and a plague next door (B3): 1 when none, so the bits stay.
+			const float Spreading = (Row->HazardTag == PlagueTag && NextToPlague.IsValidIndex(SystemIndex) && NextToPlague[SystemIndex]) ? Spread : 1.f;
+			const float Share = ((Chance * Factor) * CosmicEdicts::SpawnMultiplierOf(Owner, Tables, Row->HazardTag)) * Spreading;
 			if (!(Share > 0.f))
 			{
 				continue;
@@ -2216,12 +2523,132 @@ void UGalaxySimulationSubsystem::TickCivAI()
 		{
 			CosmicEdicts::Revoke(State.Civs[CivIndex], Row);
 		}
+		// Its diplomacy (B3 section 2.8): no draw, no profile.
+		TickAIDiplomacy(CivIndex);
 	}
 
 	// (b) The feat judgment, once per tick.
 	UAscensionSubsystem* Ascension = GetGameInstance()->GetSubsystem<UAscensionSubsystem>();
 	check(Ascension);
 	Ascension->EvaluateFeats(State, Rng);
+}
+
+void UGalaxySimulationSubsystem::TickAIDiplomacy(int32 CivIndex)
+{
+	const FGameplayTag Friendly = CosmicTags::StanceFriendly();
+	const FGameplayTag Hostile = CosmicTags::StanceHostile();
+	FCivilizationState& Civ = State.Civs[CivIndex];
+
+	// (1) No friendly stance and no guard: those ledgers are the ruler's (a regent lets go of what the ruler left).
+	// (2) A hostility whose people the fleet does not besiege ends.
+	if (!Civ.Ties.IsEmpty())
+	{
+		const int32 Target = Civ.FleetTargetSystemID.IsNone() ? INDEX_NONE : StateIndex.FindSystem(State, Civ.FleetTargetSystemID);
+		const FName Besieged = State.Systems.IsValidIndex(Target) ? State.Systems[Target].OwnerCivID : FName();
+		TArray<FName, TInlineAllocator<4>> Ends;
+		for (const TPair<FName, FCosmicTie>& Pair : Civ.Ties)
+		{
+			if (Pair.Value.Stance == Friendly || (Pair.Value.Stance == Hostile && (Pair.Key != Besieged || Besieged == Civ.CivID)))
+			{
+				Ends.Add(Pair.Key);
+			}
+		}
+		for (const FName Other : Ends)
+		{
+			CosmicDiplomacy::SetStanceOf(Civ, Other, FGameplayTag());
+		}
+	}
+	if (!Civ.FleetTargetSystemID.IsNone())
+	{
+		const int32 Target = StateIndex.FindSystem(State, Civ.FleetTargetSystemID);
+		if (State.Systems.IsValidIndex(Target) && State.Systems[Target].OwnerCivID == Civ.CivID)
+		{
+			Civ.FleetTargetSystemID = NAME_None;
+			Civ.FleetTargetSinceTick = State.Tick;
+		}
+	}
+
+	// (3) A hostility opens only with a siege: no hostility held, no target, the rest over, a fleet, and not pacifist.
+	if (!Civ.FleetTargetSystemID.IsNone() || State.Tick < Civ.FleetTargetSinceTick + static_cast<int64>(FMath::Max(0, Rules.SiegeRestTicks))
+		|| !(Civ.FleetPower > 0.f) || !(Civ.Ethics.Pacifism < Rules.AIHostilePacifismMax))
+	{
+		return;
+	}
+	for (const TPair<FName, FCosmicTie>& Pair : Civ.Ties)
+	{
+		if (Pair.Value.Stance == Hostile)
+		{
+			return;
+		}
+	}
+	// The people the ruled people's fleet besieges, if any.
+	FName RuledBesieges;
+	const int32 Ruled = State.Civs.IndexOfByPredicate([](const FCivilizationState& Candidate) { return Candidate.bIsPlayerRuled; });
+	if (CosmicConflict::IsBesieging(State, StateIndex, Ruled))
+	{
+		RuledBesieges = State.Systems[StateIndex.FindSystem(State, State.Civs[Ruled].FleetTargetSystemID)].OwnerCivID;
+	}
+	for (int32 Other = 0; Other < State.Civs.Num(); ++Other)
+	{
+		if (Other == CivIndex)
+		{
+			continue;
+		}
+		const FCivilizationState& Them = State.Civs[Other];
+		if (CosmicDiplomacy::HasTreaty(Civ, Them.CivID, CosmicTags::TreatyNonAggression()) || !(Civ.FleetPower >= Rules.AIHostilePowerRatio * Them.FleetPower)
+			|| !CosmicDiplomacy::Borders(State, StateIndex, CivIndex, Other) || !(CosmicDiplomacy::ViewOf(State, StateIndex, Rules, CivIndex, Other) <= Rules.AIHostileRelation))
+		{
+			continue;
+		}
+		// No pile-on: another AI already hostile toward them, or the ruled people's siege on them, closes the gate.
+		bool bTaken = false;
+		for (int32 Third = 0; Third < State.Civs.Num() && !bTaken; ++Third)
+		{
+			bTaken = Third != CivIndex && Third != Other && !State.Civs[Third].bIsPlayerRuled
+				&& CosmicDiplomacy::StanceOf(State.Civs[Third], Them.CivID) == Hostile;
+		}
+		if (bTaken || RuledBesieges == Them.CivID)
+		{
+			continue;
+		}
+		// A system of theirs to aim at, in Systems order, out of every higher sphere.
+		int32 Aim = INDEX_NONE;
+		for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num() && Aim == INDEX_NONE; ++SystemIndex)
+		{
+			if (State.Systems[SystemIndex].OwnerCivID == Them.CivID
+				&& CosmicConflict::SiegeBlockOf(State, StateIndex, Rules, CivIndex, SystemIndex, true) == CosmicConflict::ECosmicSiegeBlock::None
+				&& !(ComputeAttritionPressureIn(State, StateIndex, Tables, Rules, CivIndex, SystemIndex).P > 0.f))
+			{
+				Aim = SystemIndex;
+			}
+		}
+		if (Aim == INDEX_NONE)
+		{
+			continue;
+		}
+		const bool bBrokeTrade = CosmicDiplomacy::TurnHostile(State, CivIndex, Other, 0.f);
+		State.Civs[CivIndex].FleetTargetSystemID = State.Systems[Aim].SystemID;
+		State.Civs[CivIndex].FleetTargetSinceTick = State.Tick;
+		if (Them.bIsPlayerRuled)
+		{
+			UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+			check(Log);
+			const FName AimID = State.Systems[Aim].SystemID;
+			NoteMet(State.Civs[CivIndex].CivID, AimID);
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("Civ"), Them.CivName);
+			Args.Add(TEXT("OtherCiv"), State.Civs[CivIndex].CivName);
+			if (bBrokeTrade)
+			{
+				FFormatNamedArguments TreatyArgs = Args;
+				TreatyArgs.Add(TEXT("Treaty"), CosmicDiplomacy::TreatyNameOf(CosmicTags::TreatyTrade()));
+				Log->PushRow(CosmicRows::LogTreatyBroken, 1, TreatyArgs, NAME_None, Them.CivID);
+			}
+			Args.Add(TEXT("System"), State.Systems[Aim].DisplayName);
+			Log->PushRow(CosmicRows::LogSiegeOnUs, 2, Args, AimID, Them.CivID);
+		}
+		return;
+	}
 }
 
 void UGalaxySimulationSubsystem::TickCrossings()
@@ -2264,6 +2691,11 @@ void UGalaxySimulationSubsystem::TickCrossings()
 		{
 			Civ.Relations.Remove(CivID);
 		}
+	}
+	// The pair records go with the people (B3 section 2.1), at the same place: no tie to a people that is gone.
+	for (const FName CivID : Removed)
+	{
+		CosmicDiplomacy::ForgetCiv(State, CivID);
 	}
 	if (Removed.Contains(State.Knowing.PendingContactCivID))
 	{

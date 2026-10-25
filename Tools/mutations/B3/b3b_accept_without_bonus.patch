@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+@@ -382,7 +382,7 @@
+ 	{
+ 		return ECosmicTreatyBlock::Hostile;
+ 	}
+-	const float Bar = CosmicDiplomacyImpl::Term(Rules.TreatyAcceptRelation) - TreatyAcceptBonusOf(Civ, Tables);
++	const float Bar = CosmicDiplomacyImpl::Term(Rules.TreatyAcceptRelation);
+ 	if (!(ViewOf(State, Index, Rules, OtherIndex, CivIndex) >= Bar))
+ 	{
+ 		return ECosmicTreatyBlock::Refused;

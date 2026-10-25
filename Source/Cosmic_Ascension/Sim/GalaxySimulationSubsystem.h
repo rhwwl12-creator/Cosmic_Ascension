@@ -205,7 +205,8 @@ public:
 	 * and told at once, through the tell stream only (no sim draw): the first meeting of the run - while
 	 * Knowing.FirstContactCivID is NAME_None - writes that field and tells CosmicRows::LogFirstContact, any later one
 	 * CosmicRows::LogContact, both Severity 1 about that people and about SeenAtSystemID (NAME_None when the caller has
-	 * no place). Never writes PendingContactCivID (the card is Phase 4). Returns whether the people was newly met.
+	 * no place). Never writes PendingContactCivID yet (the first contact card is B3's data commit). Returns whether the
+	 * people was newly met.
 	 * Refused with an error line when called from a handler of a Core Logic delegate.
 	 */
 	bool NoteMet(FName CivID, FName SeenAtSystemID = NAME_None);
@@ -267,7 +268,7 @@ public:
 	// UAscensionSubsystem::EvaluateFeats and
 	// the role changes and commands of UPlayerRoleSubsystem (Install, DeposeRuler, BecomeWanderer, BecomeRuler, Abdicate,
 	// AbdicateRuler, StartMegaproject, StartNextMegaproject, SetResearchFocus, SetResearchShares, EnactEdict, RevokeEdict,
-	// AnswerPetition, TravelTo, ScanCurrentSystem).
+	// AnswerPetition, TravelTo, ScanCurrentSystem, SetStance, ProposeTreaty, BreakTreaty, AllocateFleet).
 	// MakeEvalContext reports an error and still returns the context (it holds references): the
 	// static Apply and ApplyAll are kept out of a handler by the rule alone. Every such broadcast site brackets its
 	// Broadcast call with BeginBroadcast and EndBroadcast.
@@ -305,6 +306,15 @@ public:
 	 * A SystemIndex out of range gives the zero result. Only + and x reach the value (section 9.2).
 	 */
 	static FCosmicPressure ComputePressureIn(const FGalaxyState& InState, const FCosmicStateIndex& InIndex, const FCosmicDataTables& InTables, const FCosmicRulesDef& InRules, int32 SystemIndex);
+
+	/**
+	 * The pressure a fleet of the people CivIndex meets on SystemIndex (B3 section 2.3 - the attrition of the conflict
+	 * stage, the AI's choice of a system to aim at, the panel's tooltip): the terms of ComputePressureIn of the unsealed
+	 * transcendents whose row stands on a Tier above the people's and whose sphere holds the system (reach Inside) - and no
+	 * other term: no owner's, no wanderer's, no lane neighbour's. The same body and the same bits as those terms of
+	 * ComputePressureIn. A people or a system out of range gives the zero result; so does the sanctuary.
+	 */
+	static FCosmicPressure ComputeAttritionPressureIn(const FGalaxyState& InState, const FCosmicStateIndex& InIndex, const FCosmicDataTables& InTables, const FCosmicRulesDef& InRules, int32 CivIndex, int32 SystemIndex);
 
 	// How the sphere of Transcendent reaches a system: the pressure function and the weight factor of the event slots
 	// ask here. The economy stage builds one table of the same reach for the tick instead (section 9.4): the two agree
@@ -357,7 +367,8 @@ private:
 	// knob up to 1.0; above 1.0, or with a knob not above 0 or not a number, nothing); the Stability recovery (below
 	// DT_Rules.StabilityRestingLevel it rises by StabilityRecoveryPerTick x (1 + SocietyRecoveryBonus x Society) up to the
 	// level - MVP item 3, B2; Society research read 0..1, a bonus not above 0 or not finite read as 0); income of its
-	// settled systems into IncomePerTick (a system being settled pays nothing, section 5.7); then the per-tick sources, the
+	// settled systems into IncomePerTick (a system being settled pays nothing, section 5.7; each trade treaty adds
+	// DT_Rules.TradeInfluencePerTreaty to the Influence - B3); then the per-tick sources, the
 	// only effects that may scale IncomePerTick or act every tick; then IncomePerTick into the Stockpile; then the edicts'
 	// upkeep (B2): in ActiveEdicts order each held edict pays UpkeepPerTick in full from the stockpile or lapses
 	// (log_edict_lapsed for the people the player rules - the stage's one line, the tell stream only). The per-tick sources:
@@ -386,8 +397,46 @@ private:
 	// A people that owns no system (the one the player ruled, kept for the tick of its loss) is passed by: it spends no
 	// Insight and crosses no mark (section 7.4 (o)).
 	void TickResearch();
+
+	// Stage 3 (B3 header section 2.5). No draw; the tell stream only. (1) The friendly stances' upkeep, people by people in
+	// Civs order, each people's friendly entries in lexical key order: those beyond its friendly slots (a save made with
+	// other knobs) lapse to neutral from the back first, then each pays DT_Rules.FriendlyUpkeepInfluence from the stockpile
+	// or lapses. A lapse of the people the player rules is told (CosmicRows::LogStanceLapsed). (2) The drift: one table of
+	// borders (CosmicDiplomacy::BorderTableOf) built at the start of the step; for every people X and every people Y it
+	// borders, both in Civs order, X's relation toward Y moves by DT_Rules.RelationDriftRate of the way to
+	// CosmicDiplomacy::TargetRelationOf, within [-1, 1] - and an entry is written only when the value changes (a rate of 0
+	// writes nothing). A pair that does not border does not move; a transcendent's key never drifts. A silent drift meets
+	// no one.
 	void TickDiplomacy();
+
+	// Stage 4 (B3 header section 2.6). (1) The fleets, people by people in Civs order: the Energy upkeep
+	// (FleetUpkeepEnergyPerPower x FleetPower) paid in full and the fleet grows (FleetGrowthPerTick x the held edicts'
+	// CosmicConflict::FleetGrowthMultiplierOf) toward CosmicConflict::FleetCapOf, or nothing is paid and it shrinks by
+	// FleetGrowthPerTick; then down to the cap; then, while it has a target, PressureFleetAttrition x
+	// ComputeAttritionPressureIn. Never below 0. A people with no cap and no fleet is passed by. (2) The sieges at their end
+	// (a target another living people owns, CosmicConflict::IsSiegeDue - stored state and SiegeTicks only, no gate) are
+	// collected in Civs order of the attacker and one number is drawn for each, all first. (3) Every target is asked its
+	// gate (an own system: GuardBlockOf; another's: SiegeBlockOf); one that fails is lifted (FleetTargetSinceTick = Tick,
+	// the rest of an AI) and a collected siege's number is thrown away. (4) The collected sieges left, in order: the gate is
+	// asked again (an earlier taking may have closed it - then lifted as in (3)); else CosmicConflict::Takes(number,
+	// SiegeOddsOf) - taken: CosmicHazards::Transfer, FollowUpKnowing, every people bordering the conqueror right after (and
+	// the loser) lowers its view of it by ConquestRelationPenalty; held: the attacker's fleet x SiegeRepulsedFleetFactor.
+	// Either way the attacker turns neutral toward the owner and its target is lifted. A line only when the people the
+	// player rules is a party, after it has met the other (NoteMet): taken / lost / held / failed (Severity 2), lifted
+	// (Severity 1).
 	void TickConflict();
+
+	// The diplomacy of the AI stage for the people CivIndex the player does not rule (B3 header section 2.8 - after its
+	// projects, settlement and revocations; no draw, no profile read): it drops its friendly stances and a guard; turns
+	// neutral toward every people it is hostile to whose system it does not besiege; and, holding no hostility and not
+	// resting (no target and Tick >= FleetTargetSinceTick + SiegeRestTicks), opens one toward the first people in Civs order
+	// that passes the gate (bordering, no non-aggression treaty, ViewOf at or below AIHostileRelation, its FleetPower above 0
+	// and at least AIHostilePowerRatio times theirs, its Pacifism below AIHostilePacifismMax, no other AI hostile toward
+	// them, the ruled people not besieging them, and a system of theirs in Systems order that SiegeBlockOf passes with
+	// bAssumeHostile and ComputeAttritionPressureIn leaves at 0) - turning hostile breaks the pair's trade treaty
+	// (CosmicDiplomacy::TurnHostile, no penalty) and the siege stands at once on that system. A people the player rules is
+	// met first and told (CosmicRows::LogTreatyBroken when a treaty broke, then CosmicRows::LogSiegeOnUs).
+	void TickAIDiplomacy(int32 CivIndex);
 
 	// Stage 5. Four steps in a fixed order (section 7.4). Every hazard is placed through CosmicHazards::Place, and its lines
 	// follow (FollowUpNotes) before the next placement.
@@ -400,8 +449,9 @@ private:
 	//     faith traits, read as 1 until the trait rows of Phase 4). Then ExpireHazard for each, in that order.
 	// (c) Spawn. One number per settled system in Systems order, all drawn first, whether its slot is free or not; then,
 	//     in the same order, the Draw row the number falls on is placed on a free slot (a row's share is its chance times the
-	//     owner archetype's and the owner's held edicts' factors - B2; the factors change the shares, never the count of
-	//     draws). Then the Capital rows, civilization by civilization in Civs order.
+	//     owner archetype's and the owner's held edicts' factors - B2 - and, for the plague row on a system with a standing
+	//     plague on a lane neighbour as the step begins, DT_Rules.PlagueSpreadMultiplier - B3; the factors change the shares,
+	//     never the count of draws). Then the Capital rows, civilization by civilization in Civs order.
 	// (d) The event slots, UCosmicEventSubsystem::EvaluateAndFire.
 	// Each draw point of this stage draws a count that no row, tag, chance or weight decides: one number per settled
 	// system, two per hazard that runs out, whatever DT_Hazards holds. How many hazards run out, and when, follows the
@@ -460,7 +510,8 @@ private:
 	// (SinceTick 0), no draw (section 4.3, 5.7); then, when CosmicMegaprojects::MaySettle holds, one number from the sim
 	// stream, drawn before the targets are looked at and thrown away when there is none, picks a target of SettleTargets
 	// to Settle (section 9.2). A people that may not settle draws nothing. Then it revokes, in ActiveEdicts order, the edicts
-	// CosmicEdicts::AIRevokesOf names - no draw, no line: an AI people holds no edict in B2. (b)
+	// CosmicEdicts::AIRevokesOf names - no draw, no line: an AI people holds no edict in B2. Then its diplomacy
+	// (TickAIDiplomacy, B3). (b)
 	// UAscensionSubsystem::EvaluateFeats, exactly once per tick and nowhere else in the tick.
 	void TickCivAI();
 
@@ -470,7 +521,7 @@ private:
 	// for nothing lets go of it then); then every civilization that owns no system (CosmicState::OwnsAnySystem) leaves Civs, in array
 	// order, except the one the player rules this tick, which the next tick's cleanup takes once the role-effect stage has
 	// let go of it (that rests on the recorded deposition: Phase 4b's death pipeline lets go of a people as well). The
-	// Relations key of a removed CivID leaves every other civilization, Knowing.PendingContactCivID is cleared when it
+	// Relations and Ties keys of a removed CivID leave every other civilization (B3), Knowing.PendingContactCivID is cleared when it
 	// names one, and the state index is rebuilt. Every other record of the ID stays. No line: the expiry that took the
 	// last system has told it. Arrivals and departures are Phase 6a.
 	void TickCrossings();

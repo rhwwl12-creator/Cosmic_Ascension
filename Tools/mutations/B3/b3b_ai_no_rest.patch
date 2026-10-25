@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2569,7 +2569,7 @@
+ 	}
+ 
+ 	// (3) A hostility opens only with a siege: no hostility held, no target, the rest over, a fleet, and not pacifist.
+-	if (!Civ.FleetTargetSystemID.IsNone() || State.Tick < Civ.FleetTargetSinceTick + static_cast<int64>(FMath::Max(0, Rules.SiegeRestTicks))
++	if (!Civ.FleetTargetSystemID.IsNone()
+ 		|| !(Civ.FleetPower > 0.f) || !(Civ.Ethics.Pacifism < Rules.AIHostilePacifismMax))
+ 	{
+ 		return;

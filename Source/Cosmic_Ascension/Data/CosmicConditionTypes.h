@@ -30,7 +30,8 @@ enum class EConditionType : uint8
 	SystemOwnedBy,
 	// Key = DT_Megaprojects row (required; empty is false). True only when the subject system holds a record of that row
 	// (CompletedMegaprojects) whose Tick is > 0 and >= the SinceTick of the evaluation: 0 for events, hazards and AI feats,
-	// Calling.BornTick only in the judgment of the player's feats (section 4.4, 5.7, 7.5).
+	// Calling.BornTick only in the judgment of the player's feats (section 4.4, 5.7, 7.5) - and made by the context
+	// people (#73, B3: the record's CivID; a record of no people, from a save before B3, reads as the system's owner's).
 	MegaprojectComplete,
 	// Spiritual pressure P(System) >= Value (section 4.2). The whole sum of the system: the term of the civilization
 	// that owns it and of a wanderer standing there count too (section 16 #62).
@@ -141,7 +142,12 @@ enum class EEffectType : uint8
 	// ResearchFocus[Key] = Value and every other field (1 - Value) / (fields - 1), so the shares still sum to 1 (section
 	// 5.4). The ways of the founding petition (section 5.10); the ruler's research focus command applies the same rule
 	// through CosmicResearch::Focus (MVP item 7). Never per tick.
-	FocusResearch
+	FocusResearch,
+	// B3 (docs/60_DECISIONS/headers/B3_diplomacy_and_conflict.md section 2.9): the context people's stance toward the people
+	// the Key names (an empty Key = the OtherID of the context) - Tag = Stance.Friendly, or the empty tag for neutral. Through
+	// the one gate CosmicDiplomacy::StanceBlockOf (met reads true: the world never reads knowing); a refusal does nothing. A
+	// card's answer only (the schema's card_only), never per tick.
+	SetStance
 	// Phase 6+ (append): MultiplyResearch, PopulationLossMultiplier, StabilityFloor (section 4.2). They are per-tick
 	// effects: each joins the list of UCosmicEventSubsystem::Apply for per-tick sources when it is appended.
 	// Decided, appended with the relics of Phase 4 (section 16 #29): GrantRelic, RemoveRelic. A system is let go to no

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -823,7 +823,7 @@
+ 	{
+ 		Block = CosmicConflict::SiegeBlockOf(State, Index, Sim->GetRules(), CivIndex, SystemIndex);
+ 	}
+-	if (Block != ECosmicSiegeBlock::None || Civ.FleetTargetSystemID == SystemID)
++	if (Block != ECosmicSiegeBlock::None)
+ 	{
+ 		return Block;
+ 	}

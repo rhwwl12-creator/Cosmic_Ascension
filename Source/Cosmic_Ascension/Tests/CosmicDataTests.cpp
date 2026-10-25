@@ -1766,6 +1766,17 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 			{ TEXT("PressureBySourceTier[4]"), TEXT("is below 0") });
 		Expect(TEXT("an array of numbers that does not rise"), WithRules([](FCosmicRulesDef& Row) { Row.PopulationBandThresholds = { 0.5f, 0.5f, 2.f }; }),
 			{ TEXT("PopulationBandThresholds"), TEXT("do not rise") });
+		// B3: the lists the code reads by position (a stance, a tier, a defence share).
+		Expect(TEXT("a list of stance terms of the wrong length"), WithRules([](FCosmicRulesDef& Row) { Row.RelationStanceTerms = { 0.4f }; }),
+			{ TEXT("RelationStanceTerms"), TEXT("exactly 2 entries, found 1") });
+		Expect(TEXT("a list of friendly slots of the wrong length"), WithRules([](FCosmicRulesDef& Row) { Row.FriendlySlotsByTier = { 1, 1, 2, 2 }; }),
+			{ TEXT("FriendlySlotsByTier"), TEXT("exactly 5 entries, found 4") });
+		Expect(TEXT("a list of fleets by tier of the wrong length"), WithRules([](FCosmicRulesDef& Row) { Row.FleetPerSettledByTier = { 0.f, 1.f, 1.f, 1.f }; }),
+			{ TEXT("FleetPerSettledByTier"), TEXT("exactly 5 entries, found 4") });
+		Expect(TEXT("a list of defence shares of the wrong length"), WithRules([](FCosmicRulesDef& Row) { Row.SiegeDefenceShares = { 1.f, 0.5f }; }),
+			{ TEXT("SiegeDefenceShares"), TEXT("exactly 3 entries, found 2") });
+		Expect(TEXT("a friendly slot below 0"), WithRules([](FCosmicRulesDef& Row) { Row.FriendlySlotsByTier = { 1, 1, 2, 2, -1 }; }),
+			{ TEXT("FriendlySlotsByTier[4]"), TEXT("is below 0") });
 		Expect(TEXT("a map key that is no word of its list"), WithRules([](FCosmicRulesDef& Row) { Row.LureAcceptByPolicy = { { FName(TEXT("Greedy")), 0.5f } }; }),
 			{ TEXT("LureAcceptByPolicy[Greedy]"), TEXT("none of the words of policy") });
 		Expect(TEXT("a map key that is a word of its list in another case"), WithRules([](FCosmicRulesDef& Row) { Row.LureAcceptByPolicy = { { FName(TEXT("cautious")), 0.5f } }; }),

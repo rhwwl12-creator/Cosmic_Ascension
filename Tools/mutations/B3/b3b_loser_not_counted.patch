@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2004,7 +2004,7 @@
+ 				// The neighbours of the conqueror right after the taking, and the loser, think less of it.
+ 				for (int32 Viewer = 0; Viewer < State.Civs.Num(); ++Viewer)
+ 				{
+-					if (Viewer != Attacker && (Viewer == Owner || CosmicDiplomacy::Borders(State, StateIndex, Viewer, Attacker)))
++					if (Viewer != Attacker && CosmicDiplomacy::Borders(State, StateIndex, Viewer, Attacker))
+ 					{
+ 						CosmicDiplomacy::LowerRelation(State.Civs[Viewer], AttackerID, Rules.ConquestRelationPenalty);
+ 					}

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -315,7 +315,7 @@
+ int32 CosmicConflict::FleetDelayOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
+ 	const FCosmicRulesDef& Rules, int32 SystemIndex, const FHazardDef& Row)
+ {
+-	if (!State.Systems.IsValidIndex(SystemIndex) || Row.SpawnRule == ECosmicHazardSpawn::Capital)
++	if (!State.Systems.IsValidIndex(SystemIndex))
+ 	{
+ 		return 0;
+ 	}

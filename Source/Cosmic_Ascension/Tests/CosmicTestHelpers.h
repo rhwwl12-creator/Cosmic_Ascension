@@ -170,6 +170,35 @@ namespace CosmicTests
 		return Tables;
 	}
 
+	// The tables with diplomacy and conflict off (B3 header section 6): the rules of Base (the C++ defaults without a rules
+	// row) with no drift, no fleet and no spread, and DT_Encounters without the first contact card - for a test that reads
+	// Stability, income or ownership as constants on a board whose peoples border each other (Board puts peoples 1 and 2 on
+	// lane neighbours). Everything else as given.
+	inline FCosmicDataTables WithoutDiplomacy(const FCosmicDataTables& Base)
+	{
+		const FCosmicRulesDef* GameRules = Base.FindRules();
+		FCosmicRulesDef Off = GameRules ? *GameRules : FCosmicRulesDef();
+		Off.RelationDriftRate = 0.f;
+		Off.FleetPerSettledByTier = { 0.f, 0.f, 0.f, 0.f, 0.f };
+		Off.PlagueSpreadMultiplier = 1.f;
+		FCosmicDataTables Tables = WithRules(Base, Off);
+		// The row of the first contact card (B3 section 2.9 - the data commit puts it in DT_Encounters).
+		const FName FirstContact(TEXT("petition_first_contact"));
+		if (Base.Encounters && Base.Encounters->GetRowMap().Contains(FirstContact))
+		{
+			UDataTable* Encounters = NewTable(FEncounterDef::StaticStruct());
+			for (const TPair<FName, uint8*>& Row : Base.Encounters->GetRowMap())
+			{
+				if (Row.Key != FirstContact)
+				{
+					Encounters->AddRow(Row.Key, *reinterpret_cast<const FEncounterDef*>(Row.Value));
+				}
+			}
+			Tables.Encounters = Encounters;
+		}
+		return Tables;
+	}
+
 	// The tables with DT_Galaxies replaced, everything else as given (as WithTranscendents). A test that hands it to SetTables
 	// puts a copy of the game's home row in it: a table without the home row is an error line and the C++ defaults (7.4).
 	inline FCosmicDataTables WithGalaxies(const FCosmicDataTables& Base, UDataTable* Galaxies)

@@ -2547,6 +2547,7 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 			{ Eff(EEffectType::ChangePopulation, nullptr, NAME_None, -0.1f), true },
 			{ Eff(EEffectType::NameNotable, TEXT("Notable.Rebel"), NAME_None, 0.f), false },
 			{ Eff(EEffectType::FocusResearch, nullptr, FName(TEXT("Society")), 0.55f), false },
+			{ Eff(EEffectType::SetStance, TEXT("Stance.Friendly"), NAME_None, 0.f), false },
 		};
 		TSet<EEffectType> Types;
 		bool bAsListed = true;
@@ -2571,7 +2572,7 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 				bRefusedUntouched &= Bench.Stream.GetCurrentSeed() == SeedBefore && !Bench.State.Calling.PendingEffect.IsValid()
 					&& Bench.State.Player.Body == Fresh.Player.Body && Bench.State.Calling.Powers == Fresh.Calling.Powers
 					&& Bench.State.Flags == Fresh.Flags && After.Traits == Fresh.Civs[0].Traits && After.Notables.Num() == Fresh.Civs[0].Notables.Num()
-					&& After.ResearchFocus.OrderIndependentCompareEqual(Fresh.Civs[0].ResearchFocus);
+					&& After.ResearchFocus.OrderIndependentCompareEqual(Fresh.Civs[0].ResearchFocus) && After.Ties.Num() == Fresh.Civs[0].Ties.Num();
 			}
 		}
 		TestTrue(TEXT("A per-tick source applies the seven effects that change an amount and no other"), bAsListed);
@@ -2606,6 +2607,21 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 			&& Bench.State.Flags.HasTagExact(Tag(TEXT("Flag.Grace.Spent"))) && FMath::IsNearlyEqual(Civ.Population, 0.6f));
 		TestTrue(TEXT("RemoveTrait takes the trait away again"),
 			UCosmicEventSubsystem::Apply(Eff(EEffectType::RemoveTrait, TEXT("Trait.Faith.Seeking"), NAME_None, 0.f), Bench.Ctx) && !Civ.Traits.HasTagExact(Seeking));
+
+		// SetStance (B3 section 2.9): the context people toward the OtherID (or the Key's people), through the one gate the
+		// command passes - met read as true; a refusal does nothing.
+		{
+			const FName Other = Fresh.Civs[2].CivID;
+			TestTrue(TEXT("SetStance turns the subject friendly toward the other of the context"),
+				UCosmicEventSubsystem::Apply(Eff(EEffectType::SetStance, TEXT("Stance.Friendly"), NAME_None, 0.f), Bench.Ctx)
+				&& Civ.Ties.Contains(Other) && Civ.Ties[Other].Stance == Tag(TEXT("Stance.Friendly")));
+			TestFalse(TEXT("The gate's refusal does nothing (the one friendly slot of the first rung is taken)"),
+				UCosmicEventSubsystem::Apply(Eff(EEffectType::SetStance, TEXT("Stance.Friendly"), Fresh.Civs[0].CivID, 0.f), Bench.Ctx)
+				|| Civ.Ties.Contains(Fresh.Civs[0].CivID));
+			TestFalse(TEXT("toward itself too"), UCosmicEventSubsystem::Apply(Eff(EEffectType::SetStance, TEXT("Stance.Friendly"), Civ.CivID, 0.f), Bench.Ctx));
+			TestTrue(TEXT("The empty tag turns it neutral and leaves no entry"),
+				UCosmicEventSubsystem::Apply(Eff(EEffectType::SetStance, nullptr, NAME_None, 0.f), Bench.Ctx) && !Civ.Ties.Contains(Other));
+		}
 
 		// The other party of a relation has to be a living people or a transcendent of the run: a name that is neither
 		// (a selector word no code resolves, a people that is gone) is turned away and leaves no entry behind.

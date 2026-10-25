@@ -199,7 +199,7 @@
 | `SetStance`·`ProposeTreaty`·`BreakTreaty` | — | 줄 1 | — | 다음 경계의 정해진 까닭 |
 | `AllocateFleet` | — | 공성을 시작하면 줄 1 | — | 같다 |
 | 외교 단계(유지비·표류) | — | 그침의 줄(통치자) | — | — |
-| 분쟁 단계(함대·점검) | — | 풀림의 줄(통치자 당사자) | — | — |
+| 분쟁 단계(함대·점검) | — | 풀림의 줄(통치자 당사자) | 풀림의 줄 전에 상대 `NoteMet` | — |
 | 분쟁 단계(공성의 끝) | **끝에 이른 공성마다 1(먼저 모두)** | 다스리는 백성이 당사자면 줄 1 | 상대 `NoteMet`, 받은 성계 `FollowUpKnowing` | — |
 | 위기 단계(지연·번짐) | 그대로(몫만) | — | — | — |
 | AI 단계(적대·공성) | — | 다스리는 백성을 노리면 줄 1 | 상대 `NoteMet` | — |
@@ -385,6 +385,13 @@ C++ 초기값(`FCosmicRulesDef`)은 **장치 값**과 같다(B2의 `SocietyRecov
 
 1. `[B-3a]`: 새 테스트 `Sim.SaveTies`는 따로 두지 않고 그 단언을 셋에 나눠 넣었다 — 저장·로드의 같음은 `Sim.SaveRoundTrip`(채움과 `SameLaterMembers`), 해시가 새 필드를 보는 것은 `Sim.Determinism`, 완성이 `CivID`를 적는 것(새 기록·다른 백성으로 심은 기록·옛 기록)은 `Sim.MegaprojectProgress`.
 2. `[B-3a]`: 해시는 태그 컨테이너의 태그를 `FNameLexicalLess` 차례로 넣는다(저장된 차례가 아니라 — `AddTag`가 끝에 더하므로 조약을 끊었다 다시 맺은 짝이 같은 짝과 다른 해시를 가졌다; 구현 리뷰). 모든 태그 컨테이너(특성·플래그·권능·상태)의 해시가 함께 옮았다 — 필드를 더하는 같은 커밋이라 기준값을 한 번만 다시 적는다.
+3. `[B-3b]`: 태세·조약의 문은 받지 않는 태그(태세 셋·조약 둘 밖의 태그)를 `NoCiv`로 거절한다 — 사유 목록을 늘리지 않고, 명령과 효과가 같은 문을 지나므로 세계에 다른 태그가 들지 않는다.
+4. `[B-3b]`: 효과 `SetStance`가 카드의 답에만 서는 것은 스키마의 두 칸으로 지킨다 — 효과의 `card_only`와 열의 `card`(`DT_Encounters`의 `OnSuccess`·`OnFailure`). 칙령의 `FleetGrowthMultiplier`는 `DT_Edicts`의 행 규칙(`gt 0`)이 0보다 크게 지키고 코드는 0 이하·수가 아닌 값을 1로 읽는다. 태세·조약의 태그 넷은 `required_tags`에 들어 `Data.Integrity`와 `check_data.py`가 ini와 견준다.
+5. `[B-3b]`: 화면과 정책이 읽을 작은 함수를 더했다 — `CosmicConflict`의 `SettledCountOf`·`OwnedCountOf`·`AttackGapOf`·`BesiegerOf`·`IsBesieging`·`SiegeEndTickOf`·`OddsBandOf`·`FleetGrowthMultiplierOf`·`LiftTargetsOn`, `CosmicDiplomacy`의 `BorderTableOf`·`TradeTreatyCountOf`·`TreatyAcceptBonusOf`·`TurnHostile`·`LowerRelation`·`StanceNameOf`·`TreatyNameOf`. 코드가 이름으로 부르는 태그는 `Core/CosmicTags.h`(상수 헤더)에 있다.
+6. `[B-3b]`: `HasCompleted`의 백성이 빈 이름이면 그 성계의 지금 주인으로 읽는다(백성이 아니라 성계를 묻는 자리 — 커맨드렛의 답의 셈과 테스트).
+7. `[B-3b]`: 구현 리뷰(ultracode — 결정론·세계 규칙·앎과 명령·테스트의 네 관점에 관점마다 반박 검증, 빠진 것을 찾는 비평 하나)가 더한 것: **`Transfer`가 다스리는 백성이 잃는 성계에 선 통치자의 그릇을 그 백성의 수도로 옮긴다**(`Destroy`가 옮기는 것과 같은 꼴 — 정복이 백성 사이의 첫 넘김이라 전에는 없던 상태: 남의 영토에 선 통치자, 그 자리에서 이는 폐위의 줄과 방랑의 첫 눈). 점검이 공성을 풀 때의 줄도 상대를 먼저 만난다(§2.11 표의 칸을 고쳤다 — §3.4의 '줄은 상대를 먼저 만난다' 그대로). `MegaprojectComplete`의 주석들(#73).
+8. `[B-3b]`: 헤더 §6의 Sim 테스트 아홉과 `Log.ConflictLines`는 한 파일(`Tests/CosmicDiplomacyTests.cpp`)에 있다. 보드는 데이터를 끈 규칙과 시야 없음에서 시작해(케이스가 켜는 것만 켜진다 — `[B-3d]`가 데이터를 켜도 그대로) 앎에 쓰는 길(공성의 줄 전 `NoteMet`, 넘김 뒤 `FollowUpKnowing`, AI가 연 공성의 줄 전 `NoteMet`)을 만나지 않은 상대로 본다. AI와 분쟁의 세계가 앎을 읽지 않는 것은 `Sim.KnowingInert`를 기다리지 않고 `Sim.DiplomacyAI` 안의 짝 판(모두 안다 대 아무것도 모른다 — 적대가 열리고 공성이 끝나는 15틱, 세계 해시와 시뮬 스트림이 같다)이 본다. `Events.RoleEffectRules`가 `SetStance`의 줄(틱당 원천은 거절, 문을 지나 쓰고 거절은 무동작)을 받았다.
+9. `[B-3b]`: §3.6 가운데 `DT_Encounters`의 `{OtherCiv}` 슬롯과 '`SetStance` 없는 카드는 `{OtherCiv}`를 부르지 않는다' 규칙·그 깨지는 경우는 `ArgsOf`의 `{OtherCiv}`와 함께 `[B-3d]`로(그 전에 슬롯을 열면 채우는 이 없는 슬롯을 카드가 부를 수 있다 — 지금의 스키마가 더 엄하다), ST_CA 접두어 `Diplomacy.`·`Siege.`·`Guard.`는 그 키들과 함께 `[B-3c]`로 간다(`Stance.`·`Treaty.`는 줄의 낱말과 함께 들었다).
 
 ## 추가 이야기와 보완
 

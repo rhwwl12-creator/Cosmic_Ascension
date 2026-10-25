@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2000,7 +2000,6 @@
+ 			bTaken = CosmicHazards::Transfer(Ctx, SystemIndex, Attacker);
+ 			if (bTaken)
+ 			{
+-				Events->FollowUpKnowing(Ctx);
+ 				// The neighbours of the conqueror right after the taking, and the loser, think less of it.
+ 				for (int32 Viewer = 0; Viewer < State.Civs.Num(); ++Viewer)
+ 				{

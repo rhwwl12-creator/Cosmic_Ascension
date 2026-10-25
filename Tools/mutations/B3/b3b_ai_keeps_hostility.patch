@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2548,7 +2548,7 @@
+ 		TArray<FName, TInlineAllocator<4>> Ends;
+ 		for (const TPair<FName, FCosmicTie>& Pair : Civ.Ties)
+ 		{
+-			if (Pair.Value.Stance == Friendly || (Pair.Value.Stance == Hostile && (Pair.Key != Besieged || Besieged == Civ.CivID)))
++			if (Pair.Value.Stance == Friendly)
+ 			{
+ 				Ends.Add(Pair.Key);
+ 			}

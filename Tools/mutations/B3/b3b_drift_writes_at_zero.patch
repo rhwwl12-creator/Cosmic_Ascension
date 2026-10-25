@@ -1,0 +1,22 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1830,10 +1830,6 @@
+ 	// (2) The drift of every bordering pair (B3 section 2.5): the targets read stances, treaties and ethics only, never a
+ 	// relation, so one pair's write never reaches another pair's read. A rate of 0 builds no table and writes nothing.
+ 	const float Rate = (Rules.RelationDriftRate > 0.f && Rules.RelationDriftRate <= 1.f) ? Rules.RelationDriftRate : 0.f;
+-	if (!(Rate > 0.f))
+-	{
+-		return;
+-	}
+ 	const TArray<TArray<int32>> Borders = CosmicDiplomacy::BorderTableOf(State, StateIndex);
+ 	for (int32 Viewer = 0; Viewer < State.Civs.Num(); ++Viewer)
+ 	{
+@@ -1844,7 +1840,7 @@
+ 			const FName OtherID = State.Civs[Other].CivID;
+ 			const float Before = Civ.Relations.FindRef(OtherID);
+ 			const float After = FMath::Clamp(Before + Rate * (Target - Before), -1.f, 1.f);
+-			if (After != Before && After >= -1.f && After <= 1.f)
++			if (After >= -1.f && After <= 1.f)
+ 			{
+ 				Civ.Relations.Add(OtherID, After);
+ 			}

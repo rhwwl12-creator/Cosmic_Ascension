@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1573,7 +1573,6 @@
+ 		const int32 TradeTreaties = CosmicDiplomacy::TradeTreatyCountOf(Civ);
+ 		if (TradeTreaties > 0)
+ 		{
+-			Income.Influence += EconomyRateOf(Rules.TradeInfluencePerTreaty) * static_cast<float>(TradeTreaties);
+ 		}
+ 
+ 		Civ.IncomePerTick = Income;

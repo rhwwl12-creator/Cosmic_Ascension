@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -295,7 +295,7 @@
+ 
+ int64 CosmicConflict::SiegeEndTickOf(const FCivilizationState& Civ, const FCosmicRulesDef& Rules)
+ {
+-	return Civ.FleetTargetSinceTick + static_cast<int64>(FMath::Max(1, Rules.SiegeTicks));
++	return Civ.FleetTargetSinceTick + static_cast<int64>(Rules.SiegeTicks);
+ }
+ 
+ bool CosmicConflict::IsSiegeDue(const FCivilizationState& Civ, int64 Tick, const FCosmicRulesDef& Rules)

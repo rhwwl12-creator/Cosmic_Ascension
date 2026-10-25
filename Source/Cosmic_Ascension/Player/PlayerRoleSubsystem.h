@@ -8,6 +8,8 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Core/CosmicTypes.h"
 #include "Events/CosmicPetitions.h"
+#include "Sim/CosmicConflict.h"
+#include "Sim/CosmicDiplomacy.h"
 #include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicWanderer.h"
 #include "PlayerRoleSubsystem.generated.h"
@@ -143,6 +145,43 @@ public:
 	bool RevokeEdict(FName Row);
 
 	/**
+	 * The ruler sets the ruled people's stance toward the people CivID (B3 header section 2.4), between ticks: Stance is
+	 * Stance.Friendly, Stance.Hostile or the empty tag (neutral). The first reason of CosmicDiplomacy::StanceBlockOf (whether
+	 * the people is met from Knowing.MetCivs - the input definition, rule 2), NotRuler without an embodied ruler, Handler
+	 * (and an error line) inside a handler of a Core Logic delegate - nothing changed. On None the stance is written; a
+	 * hostile one breaks the pair's trade treaty (CosmicDiplomacy::TurnHostile - the partner's view of the ruled people
+	 * falls by DT_Rules.BetrayalRelationPenalty). Tells log_stance_changed, and log_treaty_broken when a treaty broke. No draw
+	 * of the sim stream, no save of its own.
+	 */
+	CosmicDiplomacy::ECosmicStanceBlock SetStance(FName CivID, FGameplayTag Stance);
+
+	/**
+	 * The ruler proposes a treaty (Treaty.Trade or Treaty.NonAggression) to the people CivID (B3 header section 2.4), between
+	 * ticks: accepted at once when CosmicDiplomacy::TreatyBlockOf says None (no draw) - TreatyCostInfluence is paid and the
+	 * treaty signed on both sides (CosmicDiplomacy::Sign), log_treaty_signed told. Refused - nothing changed, no line - with
+	 * the first reason; NotRuler and Handler as SetStance.
+	 */
+	CosmicDiplomacy::ECosmicTreatyBlock ProposeTreaty(FName CivID, FGameplayTag Treaty);
+
+	/**
+	 * The ruler breaks a treaty the ruled people holds with the people CivID (B3 header section 2.4), between ticks: removed on
+	 * both sides (CosmicDiplomacy::Break), the partner's view of the ruled people falls by BetrayalRelationPenalty at once,
+	 * log_treaty_broken told. False and nothing changed without an embodied ruler, for a treaty not held, and with one error
+	 * line inside a handler.
+	 */
+	bool BreakTreaty(FName CivID, FGameplayTag Treaty);
+
+	/**
+	 * The ruler's fleet (B3 header section 2.4), between ticks: NAME_None withdraws it (no target - an even guard; always
+	 * taken); a settled system of the ruled people is a guard (CosmicConflict::GuardBlockOf, answered with the siege names);
+	 * another people's system a siege (CosmicConflict::SiegeBlockOf). On None FleetTargetSystemID and FleetTargetSinceTick =
+	 * Tick are written - the same target asked again changes nothing (no siege time is wound back) - and a siege begun tells
+	 * log_siege_begun (Severity 1: the player's own act, no auto-pause). Refused - nothing changed - with the first reason;
+	 * NotRuler and Handler as SetStance. No draw, no save of its own.
+	 */
+	CosmicConflict::ECosmicSiegeBlock AllocateFleet(FName SystemID);
+
+	/**
 	 * The wanderer's move (B1 header section 2.3), between ticks: one lane - CosmicWanderer::TravelBlockOf must say None
 	 * (whether a card waits from Knowing - the input definition). Sets Player.TravelTargetSystemID and
 	 * TravelTicksRemaining = CosmicWanderer::LaneTicksOf; the eighth stage moves the vessel. No draw, no line, no save of
@@ -166,7 +205,9 @@ public:
 	 * (whether the people is met from Knowing.MetCivs, whether a card waits - the input definition): the people's
 	 * bIsPlayerRuled, Role Ruler and RuledCivID, one more entry in each reign array, the people's open Ruler and Regent
 	 * records closed (LastTick = max(Tick, 1)), the journey, the waiting card and Knowing.PendingContactCivID cleared, the
-	 * people's owned systems known (NoteKnown in OwnedSystems order, no line), then CosmicRows::LogCrowned - or
+	 * people's owned systems known (NoteKnown in OwnedSystems order, no line), a fleet target on another people's system
+	 * lifted and every hostile stance turned neutral (B3 - no siege or hostility the new ruler could not see or change; the
+	 * treaties stay), then CosmicRows::LogCrowned - or
 	 * LogReturned for the people the vessel left (FormerCivID) - Severity 2. FormerCivID, StatusTags and the life's PeakTier
 	 * stay. No draw; the next tick boundary saves it (the Role comparison of the save layer). Refused - nothing changed -
 	 * with the first reason; inside a handler an error line and Handler.

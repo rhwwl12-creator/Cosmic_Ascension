@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+@@ -890,7 +890,7 @@
+ 		// The stance passes the one gate the command passes (B3 section 2.9, rule 13). A hostile stance - kept out of the data
+ 		// by the schema - breaks the pair's trade treaty as every hostility does (CosmicDiplomacy::TurnHostile, no penalty).
+ 		const FName Other = OtherOf(Ctx, Effect.Key);
+-		if (!Civ || CosmicDiplomacy::StanceBlockOf(State, Ctx.Index, Ctx.Rules, Ctx.CivIndex, Other, Effect.Tag, true) != CosmicDiplomacy::ECosmicStanceBlock::None)
++		if (!Civ || Other.IsNone())
+ 		{
+ 			return false;
+ 		}

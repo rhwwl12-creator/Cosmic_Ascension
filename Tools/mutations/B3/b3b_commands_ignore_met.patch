@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -680,7 +680,7 @@
+ 		return ECosmicStanceBlock::NotRuler;
+ 	}
+ 	const ECosmicStanceBlock Block = CosmicDiplomacy::StanceBlockOf(State, Sim->GetStateIndex(), Sim->GetRules(), CivIndex, CivID, Stance,
+-		CosmicPlayerRoleImpl::IsMet(State, CivID));
++		true);
+ 	if (Block != ECosmicStanceBlock::None)
+ 	{
+ 		return Block;

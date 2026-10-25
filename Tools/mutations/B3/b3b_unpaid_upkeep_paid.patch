@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1896,7 +1896,7 @@
+ 			continue;
+ 		}
+ 		const float Upkeep = UpkeepPerPower * FMath::Max(0.f, Civ.FleetPower);
+-		if (!(Upkeep > 0.f) || Civ.Stockpile.Energy >= Upkeep)
++		if (true)
+ 		{
+ 			Civ.Stockpile.Energy -= Upkeep;
+ 			Civ.FleetPower = FMath::Min(Cap, Civ.FleetPower + Growth * CosmicConflict::FleetGrowthMultiplierOf(Civ, Tables));

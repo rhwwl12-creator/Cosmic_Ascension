@@ -1,0 +1,11 @@
+--- a/Tools/cosmic_data_schema.py
++++ b/Tools/cosmic_data_schema.py
+@@ -958,8 +958,6 @@
+                 self.report(where, "a per-tick source applies only %s" % ", ".join(allowed))
+             if not per_tick and usage.get("per_tick_only"):
+                 self.report(where, "this effect is applied by per-tick sources only")
+-            if usage.get("card_only") and not (spec and spec.get("card")):
+-                self.report(where, "this effect stands only in the answer of a card (a column with card)")
+             if spec and spec.get("no_duration") and is_count(duration) and duration != 0:
+                 self.report(where + ".DurationTicks", "%r: this column's effects stand without a duration" % (duration,))
+             if spec and type_name in (spec.get("keyed") or []) and key == "":

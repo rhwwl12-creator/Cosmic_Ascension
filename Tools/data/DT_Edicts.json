@@ -14,7 +14,9 @@
 			{"Type": "ChangeStability", "Tag": "", "Key": "None", "Value": -0.0005, "DurationTicks": 0}
 		],
 		"HazardSpawnMultipliers": {"Hazard.Plague": 2.0},
-		"HazardCountdownBonus": {}
+		"HazardCountdownBonus": {},
+		"FleetGrowthMultiplier": 1.0,
+		"TreatyAcceptBonus": 0.0
 	},
 	{
 		"Name": "edict_machine_rights",
@@ -29,7 +31,9 @@
 			{"Type": "ShiftEthics", "Tag": "", "Key": "Openness", "Value": 0.0001, "DurationTicks": 0}
 		],
 		"HazardSpawnMultipliers": {},
-		"HazardCountdownBonus": {}
+		"HazardCountdownBonus": {},
+		"FleetGrowthMultiplier": 1.0,
+		"TreatyAcceptBonus": 0.0
 	},
 	{
 		"Name": "edict_mobilization",
@@ -45,7 +49,9 @@
 			{"Type": "ChangeStability", "Tag": "", "Key": "None", "Value": -0.0015, "DurationTicks": 0}
 		],
 		"HazardSpawnMultipliers": {},
-		"HazardCountdownBonus": {}
+		"HazardCountdownBonus": {},
+		"FleetGrowthMultiplier": 1.0,
+		"TreatyAcceptBonus": 0.0
 	},
 	{
 		"Name": "edict_open_thought",
@@ -61,7 +67,9 @@
 			{"Type": "ChangeStability", "Tag": "", "Key": "None", "Value": -0.0005, "DurationTicks": 0}
 		],
 		"HazardSpawnMultipliers": {},
-		"HazardCountdownBonus": {}
+		"HazardCountdownBonus": {},
+		"FleetGrowthMultiplier": 1.0,
+		"TreatyAcceptBonus": 0.0
 	},
 	{
 		"Name": "edict_vigil",
@@ -77,6 +85,8 @@
 			{"Type": "ShiftEthics", "Tag": "", "Key": "Spiritualism", "Value": 0.0001, "DurationTicks": 0}
 		],
 		"HazardSpawnMultipliers": {},
-		"HazardCountdownBonus": {"Hazard.Claim": 100, "Hazard.Rebellion": 200}
+		"HazardCountdownBonus": {"Hazard.Claim": 100, "Hazard.Rebellion": 200},
+		"FleetGrowthMultiplier": 1.0,
+		"TreatyAcceptBonus": 0.0
 	}
 ]

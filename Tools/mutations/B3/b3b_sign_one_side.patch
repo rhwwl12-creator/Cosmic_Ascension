@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+@@ -178,7 +178,6 @@
+ 		return;
+ 	}
+ 	State.Civs[A].Ties.FindOrAdd(State.Civs[B].CivID).Treaties.AddTag(Treaty);
+-	State.Civs[B].Ties.FindOrAdd(State.Civs[A].CivID).Treaties.AddTag(Treaty);
+ }
+ 
+ bool CosmicDiplomacy::Break(FGalaxyState& State, int32 A, int32 B, FGameplayTag Treaty)

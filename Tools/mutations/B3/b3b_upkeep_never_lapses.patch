@@ -1,0 +1,14 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1806,11 +1806,6 @@
+ 		}
+ 		for (const FName Friend : Friends)
+ 		{
+-			if (Upkeep > 0.f && !(Civ.Stockpile.Influence >= Upkeep))
+-			{
+-				Lapsed.Add(Friend);
+-				continue;
+-			}
+ 			Civ.Stockpile.Influence -= Upkeep;
+ 		}
+ 		for (const FName Friend : Lapsed)

@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -250,7 +250,6 @@
+ 		{
+ 			if (Record.CivID.IsNone())
+ 			{
+-				Record.CivID = State.Civs[FromCivIndex].CivID;
+ 			}
+ 		}
+ 	}
