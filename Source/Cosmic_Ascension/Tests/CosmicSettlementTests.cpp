@@ -1017,7 +1017,8 @@ bool FCosmicRealmCapTest::RunTest(const FString& Parameters)
 	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
 
 	// The game's data, 20,000 ticks: no people ever holds more systems than the cap of its Tier (the game's rows hand no
-	// system over, so every system a people gains comes from a settlement), and no people settles two at once. The bound
+	// system over, so a people gains a system by a settlement or, since B3, by a conquest - and a siege is refused at the
+	// cap too, CosmicConflict::SiegeBlockOf's RealmCap, #42), and no people settles two at once. The bound
 	// is read from DT_Rules itself, not through the function under test, and some people does reach its cap.
 	{
 		Sim->SetTables(Original);
@@ -1029,9 +1030,9 @@ bool FCosmicRealmCapTest::RunTest(const FString& Parameters)
 		int64 ReachedCapTick = 0;
 		int32 MostSystems = 0;
 		int32 Settlements = 0;
-		// The case this block measures: no row of the game hands a system over, so every system a people gains comes from
-		// a settlement. A row that does (conquest, Phase 4) makes going over the cap legal - the next block - and this
-		// block then has to count settlements instead.
+		// The case this block measures: no row of the game hands a system over, so a people gains a system only by a
+		// settlement or by the conflict stage's conquest (B3), and both stop at the cap. A row that does hand one over
+		// makes going over the cap legal - the next block - and this block then has to count settlements instead.
 		TestFalse(TEXT("(no row of the game hands a system over: the case of this block)"), AnyTableEffectOf(Original, EEffectType::TransferSystem));
 		// The walk can tell: an event row's effect and a hazard's neighbour effect that hand a system over are found.
 		{

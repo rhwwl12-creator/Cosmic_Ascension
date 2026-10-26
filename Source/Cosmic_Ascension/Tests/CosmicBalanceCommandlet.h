@@ -44,14 +44,16 @@
  * The ruler's policy (World/CosmicRulerPolicy, shared with the hash run of a game process - MVP item 9), between ticks
  * after each tick and before the tick's counts: -Answer=1 answers every card the tick it comes (the first choice the
  * stockpile can pay, from choice (answers so far mod choices) on), -Build=1 presses the
- * project key (UPlayerRoleSubsystem::StartNextMegaproject) until it refuses, -Focus=1 focuses the next rung's research
+ * project key (UPlayerRoleSubsystem::StartNextMegaproject) until it refuses (with -Diplomacy=2 never into the last realm
+ * slot - left to a conquest), -Focus=1 focuses the next rung's research
  * while the run has not ended (UPlayerRoleSubsystem::SetResearchFocus with the field of the first research condition of
  * CosmicNextRung::AllOf that is not met, the even focus when none is - MVP item 7), -Edict=1 holds edicts (B2),
  * -Abdicate=<tick> and -Wander=1 the wanderer's policy (B1), -Diplomacy=1 the peace diplomacy and -Diplomacy=2 the attack
  * one (B3, CosmicRulerPolicy::ActDiplomacy - the baselines play 1; with -Answer=1 the first contact card reaches out under
  * either). Three
  * more lines say B3's side, with or without them: "CosmicBalance diplomacy:" (border pairs, stances, treaties, the first contact card),
- * "CosmicBalance conflict:" (sieges begun, taken, held and lifted, hostilities, fleets, the plague's spread) and
+ * "CosmicBalance conflict:" (sieges begun, taken, held and lifted, hostilities, fleets, the third rungs a taking helped,
+ * mutual sieges, the plague's spread and the ruled people's plague) and
  * "CosmicBalance stages:" (the mean time of the diplomacy, conflict, crisis and AI stages - FCosmicStageClock, on for the
  * run only). -Rules=Name:Value;Name:Value replaces
  * fields of the DT_Rules row for the run (read as the data importer reads them; a field it cannot set stops the run).

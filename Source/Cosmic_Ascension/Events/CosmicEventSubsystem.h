@@ -75,7 +75,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCosmicEvent, const FCosmicEventNo
 
 /**
  * Condition evaluation, event slots, effect application, cooldowns (section 7.5). One evaluator (Check) and one applier
- * (Apply) serve events, hazards, feats, the per-tick sources and, from Phase 4, encounters and petitions.
+ * (Apply) serve events, hazards, feats, the per-tick sources and the answers of the cards (petitions and the wanderer's
+ * encounters - the first contact card's SetStance among them, B3).
  * Holds no state of its own, no cache and no member variable: cooldowns and flags live in FGalaxyState, and the
  * definition rows are read from the tables at every call, so tables injected by a test are seen at once.
  */
@@ -141,8 +142,8 @@ public:
 	 *   subject without a system: the subject civilization is the one the vessel rules (its extinction), or the subject
 	 *   names no civilization. Never within DT_Rules.BirthProtectionTicks of Calling.BornTick: a shielded kill leaves the
 	 *   slot free for a later record. DeposeRuler is recorded only when the subject civilization is the one the vessel
-	 *   rules. Stage code that records a role effect of its own (conquest of a last system, extinction) goes through
-	 *   here too: the rules of the record live in one place.
+	 *   rules. Stage code that records a role effect of its own (the collapse of a last system at an expiry - a conquest
+	 *   never takes a last system, B3) goes through here too: the rules of the record live in one place.
 	 * - PlayerStatDelta and GrantPower change the vessel and the calling: like the two role effects they are turned away
 	 *   unless Calling.LifeState is Embodied.
 	 * - NameNotable holds the four guards and the eviction of section 7.5. It draws exactly one number from Ctx.Stream

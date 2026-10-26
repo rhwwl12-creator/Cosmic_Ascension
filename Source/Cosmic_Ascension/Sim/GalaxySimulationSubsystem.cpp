@@ -1852,7 +1852,7 @@ void UGalaxySimulationSubsystem::TickDiplomacy()
 	}
 
 	// (2) The drift of every bordering pair (B3 section 2.5): the targets read stances, treaties and ethics only, never a
-	// relation, so one pair's write never reaches another pair's read. A rate of 0 builds no table and writes nothing.
+	// relation, so one pair's write never reaches another pair's read. A rate of 0 walks no border and writes nothing.
 	const float Rate = (Rules.RelationDriftRate > 0.f && Rules.RelationDriftRate <= 1.f) ? Rules.RelationDriftRate : 0.f;
 	if (!(Rate > 0.f))
 	{

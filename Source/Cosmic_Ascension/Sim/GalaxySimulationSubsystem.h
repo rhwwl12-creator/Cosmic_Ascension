@@ -432,9 +432,10 @@ private:
 	// Stage 3 (B3 header section 2.5). No draw; the tell stream only. (1) The friendly stances' upkeep, people by people in
 	// Civs order, each people's friendly entries in lexical key order: those beyond its friendly slots (a save made with
 	// other knobs) lapse to neutral from the back first, then each pays DT_Rules.FriendlyUpkeepInfluence from the stockpile
-	// or lapses. A lapse of the people the player rules is told (CosmicRows::LogStanceLapsed). (2) The drift: one table of
-	// borders (CosmicDiplomacy::BorderTableOf) built at the start of the step; for every people X and every people Y it
-	// borders, both in Civs order, X's relation toward Y moves by DT_Rules.RelationDriftRate of the way to
+	// or lapses. A lapse of the people the player rules is told (CosmicRows::LogStanceLapsed). (2) The drift: for every
+	// people X (Civs order) its borders once (CosmicDiplomacy::BordersOf, one array kept across the viewers - the same
+	// answer as BorderTableOf, for the drift moves no settled system) and every people Y it borders, in Civs order, X's
+	// relation toward Y moves by DT_Rules.RelationDriftRate of the way to
 	// CosmicDiplomacy::TargetRelationOf, within [-1, 1] - and an entry is written only when the value changes (a rate of 0
 	// writes nothing). A pair that does not border does not move; a transcendent's key never drifts. A silent drift meets
 	// no one.
@@ -462,8 +463,8 @@ private:
 	// neutral toward every people it is hostile to whose system it does not besiege; and, holding no hostility and not
 	// resting (no target and Tick >= FleetTargetSinceTick + SiegeRestTicks), opens one toward the first people in Civs order
 	// that passes the gate (bordering, no non-aggression treaty, ViewOf at or below AIHostileRelation - toward the people the
-	// player rules AIHostileRelationTowardRuled -, its FleetPower above 0 (AIHostilePowerRatioTowardRuled toward that people)
-	// and at least AIHostilePowerRatio times theirs, its Pacifism below AIHostilePacifismMax, no other AI hostile toward
+	// player rules AIHostileRelationTowardRuled -, its FleetPower above 0 and at least AIHostilePowerRatio times theirs -
+	// AIHostilePowerRatioTowardRuled toward that people -, its Pacifism below AIHostilePacifismMax, no other AI hostile toward
 	// them, the ruled people not besieging them, and a system of theirs in Systems order that SiegeBlockOf passes with
 	// bAssumeHostile and ComputeAttritionPressureIn leaves at 0) - turning hostile breaks the pair's trade treaty
 	// (CosmicDiplomacy::TurnHostile, no penalty) and the siege stands at once on that system. A people the player rules is

@@ -179,8 +179,10 @@ struct COSMIC_ASCENSION_API FHazardDef : public FTableRowBase
 
 	// At expiry, after the effects above and before the code of the tag: once for every lane neighbour of the system that
 	// is not a dead node, in the order of its Lanes, subject = that neighbour and its owner, SourceRow = this row (the
-	// damage of a supernova to its neighbours). The spread of a plague waits for its cure, the quarantine edict of B3
-	// (edict_quarantine; B2's edicts touch only spawn shares and countdowns, not spread).
+	// damage of a supernova to its neighbours). A plague does not spread here (it seldom runs out): it spreads while it
+	// stands, through the spawn step - a settled system with a standing plague on a lane neighbour multiplies its plague
+	// share by DT_Rules.PlagueSpreadMultiplier (B3), and the quarantine edict (edict_quarantine) cuts that share with its
+	// HazardSpawnMultipliers.
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicEffect> OnExpireNeighbourEffects;
 
@@ -455,8 +457,9 @@ struct COSMIC_ASCENSION_API FEncounterChoice
 
 /**
  * DT_Encounters row. Wanderer encounters and ruler petitions share it (petition = condition PlayerRoleIs Ruler). Texts:
- * slots {Civ} {System} {Hazard} {Rebel}, and {OtherCiv} on a card whose choices set a stance (B3: the first contact
- * card); a Civilization row names no system (schema).
+ * slots {Civ} {System} {Hazard} {Rebel}, and {OtherCiv} on the first contact card alone (B3: the one card whose answer
+ * names another people - the schema keeps SetStance and {OtherCiv} off every other row); a Civilization row names no
+ * system (schema).
  */
 USTRUCT(BlueprintType)
 struct COSMIC_ASCENSION_API FEncounterDef : public FTableRowBase
@@ -872,18 +875,25 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	float SpiritualPressureStabilityDrain = 0.002f;
 
-	// Per tick x P.
+	// The attrition of a fleet with a target, a tick (B3, the conflict stage): FleetPower goes down by this x the P of
+	// UGalaxySimulationSubsystem::ComputeAttritionPressureIn on the target - the spheres of transcendents above the
+	// people's Tier only - and never below 0.
 	UPROPERTY(EditAnywhere)
 	float PressureFleetAttrition = 0.01f;
 
-	// Index = Tier gap (0, 1, >= 2). Exactly 3 entries (Data.Integrity).
+	// The share of its FleetPower a fleet brings against a side that stands higher (B3, CosmicConflict::EffectivePowerOf):
+	// index = how many rungs the other side stands above (0, 1, >= 2; never below 0). It scales the attacker of a siege
+	// (the gap to the owner) and a guard's delay (the gap to a claim's source; 0 for any other hazard), never the defender
+	// of a siege. Exactly 3 entries (Data.Integrity).
 	UPROPERTY(EditAnywhere)
 	TArray<float> FleetEffectivenessByTierGap = { 1.f, 0.5f, 0.f };
 
-	// Hazard countdown ticks bought per 1.0 fleet power committed.
+	// The countdown ticks a guarding fleet adds to a hazard placed on its system (B3, CosmicConflict::FleetDelayOf - at
+	// placement only, never for a Capital row): this x the owner's effective power across the gap to the hazard's source.
 	UPROPERTY(EditAnywhere)
 	float FleetDelayPerPower = 50.f;
 
+	// The most one guard adds to one hazard (and never more than 100000).
 	UPROPERTY(EditAnywhere)
 	float FleetDelayCap = 100.f;
 
@@ -1250,11 +1260,14 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	float SiegeRepulsedFleetFactor = 0.5f;
 
-	// An AI people opens hostility toward a bordering people whose view (ViewOf) is at or below this ...
+	// An AI people opens hostility toward a bordering people when its own view of that people (ViewOf - for a bordering
+	// pair the stored relation) is at or below this ...
 	UPROPERTY(EditAnywhere)
 	float AIHostileRelation = -0.3f;
 
-	// ... when its FleetPower is at least this times that people's ...
+	// ... when its FleetPower is at least this times that people's ... Above 1 only the clearly stronger opens a war; below
+	// 1 a near equal does too (an owner with no fleet target - an AI never guards - defends with SiegeDefenceShares[1] of
+	// its fleet), and a besieged AI people may besiege its besieger back.
 	UPROPERTY(EditAnywhere)
 	float AIHostilePowerRatio = 1.5f;
 

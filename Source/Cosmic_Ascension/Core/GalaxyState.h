@@ -301,6 +301,10 @@ struct COSMIC_ASCENSION_API FCivilizationState
 	UPROPERTY(BlueprintReadOnly)
 	TMap<FName, float> ResearchFocus;
 
+	// The fleet (B3, section 5.6): no unit, one number of the people, never below 0. The conflict stage grows it while its
+	// Energy upkeep is paid, up to CosmicConflict::FleetCapOf (DT_Rules.FleetPerSettledByTier x the settled systems - 0 at
+	// the first rung); an unpaid upkeep, the attrition and a failed siege take from it. FleetTargetSystemID says where it
+	// stands.
 	UPROPERTY(BlueprintReadOnly)
 	float FleetPower = 0.f;
 
@@ -324,7 +328,9 @@ struct COSMIC_ASCENSION_API FCivilizationState
 	UPROPERTY(BlueprintReadOnly)
 	TArray<FName> OwnedSystems;
 
-	// Key = CivID or TranscendentID, value = -1..1 (section 4.2). There is no separate spiritual favor meter.
+	// Key = CivID or TranscendentID, value = -1..1 (section 4.2). There is no separate spiritual favor meter. Toward a
+	// people it is this people's view of that one, not the other way round (B3, section 5.5): the diplomacy stage drifts
+	// it for a bordering pair only, and CosmicDiplomacy::ViewOf reads it only for such a pair.
 	UPROPERTY(BlueprintReadOnly)
 	TMap<FName, float> Relations;
 
@@ -520,8 +526,9 @@ struct COSMIC_ASCENSION_API FLifeRecord
 	TArray<FGameplayTag> ReignEndReasons;
 
 	// The highest rung of the life (section 16 #67 (1), default): the personal Tier at birth (Install), raised by the feat
-	// judgment when the people the vessel rules climbs above it (a ruler's feat leaves the personal Tier as it is). Whether
-	// a vessel that comes to rule a higher people counts that rung at once is decided with enthronement (Phase 4).
+	// judgment when the people the vessel rules climbs above it (a ruler's feat leaves the personal Tier as it is). A
+	// coronation leaves it as it is (B1): a vessel that comes to rule a higher people raises it only when that people
+	// climbs again.
 	UPROPERTY()
 	EAscensionTier PeakTier = EAscensionTier::Tier1_Planetary;
 
@@ -669,9 +676,10 @@ struct COSMIC_ASCENSION_API FKnowingState
 
 	// The people whose first contact card waits to be put (B3 header section 2.9). NAME_None = none. Written by NoteMet at
 	// the first meeting of the run (an embodied ruler, the row in DT_Encounters); read by the end of the knowing stage
-	// (CosmicPetitions::Present puts the card after a Standing card that came to hold in the tick, before the periodic slot, while no petition waits) and by the card's answer (its OtherID);
-	// cleared by that answer (taken or withdrawn), Install, BecomeWanderer, a coronation and the crossing stage's cleanup -
-	// never by CosmicPetitions::Clear (called by every answer).
+	// (CosmicPetitions::Present puts the card while no petition waits: after a Standing card that came to hold in the tick,
+	// before the periodic slot) and by the card's answer (its OtherID); cleared by that answer (taken or withdrawn),
+	// Install, BecomeWanderer, a coronation and the crossing stage's cleanup - never by CosmicPetitions::Clear (called by
+	// every answer).
 	UPROPERTY()
 	FName PendingContactCivID;
 

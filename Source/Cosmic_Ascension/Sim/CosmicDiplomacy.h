@@ -90,10 +90,11 @@ namespace CosmicDiplomacy
 	COSMIC_ASCENSION_API bool Borders(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 A, int32 B);
 
 	/** Borders(A, B) for every B at once: Out[B] (one entry per element of State.Civs; false for A itself) - one walk of A's
-	 * settled systems instead of one a pair (the AI stage's scan, B3). */
+	 * settled systems instead of one a pair (the diplomacy stage's drift and the AI stage's scan, B3). */
 	COSMIC_ASCENSION_API void BordersOf(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 A, TArray<bool>& Out);
 
-	/** For every people (Civs order), the peoples it borders, in Civs order - the diplomacy stage builds it once. */
+	/** For every people (Civs order), the peoples it borders, in Civs order (the commandlet's border pairs; the diplomacy
+	 * and AI stages walk BordersOf). */
 	COSMIC_ASCENSION_API TArray<TArray<int32>> BorderTableOf(const FGalaxyState& State, const FCosmicStateIndex& Index);
 
 	/** (|dPacifism| + |dSpiritualism| + |dOpenness|) / 3, in 0..2. */

@@ -1,5 +1,5 @@
-// Cosmic Ascension - UI layer (Presentation). Design: docs/10_DESIGN/systems.md:189 (the HUD's stability trend),
-// headers/A6_feedback_and_onboarding.md section 2 (MVP item 6).
+// Cosmic Ascension - UI layer (Presentation). Design: docs/10_DESIGN/systems.md section 5.10, the paragraph "the
+// indicator is Stability alone" (the HUD's stability trend), headers/A6_feedback_and_onboarding.md section 2 (MVP item 6).
 // The stability trend of the top bar as pure functions: a screen value, never saved, hashed or drawn.
 
 #pragma once
@@ -18,7 +18,8 @@ enum class ECosmicTrend : uint8
 
 namespace CosmicUI
 {
-	// The window of the trend: docs/10_DESIGN/systems.md:189 - a screen rule, not a knob.
+	// The window of the trend: docs/10_DESIGN/systems.md section 5.10 ("the indicator is Stability alone") - a screen
+	// rule, not a knob.
 	inline constexpr int32 StabilityTrendTicks = 60;
 
 	/** The shown whole percent of Now minus the shown whole percent of the mean of Samples (CosmicNextRung::WholePercent -

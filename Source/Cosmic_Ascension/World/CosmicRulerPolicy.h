@@ -79,7 +79,9 @@ namespace CosmicRulerPolicy
 
 	// One tick boundary, right after RunHeadless(1), before anything else reads the tick: reads the provisional end into
 	// bEnded first (as the presentation reads it), counts a card that came, then answers while a card is pending (at
-	// most eight), presses the project key until it is refused (at most eight) and, while the run has not ended, puts the
+	// most eight), presses the project key until it is refused (at most eight - the attack policy, Diplomacy 2, stops
+	// before a settlement that would fill its last realm slot: it leaves that slot to a conquest, for a people at its
+	// cap besieges nothing) and, while the run has not ended, puts the
 	// research focus on the field of the first research condition of the ways up that is not met (the even focus when
 	// none is), then the edicts (ActEdicts), then the diplomacy (ActDiplomacy). CardBefore is the pending card before the
 	// tick. Its lines carry this tick.
