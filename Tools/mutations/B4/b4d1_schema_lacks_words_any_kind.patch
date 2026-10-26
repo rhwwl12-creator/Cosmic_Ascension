@@ -1,0 +1,11 @@
+--- a/Tools/cosmic_data_schema.py
++++ b/Tools/cosmic_data_schema.py
+@@ -200,7 +200,7 @@
+     "slots_in": ("text", "texts"), "len_ge_col": POOL_KINDS,
+     "pairs_ge_col": POOL_KINDS, "contains_all": ("tags", "tag_list"), "contains_none": ("tags", "tag_list", "tag_map"),
+     "zero": ("pool",),
+-    "lacks_words": ("text", "texts"),
++    "lacks_words": ("text", "texts", "number"),
+ }
+ # A row test of its own shape, besides 'row', 'row_not' and 'row_prefix': {"none": [tests]}, each test over a column of
+ # one list of structs ('List.Column'); it holds when no entry of the list holds every one of them (B4: one choice read as

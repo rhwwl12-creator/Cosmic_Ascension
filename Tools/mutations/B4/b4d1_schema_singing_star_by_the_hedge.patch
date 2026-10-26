@@ -1,0 +1,11 @@
+--- a/Tools/data/DT_LogTemplates.json
++++ b/Tools/data/DT_LogTemplates.json
+@@ -321,7 +321,7 @@
+ 		"MinTierToReveal": 0,
+ 		"Templates": [
+ 			"{System}의 불빛이 흐려졌다고들 했다. 그곳으로 가는 배가 드물어졌다.",
+-			"{System} 쪽 별이 노래한다는 말이 돌았다. 별은 아무 소리도 내지 않았다.",
++			"{System} 쪽 별이 노래한다는 말이 돌았다. 울타리 너머의 별은 아무 소리도 내지 않았다.",
+ 			"{System}에서 오는 편지가 짧아졌다. 끝에는 흔히 아프지 않다고 적혀 있었다."
+ 		]
+ 	},

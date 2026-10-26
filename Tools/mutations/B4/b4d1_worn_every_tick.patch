@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1993,7 +1993,7 @@
+ 				// The ruled people's fleet worn at its target's first conflict stage (B4 section 2.7): one line, the tell
+ 				// stream only. Not a sphere that grows over the target later, not an AI people's fleet.
+ 				const int32 Target = StateIndex.FindSystem(State, Civ.FleetTargetSystemID);
+-				if (Civ.bIsPlayerRuled && Civ.FleetPower < Before && State.Tick == Civ.FleetTargetSinceTick + 1 && State.Systems.IsValidIndex(Target))
++				if (Civ.bIsPlayerRuled && Civ.FleetPower < Before && State.Systems.IsValidIndex(Target))
+ 				{
+ 					FFormatNamedArguments Args;
+ 					Args.Add(TEXT("Civ"), Civ.CivName);

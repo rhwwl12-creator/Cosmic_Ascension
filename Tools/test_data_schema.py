@@ -298,6 +298,28 @@ def fixture_tables(schema, tables):
     return tables
 
 
+def texts_of_project(sources):
+    """Every string of the project's DT_*.json cells and every text of its String Tables (B4: a check over the words that
+    stand together in one text)."""
+    found = []
+
+    def walk(value):
+        if isinstance(value, str):
+            found.append(value)
+        elif isinstance(value, list):
+            for entry in value:
+                walk(entry)
+        elif isinstance(value, dict):
+            for entry in value.values():
+                walk(entry)
+    for name, data in sorted(sources.items()):
+        if name.endswith(".json") and name != "schema.json":
+            walk(json.loads(data.decode("utf-8")))
+        elif name.endswith(".csv"):
+            found.extend(row[1] for row in csv.reader(io.StringIO(data.decode("utf-8"))) if len(row) > 1)
+    return found
+
+
 @contextlib.contextmanager
 def project_copy():
     """A copy of what the checker reads, in a temporary folder: the data, the tags ini (and the files under Config/Tags
@@ -1646,6 +1668,139 @@ class SchemaTests(unittest.TestCase):
         self.assertFalse(none_of(["A.C", "A.B"]))
         self.assertFalse(none_of(None))
 
+    def test_first_person_and_card_words(self):
+        """B4 [B-4d1] (header section 3.8; the text audit's D1): the first person's one form of words, written for both its
+        columns; the silent one's own four words; no second person in a claim line; the sign's and the fleet line's rows;
+        the rescue words wherever they are hung, and the holy words and soul verbs in a petition's every field; the word
+        lists themselves (the verdict without the soul, the names no source holds); the new test lacks_words."""
+        self.assertEqual(self.after(), [])
+        lists = self.schema["words"]
+        columns = self.schema["tables"]["DT_Transcendents"]["columns"]
+        # One form of the first person's words, the same in both columns (written twice, compared here).
+        self.assertEqual(columns["ClaimTemplates"]["forbidden"], columns["Lure"]["forbidden"])
+        self.assertEqual(columns["ClaimTemplates"]["forbidden"],
+                         ["verdict_without_soul", "holy_words", "holy_and_myth", "realm_names", "rescue_words", "revelation_mimicry"])
+        # The verdict without the soul is the verdict less '영혼' alone: the first person may speak of the soul.
+        self.assertEqual(lists["verdict_without_soul"], [word for word in lists["verdict"] if word != "영혼"])
+        # No name of holy_and_myth is in any source of the project (matched letter for letter: one that hides in a common
+        # word is kept out of the list - the audit's hand list).
+        sources = checker.read_sources()
+        texts = "".join(data.decode("utf-8") for name, data in sources.items() if name != "schema.json")
+        self.assertEqual([name for name in lists["holy_and_myth"] if name in texts], [])
+        # The audit's whole hand list (D4, header 3.8 (3)): the names that hide in common words never go into the list.
+        for hidden in ("에서", "함", "셈", "요한", "단", "마라", "미가", "바로", "그룹", "엘리", "사라", "누가", "하와", "셋", "나가", "이삭", "도마", "한나", "아담"):
+            with self.subTest(hidden=hidden):
+                self.assertNotIn(hidden, lists["holy_and_myth"])
+        claim = lambda lines: self.set_cell("DT_Transcendents", "trans_silence", "ClaimTemplates", lines)  # noqa: E731
+        lure = lambda text: self.set_cell("DT_Transcendents", "trans_silence", "Lure", text)  # noqa: E731
+        good = ["{System}에서 식은 것은 내 것이다.", "b.", "c."]
+        self.assertEqual(self.after(claim(good)), [])
+        self.assertEqual(self.after(claim(["{System}의 영혼이 식었다.", "b.", "c."])), [])
+        # '음부' is not in realm_names: '처음부터' carries it (letter for letter) - the hand list keeps it until the word
+        # boundary check of docs/20 (stage 4).
+        self.assertEqual(self.after(claim(["{System}|hpp(은,는) 처음부터 식어 갔다.", "b.", "c."])), [])
+        self.assertNotIn("음부", lists["realm_names"])
+        for word, why in (("천국", "the word 천국"), ("처음과 나중", "the word 처음과 나중"), ("처음이요", "the word 처음이요"), ("구원", "the word 구원"),
+                          ("보좌", "the word 보좌"), ("지극히 높은", "the word 지극히 높은"), ("성령", "the word 성령"), ("여호와", "the word 여호와"),
+                          ("눈물을 씻", "the word 눈물을 씻")):
+            with self.subTest(word=word):
+                self.expect(self.after(claim(["{System} %s a." % word, "b.", "c."])), "trans_silence.ClaimTemplates", why)
+                self.expect(self.after(lure("%s a." % word)), "trans_silence.Lure", why)
+        self.expect(self.after(claim(["{Transcendent} a.", "b.", "c."])), "trans_silence.ClaimTemplates", "slot {Transcendent}")
+        self.expect(self.after(claim(["{System} 3 a.", "b.", "c."])), "trans_silence.ClaimTemplates", "digit")
+        self.expect(self.after(lure("{System} a.")), "trans_silence.Lure", "slot {System}")
+        self.expect(self.after(lure("3 a.")), "trans_silence.Lure", "digit")
+        # The silent one's own four words, in both its columns; a fallen row of another doctrine may use them.
+        silence = "the silent one does not take the words of the revelation it counterfeits"
+        for word in ("잠잠", "고요", "쉼", "안식"):
+            with self.subTest(word=word):
+                self.expect(self.after(claim(["{System} %s a." % word, "b.", "c."])), "DT_Transcendents.trans_silence", silence, "ClaimTemplates")
+                self.expect(self.after(lure("%s a." % word)), "DT_Transcendents.trans_silence", silence, "Lure")
+        other = lambda tables: tables["DT_Transcendents"].append(transcendent_row(  # noqa: E731
+            "trans_zeal", Doctrine="Doctrine.Zeal", ClaimTemplates=["{System} 고요 a.", "b.", "c."], Lure="쉼 a."))
+        self.assertEqual(self.after(other), [])
+        # No second person in a claim line of a fallen row ('건너는' carries '너는' - the known false alarm); the lure may.
+        speaks = "a fallen one's claim line speaks to no one"
+        for word in ("너는", "네게", "당신"):
+            with self.subTest(word=word):
+                self.expect(self.after(claim(["{System} %s a." % word, "b.", "c."])), "DT_Transcendents.trans_silence", speaks)
+        self.assertEqual(self.after(lure("너는 a.")), [])
+        self.assertEqual(self.after(self.set_cell("DT_Transcendents", "trans_covenant", "ClaimTemplates", [])), [])
+        # The sign's row and the fleet line's row.
+        sign = lambda **changes: (lambda tables: self.row(tables, "DT_LogTemplates", "log_sign_claim").update(**changes))  # noqa: E731
+        self.expect(self.after(sign(Category="Log.Conflict")), "DT_LogTemplates.log_sign_claim", "the sign of a claim", '"is": "Log.Sign"')
+        self.expect(self.after(sign(Templates=["{System} {Hazard} a.", "b.", "c."])), "DT_LogTemplates.log_sign_claim", "the sign of a claim", "slots_in")
+        self.assertEqual(self.after(sign(Templates=["{System} {Civ} a.", "b.", "c."])), [])
+        worn = lambda **changes: (lambda tables: self.row(tables, "DT_LogTemplates", "log_fleet_worn").update(**changes))  # noqa: E731
+        for word in ("밤", "철야", "금식", "절식", "기도"):
+            with self.subTest(word=word):
+                self.expect(self.after(worn(Templates=["{System} %s a." % word, "b.", "c."])), "DT_LogTemplates.log_fleet_worn", "no image of the night's vigil")
+        self.expect(self.after(worn(Category="Log.Sign")), "DT_LogTemplates.log_fleet_worn", '"is": "Log.Conflict"')
+        # The rescue words wherever they are hung.
+        # The holy words and the soul verbs newly hung on the events' lines.
+        for value, why in ((["{Civ} 성령 a.", "b.", "c."], "the word 성령"), (["{Civ} 거두 a.", "b.", "c."], "the word 거두")):
+            with self.subTest(why=why):
+                self.expect(self.after(self.set_cell("DT_Events", "event_test_harvest", "LogTemplates", value)), "event_test_harvest.LogTemplates", why)
+        for table, name, column, value in (
+                ("DT_Events", "event_test_harvest", "LogTemplates", ["{Civ} 구원 a.", "b.", "c."]),
+                ("DT_Hazards", "crisis_test_storm", "OutbreakTemplates", ["{System} 중보 a.", "b.", "c."]),
+                ("DT_Hazards", "crisis_test_storm", "ExpireTemplates", ["{System} 구원 a.", "b.", "c."]),
+                ("DT_Hazards", "crisis_test_storm", "ResolveTemplates", ["{System} 구원 a.", "b.", "c."]),
+                ("DT_Megaprojects", "project_test_build", "CompleteTemplates", ["{Civ} 구원 a.", "b.", "c."]),
+                ("DT_Edicts", "edict_test_order", "DisplayName", "구원"),
+                ("DT_Edicts", "edict_test_order", "Summary", "중보 a."),
+                ("DT_LogTemplates", "log_fleet_worn", "Templates", ["{System} 구원 a.", "b.", "c."])):
+            with self.subTest(table=table, column=column):
+                self.expect(self.after(self.set_cell(table, name, column, value)), "%s.%s" % (name, column), "is not used here")
+        check = lambda text: checker.check_string_table("ST_X.csv", text, self.schema)  # noqa: E731
+        for key in ("Petition.A", "Edict.A"):
+            with self.subTest(key=key):
+                self.expect(check('Key,SourceString\n"%s","구원 a."\n' % key), "entry 1 (%s)" % key, "the word 구원 is not used here")
+        # A petition's every field: no holy word, no soul verb, no rescue word; a wanderer's card may carry them (the
+        # quotations of the path cards - docs/70:178 - are decided with those cards).
+        petition = "a petition's words name no holy word, no soul verb and no rescue word"
+        plea = "petition_test_plea"
+        choices = self.row(self.tables, "DT_Encounters", plea)["Choices"]
+        for column, value in (("Title", "성령 a."), ("Body", "거둔 a."), ("VoiceBodies", ["구원 a.", "b."])):
+            with self.subTest(column=column):
+                self.expect(self.after(self.set_cell("DT_Encounters", plea, column, value)), "DT_Encounters.%s" % plea, petition)
+        for field, word in (("Label", "은혜"), ("SuccessText", "거두"), ("FailureText", "중보")):
+            with self.subTest(field=field):
+                changed = [dict(choices[0], **{field: "%s a." % word})] + choices[1:]
+                self.expect(self.after(self.set_cell("DT_Encounters", plea, "Choices", changed)), "DT_Encounters.%s" % plea, petition)
+        self.assertEqual(self.after(self.set_cell("DT_Encounters", "enc_test_weave", "Title", "은혜 a.")), [])
+        # The rule names every text column of a card, for each of its three lists: a text column added to the table or to
+        # its choices is asked again.
+        rule = next(rule for rule in self.schema["tables"]["DT_Encounters"]["rules"] if rule["why"].startswith(petition))
+        text_columns = {column for table, column, spec in self.columns_of(lambda spec: spec.get("kind") in ("text", "texts")) if table == "DT_Encounters"}
+        for listed in ("holy_words", "soul_verbs", "rescue_words"):
+            with self.subTest(listed=listed):
+                self.assertEqual({test["col"] for test in rule["then"] if test.get("lacks_words") == listed}, text_columns)
+        # The vigil row's words come with its row (B4 [B-4d2] - a rule over a row that does not exist yet is refused): once
+        # the project holds event_claim_eased, the rule that keeps the night's vigil out of its lines is there too.
+        project = json.loads(checker.read_sources()["DT_Events.json"].decode("utf-8"))
+        if any(row.get("Name") == "event_claim_eased" for row in project):
+            self.assertTrue(any(rule.get("when") == [{"row": "event_claim_eased"}] and {"col": "LogTemplates", "lacks_words": "vigil_image"} in rule.get("then", [])
+                                for rule in self.schema["tables"]["DT_Events"]["rules"]), "event_claim_eased came without its vigil_image rule")
+        # The singing star and the sanctuary's star never stand in one text (docs/70:131): no text of the project holds
+        # '노래' and a word that calls the sanctuary.
+        sanctuary = ("성역", "울타리", "지켜지고 있", "허락되지 않")
+        shared = [text for text in texts_of_project(sources) if "노래" in text and any(word in text for word in sanctuary)]
+        self.assertEqual(shared, [])
+        # The new test: it names a word list of the schema and fits a text column.
+        rule = ["tables", "DT_Transcendents", "rules", 0]
+        self.schema_problem(self.put(rule, "when", [{"col": "Title", "lacks_words": "no_such_list"}]), "schema.DT_Transcendents", "the word list no_such_list is not in the schema")
+        self.schema_problem(self.put(rule, "when", [{"col": "Depth", "lacks_words": "verdict"}]), "schema.DT_Transcendents",
+                            "the test 'lacks_words' cannot be asked of a column of kind number")
+        holds = checker.Checker(self.schema, self.tables, self.tags).holds
+        lacks = lambda value: holds({"col": "C", "lacks_words": "rescue_words"}, {"C": value}, "r")  # noqa: E731
+        self.assertTrue(lacks("a."))
+        self.assertFalse(lacks("구원 a."))
+        self.assertTrue(lacks(["a.", "b."]))
+        self.assertFalse(lacks(["a.", "중보 b."]))
+        self.assertTrue(lacks([]))
+        self.assertFalse(lacks(None))
+
     def test_card_fleet_and_edict_words(self):
         """B4 [B-4c]: the card's fleet and edict lines and reasons (Petition.Resist*, Petition.Edict*) hold the rules of the
         fleet's and the edicts' words (Guard., Edict.): no holy word, no soul verb, no digit outside a slot; the verdict
@@ -2448,6 +2603,10 @@ class SchemaTests(unittest.TestCase):
         elif name == "zero":
             members = schema["words"]["resource"]
             row[column] = dict(row[column], **{members[0]: 1.0}) if operand else {member: 0.0 for member in members}
+        elif name == "lacks_words":
+            # The first word of the named list put into the text (B4).
+            word = schema["words"][operand][0]
+            row[column] = "%s a." % word if kind == "text" else ["%s a." % word, "b.", "c."]
         elif name == "len_ge_col":
             row[operand] = len(row[column]) + 1
         elif name == "pairs_ge_col":
@@ -2590,6 +2749,16 @@ class SchemaTests(unittest.TestCase):
             ("DT_Transcendents", "a fallen one counterfeits a truth, and its row names that truth: a tag under Truth. (B4 header 3.5, 3.8)"): (NOTHING, "trans_silence"),
             ("DT_Transcendents", "nothing reads a transcendent's voice lines yet: the column stays empty until the code that tells them comes (B4 header 3.5, 3.8)"):
                 (NOTHING, "trans_silence"),
+            ("DT_Transcendents", "the silent one does not take the words of the revelation it counterfeits nor of the true rest: no 잠잠, 고요, 쉼, 안식 in its own words (B4 header 3.8, 3.9)"):
+                (NOTHING, "trans_silence"),
+            ("DT_Transcendents", "a fallen one's claim line speaks to no one: no second person - the player is not called, the holy order and another fallen are not spoken to (B4 header 3.9, the text audit's D1)"):
+                (NOTHING, "trans_silence"),
+            ("DT_LogTemplates", "the sign of a claim that joined a sphere is a sign the code tells, about the claimed system and its people: told below the third rung before the fallen's own line (B4 header 2.6, 3.6)"):
+                (NOTHING, "log_sign_claim"),
+            ("DT_LogTemplates", "the line of a fleet worn by a higher sphere is the narrator's, with no image of the night's vigil: the vigil is never told as the cause (B4 header 2.7, 3.9)"):
+                (NOTHING, "log_fleet_worn"),
+            ("DT_Encounters", "a petition's words name no holy word, no soul verb and no rescue word in any field: the name of no god, the faith's gestures in the elders' voice alone (B4 header 3.8, 3.9; MVP item 2)"):
+                (NOTHING, plea),
             ("DT_Transcendents", "no transcendent weighs the claim's events: the vigil's draw on Event.Crisis.Claim keeps a factor of 1, so the bound of the theodicy budget the invariant counts holds (B4 header 2.8)"):
                 (NOTHING, "trans_silence"),
         }
@@ -2610,7 +2779,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 164, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 189, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 
@@ -2704,7 +2873,7 @@ class SchemaTests(unittest.TestCase):
                 change, where = self.set_path(table, row_name, column, value)
                 self.expect(self.after(change), where, "slot {NoSuchSlot}")
                 walked += 1
-        self.assertEqual(walked, 28, "the number of slot lists in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 30, "the number of slot lists in schema.json changed: look at what was added or taken out, then set the count")
 
 
 if __name__ == "__main__":

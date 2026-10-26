@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2492,6 +2492,7 @@
+ 			Args.Add(TEXT("System"), State.Systems[SystemIndex].DisplayName);
+ 			Args.Add(TEXT("Civ"), State.Civs.IsValidIndex(OwnerIndex) ? State.Civs[OwnerIndex].CivName : FText::GetEmpty());
+ 			Log->PushWithSign(Line, Fallen->ClaimTemplates, CosmicRows::LogSignClaim, Args);
++			State.EventCooldownUntilTick.Add(FName(TEXT("voice")), State.Tick);
+ 		}
+ 	}
+ 	Events->FollowUpNotes(Ctx);

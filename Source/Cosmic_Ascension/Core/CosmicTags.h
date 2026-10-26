@@ -41,4 +41,12 @@ namespace CosmicTags
 		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Plague")));
 		return Tag;
 	}
+
+	// The fallen's first-person line of a claim that joined its sphere (B4 section 2.6) - Log.Claim is that line alone: the
+	// claim's narrator lines are Log.Crisis (the hazard row) or Log.Record, and its sign is Log.Sign (log_sign_claim).
+	inline FGameplayTag LogClaim()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Claim")));
+		return Tag;
+	}
 }

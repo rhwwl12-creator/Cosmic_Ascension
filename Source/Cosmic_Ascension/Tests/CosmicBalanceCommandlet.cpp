@@ -289,7 +289,30 @@ namespace
 		int32 GuardedByEdict = 0;
 		// The guarded hazards standing now: system -> tag.
 		TMap<FName, FGameplayTag> Standing;
+		// The voice ([B-4d1] - header section 2.6, 2.7, 5 measure 8): the fallen's first-person lines (Log.Claim lines whose
+		// source is a transcendent row) told and kept untold, the sign lines (Log.Sign) told, the most of each told in one
+		// 600-tick block, the first told of each, and the ruled people's fleet worn lines.
+		int32 VoiceTold = 0;
+		int32 VoiceToldByEnd = 0;
+		int32 VoiceUntold = 0;
+		int32 SignTold = 0;
+		int32 SignToldByEnd = 0;
+		TMap<int64, int32> VoiceBlocks;
+		TMap<int64, int32> SignBlocks;
+		int64 FirstSign = -1;
+		int64 FirstVoice = -1;
+		int32 FleetWorn = 0;
 	};
+
+	int32 MostOf(const TMap<int64, int32>& Blocks)
+	{
+		int32 Most = 0;
+		for (const TPair<int64, int32>& Block : Blocks)
+		{
+			Most = FMath::Max(Most, Block.Value);
+		}
+		return Most;
+	}
 
 	FString TagCountsText(const TMap<FString, int32>& Counts)
 	{
@@ -823,6 +846,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		const FCosmicStateIndex& StateIndex = Sim->GetStateIndex();
 		const FCosmicRulesDef& RulesNow = Sim->GetRules();
 		static const FGameplayTag ConflictTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Conflict")));
+		static const FGameplayTag SignTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Sign")));
 		UCosmicSaveGame* Save = NewObject<UCosmicSaveGame>();
 		Save->AddToRoot();
 
@@ -1489,6 +1513,31 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					++Counts.ConflictSev2Blocks.FindOrAdd((State.Log[Index].Tick - 1) / 600);
 				}
 				Counts.ToldLines += State.Log[Index].bUntold ? 0 : 1;
+				// The voice ([B-4d1]): a first-person line is a Log.Claim line whose source is a transcendent row.
+				const FCosmicLogEntry& Said = State.Log[Index];
+				const int64 SaidBlock = (Said.Tick - 1) / 600;
+				if (Said.Category == CosmicTags::LogClaim() && Sim->GetTables().FindTranscendent(Said.SourceRow))
+				{
+					if (Said.bUntold)
+					{
+						++PressureCounts.VoiceUntold;
+					}
+					else
+					{
+						++PressureCounts.VoiceTold;
+						PressureCounts.VoiceToldByEnd += bEndedBefore ? 0 : 1;
+						++PressureCounts.VoiceBlocks.FindOrAdd(SaidBlock);
+						PressureCounts.FirstVoice = (PressureCounts.FirstVoice < 0 || Said.Tick < PressureCounts.FirstVoice) ? Said.Tick : PressureCounts.FirstVoice;
+					}
+				}
+				else if (Said.Category == SignTag && !Said.bUntold)
+				{
+					++PressureCounts.SignTold;
+					PressureCounts.SignToldByEnd += bEndedBefore ? 0 : 1;
+					++PressureCounts.SignBlocks.FindOrAdd(SaidBlock);
+					PressureCounts.FirstSign = (PressureCounts.FirstSign < 0 || Said.Tick < PressureCounts.FirstSign) ? Said.Tick : PressureCounts.FirstSign;
+				}
+				PressureCounts.FleetWorn += Said.SourceRow == CosmicRows::LogFleetWorn ? 1 : 0;
 			}
 			if (const FCivilizationState* Ruled = State.Civs.FindByPredicate([FirstRuled](const FCivilizationState& Civ) { return Civ.bIsPlayerRuled && Civ.CivID == FirstRuled; }))
 			{
@@ -1700,10 +1749,12 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					Spirit.SameTickJoinsMax);
 				// B4 (header section 5): the pressure line - its head (the policy's values and the guard's cells) here, the
 				// cards' and the voice's cells with their commits.
-				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance pressure: policy pressure %s guard %d leave near sphere %d; guarded crises %d by tag [%s] (by end %d), delay bought %lld by tag [%s], ends of guarded crises: answered %d, expired %d, resolved by an edict %d"),
+				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance pressure: policy pressure %s guard %d leave near sphere %d; guarded crises %d by tag [%s] (by end %d), delay bought %lld by tag [%s], ends of guarded crises: answered %d, expired %d, resolved by an edict %d; first-person lines told %d (by end %d, untold %d), sign lines told %d (by end %d), max in 600 ticks %d/%d; first sign at %lld, first claim line at %lld; fleet worn lines %d"),
 					CosmicRulerPolicy::PressurePolicyName(RulerPolicy.Pressure), RulerPolicy.Guard, RulerPolicy.bLeaveNearSphere ? 1 : 0, PressureCounts.Guarded,
 					*TagCountsText(PressureCounts.GuardedByTag), PressureCounts.GuardedByEnd, PressureCounts.DelayBought, *TagTicksText(PressureCounts.DelayByTag),
-					PressureCounts.GuardedAnswered, PressureCounts.GuardedExpired, PressureCounts.GuardedByEdict);
+					PressureCounts.GuardedAnswered, PressureCounts.GuardedExpired, PressureCounts.GuardedByEdict, PressureCounts.VoiceTold, PressureCounts.VoiceToldByEnd,
+					PressureCounts.VoiceUntold, PressureCounts.SignTold, PressureCounts.SignToldByEnd, MostOf(PressureCounts.VoiceBlocks), MostOf(PressureCounts.SignBlocks),
+					PressureCounts.FirstSign, PressureCounts.FirstVoice, PressureCounts.FleetWorn);
 			}
 			// The rung end and the ruled people's third rung are the same tick, but for a deposition in that very tick (the
 			// feats are judged before the tenth stage deposes; afterwards no people is ruled). A measure, not a gate: Result

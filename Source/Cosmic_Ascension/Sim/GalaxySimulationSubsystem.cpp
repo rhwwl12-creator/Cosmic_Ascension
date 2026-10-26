@@ -1988,7 +1988,18 @@ void UGalaxySimulationSubsystem::TickConflict()
 			const float Pressure = ComputeAttritionPressureIn(State, StateIndex, Tables, Rules, CivIndex, StateIndex.FindSystem(State, Civ.FleetTargetSystemID)).P;
 			if (Pressure > 0.f)
 			{
+				const float Before = Civ.FleetPower;
 				Civ.FleetPower = FMath::Max(0.f, Civ.FleetPower - Attrition * Pressure);
+				// The ruled people's fleet worn at its target's first conflict stage (B4 section 2.7): one line, the tell
+				// stream only. Not a sphere that grows over the target later, not an AI people's fleet.
+				const int32 Target = StateIndex.FindSystem(State, Civ.FleetTargetSystemID);
+				if (Civ.bIsPlayerRuled && Civ.FleetPower < Before && State.Tick == Civ.FleetTargetSinceTick + 1 && State.Systems.IsValidIndex(Target))
+				{
+					FFormatNamedArguments Args;
+					Args.Add(TEXT("Civ"), Civ.CivName);
+					Args.Add(TEXT("System"), State.Systems[Target].DisplayName);
+					Log->PushRow(CosmicRows::LogFleetWorn, 1, Args, State.Systems[Target].SystemID, Civ.CivID);
+				}
 			}
 		}
 	}
@@ -2458,6 +2469,30 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 	else
 	{
 		Events->TellHazardLine(Ctx, bJoined ? ECosmicHazardLine::Expiry : ECosmicHazardLine::Resolution, RowName, SystemIndex, OwnerIndex);
+	}
+	// The voice of the fallen that a claim joined (B4 section 2.6): after the narrator's expiry line, the sign - below the
+	// third rung - and then its first-person line (ClaimTemplates, from the third rung; kept untold below it), both through
+	// PushWithSign. The tell stream only, two numbers a joining when the row has lines and none when it has none; no key of
+	// the world map, nothing of the world read but the joining itself.
+	if (JoinedTo != INDEX_NONE)
+	{
+		const FTranscendentDef* Fallen = Tables.FindTranscendent(State.Transcendents[JoinedTo].TranscendentID);
+		if (Fallen && !Fallen->ClaimTemplates.IsEmpty())
+		{
+			UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+			check(Log);
+			FCosmicLine Line;
+			Line.Category = CosmicTags::LogClaim();
+			Line.Severity = 1;
+			Line.FocusSystem = State.Systems[SystemIndex].SystemID;
+			Line.FocusCiv = State.Civs.IsValidIndex(OwnerIndex) ? State.Civs[OwnerIndex].CivID : FName();
+			Line.SourceRow = State.Transcendents[JoinedTo].TranscendentID;
+			Line.MinViewerTier = 3;
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("System"), State.Systems[SystemIndex].DisplayName);
+			Args.Add(TEXT("Civ"), State.Civs.IsValidIndex(OwnerIndex) ? State.Civs[OwnerIndex].CivName : FText::GetEmpty());
+			Log->PushWithSign(Line, Fallen->ClaimTemplates, CosmicRows::LogSignClaim, Args);
+		}
 	}
 	Events->FollowUpNotes(Ctx);
 }

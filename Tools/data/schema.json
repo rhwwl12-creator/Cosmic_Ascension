@@ -8,7 +8,7 @@
 		"Every column of a row struct is declared here: a column added to a struct needs its line.",
 		"Column kinds (closed list): plain, number, numbers, text, texts, tag, tags, tag_list, tag_map, row, row_map, rows, word_map, enum, conditions, effects, pool, structs",
 		"An integer property is declared with integer: true (Data.Integrity holds the columns to the property types).",
-		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, has_type, has_cond, slots_in, len_ge_col, pairs_ge_col, contains_all, contains_none, zero",
+		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, has_type, has_cond, slots_in, len_ge_col, pairs_ge_col, contains_all, contains_none, zero, lacks_words",
 		"A row rule is 'when -> then' over tests: one column with one test of the list above, 'row' with a row name, 'row_not' with a row name (every other row - B3), 'row_prefix' with one of the table's prefixes (the rows of one kind - B1), or 'none' with a list of tests over the columns of one list of structs (no entry of the list holds every one of them - B4: one choice read as a whole). Each test can be asked of some kinds of column only (the checker holds the table).",
 		"What a condition or an effect says of its Tag, its Key and its Value is a closed list in the checker too. A Tag may refuse the tag of the rows of a table that hold tests ('not_tag_of': table, tag column, when) and the tags a condition of the named enumerators reads in any row of any table ('not_read_by') - B4: DelayHazard.",
 		"A column of a list of structs (kind structs) is named in a rule as 'List.Column': the test holds when it holds for every entry of the list, and so for an empty list. The tests that name other columns of the row (len_ge_col, pairs_ge_col) are not asked of such a column.",
@@ -34,9 +34,16 @@
 		"research": ["Physics", "Society", "Engineering", "Transcendence"],
 		"verdict": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"],
 		"other_works": [],
-		"holy_and_myth": [],
+		"holy_and_myth": ["여호와", "예수", "그리스도", "보혜사", "메시아", "사탄", "루시퍼", "미가엘", "가브리엘", "바알", "몰렉", "아스다롯", "바벨론", "니므롯", "리워야단", "레비아단", "베헤못", "아바돈", "아볼루온", "마몬", "벨리알", "바알세불", "에덴", "골고다", "시온", "예루살렘", "모세", "다윗", "솔로몬", "엘리야", "아브라함", "이스라엘", "바울", "베드로", "마리아", "제우스", "오딘", "라그나로크", "이그드라실", "아누비스", "오시리스", "하데스", "타르타로스", "올림포스", "발할라", "아스가르드", "판도라", "프로메테우스", "세라핌", "케루빔", "네피림", "엘로힘", "아도나이", "임마누엘", "할렐루야", "호산나", "마라나타"],
 		"holy_words": ["성령", "은혜", "기름부음", "성결"],
-		"soul_verbs": ["거두", "거둬", "거뒀", "거둔", "거둘"]
+		"soul_verbs": ["거두", "거둬", "거뒀", "거둔", "거둘"],
+		"verdict_without_soul": ["천국", "지옥", "구원받", "멸망받", "저주받", "심판받"],
+		"realm_names": ["저자", "창조주", "하나님", "하느님", "주님", "지존자", "전능자", "지극히 높은", "보좌", "천상", "무저갱", "스올", "게헨나", "성경"],
+		"rescue_words": ["구원", "중보"],
+		"revelation_mimicry": ["스스로 있는", "알파와 오메가", "처음과 나중", "처음이요", "시작과 끝", "세상의 빛", "부활이요", "길이요", "진리요", "생명의 떡", "선한 목자", "쉬게 하리라", "쉼을 얻", "소멸하는 불", "왕의 왕", "어린양", "어린 양", "처음과 마지막", "다시 있지 아니", "눈물을 씻"],
+		"silence_words": ["잠잠", "고요", "쉼", "안식"],
+		"vigil_image": ["밤", "철야", "금식", "절식", "기도"],
+		"second_person": ["너는", "너를", "너의", "너에게", "네가", "네게", "너희", "당신"]
 	},
 
 	"string_table": {
@@ -47,8 +54,8 @@
 			"Galaxy.Hint": {"forbidden": "verdict", "no_digits": true},
 			"Focus.": {"forbidden": ["verdict", "soul_verbs"], "no_digits": true},
 			"Wander.": {"forbidden": "verdict", "no_digits": true},
-			"Petition.": {"forbidden": "verdict"},
-			"Edict.": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
+			"Petition.": {"forbidden": ["verdict", "rescue_words"]},
+			"Edict.": {"forbidden": ["verdict", "holy_words", "soul_verbs", "rescue_words"], "no_digits": true},
 			"Hint.Edict": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
 			"Resource.": {"forbidden": ["verdict", "holy_words"]},
 			"Stance.": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
@@ -261,7 +268,7 @@
 			"struct": "LogTemplateDef",
 			"prefixes": ["log_"],
 			"must_exist": true,
-			"required_rows": ["log_first_life", "log_breakthrough_physics", "log_breakthrough_society", "log_breakthrough_engineering", "log_breakthrough_transcendence", "log_fallen_monarch", "log_first_contact", "log_contact", "log_far_event", "log_far_ascent", "log_scan_wild", "log_crowned", "log_returned", "log_throne_vacated", "log_rebellion_unseated", "log_edict_enacted", "log_edict_revoked", "log_edict_lapsed", "log_stance_changed", "log_stance_lapsed", "log_treaty_signed", "log_treaty_broken", "log_siege_begun", "log_siege_on_us", "log_siege_taken", "log_siege_lost", "log_siege_held", "log_siege_failed", "log_siege_lifted"],
+			"required_rows": ["log_first_life", "log_breakthrough_physics", "log_breakthrough_society", "log_breakthrough_engineering", "log_breakthrough_transcendence", "log_fallen_monarch", "log_first_contact", "log_contact", "log_far_event", "log_far_ascent", "log_scan_wild", "log_crowned", "log_returned", "log_throne_vacated", "log_rebellion_unseated", "log_edict_enacted", "log_edict_revoked", "log_edict_lapsed", "log_stance_changed", "log_stance_lapsed", "log_treaty_signed", "log_treaty_broken", "log_siege_begun", "log_siege_on_us", "log_siege_taken", "log_siege_lost", "log_siege_held", "log_siege_failed", "log_siege_lifted", "log_sign_claim", "log_fleet_worn"],
 			"columns": {
 				"Category": {"kind": "tag", "root": "Log."},
 				"Context": {"kind": "tag", "root": "Revelation.", "optional": true},
@@ -271,7 +278,7 @@
 					"min": 3,
 					"single_variant": true,
 					"slots": ["Civ", "System", "OtherCiv", "Trait", "Value", "Tier", "Hazard", "Player", "HomeSystem", "Dedication", "Epithet", "Revelation", "Transcendent", "Ruler", "Regent", "Rebel", "Loyalist", "Hearer", "Ascendant", "PopBand", "CivAdj", "Edict", "Stance", "Treaty"],
-					"forbidden": ["verdict", "soul_verbs", "holy_words"]
+					"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words"]
 				}
 			},
 			"unique": [
@@ -292,6 +299,16 @@
 					"why": "a far line is the same sentence for everyone, told with no subject and no arguments, and the clock of the race stops when a window hides it: log_far_ascent (guideline 8.1)",
 					"when": [{"row": "log_far_ascent"}],
 					"then": [{"col": "Category", "is": "Log.Discovery"}, {"col": "MinTierToReveal", "is": 0}, {"col": "Templates", "slots_in": []}]
+				},
+				{
+					"why": "the sign of a claim that joined a sphere is a sign the code tells, about the claimed system and its people: told below the third rung before the fallen's own line (B4 header 2.6, 3.6)",
+					"when": [{"row": "log_sign_claim"}],
+					"then": [{"col": "Category", "is": "Log.Sign"}, {"col": "Templates", "slots_in": ["System", "Civ"]}]
+				},
+				{
+					"why": "the line of a fleet worn by a higher sphere is the narrator's, with no image of the night's vigil: the vigil is never told as the cause (B4 header 2.7, 3.9)",
+					"when": [{"row": "log_fleet_worn"}],
+					"then": [{"col": "Category", "is": "Log.Conflict"}, {"col": "Templates", "lacks_words": "vigil_image"}]
 				}
 			]
 		},
@@ -310,7 +327,7 @@
 				"BaseWeight": {"kind": "number", "min": 0},
 				"CooldownTicks": {"kind": "number", "min": 0, "integer": true},
 				"Effects": {"kind": "effects"},
-				"LogTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": "verdict"},
+				"LogTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "holy_words", "soul_verbs", "rescue_words"]},
 				"Severity": {"kind": "number", "min": 0, "max": 2, "integer": true},
 				"MinTierToReveal": {"kind": "number", "min": 0, "max": 5, "integer": true},
 				"SignRow": {
@@ -473,7 +490,7 @@
 				"Allegiance": {"kind": "tag", "root": "Realm."},
 				"CounterfeitOf": {"kind": "tag", "root": "Truth.", "optional": true},
 				"Title": {"kind": "text", "slots": [], "no_digits": true, "forbidden": "verdict"},
-				"Lure": {"kind": "text"},
+				"Lure": {"kind": "text", "slots": [], "no_digits": true, "forbidden": ["verdict_without_soul", "holy_words", "holy_and_myth", "realm_names", "rescue_words", "revelation_mimicry"]},
 				"Tier": {"kind": "enum", "enum": "EAscensionTier"},
 				"Depth": {"kind": "number", "min": 0, "max": 1},
 				"InitialInfluencedSystems": {"kind": "number", "min": 0, "max": 1, "integer": true},
@@ -482,7 +499,7 @@
 				"EventWeightModifiers": {"kind": "tag_map", "root": "Event.", "min": 0},
 				"PressureEffectsPerTick": {"kind": "effects", "per_tick": true},
 				"VoiceTemplates": {"kind": "texts"},
-				"ClaimTemplates": {"kind": "texts"}
+				"ClaimTemplates": {"kind": "texts", "slots": ["System"], "no_digits": true, "forbidden": ["verdict_without_soul", "holy_words", "holy_and_myth", "realm_names", "rescue_words", "revelation_mimicry"]}
 			},
 			"unique": [
 				{"cols": ["Doctrine"], "why": "one transcendent per doctrine in a run (guideline 4.2)"}
@@ -530,6 +547,16 @@
 				{
 					"why": "no transcendent weighs the claim's events: the vigil's draw on Event.Crisis.Claim keeps a factor of 1, so the bound of the theodicy budget the invariant counts holds (B4 header 2.8)",
 					"then": [{"col": "EventWeightModifiers", "contains_none": ["Event.Crisis.Claim"]}]
+				},
+				{
+					"why": "the silent one does not take the words of the revelation it counterfeits nor of the true rest: no 잠잠, 고요, 쉼, 안식 in its own words (B4 header 3.8, 3.9)",
+					"when": [{"col": "Doctrine", "is": "Doctrine.Silence"}],
+					"then": [{"col": "ClaimTemplates", "lacks_words": "silence_words"}, {"col": "Lure", "lacks_words": "silence_words"}]
+				},
+				{
+					"why": "a fallen one's claim line speaks to no one: no second person - the player is not called, the holy order and another fallen are not spoken to (B4 header 3.9, the text audit's D1)",
+					"when": [{"col": "Allegiance", "is": "Realm.Abyssal"}],
+					"then": [{"col": "ClaimTemplates", "lacks_words": "second_person"}]
 				}
 			]
 		},
@@ -555,9 +582,9 @@
 				"WandererResolutions": {"kind": "rows", "tables": ["DT_Encounters"], "unique": true},
 				"LogCategory": {"kind": "tag", "root": ["Log.Crisis"]},
 				"Severity": {"kind": "number", "min": 0, "max": 2, "integer": true},
-				"OutbreakTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": "verdict"},
-				"ExpireTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": "verdict"},
-				"ResolveTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": "verdict"},
+				"OutbreakTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "rescue_words"]},
+				"ExpireTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "rescue_words"]},
+				"ResolveTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "rescue_words"]},
 				"OutbreakRow": {"kind": "row", "table": "DT_Events", "optional": true, "target": [{"col": "Trigger", "is": "Named"}, {"col": "Subject", "is": "SettledSystem"}, {"col": "Effects", "lacks_type": "ResolveHazard"}]}
 			},
 			"unique": [
@@ -652,7 +679,7 @@
 				"RequiredTier": {"kind": "enum", "enum": "EAscensionTier"},
 				"CostPerTick": {"kind": "pool", "min": 0},
 				"RequiredProgress": {"kind": "number", "min": 1},
-				"CompleteTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "System", "Project"], "forbidden": "verdict"}
+				"CompleteTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "System", "Project"], "forbidden": ["verdict", "rescue_words"]}
 			}
 		},
 		"DT_Feats": {
@@ -757,6 +784,18 @@
 				"VoiceBodies": {"kind": "texts", "len_in": [0, 2], "slots": ["Civ", "System", "Hazard", "Rebel", "OtherCiv"], "no_digits": true, "forbidden": "verdict"}
 			},
 			"rules": [
+				{
+					"why": "a petition's words name no holy word, no soul verb and no rescue word in any field: the name of no god, the faith's gestures in the elders' voice alone (B4 header 3.8, 3.9; MVP item 2)",
+					"when": [{"row_prefix": "petition_"}],
+					"then": [
+						{"col": "Title", "lacks_words": "holy_words"}, {"col": "Body", "lacks_words": "holy_words"}, {"col": "VoiceBodies", "lacks_words": "holy_words"},
+						{"col": "Choices.Label", "lacks_words": "holy_words"}, {"col": "Choices.SuccessText", "lacks_words": "holy_words"}, {"col": "Choices.FailureText", "lacks_words": "holy_words"},
+						{"col": "Title", "lacks_words": "soul_verbs"}, {"col": "Body", "lacks_words": "soul_verbs"}, {"col": "VoiceBodies", "lacks_words": "soul_verbs"},
+						{"col": "Choices.Label", "lacks_words": "soul_verbs"}, {"col": "Choices.SuccessText", "lacks_words": "soul_verbs"}, {"col": "Choices.FailureText", "lacks_words": "soul_verbs"},
+						{"col": "Title", "lacks_words": "rescue_words"}, {"col": "Body", "lacks_words": "rescue_words"}, {"col": "VoiceBodies", "lacks_words": "rescue_words"},
+						{"col": "Choices.Label", "lacks_words": "rescue_words"}, {"col": "Choices.SuccessText", "lacks_words": "rescue_words"}, {"col": "Choices.FailureText", "lacks_words": "rescue_words"}
+					]
+				},
 				{
 					"why": "a card is put before a role: every row carries the condition PlayerRoleIs (guideline 5.10, B1)",
 					"then": [{"col": "Conditions", "has_type": "PlayerRoleIs"}]
@@ -912,8 +951,8 @@
 			"prefixes": ["edict_"],
 			"must_exist": true,
 			"columns": {
-				"DisplayName": {"kind": "text", "required": true, "slots": [], "no_digits": true, "forbidden": ["verdict", "holy_words", "soul_verbs"]},
-				"Summary": {"kind": "text", "required": true, "slots": [], "no_digits": true, "forbidden": ["verdict", "holy_words", "soul_verbs"]},
+				"DisplayName": {"kind": "text", "required": true, "slots": [], "no_digits": true, "forbidden": ["verdict", "holy_words", "soul_verbs", "rescue_words"]},
+				"Summary": {"kind": "text", "required": true, "slots": [], "no_digits": true, "forbidden": ["verdict", "holy_words", "soul_verbs", "rescue_words"]},
 				"RequiredTier": {"kind": "enum", "enum": "EAscensionTier"},
 				"EnactConditions": {"kind": "conditions"},
 				"EnactCost": {"kind": "pool", "min": 0},

@@ -1,0 +1,11 @@
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -793,7 +793,7 @@
+ 						{"col": "Title", "lacks_words": "soul_verbs"}, {"col": "Body", "lacks_words": "soul_verbs"}, {"col": "VoiceBodies", "lacks_words": "soul_verbs"},
+ 						{"col": "Choices.Label", "lacks_words": "soul_verbs"}, {"col": "Choices.SuccessText", "lacks_words": "soul_verbs"}, {"col": "Choices.FailureText", "lacks_words": "soul_verbs"},
+ 						{"col": "Title", "lacks_words": "rescue_words"}, {"col": "Body", "lacks_words": "rescue_words"}, {"col": "VoiceBodies", "lacks_words": "rescue_words"},
+-						{"col": "Choices.Label", "lacks_words": "rescue_words"}, {"col": "Choices.SuccessText", "lacks_words": "rescue_words"}, {"col": "Choices.FailureText", "lacks_words": "rescue_words"}
++						{"col": "Choices.Label", "lacks_words": "rescue_words"}, {"col": "Choices.SuccessText", "lacks_words": "rescue_words"}
+ 					]
+ 				},
+ 				{

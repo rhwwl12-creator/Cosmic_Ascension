@@ -1097,6 +1097,75 @@ bool FCosmicSimFleetTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// The fleet's worn line (B4 header section 2.7): the ruled people's fleet worn at its target's first conflict stage is told
+// once (Severity 1 - no automatic pause), not on the ticks after, not when the same target is chosen again; an AI people's
+// worn fleet is not told.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicLogAttritionLineTest, "Cosmic_Ascension.Log.AttritionLine", CosmicTests::Flags)
+bool FCosmicLogAttritionLineTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicDiplomacyTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	UPlayerRoleSubsystem* Role = Sim ? Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	UCosmicLogSubsystem* Log = Sim ? Sim->GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>() : nullptr;
+	if (!Sim || !TestNotNull(TEXT("(the role subsystem)"), Role) || !TestNotNull(TEXT("(the log subsystem)"), Log))
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	const bool bWasTellAll = Log->IsTellAll();
+	ON_SCOPE_EXIT { Log->SetTellAll(bWasTellAll); Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	// The tell's own scope (every system known, every people met on the board), not the tell-all of the tests.
+	Log->SetTellAll(false);
+	if (!TestNotNull(TEXT("(the game has the row log_fleet_worn)"), Original.FindLogTemplate(CosmicRows::LogFleetWorn)))
+	{
+		return false;
+	}
+	FGalaxyState* State = LayBoard(*Sim, Original, Fleets);
+	if (!TestNotNull(TEXT("The board is laid"), State) || !TestTrue(TEXT("(people 0 is the ruled one)"), State->Civs[0].bIsPlayerRuled && !State->Civs[1].bIsPlayerRuled))
+	{
+		return false;
+	}
+	// A fourth-rung sphere over people 0's system 1 and people 1's system 2; both fleets guard there from this tick on.
+	CosmicTests::AddInstance(*State, Silence, { IDOf(*State, 1), IDOf(*State, 2) });
+	for (const int32 CivIndex : { 0, 1 })
+	{
+		FCivilizationState& Civ = State->Civs[CivIndex];
+		Civ.Tier = EAscensionTier::Tier2_Stellar;
+		Civ.FleetPower = 1.f;
+		Civ.Stockpile.Energy = 100.f;
+		Civ.FleetTargetSystemID = IDOf(*State, CivIndex == 0 ? 1 : 2);
+		Civ.FleetTargetSinceTick = State->Tick;
+	}
+	auto Worn = [&](int32 CivIndex)
+	{
+		int32 Count = 0;
+		for (const FCosmicLogEntry& Entry : Sim->GetState().Log)
+		{
+			Count += (Entry.SourceRow == CosmicRows::LogFleetWorn && Entry.FocusCivID == Sim->GetState().Civs[CivIndex].CivID) ? 1 : 0;
+		}
+		return Count;
+	};
+	Sim->StepOnce();
+	TestTrue(TEXT("(the fleets were worn)"), Sim->GetState().Civs[0].FleetPower < 1.f && Sim->GetState().Civs[1].FleetPower < 1.f);
+	TestEqual(TEXT("The ruled people's worn fleet is told at its target's first stage"), Worn(0), 1);
+	const FCosmicLogEntry* Line = Sim->GetState().Log.FindByPredicate([](const FCosmicLogEntry& Entry) { return Entry.SourceRow == CosmicRows::LogFleetWorn; });
+	if (TestNotNull(TEXT("(the line)"), Line))
+	{
+		TestEqual(TEXT("about the target"), Line->FocusSystemID, IDOf(Sim->GetState(), 1));
+		TestEqual(TEXT("Severity 1"), static_cast<int32>(Line->Severity), 1);
+		TestFalse(TEXT("which stops no game"), CosmicAutoPause::StopsFor(*Line));
+		TestTrue(TEXT("and goes into the chronicle"), CosmicChronicle::Admits(*Line, { Sim->GetState().Civs[0].CivID }));
+		TestFalse(TEXT("told"), Line->bUntold);
+	}
+	TestEqual(TEXT("An AI people's worn fleet is not told"), Worn(1), 0);
+	Sim->StepOnce();
+	TestEqual(TEXT("Not on the next tick"), Worn(0), 1);
+	TestTrue(TEXT("(the same target chosen again is no new target)"), Role->AllocateFleet(IDOf(Sim->GetState(), 1)) == CosmicConflict::ECosmicSiegeBlock::None);
+	Sim->StepOnce();
+	TestEqual(TEXT("Nor when the same target is chosen again"), Worn(0), 1);
+	return true;
+}
+
 // The sieges (header section 2.6): one number for each siege at its end, all drawn first - a siege that loses its gate on
 // that tick too; the gate asked again right before each end; taken, held, lost and failed with their lines; a target lifted
 // by its gate, by a destruction and by a taking; one siege on a system; a shorter knob ends a standing siege at once.

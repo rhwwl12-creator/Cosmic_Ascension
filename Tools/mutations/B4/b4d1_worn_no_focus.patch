@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1998,7 +1998,7 @@
+ 					FFormatNamedArguments Args;
+ 					Args.Add(TEXT("Civ"), Civ.CivName);
+ 					Args.Add(TEXT("System"), State.Systems[Target].DisplayName);
+-					Log->PushRow(CosmicRows::LogFleetWorn, 1, Args, State.Systems[Target].SystemID, Civ.CivID);
++					Log->PushRow(CosmicRows::LogFleetWorn, 1, Args, NAME_None, Civ.CivID);
+ 				}
+ 			}
+ 		}

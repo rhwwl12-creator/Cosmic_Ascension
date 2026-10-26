@@ -26,6 +26,7 @@
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Log/CosmicLogSubsystem.h"
+#include "World/CosmicAutoPause.h"
 #include "Templates/Function.h"
 #include "Templates/Tuple.h"
 #include "Tests/CosmicTestHelpers.h"
@@ -1751,6 +1752,227 @@ bool FCosmicClaimRuleTest::RunTest(const FString& Parameters)
 
 	Sim->SetTables(Original);
 	Sim->NewGalaxy(42, 5, 3);
+	return true;
+}
+
+// The voice of a claim that joined a sphere (B4 header section 2.6): the narrator's expiry line, then the sign (below the
+// third rung - the game's log_sign_claim; Severity 1, no automatic pause, into the chronicle of the life's people), then the
+// fallen's first-person line (its ClaimTemplates, about the system and its owner; told from the third rung, kept untold
+// below it - the second rung is below); the fallen that joined speaks, not another; no line after it that tick about that
+// system (one fallen on the board); a claim that joins nothing has neither; the world is the same with the lines and
+// without them (the tell stream only, no key of the world map).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicLogClaimVoiceTest, "Cosmic_Ascension.Log.ClaimVoice", CosmicTests::Flags)
+bool FCosmicLogClaimVoiceTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicHazardTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	UCosmicLogSubsystem* Log = Sim ? Sim->GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>() : nullptr;
+	if (!Sim || !TestNotNull(TEXT("(the log subsystem)"), Log))
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	const FCosmicRulesDef BaseRules = Sim->GetRules();
+	const bool bWasTellAll = Log->IsTellAll();
+	ON_SCOPE_EXIT
+	{
+		Log->SetTellAll(bWasTellAll);
+		Sim->SetTables(Original);
+		Sim->NewGalaxy(42, 5, 3);
+	};
+	Log->SetTellAll(false);
+	if (!TestNotNull(TEXT("(the game has the sign row log_sign_claim)"), Original.FindLogTemplate(CosmicRows::LogSignClaim)))
+	{
+		return false;
+	}
+	const FGameplayTag SignTag = Tag(TEXT("Log.Sign"));
+	const FGameplayTag ClaimTag = Tag(TEXT("Log.Claim"));
+	// The tables of the case: the claim rows of the tests; the silent fallen speaks (Voiced) or not.
+	auto Lay = [&](bool bVoiced)
+	{
+		FCosmicDataTables Tables = TablesWith(Original, Knobs(BaseRules), ClaimHazards(), nullptr);
+		if (bVoiced)
+		{
+			if (FTranscendentDef* Row = Tables.Transcendents->FindRow<FTranscendentDef>(Fallen, TEXT("ClaimVoice")))
+			{
+				Row->ClaimTemplates = Lines(TEXT("voice of {System}"));
+			}
+			if (FTranscendentDef* Row = Tables.Transcendents->FindRow<FTranscendentDef>(Zealous, TEXT("ClaimVoice")))
+			{
+				Row->ClaimTemplates = Lines(TEXT("zeal of {System}"));
+			}
+		}
+		Sim->SetTables(Tables);
+	};
+	// One claim on system 2 of civilization 0 (the vessel's), from the silent fallen whose sphere holds 3 (and, with
+	// bTwo, the zealous one of depth 1 at 3 too - the deeper, the second instance, claims), joined at the tick that ends
+	// RunHeadless(2); the viewer's rung is Viewer. The state after the joining tick, or null when the claim was not placed
+	// or did not join.
+	auto Join = [&](EAscensionTier Viewer, bool bTwo = false) -> FGalaxyState*
+	{
+		FGalaxyState* State = ExpireNextToSpheres(*Sim, [bTwo](FGalaxyState& S)
+		{
+			AddInstance(S, Fallen, TEXT("Doctrine.Silence"), { 3 });
+			if (bTwo)
+			{
+				AddInstance(S, Zealous, TEXT("Doctrine.Zeal"), { 3 });
+			}
+		});
+		if (!State || State->Systems[2].ActiveHazard != Tag(TEXT("Hazard.Claim")))
+		{
+			return nullptr;
+		}
+		State->Civs[0].Tier = Viewer;
+		// The viewer knows the board: the lines go through the scope of the tell, not around it.
+		CosmicTests::KnowAll(*State);
+		Sim->RunHeadless(2);
+		return InSphere(*State, bTwo ? 1 : 0, 2) ? State : nullptr;
+	};
+	// The told or untold lines of Category at the last tick, from Source (any when None).
+	auto CountAt = [&](const FGalaxyState& State, const FGameplayTag& Category, FName Source)
+	{
+		int32 Count = 0;
+		for (const FCosmicLogEntry& Entry : State.Log)
+		{
+			Count += (Entry.Tick == State.Tick && Entry.Category == Category && (Source.IsNone() || Entry.SourceRow == Source)) ? 1 : 0;
+		}
+		return Count;
+	};
+
+	// Below the third rung: the narrator, the sign told, the first-person line kept untold, and nothing after it.
+	{
+		Lay(true);
+		FGalaxyState* State = Join(EAscensionTier::Tier1_Planetary);
+		if (!TestNotNull(TEXT("(the claim joined the sphere - the first rung)"), State))
+		{
+			return false;
+		}
+		const int32 Expiry = FindLine(*State, ClaimRow, State->Tick, TEXT("expiry"));
+		const FName SystemID = State->Systems[2].SystemID;
+		if (!TestTrue(TEXT("The narrator's expiry line is told"), Expiry != INDEX_NONE) || !TestTrue(TEXT("(two lines follow it)"), State->Log.IsValidIndex(Expiry + 2)))
+		{
+			return false;
+		}
+		const FCosmicLogEntry& Sign = State->Log[Expiry + 1];
+		const FCosmicLogEntry& Voice = State->Log[Expiry + 2];
+		const FName Owner = State->Civs[0].CivID;
+		TestTrue(TEXT("The sign comes right after the narrator"), Sign.Category == SignTag);
+		TestEqual(TEXT("about the claimed system"), Sign.FocusSystemID, SystemID);
+		TestFalse(TEXT("told below the third rung"), Sign.bUntold);
+		TestEqual(TEXT("Severity 1"), static_cast<int32>(Sign.Severity), 1);
+		TestFalse(TEXT("which stops no game"), CosmicAutoPause::StopsFor(Sign));
+		TestTrue(TEXT("and goes into the chronicle of its people's life"), CosmicChronicle::Admits(Sign, { Owner }));
+		TestFalse(TEXT("not into another people's"), CosmicChronicle::Admits(Sign, { State->Civs[1].CivID }));
+		TestTrue(TEXT("The first-person line comes after the sign"), Voice.Category == ClaimTag);
+		TestEqual(TEXT("from the fallen that joined it"), Voice.SourceRow, Fallen);
+		TestEqual(TEXT("about the claimed system"), Voice.FocusSystemID, SystemID);
+		TestEqual(TEXT("and its owner"), Voice.FocusCivID, Owner);
+		TestTrue(TEXT("in its own words, naming the system"), Voice.Message.ToString().StartsWith(FString::Printf(TEXT("voice of %s "), *State->Systems[2].DisplayName.ToString())));
+		TestEqual(TEXT("Severity 1"), static_cast<int32>(Voice.Severity), 1);
+		TestTrue(TEXT("kept untold below the third rung"), Voice.bUntold);
+		bool bAfter = false;
+		for (int32 Index = Expiry + 3; Index < State->Log.Num(); ++Index)
+		{
+			bAfter |= State->Log[Index].Tick == State->Tick && State->Log[Index].FocusSystemID == SystemID;
+		}
+		TestFalse(TEXT("No line about that system follows the first-person line that tick"), bAfter);
+	}
+
+	// The second rung is below the window: the sign told, the first-person line kept untold.
+	{
+		Lay(true);
+		FGalaxyState* State = Join(EAscensionTier::Tier2_Stellar);
+		if (!TestNotNull(TEXT("(the claim joined the sphere - the second rung)"), State))
+		{
+			return false;
+		}
+		const int32 Expiry = FindLine(*State, ClaimRow, State->Tick, TEXT("expiry"));
+		if (!TestTrue(TEXT("(the narrator's line - the second rung)"), Expiry != INDEX_NONE) || !TestTrue(TEXT("(two lines after it)"), State->Log.IsValidIndex(Expiry + 2)))
+		{
+			return false;
+		}
+		TestTrue(TEXT("On the second rung the sign follows the narrator"), State->Log[Expiry + 1].Category == SignTag);
+		TestFalse(TEXT("told"), State->Log[Expiry + 1].bUntold);
+		TestTrue(TEXT("and the first-person line follows the sign"), State->Log[Expiry + 2].Category == ClaimTag);
+		TestTrue(TEXT("kept untold"), State->Log[Expiry + 2].bUntold);
+	}
+
+	// From the third rung: the first-person line told right after the narrator; no sign.
+	{
+		Lay(true);
+		FGalaxyState* State = Join(EAscensionTier::Tier3_Causal);
+		if (!TestNotNull(TEXT("(the claim joined the sphere - the third rung)"), State))
+		{
+			return false;
+		}
+		const int32 Expiry = FindLine(*State, ClaimRow, State->Tick, TEXT("expiry"));
+		if (!TestTrue(TEXT("(the narrator's line - the third rung)"), Expiry != INDEX_NONE) || !TestTrue(TEXT("(a line after it)"), State->Log.IsValidIndex(Expiry + 1)))
+		{
+			return false;
+		}
+		TestTrue(TEXT("From the third rung the first-person line follows the narrator"), State->Log[Expiry + 1].Category == ClaimTag);
+		TestFalse(TEXT("told"), State->Log[Expiry + 1].bUntold);
+		TestEqual(TEXT("and no sign is kept"), CountAt(*State, SignTag, NAME_None), 0);
+	}
+
+	// Two fallen reach the system: the one that joined it speaks (the deeper, the second instance), not the first.
+	{
+		Lay(true);
+		FGalaxyState* State = Join(EAscensionTier::Tier3_Causal, true);
+		if (!TestNotNull(TEXT("(the zealous one joined the system)"), State))
+		{
+			return false;
+		}
+		const int32 Expiry = FindLine(*State, ClaimRow, State->Tick, TEXT("expiry"));
+		if (!TestTrue(TEXT("(the narrator's line - two fallen)"), Expiry != INDEX_NONE) || !TestTrue(TEXT("(a line after it - two fallen)"), State->Log.IsValidIndex(Expiry + 1)))
+		{
+			return false;
+		}
+		TestEqual(TEXT("The fallen that joined speaks"), State->Log[Expiry + 1].SourceRow, Zealous);
+		TestTrue(TEXT("in its own words"), State->Log[Expiry + 1].Message.ToString().StartsWith(TEXT("zeal of ")));
+		TestEqual(TEXT("and the other says nothing"), CountAt(*State, ClaimTag, Fallen), 0);
+	}
+
+	// A claim that joins nothing (the last unclaimed settled system): neither sign nor voice.
+	{
+		Lay(true);
+		FGalaxyState* State = ExpireNextToSpheres(*Sim, [](FGalaxyState& S) { AddInstance(S, Fallen, TEXT("Doctrine.Silence"), { 3 }); });
+		if (!TestNotNull(TEXT("(the board of the stilled case)"), State))
+		{
+			return false;
+		}
+		State->Transcendents[0].InfluencedSystems.Add(State->Systems[0].SystemID);
+		State->Transcendents[0].InfluencedSystems.Add(State->Systems[1].SystemID);
+		CosmicTests::KnowAll(*State);
+		Sim->RunHeadless(2);
+		TestFalse(TEXT("(the claim joined nothing)"), InSphere(*State, 0, 2));
+		TestEqual(TEXT("A claim stilled has no sign"), CountAt(*State, SignTag, NAME_None), 0);
+		TestEqual(TEXT("nor a voice"), CountAt(*State, ClaimTag, Fallen), 0);
+	}
+
+	// The world with the voice is the world without it; the voice draws the tell stream twice; no key of the world map.
+	{
+		Lay(false);
+		FGalaxyState* Silent = Join(EAscensionTier::Tier1_Planetary);
+		if (!TestNotNull(TEXT("(the claim joined - no lines)"), Silent))
+		{
+			return false;
+		}
+		const uint32 SilentWorld = Sim->ComputeWorldHash();
+		const int32 SilentTell = Silent->TellRngState;
+		const int32 SilentKeys = Silent->EventCooldownUntilTick.Num();
+		TestEqual(TEXT("A fallen with no lines says nothing"), CountAt(*Silent, ClaimTag, Fallen), 0);
+		TestEqual(TEXT("and no sign goes before it"), CountAt(*Silent, SignTag, NAME_None), 0);
+		Lay(true);
+		FGalaxyState* Voiced = Join(EAscensionTier::Tier1_Planetary);
+		if (!TestNotNull(TEXT("(the claim joined - with lines)"), Voiced))
+		{
+			return false;
+		}
+		TestEqual(TEXT("The world hash is the same with the voice and without it"), Sim->ComputeWorldHash(), SilentWorld);
+		TestEqual(TEXT("The world map holds no key of the voice"), Voiced->EventCooldownUntilTick.Num(), SilentKeys);
+		TestTrue(TEXT("The voice draws the tell stream (the sign and the line)"), DrawsBetween(SilentTell, Voiced->TellRngState) == 2);
+	}
 	return true;
 }
 

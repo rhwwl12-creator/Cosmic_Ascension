@@ -1,0 +1,20 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2476,7 +2476,7 @@
+ 	// the world map, nothing of the world read but the joining itself.
+ 	if (JoinedTo != INDEX_NONE)
+ 	{
+-		const FTranscendentDef* Fallen = Tables.FindTranscendent(State.Transcendents[JoinedTo].TranscendentID);
++		const FTranscendentDef* Fallen = Tables.FindTranscendent(State.Transcendents[0].TranscendentID);
+ 		if (Fallen && !Fallen->ClaimTemplates.IsEmpty())
+ 		{
+ 			UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+@@ -2486,7 +2486,7 @@
+ 			Line.Severity = 1;
+ 			Line.FocusSystem = State.Systems[SystemIndex].SystemID;
+ 			Line.FocusCiv = State.Civs.IsValidIndex(OwnerIndex) ? State.Civs[OwnerIndex].CivID : FName();
+-			Line.SourceRow = State.Transcendents[JoinedTo].TranscendentID;
++			Line.SourceRow = State.Transcendents[0].TranscendentID;
+ 			Line.MinViewerTier = 3;
+ 			FFormatNamedArguments Args;
+ 			Args.Add(TEXT("System"), State.Systems[SystemIndex].DisplayName);

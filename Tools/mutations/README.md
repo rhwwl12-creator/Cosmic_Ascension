@@ -357,3 +357,28 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B4/` | `b4c_ticks_from_above_one.patch` — ResistTicksOf takes a Value of 1 as none | `Cosmic_Ascension.Sim.ResistDelay` |
 | `B4/` | `b4c_ticks_no_cut.patch` — ResistTicksOf does not cut at 2^31 | `Cosmic_Ascension.Sim.ResistDelay` |
 | `B4/` | `b4c_apply_takes_zero.patch` — DelayHazard takes a Value below 1 (adds no tick, spends the fleet) | `Cosmic_Ascension.Sim.ResistDelay` |
+| `B4/` | `b4d1_voice_window_two.patch` — the fallen's first-person line opens at the second rung | `Cosmic_Ascension.Log.ClaimVoice` |
+| `B4/` | `b4d1_voice_severity_two.patch` — the first-person line is Severity 2 | `Cosmic_Ascension.Log.ClaimVoice` |
+| `B4/` | `b4d1_voice_no_owner.patch` — the first-person line names no owner | `Cosmic_Ascension.Log.ClaimVoice` |
+| `B4/` | `b4d1_voice_first_instance.patch` — the first instance speaks, not the one that joined | `Cosmic_Ascension.Log.ClaimVoice` |
+| `B4/` | `b4d1_voice_no_sign.patch` — the claim's voice comes with no sign | `Cosmic_Ascension.Log.ClaimVoice` |
+| `B4/` | `b4d1_voice_writes_world.patch` — the voice writes a key of the world map | `Cosmic_Ascension.Log.ClaimVoice` |
+| `B4/` | `b4d1_worn_every_tick.patch` — the fleet worn line is told on every tick at the target | `Cosmic_Ascension.Log.AttritionLine` |
+| `B4/` | `b4d1_worn_ai_too.patch` — an AI people's worn fleet is told | `Cosmic_Ascension.Log.AttritionLine` |
+| `B4/` | `b4d1_worn_severity_two.patch` — the fleet worn line is Severity 2 | `Cosmic_Ascension.Log.AttritionLine` |
+| `B4/` | `b4d1_worn_no_focus.patch` — the fleet worn line names no system | `Cosmic_Ascension.Log.AttritionLine` |
+| `B4/` | `b4d1_schema_lacks_words_always.patch` — the row test lacks_words always holds | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4d1_schema_lacks_words_first_text.patch` — lacks_words reads the first text of a list alone | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4d1_schema_lacks_words_list_unchecked.patch` — a lacks_words that names no word list of the schema passes | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4d1_schema_lacks_words_any_kind.patch` — lacks_words may be asked of a number column | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4d1_schema_hazard_expiry_rescue_off.patch` — the hazards' expiry lines take the rescue words | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4d1_schema_event_lines_holy_off.patch` — the events' lines take the holy words | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4d1_schema_event_lines_soul_off.patch` — the events' lines take the soul verbs | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4d1_schema_realm_without_most_high.patch` — realm_names misses '지극히 높은' | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4d1_schema_realm_with_eumbu.patch` — realm_names holds '음부' ('처음부터' is refused) | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4d1_schema_myth_takes_baro.patch` — holy_and_myth takes a name of the hand list ('바로') | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4d1_schema_petition_failure_rescue_off.patch` — a petition's failure text takes the rescue words | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4d1_schema_sign_slots_wide.patch` — the claim's sign may call {Hazard} | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4d1_schema_first_person_forms_differ.patch` — the lure's words and the claim lines' words differ | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4d1_schema_verdict_without_soul_has_soul.patch` — verdict_without_soul keeps '영혼' | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4d1_schema_singing_star_by_the_hedge.patch` — a text holds the singing star and the sanctuary's hedge | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |

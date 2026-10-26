@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2483,7 +2483,7 @@
+ 			check(Log);
+ 			FCosmicLine Line;
+ 			Line.Category = CosmicTags::LogClaim();
+-			Line.Severity = 1;
++			Line.Severity = 2;
+ 			Line.FocusSystem = State.Systems[SystemIndex].SystemID;
+ 			Line.FocusCiv = State.Civs.IsValidIndex(OwnerIndex) ? State.Civs[OwnerIndex].CivID : FName();
+ 			Line.SourceRow = State.Transcendents[JoinedTo].TranscendentID;

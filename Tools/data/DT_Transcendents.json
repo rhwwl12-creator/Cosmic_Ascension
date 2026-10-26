@@ -5,7 +5,7 @@
 		"Allegiance": "Realm.Abyssal",
 		"CounterfeitOf": "Truth.Rest",
 		"Title": "꺼뜨리는 이",
-		"Lure": "",
+		"Lure": "더는 아프지 않다.",
 		"Tier": "Tier4_Transcendent",
 		"Depth": 1.0,
 		"InitialInfluencedSystems": 1,
@@ -22,6 +22,10 @@
 			}
 		],
 		"VoiceTemplates": [],
-		"ClaimTemplates": []
+		"ClaimTemplates": [
+			"{System}에서 식은 것은 내 것이다. 식지 않은 것은 내 것이 아니다.",
+			"나는 {System}의 불빛이 차례로 꺼지는 것을 보았다. 다 가지지는 못했다.",
+			"{System}에서는 이제 아프다고 말하는 이가 없다. 어떤 이들은 끝내 내 쪽을 보지 않았다."
+		]
 	}
 ]

@@ -1,0 +1,11 @@
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -490,7 +490,7 @@
+ 				"Allegiance": {"kind": "tag", "root": "Realm."},
+ 				"CounterfeitOf": {"kind": "tag", "root": "Truth.", "optional": true},
+ 				"Title": {"kind": "text", "slots": [], "no_digits": true, "forbidden": "verdict"},
+-				"Lure": {"kind": "text", "slots": [], "no_digits": true, "forbidden": ["verdict_without_soul", "holy_words", "holy_and_myth", "realm_names", "rescue_words", "revelation_mimicry"]},
++				"Lure": {"kind": "text", "slots": [], "no_digits": true, "forbidden": ["verdict", "holy_words", "holy_and_myth", "realm_names", "rescue_words", "revelation_mimicry"]},
+ 				"Tier": {"kind": "enum", "enum": "EAscensionTier"},
+ 				"Depth": {"kind": "number", "min": 0, "max": 1},
+ 				"InitialInfluencedSystems": {"kind": "number", "min": 0, "max": 1, "integer": true},

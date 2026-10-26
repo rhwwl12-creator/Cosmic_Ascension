@@ -75,6 +75,12 @@ namespace CosmicRows
 	inline const FName LogSiegeFailed(TEXT("log_siege_failed"));
 	inline const FName LogSiegeLifted(TEXT("log_siege_lifted"));
 
+	// DT_LogTemplates: B4 (header section 2.6, 2.7, 3.6). The sign of a claim that joined a sphere - told below the third
+	// rung before the fallen's first-person line (UCosmicLogSubsystem::PushWithSign); the ruled people's fleet worn at its
+	// target's first conflict stage.
+	inline const FName LogSignClaim(TEXT("log_sign_claim"));
+	inline const FName LogFleetWorn(TEXT("log_fleet_worn"));
+
 	// DT_Encounters: the first contact card (B3 header section 2.9). NoteMet writes Knowing.PendingContactCivID at the
 	// first meeting of the run while this row exists; the end of the knowing stage puts it after a Standing card that came to hold in the tick, before the periodic slot, while no petition waits.
 	inline const FName PetitionFirstContact(TEXT("petition_first_contact"));

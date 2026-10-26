@@ -181,6 +181,9 @@ TESTS = {
     # A resource pool that asks nothing, every amount 0 (true), or that asks something (false) - B4: the choice that
     # enacts an edict pays the edict's own cost alone.
     "zero": FLAG,
+    # No text of the cell holds a word of the named word list (B4 [B-4d1]: a list hung on some rows of a column only -
+    # the silent fallen's own words, a card's shared fields, a narrator's row).
+    "lacks_words": NAME,
 }
 # Test -> the kinds of column it can be asked of. Asked of another kind it would never hold (or always).
 # A plain column holds a struct the checker does not read (EthicsPreset, Color, MapPosition): no test can be asked of it.
@@ -197,6 +200,7 @@ TEST_KINDS = {
     "slots_in": ("text", "texts"), "len_ge_col": POOL_KINDS,
     "pairs_ge_col": POOL_KINDS, "contains_all": ("tags", "tag_list"), "contains_none": ("tags", "tag_list", "tag_map"),
     "zero": ("pool",),
+    "lacks_words": ("text", "texts"),
 }
 # A row test of its own shape, besides 'row', 'row_not' and 'row_prefix': {"none": [tests]}, each test over a column of
 # one list of structs ('List.Column'); it holds when no entry of the list holds every one of them (B4: one choice read as
@@ -659,6 +663,8 @@ class Checker:
                 for value in operand:
                     if value not in self.tags:
                         self.report(where, "a row test names the tag %s, which the ini does not declare" % (value,))
+            if name == "lacks_words" and operand not in self.schema["words"]:
+                self.report(where, "the word list %s is not in the schema" % (operand,))
             if name in NAMED_COLUMNS:
                 for other, kinds in zip([operand] if isinstance(operand, str) else operand, NAMED_COLUMNS[name]):
                     other_spec = columns.get(other)
@@ -1262,6 +1268,11 @@ class Checker:
             if not isinstance(value, dict):
                 return False
             return all(is_number(entry) and entry == 0 for entry in value.values()) == operand
+        if name == "lacks_words":
+            # Matched letter for letter, as a column's "forbidden" matches.
+            words = self.schema["words"].get(operand, []) if isinstance(self.schema.get("words"), dict) else []
+            texts = value if isinstance(value, list) else [value]
+            return all(isinstance(text, str) and not any(word in text for word in words) for text in texts)
         if name == "len_ge_col":
             bound = row.get(operand)
             return isinstance(value, (list, dict)) and is_number(bound) and length_of(value) >= bound

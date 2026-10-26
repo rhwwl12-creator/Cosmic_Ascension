@@ -1,0 +1,11 @@
+--- a/Tools/cosmic_data_schema.py
++++ b/Tools/cosmic_data_schema.py
+@@ -1272,7 +1272,7 @@
+             # Matched letter for letter, as a column's "forbidden" matches.
+             words = self.schema["words"].get(operand, []) if isinstance(self.schema.get("words"), dict) else []
+             texts = value if isinstance(value, list) else [value]
+-            return all(isinstance(text, str) and not any(word in text for word in words) for text in texts)
++            return True
+         if name == "len_ge_col":
+             bound = row.get(operand)
+             return isinstance(value, (list, dict)) and is_number(bound) and length_of(value) >= bound

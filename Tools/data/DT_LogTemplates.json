@@ -313,5 +313,27 @@
 			"{System} 둘레의 함대가 물러났다. 공성은 끝을 보지 못하고 풀렸다.",
 			"{System}의 공성이 그쳤다. 그곳의 하늘이 다시 조용해졌다."
 		]
+	},
+	{
+		"Name": "log_sign_claim",
+		"Category": "Log.Sign",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{System}의 불빛이 흐려졌다고들 했다. 그곳으로 가는 배가 드물어졌다.",
+			"{System} 쪽 별이 노래한다는 말이 돌았다. 별은 아무 소리도 내지 않았다.",
+			"{System}에서 오는 편지가 짧아졌다. 끝에는 흔히 아프지 않다고 적혀 있었다."
+		]
+	},
+	{
+		"Name": "log_fleet_worn",
+		"Category": "Log.Conflict",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{System}에 닿은 {Civ}의 함대가 줄기 시작했다. 배 위에서 웃음소리가 잦아들었다.",
+			"{System}|hpp(으로,로) 간 {Civ}의 함대에서 연락이 끊긴 배가 생겼다. 곁의 배들이 그 배를 부르고 또 불렀다.",
+			"{Civ}의 함대가 {System} 하늘에서 지쳐 갔다. 배에 탄 이들은 집에 보낼 글을 쓰기 시작했다."
+		]
 	}
 ]
