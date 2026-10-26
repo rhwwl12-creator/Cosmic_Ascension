@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
+@@ -374,7 +374,7 @@
+ 		// [B-4d2] - the grey then reads as kept, not as shut).
+ 		const FText Suffix = (bPayable && !Gate.IsOpen()) ? GateSuffixOf(Gate, Choice, Tables, Rules, State.Civs[CivIndex].Tier) : FText::GetEmpty();
+ 		const FText Base = ChoiceLabels.IsValidIndex(At) ? ChoiceLabels[At] : Button->GetLabel();
+-		const bool bHeld = bPayable && Gate.Kind == ECosmicChoiceGateKind::Edict && Gate.Edict == CosmicEdicts::ECosmicEdictBlock::Held;
++		const bool bHeld = bPayable && Gate.Kind == ECosmicChoiceGateKind::Edict;
+ 		const FText ButtonLabel = bHeld ? FText::Format(INVTEXT("{0} {1}"), CosmicUI::Label(TEXT("Edict.Mark")), Base)
+ 			: (Suffix.IsEmpty() ? Base : FText::Format(INVTEXT("{0}  {1}"), Base, Suffix));
+ 		if (!SameWords(Button->GetLabel(), ButtonLabel))

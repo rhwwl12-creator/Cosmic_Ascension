@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+@@ -231,7 +231,7 @@
+ 	{
+ 		FCosmicDataTables Tables = Base;
+ 		Tables.Encounters = CopyWithout<FEncounterDef>(Base.Encounters, { CosmicRows::PetitionPressureClaim, CosmicRows::PetitionPressureMeasured });
+-		Tables.Events = CopyWithout<FCosmicEventDef>(Base.Events, { CosmicRows::EventClaimEased });
++		Tables.Events = CopyWithout<FCosmicEventDef>(Base.Events, {});
+ 		Tables.Edicts = CopyWithout<FEdictDef>(Base.Edicts, { FName(TEXT("edict_against_silence")) });
+ 		if (UDataTable* Transcendents = CopyWithout<FTranscendentDef>(Base.Transcendents, {}))
+ 		{

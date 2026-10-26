@@ -199,6 +199,51 @@ namespace CosmicTests
 		return Tables;
 	}
 
+	// A copy of Table with the rows of Names taken out (the struct T is the table's own); null stays null.
+	template <typename T>
+	UDataTable* CopyWithout(const UDataTable* Table, std::initializer_list<FName> Names)
+	{
+		if (!Table)
+		{
+			return nullptr;
+		}
+		UDataTable* Copy = NewTable(T::StaticStruct());
+		for (const TPair<FName, uint8*>& Row : Table->GetRowMap())
+		{
+			bool bOut = false;
+			for (const FName& Name : Names)
+			{
+				bOut |= Name == Row.Key;
+			}
+			if (!bOut)
+			{
+				Copy->AddRow(Row.Key, *reinterpret_cast<const T*>(Row.Value));
+			}
+		}
+		return Copy;
+	}
+
+	// The tables without B4's pressure data (B4 header section 6, the data commit [B-4d2]): DT_Encounters without the two
+	// pressure cards, DT_Events without the vigil's draw row, DT_Edicts without the seventh edict, and every transcendent's
+	// ClaimTemplates empty - for a test that reads the game's tables as a board of its own and lays rows of these kinds
+	// itself (the theodicy's boards of Data.Integrity). Everything else as given (WithoutDiplomacy's form).
+	inline FCosmicDataTables WithoutPressure(const FCosmicDataTables& Base)
+	{
+		FCosmicDataTables Tables = Base;
+		Tables.Encounters = CopyWithout<FEncounterDef>(Base.Encounters, { CosmicRows::PetitionPressureClaim, CosmicRows::PetitionPressureMeasured });
+		Tables.Events = CopyWithout<FCosmicEventDef>(Base.Events, { CosmicRows::EventClaimEased });
+		Tables.Edicts = CopyWithout<FEdictDef>(Base.Edicts, { FName(TEXT("edict_against_silence")) });
+		if (UDataTable* Transcendents = CopyWithout<FTranscendentDef>(Base.Transcendents, {}))
+		{
+			for (const TPair<FName, uint8*>& Row : Transcendents->GetRowMap())
+			{
+				reinterpret_cast<FTranscendentDef*>(Row.Value)->ClaimTemplates.Reset();
+			}
+			Tables.Transcendents = Transcendents;
+		}
+		return Tables;
+	}
+
 	// The tables with DT_Galaxies replaced, everything else as given (as WithTranscendents). A test that hands it to SetTables
 	// puts a copy of the game's home row in it: a table without the home row is an error line and the C++ defaults (7.4).
 	inline FCosmicDataTables WithGalaxies(const FCosmicDataTables& Base, UDataTable* Galaxies)

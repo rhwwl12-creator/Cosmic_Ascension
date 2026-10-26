@@ -224,7 +224,7 @@ namespace CosmicPressureCardTests
 		return Table;
 	}
 
-	FGalaxyState* LayPressureBoard(UGalaxySimulationSubsystem& Sim, const FCosmicDataTables& Original)
+	FGalaxyState* LayPressureBoard(UGalaxySimulationSubsystem& Sim, const FCosmicDataTables& Original, UDataTable* Cards = nullptr)
 	{
 		const FCosmicRulesDef* Game = Original.FindRules();
 		if (!Game)
@@ -240,7 +240,7 @@ namespace CosmicPressureCardTests
 		Rules.FirstSightTick = 1000000;
 		Rules.SightIntervalTicks = 1000000;
 		FCosmicDataTables Tables = CosmicTests::WithRules(Original, Rules);
-		Tables.Encounters = PressureCards();
+		Tables.Encounters = Cards ? Cards : PressureCards();
 		Tables.Events = nullptr;
 		UDataTable* Transcendents = CosmicTests::NewTable(FTranscendentDef::StaticStruct());
 		FTranscendentDef Row;
@@ -939,6 +939,277 @@ bool FCosmicSimRulerPressurePolicyTest::RunTest(const FString& Parameters)
 		Guarding.Tier = EAscensionTier::Tier1_Planetary;
 		TestTrue(TEXT("On the first rung there is nothing to guard with"), CosmicRulerPolicy::GuardTargetOf(*State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), 0).IsNone());
 	}
+	return true;
+}
+
+// The game's two pressure cards (B4 header section 3.3, [B-4d2]): the first comes when a claim stands on a settled system
+// of the ruled people from tick 1,800 (not before, not on an AI people's system); its watch changes nothing, its intercession
+// enacts the vigil, its gates grey a choice with the first reason; its discernment pays its insight and puts the second
+// card by name on the same system - asking the second card's conditions -; the second card's gates on the first rung (the
+// new edict's rung, no fleet) and its resistance on the second (the claim's time +50, the fleet's half); no answer of the
+// second card chains; each card holds a choice that costs nothing and has no gate.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimPressureChainTest, "Cosmic_Ascension.Sim.PressureChain", CosmicTests::Flags)
+bool FCosmicSimPressureChainTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicPressureCardTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	UPlayerRoleSubsystem* Role = Sim ? Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (!Sim || !TestNotNull(TEXT("(the role subsystem)"), Role))
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	const FEncounterDef* ClaimCard = Original.FindEncounter(CosmicRows::PetitionPressureClaim);
+	const FEncounterDef* MeasuredCard = Original.FindEncounter(CosmicRows::PetitionPressureMeasured);
+	if (!TestNotNull(TEXT("(the game has the claim card)"), ClaimCard) || !TestNotNull(TEXT("(and the measured card)"), MeasuredCard)
+		|| !TestEqual(TEXT("(three choices each)"), ClaimCard->Choices.Num() + MeasuredCard->Choices.Num(), 6))
+	{
+		return false;
+	}
+	const FGameplayTag Claim = Tag(TEXT("Hazard.Claim"));
+	// The game's cards without the first contact card (every people is met on the board).
+	UDataTable* GameCards = CosmicTests::CopyWithout<FEncounterDef>(Original.Encounters, { CosmicRows::PetitionFirstContact });
+	// The board at Tick with a claim on SystemIndex (people 0's PressNear by default), then one tick.
+	auto Lay = [&](UDataTable* Cards, int64 Tick, int32 SystemIndex) -> FGalaxyState*
+	{
+		FGalaxyState* State = LayPressureBoard(*Sim, Original, Cards);
+		if (!State)
+		{
+			return nullptr;
+		}
+		State->Tick = Tick;
+		State->Systems[SystemIndex].ActiveHazard = Claim;
+		State->Systems[SystemIndex].HazardTicksRemaining = 300;
+		Sim->StepOnce();
+		return State;
+	};
+	auto GateOf = [&](const FEncounterDef& Card, int32 At)
+	{
+		return CosmicPetitions::ChoiceGateOf(Sim->GetState(), Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), 0, PressNear, NAME_None, Card.Choices[At]);
+	};
+
+	// Not before tick 1,800; not on an AI people's system.
+	{
+		FGalaxyState* State = Lay(GameCards, 1000, PressNear);
+		if (!TestNotNull(TEXT("(the board - before 1,800)"), State))
+		{
+			return false;
+		}
+		TestNotEqual(TEXT("Before tick 1,800 no pressure card comes"), State->Knowing.PendingPetitionRow, CosmicRows::PetitionPressureClaim);
+		State = Lay(GameCards, 1799, 4);
+		if (!TestNotNull(TEXT("(the board - an AI people's system)"), State))
+		{
+			return false;
+		}
+		TestNotEqual(TEXT("A claim on an AI people's system brings no card"), State->Knowing.PendingPetitionRow, CosmicRows::PetitionPressureClaim);
+	}
+
+	// The first card comes; the watch changes nothing.
+	{
+		FGalaxyState* State = Lay(GameCards, 1799, PressNear);
+		if (!TestNotNull(TEXT("(the board - the first card)"), State))
+		{
+			return false;
+		}
+		if (!TestEqual(TEXT("From tick 1,800 a claim on the ruled people's system brings the first card"), State->Knowing.PendingPetitionRow, CosmicRows::PetitionPressureClaim))
+		{
+			return false;
+		}
+		TestEqual(TEXT("about that system"), State->Knowing.PendingPetitionSystemID, State->Systems[PressNear].SystemID);
+		FCivilizationState& Ruled = State->Civs[0];
+		Ruled.Stockpile.Influence = 100.f;
+		Ruled.Stockpile.Insight = 300.f;
+		const int32 Left = State->Systems[PressNear].HazardTicksRemaining;
+		TestTrue(TEXT("(the watch is answered)"), Role->AnswerPetition(2).Outcome == ECosmicPetitionOutcome::Succeeded);
+		TestEqual(TEXT("The watch costs no influence"), Ruled.Stockpile.Influence, 100.f);
+		TestEqual(TEXT("nor insight"), Ruled.Stockpile.Insight, 300.f);
+		TestTrue(TEXT("enacts nothing"), Ruled.ActiveEdicts.IsEmpty());
+		TestTrue(TEXT("leaves the claim"), State->Systems[PressNear].ActiveHazard == Claim);
+		TestEqual(TEXT("and its time"), State->Systems[PressNear].HazardTicksRemaining, Left);
+		TestTrue(TEXT("and puts no card"), State->Knowing.PendingPetitionRow.IsNone());
+	}
+
+	// The intercession enacts the vigil; its gate greys it with the first reason.
+	{
+		FGalaxyState* State = Lay(GameCards, 1799, PressNear);
+		if (!TestNotNull(TEXT("(the board - the vigil)"), State) || !TestEqual(TEXT("(the first card again)"), State->Knowing.PendingPetitionRow, CosmicRows::PetitionPressureClaim))
+		{
+			return false;
+		}
+		FCivilizationState& Ruled = State->Civs[0];
+		TestTrue(TEXT("Without influence the intercession is greyed by the edict's cost"), GateOf(*ClaimCard, 0).Edict == CosmicEdicts::ECosmicEdictBlock::Cost);
+		Ruled.ActiveEdicts = { PressOther };
+		TestTrue(TEXT("with its slot taken, by the slots"), GateOf(*ClaimCard, 0).Edict == CosmicEdicts::ECosmicEdictBlock::Slots);
+		Ruled.ActiveEdicts.Reset();
+		Ruled.Stockpile.Influence = 100.f;
+		TestTrue(TEXT("Paid, its gate opens"), GateOf(*ClaimCard, 0).IsOpen());
+		TestTrue(TEXT("(the intercession is answered)"), Role->AnswerPetition(0).Outcome == ECosmicPetitionOutcome::Succeeded);
+		TestTrue(TEXT("The intercession enacts the vigil"), Ruled.ActiveEdicts.Contains(PressVigil));
+		TestEqual(TEXT("for the vigil's own cost"), Ruled.Stockpile.Influence, 60.f);
+		TestTrue(TEXT("and puts no card"), State->Knowing.PendingPetitionRow.IsNone());
+	}
+
+	// The discernment pays its insight and puts the second card by name; the second card's gates on the first rung, and
+	// its resistance on the second.
+	{
+		FGalaxyState* State = Lay(GameCards, 1799, PressNear);
+		if (!TestNotNull(TEXT("(the board - the discernment)"), State) || !TestEqual(TEXT("(the first card - discernment)"), State->Knowing.PendingPetitionRow, CosmicRows::PetitionPressureClaim))
+		{
+			return false;
+		}
+		FCivilizationState& Ruled = State->Civs[0];
+		Ruled.Stockpile.Insight = 300.f;
+		TestTrue(TEXT("(the discernment is answered)"), Role->AnswerPetition(1).Outcome == ECosmicPetitionOutcome::Succeeded);
+		TestEqual(TEXT("The discernment pays its insight"), Ruled.Stockpile.Insight, 100.f);
+		TestEqual(TEXT("and puts the second card"), State->Knowing.PendingPetitionRow, CosmicRows::PetitionPressureMeasured);
+		TestEqual(TEXT("on the same system"), State->Knowing.PendingPetitionSystemID, State->Systems[PressNear].SystemID);
+		TestTrue(TEXT("On the first rung the new edict is greyed by its rung"), GateOf(*MeasuredCard, 0).Edict == CosmicEdicts::ECosmicEdictBlock::Tier);
+		TestTrue(TEXT("the fleet by no fleet"), GateOf(*MeasuredCard, 1).Resist == CosmicConflict::ECosmicResistBlock::NoFleet);
+		TestTrue(TEXT("and the further watch stays open"), GateOf(*MeasuredCard, 2).IsOpen());
+		Ruled.Tier = EAscensionTier::Tier2_Stellar;
+		Ruled.FleetPower = 4.f;
+		const int32 Left = State->Systems[PressNear].HazardTicksRemaining;
+		TestTrue(TEXT("(the resistance is answered)"), Role->AnswerPetition(1).Outcome == ECosmicPetitionOutcome::Succeeded);
+		TestEqual(TEXT("The resistance buys the claim 50 ticks"), State->Systems[PressNear].HazardTicksRemaining, Left + 50);
+		TestEqual(TEXT("for the half of the fleet (the game's knob)"), Ruled.FleetPower, 2.f);
+		TestTrue(TEXT("and no card follows it"), State->Knowing.PendingPetitionRow.IsNone());
+	}
+
+	// The chain asks the second card's conditions: a second card whose condition fails is not put.
+	{
+		UDataTable* Cards = CosmicTests::CopyWithout<FEncounterDef>(GameCards, { CosmicRows::PetitionPressureMeasured });
+		FEncounterDef Shut = *MeasuredCard;
+		FCosmicCondition Never;
+		Never.Type = EConditionType::GalaxyTickAtLeast;
+		Never.Value = 1.0e9f;
+		Shut.Conditions.Add(Never);
+		Cards->AddRow(CosmicRows::PetitionPressureMeasured, Shut);
+		FGalaxyState* State = Lay(Cards, 1799, PressNear);
+		if (!TestNotNull(TEXT("(the board - a shut second card)"), State) || !TestEqual(TEXT("(the first card - a shut second card)"), State->Knowing.PendingPetitionRow, CosmicRows::PetitionPressureClaim))
+		{
+			return false;
+		}
+		State->Civs[0].Stockpile.Insight = 300.f;
+		TestTrue(TEXT("(the discernment is answered - a shut second card)"), Role->AnswerPetition(1).Outcome == ECosmicPetitionOutcome::Succeeded);
+		TestTrue(TEXT("A second card whose conditions fail is not put"), State->Knowing.PendingPetitionRow.IsNone());
+	}
+
+	// Each card holds a choice that costs nothing, has no gate, no effect and no next card (the cards are never blocked).
+	for (const FEncounterDef* Card : { ClaimCard, MeasuredCard })
+	{
+		bool bFree = false;
+		for (const FEncounterChoice& Choice : Card->Choices)
+		{
+			const FResourcePool Cost = CosmicPetitions::CostOf(Choice);
+			const bool bPriced = Cost.Energy > 0.f || Cost.Matter > 0.f || Cost.Insight > 0.f || Cost.Influence > 0.f || Cost.Causality > 0.f;
+			bFree |= !bPriced && Choice.OnSuccess.IsEmpty() && Choice.NextEncounter.IsNone();
+		}
+		TestTrue(TEXT("A pressure card holds a free choice with no effect"), bFree);
+	}
+	return true;
+}
+
+// The vigil's draw row (B4 header section 2.8, [B-4d2] - the game's event_claim_eased): it eases a claim on a system of a
+// people that holds the vigil - its line, then the claim's resolution line -, never one of a people without it (an AI
+// people holds no vigil); no grace row waits on an edict.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimVigilEaseTest, "Cosmic_Ascension.Sim.VigilEase", CosmicTests::Flags)
+bool FCosmicSimVigilEaseTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicPressureCardTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	const FCosmicEventDef* Eased = Original.FindEvent(CosmicRows::EventClaimEased);
+	if (!TestNotNull(TEXT("(the game has the vigil's row)"), Eased))
+	{
+		return false;
+	}
+	const FGameplayTag Claim = Tag(TEXT("Hazard.Claim"));
+	FName ClaimRow;
+	if (!TestNotNull(TEXT("(the game has the claim's row)"), Original.FindHazardByTag(Claim, &ClaimRow)))
+	{
+		return false;
+	}
+	// The board with the vigil's row alone, a slot every tick for every people and a chance that makes the row's share 1.
+	auto Lay = [&](int32 SystemIndex, bool bVigil) -> FGalaxyState*
+	{
+		FGalaxyState* State = LayPressureBoard(*Sim, Original, CosmicTests::NewTable(FEncounterDef::StaticStruct()));
+		if (!State)
+		{
+			return nullptr;
+		}
+		UDataTable* Events = CosmicTests::NewTable(FCosmicEventDef::StaticStruct());
+		Events->AddRow(CosmicRows::EventClaimEased, *Eased);
+		FCosmicRulesDef Rules = Sim->GetRules();
+		Rules.EventSlotTicks = 1;
+		Rules.EventChancePerSlot = 1.f / Eased->BaseWeight;
+		FCosmicDataTables Tables = CosmicTests::WithRules(Sim->GetTables(), Rules);
+		Tables.Events = Events;
+		Sim->SetTables(Tables);
+		State->Systems[SystemIndex].ActiveHazard = Claim;
+		State->Systems[SystemIndex].HazardTicksRemaining = 300;
+		const int32 Owner = Sim->GetStateIndex().FindCiv(*State, State->Systems[SystemIndex].OwnerCivID);
+		if (bVigil && State->Civs.IsValidIndex(Owner))
+		{
+			State->Civs[Owner].ActiveEdicts = { PressVigil };
+		}
+		Sim->StepOnce();
+		return State;
+	};
+	auto LineAt = [](const FGalaxyState& State, FName Row)
+	{
+		for (int32 Index = 0; Index < State.Log.Num(); ++Index)
+		{
+			if (State.Log[Index].Tick == State.Tick && State.Log[Index].SourceRow == Row)
+			{
+				return Index;
+			}
+		}
+		return int32(INDEX_NONE);
+	};
+	{
+		FGalaxyState* State = Lay(PressNear, true);
+		if (!TestNotNull(TEXT("(the board - the vigil held)"), State))
+		{
+			return false;
+		}
+		TestFalse(TEXT("A claim of a people that holds the vigil is eased"), State->Systems[PressNear].ActiveHazard.IsValid());
+		const int32 RowLine = LineAt(*State, CosmicRows::EventClaimEased);
+		const int32 Resolution = LineAt(*State, ClaimRow);
+		TestTrue(TEXT("The row tells its line"), RowLine != INDEX_NONE);
+		TestTrue(TEXT("and the claim's resolution line follows it"), Resolution != INDEX_NONE && Resolution > RowLine);
+	}
+	{
+		FGalaxyState* State = Lay(PressNear, false);
+		if (!TestNotNull(TEXT("(the board - no vigil)"), State))
+		{
+			return false;
+		}
+		TestTrue(TEXT("A claim of a people without the vigil stands"), State->Systems[PressNear].ActiveHazard == Claim);
+	}
+	{
+		FGalaxyState* State = Lay(4, false);
+		if (!TestNotNull(TEXT("(the board - an AI people)"), State))
+		{
+			return false;
+		}
+		TestTrue(TEXT("A claim of an AI people (no vigil) stands"), State->Systems[4].ActiveHazard == Claim);
+	}
+	// No grace row of the game waits on an edict (grace is never drawn by one).
+	const FGameplayTag Grace = Tag(TEXT("Event.Grace"));
+	bool bGraceOnEdict = false;
+	for (const FName Row : Original.GetEventRowNames())
+	{
+		const FCosmicEventDef* Def = Original.FindEvent(Row);
+		bGraceOnEdict |= Def && Def->Category.MatchesTag(Grace)
+			&& Def->Conditions.ContainsByPredicate([](const FCosmicCondition& Condition) { return Condition.Type == EConditionType::CivHasEdict; });
+	}
+	TestFalse(TEXT("No grace row waits on an edict"), bGraceOnEdict);
 	return true;
 }
 

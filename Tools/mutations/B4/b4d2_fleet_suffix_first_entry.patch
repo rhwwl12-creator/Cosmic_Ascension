@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -48,7 +48,7 @@
+ 	// Whether a rung's FleetPerSettledByTier value gives a fleet: above 0 and finite (FleetCapOf, FirstFleetRungOf).
+ 	bool GivesFleet(float PerSettled)
+ 	{
+-		return PerSettled > 0.f && PerSettled <= TNumericLimits<float>::Max();
++		return PerSettled != 0.f;
+ 	}
+ 
+ 	int32 TierGap(EAscensionTier Above, EAscensionTier Below)

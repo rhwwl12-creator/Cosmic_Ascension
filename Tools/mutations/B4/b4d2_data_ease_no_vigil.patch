@@ -1,0 +1,15 @@
+--- a/Tools/data/DT_Events.json
++++ b/Tools/data/DT_Events.json
+@@ -388,12 +388,6 @@
+ 				"Tag": "Hazard.Claim",
+ 				"Key": "None",
+ 				"Value": 0.0
+-			},
+-			{
+-				"Type": "CivHasEdict",
+-				"Tag": "",
+-				"Key": "edict_vigil",
+-				"Value": 0.0
+ 			}
+ 		],
+ 		"BaseWeight": 1.2,

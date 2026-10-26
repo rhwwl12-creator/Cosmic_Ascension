@@ -12,11 +12,13 @@
 #include "Core/CosmicSeed.h"
 #include "Core/CosmicTypes.h"
 #include "Data/CosmicDataTables.h"
+#include "Data/CosmicDefinitionRows.h"
 #include "Fonts/SlateFontInfo.h"
 #include "GameplayTagContainer.h"
 #include "Internationalization/StringTableCoreFwd.h"
 #include "Internationalization/Text.h"
 #include "Misc/Optional.h"
+#include "Sim/CosmicConflict.h"
 #include "Sim/CosmicResearch.h"
 #include "World/CosmicZoomLevels.h"
 
@@ -60,6 +62,15 @@ namespace CosmicUI
 	inline FText Label(const TCHAR* Key)
 	{
 		return FText::FromStringTable(CosmicLabels::TableId, Key, EStringTableLoadingPolicy::FindOrFullyLoad);
+	}
+
+	// The short words after a fleet's greyed command while the people has no fleet yet - [Guard here] of the panel, a card's
+	// fleet choice (B4): the rung suffix of the edict window and the projects, "(rung N on)", N the first rung at or above
+	// the people's own that gives a fleet (CosmicConflict::FirstFleetRungOf). Empty when none does.
+	inline FText FleetSuffix(const FCosmicRulesDef& Rules, EAscensionTier From)
+	{
+		const int32 At = CosmicConflict::FirstFleetRungOf(Rules, From);
+		return At == INDEX_NONE ? FText::GetEmpty() : FText::Format(Label(TEXT("Guard.Suffix.NoFleet")), FText::AsNumber(At + 1));
 	}
 
 	// The String Table key of a population band's label (section 8.3), named after its enumerator and written out here (an

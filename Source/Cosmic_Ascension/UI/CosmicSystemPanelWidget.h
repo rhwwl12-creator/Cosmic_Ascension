@@ -116,8 +116,8 @@ namespace CosmicSlotWatch
  * The fleet (B3 header section 4), for the people the player rules: on its settled system, the line Guard.Holding while its
  * fleet guards it (and Guard.Delay while its delay, CosmicConflict::GuardDelayTicksOf at gap 0, is a whole tick - a new
  * hazard there gains time), else
- * [Guard here] greyed by CosmicConflict::GuardBlockOf (the first rung: no fleet yet - Guard.Suffix.NoFleet after the
- * label); a siege on it in the line Siege.OnUs with the besieger's name - Siege.OnUsUnknown for a besieger the viewer is
+ * [Guard here] greyed by CosmicConflict::GuardBlockOf (the first rung: no fleet yet - CosmicUI::FleetSuffix after
+ * the label, the rung the fleet comes at); a siege on it in the line Siege.OnUs with the besieger's name - Siege.OnUsUnknown for a besieger the viewer is
  * not shown - the time left and our side's band (1 - the attacker's odds). On another people's settled system whose owner
  * the viewer is shown, [Send the fleet] greyed by the first reason of CosmicConflict::SiegeBlockOf (its short words after
  * the label, the long ones first in the tooltip; a NoFleet with a fleet is the owner standing too high - Siege.Block.Above),

@@ -1,0 +1,11 @@
+--- a/Tools/data/DT_Encounters.json
++++ b/Tools/data/DT_Encounters.json
+@@ -1556,7 +1556,7 @@
+ 				"Cost": {
+ 					"Energy": 0.0,
+ 					"Matter": 0.0,
+-					"Insight": 200.0,
++					"Insight": 150.0,
+ 					"Influence": 0.0,
+ 					"Causality": 0.0
+ 				},

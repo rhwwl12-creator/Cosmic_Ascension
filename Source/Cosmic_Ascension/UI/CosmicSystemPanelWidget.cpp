@@ -1037,7 +1037,7 @@ void UCosmicSystemPanelWidget::Refresh()
 					const bool bGreyed = Block != CosmicConflict::ECosmicGuardBlock::None;
 					const FText Reason = bGreyed ? Label(TEXT("Guard.Block.NoFleet")) : FText::GetEmpty();
 					ShownFleetBlock = CosmicConflict::SiegeNameOf(Block);
-					const FText Suffix = bEnded ? Label(TEXT("Chronicle.Suffix")) : (bGreyed ? Label(TEXT("Guard.Suffix.NoFleet")) : FText::GetEmpty());
+					const FText Suffix = bEnded ? Label(TEXT("Chronicle.Suffix")) : (bGreyed ? CosmicUI::FleetSuffix(Rules, Ruled.Tier) : FText::GetEmpty());
 					const FText Name = Label(TEXT("Guard.Here"));
 					FleetWanted.Add({ GuardAction, Suffix.IsEmpty() ? Name : FText::Format(INVTEXT("{0}  {1}"), Name, Suffix), bEnded ? EndBlock : Reason,
 						bEnded ? EndBlock : JoinLines({ Reason, Label(TEXT("Guard.HereTip")), Leaves }) });

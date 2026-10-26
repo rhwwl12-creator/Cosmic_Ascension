@@ -2759,6 +2759,8 @@ class SchemaTests(unittest.TestCase):
                 (NOTHING, "log_fleet_worn"),
             ("DT_Encounters", "a petition's words name no holy word, no soul verb and no rescue word in any field: the name of no god, the faith's gestures in the elders' voice alone (B4 header 3.8, 3.9; MVP item 2)"):
                 (NOTHING, plea),
+            ("DT_Events", "the vigil's draw row tells a plain day, with no image of the night's vigil: the vigil is never told as the cause of the easing (B4 header 2.8, 3.9)"):
+                (NOTHING, "event_claim_eased"),
             ("DT_Transcendents", "no transcendent weighs the claim's events: the vigil's draw on Event.Crisis.Claim keeps a factor of 1, so the bound of the theodicy budget the invariant counts holds (B4 header 2.8)"):
                 (NOTHING, "trans_silence"),
         }
@@ -2779,7 +2781,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 189, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 190, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

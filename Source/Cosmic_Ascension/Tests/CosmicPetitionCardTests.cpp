@@ -464,7 +464,7 @@ bool FCosmicUIPetitionCardTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("The fleet's time without a fleet (the first rung) is greyed out"), Enabled(2));
 		TestTrue(TEXT("(the gate's first reason is NoFleet)"), GateOf(2).Kind == ECosmicChoiceGateKind::Resist && GateOf(2).Resist == CosmicConflict::ECosmicResistBlock::NoFleet);
 		TestEqual(TEXT("with the guard's words: the fleet comes at the second rung"), Tip(2), Words(TEXT("Guard.Block.NoFleet")));
-		TestEqual(TEXT("and the guard's short words after its label"), LabelOf(2), Suffixed(CosmicUI::Label(TEXT("Guard.Suffix.NoFleet"))));
+		TestEqual(TEXT("and the guard's short words after its label"), LabelOf(2), Suffixed(CosmicUI::FleetSuffix(Sim->GetRules(), Civ.Tier)));
 		TestEqual(TEXT("Under it: the fleet now and after, the hazard and the time added"), Shown(Card->GetChoiceLine(2)), ResistLine(TEXT("0"), TEXT("0")));
 		TestFalse(TEXT("The fleet's time on a hazard that does not stand is greyed out"), Enabled(3));
 		TestTrue(TEXT("(the gate's first reason is NoHazard)"), GateOf(3).Resist == CosmicConflict::ECosmicResistBlock::NoHazard);
@@ -507,7 +507,13 @@ bool FCosmicUIPetitionCardTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("An edict held is greyed out"), Enabled(0));
 		TestTrue(TEXT("(the gate's first reason is Held)"), GateOf(0).Edict == CosmicEdicts::ECosmicEdictBlock::Held);
 		TestEqual(TEXT("with the edict window's words"), Tip(0), EdictTip(CosmicUI::Label(TEXT("Edict.Block.Held")), Plain));
-		TestEqual(TEXT("and no short words (the edict window has none for it)"), LabelOf(0), FString(TEXT("choice")));
+		TestEqual(TEXT("and the held mark in front of its label, no short words (B4 [B-4d2] - the stance buttons' form)"), LabelOf(0),
+			FText::Format(INVTEXT("{0} {1}"), CosmicUI::Label(TEXT("Edict.Mark")), FText::AsCultureInvariant(TEXT("choice"))).ToString());
+		Civ.ActiveEdicts.Reset();
+		Card->Refresh();
+		TestEqual(TEXT("Revoked, the mark goes"), LabelOf(0), FString(TEXT("choice")));
+		Civ.ActiveEdicts = { Plain };
+		Card->Refresh();
 		TestTrue(TEXT("(one slot at Society 0)"), CosmicEdicts::SlotsOf(Civ, Sim->GetRules()) == 1);
 		TestFalse(TEXT("The slots taken grey out another edict"), Enabled(1));
 		TestTrue(TEXT("(the gate's first reason is Slots)"), GateOf(1).Edict == CosmicEdicts::ECosmicEdictBlock::Slots);

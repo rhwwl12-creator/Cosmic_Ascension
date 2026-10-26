@@ -1,0 +1,10 @@
+--- a/Tools/data/DT_Rules.json
++++ b/Tools/data/DT_Rules.json
+@@ -97,6 +97,6 @@
+ 		"PlagueSpreadMultiplier": 8.0,
+ 		"AIHostileRelationTowardRuled": 0.0,
+ 		"AIHostilePowerRatioTowardRuled": 0.6,
+-		"ResistFleetFactor": 0.5
++		"ResistFleetFactor": 0.6
+ 	}
+ ]

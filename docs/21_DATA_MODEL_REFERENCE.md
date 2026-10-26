@@ -601,7 +601,7 @@ CivResearchAtLeast // 끝에 더한 것(Key = 연구 영역 Physics/Society/Engi
 SystemHazardTicksAtMost // 끝에 더한 것(MVP ②): Tag = Hazard.*(필수 — 비면 거짓), Value = 틱(1 이상의 정수). 주어 성계가 그 위기를 갖고 HazardTicksRemaining <= Value. 카운트다운은 틱마다 1씩 줄어 '잔여 50틱'을 기다리는 청원은 정확히 한 틱에 조건이 선다(§4.1 ③, §5.10 '왕좌를 지키겠는가')
 
 CivSettledSystemsAtLeast // 끝에 더한 것(MVP ③): Value = 1 이상의 정수. 문맥 문명이 가진 정착된 성계(소유 ∧ CosmicState::IsSettled — 다른 백성이 가진 OwnedSystems 항목과 정착 중인 성계는 세지 않는다)가 Value 이상. 주어 성계는 읽지 않는다. 둘째 T2→T3 업적 feat_three_worlds(정착 3 ∧ 공학 1.0)의 조건이고(성계의 수라 정복한 성계도 센다 — 정복이 셋째 성계를 채우면 그 틱에 셋째 칸에 오른다, 헤더 B3 결정 11), 업적 행의 이 값은 그 칸의 보유 상한(RealmCapByTier[RequiredTier])을 넘지 않는다(Data.Integrity)
-CivHasEdict // 끝에 더한 것(B4 — 헤더 `headers/B4_transcendent_voice_and_pressure_cards.md` 2.2절): Key = `DT_Edicts` 행. 문맥 백성의 `ActiveEdicts`가 그 행을 지니고 테이블이 그 행을 가질 때 참(`CosmicEdicts::HeldCountOf`와 같은 셈 — 테이블에 없는 이름은 거짓). 세계만 읽는다(`Check`는 static). 은혜 행(`Event.Grace.*`)의 조건에는 쓰지 않는다(스키마 — 은혜는 칙령으로 끌어오지 않는다). 지금 싣는 행: 없음(`[B-4d2]`의 `event_claim_eased`)
+CivHasEdict // 끝에 더한 것(B4 — 헤더 `headers/B4_transcendent_voice_and_pressure_cards.md` 2.2절): Key = `DT_Edicts` 행. 문맥 백성의 `ActiveEdicts`가 그 행을 지니고 테이블이 그 행을 가질 때 참(`CosmicEdicts::HeldCountOf`와 같은 셈 — 테이블에 없는 이름은 거짓). 세계만 읽는다(`Check`는 static). 은혜 행(`Event.Grace.*`)의 조건에는 쓰지 않는다(스키마 — 은혜는 칙령으로 끌어오지 않는다). 지금 싣는 행: `event_claim_eased`(`edict_vigil` — B4 `[B-4d2]`)
 
 };
 
@@ -642,8 +642,8 @@ NameNotable // Tag = Notable.*, Value 0. 문맥 문명(Key = 선택자, 비우�
 FocusResearch, // 끝에 더한 것(MVP ②): Key = 연구 영역(문맥 문명의 ResearchFocus 키 — 스키마의 낱말 목록 research), Value = 그 몫(0 초과 1 이하, 스키마는 0.25~1). ResearchFocus[Key] = Value, 나머지 영역은 (1 − Value) / (영역 수 − 1)씩 — 합은 1이다(§5.4). 개국 청원 '지혜로운 마음'의 세 길 — 통치자의 연구 중점 명령(MVP ⑦)은 같은 규칙을 세계 함수 `CosmicResearch::Focus`로 쓴다(프리셋은 효과를 짓지 않는다). 틱당 원천은 걸지 않는다
 
 SetStance // 끝에 더한 것(B3 — 헤더 B3 2.9절): 문맥 백성이 Key가 적은 백성(빈 Key = 문맥의 OtherID — 선택자 낱말은 풀지 않는다)을 대하는 태세. Tag = Stance.Friendly 또는 빈 태그(중립), Value 쓰지 않음. 명령과 같은 문 CosmicDiplomacy::StanceBlockOf(bMet = true — 세계 코드는 앎을 읽지 않는다)가 None일 때만 쓰고 거절은 무동작(false)이다(효과도 단일 창구를 지난다, 불변 규칙 13). 적대 태그는 스키마가 막는다(적대는 명령의 문으로만 — 코드가 받으면 다른 적대처럼 무역 조약을 끊는다, 값 없이). 카드의 답에만 선다(스키마의 효과 칸 card_only와 열 card — DT_Encounters의 OnSuccess·OnFailure, 그리고 첫 접촉 카드가 아닌 행에는 없다 — 행 시험 row_not). 틱당 원천이 아니다. 지금 싣는 행: petition_first_contact의 '손을 내민다'(Stance.Friendly)
-EnactEdict // 끝에 더한 것(B4 — 헤더 B4 2.2절): Key = `DT_Edicts` 행. 문맥 백성(카드의 답 — 다스리는 백성)이 그 칙령을 내린다: 하나뿐인 문 `CosmicEdicts::EnactBlockOf`가 None일 때만 `CosmicEdicts::Enact`로 그 칙령의 `EnactCost`를 낸다(선택의 `Cost`는 비어야 한다 — 스키마). 거절은 무동작(false — 답의 문 `CosmicPetitions::ChoiceGateOf`가 수를 뽑기 전에 먼저 거절한다). 줄을 내지 않는다(카드의 결과 줄이 말한다). 카드의 답에만 선다(`card_only`, `petition_` 행의 판정 없는 선택의 `OnSuccess`만, 그 선택에서 혼자이고 첫째 — 스키마·`Data.Integrity`). 틱당 원천이 아니다. 지금 싣는 행: 없음(`[B-4d2]`의 영압 카드)
-DelayHazard // 끝에 더한 것(B4 — 헤더 B4 2.5절, #127): Tag = `Hazard.*`(필수), Value = 틱(1~100의 정수). 하나뿐인 문 `CosmicConflict::ResistBlockOf`(문맥 백성·문맥 성계·Tag)가 None일 때만 그 성계의 `HazardTicksRemaining`에 Value를 더하고(`MAX_int32`에서 자른다) 그 백성의 `FleetPower`에 `DT_Rules.ResistFleetFactor`를 곱한다(`CosmicConflict::ResistShareOf` — [0, 1] 밖은 1). 격차를 읽지 않는다. 서 있는 위기의 남은 시간이 늘어나는 하나뿐인 길이다(칙령과 지킴은 놓일 때만). 수도 규칙 행의 태그와 어느 `SystemHazardTicksAtMost`가 읽는 태그는 안 된다(스키마). 카드의 답에만, 틱당 원천이 아니다. 지금 싣는 행: 없음(`[B-4d2]`의 둘째 영압 카드)
+EnactEdict // 끝에 더한 것(B4 — 헤더 B4 2.2절): Key = `DT_Edicts` 행. 문맥 백성(카드의 답 — 다스리는 백성)이 그 칙령을 내린다: 하나뿐인 문 `CosmicEdicts::EnactBlockOf`가 None일 때만 `CosmicEdicts::Enact`로 그 칙령의 `EnactCost`를 낸다(선택의 `Cost`는 비어야 한다 — 스키마). 거절은 무동작(false — 답의 문 `CosmicPetitions::ChoiceGateOf`가 수를 뽑기 전에 먼저 거절한다). 줄을 내지 않는다(카드의 결과 줄이 말한다). 카드의 답에만 선다(`card_only`, `petition_` 행의 판정 없는 선택의 `OnSuccess`만, 그 선택에서 혼자이고 첫째 — 스키마·`Data.Integrity`). 틱당 원천이 아니다. 지금 싣는 행: 영압 카드 두 장(`petition_pressure_claim`의 `edict_vigil`, `petition_pressure_measured`의 `edict_against_silence` — B4 `[B-4d2]`)
+DelayHazard // 끝에 더한 것(B4 — 헤더 B4 2.5절, #127): Tag = `Hazard.*`(필수), Value = 틱(1~100의 정수). 하나뿐인 문 `CosmicConflict::ResistBlockOf`(문맥 백성·문맥 성계·Tag)가 None일 때만 그 성계의 `HazardTicksRemaining`에 Value를 더하고(`MAX_int32`에서 자른다) 그 백성의 `FleetPower`에 `DT_Rules.ResistFleetFactor`를 곱한다(`CosmicConflict::ResistShareOf` — [0, 1] 밖은 1). 격차를 읽지 않는다. 서 있는 위기의 남은 시간이 늘어나는 하나뿐인 길이다(칙령과 지킴은 놓일 때만). 수도 규칙 행의 태그와 어느 `SystemHazardTicksAtMost`가 읽는 태그는 안 된다(스키마). 카드의 답에만, 틱당 원천이 아니다. 지금 싣는 행: 둘째 영압 카드 `petition_pressure_measured`(`Hazard.Claim`, 50 — B4 `[B-4d2]`)
 
 // Phase 6+ 예약(끝에 추가): MultiplyResearch, PopulationLossMultiplier, StabilityFloor (§4.2 회귀·광신 행). 셋 다 틱당 효과다 — 더할 때 Apply의 틱당 원천 목록(§7.5)에도 넣는다
 
@@ -1165,7 +1165,7 @@ UPROPERTY(EditAnywhere) float AIHostilePacifismMax = 0.5f; // 평화 축(Ethics.
 UPROPERTY(EditAnywhere) float PlagueSpreadMultiplier = 1.f; // 역병의 번짐(위기 단계 ⓒ): ⓒ의 시작에 레인 이웃에 역병이 서 있는 정착된 성계의 역병 행 몫에 곱한다. 1 = 번짐 없음(표를 만들지 않는다), 0 이상·유한이 아니면 1. 데이터 8. 추첨 수는 그대로. 스키마 0 이상
 UPROPERTY(EditAnywhere) float AIHostileRelationTowardRuled = -0.3f; // 다스리는 백성을 향한 AI의 적대의 문만(헤더 B3 결정 21과 11절 항목 12 — 헤더의 노브 하나 대신 둘: 관계의 문과 전력의 문이 함께 막았다. AI끼리는 위 두 노브 그대로): 그 백성을 보는 눈 ≤ 이 값. 장치 값은 AIHostileRelation과 같다. 데이터 0.0. 스키마 −1~1
 UPROPERTY(EditAnywhere) float AIHostilePowerRatioTowardRuled = 1.5f; // 같은 문의 전력비: 그 AI의 FleetPower ≥ 이 값 × 다스리는 백성의 FleetPower. 장치 값은 AIHostilePowerRatio의 장치 값과 같다. 데이터 0.6. 스키마 0 이상
-UPROPERTY(EditAnywhere) float ResistFleetFactor = 1.f; // B4(헤더 B4 3.1절): 카드의 `DelayHazard`가 서 있는 위기의 시간을 살 때 남는 함대의 몫. 장치 값 1(데이터를 켜는 `[B-4d2]`가 잠정 0.5). 스키마 0~1, 밖은 1로 읽는다
+UPROPERTY(EditAnywhere) float ResistFleetFactor = 1.f; // B4(헤더 B4 3.1절): 카드의 `DelayHazard`가 서 있는 위기의 시간을 살 때 남는 함대의 몫. 장치 값 1, 데이터 0.5(`[B-4d2]`). 스키마 0~1, 밖은 1로 읽는다
 
 // 아직 코드에 없는 노브(끝에 더한다 — 처음 읽는 작업과 함께)
 
@@ -1212,7 +1212,7 @@ UPROPERTY(EditAnywhere) TMap<FGameplayTag, int32> HazardCountdownBonus; // Hazar
 UPROPERTY(EditAnywhere) float FleetGrowthMultiplier = 1.f; // B3: 지닌 백성의 함대가 자라는 몫에 곱한다 — 지닌 칙령의 값을 ActiveEdicts 차례로 곱한다(CosmicConflict::FleetGrowthMultiplierOf). 0보다 크고 유한할 때만 읽고 그 밖은 1. 스키마 0 이상과 행 규칙 gt 0(0이면 물려받은 칙령이 통치자의 함대를 첫 틱부터 0에 묶는다). 데이터: 전시 동원 1.5, 나머지 1
 
 UPROPERTY(EditAnywhere) float TreatyAcceptBonus = 0.f; // B3: 지닌 백성이 청하는 조약의 승낙 문턱(DT_Rules.TreatyAcceptRelation)을 이만큼 낮춘다 — 지닌 칙령의 합(CosmicDiplomacy::TreatyAcceptBonusOf, 0보다 크고 유한한 값만). 스키마 0~1. 데이터: 무역 자유화 0.2, 나머지 0. 정의 데이터라 두 열 모두 저장 변화가 없다. 칙령 창의 툴팁이 두 열을 한 줄씩 보인다(곱 1·보너스 0이면 줄 없음)
-UPROPERTY(EditAnywhere) float PressureDrainMultiplier = 1.f; // B4(헤더 B4 2.3절): 영압이 지닌 백성의 Stability를 깎는 몫에 곱한다 — 지닌 칙령의 곱(`CosmicEdicts::PressureDrainMultiplierOf`, `ActiveEdicts` 차례), 백성마다 한 번. 0보다 크고 유한할 때만 읽고 나머지는 1. 스키마 (0, 1]. 누르는 초월자의 틱당 효과에는 닿지 않는다. 정의 데이터라 저장 변화가 없다. 데이터: 모든 행 1(`[B-4d2]`의 `edict_against_silence`가 첫 행)
+UPROPERTY(EditAnywhere) float PressureDrainMultiplier = 1.f; // B4(헤더 B4 2.3절): 영압이 지닌 백성의 Stability를 깎는 몫에 곱한다 — 지닌 칙령의 곱(`CosmicEdicts::PressureDrainMultiplierOf`, `ActiveEdicts` 차례), 백성마다 한 번. 0보다 크고 유한할 때만 읽고 나머지는 1. 스키마 (0, 1]. 누르는 초월자의 틱당 효과에는 닿지 않는다. 정의 데이터라 저장 변화가 없다. 데이터: `edict_against_silence` 0.45, 나머지 행 1(`[B-4d2]`)
 
 // (B4 — 침묵의 금지와 함께) 영압의 소모에 곱하는 칸은 그 행과 함께 더한다
 

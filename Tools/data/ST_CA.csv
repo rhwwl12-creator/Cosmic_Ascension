@@ -360,7 +360,7 @@ Key,SourceString
 "Siege.Suffix.Above","(닿지 않음)"
 "Siege.Suffix.NonAggression","(불가침)"
 "Siege.Suffix.NotHostile","(적대 먼저)"
-"Guard.Suffix.NoFleet","(둘째 칸부터)"
+"Guard.Suffix.NoFleet","(칸 {0}부터)"
 "Guard.Moves","{System}|hpp(을,를) 지키던 함대가 이곳으로 온다."
 "Petition.OtherGone","그 백성"
 "Petition.FriendlyUpkeep","우호를 지키는 동안 영향력이 {1}마다 {0} 든다 — 우호의 자리 {2}/{3}. 칙령 창의 [백성]에서 중립으로 바꿀 수 있다."

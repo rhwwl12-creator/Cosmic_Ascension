@@ -1856,9 +1856,13 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 				UDataTable* Table = NewObject<UDataTable>(GetTransientPackage());
 				Table->RowStruct = FEncounterDef::StaticStruct();
 				Table->AddRow(FName(TEXT("petition_test")), Row);
-				if (const FEncounterDef* Contact = Game.FindEncounter(CosmicRows::PetitionFirstContact))
+				// The cards the code calls by name, as the game has them.
+				for (const FName Named : { CosmicRows::PetitionFirstContact, CosmicRows::PetitionPressureClaim, CosmicRows::PetitionPressureMeasured })
 				{
-					Table->AddRow(CosmicRows::PetitionFirstContact, *Contact);
+					if (const FEncounterDef* Card = Game.FindEncounter(Named))
+					{
+						Table->AddRow(Named, *Card);
+					}
 				}
 				return With(TEXT("DT_Encounters"), Table);
 			};
@@ -2151,7 +2155,11 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 	// SphereEventWeightStep x the largest sphere it can hold)) when above 1, the largest sphere being MaxInfluencedSystems or
 	// the one core NewGalaxy places for an InitialInfluencedSystems above 0, whichever is more: the factor stops at 3 for one
 	// transcendent and not across them, and no roster gives more. A loop of products, no Pow. The per-card DelayHazard counts
-	// once because such a card comes once for a claim: DelayShapeProblems below keeps the rows to that shape.
+	// once because such a card comes once for a claim: DelayShapeProblems below keeps the rows to that shape, and a new reign
+	// cannot bring the card again while the claim stands - DT_Rules.ThroneLockTicks (every throne is locked that long after a
+	// reign ends, CrownBlockOf) is at least the longest stand of every hazard a card can delay. A non-grace row of another
+	// trigger (Standing, Named) that resolves the tag counts as certain - it fires whenever its conditions hold, no share of
+	// a draw keeps the quarter (B4 [B-4d2] review).
 	auto TheodicyProblems = [](const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules)
 	{
 		static const FGameplayTag GraceTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Event.Grace")));
@@ -2188,12 +2196,18 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 			for (const FName EventName : Tables.GetEventRowNames())
 			{
 				const FCosmicEventDef* Event = Tables.FindEvent(EventName);
-				const bool bResolves = Event && Event->Trigger == ECosmicEventTrigger::Lottery && !Event->Category.MatchesTag(GraceTag) && Event->BaseWeight > 0.f
-					&& Event->Effects.ContainsByPredicate([&Tag](const FCosmicEffect& Effect)
-					{
-						return Effect.Type == EEffectType::ResolveHazard && (!Effect.Tag.IsValid() || Tag.MatchesTag(Effect.Tag));
-					});
-				Share += bResolves ? Event->BaseWeight * UpperFactorOf(Event->Category) * Chance : 0.0;
+				const bool bResolves = Event && !Event->Category.MatchesTag(GraceTag) && Event->Effects.ContainsByPredicate([&Tag](const FCosmicEffect& Effect)
+				{
+					return Effect.Type == EEffectType::ResolveHazard && (!Effect.Tag.IsValid() || Tag.MatchesTag(Effect.Tag));
+				});
+				if (bResolves && Event->Trigger != ECosmicEventTrigger::Lottery)
+				{
+					Share += 1.0;
+				}
+				else if (bResolves && Event->BaseWeight > 0.f)
+				{
+					Share += Event->BaseWeight * UpperFactorOf(Event->Category) * Chance;
+				}
 			}
 			if (!(Share > 0.0))
 			{
@@ -2206,6 +2220,7 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 				const int32* Bonus = Edict ? Edict->HazardCountdownBonus.Find(Tag) : nullptr;
 				Longest += (Bonus && *Bonus > 0) ? *Bonus : 0;
 			}
+			bool bCardDelays = false;
 			for (const FName CardName : Tables.GetEncounterRowNames())
 			{
 				const FEncounterDef* Card = Tables.FindEncounter(CardName);
@@ -2218,6 +2233,12 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 					}
 				}
 				Longest += static_cast<int64>(FMath::Min(Most, 100000.f));
+				bCardDelays |= Most > 0.f;
+			}
+			if (bCardDelays && static_cast<int64>(Rules.ThroneLockTicks) < Longest)
+			{
+				Problems.Add(FString::Printf(TEXT("DT_Hazards.%s: a card buys %s time, and ThroneLockTicks %d is below its longest stand (%lld ticks) - a new reign could bring the card again on a standing claim"),
+					*HazardName.ToString(), *Tag.ToString(), Rules.ThroneLockTicks, Longest));
 			}
 			const int64 Slots = (Longest + SlotTicks - 1) / SlotTicks;
 			double Stays = 1.0;
@@ -2339,6 +2360,8 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		struct FTheodicyBoard
 		{
 			float EaseWeight = 0.f;
+			// The easing row's trigger (a Standing one counts as certain).
+			ECosmicEventTrigger EaseTrigger = ECosmicEventTrigger::Lottery;
 			float CardDelay = 0.f;
 			bool bSecondBonus = false;
 			FGameplayTag Weighted;
@@ -2353,15 +2376,35 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 			int32 LeadingRoots = 0;
 			bool bEffectFirst = false;
 		};
+		// The board starts from the game's tables without B4's pressure data (the cards' DelayHazard and the vigil's row are
+		// the cases' own).
+		const FCosmicDataTables Unpressed = CosmicTests::WithoutPressure(Game);
+		bool bVoiceLeft = false;
+		bool bVoiceGone = true;
+		for (const FName Row : Game.Transcendents->GetRowNames())
+		{
+			const FTranscendentDef* With = Game.FindTranscendent(Row);
+			const FTranscendentDef* Without = Unpressed.FindTranscendent(Row);
+			bVoiceLeft |= With && !With->ClaimTemplates.IsEmpty();
+			bVoiceGone &= Without && Without->ClaimTemplates.IsEmpty();
+		}
+		TestTrue(TEXT("(the game's tables hold B4's pressure data: the two cards, the vigil's row, the seventh edict, a claim's voice)"),
+			Game.FindEncounter(CosmicRows::PetitionPressureClaim) && Game.FindEncounter(CosmicRows::PetitionPressureMeasured) && Game.FindEvent(CosmicRows::EventClaimEased)
+			&& Game.FindEdict(FName(TEXT("edict_against_silence"))) && bVoiceLeft);
+		TestTrue(TEXT("CosmicTests::WithoutPressure takes all of it away and keeps every transcendent row"),
+			!Unpressed.FindEncounter(CosmicRows::PetitionPressureClaim) && !Unpressed.FindEncounter(CosmicRows::PetitionPressureMeasured)
+			&& !Unpressed.FindEvent(CosmicRows::EventClaimEased) && !Unpressed.FindEdict(FName(TEXT("edict_against_silence"))) && bVoiceGone
+			&& Unpressed.Encounters->GetRowMap().Num() == Game.Encounters->GetRowMap().Num() - 2 && Unpressed.Events->GetRowMap().Num() == Game.Events->GetRowMap().Num() - 1
+			&& Unpressed.Edicts->GetRowMap().Num() == Game.Edicts->GetRowMap().Num() - 1);
 		auto BoardOf = [&](const FTheodicyBoard& Board)
 		{
-			FCosmicDataTables Tables = Game;
-			UDataTable* Events = CopyOf<FCosmicEventDef>(Game.Events);
+			FCosmicDataTables Tables = Unpressed;
+			UDataTable* Events = CopyOf<FCosmicEventDef>(Unpressed.Events);
 			if (Board.EaseWeight > 0.f)
 			{
 				FCosmicEventDef Ease;
 				Ease.Category = FGameplayTag::RequestGameplayTag(FName(TEXT("Event.Crisis.Claim")));
-				Ease.Trigger = ECosmicEventTrigger::Lottery;
+				Ease.Trigger = Board.EaseTrigger;
 				Ease.BaseWeight = Board.EaseWeight;
 				FCosmicEffect Resolve;
 				Resolve.Type = EEffectType::ResolveHazard;
@@ -2369,7 +2412,7 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 				Ease.Effects = { Resolve };
 				Events->AddRow(FName(TEXT("event_test_claim_eased")), Ease);
 			}
-			UDataTable* Cards = CopyOf<FEncounterDef>(Game.Encounters);
+			UDataTable* Cards = CopyOf<FEncounterDef>(Unpressed.Encounters);
 			if (Board.CardDelay > 0.f || !Board.VigilLabel.IsEmpty())
 			{
 				FEncounterDef Card;
@@ -2402,16 +2445,16 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 					Cards->AddRow(FName(*FString::Printf(TEXT("petition_test_lead_%d"), Root)), Leading);
 				}
 			}
-			UDataTable* Edicts = CopyOf<FEdictDef>(Game.Edicts);
+			UDataTable* Edicts = CopyOf<FEdictDef>(Unpressed.Edicts);
 			if (Board.bSecondBonus)
 			{
 				FEdictDef Second;
 				Second.HazardCountdownBonus.Add(ClaimTag, 100);
 				Edicts->AddRow(FName(TEXT("edict_test_claim_bonus")), Second);
 			}
-			UDataTable* Transcendents = CopyOf<FTranscendentDef>(Game.Transcendents);
+			UDataTable* Transcendents = CopyOf<FTranscendentDef>(Unpressed.Transcendents);
 			const FName Silence(TEXT("trans_silence"));
-			if (const FTranscendentDef* Source = Board.Weighted.IsValid() ? Game.FindTranscendent(Silence) : nullptr)
+			if (const FTranscendentDef* Source = Board.Weighted.IsValid() ? Unpressed.FindTranscendent(Silence) : nullptr)
 			{
 				FTranscendentDef Row = *Source;
 				Row.EventWeightModifiers.Add(Board.Weighted, Board.WeightOf);
@@ -2434,6 +2477,19 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		Eased.CardDelay = 50.f;
 		TestTrue(TEXT("A claim-easing row of weight 1.2 leaves a quarter of the claim's longest stand (300 + the vigil's 100 + the guard's 100 + a card's 50)"),
 			TheodicyProblems(BoardOf(Eased), *GameRules).IsEmpty());
+		// A Standing row that eases the claim fires whenever its conditions hold: however light, it takes the claim for certain.
+		FTheodicyBoard StandingEase = Eased;
+		StandingEase.EaseWeight = 0.1f;
+		StandingEase.EaseTrigger = ECosmicEventTrigger::Standing;
+		Expect(TEXT("a Standing claim-easing row of weight 0.1"), TheodicyProblems(BoardOf(StandingEase), *GameRules), { TEXT("crisis_claim"), TEXT("Hazard.Claim"), TEXT("quarter") });
+		// The card that buys the claim time comes once a reign: the throne lock outlasts the claim's longest stand (550).
+		{
+			FCosmicRulesDef ShortLock = *GameRules;
+			ShortLock.ThroneLockTicks = 549;
+			Expect(TEXT("a throne lock of 549 ticks under a card's DelayHazard"), TheodicyProblems(BoardOf(Eased), ShortLock), { TEXT("crisis_claim"), TEXT("ThroneLockTicks 549"), TEXT("550") });
+			ShortLock.ThroneLockTicks = 550;
+			TestTrue(TEXT("A throne lock of 550 ticks passes"), TheodicyProblems(BoardOf(Eased), ShortLock).IsEmpty());
+		}
 		FTheodicyBoard Heavier = Eased;
 		Heavier.EaseWeight = 1.3f;
 		Expect(TEXT("a claim-easing row of weight 1.3"), TheodicyProblems(BoardOf(Heavier), *GameRules), { TEXT("crisis_claim"), TEXT("Hazard.Claim"), TEXT("quarter") });

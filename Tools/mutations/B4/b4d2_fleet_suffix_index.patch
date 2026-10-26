@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicUILabels.h
++++ b/Source/Cosmic_Ascension/UI/CosmicUILabels.h
+@@ -70,7 +70,7 @@
+ 	inline FText FleetSuffix(const FCosmicRulesDef& Rules, EAscensionTier From)
+ 	{
+ 		const int32 At = CosmicConflict::FirstFleetRungOf(Rules, From);
+-		return At == INDEX_NONE ? FText::GetEmpty() : FText::Format(Label(TEXT("Guard.Suffix.NoFleet")), FText::AsNumber(At + 1));
++		return At == INDEX_NONE ? FText::GetEmpty() : FText::Format(Label(TEXT("Guard.Suffix.NoFleet")), FText::AsNumber(At));
+ 	}
+ 
+ 	// The String Table key of a population band's label (section 8.3), named after its enumerator and written out here (an

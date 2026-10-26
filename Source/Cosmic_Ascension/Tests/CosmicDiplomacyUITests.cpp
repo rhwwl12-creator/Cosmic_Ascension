@@ -45,6 +45,8 @@
 #include "Widgets/Input/SButton.h"
 #include "World/CosmicGameMode.h"
 
+#include <limits>
+
 namespace CosmicDiplomacyUITests
 {
 	using CosmicConflict::ECosmicSiegeBlock;
@@ -706,7 +708,24 @@ bool FCosmicUIPeoplesTabTest::RunTest(const FString& Parameters)
 		HUD->RefreshPanel();
 		UCosmicActionButton* Greyed = FleetButton(*Panel, UCosmicSystemPanelWidget::GuardAction);
 		TestTrue(TEXT("On the first rung [Guard here] is greyed"), Greyed && !Greyed->GetIsEnabled() && Panel->GetShownFleetBlock() == TOptional<ECosmicSiegeBlock>(ECosmicSiegeBlock::NoFleet));
-		TestTrue(TEXT("its short reason after the name"), Greyed && Words(Greyed->GetLabel()) == WithSuffix(TEXT("Guard.Here"), TEXT("Guard.Suffix.NoFleet")));
+		TestTrue(TEXT("its short reason after the name"), Greyed
+			&& Words(Greyed->GetLabel()) == Words(FText::Format(INVTEXT("{0}  {1}"), CosmicUI::Label(TEXT("Guard.Here")), CosmicUI::FleetSuffix(Sim->GetRules(), Civs[0].Tier))));
+		// The short words name the fleet's first rung as the edict window names an edict's (B4): the rules' first rung above 0.
+		{
+			const FString RungTwo = FText::Format(CosmicUI::Label(TEXT("Guard.Suffix.NoFleet")), FText::AsNumber(2)).ToString();
+			TestEqual(TEXT("(the board's fleet comes at the second rung)"), CosmicUI::FleetSuffix(Sim->GetRules(), Civs[0].Tier).ToString(), RungTwo);
+			TestTrue(TEXT("(and the words carry the rung as a number)"), RungTwo.Contains(TEXT("2")) && !RungTwo.Contains(TEXT("{0}")));
+			FCosmicRulesDef Later = Sim->GetRules();
+			Later.FleetPerSettledByTier = { 0.f, 0.f, -1.f, 0.5f };
+			TestEqual(TEXT("A fleet from the fourth rung: its suffix says the fourth (a negative value is no fleet)"), CosmicUI::FleetSuffix(Later, EAscensionTier::Tier1_Planetary).ToString(),
+				FText::Format(CosmicUI::Label(TEXT("Guard.Suffix.NoFleet")), FText::AsNumber(4)).ToString());
+			Later.FleetPerSettledByTier = { 0.f, std::numeric_limits<float>::quiet_NaN() };
+			TestTrue(TEXT("No rung with a fleet: no suffix"), CosmicUI::FleetSuffix(Later, EAscensionTier::Tier1_Planetary).IsEmpty());
+			Later.FleetPerSettledByTier = { 0.f, 1.f, 0.f, 1.f, 1.f };
+			TestEqual(TEXT("A fleet that skips the third rung: from the third the suffix says the fourth"), CosmicUI::FleetSuffix(Later, EAscensionTier::Tier3_Causal).ToString(),
+				FText::Format(CosmicUI::Label(TEXT("Guard.Suffix.NoFleet")), FText::AsNumber(4)).ToString());
+			TestEqual(TEXT("and from the first it says the second"), CosmicUI::FleetSuffix(Later, EAscensionTier::Tier1_Planetary).ToString(), RungTwo);
+		}
 		TestTrue(TEXT("saying there is no fleet yet"), Greyed && Words(Greyed->GetToolTipText()).StartsWith(Words(TEXT("Guard.Block.NoFleet"))));
 		Civs[0].Tier = EAscensionTier::Tier2_Stellar;
 		State->Tick = TickBefore;

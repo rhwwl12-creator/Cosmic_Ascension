@@ -317,7 +317,7 @@
 			"struct": "CosmicEventDef",
 			"prefixes": ["event_"],
 			"must_exist": true,
-			"required_rows": ["event_book_found", "event_grace_remnant"],
+			"required_rows": ["event_book_found", "event_grace_remnant", "event_claim_eased"],
 			"columns": {
 				"Category": {"kind": "tag", "root": "Event."},
 				"LogCategory": {"kind": "tag", "root": "Log."},
@@ -441,6 +441,11 @@
 					"why": "a transcendent's own line is first person: it waits for the third tier, and the viewers below it hear the row's sign (B4 header 3.8 - a door for the rows to come)",
 					"when": [{"col": "LogCategory", "is": "Log.Transcendent"}],
 					"then": [{"col": "MinTierToReveal", "ge": 3}, {"col": "SignRow", "set": true}]
+				},
+				{
+					"why": "the vigil's draw row tells a plain day, with no image of the night's vigil: the vigil is never told as the cause of the easing (B4 header 2.8, 3.9)",
+					"when": [{"row": "event_claim_eased"}],
+					"then": [{"col": "LogTemplates", "lacks_words": "vigil_image"}]
 				}
 			]
 		},
@@ -757,7 +762,7 @@
 			"struct": "EncounterDef",
 			"prefixes": ["enc_", "petition_"],
 			"must_exist": true,
-			"required_rows": ["petition_first_contact"],
+			"required_rows": ["petition_first_contact", "petition_pressure_claim", "petition_pressure_measured"],
 			"columns": {
 				"Title": {"kind": "text", "required": true, "slots": ["Civ", "System", "Hazard", "Rebel", "OtherCiv"], "no_digits": true, "forbidden": "verdict"},
 				"Body": {"kind": "text", "slots": ["Civ", "System", "Hazard", "Rebel", "OtherCiv"], "no_digits": true, "forbidden": "verdict"},

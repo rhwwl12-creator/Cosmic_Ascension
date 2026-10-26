@@ -34,6 +34,9 @@ namespace CosmicRows
 	// system; the row's own conditions keep it to once per run (section 4.5, 7.4).
 	inline const FName EventGraceRemnant(TEXT("event_grace_remnant"));
 
+	// DT_Events: the vigil's draw row (B4 header section 2.8). The balance commandlet counts the claims it eased.
+	inline const FName EventClaimEased(TEXT("event_claim_eased"));
+
 	// DT_LogTemplates: the first line of a run (section 2.4).
 	inline const FName LogFirstLife(TEXT("log_first_life"));
 
@@ -84,6 +87,11 @@ namespace CosmicRows
 	// DT_Encounters: the first contact card (B3 header section 2.9). NoteMet writes Knowing.PendingContactCivID at the
 	// first meeting of the run while this row exists; the end of the knowing stage puts it after a Standing card that came to hold in the tick, before the periodic slot, while no petition waits.
 	inline const FName PetitionFirstContact(TEXT("petition_first_contact"));
+
+	// DT_Encounters: the two pressure cards (B4 header section 3.3) - the first a Standing row on a claim from tick 1,800,
+	// the second put by its discernment. The balance commandlet counts them; the policy knows them by their effects.
+	inline const FName PetitionPressureClaim(TEXT("petition_pressure_claim"));
+	inline const FName PetitionPressureMeasured(TEXT("petition_pressure_measured"));
 
 	// DT_LogTemplates: the meeting lines (section 7.4). NoteMet tells the first for the first meeting of the run, the
 	// second for every later one.

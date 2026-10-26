@@ -1,0 +1,11 @@
+--- a/Tools/data/DT_Events.json
++++ b/Tools/data/DT_Events.json
+@@ -396,7 +396,7 @@
+ 				"Value": 0.0
+ 			}
+ 		],
+-		"BaseWeight": 1.2,
++		"BaseWeight": 1.3,
+ 		"CooldownTicks": 0,
+ 		"Effects": [
+ 			{

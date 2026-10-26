@@ -45,6 +45,12 @@ namespace CosmicConflictImpl
 		return false;
 	}
 
+	// Whether a rung's FleetPerSettledByTier value gives a fleet: above 0 and finite (FleetCapOf, FirstFleetRungOf).
+	bool GivesFleet(float PerSettled)
+	{
+		return PerSettled > 0.f && PerSettled <= TNumericLimits<float>::Max();
+	}
+
 	int32 TierGap(EAscensionTier Above, EAscensionTier Below)
 	{
 		return FMath::Max(0, static_cast<int32>(Above) - static_cast<int32>(Below));
@@ -89,11 +95,23 @@ float CosmicConflict::FleetCapOf(const FGalaxyState& State, const FCosmicStateIn
 	}
 	const int32 At = static_cast<int32>(State.Civs[CivIndex].Tier);
 	const float PerSettled = Rules.FleetPerSettledByTier.IsValidIndex(At) ? Rules.FleetPerSettledByTier[At] : 0.f;
-	if (!(PerSettled > 0.f && PerSettled <= TNumericLimits<float>::Max()))
+	if (!CosmicConflictImpl::GivesFleet(PerSettled))
 	{
 		return 0.f;
 	}
 	return PerSettled * static_cast<float>(SettledCountOf(State, Index, CivIndex));
+}
+
+int32 CosmicConflict::FirstFleetRungOf(const FCosmicRulesDef& Rules, EAscensionTier From)
+{
+	for (int32 At = FMath::Max(0, static_cast<int32>(From)); At < Rules.FleetPerSettledByTier.Num(); ++At)
+	{
+		if (CosmicConflictImpl::GivesFleet(Rules.FleetPerSettledByTier[At]))
+		{
+			return At;
+		}
+	}
+	return INDEX_NONE;
 }
 
 float CosmicConflict::FleetGrowthMultiplierOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables)

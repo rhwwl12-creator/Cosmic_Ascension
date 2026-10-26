@@ -100,4 +100,4 @@
 | `PlagueSpreadMultiplier` | `8.0` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `AIHostileRelationTowardRuled` | `0.0` | number | `{"min": -1, "max": 1}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `AIHostilePowerRatioTowardRuled` | `0.6` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
-| `ResistFleetFactor` | `1.0` | number | `{"min": 0, "max": 1}` | Sim/CosmicConflict.cpp | 읽힘 |
+| `ResistFleetFactor` | `0.5` | number | `{"min": 0, "max": 1}` | Sim/CosmicConflict.cpp | 읽힘 |

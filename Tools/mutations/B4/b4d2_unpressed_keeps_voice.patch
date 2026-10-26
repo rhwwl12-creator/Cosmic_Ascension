@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+@@ -237,7 +237,6 @@
+ 		{
+ 			for (const TPair<FName, uint8*>& Row : Transcendents->GetRowMap())
+ 			{
+-				reinterpret_cast<FTranscendentDef*>(Row.Value)->ClaimTemplates.Reset();
+ 			}
+ 			Tables.Transcendents = Transcendents;
+ 		}

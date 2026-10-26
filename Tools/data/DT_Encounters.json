@@ -1497,5 +1497,195 @@
 		"Trigger": "Named",
 		"Subject": "Civilization",
 		"VoiceBodies": []
+	},
+	{
+		"Name": "petition_pressure_claim",
+		"Title": "{System} 위의 그늘",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "SystemHasHazard",
+				"Tag": "Hazard.Claim",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "GalaxyTickAtLeast",
+				"Tag": "",
+				"Key": "None",
+				"Value": 1800.0
+			}
+		],
+		"BaseWeight": 4.0,
+		"Choices": [
+			{
+				"Label": "밤샘·절식을 내린다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "EnactEdict",
+						"Tag": "",
+						"Key": "edict_vigil",
+						"Value": 0.0,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 사람들이 밤을 새워 지키고 먹을 것을 줄이기 시작했다. {System} 위의 그늘은 그대로였다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "까닭을 살피게 한다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 200.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 학자들이 {System}|hpp(으로,로) 떠났다. 그들이 보낸 첫 글은 짧았다.",
+				"FailureText": "",
+				"NextEncounter": "petition_pressure_measured"
+			},
+			{
+				"Label": "지켜본다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "{Civ}|hpp(은,는) 지켜보기로 했다. {System} 위의 그늘은 그대로였다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Standing",
+		"Subject": "SettledSystem",
+		"VoiceBodies": [
+			"{System} 위에 그늘이 졌다. 의회는 학자들을 보내 그 까닭을 살피자고 청했다.",
+			"{System} 위에 그늘이 졌다. 회중의 장로들은 밤을 새워 지키며 금식하자고 청했다."
+		]
+	},
+	{
+		"Name": "petition_pressure_measured",
+		"Title": "{System}에서 온 글",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "SystemHasHazard",
+				"Tag": "Hazard.Claim",
+				"Key": "None",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 0.0,
+		"Choices": [
+			{
+				"Label": "저녁 안부를 내린다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "EnactEdict",
+						"Tag": "",
+						"Key": "edict_against_silence",
+						"Value": 0.0,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 사람들이 저녁마다 서로의 안부를 묻기 시작했다. {System} 위의 그늘은 그대로였다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "함대를 보낸다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "DelayHazard",
+						"Tag": "Hazard.Claim",
+						"Key": "None",
+						"Value": 50.0,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 함대가 {System} 하늘에서 힘을 쏟았다. 맞힐 것은 찾지 못했지만 그사이 시간을 벌었다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "더 지켜본다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 학자들은 {System}에 머물며 계속 지켜보았다. 그곳의 그늘은 그대로였다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Named",
+		"Subject": "SettledSystem",
+		"VoiceBodies": [
+			"학자들은 {System}|hpp(이,가) 쉬는 것처럼 보이지만 아무것도 다시 자라지 않는다고 적어 보냈다. 의회는 함대를 보내 할 수 있는 일부터 하자고 청했다.",
+			"학자들은 {System}|hpp(이,가) 쉬는 것처럼 보이지만 아무것도 다시 자라지 않는다고 적어 보냈다. 회중의 장로들은 그것이 쉼이 아니라 쉼의 흉내라며 저녁마다 서로를 찾아가 깨우자고 청했다."
+		]
 	}
 ]

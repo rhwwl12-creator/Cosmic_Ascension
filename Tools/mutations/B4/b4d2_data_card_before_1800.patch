@@ -1,0 +1,11 @@
+--- a/Tools/data/DT_Encounters.json
++++ b/Tools/data/DT_Encounters.json
+@@ -1519,7 +1519,7 @@
+ 				"Type": "GalaxyTickAtLeast",
+ 				"Tag": "",
+ 				"Key": "None",
+-				"Value": 1800.0
++				"Value": 1000.0
+ 			}
+ 		],
+ 		"BaseWeight": 1.0,

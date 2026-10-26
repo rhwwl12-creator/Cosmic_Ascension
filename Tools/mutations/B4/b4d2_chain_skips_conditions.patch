@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -532,7 +532,7 @@
+ 			const int32 NextCivIndex = bWandererCard ? NextVessel.CivIndex : CivIndex;
+ 			const int32 NextSystemIndex = bWandererCard ? NextVessel.SystemIndex : CosmicPetitions::SubjectOf(State, Index, CivIndex, Next->Subject, SystemID);
+ 			const bool bHasSubject = Next->Subject == ECosmicEventSubject::Civilization || NextSystemIndex != INDEX_NONE;
+-			if (bHasSubject && CosmicPetitions::Holds(State, Index, Tables, Sim->GetRules(), Choice.NextEncounter, *Next, NextCivIndex, NextSystemIndex))
++			if (bHasSubject)
+ 			{
+ 				State.Knowing.PendingPetitionRow = Choice.NextEncounter;
+ 				State.Knowing.PendingPetitionSystemID = CosmicPetitions::IsAboutPlace(*Next) && State.Systems.IsValidIndex(NextSystemIndex)

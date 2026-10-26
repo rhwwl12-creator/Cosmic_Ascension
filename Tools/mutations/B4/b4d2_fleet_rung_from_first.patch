@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -104,7 +104,7 @@
+ 
+ int32 CosmicConflict::FirstFleetRungOf(const FCosmicRulesDef& Rules, EAscensionTier From)
+ {
+-	for (int32 At = FMath::Max(0, static_cast<int32>(From)); At < Rules.FleetPerSettledByTier.Num(); ++At)
++	for (int32 At = 0; At < Rules.FleetPerSettledByTier.Num(); ++At)
+ 	{
+ 		if (CosmicConflictImpl::GivesFleet(Rules.FleetPerSettledByTier[At]))
+ 		{

@@ -1,0 +1,11 @@
+--- a/Tools/data/DT_Encounters.json
++++ b/Tools/data/DT_Encounters.json
+@@ -1653,7 +1653,7 @@
+ 						"Type": "DelayHazard",
+ 						"Tag": "Hazard.Claim",
+ 						"Key": "None",
+-						"Value": 50.0,
++						"Value": 40.0,
+ 						"DurationTicks": 0
+ 					}
+ 				],

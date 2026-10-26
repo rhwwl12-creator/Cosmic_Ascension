@@ -1,0 +1,15 @@
+--- a/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
++++ b/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
+@@ -2200,11 +2200,7 @@
+ 				{
+ 					return Effect.Type == EEffectType::ResolveHazard && (!Effect.Tag.IsValid() || Tag.MatchesTag(Effect.Tag));
+ 				});
+-				if (bResolves && Event->Trigger != ECosmicEventTrigger::Lottery)
+-				{
+-					Share += 1.0;
+-				}
+-				else if (bResolves && Event->BaseWeight > 0.f)
++				if (bResolves && Event->Trigger == ECosmicEventTrigger::Lottery && Event->BaseWeight > 0.f)
+ 				{
+ 					Share += Event->BaseWeight * UpperFactorOf(Event->Category) * Chance;
+ 				}

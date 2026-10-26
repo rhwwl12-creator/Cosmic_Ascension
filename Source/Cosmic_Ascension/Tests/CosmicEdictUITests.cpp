@@ -408,10 +408,16 @@ bool FCosmicUIEdictWindowTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("[Close] closes the window"), Window->IsOpen() || Shown(Window));
 	EdictButton->Press();
 
-	// The rows: the first rung's (the second rung's row stands not), lexical; the command's own gate on each.
+	// The rows: the first rung's (no row of a higher rung stands - the test's and the game's seventh, B4), lexical; the
+	// command's own gate on each.
 	TArray<FName> Expected = Tables.GetEdictRowNames();
-	Expected.Remove(High);
-	TestTrue(TEXT("The window lists the first rung's edicts in lexical order"), Window->GetShownRows() == Expected && Expected.Num() == 7);
+	Expected.RemoveAll([&Tables](FName Row)
+	{
+		const FEdictDef* Def = Tables.FindEdict(Row);
+		return !Def || Def->RequiredTier != EAscensionTier::Tier1_Planetary;
+	});
+	TestTrue(TEXT("(the first rung's rows: the game's six and the test's bound one)"), Expected.Num() == 7 && !Expected.Contains(High));
+	TestTrue(TEXT("The window lists the first rung's edicts in lexical order"), Window->GetShownRows() == Expected);
 	TestTrue(TEXT("Mobilization's row says it was inherited"), Shown(Window->GetRowMark(Mobilization)));
 	TestEqual(TEXT("and offers its revocation"), Words(Window->GetRowButton(Mobilization)->GetLabel()), Words(TEXT("Edict.Revoke")));
 	TestTrue(TEXT("enabled"), Window->GetRowButton(Mobilization)->GetIsEnabled());
@@ -487,6 +493,8 @@ bool FCosmicUIEdictWindowTest::RunTest(const FString& Parameters)
 	Civ->Tier = EAscensionTier::Tier2_Stellar;
 	Window->Refresh();
 	TestTrue(TEXT("On the second rung its row stands"), Window->GetShownRows().Contains(High));
+	// The game's seventh edict (B4 - its rung is the second) stands at the top: its row name comes first.
+	TestTrue(TEXT("and the seventh edict heads the list"), !Window->GetShownRows().IsEmpty() && Window->GetShownRows()[0] == FName(TEXT("edict_against_silence")));
 	Civ->Tier = EAscensionTier::Tier1_Planetary;
 	Window->Refresh();
 	TestFalse(TEXT("back on the first, it goes"), Window->GetShownRows().Contains(High));

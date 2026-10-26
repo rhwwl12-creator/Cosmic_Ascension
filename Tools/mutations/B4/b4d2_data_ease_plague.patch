@@ -1,0 +1,11 @@
+--- a/Tools/data/DT_Events.json
++++ b/Tools/data/DT_Events.json
+@@ -401,7 +401,7 @@
+ 		"Effects": [
+ 			{
+ 				"Type": "ResolveHazard",
+-				"Tag": "Hazard.Claim",
++				"Tag": "Hazard.Plague",
+ 				"Key": "None",
+ 				"Value": 0.0,
+ 				"DurationTicks": 0

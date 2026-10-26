@@ -2,6 +2,8 @@
 
 Each patch breaks one new assertion once, as `docs/40_DEV_GUIDE.md` asks of every new test: apply it (`git apply <patch>`),
 build, run the named test and see it fail, then revert (`git apply -R <patch>`). The patch name says which test it breaks.
+A patch of `Tools/data` (the `b4d2_data_` ones) needs the assets rebuilt by `Tools/make_data_tables.py` instead of a build,
+after the apply and again after the revert.
 Kept from milestone B on (B1); the earlier milestones ran their mutations from scripts and recorded them in the commit
 messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 
@@ -382,3 +384,28 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B4/` | `b4d1_schema_first_person_forms_differ.patch` — the lure's words and the claim lines' words differ | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4d1_schema_verdict_without_soul_has_soul.patch` — verdict_without_soul keeps '영혼' | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4d1_schema_singing_star_by_the_hedge.patch` — a text holds the singing star and the sanctuary's hedge | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4d2_unpressed_keeps_ease.patch` — CosmicTests::WithoutPressure keeps the vigil's draw row | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4d2_unpressed_keeps_cards.patch` — CosmicTests::WithoutPressure keeps the measured card | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4d2_unpressed_keeps_edict.patch` — CosmicTests::WithoutPressure keeps the seventh edict | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4d2_unpressed_keeps_voice.patch` — CosmicTests::WithoutPressure keeps the claim's first-person lines | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4d2_unpressed_drops_more.patch` — CosmicTests::WithoutPressure takes the plague's repentance row away too | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4d2_chain_skips_conditions.patch` — a chain puts its next card without asking the card's conditions | `Cosmic_Ascension.Sim.PressureChain` |
+| `B4/` | `b4d2_data_card_before_1800.patch` — (data) the claim card comes from tick 1,000 | `Cosmic_Ascension.Sim.PressureChain` |
+| `B4/` | `b4d2_data_discern_cheaper.patch` — (data) the discernment costs 150 Insight | `Cosmic_Ascension.Sim.PressureChain` |
+| `B4/` | `b4d2_data_delay_40.patch` — (data) the fleet buys the claim 40 ticks | `Cosmic_Ascension.Sim.PressureChain` |
+| `B4/` | `b4d2_data_discern_no_chain.patch` — (data) the discernment puts no second card | `Cosmic_Ascension.Sim.PressureChain` |
+| `B4/` | `b4d2_data_resist_factor.patch` — (data) the fleet's time spends 0.6 of the fleet | `Cosmic_Ascension.Sim.PressureChain` |
+| `B4/` | `b4d2_data_silence_first_rung.patch` — (data) the seventh edict stands from the first rung | `Cosmic_Ascension.UI.EdictWindow` |
+| `B4/` | `b4d2_data_silence_third_rung.patch` — (data) the seventh edict stands from the third rung | `Cosmic_Ascension.UI.EdictWindow` |
+| `B4/` | `b4d2_data_ease_no_vigil.patch` — (data) the vigil's draw row eases a claim with no vigil held | `Cosmic_Ascension.Sim.VigilEase` |
+| `B4/` | `b4d2_data_ease_plague.patch` — (data) the vigil's draw row resolves a plague | `Cosmic_Ascension.Sim.VigilEase` |
+| `B4/` | `b4d2_data_ease_heavier.patch` — (data) the vigil's draw row weighs 1.3 (over the quarter of the theodicy) | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4d2_fleet_suffix_index.patch` — the fleet's suffix names the rung's index, not its number | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B4/` | `b4d2_fleet_suffix_first_entry.patch` — a rung gives a fleet whenever its value is not 0 (a negative one too) | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B4/` | `b4d2_fleet_suffix_always.patch` — the fleet's suffix names the second rung when no rung has a fleet | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B4/` | `b4d2_fleet_rung_from_first.patch` — the fleet's first rung is looked for from the first rung, not from the people's own | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B4/` | `b4d2_theodicy_standing_ignored.patch` — the theodicy's count leaves out a Standing row that resolves the hazard | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4d2_theodicy_no_lock.patch` — the theodicy never asks the throne lock to outlast a delayed hazard | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4d2_theodicy_lock_strict.patch` — a throne lock as long as the longest stand is refused | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4d2_card_held_no_mark.patch` — a held edict's choice on a card carries no held mark | `Cosmic_Ascension.UI.PetitionCard` |
+| `B4/` | `b4d2_card_mark_any_edict_block.patch` — every edict-gated choice on a card carries the held mark | `Cosmic_Ascension.UI.PetitionCard` |

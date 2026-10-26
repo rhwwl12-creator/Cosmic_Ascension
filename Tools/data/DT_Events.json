@@ -375,5 +375,45 @@
 		"Severity": 1,
 		"MinTierToReveal": 0,
 		"SignRow": "None"
+	},
+	{
+		"Name": "event_claim_eased",
+		"Category": "Event.Crisis.Claim",
+		"LogCategory": "Log.Crisis",
+		"Trigger": "Lottery",
+		"Subject": "SettledSystem",
+		"Conditions": [
+			{
+				"Type": "SystemHasHazard",
+				"Tag": "Hazard.Claim",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivHasEdict",
+				"Tag": "",
+				"Key": "edict_vigil",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 1.2,
+		"CooldownTicks": 0,
+		"Effects": [
+			{
+				"Type": "ResolveHazard",
+				"Tag": "Hazard.Claim",
+				"Key": "None",
+				"Value": 0.0,
+				"DurationTicks": 0
+			}
+		],
+		"LogTemplates": [
+			"{System}의 장터에서 그날도 장사꾼들이 좌판을 폈다. 손님들은 물건을 골라 갔다.",
+			"{System}의 항구에서 일꾼들이 화물을 창고로 옮겼다. 창고지기들은 목록을 맞추느라 바빴다.",
+			"{System}의 궤도 열차가 사람들을 태우고 달렸다. 승객들은 늘 앉던 자리에 앉았다."
+		],
+		"Severity": 1,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
 	}
 ]

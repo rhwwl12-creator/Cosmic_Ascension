@@ -13,6 +13,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Core/CosmicTypes.h"
 
 struct FCivilizationState;
 struct FCosmicDataTables;
@@ -81,6 +82,11 @@ namespace CosmicConflict
 	/** DT_Rules.FleetPerSettledByTier[Tier] x SettledCountOf (an index the array lacks, or a value that is not above 0 and
 	 * finite, reads as 0). */
 	COSMIC_ASCENSION_API float FleetCapOf(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex, const FCosmicRulesDef& Rules);
+
+	/** The first rung at or above From whose DT_Rules.FleetPerSettledByTier gives a fleet - FleetCapOf's own test (above 0 and
+	 * finite) -, as an EAscensionTier index; INDEX_NONE when none does. The fleet's short words name it (CosmicUI::FleetSuffix -
+	 * B4 [B-4d2]: the UI keeps no copy of the rule). */
+	COSMIC_ASCENSION_API int32 FirstFleetRungOf(const FCosmicRulesDef& Rules, EAscensionTier From);
 
 	/** The product, in ActiveEdicts order, of the held edicts' FleetGrowthMultiplier (a factor that is not above 0 and
 	 * finite reads as 1 - the schema keeps it above 0). */

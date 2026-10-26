@@ -1,0 +1,11 @@
+--- a/Tools/data/DT_Encounters.json
++++ b/Tools/data/DT_Encounters.json
+@@ -1564,7 +1564,7 @@
+ 				"OnFailure": [],
+ 				"SuccessText": "{Civ}의 학자들이 {System}|hpp(으로,로) 떠났다. 그들이 보낸 첫 글은 짧았다.",
+ 				"FailureText": "",
+-				"NextEncounter": "petition_pressure_measured"
++				"NextEncounter": "None"
+ 			},
+ 			{
+ 				"Label": "지켜본다",

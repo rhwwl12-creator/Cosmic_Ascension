@@ -137,8 +137,8 @@ namespace CosmicPetitionCardImpl
 	}
 
 	// The short words after a greyed choice's label, as the edict window and the panel show them: an edict's
-	// (UCosmicEdictWidget::SuffixOf - none for one held), a fleet with no cap yet (Guard.Suffix.NoFleet); none otherwise.
-	FText GateSuffixOf(const FCosmicChoiceGate& Gate, const FEncounterChoice& Choice, const FCosmicDataTables& Tables)
+	// (UCosmicEdictWidget::SuffixOf - none for one held), a fleet with no cap yet (CosmicUI::FleetSuffix); none otherwise.
+	FText GateSuffixOf(const FCosmicChoiceGate& Gate, const FEncounterChoice& Choice, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, EAscensionTier Tier)
 	{
 		const FCosmicEffect* Refused = RefusedEffectOf(Gate, Choice);
 		if (Gate.Kind == ECosmicChoiceGateKind::Edict)
@@ -147,7 +147,7 @@ namespace CosmicPetitionCardImpl
 		}
 		if (Gate.Kind == ECosmicChoiceGateKind::Resist && Gate.Resist == CosmicConflict::ECosmicResistBlock::NoFleet)
 		{
-			return CosmicUI::Label(TEXT("Guard.Suffix.NoFleet"));
+			return CosmicUI::FleetSuffix(Rules, Tier);
 		}
 		return FText::GetEmpty();
 	}
@@ -369,10 +369,14 @@ void UCosmicPetitionCardWidget::Refresh()
 		{
 			Button->SetToolTipText(Tip);
 		}
-		// The gate's short words after the label of a choice it greys (the edict window's and the panel's form).
-		const FText Suffix = (bPayable && !Gate.IsOpen()) ? GateSuffixOf(Gate, Choice, Tables) : FText::GetEmpty();
+		// The gate's short words after the label of a choice it greys (the edict window's and the panel's form); an edict the
+		// people already holds carries the held mark in front instead, as a stance in force does on the peoples' page (B4
+		// [B-4d2] - the grey then reads as kept, not as shut).
+		const FText Suffix = (bPayable && !Gate.IsOpen()) ? GateSuffixOf(Gate, Choice, Tables, Rules, State.Civs[CivIndex].Tier) : FText::GetEmpty();
 		const FText Base = ChoiceLabels.IsValidIndex(At) ? ChoiceLabels[At] : Button->GetLabel();
-		const FText ButtonLabel = Suffix.IsEmpty() ? Base : FText::Format(INVTEXT("{0}  {1}"), Base, Suffix);
+		const bool bHeld = bPayable && Gate.Kind == ECosmicChoiceGateKind::Edict && Gate.Edict == CosmicEdicts::ECosmicEdictBlock::Held;
+		const FText ButtonLabel = bHeld ? FText::Format(INVTEXT("{0} {1}"), CosmicUI::Label(TEXT("Edict.Mark")), Base)
+			: (Suffix.IsEmpty() ? Base : FText::Format(INVTEXT("{0}  {1}"), Base, Suffix));
 		if (!SameWords(Button->GetLabel(), ButtonLabel))
 		{
 			Button->Setup(ChoiceAction, static_cast<float>(At), ButtonLabel);

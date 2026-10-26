@@ -90,6 +90,27 @@ namespace CosmicRulerPolicyImpl
 		});
 	}
 
+	// The word of a refusal a pressure card's choice met when the card came (the commandlet's pressure line).
+	FString GreyedWordOf(const FCosmicChoiceGate& Gate)
+	{
+		if (Gate.Kind == ECosmicChoiceGateKind::Stance)
+		{
+			return TEXT("stance");
+		}
+		if (Gate.Kind == ECosmicChoiceGateKind::Edict)
+		{
+			return Gate.Edict == CosmicEdicts::ECosmicEdictBlock::Held ? TEXT("edict_held") : Gate.Edict == CosmicEdicts::ECosmicEdictBlock::Tier ? TEXT("edict_tier")
+				: Gate.Edict == CosmicEdicts::ECosmicEdictBlock::Slots ? TEXT("edict_slots") : Gate.Edict == CosmicEdicts::ECosmicEdictBlock::Cost ? TEXT("edict_cost")
+				: TEXT("edict_other");
+		}
+		if (Gate.Kind == ECosmicChoiceGateKind::Resist)
+		{
+			return Gate.Resist == CosmicConflict::ECosmicResistBlock::NoFleet ? TEXT("fleet_none") : Gate.Resist == CosmicConflict::ECosmicResistBlock::Spent ? TEXT("fleet_spent")
+				: TEXT("resist_other");
+		}
+		return FString();
+	}
+
 	// Whether the project Row answers the hazard of SystemIndex in a way the pressure policies leave alone (ProjectChoicesOf).
 	bool IsLeftAlone(const FCosmicRulerPolicy& Policy, const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
 		const FCosmicRulesDef& Rules, int32 SystemIndex, FName Row)
@@ -331,15 +352,53 @@ int32 CosmicRulerPolicy::ChoiceOf(const FGalaxyState& State, const FCosmicStateI
 	return INDEX_NONE;
 }
 
+namespace CosmicRulerPolicyImpl
+{
+	// A pressure card seen to come at a boundary (B4 - measurement only): its counts and the refusals its choices meet.
+	void NotePressureCard(UGalaxySimulationSubsystem& Sim, FCosmicRulerPolicyCounts& Counts)
+	{
+		const FGalaxyState& State = Sim.GetState();
+		const FName Card = State.Knowing.PendingPetitionRow;
+		const FEncounterDef* Row = Card.IsNone() ? nullptr : Sim.GetTables().FindEncounter(Card);
+		const int32 Ruled = Sim.GetStateIndex().FindCiv(State, State.Player.RuledCivID);
+		if (!Row || !IsPressureCard(*Row) || !State.Civs.IsValidIndex(Ruled))
+		{
+			return;
+		}
+		++Counts.PressureCards;
+		Counts.PressureCardsByEnd += Counts.bEnded ? 0 : 1;
+		Counts.FirstPressureCardTick = Counts.FirstPressureCardTick < 0 ? State.Tick : Counts.FirstPressureCardTick;
+		Counts.ClaimCards += Card == CosmicRows::PetitionPressureClaim ? 1 : 0;
+		Counts.MeasuredCards += Card == CosmicRows::PetitionPressureMeasured ? 1 : 0;
+		++Counts.PressureCardsByTier[FMath::Clamp(static_cast<int32>(State.Civs[Ruled].Tier), 0, 2)];
+		const int32 SystemIndex = CosmicPetitions::SubjectOf(State, Sim.GetStateIndex(), Ruled, Row->Subject, State.Knowing.PendingPetitionSystemID);
+		for (const FEncounterChoice& Choice : Row->Choices)
+		{
+			const FString Word = !CosmicMegaprojects::CanPay(State.Civs[Ruled].Stockpile, CosmicPetitions::CostOf(Choice)) ? FString(TEXT("stockpile"))
+				: GreyedWordOf(CosmicPetitions::ChoiceGateOf(State, Sim.GetStateIndex(), Sim.GetTables(), Sim.GetRules(), Ruled, SystemIndex, NAME_None, Choice));
+			if (!Word.IsEmpty())
+			{
+				++Counts.PressureGreyed.FindOrAdd(Word);
+			}
+		}
+	}
+}
+
 void CosmicRulerPolicy::Act(const FCosmicRulerPolicy& Policy, UGalaxySimulationSubsystem& Sim, UPlayerRoleSubsystem& Role, FName CardBefore,
 	FCosmicRulerPolicyCounts& Counts)
 {
+	using namespace CosmicRulerPolicyImpl;
 	const FGalaxyState& State = Sim.GetState();
 	Counts.bEnded = Counts.bEnded || CosmicEndings::ProvisionalEndOf(State, Sim.GetRules()) != ECosmicProvisionalEnd::None;
 
 	// The ruler's cards: a wanderer's card after a deposition is not one (B1 - the ruler line stays the ruler's).
 	const bool bRuler = State.Player.Role == EPlayerRole::Ruler;
-	Counts.CardsCome += (bRuler && !State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != CardBefore) ? 1 : 0;
+	const bool bCame = bRuler && !State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != CardBefore;
+	Counts.CardsCome += bCame ? 1 : 0;
+	if (bCame)
+	{
+		NotePressureCard(Sim, Counts);
+	}
 	for (int32 Guard = 0; Policy.bAnswer && Guard < 8 && !State.Knowing.PendingPetitionRow.IsNone(); ++Guard)
 	{
 		const FName Card = State.Knowing.PendingPetitionRow;
@@ -349,10 +408,28 @@ void CosmicRulerPolicy::Act(const FCosmicRulerPolicy& Policy, UGalaxySimulationS
 		{
 			break;
 		}
+		const int32 RuledBefore = Sim.GetStateIndex().FindCiv(State, State.Player.RuledCivID);
+		const float InsightBefore = State.Civs.IsValidIndex(RuledBefore) ? State.Civs[RuledBefore].Stockpile.Insight : 0.f;
 		const FCosmicPetitionAnswer Taken = Role.AnswerPetition(Choice);
 		if (Taken.Outcome == ECosmicPetitionOutcome::Refused)
 		{
 			break;
+		}
+		// B4 (measurement): the kind of answer a pressure card took.
+		if (Taken.Outcome == ECosmicPetitionOutcome::Succeeded && IsPressureCard(*Row))
+		{
+			const EPressureKind Kind = KindOf(Row->Choices[Choice], VigilRowOf(Sim.GetTables()));
+			const int32 KindAt = Kind == EPressureKind::Vigil ? 0 : (Kind == EPressureKind::Discern ? 1 : (Kind == EPressureKind::Watch ? 2
+				: (Kind == EPressureKind::Edict ? 3 : (Kind == EPressureKind::Resist ? 4 : INDEX_NONE))));
+			if (KindAt != INDEX_NONE)
+			{
+				++Counts.PressureAnswers[KindAt];
+				Counts.PressureAnswersByEnd += Counts.bEnded ? 0 : 1;
+			}
+			if (Kind == EPressureKind::Discern)
+			{
+				Counts.DiscernInsightMin = Counts.DiscernInsightMin < 0.f ? InsightBefore : FMath::Min(Counts.DiscernInsightMin, InsightBefore);
+			}
 		}
 		// B4: the edicts a pressure card's accepted answer enacted (decision 9 - MakeRoomFor keeps them while a claim stands).
 		const int32 Ruled = Sim.GetStateIndex().FindCiv(State, State.Player.RuledCivID);
@@ -361,10 +438,16 @@ void CosmicRulerPolicy::Act(const FCosmicRulerPolicy& Policy, UGalaxySimulationS
 			if (Effect.Type == EEffectType::EnactEdict && State.Civs.IsValidIndex(Ruled) && State.Civs[Ruled].ActiveEdicts.Contains(Effect.Key))
 			{
 				Counts.CardEdicts.AddUnique(Effect.Key);
+				++Counts.CardEnactments.FindOrAdd(Effect.Key);
 			}
 		}
 		Counts.Answers += (Taken.Outcome == ECosmicPetitionOutcome::Withdrawn) ? 0 : 1;
-		Counts.CardsCome += (State.Player.Role == EPlayerRole::Ruler && !State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != Card) ? 1 : 0;
+		const bool bChained = State.Player.Role == EPlayerRole::Ruler && !State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != Card;
+		Counts.CardsCome += bChained ? 1 : 0;
+		if (bChained)
+		{
+			NotePressureCard(Sim, Counts);
+		}
 	}
 	for (int32 Guard = 0; Policy.bBuild && Guard < 8; ++Guard)
 	{
@@ -455,6 +538,7 @@ void CosmicRulerPolicy::ActEdicts(const FCosmicRulerPolicy& Policy, UGalaxySimul
 		Revoked.Add(Row);
 		++Counts.EdictsRevoked;
 		Counts.VigilEnacted = Counts.VigilEnacted == Row ? NAME_None : Counts.VigilEnacted;
+		Counts.CardEdictsRevoked += Counts.CardEdicts.Contains(Row) ? 1 : 0;
 		Counts.CardEdicts.Remove(Row);
 		return true;
 	};
