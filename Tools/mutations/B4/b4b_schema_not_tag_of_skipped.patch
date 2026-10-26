@@ -1,0 +1,11 @@
+--- a/Tools/cosmic_data_schema.py
++++ b/Tools/cosmic_data_schema.py
+@@ -958,7 +958,7 @@
+         """A tag the usage refuses (B4, DelayHazard): the tag of a row of the named table that holds the tests, or a tag
+         a condition of a named enumerator reads somewhere in the data."""
+         owner = spec.get("not_tag_of")
+-        if owner:
++        if False:
+             for name, row in sorted(self.rows.get(owner["table"], {}).items()):
+                 if name_of(row.get(owner["col"])) == tag and self.all_hold(owner.get("when", []), row, name):
+                     self.report(where, "tag %s is the tag of row %s of %s, which holds %s: not allowed here" % (

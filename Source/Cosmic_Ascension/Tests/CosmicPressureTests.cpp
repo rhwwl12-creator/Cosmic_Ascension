@@ -1017,6 +1017,195 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// B4 (docs/60_DECISIONS/headers/B4_transcendent_voice_and_pressure_cards.md section 2.3, section 6): the public reading of
+// the drain's P against the economy stage's own, on boards that tell the parts of the rule apart; and the held edicts'
+// factor on the drain - once a people, their product, 1 for a factor that is not above 0 and finite.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicPressureDrainEdictTest, "Cosmic_Ascension.Sim.PressureDrainEdict", CosmicTests::Flags)
+bool FCosmicPressureDrainEdictTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicPressureTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); };
+
+	// The knobs of Sim.PressurePerCivilization (no inherited edict, no relation drift) but a falloff of an eighth, so that
+	// a third-rung people's own term outweighs the transcendent one lane away: the drain is the only change of Stability in
+	// a tick of these boards, and every P below is exact in binary.
+	FCosmicRulesDef Knobs = CosmicTests::WithoutStartingEdict(Sim->GetRules());
+	Knobs.PressureBySourceTier = { 0.f, 0.f, 0.25f, 1.f, 2.f };
+	Knobs.PressureAdjacencyFalloff = 0.125f;
+	Knobs.SpiritualPressureStabilityDrain = 0.002f;
+	Knobs.RelationDriftRate = 0.f;
+	const float Start = 0.8f;
+	const FName RowA(TEXT("tr_a"));
+	const FName RowB(TEXT("tr_b"));
+	UDataTable* Table = NewTable(FTranscendentDef::StaticStruct());
+	// The first row also takes a share of the Insight income (the game's silence takes 0.3): the edicts' factor leaves it.
+	FTranscendentDef Taking = Fallen(EAscensionTier::Tier4_Transcendent, 0.f);
+	Taking.PressureEffectsPerTick = { Effect(EEffectType::MultiplyIncome, TEXT("Insight"), 0.7f) };
+	Table->AddRow(RowA, Taking);
+	Table->AddRow(RowB, Fallen(EAscensionTier::Tier4_Transcendent, 0.f));
+	// The edicts of the factor cases: a half (two rows of it), a whole, and three factors read as 1.
+	const FName Half(TEXT("edict_test_half"));
+	const FName OtherHalf(TEXT("edict_test_other_half"));
+	const FName Whole(TEXT("edict_test_whole"));
+	const FName Zero(TEXT("edict_test_zero"));
+	const FName Below(TEXT("edict_test_below"));
+	const FName NotANumber(TEXT("edict_test_nan"));
+	UDataTable* Edicts = NewTable(FEdictDef::StaticStruct());
+	for (const TPair<FName, float>& Row : TArray<TPair<FName, float>>({ { Half, 0.5f }, { OtherHalf, 0.5f }, { Whole, 1.f }, { Zero, 0.f }, { Below, -1.f },
+		{ NotANumber, std::numeric_limits<float>::quiet_NaN() } }))
+	{
+		FEdictDef Def;
+		Def.PressureDrainMultiplier = Row.Value;
+		Edicts->AddRow(Row.Key, Def);
+	}
+	FCosmicDataTables Tables = CosmicTests::WithoutProjects(WithTranscendents(WithRules(Original, Knobs), Table));
+	Tables.Events = nullptr;
+	Tables.Edicts = Edicts;
+	Sim->SetTables(Tables);
+
+	// The wired chain of Sim.PressurePerCivilization (0..9, 4-10-11): the player's people holds 0, the wide people 3, 4, 5
+	// and 6, the border people 10, the single people 8. A board is its spheres (row, systems), the peoples' tiers in that
+	// order and what else it changes.
+	struct FSphereOfBoard
+	{
+		FName Row;
+		TArray<int32> Systems;
+	};
+	struct FBoard
+	{
+		TArray<FSphereOfBoard> Spheres;
+		TArray<EAscensionTier> Tiers;
+		TFunction<void(FGalaxyState&)> Also;
+	};
+	const EAscensionTier One = EAscensionTier::Tier1_Planetary;
+	const EAscensionTier Three = EAscensionTier::Tier3_Causal;
+	const EAscensionTier Four = EAscensionTier::Tier4_Transcendent;
+	const TArray<FBoard> Boards = {
+		// Inside and beside one sphere: the largest of a people's pressures, and the falloff of a lane.
+		{ { { RowA, { 4, 5 } } }, { One, One, One, One }, nullptr },
+		// A settlement under way and a system listed by a people that does not own it count for nothing.
+		{ { { RowA, { 4, 5, 8 } } }, { One, One, One, One }, [](FGalaxyState& State)
+			{
+				State.Systems[11].OwnerCivID = State.Civs[3].CivID;
+				State.Civs[3].OwnedSystems.Add(State.Systems[11].SystemID);
+				State.Systems[8].ActiveMegaproject = CosmicRows::ProjectSettle;
+				State.Civs[0].OwnedSystems.Add(State.Systems[4].SystemID);
+			} },
+		// The tiers: a source on the people's own rung drains nothing, beside the sphere a third-rung owner's own term is
+		// the dominant one and drains nothing, inside it the owner's term is summed into the drain.
+		{ { { RowA, { 4, 5, 8 } } }, { One, Four, Three, Three }, nullptr },
+		// Two spheres over one people: their terms add up.
+		{ { { RowA, { 4, 5 } }, { RowB, { 5 } } }, { One, One, One, One }, nullptr },
+	};
+
+	auto Lay = [&](const FBoard& Board)
+	{
+		Sim->NewGalaxy(42, 12, 4);
+		FGalaxyState& State = Sim->GetMutableState();
+		if (!TestTrue(TEXT("The galaxy has twelve systems and four peoples to wire"), State.Civs.Num() == 4 && CosmicTests::WireChain(State)))
+		{
+			return false;
+		}
+		State.Transcendents.Reset();
+		CosmicTests::ClearOwners(State);
+		CosmicTests::Give(State, 0, { 0 });
+		CosmicTests::Give(State, 1, { 3, 4, 5, 6 });
+		CosmicTests::Give(State, 2, { 10 });
+		CosmicTests::Give(State, 3, { 8 });
+		for (int32 CivIndex = 0; CivIndex < 4; ++CivIndex)
+		{
+			State.Civs[CivIndex].Stability = Start;
+			State.Civs[CivIndex].Tier = Board.Tiers[CivIndex];
+		}
+		for (const FSphereOfBoard& Sphere : Board.Spheres)
+		{
+			TArray<FName> IDs;
+			for (const int32 SystemIndex : Sphere.Systems)
+			{
+				IDs.Add(State.Systems[SystemIndex].SystemID);
+			}
+			AddInstance(State, Sphere.Row, IDs);
+		}
+		if (Board.Also)
+		{
+			Board.Also(State);
+		}
+		return true;
+	};
+
+	FString Unequal;
+	TArray<float> Drains;
+	for (int32 BoardIndex = 0; BoardIndex < Boards.Num(); ++BoardIndex)
+	{
+		if (!Lay(Boards[BoardIndex]))
+		{
+			return false;
+		}
+		float Drain[4];
+		for (int32 CivIndex = 0; CivIndex < 4; ++CivIndex)
+		{
+			Drain[CivIndex] = UGalaxySimulationSubsystem::ComputeDrainPressureOf(Sim->GetState(), Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), CivIndex);
+			Drains.Add(Drain[CivIndex]);
+		}
+		Sim->RunHeadless(1);
+		if (!TestEqual(TEXT("The four peoples are still there"), Sim->GetState().Civs.Num(), 4))
+		{
+			return false;
+		}
+		for (int32 CivIndex = 0; CivIndex < 4; ++CivIndex)
+		{
+			const float Stability = Sim->GetState().Civs[CivIndex].Stability;
+			if (Stability != Start - Knobs.SpiritualPressureStabilityDrain * Drain[CivIndex])
+			{
+				Unequal += FString::Printf(TEXT(" [board %d people %d: P %.4f, Stability %.6f]"), BoardIndex, CivIndex, Drain[CivIndex], Stability);
+			}
+		}
+	}
+	TestTrue(FString::Printf(TEXT("ComputeDrainPressureOf gives the P the economy stage drains every people by%s"), *Unequal), Unequal.IsEmpty());
+	// What the boards read, people by people: so that the equality above is not met by two copies of a wrong rule.
+	const TArray<float> Expected = {
+		0.f, 1.f, 0.125f, 0.f,
+		0.f, 1.f, 0.125f, 0.f,
+		0.f, 0.f, 0.f, 1.25f,
+		0.f, 2.f, 0.125f, 0.f,
+	};
+	TestTrue(TEXT("The boards drain by the largest pressure, the falloff beside, nothing on a settlement, a listed system, the own rung or under the own term, the owner's term inside, two spheres' sum"),
+		Drains == Expected);
+
+	// The held edicts' factor, on the first board (the wide people: four settled systems, P 1): a tick with the edicts the
+	// case names gives the wide people's Stability and Insight.
+	const float Drain = Knobs.SpiritualPressureStabilityDrain;
+	auto TickWith = [&](const TArray<FName>& Held)
+	{
+		if (!Lay(Boards[0]))
+		{
+			return TPair<float, float>(-1.f, -1.f);
+		}
+		Sim->GetMutableState().Civs[1].ActiveEdicts = Held;
+		Sim->RunHeadless(1);
+		const FCivilizationState& Wide = Sim->GetState().Civs[1];
+		return TPair<float, float>(Wide.Stability, Wide.Stockpile.Insight);
+	};
+	const TPair<float, float> Bare = TickWith({});
+	TestTrue(TEXT("(without an edict the wide people is drained by P 1)"), Bare.Key == Start - Drain * 1.f);
+	TestTrue(TEXT("A held factor of a half halves the drain, once a people (four settled systems in reach)"), TickWith({ Half }).Key == Start - Drain * 1.f * 0.5f);
+	TestTrue(TEXT("Two held factors multiply"), TickWith({ Half, OtherHalf }).Key == Start - Drain * 1.f * (0.5f * 0.5f));
+	TestTrue(TEXT("A factor of 1 keeps the bits of the drain"), TickWith({ Whole }).Key == Bare.Key);
+	TestTrue(TEXT("A factor of 0, below 0 or not a number reads as 1"), TickWith({ Zero }).Key == Bare.Key && TickWith({ Below }).Key == Bare.Key
+		&& TickWith({ NotANumber }).Key == Bare.Key);
+	TestTrue(TEXT("The factor leaves the transcendent's share of the Insight income"), TickWith({ Half }).Value == Bare.Value && Bare.Value >= 0.f);
+
+	Sim->SetTables(Original);
+	Sim->NewGalaxy(42, 5, 3);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicStabilityCountBoundaryTest, "Cosmic_Ascension.Sim.StabilityCountBoundary", CosmicTests::Flags)
 bool FCosmicStabilityCountBoundaryTest::RunTest(const FString& Parameters)
 {

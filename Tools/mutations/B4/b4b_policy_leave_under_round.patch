@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -95,7 +95,7 @@
+ 		const FCosmicRulesDef& Rules, int32 SystemIndex, FName Row)
+ 	{
+ 		static const FGameplayTag SupernovaTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.PreSupernova")));
+-		if (Policy.Pressure == ECosmicPressurePolicy::Round || !State.Systems.IsValidIndex(SystemIndex))
++		if (!State.Systems.IsValidIndex(SystemIndex))
+ 		{
+ 			return false;
+ 		}

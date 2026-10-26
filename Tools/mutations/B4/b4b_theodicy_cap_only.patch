@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
++++ b/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
+@@ -2166,7 +2166,7 @@
+ 				const float* Modifier = Def ? Def->EventWeightModifiers.Find(Category) : nullptr;
+ 				if (Modifier && *Modifier > 0.f)
+ 				{
+-					const int32 Largest = FMath::Max(Def->MaxInfluencedSystems, Def->InitialInfluencedSystems > 0 ? 1 : 0);
++					const int32 Largest = Def->MaxInfluencedSystems;
+ 					const double Most = FMath::Min(3.0, *Modifier * (1.0 + Step * FMath::Max(0, Largest)));
+ 					Factor *= Most > 1.0 ? Most : 1.0;
+ 				}

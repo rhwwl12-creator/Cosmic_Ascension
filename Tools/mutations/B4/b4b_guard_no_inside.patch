@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -207,7 +207,7 @@
+ 		}
+ 		Inside = (Inside.IsNone() && Reach == ECosmicSphereReach::Inside) ? SystemID : Inside;
+ 	}
+-	return Inside.IsNone() ? Civ.HomeSystemID : Inside;
++	return Inside.IsNone() ? Civ.HomeSystemID : Civ.HomeSystemID;
+ }
+ 
+ TArray<TPair<int32, FName>> CosmicRulerPolicy::ProjectChoicesOf(const FCosmicRulerPolicy& Policy, const FGalaxyState& State, const FCosmicStateIndex& Index,

@@ -1,0 +1,11 @@
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -861,7 +861,7 @@
+ 				},
+ 				{
+ 					"why": "an edict and a fleet are the ruler's: EnactEdict and DelayHazard stand in a petition's answer, never in a wanderer's card (B4 header 2.2, 3.8)",
+-					"when": [{"row_prefix": "enc_"}],
++					"when": [{"row_prefix": "petition_"}],
+ 					"then": [
+ 						{"col": "Choices.OnSuccess", "lacks_type": "EnactEdict"},
+ 						{"col": "Choices.OnSuccess", "lacks_type": "DelayHazard"}

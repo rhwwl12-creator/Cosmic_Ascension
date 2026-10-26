@@ -398,6 +398,12 @@ struct COSMIC_ASCENSION_API FEdictDef : public FTableRowBase
 	// Read only when above 0 and finite.
 	UPROPERTY(EditAnywhere)
 	float TreatyAcceptBonus = 0.f;
+
+	// B4: a factor on the Stability the spiritual pressure drains from the holder a tick (CosmicEdicts::PressureDrainMultiplierOf
+	// - every held edict's factor multiplies, once per people). Read only when above 0 and finite (the schema keeps it in
+	// (0, 1]); anything else reads as 1. The transcendents' per-tick effects are not touched.
+	UPROPERTY(EditAnywhere)
+	float PressureDrainMultiplier = 1.f;
 };
 
 /**
@@ -1288,4 +1294,12 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 
 	UPROPERTY(EditAnywhere)
 	float AIHostilePowerRatioTowardRuled = 1.5f;
+
+	// ---- The pressure cards (B4, docs/60_DECISIONS/headers/B4_transcendent_voice_and_pressure_cards.md section 3.1) ----
+	// The initializer is the mechanism's value; the data sets the balance value.
+
+	// The share of its FleetPower a people keeps when a card's DelayHazard buys a standing hazard time (the fleet spent).
+	// In [0, 1]; anything else reads as 1.
+	UPROPERTY(EditAnywhere)
+	float ResistFleetFactor = 1.f;
 };

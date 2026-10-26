@@ -1885,7 +1885,7 @@ bool FCosmicSightWalkMovedTest::RunTest(const FString& Parameters)
 		int32 MostPlaces = 0;
 		if (Case.bRuler)
 		{
-			const FCosmicRulerPolicy Policy{ true, true, true, false, NAME_None, 0 };
+			const FCosmicRulerPolicy Policy{ true, true, true, false, NAME_None, 0, ECosmicPressurePolicy::Round, 0, false };
 			FCosmicRulerPolicyCounts Counts;
 			for (int32 Done = 0; Done < 2000; ++Done)
 			{

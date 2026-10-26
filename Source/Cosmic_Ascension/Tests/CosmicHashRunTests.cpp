@@ -192,7 +192,7 @@ bool FCosmicSimHashRunTest::RunTest(const FString& Parameters)
 	{
 		Log->SetTellAll(false);
 		Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
-		const FCosmicRulerPolicy Policy{ true, true, true, true, NAME_None, 1 };
+		const FCosmicRulerPolicy Policy{ true, true, true, true, NAME_None, 1, ECosmicPressurePolicy::Round, 0, false };
 		FCosmicRulerPolicyCounts Counts;
 		for (int64 Done = 0; Done < 300; ++Done)
 		{
@@ -220,7 +220,7 @@ bool FCosmicSimHashRunTest::RunTest(const FString& Parameters)
 		{
 			Log->SetTellAll(false);
 			Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
-			const FCosmicRulerPolicy Policy{ true, true, true, true, NAME_None, Diplomacy };
+			const FCosmicRulerPolicy Policy{ true, true, true, true, NAME_None, Diplomacy, ECosmicPressurePolicy::Round, 0, false };
 			for (int64 Done = 0; Done < PastSecondRung; ++Done)
 			{
 				const FName CardBefore = Sim->GetState().Knowing.PendingPetitionRow;

@@ -87,6 +87,40 @@ bool UCosmicLogSubsystem::PushVariants(const FCosmicLine& Line, TConstArrayView<
 	return true;
 }
 
+bool UCosmicLogSubsystem::PushWithSign(const FCosmicLine& Line, TConstArrayView<FText> Variants, FName SignRow, const FFormatNamedArguments& Args)
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	check(Sim);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("PushWithSign called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return false;
+	}
+	if (Variants.IsEmpty())
+	{
+		return false;
+	}
+	// Tier numbers start at 1, so the lowest window with anybody below it begins at 2 (and 0 as an upper bound would mean
+	// "no bound"). Whenever the data allow it, the sign is told: the windows add no tell draw (section 8.1).
+	if (!SignRow.IsNone() && Line.MinViewerTier > 1)
+	{
+		if (const FLogTemplateDef* Sign = Sim->GetTables().FindLogTemplate(SignRow))
+		{
+			FCosmicLine SignLine = Line;
+			SignLine.Category = Sign->Category;
+			SignLine.Severity = FMath::Min<uint8>(Line.Severity, 1);
+			SignLine.MinViewerTier = 0;
+			SignLine.MaxViewerTier = Line.MinViewerTier - 1;
+			PushVariants(SignLine, Sign->Templates, Args);
+		}
+		else
+		{
+			UE_LOG(LogCosmic, Error, TEXT("The line of %s names the sign row %s, which DT_LogTemplates does not hold"), *Line.SourceRow.ToString(), *SignRow.ToString());
+		}
+	}
+	return PushVariants(Line, Variants, Args);
+}
+
 bool UCosmicLogSubsystem::PushRow(FName RowName, uint8 Severity, const FFormatNamedArguments& Args, FName FocusSystem, FName FocusCiv)
 {
 	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();

@@ -444,13 +444,17 @@ FCosmicPetitionAnswer UPlayerRoleSubsystem::AnswerPetition(int32 ChoiceIndex)
 		UE_LOG(LogCosmic, Error, TEXT("AnswerPetition: the stockpile cannot pay choice %d of %s"), ChoiceIndex, *RowName.ToString());
 		return Answer;
 	}
-	// A stance the gate would refuse (B3: the friendly slots taken) is refused as an unpaid cost - the card greys it. A card
-	// that no longer stands (its people gone) is withdrawn below instead, with its draw.
-	if (bFirstContact && CosmicPetitions::StillStands(State, Index, Tables, Sim->GetRules())
-		&& CosmicPetitions::StanceBlockOfChoice(State, Index, Sim->GetRules(), RuledIndex, OtherCivID, Choice) != CosmicDiplomacy::ECosmicStanceBlock::None)
+	// A choice its gate would refuse (B3: a stance the friendly slots refuse; B4: an edict, the fleet's time - B4 header
+	// section 2.4) is refused as an unpaid cost, before the draw - the card greys it. A card that no longer stands (its
+	// people gone, its subject lost) is withdrawn below instead, with its draw.
+	if (!bWandererCard && CosmicPetitions::StillStands(State, Index, Tables, Sim->GetRules()))
 	{
-		UE_LOG(LogCosmic, Error, TEXT("AnswerPetition: the stance gate refuses choice %d of %s"), ChoiceIndex, *RowName.ToString());
-		return Answer;
+		const int32 GateSystem = CosmicPetitions::SubjectOf(State, Index, RuledIndex, Row->Subject, State.Knowing.PendingPetitionSystemID);
+		if (!CosmicPetitions::ChoiceGateOf(State, Index, Tables, Sim->GetRules(), RuledIndex, GateSystem, OtherCivID, Choice).IsOpen())
+		{
+			UE_LOG(LogCosmic, Error, TEXT("AnswerPetition: the choice's gate refuses choice %d of %s"), ChoiceIndex, *RowName.ToString());
+			return Answer;
+		}
 	}
 
 	// One number of the sim stream for every answer taken, before the choice is read any further (section 9.2).

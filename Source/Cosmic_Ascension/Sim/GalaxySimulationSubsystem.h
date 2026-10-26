@@ -63,9 +63,10 @@ struct FCosmicPressure
 	EAscensionTier DominantTier = EAscensionTier::Tier1_Planetary;
 };
 
-// The time four stages took (B3 header section 5 - the balance commandlet's stage line): off until a caller turns it on.
-// Never saved, hashed or read by a rule; it changes no order and draws nothing. Cycles of FPlatformTime::Cycles64 summed per
-// stage - [0] diplomacy, [1] conflict, [2] crisis, [3] AI - over Ticks ticks. While it is on, the conflict stage also notes
+// The time six stages took (B3 header section 5 - the balance commandlet's stage line; B4 added the economy and the card's
+// presentation at the end of the knowing stage): off until a caller turns it on. Never saved, hashed or read by a rule; it
+// changes no order and draws nothing. Cycles of FPlatformTime::Cycles64 summed per stage - [0] diplomacy, [1] conflict,
+// [2] crisis, [3] AI, [4] economy, [5] the card's presentation - over Ticks ticks. While it is on, the conflict stage also notes
 // the sieges it ended (the commandlet's conflict line reads them, then empties the list): taken, held (the attacker
 // repulsed) or lifted (its gate closed), with the attacker, the owner before the end and the system.
 struct FCosmicStageClock
@@ -84,7 +85,7 @@ struct FCosmicStageClock
 		FName SystemID;
 	};
 	bool bOn = false;
-	uint64 Cycles[4] = {};
+	uint64 Cycles[6] = {};
 	int64 Ticks = 0;
 	TArray<FSiegeEnd> SiegeEnds;
 };
@@ -344,6 +345,23 @@ public:
 	 * ComputePressureIn. A people or a system out of range gives the zero result; so does the sanctuary.
 	 */
 	static FCosmicPressure ComputeAttritionPressureIn(const FGalaxyState& InState, const FCosmicStateIndex& InIndex, const FCosmicDataTables& InTables, const FCosmicRulesDef& InRules, int32 CivIndex, int32 SystemIndex);
+
+	/**
+	 * The P the economy stage drains the people CivIndex by (section 4.2; B4 header section 2.3): the largest P of
+	 * ComputePressureIn among the settled systems it owns (OwnedSystems whose owner is the people) whose dominant source
+	 * stands on a Tier above the people's; 0 when there is none. Read at a tick boundary it is the P of the next tick's
+	 * economy stage, which builds its own table of the same reach instead (section 9.4) - Sim.PressureDrainEdict holds the
+	 * two together. For the measurements and the presentation, so that none keeps a copy of the rule. A people out of
+	 * range gives 0.
+	 */
+	static float ComputeDrainPressureOf(const FGalaxyState& InState, const FCosmicStateIndex& InIndex, const FCosmicDataTables& InTables, const FCosmicRulesDef& InRules, int32 CivIndex);
+
+	/**
+	 * The Stability the economy stage drains from Civ a tick at the drain's P Pressure (section 4.2; B4): the knob
+	 * DT_Rules.SpiritualPressureStabilityDrain (below 0 or not a number: 0) x Pressure x the held edicts' factor
+	 * (CosmicEdicts::PressureDrainMultiplierOf). The stage's own arithmetic - it calls this - before the floor at 0.
+	 */
+	static float DrainLossOf(const FCosmicRulesDef& InRules, const FCosmicDataTables& InTables, const FCivilizationState& Civ, float Pressure);
 
 	// How the sphere of Transcendent reaches a system: the pressure function and the weight factor of the event slots
 	// ask here. The economy stage builds one table of the same reach for the tick instead (section 9.4): the two agree

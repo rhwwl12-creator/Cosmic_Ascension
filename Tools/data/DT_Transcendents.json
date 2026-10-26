@@ -3,7 +3,7 @@
 		"Name": "trans_silence",
 		"Doctrine": "Doctrine.Silence",
 		"Allegiance": "Realm.Abyssal",
-		"CounterfeitOf": "",
+		"CounterfeitOf": "Truth.Rest",
 		"Title": "꺼뜨리는 이",
 		"Lure": "",
 		"Tier": "Tier4_Transcendent",

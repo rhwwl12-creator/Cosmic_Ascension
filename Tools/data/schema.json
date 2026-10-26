@@ -8,8 +8,9 @@
 		"Every column of a row struct is declared here: a column added to a struct needs its line.",
 		"Column kinds (closed list): plain, number, numbers, text, texts, tag, tags, tag_list, tag_map, row, row_map, rows, word_map, enum, conditions, effects, pool, structs",
 		"An integer property is declared with integer: true (Data.Integrity holds the columns to the property types).",
-		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, has_type, has_cond, slots_in, len_ge_col, pairs_ge_col, contains_all",
-		"A row rule is 'when -> then' over tests: one column with one test of the list above, 'row' with a row name, 'row_not' with a row name (every other row - B3), or 'row_prefix' with one of the table's prefixes (the rows of one kind - B1). Each test can be asked of some kinds of column only (the checker holds the table).",
+		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, has_type, has_cond, slots_in, len_ge_col, pairs_ge_col, contains_all, contains_none, zero",
+		"A row rule is 'when -> then' over tests: one column with one test of the list above, 'row' with a row name, 'row_not' with a row name (every other row - B3), 'row_prefix' with one of the table's prefixes (the rows of one kind - B1), or 'none' with a list of tests over the columns of one list of structs (no entry of the list holds every one of them - B4: one choice read as a whole). Each test can be asked of some kinds of column only (the checker holds the table).",
+		"What a condition or an effect says of its Tag, its Key and its Value is a closed list in the checker too. A Tag may refuse the tag of the rows of a table that hold tests ('not_tag_of': table, tag column, when) and the tags a condition of the named enumerators reads in any row of any table ('not_read_by') - B4: DelayHazard.",
 		"A column of a list of structs (kind structs) is named in a rule as 'List.Column': the test holds when it holds for every entry of the list, and so for an empty list. The tests that name other columns of the row (len_ge_col, pairs_ge_col) are not asked of such a column.",
 		"A rule added here needs an input that breaks it in Tools/test_data_schema.py: that test walks every rule, unique, pair, target and slot list of this file.",
 		"A number range stands here only where the guideline states one. A column without a range is checked for being a finite number.",
@@ -75,7 +76,7 @@
 		"Event.Crisis.Supernova": ["Log.Crisis", "Log.Civ"],
 		"Event.Crisis.Rebellion": ["Log.Crisis", "Log.Civ"],
 		"Event.Crisis.Transcendent": ["Log.Transcendent", "Log.Crisis"],
-		"Event.Crisis.Claim": ["Log.Claim", "Log.Record", "Log.Crisis"],
+		"Event.Crisis.Claim": ["Log.Record", "Log.Crisis"],
 		"Event.Grace.Rescue": ["Log.Calling"],
 		"Event.Grace.Remnant": ["Log.Civ"],
 		"Event.Grace.Jubilee": ["Log.Civ"]
@@ -193,7 +194,8 @@
 				"AIHostilePacifismMax": {"kind": "number", "min": -1, "max": 1},
 				"PlagueSpreadMultiplier": {"kind": "number", "min": 0},
 				"AIHostileRelationTowardRuled": {"kind": "number", "min": -1, "max": 1},
-				"AIHostilePowerRatioTowardRuled": {"kind": "number", "min": 0}
+				"AIHostilePowerRatioTowardRuled": {"kind": "number", "min": 0},
+				"ResistFleetFactor": {"kind": "number", "min": 0, "max": 1}
 			},
 			"rules": [
 				{
@@ -410,6 +412,16 @@
 				{
 					"why": "an event row is about a people or one of its settled systems: the system the vessel stands in is a wanderer card's subject (B1)",
 					"then": [{"col": "Subject", "in": ["Civilization", "SettledSystem"]}]
+				},
+				{
+					"why": "grace is never drawn by an edict: no grace row waits on an edict the people holds (B2 header :342, B4 header 3.8)",
+					"when": [{"col": "Category", "in": ["Event.Grace.Rescue", "Event.Grace.Remnant", "Event.Grace.Jubilee"]}],
+					"then": [{"col": "Conditions", "lacks_type": "CivHasEdict"}]
+				},
+				{
+					"why": "a transcendent's own line is first person: it waits for the third tier, and the viewers below it hear the row's sign (B4 header 3.8 - a door for the rows to come)",
+					"when": [{"col": "LogCategory", "is": "Log.Transcendent"}],
+					"then": [{"col": "MinTierToReveal", "ge": 3}, {"col": "SignRow", "set": true}]
 				}
 			]
 		},
@@ -503,6 +515,19 @@
 					"why": "a fallen one is named by its title, never a name: the spiritual sight's line and tooltip and the log's {Transcendent} slot read it (guideline 4.2, 6.4, 8.2)",
 					"when": [{"col": "Allegiance", "is": "Realm.Abyssal"}],
 					"then": [{"col": "Title", "set": true}]
+				},
+				{
+					"why": "a fallen one counterfeits a truth, and its row names that truth: a tag under Truth. (B4 header 3.5, 3.8)",
+					"when": [{"col": "Allegiance", "is": "Realm.Abyssal"}],
+					"then": [{"col": "CounterfeitOf", "set": true}]
+				},
+				{
+					"why": "nothing reads a transcendent's voice lines yet: the column stays empty until the code that tells them comes (B4 header 3.5, 3.8)",
+					"then": [{"col": "VoiceTemplates", "max_len": 0}]
+				},
+				{
+					"why": "no transcendent weighs the claim's events: the vigil's draw on Event.Crisis.Claim keeps a factor of 1, so the bound of the theodicy budget the invariant counts holds (B4 header 2.8)",
+					"then": [{"col": "EventWeightModifiers", "contains_none": ["Event.Crisis.Claim"]}]
 				}
 			]
 		},
@@ -833,6 +858,50 @@
 					"why": "a voiced card speaks through its two voices, the council's and the elders' of the congregation, and its Body stays empty (guideline 5.10)",
 					"when": [{"col": "VoiceBodies", "min_len": 1}],
 					"then": [{"col": "Body", "set": false}]
+				},
+				{
+					"why": "an edict and a fleet are the ruler's: EnactEdict and DelayHazard stand in a petition's answer, never in a wanderer's card (B4 header 2.2, 3.8)",
+					"when": [{"row_prefix": "enc_"}],
+					"then": [
+						{"col": "Choices.OnSuccess", "lacks_type": "EnactEdict"},
+						{"col": "Choices.OnSuccess", "lacks_type": "DelayHazard"}
+					]
+				},
+				{
+					"why": "the gate of a choice reads its OnSuccess alone (CosmicPetitions::ChoiceGateOf): an edict or a delay in OnFailure would stand behind no gate (B4 header 2.4, 3.8)",
+					"then": [
+						{"col": "Choices.OnFailure", "lacks_type": "EnactEdict"},
+						{"col": "Choices.OnFailure", "lacks_type": "DelayHazard"}
+					]
+				},
+				{
+					"why": "a choice that enacts an edict or buys time is not rolled for: the gate stands before the answer's draw, and a roll would hang the edict or the fleet on Stability (B4 header 2.4, 3.3, 3.8)",
+					"then": [
+						{"none": [{"col": "Choices.OnSuccess", "has_type": "EnactEdict"}, {"col": "Choices.CheckStat", "in": ["Body", "Mind", "Causality", "Exaltation", "Stability"]}]},
+						{"none": [{"col": "Choices.OnSuccess", "has_type": "DelayHazard"}, {"col": "Choices.CheckStat", "in": ["Body", "Mind", "Causality", "Exaltation", "Stability"]}]}
+					]
+				},
+				{
+					"why": "the edict's own EnactCost is the one price of the choice that enacts it: that choice asks nothing more (B4 header 3.8)",
+					"then": [
+						{"none": [{"col": "Choices.OnSuccess", "has_type": "EnactEdict"}, {"col": "Choices.Cost", "zero": false}]}
+					]
+				},
+				{
+					"why": "a card is never blocked: with one waiting place a card whose every choice is gated would block every card behind it, so a card with a gated choice (SetStance, EnactEdict, DelayHazard) holds a choice with no cost and no gate - said the other way round: a card without such a choice carries no gate (B4 header 2.4, 3.8)",
+					"when": [
+						{"none": [
+							{"col": "Choices.Cost", "zero": true},
+							{"col": "Choices.OnSuccess", "lacks_type": "SetStance"},
+							{"col": "Choices.OnSuccess", "lacks_type": "EnactEdict"},
+							{"col": "Choices.OnSuccess", "lacks_type": "DelayHazard"}
+						]}
+					],
+					"then": [
+						{"col": "Choices.OnSuccess", "lacks_type": "SetStance"},
+						{"col": "Choices.OnSuccess", "lacks_type": "EnactEdict"},
+						{"col": "Choices.OnSuccess", "lacks_type": "DelayHazard"}
+					]
 				}
 			]
 		},
@@ -851,12 +920,17 @@
 				"HazardSpawnMultipliers": {"kind": "tag_map", "root": "Hazard.", "min": 0},
 				"HazardCountdownBonus": {"kind": "tag_map", "root": "Hazard.", "min": 0, "integer": true},
 				"FleetGrowthMultiplier": {"kind": "number", "min": 0},
-				"TreatyAcceptBonus": {"kind": "number", "min": 0, "max": 1}
+				"TreatyAcceptBonus": {"kind": "number", "min": 0, "max": 1},
+				"PressureDrainMultiplier": {"kind": "number", "min": 0, "max": 1}
 			},
 			"rules": [
 				{
 					"why": "a held edict multiplies the fleet's growth: at 0 the inherited edict would keep the ruler's fleet at 0 from the first tick, so the code reads a factor that is not above 0 as 1 (B3 header 3.2)",
 					"then": [{"col": "FleetGrowthMultiplier", "gt": 0}]
+				},
+				{
+					"why": "a held edict damps the pressure's drain on Stability, never undoes it: a factor in (0, 1], and the code reads a factor that is not above 0 as 1 (B4 header 2.3)",
+					"then": [{"col": "PressureDrainMultiplier", "gt": 0}]
 				}
 			]
 		}
@@ -894,7 +968,8 @@
 		"CivFallenSphereTicksReached": {"tag": {"root": ["Doctrine.Silence", "Doctrine.Assimilation", "Doctrine.Zeal", "Doctrine.Recurrence"], "optional": true}, "key": {"digits": true}},
 		"CivResearchAtLeast": {"key": {"word": "research"}, "value": {"min": 0, "max": 1}},
 		"SystemHazardTicksAtMost": {"tag": {"root": "Hazard."}, "value": {"min": 1, "integer": true}},
-		"CivSettledSystemsAtLeast": {"value": {"min": 1, "integer": true}}
+		"CivSettledSystemsAtLeast": {"value": {"min": 1, "integer": true}},
+		"CivHasEdict": {"key": {"row": "DT_Edicts"}}
 	},
 
 	"effects": {
@@ -917,7 +992,17 @@
 		"ChangePopulation": {"value": {"min": -1}},
 		"NameNotable": {"tag": {"root": "Notable."}, "key": {"word": "civ_selector", "optional": true}},
 		"FocusResearch": {"key": {"word": "research"}, "value": {"min": 0.25, "max": 1}},
-		"SetStance": {"tag": {"root": "Stance.Friendly", "optional": true}, "key": {"any": true, "optional": true}, "card_only": true}
+		"SetStance": {"tag": {"root": "Stance.Friendly", "optional": true}, "key": {"any": true, "optional": true}, "card_only": true},
+		"EnactEdict": {"key": {"row": "DT_Edicts"}, "card_only": true},
+		"DelayHazard": {
+			"tag": {
+				"root": "Hazard.",
+				"not_tag_of": {"table": "DT_Hazards", "col": "HazardTag", "when": [{"col": "SpawnRule", "is": "Capital"}]},
+				"not_read_by": ["SystemHazardTicksAtMost"]
+			},
+			"value": {"min": 1, "max": 100, "integer": true},
+			"card_only": true
+		}
 	},
 
 	"per_tick_effects": ["AddResource", "MultiplyIncome", "ShiftEthics", "ChangeStability", "ChangeRelation", "ChangeReverence", "ChangePopulation"]

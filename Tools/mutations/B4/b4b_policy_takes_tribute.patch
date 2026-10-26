@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -121,6 +121,7 @@
+ 		{ TEXT("Cautious"), ECosmicPressurePolicy::Cautious },
+ 		{ TEXT("Reckless"), ECosmicPressurePolicy::Reckless },
+ 		{ TEXT("Faithful"), ECosmicPressurePolicy::Faithful },
++		{ TEXT("Tribute"), ECosmicPressurePolicy::Cautious },
+ 	};
+ 	for (const TPair<const TCHAR*, ECosmicPressurePolicy>& Each : Words)
+ 	{

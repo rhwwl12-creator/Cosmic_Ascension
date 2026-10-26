@@ -845,8 +845,8 @@ struct COSMIC_ASCENSION_API FGalaxyState
 	TArray<FTransitRecord> Transits;
 
 	// Key = UCosmicEventSubsystem::CooldownKey, "<DT_Events row>@<CivID>" (a slot row for one civilization; rows fired by
-	// name write none), or the Log.Claim spam-guard key log_claim_<row> (section 4.2). Entries that are over are dropped
-	// every 600 ticks. Keys are saved, so their format is fixed.
+	// name write none). The claim lines keep no key here (B4 decision 6: telling never moves the world). Entries that are
+	// over are dropped every 600 ticks. Keys are saved, so their format is fixed.
 	UPROPERTY()
 	TMap<FName, int64> EventCooldownUntilTick;
 

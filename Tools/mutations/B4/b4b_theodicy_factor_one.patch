@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
++++ b/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
+@@ -2168,7 +2168,7 @@
+ 				{
+ 					const int32 Largest = FMath::Max(Def->MaxInfluencedSystems, Def->InitialInfluencedSystems > 0 ? 1 : 0);
+ 					const double Most = FMath::Min(3.0, *Modifier * (1.0 + Step * FMath::Max(0, Largest)));
+-					Factor *= Most > 1.0 ? Most : 1.0;
++					Factor *= 1.0 + 0.0 * Most;
+ 				}
+ 			}
+ 			return Factor;

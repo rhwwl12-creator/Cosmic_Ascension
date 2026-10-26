@@ -1,0 +1,11 @@
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -993,7 +993,7 @@
+ 		"NameNotable": {"tag": {"root": "Notable."}, "key": {"word": "civ_selector", "optional": true}},
+ 		"FocusResearch": {"key": {"word": "research"}, "value": {"min": 0.25, "max": 1}},
+ 		"SetStance": {"tag": {"root": "Stance.Friendly", "optional": true}, "key": {"any": true, "optional": true}, "card_only": true},
+-		"EnactEdict": {"key": {"row": "DT_Edicts"}, "card_only": true},
++		"EnactEdict": {"key": {"row": "DT_Edicts"}},
+ 		"DelayHazard": {
+ 			"tag": {
+ 				"root": "Hazard.",

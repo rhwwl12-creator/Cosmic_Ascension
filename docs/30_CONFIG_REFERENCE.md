@@ -1,6 +1,6 @@
 # CONFIG REFERENCE — DT_Rules 노브 표 (생성 문서)
 
-> `python -I Tools/make_config_reference.py`가 `Tools/data/DT_Rules.json`·`schema.json`·`Source/`에서 만든다. **손으로 고치지 않는다** — 값은 JSON에서, 규칙은 schema에서, 읽는 곳은 코드에서 바뀐다. 노브 96개 가운데 런타임이 읽는 것 83개, 예약 13개(읽는 코드가 올 Phase에서 산다 — `docs/40_DEV_GUIDE.md` §4). 밸런스 상수 가운데 아직 코드에 박힌 것(별 등급의 에너지 `StarClassEnergy` — `Sim/GalaxySimulationSubsystem.cpp`의 `namespace Economy`, 단계 5까지)은 이 표에 없다 — 경제·연구의 나머지 계수는 MVP ⑧부터 이 표의 노브다.
+> `python -I Tools/make_config_reference.py`가 `Tools/data/DT_Rules.json`·`schema.json`·`Source/`에서 만든다. **손으로 고치지 않는다** — 값은 JSON에서, 규칙은 schema에서, 읽는 곳은 코드에서 바뀐다. 노브 97개 가운데 런타임이 읽는 것 84개, 예약 13개(읽는 코드가 올 Phase에서 산다 — `docs/40_DEV_GUIDE.md` §4). 밸런스 상수 가운데 아직 코드에 박힌 것(별 등급의 에너지 `StarClassEnergy` — `Sim/GalaxySimulationSubsystem.cpp`의 `namespace Economy`, 단계 5까지)은 이 표에 없다 — 경제·연구의 나머지 계수는 MVP ⑧부터 이 표의 노브다.
 
 | 노브 | 값 | 종류 | 스키마 규칙 | 읽는 코드(테스트 제외) | 상태 |
 |---|---|---|---|---|---|
@@ -100,3 +100,4 @@
 | `PlagueSpreadMultiplier` | `8.0` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `AIHostileRelationTowardRuled` | `0.0` | number | `{"min": -1, "max": 1}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `AIHostilePowerRatioTowardRuled` | `0.6` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
+| `ResistFleetFactor` | `1.0` | number | `{"min": 0, "max": 1}` | Sim/CosmicConflict.cpp | 읽힘 |

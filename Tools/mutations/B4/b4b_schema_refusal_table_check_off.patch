@@ -1,0 +1,11 @@
+--- a/Tools/cosmic_data_schema.py
++++ b/Tools/cosmic_data_schema.py
+@@ -724,7 +724,7 @@
+             column_spec = columns.get(owner["col"]) if isinstance(columns, dict) else None
+             if not isinstance(table_spec, dict):
+                 self.report(where, "the table %s is not in the schema" % (owner["table"],))
+-            elif not isinstance(column_spec, dict) or column_spec.get("kind") != "tag":
++            elif False:
+                 self.report(where, "not_tag_of names the column %r, which %s does not declare as a tag" % (owner["col"], owner["table"]))
+             else:
+                 self.check_tests(where + ".not_tag_of", owner.get("when", []), owner["table"])

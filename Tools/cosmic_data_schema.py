@@ -175,6 +175,12 @@ TESTS = {
     "len_ge_col": NAME, "pairs_ge_col": TWO_NAMES,
     # Every named tag is in the tags of the cell (DT_Rules.ImmutableLaws holds every law the code reads).
     "contains_all": WORDS,
+    # None of the named tags is in the tags of the cell, nor a key of a tag map (B4: no transcendent weighs the claim's
+    # events).
+    "contains_none": WORDS,
+    # A resource pool that asks nothing, every amount 0 (true), or that asks something (false) - B4: the choice that
+    # enacts an edict pays the edict's own cost alone.
+    "zero": FLAG,
 }
 # Test -> the kinds of column it can be asked of. Asked of another kind it would never hold (or always).
 # A plain column holds a struct the checker does not read (EthicsPreset, Color, MapPosition): no test can be asked of it.
@@ -184,12 +190,18 @@ SIZED_KINDS = ("numbers", "texts", "tags", "tag_list", "tag_map", "row_map", "wo
 POOL_KINDS = tuple(kind for kind in SIZED_KINDS if kind != "tags")
 TEST_KINDS = {
     "is": VALUE_KINDS, "in": VALUE_KINDS, "gt": ("number",), "ge": ("number",), "lt": ("number",), "le": ("number",),
-    # A number, an enumerator and a resource pool are always there: 'set' over them says nothing.
+    # A number, an enumerator and a resource pool are always there: 'set' over them says nothing (whether a pool asks
+    # anything is 'zero').
     "set": tuple(kind for kind in COLUMN_KINDS if kind not in ("number", "enum", "plain", "pool")), "min_len": SIZED_KINDS, "max_len": SIZED_KINDS, "each_contains": ("texts",),
     "lacks_type": ("conditions", "effects"), "has_type": ("conditions", "effects"), "has_cond": ("conditions", "effects"),
     "slots_in": ("text", "texts"), "len_ge_col": POOL_KINDS,
-    "pairs_ge_col": POOL_KINDS, "contains_all": ("tags", "tag_list"),
+    "pairs_ge_col": POOL_KINDS, "contains_all": ("tags", "tag_list"), "contains_none": ("tags", "tag_list", "tag_map"),
+    "zero": ("pool",),
 }
+# A row test of its own shape, besides 'row', 'row_not' and 'row_prefix': {"none": [tests]}, each test over a column of
+# one list of structs ('List.Column'); it holds when no entry of the list holds every one of them (B4: one choice read as
+# a whole - an answer that enacts an edict and is rolled for, a card whose every choice costs or is gated).
+NONE_TEST = "none"
 # The kinds of the columns a test names besides its own: the number to reach, the other pool.
 NAMED_COLUMNS = {"len_ge_col": (("number",),), "pairs_ge_col": (POOL_KINDS, ("number",))}
 
@@ -214,11 +226,15 @@ RULE_KEYS = {
 }
 RULE_REQUIRED = {"rules": ("why", "then"), "unique": ("why", "cols"), "pairs": ("why", "key", "value", "allowed")}
 # What a condition or an effect may say about each of its three cells; "per_tick_only" and "card_only" are for effects.
+# A Tag may refuse two kinds of tags (B4: DelayHazard): "not_tag_of" - the tag column of the rows of a table that hold
+# its tests (the capital rule's hazard); "not_read_by" - the tags a condition of the named enumerators reads in any row
+# of any table (the hazard a card waits on with SystemHazardTicksAtMost).
 USAGE_KEYS = {
-    "tag": {"root": ROOT, "optional": FLAG},
+    "tag": {"root": ROOT, "optional": FLAG, "not_tag_of": OBJECT, "not_read_by": NAMES},
     "key": {"word": NAME, "row": NAME, "digits": FLAG, "any": FLAG, "optional": FLAG, "target": LIST},
     "value": dict(RANGE),
 }
+NOT_TAG_OF_KEYS = {"table": NAME, "col": NAME, "when": LIST}
 # The members of the two structs as the sources spell them out (Data/CosmicConditionTypes.h).
 MEMBERS = {"conditions": ("Type", "Tag", "Key", "Value"), "effects": ("Type", "Tag", "Key", "Value", "DurationTicks")}
 
@@ -518,6 +534,8 @@ class Checker:
         self.tags = set(tags)
         self.code_rows = code_rows
         self.problems = []
+        # Condition enumerator -> {tag -> the places a condition of it reads the tag}, read once (tags_read_by).
+        self.read_tags = {}
         self.rows = {}
         for table_name, rows in tables.items():
             if isinstance(rows, list):
@@ -582,6 +600,19 @@ class Checker:
                 elif test["row_prefix"] not in prefixes:
                     self.report(where, "a row test names the prefix %s, which is none of the prefixes of %s" % (test["row_prefix"], table_name))
                 continue
+            if isinstance(test, dict) and NONE_TEST in test:
+                # No entry of one list of structs holds every one of the tests (B4). Each test names a column of the same
+                # list, so that one entry is read as a whole; the tests themselves are checked as any other.
+                inner = test[NONE_TEST]
+                paths = [entry.get("col") if isinstance(entry, dict) else None for entry in inner] if isinstance(inner, list) else []
+                lists = {path.partition(PATH_MARK)[0] for path in paths if isinstance(path, str) and PATH_MARK in path}
+                if len(test) != 1 or not isinstance(inner, list) or not inner:
+                    self.report(where, "'%s' takes a list of tests, not empty, and nothing else: %s" % (NONE_TEST, shown))
+                elif len(lists) != 1 or not all(isinstance(path, str) and PATH_MARK in path for path in paths):
+                    self.report(where, "'%s' takes tests over the columns of one list of structs ('List.Column'): %s" % (NONE_TEST, shown))
+                else:
+                    self.check_tests(where, inner, table_name)
+                continue
             asked = [name for name in TESTS if name in test] if isinstance(test, dict) else []
             if len(asked) != 1 or "col" not in test or len(test) != 2 or not isinstance(test["col"], str):
                 self.report(where, "a row test is 'row' with a row name, or a column with exactly one of %s: %s" % (", ".join(TESTS), shown))
@@ -624,7 +655,7 @@ class Checker:
                 self.report(where, "a row test names %r, which is no enumerator of %s" % (operand, kind))
             if name == "has_cond" and operand["type"] not in self.schema[kind]:
                 self.report(where, "a row test names %r, which is no enumerator of %s" % (operand["type"], kind))
-            if name == "contains_all":
+            if name in ("contains_all", "contains_none"):
                 for value in operand:
                     if value not in self.tags:
                         self.report(where, "a row test names the tag %s, which the ini does not declare" % (value,))
@@ -665,6 +696,8 @@ class Checker:
         # Every cell is read, also after one of them is wrong.
         if not all([self.typed("%s.%s" % (where, cell), usage[cell], allowed) for cell, allowed in USAGE_KEYS.items() if cell in usage]):
             return
+        if "tag" in usage:
+            self.check_tag_refusals(where + ".tag", usage["tag"])
         key_spec = usage.get("key")
         if key_spec is None:
             return
@@ -680,6 +713,26 @@ class Checker:
             self.check_tests(where + ".key", key_spec["target"], key_spec["row"])
         if said[0] != "row" and "target" in key_spec:
             self.report(where + ".key", "a target needs a row of a table to look at")
+
+    def check_tag_refusals(self, where, tag_spec):
+        """The tags a Tag refuses (B4): a table and a tag column of it that exist, tests the rows of that table can be
+        asked, enumerators of conditions that read a Tag. A misspelt name would refuse nothing, in silence."""
+        owner = tag_spec.get("not_tag_of")
+        if owner is not None and self.typed(where + ".not_tag_of", owner, NOT_TAG_OF_KEYS, ("table", "col")):
+            table_spec = self.schema["tables"].get(owner["table"])
+            columns = table_spec.get("columns") if isinstance(table_spec, dict) else None
+            column_spec = columns.get(owner["col"]) if isinstance(columns, dict) else None
+            if not isinstance(table_spec, dict):
+                self.report(where, "the table %s is not in the schema" % (owner["table"],))
+            elif not isinstance(column_spec, dict) or column_spec.get("kind") != "tag":
+                self.report(where, "not_tag_of names the column %r, which %s does not declare as a tag" % (owner["col"], owner["table"]))
+            else:
+                self.check_tests(where + ".not_tag_of", owner.get("when", []), owner["table"])
+        for name in tag_spec.get("not_read_by", []):
+            if name not in self.schema["conditions"]:
+                self.report(where, "not_read_by names %r, which is no enumerator of conditions" % (name,))
+            elif not isinstance(self.schema["conditions"][name], dict) or "tag" not in self.schema["conditions"][name]:
+                self.report(where, "not_read_by names %s, a condition that reads no Tag" % (name,))
 
     def check_column_spec(self, where, column_spec, in_list=False):
         """One column of a table, or (in_list) of a list of structs: a known kind, its options typed, the names it leans
@@ -901,6 +954,47 @@ class Checker:
                 if slot not in spec["slots"]:
                     self.report(where, "slot {%s} is not filled here (allowed: %s)" % (slot, ", ".join(spec["slots"]) or "none"))
 
+    def check_refused_tag(self, where, tag, spec):
+        """A tag the usage refuses (B4, DelayHazard): the tag of a row of the named table that holds the tests, or a tag
+        a condition of a named enumerator reads somewhere in the data."""
+        owner = spec.get("not_tag_of")
+        if owner:
+            for name, row in sorted(self.rows.get(owner["table"], {}).items()):
+                if name_of(row.get(owner["col"])) == tag and self.all_hold(owner.get("when", []), row, name):
+                    self.report(where, "tag %s is the tag of row %s of %s, which holds %s: not allowed here" % (
+                        tag, name, owner["table"], json.dumps(owner.get("when", []))))
+        for type_name in spec.get("not_read_by", []):
+            for place in self.tags_read_by(type_name).get(tag, []):
+                self.report(where, "tag %s is read by a %s condition of %s: not allowed here" % (tag, type_name, place))
+
+    def tags_read_by(self, type_name):
+        """Tag -> the places (Table.row.Column) where a condition of the enumerator reads it: every conditions column of
+        every table, in a list of structs too."""
+        if type_name in self.read_tags:
+            return self.read_tags[type_name]
+        found = {}
+
+        def read(place, items):
+            for item in (items if isinstance(items, list) else []):
+                tag = name_of(item.get("Tag")) if isinstance(item, dict) and item.get("Type") == type_name else ""
+                if isinstance(tag, str) and tag != "":
+                    found.setdefault(tag, []).append(place)
+        for table_name, spec in sorted(self.schema["tables"].items()):
+            columns = spec.get("columns") if isinstance(spec, dict) else None
+            for column, column_spec in sorted(columns.items()) if isinstance(columns, dict) else []:
+                kind = column_spec.get("kind") if isinstance(column_spec, dict) else None
+                inner = column_spec.get("columns") if kind == "structs" else None
+                for row_name, row in sorted(self.rows.get(table_name, {}).items()):
+                    place = "%s.%s.%s" % (table_name, row_name, column)
+                    if kind == "conditions":
+                        read(place, row.get(column))
+                    for sub, sub_spec in sorted(inner.items()) if isinstance(inner, dict) else []:
+                        if isinstance(sub_spec, dict) and sub_spec.get("kind") == "conditions":
+                            for entry in (row.get(column) if isinstance(row.get(column), list) else []):
+                                read("%s.%s" % (place, sub), entry.get(sub) if isinstance(entry, dict) else None)
+        self.read_tags[type_name] = found
+        return found
+
     def check_usage(self, where, kind, item, per_tick, spec=None):
         """One condition or effect against the usage table of its enumerator (and the column's own effect options)."""
         if not isinstance(item, dict):
@@ -923,6 +1017,8 @@ class Checker:
         tag = name_of(item.get("Tag", ""))
         if "tag" in usage:
             self.check_tag(where + ".Tag", tag, usage["tag"])
+            if isinstance(tag, str) and tag != "":
+                self.check_refused_tag(where + ".Tag", tag, usage["tag"])
         elif tag != "":
             self.report(where + ".Tag", "this type reads no Tag, found %s" % (tag,))
 
@@ -1108,6 +1204,11 @@ class Checker:
             return row_name != test["row_not"]
         if "row_prefix" in test:
             return row_name.startswith(test["row_prefix"])
+        if NONE_TEST in test:
+            # No entry of the list holds every test (and so an empty list holds it); each test read in the entry.
+            items = row.get(test[NONE_TEST][0]["col"].partition(PATH_MARK)[0])
+            inner = [dict(entry, col=entry["col"].partition(PATH_MARK)[2]) for entry in test[NONE_TEST]]
+            return isinstance(items, list) and not any(isinstance(item, dict) and self.all_hold(inner, item, row_name) for item in items)
         head, mark, sub = test["col"].partition(PATH_MARK)
         if mark:
             # A column of a list of structs: the test holds for every entry (and so for an empty list).
@@ -1144,14 +1245,23 @@ class Checker:
             # The same with the Key as well.
             return isinstance(value, list) and any(isinstance(item, dict) and item.get("Type") == operand["type"] and item.get("Key") == operand["key"]
                                                    for item in value)
-        if name == "contains_all":
+        if name in ("contains_all", "contains_none"):
             if isinstance(value, str):
                 held = TAG_NAME.findall(value)
             elif isinstance(value, list):
                 held = [name_of(entry) for entry in value]
+            elif isinstance(value, dict):
+                # The keys of a tag map.
+                held = list(value)
             else:
                 return False
+            if name == "contains_none":
+                return not any(tag in held for tag in operand)
             return all(tag in held for tag in operand)
+        if name == "zero":
+            if not isinstance(value, dict):
+                return False
+            return all(is_number(entry) and entry == 0 for entry in value.values()) == operand
         if name == "len_ge_col":
             bound = row.get(operand)
             return isinstance(value, (list, dict)) and is_number(bound) and length_of(value) >= bound

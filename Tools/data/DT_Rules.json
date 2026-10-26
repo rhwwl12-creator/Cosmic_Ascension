@@ -96,6 +96,7 @@
 		"AIHostilePacifismMax": 0.5,
 		"PlagueSpreadMultiplier": 8.0,
 		"AIHostileRelationTowardRuled": 0.0,
-		"AIHostilePowerRatioTowardRuled": 0.6
+		"AIHostilePowerRatioTowardRuled": 0.6,
+		"ResistFleetFactor": 1.0
 	}
 ]

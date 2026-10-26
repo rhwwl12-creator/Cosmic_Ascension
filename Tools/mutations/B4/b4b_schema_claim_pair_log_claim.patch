@@ -1,0 +1,11 @@
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -76,7 +76,7 @@
+ 		"Event.Crisis.Supernova": ["Log.Crisis", "Log.Civ"],
+ 		"Event.Crisis.Rebellion": ["Log.Crisis", "Log.Civ"],
+ 		"Event.Crisis.Transcendent": ["Log.Transcendent", "Log.Crisis"],
+-		"Event.Crisis.Claim": ["Log.Record", "Log.Crisis"],
++		"Event.Crisis.Claim": ["Log.Claim", "Log.Record", "Log.Crisis"],
+ 		"Event.Grace.Rescue": ["Log.Calling"],
+ 		"Event.Grace.Remnant": ["Log.Civ"],
+ 		"Event.Grace.Jubilee": ["Log.Civ"]

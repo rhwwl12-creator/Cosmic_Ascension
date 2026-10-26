@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -109,7 +109,7 @@
+ 		{
+ 			return true;
+ 		}
+-		return Policy.bLeaveNearSphere && Hazard->SpawnRule == ECosmicHazardSpawn::Draw && System.ActiveHazard != SupernovaTag && CosmicState::IsSettled(System)
++		return Hazard->SpawnRule == ECosmicHazardSpawn::Draw && System.ActiveHazard != SupernovaTag && CosmicState::IsSettled(System)
+ 			&& CosmicHazards::ClaimantOf(State, Index, Tables, Rules, SystemIndex) != INDEX_NONE;
+ 	}
+ }

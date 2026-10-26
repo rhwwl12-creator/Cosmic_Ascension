@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+@@ -934,7 +934,7 @@
+ 			return false;
+ 		}
+ 		FStarSystemState& Target = State.Systems[Ctx.SystemIndex];
+-		const int64 Added = static_cast<int64>(Effect.Value < 2147483647.f ? Effect.Value : 2147483647.f);
++		const int64 Added = static_cast<int64>((Effect.Value < 2147483647.f ? Effect.Value : 2147483647.f) * CosmicConflict::EffectivePowerOf(1.f, 2, Ctx.Rules));
+ 		Target.HazardTicksRemaining = static_cast<int32>(FMath::Min<int64>(static_cast<int64>(Target.HazardTicksRemaining) + Added, MAX_int32));
+ 		Civ->FleetPower *= CosmicConflict::ResistShareOf(Ctx.Rules);
+ 		return true;

@@ -1,0 +1,11 @@
+--- a/Tools/cosmic_data_schema.py
++++ b/Tools/cosmic_data_schema.py
+@@ -989,7 +989,7 @@
+                     if kind == "conditions":
+                         read(place, row.get(column))
+                     for sub, sub_spec in sorted(inner.items()) if isinstance(inner, dict) else []:
+-                        if isinstance(sub_spec, dict) and sub_spec.get("kind") == "conditions":
++                        if False:
+                             for entry in (row.get(column) if isinstance(row.get(column), list) else []):
+                                 read("%s.%s" % (place, sub), entry.get(sub) if isinstance(entry, dict) else None)
+         self.read_tags[type_name] = found

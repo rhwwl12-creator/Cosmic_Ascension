@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -201,7 +201,7 @@
+ 			continue;
+ 		}
+ 		const ECosmicSphereReach Reach = ReachOf(SystemIndex);
+-		if (Reach == ECosmicSphereReach::Adjacent)
++		if (Reach != ECosmicSphereReach::None)
+ 		{
+ 			return SystemID;
+ 		}

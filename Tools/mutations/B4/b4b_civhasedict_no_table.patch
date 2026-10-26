@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+@@ -633,7 +633,7 @@
+ 
+ 	case EConditionType::CivHasEdict:
+ 		// A held edict the tables know (B4 section 2.2): the count of CosmicEdicts::HeldCountOf.
+-		return Civ && Civ->ActiveEdicts.Contains(Condition.Key) && View.Tables.FindEdict(Condition.Key) != nullptr;
++		return Civ && Civ->ActiveEdicts.Contains(Condition.Key);
+ 
+ 	default:
+ 		// An enumerator this build does not know (a row written for a later build).

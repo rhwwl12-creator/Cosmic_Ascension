@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
++++ b/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
+@@ -2225,7 +2225,7 @@
+ 			{
+ 				Stays *= Share < 1.0 ? 1.0 - Share : 0.0;
+ 			}
+-			if (Stays < 0.25)
++			if (Stays < 0.2)
+ 			{
+ 				Problems.Add(FString::Printf(TEXT("DT_Hazards.%s: the non-grace rows that resolve %s take it away %.4f a slot; over the %lld slots of its longest stand (%lld ticks) %.3f stays - below the quarter the theodicy keeps"),
+ 					*HazardName.ToString(), *Tag.ToString(), Share, Slots, Longest, Stays));

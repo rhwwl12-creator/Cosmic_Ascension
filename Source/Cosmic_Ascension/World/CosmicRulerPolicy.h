@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+struct FCosmicDataTables;
 struct FCosmicRulesDef;
 struct FCosmicStateIndex;
 struct FEncounterDef;
@@ -11,11 +12,27 @@ struct FGalaxyState;
 class UGalaxySimulationSubsystem;
 class UPlayerRoleSubsystem;
 
+// How the script answers the pressure cards (B4, docs/60_DECISIONS/headers/B4_transcendent_voice_and_pressure_cards.md
+// section 2.9 - measurement only, no baseline plays another than Round): the commandlet's -PlayerPolicy=, in the words of
+// docs/40 (Tribute is refused - B4 has no tribute). A pressure card is known by its effects (a choice that enacts an edict
+// or buys a hazard time), never by its row name. Not saved.
+enum class ECosmicPressurePolicy : uint8
+{
+	// The round of ChoiceOf, as for every other card.
+	Round,
+	// Always the watch: the choice with no cost, no check, no effect and no next card.
+	Cautious,
+	// Discern (the choice that opens the next card), then the fleet's time; else the watch.
+	Reckless,
+	// The vigil (an EnactEdict of VigilRowOf), else discern; on the next card the other edict; else the watch.
+	Faithful,
+};
+
 // The ruler policy of the balance commandlet (MVP item 3: -Answer, -Build; MVP item 7: -Focus; B2: -Edict, -EdictRow; B3:
-// -Diplomacy) as one function the commandlet and the hash run (World/CosmicHashRun) share, so the cooked build plays the
-// inputs the editor's baseline played (docs/60_DECISIONS/headers/A9_win64_packaging.md section 2.2). Moved out of the
-// commandlet unchanged. Every place that makes one writes all six values (an aggregate initialisation would leave a
-// missing one false or 0).
+// -Diplomacy; B4: -PlayerPolicy, -Guard, -LeaveNearSphere) as one function the commandlet and the hash run
+// (World/CosmicHashRun) share, so the cooked build plays the inputs the editor's baseline played
+// (docs/60_DECISIONS/headers/A9_win64_packaging.md section 2.2). Moved out of the commandlet unchanged. Every place that
+// makes one writes all nine values (an aggregate initialisation would leave a missing one false or 0).
 struct FCosmicRulerPolicy
 {
 	bool bAnswer = false;
@@ -28,6 +45,14 @@ struct FCosmicRulerPolicy
 	// B3 (docs/60_DECISIONS/headers/B3_diplomacy_and_conflict.md section 5): 0 no diplomacy, 1 the peace policy, 2 the attack
 	// policy (measurement only - no baseline plays it).
 	int32 Diplomacy = 0;
+	// B4 (header section 2.9 - measurement only): how the pressure cards are answered; the guard (1: the fleet guards the
+	// system of ActDiplomacy's step (1) - besieged, else beside a higher sphere, else inside one, else the capital - also
+	// with no diplomacy and after the end; 0: none); under a pressure policy (not Round), the awakenings and plagues on the
+	// ruled people's settled systems a claimant could reach are left unanswered (projects and answer edicts - a
+	// supernova's warning is answered), so that their expiry may bring a claim (header section 5, the first measurement 3).
+	ECosmicPressurePolicy Pressure = ECosmicPressurePolicy::Round;
+	int32 Guard = 0;
+	bool bLeaveNearSphere = false;
 };
 
 // What the policy did so far in a run.
@@ -62,6 +87,9 @@ struct FCosmicRulerPolicyCounts
 	// A provisional end has been read at a boundary: no focus or edict input from then on (the game takes no input after
 	// it).
 	bool bEnded = false;
+	// B4: the edicts a pressure card's accepted answer enacted (header decision 9). While a claim stands on a settled system
+	// of the ruled people, MakeRoomFor never revokes them; after, the usual rules (the vigil as the vigil of step (3)).
+	TArray<FName> CardEdicts;
 };
 
 namespace CosmicRulerPolicy
@@ -73,9 +101,37 @@ namespace CosmicRulerPolicy
 	// (CosmicPetitions::StanceBlockOfChoice on the first contact card's people - B3). With a diplomacy policy (Diplomacy
 	// not 0), the first contact card (RowName CosmicRows::PetitionFirstContact) takes its first payable choice the gate
 	// takes whose success turns the people friendly ('reach out'), whatever the answers so far - the round would mix both
-	// choices over the runs otherwise.
+	// choices over the runs otherwise. With Rules and Tables, every gate of a choice is asked on the card's system
+	// (CosmicPetitions::ChoiceGateOf - B4: the edicts and the fleet's time too; the answer refuses what it refuses).
+	// With Tables and a pressure policy (B4), a pressure card - one with a choice that enacts an edict or buys a hazard time -
+	// is answered by the policy's order of kinds (ECosmicPressurePolicy), the first choice of the first kind the answer
+	// takes; the round when none is.
 	int32 ChoiceOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FEncounterDef& Row, int32 AnswersSoFar, FName RowName = NAME_None,
-		int32 Diplomacy = 0, const FCosmicRulesDef* Rules = nullptr);
+		int32 Diplomacy = 0, const FCosmicRulesDef* Rules = nullptr, const FCosmicDataTables* Tables = nullptr,
+		ECosmicPressurePolicy Pressure = ECosmicPressurePolicy::Round);
+
+	// The -PlayerPolicy word (docs/40): Round, Cautious, Reckless, Faithful, case-insensitive. False for any other word -
+	// Tribute among them (B4 has no tribute): the commandlet runs nothing then.
+	bool PressurePolicyOf(const FString& Word, ECosmicPressurePolicy& Out);
+
+	// The word of a pressure policy (the commandlet's pressure line).
+	const TCHAR* PressurePolicyName(ECosmicPressurePolicy Pressure);
+
+	// Whether a claim (a hazard of a ClaimRule row) stands on a settled system of the people CivIndex.
+	bool ClaimStandsOn(const FGalaxyState& State, const FCosmicDataTables& Tables, int32 CivIndex);
+
+	// The system the guard of -Guard=1 keeps for the people CivIndex when none of its systems is besieged (B4 header section
+	// 2.9): among its settled systems in OwnedSystems order, the first one lane from the sphere of an unsealed transcendent
+	// whose row stands above the people's Tier (where a claim stands), else the first inside one (where the fleet wears),
+	// else the capital; NAME_None when the guard's gate refuses the capital (no fleet - the first rung).
+	FName GuardTargetOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex);
+
+	// The projects the script may start for the people CivIndex (CosmicMegaprojects::Choices, in its order) under Policy:
+	// all of them for Round; under a pressure policy, without the answer of a claim (the relief - header section 2.8: the
+	// theodicy's count is the claims a work did not decide) and, with bLeaveNearSphere, without the answer of an awakening or a
+	// plague (a Draw row but the supernova's warning) on a settled system a claimant could reach.
+	TArray<TPair<int32, FName>> ProjectChoicesOf(const FCosmicRulerPolicy& Policy, const FGalaxyState& State, const FCosmicStateIndex& Index,
+		const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex);
 
 	// One tick boundary, right after RunHeadless(1), before anything else reads the tick: reads the provisional end into
 	// bEnded first (as the presentation reads it), counts a card that came, then answers while a card is pending (at
@@ -124,4 +180,8 @@ namespace CosmicRulerPolicy
 	// The decisions a run took: answers, projects started, focus changes, edict commands and diplomacy commands (stances,
 	// treaties, fleet targets - the commandlet's ruler line).
 	int32 DecisionsOf(const FCosmicRulerPolicyCounts& Counts);
+
+	// The vigil of ActEdicts step (3): the first DT_Edicts row, lexical, that adds to the countdown of a Capital row's
+	// hazard (read from the data, not named); NAME_None when no row does. The commandlet's spirit line asks its gate too.
+	FName VigilRowOf(const FCosmicDataTables& Tables);
 }

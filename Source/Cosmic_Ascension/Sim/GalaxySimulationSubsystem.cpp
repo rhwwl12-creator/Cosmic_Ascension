@@ -332,23 +332,24 @@ namespace
 	}
 
 	// The expiry of a claim (section 4.2): the claimant of now joins the system to its sphere, unless the system is no
-	// longer settled, the sphere is full, or Law.Remnant forbids it. True when it joined.
-	bool JoinClaimedSphere(FCosmicEvalContext& Ctx, int32 SystemIndex)
+	// longer settled, the sphere is full, or Law.Remnant forbids it. The claimant's index into Transcendents when it joined
+	// (the voice of the join reads it - B4 header section 2.6), INDEX_NONE otherwise.
+	int32 JoinClaimedSphere(FCosmicEvalContext& Ctx, int32 SystemIndex)
 	{
 		FGalaxyState& State = Ctx.State;
 		if (!State.Systems.IsValidIndex(SystemIndex) || !CosmicState::IsSettled(State.Systems[SystemIndex]))
 		{
-			return false;
+			return INDEX_NONE;
 		}
 		const int32 Claimant = CosmicHazards::ClaimantOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, SystemIndex);
 		const FTranscendentDef* Def = State.Transcendents.IsValidIndex(Claimant) ? Ctx.Tables.FindTranscendent(State.Transcendents[Claimant].TranscendentID) : nullptr;
 		if (!Def || State.Transcendents[Claimant].InfluencedSystems.Num() >= Def->MaxInfluencedSystems
 			|| CosmicHazards::IsLastUnclaimed(State, Ctx.Index, Ctx.Tables, SystemIndex))
 		{
-			return false;
+			return INDEX_NONE;
 		}
 		State.Transcendents[Claimant].InfluencedSystems.Add(State.Systems[SystemIndex].SystemID);
-		return true;
+		return Claimant;
 	}
 
 	// The expiry of a rebellion (section 4.1, 7.4 notable hook 2). The throne changes for an AI people always, with a new
@@ -1272,6 +1273,39 @@ FCosmicPressure UGalaxySimulationSubsystem::ComputeAttritionPressureIn(const FGa
 	return Out;
 }
 
+float UGalaxySimulationSubsystem::DrainLossOf(const FCosmicRulesDef& InRules, const FCosmicDataTables& InTables, const FCivilizationState& Civ, float Pressure)
+{
+	return (InRules.SpiritualPressureStabilityDrain > 0.f ? InRules.SpiritualPressureStabilityDrain : 0.f) * Pressure * CosmicEdicts::PressureDrainMultiplierOf(Civ, InTables);
+}
+
+float UGalaxySimulationSubsystem::ComputeDrainPressureOf(const FGalaxyState& InState, const FCosmicStateIndex& InIndex, const FCosmicDataTables& InTables, const FCosmicRulesDef& InRules, int32 CivIndex)
+{
+	float Largest = 0.f;
+	if (!InState.Civs.IsValidIndex(CivIndex))
+	{
+		return Largest;
+	}
+	const FCivilizationState& Civ = InState.Civs[CivIndex];
+	const FPressingDefs Defs = PressingDefsOf(InState, InTables);
+	for (const FName SystemID : Civ.OwnedSystems)
+	{
+		const int32 SystemIndex = InIndex.FindSystem(InState, SystemID);
+		if (!InState.Systems.IsValidIndex(SystemIndex) || InState.Systems[SystemIndex].OwnerCivID != Civ.CivID || !CosmicState::IsSettled(InState.Systems[SystemIndex]))
+		{
+			continue;
+		}
+		const FCosmicPressure Reading = PressureWithReach(InState, InIndex, InRules, Defs, SystemIndex, [&InState, SystemIndex](int32 TranscendentIndex)
+		{
+			return SphereReachIn(InState, InState.Transcendents[TranscendentIndex], SystemIndex);
+		});
+		if (Reading.DominantSource != ECosmicPressureSource::None && TierIndex(Reading.DominantTier) > TierIndex(Civ.Tier))
+		{
+			Largest = FMath::Max(Largest, Reading.P);
+		}
+	}
+	return Largest;
+}
+
 ECosmicSphereReach UGalaxySimulationSubsystem::SphereReachIn(const FGalaxyState& InState, const FTranscendentState& Transcendent, int32 SystemIndex)
 {
 	if (!InState.Systems.IsValidIndex(SystemIndex))
@@ -1454,9 +1488,7 @@ void UGalaxySimulationSubsystem::SimulateTick()
 	{
 		// The stages hold references into the state, and OnLogEntry fires from inside them (section 9.4).
 		TGuardValue<bool> StageGuard(bInTickStages, true);
-		TickEconomy();
-		TickResearch();
-		// The stage clock (measurement only): laps around four stages, nothing else.
+		// The stage clock (measurement only): laps around six stages, nothing else.
 		const bool bClock = StageClock.bOn;
 		uint64 Lap = bClock ? FPlatformTime::Cycles64() : 0;
 		auto Mark = [this, bClock, &Lap](int32 At)
@@ -1468,6 +1500,10 @@ void UGalaxySimulationSubsystem::SimulateTick()
 				Lap = Now;
 			}
 		};
+		TickEconomy();
+		Mark(4);
+		TickResearch();
+		Lap = bClock ? FPlatformTime::Cycles64() : 0;
 		TickDiplomacy();
 		Mark(0);
 		TickConflict();
@@ -1483,6 +1519,7 @@ void UGalaxySimulationSubsystem::SimulateTick()
 		{
 			const bool bArrived = TickPlayerTravel();
 			TickSight(State.Player.CurrentSystemID != VesselAtStart);
+			Lap = bClock ? FPlatformTime::Cycles64() : 0;
 			// The end of the knowing stage: the waiting card - a petition put before the ruler (section 5.10), a card put
 			// before the wanderer where it stands (B1). Knowing only, no draw of the sim stream. A wanderer's card names the
 			// people of its system: that people is met first (the meeting of docs/70, the gap rule of NoteMet).
@@ -1495,6 +1532,7 @@ void UGalaxySimulationSubsystem::SimulateTick()
 					NoteMet(Owner, State.Knowing.PendingPetitionSystemID);
 				}
 			}
+			Mark(5);
 		}
 	}
 	// Outside the guard: death and deposition replace the vessel, and the leap of Phase 4b runs ticks from here.
@@ -1679,8 +1717,9 @@ void UGalaxySimulationSubsystem::TickEconomy()
 			}
 		}
 		// The range of the knob is a lint; the guard is here: a knob below zero or not a number takes nothing. The loss is
-		// tested, not the pressure, so that nothing that is not a number reaches Stability.
-		const float Loss = (Rules.SpiritualPressureStabilityDrain > 0.f ? Rules.SpiritualPressureStabilityDrain : 0.f) * LargestPressure;
+		// tested, not the pressure, so that nothing that is not a number reaches Stability. The held edicts' factor multiplies
+		// it once (B4 - exactly 1 while no held edict carries one, so the product keeps its bits).
+		const float Loss = DrainLossOf(Rules, Tables, Civ, LargestPressure);
 		if (Loss > 0.f)
 		{
 			Civ.Stability = FMath::Max(0.f, Civ.Stability - Loss);
@@ -2357,6 +2396,8 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 
 	// The code of the tag: what no effect may say (section 16 #29 (5)).
 	bool bJoined = true;
+	// The sphere a claim joined (INDEX_NONE for every other expiry and for a claim that did not join).
+	int32 JoinedTo = INDEX_NONE;
 	bool bUnseated = false;
 	if (Collected == SupernovaTag)
 	{
@@ -2394,7 +2435,8 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 	}
 	else if (Collected == ClaimTag)
 	{
-		bJoined = JoinClaimedSphere(Ctx, SystemIndex);
+		JoinedTo = JoinClaimedSphere(Ctx, SystemIndex);
+		bJoined = JoinedTo != INDEX_NONE;
 	}
 	EmptySlot();
 

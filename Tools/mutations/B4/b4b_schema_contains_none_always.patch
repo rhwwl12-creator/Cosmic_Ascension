@@ -1,0 +1,11 @@
+--- a/Tools/cosmic_data_schema.py
++++ b/Tools/cosmic_data_schema.py
+@@ -1256,7 +1256,7 @@
+             else:
+                 return False
+             if name == "contains_none":
+-                return not any(tag in held for tag in operand)
++                return True
+             return all(tag in held for tag in operand)
+         if name == "zero":
+             if not isinstance(value, dict):

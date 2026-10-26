@@ -2140,6 +2140,351 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		Expect(TEXT("an inherited edict with no Stability cost"), EdictProblems(Game, Inheriting), { TEXT("StartingEdict"), TEXT("more Stability") });
 	}
 
+	// B4 (docs/60_DECISIONS/headers/B4_transcendent_voice_and_pressure_cards.md section 2.8, 3.3): the theodicy's budget and the
+	// name of the edict a card enacts - rules across tables, out of the schema's reach. The budget: for every hazard row, the
+	// share a slot of the non-grace Lottery rows of DT_Events that resolve its tag - BaseWeight x the upper end of the sphere
+	// factor x EventChancePerSlot, summed - leaves at least a quarter, multiplied over the slots of the longest the hazard can
+	// stand: its CountdownTicks, the positive HazardCountdownBonus for the tag of every DT_Edicts row (CountdownBonusOf adds
+	// every held one), the guard's FleetDelayCap and, per card row, its largest DelayHazard on the tag; the slots are that
+	// many ticks over EventSlotTicks, rounded up. The upper end of the sphere factor of a row's Category is the product, over
+	// the transcendent rows that weight that Category, of the most each can give - min(3, modifier x (1 +
+	// SphereEventWeightStep x the largest sphere it can hold)) when above 1, the largest sphere being MaxInfluencedSystems or
+	// the one core NewGalaxy places for an InitialInfluencedSystems above 0, whichever is more: the factor stops at 3 for one
+	// transcendent and not across them, and no roster gives more. A loop of products, no Pow. The per-card DelayHazard counts
+	// once because such a card comes once for a claim: DelayShapeProblems below keeps the rows to that shape.
+	auto TheodicyProblems = [](const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules)
+	{
+		static const FGameplayTag GraceTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Event.Grace")));
+		TArray<FString> Problems;
+		const double Step = Rules.SphereEventWeightStep > 0.f ? Rules.SphereEventWeightStep : 0.0;
+		auto UpperFactorOf = [&Tables, Step](FGameplayTag Category)
+		{
+			double Factor = 1.0;
+			for (const FName Row : Tables.GetTranscendentRowNames())
+			{
+				const FTranscendentDef* Def = Tables.FindTranscendent(Row);
+				const float* Modifier = Def ? Def->EventWeightModifiers.Find(Category) : nullptr;
+				if (Modifier && *Modifier > 0.f)
+				{
+					const int32 Largest = FMath::Max(Def->MaxInfluencedSystems, Def->InitialInfluencedSystems > 0 ? 1 : 0);
+					const double Most = FMath::Min(3.0, *Modifier * (1.0 + Step * FMath::Max(0, Largest)));
+					Factor *= Most > 1.0 ? Most : 1.0;
+				}
+			}
+			return Factor;
+		};
+		const int64 SlotTicks = FMath::Max(1, Rules.EventSlotTicks);
+		const double Chance = Rules.EventChancePerSlot > 0.f ? Rules.EventChancePerSlot : 0.0;
+		const int64 GuardCap = Rules.FleetDelayCap > 0.f ? static_cast<int64>(FMath::Min(Rules.FleetDelayCap, 100000.f)) : 0;
+		for (const FName HazardName : Tables.GetHazardRowNames())
+		{
+			const FHazardDef* Hazard = Tables.FindHazard(HazardName);
+			if (!Hazard || !Hazard->HazardTag.IsValid())
+			{
+				continue;
+			}
+			const FGameplayTag Tag = Hazard->HazardTag;
+			double Share = 0.0;
+			for (const FName EventName : Tables.GetEventRowNames())
+			{
+				const FCosmicEventDef* Event = Tables.FindEvent(EventName);
+				const bool bResolves = Event && Event->Trigger == ECosmicEventTrigger::Lottery && !Event->Category.MatchesTag(GraceTag) && Event->BaseWeight > 0.f
+					&& Event->Effects.ContainsByPredicate([&Tag](const FCosmicEffect& Effect)
+					{
+						return Effect.Type == EEffectType::ResolveHazard && (!Effect.Tag.IsValid() || Tag.MatchesTag(Effect.Tag));
+					});
+				Share += bResolves ? Event->BaseWeight * UpperFactorOf(Event->Category) * Chance : 0.0;
+			}
+			if (!(Share > 0.0))
+			{
+				continue;
+			}
+			int64 Longest = FMath::Max(1, Hazard->CountdownTicks) + GuardCap;
+			for (const FName EdictName : Tables.GetEdictRowNames())
+			{
+				const FEdictDef* Edict = Tables.FindEdict(EdictName);
+				const int32* Bonus = Edict ? Edict->HazardCountdownBonus.Find(Tag) : nullptr;
+				Longest += (Bonus && *Bonus > 0) ? *Bonus : 0;
+			}
+			for (const FName CardName : Tables.GetEncounterRowNames())
+			{
+				const FEncounterDef* Card = Tables.FindEncounter(CardName);
+				float Most = 0.f;
+				for (int32 At = 0; Card && At < Card->Choices.Num(); ++At)
+				{
+					for (const FCosmicEffect& Effect : Card->Choices[At].OnSuccess)
+					{
+						Most = (Effect.Type == EEffectType::DelayHazard && Effect.Tag.IsValid() && Tag.MatchesTag(Effect.Tag) && Effect.Value > Most) ? Effect.Value : Most;
+					}
+				}
+				Longest += static_cast<int64>(FMath::Min(Most, 100000.f));
+			}
+			const int64 Slots = (Longest + SlotTicks - 1) / SlotTicks;
+			double Stays = 1.0;
+			for (int64 Slot = 0; Slot < Slots; ++Slot)
+			{
+				Stays *= Share < 1.0 ? 1.0 - Share : 0.0;
+			}
+			if (Stays < 0.25)
+			{
+				Problems.Add(FString::Printf(TEXT("DT_Hazards.%s: the non-grace rows that resolve %s take it away %.4f a slot; over the %lld slots of its longest stand (%lld ticks) %.3f stays - below the quarter the theodicy keeps"),
+					*HazardName.ToString(), *Tag.ToString(), Share, Slots, Longest, Stays));
+			}
+		}
+		return Problems;
+	};
+	// A choice that enacts an edict carries the edict's display name word for word (no {Edict} slot - the name can change); and
+	// a choice holds at most one gated effect (SetStance, EnactEdict, DelayHazard), first in OnSuccess - the choice's gate
+	// (CosmicPetitions::ChoiceGateOf) reads the state before the answer, so an effect before the gated one could close its
+	// gate after the draw.
+	auto CardEdictNameProblems = [](const FCosmicDataTables& Tables)
+	{
+		TArray<FString> Problems;
+		for (const FName CardName : Tables.GetEncounterRowNames())
+		{
+			const FEncounterDef* Card = Tables.FindEncounter(CardName);
+			for (int32 At = 0; Card && At < Card->Choices.Num(); ++At)
+			{
+				const TArray<FCosmicEffect>& OnSuccess = Card->Choices[At].OnSuccess;
+				for (int32 EffectAt = 0; EffectAt < OnSuccess.Num(); ++EffectAt)
+				{
+					const EEffectType Type = OnSuccess[EffectAt].Type;
+					if (EffectAt > 0 && (Type == EEffectType::SetStance || Type == EEffectType::EnactEdict || Type == EEffectType::DelayHazard))
+					{
+						Problems.Add(FString::Printf(TEXT("DT_Encounters.%s.Choices[%d].OnSuccess[%d]: a gated effect stands alone, first in its choice"), *CardName.ToString(), At, EffectAt));
+					}
+				}
+				for (const FCosmicEffect& Effect : Card->Choices[At].OnSuccess)
+				{
+					const FEdictDef* Edict = Effect.Type == EEffectType::EnactEdict ? Tables.FindEdict(Effect.Key) : nullptr;
+					if (Effect.Type == EEffectType::EnactEdict
+						&& (!Edict || Edict->DisplayName.IsEmpty() || !Card->Choices[At].Label.ToString().Contains(Edict->DisplayName.ToString(), ESearchCase::CaseSensitive)))
+					{
+						Problems.Add(FString::Printf(TEXT("DT_Encounters.%s.Choices[%d]: a choice that enacts %s carries that edict's name word for word"),
+							*CardName.ToString(), At, *Effect.Key.ToString()));
+					}
+				}
+			}
+		}
+		return Problems;
+	};
+	// The shape the theodicy's count assumes of a card that buys a hazard time (one DelayHazard a claim - header section 2.8):
+	// the card is no Lottery row, lies on no NextEncounter cycle, no Lottery row leads to it, and among the card and the rows
+	// that lead to it (through NextEncounter, any depth) at most one is not Named - one root that comes when its condition
+	// comes to hold, the rest only by the chain.
+	auto DelayShapeProblems = [](const FCosmicDataTables& Tables)
+	{
+		TArray<FString> Problems;
+		const TArray<FName> Names = Tables.GetEncounterRowNames();
+		auto LeadsTo = [&Tables](FName From, FName To)
+		{
+			const FEncounterDef* Row = Tables.FindEncounter(From);
+			return Row && Row->Choices.ContainsByPredicate([To](const FEncounterChoice& Choice) { return Choice.NextEncounter == To; });
+		};
+		for (const FName CardName : Names)
+		{
+			const FEncounterDef* Card = Tables.FindEncounter(CardName);
+			const bool bDelays = Card && Card->Choices.ContainsByPredicate([](const FEncounterChoice& Choice)
+			{
+				return Choice.OnSuccess.ContainsByPredicate([](const FCosmicEffect& Effect) { return Effect.Type == EEffectType::DelayHazard; });
+			});
+			if (!bDelays)
+			{
+				continue;
+			}
+			// The rows that lead to the card, any depth (a walk back along NextEncounter).
+			TArray<FName> Leading;
+			TArray<FName> Open = { CardName };
+			while (!Open.IsEmpty())
+			{
+				const FName At = Open.Pop();
+				for (const FName Other : Names)
+				{
+					if (!Leading.Contains(Other) && LeadsTo(Other, At))
+					{
+						Leading.Add(Other);
+						Open.Add(Other);
+					}
+				}
+			}
+			int32 Roots = Card->Trigger == ECosmicEventTrigger::Named ? 0 : 1;
+			bool bLottery = Card->Trigger == ECosmicEventTrigger::Lottery;
+			for (const FName Other : Leading)
+			{
+				const FEncounterDef* Row = Tables.FindEncounter(Other);
+				Roots += (Row && Row->Trigger != ECosmicEventTrigger::Named && Other != CardName) ? 1 : 0;
+				bLottery |= Row && Row->Trigger == ECosmicEventTrigger::Lottery;
+			}
+			if (bLottery || Leading.Contains(CardName) || Roots > 1)
+			{
+				Problems.Add(FString::Printf(TEXT("DT_Encounters.%s: a card that buys a hazard time comes once a claim - no Lottery row, no cycle, one root (here %s%s%d roots)"),
+					*CardName.ToString(), bLottery ? TEXT("a Lottery row, ") : TEXT(""), Leading.Contains(CardName) ? TEXT("a cycle, ") : TEXT(""), Roots));
+			}
+		}
+		return Problems;
+	};
+	if (TestNotNull(TEXT("(the game's events, hazards, cards and transcendents)"), Game.Events.Get()) && Game.Hazards.Get() && Game.Encounters.Get()
+		&& Game.Transcendents.Get() && Game.Edicts.Get() && GameRules)
+	{
+		TestTrue(TEXT("No hazard of the game is taken away for certain: a quarter of its longest stand stays"), Report(TEXT("theodicy"), TheodicyProblems(Game, *GameRules)));
+		TestTrue(TEXT("Every choice of the game's cards that enacts an edict carries the edict's name, and every gated effect stands alone and first"),
+			Report(TEXT("card edicts"), CardEdictNameProblems(Game)));
+		TestTrue(TEXT("Every card of the game that buys a hazard time comes once a claim"), Report(TEXT("card delays"), DelayShapeProblems(Game)));
+		const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Claim")));
+		const FName Vigil(TEXT("edict_vigil"));
+		const FEdictDef* VigilRow = Game.FindEdict(Vigil);
+		// A board of test rows over the game's tables: a claim-easing Lottery row of a weight (0: none), a card whose choice
+		// buys a claim time (0: none) or enacts the vigil under a label, a second edict with a claim bonus, a weight the
+		// silence row puts on a category.
+		struct FTheodicyBoard
+		{
+			float EaseWeight = 0.f;
+			float CardDelay = 0.f;
+			bool bSecondBonus = false;
+			FGameplayTag Weighted;
+			float WeightOf = 0.f;
+			FText VigilLabel;
+			// The silence row's sphere cap (-1: the game's) with its one initial core.
+			int32 SilenceCap = -1;
+			// The resisting card's trigger, whether it chains to itself, how many Standing rows lead to it, and an effect
+			// before its gated one.
+			ECosmicEventTrigger CardTrigger = ECosmicEventTrigger::Named;
+			bool bSelfChain = false;
+			int32 LeadingRoots = 0;
+			bool bEffectFirst = false;
+		};
+		auto BoardOf = [&](const FTheodicyBoard& Board)
+		{
+			FCosmicDataTables Tables = Game;
+			UDataTable* Events = CopyOf<FCosmicEventDef>(Game.Events);
+			if (Board.EaseWeight > 0.f)
+			{
+				FCosmicEventDef Ease;
+				Ease.Category = FGameplayTag::RequestGameplayTag(FName(TEXT("Event.Crisis.Claim")));
+				Ease.Trigger = ECosmicEventTrigger::Lottery;
+				Ease.BaseWeight = Board.EaseWeight;
+				FCosmicEffect Resolve;
+				Resolve.Type = EEffectType::ResolveHazard;
+				Resolve.Tag = ClaimTag;
+				Ease.Effects = { Resolve };
+				Events->AddRow(FName(TEXT("event_test_claim_eased")), Ease);
+			}
+			UDataTable* Cards = CopyOf<FEncounterDef>(Game.Encounters);
+			if (Board.CardDelay > 0.f || !Board.VigilLabel.IsEmpty())
+			{
+				FEncounterDef Card;
+				FEncounterChoice Act;
+				FCosmicEffect Effect;
+				Effect.Type = Board.CardDelay > 0.f ? EEffectType::DelayHazard : EEffectType::EnactEdict;
+				Effect.Tag = Board.CardDelay > 0.f ? ClaimTag : FGameplayTag();
+				Effect.Key = Board.CardDelay > 0.f ? NAME_None : Vigil;
+				Effect.Value = Board.CardDelay;
+				Act.OnSuccess = { Effect };
+				if (Board.bEffectFirst)
+				{
+					FCosmicEffect Before;
+					Before.Type = EEffectType::ChangeStability;
+					Before.Value = 0.1f;
+					Act.OnSuccess.Insert(Before, 0);
+				}
+				Act.Label = Board.VigilLabel;
+				Act.NextEncounter = Board.bSelfChain ? FName(TEXT("petition_test_resist")) : NAME_None;
+				Card.Trigger = Board.CardTrigger;
+				Card.Choices = { Act, FEncounterChoice() };
+				Cards->AddRow(FName(TEXT("petition_test_resist")), Card);
+				for (int32 Root = 0; Root < Board.LeadingRoots; ++Root)
+				{
+					FEncounterDef Leading;
+					Leading.Trigger = ECosmicEventTrigger::Standing;
+					FEncounterChoice Discern;
+					Discern.NextEncounter = FName(TEXT("petition_test_resist"));
+					Leading.Choices = { Discern, FEncounterChoice() };
+					Cards->AddRow(FName(*FString::Printf(TEXT("petition_test_lead_%d"), Root)), Leading);
+				}
+			}
+			UDataTable* Edicts = CopyOf<FEdictDef>(Game.Edicts);
+			if (Board.bSecondBonus)
+			{
+				FEdictDef Second;
+				Second.HazardCountdownBonus.Add(ClaimTag, 100);
+				Edicts->AddRow(FName(TEXT("edict_test_claim_bonus")), Second);
+			}
+			UDataTable* Transcendents = CopyOf<FTranscendentDef>(Game.Transcendents);
+			const FName Silence(TEXT("trans_silence"));
+			if (const FTranscendentDef* Source = Board.Weighted.IsValid() ? Game.FindTranscendent(Silence) : nullptr)
+			{
+				FTranscendentDef Row = *Source;
+				Row.EventWeightModifiers.Add(Board.Weighted, Board.WeightOf);
+				if (Board.SilenceCap >= 0)
+				{
+					Row.MaxInfluencedSystems = Board.SilenceCap;
+					Row.InitialInfluencedSystems = 1;
+				}
+				Transcendents->RemoveRow(Silence);
+				Transcendents->AddRow(Silence, Row);
+			}
+			Tables.Events = Events;
+			Tables.Encounters = Cards;
+			Tables.Edicts = Edicts;
+			Tables.Transcendents = Transcendents;
+			return Tables;
+		};
+		FTheodicyBoard Eased;
+		Eased.EaseWeight = 1.2f;
+		Eased.CardDelay = 50.f;
+		TestTrue(TEXT("A claim-easing row of weight 1.2 leaves a quarter of the claim's longest stand (300 + the vigil's 100 + the guard's 100 + a card's 50)"),
+			TheodicyProblems(BoardOf(Eased), *GameRules).IsEmpty());
+		FTheodicyBoard Heavier = Eased;
+		Heavier.EaseWeight = 1.3f;
+		Expect(TEXT("a claim-easing row of weight 1.3"), TheodicyProblems(BoardOf(Heavier), *GameRules), { TEXT("crisis_claim"), TEXT("Hazard.Claim"), TEXT("quarter") });
+		FTheodicyBoard LongerCard = Eased;
+		LongerCard.CardDelay = 100.f;
+		Expect(TEXT("a card's DelayHazard of 100 on the claim"), TheodicyProblems(BoardOf(LongerCard), *GameRules), { TEXT("crisis_claim"), TEXT("quarter") });
+		FTheodicyBoard TwoBonuses = Eased;
+		TwoBonuses.bSecondBonus = true;
+		Expect(TEXT("a second edict's claim bonus"), TheodicyProblems(BoardOf(TwoBonuses), *GameRules), { TEXT("crisis_claim"), TEXT("quarter") });
+		FTheodicyBoard WeightedClaim = Eased;
+		WeightedClaim.Weighted = FGameplayTag::RequestGameplayTag(FName(TEXT("Event.Crisis.Claim")));
+		WeightedClaim.WeightOf = 2.f;
+		Expect(TEXT("a transcendent row weighting Event.Crisis.Claim"), TheodicyProblems(BoardOf(WeightedClaim), *GameRules), { TEXT("crisis_claim"), TEXT("quarter") });
+		FTheodicyBoard WeightedSociety;
+		WeightedSociety.Weighted = FGameplayTag::RequestGameplayTag(FName(TEXT("Event.Civ.Society")));
+		WeightedSociety.WeightOf = 3.f;
+		Expect(TEXT("a transcendent row weighting the plague's repentance three times"), TheodicyProblems(BoardOf(WeightedSociety), *GameRules),
+			{ TEXT("crisis_plague"), TEXT("Hazard.Plague"), TEXT("quarter") });
+		FTheodicyBoard Named;
+		Named.VigilLabel = FText::FromString(VigilRow ? TEXT("[") + VigilRow->DisplayName.ToString() + TEXT("]") : FString());
+		TestTrue(TEXT("(the game's vigil has a name)"), VigilRow && !VigilRow->DisplayName.IsEmpty());
+		TestTrue(TEXT("A choice that enacts the vigil under its name passes"), CardEdictNameProblems(BoardOf(Named)).IsEmpty());
+		FTheodicyBoard Unnamed;
+		Unnamed.VigilLabel = FText::FromString(TEXT("x"));
+		Expect(TEXT("a choice that enacts the vigil under another name"), CardEdictNameProblems(BoardOf(Unnamed)), { TEXT("petition_test_resist.Choices[0]"), TEXT("edict_vigil") });
+		FTheodicyBoard Behind = Named;
+		Behind.bEffectFirst = true;
+		Expect(TEXT("a gated effect after another effect"), CardEdictNameProblems(BoardOf(Behind)), { TEXT("petition_test_resist.Choices[0].OnSuccess[1]"), TEXT("alone, first") });
+		// The sphere a fallen row can hold is at least its one core: a cap of 0 with a core weighs as a sphere of one.
+		FTheodicyBoard CoreOnly;
+		CoreOnly.Weighted = FGameplayTag::RequestGameplayTag(FName(TEXT("Event.Civ.Society")));
+		CoreOnly.WeightOf = 2.2f;
+		CoreOnly.SilenceCap = 0;
+		Expect(TEXT("a weight on the plague's repentance over a sphere of one core and a cap of 0"), TheodicyProblems(BoardOf(CoreOnly), *GameRules),
+			{ TEXT("crisis_plague"), TEXT("quarter") });
+		// The shape of a card that buys a hazard time.
+		TestTrue(TEXT("A Named card that buys a claim time, led to by nothing, comes once a claim"), DelayShapeProblems(BoardOf(Eased)).IsEmpty());
+		FTheodicyBoard OneRoot = Eased;
+		OneRoot.LeadingRoots = 1;
+		TestTrue(TEXT("and so does one led to by one Standing card"), DelayShapeProblems(BoardOf(OneRoot)).IsEmpty());
+		FTheodicyBoard InLottery = Eased;
+		InLottery.CardTrigger = ECosmicEventTrigger::Lottery;
+		Expect(TEXT("a Lottery card that buys a hazard time"), DelayShapeProblems(BoardOf(InLottery)), { TEXT("petition_test_resist"), TEXT("a Lottery row") });
+		FTheodicyBoard Cycle = Eased;
+		Cycle.bSelfChain = true;
+		Expect(TEXT("a card that buys a hazard time and chains to itself"), DelayShapeProblems(BoardOf(Cycle)), { TEXT("petition_test_resist"), TEXT("a cycle") });
+		FTheodicyBoard TwoRoots = Eased;
+		TwoRoots.LeadingRoots = 2;
+		Expect(TEXT("a card that buys a hazard time led to by two Standing cards"), DelayShapeProblems(BoardOf(TwoRoots)), { TEXT("petition_test_resist"), TEXT("2 roots") });
+	}
+
 	Sim->NewGalaxy(42, 5, 3);
 	return true;
 }

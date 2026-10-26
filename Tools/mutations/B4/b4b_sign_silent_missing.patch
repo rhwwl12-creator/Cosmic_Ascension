@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp
+@@ -115,7 +115,7 @@
+ 		}
+ 		else
+ 		{
+-			UE_LOG(LogCosmic, Error, TEXT("The line of %s names the sign row %s, which DT_LogTemplates does not hold"), *Line.SourceRow.ToString(), *SignRow.ToString());
++
+ 		}
+ 	}
+ 	return PushVariants(Line, Variants, Args);

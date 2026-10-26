@@ -248,3 +248,86 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B3/` | `b3d2_no_counter_siege.patch` — a besieged AI never opens on its besieger | `Cosmic_Ascension.Sim.DiplomacyAI` |
 | `B3/` | `b3d2_attack_fills_last_slot.patch` — the attack policy settles into its last realm slot | `Cosmic_Ascension.Sim.RulerDiplomacyPolicy` |
 | `B3/` | `b3d2_schema_ruled_ratio_unbounded.patch` — the power ratio toward the ruled people may be below 0 | `test_diplomacy_and_conflict` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4m0_drain_reads_attrition.patch` — the public drain reading reads the attrition's terms (inside a higher sphere only) | `Cosmic_Ascension.Sim.PressureDrainEdict` |
+| `B4/` | `b4m0_drain_sums_systems.patch` — the public drain reading sums the systems' P instead of taking the largest | `Cosmic_Ascension.Sim.PressureDrainEdict` |
+| `B4/` | `b4m0_drain_counts_settlements.patch` — the public drain reading counts a settlement under way | `Cosmic_Ascension.Sim.PressureDrainEdict` |
+| `B4/` | `b4m0_drain_any_dominant_tier.patch` — the public drain reading takes any dominant source, not one above the people | `Cosmic_Ascension.Sim.PressureDrainEdict` |
+| `B4/` | `b4m0_drain_both_sum.patch` — the economy stage and the public reading both sum the systems' P | `Cosmic_Ascension.Sim.PressureDrainEdict` (the boards' expected values) |
+| `B4/` | `b4b_enact_skips_gate.patch` — EnactEdict skips EnactBlockOf | `Cosmic_Ascension.Sim.EnactEdictEffect` |
+| `B4/` | `b4b_enact_pays_twice.patch` — EnactEdict pays the EnactCost twice | `Cosmic_Ascension.Sim.EnactEdictEffect` |
+| `B4/` | `b4b_enact_per_tick.patch` — EnactEdict joins the per-tick effects | `Cosmic_Ascension.Sim.EnactEdictEffect` |
+| `B4/` | `b4b_enact_accepts_norow.patch` — EnactEdict appends a Key the table does not hold | `Cosmic_Ascension.Sim.EnactEdictEffect` |
+| `B4/` | `b4b_civhasedict_no_table.patch` — CivHasEdict does not ask the table | `Cosmic_Ascension.Sim.CivHasEdictCondition` |
+| `B4/` | `b4b_gate_draw_first.patch` — the answer draws before the choice's gate | `Cosmic_Ascension.Sim.PetitionChoiceGate` |
+| `B4/` | `b4b_policy_stance_only.patch` — the policy reads the stance gate alone, with the tables too | `Cosmic_Ascension.Sim.PetitionChoiceGate` |
+| `B4/` | `b4b_gate_held_open.patch` — the choice's gate takes an edict held | `Cosmic_Ascension.Sim.PetitionChoiceGate` |
+| `B4/` | `b4b_resist_no_fleet_check.patch` — ResistBlockOf does not ask the fleet | `Cosmic_Ascension.Sim.ResistDelay` |
+| `B4/` | `b4b_resist_by_gap.patch` — DelayHazard scales its ticks by the tier gap | `Cosmic_Ascension.Sim.ResistDelay` |
+| `B4/` | `b4b_resist_rebellion.patch` — ResistBlockOf takes a Capital row's hazard | `Cosmic_Ascension.Sim.ResistDelay` |
+| `B4/` | `b4b_resist_apply_own_gate.patch` — DelayHazard reads a gate of its own (the hazard only) | `Cosmic_Ascension.Sim.ResistDelay` |
+| `B4/` | `b4b_resist_no_cut.patch` — DelayHazard does not cut the countdown at MAX_int32 | `Cosmic_Ascension.Sim.ResistDelay` |
+| `B4/` | `b4b_resist_resolves.patch` — DelayHazard empties the hazard's slot | `Cosmic_Ascension.Sim.ResistDelay` |
+| `B4/` | `b4b_drain_factor_per_system.patch` — the edicts' drain factor multiplies once per system | `Cosmic_Ascension.Sim.PressureDrainEdict` |
+| `B4/` | `b4b_drain_factor_unguarded.patch` — the edicts' drain factor reads 0, below 0 and NaN as they are | `Cosmic_Ascension.Sim.PressureDrainEdict` |
+| `B4/` | `b4b_sign_no_max.patch` — the sign line has no upper window | `Cosmic_Ascension.Log.SignHelper` |
+| `B4/` | `b4b_sign_draws_empty.patch` — PushWithSign tells the sign with no variants of the line | `Cosmic_Ascension.Log.SignHelper` |
+| `B4/` | `b4b_sign_after_line.patch` — PushWithSign tells the sign after the line | `Cosmic_Ascension.Log.SignHelper` |
+| `B4/` | `b4b_sign_silent_missing.patch` — a sign row the table lacks passes silently | `Cosmic_Ascension.Log.SignHelper` |
+| `B4/` | `b4b_theodicy_one_bonus.patch` — the theodicy's longest stand counts one edict's countdown bonus | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4b_theodicy_no_card_delay.patch` — the theodicy's longest stand leaves the cards' DelayHazard out | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4b_theodicy_factor_one.patch` — the theodicy counts the sphere factor as 1 | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4b_theodicy_lower_bar.patch` — the theodicy keeps a fifth instead of a quarter | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4b_card_edict_name_unchecked.patch` — a choice that enacts an edict need not carry its name | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4b_policy_revokes_card_edict.patch` — MakeRoomFor revokes a card's edict while a claim stands | `Cosmic_Ascension.Sim.RulerPressurePolicy` |
+| `B4/` | `b4b_policy_vigil_revoked_under_claim.patch` — step (4) revokes the vigil while a claim stands under a pressure policy | `Cosmic_Ascension.Sim.RulerPressurePolicy` |
+| `B4/` | `b4b_policy_guard_after_withdraw.patch` — -Guard=1 takes a standing guard back before it guards | `Cosmic_Ascension.Sim.RulerPressurePolicy` |
+| `B4/` | `b4b_policy_guard_needs_diplomacy.patch` — -Guard=1 does not guard with -Diplomacy=0 | `Cosmic_Ascension.Sim.RulerPressurePolicy` |
+| `B4/` | `b4b_policy_guard0_after_end.patch` — -Guard=0 runs step (1) after the end | `Cosmic_Ascension.Sim.RulerPressurePolicy` |
+| `B4/` | `b4b_policy_builds_relief.patch` — a pressure policy builds the claim's relief | `Cosmic_Ascension.Sim.RulerPressurePolicy` |
+| `B4/` | `b4b_policy_takes_tribute.patch` — -PlayerPolicy reads Tribute | `Cosmic_Ascension.Sim.RulerPressurePolicy` |
+| `B4/` | `b4b_policy_leave_under_round.patch` — -LeaveNearSphere=1 leaves crises alone under Round too | `Cosmic_Ascension.Sim.RulerPressurePolicy` |
+| `B4/` | `b4b_policy_faithful_discerns_first.patch` — Faithful discerns before the vigil | `Cosmic_Ascension.Sim.RulerPressurePolicy` |
+| `B4/` | `b4b_hashrun_guards.patch` — the hash run's policy guards | `Cosmic_Ascension.Sim.HashRun` |
+| `B4/` | `b4b_theodicy_cap_only.patch` — the theodicy's sphere bound reads the cap alone, not the one core | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4b_gate_effect_anywhere.patch` — a gated effect may stand behind another effect | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4b_delay_shape_lottery_ok.patch` — a Lottery card may buy a hazard time | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4b_delay_shape_cycle_ok.patch` — a card that buys a hazard time may chain to itself | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4b_delay_shape_roots_ok.patch` — two Standing cards may lead to a card that buys a hazard time | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4b_policy_room_with_own_vigil.patch` — MakeRoomFor revokes the script's own vigil while a claim stands under a pressure policy | `Cosmic_Ascension.Sim.RulerPressurePolicy` |
+| `B4/` | `b4b_policy_round_revokes_card_vigil.patch` — step (4) revokes a card's vigil under Round while a claim stands | `Cosmic_Ascension.Sim.RulerPressurePolicy` |
+| `B4/` | `b4b_policy_leave_ignores_switch.patch` — a pressure policy leaves the near-sphere crises alone without -LeaveNearSphere | `Cosmic_Ascension.Sim.RulerPressurePolicy` |
+| `B4/` | `b4b_policy_act_drops_pressure.patch` — Act does not hand the pressure policy to ChoiceOf | `Cosmic_Ascension.Sim.RulerPressurePolicy` |
+| `B4/` | `b4b_policy_no_settle_fallback.patch` — a pressure policy starts no settlement when its list is empty | `Cosmic_Ascension.Sim.RulerPressurePolicy` |
+| `B4/` | `b4b_guard_no_inside.patch` — GuardTargetOf never keeps a system inside a sphere | `Cosmic_Ascension.Sim.RulerPressurePolicy` |
+| `B4/` | `b4b_guard_inside_first.patch` — GuardTargetOf takes inside before beside | `Cosmic_Ascension.Sim.RulerPressurePolicy` |
+| `B4/` | `b4b_guard_never_moves.patch` — a standing guard never moves to a new system to keep | `Cosmic_Ascension.Sim.RulerPressurePolicy` |
+| `B4/` | `b4b_guard_skips_siege.patch` — -Guard=1 passes a besieged system of the people by | `Cosmic_Ascension.Sim.RulerPressurePolicy` |
+| `B4/` | `b4b_leave_faithful_only.patch` — -LeaveNearSphere=1 acts under Faithful alone | `Cosmic_Ascension.Sim.RulerPressurePolicy` |
+| `B4/` | `b4b_resist_per_tick.patch` — DelayHazard joins the per-tick effects | `Cosmic_Ascension.Sim.ResistDelay` |
+| `B4/` | `b4b_sign_window_off_by_one.patch` — the sign's window ends a rung too low | `Cosmic_Ascension.Log.SignHelper` |
+| `B4/` | `b4b_drain_loss_no_factor.patch` — DrainLossOf leaves the held edicts' factor out | `Cosmic_Ascension.Sim.PressureDrainEdict` |
+| `B4/` | `b4b_schema_not_tag_of_skipped.patch` — the checker skips the tag option not_tag_of | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_not_read_by_skipped.patch` — the checker skips the tag option not_read_by | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_none_always_true.patch` — the row test none always holds | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_none_any_all.patch` — the row test none asks all the entries instead of any | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_zero_inverted.patch` — the row test zero is inverted | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_contains_none_always.patch` — the row test contains_none always holds | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_struct_conditions_not_read.patch` — not_read_by does not look into the conditions of a list of structs | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_refusal_table_check_off.patch` — the schema check of not_tag_of takes a column that is no tag | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_not_read_by_tag_check_off.patch` — the schema check of not_read_by takes a condition that reads no tag | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_none_shape_check_off.patch` — the schema check of none takes tests over more than one list | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_contains_none_tag_decl_off.patch` — the tags of contains_none need not be declared | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_grace_rule_weak.patch` — the grace rule bans another condition than CivHasEdict | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_e3_list_short.patch` — the rolled-choice ban misses the Stability check | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_delay_max.patch` — DelayHazard may carry up to 1,000 ticks | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_delay_not_card_only.patch` — DelayHazard is not card_only | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_enact_not_card_only.patch` — EnactEdict is not card_only | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_civhasedict_optional.patch` — CivHasEdict's Key is optional | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_counterfeit_when_celestial.patch` — CounterfeitOf is required of the celestial rows instead | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_claim_pair_log_claim.patch` — Event.Crisis.Claim keeps Log.Claim among its line categories | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_drain_max_off.patch` — PressureDrainMultiplier has no upper bound | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_resist_min_off.patch` — ResistFleetFactor has no lower bound | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_e1_prefix_petition.patch` — the ruler-only rule bans the petition rows instead of the wanderer's | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_e5_when_free_only.patch` — a free choice with a stance counts as the card's unblocked choice | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_v2_ge_2.patch` — a Log.Transcendent row may be revealed from the second rung | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_capital_when_draw.patch` — the DelayHazard ban names the Draw rows instead of the Capital rows | `test_pressure_cards` (`Tools/test_data_schema.py`) |

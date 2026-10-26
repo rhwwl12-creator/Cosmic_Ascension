@@ -11,7 +11,9 @@
 #include "Core/CosmicTypes.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Internationalization/Text.h"
+#include "Sim/CosmicConflict.h"
 #include "Sim/CosmicDiplomacy.h"
+#include "Sim/CosmicEdicts.h"
 
 struct FCosmicDataTables;
 struct FCosmicStateIndex;
@@ -37,6 +39,30 @@ struct FCosmicVesselSubject
 {
 	int32 SystemIndex = INDEX_NONE;
 	int32 CivIndex = INDEX_NONE;
+};
+
+/** The kind of gate that refuses a choice of a card (B4 section 2.4): a stance (B3 - the first contact card), an edict
+ * (EnactEdict), the fleet's time (DelayHazard). Not saved. */
+enum class ECosmicChoiceGateKind : uint8
+{
+	None,
+	Stance,
+	Edict,
+	Resist,
+};
+
+/** The first refusal of a choice (CosmicPetitions::ChoiceGateOf): its kind and that kind's reason; None when it is taken. */
+struct FCosmicChoiceGate
+{
+	ECosmicChoiceGateKind Kind = ECosmicChoiceGateKind::None;
+	CosmicDiplomacy::ECosmicStanceBlock Stance = CosmicDiplomacy::ECosmicStanceBlock::None;
+	CosmicEdicts::ECosmicEdictBlock Edict = CosmicEdicts::ECosmicEdictBlock::None;
+	CosmicConflict::ECosmicResistBlock Resist = CosmicConflict::ECosmicResistBlock::None;
+
+	bool IsOpen() const
+	{
+		return Kind == ECosmicChoiceGateKind::None;
+	}
 };
 
 /** What an answer to the waiting card came to. Not state. */
@@ -197,6 +223,17 @@ namespace CosmicPetitions
 	 * card greys such a choice, the answer refuses it and the policy passes it by. */
 	COSMIC_ASCENSION_API CosmicDiplomacy::ECosmicStanceBlock StanceBlockOfChoice(const FGalaxyState& State, const FCosmicStateIndex& Index,
 		const FCosmicRulesDef& Rules, int32 CivIndex, FName OtherCivID, const FEncounterChoice& Choice);
+
+	/**
+	 * The gate of a choice of a card (B4 section 2.4, rule 13): the first refusal among the effects of its OnSuccess, in
+	 * their order, for the people CivIndex and the card's system SystemIndex - a SetStance as StanceBlockOfChoice reads it
+	 * (Same is taken), an EnactEdict by CosmicEdicts::EnactBlockOf on its Key (Held is a refusal too: a choice that would
+	 * change nothing draws no number and tells no line), a DelayHazard by CosmicConflict::ResistBlockOf on its Tag. The
+	 * answer refuses such a choice before its draw, the card greys it with the reason and the policy passes it by - one
+	 * function. Kind None when every gate is open (a choice with no gated effect always is).
+	 */
+	COSMIC_ASCENSION_API FCosmicChoiceGate ChoiceGateOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
+		const FCosmicRulesDef& Rules, int32 CivIndex, int32 SystemIndex, FName OtherCivID, const FEncounterChoice& Choice);
 
 	/** Takes the waiting card away: both fields of Knowing (PendingPetitionRow, PendingPetitionSystemID). It never touches
 	 * Knowing.PendingContactCivID: every answer calls it, and a first contact card waiting behind another petition stays. */

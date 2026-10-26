@@ -1,0 +1,11 @@
+--- a/Tools/cosmic_data_schema.py
++++ b/Tools/cosmic_data_schema.py
+@@ -731,7 +731,7 @@
+         for name in tag_spec.get("not_read_by", []):
+             if name not in self.schema["conditions"]:
+                 self.report(where, "not_read_by names %r, which is no enumerator of conditions" % (name,))
+-            elif not isinstance(self.schema["conditions"][name], dict) or "tag" not in self.schema["conditions"][name]:
++            elif False:
+                 self.report(where, "not_read_by names %s, a condition that reads no Tag" % (name,))
+ 
+     def check_column_spec(self, where, column_spec, in_list=False):

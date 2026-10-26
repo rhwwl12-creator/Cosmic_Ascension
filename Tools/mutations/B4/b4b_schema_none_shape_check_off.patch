@@ -1,0 +1,11 @@
+--- a/Tools/cosmic_data_schema.py
++++ b/Tools/cosmic_data_schema.py
+@@ -608,7 +608,7 @@
+                 lists = {path.partition(PATH_MARK)[0] for path in paths if isinstance(path, str) and PATH_MARK in path}
+                 if len(test) != 1 or not isinstance(inner, list) or not inner:
+                     self.report(where, "'%s' takes a list of tests, not empty, and nothing else: %s" % (NONE_TEST, shown))
+-                elif len(lists) != 1 or not all(isinstance(path, str) and PATH_MARK in path for path in paths):
++                elif False:
+                     self.report(where, "'%s' takes tests over the columns of one list of structs ('List.Column'): %s" % (NONE_TEST, shown))
+                 else:
+                     self.check_tests(where, inner, table_name)

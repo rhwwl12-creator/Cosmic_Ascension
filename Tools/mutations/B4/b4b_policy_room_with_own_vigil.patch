@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -492,7 +492,7 @@
+ 		for (const FName Held : TArray<FName>(Civ.ActiveEdicts))
+ 		{
+ 			if (Held == Row || !Tables.FindEdict(Held) || Enacted.Contains(Held) || CosmicEdicts::AnswersStanding(State, Index, Tables, CivIndex, Held)
+-				|| (bClaimStands && (Counts.CardEdicts.Contains(Held) || (Held == Vigil && Policy.Pressure != ECosmicPressurePolicy::Round))))
++				|| (bClaimStands && Counts.CardEdicts.Contains(Held)))
+ 			{
+ 				continue;
+ 			}

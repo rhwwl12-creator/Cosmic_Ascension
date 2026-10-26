@@ -116,6 +116,19 @@ public:
 	 */
 	bool PushRow(FName RowName, uint8 Severity, const FFormatNamedArguments& Args, FName FocusSystem, FName FocusCiv = NAME_None);
 
+	/**
+	 * A line with the lower speaker's sentence before it (section 8.2; B4 header section 2.6): when Variants is not empty,
+	 * Line.MinViewerTier is above 1 (someone stands below the window) and SignRow names a DT_LogTemplates row, first one line
+	 * of that row - the row's Category, Severity at most 1, the focus and SourceRow of Line, the window [0,
+	 * Line.MinViewerTier - 1] - then Line out of Variants, each through PushVariants (one tell draw each). The sign comes
+	 * first: what a higher speaker claims is never followed by a narrator's sentence about the same place. A SignRow the
+	 * table does not hold is an error line and the line alone. An event row's sign row calls {Civ} and {Hazard} only (the
+	 * schema); a sign row the code names may call {System} too (it is told with the line's arguments). Returns what
+	 * PushVariants returns for Line; false with nothing told (no draw) when Variants is empty, and from a handler of a Core
+	 * Logic delegate (one error line). The one home of the sign: the event rows (FireResolved) and the claim's voice.
+	 */
+	bool PushWithSign(const FCosmicLine& Line, TConstArrayView<FText> Variants, FName SignRow, const FFormatNamedArguments& Args);
+
 	// Fired for every appended entry that is told (never for one marked bUntold) while the global broadcast gate is open
 	// (section 6.1, 8.1). With the gate closed the entry is only stored. Fired synchronously, also from inside a tick
 	// stage: a handler may read the state and call SetTimeScale and nothing else - the calls that are refused with an error

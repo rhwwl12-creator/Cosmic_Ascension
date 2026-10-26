@@ -209,6 +209,161 @@ namespace
 		return Before;
 	}
 
+	// B4 (docs/60_DECISIONS/headers/B4_transcendent_voice_and_pressure_cards.md section 5 - the first measurement): the
+	// chances the spiritual pressure and the claims have to reach the people the vessel rules, and how far a claimant's
+	// voice could be heard. "By end" counts up to and including the tick of the first provisional end. Read from the state
+	// only; the drain's P from UGalaxySimulationSubsystem::ComputeDrainPressureOf (no copy of its rule here).
+	struct FSpiritCounts
+	{
+		// The ruled people's largest drain P by the bands of the tick run (0-1000, 1000-2000, 2000-3000, 3000-6000, later),
+		// read at the boundary before the tick as its economy stage reads it; the ticks with a drain and the Stability the
+		// drain took (the knob x P, before the floor at zero).
+		float DrainMax[5] = { 0.f, 0.f, 0.f, 0.f, 0.f };
+		int64 DrainedTicks = 0;
+		int64 DrainedTicksByEnd = 0;
+		double Drained = 0.0;
+		double DrainedByEnd = 0.0;
+		// The first tick run with a settled system of the ruled people next to or inside the sphere of an unsealed fallen
+		// transcendent, and inside one.
+		int64 FirstNextTo = -1;
+		int64 FirstInside = -1;
+		// Claims placed on systems of the ruled people; of the claims that ended on them (owner before the tick), the ones
+		// that joined a sphere and the others, with the others a project answered.
+		int32 ClaimsOnRuled = 0;
+		int32 ClaimsOnRuledByEnd = 0;
+		int32 Joined = 0;
+		int32 JoinedByEnd = 0;
+		int32 Stilled = 0;
+		int32 StilledByRelief = 0;
+		// The other hazards that ended on a settled system of the ruled people that a claimant could reach before the tick
+		// (CosmicHazards::ClaimantOf): expired with no answer (the claim rule follows them), the expired ones on the people's
+		// last unclaimed settled system (Law.Remnant refuses the claim - a part of the expired), answered by a project,
+		// resolved by a held answer edict.
+		int32 SourcesExpired = 0;
+		int32 SourcesExpiredByEnd = 0;
+		int32 SourcesAnswered = 0;
+		int32 SourcesByEdict = 0;
+		int32 SourcesRemnant = 0;
+		// The pressure card's two triggers (header decision 8) coming to hold on a settled system of the ruled people, at
+		// the boundary after a tick from 1,800 on, while the vessel rules embodied: (a) a claim stands there; (b) its P is
+		// 0.9 or more (SystemPressureAtLeast - the part with a dominant source above the people apart). A slot taken: a
+		// card waits at that boundary (one that waited before, or one placed in the tick).
+		int32 TriggerClaim = 0;
+		int32 TriggerClaimTaken = 0;
+		int32 TriggerPressure = 0;
+		int32 TriggerPressureTaken = 0;
+		int32 TriggerPressureHigher = 0;
+		TSet<FName> ClaimHeld;
+		TSet<FName> PressureHeld;
+		// The gate of the policy's vigil row (CosmicEdicts::EnactBlockOf) when (a) came to hold with the slot free.
+		int32 VigilOpen = 0;
+		int32 VigilHeld = 0;
+		int32 VigilSlots = 0;
+		int32 VigilCost = 0;
+		int32 VigilOther = 0;
+		// Met peoples other than the ruled one with a settled system next to or inside such a sphere, at 600, 1,200, the end.
+		int32 MetNear[3] = { -1, -1, -1 };
+		// The joins: on a known system whose owner is met (an approximation of the scope of telling - section 8.1 - without
+		// its tier gap and window), by end, and by the viewer's rung (first or second, third or above); the most in a tick.
+		int32 KnownJoins = 0;
+		int32 KnownJoinsByEnd = 0;
+		int32 KnownJoinsLow = 0;
+		int32 KnownJoinsHigh = 0;
+		int32 SameTickJoinsMax = 0;
+		// The spheres' size at 1,000, 3,000, 6,000 and the end.
+		int32 SphereAt[4] = { -1, -1, -1, -1 };
+	};
+
+	// B4 (header section 5 - the head of the pressure line, with the policy values): the hazards placed on a system the ruled
+	// people's fleet guarded before the tick, every one (a delay of 0 included), by tag; the delay the guard bought them, by
+	// tag; how they ended. The cards' and the voice's cells follow with their commits.
+	struct FPressureCounts
+	{
+		TMap<FString, int32> GuardedByTag;
+		int32 Guarded = 0;
+		int32 GuardedByEnd = 0;
+		TMap<FString, int64> DelayByTag;
+		int64 DelayBought = 0;
+		int32 GuardedAnswered = 0;
+		int32 GuardedExpired = 0;
+		int32 GuardedByEdict = 0;
+		// The guarded hazards standing now: system -> tag.
+		TMap<FName, FGameplayTag> Standing;
+	};
+
+	FString TagCountsText(const TMap<FString, int32>& Counts)
+	{
+		TArray<FString> Keys;
+		Counts.GetKeys(Keys);
+		Keys.Sort();
+		TArray<FString> Parts;
+		for (const FString& Key : Keys)
+		{
+			Parts.Add(FString::Printf(TEXT("%s=%d"), *Key, Counts[Key]));
+		}
+		return FString::Join(Parts, TEXT(" "));
+	}
+
+	FString TagTicksText(const TMap<FString, int64>& Counts)
+	{
+		TArray<FString> Keys;
+		Counts.GetKeys(Keys);
+		Keys.Sort();
+		TArray<FString> Parts;
+		for (const FString& Key : Keys)
+		{
+			Parts.Add(FString::Printf(TEXT("%s=%lld"), *Key, Counts[Key]));
+		}
+		return FString::Join(Parts, TEXT(" "));
+	}
+
+	// How near the sphere of an unsealed fallen (Realm.Abyssal) transcendent SystemIndex lies: Inside, Adjacent or None.
+	ECosmicSphereReach FallenReachOf(const FGalaxyState& State, const FCosmicDataTables& Tables, int32 SystemIndex)
+	{
+		static const FGameplayTag Abyssal = FGameplayTag::RequestGameplayTag(FName(TEXT("Realm.Abyssal")));
+		ECosmicSphereReach Reach = ECosmicSphereReach::None;
+		for (const FTranscendentState& Transcendent : State.Transcendents)
+		{
+			const FTranscendentDef* Def = Transcendent.bSealed ? nullptr : Tables.FindTranscendent(Transcendent.TranscendentID);
+			if (!Def || Def->Allegiance != Abyssal)
+			{
+				continue;
+			}
+			const ECosmicSphereReach Here = UGalaxySimulationSubsystem::SphereReachIn(State, Transcendent, SystemIndex);
+			if (Here == ECosmicSphereReach::Inside)
+			{
+				return Here;
+			}
+			Reach = Here == ECosmicSphereReach::Adjacent ? Here : Reach;
+		}
+		return Reach;
+	}
+
+	// The met peoples but RuledID with a settled system next to or inside such a sphere.
+	int32 MetPeoplesNearFallen(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, FName RuledID)
+	{
+		int32 Count = 0;
+		for (const FKnownMark& Mark : State.Knowing.MetCivs)
+		{
+			const int32 CivIndex = Mark.ID == RuledID ? INDEX_NONE : Index.FindCiv(State, Mark.ID);
+			if (!State.Civs.IsValidIndex(CivIndex))
+			{
+				continue;
+			}
+			for (const FName SystemID : State.Civs[CivIndex].OwnedSystems)
+			{
+				const int32 SystemIndex = Index.FindSystem(State, SystemID);
+				if (State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == Mark.ID && CosmicState::IsSettled(State.Systems[SystemIndex])
+					&& FallenReachOf(State, Tables, SystemIndex) != ECosmicSphereReach::None)
+				{
+					++Count;
+					break;
+				}
+			}
+		}
+		return Count;
+	}
+
 	// The pairs of peoples whose settled systems touch (CosmicDiplomacy::BorderTableOf, each pair once).
 	int32 BorderPairsOf(const FGalaxyState& State, const FCosmicStateIndex& Index)
 	{
@@ -244,6 +399,11 @@ namespace
 		// the income could pay its upkeep in the tick.
 		FName HeldAnswer;
 		bool bUpkeepPayable = false;
+		// B4: the owner is the ruled people and the system settled; a claimant could reach it (CosmicHazards::ClaimantOf);
+		// it is the owner's last unclaimed settled system (Law.Remnant). The last two only for such a slot with a hazard.
+		bool bRuledSettled = false;
+		bool bClaimReach = false;
+		bool bLastUnclaimed = false;
 	};
 
 	// Whether Tag is the tag of a Capital row of DT_Hazards (a rebellion). Named apart from the ruler policy's helper: one
@@ -470,7 +630,7 @@ namespace
 	// One CSV row per civilization, the galaxy columns on each, and last the expansion reason of a people the player does
 	// not rule (empty for the people the player rules), which it counts into Counts.Expansion.
 	void AppendSample(FString& Csv, const UGalaxySimulationSubsystem& Sim, const TArray<FSlotBefore>& Before, FRunCounts& Counts, double TickMicros, const FString& SaveBytes,
-		const FString& SaveRawBytes)
+		const FString& SaveRawBytes, const TMap<FName, float>* Drains)
 	{
 		const FGalaxyState& State = Sim.GetState();
 		const FString FirstClaim = Counts.FirstClaimTick >= 0 ? FString::Printf(TEXT("%lld"), Counts.FirstClaimTick) : FString();
@@ -500,10 +660,14 @@ namespace
 				Expansion = ExpansionOf(Sim, CivIndex, Before);
 				Counts.Expansion.FindOrAdd(Expansion)++;
 			}
-			Csv += FString::Printf(TEXT("%lld,%s,%s,%d,%d,%.4f,%.2f,%.2f,%.2f,%.2f,%.2f,%d,%s,%s,%.3f,%d,%d,%d\n"),
+			// B4: the P the economy stage of the sample's tick drained the people by (read at the boundary before that tick -
+			// empty for the tick-0 sample and for a people that came meanwhile), and its stay in a fallen sphere.
+			const float* Drain = Drains ? Drains->Find(Civ.CivID) : nullptr;
+			const FString DrainText = Drain ? FString::Printf(TEXT("%.3f"), *Drain) : FString();
+			Csv += FString::Printf(TEXT("%lld,%s,%s,%d,%d,%.4f,%.2f,%.2f,%.2f,%.2f,%.2f,%d,%s,%s,%.3f,%d,%d,%d,%s,%d\n"),
 				State.Tick, *Civ.CivID.ToString(), *Civ.ArchetypeRow.ToString(), static_cast<int32>(Civ.Tier) + 1, Civ.OwnedSystems.Num(),
 				Civ.Stability, Civ.Stockpile.Energy, Civ.Stockpile.Matter, Civ.Stockpile.Insight, Civ.Stockpile.Influence, Civ.Stockpile.Causality, Hazards,
-				*Galaxy, *Expansion, Civ.FleetPower, Hostile, Treaties, Borders.IsValidIndex(CivIndex) ? Borders[CivIndex].Num() : 0);
+				*Galaxy, *Expansion, Civ.FleetPower, Hostile, Treaties, Borders.IsValidIndex(CivIndex) ? Borders[CivIndex].Num() : 0, *DrainText, Civ.FallenSphereTicks);
 		}
 	}
 
@@ -598,6 +762,15 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	FParse::Value(*Params, TEXT("Abdicate="), AbdicateAt);
 	FParse::Value(*Params, TEXT("Wander="), Wander);
 	FParse::Value(*Params, TEXT("Diplomacy="), Diplomacy);
+	// B4 (header section 2.9 - measurement only): -PlayerPolicy=Cautious|Reckless|Faithful the pressure cards' answers (none:
+	// the round of every card), -Guard=1 the guard, -LeaveNearSphere=1 (under a pressure policy) the near-sphere crises left
+	// unanswered.
+	FString PlayerPolicyText;
+	int32 GuardArg = 0;
+	int32 LeaveNearSphere = 0;
+	FParse::Value(*Params, TEXT("PlayerPolicy="), PlayerPolicyText);
+	FParse::Value(*Params, TEXT("Guard="), GuardArg);
+	FParse::Value(*Params, TEXT("LeaveNearSphere="), LeaveNearSphere);
 	FParse::Value(*Params, TEXT("Rules="), RulesText, false);
 	FParse::Value(*Params, TEXT("Out="), Out);
 	const FString OutPath = FPaths::IsRelative(Out) ? FPaths::ProjectSavedDir() / TEXT("Balance") / Out : Out;
@@ -625,7 +798,17 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	{
 		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -Diplomacy is 0, 1 or 2: %d"), Diplomacy);
 	}
-	if (Sim && Role && bRules && bEdictRow && bDiplomacy)
+	ECosmicPressurePolicy PressurePolicy = ECosmicPressurePolicy::Round;
+	// -LeaveNearSphere=1 is read under a pressure policy only: a run that could not apply it would measure the policy without
+	// it under its name - no run (as -EdictRow).
+	const bool bPressure = (PlayerPolicyText.IsEmpty() || CosmicRulerPolicy::PressurePolicyOf(PlayerPolicyText, PressurePolicy)) && (GuardArg == 0 || GuardArg == 1)
+		&& (LeaveNearSphere == 0 || LeaveNearSphere == 1) && (LeaveNearSphere == 0 || PressurePolicy != ECosmicPressurePolicy::Round);
+	if (!bPressure)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -PlayerPolicy is Cautious, Reckless or Faithful (B4 has no tribute), -Guard and -LeaveNearSphere 0 or 1, and -LeaveNearSphere=1 needs one of the three policies: %s %d %d"),
+			*PlayerPolicyText, GuardArg, LeaveNearSphere);
+	}
+	if (Sim && Role && bRules && bEdictRow && bDiplomacy && bPressure)
 	{
 		// Every line is stored unless -TellAll=0 asks for the scope of telling of a game (section 8.1). The world hash is
 		// the same either way.
@@ -644,13 +827,16 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		Save->AddToRoot();
 
 		FRunCounts Counts;
+		FSpiritCounts Spirit;
+		FPressureCounts PressureCounts;
+		const FName VigilRow = CosmicRulerPolicy::VigilRowOf(Sim->GetTables());
 		const int32 SphereStart = SphereSize(State);
 		const TArray<FString> SpheresStart = SpheresOf(State);
 		for (const FCosmicLogEntry& Entry : State.Log)
 		{
 			Counts.ToldLines += Entry.bUntold ? 0 : 1;
 		}
-		FString Csv = TEXT("Tick,CivID,Archetype,Tier,Systems,Stability,Energy,Matter,Insight,Influence,Causality,Hazards,KnownSystems,MetCivs,WildSystems,FirstContactTick,T4PlusCount,FirstClaimTick,ToldLines,TickMicros,SaveBytes,LogLen,ChronicleLen,SaveRawBytes,ChronicleLetGo,Expansion,FleetPower,Hostile,Treaties,BorderPeoples\n");
+		FString Csv = TEXT("Tick,CivID,Archetype,Tier,Systems,Stability,Energy,Matter,Insight,Influence,Causality,Hazards,KnownSystems,MetCivs,WildSystems,FirstContactTick,T4PlusCount,FirstClaimTick,ToldLines,TickMicros,SaveBytes,LogLen,ChronicleLen,SaveRawBytes,ChronicleLetGo,Expansion,FleetPower,Hostile,Treaties,BorderPeoples,DrainPressure,FallenSphereTicks\n");
 		FString Rows = TEXT("Tick,SourceRow,Lines\n");
 		double Unused = 0.0;
 		TArray<double> TickMicros;
@@ -659,14 +845,15 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		{
 			int64 RawBytes = 0;
 			const int32 SlotBytes = SaveBytesOf(Save, State, RawBytes, Unused);
-			AppendSample(Csv, *Sim, Before, Counts, 0.0, FString::FromInt(SlotBytes), FString::Printf(TEXT("%lld"), RawBytes));
+			AppendSample(Csv, *Sim, Before, Counts, 0.0, FString::FromInt(SlotBytes), FString::Printf(TEXT("%lld"), RawBytes), nullptr);
 		}
 		Counts.ExpansionPairs += PeoplesNotRuled(State);
 		TMap<FString, int32> SampleRows;
 		double SampleMicros = 0.0;
 		int64 SampleTicks = 0;
 		int64 Samples = 0;
-		const FCosmicRulerPolicy RulerPolicy{ Answer != 0, Build != 0, Focus != 0, Edict != 0, EdictRowText.IsEmpty() ? NAME_None : FName(*EdictRowText), Diplomacy };
+		const FCosmicRulerPolicy RulerPolicy{ Answer != 0, Build != 0, Focus != 0, Edict != 0, EdictRowText.IsEmpty() ? NAME_None : FName(*EdictRowText), Diplomacy,
+			PressurePolicy, GuardArg, LeaveNearSphere != 0 };
 		FCosmicRulerPolicyCounts RulerCounts;
 		const FCosmicWandererPolicy WandererPolicy{ AbdicateAt, Wander != 0 };
 		FCosmicWandererPolicyCounts WandererCounts;
@@ -690,6 +877,13 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					const FResourcePool& Gain = Owner->IncomePerTick;
 					Slot.bUpkeepPayable = Have.Energy + Gain.Energy >= Upkeep.Energy && Have.Matter + Gain.Matter >= Upkeep.Matter && Have.Insight + Gain.Insight >= Upkeep.Insight
 						&& Have.Influence + Gain.Influence >= Upkeep.Influence && Have.Causality + Gain.Causality >= Upkeep.Causality;
+				}
+				Slot.bRuledSettled = Owner && Owner->bIsPlayerRuled && CosmicState::IsSettled(System);
+				if (Slot.bRuledSettled && System.ActiveHazard.IsValid())
+				{
+					const int32 SystemIndex = Before.Num() - 1;
+					Slot.bClaimReach = CosmicHazards::ClaimantOf(State, StateIndex, Sim->GetTables(), RulesNow, SystemIndex) != INDEX_NONE;
+					Slot.bLastUnclaimed = CosmicHazards::IsLastUnclaimed(State, StateIndex, Sim->GetTables(), SystemIndex);
 				}
 			}
 			// The AI peoples' edicts before the tick, by people (B2 - what the AI stage gave up), and the ruled people's: the
@@ -732,6 +926,55 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			const FName CardBefore = State.Knowing.PendingPetitionRow;
 
 			const bool bEndedBefore = Counts.FirstEndTick >= 0;
+			// B4: the ruled people's drain P of the tick about to run and how near a fallen sphere its settled systems lie;
+			// the spheres before the tick (the joins).
+			{
+				const int64 TickRun = State.Tick + 1;
+				const int32 RuledIndex = State.Civs.IndexOfByPredicate([](const FCivilizationState& Civ) { return Civ.bIsPlayerRuled; });
+				if (State.Civs.IsValidIndex(RuledIndex))
+				{
+					const float Drain = UGalaxySimulationSubsystem::ComputeDrainPressureOf(State, StateIndex, Sim->GetTables(), RulesNow, RuledIndex);
+					float& Max = Spirit.DrainMax[TickRun <= 1000 ? 0 : (TickRun <= 2000 ? 1 : (TickRun <= 3000 ? 2 : (TickRun <= 6000 ? 3 : 4)))];
+					Max = FMath::Max(Max, Drain);
+					if (Drain > 0.f)
+					{
+						const double Taken = UGalaxySimulationSubsystem::DrainLossOf(RulesNow, Sim->GetTables(), State.Civs[RuledIndex], Drain);
+						++Spirit.DrainedTicks;
+						Spirit.Drained += Taken;
+						Spirit.DrainedTicksByEnd += bEndedBefore ? 0 : 1;
+						Spirit.DrainedByEnd += bEndedBefore ? 0.0 : Taken;
+					}
+					if (Spirit.FirstInside < 0)
+					{
+						const FCivilizationState& Ruled = State.Civs[RuledIndex];
+						for (const FName SystemID : Ruled.OwnedSystems)
+						{
+							const int32 SystemIndex = StateIndex.FindSystem(State, SystemID);
+							if (!State.Systems.IsValidIndex(SystemIndex) || State.Systems[SystemIndex].OwnerCivID != Ruled.CivID || !CosmicState::IsSettled(State.Systems[SystemIndex]))
+							{
+								continue;
+							}
+							const ECosmicSphereReach Reach = FallenReachOf(State, Sim->GetTables(), SystemIndex);
+							Spirit.FirstNextTo = (Spirit.FirstNextTo < 0 && Reach != ECosmicSphereReach::None) ? TickRun : Spirit.FirstNextTo;
+							Spirit.FirstInside = (Spirit.FirstInside < 0 && Reach == ECosmicSphereReach::Inside) ? TickRun : Spirit.FirstInside;
+						}
+					}
+				}
+			}
+			TArray<TArray<FName>> SpheresBefore;
+			for (const FTranscendentState& Transcendent : State.Transcendents)
+			{
+				SpheresBefore.Add(Transcendent.InfluencedSystems);
+			}
+			// B4: the CSV's DrainPressure of the tick about to run, when its end is a sample.
+			TMap<FName, float> DrainsBefore;
+			if ((Done + 1) % SampleEveryTicks == 0 || Done + 1 == Ticks)
+			{
+				for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+				{
+					DrainsBefore.Add(State.Civs[CivIndex].CivID, UGalaxySimulationSubsystem::ComputeDrainPressureOf(State, StateIndex, Sim->GetTables(), RulesNow, CivIndex));
+				}
+			}
 			Sim->GetStageClock().SiegeEnds.Reset();
 			const uint64 Start = FPlatformTime::Cycles64();
 			Sim->RunHeadless(1);
@@ -785,6 +1028,53 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			const bool bContactWaits = State.Knowing.PendingPetitionRow == CosmicRows::PetitionFirstContact;
 			const FCivilizationState* RuledAtBoundary = State.Civs.FindByPredicate([](const FCivilizationState& Civ) { return Civ.bIsPlayerRuled; });
 			const bool bContactFriendlyBefore = RuledAtBoundary && CosmicDiplomacy::StanceOf(*RuledAtBoundary, State.Knowing.FirstContactCivID) == CosmicTags::StanceFriendly();
+			// B4: the pressure card's two triggers coming to hold, read before the ruler's input as the card would be, and the
+			// vigil's gate when (a) came with the slot free.
+			{
+				TSet<FName> ClaimNow;
+				TSet<FName> PressureNow;
+				const bool bRuling = RuledAtBoundary && State.Player.Role == EPlayerRole::Ruler && State.Calling.LifeState == ELifeState::Embodied && State.Tick >= 1800;
+				const bool bSlotTaken = !State.Knowing.PendingPetitionRow.IsNone();
+				const int32 RuledIndex = RuledAtBoundary ? StateIndex.FindCiv(State, RuledAtBoundary->CivID) : INDEX_NONE;
+				for (int32 SystemIndex = 0; bRuling && SystemIndex < State.Systems.Num(); ++SystemIndex)
+				{
+					const FStarSystemState& System = State.Systems[SystemIndex];
+					if (System.OwnerCivID != RuledAtBoundary->CivID || !CosmicState::IsSettled(System))
+					{
+						continue;
+					}
+					if (System.ActiveHazard == ClaimTag)
+					{
+						ClaimNow.Add(System.SystemID);
+						if (!Spirit.ClaimHeld.Contains(System.SystemID))
+						{
+							++Spirit.TriggerClaim;
+							Spirit.TriggerClaimTaken += bSlotTaken ? 1 : 0;
+							if (!bSlotTaken)
+							{
+								const CosmicEdicts::ECosmicEdictBlock Gate = CosmicEdicts::EnactBlockOf(State, StateIndex, Sim->GetTables(), RulesNow, RuledIndex, VigilRow);
+								++(Gate == CosmicEdicts::ECosmicEdictBlock::None ? Spirit.VigilOpen : Gate == CosmicEdicts::ECosmicEdictBlock::Held ? Spirit.VigilHeld
+									: Gate == CosmicEdicts::ECosmicEdictBlock::Slots ? Spirit.VigilSlots : Gate == CosmicEdicts::ECosmicEdictBlock::Cost ? Spirit.VigilCost : Spirit.VigilOther);
+							}
+						}
+					}
+					const FCosmicPressure Reading = UGalaxySimulationSubsystem::ComputePressureIn(State, StateIndex, Sim->GetTables(), RulesNow, SystemIndex);
+					if (Reading.P >= 0.9f)
+					{
+						PressureNow.Add(System.SystemID);
+						if (!Spirit.PressureHeld.Contains(System.SystemID))
+						{
+							++Spirit.TriggerPressure;
+							Spirit.TriggerPressureTaken += bSlotTaken ? 1 : 0;
+							Spirit.TriggerPressureHigher += (Reading.DominantSource != ECosmicPressureSource::None && Reading.DominantTier > RuledAtBoundary->Tier) ? 1 : 0;
+						}
+					}
+				}
+				Spirit.ClaimHeld = MoveTemp(ClaimNow);
+				Spirit.PressureHeld = MoveTemp(PressureNow);
+			}
+			// B4: the guarded hazards placed in the tick (merged into the standing list once the tick's ends are read).
+			TMap<FName, FGameplayTag> NewGuarded;
 			// B3: the delay a guard bought each hazard placed in the tick, read from its slot before the boundary (the count it
 			// was placed with, less the row's countdown and the owner's edicts' bonus).
 			for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num() && SystemIndex < Before.Num(); ++SystemIndex)
@@ -803,6 +1093,20 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 						TPair<int64, int32>& Bought = Counts.DelayBought.FindOrAdd(System.ActiveHazard.ToString());
 						Bought.Key += Delay;
 						++Bought.Value;
+					}
+					// B4: a hazard placed where the ruled people's fleet stood guard before the tick.
+					const FCivBefore* Was = Owner->bIsPlayerRuled ? CivsBefore.Find(Owner->CivID) : nullptr;
+					if (Was && Was->Target == System.SystemID)
+					{
+						const FString Tag = System.ActiveHazard.ToString();
+						++PressureCounts.GuardedByTag.FindOrAdd(Tag);
+						++PressureCounts.Guarded;
+						PressureCounts.GuardedByEnd += bEndedBefore ? 0 : 1;
+						PressureCounts.DelayByTag.FindOrAdd(Tag) += Delay > 0 ? Delay : 0;
+						PressureCounts.DelayBought += Delay > 0 ? Delay : 0;
+						// Into the standing list after the ends of the tick are read: a guarded hazard that ended in this tick
+						// on the same system is classified first.
+						NewGuarded.Add(System.SystemID, System.ActiveHazard);
 					}
 				}
 			}
@@ -1043,6 +1347,32 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					{
 						Counts.Expired.FindOrAdd(Tag)++;
 					}
+					// B4: the ruled people's claims that ended, and the other hazards that ended within a claimant's reach.
+					const bool bByEdict = !bAnswered && Slot.Remaining == 1 && !Slot.HeldAnswer.IsNone() && Slot.bUpkeepPayable;
+					if (const FGameplayTag* Guarded = PressureCounts.Standing.Find(System.SystemID); Guarded && *Guarded == Slot.Tag)
+					{
+						PressureCounts.GuardedAnswered += bAnswered ? 1 : 0;
+						PressureCounts.GuardedByEdict += bByEdict ? 1 : 0;
+						PressureCounts.GuardedExpired += (!bAnswered && !bByEdict && Slot.Remaining == 1) ? 1 : 0;
+						PressureCounts.Standing.Remove(System.SystemID);
+					}
+					if (Slot.Tag == ClaimTag && Slot.bRuledSettled)
+					{
+						const bool bJoined = InSomeSphere(State, System.SystemID);
+						Spirit.Joined += bJoined ? 1 : 0;
+						Spirit.JoinedByEnd += (bJoined && !bEndedBefore) ? 1 : 0;
+						Spirit.Stilled += bJoined ? 0 : 1;
+						Spirit.StilledByRelief += (!bJoined && bAnswered) ? 1 : 0;
+					}
+					else if (Slot.Tag != ClaimTag && Slot.bRuledSettled && Slot.bClaimReach)
+					{
+						const bool bExpired = !bAnswered && !bByEdict && Slot.Remaining == 1;
+						Spirit.SourcesAnswered += bAnswered ? 1 : 0;
+						Spirit.SourcesByEdict += bByEdict ? 1 : 0;
+						Spirit.SourcesExpired += bExpired ? 1 : 0;
+						Spirit.SourcesExpiredByEnd += (bExpired && !bEndedBefore) ? 1 : 0;
+						Spirit.SourcesRemnant += (bExpired && Slot.bLastUnclaimed) ? 1 : 0;
+					}
 					if (Slot.Tag == ClaimTag)
 					{
 						if (Counts.FirstClaimEndTick < 0 && System.SystemID == Counts.FirstClaimSystemID)
@@ -1083,6 +1413,11 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					{
 						Counts.FirstRebellionTick = State.Tick;
 					}
+					if (System.ActiveHazard == ClaimTag && Owner && Owner->bIsPlayerRuled)
+					{
+						++Spirit.ClaimsOnRuled;
+						Spirit.ClaimsOnRuledByEnd += bEndedBefore ? 0 : 1;
+					}
 					if (System.ActiveHazard == ClaimTag)
 					{
 						if (Counts.FirstClaimTick < 0)
@@ -1094,9 +1429,47 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					}
 				}
 			}
+			PressureCounts.Standing.Append(NewGuarded);
 			if (Counts.FirstJoinTick < 0 && SphereSize(State) > SphereBefore)
 			{
 				Counts.FirstJoinTick = State.Tick;
+			}
+			// B4: the joins of the tick (a system new to a sphere), the ones on a known system with a met owner, and the
+			// snapshots of the spirit line.
+			{
+				int32 JoinsNow = 0;
+				const bool bLowViewer = Sim->GetViewerTier() <= EAscensionTier::Tier2_Stellar;
+				for (int32 At = 0; At < State.Transcendents.Num() && At < SpheresBefore.Num(); ++At)
+				{
+					for (const FName SystemID : State.Transcendents[At].InfluencedSystems)
+					{
+						if (SpheresBefore[At].Contains(SystemID))
+						{
+							continue;
+						}
+						++JoinsNow;
+						const int32 SystemIndex = StateIndex.FindSystem(State, SystemID);
+						const FName Owner = State.Systems.IsValidIndex(SystemIndex) ? State.Systems[SystemIndex].OwnerCivID : NAME_None;
+						const bool bKnown = State.Knowing.KnownSystems.ContainsByPredicate([SystemID](const FKnownMark& Mark) { return Mark.ID == SystemID; });
+						const bool bMet = !Owner.IsNone() && State.Knowing.MetCivs.ContainsByPredicate([Owner](const FKnownMark& Mark) { return Mark.ID == Owner; });
+						if (bKnown && bMet)
+						{
+							++Spirit.KnownJoins;
+							Spirit.KnownJoinsByEnd += bEndedBefore ? 0 : 1;
+							++(bLowViewer ? Spirit.KnownJoinsLow : Spirit.KnownJoinsHigh);
+						}
+					}
+				}
+				Spirit.SameTickJoinsMax = FMath::Max(Spirit.SameTickJoinsMax, JoinsNow);
+				const FCivilizationState* RuledNow = State.Civs.FindByPredicate([](const FCivilizationState& Civ) { return Civ.bIsPlayerRuled; });
+				if (State.Tick == 600 || State.Tick == 1200)
+				{
+					Spirit.MetNear[State.Tick == 600 ? 0 : 1] = MetPeoplesNearFallen(State, StateIndex, Sim->GetTables(), RuledNow ? RuledNow->CivID : NAME_None);
+				}
+				if (State.Tick == 1000 || State.Tick == 3000 || State.Tick == 6000)
+				{
+					Spirit.SphereAt[State.Tick == 1000 ? 0 : (State.Tick == 3000 ? 1 : 2)] = SphereSize(State);
+				}
 			}
 			// A deposition, not an abdication (B1: the wanderer line's 'left at' tells that one).
 			static const FGameplayTag DeposedTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Deposed")));
@@ -1139,7 +1512,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					SaveBytes = FString::FromInt(SaveBytesOf(Save, State, RawBytes, Unused));
 					SaveRawBytes = FString::Printf(TEXT("%lld"), RawBytes);
 				}
-				AppendSample(Csv, *Sim, Before, Counts, SampleTicks > 0 ? SampleMicros / SampleTicks : 0.0, SaveBytes, SaveRawBytes);
+				AppendSample(Csv, *Sim, Before, Counts, SampleTicks > 0 ? SampleMicros / SampleTicks : 0.0, SaveBytes, SaveRawBytes, &DrainsBefore);
 				Counts.ExpansionPairs += PeoplesNotRuled(State);
 				TArray<FString> Keys;
 				SampleRows.GetKeys(Keys);
@@ -1296,9 +1669,9 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				const double TickMean = TickMicros.Num() ? Sum / TickMicros.Num() : 0.0;
 				const double Diplomacy0 = Clock.Cycles[0] * PerCycle / Ticked;
 				const double Conflict1 = Clock.Cycles[1] * PerCycle / Ticked;
-				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance stages: diplomacy %.2f us, conflict %.2f us, crisis %.2f us, AI %.2f us (means of %lld ticks); diplomacy + conflict %.1f%% of the tick mean"),
+				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance stages: diplomacy %.2f us, conflict %.2f us, crisis %.2f us, AI %.2f us (means of %lld ticks); diplomacy + conflict %.1f%% of the tick mean; economy %.2f us, card presentation %.2f us"),
 					Diplomacy0, Conflict1, Clock.Cycles[2] * PerCycle / Ticked, Clock.Cycles[3] * PerCycle / Ticked, Clock.Ticks,
-					TickMean > 0.0 ? 100.0 * (Diplomacy0 + Conflict1) / TickMean : 0.0);
+					TickMean > 0.0 ? 100.0 * (Diplomacy0 + Conflict1) / TickMean : 0.0, Clock.Cycles[4] * PerCycle / Ticked, Clock.Cycles[5] * PerCycle / Ticked);
 			}
 			// The wanderer's side (B1): only when the run asked for it (the lines of the runs before B1 stay as they were).
 			if (AbdicateAt > 0 || Wander != 0)
@@ -1311,6 +1684,27 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance end: first %s at %lld; rung at %lld, clock at %lld, deposed at %lld; chronicle life %d shown %d of %d, more %d, ranks %d/%d/%d/%d"),
 				CosmicEndings::NameOf(Counts.FirstEnd), Counts.FirstEndTick, Counts.RungTick, Counts.ClockTick, Counts.DeposedTick, Counts.ChapterLife,
 				Counts.ChapterShown, Counts.ChapterCandidates, Counts.ChapterMore, Counts.ChapterRanks[0], Counts.ChapterRanks[1], Counts.ChapterRanks[2], Counts.ChapterRanks[3]);
+			// B4 (header section 5): the first measurement - always told, outside the baselines' keys.
+			{
+				const FCivilizationState* RuledAtEnd = State.Civs.FindByPredicate([](const FCivilizationState& Civ) { return Civ.bIsPlayerRuled; });
+				Spirit.MetNear[2] = MetPeoplesNearFallen(State, StateIndex, Sim->GetTables(), RuledAtEnd ? RuledAtEnd->CivID : NAME_None);
+				Spirit.SphereAt[3] = SphereSize(State);
+				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance spirit: ruled drain P max [%.3f %.3f %.3f %.3f %.3f] (0-1000/1000-2000/2000-3000/3000-6000/later), drained ticks %lld (by end %lld), stability drained %.3f (by end %.3f); first next to a fallen sphere at %lld, first inside at %lld; claims on ruled %d (by end %d), joined %d (by end %d), stilled %d (by relief %d); claim sources on ruled settled systems within claim reach: expired %d (by end %d), answered by a project %d, resolved by an edict %d, refused by the remnant law %d; trigger first holds: claim %d (slot taken %d), pressure 0.9 %d (slot taken %d, from a higher source %d); vigil gate when the claim trigger first holds with the slot free: open %d, held %d, slots %d, cost %d, other %d (row %s); met peoples next to or inside a sphere %d/%d/%d at 600/1200/end; known joins (known system, met owner) %d (by end %d; at T1-2 %d, at T3+ %d); sphere %d/%d/%d/%d at 1000/3000/6000/end; same-tick joins max %d"),
+					Spirit.DrainMax[0], Spirit.DrainMax[1], Spirit.DrainMax[2], Spirit.DrainMax[3], Spirit.DrainMax[4], Spirit.DrainedTicks, Spirit.DrainedTicksByEnd,
+					Spirit.Drained, Spirit.DrainedByEnd, Spirit.FirstNextTo, Spirit.FirstInside, Spirit.ClaimsOnRuled, Spirit.ClaimsOnRuledByEnd, Spirit.Joined,
+					Spirit.JoinedByEnd, Spirit.Stilled, Spirit.StilledByRelief, Spirit.SourcesExpired, Spirit.SourcesExpiredByEnd, Spirit.SourcesAnswered,
+					Spirit.SourcesByEdict, Spirit.SourcesRemnant, Spirit.TriggerClaim, Spirit.TriggerClaimTaken, Spirit.TriggerPressure, Spirit.TriggerPressureTaken,
+					Spirit.TriggerPressureHigher, Spirit.VigilOpen, Spirit.VigilHeld, Spirit.VigilSlots, Spirit.VigilCost, Spirit.VigilOther,
+					VigilRow.IsNone() ? TEXT("-") : *VigilRow.ToString(), Spirit.MetNear[0], Spirit.MetNear[1], Spirit.MetNear[2], Spirit.KnownJoins,
+					Spirit.KnownJoinsByEnd, Spirit.KnownJoinsLow, Spirit.KnownJoinsHigh, Spirit.SphereAt[0], Spirit.SphereAt[1], Spirit.SphereAt[2], Spirit.SphereAt[3],
+					Spirit.SameTickJoinsMax);
+				// B4 (header section 5): the pressure line - its head (the policy's values and the guard's cells) here, the
+				// cards' and the voice's cells with their commits.
+				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance pressure: policy pressure %s guard %d leave near sphere %d; guarded crises %d by tag [%s] (by end %d), delay bought %lld by tag [%s], ends of guarded crises: answered %d, expired %d, resolved by an edict %d"),
+					CosmicRulerPolicy::PressurePolicyName(RulerPolicy.Pressure), RulerPolicy.Guard, RulerPolicy.bLeaveNearSphere ? 1 : 0, PressureCounts.Guarded,
+					*TagCountsText(PressureCounts.GuardedByTag), PressureCounts.GuardedByEnd, PressureCounts.DelayBought, *TagTicksText(PressureCounts.DelayByTag),
+					PressureCounts.GuardedAnswered, PressureCounts.GuardedExpired, PressureCounts.GuardedByEdict);
+			}
 			// The rung end and the ruled people's third rung are the same tick, but for a deposition in that very tick (the
 			// feats are judged before the tenth stage deposes; afterwards no people is ruled). A measure, not a gate: Result
 			// stays, and the line has a prefix of its own so that a tool taking the last "end:" line never takes it.
@@ -1334,7 +1728,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	}
 	else
 	{
-		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: no simulation or role subsystem, or -Rules, -EdictRow or -Diplomacy refused: nothing run"));
+		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: no simulation or role subsystem, or -Rules, -EdictRow, -Diplomacy, -PlayerPolicy, -Guard or -LeaveNearSphere refused: nothing run"));
 		Result = 1;
 	}
 

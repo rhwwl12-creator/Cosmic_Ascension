@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -89,7 +89,7 @@
+ 		{
+ 			return false;
+ 		}
+-		if (Rules && Tables)
++		if (Rules && Tables && Row.Choices.Num() < 0)
+ 		{
+ 			return CosmicPetitions::ChoiceGateOf(State, Index, *Tables, *Rules, CivIndex, CardSystem, Other, Row.Choices[Choice]).IsOpen();
+ 		}

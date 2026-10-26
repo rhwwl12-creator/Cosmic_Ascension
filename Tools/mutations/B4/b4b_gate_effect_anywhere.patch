@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
++++ b/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
+@@ -2249,7 +2249,7 @@
+ 				for (int32 EffectAt = 0; EffectAt < OnSuccess.Num(); ++EffectAt)
+ 				{
+ 					const EEffectType Type = OnSuccess[EffectAt].Type;
+-					if (EffectAt > 0 && (Type == EEffectType::SetStance || Type == EEffectType::EnactEdict || Type == EEffectType::DelayHazard))
++					if (EffectAt > 99 && (Type == EEffectType::SetStance || Type == EEffectType::EnactEdict || Type == EEffectType::DelayHazard))
+ 					{
+ 						Problems.Add(FString::Printf(TEXT("DT_Encounters.%s.Choices[%d].OnSuccess[%d]: a gated effect stands alone, first in its choice"), *CardName.ToString(), At, EffectAt));
+ 					}

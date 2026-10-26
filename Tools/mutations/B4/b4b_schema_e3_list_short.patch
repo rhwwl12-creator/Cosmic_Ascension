@@ -1,0 +1,11 @@
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -877,7 +877,7 @@
+ 				{
+ 					"why": "a choice that enacts an edict or buys time is not rolled for: the gate stands before the answer's draw, and a roll would hang the edict or the fleet on Stability (B4 header 2.4, 3.3, 3.8)",
+ 					"then": [
+-						{"none": [{"col": "Choices.OnSuccess", "has_type": "EnactEdict"}, {"col": "Choices.CheckStat", "in": ["Body", "Mind", "Causality", "Exaltation", "Stability"]}]},
++						{"none": [{"col": "Choices.OnSuccess", "has_type": "EnactEdict"}, {"col": "Choices.CheckStat", "in": ["Body", "Mind", "Causality", "Exaltation"]}]},
+ 						{"none": [{"col": "Choices.OnSuccess", "has_type": "DelayHazard"}, {"col": "Choices.CheckStat", "in": ["Body", "Mind", "Causality", "Exaltation", "Stability"]}]}
+ 					]
+ 				},

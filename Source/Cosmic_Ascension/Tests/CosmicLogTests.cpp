@@ -533,8 +533,9 @@ bool FCosmicLogVariantsLedgerTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("A row without templates tells nothing and draws nothing from the tell stream"), TellStepsOf(Mute, 0));
 		TestTrue(TEXT("A row with templates tells one line with one tell draw"), TellStepsOf(Plain, 1));
 		TestTrue(TEXT("A row with a sign row tells two lines with two tell draws"), TellStepsOf(WithSign, 2));
-		const FCosmicLogEntry& Sign = State.Log.Last();
-		const FCosmicLogEntry& Main = State.Log[State.Log.Num() - 2];
+		// The sign first, the row's own line after it (B4 - UCosmicLogSubsystem::PushWithSign).
+		const FCosmicLogEntry& Sign = State.Log[State.Log.Num() - 2];
+		const FCosmicLogEntry& Main = State.Log.Last();
 		TestTrue(TEXT("The main line carries the row's log category and severity"), Main.Category == CivTag && Main.Severity == 2 && Main.SourceRow == WithSign);
 		TestTrue(TEXT("The sign line is a Log.Sign entry of severity 1 at most, with the event row as its source"),
 			Sign.Category == SignTag && Sign.Severity == 1 && Sign.SourceRow == WithSign && Sign.FocusCivID == State.Civs[1].CivID);
@@ -547,6 +548,90 @@ bool FCosmicLogVariantsLedgerTest::RunTest(const FString& Parameters)
 
 	Sim->SetTables(Original);
 	Sim->NewGalaxy(42, 5, 3);
+	return true;
+}
+
+// The sign helper (B4 header section 2.6): the lower speaker's sentence first, in the window below the line's, then the line;
+// no variants, no draw at all; a sign row the table lacks is an error line and the line alone. Judged by the scope of
+// telling (tell-all off), with the ruled people's rung as the viewer's.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicLogSignHelperTest, "Cosmic_Ascension.Log.SignHelper", CosmicTests::Flags)
+bool FCosmicLogSignHelperTest::RunTest(const FString& Parameters)
+{
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	UCosmicLogSubsystem* Log = Sim->GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	const FCosmicDataTables Original = Sim->GetTables();
+	const bool bWasTellAll = Log->IsTellAll();
+	ON_SCOPE_EXIT { Log->SetTellAll(bWasTellAll); Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+
+	const FGameplayTag CivTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Civ")));
+	const FGameplayTag SignTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Sign")));
+	const TArray<FText> Three = { FText::AsCultureInvariant(TEXT("helper one")), FText::AsCultureInvariant(TEXT("helper two")), FText::AsCultureInvariant(TEXT("helper three")) };
+	const FName SignRow(TEXT("log_test_sign"));
+	UDataTable* LogTable = NewObject<UDataTable>(GetTransientPackage());
+	LogTable->RowStruct = FLogTemplateDef::StaticStruct();
+	FLogTemplateDef SignDef;
+	SignDef.Category = SignTag;
+	SignDef.Templates = { FText::AsCultureInvariant(TEXT("sign one")), FText::AsCultureInvariant(TEXT("sign two")), FText::AsCultureInvariant(TEXT("sign three")) };
+	LogTable->AddRow(SignRow, SignDef);
+	FCosmicDataTables Tables = Original;
+	Tables.LogTemplates = LogTable;
+	Sim->SetTables(Tables);
+	Sim->NewGalaxy(42, 5, 3);
+	Log->SetTellAll(false);
+	FGalaxyState& State = Sim->GetMutableState();
+	TestTrue(TEXT("(the vessel rules civ 0)"), State.Player.Role == EPlayerRole::Ruler && State.Civs[0].bIsPlayerRuled);
+
+	// A Severity 2 line about the ruled people, told from the third rung up.
+	FCosmicLine Line;
+	Line.Category = CivTag;
+	Line.Severity = 2;
+	Line.FocusCiv = State.Civs[0].CivID;
+	Line.SourceRow = FName(TEXT("tr_test_voice"));
+	Line.MinViewerTier = 3;
+	// Pushes with the sign row of the case and gives the number of tell draws and of entries it made.
+	auto Push = [&](FName Sign, TConstArrayView<FText> Variants, int32 Draws, int32 Entries)
+	{
+		FRandomStream Probe(State.TellRngState);
+		const int32 Before = State.Log.Num();
+		Log->PushWithSign(Line, Variants, Sign, FFormatNamedArguments());
+		for (int32 Draw = 0; Draw < Draws; ++Draw)
+		{
+			Probe.RandHelper(3);
+		}
+		return State.TellRngState == Probe.GetCurrentSeed() && State.Log.Num() == Before + Entries;
+	};
+
+	// The first rung: the sign is told (its window [0, 2]), then the line, kept untold (out of its window, Severity 2).
+	TestTrue(TEXT("Two tell draws and two entries at the first rung"), Push(SignRow, Three, 2, 2));
+	{
+		const FCosmicLogEntry& Sign = State.Log[State.Log.Num() - 2];
+		const FCosmicLogEntry& Main = State.Log.Last();
+		TestTrue(TEXT("The sign comes first: Log.Sign, Severity 1, the line's focus and row, told"),
+			Sign.Category == SignTag && Sign.Severity == 1 && Sign.FocusCivID == Line.FocusCiv && Sign.SourceRow == Line.SourceRow && !Sign.bUntold);
+		TestTrue(TEXT("the line after it, kept untold below its window"), Main.Category == CivTag && Main.Severity == 2 && Main.bUntold);
+	}
+	// The second rung, the top of the sign's window: the sign told, the line kept untold.
+	State.Civs[0].Tier = EAscensionTier::Tier2_Stellar;
+	TestTrue(TEXT("Two tell draws and two entries at the second rung"), Push(SignRow, Three, 2, 2));
+	TestTrue(TEXT("the sign told, the line untold"), !State.Log[State.Log.Num() - 2].bUntold && State.Log[State.Log.Num() - 2].Category == SignTag && State.Log.Last().bUntold);
+	// The third rung: the line is told; the sign, out of its window and of Severity 1, is not stored - its draw stays.
+	State.Civs[0].Tier = EAscensionTier::Tier3_Causal;
+	TestTrue(TEXT("Two tell draws and one entry at the third rung"), Push(SignRow, Three, 2, 1));
+	TestTrue(TEXT("and that entry is the line, told"), State.Log.Last().Category == CivTag && !State.Log.Last().bUntold);
+	// No variants: nothing told, no draw - the sign neither.
+	TestFalse(TEXT("No variants is false"), Log->PushWithSign(Line, TArray<FText>(), SignRow, FFormatNamedArguments()));
+	TestTrue(TEXT("and tells nothing, the sign included"), Push(SignRow, TArray<FText>(), 0, 0));
+	// No sign row: the line alone; a sign row the table lacks: an error line and the line alone.
+	TestTrue(TEXT("Without a sign row, the line alone"), Push(NAME_None, Three, 1, 1));
+	AddExpectedError(TEXT("names the sign row log_test_nobody"), EAutomationExpectedErrorFlags::Contains, 1);
+	TestTrue(TEXT("A sign row the table lacks: the line alone"), Push(FName(TEXT("log_test_nobody")), Three, 1, 1));
+	// A window that starts at the first rung has nobody below it: no sign.
+	Line.MinViewerTier = 1;
+	TestTrue(TEXT("A line told from the first rung up has no sign"), Push(SignRow, Three, 1, 1));
 	return true;
 }
 

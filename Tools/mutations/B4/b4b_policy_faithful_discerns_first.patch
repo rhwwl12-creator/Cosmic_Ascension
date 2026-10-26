@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -285,7 +285,7 @@
+ 		switch (Pressure)
+ 		{
+ 		case ECosmicPressurePolicy::Faithful:
+-			Order = { EPressureKind::Vigil, EPressureKind::Discern, EPressureKind::Edict, EPressureKind::Watch };
++			Order = { EPressureKind::Discern, EPressureKind::Vigil, EPressureKind::Edict, EPressureKind::Watch };
+ 			break;
+ 		case ECosmicPressurePolicy::Reckless:
+ 			Order = { EPressureKind::Discern, EPressureKind::Resist, EPressureKind::Watch };

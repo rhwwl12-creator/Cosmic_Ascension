@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -398,7 +398,7 @@
+ 			const TArray<TPair<int32, FName>> Kept = ProjectChoicesOf(Policy, State, Sim.GetStateIndex(), Sim.GetTables(), Sim.GetRules(), CivIndex);
+ 			const TArray<int32> Targets = Kept.IsEmpty() ? CosmicMegaprojects::SettleTargets(State, Sim.GetStateIndex(), Sim.GetTables(), Sim.GetRules(), CivIndex) : TArray<int32>();
+ 			const bool bStarted = !Kept.IsEmpty() ? Role.StartMegaproject(State.Systems[Kept[0].Key].SystemID, Kept[0].Value)
+-				: (!Targets.IsEmpty() && Role.StartMegaproject(State.Systems[Targets[0]].SystemID, CosmicRows::ProjectSettle));
++				: (Targets.Num() < 0);
+ 			if (!bStarted)
+ 			{
+ 				break;

@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+@@ -921,6 +921,7 @@
+ 			return false;
+ 		}
+ 		CosmicEdicts::Enact(*Civ, Effect.Key, *Def);
++		CosmicEdicts::TryPay(Civ->Stockpile, CosmicEdicts::CostOf(Def->EnactCost));
+ 		return true;
+ 	}
+ 

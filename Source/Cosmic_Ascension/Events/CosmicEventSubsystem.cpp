@@ -13,7 +13,9 @@
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
 #include "Math/NumericLimits.h"
+#include "Sim/CosmicConflict.h"
 #include "Sim/CosmicDiplomacy.h"
+#include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicResearch.h"
@@ -629,6 +631,10 @@ bool UCosmicEventSubsystem::Check(const FCosmicCondition& Condition, const FCosm
 		return static_cast<float>(Settled) >= Condition.Value;
 	}
 
+	case EConditionType::CivHasEdict:
+		// A held edict the tables know (B4 section 2.2): the count of CosmicEdicts::HeldCountOf.
+		return Civ && Civ->ActiveEdicts.Contains(Condition.Key) && View.Tables.FindEdict(Condition.Key) != nullptr;
+
 	default:
 		// An enumerator this build does not know (a row written for a later build).
 		return false;
@@ -902,6 +908,35 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 		{
 			CosmicDiplomacy::SetStanceOf(*Civ, Other, Effect.Tag);
 		}
+		return true;
+	}
+
+	case EEffectType::EnactEdict:
+	{
+		// The one gate of the edicts (B4 section 2.2, rule 13): only what the command would take; Enact pays the row's
+		// EnactCost. A refusal does nothing - the answer's gate (CosmicPetitions::ChoiceGateOf) refuses before the draw.
+		const FEdictDef* Def = Ctx.Tables.FindEdict(Effect.Key);
+		if (!Civ || !Def || CosmicEdicts::EnactBlockOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, Ctx.CivIndex, Effect.Key) != CosmicEdicts::ECosmicEdictBlock::None)
+		{
+			return false;
+		}
+		CosmicEdicts::Enact(*Civ, Effect.Key, *Def);
+		return true;
+	}
+
+	case EEffectType::DelayHazard:
+	{
+		// The one gate of the fleet's time (B4 section 2.4, rule 13). Value is a whole number 1..100 (a lint); the guard is
+		// here, by comparisons, and the sum is cut at MAX_int32.
+		if (!Civ || !(Effect.Value >= 1.f) || !IsAmount(Effect.Value)
+			|| CosmicConflict::ResistBlockOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, Ctx.CivIndex, Ctx.SystemIndex, Effect.Tag) != CosmicConflict::ECosmicResistBlock::None)
+		{
+			return false;
+		}
+		FStarSystemState& Target = State.Systems[Ctx.SystemIndex];
+		const int64 Added = static_cast<int64>(Effect.Value < 2147483647.f ? Effect.Value : 2147483647.f);
+		Target.HazardTicksRemaining = static_cast<int32>(FMath::Min<int64>(static_cast<int64>(Target.HazardTicksRemaining) + Added, MAX_int32));
+		Civ->FleetPower *= CosmicConflict::ResistShareOf(Ctx.Rules);
 		return true;
 	}
 
@@ -1207,30 +1242,11 @@ void UCosmicEventSubsystem::FireResolved(FName RowName, const FCosmicEventDef& R
 	Args.Add(TEXT("System"), System ? System->DisplayName : FText::GetEmpty());
 	Args.Add(TEXT("Hazard"), HazardName);
 
-	Log->PushVariants(Line, Row.LogTemplates, Args);
-
-	// The lower speaker's sentence, for the viewers the line above is not told to. It goes with a line (a row without
-	// templates tells nothing) and needs a viewer tier below the window of that line: tier numbers start at 1, so the
-	// lowest MinTierToReveal with anybody below it is 2 (and 0 as an upper bound would mean "no bound"). Whenever the
-	// row's data allow it, it is told: the windows add no tell draw (section 8.1). The sign row's templates call {Civ}
-	// and {Hazard} only (Data.Integrity): it copies the focus of the line above, which names no system for a Civilization
-	// row, and a sign row may serve rows of either subject.
-	if (!Row.SignRow.IsNone() && !Row.LogTemplates.IsEmpty() && Row.MinTierToReveal > 1)
-	{
-		if (const FLogTemplateDef* Sign = Ctx.Tables.FindLogTemplate(Row.SignRow))
-		{
-			FCosmicLine SignLine = Line;
-			SignLine.Category = Sign->Category;
-			SignLine.Severity = FMath::Min<uint8>(Row.Severity, 1);
-			SignLine.MinViewerTier = 0;
-			SignLine.MaxViewerTier = Row.MinTierToReveal - 1;
-			Log->PushVariants(SignLine, Sign->Templates, Args);
-		}
-		else
-		{
-			UE_LOG(LogCosmic, Error, TEXT("Event row %s names the sign row %s, which DT_LogTemplates does not hold"), *RowName.ToString(), *Row.SignRow.ToString());
-		}
-	}
+	// With the lower speaker's sentence first, for the viewers this line is not told to (UCosmicLogSubsystem::PushWithSign
+	// - a row without templates tells neither). An event row's sign row calls {Civ} and {Hazard} only (the schema - it
+	// copies the focus of the line, which names no system for a Civilization row, and a sign row may serve rows of either
+	// subject; Data.Integrity does not look at it).
+	Log->PushWithSign(Line, Row.LogTemplates, Row.SignRow, Args);
 
 	// 3. What the effects did, told after the row's own line: a cause comes before what follows from it.
 	FollowUpNotes(Ctx);

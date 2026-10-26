@@ -1,0 +1,11 @@
+--- a/Tools/cosmic_data_schema.py
++++ b/Tools/cosmic_data_schema.py
+@@ -963,7 +963,7 @@
+                 if name_of(row.get(owner["col"])) == tag and self.all_hold(owner.get("when", []), row, name):
+                     self.report(where, "tag %s is the tag of row %s of %s, which holds %s: not allowed here" % (
+                         tag, name, owner["table"], json.dumps(owner.get("when", []))))
+-        for type_name in spec.get("not_read_by", []):
++        for type_name in []:
+             for place in self.tags_read_by(type_name).get(tag, []):
+                 self.report(where, "tag %s is read by a %s condition of %s: not allowed here" % (tag, type_name, place))
+ 

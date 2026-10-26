@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
+@@ -572,7 +572,7 @@
+ 		else if (Effect.Type == EEffectType::EnactEdict)
+ 		{
+ 			Gate.Edict = CosmicEdicts::EnactBlockOf(State, Index, Tables, Rules, CivIndex, Effect.Key);
+-			Gate.Kind = Gate.Edict != CosmicEdicts::ECosmicEdictBlock::None ? ECosmicChoiceGateKind::Edict : ECosmicChoiceGateKind::None;
++			Gate.Kind = (Gate.Edict != CosmicEdicts::ECosmicEdictBlock::None && Gate.Edict != CosmicEdicts::ECosmicEdictBlock::Held) ? ECosmicChoiceGateKind::Edict : ECosmicChoiceGateKind::None;
+ 		}
+ 		else if (Effect.Type == EEffectType::DelayHazard)
+ 		{

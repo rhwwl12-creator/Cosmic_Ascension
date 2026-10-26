@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp
+@@ -110,7 +110,6 @@
+ 			SignLine.Category = Sign->Category;
+ 			SignLine.Severity = FMath::Min<uint8>(Line.Severity, 1);
+ 			SignLine.MinViewerTier = 0;
+-			SignLine.MaxViewerTier = Line.MinViewerTier - 1;
+ 			PushVariants(SignLine, Sign->Templates, Args);
+ 		}
+ 		else

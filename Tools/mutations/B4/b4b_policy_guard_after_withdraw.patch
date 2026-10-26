@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -621,7 +621,7 @@
+ 				return;
+ 			}
+ 		}
+-		else if (Besieged.IsNone() && bGuard)
++		else if (Besieged.IsNone() && bGuard && Before.IsNone())
+ 		{
+ 			const FName Keep = GuardTargetOf(State, Index, Tables, Rules, CivIndex);
+ 			if (!Keep.IsNone() && Keep != Before && Role.AllocateFleet(Keep) == CosmicConflict::ECosmicSiegeBlock::None && TargetOf() != Before)

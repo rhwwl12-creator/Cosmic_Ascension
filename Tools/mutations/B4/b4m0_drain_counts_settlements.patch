@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1284,7 +1284,7 @@
+ 	for (const FName SystemID : Civ.OwnedSystems)
+ 	{
+ 		const int32 SystemIndex = InIndex.FindSystem(InState, SystemID);
+-		if (!InState.Systems.IsValidIndex(SystemIndex) || InState.Systems[SystemIndex].OwnerCivID != Civ.CivID || !CosmicState::IsSettled(InState.Systems[SystemIndex]))
++		if (!InState.Systems.IsValidIndex(SystemIndex) || InState.Systems[SystemIndex].OwnerCivID != Civ.CivID)
+ 		{
+ 			continue;
+ 		}

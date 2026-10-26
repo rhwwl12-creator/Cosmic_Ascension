@@ -135,6 +135,19 @@ namespace CosmicPetitionsImpl
 		}
 		return Archetype->PersonNameBank[Rebel->NameIndex % Archetype->PersonNameBank.Num()];
 	}
+
+	// The stance gate of one effect of a choice (B3): a SetStance on the card's other people (an empty Key) - None for any
+	// other effect, for no other people, and when the stance is held already (Same).
+	CosmicDiplomacy::ECosmicStanceBlock StanceBlockOfEffect(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules,
+		int32 CivIndex, FName OtherCivID, const FCosmicEffect& Effect)
+	{
+		if (Effect.Type != EEffectType::SetStance || !(Effect.Key.IsNone() || Effect.Key.ToString().IsEmpty()) || OtherCivID.IsNone())
+		{
+			return CosmicDiplomacy::ECosmicStanceBlock::None;
+		}
+		const CosmicDiplomacy::ECosmicStanceBlock Block = CosmicDiplomacy::StanceBlockOf(State, Index, Rules, CivIndex, OtherCivID, Effect.Tag, true);
+		return Block == CosmicDiplomacy::ECosmicStanceBlock::Same ? CosmicDiplomacy::ECosmicStanceBlock::None : Block;
+	}
 }
 
 int32 CosmicPetitions::RuledCivIndexOf(const FGalaxyState& State, const FCosmicStateIndex& Index)
@@ -536,17 +549,42 @@ CosmicDiplomacy::ECosmicStanceBlock CosmicPetitions::StanceBlockOfChoice(const F
 {
 	for (const FCosmicEffect& Effect : Choice.OnSuccess)
 	{
-		if (Effect.Type != EEffectType::SetStance || !(Effect.Key.IsNone() || Effect.Key.ToString().IsEmpty()) || OtherCivID.IsNone())
-		{
-			continue;
-		}
-		const CosmicDiplomacy::ECosmicStanceBlock Block = CosmicDiplomacy::StanceBlockOf(State, Index, Rules, CivIndex, OtherCivID, Effect.Tag, true);
-		if (Block != CosmicDiplomacy::ECosmicStanceBlock::None && Block != CosmicDiplomacy::ECosmicStanceBlock::Same)
+		const CosmicDiplomacy::ECosmicStanceBlock Block = CosmicPetitionsImpl::StanceBlockOfEffect(State, Index, Rules, CivIndex, OtherCivID, Effect);
+		if (Block != CosmicDiplomacy::ECosmicStanceBlock::None)
 		{
 			return Block;
 		}
 	}
 	return CosmicDiplomacy::ECosmicStanceBlock::None;
+}
+
+FCosmicChoiceGate CosmicPetitions::ChoiceGateOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
+	const FCosmicRulesDef& Rules, int32 CivIndex, int32 SystemIndex, FName OtherCivID, const FEncounterChoice& Choice)
+{
+	FCosmicChoiceGate Gate;
+	for (const FCosmicEffect& Effect : Choice.OnSuccess)
+	{
+		if (Effect.Type == EEffectType::SetStance)
+		{
+			Gate.Stance = CosmicPetitionsImpl::StanceBlockOfEffect(State, Index, Rules, CivIndex, OtherCivID, Effect);
+			Gate.Kind = Gate.Stance != CosmicDiplomacy::ECosmicStanceBlock::None ? ECosmicChoiceGateKind::Stance : ECosmicChoiceGateKind::None;
+		}
+		else if (Effect.Type == EEffectType::EnactEdict)
+		{
+			Gate.Edict = CosmicEdicts::EnactBlockOf(State, Index, Tables, Rules, CivIndex, Effect.Key);
+			Gate.Kind = Gate.Edict != CosmicEdicts::ECosmicEdictBlock::None ? ECosmicChoiceGateKind::Edict : ECosmicChoiceGateKind::None;
+		}
+		else if (Effect.Type == EEffectType::DelayHazard)
+		{
+			Gate.Resist = CosmicConflict::ResistBlockOf(State, Index, Tables, Rules, CivIndex, SystemIndex, Effect.Tag);
+			Gate.Kind = Gate.Resist != CosmicConflict::ECosmicResistBlock::None ? ECosmicChoiceGateKind::Resist : ECosmicChoiceGateKind::None;
+		}
+		if (!Gate.IsOpen())
+		{
+			return Gate;
+		}
+	}
+	return FCosmicChoiceGate();
 }
 
 void CosmicPetitions::Clear(FGalaxyState& State)

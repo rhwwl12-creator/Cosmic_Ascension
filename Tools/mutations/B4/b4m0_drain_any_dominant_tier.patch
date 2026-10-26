@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1292,7 +1292,7 @@
+ 		{
+ 			return SphereReachIn(InState, InState.Transcendents[TranscendentIndex], SystemIndex);
+ 		});
+-		if (Reading.DominantSource != ECosmicPressureSource::None && TierIndex(Reading.DominantTier) > TierIndex(Civ.Tier))
++		if (Reading.DominantSource != ECosmicPressureSource::None)
+ 		{
+ 			Largest = FMath::Max(Largest, Reading.P);
+ 		}

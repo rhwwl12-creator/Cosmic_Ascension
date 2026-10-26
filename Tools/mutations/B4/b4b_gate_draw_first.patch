@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -447,6 +447,7 @@
+ 	// A choice its gate would refuse (B3: a stance the friendly slots refuse; B4: an edict, the fleet's time - B4 header
+ 	// section 2.4) is refused as an unpaid cost, before the draw - the card greys it. A card that no longer stands (its
+ 	// people gone, its subject lost) is withdrawn below instead, with its draw.
++	Sim->MakeEvalContext().Stream.GetFraction();
+ 	if (!bWandererCard && CosmicPetitions::StillStands(State, Index, Tables, Sim->GetRules()))
+ 	{
+ 		const int32 GateSystem = CosmicPetitions::SubjectOf(State, Index, RuledIndex, Row->Subject, State.Knowing.PendingPetitionSystemID);

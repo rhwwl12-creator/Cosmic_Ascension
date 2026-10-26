@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -585,7 +585,7 @@
+ 	const FCosmicRulesDef& Rules = Sim.GetRules();
+ 	// The guard of -Guard=1 (B4) runs with no diplomacy and after the end too; everything else needs both.
+ 	const bool bGuard = Policy.Guard != 0;
+-	if ((!bGuard && (Policy.Diplomacy == 0 || Counts.bEnded)) || State.Calling.LifeState != ELifeState::Embodied || State.Player.Role != EPlayerRole::Ruler)
++	if ((Policy.Diplomacy == 0 || (!bGuard && Counts.bEnded)) || State.Calling.LifeState != ELifeState::Embodied || State.Player.Role != EPlayerRole::Ruler)
+ 	{
+ 		return;
+ 	}

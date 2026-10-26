@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1690,7 +1690,7 @@
+ 			});
+ 			if (Reading.DominantSource != ECosmicPressureSource::None && TierIndex(Reading.DominantTier) > TierIndex(Civ.Tier))
+ 			{
+-				LargestPressure = FMath::Max(LargestPressure, Reading.P);
++				LargestPressure = FMath::Max(LargestPressure, Reading.P) * CosmicEdicts::PressureDrainMultiplierOf(Civ, Tables);
+ 			}
+ 			for (int32 TranscendentIndex = 0; TranscendentIndex < TranscendentCount; ++TranscendentIndex)
+ 			{

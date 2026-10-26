@@ -77,7 +77,7 @@ def transcendent_row(name="trans_silence", **changes):
         "Name": name,
         "Doctrine": "Doctrine.Silence",
         "Allegiance": "Realm.Abyssal",
-        "CounterfeitOf": "",
+        "CounterfeitOf": "Truth.Rest",
         "Title": "the quiet one",
         "Lure": "",
         "Tier": "Tier4_Transcendent",
@@ -163,6 +163,13 @@ def megaproject_row(name="project_test_build", **changes):
     return row
 
 
+def pool(**amounts):
+    """A resource pool: every resource, 0 unless named (B4: a choice that costs)."""
+    full = {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 0.0, "Causality": 0.0}
+    full.update(amounts)
+    return full
+
+
 def choice(label="Hold.", **changes):
     """One entry of DT_Encounters.Choices: every member of FEncounterChoice."""
     entry = {
@@ -224,6 +231,7 @@ def edict_row(name="edict_test_order", **changes):
         "HazardCountdownBonus": {"Hazard.Claim": 100},
         "FleetGrowthMultiplier": 1.0,
         "TreatyAcceptBonus": 0.0,
+        "PressureDrainMultiplier": 1.0,
     }
     row.update(changes)
     return row
@@ -1391,6 +1399,253 @@ class SchemaTests(unittest.TestCase):
                 self.assertIn(prefix, self.schema["string_table"]["checked_prefixes"])
                 self.assertTrue(self.schema["string_table"]["checked_prefixes"][prefix].get("no_digits"))
 
+    def test_pressure_cards(self):
+        """B4: the edict and the delay a card's answer carries - a petition's answer only, its OnSuccess alone, a choice
+        not rolled for, the edict's own cost the one price, never the capital rule's hazard nor a hazard a card waits on
+        -, the condition on a held edict (never on a grace row) and the card that is never blocked. Two bans on one row
+        are broken apart (CLAUDE.md rule 8)."""
+        self.assertEqual(self.after(), [])
+        plea = "petition_test_plea"
+        enact = eff("EnactEdict", key="edict_test_order")
+        delay = eff("DelayHazard", tag="Hazard.Plague", value=50)
+
+        def entry_of(index, row_name=plea, **changes):
+            return lambda tables: self.row(tables, "DT_Encounters", row_name)["Choices"][index].update(**changes)
+
+        def both(*changes):
+            return lambda tables: [change(tables) for change in changes]
+        ruler_only = "an edict and a fleet are the ruler's"
+        success_only = "the gate of a choice reads its OnSuccess alone"
+        unrolled = "a choice that enacts an edict or buys time is not rolled for"
+        one_price = "the edict's own EnactCost is the one price"
+        never_blocked = "a card is never blocked"
+        card_rules = (ruler_only, success_only, unrolled, one_price, never_blocked)
+
+        def only(problems, why, *words):
+            """The named rule breaks and no other rule of the cards does."""
+            self.expect(problems, "DT_Encounters.", why, *words)
+            for other in card_rules:
+                if other != why:
+                    self.expect(problems, other, wanted=False)
+        # (1) The two effects stand in a card's answer and nowhere else, and neither is a per-tick effect.
+        for effect in (enact, delay):
+            with self.subTest(effect=effect["Type"], where="answer"):
+                self.assertEqual(self.after(entry_of(0, OnSuccess=[effect])), [])
+                self.expect(self.after(self.set_cell("DT_Events", "event_test_harvest", "Effects", [effect])),
+                            "DT_Events.event_test_harvest.Effects[0](%s)" % effect["Type"], "only in the answer of a card")
+                self.expect(self.after(self.set_cell("DT_Edicts", "edict_test_order", "EffectsPerTick", [effect])),
+                            "EffectsPerTick[0](%s)" % effect["Type"], "per-tick source applies only")
+                self.assertNotIn(effect["Type"], self.schema["per_tick_effects"])
+        # EnactEdict names an edict row; DelayHazard a hazard tag and 1..100 whole ticks; neither reads another cell.
+        answer = lambda *effects: self.after(entry_of(0, OnSuccess=list(effects)))  # noqa: E731
+        self.expect(answer(eff("EnactEdict")), "Choices[0].OnSuccess[0](EnactEdict).Key", "a Key is required")
+        self.expect(answer(eff("EnactEdict", key="edict_nobody")), "OnSuccess[0](EnactEdict).Key", "DT_Edicts has no row edict_nobody")
+        self.expect(answer(eff("EnactEdict", key="edict_test_order", tag="Hazard.Plague")), "(EnactEdict).Tag", "reads no Tag")
+        self.expect(answer(eff("EnactEdict", key="edict_test_order", value=1)), "(EnactEdict).Value", "reads no Value")
+        self.expect(answer(eff("DelayHazard", value=50)), "Choices[0].OnSuccess[0](DelayHazard).Tag", "a tag is required")
+        self.expect(answer(eff("DelayHazard", tag="Law.Hedge", value=50)), "(DelayHazard).Tag", "not under Hazard.")
+        self.expect(answer(eff("DelayHazard", tag="Hazard.Plague", key="crisis_test_storm", value=50)), "(DelayHazard).Key", "reads no Key")
+        for value, words in ((0, "is below 1"), (101, "is above 100"), (2.5, "not a whole number")):
+            with self.subTest(value=value):
+                self.expect(answer(eff("DelayHazard", tag="Hazard.Plague", value=value)), "(DelayHazard).Value", words)
+        for value in (1, 100):
+            self.assertEqual(answer(eff("DelayHazard", tag="Hazard.Plague", value=value)), [])
+        # (2) The condition on a held edict: an edict row, nothing else read - and never on a grace row (every grace tag).
+        has_edict = cond("CivHasEdict", key="edict_test_order")
+        self.assertEqual(self.conditions(has_edict), [])
+        self.expect(self.conditions(cond("CivHasEdict")), "(CivHasEdict).Key", "a Key is required")
+        self.expect(self.conditions(cond("CivHasEdict", key="edict_nobody")), "(CivHasEdict).Key", "DT_Edicts has no row edict_nobody")
+        self.expect(self.conditions(cond("CivHasEdict", key="edict_test_order", tag="Hazard.Plague")), "(CivHasEdict).Tag", "reads no Tag")
+        self.expect(self.conditions(cond("CivHasEdict", key="edict_test_order", value=1)), "(CivHasEdict).Value", "reads no Value")
+        grace = "grace is never drawn by an edict"
+        graces = sorted(tag for tag in self.tags if tag.startswith("Event.Grace."))
+        rule = next(rule for rule in self.schema["tables"]["DT_Events"]["rules"] if rule["why"].startswith(grace))
+        self.assertEqual(sorted(rule["when"][0]["in"]), graces, "the rule lists every grace category the ini declares")
+        for category in graces:
+            with self.subTest(category=category):
+                on_grace = lambda tables, category=category: self.row(tables, "DT_Events", "event_test_harvest").update(  # noqa: E731
+                    Category=category, LogCategory=self.schema["event_log_categories"][category][0], Conditions=[has_edict])
+                self.expect(self.after(on_grace), "DT_Events.event_test_harvest", grace, "CivHasEdict")
+        # (3) A petition's answer only, its OnSuccess alone, a choice not rolled for, the edict's cost the one price: each
+        # broken in a choice that breaks no other rule of the cards.
+        checked = [stat for stat in self.schema["enums"]["ECosmicCheckStat"] if stat != "NoCheck"]
+        # The rule says 'not in enc_ rows' for 'only in petition_ rows': the same while these are the two prefixes.
+        self.assertEqual(sorted(self.schema["tables"]["DT_Encounters"]["prefixes"]), ["enc_", "petition_"],
+                         "a new card prefix: decide whether EnactEdict/DelayHazard may stand in it - the ruler_only rule names enc_ alone")
+        for effect in (enact, delay):
+            with self.subTest(effect=effect["Type"]):
+                only(self.after(entry_of(1, "enc_test_weave", OnSuccess=[effect])), ruler_only, effect["Type"])
+                only(self.after(entry_of(0, OnFailure=[effect])), success_only, effect["Type"])
+                for stat in checked:
+                    only(self.after(entry_of(0, CheckStat=stat, Difficulty=4, OnSuccess=[effect])), unrolled, effect["Type"])
+        only(self.after(entry_of(0, Cost=pool(Influence=10.0), OnSuccess=[enact])), one_price, "EnactEdict")
+        self.assertEqual(self.after(entry_of(0, Cost=pool(Influence=10.0))), [])
+        # (4) A card is never blocked: a gated choice beside choices that all cost, or that are all gated, breaks the rule.
+        stance = eff("SetStance", tag="Stance.Friendly")
+        contact = "petition_first_contact"
+        wait_costs = lambda row_name=plea: entry_of(1, row_name, Cost=pool(Energy=5.0))  # noqa: E731
+        for effect, row_name in ((enact, plea), (delay, plea), (stance, contact)):
+            with self.subTest(effect=effect["Type"], blocked=True):
+                self.assertEqual(self.after(entry_of(0, row_name, OnSuccess=[effect])), [])
+                only(self.after(both(entry_of(0, row_name, OnSuccess=[effect]), wait_costs(row_name))), never_blocked, effect["Type"])
+        only(self.after(both(entry_of(0, OnSuccess=[enact]), entry_of(1, OnSuccess=[delay]))), never_blocked)
+        # A choice with no cost and no gate keeps the card open, rolled for or not; a card without a gate may ask a price
+        # in every choice (petition_feast).
+        rolled = entry_of(1, CheckStat="Stability", Difficulty=3, OnFailure=[eff("ChangeStability", value=-0.05)], FailureText="{Civ} failed.")
+        self.assertEqual(self.after(both(entry_of(0, OnSuccess=[enact]), rolled)), [])
+        self.assertEqual(self.after(both(entry_of(0, Cost=pool(Energy=5.0)), wait_costs())), [])
+        # (5) The time a card buys never falls on the capital rule's hazard, nor on a hazard a card waits on with
+        # SystemHazardTicksAtMost. The project's rebellion is under both bans; two test rows hold them apart.
+        capital = "is the tag of row"
+        waited = "is read by a SystemHazardTicksAtMost condition"
+        capital_row = lambda tables: tables["DT_Hazards"].append(  # noqa: E731
+            hazard_row("crisis_test_uprising", HazardTag="Hazard.PreSupernova", SpawnRule="Capital", SpawnChancePerTick=0.0))
+        watching_card = lambda tables: tables["DT_Encounters"].append(encounter_row(  # noqa: E731
+            "petition_test_watch", Subject="SettledSystem", Conditions=[cond("PlayerRoleIs", key="Ruler"), cond("SystemHazardTicksAtMost", tag="Hazard.Plague", value=50)]))
+        delay_on = lambda tag: entry_of(0, OnSuccess=[eff("DelayHazard", tag=tag, value=50)])  # noqa: E731
+        self.assertEqual(self.after(capital_row), [])
+        self.assertEqual(self.after(watching_card), [])
+        problems = self.after(both(capital_row, delay_on("Hazard.PreSupernova")))
+        self.expect(problems, "Choices[0].OnSuccess[0](DelayHazard).Tag", capital, "crisis_test_uprising of DT_Hazards")
+        self.expect(problems, waited, wanted=False)
+        problems = self.after(both(watching_card, delay_on("Hazard.Plague")))
+        self.expect(problems, "Choices[0].OnSuccess[0](DelayHazard).Tag", waited, "DT_Encounters.petition_test_watch.Conditions")
+        self.expect(problems, capital, wanted=False)
+        # A condition of any table waits on the countdown as well, not only a card's: an event row that reads it.
+        watching_event = self.set_cell("DT_Events", "event_test_harvest", "Conditions", [cond("SystemHazardTicksAtMost", tag="Hazard.Plague", value=50)])
+        self.assertEqual(self.after(watching_event), [])
+        problems = self.after(both(watching_event, delay_on("Hazard.Plague")))
+        self.expect(problems, "Choices[0].OnSuccess[0](DelayHazard).Tag", waited, "DT_Events.event_test_harvest.Conditions")
+        self.expect(problems, capital, wanted=False)
+        # Without the two rows the same tags are free; a Draw row of the tag is no capital rule, and a card that asks only
+        # whether the hazard stands does not wait on its countdown.
+        self.assertEqual(self.after(delay_on("Hazard.PreSupernova")), [])
+        self.assertEqual(self.after(delay_on("Hazard.Plague")), [])
+        drawn_row = lambda tables: tables["DT_Hazards"].append(hazard_row("crisis_test_drawn", HazardTag="Hazard.PreSupernova"))  # noqa: E731
+        self.assertEqual(self.after(both(drawn_row, delay_on("Hazard.PreSupernova"))), [])
+        seeing_card = lambda tables: tables["DT_Encounters"].append(encounter_row(  # noqa: E731
+            "petition_test_seen", Subject="SettledSystem", Conditions=[cond("PlayerRoleIs", key="Ruler"), cond("SystemHasHazard", tag="Hazard.Plague")]))
+        self.assertEqual(self.after(both(seeing_card, delay_on("Hazard.Plague"))), [])
+        # A condition read in a list of structs counts as well (a conditions column of the choices, put here).
+        requires = self.put(["tables", "DT_Encounters", "columns", "Choices", "columns"], "Requires", {"kind": "conditions"})
+        in_choice = entry_of(1, Requires=[cond("SystemHazardTicksAtMost", tag="Hazard.Plague", value=50)])
+        self.expect(self.after(both(in_choice, delay_on("Hazard.Plague")), requires), "(DelayHazard).Tag", waited, "DT_Encounters.petition_test_plea.Choices.Requires")
+        # The two refusals are names the schema has to hold: a table, a tag column of it, tests of its rows, conditions
+        # that read a Tag.
+        tag = ["effects", "DelayHazard", "tag"]
+        owner = tag + ["not_tag_of"]
+        where = "schema.effects.DelayHazard.tag"
+        self.schema_problem(self.put(tag, "not_read_by", ["SystemHazardTicksAtMots"]), where, "'SystemHazardTicksAtMots', which is no enumerator of conditions")
+        self.schema_problem(self.put(tag, "not_read_by", ["CivTierAtLeast"]), where, "CivTierAtLeast, a condition that reads no Tag")
+        self.schema_problem(self.put(tag, "not_read_by", "SystemHazardTicksAtMost"), where, "'not_read_by' has to be a list of strings")
+        self.schema_problem(self.put(tag, "not_tag_of", [{"table": "DT_Hazards", "col": "HazardTag"}]), where, "'not_tag_of' has to be an object")
+        self.schema_problem(self.put(owner, "table", "DT_Hazardz"), where, "the table DT_Hazardz is not in the schema")
+        self.schema_problem(self.put(owner, "col", "DisplayName"), where, "not_tag_of names the column 'DisplayName', which DT_Hazards does not declare as a tag")
+        self.schema_problem(self.put(owner, "col", "HazardTagg"), where, "not_tag_of names the column 'HazardTagg'")
+        self.schema_problem(self.put(owner, "when", [{"col": "SpawnRule", "is": "Capitol"}]), where + ".not_tag_of", "'Capitol', which is no enumerator of ECosmicHazardSpawn")
+        self.schema_problem(self.drop(owner, "col"), where + ".not_tag_of", "'col' is missing")
+        self.schema_problem(self.put(owner, "where", []), where + ".not_tag_of", "'where' is not read here")
+
+    def test_voice_and_drain(self):
+        """B4: the two new columns (an edict's factor on the pressure's drain, the rules' share of the fleet a delay
+        leaves), the counterfeit a fallen row names, the empty voice lines, no weight on the claim's events, the
+        first-person event row, the claim's line categories, and the three new tests of a rule (none, zero, contains_none)."""
+        self.assertEqual(self.after(), [])
+        drain = lambda value: self.set_cell("DT_Edicts", "edict_test_order", "PressureDrainMultiplier", value)  # noqa: E731
+        self.expect(self.after(drain(0.0)), "DT_Edicts.edict_test_order", "a held edict damps the pressure's drain")
+        self.expect(self.after(drain(-0.5)), "DT_Edicts.edict_test_order.PressureDrainMultiplier", "is below 0")
+        self.expect(self.after(drain(1.5)), "DT_Edicts.edict_test_order.PressureDrainMultiplier", "is above 1")
+        for value in (0.45, 1.0):
+            self.assertEqual(self.after(drain(value)), [])
+        resist = lambda value: self.set_cell("DT_Rules", "rules", "ResistFleetFactor", value)  # noqa: E731
+        self.expect(self.after(resist(-0.1)), "rules.ResistFleetFactor", "is below 0")
+        self.expect(self.after(resist(1.1)), "rules.ResistFleetFactor", "is above 1")
+        for value in (0.0, 1.0):
+            self.assertEqual(self.after(resist(value)), [])
+        # A fallen row names the truth it counterfeits, under Truth.; a row that is not fallen need not.
+        fallen = lambda column, value: self.set_cell("DT_Transcendents", "trans_silence", column, value)  # noqa: E731
+        counterfeits = "a fallen one counterfeits a truth"
+        self.assertIn("Truth.Rest", self.tags)
+        self.expect(self.after(fallen("CounterfeitOf", "")), "DT_Transcendents.trans_silence", counterfeits)
+        problems = self.after(fallen("CounterfeitOf", "Doctrine.Silence"))
+        self.expect(problems, "trans_silence.CounterfeitOf", "not under Truth.")
+        self.expect(problems, counterfeits, wanted=False)
+        self.assertEqual(self.after(self.set_cell("DT_Transcendents", "trans_covenant", "CounterfeitOf", "")), [])
+        # The voice lines stay empty in every row; no row weighs the claim's events (another category may be weighed).
+        for row_name in ("trans_silence", "trans_covenant"):
+            with self.subTest(row=row_name):
+                self.expect(self.after(self.set_cell("DT_Transcendents", row_name, "VoiceTemplates", ["a."])), "DT_Transcendents.%s" % row_name,
+                            "nothing reads a transcendent's voice lines")
+        weighs = "no transcendent weighs the claim's events"
+        self.expect(self.after(fallen("EventWeightModifiers", {"Event.Civ.Economy": 1.5, "Event.Crisis.Claim": 1.0})), "DT_Transcendents.trans_silence", weighs)
+        self.assertEqual(self.after(fallen("EventWeightModifiers", {"Event.Crisis.Rebellion": 2.0})), [])
+        # A transcendent's own line waits for the third tier and comes with its sign row: the two broken apart.
+        first_person = "a transcendent's own line is first person"
+        voice = lambda **changes: (lambda tables: self.row(tables, "DT_Events", "event_test_harvest").update(  # noqa: E731
+            dict(dict(Category="Event.Crisis.Transcendent", LogCategory="Log.Transcendent"), **changes)))
+        signed = lambda min_tier: (lambda tables: (self.add_sign_row(tables), voice(MinTierToReveal=min_tier)(tables)))  # noqa: E731
+        self.assertEqual(self.after(signed(3)), [])
+        problems = self.after(signed(2))
+        self.expect(problems, "DT_Events.event_test_harvest", first_person, '"ge": 3')
+        self.expect(problems, first_person, '"SignRow"', wanted=False)
+        problems = self.after(voice(MinTierToReveal=3))
+        self.expect(problems, "DT_Events.event_test_harvest", first_person, '"SignRow"')
+        self.expect(problems, first_person, '"ge": 3', wanted=False)
+        self.assertEqual(self.after(voice(LogCategory="Log.Crisis")), [])
+        # The claim's event rows tell the narrator's line: a first-person category is no line of theirs.
+        claim_line = lambda log: (lambda tables: self.row(tables, "DT_Events", "event_test_harvest").update(  # noqa: E731
+            Category="Event.Crisis.Claim", LogCategory=log, Trigger="Named", BaseWeight=0, CooldownTicks=0))
+        self.expect(self.after(claim_line("Log.Claim")), "event_test_harvest.LogCategory", "Event.Crisis.Claim may tell Log.Record, Log.Crisis, found Log.Claim")
+        for log in ("Log.Record", "Log.Crisis"):
+            self.assertEqual(self.after(claim_line(log)), [])
+        # The new tests: each fits its kinds and its operand has its type.
+        civ_rule = ["tables", "DT_Civs", "rules", 0]
+        self.schema_problem(self.put(civ_rule, "when", [{"col": "DisplayName", "contains_none": ["Trait.Arch.Seeker"]}]), "schema.DT_Civs",
+                            "the test 'contains_none' cannot be asked of a column of kind text")
+        self.schema_problem(self.put(civ_rule, "when", [{"col": "Traits", "contains_none": ["Trait.Arch.Nobody"]}]), "schema.DT_Civs", "names the tag Trait.Arch.Nobody")
+        self.schema_problem(self.put(civ_rule, "when", [{"col": "Traits", "contains_none": []}]), "schema.DT_Civs", "the test 'contains_none' needs a list of strings, not empty")
+        self.schema_problem(self.put(civ_rule, "when", [{"col": "Weight", "zero": True}]), "schema.DT_Civs", "the test 'zero' cannot be asked of a column of kind number")
+        card_rule = ["tables", "DT_Encounters", "rules", 0]
+        self.schema_problem(self.put(card_rule, "when", [{"col": "Choices.Cost", "zero": "yes"}]), "schema.DT_Encounters", "the test 'zero' needs true or false")
+        for test, words in (({"none": []}, "'none' takes a list of tests, not empty, and nothing else"),
+                            ({"none": {"col": "Choices.Label", "set": True}}, "'none' takes a list of tests, not empty, and nothing else"),
+                            ({"none": [{"col": "Choices.Label", "set": True}], "col": "Title"}, "'none' takes a list of tests, not empty, and nothing else"),
+                            ({"none": [{"col": "Title", "set": True}]}, "over the columns of one list of structs"),
+                            ({"none": [{"col": "Choices.Label", "set": True}, {"col": "Title", "set": True}]}, "over the columns of one list of structs"),
+                            ({"none": [{"row": "petition_first_contact"}]}, "over the columns of one list of structs"),
+                            ({"none": [{"col": "Choices.Lable", "set": True}]}, "names the column 'Lable', which the list Choices of DT_Encounters does not declare"),
+                            ({"none": [{"col": "Choices.Difficulty", "set": True}]}, "cannot be asked of a column of kind number")):
+            with self.subTest(test=test):
+                self.schema_problem(self.put(card_rule, "when", [test]), "schema.DT_Encounters", words)
+        # How each holds: 'none' over the entries of a list, 'zero' over a pool, 'contains_none' over tags and a tag map.
+        holds = checker.Checker(self.schema, self.tables, self.tags).holds
+        none = {"none": [{"col": "Choices.Difficulty", "gt": 2}, {"col": "Choices.CheckStat", "is": "Body"}]}
+        self.assertTrue(holds(none, {"Choices": [{"Difficulty": 3, "CheckStat": "Mind"}, {"Difficulty": 1, "CheckStat": "Body"}]}, "r"))
+        self.assertFalse(holds(none, {"Choices": [{"Difficulty": 1, "CheckStat": "Mind"}, {"Difficulty": 3, "CheckStat": "Body"}]}, "r"))
+        self.assertTrue(holds(none, {"Choices": []}, "r"))
+        self.assertTrue(holds(none, {"Choices": [5, {"Difficulty": 1, "CheckStat": "Body"}]}, "r"))
+        for wrong in ({"Choices": "x"}, {}):
+            with self.subTest(row=wrong):
+                self.assertFalse(holds(none, wrong, "r"))
+        zero = lambda operand, value: holds({"col": "C", "zero": operand}, {"C": value}, "r")  # noqa: E731
+        self.assertTrue(zero(True, pool()))
+        self.assertFalse(zero(True, pool(Matter=0.5)))
+        self.assertTrue(zero(False, pool(Matter=0.5)))
+        self.assertFalse(zero(False, pool()))
+        self.assertFalse(zero(True, pool(Energy="0")))
+        for wrong in (None, [0.0], 0):
+            with self.subTest(pool=wrong):
+                self.assertFalse(zero(True, wrong))
+                self.assertFalse(zero(False, wrong))
+        none_of = lambda value: holds({"col": "C", "contains_none": ["A.B"]}, {"C": value}, "r")  # noqa: E731
+        self.assertTrue(none_of({"A.C": 1.0}))
+        self.assertFalse(none_of({"A.B": 1.0}))
+        self.assertTrue(none_of(tags_text("A.C")))
+        self.assertFalse(none_of(tags_text("A.C", "A.B")))
+        self.assertTrue(none_of([]))
+        self.assertFalse(none_of(["A.C", "A.B"]))
+        self.assertFalse(none_of(None))
+
     def test_a_text_has_one_form(self):
         """A word is found as it is written: a text is composed (NFC) and holds no invisible format character, so a verdict
         word cannot hide in decomposed Hangul or behind a zero-width space."""
@@ -1436,7 +1691,7 @@ class SchemaTests(unittest.TestCase):
         goes into both rules."""
         world_effects = {"AddResource", "MultiplyIncome", "ShiftEthics", "AddTrait", "RemoveTrait", "ChangeStability", "ChangeRelation", "SpawnHazard",
                          "ResolveHazard", "TransferSystem", "ChangeReverence", "SetFlag", "ChangePopulation", "NameNotable", "FocusResearch",
-                         "SetStance"}
+                         "SetStance", "EnactEdict", "DelayHazard"}
         for table, start, conditions, effects in (("DT_Events", "a slot runs for every people", "Conditions", "Effects"),
                                                   ("DT_Feats", "a ruler feat row judges every people", "CompletionConditions", "AscensionCost")):
             with self.subTest(table=table):
@@ -2074,11 +2329,36 @@ class SchemaTests(unittest.TestCase):
         """Change row so that test no longer holds, by the kind of its column. A test over a column of a list of structs
         ('List.Column') is broken in the first entry of the list."""
         columns = schema["tables"][table]["columns"]
+        if "none" in test:
+            # B4: 'none' is broken in the first entry of its list, made to hold every one of its tests.
+            head = test["none"][0]["col"].partition(".")[0]
+            for inner in test["none"]:
+                self.satisfy_in(schema, columns[head]["columns"], dict(inner, col=inner["col"].partition(".")[2]), row[head][0])
+            return
         head, mark, sub = test["col"].partition(".")
         if mark:
             self.violate_in(schema, columns[head]["columns"], dict(test, col=sub), row[head][0])
         else:
             self.violate_in(schema, columns, test, row)
+
+    def satisfy_in(self, schema, columns, test, row):
+        """Change row so that test holds, by the kind of its column (the tests a 'none' of the schema asks)."""
+        column = test["col"]
+        kind = columns[column]["kind"]
+        name = next(key for key in test if key != "col")
+        operand = test[name]
+        if name == "has_type":
+            if not any(item.get("Type") == operand for item in row[column]):
+                row[column] = list(row[column]) + [cond(operand) if kind == "conditions" else eff(operand)]
+        elif name == "lacks_type":
+            row[column] = [item for item in row[column] if item.get("Type") != operand]
+        elif name in ("is", "in"):
+            row[column] = operand[0] if name == "in" else operand
+        elif name == "zero":
+            members = schema["words"]["resource"]
+            row[column] = {member: 0.0 for member in members} if operand else dict(row[column], **{members[0]: 1.0})
+        else:
+            self.fail("the walker cannot make the test %s hold: add the case" % name)
 
     def violate_in(self, schema, columns, test, row):
         column = test["col"]
@@ -2138,6 +2418,17 @@ class SchemaTests(unittest.TestCase):
                 row[column] = tags_text(*kept) if kept else ""
             else:
                 row[column] = [tag for tag in row[column] if tag != operand[0]]
+        elif name == "contains_none":
+            # The first named tag put into the cell (B4: a key of a tag map).
+            if kind == "tags":
+                row[column] = tags_text(*(checker.TAG_NAME.findall(row[column]) + [operand[0]]))
+            elif kind == "tag_map":
+                row[column] = dict(row[column], **{operand[0]: 1.0})
+            else:
+                row[column] = list(row[column]) + [operand[0]]
+        elif name == "zero":
+            members = schema["words"]["resource"]
+            row[column] = dict(row[column], **{members[0]: 1.0}) if operand else {member: 0.0 for member in members}
         elif name == "len_ge_col":
             row[operand] = len(row[column]) + 1
         elif name == "pairs_ge_col":
@@ -2261,6 +2552,27 @@ class SchemaTests(unittest.TestCase):
                 (NOTHING, "petition_first_contact"),
             ("DT_Encounters", "a voiced card speaks through its two voices, the council's and the elders' of the congregation, and its Body stays empty (guideline 5.10)"):
                 (update_plea(VoiceBodies=["{Civ} council.", "{Civ} elders."], Body=""), plea),
+            # B4: the edict and the delay of a card's answer, the gate of a choice, and the card that is never blocked.
+            ("DT_Encounters", "an edict and a fleet are the ruler's: EnactEdict and DelayHazard stand in a petition's answer, never in a wanderer's card (B4 header 2.2, 3.8)"):
+                (NOTHING, "enc_test_weave"),
+            ("DT_Encounters", "the gate of a choice reads its OnSuccess alone (CosmicPetitions::ChoiceGateOf): an edict or a delay in OnFailure would stand behind no gate (B4 header 2.4, 3.8)"):
+                (NOTHING, plea),
+            ("DT_Encounters", "a choice that enacts an edict or buys time is not rolled for: the gate stands before the answer's draw, and a roll would hang the edict or the fleet on Stability (B4 header 2.4, 3.3, 3.8)"):
+                (NOTHING, plea),
+            ("DT_Encounters", "the edict's own EnactCost is the one price of the choice that enacts it: that choice asks nothing more (B4 header 3.8)"): (NOTHING, plea),
+            ("DT_Encounters", "a card is never blocked: with one waiting place a card whose every choice is gated would block every card behind it, so a card with a gated choice (SetStance, EnactEdict, DelayHazard) holds a choice with no cost and no gate - said the other way round: a card without such a choice carries no gate (B4 header 2.4, 3.8)"):
+                (update_plea(Choices=[choice(Cost=pool(Energy=5.0)), choice("Wait.", SuccessText="{Civ} waited.", Cost=pool(Matter=1.0))]), plea),
+            ("DT_Events", "grace is never drawn by an edict: no grace row waits on an edict the people holds (B2 header :342, B4 header 3.8)"):
+                (update_event(Category="Event.Grace.Jubilee", LogCategory="Log.Civ"), event),
+            ("DT_Events", "a transcendent's own line is first person: it waits for the third tier, and the viewers below it hear the row's sign (B4 header 3.8 - a door for the rows to come)"):
+                (lambda tables: (self.add_sign_row(tables), update_event(Category="Event.Crisis.Transcendent", LogCategory="Log.Transcendent")(tables)), event),
+            ("DT_Edicts", "a held edict damps the pressure's drain on Stability, never undoes it: a factor in (0, 1], and the code reads a factor that is not above 0 as 1 (B4 header 2.3)"):
+                (NOTHING, "edict_test_order"),
+            ("DT_Transcendents", "a fallen one counterfeits a truth, and its row names that truth: a tag under Truth. (B4 header 3.5, 3.8)"): (NOTHING, "trans_silence"),
+            ("DT_Transcendents", "nothing reads a transcendent's voice lines yet: the column stays empty until the code that tells them comes (B4 header 3.5, 3.8)"):
+                (NOTHING, "trans_silence"),
+            ("DT_Transcendents", "no transcendent weighs the claim's events: the vigil's draw on Event.Crisis.Claim keeps a factor of 1, so the bound of the theodicy budget the invariant counts holds (B4 header 2.8)"):
+                (NOTHING, "trans_silence"),
         }
 
     def test_every_rule_of_the_schema_can_fail(self):
@@ -2279,7 +2591,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 147, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 164, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 
@@ -2320,8 +2632,10 @@ class SchemaTests(unittest.TestCase):
                     with self.subTest(category=key):
                         self.expect(self.after(change), "event_test_harvest.LogCategory", "%s may tell %s, found %s" % (key, ", ".join(allowed), other))
                         for good in allowed:
-                            fine = lambda tables, key=key, good=good: self.row(tables, table, "event_test_harvest").update(  # noqa: E731
-                                Category=key, LogCategory=good, Trigger="Named", BaseWeight=0, CooldownTicks=0)
+                            # A transcendent's own line comes with its tier window and its sign row (B4).
+                            fine = lambda tables, key=key, good=good: (  # noqa: E731
+                                self.add_sign_row(tables) if good == "Log.Transcendent" else None,
+                                self.row(tables, table, "event_test_harvest").update(Category=key, LogCategory=good, Trigger="Named", BaseWeight=0, CooldownTicks=0))
                             self.assertEqual(self.after(fine), [])
                         walked += 1
         self.assertEqual(walked, 9, "the number of event categories in schema.json changed: look at what was added or taken out, then set the count")

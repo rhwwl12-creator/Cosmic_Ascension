@@ -185,6 +185,10 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		Record.Tick = 50;
 	}
 	Detached.Civs[0].Research.Add(FName(TEXT("Physics")), 0.5f);
+	// B4: the edicts civ 0 holds - the inherited one of the game's rules first (the game's row), and a name no table holds.
+	const FName HeldEdict = Detached.Civs[0].ActiveEdicts.IsEmpty() ? NAME_None : Detached.Civs[0].ActiveEdicts[0];
+	const FName GoneEdict(TEXT("edict_test_gone"));
+	Detached.Civs[0].ActiveEdicts.Add(GoneEdict);
 	{
 		// The two transcendents of the cases and no other: whatever roster the tables of the game gave is taken out.
 		Detached.Transcendents.Reset();
@@ -324,6 +328,10 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		// The settled systems of the people: civ 0 holds its home alone - the bound itself holds, one more does not.
 		{ Cond(EConditionType::CivSettledSystemsAtLeast, nullptr, NAME_None, 1.f), 0, true },
 		{ Cond(EConditionType::CivSettledSystemsAtLeast, nullptr, NAME_None, 2.f), 0, false },
+		// B4: a held edict the tables know; one not held; a held name the tables do not know.
+		{ Cond(EConditionType::CivHasEdict, nullptr, HeldEdict, 0.f), 0, true },
+		{ Cond(EConditionType::CivHasEdict, nullptr, FName(TEXT("edict_vigil")), 0.f), 0, false },
+		{ Cond(EConditionType::CivHasEdict, nullptr, GoneEdict, 0.f), 0, false },
 	};
 
 	auto Answers = [&](const FGalaxyState& State, int32 CivIndex, int32 SystemIndex)
@@ -342,7 +350,8 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 	auto IsSubjectType = [](EConditionType Type)
 	{
 		return Type <= EConditionType::SystemInfluencedBy || Type == EConditionType::CivHasNotable || Type == EConditionType::CivFallenSphereTicksReached
-			|| Type == EConditionType::CivResearchAtLeast || Type == EConditionType::SystemHazardTicksAtMost || Type == EConditionType::CivSettledSystemsAtLeast;
+			|| Type == EConditionType::CivResearchAtLeast || Type == EConditionType::SystemHazardTicksAtMost || Type == EConditionType::CivSettledSystemsAtLeast
+			|| Type == EConditionType::CivHasEdict;
 	};
 	auto IsPlayerType = [](EConditionType Type)
 	{
@@ -2548,6 +2557,8 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 			{ Eff(EEffectType::NameNotable, TEXT("Notable.Rebel"), NAME_None, 0.f), false },
 			{ Eff(EEffectType::FocusResearch, nullptr, FName(TEXT("Society")), 0.55f), false },
 			{ Eff(EEffectType::SetStance, TEXT("Stance.Friendly"), NAME_None, 0.f), false },
+			{ Eff(EEffectType::EnactEdict, nullptr, FName(TEXT("edict_vigil")), 0.f), false },
+			{ Eff(EEffectType::DelayHazard, TEXT("Hazard.Plague"), NAME_None, 50.f), false },
 		};
 		TSet<EEffectType> Types;
 		bool bAsListed = true;
@@ -2572,7 +2583,8 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 				bRefusedUntouched &= Bench.Stream.GetCurrentSeed() == SeedBefore && !Bench.State.Calling.PendingEffect.IsValid()
 					&& Bench.State.Player.Body == Fresh.Player.Body && Bench.State.Calling.Powers == Fresh.Calling.Powers
 					&& Bench.State.Flags == Fresh.Flags && After.Traits == Fresh.Civs[0].Traits && After.Notables.Num() == Fresh.Civs[0].Notables.Num()
-					&& After.ResearchFocus.OrderIndependentCompareEqual(Fresh.Civs[0].ResearchFocus) && After.Ties.Num() == Fresh.Civs[0].Ties.Num();
+					&& After.ResearchFocus.OrderIndependentCompareEqual(Fresh.Civs[0].ResearchFocus) && After.Ties.Num() == Fresh.Civs[0].Ties.Num()
+					&& After.ActiveEdicts == Fresh.Civs[0].ActiveEdicts && After.FleetPower == Fresh.Civs[0].FleetPower;
 			}
 		}
 		TestTrue(TEXT("A per-tick source applies the seven effects that change an amount and no other"), bAsListed);

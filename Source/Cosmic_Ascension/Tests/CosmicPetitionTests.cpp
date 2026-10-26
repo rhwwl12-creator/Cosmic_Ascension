@@ -613,11 +613,15 @@ bool FCosmicSimPetitionSoakTest::RunTest(const FString& Parameters)
 				{
 					continue;
 				}
-				// The first payable choice from the one the tick names.
+				// The first payable choice from the one the tick names whose gate is open (B4: the answer refuses a gated one
+				// with an error line - CosmicPetitions::ChoiceGateOf).
+				const int32 CardSystem = CosmicPetitions::SubjectOf(State, Sim->GetStateIndex(), Ruled, Row->Subject, State.Knowing.PendingPetitionSystemID);
+				const FName Other = State.Knowing.PendingPetitionRow == CosmicRows::PetitionFirstContact ? State.Knowing.PendingContactCivID : NAME_None;
 				for (int32 Offset = 0; Offset < Row->Choices.Num(); ++Offset)
 				{
 					const int32 ChoiceIndex = (Step + Offset) % Row->Choices.Num();
-					if (CosmicMegaprojects::CanPay(State.Civs[Ruled].Stockpile, CosmicPetitions::CostOf(Row->Choices[ChoiceIndex])))
+					if (CosmicMegaprojects::CanPay(State.Civs[Ruled].Stockpile, CosmicPetitions::CostOf(Row->Choices[ChoiceIndex]))
+						&& CosmicPetitions::ChoiceGateOf(State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), Ruled, CardSystem, Other, Row->Choices[ChoiceIndex]).IsOpen())
 					{
 						Answers += Role->AnswerPetition(ChoiceIndex).Outcome != ECosmicPetitionOutcome::Refused ? 1 : 0;
 						break;

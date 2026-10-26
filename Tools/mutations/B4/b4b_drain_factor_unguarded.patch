@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+@@ -166,7 +166,7 @@
+ 	for (const FName Row : Civ.ActiveEdicts)
+ 	{
+ 		const FEdictDef* Def = Tables.FindEdict(Row);
+-		if (Def && Def->PressureDrainMultiplier > 0.f && Def->PressureDrainMultiplier <= TNumericLimits<float>::Max())
++		if (Def)
+ 		{
+ 			Product *= Def->PressureDrainMultiplier;
+ 		}

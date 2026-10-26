@@ -1,0 +1,19 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp
+@@ -100,6 +100,7 @@
+ 	{
+ 		return false;
+ 	}
++	const bool bMain = PushVariants(Line, Variants, Args);
+ 	// Tier numbers start at 1, so the lowest window with anybody below it begins at 2 (and 0 as an upper bound would mean
+ 	// "no bound"). Whenever the data allow it, the sign is told: the windows add no tell draw (section 8.1).
+ 	if (!SignRow.IsNone() && Line.MinViewerTier > 1)
+@@ -118,7 +119,7 @@
+ 			UE_LOG(LogCosmic, Error, TEXT("The line of %s names the sign row %s, which DT_LogTemplates does not hold"), *Line.SourceRow.ToString(), *SignRow.ToString());
+ 		}
+ 	}
+-	return PushVariants(Line, Variants, Args);
++	return bMain;
+ }
+ 
+ bool UCosmicLogSubsystem::PushRow(FName RowName, uint8 Severity, const FFormatNamedArguments& Args, FName FocusSystem, FName FocusCiv)

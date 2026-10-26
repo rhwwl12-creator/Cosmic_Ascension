@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
++++ b/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
+@@ -2315,7 +2315,7 @@
+ 				Roots += (Row && Row->Trigger != ECosmicEventTrigger::Named && Other != CardName) ? 1 : 0;
+ 				bLottery |= Row && Row->Trigger == ECosmicEventTrigger::Lottery;
+ 			}
+-			if (bLottery || Leading.Contains(CardName) || Roots > 1)
++			if (bLottery || Leading.Contains(CardName) || Roots > 2)
+ 			{
+ 				Problems.Add(FString::Printf(TEXT("DT_Encounters.%s: a card that buys a hazard time comes once a claim - no Lottery row, no cycle, one root (here %s%s%d roots)"),
+ 					*CardName.ToString(), bLottery ? TEXT("a Lottery row, ") : TEXT(""), Leading.Contains(CardName) ? TEXT("a cycle, ") : TEXT(""), Roots));

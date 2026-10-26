@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
++++ b/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
+@@ -2258,7 +2258,7 @@
+ 				{
+ 					const FEdictDef* Edict = Effect.Type == EEffectType::EnactEdict ? Tables.FindEdict(Effect.Key) : nullptr;
+ 					if (Effect.Type == EEffectType::EnactEdict
+-						&& (!Edict || Edict->DisplayName.IsEmpty() || !Card->Choices[At].Label.ToString().Contains(Edict->DisplayName.ToString(), ESearchCase::CaseSensitive)))
++						&& !Edict)
+ 					{
+ 						Problems.Add(FString::Printf(TEXT("DT_Encounters.%s.Choices[%d]: a choice that enacts %s carries that edict's name word for word"),
+ 							*CardName.ToString(), At, *Effect.Key.ToString()));

@@ -1,0 +1,13 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -404,10 +404,6 @@
+ 		return ECosmicResistBlock::NotOwn;
+ 	}
+ 	const FHazardDef* Row = Tables.FindHazardByTag(System.ActiveHazard);
+-	if (Row && Row->SpawnRule == ECosmicHazardSpawn::Capital)
+-	{
+-		return ECosmicResistBlock::Capital;
+-	}
+ 	if (!(FleetCapOf(State, Index, CivIndex, Rules) > 0.f))
+ 	{
+ 		return ECosmicResistBlock::NoFleet;

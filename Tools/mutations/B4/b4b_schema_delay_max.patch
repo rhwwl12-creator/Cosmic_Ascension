@@ -1,0 +1,11 @@
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -1000,7 +1000,7 @@
+ 				"not_tag_of": {"table": "DT_Hazards", "col": "HazardTag", "when": [{"col": "SpawnRule", "is": "Capital"}]},
+ 				"not_read_by": ["SystemHazardTicksAtMost"]
+ 			},
+-			"value": {"min": 1, "max": 100, "integer": true},
++			"value": {"min": 1, "max": 1000, "integer": true},
+ 			"card_only": true
+ 		}
+ 	},

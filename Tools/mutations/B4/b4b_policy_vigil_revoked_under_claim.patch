@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -561,7 +561,7 @@
+ 		// The vigil of (3), or one a card enacted (B4), once the danger passed - never a card's edict while a claim stands, and
+ 		// under a pressure policy not the vigil either, whoever enacted it.
+ 		const bool bVigilDone = (Held == Counts.VigilEnacted || (Held == Vigil && Counts.CardEdicts.Contains(Held))) && State.Civs[CivIndex].Stability >= RestAt
+-			&& !RebellionStands() && !(bClaimStands && (Counts.CardEdicts.Contains(Held) || (Held == Vigil && Policy.Pressure != ECosmicPressurePolicy::Round)));
++			&& !RebellionStands() && !(bClaimStands && Counts.CardEdicts.Contains(Held));
+ 		if (bIdleAnswer || bVigilDone)
+ 		{
+ 			Revoke(Held);

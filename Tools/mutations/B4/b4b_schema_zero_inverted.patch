@@ -1,0 +1,11 @@
+--- a/Tools/cosmic_data_schema.py
++++ b/Tools/cosmic_data_schema.py
+@@ -1261,7 +1261,7 @@
+         if name == "zero":
+             if not isinstance(value, dict):
+                 return False
+-            return all(is_number(entry) and entry == 0 for entry in value.values()) == operand
++            return all(is_number(entry) and entry == 0 for entry in value.values()) != operand
+         if name == "len_ge_col":
+             bound = row.get(operand)
+             return isinstance(value, (list, dict)) and is_number(bound) and length_of(value) >= bound

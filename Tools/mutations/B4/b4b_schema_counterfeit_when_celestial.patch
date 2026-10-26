@@ -1,0 +1,11 @@
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -518,7 +518,7 @@
+ 				},
+ 				{
+ 					"why": "a fallen one counterfeits a truth, and its row names that truth: a tag under Truth. (B4 header 3.5, 3.8)",
+-					"when": [{"col": "Allegiance", "is": "Realm.Abyssal"}],
++					"when": [{"col": "Allegiance", "is": "Realm.Celestial"}],
+ 					"then": [{"col": "CounterfeitOf", "set": true}]
+ 				},
+ 				{

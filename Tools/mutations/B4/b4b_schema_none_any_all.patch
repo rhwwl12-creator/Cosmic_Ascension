@@ -1,0 +1,11 @@
+--- a/Tools/cosmic_data_schema.py
++++ b/Tools/cosmic_data_schema.py
+@@ -1208,7 +1208,7 @@
+             # No entry of the list holds every test (and so an empty list holds it); each test read in the entry.
+             items = row.get(test[NONE_TEST][0]["col"].partition(PATH_MARK)[0])
+             inner = [dict(entry, col=entry["col"].partition(PATH_MARK)[2]) for entry in test[NONE_TEST]]
+-            return isinstance(items, list) and not any(isinstance(item, dict) and self.all_hold(inner, item, row_name) for item in items)
++            return isinstance(items, list) and not all(isinstance(item, dict) and self.all_hold(inner, item, row_name) for item in items)
+         head, mark, sub = test["col"].partition(PATH_MARK)
+         if mark:
+             # A column of a list of structs: the test holds for every entry (and so for an empty list).

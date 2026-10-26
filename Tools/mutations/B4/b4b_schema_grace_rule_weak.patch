@@ -1,0 +1,11 @@
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -416,7 +416,7 @@
+ 				{
+ 					"why": "grace is never drawn by an edict: no grace row waits on an edict the people holds (B2 header :342, B4 header 3.8)",
+ 					"when": [{"col": "Category", "in": ["Event.Grace.Rescue", "Event.Grace.Remnant", "Event.Grace.Jubilee"]}],
+-					"then": [{"col": "Conditions", "lacks_type": "CivHasEdict"}]
++					"then": [{"col": "Conditions", "lacks_type": "KillPlayer"}]
+ 				},
+ 				{
+ 					"why": "a transcendent's own line is first person: it waits for the third tier, and the viewers below it hear the row's sign (B4 header 3.8 - a door for the rows to come)",

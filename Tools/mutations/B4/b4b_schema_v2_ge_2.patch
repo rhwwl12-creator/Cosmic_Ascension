@@ -1,0 +1,11 @@
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -421,7 +421,7 @@
+ 				{
+ 					"why": "a transcendent's own line is first person: it waits for the third tier, and the viewers below it hear the row's sign (B4 header 3.8 - a door for the rows to come)",
+ 					"when": [{"col": "LogCategory", "is": "Log.Transcendent"}],
+-					"then": [{"col": "MinTierToReveal", "ge": 3}, {"col": "SignRow", "set": true}]
++					"then": [{"col": "MinTierToReveal", "ge": 2}, {"col": "SignRow", "set": true}]
+ 				}
+ 			]
+ 		},

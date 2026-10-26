@@ -7,6 +7,7 @@
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
+#include "GameplayTagContainer.h"
 #include "Math/NumericLimits.h"
 #include "Sim/CosmicDiplomacy.h"
 #include "Sim/CosmicHazards.h"
@@ -387,4 +388,38 @@ void CosmicConflict::LiftTargetsOn(FGalaxyState& State, FName SystemID)
 			Civ.FleetTargetSinceTick = State.Tick;
 		}
 	}
+}
+
+CosmicConflict::ECosmicResistBlock CosmicConflict::ResistBlockOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
+	const FCosmicRulesDef& Rules, int32 CivIndex, int32 SystemIndex, const FGameplayTag& Tag)
+{
+	if (!State.Systems.IsValidIndex(SystemIndex) || !Tag.IsValid() || !State.Systems[SystemIndex].ActiveHazard.IsValid()
+		|| !State.Systems[SystemIndex].ActiveHazard.MatchesTag(Tag))
+	{
+		return ECosmicResistBlock::NoHazard;
+	}
+	const FStarSystemState& System = State.Systems[SystemIndex];
+	if (!State.Civs.IsValidIndex(CivIndex) || System.OwnerCivID != State.Civs[CivIndex].CivID)
+	{
+		return ECosmicResistBlock::NotOwn;
+	}
+	const FHazardDef* Row = Tables.FindHazardByTag(System.ActiveHazard);
+	if (Row && Row->SpawnRule == ECosmicHazardSpawn::Capital)
+	{
+		return ECosmicResistBlock::Capital;
+	}
+	if (!(FleetCapOf(State, Index, CivIndex, Rules) > 0.f))
+	{
+		return ECosmicResistBlock::NoFleet;
+	}
+	if (!(State.Civs[CivIndex].FleetPower > 0.f))
+	{
+		return ECosmicResistBlock::Spent;
+	}
+	return ECosmicResistBlock::None;
+}
+
+float CosmicConflict::ResistShareOf(const FCosmicRulesDef& Rules)
+{
+	return (Rules.ResistFleetFactor >= 0.f && Rules.ResistFleetFactor <= 1.f) ? Rules.ResistFleetFactor : 1.f;
 }

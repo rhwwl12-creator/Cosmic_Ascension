@@ -6,7 +6,9 @@
 // (FleetTargetSystemID - its own settled system = a guard, a hostile neighbour's settled system = a siege, none = an even
 // guard). Pure functions of the state and the tables - no draw, no state of their own. The conflict stage, the AI stage,
 // the command UPlayerRoleSubsystem::AllocateFleet, CosmicHazards::Place, the system panel and the policy read them. The
-// attrition pressure is UGalaxySimulationSubsystem::ComputeAttritionPressureIn (beside ComputePressureIn).
+// attrition pressure is UGalaxySimulationSubsystem::ComputeAttritionPressureIn (beside ComputePressureIn). B4 adds the
+// gate of the time a card's fleet buys a standing hazard (ResistBlockOf - docs/60_DECISIONS/headers/
+// B4_transcendent_voice_and_pressure_cards.md section 2.4).
 
 #pragma once
 
@@ -17,6 +19,7 @@ struct FCosmicDataTables;
 struct FCosmicRulesDef;
 struct FCosmicStateIndex;
 struct FGalaxyState;
+struct FGameplayTag;
 struct FHazardDef;
 
 namespace CosmicConflict
@@ -55,6 +58,18 @@ namespace CosmicConflict
 		NotOwn,      // not the people's system
 		NotSettled,
 		NoFleet,     // the fleet's cap is 0 (the first rung has no fleet)
+	};
+
+	/** Why a card's DelayHazard cannot buy time on a hazard (B4 section 2.4), in the order ResistBlockOf asks. Not a UENUM:
+	 * never saved, hashed or a data column. */
+	enum class ECosmicResistBlock : uint8
+	{
+		None,
+		NoHazard,  // no such system, or it holds no hazard of the tag
+		NotOwn,    // no such people, or the system is not the people's
+		Capital,   // the hazard is a Capital row's (a rebellion: a people's discontent is not put off by force)
+		NoFleet,   // the fleet's cap is 0 (the first rung has no fleet - GuardBlockOf's NoFleet)
+		Spent,     // a cap but no fleet now (sieges, attrition, an unpaid upkeep, an earlier resistance)
 	};
 
 	/** The settled systems the people CivIndex owns (entries of OwnedSystems whose owner is the people). */
@@ -136,4 +151,17 @@ namespace CosmicConflict
 
 	/** Empties every people's fleet target on SystemID, FleetTargetSinceTick = Tick (CosmicHazards::Transfer and Destroy). */
 	COSMIC_ASCENSION_API void LiftTargetsOn(FGalaxyState& State, FName SystemID);
+
+	/**
+	 * The first reason the people CivIndex cannot buy time with its fleet on the hazard Tag of SystemIndex (B4 section 2.4 -
+	 * a card's DelayHazard), NoHazard .. Spent. The one gate: the effect (UCosmicEventSubsystem::Apply) and the card's
+	 * choice gate (CosmicPetitions::ChoiceGateOf - the answer, the card window, the policy) read it alone. The hazard
+	 * matches Tag as the conditions match one (MatchesTag); an invalid Tag is NoHazard. The tier gap is not asked.
+	 */
+	COSMIC_ASCENSION_API ECosmicResistBlock ResistBlockOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
+		const FCosmicRulesDef& Rules, int32 CivIndex, int32 SystemIndex, const FGameplayTag& Tag);
+
+	/** The share of its fleet a people keeps after a card's DelayHazard: DT_Rules.ResistFleetFactor when in [0, 1], else 1
+	 * (comparisons - a value that is not a number is 1). */
+	COSMIC_ASCENSION_API float ResistShareOf(const FCosmicRulesDef& Rules);
 }

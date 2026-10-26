@@ -1842,9 +1842,9 @@ bool FCosmicSimRulerDiplomacyPolicyTest::RunTest(const FString& Parameters)
 	}
 	const FCosmicDataTables Original = Sim->GetTables();
 	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
-	const FCosmicRulerPolicy Peace{ false, false, false, false, NAME_None, 1 };
-	const FCosmicRulerPolicy Attack{ false, false, false, false, NAME_None, 2 };
-	const FCosmicRulerPolicy None{ false, false, false, false, NAME_None, 0 };
+	const FCosmicRulerPolicy Peace{ false, false, false, false, NAME_None, 1, ECosmicPressurePolicy::Round, 0, false };
+	const FCosmicRulerPolicy Attack{ false, false, false, false, NAME_None, 2, ECosmicPressurePolicy::Round, 0, false };
+	const FCosmicRulerPolicy None{ false, false, false, false, NAME_None, 0, ECosmicPressurePolicy::Round, 0, false };
 
 	// The first contact card: reach out whatever the answers so far; without the policy the round of every card.
 	const FEncounterDef* Card = Original.FindEncounter(CosmicRows::PetitionFirstContact);
@@ -2103,11 +2103,11 @@ bool FCosmicSimRulerDiplomacyPolicyTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("(two systems of a cap of three)"), CosmicConflict::OwnedCountOf(Laid, Sim->GetStateIndex(), Ruled) + 1,
 			CosmicMegaprojects::RealmCapOf(Sim->GetRules(), EAscensionTier::Tier2_Stellar));
 		FCosmicRulerPolicyCounts AttackCounts;
-		CosmicRulerPolicy::Act(FCosmicRulerPolicy{ false, true, false, false, NAME_None, 2 }, *Sim, *Role, NAME_None, AttackCounts);
+		CosmicRulerPolicy::Act(FCosmicRulerPolicy{ false, true, false, false, NAME_None, 2, ECosmicPressurePolicy::Round, 0, false }, *Sim, *Role, NAME_None, AttackCounts);
 		TestEqual(TEXT("The attack policy starts no settlement into its last realm slot"), AttackCounts.Started, 0);
 		Sim->LoadState(Laid);
 		FCosmicRulerPolicyCounts PeaceCounts;
-		CosmicRulerPolicy::Act(FCosmicRulerPolicy{ false, true, false, false, NAME_None, 1 }, *Sim, *Role, NAME_None, PeaceCounts);
+		CosmicRulerPolicy::Act(FCosmicRulerPolicy{ false, true, false, false, NAME_None, 1, ECosmicPressurePolicy::Round, 0, false }, *Sim, *Role, NAME_None, PeaceCounts);
 		TestEqual(TEXT("the peace policy does"), PeaceCounts.Started, 1);
 	}
 
@@ -2126,7 +2126,7 @@ bool FCosmicSimRulerDiplomacyPolicyTest::RunTest(const FString& Parameters)
 		FCosmicRulerPolicyCounts Counts;
 		Counts.Answers = 1;
 		Counts.bEnded = true;
-		CosmicRulerPolicy::Act(FCosmicRulerPolicy{ true, false, false, false, NAME_None, 1 }, *Sim, *Role, NAME_None, Counts);
+		CosmicRulerPolicy::Act(FCosmicRulerPolicy{ true, false, false, false, NAME_None, 1, ECosmicPressurePolicy::Round, 0, false }, *Sim, *Role, NAME_None, Counts);
 		TestTrue(TEXT("Act answers the card by reaching out (the round alone would watch)"), CosmicDiplomacy::StanceOf(State->Civs[0], State->Civs[1].CivID) == CosmicTags::StanceFriendly()
 			&& Counts.Answers == 2 && Counts.StanceChanges == 0);
 	}
@@ -2267,7 +2267,7 @@ bool FCosmicSimFirstContactCardTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("With the only friendly slot taken, the gate refuses reaching out"), Card && CosmicPetitions::StanceBlockOfChoice(*State, Sim->GetStateIndex(),
 			Sim->GetRules(), 0, State->Civs[1].CivID, Card->Choices[0]) == CosmicDiplomacy::ECosmicStanceBlock::FriendlySlots);
 		const int32 Seed = Sim->GetRng().GetCurrentSeed();
-		AddExpectedError(TEXT("the stance gate refuses choice 0"), EAutomationExpectedErrorFlags::Contains, 1);
+		AddExpectedError(TEXT("the choice's gate refuses choice 0"), EAutomationExpectedErrorFlags::Contains, 1);
 		const FCosmicPetitionAnswer Answer = Role->AnswerPetition(0);
 		TestTrue(TEXT("and the answer refuses it as an unpaid cost: nothing drawn, nothing changed"), Answer.Outcome == ECosmicPetitionOutcome::Refused
 			&& Sim->GetRng().GetCurrentSeed() == Seed && CosmicDiplomacy::StanceOf(State->Civs[0], State->Civs[1].CivID) != CosmicTags::StanceFriendly());

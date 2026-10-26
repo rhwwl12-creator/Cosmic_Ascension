@@ -17,6 +17,7 @@
 #include "Sim/CosmicDiplomacy.h"
 #include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicEndings.h"
+#include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
@@ -37,30 +38,208 @@ namespace CosmicRulerPolicyImpl
 		return Hazard && Hazard->SpawnRule == ECosmicHazardSpawn::Capital;
 	}
 
-	// The vigil: the first DT_Edicts row, lexical, that adds to the countdown of a Capital row's hazard.
-	FName VigilRowOf(const FCosmicDataTables& Tables)
+	// The kind of a choice of a pressure card (B4), read from its effects: the vigil, another edict, the fleet's time,
+	// discern (a next card), the watch (no cost, no check, no effect, no next card), or none of these.
+	enum class EPressureKind : uint8
 	{
-		for (const FName Row : Tables.GetEdictRowNames())
+		Other,
+		Vigil,
+		Edict,
+		Resist,
+		Discern,
+		Watch,
+	};
+
+	EPressureKind KindOf(const FEncounterChoice& Choice, FName Vigil)
+	{
+		bool bEdict = false;
+		bool bResist = false;
+		for (const FCosmicEffect& Effect : Choice.OnSuccess)
 		{
-			const FEdictDef* Def = Tables.FindEdict(Row);
-			if (!Def)
+			if (Effect.Type == EEffectType::EnactEdict && !Vigil.IsNone() && Effect.Key == Vigil)
 			{
-				continue;
+				return EPressureKind::Vigil;
 			}
-			for (const TPair<FGameplayTag, int32>& Bonus : Def->HazardCountdownBonus)
-			{
-				if (Bonus.Value > 0 && IsCapitalTag(Tables, Bonus.Key))
-				{
-					return Row;
-				}
-			}
+			bEdict |= Effect.Type == EEffectType::EnactEdict;
+			bResist |= Effect.Type == EEffectType::DelayHazard;
 		}
-		return NAME_None;
+		if (bEdict)
+		{
+			return EPressureKind::Edict;
+		}
+		if (bResist)
+		{
+			return EPressureKind::Resist;
+		}
+		if (!Choice.NextEncounter.IsNone())
+		{
+			return EPressureKind::Discern;
+		}
+		const FResourcePool Cost = CosmicPetitions::CostOf(Choice);
+		const bool bFree = Cost.Energy <= 0.f && Cost.Matter <= 0.f && Cost.Insight <= 0.f && Cost.Influence <= 0.f && Cost.Causality <= 0.f;
+		return (bFree && Choice.CheckStat == ECosmicCheckStat::NoCheck && Choice.OnSuccess.IsEmpty() && Choice.OnFailure.IsEmpty())
+			? EPressureKind::Watch : EPressureKind::Other;
+	}
+
+	// A pressure card: a choice that enacts an edict or buys a hazard time.
+	bool IsPressureCard(const FEncounterDef& Row)
+	{
+		return Row.Choices.ContainsByPredicate([](const FEncounterChoice& Choice)
+		{
+			return Choice.OnSuccess.ContainsByPredicate([](const FCosmicEffect& Effect) { return Effect.Type == EEffectType::EnactEdict || Effect.Type == EEffectType::DelayHazard; });
+		});
+	}
+
+	// Whether the project Row answers the hazard of SystemIndex in a way the pressure policies leave alone (ProjectChoicesOf).
+	bool IsLeftAlone(const FCosmicRulerPolicy& Policy, const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
+		const FCosmicRulesDef& Rules, int32 SystemIndex, FName Row)
+	{
+		static const FGameplayTag SupernovaTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.PreSupernova")));
+		if (Policy.Pressure == ECosmicPressurePolicy::Round || !State.Systems.IsValidIndex(SystemIndex))
+		{
+			return false;
+		}
+		const FStarSystemState& System = State.Systems[SystemIndex];
+		const FHazardDef* Hazard = System.ActiveHazard.IsValid() ? Tables.FindHazardByTag(System.ActiveHazard) : nullptr;
+		if (!Hazard || !Hazard->RulerResolutions.Contains(Row))
+		{
+			return false;
+		}
+		if (Hazard->SpawnRule == ECosmicHazardSpawn::ClaimRule)
+		{
+			return true;
+		}
+		return Policy.bLeaveNearSphere && Hazard->SpawnRule == ECosmicHazardSpawn::Draw && System.ActiveHazard != SupernovaTag && CosmicState::IsSettled(System)
+			&& CosmicHazards::ClaimantOf(State, Index, Tables, Rules, SystemIndex) != INDEX_NONE;
 	}
 }
 
+bool CosmicRulerPolicy::PressurePolicyOf(const FString& Word, ECosmicPressurePolicy& Out)
+{
+	const TPair<const TCHAR*, ECosmicPressurePolicy> Words[] = {
+		{ TEXT("Round"), ECosmicPressurePolicy::Round },
+		{ TEXT("Cautious"), ECosmicPressurePolicy::Cautious },
+		{ TEXT("Reckless"), ECosmicPressurePolicy::Reckless },
+		{ TEXT("Faithful"), ECosmicPressurePolicy::Faithful },
+	};
+	for (const TPair<const TCHAR*, ECosmicPressurePolicy>& Each : Words)
+	{
+		if (Word.Equals(Each.Key, ESearchCase::IgnoreCase))
+		{
+			Out = Each.Value;
+			return true;
+		}
+	}
+	return false;
+}
+
+const TCHAR* CosmicRulerPolicy::PressurePolicyName(ECosmicPressurePolicy Pressure)
+{
+	switch (Pressure)
+	{
+	case ECosmicPressurePolicy::Cautious:
+		return TEXT("Cautious");
+	case ECosmicPressurePolicy::Reckless:
+		return TEXT("Reckless");
+	case ECosmicPressurePolicy::Faithful:
+		return TEXT("Faithful");
+	default:
+		return TEXT("Round");
+	}
+}
+
+bool CosmicRulerPolicy::ClaimStandsOn(const FGalaxyState& State, const FCosmicDataTables& Tables, int32 CivIndex)
+{
+	if (!State.Civs.IsValidIndex(CivIndex))
+	{
+		return false;
+	}
+	const FName CivID = State.Civs[CivIndex].CivID;
+	return State.Systems.ContainsByPredicate([&](const FStarSystemState& System)
+	{
+		const FHazardDef* Hazard = (System.OwnerCivID == CivID && System.ActiveHazard.IsValid()) ? Tables.FindHazardByTag(System.ActiveHazard) : nullptr;
+		return Hazard && Hazard->SpawnRule == ECosmicHazardSpawn::ClaimRule && CosmicState::IsSettled(System);
+	});
+}
+
+FName CosmicRulerPolicy::GuardTargetOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules,
+	int32 CivIndex)
+{
+	if (!State.Civs.IsValidIndex(CivIndex))
+	{
+		return NAME_None;
+	}
+	const FCivilizationState& Civ = State.Civs[CivIndex];
+	const int32 Capital = Index.FindSystem(State, Civ.HomeSystemID);
+	if (CosmicConflict::GuardBlockOf(State, Index, Rules, CivIndex, Capital) != CosmicConflict::ECosmicGuardBlock::None)
+	{
+		return NAME_None;
+	}
+	// The reach of the higher spheres on a system: the nearest of the unsealed transcendents whose row stands above the people.
+	auto ReachOf = [&](int32 SystemIndex)
+	{
+		ECosmicSphereReach Reach = ECosmicSphereReach::None;
+		for (const FTranscendentState& Transcendent : State.Transcendents)
+		{
+			const FTranscendentDef* Def = Transcendent.bSealed ? nullptr : Tables.FindTranscendent(Transcendent.TranscendentID);
+			if (!Def || static_cast<int32>(Def->Tier) <= static_cast<int32>(Civ.Tier))
+			{
+				continue;
+			}
+			const ECosmicSphereReach Here = UGalaxySimulationSubsystem::SphereReachIn(State, Transcendent, SystemIndex);
+			Reach = (Here == ECosmicSphereReach::Inside || Reach == ECosmicSphereReach::Inside) ? ECosmicSphereReach::Inside
+				: (Here == ECosmicSphereReach::Adjacent ? Here : Reach);
+		}
+		return Reach;
+	};
+	FName Inside;
+	for (const FName SystemID : Civ.OwnedSystems)
+	{
+		const int32 SystemIndex = Index.FindSystem(State, SystemID);
+		if (CosmicConflict::GuardBlockOf(State, Index, Rules, CivIndex, SystemIndex) != CosmicConflict::ECosmicGuardBlock::None)
+		{
+			continue;
+		}
+		const ECosmicSphereReach Reach = ReachOf(SystemIndex);
+		if (Reach == ECosmicSphereReach::Adjacent)
+		{
+			return SystemID;
+		}
+		Inside = (Inside.IsNone() && Reach == ECosmicSphereReach::Inside) ? SystemID : Inside;
+	}
+	return Inside.IsNone() ? Civ.HomeSystemID : Inside;
+}
+
+TArray<TPair<int32, FName>> CosmicRulerPolicy::ProjectChoicesOf(const FCosmicRulerPolicy& Policy, const FGalaxyState& State, const FCosmicStateIndex& Index,
+	const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex)
+{
+	TArray<TPair<int32, FName>> Choices = CosmicMegaprojects::Choices(State, Index, Tables, CivIndex, State.Calling.BornTick);
+	Choices.RemoveAll([&](const TPair<int32, FName>& Choice) { return CosmicRulerPolicyImpl::IsLeftAlone(Policy, State, Index, Tables, Rules, Choice.Key, Choice.Value); });
+	return Choices;
+}
+
+FName CosmicRulerPolicy::VigilRowOf(const FCosmicDataTables& Tables)
+{
+	for (const FName Row : Tables.GetEdictRowNames())
+	{
+		const FEdictDef* Def = Tables.FindEdict(Row);
+		if (!Def)
+		{
+			continue;
+		}
+		for (const TPair<FGameplayTag, int32>& Bonus : Def->HazardCountdownBonus)
+		{
+			if (Bonus.Value > 0 && CosmicRulerPolicyImpl::IsCapitalTag(Tables, Bonus.Key))
+			{
+				return Row;
+			}
+		}
+	}
+	return NAME_None;
+}
+
 int32 CosmicRulerPolicy::ChoiceOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FEncounterDef& Row, int32 AnswersSoFar, FName RowName,
-	int32 Diplomacy, const FCosmicRulesDef* Rules)
+	int32 Diplomacy, const FCosmicRulesDef* Rules, const FCosmicDataTables* Tables, ECosmicPressurePolicy Pressure)
 {
 	const int32 CivIndex = CosmicPetitions::RuledCivIndexOf(State, Index);
 	const int32 Count = Row.Choices.Num();
@@ -80,13 +259,52 @@ int32 CosmicRulerPolicy::ChoiceOf(const FGalaxyState& State, const FCosmicStateI
 		}
 	}
 	// A choice the answer takes: payable, and - with the rules - its stance not refused by the gate (B3: the first contact
-	// card's people; the answer refuses such a choice).
+	// card's people; the answer refuses such a choice); with the tables too, no gate of the choice refused on the card's
+	// system (B4: CosmicPetitions::ChoiceGateOf - the answer's own gate).
 	const FName Other = RowName == CosmicRows::PetitionFirstContact ? State.Knowing.PendingContactCivID : NAME_None;
+	const int32 CardSystem = CosmicPetitions::SubjectOf(State, Index, CivIndex, Row.Subject, State.Knowing.PendingPetitionSystemID);
 	auto Taken = [&](int32 Choice)
 	{
-		return CosmicMegaprojects::CanPay(State.Civs[CivIndex].Stockpile, CosmicPetitions::CostOf(Row.Choices[Choice]))
-			&& (!Rules || CosmicPetitions::StanceBlockOfChoice(State, Index, *Rules, CivIndex, Other, Row.Choices[Choice]) == CosmicDiplomacy::ECosmicStanceBlock::None);
+		if (!CosmicMegaprojects::CanPay(State.Civs[CivIndex].Stockpile, CosmicPetitions::CostOf(Row.Choices[Choice])))
+		{
+			return false;
+		}
+		if (Rules && Tables)
+		{
+			return CosmicPetitions::ChoiceGateOf(State, Index, *Tables, *Rules, CivIndex, CardSystem, Other, Row.Choices[Choice]).IsOpen();
+		}
+		return !Rules || CosmicPetitions::StanceBlockOfChoice(State, Index, *Rules, CivIndex, Other, Row.Choices[Choice]) == CosmicDiplomacy::ECosmicStanceBlock::None;
 	};
+	// A pressure card under a pressure policy (B4 header section 2.9): the first choice the answer takes of the first kind of
+	// the policy's order.
+	if (Pressure != ECosmicPressurePolicy::Round && Tables && CosmicRulerPolicyImpl::IsPressureCard(Row))
+	{
+		using CosmicRulerPolicyImpl::EPressureKind;
+		const FName Vigil = VigilRowOf(*Tables);
+		TArray<EPressureKind, TInlineAllocator<4>> Order;
+		switch (Pressure)
+		{
+		case ECosmicPressurePolicy::Faithful:
+			Order = { EPressureKind::Vigil, EPressureKind::Discern, EPressureKind::Edict, EPressureKind::Watch };
+			break;
+		case ECosmicPressurePolicy::Reckless:
+			Order = { EPressureKind::Discern, EPressureKind::Resist, EPressureKind::Watch };
+			break;
+		default:
+			Order = { EPressureKind::Watch };
+			break;
+		}
+		for (const EPressureKind Kind : Order)
+		{
+			for (const int32 Choice : Stays)
+			{
+				if (CosmicRulerPolicyImpl::KindOf(Row.Choices[Choice], Vigil) == Kind && Taken(Choice))
+				{
+					return Choice;
+				}
+			}
+		}
+	}
 	// The first contact card under a diplomacy policy (B3): reach out.
 	if (Diplomacy != 0 && RowName == CosmicRows::PetitionFirstContact)
 	{
@@ -126,7 +344,7 @@ void CosmicRulerPolicy::Act(const FCosmicRulerPolicy& Policy, UGalaxySimulationS
 	{
 		const FName Card = State.Knowing.PendingPetitionRow;
 		const FEncounterDef* Row = Sim.GetTables().FindEncounter(Card);
-		const int32 Choice = Row ? ChoiceOf(State, Sim.GetStateIndex(), *Row, Counts.Answers, Card, Policy.Diplomacy, &Sim.GetRules()) : INDEX_NONE;
+		const int32 Choice = Row ? ChoiceOf(State, Sim.GetStateIndex(), *Row, Counts.Answers, Card, Policy.Diplomacy, &Sim.GetRules(), &Sim.GetTables(), Policy.Pressure) : INDEX_NONE;
 		if (Choice == INDEX_NONE)
 		{
 			break;
@@ -135,6 +353,15 @@ void CosmicRulerPolicy::Act(const FCosmicRulerPolicy& Policy, UGalaxySimulationS
 		if (Taken.Outcome == ECosmicPetitionOutcome::Refused)
 		{
 			break;
+		}
+		// B4: the edicts a pressure card's accepted answer enacted (decision 9 - MakeRoomFor keeps them while a claim stands).
+		const int32 Ruled = Sim.GetStateIndex().FindCiv(State, State.Player.RuledCivID);
+		for (const FCosmicEffect& Effect : Taken.Outcome == ECosmicPetitionOutcome::Succeeded ? Row->Choices[Choice].OnSuccess : TArray<FCosmicEffect>())
+		{
+			if (Effect.Type == EEffectType::EnactEdict && State.Civs.IsValidIndex(Ruled) && State.Civs[Ruled].ActiveEdicts.Contains(Effect.Key))
+			{
+				Counts.CardEdicts.AddUnique(Effect.Key);
+			}
 		}
 		Counts.Answers += (Taken.Outcome == ECosmicPetitionOutcome::Withdrawn) ? 0 : 1;
 		Counts.CardsCome += (State.Player.Role == EPlayerRole::Ruler && !State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != Card) ? 1 : 0;
@@ -146,15 +373,36 @@ void CosmicRulerPolicy::Act(const FCosmicRulerPolicy& Policy, UGalaxySimulationS
 		if (Policy.Diplomacy == 2 && State.Player.Role == EPlayerRole::Ruler)
 		{
 			const int32 CivIndex = Sim.GetStateIndex().FindCiv(State, State.Player.RuledCivID);
-			if (State.Civs.IsValidIndex(CivIndex) && CosmicMegaprojects::Choices(State, Sim.GetStateIndex(), Sim.GetTables(), CivIndex, State.Calling.BornTick).IsEmpty()
+			if (State.Civs.IsValidIndex(CivIndex) && ProjectChoicesOf(Policy, State, Sim.GetStateIndex(), Sim.GetTables(), Sim.GetRules(), CivIndex).IsEmpty()
 				&& CosmicConflict::OwnedCountOf(State, Sim.GetStateIndex(), CivIndex) + 1 >= CosmicMegaprojects::RealmCapOf(Sim.GetRules(), State.Civs[CivIndex].Tier))
 			{
 				break;
 			}
 		}
-		if (!Role.StartNextMegaproject())
+		// Round: the project key as it is (StartNextMegaproject). A pressure policy builds the first project of its own list
+		// (ProjectChoicesOf - no relief on a claim), else the first settlement - the key's rule on the list it keeps (B4).
+		if (Policy.Pressure == ECosmicPressurePolicy::Round)
 		{
-			break;
+			if (!Role.StartNextMegaproject())
+			{
+				break;
+			}
+		}
+		else
+		{
+			const int32 CivIndex = State.Player.Role == EPlayerRole::Ruler ? Sim.GetStateIndex().FindCiv(State, State.Player.RuledCivID) : INDEX_NONE;
+			if (!State.Civs.IsValidIndex(CivIndex) || State.Calling.LifeState != ELifeState::Embodied)
+			{
+				break;
+			}
+			const TArray<TPair<int32, FName>> Kept = ProjectChoicesOf(Policy, State, Sim.GetStateIndex(), Sim.GetTables(), Sim.GetRules(), CivIndex);
+			const TArray<int32> Targets = Kept.IsEmpty() ? CosmicMegaprojects::SettleTargets(State, Sim.GetStateIndex(), Sim.GetTables(), Sim.GetRules(), CivIndex) : TArray<int32>();
+			const bool bStarted = !Kept.IsEmpty() ? Role.StartMegaproject(State.Systems[Kept[0].Key].SystemID, Kept[0].Value)
+				: (!Targets.IsEmpty() && Role.StartMegaproject(State.Systems[Targets[0]].SystemID, CosmicRows::ProjectSettle));
+			if (!bStarted)
+			{
+				break;
+			}
 		}
 		++Counts.Started;
 	}
@@ -207,8 +455,13 @@ void CosmicRulerPolicy::ActEdicts(const FCosmicRulerPolicy& Policy, UGalaxySimul
 		Revoked.Add(Row);
 		++Counts.EdictsRevoked;
 		Counts.VigilEnacted = Counts.VigilEnacted == Row ? NAME_None : Counts.VigilEnacted;
+		Counts.CardEdicts.Remove(Row);
 		return true;
 	};
+	// B4: while a claim stands on a settled system of the people, the edicts the pressure cards enacted stay (decision 9),
+	// and under a pressure policy so does the vigil, whoever enacted it (header section 2.9).
+	const bool bClaimStands = ClaimStandsOn(State, Tables, CivIndex);
+	const FName Vigil = VigilRowOf(Tables);
 	auto Enact = [&](FName Row)
 	{
 		if (Revoked.Contains(Row) || Role.EnactEdict(Row) != CosmicEdicts::ECosmicEdictBlock::None)
@@ -238,7 +491,8 @@ void CosmicRulerPolicy::ActEdicts(const FCosmicRulerPolicy& Policy, UGalaxySimul
 		FName Spare;
 		for (const FName Held : TArray<FName>(Civ.ActiveEdicts))
 		{
-			if (Held == Row || !Tables.FindEdict(Held) || Enacted.Contains(Held) || CosmicEdicts::AnswersStanding(State, Index, Tables, CivIndex, Held))
+			if (Held == Row || !Tables.FindEdict(Held) || Enacted.Contains(Held) || CosmicEdicts::AnswersStanding(State, Index, Tables, CivIndex, Held)
+				|| (bClaimStands && (Counts.CardEdicts.Contains(Held) || (Held == Vigil && Policy.Pressure != ECosmicPressurePolicy::Round))))
 			{
 				continue;
 			}
@@ -273,8 +527,13 @@ void CosmicRulerPolicy::ActEdicts(const FCosmicRulerPolicy& Policy, UGalaxySimul
 		{
 			continue;
 		}
+		const int32 HazardSystem = Index.FindSystem(State, System.SystemID);
 		for (const FName Answer : Hazard->RulerResolutions)
 		{
+			if (Tables.FindEdict(Answer) && CosmicRulerPolicyImpl::IsLeftAlone(Policy, State, Index, Tables, Rules, HazardSystem, Answer))
+			{
+				break;
+			}
 			if (Tables.FindEdict(Answer))
 			{
 				if (!Revoked.Contains(Answer) && MakeRoomFor(Answer))
@@ -286,7 +545,6 @@ void CosmicRulerPolicy::ActEdicts(const FCosmicRulerPolicy& Policy, UGalaxySimul
 		}
 	}
 	// (3) The vigil against a coming rebellion: discontent counted, no rebellion yet, the vigil not held.
-	const FName Vigil = VigilRowOf(Tables);
 	if (!Vigil.IsNone() && State.Civs[CivIndex].LowStabilityTicks > 0 && !RebellionStands() && !State.Civs[CivIndex].ActiveEdicts.Contains(Vigil)
 		&& !Revoked.Contains(Vigil) && MakeRoomFor(Vigil) && Enact(Vigil))
 	{
@@ -300,7 +558,10 @@ void CosmicRulerPolicy::ActEdicts(const FCosmicRulerPolicy& Policy, UGalaxySimul
 			continue;
 		}
 		const bool bIdleAnswer = CosmicEdicts::IsAnswerEdict(Tables, Held) && !CosmicEdicts::AnswersStanding(State, Index, Tables, CivIndex, Held);
-		const bool bVigilDone = Held == Counts.VigilEnacted && State.Civs[CivIndex].Stability >= RestAt && !RebellionStands();
+		// The vigil of (3), or one a card enacted (B4), once the danger passed - never a card's edict while a claim stands, and
+		// under a pressure policy not the vigil either, whoever enacted it.
+		const bool bVigilDone = (Held == Counts.VigilEnacted || (Held == Vigil && Counts.CardEdicts.Contains(Held))) && State.Civs[CivIndex].Stability >= RestAt
+			&& !RebellionStands() && !(bClaimStands && (Counts.CardEdicts.Contains(Held) || (Held == Vigil && Policy.Pressure != ECosmicPressurePolicy::Round)));
 		if (bIdleAnswer || bVigilDone)
 		{
 			Revoke(Held);
@@ -322,7 +583,9 @@ void CosmicRulerPolicy::ActDiplomacy(const FCosmicRulerPolicy& Policy, UGalaxySi
 	const FCosmicStateIndex& Index = Sim.GetStateIndex();
 	const FCosmicDataTables& Tables = Sim.GetTables();
 	const FCosmicRulesDef& Rules = Sim.GetRules();
-	if (Policy.Diplomacy == 0 || Counts.bEnded || State.Calling.LifeState != ELifeState::Embodied || State.Player.Role != EPlayerRole::Ruler)
+	// The guard of -Guard=1 (B4) runs with no diplomacy and after the end too; everything else needs both.
+	const bool bGuard = Policy.Guard != 0;
+	if ((!bGuard && (Policy.Diplomacy == 0 || Counts.bEnded)) || State.Calling.LifeState != ELifeState::Embodied || State.Player.Role != EPlayerRole::Ruler)
 	{
 		return;
 	}
@@ -337,7 +600,8 @@ void CosmicRulerPolicy::ActDiplomacy(const FCosmicRulerPolicy& Policy, UGalaxySi
 	auto TargetOf = [&]() { return State.Civs[CivIndex].FleetTargetSystemID; };
 
 	// (1) The guard: a siege on one of the people's systems is guarded against while the people besieges no one; a guard
-	// over a system no longer besieged is withdrawn.
+	// over a system no longer besieged is withdrawn - or, under -Guard=1, moved to the system GuardTargetOf keeps (a guard
+	// that stands where it should stays, and the steps below run on).
 	if (!CosmicConflict::IsBesieging(State, Index, CivIndex))
 	{
 		FName Besieged;
@@ -357,6 +621,15 @@ void CosmicRulerPolicy::ActDiplomacy(const FCosmicRulerPolicy& Policy, UGalaxySi
 				return;
 			}
 		}
+		else if (Besieged.IsNone() && bGuard)
+		{
+			const FName Keep = GuardTargetOf(State, Index, Tables, Rules, CivIndex);
+			if (!Keep.IsNone() && Keep != Before && Role.AllocateFleet(Keep) == CosmicConflict::ECosmicSiegeBlock::None && TargetOf() != Before)
+			{
+				++Counts.FleetTargetChanges;
+				return;
+			}
+		}
 		else if (Besieged.IsNone() && !Before.IsNone())
 		{
 			const int32 Guarded = Index.FindSystem(State, Before);
@@ -367,6 +640,11 @@ void CosmicRulerPolicy::ActDiplomacy(const FCosmicRulerPolicy& Policy, UGalaxySi
 				return;
 			}
 		}
+	}
+
+	if (Policy.Diplomacy == 0 || Counts.bEnded)
+	{
+		return;
 	}
 
 	// (2) Friendship, while no first contact card waits: the first met bordering people the people holds no stance toward,

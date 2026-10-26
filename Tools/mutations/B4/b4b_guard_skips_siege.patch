@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -613,7 +613,7 @@
+ 			}
+ 		}
+ 		const FName Before = TargetOf();
+-		if (!Besieged.IsNone() && Before != Besieged)
++		if (!bGuard && !Besieged.IsNone() && Before != Besieged)
+ 		{
+ 			if (Role.AllocateFleet(Besieged) == CosmicConflict::ECosmicSiegeBlock::None && TargetOf() != Before)
+ 			{

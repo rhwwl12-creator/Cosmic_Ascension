@@ -1,0 +1,20 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+@@ -916,9 +916,14 @@
+ 		// The one gate of the edicts (B4 section 2.2, rule 13): only what the command would take; Enact pays the row's
+ 		// EnactCost. A refusal does nothing - the answer's gate (CosmicPetitions::ChoiceGateOf) refuses before the draw.
+ 		const FEdictDef* Def = Ctx.Tables.FindEdict(Effect.Key);
+-		if (!Civ || !Def || CosmicEdicts::EnactBlockOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, Ctx.CivIndex, Effect.Key) != CosmicEdicts::ECosmicEdictBlock::None)
+-		{
+-			return false;
++		if (!Civ || (Def && CosmicEdicts::EnactBlockOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, Ctx.CivIndex, Effect.Key) != CosmicEdicts::ECosmicEdictBlock::None))
++		{
++			return false;
++		}
++		if (!Def)
++		{
++			Civ->ActiveEdicts.Add(Effect.Key);
++			return true;
+ 		}
+ 		CosmicEdicts::Enact(*Civ, Effect.Key, *Def);
+ 		return true;

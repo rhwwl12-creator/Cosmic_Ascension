@@ -1251,7 +1251,7 @@ bool FCosmicSimWandererLoopTest::RunTest(const FString& Parameters)
 	for (int32 Run = 0; Run < 2; ++Run)
 	{
 		Sim->NewGalaxy(4, 0, 0);
-		const FCosmicRulerPolicy Ruler{ true, true, true, true, NAME_None, 1 };
+		const FCosmicRulerPolicy Ruler{ true, true, true, true, NAME_None, 1, ECosmicPressurePolicy::Round, 0, false };
 		FCosmicRulerPolicyCounts RulerCounts;
 		const FCosmicWandererPolicy Wanderer{ 1200, true };
 		FCosmicWandererPolicyCounts Counts;

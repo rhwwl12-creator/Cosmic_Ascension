@@ -1,0 +1,10 @@
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -892,7 +892,6 @@
+ 					"when": [
+ 						{"none": [
+ 							{"col": "Choices.Cost", "zero": true},
+-							{"col": "Choices.OnSuccess", "lacks_type": "SetStance"},
+ 							{"col": "Choices.OnSuccess", "lacks_type": "EnactEdict"},
+ 							{"col": "Choices.OnSuccess", "lacks_type": "DelayHazard"}
+ 						]}

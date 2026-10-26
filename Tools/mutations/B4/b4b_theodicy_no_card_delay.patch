@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
++++ b/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
+@@ -2217,7 +2217,7 @@
+ 						Most = (Effect.Type == EEffectType::DelayHazard && Effect.Tag.IsValid() && Tag.MatchesTag(Effect.Tag) && Effect.Value > Most) ? Effect.Value : Most;
+ 					}
+ 				}
+-				Longest += static_cast<int64>(FMath::Min(Most, 100000.f));
++				Longest += 0 * static_cast<int64>(FMath::Min(Most, 100000.f));
+ 			}
+ 			const int64 Slots = (Longest + SlotTicks - 1) / SlotTicks;
+ 			double Stays = 1.0;

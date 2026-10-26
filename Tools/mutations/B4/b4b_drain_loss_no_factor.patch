@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1275,7 +1275,7 @@
+ 
+ float UGalaxySimulationSubsystem::DrainLossOf(const FCosmicRulesDef& InRules, const FCosmicDataTables& InTables, const FCivilizationState& Civ, float Pressure)
+ {
+-	return (InRules.SpiritualPressureStabilityDrain > 0.f ? InRules.SpiritualPressureStabilityDrain : 0.f) * Pressure * CosmicEdicts::PressureDrainMultiplierOf(Civ, InTables);
++	return (InRules.SpiritualPressureStabilityDrain > 0.f ? InRules.SpiritualPressureStabilityDrain : 0.f) * Pressure;
+ }
+ 
+ float UGalaxySimulationSubsystem::ComputeDrainPressureOf(const FGalaxyState& InState, const FCosmicStateIndex& InIndex, const FCosmicDataTables& InTables, const FCosmicRulesDef& InRules, int32 CivIndex)

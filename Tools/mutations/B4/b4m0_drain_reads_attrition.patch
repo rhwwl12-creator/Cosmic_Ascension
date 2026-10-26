@@ -1,0 +1,14 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1288,10 +1288,7 @@
+ 		{
+ 			continue;
+ 		}
+-		const FCosmicPressure Reading = PressureWithReach(InState, InIndex, InRules, Defs, SystemIndex, [&InState, SystemIndex](int32 TranscendentIndex)
+-		{
+-			return SphereReachIn(InState, InState.Transcendents[TranscendentIndex], SystemIndex);
+-		});
++		const FCosmicPressure Reading = ComputeAttritionPressureIn(InState, InIndex, InTables, InRules, CivIndex, SystemIndex);
+ 		if (Reading.DominantSource != ECosmicPressureSource::None && TierIndex(Reading.DominantTier) > TierIndex(Civ.Tier))
+ 		{
+ 			Largest = FMath::Max(Largest, Reading.P);

@@ -1,0 +1,17 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -408,14 +408,6 @@
+ 	{
+ 		return ECosmicResistBlock::Capital;
+ 	}
+-	if (!(FleetCapOf(State, Index, CivIndex, Rules) > 0.f))
+-	{
+-		return ECosmicResistBlock::NoFleet;
+-	}
+-	if (!(State.Civs[CivIndex].FleetPower > 0.f))
+-	{
+-		return ECosmicResistBlock::Spent;
+-	}
+ 	return ECosmicResistBlock::None;
+ }
+ 

@@ -160,6 +160,20 @@ int32 CosmicEdicts::CountdownBonusOf(const FCivilizationState& Civ, const FCosmi
 	return static_cast<int32>(FMath::Clamp<int64>(Sum, 0, 100000));
 }
 
+float CosmicEdicts::PressureDrainMultiplierOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables)
+{
+	float Product = 1.f;
+	for (const FName Row : Civ.ActiveEdicts)
+	{
+		const FEdictDef* Def = Tables.FindEdict(Row);
+		if (Def && Def->PressureDrainMultiplier > 0.f && Def->PressureDrainMultiplier <= TNumericLimits<float>::Max())
+		{
+			Product *= Def->PressureDrainMultiplier;
+		}
+	}
+	return Product;
+}
+
 bool CosmicEdicts::HasStabilityCost(const FEdictDef& Row)
 {
 	for (const FCosmicEffect& Effect : Row.EffectsPerTick)

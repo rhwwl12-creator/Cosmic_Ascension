@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+@@ -68,6 +68,7 @@
+ 		case EEffectType::ChangeRelation:
+ 		case EEffectType::ChangeReverence:
+ 		case EEffectType::ChangePopulation:
++		case EEffectType::EnactEdict:
+ 			return true;
+ 		default:
+ 			return false;

@@ -66,6 +66,11 @@ namespace CosmicEdicts
 	/** The sum of the held edicts' HazardCountdownBonus for Tag: values above 0 only, summed as int64, cut to 0..100000. */
 	COSMIC_ASCENSION_API int32 CountdownBonusOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables, FGameplayTag Tag);
 
+	/** B4: the product, in ActiveEdicts order, of the held edicts' PressureDrainMultiplier (a factor that is not above 0 and
+	 * finite reads as 1 - the schema keeps it in (0, 1]). The economy stage multiplies the pressure's Stability drain by it
+	 * once per people; exactly 1 while no held edict carries a factor. */
+	COSMIC_ASCENSION_API float PressureDrainMultiplierOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables);
+
 	/** Whether the row's EffectsPerTick hold a ChangeStability below 0 (the AI's revocation, the policy, the first hint). */
 	COSMIC_ASCENSION_API bool HasStabilityCost(const FEdictDef& Row);
 
