@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
+@@ -163,7 +163,7 @@
+ 		}
+ 		const FText Cost = UCosmicEdictWidget::CostWordsOf(Def->EnactCost);
+ 		return FText::Format(CosmicUI::Label(TEXT("Petition.EdictLine")), Cost.IsEmpty() ? CosmicUI::Label(TEXT("Petition.EdictCostNone")) : Cost,
+-			FText::AsNumber(CosmicEdicts::HeldCountOf(Civ, Tables)), FText::AsNumber(CosmicEdicts::SlotsOf(Civ, Rules)));
++			FText::AsNumber(CosmicEdicts::HeldCountOf(Civ, Tables)), FText::AsNumber(CosmicEdicts::SlotsOf(Civ, Rules) + 1));
+ 	}
+ 
+ 	// A choice that buys a standing hazard time with the fleet (B4): the fleet now and after (CosmicConflict::ResistShareOf),

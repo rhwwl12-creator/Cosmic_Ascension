@@ -927,14 +927,14 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 	case EEffectType::DelayHazard:
 	{
 		// The one gate of the fleet's time (B4 section 2.4, rule 13). Value is a whole number 1..100 (a lint); the guard is
-		// here, by comparisons, and the sum is cut at MAX_int32.
-		if (!Civ || !(Effect.Value >= 1.f) || !IsAmount(Effect.Value)
+		// ResistTicksOf, by comparisons, and the sum is cut at MAX_int32.
+		const int64 Added = CosmicConflict::ResistTicksOf(Effect.Value);
+		if (!Civ || Added <= 0
 			|| CosmicConflict::ResistBlockOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, Ctx.CivIndex, Ctx.SystemIndex, Effect.Tag) != CosmicConflict::ECosmicResistBlock::None)
 		{
 			return false;
 		}
 		FStarSystemState& Target = State.Systems[Ctx.SystemIndex];
-		const int64 Added = static_cast<int64>(Effect.Value < 2147483647.f ? Effect.Value : 2147483647.f);
 		Target.HazardTicksRemaining = static_cast<int32>(FMath::Min<int64>(static_cast<int64>(Target.HazardTicksRemaining) + Added, MAX_int32));
 		Civ->FleetPower *= CosmicConflict::ResistShareOf(Ctx.Rules);
 		return true;

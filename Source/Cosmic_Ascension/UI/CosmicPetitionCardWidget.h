@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Sim/CosmicConflict.h"
 #include "CosmicPetitionCardWidget.generated.h"
 
 class UBorder;
@@ -27,6 +28,12 @@ class UVerticalBox;
  * The first contact card (B3 header section 4) names the other people ({OtherCiv} - the view's PendingContactCivID), and
  * a choice that turns a people friendly says under it what the friendly stance holds: its upkeep and the friendly slots
  * (Petition.FriendlyUpkeep).
+ * A choice the card's gate refuses (B4 header section 4 - CosmicPetitions::ChoiceGateOf, the gate the answer reads: a
+ * stance, an edict it cannot enact, the fleet's time it cannot buy) is greyed out while the card stands, the first reason
+ * its tooltip - after the stockpile's - and the short words of an edict's reason or of a fleet with no cap yet after its
+ * label (the edict window's and the panel's form). A choice that enacts an edict says under it the edict's cost and the
+ * slots (Petition.EdictLine), and its tooltip what the edict costs and does (UCosmicEdictWidget::TipOf); one that buys a
+ * standing hazard time with the fleet, the fleet now and after, the hazard and the time added (Petition.ResistLine).
  */
 UCLASS(meta = (DisableNativeTick))
 class COSMIC_ASCENSION_API UCosmicPetitionCardWidget : public UUserWidget
@@ -38,7 +45,9 @@ public:
 	 * picked now, its choices built again; None collapses the card. */
 	void ShowCard(FName Row, FName SystemID, FName OtherCivID = NAME_None);
 
-	/** Redraws the choices of the card that shows: payable or not, and the rolls that pass. Nothing while it shows an outcome. */
+	/** Redraws the choices of the card that shows: payable or not, whether their gate is open (CosmicPetitions::ChoiceGateOf -
+	 * an edict revoked in the edict window opens a greyed choice while the card waits), the rolls that pass and the lines
+	 * under them. Nothing while it shows an outcome. */
 	void Refresh();
 
 	/** What a click on a choice does (tests call it in place of a click). Nothing while an outcome shows or no card shows. */
@@ -65,6 +74,12 @@ public:
 	int32 GetChoiceCount() const { return ChoiceButtons.Num(); }
 	const UCosmicActionButton* GetChoiceButton(int32 ChoiceIndex) const { return ChoiceButtons.IsValidIndex(ChoiceIndex) ? ChoiceButtons[ChoiceIndex].Get() : nullptr; }
 	const UTextBlock* GetChoiceLine(int32 ChoiceIndex) const { return ChoiceLines.IsValidIndex(ChoiceIndex) ? ChoiceLines[ChoiceIndex].Get() : nullptr; }
+
+	/** The long words of a refused fleet's time (B4): Petition.Resist.Block.NoHazard and .Capital with the hazard's name
+	 * Hazard, Guard.Block.NoFleet for a fleet with no cap (the first rung's), Siege.Block.NoFleet for a spent fleet (the
+	 * panel's words for the same fleet); empty for None and NotOwn, which no card shows (a card whose system is no longer
+	 * the people's settled one no longer stands). */
+	static FText ResistReasonOf(CosmicConflict::ECosmicResistBlock Block, const FText& Hazard);
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -94,6 +109,9 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> ChoiceLines;
+
+	// The choices' labels as the card was shown (the gate's short words go after them).
+	TArray<FText> ChoiceLabels;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> OutcomeText;

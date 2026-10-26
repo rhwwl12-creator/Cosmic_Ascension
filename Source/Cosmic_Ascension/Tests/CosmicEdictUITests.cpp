@@ -214,6 +214,45 @@ bool FCosmicUIEdictRulesTest::RunTest(const FString& Parameters)
 		Rules.EdictSlotSocietyMarks = { std::numeric_limits<float>::quiet_NaN() };
 		TestFalse(TEXT("A mark that is not a number is no slot"), UCosmicEdictWidget::NextSlotMarkOf(Civ, Rules).IsSet());
 	}
+
+	// The pressure's drain in an edict's tooltip (B4 header section 4): one line for a factor that changes it, read as the
+	// economy stage reads it (CosmicEdicts::PressureDrainMultiplierOf - 0, below 0 and not a number count as 1).
+	{
+		UDataTable* Edicts = CosmicTests::NewTable(FEdictDef::StaticStruct());
+		auto Add = [Edicts](const TCHAR* Name, float Factor)
+		{
+			FEdictDef Row;
+			Row.DisplayName = FText::AsCultureInvariant(Name);
+			Row.PressureDrainMultiplier = Factor;
+			Edicts->AddRow(FName(Name), Row);
+		};
+		Add(TEXT("edict_test_drain_less"), 0.45f);
+		Add(TEXT("edict_test_drain_more"), 1.5f);
+		Add(TEXT("edict_test_drain_one"), 1.f);
+		Add(TEXT("edict_test_drain_zero"), 0.f);
+		Add(TEXT("edict_test_drain_below"), -0.5f);
+		Add(TEXT("edict_test_drain_nan"), std::numeric_limits<float>::quiet_NaN());
+		Add(TEXT("edict_test_drain_inf"), std::numeric_limits<float>::infinity());
+		FCosmicDataTables Tables;
+		Tables.Edicts = Edicts;
+		auto TipOfRow = [&Tables](const TCHAR* Name)
+		{
+			return Words(UCosmicEdictWidget::TipOf(Tables, FName(Name), ECosmicTimeUnit::Cycle));
+		};
+		const FString Drain = Words(TEXT("Edict.Effect.PressureDrain"));
+		int32 Brace = INDEX_NONE;
+		const FString Lead = Drain.FindChar(TEXT('{'), Brace) ? Drain.Left(Brace) : Drain;
+		TestFalse(TEXT("(the drain's words lead with words)"), Lead.IsEmpty());
+		TestTrue(TEXT("An edict that eases the drain says its factor"),
+			TipOfRow(TEXT("edict_test_drain_less")).Contains(Words(FText::Format(CosmicUI::Label(TEXT("Edict.Effect.PressureDrain")), UCosmicEdictWidget::AmountOf(0.45f)))));
+		TestTrue(TEXT("an edict that deepens it says so too (the stage multiplies it)"),
+			TipOfRow(TEXT("edict_test_drain_more")).Contains(Words(FText::Format(CosmicUI::Label(TEXT("Edict.Effect.PressureDrain")), UCosmicEdictWidget::AmountOf(1.5f)))));
+		TestFalse(TEXT("An edict of factor 1 says nothing of the drain"), TipOfRow(TEXT("edict_test_drain_one")).Contains(Lead));
+		TestFalse(TEXT("nor one of factor 0, which the stage reads as 1"), TipOfRow(TEXT("edict_test_drain_zero")).Contains(Lead));
+		TestFalse(TEXT("nor one below 0"), TipOfRow(TEXT("edict_test_drain_below")).Contains(Lead));
+		TestFalse(TEXT("nor one that is not a number"), TipOfRow(TEXT("edict_test_drain_nan")).Contains(Lead));
+		TestFalse(TEXT("nor an infinite one"), TipOfRow(TEXT("edict_test_drain_inf")).Contains(Lead));
+	}
 	return true;
 }
 

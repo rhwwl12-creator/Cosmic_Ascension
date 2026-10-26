@@ -1,11 +1,11 @@
 --- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
 +++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
-@@ -259,7 +259,7 @@
- 				CosmicUI::DurationLabel(1, ACosmicPlayerController::TimeUnitFor(*this)), FText::AsNumber(CosmicDiplomacy::FriendlyCountOf(State.Civs[CivIndex])),
- 				FText::AsNumber(CosmicDiplomacy::FriendlySlotsOf(State.Civs[CivIndex], Rules)));
- 		}
--		const FText Line = CosmicUI::JoinLines({ CostAndCheck, Friendly });
-+		const FText Line = CostAndCheck;
+@@ -403,7 +403,7 @@
+ 		// A choice that enacts an edict or buys the fleet's time (B4 section 4): what it holds, under it in the same place.
+ 		const FText Edict = bRuled ? EdictLineOf(EdictRow, Tables, State.Civs[CivIndex], Rules) : FText::GetEmpty();
+ 		const FText Resist = bRuled ? ResistLineOf(Choice, Tables, State.Civs[CivIndex], Rules, Unit) : FText::GetEmpty();
+-		const FText Line = CosmicUI::JoinLines({ CostAndCheck, Friendly, Edict, Resist });
++		const FText Line = CosmicUI::JoinLines({ CostAndCheck, Edict, Resist });
  		UTextBlock* LineText = ChoiceLines[At];
  		if (!SameWords(LineText->GetText(), Line))
  		{

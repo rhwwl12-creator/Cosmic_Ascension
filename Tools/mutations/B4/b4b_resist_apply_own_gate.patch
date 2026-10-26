@@ -1,12 +1,11 @@
 --- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
 +++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
-@@ -928,8 +928,7 @@
- 	{
- 		// The one gate of the fleet's time (B4 section 2.4, rule 13). Value is a whole number 1..100 (a lint); the guard is
- 		// here, by comparisons, and the sum is cut at MAX_int32.
--		if (!Civ || !(Effect.Value >= 1.f) || !IsAmount(Effect.Value)
+@@ -930,7 +930,7 @@
+ 		// ResistTicksOf, by comparisons, and the sum is cut at MAX_int32.
+ 		const int64 Added = CosmicConflict::ResistTicksOf(Effect.Value);
+ 		if (!Civ || Added <= 0
 -			|| CosmicConflict::ResistBlockOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, Ctx.CivIndex, Ctx.SystemIndex, Effect.Tag) != CosmicConflict::ECosmicResistBlock::None)
-+		if (!Civ || !(Effect.Value >= 1.f) || !IsAmount(Effect.Value) || !System || !System->ActiveHazard.MatchesTag(Effect.Tag))
++			|| !State.Systems.IsValidIndex(Ctx.SystemIndex) || !State.Systems[Ctx.SystemIndex].ActiveHazard.MatchesTag(Effect.Tag))
  		{
  			return false;
  		}

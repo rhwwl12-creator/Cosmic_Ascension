@@ -1,11 +1,11 @@
 --- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
 +++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
-@@ -230,7 +230,7 @@
- 		const CosmicDiplomacy::ECosmicStanceBlock StanceBlock = (bShownWanderer || !bStands || !State.Civs.IsValidIndex(CivIndex)) ? CosmicDiplomacy::ECosmicStanceBlock::None
- 			: CosmicPetitions::StanceBlockOfChoice(State, Sim->GetStateIndex(), Sim->GetRules(), CivIndex, ShownOther, Choice);
+@@ -355,7 +355,7 @@
+ 		const FCosmicChoiceGate Gate = bGated
+ 			? CosmicPetitions::ChoiceGateOf(State, Sim->GetStateIndex(), Tables, Rules, CivIndex, SystemIndex, ShownOther, Choice) : FCosmicChoiceGate();
  		UCosmicActionButton* Button = ChoiceButtons[At];
--		Button->SetIsEnabled(bPayable && StanceBlock == CosmicDiplomacy::ECosmicStanceBlock::None);
+-		Button->SetIsEnabled(bPayable && Gate.IsOpen());
 +		Button->SetIsEnabled(bPayable);
- 		// A tooltip set again is a new tooltip, and an open one would close: set only when the words change.
- 		const FText Tip = !bPayable ? CosmicUI::Label(TEXT("Petition.Short"))
- 			: (StanceBlock != CosmicDiplomacy::ECosmicStanceBlock::None ? UCosmicEdictWidget::StanceReasonOf(StanceBlock) : FText::GetEmpty());
+ 		// The edict a choice enacts (B4): its words in the tooltip, as the edict window gives them (UCosmicEdictWidget::TipOf -
+ 		// what it costs and does while it is held).
+ 		const bool bRuled = !bShownWanderer && State.Civs.IsValidIndex(CivIndex);

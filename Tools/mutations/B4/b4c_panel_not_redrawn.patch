@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1789,7 +1789,6 @@
+ 	// A paused simulation sends no tick: show what the answer changed now, on the panels and on the map.
+ 	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
+ 	{
+-		CosmicHUD->RefreshPanel();
+ 	}
+ 	if (ACosmicGalaxyMapActor* TheMap = Map.Get())
+ 	{

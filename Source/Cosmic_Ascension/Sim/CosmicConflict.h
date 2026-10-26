@@ -164,4 +164,9 @@ namespace CosmicConflict
 	/** The share of its fleet a people keeps after a card's DelayHazard: DT_Rules.ResistFleetFactor when in [0, 1], else 1
 	 * (comparisons - a value that is not a number is 1). */
 	COSMIC_ASCENSION_API float ResistShareOf(const FCosmicRulesDef& Rules);
+
+	/** The ticks a card's DelayHazard of Value adds to a standing hazard's countdown (the effect and the card window read
+	 * it): its whole part, cut at 2^31 - the effect cuts the sum at MAX_int32 -; 0 for a Value below 1 or not a number, which
+	 * the effect refuses (the range 1..100 is a lint). */
+	COSMIC_ASCENSION_API int64 ResistTicksOf(float Value);
 }

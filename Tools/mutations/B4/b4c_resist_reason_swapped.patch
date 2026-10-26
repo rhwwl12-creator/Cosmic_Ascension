@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
+@@ -196,7 +196,7 @@
+ 	case ECosmicResistBlock::Capital:
+ 		return FText::FormatNamed(Label(TEXT("Petition.Resist.Block.Capital")), TEXT("Hazard"), Hazard);
+ 	case ECosmicResistBlock::NoFleet:
+-		return Label(TEXT("Guard.Block.NoFleet"));
++		return Label(TEXT("Siege.Block.NoFleet"));
+ 	case ECosmicResistBlock::Spent:
+ 		// The panel's words for the same fleet under the same button words ([Send the fleet] of a siege).
+ 		return Label(TEXT("Siege.Block.NoFleet"));

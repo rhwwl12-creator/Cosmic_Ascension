@@ -311,6 +311,11 @@ FText UCosmicEdictWidget::TipOf(const FCosmicDataTables& Tables, FName Row, ECos
 	{
 		Lines.Add(FText::Format(Label(TEXT("Edict.Effect.TreatyAccept")), Amount(Def->TreatyAcceptBonus)));
 	}
+	// The pressure's drain on Stability (B4), read as CosmicEdicts::PressureDrainMultiplierOf reads it.
+	if (Def->PressureDrainMultiplier > 0.f && Def->PressureDrainMultiplier <= TNumericLimits<float>::Max() && Def->PressureDrainMultiplier != 1.f)
+	{
+		Lines.Add(FText::Format(Label(TEXT("Edict.Effect.PressureDrain")), Amount(Def->PressureDrainMultiplier)));
+	}
 	for (const FGameplayTag& Tag : SortedTags(Def->HazardSpawnMultipliers))
 	{
 		const float Factor = Def->HazardSpawnMultipliers.FindRef(Tag);

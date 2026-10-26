@@ -481,7 +481,8 @@ void ACosmicHUD::RefreshPanel()
 	// The right side: the system panel (one refresh) or the galaxy panel - it reads only definitions, shown again now (the
 	// tables may have changed) - with its hint.
 	ShowRightSide();
-	// The card's choices: what the stockpile can pay now.
+	// The card's choices: what the stockpile can pay and what their gates allow now (CosmicPetitions::ChoiceGateOf) - an edict
+	// revoked in the edict window opens a greyed choice while the card waits.
 	if (Card)
 	{
 		Card->Refresh();

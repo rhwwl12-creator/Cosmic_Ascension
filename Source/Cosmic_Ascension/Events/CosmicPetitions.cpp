@@ -562,8 +562,10 @@ FCosmicChoiceGate CosmicPetitions::ChoiceGateOf(const FGalaxyState& State, const
 	const FCosmicRulesDef& Rules, int32 CivIndex, int32 SystemIndex, FName OtherCivID, const FEncounterChoice& Choice)
 {
 	FCosmicChoiceGate Gate;
-	for (const FCosmicEffect& Effect : Choice.OnSuccess)
+	for (int32 At = 0; At < Choice.OnSuccess.Num(); ++At)
 	{
+		const FCosmicEffect& Effect = Choice.OnSuccess[At];
+		Gate.EffectAt = At;
 		if (Effect.Type == EEffectType::SetStance)
 		{
 			Gate.Stance = CosmicPetitionsImpl::StanceBlockOfEffect(State, Index, Rules, CivIndex, OtherCivID, Effect);

@@ -1,7 +1,7 @@
 --- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
 +++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
 @@ -937,6 +937,7 @@
- 		const int64 Added = static_cast<int64>(Effect.Value < 2147483647.f ? Effect.Value : 2147483647.f);
+ 		FStarSystemState& Target = State.Systems[Ctx.SystemIndex];
  		Target.HazardTicksRemaining = static_cast<int32>(FMath::Min<int64>(static_cast<int64>(Target.HazardTicksRemaining) + Added, MAX_int32));
  		Civ->FleetPower *= CosmicConflict::ResistShareOf(Ctx.Rules);
 +		CosmicHazards::EmptyHazardSlot(Target);

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
+@@ -341,7 +341,7 @@
+ 	const bool bStands = CosmicPetitions::StillStands(State, Sim->GetStateIndex(), Tables, Rules);
+ 	// The ruled people whose gates the choices meet, and the card's system as the answer reads it (B4 section 4).
+ 	const bool bGated = !bShownWanderer && bStands && State.Civs.IsValidIndex(CivIndex);
+-	const int32 SystemIndex = bGated ? CosmicPetitions::SubjectOf(State, Sim->GetStateIndex(), CivIndex, Def->Subject, State.Knowing.PendingPetitionSystemID) : INDEX_NONE;
++	const int32 SystemIndex = INDEX_NONE;
+ 	const ECosmicTimeUnit Unit = ACosmicPlayerController::TimeUnitFor(*this);
+ 	for (int32 At = 0; At < ChoiceButtons.Num() && At < Def->Choices.Num(); ++At)
+ 	{

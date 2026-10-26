@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
+@@ -179,7 +179,7 @@
+ 		}
+ 		const float Power = (Civ.FleetPower > 0.f && Civ.FleetPower <= TNumericLimits<float>::Max()) ? Civ.FleetPower : 0.f;
+ 		return FText::Format(CosmicUI::Label(TEXT("Petition.ResistLine")), UCosmicEdictWidget::AmountOf(Power),
+-			UCosmicEdictWidget::AmountOf(Power * CosmicConflict::ResistShareOf(Rules)), HazardNameOf(Tables, Delay->Tag),
++			UCosmicEdictWidget::AmountOf(Power * Rules.ResistFleetFactor), HazardNameOf(Tables, Delay->Tag),
+ 			CosmicUI::DurationLabel(FMath::Min<int64>(Ticks, MAX_int32), Unit));
+ 	}
+ }

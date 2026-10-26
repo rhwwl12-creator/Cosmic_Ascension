@@ -582,6 +582,12 @@ bool FCosmicSimResistDelayTest::RunTest(const FString& Parameters)
 	System.ActiveHazard = Tag(TEXT("Hazard.Rebellion"));
 	Case(TEXT("A rebellion"), Effect(EEffectType::DelayHazard, TEXT("Hazard.Rebellion"), NAME_None, 50.f), 0, ECosmicResistBlock::Capital);
 	System.ActiveHazard = Tag(TEXT("Hazard.Claim"));
+	{
+		// A Value below 1 (outside the lint) adds no tick and spends no fleet, on a board whose gate is open.
+		const uint32 Hash = Sim->ComputeStateHash();
+		TestFalse(TEXT("A Value below 1 is refused on an open gate"), ApplyOn(*Sim, Effect(EEffectType::DelayHazard, TEXT("Hazard.Claim"), NAME_None, 0.5f), 0, Capital));
+		TestEqual(TEXT("and changes nothing"), Sim->ComputeStateHash(), Hash);
+	}
 
 	// The countdown is cut at MAX_int32; the share of the fleet is the knob in [0, 1], else 1.
 	System.HazardTicksRemaining = MAX_int32 - 10;
@@ -595,6 +601,17 @@ bool FCosmicSimResistDelayTest::RunTest(const FString& Parameters)
 	Knob.ResistFleetFactor = std::numeric_limits<float>::quiet_NaN();
 	const bool bNaN = CosmicConflict::ResistShareOf(Knob) == 1.f;
 	TestTrue(TEXT("A factor of 0 spends the whole fleet, one above 1 or not a number keeps it"), bZero && bAbove && bNaN);
+
+	// The ticks a Value adds ([B-4c]: the effect and the card window read the one function): the whole part from 1, cut at
+	// 2^31; below 1, infinite or not a number, none.
+	TestEqual(TEXT("A Value of 50 adds 50 ticks"), CosmicConflict::ResistTicksOf(50.f), int64(50));
+	TestEqual(TEXT("A Value of 1 adds one tick"), CosmicConflict::ResistTicksOf(1.f), int64(1));
+	TestEqual(TEXT("A Value of 1.9 adds its whole part"), CosmicConflict::ResistTicksOf(1.9f), int64(1));
+	TestEqual(TEXT("A Value below 1 adds none"), CosmicConflict::ResistTicksOf(0.9f), int64(0));
+	TestEqual(TEXT("A Value below 0 adds none"), CosmicConflict::ResistTicksOf(-50.f), int64(0));
+	TestEqual(TEXT("A Value that is not a number adds none"), CosmicConflict::ResistTicksOf(std::numeric_limits<float>::quiet_NaN()), int64(0));
+	TestEqual(TEXT("An infinite Value adds none"), CosmicConflict::ResistTicksOf(std::numeric_limits<float>::infinity()), int64(0));
+	TestEqual(TEXT("A Value of 3e9 is cut at 2^31"), CosmicConflict::ResistTicksOf(3.0e9f), int64(2147483648));
 	return true;
 }
 

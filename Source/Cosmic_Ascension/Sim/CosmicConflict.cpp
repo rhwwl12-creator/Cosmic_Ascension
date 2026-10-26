@@ -423,3 +423,12 @@ float CosmicConflict::ResistShareOf(const FCosmicRulesDef& Rules)
 {
 	return (Rules.ResistFleetFactor >= 0.f && Rules.ResistFleetFactor <= 1.f) ? Rules.ResistFleetFactor : 1.f;
 }
+
+int64 CosmicConflict::ResistTicksOf(float Value)
+{
+	if (!(Value >= 1.f) || !(Value <= TNumericLimits<float>::Max()))
+	{
+		return 0;
+	}
+	return static_cast<int64>(Value < 2147483647.f ? Value : 2147483647.f);
+}

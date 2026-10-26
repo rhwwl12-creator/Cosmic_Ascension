@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+@@ -929,7 +929,7 @@
+ 		// The one gate of the fleet's time (B4 section 2.4, rule 13). Value is a whole number 1..100 (a lint); the guard is
+ 		// ResistTicksOf, by comparisons, and the sum is cut at MAX_int32.
+ 		const int64 Added = CosmicConflict::ResistTicksOf(Effect.Value);
+-		if (!Civ || Added <= 0
++		if (!Civ || Added < 0
+ 			|| CosmicConflict::ResistBlockOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, Ctx.CivIndex, Ctx.SystemIndex, Effect.Tag) != CosmicConflict::ECosmicResistBlock::None)
+ 		{
+ 			return false;

@@ -51,13 +51,15 @@ enum class ECosmicChoiceGateKind : uint8
 	Resist,
 };
 
-/** The first refusal of a choice (CosmicPetitions::ChoiceGateOf): its kind and that kind's reason; None when it is taken. */
+/** The first refusal of a choice (CosmicPetitions::ChoiceGateOf): its kind, that kind's reason and the refused effect's
+ * place in the choice's OnSuccess (the card window names its edict); None and INDEX_NONE when it is taken. */
 struct FCosmicChoiceGate
 {
 	ECosmicChoiceGateKind Kind = ECosmicChoiceGateKind::None;
 	CosmicDiplomacy::ECosmicStanceBlock Stance = CosmicDiplomacy::ECosmicStanceBlock::None;
 	CosmicEdicts::ECosmicEdictBlock Edict = CosmicEdicts::ECosmicEdictBlock::None;
 	CosmicConflict::ECosmicResistBlock Resist = CosmicConflict::ECosmicResistBlock::None;
+	int32 EffectAt = INDEX_NONE;
 
 	bool IsOpen() const
 	{

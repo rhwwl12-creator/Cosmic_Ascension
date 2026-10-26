@@ -331,3 +331,29 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B4/` | `b4b_schema_e5_when_free_only.patch` — a free choice with a stance counts as the card's unblocked choice | `test_pressure_cards` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4b_schema_v2_ge_2.patch` — a Log.Transcendent row may be revealed from the second rung | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4b_schema_capital_when_draw.patch` — the DelayHazard ban names the Draw rows instead of the Capital rows | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4c_card_no_system.patch` — the card asks the gates with no system (not the answer's subject) | `Cosmic_Ascension.UI.PetitionCard` |
+| `B4/` | `b4c_card_slots_form_fixed.patch` — the card tells the slots taken in the form of slots research can grow, always | `Cosmic_Ascension.UI.PetitionCard` |
+| `B4/` | `b4c_gate_effect_at_unset.patch` — ChoiceGateOf leaves EffectAt unset (the card cannot name the refused edict) | `Cosmic_Ascension.UI.PetitionCard` |
+| `B4/` | `b4c_resist_reason_swapped.patch` — a fleet with no cap gets the words of a spent fleet | `Cosmic_Ascension.UI.PetitionCard` |
+| `B4/` | `b4c_resist_notown_words.patch` — NotOwn, which no card shows, gets the words of NoHazard | `Cosmic_Ascension.UI.PetitionCard` |
+| `B4/` | `b4c_resist_line_raw_factor.patch` — the fleet's line reads the knob raw, not as ResistShareOf reads it | `Cosmic_Ascension.UI.PetitionCard` |
+| `B4/` | `b4c_resist_line_spent_share.patch` — the fleet's line tells the share spent, not the share kept | `Cosmic_Ascension.UI.PetitionCard` |
+| `B4/` | `b4c_apply_spent_share.patch` — DelayHazard keeps the share spent | `Cosmic_Ascension.UI.PetitionCard` |
+| `B4/` | `b4c_edict_line_slots_plus.patch` — the edict's line tells one slot more | `Cosmic_Ascension.UI.PetitionCard` |
+| `B4/` | `b4c_edict_cost_none_dropped.patch` — a free edict's line leaves its cost blank | `Cosmic_Ascension.UI.PetitionCard` |
+| `B4/` | `b4c_tip_gate_before_short.patch` — the gate's reason comes before the stockpile's | `Cosmic_Ascension.UI.PetitionCard` |
+| `B4/` | `b4c_tip_no_edict_words.patch` — an edict's choice does not tell the edict's words | `Cosmic_Ascension.UI.PetitionCard` |
+| `B4/` | `b4c_no_suffix.patch` — a greyed choice has no short words after its label | `Cosmic_Ascension.UI.PetitionCard` |
+| `B4/` | `b4c_suffix_on_unpaid.patch` — a choice the stockpile cannot pay gets the gate's short words | `Cosmic_Ascension.UI.PetitionCard` |
+| `B4/` | `b4c_no_fleet_suffix.patch` — a fleet with no cap has no short words after its label | `Cosmic_Ascension.UI.PetitionCard` |
+| `B4/` | `b4c_resist_hazard_unnamed.patch` — the fleet's reasons do not name the refused hazard | `Cosmic_Ascension.UI.PetitionCard` |
+| `B4/` | `b4c_panel_not_redrawn.patch` — an answer does not redraw the panel (the crisis line waits for a tick) | `Cosmic_Ascension.UI.PetitionCard` |
+| `B4/` | `b4c_drain_tip_one.patch` — the drain line shows for a factor of 1 | `Cosmic_Ascension.UI.EdictRules` |
+| `B4/` | `b4c_drain_tip_complement.patch` — the drain line tells 1 - the factor | `Cosmic_Ascension.UI.EdictRules` |
+| `B4/` | `b4c_drain_tip_below_one.patch` — the drain line shows only for a factor below 1 | `Cosmic_Ascension.UI.EdictRules` |
+| `B4/` | `b4c_drain_tip_infinite.patch` — the drain line shows for an infinite factor | `Cosmic_Ascension.UI.EdictRules` |
+| `B4/` | `b4c_drain_tip_zero.patch` — the drain line shows for a factor of 0 or below | `Cosmic_Ascension.UI.EdictRules` |
+| `B4/` | `b4c_ticks_round.patch` — ResistTicksOf rounds instead of taking the whole part | `Cosmic_Ascension.Sim.ResistDelay` |
+| `B4/` | `b4c_ticks_from_above_one.patch` — ResistTicksOf takes a Value of 1 as none | `Cosmic_Ascension.Sim.ResistDelay` |
+| `B4/` | `b4c_ticks_no_cut.patch` — ResistTicksOf does not cut at 2^31 | `Cosmic_Ascension.Sim.ResistDelay` |
+| `B4/` | `b4c_apply_takes_zero.patch` — DelayHazard takes a Value below 1 (adds no tick, spends the fleet) | `Cosmic_Ascension.Sim.ResistDelay` |

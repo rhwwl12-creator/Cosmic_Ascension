@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
+@@ -565,7 +565,7 @@
+ 	for (int32 At = 0; At < Choice.OnSuccess.Num(); ++At)
+ 	{
+ 		const FCosmicEffect& Effect = Choice.OnSuccess[At];
+-		Gate.EffectAt = At;
++		Gate.EffectAt = INDEX_NONE;
+ 		if (Effect.Type == EEffectType::SetStance)
+ 		{
+ 			Gate.Stance = CosmicPetitionsImpl::StanceBlockOfEffect(State, Index, Rules, CivIndex, OtherCivID, Effect);

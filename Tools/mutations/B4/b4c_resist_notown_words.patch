@@ -1,0 +1,18 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
+@@ -192,6 +192,7 @@
+ 	switch (Block)
+ 	{
+ 	case ECosmicResistBlock::NoHazard:
++	case ECosmicResistBlock::NotOwn:
+ 		return FText::FormatNamed(Label(TEXT("Petition.Resist.Block.NoHazard")), TEXT("Hazard"), Hazard);
+ 	case ECosmicResistBlock::Capital:
+ 		return FText::FormatNamed(Label(TEXT("Petition.Resist.Block.Capital")), TEXT("Hazard"), Hazard);
+@@ -201,7 +202,6 @@
+ 		// The panel's words for the same fleet under the same button words ([Send the fleet] of a siege).
+ 		return Label(TEXT("Siege.Block.NoFleet"));
+ 	case ECosmicResistBlock::None:
+-	case ECosmicResistBlock::NotOwn:
+ 		// NotOwn: no card shows it - a card whose system is no longer the people's settled one no longer stands.
+ 		break;
+ 	}

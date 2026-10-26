@@ -94,8 +94,9 @@ public:
 	 * card (CosmicPetitions::IsWandererCard) by an embodied wanderer - the other role is refused without an error line.
 	 * Refused - nothing drawn, nothing changed - while no card waits, and with an error line from a
 	 * handler of a Core Logic delegate, for a card whose row DT_Encounters lacks, for a choice out of range, for a
-	 * cost the ruled people's stockpile cannot pay in full and for a stance the gate would refuse
-	 * (CosmicPetitions::StanceBlockOfChoice - the first contact card's) - the card greys such a choice. A wanderer pays no cost (the
+	 * cost the ruled people's stockpile cannot pay in full and, while the card stands (CosmicPetitions::StillStands), for a
+	 * choice its gate refuses (CosmicPetitions::ChoiceGateOf - a stance, an edict incl. one held, the fleet's time; B4 header
+	 * section 2.4) - the card greys such a choice with the first reason. A wanderer pays no cost (the
 	 * choice check of Data.Integrity keeps the costs of VesselSystem rows at 0), and its card's effects run on the system it stands in and that system's
 	 * owner (none for a wild system - an effect on a people then does nothing).
 	 * An answer taken draws one number 0..5 from the sim stream first, before the choice is read any further. Then: a

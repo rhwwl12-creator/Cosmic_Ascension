@@ -1,9 +1,9 @@
 --- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
 +++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
-@@ -251,7 +251,7 @@
+@@ -392,7 +392,7 @@
+ 				return Effect.Type == EEffectType::SetStance && Effect.Tag == CosmicTags::StanceFriendly();
  			}))
  		{
- 			const FCosmicRulesDef& Rules = Sim->GetRules();
 -			const float Upkeep = (Rules.FriendlyUpkeepInfluence > 0.f && Rules.FriendlyUpkeepInfluence <= TNumericLimits<float>::Max()) ? Rules.FriendlyUpkeepInfluence : 0.f;
 +			const float Upkeep = Rules.FriendlyUpkeepInfluence;
  			FNumberFormattingOptions Options;

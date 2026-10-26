@@ -1,11 +1,11 @@
 --- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
 +++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
-@@ -934,7 +934,7 @@
- 			return false;
- 		}
- 		FStarSystemState& Target = State.Systems[Ctx.SystemIndex];
--		const int64 Added = static_cast<int64>(Effect.Value < 2147483647.f ? Effect.Value : 2147483647.f);
-+		const int64 Added = static_cast<int64>((Effect.Value < 2147483647.f ? Effect.Value : 2147483647.f) * CosmicConflict::EffectivePowerOf(1.f, 2, Ctx.Rules));
- 		Target.HazardTicksRemaining = static_cast<int32>(FMath::Min<int64>(static_cast<int64>(Target.HazardTicksRemaining) + Added, MAX_int32));
- 		Civ->FleetPower *= CosmicConflict::ResistShareOf(Ctx.Rules);
- 		return true;
+@@ -928,7 +928,7 @@
+ 	{
+ 		// The one gate of the fleet's time (B4 section 2.4, rule 13). Value is a whole number 1..100 (a lint); the guard is
+ 		// ResistTicksOf, by comparisons, and the sum is cut at MAX_int32.
+-		const int64 Added = CosmicConflict::ResistTicksOf(Effect.Value);
++		const int64 Added = static_cast<int64>(static_cast<float>(CosmicConflict::ResistTicksOf(Effect.Value)) * CosmicConflict::EffectivePowerOf(1.f, 2, Ctx.Rules));
+ 		if (!Civ || Added <= 0
+ 			|| CosmicConflict::ResistBlockOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, Ctx.CivIndex, Ctx.SystemIndex, Effect.Tag) != CosmicConflict::ECosmicResistBlock::None)
+ 		{

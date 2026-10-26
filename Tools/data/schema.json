@@ -55,7 +55,9 @@
 			"Treaty.": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
 			"Diplomacy.": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
 			"Siege.": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
-			"Guard.": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true}
+			"Guard.": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
+			"Petition.Resist": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
+			"Petition.Edict": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true}
 		}
 	},
 

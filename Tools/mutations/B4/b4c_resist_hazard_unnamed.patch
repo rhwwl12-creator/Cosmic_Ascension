@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
+@@ -129,7 +129,7 @@
+ 			return UCosmicEdictWidget::ReasonOf(Gate.Edict, (Refused && !Refused->Key.IsNone()) ? Tables.FindEdict(Refused->Key) : nullptr,
+ 				UCosmicEdictWidget::NextSlotMarkOf(Civ, Rules).IsSet());
+ 		case ECosmicChoiceGateKind::Resist:
+-			return UCosmicPetitionCardWidget::ResistReasonOf(Gate.Resist, HazardNameOf(Tables, Refused ? Refused->Tag : FGameplayTag()));
++			return UCosmicPetitionCardWidget::ResistReasonOf(Gate.Resist, HazardNameOf(Tables, FGameplayTag()));
+ 		case ECosmicChoiceGateKind::None:
+ 			break;
+ 		}

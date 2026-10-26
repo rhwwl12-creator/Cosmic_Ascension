@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
+@@ -370,7 +370,7 @@
+ 			Button->SetToolTipText(Tip);
+ 		}
+ 		// The gate's short words after the label of a choice it greys (the edict window's and the panel's form).
+-		const FText Suffix = (bPayable && !Gate.IsOpen()) ? GateSuffixOf(Gate, Choice, Tables) : FText::GetEmpty();
++		const FText Suffix = (!Gate.IsOpen()) ? GateSuffixOf(Gate, Choice, Tables) : FText::GetEmpty();
+ 		const FText Base = ChoiceLabels.IsValidIndex(At) ? ChoiceLabels[At] : Button->GetLabel();
+ 		const FText ButtonLabel = Suffix.IsEmpty() ? Base : FText::Format(INVTEXT("{0}  {1}"), Base, Suffix);
+ 		if (!SameWords(Button->GetLabel(), ButtonLabel))

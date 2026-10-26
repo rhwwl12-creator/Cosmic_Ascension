@@ -152,7 +152,9 @@ public:
 	/**
 	 * The words of an edict's tooltip after its reason: the enactment's cost (Edict.TipCost, or Edict.TipCostNone), the
 	 * upkeep (Edict.TipUpkeep with UpkeepWordsOf), one line per effect a tick (an income in percent, Stability in points
-	 * over one hundred cycles or years, an ethics axis in words), the spawn factors and countdown bonuses by hazard (in
+	 * over one hundred cycles or years, an ethics axis in words), the fleet's growth and the treaties' acceptance (B3) and
+	 * the pressure's drain (B4 - Edict.Effect.PressureDrain) where they change something, the spawn factors and countdown
+	 * bonuses by hazard (in
 	 * tag order, Edict.TipNewOnly after the bonuses), and for each DT_Hazards row that lists the row among its
 	 * RulerResolutions, Edict.TipAnswers. Built from the row, the tables and the unit alone: the words stay while the
 	 * stockpile moves. Empty for a row the tables do not hold.

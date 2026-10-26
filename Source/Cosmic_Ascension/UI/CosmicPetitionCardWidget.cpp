@@ -20,7 +20,9 @@
 #include "Internationalization/Text.h"
 #include "Layout/Margin.h"
 #include "Math/NumericLimits.h"
+#include "Sim/CosmicConflict.h"
 #include "Sim/CosmicDiplomacy.h"
+#include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
@@ -89,6 +91,121 @@ namespace CosmicPetitionCardImpl
 		}
 		return CosmicUI::JoinList(Paid);
 	}
+
+	// The name of the hazard of Tag as the panel says it (its row's DisplayName), or the panel's word for a hazard.
+	FText HazardNameOf(const FCosmicDataTables& Tables, const FGameplayTag& Tag)
+	{
+		const FHazardDef* Row = Tag.IsValid() ? Tables.FindHazardByTag(Tag) : nullptr;
+		return (Row && !Row->DisplayName.IsEmpty()) ? Row->DisplayName : CosmicUI::Label(TEXT("Panel.Hazard"));
+	}
+
+	// The effect a refused gate names (Gate.EffectAt), or null.
+	const FCosmicEffect* RefusedEffectOf(const FCosmicChoiceGate& Gate, const FEncounterChoice& Choice)
+	{
+		return Choice.OnSuccess.IsValidIndex(Gate.EffectAt) ? &Choice.OnSuccess[Gate.EffectAt] : nullptr;
+	}
+
+	// The edict a choice enacts: the refused one when its gate refuses an edict, else the first EnactEdict's Key; None for
+	// a choice that enacts none.
+	FName EdictRowOf(const FCosmicChoiceGate& Gate, const FEncounterChoice& Choice)
+	{
+		const FCosmicEffect* Refused = Gate.Kind == ECosmicChoiceGateKind::Edict ? RefusedEffectOf(Gate, Choice) : nullptr;
+		const FCosmicEffect* Enact = Refused ? Refused : Choice.OnSuccess.FindByPredicate([](const FCosmicEffect& Effect) { return Effect.Type == EEffectType::EnactEdict; });
+		return Enact ? Enact->Key : NAME_None;
+	}
+
+	// The long words of a choice's gate (B4 section 4): a stance's as the peoples' tab gives them (B3), an edict's as the
+	// edict window gives them (the refused row's rung; the slots in the form for the people's Society research), the fleet's
+	// time's (UCosmicPetitionCardWidget::ResistReasonOf with the refused hazard's name); empty for an open gate.
+	FText GateReasonOf(const FCosmicChoiceGate& Gate, const FEncounterChoice& Choice, const FCosmicDataTables& Tables, const FCivilizationState& Civ,
+		const FCosmicRulesDef& Rules)
+	{
+		const FCosmicEffect* Refused = RefusedEffectOf(Gate, Choice);
+		switch (Gate.Kind)
+		{
+		case ECosmicChoiceGateKind::Stance:
+			return UCosmicEdictWidget::StanceReasonOf(Gate.Stance);
+		case ECosmicChoiceGateKind::Edict:
+			return UCosmicEdictWidget::ReasonOf(Gate.Edict, (Refused && !Refused->Key.IsNone()) ? Tables.FindEdict(Refused->Key) : nullptr,
+				UCosmicEdictWidget::NextSlotMarkOf(Civ, Rules).IsSet());
+		case ECosmicChoiceGateKind::Resist:
+			return UCosmicPetitionCardWidget::ResistReasonOf(Gate.Resist, HazardNameOf(Tables, Refused ? Refused->Tag : FGameplayTag()));
+		case ECosmicChoiceGateKind::None:
+			break;
+		}
+		return FText::GetEmpty();
+	}
+
+	// The short words after a greyed choice's label, as the edict window and the panel show them: an edict's
+	// (UCosmicEdictWidget::SuffixOf - none for one held), a fleet with no cap yet (Guard.Suffix.NoFleet); none otherwise.
+	FText GateSuffixOf(const FCosmicChoiceGate& Gate, const FEncounterChoice& Choice, const FCosmicDataTables& Tables)
+	{
+		const FCosmicEffect* Refused = RefusedEffectOf(Gate, Choice);
+		if (Gate.Kind == ECosmicChoiceGateKind::Edict)
+		{
+			return UCosmicEdictWidget::SuffixOf(Gate.Edict, (Refused && !Refused->Key.IsNone()) ? Tables.FindEdict(Refused->Key) : nullptr);
+		}
+		if (Gate.Kind == ECosmicChoiceGateKind::Resist && Gate.Resist == CosmicConflict::ECosmicResistBlock::NoFleet)
+		{
+			return CosmicUI::Label(TEXT("Guard.Suffix.NoFleet"));
+		}
+		return FText::GetEmpty();
+	}
+
+	// A choice that enacts an edict (B4): the edict's cost - the choice costs nothing of its own - and the slots, held and
+	// open (as the top bar counts them); empty for a choice that enacts none, or a row the table does not hold.
+	FText EdictLineOf(FName Row, const FCosmicDataTables& Tables, const FCivilizationState& Civ, const FCosmicRulesDef& Rules)
+	{
+		const FEdictDef* Def = Row.IsNone() ? nullptr : Tables.FindEdict(Row);
+		if (!Def)
+		{
+			return FText::GetEmpty();
+		}
+		const FText Cost = UCosmicEdictWidget::CostWordsOf(Def->EnactCost);
+		return FText::Format(CosmicUI::Label(TEXT("Petition.EdictLine")), Cost.IsEmpty() ? CosmicUI::Label(TEXT("Petition.EdictCostNone")) : Cost,
+			FText::AsNumber(CosmicEdicts::HeldCountOf(Civ, Tables)), FText::AsNumber(CosmicEdicts::SlotsOf(Civ, Rules)));
+	}
+
+	// A choice that buys a standing hazard time with the fleet (B4): the fleet now and after (CosmicConflict::ResistShareOf),
+	// the hazard and the time added (CosmicConflict::ResistTicksOf - what the effect adds); empty for a choice that buys none.
+	FText ResistLineOf(const FEncounterChoice& Choice, const FCosmicDataTables& Tables, const FCivilizationState& Civ, const FCosmicRulesDef& Rules,
+		ECosmicTimeUnit Unit)
+	{
+		const FCosmicEffect* Delay = Choice.OnSuccess.FindByPredicate([](const FCosmicEffect& Effect) { return Effect.Type == EEffectType::DelayHazard; });
+		const int64 Ticks = Delay ? CosmicConflict::ResistTicksOf(Delay->Value) : 0;
+		if (Ticks <= 0)
+		{
+			return FText::GetEmpty();
+		}
+		const float Power = (Civ.FleetPower > 0.f && Civ.FleetPower <= TNumericLimits<float>::Max()) ? Civ.FleetPower : 0.f;
+		return FText::Format(CosmicUI::Label(TEXT("Petition.ResistLine")), UCosmicEdictWidget::AmountOf(Power),
+			UCosmicEdictWidget::AmountOf(Power * CosmicConflict::ResistShareOf(Rules)), HazardNameOf(Tables, Delay->Tag),
+			CosmicUI::DurationLabel(FMath::Min<int64>(Ticks, MAX_int32), Unit));
+	}
+}
+
+FText UCosmicPetitionCardWidget::ResistReasonOf(CosmicConflict::ECosmicResistBlock Block, const FText& Hazard)
+{
+	using CosmicConflict::ECosmicResistBlock;
+	using CosmicUI::Label;
+
+	switch (Block)
+	{
+	case ECosmicResistBlock::NoHazard:
+		return FText::FormatNamed(Label(TEXT("Petition.Resist.Block.NoHazard")), TEXT("Hazard"), Hazard);
+	case ECosmicResistBlock::Capital:
+		return FText::FormatNamed(Label(TEXT("Petition.Resist.Block.Capital")), TEXT("Hazard"), Hazard);
+	case ECosmicResistBlock::NoFleet:
+		return Label(TEXT("Guard.Block.NoFleet"));
+	case ECosmicResistBlock::Spent:
+		// The panel's words for the same fleet under the same button words ([Send the fleet] of a siege).
+		return Label(TEXT("Siege.Block.NoFleet"));
+	case ECosmicResistBlock::None:
+	case ECosmicResistBlock::NotOwn:
+		// NotOwn: no card shows it - a card whose system is no longer the people's settled one no longer stands.
+		break;
+	}
+	return FText::GetEmpty();
 }
 
 TSharedRef<SWidget> UCosmicPetitionCardWidget::RebuildWidget()
@@ -186,10 +303,12 @@ void UCosmicPetitionCardWidget::ShowCard(FName Row, FName SystemID, FName OtherC
 	ChoiceBox->ClearChildren();
 	ChoiceButtons.Reset();
 	ChoiceLines.Reset();
+	ChoiceLabels.Reset();
 	for (int32 At = 0; At < Def->Choices.Num(); ++At)
 	{
 		UCosmicActionButton* Button = WidgetTree->ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
-		Button->Setup(ChoiceAction, static_cast<float>(At), FText::Format(Def->Choices[At].Label, Args));
+		ChoiceLabels.Add(FText::Format(Def->Choices[At].Label, Args));
+		Button->Setup(ChoiceAction, static_cast<float>(At), ChoiceLabels.Last());
 		Button->OnAction.AddUObject(this, &UCosmicPetitionCardWidget::HandleAction);
 		ChoiceBox->AddChildToVerticalBox(Button)->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
 		UTextBlock* Line = CosmicUI::MakeText(*WidgetTree, 12);
@@ -216,27 +335,47 @@ void UCosmicPetitionCardWidget::Refresh()
 		return;
 	}
 	const FGalaxyState& State = Sim->GetState();
+	const FCosmicDataTables& Tables = Sim->GetTables();
+	const FCosmicRulesDef& Rules = Sim->GetRules();
 	const int32 CivIndex = bShownWanderer ? CosmicPetitions::VesselSubjectOf(State, Sim->GetStateIndex()).CivIndex : CosmicPetitions::RuledCivIndexOf(State, Sim->GetStateIndex());
-	const bool bStands = CosmicPetitions::StillStands(State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules());
+	const bool bStands = CosmicPetitions::StillStands(State, Sim->GetStateIndex(), Tables, Rules);
+	// The ruled people whose gates the choices meet, and the card's system as the answer reads it (B4 section 4).
+	const bool bGated = !bShownWanderer && bStands && State.Civs.IsValidIndex(CivIndex);
+	const int32 SystemIndex = bGated ? CosmicPetitions::SubjectOf(State, Sim->GetStateIndex(), CivIndex, Def->Subject, State.Knowing.PendingPetitionSystemID) : INDEX_NONE;
+	const ECosmicTimeUnit Unit = ACosmicPlayerController::TimeUnitFor(*this);
 	for (int32 At = 0; At < ChoiceButtons.Num() && At < Def->Choices.Num(); ++At)
 	{
 		const FEncounterChoice& Choice = Def->Choices[At];
 		// A wanderer pays nothing (B1): every choice of its card can be given.
 		const bool bPayable = bShownWanderer
 			|| (State.Civs.IsValidIndex(CivIndex) && CosmicMegaprojects::CanPay(State.Civs[CivIndex].Stockpile, CosmicPetitions::CostOf(Choice)));
-		// A stance the gate would refuse (B3: the first contact card's [Reach out] with the friendly slots taken), with the
-		// reason the peoples' tab gives - the answer refuses it too, while the card stands (a card whose people is gone is
-		// withdrawn by any answer).
-		const CosmicDiplomacy::ECosmicStanceBlock StanceBlock = (bShownWanderer || !bStands || !State.Civs.IsValidIndex(CivIndex)) ? CosmicDiplomacy::ECosmicStanceBlock::None
-			: CosmicPetitions::StanceBlockOfChoice(State, Sim->GetStateIndex(), Sim->GetRules(), CivIndex, ShownOther, Choice);
+		// A choice its gate would refuse (B3: the first contact card's [Reach out] with the friendly slots taken; B4: an edict
+		// it cannot enact, the fleet's time it cannot buy), with the first reason of CosmicPetitions::ChoiceGateOf - the one
+		// gate the answer reads, while the card stands (a card that no longer stands is withdrawn by any answer).
+		const FCosmicChoiceGate Gate = bGated
+			? CosmicPetitions::ChoiceGateOf(State, Sim->GetStateIndex(), Tables, Rules, CivIndex, SystemIndex, ShownOther, Choice) : FCosmicChoiceGate();
 		UCosmicActionButton* Button = ChoiceButtons[At];
-		Button->SetIsEnabled(bPayable && StanceBlock == CosmicDiplomacy::ECosmicStanceBlock::None);
-		// A tooltip set again is a new tooltip, and an open one would close: set only when the words change.
+		Button->SetIsEnabled(bPayable && Gate.IsOpen());
+		// The edict a choice enacts (B4): its words in the tooltip, as the edict window gives them (UCosmicEdictWidget::TipOf -
+		// what it costs and does while it is held).
+		const bool bRuled = !bShownWanderer && State.Civs.IsValidIndex(CivIndex);
+		const FName EdictRow = bRuled ? EdictRowOf(Gate, Choice) : NAME_None;
+		const FText EdictTip = (!EdictRow.IsNone() && Tables.FindEdict(EdictRow)) ? UCosmicEdictWidget::TipOf(Tables, EdictRow, Unit) : FText::GetEmpty();
+		// A tooltip set again is a new tooltip, and an open one would close: set only when the words change. The stockpile's
+		// reason comes first (the answer asks it first), then the gate's, then the edict's words.
 		const FText Tip = !bPayable ? CosmicUI::Label(TEXT("Petition.Short"))
-			: (StanceBlock != CosmicDiplomacy::ECosmicStanceBlock::None ? UCosmicEdictWidget::StanceReasonOf(StanceBlock) : FText::GetEmpty());
+			: CosmicUI::JoinLines({ Gate.IsOpen() ? FText::GetEmpty() : GateReasonOf(Gate, Choice, Tables, State.Civs[CivIndex], Rules), EdictTip });
 		if (!SameWords(Button->GetToolTipText(), Tip))
 		{
 			Button->SetToolTipText(Tip);
+		}
+		// The gate's short words after the label of a choice it greys (the edict window's and the panel's form).
+		const FText Suffix = (bPayable && !Gate.IsOpen()) ? GateSuffixOf(Gate, Choice, Tables) : FText::GetEmpty();
+		const FText Base = ChoiceLabels.IsValidIndex(At) ? ChoiceLabels[At] : Button->GetLabel();
+		const FText ButtonLabel = Suffix.IsEmpty() ? Base : FText::Format(INVTEXT("{0}  {1}"), Base, Suffix);
+		if (!SameWords(Button->GetLabel(), ButtonLabel))
+		{
+			Button->Setup(ChoiceAction, static_cast<float>(At), ButtonLabel);
 		}
 		// The cost and the rolls that pass, as numbers of the screen (section 8.3: numbers stay in the UI).
 		const FText Cost = CostOf(Choice);
@@ -253,16 +392,18 @@ void UCosmicPetitionCardWidget::Refresh()
 				return Effect.Type == EEffectType::SetStance && Effect.Tag == CosmicTags::StanceFriendly();
 			}))
 		{
-			const FCosmicRulesDef& Rules = Sim->GetRules();
 			const float Upkeep = (Rules.FriendlyUpkeepInfluence > 0.f && Rules.FriendlyUpkeepInfluence <= TNumericLimits<float>::Max()) ? Rules.FriendlyUpkeepInfluence : 0.f;
 			FNumberFormattingOptions Options;
 			Options.MinimumFractionalDigits = 0;
 			Options.MaximumFractionalDigits = 2;
 			Friendly = FText::Format(CosmicUI::Label(TEXT("Petition.FriendlyUpkeep")), FText::AsNumber(Upkeep, &Options),
-				CosmicUI::DurationLabel(1, ACosmicPlayerController::TimeUnitFor(*this)), FText::AsNumber(CosmicDiplomacy::FriendlyCountOf(State.Civs[CivIndex])),
+				CosmicUI::DurationLabel(1, Unit), FText::AsNumber(CosmicDiplomacy::FriendlyCountOf(State.Civs[CivIndex])),
 				FText::AsNumber(CosmicDiplomacy::FriendlySlotsOf(State.Civs[CivIndex], Rules)));
 		}
-		const FText Line = CosmicUI::JoinLines({ CostAndCheck, Friendly });
+		// A choice that enacts an edict or buys the fleet's time (B4 section 4): what it holds, under it in the same place.
+		const FText Edict = bRuled ? EdictLineOf(EdictRow, Tables, State.Civs[CivIndex], Rules) : FText::GetEmpty();
+		const FText Resist = bRuled ? ResistLineOf(Choice, Tables, State.Civs[CivIndex], Rules, Unit) : FText::GetEmpty();
+		const FText Line = CosmicUI::JoinLines({ CostAndCheck, Friendly, Edict, Resist });
 		UTextBlock* LineText = ChoiceLines[At];
 		if (!SameWords(LineText->GetText(), Line))
 		{

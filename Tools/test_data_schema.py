@@ -1646,6 +1646,25 @@ class SchemaTests(unittest.TestCase):
         self.assertFalse(none_of(["A.C", "A.B"]))
         self.assertFalse(none_of(None))
 
+    def test_card_fleet_and_edict_words(self):
+        """B4 [B-4c]: the card's fleet and edict lines and reasons (Petition.Resist*, Petition.Edict*) hold the rules of the
+        fleet's and the edicts' words (Guard., Edict.): no holy word, no soul verb, no digit outside a slot; the verdict
+        words of Petition. still hold; another Petition. key may carry a figure (the check's 6)."""
+        check = lambda text: checker.check_string_table("ST_X.csv", text, self.schema)  # noqa: E731
+        prefixes = self.schema["string_table"]["checked_prefixes"]
+        for prefix in ("Petition.Resist", "Petition.Edict"):
+            with self.subTest(prefix=prefix):
+                self.assertEqual(prefixes[prefix], prefixes["Guard."])
+                key = prefix + "Test"
+                self.expect(check('Key,SourceString\n"%s","함대를 거둔다."\n' % key), "entry 1 (%s)" % key, "the word 거둔 is not used here")
+                self.expect(check('Key,SourceString\n"%s","함대 5"\n' % key), "entry 1 (%s)" % key, "a digit outside a slot")
+                holy = self.schema["words"]["holy_words"][0]
+                self.expect(check('Key,SourceString\n"%s","%s a."\n' % (key, holy)), "entry 1 (%s)" % key, "the word %s is not used here" % holy)
+                verdict = self.schema["words"]["verdict"][0]
+                self.expect(check('Key,SourceString\n"%s","%s a."\n' % (key, verdict)), "entry 1 (%s)" % key, "the word %s is not used here" % verdict)
+                self.assertEqual(check('Key,SourceString\n"%s","함대 {0} → {1} · {2}의 남은 시간 +{3}"\n' % key), [])
+        self.assertEqual(check('Key,SourceString\n"Petition.Check","{0} 판정 {1}/6"\n'), [])
+
     def test_a_text_has_one_form(self):
         """A word is found as it is written: a text is composed (NFC) and holds no invisible format character, so a verdict
         word cannot hide in decomposed Hangul or behind a zero-width space."""

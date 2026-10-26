@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
+@@ -360,7 +360,7 @@
+ 		// what it costs and does while it is held).
+ 		const bool bRuled = !bShownWanderer && State.Civs.IsValidIndex(CivIndex);
+ 		const FName EdictRow = bRuled ? EdictRowOf(Gate, Choice) : NAME_None;
+-		const FText EdictTip = (!EdictRow.IsNone() && Tables.FindEdict(EdictRow)) ? UCosmicEdictWidget::TipOf(Tables, EdictRow, Unit) : FText::GetEmpty();
++		const FText EdictTip = FText::GetEmpty();
+ 		// A tooltip set again is a new tooltip, and an open one would close: set only when the words change. The stockpile's
+ 		// reason comes first (the answer asks it first), then the gate's, then the edict's words.
+ 		const FText Tip = !bPayable ? CosmicUI::Label(TEXT("Petition.Short"))

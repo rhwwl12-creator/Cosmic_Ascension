@@ -1,11 +1,11 @@
 --- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
 +++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
-@@ -227,7 +227,7 @@
- 		// A stance the gate would refuse (B3: the first contact card's [Reach out] with the friendly slots taken), with the
- 		// reason the peoples' tab gives - the answer refuses it too, while the card stands (a card whose people is gone is
- 		// withdrawn by any answer).
--		const CosmicDiplomacy::ECosmicStanceBlock StanceBlock = (bShownWanderer || !bStands || !State.Civs.IsValidIndex(CivIndex)) ? CosmicDiplomacy::ECosmicStanceBlock::None
-+		const CosmicDiplomacy::ECosmicStanceBlock StanceBlock = (bShownWanderer || !State.Civs.IsValidIndex(CivIndex)) ? CosmicDiplomacy::ECosmicStanceBlock::None
- 			: CosmicPetitions::StanceBlockOfChoice(State, Sim->GetStateIndex(), Sim->GetRules(), CivIndex, ShownOther, Choice);
- 		UCosmicActionButton* Button = ChoiceButtons[At];
- 		Button->SetIsEnabled(bPayable && StanceBlock == CosmicDiplomacy::ECosmicStanceBlock::None);
+@@ -340,7 +340,7 @@
+ 	const int32 CivIndex = bShownWanderer ? CosmicPetitions::VesselSubjectOf(State, Sim->GetStateIndex()).CivIndex : CosmicPetitions::RuledCivIndexOf(State, Sim->GetStateIndex());
+ 	const bool bStands = CosmicPetitions::StillStands(State, Sim->GetStateIndex(), Tables, Rules);
+ 	// The ruled people whose gates the choices meet, and the card's system as the answer reads it (B4 section 4).
+-	const bool bGated = !bShownWanderer && bStands && State.Civs.IsValidIndex(CivIndex);
++	const bool bGated = !bShownWanderer && State.Civs.IsValidIndex(CivIndex);
+ 	const int32 SystemIndex = bGated ? CosmicPetitions::SubjectOf(State, Sim->GetStateIndex(), CivIndex, Def->Subject, State.Knowing.PendingPetitionSystemID) : INDEX_NONE;
+ 	const ECosmicTimeUnit Unit = ACosmicPlayerController::TimeUnitFor(*this);
+ 	for (int32 At = 0; At < ChoiceButtons.Num() && At < Def->Choices.Num(); ++At)
