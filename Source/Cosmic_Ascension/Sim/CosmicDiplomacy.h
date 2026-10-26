@@ -89,6 +89,10 @@ namespace CosmicDiplomacy
 	 * predicate of rule 13). Lanes only join systems of one galaxy row; the sanctuary is no one's. */
 	COSMIC_ASCENSION_API bool Borders(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 A, int32 B);
 
+	/** Borders(A, B) for every B at once: Out[B] (one entry per element of State.Civs; false for A itself) - one walk of A's
+	 * settled systems instead of one a pair (the AI stage's scan, B3). */
+	COSMIC_ASCENSION_API void BordersOf(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 A, TArray<bool>& Out);
+
 	/** For every people (Civs order), the peoples it borders, in Civs order - the diplomacy stage builds it once. */
 	COSMIC_ASCENSION_API TArray<TArray<int32>> BorderTableOf(const FGalaxyState& State, const FCosmicStateIndex& Index);
 

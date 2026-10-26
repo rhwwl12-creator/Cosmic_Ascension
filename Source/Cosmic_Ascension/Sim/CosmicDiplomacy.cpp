@@ -47,7 +47,8 @@ namespace CosmicDiplomacyImpl
 	}
 
 	// The settled systems of Civ (entries of OwnedSystems whose owner is the people), in OwnedSystems order.
-	void SettledSystemsOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCivilizationState& Civ, TArray<int32>& Out)
+	template <typename AllocatorType>
+	void SettledSystemsOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCivilizationState& Civ, TArray<int32, AllocatorType>& Out)
 	{
 		Out.Reset();
 		for (const FName SystemID : Civ.OwnedSystems)
@@ -67,7 +68,7 @@ namespace CosmicDiplomacyImpl
 	{
 		Out.Init(false, State.Civs.Num());
 		const FCivilizationState& Civ = State.Civs[CivIndex];
-		TArray<int32> Settled;
+		TArray<int32, TInlineAllocator<16>> Settled;
 		SettledSystemsOf(State, Index, Civ, Settled);
 		for (const int32 SystemIndex : Settled)
 		{
@@ -222,6 +223,16 @@ bool CosmicDiplomacy::Borders(const FGalaxyState& State, const FCosmicStateIndex
 	TArray<bool> Marks;
 	CosmicDiplomacyImpl::MarkNeighboursOf(State, Index, A, Marks);
 	return Marks[B];
+}
+
+void CosmicDiplomacy::BordersOf(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 A, TArray<bool>& Out)
+{
+	if (!State.Civs.IsValidIndex(A))
+	{
+		Out.Init(false, State.Civs.Num());
+		return;
+	}
+	CosmicDiplomacyImpl::MarkNeighboursOf(State, Index, A, Out);
 }
 
 TArray<TArray<int32>> CosmicDiplomacy::BorderTableOf(const FGalaxyState& State, const FCosmicStateIndex& Index)

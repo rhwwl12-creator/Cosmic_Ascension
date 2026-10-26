@@ -239,8 +239,8 @@ bool FCosmicSimHashRunTest::RunTest(const FString& Parameters)
 		const CosmicHashRun::FResult Result = CosmicHashRun::Run(*Sim, *Log, *Role, 42, SwitchOf(PastSecondRung, 0, true));
 		TestTrue(TEXT("The hash run's policy is the diplomatic one"), Result.StateHash == Diplomatic.State && Result.WorldHash == Diplomatic.World);
 
-		// With fleets (the game's are off while [B-3d1] keeps the data off) the attack policy is a third world - it offers no
-		// non-aggression: the hash run plays the peace policy, not the attack one.
+		// With fleets (set here whatever the data holds - [B-3d2] turned the game's on) the attack policy is a third world - it
+		// offers no treaty and leaves its last realm slot to a conquest: the hash run plays the peace policy, not the attack one.
 		FCosmicRulesDef Armed = Sim->GetRules();
 		Armed.FleetPerSettledByTier = { 0.f, 1.f, 1.f, 1.f, 1.f };
 		Sim->SetTables(CosmicTests::WithRules(Original, Armed));

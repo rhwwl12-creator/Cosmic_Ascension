@@ -670,6 +670,8 @@ bool FCosmicPressurePerCivilizationTest::RunTest(const FString& Parameters)
 	Knobs.PressureBySourceTier = { 0.f, 0.f, 0.25f, 1.f, 2.f };
 	Knobs.PressureAdjacencyFalloff = 0.5f;
 	Knobs.SpiritualPressureStabilityDrain = 0.002f;
+	// No relation drift (B3): the drift writes the peoples' views of their neighbours, and a case reads Relations whole.
+	Knobs.RelationDriftRate = 0.f;
 	const float Start = 0.8f;
 	const float Drain = 0.002f;
 	const float Inside = 1.f;

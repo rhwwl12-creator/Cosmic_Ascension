@@ -199,7 +199,7 @@
 		"Context": "",
 		"MinTierToReveal": 0,
 		"Templates": [
-			"{Civ}|hpp(은,는) {OtherCiv}|hpp(을,를) {Stance}|hpp(으로,로) 대하기로 했다.",
+			"{Civ}|hpp(은,는) {OtherCiv}|hpp(을,를) 향한 태세를 {Stance}|hpp(으로,로) 정했다.",
 			"{Civ}의 사절들이 {OtherCiv}|hpp(을,를) 향한 태세를 {Stance}|hpp(으로,로) 고쳐 전했다.",
 			"{OtherCiv}|hpp(을,를) 대하는 {Civ}의 태세가 {Stance}|hpp(으로,로) 바뀌었다."
 		]
@@ -211,7 +211,7 @@
 		"MinTierToReveal": 0,
 		"Templates": [
 			"{Civ}|hpp(은,는) {OtherCiv}|hpp(을,를) 향한 우호를 더 지키지 못했다. 태세가 중립으로 돌아갔다.",
-			"{OtherCiv}|hpp(을,를) 향한 {Civ}의 우호가 그쳤다. 그것을 지킬 영향력이 모자랐다.",
+			"{OtherCiv}|hpp(을,를) 향한 {Civ}의 우호가 그쳤다. 태세는 다시 중립이다.",
 			"{Civ}의 사절들이 {OtherCiv}에서 돌아왔다. 우호를 이어 갈 값이 모자랐다."
 		]
 	},
@@ -221,9 +221,9 @@
 		"Context": "",
 		"MinTierToReveal": 0,
 		"Templates": [
-			"{Civ}|hpp(이,가) {OtherCiv}에 {Treaty}|hpp(을,를) 청했고, {OtherCiv}|hpp(이,가) 받아들였다.",
+			"{Civ}|hpp(이,가) {OtherCiv}에 {Treaty}|hpp(을,를) 청했고, 그들은 받아들였다.",
 			"{Civ}의 사절이 {OtherCiv}에서 {Treaty}의 서명을 받아 돌아왔다.",
-			"{OtherCiv}|hpp(이,가) {Civ}의 {Treaty}|hpp(을,를) 받아들였다. 두 백성 사이에 약속이 섰다."
+			"{OtherCiv}|hpp(이,가) {Civ}|hpp(이,가) 청한 {Treaty}|hpp(을,를) 받아들였다. 두 백성 사이에 약속이 섰다."
 		]
 	},
 	{
@@ -232,9 +232,9 @@
 		"Context": "",
 		"MinTierToReveal": 0,
 		"Templates": [
-			"{Civ}|hpp(이,가) {OtherCiv}|hpp(을,를) 상대로 지키던 {Treaty}|hpp(이,가) 깨졌다.",
-			"{OtherCiv}|hpp(을,를) 상대로 한 {Civ}의 {Treaty}|hpp(이,가) 끝났다. 서로를 묶던 약속이 풀렸다.",
-			"{Civ}의 문서고에서 {OtherCiv}|hpp(을,를) 상대로 한 {Treaty}|hpp(이,가) 내려졌다."
+			"{Civ}|hpp(이,가) {OtherCiv}|hpp(과,와) 맺어 지키던 {Treaty}|hpp(이,가) 깨졌다.",
+			"{Civ}|hpp(과,와) {OtherCiv} 사이의 {Treaty}|hpp(이,가) 끝났다. 서로를 묶던 약속이 풀렸다.",
+			"{Civ}의 문서고에서 {OtherCiv}|hpp(과,와) 맺은 {Treaty}에 줄이 그어졌다."
 		]
 	},
 	{
@@ -244,7 +244,7 @@
 		"MinTierToReveal": 0,
 		"Templates": [
 			"{Civ}|hpp(이,가) {OtherCiv}의 {System}|hpp(을,를) 에워싸려 함대를 보냈다.",
-			"{Civ}의 함대가 {System}에 닿아 {OtherCiv}의 성계를 에워쌌다.",
+			"{Civ}의 함대가 {OtherCiv}의 {System}에 닿아 그 하늘을 에워쌌다.",
 			"{System} 둘레에 {Civ}의 공성이 섰다. {OtherCiv}|hpp(은,는) 성문을 닫았다."
 		]
 	},
@@ -267,7 +267,7 @@
 		"Templates": [
 			"{Civ}|hpp(이,가) {System}|hpp(을,를) 차지했다. {OtherCiv}|hpp(은,는) 잃은 성계를 두고 오래 울었다.",
 			"{Civ}의 함대가 {System}에 들어섰다. {OtherCiv}의 깃발이 내려간 자리에서 누군가 조용히 애도했다.",
-			"{Civ}|hpp(이,가) 공성 끝에 {System}|hpp(을,를) 차지했다. {OtherCiv}의 사람들은 그곳을 바라보며 고개를 숙였다."
+			"{Civ}|hpp(이,가) 공성 끝에 {System}|hpp(을,를) 차지했다. {OtherCiv}의 사람들은 그곳을 바라보며 눈물을 삼켰다."
 		]
 	},
 	{
@@ -276,8 +276,8 @@
 		"Context": "",
 		"MinTierToReveal": 0,
 		"Templates": [
-			"{OtherCiv}|hpp(이,가) {System}|hpp(을,를) 차지했다. {Civ}|hpp(은,는) 잃은 성계를 두고 애도했다.",
-			"{OtherCiv}의 함대가 {System}에 들어섰다. {Civ}의 사람들은 떠나온 집을 오래 돌아보았다.",
+			"{OtherCiv}|hpp(이,가) {System}|hpp(을,를) 차지했다. {Civ}의 사람들은 잃은 성계를 두고 오래 슬퍼했다.",
+			"{OtherCiv}의 함대가 {System}에 들어섰다. {Civ}의 사람들은 그 별이 있는 하늘을 오래 바라보았다.",
 			"{OtherCiv}|hpp(이,가) 공성 끝에 {System}|hpp(을,를) 차지했다. {Civ}의 광장에 조기가 걸렸다."
 		]
 	},
@@ -288,7 +288,7 @@
 		"MinTierToReveal": 0,
 		"Templates": [
 			"{Civ}|hpp(이,가) {System}|hpp(을,를) 지켜 냈다. {OtherCiv}의 함대가 물러갔다.",
-			"{System}의 공성이 풀렸다. {OtherCiv}|hpp(은,는) 함대를 물렸고, {Civ}|hpp(은,는) 다친 이들을 돌보았다.",
+			"{System}|hpp(은,는) 끝까지 버텼다. {OtherCiv}의 함대는 꺾여 물러갔고, {Civ}|hpp(은,는) 다친 이들을 돌보았다.",
 			"{OtherCiv}의 함대가 {System}에서 돌아섰다. {Civ}의 사람들은 무너진 성벽을 다시 쌓기 시작했다."
 		]
 	},
@@ -298,7 +298,7 @@
 		"Context": "",
 		"MinTierToReveal": 0,
 		"Templates": [
-			"{Civ}의 공성이 {System}에서 서지 못했다. 함대는 많은 것을 잃고 돌아왔다.",
+			"{Civ}의 공성은 {System}에서 뜻을 이루지 못했다. 함대는 많은 것을 잃고 돌아왔다.",
 			"{OtherCiv}|hpp(이,가) {System}|hpp(을,를) 지켜 냈다. {Civ}의 함대가 물러났다.",
 			"{Civ}|hpp(은,는) {System}|hpp(을,를) 차지하지 못했다. 돌아온 함대는 말이 없었다."
 		]
@@ -311,7 +311,7 @@
 		"Templates": [
 			"{System}|hpp(을,를) 에워쌌던 공성이 풀렸다. {Civ}|hpp(은,는) {OtherCiv}의 움직임을 지켜본다.",
 			"{System} 둘레의 함대가 물러났다. 공성은 끝을 보지 못하고 풀렸다.",
-			"{System}의 공성이 그쳤다. {Civ}|hpp(은,는) {OtherCiv}|hpp(을,를) 향한 경계를 늦추지 않았다."
+			"{System}의 공성이 그쳤다. 그곳의 하늘이 다시 조용해졌다."
 		]
 	}
 ]

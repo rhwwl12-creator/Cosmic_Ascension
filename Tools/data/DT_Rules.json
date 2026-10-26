@@ -73,7 +73,7 @@
 		"EdictSlotSocietyMarks": [0.5, 1.0],
 		"SocietyRecoveryBonus": 0.25,
 		"AIEdictRevokeStability": 1.0,
-		"RelationDriftRate": 0.0,
+		"RelationDriftRate": 0.002,
 		"RelationEthicsWeight": 0.6,
 		"RelationStanceTerms": [0.4, -0.4],
 		"RelationTreatyTerm": 0.2,
@@ -84,7 +84,7 @@
 		"TreatyCostInfluence": 50.0,
 		"TreatyAcceptRelation": -0.1,
 		"TradeInfluencePerTreaty": 0.2,
-		"FleetPerSettledByTier": [0.0, 0.0, 0.0, 0.0, 0.0],
+		"FleetPerSettledByTier": [0.0, 1.0, 1.0, 1.0, 1.0],
 		"FleetGrowthPerTick": 0.001,
 		"FleetUpkeepEnergyPerPower": 0.5,
 		"SiegeTicks": 200,
@@ -92,8 +92,10 @@
 		"SiegeDefenceShares": [1.0, 0.5, 0.25],
 		"SiegeRepulsedFleetFactor": 0.5,
 		"AIHostileRelation": -0.3,
-		"AIHostilePowerRatio": 1.5,
+		"AIHostilePowerRatio": 0.79,
 		"AIHostilePacifismMax": 0.5,
-		"PlagueSpreadMultiplier": 1.0
+		"PlagueSpreadMultiplier": 8.0,
+		"AIHostileRelationTowardRuled": 0.0,
+		"AIHostilePowerRatioTowardRuled": 0.6
 	}
 ]

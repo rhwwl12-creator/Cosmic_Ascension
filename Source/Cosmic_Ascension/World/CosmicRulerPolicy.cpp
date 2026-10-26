@@ -139,8 +139,23 @@ void CosmicRulerPolicy::Act(const FCosmicRulerPolicy& Policy, UGalaxySimulationS
 		Counts.Answers += (Taken.Outcome == ECosmicPetitionOutcome::Withdrawn) ? 0 : 1;
 		Counts.CardsCome += (State.Player.Role == EPlayerRole::Ruler && !State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != Card) ? 1 : 0;
 	}
-	for (int32 Guard = 0; Policy.bBuild && Guard < 8 && Role.StartNextMegaproject(); ++Guard)
+	for (int32 Guard = 0; Policy.bBuild && Guard < 8; ++Guard)
 	{
+		// The attack policy leaves its last realm slot to a conquest (a people at its cap besieges nothing - B3): it starts
+		// no settlement that would fill it.
+		if (Policy.Diplomacy == 2 && State.Player.Role == EPlayerRole::Ruler)
+		{
+			const int32 CivIndex = Sim.GetStateIndex().FindCiv(State, State.Player.RuledCivID);
+			if (State.Civs.IsValidIndex(CivIndex) && CosmicMegaprojects::Choices(State, Sim.GetStateIndex(), Sim.GetTables(), CivIndex, State.Calling.BornTick).IsEmpty()
+				&& CosmicConflict::OwnedCountOf(State, Sim.GetStateIndex(), CivIndex) + 1 >= CosmicMegaprojects::RealmCapOf(Sim.GetRules(), State.Civs[CivIndex].Tier))
+			{
+				break;
+			}
+		}
+		if (!Role.StartNextMegaproject())
+		{
+			break;
+		}
 		++Counts.Started;
 	}
 	// The next rung's research (MVP item 7): only while the run has not ended (the game takes no input after it).

@@ -191,7 +191,9 @@
 				"AIHostileRelation": {"kind": "number", "min": -1, "max": 1},
 				"AIHostilePowerRatio": {"kind": "number", "min": 0},
 				"AIHostilePacifismMax": {"kind": "number", "min": -1, "max": 1},
-				"PlagueSpreadMultiplier": {"kind": "number", "min": 0}
+				"PlagueSpreadMultiplier": {"kind": "number", "min": 0},
+				"AIHostileRelationTowardRuled": {"kind": "number", "min": -1, "max": 1},
+				"AIHostilePowerRatioTowardRuled": {"kind": "number", "min": 0}
 			},
 			"rules": [
 				{

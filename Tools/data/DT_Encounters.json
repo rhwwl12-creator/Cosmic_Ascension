@@ -1439,7 +1439,7 @@
 	{
 		"Name": "petition_first_contact",
 		"Title": "{OtherCiv}의 신호",
-		"Body": "{OtherCiv}|hpp(이,가) 다시 신호를 보내 왔다. 이번에는 대답을 기다리는 듯하다. {Civ}의 회의는 손을 내밀지, 조금 더 지켜볼지 당신에게 물었다.",
+		"Body": "{OtherCiv}|hpp(이,가) 다시 신호를 보내 왔다. 이번에는 대답을 기다리는 듯하다. {Civ}의 사람들은 손을 내밀지, 조금 더 지켜볼지 당신에게 물었다.",
 		"Conditions": [
 			{
 				"Type": "PlayerRoleIs",
@@ -1471,7 +1471,7 @@
 					}
 				],
 				"OnFailure": [],
-				"SuccessText": "{Civ}|hpp(은,는) {OtherCiv}에게 우호의 뜻을 보냈다. 짧은 답신이 돌아왔고, 두 하늘 사이에 길이 하나 생겼다.",
+				"SuccessText": "{Civ}|hpp(은,는) {OtherCiv}에게 우호의 뜻을 보냈다. 그들이 그 뜻을 어떻게 받을지는 아직 알 수 없다.",
 				"FailureText": "",
 				"NextEncounter": "None"
 			},
@@ -1488,7 +1488,7 @@
 				},
 				"OnSuccess": [],
 				"OnFailure": [],
-				"SuccessText": "{Civ}|hpp(은,는) 대답을 미루고 {OtherCiv}의 움직임을 지켜보기로 했다. 신호는 한동안 이어지다 잦아들었다.",
+				"SuccessText": "{Civ}|hpp(은,는) 대답을 미루고 {OtherCiv}|hpp(을,를) 조금 더 지켜보기로 했다. 관측소들은 그 신호에 계속 귀를 기울인다.",
 				"FailureText": "",
 				"NextEncounter": "None"
 			}

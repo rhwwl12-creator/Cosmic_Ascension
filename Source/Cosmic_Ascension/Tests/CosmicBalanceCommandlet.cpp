@@ -152,6 +152,12 @@ namespace
 		double AttritionLost = 0.0;
 		int32 AISiegesIntoSphere = 0;
 		int32 ThreeWorldsByConquest = 0;
+		// The same for the ruled people alone, the ruled people's plagues before the first end, and two peoples besieging
+		// each other at once (ticks with one pair or more, and the most pairs at one tick).
+		int32 ThreeWorldsByConquestRuled = 0;
+		int32 PlaguePlacedRuledByEnd = 0;
+		int64 MutualSiegeTicks = 0;
+		int32 MaxMutualPairs = 0;
 		int32 PlagueSpreadPlaced = 0;
 		int32 PlaguePlacedRuled = 0;
 		int32 PlagueSpreadRuled = 0;
@@ -893,7 +899,9 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 								Taken += Counts.ConqueredBy.Contains(TPair<FName, FName>(Civ.CivID, SystemID)) ? 1 : 0;
 							}
 						}
-						Counts.ThreeWorldsByConquest += (Taken > 0 && Settled >= 3 && Settled - Taken < 3) ? 1 : 0;
+						const bool bHelped = Taken > 0 && Settled >= 3 && Settled - Taken < 3;
+						Counts.ThreeWorldsByConquest += bHelped ? 1 : 0;
+						Counts.ThreeWorldsByConquestRuled += (bHelped && Civ.bIsPlayerRuled) ? 1 : 0;
 					}
 					const bool bIsSiege = !Now.TargetOwner.IsNone() && Now.TargetOwner != Civ.CivID;
 					if (bIsSiege && bTargetMoved)
@@ -958,6 +966,20 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				{
 					Counts.MaxSiegersOnOne = FMath::Max(Counts.MaxSiegersOnOne, Each.Value);
 				}
+				int32 Mutual = 0;
+				for (int32 A = 0; A < State.Civs.Num(); ++A)
+				{
+					const int32 TargetOfA = StateIndex.FindSystem(State, State.Civs[A].FleetTargetSystemID);
+					const int32 B = State.Systems.IsValidIndex(TargetOfA) ? StateIndex.FindCiv(State, State.Systems[TargetOfA].OwnerCivID) : INDEX_NONE;
+					if (!State.Civs.IsValidIndex(B) || B <= A)
+					{
+						continue;
+					}
+					const int32 TargetOfB = StateIndex.FindSystem(State, State.Civs[B].FleetTargetSystemID);
+					Mutual += (State.Systems.IsValidIndex(TargetOfB) && State.Systems[TargetOfB].OwnerCivID == State.Civs[A].CivID) ? 1 : 0;
+				}
+				Counts.MutualSiegeTicks += Mutual > 0 ? 1 : 0;
+				Counts.MaxMutualPairs = FMath::Max(Counts.MaxMutualPairs, Mutual);
 				// The ruler's window (first reign's people only while it is ruled).
 				const int32 RuledIndex = RuledNow ? StateIndex.FindCiv(State, RuledID) : INDEX_NONE;
 				if (State.Civs.IsValidIndex(RuledIndex) && RuledID == FirstRuled)
@@ -1043,6 +1065,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					{
 						const bool bRuled = Owner && Owner->bIsPlayerRuled;
 						Counts.PlaguePlacedRuled += bRuled ? 1 : 0;
+						Counts.PlaguePlacedRuledByEnd += (bRuled && !bEndedBefore) ? 1 : 0;
 						for (const FName Lane : System.Lanes)
 						{
 							const int32 Neighbour = StateIndex.FindSystem(State, Lane);
@@ -1257,14 +1280,15 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					const float* Factor = Def ? Def->HazardSpawnMultipliers.Find(CosmicTags::HazardPlague()) : nullptr;
 					QuarantineHeld += (Factor && *Factor < 1.f) ? Each.Value : 0;
 				}
-				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance conflict: sieges begun %d (on ruled %d by end %d), taken %d (%d/%d/%d by tick bands 0-3000/3000-6000/later; from ruled %d by end %d), held %d, lifted %d; hostilities opened %d (%d/%d/%d); AIs hostile toward one people max %d, sieges on one people max %d; taken by top conqueror %d, lost by one people max %d; fleet median [%.3f %.3f] at 3000/6000; delay bought per tag [%s]; attrition %.3f, AI sieges into a higher sphere %d; T3 climbs a taking helped %d; plague placed %d (spread-placed %d; ruled %d, spread %d), quarantine held %lld; ruled severity-2 conflict lines %d (by end %d, max %d in 600 ticks, last chapter %d)"),
+				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance conflict: sieges begun %d (on ruled %d by end %d), taken %d (%d/%d/%d by tick bands 0-3000/3000-6000/later; from ruled %d by end %d), held %d, lifted %d; hostilities opened %d (%d/%d/%d); AIs hostile toward one people max %d, sieges on one people max %d; taken by top conqueror %d, lost by one people max %d; fleet median [%.3f %.3f] at 3000/6000; delay bought per tag [%s]; attrition %.3f, AI sieges into a higher sphere %d; T3 climbs a taking helped %d (ruled %d); mutual sieges max %d pairs (%lld ticks); plague placed %d (spread-placed %d; ruled %d, spread %d, ruled by end %d), quarantine held %lld; ruled severity-2 conflict lines %d (by end %d, max %d in 600 ticks, last chapter %d)"),
 					Counts.SiegesBegun, Counts.SiegesOnRuled, Counts.SiegesOnRuledByEnd, Counts.Taken, Counts.TakenByBand[0], Counts.TakenByBand[1], Counts.TakenByBand[2],
 					Counts.TakenFromRuled, Counts.TakenFromRuledByEnd, Counts.Held,
 					Counts.Lifted, Counts.HostilitiesOpened[0] + Counts.HostilitiesOpened[1] + Counts.HostilitiesOpened[2], Counts.HostilitiesOpened[0],
 					Counts.HostilitiesOpened[1], Counts.HostilitiesOpened[2], Counts.MaxHostileTowardOne, Counts.MaxSiegersOnOne, TopTaken, MostLost,
 					Counts.FleetMedian[0], Counts.FleetMedian[1], *FString::Join(Delays, TEXT(" ")), Counts.AttritionLost, Counts.AISiegesIntoSphere,
-					Counts.ThreeWorldsByConquest, Counts.Placed.FindRef(CosmicTags::HazardPlague().ToString()), Counts.PlagueSpreadPlaced, Counts.PlaguePlacedRuled,
-					Counts.PlagueSpreadRuled, QuarantineHeld,
+					Counts.ThreeWorldsByConquest, Counts.ThreeWorldsByConquestRuled, Counts.MaxMutualPairs, Counts.MutualSiegeTicks,
+					Counts.Placed.FindRef(CosmicTags::HazardPlague().ToString()), Counts.PlagueSpreadPlaced, Counts.PlaguePlacedRuled, Counts.PlagueSpreadRuled,
+					Counts.PlaguePlacedRuledByEnd, QuarantineHeld,
 					Counts.ConflictSev2, Counts.ConflictSev2ByEnd, MostInBlock, Counts.ConflictSev2InChapter);
 				const FCosmicStageClock& Clock = Sim->GetStageClock();
 				const double PerCycle = FPlatformTime::GetSecondsPerCycle64() * 1.0e6;

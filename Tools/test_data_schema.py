@@ -1336,7 +1336,7 @@ class SchemaTests(unittest.TestCase):
                                   ("FleetUpkeepEnergyPerPower", -0.1, "below"), ("SiegeTicks", 0, "below"), ("SiegeTicks", 2.5, "whole number"),
                                   ("SiegeRestTicks", -1, "below"), ("SiegeDefenceShares", [1.0, 0.5], "exactly 3"),
                                   ("SiegeDefenceShares", [1.0, 0.5, 1.5], "above"), ("SiegeRepulsedFleetFactor", 1.5, "above"),
-                                  ("AIHostileRelation", -1.5, "below"), ("AIHostilePowerRatio", -0.1, "below"),
+                                  ("AIHostileRelation", -1.5, "below"), ("AIHostilePowerRatio", -0.1, "below"), ("AIHostileRelationTowardRuled", 1.5, "above"), ("AIHostilePowerRatioTowardRuled", -0.1, "below"),
                                   ("AIHostilePacifismMax", 1.5, "above"), ("PlagueSpreadMultiplier", -1.0, "below"),
                                   ("FleetDelayPerPower", -1.0, "below"), ("FleetDelayCap", -1.0, "below"), ("PressureFleetAttrition", -0.1, "below")):
             with self.subTest(knob=knob, value=value):

@@ -372,7 +372,7 @@ bool FCosmicUIEdictWindowTest::RunTest(const FString& Parameters)
 	// The rows: the first rung's (the second rung's row stands not), lexical; the command's own gate on each.
 	TArray<FName> Expected = Tables.GetEdictRowNames();
 	Expected.Remove(High);
-	TestTrue(TEXT("The window lists the first rung's edicts in lexical order"), Window->GetShownRows() == Expected && Expected.Num() == 6);
+	TestTrue(TEXT("The window lists the first rung's edicts in lexical order"), Window->GetShownRows() == Expected && Expected.Num() == 7);
 	TestTrue(TEXT("Mobilization's row says it was inherited"), Shown(Window->GetRowMark(Mobilization)));
 	TestEqual(TEXT("and offers its revocation"), Words(Window->GetRowButton(Mobilization)->GetLabel()), Words(TEXT("Edict.Revoke")));
 	TestTrue(TEXT("enabled"), Window->GetRowButton(Mobilization)->GetIsEnabled());

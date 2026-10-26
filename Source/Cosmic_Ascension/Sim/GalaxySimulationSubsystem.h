@@ -461,7 +461,8 @@ private:
 	// projects, settlement and revocations; no draw, no profile read): it drops its friendly stances and a guard; turns
 	// neutral toward every people it is hostile to whose system it does not besiege; and, holding no hostility and not
 	// resting (no target and Tick >= FleetTargetSinceTick + SiegeRestTicks), opens one toward the first people in Civs order
-	// that passes the gate (bordering, no non-aggression treaty, ViewOf at or below AIHostileRelation, its FleetPower above 0
+	// that passes the gate (bordering, no non-aggression treaty, ViewOf at or below AIHostileRelation - toward the people the
+	// player rules AIHostileRelationTowardRuled -, its FleetPower above 0 (AIHostilePowerRatioTowardRuled toward that people)
 	// and at least AIHostilePowerRatio times theirs, its Pacifism below AIHostilePacifismMax, no other AI hostile toward
 	// them, the ruled people not besieging them, and a system of theirs in Systems order that SiegeBlockOf passes with
 	// bAssumeHostile and ComputeAttritionPressureIn leaves at 0) - turning hostile breaks the pair's trade treaty

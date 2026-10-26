@@ -121,7 +121,8 @@ namespace CosmicDiplomacyTests
 	 * people 0. Capitals: 0, 3, 6, 9. People 0 holds {0, 1}, 1 holds {3, 2, 4}, 2 holds {6, 5, 7}, 3 holds {9, 8, 10, 11}:
 	 * 0 borders 1 (lane 1-2), 1 borders 2 (4-5) and 3 (4-10), 2 borders 3 (7-8). Realm caps {4, 4, 5, 5, 5}, so no settlement
 	 * has a target and a T2 people may still take a system. Every people on the first rung with ethics 0. Diplomacy and
-	 * conflict off (no drift, no fleet, no spread - whatever DT_Rules holds) and no sight stage (FirstSightTick far away):
+	 * conflict off (no drift, no fleet, no spread - whatever DT_Rules holds), the AI's gate toward the ruled people the general
+	 * one, and no sight stage (FirstSightTick far away):
 	 * the case turns on what it reads, and every knowing write it sees comes from the path under test.
 	 */
 	FGalaxyState* LayBoard(UGalaxySimulationSubsystem& Sim, const FCosmicDataTables& Original, TFunctionRef<void(FCosmicRulesDef&)> Edit, float SickChance = 0.f)
@@ -142,6 +143,9 @@ namespace CosmicDiplomacyTests
 		Rules.PlagueSpreadMultiplier = 1.f;
 		Rules.FirstSightTick = 1000000;
 		Rules.SightIntervalTicks = 1000000;
+		// Toward the ruled people the AI's gate is the general one (B3 decision 21's knobs - a case that reads them sets them).
+		Rules.AIHostileRelationTowardRuled = Rules.AIHostileRelation;
+		Rules.AIHostilePowerRatioTowardRuled = Rules.AIHostilePowerRatio;
 		Edit(Rules);
 		FCosmicDataTables Tables = CosmicTests::WithoutProjects(CosmicTests::WithRules(Original, Rules));
 		Tables.Edicts = Edicts();
@@ -1467,6 +1471,11 @@ bool FCosmicSimDiplomacyAITest::RunTest(const FString& Parameters)
 		Fleets(Rules);
 		Rules.SiegeRestTicks = 50;
 		Rules.SiegeTicks = 1000;
+		// The gate at -0.3 and 1.5, toward the ruled people too (the cases below read them; the game's values are the data's).
+		Rules.AIHostileRelation = -0.3f;
+		Rules.AIHostilePowerRatio = 1.5f;
+		Rules.AIHostileRelationTowardRuled = -0.3f;
+		Rules.AIHostilePowerRatioTowardRuled = 1.5f;
 	});
 	if (!TestNotNull(TEXT("The board is laid"), State))
 	{
@@ -1591,6 +1600,60 @@ bool FCosmicSimDiplomacyAITest::RunTest(const FString& Parameters)
 		Sim->LoadState(Besieged);
 		Sim->StepOnce();
 		TestFalse(TEXT("The ruled people's siege on them closes the gate"), CosmicDiplomacy::StanceOf(Sim->GetState().Civs[2], One) == Hostile());
+	}
+
+	// Toward the people the player rules the gate reads the two TowardRuled knobs (B3 decision 21), toward any other people
+	// the general two.
+	{
+		const FCosmicDataTables Laid = Sim->GetTables();
+		const FName Two = Start.Civs[2].CivID;
+		auto WithGate = [&](float Ratio, float RelationTowardRuled, float RatioTowardRuled)
+		{
+			FCosmicRulesDef Gate = Sim->GetRules();
+			Gate.AIHostilePowerRatio = Ratio;
+			Gate.AIHostileRelationTowardRuled = RelationTowardRuled;
+			Gate.AIHostilePowerRatioTowardRuled = RatioTowardRuled;
+			Sim->SetTables(CosmicTests::WithRules(Laid, Gate));
+		};
+		auto HostileAfter = [&](const FGalaxyState& Case, FName Toward)
+		{
+			Sim->LoadState(Case);
+			Sim->StepOnce();
+			return CosmicDiplomacy::StanceOf(Sim->GetState().Civs[1], Toward) == Hostile();
+		};
+		WithGate(1.5f, -0.5f, 1.5f);
+		TestFalse(TEXT("A stricter relation toward the ruled people keeps the AI neutral at -0.4"), HostileAfter(Start, Zero));
+		WithGate(1.5f, -0.3f, 2.5f);
+		TestFalse(TEXT("and so does a stricter power ratio toward it (2 against 1 under 2.5)"), HostileAfter(Start, Zero));
+		{
+			FGalaxyState Mild = Start;
+			Mild.Civs[1].Relations.Add(Zero, -0.1f);
+			Mild.Civs[1].FleetPower = 0.7f;
+			WithGate(1.5f, 0.f, 0.6f);
+			TestTrue(TEXT("A milder gate toward the ruled people opens at -0.1 and 0.7 against 1"), HostileAfter(Mild, Zero));
+		}
+		{
+			FGalaxyState Other = Start;
+			Other.Civs[1].Relations.Add(Zero, 0.f);
+			Other.Civs[1].Relations.Add(Two, -0.4f);
+			WithGate(1.5f, -0.9f, 9.f);
+			TestTrue(TEXT("Toward a people the player does not rule the general gate opens"), HostileAfter(Other, Two));
+		}
+		// Below 1 the besieged may answer: an AI 0.79 times as strong as its besieger opens on it (counter-sieges stand - a
+		// war between near-equals).
+		{
+			FGalaxyState Answer = Start;
+			Answer.Civs[1].Relations.Add(Zero, 0.f);
+			Answer.Civs[1].Relations.Add(Two, -0.4f);
+			Answer.Civs[1].FleetPower = 1.f;
+			Answer.Civs[2].FleetPower = 1.2f;
+			Besiege(Answer, 2, 1, 4, 90);
+			WithGate(0.79f, -0.3f, 1.5f);
+			TestTrue(TEXT("Under 0.79 a besieged AI opens on its besieger"), HostileAfter(Answer, Two) && Sim->GetState().Civs[1].FleetTargetSystemID == IDOf(Sim->GetState(), 5));
+			WithGate(1.5f, -0.3f, 1.5f);
+			TestFalse(TEXT("(under 1.5 it does not)"), HostileAfter(Answer, Two));
+		}
+		Sim->SetTables(Laid);
 	}
 
 	// A hostility without a siege ends; a friendly stance and a guard are let go; the ruled people is passed by.
@@ -2009,6 +2072,43 @@ bool FCosmicSimRulerDiplomacyPolicyTest::RunTest(const FString& Parameters)
 		CosmicRulerPolicy::ActDiplomacy(Attack, *Sim, *Role, Guarding);
 		TestTrue(TEXT("and while the siege stands the guard holds - no hostility opened"), Peoples[0].FleetTargetSystemID == IDOf(*Armed, 1)
 			&& Guarding.StanceChanges == 0 && Guarding.FleetTargetChanges == 1);
+	}
+
+	// The attack policy leaves its last realm slot to a conquest (a people at its cap besieges nothing): on the second rung
+	// with two systems of three it starts no settlement, where the peace policy does.
+	{
+		Sim->SetTables(Original);
+		Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+		FGalaxyState& Fresh = Sim->GetMutableState();
+		const int32 Ruled = Sim->GetStateIndex().FindCiv(Fresh, Fresh.Player.RuledCivID);
+		const int32 Home = Sim->GetStateIndex().FindSystem(Fresh, Fresh.Civs[Ruled].HomeSystemID);
+		int32 Second = INDEX_NONE;
+		for (const FName Lane : Fresh.Systems[Home].Lanes)
+		{
+			const int32 Next = Sim->GetStateIndex().FindSystem(Fresh, Lane);
+			if (Second == INDEX_NONE && Fresh.Systems.IsValidIndex(Next) && Fresh.Systems[Next].OwnerCivID.IsNone() && !CosmicState::IsSanctuary(Fresh.Systems[Next].SystemID))
+			{
+				Second = Next;
+			}
+		}
+		if (!TestTrue(TEXT("(the ruled people's home has an unowned neighbour)"), Second != INDEX_NONE))
+		{
+			return false;
+		}
+		CosmicTests::Give(Fresh, Ruled, { Second });
+		Fresh.Civs[Ruled].Tier = EAscensionTier::Tier2_Stellar;
+		Fresh.Civs[Ruled].Stockpile.Energy = Fresh.Civs[Ruled].Stockpile.Matter = Fresh.Civs[Ruled].Stockpile.Influence = 100000.f;
+		Sim->RebuildStateIndex();
+		const FGalaxyState Laid = Fresh;
+		TestEqual(TEXT("(two systems of a cap of three)"), CosmicConflict::OwnedCountOf(Laid, Sim->GetStateIndex(), Ruled) + 1,
+			CosmicMegaprojects::RealmCapOf(Sim->GetRules(), EAscensionTier::Tier2_Stellar));
+		FCosmicRulerPolicyCounts AttackCounts;
+		CosmicRulerPolicy::Act(FCosmicRulerPolicy{ false, true, false, false, NAME_None, 2 }, *Sim, *Role, NAME_None, AttackCounts);
+		TestEqual(TEXT("The attack policy starts no settlement into its last realm slot"), AttackCounts.Started, 0);
+		Sim->LoadState(Laid);
+		FCosmicRulerPolicyCounts PeaceCounts;
+		CosmicRulerPolicy::Act(FCosmicRulerPolicy{ false, true, false, false, NAME_None, 1 }, *Sim, *Role, NAME_None, PeaceCounts);
+		TestEqual(TEXT("the peace policy does"), PeaceCounts.Started, 1);
 	}
 
 	// Through Act, the path the commandlet and the hash run play: the card reaches out whatever the round says.

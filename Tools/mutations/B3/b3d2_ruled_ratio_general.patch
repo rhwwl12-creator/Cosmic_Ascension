@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2646,7 +2646,7 @@
+ 			continue;
+ 		}
+ 		const FCivilizationState& Them = State.Civs[Other];
+-		if (!(Civ.FleetPower >= (Them.bIsPlayerRuled ? Rules.AIHostilePowerRatioTowardRuled : Rules.AIHostilePowerRatio) * Them.FleetPower) || !Borders[Other]
++		if (!(Civ.FleetPower >= Rules.AIHostilePowerRatio * Them.FleetPower) || !Borders[Other]
+ 			|| !(Civ.Relations.FindRef(Them.CivID) <= (Them.bIsPlayerRuled ? Rules.AIHostileRelationTowardRuled : Rules.AIHostileRelation))
+ 			|| CosmicDiplomacy::HasTreaty(Civ, Them.CivID, CosmicTags::TreatyNonAggression()))
+ 		{

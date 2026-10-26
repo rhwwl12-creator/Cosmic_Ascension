@@ -1858,11 +1858,17 @@ void UGalaxySimulationSubsystem::TickDiplomacy()
 	{
 		return;
 	}
-	const TArray<TArray<int32>> Borders = CosmicDiplomacy::BorderTableOf(State, StateIndex);
+	// One viewer's borders at a time (BorderTableOf's rows, in its order), one array kept across the viewers.
+	TArray<bool> Borders;
 	for (int32 Viewer = 0; Viewer < State.Civs.Num(); ++Viewer)
 	{
-		for (const int32 Other : Borders[Viewer])
+		CosmicDiplomacy::BordersOf(State, StateIndex, Viewer, Borders);
+		for (int32 Other = 0; Other < Borders.Num(); ++Other)
 		{
+			if (!Borders[Other])
+			{
+				continue;
+			}
 			const float Target = CosmicDiplomacy::TargetRelationOf(State, Rules, Viewer, Other);
 			FCivilizationState& Civ = State.Civs[Viewer];
 			const FName OtherID = State.Civs[Other].CivID;
@@ -2617,6 +2623,15 @@ void UGalaxySimulationSubsystem::TickAIDiplomacy(int32 CivIndex)
 			return;
 		}
 	}
+	// A people at its realm cap besieges nothing (SiegeBlockOf's RealmCap holds for every system): no scan.
+	if (CosmicConflict::OwnedCountOf(State, StateIndex, CivIndex) >= CosmicMegaprojects::RealmCapOf(Rules, Civ.Tier))
+	{
+		return;
+	}
+	// Its borders once for the scan (Borders and ViewOf ask them a pair at a time): a bordering people's view is its
+	// stored relation (CosmicDiplomacy::ViewOf).
+	TArray<bool> Borders;
+	CosmicDiplomacy::BordersOf(State, StateIndex, CivIndex, Borders);
 	// The people the ruled people's fleet besieges, if any.
 	FName RuledBesieges;
 	const int32 Ruled = State.Civs.IndexOfByPredicate([](const FCivilizationState& Candidate) { return Candidate.bIsPlayerRuled; });
@@ -2631,8 +2646,9 @@ void UGalaxySimulationSubsystem::TickAIDiplomacy(int32 CivIndex)
 			continue;
 		}
 		const FCivilizationState& Them = State.Civs[Other];
-		if (CosmicDiplomacy::HasTreaty(Civ, Them.CivID, CosmicTags::TreatyNonAggression()) || !(Civ.FleetPower >= Rules.AIHostilePowerRatio * Them.FleetPower)
-			|| !CosmicDiplomacy::Borders(State, StateIndex, CivIndex, Other) || !(CosmicDiplomacy::ViewOf(State, StateIndex, Rules, CivIndex, Other) <= Rules.AIHostileRelation))
+		if (!(Civ.FleetPower >= (Them.bIsPlayerRuled ? Rules.AIHostilePowerRatioTowardRuled : Rules.AIHostilePowerRatio) * Them.FleetPower) || !Borders[Other]
+			|| !(Civ.Relations.FindRef(Them.CivID) <= (Them.bIsPlayerRuled ? Rules.AIHostileRelationTowardRuled : Rules.AIHostileRelation))
+			|| CosmicDiplomacy::HasTreaty(Civ, Them.CivID, CosmicTags::TreatyNonAggression()))
 		{
 			continue;
 		}

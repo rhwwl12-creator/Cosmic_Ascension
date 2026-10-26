@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -147,7 +147,7 @@
+ 		{
+ 			const int32 CivIndex = Sim.GetStateIndex().FindCiv(State, State.Player.RuledCivID);
+ 			if (State.Civs.IsValidIndex(CivIndex) && CosmicMegaprojects::Choices(State, Sim.GetStateIndex(), Sim.GetTables(), CivIndex, State.Calling.BornTick).IsEmpty()
+-				&& CosmicConflict::OwnedCountOf(State, Sim.GetStateIndex(), CivIndex) + 1 >= CosmicMegaprojects::RealmCapOf(Sim.GetRules(), State.Civs[CivIndex].Tier))
++				&& CosmicConflict::OwnedCountOf(State, Sim.GetStateIndex(), CivIndex) + 1 > CosmicMegaprojects::RealmCapOf(Sim.GetRules(), State.Civs[CivIndex].Tier))
+ 			{
+ 				break;
+ 			}

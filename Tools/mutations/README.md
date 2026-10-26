@@ -242,3 +242,9 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B3/` | `b3d_schema_row_not_always.patch` — the row test row_not holds for the named row too | `test_row_prefix` (`Tools/test_data_schema.py`) |
 | `B3/` | `b3d_schema_row_not_unknown_row.patch` — a row_not naming a row the table lacks is not reported | `test_row_prefix` (`Tools/test_data_schema.py`) |
 | `B3/` | `b3d_schema_stance_enc_only.patch` — only the wanderer's cards are kept from SetStance and {OtherCiv} | `test_diplomacy_and_conflict` (`Tools/test_data_schema.py`) |
+| `B3/` | `b3d2_ruled_relation_general.patch` — the AI gate toward the ruled people reads the general relation | `Cosmic_Ascension.Sim.DiplomacyAI` |
+| `B3/` | `b3d2_ruled_ratio_general.patch` — the AI gate toward the ruled people reads the general power ratio | `Cosmic_Ascension.Sim.DiplomacyAI` |
+| `B3/` | `b3d2_ruled_gate_for_all.patch` — the toward-the-ruled relation gates every people | `Cosmic_Ascension.Sim.DiplomacyAI` |
+| `B3/` | `b3d2_no_counter_siege.patch` — a besieged AI never opens on its besieger | `Cosmic_Ascension.Sim.DiplomacyAI` |
+| `B3/` | `b3d2_attack_fills_last_slot.patch` — the attack policy settles into its last realm slot | `Cosmic_Ascension.Sim.RulerDiplomacyPolicy` |
+| `B3/` | `b3d2_schema_ruled_ratio_unbounded.patch` — the power ratio toward the ruled people may be below 0 | `test_diplomacy_and_conflict` (`Tools/test_data_schema.py`) |

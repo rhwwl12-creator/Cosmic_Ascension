@@ -1266,4 +1266,13 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// share by this. 1 = no spread.
 	UPROPERTY(EditAnywhere)
 	float PlagueSpreadMultiplier = 1.f;
+
+	// AIHostileRelation and AIHostilePowerRatio toward the people the player rules (B3 decision 21: whether the first life
+	// meets an AI's war - the relation gate and the power gate keep the AIs off it together, between its second settled
+	// system and its third rung). The mechanism values are those two knobs'.
+	UPROPERTY(EditAnywhere)
+	float AIHostileRelationTowardRuled = -0.3f;
+
+	UPROPERTY(EditAnywhere)
+	float AIHostilePowerRatioTowardRuled = 1.5f;
 };
