@@ -7,7 +7,7 @@
 | `LeapTicksMin` | `800` | number | `{"integer": true}` | — | 예약 |
 | `LeapTicksMax` | `1600` | number | `{"integer": true}` | — | 예약 |
 | `LeapTotalCap` | `4500` | number | `{"integer": true}` | — | 예약 |
-| `BirthProtectionTicks` | `300` | number | `{"integer": true}` | Events/CosmicEventSubsystem.cpp | 읽힘 |
+| `BirthProtectionTicks` | `300` | number | `{"integer": true}` | Sim/CosmicHazards.cpp | 읽힘 |
 | `BaseLifespanTicks` | `0` | number | `{"integer": true}` | Events/CosmicEventSubsystem.cpp | 읽힘 |
 | `SuccessionHazardWeight` | `2.0` | number |  | — | 예약 |
 | `SuccessionCivTierWeight` | `1.0` | number |  | — | 예약 |
@@ -91,13 +91,13 @@
 | `FleetGrowthPerTick` | `0.001` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `FleetUpkeepEnergyPerPower` | `0.5` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp, UI/CosmicEdictWidget.cpp | 읽힘 |
 | `SiegeTicks` | `200` | number | `{"min": 1, "integer": true}` | Sim/CosmicConflict.cpp, UI/CosmicSystemPanelWidget.cpp | 읽힘 |
-| `SiegeRestTicks` | `600` | number | `{"min": 0, "integer": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
+| `SiegeRestTicks` | `600` | number | `{"min": 0, "integer": true}` | Sim/CosmicConflict.cpp | 읽힘 |
 | `SiegeDefenceShares` | `[1.0, 0.5, 0.25]` | numbers | `{"len": 3, "min": 0, "max": 1}` | Sim/CosmicConflict.cpp | 읽힘 |
 | `SiegeRepulsedFleetFactor` | `0.5` | number | `{"min": 0, "max": 1}` | Sim/CosmicConflict.cpp | 읽힘 |
-| `AIHostileRelation` | `-0.3` | number | `{"min": -1, "max": 1}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
-| `AIHostilePowerRatio` | `0.79` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
-| `AIHostilePacifismMax` | `0.5` | number | `{"min": -1, "max": 1}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
+| `AIHostileRelation` | `-0.3` | number | `{"min": -1, "max": 1}` | Sim/CosmicConflict.cpp | 읽힘 |
+| `AIHostilePowerRatio` | `0.79` | number | `{"min": 0}` | Sim/CosmicConflict.cpp | 읽힘 |
+| `AIHostilePacifismMax` | `0.5` | number | `{"min": -1, "max": 1}` | Sim/CosmicConflict.cpp | 읽힘 |
 | `PlagueSpreadMultiplier` | `8.0` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
-| `AIHostileRelationTowardRuled` | `0.0` | number | `{"min": -1, "max": 1}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
-| `AIHostilePowerRatioTowardRuled` | `0.6` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
+| `AIHostileRelationTowardRuled` | `0.0` | number | `{"min": -1, "max": 1}` | Sim/CosmicConflict.cpp | 읽힘 |
+| `AIHostilePowerRatioTowardRuled` | `0.6` | number | `{"min": 0}` | Sim/CosmicConflict.cpp | 읽힘 |
 | `ResistFleetFactor` | `0.5` | number | `{"min": 0, "max": 1}` | Sim/CosmicConflict.cpp | 읽힘 |

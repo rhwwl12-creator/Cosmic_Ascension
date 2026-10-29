@@ -36,6 +36,8 @@ struct FCosmicWandererPolicyCounts
 	// withdrawn card not counted).
 	int32 Cards = 0;
 	int32 Answers = 0;
+	// B5 ([B-5a] - the calling line, open question #151's material): the answers that failed, by card row.
+	TMap<FName, int32> FailedByRow;
 	// The highest reverence any people held for the vessel while it walked.
 	float ReverencePeak = 0.f;
 	// The system the vessel last left (the next journey does not go straight back to it unless it must), and the system

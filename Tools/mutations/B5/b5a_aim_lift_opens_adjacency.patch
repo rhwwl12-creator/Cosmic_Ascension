@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -234,7 +234,7 @@
+ 	{
+ 		return ECosmicSiegeBlock::LastSettled;
+ 	}
+-	if (!CosmicConflictImpl::IsNextToSettled(State, Index, Attacker, System))
++	if (!bLiftHeld && !CosmicConflictImpl::IsNextToSettled(State, Index, Attacker, System))
+ 	{
+ 		return ECosmicSiegeBlock::NotAdjacent;
+ 	}

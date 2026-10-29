@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -230,7 +230,7 @@
+ 	{
+ 		return ECosmicSiegeBlock::Capital;
+ 	}
+-	if (!bLiftHeld && CosmicHazards::IsLastSettledSystem(State, Index, SystemIndex))
++	if (CosmicHazards::IsLastSettledSystem(State, Index, SystemIndex))
+ 	{
+ 		return ECosmicSiegeBlock::LastSettled;
+ 	}

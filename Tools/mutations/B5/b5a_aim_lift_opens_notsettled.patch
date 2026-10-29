@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -220,7 +220,7 @@
+ 	{
+ 		return ECosmicSiegeBlock::Own;
+ 	}
+-	if (!CosmicState::IsSettled(System))
++	if (!bLiftHeld && !CosmicState::IsSettled(System))
+ 	{
+ 		return ECosmicSiegeBlock::NotSettled;
+ 	}

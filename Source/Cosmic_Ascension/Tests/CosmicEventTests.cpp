@@ -24,6 +24,7 @@
 #include "Misc/Guid.h"
 #include "Misc/ScopeExit.h"
 #include "Save/CosmicSaveSubsystem.h"
+#include "Sim/CosmicHazards.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
@@ -2693,6 +2694,100 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 		Bench.Ctx.CivIndex = INDEX_NONE;
 		TestFalse(TEXT("A civ effect without a civilization is turned away"), UCosmicEventSubsystem::Apply(Eff(EEffectType::ChangeStability, nullptr, NAME_None, 0.25f), Bench.Ctx));
 	}
+
+	Sim->NewGalaxy(42, 5, 3);
+	return true;
+}
+
+// B5 [B-5a] (header section 5.1, 6): who a KillPlayer reaches is one pure function, CosmicHazards::VesselAtRiskOf - the
+// rule of the record less 'the slot is free'. For every subject (a system, a people, none), role, place, life state and
+// side of the birth protection, the function and the record Apply makes on a free slot both answer as the rule written out
+// here: embodied, past the protection, and a system reaches a wanderer standing in it, a people its ruler, nothing anyone.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimVesselAtRiskTest, "Cosmic_Ascension.Sim.VesselAtRisk", CosmicTests::Flags)
+bool FCosmicSimVesselAtRiskTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicEventTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	Sim->NewGalaxy(42, 5, 3);
+	const FGalaxyState Fresh = Sim->GetState();
+	const FCosmicRulesDef& Rules = Sim->GetRules();
+	const FCosmicEffect Kill = Eff(EEffectType::KillPlayer, TEXT("Death.Hazard"), NAME_None, 0.f);
+	const FGameplayTag KillTag = Tag(TEXT("Effect.KillPlayer"));
+	const int64 Protection = Rules.BirthProtectionTicks;
+	if (!TestTrue(TEXT("(the birth protection is above 0: both of its sides can be asked)"), Protection > 0)
+		|| !TestTrue(TEXT("(two systems and two peoples to ask about)"), Fresh.Systems.Num() >= 2 && Fresh.Civs.Num() >= 2 && Fresh.Player.Role == EPlayerRole::Ruler))
+	{
+		return false;
+	}
+
+	enum class EVessel : uint8 { Ruler, WandererAtZero, WandererAtOne };
+	const TCHAR* const VesselNames[] = { TEXT("the ruler of people 0"), TEXT("a wanderer in system 0"), TEXT("a wanderer in system 1") };
+	// The subjects: system 0, system 1 (each with its owner, as an expiry hands it in), people 0, people 1, nothing.
+	const int32 SubjectSystems[] = { 0, 1, INDEX_NONE, INDEX_NONE, INDEX_NONE };
+	const int32 SubjectCivs[] = { INDEX_NONE, INDEX_NONE, 0, 1, INDEX_NONE };
+	int32 Cases = 0;
+	int32 Reached = 0;
+	int32 Wrong = 0;
+	for (int32 Vessel = 0; Vessel < 3; ++Vessel)
+	{
+		for (const ELifeState Life : { ELifeState::Embodied, ELifeState::Interregnum })
+		{
+			for (const int64 Age : { Protection - 1, Protection })
+			{
+				for (int32 Subject = 0; Subject < static_cast<int32>(UE_ARRAY_COUNT(SubjectSystems)); ++Subject)
+				{
+					FGalaxyState State = Fresh;
+					State.Tick = Fresh.Calling.BornTick + Age;
+					State.Calling.LifeState = Life;
+					if (Vessel != static_cast<int32>(EVessel::Ruler))
+					{
+						State.Player.Role = EPlayerRole::Wanderer;
+						State.Player.RuledCivID = NAME_None;
+						State.Player.CurrentSystemID = State.Systems[Vessel == static_cast<int32>(EVessel::WandererAtZero) ? 0 : 1].SystemID;
+					}
+					FCosmicStateIndex Index;
+					Index.Rebuild(State);
+					FRandomStream Stream(9);
+					FCosmicEvalContext Ctx(State, Stream, Index, Sim->GetTables(), Rules);
+					Ctx.SourceRow = FName(TEXT("evt_test"));
+					const int32 SystemIndex = SubjectSystems[Subject];
+					Ctx.SystemIndex = SystemIndex;
+					Ctx.CivIndex = SystemIndex != INDEX_NONE ? Index.FindCiv(State, State.Systems[SystemIndex].OwnerCivID) : SubjectCivs[Subject];
+					const FName SystemID = SystemIndex != INDEX_NONE ? State.Systems[SystemIndex].SystemID : NAME_None;
+					const FName CivID = State.Civs.IsValidIndex(Ctx.CivIndex) ? State.Civs[Ctx.CivIndex].CivID : NAME_None;
+
+					// The rule, written out.
+					bool bRule = Life == ELifeState::Embodied && Age >= Protection;
+					if (SystemIndex != INDEX_NONE)
+					{
+						bRule = bRule && State.Player.Role == EPlayerRole::Wanderer && State.Player.CurrentSystemID == SystemID;
+					}
+					else if (SubjectCivs[Subject] != INDEX_NONE)
+					{
+						bRule = bRule && State.Player.Role == EPlayerRole::Ruler && State.Player.RuledCivID == CivID;
+					}
+					const bool bFunction = CosmicHazards::VesselAtRiskOf(State.Player, State.Calling, Rules, State.Tick, SystemID, CivID);
+					const bool bRecorded = UCosmicEventSubsystem::Apply(Kill, Ctx) && State.Calling.PendingEffect == KillTag;
+					++Cases;
+					Reached += bRule ? 1 : 0;
+					if (bFunction != bRule || bRecorded != bRule)
+					{
+						++Wrong;
+						AddError(FString::Printf(TEXT("%s, %s, %s the protection, subject %d: the rule %d, the function %d, the record %d"), VesselNames[Vessel],
+							Life == ELifeState::Embodied ? TEXT("embodied") : TEXT("in the interregnum"), Age < Protection ? TEXT("inside") : TEXT("past"), Subject,
+							bRule ? 1 : 0, bFunction ? 1 : 0, bRecorded ? 1 : 0));
+					}
+				}
+			}
+		}
+	}
+	TestEqual(TEXT("The function and the record answer as the rule in every case"), Wrong, 0);
+	TestTrue(TEXT("(some cases reach the vessel and some do not)"), Reached > 0 && Reached < Cases);
+	TestEqual(TEXT("(the cases that reach: past the protection, embodied - the ruler by people 0 and by nothing, each wanderer by its system and by nothing)"), Reached, 6);
 
 	Sim->NewGalaxy(42, 5, 3);
 	return true;

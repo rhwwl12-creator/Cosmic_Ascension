@@ -25,6 +25,7 @@
 #include "Player/PlayerRoleSubsystem.h"
 #include "Save/CosmicSaveGame.h"
 #include "Save/CosmicSaveSlot.h"
+#include "Save/CosmicSaveSubsystem.h"
 #include "Compression/OodleDataCompression.h"
 #include "Sim/CosmicConflict.h"
 #include "Sim/CosmicDiplomacy.h"
@@ -519,6 +520,71 @@ namespace
 		return Fleets.IsEmpty() ? 0.f : Fleets[Fleets.Num() / 2];
 	}
 
+	// B5 ([B-5a] - header section 5.1): a death chance - a hazard that expired at Tick on SystemID while a KillPlayer on that
+	// system would have reached the vessel (the crisis stage's note on the stage clock - FCosmicStageClock::FExpiry: it asks
+	// CosmicHazards::VesselAtRiskOf at the moment Apply would). bGrace: the remnant's grace kept the system at its gate (the
+	// effects did not run); bBranch: the expiry took its branch effects; bAfterEnd: the provisional end stood before the tick.
+	// Gap: ticks since the last reign ended (deposition or abdication), -1 for none.
+	struct FDeathChance
+	{
+		FGameplayTag Tag;
+		int64 Tick = 0;
+		FName SystemID;
+		bool bGrace = false;
+		bool bBranch = false;
+		bool bAfterEnd = false;
+		int64 Gap = -1;
+	};
+
+	// B5 ([B-5a]): the first measurement of the calling line, data off. The reign's end and the next throne as the role reads
+	// them at the boundaries; the death chances; open question #126 - ticks at which an AI people's aim turned on the ruled
+	// people only once the gate's Capital and LastSettled were lifted (CosmicConflict::AIAimOf both ways), split by the ruled
+	// people's one-settled-system window, and the same between AI peoples (pair-ticks, for reference); open question #133 -
+	// the ruler's window again with every realm cap raised (B'), and the first reasons of that gate while B' had not opened.
+	struct FCallingCounts
+	{
+		int64 ReignEndTick = -1;
+		int64 FirstReignEndTick = -1;
+		int64 CrownedAfterTick = -1;
+		TArray<FDeathChance> Chances;
+		int32 BlockedRuledTicks = 0;
+		int32 BlockedRuledOneSystem = 0;
+		int32 BlockedRuledLater = 0;
+		int32 BlockedRuledByEnd = 0;
+		int64 FirstBlockedRuled = -1;
+		// Runs of consecutive such ticks (a rising edge), and whether the last boundary had one.
+		int32 BlockedRuledEpisodes = 0;
+		bool bBlockedRuledLast = false;
+		int32 BlockedAIPairTicks = 0;
+		int64 WindowRaisedTick = -1;
+		TMap<FString, int32> WindowRaisedReasons;
+	};
+
+	// The names of CosmicConflict::ECosmicSiegeBlock in its order (the calling line).
+	const TCHAR* SiegeBlockNameOf(CosmicConflict::ECosmicSiegeBlock Block)
+	{
+		static const TCHAR* const Names[] = { TEXT("None"), TEXT("NotRuler"), TEXT("Sanctuary"), TEXT("NoSystem"), TEXT("Dead"), TEXT("Unowned"), TEXT("Own"),
+			TEXT("NotSettled"), TEXT("Capital"), TEXT("LastSettled"), TEXT("NotAdjacent"), TEXT("Besieged"), TEXT("RealmCap"), TEXT("NoFleet"), TEXT("NonAggression"),
+			TEXT("NotHostile"), TEXT("Handler") };
+		static_assert(static_cast<int32>(UE_ARRAY_COUNT(Names)) == static_cast<int32>(CosmicConflict::ECosmicSiegeBlock::Handler) + 1, "One name per reason, in the order of the enum");
+		const int32 At = static_cast<int32>(Block);
+		return (At >= 0 && At < static_cast<int32>(UE_ARRAY_COUNT(Names))) ? Names[At] : TEXT("?");
+	}
+
+	// The death chances as "<tag leaf>@<tick>:<flags>:<gap>" (flags: g grace, b branch row, e after the end, - none).
+	FString ChancesText(const TArray<FDeathChance>& Chances)
+	{
+		FString Text;
+		for (const FDeathChance& Chance : Chances)
+		{
+			FString Tag = Chance.Tag.ToString();
+			Tag.Split(TEXT("."), nullptr, &Tag, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+			FString Flags = FString(Chance.bGrace ? TEXT("g") : TEXT("")) + (Chance.bBranch ? TEXT("b") : TEXT("")) + (Chance.bAfterEnd ? TEXT("e") : TEXT(""));
+			Text += FString::Printf(TEXT("%s%s@%lld:%s:%lld"), Text.IsEmpty() ? TEXT("") : TEXT(","), *Tag, Chance.Tick, Flags.IsEmpty() ? TEXT("-") : *Flags, Chance.Gap);
+		}
+		return Text;
+	}
+
 	// A slot before the tick: its hazard and count, the answer in its response slot, the owner's Influence, and the
 	// construction slot (a settlement that paid nothing in the tick is a stalled one).
 	struct FSlotBefore
@@ -911,6 +977,23 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	FParse::Value(*Params, TEXT("WithoutPressure="), WithoutPressure);
 	FParse::Value(*Params, TEXT("Rules="), RulesText, false);
 	FParse::Value(*Params, TEXT("Out="), Out);
+	// B5 ([B-5a] - header section 5.1, notes section 2): -SaveAt=<tick> writes the run's slot at that tick's boundary
+	// (UCosmicSaveSubsystem::SaveCurrentGalaxy - the game's saving gate is not asked), for a hand check opened with Continue.
+	// Only on a run of the game's shape: -TellAll=0 and no argument that changes tables or rules.
+	int64 SaveAt = -1;
+	FParse::Value(*Params, TEXT("SaveAt="), SaveAt);
+	// The home galaxy row too (-Systems and -Civs 0): the game never builds another size.
+	const bool bSaveShape = TellAll == 0 && RulesText.IsEmpty() && WithoutPressure == 0 && Systems == 0 && Civs == 0;
+	if (SaveAt >= 0 && !bSaveShape)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -SaveAt writes only a run of the game's shape (-TellAll=0, no -Rules, -WithoutPressure, -Systems or -Civs): no save"));
+	}
+	// A boundary the run never reaches writes nothing: said at once, not found missing after the run.
+	if (SaveAt >= 0 && (SaveAt < 1 || SaveAt > Ticks))
+	{
+		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -SaveAt is a tick boundary from 1 to -Ticks (%lld): %lld - no save"), Ticks, SaveAt);
+	}
+	bool bSavedAt = false;
 	const FString OutPath = FPaths::IsRelative(Out) ? FPaths::ProjectSavedDir() / TEXT("Balance") / Out : Out;
 	const FString RowsPath = FPaths::GetPath(OutPath) / (FPaths::GetBaseFilename(OutPath) + TEXT("_rows.csv"));
 
@@ -1010,6 +1093,13 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		FCosmicRulerPolicyCounts RulerCounts;
 		const FCosmicWandererPolicy WandererPolicy{ AbdicateAt, Wander != 0 };
 		FCosmicWandererPolicyCounts WandererCounts;
+		// B5 ([B-5a]): the calling line's counts, and the rules of the ruler's window B' (every realm cap raised - #133).
+		FCallingCounts Calling;
+		FCosmicRulesDef RulesRaised = RulesNow;
+		for (int32& Cap : RulesRaised.RealmCapByTier)
+		{
+			Cap = 1000000;
+		}
 		// The people of the first reign: the ruler line's rung ticks are that people's (B1 - a later throne is the wanderer
 		// line's).
 		const FName FirstRuled = (!State.Calling.Lives.IsEmpty() && !State.Calling.Lives[0].RuledCivIDs.IsEmpty()) ? State.Calling.Lives[0].RuledCivIDs[0] : NAME_None;
@@ -1129,6 +1219,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				}
 			}
 			Sim->GetStageClock().SiegeEnds.Reset();
+			Sim->GetStageClock().Expiries.Reset();
 			const uint64 Start = FPlatformTime::Cycles64();
 			Sim->RunHeadless(1);
 			const double Micros = static_cast<double>(FPlatformTime::Cycles64() - Start) * FPlatformTime::GetSecondsPerCycle64() * 1.0e6;
@@ -1170,6 +1261,67 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 						}
 					}
 				}
+			}
+
+			// B5 ([B-5a]): the death chances of the tick - the crisis stage's notes of its expiries, the gap from the last reign
+			// end before this tick; then a reign that ended in the tick (the tenth stage leaves the throne).
+			for (const FCosmicStageClock::FExpiry& Expiry : Sim->GetStageClock().Expiries)
+			{
+				if (Expiry.bReached)
+				{
+					Calling.Chances.Add({ Expiry.Tag, State.Tick, Expiry.SystemID, Expiry.bGrace, Expiry.bBranch, bEndedBefore,
+						Calling.ReignEndTick >= 0 ? State.Tick - Calling.ReignEndTick : -1 });
+				}
+			}
+			if (RoleBefore == EPlayerRole::Ruler && State.Player.Role == EPlayerRole::Wanderer)
+			{
+				Calling.ReignEndTick = State.Tick;
+				Calling.FirstReignEndTick = Calling.FirstReignEndTick < 0 ? State.Tick : Calling.FirstReignEndTick;
+			}
+			// B5 ([B-5a] - #126): every AI people's aim at this boundary both ways. The ruled people held off only by its capital
+			// and its last settled system: the lifted aim turns on it and the plain one does not.
+			{
+				const int32 RuledHere = State.Civs.IndexOfByPredicate([](const FCivilizationState& Civ) { return Civ.bIsPlayerRuled; });
+				bool bBlockedRuled = false;
+				for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+				{
+					if (State.Civs[CivIndex].bIsPlayerRuled)
+					{
+						continue;
+					}
+					const CosmicConflict::FCosmicAIAim Lifted = CosmicConflict::AIAimOf(State, StateIndex, Sim->GetTables(), RulesNow, CivIndex, true);
+					if (Lifted.Other == INDEX_NONE)
+					{
+						continue;
+					}
+					const CosmicConflict::FCosmicAIAim Plain = CosmicConflict::AIAimOf(State, StateIndex, Sim->GetTables(), RulesNow, CivIndex, false);
+					if (Lifted.Other == RuledHere && Plain.Other != RuledHere)
+					{
+						bBlockedRuled = true;
+					}
+					else if (Lifted.Other != RuledHere && Lifted.Other != Plain.Other)
+					{
+						++Calling.BlockedAIPairTicks;
+					}
+				}
+				Calling.BlockedRuledEpisodes += (bBlockedRuled && !Calling.bBlockedRuledLast) ? 1 : 0;
+				Calling.bBlockedRuledLast = bBlockedRuled;
+				if (bBlockedRuled)
+				{
+					++Calling.BlockedRuledTicks;
+					++(CosmicConflict::SettledCountOf(State, StateIndex, RuledHere) <= 1 ? Calling.BlockedRuledOneSystem : Calling.BlockedRuledLater);
+					Calling.BlockedRuledByEnd += bEndedBefore ? 0 : 1;
+					Calling.FirstBlockedRuled = Calling.FirstBlockedRuled < 0 ? State.Tick : Calling.FirstBlockedRuled;
+				}
+			}
+			// B5 ([B-5a]): the hand check's save at this boundary (before the inputs, as the game's autosave).
+			if (SaveAt >= 0 && State.Tick == SaveAt && bSaveShape)
+			{
+				UCosmicSaveSubsystem* Saves = GameInstance->GetSubsystem<UCosmicSaveSubsystem>();
+				const bool bSaved = Saves && Saves->SaveCurrentGalaxy();
+				bSavedAt = bSaved;
+				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance: -SaveAt %lld %s %s"), SaveAt, bSaved ? TEXT("wrote") : TEXT("could not write"),
+					Saves ? *FPaths::ConvertRelativePathToFull(Saves->SlotPathOf(State.GalaxyID)) : TEXT("(no save subsystem)"));
 			}
 
 			// B3: the first contact card came (read before the policy answers it at this boundary), and the stance toward that
@@ -1321,8 +1473,14 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					Track.RemainingAtCard = ClaimCountsBefore[CardSystemBefore];
 				}
 			}
+			const EPlayerRole RoleBeforeInput = State.Player.Role;
 			CosmicRulerPolicy::Act(RulerPolicy, *Sim, *Role, CardBefore, RulerCounts);
 			CosmicWandererPolicy::Act(WandererPolicy, *Sim, *Role, CardBefore, WandererCounts);
+			// B5 ([B-5a]): the first throne taken after a reign ended.
+			if (Calling.CrownedAfterTick < 0 && Calling.FirstReignEndTick >= 0 && RoleBeforeInput == EPlayerRole::Wanderer && State.Player.Role == EPlayerRole::Ruler)
+			{
+				Calling.CrownedAfterTick = State.Tick;
+			}
 			// B4 ([B-4d2]): the time the fleet bought the ruled people's claims at this boundary, and the watch on a claim card.
 			{
 				bool bBought = false;
@@ -1533,6 +1691,27 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 						if (Gate == CosmicConflict::ECosmicSiegeBlock::None || Gate == CosmicConflict::ECosmicSiegeBlock::NonAggression)
 						{
 							Counts.FirstSiegeTargetTick = State.Tick;
+						}
+					}
+					// B5 ([B-5a] - #133): the same window with every realm cap raised (B'), and while it has not opened before the
+					// end, the first reason of each met owner's system.
+					for (int32 SystemIndex = 0; Calling.WindowRaisedTick < 0 && SystemIndex < State.Systems.Num(); ++SystemIndex)
+					{
+						const FName Owner = State.Systems[SystemIndex].OwnerCivID;
+						const bool bMetOwner = !Owner.IsNone() && Owner != RuledID
+							&& State.Knowing.MetCivs.ContainsByPredicate([Owner](const FKnownMark& Mark) { return Mark.ID == Owner; });
+						if (!bMetOwner)
+						{
+							continue;
+						}
+						const CosmicConflict::ECosmicSiegeBlock Gate = CosmicConflict::SiegeBlockOf(State, StateIndex, RulesRaised, RuledIndex, SystemIndex, true);
+						if (Gate == CosmicConflict::ECosmicSiegeBlock::None || Gate == CosmicConflict::ECosmicSiegeBlock::NonAggression)
+						{
+							Calling.WindowRaisedTick = State.Tick;
+						}
+						else if (bBeforeEnd)
+						{
+							++Calling.WindowRaisedReasons.FindOrAdd(SiegeBlockNameOf(Gate));
 						}
 					}
 				}
@@ -1997,6 +2176,31 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					AbdicateAt, Wander, WandererCounts.LeftAt, WandererCounts.CrownedAt, *WandererCounts.CrownedCivID.ToString(),
 					WandererCounts.CrownedAt >= 0 ? static_cast<int32>(WandererCounts.CrownedTier) + 1 : 0, WandererCounts.CrownedPath, WandererCounts.Journeys, WandererCounts.Scans,
 					WandererCounts.Cards, WandererCounts.Answers, WandererCounts.ReverencePeak, State.Player.Body, State.Player.Mind);
+			}
+			// B5 ([B-5a] - header section 5.1): the calling line's first measurement - always told, outside the baselines' keys.
+			{
+				int32 ByEnd = 0;
+				int32 Grace = 0;
+				int32 Branch = 0;
+				for (const FDeathChance& Chance : Calling.Chances)
+				{
+					ByEnd += Chance.bAfterEnd ? 0 : 1;
+					Grace += Chance.bGrace ? 1 : 0;
+					Branch += Chance.bBranch ? 1 : 0;
+				}
+				TMap<FString, int32> Failed;
+				for (const TPair<FName, int32>& Each : WandererCounts.FailedByRow)
+				{
+					Failed.Add(Each.Key.ToString(), Each.Value);
+				}
+				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance calling: lives %d; reign ended first at %lld, last at %lld; first throne after the first end at %lld; death chances %d (by end %d, grace %d, branch side %d) [%s]; wanderer cards failed by row [%s]; #126 ticks the ruled people was held off only by its capital or last system %d in %d episodes (one settled system %d, more %d; by end %d), first at %lld; AI pair-ticks so held %d; #133 window with the realm caps raised at %lld (plain %lld), reasons before it [%s]"),
+					State.Calling.Lives.Num(), Calling.FirstReignEndTick, Calling.ReignEndTick, Calling.CrownedAfterTick, Calling.Chances.Num(), ByEnd, Grace, Branch,
+					*ChancesText(Calling.Chances), *CountsText(Failed), Calling.BlockedRuledTicks, Calling.BlockedRuledEpisodes, Calling.BlockedRuledOneSystem, Calling.BlockedRuledLater,
+					Calling.BlockedRuledByEnd, Calling.FirstBlockedRuled, Calling.BlockedAIPairTicks, Calling.WindowRaisedTick, Counts.FirstSiegeTargetTick, *CountsText(Calling.WindowRaisedReasons));
+				if (SaveAt >= 1 && SaveAt <= Ticks && bSaveShape && !bSavedAt)
+				{
+					UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -SaveAt %lld wrote no slot"), SaveAt);
+				}
 			}
 			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance end: first %s at %lld; rung at %lld, clock at %lld, deposed at %lld; chronicle life %d shown %d of %d, more %d, ranks %d/%d/%d/%d"),
 				CosmicEndings::NameOf(Counts.FirstEnd), Counts.FirstEndTick, Counts.RungTick, Counts.ClockTick, Counts.DeposedTick, Counts.ChapterLife,

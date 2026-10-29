@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -540,7 +540,7 @@
+ 	}
+ 	else if (!CivID.IsNone())
+ 	{
+-		bReaches = Player.Role == EPlayerRole::Ruler && Player.RuledCivID == CivID;
++		bReaches = Player.Role == EPlayerRole::Ruler;
+ 	}
+ 	else
+ 	{

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -249,7 +249,7 @@
+ 	{
+ 		return ECosmicSiegeBlock::RealmCap;
+ 	}
+-	if (!(EffectivePowerOf(Civ.FleetPower, CosmicConflictImpl::TierGap(Owner.Tier, Civ.Tier), Rules) > 0.f))
++	if (!bLiftHeld && !(EffectivePowerOf(Civ.FleetPower, CosmicConflictImpl::TierGap(Owner.Tier, Civ.Tier), Rules) > 0.f))
+ 	{
+ 		return ECosmicSiegeBlock::NoFleet;
+ 	}

@@ -111,6 +111,29 @@ namespace CosmicConflict
 	COSMIC_ASCENSION_API ECosmicSiegeBlock SiegeBlockOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules,
 		int32 Attacker, int32 SystemIndex, bool bAssumeHostile = false);
 
+	/** Where the AI stage turns the fleet of a people (AIAimOf): the people it turns hostile toward (an index of Civs) and the
+	 * system of theirs it besieges; both INDEX_NONE when it turns on no one. */
+	struct FCosmicAIAim
+	{
+		int32 Other = INDEX_NONE;
+		int32 System = INDEX_NONE;
+	};
+
+	/**
+	 * The AI stage's aim for the people CivIndex (B3 section 2.8, B5 header section 5.1): the gate of a new hostility - no
+	 * target, the rest over (SiegeRestTicks), a fleet, Pacifism below AIHostilePacifismMax, no hostility held, below its realm
+	 * cap - and then, in Civs order, the first other people that borders it, whose fleet its own outweighs by the power ratio
+	 * and whose relation is at or below the hostility line (the two lines toward the ruled people are its own), with no
+	 * non-aggression treaty, no other AI hostile toward it and no siege of the ruled people on it, that holds a system the
+	 * people may besiege (SiegeBlockOf, assuming hostility) outside every higher sphere (no attrition pressure there), the
+	 * first such system in Systems order. The AI stage reads it after it has let go of the ties a regent does not keep, and
+	 * acts on it; nothing is drawn or written here. bLiftHeld (measurement only - open question #126) opens the two reasons
+	 * Capital and LastSettled of the siege gate, and nothing else: the balance commandlet asks both ways to see a people
+	 * held off only by them. The AI stage asks with false.
+	 */
+	COSMIC_ASCENSION_API FCosmicAIAim AIAimOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
+		const FCosmicRulesDef& Rules, int32 CivIndex, bool bLiftHeld = false);
+
 	/** The first reason the people CivIndex cannot guard SystemIndex, Sanctuary .. NoFleet. */
 	COSMIC_ASCENSION_API ECosmicGuardBlock GuardBlockOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules,
 		int32 CivIndex, int32 SystemIndex);

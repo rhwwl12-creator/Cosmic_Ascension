@@ -119,7 +119,7 @@
 | 생애 / 대(代) | Life | `FLifeRecord`, `LifeIndex`, `BornTick`, `Lives` | 판 안의 장. "제 N대" |
 | 사망 / 사인 | Death / Cause of Death | `EEffectType::KillPlayer`, `Death.*` 태그, `CauseSourceRow` | SourceRow가 있는 효과만 |
 | 시간선 도약 | Timeline Leap | `LeapTicks`, `RunHeadless` | 공백기 동안 은하가 혼자 흘러가는 구간. '도약'만 쓰면 이것이다 — T3의 순간 이동 권능(이동)과 다른 말 (위 ※) |
-| 공백기 | Interregnum | `ELifeState::Interregnum`, `ELogMode::Interlude`, `BeginInterlude()`, `BuildWorldDigest` | 부름이 쉬는 사이 |
+| 공백기 | Interregnum | `ELifeState::Interregnum`, 다이제스트 `World/CosmicDigest`(가칭, B5 — `[B-5c]`부터) | 부름이 쉬는 사이 |
 | 계승 / 취임 | Succession / Installation | `Succeed()`, `Install(SystemID, CivID, Role)` | 계승 추첨과 새 그릇의 시작. 첫 생애도 `Install()` |
 | 재위 종료 사유 / 상태 | Reign end / Status | `Reign.Abdicated/Deposed/Died`, `Status.FallenMonarch/Abdicated` | 왜 방랑자가 되었나의 기록 (§5.10) |
 | 생존 주기 | Cycles lived | `TicksLived = DiedTick - BornTick` | 비문의 숫자 |

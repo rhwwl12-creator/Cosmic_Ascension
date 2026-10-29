@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -547,5 +547,5 @@
+ 		bReaches = true;
+ 	}
+ 	// Birth protection: a shielded kill does not reach.
+-	return bReaches && !(Tick - Calling.BornTick < Rules.BirthProtectionTicks);
+-}
++	return bReaches && !(Tick - Calling.BornTick <= Rules.BirthProtectionTicks);
++}

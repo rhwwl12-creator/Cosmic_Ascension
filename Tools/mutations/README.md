@@ -409,3 +409,16 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B4/` | `b4d2_theodicy_lock_strict.patch` — a throne lock as long as the longest stand is refused | `Cosmic_Ascension.Data.Integrity` |
 | `B4/` | `b4d2_card_held_no_mark.patch` — a held edict's choice on a card carries no held mark | `Cosmic_Ascension.UI.PetitionCard` |
 | `B4/` | `b4d2_card_mark_any_edict_block.patch` — every edict-gated choice on a card carries the held mark | `Cosmic_Ascension.UI.PetitionCard` |
+| `B5/` | `b5a_risk_no_protection.patch` — the reach skips the birth protection | `Cosmic_Ascension.Sim.VesselAtRisk` |
+| `B5/` | `b5a_risk_protection_le.patch` — the birth protection shields its last tick too (<= for <) | `Cosmic_Ascension.Sim.VesselAtRisk` |
+| `B5/` | `b5a_risk_ruler_by_system.patch` — a system subject reaches whoever stands in it, a ruler too | `Cosmic_Ascension.Sim.VesselAtRisk` |
+| `B5/` | `b5a_risk_any_people.patch` — a people subject reaches the ruler of any people | `Cosmic_Ascension.Sim.VesselAtRisk` |
+| `B5/` | `b5a_risk_in_interregnum.patch` — the reach does not ask that the calling is embodied | `Cosmic_Ascension.Sim.VesselAtRisk` |
+| `B5/` | `b5a_aim_lift_ignored.patch` — the lift opens neither Capital nor LastSettled | `Cosmic_Ascension.Sim.AIAimLift` |
+| `B5/` | `b5a_aim_lift_capital_only.patch` — the lift opens Capital only | `Cosmic_Ascension.Sim.AIAimLift` |
+| `B5/` | `b5a_aim_lift_last_only.patch` — the lift opens LastSettled only | `Cosmic_Ascension.Sim.AIAimLift` |
+| `B5/` | `b5a_aim_lift_opens_adjacency.patch` — the lift opens NotAdjacent too | `Cosmic_Ascension.Sim.AIAimLift` |
+| `B5/` | `b5a_aim_lift_opens_besieged.patch` — the lift opens Besieged too | `Cosmic_Ascension.Sim.AIAimLift` |
+| `B5/` | `b5a_aim_lift_opens_nofleet.patch` — the lift opens NoFleet too | `Cosmic_Ascension.Sim.AIAimLift` |
+| `B5/` | `b5a_aim_lift_opens_notsettled.patch` — the lift opens NotSettled too | `Cosmic_Ascension.Sim.AIAimLift` |
+| `B5/` | `b5a_ai_stage_lifts.patch` — the AI stage asks its aim with the lift | `Cosmic_Ascension.Sim.AIAimLift` |

@@ -2369,17 +2369,30 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 		return;
 	}
 
+	// The side the expiry takes: its branch effects when its number falls under BranchChance.
+	const bool bBranch = Row->BranchChance > 0.f && OutcomeNumber < Row->BranchChance;
+	// The stage clock's note of the expiry (measurement only - FCosmicStageClock; B5): whom a KillPlayer on the system would
+	// reach now, before any part of the expiry. No draw, nothing written to the state.
+	if (StageClock.bOn)
+	{
+		StageClock.Expiries.Add({ State.Systems[SystemIndex].SystemID, Collected, bBranch, false,
+			CosmicHazards::VesselAtRiskOf(State.Player, State.Calling, Rules, State.Tick, State.Systems[SystemIndex].SystemID, State.Systems[SystemIndex].OwnerCivID) });
+	}
+
 	// The gate comes before any part of the loss (section 4.5): a kept system loses nothing, not even its line.
 	const bool bTakesSystem = Collected == SupernovaTag;
 	const bool bLastAtGate = bTakesSystem && CosmicHazards::IsLastSettledSystem(State, StateIndex, SystemIndex);
 	if (bLastAtGate && GraceKeepsLastSystem(Ctx, SystemIndex))
 	{
+		if (StageClock.bOn)
+		{
+			StageClock.Expiries.Last().bGrace = true;
+		}
 		EmptySlot();
 		return;
 	}
 
 	// The effects of the expiry, then its damage to the neighbours.
-	const bool bBranch = Row->BranchChance > 0.f && OutcomeNumber < Row->BranchChance;
 	UCosmicEventSubsystem::ApplyAll(bBranch ? Row->OnExpireBranchEffects : Row->OnExpireEffects, Ctx);
 	if (!Row->OnExpireNeighbourEffects.IsEmpty())
 	{
@@ -2687,96 +2700,36 @@ void UGalaxySimulationSubsystem::TickAIDiplomacy(int32 CivIndex)
 		}
 	}
 
-	// (3) A hostility opens only with a siege: no hostility held, no target, the rest over, a fleet, and not pacifist.
-	if (!Civ.FleetTargetSystemID.IsNone() || State.Tick < Civ.FleetTargetSinceTick + static_cast<int64>(FMath::Max(0, Rules.SiegeRestTicks))
-		|| !(Civ.FleetPower > 0.f) || !(Civ.Ethics.Pacifism < Rules.AIHostilePacifismMax))
+	// (3) A hostility opens only with a siege: the gate and the target are one pure function (CosmicConflict::AIAimOf - B5;
+	// the measurement of open question #126 asks it too).
+	const CosmicConflict::FCosmicAIAim Aimed = CosmicConflict::AIAimOf(State, StateIndex, Tables, Rules, CivIndex, false);
+	if (Aimed.System == INDEX_NONE)
 	{
 		return;
 	}
-	for (const TPair<FName, FCosmicTie>& Pair : Civ.Ties)
+	const int32 Other = Aimed.Other;
+	const int32 Aim = Aimed.System;
+	const FCivilizationState& Them = State.Civs[Other];
+	const bool bBrokeTrade = CosmicDiplomacy::TurnHostile(State, CivIndex, Other, 0.f);
+	State.Civs[CivIndex].FleetTargetSystemID = State.Systems[Aim].SystemID;
+	State.Civs[CivIndex].FleetTargetSinceTick = State.Tick;
+	if (Them.bIsPlayerRuled)
 	{
-		if (Pair.Value.Stance == Hostile)
+		UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+		check(Log);
+		const FName AimID = State.Systems[Aim].SystemID;
+		NoteMet(State.Civs[CivIndex].CivID, AimID);
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("Civ"), Them.CivName);
+		Args.Add(TEXT("OtherCiv"), State.Civs[CivIndex].CivName);
+		if (bBrokeTrade)
 		{
-			return;
+			FFormatNamedArguments TreatyArgs = Args;
+			TreatyArgs.Add(TEXT("Treaty"), CosmicDiplomacy::TreatyNameOf(CosmicTags::TreatyTrade()));
+			Log->PushRow(CosmicRows::LogTreatyBroken, 1, TreatyArgs, NAME_None, Them.CivID);
 		}
-	}
-	// A people at its realm cap besieges nothing (SiegeBlockOf's RealmCap holds for every system): no scan.
-	if (CosmicConflict::OwnedCountOf(State, StateIndex, CivIndex) >= CosmicMegaprojects::RealmCapOf(Rules, Civ.Tier))
-	{
-		return;
-	}
-	// Its borders once for the scan (Borders and ViewOf ask them a pair at a time): a bordering people's view is its
-	// stored relation (CosmicDiplomacy::ViewOf).
-	TArray<bool> Borders;
-	CosmicDiplomacy::BordersOf(State, StateIndex, CivIndex, Borders);
-	// The people the ruled people's fleet besieges, if any.
-	FName RuledBesieges;
-	const int32 Ruled = State.Civs.IndexOfByPredicate([](const FCivilizationState& Candidate) { return Candidate.bIsPlayerRuled; });
-	if (CosmicConflict::IsBesieging(State, StateIndex, Ruled))
-	{
-		RuledBesieges = State.Systems[StateIndex.FindSystem(State, State.Civs[Ruled].FleetTargetSystemID)].OwnerCivID;
-	}
-	for (int32 Other = 0; Other < State.Civs.Num(); ++Other)
-	{
-		if (Other == CivIndex)
-		{
-			continue;
-		}
-		const FCivilizationState& Them = State.Civs[Other];
-		if (!(Civ.FleetPower >= (Them.bIsPlayerRuled ? Rules.AIHostilePowerRatioTowardRuled : Rules.AIHostilePowerRatio) * Them.FleetPower) || !Borders[Other]
-			|| !(Civ.Relations.FindRef(Them.CivID) <= (Them.bIsPlayerRuled ? Rules.AIHostileRelationTowardRuled : Rules.AIHostileRelation))
-			|| CosmicDiplomacy::HasTreaty(Civ, Them.CivID, CosmicTags::TreatyNonAggression()))
-		{
-			continue;
-		}
-		// No pile-on: another AI already hostile toward them, or the ruled people's siege on them, closes the gate.
-		bool bTaken = false;
-		for (int32 Third = 0; Third < State.Civs.Num() && !bTaken; ++Third)
-		{
-			bTaken = Third != CivIndex && Third != Other && !State.Civs[Third].bIsPlayerRuled
-				&& CosmicDiplomacy::StanceOf(State.Civs[Third], Them.CivID) == Hostile;
-		}
-		if (bTaken || RuledBesieges == Them.CivID)
-		{
-			continue;
-		}
-		// A system of theirs to aim at, in Systems order, out of every higher sphere.
-		int32 Aim = INDEX_NONE;
-		for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num() && Aim == INDEX_NONE; ++SystemIndex)
-		{
-			if (State.Systems[SystemIndex].OwnerCivID == Them.CivID
-				&& CosmicConflict::SiegeBlockOf(State, StateIndex, Rules, CivIndex, SystemIndex, true) == CosmicConflict::ECosmicSiegeBlock::None
-				&& !(ComputeAttritionPressureIn(State, StateIndex, Tables, Rules, CivIndex, SystemIndex).P > 0.f))
-			{
-				Aim = SystemIndex;
-			}
-		}
-		if (Aim == INDEX_NONE)
-		{
-			continue;
-		}
-		const bool bBrokeTrade = CosmicDiplomacy::TurnHostile(State, CivIndex, Other, 0.f);
-		State.Civs[CivIndex].FleetTargetSystemID = State.Systems[Aim].SystemID;
-		State.Civs[CivIndex].FleetTargetSinceTick = State.Tick;
-		if (Them.bIsPlayerRuled)
-		{
-			UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
-			check(Log);
-			const FName AimID = State.Systems[Aim].SystemID;
-			NoteMet(State.Civs[CivIndex].CivID, AimID);
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("Civ"), Them.CivName);
-			Args.Add(TEXT("OtherCiv"), State.Civs[CivIndex].CivName);
-			if (bBrokeTrade)
-			{
-				FFormatNamedArguments TreatyArgs = Args;
-				TreatyArgs.Add(TEXT("Treaty"), CosmicDiplomacy::TreatyNameOf(CosmicTags::TreatyTrade()));
-				Log->PushRow(CosmicRows::LogTreatyBroken, 1, TreatyArgs, NAME_None, Them.CivID);
-			}
-			Args.Add(TEXT("System"), State.Systems[Aim].DisplayName);
-			Log->PushRow(CosmicRows::LogSiegeOnUs, 2, Args, AimID, Them.CivID);
-		}
-		return;
+		Args.Add(TEXT("System"), State.Systems[Aim].DisplayName);
+		Log->PushRow(CosmicRows::LogSiegeOnUs, 2, Args, AimID, Them.CivID);
 	}
 }
 

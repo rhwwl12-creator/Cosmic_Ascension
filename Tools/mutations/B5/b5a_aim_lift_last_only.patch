@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -226,7 +226,7 @@
+ 	}
+ 	const FCivilizationState& Civ = State.Civs[Attacker];
+ 	const FCivilizationState& Owner = State.Civs[OwnerIndex];
+-	if (!bLiftHeld && Owner.HomeSystemID == System.SystemID)
++	if (Owner.HomeSystemID == System.SystemID)
+ 	{
+ 		return ECosmicSiegeBlock::Capital;
+ 	}

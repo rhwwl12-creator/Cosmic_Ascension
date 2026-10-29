@@ -244,7 +244,7 @@ Claude Code가 UE API를 추측하면 틀릴 수 있다. 낯선 API가 나오면
 | `Cosmic_Ascension.Sim.PlayerAscendsToT3` | (Phase 2 종료 조건 '콘솔 명령 없이 T3') 게임 데이터로: 통치자가 프로토타입 키의 길로 다이슨 스웜을 짓고(물리 50%와 함께) T2가 된 뒤, 손으로 놓은 초신성 전조에 안정화로 대응해 성계를 지키고 T3가 된다. 리뷰에서 더한 것: 초신성의 카운트다운은 게임 행의 값이고 안정화가 그 안에 완성되며(완성 기록), 은혜가 쓰이지 않고(문이 지킨 것이 아니다), 첫 칸 동안 그릇이 같은 백성의 통치자로 남는다. 임시 끝(MVP ④)은 셋째 칸에 오른 그 틱에 처음 칸 끝이고 그 전 틱에는 없다(시계 끝은 노브 0으로 끈다 — 오르는 길에 6,000을 넘을 수 있다) |
 | `Cosmic_Ascension.Calling.LeapDeterminism` | (Phase 4b) 같은 시드·같은 사망 틱 → 공백기 도약 후 해시 동일 |
 | `Cosmic_Ascension.Calling.HardReset` | (Phase 4b) 계승 후 그릇 열(§4.4 3분할 표)이 전부 초기화되고 부름 열은 유지. T≤2는 T1, T≥3은 유지. `Succeed()`·`Install()` 직전과 직후의 모든 문명 `Notables`가 동일 — 계승 단계 자체는 인물을 만들지도 닫지도 않는다(도약 중 AI 사건과 `BecomeWanderer`의 Regent 생성은 비교 구간 밖, §7.2). 계승 전의 `Knowing`의 세 배열(`KnownSystems`·`MetCivs`·`MetGalaxies`)이 계승 뒤 배열의 앞부분과 같고(줄지 않고 순서가 바뀌지 않는다) `FirstContactCivID`가 계승 전과 같다 — 단언은 세 배열과 `FirstContactCivID`에 건다(계승과 `Install`은 이 칸을 적지도 비우지도 않는다). `FarLineUntilTick`과 `PendingContactCivID`는 도약 사이에 바뀔 수 있어 단언에 넣지 않는다(Phase 4b, §4.4) |
-| `Cosmic_Ascension.Calling.LeapResumeRoundTrip` | (Phase 4b) 공백기 진입 직후 저장 → 로드 → 남은 `PendingLeapTicks` 재개 → 중단 없이 돌린 것과 해시 동일 |
+| `Cosmic_Ascension.Sim.SaveLeapResume` | (B5 — `[B-5b]`부터. 옛 이름 `Calling.LeapResumeRoundTrip` — 러너의 smoke 필터 `Cosmic_Ascension.Sim.Save`에 들도록 `Sim.Save` 아래에 둔다) 진입 직후 저장과 공백기 도중 저장 둘 다 — 로드 → `AdvanceLeap`으로 이어 돈 판의 해시가 끊지 않은 판과 같다. 이어 연 공백기 판은 멈춰 서고, 디스크 사본이 생애 수와 `LifeState`를 든다 |
 | `Cosmic_Ascension.Calling.NoPlayerDuringLeap` | (Phase 4b) 도약 중 플레이어 이동·업적 평가·조우 생성·KillPlayer가 0회. 도약 중 `Knowing`의 세 배열과 `FirstContactCivID`도 불변(`TickSight`·`NoteMet`·`NoteKnown` 0회 — Phase 4b) |
 | `Cosmic_Ascension.Sim.SuccessionPossible` | (Phase 4b) 20,000틱 중 임의 틱에 사망시켜도 소유 성계가 1개 이상이면 계승 후보가 1개 이상(후보는 정착된 성계이고, 정착된 성계가 하나도 없으면 정착 중인 소유 성계로 완화한다 — §4.4. 정착과 문명 제거 작업의 리뷰부터 정착 중인 성계는 정착된 성계 없이 남지 않아 이 완화는 비어 있다 — 계승 작업이 정리한다. 소유 성계가 0이면 '침묵의 우주' 엔딩이 정상 발화) |
 | `Cosmic_Ascension.Sim.NoDanglingRefsAfterLeap` | (Phase 4b) 도약 후 `Player`·`Calling`의 모든 FName 참조(성계·문명·유물)가 존재. `Calling.Lives`의 역사적 ID(`BirthCivID`·`RuledCivIDs`·`BirthSystemID`), `Knowing`의 ID, `Transits`의 `SourceCivID`·`ResultCivID`는 면제한다 — 삭제된 문명·죽은 노드로 남은 성계를 가리킬 수 있다. 조회가 실패하면 사라진 것이다(성계는 지워지지 않는다, §7.2). 그릇의 이름(`{Player}`)은 `BirthArchetypeRow`로 푼다(§8.2) |
@@ -412,6 +412,10 @@ UnrealEditor-Cmd Cosmic_Ascension.uproject -run=CosmicBalance -Seed=42 -Ticks=20
 UnrealEditor-Cmd Cosmic_Ascension.uproject -run=CosmicBalance -Seed=42 -Ticks=6000 -TellAll=0 -Answer=1 -Build=1 -Focus=1 -Edict=1 -Diplomacy=1 -Guard=1 -Out=balance_guard.csv
 
 UnrealEditor-Cmd Cosmic_Ascension.uproject -run=CosmicBalance -Seed=42 -Ticks=6000 -TellAll=0 -Answer=1 -Build=1 -Focus=1 -Edict=1 -Diplomacy=1 -WithoutPressure=1 -Out=balance_unpressed.csv
+
+(B5 — 아래 줄은 손 확인의 세이브다(`[B-5a]`): 그 틱의 경계, 입력 전에 `SaveCurrentGalaxy`로 판의 슬롯을 쓴다 — 게임과 같은 꼴의 판(`-TellAll=0`, `-Rules`·`-WithoutPressure` 없이)에서만이고 아니면 에러 한 줄과 함께 쓰지 않는다. 슬롯의 자리와 '이어하기'로 여는 법은 `docs/60_DECISIONS/headers/B5_death_succession_two_books_notes.md` §2. 쓴 슬롯은 쓴 시각이 가장 새 판이라 다음 '이어하기'가 된다. 모든 판은 기준값 밖의 줄 `CosmicBalance calling:`도 낸다 — 첫 측정의 칸: 재위가 끝난 틱과 그 뒤의 첫 왕좌, 죽음 기회(위기가 만료한 틱에 성계 주어의 `KillPlayer`가 그릇에 닿았을 경우 — `CosmicHazards::VesselAtRiskOf`를 틱 전의 그릇으로 읽는다; 남은 자의 은혜·갈래가 있는 행·끝 뒤를 표시), #126(AI의 겨눔 `CosmicConflict::AIAimOf`를 문의 `Capital`·`LastSettled`를 연 채와 닫은 채로 견주어 다스리는 백성이 그 둘만으로 막힌 틱)과 #133(보유 상한을 크게 올린 규칙 사본의 분쟁 창))
+
+UnrealEditor-Cmd Cosmic_Ascension.uproject -run=CosmicBalance -Seed=42 -Ticks=6000 -TellAll=0 -Answer=1 -Build=1 -Focus=1 -Edict=1 -Diplomacy=1 -Abdicate=1200 -Wander=1 -SaveAt=3000 -Out=balance_save.csv
 
 (Phase 5 — 아래 두 줄의 -DeathAt·-Fallen·-PlayerArchetype는 아직 커맨드렛에 없다. -PlayerPolicy는 B4부터 있다 — 영압 카드의 답만(Cautious·Reckless·Faithful, Tribute는 거절); 아래 두 줄의 부름·통치의 뜻은 그대로 예정)
 

@@ -1,0 +1,13 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -527,10 +527,6 @@
+ bool CosmicHazards::VesselAtRiskOf(const FPlayerEntityState& Player, const FCallingState& Calling, const FCosmicRulesDef& Rules, int64 Tick,
+ 	FName SystemID, FName CivID)
+ {
+-	if (Calling.LifeState != ELifeState::Embodied)
+-	{
+-		return false;
+-	}
+ 	// What happens to a system reaches only a wanderer standing in it; without a system the effect reaches the ruler of the
+ 	// subject civilization (its extinction), or the vessel wherever it is when no civilization is named.
+ 	bool bReaches = false;

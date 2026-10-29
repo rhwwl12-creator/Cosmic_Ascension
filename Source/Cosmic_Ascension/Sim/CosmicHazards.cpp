@@ -523,3 +523,29 @@ bool CosmicHazards::IsLastUnclaimed(const FGalaxyState& State, const FCosmicStat
 	}
 	return true;
 }
+
+bool CosmicHazards::VesselAtRiskOf(const FPlayerEntityState& Player, const FCallingState& Calling, const FCosmicRulesDef& Rules, int64 Tick,
+	FName SystemID, FName CivID)
+{
+	if (Calling.LifeState != ELifeState::Embodied)
+	{
+		return false;
+	}
+	// What happens to a system reaches only a wanderer standing in it; without a system the effect reaches the ruler of the
+	// subject civilization (its extinction), or the vessel wherever it is when no civilization is named.
+	bool bReaches = false;
+	if (!SystemID.IsNone())
+	{
+		bReaches = Player.Role == EPlayerRole::Wanderer && Player.CurrentSystemID == SystemID;
+	}
+	else if (!CivID.IsNone())
+	{
+		bReaches = Player.Role == EPlayerRole::Ruler && Player.RuledCivID == CivID;
+	}
+	else
+	{
+		bReaches = true;
+	}
+	// Birth protection: a shielded kill does not reach.
+	return bReaches && !(Tick - Calling.BornTick < Rules.BirthProtectionTicks);
+}

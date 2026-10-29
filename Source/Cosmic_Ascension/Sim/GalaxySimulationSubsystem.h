@@ -68,7 +68,11 @@ struct FCosmicPressure
 // changes no order and draws nothing. Cycles of FPlatformTime::Cycles64 summed per stage - [0] diplomacy, [1] conflict,
 // [2] crisis, [3] AI, [4] economy, [5] the card's presentation - over Ticks ticks. While it is on, the conflict stage also notes
 // the sieges it ended (the commandlet's conflict line reads them, then empties the list): taken, held (the attacker
-// repulsed) or lifted (its gate closed), with the attacker, the owner before the end and the system.
+// repulsed) or lifted (its gate closed), with the attacker, the owner before the end and the system. B5 ([B-5a]): the crisis
+// stage notes every expiry it runs (the commandlet's calling line reads them, then empties the list): its system and tag, the
+// side it took (the branch effects, its number under BranchChance), whether the remnant's grace kept the system at its gate
+// (no effect ran), and whether a KillPlayer on that system would have reached the vessel then (CosmicHazards::VesselAtRiskOf,
+// the slot not asked - the moment Apply would ask). An expiry an answer edict resolves is no expiry and is not noted.
 struct FCosmicStageClock
 {
 	enum class ESiegeEnd : uint8
@@ -84,10 +88,19 @@ struct FCosmicStageClock
 		FName Owner;
 		FName SystemID;
 	};
+	struct FExpiry
+	{
+		FName SystemID;
+		FGameplayTag Tag;
+		bool bBranch = false;
+		bool bGrace = false;
+		bool bReached = false;
+	};
 	bool bOn = false;
 	uint64 Cycles[6] = {};
 	int64 Ticks = 0;
 	TArray<FSiegeEnd> SiegeEnds;
+	TArray<FExpiry> Expiries;
 };
 
 /**
@@ -484,7 +497,8 @@ private:
 	// player rules AIHostileRelationTowardRuled -, its FleetPower above 0 and at least AIHostilePowerRatio times theirs -
 	// AIHostilePowerRatioTowardRuled toward that people -, its Pacifism below AIHostilePacifismMax, no other AI hostile toward
 	// them, the ruled people not besieging them, and a system of theirs in Systems order that SiegeBlockOf passes with
-	// bAssumeHostile and ComputeAttritionPressureIn leaves at 0) - turning hostile breaks the pair's trade treaty
+	// bAssumeHostile and ComputeAttritionPressureIn leaves at 0 - the gate and the target are CosmicConflict::AIAimOf, asked
+	// without its lift, B5) - turning hostile breaks the pair's trade treaty
 	// (CosmicDiplomacy::TurnHostile, no penalty) and the siege stands at once on that system. A people the player rules is
 	// met first and told (CosmicRows::LogTreatyBroken when a treaty broke, then CosmicRows::LogSiegeOnUs).
 	void TickAIDiplomacy(int32 CivIndex);

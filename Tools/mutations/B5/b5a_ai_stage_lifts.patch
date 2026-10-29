@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2702,7 +2702,7 @@
+ 
+ 	// (3) A hostility opens only with a siege: the gate and the target are one pure function (CosmicConflict::AIAimOf - B5;
+ 	// the measurement of open question #126 asks it too).
+-	const CosmicConflict::FCosmicAIAim Aimed = CosmicConflict::AIAimOf(State, StateIndex, Tables, Rules, CivIndex, false);
++	const CosmicConflict::FCosmicAIAim Aimed = CosmicConflict::AIAimOf(State, StateIndex, Tables, Rules, CivIndex, true);
+ 	if (Aimed.System == INDEX_NONE)
+ 	{
+ 		return;

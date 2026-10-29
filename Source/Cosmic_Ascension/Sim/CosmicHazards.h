@@ -125,4 +125,15 @@ namespace CosmicHazards
 	 * sphere of no fallen (Realm.Abyssal) instance, sealed or not. Nothing may join it to a sphere.
 	 */
 	COSMIC_ASCENSION_API bool IsLastUnclaimed(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, int32 SystemIndex);
+
+	/**
+	 * Whether a KillPlayer on the subject (SystemID, CivID) at Tick reaches the vessel (B5 header section 5.1): the rule of
+	 * the record UCosmicEventSubsystem::Apply keeps, less 'the slot is free'. Only while Calling.LifeState is Embodied. A
+	 * subject with a system (SystemID not None) reaches a wanderer standing in it - what happens to a system never kills a
+	 * ruler; a subject without a system reaches the ruler of CivID (its extinction); a subject with neither reaches the vessel
+	 * anywhere. Never within DT_Rules.BirthProtectionTicks of Calling.BornTick (Tick - BornTick below it). Apply's KillPlayer
+	 * and the balance commandlet's death chances read it: the rule is not copied.
+	 */
+	COSMIC_ASCENSION_API bool VesselAtRiskOf(const FPlayerEntityState& Player, const FCallingState& Calling, const FCosmicRulesDef& Rules, int64 Tick,
+		FName SystemID, FName CivID);
 }

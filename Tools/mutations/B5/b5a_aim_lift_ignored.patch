@@ -1,0 +1,16 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -226,11 +226,11 @@
+ 	}
+ 	const FCivilizationState& Civ = State.Civs[Attacker];
+ 	const FCivilizationState& Owner = State.Civs[OwnerIndex];
+-	if (!bLiftHeld && Owner.HomeSystemID == System.SystemID)
++	if (Owner.HomeSystemID == System.SystemID)
+ 	{
+ 		return ECosmicSiegeBlock::Capital;
+ 	}
+-	if (!bLiftHeld && CosmicHazards::IsLastSettledSystem(State, Index, SystemIndex))
++	if (CosmicHazards::IsLastSettledSystem(State, Index, SystemIndex))
+ 	{
+ 		return ECosmicSiegeBlock::LastSettled;
+ 	}

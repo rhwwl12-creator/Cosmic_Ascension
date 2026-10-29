@@ -13,6 +13,7 @@
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
+#include "Sim/GalaxySimulationSubsystem.h"
 
 namespace CosmicConflictImpl
 {
@@ -177,9 +178,25 @@ bool CosmicConflict::IsBesieging(const FGalaxyState& State, const FCosmicStateIn
 	return State.Systems.IsValidIndex(Target) && !State.Systems[Target].OwnerCivID.IsNone() && State.Systems[Target].OwnerCivID != State.Civs[CivIndex].CivID;
 }
 
+namespace CosmicConflictImpl
+{
+	// SiegeBlockOf's body. bLiftHeld opens Capital and LastSettled (AIAimOf's measurement - open question #126); every other
+	// caller goes through SiegeBlockOf, which never lifts them.
+	CosmicConflict::ECosmicSiegeBlock SiegeBlockWith(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules,
+		int32 Attacker, int32 SystemIndex, bool bAssumeHostile, bool bLiftHeld);
+}
+
 CosmicConflict::ECosmicSiegeBlock CosmicConflict::SiegeBlockOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules,
 	int32 Attacker, int32 SystemIndex, bool bAssumeHostile)
 {
+	return CosmicConflictImpl::SiegeBlockWith(State, Index, Rules, Attacker, SystemIndex, bAssumeHostile, false);
+}
+
+CosmicConflict::ECosmicSiegeBlock CosmicConflictImpl::SiegeBlockWith(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules,
+	int32 Attacker, int32 SystemIndex, bool bAssumeHostile, bool bLiftHeld)
+{
+	using namespace CosmicConflict;
+
 	// Law.Hedge (rule 13): the first reason, whoever asks.
 	if (State.Systems.IsValidIndex(SystemIndex) && CosmicState::IsSanctuary(State.Systems[SystemIndex].SystemID))
 	{
@@ -209,11 +226,11 @@ CosmicConflict::ECosmicSiegeBlock CosmicConflict::SiegeBlockOf(const FGalaxyStat
 	}
 	const FCivilizationState& Civ = State.Civs[Attacker];
 	const FCivilizationState& Owner = State.Civs[OwnerIndex];
-	if (Owner.HomeSystemID == System.SystemID)
+	if (!bLiftHeld && Owner.HomeSystemID == System.SystemID)
 	{
 		return ECosmicSiegeBlock::Capital;
 	}
-	if (CosmicHazards::IsLastSettledSystem(State, Index, SystemIndex))
+	if (!bLiftHeld && CosmicHazards::IsLastSettledSystem(State, Index, SystemIndex))
 	{
 		return ECosmicSiegeBlock::LastSettled;
 	}
@@ -449,4 +466,83 @@ int64 CosmicConflict::ResistTicksOf(float Value)
 		return 0;
 	}
 	return static_cast<int64>(Value < 2147483647.f ? Value : 2147483647.f);
+}
+
+CosmicConflict::FCosmicAIAim CosmicConflict::AIAimOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
+	const FCosmicRulesDef& Rules, int32 CivIndex, bool bLiftHeld)
+{
+	FCosmicAIAim Aim;
+	if (!State.Civs.IsValidIndex(CivIndex))
+	{
+		return Aim;
+	}
+	const FGameplayTag Hostile = CosmicTags::StanceHostile();
+	const FCivilizationState& Civ = State.Civs[CivIndex];
+	// A hostility opens only with a siege: no hostility held, no target, the rest over, a fleet, and not pacifist.
+	if (!Civ.FleetTargetSystemID.IsNone() || State.Tick < Civ.FleetTargetSinceTick + static_cast<int64>(FMath::Max(0, Rules.SiegeRestTicks))
+		|| !(Civ.FleetPower > 0.f) || !(Civ.Ethics.Pacifism < Rules.AIHostilePacifismMax))
+	{
+		return Aim;
+	}
+	for (const TPair<FName, FCosmicTie>& Pair : Civ.Ties)
+	{
+		if (Pair.Value.Stance == Hostile)
+		{
+			return Aim;
+		}
+	}
+	// A people at its realm cap besieges nothing (SiegeBlockOf's RealmCap holds for every system): no scan.
+	if (OwnedCountOf(State, Index, CivIndex) >= CosmicMegaprojects::RealmCapOf(Rules, Civ.Tier))
+	{
+		return Aim;
+	}
+	// Its borders once for the scan (Borders and ViewOf ask them a pair at a time): a bordering people's view is its
+	// stored relation (CosmicDiplomacy::ViewOf).
+	TArray<bool> Borders;
+	CosmicDiplomacy::BordersOf(State, Index, CivIndex, Borders);
+	// The people the ruled people's fleet besieges, if any.
+	FName RuledBesieges;
+	const int32 Ruled = State.Civs.IndexOfByPredicate([](const FCivilizationState& Candidate) { return Candidate.bIsPlayerRuled; });
+	if (IsBesieging(State, Index, Ruled))
+	{
+		RuledBesieges = State.Systems[Index.FindSystem(State, State.Civs[Ruled].FleetTargetSystemID)].OwnerCivID;
+	}
+	for (int32 Other = 0; Other < State.Civs.Num(); ++Other)
+	{
+		if (Other == CivIndex)
+		{
+			continue;
+		}
+		const FCivilizationState& Them = State.Civs[Other];
+		if (!(Civ.FleetPower >= (Them.bIsPlayerRuled ? Rules.AIHostilePowerRatioTowardRuled : Rules.AIHostilePowerRatio) * Them.FleetPower) || !Borders[Other]
+			|| !(Civ.Relations.FindRef(Them.CivID) <= (Them.bIsPlayerRuled ? Rules.AIHostileRelationTowardRuled : Rules.AIHostileRelation))
+			|| CosmicDiplomacy::HasTreaty(Civ, Them.CivID, CosmicTags::TreatyNonAggression()))
+		{
+			continue;
+		}
+		// No pile-on: another AI already hostile toward them, or the ruled people's siege on them, closes the gate.
+		bool bTaken = false;
+		for (int32 Third = 0; Third < State.Civs.Num() && !bTaken; ++Third)
+		{
+			bTaken = Third != CivIndex && Third != Other && !State.Civs[Third].bIsPlayerRuled
+				&& CosmicDiplomacy::StanceOf(State.Civs[Third], Them.CivID) == Hostile;
+		}
+		if (bTaken || RuledBesieges == Them.CivID)
+		{
+			continue;
+		}
+		// A system of theirs to aim at, in Systems order, out of every higher sphere.
+		for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num(); ++SystemIndex)
+		{
+			if (State.Systems[SystemIndex].OwnerCivID == Them.CivID
+				&& CosmicConflictImpl::SiegeBlockWith(State, Index, Rules, CivIndex, SystemIndex, true, bLiftHeld) == ECosmicSiegeBlock::None
+				&& !(UGalaxySimulationSubsystem::ComputeAttritionPressureIn(State, Index, Tables, Rules, CivIndex, SystemIndex).P > 0.f))
+			{
+				Aim.Other = Other;
+				Aim.System = SystemIndex;
+				return Aim;
+			}
+		}
+	}
+	return Aim;
 }

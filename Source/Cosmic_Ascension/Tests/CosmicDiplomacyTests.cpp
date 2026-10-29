@@ -1775,6 +1775,133 @@ bool FCosmicSimDiplomacyAITest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// B5 [B-5a] (header section 5.1, 6): the AI stage's aim is one pure function. Asked without the lift it is the aim the AI
+// stage acts on; the lift opens the siege gate's Capital and LastSettled and nothing else - on a board where the ruled people
+// holds its capital alone, only the lifted aim turns on that capital (the measurement of open question #126).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimAIAimLiftTest, "Cosmic_Ascension.Sim.AIAimLift", CosmicTests::Flags)
+bool FCosmicSimAIAimLiftTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicDiplomacyTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	// The gate of Sim.DiplomacyAI: people 1 sees people 0 at -0.4 with twice its fleet.
+	FGalaxyState* State = LayBoard(*Sim, Original, [](FCosmicRulesDef& Rules)
+	{
+		Fleets(Rules);
+		Rules.SiegeRestTicks = 50;
+		Rules.SiegeTicks = 1000;
+		Rules.AIHostileRelation = -0.3f;
+		Rules.AIHostilePowerRatio = 1.5f;
+		Rules.AIHostileRelationTowardRuled = -0.3f;
+		Rules.AIHostilePowerRatioTowardRuled = 1.5f;
+	});
+	if (!TestNotNull(TEXT("The board is laid"), State))
+	{
+		return false;
+	}
+	for (FCivilizationState& Civ : State->Civs)
+	{
+		Civ.Tier = EAscensionTier::Tier2_Stellar;
+		Civ.Stockpile.Energy = 1000.f;
+		Civ.FleetPower = 1.f;
+	}
+	State->Civs[1].FleetPower = 2.f;
+	State->Civs[1].Ethics.Pacifism = -0.5f;
+	State->Civs[1].Relations.Add(State->Civs[0].CivID, -0.4f);
+	State->Tick = 100;
+	Sim->SyncRngState();
+	const FGalaxyState Start = *State;
+	const FName Zero = Start.Civs[0].CivID;
+	auto AimOf = [Sim](const FGalaxyState& Case, int32 CivIndex, bool bLift)
+	{
+		FCosmicStateIndex Index;
+		Index.Rebuild(Case);
+		return CosmicConflict::AIAimOf(Case, Index, Sim->GetTables(), Sim->GetRules(), CivIndex, bLift);
+	};
+	auto Same = [](const CosmicConflict::FCosmicAIAim& A, const CosmicConflict::FCosmicAIAim& B) { return A.Other == B.Other && A.System == B.System; };
+	auto TargetAfterTick = [Sim](const FGalaxyState& Case)
+	{
+		Sim->LoadState(Case);
+		Sim->StepOnce();
+		return Sim->GetState().Civs[1].FleetTargetSystemID;
+	};
+
+	// The plain aim is the AI stage's: people 1 turns on system 1 of people 0, and so does the tick.
+	const CosmicConflict::FCosmicAIAim Plain = AimOf(Start, 1, false);
+	TestTrue(TEXT("Without the lift the aim is people 0's system 1"), Plain.Other == 0 && Plain.System == 1);
+	TestEqual(TEXT("and the AI stage lays its siege there"), TargetAfterTick(Start), IDOf(Start, 1));
+	TestTrue(TEXT("The lift changes nothing where no capital or last system held the aim (system 0 is not next to people 1)"), Same(AimOf(Start, 1, true), Plain));
+	TestTrue(TEXT("A people with no case aims at no one either way"), AimOf(Start, 2, false).System == INDEX_NONE && AimOf(Start, 2, true).System == INDEX_NONE);
+
+	// The ruled people holds its capital alone (people 0 keeps 0, people 1 takes 1): only the lifted aim turns on that capital.
+	FGalaxyState Alone = Start;
+	HandOver(Alone, 1, 1);
+	HandOver(Alone, 4, 2);
+	Alone.Civs[0].Tier = EAscensionTier::Tier1_Planetary;
+	TestEqual(TEXT("Without the lift the capital that is the last settled system holds the aim off"), AimOf(Alone, 1, false).System, static_cast<int32>(INDEX_NONE));
+	const CosmicConflict::FCosmicAIAim Lifted = AimOf(Alone, 1, true);
+	TestTrue(TEXT("With the lift the aim turns on that capital"), Lifted.Other == 0 && Lifted.System == 0);
+	TestTrue(TEXT("and the AI stage, which asks without the lift, stays neutral"), TargetAfterTick(Alone).IsNone()
+		&& CosmicDiplomacy::StanceOf(Sim->GetState().Civs[1], Zero) != Hostile());
+
+	// The lift opens nothing else. A non-aggression treaty, a realm cap reached and no fleet close the aim before the siege
+	// gate is asked (AIAimOf's own gate); a siege that already stands, a capital out of reach, an owner two rungs above
+	// (no effective power) and a settlement under way are the gate's own reasons, after Capital and LastSettled.
+	{
+		FGalaxyState Treaty = Alone;
+		CosmicDiplomacy::Sign(Treaty, 0, 1, NonAggression());
+		TestEqual(TEXT("A non-aggression treaty closes the lifted aim"), AimOf(Treaty, 1, true).System, static_cast<int32>(INDEX_NONE));
+	}
+	{
+		const FCosmicDataTables Laid = Sim->GetTables();
+		FCosmicRulesDef Capped = Sim->GetRules();
+		// People 1 owns three systems on the board where people 0 is alone (3, 2 and 1): a cap of three is reached.
+		Capped.RealmCapByTier = { 3, 3, 3, 3, 3 };
+		Sim->SetTables(CosmicTests::WithRules(Laid, Capped));
+		TestEqual(TEXT("A realm cap reached closes the lifted aim"), AimOf(Alone, 1, true).System, static_cast<int32>(INDEX_NONE));
+		Sim->SetTables(Laid);
+	}
+	{
+		// People 2's fleet already stands on system 1: system 1 is Besieged and the capital 0 lies one lane from no settled
+		// system of people 1 - neither reason is lifted.
+		FGalaxyState Taken = Start;
+		Taken.Civs[2].FleetTargetSystemID = IDOf(Taken, 1);
+		Taken.Civs[2].FleetTargetSinceTick = 90;
+		TestEqual(TEXT("Without the lift a standing siege and a far capital hold the aim off"), AimOf(Taken, 1, false).System, static_cast<int32>(INDEX_NONE));
+		TestEqual(TEXT("and the lift opens neither"), AimOf(Taken, 1, true).System, static_cast<int32>(INDEX_NONE));
+	}
+	{
+		FGalaxyState Idle = Alone;
+		Idle.Civs[1].FleetPower = 0.f;
+		Idle.Civs[0].FleetPower = 0.f;
+		TestEqual(TEXT("No fleet: no lifted aim"), AimOf(Idle, 1, true).System, static_cast<int32>(INDEX_NONE));
+	}
+	{
+		// People 0 two rungs above people 1 (T4 over T2): the fleet's effectiveness across that gap is 0 (NoFleet), though its
+		// FleetPower passes the ratio.
+		FGalaxyState Above = Alone;
+		Above.Civs[0].Tier = EAscensionTier::Tier4_Transcendent;
+		TestEqual(TEXT("An owner out of the fleet's reach holds the lifted aim off (NoFleet)"), AimOf(Above, 1, true).System, static_cast<int32>(INDEX_NONE));
+	}
+	{
+		// People 0 also holds 5 (next to people 1's 4) as a settlement under way, and people 2's fleet stands on its system 1:
+		// the border stays (1-2), the capital 0 is far, 1 is Besieged and 5 NotSettled.
+		FGalaxyState Settling = Start;
+		HandOver(Settling, 5, 0);
+		Settling.Systems[5].ActiveMegaproject = CosmicRows::ProjectSettle;
+		Settling.Civs[2].FleetTargetSystemID = IDOf(Settling, 1);
+		Settling.Civs[2].FleetTargetSinceTick = 90;
+		TestEqual(TEXT("Without the lift a settlement under way, a standing siege and a far capital hold the aim off"), AimOf(Settling, 1, false).System, static_cast<int32>(INDEX_NONE));
+		TestEqual(TEXT("and the lift does not open the settlement"), AimOf(Settling, 1, true).System, static_cast<int32>(INDEX_NONE));
+	}
+	return true;
+}
+
 // #73 (header section 2.10): a feat counts the people's own completions; a record of no people is the owner's and a
 // conquest does not make it the conqueror's; a conquered system counts among the settled systems.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimOwnCompletionsTest, "Cosmic_Ascension.Sim.OwnCompletions", CosmicTests::Flags)

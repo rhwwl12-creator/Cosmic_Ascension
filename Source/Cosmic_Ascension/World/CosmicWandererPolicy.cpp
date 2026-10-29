@@ -64,6 +64,10 @@ void CosmicWandererPolicy::Act(const FCosmicWandererPolicy& Policy, UGalaxySimul
 			break;
 		}
 		Counts.Answers += (Taken.Outcome == ECosmicPetitionOutcome::Withdrawn) ? 0 : 1;
+		if (Taken.Outcome == ECosmicPetitionOutcome::Failed)
+		{
+			++Counts.FailedByRow.FindOrAdd(Card);
+		}
 		Counts.Cards += (!State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != Card) ? 1 : 0;
 	}
 	// An answer lifts reverence at once - the coronation it opens may come at this very boundary.

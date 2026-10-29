@@ -832,33 +832,12 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 		return true;
 
 	case EEffectType::KillPlayer:
-	{
-		if (!IsEmbodied(State))
-		{
-			return false;
-		}
-		// What happens to a system reaches only a wanderer standing in it; without a system the effect reaches the ruler
-		// of the subject civilization (its extinction), or the vessel wherever it is when no civilization is named.
-		bool bReaches = false;
-		if (System)
-		{
-			bReaches = Player.Role == EPlayerRole::Wanderer && Player.CurrentSystemID == System->SystemID;
-		}
-		else if (Civ)
-		{
-			bReaches = Player.Role == EPlayerRole::Ruler && Player.RuledCivID == Civ->CivID;
-		}
-		else
-		{
-			bReaches = true;
-		}
-		// Birth protection: a shielded kill leaves the slot free.
-		if (!bReaches || State.Tick - State.Calling.BornTick < Ctx.Rules.BirthProtectionTicks)
+		// Who it reaches is one rule (CosmicHazards::VesselAtRiskOf - B5): a shielded or missed kill leaves the slot free.
+		if (!CosmicHazards::VesselAtRiskOf(Player, State.Calling, Ctx.Rules, State.Tick, System ? System->SystemID : NAME_None, Civ ? Civ->CivID : NAME_None))
 		{
 			return false;
 		}
 		return RecordRoleEffect(Ctx, TEXT("Effect.KillPlayer"), Effect.Tag);
-	}
 
 	case EEffectType::DeposeRuler:
 		if (!IsEmbodied(State) || !Civ || Player.Role != EPlayerRole::Ruler || Player.RuledCivID != Civ->CivID)
