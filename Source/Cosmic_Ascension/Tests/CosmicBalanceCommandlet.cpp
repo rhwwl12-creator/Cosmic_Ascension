@@ -862,7 +862,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	int32 Systems = 0;
 	int32 Civs = 0;
 	int32 TellAll = 1;
-	// The ruler's policy (section 9.3; Phase 5 adds -PlayerPolicy): -Answer=1 answers every card the tick it comes
+	// The ruler's policy (section 9.3; B4 adds -PlayerPolicy for the pressure cards, Phase 5 its calling meaning): -Answer=1 answers every card the tick it comes
 	// (CosmicRulerPolicy::ChoiceOf), -Build=1 starts every project the ruler's project key would start
 	// (StartNextMegaproject: the answers and the next feat's construction, then a settlement) - both between ticks, as a
 	// player's input. 0 (the default) leaves the ruler idle: the world of RunHeadless(Ticks).

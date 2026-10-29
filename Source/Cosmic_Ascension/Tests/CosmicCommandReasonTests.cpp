@@ -108,7 +108,7 @@ namespace CosmicCommandReasonTests
 	}
 
 	// The game's hazards with a test row of the test's own: every game row but those on the test row's tag (FindHazardByTag
-	// takes the first row of a tag in name order - a game row on it, the cult row of Phase 4 for one, would stand in front
+	// takes the first row of a tag in name order - a game row on it, the cult row of B7 for one, would stand in front
 	// of the test's), then Row on Name, never drawn.
 	UDataTable* HazardsWith(const FCosmicDataTables& Game, FName Name, const FHazardDef& Row)
 	{

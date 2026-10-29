@@ -1133,7 +1133,8 @@ int32 UCosmicEventSubsystem::EvaluateAndFire(FGalaxyState& State, FRandomStream&
 		TArray<FSlotPair, TInlineAllocator<16>> Lottery;
 		Gather(ECosmicEventTrigger::Lottery, Lottery);
 		// The share of every pair, once: BaseWeight x weight factor x chance. The factor is the sphere weight of the transcendents
-		// (section 4.2); traits add theirs in Phase 4, the vigil edict its own in B4 (B2's edict rows carry no event weight).
+		// (section 4.2); traits add theirs in Phase 4. An edict adds none: the vigil weighs a claim through a Lottery row of
+		// its own (event_claim_eased - CivHasEdict, B4 header section 2.8).
 		TArray<float, TInlineAllocator<16>> Shares;
 		float Total = 0.f;
 		for (const FSlotPair& Pair : Lottery)

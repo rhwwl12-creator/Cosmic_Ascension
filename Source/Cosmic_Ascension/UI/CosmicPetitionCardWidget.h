@@ -31,7 +31,8 @@ class UVerticalBox;
  * A choice the card's gate refuses (B4 header section 4 - CosmicPetitions::ChoiceGateOf, the gate the answer reads: a
  * stance, an edict it cannot enact, the fleet's time it cannot buy) is greyed out while the card stands, the first reason
  * its tooltip - after the stockpile's - and the short words of an edict's reason or of a fleet with no cap yet after its
- * label (the edict window's and the panel's form). A choice that enacts an edict says under it the edict's cost and the
+ * label (the edict window's and the panel's form; the fleet's rung from CosmicUI::FleetSuffix); an edict the people already
+ * holds carries the held mark Edict.Mark in front of its label instead (B4 [B-4d2]). A choice that enacts an edict says under it the edict's cost and the
  * slots (Petition.EdictLine), and its tooltip what the edict costs and does (UCosmicEdictWidget::TipOf); one that buys a
  * standing hazard time with the fleet, the fleet now and after, the hazard and the time added (Petition.ResistLine).
  */

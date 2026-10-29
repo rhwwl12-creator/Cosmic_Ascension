@@ -53,8 +53,8 @@ namespace CosmicHazards
 	 * row exists, the system is a settled system with a free slot and, for a Capital row, the capital of its owner.
 	 * Sets ActiveHazard to the row's HazardTag and HazardTicksRemaining to its CountdownTicks (read as at least 1) plus
 	 * the owner's edicts' CosmicEdicts::CountdownBonusOf for its tag (B2) plus the delay of a fleet that guards the system
-	 * (CosmicConflict::FleetDelayOf, B3) - at placement only; a standing hazard's count never changes - and leaves a
-	 * HazardPlaced note in Ctx.
+	 * (CosmicConflict::FleetDelayOf, B3) - at placement only: no edict or guard changes a standing hazard's count, a card's
+	 * DelayHazard alone adds to it (B4, CosmicConflict::ResistBlockOf) - and leaves a HazardPlaced note in Ctx.
 	 */
 	COSMIC_ASCENSION_API bool Place(FCosmicEvalContext& Ctx, int32 SystemIndex, FName HazardRow);
 
@@ -115,7 +115,8 @@ namespace CosmicHazards
 	 * whose DT_Transcendents row is Realm.Abyssal, whose sphere does not hold the system and lies within
 	 * DT_Rules.ClaimAdjacencyLanes lanes of it, the one whose pressure term on the system is largest; equal terms go to
 	 * the earlier instance. INDEX_NONE when there is none. Neither the cap of the sphere nor Law.Remnant is asked here.
-	 * Tribute (condition (b), Trait.Faith.Tribute) joins with the tribute petition of Phase 4.
+	 * Tribute (condition (b), Trait.Faith.Tribute) is not here: it needs the trait rows and a tribute paid a tick with it,
+	 * and no block owns it yet (B4 header section 0 - open question #137).
 	 */
 	COSMIC_ASCENSION_API int32 ClaimantOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 SystemIndex);
 

@@ -153,9 +153,10 @@ namespace CosmicRulerPolicy
 
 	// One tick boundary, right after RunHeadless(1), before anything else reads the tick: reads the provisional end into
 	// bEnded first (as the presentation reads it), counts a card that came, then answers while a card is pending (at
-	// most eight), presses the project key until it is refused (at most eight - the attack policy, Diplomacy 2, stops
-	// before a settlement that would fill its last realm slot: it leaves that slot to a conquest, for a people at its
-	// cap besieges nothing) and, while the run has not ended, puts the
+	// most eight), presses the project key until it is refused (under a pressure policy - B4 - it starts the first of
+	// ProjectChoicesOf instead, else a settlement of the first of CosmicMegaprojects::SettleTargets; at most eight - the
+	// attack policy, Diplomacy 2, stops before a settlement that would fill its last realm slot: it leaves that slot to a
+	// conquest, for a people at its cap besieges nothing) and, while the run has not ended, puts the
 	// research focus on the field of the first research condition of the ways up that is not met (the even focus when
 	// none is), then the edicts (ActEdicts), then the diplomacy (ActDiplomacy). CardBefore is the pending card before the
 	// tick. Its lines carry this tick.
@@ -174,6 +175,12 @@ namespace CosmicRulerPolicy
 	// (EdictRow only when no other one does) - only when the row's one reason is Slots (CosmicEdicts::EnactBlockOf) and
 	// the stockpile can pay its EnactCost, so nothing is given up for an enactment that would be refused. One boundary
 	// never revokes a row it enacted, nor enacts one it revoked.
+	// B4 (header section 2.9, decision 9): under a pressure policy, step (2) leaves a hazard unanswered when its first edict
+	// answer is one ProjectChoicesOf leaves out (a claim's; with bLeaveNearSphere, an awakening's or a plague's on a settled
+	// system a claimant could reach). While a claim stands on a settled system of the people (ClaimStandsOn), the
+	// room-making revocation and the vigil rule of step (4) pass by Counts.CardEdicts - and, under a pressure policy, the
+	// vigil (VigilRowOf), whoever enacted it (the idle-answer rule of step (4) is not held back: no card enacts an answer
+	// edict now); a vigil a card enacted goes in step (4), as the vigil of step (3) does, once the danger passed.
 	// Nothing once Counts.bEnded is set.
 	void ActEdicts(const FCosmicRulerPolicy& Policy, UGalaxySimulationSubsystem& Sim, UPlayerRoleSubsystem& Role, FCosmicRulerPolicyCounts& Counts);
 
@@ -181,10 +188,11 @@ namespace CosmicRulerPolicy
 	// accepted one counts), one command a boundary at most, in this order - the guard first (a siege threatens a system
 	// now; a stance or a treaty can wait a boundary): (1) the guard - a siege on one of the people's systems (the first in
 	// Systems order) is guarded against while the people besieges no one; a guard over a system no longer besieged is
-	// withdrawn; (2) friendship - while no first contact card waits (the card decides the first stance, and a friendship
-	// set meanwhile would take the slot its [Reach out] needs), the first met people in Civs order that borders the
-	// people, toward which it holds no stance, when the command's gate
-	// takes friendly and the people's Influence income covers the friendly stances' upkeep with this one and its edicts'
+	// withdrawn - or, with Guard 1 (B4), the fleet is sent to the system GuardTargetOf keeps instead, guarding or not (a
+	// fleet already there stays, and the steps below run on); (2) friendship - while no first contact card waits (the card
+	// decides the first stance, and a friendship set meanwhile would take the slot its [Reach out] needs), the first met
+	// people in Civs order that borders the people, toward which it holds no stance, when the command's gate takes
+	// friendly and the people's Influence income covers the friendly stances' upkeep with this one and its edicts'
 	// upkeep (a friendship the stockpile cannot keep would lapse and be set again every boundary); (3) treaties - to the
 	// met bordering peoples in Civs order, non-aggression then trade, the first the gate takes (the first look of every
 	// pair is counted - see the counts; the attack policy offers none - a non-aggression would close the siege gate on
@@ -192,7 +200,8 @@ namespace CosmicRulerPolicy
 	// policy only (2), while its fleet guards no system of its own a siege still stands on: a hostile people's first
 	// system the siege gate takes is besieged; else a hostile stance with no such system is turned neutral (the AI's rule: no hostility without
 	// a siege); else the first met bordering people with such a system is turned hostile (one boundary each). The peace
-	// policy (1) never turns hostile. Nothing for 0, nor once Counts.bEnded is set.
+	// policy (1) never turns hostile. Nothing for 0, nor once Counts.bEnded is set - except step (1) with Guard 1 (B4),
+	// which runs with no diplomacy and after the end too; steps (2)-(4) still need a diplomacy policy and a run not ended.
 	void ActDiplomacy(const FCosmicRulerPolicy& Policy, UGalaxySimulationSubsystem& Sim, UPlayerRoleSubsystem& Role, FCosmicRulerPolicyCounts& Counts);
 
 	// The decisions a run took: answers, projects started, focus changes, edict commands and diplomacy commands (stances,

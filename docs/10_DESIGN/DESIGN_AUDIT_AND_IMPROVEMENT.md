@@ -172,7 +172,7 @@
 1. **[고립된 유령 데이터] 발화 확률 0%인 ‘언약책(`Trait.Faith.Book`)’ 서사 체인**:
    - [`DT_Events.json`](../../Tools/data/DT_Events.json)의 1~128행에는 이 게임의 신학적 정수를 담은 3개의 이벤트(`event_book_closed`, `event_book_found`, `event_book_reading`)가 정의되어 있으나, `arch_terran` 퇴역 이후 어느 문명도 `Trait.Faith.Book`이나 `BookShut`을 갖고 시작하지 않으며 이를 부여하는 이벤트도 없어 **발화 확률 0%의 사문화된 데이터**로 고립되어 있다.
 2. **[빈 껍데기 정의 행] `DT_Transcendents.json`의 비어 있는 서사/유혹 필드**:
-   - [`DT_Transcendents.json`](../../Tools/data/DT_Transcendents.json)의 유일한 행 `trans_silence`("꺼뜨리는 이")를 보면, 설계 문서([`crisis_and_transcendents.md`](crisis_and_transcendents.md))에서 핵심으로 강조한 `"CounterfeitOf": ""`, `"Lure": ""`, `"EventWeightModifiers": {}`, `"VoiceTemplates": []`, `"ClaimTemplates": []`가 **모두 빈 값**이다. 시스템 코드는 준비되어 있으나 실제 데이터가 비어 있어 초월자의 목소리와 유혹이 플레이어에게 전달되지 않는다.
+   - [`DT_Transcendents.json`](../../Tools/data/DT_Transcendents.json)의 유일한 행 `trans_silence`("꺼뜨리는 이")를 보면, 설계 문서([`crisis_and_transcendents.md`](crisis_and_transcendents.md))에서 핵심으로 강조한 `"CounterfeitOf": ""`, `"Lure": ""`, `"EventWeightModifiers": {}`, `"VoiceTemplates": []`, `"ClaimTemplates": []`가 **모두 빈 값**이다. 시스템 코드는 준비되어 있으나 실제 데이터가 비어 있어 초월자의 목소리와 유혹이 플레이어에게 전달되지 않는다. (B4가 `CounterfeitOf`·`Lure`·`ClaimTemplates`를 채웠다 — 2026-10-27, 아래 자료 4의 체크리스트.)
 3. **[출력 없는 막다른 변수들] `Ethics`(윤리 축), `Reverence`(경외), `Causality`(인과)**:
    - 청원 카드마다 `ShiftEthics`(`Spiritualism ±0.05`, `Openness +0.05`)와 `ChangeReverence`를 주지만, 현재 [`DT_Events.json`](../../Tools/data/DT_Events.json)과 [`DT_Encounters.json`](../../Tools/data/DT_Encounters.json) 어디에도 **윤리 수치를 조건(`Conditions`)으로 검사하는 행이 단 하나도 없다.** 상단 바의 5번째 자원 `인과(Causality)` 역시 첫 판 내내 `0`으로 고정되어 있다.
 4. **[불친절한 확률 블랙박스] `"안정도 판정 5/6"` (`Petition.Check`)의 모호함**:
@@ -339,7 +339,7 @@ flowchart LR
 3. **시뮬레이션 수식 연동 (`MVP ⑧` / `B2`)**: `TickEconomy`의 안정도 자연 회복량 계산 시 `StabilityRecoveryPerTick * (1.0f + Civ.Research["Society"])`를 적용하고, `Influence` 틱당 수입에 `+0.5f * Civ.Research["Society"]`를 더한다.
 4. **체감 변화**: 첫 청원 `petition_wise_heart`에서 **"지혜를 구한다"**를 고른 플레이어는 `Society 0.25` 첫 돌파 시 **"서고 깊은 곳에서 잊혔던 언약책이 다시 펼쳐졌다"**(`event_book_found`)라는 강렬한 서사 보상과 함께 `Stability +0.2`, `Insight +80`, 이후 `event_book_reading` 체인까지 경험하게 된다! 유령 데이터였던 언약책 3종 이벤트와 무효 선택지였던 `Society` 연구가 동시에 살아난다.
 
-#### 설계안 C. [위기 청원의 ‘인내와 구호’ 메커니즘] — 바벨탑 역설 해소 (C-3 해결 — `MVP ⑧` / `B4`)
+#### 설계안 C. [위기 청원의 ‘인내와 구호’ 메커니즘] — 바벨탑 역설 해소 (C-3 해결 — `MVP ⑧` / `B6`: ①은 `[A-8b]`가 반영했고 ②는 B4 헤더 §0이 B6로 넘겼다)
 1. **`crisis_plague`에 대응 거대사업 연결**: [`DT_Hazards.json`](../../Tools/data/DT_Hazards.json)의 `crisis_plague` 행 `RulerResolutions`에 `["project_relief"]`(구호, 150틱)를 추가한다.
 2. **겸비 선택지의 효과 보강 ([`DT_Encounters.json`](../../Tools/data/DT_Encounters.json))**:
    - `petition_plague`의 `"앓는 이들 곁에 선다"`: 기존 `Stability +0.05`, `Reverence +0.1`, `Spiritualism +0.05`에 더해, **`project_relief`로 구호할 길을 열어주거나 `ResolveHazard: Hazard.Plague` + 단기 생산/물자 비용**(신정론 예산 25% 규칙 준수)을 치르고 역병을 함께 견뎌내게 한다.
@@ -361,14 +361,14 @@ flowchart LR
   - `event_plague_repentance`(346행): `Conditions`에 `Spiritualism` 또는 `Trait.Faith.Book` 보유 시 발화 가중치 보너스 연동 검토.
 - [x] **[`Tools/data/DT_Hazards.json`](../../Tools/data/DT_Hazards.json)** (`MVP ⑧` — 반영 `[A-8b]` 2026-10-24; 주기 청원의 교착 폴백·인구당 영향력 1.0·정착 600·이름 둘도 같은 커밋, 헤더 `docs/60_DECISIONS/headers/A8_economy_and_pace.md`)
   - `crisis_plague`(96행): `"RulerResolutions": []` → `"RulerResolutions": ["project_relief"]`로 수정하여 역병 시 구호 거대사업 착공 허용.
-- [ ] **[`Tools/data/DT_Encounters.json`](../../Tools/data/DT_Encounters.json)** (`MVP ⑧` / `B4`)
+- [ ] **[`Tools/data/DT_Encounters.json`](../../Tools/data/DT_Encounters.json)** (`MVP ⑧` / `B6` — 위기 청원의 '낮은 선택'은 B4 헤더 §0이 B6로 넘겼다)
   - `petition_awakening`(742행) 선택지 1 `"이름을 준다"`: `OnSuccess`에 `ResolveHazard (Hazard.AIAwakening)` 및 `ChangeStability -0.03`(신정론 예산 비용) 추가.
   - `petition_plague`(675행) 선택지 1 `"앓는 이들 곁에 선다"`: `project_relief` 대응 수단과 맞물리도록 위기 해소/완화 효과 보강.
   - `petition_exalt`(936행): 통치자도 3칸에서 받을 수 있도록 `Conditions`의 `PlayerTierAtLeast`가 `GetViewerTier()`(또는 `CivTierAtLeast 3.0`)를 읽도록 조정하고, 선택지 1 `"그 높임을 물리친다"`에 내면 성장 보상 부여.
 - [ ] **[`Tools/data/DT_Feats.json`](../../Tools/data/DT_Feats.json) & [`Tools/data/DT_Megaprojects.json`](../../Tools/data/DT_Megaprojects.json)** (`MVP ⑧` — 판의 속도 조율)
   - `project_stabilize`: `RequiredProgress`를 `100.0` → `250.0`으로 상향하고(관련 UI 테스트 `CosmicThirdRungTests.cpp`의 `(12/100)` 단언 함께 갱신), `feat_supernova_stabilized`와 `feat_three_worlds` 간의 클리어 타임 격차 해소.
-- [ ] **[`Tools/data/DT_Transcendents.json`](../../Tools/data/DT_Transcendents.json)** (`B4`)
-  - `trans_silence`의 빈 필드(`CounterfeitOf: "Path.Stillness"`, `Lure`, `VoiceTemplates`, `ClaimTemplates`) 채우기 및 나머지 3교리(`trans_assimilation`, `trans_zeal`, `trans_recurrence`) 행 정의 추가.
+- [x] **[`Tools/data/DT_Transcendents.json`](../../Tools/data/DT_Transcendents.json)** (`B4` — 반영 `[B-4b]`·`[B-4d1]` 2026-10-26~27, 헤더 `docs/60_DECISIONS/headers/B4_transcendent_voice_and_pressure_cards.md` §3.5)
+  - `trans_silence`의 빈 필드: `CounterfeitOf`는 `Truth.Rest`(참된 안식 — `Path.Stillness`가 아니다: 교리의 위조 대상과 길의 어휘를 섞지 않는다, B4 결정 17)로, `Lure`('더는 아프지 않다.' — 글만, 읽는 코드가 없다)와 `ClaimTemplates`(셋 — 주장이 편입되는 틱의 1인칭 줄)를 글 감사를 거쳐 채웠다. `VoiceTemplates`는 그 칸을 읽는 코드(알아챔·울타리의 증언)가 오는 B6까지 비운다(스키마가 비움을 지킨다). 나머지 3교리(`trans_assimilation`, `trans_zeal`, `trans_recurrence`) 행은 넣지 않는다 — 교리 행은 침묵 하나만, 나머지 셋은 Phase 6+(B4 결정 2, 2026-10-26 개발자 승인; `docs/50_ROADMAP.md`의 Cut).
 - [ ] **[`Tools/data/ST_CA.csv`](../../Tools/data/ST_CA.csv)** (`#103`)
   - 격틱 지불 상태 라벨 `Panel.Throttled`(`"느림 — 자원 부족"`) 추가 검토.
 
@@ -380,7 +380,7 @@ flowchart LR
 - [ ] **승천 및 역할 계층 (`UAscensionSubsystem` / `UPlayerRoleSubsystem` / `UCosmicLogSubsystem`)** (`B1` / `B5`, `#1`·`#67`·`#69`·`#96`·`#100`)
   - 문명 승천 시 `Calling.PersonalTier` 하한 공명(`max(PersonalTier, Civ.Tier - 1)`) 적용 및 생애 내 영적 시야·`×25` 배속 유지(`PeakTier` 참조, `#67`·`#96`·`#100`).
   - `UCosmicLogSubsystem`: 승천 로그 실명 출력 판정에 `MetCivs.Contains(CivID)` 추가 검토(`#69`).
-- [ ] **청원 제시 단계 (`UEncounterSubsystem` / `Knowing`)** (`B2` / `B4`)
+- [ ] **청원 제시 단계 (`UEncounterSubsystem` / `Knowing`)** (`B2` / `B4` — B4는 넣지 않았다: 첫 측정에서 판단할 경우가 18건으로 30건에 못 미쳤고, 데이터를 켠 뒤 영압 카드가 같은 틱의 다른 상시 청원에 대기 칸을 잃는 몫은 첫째 장의 무게를 4로 올려 줄였다 — 열린 물음 #135, 헤더 B4 §11 항목 1·18)
   - `PendingPetitionRow`가 점유된 틱에 발동한 상시(`Standing`) 청원이 증발하지 않도록 1칸 보류 버퍼(또는 카드 닫힘 직후 재평가) 도입.
 - [ ] **상단 바 및 성계 패널 UI (`UI/`)** (`#103`)
   - 1~2칸 동안 `0`인 `인과(Causality)` 자원 표시는 `GetViewerTier() >= Tier3_Causal`일 때만 노출되도록 변경 검토(관련 `CosmicPanelTests.cpp` 함께 갱신).

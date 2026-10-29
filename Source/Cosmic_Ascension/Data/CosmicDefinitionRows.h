@@ -52,9 +52,10 @@ struct COSMIC_ASCENSION_API FCosmicEventDef : public FTableRowBase
 	GENERATED_BODY()
 
 	// Event.Civ.Economy / Society, Event.Crisis.Supernova / Transcendent / Rebellion / Claim, Event.Grace.Rescue / Remnant / Jubilee.
-	// The weight family of the row: transcendent weight modifiers are keyed by it, and so will be the trait rows' (Phase 4)
-	// and the vigil edict's (B4 - B2's edict rows carry no event weight). It is not the category of the log line; that is
-	// LogCategory.
+	// The weight family of the row: transcendent weight modifiers are keyed by it, and so will be the trait rows' (Phase 4).
+	// An edict weighs no family: the vigil's weight on a claim is a Lottery row of its own (event_claim_eased, condition
+	// CivHasEdict - B4 header section 2.8), and no transcendent row weighs Event.Crisis.Claim (schema). It is not the
+	// category of the log line; that is LogCategory.
 	UPROPERTY(EditAnywhere)
 	FGameplayTag Category;
 
@@ -146,7 +147,8 @@ struct COSMIC_ASCENSION_API FHazardDef : public FTableRowBase
 	FText DisplayName;
 
 	// Ticks from placement to expiry, read as at least 1, plus the owner's held edicts' HazardCountdownBonus for this tag
-	// at placement (CosmicHazards::Place, B2). Hazard.Claim counts down from its row like every hazard.
+	// at placement (CosmicHazards::Place, B2) and a guard's delay there (B3); a card's DelayHazard adds to a standing one
+	// (B4). Hazard.Claim counts down from its row like every hazard.
 	UPROPERTY(EditAnywhere)
 	int32 CountdownTicks = 300;
 
@@ -385,7 +387,8 @@ struct COSMIC_ASCENSION_API FEdictDef : public FTableRowBase
 	TMap<FGameplayTag, float> HazardSpawnMultipliers;
 
 	// Hazard.* -> ticks added to the countdown of that hazard when it is placed on a system of the people (every path goes
-	// through CosmicHazards::Place). A standing hazard's countdown is never changed. Below 0 reads as 0.
+	// through CosmicHazards::Place). An edict never changes a standing hazard's countdown (only a card's DelayHazard does -
+	// B4, CosmicConflict::ResistBlockOf). Below 0 reads as 0.
 	UPROPERTY(EditAnywhere)
 	TMap<FGameplayTag, int32> HazardCountdownBonus;
 
@@ -401,7 +404,8 @@ struct COSMIC_ASCENSION_API FEdictDef : public FTableRowBase
 
 	// B4: a factor on the Stability the spiritual pressure drains from the holder a tick (CosmicEdicts::PressureDrainMultiplierOf
 	// - every held edict's factor multiplies, once per people). Read only when above 0 and finite (the schema keeps it in
-	// (0, 1]); anything else reads as 1. The transcendents' per-tick effects are not touched.
+	// (0, 1]); anything else reads as 1. The transcendents' per-tick effects are not touched. The data: edict_against_silence
+	// 0.45 (B4 [B-4d2]), every other row 1.
 	UPROPERTY(EditAnywhere)
 	float PressureDrainMultiplier = 1.f;
 };
@@ -612,7 +616,8 @@ struct COSMIC_ASCENSION_API FTranscendentDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	FGameplayTag Allegiance;
 
-	// Truth.*: the true thing this doctrine imitates (counterfeit principle). Required for Abyssal rows.
+	// Truth.*: the true thing this doctrine imitates (counterfeit principle). Required for Abyssal rows (schema, B4 -
+	// trans_silence: Truth.Rest).
 	UPROPERTY(EditAnywhere)
 	FGameplayTag CounterfeitOf;
 
@@ -620,7 +625,8 @@ struct COSMIC_ASCENSION_API FTranscendentDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	FText Title;
 
-	// What it offers mortals. Text only.
+	// What it offers mortals. Text only: no code reads it (B4 wrote trans_silence's). No slot, no digits, the first-person
+	// word lists (schema).
 	UPROPERTY(EditAnywhere)
 	FText Lure;
 
@@ -668,11 +674,16 @@ struct COSMIC_ASCENSION_API FTranscendentDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicEffect> PressureEffectsPerTick;
 
-	// First-person templates. Only Realm.Abyssal speaks in first person (section 8.2).
+	// First-person templates of the fallen's other speech (its awareness and the hedge's testimony). Nothing reads them
+	// yet: the schema keeps them empty until the code that tells them comes (B6, with #117 - B4 header section 2.6). Only
+	// Realm.Abyssal speaks in first person (section 8.2).
 	UPROPERTY(EditAnywhere)
 	TArray<FText> VoiceTemplates;
 
-	// First-person Log.Claim templates used when a Hazard.Claim expires.
+	// First-person Log.Claim templates (B4 header section 2.6): told when a Hazard.Claim expires and its system joins this
+	// transcendent's sphere, after the narrator's expiry line and the sign (log_sign_claim, below the third rung) - through
+	// UCosmicLogSubsystem::PushWithSign, the tell stream only; from the third rung, kept untold below it. Slot {System}
+	// only, no digits, the first-person word lists (schema).
 	UPROPERTY(EditAnywhere)
 	TArray<FText> ClaimTemplates;
 };
@@ -864,6 +875,9 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	float PostRebellionStability = 0.15f;
 
+	// Every people's throne is locked this long when the vessel leaves one (a deposition or an abdication, B1 -
+	// FCivilizationState.ThroneLockedUntilTick; below 0 reads as 0). B4: at least the longest stand of every hazard a card's
+	// DelayHazard buys time on (Data.Integrity), so no new reign brings that card twice for one standing claim.
 	UPROPERTY(EditAnywhere)
 	int32 ThroneLockTicks = 600;
 
@@ -937,7 +951,8 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	int32 ReturnedLivesToSeize = 3;
 
-	// Balance commandlet only: return lure acceptance chance per -PlayerPolicy (section 9.3).
+	// Balance commandlet only: return lure acceptance chance per -PlayerPolicy (section 9.3). Nothing reads it yet (Phase
+	// 5): B4's -PlayerPolicy answers the pressure cards alone and refuses Tribute.
 	UPROPERTY(EditAnywhere)
 	TMap<FName, float> LureAcceptByPolicy = { { TEXT("Cautious"), 0.10f }, { TEXT("Reckless"), 0.60f }, { TEXT("Faithful"), 0.f }, { TEXT("Tribute"), 0.85f } };
 
@@ -1299,7 +1314,7 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// The initializer is the mechanism's value; the data sets the balance value.
 
 	// The share of its FleetPower a people keeps when a card's DelayHazard buys a standing hazard time (the fleet spent).
-	// In [0, 1]; anything else reads as 1.
+	// In [0, 1]; anything else reads as 1. The data holds 0.5 (B4 [B-4d2] - provisional: B6 asks again).
 	UPROPERTY(EditAnywhere)
 	float ResistFleetFactor = 1.f;
 };

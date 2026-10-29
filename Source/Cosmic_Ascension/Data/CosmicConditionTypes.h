@@ -86,7 +86,8 @@ enum class EConditionType : uint8
 	CivSettledSystemsAtLeast,
 	// B4 (docs/60_DECISIONS/headers/B4_transcendent_voice_and_pressure_cards.md section 2.2): Key = a DT_Edicts row. True when
 	// the context people holds it (ActiveEdicts) and the tables hold the row - the count of CosmicEdicts::HeldCountOf. Not
-	// on a grace row (the schema: grace is never drawn by an edict).
+	// on a grace row (the schema: grace is never drawn by an edict). Carried now by event_claim_eased (edict_vigil - B4
+	// [B-4d2]).
 	CivHasEdict
 	// Decided, appended with the first row that uses each (section 16 #29): CivStabilityAtLeast, PlayerHasPower.
 };
@@ -155,12 +156,14 @@ enum class EEffectType : uint8
 	// B4 (header section 2.2): Key = a DT_Edicts row. The context people enacts it through the one gate
 	// CosmicEdicts::EnactBlockOf - only when it gives None, and then CosmicEdicts::Enact pays its EnactCost (the choice holds
 	// no cost of its own - the schema). A refusal does nothing (the answer's gate, CosmicPetitions::ChoiceGateOf, refuses
-	// first). No line: the card's outcome line tells it. A card's answer only, never per tick.
+	// first). No line: the card's outcome line tells it. A card's answer only, never per tick. Carried now by the two
+	// pressure cards (petition_pressure_claim: edict_vigil, petition_pressure_measured: edict_against_silence - B4 [B-4d2]).
 	EnactEdict,
 	// B4 (header section 2.5, #127): Tag = Hazard.* (required), Value = ticks (a whole number 1..100). Through the one gate
 	// CosmicConflict::ResistBlockOf on the context people and system: the hazard's HazardTicksRemaining gains Value (cut at
 	// MAX_int32) and the people's FleetPower is multiplied by DT_Rules.ResistFleetFactor. The tier gap is not read. The one
-	// way a standing hazard's countdown grows. A card's answer only, never per tick.
+	// way a standing hazard's countdown grows. A card's answer only, never per tick. Carried now by the second pressure card
+	// (petition_pressure_measured: Hazard.Claim, 50 - B4 [B-4d2]).
 	DelayHazard
 	// Phase 6+ (append): MultiplyResearch, PopulationLossMultiplier, StabilityFloor (section 4.2). They are per-tick
 	// effects: each joins the list of UCosmicEventSubsystem::Apply for per-tick sources when it is appended.

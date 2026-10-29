@@ -425,7 +425,7 @@ private:
 	//   OtherID), SourceRow = the edict.
 	// - The drain of spiritual pressure, once per civilization and never once per system (section 16 #55): Stability
 	//   goes down by DT_Rules.SpiritualPressureStabilityDrain x the largest P among its settled systems whose dominant
-	//   source has a Tier above the civilization's own.
+	//   source has a Tier above the civilization's own, x the held edicts' PressureDrainMultiplier (B4 - DrainLossOf).
 	// - FTranscendentDef.PressureEffectsPerTick of every unsealed transcendent of a Tier above the civilization's whose
 	//   sphere holds one of its settled systems: once per transcendent, in the order of State.Transcendents, through
 	//   UCosmicEventSubsystem::ApplyAll with bPerTickSource. Subject = the civilization and the first such system in
