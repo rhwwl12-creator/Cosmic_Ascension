@@ -8,10 +8,10 @@
 		"Every column of a row struct is declared here: a column added to a struct needs its line.",
 		"Column kinds (closed list): plain, number, numbers, text, texts, tag, tags, tag_list, tag_map, row, row_map, rows, word_map, enum, conditions, effects, pool, structs",
 		"An integer property is declared with integer: true (Data.Integrity holds the columns to the property types).",
-		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, has_type, has_cond, slots_in, len_ge_col, pairs_ge_col, contains_all, contains_none, zero, lacks_words",
+		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, has_type, has_cond, slots_in, len_ge_col, pairs_ge_col, ge_col, contains_all, contains_none, zero, lacks_words",
 		"A row rule is 'when -> then' over tests: one column with one test of the list above, 'row' with a row name, 'row_not' with a row name (every other row - B3), 'row_prefix' with one of the table's prefixes (the rows of one kind - B1), or 'none' with a list of tests over the columns of one list of structs (no entry of the list holds every one of them - B4: one choice read as a whole). Each test can be asked of some kinds of column only (the checker holds the table).",
 		"What a condition or an effect says of its Tag, its Key and its Value is a closed list in the checker too. A Tag may refuse the tag of the rows of a table that hold tests ('not_tag_of': table, tag column, when) and the tags a condition of the named enumerators reads in any row of any table ('not_read_by') - B4: DelayHazard.",
-		"A column of a list of structs (kind structs) is named in a rule as 'List.Column': the test holds when it holds for every entry of the list, and so for an empty list. The tests that name other columns of the row (len_ge_col, pairs_ge_col) are not asked of such a column.",
+		"A column of a list of structs (kind structs) is named in a rule as 'List.Column': the test holds when it holds for every entry of the list, and so for an empty list. The tests that name other columns of the row (len_ge_col, pairs_ge_col, ge_col) are not asked of such a column.",
 		"A rule added here needs an input that breaks it in Tools/test_data_schema.py: that test walks every rule, unique, pair, target and slot list of this file.",
 		"A number range stands here only where the guideline states one. A column without a range is checked for being a finite number.",
 		"The keys of this file and the options of each kind are closed lists in the checker, each with the type of its value: a key nothing reads or a value of the wrong type is a problem, so a slip cannot switch a check off.",
@@ -98,18 +98,18 @@
 			"must_exist": true,
 			"required_rows": ["rules"],
 			"columns": {
-				"LeapTicksMin": {"kind": "number", "integer": true},
-				"LeapTicksMax": {"kind": "number", "integer": true},
-				"LeapTotalCap": {"kind": "number", "integer": true},
-				"BirthProtectionTicks": {"kind": "number", "integer": true},
+				"LeapTicksMin": {"kind": "number", "min": 0, "integer": true},
+				"LeapTicksMax": {"kind": "number", "min": 0, "integer": true},
+				"LeapTotalCap": {"kind": "number", "min": 0, "integer": true},
+				"BirthProtectionTicks": {"kind": "number", "min": 0, "integer": true},
 				"BaseLifespanTicks": {"kind": "number", "integer": true},
-				"SuccessionHazardWeight": {"kind": "number"},
-				"SuccessionCivTierWeight": {"kind": "number"},
-				"SuccessionReverenceWeight": {"kind": "number"},
-				"SuccessionReverenceThreshold": {"kind": "number"},
-				"SuccessionSameCivPenalty": {"kind": "number"},
-				"SuccessionMinHazardTicks": {"kind": "number", "integer": true},
-				"ReverenceDecay": {"kind": "number"},
+				"SuccessionHazardWeight": {"kind": "number", "min": 0},
+				"SuccessionCivTierWeight": {"kind": "number", "min": 0},
+				"SuccessionReverenceWeight": {"kind": "number", "min": 0},
+				"SuccessionReverenceThreshold": {"kind": "number", "min": 0},
+				"SuccessionSameCivPenalty": {"kind": "number", "min": 0},
+				"SuccessionMinHazardTicks": {"kind": "number", "min": 0, "integer": true},
+				"ReverenceDecay": {"kind": "number", "min": 0, "max": 1},
 				"AIAscensionSpeedMultiplier": {"kind": "number"},
 				"PostRebellionStability": {"kind": "number"},
 				"ThroneLockTicks": {"kind": "number", "integer": true},
@@ -207,6 +207,10 @@
 				"ResistFleetFactor": {"kind": "number", "min": 0, "max": 1}
 			},
 			"rules": [
+				{
+					"why": "the leap of a death is drawn between its shortest and its longest: a longest below the shortest is read as the shortest (B5 header decision 3) - a data fault",
+					"then": [{"col": "LeapTicksMax", "ge_col": "LeapTicksMin"}]
+				},
 				{
 					"why": "the rate of the AI's projects multiplies their progress: at 0 or below they would never progress, so the code reads it as 1 with an error line (guideline 4.3, 5.7)",
 					"then": [{"col": "AIAscensionSpeedMultiplier", "gt": 0}]
@@ -420,7 +424,7 @@
 					"then": [{"col": "Trigger", "is": "Named"}]
 				},
 				{
-					"why": "a recorded death waits for the death pipeline of Phase 4b: until then no row records one (guideline 7.4)",
+					"why": "a death comes only from a hazard's expiry (B5 decision 6): no event row records one (guideline 7.4)",
 					"then": [{"col": "Effects", "lacks_type": "KillPlayer"}]
 				},
 				{
@@ -632,7 +636,7 @@
 					"then": [{"col": "OnExpireBranchEffects", "max_len": 0}]
 				},
 				{
-					"why": "a recorded death waits for the death pipeline of Phase 4b: until then no row records one (guideline 7.4)",
+					"why": "a death comes only from the one hazard expiry B5 decision 6 opens ([B-5d2]): until then no hazard row records one (guideline 7.4)",
 					"then": [
 						{"col": "OnExpireEffects", "lacks_type": "KillPlayer"},
 						{"col": "OnExpireBranchEffects", "lacks_type": "KillPlayer"},
@@ -739,7 +743,7 @@
 					"then": [{"col": "CompletionConditions", "min_len": 1}]
 				},
 				{
-					"why": "a ruler feat row judges every people, the AI's too (guideline 4.3): its conditions do not read the vessel, and its price records no role effect and touches no vessel (a recorded death also waits for the death pipeline of Phase 4b). How a vessel condition of a T4->T5 row reads for the AI is decided with that row (guideline 16 #1); a wanderer's feat is judged on the vessel and gets its own rules with its first row (guideline 16 #28)",
+					"why": "a ruler feat row judges every people, the AI's too (guideline 4.3): its conditions do not read the vessel, and its price records no role effect and touches no vessel (a death comes only from a hazard's expiry - B5 decision 6). How a vessel condition of a T4->T5 row reads for the AI is decided with that row (guideline 16 #1); a wanderer's feat is judged on the vessel and gets its own rules with its first row (guideline 16 #28)",
 					"when": [{"col": "Path", "is": "Ruler"}],
 					"then": [
 						{"col": "CompletionConditions", "lacks_type": "PlayerTierAtLeast"},
@@ -835,7 +839,7 @@
 					]
 				},
 				{
-					"why": "a card records no death (the death pipeline of Phase 4b) and runs no per-tick effect; the effects that grant, place, take or name wait for the rows that use them (guideline 5.10, 7.4)",
+					"why": "a card records no death (B5: a death comes only from a hazard's expiry; a card's lethality is 16 #151) and runs no per-tick effect; the effects that grant, place, take or name wait for the rows that use them (guideline 5.10, 7.4)",
 					"then": [
 						{"col": "Choices.OnSuccess", "lacks_type": "KillPlayer"},
 						{"col": "Choices.OnFailure", "lacks_type": "KillPlayer"},

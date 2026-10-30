@@ -1,0 +1,13 @@
+--- a/Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp
+@@ -151,6 +151,10 @@
+ 	}
+ 	// B5 (header section 2.6): a death before a role (a ruler's death changes the role too), and a leap of 0 - the new life
+ 	// stands at the death's boundary - is the succession.
++	if (Now.Role != Saved.Role)
++	{
++		return ECosmicSaveCause::Role;
++	}
+ 	if (Now.bInterregnum && !Saved.bInterregnum)
+ 	{
+ 		return ECosmicSaveCause::Death;

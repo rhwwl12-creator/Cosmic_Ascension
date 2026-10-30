@@ -19,8 +19,8 @@
  * succession pipeline. Holds no player or life dependent member: all of it lives in FGalaxyState (section 6.1).
  * So far: Install, the deposition pipeline in its Phase 2 form with BecomeWanderer, the ruler's megaproject command
  * (settlement included), the answer to the waiting card (MVP item 2; the wanderer's cards, B1), the research focus (MVP
- * item 7), and the wanderer's loop (B1): TravelTo, ScanCurrentSystem, BecomeRuler, Abdicate and the abdication pipeline.
- * The rest of the interface in section 7.5 arrives with milestone B (B5: death and succession).
+ * item 7), the wanderer's loop (B1): TravelTo, ScanCurrentSystem, BecomeRuler, Abdicate and the abdication pipeline, and
+ * the death and the succession the tenth stage runs (B5: Die, Succeed). The return offer is not B5's (16 #146).
  */
 UCLASS()
 class COSMIC_ASCENSION_API UPlayerRoleSubsystem : public UGameInstanceSubsystem
@@ -36,10 +36,12 @@ public:
 	 * here. Resets the vessel, opens a FLifeRecord and, for a ruler, opens a reign in the three reign arrays.
 	 * Writes the birth system into Knowing.KnownSystems and the birth civilization into Knowing.MetCivs, each once and
 	 * without a line (section 8.1): a life knows where it was born. It never writes Knowing.FirstContactCivID: the
-	 * people one is born into is not a contact. A life that starts as a wanderer (succession, Phase 4b) also knows the
+	 * people one is born into is not a contact. A life that starts as a wanderer (succession, B5 - Succeed) also knows the
 	 * lane neighbours of its birth system in its galaxy row (NoteKnown, Lanes order, no line - section 4.4: the new eye).
 	 * The card waiting and the first contact card waiting (Knowing.PendingContactCivID) are not the new life's: cleared.
-	 * One draw from the sim stream per call, for the name of the vessel, made before the name bank is looked at.
+	 * One draw from the sim stream per call, for the name of the vessel, made before the name bank is looked at. A life that is
+	 * not the first never takes the previous life's name: the first entry of its bank whose source string (FTextInspector -
+	 * no display culture) equals that name's is passed over (B5 header decision 8 - two archetypes may share a bank).
 	 * Refused with an error line when called from a handler of a Core Logic delegate (a handler may only read the state),
 	 * and for the sanctuary (CosmicState::IsSanctuary - no vessel stands there, section 4.5 (1), 16 #81): a refused call
 	 * changes nothing and draws nothing.
@@ -50,10 +52,10 @@ public:
 	 * The deposition pipeline (section 5.10), run by the role-effect stage for Effect.DeposeRuler, in its Phase 2 form:
 	 * tells CosmicRows::LogFallenMonarch (Severity 2), draws the regent profile (one number from the sim stream,
 	 * CosmicState::PickAIProfile), BecomeWanderer with Reign.Deposed, then every people's ReverenceToPlayer times
-	 * DT_Rules.ReverenceDecay (as after a death, section 4.4: no people crowns the fallen at once), for the people it
+	 * DT_Rules.ReverenceDecay (no people crowns the fallen at once - a death sets it to 0, B5), for the people it
 	 * ruled Stability = min(Stability, PostRebellionStability), and every people's throne locked until Tick +
 	 * ThroneLockTicks (never earlier than it was - B1: no people crowns the vessel in that time). The vessel stays where it
-	 * stands. The three screens, the digest and the exile encounter are Phase 4. Does nothing unless
+	 * stands. The page of a reign's end is the presentation's (B5); the exile encounter is 16 #148. Does nothing unless
 	 * the vessel rules; refused with an error line when called from a handler of a Core Logic delegate.
 	 */
 	void DeposeRuler();
@@ -67,11 +69,37 @@ public:
 	 * section 4.4: the new eye of a wanderer; meeting their owners is the next sight stage's), and the journey fields
 	 * emptied. With Reign.Abdicated the regent's record (notable hook 1, B1): the NameNotable rule through
 	 * UCosmicEventSubsystem::Apply - one number of the sim stream for the name before its guards, Notable.Regent, source row
-	 * CosmicRows::LogThroneVacated; Reign.Died will take the same hook (B5). Does nothing unless the vessel rules; refused with an error
-	 * line when called from a handler of a Core Logic delegate, and when the vessel stands in the sanctuary (a state no
-	 * rule makes - Install refuses it).
+	 * CosmicRows::LogThroneVacated; Reign.Died takes the same hook (B5 - Die passes the death's source row). Does nothing unless
+	 * the vessel rules; refused with an error line when called from a handler of a Core Logic delegate, and when the vessel
+	 * stands in the sanctuary (a state no rule makes - Install refuses it). The release of the throne is ReleaseThrone; the new
+	 * eye (KnowAround) is this function's own - a death does not look around.
 	 */
 	void BecomeWanderer(FGameplayTag RegentProfile, FGameplayTag ReignEndReason);
+
+	/**
+	 * The death pipeline (B5 header section 2.2 Die), run by the tenth stage for Effect.KillPlayer while the calling is
+	 * Embodied: (a) the life closes - DiedTick, CauseOfDeath = PendingCause, CauseSourceRow = PendingSourceRow; (b) the death
+	 * line arrives with [B-5d1]; (c) a ruler leaves the throne - one number for the regent profile, ReleaseThrone with
+	 * Reign.Died (its regent hook draws the name, source row PendingSourceRow), every throne locked (Tick + ThroneLockTicks,
+	 * never earlier - 16 #143); no new eye; (d) every people's ReverenceToPlayer = 0 (decision 23-na: the new vessel is a
+	 * stranger to every people); (e) the waiting cards, the first contact waiting and the journey are cleared; (f) LifeState =
+	 * Interregnum, one number for the leap (CosmicSuccession::LeapOf), LeapTicksTotal += it, PendingLeapTicks = it; (g) a leap
+	 * of 0 succeeds at once. Numbers of the sim stream: a wanderer's death 1, a ruler's 3. Does nothing unless the calling is
+	 * Embodied; inside a handler of a Core Logic delegate an error line.
+	 */
+	void Die();
+
+	/**
+	 * The succession (B5 header section 2.2 Succeed), run when the leap's countdown reaches 0 (or at once for a leap of 0):
+	 * one number for the succession before the candidates are looked at; the candidates of CosmicSuccession::CandidatesOf for
+	 * the system the dead vessel stood in; with none, one more number thrown away where the name's would be (two numbers
+	 * always - rule 3) and the calling stays in the interregnum with no leap left (the silence - never drawn again). Else the
+	 * calling's tier below the third goes back to the first (before Install reads it into PeakTier), its powers keep Way.*
+	 * only (the rest is given again from the tier - no row gives one yet), and Install makes the candidate the number picks
+	 * (CosmicSuccession::PickOf) the birth place of a wanderer of its owner (the name's number). The inauguration line
+	 * arrives with [B-5d1]. Does nothing outside the interregnum; inside a handler of a Core Logic delegate an error line.
+	 */
+	void Succeed();
 
 	/**
 	 * The ruler's command (section 5.7, 7.5): starts RowName on SystemID for the people the vessel rules, through
@@ -238,4 +266,15 @@ public:
 	 * unless the vessel rules; inside a handler an error line.
 	 */
 	void AbdicateRuler();
+
+private:
+	/**
+	 * The half of BecomeWanderer a death shares (B5 header section 2.3): the people is no longer ruled (bIsPlayerRuled false,
+	 * RegentProfile when valid), FormerCivID = the ruled people, RuledCivID cleared, Role Wanderer, the status of
+	 * ReignEndReason (none for Reign.Died), the open reign closed with it, the waiting cards, the first contact waiting and
+	 * the journey cleared, and the regent hook for Reign.Abdicated and Reign.Died (NameNotable through Apply, one number,
+	 * source row RegentSourceRow). No new eye. Returns whether the throne was left: false unless an embodied ruler, and with
+	 * an error line in the sanctuary. The callers ask about a handler first.
+	 */
+	bool ReleaseThrone(FGameplayTag RegentProfile, FGameplayTag ReignEndReason, FName RegentSourceRow);
 };

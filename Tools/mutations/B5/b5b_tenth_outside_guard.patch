@@ -1,0 +1,15 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1574,9 +1574,9 @@
+ 		}
+ 		// The tenth stage, inside the guard (B5): death, deposition and the leap's countdown replace the vessel; no tick runs
+ 		// from here.
+-		ResolvePendingRoleEffect();
+-		SyncRngState();
+-	}
++	}
++	ResolvePendingRoleEffect();
++	SyncRngState();
+ 
+ 	// The tick boundary.
+ 	if (bBroadcastEnabled)

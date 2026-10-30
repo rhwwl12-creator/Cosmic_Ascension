@@ -23,6 +23,7 @@
 #include "Sim/CosmicEvalContext.h"
 #include "Sim/CosmicResearch.h"
 #include "Sim/CosmicStateIndex.h"
+#include "Sim/CosmicSuccession.h"
 #include "Sim/CosmicWanderer.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 
@@ -116,7 +117,7 @@ void UPlayerRoleSubsystem::Install(FName SystemID, FName CivID, EPlayerRole Role
 	}
 
 	const bool bFirstLife = Calling.Lives.IsEmpty();
-	const FName PreviousBirthCivID = bFirstLife ? FName() : Calling.Lives.Last().BirthCivID;
+	const FName PreviousArchetypeRow = bFirstLife ? FName() : Calling.Lives.Last().BirthArchetypeRow;
 	const int32 PreviousNameIndex = bFirstLife ? 0 : Calling.Lives.Last().NameIndex;
 
 	// The vessel starts from nothing: stats, pool, relics and status do not cross over (section 4.4).
@@ -139,24 +140,37 @@ void UPlayerRoleSubsystem::Install(FName SystemID, FName CivID, EPlayerRole Role
 	Life.BirthCivID = CivID;
 	Life.BirthArchetypeRow = Civ ? Civ->ArchetypeRow : NAME_None;
 	Life.PeakTier = Calling.PersonalTier;
-	// The return lure (Succession.Returned, which keeps the previous archetype row and name) arrives with Phase 4b.
+	// The return lure (Succession.Returned, which would keep the previous archetype row and name) is not B5's (16 #146).
 	Life.SuccessionKind = FGameplayTag::RequestGameplayTag(FName(bFirstLife ? TEXT("Succession.Installed") : TEXT("Succession.Called")));
 
 	// The vessel's name: an index into the person-name bank of the birth archetype, or of arch_default when that bank is
-	// empty. A life born into the same civ as the previous one never repeats its name (section 7.5).
+	// empty. A life never repeats the previous life's name (section 7.5; B5 decision 8): the names are compared by their
+	// source strings - the bank is TArray<FText>, and the display culture must not pick another index (the world hash holds
+	// it) - and the first entry that matches is passed over.
 	const FCosmicDataTables& Tables = Sim->GetTables();
-	const FCivArchetypeDef* Archetype = Tables.FindCiv(Life.BirthArchetypeRow);
-	if (!Archetype || Archetype->PersonNameBank.IsEmpty())
+	auto BankOf = [&Tables](FName ArchetypeRow)
 	{
-		Archetype = Tables.FindCiv(CosmicRows::ArchDefault);
+		const FCivArchetypeDef* Found = Tables.FindCiv(ArchetypeRow);
+		return (!Found || Found->PersonNameBank.IsEmpty()) ? Tables.FindCiv(CosmicRows::ArchDefault) : Found;
+	};
+	const FCivArchetypeDef* Archetype = BankOf(Life.BirthArchetypeRow);
+	int32 Previous = INDEX_NONE;
+	const FCivArchetypeDef* PreviousArchetype = bFirstLife ? nullptr : BankOf(PreviousArchetypeRow);
+	if (Archetype && PreviousArchetype && !PreviousArchetype->PersonNameBank.IsEmpty())
+	{
+		const FString* PreviousName = FTextInspector::GetSourceString(PreviousArchetype->PersonNameBank[PreviousNameIndex % PreviousArchetype->PersonNameBank.Num()]);
+		for (int32 At = 0; PreviousName && At < Archetype->PersonNameBank.Num() && Previous == INDEX_NONE; ++At)
+		{
+			const FString* Name = FTextInspector::GetSourceString(Archetype->PersonNameBank[At]);
+			Previous = (Name && *Name == *PreviousName) ? At : INDEX_NONE;
+		}
 	}
 	// One draw per Install, before the bank is looked at, thrown away when the bank is empty: the number of sim draws
 	// never depends on name banks, so filling one later does not move the stream (section 9.2).
 	const float NameRoll = Sim->GetRng().GetFraction();
 	const int32 NameCount = Archetype ? Archetype->PersonNameBank.Num() : 0;
-	if (NameCount > 1 && !bFirstLife && PreviousBirthCivID == CivID)
+	if (NameCount > 1 && Previous != INDEX_NONE)
 	{
-		const int32 Previous = PreviousNameIndex % NameCount;
 		const int32 Drawn = FMath::Min(static_cast<int32>(NameRoll * static_cast<float>(NameCount - 1)), NameCount - 2);
 		Life.NameIndex = (Drawn >= Previous) ? Drawn + 1 : Drawn;
 	}
@@ -238,7 +252,7 @@ void UPlayerRoleSubsystem::DeposeRuler()
 	// The ranges are lints; the guards are comparisons, so a value that is not a number takes the safe side.
 	const FCosmicRulesDef& Rules = Sim->GetRules();
 	const float Decay = Rules.ReverenceDecay > 0.f ? FMath::Min(Rules.ReverenceDecay, 1.f) : 0.f;
-	// Every people remembers the fallen name less, as after a death (section 4.4, 5.10): none crowns it at once.
+	// Every people remembers the fallen name less (section 4.4, 5.10): none crowns it at once. A death sets it to 0 (B5 - Die).
 	for (FCivilizationState& Other : State.Civs)
 	{
 		Other.ReverenceToPlayer = FMath::Clamp(Other.ReverenceToPlayer * Decay, 0.f, 1.f);
@@ -262,18 +276,29 @@ void UPlayerRoleSubsystem::BecomeWanderer(FGameplayTag RegentProfile, FGameplayT
 		UE_LOG(LogCosmic, Error, TEXT("BecomeWanderer called from a handler of a Core Logic delegate: a handler may only read the state"));
 		return;
 	}
+	if (ReleaseThrone(RegentProfile, ReignEndReason, CosmicRows::LogThroneVacated))
+	{
+		// The new eye of a wanderer: where it stands and the lanes around (section 4.4).
+		CosmicPlayerRoleImpl::KnowAround(*Sim, Sim->GetState().Player.CurrentSystemID);
+	}
+}
+
+bool UPlayerRoleSubsystem::ReleaseThrone(FGameplayTag RegentProfile, FGameplayTag ReignEndReason, FName RegentSourceRow)
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	check(Sim);
 	FGalaxyState& State = Sim->GetMutableState();
 	FPlayerEntityState& Player = State.Player;
 	if (State.Calling.LifeState != ELifeState::Embodied || Player.Role != EPlayerRole::Ruler)
 	{
-		return;
+		return false;
 	}
 	// A wanderer walks where the vessel stands, and no vessel stands in the sanctuary (Law.Hedge, section 4.5 (1)): a state
 	// that says otherwise is refused, not walked from.
 	if (CosmicState::IsSanctuary(Player.CurrentSystemID))
 	{
 		UE_LOG(LogCosmic, Error, TEXT("BecomeWanderer: the vessel stands in the sanctuary %s, where no vessel stands"), *Player.CurrentSystemID.ToString());
-		return;
+		return false;
 	}
 	const int32 CivIndex = Sim->GetStateIndex().FindCiv(State, Player.RuledCivID);
 	if (State.Civs.IsValidIndex(CivIndex))
@@ -291,7 +316,9 @@ void UPlayerRoleSubsystem::BecomeWanderer(FGameplayTag RegentProfile, FGameplayT
 	Player.Role = EPlayerRole::Wanderer;
 
 	// Why the vessel walks (section 5.10). A death leaves no status: the next vessel starts from nothing.
-	if (ReignEndReason == FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Abdicated"))))
+	static const FGameplayTag AbdicatedTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Abdicated")));
+	const FGameplayTag DiedTag = CosmicTags::ReignDied();
+	if (ReignEndReason == AbdicatedTag)
 	{
 		Player.StatusTags.AddTag(FGameplayTag::RequestGameplayTag(FName(TEXT("Status.Abdicated"))));
 	}
@@ -317,24 +344,147 @@ void UPlayerRoleSubsystem::BecomeWanderer(FGameplayTag RegentProfile, FGameplayT
 	Player.TravelTargetSystemID = NAME_None;
 	Player.TravelTicksRemaining = 0;
 
-	// Notable hook 1 (section 7.4, 7.5): a reign left of its own will leaves a regent - the NameNotable rule through Apply,
-	// one number of the name before its guards, whether or not a record is made (B1). A deposed vessel leaves none: the
-	// rebels' leader holds the throne.
-	if (ReignEndReason == FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Abdicated"))))
+	// Notable hook 1 (section 7.4, 7.5): a reign left without a fall - of the vessel's own will, or by its death (B5) -
+	// leaves a regent: the NameNotable rule through Apply, one number of the name before its guards, whether or not a record
+	// is made (B1). A deposed vessel leaves none: the rebels' leader holds the throne.
+	if (ReignEndReason == AbdicatedTag || ReignEndReason == DiedTag)
 	{
 		FCosmicEvalContext Ctx = Sim->MakeEvalContext();
 		Ctx.CivIndex = CivIndex;
 		Ctx.SystemIndex = INDEX_NONE;
 		Ctx.GalaxyRow = State.Civs.IsValidIndex(CivIndex) ? State.Civs[CivIndex].GalaxyRow : FName();
-		Ctx.SourceRow = CosmicRows::LogThroneVacated;
+		Ctx.SourceRow = RegentSourceRow;
 		FCosmicEffect Regent;
 		Regent.Type = EEffectType::NameNotable;
 		Regent.Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Notable.Regent")));
 		UCosmicEventSubsystem::Apply(Regent, Ctx);
 	}
+	return true;
+}
 
-	// The new eye of a wanderer: where it stands and the lanes around (section 4.4).
-	CosmicPlayerRoleImpl::KnowAround(*Sim, Player.CurrentSystemID);
+void UPlayerRoleSubsystem::Die()
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	check(Sim);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("Die called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return;
+	}
+	FGalaxyState& State = Sim->GetMutableState();
+	FCallingState& Calling = State.Calling;
+	if (Calling.LifeState != ELifeState::Embodied || Calling.Lives.IsEmpty())
+	{
+		return;
+	}
+	// No vessel stands in the sanctuary (Install refuses it): a ruler that says otherwise could not leave its throne, and a death
+	// half done would leave a ruler in the interregnum. Refused before anything changes or draws.
+	if (State.Player.Role == EPlayerRole::Ruler && CosmicState::IsSanctuary(State.Player.CurrentSystemID))
+	{
+		UE_LOG(LogCosmic, Error, TEXT("Die: the vessel stands in the sanctuary %s, where no vessel stands"), *State.Player.CurrentSystemID.ToString());
+		return;
+	}
+	const FCosmicRulesDef& Rules = Sim->GetRules();
+
+	// (a) The life closes.
+	FLifeRecord& Life = Calling.Lives.Last();
+	Life.DiedTick = State.Tick;
+	Life.CauseOfDeath = Calling.PendingCause;
+	Life.CauseSourceRow = Calling.PendingSourceRow;
+
+	// (b) The death line is told before what it changes - [B-5d1].
+
+	// (c) A ruler leaves the throne: one number for the regent's profile, one in ReleaseThrone for the regent's name (the
+	// deposition's form), whether or not a people is there; every throne is locked (16 #143 - the three ends of a reign lock
+	// alike). No new eye: the dead vessel looks at nothing.
+	if (State.Player.Role == EPlayerRole::Ruler)
+	{
+		const float RegentRoll = Sim->GetRng().GetFraction();
+		ReleaseThrone(CosmicState::PickAIProfile(RegentRoll), CosmicTags::ReignDied(), Calling.PendingSourceRow);
+		CosmicPlayerRoleImpl::LockEveryThrone(State, Rules);
+	}
+
+	// (d) No people reveres the next vessel for this one's sake (decision 23-na), before the succession draws.
+	for (FCivilizationState& Civ : State.Civs)
+	{
+		Civ.ReverenceToPlayer = 0.f;
+	}
+
+	// (e) Nothing waits for a vessel that is gone.
+	CosmicPetitions::Clear(State);
+	State.Knowing.PendingContactCivID = NAME_None;
+	State.Player.TravelTargetSystemID = NAME_None;
+	State.Player.TravelTicksRemaining = 0;
+
+	// (f) The interregnum and its leap: one number, whatever the knobs hold (decision 3).
+	Calling.LifeState = ELifeState::Interregnum;
+	const int64 Leap = CosmicSuccession::LeapOf(Rules, Calling.LeapTicksTotal, Sim->GetRng().GetFraction());
+	Calling.LeapTicksTotal += Leap;
+	Calling.PendingLeapTicks = Leap;
+	Sim->SyncRngState();
+
+	// (g) A leap of 0 (the cap reached) succeeds on the tick of the death.
+	if (Leap == 0)
+	{
+		Succeed();
+	}
+}
+
+void UPlayerRoleSubsystem::Succeed()
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	check(Sim);
+	if (Sim->IsBroadcasting())
+	{
+		UE_LOG(LogCosmic, Error, TEXT("Succeed called from a handler of a Core Logic delegate: a handler may only read the state"));
+		return;
+	}
+	FGalaxyState& State = Sim->GetMutableState();
+	FCallingState& Calling = State.Calling;
+	if (Calling.LifeState != ELifeState::Interregnum)
+	{
+		return;
+	}
+	// One number for the succession before the candidates are looked at (decision 8).
+	const float SuccessionRoll = Sim->GetRng().GetFraction();
+	const int32 DeathSystemIndex = Sim->GetStateIndex().FindSystem(State, State.Player.CurrentSystemID);
+	const CosmicSuccession::FCosmicSuccessionCandidates Found = CosmicSuccession::CandidatesOf(State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), DeathSystemIndex);
+	const int32 Pick = CosmicSuccession::PickOf(SuccessionRoll, Found.Systems.Num());
+	// Install refuses only the sanctuary, which no candidate is (it has no owner): a state that says otherwise is the silence,
+	// with one error line, before the calling is touched.
+	const bool bRefused = Pick != INDEX_NONE && CosmicState::IsSanctuary(State.Systems[Found.Systems[Pick]].SystemID);
+	if (bRefused)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("Succeed: the candidate %s is the sanctuary, where no vessel is born"), *State.Systems[Found.Systems[Pick]].SystemID.ToString());
+	}
+	if (Pick == INDEX_NONE || bRefused)
+	{
+		// The silence: the name's number is drawn and thrown away (two numbers at every succession - rule 3), and the calling
+		// stays in the interregnum with no leap left. It is never drawn again.
+		Sim->GetRng().GetFraction();
+		Calling.PendingLeapTicks = 0;
+		Sim->SyncRngState();
+		return;
+	}
+	// The calling keeps what is its own: a tier below the third goes back to the first (Install reads it into PeakTier),
+	// and of its powers the way it took (Way.*) - the rest is given again from the tier (no row gives one yet).
+	if (Calling.PersonalTier < EAscensionTier::Tier3_Causal)
+	{
+		Calling.PersonalTier = EAscensionTier::Tier1_Planetary;
+	}
+	FGameplayTagContainer Kept;
+	for (const FGameplayTag& Power : Calling.Powers)
+	{
+		if (Power.GetTagName().ToString().StartsWith(TEXT("Way.")))
+		{
+			Kept.AddTag(Power);
+		}
+	}
+	Calling.Powers = Kept;
+	const FStarSystemState& Birth = State.Systems[Found.Systems[Pick]];
+	Install(Birth.SystemID, Birth.OwnerCivID, EPlayerRole::Wanderer);
+	// The inauguration line - [B-5d1].
+	Sim->SyncRngState();
 }
 
 bool UPlayerRoleSubsystem::StartMegaproject(FName SystemID, FName RowName)

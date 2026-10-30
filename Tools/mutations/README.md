@@ -422,3 +422,30 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B5/` | `b5a_aim_lift_opens_nofleet.patch` — the lift opens NoFleet too | `Cosmic_Ascension.Sim.AIAimLift` |
 | `B5/` | `b5a_aim_lift_opens_notsettled.patch` — the lift opens NotSettled too | `Cosmic_Ascension.Sim.AIAimLift` |
 | `B5/` | `b5a_ai_stage_lifts.patch` — the AI stage asks its aim with the lift | `Cosmic_Ascension.Sim.AIAimLift` |
+| `B5/` | `b5b_death_keeps_reverence.patch` — a death keeps every people's reverence | `Cosmic_Ascension.Calling.DeathPipeline`, `Cosmic_Ascension.Calling.RulerDeath` |
+| `B5/` | `b5b_ruler_death_no_lock.patch` — a ruler's death locks no throne | `Cosmic_Ascension.Calling.RulerDeath`, `Cosmic_Ascension.Sim.ThroneLockEveryPath` |
+| `B5/` | `b5b_death_no_regent.patch` — a ruler's death leaves no regent (the hook takes the abdication only) | `Cosmic_Ascension.Calling.RulerDeath` |
+| `B5/` | `b5b_death_new_eye.patch` — a ruler's death looks around as a deposition does | `Cosmic_Ascension.Calling.RulerDeath` |
+| `B5/` | `b5b_ruler_death_name_first.patch` — a ruler's death draws the regent's name before its profile | `Cosmic_Ascension.Calling.RulerDeath` |
+| `B5/` | `b5b_leap_span.patch` — the leap maps the number over its span, not its span + 1 (the longest is never drawn) | `Cosmic_Ascension.Sim.LeapDraw` |
+| `B5/` | `b5b_leap_no_cap.patch` — the leap ignores LeapTotalCap | `Cosmic_Ascension.Calling.HardReset` |
+| `B5/` | `b5b_countdown_never_succeeds.patch` — the countdown reaches 0 and never succeeds | `Cosmic_Ascension.Calling.FirstTickOfLife`, `Cosmic_Ascension.Calling.HardReset`, `Cosmic_Ascension.Calling.LeapDeterminism`, `Cosmic_Ascension.Sim.NoDanglingRefsAfterLeap`, `Cosmic_Ascension.Sim.SaveLeapResume`, `Cosmic_Ascension.Sim.SuccessionPossible`, `Cosmic_Ascension.UI.LeapBoundary` |
+| `B5/` | `b5b_countdown_two_a_tick.patch` — the countdown takes two ticks off each tick | `Cosmic_Ascension.Calling.DeathPipeline`, `Cosmic_Ascension.Calling.NoPlayerDuringLeap` and six more |
+| `B5/` | `b5b_silence_one_draw.patch` — the silence draws one number, not two | `Cosmic_Ascension.Sim.SuccessionPossible` |
+| `B5/` | `b5b_candidates_death_place.patch` — the candidates keep the death place | `Cosmic_Ascension.Sim.SuccessionCandidates` and five more |
+| `B5/` | `b5b_candidates_lethal_relaxed.patch` — a lethal hazard's system stays a candidate | `Cosmic_Ascension.Sim.SuccessionCandidates` |
+| `B5/` | `b5b_candidates_sphere_first.patch` — the sphere filter is let go of before the short-hazard filter | `Cosmic_Ascension.Sim.SuccessionCandidates` |
+| `B5/` | `b5b_succeed_keeps_low_tier.patch` — a succession keeps a personal tier below the third | `Cosmic_Ascension.Calling.HardReset` |
+| `B5/` | `b5b_succeed_drops_way.patch` — a succession drops the way (Way.*) | `Cosmic_Ascension.Calling.HardReset` |
+| `B5/` | `b5b_name_compare_off.patch` — a new vessel's name is never compared with the previous life's | `Cosmic_Ascension.Calling.HardReset` |
+| `B5/` | `b5b_tenth_outside_guard.patch` — the tenth stage runs outside the stage guard | `Cosmic_Ascension.Calling.LeapDeterminism` |
+| `B5/` | `b5b_runleap_no_boundary.patch` — RunLeap sends no boundary | `Cosmic_Ascension.Calling.LeapDeterminism`, `Cosmic_Ascension.Sim.SaveLeapResume`, `Cosmic_Ascension.UI.LeapBoundary` |
+| `B5/` | `b5b_feed_tick_rule_only.patch` — the feed rebuilds on a tick gap only, not on the leap's boundary | `Cosmic_Ascension.UI.LeapBoundary` |
+| `B5/` | `b5b_feed_no_simtick.patch` — the feed does not listen to OnSimTick | `Cosmic_Ascension.UI.LeapBoundary` |
+| `B5/` | `b5b_advance_no_end_cut.patch` — AdvanceLeap does not stop at the provisional end | `Cosmic_Ascension.UI.LeapBoundary` |
+| `B5/` | `b5b_death_stop_after_end.patch` — the boundary looks for a death only after the end's early return | `Cosmic_Ascension.UI.LeapBoundary` |
+| `B5/` | `b5b_save_role_before_death.patch` — the save causes put Role before Death | `Cosmic_Ascension.Sim.SaveLeapResume`, `Cosmic_Ascension.Sim.SaveTriggers`, `Cosmic_Ascension.UI.LeapBoundary` |
+| `B5/` | `b5b_first_tick_of_life_off.patch` — a succeeded life's first tick compares with the head | `Cosmic_Ascension.Calling.FirstTickOfLife` |
+| `B5/` | `b5b_dying_vessel_moves.patch` — a vessel whose death is recorded still ends its journey | `Cosmic_Ascension.Calling.DeathPipeline` |
+| `B5/` | `b5b_crossing_error_on_death.patch` — the crossing stage's error line ignores a recorded death | `Cosmic_Ascension.Calling.RulerDeath` |
+| `B5/` | `b5b_pick_unclamped.patch` — PickOf reads a number past 1 unclamped | `Cosmic_Ascension.Sim.SuccessionCandidates` |

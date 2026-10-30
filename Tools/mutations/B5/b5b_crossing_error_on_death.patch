@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2789,7 +2789,7 @@
+ 	{
+ 		// A deposition or a death recorded this tick lets go of the people at the tenth stage (B5 - decision 7).
+ 		if (CosmicHazards::LetSettlementsGo(State, StateIndex, CivIndex) && State.Civs[CivIndex].bIsPlayerRuled && State.Calling.PendingEffect != DeposeTag
+-			&& State.Calling.PendingEffect != KillTag)
++			)
+ 		{
+ 			UE_LOG(LogCosmic, Error, TEXT("TickCrossings: %s, the people the player rules, held only settlements: they go to no one, and no collapse or death was recorded to end its reign."), *State.Civs[CivIndex].CivID.ToString());
+ 		}

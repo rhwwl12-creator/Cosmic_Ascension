@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -407,7 +407,7 @@
+ 	// (d) No people reveres the next vessel for this one's sake (decision 23-na), before the succession draws.
+ 	for (FCivilizationState& Civ : State.Civs)
+ 	{
+-		Civ.ReverenceToPlayer = 0.f;
++		Civ.ReverenceToPlayer = Civ.ReverenceToPlayer * 1.f;
+ 	}
+ 
+ 	// (e) Nothing waits for a vessel that is gone.

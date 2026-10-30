@@ -136,4 +136,12 @@ namespace CosmicHazards
 	 */
 	COSMIC_ASCENSION_API bool VesselAtRiskOf(const FPlayerEntityState& Player, const FCallingState& Calling, const FCosmicRulesDef& Rules, int64 Tick,
 		FName SystemID, FName CivID);
+
+	/**
+	 * Whether the hazard Tag kills a vessel standing in its system when it expires (B5 header section 2.4, 4): the DT_Hazards
+	 * row of the tag carries a KillPlayer in its expiry effects (OnExpireEffects or OnExpireBranchEffects). False for a tag no
+	 * row holds. Succession leaves such a system out of its candidates, and the warnings and the pause of the presentation
+	 * read it: one answer.
+	 */
+	COSMIC_ASCENSION_API bool KillsAVesselOf(const FCosmicDataTables& Tables, const FGameplayTag& Tag);
 }

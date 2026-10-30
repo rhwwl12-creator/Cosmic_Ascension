@@ -83,6 +83,8 @@ const TCHAR* CosmicAutoPause::WhyKeyOf(ECosmicAutoPause Reason)
 		return TEXT("Save.Why.Unreadable");
 	case ECosmicAutoPause::SaveFailed:
 		return TEXT("Save.Why.Failed");
+	case ECosmicAutoPause::Death:
+		return TEXT("AutoPause.Why.Death");
 	case ECosmicAutoPause::None:
 		break;
 	}

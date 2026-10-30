@@ -2417,14 +2417,17 @@ bool FCosmicRebellionThroneTest::RunTest(const FString& Parameters)
 		Sim->StepOnce();
 		const int64 Stood = State.Tick;
 		Sim->StepOnce();
+		// The death is recorded in the tick of the expiry (B5: a recorded death is carried out at the end of its tick).
+		Sim->StepOnce();
 		State.Calling.PendingEffect = Tag(TEXT("Effect.KillPlayer"));
-		Sim->RunHeadless(2);
+		State.Calling.PendingCause = Tag(TEXT("Death.Hazard"));
+		Sim->StepOnce();
 		const FNotableRecord* Rebel = State.Civs[0].Notables.FindByPredicate([Stood](const FNotableRecord& Record) { return Record.FirstTick == Stood; });
 		if (TestNotNull(TEXT("The rebel of the dropped case is on the record"), Rebel))
 		{
 			TestTrue(TEXT("Without its deposition the rebel stays a rebel"), Rebel->Role == RebelTag);
 		}
-		TestTrue(TEXT("The vessel still rules"), State.Player.Role == EPlayerRole::Ruler);
+		TestTrue(TEXT("The death is carried out instead (B5): the calling is in the interregnum"), State.Calling.LifeState == ELifeState::Interregnum);
 		TestEqual(TEXT("The count of discontent starts over all the same"), State.Civs[0].LowStabilityTicks, 0);
 		State.Calling.PendingEffect = FGameplayTag();
 	}
@@ -2667,7 +2670,7 @@ bool FCosmicDepositionPipelineTest::RunTest(const FString& Parameters)
 	const int32 Without = DrawsBetween(Before.RngState, Sim->GetState().RngState);
 	TestEqual(TEXT("A deposition draws one number"), WithDeposition - Without, 1);
 
-	// A death waits for Phase 4b: it stays recorded and the vessel stays.
+	// A death is carried out by the tenth stage (B5).
 	Sim->NewGalaxy(42, 12, 4);
 	FGalaxyState& Fresh = Sim->GetMutableState();
 	if (!TestTrue(TEXT("The board of the death case is laid"), Board(Fresh)))
@@ -2678,8 +2681,11 @@ bool FCosmicDepositionPipelineTest::RunTest(const FString& Parameters)
 	if (TestTrue(TEXT("The death is recorded"), Record(TEXT("Kill"), TEXT("Death.Hazard"))))
 	{
 		Sim->StepOnce();
-		TestTrue(TEXT("A death stays recorded until its pipeline"), Fresh.Calling.PendingEffect == Tag(TEXT("Effect.KillPlayer")));
-		TestTrue(TEXT("The vessel still rules"), Fresh.Player.Role == EPlayerRole::Ruler);
+		// B5 (header section 6 - the intended change): the death is carried out at the tenth stage.
+		TestFalse(TEXT("A death is carried out at its tick's end: the record is cleared"), Fresh.Calling.PendingEffect.IsValid());
+		TestTrue(TEXT("The life closed and the calling is in the interregnum"), Fresh.Calling.LifeState == ELifeState::Interregnum
+			&& !Fresh.Calling.Lives.IsEmpty() && Fresh.Calling.Lives.Last().DiedTick == Fresh.Tick);
+		TestTrue(TEXT("The vessel rules no more"), Fresh.Player.Role == EPlayerRole::Wanderer && !Fresh.Civs[0].bIsPlayerRuled);
 	}
 
 	// BecomeWanderer by itself: the status follows the reason, and nothing happens without a throne.

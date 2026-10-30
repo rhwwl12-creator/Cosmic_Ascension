@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -401,6 +401,7 @@
+ 	{
+ 		const float RegentRoll = Sim->GetRng().GetFraction();
+ 		ReleaseThrone(CosmicState::PickAIProfile(RegentRoll), CosmicTags::ReignDied(), Calling.PendingSourceRow);
++		CosmicPlayerRoleImpl::KnowAround(*Sim, State.Player.CurrentSystemID);
+ 		CosmicPlayerRoleImpl::LockEveryThrone(State, Rules);
+ 	}
+ 

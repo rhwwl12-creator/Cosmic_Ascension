@@ -778,6 +778,8 @@ void ACosmicPlayerController::HandleCloseRequested(FViewport* Viewport)
 void ACosmicPlayerController::HandleSimTick(int64 Tick)
 {
 	FollowSpeedGate();
+	// A death before the end: a life that closed on the end's tick is not lost behind the end's early return (B5).
+	FollowDeath(Tick);
 	// The end before the card and the hazards: once the run is over, its own tick asks for nothing.
 	FollowEnd(true);
 	if (IsRunEnded())
@@ -790,9 +792,55 @@ void ACosmicPlayerController::HandleSimTick(int64 Tick)
 	FollowSaveFailure();
 }
 
+bool ACosmicPlayerController::LifeClosedAt(const FGalaxyState& State, int64 Tick)
+{
+	const TArray<FLifeRecord>& Lives = State.Calling.Lives;
+	const int32 Closed = State.Calling.LifeState == ELifeState::Interregnum ? Lives.Num() - 1 : Lives.Num() - 2;
+	return Lives.IsValidIndex(Closed) && Lives[Closed].DiedTick == Tick && Tick > 0;
+}
+
+void ACosmicPlayerController::FollowDeath(int64 Tick)
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!Sim || !LifeClosedAt(Sim->GetState(), Tick))
+	{
+		return;
+	}
+	DeathTick = Tick;
+	ApplySpeed(0.f, ECosmicAutoPause::Death);
+}
+
+bool ACosmicPlayerController::AdvanceLeap()
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!Sim || IsRunEnded() || Sim->GetState().Calling.LifeState != ELifeState::Interregnum)
+	{
+		return false;
+	}
+	const int64 Tick = Sim->GetState().Tick;
+	int64 Ticks = Sim->GetState().Calling.PendingLeapTicks;
+	// The simulation does not know the end: the presentation stops the leap at it, so that its boundary latches it at its tick.
+	const int32 EndTick = Sim->GetRules().ProvisionalEndTick;
+	const bool bEndAhead = bProvisionalEnd && EndTick > 0 && EndTick > Tick;
+	if (bEndAhead && (Ticks <= 0 || EndTick - Tick < Ticks))
+	{
+		Ticks = EndTick - Tick;
+	}
+	if (Ticks <= 0)
+	{
+		// The silence with no end ahead: nothing to run - the time goes back to ordinary play at the speed before the pause.
+		ApplySpeed(SpeedBeforePause > 0.f ? SpeedBeforePause : 1.f, ECosmicAutoPause::None);
+		return false;
+	}
+	Sim->RunLeap(Ticks);
+	// A refused leap (from inside the stages or a boundary handler - one error line) ran nothing.
+	return Sim->GetState().Tick != Tick;
+}
+
 void ACosmicPlayerController::HandleGalaxyGenerated(int32 Seed)
 {
 	FollowSpeedGate();
+	DeathTick = -1;
 	// Another game: the end, what stopped the old one and the hazards it had say nothing of this one. An edict hint the old
 	// run raised and nobody answered waits for this run's first fall (B2 - one that ended stays ended for the session).
 	ClearRunEnd();

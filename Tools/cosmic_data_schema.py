@@ -173,6 +173,8 @@ TESTS = {
     # The size of a list against other columns of the same row: at least the number in the named column; the product
     # of the two lengths at least the number in the second named column (two pools whose pairs are handed out).
     "len_ge_col": NAME, "pairs_ge_col": TWO_NAMES,
+    # A number at least the number in the named column of the same row (B5: the leap's longest at least its shortest).
+    "ge_col": NAME,
     # Every named tag is in the tags of the cell (DT_Rules.ImmutableLaws holds every law the code reads).
     "contains_all": WORDS,
     # None of the named tags is in the tags of the cell, nor a key of a tag map (B4: no transcendent weighs the claim's
@@ -197,7 +199,7 @@ TEST_KINDS = {
     # anything is 'zero').
     "set": tuple(kind for kind in COLUMN_KINDS if kind not in ("number", "enum", "plain", "pool")), "min_len": SIZED_KINDS, "max_len": SIZED_KINDS, "each_contains": ("texts",),
     "lacks_type": ("conditions", "effects"), "has_type": ("conditions", "effects"), "has_cond": ("conditions", "effects"),
-    "slots_in": ("text", "texts"), "len_ge_col": POOL_KINDS,
+    "slots_in": ("text", "texts"), "len_ge_col": POOL_KINDS, "ge_col": ("number",),
     "pairs_ge_col": POOL_KINDS, "contains_all": ("tags", "tag_list"), "contains_none": ("tags", "tag_list", "tag_map"),
     "zero": ("pool",),
     "lacks_words": ("text", "texts"),
@@ -207,7 +209,7 @@ TEST_KINDS = {
 # a whole - an answer that enacts an edict and is rolled for, a card whose every choice costs or is gated).
 NONE_TEST = "none"
 # The kinds of the columns a test names besides its own: the number to reach, the other pool.
-NAMED_COLUMNS = {"len_ge_col": (("number",),), "pairs_ge_col": (POOL_KINDS, ("number",))}
+NAMED_COLUMNS = {"len_ge_col": (("number",),), "pairs_ge_col": (POOL_KINDS, ("number",)), "ge_col": (("number",),)}
 
 TOP_KEYS = {
     "version": NUMBER, "about": NAMES, "tag_sources": NAMES, "row_name_sources": NAMES, "required_tags": NAMES,
@@ -1273,6 +1275,9 @@ class Checker:
             words = self.schema["words"].get(operand, []) if isinstance(self.schema.get("words"), dict) else []
             texts = value if isinstance(value, list) else [value]
             return all(isinstance(text, str) and not any(word in text for word in words) for text in texts)
+        if name == "ge_col":
+            bound = row.get(operand)
+            return is_number(value) and is_number(bound) and value >= bound
         if name == "len_ge_col":
             bound = row.get(operand)
             return isinstance(value, (list, dict)) and is_number(bound) and length_of(value) >= bound

@@ -150,6 +150,7 @@ void UCosmicLogFeedWidget::NativeConstruct()
 		if (UGalaxySimulationSubsystem* Sim = GameInstance->GetSubsystem<UGalaxySimulationSubsystem>())
 		{
 			Sim->OnGalaxyGenerated.AddUniqueDynamic(this, &UCosmicLogFeedWidget::HandleGalaxyGenerated);
+			Sim->OnSimTick.AddUniqueDynamic(this, &UCosmicLogFeedWidget::HandleSimTick);
 		}
 		if (UCosmicLogSubsystem* Log = GameInstance->GetSubsystem<UCosmicLogSubsystem>())
 		{
@@ -166,6 +167,7 @@ void UCosmicLogFeedWidget::NativeDestruct()
 		if (UGalaxySimulationSubsystem* Sim = GameInstance->GetSubsystem<UGalaxySimulationSubsystem>())
 		{
 			Sim->OnGalaxyGenerated.RemoveDynamic(this, &UCosmicLogFeedWidget::HandleGalaxyGenerated);
+			Sim->OnSimTick.RemoveDynamic(this, &UCosmicLogFeedWidget::HandleSimTick);
 		}
 		if (UCosmicLogSubsystem* Log = GameInstance->GetSubsystem<UCosmicLogSubsystem>())
 		{
@@ -178,6 +180,16 @@ void UCosmicLogFeedWidget::NativeDestruct()
 void UCosmicLogFeedWidget::HandleGalaxyGenerated(int32 Seed)
 {
 	Refresh();
+}
+
+void UCosmicLogFeedWidget::HandleSimTick(int64 Tick)
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if ((SeenTick >= 0 && Tick != SeenTick + 1) || (Sim && Sim->IsSendingLeapBoundary()))
+	{
+		Refresh();
+	}
+	SeenTick = Tick;
 }
 
 void UCosmicLogFeedWidget::HandleLogEntry(const FCosmicLogEntry& Entry)
@@ -196,6 +208,7 @@ void UCosmicLogFeedWidget::Refresh()
 	{
 		return;
 	}
+	SeenTick = Sim->GetState().Tick;
 	const TArray<FCosmicLogEntry>& Log = Sim->GetState().Log;
 	// The last told entries, oldest first.
 	TArray<int32> Shown;

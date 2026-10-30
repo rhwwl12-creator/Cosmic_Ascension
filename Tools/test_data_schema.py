@@ -1348,6 +1348,21 @@ class SchemaTests(unittest.TestCase):
         self.schema_problem(self.put(["string_table", "checked_prefixes"], "Edict.", {"forbidden": [1]}), "schema.string_table.checked_prefixes.Edict.", "a string or a list of strings")
         self.assertEqual(self.after(self.set_cell("DT_Hazards", "crisis_test_storm", "RulerResolutions", ["edict_test_order"])), [])
 
+    def test_death_and_succession_knobs(self):
+        """B5 ([B-5b], header section 3.1): the leap, the birth protection, the succession's knobs and the deposition's decay
+        have their bounds, and the leap's longest is at least its shortest (the row test ge_col)."""
+        self.assertEqual(self.after(), [])
+        rules = lambda key, value: self.set_cell("DT_Rules", "rules", key, value)  # noqa: E731
+        for knob, value, word in (("LeapTicksMin", -1, "below"), ("LeapTicksMax", -1, "below"), ("LeapTotalCap", -1, "below"),
+                                  ("BirthProtectionTicks", -1, "below"), ("SuccessionHazardWeight", -0.5, "below"),
+                                  ("SuccessionCivTierWeight", -0.5, "below"), ("SuccessionReverenceWeight", -0.5, "below"),
+                                  ("SuccessionReverenceThreshold", -0.1, "below"), ("SuccessionSameCivPenalty", -0.5, "below"),
+                                  ("SuccessionMinHazardTicks", -1, "below"), ("ReverenceDecay", -0.1, "below"), ("ReverenceDecay", 1.5, "above")):
+            with self.subTest(knob=knob, value=value):
+                self.expect(self.after(rules(knob, value)), knob, word)
+        self.expect(self.after(rules("LeapTicksMax", 700)), "DT_Rules.rules", "between its shortest and its longest")
+        self.assertEqual(self.after(rules("LeapTicksMax", 800)), [])
+
     def test_diplomacy_and_conflict(self):
         """B3: both sides of the new knobs' bounds and the lengths of their lists, the two new edict columns, the stance
         effect (a card's answer only, friendly or neutral), the two new slots and the holy words of the log lines, and the
@@ -2025,8 +2040,8 @@ class SchemaTests(unittest.TestCase):
                 self.row(tables, "DT_Events", "event_test_harvest").update(Trigger="Named", BaseWeight=0, CooldownTicks=0, Effects=list(items))
             return self.after(change)
         self.assertEqual(named(eff("GrantPower", tag="Way.Received"), eff("DeposeRuler", tag="Reign.Deposed")), [])
-        # A recorded death waits for the death pipeline of Phase 4b: no row records one before then.
-        self.expect(named(eff("KillPlayer", tag="Death.Hazard")), "a recorded death waits for the death pipeline")
+        # A death comes only from a hazard's expiry (B5 decision 6): no event row records one.
+        self.expect(named(eff("KillPlayer", tag="Death.Hazard")), "no event row records one")
         self.expect(named(eff("KillPlayer", tag="Reign.Deposed")), "not under Death.")
         self.expect(named(eff("GrantPower", tag="Death.Hazard")), "not under Way. or Power.")
         self.expect(named(eff("PlayerStatDelta", key="Body", value=0.5)), "not a whole number")
@@ -2607,6 +2622,9 @@ class SchemaTests(unittest.TestCase):
             # The first word of the named list put into the text (B4).
             word = schema["words"][operand][0]
             row[column] = "%s a." % word if kind == "text" else ["%s a." % word, "b.", "c."]
+        elif name == "ge_col":
+            # The named column above the cell (B5).
+            row[operand] = row[column] + 1
         elif name == "len_ge_col":
             row[operand] = len(row[column]) + 1
         elif name == "pairs_ge_col":
@@ -2667,7 +2685,7 @@ class SchemaTests(unittest.TestCase):
                 (update_event(Category="Event.Grace.Jubilee", LogCategory="Log.Civ"), event),
             ("DT_Events", "the last-system gate fires the remnant row by name: as a slot row it would also fire in the slots (guideline 4.5)"):
                 (NOTHING, "event_grace_remnant"),
-            ("DT_Events", "a recorded death waits for the death pipeline of Phase 4b: until then no row records one (guideline 7.4)"): (NOTHING, event),
+            ("DT_Events", "a death comes only from a hazard's expiry (B5 decision 6): no event row records one (guideline 7.4)"): (NOTHING, event),
             ("DT_Hazards", "the claim is placed by the claim rule alone, which holds Law.Remnant (guideline 4.2)"):
                 (update_hazard(HazardTag="Hazard.Claim", SpawnRule="ClaimRule", SpawnChancePerTick=0), hazard),
             ("DT_Hazards", "the claim rule places the claim and nothing else (guideline 4.2)"):
@@ -2680,7 +2698,7 @@ class SchemaTests(unittest.TestCase):
             ("DT_Hazards", "a branch is a chance and the effects it takes instead (guideline 4.1)"):
                 (update_hazard(BranchChance=0.5, OnExpireBranchEffects=[eff("ChangeStability", value=-0.2)]), hazard),
             ("DT_Hazards", "branch effects without a chance are never applied (guideline 4.1)"): (NOTHING, hazard),
-            ("DT_Hazards", "a recorded death waits for the death pipeline of Phase 4b: until then no row records one (guideline 7.4)"): (NOTHING, hazard),
+            ("DT_Hazards", "a death comes only from the one hazard expiry B5 decision 6 opens ([B-5d2]): until then no hazard row records one (guideline 7.4)"): (NOTHING, hazard),
             ("DT_Hazards", "the leader of a cult has no name (guideline 4.1)"): (update_hazard(HazardTag="Hazard.Cult"), hazard),
             ("DT_Hazards", "the stage reads the spawn conditions on every tick, and the stay condition holds on every tick of its window, not in one slot (guideline 7.3)"):
                 (NOTHING, hazard),
@@ -2700,9 +2718,11 @@ class SchemaTests(unittest.TestCase):
             ("DT_Feats", "the fifth rung is the last: no feat climbs from it (guideline 3.2)"): (NOTHING, "feat_test_climb"),
             ("DT_Feats", "no people climbs without a deed: a feat holds one condition or more (guideline 3.2; the judgment does not judge a row without one)"):
                 (NOTHING, "feat_test_climb"),
-            ("DT_Feats", "a ruler feat row judges every people, the AI's too (guideline 4.3): its conditions do not read the vessel, and its price records no role effect and touches no vessel (a recorded death also waits for the death pipeline of Phase 4b). How a vessel condition of a T4->T5 row reads for the AI is decided with that row (guideline 16 #1); a wanderer's feat is judged on the vessel and gets its own rules with its first row (guideline 16 #28)"):
+            ("DT_Feats", "a ruler feat row judges every people, the AI's too (guideline 4.3): its conditions do not read the vessel, and its price records no role effect and touches no vessel (a death comes only from a hazard's expiry - B5 decision 6). How a vessel condition of a T4->T5 row reads for the AI is decided with that row (guideline 16 #1); a wanderer's feat is judged on the vessel and gets its own rules with its first row (guideline 16 #28)"):
                 (NOTHING, "feat_test_climb"),
             ("DT_Rules", "the rate of the AI's projects multiplies their progress: at 0 or below they would never progress, so the code reads it as 1 with an error line (guideline 4.3, 5.7)"):
+                (NOTHING, "rules"),
+            ("DT_Rules", "the leap of a death is drawn between its shortest and its longest: a longest below the shortest is read as the shortest (B5 header decision 3) - a data fault"):
                 (NOTHING, "rules"),
             ("DT_Edicts", "a held edict multiplies the fleet's growth: at 0 the inherited edict would keep the ruler's fleet at 0 from the first tick, so the code reads a factor that is not above 0 as 1 (B3 header 3.2)"):
                 (NOTHING, "edict_test_order"),
@@ -2718,7 +2738,7 @@ class SchemaTests(unittest.TestCase):
                 (NOTHING, "enc_test_weave"),
             ("DT_Encounters", "an arrival card can come on a system no people owns: its texts name the system alone (B1)"): (NOTHING, "enc_test_weave"),
             ("DT_Events", "an event row is about a people or one of its settled systems: the system the vessel stands in is a wanderer card's subject (B1)"): (NOTHING, event),
-            ("DT_Encounters", "a card records no death (the death pipeline of Phase 4b) and runs no per-tick effect; the effects that grant, place, take or name wait for the rows that use them (guideline 5.10, 7.4)"):
+            ("DT_Encounters", "a card records no death (B5: a death comes only from a hazard's expiry; a card's lethality is 16 #151) and runs no per-tick effect; the effects that grant, place, take or name wait for the rows that use them (guideline 5.10, 7.4)"):
                 (NOTHING, plea),
             ("DT_Encounters", "the subject system of a card is the system it names: a Civilization row is about the people alone and names no system (guideline 8.1)"): (NOTHING, plea),
             ("DT_Encounters", "a row the knowing stage puts is picked by its weight among the rows of its moment (guideline 5.10)"): (NOTHING, plea),
@@ -2781,7 +2801,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 190, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 191, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

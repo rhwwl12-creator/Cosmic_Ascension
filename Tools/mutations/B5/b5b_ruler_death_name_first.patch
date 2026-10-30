@@ -1,0 +1,17 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -399,8 +399,13 @@
+ 	// alike). No new eye: the dead vessel looks at nothing.
+ 	if (State.Player.Role == EPlayerRole::Ruler)
+ 	{
++		const FName RuledID = State.Player.RuledCivID;
++		ReleaseThrone(FGameplayTag(), CosmicTags::ReignDied(), Calling.PendingSourceRow);
+ 		const float RegentRoll = Sim->GetRng().GetFraction();
+-		ReleaseThrone(CosmicState::PickAIProfile(RegentRoll), CosmicTags::ReignDied(), Calling.PendingSourceRow);
++		if (FCivilizationState* Ruled = State.Civs.FindByPredicate([RuledID](const FCivilizationState& Civ) { return Civ.CivID == RuledID; }))
++		{
++			Ruled->AIProfile = CosmicState::PickAIProfile(RegentRoll);
++		}
+ 		CosmicPlayerRoleImpl::LockEveryThrone(State, Rules);
+ 	}
+ 

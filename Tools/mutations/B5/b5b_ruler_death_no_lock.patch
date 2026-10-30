@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -401,7 +401,6 @@
+ 	{
+ 		const float RegentRoll = Sim->GetRng().GetFraction();
+ 		ReleaseThrone(CosmicState::PickAIProfile(RegentRoll), CosmicTags::ReignDied(), Calling.PendingSourceRow);
+-		CosmicPlayerRoleImpl::LockEveryThrone(State, Rules);
+ 	}
+ 
+ 	// (d) No people reveres the next vessel for this one's sake (decision 23-na), before the succession draws.

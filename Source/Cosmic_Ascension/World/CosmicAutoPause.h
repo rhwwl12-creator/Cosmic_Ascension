@@ -36,6 +36,8 @@ enum class ECosmicAutoPause : uint8
 	SaveFailed,
 	// A wanderer's card arrived (B1): the card's pause, in the words of a card that is no petition.
 	Encounter,
+	// A life closed (B5) - not an automatic pause: set whatever the viewer's choice (the death pages follow, [B-5c]).
+	Death,
 };
 
 namespace CosmicAutoPause

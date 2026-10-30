@@ -273,6 +273,19 @@ public:
 	void FollowEnd(bool bArrived);
 	void AdvanceRunEnd(float DeltaSeconds);   // real seconds, counted only while no ascension presentation or reveal shows (PlayerTick; tests); opens after HoldSeconds
 	void ClearRunEnd();                       // forgets the latch, the wait and the page; switch and speed stay, the RunEnd reason goes (to None) (HandleGalaxyGenerated first; CosmicTests::AcquireSim)
+	/** B5 (header section 2.6): whether a life closed at Tick - the last closed life's DiedTick is Tick (the last life while
+	 * the calling is in the interregnum, the one before it when a leap of 0 began the next on the same tick). The boundary
+	 * reads it, not LifeState, so the death of a leap of 0 and the death on the end's tick stop the time too. */
+	static bool LifeClosedAt(const FGalaxyState& State, int64 Tick);
+	/** The fast-forward of the interregnum (B5 header section 2.6), at an input - the death pages' ([B-5c]) and the tests',
+	 * never from a handler: UGalaxySimulationSubsystem::RunLeap of the remaining leap; when the provisional end is switched on
+	 * and its tick (DT_Rules.ProvisionalEndTick) lies inside the leap, only up to that tick - its boundary latches the end. In
+	 * the silence (no leap left) up to that end; with none, nothing is run and the time goes back to ordinary play (the speed
+	 * before the pause). False and nothing run outside the interregnum, once the run has ended, in that silence, and when the
+	 * simulation refused the leap. */
+	bool AdvanceLeap();
+	/** The tick of the last death the boundary saw (FollowDeath), -1 for none since the run began: the death pages ([B-5c]). */
+	int64 GetDeathTick() const { return DeathTick; }
 	void SetProvisionalEndEnabled(bool bOn);  // on; -ProvisionalEnd=0 turns it off for the session, tests in memory; off = ClearRunEnd
 	bool IsProvisionalEndEnabled() const { return bProvisionalEnd; }
 	void LookAtMap();                         // the page folds over the stopped map
@@ -554,6 +567,11 @@ private:
 	UFUNCTION()
 	void HandleSimTick(int64 Tick);
 
+	// B5 (header section 2.6): a life that closed at this boundary stops the time whatever the automatic pause
+	// (ApplySpeed(0, Death)) and is remembered for the death pages. Before the end's latch (FollowEnd), which may follow at
+	// the same boundary.
+	void FollowDeath(int64 Tick);
+
 	UFUNCTION()
 	void HandleGalaxyGenerated(int32 Seed);
 
@@ -603,6 +621,8 @@ private:
 	bool bProvisionalEnd = true;
 	// Real seconds left before the chronicle opens; unset while nothing waits.
 	TOptional<float> ChronicleWait;
+	// B5: the tick of the last death the boundary saw (FollowDeath), -1 for none.
+	int64 DeathTick = -1;
 	// The CosmicEnd line's two numbers: UWorld::GetRealTimeSeconds at this controller's BeginPlay or at the last new galaxy or
 	// load (HandleGalaxyGenerated), and the real seconds the simulation stood still since then (any reason - a card, a
 	// presentation, a pause; PlayerTick counts).

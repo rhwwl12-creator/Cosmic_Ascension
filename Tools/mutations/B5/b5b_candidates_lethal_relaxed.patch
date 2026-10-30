@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicSuccession.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicSuccession.cpp
+@@ -47,7 +47,7 @@
+ 	{
+ 		const FStarSystemState& System = State.Systems[SystemIndex];
+ 		if (SystemIndex != DeathSystemIndex && System.GalaxyRow == GalaxyRow && CosmicState::IsSettled(System)
+-			&& !(System.ActiveHazard.IsValid() && CosmicHazards::KillsAVesselOf(Tables, System.ActiveHazard)))
++			)
+ 		{
+ 			Pool.Add(SystemIndex);
+ 		}

@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -461,7 +461,6 @@
+ 	{
+ 		// The silence: the name's number is drawn and thrown away (two numbers at every succession - rule 3), and the calling
+ 		// stays in the interregnum with no leap left. It is never drawn again.
+-		Sim->GetRng().GetFraction();
+ 		Calling.PendingLeapTicks = 0;
+ 		Sim->SyncRngState();
+ 		return;

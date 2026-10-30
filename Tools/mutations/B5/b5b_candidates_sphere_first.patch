@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicSuccession.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicSuccession.cpp
+@@ -59,7 +59,7 @@
+ 		{
+ 			const FStarSystemState& System = State.Systems[SystemIndex];
+ 			const bool bShortHazard = System.ActiveHazard.IsValid() && System.HazardTicksRemaining < Rules.SuccessionMinHazardTicks;
+-			if ((Relaxed < 1 && bShortHazard) || (Relaxed < 2 && CosmicSuccessionImpl::InUnsealedFallenSphere(State, Tables, System.SystemID)))
++			if ((Relaxed < 2 && bShortHazard) || (Relaxed < 1 && CosmicSuccessionImpl::InUnsealedFallenSphere(State, Tables, System.SystemID)))
+ 			{
+ 				continue;
+ 			}

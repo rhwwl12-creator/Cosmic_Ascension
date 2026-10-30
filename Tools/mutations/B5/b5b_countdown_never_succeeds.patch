@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -3019,7 +3019,7 @@
+ 			--Calling.PendingLeapTicks;
+ 			if (Calling.PendingLeapTicks == 0)
+ 			{
+-				PlayerRole->Succeed();
++				Calling.PendingLeapTicks = 0;
+ 			}
+ 		}
+ 		return;

@@ -821,13 +821,15 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 
 	// ---- Calling and succession (section 4.4) ----
 
+	// The interregnum's leap after a death is drawn between these (one number - CosmicSuccession::LeapOf; a longest below the
+	// shortest reads as the shortest, below 0 as 0).
 	UPROPERTY(EditAnywhere)
 	int32 LeapTicksMin = 800;
 
 	UPROPERTY(EditAnywhere)
 	int32 LeapTicksMax = 1600;
 
-	// Run total cap for interregnum leaps.
+	// Run total cap for interregnum leaps: a leap is cut to what is left, and at the cap a death succeeds on its tick.
 	UPROPERTY(EditAnywhere)
 	int32 LeapTotalCap = 4500;
 
@@ -839,7 +841,8 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	int32 BaseLifespanTicks = 0;
 
-	// Succession draw: per active hazard within two lanes.
+	// Reserved (B5 decision 23-ga: every candidate weighs the same; the five weighting knobs below are not read).
+	// Succession draw: a hazard standing within two lanes (whether there is one - not how many).
 	UPROPERTY(EditAnywhere)
 	float SuccessionHazardWeight = 2.f;
 
@@ -858,11 +861,12 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	float SuccessionSameCivPenalty = 1.f;
 
-	// Succession draw: systems whose hazard countdown is below this are excluded.
+	// Succession: a system whose hazard has fewer ticks left than this is left out of the candidates - the filter that is let
+	// go of first when it leaves none (CosmicSuccession::CandidatesOf).
 	UPROPERTY(EditAnywhere)
 	int32 SuccessionMinHazardTicks = 300;
 
-	// Reverence multiplier on death and deposition.
+	// Reverence multiplier on a deposition (every people). A death sets every people's reverence to 0 (B5 decision 23-na).
 	UPROPERTY(EditAnywhere)
 	float ReverenceDecay = 0.5f;
 
@@ -875,7 +879,7 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	float PostRebellionStability = 0.15f;
 
-	// Every people's throne is locked this long when the vessel leaves one (a deposition or an abdication, B1 -
+	// Every people's throne is locked this long when the vessel leaves one (a deposition or an abdication, B1; a ruler's death, B5 -
 	// FCivilizationState.ThroneLockedUntilTick; below 0 reads as 0). B4: at least the longest stand of every hazard a card's
 	// DelayHazard buys time on (Data.Integrity), so no new reign brings that card twice for one standing claim.
 	UPROPERTY(EditAnywhere)

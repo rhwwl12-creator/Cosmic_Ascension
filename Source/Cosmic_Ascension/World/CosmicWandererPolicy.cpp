@@ -17,7 +17,7 @@ void CosmicWandererPolicy::AbdicateIfDue(const FCosmicWandererPolicy& Policy, UG
 {
 	const FGalaxyState& State = Sim.GetState();
 	Counts.bEnded = Counts.bEnded || CosmicEndings::ProvisionalEndOf(State, Sim.GetRules()) != ECosmicProvisionalEnd::None;
-	if (!Counts.bEnded && Policy.AbdicateAt > 0 && State.Tick == Policy.AbdicateAt)
+	if (!(Counts.bEnded && !Policy.bPastEnd) && Policy.AbdicateAt > 0 && State.Tick == Policy.AbdicateAt)
 	{
 		Role.Abdicate();
 	}
@@ -44,7 +44,7 @@ void CosmicWandererPolicy::Act(const FCosmicWandererPolicy& Policy, UGalaxySimul
 		Counts.ReverencePeak = FMath::Max(Counts.ReverencePeak, Civ.ReverenceToPlayer);
 	}
 	Counts.Cards += (!State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != CardBefore) ? 1 : 0;
-	if (!Policy.bWander || Counts.bEnded)
+	if (!Policy.bWander || (Counts.bEnded && !Policy.bPastEnd))
 	{
 		return;
 	}
@@ -92,6 +92,8 @@ void CosmicWandererPolicy::Act(const FCosmicWandererPolicy& Policy, UGalaxySimul
 			const EAscensionTier Tier = Civ.Tier;
 			if (Role.BecomeRuler(Owner) == CosmicWanderer::ECrownBlock::None)
 			{
+				Counts.LastCrownedAt = State.Tick;
+				Counts.LastCrownedPath = Path;
 				// The first throne taken again is the line's (a later fall and throne do not overwrite it).
 				if (Counts.CrownedAt < 0)
 				{

@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicLogFeedWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicLogFeedWidget.cpp
+@@ -150,7 +150,6 @@
+ 		if (UGalaxySimulationSubsystem* Sim = GameInstance->GetSubsystem<UGalaxySimulationSubsystem>())
+ 		{
+ 			Sim->OnGalaxyGenerated.AddUniqueDynamic(this, &UCosmicLogFeedWidget::HandleGalaxyGenerated);
+-			Sim->OnSimTick.AddUniqueDynamic(this, &UCosmicLogFeedWidget::HandleSimTick);
+ 		}
+ 		if (UCosmicLogSubsystem* Log = GameInstance->GetSubsystem<UCosmicLogSubsystem>())
+ 		{

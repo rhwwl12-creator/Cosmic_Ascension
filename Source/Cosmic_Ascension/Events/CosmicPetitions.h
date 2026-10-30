@@ -137,6 +137,14 @@ namespace CosmicPetitions
 	COSMIC_ASCENSION_API bool IsFirstTickOfReign(const FGalaxyState& State);
 
 	/**
+	 * The first tick of a life a succession began (B5 header section 2.2): at the head of a tick (before State.Tick moves on),
+	 * an embodied wanderer whose life was installed on that tick (Tick == Calling.BornTick) and is not the first. The knowing
+	 * stage then compares the wanderer's cards with an empty head, as for the first tick of a reign: a hazard that already
+	 * stood where the new vessel was born comes as one that just came to hold.
+	 */
+	COSMIC_ASCENSION_API bool IsFirstTickOfLife(const FGalaxyState& State);
+
+	/**
 	 * The subject system of a card on the people CivIndex: for SettledSystem the index of SystemID when it is a settled
 	 * system of that people, for Civilization the people's capital when it is one of its settled systems; INDEX_NONE
 	 * otherwise.

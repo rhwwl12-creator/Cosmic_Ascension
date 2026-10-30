@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -475,7 +475,7 @@
+ 	FGameplayTagContainer Kept;
+ 	for (const FGameplayTag& Power : Calling.Powers)
+ 	{
+-		if (Power.GetTagName().ToString().StartsWith(TEXT("Way.")))
++		if (Power.GetTagName().ToString().StartsWith(TEXT("Nothing.")))
+ 		{
+ 			Kept.AddTag(Power);
+ 		}

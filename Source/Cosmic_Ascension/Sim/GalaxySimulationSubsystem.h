@@ -203,18 +203,28 @@ public:
 	float GetTimeScale() const { return TimeScale; }
 
 	// One tick, with broadcasts as configured. Debug and tests. Refused with one error line inside a handler of a Core
-	// Logic delegate (IsBroadcasting): a handler may only read the state (section 9.4).
+	// Logic delegate (IsBroadcasting): a handler may only read the state (section 9.4) - and, like RunHeadless and RunLeap,
+	// inside the tick stages and inside an OnSimTick handler (B5: a handler of the boundary runs no tick).
 	UFUNCTION(BlueprintCallable)
 	void StepOnce();
 
-	// Runs Ticks ticks with the broadcast gate closed, then restores the gate. Tests, balance runs, interregnum leap (section 4.4).
+	// Runs Ticks ticks with the broadcast gate closed, then restores the gate. Tests, balance runs, and the body of RunLeap
+	// (section 4.4): no tick inside it sends OnSimTick.
 	// Not yet: the per-tick ending-condition check that stops a leap early arrives with the endings (section 4.4, 7.4).
 	// When it does, a run that has ended simulates nothing on a later RunHeadless or StepOnce: one tick at a time stays the
 	// same world as one long leap (the balance commandlet and Sim.PhaseTwoExit step one tick at a time). The MVP's provisional
 	// end is not such an ending: it never stops a run (Sim/CosmicEndings.h; the presentation stops the time).
-	// Refused like StepOnce inside a handler of a Core Logic delegate.
+	// Refused like StepOnce.
 	UFUNCTION(BlueprintCallable)
 	void RunHeadless(int64 Ticks);
+
+	// The fast-forward of the interregnum (B5 header section 2.6): RunHeadless(Ticks) - the same world as Ticks ticks one at
+	// a time -, then, while the broadcast gate is open, one OnSimTick for State.Tick from outside the stages: the one boundary
+	// at the end of the leap, which the autosave (its cause Ended or Succession), the end's latch and the screens read. The
+	// presentation calls it at its input (ACosmicPlayerController::AdvanceLeap - it sets Ticks); the simulation does not know
+	// the end. Refused like StepOnce; Ticks of 0 or below runs nothing and sends no boundary.
+	UFUNCTION(BlueprintCallable)
+	void RunLeap(int64 Ticks);
 
 	// Read by C++ (widget bases, other subsystems) through the reference. Not exposed to Blueprint: a graph could read no
 	// field of FGalaxyState and every node evaluation would copy the whole state.
@@ -306,21 +316,27 @@ public:
 	// Counts the Core Logic delegates that are being broadcast right now and that can fire from inside a tick stage:
 	// OnLogEntry, OnEventFired, OnTierAscended (section 9.4). Their handlers may read the state and call SetTimeScale
 	// and nothing else, so UCosmicEventSubsystem refuses its member functions while this is true, and so do NewGalaxy,
-	// LoadState, StepOnce, RunHeadless, NoteMet, NoteKnown and DrawTell here, UCosmicLogSubsystem::Push and PushVariants
+	// LoadState, StepOnce, RunHeadless, RunLeap, NoteMet, NoteKnown and DrawTell here, UCosmicLogSubsystem::Push and PushVariants
 	// (and so PushRow), UCosmicSaveSubsystem::SaveCurrentGalaxy, LoadGalaxy (LoadRun) and ContinueNewest,
 	// UAscensionSubsystem::EvaluateFeats and
 	// the role changes and commands of UPlayerRoleSubsystem (Install, DeposeRuler, BecomeWanderer, BecomeRuler, Abdicate,
-	// AbdicateRuler, StartMegaproject, StartNextMegaproject, SetResearchFocus, SetResearchShares, EnactEdict, RevokeEdict,
+	// AbdicateRuler, Die, Succeed, StartMegaproject, StartNextMegaproject, SetResearchFocus, SetResearchShares, EnactEdict, RevokeEdict,
 	// AnswerPetition, TravelTo, ScanCurrentSystem, SetStance, ProposeTreaty, BreakTreaty, AllocateFleet).
 	// MakeEvalContext reports an error and still returns the context (it holds references): the
 	// static Apply and ApplyAll are kept out of a handler by the rule alone. Every such broadcast site brackets its
 	// Broadcast call with BeginBroadcast and EndBroadcast.
 	bool IsBroadcasting() const { return BroadcastDepth > 0; }
-	// True while tick stages one to nine run (SimulateTick, up to the petition card at the end of the knowing stage): the save
-	// layer writes and loads at a tick boundary only (16 #33 (1)), so it refuses inside them as it does inside a handler. The
-	// tenth stage (ResolvePendingRoleEffect) runs outside the guard - nothing saves there yet; the leap header of Phase 4b
-	// decides whether the guard widens.
+	// True while the ten tick stages and the stream's sync at their end run (SimulateTick): the save layer writes and loads
+	// at a tick boundary only (16 #33 (1)), so it refuses inside them as it does inside a handler. B5 widened the guard to the
+	// tenth stage (ResolvePendingRoleEffect - it runs no tick since the leap is a countdown; header section 2.2): its pipelines
+	// (Install, the death's lines) hold the state while they run. StepOnce, RunHeadless and RunLeap refuse inside it.
 	bool IsInTickStages() const { return bInTickStages; }
+	// True while OnSimTick is being sent (the tick boundary - not a Core Logic broadcast of IsBroadcasting): its handlers may
+	// stop the time and replace the state (NewGalaxy, LoadState), but run no tick - StepOnce, RunHeadless and RunLeap refuse.
+	bool IsSendingSimTick() const { return SimTickDepth > 0; }
+	// True while RunLeap sends its boundary: the ticks behind it told the presentation nothing (the gate was closed), so a
+	// screen that keeps what was told rebuilds from the state (the log feed) - whatever the leap's length.
+	bool IsSendingLeapBoundary() const { return bSendingLeapBoundary; }
 	void BeginBroadcast() { ++BroadcastDepth; }
 	void EndBroadcast() { --BroadcastDepth; }
 
@@ -388,7 +404,8 @@ public:
 	UFUNCTION(BlueprintPure)
 	EPopulationBand GetPopulationBand(FName CivID) const;
 
-	// Global broadcast gate (section 6.1). Every Core Logic subsystem checks it before broadcasting. Closed during RunHeadless.
+	// Global broadcast gate (section 6.1). Every Core Logic subsystem checks it before broadcasting. Closed during RunHeadless
+	// (and so during the body of RunLeap, which sends one OnSimTick at its end - B5).
 	bool IsBroadcastEnabled() const { return bBroadcastEnabled; }
 	void SetBroadcastEnabled(bool bEnabled) { bBroadcastEnabled = bEnabled; }
 
@@ -582,10 +599,10 @@ private:
 
 	// Stage 7. The only place where the number of elements of State.Civs changes (section 7.4). (o) Cleanup: first every
 	// people with no settled system lets its settlements go (CosmicHazards::LetSettlementsGo - a destruction has done so
-	// already in play; when that empties the people the player rules with no deposition recorded, an error line says so,
+	// already in play; when that empties the people the player rules with no deposition or death recorded, an error line says so,
 	// for nothing lets go of it then); then every civilization that owns no system (CosmicState::OwnsAnySystem) leaves Civs, in array
 	// order, except the one the player rules this tick, which the next tick's cleanup takes once the role-effect stage has
-	// let go of it (that rests on the recorded deposition: Phase 4b's death pipeline lets go of a people as well). The
+	// let go of it (that rests on the recorded deposition or death - the death pipeline lets go of the people too, B5). The
 	// Relations and Ties keys of a removed CivID leave every other civilization (B3), Knowing.PendingContactCivID is cleared when it
 	// names one, and the state index is rebuilt. Every other record of the ID stays. No line: the expiry that took the
 	// last system has told it. Arrivals and departures are Phase 6a.
@@ -614,13 +631,20 @@ private:
 	// gap rule keeps a people unmet until a later look.
 	void TickSight(bool bVesselMoved);
 
-	// Stage 10, outside the stage guard (section 7.4). Effect.DeposeRuler: UPlayerRoleSubsystem::DeposeRuler - or, with the
-	// cause Reign.Abdicated, UPlayerRoleSubsystem::AbdicateRuler (B1) - then the record is cleared. Effect.KillPlayer stays recorded until the death pipeline of Phase 4b: no row of the game records
-	// one before then.
+	// Stage 10, inside the stage guard (section 7.4; B5 header section 2.2). In the interregnum no record is made (Apply refuses
+	// one) and the stage is the leap's countdown: a remaining leap above 0 goes down by one, and on the tick it reaches 0
+	// UPlayerRoleSubsystem::Succeed; with none left (no candidate - the silence) nothing happens. Otherwise
+	// Effect.DeposeRuler: UPlayerRoleSubsystem::DeposeRuler - or, with the cause Reign.Abdicated,
+	// UPlayerRoleSubsystem::AbdicateRuler (B1); Effect.KillPlayer: UPlayerRoleSubsystem::Die (B5); then the record is cleared.
+	// It runs no tick: the fast-forward is RunLeap, from the presentation's input.
 	void ResolvePendingRoleEffect();
 
 	// The walk shared by ComputeStateHash and ComputeWorldHash.
 	uint32 HashState(bool bWorldOnly) const;
+
+	// Whether a tick may not run now (StepOnce, RunHeadless, RunLeap): inside a handler of a Core Logic delegate, inside the
+	// tick stages or inside an OnSimTick handler - one error line naming Caller.
+	bool RefusesTicks(const TCHAR* Caller) const;
 
 	const FCivilizationState* FindCiv(FName CivID) const;
 	const FStarSystemState* FindSystem(FName SystemID) const;
@@ -645,11 +669,15 @@ private:
 	bool bRunning = false;
 	bool bBroadcastEnabled = true;
 
-	// True while stages one to nine run; role effect resolution, the tenth, is outside (the Phase 4b leap runs ticks
-	// from there). NewGalaxy, LoadState and SimulateTick ensure against it: the stages hold references into the state.
-	// The ensure is a backstop: a delegate fired from inside the stages is a broadcast, and the four entry points that
-	// replace the state or run a tick refuse a call made during one (IsBroadcasting).
+	// True while the ten stages and the stream's sync run (B5 widened it to the tenth stage). NewGalaxy, LoadState and
+	// SimulateTick ensure against it: the stages hold references into the state. The ensure is a backstop: a delegate fired
+	// from inside the stages is a broadcast, and the entry points that replace the state or run a tick refuse a call made
+	// during one (IsBroadcasting); StepOnce, RunHeadless and RunLeap refuse inside the stages too.
 	bool bInTickStages = false;
+
+	// How deep OnSimTick is being sent (IsSendingSimTick), and whether it is RunLeap's boundary. Never saved.
+	int32 SimTickDepth = 0;
+	bool bSendingLeapBoundary = false;
 
 	static constexpr float SecondsPerTick = 1.0f;
 

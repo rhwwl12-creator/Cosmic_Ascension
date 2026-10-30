@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicSuccession.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicSuccession.cpp
+@@ -90,6 +90,6 @@
+ 	const int64 Hi = FMath::Max<int64>(Lo, Rules.LeapTicksMax);
+ 	const float Read = Number >= 0.f ? (Number < 1.f ? Number : CosmicSuccessionImpl::BelowOne) : 0.f;
+ 	const int64 Span = Hi - Lo;
+-	const int64 Leap = Lo + FMath::Min<int64>(static_cast<int64>(Read * static_cast<float>(Span + 1)), Span);
++	const int64 Leap = Lo + FMath::Min<int64>(static_cast<int64>(Read * static_cast<float>(Span)), Span);
+ 	return FMath::Min<int64>(Leap, FMath::Max<int64>(0, Rules.LeapTotalCap - LeapTicksTotal));
+ }

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -470,7 +470,7 @@
+ 	// and of its powers the way it took (Way.*) - the rest is given again from the tier (no row gives one yet).
+ 	if (Calling.PersonalTier < EAscensionTier::Tier3_Causal)
+ 	{
+-		Calling.PersonalTier = EAscensionTier::Tier1_Planetary;
++		Calling.PersonalTier = Calling.PersonalTier;
+ 	}
+ 	FGameplayTagContainer Kept;
+ 	for (const FGameplayTag& Power : Calling.Powers)

@@ -549,3 +549,17 @@ bool CosmicHazards::VesselAtRiskOf(const FPlayerEntityState& Player, const FCall
 	// Birth protection: a shielded kill does not reach.
 	return bReaches && !(Tick - Calling.BornTick < Rules.BirthProtectionTicks);
 }
+
+bool CosmicHazards::KillsAVesselOf(const FCosmicDataTables& Tables, const FGameplayTag& Tag)
+{
+	const FHazardDef* Row = Tag.IsValid() ? Tables.FindHazardByTag(Tag) : nullptr;
+	if (!Row)
+	{
+		return false;
+	}
+	auto Kills = [](const TArray<FCosmicEffect>& Effects)
+	{
+		return Effects.ContainsByPredicate([](const FCosmicEffect& Effect) { return Effect.Type == EEffectType::KillPlayer; });
+	};
+	return Kills(Row->OnExpireEffects) || Kills(Row->OnExpireBranchEffects);
+}

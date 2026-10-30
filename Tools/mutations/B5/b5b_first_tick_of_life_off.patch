@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
+@@ -192,7 +192,7 @@
+ bool CosmicPetitions::IsFirstTickOfLife(const FGalaxyState& State)
+ {
+ 	return State.Calling.LifeState == ELifeState::Embodied && State.Player.Role == EPlayerRole::Wanderer && State.Calling.Lives.Num() > 1
+-		&& State.Tick == State.Calling.BornTick;
++		&& State.Tick == State.Calling.BornTick && false;
+ }
+ 
+ int32 CosmicPetitions::SubjectOf(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex, ECosmicEventSubject Subject, FName SystemID)

@@ -490,7 +490,7 @@ void CosmicRulerPolicy::Act(const FCosmicRulerPolicy& Policy, UGalaxySimulationS
 		++Counts.Started;
 	}
 	// The next rung's research (MVP item 7): only while the run has not ended (the game takes no input after it).
-	if (Policy.bFocus && !Counts.bEnded)
+	if (Policy.bFocus && !(Counts.bEnded && !Policy.bPastEnd))
 	{
 		FName Field = NAME_None;
 		for (const FCosmicRungPart& Part : CosmicNextRung::ResearchFieldsOf(CosmicNextRung::AllOf(State, Sim.GetStateIndex(), Sim.GetTables(), Sim.GetRules())))
@@ -515,7 +515,7 @@ void CosmicRulerPolicy::ActEdicts(const FCosmicRulerPolicy& Policy, UGalaxySimul
 	const FCosmicStateIndex& Index = Sim.GetStateIndex();
 	const FCosmicDataTables& Tables = Sim.GetTables();
 	const FCosmicRulesDef& Rules = Sim.GetRules();
-	if (!Policy.bEdict || Counts.bEnded || State.Calling.LifeState != ELifeState::Embodied || State.Player.Role != EPlayerRole::Ruler)
+	if (!Policy.bEdict || (Counts.bEnded && !Policy.bPastEnd) || State.Calling.LifeState != ELifeState::Embodied || State.Player.Role != EPlayerRole::Ruler)
 	{
 		return;
 	}
@@ -669,7 +669,7 @@ void CosmicRulerPolicy::ActDiplomacy(const FCosmicRulerPolicy& Policy, UGalaxySi
 	const FCosmicRulesDef& Rules = Sim.GetRules();
 	// The guard of -Guard=1 (B4) runs with no diplomacy and after the end too; everything else needs both.
 	const bool bGuard = Policy.Guard != 0;
-	if ((!bGuard && (Policy.Diplomacy == 0 || Counts.bEnded)) || State.Calling.LifeState != ELifeState::Embodied || State.Player.Role != EPlayerRole::Ruler)
+	if ((!bGuard && (Policy.Diplomacy == 0 || (Counts.bEnded && !Policy.bPastEnd))) || State.Calling.LifeState != ELifeState::Embodied || State.Player.Role != EPlayerRole::Ruler)
 	{
 		return;
 	}
@@ -726,7 +726,7 @@ void CosmicRulerPolicy::ActDiplomacy(const FCosmicRulerPolicy& Policy, UGalaxySi
 		}
 	}
 
-	if (Policy.Diplomacy == 0 || Counts.bEnded)
+	if (Policy.Diplomacy == 0 || (Counts.bEnded && !Policy.bPastEnd))
 	{
 		return;
 	}

@@ -16,8 +16,9 @@ struct FGalaxyState;
 class UCosmicSaveGame;
 class UGalaxySimulationSubsystem;
 
-/** Why a slot was written: log lines and tests only (not in the file, not state, not hashed). */
-enum class ECosmicSaveCause : uint8 { Asked, NewRun, Ascended, Role, Ended, Interval, Answer, Exit };
+/** Why a slot was written: log lines and tests only (not in the file, not state, not hashed). Death and Succession (B5):
+ * the boundary at which the calling entered the interregnum, and the one at which a new life began. */
+enum class ECosmicSaveCause : uint8 { Asked, NewRun, Ascended, Role, Ended, Interval, Answer, Exit, Death, Succession };
 
 /** What the start of the game did (ACosmicGameMode::StartPlay through BeginSession), or the last ContinueNewest. Never saved. */
 enum class ECosmicContinue : uint8
@@ -41,8 +42,8 @@ namespace CosmicSave
 
 /** What the slot of the running galaxy holds, as far as the tick-boundary check needs it: a cache of the disk (the disk copy),
  * replaced whole by every write and every load (losing it costs one more write, nothing else). Not saved, not hashed, read
- * by nothing but the save layer; no fact here that the state does not hold (rule 2). Phase 4b adds the number of lives and
- * the LifeState for death and succession. */
+ * by nothing but the save layer; no fact here that the state does not hold (rule 2). B5 added the number of lives and the
+ * LifeState for death and succession (the slot's header is unchanged). */
 struct FCosmicSavedMark
 {
 	FGuid GalaxyID;                                // invalid = nothing written or loaded for this run
@@ -52,6 +53,8 @@ struct FCosmicSavedMark
 	EPlayerRole Role = EPlayerRole::Ruler;         // deposition now; abdication, enthronement, return (Phase 4)
 	FName RuledCivID;
 	bool bEnded = false;                           // CosmicEndings::ProvisionalEndOf != None
+	int32 Lives = 0;                               // Calling.Lives.Num(): a succession adds one (B5)
+	bool bInterregnum = false;                     // Calling.LifeState == Interregnum: a death makes it true (B5)
 	double RealSeconds = 0.0;                      // FPlatformTime::Seconds at the write or the load
 };
 
@@ -159,8 +162,9 @@ public:
 	// After a failed write of the game's path the boundary waits this long before it writes again (decision 12).
 	static constexpr double RetryRealSeconds = 60.0;
 
-	// The boundary rule as pure functions (tests). DueAt: NewRun when the galaxy differs, else Ended, else Ascended, else Role,
-	// else Interval (IntervalSeconds passed and the tick moved), else unset. MarkOf leaves StateHash and RealSeconds to the write.
+	// The boundary rule as pure functions (tests). DueAt: NewRun when the galaxy differs, else Ended, else Ascended, else Death
+	// (the calling entered the interregnum - B5), else Succession (a life was added), else Role, else Interval (IntervalSeconds
+	// passed and the tick moved), else unset. MarkOf leaves StateHash and RealSeconds to the write.
 	static TOptional<ECosmicSaveCause> DueAt(const FCosmicSavedMark& Saved, const FCosmicSavedMark& Now, double NowRealSeconds, double IntervalSeconds);
 	static FCosmicSavedMark MarkOf(const FGalaxyState& State, const FCosmicRulesDef& Rules);
 

@@ -106,6 +106,12 @@ private:
 	UFUNCTION()
 	void HandleLogEntry(const FCosmicLogEntry& Entry);
 
+	// The tick boundary (B5 header section 2.6): the boundary of a fast-forward (UGalaxySimulationSubsystem::RunLeap -
+	// IsSendingLeapBoundary), whose ticks told nothing to the feed, rebuilds it from the state, of any length; so does a
+	// boundary that is not the next tick of the last one seen.
+	UFUNCTION()
+	void HandleSimTick(int64 Tick);
+
 	void HandleItemClicked(UObject* Item);
 	// A new item at the end, the oldest dropped past MaxItems.
 	void Append(const FCosmicLogEntry& Entry);
@@ -115,4 +121,7 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UCosmicLogItem>> Items;
+
+	// The tick of the last boundary or rebuild (HandleSimTick).
+	int64 SeenTick = -1;
 };

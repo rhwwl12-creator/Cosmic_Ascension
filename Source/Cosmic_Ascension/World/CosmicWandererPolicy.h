@@ -17,6 +17,8 @@ struct FCosmicWandererPolicy
 	int64 AbdicateAt = 0;
 	// Whether the wanderer walks: answers its cards, takes a throne the gate opens, scans on each arrival and travels.
 	bool bWander = false;
+	// B5 (header section 5.1 - measurement only): the provisional end is not counted - the policy goes on after it.
+	bool bPastEnd = false;
 };
 
 // What the policy saw and did so far in a run (the commandlet's wanderer line).
@@ -38,6 +40,9 @@ struct FCosmicWandererPolicyCounts
 	int32 Answers = 0;
 	// B5 ([B-5a] - the calling line, open question #151's material): the answers that failed, by card row.
 	TMap<FName, int32> FailedByRow;
+	// B5: the last throne taken, and its way (the calling line's throne after a succession).
+	int64 LastCrownedAt = -1;
+	const TCHAR* LastCrownedPath = TEXT("none");
 	// The highest reverence any people held for the vessel while it walked.
 	float ReverencePeak = 0.f;
 	// The system the vessel last left (the next journey does not go straight back to it unless it must), and the system

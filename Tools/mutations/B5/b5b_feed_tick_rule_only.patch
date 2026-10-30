@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicLogFeedWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicLogFeedWidget.cpp
+@@ -185,7 +185,7 @@
+ void UCosmicLogFeedWidget::HandleSimTick(int64 Tick)
+ {
+ 	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+-	if ((SeenTick >= 0 && Tick != SeenTick + 1) || (Sim && Sim->IsSendingLeapBoundary()))
++	if (SeenTick >= 0 && Tick != SeenTick + 1 && Sim)
+ 	{
+ 		Refresh();
+ 	}

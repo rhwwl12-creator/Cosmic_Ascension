@@ -31,8 +31,8 @@ namespace CosmicState
 {
 	// Settled = owned and not being settled (section 5.7). The one predicate for it. The event slots, the economy stage
 	// (income and pressure), the hazard stage (the spawn draw, the placement of a hazard), the count of Law.Remnant, the
-	// megaprojects and the feats, settlement (who may settle, from where) and the last-system gate use it now. Still to
-	// take it up: succession candidates (Phase 4b).
+	// megaprojects and the feats, settlement (who may settle, from where), the last-system gate and the succession's
+	// candidates (B5) use it.
 	inline bool IsSettled(const FStarSystemState& System)
 	{
 		return !System.OwnerCivID.IsNone() && System.ActiveMegaproject != CosmicRows::ProjectSettle;

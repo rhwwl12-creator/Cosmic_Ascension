@@ -49,4 +49,24 @@ namespace CosmicTags
 		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Claim")));
 		return Tag;
 	}
+
+	// B5: the role effect of a death (FCallingState::PendingEffect), the reign's end of a death, and the realm of the fallen
+	// whose sphere a succession avoids.
+	inline FGameplayTag EffectKillPlayer()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Effect.KillPlayer")));
+		return Tag;
+	}
+
+	inline FGameplayTag ReignDied()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Died")));
+		return Tag;
+	}
+
+	inline FGameplayTag RealmAbyssal()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Realm.Abyssal")));
+		return Tag;
+	}
 }

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -3016,7 +3016,7 @@
+ 		Calling.PendingSourceRow = NAME_None;
+ 		if (Calling.PendingLeapTicks > 0)
+ 		{
+-			--Calling.PendingLeapTicks;
++			Calling.PendingLeapTicks = FMath::Max<int64>(0, Calling.PendingLeapTicks - 2);
+ 			if (Calling.PendingLeapTicks == 0)
+ 			{
+ 				PlayerRole->Succeed();

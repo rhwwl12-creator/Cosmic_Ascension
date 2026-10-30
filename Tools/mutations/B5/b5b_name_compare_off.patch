@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -162,7 +162,7 @@
+ 		for (int32 At = 0; PreviousName && At < Archetype->PersonNameBank.Num() && Previous == INDEX_NONE; ++At)
+ 		{
+ 			const FString* Name = FTextInspector::GetSourceString(Archetype->PersonNameBank[At]);
+-			Previous = (Name && *Name == *PreviousName) ? At : INDEX_NONE;
++			Previous = INDEX_NONE;
+ 		}
+ 	}
+ 	// One draw per Install, before the bank is looked at, thrown away when the bank is empty: the number of sim draws

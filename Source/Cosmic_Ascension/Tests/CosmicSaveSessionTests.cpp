@@ -6,6 +6,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Core/CosmicTags.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDefinitionRows.h"
@@ -118,7 +119,8 @@ namespace CosmicSaveSessionTests
 // The boundary rule of the save layer (16 #33 (1)): what each tick boundary writes and why, the saves asked at input time,
 // a save asked from a handler waiting for the boundary, a failure kept and written again after the wait (noticed only while
 // no write has put it right; the end of the run is written through the wait), the exit skipped only for the run of
-// decision 6, and the gate - as pure functions, one case per reason.
+// decision 6, and the gate - as pure functions, one case per reason; B5 (header section 2.6, 6): the causes Death and
+// Succession and their place in the order (a leap of 0 is a succession at the death's boundary).
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimSaveTriggersTest, "Cosmic_Ascension.Sim.SaveTriggers", CosmicTests::Flags)
 bool FCosmicSimSaveTriggersTest::RunTest(const FString& Parameters)
 {
@@ -318,6 +320,68 @@ bool FCosmicSimSaveTriggersTest::RunTest(const FString& Parameters)
 		Now.GalaxyID = FGuid(5, 6, 7, 8);
 		TestTrue(TEXT("Another galaxy before all"), Due(0.0, 600.0) == ECosmicSaveCause::NewRun);
 	}
+
+	// ---- The death and the succession, pure (B5 header section 2.6): NewRun > Ended > Ascended > Death > Succession > Role ----
+	{
+		// The disk copy of an embodied ruler of one life.
+		FCosmicSavedMark Saved;
+		Saved.GalaxyID = FGuid(1, 2, 3, 4);
+		Saved.Tick = 10;
+		Saved.RealSeconds = 100.0;
+		Saved.Role = EPlayerRole::Ruler;
+		Saved.RuledCivID = FName(TEXT("civ_0"));
+		Saved.Lives = 1;
+		auto Due = [&Saved](const FCosmicSavedMark& Now) { return UCosmicSaveSubsystem::DueAt(Saved, Now, 0.0, 600.0); };
+
+		// A death: the calling entered the interregnum.
+		FCosmicSavedMark Died = Saved;
+		Died.Tick = 11;
+		Died.bInterregnum = true;
+		TestTrue(TEXT("The calling entered the interregnum: Death"), Due(Died) == ECosmicSaveCause::Death);
+		Died.Role = EPlayerRole::Wanderer;
+		Died.RuledCivID = NAME_None;
+		TestTrue(TEXT("A ruler's death changes the role too: Death before Role"), Due(Died) == ECosmicSaveCause::Death);
+		Died.Lives = 2;
+		TestTrue(TEXT("Death before Succession"), Due(Died) == ECosmicSaveCause::Death);
+		Died.Lives = 1;
+		Died.Feats = 1;
+		TestTrue(TEXT("A feat before a death"), Due(Died) == ECosmicSaveCause::Ascended);
+		Died.Feats = 0;
+		Died.bEnded = true;
+		TestTrue(TEXT("The end before a death (a death on the end's tick)"), Due(Died) == ECosmicSaveCause::Ended);
+
+		// A leap of 0: at the death's boundary the new life already stands - embodied, with one more life.
+		FCosmicSavedMark Zero = Saved;
+		Zero.Tick = 11;
+		Zero.Lives = 2;
+		TestTrue(TEXT("A leap of 0 (embodied with one more life): Succession"), Due(Zero) == ECosmicSaveCause::Succession);
+		Zero.Role = EPlayerRole::Wanderer;
+		Zero.RuledCivID = NAME_None;
+		TestTrue(TEXT("The ruler died and the new vessel walks: Succession before Role"), Due(Zero) == ECosmicSaveCause::Succession);
+		Zero.Lives = 1;
+		TestTrue(TEXT("(the same marks without the life: Role)"), Due(Zero) == ECosmicSaveCause::Role);
+		Zero.Lives = 2;
+		Zero.Feats = 1;
+		TestTrue(TEXT("A feat before a succession"), Due(Zero) == ECosmicSaveCause::Ascended);
+
+		// The interregnum goes on, then a leap ends in a succession.
+		FCosmicSavedMark InLeap = Saved;
+		InLeap.bInterregnum = true;
+		InLeap.Role = EPlayerRole::Wanderer;
+		InLeap.RuledCivID = NAME_None;
+		FCosmicSavedMark Later = InLeap;
+		Later.Tick = 50;
+		TestFalse(TEXT("The interregnum going on is nothing new"), UCosmicSaveSubsystem::DueAt(InLeap, Later, 0.0, 600.0).IsSet());
+		Later.bInterregnum = false;
+		Later.Lives = 2;
+		TestTrue(TEXT("Out of the interregnum with one more life: Succession"), UCosmicSaveSubsystem::DueAt(InLeap, Later, 0.0, 600.0) == ECosmicSaveCause::Succession);
+		Later.bEnded = true;
+		TestTrue(TEXT("The end before a succession (a succession on the end's tick)"), UCosmicSaveSubsystem::DueAt(InLeap, Later, 0.0, 600.0) == ECosmicSaveCause::Ended);
+		Later.bEnded = false;
+		Later.bInterregnum = true;
+		Later.Lives = 1;
+		TestFalse(TEXT("The silence (no candidate: still in the interregnum, no life added) is nothing new"), UCosmicSaveSubsystem::DueAt(InLeap, Later, 0.0, 600.0).IsSet());
+	}
 	return true;
 }
 
@@ -473,6 +537,76 @@ bool FCosmicUIContinueRunningTest::RunTest(const FString& Parameters)
 		SetReadOnly(MainPath, false);
 		SaveLater->SetGameSavingForTest(false);
 		SaveLater->DeleteSave(Running);
+		Sim->NewGalaxy(42, 5, 3);
+		Sim->SetTimeScale(0.f);
+	});
+	return true;
+}
+
+// The continue of a run in the interregnum (B5 header section 2.6; the form of UI.ContinueRunning): the game opened again on
+// a run whose vessel died with its leap ahead opens it as it was saved and stands still with the continue's line - the time
+// does not run the leap on its own - through the start path of a real map load (StartPlay's BeginSession and ContinueNewest,
+// the controller's FollowStart taking TakeStartOutcome).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimSaveLeapContinueTest, "Cosmic_Ascension.Sim.SaveLeapContinue", CosmicTests::Flags)
+bool FCosmicSimSaveLeapContinueTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicSaveSessionTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	if (!TheGameWorld())
+	{
+		AddError(TEXT("The map load needs exactly one game world context."));
+		return false;
+	}
+	UCosmicSaveSubsystem* Save = SaveOf(*Sim);
+	const FGuid Waiting(0x5A5E0012, 1, 1, 1);
+	UseOwnFolder(*Save);
+	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	FGalaxyState& State = Sim->GetMutableState();
+	State.GalaxyID = Waiting;
+	State.Tick = 399;
+	Sim->SyncRngState();
+	// A death recorded as Apply records one (a hazard's expiry): the tenth stage of the next tick carries it out.
+	State.Calling.PendingEffect = CosmicTags::EffectKillPlayer();
+	State.Calling.PendingCause = FGameplayTag::RequestGameplayTag(FName(TEXT("Death.Hazard")));
+	State.Calling.PendingSourceRow = FName(TEXT("crisis_pre_supernova"));
+	Sim->StepOnce();
+	if (!TestTrue(TEXT("(the vessel died at tick 400 with its leap ahead)"), State.Tick == 400 && State.Calling.LifeState == ELifeState::Interregnum
+		&& State.Calling.PendingLeapTicks > 0 && State.Calling.Lives.Num() == 1))
+	{
+		return false;
+	}
+	const int64 Leap = State.Calling.PendingLeapTicks;
+	if (!TestTrue(TEXT("(the run in the interregnum is saved)"), Save->SaveCurrentGalaxy()))
+	{
+		return false;
+	}
+	const uint32 Hash = Sim->ComputeStateHash();
+	Sim->NewGalaxy(7, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	Save->SetGameSavingForTest(true);
+	Save->ContinueAtNextStartForTest();
+	UCosmicSaveSubsystem* SaveLater = Save;
+	ReloadMapThen(*this, [this, Sim, SaveLater, Waiting, Hash, Leap]()
+	{
+		UWorld* World = TheGameWorld();
+		ACosmicPlayerController* Controller = World ? Cast<ACosmicPlayerController>(World->GetFirstPlayerController()) : nullptr;
+		if (TestNotNull(TEXT("(the new controller)"), Controller))
+		{
+			const FCallingState& Calling = Sim->GetState().Calling;
+			TestTrue(TEXT("The game opens the run in the interregnum"), Sim->GetState().GalaxyID == Waiting);
+			TestEqual(TEXT("as it was saved"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(Hash));
+			TestTrue(TEXT("from its slot"), SaveLater->GetLastContinue() == ECosmicContinue::Newest);
+			TestTrue(TEXT("The calling waits in the interregnum with its whole leap ahead"), Calling.LifeState == ELifeState::Interregnum && Calling.PendingLeapTicks == Leap
+				&& Calling.Lives.Num() == 1);
+			TestFalse(TEXT("(the run is not over)"), Controller->IsRunEnded());
+			TestEqual(TEXT("A continued run in the interregnum stands still"), Sim->GetTimeScale(), 0.f);
+			TestTrue(TEXT("with the continue's line"), Controller->GetAutoPauseReason() == ECosmicAutoPause::Continued);
+		}
+		SaveLater->SetGameSavingForTest(false);
+		SaveLater->DeleteSave(Waiting);
 		Sim->NewGalaxy(42, 5, 3);
 		Sim->SetTimeScale(0.f);
 	});

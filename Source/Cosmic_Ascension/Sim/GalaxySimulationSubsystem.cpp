@@ -1120,21 +1120,55 @@ void UGalaxySimulationSubsystem::SetTimeScale(float Scale)
 	}
 }
 
-void UGalaxySimulationSubsystem::StepOnce()
+bool UGalaxySimulationSubsystem::RefusesTicks(const TCHAR* Caller) const
 {
 	if (IsBroadcasting())
 	{
-		UE_LOG(LogCosmic, Error, TEXT("StepOnce called from a handler of a Core Logic delegate: a handler may only read the state"));
+		UE_LOG(LogCosmic, Error, TEXT("%s called from a handler of a Core Logic delegate: a handler may only read the state"), Caller);
+		return true;
+	}
+	if (bInTickStages)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("%s called from inside the tick stages: a tick runs only from outside them"), Caller);
+		return true;
+	}
+	if (SimTickDepth > 0)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("%s called from a handler of OnSimTick: the tick boundary runs no tick"), Caller);
+		return true;
+	}
+	return false;
+}
+
+void UGalaxySimulationSubsystem::StepOnce()
+{
+	if (RefusesTicks(TEXT("StepOnce")))
+	{
 		return;
 	}
 	SimulateTick();
 }
 
+void UGalaxySimulationSubsystem::RunLeap(int64 Ticks)
+{
+	if (RefusesTicks(TEXT("RunLeap")) || Ticks <= 0)
+	{
+		return;   // no tick, no boundary: a leap of nothing announces no tick twice
+	}
+	RunHeadless(Ticks);
+	// The one boundary of the leap, outside the stages (header B5 section 2.6).
+	if (bBroadcastEnabled)
+	{
+		TGuardValue<int32> Sending(SimTickDepth, SimTickDepth + 1);
+		TGuardValue<bool> Leap(bSendingLeapBoundary, true);
+		OnSimTick.Broadcast(State.Tick);
+	}
+}
+
 void UGalaxySimulationSubsystem::RunHeadless(int64 Ticks)
 {
-	if (IsBroadcasting())
+	if (RefusesTicks(TEXT("RunHeadless")))
 	{
-		UE_LOG(LogCosmic, Error, TEXT("RunHeadless called from a handler of a Core Logic delegate: a handler may only read the state"));
 		return;
 	}
 	TGuardValue<bool> GateGuard(bBroadcastEnabled, false);
@@ -1462,7 +1496,8 @@ uint32 UGalaxySimulationSubsystem::HashState(bool bWorldOnly) const
 
 void UGalaxySimulationSubsystem::SimulateTick()
 {
-	// A backstop: StepOnce and RunHeadless already refuse a tick asked for from a handler.
+	// A backstop: StepOnce, RunHeadless and RunLeap already refuse a tick asked for from a handler, inside the stages or
+	// inside an OnSimTick handler (RefusesTicks).
 	ensureMsgf(!bInTickStages, TEXT("SimulateTick re-entered from inside a tick stage"));
 
 	// The petition rows that hold at the head of the tick, before the tick advances: the knowing stage puts a card for a
@@ -1472,8 +1507,9 @@ void UGalaxySimulationSubsystem::SimulateTick()
 	// a card that just came to hold. The first life's first tick is one too - no petition stands at tick 0. A travelling
 	// wanderer counts as standing in the system it left (B1 header section 2.4): a journey that ends where it began brings
 	// no card for a crisis that stood there throughout.
+	// The first tick of a life a succession began does the same (B5): a new vessel born where a hazard stands gets its card.
 	TArray<FCosmicPetitionUnit> PetitionsAtHead = CosmicPetitions::StandingHeld(State, StateIndex, Tables, Rules, true);
-	if (CosmicPetitions::IsFirstTickOfReign(State))
+	if (CosmicPetitions::IsFirstTickOfReign(State) || CosmicPetitions::IsFirstTickOfLife(State))
 	{
 		PetitionsAtHead.Reset();
 	}
@@ -1514,8 +1550,10 @@ void UGalaxySimulationSubsystem::SimulateTick()
 		Mark(3);
 		StageClock.Ticks += bClock ? 1 : 0;
 		TickCrossings();
-		// The calling rests on no vessel during the interregnum leap (section 4.4): no travel and no sight.
-		if (State.Calling.LifeState == ELifeState::Embodied)
+		// The calling rests on no vessel during the interregnum leap (section 4.4): no travel and no sight. Nor does a vessel
+		// whose death this tick recorded (B5): it stays where the death reached it - the place a journey left, as a destruction
+		// leaves it with its star - and looks at nothing; the tenth stage carries the death out.
+		if (State.Calling.LifeState == ELifeState::Embodied && State.Calling.PendingEffect != CosmicTags::EffectKillPlayer())
 		{
 			const bool bArrived = TickPlayerTravel();
 			TickSight(State.Player.CurrentSystemID != VesselAtStart);
@@ -1534,13 +1572,16 @@ void UGalaxySimulationSubsystem::SimulateTick()
 			}
 			Mark(5);
 		}
+		// The tenth stage, inside the guard (B5): death, deposition and the leap's countdown replace the vessel; no tick runs
+		// from here.
+		ResolvePendingRoleEffect();
+		SyncRngState();
 	}
-	// Outside the guard: death and deposition replace the vessel, and the leap of Phase 4b runs ticks from here.
-	ResolvePendingRoleEffect();
 
-	SyncRngState();
+	// The tick boundary.
 	if (bBroadcastEnabled)
 	{
+		TGuardValue<int32> Sending(SimTickDepth, SimTickDepth + 1);
 		OnSimTick.Broadcast(State.Tick);
 	}
 }
@@ -2743,11 +2784,14 @@ void UGalaxySimulationSubsystem::TickCrossings()
 	// the player rules that it empties would be kept with nothing to rule, so it says so (the stage that takes the last
 	// settled system of that people records the collapse itself, as the hazard expiry does).
 	static const FGameplayTag DeposeTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Effect.DeposeRuler")));
+	const FGameplayTag KillTag = CosmicTags::EffectKillPlayer();
 	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
 	{
-		if (CosmicHazards::LetSettlementsGo(State, StateIndex, CivIndex) && State.Civs[CivIndex].bIsPlayerRuled && State.Calling.PendingEffect != DeposeTag)
+		// A deposition or a death recorded this tick lets go of the people at the tenth stage (B5 - decision 7).
+		if (CosmicHazards::LetSettlementsGo(State, StateIndex, CivIndex) && State.Civs[CivIndex].bIsPlayerRuled && State.Calling.PendingEffect != DeposeTag
+			&& State.Calling.PendingEffect != KillTag)
 		{
-			UE_LOG(LogCosmic, Error, TEXT("TickCrossings: %s, the people the player rules, held only settlements: they go to no one, and no collapse was recorded to depose its ruler."), *State.Civs[CivIndex].CivID.ToString());
+			UE_LOG(LogCosmic, Error, TEXT("TickCrossings: %s, the people the player rules, held only settlements: they go to no one, and no collapse or death was recorded to end its reign."), *State.Civs[CivIndex].CivID.ToString());
 		}
 	}
 	TArray<FName> Removed;
@@ -2954,15 +2998,34 @@ int32 UGalaxySimulationSubsystem::LookFrom(TConstArrayView<int32> EyePlaces, int
 
 void UGalaxySimulationSubsystem::ResolvePendingRoleEffect()
 {
-	// Death and deposition recorded in Calling.PendingEffect start their pipeline here, at the tick boundary (section 4.4,
-	// 5.10). The death pipeline arrives with Phase 4b: until then a KillPlayer stays recorded.
+	// Death and deposition recorded in Calling.PendingEffect start their pipeline here, at the end of the tick (section 4.4,
+	// 5.10); the interregnum's leap counts down here (B5 header section 2.2).
 	static const FGameplayTag DeposeTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Effect.DeposeRuler")));
+	const FGameplayTag KillTag = CosmicTags::EffectKillPlayer();
 	static const FGameplayTag AbdicatedTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Abdicated")));
 	FCallingState& Calling = State.Calling;
+	UPlayerRoleSubsystem* PlayerRole = GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>();
+	check(PlayerRole);
+	// (0) The interregnum: no record is made in it (Apply refuses one). The countdown, and the succession on the tick it
+	// reaches 0; with none left - no candidate was found - nothing (the silence; no draw again).
+	if (Calling.LifeState == ELifeState::Interregnum)
+	{
+		// Defence: no rule records one now, and a record left over would fall on the next life.
+		Calling.PendingEffect = FGameplayTag();
+		Calling.PendingCause = FGameplayTag();
+		Calling.PendingSourceRow = NAME_None;
+		if (Calling.PendingLeapTicks > 0)
+		{
+			--Calling.PendingLeapTicks;
+			if (Calling.PendingLeapTicks == 0)
+			{
+				PlayerRole->Succeed();
+			}
+		}
+		return;
+	}
 	if (Calling.PendingEffect == DeposeTag)
 	{
-		UPlayerRoleSubsystem* PlayerRole = GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>();
-		check(PlayerRole);
 		// The cause says which pipeline: the vessel left of its own will (the command, the throne card's last choice - B1),
 		// or it was deposed.
 		if (Calling.PendingCause == AbdicatedTag)
@@ -2973,10 +3036,14 @@ void UGalaxySimulationSubsystem::ResolvePendingRoleEffect()
 		{
 			PlayerRole->DeposeRuler();
 		}
-		Calling.PendingEffect = FGameplayTag();
-		Calling.PendingCause = FGameplayTag();
-		Calling.PendingSourceRow = NAME_None;
 	}
+	else if (Calling.PendingEffect == KillTag)
+	{
+		PlayerRole->Die();
+	}
+	Calling.PendingEffect = FGameplayTag();
+	Calling.PendingCause = FGameplayTag();
+	Calling.PendingSourceRow = NAME_None;
 }
 
 const FCivilizationState* UGalaxySimulationSubsystem::FindCiv(FName CivID) const

@@ -244,6 +244,60 @@ namespace CosmicTests
 		return Tables;
 	}
 
+	// The tables without a KillPlayer anywhere (B5 header section 5.1, [B-5b]): every effect of that type leaves the effect
+	// arrays of DT_Hazards (expiry, branch, neighbours, resolution), DT_Events, DT_Feats (the ascension's cost) and DT_Encounters
+	// (both outcomes of every choice) - the data-off side of a pair in the same build (-WithoutDeath=1, WithoutPressure's form).
+	// Everything else as given.
+	inline FCosmicDataTables WithoutDeath(const FCosmicDataTables& Base)
+	{
+		auto Strip = [](TArray<FCosmicEffect>& Effects)
+		{
+			Effects.RemoveAll([](const FCosmicEffect& Effect) { return Effect.Type == EEffectType::KillPlayer; });
+		};
+		FCosmicDataTables Tables = Base;
+		if (UDataTable* Hazards = CopyWithout<FHazardDef>(Base.Hazards, {}))
+		{
+			for (const TPair<FName, uint8*>& Row : Hazards->GetRowMap())
+			{
+				FHazardDef& Hazard = *reinterpret_cast<FHazardDef*>(Row.Value);
+				Strip(Hazard.OnExpireEffects);
+				Strip(Hazard.OnExpireBranchEffects);
+				Strip(Hazard.OnExpireNeighbourEffects);
+				Strip(Hazard.OnResolveEffects);
+			}
+			Tables.Hazards = Hazards;
+		}
+		if (UDataTable* Events = CopyWithout<FCosmicEventDef>(Base.Events, {}))
+		{
+			for (const TPair<FName, uint8*>& Row : Events->GetRowMap())
+			{
+				Strip(reinterpret_cast<FCosmicEventDef*>(Row.Value)->Effects);
+			}
+			Tables.Events = Events;
+		}
+		if (UDataTable* Feats = CopyWithout<FAscensionFeatDef>(Base.Feats, {}))
+		{
+			for (const TPair<FName, uint8*>& Row : Feats->GetRowMap())
+			{
+				Strip(reinterpret_cast<FAscensionFeatDef*>(Row.Value)->AscensionCost);
+			}
+			Tables.Feats = Feats;
+		}
+		if (UDataTable* Encounters = CopyWithout<FEncounterDef>(Base.Encounters, {}))
+		{
+			for (const TPair<FName, uint8*>& Row : Encounters->GetRowMap())
+			{
+				for (FEncounterChoice& Choice : reinterpret_cast<FEncounterDef*>(Row.Value)->Choices)
+				{
+					Strip(Choice.OnSuccess);
+					Strip(Choice.OnFailure);
+				}
+			}
+			Tables.Encounters = Encounters;
+		}
+		return Tables;
+	}
+
 	// The tables with DT_Galaxies replaced, everything else as given (as WithTranscendents). A test that hands it to SetTables
 	// puts a copy of the game's home row in it: a table without the home row is an error line and the C++ defaults (7.4).
 	inline FCosmicDataTables WithGalaxies(const FCosmicDataTables& Base, UDataTable* Galaxies)

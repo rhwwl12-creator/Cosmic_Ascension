@@ -370,3 +370,4 @@ Key,SourceString
 "Petition.ResistLine","함대 {0} → {1} · {2}의 남은 시간 +{3}"
 "Petition.Resist.Block.NoHazard","이 성계에는 {Hazard}|hpp(이,가) 서 있지 않다."
 "Petition.Resist.Block.Capital","{Hazard}|hpp(은,는) 함대로 늦출 수 없다."
+"AutoPause.Why.Death","정지 — 한 생애가 닫혔다"

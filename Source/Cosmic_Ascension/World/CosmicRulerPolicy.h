@@ -53,6 +53,8 @@ struct FCosmicRulerPolicy
 	ECosmicPressurePolicy Pressure = ECosmicPressurePolicy::Round;
 	int32 Guard = 0;
 	bool bLeaveNearSphere = false;
+	// B5 (header section 5.1 - measurement only): the provisional end is not counted - the policy goes on after it.
+	bool bPastEnd = false;
 };
 
 // What the policy did so far in a run.

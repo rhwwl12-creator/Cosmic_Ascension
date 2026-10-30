@@ -8,6 +8,7 @@
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicRowNames.h"
 #include "Engine/DataTable.h"
+#include "Events/CosmicEventSubsystem.h"
 #include "Events/CosmicPetitions.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
@@ -34,6 +35,7 @@
 #include "Sim/CosmicEndings.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
+#include "Sim/CosmicSuccession.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "UObject/Package.h"
 #include "UObject/UnrealType.h"
@@ -558,6 +560,30 @@ namespace
 		int32 BlockedAIPairTicks = 0;
 		int64 WindowRaisedTick = -1;
 		TMap<FString, int32> WindowRaisedReasons;
+		// [B-5b]: the deaths (before the end, by cause, by source row), the first death's tick, role and gap from the last
+		// reign's end, every leap (its length, whether the cap cut it, whether death + leap reach the clock), every
+		// succession, the first throne after a succession and its way, the end's kind, and the reigns begun while a claim
+		// that had its card still stood (#143).
+		int32 Deaths = 0;
+		int32 DeathsByEnd = 0;
+		TMap<FString, int32> DeathsByCause;
+		TMap<FString, int32> DeathsByRow;
+		int64 FirstDeathTick = -1;
+		const TCHAR* FirstDeathRole = TEXT("none");
+		int64 FirstDeathGap = -1;
+		FString Leaps;
+		FString Successions;
+		int64 FirstSuccessionTick = -1;
+		int64 ThroneAfterSuccession = -1;
+		const TCHAR* ThroneAfterSuccessionPath = TEXT("none");
+		int32 EndByNewPeople = -1;
+		int32 ReignsDuringCardedClaims = 0;
+		// The system the vessel stood in at its death (the succession's candidates are counted from it).
+		int32 DeathSystemIndex = INDEX_NONE;
+		int32 DeathAtRecorded = -1;
+		// The ticks run in the interregnum and their time (the leap's wall clock - header section 5.1).
+		int64 LeapTicksRun = 0;
+		double LeapMicros = 0.0;
 	};
 
 	// The names of CosmicConflict::ECosmicSiegeBlock in its order (the calling line).
@@ -982,11 +1008,22 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	// Only on a run of the game's shape: -TellAll=0 and no argument that changes tables or rules.
 	int64 SaveAt = -1;
 	FParse::Value(*Params, TEXT("SaveAt="), SaveAt);
+	// B5 ([B-5b] - header section 5.1, measurement only): -DeathAt=<tick> records a KillPlayer with no subject at that tick's
+	// boundary (cause Death.Age - no game code writes it while ageing is off; in a build with the automation tests only);
+	// -WithoutDeath=1 runs on the tables with no KillPlayer (CosmicTests::WithoutDeath - the data-off side of a pair);
+	// -PastEnd=1 lets both policies go on after the provisional end.
+	int64 DeathAt = -1;
+	int32 WithoutDeath = 0;
+	int32 PastEnd = 0;
+	FParse::Value(*Params, TEXT("DeathAt="), DeathAt);
+	FParse::Value(*Params, TEXT("WithoutDeath="), WithoutDeath);
+	FParse::Value(*Params, TEXT("PastEnd="), PastEnd);
 	// The home galaxy row too (-Systems and -Civs 0): the game never builds another size.
-	const bool bSaveShape = TellAll == 0 && RulesText.IsEmpty() && WithoutPressure == 0 && Systems == 0 && Civs == 0;
+	const bool bSaveShape = TellAll == 0 && RulesText.IsEmpty() && WithoutPressure == 0 && Systems == 0 && Civs == 0 && DeathAt < 0 && WithoutDeath == 0
+		&& PastEnd == 0;
 	if (SaveAt >= 0 && !bSaveShape)
 	{
-		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -SaveAt writes only a run of the game's shape (-TellAll=0, no -Rules, -WithoutPressure, -Systems or -Civs): no save"));
+		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -SaveAt writes only a run of the game's shape (-TellAll=0, no -Rules, -WithoutPressure, -Systems, -Civs, -DeathAt, -WithoutDeath or -PastEnd): no save"));
 	}
 	// A boundary the run never reaches writes nothing: said at once, not found missing after the run.
 	if (SaveAt >= 0 && (SaveAt < 1 || SaveAt > Ticks))
@@ -1022,6 +1059,20 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	{
 		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -WithoutPressure is 0 or 1 (1 in a build with the automation tests): %d"), WithoutPressure);
 	}
+	// B5 ([B-5b]): the death's measuring arguments are a test build's only, like -WithoutPressure.
+	bool bDeathArgs = WithoutDeath == 0 && DeathAt < 0 && PastEnd == 0;
+#if WITH_DEV_AUTOMATION_TESTS
+	bDeathArgs = (WithoutDeath == 0 || WithoutDeath == 1) && (PastEnd == 0 || PastEnd == 1);
+	if (Sim && WithoutDeath == 1)
+	{
+		Sim->SetTables(CosmicTests::WithoutDeath(Sim->GetTables()));
+		UE_LOG(LogCosmic, Display, TEXT("CosmicBalance: tables without KillPlayer"));
+	}
+#endif
+	if (!bDeathArgs)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -WithoutDeath and -PastEnd are 0 or 1, and -DeathAt, -WithoutDeath=1 and -PastEnd=1 need a build with the automation tests: %lld %d %d"), DeathAt, WithoutDeath, PastEnd);
+	}
 	// A kept row the tables do not hold would measure the policy without it under its name: no run (B2).
 	const bool bEdictRow = Sim && (EdictRowText.IsEmpty() || Sim->GetTables().FindEdict(FName(*EdictRowText)) != nullptr);
 	if (Sim && !bEdictRow)
@@ -1043,7 +1094,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -PlayerPolicy is Cautious, Reckless or Faithful (B4 has no tribute), -Guard and -LeaveNearSphere 0 or 1, and -LeaveNearSphere=1 needs one of the three policies: %s %d %d"),
 			*PlayerPolicyText, GuardArg, LeaveNearSphere);
 	}
-	if (Sim && Role && bRules && bEdictRow && bDiplomacy && bPressure && bUnpressed)
+	if (Sim && Role && bRules && bEdictRow && bDiplomacy && bPressure && bUnpressed && bDeathArgs)
 	{
 		// Every line is stored unless -TellAll=0 asks for the scope of telling of a game (section 8.1). The world hash is
 		// the same either way.
@@ -1089,9 +1140,9 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		int64 SampleTicks = 0;
 		int64 Samples = 0;
 		const FCosmicRulerPolicy RulerPolicy{ Answer != 0, Build != 0, Focus != 0, Edict != 0, EdictRowText.IsEmpty() ? NAME_None : FName(*EdictRowText), Diplomacy,
-			PressurePolicy, GuardArg, LeaveNearSphere != 0 };
+			PressurePolicy, GuardArg, LeaveNearSphere != 0, PastEnd != 0 };
 		FCosmicRulerPolicyCounts RulerCounts;
-		const FCosmicWandererPolicy WandererPolicy{ AbdicateAt, Wander != 0 };
+		const FCosmicWandererPolicy WandererPolicy{ AbdicateAt, Wander != 0, PastEnd != 0 };
 		FCosmicWandererPolicyCounts WandererCounts;
 		// B5 ([B-5a]): the calling line's counts, and the rules of the ruler's window B' (every realm cap raised - #133).
 		FCallingCounts Calling;
@@ -1220,10 +1271,17 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			}
 			Sim->GetStageClock().SiegeEnds.Reset();
 			Sim->GetStageClock().Expiries.Reset();
+			// [B-5b]: the lives, the leap total and the vessel before the tick (a death and a succession inside it).
+			const int32 LivesBefore = State.Calling.Lives.Num();
+			const int64 LeapTotalBefore = State.Calling.LeapTicksTotal;
+			const FPlayerEntityState PlayerAtStart = State.Player;
+			const bool bLeapTick = State.Calling.LifeState == ELifeState::Interregnum;
 			const uint64 Start = FPlatformTime::Cycles64();
 			Sim->RunHeadless(1);
 			const double Micros = static_cast<double>(FPlatformTime::Cycles64() - Start) * FPlatformTime::GetSecondsPerCycle64() * 1.0e6;
 			TickMicros.Add(Micros);
+			Calling.LeapTicksRun += bLeapTick ? 1 : 0;
+			Calling.LeapMicros += bLeapTick ? Micros : 0.0;
 			SampleMicros += Micros;
 			++SampleTicks;
 
@@ -1236,6 +1294,9 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				if (Counts.FirstEnd == ECosmicProvisionalEnd::None && End != ECosmicProvisionalEnd::None)
 				{
 					Counts.FirstEnd = End;
+					// [B-5b]: a rung end reached by a people other than the first reign's (a later throne).
+					const FCivilizationState* RuledAtEnd = State.Civs.FindByPredicate([](const FCivilizationState& Civ) { return Civ.bIsPlayerRuled; });
+					Calling.EndByNewPeople = (End == ECosmicProvisionalEnd::Rung && RuledAtEnd && RuledAtEnd->CivID != FirstRuled) ? 1 : 0;
 					Counts.FirstEndTick = State.Tick;
 					Counts.DecisionsAtEnd = CosmicRulerPolicy::DecisionsOf(RulerCounts);
 					const TArray<FCosmicChronicleChapter> Chapters = CosmicChronicle::Build(State);
@@ -1271,6 +1332,58 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				{
 					Calling.Chances.Add({ Expiry.Tag, State.Tick, Expiry.SystemID, Expiry.bGrace, Expiry.bBranch, bEndedBefore,
 						Calling.ReignEndTick >= 0 ? State.Tick - Calling.ReignEndTick : -1 });
+				}
+			}
+			// [B-5b]: a life that closed in the tick (the last closed life's DiedTick - a leap of 0 began the next already).
+			{
+				const TArray<FLifeRecord>& Lives = State.Calling.Lives;
+				const int32 Closed = State.Calling.LifeState == ELifeState::Interregnum ? Lives.Num() - 1 : Lives.Num() - 2;
+				// The boundary's own rule (the controller stops the time on it).
+				if (ACosmicPlayerController::LifeClosedAt(State, State.Tick))
+				{
+					const FLifeRecord& Dead = Lives[Closed];
+					++Calling.Deaths;
+					Calling.DeathsByEnd += bEndedBefore ? 0 : 1;
+					++Calling.DeathsByCause.FindOrAdd(Dead.CauseOfDeath.ToString());
+					++Calling.DeathsByRow.FindOrAdd(Dead.CauseSourceRow.ToString());
+					if (Calling.FirstDeathTick < 0)
+					{
+						Calling.FirstDeathTick = State.Tick;
+						Calling.FirstDeathRole = RoleBefore == EPlayerRole::Ruler ? TEXT("ruler") : TEXT("wanderer");
+						Calling.FirstDeathGap = (RoleBefore == EPlayerRole::Wanderer && Calling.ReignEndTick >= 0) ? State.Tick - Calling.ReignEndTick : -1;
+					}
+					// The system it stood in: a vessel whose death is recorded does not move in that tick, so it is the place before
+					// the tick (the interregnum keeps it; after a leap of 0 the new vessel stands elsewhere).
+					const FName DeathPlace = PlayerAtStart.CurrentSystemID;
+					Calling.DeathSystemIndex = StateIndex.FindSystem(State, DeathPlace);
+					const int64 Leap = State.Calling.LeapTicksTotal - LeapTotalBefore;
+					// At the cap: the leap took what the cap left, less than the longest (the draw itself is not seen - it may have been
+					// as short).
+					const int64 CapLeft = FMath::Max<int64>(0, RulesNow.LeapTotalCap - LeapTotalBefore);
+					const bool bCut = Leap == CapLeft && CapLeft < FMath::Max(RulesNow.LeapTicksMin, RulesNow.LeapTicksMax);
+					const bool bPastClock = RulesNow.ProvisionalEndTick > 0 && State.Tick + Leap >= RulesNow.ProvisionalEndTick;
+					Calling.Leaps += FString::Printf(TEXT("%s%lld@%lld%s%s"), Calling.Leaps.IsEmpty() ? TEXT("") : TEXT(","), Leap, State.Tick, bCut ? TEXT(":cut") : TEXT(""),
+						bPastClock ? TEXT(":clock") : TEXT(""));
+				}
+				// A life that began in the tick after the first: a succession.
+				if (Lives.Num() > LivesBefore && LivesBefore > 0)
+				{
+					const FLifeRecord& Born = Lives.Last();
+					const int32 Birth = StateIndex.FindSystem(State, Born.BirthSystemID);
+					const CosmicSuccession::FCosmicSuccessionCandidates Found = CosmicSuccession::CandidatesOf(State, StateIndex, Sim->GetTables(), RulesNow, Calling.DeathSystemIndex);
+					const TArray<int32> FromDeath = CosmicState::LaneDistancesFrom(State, StateIndex, Calling.DeathSystemIndex);
+					const TArray<int32> NearBirth = CosmicState::LaneDistancesFrom(State, StateIndex, Birth, 2);
+					bool bNear = false;
+					for (int32 SystemIndex = 0; SystemIndex < NearBirth.Num(); ++SystemIndex)
+					{
+						bNear |= NearBirth[SystemIndex] != INDEX_NONE && State.Systems[SystemIndex].ActiveHazard.IsValid();
+					}
+					const FLifeRecord& PreviousLife = Lives[Lives.Num() - 2];
+					const bool bSamePeople = Born.BirthCivID == PreviousLife.BirthCivID || (!PreviousLife.RuledCivIDs.IsEmpty() && Born.BirthCivID == PreviousLife.RuledCivIDs.Last());
+					const FCivilizationState* Owner = State.Civs.FindByPredicate([&Born](const FCivilizationState& Civ) { return Civ.CivID == Born.BirthCivID; });
+					Calling.Successions += FString::Printf(TEXT("%s%lld:%d:%d:%d:%d:%d:T%d"), Calling.Successions.IsEmpty() ? TEXT("") : TEXT(","), State.Tick, Found.Systems.Num(),
+						Found.Relaxed, FromDeath.IsValidIndex(Birth) ? FromDeath[Birth] : -1, bSamePeople ? 1 : 0, bNear ? 1 : 0, Owner ? static_cast<int32>(Owner->Tier) + 1 : 0);
+					Calling.FirstSuccessionTick = Calling.FirstSuccessionTick < 0 ? State.Tick : Calling.FirstSuccessionTick;
 				}
 			}
 			if (RoleBefore == EPlayerRole::Ruler && State.Player.Role == EPlayerRole::Wanderer)
@@ -1322,6 +1435,19 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				bSavedAt = bSaved;
 				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance: -SaveAt %lld %s %s"), SaveAt, bSaved ? TEXT("wrote") : TEXT("could not write"),
 					Saves ? *FPaths::ConvertRelativePathToFull(Saves->SlotPathOf(State.GalaxyID)) : TEXT("(no save subsystem)"));
+			}
+
+			// [B-5b] (-DeathAt): the measured death, recorded at this boundary through Apply (no subject - the ruler is reached
+			// too; the birth protection holds); the tenth stage of the next tick carries it out.
+			if (DeathAt >= 0 && State.Tick == DeathAt)
+			{
+				FCosmicEvalContext Ctx = Sim->MakeEvalContext();
+				Ctx.CivIndex = INDEX_NONE;
+				Ctx.SystemIndex = INDEX_NONE;
+				FCosmicEffect Kill;
+				Kill.Type = EEffectType::KillPlayer;
+				Kill.Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Death.Age")));
+				Calling.DeathAtRecorded = UCosmicEventSubsystem::Apply(Kill, Ctx) ? 1 : 0;
 			}
 
 			// B3: the first contact card came (read before the policy answers it at this boundary), and the stance toward that
@@ -1476,10 +1602,24 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			const EPlayerRole RoleBeforeInput = State.Player.Role;
 			CosmicRulerPolicy::Act(RulerPolicy, *Sim, *Role, CardBefore, RulerCounts);
 			CosmicWandererPolicy::Act(WandererPolicy, *Sim, *Role, CardBefore, WandererCounts);
-			// B5 ([B-5a]): the first throne taken after a reign ended.
-			if (Calling.CrownedAfterTick < 0 && Calling.FirstReignEndTick >= 0 && RoleBeforeInput == EPlayerRole::Wanderer && State.Player.Role == EPlayerRole::Ruler)
+			// B5 ([B-5a]): the first throne taken after a reign ended; [B-5b]: after a succession, and a reign begun while a claim
+			// that had its card still stood (16 #143 - the lock keeps it at 0).
+			if (RoleBeforeInput == EPlayerRole::Wanderer && State.Player.Role == EPlayerRole::Ruler)
 			{
-				Calling.CrownedAfterTick = State.Tick;
+				Calling.CrownedAfterTick = (Calling.CrownedAfterTick < 0 && Calling.FirstReignEndTick >= 0) ? State.Tick : Calling.CrownedAfterTick;
+				if (Calling.ThroneAfterSuccession < 0 && Calling.FirstSuccessionTick >= 0)
+				{
+					Calling.ThroneAfterSuccession = State.Tick;
+					Calling.ThroneAfterSuccessionPath = WandererCounts.LastCrownedPath;
+				}
+				for (const TPair<FName, FClaimTrack>& Claim : PressureCounts.Claims)
+				{
+					if (Claim.Value.CardTick >= 0)
+					{
+						++Calling.ReignsDuringCardedClaims;
+						break;
+					}
+				}
 			}
 			// B4 ([B-4d2]): the time the fleet bought the ruled people's claims at this boundary, and the watch on a claim card.
 			{
@@ -2197,6 +2337,11 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					State.Calling.Lives.Num(), Calling.FirstReignEndTick, Calling.ReignEndTick, Calling.CrownedAfterTick, Calling.Chances.Num(), ByEnd, Grace, Branch,
 					*ChancesText(Calling.Chances), *CountsText(Failed), Calling.BlockedRuledTicks, Calling.BlockedRuledEpisodes, Calling.BlockedRuledOneSystem, Calling.BlockedRuledLater,
 					Calling.BlockedRuledByEnd, Calling.FirstBlockedRuled, Calling.BlockedAIPairTicks, Calling.WindowRaisedTick, Counts.FirstSiegeTargetTick, *CountsText(Calling.WindowRaisedReasons));
+				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance calling deaths: death asked at %lld (recorded %d); deaths %d (by end %d) by cause [%s] by row [%s]; first death at %lld as %s, %lld after the last reign's end; leaps [%s] (total %lld, cap %d); successions [%s] (tick:candidates:relaxed:lanes from the death:same people:hazard within 2 lanes:birth rung); first throne after a succession at %lld (%s); state %s (leap left %lld); interregnum ticks %lld in %.1f ms; end %s (by a new people %d); reigns begun while a carded claim stood %d, claims delayed twice %d"),
+					DeathAt, Calling.DeathAtRecorded, Calling.Deaths, Calling.DeathsByEnd, *CountsText(Calling.DeathsByCause), *CountsText(Calling.DeathsByRow), Calling.FirstDeathTick,
+					Calling.FirstDeathRole, Calling.FirstDeathGap, *Calling.Leaps, State.Calling.LeapTicksTotal, RulesNow.LeapTotalCap, *Calling.Successions, Calling.ThroneAfterSuccession,
+					Calling.ThroneAfterSuccessionPath, State.Calling.LifeState == ELifeState::Interregnum ? TEXT("interregnum") : TEXT("embodied"), State.Calling.PendingLeapTicks,
+					Calling.LeapTicksRun, Calling.LeapMicros / 1000.0, CosmicEndings::NameOf(Counts.FirstEnd), Calling.EndByNewPeople, Calling.ReignsDuringCardedClaims, PressureCounts.DelayedTwice);
 				if (SaveAt >= 1 && SaveAt <= Ticks && bSaveShape && !bSavedAt)
 				{
 					UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -SaveAt %lld wrote no slot"), SaveAt);

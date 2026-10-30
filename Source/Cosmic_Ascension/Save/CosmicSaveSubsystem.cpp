@@ -42,6 +42,8 @@ const TCHAR* CosmicSave::NameOf(ECosmicSaveCause Cause)
 	case ECosmicSaveCause::Interval: return TEXT("Interval");
 	case ECosmicSaveCause::Answer: return TEXT("Answer");
 	case ECosmicSaveCause::Exit: return TEXT("Exit");
+	case ECosmicSaveCause::Death: return TEXT("Death");
+	case ECosmicSaveCause::Succession: return TEXT("Succession");
 	}
 	return TEXT("?");
 }
@@ -128,6 +130,8 @@ FCosmicSavedMark UCosmicSaveSubsystem::MarkOf(const FGalaxyState& State, const F
 	Mark.Role = State.Player.Role;
 	Mark.RuledCivID = State.Player.RuledCivID;
 	Mark.bEnded = CosmicEndings::ProvisionalEndOf(State, Rules) != ECosmicProvisionalEnd::None;
+	Mark.Lives = State.Calling.Lives.Num();
+	Mark.bInterregnum = State.Calling.LifeState == ELifeState::Interregnum;
 	return Mark;
 }
 
@@ -144,6 +148,16 @@ TOptional<ECosmicSaveCause> UCosmicSaveSubsystem::DueAt(const FCosmicSavedMark& 
 	if (Now.Feats != Saved.Feats)
 	{
 		return ECosmicSaveCause::Ascended;
+	}
+	// B5 (header section 2.6): a death before a role (a ruler's death changes the role too), and a leap of 0 - the new life
+	// stands at the death's boundary - is the succession.
+	if (Now.bInterregnum && !Saved.bInterregnum)
+	{
+		return ECosmicSaveCause::Death;
+	}
+	if (Now.Lives > Saved.Lives)
+	{
+		return ECosmicSaveCause::Succession;
 	}
 	if (Now.Role != Saved.Role || Now.RuledCivID != Saved.RuledCivID)
 	{

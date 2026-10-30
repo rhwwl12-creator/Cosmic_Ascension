@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -347,7 +347,7 @@
+ 	// Notable hook 1 (section 7.4, 7.5): a reign left without a fall - of the vessel's own will, or by its death (B5) -
+ 	// leaves a regent: the NameNotable rule through Apply, one number of the name before its guards, whether or not a record
+ 	// is made (B1). A deposed vessel leaves none: the rebels' leader holds the throne.
+-	if (ReignEndReason == AbdicatedTag || ReignEndReason == DiedTag)
++	if (ReignEndReason == AbdicatedTag)
+ 	{
+ 		FCosmicEvalContext Ctx = Sim->MakeEvalContext();
+ 		Ctx.CivIndex = CivIndex;

@@ -594,11 +594,14 @@ struct COSMIC_ASCENSION_API FCallingState
 	UPROPERTY()
 	ELifeState LifeState = ELifeState::Embodied;
 
-	// Remaining leap, so that a save taken on entering the interregnum resumes (section 9.1).
+	// The remaining leap of the interregnum (B5): a death puts its leap here and the tenth stage takes one off each tick,
+	// succeeding on the tick it reaches 0 - so a save taken anywhere in the interregnum resumes (section 9.1). Interregnum
+	// with 0 at a tick boundary: no candidate was found (the silence).
 	UPROPERTY()
 	int64 PendingLeapTicks = 0;
 
-	// Run total. Next leap = clamp(Rng.RandRange(LeapTicksMin, LeapTicksMax), 0, LeapTotalCap - LeapTicksTotal). 0 = succeed at once.
+	// Run total of the leaps. A death's leap is CosmicSuccession::LeapOf - one number of the sim stream mapped into
+	// [LeapTicksMin, LeapTicksMax], at most LeapTotalCap - LeapTicksTotal; 0 = succeed at once.
 	UPROPERTY()
 	int64 LeapTicksTotal = 0;
 

@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1161,7 +1161,6 @@
+ 	{
+ 		TGuardValue<int32> Sending(SimTickDepth, SimTickDepth + 1);
+ 		TGuardValue<bool> Leap(bSendingLeapBoundary, true);
+-		OnSimTick.Broadcast(State.Tick);
+ 	}
+ }
+ 

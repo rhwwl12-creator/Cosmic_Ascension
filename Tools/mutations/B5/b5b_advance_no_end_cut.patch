@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -822,7 +822,7 @@
+ 	// The simulation does not know the end: the presentation stops the leap at it, so that its boundary latches it at its tick.
+ 	const int32 EndTick = Sim->GetRules().ProvisionalEndTick;
+ 	const bool bEndAhead = bProvisionalEnd && EndTick > 0 && EndTick > Tick;
+-	if (bEndAhead && (Ticks <= 0 || EndTick - Tick < Ticks))
++	if (bEndAhead && Ticks <= 0)
+ 	{
+ 		Ticks = EndTick - Tick;
+ 	}

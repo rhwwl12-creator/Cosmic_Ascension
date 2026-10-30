@@ -189,6 +189,12 @@ bool CosmicPetitions::IsFirstTickOfReign(const FGalaxyState& State)
 	return !Life.ReignTicks.IsEmpty() && !Life.ReignEndReasons.IsEmpty() && !Life.ReignEndReasons.Last().IsValid() && Life.ReignTicks.Last() == 0;
 }
 
+bool CosmicPetitions::IsFirstTickOfLife(const FGalaxyState& State)
+{
+	return State.Calling.LifeState == ELifeState::Embodied && State.Player.Role == EPlayerRole::Wanderer && State.Calling.Lives.Num() > 1
+		&& State.Tick == State.Calling.BornTick;
+}
+
 int32 CosmicPetitions::SubjectOf(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex, ECosmicEventSubject Subject, FName SystemID)
 {
 	if (!State.Civs.IsValidIndex(CivIndex))
