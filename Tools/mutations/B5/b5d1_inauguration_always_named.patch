@@ -1,0 +1,14 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -126,11 +126,6 @@
+ 		FFormatNamedArguments Args;
+ 		Args.Add(TEXT("Player"), CosmicChronicle::VesselNameOf(Life, Sim.GetTables()));
+ 		Args.Add(TEXT("Civ"), State.Civs.IsValidIndex(CivIndex) ? State.Civs[CivIndex].CivName : FText::GetEmpty());
+-		if (Log.HasClaimLineThisTick(Life.BirthSystemID))
+-		{
+-			Log.PushRow(CosmicRows::LogInaugurationUnnamed, 2, Args, NAME_None, Life.BirthCivID);
+-			return;
+-		}
+ 		Args.Add(TEXT("System"), State.Systems.IsValidIndex(SystemIndex) ? State.Systems[SystemIndex].DisplayName : FText::GetEmpty());
+ 		Log.PushRow(CosmicRows::LogInauguration, 2, Args, Life.BirthSystemID, Life.BirthCivID);
+ 	}

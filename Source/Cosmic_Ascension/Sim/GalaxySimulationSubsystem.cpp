@@ -2464,6 +2464,9 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 	// The sphere a claim joined (INDEX_NONE for every other expiry and for a claim that did not join).
 	int32 JoinedTo = INDEX_NONE;
 	bool bUnseated = false;
+	// The record line of the people's irreversible loss this expiry made, if any (B5 decision 11): a settled system destroyed,
+	// a system joined to a fallen sphere. None for every other expiry.
+	FName RecordRow;
 	if (Collected == SupernovaTag)
 	{
 		// The gate was asked before the effects. Should an effect have let the owner's other systems go meanwhile (no row
@@ -2480,7 +2483,12 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 				return;
 			}
 		}
+		const bool bWasSettled = CosmicState::IsSettled(State.Systems[SystemIndex]);
 		CosmicHazards::Destroy(Ctx, SystemIndex);
+		if (bWasSettled && CosmicHazards::IsDeadNode(State.Systems[SystemIndex]))
+		{
+			RecordRow = CosmicRows::LogRecordDestroyed;
+		}
 		// The collapse of the people the vessel rules: the deposition pipeline (section 4.4). Destroy has let the people's
 		// settlements go with its last settled system (section 5.7). Apply keeps the rules of the record (Embodied, the
 		// ruled people, first recorded wins).
@@ -2502,6 +2510,10 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 	{
 		JoinedTo = JoinClaimedSphere(Ctx, SystemIndex);
 		bJoined = JoinedTo != INDEX_NONE;
+		if (bJoined)
+		{
+			RecordRow = CosmicRows::LogRecordAnnexed;
+		}
 	}
 	EmptySlot();
 
@@ -2524,9 +2536,22 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 	{
 		Events->TellHazardLine(Ctx, bJoined ? ECosmicHazardLine::Expiry : ECosmicHazardLine::Resolution, RowName, SystemIndex, OwnerIndex);
 	}
-	// The voice of the fallen that a claim joined (B4 section 2.6): after the narrator's expiry line, the sign - below the
-	// third rung - and then its first-person line (ClaimTemplates, from the third rung; kept untold below it), both through
-	// PushWithSign. The tell stream only, two numbers a joining when the row has lines and none when it has none; no key of
+	// The record of the loss (B5 decision 11 - the first part of the two books): one line per loss, right after the expiry
+	// line and before a claim's sign and first person - a narrator's line never follows the first person about the same
+	// place. About the system and the people that lost it; {System} alone. Kept untold whatever the scope (the log's rule
+	// for Log.Record); one number of the tell stream, none of the sim stream, nothing of the world. The cleanup of the
+	// crossing stage records nothing: a people leaves there only after the expiry that took its last system recorded it.
+	if (!RecordRow.IsNone())
+	{
+		UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+		check(Log);
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("System"), State.Systems[SystemIndex].DisplayName);
+		Log->PushRow(RecordRow, 1, Args, State.Systems[SystemIndex].SystemID, State.Civs.IsValidIndex(OwnerIndex) ? State.Civs[OwnerIndex].CivID : FName());
+	}
+	// The voice of the fallen that a claim joined (B4 section 2.6): after the narrator's expiry line and the record line, the
+	// sign - below the third rung - and then its first-person line (ClaimTemplates, from the third rung; kept untold below
+	// it), both through PushWithSign. The tell stream only, two numbers a joining when the row has lines and none when it has none; no key of
 	// the world map, nothing of the world read but the joining itself.
 	if (JoinedTo != INDEX_NONE)
 	{
@@ -2778,7 +2803,8 @@ void UGalaxySimulationSubsystem::TickCrossings()
 {
 	// (o) Cleanup (section 7.4): a civilization that owns no system leaves Civs, in array order, unless the player rules
 	// it this tick (the role-effect stage lets go of it first; the next tick's cleanup takes it). No line: the expiry that
-	// took its last system has told it. Arrivals and departures are Phase 6a.
+	// took its last system has told it and recorded it (B5 decision 11 - the cleanup is no producer of the two books: a
+	// line here would record the same loss twice, after a claim's first person). Arrivals and departures are Phase 6a.
 	// A people with no settled system lets its settlements go first (section 5.7: a destruction has done so already in
 	// play), so that none is left holding only settlements it can never pay for. This net records no collapse: a people
 	// the player rules that it empties would be kept with nothing to rule, so it says so (the stage that takes the last

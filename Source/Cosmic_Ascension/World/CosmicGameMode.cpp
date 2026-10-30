@@ -1201,6 +1201,8 @@ void ACosmicPlayerController::FollowEnd(bool bArrived)
 		}
 		RunEnd = Cause;
 		ApplySpeed(0.f, ECosmicAutoPause::RunEnd);
+		// The screens that hold back what the end's tick installed (the feed's inauguration line - [B-5d1]) redraw now.
+		OnRunEndChanged.Broadcast();
 		// The card folds; the waiting row stays in Knowing.
 		if (UCosmicPetitionCardWidget* Card = CosmicHUD ? CosmicHUD->GetPetitionCard() : nullptr)
 		{
@@ -1273,6 +1275,7 @@ void ACosmicPlayerController::AdvanceRunEnd(float DeltaSeconds)
 
 void ACosmicPlayerController::ClearRunEnd()
 {
+	const bool bWasEnded = IsRunEnded();
 	RunEnd = ECosmicProvisionalEnd::None;
 	ChronicleWait.Reset();
 	if (UCosmicChronicleWidget* Page = GetHUD<ACosmicHUD>() ? GetHUD<ACosmicHUD>()->GetChronicle() : nullptr)
@@ -1286,6 +1289,11 @@ void ACosmicPlayerController::ClearRunEnd()
 	if (AutoPauseReason == ECosmicAutoPause::RunEnd)
 	{
 		AutoPauseReason = ECosmicAutoPause::None;
+	}
+	// What the end held back shows again (the feed's inauguration line of the end's tick - [B-5d1]).
+	if (bWasEnded)
+	{
+		OnRunEndChanged.Broadcast();
 	}
 }
 

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -104,7 +104,7 @@
+ 		}
+ 		const FHazardDef* Hazard = Tables.FindHazard(Life.CauseSourceRow);
+ 		FFormatNamedArguments Args;
+-		Args.Add(TEXT("Player"), CosmicChronicle::VesselNameOf(Life, Tables));
++		Args.Add(TEXT("Player"), FText::GetEmpty());
+ 		Args.Add(TEXT("Hazard"), Hazard ? Hazard->DisplayName : FText::GetEmpty());
+ 		Log.PushRow(Row, 2, Args, NAME_None, NAME_None);
+ 	}

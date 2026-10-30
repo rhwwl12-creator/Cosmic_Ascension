@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1201,8 +1201,6 @@
+ 		}
+ 		RunEnd = Cause;
+ 		ApplySpeed(0.f, ECosmicAutoPause::RunEnd);
+-		// The screens that hold back what the end's tick installed (the feed's inauguration line - [B-5d1]) redraw now.
+-		OnRunEndChanged.Broadcast();
+ 		// The card folds; the waiting row stays in Knowing.
+ 		if (UCosmicPetitionCardWidget* Card = CosmicHUD ? CosmicHUD->GetPetitionCard() : nullptr)
+ 		{

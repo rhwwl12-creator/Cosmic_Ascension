@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+@@ -97,7 +97,7 @@
+ 		for (int32 At = FMath::Max(0, Begin); At < End && At < Entries.Num(); ++At)
+ 		{
+ 			const FCosmicLogEntry& Entry = *Entries[At];
+-			if (Entry.Category == ClaimTag() || Entry.Category == RecordTag() || !CosmicChronicle::Admits(Entry, Peoples))
++			if (!CosmicChronicle::Admits(Entry, Peoples))
+ 			{
+ 				continue;
+ 			}

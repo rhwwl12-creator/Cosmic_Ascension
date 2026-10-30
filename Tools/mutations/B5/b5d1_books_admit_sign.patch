@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+@@ -402,7 +402,7 @@
+ 	{
+ 		for (const FCosmicLogEntry& Entry : Entries)
+ 		{
+-			if (Entry.Category == RecordTag())
++			if (Entry.Category == RecordTag() || Entry.Category == FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Sign"))))
+ 			{
+ 				Records.Add(&Entry);
+ 			}

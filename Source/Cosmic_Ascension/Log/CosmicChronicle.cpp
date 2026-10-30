@@ -250,11 +250,19 @@ int32 CosmicChronicle::ShownLivesOf(const FGalaxyState& State)
 	return (Lives.Num() > 1 && Lives.Last().BornTick == State.Tick) ? Lives.Num() - 1 : Lives.Num();
 }
 
-bool CosmicChronicle::OpensCalledChapter(const FCosmicLogEntry& /*Entry*/, const FLifeRecord& /*Called*/)
+bool CosmicChronicle::OpensCalledChapter(const FCosmicLogEntry& Entry, const FLifeRecord& Called)
 {
-	// The inauguration line is [B-5d1]'s (a Log.Calling line of Called's BornTick tick, its row a CosmicRows constant): it
-	// is named here when it exists. Until then no line of the tick opens the chapter.
-	return false;
+	// The inauguration line ([B-5d1] - UPlayerRoleSubsystem::Succeed tells it right after Install, at the tenth stage): the
+	// line of Called's BornTick tick whose row is CosmicRows::LogInauguration, or its second row LogInaugurationUnnamed (told
+	// in its place after a fallen's first person about the birth system). One succession a tick, so one such line.
+	return Entry.Tick == Called.BornTick && (Entry.SourceRow == CosmicRows::LogInauguration || Entry.SourceRow == CosmicRows::LogInaugurationUnnamed);
+}
+
+bool CosmicChronicle::IsUnseenLifeLine(const FGalaxyState& State, const FCosmicLogEntry& Entry, bool bRunEnded)
+{
+	// The vessel the end's tick installed was never shown (ShownLivesOf): its inauguration line is that life's alone.
+	const TArray<FLifeRecord>& Lives = State.Calling.Lives;
+	return bRunEnded && ShownLivesOf(State) < Lives.Num() && OpensCalledChapter(Entry, Lives.Last());
 }
 
 TArray<FCosmicChronicleChapter> CosmicChronicle::BuildCapped(const FGalaxyState& State, int32 Cap)
@@ -325,8 +333,8 @@ TArray<FCosmicChronicleChapter> CosmicChronicle::BuildCapped(const FGalaxyState&
 		Chapter.FromTick = LifeAt == 0 ? std::numeric_limits<int64>::min() : Life.BornTick;
 		Chapter.ToTick = Life.DiedTick > 0 ? Life.DiedTick : (Lives.IsValidIndex(LifeAt + 1) ? Lives[LifeAt + 1].BornTick - 1 : State.Tick);
 
-		// The body: a life called after a death from where it opens in its BornTick tick (OpensAt - until the inauguration
-		// line, the first entry after that tick), any other from its BornTick tick (every earlier tick for the first), never
+		// The body: a life called after a death from where it opens in its BornTick tick (OpensAt - its inauguration line; with
+		// none in that tick, the first entry after it), any other from its BornTick tick (every earlier tick for the first), never
 		// before the end of the body before it. It ends with its ToTick - and, when a life called after its death opens on
 		// that tick (a leap of 0), where that life opens: the tick of the death is the dead life's up to there.
 		const int32 BodyBegin = LifeAt == 0 ? 0 : FMath::Max(bPreviousDied ? OpensAt(Life) : FirstAfter(Life.BornTick - 1), PreviousEnd);
@@ -379,4 +387,161 @@ FText CosmicChronicle::VesselNameOf(const FLifeRecord& Life, const FCosmicDataTa
 	}
 	const int32 Count = Archetype->PersonNameBank.Num();
 	return Archetype->PersonNameBank[((Life.NameIndex % Count) + Count) % Count];
+}
+
+FCosmicTwoBooks CosmicChronicle::BuildTwoBooks(const FGalaxyState& State)
+{
+	using namespace CosmicChronicleImpl;
+
+	// The two categories alone, in the one sequence the chapters read (the chronicle before the log - both in time order).
+	// Every life and every span alike: the books are the run's, not a life's.
+	TArray<const FCosmicLogEntry*> Records;
+	TArray<FName> Claimants;
+	TArray<TArray<const FCosmicLogEntry*>> Claims;
+	auto Gather = [&](const TArray<FCosmicLogEntry>& Entries)
+	{
+		for (const FCosmicLogEntry& Entry : Entries)
+		{
+			if (Entry.Category == RecordTag())
+			{
+				Records.Add(&Entry);
+			}
+			else if (Entry.Category == ClaimTag())
+			{
+				int32 Group = Claimants.IndexOfByKey(Entry.SourceRow);
+				if (Group == INDEX_NONE)
+				{
+					Group = Claimants.Add(Entry.SourceRow);
+					Claims.AddDefaulted();
+				}
+				Claims[Group].Add(&Entry);
+			}
+		}
+	};
+	Gather(State.Chronicle);
+	Gather(State.Log);
+
+	auto LineOf = [](const FCosmicLogEntry& Entry)
+	{
+		FCosmicChronicleLine Line;
+		Line.Entry = Entry;
+		Line.bOwn = true;
+		return Line;
+	};
+
+	FCosmicTwoBooks Books;
+	Books.RecordedCandidates = Records.Num();
+	for (const TArray<const FCosmicLogEntry*>& Group : Claims)
+	{
+		Books.ClaimedCandidates += Group.Num();
+	}
+	// Part one's rows follow from the two counts alone (its head, at most MaxBookItems lines, its 'more'), so part two is
+	// dealt first and part one then chosen to hold what part two shows (below).
+	const int32 PartOneLines = FMath::Min(Records.Num(), MaxBookItems);
+	// Part one holds part two (decision 10-ga): a part two over an empty part one says that part one is not whole.
+	Books.bRecordedMore = PartOneLines < Records.Num() || (Records.IsEmpty() && Books.ClaimedCandidates > 0);
+
+	// Part two: what the chapter's rows leave after part one and part two's head (nothing to deal when it has no entry).
+	const int32 PartOneRows = 1 + PartOneLines + (Books.bRecordedMore ? 1 : 0);
+	int32 RowsLeft = MaxBookLines - PartOneRows - 1;
+	TArray<int32> Quota;
+	Quota.Init(0, Claims.Num());
+	if (Books.ClaimedCandidates <= MaxBookItems && Claims.Num() + Books.ClaimedCandidates <= RowsLeft)
+	{
+		for (int32 Group = 0; Group < Claims.Num(); ++Group)
+		{
+			Quota[Group] = Claims[Group].Num();
+		}
+	}
+	else
+	{
+		// Over a cap: 'more' takes a row, and the lines are dealt one a group in turn while both caps allow - a group's
+		// first line costs its head too - so every claimant that fits stands before any has a second line.
+		Books.bClaimedMore = true;
+		RowsLeft -= 1;
+		int32 ItemsLeft = MaxBookItems;
+		bool bDealt = true;
+		while (bDealt)
+		{
+			bDealt = false;
+			for (int32 Group = 0; Group < Claims.Num(); ++Group)
+			{
+				const int32 Cost = Quota[Group] == 0 ? 2 : 1;
+				if (Quota[Group] < Claims[Group].Num() && ItemsLeft > 0 && Cost <= RowsLeft)
+				{
+					++Quota[Group];
+					--ItemsLeft;
+					RowsLeft -= Cost;
+					bDealt = true;
+				}
+			}
+		}
+	}
+	for (int32 Group = 0; Group < Claims.Num(); ++Group)
+	{
+		if (Quota[Group] <= 0)
+		{
+			continue;
+		}
+		FCosmicClaimedGroup& Shown = Books.Claimed.AddDefaulted_GetRef();
+		Shown.TranscendentID = Claimants[Group];
+		Shown.Candidates = Claims[Group].Num();
+		for (const int32 At : Thin(Claims[Group].Num(), Quota[Group], true))
+		{
+			Shown.Lines.Add(LineOf(*Claims[Group][At]));
+		}
+	}
+
+	// Part one, in time order. Over MaxBookItems its slots go first to the record of each loss part two shows - a record and
+	// its claim share their FocusSystemID and tick (ExpireHazard tells the record just before the claim's first person) - so
+	// no shown claim stands over a place part one leaves out (decision 10-ga, header section 6); part two shows at most
+	// MaxBookItems lines, so they always fit. The slots left go to the other records, their first ceil(K/2) and last floor(K/2).
+	// A claim with no such record (a save from before [B-5d1]) takes no slot.
+	TArray<bool> Kept;
+	Kept.Init(PartOneLines == Records.Num(), Records.Num());
+	if (PartOneLines < Records.Num())
+	{
+		int32 SlotsLeft = PartOneLines;
+		for (const FCosmicClaimedGroup& Group : Books.Claimed)
+		{
+			for (const FCosmicChronicleLine& Line : Group.Lines)
+			{
+				for (int32 At = 0; At < Records.Num() && SlotsLeft > 0 && !Line.Entry.FocusSystemID.IsNone(); ++At)
+				{
+					if (!Kept[At] && Records[At]->FocusSystemID == Line.Entry.FocusSystemID && Records[At]->Tick == Line.Entry.Tick)
+					{
+						Kept[At] = true;
+						--SlotsLeft;
+						break;
+					}
+				}
+			}
+		}
+		TArray<int32> Others;
+		for (int32 At = 0; At < Records.Num(); ++At)
+		{
+			if (!Kept[At])
+			{
+				Others.Add(At);
+			}
+		}
+		for (const int32 At : Thin(Others.Num(), SlotsLeft, true))
+		{
+			Kept[Others[At]] = true;
+		}
+	}
+	for (int32 At = 0; At < Records.Num(); ++At)
+	{
+		if (Kept[At])
+		{
+			Books.Recorded.Add(LineOf(*Records[At]));
+		}
+	}
+	return Books;
+}
+
+FText CosmicChronicle::ClaimantTitleOf(FName TranscendentID, const FCosmicDataTables& Tables)
+{
+	const FTranscendentDef* Claimant = TranscendentID.IsNone() ? nullptr : Tables.FindTranscendent(TranscendentID);
+	return Claimant ? Claimant->Title : FText::GetEmpty();
 }

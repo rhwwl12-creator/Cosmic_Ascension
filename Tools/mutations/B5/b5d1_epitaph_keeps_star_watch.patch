@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Data/CosmicRowNames.h
++++ b/Source/Cosmic_Ascension/Data/CosmicRowNames.h
+@@ -126,7 +126,7 @@
+ 	inline const FName PetitionFeast(TEXT("petition_feast"));
+ 	inline const FName EncPlagueTend(TEXT("enc_plague_tend"));
+ 	inline const FName EncStarWatch(TEXT("enc_star_watch"));
+-	inline const FName EpitaphLeavesOut[] = { PetitionKeepThrone, PetitionExalt, PetitionWiseHeart, PetitionFeast, EncPlagueTend, EncStarWatch };
++	inline const FName EpitaphLeavesOut[] = { PetitionKeepThrone, PetitionExalt, PetitionWiseHeart, PetitionFeast, EncPlagueTend };
+ 
+ 	// DT_LogTemplates: the meeting lines (section 7.4). NoteMet tells the first for the first meeting of the run, the
+ 	// second for every later one.

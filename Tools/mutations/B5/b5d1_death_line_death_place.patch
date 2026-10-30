@@ -1,0 +1,29 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -95,7 +95,7 @@
+ 	// leave an unresolved {Hazard}). Log.Calling, Severity 2, with no focus: it calls no system, so no narrator's line about the
+ 	// place of the death follows a first-person line about it on the same tick (docs/70 section 8.3, rule 5), and a destroyed
+ 	// system has no owner to name. Through PushRow - the tell stream alone, never the sim stream (rule 3).
+-	void TellDeath(UCosmicLogSubsystem& Log, const FCosmicDataTables& Tables, const FLifeRecord& Life)
++	void TellDeath(UCosmicLogSubsystem& Log, const FCosmicDataTables& Tables, const FLifeRecord& Life, FName DeathPlace)
+ 	{
+ 		const FName Row = DeathRowOf(Life.CauseOfDeath);
+ 		if (Row.IsNone())
+@@ -106,7 +106,7 @@
+ 		FFormatNamedArguments Args;
+ 		Args.Add(TEXT("Player"), CosmicChronicle::VesselNameOf(Life, Tables));
+ 		Args.Add(TEXT("Hazard"), Hazard ? Hazard->DisplayName : FText::GetEmpty());
+-		Log.PushRow(Row, 2, Args, NAME_None, NAME_None);
++		Log.PushRow(Row, 2, Args, DeathPlace, NAME_None);
+ 	}
+ 
+ 	// The inauguration line (B5 header section 2.2 Succeed 5, 3.3; decision 12-da): the narrator's, in the third person by the
+@@ -452,7 +452,7 @@
+ 	// (and still rules) when it is told, and no number of the death is drawn yet.
+ 	if (UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>())
+ 	{
+-		CosmicPlayerRoleImpl::TellDeath(*Log, Sim->GetTables(), Life);
++		CosmicPlayerRoleImpl::TellDeath(*Log, Sim->GetTables(), Life, State.Player.CurrentSystemID);
+ 	}
+ 
+ 	// (c) A ruler leaves the throne: one number for the regent's profile, one in ReleaseThrone for the regent's name (the

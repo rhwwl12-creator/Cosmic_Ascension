@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1291,7 +1291,7 @@
+ 		AutoPauseReason = ECosmicAutoPause::None;
+ 	}
+ 	// What the end held back shows again (the feed's inauguration line of the end's tick - [B-5d1]).
+-	if (bWasEnded)
++	if (bWasEnded && IsRunEnded())
+ 	{
+ 		OnRunEndChanged.Broadcast();
+ 	}

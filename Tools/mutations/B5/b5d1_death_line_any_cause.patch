@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -86,7 +86,7 @@
+ 	// docs/70), and no tell number is drawn. The life's end stands on the epitaph and in the chronicle's facts all the same.
+ 	FName DeathRowOf(const FGameplayTag& Cause)
+ 	{
+-		return Cause == CosmicTags::DeathHazard() ? CosmicRows::LogDeathHazard : FName();
++		return Cause.IsValid() ? CosmicRows::LogDeathHazard : FName();
+ 	}
+ 
+ 	// The death line (B5 header section 2.2 Die (b), 3.3; decision 12-da): the narrator's, in the third person by the vessel's

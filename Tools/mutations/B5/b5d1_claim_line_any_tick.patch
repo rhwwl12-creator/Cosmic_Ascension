@@ -1,0 +1,15 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp
+@@ -37,10 +37,10 @@
+ 	// came in one tick). An entry of a later tick - only a state a test laid - is passed by.
+ 	for (const TArray<FCosmicLogEntry>* Entries : { &State.Log, &State.Chronicle })
+ 	{
+-		for (int32 Index = Entries->Num() - 1; Index >= 0 && (*Entries)[Index].Tick >= State.Tick; --Index)
++		for (int32 Index = Entries->Num() - 1; Index >= 0; --Index)
+ 		{
+ 			const FCosmicLogEntry& Entry = (*Entries)[Index];
+-			if (Entry.Tick == State.Tick && Entry.Category == ClaimTag && Entry.FocusSystemID == SystemID)
++			if (Entry.Category == ClaimTag && Entry.FocusSystemID == SystemID)
+ 			{
+ 				return true;
+ 			}

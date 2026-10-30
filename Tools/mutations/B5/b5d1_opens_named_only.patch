@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+@@ -255,7 +255,7 @@
+ 	// The inauguration line ([B-5d1] - UPlayerRoleSubsystem::Succeed tells it right after Install, at the tenth stage): the
+ 	// line of Called's BornTick tick whose row is CosmicRows::LogInauguration, or its second row LogInaugurationUnnamed (told
+ 	// in its place after a fallen's first person about the birth system). One succession a tick, so one such line.
+-	return Entry.Tick == Called.BornTick && (Entry.SourceRow == CosmicRows::LogInauguration || Entry.SourceRow == CosmicRows::LogInaugurationUnnamed);
++	return Entry.Tick == Called.BornTick && Entry.SourceRow == CosmicRows::LogInauguration;
+ }
+ 
+ bool CosmicChronicle::IsUnseenLifeLine(const FGalaxyState& State, const FCosmicLogEntry& Entry, bool bRunEnded)

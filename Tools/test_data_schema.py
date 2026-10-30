@@ -287,9 +287,11 @@ def fixture_tables(schema, tables):
     tables["DT_Hazards"] = [hazard_row()]
     tables["DT_Megaprojects"] = [megaproject_row()] + [megaproject_row(name) for name in schema["tables"]["DT_Megaprojects"].get("required_rows", [])]
     tables["DT_Feats"] = [feat_row()]
-    # The first contact card (B3) is put by name: a Named row without weight.
+    # The first contact card (B3) is put by name: a Named row without weight. A wanderer's card the code calls by name (B5:
+    # the epitaph leaves it out) is a wanderer's card of its own kind.
     tables["DT_Encounters"] = [encounter_row(), wanderer_card_row()] + [
-        encounter_row(name, Trigger="Named", BaseWeight=0) if name == "petition_first_contact" else encounter_row(name)
+        encounter_row(name, Trigger="Named", BaseWeight=0) if name == "petition_first_contact"
+        else wanderer_card_row(name) if name.startswith("enc_") else encounter_row(name)
         for name in schema["tables"]["DT_Encounters"].get("required_rows", [])]
     tables["DT_Edicts"] = [edict_row()]
     # The inherited edict of the project's rules has to be a row of the fixture's table (none in the device commit of B2).
@@ -502,7 +504,8 @@ class SchemaTests(unittest.TestCase):
         not looked at."""
         check = lambda text: checker.check_string_table("ST_X.csv", text, self.schema)  # noqa: E731
         verdict = self.schema["words"]["verdict"]
-        self.assertEqual(self.schema["string_table"]["checked_prefixes"]["Chronicle."], {"forbidden": "verdict", "no_digits": True})
+        self.assertEqual(self.schema["string_table"]["checked_prefixes"]["Chronicle."],
+                         {"forbidden": ["verdict", "soul_verbs", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words"], "no_digits": True})
         # (1) A slot carries its digit; the text around it does not.
         self.assertEqual(check('Key,SourceString\n"Chronicle.A","{0}주기 {Civ}|hpp(이,가)"\n'), [])
         self.expect(check('Key,SourceString\n"Chronicle.A","3주기"\n'), "entry 1 (Chronicle.A)", "a digit outside a slot")
@@ -615,12 +618,16 @@ class SchemaTests(unittest.TestCase):
         listed = self.schema["epitaph_leaves_out"]
         self.assertIn("petition_exalt", listed)
         self.assertIn("petition_keep_throne", listed)
-        # The project's own titles: the two cards that speak to the reader are the listed ones.
+        # The project's own titles: the cards that speak to the reader are listed, and so are the four the [B-5d1] text audit
+        # found to read as a eulogy under a dead vessel's name (a virtue, a memorial day, the two 'beside' titles of the
+        # sacrifice reading - header 3.6-1), whose titles do not speak to the reader and stay right on their own cards.
         project_schema, project_tables, _ = checker.load_project()
         speaking = [row["Name"] for row in project_tables["DT_Encounters"]
                     if any(word in row["Title"] for word in project_schema["words"]["reader_address"])
                     or any(row["Title"].rstrip().endswith(end) for end in project_schema["words"]["reader_question_ends"])]
-        self.assertEqual(sorted(speaking), sorted(project_schema["epitaph_leaves_out"]))
+        eulogies = ["petition_wise_heart", "petition_feast", "enc_plague_tend", "enc_star_watch"]
+        self.assertEqual(set(speaking) & set(eulogies), set())
+        self.assertEqual(sorted(speaking + eulogies), sorted(project_schema["epitaph_leaves_out"]))
         word = self.schema["words"]["reader_address"][0]
         where = "DT_Encounters.petition_test_plea.Title"
         why = "speaks to the reader"
@@ -1665,9 +1672,11 @@ class SchemaTests(unittest.TestCase):
         # The claim's event rows tell the narrator's line: a first-person category is no line of theirs.
         claim_line = lambda log: (lambda tables: self.row(tables, "DT_Events", "event_test_harvest").update(  # noqa: E731
             Category="Event.Crisis.Claim", LogCategory=log, Trigger="Named", BaseWeight=0, CooldownTicks=0))
-        self.expect(self.after(claim_line("Log.Claim")), "event_test_harvest.LogCategory", "Event.Crisis.Claim may tell Log.Record, Log.Crisis, found Log.Claim")
-        for log in ("Log.Record", "Log.Crisis"):
-            self.assertEqual(self.after(claim_line(log)), [])
+        self.expect(self.after(claim_line("Log.Claim")), "event_test_harvest.LogCategory", "Event.Crisis.Claim may tell Log.Crisis, found Log.Claim")
+        # B5 [B-5d1] (decision 11-ga): the record lines of DT_LogTemplates are part one's only producers - an event row that told
+        # Log.Record would put a line into the two books outside the record rows' frame.
+        self.expect(self.after(claim_line("Log.Record")), "event_test_harvest.LogCategory", "Event.Crisis.Claim may tell Log.Crisis, found Log.Record")
+        self.assertEqual(self.after(claim_line("Log.Crisis")), [])
         # The new tests: each fits its kinds and its operand has its type.
         civ_rule = ["tables", "DT_Civs", "rules", 0]
         self.schema_problem(self.put(civ_rule, "when", [{"col": "DisplayName", "contains_none": ["Trait.Arch.Seeker"]}]), "schema.DT_Civs",
@@ -1868,6 +1877,167 @@ class SchemaTests(unittest.TestCase):
                 self.assertEqual(check('Key,SourceString\n"%s","함대 {0} → {1} · {2}의 남은 시간 +{3}"\n' % key), [])
         self.assertEqual(check('Key,SourceString\n"Petition.Check","{0} 판정 {1}/6"\n'), [])
 
+    def test_death_and_record_words(self):
+        """B5 [B-5d1] (header 3.3, 3.5, 3.6): the words of a death - an afterlife, the book of life, a calling read as a
+        death, and the remnant - hang on the new places alone: the keys of the death's pages (Epitaph., Reign., Digest.,
+        Succession.) and the chronicle (the two books' chapter) with the interregnum's and the digest's words kept from the
+        words of rest; the record lines, which name the system alone and carry no figure; the death and inauguration rows.
+        Elsewhere the same letters may stand (matched letter for letter, a short word hides in others). The new test
+        no_digits. The text audit's hangs (critic-3): no 'you' across a death on the death's pages and rows (12-da), no word
+        of a return or a rebirth at the succession (3.6-2), no agent, sacrifice or cause of the death on its line (3.6-1), no
+        name of the holy order on the death and inauguration rows, and the record's object a place or an event (11-ga)."""
+        self.assertEqual(self.after(), [])
+        lists = self.schema["words"]
+        prefixes = self.schema["string_table"]["checked_prefixes"]
+        check = lambda text: checker.check_string_table("ST_X.csv", text, self.schema)  # noqa: E731
+        death_lists = ("afterlife_words", "book_of_life_words", "called_away_words")
+        audit_lists = ("death_frame_words", "rebirth_words", "record_object_words")
+        new_lists = death_lists + ("remnant_words",) + audit_lists
+        # (1) The keys of the death's pages: the four lists of the narrator's screens and the three of a death, no digit
+        # outside a slot.
+        page_lists = ("verdict", "soul_verbs", "holy_words", "rescue_words") + death_lists
+        for prefix in ("Epitaph.", "Reign.", "Digest.", "Succession."):
+            spec = prefixes[prefix]
+            self.assertTrue(set(page_lists) <= set(checker.forbidden_lists(spec)) and spec.get("no_digits") is True, spec)
+            key = prefix + "Test"
+            for listed in page_lists:
+                for word in lists[listed]:
+                    with self.subTest(prefix=prefix, word=word):
+                        self.expect(check('Key,SourceString\n"%s","그 별 %s 아래."\n' % (key, word)), "entry 1 (%s)" % key, "the word %s is not used here" % word)
+            with self.subTest(prefix=prefix, digit=True):
+                self.expect(check('Key,SourceString\n"%s","살아온 주기 7"\n' % key), "entry 1 (%s)" % key, "a digit outside a slot")
+                self.assertEqual(check('Key,SourceString\n"%s","살아온 주기 {0}"\n' % key), [])
+        # (2) The chronicle holds the two books: the soul verbs, the rescue words and the three lists of a death join the
+        # verdict there; a word put into one of the project's Chronicle. keys is found.
+        for listed in ("soul_verbs", "rescue_words") + death_lists:
+            word = lists[listed][0]
+            with self.subTest(chronicle=listed):
+                self.expect(check('Key,SourceString\n"Chronicle.A","%s a."\n' % word), "entry 1 (Chronicle.A)", "the word %s is not used here" % word)
+        sources = checker.read_sources()
+        sources["ST_CA.csv"] = sources["ST_CA.csv"].rstrip(b"\r\n") + '\n"Chronicle.Test","그 이름이 기록되었다."\n'.encode("utf-8")
+        self.expect(checker.check_sources(sources), "ST_CA.csv", "Chronicle.Test", "the word 이름이 기록 is not used here")
+        # (3) The interregnum's head and the digest are the world's news, with no place of rest for the calling: no word of
+        # rest there; another chronicle key is not held to it.
+        for key in ("Chronicle.NoVessel", "Digest.Test"):
+            for word in lists["silence_words"]:
+                with self.subTest(key=key, word=word):
+                    self.expect(check('Key,SourceString\n"%s","%s a."\n' % (key, word)), "entry 1 (%s)" % key, "the word %s is not used here" % word)
+        self.assertEqual(check('Key,SourceString\n"Chronicle.A","쉼 a."\n'), [])
+        # (4) The new places alone: no other prefix names a list of a death, the remnant's word hangs on no key, and no
+        # column of any table names one (the record lines and the two named rows carry them by row rules).
+        places = ("Epitaph.", "Reign.", "Digest.", "Succession.", "Chronicle.")
+        for prefix, spec in prefixes.items():
+            with self.subTest(prefix=prefix):
+                named = set(checker.forbidden_lists(spec)) & set(new_lists)
+                allowed = (set(death_lists) if prefix.startswith(places) else set()) | ({"rebirth_words"} if prefix.startswith("Succession.") else set())
+                self.assertEqual(named - allowed, set())
+        self.assertEqual([(table, column) for table, column, spec in self.columns_of(lambda spec: set(checker.forbidden_lists(spec)) & set(new_lists))], [])
+        self.assertEqual(check('Key,SourceString\n"Wander.A","%s"\n' % " ".join(lists[listed][0] for listed in new_lists)), [])
+
+        # (4a) The audit's words stand in their lists (critic-3: a list walked by the cases above loses a word in silence): the
+        # whereabouts and rebirth idioms (particle forms of '전생' only - '전생애' and '내세우다' are plain words), the calling
+        # read as a death, the old titles of the books, the death's agent, sacrifice and cause, the return at the succession,
+        # and the record's objects. '데려가' is a calling read as a death, not a frame word.
+        audited = {
+            "afterlife_words": ["세상을 떠나", "세상을 떠났", "세상을 떠", "별세", "천당", "낙원", "환생", "윤회", "부활", "영생", "전생에", "전생의", "전생을",
+                                "전생이", "돌아가셨", "돌아가시", "편히 쉬", "편히 잠", "고이 잠", "쉬소서", "잠드소서", "다시 태어"],
+            "called_away_words": ["데려가", "데려갔", "부름받", "부르심받", "부르심에", "부름 받", "부르심 받", "불려 올"],
+            "book_of_life_words": ["기록된 이름", "이름을 기록", "이름을 적", "생명의 책"],
+            "death_frame_words": ["불이 내려", "쏟아져", "내리쳐", "그들을 위해", "위하여", "했기에"],
+            "rebirth_words": ["다시 ", "돌아오", "돌아왔", "태어나", "태어났", "거듭나", "머물렀", "임했", "깃들", "알아보았"],
+            "record_object_words": ["날들", "이름", "사람", "죽은 자", "죽은 이", "남은 이"]}
+        for listed, words in audited.items():
+            with self.subTest(audited=listed):
+                self.assertEqual([word for word in words if word not in lists[listed]], [])
+        self.assertFalse({"전생", "내세"} & set(lists["afterlife_words"]))
+        self.assertFalse({"데려가", "데려갔"} & set(lists["death_frame_words"]))
+        # (4b) No 'you' across a death (12-da): the epitaph, the digest and the inauguration page refuse the reader's word; the
+        # living vessel's reign end and the chronicle (Chronicle.Opened keeps it - 10-da) do not. The succession's words
+        # carry no return and no rebirth (3.6-2); the chronicle may (Chronicle.NewRunTip).
+        for prefix in ("Epitaph.", "Digest.", "Succession."):
+            self.assertIn("reader_address", checker.forbidden_lists(prefixes[prefix]))
+            for word in lists["reader_address"]:
+                with self.subTest(prefix=prefix, reader=word):
+                    self.expect(check('Key,SourceString\n"%sTest","%s a."\n' % (prefix, word)), "entry 1 (%sTest)" % prefix, "the word %s is not used here" % word)
+        for key in ("Reign.Test", "Chronicle.Test"):
+            self.assertEqual(check('Key,SourceString\n"%s","%s a."\n' % (key, lists["reader_address"][0])), [])
+        self.assertIn("rebirth_words", checker.forbidden_lists(prefixes["Succession."]))
+        for word in lists["rebirth_words"]:
+            with self.subTest(succession=word):
+                self.expect(check('Key,SourceString\n"Succession.Test","%s a."\n' % word), "entry 1 (Succession.Test)", "the word %s" % word)
+        self.assertEqual(check('Key,SourceString\n"Chronicle.Test","%s a."\n' % lists["rebirth_words"][0]), [])
+        # (5) A record line: the system's name alone, no figure, no word of a death and not the remnant's.
+        def record(templates):
+            def change(tables):
+                self.add_record_row(tables)
+                self.row(tables, "DT_LogTemplates", "log_record_test")["Templates"] = templates
+            return change
+        record_rule = "a record line is a subjectless passive about a place or an event"
+        self.assertEqual(self.after(record(["{System}|hpp(이,가) 기록되었다.", "{System}의 무너짐이 기록되었다.", "기록되었다."])), [])
+        for slot in ("Civ", "PopBand", "Ruler", "Player", "CivAdj"):
+            with self.subTest(slot=slot):
+                self.expect(self.after(record(["{System} {%s} a." % slot, "b.", "c."])), "DT_LogTemplates.log_record_test", record_rule, "slots_in")
+        self.expect(self.after(record(["{System} a.", "b 3.", "c."])), "DT_LogTemplates.log_record_test", record_rule, '"no_digits": true')
+        for listed in death_lists + ("remnant_words", "record_object_words"):
+            for word in lists[listed]:
+                with self.subTest(record=word):
+                    self.expect(self.after(record(["{System} %s a." % word, "b.", "c."])), "DT_LogTemplates.log_record_test", record_rule, listed)
+        # The remnant's word is the record lines' alone: a line of another category may carry it.
+        self.assertEqual(self.after(self.set_cell("DT_LogTemplates", "log_fleet_worn", "Templates", ["{System} 남은 자 a.", "b.", "c."])), [])
+        # The record's object is a place or an event: a line of another category may say days, names or people.
+        self.assertEqual(self.after(self.set_cell("DT_LogTemplates", "log_fleet_worn", "Templates", ["{System} 사람 a.", "{System} 날들 b.", "c."])), [])
+        # (6) The death and inauguration rows: the calling's lines, their slots, no word of a death, no 'you', no name of the
+        # holy order; the death's line no agent, sacrifice or cause, the inauguration's no return or rebirth.
+        row_lists = {"log_death_hazard": death_lists + ("reader_address", "realm_names", "death_frame_words"),
+                     "log_inauguration": death_lists + ("reader_address", "realm_names", "rebirth_words"),
+                     "log_inauguration_unnamed": death_lists + ("reader_address", "realm_names", "rebirth_words")}
+        for row_name, slots, refused in (("log_death_hazard", "{Player} {Hazard}", ("System", "Civ")),
+                                         ("log_inauguration", "{Player} {Civ} {System}", ("CivAdj", "Hazard")),
+                                         ("log_inauguration_unnamed", "{Player} {Civ}", ("System", "Hazard"))):
+            line = lambda row_name=row_name, **changes: (lambda tables: self.row(tables, "DT_LogTemplates", row_name).update(**changes))  # noqa: E731
+            with self.subTest(row=row_name):
+                self.assertEqual(self.after(line(Templates=["%s a." % slots, "b.", "c."])), [])
+                self.expect(self.after(line(Category="Log.Civ")), "DT_LogTemplates.%s" % row_name, '"is": "Log.Calling"')
+            for slot in refused:
+                with self.subTest(row=row_name, slot=slot):
+                    self.expect(self.after(line(Templates=["%s {%s} a." % (slots, slot), "b.", "c."])), "DT_LogTemplates.%s" % row_name, "slots_in")
+            for listed in row_lists[row_name]:
+                for word in lists[listed]:
+                    with self.subTest(row=row_name, word=word):
+                        self.expect(self.after(line(Templates=["%s %s a." % (slots, word), "b.", "c."])), "DT_LogTemplates.%s" % row_name, '"%s"' % listed)
+        # The death's frame words are the death row's alone: the inauguration's line may say them, and a word of return may
+        # stand on the death's line.
+        self.assertEqual(self.after(self.set_cell("DT_LogTemplates", "log_inauguration", "Templates", ["{Player} {Civ} {System} 위하여 a.", "b.", "c."])), [])
+        self.assertEqual(self.after(self.set_cell("DT_LogTemplates", "log_death_hazard", "Templates", ["{Player} {Hazard} 머물렀 a.", "b.", "c."])), [])
+        # The texts the audit settled pass their rows (critic-3): the death line bound to its hazard, reader-4's record lines,
+        # the inauguration that names no system - and no line without {System} points back to 'that star' (korean-1).
+        project = {row["Name"]: row["Templates"] for row in checker.load_project()[1]["DT_LogTemplates"]}
+        for row_name in ("log_death_hazard", "log_inauguration", "log_inauguration_unnamed", "log_record_destroyed", "log_record_annexed"):
+            with self.subTest(settled=row_name):
+                self.assertEqual(self.after(self.set_cell("DT_LogTemplates", row_name, "Templates", project[row_name])), [])
+        for row_name in ("log_death_hazard", "log_inauguration_unnamed"):
+            self.assertFalse(any("\uadf8 \ubcc4" in text for text in project[row_name]), row_name)
+        # arch_default is the name bank of last resort (paths-10): empty there, the death and inauguration lines lose their
+        # subject; another people's bank may stay empty.
+        self.expect(self.after(self.set_cell("DT_Civs", "arch_default", "PersonNameBank", [])), "DT_Civs.arch_default", "name bank of last resort", '"min_len": 10')
+        self.assertEqual(self.after(self.set_cell("DT_Civs", "arch_seeker", "PersonNameBank", [])), [])
+        # (7) The new test: true holds for texts without a digit, false for a text with one; it fits a text column only.
+        holds = checker.Checker(self.schema, self.tables, self.tags).holds
+        bare = lambda value, flag=True: holds({"col": "C", "no_digits": flag}, {"C": value}, "r")  # noqa: E731
+        self.assertTrue(bare("a."))
+        self.assertFalse(bare("a 3."))
+        self.assertTrue(bare(["a.", "{System} b."]))
+        self.assertFalse(bare(["a.", "b \uff13."]))
+        self.assertTrue(bare([]))
+        self.assertFalse(bare(None))
+        self.assertFalse(bare(["a.", 5]))
+        self.assertTrue(bare("a 3.", False))
+        self.assertFalse(bare("a.", False))
+        rule = ["tables", "DT_LogTemplates", "rules", 0]
+        self.schema_problem(self.put(rule, "when", [{"col": "MinTierToReveal", "no_digits": True}]), "schema.DT_LogTemplates",
+                            "the test 'no_digits' cannot be asked of a column of kind number")
+        self.schema_problem(self.put(rule, "when", [{"col": "Templates", "no_digits": "yes"}]), "schema.DT_LogTemplates", "the test 'no_digits' needs true or false")
+
     def test_a_text_has_one_form(self):
         """A word is found as it is written: a text is composed (NFC) and holds no invisible format character, so a verdict
         word cannot hide in decomposed Hangul or behind a zero-width space."""
@@ -1982,7 +2152,10 @@ class SchemaTests(unittest.TestCase):
         self.expect(self.after(cell("trans_silence", "Title", "")), "trans_silence", "named by its title", '"set": true')
         self.expect(self.after(cell("trans_silence", "Title", "the 7th")), "trans_silence.Title", "a digit in a text that carries none")
         self.expect(self.after(cell("trans_silence", "Title", "{Civ} a.")), "trans_silence.Title", "slot {Civ} is not filled here")
-        self.assertEqual(self.after(cell("trans_covenant", "Title", "")), [], "a row that is not fallen may go without a title")
+        # B5 [B-5d1] (critic-6): every row has its title - the two books' claim groups stand under '{Transcendent}의 말', so a
+        # claimant without a title would speak under another's head.
+        self.expect(self.after(cell("trans_covenant", "Title", "")), "trans_covenant.Title", "a text is required here")
+        self.expect(self.after(cell("trans_silence", "Title", "")), "trans_silence.Title", "a text is required here")
         self.expect(self.after(lambda tables: tables["DT_Transcendents"].pop(0)), "the row trans_silence", "is missing")
 
     # ---- conditions and effects ----
@@ -2656,6 +2829,12 @@ class SchemaTests(unittest.TestCase):
             # The first word of the named list put into the text (B4).
             word = schema["words"][operand][0]
             row[column] = "%s a." % word if kind == "text" else ["%s a." % word, "b.", "c."]
+        elif name == "no_digits":
+            # A digit put into the text, or every digit taken out (B5 [B-5d1]).
+            if operand:
+                row[column] = "3 a." if kind == "text" else ["3 a.", "b.", "c."]
+            else:
+                row[column] = "a." if kind == "text" else ["a.", "b.", "c."]
         elif name == "ge_col":
             # The named column above the cell (B5).
             row[operand] = row[column] + 1
@@ -2671,6 +2850,12 @@ class SchemaTests(unittest.TestCase):
         row.update(Name="log_sign_test", Category="Log.Sign", Templates=["{Civ} a.", "{Hazard} b.", "c."])
         tables["DT_LogTemplates"].append(row)
         self.row(tables, "DT_Events", "event_test_harvest").update(SignRow="log_sign_test", MinTierToReveal=3)
+
+    def add_record_row(self, tables):
+        """A record line (B5 [B-5d1]) of the fixture: the system's name alone, no figure."""
+        row = copy.deepcopy(self.row(tables, "DT_LogTemplates", "log_breakthrough_physics"))
+        row.update(Name="log_record_test", Category="Log.Record", MinTierToReveal=0, Templates=["{System}|hpp(이,가) 기록되었다.", "{System} b.", "c."])
+        tables["DT_LogTemplates"].append(row)
 
     def add_independent_row(self, tables):
         tables["DT_Transcendents"].append(transcendent_row(
@@ -2815,6 +3000,18 @@ class SchemaTests(unittest.TestCase):
                 (NOTHING, plea),
             ("DT_Events", "the vigil's draw row tells a plain day, with no image of the night's vigil: the vigil is never told as the cause of the easing (B4 header 2.8, 3.9)"):
                 (NOTHING, "event_claim_eased"),
+            # B5 [B-5d1]: the record lines (a row of the category built here: the project's rows are the writers'), the death
+            # and inauguration rows.
+            ("DT_LogTemplates", "a record line is a subjectless passive about a place or an event, told by the system's name alone: no role slot, no {PopBand}, no {Civ}, no figure - the two books are no roll of a crowd of people - and no word of an afterlife, the book of life, a calling read as a death or the remnant, nor days, names, people or the dead as what was recorded: the object is a place or an event (B5 header 3.3, 3.5, decision 11-ga)"):
+                (self.add_record_row, "log_record_test"),
+            ("DT_LogTemplates", "the death line is the narrator's, in the third person by the vessel's name and the hazard: the calling's line, focused on no system, with no word of an afterlife, the book of life or a calling read as a death, no 'you' across the death, no name of the holy order or its realm, and no agent, sacrifice or cause of the death (B5 header 3.3, 3.6, decision 12-da)"):
+                (NOTHING, "log_death_hazard"),
+            ("DT_LogTemplates", "the inauguration line is the narrator's, in the third person by the vessel's name, its people and its system: the calling's line, with no word of an afterlife, the book of life or a calling read as a death, no 'you' across the death, no name of the holy order or its realm, and no word of a return or a rebirth (B5 header 3.3, 3.6, decision 12-da)"):
+                (NOTHING, "log_inauguration"),
+            ("DT_LogTemplates", "the inauguration line of a vessel born in a system a claim joined on the same tick is the narrator's, in the third person by the vessel's name and its people, naming no system - no narrator line about that place follows the fallen's own line (rule 5): the calling's line, with no word of an afterlife, the book of life or a calling read as a death, no 'you' across the death, no name of the holy order or its realm, and no word of a return or a rebirth (B5 header 3.3, 3.6, decision 12-da)"):
+                (NOTHING, "log_inauguration_unnamed"),
+            ("DT_Civs", "arch_default is the name bank of last resort for the vessel: a people whose own bank is empty names its vessel from it, and an empty name would leave the death and inauguration lines without their subject (B5 log_death_hazard, log_inauguration, log_inauguration_unnamed - CosmicChronicle::VesselNameOf)"):
+                (NOTHING, "arch_default"),
             ("DT_Transcendents", "no transcendent weighs the claim's events: the vigil's draw on Event.Crisis.Claim keeps a factor of 1, so the bound of the theodicy budget the invariant counts holds (B4 header 2.8)"):
                 (NOTHING, "trans_silence"),
         }
@@ -2835,7 +3032,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 191, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 223, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+@@ -296,7 +296,7 @@
+ 	// does; part two only over a line; a claimant's head only with its Title. No chapter when both parts are empty, and no
+ 	// closing line of their own ('the other book' is Chronicle.Unopened, once - decision 10-da).
+ 	const FCosmicTwoBooks Books = CosmicChronicle::BuildTwoBooks(State);
+-	if (!Books.IsEmpty())
++	if (true)
+ 	{
+ 		AddText(Label(TEXT("Chronicle.BookRecorded")), ChapterHeadSize, CosmicPalette::Gold, ChapterHeadGap);
+ 		AddLines(Books.Recorded, &BookLineColor);

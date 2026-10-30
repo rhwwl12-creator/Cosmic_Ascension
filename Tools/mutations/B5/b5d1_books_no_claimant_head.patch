@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+@@ -310,7 +310,7 @@
+ 			for (const FCosmicClaimedGroup& Group : Books.Claimed)
+ 			{
+ 				const FText Claimant = CosmicChronicle::ClaimantTitleOf(Group.TranscendentID, Sim->GetTables());
+-				if (!Claimant.IsEmpty())
++				if (false)
+ 				{
+ 					FFormatNamedArguments Args;
+ 					Args.Add(TEXT("Transcendent"), Claimant);

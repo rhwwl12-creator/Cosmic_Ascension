@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicDigest.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicDigest.cpp
+@@ -344,7 +344,7 @@
+ 	{
+ 		for (const FCosmicLogEntry& Entry : Entries)
+ 		{
+-			if (Next && Entry.Tick == Next->BornTick && CosmicChronicle::OpensCalledChapter(Entry, *Next))
++			if (Next && Entry.Tick > Next->BornTick && CosmicChronicle::OpensCalledChapter(Entry, *Next))
+ 			{
+ 				bOpened = true;
+ 			}

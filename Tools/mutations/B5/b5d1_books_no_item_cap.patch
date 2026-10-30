@@ -1,0 +1,20 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+@@ -446,7 +446,7 @@
+ 	int32 RowsLeft = MaxBookLines - PartOneRows - 1;
+ 	TArray<int32> Quota;
+ 	Quota.Init(0, Claims.Num());
+-	if (Books.ClaimedCandidates <= MaxBookItems && Claims.Num() + Books.ClaimedCandidates <= RowsLeft)
++	if (Claims.Num() + Books.ClaimedCandidates <= RowsLeft)
+ 	{
+ 		for (int32 Group = 0; Group < Claims.Num(); ++Group)
+ 		{
+@@ -467,7 +467,7 @@
+ 			for (int32 Group = 0; Group < Claims.Num(); ++Group)
+ 			{
+ 				const int32 Cost = Quota[Group] == 0 ? 2 : 1;
+-				if (Quota[Group] < Claims[Group].Num() && ItemsLeft > 0 && Cost <= RowsLeft)
++				if (Quota[Group] < Claims[Group].Num() && Cost <= RowsLeft)
+ 				{
+ 					++Quota[Group];
+ 					--ItemsLeft;

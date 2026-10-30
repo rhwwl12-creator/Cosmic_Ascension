@@ -15,6 +15,7 @@
 #include "Events/CosmicPetitions.h"
 #include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
+#include "Log/CosmicChronicle.h"
 #include "Log/CosmicLogSubsystem.h"
 #include "Sim/CosmicConflict.h"
 #include "Sim/CosmicDiplomacy.h"
@@ -77,6 +78,61 @@ namespace CosmicPlayerRoleImpl
 				Sim.NoteKnown(Neighbour);
 			}
 		}
+	}
+
+	// The row of the death line of a cause (B5 header section 3.3): one row per cause. A cause with no row of its own - the
+	// measurement's borrowed Death.Age (header section 5.1; aging is 0, so the game has none) - is told by no line, as PushRow
+	// tells nothing for a row the table lacks: no other cause's words are told for it (every variant true on every path -
+	// docs/70), and no tell number is drawn. The life's end stands on the epitaph and in the chronicle's facts all the same.
+	FName DeathRowOf(const FGameplayTag& Cause)
+	{
+		return Cause == CosmicTags::DeathHazard() ? CosmicRows::LogDeathHazard : FName();
+	}
+
+	// The death line (B5 header section 2.2 Die (b), 3.3; decision 12-da): the narrator's, in the third person by the vessel's
+	// name - {Player} the closed life's name (CosmicChronicle::VesselNameOf; the log resolves no {Player} of its own), {Hazard}
+	// the display name of the hazard row behind the death (empty when the table lacks the row, as the event and card lines
+	// leave an unresolved {Hazard}). Log.Calling, Severity 2, with no focus: it calls no system, so no narrator's line about the
+	// place of the death follows a first-person line about it on the same tick (docs/70 section 8.3, rule 5), and a destroyed
+	// system has no owner to name. Through PushRow - the tell stream alone, never the sim stream (rule 3).
+	void TellDeath(UCosmicLogSubsystem& Log, const FCosmicDataTables& Tables, const FLifeRecord& Life)
+	{
+		const FName Row = DeathRowOf(Life.CauseOfDeath);
+		if (Row.IsNone())
+		{
+			return;
+		}
+		const FHazardDef* Hazard = Tables.FindHazard(Life.CauseSourceRow);
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("Player"), CosmicChronicle::VesselNameOf(Life, Tables));
+		Args.Add(TEXT("Hazard"), Hazard ? Hazard->DisplayName : FText::GetEmpty());
+		Log.PushRow(Row, 2, Args, NAME_None, NAME_None);
+	}
+
+	// The inauguration line (B5 header section 2.2 Succeed 5, 3.3; decision 12-da): the narrator's, in the third person by the
+	// new vessel's name, the passive entrusting form - {Player} the new life's name (CosmicChronicle::VesselNameOf), {Civ} its
+	// birth people, {System} its birth system, the line's focus. Log.Calling, Severity 2, through PushRow (the tell stream
+	// alone). The line that opens the called life's chapter (CosmicChronicle::OpensCalledChapter). After a fallen's first person
+	// about the birth system on this tick (UCosmicLogSubsystem::HasClaimLineThisTick - a succession whose filters relaxed to the
+	// last can pick a system a claim joined in the crisis stage, CosmicSuccession::CandidatesOf), its second row in its place:
+	// CosmicRows::LogInaugurationUnnamed, {Player} and {Civ}, no {System} and no focus system - no narrator's line calls that
+	// system after the first person (docs/70 section 8.3 rule 5); its people stays the focus. One tell number either way: the
+	// log's own lines choose the row, and the world reads nothing of it.
+	void TellInauguration(UCosmicLogSubsystem& Log, const UGalaxySimulationSubsystem& Sim, const FLifeRecord& Life)
+	{
+		const FGalaxyState& State = Sim.GetState();
+		const int32 SystemIndex = Sim.GetStateIndex().FindSystem(State, Life.BirthSystemID);
+		const int32 CivIndex = Sim.GetStateIndex().FindCiv(State, Life.BirthCivID);
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("Player"), CosmicChronicle::VesselNameOf(Life, Sim.GetTables()));
+		Args.Add(TEXT("Civ"), State.Civs.IsValidIndex(CivIndex) ? State.Civs[CivIndex].CivName : FText::GetEmpty());
+		if (Log.HasClaimLineThisTick(Life.BirthSystemID))
+		{
+			Log.PushRow(CosmicRows::LogInaugurationUnnamed, 2, Args, NAME_None, Life.BirthCivID);
+			return;
+		}
+		Args.Add(TEXT("System"), State.Systems.IsValidIndex(SystemIndex) ? State.Systems[SystemIndex].DisplayName : FText::GetEmpty());
+		Log.PushRow(CosmicRows::LogInauguration, 2, Args, Life.BirthSystemID, Life.BirthCivID);
 	}
 }
 
@@ -392,7 +448,12 @@ void UPlayerRoleSubsystem::Die()
 	Life.CauseOfDeath = Calling.PendingCause;
 	Life.CauseSourceRow = Calling.PendingSourceRow;
 
-	// (b) The death line is told before what it changes - [B-5d1].
+	// (b) The death line, told before what the death changes - as the deposition tells its fall first: the vessel still stands
+	// (and still rules) when it is told, and no number of the death is drawn yet.
+	if (UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>())
+	{
+		CosmicPlayerRoleImpl::TellDeath(*Log, Sim->GetTables(), Life);
+	}
 
 	// (c) A ruler leaves the throne: one number for the regent's profile, one in ReleaseThrone for the regent's name (the
 	// deposition's form), whether or not a people is there; every throne is locked (16 #143 - the three ends of a reign lock
@@ -483,7 +544,13 @@ void UPlayerRoleSubsystem::Succeed()
 	Calling.Powers = Kept;
 	const FStarSystemState& Birth = State.Systems[Found.Systems[Pick]];
 	Install(Birth.SystemID, Birth.OwnerCivID, EPlayerRole::Wanderer);
-	// The inauguration line - [B-5d1].
+	// (5) The inauguration line, after Install: the new vessel stands with its name. None when Install refused it - the calling
+	// then stays in the interregnum, as in the silence, which tells no line either.
+	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	if (Log && Calling.LifeState == ELifeState::Embodied && !Calling.Lives.IsEmpty())
+	{
+		CosmicPlayerRoleImpl::TellInauguration(*Log, *Sim, Calling.Lives.Last());
+	}
 	Sim->SyncRngState();
 }
 

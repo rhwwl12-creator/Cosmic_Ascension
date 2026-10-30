@@ -14,6 +14,7 @@
 #include "Engine/GameInstance.h"
 #include "Framework/Views/ITypedTableView.h"
 #include "Layout/Margin.h"
+#include "Log/CosmicChronicle.h"
 #include "Log/CosmicLogSubsystem.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "UI/CosmicPalette.h"
@@ -157,6 +158,12 @@ void UCosmicLogFeedWidget::NativeConstruct()
 			Log->OnLogEntry.AddUniqueDynamic(this, &UCosmicLogFeedWidget::HandleLogEntry);
 		}
 	}
+	// The end's latch is the controller's (the state does not know the end): its change rebuilds the feed - no tick follows it.
+	if (ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer()); Controller && !RunEndHandle.IsValid())
+	{
+		RunEndSource = Controller;
+		RunEndHandle = Controller->OnRunEndChanged.AddUObject(this, &UCosmicLogFeedWidget::Refresh);
+	}
 	Refresh();
 }
 
@@ -174,6 +181,12 @@ void UCosmicLogFeedWidget::NativeDestruct()
 			Log->OnLogEntry.RemoveDynamic(this, &UCosmicLogFeedWidget::HandleLogEntry);
 		}
 	}
+	if (ACosmicPlayerController* Controller = RunEndSource.Get())
+	{
+		Controller->OnRunEndChanged.Remove(RunEndHandle);
+	}
+	RunEndSource.Reset();
+	RunEndHandle.Reset();
 	Super::NativeDestruct();
 }
 
@@ -195,10 +208,16 @@ void UCosmicLogFeedWidget::HandleSimTick(int64 Tick)
 void UCosmicLogFeedWidget::HandleLogEntry(const FCosmicLogEntry& Entry)
 {
 	// OnLogEntry never fires for an untold entry (section 8.1); the check keeps the feed's rule in one place.
-	if (!Entry.bUntold)
+	if (Shows(Entry))
 	{
 		Append(Entry);
 	}
+}
+
+bool UCosmicLogFeedWidget::Shows(const FCosmicLogEntry& Entry) const
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	return !Entry.bUntold && !(Sim && CosmicChronicle::IsUnseenLifeLine(Sim->GetState(), Entry, ACosmicPlayerController::IsRunEndedFor(*this)));
 }
 
 void UCosmicLogFeedWidget::Refresh()
@@ -214,7 +233,7 @@ void UCosmicLogFeedWidget::Refresh()
 	TArray<int32> Shown;
 	for (int32 Index = Log.Num() - 1; Index >= 0 && Shown.Num() < CosmicLogFeed::MaxItems; --Index)
 	{
-		if (!Log[Index].bUntold)
+		if (Shows(Log[Index]))
 		{
 			Shown.Add(Index);
 		}

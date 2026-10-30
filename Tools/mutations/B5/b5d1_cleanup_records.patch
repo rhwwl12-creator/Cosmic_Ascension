@@ -1,0 +1,15 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2831,6 +2831,12 @@
+ 			continue;
+ 		}
+ 		Removed.Add(Civ.CivID);
++		if (UCosmicLogSubsystem* RecordLog = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>())
++		{
++			FFormatNamedArguments RecordArgs;
++			RecordArgs.Add(TEXT("System"), FText::FromName(Civ.HomeSystemID));
++			RecordLog->PushRow(CosmicRows::LogRecordDestroyed, 1, RecordArgs, Civ.HomeSystemID, Civ.CivID);
++		}
+ 		State.Civs.RemoveAt(CivIndex);
+ 	}
+ 	if (Removed.IsEmpty())

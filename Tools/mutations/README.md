@@ -533,3 +533,59 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B5/` | `b5c_reopen_stopped_silent.patch` — a load on a succession's tick over a time already stopped with no reason opens the epitaph with no reason line | `Cosmic_Ascension.UI.Epitaph` |
 | `B5/` | `b5c_digest_reads_record.patch` — the digest reads `Log.Record` lines | `Cosmic_Ascension.UI.Digest` |
 | `B5/` | `b5c_digest_reads_calling.patch` — the digest reads `Log.Calling` lines | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5d1_death_line_after_release.patch` — a ruler's death line is told after the throne is left (the regent named, the vessel no longer ruling, the regent's numbers drawn) instead of before what the death changes | `Cosmic_Ascension.Calling.RulerDeath` |
+| `B5/` | `b5d1_death_line_after_leap.patch` — a wanderer's death line is told after the interregnum and its leap are set (the reverence cleared, the leap's number drawn) | `Cosmic_Ascension.Calling.DeathPipeline` |
+| `B5/` | `b5d1_no_death_line.patch` — the death tells no line | `Cosmic_Ascension.Calling.DeathPipeline` |
+| `B5/` | `b5d1_death_line_draws_sim.patch` — the death line draws a number of the sim stream (rule 3: its variant is the tell stream's alone) | `Cosmic_Ascension.Calling.DeathPipeline` |
+| `B5/` | `b5d1_death_line_focus.patch` — the death line has a focus system (a narrator's line about the place of the death could follow a first-person line about it) | `Cosmic_Ascension.Calling.DeathPipeline` |
+| `B5/` | `b5d1_death_line_no_hazard.patch` — the death line's {Hazard} is left empty (not the hazard row behind the death) | `Cosmic_Ascension.Calling.DeathPipeline` |
+| `B5/` | `b5d1_death_line_no_name.patch` — the death line's {Player} is left empty (not the closed life's name - the third person, decision 12-da) | `Cosmic_Ascension.Calling.DeathPipeline` |
+| `B5/` | `b5d1_death_line_any_cause.patch` — a cause with no row of its own (the measurement's Death.Age) is told with the hazard death's row | `Cosmic_Ascension.Calling.DeathPipeline` |
+| `B5/` | `b5d1_no_inauguration_line.patch` — the succession tells no inauguration line | `Cosmic_Ascension.Calling.HardReset` |
+| `B5/` | `b5d1_inauguration_focus.patch` — the inauguration line has no focus (not the new life's birth system and people) | `Cosmic_Ascension.Calling.HardReset` |
+| `B5/` | `b5d1_inauguration_before_install.patch` — the inauguration line is told before Install (it names the life that closed, not the new vessel) | `Cosmic_Ascension.Calling.HardReset` |
+| `B5/` | `b5d1_inauguration_in_silence.patch` — the silence (no candidate) tells an inauguration line and draws a number of the tell stream | `Cosmic_Ascension.Calling.HardReset` |
+| `B5/` | `b5d1_feed_without_inauguration.patch` — a succession after a leap tells no inauguration line (the feed's last item after the leap is a world line) | `Cosmic_Ascension.UI.LeapBoundary` |
+| `B5/` | `b5d1_opens_never.patch` — no line opens a called life's chapter (CosmicChronicle::OpensCalledChapter false for the inauguration line too) | `Cosmic_Ascension.Log.ChronicleBuild` |
+| `B5/` | `b5d1_opens_any_tick.patch` — an inauguration line of another tick opens the called life's chapter (the rule does not ask the BornTick) | `Cosmic_Ascension.Log.ChronicleBuild` |
+| `B5/` | `b5d1_leap_zero_keeps_tick.patch` — with a leap of 0 the dead life's chapter keeps its whole tick (the inauguration line and what follows it), and the called life's chapter starts after it | `Cosmic_Ascension.Log.ChronicleBuild` |
+| `B5/` | `b5d1_after_span_whole_end_tick.patch` — with a life born on the end's tick, the last chapter's After span keeps the whole end tick: the inauguration line stands under Chronicle.NoVessel (digest-5) | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5d1_digest_past_inauguration.patch` — the digest reads the succession's tick past the inauguration line (what is told after it becomes an item) | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5d1_record_told.patch` — a record line is judged by the scope like any other: told in the tell-all mode and in scope | `Cosmic_Ascension.Log.TwoBooksSameLoss`, `Cosmic_Ascension.Log.ClaimVoice` |
+| `B5/` | `b5d1_record_no_annex.patch` — a claim that joins a sphere records nothing | `Cosmic_Ascension.Log.TwoBooksSameLoss`, `Cosmic_Ascension.Log.ClaimVoice` |
+| `B5/` | `b5d1_record_unjoined_claim.patch` — every claim's expiry records a loss, one that joins nothing too | `Cosmic_Ascension.Log.TwoBooksSameLoss`, `Cosmic_Ascension.Log.ClaimVoice` |
+| `B5/` | `b5d1_record_no_destroy.patch` — a settled system destroyed records nothing | `Cosmic_Ascension.Log.TwoBooksSameLoss` |
+| `B5/` | `b5d1_record_after_voice.patch` — the record line comes after the claim's sign and first person | `Cosmic_Ascension.Log.TwoBooksSameLoss`, `Cosmic_Ascension.Log.ClaimVoice` |
+| `B5/` | `b5d1_record_before_expiry.patch` — the record line comes before the expiry line | `Cosmic_Ascension.Log.TwoBooksSameLoss`, `Cosmic_Ascension.Log.ClaimVoice` |
+| `B5/` | `b5d1_record_no_focus.patch` — the record line names no system to the books (FocusSystemID None) | `Cosmic_Ascension.Log.TwoBooksSameLoss`, `Cosmic_Ascension.Log.ClaimVoice` |
+| `B5/` | `b5d1_record_draws_sim.patch` — the record line draws a number of the sim stream | `Cosmic_Ascension.Log.TwoBooksSameLoss` |
+| `B5/` | `b5d1_record_faith_only.patch` — only a people with a faith trait has its loss recorded (the old rule) | `Cosmic_Ascension.Log.RecordEveryPeople`, `Cosmic_Ascension.Log.TwoBooksSameLoss` |
+| `B5/` | `b5d1_cleanup_records.patch` — the crossing stage's cleanup records the people it takes away | `Cosmic_Ascension.Log.TwoBooksSameLoss` |
+| `B5/` | `b5d1_books_admit_sign.patch` — the two books take a `Log.Sign` line (the claim's sign) into part one | `Cosmic_Ascension.Log.TwoBooksNoVessel` |
+| `B5/` | `b5d1_span_keeps_claims.patch` — the chapters and the span with no vessel keep `Log.Claim` and `Log.Record` lines | `Cosmic_Ascension.Log.TwoBooksNoVessel` |
+| `B5/` | `b5d1_books_one_group.patch` — part two puts every claim under one group, not one group a claimant | `Cosmic_Ascension.Log.TwoBooksNoVessel` |
+| `B5/` | `b5d1_books_bare_part_one.patch` — a part two over an empty part one leaves part one's head bare (no 'more') | `Cosmic_Ascension.Log.TwoBooksNoVessel` |
+| `B5/` | `b5d1_books_no_line_cap.patch` — the two books' chapter drops its 28-row cap | `Cosmic_Ascension.Log.TwoBooksNoVessel` |
+| `B5/` | `b5d1_books_claims_purple.patch` — the page draws the first-person lines of part two in the feed's purple | `Cosmic_Ascension.UI.Chronicle` |
+| `B5/` | `b5d1_books_always.patch` — the page stands the two books' heads with no `Log.Record` and no `Log.Claim` | `Cosmic_Ascension.UI.Chronicle` |
+| `B5/` | `b5d1_books_empty_part_two_head.patch` — the page stands part two's head over no claim | `Cosmic_Ascension.UI.Chronicle` |
+| `B5/` | `b5d1_books_no_claimant_head.patch` — the page leaves out the claimant's head (`Chronicle.ClaimedBy`) | `Cosmic_Ascension.UI.Chronicle` |
+| `B5/` | `b5d1_inauguration_always_named.patch` — the inauguration line always tells the named row, also after a fallen's first person about the birth system on the same tick (a narrator's line calls the system the claim just joined - docs/70 section 8.3 rule 5) | `Cosmic_Ascension.Log.ClaimVoice` |
+| `B5/` | `b5d1_unnamed_calls_system.patch` — the unnamed inauguration row is told with the birth system as its focus (it calls the system the first person just claimed) | `Cosmic_Ascension.Log.ClaimVoice` |
+| `B5/` | `b5d1_claim_line_told_only.patch` — the log's question of a same-tick first person passes the first person kept untold (below the third rung the named row follows it) | `Cosmic_Ascension.Log.ClaimVoice` |
+| `B5/` | `b5d1_claim_line_any_tick.patch` — the log's question of a same-tick first person reads a first person of any tick | `Cosmic_Ascension.Log.ClaimVoice` |
+| `B5/` | `b5d1_opens_named_only.patch` — `CosmicChronicle::OpensCalledChapter` opens the called life's chapter at the named inauguration row only (the unnamed row opens nothing) | `Cosmic_Ascension.Log.ChronicleBuild`, `Cosmic_Ascension.Log.ClaimVoice` |
+| `B5/` | `b5d1_death_line_death_place.patch` — the death line has the place of the death (the dead vessel's `CurrentSystemID`) as its focus: a narrator's line calls the claimed system after the first person when the vessel dies there on the joining tick | `Cosmic_Ascension.Log.ClaimVoice`, `Cosmic_Ascension.Calling.DeathPipeline` |
+| `B5/` | `b5d1_unseen_line_shown.patch` — `CosmicChronicle::IsUnseenLifeLine` holds nothing back: the feed shows the inauguration line of the vessel the end's tick installed | `Cosmic_Ascension.UI.LeapBoundary`, `Cosmic_Ascension.Log.ChronicleBuild` |
+| `B5/` | `b5d1_unseen_line_while_running.patch` — `CosmicChronicle::IsUnseenLifeLine` holds the inauguration line back while the run goes on (the feed's last item after a leap is not the new vessel's line) | `Cosmic_Ascension.UI.LeapBoundary`, `Cosmic_Ascension.Log.ChronicleBuild` |
+| `B5/` | `b5d1_feed_rebuild_shows_unseen.patch` — the feed's rebuild skips only untold lines (the inauguration line of the vessel the end's tick installed stands last) | `Cosmic_Ascension.UI.LeapBoundary` |
+| `B5/` | `b5d1_feed_appends_unseen.patch` — a new line of the vessel the end's tick installed, heard after the end latched, is appended to the feed | `Cosmic_Ascension.UI.LeapBoundary` |
+| `B5/` | `b5d1_feed_no_end_refresh.patch` — the end's latch announces nothing (`OnRunEndChanged`): after a leap of 0 on the end's tick the feed keeps the inauguration line it heard | `Cosmic_Ascension.UI.LeapBoundary` |
+| `B5/` | `b5d1_feed_clear_no_refresh.patch` — forgetting the end announces nothing: the feed keeps holding the inauguration line back once the end is switched off | `Cosmic_Ascension.UI.LeapBoundary` |
+| `B5/` | `b5d1_books_part_one_alone.patch` — part one is thinned first-and-last alone again, blind to part two: a shown claim can stand over a place whose record part one left out | `Cosmic_Ascension.Log.TwoBooksNoVessel` |
+| `B5/` | `b5d1_books_no_item_cap.patch` — part two loses its 12-item cap (the fit test and the deal's `ItemsLeft`): only the 28-row cap stops it | `Cosmic_Ascension.Log.TwoBooksNoVessel` |
+| `B5/` | `b5d1_record_any_destruction.patch` — the destruction record drops its settled-only guard (`bWasSettled`): a system under its settlement or a wild one destroyed is recorded | `Cosmic_Ascension.Log.TwoBooksSameLoss` |
+| `B5/` | `b5d1_books_part_head.patch` — part one's head goes back to a part's head (grey 18): the two books' chapter has no chapter-level head | `Cosmic_Ascension.UI.Chronicle` |
+| `B5/` | `b5d1_books_head_after_lines.patch` — a claimant's head (`Chronicle.ClaimedBy`) stands after its lines, not over them | `Cosmic_Ascension.UI.Chronicle` |
+| `B5/` | `b5d1_epitaph_keeps_star_watch.patch` — the epitaph shows the trembling star's watch ('흔들리는 별 곁에서', the 'beside' title of the sacrifice reading - header 3.6-1) among a dead vessel's last answers again: CosmicRows::EpitaphLeavesOut drops EncStarWatch | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5d1_epitaph_keeps_eulogy_petitions.patch` — the epitaph shows the wise heart and the feast (a virtue, a memorial day under a death) again: CosmicRows::EpitaphLeavesOut drops PetitionWiseHeart and PetitionFeast | `Cosmic_Ascension.UI.Epitaph` |

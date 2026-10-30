@@ -83,7 +83,7 @@ struct COSMIC_ASCENSION_API FCosmicDigest
 	bool bValid = false;
 	// The span (AfterTick, ThroughTick]: the closed life's DiedTick, then the next life's BornTick - its tick read up to the
 	// line that opens that life's chapter (CosmicChronicle::OpensCalledChapter, the chronicle's own cut: the inauguration
-	// line, [B-5d1]; until it exists the whole tick) - or, while the interregnum lasts (the run ended in it), the state's
+	// line; the whole tick when it holds none) - or, while the interregnum lasts (the run ended in it), the state's
 	// Tick.
 	int64 AfterTick = 0;
 	int64 ThroughTick = 0;

@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -132,7 +132,6 @@
+ 			return;
+ 		}
+ 		Args.Add(TEXT("System"), State.Systems.IsValidIndex(SystemIndex) ? State.Systems[SystemIndex].DisplayName : FText::GetEmpty());
+-		Log.PushRow(CosmicRows::LogInauguration, 2, Args, Life.BirthSystemID, Life.BirthCivID);
+ 	}
+ }
+ 

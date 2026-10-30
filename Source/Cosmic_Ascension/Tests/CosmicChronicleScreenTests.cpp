@@ -16,6 +16,7 @@
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
+#include "Engine/DataTable.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -37,6 +38,8 @@
 #include "UI/CosmicActionButton.h"
 #include "UI/CosmicAscensionOverlayWidget.h"
 #include "UI/CosmicChronicleWidget.h"
+#include "UI/CosmicLogFeedWidget.h"
+#include "UI/CosmicPalette.h"
 #include "UI/CosmicPetitionCardWidget.h"
 #include "UI/CosmicSystemPanelWidget.h"
 #include "UI/CosmicTopBarWidget.h"
@@ -481,7 +484,15 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 	// ---- The page, in the order of the document ----
 	Page->Open(ECosmicProvisionalEnd::Clock, true);
 	const TArray<FText> Texts = Page->GetPageTexts();
-	const int32 Expected = 2 + Chapter.Lines.Num() + (Chapter.bMore ? 1 : 0) + 3;
+	// The two books' chapter (B5 - CosmicChronicle::BuildTwoBooks) stands between the chapter and the fixed lines when the run
+	// lost a settled system; its rows and lines are counted here and read in the B5 part below.
+	const FCosmicTwoBooks LiveBooks = CosmicChronicle::BuildTwoBooks(Live);
+	int32 BookLines = LiveBooks.Recorded.Num();
+	for (const FCosmicClaimedGroup& Group : LiveBooks.Claimed)
+	{
+		BookLines += Group.Lines.Num();
+	}
+	const int32 Expected = 2 + Chapter.Lines.Num() + (Chapter.bMore ? 1 : 0) + LiveBooks.NumRows() + 3;
 	if (!TestEqual(TEXT("The page has the title, the facts, the lines, the 'more' line and three closing lines"), Texts.Num(), Expected))
 	{
 		return false;
@@ -496,7 +507,7 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 	const TArray<float> Opacities = Page->GetLineOpacities();
 	bool bOwnSeen = false;
 	bool bWorldSeen = false;
-	if (TestEqual(TEXT("One stamp and one opacity per line"), Stamps.Num(), Chapter.Lines.Num()) && TestEqual(TEXT("(opacities)"), Opacities.Num(), Chapter.Lines.Num()))
+	if (TestEqual(TEXT("One stamp and one opacity per line"), Stamps.Num(), Chapter.Lines.Num() + BookLines) && TestEqual(TEXT("(opacities)"), Opacities.Num(), Chapter.Lines.Num() + BookLines))
 	{
 		for (int32 At = 0; At < Chapter.Lines.Num(); ++At)
 		{
@@ -694,7 +705,8 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 		{
 			return false;
 		}
-		for (const TCHAR* Key : { TEXT("Chronicle.NoVessel"), TEXT("Chronicle.BornAmong") })
+		for (const TCHAR* Key : { TEXT("Chronicle.NoVessel"), TEXT("Chronicle.BornAmong"), TEXT("Chronicle.BookRecorded"), TEXT("Chronicle.BookClaimed"),
+			TEXT("Chronicle.ClaimedBy") })
 		{
 			TestFalse(*FString::Printf(TEXT("%s has words in the String Table"), Key), Words(Key).IsEmpty() || Words(Key).Contains(FStringTableEntry::GetPlaceholderSourceString()));
 		}
@@ -725,7 +737,11 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 		};
 		Two.Log.Add(Told(900, TEXT("Log.Civ"), 2, OwnID, TEXT("b5 first own")));
 		Two.Log.Add(Told(1100, TEXT("Log.Civ"), 2, LaterID, TEXT("b5 between")));
+		// One loss while no vessel stood: its record (part one) and the claim over it (part two, by trans_silence - B4's
+		// SourceRow of a first-person line).
+		Two.Log.Add(Told(1150, TEXT("Log.Record"), 1, LaterID, TEXT("b5 record between")));
 		Two.Log.Add(Told(1150, TEXT("Log.Claim"), 1, LaterID, TEXT("b5 claim between")));
+		Two.Log.Last().SourceRow = CosmicRows::TransSilence;
 		Two.Log.Add(Told(1300, TEXT("Log.Civ"), 2, LaterID, TEXT("b5 second own")));
 
 		auto TitleOf = [&](const FLifeRecord& OfLife)
@@ -752,11 +768,52 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 			return Out;
 		};
 
+		// The two books (B5 header section 4, decisions 10 and 11): after the last chapter, before the fixed lines; part one,
+		// then part two with its claimant's head.
+		const FText SilenceTitle = CosmicChronicle::ClaimantTitleOf(CosmicRows::TransSilence, Sim->GetTables());
+		TestFalse(TEXT("(trans_silence has a title)"), SilenceTitle.IsEmpty());
+		FFormatNamedArguments ByArgs;
+		ByArgs.Add(TEXT("Transcendent"), SilenceTitle);
+		const FString BySilence = FText::Format(Label(TEXT("Chronicle.ClaimedBy")), ByArgs).ToString();
 		const TArray<FString> Shown2 = PageOf();
-		TestEqual(TEXT("Two chapters: the span with no vessel heads the second under its sub-head, before its body; the two books' entries are not there"), Shown2,
+		TestEqual(TEXT("Two chapters: the span with no vessel heads the second under its sub-head, before its body; the two books' entries are not there but in their own chapter after the last, before the fixed lines"), Shown2,
 			TArray<FString>({ TitleOf(Two.Calling.Lives[0]), FirstFacts, TEXT("b5 first own"),
 				TitleOf(Two.Calling.Lives[1]), CalledFacts, Words(TEXT("Chronicle.NoVessel")), TEXT("b5 between"), TEXT("b5 second own"),
+				Words(TEXT("Chronicle.BookRecorded")), TEXT("b5 record between"), Words(TEXT("Chronicle.BookClaimed")), BySilence, TEXT("b5 claim between"),
 				Words(TEXT("Chronicle.Opened")), Words(TEXT("Chronicle.Unopened")), Words(TEXT("Chronicle.Horizon")) }));
+		{
+			// One colour for the books' lines - a chapter's Severity 1 colour -, the first-person line too (purple is the feed's
+			// alone - B4 header), and the same opacity.
+			const TArray<FLinearColor> Colors = Page->GetLineColors();
+			const TArray<float> BookOpacities = Page->GetLineOpacities();
+			if (TestEqual(TEXT("(one colour per line)"), Colors.Num(), 5) && TestEqual(TEXT("(one opacity per line)"), BookOpacities.Num(), 5))
+			{
+				TestEqual(TEXT("A record stands in a chapter's Severity 1 colour"), Colors[3], CosmicLogFeed::ColorOf(1, FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Civ")))));
+				TestEqual(TEXT("and the first-person line in the same colour"), Colors[4], Colors[3]);
+				TestNotEqual(TEXT("not the feed's purple"), Colors[4], CosmicLogFeed::ColorOf(1, CosmicTags::LogClaim()));
+				TestTrue(TEXT("both at full opacity"), BookOpacities[3] == 1.f && BookOpacities[4] == 1.f);
+			}
+		}
+		{
+			// The two books are one chapter after the lives (reader-2): part one's head is drawn as a life chapter's head - its
+			// size, colour and padding -, part two's head under it as its part (grey 18 - part one holds part two, decision
+			// 10-ga), a claimant's head under that (grey 14).
+			const TArray<CosmicChronicleScreen::FRowLook> Looks = Page->GetRowLooks();
+			const int32 RecordedAt = Shown2.IndexOfByKey(Words(TEXT("Chronicle.BookRecorded")));
+			const int32 ClaimedAt = Shown2.IndexOfByKey(Words(TEXT("Chronicle.BookClaimed")));
+			const int32 ByAt = Shown2.IndexOfByKey(BySilence);
+			const int32 LifeHeadAt = Shown2.IndexOfByKey(TitleOf(Two.Calling.Lives[1]));
+			if (TestEqual(TEXT("(one look per row)"), Looks.Num(), Shown2.Num()) && TestTrue(TEXT("(the heads stand)"), Looks.IsValidIndex(RecordedAt)
+				&& Looks.IsValidIndex(ClaimedAt) && Looks.IsValidIndex(ByAt) && Looks.IsValidIndex(LifeHeadAt) && Looks.IsValidIndex(0)))
+			{
+				TestTrue(TEXT("Part one's head is a chapter's head: a life chapter's size, colour and padding"), Looks[RecordedAt] == Looks[LifeHeadAt] && Looks[RecordedAt] == Looks[0]);
+				TestTrue(TEXT("(the life chapters' heads: gold 26)"), Looks[0].Size == 26 && Looks[0].Color == CosmicPalette::Gold);
+				TestTrue(TEXT("Part two's head is a part's head under it: grey 18"), Looks[ClaimedAt].Size == 18 && Looks[ClaimedAt].Color == CosmicPalette::Grey);
+				TestTrue(TEXT("and a claimant's head grey 14"), Looks[ByAt].Size == 14 && Looks[ByAt].Color == CosmicPalette::Grey);
+				TestTrue(TEXT("(part two's head is smaller than the chapter's and larger than a claimant's)"), Looks[ClaimedAt].Size < Looks[RecordedAt].Size
+					&& Looks[ByAt].Size < Looks[ClaimedAt].Size);
+			}
+		}
 		TestFalse(TEXT("A ruler that died on its throne did not walk"), Shown2.IsValidIndex(1) && Shown2[1].Contains(Words(TEXT("Chronicle.Wandering"))));
 		TestTrue(TEXT("A life that never ruled says where it was born, not its birth people as if ruled"), Shown2.IsValidIndex(4)
 			&& Shown2[4].StartsWith(FText::Format(Label(TEXT("Chronicle.BornAmong")), Born).ToString()));
@@ -765,8 +822,8 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 		{
 			StampWords.Add(Stamp.ToString());
 		}
-		TestEqual(TEXT("Every line of the span and of the bodies has its stamp in cycles"), StampWords,
-			TArray<FString>({ LastedOf(900).ToString(), LastedOf(1100).ToString(), LastedOf(1300).ToString() }));
+		TestEqual(TEXT("Every line of the span, of the bodies and of the books has its stamp in cycles"), StampWords,
+			TArray<FString>({ LastedOf(900).ToString(), LastedOf(1100).ToString(), LastedOf(1300).ToString(), LastedOf(1150).ToString(), LastedOf(1150).ToString() }));
 
 		// The succession on the end's tick (the end wins): the vessel born there was never shown - no chapter; the span goes to
 		// the end of the chapter before.
@@ -774,7 +831,146 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 		Two.Tick = 1200;
 		TestEqual(TEXT("A life born on the end's tick gets no chapter; its span closes the chapter before"), PageOf(),
 			TArray<FString>({ TitleOf(Two.Calling.Lives[0]), FirstFacts, TEXT("b5 first own"), Words(TEXT("Chronicle.NoVessel")), TEXT("b5 between"),
+				Words(TEXT("Chronicle.BookRecorded")), TEXT("b5 record between"), Words(TEXT("Chronicle.BookClaimed")), BySilence, TEXT("b5 claim between"),
 				Words(TEXT("Chronicle.Opened")), Words(TEXT("Chronicle.Unopened")), Words(TEXT("Chronicle.Horizon")) }));
+
+		// The two books' chapter as the page shows it: absent when both parts are empty, part one's 'more' over a part two
+		// alone, part one alone with no part two's head, and the caps - 12 a part, 28 the chapter - with every claimant's head.
+		auto BooksOf = [&](const TArray<FString>& Rows)
+		{
+			const int32 From = Rows.IndexOfByKey(Words(TEXT("Chronicle.BookRecorded")));
+			const int32 To = Rows.IndexOfByKey(Words(TEXT("Chronicle.Opened")));
+			TArray<FString> Out;
+			for (int32 At = From; From != INDEX_NONE && At < To; ++At)
+			{
+				Out.Add(Rows[At]);
+			}
+			return Out;
+		};
+		auto IsBook = [](const FCosmicLogEntry& Entry) { return Entry.Category == CosmicTags::LogClaim() || Entry.Message.ToString() == TEXT("b5 record between"); };
+		auto IsRecord = [](const FCosmicLogEntry& Entry) { return Entry.Message.ToString() == TEXT("b5 record between"); };
+		auto IsClaim = [](const FCosmicLogEntry& Entry) { return Entry.Category == CosmicTags::LogClaim(); };
+		const TArray<FCosmicLogEntry> Kept = Two.Log;
+		Two.Log.RemoveAll(IsBook);
+		const TArray<FString> NoBooks = PageOf();
+		TestFalse(TEXT("No Log.Record and no Log.Claim: no two books' chapter"), NoBooks.Contains(Words(TEXT("Chronicle.BookRecorded")))
+			|| NoBooks.Contains(Words(TEXT("Chronicle.BookClaimed"))) || NoBooks.Contains(BySilence));
+		TestEqual(TEXT("and the fixed lines follow the last chapter"), NoBooks.IsValidIndex(NoBooks.Num() - 3) ? NoBooks[NoBooks.Num() - 3] : FString(), Words(TEXT("Chronicle.Opened")));
+		Two.Log = Kept;
+		Two.Log.RemoveAll(IsRecord);
+		TestEqual(TEXT("A part two over an empty part one: part one's head says there was more"), BooksOf(PageOf()),
+			TArray<FString>({ Words(TEXT("Chronicle.BookRecorded")), Words(TEXT("Chronicle.More")), Words(TEXT("Chronicle.BookClaimed")), BySilence, TEXT("b5 claim between") }));
+		Two.Log = Kept;
+		Two.Log.RemoveAll(IsClaim);
+		TestEqual(TEXT("A part one with no claim stands alone: no part two's head"), BooksOf(PageOf()),
+			TArray<FString>({ Words(TEXT("Chronicle.BookRecorded")), TEXT("b5 record between") }));
+		Two.Log = Kept;
+		{
+			// The caps, with a second claimant (a test row with a title) beside trans_silence.
+			const FCosmicDataTables Original = Sim->GetTables();
+			ON_SCOPE_EXIT { Sim->SetTables(Original); };
+			UDataTable* Transcendents = CosmicTests::CopyWithout<FTranscendentDef>(Original.Transcendents, {});
+			if (!TestNotNull(TEXT("(the transcendents' table)"), Transcendents))
+			{
+				return false;
+			}
+			const FName OtherClaimant(TEXT("trans_test_other"));
+			FTranscendentDef Titled;
+			Titled.Title = FText::AsCultureInvariant(TEXT("b5 other claimant"));
+			Transcendents->AddRow(OtherClaimant, Titled);
+			FCosmicDataTables WithOther = Original;
+			WithOther.Transcendents = Transcendents;
+			Sim->SetTables(WithOther);
+			Two.Tick = 5000;
+			for (int32 At = 0; At < 15; ++At)
+			{
+				Two.Log.Add(Told(2000 + At, TEXT("Log.Record"), 1, LaterID, *FString::Printf(TEXT("b5 record %d"), At)));
+			}
+			for (int32 At = 0; At < 15; ++At)
+			{
+				Two.Log.Add(Told(3000 + At, TEXT("Log.Claim"), 1, LaterID, *FString::Printf(TEXT("b5 claim %d"), At)));
+				Two.Log.Last().SourceRow = At % 3 == 0 ? OtherClaimant : CosmicRows::TransSilence;
+			}
+			const FCosmicTwoBooks Books = CosmicChronicle::BuildTwoBooks(Two);
+			TArray<FString> ExpectedBooks = { Words(TEXT("Chronicle.BookRecorded")) };
+			for (const FCosmicChronicleLine& Line : Books.Recorded)
+			{
+				ExpectedBooks.Add(Line.Entry.Message.ToString());
+			}
+			ExpectedBooks.Add(Words(TEXT("Chronicle.More")));
+			ExpectedBooks.Add(Words(TEXT("Chronicle.BookClaimed")));
+			for (const FCosmicClaimedGroup& Group : Books.Claimed)
+			{
+				FFormatNamedArguments Of;
+				Of.Add(TEXT("Transcendent"), CosmicChronicle::ClaimantTitleOf(Group.TranscendentID, Sim->GetTables()));
+				ExpectedBooks.Add(FText::Format(Label(TEXT("Chronicle.ClaimedBy")), Of).ToString());
+				for (const FCosmicChronicleLine& Line : Group.Lines)
+				{
+					ExpectedBooks.Add(Line.Entry.Message.ToString());
+				}
+			}
+			ExpectedBooks.Add(Words(TEXT("Chronicle.More")));
+			const TArray<FString> Capped = BooksOf(PageOf());
+			TestEqual(TEXT("Over the caps the page shows the books' rows: twelve records and 'more', each claimant under its title, and 'more'"), Capped, ExpectedBooks);
+			TestEqual(TEXT("The chapter is MaxBookLines rows at most - here exactly"), Capped.Num(), CosmicChronicle::MaxBookLines);
+			TestTrue(TEXT("(both parts over their caps, both claimants standing)"), Books.Recorded.Num() == CosmicChronicle::MaxBookItems && Books.bRecordedMore
+				&& Books.bClaimedMore && Books.Claimed.Num() == 2);
+			FFormatNamedArguments OtherArgs;
+			OtherArgs.Add(TEXT("Transcendent"), Titled.Title);
+			TestTrue(TEXT("The other claimant stands under its own title"), Capped.Contains(FText::Format(Label(TEXT("Chronicle.ClaimedBy")), OtherArgs).ToString()));
+			Two.Log = Kept;
+		}
+		{
+			// On the game's data every claim line stands under its own claimant's head (critic-6, rule 1 of docs/70: every
+			// sentence of the fallen has its speaker's frame): each DT_Transcendents row has a Title, and the page heads its
+			// group with it - two claims a row, each over its own record.
+			const FCosmicDataTables& Game = Sim->GetTables();
+			const TArray<FName> Claimants = Game.GetTranscendentRowNames();
+			TestFalse(TEXT("(the game has a transcendent)"), Claimants.IsEmpty());
+			Two.Log.RemoveAll(IsBook);
+			TMap<FString, FString> HeadOfLine;
+			TSet<FString> Heads;
+			int64 Tick = 4000;
+			// Three claimants at most, so the whole of it fits both caps (6 records; 1 + 3 x 3 rows of part two).
+			for (int32 At = 0; At < Claimants.Num() && At < 3; ++At)
+			{
+				const FText Title = CosmicChronicle::ClaimantTitleOf(Claimants[At], Game);
+				TestFalse(*FString::Printf(TEXT("%s has a Title (the head of its claims)"), *Claimants[At].ToString()), Title.IsEmpty());
+				FFormatNamedArguments Of;
+				Of.Add(TEXT("Transcendent"), Title);
+				const FString Head = FText::Format(Label(TEXT("Chronicle.ClaimedBy")), Of).ToString();
+				Heads.Add(Head);
+				for (int32 Line = 0; Line < 2; ++Line)
+				{
+					const FString Said = FString::Printf(TEXT("b5 game claim %d %d"), At, Line);
+					Two.Log.Add(Told(Tick, TEXT("Log.Record"), 1, LaterID, *FString::Printf(TEXT("b5 game record %d %d"), At, Line)));
+					Two.Log.Add(Told(Tick++, TEXT("Log.Claim"), 1, LaterID, *Said));
+					Two.Log.Last().SourceRow = Claimants[At];
+					HeadOfLine.Add(Said, Head);
+				}
+			}
+			const TArray<FString> GameBooks = BooksOf(PageOf());
+			FString Under;
+			int32 Seen = 0;
+			for (const FString& Row : GameBooks)
+			{
+				if (Heads.Contains(Row))
+				{
+					Under = Row;
+				}
+				else if (const FString* Head = HeadOfLine.Find(Row))
+				{
+					++Seen;
+					TestEqual(*FString::Printf(TEXT("'%s' stands under its claimant's head"), *Row), Under, *Head);
+				}
+				else if (Row == Words(TEXT("Chronicle.BookClaimed")))
+				{
+					Under.Reset();
+				}
+			}
+			TestEqual(TEXT("(every claim line is on the page)"), Seen, HeadOfLine.Num());
+			Two.Log = Kept;
+		}
 		Page->Close();
 	}
 	return true;

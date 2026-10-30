@@ -6,6 +6,8 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Layout/Margin.h"
+#include "Math/Color.h"
 #include "Misc/Optional.h"
 #include "Sim/CosmicEndings.h"
 #include "CosmicChronicleWidget.generated.h"
@@ -27,6 +29,16 @@ namespace CosmicChronicleScreen
 	inline constexpr float RevealCapSeconds = 6.f;
 	// The opacity of another people's lines, against 1 for the life's own (inside the four colours of section 8.2).
 	inline constexpr float WorldLineOpacity = 0.7f;
+
+	// Tests: how the page draws a row - a text's size and colour (a line's: its message's), and the row's padding.
+	struct FRowLook
+	{
+		int32 Size = 0;
+		FLinearColor Color = FLinearColor::White;
+		FMargin Gap;
+
+		bool operator==(const FRowLook& Other) const { return Size == Other.Size && Color == Other.Color && Gap == Other.Gap; }
+	};
 	// A second press of 'new run' within these real seconds starts it.
 	inline constexpr float ConfirmSeconds = 3.f;
 	// The top bar's quiet notice stands over the last EndSoonTicks ticks before the clock end (one minute at x10).
@@ -37,7 +49,11 @@ namespace CosmicChronicleScreen
  * lines, the horizon line) and, outside the scroll, the cause note, the provisional notice and two buttons. A click on the page is not a map click.
  * A chapter is its title, its facts (the peoples ruled, or for a life that never ruled ST_CA Chronicle.BornAmong with its birth people, then 'wandering';
  * the rung; the cycles), then - B5 - the span with no vessel that led to it under ST_CA Chronicle.NoVessel, its body, and on the last chapter the span
- * after its death when no shown life follows (FCosmicChronicleChapter::Before, After; a span without a line shows nothing). */
+ * after its death when no shown life follows (FCosmicChronicleChapter::Before, After; a span without a line shows nothing).
+ * After the last chapter and before the fixed lines, the two books (B5 - CosmicChronicle::BuildTwoBooks): ST_CA
+ * Chronicle.BookRecorded over part one as a chapter's head (a life chapter's size, colour and padding - one chapter, not a
+ * part of the last life's), then under it Chronicle.BookClaimed over part two (part one holds part two - decision 10-ga)
+ * with each claimant's Chronicle.ClaimedBy, one colour for all their lines; nothing when both parts are empty. */
 UCLASS()
 class COSMIC_ASCENSION_API UCosmicChronicleWidget : public UUserWidget
 {
@@ -54,6 +70,8 @@ public:
 	TArray<FText> GetPageTexts() const;                     // tests: the page's texts in order (a line's message without its stamp)
 	TArray<FText> GetLineStamps() const;                    // tests: the stamps of the lines, in order
 	TArray<float> GetLineOpacities() const;
+	TArray<FLinearColor> GetLineColors() const;             // tests: the colours of the lines' messages, in order
+	TArray<CosmicChronicleScreen::FRowLook> GetRowLooks() const;   // tests: how each row of GetPageTexts is drawn, in the same order
 	const UTextBlock* GetNoteText() const { return NoteText; }
 	const UTextBlock* GetProvisionalText() const { return ProvisionalText; }
 	UCosmicActionButton* GetToMapButton() const { return ToMapButton; }
@@ -84,11 +102,13 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UCosmicActionButton> ToMapButton;
 	UPROPERTY(Transient) TObjectPtr<UCosmicActionButton> NewRunButton;
 
-	// What the page shows, row by row (GetPageTexts), the stamps and opacities of its lines.
+	// What the page shows, row by row (GetPageTexts), the stamps, opacities and colours of its lines.
 	TArray<FText> RowTexts;
 	TArray<float> RowOpacities;
+	TArray<CosmicChronicleScreen::FRowLook> RowLooks;
 	TArray<FText> Stamps;
 	TArray<float> LineOpacities;
+	TArray<FLinearColor> LineColors;
 
 	ECosmicProvisionalEnd ShownCause = ECosmicProvisionalEnd::None;
 	bool bOpen = false;

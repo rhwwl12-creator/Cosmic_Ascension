@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+@@ -502,7 +502,7 @@
+ 	if (PartOneLines < Records.Num())
+ 	{
+ 		int32 SlotsLeft = PartOneLines;
+-		for (const FCosmicClaimedGroup& Group : Books.Claimed)
++		for (const FCosmicClaimedGroup& Group : TArray<FCosmicClaimedGroup>())
+ 		{
+ 			for (const FCosmicChronicleLine& Line : Group.Lines)
+ 			{

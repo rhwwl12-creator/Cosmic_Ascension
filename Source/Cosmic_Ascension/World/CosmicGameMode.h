@@ -283,6 +283,10 @@ public:
 	ECosmicProvisionalEnd GetRunEnd() const { return RunEnd; }
 	bool IsRunEnded() const { return RunEnd != ECosmicProvisionalEnd::None; }
 	static bool IsRunEndedFor(const UUserWidget& Widget);   // the widget's owning controller holds an ended run; false without one
+	/** Announced once each time the latch changes - FollowEnd latches a cause, ClearRunEnd forgets one - after the change: what the screens show by it
+	 * that no tick redraws (B5 [B-5d1]: the log feed holds back the inauguration line of the vessel the end's tick installed - CosmicChronicle::IsUnseenLifeLine).
+	 * A screen's handler only reads (it may run inside a boundary handler). */
+	FSimpleMulticastDelegate OnRunEndChanged;
 	/** Looks at the end (nothing while it is switched off). bArrived (HandleSimTick; tests in its place): a cause seen while none is latched latches it, stops the
 	 * time whatever the automatic pause (ApplySpeed(0, RunEnd)), folds the card, logs one CosmicEnd line and starts the wait. Without it (HandleGalaxyGenerated, the
 	 * BeginPlay of this controller and of the HUD): the same latch with no wait, and while latched the page opens at once, fully shown, if the HUD has it and it is

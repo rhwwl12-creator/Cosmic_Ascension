@@ -335,5 +335,60 @@
 			"{System}|hpp(으로,로) 간 {Civ}의 함대에서 연락이 끊긴 배가 생겼다. 곁의 배들이 그 배를 부르고 또 불렀다.",
 			"{Civ}의 함대가 {System} 하늘에서 지쳐 갔다. 배에 탄 이들은 집에 보낼 글을 쓰기 시작했다."
 		]
+	},
+	{
+		"Name": "log_death_hazard",
+		"Category": "Log.Calling",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{Hazard}|hpp(이,가) 끝나던 날, {Player}|hpp(은,는) 쓰러졌다. {Hazard}|hpp(을,를) 겪은 별은 한 사람을 잃었다.",
+			"{Player}|hpp(은,는) {Hazard}|hpp(이,가) 끝날 무렵 쓰러졌다. {Hazard}|hpp(을,를) 겪은 별에 빈자리 하나가 남았다.",
+			"{Hazard}의 끝에서 {Player}|hpp(이,가) 쓰러졌다. {Hazard}|hpp(을,를) 겪은 별의 거리는 한동안 조용했다."
+		]
+	},
+	{
+		"Name": "log_inauguration",
+		"Category": "Log.Calling",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{Civ}의 {System}에서 일하던 {Player}에게 일이 맡겨졌다.",
+			"일이 {Player}에게 맡겨졌다. {Player}|hpp(은,는) {System}에서 일하던 {Civ}의 사람이었다.",
+			"{System}의 {Civ} 사람 {Player}에게 일이 맡겨졌다. 그때 {Player}|hpp(은,는) 그곳에서 일하고 있었다."
+		]
+	},
+	{
+		"Name": "log_record_destroyed",
+		"Category": "Log.Record",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{System}의 별이 무너진 일이 기록되었다.",
+			"{System}의 마지막 빛이 기록되었다.",
+			"{System}의 별빛이 꺼진 일이 기록되었다."
+		]
+	},
+	{
+		"Name": "log_record_annexed",
+		"Category": "Log.Record",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{System} 위에 그늘이 짙어진 일이 기록되었다.",
+			"{System}|hpp(이,가) 주장된 일이 기록되었다.",
+			"{System}|hpp(이,가) 그림자 아래로 들어간 일이 기록되었다."
+		]
+	},
+	{
+		"Name": "log_inauguration_unnamed",
+		"Category": "Log.Calling",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{Civ}의 사람으로 일하던 {Player}에게 일이 맡겨졌다.",
+			"일이 {Player}에게 맡겨졌다. {Player}|hpp(은,는) {Civ}의 사람이었다.",
+			"{Civ} 사람 {Player}에게 일이 맡겨졌다. 그때 {Player}|hpp(은,는) 일하고 있었다."
+		]
 	}
 ]

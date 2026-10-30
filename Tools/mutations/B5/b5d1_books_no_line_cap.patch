@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+@@ -443,7 +443,7 @@
+ 
+ 	// Part two: what the chapter's rows leave after part one and part two's head (nothing to deal when it has no entry).
+ 	const int32 PartOneRows = 1 + PartOneLines + (Books.bRecordedMore ? 1 : 0);
+-	int32 RowsLeft = MaxBookLines - PartOneRows - 1;
++	int32 RowsLeft = TNumericLimits<int32>::Max() / 2;
+ 	TArray<int32> Quota;
+ 	Quota.Init(0, Claims.Num());
+ 	if (Books.ClaimedCandidates <= MaxBookItems && Claims.Num() + Books.ClaimedCandidates <= RowsLeft)

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2483,7 +2483,7 @@
+ 				return;
+ 			}
+ 		}
+-		const bool bWasSettled = CosmicState::IsSettled(State.Systems[SystemIndex]);
++		const bool bWasSettled = true;
+ 		CosmicHazards::Destroy(Ctx, SystemIndex);
+ 		if (bWasSettled && CosmicHazards::IsDeadNode(State.Systems[SystemIndex]))
+ 		{

@@ -1,7 +1,8 @@
 // Cosmic Ascension - automation tests of the death pipeline, the interregnum's countdown and the succession (milestone B
 // item B5, [B-5b]): the death of a wanderer and of a ruler at the tenth stage, the lock of every throne on every end of a
 // reign, the leap's one number, the interregnum without a vessel, the hard reset of a succession and the first tick of a
-// new life. Design: docs/60_DECISIONS/headers/B5_death_succession_two_books.md section 2.1-2.6 and 6.
+// new life; and ([B-5d1]) the tenth stage's two lines, the death line and the inauguration line. Design:
+// docs/60_DECISIONS/headers/B5_death_succession_two_books.md section 2.1-2.6, 3.3 and 6.
 
 #include "CoreMinimal.h"
 
@@ -19,6 +20,7 @@
 #include "Events/CosmicPetitions.h"
 #include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
+#include "Log/CosmicChronicle.h"
 #include "Math/RandomStream.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
@@ -31,6 +33,7 @@
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Templates/Function.h"
 #include "Tests/CosmicTestHelpers.h"
+#include "Tests/CosmicTestProbe.h"
 
 #include <initializer_list>
 #include <limits>
@@ -52,9 +55,10 @@ namespace CosmicDeathTests
 		return Condition;
 	}
 
-	// The rows and names of these tests.
+	// The rows and names of these tests. A death's source row is a hazard row of the game (the quiet copy holds it): the death
+	// line names it ({Hazard} - [B-5d1]); no row of the game kills yet ([B-5d2]), so the record is made by hand.
 	const FName CardRow(TEXT("enc_test_death_tend"));
-	const FName DeathRow(TEXT("crisis_test_lethal"));
+	const FName DeathRow(TEXT("crisis_pre_supernova"));
 	const FName LeftEdict(TEXT("edict_test_left"));
 	const FName ClimbRow(TEXT("feat_test_leap_climb"));
 	const FName TwinA(TEXT("arch_test_twin_a"));
@@ -450,12 +454,105 @@ namespace CosmicDeathTests
 		uint32 WorldHash = 0;
 		FGalaxyState AtBirth;
 	};
+
+	// [B-5d1] The entries of the log whose row is Row: how many, and the newest (null for none).
+	int32 CountLinesOf(const FGalaxyState& State, FName Row)
+	{
+		int32 Count = 0;
+		for (const FCosmicLogEntry& Entry : State.Log)
+		{
+			Count += Entry.SourceRow == Row ? 1 : 0;
+		}
+		return Count;
+	}
+
+	const FCosmicLogEntry* NewestLineOf(const FGalaxyState& State, FName Row)
+	{
+		for (int32 Index = State.Log.Num() - 1; Index >= 0; --Index)
+		{
+			if (State.Log[Index].SourceRow == Row)
+			{
+				return &State.Log[Index];
+			}
+		}
+		return nullptr;
+	}
+
+	// What a handler of the death line saw of the state when the line was told (header section 2.2 Die (b): told before what
+	// the death changes). Reverence is people 0's.
+	struct FAtDeathLine
+	{
+		bool bHeard = false;
+		bool bEmbodied = false;
+		bool bRules = false;
+		int32 Regents = 0;
+		float Reverence = -1.f;
+		int64 PendingLeap = -1;
+		int32 SimSeed = 0;
+	};
+
+	// StepDeath with the broadcast gate open and a handler on the death line (OnLogEntry - a handler only reads); the gate is
+	// put back as it was.
+	FDeathTick StepDeathHeard(UGalaxySimulationSubsystem& Sim, const FGalaxyState& Quiet, TFunctionRef<void()> Record, FAtDeathLine& OutHeard)
+	{
+		const bool bWasBroadcasting = Sim.IsBroadcastEnabled();
+		Sim.SetBroadcastEnabled(true);
+		FDeathTick Out;
+		{
+			CosmicTests::FScopedProbe Scoped(Sim);
+			UGalaxySimulationSubsystem* Live = &Sim;
+			Scoped.Probe->OnLog = [Live, &OutHeard](const FCosmicLogEntry& Entry)
+			{
+				if (OutHeard.bHeard || Entry.SourceRow != CosmicRows::LogDeathHazard)
+				{
+					return;
+				}
+				const FGalaxyState& State = Live->GetState();
+				OutHeard.bHeard = true;
+				OutHeard.bEmbodied = State.Calling.LifeState == ELifeState::Embodied;
+				OutHeard.bRules = State.Player.Role == EPlayerRole::Ruler && !State.Civs.IsEmpty() && State.Civs[0].bIsPlayerRuled;
+				OutHeard.Regents = State.Civs.IsEmpty() ? 0 : OpenRecords(State.Civs[0], TEXT("Notable.Regent"));
+				OutHeard.Reverence = State.Civs.IsEmpty() ? -1.f : State.Civs[0].ReverenceToPlayer;
+				OutHeard.PendingLeap = State.Calling.PendingLeapTicks;
+				OutHeard.SimSeed = Live->GetRng().GetCurrentSeed();
+			};
+			Out = StepDeath(Sim, Quiet, Record);
+			Scoped.Probe->OnLog = nullptr;
+		}
+		Sim.SetBroadcastEnabled(bWasBroadcasting);
+		return Out;
+	}
+
+	// The death line of a death on the live state (section 3.3): one entry of CosmicRows::LogDeathHazard on the death's tick,
+	// Log.Calling, Severity 2, told, with no focus, naming the closed life by its name and the hazard behind the death; the last
+	// line of a wanderer's tick. What prefixes each assertion.
+	void ExpectDeathLine(FAutomationTestBase& Test, const UGalaxySimulationSubsystem& Sim, const FLifeRecord& Life, const TCHAR* Who)
+	{
+		const FGalaxyState& State = Sim.GetState();
+		const FCosmicLogEntry* Line = NewestLineOf(State, CosmicRows::LogDeathHazard);
+		Test.TestEqual(*FString::Printf(TEXT("%s: the death tells one death line"), Who), CountLinesOf(State, CosmicRows::LogDeathHazard), 1);
+		if (!Test.TestNotNull(*FString::Printf(TEXT("%s: (the death line)"), Who), Line))
+		{
+			return;
+		}
+		Test.TestEqual(*FString::Printf(TEXT("%s: on the death's tick"), Who), Line->Tick, Life.DiedTick);
+		Test.TestTrue(*FString::Printf(TEXT("%s: the calling's line, Severity 2, told"), Who), Line->Category == Tag(TEXT("Log.Calling")) && Line->Severity == 2 && !Line->bUntold);
+		Test.TestTrue(*FString::Printf(TEXT("%s: with no focus - it calls no system and no people"), Who), Line->FocusSystemID.IsNone() && Line->FocusCivID.IsNone());
+		const FString Message = Line->Message.ToString();
+		const FString Name = CosmicChronicle::VesselNameOf(Life, Sim.GetTables()).ToString();
+		Test.TestTrue(*FString::Printf(TEXT("%s: it names the vessel by its name (the third person - decision 12-da)"), Who), !Name.IsEmpty() && Message.Contains(Name));
+		const FHazardDef* Hazard = Sim.GetTables().FindHazard(Life.CauseSourceRow);
+		Test.TestTrue(*FString::Printf(TEXT("%s: and the hazard behind the death"), Who), Hazard && !Hazard->DisplayName.IsEmpty() && Message.Contains(Hazard->DisplayName.ToString()));
+	}
 }
 
 // Pins the death of a wanderer at the tenth stage (B5 header section 2.2 Die (a), (d)-(g), section 2.5 and section 6
 // Calling.DeathPipeline): no life is added or removed, the calling enters the interregnum with a leap of one number of the
 // sim stream (decision 3), every people's reverence is 0 (decision 23-na), the journey and both waiting cards are gone, the
-// knowing is the calling's and stays (section 2.1), the life records its end, and the countdown starts the next tick.
+// knowing is the calling's and stays (section 2.1), the life records its end, and the countdown starts the next tick. [B-5d1]
+// (section 2.2 Die (b), 3.3): one death line - Log.Calling, Severity 2, no focus, the vessel's name and the hazard's -, told
+// before the death changes anything and from the tell stream alone (one number; none of the sim stream), the tick's last
+// line; a cause with no row of its own (Death.Age) tells none and draws nothing.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicCallingDeathPipelineTest, "Cosmic_Ascension.Calling.DeathPipeline", CosmicTests::Flags)
 bool FCosmicCallingDeathPipelineTest::RunTest(const FString& Parameters)
 {
@@ -503,7 +600,8 @@ bool FCosmicCallingDeathPipelineTest::RunTest(const FString& Parameters)
 	Sim->SyncRngState();
 	const FGalaxyState Quiet = *State;
 
-	const FDeathTick Death = StepDeath(*Sim, Quiet, [Sim]() { RecordDeath(Sim->GetMutableState()); });
+	FAtDeathLine Heard;
+	const FDeathTick Death = StepDeathHeard(*Sim, Quiet, [Sim]() { RecordDeath(Sim->GetMutableState()); }, Heard);
 	const FCallingState& Calling = State->Calling;
 	TestTrue(TEXT("(without the death the life goes on)"), Death.Without.Calling.LifeState == ELifeState::Embodied && Death.Without.Calling.Lives.Last().DiedTick == 0);
 	TestEqual(TEXT("A death adds no life and takes none"), Calling.Lives.Num(), Quiet.Calling.Lives.Num());
@@ -535,14 +633,26 @@ bool FCosmicCallingDeathPipelineTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("and the row behind it"), Life.CauseSourceRow, DeathRow);
 	TestTrue(TEXT("The record is cleared"), !Calling.PendingEffect.IsValid() && !Calling.PendingCause.IsValid() && Calling.PendingSourceRow.IsNone());
 
+	// [B-5d1] The death line (section 2.2 Die (b), 3.3): told before what the death changes, from the tell stream alone.
+	TestEqual(TEXT("(without the death no death line)"), CountLinesOf(Death.Without, CosmicRows::LogDeathHazard), 0);
+	ExpectDeathLine(*this, *Sim, Life, TEXT("A wanderer's death"));
+	TestTrue(TEXT("It is the last line of the death's tick (the tenth stage is the last)"), !State->Log.IsEmpty() && State->Log.Last().SourceRow == CosmicRows::LogDeathHazard);
+	TestTrue(TEXT("(a handler heard it)"), Heard.bHeard);
+	TestTrue(TEXT("It is told while the vessel still stands - before the interregnum and its leap"), Heard.bEmbodied && Heard.PendingLeap == 0);
+	TestEqual(TEXT("before the reverence is cleared"), Heard.Reverence, Quiet.Civs[0].ReverenceToPlayer);
+	TestEqual(TEXT("and before any number of the death is drawn"), Heard.SimSeed, Death.SeedWithout);
+	TestEqual(TEXT("It draws one number of the tell stream more than the same tick without the death"), DrawsBetween(Death.Without.TellRngState, State->TellRngState), 1);
+
 	// Die without a vessel does nothing.
 	{
 		const int32 Seed = Sim->GetRng().GetCurrentSeed();
+		const int32 TellSeed = State->TellRngState;
 		const int64 Died = Life.DiedTick;
 		Role->Die();
 		TestEqual(TEXT("Die in the interregnum draws nothing"), Sim->GetRng().GetCurrentSeed(), Seed);
 		TestTrue(TEXT("and changes nothing"), Calling.PendingLeapTicks == Leap && Calling.LeapTicksTotal == Quiet.Calling.LeapTicksTotal + Leap
 			&& Calling.Lives.Num() == 1 && Calling.Lives.Last().DiedTick == Died);
+		TestTrue(TEXT("nor tells a second death line"), CountLinesOf(*State, CosmicRows::LogDeathHazard) == 1 && State->TellRngState == TellSeed);
 	}
 
 	// The countdown (section 2.2 (0)).
@@ -598,6 +708,29 @@ bool FCosmicCallingDeathPipelineTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("the neighbour the journey would have reached is one"), FromOrigin.Systems.Contains(6));
 		TestTrue(TEXT("(the origin is a candidate of a death elsewhere)"), CosmicSuccession::CandidatesOf(*Board, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), 0).Systems.Contains(5));
 	}
+
+	// [B-5d1] A cause with no row of its own - the measurement's borrowed Death.Age (header section 5.1; aging is 0) - is told
+	// by no line: the death is carried out as any other, and the tell stream draws nothing for it.
+	{
+		FGalaxyState* Board = LayBoard(*Sim, TablesWith(Original, nullptr, [](FCosmicRulesDef& Knobs) { Knobs.SightIntervalTicks = 100000; }));
+		if (!TestNotNull(TEXT("The board of the borrowed cause is laid"), Board))
+		{
+			return false;
+		}
+		Walk(*Sim, *Role, 0);
+		const FGalaxyState Aged = *Board;
+		const FDeathTick AgeDeath = StepDeath(*Sim, Aged, [Sim]()
+		{
+			FGalaxyState& Live = Sim->GetMutableState();
+			RecordDeath(Live);
+			Live.Calling.PendingCause = Tag(TEXT("Death.Age"));
+		});
+		TestTrue(TEXT("(the death by the borrowed cause is carried out)"), Board->Calling.LifeState == ELifeState::Interregnum
+			&& Board->Calling.Lives.Last().CauseOfDeath == Tag(TEXT("Death.Age")));
+		TestEqual(TEXT("A cause with no row of its own tells no death line"), CountLinesOf(*Board, CosmicRows::LogDeathHazard), 0);
+		TestEqual(TEXT("and draws no number of the tell stream"), DrawsBetween(AgeDeath.Without.TellRngState, Board->TellRngState), 0);
+		TestEqual(TEXT("(its numbers of the sim stream are a wanderer's death's)"), AgeDeath.ExtraDraws, 1);
+	}
 	return true;
 }
 
@@ -606,7 +739,8 @@ bool FCosmicCallingDeathPipelineTest::RunTest(const FString& Parameters)
 // row, the reign closed by Reign.Died, the vessel a wanderer with no status - but with no new eye; three numbers in the order
 // regent profile, regent name, leap; every throne locked (16 #143); the people runs under the AI from the next tick; and a
 // people that held only settlements lets them go on the death's tick without the crossing stage's error line (decision 7),
-// the next tick's cleanup taking it.
+// the next tick's cleanup taking it. [B-5d1]: the death line is told before the throne is left (the vessel still rules, no
+// regent yet, none of the three numbers drawn), from the tell stream alone.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicCallingRulerDeathTest, "Cosmic_Ascension.Calling.RulerDeath", CosmicTests::Flags)
 bool FCosmicCallingRulerDeathTest::RunTest(const FString& Parameters)
 {
@@ -635,9 +769,22 @@ bool FCosmicCallingRulerDeathTest::RunTest(const FString& Parameters)
 		State->Civs[3].ReverenceToPlayer = 0.4f;
 		const FGalaxyState Quiet = *State;
 		bool bRecorded = false;
-		const FDeathTick Death = StepDeath(*Sim, Quiet, [&bRecorded, Sim]() { bRecorded = RecordByApply(*Sim, EEffectType::KillPlayer, TEXT("Death.Hazard"), 0, DeathRow); });
+		FAtDeathLine Heard;
+		const FDeathTick Death = StepDeathHeard(*Sim, Quiet, [&bRecorded, Sim]() { bRecorded = RecordByApply(*Sim, EEffectType::KillPlayer, TEXT("Death.Hazard"), 0, DeathRow); },
+			Heard);
 		TestTrue(TEXT("The death is recorded through Apply (no system: it reaches the ruler of the people)"), bRecorded);
 		TestEqual(TEXT("A ruler's death draws exactly three numbers more than the same tick without it"), Death.ExtraDraws, 3);
+
+		// [B-5d1] The death line is told before the throne is left - the deposition's form: while the vessel still rules, before
+		// the regent is named and before any of the three numbers is drawn; from the tell stream alone.
+		ExpectDeathLine(*this, *Sim, State->Calling.Lives.Last(), TEXT("A ruler's death"));
+		TestTrue(TEXT("(a handler heard the death line)"), Heard.bHeard);
+		TestTrue(TEXT("The death line is told while the vessel still rules its people"), Heard.bEmbodied && Heard.bRules);
+		TestEqual(TEXT("before the regent is named"), Heard.Regents, 0);
+		TestEqual(TEXT("and before the regent's profile, the regent's name and the leap draw their numbers"), Heard.SimSeed, Death.SeedWithout);
+		TestEqual(TEXT("It draws one number of the tell stream more than the same tick without the death (the regent tells no line)"),
+			DrawsBetween(Death.Without.TellRngState, State->TellRngState), 1);
+		TestTrue(TEXT("It is the last line of the death's tick"), !State->Log.IsEmpty() && State->Log.Last().SourceRow == CosmicRows::LogDeathHazard);
 
 		const FCivilizationState& Civ = State->Civs[0];
 		TestTrue(TEXT("(without the death the vessel still rules)"), Death.Without.Civs[0].bIsPlayerRuled && Death.Without.Player.Role == EPlayerRole::Ruler);
@@ -1018,7 +1165,10 @@ bool FCosmicCallingNoPlayerDuringLeapTest::RunTest(const FString& Parameters)
 // (one below goes back to the first, read into the new life's peak), the Way.* powers (others go); the knowing before the
 // succession begins the knowing after it, the first contact unchanged; the new name's source string is never the previous
 // life's, even across two archetypes sharing a bank where a plain draw would repeat it; and the succession makes no notable
-// record and closes none.
+// record and closes none. [B-5d1] (section 2.2 Succeed 5, 3.3): the inauguration line after Install - Log.Calling, Severity 2,
+// the new vessel's name, its birth system and people, the tick's last line and the one that opens its chapter -, one number of
+// the tell stream and the succession's two of the sim stream unchanged; with a leap of 0 the death line and then the
+// inauguration line end the tick; the silence tells none and draws nothing of the tell stream.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicCallingHardResetTest, "Cosmic_Ascension.Calling.HardReset", CosmicTests::Flags)
 bool FCosmicCallingHardResetTest::RunTest(const FString& Parameters)
 {
@@ -1141,6 +1291,36 @@ bool FCosmicCallingHardResetTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("(both names are read from a bank)"), !PreviousName.IsEmpty() && !NewName.IsEmpty());
 		TestFalse(TEXT("The new name's source string is not the previous life's, across two archetypes sharing a bank (decision 8)"), NewName == PreviousName);
 		TestTrue(TEXT("The succession makes no notable record and closes none"), SameNotables(BeforeSucceed, *State));
+
+		// [B-5d1] The inauguration line (section 2.2 Succeed 5, 3.3): after Install, the last line of the succession's tick.
+		{
+			const FCosmicLogEntry* Line = NewestLineOf(*State, CosmicRows::LogInauguration);
+			TestEqual(TEXT("The succession tells one inauguration line"), CountLinesOf(*State, CosmicRows::LogInauguration), 1);
+			if (TestNotNull(TEXT("(the inauguration line)"), Line))
+			{
+				TestEqual(TEXT("on the succession's tick"), Line->Tick, Life.BornTick);
+				TestTrue(TEXT("the calling's line, Severity 2, told"), Line->Category == Tag(TEXT("Log.Calling")) && Line->Severity == 2 && !Line->bUntold);
+				TestTrue(TEXT("about the new life's birth system and people"), Line->FocusSystemID == Life.BirthSystemID && Line->FocusCivID == Life.BirthCivID);
+				const FString Message = Line->Message.ToString();
+				const FString Name = CosmicChronicle::VesselNameOf(Life, Sim->GetTables()).ToString();
+				TestTrue(TEXT("It names the new vessel by its name ({Player} - the third person, decision 12-da)"), !Name.IsEmpty() && Message.Contains(Name));
+				TestTrue(TEXT("its birth system ({System})"), Message.Contains(State->Systems[5].DisplayName.ToString()));
+				TestTrue(TEXT("and its birth people ({Civ})"), Message.Contains(State->Civs[1].CivName.ToString()));
+				TestTrue(TEXT("It is the last line of the succession's tick - told after Install"), &State->Log.Last() == Line);
+				TestTrue(TEXT("It is the line that opens the new life's chapter"), CosmicChronicle::OpensCalledChapter(*Line, Life));
+			}
+		}
+		// From the tell stream alone: against the same tick with one more tick of leap left (no succession), the succession's
+		// tick draws its two numbers of the sim stream (the succession's and the name's - the line none) and one of the tell
+		// stream (the line). Last in this case: the run is laid again.
+		{
+			FGalaxyState Longer = BeforeSucceed;
+			Longer.Calling.PendingLeapTicks = 2;
+			const FDeathTick Succession = StepDeath(*Sim, Longer, [Sim]() { Sim->GetMutableState().Calling.PendingLeapTicks = 1; });
+			TestTrue(TEXT("(the succession stands, and one more tick of leap stands none)"), State->Calling.Lives.Num() == 2 && Succession.Without.Calling.Lives.Num() == 1);
+			TestEqual(TEXT("The succession's tick draws its two numbers of the sim stream and no more"), Succession.ExtraDraws, 2);
+			TestEqual(TEXT("The inauguration line draws one number of the tell stream"), DrawsBetween(Succession.Without.TellRngState, State->TellRngState), 1);
+		}
 	}
 
 	// 2. The third rung, with a leap of 0 (the succession on the death's tick).
@@ -1169,6 +1349,46 @@ bool FCosmicCallingHardResetTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("The new name's source string is not the previous life's"), NameSourceOf(Sim->GetTables(), Calling.Lives[1]) == NameSourceOf(Sim->GetTables(), Calling.Lives[0]));
 		TestTrue(TEXT("The systems known before the death begin those known after the succession"), IsPrefix(BeforeDeath.Knowing.KnownSystems, State->Knowing.KnownSystems)
 			&& IsPrefix(BeforeDeath.Knowing.MetCivs, State->Knowing.MetCivs));
+
+		// [B-5d1] One tick, both lines: the death line, then the inauguration line - the tick's last two, in that order, each
+		// naming its own life.
+		const TArray<FCosmicLogEntry>& Lines = State->Log;
+		const int32 Count = Lines.Num();
+		if (TestTrue(TEXT("With a leap of 0 the tick ends with the death line, then the inauguration line"), Count >= 2
+			&& Lines[Count - 2].SourceRow == CosmicRows::LogDeathHazard && Lines[Count - 1].SourceRow == CosmicRows::LogInauguration
+			&& Lines[Count - 2].Tick == State->Tick && Lines[Count - 1].Tick == State->Tick))
+		{
+			TestTrue(TEXT("the death line names the life that closed"), Lines[Count - 2].Message.ToString().Contains(CosmicChronicle::VesselNameOf(Calling.Lives[0], Sim->GetTables()).ToString()));
+			TestTrue(TEXT("the inauguration line the life that stood up"), Lines[Count - 1].Message.ToString().Contains(CosmicChronicle::VesselNameOf(Calling.Lives[1], Sim->GetTables()).ToString()));
+		}
+	}
+
+	// 3. [B-5d1] The silence (no candidate - section 2.11): no inauguration line and no number of the tell stream, the
+	// succession's two numbers of the sim stream all the same.
+	{
+		FGalaxyState* State = LayBoard(*Sim, TablesWith(Original, nullptr, [](FCosmicRulesDef& Rules) { Rules.LeapTicksMin = 2; Rules.LeapTicksMax = 2; }), 2);
+		if (!TestNotNull(TEXT("The board of the silence is laid"), State))
+		{
+			return false;
+		}
+		Walk(*Sim, *Role, 0);
+		// The one candidate of a death in system 0 leaves the death place's galaxy row.
+		State->Systems[5].GalaxyRow = FName(TEXT("galaxy_test_apart"));
+		RecordDeath(*State);
+		Sim->StepOnce();
+		Sim->StepOnce();
+		if (!TestTrue(TEXT("(the vessel died; one tick of the leap is left)"), State->Calling.LifeState == ELifeState::Interregnum && State->Calling.PendingLeapTicks == 1))
+		{
+			return false;
+		}
+		FGalaxyState Longer = *State;
+		Longer.Calling.PendingLeapTicks = 2;
+		const FDeathTick Silence = StepDeath(*Sim, Longer, [Sim]() { Sim->GetMutableState().Calling.PendingLeapTicks = 1; });
+		TestTrue(TEXT("(the silence: no new life, no leap left)"), State->Calling.LifeState == ELifeState::Interregnum && State->Calling.PendingLeapTicks == 0
+			&& State->Calling.Lives.Num() == 1);
+		TestEqual(TEXT("The silence tells no inauguration line"), CountLinesOf(*State, CosmicRows::LogInauguration), 0);
+		TestEqual(TEXT("and draws no number of the tell stream"), DrawsBetween(Silence.Without.TellRngState, State->TellRngState), 0);
+		TestEqual(TEXT("(the succession's two numbers of the sim stream all the same)"), Silence.ExtraDraws, 2);
 	}
 	return true;
 }

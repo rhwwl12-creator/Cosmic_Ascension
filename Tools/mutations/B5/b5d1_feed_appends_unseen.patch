@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicLogFeedWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicLogFeedWidget.cpp
+@@ -208,7 +208,7 @@
+ void UCosmicLogFeedWidget::HandleLogEntry(const FCosmicLogEntry& Entry)
+ {
+ 	// OnLogEntry never fires for an untold entry (section 8.1); the check keeps the feed's rule in one place.
+-	if (Shows(Entry))
++	if (!Entry.bUntold)
+ 	{
+ 		Append(Entry);
+ 	}

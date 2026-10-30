@@ -401,7 +401,7 @@ bool FCosmicLogChronicleBuildTest::RunTest(const FString& Parameters)
 		{
 			TestEqual(TEXT("The first body ends at the death"), MessagesOf(Chapters[0]), TArray<FString>({ TEXT("before birth") }));
 			// B5 (header section 2.7, 4): what was told while no vessel stood heads the next chapter - every life's peoples -,
-			// up to where the next life opens in its BornTick tick (until the inauguration line, after that whole tick).
+			// up to where the next life opens in its BornTick tick (its inauguration line; with none in the tick, after that tick).
 			TestEqual(TEXT("The lines between the death and the next life's opening head the next chapter as its span with no vessel"), MessagesOf(Chapters[1].Before),
 				TArray<FString>({ TEXT("between lives"), TEXT("first life end"), TEXT("second life start") }));
 			TestTrue(TEXT("from the tick after the death through the birth's tick"), Chapters[1].Before.FromTick == 81 && Chapters[1].Before.ToTick == 100);
@@ -438,16 +438,16 @@ bool FCosmicLogChronicleBuildTest::RunTest(const FString& Parameters)
 		if (TestEqual(TEXT("Two lives, two chapters (no page between them)"), Chapters.Num(), 2))
 		{
 			TestEqual(TEXT("The life that died keeps the lines of its death's tick"), MessagesOf(Chapters[0]), TArray<FString>({ TEXT("first own"), TEXT("death tick") }));
-			// The one rule of where a called life opens (OpensCalledChapter, which the digest reads too): its inauguration line,
-			// [B-5d1]. Until it exists no line of the BornTick tick opens the chapter, so with a leap above 0 the whole tick -
-			// the world's stages that ran before the succession - is the span's.
+			// The one rule of where a called life opens (OpensCalledChapter, which the digest reads too): its inauguration line
+			// ([B-5d1] - the next block). A BornTick tick that holds none (this board) opens no chapter inside it, so with a leap
+			// above 0 the whole tick - the world's stages that ran before the succession - is the span's.
 			TestEqual(TEXT("The span reads every life's peoples, leaves out the two books' entries and holds the BornTick tick"), MessagesOf(Chapters[1].Before),
 				TArray<FString>({ TEXT("later people s1"), TEXT("far s2"), TEXT("old people s1"), TEXT("eve"), TEXT("birth tick") }));
 			TestTrue(TEXT("(from the tick after the death through the BornTick tick)"), Chapters[1].Before.FromTick == 101 && Chapters[1].Before.ToTick == 200);
 			TestEqual(TEXT("another people's Severity 2 is dimmed there"), OwnsOf(Chapters[1].Before.Lines), TArray<bool>({ true, false, true, true, true }));
 			TestEqual(TEXT("(its candidates)"), Chapters[1].Before.Candidates, 5);
 			TestFalse(TEXT("(under its cap)"), Chapters[1].Before.bMore);
-			TestEqual(TEXT("Until the inauguration line, no line of the BornTick tick opens the body"), MessagesOf(Chapters[1]), TArray<FString>({ TEXT("called s1") }));
+			TestEqual(TEXT("Without an inauguration line, no line of the BornTick tick opens the body"), MessagesOf(Chapters[1]), TArray<FString>({ TEXT("called s1") }));
 			TestFalse(TEXT("A shown life follows the death: no span after the last"), Chapters[1].After.HasSpan());
 			TestEqual(TEXT("The never-ruled life's own lines are of its birth people"), Chapters[1].Candidates, 1);
 		}
@@ -526,6 +526,113 @@ bool FCosmicLogChronicleBuildTest::RunTest(const FString& Parameters)
 		}
 	}
 
+	// ---- B5 [B-5d1]: the inauguration line opens the called life's chapter (CosmicChronicle::OpensCalledChapter) ----
+	{
+		const FName Inauguration = CosmicRows::LogInauguration;
+		FLifeRecord Called = LifeOf(200, CivB);
+		Called.LifeIndex = 2;
+		Called.RuledCivIDs.Reset();
+		// The rule alone: the line of the called life's BornTick tick whose row is the inauguration's, and no other.
+		TestTrue(TEXT("The inauguration line of the called life's BornTick tick opens its chapter"),
+			CosmicChronicle::OpensCalledChapter(EntryOf(200, TEXT("Log.Calling"), 2, CivB, TEXT("inaugurated"), Inauguration), Called));
+		TestFalse(TEXT("An inauguration line of another tick does not"),
+			CosmicChronicle::OpensCalledChapter(EntryOf(199, TEXT("Log.Calling"), 2, CivB, TEXT("inaugurated"), Inauguration), Called));
+		TestFalse(TEXT("nor the death line of the BornTick tick (a leap of 0)"),
+			CosmicChronicle::OpensCalledChapter(EntryOf(200, TEXT("Log.Calling"), 2, NAME_None, TEXT("died"), CosmicRows::LogDeathHazard), Called));
+		TestFalse(TEXT("nor another line of the calling with no row"), CosmicChronicle::OpensCalledChapter(EntryOf(200, TEXT("Log.Calling"), 2, CivB, TEXT("calling")), Called));
+		// Its second row (told in its place after a fallen's first person about the birth system - docs/70 section 8.3 rule 5): the
+		// same one rule.
+		TestTrue(TEXT("The unnamed inauguration line of the BornTick tick opens the chapter too"),
+			CosmicChronicle::OpensCalledChapter(EntryOf(200, TEXT("Log.Calling"), 2, CivB, TEXT("inaugurated unnamed"), CosmicRows::LogInaugurationUnnamed), Called));
+		TestFalse(TEXT("but not on another tick"),
+			CosmicChronicle::OpensCalledChapter(EntryOf(201, TEXT("Log.Calling"), 2, CivB, TEXT("inaugurated unnamed"), CosmicRows::LogInaugurationUnnamed), Called));
+
+		// A death at 100 and its line; the called life born at 200: that tick's world lines (the stages before the tenth), its
+		// inauguration line (the tenth stage, after Install), then a line told after it before the next tick (a command of the
+		// new vessel between ticks).
+		FGalaxyState State;
+		State.Tick = 400;
+		State.Calling.Lives.Add(LifeOf(0, CivA));
+		State.Calling.Lives[0].DiedTick = 100;
+		State.Calling.Lives.Add(Called);
+		State.Log.Add(EntryOf(50, TEXT("Log.Civ"), 2, CivA, TEXT("first own")));
+		State.Log.Add(EntryOf(100, TEXT("Log.Calling"), 2, NAME_None, TEXT("died"), CosmicRows::LogDeathHazard));
+		State.Log.Add(EntryOf(150, TEXT("Log.Civ"), 2, CivB, TEXT("between")));
+		State.Log.Add(EntryOf(200, TEXT("Log.Civ"), 2, CivB, TEXT("birth tick")));
+		State.Log.Add(EntryOf(200, TEXT("Log.Calling"), 2, CivB, TEXT("inaugurated"), Inauguration));
+		State.Log.Add(EntryOf(200, TEXT("Log.Civ"), 1, CivB, TEXT("after inauguration")));
+		State.Log.Add(EntryOf(210, TEXT("Log.Civ"), 1, CivB, TEXT("called s1")));
+		const TArray<FCosmicChronicleChapter> Chapters = CosmicChronicle::Build(State);
+		if (TestEqual(TEXT("(the inauguration's run: two chapters)"), Chapters.Num(), 2))
+		{
+			TestEqual(TEXT("The life that died closes with its death line"), MessagesOf(Chapters[0]), TArray<FString>({ TEXT("first own"), TEXT("died") }));
+			TestEqual(TEXT("The span with no vessel holds the BornTick tick's lines before the inauguration line - not the line"), MessagesOf(Chapters[1].Before),
+				TArray<FString>({ TEXT("between"), TEXT("birth tick") }));
+			TestTrue(TEXT("(from the tick after the death through the BornTick tick)"), Chapters[1].Before.FromTick == 101 && Chapters[1].Before.ToTick == 200);
+			TestEqual(TEXT("The called life's chapter opens with its inauguration line; what is told after it on that tick is its own"), MessagesOf(Chapters[1]),
+				TArray<FString>({ TEXT("inaugurated"), TEXT("after inauguration"), TEXT("called s1") }));
+		}
+
+		// A leap of 0: the death and the inauguration on one tick, the world's lines of the tick before both - the dead life's
+		// chapter ends with its death line, the inauguration line opens the next, and no span stands between them.
+		{
+			FGalaxyState Zero = State;
+			Zero.Calling.Lives[0].DiedTick = 200;
+			Zero.Log.Reset();
+			Zero.Log.Add(EntryOf(50, TEXT("Log.Civ"), 2, CivA, TEXT("first own")));
+			Zero.Log.Add(EntryOf(150, TEXT("Log.Civ"), 2, CivB, TEXT("between")));
+			Zero.Log.Add(EntryOf(200, TEXT("Log.Civ"), 2, CivB, TEXT("birth tick")));
+			Zero.Log.Add(EntryOf(200, TEXT("Log.Calling"), 2, NAME_None, TEXT("died"), CosmicRows::LogDeathHazard));
+			Zero.Log.Add(EntryOf(200, TEXT("Log.Calling"), 2, CivB, TEXT("inaugurated"), Inauguration));
+			Zero.Log.Add(EntryOf(200, TEXT("Log.Civ"), 1, CivB, TEXT("after inauguration")));
+			Zero.Log.Add(EntryOf(210, TEXT("Log.Civ"), 1, CivB, TEXT("called s1")));
+			const TArray<FCosmicChronicleChapter> Same = CosmicChronicle::Build(Zero);
+			if (TestEqual(TEXT("(a leap of 0 with its two lines: two chapters)"), Same.Num(), 2))
+			{
+				TestEqual(TEXT("A leap of 0 splits its tick at the inauguration line: the dead life's chapter ends with its death line"), MessagesOf(Same[0]),
+					TArray<FString>({ TEXT("first own"), TEXT("between"), TEXT("birth tick"), TEXT("died") }));
+				TestEqual(TEXT("and the called life's opens with its inauguration line"), MessagesOf(Same[1]),
+					TArray<FString>({ TEXT("inaugurated"), TEXT("after inauguration"), TEXT("called s1") }));
+				TestFalse(TEXT("(no span with no vessel)"), Same[1].Before.HasSpan() || !Same[1].Before.Lines.IsEmpty());
+			}
+		}
+
+		// The succession on the end's tick (digest-5): the life it stood up gets no chapter, and the span after the death - the
+		// last chapter's After - stops before its inauguration line: no Log.Calling line stands under Chronicle.NoVessel.
+		{
+			FGalaxyState AtEnd = State;
+			AtEnd.Tick = 200;
+			const TArray<FCosmicChronicleChapter> Ended = CosmicChronicle::Build(AtEnd);
+			if (TestEqual(TEXT("(the end's tick: one chapter)"), Ended.Num(), 1))
+			{
+				TestTrue(TEXT("The last chapter's span runs through the end's tick"), Ended[0].After.FromTick == 101 && Ended[0].After.ToTick == 200);
+				TestEqual(TEXT("and stops before the inauguration line of the life born there"), MessagesOf(Ended[0].After),
+					TArray<FString>({ TEXT("between"), TEXT("birth tick") }));
+				TestFalse(TEXT("No Log.Calling line stands in it"), Ended[0].After.Lines.ContainsByPredicate([](const FCosmicChronicleLine& Line)
+					{
+						return Line.Entry.Category == Tag(TEXT("Log.Calling"));
+					}));
+			}
+			// The same life's line on the screens that read where the run ended (CosmicChronicle::IsUnseenLifeLine - the feed): its
+			// inauguration line is held back once the run has ended, either row; no other line of that tick, nothing while the
+			// run goes on, nothing once the life is shown.
+			const FCosmicLogEntry* Inaugurated = AtEnd.Log.FindByPredicate([](const FCosmicLogEntry& Entry) { return Entry.Message.ToString() == TEXT("inaugurated"); });
+			const FCosmicLogEntry* BirthTick = AtEnd.Log.FindByPredicate([](const FCosmicLogEntry& Entry) { return Entry.Message.ToString() == TEXT("birth tick"); });
+			const FCosmicLogEntry* AfterIt = AtEnd.Log.FindByPredicate([](const FCosmicLogEntry& Entry) { return Entry.Message.ToString() == TEXT("after inauguration"); });
+			if (TestTrue(TEXT("(the end's tick holds its lines)"), Inaugurated && BirthTick && AfterIt))
+			{
+				TestTrue(TEXT("The inauguration line of the life the end's tick installed is a line never seen once the run has ended"),
+					CosmicChronicle::IsUnseenLifeLine(AtEnd, *Inaugurated, true));
+				TestTrue(TEXT("its unnamed row too"), CosmicChronicle::IsUnseenLifeLine(AtEnd,
+					EntryOf(200, TEXT("Log.Calling"), 2, CivB, TEXT("inaugurated unnamed"), CosmicRows::LogInaugurationUnnamed), true));
+				TestFalse(TEXT("not while the run goes on"), CosmicChronicle::IsUnseenLifeLine(AtEnd, *Inaugurated, false));
+				TestFalse(TEXT("nor a world line of that tick before it"), CosmicChronicle::IsUnseenLifeLine(AtEnd, *BirthTick, true));
+				TestFalse(TEXT("nor one after it"), CosmicChronicle::IsUnseenLifeLine(AtEnd, *AfterIt, true));
+				TestFalse(TEXT("nor the same line once the life is shown (the run ended later)"), CosmicChronicle::IsUnseenLifeLine(State, *Inaugurated, true));
+			}
+		}
+	}
+
 	// ---- No knowing read, nothing written, the subsystem's entry point ----
 	{
 		FGalaxyState State;
@@ -596,6 +703,287 @@ bool FCosmicLogChronicleBuildTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Lines let go through tick 300: the first chapter says 'more'"), MoreOf(1, 300), TArray<bool>({ true, false }));
 		TestEqual(TEXT("through tick 500, the second's first tick: both do"), MoreOf(1, 500), TArray<bool>({ true, true }));
 		TestEqual(TEXT("Nothing let go: neither does"), MoreOf(0, 900), TArray<bool>({ false, false }));
+	}
+	return true;
+}
+
+// B5 (header section 4, 6; decisions 10, 11): the two books. Their items are Log.Record and Log.Claim entries alone - a sign
+// (Log.Sign) is told apart by its category, and no death line, inauguration line or line with the vessel is ever in them -;
+// part one in time order over the chronicle then the log, part two grouped by claimant in the order of its first line,
+// untold lines read and knowing not; the caps (12 a part, 28 the chapter, every head and 'more' counted) and the 'more' of
+// each part; no chapter when both parts are empty, part one's 'more' over a part two alone; the claimant's title. Its pair:
+// the span with no vessel at a chapter's head (and every body) holds no Log.Claim and no Log.Record.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicLogTwoBooksNoVesselTest, "Cosmic_Ascension.Log.TwoBooksNoVessel", CosmicTests::Flags)
+bool FCosmicLogTwoBooksNoVesselTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicChronicleTests;
+	const FName Silence = CosmicRows::TransSilence;
+	const FName Other(TEXT("trans_test_other"));
+	const FName Third(TEXT("trans_test_third"));
+	auto Record = [](int64 Tick, const FString& Message)
+	{
+		return EntryOf(Tick, TEXT("Log.Record"), 1, CivA, Message, NAME_None, true);
+	};
+	auto Claim = [](int64 Tick, FName Claimant, const FString& Message)
+	{
+		return EntryOf(Tick, TEXT("Log.Claim"), 1, CivA, Message, Claimant, true);
+	};
+	auto GroupsOf = [](const FCosmicTwoBooks& Books)
+	{
+		TArray<FString> Out;
+		for (const FCosmicClaimedGroup& Group : Books.Claimed)
+		{
+			Out.Add(Group.TranscendentID.ToString() + TEXT(": ") + FString::Join(MessagesOf(Group.Lines), TEXT(", ")));
+		}
+		return Out;
+	};
+	auto EveryItem = [](const FCosmicTwoBooks& Books)
+	{
+		TArray<FCosmicChronicleLine> Out = Books.Recorded;
+		for (const FCosmicClaimedGroup& Group : Books.Claimed)
+		{
+			Out.Append(Group.Lines);
+		}
+		return Out;
+	};
+	const FGameplayTag RecordTag = Tag(TEXT("Log.Record"));
+	const FGameplayTag ClaimTag = Tag(TEXT("Log.Claim"));
+
+	// ---- A run of two lives: a death at 100, a called vessel born at 200 ----
+	FGalaxyState State;
+	State.Tick = 400;
+	State.Calling.Lives.Add(LifeOf(0, CivA));
+	State.Calling.Lives[0].DiedTick = 100;
+	FLifeRecord Called = LifeOf(200, CivB);
+	Called.LifeIndex = 2;
+	Called.RuledCivIDs.Reset();
+	State.Calling.Lives.Add(Called);
+	State.Chronicle.Add(Record(10, TEXT("record old")));
+	State.Chronicle.Add(EntryOf(20, TEXT("Log.Civ"), 2, CivA, TEXT("own old")));
+	State.Log.Add(EntryOf(50, TEXT("Log.Civ"), 2, CivA, TEXT("first own")));
+	State.Log.Add(EntryOf(100, TEXT("Log.Calling"), 2, NAME_None, TEXT("Vessel One fell {Player}")));
+	State.Log.Add(EntryOf(120, TEXT("Log.Civ"), 2, CivA, TEXT("expiry a")));
+	State.Log.Add(Record(120, TEXT("record a")));
+	State.Log.Add(EntryOf(120, TEXT("Log.Sign"), 1, CivA, TEXT("sign a"), CosmicRows::LogSignClaim));
+	State.Log.Add(Claim(120, Silence, TEXT("claim a")));
+	State.Log.Add(EntryOf(150, TEXT("Log.Civ"), 2, CivX, TEXT("far")));
+	State.Log.Add(Record(160, TEXT("record b")));
+	State.Log.Add(Claim(160, Other, TEXT("claim b")));
+	State.Log.Add(EntryOf(200, TEXT("Log.Calling"), 2, CivB, TEXT("Vessel Two {Player} entrusted")));
+	State.Log.Add(Record(300, TEXT("record c")));
+	State.Log.Add(Claim(300, Silence, TEXT("claim c")));
+
+	const FCosmicTwoBooks Books = CosmicChronicle::BuildTwoBooks(State);
+	TestEqual(TEXT("Part one: every Log.Record entry in time order, the chronicle's before the log's, untold ones read"), MessagesOf(Books.Recorded),
+		TArray<FString>({ TEXT("record old"), TEXT("record a"), TEXT("record b"), TEXT("record c") }));
+	TestEqual(TEXT("Part two: every Log.Claim entry grouped by claimant, the groups in the order of their first line"), GroupsOf(Books),
+		TArray<FString>({ Silence.ToString() + TEXT(": claim a, claim c"), Other.ToString() + TEXT(": claim b") }));
+	TestTrue(TEXT("(the counts before the caps, no 'more')"), Books.RecordedCandidates == 4 && Books.ClaimedCandidates == 3 && !Books.bRecordedMore && !Books.bClaimedMore);
+	TestEqual(TEXT("The chapter's rows: two heads, two claimants' heads and seven lines"), Books.NumRows(), 11);
+	for (const FCosmicChronicleLine& Item : EveryItem(Books))
+	{
+		const FString Said = Item.Entry.Message.ToString();
+		TestTrue(*FString::Printf(TEXT("'%s' is a Log.Record or Log.Claim item"), *Said), Item.Entry.Category == RecordTag || Item.Entry.Category == ClaimTag);
+		TestFalse(*FString::Printf(TEXT("'%s' is no sign, death, inauguration or vessel's line"), *Said),
+			Said.Contains(TEXT("{Player}")) || Said.Contains(TEXT("Vessel")) || Said.Contains(TEXT("sign")));
+		TestTrue(*FString::Printf(TEXT("'%s' stands at full opacity"), *Said), Item.bOwn);
+	}
+	{
+		FGalaxyState Knowing = State;
+		Knowing.Knowing.KnownSystems.AddDefaulted();
+		Knowing.Knowing.MetCivs.AddDefaulted();
+		const FCosmicTwoBooks Same = CosmicChronicle::BuildTwoBooks(Knowing);
+		TestTrue(TEXT("Knowing changes no item"), MessagesOf(Same.Recorded) == MessagesOf(Books.Recorded) && GroupsOf(Same) == GroupsOf(Books));
+	}
+
+	// ---- The pair: no Log.Claim or Log.Record in the span with no vessel at the next chapter's head, nor in any body ----
+	const TArray<FCosmicChronicleChapter> Chapters = CosmicChronicle::Build(State);
+	if (TestEqual(TEXT("(two chapters)"), Chapters.Num(), 2))
+	{
+		TestTrue(TEXT("(the span with no vessel holds the world's lines of its ticks)"), MessagesOf(Chapters[1].Before).Contains(TEXT("far"))
+			&& MessagesOf(Chapters[1].Before).Contains(TEXT("expiry a")));
+		for (const FCosmicChronicleChapter& Chapter : Chapters)
+		{
+			for (const TArray<FCosmicChronicleLine>* Lines : { &Chapter.Before.Lines, &Chapter.Lines, &Chapter.After.Lines })
+			{
+				for (const FCosmicChronicleLine& Line : *Lines)
+				{
+					TestFalse(*FString::Printf(TEXT("'%s' of a chapter or of a span with no vessel is no Log.Claim or Log.Record"), *Line.Entry.Message.ToString()),
+						Line.Entry.Category == ClaimTag || Line.Entry.Category == RecordTag);
+				}
+			}
+		}
+	}
+
+	// ---- No chapter when both parts are empty ----
+	{
+		FGalaxyState Quiet = State;
+		Quiet.Chronicle.RemoveAll([&](const FCosmicLogEntry& Entry) { return Entry.Category == RecordTag || Entry.Category == ClaimTag; });
+		Quiet.Log.RemoveAll([&](const FCosmicLogEntry& Entry) { return Entry.Category == RecordTag || Entry.Category == ClaimTag; });
+		const FCosmicTwoBooks Nothing = CosmicChronicle::BuildTwoBooks(Quiet);
+		TestTrue(TEXT("Neither part has an entry: no chapter, no row"), Nothing.IsEmpty() && Nothing.NumRows() == 0 && Nothing.Recorded.IsEmpty() && Nothing.Claimed.IsEmpty());
+		TestTrue(TEXT("(other lines, a sign among them, make none)"), !Quiet.Log.IsEmpty());
+
+		// A part two over an empty part one (a save from before the records): part one's head says there was more.
+		FGalaxyState Alone = Quiet;
+		Alone.Log.Add(Claim(310, Silence, TEXT("claim x")));
+		Alone.Log.Add(Claim(320, Silence, TEXT("claim y")));
+		const FCosmicTwoBooks ClaimsOnly = CosmicChronicle::BuildTwoBooks(Alone);
+		TestTrue(TEXT("A part two alone: part one has no line and says 'more'"), ClaimsOnly.Recorded.IsEmpty() && ClaimsOnly.bRecordedMore && !ClaimsOnly.IsEmpty());
+		TestEqual(TEXT("(its rows: part one's head and 'more', part two's head, a claimant's head, two lines)"), ClaimsOnly.NumRows(), 6);
+		Alone.Log.Add(Record(330, TEXT("record x")));
+		TestFalse(TEXT("A part one with a line has no such 'more'"), CosmicChronicle::BuildTwoBooks(Alone).bRecordedMore);
+	}
+
+	// ---- The caps ----
+	auto Board = [](int32 Records, const TArray<TPair<FName, int32>>& Claims)
+	{
+		FGalaxyState Capped;
+		Capped.Tick = 100000;
+		Capped.Calling.Lives.Add(LifeOf(0, CivA));
+		int64 Tick = 1;
+		for (int32 At = 0; At < Records; ++At)
+		{
+			Capped.Log.Add(EntryOf(Tick++, TEXT("Log.Record"), 1, CivA, FString::Printf(TEXT("record %d"), At)));
+		}
+		// The claimants' lines dealt in turn, so their first lines come in the order given.
+		int32 Most = 0;
+		for (const TPair<FName, int32>& Of : Claims)
+		{
+			Most = FMath::Max(Most, Of.Value);
+		}
+		for (int32 At = 0; At < Most; ++At)
+		{
+			for (const TPair<FName, int32>& Of : Claims)
+			{
+				if (At < Of.Value)
+				{
+					Capped.Log.Add(EntryOf(Tick++, TEXT("Log.Claim"), 1, CivA, FString::Printf(TEXT("%s %d"), *Of.Key.ToString(), At), Of.Key));
+				}
+			}
+		}
+		return Capped;
+	};
+	{
+		const FCosmicTwoBooks Over = CosmicChronicle::BuildTwoBooks(Board(15, TArray<TPair<FName, int32>>()));
+		TestEqual(TEXT("Part one keeps MaxBookItems lines: its first half and its last"), MessagesOf(Over.Recorded),
+			TArray<FString>({ TEXT("record 0"), TEXT("record 1"), TEXT("record 2"), TEXT("record 3"), TEXT("record 4"), TEXT("record 5"),
+				TEXT("record 9"), TEXT("record 10"), TEXT("record 11"), TEXT("record 12"), TEXT("record 13"), TEXT("record 14") }));
+		TestTrue(TEXT("and says 'more'"), Over.bRecordedMore && Over.RecordedCandidates == 15);
+		TestTrue(TEXT("No claim: no part two"), Over.Claimed.IsEmpty() && !Over.bClaimedMore && Over.NumRows() == 14);
+		TestFalse(TEXT("Exactly MaxBookItems lines: no 'more'"), CosmicChronicle::BuildTwoBooks(Board(CosmicChronicle::MaxBookItems, TArray<TPair<FName, int32>>())).bRecordedMore);
+	}
+	{
+		// Both parts over their caps: part one takes 14 rows, part two the 14 left - its head, its 'more' and the claimants
+		// dealt a line in turn (a first line costs its head too).
+		TArray<TPair<FName, int32>> Three;
+		Three.Emplace(Silence, 10);
+		Three.Emplace(Other, 3);
+		Three.Emplace(Third, 2);
+		const FCosmicTwoBooks Full = CosmicChronicle::BuildTwoBooks(Board(15, Three));
+		TestEqual(TEXT("A full chapter is MaxBookLines rows"), Full.NumRows(), CosmicChronicle::MaxBookLines);
+		TestTrue(TEXT("and part two says 'more'"), Full.bClaimedMore && Full.ClaimedCandidates == 15);
+		TestEqual(TEXT("Every claimant stands, in the order of its first line, its first and last lines kept"), GroupsOf(Full),
+			TArray<FString>({ Silence.ToString() + TEXT(": trans_silence 0, trans_silence 1, trans_silence 8, trans_silence 9"),
+				Other.ToString() + TEXT(": trans_test_other 0, trans_test_other 1, trans_test_other 2"),
+				Third.ToString() + TEXT(": trans_test_third 0, trans_test_third 1") }));
+		int32 Items = 0;
+		for (const FCosmicClaimedGroup& Group : Full.Claimed)
+		{
+			Items += Group.Lines.Num();
+		}
+		TestTrue(TEXT("(part two within MaxBookItems)"), Items <= CosmicChronicle::MaxBookItems);
+	}
+	{
+		// More claimants than the rows can head: the first that fit, one line each, and part two's 'more'.
+		TArray<TPair<FName, int32>> Many;
+		for (int32 At = 0; At < 14; ++At)
+		{
+			Many.Emplace(FName(*FString::Printf(TEXT("trans_test_%02d"), At)), 1);
+		}
+		const FCosmicTwoBooks Crowd = CosmicChronicle::BuildTwoBooks(Board(0, Many));
+		TestEqual(TEXT("Fourteen claimants of one line: the first MaxBookItems stand"), Crowd.Claimed.Num(), CosmicChronicle::MaxBookItems);
+		TestTrue(TEXT("(the first ones, in order)"), Crowd.Claimed.Num() == CosmicChronicle::MaxBookItems && Crowd.Claimed[0].TranscendentID == Many[0].Key
+			&& Crowd.Claimed.Last().TranscendentID == Many[CosmicChronicle::MaxBookItems - 1].Key);
+		TestTrue(TEXT("with part two's 'more' and part one's (no record)"), Crowd.bClaimedMore && Crowd.bRecordedMore);
+		TestTrue(TEXT("within MaxBookLines rows"), Crowd.NumRows() <= CosmicChronicle::MaxBookLines);
+	}
+	{
+		// Just fitting: twelve records and one claimant of twelve lines - 13 + 14 rows, no 'more'.
+		TArray<TPair<FName, int32>> One;
+		One.Emplace(Silence, CosmicChronicle::MaxBookItems);
+		const FCosmicTwoBooks Fits = CosmicChronicle::BuildTwoBooks(Board(CosmicChronicle::MaxBookItems, One));
+		TestTrue(TEXT("What fits both caps stands whole, with no 'more'"), !Fits.bRecordedMore && !Fits.bClaimedMore && Fits.Claimed.Num() == 1
+			&& Fits.Claimed[0].Lines.Num() == CosmicChronicle::MaxBookItems);
+		TestEqual(TEXT("(its rows)"), Fits.NumRows(), 27);
+	}
+	{
+		// Part two's own item cap (header section 4 'each <= 12 items'), the rows left aside: one record, one claimant of 20
+		// lines - 25 rows are free, yet part two shows MaxBookItems lines, its first 6 and last 6, and says 'more'.
+		TArray<TPair<FName, int32>> Twenty;
+		Twenty.Emplace(Silence, 20);
+		const FCosmicTwoBooks Long = CosmicChronicle::BuildTwoBooks(Board(1, Twenty));
+		TestEqual(TEXT("One claimant of 20 lines with rows to spare: MaxBookItems lines, its first half and its last"), GroupsOf(Long),
+			TArray<FString>({ Silence.ToString() + TEXT(": trans_silence 0, trans_silence 1, trans_silence 2, trans_silence 3, trans_silence 4, trans_silence 5, ")
+				TEXT("trans_silence 14, trans_silence 15, trans_silence 16, trans_silence 17, trans_silence 18, trans_silence 19") }));
+		TestTrue(TEXT("and part two says 'more'"), Long.bClaimedMore && Long.ClaimedCandidates == 20 && !Long.bRecordedMore);
+		TestTrue(TEXT("(the item cap, not the rows, stopped it)"), Long.NumRows() < CosmicChronicle::MaxBookLines);
+	}
+	{
+		// Part one holds what part two shows (losses-1, decision 10-ga): ten settled systems destroyed, then ten systems joined
+		// (each join's record told just before its claim, on its tick, about its system) - 20 records over part one's 12 slots,
+		// all 10 claims shown. Every shown claim's place has its record shown; the two slots left go to the destructions'
+		// first and last; part one stays in time order.
+		FGalaxyState Mixed;
+		Mixed.Tick = 1000;
+		Mixed.Calling.Lives.Add(LifeOf(0, CivA));
+		auto About = [](FCosmicLogEntry Entry, const FString& SystemID)
+		{
+			Entry.FocusSystemID = FName(*SystemID);
+			return Entry;
+		};
+		int64 Tick = 1;
+		for (int32 At = 0; At < 10; ++At)
+		{
+			Mixed.Log.Add(About(Record(Tick++, FString::Printf(TEXT("destroyed %d"), At)), FString::Printf(TEXT("sys_d%d"), At)));
+		}
+		for (int32 At = 0; At < 10; ++At)
+		{
+			Mixed.Log.Add(About(Record(Tick, FString::Printf(TEXT("joined %d"), At)), FString::Printf(TEXT("sys_j%d"), At)));
+			Mixed.Log.Add(About(Claim(Tick++, Silence, FString::Printf(TEXT("mine %d"), At)), FString::Printf(TEXT("sys_j%d"), At)));
+		}
+		const FCosmicTwoBooks Held = CosmicChronicle::BuildTwoBooks(Mixed);
+		TestTrue(TEXT("(both parts: 12 of 20 records with 'more', the 10 claims whole)"), Held.Recorded.Num() == CosmicChronicle::MaxBookItems && Held.bRecordedMore
+			&& Held.Claimed.Num() == 1 && Held.Claimed[0].Lines.Num() == 10 && !Held.bClaimedMore);
+		for (const FCosmicClaimedGroup& Group : Held.Claimed)
+		{
+			for (const FCosmicChronicleLine& Shown : Group.Lines)
+			{
+				TestTrue(*FString::Printf(TEXT("'%s' has its place's record shown in part one"), *Shown.Entry.Message.ToString()),
+					Held.Recorded.ContainsByPredicate([&Shown](const FCosmicChronicleLine& Line)
+					{
+						return Line.Entry.FocusSystemID == Shown.Entry.FocusSystemID && Line.Entry.Tick == Shown.Entry.Tick;
+					}));
+			}
+		}
+		TestEqual(TEXT("Part one: the records of the shown claims first, the slots left to the other records' first and last, in time order"), MessagesOf(Held.Recorded),
+			TArray<FString>({ TEXT("destroyed 0"), TEXT("destroyed 9"), TEXT("joined 0"), TEXT("joined 1"), TEXT("joined 2"), TEXT("joined 3"), TEXT("joined 4"),
+				TEXT("joined 5"), TEXT("joined 6"), TEXT("joined 7"), TEXT("joined 8"), TEXT("joined 9") }));
+		TestTrue(TEXT("(within MaxBookLines rows)"), Held.NumRows() <= CosmicChronicle::MaxBookLines);
+	}
+
+	// ---- The claimant's title ----
+	{
+		UDataTable* Transcendents = CosmicTests::NewTable(FTranscendentDef::StaticStruct());
+		FTranscendentDef Titled;
+		Titled.Title = FText::AsCultureInvariant(TEXT("the other"));
+		Transcendents->AddRow(Other, Titled);
+		Transcendents->AddRow(Third, FTranscendentDef());
+		FCosmicDataTables Tables;
+		Tables.Transcendents = Transcendents;
+		TestEqual(TEXT("A claimant's head is its row's Title"), CosmicChronicle::ClaimantTitleOf(Other, Tables).ToString(), FString(TEXT("the other")));
+		TestTrue(TEXT("empty for a row without one, a missing row and no row"), CosmicChronicle::ClaimantTitleOf(Third, Tables).IsEmpty()
+			&& CosmicChronicle::ClaimantTitleOf(FName(TEXT("trans_test_missing")), Tables).IsEmpty() && CosmicChronicle::ClaimantTitleOf(NAME_None, Tables).IsEmpty());
 	}
 	return true;
 }

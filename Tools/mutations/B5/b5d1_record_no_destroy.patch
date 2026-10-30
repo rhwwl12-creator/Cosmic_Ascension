@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2487,7 +2487,6 @@
+ 		CosmicHazards::Destroy(Ctx, SystemIndex);
+ 		if (bWasSettled && CosmicHazards::IsDeadNode(State.Systems[SystemIndex]))
+ 		{
+-			RecordRow = CosmicRows::LogRecordDestroyed;
+ 		}
+ 		// The collapse of the people the vessel rules: the deposition pipeline (section 4.4). Destroy has let the people's
+ 		// settlements go with its last settled system (section 5.7). Apply keeps the rules of the record (Embodied, the

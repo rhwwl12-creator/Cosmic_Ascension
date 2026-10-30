@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+@@ -341,7 +341,7 @@
+ 		int32 BodyEnd = FMath::Max(FirstAfter(Chapter.ToTick), BodyBegin);
+ 		if (Life.DiedTick > 0 && Lives.IsValidIndex(LifeAt + 1))
+ 		{
+-			BodyEnd = FMath::Max(FMath::Min(BodyEnd, OpensAt(Lives[LifeAt + 1])), BodyBegin);
++			BodyEnd = FMath::Max(BodyEnd, BodyBegin);
+ 		}
+ 		if (LifeAt > 0 && bPreviousDied)
+ 		{

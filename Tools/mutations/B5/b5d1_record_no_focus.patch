@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2547,7 +2547,7 @@
+ 		check(Log);
+ 		FFormatNamedArguments Args;
+ 		Args.Add(TEXT("System"), State.Systems[SystemIndex].DisplayName);
+-		Log->PushRow(RecordRow, 1, Args, State.Systems[SystemIndex].SystemID, State.Civs.IsValidIndex(OwnerIndex) ? State.Civs[OwnerIndex].CivID : FName());
++		Log->PushRow(RecordRow, 1, Args, NAME_None, State.Civs.IsValidIndex(OwnerIndex) ? State.Civs[OwnerIndex].CivID : FName());
+ 	}
+ 	// The voice of the fallen that a claim joined (B4 section 2.6): after the narrator's expiry line and the record line, the
+ 	// sign - below the third rung - and then its first-person line (ClaimTemplates, from the third rung; kept untold below

@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -452,6 +452,7 @@
+ 	// (and still rules) when it is told, and no number of the death is drawn yet.
+ 	if (UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>())
+ 	{
++		Sim->GetRng().GetFraction();
+ 		CosmicPlayerRoleImpl::TellDeath(*Log, Sim->GetTables(), Life);
+ 	}
+ 

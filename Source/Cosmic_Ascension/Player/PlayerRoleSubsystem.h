@@ -79,7 +79,11 @@ public:
 	/**
 	 * The death pipeline (B5 header section 2.2 Die), run by the tenth stage for Effect.KillPlayer while the calling is
 	 * Embodied: (a) the life closes - DiedTick, CauseOfDeath = PendingCause, CauseSourceRow = PendingSourceRow; (b) the death
-	 * line arrives with [B-5d1]; (c) a ruler leaves the throne - one number for the regent profile, ReleaseThrone with
+	 * line, told before anything else changes (the deposition's form): the row of the cause - CosmicRows::LogDeathHazard for
+	 * Death.Hazard, none for a cause with no row of its own (the measurement's Death.Age: no line, no tell number) - Log.Calling,
+	 * Severity 2, no focus, {Player} the closed life's name (CosmicChronicle::VesselNameOf), {Hazard} the display name of the
+	 * hazard row CauseSourceRow (empty when the table lacks it); one number of the tell stream, none of the sim stream;
+	 * (c) a ruler leaves the throne - one number for the regent profile, ReleaseThrone with
 	 * Reign.Died (its regent hook draws the name, source row PendingSourceRow), every throne locked (Tick + ThroneLockTicks,
 	 * never earlier - 16 #143); no new eye; (d) every people's ReverenceToPlayer = 0 (decision 23-na: the new vessel is a
 	 * stranger to every people); (e) the waiting cards, the first contact waiting and the journey are cleared; (f) LifeState =
@@ -96,8 +100,14 @@ public:
 	 * always - rule 3) and the calling stays in the interregnum with no leap left (the silence - never drawn again). Else the
 	 * calling's tier below the third goes back to the first (before Install reads it into PeakTier), its powers keep Way.*
 	 * only (the rest is given again from the tier - no row gives one yet), and Install makes the candidate the number picks
-	 * (CosmicSuccession::PickOf) the birth place of a wanderer of its owner (the name's number). The inauguration line
-	 * arrives with [B-5d1]. Does nothing outside the interregnum; inside a handler of a Core Logic delegate an error line.
+	 * (CosmicSuccession::PickOf) the birth place of a wanderer of its owner (the name's number). Then the inauguration line
+	 * (CosmicRows::LogInauguration - Log.Calling, Severity 2, {Player} the new life's name (CosmicChronicle::VesselNameOf),
+	 * {Civ} and {System} its birth people and system, the line's focus; one number of the tell stream): the line that opens
+	 * the called life's chapter (CosmicChronicle::OpensCalledChapter). When this tick's log already holds a fallen's first
+	 * person about the birth system (UCosmicLogSubsystem::HasClaimLineThisTick), its second row in its place:
+	 * CosmicRows::LogInaugurationUnnamed, {Player} and {Civ}, no {System}, the birth people the focus and no focus system
+	 * (docs/70 section 8.3 rule 5) - the same one number. No line in the silence, nor when Install refused.
+	 * Does nothing outside the interregnum; inside a handler of a Core Logic delegate an error line.
 	 */
 	void Succeed();
 

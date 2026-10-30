@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+@@ -262,7 +262,7 @@
+ {
+ 	// The vessel the end's tick installed was never shown (ShownLivesOf): its inauguration line is that life's alone.
+ 	const TArray<FLifeRecord>& Lives = State.Calling.Lives;
+-	return bRunEnded && ShownLivesOf(State) < Lives.Num() && OpensCalledChapter(Entry, Lives.Last());
++	return (bRunEnded || Entry.Tick >= 0) && ShownLivesOf(State) < Lives.Num() && OpensCalledChapter(Entry, Lives.Last());
+ }
+ 
+ TArray<FCosmicChronicleChapter> CosmicChronicle::BuildCapped(const FGalaxyState& State, int32 Cap)

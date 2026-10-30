@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2541,7 +2541,7 @@
+ 	// place. About the system and the people that lost it; {System} alone. Kept untold whatever the scope (the log's rule
+ 	// for Log.Record); one number of the tell stream, none of the sim stream, nothing of the world. The cleanup of the
+ 	// crossing stage records nothing: a people leaves there only after the expiry that took its last system recorded it.
+-	if (!RecordRow.IsNone())
++	if (!RecordRow.IsNone() && State.Civs.IsValidIndex(OwnerIndex) && State.Civs[OwnerIndex].Traits.HasTag(FGameplayTag::RequestGameplayTag(FName(TEXT("Trait.Faith.Remnant")))))
+ 	{
+ 		UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+ 		check(Log);

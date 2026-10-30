@@ -3,7 +3,7 @@
 // no first-person, Log.Record or Log.Calling line read, the closing line of what changed out of knowledge, the quiet line
 // that never says nothing happened, the knowledge from before the next life (KnownViewOf's cut at its BornTick), a leap
 // of 0, the cap and the throne items' bound, the seat a rebellion took with no record before it, the span's end where the
-// next life opens (the chronicle's own cut, CosmicChronicle::OpensCalledChapter), and the sentence variants of CosmicSeed's
+// next life opens (the chronicle's own cut, CosmicChronicle::OpensCalledChapter - its inauguration line, [B-5d1]), and the sentence variants of CosmicSeed's
 // Purpose::Digest (12). A pure function over the state: the boards are laid by hand and no tick runs. Design:
 // docs/60_DECISIONS/headers/B5_death_succession_two_books.md section 2.7 and 6.
 
@@ -12,6 +12,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Core/CosmicSeed.h"
+#include "Core/CosmicTags.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
@@ -792,8 +793,9 @@ bool FCosmicUIDigestTest::RunTest(const FString& Parameters)
 			return false;
 		}
 		FGalaxyState& State = *Board;
-		// A star lost on the succession's own tick (the world's stages run before the succession). Until the inauguration
-		// line exists ([B-5d1]) no line of that tick opens the next life's chapter: the whole tick is the span's.
+		// A star lost on the succession's own tick (the world's stages run before the succession). With no inauguration line
+		// in that tick (a called life whose line is missing - section 6 has one) no line of it opens the next life's chapter:
+		// the whole tick is the span's.
 		const TCHAR* const LostAtBirth = TEXT("<supernova on 2 at the succession>");
 		AddOutsideLines(State);
 		State.Log.Add(LineOf(1800, TEXT("Log.Crisis"), 1, State.Systems[2].SystemID, State.Civs[0].CivID, Rows.Supernova, LostAtBirth));
@@ -820,6 +822,60 @@ bool FCosmicUIDigestTest::RunTest(const FString& Parameters)
 		{
 			TestTrue(TEXT("The span after the last chapter is the digest's span"), Ended[0].After.FromTick == Digest.AfterTick + 1 && Ended[0].After.ToTick == Digest.ThroughTick);
 			TestTrue(TEXT("... and holds the same line"), LinesHave(Ended[0].After.Lines, LostAtBirth));
+		}
+	}
+
+	// ---- 6. The inauguration line ([B-5d1]): the span - the digest's and the chronicle's - stops before it ----
+	{
+		FGalaxyState* Board = Lay(*Sim);
+		if (!TestNotNull(TEXT("The inauguration's board is laid"), Board))
+		{
+			return false;
+		}
+		FGalaxyState& State = *Board;
+		// The succession's tick: a star lost in the world's stages, then the inauguration line (the tenth stage, after
+		// Install), then a rung of people 1 told after it before the next tick - read, it would be an item.
+		const TCHAR* const LostAtBirth = TEXT("<supernova on 2 at the succession>");
+		const TCHAR* const Inaugurated = TEXT("<inaugurated>");
+		const TCHAR* const RoseAfter = TEXT("<people 1 rose after the inauguration>");
+		State.Log.Add(LineOf(1800, TEXT("Log.Crisis"), 1, State.Systems[2].SystemID, State.Civs[0].CivID, Rows.Supernova, LostAtBirth));
+		State.Log.Add(LineOf(1800, TEXT("Log.Calling"), 2, State.Systems[5].SystemID, State.Civs[1].CivID, CosmicRows::LogInauguration, Inaugurated));
+		State.Log.Add(LineOf(1800, TEXT("Log.Ascension"), 2, State.Systems[6].SystemID, State.Civs[1].CivID, RiseRow, RoseAfter));
+		Kill(State, 2);
+		State.Tick = 1850;
+		const FCosmicDigest Digest = CosmicDigest::DigestOf(*Sim, 0);
+		TestEqual(TEXT("The digest's span still ends at the next life's birth"), Digest.ThroughTick, static_cast<int64>(1800));
+		TestTrue(TEXT("It reads the succession's tick up to the inauguration line: the star lost before it is an item"),
+			HasItemAbout(Digest, State.Systems[2].SystemID));
+		TestFalse(TEXT("and stops there: the rung told after it on that tick is no item"), HasItemAbout(Digest, State.Civs[1].CivID));
+		TestEqual(TEXT("(one item)"), Digest.Items.Num(), 1);
+		const TArray<FCosmicChronicleChapter> Chapters = CosmicChronicle::Build(State);
+		if (TestEqual(TEXT("(the inauguration's run: two chapters)"), Chapters.Num(), 2))
+		{
+			const FCosmicChronicleNoVessel& Span = Chapters[1].Before;
+			TestTrue(TEXT("The chronicle's span with no vessel is the digest's span"), Span.FromTick == Digest.AfterTick + 1 && Span.ToTick == Digest.ThroughTick);
+			TestTrue(TEXT("... with the line the digest read"), LinesHave(Span.Lines, LostAtBirth));
+			TestFalse(TEXT("... and neither the inauguration line nor what follows it"), LinesHave(Span.Lines, Inaugurated) || LinesHave(Span.Lines, RoseAfter));
+			TestTrue(TEXT("The next life's chapter opens with its inauguration line"), !Chapters[1].Lines.IsEmpty()
+				&& Chapters[1].Lines[0].Entry.Message.ToString() == Inaugurated);
+			TestTrue(TEXT("... and holds the rung told after it"), LinesHave(Chapters[1].Lines, RoseAfter));
+		}
+
+		// The succession on the end's tick (digest-5): the life it stood up gets no chapter; the last chapter's After - the span
+		// to the end - stops before that life's inauguration line, as the digest does.
+		State.Tick = 1800;
+		const FCosmicDigest AtEnd = CosmicDigest::DigestOf(*Sim, 0);
+		TestTrue(TEXT("At the end's tick the digest stops before the inauguration line too"), AtEnd.Items.Num() == 1 && HasItemAbout(AtEnd, State.Systems[2].SystemID)
+			&& !HasItemAbout(AtEnd, State.Civs[1].CivID));
+		const TArray<FCosmicChronicleChapter> Ended = CosmicChronicle::Build(State);
+		if (TestEqual(TEXT("(the end's tick: one chapter)"), Ended.Num(), 1))
+		{
+			const FCosmicChronicleNoVessel& After = Ended[0].After;
+			TestTrue(TEXT("The span after the last chapter is the digest's span"), After.FromTick == AtEnd.AfterTick + 1 && After.ToTick == AtEnd.ThroughTick);
+			TestTrue(TEXT("... with the line before the inauguration"), LinesHave(After.Lines, LostAtBirth));
+			TestFalse(TEXT("The inauguration line of a life born on the end's tick is not in the last chapter's After span"), LinesHave(After.Lines, Inaugurated));
+			TestFalse(TEXT("... nor any Log.Calling line"), After.Lines.ContainsByPredicate([](const FCosmicChronicleLine& Line) { return Line.Entry.Category == CosmicTags::LogCalling(); }));
+			TestFalse(TEXT("... nor the line told after it"), LinesHave(After.Lines, RoseAfter));
 		}
 	}
 	return true;

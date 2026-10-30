@@ -1,0 +1,13 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -524,6 +524,10 @@
+ 		// stays in the interregnum with no leap left. It is never drawn again.
+ 		Sim->GetRng().GetFraction();
+ 		Calling.PendingLeapTicks = 0;
++		if (UCosmicLogSubsystem* Told = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>())
++		{
++			CosmicPlayerRoleImpl::TellInauguration(*Told, *Sim, Calling.Lives.Last());
++		}
+ 		Sim->SyncRngState();
+ 		return;
+ 	}

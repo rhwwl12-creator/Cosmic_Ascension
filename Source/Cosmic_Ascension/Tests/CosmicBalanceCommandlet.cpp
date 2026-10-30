@@ -39,6 +39,7 @@
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "UObject/Package.h"
 #include "UObject/UnrealType.h"
+#include "World/CosmicDigest.h"
 #include "World/CosmicRulerPolicy.h"
 #include "World/CosmicWandererPolicy.h"
 
@@ -815,6 +816,32 @@ namespace
 		return Kept;
 	}
 
+	// B5 [B-5d1] (header section 5.1): the two books' input - the entries of Category over the chronicle and the log, told or not
+	// (the books read neither bUntold nor Knowing).
+	int32 EntriesOf(const FGalaxyState& State, const FGameplayTag& Category)
+	{
+		int32 Count = 0;
+		for (const TArray<FCosmicLogEntry>* Entries : { &State.Chronicle, &State.Log })
+		{
+			for (const FCosmicLogEntry& Entry : *Entries)
+			{
+				Count += Entry.Category == Category ? 1 : 0;
+			}
+		}
+		return Count;
+	}
+
+	// The lines the second part of the two books shows, over its groups (the heads not counted).
+	int32 ClaimedLinesOf(const FCosmicTwoBooks& Books)
+	{
+		int32 Lines = 0;
+		for (const FCosmicClaimedGroup& Group : Books.Claimed)
+		{
+			Lines += Group.Lines.Num();
+		}
+		return Lines;
+	}
+
 	// The engine bytes of the last sample packed at three Kraken levels apart (the measurement of MVP item 5: size against
 	// time). Only the packing is timed.
 	FString PackLevelsOf(UCosmicSaveGame* Save, const FGalaxyState& State)
@@ -1381,8 +1408,11 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					const FLifeRecord& PreviousLife = Lives[Lives.Num() - 2];
 					const bool bSamePeople = Born.BirthCivID == PreviousLife.BirthCivID || (!PreviousLife.RuledCivIDs.IsEmpty() && Born.BirthCivID == PreviousLife.RuledCivIDs.Last());
 					const FCivilizationState* Owner = State.Civs.FindByPredicate([&Born](const FCivilizationState& Civ) { return Civ.CivID == Born.BirthCivID; });
-					Calling.Successions += FString::Printf(TEXT("%s%lld:%d:%d:%d:%d:%d:T%d"), Calling.Successions.IsEmpty() ? TEXT("") : TEXT(","), State.Tick, Found.Systems.Num(),
-						Found.Relaxed, FromDeath.IsValidIndex(Birth) ? FromDeath[Birth] : -1, bSamePeople ? 1 : 0, bNear ? 1 : 0, Owner ? static_cast<int32>(Owner->Tier) + 1 : 0);
+					// [B-5d1] (header section 5.1, 5.2 bundle 1): the digest page's lines of this interregnum, by the presentation's own
+					// pure function (what the pages show at this boundary; reads only).
+					const int32 DigestLines = CosmicDigest::LinesOf(*Sim, CosmicDigest::LastClosedLifeOf(State), false).Num();
+					Calling.Successions += FString::Printf(TEXT("%s%lld:%d:%d:%d:%d:%d:T%d:D%d"), Calling.Successions.IsEmpty() ? TEXT("") : TEXT(","), State.Tick, Found.Systems.Num(),
+						Found.Relaxed, FromDeath.IsValidIndex(Birth) ? FromDeath[Birth] : -1, bSamePeople ? 1 : 0, bNear ? 1 : 0, Owner ? static_cast<int32>(Owner->Tier) + 1 : 0, DigestLines);
 					Calling.FirstSuccessionTick = Calling.FirstSuccessionTick < 0 ? State.Tick : Calling.FirstSuccessionTick;
 				}
 			}
@@ -2337,11 +2367,17 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					State.Calling.Lives.Num(), Calling.FirstReignEndTick, Calling.ReignEndTick, Calling.CrownedAfterTick, Calling.Chances.Num(), ByEnd, Grace, Branch,
 					*ChancesText(Calling.Chances), *CountsText(Failed), Calling.BlockedRuledTicks, Calling.BlockedRuledEpisodes, Calling.BlockedRuledOneSystem, Calling.BlockedRuledLater,
 					Calling.BlockedRuledByEnd, Calling.FirstBlockedRuled, Calling.BlockedAIPairTicks, Calling.WindowRaisedTick, Counts.FirstSiegeTargetTick, *CountsText(Calling.WindowRaisedReasons));
-				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance calling deaths: death asked at %lld (recorded %d); deaths %d (by end %d) by cause [%s] by row [%s]; first death at %lld as %s, %lld after the last reign's end; leaps [%s] (total %lld, cap %d); successions [%s] (tick:candidates:relaxed:lanes from the death:same people:hazard within 2 lanes:birth rung); first throne after a succession at %lld (%s); state %s (leap left %lld); interregnum ticks %lld in %.1f ms; end %s (by a new people %d); reigns begun while a carded claim stood %d, claims delayed twice %d"),
+				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance calling deaths: death asked at %lld (recorded %d); deaths %d (by end %d) by cause [%s] by row [%s]; first death at %lld as %s, %lld after the last reign's end; leaps [%s] (total %lld, cap %d); successions [%s] (tick:candidates:relaxed:lanes from the death:same people:hazard within 2 lanes:birth rung:digest lines); first throne after a succession at %lld (%s); state %s (leap left %lld); interregnum ticks %lld in %.1f ms; end %s (by a new people %d); reigns begun while a carded claim stood %d, claims delayed twice %d"),
 					DeathAt, Calling.DeathAtRecorded, Calling.Deaths, Calling.DeathsByEnd, *CountsText(Calling.DeathsByCause), *CountsText(Calling.DeathsByRow), Calling.FirstDeathTick,
 					Calling.FirstDeathRole, Calling.FirstDeathGap, *Calling.Leaps, State.Calling.LeapTicksTotal, RulesNow.LeapTotalCap, *Calling.Successions, Calling.ThroneAfterSuccession,
 					Calling.ThroneAfterSuccessionPath, State.Calling.LifeState == ELifeState::Interregnum ? TEXT("interregnum") : TEXT("embodied"), State.Calling.PendingLeapTicks,
 					Calling.LeapTicksRun, Calling.LeapMicros / 1000.0, CosmicEndings::NameOf(Counts.FirstEnd), Calling.EndByNewPeople, Calling.ReignsDuringCardedClaims, PressureCounts.DelayedTwice);
+				// [B-5d1] (header section 5.1, 5.2 bundle 1; docs/70 section 8.4): the two books at the run's end, by the presentation's
+				// own pure function - its input (every Log.Record and Log.Claim entry of the chronicle and the log) and its chapter.
+				const FCosmicTwoBooks Books = CosmicChronicle::BuildTwoBooks(State);
+				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance calling books: entries record %d claim %d; rows %d (cap %d); part one %d of %d (more %d); part two %d lines in %d groups of %d (more %d)"),
+					EntriesOf(State, CosmicTags::LogRecord()), EntriesOf(State, CosmicTags::LogClaim()), Books.NumRows(), CosmicChronicle::MaxBookLines, Books.Recorded.Num(),
+					Books.RecordedCandidates, Books.bRecordedMore ? 1 : 0, ClaimedLinesOf(Books), Books.Claimed.Num(), Books.ClaimedCandidates, Books.bClaimedMore ? 1 : 0);
 				if (SaveAt >= 1 && SaveAt <= Ticks && bSaveShape && !bSavedAt)
 				{
 					UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -SaveAt %lld wrote no slot"), SaveAt);

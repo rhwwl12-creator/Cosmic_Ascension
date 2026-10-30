@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+@@ -316,7 +316,7 @@
+ 					Args.Add(TEXT("Transcendent"), Claimant);
+ 					AddText(FText::Format(Label(TEXT("Chronicle.ClaimedBy")), Args), 14, CosmicPalette::Grey, FMargin(0.f, 6.f, 0.f, 4.f));
+ 				}
+-				AddLines(Group.Lines, &BookLineColor);
++				AddLines(Group.Lines, nullptr);
+ 			}
+ 			if (Books.bClaimedMore)
+ 			{

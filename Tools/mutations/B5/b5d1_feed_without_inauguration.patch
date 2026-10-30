@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -547,7 +547,7 @@
+ 	// (5) The inauguration line, after Install: the new vessel stands with its name. None when Install refused it - the calling
+ 	// then stays in the interregnum, as in the silence, which tells no line either.
+ 	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+-	if (Log && Calling.LifeState == ELifeState::Embodied && !Calling.Lives.IsEmpty())
++	if (Log && Calling.LifeState == ELifeState::Interregnum && !Calling.Lives.IsEmpty())
+ 	{
+ 		CosmicPlayerRoleImpl::TellInauguration(*Log, *Sim, Calling.Lives.Last());
+ 	}

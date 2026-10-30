@@ -1,0 +1,27 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -448,13 +448,6 @@
+ 	Life.CauseOfDeath = Calling.PendingCause;
+ 	Life.CauseSourceRow = Calling.PendingSourceRow;
+ 
+-	// (b) The death line, told before what the death changes - as the deposition tells its fall first: the vessel still stands
+-	// (and still rules) when it is told, and no number of the death is drawn yet.
+-	if (UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>())
+-	{
+-		CosmicPlayerRoleImpl::TellDeath(*Log, Sim->GetTables(), Life);
+-	}
+-
+ 	// (c) A ruler leaves the throne: one number for the regent's profile, one in ReleaseThrone for the regent's name (the
+ 	// deposition's form), whether or not a people is there; every throne is locked (16 #143 - the three ends of a reign lock
+ 	// alike). No new eye: the dead vessel looks at nothing.
+@@ -463,6 +456,10 @@
+ 		const float RegentRoll = Sim->GetRng().GetFraction();
+ 		ReleaseThrone(CosmicState::PickAIProfile(RegentRoll), CosmicTags::ReignDied(), Calling.PendingSourceRow);
+ 		CosmicPlayerRoleImpl::LockEveryThrone(State, Rules);
++	}
++	if (UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>())
++	{
++		CosmicPlayerRoleImpl::TellDeath(*Log, Sim->GetTables(), Life);
+ 	}
+ 
+ 	// (d) No people reveres the next vessel for this one's sake (decision 23-na), before the succession draws.

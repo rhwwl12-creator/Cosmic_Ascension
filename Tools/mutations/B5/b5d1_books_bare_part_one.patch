@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+@@ -439,7 +439,7 @@
+ 	// dealt first and part one then chosen to hold what part two shows (below).
+ 	const int32 PartOneLines = FMath::Min(Records.Num(), MaxBookItems);
+ 	// Part one holds part two (decision 10-ga): a part two over an empty part one says that part one is not whole.
+-	Books.bRecordedMore = PartOneLines < Records.Num() || (Records.IsEmpty() && Books.ClaimedCandidates > 0);
++	Books.bRecordedMore = PartOneLines < Records.Num();
+ 
+ 	// Part two: what the chapter's rows leave after part one and part two's head (nothing to deal when it has no entry).
+ 	const int32 PartOneRows = 1 + PartOneLines + (Books.bRecordedMore ? 1 : 0);

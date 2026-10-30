@@ -40,6 +40,14 @@ namespace CosmicChronicleWidgetImpl
 	constexpr float StampWidth = 90.f;
 	const FName ToMapAction(TEXT("to_map"));
 	const FName NewRunAction(TEXT("new_run"));
+	// A chapter's head: a life chapter's ('the Nth - name'), and the two books' chapter's (B5 - its first part's head).
+	constexpr int32 ChapterHeadSize = 26;
+	const FMargin ChapterHeadGap(0.f, 8.f, 0.f, 2.f);
+	// The two books (B5): part two's head under the chapter's, and the one colour of all their lines - the colour a chapter
+	// gives its Severity 1 lines (CosmicLogFeed::ColorOf), so a first-person line is no other colour than the record under
+	// which it stands.
+	constexpr int32 BookHeadSize = 18;
+	const FLinearColor BookLineColor = CosmicPalette::White;
 
 	UTextBlock* TextOf(UWidgetTree& Tree, const FText& Words, int32 Size, const FLinearColor& Color)
 	{
@@ -145,8 +153,10 @@ void UCosmicChronicleWidget::BuildPage()
 
 	RowTexts.Reset();
 	RowOpacities.Reset();
+	RowLooks.Reset();
 	Stamps.Reset();
 	LineOpacities.Reset();
+	LineColors.Reset();
 	LineRows.Reset();
 	if (!Page || !WidgetTree)
 	{
@@ -160,7 +170,7 @@ void UCosmicChronicleWidget::BuildPage()
 		return;
 	}
 	const FGalaxyState& State = Sim->GetState();
-	auto AddRow = [&](UWidget* Row, const FText& Words, float Opacity, const FMargin& Gap)
+	auto AddRow = [&](UWidget* Row, const FText& Words, float Opacity, const FMargin& Gap, int32 Size, const FLinearColor& Color)
 	{
 		Row->SetRenderOpacity(0.f);
 		Page->AddChild(Row);
@@ -174,14 +184,16 @@ void UCosmicChronicleWidget::BuildPage()
 		LineRows.Add(Row);
 		RowTexts.Add(Words);
 		RowOpacities.Add(Opacity);
+		RowLooks.Add({ Size, Color, Gap });
 	};
 	auto AddText = [&](const FText& Words, int32 Size, const FLinearColor& Color, const FMargin& Gap)
 	{
-		AddRow(TextOf(*WidgetTree, Words, Size, Color), Words, 1.f, Gap);
+		AddRow(TextOf(*WidgetTree, Words, Size, Color), Words, 1.f, Gap, Size, Color);
 	};
 	// The lines of a body or of a span with no vessel: the stamp, always in cycles (the chronicle reads as the book's own
-	// count - UI/CosmicUILabels.h), the message in the feed's colour, and two opacities.
-	auto AddLines = [&](const TArray<FCosmicChronicleLine>& Lines)
+	// count - UI/CosmicUILabels.h), the message in the feed's colour, and two opacities. The two books give one colour for
+	// all their lines (OneColor).
+	auto AddLines = [&](const TArray<FCosmicChronicleLine>& Lines, const FLinearColor* OneColor)
 	{
 		for (const FCosmicChronicleLine& Line : Lines)
 		{
@@ -193,12 +205,14 @@ void UCosmicChronicleWidget::BuildPage()
 			StampText->SetJustification(ETextJustify::Right);
 			StampBox->SetContent(StampText);
 			Row->AddChildToHorizontalBox(StampBox)->SetPadding(FMargin(0.f, 1.f, 10.f, 0.f));
-			UTextBlock* Message = TextOf(*WidgetTree, Line.Entry.Message, 16, CosmicLogFeed::ColorOf(Line.Entry.Severity, Line.Entry.Category));
+			const FLinearColor Color = OneColor ? *OneColor : CosmicLogFeed::ColorOf(Line.Entry.Severity, Line.Entry.Category);
+			UTextBlock* Message = TextOf(*WidgetTree, Line.Entry.Message, 16, Color);
 			Row->AddChildToHorizontalBox(Message)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 			const float Opacity = Line.bOwn ? 1.f : CosmicChronicleScreen::WorldLineOpacity;
-			AddRow(Row, Line.Entry.Message, Opacity, FMargin(0.f, 0.f, 0.f, 4.f));
+			AddRow(Row, Line.Entry.Message, Opacity, FMargin(0.f, 0.f, 0.f, 4.f), 16, Color);
 			Stamps.Add(Stamp);
 			LineOpacities.Add(Opacity);
+			LineColors.Add(Color);
 		}
 	};
 	// A span with no vessel (B5 header section 2.7, 4 - decision 14): its sub-head over its lines, in the chapter's own
@@ -210,7 +224,7 @@ void UCosmicChronicleWidget::BuildPage()
 			return;
 		}
 		AddText(Label(TEXT("Chronicle.NoVessel")), 14, CosmicPalette::Grey, FMargin(0.f, 6.f, 0.f, 4.f));
-		AddLines(Span.Lines);
+		AddLines(Span.Lines, nullptr);
 		if (Span.bMore)
 		{
 			AddText(Label(TEXT("Chronicle.More")), 16, CosmicPalette::Grey, FMargin(0.f, 4.f, 0.f, 0.f));
@@ -227,7 +241,7 @@ void UCosmicChronicleWidget::BuildPage()
 		// "The Nth", with the vessel's name when it has one.
 		const FText Nth = FText::Format(Label(TEXT("Chronicle.Life")), FText::AsNumber(Life.LifeIndex));
 		const FText Name = CosmicChronicle::VesselNameOf(Life, Sim->GetTables());
-		AddText(Name.IsEmpty() ? Nth : FText::Format(Label(TEXT("List.Pair")), Nth, Name), 26, CosmicPalette::Gold, FMargin(0.f, 8.f, 0.f, 2.f));
+		AddText(Name.IsEmpty() ? Nth : FText::Format(Label(TEXT("List.Pair")), Nth, Name), ChapterHeadSize, CosmicPalette::Gold, ChapterHeadGap);
 		// The facts of the life - a UI line: the peoples it ruled in order ('A -> B', a people taken again after another
 		// once more, one taken again at once not twice), 'wandering' when its last reign ended and it walked on (B1), the
 		// rung, the cycles it lasted. A life that never ruled (B5 - a called vessel) says where it was born and that it
@@ -266,14 +280,51 @@ void UCosmicChronicleWidget::BuildPage()
 		// The span with no vessel that led to this life, at the head of its chapter; then the body; then, on the last chapter,
 		// the span after its death when no shown life follows.
 		AddSpan(Chapter.Before);
-		AddLines(Chapter.Lines);
+		AddLines(Chapter.Lines, nullptr);
 		if (Chapter.bMore)
 		{
 			AddText(Label(TEXT("Chronicle.More")), 16, CosmicPalette::Grey, FMargin(0.f, 4.f, 0.f, 0.f));
 		}
 		AddSpan(Chapter.After);
 	}
-	// (The two books - B5.) The epilogue's two fixed lines and the horizon line: the same whatever ended the run.
+	// The two books (B5 header section 4, decisions 10 and 11): after the life chapters, before the fixed lines - one chapter,
+	// headed as a life chapter is by part one's head (so it never reads as a part of the last life's chapter, which may end
+	// with a death and the span with no vessel), then part two under it as its part (part one holds part two - decision
+	// 10-ga), never side by side, no number but the stamps. Their lines are a chapter's lines (the stamp in
+	// cycles, the same size, opacity 1) in one colour, the first-person lines too: purple is the feed's alone, and two colours
+	// here would read as two camps (B4 header). Part one holds part two (decision 10-ga): it stands whenever the chapter
+	// does; part two only over a line; a claimant's head only with its Title. No chapter when both parts are empty, and no
+	// closing line of their own ('the other book' is Chronicle.Unopened, once - decision 10-da).
+	const FCosmicTwoBooks Books = CosmicChronicle::BuildTwoBooks(State);
+	if (!Books.IsEmpty())
+	{
+		AddText(Label(TEXT("Chronicle.BookRecorded")), ChapterHeadSize, CosmicPalette::Gold, ChapterHeadGap);
+		AddLines(Books.Recorded, &BookLineColor);
+		if (Books.bRecordedMore)
+		{
+			AddText(Label(TEXT("Chronicle.More")), 16, CosmicPalette::Grey, FMargin(0.f, 4.f, 0.f, 0.f));
+		}
+		if (!Books.Claimed.IsEmpty())
+		{
+			AddText(Label(TEXT("Chronicle.BookClaimed")), BookHeadSize, CosmicPalette::Grey, FMargin(0.f, 14.f, 0.f, 6.f));
+			for (const FCosmicClaimedGroup& Group : Books.Claimed)
+			{
+				const FText Claimant = CosmicChronicle::ClaimantTitleOf(Group.TranscendentID, Sim->GetTables());
+				if (!Claimant.IsEmpty())
+				{
+					FFormatNamedArguments Args;
+					Args.Add(TEXT("Transcendent"), Claimant);
+					AddText(FText::Format(Label(TEXT("Chronicle.ClaimedBy")), Args), 14, CosmicPalette::Grey, FMargin(0.f, 6.f, 0.f, 4.f));
+				}
+				AddLines(Group.Lines, &BookLineColor);
+			}
+			if (Books.bClaimedMore)
+			{
+				AddText(Label(TEXT("Chronicle.More")), 16, CosmicPalette::Grey, FMargin(0.f, 4.f, 0.f, 0.f));
+			}
+		}
+	}
+	// The epilogue's two fixed lines and the horizon line: the same whatever ended the run.
 	AddText(Label(TEXT("Chronicle.Opened")), 22, CosmicPalette::White, FMargin(0.f, 24.f, 0.f, 4.f));
 	AddText(Label(TEXT("Chronicle.Unopened")), 18, CosmicPalette::Grey, FMargin(0.f, 0.f, 0.f, 18.f));
 	AddText(Label(TEXT("Chronicle.Horizon")), 18, CosmicPalette::White, FMargin(0.f, 0.f, 0.f, 8.f));
@@ -457,6 +508,16 @@ TArray<FText> UCosmicChronicleWidget::GetLineStamps() const
 TArray<float> UCosmicChronicleWidget::GetLineOpacities() const
 {
 	return LineOpacities;
+}
+
+TArray<FLinearColor> UCosmicChronicleWidget::GetLineColors() const
+{
+	return LineColors;
+}
+
+TArray<CosmicChronicleScreen::FRowLook> UCosmicChronicleWidget::GetRowLooks() const
+{
+	return RowLooks;
 }
 
 void UCosmicChronicleWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)

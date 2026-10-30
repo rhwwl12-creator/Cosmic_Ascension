@@ -1,0 +1,32 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2541,14 +2541,6 @@
+ 	// place. About the system and the people that lost it; {System} alone. Kept untold whatever the scope (the log's rule
+ 	// for Log.Record); one number of the tell stream, none of the sim stream, nothing of the world. The cleanup of the
+ 	// crossing stage records nothing: a people leaves there only after the expiry that took its last system recorded it.
+-	if (!RecordRow.IsNone())
+-	{
+-		UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+-		check(Log);
+-		FFormatNamedArguments Args;
+-		Args.Add(TEXT("System"), State.Systems[SystemIndex].DisplayName);
+-		Log->PushRow(RecordRow, 1, Args, State.Systems[SystemIndex].SystemID, State.Civs.IsValidIndex(OwnerIndex) ? State.Civs[OwnerIndex].CivID : FName());
+-	}
+ 	// The voice of the fallen that a claim joined (B4 section 2.6): after the narrator's expiry line and the record line, the
+ 	// sign - below the third rung - and then its first-person line (ClaimTemplates, from the third rung; kept untold below
+ 	// it), both through PushWithSign. The tell stream only, two numbers a joining when the row has lines and none when it has none; no key of
+@@ -2573,6 +2565,14 @@
+ 			Log->PushWithSign(Line, Fallen->ClaimTemplates, CosmicRows::LogSignClaim, Args);
+ 		}
+ 	}
++	if (!RecordRow.IsNone())
++	{
++		UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
++		check(Log);
++		FFormatNamedArguments Args;
++		Args.Add(TEXT("System"), State.Systems[SystemIndex].DisplayName);
++		Log->PushRow(RecordRow, 1, Args, State.Systems[SystemIndex].SystemID, State.Civs.IsValidIndex(OwnerIndex) ? State.Civs[OwnerIndex].CivID : FName());
++	}
+ 	Events->FollowUpNotes(Ctx);
+ }
+ 

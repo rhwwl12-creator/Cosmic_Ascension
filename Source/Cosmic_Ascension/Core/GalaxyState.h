@@ -71,9 +71,9 @@ struct COSMIC_ASCENSION_API FCosmicLogEntry
 	UPROPERTY(BlueprintReadOnly)
 	FName FocusCivID;
 
-	// True for a line that was stored but is skipped by the feed: a Severity 2, Log.Claim or Log.Record entry that was
-	// out of scope when it was pushed - by its subject, or by the viewer-tier window (section 8.1). Set by the scope of
-	// telling of UCosmicLogSubsystem; never in the tell-all mode.
+	// True for a line that was stored but is skipped by the feed: a Severity 2 or Log.Claim entry that was out of scope
+	// when it was pushed - by its subject, or by the viewer-tier window (section 8.1) - and every Log.Record entry, which
+	// is never told (B5 decision 11-na). Set by UCosmicLogSubsystem; in the tell-all mode for Log.Record alone.
 	UPROPERTY(BlueprintReadOnly)
 	bool bUntold = false;
 

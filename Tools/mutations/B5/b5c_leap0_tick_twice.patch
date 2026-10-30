@@ -1,7 +1,7 @@
 --- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
 +++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
 @@ -329,7 +329,7 @@
- 		// line, the first entry after that tick), any other from its BornTick tick (every earlier tick for the first), never
+ 		// none in that tick, the first entry after it), any other from its BornTick tick (every earlier tick for the first), never
  		// before the end of the body before it. It ends with its ToTick - and, when a life called after its death opens on
  		// that tick (a leap of 0), where that life opens: the tick of the death is the dead life's up to there.
 -		const int32 BodyBegin = LifeAt == 0 ? 0 : FMath::Max(bPreviousDied ? OpensAt(Life) : FirstAfter(Life.BornTick - 1), PreviousEnd);

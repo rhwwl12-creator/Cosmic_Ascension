@@ -79,10 +79,12 @@ namespace CosmicCallingPagesTests
 		return Visibility != ESlateVisibility::Collapsed && Visibility != ESlateVisibility::Hidden;
 	}
 
-	// The source row of a test's death: a hazard row of the game (no row kills yet - data off), and the cards of the answers.
-	const FName DeathRow(TEXT("crisis_pre_supernova"));
+	// The source row of a test's death: a hazard row of the game - the AI awakening, the one hazard decision 6-ga makes lethal
+	// ([B-5d2]; no row kills yet - data off) - and the cards of the answers: the awakening's own card is the one the epitaph
+	// sets apart (the star watch and the plague's tending, the other two cards of a hazard, are left out - [B-5d1] text audit).
+	const FName DeathRow(TEXT("crisis_ai_awakening"));
 	const FName ClaimCard(TEXT("petition_pressure_claim"));
-	const FName WatchCard(TEXT("enc_star_watch"));
+	const FName TalkCard(TEXT("enc_awakening_talk"));
 	const FName WallsCard(TEXT("petition_walls"));
 
 	// The game's rules with a leap of exactly Ticks (one number either way - decision 3).
@@ -327,14 +329,14 @@ bool FCosmicUIEpitaphTest::RunTest(const FString& Parameters)
 	const FCosmicDataTables& Tables = Sim->GetTables();
 	const FEncounterDef* FirstContactRow = Tables.FindEncounter(CosmicRows::PetitionFirstContact);
 	const FEncounterDef* ClaimRow = Tables.FindEncounter(ClaimCard);
-	const FEncounterDef* WatchRow = Tables.FindEncounter(WatchCard);
-	const FHazardDef* Nova = Tables.FindHazard(DeathRow);
-	if (!TestTrue(TEXT("(the game has the three cards and the hazard of the test's death)"), FirstContactRow && ClaimRow && WatchRow && Nova))
+	const FEncounterDef* TalkRow = Tables.FindEncounter(TalkCard);
+	const FHazardDef* Killer = Tables.FindHazard(DeathRow);
+	if (!TestTrue(TEXT("(the game has the three cards and the hazard of the test's death)"), FirstContactRow && ClaimRow && TalkRow && Killer))
 	{
 		return false;
 	}
-	TestTrue(TEXT("(the star watch is the card of the hazard of the test's death)"), CosmicCallingPages::IsCardOfHazard(*WatchRow, *Nova));
-	TestFalse(TEXT("(the claim's card is not)"), CosmicCallingPages::IsCardOfHazard(*ClaimRow, *Nova));
+	TestTrue(TEXT("(the awakening's talk is the card of the hazard of the test's death)"), CosmicCallingPages::IsCardOfHazard(*TalkRow, *Killer));
+	TestFalse(TEXT("(the claim's card is not)"), CosmicCallingPages::IsCardOfHazard(*ClaimRow, *Killer));
 	{
 		// The cards the epitaph leaves out are the schema's list, which the data checker holds every card title that speaks to the
 		// reader to (Tools/cosmic_data_schema.py - header section 4, decision 12-da).
@@ -371,11 +373,11 @@ bool FCosmicUIEpitaphTest::RunTest(const FString& Parameters)
 		if (Live.Systems.IsValidIndex(Home))
 		{
 			const FName CivID = Live.Civs[Ruled].CivID;
-			Live.Calling.Lives[0].LastChoiceRows = { CosmicRows::PetitionFirstContact, ClaimCard, WatchCard };
+			Live.Calling.Lives[0].LastChoiceRows = { CosmicRows::PetitionFirstContact, ClaimCard, TalkCard };
 			AddAnswerLine(Live, 390, CosmicRows::PetitionFirstContact, NAME_None, CivID);
 			AddAnswerLine(Live, 395, ClaimCard, Live.Systems[Home].SystemID, CivID);
 			ClaimSystem = Live.Systems[Home].DisplayName;
-			AddAnswerLine(Live, 398, WatchCard, Live.Player.CurrentSystemID, CivID);
+			AddAnswerLine(Live, 398, TalkCard, Live.Player.CurrentSystemID, CivID);
 		}
 		Live.Knowing.PendingPetitionRow = WallsCard;
 		Live.Knowing.PendingPetitionSystemID = NAME_None;
@@ -448,7 +450,7 @@ bool FCosmicUIEpitaphTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("The title is 'the Nth' with the vessel's name"), Texts[0].ToString(), (Name.IsEmpty() ? Nth : FText::Format(Label(TEXT("List.Pair")), Nth, Name)).ToString());
 			FFormatNamedArguments CauseArgs;
 			CauseArgs.Add(TEXT("Cause"), Label(TEXT("Epitaph.Cause.Hazard")));
-			CauseArgs.Add(TEXT("Source"), Nova->DisplayName);
+			CauseArgs.Add(TEXT("Source"), Killer->DisplayName);
 			TestEqual(TEXT("then the cause with the hazard's name"), Texts[Cause].ToString(), FText::Format(Label(TEXT("Epitaph.CauseFrom")), CauseArgs).ToString());
 			TestEqual(TEXT("the cycles lived"), Texts[Cause + 1].ToString(), FText::Format(Label(TEXT("Epitaph.Lived")), FText::AsNumber(400)).ToString());
 			TestEqual(TEXT("the highest rung"), Texts[Cause + 2].ToString(), FText::Format(Label(TEXT("Epitaph.Peak")), FText::AsNumber(static_cast<int32>(Dead.PeakTier) + 1)).ToString());
@@ -461,8 +463,8 @@ bool FCosmicUIEpitaphTest::RunTest(const FString& Parameters)
 			ClaimArgs.Add(TEXT("System"), ClaimSystem);
 			TestTrue(TEXT("in time order: the claim's card first"), Answers[0].Row == ClaimCard && !Answers[0].bOfTheDeath);
 			TestEqual(TEXT("its {System} filled from its line"), Answers[0].Title.ToString(), FText::Format(ClaimRow->Title, ClaimArgs).ToString());
-			TestTrue(TEXT("then the star watch, the card of the hazard that killed"), Answers[1].Row == WatchCard && Answers[1].bOfTheDeath);
-			TestEqual(TEXT("whose title is the card's"), Answers[1].Title.ToString(), WatchRow->Title.ToString());
+			TestTrue(TEXT("then the awakening's talk, the card of the hazard that killed"), Answers[1].Row == TalkCard && Answers[1].bOfTheDeath);
+			TestEqual(TEXT("whose title is the card's"), Answers[1].Title.ToString(), TalkRow->Title.ToString());
 		}
 		TestFalse(TEXT("No answer is the first contact card's"), Answers.ContainsByPredicate([](const FCosmicAnswerTitle& Each) { return Each.Row == CosmicRows::PetitionFirstContact; }));
 		// Set apart: below every fact and below the other answers, a line of its own - never in the cause's line.
@@ -471,8 +473,8 @@ bool FCosmicUIEpitaphTest::RunTest(const FString& Parameters)
 		{
 			TestTrue(TEXT("below the facts"), Apart > Pages->GetFactsEndRow() && Pages->GetFactsEndRow() >= Cause);
 			TestEqual(TEXT("last on the page"), Apart, Texts.Num() - 1);
-			TestEqual(TEXT("its title alone"), Texts[Apart].ToString(), WatchRow->Title.ToString());
-			TestFalse(TEXT("and the cause's line does not hold it"), Texts.IsValidIndex(Cause) && Texts[Cause].ToString().Contains(WatchRow->Title.ToString()));
+			TestEqual(TEXT("its title alone"), Texts[Apart].ToString(), TalkRow->Title.ToString());
+			TestFalse(TEXT("and the cause's line does not hold it"), Texts.IsValidIndex(Cause) && Texts[Cause].ToString().Contains(TalkRow->Title.ToString()));
 			TestTrue(TEXT("The claim's title stands with the answers above it"), !Answers.IsEmpty() && Texts.IsValidIndex(Apart - 1)
 				&& Texts[Apart - 1].ToString() == Answers[0].Title.ToString());
 		}
@@ -508,7 +510,15 @@ bool FCosmicUIEpitaphTest::RunTest(const FString& Parameters)
 		const int32 Closed = CosmicDigest::LastClosedLifeOf(Live);
 		if (TestTrue(TEXT("(a people the viewer is not shown, and a feat row)"), Unshown != INDEX_NONE && !Feats.IsEmpty()))
 		{
-			FCosmicLogEntry& Rose = Live.Log.AddDefaulted_GetRef();
+			// In time order, as the log keeps it: before the succession's tick (whose inauguration line ends what the digest
+			// reads of it - [B-5d1]).
+			int32 RoseAt = 0;
+			while (RoseAt < Live.Log.Num() && Live.Log[RoseAt].Tick <= 439)
+			{
+				++RoseAt;
+			}
+			Live.Log.InsertDefaulted(RoseAt);
+			FCosmicLogEntry& Rose = Live.Log[RoseAt];
 			Rose.Tick = 439;
 			Rose.Category = Tag(TEXT("Log.Civ"));
 			Rose.Severity = 1;
@@ -524,7 +534,7 @@ bool FCosmicUIEpitaphTest::RunTest(const FString& Parameters)
 			Controller->CosmicSeeAll(0);
 			Pages->OpenDigest();
 			TestTrue(TEXT("and without it the viewer's"), SameLines(Pages->GetPageTexts(), Viewer));
-			Live.Log.Pop();
+			Live.Log.RemoveAt(RoseAt);
 			Pages->OpenDigest();
 		}
 	}
@@ -947,16 +957,16 @@ bool FCosmicUIEpitaphTest::RunTest(const FString& Parameters)
 				&& !DeathPlace.IsNone() && Apart.Systems.IsValidIndex(Elsewhere)))
 			{
 				FLifeRecord& Dead = Apart.Calling.Lives[0];
-				Dead.LastChoiceRows = { ClaimCard, WatchCard };
-				AddAnswerLine(Apart, 398, WatchCard, DeathPlace, CivID);
-				FCosmicLogEntry& WatchLine = Apart.Log.Last();
+				Dead.LastChoiceRows = { ClaimCard, TalkCard };
+				AddAnswerLine(Apart, 398, TalkCard, DeathPlace, CivID);
+				FCosmicLogEntry& TalkLine = Apart.Log.Last();
 				TArray<FCosmicAnswerTitle> Titles = CosmicCallingPages::LastAnswersOf(Apart, Tables, 0);
 				TestTrue(TEXT("(control: the killing hazard's card answered where the vessel died stands apart)"), Titles.Num() == 2 && Titles[1].bOfTheDeath
 					&& !Titles[0].bOfTheDeath);
-				WatchLine.FocusSystemID = Apart.Systems[Elsewhere].SystemID;
+				TalkLine.FocusSystemID = Apart.Systems[Elsewhere].SystemID;
 				Titles = CosmicCallingPages::LastAnswersOf(Apart, Tables, 0);
 				TestTrue(TEXT("Answered on another system, it does not"), Titles.Num() == 2 && !Titles[1].bOfTheDeath);
-				WatchLine.FocusSystemID = DeathPlace;
+				TalkLine.FocusSystemID = DeathPlace;
 				Dead.CauseOfDeath = Tag(TEXT("Death.Encounter"));
 				Titles = CosmicCallingPages::LastAnswersOf(Apart, Tables, 0);
 				TestTrue(TEXT("Nor for a life a hazard did not close (the source row still the hazard's)"), Titles.Num() == 2 && !Titles[1].bOfTheDeath);
@@ -967,11 +977,11 @@ bool FCosmicUIEpitaphTest::RunTest(const FString& Parameters)
 			const FGameplayTag Cause = Dead.CauseOfDeath;
 			const FName Source = Dead.CauseSourceRow;
 			Dead.CauseOfDeath = Tag(TEXT("Death.Encounter"));
-			Dead.CauseSourceRow = WatchCard;
+			Dead.CauseSourceRow = TalkCard;
 			Pages->OpenEpitaph(0, false, true);
 			FFormatNamedArguments CauseArgs;
 			CauseArgs.Add(TEXT("Cause"), Label(TEXT("Epitaph.Cause.Encounter")));
-			CauseArgs.Add(TEXT("Source"), Nova->DisplayName);
+			CauseArgs.Add(TEXT("Source"), Killer->DisplayName);
 			TestTrue(TEXT("A death by a hazard's card names that hazard"), Pages->GetPageTexts().IsValidIndex(Pages->GetCauseRow())
 				&& Pages->GetPageTexts()[Pages->GetCauseRow()].ToString() == FText::Format(Label(TEXT("Epitaph.CauseFrom")), CauseArgs).ToString());
 			Dead.CauseSourceRow = FName(TEXT("enc_lane_weave"));
@@ -983,6 +993,39 @@ bool FCosmicUIEpitaphTest::RunTest(const FString& Parameters)
 				&& Pages->GetPageTexts()[Pages->GetCauseRow()].ToString() == FText::Format(Label(TEXT("Epitaph.Cause")), PlainArgs).ToString());
 			Dead.CauseOfDeath = Cause;
 			Dead.CauseSourceRow = Source;
+
+			// The cards whose title reads as a eulogy under a dead vessel's name ([B-5d1] text audit - header 3.6-1): a virtue, a
+			// memorial day and the two 'beside' titles of the sacrifice reading are left out too, ruler's petitions and wanderer's
+			// cards alike; the claim's card alone stays, and no line of the page says them.
+			const FName Eulogies[] = { CosmicRows::PetitionWiseHeart, CosmicRows::PetitionFeast, CosmicRows::EncPlagueTend, CosmicRows::EncStarWatch };
+			const TArray<FName> AnsweredBefore = Dead.LastChoiceRows;
+			const int32 LogBefore = Ruling.Log.Num();
+			Dead.LastChoiceRows = { ClaimCard };
+			int64 AnswerTick = 396;
+			bool bCards = true;
+			for (const FName& Row : Eulogies)
+			{
+				const FEncounterDef* Card = Tables.FindEncounter(Row);
+				bCards &= Card && !Card->Title.IsEmpty();
+				Dead.LastChoiceRows.Add(Row);
+				AddAnswerLine(Ruling, AnswerTick++, Row, Ruling.Player.CurrentSystemID, CivID);
+			}
+			Pages->OpenEpitaph(0, false, true);
+			TestTrue(TEXT("(the game has the four cards, each with its title)"), bCards);
+			const TArray<FCosmicAnswerTitle>& Kept = Pages->GetAnswers();
+			TestTrue(TEXT("The epitaph leaves out the titles that read as a eulogy: the claim's card alone stays"), Kept.Num() == 1 && Kept[0].Row == ClaimCard);
+			bool bEulogySaid = false;
+			for (const FName& Row : Eulogies)
+			{
+				const FEncounterDef* Card = Tables.FindEncounter(Row);
+				for (const FText& Text : Pages->GetPageTexts())
+				{
+					bEulogySaid |= Card && Text.ToString() == Card->Title.ToString();
+				}
+			}
+			TestFalse(TEXT("no line of the page says them"), bEulogySaid);
+			Dead.LastChoiceRows = AnsweredBefore;
+			Ruling.Log.SetNum(LogBefore);
 		}
 	}
 

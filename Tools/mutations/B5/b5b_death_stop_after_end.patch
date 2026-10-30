@@ -1,17 +1,24 @@
 --- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
 +++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
-@@ -779,13 +779,13 @@
+@@ -796,15 +796,15 @@
  {
  	FollowSpeedGate();
  	// A death before the end: a life that closed on the end's tick is not lost behind the end's early return (B5).
--	FollowDeath(Tick);
- 	// The end before the card and the hazards: once the run is over, its own tick asks for nothing.
- 	FollowEnd(true);
- 	if (IsRunEnded())
- 	{
- 		return;
- 	}
-+	FollowDeath(Tick);
++	// The end before the card and the hazards: once the run is over, its own tick asks for nothing.
++	FollowEnd(true);
++	if (IsRunEnded())
++	{
++		return;
++	}
+ 	const bool bDied = FollowDeath(Tick);
+ 	// An abdication or a deposition at this boundary: the reign end's page (a life that closed is the epitaph's - B5 [B-5c]).
+ 	FollowReign(!bDied);
+-	// The end before the card and the hazards: once the run is over, its own tick asks for nothing.
+-	FollowEnd(true);
+-	if (IsRunEnded())
+-	{
+-		return;
+-	}
  	FollowOwnHazards();
  	FollowPetition(true);
  	// A failed boundary write (the save layer's handler may come before or after this one - noticed now or at the next tick).

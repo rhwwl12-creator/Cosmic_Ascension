@@ -34,8 +34,8 @@ struct FCosmicLine
 	FName SourceRow;
 
 	// Viewer tier window, tier numbers 1..5, 0 = no bound on that side. Outside the window the line is out of scope
-	// exactly as a line about an unmet people is: stored bUntold when it is Severity 2, Log.Claim or Log.Record, not
-	// stored otherwise - but a window alone never calls for a far line (section 8.1).
+	// exactly as a line about an unmet people is: stored bUntold when it is Severity 2 or Log.Claim, not stored otherwise -
+	// but a window alone never calls for a far line (section 8.1). A Log.Record line is stored bUntold whatever its window.
 	uint8 MinViewerTier = 0;
 	uint8 MaxViewerTier = 0;
 };
@@ -61,15 +61,26 @@ public:
 	static constexpr int32 MaxLogEntries = 2000;
 
 	// The tell-all mode (section 8.1): with it on every line is stored and nothing is judged by the scope of telling (no
-	// bUntold, no far line). Not saved: a mode of the run, off in the game, on in the tests (CosmicTests::AcquireSim), in
-	// the balance commandlet and in the idle hash run (World/CosmicHashRun - restored after). The world hash is the same
-	// either way.
+	// bUntold but the record line's, which is never told - PushVariants; no far line). Not saved: a mode of the run, off in
+	// the game, on in the tests (CosmicTests::AcquireSim), in the balance commandlet and in the idle hash run
+	// (World/CosmicHashRun - restored after). The world hash is the same either way.
 	void SetTellAll(bool bOn) { bTellAll = bOn; }
 	bool IsTellAll() const { return bTellAll; }
 
 	// The chronicle up to the current tick: CosmicChronicle::Build over the live state; reads only and draws nothing, so a
 	// handler may call it. Phase 4b adds the two books, the epitaph and the digest around the same chapters.
 	TArray<FCosmicChronicleChapter> BuildChronicle() const;
+
+	/**
+	 * B5 [B-5d1] (docs/70 section 8.3 rule 5): whether this tick's log already holds a fallen's first person - a Log.Claim
+	 * entry, told or kept untold - whose FocusSystemID is SystemID. After it no narrator's line may call that system on the
+	 * tick: the inauguration line asks it of the new life's birth system (UPlayerRoleSubsystem::Succeed - a succession whose
+	 * filters relaxed to the last can pick a system a claim joined in this tick's crisis stage) and then tells its row with no
+	 * {System} (CosmicRows::LogInaugurationUnnamed). The story layer's question of its own lines - the world never reads the
+	 * log: State.Log from its newest entry back over the entries of this tick, then the chronicle's the same way (the cap
+	 * moves the oldest entries there). Reads only and draws nothing, so a handler may call it. False for None.
+	 */
+	bool HasClaimLineThisTick(FName SystemID) const;
 
 	/**
 	 * Renders Template with Args and appends one entry stamped with the current tick. The stored Message is the flattened
@@ -90,14 +101,16 @@ public:
 	 * from the sim stream. If the rendered result reads the same as the last line that was told (entries marked bUntold
 	 * are passed by) and there is more than one variant, the next variant is used, without a second draw: the same
 	 * sentence never appears twice in a row in the feed, and the number of draws does not depend on the text.
-	 * Then the scope of telling (section 8.1), judged against the state and Knowing at this moment - unless the tell-all
-	 * mode is on, which stores every line:
+	 * A Log.Record line - the narrator's record of a people's irreversible loss, the first part of the two books (B5 header
+	 * decision 11-na) - is then stored with bUntold, never broadcast and followed by no far line, whatever the scope and the
+	 * tell-all mode: the feed never tells it, the two books read it. Every other line goes to the scope of telling (section
+	 * 8.1), judged against the state and Knowing at this moment - unless the tell-all mode is on, which stores every line:
 	 * - The subject holds when Category is Log.Calling, or when FocusCiv is none or a met people whose Tier is not three
 	 *   or more above the viewer's (UGalaxySimulationSubsystem::GetViewerTier; a lower people is never held back), and
 	 *   FocusSystem is none or a known system. The line is in scope when the subject holds and the viewer's tier number
 	 *   lies inside [MinViewerTier, MaxViewerTier] (0 = no bound on that side).
-	 * - In scope: stored, and broadcast by OnLogEntry. Out of scope, Severity 2 or Log.Claim or Log.Record: stored with
-	 *   bUntold and never broadcast. Otherwise: not stored.
+	 * - In scope: stored, and broadcast by OnLogEntry. Out of scope, Severity 2 or Log.Claim: stored with bUntold and
+	 *   never broadcast. Otherwise: not stored.
 	 * - A Severity 2 line out of scope because its subject does not hold (a window alone calls for none) is followed by
 	 *   one far line with no subject, through its own PushRow and its own draw: CosmicRows::LogFarAscent when the line is
 	 *   Log.Ascension and its people stands on the third rung or above, every time; CosmicRows::LogFarEvent otherwise,

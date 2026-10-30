@@ -6,11 +6,13 @@
 #include "CoreMinimal.h"
 #include "Blueprint/IUserObjectListEntry.h"
 #include "Blueprint/UserWidget.h"
+#include "Delegates/IDelegateInstance.h"
 #include "GameplayTagContainer.h"
 #include "UI/CosmicUILabels.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "CosmicLogFeedWidget.generated.h"
 
+class ACosmicPlayerController;
 class UListView;
 class UTextBlock;
 struct FCosmicLogEntry;
@@ -72,9 +74,12 @@ namespace CosmicLogFeed
 /**
  * The log feed at the bottom left of the screen: the last told entries of the log (section 8.1 - an entry marked bUntold
  * never shows) in a virtualized list (section 6.3), oldest first, coloured by severity. A new galaxy or a load rebuilds it
- * from the state; a new line arrives through OnLogEntry, and the list follows it when it showed the end. A click on a line
- * goes to its place - the focus system, or else the capital of its focus people - when the viewer knows that place (the
- * controller's SelectAndFocus refuses any other, section 8.1). Built in C++ (no WBP).
+ * from the state; a new line arrives through OnLogEntry, and the list follows it when it showed the end. Once the run has
+ * ended, the inauguration line of the vessel the end's tick installed never shows either (B5 [B-5d1] -
+ * CosmicChronicle::IsUnseenLifeLine: the player never saw that vessel); the owning controller's OnRunEndChanged rebuilds
+ * it when the end latches or is forgotten. A click on a line goes to its place - the focus system, or else the capital of
+ * its focus people - when the viewer knows that place (the controller's SelectAndFocus refuses any other, section 8.1).
+ * Built in C++ (no WBP).
  */
 UCLASS(meta = (DisableNativeTick))
 class COSMIC_ASCENSION_API UCosmicLogFeedWidget : public UUserWidget
@@ -115,6 +120,9 @@ private:
 	void HandleItemClicked(UObject* Item);
 	// A new item at the end, the oldest dropped past MaxItems.
 	void Append(const FCosmicLogEntry& Entry);
+	// The feed's one rule of a line, for the rebuild and for a new line alike: told (never bUntold), and not the line of a vessel
+	// the player never saw (CosmicChronicle::IsUnseenLifeLine with the owning controller's latch of the end).
+	bool Shows(const FCosmicLogEntry& Entry) const;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UListView> List;
@@ -124,4 +132,8 @@ private:
 
 	// The tick of the last boundary or rebuild (HandleSimTick).
 	int64 SeenTick = -1;
+
+	// The owning controller whose OnRunEndChanged rebuilds the feed (NativeConstruct binds, NativeDestruct unbinds).
+	TWeakObjectPtr<ACosmicPlayerController> RunEndSource;
+	FDelegateHandle RunEndHandle;
 };

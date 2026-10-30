@@ -84,6 +84,26 @@ namespace CosmicRows
 	inline const FName LogSignClaim(TEXT("log_sign_claim"));
 	inline const FName LogFleetWorn(TEXT("log_fleet_worn"));
 
+	// DT_LogTemplates: B5 [B-5d1] (header section 3.3, decision 11). The narrator's record of a people's irreversible loss - the
+	// first part of the two books, Log.Record, {System} alone: a settled system destroyed, a system joined to a fallen sphere by
+	// a claim. The crisis stage tells it right after the expiry line (before a claim's sign and first person), and the log keeps
+	// it untold whatever the scope (UCosmicLogSubsystem::PushVariants). Every people's loss, whatever its faith traits.
+	inline const FName LogRecordDestroyed(TEXT("log_record_destroyed"));
+	inline const FName LogRecordAnnexed(TEXT("log_record_annexed"));
+
+	// DT_LogTemplates: B5 [B-5d1] (header section 2.2, 3.3, decision 12-da). The tenth stage's lines of the calling - Log.Calling,
+	// Severity 2, the narrator's, in the third person by the vessel's name ({Player} is passed in: CosmicChronicle::VesselNameOf).
+	// The death line of a death whose cause is Death.Hazard ({Player}, {Hazard}; no focus - UPlayerRoleSubsystem::Die, told
+	// before what the death changes; a cause with no row of its own is not told), and the inauguration line of a succession
+	// ({Player}, {Civ}, {System}; UPlayerRoleSubsystem::Succeed, after Install) - the line that opens the called life's chapter
+	// (CosmicChronicle::OpensCalledChapter). The inauguration line's second row ({Player}, {Civ}; no {System}, no focus system):
+	// told in its place when this tick's log already holds a fallen's first person (Log.Claim) about the new life's birth system
+	// (UCosmicLogSubsystem::HasClaimLineThisTick) - no narrator's line names that system after it on the tick (docs/70 section 8.3
+	// rule 5); the story layer's choice alone, one tell number either way, nothing of the world.
+	inline const FName LogDeathHazard(TEXT("log_death_hazard"));
+	inline const FName LogInauguration(TEXT("log_inauguration"));
+	inline const FName LogInaugurationUnnamed(TEXT("log_inauguration_unnamed"));
+
 	// DT_Encounters: the first contact card (B3 header section 2.9). NoteMet writes Knowing.PendingContactCivID at the
 	// first meeting of the run while this row exists; the end of the knowing stage puts it after a Standing card that came to hold in the tick, before the periodic slot, while no petition waits.
 	inline const FName PetitionFirstContact(TEXT("petition_first_contact"));
@@ -94,12 +114,19 @@ namespace CosmicRows
 	inline const FName PetitionPressureMeasured(TEXT("petition_pressure_measured"));
 
 	// DT_Encounters: the cards whose title speaks to the reader or exalts the vessel - the throne card's question and the
-	// exaltation card (B5 header section 4, decision 12-da: no 'you' across a death, no exaltation under it). The epitaph's
-	// last answers leave them out (CosmicCallingPages::LastAnswersOf). Tools/data/schema.json lists the same rows under
-	// epitaph_leaves_out, and the checker holds every card title that speaks to the reader to that list.
+	// exaltation card (B5 header section 4, decision 12-da: no 'you' across a death, no exaltation under it) - and the
+	// cards whose title, right on its own card, reads as a eulogy under a dead vessel's name: a virtue (the wise heart), a
+	// memorial day (the feast), and the two 'beside' titles of the sacrifice reading header section 3.6-1 bars (the plague's
+	// tending, the trembling star's watch - [B-5d1] text audit). The epitaph's last answers leave them out
+	// (CosmicCallingPages::LastAnswersOf); the titles stay as they are on the cards. Tools/data/schema.json lists the same
+	// rows under epitaph_leaves_out, and the checker holds every card title that speaks to the reader to that list.
 	inline const FName PetitionKeepThrone(TEXT("petition_keep_throne"));
 	inline const FName PetitionExalt(TEXT("petition_exalt"));
-	inline const FName EpitaphLeavesOut[] = { PetitionKeepThrone, PetitionExalt };
+	inline const FName PetitionWiseHeart(TEXT("petition_wise_heart"));
+	inline const FName PetitionFeast(TEXT("petition_feast"));
+	inline const FName EncPlagueTend(TEXT("enc_plague_tend"));
+	inline const FName EncStarWatch(TEXT("enc_star_watch"));
+	inline const FName EpitaphLeavesOut[] = { PetitionKeepThrone, PetitionExalt, PetitionWiseHeart, PetitionFeast, EncPlagueTend, EncStarWatch };
 
 	// DT_LogTemplates: the meeting lines (section 7.4). NoteMet tells the first for the first meeting of the run, the
 	// second for every later one.

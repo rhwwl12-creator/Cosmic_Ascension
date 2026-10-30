@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp
+@@ -40,7 +40,7 @@
+ 		for (int32 Index = Entries->Num() - 1; Index >= 0 && (*Entries)[Index].Tick >= State.Tick; --Index)
+ 		{
+ 			const FCosmicLogEntry& Entry = (*Entries)[Index];
+-			if (Entry.Tick == State.Tick && Entry.Category == ClaimTag && Entry.FocusSystemID == SystemID)
++			if (Entry.Tick == State.Tick && Entry.Category == ClaimTag && Entry.FocusSystemID == SystemID && !Entry.bUntold)
+ 			{
+ 				return true;
+ 			}

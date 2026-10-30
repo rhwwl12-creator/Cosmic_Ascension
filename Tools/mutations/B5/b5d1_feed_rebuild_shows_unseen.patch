@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicLogFeedWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicLogFeedWidget.cpp
+@@ -233,7 +233,7 @@
+ 	TArray<int32> Shown;
+ 	for (int32 Index = Log.Num() - 1; Index >= 0 && Shown.Num() < CosmicLogFeed::MaxItems; --Index)
+ 	{
+-		if (Shows(Log[Index]))
++		if (!Log[Index].bUntold)
+ 		{
+ 			Shown.Add(Index);
+ 		}

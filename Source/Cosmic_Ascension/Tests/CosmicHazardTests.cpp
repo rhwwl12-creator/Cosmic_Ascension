@@ -1755,12 +1755,15 @@ bool FCosmicClaimRuleTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-// The voice of a claim that joined a sphere (B4 header section 2.6): the narrator's expiry line, then the sign (below the
-// third rung - the game's log_sign_claim; Severity 1, no automatic pause, into the chronicle of the life's people), then the
-// fallen's first-person line (its ClaimTemplates, about the system and its owner; told from the third rung, kept untold
-// below it - the second rung is below); the fallen that joined speaks, not another; no line after it that tick about that
-// system (one fallen on the board); a claim that joins nothing has neither; the world is the same with the lines and
-// without them (the tell stream only, no key of the world map).
+// The voice of a claim that joined a sphere (B4 header section 2.6): the narrator's expiry line, then the record line of the
+// loss (B5 decision 11 - the game's log_record_annexed, Log.Record, kept untold), then the sign (below the third rung - the
+// game's log_sign_claim; Severity 1, no automatic pause, into the chronicle of the life's people), then the fallen's
+// first-person line (its ClaimTemplates, about the system and its owner; told from the third rung, kept untold below it - the
+// second rung is below); the fallen that joined speaks, not another; no line after it that tick about that system (one
+// fallen on the board), also when the vessel standing there dies at the tenth stage of that tick (B5 header section 6: the
+// death line names no system), and also when a succession on that tick stands the next vessel up in that system (B5 [B-5d1]:
+// its inauguration line is then the row that names no system - CosmicRows::LogInaugurationUnnamed); a claim that joins nothing
+// has none of them; the world is the same with the lines and without them (the tell stream only, no key of the world map).
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicLogClaimVoiceTest, "Cosmic_Ascension.Log.ClaimVoice", CosmicTests::Flags)
 bool FCosmicLogClaimVoiceTest::RunTest(const FString& Parameters)
 {
@@ -1781,12 +1784,14 @@ bool FCosmicLogClaimVoiceTest::RunTest(const FString& Parameters)
 		Sim->NewGalaxy(42, 5, 3);
 	};
 	Log->SetTellAll(false);
-	if (!TestNotNull(TEXT("(the game has the sign row log_sign_claim)"), Original.FindLogTemplate(CosmicRows::LogSignClaim)))
+	if (!TestNotNull(TEXT("(the game has the sign row log_sign_claim)"), Original.FindLogTemplate(CosmicRows::LogSignClaim))
+		|| !TestNotNull(TEXT("(the game has the record row log_record_annexed)"), Original.FindLogTemplate(CosmicRows::LogRecordAnnexed)))
 	{
 		return false;
 	}
 	const FGameplayTag SignTag = Tag(TEXT("Log.Sign"));
 	const FGameplayTag ClaimTag = Tag(TEXT("Log.Claim"));
+	const FGameplayTag RecordTag = Tag(TEXT("Log.Record"));
 	// The tables of the case: the claim rows of the tests; the silent fallen speaks (Voiced) or not.
 	auto Lay = [&](bool bVoiced)
 	{
@@ -1839,7 +1844,8 @@ bool FCosmicLogClaimVoiceTest::RunTest(const FString& Parameters)
 		return Count;
 	};
 
-	// Below the third rung: the narrator, the sign told, the first-person line kept untold, and nothing after it.
+	// Below the third rung: the narrator, the record kept untold, the sign told, the first-person line kept untold, and
+	// nothing after it.
 	{
 		Lay(true);
 		FGalaxyState* State = Join(EAscensionTier::Tier1_Planetary);
@@ -1849,14 +1855,18 @@ bool FCosmicLogClaimVoiceTest::RunTest(const FString& Parameters)
 		}
 		const int32 Expiry = FindLine(*State, ClaimRow, State->Tick, TEXT("expiry"));
 		const FName SystemID = State->Systems[2].SystemID;
-		if (!TestTrue(TEXT("The narrator's expiry line is told"), Expiry != INDEX_NONE) || !TestTrue(TEXT("(two lines follow it)"), State->Log.IsValidIndex(Expiry + 2)))
+		if (!TestTrue(TEXT("The narrator's expiry line is told"), Expiry != INDEX_NONE) || !TestTrue(TEXT("(three lines follow it)"), State->Log.IsValidIndex(Expiry + 3)))
 		{
 			return false;
 		}
-		const FCosmicLogEntry& Sign = State->Log[Expiry + 1];
-		const FCosmicLogEntry& Voice = State->Log[Expiry + 2];
+		const FCosmicLogEntry& Record = State->Log[Expiry + 1];
+		const FCosmicLogEntry& Sign = State->Log[Expiry + 2];
+		const FCosmicLogEntry& Voice = State->Log[Expiry + 3];
 		const FName Owner = State->Civs[0].CivID;
-		TestTrue(TEXT("The sign comes right after the narrator"), Sign.Category == SignTag);
+		TestTrue(TEXT("The record line comes right after the narrator's expiry line"), Record.Category == RecordTag && Record.SourceRow == CosmicRows::LogRecordAnnexed);
+		TestEqual(TEXT("about the claimed system"), Record.FocusSystemID, SystemID);
+		TestTrue(TEXT("kept untold, though the board is known"), Record.bUntold);
+		TestTrue(TEXT("The sign comes right after the record line"), Sign.Category == SignTag);
 		TestEqual(TEXT("about the claimed system"), Sign.FocusSystemID, SystemID);
 		TestFalse(TEXT("told below the third rung"), Sign.bUntold);
 		TestEqual(TEXT("Severity 1"), static_cast<int32>(Sign.Severity), 1);
@@ -1871,14 +1881,14 @@ bool FCosmicLogClaimVoiceTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Severity 1"), static_cast<int32>(Voice.Severity), 1);
 		TestTrue(TEXT("kept untold below the third rung"), Voice.bUntold);
 		bool bAfter = false;
-		for (int32 Index = Expiry + 3; Index < State->Log.Num(); ++Index)
+		for (int32 Index = Expiry + 4; Index < State->Log.Num(); ++Index)
 		{
 			bAfter |= State->Log[Index].Tick == State->Tick && State->Log[Index].FocusSystemID == SystemID;
 		}
 		TestFalse(TEXT("No line about that system follows the first-person line that tick"), bAfter);
 	}
 
-	// The second rung is below the window: the sign told, the first-person line kept untold.
+	// The second rung is below the window: the record kept untold, the sign told, the first-person line kept untold.
 	{
 		Lay(true);
 		FGalaxyState* State = Join(EAscensionTier::Tier2_Stellar);
@@ -1887,17 +1897,19 @@ bool FCosmicLogClaimVoiceTest::RunTest(const FString& Parameters)
 			return false;
 		}
 		const int32 Expiry = FindLine(*State, ClaimRow, State->Tick, TEXT("expiry"));
-		if (!TestTrue(TEXT("(the narrator's line - the second rung)"), Expiry != INDEX_NONE) || !TestTrue(TEXT("(two lines after it)"), State->Log.IsValidIndex(Expiry + 2)))
+		if (!TestTrue(TEXT("(the narrator's line - the second rung)"), Expiry != INDEX_NONE) || !TestTrue(TEXT("(three lines after it)"), State->Log.IsValidIndex(Expiry + 3)))
 		{
 			return false;
 		}
-		TestTrue(TEXT("On the second rung the sign follows the narrator"), State->Log[Expiry + 1].Category == SignTag);
-		TestFalse(TEXT("told"), State->Log[Expiry + 1].bUntold);
-		TestTrue(TEXT("and the first-person line follows the sign"), State->Log[Expiry + 2].Category == ClaimTag);
-		TestTrue(TEXT("kept untold"), State->Log[Expiry + 2].bUntold);
+		TestTrue(TEXT("On the second rung the record line follows the narrator"), State->Log[Expiry + 1].Category == RecordTag);
+		TestTrue(TEXT("untold"), State->Log[Expiry + 1].bUntold);
+		TestTrue(TEXT("the sign follows the record line"), State->Log[Expiry + 2].Category == SignTag);
+		TestFalse(TEXT("told"), State->Log[Expiry + 2].bUntold);
+		TestTrue(TEXT("and the first-person line follows the sign"), State->Log[Expiry + 3].Category == ClaimTag);
+		TestTrue(TEXT("kept untold"), State->Log[Expiry + 3].bUntold);
 	}
 
-	// From the third rung: the first-person line told right after the narrator; no sign.
+	// From the third rung: the record line kept untold, then the first-person line told; no sign.
 	{
 		Lay(true);
 		FGalaxyState* State = Join(EAscensionTier::Tier3_Causal);
@@ -1906,12 +1918,14 @@ bool FCosmicLogClaimVoiceTest::RunTest(const FString& Parameters)
 			return false;
 		}
 		const int32 Expiry = FindLine(*State, ClaimRow, State->Tick, TEXT("expiry"));
-		if (!TestTrue(TEXT("(the narrator's line - the third rung)"), Expiry != INDEX_NONE) || !TestTrue(TEXT("(a line after it)"), State->Log.IsValidIndex(Expiry + 1)))
+		if (!TestTrue(TEXT("(the narrator's line - the third rung)"), Expiry != INDEX_NONE) || !TestTrue(TEXT("(two lines after it)"), State->Log.IsValidIndex(Expiry + 2)))
 		{
 			return false;
 		}
-		TestTrue(TEXT("From the third rung the first-person line follows the narrator"), State->Log[Expiry + 1].Category == ClaimTag);
-		TestFalse(TEXT("told"), State->Log[Expiry + 1].bUntold);
+		TestTrue(TEXT("From the third rung the record line follows the narrator"), State->Log[Expiry + 1].Category == RecordTag);
+		TestTrue(TEXT("untold on the third rung as well"), State->Log[Expiry + 1].bUntold);
+		TestTrue(TEXT("and the first-person line follows the record line"), State->Log[Expiry + 2].Category == ClaimTag);
+		TestFalse(TEXT("told"), State->Log[Expiry + 2].bUntold);
 		TestEqual(TEXT("and no sign is kept"), CountAt(*State, SignTag, NAME_None), 0);
 	}
 
@@ -1924,13 +1938,209 @@ bool FCosmicLogClaimVoiceTest::RunTest(const FString& Parameters)
 			return false;
 		}
 		const int32 Expiry = FindLine(*State, ClaimRow, State->Tick, TEXT("expiry"));
-		if (!TestTrue(TEXT("(the narrator's line - two fallen)"), Expiry != INDEX_NONE) || !TestTrue(TEXT("(a line after it - two fallen)"), State->Log.IsValidIndex(Expiry + 1)))
+		if (!TestTrue(TEXT("(the narrator's line - two fallen)"), Expiry != INDEX_NONE) || !TestTrue(TEXT("(two lines after it - two fallen)"), State->Log.IsValidIndex(Expiry + 2)))
 		{
 			return false;
 		}
-		TestEqual(TEXT("The fallen that joined speaks"), State->Log[Expiry + 1].SourceRow, Zealous);
-		TestTrue(TEXT("in its own words"), State->Log[Expiry + 1].Message.ToString().StartsWith(TEXT("zeal of ")));
+		TestEqual(TEXT("The fallen that joined speaks"), State->Log[Expiry + 2].SourceRow, Zealous);
+		TestTrue(TEXT("in its own words"), State->Log[Expiry + 2].Message.ToString().StartsWith(TEXT("zeal of ")));
 		TestEqual(TEXT("and the other says nothing"), CountAt(*State, ClaimTag, Fallen), 0);
+		TestEqual(TEXT("One record line for the one loss, whoever joined it"), CountAt(*State, RecordTag, NAME_None), 1);
+	}
+
+	// The vessel stands in the claimed system and dies at the tenth stage of the joining tick (B5 header section 6, the
+	// widening of this test): the crisis stage's record line, sign and first person come first, and after the first person no
+	// line names that system - the death line is the calling's, about no system (header section 3.3). The game has no row
+	// that kills yet ([B-5d2]): the death is recorded by hand, as Apply leaves one, on the tick before the join.
+	{
+		Lay(true);
+		FGalaxyState* State = ExpireNextToSpheres(*Sim, [](FGalaxyState& S) { AddInstance(S, Fallen, TEXT("Doctrine.Silence"), { 3 }); });
+		if (!TestNotNull(TEXT("(the board of the death on the joining tick)"), State) || !TestTrue(TEXT("(the claim stands)"), State->Systems[2].ActiveHazard == Tag(TEXT("Hazard.Claim"))))
+		{
+			return false;
+		}
+		const FName SystemID = State->Systems[2].SystemID;
+		// A wanderer on the first rung standing in the claimed system, as a deposition leaves one.
+		State->Player.Role = EPlayerRole::Wanderer;
+		State->Player.RuledCivID = NAME_None;
+		State->Civs[0].bIsPlayerRuled = false;
+		State->Player.CurrentSystemID = SystemID;
+		CosmicTests::KnowAll(*State);
+		Sim->RunHeadless(1);
+		TestTrue(TEXT("(the claim has not joined yet)"), State->Systems[2].ActiveHazard == Tag(TEXT("Hazard.Claim")));
+		State->Calling.PendingEffect = Tag(TEXT("Effect.KillPlayer"));
+		State->Calling.PendingCause = Tag(TEXT("Death.Hazard"));
+		State->Calling.PendingSourceRow = Spark;
+		Sim->RunHeadless(1);
+		if (!TestTrue(TEXT("(the claim joined the sphere on the tick of the death)"), InSphere(*State, 0, 2)))
+		{
+			return false;
+		}
+		const FLifeRecord* Life = State->Calling.Lives.IsEmpty() ? nullptr : &State->Calling.Lives.Last();
+		TestTrue(TEXT("The vessel died at the tenth stage of the joining tick"), State->Calling.LifeState == ELifeState::Interregnum && Life && Life->DiedTick == State->Tick);
+		const int32 Expiry = FindLine(*State, ClaimRow, State->Tick, TEXT("expiry"));
+		if (!TestTrue(TEXT("(the narrator's line - the death)"), Expiry != INDEX_NONE) || !TestTrue(TEXT("(three lines after it - the death)"), State->Log.IsValidIndex(Expiry + 3)))
+		{
+			return false;
+		}
+		TestTrue(TEXT("The record line, the sign and the first person keep their order on the tick of a death"),
+			State->Log[Expiry + 1].Category == RecordTag && State->Log[Expiry + 2].Category == SignTag && State->Log[Expiry + 3].Category == ClaimTag);
+		bool bNamed = false;
+		bool bDeathTold = false;
+		for (int32 Index = Expiry + 4; Index < State->Log.Num(); ++Index)
+		{
+			const FCosmicLogEntry& Entry = State->Log[Index];
+			bNamed |= Entry.Tick == State->Tick && Entry.FocusSystemID == SystemID;
+			bDeathTold |= Entry.Tick == State->Tick && Entry.Category == Tag(TEXT("Log.Calling"));
+		}
+		TestTrue(TEXT("The death is told after the first person"), bDeathTold);
+		TestFalse(TEXT("and after the first person no line names the system - the death line least of all"), bNamed);
+	}
+
+	// [B-5d1] A succession on the joining tick that picks the system the claim joined (docs/70 section 8.3 rule 5): with a leap
+	// of 0 the vessel that dies at the tenth stage is succeeded on that tick, and with every other settled system of the row
+	// out of it (moved to another galaxy row by hand - the case's build) the succession's filters relax to the last
+	// (CosmicSuccession::CandidatesOf) and its one candidate is the system just joined. The inauguration line then follows the
+	// fallen's first person about that system on the same tick, so it is the row that names no system and calls none
+	// (CosmicRows::LogInaugurationUnnamed - UCosmicLogSubsystem::HasClaimLineThisTick); the same board whose fallen says
+	// nothing tells the named row about the system. The choice is the story layer's: the new vessel is born there all the same,
+	// the world and the sim stream are the same either way, and the line takes the one number of the tell stream it always does.
+	{
+		if (!TestNotNull(TEXT("(the game has the unnamed inauguration row log_inauguration_unnamed)"), Original.FindLogTemplate(CosmicRows::LogInaugurationUnnamed))
+			|| !TestNotNull(TEXT("(the game has the inauguration row log_inauguration)"), Original.FindLogTemplate(CosmicRows::LogInauguration)))
+		{
+			return false;
+		}
+		const FName OtherRow(TEXT("galaxy_test_apart"));
+		// The board of the death and the succession on the joining tick, voiced or not; null when it was not reached.
+		auto SucceedOnJoin = [&](bool bVoiced) -> FGalaxyState*
+		{
+			FCosmicRulesDef ZeroLeap = Knobs(BaseRules);
+			ZeroLeap.LeapTotalCap = 0;
+			FCosmicDataTables Tables = TablesWith(Original, ZeroLeap, ClaimHazards(), nullptr);
+			if (FTranscendentDef* Row = bVoiced ? Tables.Transcendents->FindRow<FTranscendentDef>(Fallen, TEXT("ClaimVoice")) : nullptr)
+			{
+				Row->ClaimTemplates = Lines(TEXT("voice of {System}"));
+			}
+			Sim->SetTables(Tables);
+			FGalaxyState* Laid = ExpireNextToSpheres(*Sim, [](FGalaxyState& S) { AddInstance(S, Fallen, TEXT("Doctrine.Silence"), { 3 }); });
+			if (!Laid || Laid->Systems[2].ActiveHazard != Tag(TEXT("Hazard.Claim")))
+			{
+				return nullptr;
+			}
+			// A wanderer on the first rung standing in the wild system 3 (the sphere's), as a deposition leaves one; the settled
+			// systems but the claimed 2 leave the death place's galaxy row.
+			Laid->Player.Role = EPlayerRole::Wanderer;
+			Laid->Player.RuledCivID = NAME_None;
+			Laid->Civs[0].bIsPlayerRuled = false;
+			Laid->Player.CurrentSystemID = Laid->Systems[3].SystemID;
+			for (int32 SystemIndex = 0; SystemIndex < Laid->Systems.Num(); ++SystemIndex)
+			{
+				if (SystemIndex != 2 && CosmicState::IsSettled(Laid->Systems[SystemIndex]))
+				{
+					Laid->Systems[SystemIndex].GalaxyRow = OtherRow;
+				}
+			}
+			CosmicTests::KnowAll(*Laid);
+			Sim->RunHeadless(1);
+			if (Laid->Systems[2].ActiveHazard != Tag(TEXT("Hazard.Claim")))
+			{
+				return nullptr;
+			}
+			Laid->Calling.PendingEffect = Tag(TEXT("Effect.KillPlayer"));
+			Laid->Calling.PendingCause = Tag(TEXT("Death.Hazard"));
+			Laid->Calling.PendingSourceRow = Spark;
+			Sim->RunHeadless(1);
+			return InSphere(*Laid, 0, 2) ? Laid : nullptr;
+		};
+		// The lines of Row at the last tick.
+		auto RowLinesAt = [](const FGalaxyState& State, FName Row)
+		{
+			TArray<const FCosmicLogEntry*> Found;
+			for (const FCosmicLogEntry& Entry : State.Log)
+			{
+				if (Entry.Tick == State.Tick && Entry.SourceRow == Row)
+				{
+					Found.Add(&Entry);
+				}
+			}
+			return Found;
+		};
+
+		FGalaxyState* Silent = SucceedOnJoin(false);
+		if (!TestNotNull(TEXT("(the claim joined on the tick of the death - no voice)"), Silent))
+		{
+			return false;
+		}
+		const uint32 SilentWorld = Sim->ComputeWorldHash();
+		const int32 SilentSim = Silent->RngState;
+		const int32 SilentTell = Silent->TellRngState;
+		const FName SystemID = Silent->Systems[2].SystemID;
+		const FString SystemName = Silent->Systems[2].DisplayName.ToString();
+		{
+			const TArray<const FCosmicLogEntry*> Named = RowLinesAt(*Silent, CosmicRows::LogInauguration);
+			TestTrue(TEXT("(no fallen spoke: no first person that tick)"), CountAt(*Silent, ClaimTag, NAME_None) == 0);
+			if (TestEqual(TEXT("With no first person the succession tells the named inauguration line"), Named.Num(), 1))
+			{
+				TestEqual(TEXT("about the system the claim joined, its birth system"), Named[0]->FocusSystemID, SystemID);
+				TestTrue(TEXT("naming it"), !SystemName.IsEmpty() && Named[0]->Message.ToString().Contains(SystemName));
+			}
+			TestEqual(TEXT("and not the unnamed one"), RowLinesAt(*Silent, CosmicRows::LogInaugurationUnnamed).Num(), 0);
+		}
+
+		FGalaxyState* State = SucceedOnJoin(true);
+		if (!TestNotNull(TEXT("(the claim joined on the tick of the death - the voice)"), State))
+		{
+			return false;
+		}
+		const FCallingState& Calling = State->Calling;
+		if (!TestTrue(TEXT("The vessel died on the joining tick and a leap of 0 stood the next life up on it"), Calling.LifeState == ELifeState::Embodied
+			&& Calling.Lives.Num() == 2 && Calling.Lives[0].DiedTick == State->Tick && Calling.Lives[1].BornTick == State->Tick))
+		{
+			return false;
+		}
+		const FLifeRecord& Life = Calling.Lives[1];
+		TestEqual(TEXT("born in the system the claim joined - the one candidate once the filters relaxed to the last"), Life.BirthSystemID, SystemID);
+		int32 Voice = INDEX_NONE;
+		for (int32 Index = 0; Index < State->Log.Num() && Voice == INDEX_NONE; ++Index)
+		{
+			const FCosmicLogEntry& Entry = State->Log[Index];
+			Voice = (Entry.Tick == State->Tick && Entry.Category == ClaimTag && Entry.FocusSystemID == SystemID) ? Index : INDEX_NONE;
+		}
+		if (!TestTrue(TEXT("The fallen's first person about that system is told on the tick (kept untold below the third rung)"), Voice != INDEX_NONE))
+		{
+			return false;
+		}
+		TestTrue(TEXT("The log answers that this tick holds a first person about the system"), Log->HasClaimLineThisTick(SystemID));
+		TestFalse(TEXT("and none about another"), Log->HasClaimLineThisTick(State->Systems[1].SystemID));
+		TestFalse(TEXT("nor about no system"), Log->HasClaimLineThisTick(NAME_None));
+		++State->Tick;
+		TestFalse(TEXT("A tick later the first person is not that tick's"), Log->HasClaimLineThisTick(SystemID));
+		--State->Tick;
+		bool bNamed = false;
+		for (int32 Index = Voice + 1; Index < State->Log.Num(); ++Index)
+		{
+			const FCosmicLogEntry& Entry = State->Log[Index];
+			bNamed |= Entry.Tick == State->Tick && Entry.FocusSystemID == SystemID;
+		}
+		TestFalse(TEXT("After the first person no line of the tick calls the system - the inauguration line least of all"), bNamed);
+		TestEqual(TEXT("The named inauguration line is not told"), RowLinesAt(*State, CosmicRows::LogInauguration).Num(), 0);
+		const TArray<const FCosmicLogEntry*> Unnamed = RowLinesAt(*State, CosmicRows::LogInaugurationUnnamed);
+		if (TestEqual(TEXT("The unnamed inauguration line is told in its place, once"), Unnamed.Num(), 1))
+		{
+			const FCosmicLogEntry& Line = *Unnamed[0];
+			TestTrue(TEXT("after the first person"), &Line > &State->Log[Voice]);
+			TestTrue(TEXT("the calling's line, Severity 2, told"), Line.Category == Tag(TEXT("Log.Calling")) && Line.Severity == 2 && !Line.bUntold);
+			TestTrue(TEXT("with no focus system and its birth people the focus (the row has no {System} - the schema)"), Line.FocusSystemID.IsNone()
+				&& Line.FocusCivID == Life.BirthCivID);
+			const FString Name = CosmicChronicle::VesselNameOf(Life, Sim->GetTables()).ToString();
+			TestTrue(TEXT("It names the new vessel by its name ({Player})"), !Name.IsEmpty() && Line.Message.ToString().Contains(Name));
+			TestTrue(TEXT("It is the line that opens the new life's chapter"), CosmicChronicle::OpensCalledChapter(Line, Life));
+		}
+		TestEqual(TEXT("The world is the same whether the inauguration names the system or not"), Sim->ComputeWorldHash(), SilentWorld);
+		TestEqual(TEXT("and so is the sim stream"), State->RngState, SilentSim);
+		TestEqual(TEXT("The voiced tick draws the tell stream twice more - the sign and the first person; the inauguration line one either way"),
+			DrawsBetween(SilentTell, State->TellRngState), 2);
 	}
 
 	// A claim that joins nothing (the last unclaimed settled system): neither sign nor voice.
@@ -1948,6 +2158,7 @@ bool FCosmicLogClaimVoiceTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("(the claim joined nothing)"), InSphere(*State, 0, 2));
 		TestEqual(TEXT("A claim stilled has no sign"), CountAt(*State, SignTag, NAME_None), 0);
 		TestEqual(TEXT("nor a voice"), CountAt(*State, ClaimTag, Fallen), 0);
+		TestEqual(TEXT("nor a record line: nothing was lost"), CountAt(*State, RecordTag, NAME_None), 0);
 	}
 
 	// The world with the voice is the world without it; the voice draws the tell stream twice; no key of the world map.
@@ -1963,6 +2174,7 @@ bool FCosmicLogClaimVoiceTest::RunTest(const FString& Parameters)
 		const int32 SilentKeys = Silent->EventCooldownUntilTick.Num();
 		TestEqual(TEXT("A fallen with no lines says nothing"), CountAt(*Silent, ClaimTag, Fallen), 0);
 		TestEqual(TEXT("and no sign goes before it"), CountAt(*Silent, SignTag, NAME_None), 0);
+		TestEqual(TEXT("The loss is recorded whether the fallen speaks or not"), CountAt(*Silent, RecordTag, NAME_None), 1);
 		Lay(true);
 		FGalaxyState* Voiced = Join(EAscensionTier::Tier1_Planetary);
 		if (!TestNotNull(TEXT("(the claim joined - with lines)"), Voiced))

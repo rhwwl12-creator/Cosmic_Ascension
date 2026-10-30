@@ -186,6 +186,9 @@ TESTS = {
     # No text of the cell holds a word of the named word list (B4 [B-4d1]: a list hung on some rows of a column only -
     # the silent fallen's own words, a card's shared fields, a narrator's row).
     "lacks_words": NAME,
+    # No text of the cell holds a digit (true), or one of them does (false) - B5 [B-5d1]: a record line carries no figure,
+    # a rule over the rows of one category where a column's no_digits would hang on every row.
+    "no_digits": FLAG,
 }
 # Test -> the kinds of column it can be asked of. Asked of another kind it would never hold (or always).
 # A plain column holds a struct the checker does not read (EthicsPreset, Color, MapPosition): no test can be asked of it.
@@ -203,6 +206,7 @@ TEST_KINDS = {
     "pairs_ge_col": POOL_KINDS, "contains_all": ("tags", "tag_list"), "contains_none": ("tags", "tag_list", "tag_map"),
     "zero": ("pool",),
     "lacks_words": ("text", "texts"),
+    "no_digits": ("text", "texts"),
 }
 # A row test of its own shape, besides 'row', 'row_not' and 'row_prefix': {"none": [tests]}, each test over a column of
 # one list of structs ('List.Column'); it holds when no entry of the list holds every one of them (B4: one choice read as
@@ -1301,6 +1305,12 @@ class Checker:
             words = self.schema["words"].get(operand, []) if isinstance(self.schema.get("words"), dict) else []
             texts = value if isinstance(value, list) else [value]
             return all(isinstance(text, str) and not any(word in text for word in words) for text in texts)
+        if name == "no_digits":
+            # Matched as a column's no_digits matches: any digit of any script, a slot name included.
+            texts = value if isinstance(value, list) else [value]
+            if not all(isinstance(text, str) for text in texts):
+                return False
+            return (not any(ch.isdigit() for text in texts for ch in text)) == operand
         if name == "ge_col":
             bound = row.get(operand)
             return is_number(value) and is_number(bound) and value >= bound

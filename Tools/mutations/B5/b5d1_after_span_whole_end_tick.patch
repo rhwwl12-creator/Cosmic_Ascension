@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+@@ -368,7 +368,7 @@
+ 		FCosmicChronicleChapter& Last = Chapters.Last();
+ 		Last.After.FromTick = Lives[Last.LifeAt].DiedTick + 1;
+ 		Last.After.ToTick = State.Tick;
+-		const int32 AfterEnd = Lives.IsValidIndex(Shown) ? OpensAt(Lives[Shown]) : FirstAfter(State.Tick);
++		const int32 AfterEnd = FirstAfter(State.Tick);
+ 		FillSpan(Entries, PreviousEnd, FMath::Max(AfterEnd, PreviousEnd), EveryPeople, NoVesselRoom, State.ChronicleEviction, Last.After);
+ 	}
+ 	return Chapters;

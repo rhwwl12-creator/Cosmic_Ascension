@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -106,7 +106,6 @@
+ 		FFormatNamedArguments Args;
+ 		Args.Add(TEXT("Player"), CosmicChronicle::VesselNameOf(Life, Tables));
+ 		Args.Add(TEXT("Hazard"), Hazard ? Hazard->DisplayName : FText::GetEmpty());
+-		Log.PushRow(Row, 2, Args, NAME_None, NAME_None);
+ 	}
+ 
+ 	// The inauguration line (B5 header section 2.2 Succeed 5, 3.3; decision 12-da): the narrator's, in the third person by the

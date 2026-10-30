@@ -106,7 +106,8 @@ namespace CosmicHazards
 	 * neighbour of the old Lanes that is neither a dead node nor the sanctuary; with none it stays (section 16 #53 (2), #81). A
 	 * journey from there ends with it: both travel fields empty (B1 - the vessel still stands where a journey began). Every
 	 * people's fleet target on it is lifted (B3). The stage that destroys
-	 * asks the last-system gate first and records the collapse afterwards.
+	 * asks the last-system gate first and records the collapse afterwards; it also tells the record line of a settled system
+	 * destroyed (CosmicRows::LogRecordDestroyed, after the expiry line - B5 decision 11): no line here.
 	 */
 	COSMIC_ASCENSION_API void Destroy(FCosmicEvalContext& Ctx, int32 SystemIndex);
 

@@ -2,6 +2,7 @@
 
 #include "Log/CosmicLogSubsystem.h"
 
+#include "Core/CosmicTags.h"
 #include "Core/CosmicTypes.h"
 #include "Cosmic_Ascension.h"
 #include "Data/CosmicDataTables.h"
@@ -21,6 +22,31 @@ TArray<FCosmicChronicleChapter> UCosmicLogSubsystem::BuildChronicle() const
 {
 	const UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
 	return Sim ? CosmicChronicle::Build(Sim->GetState()) : TArray<FCosmicChronicleChapter>();
+}
+
+bool UCosmicLogSubsystem::HasClaimLineThisTick(FName SystemID) const
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+	if (!Sim || SystemID.IsNone())
+	{
+		return false;
+	}
+	const FGalaxyState& State = Sim->GetState();
+	const FGameplayTag ClaimTag = CosmicTags::LogClaim();
+	// Newest first: this tick's entries are the tail of the log (and of the chronicle, when more than the log's cap of lines
+	// came in one tick). An entry of a later tick - only a state a test laid - is passed by.
+	for (const TArray<FCosmicLogEntry>* Entries : { &State.Log, &State.Chronicle })
+	{
+		for (int32 Index = Entries->Num() - 1; Index >= 0 && (*Entries)[Index].Tick >= State.Tick; --Index)
+		{
+			const FCosmicLogEntry& Entry = (*Entries)[Index];
+			if (Entry.Tick == State.Tick && Entry.Category == ClaimTag && Entry.FocusSystemID == SystemID)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 void UCosmicLogSubsystem::Deinitialize()
@@ -149,6 +175,14 @@ void UCosmicLogSubsystem::Tell(const FCosmicLine& Line, FString&& Rendered)
 	static const FGameplayTag RecordTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Record")));
 	static const FGameplayTag AscensionTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Ascension")));
 
+	// The first part of the two books (B5 decision 11-na): a record line is kept untold whatever the scope and the tell-all
+	// mode - never announced, never in the feed, and no far line stands in for it; the two books read it. Its variant was
+	// drawn all the same.
+	if (Line.Category == RecordTag)
+	{
+		Append(Line.Category, Line.Severity, MoveTemp(Rendered), Line.FocusSystem, Line.FocusCiv, Line.SourceRow, true);
+		return;
+	}
 	if (bTellAll)
 	{
 		Append(Line.Category, Line.Severity, MoveTemp(Rendered), Line.FocusSystem, Line.FocusCiv, Line.SourceRow, false);
@@ -190,8 +224,9 @@ void UCosmicLogSubsystem::Tell(const FCosmicLine& Line, FString&& Rendered)
 		Append(Line.Category, Line.Severity, MoveTemp(Rendered), Line.FocusSystem, Line.FocusCiv, Line.SourceRow, false);
 		return;
 	}
-	// Out of scope: the mythic lines and the two books' lines are kept untold, the rest is not stored.
-	if (Line.Severity >= 2 || Line.Category == ClaimTag || Line.Category == RecordTag)
+	// Out of scope: the mythic lines and the first person of a claim (the two books' second part) are kept untold, the rest is
+	// not stored.
+	if (Line.Severity >= 2 || Line.Category == ClaimTag)
 	{
 		Append(Line.Category, Line.Severity, MoveTemp(Rendered), Line.FocusSystem, Line.FocusCiv, Line.SourceRow, true);
 	}

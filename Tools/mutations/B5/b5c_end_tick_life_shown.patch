@@ -8,4 +8,4 @@
 +	return Lives.Num();
  }
  
- bool CosmicChronicle::OpensCalledChapter(const FCosmicLogEntry& /*Entry*/, const FLifeRecord& /*Called*/)
+ bool CosmicChronicle::OpensCalledChapter(const FCosmicLogEntry& Entry, const FLifeRecord& Called)

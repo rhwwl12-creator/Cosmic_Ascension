@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+@@ -408,7 +408,7 @@
+ 			}
+ 			else if (Entry.Category == ClaimTag())
+ 			{
+-				int32 Group = Claimants.IndexOfByKey(Entry.SourceRow);
++				int32 Group = Claimants.IsEmpty() ? INDEX_NONE : 0;
+ 				if (Group == INDEX_NONE)
+ 				{
+ 					Group = Claimants.Add(Entry.SourceRow);

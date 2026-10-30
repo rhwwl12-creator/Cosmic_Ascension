@@ -22,6 +22,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/PlayerController.h"
 #include "GameplayTagContainer.h"
+#include "Internationalization/Text.h"
+#include "Log/CosmicLogSubsystem.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/Guid.h"
 #include "Misc/ScopeExit.h"
@@ -208,7 +210,8 @@ namespace CosmicLeapTests
 }
 
 // The leap's determinism and the widened guard (header section 2.2, 2.6; section 6 Calling.LeapDeterminism): the tenth
-// stage runs inside the stage guard (a handler of the deposition's line, which that stage tells, reads IsInTickStages); a
+// stage runs inside the stage guard (a handler of the deposition's line, and of the death line - [B-5d1] -, which that stage
+// tells, reads IsInTickStages); a
 // handler of OnSimTick that calls RunLeap or RunHeadless is refused and moves no tick - at a tick's boundary and at RunLeap's
 // own; the same seed and the same death tick give the same state one tick at a time through the leap, through the
 // controller's AdvanceLeap and through RunLeap of the remaining leap.
@@ -279,6 +282,29 @@ bool FCosmicLeapDeterminismTest::RunTest(const FString& Parameters)
 			Sim->RunLeap(3);
 		}
 		TestEqual(TEXT("RunLeap's one boundary refuses them too: three ticks and no more"), Live.Tick, Before + 4);
+	}
+
+	// ---- [B-5d1]: the death line is told inside the stage guard too ----
+	{
+		FGalaxyState& Live = LayAt(*Sim, 400);
+		RecordDeath(Live);
+		bool bHeard = false;
+		bool bInStages = false;
+		{
+			CosmicTests::FScopedProbe Scoped(*Sim);
+			Scoped.Probe->OnLog = [&bHeard, &bInStages, Sim](const FCosmicLogEntry& Entry)
+			{
+				if (!bHeard && Entry.SourceRow == CosmicRows::LogDeathHazard)
+				{
+					bHeard = true;
+					bInStages = Sim->IsInTickStages();
+				}
+			};
+			Sim->StepOnce();
+			Scoped.Probe->OnLog = nullptr;
+		}
+		TestTrue(TEXT("(the death is carried out at the tenth stage, its line told)"), bHeard && IsWaiting(Live));
+		TestTrue(TEXT("A handler of the death line reads IsInTickStages true"), bInStages);
 	}
 
 	// ---- One tick at a time = AdvanceLeap = RunLeap of the remaining leap ----
@@ -432,8 +458,11 @@ bool FCosmicSaveLeapResumeTest::RunTest(const FString& Parameters)
 // section 6 UI.LeapBoundary, the form of UI.RunEnd): LifeClosedAt as a pure function; a death's boundary stops the time
 // whatever the automatic pause and writes Death; a leap the end cuts stops at the end's tick, latches the end (Clock) and
 // writes Ended once; a leap that succeeds before the end sends one boundary, writes Succession once and rebuilds the log
-// feed - a leap of one tick too, whose boundary follows the feed's last tick by one; with the end switched off the leap runs past the end and nothing latches; the silence runs to the end with the end
-// ahead and nothing with the switch off; a leap of 0 and a death on the end's tick stop the time at their boundary too.
+// feed, whose last item is then the inauguration line ([B-5d1]) - a leap of one tick too, whose boundary follows the feed's last tick by one; with the end switched off the leap runs past the end and nothing latches; the silence runs to the end with the end
+// ahead and nothing with the switch off; a leap of 0 and a death on the end's tick stop the time at their boundary too; a
+// succession on the end's tick - through a leap that ends there and through a leap of 0 - leaves the feed's last item the
+// line before the inauguration line of the vessel the end installed (CosmicChronicle::IsUnseenLifeLine, [B-5d1]), and the
+// end forgotten shows it again.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicLeapBoundaryTest, "Cosmic_Ascension.UI.LeapBoundary", CosmicTests::Flags)
 bool FCosmicLeapBoundaryTest::RunTest(const FString& Parameters)
 {
@@ -594,6 +623,14 @@ bool FCosmicLeapBoundaryTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("The feed rebuilt at the leap's boundary: its newest item is the newest told line"), Shown.IsEmpty() ? FString() : Shown.Last(), Told.Last());
 			TestEqual(TEXT("and it holds the told lines"), Shown.Num(), FMath::Min(Told.Num(), CosmicLogFeed::MaxItems));
 		}
+		// [B-5d1]: the last line told inside the leap is the inauguration line of the life the succession stood up - the feed's
+		// last item after the leap.
+		const FCosmicLogEntry* Newest = NewestTold(Live);
+		if (TestTrue(TEXT("The newest told line is the inauguration line of the leap's last tick"), Newest && Newest->SourceRow == CosmicRows::LogInauguration
+			&& Newest->Tick == Died + 40))
+		{
+			TestEqual(TEXT("The feed's last item after the leap is the inauguration line"), Shown.IsEmpty() ? FString() : Shown.Last(), Newest->Message.ToString());
+		}
 	}
 
 	// ---- (3b) A leap of one tick (the cap leaves 1): its boundary follows the death's by one tick, and still rebuilds the feed ----
@@ -724,6 +761,107 @@ bool FCosmicLeapBoundaryTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("Its write is the end's, once (the end before the death)"), Writes.One(ECosmicSaveCause::Ended));
 			TestFalse(TEXT("The ended run's AdvanceLeap runs nothing"), Controller->AdvanceLeap());
 			TestTrue(TEXT("(the leap waits)"), Live.Tick == EndTick && Live.Calling.PendingLeapTicks == 40);
+		}
+	}
+
+	// ---- (8) [B-5d1] A succession on the end's tick: the feed holds back the inauguration line of the vessel the end installed ----
+	// (CosmicChronicle::IsUnseenLifeLine - the player never saw that vessel, ACosmicPlayerController::IsVesselShown): its last item
+	// is the line told before it - through a leap that ends on the end's tick (the boundary's rebuild) and through a leap of 0
+	// on it (the line came through OnLogEntry before the end latched: the latch's OnRunEndChanged rebuilds the feed); with the
+	// end forgotten the line shows again.
+	{
+		// The told line before Entry (null for none) and the feed's items.
+		auto ToldBefore = [](const FGalaxyState& State, const FCosmicLogEntry* Entry) -> const FCosmicLogEntry*
+		{
+			const int32 At = Entry ? static_cast<int32>(Entry - State.Log.GetData()) : INDEX_NONE;
+			for (int32 Index = At - 1; At != INDEX_NONE && Index >= 0; --Index)
+			{
+				if (!State.Log[Index].bUntold)
+				{
+					return &State.Log[Index];
+				}
+			}
+			return nullptr;
+		};
+		auto IsInauguration = [](const FCosmicLogEntry* Entry)
+		{
+			return Entry && (Entry->SourceRow == CosmicRows::LogInauguration || Entry->SourceRow == CosmicRows::LogInaugurationUnnamed);
+		};
+		// (8a) The leap that ends on the end's tick.
+		{
+			FGalaxyState& Live = Lay(EndTick - 40);
+			UCosmicLogFeedWidget* Feed = CreateWidget<UCosmicLogFeedWidget>(Controller);
+			if (!TestNotNull(TEXT("The feed can be created (the end's succession)"), Feed))
+			{
+				return false;
+			}
+			const TSharedRef<SWidget> SlateFeed = Feed->TakeWidget();
+			Kill(Live);
+			if (!TestTrue(TEXT("(the vessel died with its leap of 40 to the end's tick ahead)"), IsWaiting(Live) && Live.Calling.PendingLeapTicks == 40
+				&& Live.Tick + 40 == EndTick))
+			{
+				return false;
+			}
+			TestTrue(TEXT("AdvanceLeap runs (the end's succession)"), Controller->AdvanceLeap());
+			if (TestTrue(TEXT("(the succession stood a vessel up on the end's tick, and the end latched there)"), Live.Tick == EndTick && !IsWaiting(Live)
+				&& Live.Calling.Lives.Num() == 2 && Live.Calling.Lives.Last().BornTick == EndTick && Controller->IsRunEnded()))
+			{
+				const FCosmicLogEntry* Newest = NewestTold(Live);
+				const FCosmicLogEntry* Before = ToldBefore(Live, Newest);
+				const TArray<FString> Shown = ItemMessages(*Feed);
+				if (TestTrue(TEXT("(the newest told line is the inauguration line of the end's tick, with a told line before it)"), IsInauguration(Newest)
+					&& Newest->Tick == EndTick && Before != nullptr))
+				{
+					TestEqual(TEXT("The feed's last item is the line told before the inauguration line of the vessel the end installed"),
+						Shown.IsEmpty() ? FString() : Shown.Last(), Before->Message.ToString());
+					TestFalse(TEXT("and the inauguration line is not among its items"), Shown.Contains(Newest->Message.ToString()));
+					TestEqual(TEXT("It holds every other told line"), Shown.Num(), FMath::Min(ToldMessages(Live).Num() - 1, CosmicLogFeed::MaxItems));
+					// The end forgotten (the switch off): the vessel is the run's again, and so is its line.
+					Controller->SetProvisionalEndEnabled(false);
+					const TArray<FString> Again = ItemMessages(*Feed);
+					TestEqual(TEXT("With the end forgotten the feed shows the inauguration line again, last"), Again.IsEmpty() ? FString() : Again.Last(),
+						Newest->Message.ToString());
+					Controller->SetProvisionalEndEnabled(true);
+				}
+			}
+		}
+		// (8b) A leap of 0 on the end's tick: the death and the succession on one tick, their lines heard as they were told.
+		{
+			FCosmicRulesDef Capped = LeapRules(GameRules, 40, 40);
+			Capped.LeapTotalCap = 0;
+			Sim->SetTables(CosmicTests::WithRules(Original, Capped));
+			FGalaxyState& Live = Lay(EndTick);
+			UCosmicLogFeedWidget* Feed = CreateWidget<UCosmicLogFeedWidget>(Controller);
+			if (!TestNotNull(TEXT("The feed can be created (a leap of 0 on the end's tick)"), Feed))
+			{
+				return false;
+			}
+			const TSharedRef<SWidget> SlateFeed = Feed->TakeWidget();
+			Kill(Live);
+			if (TestTrue(TEXT("(a leap of 0 stood a vessel up on the end's tick, and the end latched at its boundary)"), Live.Tick == EndTick && !IsWaiting(Live)
+				&& Live.Calling.Lives.Num() == 2 && Live.Calling.Lives.Last().BornTick == EndTick && Controller->IsRunEnded()))
+			{
+				const FCosmicLogEntry* Newest = NewestTold(Live);
+				const FCosmicLogEntry* Before = ToldBefore(Live, Newest);
+				const TArray<FString> Shown = ItemMessages(*Feed);
+				if (TestTrue(TEXT("(the tick ends with the death line, then the inauguration line)"), IsInauguration(Newest) && Before
+					&& Before->SourceRow == CosmicRows::LogDeathHazard))
+				{
+					TestEqual(TEXT("The feed's last item after the end's latch is the death line, not the inauguration line"), Shown.IsEmpty() ? FString() : Shown.Last(),
+						Before->Message.ToString());
+					TestFalse(TEXT("which it heard and let go when the end latched"), Shown.Contains(Newest->Message.ToString()));
+					// A line of that life heard after the end latched (nothing in the game tells one; the test tells it by hand): the
+					// feed's rule holds for a new line as for the rebuild.
+					UCosmicLogSubsystem* Log = Sim->GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+					FFormatNamedArguments Args;
+					if (TestTrue(TEXT("(a second inauguration line of the end's tick is told after the latch)"), Log
+						&& Log->PushRow(CosmicRows::LogInauguration, 2, Args, NAME_None, NAME_None) && IsInauguration(NewestTold(Live))))
+					{
+						TestEqual(TEXT("The feed does not take it either"), ItemMessages(*Feed), Shown);
+					}
+				}
+			}
+			Sim->SetTables(Fixed);
 		}
 	}
 	return true;

@@ -8,7 +8,7 @@
 		"Every column of a row struct is declared here: a column added to a struct needs its line.",
 		"Column kinds (closed list): plain, number, numbers, text, texts, tag, tags, tag_list, tag_map, row, row_map, rows, word_map, enum, conditions, effects, pool, structs",
 		"An integer property is declared with integer: true (Data.Integrity holds the columns to the property types).",
-		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, has_type, has_cond, slots_in, len_ge_col, pairs_ge_col, ge_col, contains_all, contains_none, zero, lacks_words",
+		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, has_type, has_cond, slots_in, len_ge_col, pairs_ge_col, ge_col, contains_all, contains_none, zero, lacks_words, no_digits",
 		"A row rule is 'when -> then' over tests: one column with one test of the list above, 'row' with a row name, 'row_not' with a row name (every other row - B3), 'row_prefix' with one of the table's prefixes (the rows of one kind - B1), or 'none' with a list of tests over the columns of one list of structs (no entry of the list holds every one of them - B4: one choice read as a whole). Each test can be asked of some kinds of column only (the checker holds the table).",
 		"What a condition or an effect says of its Tag, its Key and its Value is a closed list in the checker too. A Tag may refuse the tag of the rows of a table that hold tests ('not_tag_of': table, tag column, when) and the tags a condition of the named enumerators reads in any row of any table ('not_read_by') - B4: DelayHazard.",
 		"A column of a list of structs (kind structs) is named in a rule as 'List.Column': the test holds when it holds for every entry of the list, and so for an empty list. The tests that name other columns of the row (len_ge_col, pairs_ge_col, ge_col) are not asked of such a column.",
@@ -17,7 +17,8 @@
 		"The keys of this file and the options of each kind are closed lists in the checker, each with the type of its value: a key nothing reads or a value of the wrong type is a problem, so a slip cannot switch a check off.",
 		"What a rule names has to exist: a test over a column the table does not declare, a tag the ini lacks, a name that is no enumerator or a row the table neither requires nor has is a problem (it would never hold).",
 		"required_rows are the rows the code calls by name: the checker holds them, both ways, to the names in the headers under row_name_sources. A table that has an asset carries must_exist.",
-		"epitaph_leaves_out (B5): the DT_Encounters rows whose title the epitaph never shows among a dead vessel's last answers - the code holds the same rows as CosmicRows::EpitaphLeavesOut, so each is a required row of DT_Encounters. A card title that speaks to the reader (a word of words.reader_address, or it ends in a word of words.reader_question_ends) has to be listed there: the death and inauguration pages keep the third person (decision 12-da).",
+		"epitaph_leaves_out (B5): the DT_Encounters rows whose title the epitaph never shows among a dead vessel's last answers - the code holds the same rows as CosmicRows::EpitaphLeavesOut, so each is a required row of DT_Encounters. A card title that speaks to the reader (a word of words.reader_address, or it ends in a word of words.reader_question_ends) has to be listed there: the death and inauguration pages keep the third person (decision 12-da). The [B-5d1] text audit lists four more, whose titles read as a eulogy under a death (a virtue, a memorial day, the two 'beside' titles of the sacrifice reading - header 3.6-1): those titles stay right on their own cards.",
+		"The words of a death (B5 [B-5d1], header 3.5): afterlife_words (an idiom that tells where the dead went, and the words of an afterlife), book_of_life_words (the book of life), called_away_words (a calling read as a death) and remnant_words (the word of election - Log.Record rows only), with death_frame_words (an agent, a sacrifice or a cause of the death - the death row only), rebirth_words (a return or a rebirth - the inauguration rows and Succession. only) and record_object_words (days, names, people or the dead as what was recorded - Log.Record rows only), are matched letter for letter, so a short word is found inside others: they hang on the new places alone - the string keys under Epitaph., Reign., Digest., Succession. and Chronicle. (the two books' chapter), and the DT_LogTemplates rows of Log.Record with the death and inauguration rows - never on a whole column ('잠들지' and '돌아가' already stand elsewhere).",
 		"A table whose columns are null has no rows yet: its columns are declared when its first row is written."
 	],
 	"tag_sources": ["Config/DefaultGameplayTags.ini"],
@@ -46,12 +47,24 @@
 		"vigil_image": ["밤", "철야", "금식", "절식", "기도"],
 		"second_person": ["너는", "너를", "너의", "너에게", "네가", "네게", "너희", "당신"],
 		"reader_address": ["당신"],
-		"reader_question_ends": ["?", "는가"]
+		"reader_question_ends": ["?", "는가"],
+		"afterlife_words": ["별이 되", "별이 됐", "별이 돼", "하늘나라", "본향", "품에 안기", "품에 안겨", "품에 안겼", "저세상", "저승", "황천", "소천", "명복", "영면", "귀천", "왕생", "극락", "타계", "유명을 달리", "선종", "입적", "열반", "다시 만나", "다시 만날", "다시 만났", "승천", "세상을 떠나", "세상을 떠났", "세상을 떠", "별세", "천당", "낙원", "환생", "윤회", "부활", "영생", "전생에", "전생의", "전생을", "전생이", "돌아가셨", "돌아가시", "편히 쉬", "편히 잠", "고이 잠", "쉬소서", "잠드소서", "다시 태어"],
+		"book_of_life_words": ["생명책", "명부", "명단", "호명", "기념책", "이름이 적", "이름이 기록", "기록된 이름", "이름을 기록", "이름을 적", "생명의 책"],
+		"called_away_words": ["부르심을 받", "부름을 받", "불려 가", "불려 갔", "데려가", "데려갔", "부름받", "부르심받", "부르심에", "부름 받", "부르심 받", "불려 올"],
+		"remnant_words": ["남은 자"],
+		"death_frame_words": ["불이 내려", "쏟아져", "내리쳐", "그들을 위해", "위하여", "했기에"],
+		"rebirth_words": ["다시 ", "돌아오", "돌아왔", "태어나", "태어났", "거듭나", "머물렀", "임했", "깃들", "알아보았"],
+		"record_object_words": ["날들", "이름", "사람", "죽은 자", "죽은 이", "남은 이"]
 	},
 
 	"string_table": {
 		"checked_prefixes": {
-			"Chronicle.": {"forbidden": "verdict", "no_digits": true},
+			"Chronicle.": {"forbidden": ["verdict", "soul_verbs", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words"], "no_digits": true},
+			"Chronicle.NoVessel": {"forbidden": ["verdict", "soul_verbs", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "silence_words"], "no_digits": true},
+			"Epitaph.": {"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "reader_address"], "no_digits": true},
+			"Reign.": {"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words"], "no_digits": true},
+			"Digest.": {"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "silence_words", "reader_address"], "no_digits": true},
+			"Succession.": {"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "reader_address", "rebirth_words"], "no_digits": true},
 			"Save.": {"forbidden": "verdict", "no_digits": true},
 			"Hint.": {"forbidden": "verdict", "no_digits": true},
 			"Galaxy.Hint": {"forbidden": "verdict", "no_digits": true},
@@ -82,7 +95,7 @@
 
 	"single_variant_rows": ["log_first_life", "log_first_contact"],
 
-	"epitaph_leaves_out": ["petition_keep_throne", "petition_exalt"],
+	"epitaph_leaves_out": ["petition_keep_throne", "petition_exalt", "petition_wise_heart", "petition_feast", "enc_plague_tend", "enc_star_watch"],
 
 	"event_log_categories": {
 		"Event.Civ.Economy": ["Log.Civ"],
@@ -90,7 +103,7 @@
 		"Event.Crisis.Supernova": ["Log.Crisis", "Log.Civ"],
 		"Event.Crisis.Rebellion": ["Log.Crisis", "Log.Civ"],
 		"Event.Crisis.Transcendent": ["Log.Transcendent", "Log.Crisis"],
-		"Event.Crisis.Claim": ["Log.Record", "Log.Crisis"],
+		"Event.Crisis.Claim": ["Log.Crisis"],
 		"Event.Grace.Rescue": ["Log.Calling"],
 		"Event.Grace.Remnant": ["Log.Civ"],
 		"Event.Grace.Jubilee": ["Log.Civ"]
@@ -269,6 +282,11 @@
 					"why": "the first life's row is a seeking people no AI people is drawn from: weight 0, its archetype tag, the seeking revelation (guideline 5.10, 5.11)",
 					"when": [{"row": "arch_seeker"}],
 					"then": [{"col": "Weight", "is": 0}, {"col": "Traits", "contains_all": ["Trait.Arch.Seeker"]}, {"col": "RevelationMode", "is": "Revelation.Seeking"}]
+				},
+				{
+					"why": "arch_default is the name bank of last resort for the vessel: a people whose own bank is empty names its vessel from it, and an empty name would leave the death and inauguration lines without their subject (B5 log_death_hazard, log_inauguration, log_inauguration_unnamed - CosmicChronicle::VesselNameOf)",
+					"when": [{"row": "arch_default"}],
+					"then": [{"col": "PersonNameBank", "min_len": 10}]
 				}
 			]
 		},
@@ -277,7 +295,7 @@
 			"struct": "LogTemplateDef",
 			"prefixes": ["log_"],
 			"must_exist": true,
-			"required_rows": ["log_first_life", "log_breakthrough_physics", "log_breakthrough_society", "log_breakthrough_engineering", "log_breakthrough_transcendence", "log_fallen_monarch", "log_first_contact", "log_contact", "log_far_event", "log_far_ascent", "log_scan_wild", "log_crowned", "log_returned", "log_throne_vacated", "log_rebellion_unseated", "log_edict_enacted", "log_edict_revoked", "log_edict_lapsed", "log_stance_changed", "log_stance_lapsed", "log_treaty_signed", "log_treaty_broken", "log_siege_begun", "log_siege_on_us", "log_siege_taken", "log_siege_lost", "log_siege_held", "log_siege_failed", "log_siege_lifted", "log_sign_claim", "log_fleet_worn"],
+			"required_rows": ["log_first_life", "log_breakthrough_physics", "log_breakthrough_society", "log_breakthrough_engineering", "log_breakthrough_transcendence", "log_fallen_monarch", "log_first_contact", "log_contact", "log_far_event", "log_far_ascent", "log_scan_wild", "log_crowned", "log_returned", "log_throne_vacated", "log_rebellion_unseated", "log_edict_enacted", "log_edict_revoked", "log_edict_lapsed", "log_stance_changed", "log_stance_lapsed", "log_treaty_signed", "log_treaty_broken", "log_siege_begun", "log_siege_on_us", "log_siege_taken", "log_siege_lost", "log_siege_held", "log_siege_failed", "log_siege_lifted", "log_sign_claim", "log_fleet_worn", "log_death_hazard", "log_inauguration", "log_record_destroyed", "log_record_annexed", "log_inauguration_unnamed"],
 			"columns": {
 				"Category": {"kind": "tag", "root": "Log."},
 				"Context": {"kind": "tag", "root": "Revelation.", "optional": true},
@@ -318,6 +336,34 @@
 					"why": "the line of a fleet worn by a higher sphere is the narrator's, with no image of the night's vigil: the vigil is never told as the cause (B4 header 2.7, 3.9)",
 					"when": [{"row": "log_fleet_worn"}],
 					"then": [{"col": "Category", "is": "Log.Conflict"}, {"col": "Templates", "lacks_words": "vigil_image"}]
+				},
+				{
+					"why": "a record line is a subjectless passive about a place or an event, told by the system's name alone: no role slot, no {PopBand}, no {Civ}, no figure - the two books are no roll of a crowd of people - and no word of an afterlife, the book of life, a calling read as a death or the remnant, nor days, names, people or the dead as what was recorded: the object is a place or an event (B5 header 3.3, 3.5, decision 11-ga)",
+					"when": [{"col": "Category", "is": "Log.Record"}],
+					"then": [{"col": "Templates", "slots_in": ["System"]}, {"col": "Templates", "no_digits": true}, {"col": "Templates", "lacks_words": "afterlife_words"},
+						{"col": "Templates", "lacks_words": "book_of_life_words"}, {"col": "Templates", "lacks_words": "called_away_words"}, {"col": "Templates", "lacks_words": "remnant_words"},
+						{"col": "Templates", "lacks_words": "record_object_words"}]
+				},
+				{
+					"why": "the death line is the narrator's, in the third person by the vessel's name and the hazard: the calling's line, focused on no system, with no word of an afterlife, the book of life or a calling read as a death, no 'you' across the death, no name of the holy order or its realm, and no agent, sacrifice or cause of the death (B5 header 3.3, 3.6, decision 12-da)",
+					"when": [{"row": "log_death_hazard"}],
+					"then": [{"col": "Category", "is": "Log.Calling"}, {"col": "Templates", "slots_in": ["Player", "Hazard"]}, {"col": "Templates", "lacks_words": "afterlife_words"},
+						{"col": "Templates", "lacks_words": "book_of_life_words"}, {"col": "Templates", "lacks_words": "called_away_words"}, {"col": "Templates", "lacks_words": "reader_address"},
+						{"col": "Templates", "lacks_words": "realm_names"}, {"col": "Templates", "lacks_words": "death_frame_words"}]
+				},
+				{
+					"why": "the inauguration line is the narrator's, in the third person by the vessel's name, its people and its system: the calling's line, with no word of an afterlife, the book of life or a calling read as a death, no 'you' across the death, no name of the holy order or its realm, and no word of a return or a rebirth (B5 header 3.3, 3.6, decision 12-da)",
+					"when": [{"row": "log_inauguration"}],
+					"then": [{"col": "Category", "is": "Log.Calling"}, {"col": "Templates", "slots_in": ["Player", "Civ", "System"]}, {"col": "Templates", "lacks_words": "afterlife_words"},
+						{"col": "Templates", "lacks_words": "book_of_life_words"}, {"col": "Templates", "lacks_words": "called_away_words"}, {"col": "Templates", "lacks_words": "reader_address"},
+						{"col": "Templates", "lacks_words": "realm_names"}, {"col": "Templates", "lacks_words": "rebirth_words"}]
+				},
+				{
+					"why": "the inauguration line of a vessel born in a system a claim joined on the same tick is the narrator's, in the third person by the vessel's name and its people, naming no system - no narrator line about that place follows the fallen's own line (rule 5): the calling's line, with no word of an afterlife, the book of life or a calling read as a death, no 'you' across the death, no name of the holy order or its realm, and no word of a return or a rebirth (B5 header 3.3, 3.6, decision 12-da)",
+					"when": [{"row": "log_inauguration_unnamed"}],
+					"then": [{"col": "Category", "is": "Log.Calling"}, {"col": "Templates", "slots_in": ["Player", "Civ"]}, {"col": "Templates", "lacks_words": "afterlife_words"},
+						{"col": "Templates", "lacks_words": "book_of_life_words"}, {"col": "Templates", "lacks_words": "called_away_words"}, {"col": "Templates", "lacks_words": "reader_address"},
+						{"col": "Templates", "lacks_words": "realm_names"}, {"col": "Templates", "lacks_words": "rebirth_words"}]
 				}
 			]
 		},
@@ -503,7 +549,7 @@
 				"Doctrine": {"kind": "tag", "root": "Doctrine."},
 				"Allegiance": {"kind": "tag", "root": "Realm."},
 				"CounterfeitOf": {"kind": "tag", "root": "Truth.", "optional": true},
-				"Title": {"kind": "text", "slots": [], "no_digits": true, "forbidden": "verdict"},
+				"Title": {"kind": "text", "slots": [], "no_digits": true, "forbidden": "verdict", "required": true},
 				"Lure": {"kind": "text", "slots": [], "no_digits": true, "forbidden": ["verdict_without_soul", "holy_words", "holy_and_myth", "realm_names", "rescue_words", "revelation_mimicry"]},
 				"Tier": {"kind": "enum", "enum": "EAscensionTier"},
 				"Depth": {"kind": "number", "min": 0, "max": 1},
@@ -771,7 +817,7 @@
 			"struct": "EncounterDef",
 			"prefixes": ["enc_", "petition_"],
 			"must_exist": true,
-			"required_rows": ["petition_first_contact", "petition_pressure_claim", "petition_pressure_measured", "petition_keep_throne", "petition_exalt"],
+			"required_rows": ["petition_first_contact", "petition_pressure_claim", "petition_pressure_measured", "petition_keep_throne", "petition_exalt", "petition_wise_heart", "petition_feast", "enc_plague_tend", "enc_star_watch"],
 			"columns": {
 				"Title": {"kind": "text", "required": true, "slots": ["Civ", "System", "Hazard", "Rebel", "OtherCiv"], "no_digits": true, "forbidden": "verdict"},
 				"Body": {"kind": "text", "slots": ["Civ", "System", "Hazard", "Rebel", "OtherCiv"], "no_digits": true, "forbidden": "verdict"},
