@@ -80,8 +80,9 @@ namespace CosmicCallingPagesTests
 	}
 
 	// The source row of a test's death: a hazard row of the game - the AI awakening, the one hazard decision 6-ga makes lethal
-	// ([B-5d2]; no row kills yet - data off) - and the cards of the answers: the awakening's own card is the one the epitaph
-	// sets apart (the star watch and the plague's tending, the other two cards of a hazard, are left out - [B-5d1] text audit).
+	// (its own expiry since [B-5d2]; these deaths are recorded by hand) - and the cards of the answers: the awakening's own
+	// card is the one the epitaph sets apart (the star watch and the plague's tending, the other two cards of a hazard, are
+	// left out - [B-5d1] text audit).
 	const FName DeathRow(TEXT("crisis_ai_awakening"));
 	const FName ClaimCard(TEXT("petition_pressure_claim"));
 	const FName TalkCard(TEXT("enc_awakening_talk"));

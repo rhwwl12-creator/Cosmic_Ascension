@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -536,7 +536,7 @@
+ 	bool bReaches = false;
+ 	if (!SystemID.IsNone())
+ 	{
+-		bReaches = Player.Role == EPlayerRole::Wanderer && Player.CurrentSystemID == SystemID;
++		bReaches = Player.Role == EPlayerRole::Wanderer && Player.CurrentSystemID == SystemID && Player.TravelTargetSystemID.IsNone();
+ 	}
+ 	else if (!CivID.IsNone())
+ 	{

@@ -2260,7 +2260,11 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 	}
 	const FCosmicDataTables Original = Sim->GetTables();
 	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
-	Sim->SetTables(Original);
+	// The game's data without its one death (B5 [B-5d2] - CosmicTests::WithoutDeath; the world is the same until a death): the
+	// deposed vessel of seed 18 stands on at its old capital, where an AI awakening expires on its own side at tick 16,316
+	// (the [B-5a] measurement), and the succession after that leap would clear the fallen monarch's status this test reads at
+	// the end. Death is not this test's subject; Calling.LethalSource pins the death itself.
+	Sim->SetTables(CosmicTests::WithoutDeath(Original));
 	static const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Claim")));
 	static const FGameplayTag RebellionTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Rebellion")));
 	constexpr int64 Ticks = 20000;

@@ -687,13 +687,22 @@
 					"then": [{"col": "OnExpireBranchEffects", "max_len": 0}]
 				},
 				{
-					"why": "a death comes only from the one hazard expiry B5 decision 6 opens ([B-5d2]): until then no hazard row records one (guideline 7.4)",
+					"why": "a death comes only from a hazard's own expiry, on its own side (B5 decision 6-ga, header 3.5): never from its branch, the damage to its neighbours or its resolution (guideline 7.4)",
 					"then": [
-						{"col": "OnExpireEffects", "lacks_type": "KillPlayer"},
 						{"col": "OnExpireBranchEffects", "lacks_type": "KillPlayer"},
 						{"col": "OnExpireNeighbourEffects", "lacks_type": "KillPlayer"},
 						{"col": "OnResolveEffects", "lacks_type": "KillPlayer"}
 					]
+				},
+				{
+					"why": "the fallen cannot touch a life - the claim takes from the living only - and the visitation is the holy order's own: no claim, visitation or cult kills (B5 header 3.5)",
+					"when": [{"col": "HazardTag", "in": ["Hazard.Claim", "Hazard.Visitation", "Hazard.Cult"]}],
+					"then": [{"col": "OnExpireEffects", "lacks_type": "KillPlayer"}]
+				},
+				{
+					"why": "the supernova precursor's expiry destroys the system, and the death line mourns a star that stays: no death at its expiry until it has a death row of its own (B5 header 8 [B-5d2], DECISIONS_LOG [B-5d1] (11))",
+					"when": [{"col": "HazardTag", "is": "Hazard.PreSupernova"}],
+					"then": [{"col": "OnExpireEffects", "lacks_type": "KillPlayer"}]
 				},
 				{
 					"why": "the leader of a cult has no name (guideline 4.1)",
@@ -1088,7 +1097,7 @@
 		"GrantPower": {"tag": {"root": ["Way.", "Power."]}},
 		"PlayerStatDelta": {"key": {"word": "stat"}, "value": {"min": -10, "max": 10, "integer": true}},
 		"SetFlag": {"tag": {"root": "Flag."}},
-		"KillPlayer": {"tag": {"root": "Death."}},
+		"KillPlayer": {"tag": {"root": "Death.Hazard"}},
 		"DeposeRuler": {"tag": {"root": "Reign."}},
 		"ChangePopulation": {"value": {"min": -1}},
 		"NameNotable": {"tag": {"root": "Notable."}, "key": {"word": "civ_selector", "optional": true}},

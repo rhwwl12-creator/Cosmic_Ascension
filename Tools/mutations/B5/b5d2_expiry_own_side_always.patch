@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2434,7 +2434,7 @@
+ 	}
+ 
+ 	// The effects of the expiry, then its damage to the neighbours.
+-	UCosmicEventSubsystem::ApplyAll(bBranch ? Row->OnExpireBranchEffects : Row->OnExpireEffects, Ctx);
++	UCosmicEventSubsystem::ApplyAll(Row->OnExpireEffects, Ctx);
+ 	if (!Row->OnExpireNeighbourEffects.IsEmpty())
+ 	{
+ 		const TArray<FName> Lanes = State.Systems[SystemIndex].Lanes;

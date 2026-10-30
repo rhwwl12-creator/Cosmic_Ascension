@@ -1859,11 +1859,13 @@ bool FCosmicSightWalkMovedTest::RunTest(const FString& Parameters)
 	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
 	// The world those runs had: no inherited edict and no Society bonus to the recovery (B2 turned both on in the game's
 	// data; the policy below holds no edict, so the rest of B2's data changes nothing), and no diplomacy - no drift, no
-	// fleet, no spread, no first contact card (B3: CosmicTests::WithoutDiplomacy keeps the rules it is given otherwise).
+	// fleet, no spread, no first contact card (B3: CosmicTests::WithoutDiplomacy keeps the rules it is given otherwise) - and no
+	// death (B5 [B-5d2]: the AI awakening's own expiry kills a wanderer standing there - the first crisis puts one on every
+	// capital at tick 150 - and those runs had none: CosmicTests::WithoutDeath, the same world until a death).
 	{
 		FCosmicRulesDef Before = CosmicTests::WithoutStartingEdict(Sim->GetRules());
 		Before.SocietyRecoveryBonus = 0.f;
-		Sim->SetTables(CosmicTests::WithoutDiplomacy(CosmicTests::WithRules(Original, Before)));
+		Sim->SetTables(CosmicTests::WithoutDeath(CosmicTests::WithoutDiplomacy(CosmicTests::WithRules(Original, Before))));
 	}
 
 	struct FCase

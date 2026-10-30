@@ -55,8 +55,9 @@ namespace CosmicLethalWarningTests
 		return (Text && Text->GetVisibility() != ESlateVisibility::Collapsed) ? Text->GetText().ToString() : FString();
 	}
 
-	// The game's tables with a KillPlayer in the supernova precursor's expiry: the game's own data kills nobody until [B-5d2],
-	// so the warnings are seen with a test row of this file's own.
+	// The game's tables with a KillPlayer in the supernova precursor's expiry as well: the game's own data kills at the AI
+	// awakening's own expiry alone ([B-5d2], decision 6-ga), so the precursor's warnings are seen with a test row of this file's
+	// own; the awakening's are the game's.
 	FCosmicDataTables WithLethalPrecursor(const FCosmicDataTables& Base)
 	{
 		FCosmicDataTables Tables = Base;
@@ -194,7 +195,7 @@ bool FCosmicUILethalWarningTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	TestFalse(TEXT("The game's own data kills nobody yet (the data is off until [B-5d2])"), CosmicHazards::KillsAVesselOf(Original, Precursor));
+	TestFalse(TEXT("The game's own data does not kill at the supernova precursor's expiry ([B-5d2] opens the AI awakening's alone)"), CosmicHazards::KillsAVesselOf(Original, Precursor));
 	TestTrue(TEXT("(the test row kills at its expiry)"), CosmicHazards::KillsAVesselOf(Lethal, Precursor) && !CosmicHazards::KillsAVesselOf(Lethal, Plague));
 	Sim->SetTables(Lethal);
 	// The birth protection (DT_Rules.BirthProtectionTicks): the board's hazards count down past it, so the vessel born at the
@@ -251,7 +252,7 @@ bool FCosmicUILethalWarningTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("A hazard whose expiry kills nobody is no warning"), PlaceNow(), INDEX_NONE);
 	Place(4, Precursor);
 	TestEqual(TEXT("A lethal hazard where the wanderer stands is"), PlaceNow(), 4);
-	TestEqual(TEXT("not with the game's own data"), CosmicAutoPause::LethalPlaceOf(*State, Index, Original, Sim->GetRules()), INDEX_NONE);
+	TestEqual(TEXT("not with the game's own data (its precursor kills nobody)"), CosmicAutoPause::LethalPlaceOf(*State, Index, Original, Sim->GetRules()), INDEX_NONE);
 	Place(5, Precursor);
 	TestEqual(TEXT("A lethal hazard on a neighbour is not the vessel's"), PlaceNow(), 4);
 	Clear(5);
@@ -281,6 +282,25 @@ bool FCosmicUILethalWarningTest::RunTest(const FString& Parameters)
 	Panel->ShowSystem(State->Systems[5].SystemID);
 	Go = ButtonOf(*Panel, UCosmicSystemPanelWidget::TravelAction);
 	TestTrue(TEXT("nor in [Travel]'s tooltip"), Go && !Words(Go->GetToolTipText()).Contains(TravelWarning));
+	// [B-5d2] The game's own lethal row - the AI awakening's own expiry (decision 6-ga) - warns as the test row does, in its name.
+	{
+		const FGameplayTag Awakening = Tag(TEXT("Hazard.AIAwakening"));
+		const FHazardDef* AwakeningRow = Original.FindHazardByTag(Awakening);
+		if (TestTrue(TEXT("(the game's AI awakening kills at its expiry)"), AwakeningRow && CosmicHazards::KillsAVesselOf(Original, Awakening)))
+		{
+			Place(4, Awakening);
+			TestEqual(TEXT("The game's own lethal row is a lethal place where the wanderer stands"), CosmicAutoPause::LethalPlaceOf(*State, Index, Original, Sim->GetRules()), 4);
+			FFormatNamedArguments AwakeningArgs;
+			AwakeningArgs.Add(TEXT("Hazard"), AwakeningRow->DisplayName);
+			Bar->Refresh();
+			TestEqual(TEXT("The top bar warns of it in the awakening's own name"), Shown(Bar->GetLethalText()), Words(FText::Format(Label(TEXT("Wander.Bar.Lethal")), AwakeningArgs)));
+			Panel->ShowSystem(State->Systems[4].SystemID);
+			TestTrue(TEXT("and so does the panel of its system"), Words(Panel->GetDetailText()->GetText()).Contains(PanelWarning));
+			Panel->ShowSystem(State->Systems[5].SystemID);
+			Go = ButtonOf(*Panel, UCosmicSystemPanelWidget::TravelAction);
+			TestTrue(TEXT("and [Travel]'s tooltip"), Go && Words(Go->GetToolTipText()).Contains(Words(FText::Format(Label(TEXT("Wander.TravelLethalTip")), AwakeningArgs))));
+		}
+	}
 	Place(4, Precursor);
 	// Under way the vessel still stands where it left (section 2.8): the system it left warns, the bar says 'before it arrives'.
 	TestTrue(TEXT("(it sets off to 5)"), Role->TravelTo(State->Systems[5].SystemID) == CosmicWanderer::ETravelBlock::None);

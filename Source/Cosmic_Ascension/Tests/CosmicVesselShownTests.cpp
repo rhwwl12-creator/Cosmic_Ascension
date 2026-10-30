@@ -83,8 +83,8 @@ namespace CosmicVesselShownTests
 		return Rules;
 	}
 
-	// The tables with a KillPlayer in the supernova precursor's expiry: the game's own data kills nobody until [B-5d2], so the
-	// lethal warning is seen with a test row of this file's own (UI.LethalWarning's form).
+	// The tables with a KillPlayer in the supernova precursor's expiry as well: the game's own data kills at the AI awakening's
+	// own expiry alone ([B-5d2]), so the precursor's warning is seen with a test row of this file's own (UI.LethalWarning's form).
 	FCosmicDataTables WithLethalPrecursor(const FCosmicDataTables& Base)
 	{
 		FCosmicDataTables Tables = Base;

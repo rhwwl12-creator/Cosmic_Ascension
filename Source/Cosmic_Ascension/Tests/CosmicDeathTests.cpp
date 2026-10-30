@@ -56,7 +56,8 @@ namespace CosmicDeathTests
 	}
 
 	// The rows and names of these tests. A death's source row is a hazard row of the game (the quiet copy holds it): the death
-	// line names it ({Hazard} - [B-5d1]); no row of the game kills yet ([B-5d2]), so the record is made by hand.
+	// line names it ({Hazard} - [B-5d1]). These records are made by hand, on the precursor's row - which kills nobody in the
+	// game's data: [B-5d2] opens the AI awakening's own expiry alone, and Calling.LethalSource pins that one.
 	const FName CardRow(TEXT("enc_test_death_tend"));
 	const FName DeathRow(TEXT("crisis_pre_supernova"));
 	const FName LeftEdict(TEXT("edict_test_left"));
@@ -543,6 +544,67 @@ namespace CosmicDeathTests
 		Test.TestTrue(*FString::Printf(TEXT("%s: it names the vessel by its name (the third person - decision 12-da)"), Who), !Name.IsEmpty() && Message.Contains(Name));
 		const FHazardDef* Hazard = Sim.GetTables().FindHazard(Life.CauseSourceRow);
 		Test.TestTrue(*FString::Printf(TEXT("%s: and the hazard behind the death"), Who), Hazard && !Hazard->DisplayName.IsEmpty() && Message.Contains(Hazard->DisplayName.ToString()));
+	}
+
+	// [B-5d2] The game's one lethal row (decision 6-ga) and the wanderer's card that answers it.
+	const FName AwakeningRow(TEXT("crisis_ai_awakening"));
+	const FName AwakeningTalk(TEXT("enc_awakening_talk"));
+
+	// [B-5d2] What the crisis stage of one tick noted of the expiry in a system (FCosmicStageClock::FExpiry - a measurement's
+	// note: the side the expiry took, and whether a KillPlayer on its system would reach the vessel then; it draws nothing and
+	// writes nothing to the state). bNoted false when no expiry ran there.
+	struct FExpiryNote
+	{
+		bool bNoted = false;
+		bool bBranch = false;
+		bool bReached = false;
+	};
+
+	// One tick from From with the stage clock on (off again after): the note of the expiry in SystemIndex.
+	FExpiryNote StepNoted(UGalaxySimulationSubsystem& Sim, const FGalaxyState& From, int32 SystemIndex)
+	{
+		const FName SystemID = From.Systems[SystemIndex].SystemID;
+		Sim.LoadState(From);
+		Sim.GetStageClock() = FCosmicStageClock();
+		Sim.GetStageClock().bOn = true;
+		Sim.StepOnce();
+		FExpiryNote Note;
+		for (const FCosmicStageClock::FExpiry& Expiry : Sim.GetStageClock().Expiries)
+		{
+			if (Expiry.SystemID == SystemID)
+			{
+				Note.bNoted = true;
+				Note.bBranch = Expiry.bBranch;
+				Note.bReached = Expiry.bReached;
+			}
+		}
+		Sim.GetStageClock() = FCosmicStageClock();
+		return Note;
+	}
+
+	// StepNoted from From whose sim stream is moved on through numbers (RngState + Try, Try below 64) until the expiry's own
+	// number falls on the side asked (bBranch: its branch effects): the live state is that tick's afterwards and OutBefore the
+	// state it began from. bNoted false when no try took that side.
+	FExpiryNote ExpireOnSide(UGalaxySimulationSubsystem& Sim, const FGalaxyState& From, int32 SystemIndex, bool bBranch, FGalaxyState& OutBefore)
+	{
+		for (int32 Try = 0; Try < 64; ++Try)
+		{
+			OutBefore = From;
+			OutBefore.RngState = static_cast<int32>(static_cast<uint32>(From.RngState) + static_cast<uint32>(Try));
+			const FExpiryNote Note = StepNoted(Sim, OutBefore, SystemIndex);
+			if (Note.bNoted && Note.bBranch == bBranch)
+			{
+				return Note;
+			}
+		}
+		return FExpiryNote();
+	}
+
+	// Whether the calling still rests on its first vessel, which never died and has no death waiting.
+	bool LivesOn(const FGalaxyState& State)
+	{
+		return State.Calling.LifeState == ELifeState::Embodied && State.Calling.Lives.Num() == 1 && State.Calling.Lives.Last().DiedTick == 0
+			&& !State.Calling.PendingEffect.IsValid() && CountLinesOf(State, CosmicRows::LogDeathHazard) == 0;
 	}
 }
 
@@ -1479,6 +1541,285 @@ bool FCosmicCallingFirstTickOfLifeTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("(without the card's row none comes)"), NoCard.Card.IsNone());
 	TestEqual(TEXT("The card moves no number of the sim stream"), Card.Seed, NoCard.Seed);
 	TestTrue(TEXT("and nothing of the world (the world hash)"), Card.WorldHash == NoCard.WorldHash);
+	return true;
+}
+
+// Pins the one lethal source of the game's data ([B-5d2] - B5 header section 3.2, 3.5, 2.8, 2.9; decision 6-ga): the game's
+// tables carry one KillPlayer, by Death.Hazard, in the own expiry effects of the AI awakening (crisis_ai_awakening), so
+// CosmicHazards::KillsAVesselOf is true for that hazard and false for every other, and CosmicTests::WithoutDeath takes it
+// away. On the game's rows (the quiet copy - no draw places a hazard): an embodied wanderer standing where the awakening
+// expires on its own side dies on that tick, by Death.Hazard from crisis_ai_awakening, and the death line names the hazard;
+// the branch side spares it; an awakening the card ended (enc_awakening_talk's success) never expires; a ruler of that
+// system, a vessel elsewhere and a vessel inside the birth protection do not die (born one tick earlier it does); a vessel
+// that set out from that system dies there, for it stands where it left until it arrives (section 2.8). The succession
+// never offers a system holding a live awakening, not even as the one place left.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicCallingLethalSourceTest, "Cosmic_Ascension.Calling.LethalSource", CosmicTests::Flags)
+bool FCosmicCallingLethalSourceTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicDeathTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	UPlayerRoleSubsystem* Role = Sim ? Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (!Sim || !TestNotNull(TEXT("The role subsystem exists"), Role))
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->GetStageClock() = FCosmicStageClock(); Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	const FGameplayTag Awakening = Tag(TEXT("Hazard.AIAwakening"));
+	const FGameplayTag Cause = Tag(TEXT("Death.Hazard"));
+
+	// ---- 1. The data ----
+	FName RowName;
+	const FHazardDef* Row = Original.FindHazardByTag(Awakening, &RowName);
+	if (!TestNotNull(TEXT("The game has the AI awakening's row"), Row) || !TestEqual(TEXT("(crisis_ai_awakening)"), RowName, AwakeningRow) || !Original.Hazards)
+	{
+		return false;
+	}
+	auto KillsIn = [](const TArray<FCosmicEffect>& Effects, const FGameplayTag& Of)
+	{
+		int32 Count = 0;
+		for (const FCosmicEffect& Effect : Effects)
+		{
+			Count += (Effect.Type == EEffectType::KillPlayer && (!Of.IsValid() || Effect.Tag == Of)) ? 1 : 0;
+		}
+		return Count;
+	};
+	TestEqual(TEXT("Its own expiry effects carry one KillPlayer, by Death.Hazard"), KillsIn(Row->OnExpireEffects, Cause), 1);
+	TestEqual(TEXT("and no other"), KillsIn(Row->OnExpireEffects, FGameplayTag()), 1);
+	TestTrue(TEXT("Its branch, the damage to its neighbours and its resolution kill nobody"), KillsIn(Row->OnExpireBranchEffects, FGameplayTag()) == 0
+		&& KillsIn(Row->OnExpireNeighbourEffects, FGameplayTag()) == 0 && KillsIn(Row->OnResolveEffects, FGameplayTag()) == 0);
+	TestTrue(TEXT("(its branch is a side of its own: a chance of it)"), Row->BranchChance > 0.f && Row->BranchChance < 1.f);
+	TestTrue(TEXT("KillsAVesselOf: the AI awakening kills a vessel"), CosmicHazards::KillsAVesselOf(Original, Awakening));
+	int32 Others = 0;
+	for (const FName Name : Original.Hazards->GetRowNames())
+	{
+		const FHazardDef* Other = Original.FindHazard(Name);
+		if (Other && Name != AwakeningRow)
+		{
+			++Others;
+			TestFalse(*FString::Printf(TEXT("KillsAVesselOf: %s kills nobody"), *Other->HazardTag.ToString()), CosmicHazards::KillsAVesselOf(Original, Other->HazardTag));
+		}
+	}
+	TestTrue(TEXT("(the game has other hazards)"), Others > 0);
+	TestFalse(TEXT("CosmicTests::WithoutDeath takes the one death away"), CosmicHazards::KillsAVesselOf(CosmicTests::WithoutDeath(Original), Awakening));
+
+	// ---- 2. The world, on the game's rows ----
+	auto NoSight = [](FCosmicRulesDef& Rules) { Rules.SightIntervalTicks = 100000; };
+	const FCosmicDataTables Tables = TablesWith(Original, nullptr, NoSight);
+	const FCosmicDataTables Carded = TablesWith(Original, CosmicTests::CopyWithout<FEncounterDef>(Original.Encounters, {}), NoSight);
+	TestTrue(TEXT("(the quiet copy keeps the game's lethal row)"), CosmicHazards::KillsAVesselOf(Tables, Awakening) && CosmicHazards::KillsAVesselOf(Carded, Awakening));
+	// LayBoard's board with the awakening in system 5 (people 1's), Left ticks to go, and the vessel a wanderer walked from
+	// there.
+	constexpr int32 Lethal = 5;
+	auto Lay = [&](const FCosmicDataTables& With, int32 Left) -> FGalaxyState*
+	{
+		FGalaxyState* Board = LayBoard(*Sim, With);
+		if (!Board)
+		{
+			return nullptr;
+		}
+		Walk(*Sim, *Role, Lethal);
+		Board->Systems[Lethal].ActiveHazard = Awakening;
+		Board->Systems[Lethal].HazardTicksRemaining = Left;
+		return Board;
+	};
+	const FGalaxyState& State = Sim->GetState();
+	FGalaxyState Before;
+
+	// The own side: the wanderer standing there dies on the expiry's tick.
+	{
+		const FGalaxyState* Board = Lay(Tables, 1);
+		if (!TestNotNull(TEXT("The board is laid"), Board))
+		{
+			return false;
+		}
+		const FGalaxyState From = *Board;
+		const FExpiryNote Note = ExpireOnSide(*Sim, From, Lethal, false, Before);
+		if (!TestTrue(TEXT("(the awakening expired on its own side)"), Note.bNoted))
+		{
+			return false;
+		}
+		TestTrue(TEXT("(a KillPlayer on the system reached the vessel standing there)"), Note.bReached);
+		TestTrue(TEXT("The awakening's own expiry kills the wanderer standing there: the calling is in the interregnum"),
+			State.Calling.LifeState == ELifeState::Interregnum && State.Calling.Lives.Num() == 1);
+		const FLifeRecord& Life = State.Calling.Lives.Last();
+		TestEqual(TEXT("on the expiry's tick"), Life.DiedTick, State.Tick);
+		TestTrue(TEXT("by Death.Hazard"), Life.CauseOfDeath == Cause);
+		TestEqual(TEXT("from the awakening's row"), Life.CauseSourceRow, AwakeningRow);
+		ExpectDeathLine(*this, *Sim, Life, TEXT("The awakening's death"));
+		const FCosmicLogEntry* Line = NewestLineOf(State, CosmicRows::LogDeathHazard);
+		TestTrue(TEXT("The death line is log_death_hazard, told with the game row's DisplayName"), Line && Line->Message.ToString().Contains(Row->DisplayName.ToString()));
+		TestTrue(TEXT("The system stays its people's, its slot empty"), State.Systems[Lethal].OwnerCivID == From.Systems[Lethal].OwnerCivID
+			&& !State.Systems[Lethal].ActiveHazard.IsValid());
+	}
+
+	// The branch side spares the vessel.
+	{
+		const FGalaxyState* Board = Lay(Tables, 1);
+		if (!TestNotNull(TEXT("The board of the branch is laid"), Board))
+		{
+			return false;
+		}
+		const FGalaxyState From = *Board;
+		const FExpiryNote Note = ExpireOnSide(*Sim, From, Lethal, true, Before);
+		if (!TestTrue(TEXT("(the awakening expired on its branch)"), Note.bNoted))
+		{
+			return false;
+		}
+		TestTrue(TEXT("(the vessel was in reach: only the side spares it)"), Note.bReached);
+		TestTrue(TEXT("The branch side's expiry kills nobody: the vessel lives on, with no death line"), LivesOn(State));
+	}
+
+	// The card's success ends the awakening before it expires.
+	{
+		const FGalaxyState* Board = Lay(Carded, 1);
+		if (!TestNotNull(TEXT("The board of the card is laid"), Board))
+		{
+			return false;
+		}
+		const FGalaxyState From = *Board;
+		if (!TestTrue(TEXT("(unanswered, the awakening expires on its own side and kills)"), ExpireOnSide(*Sim, From, Lethal, false, Before).bNoted
+			&& State.Calling.LifeState == ELifeState::Interregnum))
+		{
+			return false;
+		}
+		const FEncounterDef* Card = Carded.FindEncounter(AwakeningTalk);
+		const bool bEnds = Card && !Card->Choices.IsEmpty() && Card->Choices[0].OnSuccess.ContainsByPredicate([&Awakening](const FCosmicEffect& Effect)
+		{
+			return Effect.Type == EEffectType::ResolveHazard && Effect.Tag == Awakening;
+		});
+		if (!TestTrue(TEXT("(the game's card of the awakening: its first choice ends it on success)"), bEnds))
+		{
+			return false;
+		}
+		// The same tick, the card answered first (between ticks, as the player answers), with a Mind no roll can fail.
+		Sim->LoadState(Before);
+		FGalaxyState& Live = Sim->GetMutableState();
+		Live.Player.Mind = FMath::Max(Live.Player.Mind, Card->Choices[0].Difficulty);
+		Live.Knowing.PendingPetitionRow = AwakeningTalk;
+		Live.Knowing.PendingPetitionSystemID = Live.Systems[Lethal].SystemID;
+		TestTrue(TEXT("The card's first choice succeeds"), Role->AnswerPetition(0).Outcome == ECosmicPetitionOutcome::Succeeded);
+		TestFalse(TEXT("and ends the awakening"), State.Systems[Lethal].ActiveHazard.IsValid());
+		const FGalaxyState Answered = State;
+		TestFalse(TEXT("An awakening the card ended does not expire"), StepNoted(*Sim, Answered, Lethal).bNoted);
+		TestTrue(TEXT("and kills nobody"), LivesOn(State));
+	}
+
+	// A ruler standing in the system: what happens to a system never kills a ruler.
+	{
+		FGalaxyState* Board = LayBoard(*Sim, Tables);
+		if (!TestNotNull(TEXT("The board of the ruler is laid"), Board))
+		{
+			return false;
+		}
+		Board->Systems[0].ActiveHazard = Awakening;
+		Board->Systems[0].HazardTicksRemaining = 1;
+		const FGalaxyState From = *Board;
+		const FExpiryNote Note = ExpireOnSide(*Sim, From, 0, false, Before);
+		if (!TestTrue(TEXT("(the awakening expired on its own side in the ruler's own system)"), Note.bNoted))
+		{
+			return false;
+		}
+		TestFalse(TEXT("(a KillPlayer on the system did not reach the ruler)"), Note.bReached);
+		TestTrue(TEXT("A ruler of that system standing there does not die"), LivesOn(State) && State.Player.Role == EPlayerRole::Ruler && State.Civs[0].bIsPlayerRuled);
+	}
+
+	// A wanderer elsewhere: the next system.
+	{
+		FGalaxyState* Board = Lay(Tables, 1);
+		if (!TestNotNull(TEXT("The board of the neighbour is laid"), Board))
+		{
+			return false;
+		}
+		Board->Player.CurrentSystemID = Board->Systems[4].SystemID;
+		const FGalaxyState From = *Board;
+		const FExpiryNote Note = ExpireOnSide(*Sim, From, Lethal, false, Before);
+		TestTrue(TEXT("A wanderer one lane away does not die"), Note.bNoted && !Note.bReached && LivesOn(State));
+	}
+
+	// The birth protection: shielded on the expiry's tick it lives; born one tick earlier it dies.
+	{
+		FGalaxyState* Board = Lay(Tables, 1);
+		const int32 Protect = Sim->GetRules().BirthProtectionTicks;
+		if (!TestNotNull(TEXT("The board of the protection is laid"), Board) || !TestTrue(TEXT("(the game shields a newborn vessel for a while)"), Protect > 1 && Board->Tick + 1 > Protect))
+		{
+			return false;
+		}
+		const FGalaxyState From = *Board;
+		const int64 Expiry = From.Tick + 1;
+		auto BornAt = [&From](int64 Born)
+		{
+			FGalaxyState Out = From;
+			Out.Calling.BornTick = Born;
+			Out.Calling.Lives.Last().BornTick = Born;
+			return Out;
+		};
+		const FExpiryNote Inside = ExpireOnSide(*Sim, BornAt(Expiry - Protect + 1), Lethal, false, Before);
+		if (!TestTrue(TEXT("(the awakening expired on its own side on the protection's last tick)"), Inside.bNoted))
+		{
+			return false;
+		}
+		TestTrue(TEXT("A vessel inside the birth protection does not die"), !Inside.bReached && LivesOn(State));
+		const FExpiryNote Past = ExpireOnSide(*Sim, BornAt(Expiry - Protect), Lethal, false, Before);
+		TestTrue(TEXT("Born one tick earlier, the same expiry kills it"), Past.bNoted && Past.bReached && State.Calling.LifeState == ELifeState::Interregnum);
+	}
+
+	// A vessel that set out from the system: under way it stands where it left (section 2.8).
+	{
+		FGalaxyState* Board = Lay(Tables, 1);
+		if (!TestNotNull(TEXT("The board of the journey is laid"), Board))
+		{
+			return false;
+		}
+		FGalaxyState From = *Board;
+		const FName Origin = From.Systems[Lethal].SystemID;
+		From.Player.TravelTargetSystemID = From.Systems[Lethal + 1].SystemID;
+		From.Player.TravelTicksRemaining = 10;
+		const FExpiryNote Note = ExpireOnSide(*Sim, From, Lethal, false, Before);
+		if (!TestTrue(TEXT("(the awakening expired on its own side while the vessel was under way)"), Note.bNoted))
+		{
+			return false;
+		}
+		TestTrue(TEXT("A vessel that set out from that system dies there: it has not arrived"), Note.bReached && State.Calling.LifeState == ELifeState::Interregnum
+			&& State.Calling.Lives.Last().CauseSourceRow == AwakeningRow);
+		TestEqual(TEXT("at the journey's origin"), State.Player.CurrentSystemID, Origin);
+		TestTrue(TEXT("and its journey is gone"), State.Player.TravelTargetSystemID.IsNone() && State.Player.TravelTicksRemaining == 0);
+	}
+
+	// ---- 3. The succession never offers a live awakening's system ----
+	{
+		FGalaxyState* Board = LayBoard(*Sim, Tables);
+		if (!TestNotNull(TEXT("The board of the candidates is laid"), Board))
+		{
+			return false;
+		}
+		const FCosmicRulesDef& Rules = Sim->GetRules();
+		const int32 Long = FMath::Max(1000, Rules.SuccessionMinHazardTicks + 1);
+		Board->Systems[6].ActiveHazard = Awakening;
+		Board->Systems[6].HazardTicksRemaining = Long;
+		Board->Systems[5].ActiveHazard = Tag(TEXT("Hazard.Plague"));
+		Board->Systems[5].HazardTicksRemaining = Long;
+		const CosmicSuccession::FCosmicSuccessionCandidates Found = CosmicSuccession::CandidatesOf(*Board, Sim->GetStateIndex(), Sim->GetTables(), Rules, 0);
+		TestFalse(TEXT("The succession leaves out a settled system that holds a live AI awakening"), Found.Systems.Contains(6));
+		TestTrue(TEXT("not one whose hazard kills nobody"), Found.Systems.Contains(5));
+		TestTrue(TEXT("(without the death in the data it is a candidate: the lethal filter left it out)"),
+			CosmicSuccession::CandidatesOf(*Board, Sim->GetStateIndex(), CosmicTests::WithoutDeath(Sim->GetTables()), Rules, 0).Systems.Contains(6));
+	}
+	{
+		// Two peoples: people 1 holds system 5 alone, the one place a death in system 0 could go.
+		FGalaxyState* Board = LayBoard(*Sim, Tables, 2);
+		if (!TestNotNull(TEXT("The board of the one place is laid"), Board))
+		{
+			return false;
+		}
+		const FCosmicRulesDef& Rules = Sim->GetRules();
+		Board->Systems[Lethal].ActiveHazard = Awakening;
+		Board->Systems[Lethal].HazardTicksRemaining = FMath::Max(1000, Rules.SuccessionMinHazardTicks + 1);
+		TestEqual(TEXT("Not even as the one place left: the lethal filter never relaxes"),
+			CosmicSuccession::CandidatesOf(*Board, Sim->GetStateIndex(), Sim->GetTables(), Rules, 0).Systems.Num(), 0);
+		TestTrue(TEXT("(without the death in the data the one place is offered)"),
+			CosmicSuccession::CandidatesOf(*Board, Sim->GetStateIndex(), CosmicTests::WithoutDeath(Sim->GetTables()), Rules, 0).Systems.Contains(Lethal));
+	}
 	return true;
 }
 

@@ -1950,8 +1950,8 @@ bool FCosmicLogClaimVoiceTest::RunTest(const FString& Parameters)
 
 	// The vessel stands in the claimed system and dies at the tenth stage of the joining tick (B5 header section 6, the
 	// widening of this test): the crisis stage's record line, sign and first person come first, and after the first person no
-	// line names that system - the death line is the calling's, about no system (header section 3.3). The game has no row
-	// that kills yet ([B-5d2]): the death is recorded by hand, as Apply leaves one, on the tick before the join.
+	// line names that system - the death line is the calling's, about no system (header section 3.3). No claim kills (the
+	// schema refuses it - [B-5d2]): the death is recorded by hand, as Apply leaves one, on the tick before the join.
 	{
 		Lay(true);
 		FGalaxyState* State = ExpireNextToSpheres(*Sim, [](FGalaxyState& S) { AddInstance(S, Fallen, TEXT("Doctrine.Silence"), { 3 }); });
@@ -2989,6 +2989,14 @@ bool FCosmicNotablesFromEventsOnlyTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
+	// The game's data without its one death (B5 [B-5d2] - CosmicTests::WithoutDeath; the same world until a death): the
+	// deposed vessel of seed 42 stands at its old capital, where an AI awakening expires on its own side at tick 2,933 (the
+	// [B-5a] measurement). A succession after it makes the new vessel's birth people a life's people only then, and that
+	// people's Severity 1 lines that left the log before were dropped (#118's accepted loss): the allowance below, which reads
+	// the peoples of the lives at the end, would ask them to be told. Death is not this test's subject.
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); };
+	Sim->SetTables(CosmicTests::WithoutDeath(Original));
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	Sim->RunHeadless(20000);
 	const FGalaxyState& State = Sim->GetState();

@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+@@ -260,7 +260,6 @@
+ 			for (const TPair<FName, uint8*>& Row : Hazards->GetRowMap())
+ 			{
+ 				FHazardDef& Hazard = *reinterpret_cast<FHazardDef*>(Row.Value);
+-				Strip(Hazard.OnExpireEffects);
+ 				Strip(Hazard.OnExpireBranchEffects);
+ 				Strip(Hazard.OnExpireNeighbourEffects);
+ 				Strip(Hazard.OnResolveEffects);

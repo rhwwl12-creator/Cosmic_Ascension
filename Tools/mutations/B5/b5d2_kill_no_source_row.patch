@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+@@ -260,7 +260,7 @@
+ 		}
+ 		Calling.PendingEffect = FGameplayTag::RequestGameplayTag(FName(EffectTagName));
+ 		Calling.PendingCause = Cause;
+-		Calling.PendingSourceRow = Ctx.SourceRow;
++		Calling.PendingSourceRow = NAME_None;
+ 		return true;
+ 	}
+ 

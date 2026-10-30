@@ -46,7 +46,8 @@ namespace CosmicLeapTests
 		return FGameplayTag::RequestGameplayTag(FName(Name));
 	}
 
-	// The source row a test's death names: a hazard row of the game (no row of the game kills yet - header section 5.1).
+	// The source row a test's death names: a hazard row of the game, recorded by hand (the precursor kills nobody in the game's
+	// data - its one death is the AI awakening's own expiry, [B-5d2]).
 	const FName DeathRow(TEXT("crisis_pre_supernova"));
 
 	// The game's rules with the interregnum's leap drawn between Min and Max (one number either way - decision 3).

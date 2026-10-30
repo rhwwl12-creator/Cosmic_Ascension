@@ -1071,6 +1071,53 @@ class SchemaTests(unittest.TestCase):
             self.row(tables, "DT_Hazards", "crisis_test_storm")["OutbreakRow"] = "event_test_outbreak"
         self.expect(self.after(resolving_outbreak_row), "crisis_test_storm.OutbreakRow", "does not hold", "ResolveHazard")
 
+    def test_the_lethal_expiry(self):
+        """B5 [B-5d2] (header 3.2, 3.5, decision 6-ga): a KillPlayer stands only in a hazard row's own expiry effects - never its
+        branch, its neighbours' damage or its resolution; never on a claim, a visitation or a cult, nor on the supernova
+        precursor until that hazard has a death row of its own; its cause is Death.Hazard, so Death.Transcendent (and every
+        other cause) stands nowhere in the data. The project's data holds exactly the one death decision 6-ga opens."""
+        cell = lambda column, value: self.set_cell("DT_Hazards", "crisis_test_storm", column, value)  # noqa: E731
+
+        def both(*changes):
+            return lambda tables: [change(tables) for change in changes]
+        kill = eff("KillPlayer", tag="Death.Hazard")
+        stays = eff("ChangeStability", value=-0.1)
+        # Allowed: the own side of an expiry, a row with a branch included (the AI awakening's shape - its branch spares).
+        self.assertEqual(self.after(cell("OnExpireEffects", [stays, kill])), [])
+        awakening = both(cell("HazardTag", "Hazard.AIAwakening"), cell("BranchChance", 0.5), cell("OnExpireBranchEffects", [stays]),
+                         cell("OnExpireEffects", [stays, kill]))
+        self.assertEqual(self.after(awakening), [])
+        # Never the branch, the neighbours or the resolution.
+        own_side = "a death comes only from a hazard's own expiry, on its own side"
+        for column in ("OnExpireBranchEffects", "OnExpireNeighbourEffects", "OnResolveEffects"):
+            with self.subTest(column=column):
+                self.expect(self.after(both(cell("BranchChance", 0.5), cell(column, [stays, kill]))), "crisis_test_storm", own_side, column)
+        # Never a claim, a visitation or a cult.
+        spiritual = "the fallen cannot touch a life"
+        for tag, extra in (("Hazard.Claim", both(cell("SpawnRule", "ClaimRule"), cell("SpawnChancePerTick", 0.0))), ("Hazard.Visitation", NOTHING),
+                           ("Hazard.Cult", NOTHING)):
+            with self.subTest(tag=tag):
+                self.expect(self.after(both(cell("HazardTag", tag), extra, cell("OnExpireEffects", [kill]))), "crisis_test_storm", spiritual, "OnExpireEffects")
+                self.expect(self.after(both(cell("HazardTag", tag), extra)), spiritual, wanted=False)
+        # Not the supernova precursor yet (critic-2's guard).
+        precursor = "the supernova precursor's expiry destroys the system"
+        self.expect(self.after(both(cell("HazardTag", "Hazard.PreSupernova"), cell("OnExpireEffects", [kill]))), "crisis_test_storm", precursor, "OnExpireEffects")
+        self.expect(self.after(both(cell("HazardTag", "Hazard.AIAwakening"), cell("OnExpireEffects", [kill]))), precursor, wanted=False)
+        # The cause on a hazard row is Death.Hazard: every other cause is refused, Death.Transcendent first of all.
+        for cause in ("Death.Transcendent", "Death.Encounter", "Death.Age"):
+            with self.subTest(cause=cause):
+                self.expect(self.after(cell("OnExpireEffects", [eff("KillPlayer", tag=cause)])), "crisis_test_storm.OnExpireEffects[0](KillPlayer).Tag",
+                            "tag %s is not under Death.Hazard" % cause)
+        # The project's data: one death, the AI awakening's own expiry, by Death.Hazard (decision 6-ga, 2026-10-30).
+        _, project_tables, _ = checker.load_project()
+        found = [(row["Name"], column, entry.get("Tag")) for table, rows in sorted(project_tables.items()) if isinstance(rows, list)
+                 for row in rows if isinstance(row, dict) for column, value in sorted(row.items()) if isinstance(value, list)
+                 for entry in value if isinstance(entry, dict) and entry.get("Type") == "KillPlayer"]
+        found += [(row["Name"], "Choices.%s" % side, entry.get("Tag")) for row in project_tables.get("DT_Encounters", [])
+                  for choice in row.get("Choices", []) for side in ("OnSuccess", "OnFailure") for entry in choice.get(side, [])
+                  if isinstance(entry, dict) and entry.get("Type") == "KillPlayer"]
+        self.assertEqual(found, [("crisis_ai_awakening", "OnExpireEffects", "Death.Hazard")])
+
     def test_megaprojects_and_feats(self):
         """The lines of a completion and of an ascension come in three variants or more; a feat walks the ruler's path."""
         self.expect(self.after(self.set_cell("DT_Megaprojects", "project_test_build", "CompleteTemplates", ["{Civ} a.", "{System} b."])),
@@ -2248,7 +2295,7 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(named(eff("GrantPower", tag="Way.Received"), eff("DeposeRuler", tag="Reign.Deposed")), [])
         # A death comes only from a hazard's expiry (B5 decision 6): no event row records one.
         self.expect(named(eff("KillPlayer", tag="Death.Hazard")), "no event row records one")
-        self.expect(named(eff("KillPlayer", tag="Reign.Deposed")), "not under Death.")
+        self.expect(named(eff("KillPlayer", tag="Reign.Deposed")), "not under Death.Hazard")
         self.expect(named(eff("GrantPower", tag="Death.Hazard")), "not under Way. or Power.")
         self.expect(named(eff("PlayerStatDelta", key="Body", value=0.5)), "not a whole number")
         # A free name: the word None is the empty name for the importer, so a required Key cannot be "none".
@@ -2917,7 +2964,12 @@ class SchemaTests(unittest.TestCase):
             ("DT_Hazards", "a branch is a chance and the effects it takes instead (guideline 4.1)"):
                 (update_hazard(BranchChance=0.5, OnExpireBranchEffects=[eff("ChangeStability", value=-0.2)]), hazard),
             ("DT_Hazards", "branch effects without a chance are never applied (guideline 4.1)"): (NOTHING, hazard),
-            ("DT_Hazards", "a death comes only from the one hazard expiry B5 decision 6 opens ([B-5d2]): until then no hazard row records one (guideline 7.4)"): (NOTHING, hazard),
+            ("DT_Hazards", "a death comes only from a hazard's own expiry, on its own side (B5 decision 6-ga, header 3.5): never from its branch, the damage to its neighbours or its resolution (guideline 7.4)"):
+                (NOTHING, hazard),
+            ("DT_Hazards", "the fallen cannot touch a life - the claim takes from the living only - and the visitation is the holy order's own: no claim, visitation or cult kills (B5 header 3.5)"):
+                (update_hazard(HazardTag="Hazard.Visitation"), hazard),
+            ("DT_Hazards", "the supernova precursor's expiry destroys the system, and the death line mourns a star that stays: no death at its expiry until it has a death row of its own (B5 header 8 [B-5d2], DECISIONS_LOG [B-5d1] (11))"):
+                (update_hazard(HazardTag="Hazard.PreSupernova"), hazard),
             ("DT_Hazards", "the leader of a cult has no name (guideline 4.1)"): (update_hazard(HazardTag="Hazard.Cult"), hazard),
             ("DT_Hazards", "the stage reads the spawn conditions on every tick, and the stay condition holds on every tick of its window, not in one slot (guideline 7.3)"):
                 (NOTHING, hazard),
@@ -3032,7 +3084,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 223, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 224, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

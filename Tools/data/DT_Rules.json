@@ -4,7 +4,7 @@
 		"LeapTicksMin": 800,
 		"LeapTicksMax": 1600,
 		"LeapTotalCap": 4500,
-		"BirthProtectionTicks": 300,
+		"BirthProtectionTicks": 301,
 		"BaseLifespanTicks": 0,
 		"SuccessionHazardWeight": 2.0,
 		"SuccessionCivTierWeight": 1.0,

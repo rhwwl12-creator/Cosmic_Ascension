@@ -22,6 +22,13 @@
 				"Key": "Matter",
 				"Value": 30.0,
 				"DurationTicks": 0
+			},
+			{
+				"Type": "KillPlayer",
+				"Tag": "Death.Hazard",
+				"Key": "None",
+				"Value": 0.0,
+				"DurationTicks": 0
 			}
 		],
 		"BranchChance": 0.5,

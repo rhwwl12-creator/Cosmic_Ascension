@@ -7,7 +7,7 @@
 | `LeapTicksMin` | `800` | number | `{"min": 0, "integer": true}` | Sim/CosmicSuccession.cpp | 읽힘 |
 | `LeapTicksMax` | `1600` | number | `{"min": 0, "integer": true}` | Sim/CosmicSuccession.cpp | 읽힘 |
 | `LeapTotalCap` | `4500` | number | `{"min": 0, "integer": true}` | Sim/CosmicSuccession.cpp | 읽힘 |
-| `BirthProtectionTicks` | `300` | number | `{"min": 0, "integer": true}` | Sim/CosmicHazards.cpp | 읽힘 |
+| `BirthProtectionTicks` | `301` | number | `{"min": 0, "integer": true}` | Sim/CosmicHazards.cpp | 읽힘 |
 | `BaseLifespanTicks` | `0` | number | `{"integer": true}` | Events/CosmicEventSubsystem.cpp | 읽힘 |
 | `SuccessionHazardWeight` | `2.0` | number | `{"min": 0}` | — | 예약 |
 | `SuccessionCivTierWeight` | `1.0` | number | `{"min": 0}` | — | 예약 |

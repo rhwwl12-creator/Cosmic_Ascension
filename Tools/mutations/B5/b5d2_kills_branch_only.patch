@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -561,5 +561,5 @@
+ 	{
+ 		return Effects.ContainsByPredicate([](const FCosmicEffect& Effect) { return Effect.Type == EEffectType::KillPlayer; });
+ 	};
+-	return Kills(Row->OnExpireEffects) || Kills(Row->OnExpireBranchEffects);
+-}
++	return Kills(Row->OnExpireBranchEffects);
++}

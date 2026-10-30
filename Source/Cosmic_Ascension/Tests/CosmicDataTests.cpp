@@ -1028,6 +1028,75 @@ namespace CosmicDataTests
 		}
 		return Copy;
 	}
+
+	// B5 [B-5d2]: every KillPlayer of the tables' effect arrays, as "<table>.<row>.<column> <cause>", in the order of the
+	// tables and their rows - the hazards' four, the events', the feats' price, the edicts' and the transcendents' per-tick
+	// effects, and both outcomes of every card's choice.
+	TArray<FString> KillPlayersOf(const FCosmicDataTables& Tables)
+	{
+		TArray<FString> Found;
+		auto Walk = [&Found](const TCHAR* Table, FName Row, const FString& Column, const TArray<FCosmicEffect>& Effects)
+		{
+			for (const FCosmicEffect& Effect : Effects)
+			{
+				if (Effect.Type == EEffectType::KillPlayer)
+				{
+					Found.Add(FString::Printf(TEXT("%s.%s.%s %s"), Table, *Row.ToString(), *Column, *Effect.Tag.ToString()));
+				}
+			}
+		};
+		auto RowsOf = [](const UDataTable* Table) { return Table ? Table->GetRowNames() : TArray<FName>(); };
+		for (const FName Row : RowsOf(Tables.Hazards.Get()))
+		{
+			if (const FHazardDef* Hazard = Tables.FindHazard(Row))
+			{
+				Walk(TEXT("DT_Hazards"), Row, TEXT("OnExpireEffects"), Hazard->OnExpireEffects);
+				Walk(TEXT("DT_Hazards"), Row, TEXT("OnExpireBranchEffects"), Hazard->OnExpireBranchEffects);
+				Walk(TEXT("DT_Hazards"), Row, TEXT("OnExpireNeighbourEffects"), Hazard->OnExpireNeighbourEffects);
+				Walk(TEXT("DT_Hazards"), Row, TEXT("OnResolveEffects"), Hazard->OnResolveEffects);
+			}
+		}
+		for (const FName Row : RowsOf(Tables.Events.Get()))
+		{
+			if (const FCosmicEventDef* Event = Tables.FindEvent(Row))
+			{
+				Walk(TEXT("DT_Events"), Row, TEXT("Effects"), Event->Effects);
+			}
+		}
+		for (const FName Row : RowsOf(Tables.Feats.Get()))
+		{
+			if (const FAscensionFeatDef* Feat = Tables.FindFeat(Row))
+			{
+				Walk(TEXT("DT_Feats"), Row, TEXT("AscensionCost"), Feat->AscensionCost);
+			}
+		}
+		for (const FName Row : RowsOf(Tables.Edicts.Get()))
+		{
+			if (const FEdictDef* Edict = Tables.FindEdict(Row))
+			{
+				Walk(TEXT("DT_Edicts"), Row, TEXT("EffectsPerTick"), Edict->EffectsPerTick);
+			}
+		}
+		for (const FName Row : RowsOf(Tables.Transcendents.Get()))
+		{
+			if (const FTranscendentDef* Transcendent = Tables.FindTranscendent(Row))
+			{
+				Walk(TEXT("DT_Transcendents"), Row, TEXT("PressureEffectsPerTick"), Transcendent->PressureEffectsPerTick);
+			}
+		}
+		for (const FName Row : RowsOf(Tables.Encounters.Get()))
+		{
+			if (const FEncounterDef* Card = Tables.FindEncounter(Row))
+			{
+				for (int32 At = 0; At < Card->Choices.Num(); ++At)
+				{
+					Walk(TEXT("DT_Encounters"), Row, FString::Printf(TEXT("Choices[%d].OnSuccess"), At), Card->Choices[At].OnSuccess);
+					Walk(TEXT("DT_Encounters"), Row, FString::Printf(TEXT("Choices[%d].OnFailure"), At), Card->Choices[At].OnFailure);
+				}
+			}
+		}
+		return Found;
+	}
 }
 
 // The JSON and CSV files under Tools/data are the source of the DataTable and String Table assets, and the game reads only
@@ -2347,6 +2416,64 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		}
 		return Problems;
 	};
+	// B5 [B-5d2] (header 3.2, 3.5, decision 6-ga): the loaded tables hold the one death the schema lets the data carry - the
+	// AI awakening's own expiry, by Death.Hazard (the rule is the schema's, held on the sources by check_data.py; this is what
+	// the assets the game reads hold) - and CosmicTests::WithoutDeath, the data-off side of a pair (-WithoutDeath=1), takes
+	// exactly it away and keeps every row of the tables it copies.
+	if (TestNotNull(TEXT("(the game's hazards, events, feats and cards)"), Game.Hazards.Get()) && Game.Events.Get() && Game.Feats.Get() && Game.Encounters.Get())
+	{
+		const TArray<FString> Deaths = KillPlayersOf(Game);
+		TestTrue(*FString::Printf(TEXT("The game's one death is the AI awakening's own expiry, by Death.Hazard (found: %s)"), *FString::Join(Deaths, TEXT(", "))),
+			Deaths == TArray<FString>{ TEXT("DT_Hazards.crisis_ai_awakening.OnExpireEffects Death.Hazard") });
+		const FCosmicDataTables Deathless = CosmicTests::WithoutDeath(Game);
+		const TArray<FString> Left = KillPlayersOf(Deathless);
+		TestTrue(*FString::Printf(TEXT("CosmicTests::WithoutDeath takes every death away (left: %s)"), *FString::Join(Left, TEXT(", "))), Left.IsEmpty());
+		auto RowCount = [](const UDataTable* Table) { return Table ? Table->GetRowMap().Num() : -1; };
+		TestTrue(TEXT("and keeps every row of the hazards, events, feats and cards"), RowCount(Deathless.Hazards.Get()) == RowCount(Game.Hazards.Get())
+			&& RowCount(Deathless.Events.Get()) == RowCount(Game.Events.Get()) && RowCount(Deathless.Feats.Get()) == RowCount(Game.Feats.Get())
+			&& RowCount(Deathless.Encounters.Get()) == RowCount(Game.Encounters.Get()));
+		// The walk can tell: a death written anywhere else is found where it stands.
+		FCosmicDataTables Moved = Game;
+		UDataTable* Hazards = CopyOf<FHazardDef>(Game.Hazards);
+		if (FHazardDef* Awakening = Hazards->FindRow<FHazardDef>(FName(TEXT("crisis_ai_awakening")), TEXT("Data.Integrity"), false))
+		{
+			FCosmicEffect Kill;
+			Kill.Type = EEffectType::KillPlayer;
+			Kill.Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Death.Hazard")));
+			Awakening->OnExpireBranchEffects.Add(Kill);
+		}
+		Moved.Hazards = Hazards;
+		TestTrue(TEXT("(the walk finds a death on the awakening's branch side)"), KillPlayersOf(Moved).Contains(TEXT("DT_Hazards.crisis_ai_awakening.OnExpireBranchEffects Death.Hazard")));
+	}
+	// B5 [B-5d2] (balance review: the first-crisis edge; DECISIONS_LOG B5 [B-5d2]): the first crisis stands on every capital at
+	// FirstCrisisTick and expires its CountdownTicks later; when that row's own expiry kills, the first vessel (born at tick 0)
+	// must still be inside the birth protection then - VesselAtRiskOf shields Tick - BornTick < BirthProtectionTicks, so the
+	// protection must be above the expiry tick (the design's 'no death within 300 ticks of birth' read with the tick itself -
+	// crisis_and_transcendents.md 4.4's forbidden list).
+	auto FirstCrisisProblems = [](const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules)
+	{
+		TArray<FString> Problems;
+		FName Row;
+		const FHazardDef* First = Rules.FirstCrisisTick > 0 && Rules.FirstCrisisHazard.IsValid() ? Tables.FindHazardByTag(Rules.FirstCrisisHazard, &Row) : nullptr;
+		const bool bKills = First && First->OnExpireEffects.ContainsByPredicate([](const FCosmicEffect& Effect) { return Effect.Type == EEffectType::KillPlayer; });
+		const int64 Expiry = First ? static_cast<int64>(Rules.FirstCrisisTick) + FMath::Max(1, First->CountdownTicks) : 0;
+		if (bKills && static_cast<int64>(Rules.BirthProtectionTicks) <= Expiry)
+		{
+			Problems.Add(FString::Printf(TEXT("DT_Hazards.%s: the first crisis kills at its expiry on tick %lld, and BirthProtectionTicks %d does not cover that tick for the first vessel"),
+				*Row.ToString(), Expiry, Rules.BirthProtectionTicks));
+		}
+		return Problems;
+	};
+	if (TestNotNull(TEXT("(the game's hazards and rules for the first crisis)"), Game.Hazards.Get()) && GameRules)
+	{
+		TestTrue(TEXT("The first vessel is inside its birth protection when the first crisis expires"), Report(TEXT("first crisis"), FirstCrisisProblems(Game, *GameRules)));
+		FCosmicRulesDef Edge = *GameRules;
+		const FHazardDef* FirstRow = Game.FindHazardByTag(Edge.FirstCrisisHazard);
+		Edge.BirthProtectionTicks = Edge.FirstCrisisTick + (FirstRow ? FMath::Max(1, FirstRow->CountdownTicks) : 1);
+		Expect(TEXT("a birth protection ending on the first crisis's expiry tick"), FirstCrisisProblems(Game, Edge), { TEXT("crisis_ai_awakening"), TEXT("first crisis") });
+		const FCosmicDataTables Deathless = CosmicTests::WithoutDeath(Game);
+		TestTrue(TEXT("A first crisis that kills nobody needs no protection over it"), FirstCrisisProblems(Deathless, Edge).IsEmpty());
+	}
 	if (TestNotNull(TEXT("(the game's events, hazards, cards and transcendents)"), Game.Events.Get()) && Game.Hazards.Get() && Game.Encounters.Get()
 		&& Game.Transcendents.Get() && Game.Edicts.Get() && GameRules)
 	{

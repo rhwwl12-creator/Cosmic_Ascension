@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+@@ -778,7 +778,7 @@
+ 		{
+ 			return false;
+ 		}
+-		return CosmicHazards::Resolve(Ctx, Ctx.SystemIndex);
++		return true;
+ 
+ 	case EEffectType::TransferSystem:
+ 	{
