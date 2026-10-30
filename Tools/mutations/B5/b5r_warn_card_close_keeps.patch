@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
+@@ -510,7 +510,6 @@
+ 	ShownOther = NAME_None;
+ 	Voice = INDEX_NONE;
+ 	bShownWanderer = false;
+-	ShowLethalLine();
+ 	SetVisibility(ESlateVisibility::Collapsed);
+ 	if (ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer()))
+ 	{

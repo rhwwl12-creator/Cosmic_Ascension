@@ -1277,7 +1277,7 @@
 				"NextEncounter": "None"
 			},
 			{
-				"Label": "물러난다",
+				"Label": "말을 걸지 않는다",
 				"CheckStat": "NoCheck",
 				"Difficulty": 0,
 				"Cost": {
@@ -1289,7 +1289,7 @@
 				},
 				"OnSuccess": [],
 				"OnFailure": [],
-				"SuccessText": "당신은 갱도 입구에서 돌아섰다. 그 물음 앞에는 {Civ}의 기술자들이 남았다.",
+				"SuccessText": "당신은 {System}에 그대로 서 있었다.",
 				"FailureText": "",
 				"NextEncounter": "None"
 			}

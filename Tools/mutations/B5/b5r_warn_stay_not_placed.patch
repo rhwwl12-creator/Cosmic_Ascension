@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
+@@ -121,7 +121,6 @@
+ 	// birth protection among it); the interregnum reaches nobody.
+ 	FPlayerEntityState Placed = State.Player;
+ 	Placed.Role = EPlayerRole::Wanderer;
+-	Placed.CurrentSystemID = System.SystemID;
+ 	if (!CosmicHazards::VesselAtRiskOf(Placed, State.Calling, Rules, ExpiryTick, System.SystemID, NAME_None))
+ 	{
+ 		return ECosmicLethalStay::None;

@@ -4,8 +4,11 @@
 
 #include "Blueprint/WidgetTree.h"
 #include "Components/Button.h"
+#include "Components/ButtonSlot.h"
 #include "Components/TextBlock.h"
+#include "Components/TextWidgetTypes.h"
 #include "Fonts/SlateFontInfo.h"
+#include "Framework/Text/TextLayout.h"
 #include "Input/Reply.h"
 #include "Styling/SlateBrush.h"
 #include "Styling/SlateColor.h"
@@ -22,6 +25,31 @@ void UCosmicActionButton::Setup(FName InAction, float InValue, const FText& Labe
 	if (Text)
 	{
 		Text->SetText(ShownLabel);
+	}
+}
+
+void UCosmicActionButton::SetWrapsLabel(bool bInWrapsLabel)
+{
+	bWrapsLabel = bInWrapsLabel;
+	ApplyWrapsLabel();
+}
+
+void UCosmicActionButton::ApplyWrapsLabel()
+{
+	if (!Text)
+	{
+		return;
+	}
+	Text->SetAutoWrapText(bWrapsLabel);
+	// A second line stays centred under the first, as a one-line label sits centred in the button (UTextBlock's own
+	// justification is Left).
+	Text->SetJustification(bWrapsLabel ? ETextJustify::Center : ETextJustify::Left);
+	// A wrapping label fills the button's width: the button slot centres its content by default (HAlign_Center), which gives
+	// the text only its own desired width, and an auto-wrapped text wraps at the width it was last given - each new label
+	// would wrap narrower than the one before ([B-5r] shots).
+	if (UButtonSlot* ButtonSlot = Cast<UButtonSlot>(Text->Slot))
+	{
+		ButtonSlot->SetHorizontalAlignment(bWrapsLabel ? HAlign_Fill : HAlign_Center);
 	}
 }
 
@@ -76,6 +104,7 @@ TSharedRef<SWidget> UCosmicActionButton::RebuildWidget()
 		Text->SetColorAndOpacity(FSlateColor::UseForeground());
 		Text->SetText(ShownLabel);
 		Button->AddChild(Text);
+		ApplyWrapsLabel();
 	}
 	TSharedRef<SWidget> Built = Super::RebuildWidget();
 	// A double-click's second press, handled here, is no press (the class comment). The Slate button is built again with the

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
+@@ -433,7 +433,7 @@
+ 		return FText::GetEmpty();
+ 	}
+ 	const int32 To = Index.FindSystem(State, State.Player.TravelTargetSystemID);
+-	const ECosmicLethalStay Ahead = CosmicAutoPause::LethalStayOf(State, Tables, Rules, To, State.Tick + State.Player.TravelTicksRemaining);
++	const ECosmicLethalStay Ahead = CosmicAutoPause::LethalStayOf(State, Tables, Rules, To, State.Tick + CosmicWanderer::LaneTicksOf(Rules));
+ 	if (Ahead == ECosmicLethalStay::None)
+ 	{
+ 		return FText::GetEmpty();

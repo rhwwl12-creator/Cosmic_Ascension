@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -380,7 +380,6 @@
+ 	}
+ 	else if (ReignEndReason == FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Deposed"))))
+ 	{
+-		Player.StatusTags.AddTag(FGameplayTag::RequestGameplayTag(FName(TEXT("Status.FallenMonarch"))));
+ 	}
+ 
+ 	// The open reign ends with its reason (section 7.2).

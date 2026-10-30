@@ -1,11 +1,20 @@
 --- a/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
 +++ b/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
-@@ -74,7 +74,7 @@
- 	// Whom its kill reaches is the shared rule (B5 header section 4: the screen does not copy it), at the tick the hazard
- 	// expires: the countdown comes before the expiry in the crisis stage, so N ticks left expire at State.Tick + N.
+@@ -98,7 +98,7 @@
  	const FStarSystemState& System = State.Systems[Place];
--	const int64 ExpiryTick = State.Tick + FMath::Max(1, System.HazardTicksRemaining);
-+	const int64 ExpiryTick = State.Tick + FMath::Max(1, System.HazardTicksRemaining) + 1;
- 	const bool bReaches = CosmicHazards::VesselAtRiskOf(State.Player, State.Calling, Rules, ExpiryTick, System.SystemID, NAME_None);
+ 	const int64 ExpiryTick = CosmicAutoPauseImpl::ExpiryTickOf(State, System);
+ 	const bool bReaches = ExpiryTick <= State.Tick + Underway
+-		&& CosmicHazards::VesselAtRiskOf(State.Player, State.Calling, Rules, ExpiryTick, System.SystemID, NAME_None);
++		&& CosmicHazards::VesselAtRiskOf(State.Player, State.Calling, Rules, ExpiryTick + 1, System.SystemID, NAME_None);
  	return bReaches ? Place : INDEX_NONE;
  }
+ 
+@@ -122,7 +122,7 @@
+ 	FPlayerEntityState Placed = State.Player;
+ 	Placed.Role = EPlayerRole::Wanderer;
+ 	Placed.CurrentSystemID = System.SystemID;
+-	if (!CosmicHazards::VesselAtRiskOf(Placed, State.Calling, Rules, ExpiryTick, System.SystemID, NAME_None))
++	if (!CosmicHazards::VesselAtRiskOf(Placed, State.Calling, Rules, ExpiryTick + 1, System.SystemID, NAME_None))
+ 	{
+ 		return ECosmicLethalStay::None;
+ 	}

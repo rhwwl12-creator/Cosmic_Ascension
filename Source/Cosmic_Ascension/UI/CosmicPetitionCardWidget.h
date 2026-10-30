@@ -11,6 +11,10 @@ class UBorder;
 class UCosmicActionButton;
 class UTextBlock;
 class UVerticalBox;
+struct FCosmicDataTables;
+struct FCosmicRulesDef;
+struct FCosmicStateIndex;
+struct FGalaxyState;
 
 /**
  * The petition card (MVP item 2): the card that waits for the ruler's answer (Knowing.PendingPetitionRow, read through
@@ -35,6 +39,11 @@ class UVerticalBox;
  * holds carries the held mark Edict.Mark in front of its label instead (B4 [B-4d2]). A choice that enacts an edict says under it the edict's cost and the
  * slots (Petition.EdictLine), and its tooltip what the edict costs and does (UCosmicEdictWidget::TipOf); one that buys a
  * standing hazard time with the fleet, the fleet now and after, the hazard and the time added (Petition.ResistLine).
+ * B5 [B-5r] (the [B-5d2] review's play-2, risk-1): a wanderer's card about the system where a hazard stands that kills a
+ * vessel at its expiry and would reach this one then (CosmicAutoPause::LethalPlaceOf) says under its text that no answer
+ * moves the vessel (Wander.CardLethal; Wander.CardLethalTrap when it expires within one lane's time, so leaving after the
+ * answer is too late - LethalLineOf) - while the choices show and under the outcome, until the hazard no longer stands there
+ * (an answer that ended it); words that promise nothing.
  */
 UCLASS(meta = (DisableNativeTick))
 class COSMIC_ASCENSION_API UCosmicPetitionCardWidget : public UUserWidget
@@ -75,6 +84,17 @@ public:
 	int32 GetChoiceCount() const { return ChoiceButtons.Num(); }
 	const UCosmicActionButton* GetChoiceButton(int32 ChoiceIndex) const { return ChoiceButtons.IsValidIndex(ChoiceIndex) ? ChoiceButtons[ChoiceIndex].Get() : nullptr; }
 	const UTextBlock* GetChoiceLine(int32 ChoiceIndex) const { return ChoiceLines.IsValidIndex(ChoiceIndex) ? ChoiceLines[ChoiceIndex].Get() : nullptr; }
+	/** The lethal line under the card's text (B5 [B-5r]); collapsed while LethalLineOf has no words. */
+	const UTextBlock* GetLethalText() const { return LethalText; }
+
+	/** The lethal line of a wanderer's card about CardSystemID (B5 [B-5r]): while CosmicAutoPause::LethalPlaceOf is that
+	 * system, the hazard's name in ST_CA Wander.CardLethalTrap when CosmicAutoPause::LethalStayOf from now is NoWayOut (no
+	 * answer moves the vessel, and it expires within one lane's time, so leaving after the answer does not get the vessel out
+	 * before it) and Wander.CardLethal otherwise (no answer moves the vessel, and one standing there when the hazard expires
+	 * can fall); empty otherwise (another system, a ruler, the interregnum, a hazard that kills nobody or
+	 * expires while the vessel is shielded). The caller asks it of a wanderer's card only. */
+	static FText LethalLineOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules,
+		FName CardSystemID);
 
 	/** The long words of a refused fleet's time (B4): Petition.Resist.Block.NoHazard and .Capital with the hazard's name
 	 * Hazard, Guard.Block.NoFleet for a fleet with no cap (the first rung's), Siege.Block.NoFleet for a spent fleet (the
@@ -90,6 +110,11 @@ protected:
 private:
 	void HandleAction(FName Action, float Value);
 
+	/** Sets the lethal line from the state now (LethalLineOf for a wanderer's card, empty for another): words and visibility
+	 * only when they change. Refresh calls it, under an outcome too (an answer refreshes the card through the HUD -
+	 * ACosmicPlayerController::AnswerPetition), and so do ShowCard's and PressClose's collapses. */
+	void ShowLethalLine();
+
 	UPROPERTY(Transient)
 	TObjectPtr<UBorder> Box;
 
@@ -101,6 +126,10 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> BodyText;
+
+	// B5 [B-5r]: under the text, over the choices and the outcome.
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> LethalText;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UVerticalBox> ChoiceBox;

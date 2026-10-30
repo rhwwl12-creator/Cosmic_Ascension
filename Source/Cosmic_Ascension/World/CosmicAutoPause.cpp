@@ -8,6 +8,17 @@
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/CosmicWanderer.h"
 
+// Helpers of this file. A named namespace: the module is built as one unity file.
+namespace CosmicAutoPauseImpl
+{
+	// The tick the hazard standing on System expires at: the crisis stage counts down first and expires at 0, so N ticks left
+	// expire at State.Tick + N (1 at least).
+	int64 ExpiryTickOf(const FGalaxyState& State, const FStarSystemState& System)
+	{
+		return State.Tick + FMath::Max(1, System.HazardTicksRemaining);
+	}
+}
+
 bool CosmicAutoPause::StopsFor(const FCosmicLogEntry& Entry)
 {
 	return !Entry.bUntold && Entry.Severity >= 2;
@@ -67,16 +78,56 @@ FName CosmicAutoPause::FirstNewHazardSystem(const TMap<FName, FGameplayTag>& Bef
 int32 CosmicAutoPause::LethalPlaceOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules)
 {
 	const int32 Place = CosmicWanderer::PlaceIndexOf(State, Index);
-	if (!State.Systems.IsValidIndex(Place) || !CosmicHazards::KillsAVesselOf(Tables, State.Systems[Place].ActiveHazard))
+	if (!State.Systems.IsValidIndex(Place))
 	{
 		return INDEX_NONE;
 	}
-	// Whom its kill reaches is the shared rule (B5 header section 4: the screen does not copy it), at the tick the hazard
-	// expires: the countdown comes before the expiry in the crisis stage, so N ticks left expire at State.Tick + N.
+	// Where it stands (a journey with no countdown is none - the move stage only empties it): from now on.
+	const int32 Underway = State.Player.TravelTicksRemaining;
+	if (!CosmicWanderer::IsTravelling(State) || Underway <= 0)
+	{
+		return LethalStayOf(State, Tables, Rules, Place, State.Tick) != ECosmicLethalStay::None ? Place : INDEX_NONE;
+	}
+	if (!CosmicHazards::KillsAVesselOf(Tables, State.Systems[Place].ActiveHazard))
+	{
+		return INDEX_NONE;
+	}
+	// Under way the vessel stands where it left until the move stage of the arrival's tick, after that tick's crisis stage
+	// ([B-5r]): an expiry later than that finds it elsewhere. Whom the kill reaches is the shared rule (B5 header section 4:
+	// the screen does not copy it), at the tick the hazard expires.
 	const FStarSystemState& System = State.Systems[Place];
-	const int64 ExpiryTick = State.Tick + FMath::Max(1, System.HazardTicksRemaining);
-	const bool bReaches = CosmicHazards::VesselAtRiskOf(State.Player, State.Calling, Rules, ExpiryTick, System.SystemID, NAME_None);
+	const int64 ExpiryTick = CosmicAutoPauseImpl::ExpiryTickOf(State, System);
+	const bool bReaches = ExpiryTick <= State.Tick + Underway
+		&& CosmicHazards::VesselAtRiskOf(State.Player, State.Calling, Rules, ExpiryTick, System.SystemID, NAME_None);
 	return bReaches ? Place : INDEX_NONE;
+}
+
+ECosmicLethalStay CosmicAutoPause::LethalStayOf(const FGalaxyState& State, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 SystemIndex,
+	int64 StandsFromTick)
+{
+	if (!State.Systems.IsValidIndex(SystemIndex) || !CosmicHazards::KillsAVesselOf(Tables, State.Systems[SystemIndex].ActiveHazard))
+	{
+		return ECosmicLethalStay::None;
+	}
+	const FStarSystemState& System = State.Systems[SystemIndex];
+	// The crisis stage comes before the move stage and the tenth stage in a tick: an expiry on StandsFromTick or before finds
+	// the vessel not yet there.
+	const int64 ExpiryTick = CosmicAutoPauseImpl::ExpiryTickOf(State, System);
+	if (ExpiryTick <= StandsFromTick)
+	{
+		return ECosmicLethalStay::None;
+	}
+	// Whom its kill reaches is the shared rule, asked of a copy of the vessel walking in that system at the expiry's tick (the
+	// birth protection among it); the interregnum reaches nobody.
+	FPlayerEntityState Placed = State.Player;
+	Placed.Role = EPlayerRole::Wanderer;
+	Placed.CurrentSystemID = System.SystemID;
+	if (!CosmicHazards::VesselAtRiskOf(Placed, State.Calling, Rules, ExpiryTick, System.SystemID, NAME_None))
+	{
+		return ECosmicLethalStay::None;
+	}
+	// Set out again at once, the vessel still stands there until the move stage one lane's time later (section 2.8).
+	return ExpiryTick <= StandsFromTick + CosmicWanderer::LaneTicksOf(Rules) ? ECosmicLethalStay::NoWayOut : ECosmicLethalStay::CanLeave;
 }
 
 const TCHAR* CosmicAutoPause::WhyKeyOf(ECosmicAutoPause Reason)

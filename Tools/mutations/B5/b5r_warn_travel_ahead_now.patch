@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1192,7 +1192,7 @@
+ 					// in the words of whether leaving it again would be gone before it; the short words after the label while no
+ 					// reason greys the button. Not under way: no journey starts from here then.
+ 					const ECosmicLethalStay Ahead = CosmicWanderer::IsTravelling(State) ? ECosmicLethalStay::None
+-						: CosmicAutoPause::LethalStayOf(State, Tables, Sim->GetRules(), SystemIndex, State.Tick + LaneTicks);
++						: CosmicAutoPause::LethalStayOf(State, Tables, Sim->GetRules(), SystemIndex, State.Tick);
+ 					const FText AheadTip = Ahead == ECosmicLethalStay::None ? FText::GetEmpty()
+ 						: FText::FormatNamed(Label(Ahead == ECosmicLethalStay::NoWayOut ? TEXT("Wander.TravelAheadTrapTip") : TEXT("Wander.TravelAheadTip")),
+ 							TEXT("Hazard"), HazardNameAt(SystemIndex));

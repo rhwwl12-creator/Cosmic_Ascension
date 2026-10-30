@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1184,7 +1184,7 @@
+ 					FText LethalTip;
+ 					if (Here == LethalPlace)
+ 					{
+-						const bool bTooLate = CosmicAutoPause::LethalStayOf(State, Tables, Sim->GetRules(), Here, State.Tick) == ECosmicLethalStay::NoWayOut;
++						const bool bTooLate = CosmicAutoPause::LethalStayOf(State, Tables, Sim->GetRules(), Here, State.Tick) == ECosmicLethalStay::None;
+ 						LethalTip = FText::FormatNamed(Label(bTooLate ? TEXT("Wander.TravelLethalLate") : TEXT("Wander.TravelLethalTip")), TEXT("Hazard"), HazardNameAt(Here));
+ 					}
+ 					// [B-5r] (the [B-5d2] review's play-1): this system's own lethal hazard as it would stand when a vessel set out now

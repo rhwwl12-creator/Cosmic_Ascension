@@ -1,11 +1,11 @@
 --- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
 +++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
-@@ -1105,7 +1105,7 @@
- 	// The first ship's line (B1): on the capital's panel, once a session - it stays for the viewing it came in.
+@@ -1292,7 +1292,7 @@
+ 	// walk from ([B-5r] review logic-2 - the [Abdicate] band above), so it never reads as advice to walk into it.
  	const bool bThisViewing = !ShipHintSystem.IsNone() && ShipHintSystem == ShownSystemID;
  	const bool bShip = Owner && ShowsShipHint(bCapital, State.Tick, bEnded, !State.Player.FormerCivID.IsNone(), Owner->GetHintProgress(), bThisViewing,
--		bCapitalRebellion);
-+		false);
+-		bCapitalRebellion || CapitalStay != ECosmicLethalStay::None);
++		CapitalStay != ECosmicLethalStay::None);
  	if (bShip && !Owner->GetHintProgress().bShipHinted)
  	{
  		Owner->NoteShipHinted();

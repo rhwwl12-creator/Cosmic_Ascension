@@ -105,8 +105,13 @@ namespace CosmicSlotWatch
  * keeps still (B5: a vessel whose life began after the lock started is told the lock in words of its own - IsLockedBeforeLife).
  * B5 (header section 2.8, 4): while a hazard that kills a vessel at its expiry stands where the wanderer counts as standing
  * (CosmicAutoPause::LethalPlaceOf - under way, the system it left), that system's panel says so under the hazard's line
- * (Wander.Lethal) and every [Travel]'s tooltip that the vessel stands there until it arrives (Wander.TravelLethalTip) - words
- * that promise nothing, and not for a hazard that expires while the vessel is shielded at its birth. The wanderer's lines, its
+ * (Wander.Lethal) and every [Travel]'s tooltip that the vessel stands there until it arrives (Wander.TravelLethalTip, or
+ * Wander.TravelLethalLate when it expires before the arrival - [B-5r]) - words that promise nothing, and not for a hazard
+ * that expires while the vessel is shielded at its birth. [B-5r] (the [B-5d2] review's play-1): a [Travel] to a system whose
+ * lethal hazard would still stand when the vessel arrives (CosmicAutoPause::LethalStayOf at State.Tick + the lane's ticks)
+ * says so in its tooltip (Wander.TravelAheadTip, or Wander.TravelAheadTrapTip when leaving it again would not be gone before
+ * the expiry) and, while no reason greys it, Wander.Suffix.Lethal after its label; [Abdicate] the same of the system the
+ * vessel stands in, from the tenth stage of the next tick (Wander.AbdicateLethalTip, Wander.AbdicateTrapTip). The wanderer's lines, its
  * commands and those warnings stand only while the controller shows the vessel (B5 [B-5c] -
  * ACosmicPlayerController::IsVesselShownFor: no calling page open, not the vessel an ended run's last tick installed). The ruler's [Abdicate] stands on the capital's panel only: a first press arms it for AbdicateConfirmSeconds
  * (Wander.AbdicateAgain), a second within them records the abdication (ACosmicPlayerController::Abdicate); greyed while a

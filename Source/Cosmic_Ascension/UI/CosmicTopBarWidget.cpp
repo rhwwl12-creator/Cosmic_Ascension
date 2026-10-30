@@ -413,17 +413,33 @@ FText UCosmicTopBarWidget::WandererLineOf(const FGalaxyState& State, const FCosm
 
 FText UCosmicTopBarWidget::LethalLineOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules)
 {
+	auto HazardName = [&Tables](const FGameplayTag& Standing)
+	{
+		const FHazardDef* Hazard = Tables.FindHazardByTag(Standing);
+		return Hazard ? Hazard->DisplayName : FText::AsCultureInvariant(Standing.ToString());
+	};
 	const int32 Place = CosmicAutoPause::LethalPlaceOf(State, Index, Tables, Rules);
-	if (!State.Systems.IsValidIndex(Place))
+	if (State.Systems.IsValidIndex(Place))
+	{
+		// Under way the vessel still stands where it left until it arrives (section 2.8), and the system it left is the lethal
+		// place then only while its hazard expires first ([B-5r]): the words say it expires before the arrival.
+		return FText::FormatNamed(CosmicUI::Label(CosmicWanderer::IsTravelling(State) ? TEXT("Wander.Bar.LethalTravelling") : TEXT("Wander.Bar.Lethal")),
+			TEXT("Hazard"), HazardName(State.Systems[Place].ActiveHazard));
+	}
+	// [B-5r] (the [B-5d2] review's play-1): under way to a system whose lethal hazard will still stand when the vessel arrives
+	// (CosmicAutoPause::LethalStayOf at the arrival's tick), in the words of whether leaving it again would be gone before it.
+	if (!CosmicWanderer::IsEmbodiedWanderer(State) || !CosmicWanderer::IsTravelling(State) || State.Player.TravelTicksRemaining <= 0)
 	{
 		return FText::GetEmpty();
 	}
-	const FGameplayTag& Standing = State.Systems[Place].ActiveHazard;
-	const FHazardDef* Hazard = Tables.FindHazardByTag(Standing);
-	FFormatNamedArguments Args;
-	Args.Add(TEXT("Hazard"), Hazard ? Hazard->DisplayName : FText::AsCultureInvariant(Standing.ToString()));
-	// Under way the vessel still stands where it left until it arrives (section 2.8): the words say 'before it arrives'.
-	return FText::Format(CosmicUI::Label(CosmicWanderer::IsTravelling(State) ? TEXT("Wander.Bar.LethalTravelling") : TEXT("Wander.Bar.Lethal")), Args);
+	const int32 To = Index.FindSystem(State, State.Player.TravelTargetSystemID);
+	const ECosmicLethalStay Ahead = CosmicAutoPause::LethalStayOf(State, Tables, Rules, To, State.Tick + State.Player.TravelTicksRemaining);
+	if (Ahead == ECosmicLethalStay::None)
+	{
+		return FText::GetEmpty();
+	}
+	return FText::FormatNamed(CosmicUI::Label(Ahead == ECosmicLethalStay::NoWayOut ? TEXT("Wander.Bar.AheadTrap") : TEXT("Wander.Bar.Ahead")),
+		TEXT("Hazard"), HazardName(State.Systems[To].ActiveHazard));
 }
 
 FText UCosmicTopBarWidget::GetWandererTip() const

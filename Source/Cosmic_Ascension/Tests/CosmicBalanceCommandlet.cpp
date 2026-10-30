@@ -36,7 +36,9 @@
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/CosmicSuccession.h"
+#include "Sim/CosmicWanderer.h"
 #include "Sim/GalaxySimulationSubsystem.h"
+#include "UI/CosmicCallingPagesWidget.h"
 #include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 #include "World/CosmicDigest.h"
@@ -585,6 +587,20 @@ namespace
 		// The ticks run in the interregnum and their time (the leap's wall clock - header section 5.1).
 		int64 LeapTicksRun = 0;
 		double LeapMicros = 0.0;
+		// [B-5r] (balance review method-2, play-5; header section 5.1 - record only): per death "<tick>:<answer>:<reverence>".
+		// The answer: 'a' when the epitaph sets the life's newest answer apart as the card of the hazard that closed it
+		// (CosmicCallingPages::LastAnswersOf's bOfTheDeath at the boundary where the life closed - what the page shows there),
+		// 'c' when that newest answer is the killing hazard's card all the same (CosmicCallingPages::IsCardOfHazard - answered
+		// on another system, or its title left out of the epitaph), '-' else. The reverence: the highest ReverenceToPlayer of
+		// any people at the boundary before the tick that closed the life (the death clears every people's at that tick's end;
+		// the tick's own changes before it are not seen). Per succession, the ticks from the birth to that life's first throne
+		// (-1: none by the run's end) - a successor crowned in a leader vacuum at or near its birth tick (#141).
+		FString DeathAnswers;
+		int32 DeathsSetApart = 0;
+		int32 DeathsOnTheCard = 0;
+		int32 DeathsAtCrowningReverence = 0;
+		TArray<int64> SuccessorThroneGaps;
+		int32 SuccessorLifeAt = INDEX_NONE;
 	};
 
 	// The names of CosmicConflict::ECosmicSiegeBlock in its order (the calling line).
@@ -1302,6 +1318,12 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			const int32 LivesBefore = State.Calling.Lives.Num();
 			const int64 LeapTotalBefore = State.Calling.LeapTicksTotal;
 			const FPlayerEntityState PlayerAtStart = State.Player;
+			// [B-5r]: the highest reverence of any people before the tick (a death in it clears them all at its end).
+			float ReverenceAtStart = 0.f;
+			for (const FCivilizationState& Civ : State.Civs)
+			{
+				ReverenceAtStart = FMath::Max(ReverenceAtStart, Civ.ReverenceToPlayer);
+			}
 			const bool bLeapTick = State.Calling.LifeState == ELifeState::Interregnum;
 			const uint64 Start = FPlatformTime::Cycles64();
 			Sim->RunHeadless(1);
@@ -1391,6 +1413,18 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					const bool bPastClock = RulesNow.ProvisionalEndTick > 0 && State.Tick + Leap >= RulesNow.ProvisionalEndTick;
 					Calling.Leaps += FString::Printf(TEXT("%s%lld@%lld%s%s"), Calling.Leaps.IsEmpty() ? TEXT("") : TEXT(","), Leap, State.Tick, bCut ? TEXT(":cut") : TEXT(""),
 						bPastClock ? TEXT(":clock") : TEXT(""));
+					// [B-5r] (review method-2): the epitaph's last answers by the presentation's own pure function, at this boundary
+					// (reads only); and whether the newest answer is the killing hazard's card at all (the game's IsCardOfHazard).
+					const TArray<FCosmicAnswerTitle> Titles = CosmicCallingPages::LastAnswersOf(State, Sim->GetTables(), Closed);
+					const bool bSetApart = Titles.ContainsByPredicate([](const FCosmicAnswerTitle& Title) { return Title.bOfTheDeath; });
+					const FHazardDef* Killer = Dead.CauseOfDeath.MatchesTagExact(CosmicTags::DeathHazard()) ? Sim->GetTables().FindHazard(Dead.CauseSourceRow) : nullptr;
+					const FEncounterDef* Newest = Dead.LastChoiceRows.IsEmpty() ? nullptr : Sim->GetTables().FindEncounter(Dead.LastChoiceRows.Last());
+					const bool bOnTheCard = Killer && Newest && CosmicCallingPages::IsCardOfHazard(*Newest, *Killer);
+					Calling.DeathsSetApart += bSetApart ? 1 : 0;
+					Calling.DeathsOnTheCard += (bOnTheCard && !bSetApart) ? 1 : 0;
+					Calling.DeathsAtCrowningReverence += ReverenceAtStart >= RulesNow.CoronationReverence ? 1 : 0;
+					Calling.DeathAnswers += FString::Printf(TEXT("%s%lld:%s:%.2f"), Calling.DeathAnswers.IsEmpty() ? TEXT("") : TEXT(","), State.Tick,
+						bSetApart ? TEXT("a") : (bOnTheCard ? TEXT("c") : TEXT("-")), ReverenceAtStart);
 				}
 				// A life that began in the tick after the first: a succession.
 				if (Lives.Num() > LivesBefore && LivesBefore > 0)
@@ -1414,6 +1448,9 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					Calling.Successions += FString::Printf(TEXT("%s%lld:%d:%d:%d:%d:%d:T%d:D%d"), Calling.Successions.IsEmpty() ? TEXT("") : TEXT(","), State.Tick, Found.Systems.Num(),
 						Found.Relaxed, FromDeath.IsValidIndex(Birth) ? FromDeath[Birth] : -1, bSamePeople ? 1 : 0, bNear ? 1 : 0, Owner ? static_cast<int32>(Owner->Tier) + 1 : 0, DigestLines);
 					Calling.FirstSuccessionTick = Calling.FirstSuccessionTick < 0 ? State.Tick : Calling.FirstSuccessionTick;
+					// [B-5r] (review play-5): this life's first throne is filled in at the input that takes it.
+					Calling.SuccessorThroneGaps.Add(-1);
+					Calling.SuccessorLifeAt = Lives.Num() - 1;
 				}
 			}
 			if (RoleBefore == EPlayerRole::Ruler && State.Player.Role == EPlayerRole::Wanderer)
@@ -1641,6 +1678,11 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				{
 					Calling.ThroneAfterSuccession = State.Tick;
 					Calling.ThroneAfterSuccessionPath = WandererCounts.LastCrownedPath;
+				}
+				// [B-5r] (review play-5): the first throne of the life the last succession began - the ticks since its birth.
+				if (Calling.SuccessorLifeAt == State.Calling.Lives.Num() - 1 && !Calling.SuccessorThroneGaps.IsEmpty() && Calling.SuccessorThroneGaps.Last() < 0)
+				{
+					Calling.SuccessorThroneGaps.Last() = State.Tick - State.Calling.Lives.Last().BornTick;
 				}
 				for (const TPair<FName, FClaimTrack>& Claim : PressureCounts.Claims)
 				{
@@ -2367,11 +2409,24 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					State.Calling.Lives.Num(), Calling.FirstReignEndTick, Calling.ReignEndTick, Calling.CrownedAfterTick, Calling.Chances.Num(), ByEnd, Grace, Branch,
 					*ChancesText(Calling.Chances), *CountsText(Failed), Calling.BlockedRuledTicks, Calling.BlockedRuledEpisodes, Calling.BlockedRuledOneSystem, Calling.BlockedRuledLater,
 					Calling.BlockedRuledByEnd, Calling.FirstBlockedRuled, Calling.BlockedAIPairTicks, Calling.WindowRaisedTick, Counts.FirstSiegeTargetTick, *CountsText(Calling.WindowRaisedReasons));
-				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance calling deaths: death asked at %lld (recorded %d); deaths %d (by end %d) by cause [%s] by row [%s]; first death at %lld as %s, %lld after the last reign's end; leaps [%s] (total %lld, cap %d); successions [%s] (tick:candidates:relaxed:lanes from the death:same people:hazard within 2 lanes:birth rung:digest lines); first throne after a succession at %lld (%s); state %s (leap left %lld); interregnum ticks %lld in %.1f ms; end %s (by a new people %d); reigns begun while a carded claim stood %d, claims delayed twice %d"),
+				// [B-5r] (review play-5): the successors' first thrones, and how many within one lane's time of the birth (the gaps
+				// themselves are listed, so any other N reads off them).
+				// One lane's time by the one definition every [B-5r] reader uses (CosmicWanderer::LaneTicksOf - review logic-5).
+				const int32 NearTicks = CosmicWanderer::LaneTicksOf(RulesNow);
+				FString ThroneGaps;
+				int32 ThronesNearBirth = 0;
+				for (const int64 Gap : Calling.SuccessorThroneGaps)
+				{
+					ThroneGaps += FString::Printf(TEXT("%s%lld"), ThroneGaps.IsEmpty() ? TEXT("") : TEXT(","), Gap);
+					ThronesNearBirth += (Gap >= 0 && Gap <= NearTicks) ? 1 : 0;
+				}
+				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance calling deaths: death asked at %lld (recorded %d); deaths %d (by end %d) by cause [%s] by row [%s]; first death at %lld as %s, %lld after the last reign's end; leaps [%s] (total %lld, cap %d); successions [%s] (tick:candidates:relaxed:lanes from the death:same people:hazard within 2 lanes:birth rung:digest lines); first throne after a succession at %lld (%s); state %s (leap left %lld); interregnum ticks %lld in %.1f ms; end %s (by a new people %d); reigns begun while a carded claim stood %d, claims delayed twice %d; deaths on the killing hazard's card %d set apart by the epitaph, %d more the card all the same; at the crowning reverence %d; per death [%s] (tick:a set apart / c the card all the same / - neither:highest reverence of any people before the tick); successor thrones [%s] (ticks from the birth to that life's first throne, -1 none), within %d ticks of the birth %d of %d"),
 					DeathAt, Calling.DeathAtRecorded, Calling.Deaths, Calling.DeathsByEnd, *CountsText(Calling.DeathsByCause), *CountsText(Calling.DeathsByRow), Calling.FirstDeathTick,
 					Calling.FirstDeathRole, Calling.FirstDeathGap, *Calling.Leaps, State.Calling.LeapTicksTotal, RulesNow.LeapTotalCap, *Calling.Successions, Calling.ThroneAfterSuccession,
 					Calling.ThroneAfterSuccessionPath, State.Calling.LifeState == ELifeState::Interregnum ? TEXT("interregnum") : TEXT("embodied"), State.Calling.PendingLeapTicks,
-					Calling.LeapTicksRun, Calling.LeapMicros / 1000.0, CosmicEndings::NameOf(Counts.FirstEnd), Calling.EndByNewPeople, Calling.ReignsDuringCardedClaims, PressureCounts.DelayedTwice);
+					Calling.LeapTicksRun, Calling.LeapMicros / 1000.0, CosmicEndings::NameOf(Counts.FirstEnd), Calling.EndByNewPeople, Calling.ReignsDuringCardedClaims, PressureCounts.DelayedTwice,
+					Calling.DeathsSetApart, Calling.DeathsOnTheCard, Calling.DeathsAtCrowningReverence, *Calling.DeathAnswers, *ThroneGaps, NearTicks, ThronesNearBirth,
+					Calling.SuccessorThroneGaps.Num());
 				// [B-5d1] (header section 5.1, 5.2 bundle 1; docs/70 section 8.4): the two books at the run's end, by the presentation's
 				// own pure function - its input (every Log.Record and Log.Claim entry of the chronicle and the log) and its chapter.
 				const FCosmicTwoBooks Books = CosmicChronicle::BuildTwoBooks(State);

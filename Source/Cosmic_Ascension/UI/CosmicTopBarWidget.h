@@ -135,8 +135,11 @@ public:
 	 * The lethal hazard's warning (B5 header section 2.8, 4): where an embodied wanderer counts as standing a hazard stands
 	 * whose expiry kills a vessel there and would reach this one then (CosmicAutoPause::LethalPlaceOf - the birth protection
 	 * among the rule) - ST_CA Wander.Bar.Lethal with the hazard's name, or under way Wander.Bar.LethalTravelling (the vessel
-	 * stands where it left until it arrives); words that promise nothing. Empty otherwise - a ruler, the interregnum, no such
-	 * hazard, a shielded vessel. Shown after the wanderer's line (GetLethalText) while the vessel is shown.
+	 * stands where it left until it arrives, and the system it left counts only while its hazard expires before the arrival -
+	 * [B-5r]); else, under way ([B-5r], the [B-5d2] review's play-1), the hazard of the system it goes to that will still
+	 * stand when it arrives (CosmicAutoPause::LethalStayOf at the arrival's tick): Wander.Bar.Ahead, or Wander.Bar.AheadTrap
+	 * when leaving it again would not be gone before the expiry. Words that promise nothing. Empty otherwise - a ruler, the
+	 * interregnum, no such hazard, a shielded vessel. Shown after the wanderer's line (GetLethalText) while the vessel is shown.
 	 */
 	static FText LethalLineOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules);
 

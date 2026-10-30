@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
+@@ -122,7 +122,7 @@
+ 	FPlayerEntityState Placed = State.Player;
+ 	Placed.Role = EPlayerRole::Wanderer;
+ 	Placed.CurrentSystemID = System.SystemID;
+-	if (!CosmicHazards::VesselAtRiskOf(Placed, State.Calling, Rules, ExpiryTick, System.SystemID, NAME_None))
++	if (State.Calling.LifeState != ELifeState::Embodied)
+ 	{
+ 		return ECosmicLethalStay::None;
+ 	}

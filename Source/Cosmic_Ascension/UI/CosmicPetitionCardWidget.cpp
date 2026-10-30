@@ -29,11 +29,14 @@
 #include "UI/CosmicActionButton.h"
 #include "UI/CosmicEdictWidget.h"
 #include "UI/CosmicUILabels.h"
+#include "World/CosmicAutoPause.h"
 #include "World/CosmicGameMode.h"
 
 // Helpers of this file. A named namespace: the module is built as one unity file.
 namespace CosmicPetitionCardImpl
 {
+	// The lethal line (B5 [B-5r]): the warm words of the top bar's reasons and its lethal warning.
+	const FLinearColor LethalColor(1.f, 0.82f, 0.4f);
 	// A little darker and less see-through than the panels: the card is read, not looked through.
 	const FLinearColor CardColor(0.01f, 0.01f, 0.03f, 0.94f);
 	// The voice's line: the grey of the panels' secondary words.
@@ -208,6 +211,42 @@ FText UCosmicPetitionCardWidget::ResistReasonOf(CosmicConflict::ECosmicResistBlo
 	return FText::GetEmpty();
 }
 
+FText UCosmicPetitionCardWidget::LethalLineOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules,
+	FName CardSystemID)
+{
+	// The one answer where the vessel stands (the panel's, the top bar's and the pause's): the card's system only.
+	const int32 Place = CardSystemID.IsNone() ? INDEX_NONE : CosmicAutoPause::LethalPlaceOf(State, Index, Tables, Rules);
+	if (!State.Systems.IsValidIndex(Place) || State.Systems[Place].SystemID != CardSystemID)
+	{
+		return FText::GetEmpty();
+	}
+	// The band of the same rule as [Travel] away (CosmicAutoPause::LethalStayOf from now): an expiry within one lane's time
+	// leaves no way out by leaving after the answer either (the [B-5r] review's logic-1).
+	const bool bNoWayOut = CosmicAutoPause::LethalStayOf(State, Tables, Rules, Place, State.Tick) == ECosmicLethalStay::NoWayOut;
+	return FText::FormatNamed(CosmicUI::Label(bNoWayOut ? TEXT("Wander.CardLethalTrap") : TEXT("Wander.CardLethal")), TEXT("Hazard"),
+		CosmicPetitionCardImpl::HazardNameOf(Tables, State.Systems[Place].ActiveHazard));
+}
+
+void UCosmicPetitionCardWidget::ShowLethalLine()
+{
+	if (!LethalText)
+	{
+		return;
+	}
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	const FText Line = (Sim && bShownWanderer && !ShownRow.IsNone())
+		? LethalLineOf(Sim->GetState(), Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), ShownSystem) : FText::GetEmpty();
+	if (!CosmicPetitionCardImpl::SameWords(LethalText->GetText(), Line))
+	{
+		LethalText->SetText(Line);
+	}
+	const ESlateVisibility LineVisibility = Line.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible;
+	if (LethalText->GetVisibility() != LineVisibility)
+	{
+		LethalText->SetVisibility(LineVisibility);
+	}
+}
+
 TSharedRef<SWidget> UCosmicPetitionCardWidget::RebuildWidget()
 {
 	using namespace CosmicPetitionCardImpl;
@@ -234,6 +273,10 @@ TSharedRef<SWidget> UCosmicPetitionCardWidget::RebuildWidget()
 		Column->AddChildToVerticalBox(VoiceText)->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
 		BodyText = CosmicUI::MakeText(*WidgetTree, 15);
 		Column->AddChildToVerticalBox(BodyText)->SetPadding(FMargin(0.f, 0.f, 0.f, 12.f));
+		LethalText = CosmicUI::MakeText(*WidgetTree, 13);
+		LethalText->SetColorAndOpacity(FSlateColor(LethalColor));
+		LethalText->SetVisibility(ESlateVisibility::Collapsed);
+		Column->AddChildToVerticalBox(LethalText)->SetPadding(FMargin(0.f, 0.f, 0.f, 10.f));
 		ChoiceBox = WidgetTree->ConstructWidget<UVerticalBox>();
 		Column->AddChildToVerticalBox(ChoiceBox);
 		OutcomeText = CosmicUI::MakeText(*WidgetTree, 15);
@@ -267,6 +310,8 @@ void UCosmicPetitionCardWidget::ShowCard(FName Row, FName SystemID, FName OtherC
 		ShownSystem = NAME_None;
 		ShownOther = NAME_None;
 		Voice = INDEX_NONE;
+		bShownWanderer = false;
+		ShowLethalLine();
 		SetVisibility(ESlateVisibility::Collapsed);
 		return;
 	}
@@ -309,6 +354,9 @@ void UCosmicPetitionCardWidget::ShowCard(FName Row, FName SystemID, FName OtherC
 		UCosmicActionButton* Button = WidgetTree->ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
 		ChoiceLabels.Add(FText::Format(Def->Choices[At].Label, Args));
 		Button->Setup(ChoiceAction, static_cast<float>(At), ChoiceLabels.Last());
+		// The card's column has a fixed width: a long choice with its short words after it wraps inside the button ([B-5r]
+		// review layout-1).
+		Button->SetWrapsLabel(true);
 		Button->OnAction.AddUObject(this, &UCosmicPetitionCardWidget::HandleAction);
 		ChoiceBox->AddChildToVerticalBox(Button)->SetPadding(FMargin(0.f, 4.f, 0.f, 0.f));
 		UTextBlock* Line = CosmicUI::MakeText(*WidgetTree, 12);
@@ -330,7 +378,14 @@ void UCosmicPetitionCardWidget::Refresh()
 
 	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
 	const FEncounterDef* Def = (Sim && !ShownRow.IsNone()) ? Sim->GetTables().FindEncounter(ShownRow) : nullptr;
-	if (!Def || bShowingOutcome)
+	if (!Def)
+	{
+		return;
+	}
+	// B5 [B-5r]: the lethal line follows the state under an outcome too - an answer reaches here through the HUD's refresh
+	// (ACosmicPlayerController::AnswerPetition), so one that ended the crisis takes the line away.
+	ShowLethalLine();
+	if (bShowingOutcome)
 	{
 		return;
 	}
@@ -455,6 +510,7 @@ void UCosmicPetitionCardWidget::PressClose()
 	ShownOther = NAME_None;
 	Voice = INDEX_NONE;
 	bShownWanderer = false;
+	ShowLethalLine();
 	SetVisibility(ESlateVisibility::Collapsed);
 	if (ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer()))
 	{

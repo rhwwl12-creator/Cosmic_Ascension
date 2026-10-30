@@ -234,6 +234,9 @@ namespace CosmicSystemPanelImpl
 			{
 				UCosmicActionButton* Button = Tree.ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
 				Button->Setup(Want.Action, 0.f, Want.Label);
+				// The panel's column has a fixed width: a label with its short words after it wraps inside the button
+				// ([B-5r] review layout-1).
+				Button->SetWrapsLabel(true);
 				Bind(*Button);
 				Box.AddChildToVerticalBox(Button)->SetPadding(FMargin(0.f, 2.f));
 				Buttons.Add(Button);
@@ -320,6 +323,8 @@ TSharedRef<SWidget> UCosmicSystemPanelWidget::RebuildWidget()
 		// The ruler's [Abdicate] (B1): built once, shown on the capital's panel only.
 		AbdicateButton = WidgetTree->ConstructWidget<UCosmicActionButton>(UCosmicActionButton::StaticClass());
 		AbdicateButton->Setup(AbdicateAction, 0.f, CosmicUI::Label(TEXT("Wander.Abdicate")));
+		// The armed label with the lethal mark after it is longer than the column ([B-5r] review layout-1).
+		AbdicateButton->SetWrapsLabel(true);
 		AbdicateButton->OnAction.AddUObject(this, &UCosmicSystemPanelWidget::HandleWanderer);
 		AbdicateButton->SetVisibility(ESlateVisibility::Collapsed);
 		Column->AddChildToVerticalBox(AbdicateButton)->SetPadding(FMargin(0.f, 6.f, 0.f, 0.f));
@@ -1167,17 +1172,33 @@ void UCosmicSystemPanelWidget::Refresh()
 				{
 					ShownTravelBlock = Block;
 					const TCHAR* const ShortKey = TravelKeyOf(Block, true);
-					// B5 (header section 2.8): a lethal hazard where the vessel stands - setting out does not take it away before it arrives.
+					const int32 LaneTicks = CosmicWanderer::LaneTicksOf(Sim->GetRules());
+					auto HazardNameAt = [&](int32 At)
+					{
+						const FHazardDef* Lethal = Tables.FindHazardByTag(State.Systems[At].ActiveHazard);
+						return Lethal ? Lethal->DisplayName : FText::AsCultureInvariant(State.Systems[At].ActiveHazard.ToString());
+					};
+					// B5 (header section 2.8): a lethal hazard where the vessel stands - setting out does not take it away before it
+					// arrives. [B-5r]: said plainly when it expires within a lane's time, leaving now too late (under way the system
+					// it left is the lethal place only then - CosmicAutoPause::LethalPlaceOf).
 					FText LethalTip;
 					if (Here == LethalPlace)
 					{
-						const FHazardDef* Lethal = Tables.FindHazardByTag(State.Systems[Here].ActiveHazard);
-						FFormatNamedArguments Args;
-						Args.Add(TEXT("Hazard"), Lethal ? Lethal->DisplayName : FText::AsCultureInvariant(State.Systems[Here].ActiveHazard.ToString()));
-						LethalTip = FText::Format(Label(TEXT("Wander.TravelLethalTip")), Args);
+						const bool bTooLate = CosmicAutoPause::LethalStayOf(State, Tables, Sim->GetRules(), Here, State.Tick) == ECosmicLethalStay::NoWayOut;
+						LethalTip = FText::FormatNamed(Label(bTooLate ? TEXT("Wander.TravelLethalLate") : TEXT("Wander.TravelLethalTip")), TEXT("Hazard"), HazardNameAt(Here));
 					}
-					Want(TravelAction, FText::Format(Label(TEXT("Wander.Travel")), DurationLabel(CosmicWanderer::LaneTicksOf(Sim->GetRules()), Unit)),
-						ShortKey ? Label(ShortKey) : FText::GetEmpty(), LongKey ? Label(LongKey) : FText::GetEmpty(), { Label(TEXT("Wander.TravelTip")), LethalTip });
+					// [B-5r] (the [B-5d2] review's play-1): this system's own lethal hazard as it would stand when a vessel set out now
+					// arrives (CosmicAutoPause::LethalStayOf at the arrival's tick - the reach and the birth protection at its expiry),
+					// in the words of whether leaving it again would be gone before it; the short words after the label while no
+					// reason greys the button. Not under way: no journey starts from here then.
+					const ECosmicLethalStay Ahead = CosmicWanderer::IsTravelling(State) ? ECosmicLethalStay::None
+						: CosmicAutoPause::LethalStayOf(State, Tables, Sim->GetRules(), SystemIndex, State.Tick + LaneTicks);
+					const FText AheadTip = Ahead == ECosmicLethalStay::None ? FText::GetEmpty()
+						: FText::FormatNamed(Label(Ahead == ECosmicLethalStay::NoWayOut ? TEXT("Wander.TravelAheadTrapTip") : TEXT("Wander.TravelAheadTip")),
+							TEXT("Hazard"), HazardNameAt(SystemIndex));
+					const FText Short = ShortKey ? Label(ShortKey) : (Ahead == ECosmicLethalStay::None ? FText::GetEmpty() : Label(TEXT("Wander.Suffix.Lethal")));
+					Want(TravelAction, FText::Format(Label(TEXT("Wander.Travel")), DurationLabel(LaneTicks, Unit)),
+						Short, LongKey ? Label(LongKey) : FText::GetEmpty(), { Label(TEXT("Wander.TravelTip")), LethalTip, AheadTip });
 				}
 			}
 		}
@@ -1204,6 +1225,8 @@ void UCosmicSystemPanelWidget::Refresh()
 	// The ruler's [Abdicate] on the capital (B1): armed by a first press, greyed while a role effect waits for the tick (the
 	// abdication itself, or a deposition), greyed with the end's reason in an ended run.
 	AbdicateButton->SetVisibility(bCapital ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	// The band of the walk from where the vessel stands, kept for the first ship's line below ([B-5r] review logic-2).
+	ECosmicLethalStay CapitalStay = ECosmicLethalStay::None;
 	if (bCapital)
 	{
 		// A role effect waits for the tick: the abdication itself, or a fall (the throne card's failed check) - each in its
@@ -1213,7 +1236,25 @@ void UCosmicSystemPanelWidget::Refresh()
 		const bool bAbdicating = bLeaving && State.Calling.PendingCause == AbdicatedTag;
 		const bool bArmed = !bLeaving && IsAbdicateArmed(FPlatformTime::Seconds());
 		const FText Name = Label(bArmed ? TEXT("Wander.AbdicateAgain") : TEXT("Wander.Abdicate"));
-		const FText Suffix = bEnded ? Label(TEXT("Chronicle.Suffix")) : (bLeaving ? Label(TEXT("Wander.Suffix.Leaving")) : FText::GetEmpty());
+		// [B-5r] (the [B-5d2] review's play-1): the vessel off the throne walks from where it stands, from the tenth stage of the
+		// next tick (CosmicAutoPause::LethalStayOf from State.Tick + 1): a lethal hazard there that would still stand then, in the
+		// words of whether leaving at once would be gone before it - in the tooltip, and the short words after the label while
+		// nothing waits for the tick. While the controller shows the vessel, not in an ended run.
+		const int32 WalkFrom = Index.FindSystem(State, State.Player.CurrentSystemID);
+		const ECosmicLethalStay Stay = (bEnded || !bVesselShown) ? ECosmicLethalStay::None
+			: CosmicAutoPause::LethalStayOf(State, Tables, Sim->GetRules(), WalkFrom, State.Tick + 1);
+		CapitalStay = Stay;
+		FText StayTip;
+		if (Stay != ECosmicLethalStay::None)
+		{
+			const FHazardDef* Lethal = Tables.FindHazardByTag(State.Systems[WalkFrom].ActiveHazard);
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("System"), State.Systems[WalkFrom].DisplayName);
+			Args.Add(TEXT("Hazard"), Lethal ? Lethal->DisplayName : FText::AsCultureInvariant(State.Systems[WalkFrom].ActiveHazard.ToString()));
+			StayTip = FText::Format(Label(Stay == ECosmicLethalStay::NoWayOut ? TEXT("Wander.AbdicateTrapTip") : TEXT("Wander.AbdicateLethalTip")), Args);
+		}
+		const FText Suffix = bEnded ? Label(TEXT("Chronicle.Suffix"))
+			: (bLeaving ? Label(TEXT("Wander.Suffix.Leaving")) : (Stay == ECosmicLethalStay::None ? FText::GetEmpty() : Label(TEXT("Wander.Suffix.Lethal"))));
 		const FText AbdicateLabel = Suffix.IsEmpty() ? Name : FText::Format(INVTEXT("{0}  {1}"), Name, Suffix);
 		if (!SameWords(AbdicateButton->GetLabel(), AbdicateLabel))
 		{
@@ -1221,8 +1262,8 @@ void UCosmicSystemPanelWidget::Refresh()
 		}
 		AbdicateButton->SetIsEnabled(!bEnded && !bLeaving);
 		const FText Tip = bEnded ? EndBlock
-			: (bAbdicating ? JoinLines({ Label(TEXT("Wander.Block.Leaving")), Label(TEXT("Wander.AbdicateTip")) })
-				: (bLeaving ? Label(TEXT("Wander.Block.Deposed")) : Label(TEXT("Wander.AbdicateTip"))));
+			: JoinLines({ bAbdicating ? JoinLines({ Label(TEXT("Wander.Block.Leaving")), Label(TEXT("Wander.AbdicateTip")) })
+				: (bLeaving ? Label(TEXT("Wander.Block.Deposed")) : Label(TEXT("Wander.AbdicateTip"))), StayTip });
 		if (!SameWords(AbdicateButton->GetToolTipText(), Tip))
 		{
 			AbdicateButton->SetToolTipText(Tip);
@@ -1246,10 +1287,12 @@ void UCosmicSystemPanelWidget::Refresh()
 	const bool bHint = Owner && ShowsCommandHint(bEnabledProject, bEnded, Owner->GetHintProgress());
 	HintText->SetVisibility(bHint ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 
-	// The first ship's line (B1): on the capital's panel, once a session - it stays for the viewing it came in.
+	// The first ship's line (B1): on the capital's panel, once a session - it stays for the viewing it came in. It waits
+	// while a rebellion stands on the capital (B2), and while a lethal hazard stands where the vessel off the throne would
+	// walk from ([B-5r] review logic-2 - the [Abdicate] band above), so it never reads as advice to walk into it.
 	const bool bThisViewing = !ShipHintSystem.IsNone() && ShipHintSystem == ShownSystemID;
 	const bool bShip = Owner && ShowsShipHint(bCapital, State.Tick, bEnded, !State.Player.FormerCivID.IsNone(), Owner->GetHintProgress(), bThisViewing,
-		bCapitalRebellion);
+		bCapitalRebellion || CapitalStay != ECosmicLethalStay::None);
 	if (bShip && !Owner->GetHintProgress().bShipHinted)
 	{
 		Owner->NoteShipHinted();

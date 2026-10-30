@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1196,7 +1196,7 @@
+ 					const FText AheadTip = Ahead == ECosmicLethalStay::None ? FText::GetEmpty()
+ 						: FText::FormatNamed(Label(Ahead == ECosmicLethalStay::NoWayOut ? TEXT("Wander.TravelAheadTrapTip") : TEXT("Wander.TravelAheadTip")),
+ 							TEXT("Hazard"), HazardNameAt(SystemIndex));
+-					const FText Short = ShortKey ? Label(ShortKey) : (Ahead == ECosmicLethalStay::None ? FText::GetEmpty() : Label(TEXT("Wander.Suffix.Lethal")));
++					const FText Short = ShortKey ? Label(ShortKey) : FText::GetEmpty();
+ 					Want(TravelAction, FText::Format(Label(TEXT("Wander.Travel")), DurationLabel(LaneTicks, Unit)),
+ 						Short, LongKey ? Label(LongKey) : FText::GetEmpty(), { Label(TEXT("Wander.TravelTip")), LethalTip, AheadTip });
+ 				}

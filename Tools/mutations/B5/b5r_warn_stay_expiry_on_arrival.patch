@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
+@@ -113,7 +113,7 @@
+ 	// The crisis stage comes before the move stage and the tenth stage in a tick: an expiry on StandsFromTick or before finds
+ 	// the vessel not yet there.
+ 	const int64 ExpiryTick = CosmicAutoPauseImpl::ExpiryTickOf(State, System);
+-	if (ExpiryTick <= StandsFromTick)
++	if (ExpiryTick < StandsFromTick)
+ 	{
+ 		return ECosmicLethalStay::None;
+ 	}

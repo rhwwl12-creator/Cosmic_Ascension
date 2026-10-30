@@ -1,11 +1,26 @@
 --- a/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
 +++ b/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
-@@ -76,7 +76,7 @@
+@@ -97,8 +97,7 @@
+ 	// the screen does not copy it), at the tick the hazard expires.
  	const FStarSystemState& System = State.Systems[Place];
- 	const int64 ExpiryTick = State.Tick + FMath::Max(1, System.HazardTicksRemaining);
- 	const bool bReaches = CosmicHazards::VesselAtRiskOf(State.Player, State.Calling, Rules, ExpiryTick, System.SystemID, NAME_None);
--	return bReaches ? Place : INDEX_NONE;
-+	return Place;
+ 	const int64 ExpiryTick = CosmicAutoPauseImpl::ExpiryTickOf(State, System);
+-	const bool bReaches = ExpiryTick <= State.Tick + Underway
+-		&& CosmicHazards::VesselAtRiskOf(State.Player, State.Calling, Rules, ExpiryTick, System.SystemID, NAME_None);
++	const bool bReaches = ExpiryTick <= State.Tick + Underway;
+ 	return bReaches ? Place : INDEX_NONE;
  }
  
- const TCHAR* CosmicAutoPause::WhyKeyOf(ECosmicAutoPause Reason)
+@@ -119,13 +118,6 @@
+ 	}
+ 	// Whom its kill reaches is the shared rule, asked of a copy of the vessel walking in that system at the expiry's tick (the
+ 	// birth protection among it); the interregnum reaches nobody.
+-	FPlayerEntityState Placed = State.Player;
+-	Placed.Role = EPlayerRole::Wanderer;
+-	Placed.CurrentSystemID = System.SystemID;
+-	if (!CosmicHazards::VesselAtRiskOf(Placed, State.Calling, Rules, ExpiryTick, System.SystemID, NAME_None))
+-	{
+-		return ECosmicLethalStay::None;
+-	}
+ 	// Set out again at once, the vessel still stands there until the move stage one lane's time later (section 2.8).
+ 	return ExpiryTick <= StandsFromTick + CosmicWanderer::LaneTicksOf(Rules) ? ECosmicLethalStay::NoWayOut : ECosmicLethalStay::CanLeave;
+ }

@@ -2260,13 +2260,17 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 	}
 	const FCosmicDataTables Original = Sim->GetTables();
 	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
-	// The game's data without its one death (B5 [B-5d2] - CosmicTests::WithoutDeath; the world is the same until a death): the
-	// deposed vessel of seed 18 stands on at its old capital, where an AI awakening expires on its own side at tick 16,316
-	// (the [B-5a] measurement), and the succession after that leap would clear the fallen monarch's status this test reads at
-	// the end. Death is not this test's subject; Calling.LethalSource pins the death itself.
-	Sim->SetTables(CosmicTests::WithoutDeath(Original));
+	// The game's data, its one death included (B5 [B-5r] - balance review risk-4; [B-5d2] ran the whole test WithoutDeath): the
+	// deposed vessel of seed 18 stands on at its old capital, where an AI awakening expires on its own side at tick 16,316 (bundle
+	// 3: the succession at 17,761, a second death at 18,764 and its succession at 19,800), so the counts of the hazards and the
+	// stepped == headless check run across the deaths and the successions. A succession clears the fallen monarch's status, so
+	// the deposition is read at its own boundary in the stepped run (the same world as the whole run), and the status is held at
+	// every boundary from there until the deposed life closes. Calling.LethalSource pins the death itself.
+	Sim->SetTables(Original);
 	static const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Claim")));
 	static const FGameplayTag RebellionTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Rebellion")));
+	static const FGameplayTag FallenTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Status.FallenMonarch")));
+	static const FGameplayTag DeposedTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Deposed")));
 	constexpr int64 Ticks = 20000;
 
 	// The deposition of condition 5 rests on the game's rebellion row: the evidence of seed 18 below is only as good as this.
@@ -2296,6 +2300,15 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 		FName Answer;
 	};
 	TArray<FSlot> Before;
+	// The deposition, read at its boundary (B5 [B-5r]): its tick, what that boundary holds, and the first boundary after it -
+	// while the deposed life is open - without the fallen monarch's status.
+	int64 DeposedTick = -1;
+	bool bStatusAtDeposition = false;
+	bool bFallenLineAtDeposition = false;
+	bool bRisingEndedAtDeposition = false;
+	bool bReignDeposed = false;
+	int32 StatusChecks = 0;
+	int64 StatusLostAt = -1;
 	for (int64 Step = 0; Step < Ticks; ++Step)
 	{
 		Before.Reset();
@@ -2304,6 +2317,7 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 			Before.Add({ System.ActiveHazard, System.HazardTicksRemaining, System.ResponseMegaproject });
 		}
 		const int64 TickBefore = State.Tick;
+		const EPlayerRole RoleBefore = State.Player.Role;
 		Sim->StepOnce();
 		// Whether a line of Row on SystemID was stored in this tick (every line is stored: tell-all).
 		const auto ToldHere = [&State, TickBefore](FName Row, FName SystemID)
@@ -2350,6 +2364,24 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 				Claims += System.ActiveHazard == ClaimTag ? 1 : 0;
 			}
 		}
+		// The deposition's boundary: the throne left in this tick (no input - only a deposition leaves it).
+		if (DeposedTick < 0 && RoleBefore == EPlayerRole::Ruler && State.Player.Role == EPlayerRole::Wanderer)
+		{
+			DeposedTick = State.Tick;
+			bStatusAtDeposition = State.Player.StatusTags.HasTagExact(FallenTag);
+			for (int32 Index = State.Log.Num() - 1; Index >= 0 && State.Log[Index].Tick > TickBefore; --Index)
+			{
+				bFallenLineAtDeposition |= State.Log[Index].SourceRow == CosmicRows::LogFallenMonarch && State.Log[Index].Severity == 2;
+				bRisingEndedAtDeposition |= State.Log[Index].SourceRow == RebellionRow;
+			}
+			bReignDeposed = State.Calling.Lives.Num() == 1 && State.Calling.Lives[0].ReignEndReasons.Contains(DeposedTag);
+		}
+		// Every later boundary while the deposed life is open (no succession yet, the vessel embodied).
+		else if (DeposedTick >= 0 && State.Calling.Lives.Num() == 1 && State.Calling.LifeState == ELifeState::Embodied)
+		{
+			++StatusChecks;
+			StatusLostAt = (StatusLostAt < 0 && !State.Player.StatusTags.HasTagExact(FallenTag)) ? State.Tick : StatusLostAt;
+		}
 	}
 	TestTrue(TEXT("Hazards are placed in an input-free run of the game's data"), Placed > 0);
 	TestTrue(TEXT("some run out"), RanOut > 0);
@@ -2364,20 +2396,26 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 	Sim->RunHeadless(Ticks);
 	TestEqual(TEXT("Stepped with the gate open, one tick at a time is the same world as the whole run at once with it closed"), Sim->ComputeWorldHash(), Stepped);
 
-	// Neglect: nothing the player does keeps the ruled people's stability up, and a rebellion deposes the ruler - in the
-	// whole run of seed 18 just above (the same world as the stepped one; one run since MVP item 8 moved the claims there).
-	TestTrue(TEXT("A neglected ruler is deposed (seed 18)"), State.Player.Role == EPlayerRole::Wanderer);
-	TestTrue(TEXT("and carries the status of a fallen monarch"), State.Player.StatusTags.HasTagExact(FGameplayTag::RequestGameplayTag(FName(TEXT("Status.FallenMonarch")))));
-	const auto Fallen = [](const FCosmicLogEntry& Entry) { return Entry.SourceRow == CosmicRows::LogFallenMonarch && Entry.Severity == 2; };
-	const FCosmicLogEntry* FallenLine = State.Log.FindByPredicate(Fallen);
-	FallenLine = FallenLine ? FallenLine : State.Chronicle.FindByPredicate(Fallen);
-	TestTrue(TEXT("and the fallen monarch's line is told"), FallenLine != nullptr);
-	const bool bReignDeposed = !State.Calling.Lives.IsEmpty()
-		&& State.Calling.Lives[0].ReignEndReasons.Contains(FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Deposed"))));
+	// Neglect: nothing the player does keeps the ruled people's stability up, and a rebellion deposes the ruler - read at the
+	// boundary of the deposition in the stepped run above (the same world as the whole run; one run since MVP item 8 moved the
+	// claims there), since the game's death closes that life later and the succession after it clears the status (B5).
+	TestTrue(TEXT("A neglected ruler is deposed (seed 18)"), DeposedTick > 0);
+	TestTrue(TEXT("and carries the status of a fallen monarch at the boundary of the deposition"), bStatusAtDeposition);
+	TestTrue(TEXT("and the fallen monarch's line is told in the tick of the deposition"), bFallenLineAtDeposition);
 	TestTrue(TEXT("The first reign ended as a deposition"), bReignDeposed);
-	const int64 FallenTick = FallenLine ? FallenLine->Tick : -1;
-	const auto RisingEnds = [FallenTick, RebellionRow](const FCosmicLogEntry& Entry) { return Entry.Tick == FallenTick && Entry.SourceRow == RebellionRow; };
-	TestTrue(TEXT("A rebellion ran out in the tick of the deposition"), State.Log.ContainsByPredicate(RisingEnds) || State.Chronicle.ContainsByPredicate(RisingEnds));
+	TestTrue(TEXT("A rebellion ran out in the tick of the deposition"), bRisingEndedAtDeposition);
+	TestTrue(TEXT("The status of a fallen monarch is held at every boundary from the deposition until the deposed life closes"),
+		StatusChecks > 0 && StatusLostAt < 0);
+	if (StatusLostAt >= 0)
+	{
+		AddInfo(FString::Printf(TEXT("(the status was gone at tick %lld; deposed at %lld)"), StatusLostAt, DeposedTick));
+	}
+	// What keeps the check of the whole run on the game's data: the deposed life closes in a death and a succession follows
+	// before the end (seed 18 - bundle 3 of [B-5d2]: 16,316 and 17,761), so the stepped == headless check above crosses them.
+	// A change of the world that moves them past the end shows it here and says so (guideline 9.3).
+	TestTrue(TEXT("(the whole run: the deposed life closes after the deposition and a succession follows before the end)"),
+		State.Calling.Lives.Num() >= 2 && State.Calling.Lives[0].DiedTick > DeposedTick && DeposedTick > 0
+		&& State.Calling.Lives[0].ReignEndReasons.Contains(DeposedTag));
 	return true;
 }
 

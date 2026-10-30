@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1241,7 +1241,7 @@
+ 		// words of whether leaving at once would be gone before it - in the tooltip, and the short words after the label while
+ 		// nothing waits for the tick. While the controller shows the vessel, not in an ended run.
+ 		const int32 WalkFrom = Index.FindSystem(State, State.Player.CurrentSystemID);
+-		const ECosmicLethalStay Stay = (bEnded || !bVesselShown) ? ECosmicLethalStay::None
++		const ECosmicLethalStay Stay = (bEnded || bVesselShown) ? ECosmicLethalStay::None
+ 			: CosmicAutoPause::LethalStayOf(State, Tables, Sim->GetRules(), WalkFrom, State.Tick + 1);
+ 		CapitalStay = Stay;
+ 		FText StayTip;

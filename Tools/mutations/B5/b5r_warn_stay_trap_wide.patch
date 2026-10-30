@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
+@@ -127,7 +127,7 @@
+ 		return ECosmicLethalStay::None;
+ 	}
+ 	// Set out again at once, the vessel still stands there until the move stage one lane's time later (section 2.8).
+-	return ExpiryTick <= StandsFromTick + CosmicWanderer::LaneTicksOf(Rules) ? ECosmicLethalStay::NoWayOut : ECosmicLethalStay::CanLeave;
++	return ExpiryTick <= StandsFromTick + 2 * CosmicWanderer::LaneTicksOf(Rules) ? ECosmicLethalStay::NoWayOut : ECosmicLethalStay::CanLeave;
+ }
+ 
+ const TCHAR* CosmicAutoPause::WhyKeyOf(ECosmicAutoPause Reason)

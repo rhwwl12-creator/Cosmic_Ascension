@@ -475,12 +475,12 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B5/` | `b5c_no_vessel_head_off.patch` — the span's lines stand without the `Chronicle.NoVessel` head | `Cosmic_Ascension.UI.Chronicle` |
 | `B5/` | `b5c_until_deposed_only.patch` — the top bar's clock-end line shows only after a reign ended (not for a called vessel that never ruled) | `Cosmic_Ascension.UI.Chronicle` |
 | `B5/` | `b5c_bar_people_in_interregnum.patch` — the top bar shows the ruled people in the interregnum | `Cosmic_Ascension.UI.Chronicle` |
-| `B5/` | `b5c_lethal_standing_only.patch` — the lethal place is where the vessel stands (`StandingIndexOf`), not where it counts as standing (a travelling vessel is not warned of the system it left) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5c_lethal_standing_only.patch` — the lethal place is where the vessel stands (`StandingIndexOf`, regenerated at [B-5r]), not where it counts as standing (a travelling vessel is not warned of the system it left) | `Cosmic_Ascension.UI.LethalWarning` |
 | `B5/` | `b5c_lethal_follow_off.patch` — a new lethal hazard where the vessel stands does not stop the time | `Cosmic_Ascension.UI.LethalWarning` |
 | `B5/` | `b5c_lethal_seen_kept.patch` — the lethal hazard seen is kept across a new galaxy or a load | `Cosmic_Ascension.UI.LethalWarning` |
 | `B5/` | `b5c_lethal_no_arrival.patch` — the lethal pause compares the hazard's tag only (an arrival where the same tag stands is no news) | `Cosmic_Ascension.UI.LethalWarning` |
 | `B5/` | `b5c_panel_no_warning.patch` — the system panel says nothing of a lethal hazard | `Cosmic_Ascension.UI.LethalWarning` |
-| `B5/` | `b5c_travel_tip_no_warning.patch` — the travel button's tooltip says nothing of a lethal hazard | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5c_travel_tip_no_warning.patch` — the travel button's tooltip says nothing of the lethal hazard where the vessel stands (the destination's own [B-5r] words stay; regenerated at [B-5r]) | `Cosmic_Ascension.UI.LethalWarning` |
 | `B5/` | `b5c_lock_reason_old.patch` — a new vessel gets the old lock reason ('left not long ago') | `Cosmic_Ascension.UI.LethalWarning` |
 | `B5/` | `b5c_digest_quiet_then_elsewhere.patch` — a digest with no item closes with `Digest.Elsewhere` after the quiet line | `Cosmic_Ascension.UI.Digest` |
 | `B5/` | `b5c_digest_throne_converted_off.patch` — the throne item never reads a rebel a rebellion made the ruler: the first rebel to take a throne with no record is not told | `Cosmic_Ascension.UI.Digest` |
@@ -519,8 +519,8 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B5/` | `b5c_galaxy_reign_not_noted.patch` — a new galaxy or a load does not note the role (`HandleGalaxyGenerated`'s FollowReign): the next abdication opens no reign end's page | `Cosmic_Ascension.UI.Epitaph` |
 | `B5/` | `b5c_inauguration_no_camera.patch` — closing the inauguration does not put the camera on the new vessel's system | `Cosmic_Ascension.UI.Epitaph` |
 | `B5/` | `b5c_reign_seen_always.patch` — `FollowReign` compares with no role it saw: every boundary of the walking vessel opens the reign end's page again | `Cosmic_Ascension.UI.Epitaph` |
-| `B5/` | `b5c_lethal_no_protection.patch` — the lethal place drops the shared reach (`VesselAtRiskOf`): a vessel shielded at its birth is warned and stopped for a hazard that cannot kill it | `Cosmic_Ascension.UI.LethalWarning` |
-| `B5/` | `b5c_lethal_reach_after_expiry.patch` — the lethal place asks the reach one tick after the hazard's expiry (the protection's last tick no longer shields) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5c_lethal_no_protection.patch` — the lethal place drops the shared reach (`VesselAtRiskOf` — standing through `LethalStayOf`'s placed vessel and under way, regenerated at [B-5r]): a vessel shielded at its birth is warned and stopped for a hazard that cannot kill it | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5c_lethal_reach_after_expiry.patch` — the lethal place asks the reach one tick after the hazard's expiry (in `LethalStayOf` and under way, regenerated at [B-5r]) (the protection's last tick no longer shields) | `Cosmic_Ascension.UI.LethalWarning` |
 | `B5/` | `b5c_map_dead_vessel.patch` — the map's mark (`VesselLookOf`) asks the role alone: the dead ruler, a wanderer in the interregnum, is drawn | `Cosmic_Ascension.UI.VesselShown` |
 | `B5/` | `b5c_vessel_shown_under_page.patch` — `IsVesselShown` forgets the calling pages: the digest, the inauguration and the reign end show the vessel under the veil | `Cosmic_Ascension.UI.VesselShown` |
 | `B5/` | `b5c_vessel_shown_end_tick.patch` — `IsVesselShown` forgets the end's tick: the vessel an ended run's last tick installed is drawn after 'look at the map' | `Cosmic_Ascension.UI.VesselShown` |
@@ -601,3 +601,35 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B5/` | `b5d2_candidates_keep_lethal.patch` — CosmicSuccession::CandidatesOf drops its lethal filter: a system holding a live AI awakening is offered, and so is the one place left | `Cosmic_Ascension.Calling.LethalSource` |
 | `B5/` | `b5d2_without_death_keeps_expiry.patch` — CosmicTests::WithoutDeath leaves the hazards' own expiry effects alone: the game's one death survives the data-off side of a pair | `Cosmic_Ascension.Data.Integrity` |
 | `B5/` | `b5d2_first_crisis_edge_open.patch` — the first-crisis cross-check accepts a birth protection that ends on the first crisis's expiry tick (`<` for `<=`) | `Cosmic_Ascension.Data.Integrity` |
+| `B5/` | `b5r_warn_stay_expiry_on_arrival.patch` — a lethal hazard that expires on the tick the vessel comes to stand in its system warns (no way out) although the crisis stage runs before the move stage | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_stay_trap_narrow.patch` — an expiry exactly one lane's time after the vessel comes to stand there reads as 'can leave' (a vessel that sets out then still stands there at the expiry) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_stay_trap_wide.patch` — 'no way out' reaches two lanes' time after the vessel comes to stand there (an expiry it could leave before reads as a trap) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_stay_no_trap.patch` — the 'no way out' band is never answered (every warned stay reads as 'can leave') | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_stay_unshielded.patch` — where the vessel would come to stand, the reach is not asked at the expiry (the birth protection does not shield it) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_stay_not_placed.patch` — the reach is asked of the vessel where it stands now, not placed in the system it would come to stand in (no destination is ever warned) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_stay_ruler_not_placed.patch` — the placed vessel keeps the ruler's role (an abdication onto a lethal hazard is never warned: what happens to a system never reaches a ruler) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_underway_origin_always.patch` — under way the system the vessel left stays the lethal place whatever the expiry (the [B-5c] rule: a hazard that expires after the arrival still warns and pauses) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_underway_lane_not_journey.patch` — under way the system it left is weighed against a whole lane's time, not the journey's own time left | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_travel_ahead_asks_here.patch` — [Travel] asks of the system the vessel stands in, not of the destination (the destination's lethal hazard is never told) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_travel_ahead_now.patch` — [Travel] weighs the destination from now, not from the arrival (a hazard that expires before the vessel would arrive warns) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_travel_no_mark.patch` — [Travel] to a lethal destination carries no short words after its label | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_travel_never_late.patch` — [Travel] away never says that leaving now is too late (a lethal hazard where the vessel stands that expires within a lane's time) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_travel_late_any_band.patch` — [Travel] away says 'too late' for every lethal hazard where the vessel stands, also one it can still leave | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_abdicate_hidden.patch` — [Abdicate] warns only while the vessel is not shown (never in play) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_abdicate_now.patch` — [Abdicate] weighs the walk from now, not from the tenth stage of the next tick (a hazard that expires while the vessel still rules warns) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_abdicate_tip_dropped.patch` — [Abdicate]'s tooltip leaves out the lethal hazard where the vessel would walk from | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_abdicate_no_mark.patch` — [Abdicate] over a lethal hazard carries no short words after its label | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_bar_ahead_asks_origin.patch` — the top bar under way asks of the system the vessel left, not of the one it goes to (the destination's lethal hazard is never told) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_bar_ahead_lane.patch` — the top bar under way weighs the destination from a whole lane's time, not the journey's own time left | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_bar_one_band.patch` — the top bar under way says 'can leave' words for the 'no way out' band too | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_card_no_line.patch` — a wanderer's card at the lethal place has no lethal line | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_card_any_system.patch` — the card's lethal line is asked of wherever the vessel stands, not of the card's own system | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_card_outcome_stale.patch` — under an outcome a refresh leaves the card's lethal line as it was (a crisis gone keeps its line) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_card_close_keeps.patch` — closing the card keeps its lethal line | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_fallen_status_one_tick.patch` — the tenth stage clears the vessel's status on every tick with no role effect (the fallen monarch's status lasts only the tick of the deposition) | `Cosmic_Ascension.Sim.PhaseTwoExit` |
+| `B5/` | `b5r_deposed_no_status.patch` — a deposition leaves no fallen monarch's status (read at the boundary of the deposition) | `Cosmic_Ascension.Sim.PhaseTwoExit` |
+| `B5/` | `b5r_death_draws_when_stepped.patch` — a death draws one more number of the sim stream while the broadcast gate is open, so stepping one tick at a time is no longer the same world as the whole run at once (lived while the test ran WithoutDeath) | `Cosmic_Ascension.Sim.PhaseTwoExit` |
+| `B5/` | `b5r_phase_two_no_death.patch` — the tenth stage never carries a death out (the whole run of seed 18 crosses no death and no succession) | `Cosmic_Ascension.Sim.PhaseTwoExit` |
+| `B5/` | `b5r_warn_card_trap_never.patch` — a wanderer's card at a lethal hazard that expires within one lane's time never says that leaving after the answer is too late (the plain words in the trap band too) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_card_one_band.patch` — the card window's two bands swapped: the trap's words for a lethal hazard the vessel can still leave, the plain words where leaving after the answer is too late | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5r_warn_ship_hint_ignores_lethal.patch` — the capital's first-ship line waits for a rebellion only, so it invites the abdication while a lethal hazard stands where the vessel off the throne would walk from | `Cosmic_Ascension.UI.LethalWarning` |

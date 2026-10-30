@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
+@@ -97,7 +97,7 @@
+ 	// the screen does not copy it), at the tick the hazard expires.
+ 	const FStarSystemState& System = State.Systems[Place];
+ 	const int64 ExpiryTick = CosmicAutoPauseImpl::ExpiryTickOf(State, System);
+-	const bool bReaches = ExpiryTick <= State.Tick + Underway
++	const bool bReaches = ExpiryTick > 0
+ 		&& CosmicHazards::VesselAtRiskOf(State.Player, State.Calling, Rules, ExpiryTick, System.SystemID, NAME_None);
+ 	return bReaches ? Place : INDEX_NONE;
+ }

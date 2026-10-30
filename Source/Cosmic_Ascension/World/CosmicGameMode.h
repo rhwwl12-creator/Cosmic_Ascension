@@ -252,11 +252,13 @@ public:
 	 * wanderer's lethal hazard (FollowLethalHazard - B5), so every place that follows the one follows the other. */
 	void FollowOwnHazards();
 	/** B5 (header section 2.8, 4): follows the hazard that kills a vessel at its expiry where an embodied wanderer counts as
-	 * standing (CosmicAutoPause::LethalPlaceOf - while it travels, the system it left; only when its kill would reach the vessel at
-	 * its expiry, the birth protection among the rule): one that newly stands there since the
+	 * standing (CosmicAutoPause::LethalPlaceOf - while it travels, the system it left, only while its hazard expires at or
+	 * before the arrival (State.Tick + TravelTicksRemaining - [B-5r]); only when its kill would reach the vessel at its
+	 * expiry, the birth protection among the rule): one that newly stands there since the
 	 * last call - a new hazard there, another one, or the vessel's place come to stand where one stands (an arrival, a throne
 	 * left on a system that holds one) - asks for the automatic pause (LethalHazard); when that stops the time, the system is
-	 * selected and the camera glides to it (SelectAndFocus not by the viewer, as FollowOwnHazards). The first call after the
+	 * selected and the camera glides to it (SelectAndFocus not by the viewer, as FollowOwnHazards). Leaving a system whose
+	 * hazard expires after the arrival drops the noted place, so a journey that ends where it began pauses again. The first call after the
 	 * controller starts, a new galaxy or a load only notes it; the interregnum and a ruler note none. FollowOwnHazards calls it
 	 * last; tests call it in place of a tick. */
 	void FollowLethalHazard();

@@ -1,0 +1,13 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -3065,6 +3065,10 @@
+ 	}
+ 	else if (Calling.PendingEffect == KillTag)
+ 	{
++		if (bBroadcastEnabled)
++		{
++			(void)Rng.GetFraction();
++		}
+ 		PlayerRole->Die();
+ 	}
+ 	Calling.PendingEffect = FGameplayTag();

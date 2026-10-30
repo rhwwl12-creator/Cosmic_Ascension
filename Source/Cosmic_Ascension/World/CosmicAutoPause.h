@@ -50,6 +50,21 @@ enum class ECosmicAutoPause : uint8
 	ReignEnd,
 };
 
+/** B5 [B-5r] (header section 2.8, 4): what a lethal hazard means for a vessel that comes to stand in its system
+ * (CosmicAutoPause::LethalStayOf). Not saved. */
+enum class ECosmicLethalStay : uint8
+{
+	// No warning: no hazard there kills a vessel at its expiry, it expires before the vessel stands there, or its kill would
+	// not reach the vessel then (the birth protection).
+	None,
+	// It expires more than one lane's time after the vessel comes to stand there: setting out again at once, the vessel has
+	// arrived elsewhere before it.
+	CanLeave,
+	// It expires within one lane's time after: a vessel that sets out again still stands there at the expiry (section 2.8 -
+	// it stands where it left until it arrives), so leaving is no way out.
+	NoWayOut,
+};
+
 namespace CosmicAutoPause
 {
 	/** Whether a told line stops a running game: it is mythic (Severity 2, section 8.2). An entry marked bUntold - never
@@ -73,10 +88,31 @@ namespace CosmicAutoPause
 	 * travels, the one it left: a vessel that set out stands there until it arrives) when the hazard standing there kills a
 	 * vessel at its expiry (CosmicHazards::KillsAVesselOf) and that kill would reach this vessel then - the rule Apply records
 	 * a KillPlayer by (CosmicHazards::VesselAtRiskOf, the birth protection among it), asked at the expiry's tick: State.Tick +
-	 * HazardTicksRemaining (1 at least - the crisis stage counts down at the next tick first and expires at 0). INDEX_NONE
-	 * otherwise - a ruler, the interregnum, no such hazard, a hazard that expires while the vessel is shielded. The system
-	 * panel, the top bar, the travel button's tooltip and the pause (LethalHazard) read it: one answer, the rule not copied. */
+	 * HazardTicksRemaining (1 at least - the crisis stage counts down at the next tick first and expires at 0). Standing, it is
+	 * where LethalStayOf from State.Tick is not None. Under way ([B-5r], the [B-5d2] review's play-1) only while that tick
+	 * comes at or before the arrival's, State.Tick + Player.TravelTicksRemaining (the crisis stage comes before the move
+	 * stage): a hazard that expires after the arrival is left behind. INDEX_NONE otherwise - a ruler, the interregnum, no such
+	 * hazard, a hazard that expires while the vessel is shielded or after it arrives elsewhere. The system panel, the top bar,
+	 * the travel button's tooltip, the card window and the pause (LethalHazard) read it: one answer, the rule not copied. */
 	COSMIC_ASCENSION_API int32 LethalPlaceOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules);
+
+	/**
+	 * B5 [B-5r] (header section 2.8, 4; the [B-5d2] review's play-1, risk-1, goals-1): for SystemIndex, where the vessel would
+	 * stand from the end of StandsFromTick on - a [Travel]'s arrival (State.Tick + CosmicWanderer::LaneTicksOf; under way
+	 * State.Tick + Player.TravelTicksRemaining), the walk of an abdication (State.Tick + 1: the tenth stage of the next
+	 * tick), or where it stands now (State.Tick) -, whether the hazard standing there kills a vessel at its expiry
+	 * (CosmicHazards::KillsAVesselOf), would still stand when the vessel has come (its expiry after StandsFromTick: the
+	 * crisis stage comes before the move stage and the tenth stage in a tick) and would reach the vessel then
+	 * (CosmicHazards::VesselAtRiskOf at the expiry's tick, asked of a copy of the vessel walking in that system - the birth
+	 * protection among the rule); and if so whether a vessel that sets out again at once would be gone before it (CanLeave:
+	 * the expiry more than one lane's time after StandsFromTick) or not (NoWayOut). The expiry's tick is LethalPlaceOf's,
+	 * State.Tick + HazardTicksRemaining (1 at least). Time only: whether a living lane leads away is not asked (a vessel
+	 * with none - B1 decision 21 - is told so by the top bar's Wander.Bar.Stuck beside the warning). Reads the world only
+	 * (no knowing, no draw, no write); None for an index the state does not hold and in the interregnum. The [Travel]
+	 * buttons, the top bar under way and [Abdicate] read it.
+	 */
+	COSMIC_ASCENSION_API ECosmicLethalStay LethalStayOf(const FGalaxyState& State, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 SystemIndex,
+		int64 StandsFromTick);
 
 	/** The ST_CA key of the line a pause shows for Reason ("stopped - ..."); null for None. */
 	COSMIC_ASCENSION_API const TCHAR* WhyKeyOf(ECosmicAutoPause Reason);

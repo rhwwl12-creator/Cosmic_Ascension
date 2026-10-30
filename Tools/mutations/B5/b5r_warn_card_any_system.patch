@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
+@@ -216,7 +216,7 @@
+ {
+ 	// The one answer where the vessel stands (the panel's, the top bar's and the pause's): the card's system only.
+ 	const int32 Place = CardSystemID.IsNone() ? INDEX_NONE : CosmicAutoPause::LethalPlaceOf(State, Index, Tables, Rules);
+-	if (!State.Systems.IsValidIndex(Place) || State.Systems[Place].SystemID != CardSystemID)
++	if (!State.Systems.IsValidIndex(Place))
+ 	{
+ 		return FText::GetEmpty();
+ 	}

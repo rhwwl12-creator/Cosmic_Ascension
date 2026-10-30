@@ -1,0 +1,13 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -3067,6 +3067,10 @@
+ 	{
+ 		PlayerRole->Die();
+ 	}
++	else
++	{
++		State.Player.StatusTags.Reset();
++	}
+ 	Calling.PendingEffect = FGameplayTag();
+ 	Calling.PendingCause = FGameplayTag();
+ 	Calling.PendingSourceRow = NAME_None;

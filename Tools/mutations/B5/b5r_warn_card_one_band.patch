@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
+@@ -222,7 +222,7 @@
+ 	}
+ 	// The band of the same rule as [Travel] away (CosmicAutoPause::LethalStayOf from now): an expiry within one lane's time
+ 	// leaves no way out by leaving after the answer either (the [B-5r] review's logic-1).
+-	const bool bNoWayOut = CosmicAutoPause::LethalStayOf(State, Tables, Rules, Place, State.Tick) == ECosmicLethalStay::NoWayOut;
++	const bool bNoWayOut = CosmicAutoPause::LethalStayOf(State, Tables, Rules, Place, State.Tick) == ECosmicLethalStay::CanLeave;
+ 	return FText::FormatNamed(CosmicUI::Label(bNoWayOut ? TEXT("Wander.CardLethalTrap") : TEXT("Wander.CardLethal")), TEXT("Hazard"),
+ 		CosmicPetitionCardImpl::HazardNameOf(Tables, State.Systems[Place].ActiveHazard));
+ }

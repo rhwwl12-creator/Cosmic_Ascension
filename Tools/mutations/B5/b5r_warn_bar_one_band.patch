@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
+@@ -438,7 +438,7 @@
+ 	{
+ 		return FText::GetEmpty();
+ 	}
+-	return FText::FormatNamed(CosmicUI::Label(Ahead == ECosmicLethalStay::NoWayOut ? TEXT("Wander.Bar.AheadTrap") : TEXT("Wander.Bar.Ahead")),
++	return FText::FormatNamed(CosmicUI::Label(TEXT("Wander.Bar.Ahead")),
+ 		TEXT("Hazard"), HazardName(State.Systems[To].ActiveHazard));
+ }
+ 

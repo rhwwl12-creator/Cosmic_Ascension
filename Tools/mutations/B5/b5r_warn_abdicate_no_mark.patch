@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1254,7 +1254,7 @@
+ 			StayTip = FText::Format(Label(Stay == ECosmicLethalStay::NoWayOut ? TEXT("Wander.AbdicateTrapTip") : TEXT("Wander.AbdicateLethalTip")), Args);
+ 		}
+ 		const FText Suffix = bEnded ? Label(TEXT("Chronicle.Suffix"))
+-			: (bLeaving ? Label(TEXT("Wander.Suffix.Leaving")) : (Stay == ECosmicLethalStay::None ? FText::GetEmpty() : Label(TEXT("Wander.Suffix.Lethal"))));
++			: (bLeaving ? Label(TEXT("Wander.Suffix.Leaving")) : FText::GetEmpty());
+ 		const FText AbdicateLabel = Suffix.IsEmpty() ? Name : FText::Format(INVTEXT("{0}  {1}"), Name, Suffix);
+ 		if (!SameWords(AbdicateButton->GetLabel(), AbdicateLabel))
+ 		{

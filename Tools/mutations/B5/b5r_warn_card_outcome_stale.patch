@@ -1,0 +1,18 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicPetitionCardWidget.cpp
+@@ -384,11 +384,11 @@
+ 	}
+ 	// B5 [B-5r]: the lethal line follows the state under an outcome too - an answer reaches here through the HUD's refresh
+ 	// (ACosmicPlayerController::AnswerPetition), so one that ended the crisis takes the line away.
++	if (bShowingOutcome)
++	{
++		return;
++	}
+ 	ShowLethalLine();
+-	if (bShowingOutcome)
+-	{
+-		return;
+-	}
+ 	const FGalaxyState& State = Sim->GetState();
+ 	const FCosmicDataTables& Tables = Sim->GetTables();
+ 	const FCosmicRulesDef& Rules = Sim->GetRules();
