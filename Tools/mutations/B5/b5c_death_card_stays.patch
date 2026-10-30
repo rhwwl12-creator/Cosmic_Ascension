@@ -1,0 +1,13 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -828,10 +828,6 @@
+ 	DeathTick = Tick;
+ 	ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
+ 	// The card on the screen folds, an outcome shown on it too: the death emptied the waiting slot (header section 2.10).
+-	if (UCosmicPetitionCardWidget* Card = CosmicHUD ? CosmicHUD->GetPetitionCard() : nullptr)
+-	{
+-		Card->ShowCard(NAME_None, NAME_None);
+-	}
+ 	// A death page never wears the ascension presentation (header section 4): one showing folds with no give-back and no chime.
+ 	if (UCosmicAscensionOverlayWidget* Overlay = CosmicHUD ? CosmicHUD->GetAscensionOverlay() : nullptr)
+ 	{

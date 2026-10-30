@@ -10,6 +10,7 @@
 #include "Components/PanelWidget.h"
 #include "Components/SlateWrapperTypes.h"
 #include "Components/TextBlock.h"
+#include "Core/CosmicTags.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
@@ -22,6 +23,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "GameplayTagContainer.h"
 #include "InputCoreTypes.h"
+#include "Internationalization/StringTableCore.h"
 #include "Internationalization/Text.h"
 #include "Log/CosmicChronicle.h"
 #include "Log/CosmicLogSubsystem.h"
@@ -426,8 +428,11 @@ bool FCosmicUIRunEndTest::RunTest(const FString& Parameters)
 
 // The chronicle's page and the top bar's words (MVP item 4): the page in the order of the document (the life's title and
 // facts, its lines with stamps always in cycles and two opacities, the epilogue's two lines and the horizon last), the
-// cause notes, the preview, the reveal, the confirm of 'new run', and the bar's 'chronicle', rule, notice and line after
-// a deposition.
+// cause notes, the preview, the reveal, the confirm of 'new run', and the bar's 'chronicle', rule, notice and line for a
+// wanderer. B5 (header section 2.7, 4): the clock end told to every embodied wanderer and to no ruler, no vessel's line in
+// the interregnum, the span with no vessel under its sub-head at the head of the next chapter, the facts of a life that
+// never ruled ('born among - wandering') and of a ruler that died on its throne (no 'wandering'), no chapter for a life born
+// on the end's tick.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicUIChronicleTest, "Cosmic_Ascension.UI.Chronicle", CosmicTests::Flags)
 bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 {
@@ -623,14 +628,40 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 	Bar->Refresh();
 	TestEqual(TEXT("In it the bar says the run stops soon"), Shown(Bar->GetEndSoonText()),
 		FText::Format(Label(TEXT("Chronicle.Soon")), CosmicUI::TimeLeftLabel(CosmicChronicleScreen::EndSoonTicks, ECosmicTimeUnit::Cycle)).ToString());
-	// After a deposition, the clock end is told.
+	// A ruler is told no clock end before the notice's window (its people may end the run at the rung).
 	Bar42.Tick = 3000;
+	Bar->Refresh();
+	TestTrue(TEXT("A ruler's bar tells no end tick"), Shown(Bar->GetEndSoonText()).IsEmpty());
+	// Every embodied wanderer is told the clock end (B5 header section 4): after a deposition, and a vessel that never ruled.
+	const FString Until = FText::Format(Label(TEXT("Chronicle.Until")), CosmicUI::ClockLabel(EndTick, ECosmicTimeUnit::Cycle)).ToString();
+	const FName RuledID = Bar42.Player.RuledCivID;
 	FLifeRecord& Deposed = Bar42.Calling.Lives.Last();
 	Deposed.ReignEndReasons.Reset();
 	Deposed.ReignEndReasons.Add(FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Deposed"))));
+	Bar42.Player.Role = EPlayerRole::Wanderer;
+	Bar42.Player.RuledCivID = NAME_None;
 	Bar->Refresh();
-	TestEqual(TEXT("After a deposition the bar tells the end tick"), Shown(Bar->GetEndSoonText()),
-		FText::Format(Label(TEXT("Chronicle.Until")), CosmicUI::ClockLabel(EndTick, ECosmicTimeUnit::Cycle)).ToString());
+	TestEqual(TEXT("After a deposition the bar tells the end tick"), Shown(Bar->GetEndSoonText()), Until);
+	const FLifeRecord Reigned = Deposed;
+	Deposed.RuledCivIDs.Reset();
+	Deposed.ReignEndReasons.Reset();
+	Deposed.ReignTicks.Reset();
+	Bar->Refresh();
+	TestEqual(TEXT("and so it does for a vessel that never ruled (B5)"), Shown(Bar->GetEndSoonText()), Until);
+	// The interregnum: no vessel, so no vessel's line and no end tick told before the notice's window.
+	Bar42.Calling.LifeState = ELifeState::Interregnum;
+	Bar->Refresh();
+	TestTrue(TEXT("In the interregnum the bar tells no end tick"), Shown(Bar->GetEndSoonText()).IsEmpty());
+	TestTrue(TEXT("nor any vessel's line"), Shown(Bar->GetWandererText()).IsEmpty() && Shown(Bar->GetLethalText()).IsEmpty() && Shown(Bar->GetRungText()).IsEmpty());
+	Bar42.Player.Role = EPlayerRole::Ruler;
+	Bar42.Player.RuledCivID = RuledID;
+	Bar->Refresh();
+	TestTrue(TEXT("A people the dead ruler held is no line of the bar in the interregnum"), Shown(Bar->GetRungText()).IsEmpty() && Shown(Bar->GetStatusText()).IsEmpty());
+	Bar42.Calling.LifeState = ELifeState::Embodied;
+	Bar42.Player.Role = EPlayerRole::Wanderer;
+	Bar42.Player.RuledCivID = NAME_None;
+	Deposed = Reigned;
+	Bar->Refresh();
 	TestFalse(TEXT("No 'chronicle' before the end"), IsShownWidget(Bar->GetReopenButton()));
 	// After the end: no notice; 'chronicle' only while the page is folded, and a press opens it.
 	Bar42.Tick = EndTick;
@@ -647,6 +678,105 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("and its press opens the page"), Page->IsOpen());
 	Controller->ClearRunEnd();
+
+	// ---- B5 (header section 2.7, 4): two lives - the span with no vessel at the head of the next chapter under its sub-head,
+	// the facts of a life that never ruled and of a ruler that died on its throne; a life born on the end's tick has no chapter ----
+	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	Quiet(*Screen.Overlay);
+	Sim->SetTimeScale(0.f);
+	{
+		FGalaxyState& Two = Sim->GetMutableState();
+		const int32 Own = CosmicPetitions::RuledCivIndexOf(Two, Sim->GetStateIndex());
+		const int32 Later = Own == INDEX_NONE ? INDEX_NONE
+			: Two.Civs.IndexOfByPredicate([&Two, Own](const FCivilizationState& Civ) { return Civ.CivID != Two.Civs[Own].CivID; });
+		if (!TestTrue(TEXT("(a ruled people and another)"), Own != INDEX_NONE && Later != INDEX_NONE && Two.Calling.Lives.Num() == 1
+			&& !Two.Calling.Lives[0].ReignEndReasons.IsEmpty()))
+		{
+			return false;
+		}
+		for (const TCHAR* Key : { TEXT("Chronicle.NoVessel"), TEXT("Chronicle.BornAmong") })
+		{
+			TestFalse(*FString::Printf(TEXT("%s has words in the String Table"), Key), Words(Key).IsEmpty() || Words(Key).Contains(FStringTableEntry::GetPlaceholderSourceString()));
+		}
+		const FName OwnID = Two.Civs[Own].CivID;
+		const FName LaterID = Two.Civs[Later].CivID;
+		// The first life died on its throne at 1,000; a called vessel of the other people, never crowned, was born at 1,200.
+		Two.Tick = 1500;
+		Two.Calling.Lives[0].DiedTick = 1000;
+		Two.Calling.Lives[0].ReignEndReasons.Last() = CosmicTags::ReignDied();
+		FLifeRecord Called;
+		Called.LifeIndex = 2;
+		Called.BornTick = 1200;
+		Called.BirthSystemID = Two.Civs[Later].HomeSystemID;
+		Called.BirthCivID = LaterID;
+		Called.BirthArchetypeRow = Two.Civs[Later].ArchetypeRow;
+		Two.Calling.Lives.Add(Called);
+		Two.Chronicle.Reset();
+		Two.Log.Reset();
+		auto Told = [](int64 Tick, const TCHAR* Category, uint8 Severity, FName Civ, const TCHAR* Message)
+		{
+			FCosmicLogEntry Entry;
+			Entry.Tick = Tick;
+			Entry.Category = FGameplayTag::RequestGameplayTag(FName(Category));
+			Entry.Severity = Severity;
+			Entry.FocusCivID = Civ;
+			Entry.Message = FText::AsCultureInvariant(Message);
+			return Entry;
+		};
+		Two.Log.Add(Told(900, TEXT("Log.Civ"), 2, OwnID, TEXT("b5 first own")));
+		Two.Log.Add(Told(1100, TEXT("Log.Civ"), 2, LaterID, TEXT("b5 between")));
+		Two.Log.Add(Told(1150, TEXT("Log.Claim"), 1, LaterID, TEXT("b5 claim between")));
+		Two.Log.Add(Told(1300, TEXT("Log.Civ"), 2, LaterID, TEXT("b5 second own")));
+
+		auto TitleOf = [&](const FLifeRecord& OfLife)
+		{
+			const FText OfNth = FText::Format(Label(TEXT("Chronicle.Life")), FText::AsNumber(OfLife.LifeIndex));
+			const FText OfName = CosmicChronicle::VesselNameOf(OfLife, Sim->GetTables());
+			return (OfName.IsEmpty() ? OfNth : FText::Format(Label(TEXT("List.Pair")), OfNth, OfName)).ToString();
+		};
+		const FText RungOne = FText::Format(INVTEXT("{0} {1}"), Label(TEXT("Panel.Tier")), FText::AsNumber(1));
+		auto LastedOf = [&](int64 Ticks) { return FText::Format(Label(TEXT("Chronicle.Stamp")), FText::AsNumber(Ticks)); };
+		const FString FirstFacts = CosmicUI::JoinList({ Two.Civs[Own].CivName, RungOne, LastedOf(1000) }).ToString();
+		FFormatNamedArguments Born;
+		Born.Add(TEXT("Civ"), Two.Civs[Later].CivName);
+		const FString CalledFacts = CosmicUI::JoinList({ FText::Format(Label(TEXT("Chronicle.BornAmong")), Born), Label(TEXT("Chronicle.Wandering")), RungOne,
+			LastedOf(300) }).ToString();
+		auto PageOf = [&]()
+		{
+			Page->Open(ECosmicProvisionalEnd::Clock, true);
+			TArray<FString> Out;
+			for (const FText& Row : Page->GetPageTexts())
+			{
+				Out.Add(Row.ToString());
+			}
+			return Out;
+		};
+
+		const TArray<FString> Shown2 = PageOf();
+		TestEqual(TEXT("Two chapters: the span with no vessel heads the second under its sub-head, before its body; the two books' entries are not there"), Shown2,
+			TArray<FString>({ TitleOf(Two.Calling.Lives[0]), FirstFacts, TEXT("b5 first own"),
+				TitleOf(Two.Calling.Lives[1]), CalledFacts, Words(TEXT("Chronicle.NoVessel")), TEXT("b5 between"), TEXT("b5 second own"),
+				Words(TEXT("Chronicle.Opened")), Words(TEXT("Chronicle.Unopened")), Words(TEXT("Chronicle.Horizon")) }));
+		TestFalse(TEXT("A ruler that died on its throne did not walk"), Shown2.IsValidIndex(1) && Shown2[1].Contains(Words(TEXT("Chronicle.Wandering"))));
+		TestTrue(TEXT("A life that never ruled says where it was born, not its birth people as if ruled"), Shown2.IsValidIndex(4)
+			&& Shown2[4].StartsWith(FText::Format(Label(TEXT("Chronicle.BornAmong")), Born).ToString()));
+		TArray<FString> StampWords;
+		for (const FText& Stamp : Page->GetLineStamps())
+		{
+			StampWords.Add(Stamp.ToString());
+		}
+		TestEqual(TEXT("Every line of the span and of the bodies has its stamp in cycles"), StampWords,
+			TArray<FString>({ LastedOf(900).ToString(), LastedOf(1100).ToString(), LastedOf(1300).ToString() }));
+
+		// The succession on the end's tick (the end wins): the vessel born there was never shown - no chapter; the span goes to
+		// the end of the chapter before.
+		Two.Log.Pop();
+		Two.Tick = 1200;
+		TestEqual(TEXT("A life born on the end's tick gets no chapter; its span closes the chapter before"), PageOf(),
+			TArray<FString>({ TitleOf(Two.Calling.Lives[0]), FirstFacts, TEXT("b5 first own"), Words(TEXT("Chronicle.NoVessel")), TEXT("b5 between"),
+				Words(TEXT("Chronicle.Opened")), Words(TEXT("Chronicle.Unopened")), Words(TEXT("Chronicle.Horizon")) }));
+		Page->Close();
+	}
 	return true;
 }
 

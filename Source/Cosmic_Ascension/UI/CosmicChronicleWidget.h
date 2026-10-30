@@ -34,7 +34,10 @@ namespace CosmicChronicleScreen
 }
 
 /** The chronicle screen (MVP item 4, section 8.4's minimal form): a dark veil, one centred column in a scroll box (life chapters, the epilogue's two fixed
- * lines, the horizon line) and, outside the scroll, the cause note, the provisional notice and two buttons. A click on the page is not a map click. */
+ * lines, the horizon line) and, outside the scroll, the cause note, the provisional notice and two buttons. A click on the page is not a map click.
+ * A chapter is its title, its facts (the peoples ruled, or for a life that never ruled ST_CA Chronicle.BornAmong with its birth people, then 'wandering';
+ * the rung; the cycles), then - B5 - the span with no vessel that led to it under ST_CA Chronicle.NoVessel, its body, and on the last chapter the span
+ * after its death when no shown life follows (FCosmicChronicleChapter::Before, After; a span without a line shows nothing). */
 UCLASS()
 class COSMIC_ASCENSION_API UCosmicChronicleWidget : public UUserWidget
 {

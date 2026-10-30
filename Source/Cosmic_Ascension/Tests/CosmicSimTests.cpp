@@ -791,8 +791,24 @@ bool FCosmicSimFrameStepTest::RunTest(const FString& Parameters)
 			Controller->SetAutoPause(bAutoPause);
 		}
 	};
+	// A reign that ends at a boundary opens the reign end's page, which stops the time whatever the automatic pause (B5
+	// [B-5c] - this board's ruler loses the throne inside the run): the frames turn the page with its own input and set the
+	// speed again, as a player would, and the ticks the stop took from its frame run afterwards at 1x, a second each.
 	Sim->SetTimeScale(10.f);
+	int64 DroppedTicks = 0;
 	for (int32 Frame = 0; Frame < 70; ++Frame)
+	{
+		const int64 Before = State.Tick;
+		Sim->Tick(1.f);
+		if (Controller && Controller->IsCallingPageOpen())
+		{
+			DroppedTicks += 10 - (State.Tick - Before);
+			Controller->NextCallingPage();
+			Sim->SetTimeScale(10.f);
+		}
+	}
+	Sim->SetTimeScale(1.f);
+	for (int64 Each = 0; Each < DroppedTicks; ++Each)
 	{
 		Sim->Tick(1.f);
 	}

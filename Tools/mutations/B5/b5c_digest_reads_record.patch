@@ -1,0 +1,12 @@
+--- a/Source/Cosmic_Ascension/World/CosmicDigest.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicDigest.cpp
+@@ -352,8 +352,7 @@
+ 			{
+ 				break;
+ 			}
+-			if (Entry.Tick <= AfterTick || Entry.Tick > ThroughTick || Entry.Category == CosmicTags::LogCalling() || Entry.Category == CosmicTags::LogClaim()
+-				|| Entry.Category == CosmicTags::LogRecord())
++			if (Entry.Tick <= AfterTick || Entry.Tick > ThroughTick || Entry.Category == CosmicTags::LogCalling() || Entry.Category == CosmicTags::LogClaim())
+ 			{
+ 				continue;
+ 			}

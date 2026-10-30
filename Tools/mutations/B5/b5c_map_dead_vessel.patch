@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicMapLook.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicMapLook.cpp
+@@ -589,7 +589,7 @@
+ FCosmicVesselLook CosmicMapLook::VesselLookOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules)
+ {
+ 	FCosmicVesselLook Look;
+-	if (!CosmicWanderer::IsEmbodiedWanderer(State))
++	if (State.Player.Role != EPlayerRole::Wanderer)
+ 	{
+ 		return Look;
+ 	}

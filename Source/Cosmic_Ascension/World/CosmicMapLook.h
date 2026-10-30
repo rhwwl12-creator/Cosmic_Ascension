@@ -321,6 +321,16 @@ namespace CosmicMapLook
 	 * one reader of Knowing in the presentation; never writes it. */
 	COSMIC_ASCENSION_API FCosmicKnownView KnownViewOf(const FGalaxyState& State, const FCosmicStateIndex& Index, EAscensionTier ViewerTier, bool bSeeAll);
 
+	/** The same view as the calling knew it before CutTick (B5 header section 2.7): only the marks of Knowing whose Tick is
+	 * below CutTick count - a system known, a people met and its place in the meeting order (the marks are appended in time
+	 * order, so a counted mark keeps the place it has in the view with no cut - Calling.HardReset). The viewer tier is the
+	 * one given (no tier of the past is kept: the caller's, the current one); the sanctuary's name, bSeeAll and the waiting
+	 * cards (no mark of theirs carries a tick) are as the view with no cut has them. The interregnum's digest reads this with
+	 * the next life's BornTick: what the succession's Install marked on that tick - the birth system, the birth people, the
+	 * systems around a wanderer - was not known while no vessel stood. Still the one reading of Knowing (invariant rule
+	 * 14): the four-argument KnownViewOf is this with no cut. */
+	COSMIC_ASCENSION_API FCosmicKnownView KnownViewOf(const FGalaxyState& State, const FCosmicStateIndex& Index, EAscensionTier ViewerTier, bool bSeeAll, int64 CutTick);
+
 	/** How the owner of State.Systems[SystemIndex] is shown: None for an index out of range, a system the view does not
 	 * know, a destroyed system, no owner and an owner ID no people of Civs carries; otherwise Shown or Hidden by the view's
 	 * ShownOrder. */

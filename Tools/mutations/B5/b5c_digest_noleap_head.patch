@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/World/CosmicDigest.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicDigest.cpp
+@@ -474,6 +474,7 @@
+ 	}
+ 	if (Digest.bNoLeap)
+ 	{
++		Lines.Add(FText::Format(Label(HeadKey), FText::AsNumber(0)));
+ 		Lines.Add(Label(NoLeapKey));
+ 		return Lines;
+ 	}

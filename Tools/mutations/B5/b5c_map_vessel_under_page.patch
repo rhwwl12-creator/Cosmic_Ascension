@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGalaxyMapActor.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGalaxyMapActor.cpp
+@@ -888,7 +888,7 @@
+ 	bDrawnVesselLane = false;
+ 	const UWorld* VesselWorld = GetWorld();
+ 	const ACosmicPlayerController* Viewer = Cast<ACosmicPlayerController>(VesselWorld ? VesselWorld->GetFirstPlayerController() : nullptr);
+-	const bool bVesselShown = !Viewer || Viewer->IsVesselShown();
++	const bool bVesselShown = true;
+ 	const FCosmicVesselLook Vessel = bVesselShown ? CosmicMapLook::VesselLookOf(State, Sim->GetStateIndex(), Sim->GetRules()) : FCosmicVesselLook();
+ 	if (Looks.IsValidIndex(Vessel.FromIndex) && Looks[Vessel.FromIndex].bKnown && Stars.IsValidIndex(Vessel.FromIndex) && Stars[Vessel.FromIndex])
+ 	{

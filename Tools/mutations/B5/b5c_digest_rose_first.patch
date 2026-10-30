@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicDigest.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicDigest.cpp
+@@ -396,7 +396,7 @@
+ 			}
+ 			if (RoseTicks.IsValidIndex(CivIndex) && View.ShownOrderOf(CivIndex) != INDEX_NONE && !Entry.SourceRow.IsNone() && Tables.FindFeat(Entry.SourceRow))
+ 			{
+-				RoseTicks[CivIndex] = Entry.Tick;
++				RoseTicks[CivIndex] = RoseTicks[CivIndex] > 0 ? RoseTicks[CivIndex] : Entry.Tick;
+ 			}
+ 		}
+ 	};

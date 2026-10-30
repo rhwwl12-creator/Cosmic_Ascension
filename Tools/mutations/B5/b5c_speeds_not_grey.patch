@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
+@@ -825,7 +825,7 @@
+ 				Button->SetVisibility(Shown);
+ 			}
+ 			// So is every one while a calling page shows (B5 [B-5c]): the page's own buttons turn it.
+-			Button->SetIsEnabled(!bEnded && !bCallingPage && !FMath::IsNearlyEqual(Button->GetValue(), Current));
++			Button->SetIsEnabled(!bEnded && !FMath::IsNearlyEqual(Button->GetValue(), Current));
+ 		}
+ 	}
+ 	LabelledUnit = Unit;

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+@@ -258,7 +258,7 @@
+ 	const TArray<FLifeRecord>& Lives = State.Calling.Lives;
+ 	const int32 Shown = ShownLivesOf(State);
+ 	const int32 Room = FMath::Max(0, Cap);
+-	const int32 NoVesselRoom = FMath::Min(Room, MaxNoVesselLines);
++	const int32 NoVesselRoom = Room;
+ 
+ 	// Every entry once, the chronicle before the log (the older entries moved there): the chapters and the spans with no
+ 	// vessel cut this one sequence, so no entry stands in two of them.

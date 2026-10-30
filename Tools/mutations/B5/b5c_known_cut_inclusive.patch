@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicMapLook.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicMapLook.cpp
+@@ -406,7 +406,7 @@
+ 	{
+ 		for (const FKnownMark& Mark : State.Knowing.KnownSystems)
+ 		{
+-			const int32 SystemIndex = Mark.Tick < CutTick ? Index.FindSystem(State, Mark.ID) : INDEX_NONE;
++			const int32 SystemIndex = Mark.Tick <= CutTick ? Index.FindSystem(State, Mark.ID) : INDEX_NONE;
+ 			if (View.Known.IsValidIndex(SystemIndex))
+ 			{
+ 				View.Known[SystemIndex] = true;

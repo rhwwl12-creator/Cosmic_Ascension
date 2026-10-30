@@ -9,6 +9,7 @@
 #include "InputCoreTypes.h"
 #include "Misc/Optional.h"
 #include "Templates/Function.h"
+#include "Templates/Tuple.h"
 #include "UI/CosmicUILabels.h"
 #include "Events/CosmicPetitions.h"
 #include "GameplayTagContainer.h"
@@ -23,6 +24,7 @@ class ACosmicCameraPawn;
 class FViewport;
 class ACosmicGalaxyMapActor;
 class UCosmicAscensionOverlayWidget;
+class UCosmicCallingPagesWidget;
 class UCosmicChronicleWidget;
 class UCosmicEdictWidget;
 class UCosmicGalaxyPanelWidget;
@@ -74,7 +76,8 @@ public:
  * CosmicUniverseLook::PanelOf says of the camera's level and the two selections (section 6.4 - the two never stand
  * together, section 8.3), the galaxy panel with the session's hint (CosmicUI::HintKeyOf), the log feed at the bottom left,
  * the petition card in the middle over the panels (collapsed while no card shows - MVP item 2), over them the ascension
- * presentation (hidden until an ascension), and over everything the chronicle (collapsed until the run ends - MVP item 4).
+ * presentation (hidden until an ascension), over it the calling's pages (collapsed until a death or the end of a reign - B5
+ * [B-5c]), and over everything the chronicle (collapsed until the run ends - MVP item 4).
  * The edict window (B2) stands on the left under the bar, over the panels and under the card, collapsed until it is opened.
  */
 UCLASS()
@@ -94,6 +97,7 @@ public:
 	UCosmicPetitionCardWidget* GetPetitionCard() const { return Card; }
 	UCosmicChronicleWidget* GetChronicle() const { return Chronicle; }
 	UCosmicEdictWidget* GetEdictWindow() const { return EdictWindow; }
+	UCosmicCallingPagesWidget* GetCallingPages() const { return CallingPages; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -129,6 +133,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCosmicEdictWidget> EdictWindow;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UCosmicCallingPagesWidget> CallingPages;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UCosmicTopBarWidget> TopBar;
@@ -241,8 +248,18 @@ public:
 	 * stops the time, the system (CosmicAutoPause::FirstNewHazardSystem) is selected and the camera glides to it -
 	 * SelectAndFocus not by the viewer (MVP item 6; a press in flight does not become a click). The first call after the
 	 * controller starts, a new galaxy or a load only notes them - and so does the first call under another people (a
-	 * coronation, a return, a deposition - B1): a crisis that stood before the throne was taken is no news. */
+	 * coronation, a return, a deposition - B1): a crisis that stood before the throne was taken is no news. Last it follows the
+	 * wanderer's lethal hazard (FollowLethalHazard - B5), so every place that follows the one follows the other. */
 	void FollowOwnHazards();
+	/** B5 (header section 2.8, 4): follows the hazard that kills a vessel at its expiry where an embodied wanderer counts as
+	 * standing (CosmicAutoPause::LethalPlaceOf - while it travels, the system it left; only when its kill would reach the vessel at
+	 * its expiry, the birth protection among the rule): one that newly stands there since the
+	 * last call - a new hazard there, another one, or the vessel's place come to stand where one stands (an arrival, a throne
+	 * left on a system that holds one) - asks for the automatic pause (LethalHazard); when that stops the time, the system is
+	 * selected and the camera glides to it (SelectAndFocus not by the viewer, as FollowOwnHazards). The first call after the
+	 * controller starts, a new galaxy or a load only notes it; the interregnum and a ruler note none. FollowOwnHazards calls it
+	 * last; tests call it in place of a tick. */
+	void FollowLethalHazard();
 	/** Where the viewer's choice is kept: this key of TimeUnitSection, "On" or "Off" (tests read it). */
 	static constexpr const TCHAR* AutoPauseKey = TEXT("AutoPause");
 
@@ -271,8 +288,8 @@ public:
 	 * BeginPlay of this controller and of the HUD): the same latch with no wait, and while latched the page opens at once, fully shown, if the HUD has it and it is
 	 * closed - whichever BeginPlay runs second opens it. Calls nothing a Core Logic handler may not call (only SetTimeScale reaches the simulation). */
 	void FollowEnd(bool bArrived);
-	void AdvanceRunEnd(float DeltaSeconds);   // real seconds, counted only while no ascension presentation or reveal shows (PlayerTick; tests); opens after HoldSeconds
-	void ClearRunEnd();                       // forgets the latch, the wait and the page; switch and speed stay, the RunEnd reason goes (to None) (HandleGalaxyGenerated first; CosmicTests::AcquireSim)
+	void AdvanceRunEnd(float DeltaSeconds);   // real seconds, counted only while no ascension presentation or reveal and no calling page shows (PlayerTick; tests); opens after HoldSeconds
+	void ClearRunEnd();                       // forgets the latch, the wait and the page - and folds the calling's pages (B5); switch and speed stay, the RunEnd reason goes (to None) (HandleGalaxyGenerated first; CosmicTests::AcquireSim)
 	/** B5 (header section 2.6): whether a life closed at Tick - the last closed life's DiedTick is Tick (the last life while
 	 * the calling is in the interregnum, the one before it when a leap of 0 began the next on the same tick). The boundary
 	 * reads it, not LifeState, so the death of a leap of 0 and the death on the end's tick stop the time too. */
@@ -281,11 +298,52 @@ public:
 	 * never from a handler: UGalaxySimulationSubsystem::RunLeap of the remaining leap; when the provisional end is switched on
 	 * and its tick (DT_Rules.ProvisionalEndTick) lies inside the leap, only up to that tick - its boundary latches the end. In
 	 * the silence (no leap left) up to that end; with none, nothing is run and the time goes back to ordinary play (the speed
-	 * before the pause). False and nothing run outside the interregnum, once the run has ended, in that silence, and when the
-	 * simulation refused the leap. */
+	 * before the pause - once no calling page shows: ApplySpeed refuses a speed under one, and the pages give it back when they
+	 * fold). False and nothing run outside the interregnum, once the run has ended, in that silence, and when the simulation
+	 * refused the leap. */
 	bool AdvanceLeap();
 	/** The tick of the last death the boundary saw (FollowDeath), -1 for none since the run began: the death pages ([B-5c]). */
 	int64 GetDeathTick() const { return DeathTick; }
+	/**
+	 * B5 [B-5c] (header section 4, 2.6, decision 15, 16): the 'next' of the calling's page that shows (UCosmicCallingPagesWidget -
+	 * FollowDeath opens the epitaph, the boundary of an abdication or a deposition the reign end). The epitaph's runs the leap
+	 * (AdvanceLeap - an end inside it latches at its own tick, its boundary saves and redraws; a leap that ends in the silence,
+	 * no candidate standing, runs on to the end when it is ahead) and opens the digest after that boundary - none when the run
+	 * was over already (a death on the end's tick: the chronicle). The digest's opens the inauguration when a new life stands,
+	 * the chronicle when the run is over (an end inside the interregnum, or on the succession's tick: no inauguration), and in
+	 * the silence with no end ahead folds the pages and gives the time back (AdvanceLeap). The inauguration's folds, glides the
+	 * camera to the new vessel's system and keeps the time stopped with its line (Succession). The reign end's folds (the time
+	 * stays stopped with its line). The chronicle opens at once in place of its wait (the pages stood in the hold's place). An
+	 * input - nothing from a handler or while none shows.
+	 */
+	void NextCallingPage();
+	/** The epitaph's 'skip' (a second or later death - docs/70): the leap (the silence's run to the end as 'next' runs it) and
+	 * every page at once - then the inauguration's close (the camera, the time stopped), the chronicle once the run is over, or
+	 * in the silence with no end ahead the time given back. Nothing on another page or from a handler. */
+	void SkipCallingPages();
+	/** Whether a calling page shows: the speed buttons are greyed (the top bar), the speed keys do nothing, no speed is set
+	 * (ApplySpeed keeps the time stopped with the page's reason - the presentation's, the card's and the silence's give-back
+	 * wait for the pages), the wheel does not move the camera and the chronicle's wait waits (AdvanceRunEnd). */
+	bool IsCallingPageOpen() const;
+	static bool IsCallingPageOpenFor(const UUserWidget& Widget);   // the widget's owning controller shows one; false without one
+	/** B5 [B-5c] (header section 2.10, 4): whether the screens draw the vessel - the top bar's wanderer line and its lethal
+	 * warning, the map's mark and lane, the system panel's wanderer lines, commands and lethal warnings. Not while a calling page
+	 * shows (IsCallingPageOpen - the digest and the inauguration stand over a new vessel the inauguration introduces, and the
+	 * reign end over the walk it begins), and never for the vessel an ended run's last tick installed (the end won over the
+	 * inauguration: CosmicChronicle::ShownLivesOf gives it no chapter - the player never saw it). The interregnum, a ruler and
+	 * the wanderer's own tests stay with each screen. Reads; writes nothing. */
+	bool IsVesselShown() const;
+	static bool IsVesselShownFor(const UUserWidget& Widget);   // the widget's owning controller's answer; true without one (a widget of a test's own)
+	/** Redraws the screens IsVesselShown gates - the HUD's bar and panel (ACosmicHUD::RefreshPanel) and the map at its next frame
+	 * (RequestRefresh): the calling's pages folded over a stopped simulation, which sends no tick (CloseCallingPages). */
+	void RefreshVesselScreens();
+	/** B5 [B-5c] (header section 2.6): a run that opens in the interregnum - or on the tick of a succession, no tick run since a
+	 * life closed (the leap's boundary save, a leap of 0's death, a quit while the digest or the inauguration showed) - shows
+	 * the epitaph of the last closed life again, fully at once, and stands still (a running time stops with the death's reason;
+	 * a stopped one keeps its own - Continued); after a succession its 'next' finds no leap and goes on to the digest and the
+	 * inauguration. Nothing in an ended run, while a page shows, or without the HUD's pages - the BeginPlay of this controller
+	 * and of the HUD call it after FollowEnd(false), whichever runs second opens it; HandleGalaxyGenerated after its own (a load). */
+	void FollowInterregnumOnOpen();
 	void SetProvisionalEndEnabled(bool bOn);  // on; -ProvisionalEnd=0 turns it off for the session, tests in memory; off = ClearRunEnd
 	bool IsProvisionalEndEnabled() const { return bProvisionalEnd; }
 	void LookAtMap();                         // the page folds over the stopped map
@@ -303,8 +361,8 @@ public:
 	/** What a speed key does: 0 to 5 set the steps of CosmicUI::SpeedSteps through SetSpeed - a step the gate does not
 	 * open does nothing (it never becomes x10, guideline 2.1) -, Space toggles the pause. The keys follow the gate alone:
 	 * while the ascension presentation shows, key 5 sets x25 although the bar keeps its x25 button folded until the
-	 * presentation closes, as keys 1 to 4 already set their speeds under it. The bound handler; tests call it in place of
-	 * a key. */
+	 * presentation closes, as keys 1 to 4 already set their speeds under it. While a calling page shows (B5) no key does
+	 * anything - the page's own buttons turn it. The bound handler; tests call it in place of a key. */
 	void PressSpeedKey(FKey Key);
 
 	/** The speed of a number key: 0 to 5 are CosmicUI::SpeedSteps in order; any other key has none. */
@@ -458,6 +516,9 @@ public:
 	void HandleLeftPressed(FKey Key);
 	void HandleLeftReleased(FKey Key);
 	void HandleLeftDoubleClick(FKey Key);
+	/** The mouse wheel, as bound in SetupInputComponent (tests call it in place of the wheel): the camera's zoom, then the zoom
+	 * level - nothing while the chronicle or a calling page shows (their veil takes the wheel, never the camera under it). */
+	void HandleWheel(FKey Key);
 
 	/** Development aid: after DelaySeconds of real time shows the ascension presentation to the second rung
 	 * ("CosmicPreviewAscension 23" with -ShotAfterSeconds=25 photographs it) - CosmicPreviewRung of the second rung.
@@ -568,9 +629,26 @@ private:
 	void HandleSimTick(int64 Tick);
 
 	// B5 (header section 2.6): a life that closed at this boundary stops the time whatever the automatic pause
-	// (ApplySpeed(0, Death)) and is remembered for the death pages. Before the end's latch (FollowEnd), which may follow at
-	// the same boundary.
-	void FollowDeath(int64 Tick);
+	// (ApplySpeed(0, Death)) and is remembered for the death pages: the card on the screen folds, a showing ascension
+	// presentation folds with no give-back (FoldSilently) and the epitaph opens ([B-5c]; 'skip' from a second death on).
+	// Before the end's latch (FollowEnd), which may follow at the same boundary.
+	// True when a life closed.
+	bool FollowDeath(int64 Tick);
+	// B5 [B-5c] (header section 4): the reign end's page. Notes whether the vessel rules an embodied life and how many lives
+	// there are; bArrived (a boundary where no life closed): an embodied ruler of the same life seen at the last look that walks
+	// now, its last reign closed with a reason (an abdication, a deposition - the tenth stage's), folds a showing ascension
+	// presentation with no give-back, opens the page and stops the time whatever the automatic pause (ApplySpeed(0,
+	// ReignEnd)). Without it only notes (BeginPlay, a new galaxy or a load, a
+	// coronation between ticks). A ruler's death is the epitaph's (the calling waits in the interregnum, or a new life stands).
+	void FollowReign(bool bArrived);
+	// B5 [B-5c]: the calling's pages fold (ClearRunEnd; the pages' own ends), and the screens they held the vessel back from redraw
+	// (RefreshVesselScreens).
+	void CloseCallingPages();
+	// B5 [B-5c]: the pages fold and, in an ended run, the chronicle opens at once (its wait forgotten); the HUD redraws.
+	void FinishCallingPages();
+	// B5 [B-5c]: the inauguration folds, the camera glides to the new vessel's system (SelectAndFocus not by the viewer) and
+	// the time stays stopped with its line (ApplySpeed(0, Succession)).
+	void CloseInauguration();
 
 	UFUNCTION()
 	void HandleGalaxyGenerated(int32 Seed);
@@ -579,12 +657,12 @@ private:
 	UFUNCTION()
 	void HandleLogEntry(const FCosmicLogEntry& Entry);
 
-	// SetSpeed with the reason it is set for (None: the player's, or the presentation's give-back).
+	// SetSpeed with the reason it is set for (None: the player's, or the presentation's give-back). An ended run stops (RunEnd);
+	// while a calling page shows a positive speed is refused and the page's reason kept (B5 [B-5c]).
 	void ApplySpeed(float Speed, ECosmicAutoPause Reason);
 
 	void HandleRightPressed(FKey Key);
 	void HandleRightReleased(FKey Key);
-	void HandleWheel(FKey Key);
 	void HandleMapRebuilt();
 
 	// The system under the cursor (CosmicMapPick::NearestOnScreen over PickCandidatesOf through this controller's view and
@@ -612,6 +690,9 @@ private:
 	TOptional<TMap<FName, FGameplayTag>> OwnHazardsSeen;
 	// The people whose hazards OwnHazardsSeen holds: the ruled people of an embodied ruler, None otherwise (B1).
 	FName OwnHazardsRuler;
+	// B5: the system and the tag of the lethal hazard where the embodied wanderer counted as standing at the last
+	// FollowLethalHazard (None and an empty tag for none); unset before the first, after a new galaxy or a load.
+	TOptional<TPair<FName, FGameplayTag>> LethalSeen;
 
 	// Whether the third rung's gate was open at the last FollowSpeedGate; unset before the first.
 	TOptional<bool> ThirdRungWasOpen;
@@ -623,6 +704,10 @@ private:
 	TOptional<float> ChronicleWait;
 	// B5: the tick of the last death the boundary saw (FollowDeath), -1 for none.
 	int64 DeathTick = -1;
+	// B5 [B-5c]: at the last FollowReign, whether an embodied ruler stood and how many lives the calling held (-1 before the
+	// first). Presentation state, never saved.
+	bool bRulingSeen = false;
+	int32 RulingSeenLives = -1;
 	// The CosmicEnd line's two numbers: UWorld::GetRealTimeSeconds at this controller's BeginPlay or at the last new galaxy or
 	// load (HandleGalaxyGenerated), and the real seconds the simulation stood still since then (any reason - a card, a
 	// presentation, a pause; PlayerTick counts).

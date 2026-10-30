@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/World/CosmicDigest.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicDigest.cpp
+@@ -292,7 +292,6 @@
+ 			}
+ 			if (IsFarLine(Entry))
+ 			{
+-				Out.bElsewhere = true;
+ 				continue;
+ 			}
+ 			const int32 SystemIndex = Entry.FocusSystemID.IsNone() ? INDEX_NONE : Index.FindSystem(State, Entry.FocusSystemID);

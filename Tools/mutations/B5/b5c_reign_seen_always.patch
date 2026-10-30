@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1092,7 +1092,7 @@
+ 	const bool bEmbodied = State.Calling.LifeState == ELifeState::Embodied;
+ 	const bool bRuling = bEmbodied && State.Player.Role == EPlayerRole::Ruler;
+ 	const int32 Lives = State.Calling.Lives.Num();
+-	const bool bWasRuling = bRulingSeen && RulingSeenLives == Lives;
++	const bool bWasRuling = true;
+ 	bRulingSeen = bRuling;
+ 	RulingSeenLives = Lives;
+ 	if (!bArrived || !bWasRuling || bRuling || !bEmbodied || Lives == 0)

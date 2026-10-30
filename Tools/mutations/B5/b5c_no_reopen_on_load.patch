@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1093,8 +1093,6 @@
+ 	}
+ 	FollowOwnHazards();
+ 	FollowPetition(false);
+-	// A load in the interregnum: its epitaph again (B5 - ClearRunEnd folded the pages of the old run).
+-	FollowInterregnumOnOpen();
+ }
+ 
+ void ACosmicPlayerController::FollowEnd(bool bArrived)

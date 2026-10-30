@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
+@@ -74,7 +74,7 @@
+ 	// Whom its kill reaches is the shared rule (B5 header section 4: the screen does not copy it), at the tick the hazard
+ 	// expires: the countdown comes before the expiry in the crisis stage, so N ticks left expire at State.Tick + N.
+ 	const FStarSystemState& System = State.Systems[Place];
+-	const int64 ExpiryTick = State.Tick + FMath::Max(1, System.HazardTicksRemaining);
++	const int64 ExpiryTick = State.Tick + FMath::Max(1, System.HazardTicksRemaining) + 1;
+ 	const bool bReaches = CosmicHazards::VesselAtRiskOf(State.Player, State.Calling, Rules, ExpiryTick, System.SystemID, NAME_None);
+ 	return bReaches ? Place : INDEX_NONE;
+ }

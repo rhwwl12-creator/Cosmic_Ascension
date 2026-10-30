@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicDigest.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicDigest.cpp
+@@ -172,7 +172,7 @@
+ 		{
+ 			++At;
+ 		}
+-		for (++At; At < State.Log.Num(); ++At)
++		for (At = 0; At < State.Log.Num(); ++At)
+ 		{
+ 			const FCosmicLogEntry& Entry = State.Log[At];
+ 			if (Entry.Tick > Record.FirstTick && Entry.SourceRow == Rows.Hazard && Entry.FocusCivID == CivID)

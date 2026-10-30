@@ -1,0 +1,14 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1146,11 +1146,6 @@
+ 	Pages->OpenEpitaph(LifeAt, LifeAt >= 1, true);
+ 	// A running time stops with the death's line; a stopped one keeps a reason of its own (a continue's) and otherwise takes
+ 	// the death's - the bar never stands still without saying why.
+-	if (Sim->GetTimeScale() > 0.f || AutoPauseReason == ECosmicAutoPause::None)
+-	{
+-		ApplySpeed(0.f, ECosmicAutoPause::Death);
+-		return;
+-	}
+ 	CosmicHUD->RefreshPanel();
+ }
+ 

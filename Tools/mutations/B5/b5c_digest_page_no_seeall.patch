@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicCallingPagesWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicCallingPagesWidget.cpp
+@@ -455,7 +455,7 @@
+ 	const ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer());
+ 	if (Sim && Closed != INDEX_NONE)
+ 	{
+-		const FCosmicDigest Digest = CosmicDigest::DigestOf(*Sim, Closed, Controller && Controller->IsSeeingAll());
++		const FCosmicDigest Digest = CosmicDigest::DigestOf(*Sim, Closed, false);
+ 		const TArray<FText> Lines = CosmicDigest::LinesOf(Digest);
+ 		for (int32 At = 0; At < Lines.Num(); ++At)
+ 		{

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicDigest.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicDigest.cpp
+@@ -208,7 +208,7 @@
+ 
+ int32 CosmicDigest::VariantOf(int32 Seed, FName SubjectID, int64 Tick)
+ {
+-	return static_cast<int32>(CosmicSeed::DeriveForName(Seed, SubjectID, CosmicSeed::Purpose::Digest, static_cast<uint32>(Tick)) % static_cast<uint32>(VariantCount));
++	return static_cast<int32>(CosmicSeed::DeriveForName(Seed, SubjectID, CosmicSeed::Purpose::Encounter, static_cast<uint32>(Tick)) % static_cast<uint32>(VariantCount));
+ }
+ 
+ int32 CosmicDigest::LastClosedLifeOf(const FGalaxyState& State)

@@ -17,6 +17,7 @@
 		"The keys of this file and the options of each kind are closed lists in the checker, each with the type of its value: a key nothing reads or a value of the wrong type is a problem, so a slip cannot switch a check off.",
 		"What a rule names has to exist: a test over a column the table does not declare, a tag the ini lacks, a name that is no enumerator or a row the table neither requires nor has is a problem (it would never hold).",
 		"required_rows are the rows the code calls by name: the checker holds them, both ways, to the names in the headers under row_name_sources. A table that has an asset carries must_exist.",
+		"epitaph_leaves_out (B5): the DT_Encounters rows whose title the epitaph never shows among a dead vessel's last answers - the code holds the same rows as CosmicRows::EpitaphLeavesOut, so each is a required row of DT_Encounters. A card title that speaks to the reader (a word of words.reader_address, or it ends in a word of words.reader_question_ends) has to be listed there: the death and inauguration pages keep the third person (decision 12-da).",
 		"A table whose columns are null has no rows yet: its columns are declared when its first row is written."
 	],
 	"tag_sources": ["Config/DefaultGameplayTags.ini"],
@@ -43,7 +44,9 @@
 		"revelation_mimicry": ["스스로 있는", "알파와 오메가", "처음과 나중", "처음이요", "시작과 끝", "세상의 빛", "부활이요", "길이요", "진리요", "생명의 떡", "선한 목자", "쉬게 하리라", "쉼을 얻", "소멸하는 불", "왕의 왕", "어린양", "어린 양", "처음과 마지막", "다시 있지 아니", "눈물을 씻"],
 		"silence_words": ["잠잠", "고요", "쉼", "안식"],
 		"vigil_image": ["밤", "철야", "금식", "절식", "기도"],
-		"second_person": ["너는", "너를", "너의", "너에게", "네가", "네게", "너희", "당신"]
+		"second_person": ["너는", "너를", "너의", "너에게", "네가", "네게", "너희", "당신"],
+		"reader_address": ["당신"],
+		"reader_question_ends": ["?", "는가"]
 	},
 
 	"string_table": {
@@ -78,6 +81,8 @@
 	},
 
 	"single_variant_rows": ["log_first_life", "log_first_contact"],
+
+	"epitaph_leaves_out": ["petition_keep_throne", "petition_exalt"],
 
 	"event_log_categories": {
 		"Event.Civ.Economy": ["Log.Civ"],
@@ -766,7 +771,7 @@
 			"struct": "EncounterDef",
 			"prefixes": ["enc_", "petition_"],
 			"must_exist": true,
-			"required_rows": ["petition_first_contact", "petition_pressure_claim", "petition_pressure_measured"],
+			"required_rows": ["petition_first_contact", "petition_pressure_claim", "petition_pressure_measured", "petition_keep_throne", "petition_exalt"],
 			"columns": {
 				"Title": {"kind": "text", "required": true, "slots": ["Civ", "System", "Hazard", "Rebel", "OtherCiv"], "no_digits": true, "forbidden": "verdict"},
 				"Body": {"kind": "text", "slots": ["Civ", "System", "Hazard", "Rebel", "OtherCiv"], "no_digits": true, "forbidden": "verdict"},

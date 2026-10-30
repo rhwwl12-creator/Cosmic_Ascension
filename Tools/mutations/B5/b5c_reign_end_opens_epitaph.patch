@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1039,7 +1039,7 @@
+ 	ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
+ 	if (UCosmicCallingPagesWidget* Pages = CosmicHUD ? CosmicHUD->GetCallingPages() : nullptr)
+ 	{
+-		Pages->OpenReignEnd(Lives - 1);
++		Pages->OpenEpitaph(Lives - 1, false, false);
+ 	}
+ 	ApplySpeed(0.f, ECosmicAutoPause::ReignEnd);
+ }

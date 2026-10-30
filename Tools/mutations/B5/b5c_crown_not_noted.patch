@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -2429,7 +2429,6 @@
+ 	// still stops the time -, and the waiting card was cleared with it. The new reign is noted for the reign end's page (B5).
+ 	FollowOwnHazards();
+ 	FollowPetition(false);
+-	FollowReign(false);
+ 	FollowCommand();
+ 	return true;
+ }

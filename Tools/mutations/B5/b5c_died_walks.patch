@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+@@ -255,7 +255,7 @@
+ 			}
+ 			People = People.IsEmpty() ? CivNameOf(State, Sim->GetStateIndex(), Life.BirthCivID) : People;
+ 			// Not when the reign ended with the life (Reign.Died - B5): a ruler that died on its throne never walked.
+-			if (!Life.ReignEndReasons.IsEmpty() && Life.ReignEndReasons.Last().IsValid() && Life.ReignEndReasons.Last() != CosmicTags::ReignDied())
++			if (!Life.ReignEndReasons.IsEmpty() && Life.ReignEndReasons.Last().IsValid())
+ 			{
+ 				People = CosmicUI::JoinList({ People, Label(TEXT("Chronicle.Wandering")) });
+ 			}

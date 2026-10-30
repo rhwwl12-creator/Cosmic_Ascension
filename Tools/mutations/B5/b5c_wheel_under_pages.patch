@@ -1,0 +1,14 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -2132,11 +2132,6 @@
+ 	{
+ 		return;
+ 	}
+-	// So do the calling's pages, under the chronicle's veil (B5 header section 4): the map under them does not move.
+-	if (IsCallingPageOpen())
+-	{
+-		return;
+-	}
+ 	if (ACosmicCameraPawn* CameraPawn = GetCameraPawn())
+ 	{
+ 		CameraPawn->Zoom(Key == EKeys::MouseScrollUp ? 1.f : -1.f);

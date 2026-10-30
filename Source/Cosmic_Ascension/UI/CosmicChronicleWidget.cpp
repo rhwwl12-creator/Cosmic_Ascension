@@ -14,6 +14,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Core/CosmicTags.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Engine/GameInstance.h"
@@ -178,6 +179,43 @@ void UCosmicChronicleWidget::BuildPage()
 	{
 		AddRow(TextOf(*WidgetTree, Words, Size, Color), Words, 1.f, Gap);
 	};
+	// The lines of a body or of a span with no vessel: the stamp, always in cycles (the chronicle reads as the book's own
+	// count - UI/CosmicUILabels.h), the message in the feed's colour, and two opacities.
+	auto AddLines = [&](const TArray<FCosmicChronicleLine>& Lines)
+	{
+		for (const FCosmicChronicleLine& Line : Lines)
+		{
+			UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
+			USizeBox* StampBox = WidgetTree->ConstructWidget<USizeBox>();
+			StampBox->SetWidthOverride(StampWidth);
+			const FText Stamp = FText::Format(Label(TEXT("Chronicle.Stamp")), FText::AsNumber(Line.Entry.Tick));
+			UTextBlock* StampText = TextOf(*WidgetTree, Stamp, 13, CosmicPalette::Grey);
+			StampText->SetJustification(ETextJustify::Right);
+			StampBox->SetContent(StampText);
+			Row->AddChildToHorizontalBox(StampBox)->SetPadding(FMargin(0.f, 1.f, 10.f, 0.f));
+			UTextBlock* Message = TextOf(*WidgetTree, Line.Entry.Message, 16, CosmicLogFeed::ColorOf(Line.Entry.Severity, Line.Entry.Category));
+			Row->AddChildToHorizontalBox(Message)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+			const float Opacity = Line.bOwn ? 1.f : CosmicChronicleScreen::WorldLineOpacity;
+			AddRow(Row, Line.Entry.Message, Opacity, FMargin(0.f, 0.f, 0.f, 4.f));
+			Stamps.Add(Stamp);
+			LineOpacities.Add(Opacity);
+		}
+	};
+	// A span with no vessel (B5 header section 2.7, 4 - decision 14): its sub-head over its lines, in the chapter's own
+	// grey and size, no page of its own; nothing for a span without a line (a leap of 0, a quiet span).
+	auto AddSpan = [&](const FCosmicChronicleNoVessel& Span)
+	{
+		if (Span.Lines.IsEmpty() && !Span.bMore)
+		{
+			return;
+		}
+		AddText(Label(TEXT("Chronicle.NoVessel")), 14, CosmicPalette::Grey, FMargin(0.f, 6.f, 0.f, 4.f));
+		AddLines(Span.Lines);
+		if (Span.bMore)
+		{
+			AddText(Label(TEXT("Chronicle.More")), 16, CosmicPalette::Grey, FMargin(0.f, 4.f, 0.f, 0.f));
+		}
+	};
 
 	for (const FCosmicChronicleChapter& Chapter : Log->BuildChronicle())
 	{
@@ -191,49 +229,49 @@ void UCosmicChronicleWidget::BuildPage()
 		const FText Name = CosmicChronicle::VesselNameOf(Life, Sim->GetTables());
 		AddText(Name.IsEmpty() ? Nth : FText::Format(Label(TEXT("List.Pair")), Nth, Name), 26, CosmicPalette::Gold, FMargin(0.f, 8.f, 0.f, 2.f));
 		// The facts of the life - a UI line: the peoples it ruled in order ('A -> B', a people taken again after another
-		// once more, one taken again at once not twice), 'wandering' when its last reign ended (B1 - the life walks), the
-		// rung, the cycles it lasted.
+		// once more, one taken again at once not twice), 'wandering' when its last reign ended and it walked on (B1), the
+		// rung, the cycles it lasted. A life that never ruled (B5 - a called vessel) says where it was born and that it
+		// walked: the birth people's name alone would read as a reign.
 		FText People;
-		FName Last;
-		for (const FName CivID : Life.RuledCivIDs)
+		if (Life.RuledCivIDs.IsEmpty())
 		{
-			const FText PeopleName = CivID == Last ? FText::GetEmpty() : CivNameOf(State, Sim->GetStateIndex(), CivID);
-			if (!PeopleName.IsEmpty())
-			{
-				People = People.IsEmpty() ? PeopleName : FText::Format(Label(TEXT("Chronicle.Then")), People, PeopleName);
-				Last = CivID;
-			}
+			const FText Birth = CivNameOf(State, Sim->GetStateIndex(), Life.BirthCivID);
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("Civ"), Birth);
+			People = CosmicUI::JoinList({ Birth.IsEmpty() ? FText::GetEmpty() : FText::Format(Label(TEXT("Chronicle.BornAmong")), Args),
+				Label(TEXT("Chronicle.Wandering")) });
 		}
-		People = People.IsEmpty() ? CivNameOf(State, Sim->GetStateIndex(), Life.BirthCivID) : People;
-		if (!Life.ReignEndReasons.IsEmpty() && Life.ReignEndReasons.Last().IsValid())
+		else
 		{
-			People = CosmicUI::JoinList({ People, Label(TEXT("Chronicle.Wandering")) });
+			FName Last;
+			for (const FName CivID : Life.RuledCivIDs)
+			{
+				const FText PeopleName = CivID == Last ? FText::GetEmpty() : CivNameOf(State, Sim->GetStateIndex(), CivID);
+				if (!PeopleName.IsEmpty())
+				{
+					People = People.IsEmpty() ? PeopleName : FText::Format(Label(TEXT("Chronicle.Then")), People, PeopleName);
+					Last = CivID;
+				}
+			}
+			People = People.IsEmpty() ? CivNameOf(State, Sim->GetStateIndex(), Life.BirthCivID) : People;
+			// Not when the reign ended with the life (Reign.Died - B5): a ruler that died on its throne never walked.
+			if (!Life.ReignEndReasons.IsEmpty() && Life.ReignEndReasons.Last().IsValid() && Life.ReignEndReasons.Last() != CosmicTags::ReignDied())
+			{
+				People = CosmicUI::JoinList({ People, Label(TEXT("Chronicle.Wandering")) });
+			}
 		}
 		const FText Rung = FText::Format(INVTEXT("{0} {1}"), Label(TEXT("Panel.Tier")), FText::AsNumber(static_cast<int32>(Life.PeakTier) + 1));
 		const FText Lasted = FText::Format(Label(TEXT("Chronicle.Stamp")), FText::AsNumber(FMath::Max<int64>(0, Chapter.ToTick - Life.BornTick)));
 		AddText(CosmicUI::JoinList({ People, Rung, Lasted }), 14, CosmicPalette::Grey, FMargin(0.f, 0.f, 0.f, 10.f));
-		for (const FCosmicChronicleLine& Line : Chapter.Lines)
-		{
-			UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
-			USizeBox* StampBox = WidgetTree->ConstructWidget<USizeBox>();
-			StampBox->SetWidthOverride(StampWidth);
-			// The stamp is always in cycles: the chronicle reads as the book's own count (UI/CosmicUILabels.h).
-			const FText Stamp = FText::Format(Label(TEXT("Chronicle.Stamp")), FText::AsNumber(Line.Entry.Tick));
-			UTextBlock* StampText = TextOf(*WidgetTree, Stamp, 13, CosmicPalette::Grey);
-			StampText->SetJustification(ETextJustify::Right);
-			StampBox->SetContent(StampText);
-			Row->AddChildToHorizontalBox(StampBox)->SetPadding(FMargin(0.f, 1.f, 10.f, 0.f));
-			UTextBlock* Message = TextOf(*WidgetTree, Line.Entry.Message, 16, CosmicLogFeed::ColorOf(Line.Entry.Severity, Line.Entry.Category));
-			Row->AddChildToHorizontalBox(Message)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-			const float Opacity = Line.bOwn ? 1.f : CosmicChronicleScreen::WorldLineOpacity;
-			AddRow(Row, Line.Entry.Message, Opacity, FMargin(0.f, 0.f, 0.f, 4.f));
-			Stamps.Add(Stamp);
-			LineOpacities.Add(Opacity);
-		}
+		// The span with no vessel that led to this life, at the head of its chapter; then the body; then, on the last chapter,
+		// the span after its death when no shown life follows.
+		AddSpan(Chapter.Before);
+		AddLines(Chapter.Lines);
 		if (Chapter.bMore)
 		{
 			AddText(Label(TEXT("Chronicle.More")), 16, CosmicPalette::Grey, FMargin(0.f, 4.f, 0.f, 0.f));
 		}
+		AddSpan(Chapter.After);
 	}
 	// (The two books - B5.) The epilogue's two fixed lines and the horizon line: the same whatever ended the run.
 	AddText(Label(TEXT("Chronicle.Opened")), 22, CosmicPalette::White, FMargin(0.f, 24.f, 0.f, 4.f));

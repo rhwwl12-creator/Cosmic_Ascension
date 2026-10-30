@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1009,7 +1009,7 @@
+ 	// The new vessel's system on the map - not the viewer's selection (the crisis focus's form) - and the time stays stopped
+ 	// with its line until the player sets a speed (decision 16: no speed given back before the vessel is found on the map).
+ 	SelectAndFocus(Home, false);
+-	ApplySpeed(0.f, ECosmicAutoPause::Succession);
++	ApplySpeed(SpeedBeforePause, ECosmicAutoPause::None);
+ }
+ 
+ void ACosmicPlayerController::FollowReign(bool bArrived)

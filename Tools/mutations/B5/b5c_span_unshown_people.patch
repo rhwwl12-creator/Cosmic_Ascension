@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+@@ -284,7 +284,7 @@
+ 	};
+ 	// The span with no vessel reads every shown life's peoples (PeoplesOfEveryLife's rule, without a life never shown).
+ 	TArray<FName> EveryPeople;
+-	for (int32 LifeAt = 0; LifeAt < Shown; ++LifeAt)
++	for (int32 LifeAt = 0; LifeAt < Lives.Num(); ++LifeAt)
+ 	{
+ 		for (const FName& People : PeoplesOf(Lives[LifeAt]))
+ 		{

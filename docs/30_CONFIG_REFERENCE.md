@@ -18,7 +18,7 @@
 | `ReverenceDecay` | `0.5` | number | `{"min": 0, "max": 1}` | Player/PlayerRoleSubsystem.cpp | 읽힘 |
 | `AIAscensionSpeedMultiplier` | `1.0` | number |  | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `PostRebellionStability` | `0.15` | number |  | Player/PlayerRoleSubsystem.cpp | 읽힘 |
-| `ThroneLockTicks` | `600` | number | `{"integer": true}` | Player/PlayerRoleSubsystem.cpp | 읽힘 |
+| `ThroneLockTicks` | `600` | number | `{"integer": true}` | Player/PlayerRoleSubsystem.cpp, UI/CosmicSystemPanelWidget.cpp | 읽힘 |
 | `PressureBySourceTier` | `[0.0, 0.0, 0.25, 1.0, 2.0]` | numbers | `{"len": 5, "min": 0}` | Sim/CosmicHazards.cpp, Sim/GalaxySimulationSubsystem.cpp, World/CosmicMapLook.cpp | 읽힘 |
 | `PressureAdjacencyFalloff` | `0.5` | number | `{"min": 0, "max": 1}` | Sim/CosmicHazards.cpp, Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `SpiritualPressureStabilityDrain` | `0.002` | number | `{"min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |

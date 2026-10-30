@@ -18,6 +18,7 @@
 #include "GeneralProjectSettings.h"
 #include "HAL/PlatformMisc.h"
 #include "HAL/PlatformProperties.h"
+#include "Log/CosmicChronicle.h"
 #include "Log/CosmicLogSubsystem.h"
 #include "Math/RotationMatrix.h"
 #include "Misc/CommandLine.h"
@@ -36,8 +37,10 @@
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/CosmicWanderer.h"
 #include "Sim/GalaxySimulationSubsystem.h"
+#include "Templates/Tuple.h"
 #include "TimerManager.h"
 #include "UI/CosmicAscensionOverlayWidget.h"
+#include "UI/CosmicCallingPagesWidget.h"
 #include "UI/CosmicChronicleWidget.h"
 #include "UI/CosmicEdictWidget.h"
 #include "UI/CosmicGalaxyPanelWidget.h"
@@ -47,6 +50,7 @@
 #include "UI/CosmicTopBarWidget.h"
 #include "Widgets/Layout/Anchors.h"
 #include "World/CosmicCameraPawn.h"
+#include "World/CosmicDigest.h"
 #include "World/CosmicGalaxyMapActor.h"
 #include "World/CosmicHashRun.h"
 #include "World/CosmicMapLook.h"
@@ -400,6 +404,14 @@ void ACosmicHUD::BeginPlay()
 	{
 		Overlay->AddToViewport(10);
 	}
+	// Over the card (5) and the presentation (10), under the chronicle (20): the calling's pages, collapsed until a death or the
+	// end of a reign (B5 [B-5c]).
+	CallingPages = CreateWidget<UCosmicCallingPagesWidget>(Controller);
+	if (CallingPages)
+	{
+		CallingPages->AddToViewport(15);
+		CallingPages->SetVisibility(ESlateVisibility::Collapsed);
+	}
 	// Over the card (5) and the presentation (10): the chronicle, collapsed until the run ends (MVP item 4).
 	Chronicle = CreateWidget<UCosmicChronicleWidget>(Controller);
 	if (Chronicle)
@@ -407,10 +419,12 @@ void ACosmicHUD::BeginPlay()
 		Chronicle->AddToViewport(20);
 		Chronicle->SetVisibility(ESlateVisibility::Collapsed);
 	}
-	// A galaxy that started ended (a load before StartPlay - item 5): the second of the two BeginPlay calls opens the page.
+	// A galaxy that started ended (a load before StartPlay - item 5): the second of the two BeginPlay calls opens the page. One
+	// that started in the interregnum (B5): the second opens its epitaph.
 	if (ACosmicPlayerController* Cosmic = Cast<ACosmicPlayerController>(Controller))
 	{
 		Cosmic->FollowEnd(false);
+		Cosmic->FollowInterregnumOnOpen();
 	}
 }
 
@@ -693,8 +707,11 @@ void ACosmicPlayerController::BeginPlay()
 	StoppedRealSeconds = 0.0;
 	// The game's first galaxy came before the handlers were bound (StartPlay): a galaxy that started ended latches here.
 	FollowEnd(false);
-	// A continued run that is not over stands still with its line (MVP item 5).
+	// A continued run that is not over stands still with its line (MVP item 5); one in the interregnum shows its epitaph again
+	// (B5 - when the HUD's pages stand already).
 	FollowStart();
+	FollowInterregnumOnOpen();
+	FollowReign(false);
 	FollowOwnHazards();
 }
 
@@ -779,7 +796,9 @@ void ACosmicPlayerController::HandleSimTick(int64 Tick)
 {
 	FollowSpeedGate();
 	// A death before the end: a life that closed on the end's tick is not lost behind the end's early return (B5).
-	FollowDeath(Tick);
+	const bool bDied = FollowDeath(Tick);
+	// An abdication or a deposition at this boundary: the reign end's page (a life that closed is the epitaph's - B5 [B-5c]).
+	FollowReign(!bDied);
 	// The end before the card and the hazards: once the run is over, its own tick asks for nothing.
 	FollowEnd(true);
 	if (IsRunEnded())
@@ -799,15 +818,37 @@ bool ACosmicPlayerController::LifeClosedAt(const FGalaxyState& State, int64 Tick
 	return Lives.IsValidIndex(Closed) && Lives[Closed].DiedTick == Tick && Tick > 0;
 }
 
-void ACosmicPlayerController::FollowDeath(int64 Tick)
+bool ACosmicPlayerController::FollowDeath(int64 Tick)
 {
 	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
 	if (!Sim || !LifeClosedAt(Sim->GetState(), Tick))
 	{
-		return;
+		return false;
 	}
 	DeathTick = Tick;
+	ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
+	// The card on the screen folds, an outcome shown on it too: the death emptied the waiting slot (header section 2.10).
+	if (UCosmicPetitionCardWidget* Card = CosmicHUD ? CosmicHUD->GetPetitionCard() : nullptr)
+	{
+		Card->ShowCard(NAME_None, NAME_None);
+	}
+	// A death page never wears the ascension presentation (header section 4): one showing folds with no give-back and no chime.
+	if (UCosmicAscensionOverlayWidget* Overlay = CosmicHUD ? CosmicHUD->GetAscensionOverlay() : nullptr)
+	{
+		Overlay->FoldSilently();
+	}
+	// The epitaph ([B-5c], header section 4): 'skip' from a second death on (docs/70). Opened before the stop, so that the redraw
+	// greys the speed buttons.
+	if (UCosmicCallingPagesWidget* Pages = CosmicHUD ? CosmicHUD->GetCallingPages() : nullptr)
+	{
+		const int32 LifeAt = CosmicDigest::LastClosedLifeOf(Sim->GetState());
+		if (LifeAt != INDEX_NONE)
+		{
+			Pages->OpenEpitaph(LifeAt, LifeAt >= 1, false);
+		}
+	}
 	ApplySpeed(0.f, ECosmicAutoPause::Death);
+	return true;
 }
 
 bool ACosmicPlayerController::AdvanceLeap()
@@ -828,13 +869,289 @@ bool ACosmicPlayerController::AdvanceLeap()
 	}
 	if (Ticks <= 0)
 	{
-		// The silence with no end ahead: nothing to run - the time goes back to ordinary play at the speed before the pause.
+		// The silence with no end ahead: nothing to run - the time goes back to ordinary play at the speed before the pause
+		// (once no calling page shows: ApplySpeed keeps it stopped under one, and the pages give it back as they fold).
 		ApplySpeed(SpeedBeforePause > 0.f ? SpeedBeforePause : 1.f, ECosmicAutoPause::None);
 		return false;
 	}
 	Sim->RunLeap(Ticks);
 	// A refused leap (from inside the stages or a boundary handler - one error line) ran nothing.
 	return Sim->GetState().Tick != Tick;
+}
+
+// Helpers of the calling's pages (B5 [B-5c]). A named namespace: the module is built as one unity file.
+namespace CosmicCallingFlowImpl
+{
+	// A life after Lives[LifeAt] stands embodied: the succession at the leap's end, or a leap of 0's on the death's tick.
+	bool NewLifeStands(const FGalaxyState& State, int32 LifeAt)
+	{
+		return State.Calling.LifeState == ELifeState::Embodied && State.Calling.Lives.Num() - 1 > LifeAt;
+	}
+
+	// The silence: the calling waits in the interregnum with no leap left (no candidate stood at the leap's end).
+	bool IsSilent(const FGalaxyState& State)
+	{
+		return State.Calling.LifeState == ELifeState::Interregnum && State.Calling.PendingLeapTicks <= 0;
+	}
+
+	// The leap of the epitaph's 'next' and 'skip' (header section 2.6): AdvanceLeap; a leap that ended in the silence runs on
+	// to the end when it is ahead (AdvanceLeap once more - the digest then spans up to the end and its 'next' opens the
+	// chronicle). With no end ahead that second call's give-back waits for the pages (ApplySpeed refuses a speed under a page):
+	// the digest's 'next' folds them and gives the time back.
+	void LeapOfThePages(ACosmicPlayerController& Controller, const FGalaxyState& State)
+	{
+		if (Controller.AdvanceLeap() && IsSilent(State) && !Controller.IsRunEnded())
+		{
+			Controller.AdvanceLeap();
+		}
+	}
+}
+
+bool ACosmicPlayerController::IsCallingPageOpen() const
+{
+	const ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
+	const UCosmicCallingPagesWidget* Pages = CosmicHUD ? CosmicHUD->GetCallingPages() : nullptr;
+	return Pages && Pages->IsOpen();
+}
+
+bool ACosmicPlayerController::IsCallingPageOpenFor(const UUserWidget& Widget)
+{
+	const ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(Widget.GetOwningPlayer());
+	return Controller && Controller->IsCallingPageOpen();
+}
+
+bool ACosmicPlayerController::IsVesselShown() const
+{
+	// Under a calling page the screens wait for its fold (header section 4: the inauguration introduces the new vessel).
+	if (IsCallingPageOpen())
+	{
+		return false;
+	}
+	// The vessel the end's tick installed: the chronicle's own rule of the lives it shows, read where the run ended.
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	const bool bNeverSeen = Sim && IsRunEnded() && CosmicChronicle::ShownLivesOf(Sim->GetState()) < Sim->GetState().Calling.Lives.Num();
+	return !bNeverSeen;
+}
+
+bool ACosmicPlayerController::IsVesselShownFor(const UUserWidget& Widget)
+{
+	const ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(Widget.GetOwningPlayer());
+	return !Controller || Controller->IsVesselShown();
+}
+
+void ACosmicPlayerController::RefreshVesselScreens()
+{
+	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
+	{
+		CosmicHUD->RefreshPanel();
+	}
+	// The map draws at its next frame: a stopped simulation sends it no tick.
+	if (ACosmicGalaxyMapActor* TheMap = Map.Get())
+	{
+		TheMap->RequestRefresh();
+	}
+}
+
+void ACosmicPlayerController::NextCallingPage()
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
+	UCosmicCallingPagesWidget* Pages = CosmicHUD ? CosmicHUD->GetCallingPages() : nullptr;
+	// An input only: a handler of a Core Logic delegate or of OnSimTick turns no page (the leap would be refused there anyway).
+	if (!Sim || !Pages || !Pages->IsOpen() || Sim->IsBroadcasting() || Sim->IsSendingSimTick())
+	{
+		return;
+	}
+	switch (Pages->GetPage())
+	{
+	case ECosmicCallingPage::Epitaph:
+		// A death on the end's tick: no leap, no digest - the chronicle (header section 4).
+		if (IsRunEnded())
+		{
+			FinishCallingPages();
+			return;
+		}
+		// The leap and its one boundary (an end inside it latches at its tick), then the digest of what the world did meanwhile -
+		// a leap of 0 too (its one line). A leap that ends in the silence runs on to the end when it is ahead; with none the
+		// time waits for the digest's 'next' (LeapOfThePages).
+		CosmicCallingFlowImpl::LeapOfThePages(*this, Sim->GetState());
+		Pages->OpenDigest();
+		CosmicHUD->RefreshPanel();
+		return;
+	case ECosmicCallingPage::Digest:
+		// An end inside the interregnum: the chronicle, no inauguration (decision 15) - and an end on the succession's tick wins
+		// over it (header section 2.6).
+		if (IsRunEnded())
+		{
+			FinishCallingPages();
+			return;
+		}
+		if (CosmicCallingFlowImpl::NewLifeStands(Sim->GetState(), Pages->GetLifeAt()))
+		{
+			Pages->OpenInauguration(Sim->GetState().Calling.Lives.Num() - 1);
+			CosmicHUD->RefreshPanel();
+			return;
+		}
+		// The silence with no end ahead: no vessel stands, nothing to inaugurate - the pages fold and the time goes back to
+		// ordinary play (AdvanceLeap, header section 2.6).
+		FinishCallingPages();
+		if (CosmicCallingFlowImpl::IsSilent(Sim->GetState()))
+		{
+			AdvanceLeap();
+		}
+		return;
+	case ECosmicCallingPage::Inauguration:
+		CloseInauguration();
+		return;
+	case ECosmicCallingPage::ReignEnd:
+	case ECosmicCallingPage::None:
+		break;
+	}
+	FinishCallingPages();
+}
+
+void ACosmicPlayerController::SkipCallingPages()
+{
+	UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
+	UCosmicCallingPagesWidget* Pages = CosmicHUD ? CosmicHUD->GetCallingPages() : nullptr;
+	if (!Sim || !Pages || Pages->GetPage() != ECosmicCallingPage::Epitaph || Sim->IsBroadcasting() || Sim->IsSendingSimTick())
+	{
+		return;
+	}
+	const int32 LifeAt = Pages->GetLifeAt();
+	if (!IsRunEnded())
+	{
+		CosmicCallingFlowImpl::LeapOfThePages(*this, Sim->GetState());
+	}
+	if (!IsRunEnded() && CosmicCallingFlowImpl::NewLifeStands(Sim->GetState(), LifeAt))
+	{
+		CloseInauguration();
+		return;
+	}
+	FinishCallingPages();
+	// The silence with no end ahead: the time goes back once the pages folded (AdvanceLeap).
+	if (!IsRunEnded() && CosmicCallingFlowImpl::IsSilent(Sim->GetState()))
+	{
+		AdvanceLeap();
+	}
+}
+
+void ACosmicPlayerController::CloseCallingPages()
+{
+	ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
+	UCosmicCallingPagesWidget* Pages = CosmicHUD ? CosmicHUD->GetCallingPages() : nullptr;
+	if (Pages && Pages->IsOpen())
+	{
+		Pages->Close();
+		// The speed buttons come back, and the vessel the pages held back (IsVesselShown): the bar, the panel and the map (a
+		// stopped simulation sends no tick to redraw them).
+		RefreshVesselScreens();
+	}
+}
+
+void ACosmicPlayerController::FinishCallingPages()
+{
+	CloseCallingPages();
+	ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
+	if (IsRunEnded())
+	{
+		// The pages stood in the place of the wait before the chronicle: it opens now, with its reveal.
+		ChronicleWait.Reset();
+		UCosmicChronicleWidget* Page = CosmicHUD ? CosmicHUD->GetChronicle() : nullptr;
+		if (Page && !Page->IsOpen())
+		{
+			Page->Open(RunEnd, false);
+		}
+	}
+	if (CosmicHUD)
+	{
+		CosmicHUD->RefreshPanel();
+	}
+}
+
+void ACosmicPlayerController::CloseInauguration()
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	const FName Home = Sim ? Sim->GetState().Player.CurrentSystemID : NAME_None;
+	CloseCallingPages();
+	// The new vessel's system on the map - not the viewer's selection (the crisis focus's form) - and the time stays stopped
+	// with its line until the player sets a speed (decision 16: no speed given back before the vessel is found on the map).
+	SelectAndFocus(Home, false);
+	ApplySpeed(0.f, ECosmicAutoPause::Succession);
+}
+
+void ACosmicPlayerController::FollowReign(bool bArrived)
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!Sim)
+	{
+		return;
+	}
+	const FGalaxyState& State = Sim->GetState();
+	const bool bEmbodied = State.Calling.LifeState == ELifeState::Embodied;
+	const bool bRuling = bEmbodied && State.Player.Role == EPlayerRole::Ruler;
+	const int32 Lives = State.Calling.Lives.Num();
+	const bool bWasRuling = bRulingSeen && RulingSeenLives == Lives;
+	bRulingSeen = bRuling;
+	RulingSeenLives = Lives;
+	if (!bArrived || !bWasRuling || bRuling || !bEmbodied || Lives == 0)
+	{
+		return;
+	}
+	// Only a reign that closed with its reason: a role set by hand closes none.
+	const FLifeRecord& Life = State.Calling.Lives.Last();
+	if (Life.ReignEndReasons.IsEmpty() || !Life.ReignEndReasons.Last().IsValid())
+	{
+		return;
+	}
+	// The reign end's page never wears the ascension presentation (header section 4): one showing folds with no give-back.
+	if (UCosmicAscensionOverlayWidget* Overlay = GetHUD<ACosmicHUD>() ? GetHUD<ACosmicHUD>()->GetAscensionOverlay() : nullptr)
+	{
+		Overlay->FoldSilently();
+	}
+	ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
+	if (UCosmicCallingPagesWidget* Pages = CosmicHUD ? CosmicHUD->GetCallingPages() : nullptr)
+	{
+		Pages->OpenReignEnd(Lives - 1);
+	}
+	ApplySpeed(0.f, ECosmicAutoPause::ReignEnd);
+}
+
+void ACosmicPlayerController::FollowInterregnumOnOpen()
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
+	UCosmicCallingPagesWidget* Pages = CosmicHUD ? CosmicHUD->GetCallingPages() : nullptr;
+	if (!Sim || !Pages || Pages->IsOpen() || IsRunEnded())
+	{
+		return;
+	}
+	// A run that opens in the interregnum, or on the tick of a succession no tick has run since - the leap's boundary save, a
+	// leap of 0's death, a quit while the digest or the inauguration showed: the player may not have been shown the new vessel.
+	// Its 'next' finds no leap and goes on to the digest and the inauguration.
+	const FGalaxyState& State = Sim->GetState();
+	const TArray<FLifeRecord>& Lives = State.Calling.Lives;
+	const bool bWaiting = State.Calling.LifeState == ELifeState::Interregnum;
+	const bool bJustCalled = State.Calling.LifeState == ELifeState::Embodied && Lives.Num() > 1 && Lives.Last().BornTick == State.Tick;
+	if (!bWaiting && !bJustCalled)
+	{
+		return;
+	}
+	const int32 LifeAt = CosmicDigest::LastClosedLifeOf(State);
+	if (LifeAt == INDEX_NONE)
+	{
+		return;
+	}
+	Pages->OpenEpitaph(LifeAt, LifeAt >= 1, true);
+	// A running time stops with the death's line; a stopped one keeps a reason of its own (a continue's) and otherwise takes
+	// the death's - the bar never stands still without saying why.
+	if (Sim->GetTimeScale() > 0.f || AutoPauseReason == ECosmicAutoPause::None)
+	{
+		ApplySpeed(0.f, ECosmicAutoPause::Death);
+		return;
+	}
+	CosmicHUD->RefreshPanel();
 }
 
 void ACosmicPlayerController::HandleGalaxyGenerated(int32 Seed)
@@ -846,6 +1163,7 @@ void ACosmicPlayerController::HandleGalaxyGenerated(int32 Seed)
 	ClearRunEnd();
 	AutoPauseReason = ECosmicAutoPause::None;
 	OwnHazardsSeen.Reset();
+	LethalSeen.Reset();
 	if (!Hints.bEdictHintDone)
 	{
 		Hints.bEdictHintOn = false;
@@ -853,6 +1171,8 @@ void ACosmicPlayerController::HandleGalaxyGenerated(int32 Seed)
 	RunBeganRealSeconds = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.0;
 	RunBeganTick = GetGameInstance() && GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>()->GetState().Tick : -1;
 	StoppedRealSeconds = 0.0;
+	// The role the reign end's page compares with is this run's (B5).
+	FollowReign(false);
 	FollowEnd(false);
 	if (IsRunEnded())
 	{
@@ -860,6 +1180,8 @@ void ACosmicPlayerController::HandleGalaxyGenerated(int32 Seed)
 	}
 	FollowOwnHazards();
 	FollowPetition(false);
+	// A load in the interregnum: its epitaph again (B5 - ClearRunEnd folded the pages of the old run).
+	FollowInterregnumOnOpen();
 }
 
 void ACosmicPlayerController::FollowEnd(bool bArrived)
@@ -929,6 +1251,10 @@ void ACosmicPlayerController::AdvanceRunEnd(float DeltaSeconds)
 	{
 		return;   // the third rung's presentation and its reveal first
 	}
+	if (IsCallingPageOpen())
+	{
+		return;   // the calling's pages first (B5): their last 'next' opens the chronicle (FinishCallingPages)
+	}
 	ChronicleWait = ChronicleWait.GetValue() - FMath::Max(DeltaSeconds, 0.f);
 	if (ChronicleWait.GetValue() <= 0.f)
 	{
@@ -953,6 +1279,8 @@ void ACosmicPlayerController::ClearRunEnd()
 	{
 		Page->Close();
 	}
+	// The calling's pages are the old run's too (B5): a new galaxy, a load, a test's AcquireSim.
+	CloseCallingPages();
 	// The speed and the switch stay. The RunEnd reason goes: AcquireSim stops the simulation with SetTimeScale, not through
 	// ApplySpeed, so the top bar would otherwise keep saying the run is over.
 	if (AutoPauseReason == ECosmicAutoPause::RunEnd)
@@ -1073,6 +1401,31 @@ void ACosmicPlayerController::FollowOwnHazards()
 			bSwallowRelease = true;
 		}
 		SelectAndFocus(NewOn, false);
+	}
+	FollowLethalHazard();
+}
+
+void ACosmicPlayerController::FollowLethalHazard()
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	if (!Sim)
+	{
+		return;
+	}
+	const FGalaxyState& State = Sim->GetState();
+	const int32 Place = CosmicAutoPause::LethalPlaceOf(State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules());
+	const TPair<FName, FGameplayTag> Now = State.Systems.IsValidIndex(Place) ? TPair<FName, FGameplayTag>(State.Systems[Place].SystemID, State.Systems[Place].ActiveHazard)
+		: TPair<FName, FGameplayTag>(NAME_None, FGameplayTag());
+	const bool bNew = LethalSeen.IsSet() && !Now.Key.IsNone() && (LethalSeen.GetValue().Key != Now.Key || LethalSeen.GetValue().Value != Now.Value);
+	LethalSeen = Now;
+	// The wanderer's crisis focus: only when this pause stopped the time (MVP item 6's rule).
+	if (bNew && RequestAutoPause(ECosmicAutoPause::LethalHazard))
+	{
+		if (bLeftDown && !bPanning)
+		{
+			bSwallowRelease = true;
+		}
+		SelectAndFocus(Now.Key, false);
 	}
 }
 
@@ -1779,6 +2132,11 @@ void ACosmicPlayerController::HandleWheel(FKey Key)
 	{
 		return;
 	}
+	// So do the calling's pages, under the chronicle's veil (B5 header section 4): the map under them does not move.
+	if (IsCallingPageOpen())
+	{
+		return;
+	}
 	if (ACosmicCameraPawn* CameraPawn = GetCameraPawn())
 	{
 		CameraPawn->Zoom(Key == EKeys::MouseScrollUp ? 1.f : -1.f);
@@ -2068,9 +2426,10 @@ bool ACosmicPlayerController::TakeThrone(FName CivID)
 		return false;
 	}
 	// The throne changed between ticks: the new people's standing crises are noted now - one that rises on the next tick
-	// still stops the time -, and the waiting card was cleared with it.
+	// still stops the time -, and the waiting card was cleared with it. The new reign is noted for the reign end's page (B5).
 	FollowOwnHazards();
 	FollowPetition(false);
+	FollowReign(false);
 	FollowCommand();
 	return true;
 }
@@ -2439,6 +2798,14 @@ void ACosmicPlayerController::ApplySpeed(float Speed, ECosmicAutoPause Reason)
 		Speed = 0.f;
 		Reason = ECosmicAutoPause::RunEnd;
 	}
+	// A calling page stops the time until its own buttons turn it (B5 header section 4, decision 16): a give-back - the
+	// presentation's, the card's, the silence's - and a speed set under it wait, and the page's reason stays (a plain stop
+	// under it - the pause key - keeps it too; only a reason of its own replaces it).
+	else if (IsCallingPageOpen() && (Speed > 0.f || Reason == ECosmicAutoPause::None))
+	{
+		Speed = 0.f;
+		Reason = AutoPauseReason;
+	}
 	// One rule for every path: a speed the third rung's gate does not open runs as x10.
 	Sim->SetTimeScale(CosmicUI::OpenSpeed(Speed, IsSpiritualSightOpen()));
 	// Set before the redraw: the top bar shows why the simulation stands still.
@@ -2469,7 +2836,8 @@ TOptional<float> ACosmicPlayerController::SpeedOfKey(const FKey& Key)
 void ACosmicPlayerController::PressSpeedKey(FKey Key)
 {
 	UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
-	if (!Sim)
+	// A calling page turns with its own buttons (B5): the time under it waits for them.
+	if (!Sim || IsCallingPageOpen())
 	{
 		return;
 	}

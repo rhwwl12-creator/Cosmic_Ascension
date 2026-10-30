@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
+@@ -76,7 +76,7 @@
+ 	const FStarSystemState& System = State.Systems[Place];
+ 	const int64 ExpiryTick = State.Tick + FMath::Max(1, System.HazardTicksRemaining);
+ 	const bool bReaches = CosmicHazards::VesselAtRiskOf(State.Player, State.Calling, Rules, ExpiryTick, System.SystemID, NAME_None);
+-	return bReaches ? Place : INDEX_NONE;
++	return Place;
+ }
+ 
+ const TCHAR* CosmicAutoPause::WhyKeyOf(ECosmicAutoPause Reason)

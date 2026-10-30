@@ -1,0 +1,13 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -995,10 +995,6 @@
+ 		// The silence with no end ahead: no vessel stands, nothing to inaugurate - the pages fold and the time goes back to
+ 		// ordinary play (AdvanceLeap, header section 2.6).
+ 		FinishCallingPages();
+-		if (CosmicCallingFlowImpl::IsSilent(Sim->GetState()))
+-		{
+-			AdvanceLeap();
+-		}
+ 		return;
+ 	case ECosmicCallingPage::Inauguration:
+ 		CloseInauguration();

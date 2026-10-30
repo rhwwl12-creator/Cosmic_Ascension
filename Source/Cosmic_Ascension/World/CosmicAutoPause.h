@@ -10,6 +10,8 @@
 #include "Core/GalaxyState.h"
 #include "GameplayTagContainer.h"
 
+struct FCosmicDataTables;
+struct FCosmicRulesDef;
 struct FCosmicStateIndex;
 
 /** Why the screens stopped the simulation by themselves (none: the player set the speed, or nothing stopped it). */
@@ -38,6 +40,14 @@ enum class ECosmicAutoPause : uint8
 	Encounter,
 	// A life closed (B5) - not an automatic pause: set whatever the viewer's choice (the death pages follow, [B-5c]).
 	Death,
+	// A hazard whose expiry kills a vessel there newly stands where an embodied wanderer counts as standing (B5 header section
+	// 2.8, 4 - LethalPlaceOf): the wanderer's own crisis pause (a ruler's systems' is OwnHazard).
+	LethalHazard,
+	// B5 [B-5c] - not automatic pauses either, set whatever the viewer's choice (ACosmicPlayerController::NextCallingPage):
+	// the inauguration closed - the camera went to the new vessel's system and the time waits for the player.
+	Succession,
+	// A reign ended within one life (an abdication, a deposition): its page opened over the stopped map.
+	ReignEnd,
 };
 
 namespace CosmicAutoPause
@@ -58,6 +68,15 @@ namespace CosmicAutoPause
 	/** The system HasNewHazard counts that comes first in State.Systems (MVP item 6: the crisis the camera goes to - one
 	 * system, in an order no TMap decides); None when there is none. */
 	COSMIC_ASCENSION_API FName FirstNewHazardSystem(const TMap<FName, FGameplayTag>& Before, const TMap<FName, FGameplayTag>& Now, const FGalaxyState& State);
+
+	/** B5 (header section 2.8, 4): the system an embodied wanderer counts as standing in (CosmicWanderer::PlaceIndexOf - while it
+	 * travels, the one it left: a vessel that set out stands there until it arrives) when the hazard standing there kills a
+	 * vessel at its expiry (CosmicHazards::KillsAVesselOf) and that kill would reach this vessel then - the rule Apply records
+	 * a KillPlayer by (CosmicHazards::VesselAtRiskOf, the birth protection among it), asked at the expiry's tick: State.Tick +
+	 * HazardTicksRemaining (1 at least - the crisis stage counts down at the next tick first and expires at 0). INDEX_NONE
+	 * otherwise - a ruler, the interregnum, no such hazard, a hazard that expires while the vessel is shielded. The system
+	 * panel, the top bar, the travel button's tooltip and the pause (LethalHazard) read it: one answer, the rule not copied. */
+	COSMIC_ASCENSION_API int32 LethalPlaceOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules);
 
 	/** The ST_CA key of the line a pause shows for Reason ("stopped - ..."); null for None. */
 	COSMIC_ASCENSION_API const TCHAR* WhyKeyOf(ECosmicAutoPause Reason);

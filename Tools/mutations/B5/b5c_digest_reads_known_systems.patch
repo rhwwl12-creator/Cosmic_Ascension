@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicDigest.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicDigest.cpp
+@@ -364,7 +364,7 @@
+ 			}
+ 			const int32 SystemIndex = Entry.FocusSystemID.IsNone() ? INDEX_NONE : Index.FindSystem(State, Entry.FocusSystemID);
+ 			const int32 CivIndex = Entry.FocusCivID.IsNone() ? INDEX_NONE : Index.FindCiv(State, Entry.FocusCivID);
+-			const bool bSystemKnown = View.IsKnown(SystemIndex);
++			const bool bSystemKnown = State.Knowing.KnownSystems.ContainsByPredicate([&Entry](const FKnownMark& Mark) { return Mark.ID == Entry.FocusSystemID; });
+ 			// The subject rule of the scope of telling, as the view answers it: a system the view knows and a people it shows -
+ 			// a gone people only through a known system (its name no longer resolves).
+ 			const bool bSystemSeen = Entry.FocusSystemID.IsNone() || bSystemKnown;

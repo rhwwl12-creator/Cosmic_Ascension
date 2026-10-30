@@ -14,6 +14,8 @@ class UButton;
 class UCosmicActionButton;
 class UHorizontalBox;
 class UTextBlock;
+struct FCosmicDataTables;
+struct FCosmicRulesDef;
 struct FCosmicStateIndex;
 struct FGalaxyState;
 
@@ -35,8 +37,11 @@ struct FGalaxyState;
  * automatic pause holds the simulation still, one line that says why (CosmicAutoPause::WhyKeyOf of the controller's
  * reason); it goes when the speed is set again. A wanderer has no people: after the resources' empty place the band shows its
  * line (WandererLineOf - where it stands or where it goes and how long, and when no lane leads anywhere) with the vessel's
- * stats and the shown people that looks up to it most in its tooltip (GetWandererTip, B1), then the clock, the view, the
- * speeds and the automatic pause. After an embodied ruler's resources, before the research block (which yields first), the
+ * stats and the shown people that looks up to it most in its tooltip (GetWandererTip, B1) and, while a hazard that kills a
+ * vessel at its expiry stands where it counts as standing, the warning after it (LethalLineOf, B5), then the clock, the view,
+ * the speeds and the automatic pause. In the interregnum (B5) the band shows no vessel's line: no people, no wanderer's line;
+ * nor does it show the wanderer's line and its warning while the controller does not show the vessel (B5 [B-5c] -
+ * ACosmicPlayerController::IsVesselShownFor: a calling page open, the vessel an ended run's last tick installed). After an embodied ruler's resources, before the research block (which yields first), the
  * edict button (B2 - GetEdictButton) and, while the edict hint stands, its grey mark. Built in C++ (no WBP); redrawn from
  * the simulation's delegates, after a speed button and after the clock's, the view's and the automatic pause's press.
  */
@@ -78,7 +83,8 @@ public:
 	/** The view button (tests read its label, visibility and tooltip). */
 	const UCosmicActionButton* GetViewButton() const { return ViewButton; }
 	/** The provisional end (MVP item 4): the grey line beside the clock - Chronicle.Soon over the last CosmicChronicleScreen::EndSoonTicks before the clock end,
-	 * else Chronicle.Until once the vessel was deposed; collapsed after the end, with the end switched off or without a clock end (tests read it). */
+	 * else Chronicle.Until while the vessel is an embodied wanderer (B5: every one, a called vessel that never ruled too - none in the interregnum and none
+	 * for a ruler); collapsed after the end, with the end switched off or without a clock end (tests read it). */
 	const UTextBlock* GetEndSoonText() const { return EndSoonText; }
 	/** The 'chronicle' button after the speeds: shown only while the run is over and its page is folded; a press reopens it (tests press it). */
 	UCosmicActionButton* GetReopenButton() const { return ReopenButton; }
@@ -126,6 +132,15 @@ public:
 	static FText WandererLineOf(const FGalaxyState& State, const FCosmicStateIndex& Index, ECosmicTimeUnit Unit);
 
 	/**
+	 * The lethal hazard's warning (B5 header section 2.8, 4): where an embodied wanderer counts as standing a hazard stands
+	 * whose expiry kills a vessel there and would reach this one then (CosmicAutoPause::LethalPlaceOf - the birth protection
+	 * among the rule) - ST_CA Wander.Bar.Lethal with the hazard's name, or under way Wander.Bar.LethalTravelling (the vessel
+	 * stands where it left until it arrives); words that promise nothing. Empty otherwise - a ruler, the interregnum, no such
+	 * hazard, a shielded vessel. Shown after the wanderer's line (GetLethalText) while the vessel is shown.
+	 */
+	static FText LethalLineOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules);
+
+	/**
 	 * What the wanderer line's tooltip says now: the vessel's four stats (the card's stat words), then the people the
 	 * viewer is shown that looks up to the vessel most (Wander.Bar.TipReverence - none while none does); empty but for an
 	 * embodied wanderer. Bound once to the ToolTipTextDelegate of the wanderer's line (as GetNextRungTip): a ruler's resources
@@ -140,8 +155,10 @@ public:
 	const UTextBlock* GetStabilityText() const { return StabilityText; }
 	const UTextBlock* GetTrendText() const { return TrendText; }
 	const UTextBlock* GetStatusText() const { return StatusText; }
-	/** The wanderer's line (B1, tests): WandererLineOf, collapsed while it has no words. */
+	/** The wanderer's line (B1, tests): WandererLineOf, collapsed while it has no words or the vessel is not shown (B5). */
 	const UTextBlock* GetWandererText() const { return WandererText; }
+	/** The lethal hazard's warning after it (B5, tests): LethalLineOf, collapsed while it has no words or the vessel is not shown. */
+	const UTextBlock* GetLethalText() const { return LethalText; }
 
 	/** The edict button (B2 header section 4): Edict.Count with the held edicts and the slots (CosmicEdicts::HeldCountOf,
 	 * SlotsOf), for an embodied ruler in a run that is not over - collapsed otherwise; a press opens or closes the edict
@@ -213,6 +230,10 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> WandererText;
+
+	// The lethal hazard's warning (B5): after the wanderer's line, collapsed while it has no words.
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> LethalText;
 
 	// The edict button and its mark, in a block of their own (B2): collapsed together.
 	UPROPERTY(Transient)

@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+@@ -209,7 +209,6 @@
+ 		{
+ 			return;
+ 		}
+-		AddText(Label(TEXT("Chronicle.NoVessel")), 14, CosmicPalette::Grey, FMargin(0.f, 6.f, 0.f, 4.f));
+ 		AddLines(Span.Lines);
+ 		if (Span.bMore)
+ 		{

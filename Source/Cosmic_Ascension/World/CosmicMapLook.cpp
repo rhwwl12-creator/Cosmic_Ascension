@@ -10,6 +10,7 @@
 #include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
 #include "GameplayTagContainer.h"
+#include "Math/NumericLimits.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
@@ -382,6 +383,12 @@ bool CosmicMapLook::IsShownPeople(bool bMet, const FCivilizationState& Civ, EAsc
 
 FCosmicKnownView CosmicMapLook::KnownViewOf(const FGalaxyState& State, const FCosmicStateIndex& Index, EAscensionTier ViewerTier, bool bSeeAll)
 {
+	// No cut: every mark counts (a tick counter never reaches the largest int64).
+	return KnownViewOf(State, Index, ViewerTier, bSeeAll, TNumericLimits<int64>::Max());
+}
+
+FCosmicKnownView CosmicMapLook::KnownViewOf(const FGalaxyState& State, const FCosmicStateIndex& Index, EAscensionTier ViewerTier, bool bSeeAll, int64 CutTick)
+{
 	FCosmicKnownView View;
 	View.bSeeAll = bSeeAll;
 	View.PendingPetitionRow = State.Knowing.PendingPetitionRow;
@@ -399,7 +406,7 @@ FCosmicKnownView CosmicMapLook::KnownViewOf(const FGalaxyState& State, const FCo
 	{
 		for (const FKnownMark& Mark : State.Knowing.KnownSystems)
 		{
-			const int32 SystemIndex = Index.FindSystem(State, Mark.ID);
+			const int32 SystemIndex = Mark.Tick < CutTick ? Index.FindSystem(State, Mark.ID) : INDEX_NONE;
 			if (View.Known.IsValidIndex(SystemIndex))
 			{
 				View.Known[SystemIndex] = true;
@@ -407,12 +414,13 @@ FCosmicKnownView CosmicMapLook::KnownViewOf(const FGalaxyState& State, const FCo
 		}
 	}
 	// The meeting order: the place in MetCivs, a gone people keeping its place (CivIDs are never reused, so no colour
-	// ever passes to another people).
+	// ever passes to another people). A mark at or after the cut is not counted, and the counted ones keep their place.
 	View.ShownOrder.Init(INDEX_NONE, State.Civs.Num());
 	View.Met.Init(false, State.Civs.Num());
 	for (int32 Order = 0; Order < State.Knowing.MetCivs.Num(); ++Order)
 	{
-		const int32 CivIndex = Index.FindCiv(State, State.Knowing.MetCivs[Order].ID);
+		const FKnownMark& Mark = State.Knowing.MetCivs[Order];
+		const int32 CivIndex = Mark.Tick < CutTick ? Index.FindCiv(State, Mark.ID) : INDEX_NONE;
 		if (View.Met.IsValidIndex(CivIndex))
 		{
 			View.Met[CivIndex] = true;

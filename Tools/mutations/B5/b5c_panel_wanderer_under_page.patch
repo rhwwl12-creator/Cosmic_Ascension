@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -832,7 +832,7 @@
+ 	const FCosmicKnownView View = ACosmicPlayerController::KnownViewFor(*this);
+ 	// Whether the controller shows the vessel (B5 [B-5c]): not under a calling page, nor the vessel an ended run's last tick
+ 	// installed. The wanderer's lines, its commands and the lethal warnings read it (the pages' fold redraws the panel).
+-	const bool bVesselShown = ACosmicPlayerController::IsVesselShownFor(*this);
++	const bool bVesselShown = true;
+ 	const bool bWanderer = bVesselShown && CosmicWanderer::IsEmbodiedWanderer(State);
+ 	// The system where the wanderer counts as standing when a hazard there kills a vessel at its expiry and its kill would
+ 	// reach the vessel then (B5 - CosmicAutoPause::LethalPlaceOf): its panel and the travel buttons say so.

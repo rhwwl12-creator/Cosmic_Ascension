@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicCallingPagesWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicCallingPagesWidget.cpp
+@@ -191,7 +191,7 @@
+ 		}
+ 	}
+ 	// The hazard that closed the life, and where - the dead vessel's place while the calling waits in the interregnum after it.
+-	const FHazardDef* Killer = Life.CauseOfDeath.IsValid() && Life.CauseOfDeath.MatchesTagExact(CosmicTags::DeathHazard()) ? Tables.FindHazard(Life.CauseSourceRow) : nullptr;
++	const FHazardDef* Killer = Tables.FindHazard(Life.CauseSourceRow);
+ 	const bool bPlaceKnown = State.Calling.LifeState == ELifeState::Interregnum && LifeAt == State.Calling.Lives.Num() - 1;
+ 	const FName DeathPlace = bPlaceKnown ? State.Player.CurrentSystemID : NAME_None;
+ 	for (int32 At = 0; At < Rows.Num(); ++At)

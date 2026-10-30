@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1024,7 +1024,7 @@
+ 	{
+ 		CosmicCallingFlowImpl::LeapOfThePages(*this, Sim->GetState());
+ 	}
+-	if (!IsRunEnded() && CosmicCallingFlowImpl::NewLifeStands(Sim->GetState(), LifeAt))
++	if (CosmicCallingFlowImpl::NewLifeStands(Sim->GetState(), LifeAt))
+ 	{
+ 		CloseInauguration();
+ 		return;

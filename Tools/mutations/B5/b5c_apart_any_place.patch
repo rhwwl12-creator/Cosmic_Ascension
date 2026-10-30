@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicCallingPagesWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicCallingPagesWidget.cpp
+@@ -240,7 +240,7 @@
+ 		Title.Row = Rows[At];
+ 		Title.Title = Slots.IsEmpty() ? Card->Title : FText::Format(Card->Title, Args);
+ 		Title.bOfTheDeath = At == Rows.Num() - 1 && Killer && IsCardOfHazard(*Card, *Killer)
+-			&& (DeathPlace.IsNone() || !Line || Line->FocusSystemID.IsNone() || Line->FocusSystemID == DeathPlace);
++			;
+ 	}
+ 	return Titles;
+ }

@@ -608,6 +608,39 @@ class SchemaTests(unittest.TestCase):
                 handle.write('\n// inline const FName LogOld(TEXT("log_old_line"));\n/* inline const FName LogOlder(\n    TEXT("log_older_line")); */\n')
             self.assertEqual(checker.check_project(work), [])
 
+    def test_epitaph_leaves_out_every_title_that_speaks_to_the_reader(self):
+        """B5 [B-5c] (header section 4, decision 12-da): the epitaph shows the titles of a dead vessel's last answers in the
+        third person. A card title that speaks to the reader is listed under epitaph_leaves_out - the code's
+        CosmicRows::EpitaphLeavesOut, whose rows the code calls by name."""
+        listed = self.schema["epitaph_leaves_out"]
+        self.assertIn("petition_exalt", listed)
+        self.assertIn("petition_keep_throne", listed)
+        # The project's own titles: the two cards that speak to the reader are the listed ones.
+        project_schema, project_tables, _ = checker.load_project()
+        speaking = [row["Name"] for row in project_tables["DT_Encounters"]
+                    if any(word in row["Title"] for word in project_schema["words"]["reader_address"])
+                    or any(row["Title"].rstrip().endswith(end) for end in project_schema["words"]["reader_question_ends"])]
+        self.assertEqual(sorted(speaking), sorted(project_schema["epitaph_leaves_out"]))
+        word = self.schema["words"]["reader_address"][0]
+        where = "DT_Encounters.petition_test_plea.Title"
+        why = "speaks to the reader"
+        self.expect(self.after(self.set_cell("DT_Encounters", "petition_test_plea", "Title", "plea " + word)), where, why)
+        for end in self.schema["words"]["reader_question_ends"]:
+            with self.subTest(end=end):
+                self.expect(self.after(self.set_cell("DT_Encounters", "petition_test_plea", "Title", "plea" + end)), where, why)
+                self.expect(self.after(self.set_cell("DT_Encounters", "petition_test_plea", "Title", "plea" + end + "  ")), where, why)
+        # A plain title, and the same words on a listed row, are no problem.
+        self.expect(self.after(self.set_cell("DT_Encounters", "petition_test_plea", "Title", "plea")), why, wanted=False)
+        self.assertEqual(self.after(self.set_cell("DT_Encounters", "petition_exalt", "Title", "plea " + word)), [])
+        self.assertEqual(self.after(self.set_cell("DT_Encounters", "petition_keep_throne", "Title", "plea" + self.schema["words"]["reader_question_ends"][0])), [])
+        # The list names rows the code calls by name, the two word lists stand, and the list is there.
+        self.schema_problem(self.put([], "epitaph_leaves_out", listed + ["petition_test_plea"]), "schema.epitaph_leaves_out",
+                            "petition_test_plea is not a row the code calls by name")
+        for words in ("reader_address", "reader_question_ends"):
+            with self.subTest(words=words):
+                self.schema_problem(self.drop(["words"], words), "schema.epitaph_leaves_out", "the word list %r" % words)
+        self.schema_problem(self.drop([], "epitaph_leaves_out"), "schema", "'epitaph_leaves_out' is missing")
+
     def schema_problem_with_rows(self, code_rows, *words, wanted=True):
         problems = self.after(code_rows=code_rows)
         if wanted:
@@ -2152,6 +2185,7 @@ class SchemaTests(unittest.TestCase):
             ([], "conditions", [], "'conditions' has to be an object"),
             ([], "effects", "none", "'effects' has to be an object"),
             ([], "single_variant_rows", "log_first_life", "'single_variant_rows' has to be a list of strings"),
+            ([], "epitaph_leaves_out", "petition_exalt", "'epitaph_leaves_out' has to be a list of strings"),
             ([], "required_tags", "Notable.Rebel", "'required_tags' has to be a list of strings"),
             ([], "per_tick_effects", "AddResource", "'per_tick_effects' has to be a list of strings"),
             ([], "tag_sources", "Config/DefaultGameplayTags.ini", "'tag_sources' has to be a list of strings"),

@@ -1,0 +1,14 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicCallingPagesWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicCallingPagesWidget.cpp
+@@ -392,10 +392,7 @@
+ 	}
+ 	else if (const FEncounterDef* Card = Tables.FindEncounter(Life.CauseSourceRow))
+ 	{
+-		if (const FHazardDef* CardHazard = HazardOfCard(*Card, Tables))
+-		{
+-			Source = CardHazard->DisplayName;
+-		}
++		Source = Card->Title;
+ 	}
+ 	FFormatNamedArguments CauseArgs;
+ 	CauseArgs.Add(TEXT("Cause"), LabelOf(CauseKeyOf(Life.CauseOfDeath)));

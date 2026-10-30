@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -925,7 +925,6 @@
+ 				// under way too, until it arrives. Words that promise nothing.
+ 				if (SystemIndex == LethalPlace)
+ 				{
+-					Lines.Add(Label(TEXT("Wander.Lethal")));
+ 				}
+ 			}
+ 			// A slot line takes the paused mark while its watch says the slot does not pay - on a system of the people the

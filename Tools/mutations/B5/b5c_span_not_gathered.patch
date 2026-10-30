@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+@@ -340,7 +340,6 @@
+ 			// From the tick after the death through the BornTick tick (its lines before the life opens): no span for a leap of 0.
+ 			Chapter.Before.FromTick = Lives[LifeAt - 1].DiedTick + 1;
+ 			Chapter.Before.ToTick = Life.BornTick;
+-			FillSpan(Entries, PreviousEnd, BodyBegin, EveryPeople, NoVesselRoom, State.ChronicleEviction, Chapter.Before);
+ 		}
+ 		FillLines(Entries, BodyBegin, BodyEnd, PeoplesOf(Life), Room, Chapter.Lines, Chapter.Candidates, Chapter.bMore);
+ 

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1164,7 +1164,7 @@
+ 	{
+ 		return;   // the third rung's presentation and its reveal first
+ 	}
+-	if (IsCallingPageOpen())
++	if (false && IsCallingPageOpen())
+ 	{
+ 		return;   // the calling's pages first (B5): their last 'next' opens the chronicle (FinishCallingPages)
+ 	}

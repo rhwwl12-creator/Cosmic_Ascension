@@ -69,4 +69,68 @@ namespace CosmicTags
 		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Realm.Abyssal")));
 		return Tag;
 	}
+
+	// B5 [B-5c]: the pages and the digest. The log categories the digest leaves to the chronicle (Log.Calling, Log.Record -
+	// with LogClaim above), the seats whose change is a throne item, and the hazard whose taking of a throne the digest reads.
+	inline FGameplayTag LogCalling()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Calling")));
+		return Tag;
+	}
+
+	inline FGameplayTag LogRecord()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Record")));
+		return Tag;
+	}
+
+	inline FGameplayTag NotableRuler()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Notable.Ruler")));
+		return Tag;
+	}
+
+	inline FGameplayTag NotableRegent()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Notable.Regent")));
+		return Tag;
+	}
+
+	inline FGameplayTag HazardRebellion()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Rebellion")));
+		return Tag;
+	}
+
+	// B5 [B-5c]: the causes of death the epitaph names (FLifeRecord::CauseOfDeath) and the reign's ends the reign end's page
+	// names (Reign.Died above is the death's).
+	inline FGameplayTag DeathHazard()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Death.Hazard")));
+		return Tag;
+	}
+
+	inline FGameplayTag DeathEncounter()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Death.Encounter")));
+		return Tag;
+	}
+
+	inline FGameplayTag DeathAge()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Death.Age")));
+		return Tag;
+	}
+
+	inline FGameplayTag ReignAbdicated()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Abdicated")));
+		return Tag;
+	}
+
+	inline FGameplayTag ReignDeposed()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Deposed")));
+		return Tag;
+	}
 }

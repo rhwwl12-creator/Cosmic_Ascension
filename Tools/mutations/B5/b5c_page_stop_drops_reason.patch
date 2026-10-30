@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -2801,7 +2801,7 @@
+ 	// A calling page stops the time until its own buttons turn it (B5 header section 4, decision 16): a give-back - the
+ 	// presentation's, the card's, the silence's - and a speed set under it wait, and the page's reason stays (a plain stop
+ 	// under it - the pause key - keeps it too; only a reason of its own replaces it).
+-	else if (IsCallingPageOpen() && (Speed > 0.f || Reason == ECosmicAutoPause::None))
++	else if (IsCallingPageOpen() && Speed > 0.f)
+ 	{
+ 		Speed = 0.f;
+ 		Reason = AutoPauseReason;

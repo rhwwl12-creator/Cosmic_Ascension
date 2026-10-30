@@ -1,0 +1,15 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -974,7 +974,11 @@
+ 		// The leap and its one boundary (an end inside it latches at its tick), then the digest of what the world did meanwhile -
+ 		// a leap of 0 too (its one line). A leap that ends in the silence runs on to the end when it is ahead; with none the
+ 		// time waits for the digest's 'next' (LeapOfThePages).
+-		CosmicCallingFlowImpl::LeapOfThePages(*this, Sim->GetState());
++		if (!AdvanceLeap())
++		{
++			FinishCallingPages();
++			return;
++		}
+ 		Pages->OpenDigest();
+ 		CosmicHUD->RefreshPanel();
+ 		return;

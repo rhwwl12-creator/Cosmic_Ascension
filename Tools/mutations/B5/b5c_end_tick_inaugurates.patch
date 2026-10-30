@@ -1,0 +1,23 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -981,15 +981,15 @@
+ 	case ECosmicCallingPage::Digest:
+ 		// An end inside the interregnum: the chronicle, no inauguration (decision 15) - and an end on the succession's tick wins
+ 		// over it (header section 2.6).
+-		if (IsRunEnded())
+-		{
+-			FinishCallingPages();
+-			return;
+-		}
+ 		if (CosmicCallingFlowImpl::NewLifeStands(Sim->GetState(), Pages->GetLifeAt()))
+ 		{
+ 			Pages->OpenInauguration(Sim->GetState().Calling.Lives.Num() - 1);
+ 			CosmicHUD->RefreshPanel();
++			return;
++		}
++		if (IsRunEnded())
++		{
++			FinishCallingPages();
+ 			return;
+ 		}
+ 		// The silence with no end ahead: no vessel stands, nothing to inaugurate - the pages fold and the time goes back to

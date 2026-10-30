@@ -449,3 +449,87 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B5/` | `b5b_dying_vessel_moves.patch` — a vessel whose death is recorded still ends its journey | `Cosmic_Ascension.Calling.DeathPipeline` |
 | `B5/` | `b5b_crossing_error_on_death.patch` — the crossing stage's error line ignores a recorded death | `Cosmic_Ascension.Calling.RulerDeath` |
 | `B5/` | `b5b_pick_unclamped.patch` — PickOf reads a number past 1 unclamped | `Cosmic_Ascension.Sim.SuccessionCandidates` |
+| `B5/` | `b5c_digest_reads_knowing.patch` — the digest's rung item reads `Knowing.MetCivs`, not the known view | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5c_digest_reads_known_systems.patch` — a digest line's system is looked up in `Knowing.KnownSystems` (breaks the CosmicSeeAll case) | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5c_digest_reads_claim.patch` — the digest reads `Log.Claim` lines | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5c_digest_other_purpose.patch` — the digest's variants are picked with `Purpose::Encounter` | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5c_digest_noleap_head.patch` — a leap of 0 shows the head too | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5c_digest_far_seen.patch` — a far line does not bring `Digest.Elsewhere` | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5c_digest_thrones_unbounded.patch` — every changed seat becomes an item | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5c_reign_end_opens_epitaph.patch` — an abdication or a deposition opens the epitaph, not the reign end's page | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_next_without_leap.patch` — the epitaph's 'next' opens the digest without running the leap | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_runend_ignores_pages.patch` — the chronicle's wait counts while a calling page shows | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_speeds_not_grey.patch` — the speed buttons stay enabled while a calling page shows | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_apart_never.patch` — the answer on the killing hazard's card never stands apart | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_answer_any_slot.patch` — an answer title keeps a slot its line does not fill (empty) | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_first_death_skips.patch` — the first death's epitaph offers 'skip' | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_inauguration_gives_speed.patch` — closing the inauguration gives the speed back | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_no_reopen_on_load.patch` — a load in the interregnum does not open the epitaph again | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_span_not_gathered.patch` — the span with no vessel is not gathered | `Cosmic_Ascension.Log.ChronicleBuild`, `Cosmic_Ascension.UI.Chronicle` |
+| `B5/` | `b5c_end_tick_life_shown.patch` — a life born on the end's tick gets a chapter | `Cosmic_Ascension.Log.ChronicleBuild`, `Cosmic_Ascension.UI.Chronicle` |
+| `B5/` | `b5c_leap0_tick_twice.patch` — a leap of 0's shared tick is shown in both chapters | `Cosmic_Ascension.Log.ChronicleBuild` |
+| `B5/` | `b5c_span_unshown_people.patch` — the span gathers the peoples of an unshown life too | `Cosmic_Ascension.Log.ChronicleBuild` |
+| `B5/` | `b5c_span_uncapped.patch` — the span ignores `MaxNoVesselLines` | `Cosmic_Ascension.Log.ChronicleBuild` |
+| `B5/` | `b5c_born_among_off.patch` — a life that never ruled shows its birth people's name alone | `Cosmic_Ascension.UI.Chronicle` |
+| `B5/` | `b5c_died_walks.patch` — a ruler who died on the throne reads as having wandered | `Cosmic_Ascension.UI.Chronicle` |
+| `B5/` | `b5c_no_vessel_head_off.patch` — the span's lines stand without the `Chronicle.NoVessel` head | `Cosmic_Ascension.UI.Chronicle` |
+| `B5/` | `b5c_until_deposed_only.patch` — the top bar's clock-end line shows only after a reign ended (not for a called vessel that never ruled) | `Cosmic_Ascension.UI.Chronicle` |
+| `B5/` | `b5c_bar_people_in_interregnum.patch` — the top bar shows the ruled people in the interregnum | `Cosmic_Ascension.UI.Chronicle` |
+| `B5/` | `b5c_lethal_standing_only.patch` — the lethal place is where the vessel stands (`StandingIndexOf`), not where it counts as standing (a travelling vessel is not warned of the system it left) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5c_lethal_follow_off.patch` — a new lethal hazard where the vessel stands does not stop the time | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5c_lethal_seen_kept.patch` — the lethal hazard seen is kept across a new galaxy or a load | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5c_lethal_no_arrival.patch` — the lethal pause compares the hazard's tag only (an arrival where the same tag stands is no news) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5c_panel_no_warning.patch` — the system panel says nothing of a lethal hazard | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5c_travel_tip_no_warning.patch` — the travel button's tooltip says nothing of a lethal hazard | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5c_lock_reason_old.patch` — a new vessel gets the old lock reason ('left not long ago') | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5c_digest_quiet_then_elsewhere.patch` — a digest with no item closes with `Digest.Elsewhere` after the quiet line | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5c_digest_throne_converted_off.patch` — the throne item never reads a rebel a rebellion made the ruler: the first rebel to take a throne with no record is not told | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5c_digest_throne_rebel_counts.patch` — a record of the rebellion's outbreak row counts whatever its role: a resolved rebellion's rebel becomes a throne item | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5c_digest_throne_outbreak_gone.patch` — the taking is searched from the log's first line, not from the outbreak's own told line: a later resolution proves a taking the log no longer holds | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5c_digest_rose_first.patch` — a people that rose twice is told at its first rise | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5c_digest_no_knowledge_cut.patch` — the digest reads the knowledge of now: what the succession's `Install` made known becomes items | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5c_known_cut_inclusive.patch` — `KnownViewOf`'s cut counts a system marked on the cut's tick | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5c_known_cut_people_off.patch` — `KnownViewOf`'s cut counts every people met | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5c_digest_owner_unshown.patch` — an owner change to a people the view does not show becomes an `Owner` item | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5c_digest_owner_from_unshown.patch` — an owner change from a people the view does not show becomes an `Owner` item | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5c_opens_at_first_line.patch` — `CosmicChronicle::OpensCalledChapter` opens a called life's chapter at the first line of its BornTick tick (the chronicle's span and the digest both lose that tick) | `Cosmic_Ascension.UI.Digest`, `Cosmic_Ascension.Log.ChronicleBuild` |
+| `B5/` | `b5c_span_birth_tick_in_body.patch` — the chronicle opens a called life at its BornTick tick's first entry again (the span with no vessel loses that tick) | `Cosmic_Ascension.UI.Digest`, `Cosmic_Ascension.Log.ChronicleBuild` |
+| `B5/` | `b5c_digest_span_birth_tick_cut.patch` — the digest's span stops before the next life's BornTick tick | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5c_page_takes_speed.patch` — a speed set while a calling page shows runs the time (the controller's speed path keeps no page guard: the presentation's, the card's and the silence's give-back would run it under the page) | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_death_wears_presentation.patch` — a death's boundary leaves a showing ascension presentation up (no silent fold: its timed close would give its speed back under the epitaph) | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_reign_end_wears_presentation.patch` — an abdication's or a deposition's boundary leaves a showing ascension presentation up under the reign end's page | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_silence_stops_short.patch` — a leap that ends in the silence (no candidate) stops there - it does not run on to the end that is ahead (switch on) | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_silence_keeps_time.patch` — the digest's 'next' in the silence with no end ahead folds the pages but leaves the time stopped forever with no vessel (switch off) | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_reopen_keeps_running.patch` — a load in the interregnum over running time opens the epitaph and leaves the time running (the HUD's and the controller's BeginPlay calls of FollowInterregnumOnOpen are left to the hand check - no patch) | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_no_reopen_after_succession.patch` — a load (a continue) on a succession's tick opens no page: no epitaph, digest or inauguration for the vessel the player was not shown | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_wheel_under_pages.patch` — the mouse wheel zooms the camera under a calling page | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_epitaph_keeps_exalt.patch` — the epitaph's last answers show the titles that speak to the reader or exalt (`CosmicRows::EpitaphLeavesOut` not read) | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_cause_card_title.patch` — a death by a card (Death.Encounter) puts the card's title on the cause line instead of its hazard's name or no source | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_inauguration_no_people.patch` — the inauguration's facts leave out the people the new vessel was born among (`Chronicle.BornAmong`) | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_end_tick_inaugurates.patch` — a succession on the end's tick opens the inauguration from the digest instead of the chronicle (the end does not win) | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_skip_end_inaugurates.patch` — 'skip' to a succession on the end's tick closes as the inauguration does - no chronicle | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_death_card_stays.patch` — the death does not fold the card (an outcome shown on it stays up over the epitaph) | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_leap0_no_digest.patch` — a leap of 0's epitaph 'next' folds the pages (AdvanceLeap false) - no digest line, no inauguration | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_apart_any_last.patch` — the newest answer of any card is set apart from the cause line, whatever the cause or the place | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_apart_any_card.patch` — the newest answer is set apart whether or not its card is the killing hazard's | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_apart_any_place.patch` — the killing hazard's card answered on another system than the death's is set apart too | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_apart_any_cause.patch` — the answer is set apart for a life that a hazard did not close (the source row alone read) | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_digest_page_no_seeall.patch` — the digest page ignores the controller's see-all (`CosmicSeeAll`) | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_crown_not_noted.patch` — `TakeThrone` does not note the new reign: one taken and left between two boundaries opens no reign end's page | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_galaxy_reign_not_noted.patch` — a new galaxy or a load does not note the role (`HandleGalaxyGenerated`'s FollowReign): the next abdication opens no reign end's page | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_inauguration_no_camera.patch` — closing the inauguration does not put the camera on the new vessel's system | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_reign_seen_always.patch` — `FollowReign` compares with no role it saw: every boundary of the walking vessel opens the reign end's page again | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_lethal_no_protection.patch` — the lethal place drops the shared reach (`VesselAtRiskOf`): a vessel shielded at its birth is warned and stopped for a hazard that cannot kill it | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5c_lethal_reach_after_expiry.patch` — the lethal place asks the reach one tick after the hazard's expiry (the protection's last tick no longer shields) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5c_map_dead_vessel.patch` — the map's mark (`VesselLookOf`) asks the role alone: the dead ruler, a wanderer in the interregnum, is drawn | `Cosmic_Ascension.UI.VesselShown` |
+| `B5/` | `b5c_vessel_shown_under_page.patch` — `IsVesselShown` forgets the calling pages: the digest, the inauguration and the reign end show the vessel under the veil | `Cosmic_Ascension.UI.VesselShown` |
+| `B5/` | `b5c_vessel_shown_end_tick.patch` — `IsVesselShown` forgets the end's tick: the vessel an ended run's last tick installed is drawn after 'look at the map' | `Cosmic_Ascension.UI.VesselShown` |
+| `B5/` | `b5c_fold_no_map_redraw.patch` — the pages' fold does not ask the map to redraw (a stopped simulation sends no tick): the new vessel's mark does not come | `Cosmic_Ascension.UI.VesselShown` |
+| `B5/` | `b5c_bar_vessel_under_page.patch` — the top bar's wanderer line ignores `IsVesselShownFor` | `Cosmic_Ascension.UI.VesselShown` |
+| `B5/` | `b5c_bar_lethal_under_page.patch` — the top bar's lethal warning ignores `IsVesselShownFor` | `Cosmic_Ascension.UI.VesselShown` |
+| `B5/` | `b5c_map_vessel_under_page.patch` — the map's mark and lane ignore `IsVesselShown` | `Cosmic_Ascension.UI.VesselShown` |
+| `B5/` | `b5c_panel_wanderer_under_page.patch` — the system panel's wanderer lines, commands and lethal warnings ignore `IsVesselShownFor` | `Cosmic_Ascension.UI.VesselShown` |
+| `B5/` | `b5c_page_stop_drops_reason.patch` — a plain stop (the pause key, `SetSpeed(0)`) under a calling page replaces the page's reason with none | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_reopen_stopped_silent.patch` — a load on a succession's tick over a time already stopped with no reason opens the epitaph with no reason line | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_digest_reads_record.patch` — the digest reads `Log.Record` lines | `Cosmic_Ascension.UI.Digest` |
+| `B5/` | `b5c_digest_reads_calling.patch` — the digest reads `Log.Calling` lines | `Cosmic_Ascension.UI.Digest` |

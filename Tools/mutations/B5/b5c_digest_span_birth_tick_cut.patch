@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicDigest.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicDigest.cpp
+@@ -280,7 +280,7 @@
+ 	const FLifeRecord* Next = Lives.IsValidIndex(ClosedLifeIndex + 1) ? &Lives[ClosedLifeIndex + 1] : nullptr;
+ 	if (Next)
+ 	{
+-		Through = Next->BornTick;
++		Through = Next->BornTick - 1;
+ 	}
+ 	else if (State.Calling.LifeState == ELifeState::Interregnum)
+ 	{

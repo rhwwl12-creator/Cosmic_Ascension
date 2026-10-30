@@ -92,7 +92,8 @@ public:
 	/** The system the last refresh drew the selection ring around; None for none. */
 	FName GetDrawnSelection() const { return DrawnSelection; }
 	/** The system the last refresh drew the vessel's mark at (B1: an embodied wanderer's system - while it travels, the one
-	 * it left; CosmicMapLook::VesselLookOf); None for none. */
+	 * it left; CosmicMapLook::VesselLookOf); None for none - and while the world's player controller does not show the vessel
+	 * (B5 [B-5c]: ACosmicPlayerController::IsVesselShown - a calling page open, the vessel an ended run's last tick installed). */
 	FName GetDrawnVesselSystem() const { return DrawnVesselSystem; }
 	/** Whether the last refresh lit the lane the vessel travels. */
 	bool IsVesselLaneDrawn() const { return bDrawnVesselLane; }

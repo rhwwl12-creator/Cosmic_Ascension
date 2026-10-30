@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/World/CosmicDigest.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicDigest.cpp
+@@ -550,7 +550,6 @@
+ 		// No item: one line true on every path - it says the world went on, never that nothing happened (the digest sees no
+ 		// change that left no line, and makes no item of many lines). The closing line would only say it twice.
+ 		Lines.Add(Label(QuietKey));
+-		return Lines;
+ 	}
+ 	for (const FCosmicDigestItem& Item : Digest.Items)
+ 	{

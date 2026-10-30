@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1414,7 +1414,7 @@
+ 	const int32 Place = CosmicAutoPause::LethalPlaceOf(State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules());
+ 	const TPair<FName, FGameplayTag> Now = State.Systems.IsValidIndex(Place) ? TPair<FName, FGameplayTag>(State.Systems[Place].SystemID, State.Systems[Place].ActiveHazard)
+ 		: TPair<FName, FGameplayTag>(NAME_None, FGameplayTag());
+-	const bool bNew = LethalSeen.IsSet() && !Now.Key.IsNone() && (LethalSeen.GetValue().Key != Now.Key || LethalSeen.GetValue().Value != Now.Value);
++	const bool bNew = LethalSeen.IsSet() && !Now.Key.IsNone() && (LethalSeen.GetValue().Value != Now.Value);
+ 	LethalSeen = Now;
+ 	// The wanderer's crisis focus: only when this pause stopped the time (MVP item 6's rule).
+ 	if (bNew && RequestAutoPause(ECosmicAutoPause::LethalHazard))

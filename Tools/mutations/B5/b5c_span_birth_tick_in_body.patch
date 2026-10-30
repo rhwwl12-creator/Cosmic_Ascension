@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+@@ -301,7 +301,7 @@
+ 				return At;
+ 			}
+ 		}
+-		return TickEnd;
++		return FirstAfter(Called.BornTick - 1);
+ 	};
+ 	// The span with no vessel reads every shown life's peoples (PeoplesOfEveryLife's rule, without a life never shown).
+ 	TArray<FName> EveryPeople;

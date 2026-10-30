@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
+@@ -735,7 +735,7 @@
+ 	// The lethal hazard where the wanderer stands (B5): its warning while it has words. Set only when it changes.
+ 	if (LethalText)
+ 	{
+-		const FText Lethal = bVesselShown ? LethalLineOf(State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules()) : FText::GetEmpty();
++		const FText Lethal = LethalLineOf(State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules());
+ 		if (!LethalText->GetText().ToString().Equals(Lethal.ToString(), ESearchCase::CaseSensitive))
+ 		{
+ 			LethalText->SetText(Lethal);

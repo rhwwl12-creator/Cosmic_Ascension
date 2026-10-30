@@ -56,6 +56,11 @@ public:
 	 * third rung's presentation then turns into the reveal when the view drawn is spiritual - at the universe level after
 	 * the camera is framed on the region again (ACosmicPlayerController::FrameRegion, snapped: Phase 3 item 9). */
 	void Close();
+	/** Folds at once with no give-back, no reveal and no chime (a chime still sounding stops), the paused speed forgotten; a
+	 * reveal that shows ends too. A calling page opens over it (B5 [B-5c], header section 4: the death pages and the reign
+	 * end never wear the presentation - the page stops the time with its own reason; ACosmicPlayerController::FollowDeath,
+	 * FollowReign). Nothing while neither shows. */
+	void FoldSilently();
 	/** Moves the presentation, or the reveal, on by DeltaSeconds of real time (its tick; tests call it). */
 	void Advance(float DeltaSeconds);
 	bool IsShowing() const { return bShowing; }

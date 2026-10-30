@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -838,7 +838,7 @@
+ 		const int32 LifeAt = CosmicDigest::LastClosedLifeOf(Sim->GetState());
+ 		if (LifeAt != INDEX_NONE)
+ 		{
+-			Pages->OpenEpitaph(LifeAt, LifeAt >= 1, false);
++			Pages->OpenEpitaph(LifeAt, true, false);
+ 		}
+ 	}
+ 	ApplySpeed(0.f, ECosmicAutoPause::Death);

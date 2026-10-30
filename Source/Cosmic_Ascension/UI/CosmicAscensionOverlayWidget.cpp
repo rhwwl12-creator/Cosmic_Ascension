@@ -287,6 +287,26 @@ void UCosmicAscensionOverlayWidget::Close()
 	}
 }
 
+void UCosmicAscensionOverlayWidget::FoldSilently()
+{
+	if (bRevealing)
+	{
+		EndReveal();
+	}
+	if (!bShowing)
+	{
+		return;
+	}
+	bShowing = false;
+	PausedSpeed = 0.f;
+	SetVisibility(ESlateVisibility::Collapsed);
+	// The chime still sounding stops: the procedural wave plays only what is queued, and the queue empties.
+	if (Chime)
+	{
+		Chime->ResetAudio();
+	}
+}
+
 void UCosmicAscensionOverlayWidget::StartReveal()
 {
 	bRevealing = true;

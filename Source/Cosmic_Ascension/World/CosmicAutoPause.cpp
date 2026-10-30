@@ -3,7 +3,10 @@
 #include "World/CosmicAutoPause.h"
 
 #include "Core/CosmicTypes.h"
+#include "Data/CosmicDataTables.h"
+#include "Sim/CosmicHazards.h"
 #include "Sim/CosmicStateIndex.h"
+#include "Sim/CosmicWanderer.h"
 
 bool CosmicAutoPause::StopsFor(const FCosmicLogEntry& Entry)
 {
@@ -61,6 +64,21 @@ FName CosmicAutoPause::FirstNewHazardSystem(const TMap<FName, FGameplayTag>& Bef
 	return NAME_None;
 }
 
+int32 CosmicAutoPause::LethalPlaceOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules)
+{
+	const int32 Place = CosmicWanderer::PlaceIndexOf(State, Index);
+	if (!State.Systems.IsValidIndex(Place) || !CosmicHazards::KillsAVesselOf(Tables, State.Systems[Place].ActiveHazard))
+	{
+		return INDEX_NONE;
+	}
+	// Whom its kill reaches is the shared rule (B5 header section 4: the screen does not copy it), at the tick the hazard
+	// expires: the countdown comes before the expiry in the crisis stage, so N ticks left expire at State.Tick + N.
+	const FStarSystemState& System = State.Systems[Place];
+	const int64 ExpiryTick = State.Tick + FMath::Max(1, System.HazardTicksRemaining);
+	const bool bReaches = CosmicHazards::VesselAtRiskOf(State.Player, State.Calling, Rules, ExpiryTick, System.SystemID, NAME_None);
+	return bReaches ? Place : INDEX_NONE;
+}
+
 const TCHAR* CosmicAutoPause::WhyKeyOf(ECosmicAutoPause Reason)
 {
 	switch (Reason)
@@ -85,6 +103,12 @@ const TCHAR* CosmicAutoPause::WhyKeyOf(ECosmicAutoPause Reason)
 		return TEXT("Save.Why.Failed");
 	case ECosmicAutoPause::Death:
 		return TEXT("AutoPause.Why.Death");
+	case ECosmicAutoPause::LethalHazard:
+		return TEXT("AutoPause.Why.Lethal");
+	case ECosmicAutoPause::Succession:
+		return TEXT("Succession.Stopped");
+	case ECosmicAutoPause::ReignEnd:
+		return TEXT("Reign.Stopped");
 	case ECosmicAutoPause::None:
 		break;
 	}

@@ -1,0 +1,12 @@
+--- a/Source/Cosmic_Ascension/World/CosmicDigest.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicDigest.cpp
+@@ -327,8 +327,7 @@
+ 	// The one reading of knowledge (invariant rule 14), with the viewer tier of now (no tier of the past is kept): after a
+ 	// closed life, what the calling knew before the next life - the view cut at its BornTick, so what the succession's
+ 	// Install marked there is out of knowledge (Digest.Elsewhere); with no next life, the view the map and the panels read.
+-	const FCosmicKnownView View = Next ? CosmicMapLook::KnownViewOf(State, Index, Sim.GetViewerTier(), bSeeAll, Next->BornTick)
+-		: CosmicMapLook::KnownViewOf(State, Index, Sim.GetViewerTier(), bSeeAll);
++	const FCosmicKnownView View = CosmicMapLook::KnownViewOf(State, Index, Sim.GetViewerTier(), bSeeAll);
+ 	const FRebellionRows Rebellion = RebellionRowsOf(Tables);
+ 
+ 	TArray<FSystemNote> Systems;

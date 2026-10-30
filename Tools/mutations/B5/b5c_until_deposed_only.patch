@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
+@@ -858,7 +858,7 @@
+ 			{
+ 				Soon = FText::Format(Label(TEXT("Chronicle.Soon")), TimeLeftLabel(Left, Unit));
+ 			}
+-			else if (Left > 0 && CosmicWanderer::IsEmbodiedWanderer(State))
++			else if (Left > 0 && !State.Calling.Lives.IsEmpty() && !State.Calling.Lives.Last().ReignEndReasons.IsEmpty() && State.Calling.Lives.Last().ReignEndReasons.Last().IsValid())
+ 			{
+ 				Soon = FText::Format(Label(TEXT("Chronicle.Until")), ClockLabel(EndTick, Unit));
+ 			}

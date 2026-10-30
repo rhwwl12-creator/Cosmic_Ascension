@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicDigest.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicDigest.cpp
+@@ -203,7 +203,7 @@
+ 			}
+ 			if (Record.Role == CosmicTags::NotableRuler() && !Rows.Outbreak.IsNone() && Record.SourceRow == Rows.Outbreak)
+ 			{
+-				const int64 Taken = TakenTickOf(State, Civ.CivID, Record, Rows);
++				const int64 Taken = 0;
+ 				if (Taken > After && Taken <= Through)
+ 				{
+ 					Changed = FMath::Max(Changed, Taken);

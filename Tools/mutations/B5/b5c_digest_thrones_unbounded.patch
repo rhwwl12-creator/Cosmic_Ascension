@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicDigest.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicDigest.cpp
+@@ -424,7 +424,7 @@
+ 	}
+ 	// At most MaxThrones seats, the latest (equal ticks: the earlier people).
+ 	Thrones.StableSort([](const FFound& A, const FFound& B) { return A.Tick > B.Tick; });
+-	for (int32 At = 0; At < Thrones.Num() && At < MaxThrones; ++At)
++	for (int32 At = 0; At < Thrones.Num(); ++At)
+ 	{
+ 		FFound Item = Thrones[At];
+ 		Item.Order = Found.Num();

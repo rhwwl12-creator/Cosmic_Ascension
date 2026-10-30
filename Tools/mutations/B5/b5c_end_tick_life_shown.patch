@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+@@ -247,7 +247,7 @@
+ int32 CosmicChronicle::ShownLivesOf(const FGalaxyState& State)
+ {
+ 	const TArray<FLifeRecord>& Lives = State.Calling.Lives;
+-	return (Lives.Num() > 1 && Lives.Last().BornTick == State.Tick) ? Lives.Num() - 1 : Lives.Num();
++	return Lives.Num();
+ }
+ 
+ bool CosmicChronicle::OpensCalledChapter(const FCosmicLogEntry& /*Entry*/, const FLifeRecord& /*Called*/)

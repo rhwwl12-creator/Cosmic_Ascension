@@ -21,6 +21,7 @@ class UVerticalBox;
 struct FCivilizationState;
 struct FCosmicDataTables;
 struct FCosmicKnownView;
+struct FCosmicRulesDef;
 struct FCosmicSpiritLook;
 struct FGalaxyState;
 struct FHazardDef;
@@ -101,7 +102,13 @@ namespace CosmicSlotWatch
  * of a shown people also says its reverence and the two thresholds). For a wanderer, a shown people's panel says how much
  * it looks up to the vessel (Wander.Reverence), and a scan that learned nothing says so there (Wander.ScanNothing) while
  * the vessel stands in it. A locked throne's time left (as the clock counts down) stays on the button's label; its tooltip
- * keeps still. The ruler's [Abdicate] stands on the capital's panel only: a first press arms it for AbdicateConfirmSeconds
+ * keeps still (B5: a vessel whose life began after the lock started is told the lock in words of its own - IsLockedBeforeLife).
+ * B5 (header section 2.8, 4): while a hazard that kills a vessel at its expiry stands where the wanderer counts as standing
+ * (CosmicAutoPause::LethalPlaceOf - under way, the system it left), that system's panel says so under the hazard's line
+ * (Wander.Lethal) and every [Travel]'s tooltip that the vessel stands there until it arrives (Wander.TravelLethalTip) - words
+ * that promise nothing, and not for a hazard that expires while the vessel is shielded at its birth. The wanderer's lines, its
+ * commands and those warnings stand only while the controller shows the vessel (B5 [B-5c] -
+ * ACosmicPlayerController::IsVesselShownFor: no calling page open, not the vessel an ended run's last tick installed). The ruler's [Abdicate] stands on the capital's panel only: a first press arms it for AbdicateConfirmSeconds
  * (Wander.AbdicateAgain), a second within them records the abdication (ACosmicPlayerController::Abdicate); greyed while a
  * role effect waits for the tick, with the words of its cause (a recorded abdication, or a fall - Wander.Block.Deposed). Under the hint line, on the capital's
  * panel, the first ship's line once a session (CosmicUI::ShowsShipHint, Hint.FirstShip). In an ended run the wanderer's
@@ -240,6 +247,14 @@ public:
 	 * the same as the command's). */
 	TOptional<CosmicWanderer::ETravelBlock> GetShownTravelBlock() const { return ShownTravelBlock; }
 	TOptional<CosmicWanderer::ECrownBlock> GetShownCrownBlock() const { return ShownCrownBlock; }
+	/**
+	 * B5 (header section 3.4, 4): whether the lock on Owner's throne began no later than the vessel's life and the vessel
+	 * never sat on a throne in it - Calling.BornTick at or after the lock's start (ThroneLockedUntilTick -
+	 * DT_Rules.ThroneLockTicks, 0 or more) and the life's RuledCivIDs empty: a called vessel born into the lock of the death
+	 * before it, whom the crown's reason does not tell it left one - Wander.Block.LockedNew in place of Wander.Block.Locked
+	 * (the short words stay). False while the throne is not locked.
+	 */
+	static bool IsLockedBeforeLife(const FGalaxyState& State, const FCivilizationState& Owner, const FCosmicRulesDef& Rules);
 	/** What a press on [Abdicate] does at NowSeconds (FPlatformTime seconds - tests pass their own): within
 	 * AbdicateConfirmSeconds of the press that armed it, it records the abdication; otherwise it arms it (and its label
 	 * asks for the second press until the window closes - a timer redraws it then). */

@@ -14,6 +14,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
 #include "HAL/PlatformTime.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
@@ -26,6 +27,7 @@
 #include "UI/CosmicSystemLabelWidget.h"
 #include "UObject/ConstructorHelpers.h"
 #include "UObject/UObjectGlobals.h"
+#include "World/CosmicGameMode.h"
 #include "World/CosmicMapLook.h"
 #include "World/CosmicStarSystemActor.h"
 #include "World/CosmicUniverseLook.h"
@@ -879,9 +881,15 @@ void ACosmicGalaxyMapActor::Refresh()
 	// it travels, a small one along the lane it takes, and that lane lit. A shape of its own - the rings are round, the
 	// selection's white. Its system and the lane's ends are always known (a guard all the same: nothing is drawn toward a
 	// system the viewer is not shown).
+	// Only while the viewer's controller shows the vessel (B5 [B-5c] - ACosmicPlayerController::IsVesselShown: no calling page
+	// open, not the vessel an ended run's last tick installed; the pages' fold asks for a redraw). A map without that controller
+	// draws it.
 	DrawnVesselSystem = NAME_None;
 	bDrawnVesselLane = false;
-	const FCosmicVesselLook Vessel = CosmicMapLook::VesselLookOf(State, Sim->GetStateIndex(), Sim->GetRules());
+	const UWorld* VesselWorld = GetWorld();
+	const ACosmicPlayerController* Viewer = Cast<ACosmicPlayerController>(VesselWorld ? VesselWorld->GetFirstPlayerController() : nullptr);
+	const bool bVesselShown = !Viewer || Viewer->IsVesselShown();
+	const FCosmicVesselLook Vessel = bVesselShown ? CosmicMapLook::VesselLookOf(State, Sim->GetStateIndex(), Sim->GetRules()) : FCosmicVesselLook();
 	if (Looks.IsValidIndex(Vessel.FromIndex) && Looks[Vessel.FromIndex].bKnown && Stars.IsValidIndex(Vessel.FromIndex) && Stars[Vessel.FromIndex])
 	{
 		const ACosmicStarSystemActor* Star = Stars[Vessel.FromIndex];

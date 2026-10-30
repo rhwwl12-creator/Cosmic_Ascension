@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1134,7 +1134,7 @@
+ 	const TArray<FLifeRecord>& Lives = State.Calling.Lives;
+ 	const bool bWaiting = State.Calling.LifeState == ELifeState::Interregnum;
+ 	const bool bJustCalled = State.Calling.LifeState == ELifeState::Embodied && Lives.Num() > 1 && Lives.Last().BornTick == State.Tick;
+-	if (!bWaiting && !bJustCalled)
++	if (!bWaiting)
+ 	{
+ 		return;
+ 	}

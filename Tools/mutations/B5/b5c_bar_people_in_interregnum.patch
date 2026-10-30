@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
+@@ -62,7 +62,7 @@
+ 	const FCivilizationState* RuledCivOf(const FGalaxyState& State)
+ 	{
+ 		const FName RuledCivID = State.Player.RuledCivID;
+-		return (RuledCivID.IsNone() || State.Calling.LifeState != ELifeState::Embodied) ? nullptr
++		return RuledCivID.IsNone() ? nullptr
+ 			: State.Civs.FindByPredicate([RuledCivID](const FCivilizationState& Candidate) { return Candidate.CivID == RuledCivID; });
+ 	}
+ 

@@ -1,0 +1,14 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -900,10 +900,7 @@
+ 	// the digest's 'next' folds them and gives the time back.
+ 	void LeapOfThePages(ACosmicPlayerController& Controller, const FGalaxyState& State)
+ 	{
+-		if (Controller.AdvanceLeap() && IsSilent(State) && !Controller.IsRunEnded())
+-		{
+-			Controller.AdvanceLeap();
+-		}
++		Controller.AdvanceLeap();
+ 	}
+ }
+ 

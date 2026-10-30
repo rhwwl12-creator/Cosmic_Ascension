@@ -1,0 +1,17 @@
+--- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+@@ -250,11 +250,9 @@
+ 	return (Lives.Num() > 1 && Lives.Last().BornTick == State.Tick) ? Lives.Num() - 1 : Lives.Num();
+ }
+ 
+-bool CosmicChronicle::OpensCalledChapter(const FCosmicLogEntry& /*Entry*/, const FLifeRecord& /*Called*/)
+-{
+-	// The inauguration line is [B-5d1]'s (a Log.Calling line of Called's BornTick tick, its row a CosmicRows constant): it
+-	// is named here when it exists. Until then no line of the tick opens the chapter.
+-	return false;
++bool CosmicChronicle::OpensCalledChapter(const FCosmicLogEntry& Entry, const FLifeRecord& Called)
++{
++	return Entry.Tick == Called.BornTick;
+ }
+ 
+ TArray<FCosmicChronicleChapter> CosmicChronicle::BuildCapped(const FGalaxyState& State, int32 Cap)

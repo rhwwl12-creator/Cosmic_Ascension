@@ -1,0 +1,13 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1106,10 +1106,6 @@
+ 		return;
+ 	}
+ 	// The reign end's page never wears the ascension presentation (header section 4): one showing folds with no give-back.
+-	if (UCosmicAscensionOverlayWidget* Overlay = GetHUD<ACosmicHUD>() ? GetHUD<ACosmicHUD>()->GetAscensionOverlay() : nullptr)
+-	{
+-		Overlay->FoldSilently();
+-	}
+ 	ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
+ 	if (UCosmicCallingPagesWidget* Pages = CosmicHUD ? CosmicHUD->GetCallingPages() : nullptr)
+ 	{

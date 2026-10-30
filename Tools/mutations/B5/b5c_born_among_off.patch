@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+@@ -233,7 +233,7 @@
+ 		// rung, the cycles it lasted. A life that never ruled (B5 - a called vessel) says where it was born and that it
+ 		// walked: the birth people's name alone would read as a reign.
+ 		FText People;
+-		if (Life.RuledCivIDs.IsEmpty())
++		if (false)
+ 		{
+ 			const FText Birth = CivNameOf(State, Sim->GetStateIndex(), Life.BirthCivID);
+ 			FFormatNamedArguments Args;

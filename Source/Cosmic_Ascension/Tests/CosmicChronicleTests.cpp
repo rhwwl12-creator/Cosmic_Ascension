@@ -58,12 +58,32 @@ namespace CosmicChronicleTests
 	const FName CivB(TEXT("civ_b"));
 	const FName CivX(TEXT("civ_x"));
 
-	TArray<FString> MessagesOf(const FCosmicChronicleChapter& Chapter)
+	TArray<FString> MessagesOf(const TArray<FCosmicChronicleLine>& Lines)
 	{
 		TArray<FString> Out;
-		for (const FCosmicChronicleLine& Line : Chapter.Lines)
+		for (const FCosmicChronicleLine& Line : Lines)
 		{
 			Out.Add(Line.Entry.Message.ToString());
+		}
+		return Out;
+	}
+
+	TArray<FString> MessagesOf(const FCosmicChronicleChapter& Chapter)
+	{
+		return MessagesOf(Chapter.Lines);
+	}
+
+	TArray<FString> MessagesOf(const FCosmicChronicleNoVessel& Span)
+	{
+		return MessagesOf(Span.Lines);
+	}
+
+	TArray<bool> OwnsOf(const TArray<FCosmicChronicleLine>& Lines)
+	{
+		TArray<bool> Out;
+		for (const FCosmicChronicleLine& Line : Lines)
+		{
+			Out.Add(Line.bOwn);
 		}
 		return Out;
 	}
@@ -180,7 +200,9 @@ bool FCosmicSimProvisionalEndTest::RunTest(const FString& Parameters)
 }
 
 // The chronicle's minimal form (header section 4): which entries it admits, the chapters, the cap and its ranks, the repeat
-// rule, the ranges, that it reads no knowing and writes nothing, and the vessel's name.
+// rule, the ranges, that it reads no knowing and writes nothing, and the vessel's name. B5 (B5 header section 2.7, 4): the
+// spans with no vessel - at the head of the next chapter, at the end of the last, none for a leap of 0, every life's peoples
+// without the two books' entries, their cap - and no chapter for a life born on the end's tick.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicLogChronicleBuildTest, "Cosmic_Ascension.Log.ChronicleBuild", CosmicTests::Flags)
 bool FCosmicLogChronicleBuildTest::RunTest(const FString& Parameters)
 {
@@ -369,13 +391,139 @@ bool FCosmicLogChronicleBuildTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("The last chapter ends at the current tick"), Chapters[1].ToTick, static_cast<int64>(300));
 			TestEqual(TEXT("The second chapter starts at its birth"), Chapters[1].FromTick, static_cast<int64>(100));
 		}
+		TestFalse(TEXT("No death, no span with no vessel"), Chapters.Num() == 2 && (Chapters[1].Before.HasSpan() || Chapters[0].After.HasSpan() || Chapters[1].After.HasSpan()));
 		State.Calling.Lives[0].DiedTick = 80;
 		State.Log.Add(EntryOf(90, TEXT("Log.Calling"), 2, NAME_None, TEXT("between lives")));
 		State.Log.Sort([](const FCosmicLogEntry& A, const FCosmicLogEntry& B) { return A.Tick < B.Tick; });
 		Chapters = CosmicChronicle::Build(State);
 		TestEqual(TEXT("With a death at 80 the first chapter ends there"), Chapters[0].ToTick, static_cast<int64>(80));
-		TestFalse(TEXT("and a line between the death and the next birth is in no chapter"),
-			MessagesOf(Chapters[0]).Contains(TEXT("between lives")) || MessagesOf(Chapters[1]).Contains(TEXT("between lives")));
+		if (TestEqual(TEXT("(still two chapters)"), Chapters.Num(), 2))
+		{
+			TestEqual(TEXT("The first body ends at the death"), MessagesOf(Chapters[0]), TArray<FString>({ TEXT("before birth") }));
+			// B5 (header section 2.7, 4): what was told while no vessel stood heads the next chapter - every life's peoples -,
+			// up to where the next life opens in its BornTick tick (until the inauguration line, after that whole tick).
+			TestEqual(TEXT("The lines between the death and the next life's opening head the next chapter as its span with no vessel"), MessagesOf(Chapters[1].Before),
+				TArray<FString>({ TEXT("between lives"), TEXT("first life end"), TEXT("second life start") }));
+			TestTrue(TEXT("from the tick after the death through the birth's tick"), Chapters[1].Before.FromTick == 81 && Chapters[1].Before.ToTick == 100);
+			TestEqual(TEXT("and the next body starts after the birth's tick"), MessagesOf(Chapters[1]), TArray<FString>({ TEXT("new people") }));
+			TestFalse(TEXT("The first chapter has no span before it"), Chapters[0].Before.HasSpan());
+			TestFalse(TEXT("A shown life follows: no span after either"), Chapters[0].After.HasSpan() || Chapters[1].After.HasSpan());
+		}
+	}
+
+	// ---- B5: the spans with no vessel (header section 2.7, 4) ----
+	{
+		// A death at 100, a called life of another people born at 200 that never ruled.
+		FGalaxyState State;
+		State.Tick = 400;
+		State.Calling.Lives.Add(LifeOf(0, CivA));
+		State.Calling.Lives[0].DiedTick = 100;
+		FLifeRecord Called = LifeOf(200, CivB);
+		Called.LifeIndex = 2;
+		Called.RuledCivIDs.Reset();
+		State.Calling.Lives.Add(Called);
+		State.Log.Add(EntryOf(50, TEXT("Log.Civ"), 2, CivA, TEXT("first own")));
+		State.Log.Add(EntryOf(100, TEXT("Log.Civ"), 2, CivA, TEXT("death tick")));
+		State.Log.Add(EntryOf(101, TEXT("Log.Civ"), 1, CivB, TEXT("later people s1")));
+		State.Log.Add(EntryOf(110, TEXT("Log.Civ"), 1, CivX, TEXT("far s1")));
+		State.Log.Add(EntryOf(120, TEXT("Log.Civ"), 2, CivX, TEXT("far s2")));
+		State.Log.Add(EntryOf(130, TEXT("Log.Claim"), 1, CivA, TEXT("claim"), NAME_None, true));
+		State.Log.Add(EntryOf(140, TEXT("Log.Record"), 1, CivA, TEXT("record"), NAME_None, true));
+		State.Log.Add(EntryOf(150, TEXT("Log.Civ"), 1, CivA, TEXT("old people s1")));
+		State.Log.Add(EntryOf(199, TEXT("Log.Civ"), 2, CivB, TEXT("eve")));
+		State.Log.Add(EntryOf(200, TEXT("Log.Civ"), 2, CivB, TEXT("birth tick")));
+		State.Log.Add(EntryOf(210, TEXT("Log.Civ"), 1, CivB, TEXT("called s1")));
+		State.Log.Add(EntryOf(250, TEXT("Log.Civ"), 1, CivA, TEXT("old people after")));
+		const TArray<FCosmicChronicleChapter> Chapters = CosmicChronicle::Build(State);
+		if (TestEqual(TEXT("Two lives, two chapters (no page between them)"), Chapters.Num(), 2))
+		{
+			TestEqual(TEXT("The life that died keeps the lines of its death's tick"), MessagesOf(Chapters[0]), TArray<FString>({ TEXT("first own"), TEXT("death tick") }));
+			// The one rule of where a called life opens (OpensCalledChapter, which the digest reads too): its inauguration line,
+			// [B-5d1]. Until it exists no line of the BornTick tick opens the chapter, so with a leap above 0 the whole tick -
+			// the world's stages that ran before the succession - is the span's.
+			TestEqual(TEXT("The span reads every life's peoples, leaves out the two books' entries and holds the BornTick tick"), MessagesOf(Chapters[1].Before),
+				TArray<FString>({ TEXT("later people s1"), TEXT("far s2"), TEXT("old people s1"), TEXT("eve"), TEXT("birth tick") }));
+			TestTrue(TEXT("(from the tick after the death through the BornTick tick)"), Chapters[1].Before.FromTick == 101 && Chapters[1].Before.ToTick == 200);
+			TestEqual(TEXT("another people's Severity 2 is dimmed there"), OwnsOf(Chapters[1].Before.Lines), TArray<bool>({ true, false, true, true, true }));
+			TestEqual(TEXT("(its candidates)"), Chapters[1].Before.Candidates, 5);
+			TestFalse(TEXT("(under its cap)"), Chapters[1].Before.bMore);
+			TestEqual(TEXT("Until the inauguration line, no line of the BornTick tick opens the body"), MessagesOf(Chapters[1]), TArray<FString>({ TEXT("called s1") }));
+			TestFalse(TEXT("A shown life follows the death: no span after the last"), Chapters[1].After.HasSpan());
+			TestEqual(TEXT("The never-ruled life's own lines are of its birth people"), Chapters[1].Candidates, 1);
+		}
+		TestEqual(TEXT("Both lives are shown"), CosmicChronicle::ShownLivesOf(State), 2);
+
+		// A leap of 0: the death and the birth on one tick - the tick stays with the life that died on it, and no span.
+		{
+			FGalaxyState Zero = State;
+			Zero.Calling.Lives[0].DiedTick = 200;
+			const TArray<FCosmicChronicleChapter> Same = CosmicChronicle::Build(Zero);
+			if (TestEqual(TEXT("(a leap of 0: two chapters)"), Same.Num(), 2))
+			{
+				TestTrue(TEXT("A leap of 0's tick is in the chapter of the life that died"), MessagesOf(Same[0]).Contains(TEXT("birth tick")));
+				TestFalse(TEXT("and not again in the next"), MessagesOf(Same[1]).Contains(TEXT("birth tick")));
+				TestEqual(TEXT("whose body starts after it"), MessagesOf(Same[1]), TArray<FString>({ TEXT("called s1") }));
+				TestFalse(TEXT("A leap of 0 has no span with no vessel"), Same[1].Before.HasSpan());
+				TestTrue(TEXT("(and no line of one)"), Same[1].Before.Lines.IsEmpty());
+			}
+		}
+
+		// No next life: the span runs from the death to the current tick at the end of the last chapter.
+		{
+			FGalaxyState Alone = State;
+			Alone.Calling.Lives.Pop();
+			Alone.Tick = 300;
+			const TArray<FCosmicChronicleChapter> Last = CosmicChronicle::Build(Alone);
+			if (TestEqual(TEXT("(one life that died)"), Last.Num(), 1))
+			{
+				TestEqual(TEXT("Its body ends at its death"), MessagesOf(Last[0]), TArray<FString>({ TEXT("first own"), TEXT("death tick") }));
+				TestTrue(TEXT("its span after it runs to the current tick"), Last[0].After.FromTick == 101 && Last[0].After.ToTick == 300);
+				TestEqual(TEXT("and holds the lines of every life's peoples since"), MessagesOf(Last[0].After),
+					TArray<FString>({ TEXT("far s2"), TEXT("old people s1"), TEXT("eve"), TEXT("birth tick"), TEXT("old people after") }));
+				TestFalse(TEXT("(the first life has no span before it)"), Last[0].Before.HasSpan());
+			}
+		}
+
+		// A life born on the end's tick (the succession and the end on one tick): no chapter of its own; its span goes to the
+		// end of the chapter before, up to the end's tick, and the never-shown life's people is no life's people.
+		{
+			FGalaxyState AtEnd = State;
+			AtEnd.Tick = 200;
+			TestEqual(TEXT("A called life born on the current tick is not shown"), CosmicChronicle::ShownLivesOf(AtEnd), 1);
+			const TArray<FCosmicChronicleChapter> Ended = CosmicChronicle::Build(AtEnd);
+			if (TestEqual(TEXT("A life born on the end's tick gets no chapter"), Ended.Num(), 1))
+			{
+				TestTrue(TEXT("The span runs to the end's tick at the end of the chapter before"), Ended[0].After.FromTick == 101 && Ended[0].After.ToTick == 200);
+				TestEqual(TEXT("with the end's tick's lines, of the shown life's peoples only"), MessagesOf(Ended[0].After),
+					TArray<FString>({ TEXT("far s2"), TEXT("old people s1"), TEXT("eve"), TEXT("birth tick") }));
+			}
+			FGalaxyState First = AtEnd;
+			First.Calling.Lives.SetNum(1);
+			First.Calling.Lives[0].DiedTick = 0;
+			First.Calling.Lives[0].BornTick = 200;
+			TestEqual(TEXT("The first life is shown though it began on the current tick"), CosmicChronicle::ShownLivesOf(First), 1);
+		}
+
+		// The cap of a span (MaxNoVesselLines, or a smaller cap given) and the saved chronicle's cap.
+		{
+			FGalaxyState Crowded;
+			Crowded.Tick = 1000;
+			Crowded.Calling.Lives.Add(LifeOf(0, CivA));
+			Crowded.Calling.Lives[0].DiedTick = 10;
+			int64 Tick = 11;
+			Fill(Crowded, CosmicChronicle::MaxNoVesselLines + 3, TEXT("Log.Civ"), 1, CivA, TEXT("s1"), Tick);
+			const FCosmicChronicleChapter Chapter = CosmicChronicle::Build(Crowded)[0];
+			TestEqual(TEXT("A span keeps at most MaxNoVesselLines lines"), Chapter.After.Lines.Num(), CosmicChronicle::MaxNoVesselLines);
+			TestTrue(TEXT("and says there was more"), Chapter.After.bMore);
+			TestEqual(TEXT("of all its candidates"), Chapter.After.Candidates, CosmicChronicle::MaxNoVesselLines + 3);
+			TestEqual(TEXT("A smaller cap given caps a span too"), CosmicChronicle::BuildCapped(Crowded, 5)[0].After.Lines.Num(), 5);
+			FGalaxyState Evicted = State;
+			Evicted.ChronicleEviction.Count = 1;
+			Evicted.ChronicleEviction.ThroughTick = 150;
+			TestTrue(TEXT("Lines let go inside a span: it says 'more'"), CosmicChronicle::Build(Evicted)[1].Before.bMore);
+			Evicted.ChronicleEviction.ThroughTick = 60;
+			TestFalse(TEXT("Lines let go before it: it does not"), CosmicChronicle::Build(Evicted)[1].Before.bMore);
+		}
 	}
 
 	// ---- No knowing read, nothing written, the subsystem's entry point ----

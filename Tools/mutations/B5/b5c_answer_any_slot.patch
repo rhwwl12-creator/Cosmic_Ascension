@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicCallingPagesWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicCallingPagesWidget.cpp
+@@ -228,7 +228,7 @@
+ 			else
+ 			{
+ 				// {OtherCiv} (the first contact card's other people), {Hazard}, {Rebel}: the line does not say them.
+-				bFilled = false;
++				Args.Add(SlotName, FText::GetEmpty());
+ 			}
+ 		}
+ 		if (!bFilled)

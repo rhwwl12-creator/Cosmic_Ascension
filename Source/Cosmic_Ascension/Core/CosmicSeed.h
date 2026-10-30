@@ -2,8 +2,8 @@
 // CosmicSeed::Derive is the third source: a stateless integer derived from the run seed, a name and a purpose.
 // It gives the starting value of the tell stream, the values and the departure schedule of summary galaxies, names of
 // peoples that crossed, the phase of a civilization's event slot, and what the presentation layer draws (backdrop stars,
-// scenery galaxies). It never draws from the sim stream and never seeds it; Depart and EventSlot only decide in which tick
-// a fixed sim draw falls.
+// scenery galaxies) and picks (the sentence variants of the interregnum's digest, B5). It never draws from the sim stream
+// and never seeds it; Depart and EventSlot only decide in which tick a fixed sim draw falls.
 //
 // The expression and the constants are frozen (section 9.2 prints them, the test Sim.SeedDerive holds reference values):
 // unsigned 32-bit arithmetic only, no engine hash (GetTypeHash and FCrc differ in meaning across uses), no floating point.
@@ -32,7 +32,9 @@ namespace CosmicSeed
 		inline constexpr uint32 EventSlot = 9;  // phase of a civilization's event slot (name = CivID), section 7.5
 		inline constexpr uint32 Petition = 10;  // the pick among the petition cards of a moment (name = ruled CivID, index = tick), section 5.10
 		inline constexpr uint32 Encounter = 11; // a wanderer's card: the arrival card's share and pick, the pick among Standing rows (name = the vessel's SystemID, index = tick), B1
+		inline constexpr uint32 Digest = 12;    // the variant of a line of the interregnum's digest (name = the item's ID, index = its tick; presentation), B5 - World/CosmicDigest
 	}
+	static_assert(Purpose::Digest == 12, "CosmicSeed::Purpose: fixed numbers, append only (B5 header section 2.7 names 12)");
 
 	/**
 	 * Stateless integer from (Seed, name, purpose, index). LowerAsciiName is a row name or an ID in lower-case ASCII:

@@ -1,0 +1,13 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -923,10 +923,6 @@
+ bool ACosmicPlayerController::IsVesselShown() const
+ {
+ 	// Under a calling page the screens wait for its fold (header section 4: the inauguration introduces the new vessel).
+-	if (IsCallingPageOpen())
+-	{
+-		return false;
+-	}
+ 	// The vessel the end's tick installed: the chronicle's own rule of the lives it shows, read where the run ended.
+ 	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+ 	const bool bNeverSeen = Sim && IsRunEnded() && CosmicChronicle::ShownLivesOf(Sim->GetState()) < Sim->GetState().Calling.Lives.Num();

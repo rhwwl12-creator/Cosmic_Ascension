@@ -56,12 +56,13 @@ namespace CosmicTopBarImpl
 	// The trend's cell after the stability (MVP item 6): wide enough for its mark, so the resources do not move with it.
 	constexpr float TrendCellWidth = 16.f;
 
-	// The people the vessel rules, as the bar shows it: none for a wanderer, in the interregnum or for an ID the state
-	// does not hold.
+	// The people the vessel rules, as the bar shows it: none for a wanderer, in the interregnum (B5 - no vessel, no line of
+	// one: the dead ruler's ReleaseThrone clears the ID, and the bar asks the life state as well) or for an ID the state does
+	// not hold.
 	const FCivilizationState* RuledCivOf(const FGalaxyState& State)
 	{
 		const FName RuledCivID = State.Player.RuledCivID;
-		return RuledCivID.IsNone() ? nullptr
+		return (RuledCivID.IsNone() || State.Calling.LifeState != ELifeState::Embodied) ? nullptr
 			: State.Civs.FindByPredicate([RuledCivID](const FCivilizationState& Candidate) { return Candidate.CivID == RuledCivID; });
 	}
 
@@ -163,6 +164,14 @@ TSharedRef<SWidget> UCosmicTopBarWidget::RebuildWidget()
 		UHorizontalBoxSlot* WandererSlot = Row->AddChildToHorizontalBox(WandererText);
 		WandererSlot->SetVerticalAlignment(VAlign_Center);
 		WandererSlot->SetPadding(FMargin(0.f, 0.f, 32.f, 0.f));
+		// The lethal hazard's warning (B5 header section 2.8, 4), right after the wanderer's line in the warm colour of a pause's
+		// line; collapsed while LethalLineOf has no words.
+		LethalText = CosmicUI::MakeText(*WidgetTree, 14, false);
+		LethalText->SetColorAndOpacity(FSlateColor(WhyColor));
+		LethalText->SetVisibility(ESlateVisibility::Collapsed);
+		UHorizontalBoxSlot* LethalSlot = Row->AddChildToHorizontalBox(LethalText);
+		LethalSlot->SetVerticalAlignment(VAlign_Center);
+		LethalSlot->SetPadding(FMargin(0.f, 0.f, 32.f, 0.f));
 
 		// The edict button (B2) and its mark: a block of its own after the resources, before the research block that
 		// yields first; Refresh shows it for an embodied ruler, labels it and sets its tooltip when the words change.
@@ -400,6 +409,21 @@ FText UCosmicTopBarWidget::WandererLineOf(const FGalaxyState& State, const FCosm
 		bStuck = bStuck && CosmicWanderer::TravelBlockOf(State, Index, Lane, false) != CosmicWanderer::ETravelBlock::None;
 	}
 	return bStuck ? CosmicUI::JoinList({ Line, Label(TEXT("Wander.Bar.Stuck")) }) : Line;
+}
+
+FText UCosmicTopBarWidget::LethalLineOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules)
+{
+	const int32 Place = CosmicAutoPause::LethalPlaceOf(State, Index, Tables, Rules);
+	if (!State.Systems.IsValidIndex(Place))
+	{
+		return FText::GetEmpty();
+	}
+	const FGameplayTag& Standing = State.Systems[Place].ActiveHazard;
+	const FHazardDef* Hazard = Tables.FindHazardByTag(Standing);
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("Hazard"), Hazard ? Hazard->DisplayName : FText::AsCultureInvariant(Standing.ToString()));
+	// Under way the vessel still stands where it left until it arrives (section 2.8): the words say 'before it arrives'.
+	return FText::Format(CosmicUI::Label(CosmicWanderer::IsTravelling(State) ? TEXT("Wander.Bar.LethalTravelling") : TEXT("Wander.Bar.Lethal")), Args);
 }
 
 FText UCosmicTopBarWidget::GetWandererTip() const
@@ -693,8 +717,12 @@ void UCosmicTopBarWidget::Refresh()
 		StatusText->SetText(FText::GetEmpty());
 		ResearchText->SetText(FText::GetEmpty());
 	}
+	// Whether the controller shows the vessel (B5 [B-5c]): not under a calling page - the digest and the inauguration stand over
+	// a new vessel that the inauguration introduces - nor the vessel an ended run's last tick installed. The wanderer's line and
+	// its warning read it; the fold of the pages redraws the bar.
+	const bool bVesselShown = ACosmicPlayerController::IsVesselShownFor(*this);
 	// The wanderer's line (B1): shown while it has words - an embodied wanderer -, collapsed otherwise.
-	const FText Wandering = Civ ? FText::GetEmpty() : WandererLineOf(State, Sim->GetStateIndex(), ACosmicPlayerController::TimeUnitFor(*this));
+	const FText Wandering = (Civ || !bVesselShown) ? FText::GetEmpty() : WandererLineOf(State, Sim->GetStateIndex(), ACosmicPlayerController::TimeUnitFor(*this));
 	if (!WandererText->GetText().ToString().Equals(Wandering.ToString(), ESearchCase::CaseSensitive))
 	{
 		WandererText->SetText(Wandering);
@@ -703,6 +731,20 @@ void UCosmicTopBarWidget::Refresh()
 	if (WandererText->GetVisibility() != WanderingVisibility)
 	{
 		WandererText->SetVisibility(WanderingVisibility);
+	}
+	// The lethal hazard where the wanderer stands (B5): its warning while it has words. Set only when it changes.
+	if (LethalText)
+	{
+		const FText Lethal = bVesselShown ? LethalLineOf(State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules()) : FText::GetEmpty();
+		if (!LethalText->GetText().ToString().Equals(Lethal.ToString(), ESearchCase::CaseSensitive))
+		{
+			LethalText->SetText(Lethal);
+		}
+		const ESlateVisibility LethalVisibility = Lethal.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible;
+		if (LethalText->GetVisibility() != LethalVisibility)
+		{
+			LethalText->SetVisibility(LethalVisibility);
+		}
 	}
 	// The edict button (B2): an embodied ruler's, in a run that is not over. The edict hint is stepped first (the system
 	// panel steps it too - whichever redraws first). Words and visibility set only when they change.
@@ -770,6 +812,7 @@ void UCosmicTopBarWidget::Refresh()
 	const bool bThirdRungShown = CosmicTopBarImpl::ThirdRungOpen(*this, *Sim) && !CosmicTopBarImpl::Presenting(*this);
 	// The run is over (MVP item 4): every speed button is greyed out (x25 stays where the gate shows it).
 	const bool bEnded = ACosmicPlayerController::IsRunEndedFor(*this);
+	const bool bCallingPage = ACosmicPlayerController::IsCallingPageOpenFor(*this);
 	const bool bRelabel = !LabelledUnit.IsSet() || LabelledUnit.GetValue() != Unit;
 	const float Current = Sim->GetTimeScale();
 	for (UCosmicActionButton* Button : SpeedButtons)
@@ -785,7 +828,8 @@ void UCosmicTopBarWidget::Refresh()
 			{
 				Button->SetVisibility(Shown);
 			}
-			Button->SetIsEnabled(!bEnded && !FMath::IsNearlyEqual(Button->GetValue(), Current));
+			// So is every one while a calling page shows (B5 [B-5c]): the page's own buttons turn it.
+			Button->SetIsEnabled(!bEnded && !bCallingPage && !FMath::IsNearlyEqual(Button->GetValue(), Current));
 		}
 	}
 	LabelledUnit = Unit;
@@ -795,7 +839,8 @@ void UCosmicTopBarWidget::Refresh()
 	const ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer());
 
 	// The provisional end (MVP item 4): the chronicle's button while the run is over and the page folded, and before the end
-	// the grey line - the last minutes of the clock, or the clock end once the vessel was deposed. Set only when they change.
+	// the grey line - the last minutes of the clock, or the clock end while the vessel is an embodied wanderer (B5: every one -
+	// a called vessel never ruled; a wanderer reaches no rung end of its own). Set only when they change.
 	if (ReopenButton)
 	{
 		const ACosmicHUD* HUD = Controller ? Controller->GetHUD<ACosmicHUD>() : nullptr;
@@ -813,13 +858,11 @@ void UCosmicTopBarWidget::Refresh()
 		if (!bEnded && Controller && Controller->IsProvisionalEndEnabled() && EndTick > 0)
 		{
 			const int64 Left = static_cast<int64>(EndTick) - State.Tick;
-			const TArray<FLifeRecord>& Lives = State.Calling.Lives;
-			const bool bDeposed = !Lives.IsEmpty() && !Lives.Last().ReignEndReasons.IsEmpty() && Lives.Last().ReignEndReasons.Last().IsValid();
 			if (Left > 0 && Left <= CosmicChronicleScreen::EndSoonTicks)
 			{
 				Soon = FText::Format(Label(TEXT("Chronicle.Soon")), TimeLeftLabel(Left, Unit));
 			}
-			else if (Left > 0 && bDeposed)
+			else if (Left > 0 && CosmicWanderer::IsEmbodiedWanderer(State))
 			{
 				Soon = FText::Format(Label(TEXT("Chronicle.Until")), ClockLabel(EndTick, Unit));
 			}

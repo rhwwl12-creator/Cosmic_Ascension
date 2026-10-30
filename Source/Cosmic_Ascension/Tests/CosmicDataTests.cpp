@@ -1838,7 +1838,8 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 				{ TEXT("DT_Megaprojects.project_settle.CostPerTick.Matter"), TEXT("is below 0") });
 		}
 		// A list of structs, entry by entry and member by member: a table of the test stands in for DT_Encounters, with the
-		// first contact card the code calls by name (B3) copied from the game's.
+		// cards the code calls by name (B3's first contact, B4's pressure cards, the two the epitaph leaves out - B5) copied
+		// from the game's.
 		{
 			auto WithCard = [&](TFunctionRef<void(FEncounterDef&)> Change)
 			{
@@ -1857,7 +1858,8 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 				Table->RowStruct = FEncounterDef::StaticStruct();
 				Table->AddRow(FName(TEXT("petition_test")), Row);
 				// The cards the code calls by name, as the game has them.
-				for (const FName Named : { CosmicRows::PetitionFirstContact, CosmicRows::PetitionPressureClaim, CosmicRows::PetitionPressureMeasured })
+				for (const FName Named : { CosmicRows::PetitionFirstContact, CosmicRows::PetitionPressureClaim, CosmicRows::PetitionPressureMeasured,
+					CosmicRows::PetitionKeepThrone, CosmicRows::PetitionExalt })
 				{
 					if (const FEncounterDef* Card = Game.FindEncounter(Named))
 					{

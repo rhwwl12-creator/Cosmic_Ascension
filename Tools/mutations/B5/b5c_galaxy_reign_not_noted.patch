@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1171,8 +1171,6 @@
+ 	RunBeganRealSeconds = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.0;
+ 	RunBeganTick = GetGameInstance() && GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>()->GetState().Tick : -1;
+ 	StoppedRealSeconds = 0.0;
+-	// The role the reign end's page compares with is this run's (B5).
+-	FollowReign(false);
+ 	FollowEnd(false);
+ 	if (IsRunEnded())
+ 	{

@@ -1,0 +1,13 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -833,10 +833,6 @@
+ 		Card->ShowCard(NAME_None, NAME_None);
+ 	}
+ 	// A death page never wears the ascension presentation (header section 4): one showing folds with no give-back and no chime.
+-	if (UCosmicAscensionOverlayWidget* Overlay = CosmicHUD ? CosmicHUD->GetAscensionOverlay() : nullptr)
+-	{
+-		Overlay->FoldSilently();
+-	}
+ 	// The epitaph ([B-5c], header section 4): 'skip' from a second death on (docs/70). Opened before the stop, so that the redraw
+ 	// greys the speed buttons.
+ 	if (UCosmicCallingPagesWidget* Pages = CosmicHUD ? CosmicHUD->GetCallingPages() : nullptr)

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicDigest.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicDigest.cpp
+@@ -327,7 +327,7 @@
+ 					Note.ClaimTick = Entry.Tick;
+ 				}
+ 			}
+-			if (RoseTicks.IsValidIndex(CivIndex) && View.ShownOrderOf(CivIndex) != INDEX_NONE && !Entry.SourceRow.IsNone() && Tables.FindFeat(Entry.SourceRow))
++			if (RoseTicks.IsValidIndex(CivIndex) && State.Knowing.MetCivs.ContainsByPredicate([&Entry](const FKnownMark& Mark) { return Mark.ID == Entry.FocusCivID; }) && !Entry.SourceRow.IsNone() && Tables.FindFeat(Entry.SourceRow))
+ 			{
+ 				RoseTicks[CivIndex] = Entry.Tick;
+ 			}

@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1315,7 +1315,6 @@
+ 		}
+ 		SelectAndFocus(NewOn, false);
+ 	}
+-	FollowLethalHazard();
+ }
+ 
+ void ACosmicPlayerController::FollowLethalHazard()

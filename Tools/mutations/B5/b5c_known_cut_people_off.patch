@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicMapLook.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicMapLook.cpp
+@@ -420,7 +420,7 @@
+ 	for (int32 Order = 0; Order < State.Knowing.MetCivs.Num(); ++Order)
+ 	{
+ 		const FKnownMark& Mark = State.Knowing.MetCivs[Order];
+-		const int32 CivIndex = Mark.Tick < CutTick ? Index.FindCiv(State, Mark.ID) : INDEX_NONE;
++		const int32 CivIndex = Index.FindCiv(State, Mark.ID);
+ 		if (View.Met.IsValidIndex(CivIndex))
+ 		{
+ 			View.Met[CivIndex] = true;

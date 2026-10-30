@@ -93,6 +93,14 @@ namespace CosmicRows
 	inline const FName PetitionPressureClaim(TEXT("petition_pressure_claim"));
 	inline const FName PetitionPressureMeasured(TEXT("petition_pressure_measured"));
 
+	// DT_Encounters: the cards whose title speaks to the reader or exalts the vessel - the throne card's question and the
+	// exaltation card (B5 header section 4, decision 12-da: no 'you' across a death, no exaltation under it). The epitaph's
+	// last answers leave them out (CosmicCallingPages::LastAnswersOf). Tools/data/schema.json lists the same rows under
+	// epitaph_leaves_out, and the checker holds every card title that speaks to the reader to that list.
+	inline const FName PetitionKeepThrone(TEXT("petition_keep_throne"));
+	inline const FName PetitionExalt(TEXT("petition_exalt"));
+	inline const FName EpitaphLeavesOut[] = { PetitionKeepThrone, PetitionExalt };
+
 	// DT_LogTemplates: the meeting lines (section 7.4). NoteMet tells the first for the first meeting of the run, the
 	// second for every later one.
 	inline const FName LogFirstContact(TEXT("log_first_contact"));

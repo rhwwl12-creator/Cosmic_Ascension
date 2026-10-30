@@ -36,6 +36,7 @@
 #include "UI/CosmicNextRung.h"
 #include "UI/CosmicUILabels.h"
 #include "UObject/NameTypes.h"
+#include "World/CosmicAutoPause.h"
 #include "World/CosmicGameMode.h"
 #include "World/CosmicMapLook.h"
 
@@ -253,6 +254,15 @@ namespace CosmicSystemPanelImpl
 			}
 		}
 	}
+}
+
+bool UCosmicSystemPanelWidget::IsLockedBeforeLife(const FGalaxyState& State, const FCivilizationState& Owner, const FCosmicRulesDef& Rules)
+{
+	// The lock's start: LockEveryThrone writes Tick + ThroneLockTicks (0 or more) and only ever raises it. Only the vessel's
+	// leaving a throne locks, so a life that sat on none (its reign arrays empty) met a lock of the life before it.
+	const int64 LockStart = Owner.ThroneLockedUntilTick - FMath::Max(0, Rules.ThroneLockTicks);
+	const bool bNeverRuled = State.Calling.Lives.IsEmpty() || State.Calling.Lives.Last().RuledCivIDs.IsEmpty();
+	return State.Tick < Owner.ThroneLockedUntilTick && bNeverRuled && State.Calling.BornTick >= LockStart;
 }
 
 const FName UCosmicSystemPanelWidget::TravelAction(TEXT("travel"));
@@ -820,6 +830,13 @@ void UCosmicSystemPanelWidget::Refresh()
 	// (a guard - the controller selects only known systems), and an owner the viewer is not shown has no name, no people
 	// line and no works here.
 	const FCosmicKnownView View = ACosmicPlayerController::KnownViewFor(*this);
+	// Whether the controller shows the vessel (B5 [B-5c]): not under a calling page, nor the vessel an ended run's last tick
+	// installed. The wanderer's lines, its commands and the lethal warnings read it (the pages' fold redraws the panel).
+	const bool bVesselShown = ACosmicPlayerController::IsVesselShownFor(*this);
+	const bool bWanderer = bVesselShown && CosmicWanderer::IsEmbodiedWanderer(State);
+	// The system where the wanderer counts as standing when a hazard there kills a vessel at its expiry and its kill would
+	// reach the vessel then (B5 - CosmicAutoPause::LethalPlaceOf): its panel and the travel buttons say so.
+	const int32 LethalPlace = bWanderer ? CosmicAutoPause::LethalPlaceOf(State, Index, Tables, Sim->GetRules()) : INDEX_NONE;
 
 	TArray<FWantedButton> Wanted;
 	ShownSettleBlock = CosmicMegaprojects::ECosmicSettleBlock::None;
@@ -884,12 +901,12 @@ void UCosmicSystemPanelWidget::Refresh()
 			}
 			// How much a shown people looks up to the vessel, for a wanderer (B1 - what a coronation reads; a number of the
 			// screen only).
-			if (OwnerShown == ECosmicOwnerShown::Shown && State.Civs.IsValidIndex(OwnerIndex) && CosmicWanderer::IsEmbodiedWanderer(State))
+			if (OwnerShown == ECosmicOwnerShown::Shown && State.Civs.IsValidIndex(OwnerIndex) && bWanderer)
 			{
 				Lines.Add(FText::Format(Label(TEXT("Wander.Reverence")), Percent(State.Civs[OwnerIndex].ReverenceToPlayer)));
 			}
 			// The scan that learned nothing here (B1), while the vessel still stands here.
-			if (!ScanNothingAt.IsNone() && System.SystemID == ScanNothingAt && CosmicWanderer::IsEmbodiedWanderer(State)
+			if (!ScanNothingAt.IsNone() && System.SystemID == ScanNothingAt && bWanderer
 				&& State.Player.CurrentSystemID == ScanNothingAt && !CosmicWanderer::IsTravelling(State))
 			{
 				Lines.Add(Label(TEXT("Wander.ScanNothing")));
@@ -908,6 +925,12 @@ void UCosmicSystemPanelWidget::Refresh()
 				// The countdown in the clock's unit (the viewer's choice, guideline 6.3).
 				Lines.Add(FText::Format(INVTEXT("{0}  {1}   {2}"), Label(TEXT("Panel.Hazard")), HazardName,
 					TimeLeftLabel(System.HazardTicksRemaining, Unit)));
+				// B5 (header section 2.8, 4): its expiry kills a vessel standing here, and the wanderer counts as standing here -
+				// under way too, until it arrives. Words that promise nothing.
+				if (SystemIndex == LethalPlace)
+				{
+					Lines.Add(Label(TEXT("Wander.Lethal")));
+				}
 			}
 			// A slot line takes the paused mark while its watch says the slot does not pay - on a system of the people the
 			// vessel rules only: on another people's slot the mark would tell its stockpile. The watches keep to that people
@@ -1085,7 +1108,8 @@ void UCosmicSystemPanelWidget::Refresh()
 
 		// The wanderer's commands (B1 header section 4): the commands' own gates, fed the knowing they need from the view
 		// (rule 14); the first reason greys the button, its short words after the name, its long words first in the tooltip.
-		if (!bDead && CosmicWanderer::IsEmbodiedWanderer(State))
+		// None while the vessel is not shown (B5 [B-5c]).
+		if (!bDead && bWanderer)
 		{
 			const bool bCardWaiting = !View.PendingPetitionRow.IsNone();
 			const int32 Here = Index.FindSystem(State, State.Player.CurrentSystemID);
@@ -1108,7 +1132,9 @@ void UCosmicSystemPanelWidget::Refresh()
 				{
 					const FCivilizationState& Owner = State.Civs[OwnerIndex];
 					const CosmicWanderer::ECrownBlock Block = CosmicWanderer::CrownBlockOf(State, Index, Sim->GetRules(), Owner.CivID, View.IsMet(OwnerIndex), bCardWaiting);
-					const TCHAR* const LongKey = CrownKeyOf(Block, false);
+					// B5: a vessel whose life began after the lock started never left a throne - not 'not long since you left'.
+					const TCHAR* const LongKey = (Block == CosmicWanderer::ECrownBlock::ThroneLocked && IsLockedBeforeLife(State, Owner, Sim->GetRules()))
+						? TEXT("Wander.Block.LockedNew") : CrownKeyOf(Block, false);
 					if (Block == CosmicWanderer::ECrownBlock::None || LongKey)
 					{
 						ShownCrownBlock = Block;
@@ -1141,8 +1167,17 @@ void UCosmicSystemPanelWidget::Refresh()
 				{
 					ShownTravelBlock = Block;
 					const TCHAR* const ShortKey = TravelKeyOf(Block, true);
+					// B5 (header section 2.8): a lethal hazard where the vessel stands - setting out does not take it away before it arrives.
+					FText LethalTip;
+					if (Here == LethalPlace)
+					{
+						const FHazardDef* Lethal = Tables.FindHazardByTag(State.Systems[Here].ActiveHazard);
+						FFormatNamedArguments Args;
+						Args.Add(TEXT("Hazard"), Lethal ? Lethal->DisplayName : FText::AsCultureInvariant(State.Systems[Here].ActiveHazard.ToString()));
+						LethalTip = FText::Format(Label(TEXT("Wander.TravelLethalTip")), Args);
+					}
 					Want(TravelAction, FText::Format(Label(TEXT("Wander.Travel")), DurationLabel(CosmicWanderer::LaneTicksOf(Sim->GetRules()), Unit)),
-						ShortKey ? Label(ShortKey) : FText::GetEmpty(), LongKey ? Label(LongKey) : FText::GetEmpty(), { Label(TEXT("Wander.TravelTip")) });
+						ShortKey ? Label(ShortKey) : FText::GetEmpty(), LongKey ? Label(LongKey) : FText::GetEmpty(), { Label(TEXT("Wander.TravelTip")), LethalTip });
 				}
 			}
 		}

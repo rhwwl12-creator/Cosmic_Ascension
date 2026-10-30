@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/World/CosmicDigest.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicDigest.cpp
+@@ -433,7 +433,7 @@
+ 			const int32 FormerIndex = Index.FindCiv(State, Note.FirstOwnerID);
+ 			// Told only between peoples the view shows (a gone former owner tells nothing of itself): a change to or from a
+ 			// people it does not show is a change out of knowledge.
+-			const bool bFormerShown = FormerIndex == INDEX_NONE || View.ShownOrderOf(FormerIndex) != INDEX_NONE;
++			const bool bFormerShown = FormerIndex == INDEX_NONE || View.ShownOrderOf(FormerIndex) != INDEX_NONE || FormerIndex != INDEX_NONE;
+ 			if (State.Civs.IsValidIndex(OwnerIndex) && bFormerShown && CosmicMapLook::OwnerShownOf(State, View, SystemIndex) == ECosmicOwnerShown::Shown)
+ 			{
+ 				Item.Kind = ECosmicDigestItem::Owner;

@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicCallingPagesWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicCallingPagesWidget.cpp
+@@ -492,7 +492,6 @@
+ 	{
+ 		FFormatNamedArguments BornArgs;
+ 		BornArgs.Add(TEXT("Civ"), Civ->CivName);
+-		Born = FText::Format(LabelOf(TEXT("Chronicle.BornAmong")), BornArgs);
+ 	}
+ 	AddRow(CosmicUI::JoinList({ CosmicChronicle::VesselNameOf(Life, Sim->GetTables()), Born, System ? System->DisplayName : FText::GetEmpty(), Body, Mind }),
+ 		14, CosmicPalette::Grey, 2.f);

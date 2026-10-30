@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicCallingPagesWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicCallingPagesWidget.cpp
+@@ -197,7 +197,7 @@
+ 	for (int32 At = 0; At < Rows.Num(); ++At)
+ 	{
+ 		const FEncounterDef* Card = Tables.FindEncounter(Rows[At]);
+-		if (!Card || Card->Title.IsEmpty() || IsLeftOut(Rows[At]))
++		if (!Card || Card->Title.IsEmpty())
+ 		{
+ 			continue;
+ 		}

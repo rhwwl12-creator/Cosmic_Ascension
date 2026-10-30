@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1076,7 +1076,6 @@
+ 	ClearRunEnd();
+ 	AutoPauseReason = ECosmicAutoPause::None;
+ 	OwnHazardsSeen.Reset();
+-	LethalSeen.Reset();
+ 	if (!Hints.bEdictHintDone)
+ 	{
+ 		Hints.bEdictHintOn = false;

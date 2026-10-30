@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -262,7 +262,7 @@
+ 	// leaving a throne locks, so a life that sat on none (its reign arrays empty) met a lock of the life before it.
+ 	const int64 LockStart = Owner.ThroneLockedUntilTick - FMath::Max(0, Rules.ThroneLockTicks);
+ 	const bool bNeverRuled = State.Calling.Lives.IsEmpty() || State.Calling.Lives.Last().RuledCivIDs.IsEmpty();
+-	return State.Tick < Owner.ThroneLockedUntilTick && bNeverRuled && State.Calling.BornTick >= LockStart;
++	return false;
+ }
+ 
+ const FName UCosmicSystemPanelWidget::TravelAction(TEXT("travel"));

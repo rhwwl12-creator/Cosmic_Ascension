@@ -1,0 +1,14 @@
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -945,11 +945,6 @@
+ 	{
+ 		CosmicHUD->RefreshPanel();
+ 	}
+-	// The map draws at its next frame: a stopped simulation sends it no tick.
+-	if (ACosmicGalaxyMapActor* TheMap = Map.Get())
+-	{
+-		TheMap->RequestRefresh();
+-	}
+ }
+ 
+ void ACosmicPlayerController::NextCallingPage()

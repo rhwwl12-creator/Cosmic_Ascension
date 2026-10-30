@@ -214,8 +214,14 @@ NAMED_COLUMNS = {"len_ge_col": (("number",),), "pairs_ge_col": (POOL_KINDS, ("nu
 TOP_KEYS = {
     "version": NUMBER, "about": NAMES, "tag_sources": NAMES, "row_name_sources": NAMES, "required_tags": NAMES,
     "row_name_pattern": NAME, "words": NAME_LISTS, "enums": NAME_LISTS, "single_variant_rows": NAMES, "tables": OBJECT,
-    "conditions": OBJECT, "effects": OBJECT, "per_tick_effects": NAMES, "string_table": OBJECT,
+    "conditions": OBJECT, "effects": OBJECT, "per_tick_effects": NAMES, "string_table": OBJECT, "epitaph_leaves_out": NAMES,
 }
+# B5 [B-5c] (header section 4, decision 12-da): the epitaph shows the titles of a dead vessel's last answers, in the third
+# person. A card title that speaks to the reader - it holds a word of the first list, or it ends in a word of the second -
+# is one the epitaph leaves out: its row is listed under epitaph_leaves_out (the code's CosmicRows::EpitaphLeavesOut).
+EPITAPH_TABLE = "DT_Encounters"
+EPITAPH_READER_WORDS = "reader_address"
+EPITAPH_READER_ENDS = "reader_question_ends"
 # What the schema may say of the String Table: per key prefix, a word list no text of it holds and whether it holds a
 # digit outside its slots (a slot {0} is filled by the code, not written by the text).
 STRING_TABLE_KEYS = {"checked_prefixes": OBJECT}
@@ -862,7 +868,27 @@ class Checker:
                 self.check_usage_entry(kind, type_name, usage)
         for table_name, spec in schema["tables"].items():
             self.check_table_spec(table_name, spec)
+        self.check_epitaph_list()
         self.check_code_rows()
+
+    def check_epitaph_list(self):
+        """epitaph_leaves_out (B5): rows of DT_Encounters the code calls by name (each is one of CosmicRows::EpitaphLeavesOut,
+        so it is a required row), with the two word lists that tell a title speaking to the reader."""
+        listed = self.schema.get("epitaph_leaves_out")
+        if listed is None and EPITAPH_TABLE in self.schema["tables"]:
+            # Without the list the title rule would be off in silence.
+            self.report("schema", "'epitaph_leaves_out' is missing (the cards the epitaph leaves out - CosmicRows::EpitaphLeavesOut)")
+            return
+        if not is_names(listed):
+            return
+        spec = self.schema["tables"].get(EPITAPH_TABLE)
+        required = spec.get("required_rows") if isinstance(spec, dict) and is_names(spec.get("required_rows")) else []
+        for name in listed:
+            if name not in required:
+                self.report("schema.epitaph_leaves_out", "%s is not a row the code calls by name (required_rows of %s)" % (name, EPITAPH_TABLE))
+        for words in (EPITAPH_READER_WORDS, EPITAPH_READER_ENDS):
+            if not is_names(self.schema["words"].get(words)) or not self.schema["words"][words]:
+                self.report("schema.epitaph_leaves_out", "the word list %r that tells a title speaking to the reader is not in the schema" % (words,))
 
     def check_code_rows(self):
         """required_rows against the names the code calls: both ways, for the tables the schema has."""
@@ -1363,6 +1389,24 @@ class Checker:
                 else:
                     seen[key] = row["Name"]
 
+    def check_epitaph_titles(self):
+        """A card title that speaks to the reader - a word of words.reader_address in it, or it ends in a word of
+        words.reader_question_ends - is listed under epitaph_leaves_out: the epitaph never shows it (B5 header section 4,
+        decision 12-da - the death and inauguration pages keep the third person)."""
+        listed = self.schema.get("epitaph_leaves_out")
+        if not is_names(listed):
+            return
+        words = self.schema["words"].get(EPITAPH_READER_WORDS, [])
+        ends = self.schema["words"].get(EPITAPH_READER_ENDS, [])
+        for name, row in sorted(self.rows.get(EPITAPH_TABLE, {}).items()):
+            title = row.get("Title")
+            if not isinstance(title, str) or name in listed:
+                continue
+            said = title.rstrip()
+            if any(word and word in title for word in words) or any(end and said.endswith(end) for end in ends):
+                self.report("%s.%s.Title" % (EPITAPH_TABLE, name), "a title that speaks to the reader never stands on the epitaph: "
+                            "list the row under epitaph_leaves_out and in CosmicRows::EpitaphLeavesOut")
+
     def run(self):
         self.check_schema()
         if self.problems:
@@ -1374,6 +1418,7 @@ class Checker:
                 self.report(table_name, "the schema does not declare this table")
         for table_name, spec in specs.items():
             self.check_table(table_name, spec)
+        self.check_epitaph_titles()
         # A row name is one name in the whole game: it is saved without its table.
         owners = {}
         for table_name in specs:
