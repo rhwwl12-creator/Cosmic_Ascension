@@ -559,7 +559,7 @@ bool FCosmicSimSavePetitionTest::RunTest(const FString& Parameters)
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	Sim->RunHeadless(40);
 	const FName Waiting = Sim->GetState().Knowing.PendingPetitionRow;
-	if (!TestEqual(TEXT("The game's founding petition waits after tick 30"), Waiting, FName(TEXT("petition_wise_heart"))))
+	if (!TestEqual(TEXT("The game's founding petition waits after tick 30"), Waiting, CosmicRows::PetitionWiseHeart))
 	{
 		return false;
 	}

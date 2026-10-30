@@ -1044,7 +1044,7 @@ bool FCosmicSimAbdicationTest::RunTest(const FString& Parameters)
 	}
 
 	// 3. The throne card's last choice: the same pipeline, recorded by the answer.
-	const FName Throne(TEXT("petition_keep_throne"));
+	const FName Throne = CosmicRows::PetitionKeepThrone;
 	const FEncounterDef* ThroneRow = Original.FindEncounter(Throne);
 	if (TestNotNull(TEXT("The game has the throne card"), ThroneRow) && TestEqual(TEXT("with three choices"), ThroneRow->Choices.Num(), 3))
 	{

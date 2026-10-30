@@ -2351,7 +2351,7 @@ bool FCosmicSimFirstContactCardTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	const FName Feast(TEXT("petition_feast"));
+	const FName Feast = CosmicRows::PetitionFeast;
 	// A board on which people 1 is not met yet and nothing has been met first; every card payable.
 	auto Lay = [&](const FCosmicDataTables& From) -> FGalaxyState*
 	{
@@ -2481,7 +2481,7 @@ bool FCosmicSimFirstContactCardTest::RunTest(const FString& Parameters)
 	State->Tick = State->Calling.BornTick + FMath::Max<int64>(1, Sim->GetRules().PetitionPeriodTicks);
 	{
 		TestTrue(TEXT("A Standing card that came to hold goes before the contact card"), Put(*State)
-			&& State->Knowing.PendingPetitionRow == FName(TEXT("petition_wise_heart")) && State->Knowing.PendingContactCivID == State->Civs[1].CivID);
+			&& State->Knowing.PendingPetitionRow == CosmicRows::PetitionWiseHeart && State->Knowing.PendingContactCivID == State->Civs[1].CivID);
 		TestTrue(TEXT("(answered)"), Role->AnswerPetition(0).Outcome == ECosmicPetitionOutcome::Succeeded);
 		const TArray<FCosmicPetitionUnit> Held = CosmicPetitions::StandingHeld(*State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules());
 		TestTrue(TEXT("Then the contact card goes before the periodic slot (open at this tick)"),

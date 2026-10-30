@@ -799,7 +799,7 @@ bool FCosmicCallingDeathPipelineTest::RunTest(const FString& Parameters)
 // Pins a ruler's death (B5 header section 2.2 Die (c), section 2.3, section 2.5 and section 6 Calling.RulerDeath): the throne
 // is left as an abdication leaves it - the people no longer ruled, a regent profile and a regent's record named by the death's
 // row, the reign closed by Reign.Died, the vessel a wanderer with no status - but with no new eye; three numbers in the order
-// regent profile, regent name, leap; every throne locked (16 #143); the people runs under the AI from the next tick; and a
+// regent profile, regent name, leap; every throne locked (B5 decision 4, old 16 #143); the people runs under the AI from the next tick; and a
 // people that held only settlements lets them go on the death's tick without the crossing stage's error line (decision 7),
 // the next tick's cleanup taking it. [B-5d1]: the death line is told before the throne is left (the vessel still rules, no
 // regent yet, none of the three numbers drawn), from the tell stream alone.
@@ -884,7 +884,7 @@ bool FCosmicCallingRulerDeathTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("and meets no people"), SameMarks(State->Knowing.MetCivs, Death.Without.Knowing.MetCivs));
 
 		TestFalse(TEXT("(without the death no throne is locked)"), EveryThroneLockedFrom(Death.Without, Death.Without.Tick + Rules.ThroneLockTicks));
-		TestTrue(TEXT("Every people's throne is locked for ThroneLockTicks (16 #143)"), EveryThroneLockedFrom(*State, State->Tick + Rules.ThroneLockTicks));
+		TestTrue(TEXT("Every people's throne is locked for ThroneLockTicks (B5 decision 4)"), EveryThroneLockedFrom(*State, State->Tick + Rules.ThroneLockTicks));
 		TestTrue(TEXT("Every people's reverence is 0"), NoReverence(*State));
 
 		// The AI stage of the death's tick ran before the tenth: the people was still ruled. The next tick it runs it.
@@ -929,8 +929,8 @@ bool FCosmicCallingRulerDeathTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-// Pins the lock of every throne on every way a reign ends (B5 header section 2.3, section 6 Sim.ThroneLockEveryPath; 16
-// #143): a deposition, an abdication and a ruler's death each lock every people's throne until at least Tick +
+// Pins the lock of every throne on every way a reign ends (B5 header section 2.3, section 6 Sim.ThroneLockEveryPath; B5
+// decision 4, old 16 #143): a deposition, an abdication and a ruler's death each lock every people's throne until at least Tick +
 // ThroneLockTicks (the form of Sim.Abdication); a wanderer's death locks nothing anew and lowers no earlier lock; and a leap
 // of 0 (the cap reached - the succession on the death's tick) keeps the death's lock, so the new vessel cannot be crowned by
 // the people it was born into.
@@ -1321,7 +1321,7 @@ bool FCosmicCallingHardResetTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("It is called, born in the one candidate to its people and that people's archetype"), Life.SuccessionKind == Tag(TEXT("Succession.Called"))
 			&& Life.BirthSystemID == State->Systems[5].SystemID && Life.BirthCivID == State->Civs[1].CivID && Life.BirthArchetypeRow == TwinB);
 		TestTrue(TEXT("on the tick the countdown reached 0"), Life.BornTick == State->Tick && Calling.BornTick == State->Tick && Calling.LifeIndex == 2 && Life.LifeIndex == 2);
-		TestTrue(TEXT("The calling rests on it with no leap left"), Calling.LifeState == ELifeState::Embodied && Calling.PendingLeapTicks == 0 && Calling.LeapTicksTotal == 2);
+		TestTrue(TEXT("The calling is entrusted to it with no leap left"), Calling.LifeState == ELifeState::Embodied && Calling.PendingLeapTicks == 0 && Calling.LeapTicksTotal == 2);
 
 		const FPlayerEntityState Fresh = FPlayerEntityState();
 		const FPlayerEntityState& Vessel = State->Player;

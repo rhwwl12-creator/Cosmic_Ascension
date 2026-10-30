@@ -10,6 +10,7 @@
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "CoreGlobals.h"
+#include "Data/CosmicRowNames.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -377,7 +378,7 @@ bool FCosmicUIAutoPauseTest::RunTest(const FString& Parameters)
 
 		// A crisis and a card at one boundary: the crisis stops the time and the camera goes; the card shows over it.
 		Clear();
-		const FName Row(TEXT("petition_wise_heart"));
+		const FName Row = CosmicRows::PetitionWiseHeart;
 		Now.Knowing.PendingPetitionRow = Row;
 		Now.Knowing.PendingPetitionSystemID = NAME_None;
 		Stand(Home, Plague);

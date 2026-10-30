@@ -84,7 +84,7 @@ namespace CosmicCallingPagesTests
 	// card is the one the epitaph sets apart (the star watch and the plague's tending, the other two cards of a hazard, are
 	// left out - [B-5d1] text audit).
 	const FName DeathRow(TEXT("crisis_ai_awakening"));
-	const FName ClaimCard(TEXT("petition_pressure_claim"));
+	const FName ClaimCard = CosmicRows::PetitionPressureClaim;
 	const FName TalkCard(TEXT("enc_awakening_talk"));
 	const FName WallsCard(TEXT("petition_walls"));
 

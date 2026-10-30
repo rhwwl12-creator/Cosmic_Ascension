@@ -11,6 +11,7 @@
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
+#include "Data/CosmicRowNames.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Events/CosmicPetitions.h"
@@ -418,7 +419,7 @@ bool FCosmicUIWandererCardTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	const FName Plague(TEXT("enc_plague_tend"));
+	const FName Plague = CosmicRows::EncPlagueTend;
 	const FEncounterDef* Row = Sim->GetTables().FindEncounter(Plague);
 	if (!TestNotNull(TEXT("(the game has the card enc_plague_tend)"), Row) || !TestTrue(TEXT("(with a checked choice)"), Row->Choices.Num() >= 1))
 	{

@@ -700,6 +700,11 @@
 					"then": [{"col": "OnExpireEffects", "lacks_type": "KillPlayer"}]
 				},
 				{
+					"why": "a hazard a fallen one's doctrine brings never kills at its expiry, whatever its tag: the fallen cannot touch a life, so a row with a SourceDoctrine carries no death (B5 header 3.5; the one death decision 6-ga opens is no doctrine's)",
+					"when": [{"col": "SourceDoctrine", "set": true}],
+					"then": [{"col": "OnExpireEffects", "lacks_type": "KillPlayer"}]
+				},
+				{
 					"why": "the supernova precursor's expiry destroys the system, and the death line mourns a star that stays: no death at its expiry until it has a death row of its own (B5 header 8 [B-5d2], DECISIONS_LOG [B-5d1] (11))",
 					"when": [{"col": "HazardTag", "is": "Hazard.PreSupernova"}],
 					"then": [{"col": "OnExpireEffects", "lacks_type": "KillPlayer"}]
@@ -819,6 +824,10 @@
 						{"col": "AscensionCost", "lacks_type": "PlayerStatDelta"},
 						{"col": "AscensionCost", "lacks_type": "GrantPower"}
 					]
+				},
+				{
+					"why": "a feat's price records no death on any path, the wanderer's too when its rows come: a death comes only from a hazard's own expiry (B5 decision 6-ga, header 3.5)",
+					"then": [{"col": "AscensionCost", "lacks_type": "KillPlayer"}]
 				}
 			]
 		},

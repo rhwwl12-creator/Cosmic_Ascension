@@ -85,7 +85,7 @@ public:
 	 * hazard row CauseSourceRow (empty when the table lacks it); one number of the tell stream, none of the sim stream;
 	 * (c) a ruler leaves the throne - one number for the regent profile, ReleaseThrone with
 	 * Reign.Died (its regent hook draws the name, source row PendingSourceRow), every throne locked (Tick + ThroneLockTicks,
-	 * never earlier - 16 #143); no new eye; (d) every people's ReverenceToPlayer = 0 (decision 23-na: the new vessel is a
+	 * never earlier - B5 decision 4, old 16 #143); no new eye; (d) every people's ReverenceToPlayer = 0 (decision 23-na: the new vessel is a
 	 * stranger to every people); (e) the waiting cards, the first contact waiting and the journey are cleared; (f) LifeState =
 	 * Interregnum, one number for the leap (CosmicSuccession::LeapOf), LeapTicksTotal += it, PendingLeapTicks = it; (g) a leap
 	 * of 0 succeeds at once. Numbers of the sim stream: a wanderer's death 1, a ruler's 3. Does nothing unless the calling is

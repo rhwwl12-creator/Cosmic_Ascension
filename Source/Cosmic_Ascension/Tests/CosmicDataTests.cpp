@@ -2098,10 +2098,9 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		Expect(TEXT("a free choice with a difficulty"), Broken([](FEncounterChoice&, FEncounterChoice& Free) { Free.Difficulty = 3; }),
 			{ TEXT("petition_walls.Choices[0]"), TEXT("never fails") });
 		// B1: the two rules of the wanderer's loop, each broken once on a row of the game.
-		auto BrokenRow = [&](const TCHAR* RowText, TFunctionRef<void(FEncounterDef& Row)> Change)
+		auto BrokenRow = [&](const FName Name, TFunctionRef<void(FEncounterDef& Row)> Change)
 		{
 			UDataTable* Copy = CopyOf<FEncounterDef>(Game.Encounters);
-			const FName Name(RowText);
 			if (const FEncounterDef* Source = Game.FindEncounter(Name))
 			{
 				FEncounterDef Row = *Source;
@@ -2111,16 +2110,16 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 			}
 			return ChoiceProblems(Copy);
 		};
-		Expect(TEXT("a wanderer's card with a price"), BrokenRow(TEXT("enc_lane_weave"), [](FEncounterDef& Row) { Row.Choices[0].Cost.Energy = 5.f; }),
+		Expect(TEXT("a wanderer's card with a price"), BrokenRow(FName(TEXT("enc_lane_weave")), [](FEncounterDef& Row) { Row.Choices[0].Cost.Energy = 5.f; }),
 			{ TEXT("enc_lane_weave.Choices[0]"), TEXT("costs nothing") });
-		Expect(TEXT("leaving the throne on a check"), BrokenRow(TEXT("petition_keep_throne"), [](FEncounterDef& Row)
+		Expect(TEXT("leaving the throne on a check"), BrokenRow(CosmicRows::PetitionKeepThrone, [](FEncounterDef& Row)
 			{
 				FEncounterChoice& Leave = Row.Choices.Last();
 				Leave.CheckStat = ECosmicCheckStat::Stability;
 				Leave.Difficulty = 4;
 				Leave.FailureText = FText::AsCultureInvariant(TEXT("x"));
 			}), { TEXT("petition_keep_throne.Choices[2]"), TEXT("the vessel's own will") });
-		Expect(TEXT("leaving the throne as a fall"), BrokenRow(TEXT("petition_keep_throne"), [](FEncounterDef& Row)
+		Expect(TEXT("leaving the throne as a fall"), BrokenRow(CosmicRows::PetitionKeepThrone, [](FEncounterDef& Row)
 			{
 				Row.Choices.Last().OnSuccess[0].Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Deposed")));
 			}), { TEXT("petition_keep_throne.Choices[2]"), TEXT("the vessel's own will") });
@@ -2419,11 +2418,13 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 	// B5 [B-5d2] (header 3.2, 3.5, decision 6-ga): the loaded tables hold the one death the schema lets the data carry - the
 	// AI awakening's own expiry, by Death.Hazard (the rule is the schema's, held on the sources by check_data.py; this is what
 	// the assets the game reads hold) - and CosmicTests::WithoutDeath, the data-off side of a pair (-WithoutDeath=1), takes
-	// exactly it away and keeps every row of the tables it copies.
+	// exactly it away and keeps every row of the tables it copies. One of two pins with Tools/test_data_schema.py's
+	// (test_the_lethal_expiry): the schema's rules refuse, and the pins hold the one row allowed.
 	if (TestNotNull(TEXT("(the game's hazards, events, feats and cards)"), Game.Hazards.Get()) && Game.Events.Get() && Game.Feats.Get() && Game.Encounters.Get())
 	{
 		const TArray<FString> Deaths = KillPlayersOf(Game);
-		TestTrue(*FString::Printf(TEXT("The game's one death is the AI awakening's own expiry, by Death.Hazard (found: %s)"), *FString::Join(Deaths, TEXT(", "))),
+		TestTrue(*FString::Printf(TEXT("The game's one death is the AI awakening's own expiry, by Death.Hazard - decision 6-ga (2026-10-30) opened that one alone: another source of death is a new decision (DECISIONS_LOG), and this pin and Tools/test_data_schema.py's change with it (found: %s)"),
+			*FString::Join(Deaths, TEXT(", "))),
 			Deaths == TArray<FString>{ TEXT("DT_Hazards.crisis_ai_awakening.OnExpireEffects Death.Hazard") });
 		const FCosmicDataTables Deathless = CosmicTests::WithoutDeath(Game);
 		const TArray<FString> Left = KillPlayersOf(Deathless);

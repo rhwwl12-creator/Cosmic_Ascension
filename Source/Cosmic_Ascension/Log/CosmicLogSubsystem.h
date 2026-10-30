@@ -45,8 +45,12 @@ struct FCosmicLine
  * (section 8.1), keeps the cap and moves what must be kept into FGalaxyState.Chronicle. Holds no state of its own but
  * the tell-all mode: the log lives in the saved state, is hashed by ComputeStateHash (all but the text) and is left out
  * of ComputeWorldHash. So far: Push, PushVariants, PushRow, the scope with bUntold and the far lines, the tell-all mode,
- * the cap, and the chronicle's minimal form (BuildChronicle - MVP item 4). PickTemplateRow by revelation context, slot
- * resolution, the interlude mode, the two books, the epitaph and BuildWorldDigest arrive with Phase 4 and 4b.
+ * the cap, the chronicle's minimal form (BuildChronicle - MVP item 4), the record line kept untold whatever the scope (the
+ * first part of the two books - B5 decision 11-na) and HasClaimLineThisTick (B5). The two books' chapter is
+ * CosmicChronicle::BuildTwoBooks, and the epitaph and the digest are the presentation's
+ * (UI/CosmicCallingPagesWidget, World/CosmicDigest - B5 decision 14): none of them is this subsystem's. PickTemplateRow
+ * by revelation context and slot resolution arrive with Phase 4; the interregnum keeps no log mode of its own (B5 header
+ * 2.7, 2.12).
  */
 UCLASS()
 class COSMIC_ASCENSION_API UCosmicLogSubsystem : public UGameInstanceSubsystem
@@ -68,7 +72,7 @@ public:
 	bool IsTellAll() const { return bTellAll; }
 
 	// The chronicle up to the current tick: CosmicChronicle::Build over the live state; reads only and draws nothing, so a
-	// handler may call it. Phase 4b adds the two books, the epitaph and the digest around the same chapters.
+	// handler may call it. The two books' chapter beside it is CosmicChronicle::BuildTwoBooks over the same state (B5).
 	TArray<FCosmicChronicleChapter> BuildChronicle() const;
 
 	/**

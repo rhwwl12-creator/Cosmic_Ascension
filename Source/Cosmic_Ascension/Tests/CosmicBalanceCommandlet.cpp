@@ -541,7 +541,8 @@ namespace
 		int64 Gap = -1;
 	};
 
-	// B5 ([B-5a]): the first measurement of the calling line, data off. The reign's end and the next throne as the role reads
+	// B5: the calling line ([B-5a] measured it first with the data off; since [B-5d2] the game's data kills, and
+	// -WithoutDeath=1 is the data-off side). The reign's end and the next throne as the role reads
 	// them at the boundaries; the death chances; open question #126 - ticks at which an AI people's aim turned on the ruled
 	// people only once the gate's Capital and LastSettled were lifted (CosmicConflict::AIAimOf both ways), split by the ruled
 	// people's one-settled-system window, and the same between AI peoples (pair-ticks, for reference); open question #133 -
@@ -566,7 +567,7 @@ namespace
 		// [B-5b]: the deaths (before the end, by cause, by source row), the first death's tick, role and gap from the last
 		// reign's end, every leap (its length, whether the cap cut it, whether death + leap reach the clock), every
 		// succession, the first throne after a succession and its way, the end's kind, and the reigns begun while a claim
-		// that had its card still stood (#143).
+		// that had its card still stood (old #143 - B5 decision 4 closed it).
 		int32 Deaths = 0;
 		int32 DeathsByEnd = 0;
 		TMap<FString, int32> DeathsByCause;
@@ -1670,7 +1671,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			CosmicRulerPolicy::Act(RulerPolicy, *Sim, *Role, CardBefore, RulerCounts);
 			CosmicWandererPolicy::Act(WandererPolicy, *Sim, *Role, CardBefore, WandererCounts);
 			// B5 ([B-5a]): the first throne taken after a reign ended; [B-5b]: after a succession, and a reign begun while a claim
-			// that had its card still stood (16 #143 - the lock keeps it at 0).
+			// that had its card still stood (old 16 #143, B5 decision 4 - the lock keeps it at 0).
 			if (RoleBeforeInput == EPlayerRole::Wanderer && State.Player.Role == EPlayerRole::Ruler)
 			{
 				Calling.CrownedAfterTick = (Calling.CrownedAfterTick < 0 && Calling.FirstReignEndTick >= 0) ? State.Tick : Calling.CrownedAfterTick;

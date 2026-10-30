@@ -456,7 +456,7 @@ void UPlayerRoleSubsystem::Die()
 	}
 
 	// (c) A ruler leaves the throne: one number for the regent's profile, one in ReleaseThrone for the regent's name (the
-	// deposition's form), whether or not a people is there; every throne is locked (16 #143 - the three ends of a reign lock
+	// deposition's form), whether or not a people is there; every throne is locked (B5 decision 4, old 16 #143 - the three ends of a reign lock
 	// alike). No new eye: the dead vessel looks at nothing.
 	if (State.Player.Role == EPlayerRole::Ruler)
 	{

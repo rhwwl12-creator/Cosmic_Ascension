@@ -50,7 +50,7 @@ struct FCosmicSavedMark
 	int64 Tick = -1;
 	uint32 StateHash = 0;                          // ComputeStateHash at the write or the load (the exit compares it)
 	int32 Feats = 0;                               // Calling.CompletedFeats.Num(): an ascension adds one
-	EPlayerRole Role = EPlayerRole::Ruler;         // deposition now; abdication, enthronement, return (Phase 4)
+	EPlayerRole Role = EPlayerRole::Ruler;         // a deposition, an abdication, an enthronement (B1) or a ruler's death (B5 - Death first); the return is 16 #146
 	FName RuledCivID;
 	bool bEnded = false;                           // CosmicEndings::ProvisionalEndOf != None
 	int32 Lives = 0;                               // Calling.Lives.Num(): a succession adds one (B5)

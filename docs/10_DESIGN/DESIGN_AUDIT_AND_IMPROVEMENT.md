@@ -71,7 +71,7 @@
 ### 2.1 [Axis 1 & 3] `PersonalTier`(부름의 칸)와 `Civ.Tier`(문명의 칸)의 단절이 부르는 ‘통치자 절벽’
 현재 규칙에서 가장 심각한 내적 모순이다.
 - **현행 규칙의 조합**:
-  1. 통치자 업적(Ruler Feat)은 **문명의 칸(`FCivilizationState::Tier`)만 올리고**, 플레이어 영혼의 칸(`FCallingState::PersonalTier`)은 오직 방랑자 업적(Wanderer Feat)으로만 오른다([`pillars.md`](pillars.md) 3.3절, [`OPEN_QUESTIONS.md`](../60_DECISIONS/OPEN_QUESTIONS.md) #1, #67).
+  1. 통치자 업적(Ruler Feat)은 **문명의 칸(`FCivilizationState::Tier`)만 올리고**, 부름의 칸(`FCallingState::PersonalTier`)은 오직 방랑자 업적(Wanderer Feat)으로만 오른다([`pillars.md`](pillars.md) 3.3절, [`OPEN_QUESTIONS.md`](../60_DECISIONS/OPEN_QUESTIONS.md) #1, #67).
   2. 육체의 죽음(계승) 시 칸이 유지되는 불멸 기준은 문명 칸이 아니라 **`PersonalTier ≥ 3`**이다([`pillars.md`](pillars.md) 3.2절, [`crisis_and_transcendents.md`](crisis_and_transcendents.md) 4.4절).
   3. 영적 시야(`GetViewerTier()`)는 통치자일 때 `max(Civ.Tier, PersonalTier)`를 쓰고, 방랑자일 때는 `PersonalTier`만 쓴다([`20_ARCHITECTURE.md`](../20_ARCHITECTURE.md) 6.2절).
 - **발생하는 모순**:
@@ -79,8 +79,9 @@
   - 이 상태에서 반란으로 폐위(`DeposeRuler`)되거나, 스스로 하야(`BecomeWanderer`)하거나, 멸종 위기로 그릇이 쓰러지면:
     1. 방금 전까지 *"이제 보인다"*라며 열렸던 3칸 영적 시야와 우주의 교리 표시가 **즉시 닫히며 1칸 시야로 퇴행**한다([`OPEN_QUESTIONS.md`](../60_DECISIONS/OPEN_QUESTIONS.md) #96).
     2. 배속 상한도 `×25`에서 `×10`으로 강등된다([`OPEN_QUESTIONS.md`](../60_DECISIONS/OPEN_QUESTIONS.md) #100).
-    3. 그 상태로 방랑자 사망을 맞으면 `PersonalTier ≤ 2` 판정을 받아 **문명을 4칸까지 일군 영혼의 이력이 1칸으로 초기화**된다.
+    3. 그 상태로 방랑자 사망을 맞으면 `PersonalTier ≤ 2` 판정을 받아 **문명을 4칸까지 일군 부름의 이력이 1칸으로 초기화**된다.
     4. 나아가 4→5칸 통치자 승천 조건이 `PersonalTier ≥ 3`을 요구하므로(#1), 통치자로 끝까지 승천하려는 플레이어도 제국을 버리고 방랑자 업적을 따러 가야만 한다. 이는 *"통치자와 방랑자는 대등한 두 호흡"*이라는 기둥 3([`pillars.md`](pillars.md) 4절)과 정면으로 배치된다.
+    > **B5 뒤의 기록 (2026-10-31)**: 죽음·공백기·계승이 코드에 들었고 위 '현행 규칙의 조합'의 1·2는 그대로다 — 그릇이 쓰러질 때 무엇이 남는지는 [`pillars.md`](pillars.md)의 Tier 3 행과 [`crisis_and_transcendents.md`](crisis_and_transcendents.md) §4.4의 '부름 / 그릇 / 세계 3분할'(헤더 `docs/60_DECISIONS/headers/B5_death_succession_two_books.md` 결정 9 — 개발자 '권장대로'; 비전·기둥 문장을 그 규칙으로 고쳤다). 칸 공명과 모든 생애의 `PeakTier`는 #1·#67·#96·#100과 함께 묻고(#1의 블록), 아래 설계안 D ①의 '겸비를 고르면 셋째 칸'은 받지 않았다(까닭은 같은 결정). 지금 데이터에서 죽는 것은 방랑자뿐이다(§4.4 '사망').
 
 ### 2.2 [Axis 2 & 3] 첫 청원 `petition_wise_heart`(지혜로운 마음)와 `사회(Society)` 연구의 ‘무효 선택지 함정’
 [`A7_research_focus.md`](../60_DECISIONS/headers/A7_research_focus.md) 1.3절 및 9.1절에서 수치적으로 드러난 루도내러티브 불일치(Ludonarrative Dissonance)다.
@@ -96,6 +97,7 @@
 - **현상**: 그릇이 쓰러져 공백기(Interregnum)에 들어갔을 때, 회귀(`Recurrence`) 초월자는 공백기를 건너뛰고 즉시 이전 문명으로 되돌려보내 주는 대가로 **"너의 옛 고향 성계를 회귀 교리의 영지(`InfluencedSystems`)로 즉시 편입"**하는 파우스트적 거래(`enc_recurrence_return`, *"값은 너 자신이다"*)를 제안한다.
 - **모순**: 불변 법칙 `Law.Remnant`(`Sim.ClaimNeverTotal`)는 **문명의 마지막 미점령 정착 성계를 초월자가 점령하는 것을 절대 금지**한다. 그런데 1칸 문명(그리고 정착 사업을 아직 완료하지 못한 2칸 문명 다수)은 정착 성계가 고향 **단 1개뿐**이다(`RealmCapByTier[0] = 1`).
 - 따라서 단일 성계 문명에서 죽은 플레이어가 회귀의 유혹을 수락하면, `Law.Remnant`가 발동하여 **성계 편입 비용이 통째로 무효화**된다(`Exaltation +2`만 오르고 세계에는 아무 대가도 지불하지 않음). 유혹의 대가가 가장 뼈아파야 할 초반 죽음에서 ‘대가 없는 공짜 부활’이 발생한다.
+  > **B5 뒤의 기록 (2026-10-31)**: 귀환 제안은 B5에 들지 않았다 — 훅도 테스트 주입 행도 없고, 회귀 교리 행이 오는 블록이 [`OPEN_QUESTIONS.md`](../60_DECISIONS/OPEN_QUESTIONS.md) #146으로 짓는다(헤더 B5 결정 1). 이 대가의 물음은 #43에 그대로 남는다(B7 헤더 전 — 교단과 함께).
 
 ### 2.4 [Axis 2 & 4] 초반 330틱(5분 30초)의 ‘시각적·행위적 진공 구간’과 배속별 결정 밀도 왜곡
 - **초반 330틱의 시각적 고립**: [`A0_sanctuary_first_life.md`](../60_DECISIONS/headers/A0_sanctuary_first_life.md) 이후 첫 삶은 모성계(`sys_0`) 1개와 이름만 보이는 성역(`sol`)으로 시작하며, 인접 성계 2개가 시야(`FirstSightTick`)에 들어오는 것은 **Tick 330(1배속 기준 5분 30초)**이다. 그전까지 은하 맵에는 점 1개만 떠 있고 항로선(Lane)조차 하나도 그려지지 않는다([`OPEN_QUESTIONS.md`](../60_DECISIONS/OPEN_QUESTIONS.md) #106).
@@ -209,7 +211,7 @@
 | # | 핵심 설정 / 개념 | 연결된 게임 시스템 (코드 · 데이터) | 플레이어 체감 방식 | 결합도 평가 | 보완 필요 사항 (Gap & Action) |
 | :-: | :--- | :--- | :--- | :---: | :--- |
 | **1** | **성역 (`sol`, 태양계)과 울타리 법 (`Law.Hedge`)**<br>침범받지 않는 우주의 기준점 | `CosmicState::IsSanctuary`, `CosmicMegaprojects::SettleBlockOf`, [`DT_Rules.json`](../../Tools/data/DT_Rules.json) (`ImmutableLaws`), `ST_CA.csv` (`Panel.Sanctuary`) | 은하 지도에서 이름과 별만 보이며, 클릭 시 `"이곳은 지켜지고 있다"` 표시. 정착·위기·영압 모두 차단됨 | **상** | 첫 삶 시작(`sys_0`) 시 왜 성역 밖에서 시작했는지 설명하는 오프닝 카드 부재, `sys_0`↔`sol` 방위선 연출 필요 |
-| **2** | **부름 (`Calling`) vs 그릇 (`Vessel`)**<br>육체는 죽어도 부름은 세대를 넘어 이어짐 | `FCallingState` (영구) vs `FPlayerEntityState` (현 생애), `FLifeRecord`, `RunHeadless(LeapTicks)` | 그릇이 죽으면 공백기(`800~1600 ticks`) 동안 은하 역사가 흐르고 새 문명/그릇에서 다음 생애 시작 | **중** | MVP에서는 `BaseLifespanTicks: 0`으로 자연사 비활성. 무엇보다 **통치자 업적이 `PersonalTier`를 안 올려줘서** 사망 시 1칸으로 초기화되는 모순(#1, #67) 해결 시급 |
+| **2** | **부름 (`Calling`) vs 그릇 (`Vessel`)**<br>육체는 죽어도 부름은 세대를 넘어 이어짐 | `FCallingState` (영구) vs `FPlayerEntityState` (현 생애), `FLifeRecord`, `RunHeadless(LeapTicks)`(B5부터는 열째 단계의 카운트다운과 표현의 빨리 넘기기 `RunLeap` — `UPlayerRoleSubsystem::Die`·`Succeed`) | 그릇이 죽으면 공백기(`800~1600 ticks`) 동안 은하 역사가 흐르고 새 문명/그릇에서 다음 생애 시작 | **중** | MVP에서는 `BaseLifespanTicks: 0`으로 자연사 비활성. 무엇보다 **통치자 업적이 `PersonalTier`를 안 올려줘서** 사망 시 1칸으로 초기화되는 모순(#1, #67) 해결 시급(B5 결정 9는 규칙 그대로 — 위 §2.1의 B5 뒤의 기록) |
 | **3** | **다섯 칸 (`EAscensionTier`, 1~5칸)**<br>물질에서 영적·우주적 질서로 시야가 열리는 단계 | `EAscensionTier`, `DT_Feats.json`, `RealmCapByTier`, `SightLanesByTier`, `GetViewerTier()` | 칸이 오를수록 다스릴 수 있는 성계 상한(`1→3→4→7→10`), 시야 반경, 배속(`×25`), 로그 서술 해상도가 확장됨 | **상** | 2→3칸 승천 두 경로(`feat_supernova_stabilized` 100틱 vs `feat_three_worlds` 600틱+공학 1.0)의 밸런스 격차 완화 필요 |
 | **4** | **3칸 문턱과 영적 시야 (`Sight.Spiritual`)**<br>3칸부터 보이지 않던 영적 전쟁이 드러남 | `SpiritualSightMinTier`, `CosmicMapLook`, `ST_CA.csv` (`Sight.Opened`: `"이제 보인다"`) | 3칸 도달 순간 `"이제 보인다"` 알림과 함께 물리 시야/영적 시야 토글 개방, 초월자 영압·주장이 색으로 표시됨 | **중** | 현행 `ProvisionalEndOf`가 **3칸 도달 즉시 게임을 종료**시켜 정작 열린 영적 시야를 써볼 수 없음. 3칸 도달 후 최소 `+300 ticks` 여운 부여 필수 |
 | **5** | **인식론적 3계층 (`세계 → 앎 → 이야기`)**<br>아는 만큼만 보이고, 칸만큼만 이름을 부름 | `FGalaxyState` / `FCosmicKnowingState` / `UCosmicLogSubsystem::Tell`, `ComputeWorldHash` | 모르는 성계는 먼지 점으로 보이고, 2칸 이상 높은 문명은 이름 대신 은유로, 먼 사건은 `log_far_ascent`로 들림 | **상** | 이미 외교로 만난 문명(`MetCivs`)인데도 수도 성계를 못 봤다는 이유로 승천 로그가 익명(`"누군가"`)으로 뜨는 어색함(#69) 수정 필요 |
@@ -222,7 +224,7 @@
 | **12** | **요약 단위 인구 (`EPopulationBand`)와 인물 (`FNotableRecord`)**<br>머릿수를 세지 않고, 사건이 부른 이름만 남김 | `GetPopulationBand()`, `FNotableRecord` (최대 4명, 5필드), `NameNotable` (`Notable.Rebel` 등) | UI에는 `"수십억 백성"`처럼 대역만 표시되고, 반란·승천 등 큰 사건에서만 3인칭 인물의 이름이 로그와 연대기에 기록됨 | **상** | 반란 수괴(`Notable.Rebel`) 외에 평시 내정/학문 성취(`Society` 연구 등)로 등장하는 현자/청자(`Notable.Hearer`) 이벤트가 부족함 |
 | **13** | **트리가 없는 4대 연구 (`Physics`, `Society`, `Engineering`, `Transcendence`)**<br>지식의 기울기만 정하면 스며들듯 자람 | `FCivilizationState::Research` (0~1), `ResearchFocus` (초점 `0.55`, 나머지 `0.15`), [`A7_research_focus.md`](../60_DECISIONS/headers/A7_research_focus.md) | 연구 바를 클릭해 초점을 바꾸거나 `petition_wise_heart`로 첫 방향을 정함 | **중** | `Physics`(2칸 승천)와 `Engineering`(3칸 승천)만 쓸모가 있고, **`Society`와 `Transcendence`는 1.0을 채워도 해금 효과가 전무**함 |
 | **14** | **이중 거대사업 슬롯 (`건설` vs `대응`)**<br>평시 건설을 허물지 않고 위기에 답함 | `ActiveMegaproject` / `ResponseMegaproject`, `DT_Megaprojects.json`, `DT_Hazards.json` (`RulerResolutions`) | 성계 패널에서 건설 단추와 위기 대응 단추가 따로 열리며, 자원이 부족하면 위기 대응이 먼저 지불됨 | **중** | ① 격틱 지불 시 부족 경고가 안 뜨는 문제(#103)<br>② `crisis_plague`와 `crisis_ai_awakening`의 `RulerResolutions`가 비어 있어 대응 슬롯 자체가 무용지물이 되는 문제 |
-| **15** | **두 책의 연대기 (`BuildChronicle` & `Two Books`)**<br>선악 채점표 없이 행한 일의 책과 다른 책을 병치 | `CosmicChronicle`, `UCosmicChronicleWidget`, `ChronicleCap(1500)`, `ST_CA.csv` (`Chronicle.Opened`, `Chronicle.Unopened`) | 판이 멈추면 제1대부터의 기록이 펼쳐지고 끝에 *"기록이 펼쳐졌다… 다른 책은 펴지지 않았다"*가 찍힘 | **상** | 연대기 문구와 감정선은 완성도가 매우 높음. 다만 3칸 달성 즉시 끊기지 않고 3칸의 결단(`petition_exalt`)까지 담긴 뒤 펼쳐져야 완결성이 살아남 |
+| **15** | **두 책의 연대기 (`BuildChronicle` & `Two Books`)**<br>선악 채점표 없이 행한 일의 책과 다른 책을 병치 | `CosmicChronicle`, `UCosmicChronicleWidget`, `ChronicleCap(1500)`, `ST_CA.csv` (`Chronicle.Opened`, `Chronicle.Unopened`) | 판이 멈추면 제1대부터의 기록이 펼쳐지고 끝에 *"기록이 펼쳐졌다… 다른 책은 펴지지 않았다"*가 찍힘(B5부터 두 책은 생애 장들 뒤의 장 하나 — 1부 '기록된 것들'이 2부 '주장된 것들'을 품는다: [`70_CONTENT_GUIDE.md`](../70_CONTENT_GUIDE.md) §8.4 '두 책 장') | **상** | 연대기 문구와 감정선은 완성도가 매우 높음. 다만 3칸 달성 즉시 끊기지 않고 3칸의 결단(`petition_exalt`)까지 담긴 뒤 펼쳐져야 완결성이 살아남 |
 | **16** | **20,000개 은하와 우주 줌아웃 (`CosmicUniverseLook`)**<br>셀 수 없는 은하들 가운데 하나도 이름 없이 잊히지 않음 | `DT_Galaxies` (20행 실측 + 10,000 풍경 은하), `World/CosmicZoomLevels`, `ST_CA.csv` (`Galaxy.Named`) | 마우스 휠을 끝까지 당기면 우리 은하 밖 수만 개의 은하가 펼쳐지고 시적인 문구가 표시됨 | **중** | 철학적 감동은 크나 게임플레이적 연결(타 은하의 승천 메아리 표시, 혹은 모성계로 즉시 복귀하는 눈에 띄는 버튼)이 없어 길 잃기 쉬움 |
 
 ---
@@ -238,7 +240,7 @@
 | **Stage 2. 첫 위기와 1→2칸 도약**<br>(`Tick 150 ~ 650`) | • 첫 위기(`FirstCrisisTick = 150`, `Hazard.AIAwakening`) 대처<br>• 인접 성계 시야 개방(`Tick 330`)<br>• 다이슨 스웜 완공 & `Physics ≥ 0.5`로 **2칸(`Tier2_Stellar`) 승천** | • `petition_awakening` 응답 (`이름을 준다` vs `멈추게 한다`)<br>• `Tick 330`에 드러난 인접 성계 2곳 확인<br>• 정기 청원(`Tick 300`, `600`) 응답 | • `petition_awakening`에서 따뜻한 선택지(`이름을 준다`)를 고르면 **위기가 해소되지 않아** `Tick 300`에 만료 패널티(`Stability -0.15` 50% 확률) 피격<br>• `Tick 330`까지는 인접 성계가 아예 안 보여 공간 확장감이 없음 | **중**<br>(위기 카운트다운과 청원 카드의 첫 결합) | 1칸에서 600틱 동안 버튼 1개만 바라보다가, 2칸이 되는 순간 갑자기 정착·위기·연구 초점 전환이 한꺼번에 쏟아지는 **호흡 급발진** |
 | **Stage 3. 항성계 확장과 2→3칸 분기**<br>(`Tick 650 ~ 2,000+`) | • 인접 무주 성계 2곳에 `project_settle`(정착, 각 300틱 — MVP ⑧부터 600) 완공<br>• 2차·3차 위기(`Plague`, `PreSupernova`, `Rebellion`) 수습<br>• `Engineering 1.0` 또는 `project_stabilize`로 **3칸(`Tier3_Causal`) 승천** | • 인접 성계 클릭 → `정착` 착공 (한 번에 1곳씩)<br>• 연구 초점을 `Physics` → `Engineering`으로 전환<br>• 위기 발생 시 대응 슬롯(`ResponseMegaproject`) 가동 또는 청원 응답 | • **치명적 분기 불균형**: `Hazard.PreSupernova`가 뜨면 단 100틱짜리 `project_stabilize`로 3칸에 직행하지만, `Plague`가 뜨면 `RulerResolutions`가 비어 있어 대응 사업도 못 짓고 정착 2회(600틱)+공학 1.0 마라톤을 뛰어야 함(MVP ⑧부터 역병은 구호 `project_relief`로 답하고 정착 둘은 1,200틱)<br>• 단일 청원 슬롯이 차 있을 때 새 상시 청원이 발생하면 증발함 | **높음**<br>(복수 성계 + 건설/대응 이중 슬롯 지불 우선순위 + 안정도 추세 관리) | ① 위기 추첨 운에 따라 스테이지 길이가 5배 차이 나는 로또 구간<br>② `petition_plague`에서 `"앓는 이들 곁에 선다"`를 골랐는데 대응 사업조차 없어 인구 40%가 증발하는 당혹감(MVP ⑧부터 구호로 답한다) |
 | **Stage 4. 문턱(3칸)과 영적 시야 개방**<br>(`Tier3_Causal` 도달 순간) | • 영적 시야(`Sight.Spiritual`)로 은하에 드리운 타락 초월자의 영압과 주장 확인<br>• 신격화 유혹(`petition_exalt`) 앞에서 겸비 vs 교만 결단 | • 상단/지도 시야 토글 (`영적 시야` ↔ `물리 시야`)<br>• `×25` 배속 해금 확인<br>• `petition_exalt` 응답 | • **클라이맥스 강제 종료 병목**: 현행 `ProvisionalEndOf`가 3칸 도달 즉시 게임을 정지시켜, 영적 시야를 조작해 보거나 `petition_exalt`를 받아볼 기회 자체가 원천 차단됨 | **높음 (전환 충격)**<br>(물리적 우주에서 영적 우주로 규칙이 확장되는 순간) | `"이제 보인다"`라는 최고의 전율 문구가 뜨자마자 **0.1초 만에 `"이 판은 여기까지다"`라며 연대기 창이 덮어버리는 가장 큰 흐름 절벽** |
-| **Stage 5. 역할 전환(폐위/방랑) 및 계승**<br>(반란 만료 / 하야 / 사망 시) | • 왕좌를 잃은 방랑자로서 성계를 유랑하며 내면 업적 달성 또는 타 문명 즉위<br>• 사망 시 공백기(`RunHeadless`)를 지나 다음 그릇으로 계승 | • 성계 간 이동<br>• 방랑자 조우 카드 해결<br>• 회귀 초월자의 귀환 유혹(`OfferReturn`) 거절/수락 | • **통치자→방랑자 절벽**: 통치자로 3~4칸을 찍었어도 `PersonalTier`는 1칸이라 방랑자가 되는 순간 영적 시야가 닫히고(`GetViewerTier() = 1`), 사망 시 1칸으로 리셋됨(#1, #96)<br>• 단일 성계 문명에서 귀환 유혹 수락 시 `Law.Remnant` 때문에 대가가 0이 됨(#43) | **과부하 / 박탈감**<br>(지금까지 쌓은 시야·배속·맥락을 한순간에 상실) | 반란 판정(`petition_keep_throne` 난이도 6/6) 실패로 폐위당했을 때, 방랑자 상호작용이 비어 있어 사실상 할 일이 사라지는 구간 |
+| **Stage 5. 역할 전환(폐위/방랑) 및 계승**<br>(반란 만료 / 하야 / 사망 시) | • 왕좌를 잃은 방랑자로서 성계를 유랑하며 내면 업적 달성 또는 타 문명 즉위<br>• 사망 시 공백기(B5부터 열째 단계의 카운트다운 — 화면은 빨리 넘기기 `RunLeap`)를 지나 다음 그릇으로 계승 | • 성계 간 이동<br>• 방랑자 조우 카드 해결<br>• 회귀 초월자의 귀환 유혹(`OfferReturn`) 거절/수락(B5 밖 — #146) | • **통치자→방랑자 절벽**: 통치자로 3~4칸을 찍었어도 `PersonalTier`는 1칸이라 방랑자가 되는 순간 영적 시야가 닫히고(`GetViewerTier() = 1`), 사망 시 1칸으로 리셋됨(#1, #96)<br>• 단일 성계 문명에서 귀환 유혹 수락 시 `Law.Remnant` 때문에 대가가 0이 됨(#43) | **과부하 / 박탈감**<br>(지금까지 쌓은 시야·배속·맥락을 한순간에 상실) | 반란 판정(`petition_keep_throne` 난이도 6/6) 실패로 폐위당했을 때, 방랑자 상호작용이 비어 있어 사실상 할 일이 사라지는 구간 |
 | **Stage 6. 4~5칸 초월 경쟁과 두 책 연대기**<br>(후반부 / Run End) | • 타락 초월자의 주장(`Hazard.Claim`)으로부터 성계 수호(`project_relief` / 파수)<br>• 찬탈(`Way.Seized`) 유혹을 이기고 받은 길(`Way.Given`)로 5칸 도달 또는 연대기 마감 | • `Hazard.Claim` 대응 (`project_relief` 150틱)<br>• 은하 간 다리(Bridge) 건넘<br>• 최종 연대기(`UCosmicChronicleWidget`) 열람 | • `DT_Transcendents.json`에 `trans_silence` 외 나머지 3교리 행과 대사 템플릿이 아직 비어 있어 후반부 서사 밀도 부족 | **낮음 (관조적 갈무리)**<br>(지나온 생애와 두 책의 기록을 읽는 시간) | 연대기 자체의 여운은 매우 깊으나, 앞선 Stage 4~5의 절벽을 넘어와야만 온전히 체감 가능 |
 
 ---
@@ -267,7 +269,7 @@
 #### C-4. `PersonalTier`(개인 칸)와 `Civ.Tier`(문명 칸)의 완전 단절로 인한 폐위/하야/사망 시의 1칸 퇴행 절벽
 - **현상**: 통치자로서 문명을 3~4칸까지 올려도 플레이어의 `Calling.PersonalTier`는 1칸(`Tier1_Planetary`)에 머문다.
 - **근거 데이터/코드**: [`pillars.md`](pillars.md) 3.2~3.3절, [`20_ARCHITECTURE.md`](../20_ARCHITECTURE.md) 6.2절, [`OPEN_QUESTIONS.md`](../60_DECISIONS/OPEN_QUESTIONS.md) #1, #67, #96, #100.
-- **원인 및 리스크**: 폐위(`DeposeRuler`)나 하야로 방랑자가 되는 순간 `GetViewerTier()`가 `Civ.Tier`에서 `PersonalTier(1칸)`로 떨어져 **열렸던 영적 시야가 닫히고 배속이 깎이며, 그 상태로 죽으면 `PersonalTier < 3`이라 칸마저 초기화**된다. 통치자 플레이의 성취가 플레이어 영혼(`Calling`)에 전혀 축적되지 않는 구조적 모순이다.
+- **원인 및 리스크**: 폐위(`DeposeRuler`)나 하야로 방랑자가 되는 순간 `GetViewerTier()`가 `Civ.Tier`에서 `PersonalTier(1칸)`로 떨어져 **열렸던 영적 시야가 닫히고 배속이 깎이며, 그 상태로 죽으면 `PersonalTier < 3`이라 칸마저 초기화**된다. 통치자 플레이의 성취가 부름(`Calling`)에 전혀 축적되지 않는 구조적 모순이다(B5 뒤의 기록은 위 §2.1).
 
 ---
 
@@ -345,7 +347,7 @@ flowchart LR
    - `petition_plague`의 `"앓는 이들 곁에 선다"`: 기존 `Stability +0.05`, `Reverence +0.1`, `Spiritualism +0.05`에 더해, **`project_relief`로 구호할 길을 열어주거나 `ResolveHazard: Hazard.Plague` + 단기 생산/물자 비용**(신정론 예산 25% 규칙 준수)을 치르고 역병을 함께 견뎌내게 한다.
    - `petition_awakening`의 `"이름을 준다"`: 기계들에게 이름을 주었을 때 `Hazard.AIAwakening`을 적대적 만료로 방치하지 않고, **`ResolveHazard: Hazard.AIAwakening`과 함께 `AddResource: Insight +40.0`, `ChangeStability: -0.03`**(기계와 함께 사는 낯선 질서의 진통)으로 해소되게 한다.
 
-#### 설계안 D. [통치자-방랑자 칸 공명 (`PersonalTier` 하한 보정) 및 단일 성계 귀환 저당] (C-4, M-4 해결 — `B1/B5`, `#1`·`#43`·`#67`·`#96`·`#100`)
+#### 설계안 D. [통치자-방랑자 칸 공명 (`PersonalTier` 하한 보정) 및 단일 성계 귀환 저당] (C-4, M-4 해결 — `B1/B5`, `#1`·`#43`·`#67`·`#96`·`#100`: B5 결정 9는 ①을 넣지 않았다 — 칸 공명은 #1의 블록, 겸비 → 셋째 칸은 받지 않음; ②는 귀환 제안과 함께 #146·#43, 위 §2.1·§2.3의 B5 뒤의 기록)
 1. **칸 공명 규칙**: 문명이 통치자 업적으로 `Tier N`에 오를 때 `Calling.PersonalTier = FMath::Max(Calling.PersonalTier, Tier - 1)`(단, 3칸 도달 시 영적 시야와 `×25` 배속은 `PeakTier` 기준으로 해당 생애 동안 유지, `#67`·`#96`·`#100`)을 적용하고, `petition_exalt`에서 `"그 높임을 물리친다"`(겸비)를 선택할 때 `PersonalTier`가 `Tier3_Causal`로 승격되도록 연결한다.
 2. **단일 성계 `OfferReturn` 대체 대가 (`#43`)**: 회귀 초월자의 귀환 유혹 수락 시, 모성계가 `Law.Remnant`로 보호받는 유일한 정착 성계라면 소유권 이전 대신 모성계에 `Hazard.Claim`을 즉시 배치하고 `Population`을 `-0.3` 깎는 ‘저당 잡힌 귀환’을 적용한다.
 
@@ -377,7 +379,7 @@ flowchart LR
   - 3칸 도달 즉시 종료 대신, 플레이어 문명의 3칸 승천 시점으로부터 `+300 ticks` 경과 후 종료되도록 ‘문턱의 계절(Grace Period)’ 부여(영적 시야 및 `petition_exalt` 체험 보장; `CosmicChronicleScreenTests.cpp` 함께 갱신).
 - [ ] **경제/연구 단계 (`UGalaxySimulationSubsystem::TickEconomy`)** (`MVP ⑧` / `B2`, `#119`)
   - `Society` 연구 진행도(`0.0 ~ 1.0`)를 안정도 자연 회복량(`StabilityRecoveryPerTick`) 및 `Influence` 틱당 산출량에 반영.
-- [ ] **승천 및 역할 계층 (`UAscensionSubsystem` / `UPlayerRoleSubsystem` / `UCosmicLogSubsystem`)** (`B1` / `B5`, `#1`·`#67`·`#69`·`#96`·`#100`)
+- [ ] **승천 및 역할 계층 (`UAscensionSubsystem` / `UPlayerRoleSubsystem` / `UCosmicLogSubsystem`)** (`B1` / `B5` — B5는 칸 공명을 넣지 않았다: #1의 블록, 헤더 B5 결정 9; `#1`·`#67`·`#69`·`#96`·`#100`)
   - 문명 승천 시 `Calling.PersonalTier` 하한 공명(`max(PersonalTier, Civ.Tier - 1)`) 적용 및 생애 내 영적 시야·`×25` 배속 유지(`PeakTier` 참조, `#67`·`#96`·`#100`).
   - `UCosmicLogSubsystem`: 승천 로그 실명 출력 판정에 `MetCivs.Contains(CivID)` 추가 검토(`#69`).
 - [ ] **청원 제시 단계 (`UEncounterSubsystem` / `Knowing`)** (`B2` / `B4` — B4는 넣지 않았다: 첫 측정에서 판단할 경우가 18건으로 30건에 못 미쳤고, 데이터를 켠 뒤 영압 카드가 같은 틱의 다른 상시 청원에 대기 칸을 잃는 몫은 첫째 장의 무게를 4로 올려 줄였다 — 열린 물음 #135, 헤더 B4 §11 항목 1·18)

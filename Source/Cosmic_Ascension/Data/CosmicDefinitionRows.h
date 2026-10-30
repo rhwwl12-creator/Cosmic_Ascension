@@ -166,8 +166,9 @@ struct COSMIC_ASCENSION_API FHazardDef : public FTableRowBase
 	TArray<FCosmicCondition> SpawnConditions;
 
 	// At expiry: subject = the system and its owner, SourceRow = this row. KillPlayer reaches only a wanderer standing in
-	// the system (section 4.4); crisis_rebellion carries DeposeRuler (section 4.1). No row carries KillPlayer before the
-	// death pipeline of Phase 4b.
+	// the system (section 4.4 - CosmicHazards::VesselAtRiskOf); crisis_rebellion carries DeposeRuler (section 4.1). A death
+	// stands in this column of a hazard row alone (Tools/data/schema.json - B5 header 3.5), and one row carries it:
+	// crisis_ai_awakening (B5 decision 6-ga - Data.Integrity).
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicEffect> OnExpireEffects;
 
@@ -450,7 +451,8 @@ struct COSMIC_ASCENSION_API FEncounterChoice
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicEffect> OnSuccess;
 
-	// One of the data sources of KillPlayer (section 4.4).
+	// Like OnSuccess, records no death: a card carries no KillPlayer (Tools/data/schema.json - a death comes only from a
+	// hazard's expiry; a card's lethality is section 16 #151).
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicEffect> OnFailure;
 
@@ -833,9 +835,11 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	int32 LeapTotalCap = 4500;
 
-	// Lethal effects are ignored for this many ticks after birth.
+	// Lethal effects are ignored while Tick - BornTick is below this (CosmicHazards::VesselAtRiskOf). 301, not 300: the first
+	// crisis expires on tick 300 on every capital, and that tick is inside the first vessel's protection (B5 [B-5d2] -
+	// Data.Integrity holds the protection over the first crisis's expiry while that row kills).
 	UPROPERTY(EditAnywhere)
-	int32 BirthProtectionTicks = 300;
+	int32 BirthProtectionTicks = 301;
 
 	// 0 = aging OFF. Added to DT_Traits.LifespanTicksMod.
 	UPROPERTY(EditAnywhere)

@@ -573,10 +573,11 @@ struct COSMIC_ASCENSION_API FLifeRecord
 };
 
 /**
- * The calling: the player's identity across vessels (section 4.4 three-way table, column "calling").
- * On succession PersonalTier drops to Tier 1 when it is Tier 2 or lower and is kept from Tier 3 up; Powers are re-granted
- * from the Tier (whether powers granted by a ruler's feats survive is open: section 16 #67 (2)); CompletedFeats stay as a
- * record (the ordered log of the climbs).
+ * The calling (section 4.4 three-way table, column "calling"): a charge entrusted from vessel to vessel, and its record -
+ * not the player's identity carried from body to body (B5 decision 12-ga). On succession PersonalTier drops to Tier 1 when
+ * it is Tier 2 or lower and is kept from Tier 3 up; Powers keep Way.* only and the rest is given again from the Tier (B5
+ * decision 8 closed section 16 #67 (2) this way - no row gives one yet); CompletedFeats stay as a record (the ordered
+ * log of the climbs).
  */
 USTRUCT(BlueprintType)
 struct COSMIC_ASCENSION_API FCallingState

@@ -10,6 +10,7 @@
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDefinitionRows.h"
+#include "Data/CosmicRowNames.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/GameViewportClient.h"
@@ -463,7 +464,7 @@ bool FCosmicUIContinueRunningTest::RunTest(const FString& Parameters)
 	AddExpectedMessage(TEXT("CosmicSave: .* was not written"), ELogVerbosity::Warning, EAutomationExpectedMessageFlags::Contains, 1);
 	UCosmicSaveSubsystem* Save = SaveOf(*Sim);
 	const FGuid Running(0x5A5E0011, 1, 1, 1);
-	const FName Card(TEXT("petition_wise_heart"));
+	const FName Card = CosmicRows::PetitionWiseHeart;
 	UseOwnFolder(*Save);
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	Sim->RunHeadless(40);

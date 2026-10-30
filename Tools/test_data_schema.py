@@ -1074,8 +1074,9 @@ class SchemaTests(unittest.TestCase):
     def test_the_lethal_expiry(self):
         """B5 [B-5d2] (header 3.2, 3.5, decision 6-ga): a KillPlayer stands only in a hazard row's own expiry effects - never its
         branch, its neighbours' damage or its resolution; never on a claim, a visitation or a cult, nor on the supernova
-        precursor until that hazard has a death row of its own; its cause is Death.Hazard, so Death.Transcendent (and every
-        other cause) stands nowhere in the data. The project's data holds exactly the one death decision 6-ga opens."""
+        precursor until that hazard has a death row of its own, nor on a hazard a doctrine brings whatever its tag; never in a
+        feat's price on any path; its cause is Death.Hazard, so Death.Transcendent (and every other cause) stands nowhere in
+        the data. The project's data holds exactly the one death decision 6-ga opens."""
         cell = lambda column, value: self.set_cell("DT_Hazards", "crisis_test_storm", column, value)  # noqa: E731
 
         def both(*changes):
@@ -1103,12 +1104,24 @@ class SchemaTests(unittest.TestCase):
         precursor = "the supernova precursor's expiry destroys the system"
         self.expect(self.after(both(cell("HazardTag", "Hazard.PreSupernova"), cell("OnExpireEffects", [kill]))), "crisis_test_storm", precursor, "OnExpireEffects")
         self.expect(self.after(both(cell("HazardTag", "Hazard.AIAwakening"), cell("OnExpireEffects", [kill]))), precursor, wanted=False)
+        # Never a hazard a doctrine brings, whatever its tag: the source, not a list of tags ([B-5e] - the [B-5d2] review's risk-6).
+        doctrine = "a hazard a fallen one's doctrine brings never kills at its expiry"
+        self.expect(self.after(both(cell("HazardTag", "Hazard.AIAwakening"), cell("SourceDoctrine", "Doctrine.Zeal"), cell("OnExpireEffects", [stays, kill]))),
+                    "crisis_test_storm", doctrine, "OnExpireEffects")
+        self.assertEqual(self.after(both(cell("HazardTag", "Hazard.AIAwakening"), cell("SourceDoctrine", "Doctrine.Zeal"), cell("OnExpireEffects", [stays]))), [])
+        # Never a feat's price, on any path: a wanderer's row too, which the ruler rule does not read ([B-5e] - risk-6).
+        price = "a feat's price records no death on any path"
+        feat = lambda **changes: (lambda tables: self.row(tables, "DT_Feats", "feat_test_climb").update(**changes))  # noqa: E731
+        self.expect(self.after(feat(Path="Wanderer", AscensionCost=[kill])), "feat_test_climb", price, "AscensionCost")
+        self.expect(self.after(feat(Path="Wanderer", AscensionCost=[kill])), "a ruler feat row judges every people", wanted=False)
+        self.expect(self.after(feat(Path="Wanderer")), price, wanted=False)
         # The cause on a hazard row is Death.Hazard: every other cause is refused, Death.Transcendent first of all.
         for cause in ("Death.Transcendent", "Death.Encounter", "Death.Age"):
             with self.subTest(cause=cause):
                 self.expect(self.after(cell("OnExpireEffects", [eff("KillPlayer", tag=cause)])), "crisis_test_storm.OnExpireEffects[0](KillPlayer).Tag",
                             "tag %s is not under Death.Hazard" % cause)
-        # The project's data: one death, the AI awakening's own expiry, by Death.Hazard (decision 6-ga, 2026-10-30).
+        # The project's data: one death, the AI awakening's own expiry, by Death.Hazard (decision 6-ga, 2026-10-30). One of two
+        # pins with Data.Integrity's (KillPlayersOf): the rules above refuse, and the pins hold the one row allowed.
         _, project_tables, _ = checker.load_project()
         found = [(row["Name"], column, entry.get("Tag")) for table, rows in sorted(project_tables.items()) if isinstance(rows, list)
                  for row in rows if isinstance(row, dict) for column, value in sorted(row.items()) if isinstance(value, list)
@@ -1116,7 +1129,9 @@ class SchemaTests(unittest.TestCase):
         found += [(row["Name"], "Choices.%s" % side, entry.get("Tag")) for row in project_tables.get("DT_Encounters", [])
                   for choice in row.get("Choices", []) for side in ("OnSuccess", "OnFailure") for entry in choice.get(side, [])
                   if isinstance(entry, dict) and entry.get("Type") == "KillPlayer"]
-        self.assertEqual(found, [("crisis_ai_awakening", "OnExpireEffects", "Death.Hazard")])
+        self.assertEqual(found, [("crisis_ai_awakening", "OnExpireEffects", "Death.Hazard")],
+                         "decision 6-ga (2026-10-30) opened one death, the AI awakening's own expiry: another source of death is a new "
+                         "decision (DECISIONS_LOG), and this pin and Data.Integrity's change with it")
 
     def test_megaprojects_and_feats(self):
         """The lines of a completion and of an ascension come in three variants or more; a feat walks the ruler's path."""
@@ -2968,6 +2983,8 @@ class SchemaTests(unittest.TestCase):
                 (NOTHING, hazard),
             ("DT_Hazards", "the fallen cannot touch a life - the claim takes from the living only - and the visitation is the holy order's own: no claim, visitation or cult kills (B5 header 3.5)"):
                 (update_hazard(HazardTag="Hazard.Visitation"), hazard),
+            ("DT_Hazards", "a hazard a fallen one's doctrine brings never kills at its expiry, whatever its tag: the fallen cannot touch a life, so a row with a SourceDoctrine carries no death (B5 header 3.5; the one death decision 6-ga opens is no doctrine's)"):
+                (update_hazard(SourceDoctrine="Doctrine.Zeal"), hazard),
             ("DT_Hazards", "the supernova precursor's expiry destroys the system, and the death line mourns a star that stays: no death at its expiry until it has a death row of its own (B5 header 8 [B-5d2], DECISIONS_LOG [B-5d1] (11))"):
                 (update_hazard(HazardTag="Hazard.PreSupernova"), hazard),
             ("DT_Hazards", "the leader of a cult has no name (guideline 4.1)"): (update_hazard(HazardTag="Hazard.Cult"), hazard),
@@ -2990,6 +3007,8 @@ class SchemaTests(unittest.TestCase):
             ("DT_Feats", "no people climbs without a deed: a feat holds one condition or more (guideline 3.2; the judgment does not judge a row without one)"):
                 (NOTHING, "feat_test_climb"),
             ("DT_Feats", "a ruler feat row judges every people, the AI's too (guideline 4.3): its conditions do not read the vessel, and its price records no role effect and touches no vessel (a death comes only from a hazard's expiry - B5 decision 6). How a vessel condition of a T4->T5 row reads for the AI is decided with that row (guideline 16 #1); a wanderer's feat is judged on the vessel and gets its own rules with its first row (guideline 16 #28)"):
+                (NOTHING, "feat_test_climb"),
+            ("DT_Feats", "a feat's price records no death on any path, the wanderer's too when its rows come: a death comes only from a hazard's own expiry (B5 decision 6-ga, header 3.5)"):
                 (NOTHING, "feat_test_climb"),
             ("DT_Rules", "the rate of the AI's projects multiplies their progress: at 0 or below they would never progress, so the code reads it as 1 with an error line (guideline 4.3, 5.7)"):
                 (NOTHING, "rules"),
@@ -3084,7 +3103,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 224, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 226, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

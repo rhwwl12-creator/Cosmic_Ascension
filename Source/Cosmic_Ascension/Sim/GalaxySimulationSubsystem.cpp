@@ -1550,7 +1550,7 @@ void UGalaxySimulationSubsystem::SimulateTick()
 		Mark(3);
 		StageClock.Ticks += bClock ? 1 : 0;
 		TickCrossings();
-		// The calling rests on no vessel during the interregnum leap (section 4.4): no travel and no sight. Nor does a vessel
+		// No vessel is entrusted with the calling during the interregnum leap (section 4.4): no travel and no sight. Nor does a vessel
 		// whose death this tick recorded (B5): it stays where the death reached it - the place a journey left, as a destruction
 		// leaves it with its star - and looks at nothing; the tenth stage carries the death out.
 		if (State.Calling.LifeState == ELifeState::Embodied && State.Calling.PendingEffect != CosmicTags::EffectKillPlayer())
