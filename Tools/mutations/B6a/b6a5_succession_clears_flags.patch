@@ -1,0 +1,14 @@
+diff --git a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -544,6 +544,10 @@
+ 	Calling.Powers = Kept;
+ 	const FStarSystemState& Birth = State.Systems[Found.Systems[Pick]];
+ 	Install(Birth.SystemID, Birth.OwnerCivID, EPlayerRole::Wanderer);
++	for (FTranscendentState& Transcendent : State.Transcendents)
++	{
++		Transcendent.bAwareOfPlayer = false;
++	}
+ 	// (5) The inauguration line, after Install: the new vessel stands with its name. None when Install refused it - the calling
+ 	// then stays in the interregnum, as in the silence, which tells no line either.
+ 	UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2666,7 +2666,7 @@
+ 			UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+ 			check(Log);
+ 			FCosmicLine Line;
+-			Line.Category = CosmicTags::LogTranscendent();
++			Line.Category = CosmicTags::LogClaim();
+ 			Line.Severity = 1;
+ 			Line.FocusCiv = State.Player.RuledCivID;
+ 			Line.SourceRow = State.Transcendents[AwareClaimant].TranscendentID;

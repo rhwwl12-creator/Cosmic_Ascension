@@ -2,6 +2,7 @@
 
 #include "Log/CosmicChronicle.h"
 
+#include "Core/CosmicTags.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
@@ -86,8 +87,10 @@ namespace CosmicChronicleImpl
 	}
 
 	// The four steps of a chapter's lines over Entries[Begin, End) for Peoples within Room: (1) gather what Admits holds but
-	// the two books' entries, (2) drop a repeat of the line just before (OutCandidates counts the rest), (3) the cap by rank
-	// (bOutMore set when it leaves lines out), (4) back in time order, a repeat the thinning brought together dropped once more.
+	// the two books' entries and the fallen's awareness line (Log.Transcendent - the one second person stands in no book of a
+	// life's deeds, B6a header section 2.11), (2) drop a repeat of the line just before (OutCandidates counts the rest), (3)
+	// the cap by rank (bOutMore set when it leaves lines out), (4) back in time order, a repeat the thinning brought together
+	// dropped once more.
 	void FillLines(TConstArrayView<const FCosmicLogEntry*> Entries, int32 Begin, int32 End, TConstArrayView<FName> Peoples, int32 Room,
 		TArray<FCosmicChronicleLine>& OutLines, int32& OutCandidates, bool& bOutMore)
 	{
@@ -97,7 +100,8 @@ namespace CosmicChronicleImpl
 		for (int32 At = FMath::Max(0, Begin); At < End && At < Entries.Num(); ++At)
 		{
 			const FCosmicLogEntry& Entry = *Entries[At];
-			if (Entry.Category == ClaimTag() || Entry.Category == RecordTag() || !CosmicChronicle::Admits(Entry, Peoples))
+			if (Entry.Category == ClaimTag() || Entry.Category == RecordTag() || Entry.Category == CosmicTags::LogTranscendent()
+				|| !CosmicChronicle::Admits(Entry, Peoples))
 			{
 				continue;
 			}
@@ -202,6 +206,12 @@ bool CosmicChronicle::Admits(const FCosmicLogEntry& Entry, TConstArrayView<FName
 {
 	using namespace CosmicChronicleImpl;
 
+	// The fallen's awareness line (B6a header section 2.11) is heard in the feed alone: nothing of the chronicle shows it,
+	// so it never moves there when it leaves the log (State.Chronicle holds what the chronicle can show and no other).
+	if (Entry.Category == CosmicTags::LogTranscendent())
+	{
+		return false;
+	}
 	if (Entry.Category == CallingTag() || Entry.Category == ClaimTag() || Entry.Category == RecordTag() || Entry.Severity >= 2)
 	{
 		return true;

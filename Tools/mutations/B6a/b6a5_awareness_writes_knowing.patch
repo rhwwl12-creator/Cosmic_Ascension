@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2660,6 +2660,7 @@
+ 	// far line). A row with no AwarenessTemplates tells nothing and draws nothing; the flag stands all the same.
+ 	if (State.Transcendents.IsValidIndex(AwareClaimant))
+ 	{
++		State.Knowing.FarLineUntilTick = State.Tick + 1;
+ 		const FTranscendentDef* Fallen = Tables.FindTranscendent(State.Transcendents[AwareClaimant].TranscendentID);
+ 		if (Fallen && !Fallen->AwarenessTemplates.IsEmpty())
+ 		{

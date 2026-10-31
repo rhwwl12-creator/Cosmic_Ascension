@@ -312,8 +312,11 @@ namespace
 	// later in the tick, by a later expiry or the event slot, still is - B6a header section 2.11), makes its claimant aware
 	// of the player: bAwareOfPlayer once per transcendent, never written back (it survives succession). The
 	// world alone is read - the role, the ruled people, the owner and its tier, never Knowing (rule 2); no draw, no line (the
-	// line is told at the end of the expiry - [B-6a5]). The index into Transcendents of the claimant whose flag this placement
-	// set, INDEX_NONE otherwise.
+	// line is told at the end of the expiry - [B-6a5]). The flag is per transcendent, the awareness line once per run (B6a
+	// header section 2.11, section 3.6 (4) - the one second person): the index into Transcendents of the claimant whose flag
+	// this placement set when no transcendent was aware before that write - the line is due, and the expiry tells it at its
+	// end; INDEX_NONE otherwise, also when the flag was set while another transcendent was aware already (its write stands,
+	// no line follows it).
 	int32 TryPlaceClaim(FCosmicEvalContext& Ctx, int32 SystemIndex, float ClaimNumber)
 	{
 		static const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Claim")));
@@ -359,8 +362,11 @@ namespace
 		{
 			return INDEX_NONE;
 		}
+		// Whether the line is due, read before the write: no transcendent of the run aware yet. Reads only - the write below
+		// is the same whatever it answers.
+		const bool bFirstInRun = !State.Transcendents.ContainsByPredicate([](const FTranscendentState& Transcendent) { return Transcendent.bAwareOfPlayer; });
 		Ctx.State.Transcendents[Claimant].bAwareOfPlayer = true;
-		return Claimant;
+		return bFirstInRun ? Claimant : INDEX_NONE;
 	}
 
 	// The expiry of a claim (section 4.2): the claimant of now joins the system to its sphere, unless the system is no
@@ -2580,9 +2586,9 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 	}
 	EmptySlot();
 
-	// The claim rule on the slot this expiry left free (section 4.2). The claimant it made aware of the player (B6a header
-	// section 2.11), INDEX_NONE when none: kept for the awareness line at the end of this expiry ([B-6a5]).
-	[[maybe_unused]] const int32 AwareClaimant = TryPlaceClaim(Ctx, SystemIndex, ClaimNumber);
+	// The claim rule on the slot this expiry left free (section 4.2). The claimant it made aware of the player when it is the
+	// run's first (B6a header section 2.11), INDEX_NONE otherwise: kept for the awareness line at the end of this expiry.
+	const int32 AwareClaimant = TryPlaceClaim(Ctx, SystemIndex, ClaimNumber);
 
 	// The expiry's own line, then what followed from it. A rebellion that took no throne (another source ended the reign
 	// first) is told without the throne (B1): the same one draw of the tell stream.
@@ -2638,6 +2644,36 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 		}
 	}
 	Events->FollowUpNotes(Ctx);
+
+	// The awareness line (B6a header section 2.11, decision 7): the last line of this expiry. The order is expiry, record,
+	// sign and first person, the new claim's outbreak line (FollowUpNotes above - Place left only its note), then this one:
+	// the fallen never speaks before the narrator has told what its words answer (the first person's place, docs/70 section
+	// 8.2, carried on), and it never stands as the one who brought the expiry or the claim (docs/70 section 8.3, the
+	// manifestation rule (1) - first person or the passive of its result). Told only when TryPlaceClaim set a claimant's
+	// flag with no transcendent aware before it: the flag is per transcendent, the second person once per run (section 3.6
+	// (4)). Log.Transcendent - left out of the life
+	// chapter and read by neither of the two books (CosmicChronicle): heard in the feed alone. Severity 1, as the claim's
+	// first person - no auto pause (CosmicAutoPause::StopsFor begins at 2); the category gives its colour. About the ruled
+	// people, no system; from the third rung (MinViewerTier 3) - the viewer of this tick is the ruled people's rung, the
+	// third or above, so it is told. The claimant's AwarenessTemplates through PushVariants, no sign and no slot: one number
+	// of the tell stream, none of the sim stream; it writes neither the world nor Knowing (a Severity 1 line calls for no
+	// far line). A row with no AwarenessTemplates tells nothing and draws nothing; the flag stands all the same.
+	if (State.Transcendents.IsValidIndex(AwareClaimant))
+	{
+		const FTranscendentDef* Fallen = Tables.FindTranscendent(State.Transcendents[AwareClaimant].TranscendentID);
+		if (Fallen && !Fallen->AwarenessTemplates.IsEmpty())
+		{
+			UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+			check(Log);
+			FCosmicLine Line;
+			Line.Category = CosmicTags::LogTranscendent();
+			Line.Severity = 1;
+			Line.FocusCiv = State.Player.RuledCivID;
+			Line.SourceRow = State.Transcendents[AwareClaimant].TranscendentID;
+			Line.MinViewerTier = 3;
+			Log->PushVariants(Line, Fallen->AwarenessTemplates, FFormatNamedArguments());
+		}
+	}
 }
 
 bool UGalaxySimulationSubsystem::GraceKeepsLastSystem(FCosmicEvalContext& Ctx, int32 SystemIndex)

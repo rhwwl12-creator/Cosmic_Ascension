@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -366,7 +366,7 @@
+ 		// is the same whatever it answers.
+ 		const bool bFirstInRun = !State.Transcendents.ContainsByPredicate([](const FTranscendentState& Transcendent) { return Transcendent.bAwareOfPlayer; });
+ 		Ctx.State.Transcendents[Claimant].bAwareOfPlayer = true;
+-		return bFirstInRun ? Claimant : INDEX_NONE;
++		return Claimant;
+ 	}
+ 
+ 	// The expiry of a claim (section 4.2): the claimant of now joins the system to its sphere, unless the system is no

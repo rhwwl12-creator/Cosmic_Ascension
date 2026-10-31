@@ -1,0 +1,23 @@
+diff --git a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+--- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+@@ -100,7 +100,7 @@
+ 		for (int32 At = FMath::Max(0, Begin); At < End && At < Entries.Num(); ++At)
+ 		{
+ 			const FCosmicLogEntry& Entry = *Entries[At];
+-			if (Entry.Category == ClaimTag() || Entry.Category == RecordTag() || Entry.Category == CosmicTags::LogTranscendent()
++			if (Entry.Category == ClaimTag() || Entry.Category == RecordTag()
+ 				|| !CosmicChronicle::Admits(Entry, Peoples))
+ 			{
+ 				continue;
+@@ -208,10 +208,6 @@
+ 
+ 	// The fallen's awareness line (B6a header section 2.11) is heard in the feed alone: nothing of the chronicle shows it,
+ 	// so it never moves there when it leaves the log (State.Chronicle holds what the chronicle can show and no other).
+-	if (Entry.Category == CosmicTags::LogTranscendent())
+-	{
+-		return false;
+-	}
+ 	if (Entry.Category == CallingTag() || Entry.Category == ClaimTag() || Entry.Category == RecordTag() || Entry.Severity >= 2)
+ 	{
+ 		return true;

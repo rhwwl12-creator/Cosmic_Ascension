@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2671,7 +2671,7 @@
+ 			Line.FocusCiv = State.Player.RuledCivID;
+ 			Line.SourceRow = State.Transcendents[AwareClaimant].TranscendentID;
+ 			Line.MinViewerTier = 3;
+-			Log->PushVariants(Line, Fallen->AwarenessTemplates, FFormatNamedArguments());
++			Log->PushWithSign(Line, Fallen->AwarenessTemplates, CosmicRows::LogSignClaim, FFormatNamedArguments());
+ 		}
+ 	}
+ }

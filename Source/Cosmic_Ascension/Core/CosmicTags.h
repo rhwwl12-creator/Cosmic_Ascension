@@ -50,6 +50,15 @@ namespace CosmicTags
 		return Tag;
 	}
 
+	// B6a [B-6a5]: the fallen's awareness line (B6a header section 2.11) - the one second person, once per run, told at the
+	// end of the expiry whose claim made its claimant aware of the player. Heard in the feed only: the life chapter leaves it
+	// out (CosmicChronicle) and the two books read Log.Claim and Log.Record alone.
+	inline FGameplayTag LogTranscendent()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Transcendent")));
+		return Tag;
+	}
+
 	// B5: the role effect of a death (FCallingState::PendingEffect), the reign's end of a death, and the realm of the fallen
 	// whose sphere a succession avoids.
 	inline FGameplayTag EffectKillPlayer()

@@ -88,6 +88,7 @@ def transcendent_row(name="trans_silence", **changes):
         "EventWeightModifiers": {"Event.Civ.Economy": 1.5},
         "PressureEffectsPerTick": [eff("MultiplyIncome", key="Insight", value=0.7)],
         "VoiceTemplates": [],
+        "AwarenessTemplates": [],
         "ClaimTemplates": [],
     }
     row.update(changes)
@@ -505,7 +506,7 @@ class SchemaTests(unittest.TestCase):
         check = lambda text: checker.check_string_table("ST_X.csv", text, self.schema)  # noqa: E731
         verdict = self.schema["words"]["verdict"]
         self.assertEqual(self.schema["string_table"]["checked_prefixes"]["Chronicle."],
-                         {"forbidden": ["verdict", "soul_verbs", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words"], "no_digits": True})
+                         {"forbidden": ["verdict", "soul_verbs", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "holy_passive"], "no_digits": True})
         # (1) A slot carries its digit; the text around it does not.
         self.assertEqual(check('Key,SourceString\n"Chronicle.A","{0}주기 {Civ}|hpp(이,가)"\n'), [])
         self.expect(check('Key,SourceString\n"Chronicle.A","3주기"\n'), "entry 1 (Chronicle.A)", "a digit outside a slot")
@@ -1838,12 +1839,15 @@ class SchemaTests(unittest.TestCase):
         other = lambda tables: tables["DT_Transcendents"].append(transcendent_row(  # noqa: E731
             "trans_zeal", Doctrine="Doctrine.Zeal", ClaimTemplates=["{System} 고요 a.", "b.", "c."], Lure="쉼 a."))
         self.assertEqual(self.after(other), [])
-        # No second person in a claim line of a fallen row ('건너는' carries '너는' - the known false alarm); the lure may.
+        # No second person in a claim line of a fallen row ('건너는' carries '너는' - the known false alarm); nor in its lure
+        # (B6a header 3.2: the awareness line is the one second person).
         speaks = "a fallen one's claim line speaks to no one"
         for word in ("너는", "네게", "당신"):
             with self.subTest(word=word):
                 self.expect(self.after(claim(["{System} %s a." % word, "b.", "c."])), "DT_Transcendents.trans_silence", speaks)
-        self.assertEqual(self.after(lure("너는 a.")), [])
+        for word in ("너는", "네게", "당신"):
+            with self.subTest(word=word):
+                self.expect(self.after(lure("%s a." % word)), "DT_Transcendents.trans_silence", speaks, "Lure")
         self.assertEqual(self.after(self.set_cell("DT_Transcendents", "trans_covenant", "ClaimTemplates", [])), [])
         # The sign's row and the fleet line's row.
         sign = lambda **changes: (lambda tables: self.row(tables, "DT_LogTemplates", "log_sign_claim").update(**changes))  # noqa: E731
@@ -1993,7 +1997,12 @@ class SchemaTests(unittest.TestCase):
                 named = set(checker.forbidden_lists(spec)) & set(new_lists)
                 allowed = (set(death_lists) if prefix.startswith(places) else set()) | ({"rebirth_words"} if prefix.startswith("Succession.") else set())
                 self.assertEqual(named - allowed, set())
-        self.assertEqual([(table, column) for table, column, spec in self.columns_of(lambda spec: set(checker.forbidden_lists(spec)) & set(new_lists))], [])
+        # One column only, a column of its own (B6a [B-6a5], header 3.2): the fallen's awareness line refuses a return and a
+        # calling; no other list of a death hangs there.
+        self.assertEqual([(table, column) for table, column, spec in self.columns_of(lambda spec: set(checker.forbidden_lists(spec)) & set(new_lists))],
+                         [("DT_Transcendents", "AwarenessTemplates")])
+        awareness_spec = self.schema["tables"]["DT_Transcendents"]["columns"]["AwarenessTemplates"]
+        self.assertEqual(set(checker.forbidden_lists(awareness_spec)) & set(new_lists), {"rebirth_words", "called_away_words"})
         self.assertEqual(check('Key,SourceString\n"Wander.A","%s"\n' % " ".join(lists[listed][0] for listed in new_lists)), [])
 
         # (4a) The audit's words stand in their lists (critic-3: a list walked by the cases above loses a word in silence): the
@@ -2099,6 +2108,89 @@ class SchemaTests(unittest.TestCase):
         self.schema_problem(self.put(rule, "when", [{"col": "MinTierToReveal", "no_digits": True}]), "schema.DT_LogTemplates",
                             "the test 'no_digits' cannot be asked of a column of kind number")
         self.schema_problem(self.put(rule, "when", [{"col": "Templates", "no_digits": "yes"}]), "schema.DT_LogTemplates", "the test 'no_digits' needs true or false")
+
+    def test_awareness_and_end_words(self):
+        """B6a [B-6a5] (header 3.2, 3.4, 3.6): the fallen's awareness line - the first person's shared word lists with the
+        words of a return, a calling and a recognition, the silent one's four words, no slot, no digit, and the one place
+        where the fallen's mouth may say 'you'; the passive of the holy order and the idiom of an end that comes in every
+        chronicle key; the end's reason lines (Chronicle.Note.) with the holy words, the names above, the words of rest and
+        the revelation's words; the panel's two new lines with the verdict, the holy words and the words of rest."""
+        self.assertEqual(self.after(), [])
+        lists = self.schema["words"]
+        columns = self.schema["tables"]["DT_Transcendents"]["columns"]
+        # (1) The lists stand as the header wrote them ('다시 ' and '알아보았' of rebirth_words let '다시는' and '알아본다'
+        # through; '같은' was in no list).
+        self.assertEqual(lists["awareness_words"], ["같은", "똑같", "다시", "알아보", "알아본", "알아봤", "알아볼"])
+        self.assertEqual(lists["holy_passive"], ["맡겨졌", "맡겨진", "허락되", "허락된", "때가 찼", "때가 차", "때가 왔", "끝이 왔"])
+        # (2) The column: the first person's one form of words (the same as the claim line's and the lure's), then three more.
+        awareness = checker.forbidden_lists(columns["AwarenessTemplates"])
+        self.assertEqual(awareness[:6], columns["ClaimTemplates"]["forbidden"])
+        self.assertEqual(awareness[6:], ["rebirth_words", "called_away_words", "awareness_words"])
+        self.assertEqual(columns["VoiceTemplates"], {"kind": "texts"})
+        line = lambda lines: self.set_cell("DT_Transcendents", "trans_silence", "AwarenessTemplates", lines)  # noqa: E731
+        # The project's lines pass in the fixture's silent row; they speak to the vessel (the one second person of the mouth),
+        # and the claim line still may not.
+        project = json.loads(checker.read_sources()["DT_Transcendents.json"].decode("utf-8"))
+        told = next(row for row in project if row["Name"] == "trans_silence")["AwarenessTemplates"]
+        self.assertTrue(told)
+        self.assertEqual(self.after(line(told)), [])
+        self.assertEqual(self.after(line(["너는 a.", "네가 b.", "당신 c."])), [])
+        self.expect(self.after(self.set_cell("DT_Transcendents", "trans_silence", "ClaimTemplates", ["{System} 너는 a.", "b.", "c."])),
+                    "DT_Transcendents.trans_silence", "a fallen one's claim line speaks to no one")
+        # (3) One breaking case per new word: a sameness, a recognition, an again, a return, a calling read as a death.
+        for text, word in (("같은 부름의 냄새가 난다.", "같은"), ("나는 너를 알아본다.", "알아본"), ("다시는 닿지 못한다.", "다시"),
+                           ("너는 돌아왔다.", "돌아왔"), ("너는 부름을 받았다.", "부름을 받"), ("똑같은 손이다.", "똑같")):
+            with self.subTest(text=text):
+                self.expect(self.after(line([text, "b.", "c."])), "trans_silence.AwarenessTemplates", "the word %s is not used here" % word)
+        # The shared lists hold there too: a name above, a holy word, a verdict word.
+        for word in ("보좌", "성령", "천국"):
+            with self.subTest(shared=word):
+                self.expect(self.after(line(["너는 %s a." % word])), "trans_silence.AwarenessTemplates", "the word %s is not used here" % word)
+        self.expect(self.after(line(["{Player} a."])), "trans_silence.AwarenessTemplates", "slot {Player}")
+        self.expect(self.after(line(["너는 3 a."])), "trans_silence.AwarenessTemplates", "digit")
+        # (4) The silent one's four words, by the doctrine's rule; a fallen row of another doctrine may use them.
+        silence = "the silent one does not take the words of the revelation it counterfeits"
+        for word in lists["silence_words"]:
+            with self.subTest(silence=word):
+                self.expect(self.after(line(["네가 다스리는 곳의 %s a." % word])), "DT_Transcendents.trans_silence", silence, "AwarenessTemplates")
+        other = lambda tables: tables["DT_Transcendents"].append(transcendent_row("trans_zeal", Doctrine="Doctrine.Zeal", AwarenessTemplates=["너는 고요 a."]))  # noqa: E731
+        self.assertEqual(self.after(other), [])
+        # (5) Every chronicle key refuses the holy order's passive and the end that comes; a key under no chronicle prefix
+        # does not.
+        check = lambda text: checker.check_string_table("ST_X.csv", text, self.schema)  # noqa: E731
+        prefixes = self.schema["string_table"]["checked_prefixes"]
+        self.assertIn("holy_passive", checker.forbidden_lists(prefixes["Chronicle."]))
+        for word in lists["holy_passive"]:
+            for key in ("Chronicle.Rule", "Chronicle.Note.Clock"):
+                with self.subTest(key=key, passive=word):
+                    self.expect(check('Key,SourceString\n"%s","%s 이 판은 여기까지다."\n' % (key, word)), "entry 1 (%s)" % key, "the word %s is not used here" % word)
+        self.assertEqual(check('Key,SourceString\n"Wander.A","%s a."\n' % lists["holy_passive"][0]), [])
+        sources = checker.read_sources()
+        sources["ST_CA.csv"] = sources["ST_CA.csv"].rstrip(b"\r\n") + '\n"Chronicle.Note.Test","때가 찼다 — 이 판은 여기까지다."\n'.encode("utf-8")
+        self.expect(checker.check_sources(sources), "ST_CA.csv", "Chronicle.Note.Test", "the word 때가 찼 is not used here")
+        # (6) The end's reason lines: the chronicle's lists, the holy words, the names above, the words of rest and the
+        # revelation's words; another chronicle key is not held to the four.
+        note = prefixes["Chronicle.Note."]
+        self.assertTrue(set(checker.forbidden_lists(prefixes["Chronicle."])) <= set(checker.forbidden_lists(note)) and note.get("no_digits") is True, note)
+        for listed in ("holy_words", "realm_names", "silence_words", "revelation_mimicry"):
+            self.assertIn(listed, checker.forbidden_lists(note))
+            for word in lists[listed]:
+                with self.subTest(note=word):
+                    self.expect(check('Key,SourceString\n"Chronicle.Note.Test","%s a."\n' % word), "entry 1 (Chronicle.Note.Test)", "the word %s is not used here" % word)
+        self.assertEqual(check('Key,SourceString\n"Chronicle.Horizon","고요 a."\n'), [])
+        # (7) The panel's two new lines: no verdict, no holy word, no word of rest, a figure only in a slot; another panel
+        # key is a UI label and is not looked at.
+        for key in ("Panel.ClaimMayFollow", "Panel.RebellionWatch"):
+            spec = prefixes[key]
+            self.assertEqual(checker.forbidden_lists(spec), ["verdict", "holy_words", "silence_words"])
+            for listed in ("verdict", "holy_words", "silence_words"):
+                for word in lists[listed]:
+                    with self.subTest(key=key, word=word):
+                        self.expect(check('Key,SourceString\n"%s","%s a."\n' % (key, word)), "entry 1 (%s)" % key, "the word %s is not used here" % word)
+            with self.subTest(key=key, digit=True):
+                self.expect(check('Key,SourceString\n"%s","안정도 3 아래"\n' % key), "entry 1 (%s)" % key, "a digit outside a slot")
+                self.assertEqual(check('Key,SourceString\n"%s","안정도 {0} 아래로 {1}주기째"\n' % key), [])
+        self.assertEqual(check('Key,SourceString\n"Panel.Test","%s 3"\n' % lists["verdict"][0]), [])
 
     def test_a_text_has_one_form(self):
         """A word is found as it is written: a text is composed (NFC) and holds no invisible format character, so a verdict
@@ -3061,7 +3153,7 @@ class SchemaTests(unittest.TestCase):
                 (NOTHING, "trans_silence"),
             ("DT_Transcendents", "the silent one does not take the words of the revelation it counterfeits nor of the true rest: no 잠잠, 고요, 쉼, 안식 in its own words (B4 header 3.8, 3.9)"):
                 (NOTHING, "trans_silence"),
-            ("DT_Transcendents", "a fallen one's claim line speaks to no one: no second person - the player is not called, the holy order and another fallen are not spoken to (B4 header 3.9, the text audit's D1)"):
+            ("DT_Transcendents", "a fallen one's claim line speaks to no one: no second person - the player is not called, the holy order and another fallen are not spoken to (B4 header 3.9, the text audit's D1); nor does its lure - the awareness line is the one second person (B6a header 3.2, 3.6)"):
                 (NOTHING, "trans_silence"),
             ("DT_LogTemplates", "the sign of a claim that joined a sphere is a sign the code tells, about the claimed system and its people: told below the third rung before the fallen's own line (B4 header 2.6, 3.6)"):
                 (NOTHING, "log_sign_claim"),
@@ -3103,7 +3195,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 226, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 228, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 
@@ -3197,7 +3289,7 @@ class SchemaTests(unittest.TestCase):
                 change, where = self.set_path(table, row_name, column, value)
                 self.expect(self.after(change), where, "slot {NoSuchSlot}")
                 walked += 1
-        self.assertEqual(walked, 30, "the number of slot lists in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 31, "the number of slot lists in schema.json changed: look at what was added or taken out, then set the count")
 
 
 if __name__ == "__main__":

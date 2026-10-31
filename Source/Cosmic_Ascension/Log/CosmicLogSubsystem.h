@@ -99,7 +99,8 @@ public:
 
 	/**
 	 * Tells one line out of a caller-owned array of sentence variants: an event row's LogTemplates, the Templates of a
-	 * DT_LogTemplates row, a transcendent row's ClaimTemplates (its VoiceTemplates wait for their reader - B6). The single
+	 * DT_LogTemplates row, a transcendent row's ClaimTemplates or AwarenessTemplates (B6a; its VoiceTemplates wait for their
+	 * reader - B8). The single
 	 * home of the variant rule and the only caller of DrawTell (section 7.5, 9.2).
 	 * Draws exactly one number from the tell stream, also for a single variant, before the scope is looked at, and never
 	 * from the sim stream. If the rendered result reads the same as the last line that was told (entries marked bUntold

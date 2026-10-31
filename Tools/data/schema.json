@@ -18,7 +18,8 @@
 		"What a rule names has to exist: a test over a column the table does not declare, a tag the ini lacks, a name that is no enumerator or a row the table neither requires nor has is a problem (it would never hold).",
 		"required_rows are the rows the code calls by name: the checker holds them, both ways, to the names in the headers under row_name_sources. A table that has an asset carries must_exist.",
 		"epitaph_leaves_out (B5): the DT_Encounters rows whose title the epitaph never shows among a dead vessel's last answers - the code holds the same rows as CosmicRows::EpitaphLeavesOut, so each is a required row of DT_Encounters. A card title that speaks to the reader (a word of words.reader_address, or it ends in a word of words.reader_question_ends) has to be listed there: the death and inauguration pages keep the third person (decision 12-da). The [B-5d1] text audit lists four more, whose titles read as a eulogy under a death (a virtue, a memorial day, the two 'beside' titles of the sacrifice reading - header 3.6-1): those titles stay right on their own cards.",
-		"The words of a death (B5 [B-5d1], header 3.5): afterlife_words (an idiom that tells where the dead went, and the words of an afterlife), book_of_life_words (the book of life), called_away_words (a calling read as a death) and remnant_words (the word of election - Log.Record rows only), with death_frame_words (an agent, a sacrifice or a cause of the death - the death row only), rebirth_words (a return or a rebirth - the inauguration rows and Succession. only) and record_object_words (days, names, people or the dead as what was recorded - Log.Record rows only), are matched letter for letter, so a short word is found inside others: they hang on the new places alone - the string keys under Epitaph., Reign., Digest., Succession. and Chronicle. (the two books' chapter), and the DT_LogTemplates rows of Log.Record with the death and inauguration rows - never on a whole column ('잠들지' and '돌아가' already stand elsewhere).",
+		"The words of a death (B5 [B-5d1], header 3.5): afterlife_words (an idiom that tells where the dead went, and the words of an afterlife), book_of_life_words (the book of life), called_away_words (a calling read as a death) and remnant_words (the word of election - Log.Record rows only), with death_frame_words (an agent, a sacrifice or a cause of the death - the death row only), rebirth_words (a return or a rebirth - the inauguration rows and Succession. only) and record_object_words (days, names, people or the dead as what was recorded - Log.Record rows only), are matched letter for letter, so a short word is found inside others: they hang on the new places alone - the string keys under Epitaph., Reign., Digest., Succession. and Chronicle. (the two books' chapter), and the DT_LogTemplates rows of Log.Record with the death and inauguration rows - never on a whole column ('잠들지' and '돌아가' already stand elsewhere), save one: the fallen's awareness line (DT_Transcendents.AwarenessTemplates, B6a header 3.2) refuses rebirth_words and called_away_words, a column of its own that only that line fills.",
+		"The words of the awareness and of the end (B6a [B-6a5], header 3.2, 3.4): awareness_words (a sameness, an again and a recognition - the fallen's one second-person line would read as knowing the vessel again; '다시 ' and '알아보았' of rebirth_words let '다시는' and '알아본다' through) hang on DT_Transcendents.AwarenessTemplates alone, and holy_passive (the passive of the holy order and the idiom of an end that comes) on every string key under Chronicle., so that no reason line ties the holy order to the end of a run.",
 		"A table whose columns are null has no rows yet: its columns are declared when its first row is written."
 	],
 	"tag_sources": ["Config/DefaultGameplayTags.ini"],
@@ -54,12 +55,15 @@
 		"remnant_words": ["남은 자"],
 		"death_frame_words": ["불이 내려", "쏟아져", "내리쳐", "그들을 위해", "위하여", "했기에"],
 		"rebirth_words": ["다시 ", "돌아오", "돌아왔", "태어나", "태어났", "거듭나", "머물렀", "임했", "깃들", "알아보았"],
+		"awareness_words": ["같은", "똑같", "다시", "알아보", "알아본", "알아봤", "알아볼"],
+		"holy_passive": ["맡겨졌", "맡겨진", "허락되", "허락된", "때가 찼", "때가 차", "때가 왔", "끝이 왔"],
 		"record_object_words": ["날들", "이름", "사람", "죽은 자", "죽은 이", "남은 이"]
 	},
 
 	"string_table": {
 		"checked_prefixes": {
-			"Chronicle.": {"forbidden": ["verdict", "soul_verbs", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words"], "no_digits": true},
+			"Chronicle.": {"forbidden": ["verdict", "soul_verbs", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "holy_passive"], "no_digits": true},
+			"Chronicle.Note.": {"forbidden": ["verdict", "soul_verbs", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "holy_passive", "holy_words", "realm_names", "silence_words", "revelation_mimicry"], "no_digits": true},
 			"Chronicle.NoVessel": {"forbidden": ["verdict", "soul_verbs", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "silence_words"], "no_digits": true},
 			"Epitaph.": {"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "reader_address"], "no_digits": true},
 			"Reign.": {"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words"], "no_digits": true},
@@ -80,7 +84,9 @@
 			"Siege.": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
 			"Guard.": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
 			"Petition.Resist": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
-			"Petition.Edict": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true}
+			"Petition.Edict": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
+			"Panel.ClaimMayFollow": {"forbidden": ["verdict", "holy_words", "silence_words"], "no_digits": true},
+			"Panel.RebellionWatch": {"forbidden": ["verdict", "holy_words", "silence_words"], "no_digits": true}
 		}
 	},
 
@@ -559,6 +565,7 @@
 				"EventWeightModifiers": {"kind": "tag_map", "root": "Event.", "min": 0},
 				"PressureEffectsPerTick": {"kind": "effects", "per_tick": true},
 				"VoiceTemplates": {"kind": "texts"},
+				"AwarenessTemplates": {"kind": "texts", "slots": [], "no_digits": true, "forbidden": ["verdict_without_soul", "holy_words", "holy_and_myth", "realm_names", "rescue_words", "revelation_mimicry", "rebirth_words", "called_away_words", "awareness_words"]},
 				"ClaimTemplates": {"kind": "texts", "slots": ["System"], "no_digits": true, "forbidden": ["verdict_without_soul", "holy_words", "holy_and_myth", "realm_names", "rescue_words", "revelation_mimicry"]}
 			},
 			"unique": [
@@ -611,12 +618,12 @@
 				{
 					"why": "the silent one does not take the words of the revelation it counterfeits nor of the true rest: no 잠잠, 고요, 쉼, 안식 in its own words (B4 header 3.8, 3.9)",
 					"when": [{"col": "Doctrine", "is": "Doctrine.Silence"}],
-					"then": [{"col": "ClaimTemplates", "lacks_words": "silence_words"}, {"col": "Lure", "lacks_words": "silence_words"}]
+					"then": [{"col": "ClaimTemplates", "lacks_words": "silence_words"}, {"col": "Lure", "lacks_words": "silence_words"}, {"col": "AwarenessTemplates", "lacks_words": "silence_words"}]
 				},
 				{
-					"why": "a fallen one's claim line speaks to no one: no second person - the player is not called, the holy order and another fallen are not spoken to (B4 header 3.9, the text audit's D1)",
+					"why": "a fallen one's claim line speaks to no one: no second person - the player is not called, the holy order and another fallen are not spoken to (B4 header 3.9, the text audit's D1); nor does its lure - the awareness line is the one second person (B6a header 3.2, 3.6)",
 					"when": [{"col": "Allegiance", "is": "Realm.Abyssal"}],
-					"then": [{"col": "ClaimTemplates", "lacks_words": "second_person"}]
+					"then": [{"col": "ClaimTemplates", "lacks_words": "second_person"}, {"col": "Lure", "lacks_words": "second_person"}]
 				}
 			]
 		},

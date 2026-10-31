@@ -676,11 +676,21 @@ struct COSMIC_ASCENSION_API FTranscendentDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicEffect> PressureEffectsPerTick;
 
-	// First-person templates of the fallen's other speech (its awareness and the hedge's testimony). Nothing reads them
-	// yet: the schema keeps them empty until the code that tells them comes (B6, with #117 - B4 header section 2.6). Only
-	// Realm.Abyssal speaks in first person (section 8.2).
+	// First-person templates of the hedge's testimony (B8, #159). Nothing reads them yet: the schema keeps them empty until
+	// the code that tells them comes. Only Realm.Abyssal speaks in first person (section 8.2).
 	UPROPERTY(EditAnywhere)
 	TArray<FText> VoiceTemplates;
+
+	// First-person awareness templates (B6a header section 2.11, 3.2): told once per run, in the crisis stage's expiry where
+	// a claim first stands on a settled system of the ruled people while that people is on the third rung or above, as the
+	// last line of that expiry (after the narrator's expiry line, the record line, the sign and the first-person line, and
+	// the new claim's outbreak line) - Log.Transcendent, Severity 1, from the third rung, about the ruled people, one draw
+	// of the tell stream; not in the life chapter nor the two books. The one second-person line of the fallen's mouth
+	// (docs/70 section 8.3, the voice of the transcendent): it says nothing of what the vessel holds and points above only
+	// as the first person does. No slot, no digits, the first-person word lists with the words of a return, a calling and
+	// a recognition (schema). A definition column, not saved.
+	UPROPERTY(EditAnywhere)
+	TArray<FText> AwarenessTemplates;
 
 	// First-person Log.Claim templates (B4 header section 2.6): told when a Hazard.Claim expires and its system joins this
 	// transcendent's sphere, after the narrator's expiry line and the sign (log_sign_claim, below the third rung) - through

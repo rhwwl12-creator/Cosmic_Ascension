@@ -1,0 +1,21 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2661,7 +2661,7 @@
+ 	if (State.Transcendents.IsValidIndex(AwareClaimant))
+ 	{
+ 		const FTranscendentDef* Fallen = Tables.FindTranscendent(State.Transcendents[AwareClaimant].TranscendentID);
+-		if (Fallen && !Fallen->AwarenessTemplates.IsEmpty())
++		if (Fallen && !Fallen->VoiceTemplates.IsEmpty())
+ 		{
+ 			UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+ 			check(Log);
+@@ -2671,7 +2671,7 @@
+ 			Line.FocusCiv = State.Player.RuledCivID;
+ 			Line.SourceRow = State.Transcendents[AwareClaimant].TranscendentID;
+ 			Line.MinViewerTier = 3;
+-			Log->PushVariants(Line, Fallen->AwarenessTemplates, FFormatNamedArguments());
++			Log->PushVariants(Line, Fallen->VoiceTemplates, FFormatNamedArguments());
+ 		}
+ 	}
+ }

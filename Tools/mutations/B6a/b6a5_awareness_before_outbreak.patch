@@ -1,0 +1,20 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2643,8 +2643,6 @@
+ 			Log->PushWithSign(Line, Fallen->ClaimTemplates, CosmicRows::LogSignClaim, Args);
+ 		}
+ 	}
+-	Events->FollowUpNotes(Ctx);
+-
+ 	// The awareness line (B6a header section 2.11, decision 7): the last line of this expiry. The order is expiry, record,
+ 	// sign and first person, the new claim's outbreak line (FollowUpNotes above - Place left only its note), then this one:
+ 	// the fallen never speaks before the narrator has told what its words answer (the first person's place, docs/70 section
+@@ -2674,6 +2672,7 @@
+ 			Log->PushVariants(Line, Fallen->AwarenessTemplates, FFormatNamedArguments());
+ 		}
+ 	}
++	Events->FollowUpNotes(Ctx);
+ }
+ 
+ bool UGalaxySimulationSubsystem::GraceKeepsLastSystem(FCosmicEvalContext& Ctx, int32 SystemIndex)

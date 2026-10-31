@@ -565,7 +565,8 @@ private:
 	 * Hazard.Claim: the join); the slot emptied; the claim rule on that slot; the expiry line (a claim that did not join
 	 * tells the resolution line); the record line of a people's irreversible loss (B5 decision 11 - CosmicRows::
 	 * LogRecordDestroyed when a settled system was destroyed, CosmicRows::LogRecordAnnexed when a claim joined; Log.Record,
-	 * kept untold, one tell number); the voice of a join (its sign, then the fallen's first-person line); FollowUpNotes.
+	 * kept untold, one tell number); the voice of a join (its sign, then the fallen's first-person line); FollowUpNotes; then the awareness line (B6a header
+	 * section 2.11 - once per run, for the claimant TryPlaceClaim returned).
 	 * Should the effects have made the system its owner's last settled system after the gate let it pass (no row of the game can: Data.Integrity keeps TransferSystem out of the expiry effects
 	 * and out of OnResolveEffects, which a ResolveHazard on a neighbour runs), the gate is asked again, with an error line,
 	 * before the code of the tag takes it; a system kept then has taken the effects already: what they handed to the

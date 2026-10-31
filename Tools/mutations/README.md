@@ -678,3 +678,13 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B6a/` | `b6a4_rebellion_watch_no_floor.patch` — the rebellion watch's wait ignores the row's first tick (`GalaxyTickAtLeast`) | `Cosmic_Ascension.UI.RebellionWatch` |
 | `B6a/` | `b6a4_ruled_people_reads_view.patch` — the ruled people's end is named only when the knowing shows it | `Cosmic_Ascension.UI.Chronicle` |
 | `B6a/` | `b6a4_claim_line_any_owner.patch` — the system panel's claim warning stands on any owner's settled system, not only the ruled people's | `Cosmic_Ascension.UI.ClaimMayFollow` |
+| `B6a/` | `b6a5_awareness_category_claim.patch` — the awareness line is told as `Log.Claim`: the two books gather it | `Cosmic_Ascension.Log.AwarenessVoice` |
+| `B6a/` | `b6a5_awareness_severity_2.patch` — the awareness line is Severity 2: the automatic pause stops for it | `Cosmic_Ascension.Log.AwarenessVoice` |
+| `B6a/` | `b6a5_awareness_gate_own_flag.patch` — the line's gate is the claimant's own flag, not 'no transcendent aware before': a second fallen's first claim tells a second line | `Cosmic_Ascension.Log.AwarenessVoice` |
+| `B6a/` | `b6a5_awareness_with_sign.patch` — the awareness line is told with a sign (`PushWithSign`): two numbers of the tell stream | `Cosmic_Ascension.Log.AwarenessVoice` |
+| `B6a/` | `b6a5_awareness_before_outbreak.patch` — the awareness line is told before the new claim's outbreak line (it is no longer the expiry's last line) | `Cosmic_Ascension.Log.AwarenessVoice` |
+| `B6a/` | `b6a5_life_chapter_admits_awareness.patch` — both chronicle gates of `Log.Transcendent` go (the life chapter's gather and `Admits`): the awareness line moves into the chronicle and a chapter shows it | `Cosmic_Ascension.Log.AwarenessVoice` |
+| `B6a/` | `b6a5_admits_awareness.patch` — `CosmicChronicle::Admits` takes the awareness line when it leaves the log (a saved entry nothing can show, holding a slot of the chronicle's cap) | `Cosmic_Ascension.Log.AwarenessVoice` |
+| `B6a/` | `b6a5_succession_clears_flags.patch` — a succession clears every `bAwareOfPlayer` (the flag must survive it - B6a decision 7-na) | `Cosmic_Ascension.Log.AwarenessVoice` |
+| `B6a/` | `b6a5_awareness_reads_voice.patch` — the awareness line reads `VoiceTemplates` (the hedge's testimony, empty in the game) instead of `AwarenessTemplates` | `Cosmic_Ascension.Log.AwarenessVoice` |
+| `B6a/` | `b6a5_awareness_writes_knowing.patch` — the awareness line's block writes the knowing (`FarLineUntilTick`) | `Cosmic_Ascension.Log.AwarenessVoice` |
