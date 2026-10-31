@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicEndings.cpp b/Source/Cosmic_Ascension/Sim/CosmicEndings.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicEndings.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEndings.cpp
+@@ -40,7 +40,7 @@
+ 	// 1 The ruled people: some life's peak. The people is the last of that life's reigns that stands on the fifth rung now.
+ 	for (const FLifeRecord& Life : Calling.Lives)
+ 	{
+-		if (Life.PeakTier != FifthRung)
++		if (Life.PeakTier != FifthRung || State.Civs.ContainsByPredicate([](const FCivilizationState& Civ) { return Civ.Tier == EAscensionTier::Tier5_EternalOrder; }))
+ 		{
+ 			continue;
+ 		}

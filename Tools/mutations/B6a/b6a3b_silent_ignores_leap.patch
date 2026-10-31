@@ -1,0 +1,10 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicSuccession.cpp b/Source/Cosmic_Ascension/Sim/CosmicSuccession.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicSuccession.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicSuccession.cpp
+@@ -96,5 +96,5 @@
+ 
+ bool CosmicSuccession::IsSilent(const FCallingState& Calling)
+ {
+-	return Calling.LifeState == ELifeState::Interregnum && Calling.PendingLeapTicks <= 0;
++	return Calling.LifeState == ELifeState::Interregnum;
+ }

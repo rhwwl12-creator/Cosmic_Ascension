@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1619,6 +1619,7 @@
+ 			if (Record.Kind.IsValid())
+ 			{
+ 				State.Ending = Record;
++				Rng.GetUnsignedInt();
+ 			}
+ 		}
+ 		SyncRngState();

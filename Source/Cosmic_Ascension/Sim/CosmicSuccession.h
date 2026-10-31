@@ -10,6 +10,7 @@
 
 #include "CoreMinimal.h"
 
+struct FCallingState;
 struct FCosmicDataTables;
 struct FCosmicRulesDef;
 struct FCosmicStateIndex;
@@ -52,4 +53,12 @@ namespace CosmicSuccession
 	 * one at 1 or above as the longest.
 	 */
 	COSMIC_ASCENSION_API int64 LeapOf(const FCosmicRulesDef& Rules, int64 LeapTicksTotal, float Number);
+
+	/**
+	 * The silence (B5 header section 2.1; an ending from B6a - Ending.NoCandidate): the calling waits in the interregnum with
+	 * no leap left - LifeState is Interregnum and PendingLeapTicks is 0 or below. At a tick boundary this is the tenth stage
+	 * having found no candidate (CandidatesOf empty at the leap's end, or at the death of a leap of 0): it stays so and tries
+	 * no succession again. The one predicate of the silence (rule 13): CosmicEndings::EndingOf and the controller read it.
+	 */
+	COSMIC_ASCENSION_API bool IsSilent(const FCallingState& Calling);
 }

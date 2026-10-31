@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicEndings.cpp b/Source/Cosmic_Ascension/Sim/CosmicEndings.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicEndings.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEndings.cpp
+@@ -65,7 +65,7 @@
+ 	{
+ 		for (const FCivilizationState& Civ : State.Civs)
+ 		{
+-			if (Civ.Tier == FifthRung)
++			if (Civ.Tier == FifthRung && State.Knowing.MetCivs.ContainsByPredicate([&Civ](const FKnownMark& Mark) { return Mark.ID == Civ.CivID; }))
+ 			{
+ 				Record.Kind = CosmicTags::EndingOtherPeople();
+ 				Record.CivID = Civ.CivID;

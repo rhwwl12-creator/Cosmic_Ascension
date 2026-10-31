@@ -27,6 +27,7 @@
 #include "Sim/CosmicConflict.h"
 #include "Sim/CosmicDiplomacy.h"
 #include "Sim/CosmicEdicts.h"
+#include "Sim/CosmicEndings.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
@@ -1208,7 +1209,6 @@ void UGalaxySimulationSubsystem::RunHeadless(int64 Ticks)
 	for (int64 Index = 0; Index < Ticks; ++Index)
 	{
 		SimulateTick();
-		// Section 4.4: once endings exist, the ending conditions are checked here every tick and stop the run early.
 	}
 }
 
@@ -1608,6 +1608,19 @@ void UGalaxySimulationSubsystem::SimulateTick()
 		// The tenth stage, inside the guard (B5): death, deposition and the leap's countdown replace the vessel; no tick runs
 		// from here.
 		ResolvePendingRoleEffect();
+		// The record of the end (B6a header section 2.3): after the tenth stage - this tick's death, succession and deposition are
+		// done, so LifeState and PendingLeapTicks (the silence, bNoVessel) are the tick's answer - and only while none is written:
+		// the first end is the run's end, never overwritten, and EndingOf is not even called once one stands. Once, no draw from
+		// any of the three sources, no line, no knowing write. Not a stage: nothing inside a stage reads it, so the world after the
+		// end runs as it would without it (the sim records the end and does not stop).
+		if (!State.Ending.Kind.IsValid())
+		{
+			const FCosmicEndingRecord Record = CosmicEndings::EndingOf(State, Rules);
+			if (Record.Kind.IsValid())
+			{
+				State.Ending = Record;
+			}
+		}
 		SyncRngState();
 	}
 

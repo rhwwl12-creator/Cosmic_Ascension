@@ -35,6 +35,7 @@
 #include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicResearch.h"
 #include "Sim/CosmicStateIndex.h"
+#include "Sim/CosmicSuccession.h"
 #include "Sim/CosmicWanderer.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Templates/Tuple.h"
@@ -888,10 +889,11 @@ namespace CosmicCallingFlowImpl
 		return State.Calling.LifeState == ELifeState::Embodied && State.Calling.Lives.Num() - 1 > LifeAt;
 	}
 
-	// The silence: the calling waits in the interregnum with no leap left (no candidate stood at the leap's end).
+	// The silence: the calling waits in the interregnum with no leap left (no candidate stood at the leap's end). The one
+	// predicate in Sim (rule 13 - CosmicSuccession::IsSilent).
 	bool IsSilent(const FGalaxyState& State)
 	{
-		return State.Calling.LifeState == ELifeState::Interregnum && State.Calling.PendingLeapTicks <= 0;
+		return CosmicSuccession::IsSilent(State.Calling);
 	}
 
 	// The leap of the epitaph's 'next' and 'skip' (header section 2.6): AdvanceLeap; a leap that ended in the silence runs on

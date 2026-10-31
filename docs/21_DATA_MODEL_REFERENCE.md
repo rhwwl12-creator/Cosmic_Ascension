@@ -322,7 +322,7 @@ UPROPERTY(BlueprintReadOnly) FGameplayTag Doctrine; // Doctrine.Silence / Assimi
 
 UPROPERTY(BlueprintReadOnly) TArray<FName> InfluencedSystems; // 영향권. Hazard.Claim 만료가 성계를 여기에 편입한다 (§4.2 영혼 경제). 상한 FTranscendentDef.MaxInfluencedSystems(개체당 판 전체의 합 — 은하가 늘어도 같다, §4.2). Realm.Celestial 행은 상태 인스턴스를 만들지 않는다
 
-UPROPERTY(BlueprintReadOnly) bool bAwareOfPlayer = false; // 계승을 넘어 유지 (§4.4). 지금은 아무도 쓰지 않는다 — (B6a — `[B-6a3a]`부터) 위기 단계의 주장 규칙 뒤에 초월자마다 한 번 쓴다(§7.4 TickHazards ⓑ)
+UPROPERTY(BlueprintReadOnly) bool bAwareOfPlayer = false; // 계승을 넘어 유지 (§4.4). (B6a — `[B-6a3a]`부터) 위기 단계의 주장 규칙 뒤에 초월자마다 한 번 쓴다(§7.4 TickHazards ⓑ)
 
 UPROPERTY(BlueprintReadOnly) bool bSealed = false;
 
@@ -496,7 +496,7 @@ UPROPERTY() FName ResultCivID; // 도착해 생긴 문명의 CivID. 빈 값 = �
 
 };
 
-// 판이 어떻게 끝났는가 (B6a — 헤더 docs/60_DECISIONS/headers/B6a_endings_and_the_run_past_the_third_rung.md 2.1절, 결정 3·6-가): 기록 하나, FGalaxyState.Ending. 지금은 아무도 쓰지 않는다 — (B6a — `[B-6a3b]`부터) 끝을 낸 틱이 열째 단계 뒤에 한 번 쓴다(§7.4 SimulateTick, CosmicEndings::EndingOf). 빈 Kind = 판이 계속된다. 끝은 이 필드 하나다 — 끝의 틱·종류를 다른 필드에 베끼지 않는다. 모든 초기값은 첫 세이브부터 동결(§9.1, 불변 규칙 7): 빈 기록은 쓰이지 않으므로(델타 저장) 이 필드 전의 세이브는 빈 기록으로 읽힌다(B6a 결정 2-다, SaveVersion은 1 그대로) — (B6a — `[B-6a3a]`부터) 셋째 칸으로 끝난 MVP 세이브도 흐르는 판으로 열린다. 세계 상태 — 두 해시에 든다(결정 3)
+// 판이 어떻게 끝났는가 (B6a — 헤더 docs/60_DECISIONS/headers/B6a_endings_and_the_run_past_the_third_rung.md 2.1절, 결정 3·6-가): 기록 하나, FGalaxyState.Ending. (B6a — `[B-6a3b]`부터) 끝을 낸 틱이 열째 단계 뒤에 한 번 쓴다(§7.4 SimulateTick, CosmicEndings::EndingOf). 빈 Kind = 판이 계속된다. 끝은 이 필드 하나다 — 끝의 틱·종류를 다른 필드에 베끼지 않는다. 모든 초기값은 첫 세이브부터 동결(§9.1, 불변 규칙 7): 빈 기록은 쓰이지 않으므로(델타 저장) 이 필드 전의 세이브는 빈 기록으로 읽힌다(B6a 결정 2-다, SaveVersion은 1 그대로) — (B6a — `[B-6a3a]`부터) 셋째 칸으로 끝난 MVP 세이브도 흐르는 판으로 열린다. 세계 상태 — 두 해시에 든다(결정 3)
 
 USTRUCT(BlueprintType)
 

@@ -6,6 +6,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Core/CosmicTypes.h"
+#include "Core/CosmicTags.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
@@ -19,6 +20,7 @@
 #include "Misc/ScopeExit.h"
 #include "Sim/CosmicEndings.h"
 #include "Sim/GalaxySimulationSubsystem.h"
+#include "Templates/Tuple.h"
 #include "Tests/CosmicTestHelpers.h"
 
 #include <initializer_list>
@@ -192,12 +194,17 @@ bool FCosmicSimProvisionalEndTest::RunTest(const FString& Parameters)
 		Sim->SetTables(CosmicTests::WithRules(Original, Knobbed));
 		Sim->NewGalaxy(42, 5, 3);
 		Sim->RunHeadless(300);
-		return TPair<uint32, uint32>(Sim->ComputeStateHash(), Sim->ComputeWorldHash());
+		// B6a [B-6a3b]: the clock's tick writes the ending record (world state - Sim.EndingInert); the rest of the run is the
+		// same, so the record is set aside before the hashes.
+		const FCosmicEndingRecord Record = Sim->GetState().Ending;
+		Sim->GetMutableState().Ending = FCosmicEndingRecord();
+		return TTuple<uint32, uint32, FCosmicEndingRecord>(Sim->ComputeStateHash(), Sim->ComputeWorldHash(), Record);
 	};
-	const TPair<uint32, uint32> Early = WorldWith(200);
-	const TPair<uint32, uint32> Never = WorldWith(0);
-	TestEqual(TEXT("A clock end at 200 is the same run as none (state)"), Early.Key, Never.Key);
-	TestEqual(TEXT("and the same world"), Early.Value, Never.Value);
+	const TTuple<uint32, uint32, FCosmicEndingRecord> Early = WorldWith(200);
+	const TTuple<uint32, uint32, FCosmicEndingRecord> Never = WorldWith(0);
+	TestTrue(TEXT("(the clock at 200 wrote its record at 200; no clock wrote none)"), Early.Get<2>().Kind == CosmicTags::EndingClock() && Early.Get<2>().Tick == 200 && !Never.Get<2>().Kind.IsValid());
+	TestEqual(TEXT("A clock end at 200 is the same run as none but for its record (state)"), Early.Get<0>(), Never.Get<0>());
+	TestEqual(TEXT("and the same world"), Early.Get<1>(), Never.Get<1>());
 	return true;
 }
 

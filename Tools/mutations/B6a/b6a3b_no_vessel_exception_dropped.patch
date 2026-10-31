@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicEndings.cpp b/Source/Cosmic_Ascension/Sim/CosmicEndings.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicEndings.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEndings.cpp
+@@ -92,7 +92,7 @@
+ 	// rung was reached at the end of the AI stage, while it stood, before the tenth stage carried the death out.
+ 	const bool bRungOfThisTick = (Record.Kind == CosmicTags::EndingRuledPeople() || Record.Kind == CosmicTags::EndingOtherPeople())
+ 		&& Calling.Lives.Last().DiedTick == State.Tick;
+-	Record.bNoVessel = Calling.LifeState == ELifeState::Interregnum && !bRungOfThisTick;
++	Record.bNoVessel = Calling.LifeState == ELifeState::Interregnum && (bRungOfThisTick || !bRungOfThisTick);
+ 	return Record;
+ }
+ 

@@ -986,6 +986,18 @@ namespace
 		return FString::Printf(TEXT("%d %s (answer running %d, owner Influence mean %.1f)"), Ends.Count, Name, Ends.WithAnswer,
 			Ends.Count > 0 ? Ends.OwnerInfluence / Ends.Count : 0.0);
 	}
+
+	// B6a [B-6a3b] (header section 5.1): the end check's comparison - the record's four fields.
+	bool EndCheckSame(const FCosmicEndingRecord& A, const FCosmicEndingRecord& B)
+	{
+		return A.Kind == B.Kind && A.Tick == B.Tick && A.CivID == B.CivID && A.bNoVessel == B.bNoVessel;
+	}
+
+	FString EndCheckText(const FCosmicEndingRecord& Record)
+	{
+		return FString::Printf(TEXT("%s at %lld people %s no vessel %d"), CosmicEndings::NameOf(Record.Kind), Record.Tick, *Record.CivID.ToString(),
+			Record.bNoVessel ? 1 : 0);
+	}
 }
 
 int32 UCosmicBalanceCommandlet::Main(const FString& Params)
@@ -1197,6 +1209,12 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		// The people of the first reign: the ruler line's rung ticks are that people's (B1 - a later throne is the wanderer
 		// line's).
 		const FName FirstRuled = (!State.Calling.Lives.IsEmpty() && !State.Calling.Lives[0].RuledCivIDs.IsEmpty()) ? State.Calling.Lives[0].RuledCivIDs[0] : NAME_None;
+		// B6a [B-6a3b] (header section 5.1): the end check - the record the state must hold at every boundary (empty until the
+		// ending predicate first holds, then the predicate's answer at that boundary for the rest of the run), the boundaries
+		// at which it did not, and the first of them.
+		FCosmicEndingRecord EndCheckExpected;
+		int64 EndCheckMisses = 0;
+		int64 EndCheckFirstMiss = -1;
 		for (int64 Done = 0; Done < Ticks; ++Done)
 		{
 			Before.Reset();
@@ -1366,6 +1384,32 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 							Counts.ConflictSev2InChapter += (Line.Entry.Category == ConflictTag && Line.Entry.Severity >= 2 && Line.bOwn) ? 1 : 0;
 						}
 					}
+				}
+			}
+
+			// B6a [B-6a3b] (header section 5.1): the end check, at this boundary before the ruler's input. The ending predicate is
+			// asked until it first holds; from then on its answer at that boundary is the record. The state's record must be
+			// empty before it, the same four fields at it and unchanged after it (written once, after the tenth stage of the tick
+			// the predicate first held) - an invariant with no fair exception, so a miss fails the run. Nothing is printed while
+			// it holds (every batch's log has no end check line).
+			{
+				if (!EndCheckExpected.Kind.IsValid())
+				{
+					const FCosmicEndingRecord Predicate = CosmicEndings::EndingOf(State, Sim->GetRules());
+					EndCheckExpected = Predicate.Kind.IsValid() ? Predicate : EndCheckExpected;
+				}
+				if (!EndCheckSame(State.Ending, EndCheckExpected))
+				{
+					if (EndCheckMisses == 0)
+					{
+						const TCHAR* Where = !EndCheckExpected.Kind.IsValid() ? TEXT("before the predicate holds")
+							: (EndCheckExpected.Tick == State.Tick ? TEXT("where the predicate first holds") : TEXT("after the predicate first held"));
+						UE_LOG(LogCosmic, Error, TEXT("CosmicBalance end check: at %lld (%s) the record is %s, the predicate's is %s"), State.Tick, Where,
+							*EndCheckText(State.Ending), *EndCheckText(EndCheckExpected));
+						EndCheckFirstMiss = State.Tick;
+					}
+					++EndCheckMisses;
+					Result = 1;
 				}
 			}
 
@@ -2229,6 +2273,11 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				SampleMicros = 0.0;
 				SampleTicks = 0;
 			}
+		}
+		// B6a [B-6a3b]: the end check names its first miss in the loop; more than one is counted here, once.
+		if (EndCheckMisses > 1)
+		{
+			UE_LOG(LogCosmic, Error, TEXT("CosmicBalance end check: the record missed at %lld boundaries, the first at %lld"), EndCheckMisses, EndCheckFirstMiss);
 		}
 
 		if (FFileHelper::SaveStringToFile(Csv, *OutPath) && FFileHelper::SaveStringToFile(Rows, *RowsPath))

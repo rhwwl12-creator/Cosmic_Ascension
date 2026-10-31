@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1613,7 +1613,7 @@
+ 		// the first end is the run's end, never overwritten, and EndingOf is not even called once one stands. Once, no draw from
+ 		// any of the three sources, no line, no knowing write. Not a stage: nothing inside a stage reads it, so the world after the
+ 		// end runs as it would without it (the sim records the end and does not stop).
+-		if (!State.Ending.Kind.IsValid())
++		if (true)
+ 		{
+ 			const FCosmicEndingRecord Record = CosmicEndings::EndingOf(State, Rules);
+ 			if (Record.Kind.IsValid())

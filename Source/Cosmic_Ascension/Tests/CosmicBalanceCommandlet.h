@@ -39,8 +39,11 @@
  * lines by tick 600 and 6,000, and the ticks at which the ruled people reached the second and the third rung), and the provisional end ("CosmicBalance end: first <cause>
  * at <tick>; clock at, deposed at; chronicle life <n> shown <lines> of <candidates>, more <0|1>" - looked at after
  * every tick, nothing stops at it - and the uncapped chapter's lines by the cap's four ranks, "ranks a/b/c/d"; the third
- * rung no longer ends a run (B6a [B-6a3a]), so the clock is the only cause, and the old "CosmicBalance end check:" line,
- * which compared the rung end with the ruled people's third rung, is gone - [B-6a3b] brings a new one).
+ * rung no longer ends a run (B6a [B-6a3a]), so the clock is the only cause). The end check (B6a [B-6a3b], header section
+ * 5.1) asks the ending predicate (CosmicEndings::EndingOf) at every tick boundary until it first holds: the state's record
+ * (FGalaxyState::Ending) must be empty before that boundary, hold the predicate's four fields (kind, tick, people, no
+ * vessel) at it and not change after it - a miss prints a "CosmicBalance end check:" error naming both records (the first
+ * miss, and their count when there are more) and fails the run; a run that passes prints no end check line.
  * The ruler's policy (World/CosmicRulerPolicy, shared with the hash run of a game process - MVP item 9), between ticks
  * after each tick and before the tick's counts: -Answer=1 answers every card the tick it comes (the first choice the
  * stockpile can pay, from choice (answers so far mod choices) on), -Build=1 presses the
@@ -57,9 +60,9 @@
  * "CosmicBalance stages:" (the mean time of the diplomacy, conflict, crisis and AI stages - FCosmicStageClock, on for the
  * run only). -Rules=Name:Value;Name:Value replaces
  * fields of the DT_Rules row for the run (read as the data importer reads them; a field it cannot set stops the run).
- * Without them (all off by default) it reads the state only: the world is that of RunHeadless(Ticks) - as long as there
- * are no endings (section 4.4: once an ending stops a run, a later RunHeadless must simulate nothing for that to stay
- * true). The MVP's provisional end belongs to the presentation and stops nothing.
+ * Without them (all off by default) it reads the state only: the world is that of RunHeadless(Ticks) - an ending stops
+ * no simulation (B6a [B-6a3b], header section 2.5: the record is written once and the ticks go on, so RunHeadless(Ticks)
+ * runs past it as the one-tick loop does). The end itself belongs to the presentation and stops nothing here.
  *
  *   UnrealEditor-Cmd Cosmic_Ascension.uproject -run=CosmicBalance -Seed=42 -Ticks=20000 -Out=balance.csv
  *

@@ -93,3 +93,8 @@ int64 CosmicSuccession::LeapOf(const FCosmicRulesDef& Rules, int64 LeapTicksTota
 	const int64 Leap = Lo + FMath::Min<int64>(static_cast<int64>(Read * static_cast<float>(Span + 1)), Span);
 	return FMath::Min<int64>(Leap, FMath::Max<int64>(0, Rules.LeapTotalCap - LeapTicksTotal));
 }
+
+bool CosmicSuccession::IsSilent(const FCallingState& Calling)
+{
+	return Calling.LifeState == ELifeState::Interregnum && Calling.PendingLeapTicks <= 0;
+}

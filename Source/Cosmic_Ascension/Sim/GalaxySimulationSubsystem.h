@@ -210,10 +210,11 @@ public:
 
 	// Runs Ticks ticks with the broadcast gate closed, then restores the gate. Tests, balance runs, and the body of RunLeap
 	// (section 4.4): no tick inside it sends OnSimTick.
-	// Not yet: the per-tick ending-condition check that stops a leap early arrives with the endings (section 4.4, 7.4).
-	// When it does, a run that has ended simulates nothing on a later RunHeadless or StepOnce: one tick at a time stays the
-	// same world as one long leap (the balance commandlet and Sim.PhaseTwoExit step one tick at a time). The MVP's provisional
-	// end is not such an ending: it never stops a run (Sim/CosmicEndings.h; the presentation stops the time).
+	// The sim records the end and does not stop (B6a header section 2.5): SimulateTick writes State.Ending once, after the
+	// tenth stage of the tick whose end it is (CosmicEndings::EndingOf), and StepOnce and RunHeadless go on ticking after it -
+	// no stage reads the record, so the world after the end is the world without it and one tick at a time stays the same
+	// world as one long leap (the balance commandlet's long runs and the measures past the end, -PastEnd). RunLeap alone stops
+	// at the end's tick (from B6a [B-6a3c]); the commands after the end are refused by the controller's latch.
 	// Refused like StepOnce.
 	UFUNCTION(BlueprintCallable)
 	void RunHeadless(int64 Ticks);
@@ -438,7 +439,8 @@ public:
 private:
 	FCosmicStageClock StageClock;
 
-	// Advances State.Tick first, then runs the ten stages in the fixed order and syncs the random stream state.
+	// Advances State.Tick first, then runs the ten stages in the fixed order, writes the end's record when the first end stands
+	// (after the tenth stage, B6a header section 2.3) and syncs the random stream state.
 	void SimulateTick();
 
 	// Stage 1. Two loops over Civs in array order.

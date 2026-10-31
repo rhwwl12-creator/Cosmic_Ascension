@@ -1,0 +1,18 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1607,6 +1607,14 @@
+ 		}
+ 		// The tenth stage, inside the guard (B5): death, deposition and the leap's countdown replace the vessel; no tick runs
+ 		// from here.
++		if (!State.Ending.Kind.IsValid())
++		{
++			const FCosmicEndingRecord Early = CosmicEndings::EndingOf(State, Rules);
++			if (Early.Kind.IsValid())
++			{
++				State.Ending = Early;
++			}
++		}
+ 		ResolvePendingRoleEffect();
+ 		// The record of the end (B6a header section 2.3): after the tenth stage - this tick's death, succession and deposition are
+ 		// done, so LifeState and PendingLeapTicks (the silence, bNoVessel) are the tick's answer - and only while none is written:
