@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicHazardTests.cpp b/Source/Cosmic_Ascension/Tests/CosmicHazardTests.cpp
+--- a/Source/Cosmic_Ascension/Tests/CosmicHazardTests.cpp
++++ b/Source/Cosmic_Ascension/Tests/CosmicHazardTests.cpp
+@@ -3033,7 +3033,7 @@
+ 				++Records;
+ 				bRealRows &= IsGameRow(Tables, Record.SourceRow);
+ 				const FCosmicEventDef* Row = Tables.FindEvent(Record.SourceRow);
+-				const bool bMayHaveLeft = Row && Row->Severity == 1 && Record.FirstTick <= OldestLeft && Record.FirstTick < FirstLifeBornOf(Civ.CivID);
++				const bool bMayHaveLeft = Row && Row->Severity == 1 && Record.FirstTick <= OldestLeft && !CosmicChronicle::PeoplesOfEveryLife(State.Calling).Contains(Civ.CivID);
+ 				bToldAtFirstTick &= Told(Record.SourceRow, Record.FirstTick) || bMayHaveLeft;
+ 			}
+ 		}

@@ -2989,14 +2989,11 @@ bool FCosmicNotablesFromEventsOnlyTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	// The game's data without its one death (B5 [B-5d2] - CosmicTests::WithoutDeath; the same world until a death): the
-	// deposed vessel of seed 42 stands at its old capital, where an AI awakening expires on its own side at tick 2,933 (the
-	// [B-5a] measurement). A succession after it makes the new vessel's birth people a life's people only then, and that
-	// people's Severity 1 lines that left the log before were dropped (#118's accepted loss): the allowance below, which reads
-	// the peoples of the lives at the end, would ask them to be told. Death is not this test's subject.
-	const FCosmicDataTables Original = Sim->GetTables();
-	ON_SCOPE_EXIT { Sim->SetTables(Original); };
-	Sim->SetTables(CosmicTests::WithoutDeath(Original));
+	// The game's data, its one death included (B6a [B-6a1], header decision 10 - [B-5d2] ran it WithoutDeath): the deposed
+	// vessel of seed 42 stands at its old capital, where an AI awakening expires on its own side at tick 2,933 (the [B-5a]
+	// measurement), and a succession follows. It makes the new vessel's peoples peoples of a life only from that life on, so
+	// the allowance below cuts at the BornTick of the first life a people belongs to (the coronation tick is not saved - a
+	// people a life came to rule is cut at that life's BornTick, the earliest it could have become a life's people).
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	Sim->RunHeadless(20000);
 	const FGalaxyState& State = Sim->GetState();
@@ -3010,22 +3007,84 @@ bool FCosmicNotablesFromEventsOnlyTest::RunTest(const FString& Parameters)
 	int32 Records = 0;
 	bool bRealRows = true;
 	bool bToldAtFirstTick = true;
-	// Since MVP item 5 the chronicle keeps only what it can show (16 #40 (7)): the Severity 1 line of a people no life ruled
-	// is dropped when it leaves the log. Such a record's line is gone when its row tells at Severity 1 and its tick is at or
-	// before the oldest line left (several lines of one tick may have left in part - hence at or before); Severity 2 stays.
-	const TArray<FName> LifePeoples = CosmicChronicle::PeoplesOfEveryLife(State.Calling);
-	const int64 OldestLeft = State.Log.IsEmpty() ? 0 : State.Log[0].Tick;
-	for (const FCivilizationState& Civ : State.Civs)
+	// Since MVP item 5 the chronicle keeps only what it can show (16 #40 (7)): the Severity 1 line of a people that is no
+	// life's people when the line leaves the log is dropped (#118's accepted loss). Such a record's line may be gone when its
+	// row tells at Severity 1, its tick is at or before the oldest line left (several lines of one tick may have left in
+	// part - hence at or before) and before the BornTick of the first life the people belongs to (never, when no life);
+	// Severity 2 stays.
+	auto CheckState = [&]()
 	{
-		for (const FNotableRecord& Record : Civ.Notables)
+		auto FirstLifeBornOf = [&State](FName CivID)
 		{
-			++Records;
-			bRealRows &= IsGameRow(Tables, Record.SourceRow);
-			const FCosmicEventDef* Row = Tables.FindEvent(Record.SourceRow);
-			const bool bMayHaveLeft = Row && Row->Severity == 1 && Record.FirstTick <= OldestLeft && !LifePeoples.Contains(Civ.CivID);
-			bToldAtFirstTick &= Told(Record.SourceRow, Record.FirstTick) || bMayHaveLeft;
+			for (const FLifeRecord& Life : State.Calling.Lives)
+			{
+				if (CosmicChronicle::PeoplesOf(Life).Contains(CivID))
+				{
+					return Life.BornTick;
+				}
+			}
+			return MAX_int64;
+		};
+		const int64 OldestLeft = State.Log.IsEmpty() ? 0 : State.Log[0].Tick;
+		for (const FCivilizationState& Civ : State.Civs)
+		{
+			for (const FNotableRecord& Record : Civ.Notables)
+			{
+				++Records;
+				bRealRows &= IsGameRow(Tables, Record.SourceRow);
+				const FCosmicEventDef* Row = Tables.FindEvent(Record.SourceRow);
+				const bool bMayHaveLeft = Row && Row->Severity == 1 && Record.FirstTick <= OldestLeft && Record.FirstTick < FirstLifeBornOf(Civ.CivID);
+				bToldAtFirstTick &= Told(Record.SourceRow, Record.FirstTick) || bMayHaveLeft;
+			}
 		}
+	};
+	CheckState();
+
+	// In seed 42's 20,000-tick run every rebelling people stays inside the fallen sphere and rebels every ~300 ticks, so its
+	// MaxNotablesPerCiv (5) evicts old rebel records ~1,200 ticks later - before MaxLogEntries (2,000, ~7,400 ticks) lets
+	// their lines leave State.Log. Exercise the #118 boundary on the 5-system galaxy: both AI peoples have one rebellion at
+	// tick 301 and recover so the record stays in Civ.Notables, the Severity 1 outbreak line leaves State.Log while only
+	// civ_0 is a life's people, and a death at sys_0 succeeds into one of the two AI peoples after the line is gone.
+	Sim->NewGalaxy(42, 5, 3);
+	FGalaxyState& Mutable = Sim->GetMutableState();
+	Mutable.Tick = 300;
+	for (int32 CivIndex = 1; CivIndex < Mutable.Civs.Num(); ++CivIndex)
+	{
+		Mutable.Civs[CivIndex].Stability = 0.05f;
+		Mutable.Civs[CivIndex].LowStabilityTicks = 100;
 	}
+	Sim->RunHeadless(1);
+	for (int32 CivIndex = 1; CivIndex < Mutable.Civs.Num(); ++CivIndex)
+	{
+		const int32 Capital = Sim->GetStateIndex().FindSystem(Mutable, Mutable.Civs[CivIndex].HomeSystemID);
+		if (Mutable.Systems.IsValidIndex(Capital))
+		{
+			CosmicHazards::EmptyHazardSlot(Mutable.Systems[Capital]);
+		}
+		Mutable.Civs[CivIndex].Stability = 0.9f;
+		Mutable.Civs[CivIndex].LowStabilityTicks = 0;
+	}
+	UCosmicLogSubsystem* Log = Sim->GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	UPlayerRoleSubsystem* Role = Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>();
+	if (!TestNotNull(TEXT("Log subsystem"), Log) || !TestNotNull(TEXT("Role subsystem"), Role))
+	{
+		return false;
+	}
+	for (int32 Line = 0; Line < UCosmicLogSubsystem::MaxLogEntries; ++Line)
+	{
+		Log->PushRow(CosmicRows::LogRebellionUnseated, 1, FFormatNamedArguments(), Mutable.Systems[1].SystemID, Mutable.Civs[1].CivID);
+	}
+	Role->AbdicateRuler();
+	FName FirstRow;
+	Tables.FindHazardByTag(Sim->GetRules().FirstCrisisHazard, &FirstRow);
+	Mutable.Calling.PendingEffect = Tag(TEXT("Effect.KillPlayer"));
+	Mutable.Calling.PendingCause = Tag(TEXT("Death.Hazard"));
+	Mutable.Calling.PendingSourceRow = FirstRow;
+	Sim->RunHeadless(1);
+	Mutable.Calling.PendingLeapTicks = 1;
+	Sim->RunHeadless(1);
+	CheckState();
+	TestTrue(TEXT("The succession after the line left made a second life"), State.Calling.Lives.Num() >= 2);
 	TestTrue(TEXT("Records stand at the end of the run"), Records >= 1);
 	TestTrue(TEXT("Every record comes from a row of the game"), bRealRows);
 	TestTrue(TEXT("Every record was told in the tick it appeared, by the row that made it"), bToldAtFirstTick);

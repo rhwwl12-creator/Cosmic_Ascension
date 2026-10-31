@@ -1,0 +1,282 @@
+# B6a 구현 메모 — 끝의 장치와 셋째 칸 뒤의 판 (헤더에서 뗀 표와 셈, 첫 측정 뒤의 잰 값)
+
+헤더 `docs/60_DECISIONS/headers/B6a_endings_and_the_run_past_the_third_rung.md`에서 옮긴 것이다(헤더 §8 '크기'). 승인할 것은 헤더의 장치·결정이고, 이 파일은 지금 코드의 줄마다의 근거(§0), B5 끝의 잰 값(§0.1), 열린 물음과 넘겨받은 것의 표(§0.2·§0.3), 문서의 어긋남(§1)과 장치 커밋의 주석·문서 커밋의 목록(§1.1·§1.2 — 헤더 §7에서), 측정의 셈(§2)과 `ending:` 줄의 칸(§2.1 — 헤더 §5.1에서), 고치는 테스트의 자리(§0.9′ — 헤더 §6에서), 첫 측정의 표(§3 — `[B-6a3]`부터 더한다), 헤더 리뷰의 기록(§4), 커밋마다의 구현 기록(§5)이다. 헤더와 어긋나면 헤더가 이긴다. 줄 번호는 HEAD `b10be48`의 것이다. 조사 원문은 저장소 밖이라 근거로 쓰지 않는다 — 아래 줄은 모두 이 HEAD에서 다시 열어 단 것이다.
+
+## 0. 지금 코드 (헤더 §1.1에서 — HEAD `b10be48`)
+
+### 0.0 끝 (`Sim/CosmicEndings`)
+
+- 머리 주석: 'The single home of the conditions that end a run: pure functions of the state - no draw, no write, never Knowing. The four endings (B5, B6) come here too.'(`Sim/CosmicEndings.h:1-3`).
+- `enum class ECosmicProvisionalEnd : uint8 { None, Rung, Clock }` — UENUM이 아니다('never saved, hashed or a data column … it goes with the four endings' — `:13-19`). `Rung`의 주석: 칸은 그릇이 다스리는 동안만 오르고 폐위와 같은 틱의 오름도 센다(업적은 열째 단계보다 먼저 판정된다 — `:17`).
+- `EndRung = EAscensionTier::Tier3_Causal`(C++ 상수 — '2026-10-18: "T3 or tick 6,000"' — `:23-24`).
+- `ProvisionalEndOf` 선언과 계약(`:26-30` — '(the MVP has one life)'는 B5 뒤로 낡은 말; 'Read by FollowEnd, the commandlet and the save layer's tick-boundary check … no stage, command or run reads it'), `NameOf`(`:32-33`).
+- 몸(`Sim/CosmicEndings.cpp:8-27`): 생애가 없으면 None(`:10-14`), 어느 생애든 `PeakTier` ≥ `EndRung`이면 Rung(`:15-21`), 노브 > 0 ∧ `Tick` ≥ 노브면 Clock(`:22-25`). `NameOf`(`:29-40`).
+- 노브: `ProvisionalEndTick` 6,000(`Tools/data/DT_Rules.json:55`, C++ 기본값 `Data/CosmicDefinitionRows.h:1101`, 툴팁 `:1097-1100` — '…unless the ruled people reached the third'), 스키마 범위 `Tools/data/schema.json:180`(정수 ≥ 0).
+
+### 0.1′ 끝을 읽는 곳
+
+| 자리 | 줄 | 하는 일 |
+|---|---|---|
+| 컨트롤러 래치 | `World/CosmicGameMode.cpp:1187-1242`(`FollowEnd`) — 스위치가 꺼지면 바로 돌아선다 `:1190`, 판정 `:1197`, `CosmicEnd:` 줄 `:1213-1221`, 쪽 `:1229-1241` | 끝을 래치하고 시간을 멈춘다(`ApplySpeed(0, RunEnd)`), 카드를 접고, 기다림 뒤 연대기를 연다 |
+| 래치 멤버·질의 | `World/CosmicGameMode.h:283-286`(`GetRunEnd`·`IsRunEnded`·`IsRunEndedFor`), `:706-708`(`RunEnd`·`bProvisionalEnd`), `:353-354`(스위치) | 저장·해시 밖 |
+| 스위치 | `World/CosmicGameMode.cpp:543-549`(`-ProvisionalEnd=0` — '6,000틱 너머의 화면과 손 시험') | 세션 동안 끝을 보지 않는다 |
+| 틱 경계의 차례 | `World/CosmicGameMode.cpp:795-812`(`HandleSimTick` — 죽음 → 재위 끝 → 끝 → 카드) | B5가 정한 차례 |
+| 도약의 자르기 | `World/CosmicGameMode.cpp:854-880`(`AdvanceLeap` — 시계로 자르기 `:863-869`, 침묵에서 시간을 돌려주기 `:870-876`), `:892-895`(`IsSilent`), `:901-907`(`LeapOfThePages`) | 시계만 미리 안다 |
+| 명령의 거절 | `World/CosmicGameMode.cpp:2158`·`:2187`·`:2232`·`:2257`·`:2277`·`:2293`·`:2309`·`:2323`·`:2334`·`:2345`·`:2356`·`:2410`·`:2421`·`:2432`·`:2448`·`:2472`·`:2515` | `IsRunEnded()`면 Core를 부르지 않는다 |
+| 저장 층 | `Save/CosmicSaveSubsystem.cpp:124-136`(`MarkOf` — `bEnded` `:132`), 까닭 `Ended` `:144-146`; `.h:55`(`bEnded`의 주석) | 경계마다 견준다 |
+| 통치자 정책 | `World/CosmicRulerPolicy.cpp:392`(끝을 센다), 끝 뒤에 멈추는 곳 `:493`(중점)·`:518`(칙령)·`:672`·`:729`(외교·함대), 끝 전에만 세는 칸 `:369`·`:427` | `-PastEnd=1`이면 이어 간다 |
+| 방랑자 정책 | `World/CosmicWandererPolicy.cpp:19-20`(양위)·`:31`·`:47`(걸음) | 같다 |
+| 해시 판의 정책 | `World/CosmicHashRun.cpp:123`(고정 정책 — 끝 뒤에 멈추는 같은 정책 함수) | 정책 해시 판은 통치자 3,000과 함께 옮는다 |
+| 커맨드렛 | `Tests/CosmicBalanceCommandlet.cpp:1338-1352`(끝을 읽는 블록 — `RungTick`·`ClockTick`·`FirstEnd`·`EndByNewPeople` `:1349`), `:2442`(`end:` 줄), `:2484-2490`(`end check` — 셋째 칸이 박혀 있다; 'A measure, not a gate' `:2484-2486`), `-PastEnd` `:1058-1067`, 측정 전용 인자의 문 `:1107-1118`, `-SaveAt`의 문 `:1070` | 줄로 알리기만 한다 |
+| 연대기 쪽 | `UI/CosmicChronicleWidget.cpp:111-145`(`NoteOf` — 시계 `:122-125`, 백성 찾기 `:126-142`, 백성 없음 `:144`), `:334-361`(`Open` — 시험판 알림 `:350-357`, '새 판' `:358-361`), `:465`(드러난 뒤의 까닭); `.h:62`·`:94`·`:113` | 까닭 줄·알림·단추 |
+| 상단 바 | `UI/CosmicTopBarWidget.cpp:533-544`(`ClockTipOf` — 규칙 줄), `:219`(툴팁을 다는 곳), `:775`·`:830`(래치), `:866-885`(예고 'Soon'·'Until') | 시계의 예고는 모두에게 600주기 전부터, 'Until'은 몸을 입은 방랑자에게만 |
+| 래치를 읽는 다른 화면 | `UI/CosmicEdictWidget.cpp:575`, `UI/CosmicLogFeedWidget.cpp:220`(`CosmicChronicle::IsUnseenLifeLine`), `UI/CosmicSystemPanelWidget.cpp:850` | 래치만 읽는다 |
+| 기다림 상수 | `UI/CosmicChronicleWidget.h:24`(`HoldSeconds` 1.5), `:45`(`EndSoonTicks` 600) | — |
+
+### 0.2′ 틱·도약·끝 뒤
+
+- `SimulateTick` `Sim/GalaxySimulationSubsystem.cpp:1497-1587`: 머리의 상시 카드 단위(`:1511-1515`), `++State.Tick`(`:1519`), 단계 가드(`:1526`), 열 단계(`:1539-1574`), **열째 단계와 `SyncRngState`**(`:1575-1578`), 경계의 `OnSimTick`(`:1581-1586`).
+- 거절의 한 자리 `RefusesTicks`(`:1123-1141` — 핸들러 안·단계 안·`OnSimTick` 핸들러 안). `StepOnce`(`:1143-1150`), `RunLeap`(`:1152-1166` — `RunHeadless` 뒤 경계 하나 `:1158-1165`), `RunHeadless`(`:1168-1180` — 알림 문 `:1174`, 자리표시 주석 `:1178`).
+- 헤더의 약속(`Sim/GalaxySimulationSubsystem.h:211-219` — 'Not yet' `:213-216`), `RunLeap`의 계약(`:221-227`), `StepOnce`(`:204-209`), `IsInTickStages`(`:333`), `GetMutableState`(`:233` — 테스트), `MaxTimeScale` 25(`:200`).
+- 업적 판정의 자리 `Sim/GalaxySimulationSubsystem.cpp:2731`(AI 단계 끝). `EvaluateFeats`의 차례(`Ascension/AscensionSubsystem.cpp:45-64` — 몸을 입은 통치자의 백성을 `BornTick`부터 먼저, 다른 백성은 0부터 `Civs` 순서로); 오름의 차례(`:139-204` — 칸·대가 `:140-141`, 플레이어면 `CompletedFeats`·`Feats`·`PeakTier`·`Powers` `:145-158`, 인물 훅 `:160-177` — AI의 셋째 칸에 `Notable.Ascendant` `:162-167`, 넷째 칸부터 열린 기록을 닫는다 `:169-177`, 앎 `:184`, 승천 줄 `:185-196`, `OnTierAscended` `:199-204`).
+- 보는 칸 `GetViewerTier`(`Sim/GalaxySimulationSubsystem.cpp:1250-1261` — 몸을 입은 통치자면 다스리는 백성의 칸, 아니면 `PersonalTier`).
+- 소모의 문(`:1335` — 지배 원천의 칸이 그 백성보다 높을 때만): 넷째 칸 백성은 넷째 칸 타락(`Tools/data/DT_Transcendents.json:9`)의 소모를 받지 않는다(B6b의 세계 수).
+
+### 0.3′ 저장·해시
+
+- 저장 호환의 규칙(`Core/GalaxyState.h:4-11` — 기본값을 가진 필드를 더하는 것은 호환, 델타 저장, 최상위와 `Player`·`Calling`의 바로 아래 구조체 멤버는 초기값과 같으면 쓰이지 않는다), 이름의 고정(`:12`), 해시의 규칙(`:16-22`).
+- `FGalaxyState`(`:788-874`): `CurrentSaveVersion` 1(`:793`), `SaveVersion` 1(`:799` — 얼린 리터럴), `TellRngState`(`:816`), `Chronicle`·`ChronicleEviction`(`:865`·`:869`), 마지막 필드 `Flags`(`:871-873`).
+- 이주의 자리(`Save/CosmicSaveSubsystem.cpp:504` — 'Migration functions for SaveVersion < CurrentSaveVersion go here once a version bump exists'), 높은 버전의 거절(`:498-501`).
+- 해시: 구조체를 반사로 걷는다(`Sim/GalaxySimulationSubsystem.cpp:448-457`), 빼는 이름(`:1450-1461`).
+- 태그: `Way.Received`·`Way.Seized`(`Config/DefaultGameplayTags.ini:47-48` — 설명에 엔딩 제목 'Entrusted Eternity'·'I will ascend'), `Ending.*`는 없다; `Log.Transcendent`(`:111`)·`Log.Claim`(`:114`)·`Log.Record`(`:115`)·`Hazard.Rebellion`(`:22`)·`Hazard.Claim`(`:23`)·`Event.Grace.Jubilee`(`:183`). 코드가 이름으로 부르는 태그의 집 `Core/CosmicTags.h:10`(예 `EffectKillPlayer` `:55`).
+
+### 0.4′ 칸·개인 칸·`petition_exalt`
+
+- 칸 다섯(값 0~4); `PeakTier`(`Core/GalaxyState.h:533`), `PersonalTier`(`:613`), 그릇의 `Exaltation`(`:430`).
+- 개인 칸을 쓰는 곳은 계승의 내림 하나(`Player/PlayerRoleSubsystem.cpp:534`). 그릇마다 `State.Player = FPlayerEntityState()`(`:181`).
+- 조건의 척도 '칸 번호 1..5'(`Data/CosmicConditionTypes.h:15-16`); `CivTierAtLeast`(`Events/CosmicEventSubsystem.cpp:433-434`), `PlayerTierAtLeast`(`:497-498` — 몸을 입었으면 **개인 칸**).
+- `petition_exalt`(`Tools/data/DT_Encounters.json:961-1060` — 조건 `:964-977`의 `PlayerRoleIs Ruler`·`PlayerTierAtLeast 2`, `Exaltation` −1 `:995`, +2 `:1044`). 필수 행(`Tools/data/schema.json:838`).
+- 통치자의 상시 카드는 다스리는 백성을 주제로 판정한다(`Events/CosmicPetitions.cpp:153-160` `RuledCivIndexOf`); 조건이 막 선 틱에만 온다(`:341-343`); 방랑자 카드의 격차(`:176-180` `WithinWandererGap`); 생애의 첫 틱(`Events/CosmicPetitions.h:145` `IsFirstTickOfLife`).
+- A2의 뜻: '둘째 칸에 오른 틱'(A2 헤더 `:148`·`:194`).
+- 업적 정의의 낡은 주석: `GrantedPowers` 'Tier 4 -> 5 rows include Way.Received or Way.Seized'(`Data/CosmicDefinitionRows.h:267`); `AIFourthRungCap` 'from Phase 6a'(`:726`, 값 `:759`). 다음 칸 툴팁 'none from the third'(`UI/CosmicNextRung.h:58`).
+
+### 0.5′ 침묵
+
+- 후보의 창구 `CosmicSuccession::CandidatesOf`(`Sim/CosmicSuccession.h:28-38` — 계약, `.cpp:42-53` — 같은 은하 행의 정착된 성계에서 죽은 자리와 치명 위기의 성계를 뺀 무리). 성역은 주인이 없어 빠진다.
+- 테스트 도우미 `LeaveNoCandidate`(`Tests/CosmicCallingPagesTests.cpp:221`, 쓰는 곳 `:840`).
+- 설계의 조건(`crisis_and_transcendents.md:145` — '상세 은하(고향 은하)의 소유 성계가 0일 때 사망'·'`Doctrine.Silence`와 일치하는 4번째 엔딩').
+
+### 0.6′ 알아챔과 목소리
+
+- `bAwareOfPlayer`(`Core/GalaxyState.h:465-467` — 'Survives succession'), `bSealed`·`SealedTick`(`:470`·`:475`).
+- 조건 `TranscendentAwareOfPlayer`(`Events/CosmicEventSubsystem.cpp:546-550`) — 쓰는 데이터 행 없음.
+- `VoiceTemplates`(`Data/CosmicDefinitionRows.h:679-683` — 'its awareness and the hedge's testimony … B6'), 스키마 칸(`Tools/data/schema.json:561`)·비움(`:605`), 1인칭 칸의 낱말 식(`:562`), `second_person`은 `ClaimTemplates`에만(`:619`), 데이터(`Tools/data/DT_Transcendents.json:24` 빈 배열, `:25` `ClaimTemplates`, 행 `:3` `trans_silence`, 칸 `:9` 넷째).
+- 말하기 도우미의 한 수(`Log/CosmicLogSubsystem.h:100-106`; '(its VoiceTemplates wait for their reader - B6)' `:102`).
+- 주장 1인칭의 자리(`Sim/GalaxySimulationSubsystem.cpp:2553-2573` — `MinViewerTier = 3` `:2569`, `PushWithSign` `:2573`).
+- 생애 장이 빼는 범주(`Log/CosmicChronicle.h:159` — `Log.Claim`·`Log.Record`), 장의 입장(`:129` `Admits`).
+- 드러냄 '이제 보인다'의 계약(`UI/CosmicAscensionOverlayWidget.h:42-44` — 받은 열림이 업적의 상과 떨어져 선다).
+- B4 초안(B4 헤더 `:336` — 울타리의 증언과 알아챔 '같은 부름의 냄새가 난다. 너는 그것을 모른다.'), B4의 표지(`:559` — 알아챔의 줄(셋째 칸에 오르는 틱)이 첫 생애의 판이 1인칭을 보일 거의 유일한 자리).
+- 설계(`crisis_and_transcendents.md:99` — '플레이어가 Tier 3에 도달하면 … 인지 … 같은 부름의 냄새가 난다'); 글 규칙(`docs/70:162` — 1인칭은 아무에게도 말을 걸지 않는다; `:168` 끝 — 'B6의 알아챔 줄이 2인칭을 쓴다'; `:211` — '부름을 알아보는 1인칭 3줄은 알아챔의 블록(B6)').
+- 낱말 목록: `rebirth_words`(`Tools/data/schema.json:56` — '다시 '·'알아보았' 등), `silence_words`(`:46`), `afterlife_words`(`:51` — '승천' 포함), `Chronicle.` 접두어(`:62`)·`Chronicle.NoVessel`(`:63`).
+
+### 0.7′ 주장 규칙과 반란
+
+- 주장 규칙 `TryPlaceClaim`(`Sim/GalaxySimulationSubsystem.cpp:306-332` — 정착·빈 칸 `:313-316`, 주장자·영향권의 상한·마지막 미편입 `:318-323`, 신앙의 수 `:324-329`, `Place` `:331`), 부르는 자리(만료 뒤 — `:2521`). 주장의 편입 `JoinClaimedSphere`(`:334-352`).
+- `CosmicHazards::ClaimantOf`(`Sim/CosmicHazards.h:114-122`), `Place`(`:59`).
+- 반란 행(`Tools/data/DT_Hazards.json:196-215` — 수도, 200틱, `CivStabilityBelowFor` 키 100·값 0.3 `:205-208`, `GalaxyTickAtLeast` 300 `:211-214`), 세는 칸 `LowStabilityTicks`(`Core/GalaxyState.h:315-319`). 정책이 이미 주장의 자리를 같은 함수로 읽는다(`World/CosmicRulerPolicy.cpp:134`). 넘긴 자리: A8 헤더 `:183`('주장 예고 줄과 반란 임계 표시는 B4/B6').
+
+### 0.8′ 화면의 셋째 칸
+
+- 영적 시야와 ×25의 문(`World/CosmicMapLook.cpp:201-204` — `>=`; `SpiritualSightTier` `World/CosmicMapLook.h:232`), 격차 `ShownGap` 3(`:311`), `IsShownPeople`(`:316`), `KnownViewOf`(`:322`).
+- 먼 줄(`Log/CosmicLogSubsystem.cpp:241-244` — 범위 밖 백성의 셋째 칸 이상 승천은 `log_far_ascent`), 격차의 로그 사본(`:209`). 규칙 '시계는 읽힌다'(`docs/70:55`).
+
+### 0.9′ 테스트 (끝을 읽거나 손으로 세우는 열세 파일 — `ProvisionalEndOf`·`EndRung`·`GetRunEnd`·`IsRunEnded`·`ECosmicProvisionalEnd`, 그리고 `Tick = ProvisionalEndTick` 뒤 틱 없이 `FollowEnd(false)`)
+
+`Tests/CosmicAscensionTests.cpp`(`:1672-1674`; `Feats.Evaluate` `:1254`·`Feats.Reachable` `:1582`·`Sim.PlayerAscendsToT3` `:1604`), `Tests/CosmicBalanceCommandlet.cpp`, `Tests/CosmicCallingPagesTests.cpp`(`:631`·`:767`·`:854`), `Tests/CosmicChronicleScreenTests.cpp`(`UI.RunEnd` `:144`; `:212`~`:762` — 끝난 상태 위의 `FollowEnd(false)` `:297-301`), `Tests/CosmicChronicleTests.cpp`(`Sim.ProvisionalEnd` `:93`~`:179`), `Tests/CosmicLeapTests.cpp`(`:577`·`:726`·`:760`; `Calling.LeapDeterminism` `:219`, `UI.LeapBoundary` `:467` — 꺼진 스위치의 침묵 `:462`), `Tests/CosmicPanelTests.cpp`(`UI.MouseOnlyAscent` `:637`, `:789`), `Tests/CosmicSaveSessionTests.cpp`(`UI.ContinueEnded` `:391`·`:432`), `Tests/CosmicVesselShownTests.cpp`, `Tests/CosmicWandererTests.cpp`(`:942`; `:1357` — `PeakTier` T3로 끝을 세운 정책 테스트), 그리고 열거를 부르지 않아 컴파일러가 찾지 못하는 셋 — 손으로 놓은 틱에 래치한 뒤 거절을 보는 `Tests/CosmicDiplomacyUITests.cpp`(`:809-810`), `Tests/CosmicEdictUITests.cpp`(`:612-613`·`:635-636`), `Tests/CosmicFeedbackTests.cpp`(`:363-364`), 그리고 목록의 파일 안에서 같은 꼴의 둘 — `UI.Chronicle`의 `Tests/CosmicChronicleScreenTests.cpp:678-679`(틱 없이 `FollowEnd(false)` — 단언 `:681-690`)와 `UI.ContinueEnded`의 `Tests/CosmicSaveSessionTests.cpp:411`(기록 없이 6,000에 놓고 저장 — 결정 2-다로 로드 뒤 흐르므로 `:432`의 래치가 서지 않는다; `:413`의 저장 앞에서 도우미를 부른다)(래치가 기록을 읽으면 기록은 틱 안에서만 쓰이므로 런타임에 깨진다 — 헤더 §2.7·§6의 도우미 `CosmicTests::EndRunAt`). 테스트 도우미: `CosmicTests::AcquireSim`이 끝 스위치를 켠다(`Tests/CosmicTestHelpers.h:89`), `WithoutPressure`(`:230`)·`WithoutDeath`(`:251`). `Sim.NotablesFromEventsOnly`(`Tests/CosmicHazardTests.cpp:2983-3033` — 죽음을 뺀 테이블 `:2999`, 허용 `:3016-3026`), 그 표 행(`docs/40:284`). `Data.Integrity`의 신정론 검사(`Tests/CosmicDataTests.cpp:2234`)·첫 위기 검사(`:2454`). 자동화 테스트 195개(`IMPLEMENT_SIMPLE_AUTOMATION_TEST` 수 — HEAD).
+
+**고치는 자리**(헤더 §6에서 옮김 — 커밋마다; 도우미 `CosmicTests::EndRunAt`과 되돌림의 꼴은 헤더 §6): `[B-6a3a]` — 셋째 칸으로 끝을 세우던 것: `Sim.ProvisionalEnd`(`Tests/CosmicChronicleTests.cpp:107` — `EndRung`을 읽어 컴파일되지 않는다, `:129-137`·`:179` — 셋째·넷째 칸의 `Rung` → 이제 None; 나머지는 `[B-6a3c]`에서 `Sim.EndingOf`로), `UI.MouseOnlyAscent`(`Tests/CosmicPanelTests.cpp:637` — 셋째 칸 → 연출 → 드러냄 → 판이 이어진다; 끝은 테스트 노브의 시계로), `Sim.PlayerAscendsToT3`(`Tests/CosmicAscensionTests.cpp:1604`), `CosmicAscensionTests.cpp:1672-1674`, `CosmicWandererTests.cpp:942`('칸 끝이 오지 않는다' → '끝이 서지 않는다')·`:1357`(`PeakTier` T3로 끝을 세운 정책 테스트 — 시계로), `UI.RunEnd`의 (6)(`Tests/CosmicChronicleScreenTests.cpp:358-428` — 'The third rung ends the run'과 연출 위의 끝: 셋째 칸에서는 '연출이 서고 판이 이어진다'를 단언하고, 연출 위의 끝 — 쪽이 연출과 드러냄을 기다린다·연출을 닫아도 속도를 돌려주지 않는다 — 은 같은 `BeforeThird`에서 방송 없이 한 번 걸어 오름의 틱을 재고 시계를 그 틱에 놓은 판으로 옮긴다; 래치는 `Clock`), `UI.Chronicle`의 칸 줄(`:540-557` — `NoteOf`의 칸 가지를 떼면 백성을 부르는 단언이 깨진다; 부르기는 `[B-6a3c]`가 기록의 `CivID`로 되살린다 — §2.7); `[B-6a3c]` — 열거와 래치: `CosmicCallingPagesTests`·`CosmicLeapTests`·`CosmicSaveSessionTests`·`CosmicVesselShownTests`·`CosmicChronicleScreenTests`(`:297-301` 포함), 그리고 틱 없이 `Tick = ProvisionalEndTick; FollowEnd(false)`로 끝을 세우던 `Tests/CosmicDiplomacyUITests.cpp:809`·`Tests/CosmicEdictUITests.cpp:612`·`:635`·`Tests/CosmicFeedbackTests.cpp:363`·`UI.Chronicle`의 `Tests/CosmicChronicleScreenTests.cpp:678-679`(`:679`의 `FollowEnd(false)` 앞에서 도우미를 부르고 `:691`의 `ClearRunEnd()` 곁에서 기록을 되돌린다); `UI.ContinueEnded`(`Tests/CosmicSaveSessionTests.cpp:391` — 기록 없이 `Tick`만 6,000에 놓은 상태(`:411`)를 저장해 로드 뒤 래치를 단언한다(`:432`); 결정 2-다로 그 상태는 흐르는 판으로 열리므로 `:432`만 고쳐서는 깨진다 — `SaveCurrentGalaxy()`(`:413`) 앞에서 `EndRunAt(State, Ending.Clock, ProvisionalEndTick)`을 부르고 래치 `Ending.Clock`을 단언한다). 도우미 하나 `CosmicTests::EndRunAt(FGalaxyState&, FGameplayTag Kind, int64 Tick)`(`Tests/CosmicTestHelpers.h` — `State.Ending`을 쓴다)를 그 자리마다 부르고, 각 테스트는 `ClearRunEnd()`·`Tick = WasTick` 곁에서 `State.Ending = FCosmicEndingRecord()`로 되돌린다; `CosmicWandererTests.cpp:1357`도 `[B-6a3c]`에서 이 도우미로. `Feats.Reachable`(`:1582` — 'AI 셋째 칸 ≥ 1')은 그대로.
+
+### 0.10′ 규칙 파일과 기준값
+
+- `CLAUDE.md` 15,880바이트(디스크), `Tools/check_docs.py:42`의 목표 16 × 1024 = 16,384(넘으면 알림 한 줄 — 실패하지 않는다). 규칙 4 `:37`, 6 `:39`, 13 `:46`, 14 `:47`, 15 `:48`.
+- 기준값(`Tools/baselines/seed42.json`): 입력 없는 3,000 `:5`, 20,000 `:15`, 통치자 20,000 `:16`, 통치자 3,000 `:17`, 방랑자 6,000 `:18`; B5 `[B-5d2]`의 기록 `:7-14`. 러너가 견주는 줄(`Tools/run_checks.ps1:115`·`:119`·`:125`·`:130`·`:131`), 해시 판(`:154`·`:155`).
+
+## 0.1 잰 값 (B5 끝의 세계 — 헤더 §1.2에서)
+
+| 묶음 | 값 | 원천 |
+|---|---|---|
+| 통치자 평화 정책 30 × 6,000 | T2 중앙값 1,168·T3 2,369(30/30이 칸 끝), 끝까지 결정 28, 폐위 0/30 | B4 헤더 `:89` |
+| 그 판의 주장 | 셋째 칸 전 어디서든 주장 0/30, 끝 전 편입 0/30; 6,000틱 안에 주장이 선 판 18/30(첫 주장 중앙값 3,328, 가장 이른 2,411) | B4 헤더 `:90` |
+| 다스리는 백성의 안정도 | 틱 400~끝의 최저 중앙값 0.640, 수도의 첫 반란 4/30(중앙값 3,382 — 끝 뒤) | B4 헤더 `:91` |
+| 입력 없는 세계 60 × 20,000 | 판당 주장 7.90, 편입 36.5%·만료 36.7%, 첫 주장 중앙값 4,464, 반란 234.4/판, AI T2·T3 1,400·2,700 | B4 헤더 `:92` |
+| 1인칭 줄 | 통치자 판의 끝 전 0 — 셋째 칸 뒤 계절이 처음 들인다 | `OPEN_QUESTIONS.md:105`(#136) |
+| 시드 42 | 통치자 T2 1,175·T3 2,375; 방랑자 판 1,201 → 3,121 `civ_7` 즉위 → 그 뒤 다스린 백성의 셋째 칸이 6,000 전에 칸 끝(첫 백성의 셋째 칸 -1, 끝까지 결정 26 대 6,000까지 57 — 그 틱은 `[B-6a2]`의 CSV에서 다시 읽어 §5에); 입력 없는 3,000은 1,072 폐위 → 2,933 죽음 → 공백기 안에서 3,000 | `Tools/baselines/seed42.json:13`·`:16-18` |
+| 공백기 안의 끝 | 데이터를 켠 6,000틱 판의 끝 전 죽음 59 가운데 넷에 하나(15/59)가 공백기 안에서 끝난다 | `OPEN_QUESTIONS.md:20`(#10) |
+| 지킴(#132) | 셋째 칸 뒤 깨어남 지연 62.5%(띠 10~50% 밖), 지킴 판의 영향권 안 소모 0 | `OPEN_QUESTIONS.md:102` |
+| 대기 칸(#135) | 무게 4 뒤 칸을 잃은 몫 6.9%(첫 조건 101건) | `OPEN_QUESTIONS.md:104` |
+| 신정론(#142) | 시험 × 지킴의 401~550 띠 23건(30 미만 — 판단 없음), `Faithful`의 나쁜 결말 0.48·지킴과 0.31(하한 0.25) | `OPEN_QUESTIONS.md:111` |
+| 카드의 값(#144) | 카드가 오는 틱의 통찰 중앙값 약 5,000·영향력 약 12,000 | `OPEN_QUESTIONS.md:112` |
+| 저항(#145) | 0.5와 0.45의 짝은 돌리지 않았다 — 반으로 준 함대가 다스리는 백성이 받는 공성에 닿지 않았다 | `OPEN_QUESTIONS.md:113` |
+| 넘김(#129) | 입력 없는 20,000틱 60판의 넘김이 6,000 뒤 143 가운데 1 | `OPEN_QUESTIONS.md:99` |
+
+셈(데이터에서 바로): 셋째 칸 뒤 계절의 어림은 6,000 − 2,369 ≈ 3,600틱(스크립트 통치자; 사람은 더 늦다 — 손 확인). B6a는 입력 없는 세계의 잰 수를 바꾸지 않으므로(헤더 §0 '바뀌는 것') 위의 입력 없는 수는 B6a 뒤에도 그대로다 — 다만 첫 통치자가 셋째 칸까지 왕좌를 지킨 시드는 알아챔 플래그(세계 해시)를, 다스리는 백성이 둘째 칸에 선 시드는 `[B-6a6]`부터 `petition_exalt`의 대기 칸(전체 해시)을 얻을 수 있다. 묶음 0은 그 판을 경주의 입력(새 칸)만 위해 다시 돈다.
+
+## 0.2 열린 물음 — B6a가 닫거나 고치거나 옮길 것 (헤더 §1.4에서)
+
+| # | 줄 | B6a가 하는 일 | 어디로 |
+|---|---|---|---|
+| 1 | `OPEN_QUESTIONS.md:11` | 걸림을 'B6b 헤더'로; 통치자 T4→T5의 '개인 칸 ≥ 3'과 칸 공명은 B6b가 업적 행과 함께 묻는다 | B6b |
+| 2 | `:12` | B6a의 시계 6,000(결정 2-나)과 '마지막 값은 B6b의 경주 측정 뒤'를 한 줄; 묶음 0의 참고 칸(18,000) 수를 적는다; B6a의 `Ending.Clock` 기록은 마지막이다 — B6b가 시계를 옮겨도 6,000에 끝난 B6a 세이브는 끝난 채 열리고(시험 세이브뿐 — 2-다의 까닭), 다시 열면 `SaveVersion` 2와 새 `ProvisionalEndTick`보다 앞선 `Ending.Clock`을 비우는 이주(`Save/CosmicSaveSubsystem.cpp:504`)가 든다 — B6b가 정한다 | B6b |
+| 13 | `:23` | B6a 손 확인 ①(셋째 칸 뒤의 목소리 — '지옥 시뮬레이터'로 읽히는가)을 적는다 | 손 확인 |
+| 14 | `:24` | '함께 앉았다'가 신학 판정 C.3의 결(믿는 이의 장래 영광의 구절을 쓰지 않는다)과 부딪는다는 한 줄; B6에는 받는 길이 없다 | Phase 6+ (#163과) |
+| 29 ⑧ | `:30` | 희년의 걸림을 'B7 또는 EA'로(관계와 조약 비용이 뜻을 갖는 것은 AI가 조약을 맺는 B7) | B7/EA |
+| 107 | `:80` | 걸림 그대로(B6b — 넷째 칸 백성이 실제로 생길 때) | B6b |
+| 117 | `:90` | **닫는다** — 기록의 꼴·해시·쓰는 자리·끝 뒤·래치·끝난 세이브(결정 2-다·3·4·5·6-가·8) | — |
+| 121 | `:94` | B6a의 술어는 섭정 아래 옛 백성의 다섯째 칸을 다른 질서로 센다(헤더 §2.2의 3)는 한 줄; 바꿀지는 B6b | B6b |
+| 122 | `:95` | 걸림 그대로(넷째 칸 업적 행 전 = B6b) | B6b |
+| 129 | `:99` | 'B6a 재지 않음 — B6a는 입력 없는 세계를 바꾸지 않는다(끝은 정책 판만 옮겼다)' 한 줄 | B6b |
+| 132 | `:102` | 묶음 1의 판단(헤더 §5.2) — 닫거나 수와 함께 B6b로 | 판단대로 |
+| 135 | `:104` | 묶음 1의 판단 — 닫거나 수와 함께 B6b·B7로 | 판단대로 |
+| 136 | `:105` | 묶음 1의 판단(≥ 10/30이면 닫는다) | 판단대로 |
+| 140 | `:109` | **닫는다** — 결정 7의 답 | — |
+| 141 | `:110` | 걸림을 'B6b 헤더(#1의 칸 공명과 함께 — 공명이 들면 방랑자의 칸이 오르는 블록; B5 결정 9의 다시 물음) — 난 틱 가까이의 즉위 몫은 B7(#158과)'로 | B6b/B7 |
+| 142 | `:111` | 묶음 1의 판단 — 닫거나 [개발자]에게(B6b 헤더 전) | 판단대로 |
+| 144 | `:112` | 수를 적고 B7 | B7 |
+| 145 | `:113` | 30건이면 짝을 돌려 적고 B7 | B7 |
+| 150 | `:118` | **닫는다** — 조건 '후보 없음', 화면 제목 없음, 태그 `Ending.NoCandidate`, 까닭 줄(결정 6·8) | — |
+| 154 | `:122` | 걸림의 'B7 — AI 백성이 셋째 칸 너머로 오르는 블록'을 'B6b'로 | B6b |
+
+**새 행**(번호는 #155부터 — 지금 마지막 #154 `OPEN_QUESTIONS.md:122`):
+
+| # | 제목 | 걸림 | 기본값과 근거 |
+|---|---|---|---|
+| 155 | 물리 연구의 함대 승수 | B7 헤더 전(#131·#145·#129와 한 커밋) | `systems.md:43`('함대 전력 승수(B6 …)'). 함대 상한에 곱하는 꼴이면 #129의 '함대가 정수에 선다'의 대안이 된다 — 0.75/0.79 짝을 두 번 재지 않게 B7의 함대 커밋에서 |
+| 156 | 영압이라는 업적 기회(별칭·이웃의 경외) | B6b 헤더(업적 행과 함께 — `crisis_and_transcendents.md:115`의 'B6, 업적과 함께'; 헤더 결정 17-가) | `crisis_and_transcendents.md:115`. 별칭은 사람의 칭호가 아니라 백성이 시대를 부르는 꼴(`docs/70:184` — 그 이름의 글은 헌정명·시대 이름의 블록, Phase 6+ 콘텐츠 `WORKPLAN.md:66`과 닿는다); 조공(#137)이 없어 '조공 없이'는 빈 조건; 통치자 업적은 AI도 판정하므로 업적의 대가로 플레이어 경외를 올리면 AI의 업적이 그것을 올린다 |
+| 157 | 위기 청원의 낮은 선택 | Phase 5의 첫 60분 — **[개발자] 헤더 결정 17-나**(승인된 B6 칸에서 빼는 일; `[B-6a7]` 전에 답) | `DESIGN_AUDIT_AND_IMPROVEMENT.md:344`(설계안 C). 들인다면 해결이 아니라 함대 없는 시간으로, 그리고 첫 위기 검사(`Tests/CosmicDataTests.cpp:2454` `FirstCrisisProblems` — 첫 위기의 카운트다운만 더한다)를 카드·칙령의 유예까지 넓힌다 — 첫 위기(채굴 AI 각성)의 본래 쪽 만료가 방랑자를 죽이므로 유예가 그 만료를 출생 보호 뒤로 밀 수 있다 |
+| 158 | 역할이 바뀐 첫 틱의 카드 | B7 헤더 전(#141의 '난 틱 가까이의 즉위' 몫과) | B5 헤더 `:449`; `Events/CosmicPetitions.h:145`(`IsFirstTickOfLife` — 생애의 첫 틱만) |
+| 159 | 울타리의 증언 | B8 헤더 전(성역의 레인과 함께) | B4 헤더 `:336`(개발자의 문장 그대로); `VoiceTemplates`가 이 말 하나의 칸으로 남는다(헤더 결정 7-라) |
+| 160 | 넷째·다섯째 칸 업적 행의 꼴과 VS 정의의 수량, 칙령 범위의 넓힘 | B6b 헤더 | `pillars.md:108`·`docs/50:268`·`:270`·`:274`; 설계 표의 T3→T4·T4→T5는 B 밖의 덩이(절멸·방주·조약 조건·봉인·칙령 유지)를 부른다 — 지금 장치로 된 단순한 행 대 설계 표; 칙령 범위의 넓힘(T4·T5 — `systems.md:166`; T5 업적 '은하 법칙 3개 유지'가 그것을 가리킨다 `:169`)은 T4→T5 행의 꼴이 정한다 — 이 행이 그것을 B 밖으로 보내면 B6b 헤더가 [개발자]에게 묻는다 |
+| 161 | 셋째 칸 위의 AI — 넷째 칸의 제동·셋째 칸 위만의 지연·'다른 백성이 먼저'의 몫의 띠 | B6b 헤더 | `systems.md:411`('EA(Phase 6a)부터 유효'), `Data/CosmicDefinitionRows.h:759`(읽는 코드 없음); 묶음 0의 경주 입력이 그 셈의 바탕 |
+| 162 | 보이지 않는 백성이 낸 엔딩의 글 | B6b 헤더 | 먼 줄(`Log/CosmicLogSubsystem.cpp:241-244`)이 넷째·다섯째 칸에도 참인가; 공백기·방랑자의 보는 칸은 개인 칸(늘 첫째 — `Sim/GalaxySimulationSubsystem.cpp:1250-1261`)이라 넷째 칸 AI가 격차 3에 든다 |
+| 163 | T5 문턱 묶음의 신학 판정 | Phase 6+ 헤더 | `crisis_and_transcendents.md:151`의 문('안에서'·두드림·'기다린다'의 되풀이로 받는 길이 열리는 길), 받는 길의 '함께 앉았다'(#14), '왕 노릇'·'질서의 화신'(`pillars.md:79`), 찬탈의 제목('내가 올라가리라' — 1인칭), 후원 결말의 이름(침묵 '꺼지지 않는 고요' — `docs/70:162`의 1인칭 규칙과 '고요'), '법은 너의 것이 아니었다'(`:247` — 이름 없는 2인칭 화자), 단독 승천의 까닭 줄 `Chronicle.Note.Vessel`(헤더 §3.3 — B6a의 초안은 받은 꼴 '…에 서 있게 되었다'; 단독 승천의 신학과 함께 다시 본다) |
+
+## 0.3 넘겨받은 것 (B3·B4·B5 — `docs/50:12`의 B6 칸, 헤더 §1.3에서)
+
+| 항목 | 넘긴 블록 | 코드·데이터의 사실 | 행선 | 결정 |
+|---|---|---|---|---|
+| 희년 | B3 | 태그만(`Config/DefaultGameplayTags.ini:183`); 행·효과 열거자 없음; 은혜의 '판당 1회'는 깃발 하나를 남은 자 은혜와 함께 쓴다 | B7/EA(#29 ⑧) | 17-가 |
+| 물리 연구의 함대 승수 | B3 | 함대 상한 = 칸 × 정착된 성계(정수) — 연구는 함대를 읽지 않는다 | B7(#155) | 17-가 |
+| 격차 규칙의 세 사본(#107) | B3 | `Log/CosmicLogSubsystem.cpp:209`, `World/CosmicMapLook.h:311`·`:316`, `NoteMet`의 사본 | B6b | — |
+| 넘김의 3/4 경계(#129) | B3 | 보유 상한 `[1,3,4,7,10]` — B6a에는 셋째 칸 위로 오르는 행이 없어 7·10이 쓰이지 않는다(넷째·다섯째 칸 행은 B6b) | B6b | 12 |
+| 칙령 범위의 넓힘 | B2/로드맵(`docs/50:12`의 B6 칸) | 칙령은 다스리는 백성에만 선다(`Sim/CosmicEdicts`); T5 업적 '은하 법칙 3개 유지'가 넓힌 범위를 가리킨다(`systems.md:166`·`:169`) | B6b(#160과 — T4→T5 행의 꼴이 정한다) | 17-가 |
+| 알아챔·그 줄·`VoiceTemplates`(#140·#136) | B4 | §0.6′ | **B6a**(울타리의 증언은 B8 — #159) | 7 |
+| 영압이라는 업적 기회 | B4 | `crisis_and_transcendents.md:115`('B6, 업적과 함께'); `EpithetRow`를 쓰는 곳 없음 | B6b(#156 — 업적 행과 함께) | 17-가 |
+| 위기 청원의 낮은 선택 | B4 | 설계안 C(`DESIGN_AUDIT_AND_IMPROVEMENT.md:344`) | Phase 5(#157) — [개발자] 17-나 | 17-나 |
+| 주장의 경고 줄·반란 문턱 | B4(A8) | §0.7′ | **B6a**(표현) | 14 |
+| `ResistFleetFactor` 0.5(#145) | B4 | `OPEN_QUESTIONS.md:113` | B6a에서 짝을 묻고(30건이면) 값은 B7 | 12 |
+| 카드의 값(#144) | B4 | `OPEN_QUESTIONS.md:112` | B6a에서 비축을 재고 B7 | 12 |
+| 지킴의 노브·신정론(#132·#142) | B4 | `OPEN_QUESTIONS.md:102`·`:111`, 불변식 `Tests/CosmicDataTests.cpp:2234` | **B6a 재측정** | 12 |
+| 영압 카드의 대기 버퍼(#135) | B4 | `OPEN_QUESTIONS.md:104` | **B6a 재측정** | 12 |
+| 침묵의 글과 이름(#150) | B5 | §0.5′ | **B6a** | 6·8 |
+| 그릇 없이 맞은 결말의 칸(#117) | B5 | A4 노트 `:449-458`의 `bWatched` — B5 결정 12-라와 어긋난다 | **B6a**(`bNoVessel`) | 3·6-가 |
+| 역할이 바뀐 첫 틱의 카드 | B5 | `Events/CosmicPetitions.h:145` | B7(#158) | 17-가 |
+| 방랑자의 영압 선택과 난 틱 가까이의 즉위(#141) | B4·B5 | `OPEN_QUESTIONS.md:110` — 방랑자의 칸(`PersonalTier`)이 오르는 블록을 기다리고 B5 결정 9의 다시 물음을 싣는다 | B6b(#1의 칸 공명과 함께)·즉위 몫은 B7(#158과) | 17-가 |
+| `Sim.NotablesFromEventsOnly` | B5 | `Tests/CosmicHazardTests.cpp:2999`(죽음을 뺀 테이블) | **B6a 첫 테스트 커밋** | 10 |
+| '도약이 일으킨 다른 질서 < 15%' | B5 | `docs/40:460`; B6a에는 다른 질서가 닿지 않는다 | B6b | 12 |
+| `petition_exalt`(새로 찾은 결함) | A2(`[A-2b]`부터) | §0.4′ | **B6a** | 9 |
+| 업적 글의 감사(B4가 남긴 '그 손으로 문턱에 올라섰다' 등) | B4 | 업적 행 셋(`Tools/data/DT_Feats.json`) — B6a는 업적 행을 더하지 않는다 | B6b(새 업적 행과 함께) | — |
+
+## 1. 문서끼리·문서와 코드가 어긋난 것 (헤더 §1.5에서 — 헤더가 고친다, 헤더 §7)
+
+| # | 어디 | 무엇 | 고침 |
+|---|---|---|---|
+| 1 | `docs/50:12` ↔ 브리핑 `:259` | B 행의 'T5 문턱'은 문서 재편이 더한 말이고 채택 문장은 'T3→T5 업적·엔딩 4'다; 설계(`crisis_and_transcendents.md:151` 머리)·`WORKPLAN.md:66`·`docs/50:226`은 T5 문턱을 Phase 6+에 둔다 | 결정 1 — `[B-6a7]` |
+| 2 | `docs/20:89`·`Sim/CosmicEndings.h:26-29` ↔ `docs/21:1326`·`Sim/GalaxySimulationSubsystem.h:213-216` | '시뮬은 끝을 모른다'(MVP 임시 끝의 규칙)와 '엔딩이 오면 끝난 판은 아무것도 시뮬하지 않는다'(B6의 예정 약속) — 부딪는 것이 아니라 예정이다; B6a는 약속을 '적되 멈추지 않는다'로 고쳐 적는다 | 결정 4 — `[B-6a2]` 먼저, 코드 주석 `[B-6a3]` |
+| 3 | `crisis_and_transcendents.md:145`·`:195`(같은 조건의 둘째 사본) ↔ `Sim/CosmicSuccession.cpp:42-53` | 침묵의 우주 '소유 성계 0에서 사망' 대 B5의 '후보 없음'(모든 백성의 정착 성계, 죽은 자리·치명 위기 빼고) | 결정 6-다(`[B-6a2]` 전 — 태그가 조건을 얼린다)·8 |
+| 4 | `crisis_and_transcendents.md:145` | '`Doctrine.Silence`와 일치하는 4번째 엔딩' — 이름이 타락의 승리를 말하고, 남은 자 법이 마지막 미편입 성계를 지켜 주장만으로는 은하가 비지 않는다 | 결정 6-마 |
+| 5 | `crisis_and_transcendents.md:134` | '당신이 아닌 누군가가 우주를 정의했다' — 피조물에게 저자의 일을 준다(`pillars.md:89` '저자에게 대칭되는 상대는 없다') | 결정 6-마 |
+| 6 | `DESIGN_AUDIT_AND_IMPROVEMENT.md:164`·`:189`·`:242`·`:254-257`·`:329`·`:335`·`:336`, 열린 점검 항목 `:366`·`:369`('`CivTierAtLeast 3.0`')·`:378`·`:379`('+300 ticks') ↔ `Tools/data/DT_Encounters.json:961-977`·A2 헤더 `:148` | 감사가 `petition_exalt`를 셋째 칸의 마지막 답으로 보았다 — 그 카드는 둘째 칸의 카드이고 지금은 오지 않는다(§0.4′); '문턱의 계절 +300'과 점검 항목의 '셋째 칸의 카드'는 그 전제 위에 섰다 | 결정 2-가·9(대안 ㉰) — `[B-6a7]`(점검 항목에 'B6a — 둘째 칸으로 바로잡음; +300은 받지 않음, 결정 2-가' 표지) |
+| 7 | A4 노트 `:449-458` ↔ B5 헤더 `:407`(결정 12-라) | 스케치의 `bWatched`('the ending the calling watched')와 태그 `SilentUniverse`·`OtherOrder` | 결정 6-가 — `[B-6a2]` 전 |
+| 8 | `Data/CosmicDefinitionRows.h:679-683` | 한 배열에 때가 다른 두 말(알아챔·울타리의 증언) — 말하기 추첨이 섞는다(`Log/CosmicLogSubsystem.h:100-106`) | 결정 7-라 — `[B-6a5]` |
+| 9 | `crisis_and_transcendents.md:99`·`:174`, `docs/70_CONTENT_GUIDE.md:162`('그릇을 알아보는 줄은 B6'), `docs/15_GLOSSARY.md:92`('`VoiceTemplates`(그릇을 알아보는 줄·울타리의 증언)') ↔ B5 결정 12-가(B5 헤더 `:404`) | '초월자는 부름을 알아본다 — 같은 부름의 냄새'와 '부름은 정체가 아니라 맡김'; 규칙 문서와 용어집이 알아챔의 줄을 '알아보는 줄'로 적는다 | 결정 7-다 — 설계 둘은 '타락은 제 손이 닿은 곳을 다스리는 이를 알아챈다'로(`:99`는 `[B-6a3a]` 전, `:174`는 `[B-6a7]`), `docs/70:162`는 '2인칭은 알아챔의 줄 하나뿐이다 — B6a', 용어집은 '알아챔의 줄은 `AwarenessTemplates`, `VoiceTemplates`는 울타리의 증언' |
+| 10 | `Data/CosmicDefinitionRows.h:267`·`Sim/CosmicEndings.h:26`·`DESIGN_AUDIT_AND_IMPROVEMENT.md:75`·`:118`·`OPEN_QUESTIONS.md:122` | `GrantedPowers`('T4→5 행이 `Way.*`를 싣는다' — 길은 문턱이 가른다), '(the MVP has one life)'(B5 뒤로 낡음), '불멸'(피조물에게 — 칸이 그릇을 건너 남는 기준), #154의 'B7'(그 블록은 B6b) | `[B-6a3]`(`CosmicEndings.h`)·`[B-6a7]` |
+| 11 | `docs/00_VISION.md:20`·`:32` | 결정 밀도 잣대와 MVP 벽시계가 '셋째 칸 ∨ 틱 6,000'의 끝을 두고 적혔다 | 결정 2-라 |
+
+## 1.1 장치 커밋의 주석 (헤더 §7 '장치의 세 커밋'에서 — 주석은 그것이 말하는 코드를 바꾸는 커밋에)
+
+- `[B-6a3a]`: `Sim/CosmicEndings.h:13-30`(`EndRung`과 '(the MVP has one life)'의 낡은 계약, `Rung`의 주석 — 열거자는 `[B-6a3c]`까지 남고 이제 나지 않는다), `Core/GalaxyState.h:465-467`(알아챔을 쓰는 자리), `Data/CosmicDefinitionRows.h:1097-1101`(시계 노브의 주석의 셋째 칸 — `docs/30`은 이 커밋에서 바뀌지 않는다, §3.5), `Tests/CosmicBalanceCommandlet.h:38-43`(`end:` 줄의 'rung at'과 셋째 칸의 `end check`).
+- `[B-6a3b]`: `Sim/CosmicEndings.h:1-3`(머리)과 새 함수, `Sim/GalaxySimulationSubsystem.h:211-219`(`RunHeadless`의 약속 — 'Not yet' `:213-216`), `.cpp:1178`(자리표시), `Tests/CosmicBalanceCommandlet.h:60-62`('once an ending stops a run, a later RunHeadless must simulate nothing'), `Sim/CosmicSuccession.h`(`IsSilent`).
+- `[B-6a3c]`: `Sim/GalaxySimulationSubsystem.h:221-227`(`RunLeap`의 멈춤), `World/CosmicGameMode.h:283-286`·`:303-310`(`AdvanceLeap` — 시계로 자르기)·`:313-329`(`NextCallingPage`·`SkipCallingPages` — '끝이 앞에 있으면 끝까지')·`:706-708`, `World/CosmicRulerPolicy.h:89-91`·`:156-157`과 `World/CosmicWandererPolicy.h:52`·`:59`('reads the provisional end' → 기록), `Save/CosmicSaveSubsystem.h:55`, `Log/CosmicChronicle.h:152`('the state does not know the end'), `UI/CosmicChronicleWidget.h:62`·`:94`·`:113`, `Data/CosmicDefinitionRows.h:1097-1099`(노브 주석의 `ProvisionalEndOf`와 'Nothing in the simulation stops at it' → 기록), **`docs/30` 다시 만듦**(§3.5 — 시계 노브의 읽는 코드가 둘), `docs/40`의 커맨드렛 절에 `ending:` 줄 한 단락(`calling:`에서 뗀 칸과 함께 — §5.1).
+
+## 1.2 문서 커밋의 목록 (헤더 §7 '문서 커밋'에서 — `[B-6a7]`; 앞 커밋이 줄을 밀므로 줄 번호는 HEAD `b10be48`의 것이다 — 고칠 때는 문단의 첫 낱말로 찾는다)
+
+- `docs/20:89`(§6.3 '임시 끝' 단락 → '판의 끝' — 래치 넷·문 하나·쪽의 차례는 그대로, 래치가 읽는 것이 기록), `docs/21`의 나머지(컨트롤러·저장 층·연대기의 사본, `FTranscendentDef.AwarenessTemplates`).
+- 설계: `crisis_and_transcendents.md:134`(결정 6-마)·`:145`('Doctrine.Silence와 일치'를 지움 — 조건은 `[B-6a2]`가 먼저 고쳤다)·`:146-148`(설계 이름은 문서의 이름 — 화면 제목 없음)·`:148`('그릇 없이 맞은 결말'의 '가칭'을 뗀다 — 6-마)·`:149`·`:151` 머리(T5 문턱은 Phase 6+ 그대로 — 결정 1)·`:174`(계승의 괄호 '초월자는 부름을 알아본다 … "같은 부름의 냄새가 난다"' → '타락은 제 손이 닿은 곳을 다스리는 이를 알아챈다(`bAwareOfPlayer` — 초월자마다 한 번, 줄은 판에 한 번, B6a)' — 결정 7-다)·`:195`(조건 칸 둘째 사본의 나머지 괄호)·`:115`('— B6, 업적과 함께' → 'B6b'); `systems.md:166`('칙령 범위의 넓힘(T4·T5 — B6)' → 'B6b')·`:43`('함대 전력 승수(B6' → 'B7 #155')·`:411`('EA(Phase 6a)부터' → 'B6b부터' — 제동의 꼴과 값은 B6b, #161); `pillars.md:108`은 B6b.
+- `docs/00_VISION.md:18`(B6a·B6b와 1판의 'T5 두 길'은 Phase 6+)·`:20`·`:32`(결정 2-라).
+- `docs/50:12`(B6 칸을 §0의 B6a 목록과 B6b 목록으로 — 칙령 범위의 넓힘·영압이라는 업적 기회는 B6b, 위기 청원의 낮은 선택은 결정 17-나의 답대로; 'T5 문턱'을 지우고 채택 문장 'T3→T5 업적·엔딩 4'로 — T5 문턱은 Phase 6+ 목록 `:226`에 그대로)·`:15-25`(현재 코드에 B6a 한 줄)·`:223`(6a의 'AI의 T3→T4 판정과 `AIFourthRungCap`' → B6b)·B 행 끝 칸(결정 21).
+- `WORKPLAN.md:61`(B 행에 한 줄 — 'B6a는 장치 앞에 기준값을 옮기는 커밋 둘(판의 규칙을 바꾸는 `[B-6a3a]`, 기록을 쓰는 `[B-6a3b]`)을 두고 장치 `[B-6a3c]`는 비트 그대로 — 결정 15')·`:65`(6a 행의 'AI의 T3→T4 판정과 `AIFourthRungCap`' → B6b).
+- `docs/15_GLOSSARY.md`: 판의 끝(시계), 엔딩 기록, 그릇 없이 맞은 결말, 알아챔, 셋째 칸 뒤의 계절; `:92`('`VoiceTemplates`(그릇을 알아보는 줄·울타리의 증언)' → 알아챔의 줄은 `AwarenessTemplates`, `VoiceTemplates`는 울타리의 증언).
+- `docs/70`: 끝의 까닭 줄의 규칙(§3.6의 1~3 — `holy_passive`), 알아챔 줄의 규칙(2인칭의 예외·줄은 판에 한 번(플래그는 초월자마다)·그릇이 지닌 것을 말하지 않는다·만료의 마지막 줄·Severity 1·`awareness_words` — `:77`(차례 끝에 '→ 알아챔(판에 한 번)'), `:162`의 괄호 '그릇을 알아보는 줄은 B6' → '2인칭은 알아챔의 줄 하나뿐이다 — B6a', `:168`·`:211`), 주장의 경고·반란 문턱의 글.
+- `docs/40`: 테스트 표(§6), `-ExaltAsBefore`, `:460`의 '다른 질서 < 15%'는 B6b.
+- `DESIGN_AUDIT_AND_IMPROVEMENT.md`: `petition_exalt`를 셋째 칸의 클라이맥스로 본 전제(`:164`·`:189`·`:242`·`:254-257`·`:329`·`:335`·`:336` — 둘째 칸이고 B6a가 바로잡았다; '문턱의 계절 +300'은 받지 않았다 — 결정 2-가), 열린 점검 항목 `:366`·`:369`('`CivTierAtLeast 3.0`' — 'B6a — 둘째 칸으로 바로잡음, 결정 9')와 `:378`·`:379`('+300은 받지 않음 — 결정 2-가')에 표지, '불멸'(`:75`·`:118` → '칸이 그릇을 건너 남는 기준').
+- `OPEN_QUESTIONS`(노트 §0.2 — 닫음·고침·새 #155~#163), `DECISIONS_LOG`, `docs/CHANGELOG.md`, `STATUS.md`.
+- `CLAUDE.md` 규칙 15의 '현재 코드(A0~B5'를 'A0~B6a'로(결정 20).
+- 코드 주석의 나머지: `Data/CosmicDefinitionRows.h:267`(`GrantedPowers` — 'T4→5 행이 `Way.*`를 싣는다' → 길은 문턱이 가른다, Phase 6+), `Data/CosmicDefinitionRows.h:726`(`AIFourthRungCap` 'from Phase 6a' → B6b — 위 `WORKPLAN.md:65`·`docs/50:223`·`systems.md:411`과 한 커밋), `Log/CosmicLogSubsystem.h:102`('its VoiceTemplates wait for their reader - B6'), `Config/DefaultGameplayTags.ini:47-48`(`Way.*` 설명의 엔딩 제목 — 결정 6-나) — 헤더 파일의 주석이라 에디터를 닫고 전체 빌드.
+
+## 2. 측정의 셈 (헤더 §5.2에서)
+
+- **구간**: 몫 옆의 괄호는 95% 구간(Wilson — B5 노트 §5의 꼴). 판단은 30건 이상일 때만; 모자라면 '재지 않음 — 잰 N'.
+- **결정적 칸**: 커맨드렛 CSV(`Tests/CosmicBalanceCommandlet.cpp:1170`의 머리)에서 `TickMicros`·`SaveBytes`·`SaveRawBytes`를 뺀 모든 칸 — 시간은 결정적이지 않고, 세이브 크기는 기록이 서면 바뀐다(필드는 기본값이면 쓰이지 않는다 — `Core/GalaxyState.h:8-11`). `[B-6a2]`의 '세계 그대로'와 `[B-6a3]`의 깨질 수 있는 확인 ⓑ·ⓒ(헤더 §5.3)가 이 칸을 견준다.
+- **한 번만 센다**: 통치자 R과 방랑자 칸은 1,200(양위)까지, 느린 R(`-Focus=0`)은 시작부터 갈린다(따로 센다), 시험 칸의 세 정책(`Faithful`·`Reckless`·`Cautious`)은 처음 갈린 영압 카드의 답까지(정책은 카드의 답만 다르다 — `World/CosmicRulerPolicy.cpp:301-311`), 시험 칸의 `-Guard=0`과 `1`은 첫 지킴까지, 18,000 참고 칸은 R과 틱 6,000까지(그 노브는 끝만 읽는다), `ResistFleetFactor` 0.45 짝은 첫 저항까지, 묶음 1의 짝은 처음 갈린 틱(`petition_exalt`가 온 틱)까지 같은 세계다. #135의 첫 조건은 R과 모든 시험 칸에 걸쳐 (시드, 틱, 성계)를 열쇠로 한 번 센다(B4가 세 정책을 한 번씩 센 꼴 — `OPEN_QUESTIONS.md:104`). 판의 몫은 서로 다른 시드의 수로 적는다.
+- **계절의 길이** = (기록의 `Tick`) − (다스리는 백성의 셋째 칸 틱). 셋째 칸에 오르지 못한 판은 따로 센다(길이 없음). 끝 전 폐위·양위로 다스리는 백성이 바뀐 판은 '셋째 칸 틱'을 그 판의 첫 셋째 칸 다스림으로 읽는다.
+(판단의 문 — #136·#142·#135 — 은 헤더 §5.2 한 곳에만 적는다. 아래는 셈의 세부다.)
+- **#136의 셈**: 판마다 끝 전에 `Log.Claim` 1인칭 줄(지금의 셈 — `Tests/CosmicBalanceCommandlet.cpp:2176-2179`)이 하나라도 말해졌으면 1(시드마다 한 번); 알아챔 줄은 #140으로 따로 센다. 10/30의 까닭은 B4가 '첫 생애의 판에 보라 줄이 없다'를 물음으로 연 일(`OPEN_QUESTIONS.md:105`)이고, 사람의 쪽은 손 확인 ①.
+- **#142의 셈**: 띠의 경계 401~550(가장 긴 머묾 — #132의 셈), 나쁜 결말 = 편입, 몫의 아래 끝은 Wilson; 셋째 칸 뒤·끝 전과 끝 뒤를 가른다(`OPEN_QUESTIONS.md:111`의 수는 끝 = 셋째 칸에서 갈랐다).
+- **#135의 셈**: 첫 조건의 열쇠는 (시드, 틱, 성계)이고 칸을 잃은 것은 그 틱에 대기 칸이 찼거나 같은 틱에 다른 카드가 놓인 경우다(`OPEN_QUESTIONS.md:104`); 같은 틱의 `petition_exalt`가 칸을 다투는 경우를 따로 적는다(둘째 칸의 틱).
+- **경주의 입력**(B6b의 미리 셈 — 판단 없음): 판마다 앞섬 = (다스리는 셋째 칸 틱) − (첫 AI 셋째 칸 틱) — 정확한 틱; 분야마다 1.0 틱(다스리는 백성·첫 AI). 지금 AI의 칸은 100틱 표본으로만 알아 '같은 칸'의 폭이 남는다 — 이 칸이 그것을 없앤다. **잘린 값**: 6,000 안에 다스리는 셋째 칸이나 AI의 셋째 칸, 또는 연구 1.0에 닿지 않은 판은 따로 세고 앞섬 값을 두지 않는다(그 수를 적는다 — 빈 칸을 6,000으로 채우지 않는다).
+- **`petition_exalt`의 미리 셈**(헤더 §5.2 묶음 0에서): 칸마다 두 수 — 다스리는 둘째 칸 틱이나 둘째 칸 이상 백성의 재위 첫 틱에 대기 칸이 비었고 그 틱에 다른 상시 카드가 놓이지 않은 판(바닥)과 놓인 판(다툼 — 같은 틱에 처음 선 상시 카드는 파생 정수의 무게 뽑기로 하나만 온다, `Events/CosmicPetitions.cpp:413-414`)(묶음 1의 ⓓ가 견준다).
+- **참고 칸(18,000)**: `-Rules=ProvisionalEndTick:18000`은 탐침이다 — 그 수로 무엇을 정하지 않고 B6b의 시계 결정(#2)에 넘긴다.
+
+## 2.1 `ending:` 줄의 칸 (헤더 §5.1에서 — 줄은 `[B-6a3c]`)
+
+기록(종류·틱·`bNoVessel`·백성이 다스리던 백성인가); 다스리는 백성의 셋째 칸 틱과 **셋째 칸 뒤 계절의 길이**(끝 − 셋째 칸)와 **계절의 결정**(셋째 칸과 기록 사이의 결정을 600틱마다 센 수, 결정 없이 지난 가장 긴 틈); **AI가 처음 셋째 칸에 오른 정확한 틱**(틱마다 본다 — 지금 AI의 칸은 100틱 표본으로만 안다, `Tests/CosmicBalanceCommandlet.cpp:116-117`의 다스리는 백성 칸의 꼴)과 그 백성·길(업적 행); **분야마다 연구가 1.0에 닿는 틱**(다스리는 백성과 첫 AI); 알아챔의 틱과 말해졌는가, 그 틱의 열째 단계에서 그릇이 떠났는가(같은 틱 뒤에 기록된 떠남 — §2.11의 '거르지 못하는 것'); 끝 전에 말해진 **1인칭 주장 줄**(`Log.Claim` — 지금의 셈 `:2176-2179`, #136)과 **알아챔 줄**(`Log.Transcendent`, #140)을 따로; 셋째 칸 뒤 다스리는 성계에 선 주장의 수와 첫 틱; **다스리는 셋째 칸에서 가른 셈**(B4의 수는 끝 = 셋째 칸에서 갈랐다 — #132의 지킨 위기의 지연 몫, #142의 401~550 띠의 수와 그 가운데 편입, #135의 대기 칸에 잃은 주장 카드); **#145의 경우** — 저항 뒤 함대가 그 전 값 아래인 동안(`Regrowing` — `:354-361`, `:2092-2100`) 다스리는 백성의 성계에 시작한 공성의 수; 끝 전에 다스리는 수도의 `LowStabilityTicks`가 처음 0을 넘은 틱(손 확인 ⑥의 시드 고르기); 영압 카드가 온 틱의 통찰·영향력 비축(#144); `petition_exalt`가 온 틱과 고른 답.
+
+## 3. 첫 측정 (`[B-6a3]` — 묶음 0; 판단은 헤더 §11과 묶음 1)
+
+(비어 있다 — `[B-6a3]`이 표를 더한다: 칸마다 시드 범위·잰 N·몫과 구간·미리 셈한 판단.)
+
+## 4. 헤더 리뷰와 둘째 확인의 기록 (헤더 §11에서)
+
+**ultracode 적대 리뷰(2026-10-31)**: 관점 넷 — 설계와 범위 16·결정론 12·신학 14·측정 19, 발견 61. 검증(관점 둘씩 묶은 검증자 둘): 확인 47·일부 13·반박 1. 고침은 리드 한 사람이 헤더와 이 노트에만 들였다(검증자의 고침이 다르면 그것으로). `docs/CHANGELOG.md`에도 적는다.
+
+- **헤더를 크게 바꾼 것**: `[B-6a3]`을 세 커밋으로(결정 15 — 셋째 칸 뒤 `[B-6a3a]`, 기록 쓰기 `[B-6a3b]`, 비트 그대로의 장치 `[B-6a3c]`; 연대기의 서명을 열거와 한 커밋에 — 앞 판은 `[B-6a3]`이 컴파일되지 않았다); 알아챔 줄의 자리(그 만료의 끝 — 서술자의 만료·기록·주장 발생 줄 뒤)·Severity 1·`PendingEffect`의 문·초월자마다의 플래그와 판에 한 줄; `bNoVessel`의 예외(다섯째 칸에 오른 틱의 죽음); 주장의 경고를 함수 둘로(`ClaimRuleHoldsOf`·`ClaimMayFollowOf` — 만료 앞의 문 셋)와 반란 문턱의 상수; 시험 칸을 B4의 시험 묶음 그대로(노브 포함, 60 × 20,000)와 미리 센 기대 N; 깨질 수 없던 목표 둘(끝까지의 결정, 카드 30/30)을 깨질 수 있는 확인으로; 결정 6-다를 조건(`[B-6a2]` 전)과 6-마(문장)로, 결정 17을 17-가와 [개발자] 17-나로; 열세 테스트 파일과 도우미 `EndRunAt`; 새 스키마 목록 둘(`awareness_words`·`holy_passive`); 알아챔·단독 승천·그릇 없음의 초안 글.
+- **반박되어 들이지 않은 것**: 신학-12('그릇 없이 맞은 결말'의 '맞은'이 눈 없는 공백기에 보는 이를 들인다) — '결말을 맞다'는 판이 주어일 수 있는 관용구이고 B5 결정 12-라가 바로 이 이름을 '지켜본'의 대신으로 골랐다(B5 헤더 `:407`); 화면 제목이 아니다(6-나).
+- **일부만 들인 것**(검증자의 고침대로): 설계-7(#156은 B6b로, #157만 [개발자]), 설계-10(A4 노트 `:462`는 맞다 — 3,412만 고침), 설계-14(2-가의 표지만; 결정 15는 [개발자]가 아니다 — 세 커밋으로 B 행을 지킨다), 측정-6(추출은 `[B-6a4]`에 두고 xhigh·`-Data`), 측정-12(러너는 끝 코드로 이미 멈춘다 — `Compare-Balance`는 고치지 않는다), 측정-13(b는 지금 단언을 지킨다고만), 측정-17·18, 결정론-4·11(한계를 적기만), 신학-8(후보 글은 감사가 정한다)·11('먼저'는 놓아도 된다 — 뺐다)·14.
+- **산술**: 결정 20의 남는 바이트는 규칙 13에 함수 셋을 더해 다시 셈했다(약 120).
+
+**고친 뒤 확인의 비평(2026-10-31)** — 리뷰가 코드에 견주지 않은 곳을 HEAD에서 다시 열어 고쳤다(헤더에 바로):
+- **사실**: §2.2의 1 — `PeakTier`는 '다스리는 백성의 오름만'이 아니라 그릇이 설 때의 개인 칸(`Player/PlayerRoleSubsystem.cpp:198`, 셋째 칸 이상은 계승을 건넌다 `:530-534`)과의 큰 것이다(B6a에서는 같은 답 — 개인 칸이 오르지 않는다); §3.5 — `docs/30`은 노브 주석을 싣지 않고 읽는 코드를 싣는다(`Tools/make_config_reference.py:20-28`): 바뀌는 커밋은 `[B-6a3a]`가 아니라 컨트롤러의 시계 자르기(`World/CosmicGameMode.cpp:864`)를 지우는 `[B-6a3c]`이고, 다시 만들지 않으면 러너의 문서 검사(`Tools/run_checks.ps1:45`)가 깨진다; '타락 행이 하나라' → 판의 타락 하나는 `FallenTranscendentCount` 1(`Tools/data/DT_Rules.json:27`); 해시 판의 정책 없는 쪽은 `RunHeadless(Step)`(`World/CosmicHashRun.cpp:141`); 결정 10 ㉮의 '즉위 틱은 저장되지 않는다'에 `ReignTicks`(재위의 길이 — 마지막 재위만 거꾸로 셀 수 있다)를 달았다.
+- **알아챔의 문**: `PendingEffect`는 그 틱에 **앞서** 기록된 떠남만 거른다 — 같은 만료 차례의 뒤 만료와 위기 단계 끝의 이벤트 슬롯이 기록하는 떠남은 줄 뒤에 온다; '없앤다'를 '줄인다'로 고치고 그 판을 커맨드렛이 센다(§5.1).
+- **검증이 빠진 커밋**: `[B-6a3b]`·`[B-6a4]`·`[B-6a5]`·`[B-6a6]`이 헤더를 바꾸는데 '에디터를 닫고 전체 빌드'가 없었다(`CLAUDE.md` 작업 방식); `[B-6a4]`·`[B-6a5]`의 러너는 '두 번'이 없었다; `[B-6a3c]`의 구현 리뷰가 앞 두 커밋의 코드를 고치면 그 고침이 기준값을 옮겨 `[B-6a3c]`의 비트 그대로를 깬다 — 그런 고침은 앞의 따로 된 `[B-6a3r]`로; `[B-6a3a]`의 해시 옮김은 두 까닭(셋째 칸 끝·플래그)이 섞이고 플래그는 CSV 칸이 아니다 — 탐침 ⓓ(플래그를 끈 빌드의 `-PastEnd=1` 해시가 `[B-6a2]`와 같다); 계절의 결정 밀도(ⓑ)가 깨질 때의 갈 곳.
+- **테스트**: `[B-6a3a]`에서 깨지는데 그 커밋의 목록에 없던 셋 — `Sim.ProvisionalEnd`(`Tests/CosmicChronicleTests.cpp:107`이 `EndRung`을 읽어 컴파일되지 않고, `:129-137`·`:179`가 `Rung`을 단언한다), `UI.RunEnd`의 (6)(`Tests/CosmicChronicleScreenTests.cpp:358-428` — '셋째 칸이 판을 끝낸다'와 연출 위의 끝; 연출 위의 끝은 오름의 틱에 놓은 시계로 옮긴다), `UI.Chronicle`의 칸 줄(`:540-557` — `NoteOf`의 칸 가지); `UI.Epitaph`의 (11)(`Tests/CosmicCallingPagesTests.cpp:836-865`)은 침묵의 도약이 시계까지 달린다고 단언한다 — B6a에서 뜻이 바뀌는 단언이라 이름으로 적었다; `Sim.SaveOldEndFlows`는 smoke 필터에 들므로 시계 몇 틱 앞에서.
+- **손 확인**: ③의 시드 60은 **입력 없는 판**이다(B5 노트 §5의 ⓒ) — 위 2의 R로 만들면 그 죽음이 오지 않는다.
+- **작은 보완**: 반란 문턱의 줄은 수도에 반란이 이미 서 있으면 내지 않는다.
+
+**둘째 확인(2026-10-31)** — 고침 77건(리뷰의 확인·일부 60과 비평 17)이 든 자리와 인용 25줄을 HEAD `b10be48`에서 다시 열었다: 모두 검증자·비평이 말한 대로 들었고 반박 1(신학-12)은 들지 않았다. 의심한 두 줄은 맞았다(A4 노트 `:462`; `FollowEnd`의 연대기 쪽 부르기는 `World/CosmicGameMode.cpp:1235`). 남은 결함 여덟을 헤더와 이 노트에 바로 고쳤다:
+- **확인-1(중간)**: 손으로 끝을 세우는 테스트 둘이 도우미 목록에 없었다 — `UI.Chronicle`(`Tests/CosmicChronicleScreenTests.cpp:678-679` — 틱 없이 `FollowEnd(false)`; `[B-6a3c]` 뒤에는 아무것도 래치하지 않아 `:681-690`이 깨진다)과 `UI.ContinueEnded`(`Tests/CosmicSaveSessionTests.cpp:411` — 기록 없이 6,000에 놓고 저장; 결정 2-다로 로드 뒤 흘러 `:432`만 고쳐서는 깨진다). 둘 다 열세 파일 안이지만 열거를 부르지 않아 컴파일러가 찾지 못한다. 헤더 §2.7·§6과 위 §0.9′에 더하고 고치는 법을 적었다(`:413`의 저장 앞과 `:679` 앞에서 `EndRunAt`, 래치 `Ending.Clock`; `UI.Chronicle`은 `:691` 곁에서 기록을 되돌린다).
+- **확인-2**: 묶음 1의 ⓓ를 같음으로 견주면 아무 잘못 없이 깨질 수 있다 — 같은 틱에 처음 선 상시 카드끼리는 파생 정수의 무게 뽑기로 하나가 온다(`Events/CosmicPetitions.cpp:413-414`). 묶음 0이 두 수(바닥 — 그 틱에 다른 상시 카드가 놓이지 않은 판; 다툼 — 놓인 판)를 세고 ⓓ는 바닥 ≤ 온 판 ≤ 바닥 + 다툼으로 견준다(헤더 §5.2). 대안(들이지 않음): 묶음 0이 `CosmicSeed::DeriveForName(Seed, CivID, Purpose::Petition, Tick)`과 카드의 무게로 뽑기를 셈해 같음을 지킨다.
+- **확인-3**: 머리의 상태 줄 — 리드의 고침과 비평의 수, 둘째 확인을 넣고 '이 판'을 둘째 확인으로 옮겼다.
+- **확인-4**: 열거자 `Rung`이 언제 가는지 — `[B-6a3c]`까지 남고(`ProvisionalEndOf`가 내지 않을 뿐) `NameOf`의 가지(`Sim/CosmicEndings.cpp:33-34`)와 `Tests/CosmicChronicleTests.cpp:157`은 `[B-6a3c]`가 열거와 함께 지운다(헤더 §2.2; §7의 `[B-6a3a]` 주석 목록).
+- **확인-5**: §5.1 `end:` 줄의 칸 끝 칸('rung at')은 유일한 출처 `RungTick`과 함께 `[B-6a3a]`가 지운다(`[B-6a3c]`가 아니라).
+- **확인-6**: 게임과 화면이 나누는 함수는 ②가 아니라 ①(`ClaimRuleHoldsOf` — 시뮬의 `TryPlaceClaim`이 부른다); ②(`ClaimMayFollowOf`)는 화면의 답이고 `UI.ClaimMayFollow`의 정해 둔 답이 지킨다(헤더 §4·§7, 결정 20). 규칙 13의 초안은 '주장 규칙은 `CosmicHazards::ClaimRuleHoldsOf`(화면의 답은 `ClaimMayFollowOf`)' — 잰 초안 169바이트(앞 초안 146)라 남는 바이트는 약 100이다(확인이 어림한 약 80보다 많다 — '주장이 설 수 있는가는'이 '주장 규칙은'으로 짧아졌다).
+- **확인-7**: 시험 칸의 '정책은 시계 6,000까지 놀고 멈춘다'가 너무 셌다 — 중점·칙령·외교만 멈추고 카드의 답과 지킴은 이어 간다(`World/CosmicRulerPolicy.cpp:493`·`:518`·`:672`·`:729`; 끝 뒤에도 세는 자리 `:369`·`:427`). '판 전체로 약 23'의 어림이 이것에 기댄다.
+- **확인-8**: §7의 `docs/70` 목록에 줄의 차례 '만료 → 기록 → 징조 → 1인칭 → 그 뒤의 알림'을 정하는 `:77`을 더했다(차례 끝에 '→ 알아챔(판에 한 번)').
+
+**승인과 크기(2026-10-31)**: 개발자가 [개발자] 여섯 묶음(2-라·6·7·17-나·20·21)에 '전부 권장대로'라 답해 헤더가 승인되었다(상태 줄·§10의 '(답: …)'; 대안을 고른 항목이 없어 본문은 그대로). §11의 구현 기록이 들 자리를 내려고 헤더 147,975 → 137,700바이트로 줄였다 — 결정의 글과 규칙은 옮기지 않고 긴 목록만 이 노트로 옮기거나(헤더에는 한 줄의 가리킴): §5.1 `ending:` 줄의 칸 → §2.1, §5.2 묶음 0의 `petition_exalt` 미리 셈의 정의 → §2, §6 '고치는 테스트'의 파일·줄 → §0.9′ '고치는 자리', §7 장치 커밋의 주석 → §1.1, §7 문서 커밋의 목록 → §1.2; 이 노트에 이미 있던 것은 헤더의 사본을 줄였다: §1.1의 줄 근거(→ §0.1′·§0.4′·§0.5′·§0.6′), §1.2의 잰 값(→ §0.1), §1.5의 어긋남 목록(→ §1), §5.2의 '같은 세계는 한 번만 센다'(→ §2).
+
+## 5. 구현 기록의 세부 (헤더 §11에서 — `[B-6a1]`부터)
+
+### `[B-6a1]` (2026-10-31)
+- `Sim.NotablesFromEventsOnly`(`Source/Cosmic_Ascension/Tests/CosmicHazardTests.cpp:2983-3093`)를 `CosmicTests::WithoutDeath`에서 게임 데이터로 되돌렸다. 허용(`bMayHaveLeft`)은 `Row && Row->Severity == 1 && Record.FirstTick <= OldestLeft && Record.FirstTick < FirstLifeBornOf(Civ.CivID)`(그 백성이 속한 첫 생애의 `BornTick`, 어느 생애에도 속하지 않으면 `MAX_int64`).
+- 왜 5성계 경계 판을 끝에 더했는가: 시드 42의 입력 없는 20,000틱 판에서 반란이 나는 백성(`civ_0`·`civ_1`·`civ_3`·`civ_5`·`civ_7`)은 모두 타락 영향권 안에서 안정도 0으로 약 300틱마다 거듭 반란이 나므로, 옛 반란의 인물 기록은 약 1,200틱 뒤 `MaxNotablesPerCiv`(5 — 열린 `Notable.Ascendant` 1 + 닫힌 반란 `Notable.Ruler` 4)에 밀려나 로그 상한(`MaxLogEntries` 2,000, 약 7,400틱)보다 먼저 사라지고, 네 번의 계승은 반란이 없던 영향권 밖 백성으로 간다. 그래서 20,000틱 끝만 보면 모든 남은 기록이 `Told(...) == true`라 두 변이가 깨지지 않는다. 끝에 5성계 판(`Sim->NewGalaxy(42, 5, 3)`)에서 두 AI 백성이 301에 반란 한 번을 겪고 회복해 기록을 남긴 채 그 Severity 1 줄이 로그를 떠나게 한 뒤, `sys_0`의 양위·죽음이 두 AI 백성 가운데 하나로 계승하게 해(나머지 하나는 어느 생애에도 속하지 않음) 같은 `CheckState()`로 두 변이가 모두 깨짐을 확인했다.
+- 변이 둘(`Tools/mutations/B6a/`): `b6a1_notables_allow_end_peoples.patch`(끝의 `PeoplesOfEveryLife`로 되돌림 — 계승이 고른 AI 백성의 301틱 기록에서 실패), `b6a1_notables_no_allowance.patch`(허용 제거 — 두 AI 백성의 301틱 기록에서 실패).
