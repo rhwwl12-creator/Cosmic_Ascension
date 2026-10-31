@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1458,6 +1458,7 @@
+ 		GET_MEMBER_NAME_CHECKED(FGalaxyState, Chronicle),
+ 		GET_MEMBER_NAME_CHECKED(FGalaxyState, ChronicleEviction),
+ 		GET_MEMBER_NAME_CHECKED(FGalaxyState, TellRngState),
++		GET_MEMBER_NAME_CHECKED(FGalaxyState, Ending),
+ 	};
+ 
+ 	FStateHasher Hasher;

@@ -133,4 +133,36 @@ namespace CosmicTags
 		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Deposed")));
 		return Tag;
 	}
+
+	// B6a: the kinds of FCosmicEndingRecord::Kind (B6a header section 2.1, decision 6-ga) - saved names, facts only, never a
+	// screen title. The empty tag is a run that goes on.
+	inline FGameplayTag EndingRuledPeople()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Ending.RuledPeople")));
+		return Tag;
+	}
+
+	inline FGameplayTag EndingVessel()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Ending.Vessel")));
+		return Tag;
+	}
+
+	inline FGameplayTag EndingOtherPeople()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Ending.OtherPeople")));
+		return Tag;
+	}
+
+	inline FGameplayTag EndingNoCandidate()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Ending.NoCandidate")));
+		return Tag;
+	}
+
+	inline FGameplayTag EndingClock()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Ending.Clock")));
+		return Tag;
+	}
 }

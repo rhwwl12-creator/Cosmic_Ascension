@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Core/GalaxyState.h b/Source/Cosmic_Ascension/Core/GalaxyState.h
+--- a/Source/Cosmic_Ascension/Core/GalaxyState.h
++++ b/Source/Cosmic_Ascension/Core/GalaxyState.h
+@@ -798,7 +798,7 @@
+ 
+ 	// The tick that wrote the record. From [B-6a3c] the chronicle and the CosmicEnd line read it as the end's tick, not State.Tick.
+ 	UPROPERTY()
+-	int64 Tick = 0;
++	int64 Tick = -1;
+ 
+ 	// The people at the fifth rung (Ending.RuledPeople, Ending.OtherPeople); NAME_None for every other kind.
+ 	UPROPERTY()

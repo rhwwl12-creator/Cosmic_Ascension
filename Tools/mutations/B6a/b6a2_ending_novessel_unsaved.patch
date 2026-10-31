@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Core/GalaxyState.h b/Source/Cosmic_Ascension/Core/GalaxyState.h
+--- a/Source/Cosmic_Ascension/Core/GalaxyState.h
++++ b/Source/Cosmic_Ascension/Core/GalaxyState.h
+@@ -806,7 +806,6 @@
+ 
+ 	// The calling was in the interregnum when the record was written (B5 decision 12-ra: an end met with no vessel) - but
+ 	// not when a vessel died in the tick its people reached the fifth rung (B6a header section 2.2).
+-	UPROPERTY()
+ 	bool bNoVessel = false;
+ };
+ 

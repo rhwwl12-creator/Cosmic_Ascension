@@ -780,6 +780,37 @@ struct COSMIC_ASCENSION_API FChronicleEviction
 };
 
 /**
+ * How the run ended (B6a header section 2.1): one record, written once, after the tenth stage, by the tick whose end it is
+ * (B6a [B-6a3b] - UGalaxySimulationSubsystem through CosmicEndings::EndingOf; until then nothing writes it). An empty Kind
+ * is a run that goes on, and nothing else stores the end: its tick and kind are copied into no other field.
+ * Every initializer is frozen (CLAUDE.md rule 7): an empty record is not written (the delta save), so a save made before
+ * this field loads with an empty record (B6a decision 2-da, SaveVersion stays 1; from [B-6a3a] an MVP save that ended at
+ * the third rung flows on). World state: part of both hashes (decision 3).
+ */
+USTRUCT(BlueprintType)
+struct COSMIC_ASCENSION_API FCosmicEndingRecord
+{
+	GENERATED_BODY()
+
+	// Ending.* (Config/DefaultGameplayTags.ini, CosmicTags::Ending*; B6a decision 6-ga). Empty (frozen) = no end.
+	UPROPERTY()
+	FGameplayTag Kind;
+
+	// The tick that wrote the record. From [B-6a3c] the chronicle and the CosmicEnd line read it as the end's tick, not State.Tick.
+	UPROPERTY()
+	int64 Tick = 0;
+
+	// The people at the fifth rung (Ending.RuledPeople, Ending.OtherPeople); NAME_None for every other kind.
+	UPROPERTY()
+	FName CivID;
+
+	// The calling was in the interregnum when the record was written (B5 decision 12-ra: an end met with no vessel) - but
+	// not when a vessel died in the tick its people reached the fifth rung (B6a header section 2.2).
+	UPROPERTY()
+	bool bNoVessel = false;
+};
+
+/**
  * The whole saved game (section 7.2, 9.1): the state of one run. One save slot per run. Identifiers that say Galaxy
  * (FGalaxyState, GalaxyID, NewGalaxy, the slot name Galaxy_<GUID>) mean the run and are not renamed.
  * Home-galaxy members: Systems, Civs (the one galaxy simulated in detail). Every other member is run-wide.
@@ -871,4 +902,8 @@ struct COSMIC_ASCENSION_API FGalaxyState
 	// Flag.* set by the SetFlag effect (section 4.5).
 	UPROPERTY()
 	FGameplayTagContainer Flags;
+
+	// How the run ended (B6a). Empty = the run goes on. World state, in both hashes.
+	UPROPERTY()
+	FCosmicEndingRecord Ending;
 };

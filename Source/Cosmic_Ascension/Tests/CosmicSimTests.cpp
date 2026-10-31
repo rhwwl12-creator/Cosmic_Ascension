@@ -276,11 +276,15 @@ namespace CosmicSimTests
 	// in v0.7 (section 9.1), 24 leave their initializer here: no game code moves them off it yet, and a member that
 	// reloads as its initializer looks the same whether it was saved or not. The 25th, TellRngState, is not touched:
 	// NewGalaxy stamps it and DrawTell moves it. Needs three civs or more. The members after v0.7 that start at their
-	// initializer are set here too (MVP item 5's ChronicleEviction) - compared one by one with SameLaterMembers.
+	// initializer are set here too (MVP item 5's ChronicleEviction, B6a's Ending) - compared one by one with SameLaterMembers.
 	void FillEmptyContainers(FGalaxyState& State)
 	{
 		State.ChronicleEviction.Count = 3;
 		State.ChronicleEviction.ThroughTick = 17;
+		State.Ending.Kind = Tag(TEXT("Ending.OtherPeople"));
+		State.Ending.Tick = 19;
+		State.Ending.CivID = State.Civs[2].CivID;
+		State.Ending.bNoVessel = true;
 
 		const FName TestRow(TEXT("evt_test"));
 		const FName HomeGalaxy(TEXT("gal_milkyway"));
@@ -441,6 +445,9 @@ namespace CosmicSimTests
 	{
 		bool bSame = A.ChronicleEviction.Count == B.ChronicleEviction.Count && A.ChronicleEviction.ThroughTick == B.ChronicleEviction.ThroughTick
 			&& A.Civs.Num() == B.Civs.Num() && A.Systems.Num() == B.Systems.Num();
+		// B6a: the ending record.
+		bSame = bSame && A.Ending.Kind == B.Ending.Kind && A.Ending.Tick == B.Ending.Tick && A.Ending.CivID == B.Ending.CivID
+			&& A.Ending.bNoVessel == B.Ending.bNoVessel;
 		// B3: the ties, the fleet target and the completer of each record.
 		for (int32 Index = 0; bSame && Index < A.Civs.Num(); ++Index)
 		{
@@ -1737,7 +1744,7 @@ bool FCosmicSimTellStreamSeparateTest::RunTest(const FString& Parameters)
 		TestTrue(*FString::Printf(TEXT("%s is %s the full hash"), *Name.ToString(), bInFull ? TEXT("in") : TEXT("out of")), bFullMoved == bInFull);
 		++Seen;
 	}
-	TestEqual(TEXT("Top-level members of FGalaxyState classified"), Seen, 19);
+	TestEqual(TEXT("Top-level members of FGalaxyState classified"), Seen, 20);
 	TestTrue(TEXT("Both hashes are back after restoring the state"), Sim->ComputeWorldHash() == World && Sim->ComputeStateHash() == Full);
 	Sim->GetRng().GetUnsignedInt();
 	TestTrue(TEXT("A sim draw moves both hashes"), Sim->ComputeWorldHash() != World && Sim->ComputeStateHash() != Full);
