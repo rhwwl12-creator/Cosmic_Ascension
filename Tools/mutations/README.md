@@ -653,3 +653,14 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B6a/` | `b6a3b_record_overwritten.patch` — the write loses its 'only while empty' guard: a later end overwrites the first | `Cosmic_Ascension.Sim.EndingRecordOnce` |
 | `B6a/` | `b6a3b_record_draws.patch` — writing the record draws one number from the sim stream | `Cosmic_Ascension.Sim.EndingRecordOnce` |
 | `B6a/` | `b6a3b_stage_reads_record.patch` — the research stage reads the record and skips itself once an end stands | `Cosmic_Ascension.Sim.EndingInert` |
+| `B6a/` | `b6a3c_runleap_never_stops.patch` — `RunLeap` never stops at the tick that wrote the ending record | `Cosmic_Ascension.Sim.RunLeapStopsAtEnding`, `Cosmic_Ascension.UI.LeapBoundary` |
+| `B6a/` | `b6a3c_runleap_stops_past_the_record.patch` — `RunLeap` stops at the record even when the record already stood at the call (a leap past the end stops at once) | `Cosmic_Ascension.Sim.RunLeapStopsAtEnding` |
+| `B6a/` | `b6a3c_runheadless_stops_at_the_record.patch` — `RunHeadless` refuses to run once a record stands (the sim stops at the end - B6a decision 4 reversed) | `Cosmic_Ascension.Sim.RunLeapStopsAtEnding` |
+| `B6a/` | `b6a3c_advanceleap_no_second_call.patch` — `AdvanceLeap` with the end switched off no longer runs the rest of the leap after `RunLeap` stopped at the record | `Cosmic_Ascension.Calling.LeapDeterminism`, `Cosmic_Ascension.UI.LeapBoundary` |
+| `B6a/` | `b6a3c_advanceleap_second_call_with_the_end_on.patch` — `AdvanceLeap` runs the rest of the leap even with the end switched on (past the latched end) | `Cosmic_Ascension.UI.LeapBoundary` |
+| `B6a/` | `b6a3c_latch_reads_the_predicate.patch` — `FollowEnd` latches `CosmicEndings::EndingOf` afresh instead of the record the tick wrote | `Cosmic_Ascension.Sim.SaveOldEndFlows` |
+| `B6a/` | `b6a3c_latched_record_empty.patch` — the pages and the chronicle get an empty record from `LatchedRecordOf` (no note, no notice) | `Cosmic_Ascension.UI.Epitaph` |
+| `B6a/` | `b6a3c_cosmicend_state_tick.patch` — the `CosmicEnd:` line prints the state's tick instead of the record's | `Cosmic_Ascension.Sim.SaveOldEndFlows` |
+| `B6a/` | `b6a3c_markof_reads_clock.patch` — `UCosmicSaveSubsystem::MarkOf` marks the run ended from the clock instead of the record | `Cosmic_Ascension.Sim.SaveTriggers`, `Cosmic_Ascension.Sim.SaveOldEndFlows` |
+| `B6a/` | `b6a3c_wanderer_policy_reads_clock.patch` — the wanderer policy's end reads the clock instead of the record | `Cosmic_Ascension.Sim.WandererPolicy` |
+| `B6a/` | `b6a3c_ruler_policy_reads_clock.patch` — the ruler policy's end reads the clock instead of the record | `Cosmic_Ascension.Sim.RulerDiplomacyPolicy` |

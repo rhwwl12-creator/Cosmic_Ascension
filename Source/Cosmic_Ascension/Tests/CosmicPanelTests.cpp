@@ -13,6 +13,7 @@
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "CoreGlobals.h"
+#include "Core/CosmicTags.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
@@ -30,7 +31,6 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeExit.h"
 #include "Rendering/SlateLayoutTransform.h"
-#include "Sim/CosmicEndings.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/GalaxySimulationSubsystem.h"
@@ -798,7 +798,8 @@ bool FCosmicUIMouseOnlyAscentTest::RunTest(const FString& Parameters)
 	Sim->SetTables(CosmicTests::WithRules(Sim->GetTables(), Clocked));
 	Sim->RunHeadless(1);
 	Controller->FollowEnd(true);
-	TestEqual(TEXT("The clock ends the run"), Controller->GetRunEnd(), ECosmicProvisionalEnd::Clock);
+	TestEqual(TEXT("The clock ends the run"), Controller->GetRunEnd(), CosmicTags::EndingClock());
+	TestTrue(TEXT("(the latch is the record the clock's tick wrote)"), Live.Ending.Kind == CosmicTags::EndingClock() && Live.Ending.Tick == Live.Tick);
 	TestEqual(TEXT("and stops the simulation"), Sim->GetTimeScale(), 0.f);
 	Controller->AdvanceRunEnd(CosmicChronicleScreen::HoldSeconds + 0.1f);
 	UCosmicChronicleWidget* Page = HUD->GetChronicle();

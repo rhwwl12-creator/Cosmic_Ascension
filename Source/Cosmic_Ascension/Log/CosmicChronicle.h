@@ -149,7 +149,8 @@ namespace CosmicChronicle
 	COSMIC_ASCENSION_API bool OpensCalledChapter(const FCosmicLogEntry& Entry, const FLifeRecord& Called);
 
 	/** B5 ([B-5d1] - header section 4): whether Entry is a line of a life the player never saw - bRunEnded (the presentation's latch of the end:
-	 * ACosmicPlayerController::IsRunEnded; the state does not know the end), a life ShownLivesOf leaves out (the called one the end's tick installed), and
+	 * ACosmicPlayerController::IsRunEnded - the record State.Ending as the controller latched it at a boundary; a session with the end switched off
+	 * never latches), a life ShownLivesOf leaves out (the called one the end's tick installed), and
 	 * Entry its inauguration line (OpensCalledChapter of the last life: either row, on its BornTick tick). The screens that read where the run ended hold it
 	 * back as they hold that vessel back (ACosmicPlayerController::IsVesselShown): the log feed skips it (UCosmicLogFeedWidget), as the chronicle's spans
 	 * stop before it. Reads; false while the run goes on. */

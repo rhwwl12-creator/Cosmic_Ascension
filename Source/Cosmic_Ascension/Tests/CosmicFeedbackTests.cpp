@@ -8,6 +8,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Components/SlateWrapperTypes.h"
 #include "Components/TextBlock.h"
+#include "Core/CosmicTags.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDefinitionRows.h"
@@ -360,12 +361,15 @@ bool FCosmicUIFirstHintsTest::RunTest(const FString& Parameters)
 
 	// The run over: the buttons are grey and the line goes.
 	const int64 WasTick = Live.Tick;
-	Live.Tick = Sim->GetRules().ProvisionalEndTick;
+	// The end laid by hand with the record its tick would have written (B6a [B-6a3c]: the latch reads the record).
+	CosmicTests::EndRunAt(Live, CosmicTags::EndingClock(), Sim->GetRules().ProvisionalEndTick);
 	Controller->FollowEnd(false);
+	TestTrue(TEXT("(the end latched)"), Controller->IsRunEnded());
 	Panel->Refresh();
 	TestFalse(TEXT("After the end the line goes"), LineShown());
 	Controller->ClearRunEnd();
 	Live.Tick = WasTick;
+	Live.Ending = FCosmicEndingRecord();
 	Panel->Refresh();
 
 	// The first project: the line goes for the session.

@@ -108,23 +108,32 @@ TSharedRef<SWidget> UCosmicChronicleWidget::RebuildWidget()
 	return Super::RebuildWidget();
 }
 
-FText UCosmicChronicleWidget::NoteOf(ECosmicProvisionalEnd Cause) const
+FText UCosmicChronicleWidget::NoteOf(const FCosmicEndingRecord& Record) const
 {
 	using namespace CosmicChronicleWidgetImpl;
 	using CosmicUI::Label;
 
 	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
-	if (!Sim || Cause == ECosmicProvisionalEnd::None)
+	if (!Sim || !Record.Kind.IsValid())
 	{
 		return FText::GetEmpty();
 	}
-	const FGalaxyState& State = Sim->GetState();
-	if (Cause == ECosmicProvisionalEnd::Clock)
+	// The end's tick is the record's, not State.Tick (a state run on past it, a continued save - B6a header section 2.1).
+	if (Record.Kind == CosmicTags::EndingClock())
 	{
-		return FText::Format(Label(TEXT("Chronicle.Note.Clock")), FText::AsNumber(State.Tick));
+		return FText::Format(Label(TEXT("Chronicle.Note.Clock")), FText::AsNumber(Record.Tick));
 	}
-	// Rung is no longer produced (the third rung does not end a run - B6a [B-6a3a]): the line that names no people. [B-6a3c]
-	// names the people again, from the ending record's CivID.
+	// Interim until [B-6a4] (B6a header section 2.7): every other kind says the rung line, naming the record's people when the
+	// state holds it, else the line that names none. [B-6a4] gives each kind its own line and names another people only when
+	// it is shown to the viewer.
+	const FGalaxyState& State = Sim->GetState();
+	const int32 CivIndex = Record.CivID.IsNone() ? INDEX_NONE : Sim->GetStateIndex().FindCiv(State, Record.CivID);
+	if (State.Civs.IsValidIndex(CivIndex))
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("Civ"), State.Civs[CivIndex].CivName);
+		return FText::Format(Label(TEXT("Chronicle.Note.Rung")), Args);
+	}
 	return Label(TEXT("Chronicle.Note.RungNoCiv"));
 }
 
@@ -313,7 +322,7 @@ void UCosmicChronicleWidget::BuildPage()
 	Page->ScrollToStart();
 }
 
-void UCosmicChronicleWidget::Open(ECosmicProvisionalEnd Cause, bool bAtOnce)
+void UCosmicChronicleWidget::Open(const FCosmicEndingRecord& Record, bool bAtOnce)
 {
 	using CosmicUI::Label;
 
@@ -321,9 +330,9 @@ void UCosmicChronicleWidget::Open(ECosmicProvisionalEnd Cause, bool bAtOnce)
 	{
 		TakeWidget();
 	}
-	ShownCause = Cause;
+	ShownRecord = Record;
 	BuildPage();
-	const FText Note = NoteOf(Cause);
+	const FText Note = NoteOf(Record);
 	if (NoteText)
 	{
 		NoteText->SetText(Note);
@@ -332,14 +341,14 @@ void UCosmicChronicleWidget::Open(ECosmicProvisionalEnd Cause, bool bAtOnce)
 	if (ProvisionalText)
 	{
 		// A preview is no end: no notice.
-		const bool bEnd = Cause != ECosmicProvisionalEnd::None;
+		const bool bEnd = Record.Kind.IsValid();
 		ProvisionalText->SetText(bEnd ? Label(TEXT("Chronicle.Provisional")) : FText::GetEmpty());
 		ProvisionalText->SetVisibility(bEnd ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	}
 	if (NewRunButton)
 	{
 		NewRunButton->Setup(TEXT("new_run"), 0.f, Label(TEXT("Chronicle.NewRun")));
-		NewRunButton->SetVisibility(Cause == ECosmicProvisionalEnd::None ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+		NewRunButton->SetVisibility(Record.Kind.IsValid() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	ConfirmLeft.Reset();
 	bOpen = true;
@@ -444,7 +453,7 @@ void UCosmicChronicleWidget::PressToMap()
 
 void UCosmicChronicleWidget::PressNewRun()
 {
-	if (!bOpen || !bRevealed || ShownCause == ECosmicProvisionalEnd::None)
+	if (!bOpen || !bRevealed || !ShownRecord.Kind.IsValid())
 	{
 		return;
 	}

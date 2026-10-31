@@ -1,4 +1,5 @@
-// Cosmic Ascension - automation tests of the provisional end and the chronicle's minimal form (MVP item 4, commit A-4a).
+// Cosmic Ascension - automation tests of the chronicle's minimal form (MVP item 4, commit A-4a). The provisional end's predicate
+// (Sim.ProvisionalEnd) went with it in B6a [B-6a3c]: its cases are Sim.EndingOf's (Tests/CosmicEndingTests.cpp).
 // Design: docs/60_DECISIONS/headers/A4_provisional_end.md section 3, 4, 7; crisis_and_transcendents.md section 4.4; docs/70 section 8.4.
 
 #include "CoreMinimal.h"
@@ -18,7 +19,6 @@
 #include "Log/CosmicLogSubsystem.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
-#include "Sim/CosmicEndings.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Templates/Tuple.h"
 #include "Tests/CosmicTestHelpers.h"
@@ -89,123 +89,6 @@ namespace CosmicChronicleTests
 		}
 		return Out;
 	}
-}
-
-// The provisional end's predicate (header section 3.1): its table, its purity, and that nothing in the simulation stops at it.
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimProvisionalEndTest, "Cosmic_Ascension.Sim.ProvisionalEnd", CosmicTests::Flags)
-bool FCosmicSimProvisionalEndTest::RunTest(const FString& Parameters)
-{
-	using namespace CosmicChronicleTests;
-	using CosmicEndings::ProvisionalEndOf;
-	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
-	if (!Sim)
-	{
-		return false;
-	}
-	const FCosmicDataTables Original = Sim->GetTables();
-	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
-
-	TestEqual(TEXT("The game's clock end is tick 6,000"), Sim->GetRules().ProvisionalEndTick, 6000);
-
-	FCosmicRulesDef Rules;
-	Rules.ProvisionalEndTick = 6000;
-	auto With = [](int64 Tick, std::initializer_list<EAscensionTier> Peaks)
-	{
-		FGalaxyState State;
-		State.Tick = Tick;
-		for (const EAscensionTier Peak : Peaks)
-		{
-			State.Calling.Lives.Add(LifeOf(0, CivA, Peak));
-		}
-		return State;
-	};
-	const EAscensionTier T1 = EAscensionTier::Tier1_Planetary;
-	const EAscensionTier T2 = EAscensionTier::Tier2_Stellar;
-	const EAscensionTier T3 = EAscensionTier::Tier3_Causal;
-
-	TestEqual(TEXT("No life: no end, not even past the clock"), ProvisionalEndOf(With(9999, {}), Rules), ECosmicProvisionalEnd::None);
-	TestEqual(TEXT("The second rung at 5,999: none"), ProvisionalEndOf(With(5999, { T2 }), Rules), ECosmicProvisionalEnd::None);
-	TestEqual(TEXT("at 6,000: the clock"), ProvisionalEndOf(With(6000, { T2 }), Rules), ECosmicProvisionalEnd::Clock);
-	TestEqual(TEXT("at 6,001: the clock"), ProvisionalEndOf(With(6001, { T2 }), Rules), ECosmicProvisionalEnd::Clock);
-	// The third rung is no end (B6a decision 2-ga, [B-6a3a]): a run goes on past it to the clock. Rung is never answered.
-	TestEqual(TEXT("The third rung at 100: none"), ProvisionalEndOf(With(100, { T3 }), Rules), ECosmicProvisionalEnd::None);
-	TestEqual(TEXT("The third rung at 6,000: the clock"), ProvisionalEndOf(With(6000, { T3 }), Rules), ECosmicProvisionalEnd::Clock);
-	TestEqual(TEXT("A fourth rung at 100: none"), ProvisionalEndOf(With(100, { EAscensionTier::Tier4_Transcendent }), Rules), ECosmicProvisionalEnd::None);
-	TestEqual(TEXT("A life before the last that reached the third rung: none"), ProvisionalEndOf(With(100, { T3, T1 }), Rules), ECosmicProvisionalEnd::None);
-	{
-		FCosmicRulesDef NoClock = Rules;
-		NoClock.ProvisionalEndTick = 0;
-		TestEqual(TEXT("A knob of 0 has no clock end"), ProvisionalEndOf(With(99999, { T2 }), NoClock), ECosmicProvisionalEnd::None);
-		TestEqual(TEXT("nor does the third rung end it"), ProvisionalEndOf(With(10, { T3 }), NoClock), ECosmicProvisionalEnd::None);
-		NoClock.ProvisionalEndTick = -5;
-		TestEqual(TEXT("A knob below 0 has no clock end"), ProvisionalEndOf(With(99999, { T2 }), NoClock), ECosmicProvisionalEnd::None);
-	}
-	{
-		// A people's Tier alone is not the life's rung: the predicate reads Calling.Lives, never Civs.
-		FGalaxyState State = With(100, { T2 });
-		FCivilizationState& Civ = State.Civs.AddDefaulted_GetRef();
-		Civ.CivID = CivA;
-		Civ.Tier = T3;
-		Civ.bIsPlayerRuled = true;
-		TestEqual(TEXT("A people raised by hand to the third rung, its life's peak the second: none"), ProvisionalEndOf(State, Rules), ECosmicProvisionalEnd::None);
-		// Knowing, the log, the chronicle and the tell stream change nothing.
-		FGalaxyState Told = With(6000, { T2 });
-		Told.Knowing.KnownSystems.AddDefaulted();
-		Told.Log.Add(EntryOf(5, TEXT("Log.Calling"), 2, CivA, TEXT("line")));
-		Told.Chronicle.Add(EntryOf(4, TEXT("Log.Calling"), 2, CivA, TEXT("old")));
-		Told.TellRngState = 77;
-		TestEqual(TEXT("Knowing, the log, the chronicle and the tell stream change nothing"), ProvisionalEndOf(Told, Rules), ECosmicProvisionalEnd::Clock);
-	}
-	// Rung keeps its name while the enumerator stands (both go in [B-6a3c]).
-	TestEqual(TEXT("The names of the causes"), FString(CosmicEndings::NameOf(ECosmicProvisionalEnd::Rung)) + CosmicEndings::NameOf(ECosmicProvisionalEnd::Clock)
-		+ CosmicEndings::NameOf(ECosmicProvisionalEnd::None), FString(TEXT("RungClockNone")));
-
-	// Pure, and nothing stops at it: a run past its third rung and at its clock end goes on, and the knob changes no world.
-	Sim->NewGalaxy(42, 5, 3);
-	{
-		FGalaxyState& Live = Sim->GetMutableState();
-		if (TestFalse(TEXT("(the board has a life)"), Live.Calling.Lives.IsEmpty()))
-		{
-			Live.Calling.Lives.Last().PeakTier = T3;
-		}
-		Live.Tick = Sim->GetRules().ProvisionalEndTick;
-		Sim->SyncRngState();
-		const uint32 Whole = Sim->ComputeStateHash();
-		const uint32 World = Sim->ComputeWorldHash();
-		const int32 Stream = Live.RngState;
-		for (int32 Call = 0; Call < 1000; ++Call)
-		{
-			ProvisionalEndOf(Sim->GetState(), Sim->GetRules());
-		}
-		TestEqual(TEXT("Reading the end changes no state"), Sim->ComputeStateHash(), Whole);
-		TestEqual(TEXT("nor the world"), Sim->ComputeWorldHash(), World);
-		TestEqual(TEXT("nor the stream"), Sim->GetState().RngState, Stream);
-		TestEqual(TEXT("(the run is past its third rung and at its clock end)"), ProvisionalEndOf(Sim->GetState(), Sim->GetRules()), ECosmicProvisionalEnd::Clock);
-		const int64 Before = Live.Tick;
-		Sim->RunHeadless(5);
-		TestEqual(TEXT("RunHeadless goes on past the end"), Live.Tick, Before + 5);
-		Sim->StepOnce();
-		TestEqual(TEXT("and so does StepOnce"), Live.Tick, Before + 6);
-	}
-	auto WorldWith = [&](int32 Knob)
-	{
-		FCosmicRulesDef Knobbed = *Original.FindRules();
-		Knobbed.ProvisionalEndTick = Knob;
-		Sim->SetTables(CosmicTests::WithRules(Original, Knobbed));
-		Sim->NewGalaxy(42, 5, 3);
-		Sim->RunHeadless(300);
-		// B6a [B-6a3b]: the clock's tick writes the ending record (world state - Sim.EndingInert); the rest of the run is the
-		// same, so the record is set aside before the hashes.
-		const FCosmicEndingRecord Record = Sim->GetState().Ending;
-		Sim->GetMutableState().Ending = FCosmicEndingRecord();
-		return TTuple<uint32, uint32, FCosmicEndingRecord>(Sim->ComputeStateHash(), Sim->ComputeWorldHash(), Record);
-	};
-	const TTuple<uint32, uint32, FCosmicEndingRecord> Early = WorldWith(200);
-	const TTuple<uint32, uint32, FCosmicEndingRecord> Never = WorldWith(0);
-	TestTrue(TEXT("(the clock at 200 wrote its record at 200; no clock wrote none)"), Early.Get<2>().Kind == CosmicTags::EndingClock() && Early.Get<2>().Tick == 200 && !Never.Get<2>().Kind.IsValid());
-	TestEqual(TEXT("A clock end at 200 is the same run as none but for its record (state)"), Early.Get<0>(), Never.Get<0>());
-	TestEqual(TEXT("and the same world"), Early.Get<1>(), Never.Get<1>());
-	return true;
 }
 
 // The chronicle's minimal form (header section 4): which entries it admits, the chapters, the cap and its ranks, the repeat

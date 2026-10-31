@@ -208,22 +208,27 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void StepOnce();
 
-	// Runs Ticks ticks with the broadcast gate closed, then restores the gate. Tests, balance runs, and the body of RunLeap
-	// (section 4.4): no tick inside it sends OnSimTick.
+	// Runs Ticks ticks with the broadcast gate closed, then restores the gate. Tests and balance runs (section 4.4): no tick
+	// inside it sends OnSimTick.
 	// The sim records the end and does not stop (B6a header section 2.5): SimulateTick writes State.Ending once, after the
 	// tenth stage of the tick whose end it is (CosmicEndings::EndingOf), and StepOnce and RunHeadless go on ticking after it -
 	// no stage reads the record, so the world after the end is the world without it and one tick at a time stays the same
 	// world as one long leap (the balance commandlet's long runs and the measures past the end, -PastEnd). RunLeap alone stops
-	// at the end's tick (from B6a [B-6a3c]); the commands after the end are refused by the controller's latch.
+	// at the end's tick; the commands after the end are refused by the controller's latch.
 	// Refused like StepOnce.
 	UFUNCTION(BlueprintCallable)
 	void RunHeadless(int64 Ticks);
 
-	// The fast-forward of the interregnum (B5 header section 2.6): RunHeadless(Ticks) - the same world as Ticks ticks one at
-	// a time -, then, while the broadcast gate is open, one OnSimTick for State.Tick from outside the stages: the one boundary
-	// at the end of the leap, which the autosave (its cause Ended or Succession), the end's latch and the screens read. The
-	// presentation calls it at its input (ACosmicPlayerController::AdvanceLeap - it sets Ticks); the simulation does not know
-	// the end. Refused like StepOnce; Ticks of 0 or below runs nothing and sends no boundary.
+	// The fast-forward of the interregnum (B5 header section 2.6): up to Ticks ticks with the broadcast gate closed - the same
+	// world as those ticks one at a time -, then, while the broadcast gate is open, one OnSimTick for State.Tick from outside
+	// the stages: the one boundary at the end of the leap, which the autosave (its cause Ended or Succession), the end's latch
+	// and the screens read. It stops at the end (B6a header section 2.6): when State.Ending was empty when it was called, the
+	// tick whose SimulateTick wrote the record is the last it runs - an end the presentation cannot know ahead (the silence,
+	// another people on the fifth rung) stops the leap in its own tick, and the clock stops it where the controller used to cut
+	// it -, then the one boundary as before. When a record already stood it runs all Ticks (a leap past the end - a session
+	// with the end switched off). The presentation calls it at its input (ACosmicPlayerController::AdvanceLeap - it sets Ticks,
+	// and with the end switched off calls once more past a stop). Refused like StepOnce; Ticks of 0 or below runs nothing and
+	// sends no boundary.
 	UFUNCTION(BlueprintCallable)
 	void RunLeap(int64 Ticks);
 
@@ -406,7 +411,7 @@ public:
 	EPopulationBand GetPopulationBand(FName CivID) const;
 
 	// Global broadcast gate (section 6.1). Every Core Logic subsystem checks it before broadcasting. Closed during RunHeadless
-	// (and so during the body of RunLeap, which sends one OnSimTick at its end - B5).
+	// and during the ticks of RunLeap, which sends one OnSimTick at its end (B5).
 	bool IsBroadcastEnabled() const { return bBroadcastEnabled; }
 	void SetBroadcastEnabled(bool bEnabled) { bBroadcastEnabled = bEnabled; }
 

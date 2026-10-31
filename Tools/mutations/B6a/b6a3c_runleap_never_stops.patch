@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1197,7 +1197,7 @@
+ 		for (int64 Index = 0; Index < Ticks; ++Index)
+ 		{
+ 			SimulateTick();
+-			if (bStopsAtEnding && State.Ending.Kind.IsValid())
++			if (false && bStopsAtEnding && State.Ending.Kind.IsValid())
+ 			{
+ 				break;
+ 			}

@@ -806,8 +806,10 @@ bool FCosmicUIPeoplesTabTest::RunTest(const FString& Parameters)
 		Civs[0].FleetTargetSystemID = NAME_None;
 		Civs[0].Stockpile.Influence = 100.f;
 		const int64 WasTick = State->Tick;
-		State->Tick = Sim->GetRules().ProvisionalEndTick;
+		// The end laid by hand with the record its tick would have written (B6a [B-6a3c]: the latch reads the record).
+		CosmicTests::EndRunAt(*State, CosmicTags::EndingClock(), Sim->GetRules().ProvisionalEndTick);
 		Controller->FollowEnd(false);
+		TestTrue(TEXT("(the end latched)"), Controller->IsRunEnded());
 		Controller->SelectSystem(IDOf(*State, 1));
 		HUD->RefreshPanel();
 		const int32 Lines = State->Log.Num();
@@ -830,6 +832,7 @@ bool FCosmicUIPeoplesTabTest::RunTest(const FString& Parameters)
 			&& Words(Send->GetToolTipText()) == Words(TEXT("Chronicle.Block")));
 		Controller->ClearRunEnd();
 		State->Tick = WasTick;
+		State->Ending = FCosmicEndingRecord();
 		CosmicDiplomacy::Break(*State, 0, 2, CosmicTags::TreatyNonAggression());
 		CosmicDiplomacy::SetStanceOf(Civs[0], One, FGameplayTag());
 		HUD->RefreshPanel();

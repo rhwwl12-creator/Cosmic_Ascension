@@ -55,7 +55,7 @@
 | `ClaimLeaveProfiles` | `"(GameplayTags=((TagName=\"AI.Profile.Expansionist\"),(TagName=\"AI…` | tags | `{"root": "AI.Profile."}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `FirstCrisisTick` | `150` | number | `{"min": 0, "integer": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `FirstCrisisHazard` | `"Hazard.AIAwakening"` | tag | `{"root": "Hazard.", "optional": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
-| `ProvisionalEndTick` | `6000` | number | `{"min": 0, "integer": true}` | Sim/CosmicEndings.cpp, UI/CosmicTopBarWidget.cpp, World/CosmicGameMode.cpp | 읽힘 |
+| `ProvisionalEndTick` | `6000` | number | `{"min": 0, "integer": true}` | Sim/CosmicEndings.cpp, UI/CosmicTopBarWidget.cpp | 읽힘 |
 | `ChronicleCap` | `1500` | number | `{"min": 0, "integer": true}` | Log/CosmicLogSubsystem.cpp | 읽힘 |
 | `ResearchFocusShare` | `0.55` | number | `{"min": 0.3, "max": 1}` | Player/PlayerRoleSubsystem.cpp, UI/CosmicSystemPanelWidget.cpp, UI/CosmicTopBarWidget.cpp | 읽힘 |
 | `TierMultiplier` | `[1.0, 1.5, 2.2, 3.0, 3.0]` | numbers | `{"len": 5, "min": 0}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |

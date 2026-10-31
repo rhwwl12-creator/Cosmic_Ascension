@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -388,7 +388,7 @@
+ {
+ 	using namespace CosmicRulerPolicyImpl;
+ 	const FGalaxyState& State = Sim.GetState();
+-	Counts.bEnded = Counts.bEnded || State.Ending.Kind.IsValid();
++	Counts.bEnded = Counts.bEnded || (Sim.GetRules().ProvisionalEndTick > 0 && State.Tick >= Sim.GetRules().ProvisionalEndTick);
+ 
+ 	// The ruler's cards: a wanderer's card after a deposition is not one (B1 - the ruler line stays the ruler's).
+ 	const bool bRuler = State.Player.Role == EPlayerRole::Ruler;

@@ -784,11 +784,12 @@ struct COSMIC_ASCENSION_API FChronicleEviction
 
 /**
  * How the run ended (B6a header section 2.1): one record, written once, after the tenth stage, by the tick whose end it is
- * (UGalaxySimulationSubsystem::SimulateTick through CosmicEndings::EndingOf - B6a [B-6a3b]; nothing reads it inside a stage). An empty Kind
- * is a run that goes on, and nothing else stores the end: its tick and kind are copied into no other field.
+ * (UGalaxySimulationSubsystem::SimulateTick through CosmicEndings::EndingOf; nothing reads it inside a stage - the controller's latch, the
+ * chronicle page, the save layer, the policies and RunLeap read it). An empty Kind is a run that goes on, and nothing else stores the end: its
+ * tick and kind are copied into no other field.
  * Every initializer is frozen (CLAUDE.md rule 7): an empty record is not written (the delta save), so a save made before
- * this field loads with an empty record (B6a decision 2-da, SaveVersion stays 1; from [B-6a3a] an MVP save that ended at
- * the third rung flows on). World state: part of both hashes (decision 3).
+ * this field loads with an empty record (B6a decision 2-da, SaveVersion stays 1; an MVP save that ended at the third
+ * rung flows on, and one already past the clock ends with the clock's record in its next tick). World state: part of both hashes (decision 3).
  */
 USTRUCT(BlueprintType)
 struct COSMIC_ASCENSION_API FCosmicEndingRecord
@@ -799,7 +800,7 @@ struct COSMIC_ASCENSION_API FCosmicEndingRecord
 	UPROPERTY()
 	FGameplayTag Kind;
 
-	// The tick that wrote the record. From [B-6a3c] the chronicle and the CosmicEnd line read it as the end's tick, not State.Tick.
+	// The tick that wrote the record. The chronicle and the CosmicEnd line read it as the end's tick, not State.Tick.
 	UPROPERTY()
 	int64 Tick = 0;
 

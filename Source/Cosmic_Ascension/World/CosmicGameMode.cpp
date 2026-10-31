@@ -33,6 +33,7 @@
 #include "Sim/CosmicConflict.h"
 #include "Sim/CosmicDiplomacy.h"
 #include "Sim/CosmicEdicts.h"
+#include "Sim/CosmicEndings.h"
 #include "Sim/CosmicResearch.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/CosmicSuccession.h"
@@ -859,25 +860,31 @@ bool ACosmicPlayerController::AdvanceLeap()
 	{
 		return false;
 	}
-	const int64 Tick = Sim->GetState().Tick;
-	int64 Ticks = Sim->GetState().Calling.PendingLeapTicks;
-	// The simulation does not know the end: the presentation stops the leap at it, so that its boundary latches it at its tick.
-	const int32 EndTick = Sim->GetRules().ProvisionalEndTick;
-	const bool bEndAhead = bProvisionalEnd && EndTick > 0 && EndTick > Tick;
-	if (bEndAhead && (Ticks <= 0 || EndTick - Tick < Ticks))
-	{
-		Ticks = EndTick - Tick;
-	}
+	const FGalaxyState& State = Sim->GetState();
+	const int64 Tick = State.Tick;
+	// The whole leap, never cut here (B6a header section 2.6): RunLeap stops at the tick that writes the ending record, and with
+	// the end switched on that boundary latches it at its tick (FollowEnd).
+	const int64 Ticks = State.Calling.PendingLeapTicks;
 	if (Ticks <= 0)
 	{
-		// The silence with no end ahead: nothing to run - the time goes back to ordinary play at the speed before the pause
-		// (once no calling page shows: ApplySpeed keeps it stopped under one, and the pages give it back as they fold).
+		// The silence with no end latched (a session with the end switched off): nothing to run - the time goes back to ordinary
+		// play at the speed before the pause (once no calling page shows: ApplySpeed keeps it stopped under one, and the pages
+		// give it back as they fold).
 		ApplySpeed(SpeedBeforePause > 0.f ? SpeedBeforePause : 1.f, ECosmicAutoPause::None);
 		return false;
 	}
+	const bool bRecordBefore = State.Ending.Kind.IsValid();
 	Sim->RunLeap(Ticks);
 	// A refused leap (from inside the stages or a boundary handler - one error line) ran nothing.
-	return Sim->GetState().Tick != Tick;
+	const bool bRan = Sim->GetState().Tick != Tick;
+	// With the end switched off nothing latched at the record's tick: the rest of the leap runs on, once - a record stops a leap
+	// at most once (it is written once), so two calls cover it; never a loop on PendingLeapTicks (a refused leap runs nothing).
+	if (bRan && !bProvisionalEnd && !bRecordBefore && Sim->GetState().Ending.Kind.IsValid()
+		&& Sim->GetState().Calling.LifeState == ELifeState::Interregnum && Sim->GetState().Calling.PendingLeapTicks > 0)
+	{
+		Sim->RunLeap(Sim->GetState().Calling.PendingLeapTicks);
+	}
+	return bRan;
 }
 
 // Helpers of the calling's pages (B5 [B-5c]). A named namespace: the module is built as one unity file.
@@ -896,10 +903,10 @@ namespace CosmicCallingFlowImpl
 		return CosmicSuccession::IsSilent(State.Calling);
 	}
 
-	// The leap of the epitaph's 'next' and 'skip' (header section 2.6): AdvanceLeap; a leap that ended in the silence runs on
-	// to the end when it is ahead (AdvanceLeap once more - the digest then spans up to the end and its 'next' opens the
-	// chronicle). With no end ahead that second call's give-back waits for the pages (ApplySpeed refuses a speed under a page):
-	// the digest's 'next' folds them and gives the time back.
+	// The leap of the epitaph's 'next' and 'skip' (header section 2.6): AdvanceLeap. A leap that ended in the silence is an end
+	// itself while the end is switched on (B6a header section 2.8 - Ending.NoCandidate latched on the succession's tick, so the
+	// digest's 'next' opens the chronicle). With the end switched off the second call finds no leap and gives the time back,
+	// which waits for the pages (ApplySpeed refuses a speed under a page): the digest's 'next' folds them and gives it back.
 	void LeapOfThePages(ACosmicPlayerController& Controller, const FGalaxyState& State)
 	{
 		if (Controller.AdvanceLeap() && IsSilent(State) && !Controller.IsRunEnded())
@@ -973,8 +980,8 @@ void ACosmicPlayerController::NextCallingPage()
 			FinishCallingPages();
 			return;
 		}
-		// The leap and its one boundary (an end inside it latches at its tick), then the digest of what the world did meanwhile -
-		// a leap of 0 too (its one line). A leap that ends in the silence runs on to the end when it is ahead; with none the
+		// The leap and its one boundary (an end inside it latches at its tick - the silence's too, B6a), then the digest of what
+		// the world did meanwhile - a leap of 0 too (its one line). In the silence of a session with the end switched off the
 		// time waits for the digest's 'next' (LeapOfThePages).
 		CosmicCallingFlowImpl::LeapOfThePages(*this, Sim->GetState());
 		Pages->OpenDigest();
@@ -994,8 +1001,8 @@ void ACosmicPlayerController::NextCallingPage()
 			CosmicHUD->RefreshPanel();
 			return;
 		}
-		// The silence with no end ahead: no vessel stands, nothing to inaugurate - the pages fold and the time goes back to
-		// ordinary play (AdvanceLeap, header section 2.6).
+		// The silence with no end latched (the end switched off): no vessel stands, nothing to inaugurate - the pages fold and
+		// the time goes back to ordinary play (AdvanceLeap, header section 2.6).
 		FinishCallingPages();
 		if (CosmicCallingFlowImpl::IsSilent(Sim->GetState()))
 		{
@@ -1032,7 +1039,7 @@ void ACosmicPlayerController::SkipCallingPages()
 		return;
 	}
 	FinishCallingPages();
-	// The silence with no end ahead: the time goes back once the pages folded (AdvanceLeap).
+	// The silence with no end latched (the end switched off): the time goes back once the pages folded (AdvanceLeap).
 	if (!IsRunEnded() && CosmicCallingFlowImpl::IsSilent(Sim->GetState()))
 	{
 		AdvanceLeap();
@@ -1063,13 +1070,19 @@ void ACosmicPlayerController::FinishCallingPages()
 		UCosmicChronicleWidget* Page = CosmicHUD ? CosmicHUD->GetChronicle() : nullptr;
 		if (Page && !Page->IsOpen())
 		{
-			Page->Open(RunEnd, false);
+			Page->Open(LatchedRecordOf(), false);
 		}
 	}
 	if (CosmicHUD)
 	{
 		CosmicHUD->RefreshPanel();
 	}
+}
+
+FCosmicEndingRecord ACosmicPlayerController::LatchedRecordOf() const
+{
+	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+	return Sim && IsRunEnded() ? Sim->GetState().Ending : FCosmicEndingRecord();
 }
 
 void ACosmicPlayerController::CloseInauguration()
@@ -1196,12 +1209,14 @@ void ACosmicPlayerController::FollowEnd(bool bArrived)
 	ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>();
 	if (!IsRunEnded())
 	{
-		const ECosmicProvisionalEnd Cause = CosmicEndings::ProvisionalEndOf(Sim->GetState(), Sim->GetRules());
-		if (Cause == ECosmicProvisionalEnd::None)
+		// The record the tick wrote after its tenth stage (B6a header section 2.7) - never the predicate afresh: a state with no
+		// record goes on (a save from before the field, decision 2-da, until its next tick writes one).
+		const FCosmicEndingRecord Ending = Sim->GetState().Ending;
+		if (!Ending.Kind.IsValid())
 		{
 			return;
 		}
-		RunEnd = Cause;
+		RunEnd = Ending.Kind;
 		ApplySpeed(0.f, ECosmicAutoPause::RunEnd);
 		// The screens that hold back what the end's tick installed (the feed's inauguration line - [B-5d1]) redraw now.
 		OnRunEndChanged.Broadcast();
@@ -1211,16 +1226,17 @@ void ACosmicPlayerController::FollowEnd(bool bArrived)
 			Card->ShowCard(NAME_None, NAME_None);
 		}
 		const double Now = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.0;
-		const int64 Tick = Sim->GetState().Tick;
-		if (!bArrived && (RunBeganTick < 0 || RunBeganTick == Tick))
+		// The end's tick is the record's (a state run on past it, a continued save): the clock end still reads 'CosmicEnd: Clock at tick 6000; ...'.
+		const int64 EndTick = Ending.Tick;
+		if (!bArrived && (RunBeganTick < 0 || RunBeganTick == Sim->GetState().Tick))
 		{
 			// A run that was over when it was opened (a continue, MVP item 5): its length is in the log of the session it ended in.
-			UE_LOG(LogCosmic, Display, TEXT("CosmicEnd: %s at tick %lld; opened ended (continued)"), CosmicEndings::NameOf(Cause), Tick);
+			UE_LOG(LogCosmic, Display, TEXT("CosmicEnd: %s at tick %lld; opened ended (continued)"), CosmicEndings::NameOf(Ending.Kind), EndTick);
 		}
 		else
 		{
-			UE_LOG(LogCosmic, Display, TEXT("CosmicEnd: %s at tick %lld; %.0f s since tick %lld, %.0f s of them stopped"), CosmicEndings::NameOf(Cause),
-				Tick, Now - RunBeganRealSeconds, RunBeganTick, StoppedRealSeconds);
+			UE_LOG(LogCosmic, Display, TEXT("CosmicEnd: %s at tick %lld; %.0f s since tick %lld, %.0f s of them stopped"), CosmicEndings::NameOf(Ending.Kind),
+				EndTick, Now - RunBeganRealSeconds, RunBeganTick, StoppedRealSeconds);
 		}
 		if (bArrived)
 		{
@@ -1234,7 +1250,7 @@ void ACosmicPlayerController::FollowEnd(bool bArrived)
 		UCosmicChronicleWidget* Page = CosmicHUD ? CosmicHUD->GetChronicle() : nullptr;
 		if (Page && !Page->IsOpen())
 		{
-			Page->Open(RunEnd, true);
+			Page->Open(LatchedRecordOf(), true);
 		}
 		if (CosmicHUD)
 		{
@@ -1265,7 +1281,7 @@ void ACosmicPlayerController::AdvanceRunEnd(float DeltaSeconds)
 		ChronicleWait.Reset();
 		if (UCosmicChronicleWidget* Page = CosmicHUD ? CosmicHUD->GetChronicle() : nullptr)
 		{
-			Page->Open(RunEnd, false);
+			Page->Open(LatchedRecordOf(), false);
 		}
 		// The bar's 'chronicle' goes while the page shows.
 		if (CosmicHUD)
@@ -1278,7 +1294,7 @@ void ACosmicPlayerController::AdvanceRunEnd(float DeltaSeconds)
 void ACosmicPlayerController::ClearRunEnd()
 {
 	const bool bWasEnded = IsRunEnded();
-	RunEnd = ECosmicProvisionalEnd::None;
+	RunEnd = FGameplayTag();
 	ChronicleWait.Reset();
 	if (UCosmicChronicleWidget* Page = GetHUD<ACosmicHUD>() ? GetHUD<ACosmicHUD>()->GetChronicle() : nullptr)
 	{
@@ -1331,7 +1347,7 @@ void ACosmicPlayerController::ReopenChronicle()
 	UCosmicChronicleWidget* Page = GetHUD<ACosmicHUD>() ? GetHUD<ACosmicHUD>()->GetChronicle() : nullptr;
 	if (IsRunEnded() && Page && !Page->IsOpen())
 	{
-		Page->Open(RunEnd, true);
+		Page->Open(LatchedRecordOf(), true);
 	}
 	if (ACosmicHUD* CosmicHUD = GetHUD<ACosmicHUD>())
 	{
@@ -1369,7 +1385,7 @@ void ACosmicPlayerController::CosmicPreviewChronicle(float DelaySeconds)
 	{
 		if (UCosmicChronicleWidget* Page = GetHUD<ACosmicHUD>() ? GetHUD<ACosmicHUD>()->GetChronicle() : nullptr)
 		{
-			Page->Open(ECosmicProvisionalEnd::None, true);
+			Page->Open(FCosmicEndingRecord(), true);
 		}
 	}), FMath::Max(DelaySeconds, 0.01f), false);
 }

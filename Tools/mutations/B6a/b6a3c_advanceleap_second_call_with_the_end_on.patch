@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -879,7 +879,7 @@
+ 	const bool bRan = Sim->GetState().Tick != Tick;
+ 	// With the end switched off nothing latched at the record's tick: the rest of the leap runs on, once - a record stops a leap
+ 	// at most once (it is written once), so two calls cover it; never a loop on PendingLeapTicks (a refused leap runs nothing).
+-	if (bRan && !bProvisionalEnd && !bRecordBefore && Sim->GetState().Ending.Kind.IsValid()
++	if (bRan && !bRecordBefore && Sim->GetState().Ending.Kind.IsValid()
+ 		&& Sim->GetState().Calling.LifeState == ELifeState::Interregnum && Sim->GetState().Calling.PendingLeapTicks > 0)
+ 	{
+ 		Sim->RunLeap(Sim->GetState().Calling.PendingLeapTicks);

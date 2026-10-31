@@ -53,6 +53,20 @@ namespace CosmicTests
 		return State.Systems.Num() - ((!State.Systems.IsEmpty() && CosmicState::IsSanctuary(State.Systems.Last().SystemID)) ? 1 : 0);
 	}
 
+	// An end laid by hand (B6a header section 6): the state at Tick with the record that tick would have written
+	// (FGalaxyState::Ending - Kind, Tick, no people, a vessel). The record is written only inside a tick (after the tenth
+	// stage), so a test that puts the clock's tick by hand and latches without a tick lays the record with this. The test
+	// restores State.Ending = FCosmicEndingRecord() next to its ClearRunEnd() and Tick = WasTick.
+	inline void EndRunAt(FGalaxyState& State, const FGameplayTag& Kind, int64 Tick)
+	{
+		State.Tick = Tick;
+		State.Ending = FCosmicEndingRecord();
+		State.Ending.Kind = Kind;
+		State.Ending.Tick = Tick;
+		State.Ending.CivID = NAME_None;
+		State.Ending.bNoVessel = false;
+	}
+
 	inline UGameInstance* FindGameInstance()
 	{
 		if (GEngine)

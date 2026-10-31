@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1191,7 +1191,7 @@
+ 	}
+ 	// The loop of RunHeadless, with one stop (B6a header section 2.6): when no end stood at the call, the tick that wrote the
+ 	// record is the last one. A record that already stood stops nothing - a leap past the end runs all its ticks.
+-	const bool bStopsAtEnding = !State.Ending.Kind.IsValid();
++	const bool bStopsAtEnding = true;
+ 	{
+ 		TGuardValue<bool> GateGuard(bBroadcastEnabled, false);
+ 		for (int64 Index = 0; Index < Ticks; ++Index)

@@ -16,7 +16,6 @@
 #include "Sim/CosmicConflict.h"
 #include "Sim/CosmicDiplomacy.h"
 #include "Sim/CosmicEdicts.h"
-#include "Sim/CosmicEndings.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
@@ -389,7 +388,7 @@ void CosmicRulerPolicy::Act(const FCosmicRulerPolicy& Policy, UGalaxySimulationS
 {
 	using namespace CosmicRulerPolicyImpl;
 	const FGalaxyState& State = Sim.GetState();
-	Counts.bEnded = Counts.bEnded || CosmicEndings::ProvisionalEndOf(State, Sim.GetRules()) != ECosmicProvisionalEnd::None;
+	Counts.bEnded = Counts.bEnded || State.Ending.Kind.IsValid();
 
 	// The ruler's cards: a wanderer's card after a deposition is not one (B1 - the ruler line stays the ruler's).
 	const bool bRuler = State.Player.Role == EPlayerRole::Ruler;

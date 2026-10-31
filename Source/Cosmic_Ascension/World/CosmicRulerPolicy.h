@@ -53,7 +53,8 @@ struct FCosmicRulerPolicy
 	ECosmicPressurePolicy Pressure = ECosmicPressurePolicy::Round;
 	int32 Guard = 0;
 	bool bLeaveNearSphere = false;
-	// B5 (header section 5.1 - measurement only): the provisional end is not counted - the policy goes on after it.
+	// B5 (header section 5.1 - measurement only): the run's end (the record State.Ending) is not counted - the policy goes on
+	// after it.
 	bool bPastEnd = false;
 };
 
@@ -86,8 +87,8 @@ struct FCosmicRulerPolicyCounts
 	// (the ruled people, the other people, the treaty) - a reign over another people looks again; a return to the same
 	// people does not (one look a pair over the run).
 	TSet<TTuple<FName, FName, FName>> TreatyLooks;
-	// A provisional end has been read at a boundary: no focus or edict input from then on (the game takes no input after
-	// it).
+	// The record of the run's end (State.Ending - B6a) has been read at a boundary: no focus or edict input from then on (the
+	// game takes no input after it).
 	bool bEnded = false;
 	// B4: the edicts a pressure card's accepted answer enacted (header decision 9). While a claim stands on a settled system
 	// of the ruled people, MakeRoomFor never revokes them; after, the usual rules (the vigil as the vigil of step (3)).
@@ -153,8 +154,8 @@ namespace CosmicRulerPolicy
 	TArray<TPair<int32, FName>> ProjectChoicesOf(const FCosmicRulerPolicy& Policy, const FGalaxyState& State, const FCosmicStateIndex& Index,
 		const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex);
 
-	// One tick boundary, right after RunHeadless(1), before anything else reads the tick: reads the provisional end into
-	// bEnded first (as the presentation reads it), counts a card that came, then answers while a card is pending (at
+	// One tick boundary, right after RunHeadless(1), before anything else reads the tick: reads the record of the end
+	// (State.Ending) into bEnded first (as the presentation reads it), counts a card that came, then answers while a card is pending (at
 	// most eight), presses the project key until it is refused (under a pressure policy - B4 - it starts the first of
 	// ProjectChoicesOf instead, else a settlement of the first of CosmicMegaprojects::SettleTargets; at most eight - the
 	// attack policy, Diplomacy 2, stops before a settlement that would fill its last realm slot: it leaves that slot to a

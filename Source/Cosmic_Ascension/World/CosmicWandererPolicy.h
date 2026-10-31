@@ -17,7 +17,8 @@ struct FCosmicWandererPolicy
 	int64 AbdicateAt = 0;
 	// Whether the wanderer walks: answers its cards, takes a throne the gate opens, scans on each arrival and travels.
 	bool bWander = false;
-	// B5 (header section 5.1 - measurement only): the provisional end is not counted - the policy goes on after it.
+	// B5 (header section 5.1 - measurement only): the run's end (the record State.Ending) is not counted - the policy goes on
+	// after it.
 	bool bPastEnd = false;
 };
 
@@ -49,14 +50,15 @@ struct FCosmicWandererPolicyCounts
 	// of the last arrival it scanned.
 	FName LastLeft;
 	FName ScannedAt;
-	// A provisional end has been read at a boundary: no input from then on (the game takes none after it).
+	// The record of the run's end (State.Ending - B6a) has been read at a boundary: no input from then on (the game takes
+	// none after it).
 	bool bEnded = false;
 };
 
 namespace CosmicWandererPolicy
 {
 	// At the boundary of tick AbdicateAt, before the ruler policy: the ruler abdicates (the command records it; the tenth
-	// stage of the next tick leaves). Reads the provisional end first: no input after it.
+	// stage of the next tick leaves). Reads the record of the end first: no input after it.
 	void AbdicateIfDue(const FCosmicWandererPolicy& Policy, UGalaxySimulationSubsystem& Sim, UPlayerRoleSubsystem& Role,
 		FCosmicWandererPolicyCounts& Counts);
 

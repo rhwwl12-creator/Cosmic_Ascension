@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -882,7 +882,7 @@
+ 	if (bRan && !bProvisionalEnd && !bRecordBefore && Sim->GetState().Ending.Kind.IsValid()
+ 		&& Sim->GetState().Calling.LifeState == ELifeState::Interregnum && Sim->GetState().Calling.PendingLeapTicks > 0)
+ 	{
+-		Sim->RunLeap(Sim->GetState().Calling.PendingLeapTicks);
++		// (mutation: no second call)
+ 	}
+ 	return bRan;
+ }

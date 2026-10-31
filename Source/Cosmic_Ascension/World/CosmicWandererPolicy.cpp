@@ -6,8 +6,8 @@
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Events/CosmicPetitions.h"
+#include "GameplayTagContainer.h"
 #include "Player/PlayerRoleSubsystem.h"
-#include "Sim/CosmicEndings.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/CosmicWanderer.h"
 #include "Sim/GalaxySimulationSubsystem.h"
@@ -16,7 +16,7 @@ void CosmicWandererPolicy::AbdicateIfDue(const FCosmicWandererPolicy& Policy, UG
 	FCosmicWandererPolicyCounts& Counts)
 {
 	const FGalaxyState& State = Sim.GetState();
-	Counts.bEnded = Counts.bEnded || CosmicEndings::ProvisionalEndOf(State, Sim.GetRules()) != ECosmicProvisionalEnd::None;
+	Counts.bEnded = Counts.bEnded || State.Ending.Kind.IsValid();
 	if (!(Counts.bEnded && !Policy.bPastEnd) && Policy.AbdicateAt > 0 && State.Tick == Policy.AbdicateAt)
 	{
 		Role.Abdicate();
@@ -28,7 +28,7 @@ void CosmicWandererPolicy::Act(const FCosmicWandererPolicy& Policy, UGalaxySimul
 {
 	const FGalaxyState& State = Sim.GetState();
 	const FCosmicStateIndex& Index = Sim.GetStateIndex();
-	Counts.bEnded = Counts.bEnded || CosmicEndings::ProvisionalEndOf(State, Sim.GetRules()) != ECosmicProvisionalEnd::None;
+	Counts.bEnded = Counts.bEnded || State.Ending.Kind.IsValid();
 	// The first leaving, whatever its cause (the line names it 'left at').
 	const bool bWalks = CosmicWanderer::IsEmbodiedWanderer(State);
 	if (bWalks && Counts.LeftAt < 0)

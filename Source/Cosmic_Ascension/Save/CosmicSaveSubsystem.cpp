@@ -7,6 +7,7 @@
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Engine/GameInstance.h"
+#include "GameplayTagContainer.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformProcess.h"
@@ -17,7 +18,6 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Save/CosmicSaveGame.h"
-#include "Sim/CosmicEndings.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/Package.h"
@@ -121,7 +121,7 @@ bool UCosmicSaveSubsystem::IsGameSavingOn() const
 	return GateClosedBy(bCommandLineAllows, bBlockedForTests, GIsAutomationTesting, GIsEditor, bTestOverride) == nullptr;
 }
 
-FCosmicSavedMark UCosmicSaveSubsystem::MarkOf(const FGalaxyState& State, const FCosmicRulesDef& Rules)
+FCosmicSavedMark UCosmicSaveSubsystem::MarkOf(const FGalaxyState& State, const FCosmicRulesDef& /*Rules*/)
 {
 	FCosmicSavedMark Mark;
 	Mark.GalaxyID = State.GalaxyID;
@@ -129,7 +129,7 @@ FCosmicSavedMark UCosmicSaveSubsystem::MarkOf(const FGalaxyState& State, const F
 	Mark.Feats = State.Calling.CompletedFeats.Num();
 	Mark.Role = State.Player.Role;
 	Mark.RuledCivID = State.Player.RuledCivID;
-	Mark.bEnded = CosmicEndings::ProvisionalEndOf(State, Rules) != ECosmicProvisionalEnd::None;
+	Mark.bEnded = State.Ending.Kind.IsValid();   // the record (B6a header section 2.7): written once by the tick, never read afresh
 	Mark.Lives = State.Calling.Lives.Num();
 	Mark.bInterregnum = State.Calling.LifeState == ELifeState::Interregnum;
 	return Mark;

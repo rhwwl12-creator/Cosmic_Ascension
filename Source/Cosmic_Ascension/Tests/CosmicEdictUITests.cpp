@@ -9,6 +9,7 @@
 #include "Components/SlateWrapperTypes.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
+#include "Core/CosmicTags.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicConditionTypes.h"
@@ -609,8 +610,10 @@ bool FCosmicUIEdictWindowTest::RunTest(const FString& Parameters)
 		Window->GetRowButton(MachineRights)->Press();
 		TestTrue(TEXT("(machine rights held before the end)"), Civ->ActiveEdicts == TArray<FName>({ MachineRights }));
 		const int64 WasTick = Live.Tick;
-		Live.Tick = Sim->GetRules().ProvisionalEndTick;
+		// The end laid by hand with the record its tick would have written (B6a [B-6a3c]: the latch reads the record).
+		CosmicTests::EndRunAt(Live, CosmicTags::EndingClock(), Sim->GetRules().ProvisionalEndTick);
 		Controller->FollowEnd(false);
+		TestTrue(TEXT("(the end latched)"), Controller->IsRunEnded());
 		HUD->RefreshPanel();
 		TestFalse(TEXT("After the end the bar has no edict button"), Shown(EdictButton->GetParent()));
 		TestFalse(TEXT("and the window closes"), Window->IsOpen() || Shown(Window));
@@ -627,17 +630,20 @@ bool FCosmicUIEdictWindowTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The held edict's line stays after the end"), Words(Panel->GetDetailText()->GetText()).Contains(Held));
 		Controller->ClearRunEnd();
 		Live.Tick = WasTick;
+		Live.Ending = FCosmicEndingRecord();
 		HUD->RefreshPanel();
 		// The other form: machine rights not held.
 		EdictButton->Press();
 		Window->GetRowButton(MachineRights)->Press();
 		TestTrue(TEXT("(machine rights revoked)"), Civ->ActiveEdicts.IsEmpty());
-		Live.Tick = Sim->GetRules().ProvisionalEndTick;
+		CosmicTests::EndRunAt(Live, CosmicTags::EndingClock(), Sim->GetRules().ProvisionalEndTick);
 		Controller->FollowEnd(false);
+		TestTrue(TEXT("(the end latched again)"), Controller->IsRunEnded());
 		HUD->RefreshPanel();
 		TestFalse(TEXT("An edict that only could answer is not offered after the end"), Words(Panel->GetDetailText()->GetText()).Contains(Can));
 		Controller->ClearRunEnd();
 		Live.Tick = WasTick;
+		Live.Ending = FCosmicEndingRecord();
 		Live.Systems[Home].ActiveHazard = FGameplayTag();
 		Live.Systems[Other].ActiveHazard = FGameplayTag();
 		HUD->RefreshPanel();

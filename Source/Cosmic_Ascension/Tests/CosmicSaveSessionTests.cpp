@@ -31,7 +31,7 @@
 #include "Misc/ScopeExit.h"
 #include "Save/CosmicSaveSlot.h"
 #include "Save/CosmicSaveSubsystem.h"
-#include "Sim/CosmicEndings.h"
+#include "Sim/CosmicSuccession.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
 #include "Tests/CosmicTestProbe.h"
@@ -300,6 +300,20 @@ bool FCosmicSimSaveTriggersTest::RunTest(const FString& Parameters)
 	Save->RequestSave(ECosmicSaveCause::Answer);
 	TestEqual(TEXT("With the gate closed nothing of the game's saving writes"), Wrote(), 0);
 
+	// ---- B6a [B-6a3c] (header section 2.7): MarkOf's bEnded is the record - not the clock, not the rungs ----
+	{
+		const FCosmicRulesDef& Rules = Sim->GetRules();
+		FGalaxyState Bare;
+		Bare.Calling.Lives.AddDefaulted();
+		Bare.Calling.Lives[0].PeakTier = EAscensionTier::Tier3_Causal;
+		Bare.Tick = Rules.ProvisionalEndTick + 200;
+		TestFalse(TEXT("MarkOf: past the clock with no record, not ended"), UCosmicSaveSubsystem::MarkOf(Bare, Rules).bEnded);
+		Bare.Tick = 100;
+		Bare.Ending.Kind = CosmicTags::EndingNoCandidate();
+		Bare.Ending.Tick = 100;
+		TestTrue(TEXT("MarkOf: a record of any kind before the clock, ended"), UCosmicSaveSubsystem::MarkOf(Bare, Rules).bEnded);
+	}
+
 	// ---- The boundary rule, pure ----
 	{
 		FCosmicSavedMark Saved;
@@ -387,7 +401,8 @@ bool FCosmicSimSaveTriggersTest::RunTest(const FString& Parameters)
 }
 
 // The continue of an ended run (headers/A4 4.4 (5)): the game opened again on a run that was over stands over - the latch,
-// the page fully shown, no card, the time still - through the two BeginPlay calls of a real map load.
+// the page fully shown, no card, the time still - through the two BeginPlay calls of a real map load. B6a [B-6a3c]: the run is
+// over by its record (EndRunAt - the clock's), which the latch reads.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicUIContinueEndedTest, "Cosmic_Ascension.UI.ContinueEnded", CosmicTests::Flags)
 bool FCosmicUIContinueEndedTest::RunTest(const FString& Parameters)
 {
@@ -408,7 +423,9 @@ bool FCosmicUIContinueEndedTest::RunTest(const FString& Parameters)
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	FGalaxyState& State = Sim->GetMutableState();
 	State.GalaxyID = Ended;
-	State.Tick = Sim->GetRules().ProvisionalEndTick;
+	// The record the clock's tick would have written (B6a [B-6a3c]): a state at the clock's tick with no record opens as a run
+	// that goes on (decision 2-da - Sim.SaveOldEndFlows). The state is replaced by the NewGalaxy below.
+	CosmicTests::EndRunAt(State, CosmicTags::EndingClock(), Sim->GetRules().ProvisionalEndTick);
 	State.Knowing.PendingPetitionRow = FName(TEXT("petition_walls"));
 	if (!TestTrue(TEXT("(the ended run is saved)"), Save->SaveCurrentGalaxy()))
 	{
@@ -429,7 +446,7 @@ bool FCosmicUIContinueEndedTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("The game opens the ended run"), Sim->GetState().GalaxyID == Ended);
 			TestEqual(TEXT("as it was saved"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(Hash));
 			TestTrue(TEXT("from its slot"), SaveLater->GetLastContinue() == ECosmicContinue::Newest);
-			TestEqual(TEXT("over: the latch"), Controller->GetRunEnd(), ECosmicProvisionalEnd::Clock);
+			TestEqual(TEXT("over: the latch of its record"), Controller->GetRunEnd(), CosmicTags::EndingClock());
 			TestTrue(TEXT("the page open and fully shown"), HUD->GetChronicle()->IsOpen() && !HUD->GetChronicle()->IsRevealing());
 			TestTrue(TEXT("no card"), HUD->GetPetitionCard() && HUD->GetPetitionCard()->GetShownRow().IsNone());
 			TestEqual(TEXT("(its row still waits)"), Sim->GetState().Knowing.PendingPetitionRow, FName(TEXT("petition_walls")));
@@ -611,6 +628,158 @@ bool FCosmicSimSaveLeapContinueTest::RunTest(const FString& Parameters)
 		Sim->NewGalaxy(42, 5, 3);
 		Sim->SetTimeScale(0.f);
 	});
+	return true;
+}
+
+// An MVP save that ended by the old rules opens as a run that goes on (B6a header section 2.10, decision 2-da; [B-6a3c]): a
+// save made before the ending record holds none (the delta save never wrote an empty one - Sim.SaveEndingRecord), so (1) a
+// run whose life reached the third rung (the old end) loads with no latch and no record, its next tick writes none, and it
+// ends by the clock at 6,000 - the record and the latch in that tick; (2) a run saved past the clock (6,200) loads with no
+// latch and an open disk mark and ends at its next tick, 6,201, with Ending.Clock of that tick (mutation: a latch or MarkOf
+// that reads the clock or the rungs instead of the record latches right after the load); (3) a run saved in the silence (the
+// interregnum with no leap left, B5) loads with no record and no latch and ends at its next tick with Ending.NoCandidate of
+// that tick, met with no vessel, and latches it (mutation: the tick's write gate skipping a silence that stood when the tick
+// began); (4) a run saved past its record (a record of 6,300 run on to 6,350 with the end switched off) latches the record on
+// the load, and its CosmicEnd line says the record's tick, not the state's (mutation: the line prints State.Tick).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimSaveOldEndFlowsTest, "Cosmic_Ascension.Sim.SaveOldEndFlows", CosmicTests::Flags)
+bool FCosmicSimSaveOldEndFlowsTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicSaveSessionTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	UWorld* World = Sim->GetGameInstance()->GetWorld();
+	ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(World ? World->GetFirstPlayerController() : nullptr);
+	UCosmicSaveSubsystem* Save = SaveOf(*Sim);
+	if (!TestNotNull(TEXT("The first player controller is the game's"), Controller) || !TestNotNull(TEXT("The save subsystem exists"), Save))
+	{
+		return false;
+	}
+	const bool bWasBroadcasting = Sim->IsBroadcastEnabled();
+	TArray<FGuid> Written;
+	ON_SCOPE_EXIT
+	{
+		for (const FGuid& ID : Written)
+		{
+			Save->DeleteSave(ID);
+		}
+		Sim->SetBroadcastEnabled(bWasBroadcasting);
+		Sim->NewGalaxy(42, 5, 3);
+		Sim->SetTimeScale(0.f);
+	};
+	Sim->SetBroadcastEnabled(true);
+	const FCosmicRulesDef& Rules = Sim->GetRules();
+	const int64 Clock = Rules.ProvisionalEndTick;
+	if (!TestTrue(TEXT("(the game has its clock)"), Clock > 10))
+	{
+		return false;
+	}
+
+	// The shape of the saved state: a plain run, a life at the third rung, the silence (the interregnum with no leap left - the
+	// last life died the tick before), or a run on past its record (Ending.Clock written PastRecordBy ticks before AtTick).
+	enum class EOldSave : uint8 { Plain, ThirdRung, Silence, PastRecord };
+	constexpr int64 PastRecordBy = 50;
+
+	// A new galaxy at AtTick shaped as Shape - with no record but for PastRecord - saved and loaded back through its slot.
+	auto SaveAndLoad = [&](int64 AtTick, EOldSave Shape) -> bool
+	{
+		Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+		Sim->SetTimeScale(0.f);
+		FGalaxyState& State = Sim->GetMutableState();
+		Written.Add(State.GalaxyID);
+		State.Tick = AtTick;
+		if (Shape == EOldSave::ThirdRung && !State.Calling.Lives.IsEmpty())
+		{
+			State.Calling.Lives.Last().PeakTier = EAscensionTier::Tier3_Causal;
+		}
+		if (Shape == EOldSave::Silence)
+		{
+			State.Calling.LifeState = ELifeState::Interregnum;
+			State.Calling.PendingLeapTicks = 0;
+			if (!State.Calling.Lives.IsEmpty())
+			{
+				State.Calling.Lives.Last().DiedTick = AtTick - 1;
+			}
+			if (!TestTrue(TEXT("(the saved state is the silence)"), CosmicSuccession::IsSilent(State.Calling) && !State.Calling.Lives.IsEmpty()))
+			{
+				return false;
+			}
+		}
+		if (Shape == EOldSave::PastRecord)
+		{
+			CosmicTests::EndRunAt(State, CosmicTags::EndingClock(), AtTick - PastRecordBy);
+			State.Tick = AtTick;
+		}
+		Sim->SyncRngState();
+		const FGuid Galaxy = State.GalaxyID;
+		if (!TestTrue(TEXT("(the state is saved - with a record only when it ran past one)"), State.Ending.Kind.IsValid() == (Shape == EOldSave::PastRecord)
+			&& Save->SaveCurrentGalaxy()))
+		{
+			return false;
+		}
+		Sim->NewGalaxy(7, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+		return TestTrue(TEXT("(and loads)"), Save->LoadGalaxy(Galaxy)) && TestEqual(TEXT("(at its tick)"), Sim->GetState().Tick, AtTick);
+	};
+
+	// ---- (1) The third rung's old end flows on to the clock ----
+	if (SaveAndLoad(Clock - 3, EOldSave::ThirdRung))
+	{
+		const FGalaxyState& Loaded = Sim->GetState();
+		TestTrue(TEXT("(the loaded life is at the third rung)"), !Loaded.Calling.Lives.IsEmpty() && Loaded.Calling.Lives.Last().PeakTier == EAscensionTier::Tier3_Causal);
+		TestFalse(TEXT("A run that ended at the third rung loads with no record"), Loaded.Ending.Kind.IsValid());
+		TestFalse(TEXT("and no latch right after the load"), Controller->IsRunEnded());
+		TestFalse(TEXT("(its disk copy is a run that goes on)"), UCosmicSaveSubsystem::MarkOf(Loaded, Rules).bEnded);
+		Sim->StepOnce();
+		TestTrue(TEXT("Its next tick writes no record"), Loaded.Tick == Clock - 2 && !Loaded.Ending.Kind.IsValid());
+		TestFalse(TEXT("and latches nothing: the run flows"), Controller->IsRunEnded());
+		Sim->StepOnce();
+		Sim->StepOnce();
+		TestTrue(TEXT("It ends by the clock: Ending.Clock at 6,000"), Loaded.Tick == Clock && Loaded.Ending.Kind == CosmicTags::EndingClock() && Loaded.Ending.Tick == Clock);
+		TestEqual(TEXT("latched in that tick"), Controller->GetRunEnd(), CosmicTags::EndingClock());
+	}
+
+	// ---- (2) A run saved past the clock ends at its next tick ----
+	if (SaveAndLoad(Clock + 200, EOldSave::Plain))
+	{
+		const FGalaxyState& Loaded = Sim->GetState();
+		TestFalse(TEXT("A run saved past the clock with no record loads with none"), Loaded.Ending.Kind.IsValid());
+		TestFalse(TEXT("and no latch right after the load"), Controller->IsRunEnded());
+		TestFalse(TEXT("(its disk copy past the clock is a run that goes on)"), UCosmicSaveSubsystem::MarkOf(Loaded, Rules).bEnded);
+		Sim->StepOnce();
+		TestTrue(TEXT("Its next tick writes Ending.Clock"), Loaded.Ending.Kind == CosmicTags::EndingClock());
+		TestEqual(TEXT("with that tick (6,201), not the clock's"), Loaded.Ending.Tick, Clock + 201);
+		TestEqual(TEXT("and latches it"), Controller->GetRunEnd(), CosmicTags::EndingClock());
+	}
+
+	// ---- (3) A run saved in the silence ends at its next tick with Ending.NoCandidate ----
+	if (SaveAndLoad(Clock - 10, EOldSave::Silence))
+	{
+		const FGalaxyState& Loaded = Sim->GetState();
+		TestTrue(TEXT("(the loaded calling is in the silence)"), CosmicSuccession::IsSilent(Loaded.Calling));
+		TestFalse(TEXT("A run saved in the silence with no record loads with none"), Loaded.Ending.Kind.IsValid());
+		TestFalse(TEXT("and no latch right after the load (the silence)"), Controller->IsRunEnded());
+		TestFalse(TEXT("(its disk copy in the silence is a run that goes on)"), UCosmicSaveSubsystem::MarkOf(Loaded, Rules).bEnded);
+		Sim->StepOnce();
+		TestTrue(TEXT("Its next tick writes Ending.NoCandidate with that tick, not the clock's"), Loaded.Ending.Kind == CosmicTags::EndingNoCandidate()
+			&& Loaded.Ending.Tick == Clock - 9);
+		TestTrue(TEXT("met with no vessel"), Loaded.Ending.bNoVessel);
+		TestEqual(TEXT("and latches it (the silence)"), Controller->GetRunEnd(), CosmicTags::EndingNoCandidate());
+	}
+
+	// ---- (4) A run saved past its record: the latch and the CosmicEnd line read the record's tick ----
+	// The record's tick (6,300) is said by no other case of this test, so the line is seen exactly once - on this load.
+	const int64 RecordTick = Clock + 300;
+	AddExpectedMessagePlain(FString::Printf(TEXT("CosmicEnd: Clock at tick %lld;"), RecordTick), ELogVerbosity::Display, EAutomationExpectedMessageFlags::Contains, 1);
+	if (SaveAndLoad(RecordTick + PastRecordBy, EOldSave::PastRecord))
+	{
+		const FGalaxyState& Loaded = Sim->GetState();
+		TestTrue(TEXT("(the loaded state stands past its record)"), Loaded.Ending.Kind == CosmicTags::EndingClock() && Loaded.Ending.Tick == RecordTick
+			&& Loaded.Tick == RecordTick + PastRecordBy);
+		TestEqual(TEXT("A run saved past its record latches the record on the load"), Controller->GetRunEnd(), CosmicTags::EndingClock());
+		TestTrue(TEXT("(its disk copy is ended)"), UCosmicSaveSubsystem::MarkOf(Loaded, Rules).bEnded);
+	}
 	return true;
 }
 

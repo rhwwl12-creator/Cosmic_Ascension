@@ -1,0 +1,21 @@
+diff --git a/Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp b/Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Save/CosmicSaveSubsystem.cpp
+@@ -121,7 +121,7 @@
+ 	return GateClosedBy(bCommandLineAllows, bBlockedForTests, GIsAutomationTesting, GIsEditor, bTestOverride) == nullptr;
+ }
+ 
+-FCosmicSavedMark UCosmicSaveSubsystem::MarkOf(const FGalaxyState& State, const FCosmicRulesDef& /*Rules*/)
++FCosmicSavedMark UCosmicSaveSubsystem::MarkOf(const FGalaxyState& State, const FCosmicRulesDef& Rules)
+ {
+ 	FCosmicSavedMark Mark;
+ 	Mark.GalaxyID = State.GalaxyID;
+@@ -129,7 +129,7 @@
+ 	Mark.Feats = State.Calling.CompletedFeats.Num();
+ 	Mark.Role = State.Player.Role;
+ 	Mark.RuledCivID = State.Player.RuledCivID;
+-	Mark.bEnded = State.Ending.Kind.IsValid();   // the record (B6a header section 2.7): written once by the tick, never read afresh
++	Mark.bEnded = Rules.ProvisionalEndTick > 0 && State.Tick >= Rules.ProvisionalEndTick;   // the record (B6a header section 2.7): written once by the tick, never read afresh
+ 	Mark.Lives = State.Calling.Lives.Num();
+ 	Mark.bInterregnum = State.Calling.LifeState == ELifeState::Interregnum;
+ 	return Mark;

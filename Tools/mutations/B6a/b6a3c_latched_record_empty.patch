@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1082,7 +1082,7 @@
+ FCosmicEndingRecord ACosmicPlayerController::LatchedRecordOf() const
+ {
+ 	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+-	return Sim && IsRunEnded() ? Sim->GetState().Ending : FCosmicEndingRecord();
++	return FCosmicEndingRecord();
+ }
+ 
+ void ACosmicPlayerController::CloseInauguration()

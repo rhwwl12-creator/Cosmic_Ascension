@@ -11,9 +11,9 @@
 #include "Templates/Function.h"
 #include "Templates/Tuple.h"
 #include "UI/CosmicUILabels.h"
+#include "Core/GalaxyState.h"
 #include "Events/CosmicPetitions.h"
 #include "GameplayTagContainer.h"
-#include "Sim/CosmicEndings.h"
 #include "World/CosmicAutoPause.h"
 #include "World/CosmicMapLook.h"
 #include "World/CosmicMapPick.h"
@@ -280,16 +280,17 @@ public:
 	 * made (reason Card or Encounter, still standing still) gives the time back at the speed before it. */
 	void ClosePetitionCard();
 
-	/** The provisional end as FollowEnd latched it (MVP item 4) - never read afresh elsewhere, so a state a test left behind ends nothing until a tick boundary,
-	 * a new galaxy, a load or a BeginPlay says so. None while the run goes on or the end is switched off. Never saved, outside both hashes. */
-	ECosmicProvisionalEnd GetRunEnd() const { return RunEnd; }
-	bool IsRunEnded() const { return RunEnd != ECosmicProvisionalEnd::None; }
+	/** The ending's kind as FollowEnd latched it from the record (FGalaxyState::Ending - B6a header section 2.7) - never read afresh elsewhere, so a record a
+	 * test left behind ends nothing until a tick boundary, a new galaxy, a load or a BeginPlay says so. The empty tag while the run goes on or the end is
+	 * switched off. Never saved, outside both hashes (the record is the saved fact; this is the presentation's latch of it). */
+	FGameplayTag GetRunEnd() const { return RunEnd; }
+	bool IsRunEnded() const { return RunEnd.IsValid(); }
 	static bool IsRunEndedFor(const UUserWidget& Widget);   // the widget's owning controller holds an ended run; false without one
 	/** Announced once each time the latch changes - FollowEnd latches a cause, ClearRunEnd forgets one - after the change: what the screens show by it
 	 * that no tick redraws (B5 [B-5d1]: the log feed holds back the inauguration line of the vessel the end's tick installed - CosmicChronicle::IsUnseenLifeLine).
 	 * A screen's handler only reads (it may run inside a boundary handler). */
 	FSimpleMulticastDelegate OnRunEndChanged;
-	/** Looks at the end (nothing while it is switched off). bArrived (HandleSimTick; tests in its place): a cause seen while none is latched latches it, stops the
+	/** Looks at the end (nothing while it is switched off). bArrived (HandleSimTick; tests in its place): a record standing while none is latched latches its kind, stops the
 	 * time whatever the automatic pause (ApplySpeed(0, RunEnd)), folds the card, logs one CosmicEnd line and starts the wait. Without it (HandleGalaxyGenerated, the
 	 * BeginPlay of this controller and of the HUD): the same latch with no wait, and while latched the page opens at once, fully shown, if the HUD has it and it is
 	 * closed - whichever BeginPlay runs second opens it. Calls nothing a Core Logic handler may not call (only SetTimeScale reaches the simulation). */
@@ -301,12 +302,14 @@ public:
 	 * reads it, not LifeState, so the death of a leap of 0 and the death on the end's tick stop the time too. */
 	static bool LifeClosedAt(const FGalaxyState& State, int64 Tick);
 	/** The fast-forward of the interregnum (B5 header section 2.6), at an input - the death pages' ([B-5c]) and the tests',
-	 * never from a handler: UGalaxySimulationSubsystem::RunLeap of the remaining leap; when the provisional end is switched on
-	 * and its tick (DT_Rules.ProvisionalEndTick) lies inside the leap, only up to that tick - its boundary latches the end. In
-	 * the silence (no leap left) up to that end; with none, nothing is run and the time goes back to ordinary play (the speed
-	 * before the pause - once no calling page shows: ApplySpeed refuses a speed under one, and the pages give it back when they
-	 * fold). False and nothing run outside the interregnum, once the run has ended, in that silence, and when the simulation
-	 * refused the leap. */
+	 * never from a handler: UGalaxySimulationSubsystem::RunLeap of the whole remaining leap, never cut here (B6a header section
+	 * 2.6): RunLeap itself stops at the tick that writes the ending record, and with the end switched on that boundary latches
+	 * it (FollowEnd) - the clock's tick inside a leap as before, and any end no tick foretells. With the end switched off nothing
+	 * latches, so a leap the record stopped is run on once more (RunLeap of what is left - a record stops a leap at most once;
+	 * never a loop on PendingLeapTicks). In the silence (no leap left - with the end on, the succession's tick already wrote
+	 * Ending.NoCandidate and latched) nothing is run and the time goes back to ordinary play (the speed before the pause - once no
+	 * calling page shows: ApplySpeed refuses a speed under one, and the pages give it back when they fold). False and nothing run
+	 * outside the interregnum, once the run has ended, in that silence, and when the simulation refused the leap. */
 	bool AdvanceLeap();
 	/** The tick of the last death the boundary saw (FollowDeath), -1 for none since the run began: the death pages ([B-5c]). */
 	int64 GetDeathTick() const { return DeathTick; }
@@ -314,18 +317,20 @@ public:
 	 * B5 [B-5c] (header section 4, 2.6, decision 15, 16): the 'next' of the calling's page that shows (UCosmicCallingPagesWidget -
 	 * FollowDeath opens the epitaph, the boundary of an abdication or a deposition the reign end). The epitaph's runs the leap
 	 * (AdvanceLeap - an end inside it latches at its own tick, its boundary saves and redraws; a leap that ends in the silence,
-	 * no candidate standing, runs on to the end when it is ahead) and opens the digest after that boundary - none when the run
-	 * was over already (a death on the end's tick: the chronicle). The digest's opens the inauguration when a new life stands,
-	 * the chronicle when the run is over (an end inside the interregnum, or on the succession's tick: no inauguration), and in
-	 * the silence with no end ahead folds the pages and gives the time back (AdvanceLeap). The inauguration's folds, glides the
+	 * no candidate standing, is itself an end (Ending.NoCandidate, B6a header section 2.8) and latches on the succession's tick
+	 * while the end is switched on) and opens the digest after that boundary - none when the run was over already (a death on
+	 * the end's tick: the chronicle). The digest's opens the inauguration when a new life stands, the chronicle when the run is
+	 * over (an end inside the interregnum, or on the succession's tick: no inauguration), and in the silence of a session with
+	 * the end switched off folds the pages and gives the time back (AdvanceLeap). The inauguration's folds, glides the
 	 * camera to the new vessel's system and keeps the time stopped with its line (Succession). The reign end's folds (the time
 	 * stays stopped with its line). The chronicle opens at once in place of its wait (the pages stood in the hold's place). An
 	 * input - nothing from a handler or while none shows.
 	 */
 	void NextCallingPage();
-	/** The epitaph's 'skip' (a second or later death - docs/70): the leap (the silence's run to the end as 'next' runs it) and
-	 * every page at once - then the inauguration's close (the camera, the time stopped), the chronicle once the run is over, or
-	 * in the silence with no end ahead the time given back. Nothing on another page or from a handler. */
+	/** The epitaph's 'skip' (a second or later death - docs/70): the leap (as 'next' runs it) and every page at once - then the
+	 * inauguration's close (the camera, the time stopped), the chronicle once the run is over (the silence included while the
+	 * end is switched on), or in the silence of a session with the end switched off the time given back. Nothing on another page
+	 * or from a handler. */
 	void SkipCallingPages();
 	/** Whether a calling page shows: the speed buttons are greyed (the top bar), the speed keys do nothing, no speed is set
 	 * (ApplySpeed keeps the time stopped with the page's reason - the presentation's, the card's and the silence's give-back
@@ -359,7 +364,7 @@ public:
 	// Continued, ContinuedFromBackup, or SaveUnreadable for the new run after a save that did not read) - unless -Speed= was
 	// given. Takes UCosmicSaveSubsystem::TakeStartOutcome; never from a handler of a Core Logic delegate.
 	void FollowStart();
-	/** Development aid: after DelaySeconds of real time the chronicle over the current state, fully shown, with no cause ("CosmicPreviewChronicle 20" with
+	/** Development aid: after DelaySeconds of real time the chronicle over the current state, fully shown, over an empty ending record ("CosmicPreviewChronicle 20" with
 	 * -ShotAfterSeconds=22 photographs it). Ends nothing, changes no state. */
 	UFUNCTION(Exec)
 	void CosmicPreviewChronicle(float DelaySeconds);
@@ -652,6 +657,9 @@ private:
 	void CloseCallingPages();
 	// B5 [B-5c]: the pages fold and, in an ended run, the chronicle opens at once (its wait forgotten); the HUD redraws.
 	void FinishCallingPages();
+	// B6a [B-6a3c] (header section 2.7): the record the chronicle opens over - the state's FGalaxyState::Ending while the end is
+	// latched (a latch only ever comes from it), the empty record otherwise (no simulation, or nothing latched).
+	FCosmicEndingRecord LatchedRecordOf() const;
 	// B5 [B-5c]: the inauguration folds, the camera glides to the new vessel's system (SelectAndFocus not by the viewer) and
 	// the time stays stopped with its line (ApplySpeed(0, Succession)).
 	void CloseInauguration();
@@ -703,8 +711,9 @@ private:
 	// Whether the third rung's gate was open at the last FollowSpeedGate; unset before the first.
 	TOptional<bool> ThirdRungWasOpen;
 
-	// The provisional end (MVP item 4): presentation state, never saved, outside both hashes.
-	ECosmicProvisionalEnd RunEnd = ECosmicProvisionalEnd::None;
+	// The end as latched (B6a header section 2.7): the kind of FGalaxyState::Ending at the latch - presentation state, never
+	// saved, outside both hashes; the empty tag while the run goes on.
+	FGameplayTag RunEnd;
 	bool bProvisionalEnd = true;
 	// Real seconds left before the chronicle opens; unset while nothing waits.
 	TOptional<float> ChronicleWait;

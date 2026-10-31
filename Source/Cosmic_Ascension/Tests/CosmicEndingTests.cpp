@@ -1,7 +1,7 @@
 // Cosmic Ascension - automation tests of the ending record (B6a): the field through the save and the hashes (commit B-6a2), and
 // from B-6a3b the predicate CosmicEndings::EndingOf, the one write after the tenth stage, a world the record leaves alone, and
-// the silence as an ending.
-// Design: docs/60_DECISIONS/headers/B6a_endings_and_the_run_past_the_third_rung.md section 2.1-2.5, 2.8, 2.9, 6; docs/20
+// the silence as an ending; from B-6a3c the stop of RunLeap at the record's tick (and the cases of the old Sim.ProvisionalEnd).
+// Design: docs/60_DECISIONS/headers/B6a_endings_and_the_run_past_the_third_rung.md section 2.1-2.6, 2.8, 2.9, 6; docs/20
 // section 9.1, 9.2.
 
 #include "CoreMinimal.h"
@@ -190,6 +190,25 @@ namespace CosmicEndingTests
 		}
 	}
 
+	// RunHeadless bound to OnSimTick for the lifetime of the object: at each boundary it is refused with one error line ("...
+	// called from a handler of OnSimTick") and runs nothing - so the expected error count counts the boundaries sent while it
+	// is bound (the form of UI.LeapBoundary's counter - Tests/CosmicLeapTests.cpp).
+	struct FEndingBoundaryCounter
+	{
+		explicit FEndingBoundaryCounter(UGalaxySimulationSubsystem& InSim)
+			: Sim(InSim)
+		{
+			Sim.OnSimTick.AddUniqueDynamic(&Sim, &UGalaxySimulationSubsystem::RunHeadless);
+		}
+
+		~FEndingBoundaryCounter()
+		{
+			Sim.OnSimTick.RemoveDynamic(&Sim, &UGalaxySimulationSubsystem::RunHeadless);
+		}
+
+		UGalaxySimulationSubsystem& Sim;
+	};
+
 	// The index in Civs of a people that is not the ruled one (INDEX_NONE when there is none).
 	int32 UnruledCivIndexOf(const FGalaxyState& State)
 	{
@@ -372,7 +391,9 @@ bool FCosmicSimHashCoversEndingTest::RunTest(const FString& Parameters)
 // bNoVessel (the interregnum at the tick, but not for a fifth rung on the tick of the last death - mutation: dropping the
 // exception, or widening it to every kind, breaks it); a third or fourth peak is no end; knowing, the log, the chronicle and the
 // tell stream change no answer (mutation: an OtherPeople that reads Knowing.MetCivs answers differently over an empty, a partial
-// and a full MetCivs); a knob at 0 or below has no clock; NameOf(tag) is the leaf word.
+// and a full MetCivs); a knob at 0 or below has no clock; NameOf(tag) is the leaf word. From [B-6a3c] the cases of the deleted
+// Sim.ProvisionalEnd live here: the game's clock is 6,000, a life before the last at the third rung and a people raised by
+// hand to it are no end, and the predicate is pure on a live state (a thousand answers move no hash and no stream).
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimEndingOfTest, "Cosmic_Ascension.Sim.EndingOf", CosmicTests::Flags)
 bool FCosmicSimEndingOfTest::RunTest(const FString& Parameters)
 {
@@ -425,6 +446,17 @@ bool FCosmicSimEndingOfTest::RunTest(const FString& Parameters)
 
 	// ---- A third or fourth rung is no end (B6a decision 2-ga) ----
 	Expect(TEXT("A third peak, its people at the third rung: none"), EndingStateOf(100, T3, { PeopleA }, { { PeopleA, T3 } }), NoEnd, NAME_None, false);
+	Expect(TEXT("A people raised by hand to the third rung, its life's peak the second: none"), EndingStateOf(100, T2, { PeopleA }, { { PeopleA, T3 } }), NoEnd, NAME_None, false);
+	Expect(TEXT("The third peak at the clock: the clock"), EndingStateOf(6000, T3, { PeopleA }, { { PeopleA, T3 } }), Clock, NAME_None, false);
+	{
+		// A life before the last that reached the third rung (Sim.ProvisionalEnd's case, moved here in [B-6a3c]).
+		FGalaxyState State = EndingStateOf(100, T3, { PeopleA }, { { PeopleA, T3 } });
+		State.Calling.Lives[0].DiedTick = 50;
+		FLifeRecord& Next = State.Calling.Lives.Add_GetRef(EndingLifeOf(T1, { PeopleA }));
+		Next.LifeIndex = 2;
+		Next.BornTick = 60;
+		Expect(TEXT("A life before the last at the third peak: none"), State, NoEnd, NAME_None, false);
+	}
 	Expect(TEXT("A fourth peak, its people at the fourth rung: none"), EndingStateOf(100, T4, { PeopleA }, { { PeopleA, T4 } }), NoEnd, NAME_None, false);
 	Expect(TEXT("Another people at the fourth rung: none"), EndingStateOf(100, T2, { PeopleA }, { { PeopleA, T2 }, { PeopleB, T4 } }), NoEnd, NAME_None, false);
 
@@ -559,6 +591,7 @@ bool FCosmicSimEndingOfTest::RunTest(const FString& Parameters)
 		FCosmicRulesDef NoClock = Rules;
 		NoClock.ProvisionalEndTick = 0;
 		ExpectUnder(TEXT("A knob of 0: no clock"), EndingStateOf(99999, T2, { PeopleA }, { { PeopleA, T2 } }), NoClock, NoEnd, NAME_None, false);
+		ExpectUnder(TEXT("nor does the third rung end it"), EndingStateOf(10, T3, { PeopleA }, { { PeopleA, T3 } }), NoClock, NoEnd, NAME_None, false);
 		FGalaxyState Quiet = EndingStateOf(99999, T2, { PeopleA }, { { PeopleA, T2 } });
 		PutInInterregnum(Quiet, 99000, 0);
 		ExpectUnder(TEXT("A knob of 0 keeps the silence"), Quiet, NoClock, Silence, NAME_None, true);
@@ -570,6 +603,43 @@ bool FCosmicSimEndingOfTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("NameOf of the five kinds and the empty tag"), FString(CosmicEndings::NameOf(Ruled)) + TEXT(",") + CosmicEndings::NameOf(Vessel) + TEXT(",")
 		+ CosmicEndings::NameOf(Other) + TEXT(",") + CosmicEndings::NameOf(Silence) + TEXT(",") + CosmicEndings::NameOf(Clock) + TEXT(",")
 		+ CosmicEndings::NameOf(NoEnd), FString(TEXT("RuledPeople,Vessel,OtherPeople,NoCandidate,Clock,None")));
+
+	// ---- The game's clock, and the predicate is pure on a live state (Sim.ProvisionalEnd's, moved here in [B-6a3c]) ----
+	// A live state past its third rung and at its clock: a thousand answers change no state, no world, no stream and write no
+	// record (the record is written only inside a tick - Sim.EndingRecordOnce; nothing stops at it - Sim.RunLeapStopsAtEnding).
+	{
+		UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+		if (!Sim)
+		{
+			return false;
+		}
+		ON_SCOPE_EXIT
+		{
+			Sim->NewGalaxy(42, 5, 3);
+			Sim->SetTimeScale(0.f);
+		};
+		TestEqual(TEXT("The game's clock end is tick 6,000"), Sim->GetRules().ProvisionalEndTick, 6000);
+		Sim->NewGalaxy(42, 5, 3);
+		FGalaxyState& Live = Sim->GetMutableState();
+		if (TestFalse(TEXT("(the board has a life)"), Live.Calling.Lives.IsEmpty()))
+		{
+			Live.Calling.Lives.Last().PeakTier = T3;
+		}
+		Live.Tick = Sim->GetRules().ProvisionalEndTick;
+		Sim->SyncRngState();
+		const uint32 Whole = Sim->ComputeStateHash();
+		const uint32 World = Sim->ComputeWorldHash();
+		const int32 Stream = Live.RngState;
+		for (int32 Call = 0; Call < 1000; ++Call)
+		{
+			EndingOf(Sim->GetState(), Sim->GetRules());
+		}
+		TestEqual(TEXT("Reading the end changes no state"), Sim->ComputeStateHash(), Whole);
+		TestEqual(TEXT("nor the world"), Sim->ComputeWorldHash(), World);
+		TestEqual(TEXT("nor the stream"), Sim->GetState().RngState, Stream);
+		TestFalse(TEXT("and writes no record"), Live.Ending.Kind.IsValid());
+		TestTrue(TEXT("(the live run past its third rung at its clock answers the clock)"), EndingOf(Sim->GetState(), Sim->GetRules()).Kind == Clock);
+	}
 	return true;
 }
 
@@ -838,6 +908,125 @@ bool FCosmicSimSilenceEndsTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("The death's tick writes Ending.NoCandidate"), State.Ending.Kind == CosmicTags::EndingNoCandidate() && State.Ending.Tick == DeathTick);
 			TestTrue(TEXT("with no vessel - the death's-tick exception is the fifth rung's only"), State.Ending.bNoVessel);
 		}
+	}
+	return true;
+}
+
+// RunLeap stops at the ending (header section 2.6, [B-6a3c]): on a board with no death but the recorded ones, (1) the clock
+// inside an interregnum - a leap of 40 from a death twenty ticks before the clock - stops RunLeap at the tick that wrote the
+// record (Ending.Clock, no vessel), the rest of the leap kept, with one boundary; a RunLeap after the record does not stop (it
+// runs the rest to its end, one boundary); (2) another people's end inside an interregnum (a people put on the fifth rung by
+// hand during the leap, no clock) stops it at the next tick the same way - an end no tick count foresees; (3) RunHeadless and
+// StepOnce never stop at the end: on a fresh board one tick before the clock RunHeadless(5) runs five ticks past the record's
+// tick, and both keep ticking after it (mutation: RunHeadless stopping where the record is written, or once it stands). The
+// boundaries are counted by a refused RunHeadless bound to OnSimTick: four RunLeap calls, four boundaries.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimRunLeapStopsAtEndingTest, "Cosmic_Ascension.Sim.RunLeapStopsAtEnding", CosmicTests::Flags)
+bool FCosmicSimRunLeapStopsAtEndingTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicEndingTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	const FCosmicRulesDef GameRules = Sim->GetRules();
+	const bool bWasBroadcasting = Sim->IsBroadcastEnabled();
+	ON_SCOPE_EXIT
+	{
+		Sim->SetBroadcastEnabled(bWasBroadcasting);
+		Sim->SetTables(Original);
+		Sim->NewGalaxy(42, 5, 3);
+		Sim->SetTimeScale(0.f);
+	};
+	// One boundary per RunLeap call below (four calls) - the refused RunHeadless of FEndingBoundaryCounter.
+	AddExpectedError(TEXT("RunHeadless called from a handler of OnSimTick"), EAutomationExpectedErrorFlags::Contains, 4);
+	Sim->SetBroadcastEnabled(true);
+	const int32 ClockTick = 300;
+	const int32 Leap = 40;
+
+	// ---- (1) The clock inside an interregnum ----
+	{
+		Sim->SetTables(EndingTables(Original, EndingLeapOf(EndingClockAt(GameRules, ClockTick), Leap)));
+		const int64 Died = ClockTick - 20;
+		FGalaxyState& State = LayEndingBoardAt(*Sim, 5, 3, Died);
+		RecordEndingDeath(State);
+		Sim->RunHeadless(1);
+		if (!TestTrue(TEXT("(the vessel died twenty ticks before the clock with its leap of 40 ahead)"), State.Tick == Died
+			&& State.Calling.LifeState == ELifeState::Interregnum && State.Calling.PendingLeapTicks == Leap && !State.Ending.Kind.IsValid()))
+		{
+			return false;
+		}
+		{
+			FEndingBoundaryCounter Count(*Sim);
+			Sim->RunLeap(Leap);
+		}
+		TestEqual(TEXT("RunLeap stops at the tick that wrote the record"), State.Tick, static_cast<int64>(ClockTick));
+		TestTrue(TEXT("Ending.Clock at that tick, with no vessel"), State.Ending.Kind == CosmicTags::EndingClock() && State.Ending.Tick == ClockTick
+			&& State.Ending.bNoVessel);
+		TestTrue(TEXT("the rest of the leap kept"), State.Calling.LifeState == ELifeState::Interregnum && State.Calling.PendingLeapTicks == Leap - 20);
+		const FCosmicEndingRecord Written = State.Ending;
+		{
+			FEndingBoundaryCounter Count(*Sim);
+			Sim->RunLeap(State.Calling.PendingLeapTicks);
+		}
+		TestEqual(TEXT("A RunLeap after the record does not stop: the rest of the leap runs"), State.Tick, Died + Leap);
+		TestEqual(TEXT("(to its end)"), State.Calling.PendingLeapTicks, static_cast<int64>(0));
+		TestTrue(TEXT("(the record stays as written)"), SameRecord(State.Ending, Written));
+		Sim->RunHeadless(5);
+		TestEqual(TEXT("RunHeadless keeps ticking after the record"), State.Tick, Died + Leap + 5);
+		Sim->StepOnce();
+		TestEqual(TEXT("and so does StepOnce"), State.Tick, Died + Leap + 6);
+		TestTrue(TEXT("(the record still stays)"), SameRecord(State.Ending, Written));
+	}
+
+	// ---- (2) Another people's end inside an interregnum: no tick count foresees it ----
+	{
+		Sim->SetTables(EndingTables(Original, EndingLeapOf(EndingClockAt(GameRules, 0), Leap)));
+		const int64 Died = 400;
+		FGalaxyState& State = LayEndingBoardAt(*Sim, 5, 3, Died);
+		const int32 Unruled = UnruledCivIndexOf(State);
+		if (!TestTrue(TEXT("(the board has a people the vessel does not rule)"), State.Civs.IsValidIndex(Unruled)))
+		{
+			return false;
+		}
+		const FName OtherCiv = State.Civs[Unruled].CivID;
+		RecordEndingDeath(State);
+		Sim->RunHeadless(1);
+		if (!TestTrue(TEXT("(the vessel died with its leap of 40 ahead, no clock)"), State.Tick == Died && State.Calling.LifeState == ELifeState::Interregnum
+			&& State.Calling.PendingLeapTicks == Leap))
+		{
+			return false;
+		}
+		{
+			FEndingBoundaryCounter Count(*Sim);
+			Sim->RunLeap(10);
+		}
+		TestTrue(TEXT("(no end: RunLeap runs its ten ticks)"), State.Tick == Died + 10 && !State.Ending.Kind.IsValid() && State.Calling.PendingLeapTicks == Leap - 10);
+		State.Civs[Unruled].Tier = EAscensionTier::Tier5_EternalOrder;
+		{
+			FEndingBoundaryCounter Count(*Sim);
+			Sim->RunLeap(State.Calling.PendingLeapTicks);
+		}
+		TestEqual(TEXT("A people on the fifth rung stops RunLeap at the next tick"), State.Tick, Died + 11);
+		TestTrue(TEXT("which wrote Ending.OtherPeople"), State.Ending.Kind == CosmicTags::EndingOtherPeople() && State.Ending.Tick == Died + 11);
+		TestEqual(TEXT("naming that people"), State.Ending.CivID, OtherCiv);
+		TestTrue(TEXT("with no vessel"), State.Ending.bNoVessel);
+		TestTrue(TEXT("the rest of the leap kept"), State.Calling.LifeState == ELifeState::Interregnum && State.Calling.PendingLeapTicks == Leap - 11);
+	}
+
+	// ---- (3) RunHeadless and StepOnce never stop at the end ----
+	{
+		Sim->SetTables(EndingTables(Original, EndingClockAt(GameRules, ClockTick)));
+		FGalaxyState& State = LayEndingBoardAt(*Sim, 5, 3, ClockTick);
+		Sim->RunHeadless(5);
+		TestEqual(TEXT("RunHeadless runs past the tick that writes the record"), State.Tick, static_cast<int64>(ClockTick + 4));
+		TestTrue(TEXT("(which it wrote at the clock)"), State.Ending.Kind == CosmicTags::EndingClock() && State.Ending.Tick == ClockTick);
+		LayEndingBoardAt(*Sim, 5, 3, ClockTick);
+		Sim->StepOnce();
+		TestTrue(TEXT("(StepOnce's tick writes the record)"), State.Tick == ClockTick && State.Ending.Kind == CosmicTags::EndingClock());
+		Sim->StepOnce();
+		TestEqual(TEXT("and the next StepOnce runs on"), State.Tick, static_cast<int64>(ClockTick + 1));
 	}
 	return true;
 }

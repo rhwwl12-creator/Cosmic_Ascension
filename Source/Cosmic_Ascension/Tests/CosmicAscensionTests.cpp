@@ -6,6 +6,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Ascension/AscensionSubsystem.h"
+#include "Core/CosmicTags.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicConditionTypes.h"
@@ -1670,12 +1671,14 @@ bool FCosmicPlayerAscendsToT3Test::RunTest(const FString& Parameters)
 	for (int32 Step = 0; Step < Countdown && Live.Civs[CivIndex].Tier == EAscensionTier::Tier2_Stellar; ++Step)
 	{
 		Sim->StepOnce();
-		bEndOnTheWay |= CosmicEndings::ProvisionalEndOf(Live, NoClock) != ECosmicProvisionalEnd::None;
+		bEndOnTheWay |= CosmicEndings::EndingOf(Live, NoClock).Kind.IsValid();
 		ThirdRungTick = (ThirdRungTick < 0 && Live.Civs[CivIndex].Tier == EAscensionTier::Tier3_Causal) ? Live.Tick : ThirdRungTick;
 	}
 	TestTrue(TEXT("(the third rung is reached in a stepped tick)"), ThirdRungTick >= 0 && ThirdRungTick == Live.Tick);
-	TestEqual(TEXT("The third rung ends no run: no provisional end in its tick"), CosmicEndings::ProvisionalEndOf(Live, NoClock), ECosmicProvisionalEnd::None);
+	TestFalse(TEXT("The third rung ends no run: no end in its tick"), CosmicEndings::EndingOf(Live, NoClock).Kind.IsValid());
 	TestFalse(TEXT("nor in any tick of the climb"), bEndOnTheWay);
+	// B6a [B-6a3c]: the live run keeps the game's clock, so the only record its ticks may have written is the clock's.
+	TestTrue(TEXT("and no record but the clock's"), !Live.Ending.Kind.IsValid() || Live.Ending.Kind == CosmicTags::EndingClock());
 	TestTrue(TEXT("The stabilization completed within the supernova's countdown"), CosmicMegaprojects::HasCompleted(Live.Systems[Home], FName(TEXT("project_stabilize")), Live.Calling.BornTick, NAME_None));
 	TestFalse(TEXT("The capital still stands"), CosmicHazards::IsDeadNode(Live.Systems[Home]));
 	TestFalse(TEXT("The supernova is resolved"), Live.Systems[Home].ActiveHazard == Tag(TEXT("Hazard.PreSupernova")));

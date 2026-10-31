@@ -8,20 +8,6 @@
 #include "GameplayTagContainer.h"
 #include "Sim/CosmicSuccession.h"
 
-ECosmicProvisionalEnd CosmicEndings::ProvisionalEndOf(const FGalaxyState& State, const FCosmicRulesDef& Rules)
-{
-	// No life yet, no end; the third rung no longer ends a run (B6a [B-6a3a]).
-	if (State.Calling.Lives.IsEmpty())
-	{
-		return ECosmicProvisionalEnd::None;
-	}
-	if (Rules.ProvisionalEndTick > 0 && State.Tick >= static_cast<int64>(Rules.ProvisionalEndTick))
-	{
-		return ECosmicProvisionalEnd::Clock;
-	}
-	return ECosmicProvisionalEnd::None;
-}
-
 FCosmicEndingRecord CosmicEndings::EndingOf(const FGalaxyState& State, const FCosmicRulesDef& Rules)
 {
 	FCosmicEndingRecord Record;
@@ -94,19 +80,6 @@ FCosmicEndingRecord CosmicEndings::EndingOf(const FGalaxyState& State, const FCo
 		&& Calling.Lives.Last().DiedTick == State.Tick;
 	Record.bNoVessel = Calling.LifeState == ELifeState::Interregnum && !bRungOfThisTick;
 	return Record;
-}
-
-const TCHAR* CosmicEndings::NameOf(ECosmicProvisionalEnd End)
-{
-	switch (End)
-	{
-	case ECosmicProvisionalEnd::Rung:
-		return TEXT("Rung");
-	case ECosmicProvisionalEnd::Clock:
-		return TEXT("Clock");
-	default:
-		return TEXT("None");
-	}
 }
 
 const TCHAR* CosmicEndings::NameOf(const FGameplayTag& Kind)

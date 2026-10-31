@@ -35,15 +35,44 @@
  * the policy's arguments, the cards that came, the answers taken, the projects started, the focus changes taken, the
  * edict and diplomacy commands taken ("edict changes", "diplomacy changes"), the decisions - answers taken, a withdrawn
  * card not counted, plus projects started, focus changes, edict commands and diplomacy commands - by tick 600
- * and 6,000, at the first provisional end ("by end" - the decisions the game takes; -1 without an end) and in all, the told
- * lines by tick 600 and 6,000, and the ticks at which the ruled people reached the second and the third rung), and the provisional end ("CosmicBalance end: first <cause>
- * at <tick>; clock at, deposed at; chronicle life <n> shown <lines> of <candidates>, more <0|1>" - looked at after
- * every tick, nothing stops at it - and the uncapped chapter's lines by the cap's four ranks, "ranks a/b/c/d"; the third
- * rung no longer ends a run (B6a [B-6a3a]), so the clock is the only cause). The end check (B6a [B-6a3b], header section
+ * and 6,000, at the boundary the record of the run's end first stands ("by end" - the decisions the game takes; -1 without
+ * an end) and in all, the told lines by tick 600 and 6,000, and the ticks at which the first reign's people reached the
+ * second and the third rung), and the run's end ("CosmicBalance end: first <kind> at <tick>; clock at, deposed at;
+ * chronicle life <n> shown <lines> of <candidates>, more <0|1>" - since B6a [B-6a3c] the kind (CosmicEndings::NameOf) and
+ * tick of the record FGalaxyState::Ending, read at the first boundary it stands, "first None at -1" while none does; the
+ * clock's tick is the knob's, read apart; looked at after every tick, nothing stops at it - and the uncapped chapter's
+ * lines by the cap's four ranks, "ranks a/b/c/d"; the third rung no longer ends a run, B6a [B-6a3a]). Every "by end" count
+ * of the other lines counts up to and including the record's tick (the clock's in B6a; B4's "by end" was the ruled
+ * third rung - the ending line splits there). The end check (B6a [B-6a3b], header section
  * 5.1) asks the ending predicate (CosmicEndings::EndingOf) at every tick boundary until it first holds: the state's record
  * (FGalaxyState::Ending) must be empty before that boundary, hold the predicate's four fields (kind, tick, people, no
  * vessel) at it and not change after it - a miss prints a "CosmicBalance end check:" error naming both records (the first
  * miss, and their count when there are more) and fails the run; a run that passes prints no end check line.
+ * The ending line (B6a [B-6a3c], header section 5.1, notes section 2.1 - outside the three lines the runner compares, a
+ * record with no assertion), "CosmicBalance ending:", read from the state, the record and the policy's own counts (no rule
+ * copied): the record (kind, tick, its people and whether some life ruled that people - the calling deaths line's old "by a
+ * new people" -, no vessel); the season - the first boundary a people the vessel rules stood at the third rung or above
+ * (any reign's, read after the tick and again after the inputs) and the record's tick less it (-1 without either); the
+ * ruler policy's decisions (CosmicRulerPolicy::DecisionsOf) of the season's boundaries before the record's, per full
+ * 600-tick window from its start (one window for a shorter season - median and least) and the longest stretch without
+ * one; the exact first tick an AI people (not ruled before that tick) climbed to the third rung, read at every boundary,
+ * with its feat row (its Log.Ascension line); the first tick each research field of the season's people (else the first
+ * reign's) and of that AI people stood at 1.0; the first boundary some transcendent's bAwareOfPlayer stood, whether by the
+ * record and whether the vessel had left by then (a leave recorded later in that tick than the flag); the first-person
+ * claim lines (the pressure line's count) and the awareness lines (Log.Transcendent) told by the record; the claims placed
+ * in the season on settled systems of the ruled people; B4's counts split at the ruled third rung - before it / the
+ * season / after the record: #132 the guarded crises by tag with the delay as a share of their countdowns and the fleet
+ * power the attrition took from the people the vessel ruled before the tick, #142 the band 401-550 and its joined, #135
+ * the claim trigger's first holds and the cards it lost to a waiting card and in the same tick, with each first hold's
+ * key "tick:system:phase:k|w|s" (kept / lost to a waiting card / to one put in the tick - the runs that share a world
+ * count it once by seed, tick and system), #145 the sieges begun on the ruled people's systems while its fleet regrows
+ * after a resistance; the first boundary by the record a people the vessel rules counted LowStabilityTicks above 0; the
+ * ruled people's Insight and Influence at each pressure card's boundary by phase (the cards "a/b/c", each stock
+ * "least:median" per phase, "-" for none - #144); the boundary petition_exalt first waited for the ruler with the choice
+ * the policy took on it (-1: none taken); and its pre-count (notes section 2) - every boundary its B6a condition (an
+ * embodied ruler, the ruled people at the second rung or above) came to hold in the tick (it did not after the last
+ * boundary's inputs, or the tick began a reign), as "tick:kind:row" with kind waited (a card waited at the tick's head),
+ * floor (no card put), contest (another Standing card put) or other (a card of another trigger put).
  * The ruler's policy (World/CosmicRulerPolicy, shared with the hash run of a game process - MVP item 9), between ticks
  * after each tick and before the tick's counts: -Answer=1 answers every card the tick it comes (the first choice the
  * stockpile can pay, from choice (answers so far mod choices) on), -Build=1 presses the
@@ -62,7 +91,8 @@
  * fields of the DT_Rules row for the run (read as the data importer reads them; a field it cannot set stops the run).
  * Without them (all off by default) it reads the state only: the world is that of RunHeadless(Ticks) - an ending stops
  * no simulation (B6a [B-6a3b], header section 2.5: the record is written once and the ticks go on, so RunHeadless(Ticks)
- * runs past it as the one-tick loop does). The end itself belongs to the presentation and stops nothing here.
+ * runs past it as the one-tick loop does; only RunLeap stops at it, and the commandlet never calls RunLeap). The end itself
+ * belongs to the presentation and stops nothing here.
  *
  *   UnrealEditor-Cmd Cosmic_Ascension.uproject -run=CosmicBalance -Seed=42 -Ticks=20000 -Out=balance.csv
  *

@@ -1094,8 +1094,10 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 
 	// ---- The provisional end (MVP item 4; goes with the four endings of B5, B6) ----
 
-	// The MVP run's clock end (CosmicEndings::ProvisionalEndOf): from the tick boundary where State.Tick reaches this the presentation keeps the time stopped
-	// and opens the chronicle; the run's last tick is this one. 0 or below = no clock end. Nothing in the simulation stops at it (the commandlet reports it).
+	// The MVP run's clock end (CosmicEndings::EndingOf - Ending.Clock): the tick in which State.Tick reaches this writes the record State.Ending when no end
+	// stands yet and none before the clock in the order holds; from that tick boundary the presentation keeps the time stopped and opens the chronicle, and the
+	// run's last tick is this one. 0 or below = no clock end. The simulation records the end and does not stop at it (RunLeap alone stops in the record's
+	// tick; the commandlet reports it).
 	// Start value 6000 = ten minutes of running at x10; it lengthens only a run the clock ends.
 	UPROPERTY(EditAnywhere)
 	int32 ProvisionalEndTick = 6000;

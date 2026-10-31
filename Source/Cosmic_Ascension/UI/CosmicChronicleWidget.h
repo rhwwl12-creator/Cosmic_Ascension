@@ -9,7 +9,7 @@
 #include "Layout/Margin.h"
 #include "Math/Color.h"
 #include "Misc/Optional.h"
-#include "Sim/CosmicEndings.h"
+#include "Core/GalaxyState.h"
 #include "CosmicChronicleWidget.generated.h"
 
 class UBorder;
@@ -59,7 +59,7 @@ class COSMIC_ASCENSION_API UCosmicChronicleWidget : public UUserWidget
 {
 	GENERATED_BODY()
 public:
-	void Open(ECosmicProvisionalEnd Cause, bool bAtOnce);   // Cause picks the note (None = the development preview: no note, no provisional notice, no 'new run'); bAtOnce: no fade, no reveal
+	void Open(const FCosmicEndingRecord& Record, bool bAtOnce);   // the record picks the note (an empty Kind = the development preview: no note, no provisional notice, no 'new run'); bAtOnce: no fade, no reveal
 	void Close();                                           // a 'new run' half pressed is forgotten
 	bool IsOpen() const { return bOpen; }
 	bool IsRevealing() const { return bOpen && !bRevealed; }   // lines still to show (the buttons wait)
@@ -90,8 +90,9 @@ private:
 	void BuildPage();
 	// The veil's colour, the rows' opacities and the buttons for the time Elapsed since Open.
 	void ShowProgress();
-	// The cause line of an end (empty for a preview).
-	FText NoteOf(ECosmicProvisionalEnd Cause) const;
+	// The cause line of an ending record (empty for a preview - an empty Kind). Interim lines until [B-6a4] (B6a header section 2.7): Ending.Clock
+	// says the record's Tick; every other kind names the record's CivID people when the state holds it, else the line that names none.
+	FText NoteOf(const FCosmicEndingRecord& Record) const;
 
 	UPROPERTY(Transient) TObjectPtr<UBorder> Veil;
 	UPROPERTY(Transient) TObjectPtr<UScrollBox> Page;
@@ -110,7 +111,8 @@ private:
 	TArray<float> LineOpacities;
 	TArray<FLinearColor> LineColors;
 
-	ECosmicProvisionalEnd ShownCause = ECosmicProvisionalEnd::None;
+	// The record the page was opened over (an empty Kind for the development preview: no 'new run').
+	FCosmicEndingRecord ShownRecord;
 	bool bOpen = false;
 	bool bRevealed = false;
 	float Elapsed = 0.f;

@@ -52,7 +52,7 @@ struct FCosmicSavedMark
 	int32 Feats = 0;                               // Calling.CompletedFeats.Num(): an ascension adds one
 	EPlayerRole Role = EPlayerRole::Ruler;         // a deposition, an abdication, an enthronement (B1) or a ruler's death (B5 - Death first); the return is 16 #146
 	FName RuledCivID;
-	bool bEnded = false;                           // CosmicEndings::ProvisionalEndOf != None
+	bool bEnded = false;                           // State.Ending.Kind is valid: the run's ending is recorded (B6a)
 	int32 Lives = 0;                               // Calling.Lives.Num(): a succession adds one (B5)
 	bool bInterregnum = false;                     // Calling.LifeState == Interregnum: a death makes it true (B5)
 	double RealSeconds = 0.0;                      // FPlatformTime::Seconds at the write or the load
@@ -164,7 +164,8 @@ public:
 
 	// The boundary rule as pure functions (tests). DueAt: NewRun when the galaxy differs, else Ended, else Ascended, else Death
 	// (the calling entered the interregnum - B5), else Succession (a life was added), else Role, else Interval (IntervalSeconds
-	// passed and the tick moved), else unset. MarkOf leaves StateHash and RealSeconds to the write.
+	// passed and the tick moved), else unset. MarkOf leaves StateHash and RealSeconds to the write; it reads the state only (Rules
+	// is no longer read since the end became the record State.Ending - B6a; the parameter stays for its callers).
 	static TOptional<ECosmicSaveCause> DueAt(const FCosmicSavedMark& Saved, const FCosmicSavedMark& Now, double NowRealSeconds, double IntervalSeconds);
 	static FCosmicSavedMark MarkOf(const FGalaxyState& State, const FCosmicRulesDef& Rules);
 

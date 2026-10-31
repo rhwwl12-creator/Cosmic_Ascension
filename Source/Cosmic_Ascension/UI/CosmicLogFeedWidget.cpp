@@ -158,7 +158,8 @@ void UCosmicLogFeedWidget::NativeConstruct()
 			Log->OnLogEntry.AddUniqueDynamic(this, &UCosmicLogFeedWidget::HandleLogEntry);
 		}
 	}
-	// The end's latch is the controller's (the state does not know the end): its change rebuilds the feed - no tick follows it.
+	// The end's latch is the controller's (it latches the record State.Ending at a boundary; a session with the end switched off
+	// never latches): its change rebuilds the feed - no tick follows it.
 	if (ACosmicPlayerController* Controller = Cast<ACosmicPlayerController>(GetOwningPlayer()); Controller && !RunEndHandle.IsValid())
 	{
 		RunEndSource = Controller;

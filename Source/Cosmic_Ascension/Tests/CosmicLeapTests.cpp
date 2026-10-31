@@ -28,7 +28,6 @@
 #include "Misc/Guid.h"
 #include "Misc/ScopeExit.h"
 #include "Save/CosmicSaveSubsystem.h"
-#include "Sim/CosmicEndings.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Templates/SharedPointer.h"
@@ -215,7 +214,8 @@ namespace CosmicLeapTests
 // tells, reads IsInTickStages); a
 // handler of OnSimTick that calls RunLeap or RunHeadless is refused and moves no tick - at a tick's boundary and at RunLeap's
 // own; the same seed and the same death tick give the same state one tick at a time through the leap, through the
-// controller's AdvanceLeap and through RunLeap of the remaining leap.
+// controller's AdvanceLeap and through RunLeap of the remaining leap. B6a [B-6a3c] (B6a header section 2.6): with the end
+// switched off, a leap over the clock stops at the record's tick and AdvanceLeap calls RunLeap once more - the same state too.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicLeapDeterminismTest, "Cosmic_Ascension.Calling.LeapDeterminism", CosmicTests::Flags)
 bool FCosmicLeapDeterminismTest::RunTest(const FString& Parameters)
 {
@@ -345,6 +345,46 @@ bool FCosmicLeapDeterminismTest::RunTest(const FString& Parameters)
 	DieAt400();
 	Sim->RunLeap(Live.Calling.PendingLeapTicks);
 	TestEqual(TEXT("RunLeap of the remaining leap is the same state too"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(OneByOne));
+
+	// ---- B6a [B-6a3c] (header section 2.6): across the end's stop, with the end switched off ----
+	// A death at 5,500 with a leap of 800 over the clock (6,000): RunLeap stops at the tick that wrote the record, and with the
+	// switch off AdvanceLeap calls it once more for the rest - the same state as the leap one tick at a time (mutation: without
+	// the second call the rest of the leap is left and the tick stops at 6,000).
+	{
+		Controller->SetProvisionalEndEnabled(false);
+		ON_SCOPE_EXIT { Controller->SetProvisionalEndEnabled(true); };
+		Sim->SetTables(CosmicTests::WithRules(Original, LeapRules(Sim->GetRules(), 800, 800)));
+		const int64 ClockTick = Sim->GetRules().ProvisionalEndTick;
+		const int64 Died = 5500;
+		auto DieAt5500 = [Sim, Died]() -> FGalaxyState&
+		{
+			FGalaxyState& State = LayAt(*Sim, Died);
+			RecordDeath(State);
+			Sim->StepOnce();
+			return State;
+		};
+		FGalaxyState& Late = DieAt5500();
+		if (!TestTrue(TEXT("(the vessel died at 5,500 with a leap of 800 over the clock ahead)"), ClockTick > Died && ClockTick < Died + 800 && Late.Tick == Died
+			&& IsWaiting(Late) && Late.Calling.PendingLeapTicks == 800))
+		{
+			return false;
+		}
+		TestEqual(TEXT("(one tick at a time, the whole leap)"), StepThroughLeap(*Sim), static_cast<int64>(800));
+		if (!TestTrue(TEXT("(to a succession past the clock)"), Late.Tick == Died + 800 && !IsWaiting(Late) && Late.Calling.Lives.Num() == 2))
+		{
+			return false;
+		}
+		TestTrue(TEXT("(one tick at a time the clock's tick wrote its record, with no vessel)"), Late.Ending.Kind == CosmicTags::EndingClock() && Late.Ending.Tick == ClockTick
+			&& Late.Ending.bNoVessel);
+		const uint32 LateOneByOne = Sim->ComputeStateHash();
+
+		DieAt5500();
+		TestTrue(TEXT("With the end switched off AdvanceLeap runs the leap"), Controller->AdvanceLeap());
+		TestEqual(TEXT("past the record's stop, all of it"), Late.Tick, Died + 800);
+		TestTrue(TEXT("to the succession, no leap left"), !IsWaiting(Late) && Late.Calling.PendingLeapTicks == 0 && Late.Calling.Lives.Num() == 2);
+		TestFalse(TEXT("and nothing latches"), Controller->IsRunEnded());
+		TestEqual(TEXT("The two calls are the same state as the leap one tick at a time"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(LateOneByOne));
+	}
 	return true;
 }
 
@@ -459,8 +499,11 @@ bool FCosmicSaveLeapResumeTest::RunTest(const FString& Parameters)
 // section 6 UI.LeapBoundary, the form of UI.RunEnd): LifeClosedAt as a pure function; a death's boundary stops the time
 // whatever the automatic pause and writes Death; a leap the end cuts stops at the end's tick, latches the end (Clock) and
 // writes Ended once; a leap that succeeds before the end sends one boundary, writes Succession once and rebuilds the log
-// feed, whose last item is then the inauguration line ([B-5d1]) - a leap of one tick too, whose boundary follows the feed's last tick by one; with the end switched off the leap runs past the end and nothing latches; the silence runs to the end with the end
-// ahead and nothing with the switch off; a leap of 0 and a death on the end's tick stop the time at their boundary too; a
+// feed, whose last item is then the inauguration line ([B-5d1]) - a leap of one tick too, whose boundary follows the feed's last tick by one; with the end switched off the leap runs past the end and nothing latches;
+// B6a [B-6a3c]: the clock's stop is the tick that wrote the record (RunLeap stops there), a leap the simulation refuses runs
+// nothing and AdvanceLeap answers false, the switch off passes the record's stop with a second RunLeap (two boundaries), and
+// the silence is the ending of its own tick - latched there with the end switched on, with the switch off nothing latches and
+// the time is given back; a leap of 0 and a death on the end's tick stop the time at their boundary too; a
 // succession on the end's tick - through a leap that ends there and through a leap of 0 - leaves the feed's last item the
 // line before the inauguration line of the vessel the end installed (CosmicChronicle::IsUnseenLifeLine, [B-5d1]), and the
 // end forgotten shows it again.
@@ -505,6 +548,8 @@ bool FCosmicLeapBoundaryTest::RunTest(const FString& Parameters)
 	};
 	// The one boundary of case (3), counted by a refused handler.
 	AddExpectedError(TEXT("RunHeadless called from a handler of OnSimTick"), EAutomationExpectedErrorFlags::Contains, 1);
+	// B6a [B-6a3c]: the leap AdvanceLeap asks for from a handler of a Core Logic delegate in case (2).
+	AddExpectedError(TEXT("RunLeap called from a handler of a Core Logic delegate"), EAutomationExpectedErrorFlags::Contains, 1);
 
 	// ---- LifeClosedAt, pure: the last closed life's DiedTick ----
 	{
@@ -570,11 +615,38 @@ bool FCosmicLeapBoundaryTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("for the death, with the automatic pause off"), Controller->GetAutoPauseReason() == ECosmicAutoPause::Death);
 		TestEqual(TEXT("and the controller keeps the death's tick"), Controller->GetDeathTick(), Died);
 		TestTrue(TEXT("The death's boundary writes the slot once, for the death"), Writes.One(ECosmicSaveCause::Death));
+		// B6a [B-6a3c] (header section 2.6): a leap the simulation refuses - AdvanceLeap from a handler of a Core Logic delegate
+		// (a line pushed by hand) - runs nothing, and AdvanceLeap answers false, so that nothing loops on it.
+		{
+			bool bTried = false;
+			bool bAdvanced = true;
+			{
+				CosmicTests::FScopedProbe Scoped(*Sim);
+				Scoped.Probe->OnLog = [&bTried, &bAdvanced, Controller](const FCosmicLogEntry&)
+				{
+					if (!bTried)
+					{
+						bTried = true;
+						bAdvanced = Controller->AdvanceLeap();
+					}
+				};
+				FFormatNamedArguments Args;
+				Scoped.Log->PushRow(CosmicRows::LogInauguration, 1, Args, NAME_None, NAME_None);
+				Scoped.Probe->OnLog = nullptr;
+			}
+			TestTrue(TEXT("(the handler asked for the leap)"), bTried);
+			TestFalse(TEXT("A leap the simulation refuses: AdvanceLeap answers false"), bAdvanced);
+			TestTrue(TEXT("and nothing ran"), Live.Tick == Died && IsWaiting(Live) && Live.Calling.PendingLeapTicks == 40);
+			Writes.Take();
+		}
 		TestTrue(TEXT("AdvanceLeap runs"), Controller->AdvanceLeap());
 		TestEqual(TEXT("up to the end's tick, not past it"), Live.Tick, EndTick);
 		TestTrue(TEXT("with the rest of the leap kept"), IsWaiting(Live) && Live.Calling.PendingLeapTicks == 20);
+		// B6a [B-6a3c]: the stop is the record's - RunLeap stops at the tick that wrote it, not a cut of the controller.
+		TestTrue(TEXT("The stop is the tick that wrote the record: Ending.Clock at the end's tick, with no vessel"), Live.Ending.Kind == CosmicTags::EndingClock()
+			&& Live.Ending.Tick == EndTick && Live.Ending.bNoVessel);
 		TestTrue(TEXT("Its boundary latches the end"), Controller->IsRunEnded());
-		TestEqual(TEXT("of the clock"), Controller->GetRunEnd(), ECosmicProvisionalEnd::Clock);
+		TestEqual(TEXT("of the clock"), Controller->GetRunEnd(), CosmicTags::EndingClock());
 		TestTrue(TEXT("and writes the slot once, for the end"), Writes.One(ECosmicSaveCause::Ended));
 		TestFalse(TEXT("An ended run's AdvanceLeap runs nothing"), Controller->AdvanceLeap());
 		TestEqual(TEXT("(the tick stays)"), Live.Tick, EndTick);
@@ -681,27 +753,38 @@ bool FCosmicLeapBoundaryTest::RunTest(const FString& Parameters)
 	}
 
 	// ---- (4) With the end switched off the leap runs past the end's tick and nothing latches ----
+	// B6a [B-6a3c] (header section 2.6): RunLeap stops at the record's tick and AdvanceLeap calls it once more for the rest -
+	// two boundaries, the end's (Ended: the save layer reads the record whatever the switch) and the succession's.
 	{
 		Controller->SetProvisionalEndEnabled(false);
 		const int64 Died = EndTick - 20;
 		FGalaxyState& Live = Lay(Died);
 		Kill(Live);
+		Writes.Take();
 		TestTrue(TEXT("AdvanceLeap runs"), Controller->AdvanceLeap());
 		TestEqual(TEXT("With the end switched off the leap runs past the end's tick"), Live.Tick, Died + 40);
 		TestTrue(TEXT("to the succession"), !IsWaiting(Live) && Live.Calling.Lives.Num() == 2);
+		TestTrue(TEXT("(the end's tick wrote its record on the way, with no vessel)"), Live.Ending.Kind == CosmicTags::EndingClock() && Live.Ending.Tick == EndTick
+			&& Live.Ending.bNoVessel);
 		TestFalse(TEXT("and nothing latches"), Controller->IsRunEnded());
-		Writes.Take();
+		const int32 Boundaries = Writes.Take();
+		TestTrue(TEXT("Two boundaries - the record's stop writes Ended, the leap's end Succession"), Boundaries == 2
+			&& Save->GetLastCause().Get(ECosmicSaveCause::Asked) == ECosmicSaveCause::Succession);
 		Controller->SetProvisionalEndEnabled(true);
 	}
 
 	// ---- (5) The silence: no candidate - every other system moved out of the death place's galaxy row ----
+	// B6a [B-6a3c] (header section 2.6, 2.8): the silence is the ending of the succession's tick (Ending.NoCandidate). With the
+	// end switched on its boundary latches it; with the switch off nothing latches and the time is given back (B5).
+	const int64 SilenceDied = EndTick - 100;
+	const int64 Silent = SilenceDied + 40;
+	auto LaySilence = [&]() -> FGalaxyState*
 	{
-		const int64 Died = EndTick - 100;
-		FGalaxyState& Live = Lay(Died);
+		FGalaxyState& Live = Lay(SilenceDied);
 		const int32 Death = Sim->GetStateIndex().FindSystem(Live, Live.Player.CurrentSystemID);
 		if (!TestTrue(TEXT("(the vessel stands in a system)"), Live.Systems.IsValidIndex(Death)))
 		{
-			return false;
+			return nullptr;
 		}
 		for (int32 SystemIndex = 0; SystemIndex < Live.Systems.Num(); ++SystemIndex)
 		{
@@ -712,20 +795,45 @@ bool FCosmicLeapBoundaryTest::RunTest(const FString& Parameters)
 		}
 		Kill(Live);
 		Writes.Take();
+		return &Live;
+	};
+	// (5a) The end switched on: the silence latches in its tick.
+	{
+		FGalaxyState* Quiet = LaySilence();
+		if (!Quiet)
+		{
+			return false;
+		}
+		FGalaxyState& Live = *Quiet;
 		TestTrue(TEXT("AdvanceLeap runs the leap"), Controller->AdvanceLeap());
-		const int64 Silent = Died + 40;
 		TestTrue(TEXT("to a succession with no candidate: the calling stays in the interregnum with no leap left (the silence)"),
 			Live.Tick == Silent && IsWaiting(Live) && Live.Calling.PendingLeapTicks == 0 && Live.Calling.Lives.Num() == 1);
-		TestEqual(TEXT("The silence's boundary writes nothing"), Writes.Take(), 0);
+		TestTrue(TEXT("The succession's tick wrote Ending.NoCandidate with no vessel"), Live.Ending.Kind == CosmicTags::EndingNoCandidate() && Live.Ending.Tick == Silent
+			&& Live.Ending.bNoVessel);
+		TestTrue(TEXT("Its boundary latches the silence - not the clock ahead"), Controller->IsRunEnded() && Controller->GetRunEnd() == CosmicTags::EndingNoCandidate());
+		TestTrue(TEXT("and writes the slot once, for the end"), Writes.One(ECosmicSaveCause::Ended));
+		TestFalse(TEXT("The ended run's AdvanceLeap runs nothing"), Controller->AdvanceLeap());
+		TestEqual(TEXT("(the tick stays at the silence)"), Live.Tick, Silent);
+	}
+	// (5b) The end switched off: the same leap, nothing latches, and the silence's AdvanceLeap gives the time back.
+	{
 		Controller->SetProvisionalEndEnabled(false);
+		FGalaxyState* Quiet = LaySilence();
+		if (!Quiet)
+		{
+			Controller->SetProvisionalEndEnabled(true);
+			return false;
+		}
+		FGalaxyState& Live = *Quiet;
+		TestTrue(TEXT("With the end switched off AdvanceLeap runs the leap"), Controller->AdvanceLeap());
+		TestTrue(TEXT("to the silence"), Live.Tick == Silent && IsWaiting(Live) && Live.Calling.PendingLeapTicks == 0 && Live.Calling.Lives.Num() == 1);
+		TestTrue(TEXT("(its record stands - the simulation writes it whatever the switch)"), Live.Ending.Kind == CosmicTags::EndingNoCandidate() && Live.Ending.Tick == Silent);
+		TestFalse(TEXT("and nothing latches"), Controller->IsRunEnded());
 		TestFalse(TEXT("With the end switched off the silence's AdvanceLeap runs nothing"), Controller->AdvanceLeap());
 		TestEqual(TEXT("(the tick stays)"), Live.Tick, Silent);
+		TestFalse(TEXT("(still nothing latched)"), Controller->IsRunEnded());
+		Writes.Take();
 		Controller->SetProvisionalEndEnabled(true);
-		TestTrue(TEXT("With the end ahead it runs"), Controller->AdvanceLeap());
-		TestEqual(TEXT("to the end's tick"), Live.Tick, EndTick);
-		TestTrue(TEXT("where the end latches"), Controller->IsRunEnded() && Controller->GetRunEnd() == ECosmicProvisionalEnd::Clock);
-		TestTrue(TEXT("(still the silence)"), IsWaiting(Live) && Live.Calling.PendingLeapTicks == 0 && Live.Calling.Lives.Num() == 1);
-		TestTrue(TEXT("and its boundary writes the slot once, for the end"), Writes.One(ECosmicSaveCause::Ended));
 	}
 
 	// ---- (6) A leap of 0 (LeapTotalCap 0): the succession on the death's tick, and the boundary still stops the time ----
@@ -757,7 +865,7 @@ bool FCosmicLeapBoundaryTest::RunTest(const FString& Parameters)
 		if (TestTrue(TEXT("(the vessel died on the end's tick)"), Live.Tick == EndTick && IsWaiting(Live)))
 		{
 			TestEqual(TEXT("The death on the end's tick is seen at its boundary"), Controller->GetDeathTick(), EndTick);
-			TestTrue(TEXT("and the end latches there too"), Controller->IsRunEnded() && Controller->GetRunEnd() == ECosmicProvisionalEnd::Clock);
+			TestTrue(TEXT("and the end latches there too"), Controller->IsRunEnded() && Controller->GetRunEnd() == CosmicTags::EndingClock());
 			TestEqual(TEXT("with the time stopped"), Sim->GetTimeScale(), 0.f);
 			TestTrue(TEXT("Its write is the end's, once (the end before the death)"), Writes.One(ECosmicSaveCause::Ended));
 			TestFalse(TEXT("The ended run's AdvanceLeap runs nothing"), Controller->AdvanceLeap());

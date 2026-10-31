@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1227,7 +1227,7 @@
+ 		}
+ 		const double Now = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.0;
+ 		// The end's tick is the record's (a state run on past it, a continued save): the clock end still reads 'CosmicEnd: Clock at tick 6000; ...'.
+-		const int64 EndTick = Ending.Tick;
++		const int64 EndTick = Sim->GetState().Tick;
+ 		if (!bArrived && (RunBeganTick < 0 || RunBeganTick == Sim->GetState().Tick))
+ 		{
+ 			// A run that was over when it was opened (a continue, MVP item 5): its length is in the log of the session it ended in.

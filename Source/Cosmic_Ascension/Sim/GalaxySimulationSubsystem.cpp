@@ -1189,8 +1189,21 @@ void UGalaxySimulationSubsystem::RunLeap(int64 Ticks)
 	{
 		return;   // no tick, no boundary: a leap of nothing announces no tick twice
 	}
-	RunHeadless(Ticks);
-	// The one boundary of the leap, outside the stages (header B5 section 2.6).
+	// The loop of RunHeadless, with one stop (B6a header section 2.6): when no end stood at the call, the tick that wrote the
+	// record is the last one. A record that already stood stops nothing - a leap past the end runs all its ticks.
+	const bool bStopsAtEnding = !State.Ending.Kind.IsValid();
+	{
+		TGuardValue<bool> GateGuard(bBroadcastEnabled, false);
+		for (int64 Index = 0; Index < Ticks; ++Index)
+		{
+			SimulateTick();
+			if (bStopsAtEnding && State.Ending.Kind.IsValid())
+			{
+				break;
+			}
+		}
+	}
+	// The one boundary of the leap, outside the stages (header B5 section 2.6) - at the end's tick when the leap stopped there.
 	if (bBroadcastEnabled)
 	{
 		TGuardValue<int32> Sending(SimTickDepth, SimTickDepth + 1);

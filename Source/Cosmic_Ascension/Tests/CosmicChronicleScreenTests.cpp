@@ -31,7 +31,6 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
 #include "Player/PlayerRoleSubsystem.h"
-#include "Sim/CosmicEndings.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
@@ -210,7 +209,10 @@ bool FCosmicUIRunEndTest::RunTest(const FString& Parameters)
 	Sim->Tick(1.f);
 	TestEqual(TEXT("The clock end stops the run at exactly its tick"), Live.Tick, static_cast<int64>(EndTick));
 	TestEqual(TEXT("with the speed at 0"), Sim->GetTimeScale(), 0.f);
-	TestEqual(TEXT("for the clock"), Controller->GetRunEnd(), ECosmicProvisionalEnd::Clock);
+	TestEqual(TEXT("for the clock"), Controller->GetRunEnd(), CosmicTags::EndingClock());
+	// B6a [B-6a3c] (header section 2.7): the latch is the record's kind - the tick wrote it after its tenth stage.
+	TestTrue(TEXT("(the end's tick wrote the record the latch reads: Ending.Clock at that tick)"), Live.Ending.Kind == CosmicTags::EndingClock()
+		&& Live.Ending.Tick == EndTick);
 	TestTrue(TEXT("and the reason is the end"), Controller->GetAutoPauseReason() == ECosmicAutoPause::RunEnd);
 	// (4) The card folds; its row stays waiting.
 	TestTrue(TEXT("The end folds the card"), Screen.Card->GetShownRow().IsNone() && Screen.Card->GetVisibility() == ESlateVisibility::Collapsed);
@@ -295,15 +297,30 @@ bool FCosmicUIRunEndTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("(some system's panel shows the settle button)"), bSettleSeen);
 	Controller->SelectSystem(NAME_None);
 
-	// (8) FollowEnd(false) over an ended state: the latch and the page at once; a second call changes nothing.
+	// (8) FollowEnd(false) over an ended state: the latch and the page at once; a second call changes nothing. B6a [B-6a3c]:
+	// the latch reads the record, not the tick - the clock's tick with the record taken away latches nothing, and a record of
+	// another kind latches that kind.
 	Controller->ClearRunEnd();
 	TestFalse(TEXT("(cleared)"), Controller->IsRunEnded() || Page->IsOpen());
+	{
+		const FCosmicEndingRecord Written = Live.Ending;
+		Live.Ending = FCosmicEndingRecord();
+		Controller->FollowEnd(false);
+		TestFalse(TEXT("FollowEnd(false) at the clock's tick with no record latches nothing"), Controller->IsRunEnded() || Page->IsOpen());
+		Live.Ending = Written;
+		Live.Ending.Kind = CosmicTags::EndingNoCandidate();
+		Controller->FollowEnd(false);
+		TestEqual(TEXT("A record of another kind latches that kind"), Controller->GetRunEnd(), CosmicTags::EndingNoCandidate());
+		Controller->ClearRunEnd();
+		Live.Ending = Written;
+	}
+	TestFalse(TEXT("(cleared again)"), Controller->IsRunEnded() || Page->IsOpen());
 	Controller->FollowEnd(false);
-	TestEqual(TEXT("FollowEnd(false) over an ended state latches"), Controller->GetRunEnd(), ECosmicProvisionalEnd::Clock);
+	TestEqual(TEXT("FollowEnd(false) over an ended state latches"), Controller->GetRunEnd(), CosmicTags::EndingClock());
 	TestTrue(TEXT("and opens the page fully shown"), Page->IsOpen() && !Page->IsRevealing());
 	TestFalse(TEXT("with the bar's 'chronicle' gone"), IsShownWidget(Screen.Bar->GetReopenButton()));
 	Controller->FollowEnd(false);
-	TestTrue(TEXT("A second call changes nothing"), Controller->GetRunEnd() == ECosmicProvisionalEnd::Clock && Page->IsOpen() && !Page->IsRevealing());
+	TestTrue(TEXT("A second call changes nothing"), Controller->GetRunEnd() == CosmicTags::EndingClock() && Page->IsOpen() && !Page->IsRevealing());
 
 	// (12) The page, the map, the reopening and the refused commands wrote nothing.
 	Controller->LookAtMap();
@@ -317,7 +334,7 @@ bool FCosmicUIRunEndTest::RunTest(const FString& Parameters)
 	const FGalaxyState Ended = Sim->GetState();
 	Controller->LookAtMap();
 	Sim->LoadState(Ended);
-	TestEqual(TEXT("A load of an ended state latches"), Controller->GetRunEnd(), ECosmicProvisionalEnd::Clock);
+	TestEqual(TEXT("A load of an ended state (its record) latches"), Controller->GetRunEnd(), CosmicTags::EndingClock());
 	TestTrue(TEXT("and shows the page fully"), Page->IsOpen() && !Page->IsRevealing());
 	TestTrue(TEXT("with no card"), Screen.Card->GetShownRow().IsNone());
 	TestEqual(TEXT("and the speed at 0"), Sim->GetTimeScale(), 0.f);
@@ -328,7 +345,7 @@ bool FCosmicUIRunEndTest::RunTest(const FString& Parameters)
 	Controller->StartNewRun();
 	TestNotEqual(TEXT("A new run is another galaxy"), Sim->GetState().GalaxyID, OldGalaxy);
 	TestEqual(TEXT("at tick 0"), Sim->GetState().Tick, static_cast<int64>(0));
-	TestEqual(TEXT("not over"), Controller->GetRunEnd(), ECosmicProvisionalEnd::None);
+	TestFalse(TEXT("not over"), Controller->GetRunEnd().IsValid());
 	TestFalse(TEXT("with the page folded"), Page->IsOpen());
 	TestEqual(TEXT("at x1"), Sim->GetTimeScale(), 1.f);
 	Screen.Map->RefreshNow();
@@ -344,6 +361,8 @@ bool FCosmicUIRunEndTest::RunTest(const FString& Parameters)
 	Sim->Tick(1.f);
 	TestTrue(TEXT("With the end switched off the run passes the end tick"), Sim->GetState().Tick > EndTick);
 	TestFalse(TEXT("and is not over"), Controller->IsRunEnded());
+	TestTrue(TEXT("(the simulation wrote the record whatever the switch: the switch only keeps the latch away)"),
+		Sim->GetState().Ending.Kind == CosmicTags::EndingClock() && Sim->GetState().Ending.Tick == EndTick);
 	TestEqual(TEXT("and keeps its speed"), Sim->GetTimeScale(), 10.f);
 	Sim->SetTimeScale(0.f);
 	Controller->SetProvisionalEndEnabled(true);
@@ -352,7 +371,7 @@ bool FCosmicUIRunEndTest::RunTest(const FString& Parameters)
 	Controller->FollowEnd(false);
 	TestTrue(TEXT("(latched past the end)"), Controller->IsRunEnded() && Controller->GetAutoPauseReason() == ECosmicAutoPause::RunEnd);
 	CosmicTests::AcquireSim(*this);
-	TestEqual(TEXT("AcquireSim forgets the latch"), Controller->GetRunEnd(), ECosmicProvisionalEnd::None);
+	TestFalse(TEXT("AcquireSim forgets the latch"), Controller->GetRunEnd().IsValid());
 	TestTrue(TEXT("and the end's reason"), Controller->GetAutoPauseReason() == ECosmicAutoPause::None);
 	TestFalse(TEXT("and folds the page"), Page->IsOpen());
 
@@ -450,7 +469,7 @@ bool FCosmicUIRunEndTest::RunTest(const FString& Parameters)
 		{
 			return false;
 		}
-		TestEqual(*FString::Printf(TEXT("The clock at the climb's tick ends the run %s"), Order), Controller->GetRunEnd(), ECosmicProvisionalEnd::Clock);
+		TestEqual(*FString::Printf(TEXT("The clock at the climb's tick ends the run %s"), Order), Controller->GetRunEnd(), CosmicTags::EndingClock());
 		TestTrue(*FString::Printf(TEXT("(the presentation shows %s)"), Order), Screen.Overlay->IsShowing());
 		TestEqual(*FString::Printf(TEXT("The presentation holds the speed it found %s"), Order), Screen.Overlay->GetPausedSpeed(), bAutoPause ? 0.f : 10.f);
 		TestTrue(*FString::Printf(TEXT("and the reason is the end %s"), Order), Controller->GetAutoPauseReason() == ECosmicAutoPause::RunEnd);
@@ -523,7 +542,19 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 	const FLifeRecord& Life = Live.Calling.Lives[0];
 
 	// ---- The page, in the order of the document ----
-	Page->Open(ECosmicProvisionalEnd::Clock, true);
+	// The record the page is opened with (B6a [B-6a3c], header section 2.7): the clock's, at a tick that is not the state's -
+	// the note says the record's tick (the chapters still run to the state's).
+	const int64 RecordTick = Live.Tick + 4500;
+	auto RecordOf = [RecordTick](const FGameplayTag& Kind, FName CivID)
+	{
+		FCosmicEndingRecord Record;
+		Record.Kind = Kind;
+		Record.Tick = RecordTick;
+		Record.CivID = CivID;
+		return Record;
+	};
+	const FCosmicEndingRecord ClockRecord = RecordOf(CosmicTags::EndingClock(), NAME_None);
+	Page->Open(ClockRecord, true);
 	const TArray<FText> Texts = Page->GetPageTexts();
 	// The two books' chapter (B5 - CosmicChronicle::BuildTwoBooks) stands between the chapter and the fixed lines when the run
 	// lost a settled system; its rows and lines are counted here and read in the B5 part below.
@@ -570,33 +601,47 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("and the horizon line last"), Texts[Expected - 1].ToString(), Words(TEXT("Chronicle.Horizon")));
 	// The stamps stay in cycles in the viewer's years.
 	Controller->SetTimeUnit(ECosmicTimeUnit::Year);
-	Page->Open(ECosmicProvisionalEnd::Clock, true);
+	Page->Open(ClockRecord, true);
 	TestTrue(TEXT("In years the stamps are still cycles"), Page->GetLineStamps().Num() == Stamps.Num()
 		&& (Stamps.IsEmpty() || Page->GetLineStamps()[0].ToString() == Stamps[0].ToString()));
 	Controller->SetTimeUnit(ECosmicTimeUnit::Cycle);
 
 	// ---- The cause notes ----
-	TestEqual(TEXT("The clock's note"), Shown(Page->GetNoteText()), FText::Format(Label(TEXT("Chronicle.Note.Clock")), FText::AsNumber(Live.Tick)).ToString());
+	TestEqual(TEXT("The clock's note says the record's tick, not the state's"), Shown(Page->GetNoteText()),
+		FText::Format(Label(TEXT("Chronicle.Note.Clock")), FText::AsNumber(RecordTick)).ToString());
 	TestEqual(TEXT("and the provisional notice"), Shown(Page->GetProvisionalText()), Words(TEXT("Chronicle.Provisional")));
-	// The rung's note, which no end gives any more (the third rung ends no run - B6a [B-6a3a]): the line that names no
-	// people, whoever is on the rung. Naming the people comes back in [B-6a3c] from the ending record's CivID (B6a header
-	// section 2.7).
+	// Until [B-6a4] every other kind has the interim line (B6a header section 2.7): Chronicle.Note.Rung naming the record's
+	// people when the state holds it, Chronicle.Note.RungNoCiv otherwise - read from the record, never from the rungs.
 	const int32 Other = Live.Civs.IndexOfByPredicate([&Live, Ruled](const FCivilizationState& Civ) { return Civ.CivID != Live.Civs[Ruled].CivID; });
 	if (TestTrue(TEXT("(another people)"), Other != INDEX_NONE))
 	{
 		FLifeRecord& Mutable = Live.Calling.Lives[0];
-		Mutable.PeakTier = EAscensionTier::Tier3_Causal;
-		Live.Civs[Ruled].Tier = EAscensionTier::Tier2_Stellar;
-		Page->Open(ECosmicProvisionalEnd::Rung, true);
-		TestEqual(TEXT("With no ruled people on the rung the note names none"), Shown(Page->GetNoteText()), Words(TEXT("Chronicle.Note.RungNoCiv")));
-		Mutable.RuledCivIDs.Add(Live.Civs[Other].CivID);
-		Live.Civs[Other].Tier = EAscensionTier::Tier3_Causal;
-		Page->Open(ECosmicProvisionalEnd::Rung, true);
-		TestEqual(TEXT("With a ruled people on the rung the note names none either"), Shown(Page->GetNoteText()), Words(TEXT("Chronicle.Note.RungNoCiv")));
+		auto NamesOf = [](const FText& CivName)
+		{
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("Civ"), CivName);
+			return FText::Format(Label(TEXT("Chronicle.Note.Rung")), Args).ToString();
+		};
+		Page->Open(RecordOf(CosmicTags::EndingOtherPeople(), Live.Civs[Other].CivID), true);
+		TestEqual(TEXT("Another people's end names the record's people"), Shown(Page->GetNoteText()), NamesOf(Live.Civs[Other].CivName));
 		TestEqual(TEXT("and the provisional notice follows"), Shown(Page->GetProvisionalText()), Words(TEXT("Chronicle.Provisional")));
-		Mutable.RuledCivIDs.Pop();
-		Mutable.PeakTier = EAscensionTier::Tier1_Planetary;
-		Live.Civs[Ruled].Tier = EAscensionTier::Tier1_Planetary;
+		TestTrue(TEXT("with 'new run'"), IsShownWidget(Page->GetNewRunButton()));
+		Page->Open(RecordOf(CosmicTags::EndingRuledPeople(), Live.Civs[Ruled].CivID), true);
+		TestEqual(TEXT("The ruled people's end names the record's people - whatever its rung"), Shown(Page->GetNoteText()), NamesOf(Live.Civs[Ruled].CivName));
+		Page->Open(RecordOf(CosmicTags::EndingNoCandidate(), NAME_None), true);
+		TestEqual(TEXT("The silence names none"), Shown(Page->GetNoteText()), Words(TEXT("Chronicle.Note.RungNoCiv")));
+		Page->Open(RecordOf(CosmicTags::EndingOtherPeople(), FName(TEXT("civ_test_nowhere"))), true);
+		TestEqual(TEXT("A record's people the state does not hold is named by none"), Shown(Page->GetNoteText()), Words(TEXT("Chronicle.Note.RungNoCiv")));
+		// The rungs are not read: the ruled people on the third rung with the life's peak there names no one under the clock.
+		const EAscensionTier WasPeak = Mutable.PeakTier;
+		const EAscensionTier WasTier = Live.Civs[Ruled].Tier;
+		Mutable.PeakTier = EAscensionTier::Tier3_Causal;
+		Live.Civs[Ruled].Tier = EAscensionTier::Tier3_Causal;
+		Page->Open(ClockRecord, true);
+		TestEqual(TEXT("A people on the third rung changes nothing: the clock's note"), Shown(Page->GetNoteText()),
+			FText::Format(Label(TEXT("Chronicle.Note.Clock")), FText::AsNumber(RecordTick)).ToString());
+		Mutable.PeakTier = WasPeak;
+		Live.Civs[Ruled].Tier = WasTier;
 
 		// The facts of a life that left one throne, took another and left it too (B1): the peoples in order, then 'wandering'.
 		const FGameplayTag Left = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Abdicated")));
@@ -606,28 +651,28 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 		Mutable.RuledCivIDs.Add(Live.Civs[Other].CivID);
 		Mutable.ReignEndReasons.Add(Left);
 		Mutable.ReignTicks.Add(10);
-		Page->Open(ECosmicProvisionalEnd::Clock, true);
+		Page->Open(ClockRecord, true);
 		const FText Peoples = FText::Format(Label(TEXT("Chronicle.Then")), Live.Civs[Ruled].CivName, Live.Civs[Other].CivName);
 		TestEqual(TEXT("The facts name the peoples in order and the walking end"), Page->GetPageTexts()[1].ToString(),
 			CosmicUI::JoinList({ Peoples, Label(TEXT("Chronicle.Wandering")), Rung, Lasted }).ToString());
 		Mutable.RuledCivIDs.Pop();
 		// A return to the same people (left it, took it again): that people once.
 		Mutable.RuledCivIDs.Add(Live.Civs[Ruled].CivID);
-		Page->Open(ECosmicProvisionalEnd::Clock, true);
+		Page->Open(ClockRecord, true);
 		TestEqual(TEXT("A return to the same people names it once"), Page->GetPageTexts()[1].ToString(),
 			CosmicUI::JoinList({ Live.Civs[Ruled].CivName, Label(TEXT("Chronicle.Wandering")), Rung, Lasted }).ToString());
 		Mutable.RuledCivIDs.Pop();
 		Mutable.ReignEndReasons = EndsBefore;
 		Mutable.ReignTicks = TicksBefore;
 	}
-	// A preview has no cause: no note, no notice, no 'new run'.
-	Page->Open(ECosmicProvisionalEnd::None, true);
+	// A preview has no cause (an empty record): no note, no notice, no 'new run'.
+	Page->Open(FCosmicEndingRecord(), true);
 	TestTrue(TEXT("A preview has no note"), Shown(Page->GetNoteText()).IsEmpty());
 	TestTrue(TEXT("no provisional notice"), Shown(Page->GetProvisionalText()).IsEmpty());
 	TestFalse(TEXT("and no 'new run'"), IsShownWidget(Page->GetNewRunButton()));
 
 	// ---- The reveal: the buttons only once every line shows ----
-	Page->Open(ECosmicProvisionalEnd::Clock, false);
+	Page->Open(ClockRecord, false);
 	TestTrue(TEXT("Opened with a reveal the page reveals"), Page->IsRevealing());
 	TestFalse(TEXT("and hides its buttons"), IsShownWidget(ButtonRowOf(*Page)));
 	Page->Advance(CosmicChronicleScreen::VeilSeconds + 0.01f);
@@ -637,7 +682,7 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 	Page->Advance(CosmicChronicleScreen::RevealCapSeconds + 1.f);
 	TestFalse(TEXT("Within the cap every line shows"), Page->IsRevealing());
 	TestTrue(TEXT("and the buttons with them"), IsShownWidget(ButtonRowOf(*Page)));
-	Page->Open(ECosmicProvisionalEnd::Clock, false);
+	Page->Open(ClockRecord, false);
 	Page->PressVeil();
 	TestTrue(TEXT("A press on the veil shows every line at once"), !Page->IsRevealing() && IsShownWidget(ButtonRowOf(*Page)));
 
@@ -715,8 +760,9 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 	Deposed = Reigned;
 	Bar->Refresh();
 	TestFalse(TEXT("No 'chronicle' before the end"), IsShownWidget(Bar->GetReopenButton()));
-	// After the end: no notice; 'chronicle' only while the page is folded, and a press opens it.
-	Bar42.Tick = EndTick;
+	// After the end: no notice; 'chronicle' only while the page is folded, and a press opens it. The end laid by hand with the
+	// record the clock's tick would have written (B6a [B-6a3c]: the latch reads the record).
+	CosmicTests::EndRunAt(Bar42, CosmicTags::EndingClock(), EndTick);
 	Controller->FollowEnd(false);
 	Bar->Refresh();
 	TestTrue(TEXT("After the end the bar says nothing more"), Shown(Bar->GetEndSoonText()).IsEmpty());
@@ -730,6 +776,7 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("and its press opens the page"), Page->IsOpen());
 	Controller->ClearRunEnd();
+	Bar42.Ending = FCosmicEndingRecord();
 
 	// ---- B5 (header section 2.7, 4): two lives - the span with no vessel at the head of the next chapter under its sub-head,
 	// the facts of a life that never ruled and of a ruler that died on its throne; a life born on the end's tick has no chapter ----
@@ -800,7 +847,7 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 			LastedOf(300) }).ToString();
 		auto PageOf = [&]()
 		{
-			Page->Open(ECosmicProvisionalEnd::Clock, true);
+			Page->Open(RecordOf(CosmicTags::EndingClock(), NAME_None), true);
 			TArray<FString> Out;
 			for (const FText& Row : Page->GetPageTexts())
 			{

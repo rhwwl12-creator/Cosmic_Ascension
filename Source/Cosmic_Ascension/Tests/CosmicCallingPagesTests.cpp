@@ -291,7 +291,8 @@ namespace CosmicCallingPagesTests
 // role set by hand (no reign closed) opens nothing, a reign end opens once, and a reign taken between ticks and left before the
 // next boundary opens it too. Under a page no speed is set, the pause key keeps the page's reason and the wheel does not move
 // the camera; a showing ascension presentation folds at a death or a reign end with no give-back. The silence after a leap
-// runs on to the end (switch on) or gives the time back as the digest folds (switch off). A succession on the end's tick
+// is the ending of the succession's tick (B6a [B-6a3c]: latched there, the switch on) or gives the time back as the digest
+// folds (switch off). A succession on the end's tick
 // opens no inauguration ('next' and 'skip'). A leap of 0 goes epitaph -> one line -> inauguration. An outcome on the card
 // folds at a death. A load on a succession's tick shows its pages. The epitaph leaves out the cards that speak to the reader
 // (the schema's list), sets apart only the killing hazard's card answered where the vessel died, and names a card's death by
@@ -628,7 +629,7 @@ bool FCosmicUIEpitaphTest::RunTest(const FString& Parameters)
 		Pages->PressVeil();
 		Pages->PressNext();
 		TestEqual(TEXT("The leap stops at the end's tick"), Late.Tick, EndTick);
-		TestTrue(TEXT("where the end latches"), Controller->GetRunEnd() == ECosmicProvisionalEnd::Clock);
+		TestTrue(TEXT("where the end latches"), Controller->GetRunEnd() == CosmicTags::EndingClock());
 		TestTrue(TEXT("and the digest opens"), Pages->GetPage() == ECosmicCallingPage::Digest);
 		Controller->AdvanceRunEnd(CosmicChronicleScreen::HoldSeconds + 1.f);
 		TestFalse(TEXT("The chronicle waits while a page shows"), Screen.Chronicle->IsOpen());
@@ -764,7 +765,7 @@ bool FCosmicUIEpitaphTest::RunTest(const FString& Parameters)
 		Pages->PressVeil();
 		Pages->PressNext();
 		TestTrue(TEXT("The leap succeeds on the end's tick"), Edge.Tick == EndTick && Edge.Calling.Lives.Num() == 2 && Edge.Calling.LifeState == ELifeState::Embodied);
-		TestTrue(TEXT("where the end latches"), Controller->IsRunEnded() && Controller->GetRunEnd() == ECosmicProvisionalEnd::Clock);
+		TestTrue(TEXT("where the end latches"), Controller->IsRunEnded() && Controller->GetRunEnd() == CosmicTags::EndingClock());
 		TestTrue(TEXT("and the digest opens"), Pages->GetPage() == ECosmicCallingPage::Digest);
 		Pages->PressVeil();
 		Pages->PressNext();
@@ -833,7 +834,7 @@ bool FCosmicUIEpitaphTest::RunTest(const FString& Parameters)
 		Sim->SetTables(CosmicTests::WithRules(Original, LeapOf(GameRules, 40)));
 	}
 
-	// ---- (11) The silence after a leap: on to the end (the switch on), or the time back as the digest folds (off) ----
+	// ---- (11) The silence after a leap: the ending of the succession's tick (the switch on), or the time back as the digest folds (off) ----
 	auto LaySilentDeath = [&](int64 At) -> FGalaxyState&
 	{
 		FGalaxyState& Quiet = LayAt(*Sim, At);
@@ -850,16 +851,22 @@ bool FCosmicUIEpitaphTest::RunTest(const FString& Parameters)
 		{
 			Pages->PressVeil();
 			Pages->PressNext();
-			TestTrue(TEXT("A leap that ends in the silence runs on to the end"), Quiet.Tick == EndTick && IsSilent(Quiet) && Quiet.Calling.Lives.Num() == 1);
-			TestTrue(TEXT("where the end latches"), Controller->IsRunEnded() && Controller->GetRunEnd() == ECosmicProvisionalEnd::Clock);
+			// B6a [B-6a3c] (header section 2.6, 2.8): the silence is the ending of the succession's tick - the leap stops there
+			// (it is its last tick) and the end does not wait for the clock.
+			const int64 SilentTick = EndTick - 100 + 40;
+			TestTrue(TEXT("A leap that ends in the silence stops at the succession's tick - not on to the clock"), Quiet.Tick == SilentTick && IsSilent(Quiet)
+				&& Quiet.Calling.Lives.Num() == 1);
+			TestTrue(TEXT("(its record: Ending.NoCandidate at that tick, with no vessel)"), Quiet.Ending.Kind == CosmicTags::EndingNoCandidate()
+				&& Quiet.Ending.Tick == SilentTick && Quiet.Ending.bNoVessel);
+			TestTrue(TEXT("where the silence latches"), Controller->IsRunEnded() && Controller->GetRunEnd() == CosmicTags::EndingNoCandidate());
 			TestTrue(TEXT("then the digest opens"), Pages->GetPage() == ECosmicCallingPage::Digest);
-			TestTrue(TEXT("spanning up to the end"), SameLines(Pages->GetPageTexts(), CosmicDigest::LinesOf(*Sim, 0, Controller->IsSeeingAll())));
+			TestTrue(TEXT("spanning up to the silence's tick"), SameLines(Pages->GetPageTexts(), CosmicDigest::LinesOf(*Sim, 0, Controller->IsSeeingAll())));
 			Pages->PressVeil();
 			Pages->PressNext();
 			TestFalse(TEXT("Its 'next' folds the pages"), Pages->IsOpen());
 			TestTrue(TEXT("and opens the chronicle"), Screen.Chronicle->IsOpen());
-			TestEqual(TEXT("whose cause note says the end's tick"), Shown(Screen.Chronicle->GetNoteText()),
-				FText::Format(Label(TEXT("Chronicle.Note.Clock")), FText::AsNumber(EndTick)).ToString());
+			// The interim note until [B-6a4] (header section 2.7): a kind other than the clock with no people names none.
+			TestEqual(TEXT("whose cause note is the interim line naming no people"), Shown(Screen.Chronicle->GetNoteText()), Words(TEXT("Chronicle.Note.RungNoCiv")));
 		}
 		Controller->LookAtMap();
 	}

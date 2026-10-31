@@ -1,0 +1,21 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+@@ -16,7 +16,7 @@
+ 	FCosmicWandererPolicyCounts& Counts)
+ {
+ 	const FGalaxyState& State = Sim.GetState();
+-	Counts.bEnded = Counts.bEnded || State.Ending.Kind.IsValid();
++	Counts.bEnded = Counts.bEnded || (Sim.GetRules().ProvisionalEndTick > 0 && State.Tick >= Sim.GetRules().ProvisionalEndTick);
+ 	if (!(Counts.bEnded && !Policy.bPastEnd) && Policy.AbdicateAt > 0 && State.Tick == Policy.AbdicateAt)
+ 	{
+ 		Role.Abdicate();
+@@ -28,7 +28,7 @@
+ {
+ 	const FGalaxyState& State = Sim.GetState();
+ 	const FCosmicStateIndex& Index = Sim.GetStateIndex();
+-	Counts.bEnded = Counts.bEnded || State.Ending.Kind.IsValid();
++	Counts.bEnded = Counts.bEnded || (Sim.GetRules().ProvisionalEndTick > 0 && State.Tick >= Sim.GetRules().ProvisionalEndTick);
+ 	// The first leaving, whatever its cause (the line names it 'left at').
+ 	const bool bWalks = CosmicWanderer::IsEmbodiedWanderer(State);
+ 	if (bWalks && Counts.LeftAt < 0)

@@ -1,0 +1,14 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1214,6 +1214,10 @@
+ 
+ void UGalaxySimulationSubsystem::RunHeadless(int64 Ticks)
+ {
++	if (State.Ending.Kind.IsValid())
++	{
++		return;
++	}
+ 	if (RefusesTicks(TEXT("RunHeadless")))
+ 	{
+ 		return;

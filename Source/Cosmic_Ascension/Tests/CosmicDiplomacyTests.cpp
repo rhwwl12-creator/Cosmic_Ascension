@@ -25,6 +25,7 @@
 #include "Player/PlayerRoleSubsystem.h"
 #include "Sim/CosmicConflict.h"
 #include "Sim/CosmicDiplomacy.h"
+#include "Sim/CosmicEndings.h"
 #include "Sim/CosmicEvalContext.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
@@ -2325,6 +2326,44 @@ bool FCosmicSimRulerDiplomacyPolicyTest::RunTest(const FString& Parameters)
 		CosmicRulerPolicy::Act(FCosmicRulerPolicy{ true, false, false, false, NAME_None, 1, ECosmicPressurePolicy::Round, 0, false }, *Sim, *Role, NAME_None, Counts);
 		TestTrue(TEXT("Act answers the card by reaching out (the round alone would watch)"), CosmicDiplomacy::StanceOf(State->Civs[0], State->Civs[1].CivID) == CosmicTags::StanceFriendly()
 			&& Counts.Answers == 2 && Counts.StanceChanges == 0);
+	}
+
+	// Act reads the record from fresh counts (B6a header section 2.7), not the clock nor the predicate afresh: a record of
+	// another kind with no clock - the predicate answers none - ends the policy and no command is taken; the clock's tick
+	// reached with no record written does not end it, and the first boundary's friendship is taken (mutation: the policy
+	// reading the clock, or EndingOf, in place of State.Ending).
+	{
+		FGalaxyState* State = LayBoard(*Sim, Original, [](FCosmicRulesDef& Rules) { Fleets(Rules); Rules.ProvisionalEndTick = 0; });
+		if (!TestNotNull(TEXT("(the board with no clock is laid)"), State))
+		{
+			return false;
+		}
+		State->Civs[0].Stockpile.Influence = 200.f;
+		State->Civs[0].IncomePerTick.Influence = 5.f;
+		CosmicTests::EndRunAt(*State, CosmicTags::EndingOtherPeople(), 10);
+		TestTrue(TEXT("(a record stands and the predicate answers none - only the record ends this run)"), State->Ending.Kind == CosmicTags::EndingOtherPeople()
+			&& !CosmicEndings::EndingOf(*State, Sim->GetRules()).Kind.IsValid());
+		FCosmicRulerPolicyCounts Counts;
+		CosmicRulerPolicy::Act(Peace, *Sim, *Role, NAME_None, Counts);
+		TestTrue(TEXT("A record of any kind, with no clock, ends the ruler policy: no command taken"), Counts.bEnded && Counts.StanceChanges == 0
+			&& State->Civs[0].Ties.IsEmpty());
+	}
+	{
+		FGalaxyState* State = LayBoard(*Sim, Original, [](FCosmicRulesDef& Rules) { Fleets(Rules); Rules.ProvisionalEndTick = 10; });
+		if (!TestNotNull(TEXT("(the board with the clock at 10 is laid)"), State))
+		{
+			return false;
+		}
+		State->Civs[0].Stockpile.Influence = 200.f;
+		State->Civs[0].IncomePerTick.Influence = 5.f;
+		State->Tick = 10;
+		State->Ending = FCosmicEndingRecord();
+		TestTrue(TEXT("(the clock's tick is reached and no record is written - the predicate answers the clock)"), !State->Ending.Kind.IsValid()
+			&& CosmicEndings::EndingOf(*State, Sim->GetRules()).Kind == CosmicTags::EndingClock());
+		FCosmicRulerPolicyCounts Counts;
+		CosmicRulerPolicy::Act(Peace, *Sim, *Role, NAME_None, Counts);
+		TestTrue(TEXT("The clock alone, with no record, does not end the ruler policy: the friendship is taken"), !Counts.bEnded && Counts.StanceChanges == 1
+			&& CosmicDiplomacy::StanceOf(State->Civs[0], State->Civs[1].CivID) == CosmicTags::StanceFriendly());
 	}
 	return true;
 }

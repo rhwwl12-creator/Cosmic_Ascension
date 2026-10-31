@@ -8,6 +8,7 @@
 
 #include "Core/CosmicIDs.h"
 #include "Core/CosmicSeed.h"
+#include "Core/CosmicTags.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicConditionTypes.h"
@@ -939,7 +940,7 @@ bool FCosmicSimCoronationTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The new people's systems are known at once"), Knows(*State, 9));
 	TestEqual(TEXT("No number of the sim stream"), Sim->GetRng().GetCurrentSeed(), Seed);
 	TestTrue(TEXT("The life's peak stays"), State->Calling.Lives.Last().PeakTier == Peak);
-	TestEqual(TEXT("and no end comes of the people's rung"), CosmicEndings::ProvisionalEndOf(*State, Rules), ECosmicProvisionalEnd::None);
+	TestFalse(TEXT("and no end comes of the people's rung"), CosmicEndings::EndingOf(*State, Rules).Kind.IsValid());
 	TestEqual(TEXT("The coronation is told"), LinesOf(*State, CosmicRows::LogCrowned), 1);
 	TestTrue(TEXT("The vessel left people 0 and keeps it in mind"), State->Player.FormerCivID == State->Civs[0].CivID);
 	Sim->StepOnce();
@@ -1352,15 +1353,17 @@ bool FCosmicSimWandererPolicyTest::RunTest(const FString& Parameters)
 	}
 
 	// No input after the provisional end: no abdication recorded, no scan, no journey. The end is the clock's, put at the
-	// tick of the abdication (the third rung ends no run since B6a, decision 2-ga).
+	// tick of the abdication (the third rung ends no run since B6a, decision 2-ga) with the record that tick would have written
+	// (B6a [B-6a3c]: the policy reads the record).
 	{
 		FGalaxyState* State = LayBoard(*Sim, TablesWith(Original, Cards(), [](FCosmicRulesDef& Rules) { Rules.ProvisionalEndTick = 10; }));
 		if (!TestNotNull(TEXT("(the board is laid)"), State))
 		{
 			return false;
 		}
-		State->Tick = 10;
-		TestEqual(TEXT("(the clock's end holds at tick 10)"), CosmicEndings::ProvisionalEndOf(*State, Sim->GetRules()), ECosmicProvisionalEnd::Clock);
+		CosmicTests::EndRunAt(*State, CosmicTags::EndingClock(), 10);
+		TestTrue(TEXT("(the clock's end holds at tick 10 - the record and the predicate agree)"), State->Ending.Kind == CosmicTags::EndingClock()
+			&& CosmicEndings::EndingOf(*State, Sim->GetRules()).Kind == CosmicTags::EndingClock());
 		FCosmicWandererPolicyCounts Counts;
 		CosmicWandererPolicy::AbdicateIfDue(FCosmicWandererPolicy{ 10, true }, *Sim, *Role, Counts);
 		TestFalse(TEXT("After the end the policy records no abdication"), State->Calling.PendingEffect.IsValid());
@@ -1368,6 +1371,51 @@ bool FCosmicSimWandererPolicyTest::RunTest(const FString& Parameters)
 		FCosmicWandererPolicyCounts Walking;
 		CosmicWandererPolicy::Act(Walks, *Sim, *Role, NAME_None, Walking);
 		TestTrue(TEXT("and the wanderer neither scans nor travels"), Walking.bEnded && Walking.Scans == 0 && Walking.Journeys == 0 && !CosmicWanderer::IsTravelling(*State));
+	}
+
+	// The policy reads the record, not the clock nor the predicate afresh (B6a header section 2.7): (i) a record of another
+	// kind with no clock - the predicate answers none - ends it; (ii) the clock's tick reached with no record written does not
+	// (mutation: the policy reading the clock, or EndingOf, in place of State.Ending).
+	{
+		FGalaxyState* State = LayBoard(*Sim, TablesWith(Original, Cards(), [](FCosmicRulesDef& Rules) { Rules.ProvisionalEndTick = 0; }));
+		if (!TestNotNull(TEXT("(the board with no clock is laid)"), State))
+		{
+			return false;
+		}
+		CosmicTests::EndRunAt(*State, CosmicTags::EndingOtherPeople(), 10);
+		TestTrue(TEXT("(a record stands and the predicate answers none - only the record ends this run)"), State->Ending.Kind == CosmicTags::EndingOtherPeople()
+			&& !CosmicEndings::EndingOf(*State, Sim->GetRules()).Kind.IsValid());
+		FCosmicWandererPolicyCounts Counts;
+		CosmicWandererPolicy::AbdicateIfDue(FCosmicWandererPolicy{ 10, true }, *Sim, *Role, Counts);
+		TestTrue(TEXT("A record of any kind, with no clock, ends the policy: no abdication recorded"), Counts.bEnded && !State->Calling.PendingEffect.IsValid());
+		Walk(*Sim, *Role, 4);
+		FCosmicWandererPolicyCounts Walking;
+		CosmicWandererPolicy::Act(Walks, *Sim, *Role, NAME_None, Walking);
+		TestTrue(TEXT("and the wanderer neither scans nor travels (the record alone)"), Walking.bEnded && Walking.Scans == 0 && Walking.Journeys == 0
+			&& !CosmicWanderer::IsTravelling(*State));
+	}
+	{
+		FGalaxyState* State = LayBoard(*Sim, TablesWith(Original, Cards(), [](FCosmicRulesDef& Rules) { Rules.ProvisionalEndTick = 10; Rules.EncounterChancePerArrival = 0.f; }));
+		if (!TestNotNull(TEXT("(the board with the clock at 10 is laid)"), State))
+		{
+			return false;
+		}
+		State->Tick = 10;
+		State->Ending = FCosmicEndingRecord();
+		TestTrue(TEXT("(the clock's tick is reached and no record is written - the predicate answers the clock)"), !State->Ending.Kind.IsValid()
+			&& CosmicEndings::EndingOf(*State, Sim->GetRules()).Kind == CosmicTags::EndingClock());
+		FCosmicWandererPolicyCounts Counts;
+		CosmicWandererPolicy::AbdicateIfDue(FCosmicWandererPolicy{ 10, true }, *Sim, *Role, Counts);
+		TestTrue(TEXT("The clock alone, with no record, does not end the policy: the abdication is recorded"), !Counts.bEnded && State->Calling.PendingEffect.IsValid());
+		// The recorded abdication is set aside (no tick runs here) so that the walk below starts from a vessel with none.
+		State->Calling.PendingEffect = FGameplayTag();
+		State->Calling.PendingCause = FGameplayTag();
+		State->Calling.PendingSourceRow = NAME_None;
+		Walk(*Sim, *Role, 4);
+		FCosmicWandererPolicyCounts Walking;
+		CosmicWandererPolicy::Act(Walks, *Sim, *Role, NAME_None, Walking);
+		TestTrue(TEXT("and the wanderer scans where it stands and sets off (no record)"), !Walking.bEnded && Walking.Scans == 1 && Walking.Journeys == 1
+			&& CosmicWanderer::IsTravelling(*State));
 	}
 	return true;
 }

@@ -102,7 +102,8 @@ namespace
 		int64 ExpansionPairs = 0;
 		// The ruler's side (-Answer, -Build, -Focus): the cards that came, the answers taken, the projects started, the focus
 		// changes taken (MVP item 7), their sum (the decisions) and the sums and told lines at the ends of the first 600 and
-		// 6,000 ticks, the sum at the first provisional end (the decisions the game takes - none after it; -1 without an end);
+		// 6,000 ticks, the sum at the boundary the record of the end first stands, before the input (the decisions the game
+		// takes - none after it; -1 without an end);
 		// the ticks at which the ruled people reached the second and the third rung (-1 while it has not).
 		int32 CardsCome = 0;
 		int32 Answers = 0;
@@ -115,10 +116,11 @@ namespace
 		int64 ToldAt6000 = -1;
 		int64 RuledT2Tick = -1;
 		int64 RuledT3Tick = -1;
-		// The provisional end (MVP item 4), looked at after every tick and before the policy's input - nothing stops at it: the
-		// first cause and its tick, the first tick of the clock, and the last chapter of the chronicle at the first end. The
-		// third rung no longer ends a run (B6a [B-6a3a]), so the clock is the only cause.
-		ECosmicProvisionalEnd FirstEnd = ECosmicProvisionalEnd::None;
+		// The run's end (MVP item 4; since B6a [B-6a3c] the record State.Ending - header section 2.7), looked at after every
+		// tick and before the policy's input - nothing stops at it: the record's kind and tick at the first boundary it stands
+		// (empty and -1 while none does), the first tick of the clock (the knob, read apart from the record), and the last
+		// chapter of the chronicle at that boundary. The third rung no longer ends a run (B6a [B-6a3a]).
+		FGameplayTag FirstEnd;
 		int64 FirstEndTick = -1;
 		int64 ClockTick = -1;
 		int32 ChapterLife = -1;
@@ -222,8 +224,10 @@ namespace
 
 	// B4 (docs/60_DECISIONS/headers/B4_transcendent_voice_and_pressure_cards.md section 5 - the first measurement): the
 	// chances the spiritual pressure and the claims have to reach the people the vessel rules, and how far a claimant's
-	// voice could be heard. "By end" counts up to and including the tick of the first provisional end. Read from the state
-	// only; the drain's P from UGalaxySimulationSubsystem::ComputeDrainPressureOf (no copy of its rule here).
+	// voice could be heard. "By end" counts up to and including the tick of the record of the run's end (State.Ending - since
+	// B6a the clock's, before which the season after the third rung now runs; B4's split at the end was a split at the ruled
+	// third rung, and the ending line splits there again). Read from the state only; the drain's P from
+	// UGalaxySimulationSubsystem::ComputeDrainPressureOf (no copy of its rule here).
 	struct FSpiritCounts
 	{
 		// The ruled people's largest drain P by the bands of the tick run (0-1000, 1000-2000, 2000-3000, 3000-6000, later),
@@ -365,6 +369,93 @@ namespace
 		TArray<FCosmicPetitionUnit> HeldAfterInput;
 	};
 
+	// B6a [B-6a3c] (header section 5.1, 5.2): the season's decisions are counted per this many ticks (docs/00_VISION.md - a
+	// decision every 300 to 600 ticks).
+	constexpr int64 SeasonWindowTicks = 600;
+
+	// B6a [B-6a3c]: the guarded crises of one tag in one phase - their count, the delay the guard bought them and the sum of
+	// their rows' countdowns (the count each was placed with before the guard and the edicts' bonus): #132's share.
+	struct FGuardedPhase
+	{
+		int32 Count = 0;
+		int64 Delay = 0;
+		int64 Countdown = 0;
+	};
+
+	// B6a [B-6a3c] (header section 5.1, notes section 2.1): the ending line - the season after the ruled third rung, read from
+	// the state, the record of the run's end (FGalaxyState::Ending) and the policy's own counts (no rule copied). A phase
+	// splits B4's counts at the ruled third rung instead of at the end: 0 before the season, 1 the season (after the ruled
+	// third rung up to and including the record's tick - the "by end" of every line), 2 after the record.
+	struct FEndingCounts
+	{
+		// The first boundary at which a people the vessel rules stood at the third rung or above (read after the tick and again
+		// after the inputs - a throne taken over such a people starts the season there), and that people; -1 while none has.
+		// The first reign's people alone is the ruler line's "T3 at" (FRunCounts::RuledT3Tick); this one is any reign's.
+		int64 SeasonStart = -1;
+		FName SeasonCivID;
+		// The boundaries at which the ruler policy's decisions (CosmicRulerPolicy::DecisionsOf) grew, and by how many.
+		TArray<TPair<int64, int32>> Decisions;
+		int32 DecisionsSoFar = 0;
+		// The exact first tick an AI people (not ruled before that tick) climbed to the third rung, read at every boundary;
+		// the people and the feat row of that climb (the source row of its Log.Ascension line - None when none was stored).
+		int64 FirstAIT3Tick = -1;
+		FName FirstAIT3CivID;
+		FName FirstAIT3Feat;
+		// Per people, per research field: the first boundary its progress stood at 1.0 (the research stage's cap).
+		TMap<FName, TMap<FName, int64>> ResearchFull;
+		// The first boundary at which some transcendent's bAwareOfPlayer stood, that transcendent, and whether the vessel had
+		// left by that boundary (not embodied, not a ruler, or a new life - a leave recorded after the flag in the same tick,
+		// which the flag's gate cannot see: B6a header section 2.11).
+		int64 AwareTick = -1;
+		FName AwareTranscendentID;
+		bool bAwareVesselLeft = false;
+		// The awareness lines (Log.Transcendent) told, by the record, and the first told.
+		int32 AwarenessTold = 0;
+		int32 AwarenessToldByEnd = 0;
+		int64 FirstAwarenessTold = -1;
+		// Claims placed in the season on settled systems of a people the vessel rules, and the first of them.
+		int32 SeasonClaims = 0;
+		int64 FirstSeasonClaim = -1;
+		// By phase: #132 the guarded crises by tag; #142 the claims of the band 401-550 that ended (the pressure line's band
+		// 2 - the card came, the vigil held, no relief), and the joined of them; #135 the claim trigger's first holds and the
+		// claim cards it lost to a card that waited before the tick and to one put in it; #145 the sieges begun on the ruled
+		// people's systems while its fleet regrows after a resistance (FPressureCounts::Regrowing, an entry of an earlier
+		// boundary).
+		TMap<FString, FGuardedPhase> Guarded[3];
+		int32 Band142[3] = { 0, 0, 0 };
+		int32 Band142Joined[3] = { 0, 0, 0 };
+		int32 ClaimTrigger[3] = { 0, 0, 0 };
+		int32 ClaimLostWait[3] = { 0, 0, 0 };
+		int32 ClaimLostSame[3] = { 0, 0, 0 };
+		int32 SiegesRegrowing[3] = { 0, 0, 0 };
+		// #135's first holds, keyed "tick:system:phase:k|w|s" (k kept - the slot was free or held the claim's own card, w lost
+		// to a card that waited before the tick, s lost to one put in it), so the runs that share a world are counted once by
+		// (seed, tick, system) (notes section 2).
+		TArray<FString> ClaimTriggerKeys;
+		// #132: by phase, the fleet power the attrition took in the tick from the people the vessel ruled before it (the
+		// attrition stage's own estimate, as the conflict line's attrition).
+		double RuledAttrition[3] = { 0.0, 0.0, 0.0 };
+		// The first boundary, by the record, at which a people the vessel rules counted LowStabilityTicks above 0 (the stretch
+		// before a rebellion on its capital - the seed of hand check 6).
+		int64 LowStabilityTick = -1;
+		// The ruled people's Insight and Influence at the boundary each pressure card came, before the ruler's input, by the
+		// phase that boundary reads (#144).
+		TArray<float> CardInsight[3];
+		TArray<float> CardInfluence[3];
+		// petition_exalt: the first boundary it waited for the ruler, and the first choice the ruler policy took on it
+		// (CosmicRulerPolicy::ChoiceOf, as Act asks it, read while no answer has been taken; INDEX_NONE: none taken - no
+		// -Answer, or every time refused or withdrawn).
+		int64 ExaltTick = -1;
+		int32 ExaltChoice = INDEX_NONE;
+		// The pre-count of petition_exalt (notes section 2): each boundary at which its B6a condition (an embodied ruler, the
+		// ruled people at the second rung or above) came to hold in the tick - "tick:kind:row", kind waited (a card waited at
+		// the tick's head), floor (no card put), contest (another Standing card put), other (a card of another trigger put),
+		// row the card put ("-" for none). It came to hold as the knowing stage compares: it holds at this boundary and did not
+		// after the last boundary's inputs, or the tick began a reign (its head is compared empty).
+		TArray<FString> ExaltPreCount;
+		bool bExaltHeldAfterInput = false;
+	};
+
 	// The ruler's Standing petition units whose conditions hold, as CosmicPetitions::StandingHeld reads them but with a card
 	// waiting too (B4 [B-4d2] - which cards came to hold in a tick and lost it to the one put).
 	TArray<FCosmicPetitionUnit> StandingUnitsOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
@@ -456,6 +547,74 @@ namespace
 		return FString::Join(Parts, TEXT(" "));
 	}
 
+	// B6a [B-6a3c]: the lower middle and the least of the values, -1 for none (as MedianOf).
+	float MedianOfFloats(TArray<float> Values)
+	{
+		if (Values.IsEmpty())
+		{
+			return -1.f;
+		}
+		Values.Sort();
+		return Values[(Values.Num() - 1) / 2];
+	}
+
+	float LeastOfFloats(const TArray<float>& Values)
+	{
+		float Least = -1.f;
+		for (const float Each : Values)
+		{
+			Least = (Least < 0.f || Each < Least) ? Each : Least;
+		}
+		return Least;
+	}
+
+	// B6a [B-6a3c]: one count by phase as "<before the season>/<the season>/<after the record>".
+	FString PhasesText(const int32 (&Counts)[3])
+	{
+		return FString::Printf(TEXT("%d/%d/%d"), Counts[0], Counts[1], Counts[2]);
+	}
+
+	// B6a [B-6a3c] (#144): one stock by phase as "<least>:<median>" each ("-" for none), joined as PhasesText.
+	FString StockPhasesText(const TArray<float> (&Values)[3])
+	{
+		FString Text;
+		for (int32 Phase = 0; Phase < 3; ++Phase)
+		{
+			Text += Phase > 0 ? TEXT("/") : TEXT("");
+			Text += Values[Phase].IsEmpty() ? FString(TEXT("-")) : FString::Printf(TEXT("%.1f:%.1f"), LeastOfFloats(Values[Phase]), MedianOfFloats(Values[Phase]));
+		}
+		return Text;
+	}
+
+	// B6a [B-6a3c] (#132): the guarded crises of one phase as "<tag>=<count>:<share>%" - the delay bought over the sum of their
+	// countdowns; "-" for none.
+	FString GuardedPhaseText(const TMap<FString, FGuardedPhase>& Guarded)
+	{
+		TArray<FString> Keys;
+		Guarded.GetKeys(Keys);
+		Keys.Sort();
+		TArray<FString> Parts;
+		for (const FString& Key : Keys)
+		{
+			const FGuardedPhase& Each = Guarded[Key];
+			Parts.Add(FString::Printf(TEXT("%s=%d:%.1f%%"), *Key, Each.Count, Each.Countdown > 0 ? 100.0 * static_cast<double>(Each.Delay) / static_cast<double>(Each.Countdown) : 0.0));
+		}
+		return Parts.IsEmpty() ? FString(TEXT("-")) : FString::Join(Parts, TEXT(" "));
+	}
+
+	// B6a [B-6a3c]: a people's first ticks at research 1.0 as "<field>=<tick>" over Fields (-1: not reached).
+	FString ResearchFullText(const FEndingCounts& Ending, FName CivID, const TArray<FName>& Fields)
+	{
+		const TMap<FName, int64>* Full = CivID.IsNone() ? nullptr : Ending.ResearchFull.Find(CivID);
+		TArray<FString> Parts;
+		for (const FName Field : Fields)
+		{
+			const int64* Tick = Full ? Full->Find(Field) : nullptr;
+			Parts.Add(FString::Printf(TEXT("%s=%lld"), *Field.ToString(), Tick ? *Tick : static_cast<int64>(-1)));
+		}
+		return FString::Join(Parts, TEXT(" "));
+	}
+
 	// How near the sphere of an unsealed fallen (Realm.Abyssal) transcendent SystemIndex lies: Inside, Adjacent or None.
 	ECosmicSphereReach FallenReachOf(const FGalaxyState& State, const FCosmicDataTables& Tables, int32 SystemIndex)
 	{
@@ -528,7 +687,7 @@ namespace
 	// B5 ([B-5a] - header section 5.1): a death chance - a hazard that expired at Tick on SystemID while a KillPlayer on that
 	// system would have reached the vessel (the crisis stage's note on the stage clock - FCosmicStageClock::FExpiry: it asks
 	// CosmicHazards::VesselAtRiskOf at the moment Apply would). bGrace: the remnant's grace kept the system at its gate (the
-	// effects did not run); bBranch: the expiry took its branch effects; bAfterEnd: the provisional end stood before the tick.
+	// effects did not run); bBranch: the expiry took its branch effects; bAfterEnd: the record of the end stood before the tick.
 	// Gap: ticks since the last reign ended (deposition or abdication), -1 for none.
 	struct FDeathChance
 	{
@@ -1066,7 +1225,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	// B5 ([B-5b] - header section 5.1, measurement only): -DeathAt=<tick> records a KillPlayer with no subject at that tick's
 	// boundary (cause Death.Age - no game code writes it while ageing is off; in a build with the automation tests only);
 	// -WithoutDeath=1 runs on the tables with no KillPlayer (CosmicTests::WithoutDeath - the data-off side of a pair);
-	// -PastEnd=1 lets both policies go on after the provisional end.
+	// -PastEnd=1 lets both policies go on after the record of the run's end.
 	int64 DeathAt = -1;
 	int32 WithoutDeath = 0;
 	int32 PastEnd = 0;
@@ -1165,12 +1324,30 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		const FCosmicRulesDef& RulesNow = Sim->GetRules();
 		static const FGameplayTag ConflictTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Conflict")));
 		static const FGameplayTag SignTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Sign")));
+		// B6a [B-6a3c]: the awareness lines and the feat lines of the ending line.
+		static const FGameplayTag AwarenessTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Transcendent")));
+		static const FGameplayTag AscensionTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Log.Ascension")));
 		UCosmicSaveGame* Save = NewObject<UCosmicSaveGame>();
 		Save->AddToRoot();
 
 		FRunCounts Counts;
 		FSpiritCounts Spirit;
 		FPressureCounts PressureCounts;
+		FEndingCounts Ending;
+		// B6a [B-6a3c]: the season's start - the first boundary at which a people the vessel rules stands at the third rung or
+		// above (read after the tick and again after the inputs).
+		const auto NoteSeason = [&State, &Ending]()
+		{
+			if (Ending.SeasonStart >= 0)
+			{
+				return;
+			}
+			if (const FCivilizationState* Ruled = State.Civs.FindByPredicate([](const FCivilizationState& Civ) { return Civ.bIsPlayerRuled && Civ.Tier >= EAscensionTier::Tier3_Causal; }))
+			{
+				Ending.SeasonStart = State.Tick;
+				Ending.SeasonCivID = Ruled->CivID;
+			}
+		};
 		const FName VigilRow = CosmicRulerPolicy::VigilRowOf(Sim->GetTables());
 		const int32 SphereStart = SphereSize(State);
 		const TArray<FString> SpheresStart = SpheresOf(State);
@@ -1271,14 +1448,27 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					const float Pressure = UGalaxySimulationSubsystem::ComputeAttritionPressureIn(State, StateIndex, Sim->GetTables(), RulesNow, CivIndex, Target).P;
 					if (Pressure > 0.f)
 					{
-						Counts.AttritionLost += FMath::Min(static_cast<double>(Civ.FleetPower), static_cast<double>(RulesNow.PressureFleetAttrition) * Pressure);
+						const double Taken = FMath::Min(static_cast<double>(Civ.FleetPower), static_cast<double>(RulesNow.PressureFleetAttrition) * Pressure);
+						Counts.AttritionLost += Taken;
+						// B6a [B-6a3c] (#132): the ruled people's, by the phase of the tick about to run (TickPhase below -
+						// bEndedBefore is declared after this loop; neither the record nor the season moves before then).
+						if (Civ.bIsPlayerRuled)
+						{
+							Ending.RuledAttrition[Counts.FirstEndTick >= 0 ? 2 : (Ending.SeasonStart >= 0 ? 1 : 0)] += Taken;
+						}
 					}
 				}
 			}
 			const EPlayerRole RoleBefore = State.Player.Role;
 			const int64 TickBefore = State.Tick;
+			// B6a [B-6a3c]: the people the vessel rules before the tick (its climb in the tick is not an AI people's).
+			const FCivilizationState* RuledBeforeTick = State.Civs.FindByPredicate([](const FCivilizationState& Civ) { return Civ.bIsPlayerRuled; });
+			const FName RuledCivBeforeTick = RuledBeforeTick ? RuledBeforeTick->CivID : NAME_None;
 			const int32 SphereBefore = SphereSize(State);
 			const FName CardBefore = State.Knowing.PendingPetitionRow;
+			// B6a [B-6a3c] (the petition_exalt pre-count): the tick about to run begins a reign - its knowing stage compares the
+			// Standing petitions with an empty head (read before the tick, as the tick reads it).
+			const bool bReignHeadEmpty = CosmicPetitions::IsFirstTickOfReign(State);
 
 			const bool bEndedBefore = Counts.FirstEndTick >= 0;
 			// B4: the ruled people's drain P of the tick about to run and how near a fallen sphere its settled systems lie;
@@ -1352,15 +1542,16 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			SampleMicros += Micros;
 			++SampleTicks;
 
-			// The provisional end, read as the presentation reads it at this tick boundary (before the ruler's input of it).
+			// The run's end, read as the presentation reads it at this tick boundary (before the ruler's input of it): the record
+			// (B6a [B-6a3c] - written once, after the tenth stage of the tick whose end it is, so it first stands at that tick's
+			// boundary).
 			{
-				const ECosmicProvisionalEnd End = CosmicEndings::ProvisionalEndOf(State, Sim->GetRules());
 				const int32 EndTick = Sim->GetRules().ProvisionalEndTick;
 				Counts.ClockTick = (Counts.ClockTick < 0 && EndTick > 0 && State.Tick >= EndTick) ? State.Tick : Counts.ClockTick;
-				if (Counts.FirstEnd == ECosmicProvisionalEnd::None && End != ECosmicProvisionalEnd::None)
+				if (!Counts.FirstEnd.IsValid() && State.Ending.Kind.IsValid())
 				{
-					Counts.FirstEnd = End;
-					Counts.FirstEndTick = State.Tick;
+					Counts.FirstEnd = State.Ending.Kind;
+					Counts.FirstEndTick = State.Ending.Tick;
 					Counts.DecisionsAtEnd = CosmicRulerPolicy::DecisionsOf(RulerCounts);
 					const TArray<FCosmicChronicleChapter> Chapters = CosmicChronicle::Build(State);
 					if (!Chapters.IsEmpty() && State.Calling.Lives.IsValidIndex(Chapters.Last().LifeAt))
@@ -1410,6 +1601,67 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					}
 					++EndCheckMisses;
 					Result = 1;
+				}
+			}
+
+			// B6a [B-6a3c] (header section 5.1, notes section 2.1): the ending line's readings of the tick, at this boundary before
+			// the inputs. TickPhase is the phase of what happened in the tick (a season that starts at this boundary starts after
+			// it - the rung was reached at the end of the AI stage); BoundaryPhase that of what this boundary reads.
+			const int32 TickPhase = bEndedBefore ? 2 : (Ending.SeasonStart >= 0 ? 1 : 0);
+			NoteSeason();
+			const int32 BoundaryPhase = bEndedBefore ? 2 : (Ending.SeasonStart >= 0 ? 1 : 0);
+			{
+				// The exact first climb of an AI people to the third rung (the AI stage's feat judgment), and its feat row.
+				for (int32 CivIndex = 0; Ending.FirstAIT3Tick < 0 && CivIndex < State.Civs.Num(); ++CivIndex)
+				{
+					const FCivilizationState& Civ = State.Civs[CivIndex];
+					const FCivBefore* Was = CivsBefore.Find(Civ.CivID);
+					if (!Was || Civ.CivID == RuledCivBeforeTick || Was->Tier >= EAscensionTier::Tier3_Causal || Civ.Tier < EAscensionTier::Tier3_Causal)
+					{
+						continue;
+					}
+					Ending.FirstAIT3Tick = State.Tick;
+					Ending.FirstAIT3CivID = Civ.CivID;
+					for (int32 Index = State.Log.Num() - 1; Index >= 0 && State.Log[Index].Tick > TickBefore; --Index)
+					{
+						if (State.Log[Index].Category == AscensionTag && State.Log[Index].FocusCivID == Civ.CivID)
+						{
+							Ending.FirstAIT3Feat = State.Log[Index].SourceRow;
+							break;
+						}
+					}
+				}
+				// Every people's research fields at 1.0.
+				for (const FCivilizationState& Civ : State.Civs)
+				{
+					for (const TPair<FName, float>& Field : Civ.Research)
+					{
+						if (Field.Value >= 1.f)
+						{
+							TMap<FName, int64>& Full = Ending.ResearchFull.FindOrAdd(Civ.CivID);
+							if (!Full.Contains(Field.Key))
+							{
+								Full.Add(Field.Key, State.Tick);
+							}
+						}
+					}
+				}
+				// The first awareness, and whether the vessel had left by this boundary.
+				for (int32 At = 0; Ending.AwareTick < 0 && At < State.Transcendents.Num(); ++At)
+				{
+					if (State.Transcendents[At].bAwareOfPlayer)
+					{
+						Ending.AwareTick = State.Tick;
+						Ending.AwareTranscendentID = State.Transcendents[At].TranscendentID;
+						Ending.bAwareVesselLeft = State.Calling.LifeState != ELifeState::Embodied || State.Player.Role != EPlayerRole::Ruler
+							|| State.Calling.Lives.Num() != LivesBefore;
+					}
+				}
+				// The first stretch of low Stability of the ruled people, by the record.
+				if (Ending.LowStabilityTick < 0 && !bEndedBefore)
+				{
+					const FCivilizationState* Ruled = State.Civs.FindByPredicate([](const FCivilizationState& Civ) { return Civ.bIsPlayerRuled; });
+					Ending.LowStabilityTick = (Ruled && Ruled->LowStabilityTicks > 0) ? State.Tick : Ending.LowStabilityTick;
 				}
 			}
 
@@ -1586,6 +1838,21 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					}
 				}
 			}
+			// B6a [B-6a3c] (notes section 2, the petition_exalt pre-count): its B6a condition came to hold in the tick - what the
+			// slot did with it, read before the inputs.
+			{
+				const bool bExaltHolds = RuledAtBoundary && State.Player.Role == EPlayerRole::Ruler && State.Calling.LifeState == ELifeState::Embodied
+					&& RuledAtBoundary->Tier >= EAscensionTier::Tier2_Stellar;
+				if (bExaltHolds && (bReignHeadEmpty || !Ending.bExaltHeldAfterInput))
+				{
+					const FName Placed = State.Knowing.PendingPetitionRow != CardBefore ? State.Knowing.PendingPetitionRow : NAME_None;
+					const FEncounterDef* PlacedRow = Placed.IsNone() ? nullptr : Sim->GetTables().FindEncounter(Placed);
+					const TCHAR* Kind = !CardBefore.IsNone() ? TEXT("waited")
+						: Placed.IsNone() ? TEXT("floor")
+						: (PlacedRow && PlacedRow->Trigger == ECosmicEventTrigger::Standing) ? TEXT("contest") : TEXT("other");
+					Ending.ExaltPreCount.Add(FString::Printf(TEXT("%lld:%s:%s"), State.Tick, Kind, Placed.IsNone() ? TEXT("-") : *Placed.ToString()));
+				}
+			}
 			// B4: the pressure card's two triggers coming to hold, read before the ruler's input as the card would be, and the
 			// vigil's gate when (a) came with the slot free.
 			{
@@ -1607,13 +1874,18 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 						if (!Spirit.ClaimHeld.Contains(System.SystemID))
 						{
 							++Spirit.TriggerClaim;
+							++Ending.ClaimTrigger[BoundaryPhase];
 							// [B-4d2]: the claim card that came for this claim holds its own slot - a slot taken is another card's
 							// (the claim card did not come for it).
 							const bool bOwnCard = State.Knowing.PendingPetitionRow == CosmicRows::PetitionPressureClaim && State.Knowing.PendingPetitionSystemID == System.SystemID;
+							// B6a [B-6a3c] (#135): the first hold's key - counted once by (seed, tick, system) over the runs that share a world.
+							Ending.ClaimTriggerKeys.Add(FString::Printf(TEXT("%lld:%s:%d:%s"), State.Tick, *System.SystemID.ToString(), BoundaryPhase,
+								!(bSlotTaken && !bOwnCard) ? TEXT("k") : (State.Knowing.PendingPetitionRow == CardBefore ? TEXT("w") : TEXT("s"))));
 							Spirit.TriggerClaimTaken += (bSlotTaken && !bOwnCard) ? 1 : 0;
 							if (bSlotTaken && !bOwnCard)
 							{
 								++(State.Knowing.PendingPetitionRow == CardBefore ? PressureCounts.ClaimLostWait : PressureCounts.ClaimLostSame);
+								++(State.Knowing.PendingPetitionRow == CardBefore ? Ending.ClaimLostWait[BoundaryPhase] : Ending.ClaimLostSame[BoundaryPhase]);
 								++PressureCounts.ClaimLostTo.FindOrAdd(State.Knowing.PendingPetitionRow.ToString());
 							}
 							if (!bSlotTaken || bOwnCard)
@@ -1670,6 +1942,11 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 						PressureCounts.GuardedByEnd += bEndedBefore ? 0 : 1;
 						PressureCounts.DelayByTag.FindOrAdd(Tag) += Delay > 0 ? Delay : 0;
 						PressureCounts.DelayBought += Delay > 0 ? Delay : 0;
+						// B6a [B-6a3c] (#132): by phase, with the row's countdown the delay is a share of.
+						FGuardedPhase& ByPhase = Ending.Guarded[TickPhase].FindOrAdd(Tag);
+						++ByPhase.Count;
+						ByPhase.Delay += Delay > 0 ? Delay : 0;
+						ByPhase.Countdown += FMath::Max(1, Placed->CountdownTicks);
 						// Into the standing list after the ends of the tick are read: a guarded hazard that ended in this tick
 						// on the same system is classified first.
 						NewGuarded.Add(System.SystemID, System.ActiveHazard);
@@ -1707,8 +1984,46 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				}
 			}
 			const EPlayerRole RoleBeforeInput = State.Player.Role;
+			// B6a [B-6a3c] (#144): the ruled people's stock as a pressure card that comes at this boundary finds it; petition_exalt
+			// waiting for the ruler for the first time, and the choice the policy's own ChoiceOf takes on it - Act asks it with
+			// these arguments first, the card being the one that waits.
+			const int32 PressureCardsBeforeAct = RulerCounts.PressureCards;
+			const int32 AnswersBeforeAct = RulerCounts.Answers;
+			const float InsightBeforeAct = State.Civs.IsValidIndex(RuledBeforeAct) ? State.Civs[RuledBeforeAct].Stockpile.Insight : 0.f;
+			const float InfluenceBeforeAct = State.Civs.IsValidIndex(RuledBeforeAct) ? State.Civs[RuledBeforeAct].Stockpile.Influence : 0.f;
+			bool bExaltNow = false;
+			int32 ExaltPredicted = INDEX_NONE;
+			if (Ending.ExaltChoice == INDEX_NONE && State.Knowing.PendingPetitionRow == CosmicRows::PetitionExalt && State.Player.Role == EPlayerRole::Ruler)
+			{
+				bExaltNow = true;
+				Ending.ExaltTick = Ending.ExaltTick < 0 ? State.Tick : Ending.ExaltTick;
+				const FEncounterDef* ExaltRow = Sim->GetTables().FindEncounter(CosmicRows::PetitionExalt);
+				ExaltPredicted = (RulerPolicy.bAnswer && ExaltRow) ? CosmicRulerPolicy::ChoiceOf(State, StateIndex, *ExaltRow, RulerCounts.Answers, CosmicRows::PetitionExalt,
+					RulerPolicy.Diplomacy, &RulesNow, &Sim->GetTables(), RulerPolicy.Pressure) : INDEX_NONE;
+			}
 			CosmicRulerPolicy::Act(RulerPolicy, *Sim, *Role, CardBefore, RulerCounts);
 			CosmicWandererPolicy::Act(WandererPolicy, *Sim, *Role, CardBefore, WandererCounts);
+			// B6a [B-6a3c]: what the inputs did for the ending line - the decisions taken at this boundary, the answer to
+			// petition_exalt (its card answers first: a refusal stops the answers and a withdrawal counts none, so only its taken
+			// answer adds to Answers), the stock of each pressure card that came, and a throne taken over a people at the third rung.
+			{
+				const int32 DecisionsNow = CosmicRulerPolicy::DecisionsOf(RulerCounts);
+				if (DecisionsNow > Ending.DecisionsSoFar)
+				{
+					Ending.Decisions.Add(TPair<int64, int32>(State.Tick, DecisionsNow - Ending.DecisionsSoFar));
+				}
+				Ending.DecisionsSoFar = DecisionsNow;
+				if (bExaltNow && RulerCounts.Answers > AnswersBeforeAct)
+				{
+					Ending.ExaltChoice = ExaltPredicted;
+				}
+				for (int32 Card = PressureCardsBeforeAct; Card < RulerCounts.PressureCards; ++Card)
+				{
+					Ending.CardInsight[BoundaryPhase].Add(InsightBeforeAct);
+					Ending.CardInfluence[BoundaryPhase].Add(InfluenceBeforeAct);
+				}
+				NoteSeason();
+			}
 			// B5 ([B-5a]): the first throne taken after a reign ended; [B-5b]: after a succession, and a reign begun while a claim
 			// that had its card still stood (old 16 #143, B5 decision 4 - the lock keeps it at 0).
 			if (RoleBeforeInput == EPlayerRole::Wanderer && State.Player.Role == EPlayerRole::Ruler)
@@ -1856,6 +2171,12 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 						{
 							++Counts.SiegesOnRuled;
 							Counts.SiegesOnRuledByEnd += bBeforeEnd ? 1 : 0;
+							// B6a [B-6a3c] (#145): begun while the ruled people's fleet regrows after a resistance of an earlier boundary.
+							const bool bRegrowing = PressureCounts.Regrowing.ContainsByPredicate([&State, RuledID](const FPressureCounts::FRegrowing& Each)
+							{
+								return Each.CivID == RuledID && Each.Since < State.Tick;
+							});
+							Ending.SiegesRegrowing[TickPhase] += bRegrowing ? 1 : 0;
 						}
 						const int32 System = StateIndex.FindSystem(State, Now.Target);
 						if (!Civ.bIsPlayerRuled && State.Systems.IsValidIndex(System)
@@ -2047,6 +2368,9 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 							const int32 Band = Track->RemainingAtCard <= 300 ? 0 : (Track->RemainingAtCard <= 400 ? 1 : (Track->RemainingAtCard <= 550 ? 2 : 3));
 							++PressureCounts.Band[Band];
 							PressureCounts.BandEased[Band] += bEased ? 1 : 0;
+							// B6a [B-6a3c] (#142): the band 401-550 by the phase of the claim's end, and its joined.
+							Ending.Band142[TickPhase] += Band == 2 ? 1 : 0;
+							Ending.Band142Joined[TickPhase] += (Band == 2 && bJoined) ? 1 : 0;
 						}
 						if (Track && Track->bWatched)
 						{
@@ -2108,6 +2432,12 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					{
 						++Spirit.ClaimsOnRuled;
 						Spirit.ClaimsOnRuledByEnd += bEndedBefore ? 0 : 1;
+						// B6a [B-6a3c]: a claim on a settled system of the ruled people in the season.
+						if (TickPhase == 1 && CosmicState::IsSettled(System))
+						{
+							++Ending.SeasonClaims;
+							Ending.FirstSeasonClaim = Ending.FirstSeasonClaim < 0 ? State.Tick : Ending.FirstSeasonClaim;
+						}
 					}
 					if (System.ActiveHazard == ClaimTag)
 					{
@@ -2127,6 +2457,8 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				const bool bRulingNow = RuledNow && State.Player.Role == EPlayerRole::Ruler && State.Calling.LifeState == ELifeState::Embodied;
 				PressureCounts.HeldAfterInput = bRulingNow ? StandingUnitsOf(State, StateIndex, Sim->GetTables(), RulesNow, StateIndex.FindCiv(State, RuledNow->CivID))
 					: TArray<FCosmicPetitionUnit>();
+				// B6a [B-6a3c]: petition_exalt's B6a condition after the inputs (the head the pre-count compares with).
+				Ending.bExaltHeldAfterInput = bRulingNow && RuledNow->Tier >= EAscensionTier::Tier2_Stellar;
 			}
 			// B4 ([B-4d2]): the fleets back to their size before a resistance (#131).
 			for (int32 At = PressureCounts.Regrowing.Num() - 1; At >= 0; --At)
@@ -2235,6 +2567,13 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					PressureCounts.SignToldByEnd += bEndedBefore ? 0 : 1;
 					++PressureCounts.SignBlocks.FindOrAdd(SaidBlock);
 					PressureCounts.FirstSign = (PressureCounts.FirstSign < 0 || Said.Tick < PressureCounts.FirstSign) ? Said.Tick : PressureCounts.FirstSign;
+				}
+				// B6a [B-6a3c] (#140): the awareness lines told.
+				if (Said.Category == AwarenessTag && !Said.bUntold)
+				{
+					++Ending.AwarenessTold;
+					Ending.AwarenessToldByEnd += bEndedBefore ? 0 : 1;
+					Ending.FirstAwarenessTold = (Ending.FirstAwarenessTold < 0 || Said.Tick < Ending.FirstAwarenessTold) ? Said.Tick : Ending.FirstAwarenessTold;
 				}
 				PressureCounts.FleetWorn += Said.SourceRow == CosmicRows::LogFleetWorn ? 1 : 0;
 			}
@@ -2501,7 +2840,8 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					Spirit.KnownJoinsByEnd, Spirit.KnownJoinsLow, Spirit.KnownJoinsHigh, Spirit.SphereAt[0], Spirit.SphereAt[1], Spirit.SphereAt[2], Spirit.SphereAt[3],
 					Spirit.SameTickJoinsMax);
 				// B4 (header section 5): the pressure line - its head (the policy's values and the guard's cells) here, the
-				// cards' and the voice's cells with their commits.
+				// cards' and the voice's cells with their commits. Its "by end" cells count up to the record's tick: since B6a the
+				// clock's, no longer the ruled third rung's - the ending line splits B4's counts at that rung (B6a header 5.1).
 				TMap<FString, int32> Enactments;
 				for (const TPair<FName, int32>& Each : RulerCounts.CardEnactments)
 				{
@@ -2524,6 +2864,77 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					PressureCounts.Band[0], PressureCounts.BandEased[0], PressureCounts.Band[1], PressureCounts.BandEased[1], PressureCounts.Band[2], PressureCounts.BandEased[2],
 					PressureCounts.Band[3], PressureCounts.BandEased[3], PressureCounts.Ends[0], PressureCounts.Ends[1], PressureCounts.Ends[2], PressureCounts.Ends[3],
 					PressureCounts.Ends[4], PressureCounts.NoCard, PressureCounts.Watched, PressureCounts.WatchedJoined, PressureCounts.FleetWorn);
+			}
+			// B6a [B-6a3c] (header section 5.1, notes section 2.1): the ending line - always told, outside the baselines' keys.
+			{
+				const FCosmicEndingRecord& Record = State.Ending;
+				const bool bRecord = Record.Kind.IsValid();
+				const bool bRuledPeople = !Record.CivID.IsNone()
+					&& State.Calling.Lives.ContainsByPredicate([&Record](const FLifeRecord& Life) { return Life.RuledCivIDs.Contains(Record.CivID); });
+				// The season: from the ruled third rung to the record (-1 without either, or with the rung after the record).
+				const int64 Season = (bRecord && Ending.SeasonStart >= 0 && Ending.SeasonStart <= Record.Tick) ? Record.Tick - Ending.SeasonStart : -1;
+				// Its decisions: those of the boundaries from the season's start up to the record's (the game takes none at that
+				// boundary), counted per full window of SeasonWindowTicks from the start (one window for a shorter season; the tail
+				// past the last full window counts in the sum only); the longest stretch without one, the start and the record
+				// included as its ends.
+				int32 SeasonDecisions = 0;
+				TArray<int64> PerWindow;
+				int64 LongestGap = -1;
+				if (Season > 0)
+				{
+					PerWindow.Init(0, static_cast<int32>(FMath::Max<int64>(1, Season / SeasonWindowTicks)));
+					int64 Last = Ending.SeasonStart;
+					LongestGap = 0;
+					for (const TPair<int64, int32>& Each : Ending.Decisions)
+					{
+						if (Each.Key < Ending.SeasonStart || Each.Key >= Record.Tick)
+						{
+							continue;
+						}
+						SeasonDecisions += Each.Value;
+						const int64 Window = (Each.Key - Ending.SeasonStart) / SeasonWindowTicks;
+						if (Window < PerWindow.Num())
+						{
+							PerWindow[static_cast<int32>(Window)] += Each.Value;
+						}
+						LongestGap = FMath::Max(LongestGap, Each.Key - Last);
+						Last = Each.Key;
+					}
+					LongestGap = FMath::Max(LongestGap, Record.Tick - Last);
+				}
+				int64 LeastWindow = -1;
+				for (const int64 Each : PerWindow)
+				{
+					LeastWindow = (LeastWindow < 0 || Each < LeastWindow) ? Each : LeastWindow;
+				}
+				// The research fields every people holds, and the ruled people the line reads them for (the season's people,
+				// else the first reign's).
+				TArray<FName> Fields;
+				for (const FCivilizationState& Civ : State.Civs)
+				{
+					for (const TPair<FName, float>& Field : Civ.Research)
+					{
+						Fields.AddUnique(Field.Key);
+					}
+				}
+				Fields.Sort(FNameLexicalLess());
+				const FName ResearchRuled = Ending.SeasonCivID.IsNone() ? FirstRuled : Ending.SeasonCivID;
+				const bool bAwareByEnd = Ending.AwareTick >= 0 && (!bRecord || Ending.AwareTick <= Record.Tick);
+				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance ending: record %s at %lld (people %s, a people some life ruled %d, no vessel %d); ruled T3 at %lld (%s), season %lld; season decisions %d in %d windows of %lld (median %lld, least %lld), longest gap %lld; first AI T3 at %lld (%s, feat %s); research 1.0 ruled %s [%s], first AI %s [%s]; aware at %lld (%s, by the record %d, vessel left %d); by the record told: first-person claim lines %d, awareness lines %d (first at %lld); season claims on ruled settled systems %d (first at %lld); by phase before T3/season/after the record: #132 guarded [%s] / [%s] / [%s] ruled attrition %.3f/%.3f/%.3f, #142 band 401-550 %s joined %s, #135 claim trigger %s lost to a waiting card %s same tick %s keys [%s], #145 sieges on ruled while its fleet regrows %s; ruled low stability first at %lld; pressure cards %s stock insight least:median %s, influence least:median %s; petition_exalt at %lld answer %d, pre-count [%s]"),
+					CosmicEndings::NameOf(Record.Kind), bRecord ? Record.Tick : static_cast<int64>(-1), Record.CivID.IsNone() ? TEXT("-") : *Record.CivID.ToString(), bRuledPeople ? 1 : 0,
+					(bRecord && Record.bNoVessel) ? 1 : 0, Ending.SeasonStart, Ending.SeasonCivID.IsNone() ? TEXT("-") : *Ending.SeasonCivID.ToString(), Season,
+					SeasonDecisions, PerWindow.Num(), SeasonWindowTicks, MedianOf(PerWindow), LeastWindow, LongestGap,
+					Ending.FirstAIT3Tick, Ending.FirstAIT3CivID.IsNone() ? TEXT("-") : *Ending.FirstAIT3CivID.ToString(), Ending.FirstAIT3Feat.IsNone() ? TEXT("-") : *Ending.FirstAIT3Feat.ToString(),
+					ResearchRuled.IsNone() ? TEXT("-") : *ResearchRuled.ToString(), *ResearchFullText(Ending, ResearchRuled, Fields),
+					Ending.FirstAIT3CivID.IsNone() ? TEXT("-") : *Ending.FirstAIT3CivID.ToString(), *ResearchFullText(Ending, Ending.FirstAIT3CivID, Fields),
+					Ending.AwareTick, Ending.AwareTranscendentID.IsNone() ? TEXT("-") : *Ending.AwareTranscendentID.ToString(), bAwareByEnd ? 1 : 0, Ending.bAwareVesselLeft ? 1 : 0,
+					PressureCounts.VoiceToldByEnd, Ending.AwarenessToldByEnd, Ending.FirstAwarenessTold, Ending.SeasonClaims, Ending.FirstSeasonClaim,
+					*GuardedPhaseText(Ending.Guarded[0]), *GuardedPhaseText(Ending.Guarded[1]), *GuardedPhaseText(Ending.Guarded[2]),
+					Ending.RuledAttrition[0], Ending.RuledAttrition[1], Ending.RuledAttrition[2],
+					*PhasesText(Ending.Band142), *PhasesText(Ending.Band142Joined), *PhasesText(Ending.ClaimTrigger), *PhasesText(Ending.ClaimLostWait),
+					*PhasesText(Ending.ClaimLostSame), *FString::Join(Ending.ClaimTriggerKeys, TEXT(" ")), *PhasesText(Ending.SiegesRegrowing), Ending.LowStabilityTick,
+					*FString::Printf(TEXT("%d/%d/%d"), Ending.CardInsight[0].Num(), Ending.CardInsight[1].Num(), Ending.CardInsight[2].Num()),
+					*StockPhasesText(Ending.CardInsight), *StockPhasesText(Ending.CardInfluence), Ending.ExaltTick, Ending.ExaltChoice, *FString::Join(Ending.ExaltPreCount, TEXT(" ")));
 			}
 			if (ExpansionSum != Counts.ExpansionPairs)
 			{

@@ -17,7 +17,7 @@
 > `CLAUDE.md` 규칙 15가 가리키는 목록 — 블록마다 무엇이 코드에 들었는지를 한 줄씩 적는다(2026-10-29 `[B-4e]`가 그 규칙에서 옮겨 왔다 — 헤더 B4 결정 20; 모든 세션이 읽는 규칙 파일의 크기 한도 때문이다). 아직 코드에 없는 예정은 규칙 15의 앞 목록과 위 마일스톤 표, 블록마다의 헤더는 그 표의 행이 적는다. 블록이 끝나면 그 블록의 문서 커밋이 끝에 한 줄을 더한다.
 
 - A0: `sys_0` = 첫 생애 모성계(배열 0번), `sol` = 성역(배열 끝·레인 없음, `State.Systems` = `SystemCount` + 1), 첫 생애 행 `arch_seeker`, `ImmutableLaws` 5개.
-- MVP ②: 청원 카드(`DT_Encounters`). ③: 첫 위기·안정도 회복·AI 구호·`feat_three_worlds`·통치자 정책. ④: 임시 끝 `ProvisionalEndOf`(T3 ∨ 틱 6,000)·연대기. ⑤: 슬롯·자동 저장·이어하기(`UCosmicSaveSubsystem`). ⑥⑦: 안정도 추세·연구 중점. ⑧: 경제 노브 `DT_Rules`. ⑨: 해시 판 `-CosmicHashRun`(`World/CosmicHashRun`·`CosmicRulerPolicy`)·`Tools/package.ps1`.
+- MVP ②: 청원 카드(`DT_Encounters`). ③: 첫 위기·안정도 회복·AI 구호·`feat_three_worlds`·통치자 정책. ④: 임시 끝(틱 6,000 — B6a부터 끝의 기록 `FGalaxyState::Ending`과 판정 `CosmicEndings::EndingOf`; 셋째 칸의 끝은 B6a `[B-6a3a]`에서 빠졌다)·연대기. ⑤: 슬롯·자동 저장·이어하기(`UCosmicSaveSubsystem`). ⑥⑦: 안정도 추세·연구 중점. ⑧: 경제 노브 `DT_Rules`. ⑨: 해시 판 `-CosmicHashRun`(`World/CosmicHashRun`·`CosmicRulerPolicy`)·`Tools/package.ps1`.
 - B1: 방랑자 `TravelTo`·스캔·조우 `enc_` 다섯·즉위·복귀·양위(`Sim/CosmicWanderer`), 정책 `-Abdicate`·`-Wander`.
 - B2: 칙령 다섯(`DT_Edicts`·`Sim/CosmicEdicts`)·물려받은 칙령·칙령 창·연구의 몫, 정책 `-Edict`.
 - B3: 태세·조약·함대·공성(`Sim/CosmicDiplomacy`·`CosmicConflict`)·첫 접촉 카드·격리령·칙령 창의 [백성], 정책 `-Diplomacy`.
