@@ -303,10 +303,10 @@ namespace CosmicMapLook
 
 	/**
 	 * A people this many rungs or more above the viewer is not shown: the gap of the scope of telling's subject rule
-	 * (section 3.2, 8.1). The rule lives in three places, held together by their tests until B6 (whose T3 to T5 feats
-	 * first make such a people) moves them into one Core predicate: UCosmicLogSubsystem::Tell (Log.TellScope),
-	 * UGalaxySimulationSubsystem::NoteMet - seen, not met (Sim.KnowingWriters, Sim.SightStage) - and IsShownPeople here
-	 * (UI.KnownFilter's parity with the log).
+	 * (section 3.2, 8.1). The rule lives in three places, held together by their tests until B6b (whose fourth- and
+	 * fifth-rung feats first make such a people - 16 #107) moves them into one Core predicate:
+	 * UCosmicLogSubsystem::Tell (Log.TellScope), UGalaxySimulationSubsystem::NoteMet - seen, not met (Sim.KnowingWriters,
+	 * Sim.SightStage) - and IsShownPeople here (UI.KnownFilter's parity with the log).
 	 */
 	inline constexpr int32 ShownGap = 3;
 

@@ -264,7 +264,9 @@ struct COSMIC_ASCENSION_API FAscensionFeatDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	TArray<FCosmicEffect> AscensionCost;
 
-	// Power.* tags. Tier 4 -> 5 rows include Way.Received or Way.Seized. No feat ever removes Way.Seized (Law.Humility).
+	// Power.* tags (the schema also admits Way.*). No feat row grants a way into the fifth rung: the Tier 5 threshold
+	// splits Way.Received from Way.Seized, and Way.Seized also comes for good after DT_Rules.ReturnedLivesToSeize returned
+	// lives (Phase 6+ - B6a header decision 1). No feat ever removes Way.Seized (Law.Humility).
 	UPROPERTY(EditAnywhere)
 	FGameplayTagContainer GrantedPowers;
 
@@ -733,7 +735,7 @@ struct COSMIC_ASCENSION_API FLogTemplateDef : public FTableRowBase
  * DT_Galaxies row (section 5.11): one galaxy that has a name. The row name is the identity of the galaxy and lands in
  * saves (GalaxyRow, OriginGalaxyRow, FTransitRecord), so it never changes once shipped.
  * One row is the home galaxy (DT_Rules.HomeGalaxyRow), the only galaxy simulated in detail. Of that row the simulation
- * reads LivingWorlds, Peoples, HomeRadiusShare and the three name pools at generation, and AIFourthRungCap from Phase 6a.
+ * reads LivingWorlds, Peoples, HomeRadiusShare and the three name pools at generation, and AIFourthRungCap from B6b.
  * Of the other rows it reads nothing until the crossings of Phase 6a (BridgeTicks, PeopleStems). Every other column
  * is display only: editing it never moves a hash.
  * The member initializers are what a run falls back on when the table or the home row is missing: the numbers of the
@@ -763,8 +765,9 @@ struct COSMIC_ASCENSION_API FGalaxyDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	int32 Peoples = 12;
 
-	// The brake on the fourth rung (section 5.12, 7.4 crossing stage). 0 = no brake. Read by the simplified AI ascent
-	// of Phase 6a and never by the player's feats. Home row only.
+	// The brake on the fourth rung (section 5.12, 7.4 crossing stage). 0 = no brake. Nothing reads it yet: the simplified
+	// AI ascent past the third rung reads it from B6b (its form and value - #161), and the player's feats never do. Home
+	// row only.
 	UPROPERTY(EditAnywhere)
 	int32 AIFourthRungCap = 2;
 
@@ -1102,7 +1105,7 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	FGameplayTag FirstCrisisHazard;
 
-	// ---- The provisional end (MVP item 4; goes with the four endings of B5, B6) ----
+	// ---- The provisional end (MVP item 4): from B6a the clock kind of the ending record, Ending.Clock - provisional until B6b sets its last value (#2) ----
 
 	// The MVP run's clock end (CosmicEndings::EndingOf - Ending.Clock): the tick in which State.Tick reaches this writes the record State.Ending when no end
 	// stands yet and none before the clock in the order holds; from that tick boundary the presentation keeps the time stopped and opens the chronicle, and the
@@ -1334,7 +1337,8 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// The initializer is the mechanism's value; the data sets the balance value.
 
 	// The share of its FleetPower a people keeps when a card's DelayHazard buys a standing hazard time (the fleet spent).
-	// In [0, 1]; anything else reads as 1. The data holds 0.5 (B4 [B-4d2] - provisional: B6 asks again).
+	// In [0, 1]; anything else reads as 1. The data holds 0.5 (B4 [B-4d2] - provisional: B6a measured no case, #145; the
+	// 0.5/0.45 pair and a floor wait for the B7 header).
 	UPROPERTY(EditAnywhere)
 	float ResistFleetFactor = 1.f;
 };
