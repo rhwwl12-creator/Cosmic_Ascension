@@ -969,7 +969,7 @@
 				"Value": 0.0
 			},
 			{
-				"Type": "PlayerTierAtLeast",
+				"Type": "CivTierAtLeast",
 				"Tag": "",
 				"Key": "None",
 				"Value": 2.0

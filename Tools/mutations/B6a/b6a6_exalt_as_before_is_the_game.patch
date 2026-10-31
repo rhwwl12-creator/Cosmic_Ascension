@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+@@ -322,6 +322,7 @@
+ 	// personal rung (#1, #141): that block redefines this helper - Sim.ExaltArrives' old-row side is its tripwire.
+ 	inline FCosmicDataTables WithExaltAsBefore(const FCosmicDataTables& Base)
+ 	{
++		return Base;
+ 		FCosmicDataTables Tables = Base;
+ 		if (UDataTable* Encounters = CopyWithout<FEncounterDef>(Base.Encounters, {}))
+ 		{

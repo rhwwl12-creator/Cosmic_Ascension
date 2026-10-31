@@ -1232,12 +1232,17 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	FParse::Value(*Params, TEXT("DeathAt="), DeathAt);
 	FParse::Value(*Params, TEXT("WithoutDeath="), WithoutDeath);
 	FParse::Value(*Params, TEXT("PastEnd="), PastEnd);
+	// B6a ([B-6a6] - header section 5.1, measurement only): -ExaltAsBefore=1 runs on the tables with petition_exalt's
+	// condition back to the old PlayerTierAtLeast 2 (CosmicTests::WithExaltAsBefore - the data-off side of a pair in the same
+	// build); in a build with the automation tests only, not an argument of the hash run or the runner.
+	int32 ExaltAsBefore = 0;
+	FParse::Value(*Params, TEXT("ExaltAsBefore="), ExaltAsBefore);
 	// The home galaxy row too (-Systems and -Civs 0): the game never builds another size.
 	const bool bSaveShape = TellAll == 0 && RulesText.IsEmpty() && WithoutPressure == 0 && Systems == 0 && Civs == 0 && DeathAt < 0 && WithoutDeath == 0
-		&& PastEnd == 0;
+		&& PastEnd == 0 && ExaltAsBefore == 0;
 	if (SaveAt >= 0 && !bSaveShape)
 	{
-		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -SaveAt writes only a run of the game's shape (-TellAll=0, no -Rules, -WithoutPressure, -Systems, -Civs, -DeathAt, -WithoutDeath or -PastEnd): no save"));
+		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -SaveAt writes only a run of the game's shape (-TellAll=0, no -Rules, -WithoutPressure, -Systems, -Civs, -DeathAt, -WithoutDeath, -PastEnd or -ExaltAsBefore): no save"));
 	}
 	// A boundary the run never reaches writes nothing: said at once, not found missing after the run.
 	if (SaveAt >= 0 && (SaveAt < 1 || SaveAt > Ticks))
@@ -1287,6 +1292,20 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	{
 		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -WithoutDeath and -PastEnd are 0 or 1, and -DeathAt, -WithoutDeath=1 and -PastEnd=1 need a build with the automation tests: %lld %d %d"), DeathAt, WithoutDeath, PastEnd);
 	}
+	// B6a ([B-6a6]): -ExaltAsBefore is a test build's only too, the gate of -WithoutDeath (after it: the two compose).
+	bool bExaltArg = ExaltAsBefore == 0;
+#if WITH_DEV_AUTOMATION_TESTS
+	bExaltArg = ExaltAsBefore == 0 || ExaltAsBefore == 1;
+	if (Sim && ExaltAsBefore == 1)
+	{
+		Sim->SetTables(CosmicTests::WithExaltAsBefore(Sim->GetTables()));
+		UE_LOG(LogCosmic, Display, TEXT("CosmicBalance: tables with petition_exalt as before"));
+	}
+#endif
+	if (!bExaltArg)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -ExaltAsBefore is 0 or 1 (1 in a build with the automation tests): %d"), ExaltAsBefore);
+	}
 	// A kept row the tables do not hold would measure the policy without it under its name: no run (B2).
 	const bool bEdictRow = Sim && (EdictRowText.IsEmpty() || Sim->GetTables().FindEdict(FName(*EdictRowText)) != nullptr);
 	if (Sim && !bEdictRow)
@@ -1308,7 +1327,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -PlayerPolicy is Cautious, Reckless or Faithful (B4 has no tribute), -Guard and -LeaveNearSphere 0 or 1, and -LeaveNearSphere=1 needs one of the three policies: %s %d %d"),
 			*PlayerPolicyText, GuardArg, LeaveNearSphere);
 	}
-	if (Sim && Role && bRules && bEdictRow && bDiplomacy && bPressure && bUnpressed && bDeathArgs)
+	if (Sim && Role && bRules && bEdictRow && bDiplomacy && bPressure && bUnpressed && bDeathArgs && bExaltArg)
 	{
 		// Every line is stored unless -TellAll=0 asks for the scope of telling of a game (section 8.1). The world hash is
 		// the same either way.
@@ -2951,7 +2970,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	}
 	else
 	{
-		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: no simulation or role subsystem, or -Rules, -EdictRow, -Diplomacy, -PlayerPolicy, -Guard, -LeaveNearSphere or -WithoutPressure refused: nothing run"));
+		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: no simulation or role subsystem, or -Rules, -EdictRow, -Diplomacy, -PlayerPolicy, -Guard, -LeaveNearSphere, -WithoutPressure, the death's arguments or -ExaltAsBefore refused: nothing run"));
 		Result = 1;
 	}
 

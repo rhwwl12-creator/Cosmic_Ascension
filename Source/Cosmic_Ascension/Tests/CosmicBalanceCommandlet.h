@@ -93,6 +93,11 @@
  * no simulation (B6a [B-6a3b], header section 2.5: the record is written once and the ticks go on, so RunHeadless(Ticks)
  * runs past it as the one-tick loop does; only RunLeap stops at it, and the commandlet never calls RunLeap). The end itself
  * belongs to the presentation and stops nothing here.
+ * -ExaltAsBefore=1 (B6a [B-6a6], header section 5.1 - measurement only, the data-off side of a pair in the same build, the
+ * form of B5's -WithoutDeath=1) runs on the tables whose petition_exalt row has its condition back to the old
+ * PlayerTierAtLeast 2 (CosmicTests::WithExaltAsBefore - the card never comes) and logs "tables with petition_exalt as
+ * before"; it is refused in a build without the automation tests (any value but 0 there, any value but 0 or 1 in a test
+ * build: an error line, nothing run) and is not an argument of the hash run or the runner; -SaveAt writes no slot beside it.
  *
  *   UnrealEditor-Cmd Cosmic_Ascension.uproject -run=CosmicBalance -Seed=42 -Ticks=20000 -Out=balance.csv
  *

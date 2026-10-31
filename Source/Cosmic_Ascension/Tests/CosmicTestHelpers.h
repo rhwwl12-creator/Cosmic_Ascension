@@ -14,6 +14,7 @@
 #include "Components/Widget.h"
 #include "Core/CosmicIDs.h"
 #include "Core/GalaxyState.h"
+#include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
@@ -307,6 +308,32 @@ namespace CosmicTests
 				{
 					Strip(Choice.OnSuccess);
 					Strip(Choice.OnFailure);
+				}
+			}
+			Tables.Encounters = Encounters;
+		}
+		return Tables;
+	}
+
+	// The tables with petition_exalt as before B6a (B6a header section 3.1 and 5.1, [B-6a6]): every CivTierAtLeast condition
+	// of that row back to the old PlayerTierAtLeast with the same value (Key None) - the personal rung, which a ruler never
+	// climbs, so the card never comes. The data-off side of a pair in the same build (-ExaltAsBefore=1, WithoutDeath's form);
+	// a table without the row is copied as it is. Everything else as given. 'Never comes' holds until a block raises a ruler's
+	// personal rung (#1, #141): that block redefines this helper - Sim.ExaltArrives' old-row side is its tripwire.
+	inline FCosmicDataTables WithExaltAsBefore(const FCosmicDataTables& Base)
+	{
+		FCosmicDataTables Tables = Base;
+		if (UDataTable* Encounters = CopyWithout<FEncounterDef>(Base.Encounters, {}))
+		{
+			if (FEncounterDef* Exalt = Encounters->FindRow<FEncounterDef>(CosmicRows::PetitionExalt, TEXT("WithExaltAsBefore"), false))
+			{
+				for (FCosmicCondition& Condition : Exalt->Conditions)
+				{
+					if (Condition.Type == EConditionType::CivTierAtLeast)
+					{
+						Condition.Type = EConditionType::PlayerTierAtLeast;
+						Condition.Key = NAME_None;
+					}
 				}
 			}
 			Tables.Encounters = Encounters;

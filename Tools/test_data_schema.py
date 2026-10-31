@@ -2841,6 +2841,24 @@ class SchemaTests(unittest.TestCase):
         self.schema_problem(self.put(rule, "then", [{"col": "Body", "has_cond": {"type": "PlayerRoleIs", "key": "Ruler"}}]),
                             "schema.DT_Encounters", "the test 'has_cond' cannot be asked of a column of kind text")
 
+    def test_a_ruler_card_does_not_wait_on_the_vessel_rung(self):
+        # B6a [B-6a6] (header 3.1, decision 9): the ruler's personal rung never rises, so a ruler's row that waits on it never
+        # comes. The breaking case is petition_exalt as it stood from [A-2b] to [B-6a5]: the ruler and the vessel's rung 2.
+        why = "a ruler's card does not wait on the vessel's own rung"
+        old = [cond("PlayerRoleIs", key="Ruler"), cond("PlayerTierAtLeast", key="None", value=2.0)]
+        self.expect(self.after(self.set_cell("DT_Encounters", "petition_exalt", "Conditions", old)), "DT_Encounters.petition_exalt", why)
+        # The project's own row, put back to the old condition: the project's data with that one cell fails on this rule.
+        project_schema, project_tables, project_tags = checker.load_project()
+        exalt = next(row for row in project_tables["DT_Encounters"] if row["Name"] == "petition_exalt")
+        self.assertEqual([(entry["Type"], entry["Key"], entry["Value"]) for entry in exalt["Conditions"]],
+                         [("PlayerRoleIs", "Ruler", 0.0), ("CivTierAtLeast", "None", 2.0)])
+        exalt["Conditions"] = [dict(entry, Type="PlayerTierAtLeast") if entry["Type"] == "CivTierAtLeast" else entry for entry in exalt["Conditions"]]
+        self.expect(checker.check(project_schema, project_tables, project_tags), "DT_Encounters.petition_exalt", why)
+        # The people's rung on a ruler's row, and the vessel's rung on a wanderer's card (the wanderer's rung rises), stand.
+        self.assertEqual(self.after(self.set_cell("DT_Encounters", "petition_exalt", "Conditions", [old[0], cond("CivTierAtLeast", key="None", value=2.0)])), [])
+        self.assertEqual(self.after(self.set_cell("DT_Encounters", "enc_test_weave", "Conditions",
+                                                  [cond("PlayerRoleIs", key="Wanderer"), cond("PlayerTierAtLeast", key="None", value=2.0)])), [])
+
     def test_row_prefix(self):
         # B1: the rows of one kind by the prefix of their names - one of the table's own prefixes.
         holds = checker.Checker(self.schema, self.tables, self.tags).holds
@@ -3116,6 +3134,9 @@ class SchemaTests(unittest.TestCase):
             ("DT_Galaxies", "a galaxy other than the home holds no peoples, no brake, no home share and no name pools (guideline 5.11 '고향이 아닌 행의 이 네 값은 0')"): (NOTHING, "gal_m87"),
             ("DT_Encounters", "a card is put before a role: every row carries the condition PlayerRoleIs (guideline 5.10, B1)"): (NOTHING, plea),
             ("DT_Encounters", "a petition is put before a ruler and is about the ruled people or one of its settled systems (guideline 5.10, B1)"): (NOTHING, plea),
+            # B6a [B-6a6] (header 3.1): the ruler's card that waited on the vessel's own rung.
+            ("DT_Encounters", "a ruler's card does not wait on the vessel's own rung: the ruler's personal rung never rises (B6a header 1.1, 3.1, decision 9), so a PlayerTierAtLeast of 2 or more on a row put before a ruler never holds and its card never comes - petition_exalt waited on it from [A-2b] to [B-6a6] and now reads the ruled people's rung (CivTierAtLeast). PlayerTierAtLeast 1 always holds, so the enumerator is kept off such a row entirely. The block that raises the personal rung (guideline 16 #1, #141) lifts this rule"):
+                (NOTHING, plea),
             ("DT_Encounters", "a wanderer's card is put before a wanderer, about the system the vessel stands in, and checks the vessel: a people's Stability is not the wanderer's (B1)"):
                 (NOTHING, "enc_test_weave"),
             ("DT_Encounters", "an arrival card can come on a system no people owns: its texts name the system alone (B1)"): (NOTHING, "enc_test_weave"),
@@ -3195,7 +3216,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 228, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 229, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

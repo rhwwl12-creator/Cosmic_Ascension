@@ -894,6 +894,11 @@
 					]
 				},
 				{
+					"why": "a ruler's card does not wait on the vessel's own rung: the ruler's personal rung never rises (B6a header 1.1, 3.1, decision 9), so a PlayerTierAtLeast of 2 or more on a row put before a ruler never holds and its card never comes - petition_exalt waited on it from [A-2b] to [B-6a6] and now reads the ruled people's rung (CivTierAtLeast). PlayerTierAtLeast 1 always holds, so the enumerator is kept off such a row entirely. The block that raises the personal rung (guideline 16 #1, #141) lifts this rule",
+					"when": [{"col": "Conditions", "has_cond": {"type": "PlayerRoleIs", "key": "Ruler"}}],
+					"then": [{"col": "Conditions", "lacks_type": "PlayerTierAtLeast"}]
+				},
+				{
 					"why": "a wanderer's card is put before a wanderer, about the system the vessel stands in, and checks the vessel: a people's Stability is not the wanderer's (B1)",
 					"when": [{"row_prefix": "enc_"}],
 					"then": [

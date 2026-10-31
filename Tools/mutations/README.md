@@ -688,3 +688,4 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B6a/` | `b6a5_succession_clears_flags.patch` — a succession clears every `bAwareOfPlayer` (the flag must survive it - B6a decision 7-na) | `Cosmic_Ascension.Log.AwarenessVoice` |
 | `B6a/` | `b6a5_awareness_reads_voice.patch` — the awareness line reads `VoiceTemplates` (the hedge's testimony, empty in the game) instead of `AwarenessTemplates` | `Cosmic_Ascension.Log.AwarenessVoice` |
 | `B6a/` | `b6a5_awareness_writes_knowing.patch` — the awareness line's block writes the knowing (`FarLineUntilTick`) | `Cosmic_Ascension.Log.AwarenessVoice` |
+| `B6a/` | `b6a6_exalt_as_before_is_the_game.patch` — `CosmicTests::WithExaltAsBefore` hands back the game's tables (the pair's off side would be the on side; the data's own revert is caught by the schema test - `Tools/test_data_schema.py`) | `Cosmic_Ascension.Sim.ExaltArrives` |
