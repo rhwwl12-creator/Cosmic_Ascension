@@ -29,6 +29,7 @@
 #include "UI/CosmicPalette.h"
 #include "UI/CosmicUILabels.h"
 #include "World/CosmicGameMode.h"
+#include "World/CosmicMapLook.h"
 
 // Helpers of this file. A named namespace: the module is built as one unity file.
 namespace CosmicChronicleWidgetImpl
@@ -89,6 +90,9 @@ TSharedRef<SWidget> UCosmicChronicleWidget::RebuildWidget()
 		// Below the scroll, apart from the epilogue's first line: the cause, the notice and the buttons (UI words).
 		NoteText = TextOf(*WidgetTree, FText::GetEmpty(), 13, CosmicPalette::Grey);
 		Column->AddChildToVerticalBox(NoteText)->SetPadding(FMargin(0.f, 12.f, 0.f, 2.f));
+		// Under the cause line, the end that came with no vessel (B6a header section 2.9): one line of fact, no title.
+		NoVesselText = TextOf(*WidgetTree, FText::GetEmpty(), 13, CosmicPalette::Grey);
+		Column->AddChildToVerticalBox(NoVesselText)->SetPadding(FMargin(0.f, 0.f, 0.f, 2.f));
 		ProvisionalText = TextOf(*WidgetTree, FText::GetEmpty(), 13, CosmicPalette::Grey);
 		Column->AddChildToVerticalBox(ProvisionalText)->SetPadding(FMargin(0.f, 0.f, 0.f, 8.f));
 		UHorizontalBox* Buttons = WidgetTree->ConstructWidget<UHorizontalBox>();
@@ -123,12 +127,27 @@ FText UCosmicChronicleWidget::NoteOf(const FCosmicEndingRecord& Record) const
 	{
 		return FText::Format(Label(TEXT("Chronicle.Note.Clock")), FText::AsNumber(Record.Tick));
 	}
-	// Interim until [B-6a4] (B6a header section 2.7): every other kind says the rung line, naming the record's people when the
-	// state holds it, else the line that names none. [B-6a4] gives each kind its own line and names another people only when
-	// it is shown to the viewer.
+	if (Record.Kind == CosmicTags::EndingNoCandidate())
+	{
+		return Label(TEXT("Chronicle.Note.NoCandidate"));
+	}
 	const FGalaxyState& State = Sim->GetState();
+	// The vessel at the fifth rung (B6a header section 3.3): the third person by the vessel's name - the inauguration line's
+	// {Player} (CosmicChronicle::VesselNameOf). The kind stands only while a vessel is embodied, so its life is the last.
+	if (Record.Kind == CosmicTags::EndingVessel())
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("Player"), State.Calling.Lives.IsEmpty() ? FText::GetEmpty() : CosmicChronicle::VesselNameOf(State.Calling.Lives.Last(), Sim->GetTables()));
+		return FText::Format(Label(TEXT("Chronicle.Note.Vessel")), Args);
+	}
+	// A people at the fifth rung (Ending.RuledPeople, Ending.OtherPeople): its name while the state holds it - the ruled
+	// people's always (a people the vessel ruled was met), another people's only while the viewer is shown it, read from the
+	// view (CosmicMapLook::KnownViewOf through the controller - invariant rule 14; the gap rule is not copied here) - else the
+	// line that names none.
 	const int32 CivIndex = Record.CivID.IsNone() ? INDEX_NONE : Sim->GetStateIndex().FindCiv(State, Record.CivID);
-	if (State.Civs.IsValidIndex(CivIndex))
+	const bool bNamed = State.Civs.IsValidIndex(CivIndex)
+		&& (Record.Kind == CosmicTags::EndingRuledPeople() || ACosmicPlayerController::KnownViewFor(*this).ShownOrderOf(CivIndex) != INDEX_NONE);
+	if (bNamed)
 	{
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("Civ"), State.Civs[CivIndex].CivName);
@@ -338,12 +357,21 @@ void UCosmicChronicleWidget::Open(const FCosmicEndingRecord& Record, bool bAtOnc
 		NoteText->SetText(Note);
 		NoteText->SetVisibility(Note.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
 	}
+	if (NoVesselText)
+	{
+		// The end came while no vessel stood (B6a header section 2.9): the record holds it, so the page does not read the
+		// calling's LifeState again. Never on a preview.
+		const bool bNoVessel = Record.Kind.IsValid() && Record.bNoVessel;
+		NoVesselText->SetText(bNoVessel ? Label(TEXT("Chronicle.Note.NoVessel")) : FText::GetEmpty());
+		NoVesselText->SetVisibility(bNoVessel ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
 	if (ProvisionalText)
 	{
-		// A preview is no end: no notice.
-		const bool bEnd = Record.Kind.IsValid();
-		ProvisionalText->SetText(bEnd ? Label(TEXT("Chronicle.Provisional")) : FText::GetEmpty());
-		ProvisionalText->SetVisibility(bEnd ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		// The clock's end only (B6a decision 13): the clock is what stays provisional; a fifth rung or the end with no
+		// candidate is no end of a trial. A preview is no end: no notice.
+		const bool bClock = Record.Kind == CosmicTags::EndingClock();
+		ProvisionalText->SetText(bClock ? Label(TEXT("Chronicle.Provisional")) : FText::GetEmpty());
+		ProvisionalText->SetVisibility(bClock ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	}
 	if (NewRunButton)
 	{

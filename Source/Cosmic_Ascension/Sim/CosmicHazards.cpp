@@ -5,6 +5,8 @@
 #include "Cosmic_Ascension.h"
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Core/CosmicIDs.h"
+#include "Core/CosmicTags.h"
+#include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Events/CosmicEventSubsystem.h"
@@ -522,6 +524,130 @@ bool CosmicHazards::IsLastUnclaimed(const FGalaxyState& State, const FCosmicStat
 		}
 	}
 	return true;
+}
+
+bool CosmicHazards::ClaimRuleHoldsOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 SystemIndex)
+{
+	// The claimant of now with its row, room in its sphere, and Law.Remnant. An index out of range has no claimant.
+	const int32 Claimant = ClaimantOf(State, Index, Tables, Rules, SystemIndex);
+	const FTranscendentDef* Def = State.Transcendents.IsValidIndex(Claimant) ? Tables.FindTranscendent(State.Transcendents[Claimant].TranscendentID) : nullptr;
+	return Def && State.Transcendents[Claimant].InfluencedSystems.Num() < Def->MaxInfluencedSystems
+		&& !IsLastUnclaimed(State, Index, Tables, SystemIndex);
+}
+
+bool CosmicHazards::ClaimMayFollowOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 SystemIndex)
+{
+	using namespace CosmicHazardsImpl;
+
+	static const FGameplayTag SupernovaTag = TagOf(TEXT("Hazard.PreSupernova"));
+	static const FGameplayTag ClaimTag = TagOf(TEXT("Hazard.Claim"));
+	if (!State.Systems.IsValidIndex(SystemIndex) || !State.Systems[SystemIndex].ActiveHazard.IsValid())
+	{
+		return false;
+	}
+	const FStarSystemState& System = State.Systems[SystemIndex];
+	const FGameplayTag Standing = System.ActiveHazard;
+	// The expiry's order. A tag no row holds is resolved, without a claim rule.
+	const FHazardDef* Row = Tables.FindHazardByTag(Standing);
+	if (!Row)
+	{
+		return false;
+	}
+	// An answer edict the owner holds at the expiry resolves the hazard instead, and a resolution passes no claim rule.
+	const int32 OwnerIndex = Index.FindCiv(State, System.OwnerCivID);
+	if (State.Civs.IsValidIndex(OwnerIndex) && !CosmicEdicts::HeldAnswerOf(State.Civs[OwnerIndex], *Row, Tables).IsNone())
+	{
+		return false;
+	}
+	// The supernova's grace keeps a last system and ends the expiry there; otherwise the system is destroyed and is
+	// settled no more. A claim's expiry joins the system to the sphere of the one claimant ClaimantOf could pick.
+	if (Standing == SupernovaTag || Standing == ClaimTag)
+	{
+		return false;
+	}
+	// The claim rule on the slot the expiry leaves free: a settled system, the rule's three, a Hazard.Claim row to place.
+	return CosmicState::IsSettled(System) && Tables.FindHazardByTag(ClaimTag) != nullptr
+		&& ClaimRuleHoldsOf(State, Index, Tables, Rules, SystemIndex);
+}
+
+CosmicHazards::FCosmicRebellionWatch CosmicHazards::RebellionWatchOf(const FGalaxyState& State, const FCosmicDataTables& Tables, int32 CivIndex)
+{
+	FCosmicRebellionWatch Watch;
+	Watch.Threshold = LowStabilityThreshold;
+	if (!State.Civs.IsValidIndex(CivIndex))
+	{
+		return Watch;
+	}
+	const FCivilizationState& Civ = State.Civs[CivIndex];
+	Watch.LowTicks = Civ.LowStabilityTicks;
+
+	// The count the rebellion row waits for and the first tick it may hold at, as its conditions read them: all of them
+	// must hold, so the largest of each binds, and a count condition without a count (never true) means no rebellion
+	// stands by this row. The evaluator asks float(Tick) >= Value of a GalaxyTickAtLeast: the first such tick is the
+	// ceiling of Value (0 for a Value at or below zero), taken here by casts - no rounding call in Core Logic.
+	const FGameplayTag RebellionTag = CosmicTags::HazardRebellion();
+	if (const FHazardDef* Row = Tables.FindHazardByTag(RebellionTag))
+	{
+		bool bNeverHolds = false;
+		for (const FCosmicCondition& Condition : Row->SpawnConditions)
+		{
+			if (Condition.Type == EConditionType::GalaxyTickAtLeast)
+			{
+				const float Value = Condition.Value;
+				if (FMath::IsNaN(Value) || Value >= 9.0e18f)
+				{
+					// No tick a run reaches holds it.
+					bNeverHolds = true;
+				}
+				else if (Value > 0.f)
+				{
+					int64 FirstTick = static_cast<int64>(Value);
+					FirstTick += static_cast<float>(FirstTick) < Value ? 1 : 0;
+					Watch.NotBeforeTick = FMath::Max(Watch.NotBeforeTick, FirstTick);
+				}
+				continue;
+			}
+			if (Condition.Type != EConditionType::CivStabilityBelowFor)
+			{
+				continue;
+			}
+			const int32 Count = CosmicConditions::TickCountOf(Condition.Key);
+			if (Count <= 0)
+			{
+				bNeverHolds = true;
+				continue;
+			}
+			Watch.NeededTicks = FMath::Max(Watch.NeededTicks, Count);
+		}
+		if (bNeverHolds)
+		{
+			Watch.NeededTicks = 0;
+		}
+	}
+	// The count the low run reaches at the first tick both hold, while it runs on: each tick adds one to the count and one
+	// to the tick, so the wait is the row's count or the count now plus the ticks left to the first tick, whichever is
+	// larger - fixed from tick to tick while the run lasts. Clamped to int32.
+	if (Watch.NeededTicks > 0)
+	{
+		const int64 TicksLeft = FMath::Min<int64>(FMath::Max<int64>(0, Watch.NotBeforeTick - State.Tick), MAX_int32);
+		const int64 Reached = FMath::Min<int64>(static_cast<int64>(Watch.LowTicks) + TicksLeft, MAX_int32);
+		Watch.WaitTicks = FMath::Max(Watch.NeededTicks, static_cast<int32>(Reached));
+	}
+
+	// A rebellion that stands on the capital already: its own line speaks.
+	bool bRebellionStands = false;
+	for (const FStarSystemState& System : State.Systems)
+	{
+		if (System.SystemID == Civ.HomeSystemID)
+		{
+			bRebellionStands = System.ActiveHazard == RebellionTag;
+			break;
+		}
+	}
+	// A count of 0 below the threshold: the stability fell after the economy stage counted (a card's answer between ticks,
+	// an expiry of the crisis stage) - the run has not begun, so the line waits for the tick that counts it.
+	Watch.bShown = Civ.Stability < LowStabilityThreshold && Watch.LowTicks > 0 && Watch.NeededTicks > 0 && !bRebellionStands;
+	return Watch;
 }
 
 bool CosmicHazards::VesselAtRiskOf(const FPlayerEntityState& Player, const FCallingState& Calling, const FCosmicRulesDef& Rules, int64 Tick,

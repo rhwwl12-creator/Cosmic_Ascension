@@ -102,9 +102,6 @@ namespace
 		static_assert(UE_ARRAY_COUNT(StarClassEnergy) == UE_ARRAY_COUNT(StarClassNames));
 	}
 
-	// Stability below this counts toward FCivilizationState.LowStabilityTicks (section 4.1).
-	constexpr float LowStabilityThreshold = 0.3f;
-
 	// At most this many fallen transcendents are active in a run (section 4.2).
 	constexpr int32 MaxFallenRoster = 3;
 
@@ -305,9 +302,10 @@ namespace
 	}
 
 	// The claim rule after an expiry (section 4.2): on a settled system whose slot the expiry left free, the claimant
-	// places Hazard.Claim unless its sphere is full or the system is its owner's last unclaimed settled system. The claim
-	// number stands for the weight of the faith traits (section 4.5 (4)): 1 until the trait rows of Phase 4, so it always
-	// passes. It is drawn whether or not it is read.
+	// places Hazard.Claim unless its sphere is full or the system is its owner's last unclaimed settled system - those
+	// three are CosmicHazards::ClaimRuleHoldsOf, the one window the screen's warning reads too (through ClaimMayFollowOf;
+	// B6a header section 4), so the rule is written once. The claim number stands for the weight of the faith traits
+	// (section 4.5 (4)): 1 until the trait rows of Phase 4, so it always passes. It is drawn whether or not it is read.
 	// The awareness (B6a header section 2.11, decision 7): a claim placed on a settled system of the people the embodied
 	// vessel rules, while that people stands on the third rung or above and no deposition, abdication or death waits for the
 	// vessel (Calling.PendingEffect empty - a vessel whose leaving was recorded before this claim is not noticed; one recorded
@@ -324,10 +322,7 @@ namespace
 		{
 			return INDEX_NONE;
 		}
-		const int32 Claimant = CosmicHazards::ClaimantOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, SystemIndex);
-		const FTranscendentDef* Def = State.Transcendents.IsValidIndex(Claimant) ? Ctx.Tables.FindTranscendent(State.Transcendents[Claimant].TranscendentID) : nullptr;
-		if (!Def || State.Transcendents[Claimant].InfluencedSystems.Num() >= Def->MaxInfluencedSystems
-			|| CosmicHazards::IsLastUnclaimed(State, Ctx.Index, Ctx.Tables, SystemIndex))
+		if (!CosmicHazards::ClaimRuleHoldsOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, SystemIndex))
 		{
 			return INDEX_NONE;
 		}
@@ -337,6 +332,9 @@ namespace
 		{
 			return INDEX_NONE;
 		}
+		// The claimant the rule found, for the awareness below: read before Place, on the state the rule read (nothing
+		// between them writes).
+		const int32 Claimant = CosmicHazards::ClaimantOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, SystemIndex);
 		if (!CosmicHazards::Place(Ctx, SystemIndex, ClaimRow))
 		{
 			return INDEX_NONE;
@@ -356,18 +354,25 @@ namespace
 		{
 			return INDEX_NONE;
 		}
-		FTranscendentState& Claiming = Ctx.State.Transcendents[Claimant];
-		if (Claiming.bAwareOfPlayer)
+		// Always an instance: the rule held, so ClaimantOf found one on this state.
+		if (!State.Transcendents.IsValidIndex(Claimant) || State.Transcendents[Claimant].bAwareOfPlayer)
 		{
 			return INDEX_NONE;
 		}
-		Claiming.bAwareOfPlayer = true;
+		Ctx.State.Transcendents[Claimant].bAwareOfPlayer = true;
 		return Claimant;
 	}
 
 	// The expiry of a claim (section 4.2): the claimant of now joins the system to its sphere, unless the system is no
-	// longer settled, the sphere is full, or Law.Remnant forbids it. The claimant's index into Transcendents when it joined
-	// (the voice of the join reads it - B4 header section 2.6), INDEX_NONE otherwise.
+	// longer settled or the claim rule's three refuse (CosmicHazards::ClaimRuleHoldsOf: no claimant with its row, the
+	// sphere full, Law.Remnant). The claimant's index into Transcendents when it joined (the voice of the join reads it -
+	// B4 header section 2.6), INDEX_NONE otherwise.
+	// The join's gates are the claim rule's (section 4.2) by design - one function, so the Hazard.Claim branch of
+	// CosmicHazards::ClaimMayFollowOf (a join that fails leaves the rule failing on the same state; one that takes puts
+	// the system in the sphere, and ClaimantOf skips that instance) rests on no copy. A block that wants the join and the
+	// placement to differ splits them here on purpose and looks at that branch again. ClaimantOf, FindTranscendent and
+	// IsLastUnclaimed are pure and nothing writes between the two ClaimantOf calls: the same three checks in the same
+	// order as before, no draw.
 	int32 JoinClaimedSphere(FCosmicEvalContext& Ctx, int32 SystemIndex)
 	{
 		FGalaxyState& State = Ctx.State;
@@ -375,13 +380,11 @@ namespace
 		{
 			return INDEX_NONE;
 		}
-		const int32 Claimant = CosmicHazards::ClaimantOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, SystemIndex);
-		const FTranscendentDef* Def = State.Transcendents.IsValidIndex(Claimant) ? Ctx.Tables.FindTranscendent(State.Transcendents[Claimant].TranscendentID) : nullptr;
-		if (!Def || State.Transcendents[Claimant].InfluencedSystems.Num() >= Def->MaxInfluencedSystems
-			|| CosmicHazards::IsLastUnclaimed(State, Ctx.Index, Ctx.Tables, SystemIndex))
+		if (!CosmicHazards::ClaimRuleHoldsOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, SystemIndex))
 		{
 			return INDEX_NONE;
 		}
+		const int32 Claimant = CosmicHazards::ClaimantOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, SystemIndex);
 		State.Transcendents[Claimant].InfluencedSystems.Add(State.Systems[SystemIndex].SystemID);
 		return Claimant;
 	}
@@ -1870,11 +1873,12 @@ void UGalaxySimulationSubsystem::TickEconomy()
 	}
 
 	// Counted last, over the Stability every civilization has at the end of this stage (section 7.4), and over the
-	// sphere membership of its start (section 5.11).
+	// sphere membership of its start (section 5.11). The threshold is the one the rebellion watch shows
+	// (CosmicHazards::LowStabilityThreshold).
 	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
 	{
 		FCivilizationState& Civ = State.Civs[CivIndex];
-		Civ.LowStabilityTicks = (Civ.Stability < LowStabilityThreshold) ? Civ.LowStabilityTicks + 1 : 0;
+		Civ.LowStabilityTicks = (Civ.Stability < CosmicHazards::LowStabilityThreshold) ? Civ.LowStabilityTicks + 1 : 0;
 		Civ.FallenSphereTicks = InFallenSphere[CivIndex] ? Civ.FallenSphereTicks + 1 : 0;
 	}
 }

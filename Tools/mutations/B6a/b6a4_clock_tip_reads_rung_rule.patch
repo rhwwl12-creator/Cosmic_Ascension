@@ -1,0 +1,14 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
+@@ -535,6 +535,10 @@
+ 	const FText Tip = FText::Format(INVTEXT("{0}\n{1}"), CosmicUI::Label(TEXT("Time.Tip")), CosmicUI::Label(TEXT("Time.TipPress")));
+ 	// The clock is the one end this run reaches (B6a decision 13): no clock end, no rule line (Chronicle.RuleRung is not read -
+ 	// B6b writes the fifth rung's rule into it).
++	if (EndTick <= 0 && bEndOn)
++	{
++		return FText::Format(INVTEXT("{0}\n{1}"), Tip, CosmicUI::Label(TEXT("Chronicle.RuleRung")));
++	}
+ 	if (!bEndOn || EndTick <= 0)
+ 	{
+ 		return Tip;

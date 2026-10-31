@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -532,7 +532,7 @@
+ 	const int32 Claimant = ClaimantOf(State, Index, Tables, Rules, SystemIndex);
+ 	const FTranscendentDef* Def = State.Transcendents.IsValidIndex(Claimant) ? Tables.FindTranscendent(State.Transcendents[Claimant].TranscendentID) : nullptr;
+ 	return Def && State.Transcendents[Claimant].InfluencedSystems.Num() < Def->MaxInfluencedSystems
+-		&& !IsLastUnclaimed(State, Index, Tables, SystemIndex);
++		&& true;
+ }
+ 
+ bool CosmicHazards::ClaimMayFollowOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 SystemIndex)

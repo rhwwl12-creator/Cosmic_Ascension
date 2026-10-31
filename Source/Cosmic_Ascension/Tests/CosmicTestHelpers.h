@@ -8,6 +8,8 @@
 
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/PanelWidget.h"
+#include "Components/SlateWrapperTypes.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "Core/CosmicIDs.h"
@@ -503,6 +505,44 @@ namespace CosmicTests
 			});
 		}
 		return Shown;
+	}
+
+	// The lines a widget shows from the block From down, in tree order (B6a [B-6a4] - the chronicle's foot: the cause line,
+	// the no-vessel line under it, the provisional notice): every text block at or after From that is shown - it and every
+	// panel above it neither collapsed nor hidden -, one entry per line of its text, empty lines left out. Whether the page
+	// puts a line in its own block or under another in one block, the lines and their order are the same.
+	inline TArray<FString> ShownLinesFrom(const UUserWidget& Widget, const UWidget* From)
+	{
+		TArray<FString> Lines;
+		if (!Widget.WidgetTree || !From)
+		{
+			return Lines;
+		}
+		auto IsShownUp = [](const UWidget* Child)
+		{
+			for (const UWidget* At = Child; At; At = At->GetParent())
+			{
+				const ESlateVisibility Visibility = At->GetVisibility();
+				if (Visibility == ESlateVisibility::Collapsed || Visibility == ESlateVisibility::Hidden)
+				{
+					return false;
+				}
+			}
+			return true;
+		};
+		bool bReached = false;
+		Widget.WidgetTree->ForEachWidget([&](UWidget* Child)
+		{
+			bReached |= Child == From;
+			const UTextBlock* Block = bReached ? Cast<UTextBlock>(Child) : nullptr;
+			if (Block && IsShownUp(Block))
+			{
+				TArray<FString> Parts;
+				Block->GetText().ToString().ParseIntoArrayLines(Parts, true);
+				Lines.Append(Parts);
+			}
+		});
+		return Lines;
 	}
 }
 

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -646,7 +646,7 @@
+ 	}
+ 	// A count of 0 below the threshold: the stability fell after the economy stage counted (a card's answer between ticks,
+ 	// an expiry of the crisis stage) - the run has not begun, so the line waits for the tick that counts it.
+-	Watch.bShown = Civ.Stability < LowStabilityThreshold && Watch.LowTicks > 0 && Watch.NeededTicks > 0 && !bRebellionStands;
++	Watch.bShown = Civ.Stability < LowStabilityThreshold && Watch.LowTicks > 0 && Watch.NeededTicks > 0;
+ 	return Watch;
+ }
+ 

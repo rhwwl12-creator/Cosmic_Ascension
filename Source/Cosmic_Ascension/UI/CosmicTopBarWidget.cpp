@@ -212,7 +212,7 @@ TSharedRef<SWidget> UCosmicTopBarWidget::RebuildWidget()
 		ClockButton->OnUnhovered.AddUniqueDynamic(this, &UCosmicTopBarWidget::HandleClockUnhovered);
 		// Set once: SetToolTipText builds a new Slate tooltip each time. What a year is, then what a press does (a flat
 		// button does not look pressable).
-		// A third line states the provisional end as a rule of the run (MVP item 4): the tooltip is built once.
+		// A third line states the clock end as a rule of the run (MVP item 4; none without a clock end): the tooltip is built once.
 		{
 			const ACosmicPlayerController* Owner = Cast<ACosmicPlayerController>(GetOwningPlayer());
 			const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
@@ -533,13 +533,14 @@ void UCosmicTopBarWidget::HandleSpeed(FName Action, float Value)
 FText UCosmicTopBarWidget::ClockTipOf(int32 EndTick, bool bEndOn)
 {
 	const FText Tip = FText::Format(INVTEXT("{0}\n{1}"), CosmicUI::Label(TEXT("Time.Tip")), CosmicUI::Label(TEXT("Time.TipPress")));
-	if (!bEndOn)
+	// The clock is the one end this run reaches (B6a decision 13): no clock end, no rule line (Chronicle.RuleRung is not read -
+	// B6b writes the fifth rung's rule into it).
+	if (!bEndOn || EndTick <= 0)
 	{
 		return Tip;
 	}
 	// Always in cycles: the rule is the run's, not the viewer's unit.
-	const FText Rule = EndTick > 0 ? FText::Format(CosmicUI::Label(TEXT("Chronicle.Rule")), CosmicUI::ClockLabel(EndTick, ECosmicTimeUnit::Cycle))
-		: CosmicUI::Label(TEXT("Chronicle.RuleRung"));
+	const FText Rule = FText::Format(CosmicUI::Label(TEXT("Chronicle.Rule")), CosmicUI::ClockLabel(EndTick, ECosmicTimeUnit::Cycle));
 	return FText::Format(INVTEXT("{0}\n{1}"), Tip, Rule);
 }
 

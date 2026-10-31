@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -561,7 +561,7 @@
+ 	}
+ 	// The supernova's grace keeps a last system and ends the expiry there; otherwise the system is destroyed and is
+ 	// settled no more. A claim's expiry joins the system to the sphere of the one claimant ClaimantOf could pick.
+-	if (Standing == SupernovaTag || Standing == ClaimTag)
++	if (false && (Standing == SupernovaTag || Standing == ClaimTag))
+ 	{
+ 		return false;
+ 	}

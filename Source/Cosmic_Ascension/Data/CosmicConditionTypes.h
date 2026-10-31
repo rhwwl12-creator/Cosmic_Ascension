@@ -192,3 +192,33 @@ struct COSMIC_ASCENSION_API FCosmicEffect
 	UPROPERTY(EditAnywhere)
 	int32 DurationTicks = 0;
 };
+
+namespace CosmicConditions
+{
+	// A count of ticks written as a condition's Key (CivStabilityBelowFor and the like): digits only, nine at most. Anything
+	// else is 0, which means "no count": a caller tests the count for being above zero before it compares (every counter is at
+	// least 0), so a malformed Key makes its condition false and is never read by its numeric prefix. The one parse - the
+	// evaluator (Events) and the rebellion watch (Sim/CosmicHazards) both read a Key through it (B6a [B-6a4]).
+	inline int32 TickCountOf(FName Key)
+	{
+		if (Key.IsNone())
+		{
+			return 0;
+		}
+		const FString Text = Key.ToString();
+		if (Text.Len() > 9)
+		{
+			return 0;
+		}
+		int32 Count = 0;
+		for (const TCHAR Char : Text)
+		{
+			if (Char < TEXT('0') || Char > TEXT('9'))
+			{
+				return 0;
+			}
+			Count = Count * 10 + static_cast<int32>(Char - TEXT('0'));
+		}
+		return Count;
+	}
+}

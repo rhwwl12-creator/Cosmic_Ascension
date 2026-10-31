@@ -46,7 +46,9 @@ namespace CosmicChronicleScreen
 }
 
 /** The chronicle screen (MVP item 4, section 8.4's minimal form): a dark veil, one centred column in a scroll box (life chapters, the epilogue's two fixed
- * lines, the horizon line) and, outside the scroll, the cause note, the provisional notice and two buttons. A click on the page is not a map click.
+ * lines, the horizon line) and, outside the scroll, the cause note (B6a: its line under it when the end came with no vessel - ST_CA
+ * Chronicle.Note.NoVessel), the provisional notice (the clock's end only) and two buttons. No screen title for an end (B6a decision 6-na): every end
+ * has the same page, colours and fixed lines, and only the cause line differs. A click on the page is not a map click.
  * A chapter is its title, its facts (the peoples ruled, or for a life that never ruled ST_CA Chronicle.BornAmong with its birth people, then 'wandering';
  * the rung; the cycles), then - B5 - the span with no vessel that led to it under ST_CA Chronicle.NoVessel, its body, and on the last chapter the span
  * after its death when no shown life follows (FCosmicChronicleChapter::Before, After; a span without a line shows nothing).
@@ -59,7 +61,7 @@ class COSMIC_ASCENSION_API UCosmicChronicleWidget : public UUserWidget
 {
 	GENERATED_BODY()
 public:
-	void Open(const FCosmicEndingRecord& Record, bool bAtOnce);   // the record picks the note (an empty Kind = the development preview: no note, no provisional notice, no 'new run'); bAtOnce: no fade, no reveal
+	void Open(const FCosmicEndingRecord& Record, bool bAtOnce);   // the record picks the note, the no-vessel line (bNoVessel) and the provisional notice (Ending.Clock only); an empty Kind = the development preview: none of them, no 'new run'; bAtOnce: no fade, no reveal
 	void Close();                                           // a 'new run' half pressed is forgotten
 	bool IsOpen() const { return bOpen; }
 	bool IsRevealing() const { return bOpen && !bRevealed; }   // lines still to show (the buttons wait)
@@ -73,6 +75,7 @@ public:
 	TArray<FLinearColor> GetLineColors() const;             // tests: the colours of the lines' messages, in order
 	TArray<CosmicChronicleScreen::FRowLook> GetRowLooks() const;   // tests: how each row of GetPageTexts is drawn, in the same order
 	const UTextBlock* GetNoteText() const { return NoteText; }
+	const UTextBlock* GetNoVesselText() const { return NoVesselText; }   // tests: Chronicle.Note.NoVessel under the cause line, collapsed and empty unless the record's bNoVessel
 	const UTextBlock* GetProvisionalText() const { return ProvisionalText; }
 	UCosmicActionButton* GetToMapButton() const { return ToMapButton; }
 	UCosmicActionButton* GetNewRunButton() const { return NewRunButton; }
@@ -90,14 +93,19 @@ private:
 	void BuildPage();
 	// The veil's colour, the rows' opacities and the buttons for the time Elapsed since Open.
 	void ShowProgress();
-	// The cause line of an ending record (empty for a preview - an empty Kind). Interim lines until [B-6a4] (B6a header section 2.7): Ending.Clock
-	// says the record's Tick; every other kind names the record's CivID people when the state holds it, else the line that names none.
+	// The cause line of an ending record (empty for a preview - an empty Kind; B6a header sections 3.3, 4): Ending.RuledPeople names the
+	// record's CivID people (a ruled people was met) and Ending.OtherPeople names it only while the viewer is shown it (the view's answer -
+	// CosmicMapLook::KnownViewOf, invariant rule 14), each by Chronicle.Note.Rung, else - or when the state no longer holds that people -
+	// Chronicle.Note.RungNoCiv; Ending.Vessel names the vessel (Chronicle.Note.Vessel - CosmicChronicle::VesselNameOf of the last life, the
+	// inauguration line's {Player}); Ending.NoCandidate says Chronicle.Note.NoCandidate; Ending.Clock says the record's Tick
+	// (Chronicle.Note.Clock - the record's, not State.Tick).
 	FText NoteOf(const FCosmicEndingRecord& Record) const;
 
 	UPROPERTY(Transient) TObjectPtr<UBorder> Veil;
 	UPROPERTY(Transient) TObjectPtr<UScrollBox> Page;
 	UPROPERTY(Transient) TArray<TObjectPtr<UWidget>> LineRows;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> NoteText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> NoVesselText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> ProvisionalText;
 	UPROPERTY(Transient) TObjectPtr<UWidget> ButtonRow;
 	UPROPERTY(Transient) TObjectPtr<UCosmicActionButton> ToMapButton;

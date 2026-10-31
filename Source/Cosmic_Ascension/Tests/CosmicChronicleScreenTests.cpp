@@ -495,7 +495,11 @@ bool FCosmicUIRunEndTest::RunTest(const FString& Parameters)
 // wanderer. B5 (header section 2.7, 4): the clock end told to every embodied wanderer and to no ruler, no vessel's line in
 // the interregnum, the span with no vessel under its sub-head at the head of the next chapter, the facts of a life that
 // never ruled ('born among - wandering') and of a ruler that died on its throne (no 'wandering'), no chapter for a life born
-// on the end's tick.
+// on the end's tick. B6a [B-6a4] (header section 3.3, 4, 6): the cause line of each kind of record - the ruled people always
+// named, another people only while the viewer is shown it (mutation: naming it always breaks the unmet and the far case),
+// the vessel by its name, the silence, the clock with the record's tick -, the no-vessel line under it when the record says
+// so, the provisional notice for the clock alone, nothing under an empty record's page, and the tooltip's rule for the
+// clock alone.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicUIChronicleTest, "Cosmic_Ascension.UI.Chronicle", CosmicTests::Flags)
 bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 {
@@ -606,12 +610,32 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 		&& (Stamps.IsEmpty() || Page->GetLineStamps()[0].ToString() == Stamps[0].ToString()));
 	Controller->SetTimeUnit(ECosmicTimeUnit::Cycle);
 
-	// ---- The cause notes ----
-	TestEqual(TEXT("The clock's note says the record's tick, not the state's"), Shown(Page->GetNoteText()),
-		FText::Format(Label(TEXT("Chronicle.Note.Clock")), FText::AsNumber(RecordTick)).ToString());
-	TestEqual(TEXT("and the provisional notice"), Shown(Page->GetProvisionalText()), Words(TEXT("Chronicle.Provisional")));
-	// Until [B-6a4] every other kind has the interim line (B6a header section 2.7): Chronicle.Note.Rung naming the record's
-	// people when the state holds it, Chronicle.Note.RungNoCiv otherwise - read from the record, never from the rungs.
+	// ---- The cause lines (B6a [B-6a4], header section 3.3, 4): one line per kind under the page, the no-vessel line under it
+	// when the record says so, the provisional notice for the clock alone ----
+	const FString& Placeholder = FStringTableEntry::GetPlaceholderSourceString();
+	for (const TCHAR* Key : { TEXT("Chronicle.Note.Rung"), TEXT("Chronicle.Note.RungNoCiv"), TEXT("Chronicle.Note.Clock"), TEXT("Chronicle.Note.Vessel"),
+		TEXT("Chronicle.Note.NoCandidate"), TEXT("Chronicle.Note.NoVessel"), TEXT("Chronicle.Provisional") })
+	{
+		TestFalse(*FString::Printf(TEXT("(the string table holds %s)"), Key), Words(Key).Contains(Placeholder));
+	}
+	// The lines under the page, from the cause note down to the buttons: the same whether the no-vessel line has a block of
+	// its own or stands under the cause in one.
+	auto FootIs = [this, Page](const TCHAR* What, const TArray<FString>& Lines)
+	{
+		TestEqual(What, FString::Join(CosmicTests::ShownLinesFrom(*Page, Page->GetNoteText()), TEXT("\n")), FString::Join(Lines, TEXT("\n")));
+	};
+	const FString ClockLine = FText::Format(Label(TEXT("Chronicle.Note.Clock")), FText::AsNumber(RecordTick)).ToString();
+	const FString NoVesselLine = Words(TEXT("Chronicle.Note.NoVessel"));
+	const FString NoticeLine = Words(TEXT("Chronicle.Provisional"));
+	TestEqual(TEXT("The clock's note says the record's tick, not the state's"), Shown(Page->GetNoteText()), ClockLine);
+	TestEqual(TEXT("and the provisional notice"), Shown(Page->GetProvisionalText()), NoticeLine);
+	FootIs(TEXT("The clock's end: its cause and the provisional notice - no no-vessel line with a vessel"), { ClockLine, NoticeLine });
+	{
+		FCosmicEndingRecord Alone = ClockRecord;
+		Alone.bNoVessel = true;
+		Page->Open(Alone, true);
+		FootIs(TEXT("The clock's end met with no vessel: the no-vessel line under the cause, before the notice"), { ClockLine, NoVesselLine, NoticeLine });
+	}
 	const int32 Other = Live.Civs.IndexOfByPredicate([&Live, Ruled](const FCivilizationState& Civ) { return Civ.CivID != Live.Civs[Ruled].CivID; });
 	if (TestTrue(TEXT("(another people)"), Other != INDEX_NONE))
 	{
@@ -622,24 +646,95 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 			Args.Add(TEXT("Civ"), CivName);
 			return FText::Format(Label(TEXT("Chronicle.Note.Rung")), Args).ToString();
 		};
+		const FString NoCivLine = Words(TEXT("Chronicle.Note.RungNoCiv"));
+		const TArray<FKnownMark> WasMet = Live.Knowing.MetCivs;
+		const EAscensionTier WasRuledTier = Live.Civs[Ruled].Tier;
+		const EAscensionTier WasOtherTier = Live.Civs[Other].Tier;
+		const EPlayerRole WasRole = Live.Player.Role;
+		const FName WasRuledID = Live.Player.RuledCivID;
+		const EAscensionTier WasPersonal = Live.Calling.PersonalTier;
+		auto MeetOther = [&Live, Other](bool bMet)
+		{
+			const FName OtherID = Live.Civs[Other].CivID;
+			Live.Knowing.MetCivs.RemoveAll([OtherID](const FKnownMark& Mark) { return Mark.ID == OtherID; });
+			if (bMet)
+			{
+				FKnownMark& Mark = Live.Knowing.MetCivs.AddDefaulted_GetRef();
+				Mark.ID = OtherID;
+				Mark.Tick = Live.Tick;
+			}
+		};
+		// The viewer rules on the first rung (the view's tier is the ruled people's - GetViewerTier), without the development
+		// aid that shows every people.
+		Live.Civs[Ruled].Tier = EAscensionTier::Tier1_Planetary;
+		TestFalse(TEXT("(CosmicSeeAll is off)"), Controller->IsSeeingAll());
+
+		// Another people: named only while the viewer is shown it (CosmicMapLook::KnownViewOf - met, fewer than ShownGap
+		// rungs above the viewer); else the line that names none (mutation: always naming it breaks the far and the unmet case).
+		MeetOther(true);
+		Live.Civs[Other].Tier = EAscensionTier::Tier3_Causal;
 		Page->Open(RecordOf(CosmicTags::EndingOtherPeople(), Live.Civs[Other].CivID), true);
-		TestEqual(TEXT("Another people's end names the record's people"), Shown(Page->GetNoteText()), NamesOf(Live.Civs[Other].CivName));
-		TestEqual(TEXT("and the provisional notice follows"), Shown(Page->GetProvisionalText()), Words(TEXT("Chronicle.Provisional")));
+		FootIs(TEXT("Another people met and shown: its end names it, with no provisional notice"), { NamesOf(Live.Civs[Other].CivName) });
+		TestTrue(TEXT("(no provisional notice for another people's end)"), Shown(Page->GetProvisionalText()).IsEmpty());
 		TestTrue(TEXT("with 'new run'"), IsShownWidget(Page->GetNewRunButton()));
-		Page->Open(RecordOf(CosmicTags::EndingRuledPeople(), Live.Civs[Ruled].CivID), true);
-		TestEqual(TEXT("The ruled people's end names the record's people - whatever its rung"), Shown(Page->GetNoteText()), NamesOf(Live.Civs[Ruled].CivName));
-		Page->Open(RecordOf(CosmicTags::EndingNoCandidate(), NAME_None), true);
-		TestEqual(TEXT("The silence names none"), Shown(Page->GetNoteText()), Words(TEXT("Chronicle.Note.RungNoCiv")));
+		{
+			FCosmicEndingRecord Alone = RecordOf(CosmicTags::EndingOtherPeople(), Live.Civs[Other].CivID);
+			Alone.bNoVessel = true;
+			Page->Open(Alone, true);
+			FootIs(TEXT("Another people's end met with no vessel: the no-vessel line under the cause"), { NamesOf(Live.Civs[Other].CivName), NoVesselLine });
+		}
+		Live.Civs[Other].Tier = EAscensionTier::Tier4_Transcendent;
+		Page->Open(RecordOf(CosmicTags::EndingOtherPeople(), Live.Civs[Other].CivID), true);
+		FootIs(TEXT("Another people met but ShownGap rungs above the viewer is named by none"), { NoCivLine });
+		Live.Civs[Other].Tier = EAscensionTier::Tier3_Causal;
+		MeetOther(false);
+		Page->Open(RecordOf(CosmicTags::EndingOtherPeople(), Live.Civs[Other].CivID), true);
+		FootIs(TEXT("Another people never met is named by none"), { NoCivLine });
 		Page->Open(RecordOf(CosmicTags::EndingOtherPeople(), FName(TEXT("civ_test_nowhere"))), true);
-		TestEqual(TEXT("A record's people the state does not hold is named by none"), Shown(Page->GetNoteText()), Words(TEXT("Chronicle.Note.RungNoCiv")));
+		FootIs(TEXT("A record's people the state does not hold is named by none"), { NoCivLine });
+
+		// The ruled people: always named - whatever its rung, and whatever the knowing would show: the vessel gone from its
+		// throne (the view's tier is then the calling's own) and the people four rungs above it.
+		Page->Open(RecordOf(CosmicTags::EndingRuledPeople(), Live.Civs[Ruled].CivID), true);
+		FootIs(TEXT("The ruled people's end names the record's people, with no provisional notice"), { NamesOf(Live.Civs[Ruled].CivName) });
+		Live.Player.Role = EPlayerRole::Wanderer;
+		Live.Player.RuledCivID = NAME_None;
+		Live.Calling.PersonalTier = EAscensionTier::Tier1_Planetary;
+		Live.Civs[Ruled].Tier = EAscensionTier::Tier5_EternalOrder;
+		Page->Open(RecordOf(CosmicTags::EndingRuledPeople(), Live.Civs[Ruled].CivID), true);
+		FootIs(TEXT("The ruled people's end names its people where the knowing would not show it"), { NamesOf(Live.Civs[Ruled].CivName) });
+		Live.Player.Role = WasRole;
+		Live.Player.RuledCivID = WasRuledID;
+		Live.Calling.PersonalTier = WasPersonal;
+		Page->Open(RecordOf(CosmicTags::EndingRuledPeople(), FName(TEXT("civ_test_nowhere"))), true);
+		FootIs(TEXT("A ruled people the state no longer holds is named by none"), { NoCivLine });
+
+		// The vessel's own end: the vessel's name (the life's - CosmicChronicle::VesselNameOf), no notice.
+		{
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("Player"), CosmicChronicle::VesselNameOf(Live.Calling.Lives.Last(), Sim->GetTables()));
+			Page->Open(RecordOf(CosmicTags::EndingVessel(), NAME_None), true);
+			FootIs(TEXT("The vessel's end says the vessel's line"), { FText::Format(Label(TEXT("Chronicle.Note.Vessel")), Args).ToString() });
+		}
+		// The silence: its own line, always with no vessel, no notice.
+		{
+			FCosmicEndingRecord Silence = RecordOf(CosmicTags::EndingNoCandidate(), NAME_None);
+			Silence.bNoVessel = true;
+			Page->Open(Silence, true);
+			FootIs(TEXT("The silence says that no star is left for a vessel, then the no-vessel line"), { Words(TEXT("Chronicle.Note.NoCandidate")), NoVesselLine });
+			TestTrue(TEXT("(no provisional notice for the silence)"), Shown(Page->GetProvisionalText()).IsEmpty());
+		}
+		Live.Knowing.MetCivs = WasMet;
+		Live.Civs[Ruled].Tier = WasRuledTier;
+		Live.Civs[Other].Tier = WasOtherTier;
+
 		// The rungs are not read: the ruled people on the third rung with the life's peak there names no one under the clock.
 		const EAscensionTier WasPeak = Mutable.PeakTier;
 		const EAscensionTier WasTier = Live.Civs[Ruled].Tier;
 		Mutable.PeakTier = EAscensionTier::Tier3_Causal;
 		Live.Civs[Ruled].Tier = EAscensionTier::Tier3_Causal;
 		Page->Open(ClockRecord, true);
-		TestEqual(TEXT("A people on the third rung changes nothing: the clock's note"), Shown(Page->GetNoteText()),
-			FText::Format(Label(TEXT("Chronicle.Note.Clock")), FText::AsNumber(RecordTick)).ToString());
+		FootIs(TEXT("A people on the third rung changes nothing: the clock's note and the notice"), { ClockLine, NoticeLine });
 		Mutable.PeakTier = WasPeak;
 		Live.Civs[Ruled].Tier = WasTier;
 
@@ -669,6 +764,7 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 	Page->Open(FCosmicEndingRecord(), true);
 	TestTrue(TEXT("A preview has no note"), Shown(Page->GetNoteText()).IsEmpty());
 	TestTrue(TEXT("no provisional notice"), Shown(Page->GetProvisionalText()).IsEmpty());
+	TestTrue(TEXT("no line at all under the page"), CosmicTests::ShownLinesFrom(*Page, Page->GetNoteText()).IsEmpty());
 	TestFalse(TEXT("and no 'new run'"), IsShownWidget(Page->GetNewRunButton()));
 
 	// ---- The reveal: the buttons only once every line shows ----
@@ -706,16 +802,17 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 	Sim->SetTimeScale(0.f);
 	FGalaxyState& Bar42 = Sim->GetMutableState();
 	const int32 EndTick = Sim->GetRules().ProvisionalEndTick;
-	// The clock's tooltip states the rule: in cycles, the rung alone without a clock end, nothing with the end off.
+	// The clock's tooltip states the rule: in cycles; with no clock end (the knob 0 or less) or with the end off no rule at all
+	// (B6a [B-6a4], decision 13 - the clock is the one end a run of B6a meets; Chronicle.RuleRung is not read).
 	FString Third = UCosmicTopBarWidget::ClockTipOf(EndTick, true).ToString();
 	Third.Split(TEXT("\n"), nullptr, &Third, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 	TestEqual(TEXT("The clock's tooltip ends with the run's rule"), Third, FText::Format(Label(TEXT("Chronicle.Rule")), CosmicUI::ClockLabel(EndTick, ECosmicTimeUnit::Cycle)).ToString());
 	TestTrue(TEXT("(which names the end tick in cycles)"), Third.Contains(CosmicUI::ClockLabel(EndTick, ECosmicTimeUnit::Cycle).ToString()));
-	FString RungOnly = UCosmicTopBarWidget::ClockTipOf(0, true).ToString();
-	RungOnly.Split(TEXT("\n"), nullptr, &RungOnly, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
-	TestEqual(TEXT("Without a clock end the rule names the rung alone"), RungOnly, Words(TEXT("Chronicle.RuleRung")));
-	TestFalse(TEXT("With the end off the tooltip states no rule"), UCosmicTopBarWidget::ClockTipOf(EndTick, false).ToString().Contains(Words(TEXT("Chronicle.RuleRung")))
-		|| UCosmicTopBarWidget::ClockTipOf(EndTick, false).ToString().Contains(CosmicUI::ClockLabel(EndTick, ECosmicTimeUnit::Cycle).ToString()));
+	const FString NoRule = UCosmicTopBarWidget::ClockTipOf(EndTick, false).ToString();
+	TestFalse(TEXT("With the end off the tooltip states no rule"), NoRule.Contains(Third) || NoRule.Contains(CosmicUI::ClockLabel(EndTick, ECosmicTimeUnit::Cycle).ToString()));
+	TestEqual(TEXT("The tooltip with the rule is the one without it and the rule's line"), UCosmicTopBarWidget::ClockTipOf(EndTick, true).ToString(), NoRule + TEXT("\n") + Third);
+	TestEqual(TEXT("Without a clock end the tooltip states no rule - no rung's rule either"), UCosmicTopBarWidget::ClockTipOf(0, true).ToString(), NoRule);
+	TestEqual(TEXT("nor with a knob below 0"), UCosmicTopBarWidget::ClockTipOf(-1, true).ToString(), NoRule);
 	TestEqual(TEXT("The bar's clock carries that tooltip"), Bar->GetClockButton() ? Bar->GetClockButton()->GetToolTipText().ToString() : FString(), UCosmicTopBarWidget::ClockTipOf(EndTick, true).ToString());
 	// The notice: none before the last EndSoonTicks, then the time left.
 	Bar42.Tick = EndTick - CosmicChronicleScreen::EndSoonTicks - 1;
@@ -725,7 +822,7 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 	Bar->Refresh();
 	TestEqual(TEXT("In it the bar says the run stops soon"), Shown(Bar->GetEndSoonText()),
 		FText::Format(Label(TEXT("Chronicle.Soon")), CosmicUI::TimeLeftLabel(CosmicChronicleScreen::EndSoonTicks, ECosmicTimeUnit::Cycle)).ToString());
-	// A ruler is told no clock end before the notice's window (its people may end the run at the rung).
+	// A ruler is told no clock end before the notice's window (unchanged in B6a - the tooltip's rule tells a ruler the end).
 	Bar42.Tick = 3000;
 	Bar->Refresh();
 	TestTrue(TEXT("A ruler's bar tells no end tick"), Shown(Bar->GetEndSoonText()).IsEmpty());

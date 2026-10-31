@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+@@ -361,7 +361,7 @@
+ 	{
+ 		// The end came while no vessel stood (B6a header section 2.9): the record holds it, so the page does not read the
+ 		// calling's LifeState again. Never on a preview.
+-		const bool bNoVessel = Record.Kind.IsValid() && Record.bNoVessel;
++		const bool bNoVessel = false;
+ 		NoVesselText->SetText(bNoVessel ? Label(TEXT("Chronicle.Note.NoVessel")) : FText::GetEmpty());
+ 		NoVesselText->SetVisibility(bNoVessel ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+ 	}

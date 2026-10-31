@@ -67,8 +67,9 @@ public:
 	const UTextBlock* GetClockText() const { return ClockText; }
 	/** The clock's button (tests read its tooltip). */
 	const UButton* GetClockButton() const { return ClockButton; }
-	/** The clock's tooltip: what the clock is, what a press does and, with the provisional end on (MVP item 4), the run's rule -
-	 * Chronicle.Rule with EndTick in cycles, or Chronicle.RuleRung without a clock end (EndTick 0 or less). Built once (tests). */
+	/** The clock's tooltip: what the clock is, what a press does and, with the provisional end on (MVP item 4) and a clock end
+	 * (EndTick above 0), the run's rule - Chronicle.Rule with EndTick in cycles. No rule line without a clock end: the clock is
+	 * the one end play reaches in B6a (decision 13; Chronicle.RuleRung is not read). Built once (tests). */
 	static FText ClockTipOf(int32 EndTick, bool bEndOn);
 
 	/** What a click on the view button does (tests call it in place of a click). */
@@ -84,7 +85,8 @@ public:
 	const UCosmicActionButton* GetViewButton() const { return ViewButton; }
 	/** The provisional end (MVP item 4): the grey line beside the clock - Chronicle.Soon over the last CosmicChronicleScreen::EndSoonTicks before the clock end,
 	 * else Chronicle.Until while the vessel is an embodied wanderer (B5: every one, a called vessel that never ruled too - none in the interregnum and none
-	 * for a ruler); collapsed after the end, with the end switched off or without a clock end (tests read it). */
+	 * for a ruler, who is told the clock end by the clock tip's rule line - B6a header section 4); collapsed after the end, with the end switched off or
+	 * without a clock end (tests read it). */
 	const UTextBlock* GetEndSoonText() const { return EndSoonText; }
 	/** The 'chronicle' button after the speeds: shown only while the run is over and its page is folded; a press reopens it (tests press it). */
 	UCosmicActionButton* GetReopenButton() const { return ReopenButton; }

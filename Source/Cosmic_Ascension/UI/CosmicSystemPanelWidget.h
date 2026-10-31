@@ -125,6 +125,11 @@ namespace CosmicSlotWatch
  * IsPresetNow - a button is greyed only when its press would change nothing), and [Society]'s tooltip says what Society
  * research opens (Focus.TipOpensSlot or Focus.TipOpensAll, and Focus.TipOpensRecovery while DT_Rules.SocietyRecoveryBonus
  * gives one).
+ * B6a (header section 4, decision 14), for an embodied ruler on the people it rules, in a run that is not over: on its settled
+ * system with a hazard standing, right under the hazard's line and as the tooltip of the detail lines, Panel.ClaimMayFollow
+ * while CosmicHazards::ClaimMayFollowOf says an expiry with no answer could leave a claim there; on its capital, after the
+ * edict line, Panel.RebellionWatch while CosmicHazards::RebellionWatchOf shows it - the threshold as a percent, the ticks
+ * under it and the ticks the rebellion row waits for, as cycles (the simulation's constant and the row's key - no value here).
  * The fleet (B3 header section 4), for the people the player rules: on its settled system, the line Guard.Holding while its
  * fleet guards it (and Guard.Delay while its delay, CosmicConflict::GuardDelayTicksOf at gap 0, is a whole tick - a new
  * hazard there gains time), else
@@ -207,7 +212,7 @@ public:
 	 * the row and when its Title is empty (a slip the schema refuses for a fallen row).
 	 */
 	static FText SpiritTipOf(const FCosmicSpiritLook& Spirit, const FCosmicDataTables& Tables);
-	/** The block of detail lines (tests read its text). */
+	/** The block of detail lines (tests read its text, and its tooltip - Panel.ClaimMayFollow or empty). */
 	const UTextBlock* GetDetailText() const { return DetailText; }
 	/** The line of the sight's words under the detail lines, with the same words as its tooltip (tests): shown in the
 	 * spiritual view when SpiritTipOf has words, collapsed and empty otherwise. */

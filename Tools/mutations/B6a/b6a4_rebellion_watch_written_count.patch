@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -617,7 +617,7 @@
+ 				bNeverHolds = true;
+ 				continue;
+ 			}
+-			Watch.NeededTicks = FMath::Max(Watch.NeededTicks, Count);
++			Watch.NeededTicks = FMath::Max(Watch.NeededTicks, 100);
+ 		}
+ 		if (bNeverHolds)
+ 		{

@@ -640,6 +640,10 @@ bool FCosmicUIEpitaphTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("and opens the chronicle"), Screen.Chronicle->IsOpen());
 		TestEqual(TEXT("whose cause note says the end's tick"), Shown(Screen.Chronicle->GetNoteText()),
 			FText::Format(Label(TEXT("Chronicle.Note.Clock")), FText::AsNumber(EndTick)).ToString());
+		// B6a [B-6a4] (header section 2.9): the end came while no vessel stood - the no-vessel line under the cause, then the notice.
+		TestEqual(TEXT("with the no-vessel line under it, then the provisional notice"), FString::Join(CosmicTests::ShownLinesFrom(*Screen.Chronicle, Screen.Chronicle->GetNoteText()), TEXT("\n")),
+			FString::Join(TArray<FString>{ FText::Format(Label(TEXT("Chronicle.Note.Clock")), FText::AsNumber(EndTick)).ToString(), Words(TEXT("Chronicle.Note.NoVessel")),
+				Words(TEXT("Chronicle.Provisional")) }, TEXT("\n")));
 		Controller->LookAtMap();
 	}
 
@@ -657,6 +661,10 @@ bool FCosmicUIEpitaphTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("Its 'next' folds the pages - no digest"), Pages->IsOpen());
 		TestTrue(TEXT("and opens the chronicle"), Screen.Chronicle->IsOpen());
 		TestEqual(TEXT("with no leap run"), Last.Tick, EndTick);
+		// The death was carried out in the tenth stage of the end's tick, before the record: the end came with no vessel.
+		TestEqual(TEXT("whose cause is the clock's, with the no-vessel line under it"), FString::Join(CosmicTests::ShownLinesFrom(*Screen.Chronicle, Screen.Chronicle->GetNoteText()), TEXT("\n")),
+			FString::Join(TArray<FString>{ FText::Format(Label(TEXT("Chronicle.Note.Clock")), FText::AsNumber(EndTick)).ToString(), Words(TEXT("Chronicle.Note.NoVessel")),
+				Words(TEXT("Chronicle.Provisional")) }, TEXT("\n")));
 		Controller->LookAtMap();
 	}
 
@@ -865,8 +873,10 @@ bool FCosmicUIEpitaphTest::RunTest(const FString& Parameters)
 			Pages->PressNext();
 			TestFalse(TEXT("Its 'next' folds the pages"), Pages->IsOpen());
 			TestTrue(TEXT("and opens the chronicle"), Screen.Chronicle->IsOpen());
-			// The interim note until [B-6a4] (header section 2.7): a kind other than the clock with no people names none.
-			TestEqual(TEXT("whose cause note is the interim line naming no people"), Shown(Screen.Chronicle->GetNoteText()), Words(TEXT("Chronicle.Note.RungNoCiv")));
+			// B6a [B-6a4] (header section 3.3, 6): the silence's own cause line, the no-vessel line under it, no provisional notice.
+			TestEqual(TEXT("whose cause is the silence's line, with the no-vessel line under it and no notice"),
+				FString::Join(CosmicTests::ShownLinesFrom(*Screen.Chronicle, Screen.Chronicle->GetNoteText()), TEXT("\n")),
+				FString::Join(TArray<FString>{ Words(TEXT("Chronicle.Note.NoCandidate")), Words(TEXT("Chronicle.Note.NoVessel")) }, TEXT("\n")));
 		}
 		Controller->LookAtMap();
 	}

@@ -6,6 +6,7 @@
 #include "Core/CosmicTags.h"
 #include "Core/CosmicTypes.h"
 #include "Cosmic_Ascension.h"
+#include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
@@ -219,30 +220,10 @@ namespace CosmicEventImpl
 		return Factor;
 	}
 
-	// A count of ticks written as a Key: digits only, nine at most. Anything else is 0, which means "no count": the
-	// caller tests the count for being above zero before it compares (every counter is at least 0), so a malformed Key
-	// makes its condition false and is never read by its numeric prefix.
+	// A count of ticks written as a Key: the one parse is CosmicConditions::TickCountOf (Data/CosmicConditionTypes.h).
 	int32 TickCountOf(FName Key)
 	{
-		if (Key.IsNone())
-		{
-			return 0;
-		}
-		const FString Text = Key.ToString();
-		if (Text.Len() > 9)
-		{
-			return 0;
-		}
-		int32 Count = 0;
-		for (const TCHAR Char : Text)
-		{
-			if (Char < TEXT('0') || Char > TEXT('9'))
-			{
-				return 0;
-			}
-			Count = Count * 10 + static_cast<int32>(Char - TEXT('0'));
-		}
-		return Count;
+		return CosmicConditions::TickCountOf(Key);
 	}
 
 	bool IsSettledSystemOf(const FGalaxyState& State, int32 SystemIndex, FName CivID)

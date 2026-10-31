@@ -5,6 +5,11 @@
 // UCosmicEventSubsystem::Apply (SpawnHazard, ResolveHazard, TransferSystem) and the hazard stage both come here, so a
 // hazard is placed by one path and a system changes hands by one path. What has to be told afterwards is left as a note
 // in the context (FCosmicEvalContext::Notes) for UCosmicEventSubsystem::FollowUpNotes.
+// The single windows here (CLAUDE.md rule 13): Place (a hazard enters a slot), VesselAtRiskOf (whom a KillPlayer
+// reaches - B5), ClaimRuleHoldsOf (the claim rule's deciding three, shared by the crisis stage and the screen - B6a),
+// ClaimMayFollowOf (the screen's answer for a standing hazard, after the expiry's order - B6a), and the rebellion watch:
+// LowStabilityThreshold (the one threshold the economy stage counts with) and RebellionWatchOf (what the capital panel
+// shows of it - B6a). The screen reads these and copies no rule.
 // RULE (section 6.1): files under Sim/ must never include UUserWidget or AActor headers.
 
 #pragma once
@@ -115,7 +120,8 @@ namespace CosmicHazards
 	 * The claimant of SystemIndex now (section 4.2), as an index into State.Transcendents: among the unsealed instances
 	 * whose DT_Transcendents row is Realm.Abyssal, whose sphere does not hold the system and lies within
 	 * DT_Rules.ClaimAdjacencyLanes lanes of it, the one whose pressure term on the system is largest; equal terms go to
-	 * the earlier instance. INDEX_NONE when there is none. Neither the cap of the sphere nor Law.Remnant is asked here.
+	 * the earlier instance. INDEX_NONE when there is none. Neither the cap of the sphere nor Law.Remnant is asked here
+	 * (ClaimRuleHoldsOf asks them).
 	 * Tribute (condition (b), Trait.Faith.Tribute) is not here: it needs the trait rows and a tribute paid a tick with it,
 	 * and no block owns it yet (B4 header section 0 - open question #137).
 	 */
@@ -126,6 +132,81 @@ namespace CosmicHazards
 	 * sphere of no fallen (Realm.Abyssal) instance, sealed or not. Nothing may join it to a sphere.
 	 */
 	COSMIC_ASCENSION_API bool IsLastUnclaimed(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, int32 SystemIndex);
+
+	/**
+	 * The claim rule (section 4.2) - its deciding three, the single window the game and the screen share (CLAUDE.md rule
+	 * 13; B6a header section 4, decision 14): a claimant of SystemIndex exists (ClaimantOf) and the tables hold its row,
+	 * its sphere holds fewer systems than the row's MaxInfluencedSystems, and the system is not its owner's last unclaimed
+	 * settled system (IsLastUnclaimed - Law.Remnant). Not asked here: the system being settled and its slot free, which
+	 * the crisis stage's claim rule after an expiry asks before it, and the faith number and the Hazard.Claim row, which it
+	 * asks after it (UGalaxySimulationSubsystem - TryPlaceClaim calls this, so the rule is written once); ClaimMayFollowOf
+	 * asks for the screen what the expiry decides first. World state only, no draw.
+	 */
+	COSMIC_ASCENSION_API bool ClaimRuleHoldsOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 SystemIndex);
+
+	/**
+	 * The screen's answer for the hazard standing on SystemIndex (B6a header section 4, decision 14): whether a claim may
+	 * stand on the system when that hazard expires unanswered - the single window the system panel's warning line and the
+	 * hazard's tooltip read (CLAUDE.md rule 13), so the screen copies no part of the rule. It follows the order of the
+	 * expiry (UGalaxySimulationSubsystem::ExpireHazard) and asks its gates through the functions the expiry calls:
+	 * false with no hazard standing, and for a tag no row holds (the expiry resolves it without a claim rule); false when
+	 * the owner holds the edict that answers the hazard (CosmicEdicts::HeldAnswerOf - the expiry resolves it and passes
+	 * no claim rule); false for Hazard.PreSupernova (the grace keeps a last system and the claim rule is not reached, or
+	 * the system is destroyed and is settled no more) and for Hazard.Claim (its expiry joins the system to the claimant's
+	 * sphere, and ClaimantOf picks no instance whose sphere holds the system - exact while a run has one fallen instance,
+	 * DT_Rules.FallenTranscendentCount 1; when it may have more, the block that raises it looks at this branch again).
+	 * Otherwise what the claim rule decides on the slot the expiry leaves free (the standing hazard itself is not asked):
+	 * a settled system, a Hazard.Claim row in the tables, and ClaimRuleHoldsOf. What the expiry's effects and the other
+	 * expiries of its tick change is not foreseen, nor the faith number (it always passes now): a claim "may" follow.
+	 * World state only, no draw.
+	 */
+	COSMIC_ASCENSION_API bool ClaimMayFollowOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 SystemIndex);
+
+	// Stability below this counts toward FCivilizationState.LowStabilityTicks (section 4.1): the economy stage counts with
+	// it at its end and RebellionWatchOf shows it - one constant, no copy (B6a header section 4). The CivStabilityBelowFor
+	// condition carries 0.3 for the reader only: the code reads its Key (the tick count), never its Value, and the schema
+	// holds that Value to 0.3 (Tools/data/schema.json, section 16 #25 (2)).
+	inline constexpr float LowStabilityThreshold = 0.3f;
+
+	/** What the rebellion watch of one people shows (RebellionWatchOf). */
+	struct COSMIC_ASCENSION_API FCosmicRebellionWatch
+	{
+		// Whether the capital panel's line stands.
+		bool bShown = false;
+		// LowStabilityThreshold.
+		float Threshold = 0.f;
+		// The people's FCivilizationState.LowStabilityTicks: the ticks counted below Threshold so far.
+		int32 LowTicks = 0;
+		// The tick count of the Hazard.Rebellion row's CivStabilityBelowFor condition: read from the row, never written in
+		// code.
+		int32 NeededTicks = 0;
+		// The first tick of the run the row's GalaxyTickAtLeast conditions hold at: the ceiling of the largest Value (the
+		// evaluator asks float(Tick) >= Value), 0 when the row has none or none above zero. Read from the row.
+		int64 NotBeforeTick = 0;
+		// The count the low run reaches at the first tick both conditions hold, while it runs on - the line's {2}:
+		// Max(NeededTicks, LowTicks + Max(0, NotBeforeTick - Tick)), clamped to int32; 0 when NeededTicks is 0.
+		int32 WaitTicks = 0;
+	};
+
+	/**
+	 * The rebellion watch of the people CivIndex (B6a header section 4, decision 14): the single window the capital
+	 * panel's line reads (CLAUDE.md rule 13), so the screen writes neither the threshold nor the counts. Threshold is
+	 * LowStabilityThreshold; LowTicks the people's LowStabilityTicks; NeededTicks the tick count of the CivStabilityBelowFor
+	 * conditions of the DT_Hazards row of Hazard.Rebellion (found by its tag), read as the capital rule's conditions read
+	 * it - the largest when the row has several, and 0 when one of the row's conditions read here is never true (a count
+	 * that is not digits above zero, a GalaxyTickAtLeast Value that is NaN or past any tick), when the row has no count,
+	 * or when no row holds the tag; NotBeforeTick the first tick its GalaxyTickAtLeast conditions hold at (the ceiling of
+	 * the largest Value). WaitTicks is what the line names: each tick of the low run adds one to LowTicks and one to the
+	 * tick, so the count reached at the first tick both conditions hold is NeededTicks, or LowTicks plus the ticks left to
+	 * NotBeforeTick when that is larger (before the row's tick a count past NeededTicks still waits) - the same number from
+	 * tick to tick while the run lasts. bShown when the people's Stability is below the threshold, LowTicks is above 0 (a
+	 * stability that fell after the economy stage counted - a card's answer between ticks, an expiry of the crisis stage
+	 * - has no run yet), NeededTicks is above 0, and no Hazard.Rebellion stands on its capital already (the hazard line
+	 * speaks then; the count goes on past NeededTicks while it stands). The capital's slot is not asked (another hazard
+	 * holding it keeps the rebellion out while the count runs on): a rebellion "may" stand. For an index out of range: not
+	 * shown, Threshold set, the counts and NotBeforeTick 0. World state only, no draw.
+	 */
+	COSMIC_ASCENSION_API FCosmicRebellionWatch RebellionWatchOf(const FGalaxyState& State, const FCosmicDataTables& Tables, int32 CivIndex);
 
 	/**
 	 * Whether a KillPlayer on the subject (SystemID, CivID) at Tick reaches the vessel (B5 header section 5.1): the rule of

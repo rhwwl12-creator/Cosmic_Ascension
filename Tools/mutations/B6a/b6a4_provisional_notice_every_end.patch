@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+@@ -369,7 +369,7 @@
+ 	{
+ 		// The clock's end only (B6a decision 13): the clock is what stays provisional; a fifth rung or the end with no
+ 		// candidate is no end of a trial. A preview is no end: no notice.
+-		const bool bClock = Record.Kind == CosmicTags::EndingClock();
++		const bool bClock = Record.Kind.IsValid();
+ 		ProvisionalText->SetText(bClock ? Label(TEXT("Chronicle.Provisional")) : FText::GetEmpty());
+ 		ProvisionalText->SetVisibility(bClock ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+ 	}

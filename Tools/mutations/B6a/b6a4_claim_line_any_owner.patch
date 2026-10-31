@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -944,7 +944,7 @@
+ 				// the gates the expiry meets first, then the simulation's own claim rule, ClaimRuleHoldsOf - nothing of the
+ 				// rule copied here). A condition and its result, no word of fear (section 3.6 5). Not in an ended run: nothing
+ 				// expires there to decide about (as the edict line keeps only its held form).
+-				if (bRules && !bEnded && OwnerIndex == RuledIndex && CosmicState::IsSettled(System)
++				if (bRules && !bEnded && CosmicState::IsSettled(System)
+ 					&& CosmicHazards::ClaimMayFollowOf(State, Index, Tables, Sim->GetRules(), SystemIndex))
+ 				{
+ 					ClaimWords = Label(TEXT("Panel.ClaimMayFollow"));

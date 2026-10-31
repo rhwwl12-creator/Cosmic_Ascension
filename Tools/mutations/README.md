@@ -664,3 +664,17 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B6a/` | `b6a3c_markof_reads_clock.patch` — `UCosmicSaveSubsystem::MarkOf` marks the run ended from the clock instead of the record | `Cosmic_Ascension.Sim.SaveTriggers`, `Cosmic_Ascension.Sim.SaveOldEndFlows` |
 | `B6a/` | `b6a3c_wanderer_policy_reads_clock.patch` — the wanderer policy's end reads the clock instead of the record | `Cosmic_Ascension.Sim.WandererPolicy` |
 | `B6a/` | `b6a3c_ruler_policy_reads_clock.patch` — the ruler policy's end reads the clock instead of the record | `Cosmic_Ascension.Sim.RulerDiplomacyPolicy` |
+| `B6a/` | `b6a4_claim_rule_no_last_unclaimed.patch` — `CosmicHazards::ClaimRuleHoldsOf` drops its last-unclaimed check (Law.Remnant): the screen and the sim move together, the fixed answer catches it | `Cosmic_Ascension.UI.ClaimMayFollow` |
+| `B6a/` | `b6a4_claim_may_follow_no_edict_gate.patch` — `ClaimMayFollowOf` drops the gate of the edict that answers the hazard (the expiry resolves it without the claim rule) | `Cosmic_Ascension.UI.ClaimMayFollow` |
+| `B6a/` | `b6a4_rebellion_watch_written_count.patch` — `RebellionWatchOf` writes 100 ticks instead of reading the rebellion row's count | `Cosmic_Ascension.UI.RebellionWatch` |
+| `B6a/` | `b6a4_chronicle_names_unshown_people.patch` — the chronicle's cause line names another people at the fifth rung even when the viewer is not shown it (rule 14) | `Cosmic_Ascension.UI.Chronicle` |
+| `B6a/` | `b6a4_provisional_notice_every_end.patch` — the provisional notice stands under every end, not only the clock's (decision 13) | `Cosmic_Ascension.UI.Chronicle` |
+| `B6a/` | `b6a4_no_vessel_line_dropped.patch` — the line of an end met with no vessel never stands | `Cosmic_Ascension.UI.Chronicle`, `Cosmic_Ascension.UI.Epitaph` |
+| `B6a/` | `b6a4_clock_tip_reads_rung_rule.patch` — the clock tip shows the rung's rule line (`Chronicle.RuleRung`) when the knob is 0 or below | `Cosmic_Ascension.UI.Chronicle` |
+| `B6a/` | `b6a4_nocandidate_says_rung.patch` — the chronicle's cause line loses its no-candidate branch: the silence reads as a people's fifth rung | `Cosmic_Ascension.UI.Chronicle`, `Cosmic_Ascension.UI.Epitaph` |
+| `B6a/` | `b6a4_claim_may_follow_no_nova_claim_gate.patch` — `ClaimMayFollowOf` drops the gate of `Hazard.PreSupernova` and `Hazard.Claim` (their expiries never run the claim rule on that system) | `Cosmic_Ascension.UI.ClaimMayFollow` |
+| `B6a/` | `b6a4_rebellion_watch_under_standing.patch` — the rebellion watch shows while a rebellion already stands on the capital | `Cosmic_Ascension.UI.RebellionWatch` |
+| `B6a/` | `b6a4_rebellion_watch_zero_count.patch` — the rebellion watch shows below the threshold with a count of 0 | `Cosmic_Ascension.UI.RebellionWatch` |
+| `B6a/` | `b6a4_rebellion_watch_no_floor.patch` — the rebellion watch's wait ignores the row's first tick (`GalaxyTickAtLeast`) | `Cosmic_Ascension.UI.RebellionWatch` |
+| `B6a/` | `b6a4_ruled_people_reads_view.patch` — the ruled people's end is named only when the knowing shows it | `Cosmic_Ascension.UI.Chronicle` |
+| `B6a/` | `b6a4_claim_line_any_owner.patch` — the system panel's claim warning stands on any owner's settled system, not only the ruled people's | `Cosmic_Ascension.UI.ClaimMayFollow` |

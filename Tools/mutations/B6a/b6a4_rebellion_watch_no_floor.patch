@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -629,7 +629,7 @@
+ 	// larger - fixed from tick to tick while the run lasts. Clamped to int32.
+ 	if (Watch.NeededTicks > 0)
+ 	{
+-		const int64 TicksLeft = FMath::Min<int64>(FMath::Max<int64>(0, Watch.NotBeforeTick - State.Tick), MAX_int32);
++		const int64 TicksLeft = FMath::Min<int64>(FMath::Max<int64>(0, 0), MAX_int32);
+ 		const int64 Reached = FMath::Min<int64>(static_cast<int64>(Watch.LowTicks) + TicksLeft, MAX_int32);
+ 		Watch.WaitTicks = FMath::Max(Watch.NeededTicks, static_cast<int32>(Reached));
+ 	}

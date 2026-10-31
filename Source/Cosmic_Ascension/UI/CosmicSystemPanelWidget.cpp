@@ -855,6 +855,9 @@ void UCosmicSystemPanelWidget::Refresh()
 	ShownStartBlocks.Reset();
 	// The spiritual sight's words for the shown system (section 6.4): a line of their own and its tooltip.
 	FText SpiritWords;
+	// The claim's warning (B6a): its line under the hazard's, and the same words as the tooltip of the details that carry
+	// the hazard's line; empty when the panel does not show it.
+	FText ClaimWords;
 	// The people whose research focus the panel shows (MVP item 7): the ruled people, on a settled system of its own.
 	const FCivilizationState* FocusCiv = nullptr;
 	// The wanderer's row (B1), and whether the panel shows the ruled people's capital ([Abdicate], the first-ship line).
@@ -936,6 +939,17 @@ void UCosmicSystemPanelWidget::Refresh()
 				{
 					Lines.Add(Label(TEXT("Wander.Lethal")));
 				}
+				// B6a (header section 4, decision 14): on a settled system of the people the vessel rules as an embodied ruler,
+				// that an expiry with no answer could leave a claim here - the screen's answer (CosmicHazards::ClaimMayFollowOf:
+				// the gates the expiry meets first, then the simulation's own claim rule, ClaimRuleHoldsOf - nothing of the
+				// rule copied here). A condition and its result, no word of fear (section 3.6 5). Not in an ended run: nothing
+				// expires there to decide about (as the edict line keeps only its held form).
+				if (bRules && !bEnded && OwnerIndex == RuledIndex && CosmicState::IsSettled(System)
+					&& CosmicHazards::ClaimMayFollowOf(State, Index, Tables, Sim->GetRules(), SystemIndex))
+				{
+					ClaimWords = Label(TEXT("Panel.ClaimMayFollow"));
+					Lines.Add(ClaimWords);
+				}
 			}
 			// A slot line takes the paused mark while its watch says the slot does not pay - on a system of the people the
 			// vessel rules only: on another people's slot the mark would tell its stockpile. The watches keep to that people
@@ -971,6 +985,21 @@ void UCosmicSystemPanelWidget::Refresh()
 					{
 						Lines.Add(EdictLine);
 					}
+				}
+			}
+			// B6a (header section 4, decision 14): on the capital of the people the vessel rules as an embodied ruler, while
+			// its stability stays under the threshold the simulation counts, how many ticks it has stayed there and the count
+			// from which the rebellion row may hold (CosmicHazards::RebellionWatchOf - the simulation's constant, the row's key
+			// and its first tick, no value written here); none while a rebellion already stands there (the hazard's line says
+			// it). The threshold as the top bar prints the stability (Percent), the ticks as cycles (the words say cycles). Not
+			// in an ended run.
+			if (bRules && !bEnded && OwnerIndex == RuledIndex && System.SystemID == State.Civs[RuledIndex].HomeSystemID)
+			{
+				const auto Watch = CosmicHazards::RebellionWatchOf(State, Tables, RuledIndex);
+				if (Watch.bShown)
+				{
+					Lines.Add(FText::Format(Label(TEXT("Panel.RebellionWatch")), Percent(Watch.Threshold), FText::AsNumber(Watch.LowTicks),
+						FText::AsNumber(Watch.WaitTicks)));
 				}
 			}
 			// The sight names the fallen one that marks the system by its title, in the spiritual view only.
@@ -1382,6 +1411,12 @@ void UCosmicSystemPanelWidget::Refresh()
 		{
 			DirectButton->SetToolTipText(DirectTip);
 		}
+	}
+
+	// The details' tooltip: the claim's warning (B6a), or none (set only when its words change).
+	if (!SameWords(DetailText->GetToolTipText(), ClaimWords))
+	{
+		DetailText->SetToolTipText(ClaimWords);
 	}
 
 	// The fleet's lines (B3), a block of their own with its tooltip (set only when its words change).

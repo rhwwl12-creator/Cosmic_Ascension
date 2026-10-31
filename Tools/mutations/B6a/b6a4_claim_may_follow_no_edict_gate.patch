@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -555,7 +555,7 @@
+ 	}
+ 	// An answer edict the owner holds at the expiry resolves the hazard instead, and a resolution passes no claim rule.
+ 	const int32 OwnerIndex = Index.FindCiv(State, System.OwnerCivID);
+-	if (State.Civs.IsValidIndex(OwnerIndex) && !CosmicEdicts::HeldAnswerOf(State.Civs[OwnerIndex], *Row, Tables).IsNone())
++	if (false && State.Civs.IsValidIndex(OwnerIndex) && !CosmicEdicts::HeldAnswerOf(State.Civs[OwnerIndex], *Row, Tables).IsNone())
+ 	{
+ 		return false;
+ 	}

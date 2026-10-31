@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+@@ -127,7 +127,7 @@
+ 	{
+ 		return FText::Format(Label(TEXT("Chronicle.Note.Clock")), FText::AsNumber(Record.Tick));
+ 	}
+-	if (Record.Kind == CosmicTags::EndingNoCandidate())
++	if (false && Record.Kind == CosmicTags::EndingNoCandidate())
+ 	{
+ 		return Label(TEXT("Chronicle.Note.NoCandidate"));
+ 	}
