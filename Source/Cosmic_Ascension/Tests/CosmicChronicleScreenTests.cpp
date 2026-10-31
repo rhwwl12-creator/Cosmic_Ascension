@@ -140,7 +140,8 @@ namespace CosmicChronicleScreenTests
 
 // The provisional end's latch and lock (MVP item 4): the clock end at exactly tick 6,000, the speed before it, the lock on
 // the speeds, the keys and the commands, the card folded, the wait before the page, the third rung's two orders with the
-// presentation, an ended load, FollowEnd's contract, the new run, the switch, the reset of AcquireSim and the two hashes.
+// presentation (no end since B6a) and the clock's end over the presentation, an ended load, FollowEnd's contract, the new
+// run, the switch, the reset of AcquireSim and the two hashes.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicUIRunEndTest, "Cosmic_Ascension.UI.RunEnd", CosmicTests::Flags)
 bool FCosmicUIRunEndTest::RunTest(const FString& Parameters)
 {
@@ -355,9 +356,10 @@ bool FCosmicUIRunEndTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("and the end's reason"), Controller->GetAutoPauseReason() == ECosmicAutoPause::None);
 	TestFalse(TEXT("and folds the page"), Page->IsOpen());
 
-	// (6) The third rung's end, with the presentation: the clock is switched off (the climb may pass tick 6,000), the climb
-	// to the second rung runs headless, then the stabilization of a supernova is stepped with the broadcast on - SetSpeed(10)
-	// before each step, as AcquireSim left the speed at 0 (no pause and no presentation would stop anything).
+	// (6) The third rung with the presentation, which ends no run (B6a decision 2-ga), and the end over the presentation:
+	// the clock is switched off (the climb may pass tick 6,000), the climb to the second rung runs headless, then the
+	// stabilization of a supernova is stepped with the broadcast on - SetSpeed(10) before each step, as AcquireSim left the
+	// speed at 0 (no pause and no presentation would stop anything).
 	FCosmicRulesDef NoClock = Sim->GetRules();
 	NoClock.ProvisionalEndTick = 0;
 	Sim->SetTables(CosmicTests::WithRules(Original, NoClock));
@@ -391,26 +393,65 @@ bool FCosmicUIRunEndTest::RunTest(const FString& Parameters)
 	Climb.Systems[ClimbHome].ResponseProgress = 0.f;
 	TestTrue(TEXT("(the project key answers the supernova)"), Role->StartNextMegaproject());
 	const FGalaxyState BeforeThird = Sim->GetState();
-	Sim->SetBroadcastEnabled(true);
-	for (const bool bAutoPause : { true, false })
+	// The tick of the climb, measured once from the same state without the broadcast (a handler writes nothing, so the
+	// stepped runs below climb in the same tick); the end over the presentation puts the clock there.
+	for (int32 Step = 0; Step < NovaRow->CountdownTicks && Climb.Civs[ClimbCiv].Tier == EAscensionTier::Tier2_Stellar; ++Step)
+	{
+		Sim->RunHeadless(1);
+	}
+	const int64 ClimbTick = Climb.Civs[ClimbCiv].Tier == EAscensionTier::Tier3_Causal ? Climb.Tick : int64(-1);
+	if (!TestTrue(TEXT("(the climb's tick is measured)"), ClimbTick > BeforeThird.Tick))
+	{
+		return false;
+	}
+	// Steps BeforeThird with the broadcast on until the people climbs to the third rung; false when it does not.
+	auto StepToThird = [&](bool bAutoPause, const TCHAR* Order)
 	{
 		Sim->LoadState(BeforeThird);
 		Quiet(*Screen.Overlay);
 		Controller->SetAutoPause(bAutoPause);
-		const TCHAR* Order = bAutoPause ? TEXT("with the automatic pause on") : TEXT("with the automatic pause off");
 		FGalaxyState& Steps = Sim->GetMutableState();
 		for (int32 Step = 0; Step < NovaRow->CountdownTicks && Steps.Civs[ClimbCiv].Tier == EAscensionTier::Tier2_Stellar; ++Step)
 		{
 			Controller->SetSpeed(10.f);
 			Sim->StepOnce();
 		}
-		if (!TestEqual(*FString::Printf(TEXT("(the people climbs to the third rung %s)"), Order), Steps.Civs[ClimbCiv].Tier, EAscensionTier::Tier3_Causal))
+		return TestEqual(*FString::Printf(TEXT("(the people climbs to the third rung %s)"), Order), Steps.Civs[ClimbCiv].Tier, EAscensionTier::Tier3_Causal)
+			&& TestEqual(*FString::Printf(TEXT("(in the measured tick %s)"), Order), Steps.Tick, ClimbTick);
+	};
+	Sim->SetBroadcastEnabled(true);
+	// The third rung ends no run: the presentation and its reveal stand, nothing latches and no page follows them.
+	for (const bool bAutoPause : { true, false })
+	{
+		const TCHAR* Order = bAutoPause ? TEXT("with the automatic pause on") : TEXT("with the automatic pause off");
+		if (!StepToThird(bAutoPause, Order))
 		{
 			return false;
 		}
-		TestEqual(*FString::Printf(TEXT("The third rung ends the run %s"), Order), Controller->GetRunEnd(), ECosmicProvisionalEnd::Rung);
-		TestTrue(*FString::Printf(TEXT("(the presentation shows %s)"), Order), Screen.Overlay->IsShowing());
+		TestFalse(*FString::Printf(TEXT("The third rung ends no run %s"), Order), Controller->IsRunEnded());
+		TestTrue(*FString::Printf(TEXT("the presentation shows %s"), Order), Screen.Overlay->IsShowing());
 		// On: the mythic line's pause came first, so the presentation held 0. Off: the presentation held x10.
+		TestEqual(*FString::Printf(TEXT("and holds the speed it found %s"), Order), Screen.Overlay->GetPausedSpeed(), bAutoPause ? 0.f : 10.f);
+		TestTrue(*FString::Printf(TEXT("for no reason of an end %s"), Order), Controller->GetAutoPauseReason() != ECosmicAutoPause::RunEnd);
+		Screen.Overlay->Close();
+		Screen.Overlay->Advance(CosmicAscensionOverlay::RevealSeconds + 1.f);
+		Controller->AdvanceRunEnd(CosmicChronicleScreen::HoldSeconds + 0.1f);
+		TestFalse(*FString::Printf(TEXT("After the presentation and the reveal no page opens %s"), Order), Page->IsOpen() || Controller->IsRunEnded());
+		Sim->SetTimeScale(0.f);
+	}
+	// The end over the presentation: the clock put at the tick of the climb ends the run in that tick.
+	FCosmicRulesDef AtClimb = NoClock;
+	AtClimb.ProvisionalEndTick = static_cast<int32>(ClimbTick);
+	Sim->SetTables(CosmicTests::WithRules(Original, AtClimb));
+	for (const bool bAutoPause : { true, false })
+	{
+		const TCHAR* Order = bAutoPause ? TEXT("with the automatic pause on") : TEXT("with the automatic pause off");
+		if (!StepToThird(bAutoPause, Order))
+		{
+			return false;
+		}
+		TestEqual(*FString::Printf(TEXT("The clock at the climb's tick ends the run %s"), Order), Controller->GetRunEnd(), ECosmicProvisionalEnd::Clock);
+		TestTrue(*FString::Printf(TEXT("(the presentation shows %s)"), Order), Screen.Overlay->IsShowing());
 		TestEqual(*FString::Printf(TEXT("The presentation holds the speed it found %s"), Order), Screen.Overlay->GetPausedSpeed(), bAutoPause ? 0.f : 10.f);
 		TestTrue(*FString::Printf(TEXT("and the reason is the end %s"), Order), Controller->GetAutoPauseReason() == ECosmicAutoPause::RunEnd);
 		Controller->AdvanceRunEnd(10.f);
@@ -537,7 +578,9 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 	// ---- The cause notes ----
 	TestEqual(TEXT("The clock's note"), Shown(Page->GetNoteText()), FText::Format(Label(TEXT("Chronicle.Note.Clock")), FText::AsNumber(Live.Tick)).ToString());
 	TestEqual(TEXT("and the provisional notice"), Shown(Page->GetProvisionalText()), Words(TEXT("Chronicle.Provisional")));
-	// The rung's note names the people that climbed: of the ruled peoples from the last, one on the rung - not the birth people.
+	// The rung's note, which no end gives any more (the third rung ends no run - B6a [B-6a3a]): the line that names no
+	// people, whoever is on the rung. Naming the people comes back in [B-6a3c] from the ending record's CivID (B6a header
+	// section 2.7).
 	const int32 Other = Live.Civs.IndexOfByPredicate([&Live, Ruled](const FCivilizationState& Civ) { return Civ.CivID != Live.Civs[Ruled].CivID; });
 	if (TestTrue(TEXT("(another people)"), Other != INDEX_NONE))
 	{
@@ -549,9 +592,7 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 		Mutable.RuledCivIDs.Add(Live.Civs[Other].CivID);
 		Live.Civs[Other].Tier = EAscensionTier::Tier3_Causal;
 		Page->Open(ECosmicProvisionalEnd::Rung, true);
-		FFormatNamedArguments Args;
-		Args.Add(TEXT("Civ"), Live.Civs[Other].CivName);
-		TestEqual(TEXT("The rung's note names the ruled people on the rung"), Shown(Page->GetNoteText()), FText::Format(Label(TEXT("Chronicle.Note.Rung")), Args).ToString());
+		TestEqual(TEXT("With a ruled people on the rung the note names none either"), Shown(Page->GetNoteText()), Words(TEXT("Chronicle.Note.RungNoCiv")));
 		TestEqual(TEXT("and the provisional notice follows"), Shown(Page->GetProvisionalText()), Words(TEXT("Chronicle.Provisional")));
 		Mutable.RuledCivIDs.Pop();
 		Mutable.PeakTier = EAscensionTier::Tier1_Planetary;

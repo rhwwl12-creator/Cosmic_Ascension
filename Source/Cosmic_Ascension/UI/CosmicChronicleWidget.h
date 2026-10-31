@@ -20,7 +20,7 @@ class UWidget;
 
 namespace CosmicChronicleScreen
 {
-	// Real seconds the stopped map stays in view before the veil (after the third rung's reveal, or at the end tick).
+	// Real seconds the stopped map stays in view before the veil (from the end tick, after an ascension's presentation and reveal standing then).
 	inline constexpr float HoldSeconds = 1.5f;
 	// The veil darkens over this many real seconds.
 	inline constexpr float VeilSeconds = 1.f;

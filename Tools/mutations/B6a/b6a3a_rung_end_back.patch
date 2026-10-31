@@ -1,0 +1,17 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicEndings.cpp b/Source/Cosmic_Ascension/Sim/CosmicEndings.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicEndings.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEndings.cpp
+@@ -11,6 +11,13 @@
+ 	if (State.Calling.Lives.IsEmpty())
+ 	{
+ 		return ECosmicProvisionalEnd::None;
++	}
++	for (const FLifeRecord& Life : State.Calling.Lives)
++	{
++		if (static_cast<int32>(Life.PeakTier) >= static_cast<int32>(EAscensionTier::Tier3_Causal))
++		{
++			return ECosmicProvisionalEnd::Rung;
++		}
+ 	}
+ 	if (Rules.ProvisionalEndTick > 0 && State.Tick >= static_cast<int64>(Rules.ProvisionalEndTick))
+ 	{

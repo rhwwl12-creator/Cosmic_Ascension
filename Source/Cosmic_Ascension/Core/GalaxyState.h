@@ -462,7 +462,10 @@ struct COSMIC_ASCENSION_API FTranscendentState
 	UPROPERTY(BlueprintReadOnly)
 	TArray<FName> InfluencedSystems;
 
-	// Survives succession (section 4.4).
+	// The awareness (B6a header section 2.11): written true once per transcendent by the claim rule of the crisis stage -
+	// a claim it places on a settled system of the people the embodied vessel rules from the third rung on, with no role
+	// effect pending - and never written back: it survives succession (section 4.4). The condition TranscendentAwareOfPlayer
+	// can read it; no data row does yet.
 	UPROPERTY(BlueprintReadOnly)
 	bool bAwareOfPlayer = false;
 

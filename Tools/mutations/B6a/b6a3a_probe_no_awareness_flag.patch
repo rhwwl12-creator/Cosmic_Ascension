@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -360,7 +360,7 @@
+ 		{
+ 			return INDEX_NONE;
+ 		}
+-		Claiming.bAwareOfPlayer = true;
++		// probe [B-6a3a] check d: the flag is not written
+ 		return Claimant;
+ 	}
+ 

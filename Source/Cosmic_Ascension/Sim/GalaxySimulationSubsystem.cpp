@@ -307,28 +307,61 @@ namespace
 	// places Hazard.Claim unless its sphere is full or the system is its owner's last unclaimed settled system. The claim
 	// number stands for the weight of the faith traits (section 4.5 (4)): 1 until the trait rows of Phase 4, so it always
 	// passes. It is drawn whether or not it is read.
-	void TryPlaceClaim(FCosmicEvalContext& Ctx, int32 SystemIndex, float ClaimNumber)
+	// The awareness (B6a header section 2.11, decision 7): a claim placed on a settled system of the people the embodied
+	// vessel rules, while that people stands on the third rung or above and no deposition, abdication or death waits for the
+	// vessel (Calling.PendingEffect empty - a vessel whose leaving was recorded before this claim is not noticed; one recorded
+	// later in the tick, by a later expiry or the event slot, still is - B6a header section 2.11), makes its claimant aware
+	// of the player: bAwareOfPlayer once per transcendent, never written back (it survives succession). The
+	// world alone is read - the role, the ruled people, the owner and its tier, never Knowing (rule 2); no draw, no line (the
+	// line is told at the end of the expiry - [B-6a5]). The index into Transcendents of the claimant whose flag this placement
+	// set, INDEX_NONE otherwise.
+	int32 TryPlaceClaim(FCosmicEvalContext& Ctx, int32 SystemIndex, float ClaimNumber)
 	{
 		static const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Claim")));
 		const FGalaxyState& State = Ctx.State;
 		if (!State.Systems.IsValidIndex(SystemIndex) || !CosmicState::IsSettled(State.Systems[SystemIndex]) || State.Systems[SystemIndex].ActiveHazard.IsValid())
 		{
-			return;
+			return INDEX_NONE;
 		}
 		const int32 Claimant = CosmicHazards::ClaimantOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, SystemIndex);
 		const FTranscendentDef* Def = State.Transcendents.IsValidIndex(Claimant) ? Ctx.Tables.FindTranscendent(State.Transcendents[Claimant].TranscendentID) : nullptr;
 		if (!Def || State.Transcendents[Claimant].InfluencedSystems.Num() >= Def->MaxInfluencedSystems
 			|| CosmicHazards::IsLastUnclaimed(State, Ctx.Index, Ctx.Tables, SystemIndex))
 		{
-			return;
+			return INDEX_NONE;
 		}
 		constexpr float FaithWeight = 1.f;
 		FName ClaimRow;
 		if (!(ClaimNumber < FaithWeight) || !Ctx.Tables.FindHazardByTag(ClaimTag, &ClaimRow))
 		{
-			return;
+			return INDEX_NONE;
 		}
-		CosmicHazards::Place(Ctx, SystemIndex, ClaimRow);
+		if (!CosmicHazards::Place(Ctx, SystemIndex, ClaimRow))
+		{
+			return INDEX_NONE;
+		}
+
+		// The awareness: the vessel, its role and its pending record, the owner, the owner's rung - the world only.
+		const FCallingState& Calling = State.Calling;
+		const FPlayerEntityState& Player = State.Player;
+		const FName OwnerID = State.Systems[SystemIndex].OwnerCivID;
+		if (Calling.LifeState != ELifeState::Embodied || Calling.PendingEffect.IsValid() || Player.Role != EPlayerRole::Ruler
+			|| Player.RuledCivID.IsNone() || Player.RuledCivID != OwnerID)
+		{
+			return INDEX_NONE;
+		}
+		const int32 OwnerIndex = Ctx.Index.FindCiv(State, OwnerID);
+		if (!State.Civs.IsValidIndex(OwnerIndex) || State.Civs[OwnerIndex].Tier < EAscensionTier::Tier3_Causal)
+		{
+			return INDEX_NONE;
+		}
+		FTranscendentState& Claiming = Ctx.State.Transcendents[Claimant];
+		if (Claiming.bAwareOfPlayer)
+		{
+			return INDEX_NONE;
+		}
+		Claiming.bAwareOfPlayer = true;
+		return Claimant;
 	}
 
 	// The expiry of a claim (section 4.2): the claimant of now joins the system to its sphere, unless the system is no
@@ -2517,8 +2550,9 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 	}
 	EmptySlot();
 
-	// The claim rule on the slot this expiry left free (section 4.2).
-	TryPlaceClaim(Ctx, SystemIndex, ClaimNumber);
+	// The claim rule on the slot this expiry left free (section 4.2). The claimant it made aware of the player (B6a header
+	// section 2.11), INDEX_NONE when none: kept for the awareness line at the end of this expiry ([B-6a5]).
+	[[maybe_unused]] const int32 AwareClaimant = TryPlaceClaim(Ctx, SystemIndex, ClaimNumber);
 
 	// The expiry's own line, then what followed from it. A rebellion that took no throne (another source ended the reign
 	// first) is told without the throne (B1): the same one draw of the tell stream.

@@ -14,21 +14,19 @@ struct FGalaxyState;
 enum class ECosmicProvisionalEnd : uint8
 {
 	None,
-	Rung,   // a life's PeakTier reached EndRung (it rises only while the vessel rules; a climb in the tick of a deposition counts: feats are judged before the tenth stage)
+	Rung,   // no longer produced: the third rung does not end a run (B6a [B-6a3a], decision 2-ga); it goes with the enum in [B-6a3c]
 	Clock,  // State.Tick reached DT_Rules.ProvisionalEndTick
 };
 
 namespace CosmicEndings
 {
-	/** The rung that ends an MVP run (2026-10-18: "T3 or tick 6,000"). A C++ constant, not a knob. */
-	inline constexpr EAscensionTier EndRung = EAscensionTier::Tier3_Causal;
-
-	/** None when Calling.Lives is empty; otherwise Rung when any Lives[i].PeakTier >= EndRung (the MVP has one life); otherwise Clock when Rules.ProvisionalEndTick > 0
-	 * and State.Tick >= it; otherwise None (Rung wins a tie). Reads State.Tick, Calling.Lives and the knob only - never Civs, Knowing, the log or the chronicle. Both
-	 * inputs only grow - Lives is append-only and a PeakTier only rises, through succession too - so once it holds it holds for the run and a load answers alike.
+	/** None when Calling.Lives is empty; otherwise Clock when Rules.ProvisionalEndTick > 0 and State.Tick >= it; otherwise None. The third rung no longer
+	 * ends a run (B6a [B-6a3a], decision 2-ga: a run that climbs goes on to the clock), so Rung is never answered. Reads State.Tick, whether Calling.Lives is
+	 * empty and the knob only - never Civs, Knowing, the log or the chronicle. Both inputs only grow - Lives is append-only and the tick only rises - so once
+	 * it holds it holds for the run and a load answers alike.
 	 * Read by FollowEnd, the commandlet and the save layer's tick-boundary check (UCosmicSaveSubsystem::MarkOf), read only; no stage, command or run reads it. */
 	COSMIC_ASCENSION_API ECosmicProvisionalEnd ProvisionalEndOf(const FGalaxyState& State, const FCosmicRulesDef& Rules);
 
-	/** The cause as the commandlet and the CosmicEnd line print it: None, Rung or Clock. */
+	/** The cause as the commandlet and the CosmicEnd line print it: None or Clock (and Rung, which ProvisionalEndOf no longer answers - [B-6a3c] removes it). */
 	COSMIC_ASCENSION_API const TCHAR* NameOf(ECosmicProvisionalEnd End);
 }

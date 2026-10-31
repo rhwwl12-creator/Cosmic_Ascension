@@ -116,10 +116,10 @@ namespace
 		int64 RuledT2Tick = -1;
 		int64 RuledT3Tick = -1;
 		// The provisional end (MVP item 4), looked at after every tick and before the policy's input - nothing stops at it: the
-		// first cause and its tick, the first ticks of each cause, and the last chapter of the chronicle at the first end.
+		// first cause and its tick, the first tick of the clock, and the last chapter of the chronicle at the first end. The
+		// third rung no longer ends a run (B6a [B-6a3a]), so the clock is the only cause.
 		ECosmicProvisionalEnd FirstEnd = ECosmicProvisionalEnd::None;
 		int64 FirstEndTick = -1;
-		int64 RungTick = -1;
 		int64 ClockTick = -1;
 		int32 ChapterLife = -1;
 		int32 ChapterShown = -1;
@@ -580,7 +580,6 @@ namespace
 		int64 FirstSuccessionTick = -1;
 		int64 ThroneAfterSuccession = -1;
 		const TCHAR* ThroneAfterSuccessionPath = TEXT("none");
-		int32 EndByNewPeople = -1;
 		int32 ReignsDuringCardedClaims = 0;
 		// The system the vessel stood in at its death (the succession's candidates are counted from it).
 		int32 DeathSystemIndex = INDEX_NONE;
@@ -1339,14 +1338,10 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			{
 				const ECosmicProvisionalEnd End = CosmicEndings::ProvisionalEndOf(State, Sim->GetRules());
 				const int32 EndTick = Sim->GetRules().ProvisionalEndTick;
-				Counts.RungTick = (Counts.RungTick < 0 && End == ECosmicProvisionalEnd::Rung) ? State.Tick : Counts.RungTick;
 				Counts.ClockTick = (Counts.ClockTick < 0 && EndTick > 0 && State.Tick >= EndTick) ? State.Tick : Counts.ClockTick;
 				if (Counts.FirstEnd == ECosmicProvisionalEnd::None && End != ECosmicProvisionalEnd::None)
 				{
 					Counts.FirstEnd = End;
-					// [B-5b]: a rung end reached by a people other than the first reign's (a later throne).
-					const FCivilizationState* RuledAtEnd = State.Civs.FindByPredicate([](const FCivilizationState& Civ) { return Civ.bIsPlayerRuled; });
-					Calling.EndByNewPeople = (End == ECosmicProvisionalEnd::Rung && RuledAtEnd && RuledAtEnd->CivID != FirstRuled) ? 1 : 0;
 					Counts.FirstEndTick = State.Tick;
 					Counts.DecisionsAtEnd = CosmicRulerPolicy::DecisionsOf(RulerCounts);
 					const TArray<FCosmicChronicleChapter> Chapters = CosmicChronicle::Build(State);
@@ -2421,11 +2416,11 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					ThroneGaps += FString::Printf(TEXT("%s%lld"), ThroneGaps.IsEmpty() ? TEXT("") : TEXT(","), Gap);
 					ThronesNearBirth += (Gap >= 0 && Gap <= NearTicks) ? 1 : 0;
 				}
-				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance calling deaths: death asked at %lld (recorded %d); deaths %d (by end %d) by cause [%s] by row [%s]; first death at %lld as %s, %lld after the last reign's end; leaps [%s] (total %lld, cap %d); successions [%s] (tick:candidates:relaxed:lanes from the death:same people:hazard within 2 lanes:birth rung:digest lines); first throne after a succession at %lld (%s); state %s (leap left %lld); interregnum ticks %lld in %.1f ms; end %s (by a new people %d); reigns begun while a carded claim stood %d, claims delayed twice %d; deaths on the killing hazard's card %d set apart by the epitaph, %d more the card all the same; at the crowning reverence %d; per death [%s] (tick:a set apart / c the card all the same / - neither:highest reverence of any people before the tick); successor thrones [%s] (ticks from the birth to that life's first throne, -1 none), within %d ticks of the birth %d of %d"),
+				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance calling deaths: death asked at %lld (recorded %d); deaths %d (by end %d) by cause [%s] by row [%s]; first death at %lld as %s, %lld after the last reign's end; leaps [%s] (total %lld, cap %d); successions [%s] (tick:candidates:relaxed:lanes from the death:same people:hazard within 2 lanes:birth rung:digest lines); first throne after a succession at %lld (%s); state %s (leap left %lld); interregnum ticks %lld in %.1f ms; end %s; reigns begun while a carded claim stood %d, claims delayed twice %d; deaths on the killing hazard's card %d set apart by the epitaph, %d more the card all the same; at the crowning reverence %d; per death [%s] (tick:a set apart / c the card all the same / - neither:highest reverence of any people before the tick); successor thrones [%s] (ticks from the birth to that life's first throne, -1 none), within %d ticks of the birth %d of %d"),
 					DeathAt, Calling.DeathAtRecorded, Calling.Deaths, Calling.DeathsByEnd, *CountsText(Calling.DeathsByCause), *CountsText(Calling.DeathsByRow), Calling.FirstDeathTick,
 					Calling.FirstDeathRole, Calling.FirstDeathGap, *Calling.Leaps, State.Calling.LeapTicksTotal, RulesNow.LeapTotalCap, *Calling.Successions, Calling.ThroneAfterSuccession,
 					Calling.ThroneAfterSuccessionPath, State.Calling.LifeState == ELifeState::Interregnum ? TEXT("interregnum") : TEXT("embodied"), State.Calling.PendingLeapTicks,
-					Calling.LeapTicksRun, Calling.LeapMicros / 1000.0, CosmicEndings::NameOf(Counts.FirstEnd), Calling.EndByNewPeople, Calling.ReignsDuringCardedClaims, PressureCounts.DelayedTwice,
+					Calling.LeapTicksRun, Calling.LeapMicros / 1000.0, CosmicEndings::NameOf(Counts.FirstEnd), Calling.ReignsDuringCardedClaims, PressureCounts.DelayedTwice,
 					Calling.DeathsSetApart, Calling.DeathsOnTheCard, Calling.DeathsAtCrowningReverence, *Calling.DeathAnswers, *ThroneGaps, NearTicks, ThronesNearBirth,
 					Calling.SuccessorThroneGaps.Num());
 				// [B-5d1] (header section 5.1, 5.2 bundle 1; docs/70 section 8.4): the two books at the run's end, by the presentation's
@@ -2439,8 +2434,8 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -SaveAt %lld wrote no slot"), SaveAt);
 				}
 			}
-			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance end: first %s at %lld; rung at %lld, clock at %lld, deposed at %lld; chronicle life %d shown %d of %d, more %d, ranks %d/%d/%d/%d"),
-				CosmicEndings::NameOf(Counts.FirstEnd), Counts.FirstEndTick, Counts.RungTick, Counts.ClockTick, Counts.DeposedTick, Counts.ChapterLife,
+			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance end: first %s at %lld; clock at %lld, deposed at %lld; chronicle life %d shown %d of %d, more %d, ranks %d/%d/%d/%d"),
+				CosmicEndings::NameOf(Counts.FirstEnd), Counts.FirstEndTick, Counts.ClockTick, Counts.DeposedTick, Counts.ChapterLife,
 				Counts.ChapterShown, Counts.ChapterCandidates, Counts.ChapterMore, Counts.ChapterRanks[0], Counts.ChapterRanks[1], Counts.ChapterRanks[2], Counts.ChapterRanks[3]);
 			// B4 (header section 5): the first measurement - always told, outside the baselines' keys.
 			{
@@ -2480,14 +2475,6 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					PressureCounts.Band[0], PressureCounts.BandEased[0], PressureCounts.Band[1], PressureCounts.BandEased[1], PressureCounts.Band[2], PressureCounts.BandEased[2],
 					PressureCounts.Band[3], PressureCounts.BandEased[3], PressureCounts.Ends[0], PressureCounts.Ends[1], PressureCounts.Ends[2], PressureCounts.Ends[3],
 					PressureCounts.Ends[4], PressureCounts.NoCard, PressureCounts.Watched, PressureCounts.WatchedJoined, PressureCounts.FleetWorn);
-			}
-			// The rung end and the ruled people's third rung are the same tick, but for a deposition in that very tick (the
-			// feats are judged before the tenth stage deposes; afterwards no people is ruled). A measure, not a gate: Result
-			// stays, and the line has a prefix of its own so that a tool taking the last "end:" line never takes it.
-			const bool bSameTickDeposition = Counts.RuledT3Tick < 0 && Counts.DeposedTick >= 0 && Counts.DeposedTick == Counts.RungTick;
-			if (Counts.RungTick != Counts.RuledT3Tick && !bSameTickDeposition)
-			{
-				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance end check: the rung end at %lld is not the ruled people's third rung at %lld"), Counts.RungTick, Counts.RuledT3Tick);
 			}
 			if (ExpansionSum != Counts.ExpansionPairs)
 			{

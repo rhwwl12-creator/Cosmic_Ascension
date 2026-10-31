@@ -123,26 +123,8 @@ FText UCosmicChronicleWidget::NoteOf(ECosmicProvisionalEnd Cause) const
 	{
 		return FText::Format(Label(TEXT("Chronicle.Note.Clock")), FText::AsNumber(State.Tick));
 	}
-	// The people that climbed: of the first life that reached the rung, its ruled peoples from the last, the first the state
-	// still holds on the rung or above.
-	for (const FLifeRecord& Life : State.Calling.Lives)
-	{
-		if (static_cast<int32>(Life.PeakTier) < static_cast<int32>(CosmicEndings::EndRung))
-		{
-			continue;
-		}
-		for (int32 At = Life.RuledCivIDs.Num() - 1; At >= 0; --At)
-		{
-			const int32 CivIndex = Life.RuledCivIDs[At].IsNone() ? INDEX_NONE : Sim->GetStateIndex().FindCiv(State, Life.RuledCivIDs[At]);
-			if (State.Civs.IsValidIndex(CivIndex) && static_cast<int32>(State.Civs[CivIndex].Tier) >= static_cast<int32>(CosmicEndings::EndRung))
-			{
-				FFormatNamedArguments Args;
-				Args.Add(TEXT("Civ"), State.Civs[CivIndex].CivName);
-				return FText::Format(Label(TEXT("Chronicle.Note.Rung")), Args);
-			}
-		}
-		break;
-	}
+	// Rung is no longer produced (the third rung does not end a run - B6a [B-6a3a]): the line that names no people. [B-6a3c]
+	// names the people again, from the ending record's CivID.
 	return Label(TEXT("Chronicle.Note.RungNoCiv"));
 }
 

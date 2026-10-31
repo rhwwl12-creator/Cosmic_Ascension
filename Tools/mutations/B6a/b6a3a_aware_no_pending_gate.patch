@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -345,7 +345,7 @@
+ 		const FCallingState& Calling = State.Calling;
+ 		const FPlayerEntityState& Player = State.Player;
+ 		const FName OwnerID = State.Systems[SystemIndex].OwnerCivID;
+-		if (Calling.LifeState != ELifeState::Embodied || Calling.PendingEffect.IsValid() || Player.Role != EPlayerRole::Ruler
++		if (Calling.LifeState != ELifeState::Embodied || Player.Role != EPlayerRole::Ruler
+ 			|| Player.RuledCivID.IsNone() || Player.RuledCivID != OwnerID)
+ 		{
+ 			return INDEX_NONE;

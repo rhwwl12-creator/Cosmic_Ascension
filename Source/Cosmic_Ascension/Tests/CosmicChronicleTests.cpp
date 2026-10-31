@@ -104,7 +104,6 @@ bool FCosmicSimProvisionalEndTest::RunTest(const FString& Parameters)
 	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
 
 	TestEqual(TEXT("The game's clock end is tick 6,000"), Sim->GetRules().ProvisionalEndTick, 6000);
-	TestEqual(TEXT("The end's rung is the third"), CosmicEndings::EndRung, EAscensionTier::Tier3_Causal);
 
 	FCosmicRulesDef Rules;
 	Rules.ProvisionalEndTick = 6000;
@@ -126,15 +125,16 @@ bool FCosmicSimProvisionalEndTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("The second rung at 5,999: none"), ProvisionalEndOf(With(5999, { T2 }), Rules), ECosmicProvisionalEnd::None);
 	TestEqual(TEXT("at 6,000: the clock"), ProvisionalEndOf(With(6000, { T2 }), Rules), ECosmicProvisionalEnd::Clock);
 	TestEqual(TEXT("at 6,001: the clock"), ProvisionalEndOf(With(6001, { T2 }), Rules), ECosmicProvisionalEnd::Clock);
-	TestEqual(TEXT("The third rung at 100: the rung"), ProvisionalEndOf(With(100, { T3 }), Rules), ECosmicProvisionalEnd::Rung);
-	TestEqual(TEXT("The rung wins a tie with the clock"), ProvisionalEndOf(With(6000, { T3 }), Rules), ECosmicProvisionalEnd::Rung);
-	TestEqual(TEXT("A fourth rung is past the third: the rung"), ProvisionalEndOf(With(100, { EAscensionTier::Tier4_Transcendent }), Rules), ECosmicProvisionalEnd::Rung);
-	TestEqual(TEXT("A life before the last that reached the third rung: the rung"), ProvisionalEndOf(With(100, { T3, T1 }), Rules), ECosmicProvisionalEnd::Rung);
+	// The third rung is no end (B6a decision 2-ga, [B-6a3a]): a run goes on past it to the clock. Rung is never answered.
+	TestEqual(TEXT("The third rung at 100: none"), ProvisionalEndOf(With(100, { T3 }), Rules), ECosmicProvisionalEnd::None);
+	TestEqual(TEXT("The third rung at 6,000: the clock"), ProvisionalEndOf(With(6000, { T3 }), Rules), ECosmicProvisionalEnd::Clock);
+	TestEqual(TEXT("A fourth rung at 100: none"), ProvisionalEndOf(With(100, { EAscensionTier::Tier4_Transcendent }), Rules), ECosmicProvisionalEnd::None);
+	TestEqual(TEXT("A life before the last that reached the third rung: none"), ProvisionalEndOf(With(100, { T3, T1 }), Rules), ECosmicProvisionalEnd::None);
 	{
 		FCosmicRulesDef NoClock = Rules;
 		NoClock.ProvisionalEndTick = 0;
 		TestEqual(TEXT("A knob of 0 has no clock end"), ProvisionalEndOf(With(99999, { T2 }), NoClock), ECosmicProvisionalEnd::None);
-		TestEqual(TEXT("and the rung still ends"), ProvisionalEndOf(With(10, { T3 }), NoClock), ECosmicProvisionalEnd::Rung);
+		TestEqual(TEXT("nor does the third rung end it"), ProvisionalEndOf(With(10, { T3 }), NoClock), ECosmicProvisionalEnd::None);
 		NoClock.ProvisionalEndTick = -5;
 		TestEqual(TEXT("A knob below 0 has no clock end"), ProvisionalEndOf(With(99999, { T2 }), NoClock), ECosmicProvisionalEnd::None);
 	}
@@ -154,10 +154,11 @@ bool FCosmicSimProvisionalEndTest::RunTest(const FString& Parameters)
 		Told.TellRngState = 77;
 		TestEqual(TEXT("Knowing, the log, the chronicle and the tell stream change nothing"), ProvisionalEndOf(Told, Rules), ECosmicProvisionalEnd::Clock);
 	}
+	// Rung keeps its name while the enumerator stands (both go in [B-6a3c]).
 	TestEqual(TEXT("The names of the causes"), FString(CosmicEndings::NameOf(ECosmicProvisionalEnd::Rung)) + CosmicEndings::NameOf(ECosmicProvisionalEnd::Clock)
 		+ CosmicEndings::NameOf(ECosmicProvisionalEnd::None), FString(TEXT("RungClockNone")));
 
-	// Pure, and nothing stops at it: a run at its rung end goes on, and the knob changes no world.
+	// Pure, and nothing stops at it: a run past its third rung and at its clock end goes on, and the knob changes no world.
 	Sim->NewGalaxy(42, 5, 3);
 	{
 		FGalaxyState& Live = Sim->GetMutableState();
@@ -165,6 +166,7 @@ bool FCosmicSimProvisionalEndTest::RunTest(const FString& Parameters)
 		{
 			Live.Calling.Lives.Last().PeakTier = T3;
 		}
+		Live.Tick = Sim->GetRules().ProvisionalEndTick;
 		Sim->SyncRngState();
 		const uint32 Whole = Sim->ComputeStateHash();
 		const uint32 World = Sim->ComputeWorldHash();
@@ -176,7 +178,7 @@ bool FCosmicSimProvisionalEndTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("Reading the end changes no state"), Sim->ComputeStateHash(), Whole);
 		TestEqual(TEXT("nor the world"), Sim->ComputeWorldHash(), World);
 		TestEqual(TEXT("nor the stream"), Sim->GetState().RngState, Stream);
-		TestEqual(TEXT("(the run is at its rung end)"), ProvisionalEndOf(Sim->GetState(), Sim->GetRules()), ECosmicProvisionalEnd::Rung);
+		TestEqual(TEXT("(the run is past its third rung and at its clock end)"), ProvisionalEndOf(Sim->GetState(), Sim->GetRules()), ECosmicProvisionalEnd::Clock);
 		const int64 Before = Live.Tick;
 		Sim->RunHeadless(5);
 		TestEqual(TEXT("RunHeadless goes on past the end"), Live.Tick, Before + 5);

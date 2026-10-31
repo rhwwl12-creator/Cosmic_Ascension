@@ -660,11 +660,13 @@ bool FCosmicUIMouseOnlyAscentTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
+	const FCosmicDataTables Original = Sim->GetTables();
 	ON_SCOPE_EXIT
 	{
 		Controller->SelectSystem(NAME_None);
 		Controller->SetWantedViewMode(ECosmicViewMode::Spiritual);
 		Sim->SetTimeScale(0.f);
+		Sim->SetTables(Original);
 		Sim->NewGalaxy(42, 5, 3);
 	};
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
@@ -775,9 +777,10 @@ bool FCosmicUIMouseOnlyAscentTest::RunTest(const FString& Parameters)
 	Map->RefreshNow();
 	TestTrue(TEXT("and a press on it turns the map to the physical view"), Map->GetDrawnViewMode() == ECosmicViewMode::Physical);
 
-	// The third rung ends the run (MVP item 4, exit (c)): the presentation and its reveal first, then the latch (a headless
-	// run sends no tick - FollowEnd is called here), the wait, the chronicle's page and 'look at the map'. The bar still
-	// offers x25 (item 12), greyed out: neither its press nor SetSpeed(25) moves the stopped simulation.
+	// The third rung ends no run (B6a decision 2-ga): after the presentation and its reveal the boundary latches nothing (a
+	// headless run sends no tick - FollowEnd is called here) and the run goes on. The end comes by the clock, put by the
+	// test's knob at the next tick: the latch, the wait, the chronicle's page and 'look at the map'. The bar still offers
+	// x25 (item 12), greyed out: neither its press nor SetSpeed(25) moves the stopped simulation.
 	UCosmicAscensionOverlayWidget* Overlay = HUD->GetAscensionOverlay();
 	if (Overlay)
 	{
@@ -786,7 +789,16 @@ bool FCosmicUIMouseOnlyAscentTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("(the provisional end is switched on)"), Controller->IsProvisionalEndEnabled());
 	Controller->FollowEnd(true);
-	TestEqual(TEXT("The third rung ends the run"), Controller->GetRunEnd(), ECosmicProvisionalEnd::Rung);
+	TestFalse(TEXT("The third rung ends no run: nothing latches"), Controller->IsRunEnded());
+	const int64 ThirdTick = Live.Tick;
+	Sim->RunHeadless(1);
+	TestTrue(TEXT("and the run goes on past it"), Live.Tick == ThirdTick + 1 && Live.Civs[CivIndex].Tier == EAscensionTier::Tier3_Causal);
+	FCosmicRulesDef Clocked = Sim->GetRules();
+	Clocked.ProvisionalEndTick = static_cast<int32>(Live.Tick + 1);
+	Sim->SetTables(CosmicTests::WithRules(Sim->GetTables(), Clocked));
+	Sim->RunHeadless(1);
+	Controller->FollowEnd(true);
+	TestEqual(TEXT("The clock ends the run"), Controller->GetRunEnd(), ECosmicProvisionalEnd::Clock);
 	TestEqual(TEXT("and stops the simulation"), Sim->GetTimeScale(), 0.f);
 	Controller->AdvanceRunEnd(CosmicChronicleScreen::HoldSeconds + 0.1f);
 	UCosmicChronicleWidget* Page = HUD->GetChronicle();

@@ -7,17 +7,10 @@
 
 ECosmicProvisionalEnd CosmicEndings::ProvisionalEndOf(const FGalaxyState& State, const FCosmicRulesDef& Rules)
 {
-	const TArray<FLifeRecord>& Lives = State.Calling.Lives;
-	if (Lives.IsEmpty())
+	// No life yet, no end; the third rung no longer ends a run (B6a [B-6a3a]).
+	if (State.Calling.Lives.IsEmpty())
 	{
 		return ECosmicProvisionalEnd::None;
-	}
-	for (const FLifeRecord& Life : Lives)
-	{
-		if (static_cast<int32>(Life.PeakTier) >= static_cast<int32>(EndRung))
-		{
-			return ECosmicProvisionalEnd::Rung;
-		}
 	}
 	if (Rules.ProvisionalEndTick > 0 && State.Tick >= static_cast<int64>(Rules.ProvisionalEndTick))
 	{

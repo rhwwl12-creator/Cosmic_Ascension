@@ -1660,26 +1660,22 @@ bool FCosmicPlayerAscendsToT3Test::RunTest(const FString& Parameters)
 	PlaceByHand(Live, Home, TEXT("Hazard.PreSupernova"), Countdown);
 	TestTrue(TEXT("The project key answers the supernova"), Role->StartNextMegaproject());
 	TestEqual(TEXT("with the stabilization"), Live.Systems[Home].ResponseMegaproject, FName(TEXT("project_stabilize")));
-	// The provisional end (MVP item 4) holds first in the tick of the third rung, and not in the tick before (the clock is
-	// switched off for the test: this run may pass tick 6,000 on its way up).
+	// The third rung is no end (B6a decision 2-ga, [B-6a3a]): no provisional end holds in any tick of the climb, the tick of
+	// the third rung with it, and the run goes on (the clock is switched off for the test: this run may pass tick 6,000 on
+	// its way up).
 	FCosmicRulesDef NoClock = Sim->GetRules();
 	NoClock.ProvisionalEndTick = 0;
-	int64 RungEndTick = -1;
 	int64 ThirdRungTick = -1;
-	bool bNoneBefore = false;
+	bool bEndOnTheWay = false;
 	for (int32 Step = 0; Step < Countdown && Live.Civs[CivIndex].Tier == EAscensionTier::Tier2_Stellar; ++Step)
 	{
-		const bool bNone = CosmicEndings::ProvisionalEndOf(Live, NoClock) == ECosmicProvisionalEnd::None;
 		Sim->StepOnce();
-		if (RungEndTick < 0 && CosmicEndings::ProvisionalEndOf(Live, NoClock) == ECosmicProvisionalEnd::Rung)
-		{
-			RungEndTick = Live.Tick;
-			bNoneBefore = bNone;
-		}
+		bEndOnTheWay |= CosmicEndings::ProvisionalEndOf(Live, NoClock) != ECosmicProvisionalEnd::None;
 		ThirdRungTick = (ThirdRungTick < 0 && Live.Civs[CivIndex].Tier == EAscensionTier::Tier3_Causal) ? Live.Tick : ThirdRungTick;
 	}
-	TestTrue(TEXT("The provisional end holds first in the tick of the third rung"), RungEndTick >= 0 && RungEndTick == ThirdRungTick);
-	TestTrue(TEXT("and not in the tick before"), bNoneBefore);
+	TestTrue(TEXT("(the third rung is reached in a stepped tick)"), ThirdRungTick >= 0 && ThirdRungTick == Live.Tick);
+	TestEqual(TEXT("The third rung ends no run: no provisional end in its tick"), CosmicEndings::ProvisionalEndOf(Live, NoClock), ECosmicProvisionalEnd::None);
+	TestFalse(TEXT("nor in any tick of the climb"), bEndOnTheWay);
 	TestTrue(TEXT("The stabilization completed within the supernova's countdown"), CosmicMegaprojects::HasCompleted(Live.Systems[Home], FName(TEXT("project_stabilize")), Live.Calling.BornTick, NAME_None));
 	TestFalse(TEXT("The capital still stands"), CosmicHazards::IsDeadNode(Live.Systems[Home]));
 	TestFalse(TEXT("The supernova is resolved"), Live.Systems[Home].ActiveHazard == Tag(TEXT("Hazard.PreSupernova")));

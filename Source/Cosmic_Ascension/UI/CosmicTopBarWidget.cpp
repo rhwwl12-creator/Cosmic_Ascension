@@ -856,7 +856,8 @@ void UCosmicTopBarWidget::Refresh()
 
 	// The provisional end (MVP item 4): the chronicle's button while the run is over and the page folded, and before the end
 	// the grey line - the last minutes of the clock, or the clock end while the vessel is an embodied wanderer (B5: every one -
-	// a called vessel never ruled; a wanderer reaches no rung end of its own). Set only when they change.
+	// a called vessel never ruled; a ruler is told the end by the clock tip's rule line - B6a header section 4). Set only when
+	// they change.
 	if (ReopenButton)
 	{
 		const ACosmicHUD* HUD = Controller ? Controller->GetHUD<ACosmicHUD>() : nullptr;

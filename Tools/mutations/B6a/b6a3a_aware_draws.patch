@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -360,7 +360,7 @@
+ 		{
+ 			return INDEX_NONE;
+ 		}
+-		Claiming.bAwareOfPlayer = true;
++		Claiming.bAwareOfPlayer = Ctx.Stream.GetFraction() < 2.f;
+ 		return Claimant;
+ 	}
+ 

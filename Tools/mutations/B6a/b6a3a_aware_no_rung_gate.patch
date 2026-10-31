@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -351,7 +351,7 @@
+ 			return INDEX_NONE;
+ 		}
+ 		const int32 OwnerIndex = Ctx.Index.FindCiv(State, OwnerID);
+-		if (!State.Civs.IsValidIndex(OwnerIndex) || State.Civs[OwnerIndex].Tier < EAscensionTier::Tier3_Causal)
++		if (!State.Civs.IsValidIndex(OwnerIndex))
+ 		{
+ 			return INDEX_NONE;
+ 		}

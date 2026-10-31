@@ -920,7 +920,7 @@ bool FCosmicSimCoronationTest::RunTest(const FString& Parameters)
 
 	// Crowned: what the throne writes. People 1 also holds 9, which the vessel does not know yet; a rebel took its throne
 	// before (an open Ruler record), its Stability is that of a vacuum, and it stands on the third rung (the life's peak
-	// must not rise with it: the provisional end reads the peak).
+	// must not rise with it: the life's peak is the calling's record, and an ending reads it).
 	CosmicTests::Give(*State, 1, { 9 });
 	FNotableRecord& Rebel = State->Civs[1].Notables.AddDefaulted_GetRef();
 	Rebel.Role = Tag(TEXT("Notable.Ruler"));
@@ -939,7 +939,7 @@ bool FCosmicSimCoronationTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The new people's systems are known at once"), Knows(*State, 9));
 	TestEqual(TEXT("No number of the sim stream"), Sim->GetRng().GetCurrentSeed(), Seed);
 	TestTrue(TEXT("The life's peak stays"), State->Calling.Lives.Last().PeakTier == Peak);
-	TestTrue(TEXT("and no provisional end comes of the people's rung"), CosmicEndings::ProvisionalEndOf(*State, Rules) != ECosmicProvisionalEnd::Rung);
+	TestEqual(TEXT("and no end comes of the people's rung"), CosmicEndings::ProvisionalEndOf(*State, Rules), ECosmicProvisionalEnd::None);
 	TestEqual(TEXT("The coronation is told"), LinesOf(*State, CosmicRows::LogCrowned), 1);
 	TestTrue(TEXT("The vessel left people 0 and keeps it in mind"), State->Player.FormerCivID == State->Civs[0].CivID);
 	Sim->StepOnce();
@@ -1351,11 +1351,16 @@ bool FCosmicSimWandererPolicyTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The second answer takes the second choice (no Body)"), State->Knowing.PendingPetitionRow.IsNone() && State->Player.Body == Body && Counts.Answers == 2);
 	}
 
-	// No input after the provisional end: no abdication recorded, no scan, no journey.
+	// No input after the provisional end: no abdication recorded, no scan, no journey. The end is the clock's, put at the
+	// tick of the abdication (the third rung ends no run since B6a, decision 2-ga).
 	{
-		FGalaxyState* State = LayBoard(*Sim, TablesWith(Original, Cards()));
-		State->Calling.Lives.Last().PeakTier = EAscensionTier::Tier3_Causal;
+		FGalaxyState* State = LayBoard(*Sim, TablesWith(Original, Cards(), [](FCosmicRulesDef& Rules) { Rules.ProvisionalEndTick = 10; }));
+		if (!TestNotNull(TEXT("(the board is laid)"), State))
+		{
+			return false;
+		}
 		State->Tick = 10;
+		TestEqual(TEXT("(the clock's end holds at tick 10)"), CosmicEndings::ProvisionalEndOf(*State, Sim->GetRules()), ECosmicProvisionalEnd::Clock);
 		FCosmicWandererPolicyCounts Counts;
 		CosmicWandererPolicy::AbdicateIfDue(FCosmicWandererPolicy{ 10, true }, *Sim, *Role, Counts);
 		TestFalse(TEXT("After the end the policy records no abdication"), State->Calling.PendingEffect.IsValid());
