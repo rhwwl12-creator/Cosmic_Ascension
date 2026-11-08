@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -176,7 +176,6 @@
+ 		// A rebellion that leaves its slot without a change of throne ends its leader and the count (Transfer's form).
+ 		if (System.ActiveHazard == RebellionTag)
+ 		{
+-			EndRebellion(State, CivIndex);
+ 		}
+ 		State.Civs[CivIndex].OwnedSystems.Remove(System.SystemID);
+ 		System.OwnerCivID = NAME_None;

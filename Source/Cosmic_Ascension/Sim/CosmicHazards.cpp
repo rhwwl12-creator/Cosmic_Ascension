@@ -140,6 +140,53 @@ bool CosmicHazards::LetSettlementsGo(FGalaxyState& State, const FCosmicStateInde
 	return !Owned.IsEmpty();
 }
 
+bool CosmicHazards::LetPeopleGo(FCosmicEvalContext& Ctx, int32 CivIndex)
+{
+	using namespace CosmicHazardsImpl;
+
+	static const FGameplayTag RebellionTag = TagOf(TEXT("Hazard.Rebellion"));
+	FGalaxyState& State = Ctx.State;
+	if (!State.Civs.IsValidIndex(CivIndex))
+	{
+		return false;
+	}
+	// Every entry whose owner is the people, settled or being settled; an entry another people owns is left as it is.
+	const FName CivID = State.Civs[CivIndex].CivID;
+	TArray<int32, TInlineAllocator<8>> Owned;
+	for (const FName SystemID : State.Civs[CivIndex].OwnedSystems)
+	{
+		const int32 SystemIndex = Ctx.Index.FindSystem(State, SystemID);
+		if (State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == CivID)
+		{
+			Owned.Add(SystemIndex);
+		}
+	}
+	for (const int32 SystemIndex : Owned)
+	{
+		FStarSystemState& System = State.Systems[SystemIndex];
+		// #73: a completion record of no people was this people's (Transfer's form); every record stays.
+		for (FMegaprojectRecord& Record : System.CompletedMegaprojects)
+		{
+			if (Record.CivID.IsNone())
+			{
+				Record.CivID = CivID;
+			}
+		}
+		CosmicConflict::LiftTargetsOn(State, System.SystemID);
+		// A rebellion that leaves its slot without a change of throne ends its leader and the count (Transfer's form).
+		if (System.ActiveHazard == RebellionTag)
+		{
+			EndRebellion(State, CivIndex);
+		}
+		State.Civs[CivIndex].OwnedSystems.Remove(System.SystemID);
+		System.OwnerCivID = NAME_None;
+		EmptyHazardSlot(System);
+		System.ActiveMegaproject = NAME_None;
+		System.MegaprojectProgress = 0.f;
+	}
+	return !Owned.IsEmpty();
+}
+
 bool CosmicHazards::Place(FCosmicEvalContext& Ctx, int32 SystemIndex, FName HazardRow)
 {
 	FGalaxyState& State = Ctx.State;
@@ -564,8 +611,10 @@ bool CosmicHazards::ClaimMayFollowOf(const FGalaxyState& State, const FCosmicSta
 		return false;
 	}
 	// The supernova's grace keeps a last system and ends the expiry there; otherwise the system is destroyed and is
-	// settled no more. A claim's expiry joins the system to the sphere of the one claimant ClaimantOf could pick.
-	if (Standing == SupernovaTag || Standing == ClaimTag)
+	// settled no more. A claim's expiry joins the system to the sphere of the one claimant ClaimantOf could pick. The
+	// extinction's grace keeps the people and empties its extinction slots only; otherwise its people lets every system
+	// go (B6b).
+	if (Standing == SupernovaTag || Standing == ClaimTag || KillsTheRulerOf(Standing))
 	{
 		return false;
 	}
@@ -692,4 +741,12 @@ bool CosmicHazards::KillsAVesselOf(const FCosmicDataTables& Tables, const FGamep
 		return Effects.ContainsByPredicate([](const FCosmicEffect& Effect) { return Effect.Type == EEffectType::KillPlayer; });
 	};
 	return Kills(Row->OnExpireEffects) || Kills(Row->OnExpireBranchEffects);
+}
+
+bool CosmicHazards::KillsTheRulerOf(const FGameplayTag& Tag)
+{
+	using namespace CosmicHazardsImpl;
+
+	static const FGameplayTag ExtinctionTag = TagOf(TEXT("Hazard.Extinction"));
+	return Tag.IsValid() && Tag == ExtinctionTag;
 }

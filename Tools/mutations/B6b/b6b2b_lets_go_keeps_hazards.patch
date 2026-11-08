@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -180,7 +180,6 @@
+ 		}
+ 		State.Civs[CivIndex].OwnedSystems.Remove(System.SystemID);
+ 		System.OwnerCivID = NAME_None;
+-		EmptyHazardSlot(System);
+ 		System.ActiveMegaproject = NAME_None;
+ 		System.MegaprojectProgress = 0.f;
+ 	}

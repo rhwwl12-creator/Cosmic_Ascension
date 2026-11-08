@@ -90,6 +90,10 @@ namespace CosmicRows
 	// it untold whatever the scope (UCosmicLogSubsystem::PushVariants). Every people's loss, whatever its faith traits.
 	inline const FName LogRecordDestroyed(TEXT("log_record_destroyed"));
 	inline const FName LogRecordAnnexed(TEXT("log_record_annexed"));
+	// B6b [B-6b2b] (header section 2.2, 3.1, decision 5): the same record of a people that let every system go at an
+	// extinction's expiry (CosmicHazards::LetPeopleGo) - the third loss, told in the same place, {System} the system the
+	// extinction stood on.
+	inline const FName LogRecordExtinct(TEXT("log_record_extinct"));
 
 	// DT_LogTemplates: B5 [B-5d1] (header section 2.2, 3.3, decision 12-da). The tenth stage's lines of the calling - Log.Calling,
 	// Severity 2, the narrator's, in the third person by the vessel's name ({Player} is passed in: CosmicChronicle::VesselNameOf).
@@ -103,6 +107,11 @@ namespace CosmicRows
 	inline const FName LogDeathHazard(TEXT("log_death_hazard"));
 	inline const FName LogInauguration(TEXT("log_inauguration"));
 	inline const FName LogInaugurationUnnamed(TEXT("log_inauguration_unnamed"));
+	// B6b [B-6b2b] (header section 2.2, 3.1, decision 5): the death line of a Death.Hazard whose source row's tag kills the
+	// ruler (CosmicHazards::KillsTheRulerOf - the extinction), in log_death_hazard's place: those three variants mourn one
+	// person a star lost, untrue on the tick a whole people ended. The cause stays Death.Hazard (no new saved tag); the same
+	// slots, the same one tell number.
+	inline const FName LogDeathExtinction(TEXT("log_death_extinction"));
 
 	// DT_Encounters: the first contact card (B3 header section 2.9). NoteMet writes Knowing.PendingContactCivID at the
 	// first meeting of the run while this row exists; the end of the knowing stage puts it after a Standing card that came to hold in the tick, before the periodic slot, while no petition waits.

@@ -57,6 +57,7 @@ namespace CosmicWarningLineTests
 	const FName PlagueRow(TEXT("crisis_test_warn_plague"));
 	const FName ClaimRow(TEXT("crisis_test_warn_claim"));
 	const FName NovaRow(TEXT("crisis_test_warn_nova"));
+	const FName ExtinctRow(TEXT("crisis_test_warn_extinct"));
 	const FName WideFallen(TEXT("tr_test_warn_wide"));      // a sphere of twelve
 	const FName NarrowFallen(TEXT("tr_test_warn_narrow"));  // a sphere of one
 	const FName AnswerEdict(TEXT("edict_test_warn_answer"));
@@ -106,8 +107,9 @@ namespace CosmicWarningLineTests
 	// The game's tables made quiet for the board (CosmicAwarenessTests' form): no inherited edict, no event slot, no first
 	// crisis, no periodic petition, no drift and no fleet, no pressure drain, a realm cap of one, claims one lane out, no
 	// project or feat, no event or card row. The hazards: a plague of the tests (one tick; AnswerEdict answers it), the claim
-	// row (300 ticks) and a supernova of the tests (one tick). The transcendents: WideFallen and NarrowFallen. The edicts: the
-	// game's and AnswerEdict (no upkeep).
+	// row (300 ticks), a supernova of the tests (one tick) and an extinction of the tests (one tick - B6b; the game holds no
+	// Hazard.Extinction row before [B-6b6]). The transcendents: WideFallen and NarrowFallen. The edicts: the game's and
+	// AnswerEdict (no upkeep).
 	FCosmicDataTables WarnTablesOf(const FCosmicDataTables& Original, const FCosmicRulesDef& GameRules)
 	{
 		FCosmicRulesDef Rules = CosmicTests::WithoutStartingEdict(GameRules);
@@ -127,6 +129,7 @@ namespace CosmicWarningLineTests
 		Hazards->AddRow(PlagueRow, Plague);
 		Hazards->AddRow(ClaimRow, WarnHazardRowOf(TEXT("Hazard.Claim"), ECosmicHazardSpawn::ClaimRule, 300));
 		Hazards->AddRow(NovaRow, WarnHazardRowOf(TEXT("Hazard.PreSupernova"), ECosmicHazardSpawn::Draw, 1));
+		Hazards->AddRow(ExtinctRow, WarnHazardRowOf(TEXT("Hazard.Extinction"), ECosmicHazardSpawn::Draw, 1));
 		Tables.Hazards = Hazards;
 
 		UDataTable* Transcendents = CosmicTests::NewTable(FTranscendentDef::StaticStruct());
@@ -249,7 +252,9 @@ namespace CosmicWarningLineTests
 // settled system (Law.Remnant): false and no claim (mutation: dropping the last-unclaimed check from ClaimRuleHoldsOf breaks
 // the fixed answer - and, the simulation calling it, the outcome). A claimant whose sphere is full; no claimant in reach:
 // false and no claim. A hazard the owner's held edict answers (mutation: dropping the edict gate from ClaimMayFollowOf breaks
-// it), Hazard.PreSupernova and Hazard.Claim: false, no new claim after the expiry, though the rule itself holds there.
+// it), Hazard.PreSupernova and Hazard.Claim: false, no new claim after the expiry, though the rule itself holds there. B6b
+// [B-6b2b]: the extinction - false, its people lets every system go and no claim follows (mutation: asking the claim rule of
+// the slot for it breaks it).
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicUIClaimMayFollowTest, "Cosmic_Ascension.UI.ClaimMayFollow", CosmicTests::Flags)
 bool FCosmicUIClaimMayFollowTest::RunTest(const FString& Parameters)
 {
@@ -470,6 +475,24 @@ bool FCosmicUIClaimMayFollowTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("(the claim's expiry joined the system to the sphere)"), State.Transcendents.Num() == 1
 			&& State.Transcendents[0].InfluencedSystems.Contains(State.Systems[WarnedSystem].SystemID));
 		TestEqual(TEXT("After the expiry no new claim stands"), ClaimCount(State), 0);
+	}
+
+	// (h) B6b [B-6b2b] - the extinction: its expiry lets the owner's systems go (no grace row in these tables), so the claim
+	// rule meets no settled system, and no claim follows.
+	{
+		FGalaxyState* Laid = LayWarnBoard(*Sim, WideFallen, { SphereSystem });
+		if (!TestNotNull(TEXT("(the board of the extinction is laid)"), Laid))
+		{
+			return false;
+		}
+		StandOn(*Laid, WarnedSystem, TEXT("Hazard.Extinction"));
+		TestTrue(TEXT("(the claim rule itself holds there)"), RuleHolds());
+		TestFalse(TEXT("Hazard.Extinction: no claim may follow"), MayFollow());
+		TestTrue(TEXT("The panel says nothing of a claim"), PanelSilent());
+		Sim->RunHeadless(1);
+		TestTrue(TEXT("(the extinction let the owner's systems go)"), State.Systems[WarnedSystem].OwnerCivID.IsNone() && State.Systems[LaterSystem].OwnerCivID.IsNone());
+		TestEqual(TEXT("After the expiry no claim stands"), ClaimCount(State), 0);
+		Panel->ShowSystem(NAME_None);
 	}
 	return true;
 }

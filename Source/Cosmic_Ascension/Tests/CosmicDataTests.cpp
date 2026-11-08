@@ -2577,7 +2577,9 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 	// AI awakening's own expiry, by Death.Hazard (the rule is the schema's, held on the sources by check_data.py; this is what
 	// the assets the game reads hold) - and CosmicTests::WithoutDeath, the data-off side of a pair (-WithoutDeath=1), takes
 	// exactly it away and keeps every row of the tables it copies. One of two pins with Tools/test_data_schema.py's
-	// (test_the_lethal_expiry): the schema's rules refuse, and the pins hold the one row allowed.
+	// (test_the_lethal_expiry): the schema's rules refuse, and the pins hold the one row allowed. B6b [B-6b2b] (decision 5 -
+	// DECISIONS_LOG B6b): the second source of a death is code, not data - the extinction's expiry kills the ruler
+	// (CosmicHazards::KillsTheRulerOf, Sim.ExtinctionExpiry), so this pin of the data stands as it is; [B-6b6] pins that row.
 	if (TestNotNull(TEXT("(the game's hazards, events, feats and cards)"), Game.Hazards.Get()) && Game.Events.Get() && Game.Feats.Get() && Game.Encounters.Get())
 	{
 		const TArray<FString> Deaths = KillPlayersOf(Game);

@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -94,7 +94,7 @@
+ 		{
+ 			return FName();
+ 		}
+-		return Hazard && CosmicHazards::KillsTheRulerOf(Hazard->HazardTag) ? CosmicRows::LogDeathExtinction : CosmicRows::LogDeathHazard;
++		return CosmicRows::LogDeathHazard;
+ 	}
+ 
+ 	// The death line (B5 header section 2.2 Die (b), 3.3; decision 12-da): the narrator's, in the third person by the vessel's

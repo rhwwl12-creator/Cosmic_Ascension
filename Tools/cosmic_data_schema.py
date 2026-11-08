@@ -195,6 +195,9 @@ TESTS = {
     # No text of the cell holds a digit (true), or one of them does (false) - B5 [B-5d1]: a record line carries no figure,
     # a rule over the rows of one category where a column's no_digits would hang on every row.
     "no_digits": FLAG,
+    # Every row name of a rows column is a row of one of the named tables - each one of the tables the column itself names
+    # (B6b [B-6b2b]: the extinction is answered by a project alone - the ark).
+    "rows_of": WORDS,
 }
 # Test -> the kinds of column it can be asked of. Asked of another kind it would never hold (or always).
 # A plain column holds a struct the checker does not read (EthicsPreset, Color, MapPosition): no test can be asked of it.
@@ -216,6 +219,7 @@ TEST_KINDS = {
     "zero": ("pool",),
     "lacks_words": ("text", "texts"),
     "no_digits": ("text", "texts"),
+    "rows_of": ("rows",),
 }
 # A row test of its own shape, besides 'row', 'row_not' and 'row_prefix': {"none": [tests]}, each test over a column of
 # one list of structs ('List.Column'); it holds when no entry of the list holds every one of them (B4: one choice read as
@@ -692,6 +696,11 @@ class Checker:
                         self.report(where, "a row test names the tag %s, which the ini does not declare" % (value,))
             if name == "lacks_words" and operand not in self.schema["words"]:
                 self.report(where, "the word list %s is not in the schema" % (operand,))
+            if name == "rows_of":
+                # A table the column does not name holds none of its rows: the test would hold of the empty list alone.
+                for table in operand:
+                    if table not in (column_spec.get("tables") if is_names(column_spec.get("tables")) else []):
+                        self.report(where, "a row test names the table %s, which the column %s does not name: %s" % (table, test["col"], shown))
             if name in NAMED_COLUMNS:
                 for other, kinds in zip([operand] if isinstance(operand, str) else operand, NAMED_COLUMNS[name]):
                     other_spec = columns.get(other)
@@ -1375,6 +1384,9 @@ class Checker:
             words = self.schema["words"].get(operand, []) if isinstance(self.schema.get("words"), dict) else []
             texts = value if isinstance(value, list) else [value]
             return all(isinstance(text, str) and not any(word in text for word in words) for text in texts)
+        if name == "rows_of":
+            # Each entry a row of one of the named tables (an empty list holds).
+            return isinstance(value, list) and all(any(name_of(entry) in self.rows.get(table, {}) for table in operand) for entry in value)
         if name == "no_digits":
             # Matched as a column's no_digits matches: any digit of any script, a slot name included.
             texts = value if isinstance(value, list) else [value]

@@ -1,0 +1,11 @@
+--- a/Tools/data/DT_Hazards.json
++++ b/Tools/data/DT_Hazards.json
+@@ -101,7 +101,7 @@
+ 	},
+ 	{
+ 		"Name": "crisis_plague",
+-		"HazardTag": "Hazard.Plague",
++		"HazardTag": "Hazard.Extinction",
+ 		"SourceDoctrine": "",
+ 		"DisplayName": "성간 역병",
+ 		"CountdownTicks": 200,

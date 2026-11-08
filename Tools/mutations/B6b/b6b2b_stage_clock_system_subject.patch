@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2508,7 +2508,7 @@
+ 	if (StageClock.bOn)
+ 	{
+ 		StageClock.Expiries.Add({ State.Systems[SystemIndex].SystemID, Collected, bBranch, false,
+-			CosmicHazards::VesselAtRiskOf(State.Player, State.Calling, Rules, State.Tick, bExtinction ? FName() : State.Systems[SystemIndex].SystemID, State.Systems[SystemIndex].OwnerCivID) });
++			CosmicHazards::VesselAtRiskOf(State.Player, State.Calling, Rules, State.Tick, State.Systems[SystemIndex].SystemID, State.Systems[SystemIndex].OwnerCivID) });
+ 	}
+ 
+ 	// The gate comes before any part of the loss (section 4.5): a kept system loses nothing, not even its line. The

@@ -1011,7 +1011,8 @@ class SchemaTests(unittest.TestCase):
                 said = [line for line in self.after(rows(wrong)) if "RulerResolutions" in line]
                 self.assertEqual(len(said), 2, said)
                 self.assertEqual([line for line in said if "appears twice" in line], [], said)
-        to_events = self.put(column, "tables", ["DT_Events"])
+        # (DT_Megaprojects stays named: the extinction's rule asks rows_of it of this column - B6b [B-6b2b].)
+        to_events = self.put(column, "tables", ["DT_Events", "DT_Megaprojects"])
         self.assertEqual(self.after(rows(["event_book_found"]), to_events), [])
         self.expect(self.after(rows(["event_book_found", "event_book_found"]), to_events), "RulerResolutions", "appears twice")
         without_unique = self.drop(column, "unique")
@@ -2061,9 +2062,12 @@ class SchemaTests(unittest.TestCase):
         # (6) The death and inauguration rows: the calling's lines, their slots, no word of a death, no 'you', no name of the
         # holy order; the death's line no agent, sacrifice or cause, the inauguration's no return or rebirth.
         row_lists = {"log_death_hazard": death_lists + ("reader_address", "realm_names", "death_frame_words"),
+                     "log_death_extinction": death_lists + ("reader_address", "realm_names", "death_frame_words"),
                      "log_inauguration": death_lists + ("reader_address", "realm_names", "rebirth_words"),
                      "log_inauguration_unnamed": death_lists + ("reader_address", "realm_names", "rebirth_words")}
+        # B6b [B-6b2b]: the extinction's death line takes the death line's rule whole (header 3.3 rule 8).
         for row_name, slots, refused in (("log_death_hazard", "{Player} {Hazard}", ("System", "Civ")),
+                                         ("log_death_extinction", "{Player} {Hazard}", ("System", "Civ")),
                                          ("log_inauguration", "{Player} {Civ} {System}", ("CivAdj", "Hazard")),
                                          ("log_inauguration_unnamed", "{Player} {Civ}", ("System", "Hazard"))):
             line = lambda row_name=row_name, **changes: (lambda tables: self.row(tables, "DT_LogTemplates", row_name).update(**changes))  # noqa: E731
@@ -3016,6 +3020,42 @@ class SchemaTests(unittest.TestCase):
         self.schema_problem(self.put(rule, "then", [{"col": "Title", "lacks_cond": {"type": "PlayerRoleIs", "key": "Ruler"}}]),
                             "schema.DT_Encounters", "the test 'lacks_cond' cannot be asked of a column of kind text")
 
+    def test_rows_of_and_the_extinction_row(self):
+        # B6b [B-6b2b] (header 3.3 rule 5): rows_of holds when every row name of a rows column is a row of one of the named
+        # tables (an empty list holds); it names only tables the column names, and only a rows column.
+        holds = checker.Checker(self.schema, self.tables, self.tags).holds
+        projects = {"col": "C", "rows_of": ["DT_Megaprojects"]}
+        for fine in ([], ["project_test_build"]):
+            with self.subTest(cell=fine):
+                self.assertTrue(holds(projects, {"C": fine}, "r"))
+        for wrong in (["project_test_build", "edict_test_order"], ["project_nobody"], None, "project_test_build"):
+            with self.subTest(cell=wrong):
+                self.assertFalse(holds(projects, {"C": wrong}, "r"))
+        self.assertTrue(holds({"col": "C", "rows_of": ["DT_Megaprojects", "DT_Edicts"]}, {"C": ["project_test_build", "edict_test_order"]}, "r"))
+        rule = ["tables", "DT_Hazards", "rules", 0]
+        self.schema_problem(self.put(rule, "then", [{"col": "RulerResolutions", "rows_of": ["DT_Events"]}]),
+                            "schema.DT_Hazards", "names the table DT_Events, which the column RulerResolutions does not name")
+        self.schema_problem(self.put(rule, "then", [{"col": "WandererResolutions", "rows_of": ["DT_Megaprojects"]}]),
+                            "schema.DT_Hazards", "names the table DT_Megaprojects, which the column WandererResolutions does not name")
+        self.schema_problem(self.put(rule, "then", [{"col": "OutbreakTemplates", "rows_of": ["DT_Megaprojects"]}]),
+                            "schema.DT_Hazards", "the test 'rows_of' cannot be asked of a column of kind texts")
+        self.schema_problem(self.put(rule, "then", [{"col": "RulerResolutions", "rows_of": []}]), "schema.DT_Hazards", "the test 'rows_of' needs a list of strings, not empty")
+        # The extinction's row: its loss is the expiry's code, so its expiry carries no effect of its own (the breaking case: a
+        # KillPlayer there - the death is the code's), no branch and no damage to the neighbours, and a project its only answer
+        # (the breaking case: an edict - the game's answers of another hazard may be edicts).
+        why = "the extinction's loss is the expiry's code"
+        extinct = lambda **changes: (lambda tables: self.row(tables, "DT_Hazards", "crisis_test_storm").update(  # noqa: E731
+            dict({"HazardTag": "Hazard.Extinction", "OnExpireEffects": []}, **changes)))
+        self.assertEqual(self.after(extinct()), [])
+        self.assertEqual(self.after(extinct(RulerResolutions=["project_test_build"])), [])
+        self.expect(self.after(extinct(OnExpireEffects=[eff("KillPlayer", tag="Death.Hazard")])), "DT_Hazards.crisis_test_storm", why, '"col": "OnExpireEffects", "max_len": 0')
+        self.expect(self.after(extinct(OnExpireNeighbourEffects=[eff("ChangeStability", value=-0.1)])), "DT_Hazards.crisis_test_storm", why, '"col": "OnExpireNeighbourEffects"')
+        self.expect(self.after(extinct(BranchChance=0.5, OnExpireBranchEffects=[eff("ChangeStability", value=-0.1)])), "DT_Hazards.crisis_test_storm", why, '"col": "BranchChance"')
+        self.expect(self.after(extinct(RulerResolutions=["edict_test_order"])), "DT_Hazards.crisis_test_storm", why, '"rows_of": ["DT_Megaprojects"]')
+        self.expect(self.after(extinct(RulerResolutions=["project_test_build", "petition_test_plea"])), "DT_Hazards.crisis_test_storm", why, '"rows_of"')
+        # Another hazard keeps its effects and may be answered by an edict.
+        self.assertEqual(self.after(self.set_cell("DT_Hazards", "crisis_test_storm", "RulerResolutions", ["edict_test_order"])), [])
+
     def test_a_ruler_card_does_not_wait_on_the_vessel_rung(self):
         # B6a [B-6a6] (header 3.1, decision 9): the ruler's personal rung never rises, so a ruler's row that waits on it never
         # comes. The breaking case is petition_exalt as it stood from [A-2b] to [B-6a5]: the ruler and the vessel's rung 2.
@@ -3171,6 +3211,10 @@ class SchemaTests(unittest.TestCase):
                 row[column] = tags_text(*kept) if kept else ""
             else:
                 row[column] = [tag for tag in row[column] if tag != operand[0]]
+        elif name == "rows_of":
+            # B6b: a row of the first table the column names and the test does not, put into the list.
+            other = next(table for table in spec["tables"] if table not in operand)
+            row[column] = list(row[column]) + [self.tables[other][0]["Name"]]
         elif name == "contains_none":
             # The first named tag put into the cell (B4: a key of a tag map).
             if kind == "tags":
@@ -3283,6 +3327,9 @@ class SchemaTests(unittest.TestCase):
             ("DT_Hazards", "the supernova precursor's expiry destroys the system, and the death line mourns a star that stays: no death at its expiry until it has a death row of its own (B5 header 8 [B-5d2], DECISIONS_LOG [B-5d1] (11))"):
                 (update_hazard(HazardTag="Hazard.PreSupernova"), hazard),
             ("DT_Hazards", "the leader of a cult has no name (guideline 4.1)"): (update_hazard(HazardTag="Hazard.Cult"), hazard),
+            # B6b [B-6b2b]: the extinction's row (the fixture's hazard made one - the game holds none before [B-6b6]).
+            ("DT_Hazards", "the extinction's loss is the expiry's code - its people lets every system go and its ruler dies (CosmicHazards::LetPeopleGo, KillsTheRulerOf): its row carries no expiry effect of its own, no branch and no damage to the neighbours, and it is answered by a project alone - the ark (B6b header 2.2, 3.3 rule 5, decision 5)"):
+                (update_hazard(HazardTag="Hazard.Extinction", OnExpireEffects=[], RulerResolutions=["project_test_build"]), hazard),
             ("DT_Hazards", "the stage reads the spawn conditions on every tick, and the stay condition holds on every tick of its window, not in one slot (guideline 7.3)"):
                 (NOTHING, hazard),
             ("DT_Hazards", "only stage code behind the last-system gate takes a system: an expiry hands nothing over, and neither does a resolution, which an expiry may run on a neighbour (guideline 4.5, 16 #53 (1))"): (NOTHING, hazard),
@@ -3396,6 +3443,11 @@ class SchemaTests(unittest.TestCase):
                 (NOTHING, "log_death_hazard"),
             ("DT_LogTemplates", "the inauguration line is the narrator's, in the third person by the vessel's name, its people and its system: the calling's line, with no word of an afterlife, the book of life or a calling read as a death, no 'you' across the death, no name of the holy order or its realm, and no word of a return or a rebirth (B5 header 3.3, 3.6, decision 12-da)"):
                 (NOTHING, "log_inauguration"),
+            # B6b [B-6b2b]: the extinction's record line and its death line.
+            ("DT_LogTemplates", "the record of a people that let every system go at an extinction's expiry is a record line, so the record line's rule holds it: {System} alone, no figure, no word of a death, the remnant, nor days, names, people or the dead as what was recorded (B6b header 2.2, 3.3 rule 8, decision 5)"):
+                (NOTHING, "log_record_extinct"),
+            ("DT_LogTemplates", "the death line of a ruler at an extinction's expiry is the death line in every way: the narrator's, in the third person by the vessel's name and the hazard, the calling's line, with no word of an afterlife, the book of life or a calling read as a death, no 'you' across the death, no name of the holy order or its realm, and no agent, sacrifice or cause of the death (B6b header 2.2, 3.3 rule 8, decision 5; the words of a ruler who stayed, stay_words, join it in [B-6b5] - header 3.3 rule 13)"):
+                (NOTHING, "log_death_extinction"),
             ("DT_LogTemplates", "the inauguration line of a vessel born in a system a claim joined on the same tick is the narrator's, in the third person by the vessel's name and its people, naming no system - no narrator line about that place follows the fallen's own line (rule 5): the calling's line, with no word of an afterlife, the book of life or a calling read as a death, no 'you' across the death, no name of the holy order or its realm, and no word of a return or a rebirth (B5 header 3.3, 3.6, decision 12-da)"):
                 (NOTHING, "log_inauguration_unnamed"),
             ("DT_Civs", "arch_default is the name bank of last resort for the vessel: a people whose own bank is empty names its vessel from it, and an empty name would leave the death and inauguration lines without their subject (B5 log_death_hazard, log_inauguration, log_inauguration_unnamed - CosmicChronicle::VesselNameOf)"):
@@ -3420,7 +3472,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 248, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 262, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

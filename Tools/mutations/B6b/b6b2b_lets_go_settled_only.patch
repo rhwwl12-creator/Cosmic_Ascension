@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -156,7 +156,7 @@
+ 	for (const FName SystemID : State.Civs[CivIndex].OwnedSystems)
+ 	{
+ 		const int32 SystemIndex = Ctx.Index.FindSystem(State, SystemID);
+-		if (State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == CivID)
++		if (State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == CivID && CosmicState::IsSettled(State.Systems[SystemIndex]))
+ 		{
+ 			Owned.Add(SystemIndex);
+ 		}

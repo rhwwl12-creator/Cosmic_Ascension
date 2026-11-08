@@ -1,9 +1,10 @@
 // Cosmic Ascension - automation tests of the fourth and fifth rungs (B6b): from B-6b1 the two saved counters of a people
 // (LawsHeldTicks, PressureEnduredTicks) through the save and the hashes; from B-6b2a the count of the held laws, the two hooks
 // of a galaxy law, the AI's law and treaty steps and the vocabulary of the endured era (the condition's window, the selector
-// word Ruled, the Key Borders). The count of the endured pressure is Sim.PressureEndured (Tests/CosmicBookTests.cpp, beside
-// the fallen-sphere counter it is counted with).
-// Design: docs/60_DECISIONS/headers/B6b_upper_rungs_and_the_race.md section 2.1, 2.3, 2.4, 2.7, 6; docs/20 section 9.1.
+// word Ruled, the Key Borders); from B-6b2b the extinction's expiry (the gate, LetPeopleGo, the ruler's death, the record line).
+// The count of the endured pressure is Sim.PressureEndured (Tests/CosmicBookTests.cpp, beside the fallen-sphere counter it is
+// counted with).
+// Design: docs/60_DECISIONS/headers/B6b_upper_rungs_and_the_race.md section 2.1, 2.2, 2.3, 2.4, 2.7, 6; docs/20 section 9.1.
 
 #include "CoreMinimal.h"
 
@@ -16,16 +17,19 @@
 #include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
+#include "Data/CosmicRowNames.h"
 #include "Engine/DataTable.h"
 #include "Engine/GameInstance.h"
 #include "Events/CosmicEventSubsystem.h"
 #include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
 #include "Kismet/GameplayStatics.h"
+#include "Math/RandomStream.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/Guid.h"
 #include "Misc/ScopeExit.h"
+#include "Player/PlayerRoleSubsystem.h"
 #include "Save/CosmicSaveGame.h"
 #include "Save/CosmicSaveSubsystem.h"
 #include "Sim/CosmicDiplomacy.h"
@@ -37,6 +41,8 @@
 #include "Templates/Function.h"
 #include "Tests/CosmicTestHelpers.h"
 #include "UObject/Package.h"
+
+#include <initializer_list>
 
 namespace CosmicUpperRungTests
 {
@@ -754,6 +760,435 @@ bool FCosmicSimEraSelectorTest::RunTest(const FString& Parameters)
 	const float Before = Board->Civs[0].ReverenceToPlayer;
 	TestFalse(TEXT("Another Key is turned away"), Apply(1, TEXT("Neighbours"), 0.2f));
 	TestEqual(TEXT("and changes nothing"), Board->Civs[0].ReverenceToPlayer, Before);
+	return true;
+}
+
+// ---- B-6b2b: the extinction's expiry ----
+
+namespace CosmicUpperRungTests
+{
+	// The rows of the extinction's boards: the extinction (the game holds no Hazard.Extinction row before [B-6b6]) and a plague
+	// that CosmicTests::StandingProject answers, each with three lines for every moment and no effect; the grace row of the
+	// remnant is the game's.
+	const FName Extinct(TEXT("crisis_test_extinct"));
+	const FName Plague(TEXT("crisis_test_plague"));
+
+	FHazardDef LinedHazardOf(const TCHAR* TagName)
+	{
+		auto Lines = [TagName](const TCHAR* Moment)
+		{
+			const FString Stem = FString::Printf(TEXT("%s %s"), TagName, Moment);
+			return TArray<FText>{ FText::AsCultureInvariant(Stem + TEXT(" one")), FText::AsCultureInvariant(Stem + TEXT(" two")), FText::AsCultureInvariant(Stem + TEXT(" three")) };
+		};
+		FHazardDef Row;
+		Row.HazardTag = Tag(TagName);
+		Row.DisplayName = FText::AsCultureInvariant(FString::Printf(TEXT("<%s>"), TagName));
+		Row.CountdownTicks = 250;
+		Row.SpawnRule = ECosmicHazardSpawn::Draw;
+		Row.SpawnChancePerTick = 0.f;
+		Row.LogCategory = Tag(TEXT("Log.Crisis"));
+		Row.Severity = 1;
+		Row.OutbreakTemplates = Lines(TEXT("outbreak"));
+		Row.ExpireTemplates = Lines(TEXT("expiry"));
+		Row.ResolveTemplates = Lines(TEXT("resolution"));
+		return Row;
+	}
+
+	FHazardDef AnsweredPlague()
+	{
+		FHazardDef Row = LinedHazardOf(TEXT("Hazard.Plague"));
+		Row.RulerResolutions = { CosmicTests::StandingProject() };
+		return Row;
+	}
+
+	/**
+	 * LayBoard's board (people 0 - the vessel's, ruled from system 0 - holds {0, 1}; 1 holds {3, 2, 4}; 2 {6, 5, 7}; 3 {9, 8,
+	 * 10, 11}) with the extinction and the plague of this file as its hazards and the game's grace row of the remnant as its
+	 * one event row; realm caps of 1, so that no AI people settles a system an extinction let go; the tick 400, past the first
+	 * vessel's birth protection, and the grace of the run spent unless bGrace. Null when the board is not laid or the game has
+	 * no grace row.
+	 */
+	FGalaxyState* LayExtinctionBoard(UGalaxySimulationSubsystem& Sim, const FCosmicDataTables& Original, bool bGrace)
+	{
+		const FCosmicEventDef* Grace = Original.Events ? Original.Events->FindRow<FCosmicEventDef>(CosmicRows::EventGraceRemnant, TEXT("CosmicUpperRungTests"), false) : nullptr;
+		FGalaxyState* Board = Grace ? LayBoard(Sim, Original, nullptr, [](FCosmicRulesDef& Rules) { Rules.RealmCapByTier = { 1, 1, 1, 1, 1 }; }) : nullptr;
+		if (!Board)
+		{
+			return nullptr;
+		}
+		FCosmicDataTables Tables = Sim.GetTables();
+		UDataTable* HazardRows = CosmicTests::NewTable(FHazardDef::StaticStruct());
+		HazardRows->AddRow(Extinct, LinedHazardOf(TEXT("Hazard.Extinction")));
+		HazardRows->AddRow(Plague, AnsweredPlague());
+		Tables.Hazards = HazardRows;
+		UDataTable* EventRows = CosmicTests::NewTable(FCosmicEventDef::StaticStruct());
+		EventRows->AddRow(CosmicRows::EventGraceRemnant, *Grace);
+		Tables.Events = EventRows;
+		Sim.SetTables(Tables);
+		Board->Tick = 400;
+		Board->Player.CurrentSystemID = Board->Systems[0].SystemID;
+		if (!bGrace)
+		{
+			Board->Flags.AddTag(Tag(TEXT("Flag.Grace.Spent")));
+		}
+		Sim.SyncRngState();
+		return Board;
+	}
+
+	// A completion record of CosmicTests::StandingProject at Tick by the people CivID (none for a save from before B3).
+	FMegaprojectRecord RecordOf(int64 Tick, FName CivID)
+	{
+		FMegaprojectRecord Record;
+		Record.Row = CosmicTests::StandingProject();
+		Record.Tick = Tick;
+		Record.CivID = CivID;
+		return Record;
+	}
+
+	// The hazard Hazard on SystemIndex, running out at the next tick.
+	void ExpiresNext(FGalaxyState& State, int32 SystemIndex, const TCHAR* Hazard)
+	{
+		State.Systems[SystemIndex].ActiveHazard = Tag(Hazard);
+		State.Systems[SystemIndex].HazardTicksRemaining = 1;
+	}
+
+	// The index in the log of the first line of Row told at Tick; INDEX_NONE for none.
+	int32 LineOf(const FGalaxyState& State, FName Row, int64 Tick)
+	{
+		return State.Log.IndexOfByPredicate([Row, Tick](const FCosmicLogEntry& Entry) { return Entry.SourceRow == Row && Entry.Tick == Tick; });
+	}
+
+	// How many numbers a stream drew from FromSeed to ToSeed; INDEX_NONE beyond a bound no tick of a test reaches.
+	int32 DrawsFrom(int32 FromSeed, int32 ToSeed)
+	{
+		FRandomStream Stream(FromSeed);
+		for (int32 Count = 0; Count <= 100000; ++Count)
+		{
+			if (Stream.GetCurrentSeed() == ToSeed)
+			{
+				return Count;
+			}
+			Stream.GetFraction();
+		}
+		return INDEX_NONE;
+	}
+}
+
+// The extinction's expiry (header section 2.2, 2.11, decision 5 - CosmicHazards::LetPeopleGo, KillsTheRulerOf): (1) the gate
+// comes first and is asked whatever the number of the people's systems - a grace that fires keeps the whole people, its
+// systems, its ruler's life and every line of the loss (mutation: the gate after the loss; or asked of the last settled
+// system alone); (1') the grace answers the people's extinction, not one system: a second extinction of the people expiring
+// on the same tick ends with the first, without result (mutation: the grace empties its own slot only); (2) otherwise the
+// people lets every system go - no owner, both project slots and the hazard slot empty, its
+// other hazards ending without their expiry, every fleet target on them lifted, the completion records kept (a record of no
+// people stamped with the people) - and the ruler dies (Death.Hazard, the row as its source -
+// mutation: the system as the subject; the hook without its KillPlayer; the deposition first), told by the extinction's own
+// death line; the expiry line, then the record line right after it (mutation: the record first); the stage clock notes the
+// death on the hook's subject; the ruled people leaves the civilizations the next tick; (2') LetPeopleGo itself lifts every
+// fleet target on the people's systems (mutation: no lift - the AI stage clears a target on an unowned system within the tick,
+// so the window is called alone) and ends a rebellion on them as Transfer does - its leader's record closed, the count of
+// discontent at 0 (mutation: left open); (3) the birth protection hides the death and the deposition is written - the
+// settlement under way goes with the rest, or the shielded ruler would keep a people with nothing to rule (mutation: only the
+// settled systems go); (4) an AI people leaves that tick, the vessel untouched, and the expiry draws its two
+// numbers and no more (mutation: one more); (4') the grace does not choose its people - an AI people's extinction asks the
+// gate as much as the ruled one's, and a grace that fires keeps it and ends its other extinction (mutation: only the ruled
+// people asks the gate); another people's extinction stands (mutation: the grace ends every extinction); (4'') the death
+// reaches the ruler of the people, not a wanderer standing on its system (mutation: a KillPlayer on the system as well);
+// (5) KillsTheRulerOf is the extinction's alone (mutation: another tag).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimExtinctionExpiryTest, "Cosmic_Ascension.Sim.ExtinctionExpiry", CosmicTests::Flags)
+bool FCosmicSimExtinctionExpiryTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicUpperRungTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	const FGameplayTag ExtinctionTag = Tag(TEXT("Hazard.Extinction"));
+	const FGameplayTag Spent = Tag(TEXT("Flag.Grace.Spent"));
+
+	// (1) The gate first: people 0 holds two settled systems, the extinction stands on 1 and the grace is unspent.
+	{
+		FGalaxyState* Board = LayExtinctionBoard(*Sim, Original, true);
+		if (!TestNotNull(TEXT("The board of the grace is laid"), Board))
+		{
+			return false;
+		}
+		ExpiresNext(*Board, 1, TEXT("Hazard.Extinction"));
+		Board->Player.CurrentSystemID = Board->Systems[5].SystemID;
+		Sim->StepOnce();
+		const int64 Kept = Board->Tick;
+		TestTrue(TEXT("A people with two settled systems asks the gate: the grace fires"), Board->Flags.HasTagExact(Spent) && LineOf(*Board, CosmicRows::EventGraceRemnant, Kept) != INDEX_NONE);
+		TestTrue(TEXT("and the people keeps both systems"), Board->Systems[0].OwnerCivID == Board->Civs[0].CivID && Board->Systems[1].OwnerCivID == Board->Civs[0].CivID
+			&& Board->Civs[0].OwnedSystems.Num() == 2);
+		TestFalse(TEXT("The kept system's slot is empty"), Board->Systems[1].ActiveHazard.IsValid());
+		TestTrue(TEXT("The ruler lives and rules: no death and no deposition was recorded"), Board->Calling.LifeState == ELifeState::Embodied
+			&& Board->Calling.Lives.Last().DiedTick == 0 && Board->Player.Role == EPlayerRole::Ruler && Board->Civs[0].bIsPlayerRuled);
+		TestEqual(TEXT("No expiry line is told"), LineOf(*Board, Extinct, Kept), static_cast<int32>(INDEX_NONE));
+		TestEqual(TEXT("and no record line"), LineOf(*Board, CosmicRows::LogRecordExtinct, Kept), static_cast<int32>(INDEX_NONE));
+	}
+
+	// (1') Two extinctions of people 0, on 0 and 1, running out on the same tick, the grace unspent: the first in Systems order
+	// asks the gate, and the grace ends the second with it.
+	{
+		FGalaxyState* Board = LayExtinctionBoard(*Sim, Original, true);
+		if (!TestNotNull(TEXT("The board of the two extinctions is laid"), Board))
+		{
+			return false;
+		}
+		ExpiresNext(*Board, 0, TEXT("Hazard.Extinction"));
+		ExpiresNext(*Board, 1, TEXT("Hazard.Extinction"));
+		Sim->StepOnce();
+		const int64 Kept = Board->Tick;
+		int32 Graces = 0;
+		for (const FCosmicLogEntry& Entry : Board->Log)
+		{
+			Graces += Entry.SourceRow == CosmicRows::EventGraceRemnant && Entry.Tick == Kept ? 1 : 0;
+		}
+		TestEqual(TEXT("One grace line for the people's two extinctions"), Graces, 1);
+		TestTrue(TEXT("The people keeps both systems"), Board->Systems[0].OwnerCivID == Board->Civs[0].CivID && Board->Systems[1].OwnerCivID == Board->Civs[0].CivID
+			&& Board->Civs[0].OwnedSystems.Num() == 2);
+		TestTrue(TEXT("and both slots are empty"), !Board->Systems[0].ActiveHazard.IsValid() && !Board->Systems[1].ActiveHazard.IsValid());
+		TestTrue(TEXT("The ruler lives and rules"), Board->Calling.LifeState == ELifeState::Embodied && Board->Calling.Lives.Last().DiedTick == 0
+			&& Board->Player.Role == EPlayerRole::Ruler && Board->Civs[0].bIsPlayerRuled && !Board->Calling.PendingEffect.IsValid());
+		TestEqual(TEXT("No expiry line is told"), LineOf(*Board, Extinct, Kept), static_cast<int32>(INDEX_NONE));
+		TestEqual(TEXT("and no record line"), LineOf(*Board, CosmicRows::LogRecordExtinct, Kept), static_cast<int32>(INDEX_NONE));
+	}
+
+	// (2) The loss of the people the vessel rules, the vessel standing in people 2's system 5 and the grace spent: the extinction
+	// on 0, a plague on 1 running out on the same tick (later in Systems order: its expiry comes after the extinction's); a
+	// project in both construction slots and the plague's answer in 1's response slot; a completion record of no people on 0
+	// and one of people 0 on 1; people 1's fleet aims at 1.
+	{
+		FGalaxyState* Board = LayExtinctionBoard(*Sim, Original, false);
+		if (!TestNotNull(TEXT("The board of the loss is laid"), Board))
+		{
+			return false;
+		}
+		const FName Ruled = Board->Civs[0].CivID;
+		ExpiresNext(*Board, 0, TEXT("Hazard.Extinction"));
+		ExpiresNext(*Board, 1, TEXT("Hazard.Plague"));
+		Board->Systems[0].ActiveMegaproject = CosmicTests::StandingProject();
+		Board->Systems[0].MegaprojectProgress = 30.f;
+		Board->Systems[1].ActiveMegaproject = CosmicTests::StandingProject();
+		Board->Systems[1].MegaprojectProgress = 10.f;
+		Board->Systems[1].ResponseMegaproject = CosmicTests::StandingProject();
+		Board->Systems[1].ResponseProgress = 20.f;
+		Board->Systems[0].CompletedMegaprojects.Add(RecordOf(120, NAME_None));
+		Board->Systems[1].CompletedMegaprojects.Add(RecordOf(100, Ruled));
+		Board->Civs[1].FleetTargetSystemID = Board->Systems[1].SystemID;
+		Board->Player.CurrentSystemID = Board->Systems[5].SystemID;
+		Sim->GetStageClock() = FCosmicStageClock();
+		Sim->GetStageClock().bOn = true;
+		Sim->StepOnce();
+		const int64 Lost = Board->Tick;
+		const FCosmicStageClock::FExpiry* Noted = Sim->GetStageClock().Expiries.FindByPredicate([Board](const FCosmicStageClock::FExpiry& Expiry) { return Expiry.SystemID == Board->Systems[0].SystemID; });
+		TestTrue(TEXT("The stage clock notes that the death reaches the ruler standing elsewhere (the hook's subject: no system)"), Noted && Noted->bReached && !Noted->bGrace);
+		Sim->GetStageClock() = FCosmicStageClock();
+
+		for (const int32 SystemIndex : { 0, 1 })
+		{
+			const FStarSystemState& System = Board->Systems[SystemIndex];
+			TestTrue(*FString::Printf(TEXT("System %d is let go to no one"), SystemIndex), System.OwnerCivID.IsNone());
+			TestTrue(*FString::Printf(TEXT("System %d: both project slots and the hazard slot are empty"), SystemIndex), System.ActiveMegaproject.IsNone() && System.MegaprojectProgress == 0.f
+				&& System.ResponseMegaproject.IsNone() && System.ResponseProgress == 0.f && !System.ActiveHazard.IsValid());
+		}
+		const int32 RuledIndex = Sim->GetStateIndex().FindCiv(*Board, Ruled);
+		if (TestTrue(TEXT("The ruled people stays in the civilizations through the tick of its loss"), Board->Civs.IsValidIndex(RuledIndex)))
+		{
+			TestEqual(TEXT("owning nothing"), Board->Civs[RuledIndex].OwnedSystems.Num(), 0);
+		}
+		TestTrue(TEXT("The completion records stay"), Board->Systems[0].CompletedMegaprojects.Num() == 1 && Board->Systems[1].CompletedMegaprojects.Num() == 1
+			&& Board->Systems[1].CompletedMegaprojects[0].CivID == Ruled);
+		TestTrue(TEXT("and a record of no people is the people's"), Board->Systems[0].CompletedMegaprojects.Num() == 1 && Board->Systems[0].CompletedMegaprojects[0].CivID == Ruled);
+		TestTrue(TEXT("(no fleet target on them is left after the tick - the lift itself is case (2'))"), Board->Civs[1].FleetTargetSystemID.IsNone());
+		TestEqual(TEXT("The plague of 1 ended with its slot: its expiry turned back, untold"), LineOf(*Board, Plague, Lost), static_cast<int32>(INDEX_NONE));
+
+		const FLifeRecord& Life = Board->Calling.Lives.Last();
+		TestEqual(TEXT("The ruler died on the tick of the expiry, standing in another people's system"), Life.DiedTick, Lost);
+		TestTrue(TEXT("by Death.Hazard"), Life.CauseOfDeath == Tag(TEXT("Death.Hazard")));
+		TestEqual(TEXT("with the extinction's row as the source"), Life.CauseSourceRow, Extinct);
+		TestTrue(TEXT("Its reign ended by the death"), !Life.ReignEndReasons.IsEmpty() && Life.ReignEndReasons.Last() == Tag(TEXT("Reign.Died")));
+		TestTrue(TEXT("The calling is in the interregnum"), Board->Calling.LifeState == ELifeState::Interregnum);
+		TestTrue(TEXT("The death is told by the extinction's own death line"), LineOf(*Board, CosmicRows::LogDeathExtinction, Lost) != INDEX_NONE);
+		TestEqual(TEXT("not by the line of one person a star lost"), LineOf(*Board, CosmicRows::LogDeathHazard, Lost), static_cast<int32>(INDEX_NONE));
+
+		const int32 Expiry = LineOf(*Board, Extinct, Lost);
+		const int32 Record = LineOf(*Board, CosmicRows::LogRecordExtinct, Lost);
+		TestTrue(TEXT("The expiry line is told"), Expiry != INDEX_NONE);
+		TestTrue(TEXT("and the record line right after it"), Record != INDEX_NONE && Record == Expiry + 1);
+		if (Board->Log.IsValidIndex(Record))
+		{
+			TestTrue(TEXT("The record line is about the system and the people that lost it, kept untold"), Board->Log[Record].FocusSystemID == Board->Systems[0].SystemID
+				&& Board->Log[Record].FocusCivID == Ruled && Board->Log[Record].bUntold && Board->Log[Record].Category == CosmicTags::LogRecord());
+		}
+
+		Sim->StepOnce();
+		TestEqual(TEXT("The next tick's crossing stage takes the ruled people"), Sim->GetStateIndex().FindCiv(*Board, Ruled), static_cast<int32>(INDEX_NONE));
+	}
+
+	// (2') LetPeopleGo itself, outside a tick (the AI stage after the crisis stage lets go of a fleet target on a system no one
+	// owns, so a tick cannot show the lift): every fleet target on the people's systems is lifted, another stays; a rebellion
+	// on its capital ends as Transfer ends one (and the crossing stage would take the people's records with it, so a tick
+	// cannot show that either); nothing is drawn; a second call finds nothing left to let go.
+	{
+		FGalaxyState* Board = LayExtinctionBoard(*Sim, Original, false);
+		if (!TestNotNull(TEXT("The board of the window is laid"), Board))
+		{
+			return false;
+		}
+		Board->Civs[1].FleetTargetSystemID = Board->Systems[1].SystemID;
+		Board->Civs[2].FleetTargetSystemID = Board->Systems[0].SystemID;
+		Board->Civs[3].FleetTargetSystemID = Board->Systems[7].SystemID;
+		Board->Systems[0].ActiveHazard = Tag(TEXT("Hazard.Rebellion"));
+		Board->Systems[0].HazardTicksRemaining = 50;
+		const int32 RebelIndex = Board->Civs[0].Notables.Num();
+		FNotableRecord& Rebel = Board->Civs[0].Notables.AddDefaulted_GetRef();
+		Rebel.Role = Tag(TEXT("Notable.Rebel"));
+		Rebel.FirstTick = 350;
+		Board->Civs[0].LowStabilityTicks = 37;
+		const int32 Seed = Sim->GetRng().GetCurrentSeed();
+		FCosmicEvalContext Ctx = Sim->MakeEvalContext();
+		TestTrue(TEXT("LetPeopleGo lets the people's systems go"), CosmicHazards::LetPeopleGo(Ctx, 0));
+		TestTrue(TEXT("A rebellion on a system let go closes its leader's record"), Board->Civs[0].Notables.IsValidIndex(RebelIndex)
+			&& Board->Civs[0].Notables[RebelIndex].LastTick == FMath::Max<int64>(Board->Tick, 1));
+		TestEqual(TEXT("and the count of discontent starts over"), Board->Civs[0].LowStabilityTicks, 0);
+		TestFalse(TEXT("and its slot is empty"), Board->Systems[0].ActiveHazard.IsValid());
+		TestTrue(TEXT("and lifts every fleet target on them"), Board->Civs[1].FleetTargetSystemID.IsNone() && Board->Civs[2].FleetTargetSystemID.IsNone());
+		TestEqual(TEXT("A target on another people's system stays"), Board->Civs[3].FleetTargetSystemID, Board->Systems[7].SystemID);
+		TestTrue(TEXT("The people owns nothing"), Board->Civs[0].OwnedSystems.IsEmpty() && Board->Systems[0].OwnerCivID.IsNone() && Board->Systems[1].OwnerCivID.IsNone());
+		TestEqual(TEXT("It draws nothing"), Sim->GetRng().GetCurrentSeed(), Seed);
+		TestFalse(TEXT("A second call has nothing left to let go"), CosmicHazards::LetPeopleGo(Ctx, 0));
+	}
+
+	// (3) The birth protection hides the death: the deposition is written, and the people leaves all the same. People 0 also
+	// holds 2, a settlement under way (project_settle of WithoutProjects - unpaid, it stays one through the tick): it goes with
+	// the rest, or the people would keep a system, no deposition would be written and the crossing stage would keep a ruled
+	// people with nothing to rule.
+	{
+		FGalaxyState* Board = LayExtinctionBoard(*Sim, Original, false);
+		if (!TestNotNull(TEXT("The board of the shielded death is laid"), Board))
+		{
+			return false;
+		}
+		Board->Civs[1].OwnedSystems.Remove(Board->Systems[2].SystemID);
+		Board->Systems[2].OwnerCivID = NAME_None;
+		CosmicTests::Give(*Board, 0, { 2 });
+		Board->Systems[2].ActiveMegaproject = CosmicRows::ProjectSettle;
+		Sim->RebuildStateIndex();
+		ExpiresNext(*Board, 1, TEXT("Hazard.Extinction"));
+		Board->Calling.BornTick = Board->Tick;
+		Sim->StepOnce();
+		const FLifeRecord& Life = Board->Calling.Lives.Last();
+		TestEqual(TEXT("A vessel within its birth protection does not die"), Life.DiedTick, static_cast<int64>(0));
+		TestTrue(TEXT("The deposition the death left free was written: the vessel walks"), Board->Calling.LifeState == ELifeState::Embodied && Board->Player.Role == EPlayerRole::Wanderer);
+		TestTrue(TEXT("its reign ended as a deposition"), !Life.ReignEndReasons.IsEmpty() && Life.ReignEndReasons.Last() == Tag(TEXT("Reign.Deposed")));
+		TestTrue(TEXT("The people let every system go, the one being settled too"), Board->Systems[0].OwnerCivID.IsNone() && Board->Systems[1].OwnerCivID.IsNone()
+			&& Board->Systems[2].OwnerCivID.IsNone() && Board->Systems[2].ActiveMegaproject.IsNone());
+	}
+
+	// (4) An AI people: people 3 loses {9, 8, 10, 11} to the extinction on 8. Beside it, the same tick from the same state with
+	// people 3's systems let go by hand and no extinction: the expiry draws its two numbers and nothing more.
+	{
+		FGalaxyState* Board = LayExtinctionBoard(*Sim, Original, false);
+		if (!TestNotNull(TEXT("The board of the AI people is laid"), Board))
+		{
+			return false;
+		}
+		const FName Gone = Board->Civs[3].CivID;
+		const FGalaxyState Bare = *Board;
+		ExpiresNext(*Board, 8, TEXT("Hazard.Extinction"));
+		const FGalaxyState Before = *Board;
+		Sim->StepOnce();
+		const int64 Lost = Board->Tick;
+		const int32 Seed = Board->RngState;
+		TestEqual(TEXT("An AI people with no system left leaves the civilizations on the tick of its loss"), Sim->GetStateIndex().FindCiv(*Board, Gone), static_cast<int32>(INDEX_NONE));
+		TestTrue(TEXT("Its four systems are no one's"), Board->Systems[8].OwnerCivID.IsNone() && Board->Systems[9].OwnerCivID.IsNone()
+			&& Board->Systems[10].OwnerCivID.IsNone() && Board->Systems[11].OwnerCivID.IsNone());
+		TestTrue(TEXT("The vessel is untouched: it rules on, no role effect waits"), Board->Calling.LifeState == ELifeState::Embodied && Board->Player.Role == EPlayerRole::Ruler
+			&& Board->Calling.Lives.Last().DiedTick == 0 && !Board->Calling.PendingEffect.IsValid());
+		TestTrue(TEXT("The record line follows the expiry line"), LineOf(*Board, Extinct, Lost) != INDEX_NONE && LineOf(*Board, CosmicRows::LogRecordExtinct, Lost) == LineOf(*Board, Extinct, Lost) + 1);
+
+		FGalaxyState Emptied = Bare;
+		for (const int32 SystemIndex : { 8, 9, 10, 11 })
+		{
+			Emptied.Systems[SystemIndex].OwnerCivID = NAME_None;
+		}
+		Emptied.Civs[3].OwnedSystems.Reset();
+		Sim->LoadState(Emptied);
+		Sim->StepOnce();
+		TestEqual(TEXT("(the people emptied by hand leaves the civilizations too)"), Sim->GetStateIndex().FindCiv(Sim->GetState(), Gone), static_cast<int32>(INDEX_NONE));
+		TestEqual(TEXT("The extinction's tick draws two numbers more than the same tick without it - its expiry's two, nothing in its code"),
+			DrawsFrom(Sim->GetState().RngState, Seed), 2);
+		TestEqual(TEXT("(both ticks began from one stream)"), Before.RngState, Bare.RngState);
+	}
+
+	// (4') The grace does not choose its people: people 3 (AI) with the grace unspent, the extinction on 8 running out and a
+	// second one standing on 10; another standing on 1, the ruled people's.
+	{
+		FGalaxyState* Board = LayExtinctionBoard(*Sim, Original, true);
+		if (!TestNotNull(TEXT("The board of the AI people's grace is laid"), Board))
+		{
+			return false;
+		}
+		const FName Kept3 = Board->Civs[3].CivID;
+		ExpiresNext(*Board, 8, TEXT("Hazard.Extinction"));
+		Board->Systems[10].ActiveHazard = ExtinctionTag;
+		Board->Systems[10].HazardTicksRemaining = 50;
+		Board->Systems[1].ActiveHazard = ExtinctionTag;
+		Board->Systems[1].HazardTicksRemaining = 50;
+		Sim->StepOnce();
+		const int64 Kept = Board->Tick;
+		TestTrue(TEXT("An AI people's extinction asks the gate: the grace fires"), Board->Flags.HasTagExact(Spent) && LineOf(*Board, CosmicRows::EventGraceRemnant, Kept) != INDEX_NONE);
+		const int32 Index3 = Sim->GetStateIndex().FindCiv(*Board, Kept3);
+		TestTrue(TEXT("and the people stays in the civilizations with its four systems"), Board->Civs.IsValidIndex(Index3) && Board->Civs[Index3].OwnedSystems.Num() == 4);
+		for (const int32 SystemIndex : { 8, 9, 10, 11 })
+		{
+			TestEqual(*FString::Printf(TEXT("System %d stays the people's"), SystemIndex), Board->Systems[SystemIndex].OwnerCivID, Kept3);
+		}
+		TestFalse(TEXT("The kept system's slot is empty"), Board->Systems[8].ActiveHazard.IsValid());
+		TestFalse(TEXT("and the people's other extinction ended with it"), Board->Systems[10].ActiveHazard.IsValid());
+		TestTrue(TEXT("Another people's extinction stands through the grace"), Board->Systems[1].ActiveHazard == ExtinctionTag && Board->Systems[1].HazardTicksRemaining == 49);
+		TestEqual(TEXT("No expiry line"), LineOf(*Board, Extinct, Kept), static_cast<int32>(INDEX_NONE));
+		TestEqual(TEXT("and no record line"), LineOf(*Board, CosmicRows::LogRecordExtinct, Kept), static_cast<int32>(INDEX_NONE));
+		TestTrue(TEXT("The vessel's people is untouched"), Board->Civs[0].bIsPlayerRuled && Board->Player.Role == EPlayerRole::Ruler);
+	}
+
+	// (4'') A wanderer standing on the extinct people's system 8 (the deposition's way - no draw; tick 400, past the first
+	// vessel's birth protection): the death goes to the ruler of the people, so it reaches no one; the people goes all the same.
+	{
+		FGalaxyState* Board = LayExtinctionBoard(*Sim, Original, false);
+		UPlayerRoleSubsystem* Role = Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>();
+		if (!TestNotNull(TEXT("The board of the wanderer is laid"), Board) || !TestNotNull(TEXT("The role subsystem"), Role))
+		{
+			return false;
+		}
+		const FName Gone = Board->Civs[3].CivID;
+		Board->Player.CurrentSystemID = Board->Systems[8].SystemID;
+		Role->BecomeWanderer(Tag(TEXT("AI.Profile.Conservative")), Tag(TEXT("Reign.Deposed")));
+		Sim->SyncRngState();
+		ExpiresNext(*Board, 8, TEXT("Hazard.Extinction"));
+		Sim->StepOnce();
+		const int64 Lost = Board->Tick;
+		TestTrue(TEXT("The wanderer on the extinct people's system lives: no death was recorded"), !Board->Calling.PendingEffect.IsValid()
+			&& Board->Calling.Lives.Last().DiedTick == 0 && Board->Calling.LifeState == ELifeState::Embodied);
+		TestTrue(TEXT("and walks on where it stood"), Board->Player.Role == EPlayerRole::Wanderer && Board->Player.CurrentSystemID == Board->Systems[8].SystemID);
+		TestEqual(TEXT("No death line"), LineOf(*Board, CosmicRows::LogDeathExtinction, Lost), static_cast<int32>(INDEX_NONE));
+		TestTrue(TEXT("The people let its four systems go all the same"), Board->Systems[8].OwnerCivID.IsNone() && Board->Systems[9].OwnerCivID.IsNone()
+			&& Board->Systems[10].OwnerCivID.IsNone() && Board->Systems[11].OwnerCivID.IsNone());
+		TestEqual(TEXT("and left the civilizations that tick"), Sim->GetStateIndex().FindCiv(*Board, Gone), static_cast<int32>(INDEX_NONE));
+	}
+
+	// (5) The one answer: the extinction kills the ruler, no other hazard does.
+	TestTrue(TEXT("KillsTheRulerOf Hazard.Extinction"), CosmicHazards::KillsTheRulerOf(ExtinctionTag));
+	for (const TCHAR* Other : { TEXT("Hazard.PreSupernova"), TEXT("Hazard.AIAwakening"), TEXT("Hazard.Plague"), TEXT("Hazard.SubspaceErosion"), TEXT("Hazard.Cult"),
+		TEXT("Hazard.Rebellion"), TEXT("Hazard.Claim"), TEXT("Hazard.Visitation") })
+	{
+		TestFalse(*FString::Printf(TEXT("KillsTheRulerOf %s"), Other), CosmicHazards::KillsTheRulerOf(Tag(Other)));
+	}
+	TestFalse(TEXT("KillsTheRulerOf no tag"), CosmicHazards::KillsTheRulerOf(FGameplayTag()));
 	return true;
 }
 

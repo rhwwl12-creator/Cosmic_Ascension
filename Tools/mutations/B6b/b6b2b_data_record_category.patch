@@ -1,0 +1,11 @@
+--- a/Tools/data/DT_LogTemplates.json
++++ b/Tools/data/DT_LogTemplates.json
+@@ -393,7 +393,7 @@
+ 	},
+ 	{
+ 		"Name": "log_record_extinct",
+-		"Category": "Log.Record",
++		"Category": "Log.Civ",
+ 		"Context": "",
+ 		"MinTierToReveal": 0,
+ 		"Templates": [

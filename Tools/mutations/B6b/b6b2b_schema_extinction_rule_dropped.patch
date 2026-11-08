@@ -1,0 +1,12 @@
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -740,8 +740,7 @@
+ 						{"col": "OnExpireEffects", "max_len": 0},
+ 						{"col": "OnExpireBranchEffects", "max_len": 0},
+ 						{"col": "OnExpireNeighbourEffects", "max_len": 0},
+-						{"col": "BranchChance", "is": 0},
+-						{"col": "RulerResolutions", "rows_of": ["DT_Megaprojects"]}
++						{"col": "BranchChance", "is": 0}
+ 					]
+ 				},
+ 				{

@@ -80,7 +80,8 @@ public:
 	 * The death pipeline (B5 header section 2.2 Die), run by the tenth stage for Effect.KillPlayer while the calling is
 	 * Embodied: (a) the life closes - DiedTick, CauseOfDeath = PendingCause, CauseSourceRow = PendingSourceRow; (b) the death
 	 * line, told before anything else changes (the deposition's form): the row of the cause - CosmicRows::LogDeathHazard for
-	 * Death.Hazard, none for a cause with no row of its own (the measurement's Death.Age: no line, no tell number) - Log.Calling,
+	 * Death.Hazard (CosmicRows::LogDeathExtinction when the hazard row's tag kills the ruler - CosmicHazards::KillsTheRulerOf,
+	 * the extinction, B6b), none for a cause with no row of its own (the measurement's Death.Age: no line, no tell number) - Log.Calling,
 	 * Severity 2, no focus, {Player} the closed life's name (CosmicChronicle::VesselNameOf), {Hazard} the display name of the
 	 * hazard row CauseSourceRow (empty when the table lacks it); one number of the tell stream, none of the sim stream;
 	 * (c) a ruler leaves the throne - one number for the regent profile, ReleaseThrone with

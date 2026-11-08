@@ -127,7 +127,8 @@ enum class ECosmicHazardSpawn : uint8
  * DT_Hazards row (section 4.1). HazardTag is unique across rows (Data.Integrity): a system holds the tag and the code finds
  * the row by it (FCosmicDataTables::FindHazardByTag). What an expiry does that no effect may say is code keyed by the tag
  * (section 16 #29 (5)): Hazard.PreSupernova destroys the system, Hazard.Rebellion changes the throne, Hazard.Claim joins
- * the sphere of its claimant.
+ * the sphere of its claimant, Hazard.Extinction lets its people go and records its ruler's death and deposition (B6b
+ * decision 5 - CosmicHazards::LetPeopleGo, KillsTheRulerOf; the schema keeps that row's expiry effects empty).
  */
 USTRUCT(BlueprintType)
 struct COSMIC_ASCENSION_API FHazardDef : public FTableRowBase

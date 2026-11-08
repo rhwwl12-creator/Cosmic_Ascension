@@ -7,9 +7,10 @@
 // in the context (FCosmicEvalContext::Notes) for UCosmicEventSubsystem::FollowUpNotes.
 // The single windows here (CLAUDE.md rule 13): Place (a hazard enters a slot), VesselAtRiskOf (whom a KillPlayer
 // reaches - B5), ClaimRuleHoldsOf (the claim rule's deciding three, shared by the crisis stage and the screen - B6a),
-// ClaimMayFollowOf (the screen's answer for a standing hazard, after the expiry's order - B6a), and the rebellion watch:
+// ClaimMayFollowOf (the screen's answer for a standing hazard, after the expiry's order - B6a), the rebellion watch:
 // LowStabilityThreshold (the one threshold the economy stage counts with) and RebellionWatchOf (what the capital panel
-// shows of it - B6a). The screen reads these and copies no rule.
+// shows of it - B6a), and the extinction's two (B6b): LetPeopleGo (a people lets every system go) and KillsTheRulerOf (the
+// expiry that kills the ruler). The screen reads these and copies no rule.
 // RULE (section 6.1): files under Sim/ must never include UUserWidget or AActor headers.
 
 #pragma once
@@ -50,6 +51,20 @@ namespace CosmicHazards
 	 * system of the people the player rules records the collapse itself (section 7.4 (o)).
 	 */
 	COSMIC_ASCENSION_API bool LetSettlementsGo(FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex);
+
+	/**
+	 * The expiry of an extinction (B6b header section 2.2, decision 5): every system the people CivIndex owns - settled or
+	 * being settled, in OwnedSystems order - goes to no one: owner none, out of its OwnedSystems, both project slots and the
+	 * hazard slot empty. A hazard of another of its systems ends without result (a rebellion also closes its leader's open
+	 * record and starts the count over, as Transfer ends one; an expiry of the same pass finds its slot empty and turns back
+	 * at its first question - its two numbers were drawn already); every people's fleet target on the systems is lifted
+	 * (CosmicConflict::LiftTargetsOn); the completion records stay (one of no people - a save from before B3 - is stamped with
+	 * the people first, as Transfer stamps it, #73). The capital keeps its ID (no system is left to move it to). Only stage
+	 * code behind the last-system gate calls it - Transfer refuses a last settled system and LetSettlementsGo moves only a
+	 * people with none. Returns whether it let any go. No line, no note, no draw, and no role effect: the expiry records the
+	 * ruler's death, the deposition and the record line itself; the crossing stage removes the people.
+	 */
+	COSMIC_ASCENSION_API bool LetPeopleGo(FCosmicEvalContext& Ctx, int32 CivIndex);
 
 	/**
 	 * Places the hazard of the DT_Hazards row HazardRow on SystemIndex: the one path (section 7.4). The spawn draw, the
@@ -153,9 +168,11 @@ namespace CosmicHazards
 	 * false with no hazard standing, and for a tag no row holds (the expiry resolves it without a claim rule); false when
 	 * the owner holds the edict that answers the hazard (CosmicEdicts::HeldAnswerOf - the expiry resolves it and passes
 	 * no claim rule); false for Hazard.PreSupernova (the grace keeps a last system and the claim rule is not reached, or
-	 * the system is destroyed and is settled no more) and for Hazard.Claim (its expiry joins the system to the claimant's
+	 * the system is destroyed and is settled no more), for Hazard.Claim (its expiry joins the system to the claimant's
 	 * sphere, and ClaimantOf picks no instance whose sphere holds the system - exact while a run has one fallen instance,
-	 * DT_Rules.FallenTranscendentCount 1; when it may have more, the block that raises it looks at this branch again).
+	 * DT_Rules.FallenTranscendentCount 1; when it may have more, the block that raises it looks at this branch again) and
+	 * for the extinction (KillsTheRulerOf - B6b: the grace keeps the people and empties its extinction slots only, or
+	 * LetPeopleGo leaves the system unsettled - the claim rule is reached on neither).
 	 * Otherwise what the claim rule decides on the slot the expiry leaves free (the standing hazard itself is not asked):
 	 * a settled system, a Hazard.Claim row in the tables, and ClaimRuleHoldsOf. What the expiry's effects and the other
 	 * expiries of its tick change is not foreseen, nor the faith number (it always passes now): a claim "may" follow.
@@ -213,9 +230,11 @@ namespace CosmicHazards
 	 * Whether a KillPlayer on the subject (SystemID, CivID) at Tick reaches the vessel (B5 header section 5.1): the rule of
 	 * the record UCosmicEventSubsystem::Apply keeps, less 'the slot is free'. Only while Calling.LifeState is Embodied. A
 	 * subject with a system (SystemID not None) reaches a wanderer standing in it - what happens to a system never kills a
-	 * ruler; a subject without a system reaches the ruler of CivID (its extinction); a subject with neither reaches the vessel
-	 * anywhere. Never within DT_Rules.BirthProtectionTicks of Calling.BornTick (Tick - BornTick below it). Apply's KillPlayer
-	 * and the balance commandlet's death chances read it: the rule is not copied.
+	 * ruler; a subject without a system reaches the ruler of CivID (its extinction - the expiry's code records it so, B6b
+	 * decision 5, KillsTheRulerOf); a subject with neither reaches the vessel anywhere. Never within
+	 * DT_Rules.BirthProtectionTicks of Calling.BornTick (Tick - BornTick below it). Apply's KillPlayer, the stage clock's note
+	 * of an expiry (the extinction's with its systemless subject) and the balance commandlet's death chances read it: the rule
+	 * is not copied.
 	 */
 	COSMIC_ASCENSION_API bool VesselAtRiskOf(const FPlayerEntityState& Player, const FCallingState& Calling, const FCosmicRulesDef& Rules, int64 Tick,
 		FName SystemID, FName CivID);
@@ -227,4 +246,14 @@ namespace CosmicHazards
 	 * read it: one answer.
 	 */
 	COSMIC_ASCENSION_API bool KillsAVesselOf(const FCosmicDataTables& Tables, const FGameplayTag& Tag);
+
+	/**
+	 * Whether the expiry of the hazard Tag kills the ruler of the system's people wherever the vessel stands (B6b header
+	 * section 2.2, decision 5): Hazard.Extinction alone - the one death the code records rather than a row (the second source
+	 * of a death the design names; DECISIONS_LOG B6b). Its expiry lets the people go (LetPeopleGo) and records KillPlayer
+	 * (Death.Hazard, the row as its source) on a subject with no system (VesselAtRiskOf: the ruler of that people; the birth
+	 * protection decided there), then DeposeRuler. The expiry's code, the death line's choice (log_death_extinction) and the
+	 * screen's answers read it: one answer. KillsAVesselOf stays the data's (a vessel standing there) and is no part of it.
+	 */
+	COSMIC_ASCENSION_API bool KillsTheRulerOf(const FGameplayTag& Tag);
 }

@@ -22,6 +22,7 @@
 #include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicEvalContext.h"
+#include "Sim/CosmicHazards.h"
 #include "Sim/CosmicResearch.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/CosmicSuccession.h"
@@ -84,9 +85,16 @@ namespace CosmicPlayerRoleImpl
 	// measurement's borrowed Death.Age (header section 5.1; aging is 0, so the game has none) - is told by no line, as PushRow
 	// tells nothing for a row the table lacks: no other cause's words are told for it (every variant true on every path -
 	// docs/70), and no tell number is drawn. The life's end stands on the epitaph and in the chronicle's facts all the same.
-	FName DeathRowOf(const FGameplayTag& Cause)
+	// A Death.Hazard whose hazard row (Hazard, the life's CauseSourceRow - null when the table lacks it) has a tag that kills
+	// the ruler (CosmicHazards::KillsTheRulerOf - the extinction, B6b decision 5) has a row of its own, log_death_extinction:
+	// log_death_hazard mourns one person a star lost, untrue on the tick a whole people ended. The cause stays Death.Hazard.
+	FName DeathRowOf(const FGameplayTag& Cause, const FHazardDef* Hazard)
 	{
-		return Cause == CosmicTags::DeathHazard() ? CosmicRows::LogDeathHazard : FName();
+		if (Cause != CosmicTags::DeathHazard())
+		{
+			return FName();
+		}
+		return Hazard && CosmicHazards::KillsTheRulerOf(Hazard->HazardTag) ? CosmicRows::LogDeathExtinction : CosmicRows::LogDeathHazard;
 	}
 
 	// The death line (B5 header section 2.2 Die (b), 3.3; decision 12-da): the narrator's, in the third person by the vessel's
@@ -97,12 +105,12 @@ namespace CosmicPlayerRoleImpl
 	// system has no owner to name. Through PushRow - the tell stream alone, never the sim stream (rule 3).
 	void TellDeath(UCosmicLogSubsystem& Log, const FCosmicDataTables& Tables, const FLifeRecord& Life)
 	{
-		const FName Row = DeathRowOf(Life.CauseOfDeath);
+		const FHazardDef* Hazard = Tables.FindHazard(Life.CauseSourceRow);
+		const FName Row = DeathRowOf(Life.CauseOfDeath, Hazard);
 		if (Row.IsNone())
 		{
 			return;
 		}
-		const FHazardDef* Hazard = Tables.FindHazard(Life.CauseSourceRow);
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("Player"), CosmicChronicle::VesselNameOf(Life, Tables));
 		Args.Add(TEXT("Hazard"), Hazard ? Hazard->DisplayName : FText::GetEmpty());

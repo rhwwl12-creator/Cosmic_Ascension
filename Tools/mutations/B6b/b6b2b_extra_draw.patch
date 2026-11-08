@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2619,6 +2619,7 @@
+ 		// birth protection hid leaves the record to the deposition, and the crossing stage does not keep a people with
+ 		// nothing to rule. An AI people records neither (Apply's rules). No draw; the crossing stage removes the people - an
+ 		// AI people this tick, the ruled people the next.
++		Rng.GetFraction();
+ 		if (CosmicHazards::LetPeopleGo(Ctx, OwnerIndex))
+ 		{
+ 			RecordRow = CosmicRows::LogRecordExtinct;

@@ -2499,24 +2499,46 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 
 	// The side the expiry takes: its branch effects when its number falls under BranchChance.
 	const bool bBranch = Row->BranchChance > 0.f && OutcomeNumber < Row->BranchChance;
+	// The extinction (B6b header section 2.2, decision 5): the expiry that takes every system of its people and kills its
+	// ruler - CosmicHazards::KillsTheRulerOf, the one answer. A system with no people under it has no extinction to lose.
+	const bool bExtinction = CosmicHazards::KillsTheRulerOf(Collected) && State.Civs.IsValidIndex(OwnerIndex);
 	// The stage clock's note of the expiry (measurement only - FCosmicStageClock; B5): whom a KillPlayer on the system would
-	// reach now, before any part of the expiry. No draw, nothing written to the state.
+	// reach now, before any part of the expiry - for the extinction, on the subject its code records the death with (no
+	// system, the people). No draw, nothing written to the state.
 	if (StageClock.bOn)
 	{
 		StageClock.Expiries.Add({ State.Systems[SystemIndex].SystemID, Collected, bBranch, false,
-			CosmicHazards::VesselAtRiskOf(State.Player, State.Calling, Rules, State.Tick, State.Systems[SystemIndex].SystemID, State.Systems[SystemIndex].OwnerCivID) });
+			CosmicHazards::VesselAtRiskOf(State.Player, State.Calling, Rules, State.Tick, bExtinction ? FName() : State.Systems[SystemIndex].SystemID, State.Systems[SystemIndex].OwnerCivID) });
 	}
 
-	// The gate comes before any part of the loss (section 4.5): a kept system loses nothing, not even its line.
-	const bool bTakesSystem = Collected == SupernovaTag;
-	const bool bLastAtGate = bTakesSystem && CosmicHazards::IsLastSettledSystem(State, StateIndex, SystemIndex);
-	if (bLastAtGate && GraceKeepsLastSystem(Ctx, SystemIndex))
+	// The gate comes before any part of the loss (section 4.5): a kept system loses nothing, not even its line. The
+	// extinction always takes its people's last settled system with the rest, so it asks whatever the number of systems,
+	// and a grace that fires keeps the whole people - no system, life or record line is lost (B6b header section 2.2).
+	const bool bTakesSystem = Collected == SupernovaTag || bExtinction;
+	const bool bAskedAtGate = bTakesSystem && (bExtinction || CosmicHazards::IsLastSettledSystem(State, StateIndex, SystemIndex));
+	if (bAskedAtGate && GraceKeepsLastSystem(Ctx, SystemIndex, bExtinction))
 	{
 		if (StageClock.bOn)
 		{
 			StageClock.Expiries.Last().bGrace = true;
 		}
 		EmptySlot();
+		if (bExtinction)
+		{
+			// The grace answers the people's extinction, not one system: every other extinction of the people ends without
+			// result with it (an expiry of this pass turns back at its first question; an ark goes with its slot). No line,
+			// no draw.
+			const FName CivID = State.Civs[OwnerIndex].CivID;
+			for (const FName OtherID : State.Civs[OwnerIndex].OwnedSystems)
+			{
+				const int32 Other = StateIndex.FindSystem(State, OtherID);
+				if (State.Systems.IsValidIndex(Other) && State.Systems[Other].OwnerCivID == CivID
+					&& CosmicHazards::KillsTheRulerOf(State.Systems[Other].ActiveHazard))
+				{
+					CosmicHazards::EmptyHazardSlot(State.Systems[Other]);
+				}
+			}
+		}
 		return;
 	}
 
@@ -2552,7 +2574,8 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 	int32 JoinedTo = INDEX_NONE;
 	bool bUnseated = false;
 	// The record line of the people's irreversible loss this expiry made, if any (B5 decision 11): a settled system destroyed,
-	// a system joined to a fallen sphere. None for every other expiry.
+	// a system joined to a fallen sphere, a people that let every system go (the extinction - B6b). None for every other
+	// expiry.
 	FName RecordRow;
 	if (Collected == SupernovaTag)
 	{
@@ -2560,7 +2583,7 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 		// of the game can: Data.Integrity keeps TransferSystem out of the expiry effects and out of OnResolveEffects, which
 		// a ResolveHazard on a neighbour runs), it is asked again here: a people reaches no system only behind the gate. A
 		// system kept here has taken the expiry's effects and its damage to the neighbours already.
-		if (!bLastAtGate && CosmicHazards::IsLastSettledSystem(State, StateIndex, SystemIndex))
+		if (!bAskedAtGate && CosmicHazards::IsLastSettledSystem(State, StateIndex, SystemIndex))
 		{
 			UE_LOG(LogCosmic, Error, TEXT("Expiry of %s: its effects left %s the last settled system of its people; the last-system gate is asked again"), *RowName.ToString(), *State.Systems[SystemIndex].SystemID.ToString());
 			if (GraceKeepsLastSystem(Ctx, SystemIndex))
@@ -2601,6 +2624,34 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 		{
 			RecordRow = CosmicRows::LogRecordAnnexed;
 		}
+	}
+	else if (bExtinction)
+	{
+		// The extinction (B6b header section 2.2, decision 5 - the second source of a death): behind the gate above, the
+		// people lets every system go (the other hazards of its systems end without result; their expiries of this pass turn
+		// back at the first question). Then the death of its ruler, through Apply on a subject with no system - it reaches
+		// the ruler of this people wherever the vessel stands, and the birth protection decides there (VesselAtRiskOf) -
+		// with the row as its source; then the deposition, the supernova's collapse form: first recorded wins, so a death the
+		// birth protection hid leaves the record to the deposition, and the crossing stage does not keep a people with
+		// nothing to rule. An AI people records neither (Apply's rules). No draw; the crossing stage removes the people - an
+		// AI people this tick, the ruled people the next.
+		if (CosmicHazards::LetPeopleGo(Ctx, OwnerIndex))
+		{
+			RecordRow = CosmicRows::LogRecordExtinct;
+		}
+		Ctx.SystemIndex = INDEX_NONE;
+		FCosmicEffect Death;
+		Death.Type = EEffectType::KillPlayer;
+		Death.Tag = CosmicTags::DeathHazard();
+		UCosmicEventSubsystem::Apply(Death, Ctx);
+		if (!CosmicState::OwnsAnySystem(State, StateIndex, OwnerIndex))
+		{
+			FCosmicEffect Collapse;
+			Collapse.Type = EEffectType::DeposeRuler;
+			Collapse.Tag = DeposedTag;
+			UCosmicEventSubsystem::Apply(Collapse, Ctx);
+		}
+		Ctx.SystemIndex = SystemIndex;
 	}
 	EmptySlot();
 
@@ -2694,9 +2745,13 @@ void UGalaxySimulationSubsystem::ExpireHazard(int32 SystemIndex, FGameplayTag Co
 	}
 }
 
-bool UGalaxySimulationSubsystem::GraceKeepsLastSystem(FCosmicEvalContext& Ctx, int32 SystemIndex)
+bool UGalaxySimulationSubsystem::GraceKeepsLastSystem(FCosmicEvalContext& Ctx, int32 SystemIndex, bool bWholePeople)
 {
-	if (!CosmicHazards::IsLastSettledSystem(State, StateIndex, SystemIndex))
+	// The whole people's loss (the extinction - B6b) is asked of any system with a people under it, its last or not.
+	const bool bAsked = bWholePeople
+		? State.Systems.IsValidIndex(SystemIndex) && State.Civs.IsValidIndex(StateIndex.FindCiv(State, State.Systems[SystemIndex].OwnerCivID))
+		: CosmicHazards::IsLastSettledSystem(State, StateIndex, SystemIndex);
+	if (!bAsked)
 	{
 		return false;
 	}

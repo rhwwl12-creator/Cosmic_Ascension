@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2515,7 +2515,7 @@
+ 	// extinction always takes its people's last settled system with the rest, so it asks whatever the number of systems,
+ 	// and a grace that fires keeps the whole people - no system, life or record line is lost (B6b header section 2.2).
+ 	const bool bTakesSystem = Collected == SupernovaTag || bExtinction;
+-	const bool bAskedAtGate = bTakesSystem && (bExtinction || CosmicHazards::IsLastSettledSystem(State, StateIndex, SystemIndex));
++	const bool bAskedAtGate = bTakesSystem && CosmicHazards::IsLastSettledSystem(State, StateIndex, SystemIndex);
+ 	if (bAskedAtGate && GraceKeepsLastSystem(Ctx, SystemIndex, bExtinction))
+ 	{
+ 		if (StageClock.bOn)

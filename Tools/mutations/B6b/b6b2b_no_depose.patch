@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2633,7 +2633,6 @@
+ 			FCosmicEffect Collapse;
+ 			Collapse.Type = EEffectType::DeposeRuler;
+ 			Collapse.Tag = DeposedTag;
+-			UCosmicEventSubsystem::Apply(Collapse, Ctx);
+ 		}
+ 		Ctx.SystemIndex = SystemIndex;
+ 	}

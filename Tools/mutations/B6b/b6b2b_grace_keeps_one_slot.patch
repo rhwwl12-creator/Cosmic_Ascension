@@ -1,0 +1,25 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2523,22 +2523,6 @@
+ 			StageClock.Expiries.Last().bGrace = true;
+ 		}
+ 		EmptySlot();
+-		if (bExtinction)
+-		{
+-			// The grace answers the people's extinction, not one system: every other extinction of the people ends without
+-			// result with it (an expiry of this pass turns back at its first question; an ark goes with its slot). No line,
+-			// no draw.
+-			const FName CivID = State.Civs[OwnerIndex].CivID;
+-			for (const FName OtherID : State.Civs[OwnerIndex].OwnedSystems)
+-			{
+-				const int32 Other = StateIndex.FindSystem(State, OtherID);
+-				if (State.Systems.IsValidIndex(Other) && State.Systems[Other].OwnerCivID == CivID
+-					&& CosmicHazards::KillsTheRulerOf(State.Systems[Other].ActiveHazard))
+-				{
+-					CosmicHazards::EmptyHazardSlot(State.Systems[Other]);
+-				}
+-			}
+-		}
+ 		return;
+ 	}
+ 

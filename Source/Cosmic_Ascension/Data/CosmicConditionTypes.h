@@ -188,7 +188,8 @@ enum class EEffectType : uint8
 	// Phase 6+ (append): MultiplyResearch, PopulationLossMultiplier, StabilityFloor (section 4.2). They are per-tick
 	// effects: each joins the list of UCosmicEventSubsystem::Apply for per-tick sources when it is appended.
 	// Decided, appended with the relics of Phase 4 (section 16 #29): GrantRelic, RemoveRelic. A system is let go to no
-	// one by TransferSystem with an empty Key, not by an effect of its own.
+	// one by TransferSystem with an empty Key, not by an effect of its own. Every system of a people is let go by no effect
+	// either: that is the extinction's expiry code (CosmicHazards::LetPeopleGo - B6b), behind the last-system gate.
 };
 
 USTRUCT(BlueprintType)

@@ -614,7 +614,8 @@ namespace CosmicDeathTests
 // knowing is the calling's and stays (section 2.1), the life records its end, and the countdown starts the next tick. [B-5d1]
 // (section 2.2 Die (b), 3.3): one death line - Log.Calling, Severity 2, no focus, the vessel's name and the hazard's -, told
 // before the death changes anything and from the tell stream alone (one number; none of the sim stream), the tick's last
-// line; a cause with no row of its own (Death.Age) tells none and draws nothing.
+// line; a cause with no row of its own (Death.Age) tells none and draws nothing. B6b [B-6b2b]: a death whose row kills the
+// ruler (the extinction) tells log_death_extinction instead, with the same one number.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicCallingDeathPipelineTest, "Cosmic_Ascension.Calling.DeathPipeline", CosmicTests::Flags)
 bool FCosmicCallingDeathPipelineTest::RunTest(const FString& Parameters)
 {
@@ -792,6 +793,50 @@ bool FCosmicCallingDeathPipelineTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("A cause with no row of its own tells no death line"), CountLinesOf(*Board, CosmicRows::LogDeathHazard), 0);
 		TestEqual(TEXT("and draws no number of the tell stream"), DrawsBetween(AgeDeath.Without.TellRngState, Board->TellRngState), 0);
 		TestEqual(TEXT("(its numbers of the sim stream are a wanderer's death's)"), AgeDeath.ExtraDraws, 1);
+	}
+
+	// B6b [B-6b2b] (B6b header section 2.2, decision 5): a Death.Hazard whose source row's tag kills the ruler
+	// (CosmicHazards::KillsTheRulerOf - the extinction; the game holds no such row before [B-6b6], so the quiet copy takes one)
+	// is told by its own row, log_death_extinction, naming the vessel and the hazard - not by log_death_hazard (mutation:
+	// DeathRowOf picks log_death_hazard); the cause stays Death.Hazard, and the line draws the one number of the tell stream.
+	{
+		const FName ExtinctRow(TEXT("crisis_test_death_extinct"));
+		FCosmicDataTables Tables = TablesWith(Original, nullptr, [](FCosmicRulesDef& Knobs) { Knobs.SightIntervalTicks = 100000; });
+		UDataTable* Hazards = QuietHazards(Original);
+		FHazardDef Extinction;
+		Extinction.HazardTag = Tag(TEXT("Hazard.Extinction"));
+		Extinction.DisplayName = FText::AsCultureInvariant(TEXT("<the extinction>"));
+		Extinction.CountdownTicks = 250;
+		Extinction.SpawnRule = ECosmicHazardSpawn::Draw;
+		Hazards->AddRow(ExtinctRow, Extinction);
+		Tables.Hazards = Hazards;
+		FGalaxyState* Board = LayBoard(*Sim, Tables);
+		if (!TestNotNull(TEXT("The board of the extinction's death is laid"), Board))
+		{
+			return false;
+		}
+		Walk(*Sim, *Role, 0);
+		const FGalaxyState Before = *Board;
+		const FDeathTick Extinct = StepDeath(*Sim, Before, [Sim, ExtinctRow]()
+		{
+			FGalaxyState& Live = Sim->GetMutableState();
+			RecordDeath(Live);
+			Live.Calling.PendingSourceRow = ExtinctRow;
+		});
+		const FLifeRecord& Ended = Board->Calling.Lives.Last();
+		TestTrue(TEXT("(the extinction's death is carried out with its cause and its row)"), Board->Calling.LifeState == ELifeState::Interregnum
+			&& Ended.CauseOfDeath == Tag(TEXT("Death.Hazard")) && Ended.CauseSourceRow == ExtinctRow);
+		TestEqual(TEXT("The extinction's death tells its own death line"), CountLinesOf(*Board, CosmicRows::LogDeathExtinction), 1);
+		TestEqual(TEXT("and not the line of one person a star lost"), CountLinesOf(*Board, CosmicRows::LogDeathHazard), 0);
+		const FCosmicLogEntry* Told = NewestLineOf(*Board, CosmicRows::LogDeathExtinction);
+		if (Told)
+		{
+			const FString Message = Told->Message.ToString();
+			TestTrue(TEXT("Log.Calling, Severity 2, told, with no focus"), Told->Category == Tag(TEXT("Log.Calling")) && Told->Severity == 2 && !Told->bUntold
+				&& Told->FocusSystemID.IsNone() && Told->FocusCivID.IsNone());
+			TestTrue(TEXT("naming the vessel and the hazard"), Message.Contains(CosmicChronicle::VesselNameOf(Ended, Sim->GetTables()).ToString()) && Message.Contains(TEXT("<the extinction>")));
+		}
+		TestEqual(TEXT("It draws one number of the tell stream more than the same tick without the death"), DrawsBetween(Extinct.Without.TellRngState, Board->TellRngState), 1);
 	}
 	return true;
 }

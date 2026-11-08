@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -172,7 +172,6 @@
+ 				Record.CivID = CivID;
+ 			}
+ 		}
+-		CosmicConflict::LiftTargetsOn(State, System.SystemID);
+ 		// A rebellion that leaves its slot without a change of throne ends its leader and the count (Transfer's form).
+ 		if (System.ActiveHazard == RebellionTag)
+ 		{

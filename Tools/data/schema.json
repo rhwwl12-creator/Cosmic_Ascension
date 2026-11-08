@@ -8,7 +8,7 @@
 		"Every column of a row struct is declared here: a column added to a struct needs its line.",
 		"Column kinds (closed list): plain, number, numbers, text, texts, tag, tags, tag_list, tag_map, row, row_map, rows, word_map, enum, conditions, effects, pool, structs",
 		"An integer property is declared with integer: true (Data.Integrity holds the columns to the property types).",
-		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, has_type, has_cond, lacks_cond, slots_in, len_ge_col, pairs_ge_col, ge_col, contains_all, contains_none, zero, lacks_words, no_digits",
+		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, has_type, has_cond, lacks_cond, slots_in, len_ge_col, pairs_ge_col, ge_col, contains_all, contains_none, zero, lacks_words, no_digits, rows_of",
 		"A row rule is 'when -> then' over tests: one column with one test of the list above, 'row' with a row name, 'row_not' with a row name (every other row - B3), 'row_prefix' with one of the table's prefixes (the rows of one kind - B1), or 'none' with a list of tests over the columns of one list of structs (no entry of the list holds every one of them - B4: one choice read as a whole). Each test can be asked of some kinds of column only (the checker holds the table).",
 		"What a condition or an effect says of its Tag, its Key and its Value is a closed list in the checker too. A Tag may refuse the tag of the rows of a table that hold tests ('not_tag_of': table, tag column, when) and the tags a condition of the named enumerators reads in any row of any table ('not_read_by') - B4: DelayHazard.",
 		"A column of a list of structs (kind structs) is named in a rule as 'List.Column': the test holds when it holds for every entry of the list, and so for an empty list. The tests that name other columns of the row (len_ge_col, pairs_ge_col, ge_col) are not asked of such a column.",
@@ -20,7 +20,7 @@
 		"epitaph_leaves_out (B5): the DT_Encounters rows whose title the epitaph never shows among a dead vessel's last answers - the code holds the same rows as CosmicRows::EpitaphLeavesOut, so each is a required row of DT_Encounters. A card title that speaks to the reader (a word of words.reader_address, or it ends in a word of words.reader_question_ends) has to be listed there: the death and inauguration pages keep the third person (decision 12-da). The [B-5d1] text audit lists four more, whose titles read as a eulogy under a death (a virtue, a memorial day, the two 'beside' titles of the sacrifice reading - header 3.6-1): those titles stay right on their own cards.",
 		"The words of a death (B5 [B-5d1], header 3.5): afterlife_words (an idiom that tells where the dead went, and the words of an afterlife), book_of_life_words (the book of life), called_away_words (a calling read as a death) and remnant_words (the word of election - Log.Record rows only), with death_frame_words (an agent, a sacrifice or a cause of the death - the death row only), rebirth_words (a return or a rebirth - the inauguration rows and Succession. only) and record_object_words (days, names, people or the dead as what was recorded - Log.Record rows only), are matched letter for letter, so a short word is found inside others: they hang on the new places alone - the string keys under Epitaph., Reign., Digest., Succession. and Chronicle. (the two books' chapter), and the DT_LogTemplates rows of Log.Record with the death and inauguration rows - never on a whole column ('잠들지' and '돌아가' already stand elsewhere), save one: the fallen's awareness line (DT_Transcendents.AwarenessTemplates, B6a header 3.2) refuses rebirth_words and called_away_words, a column of its own that only that line fills.",
 		"The words of the awareness and of the end (B6a [B-6a5], header 3.2, 3.4): awareness_words (a sameness, an again and a recognition - the fallen's one second-person line would read as knowing the vessel again; '다시 ' and '알아보았' of rebirth_words let '다시는' and '알아본다' through) hang on DT_Transcendents.AwarenessTemplates alone, and holy_passive (the passive of the holy order and the idiom of an end that comes) on every string key under Chronicle., so that no reason line ties the holy order to the end of a run.",
-		"The galaxy laws and the upper rungs (B6b [B-6b2a], header 3.3): a comparison test (gt, ge, lt, le) over a tag map holds when every value of the map holds it - an empty map holds (a galaxy law's spawn factors are at most 1); a conditions column may name the condition types whose Tag it leaves empty ('untagged' - a DT_Feats row's CivHasTreaty: the AI's treaty step signs a non-aggression only); and an effect's Key may say 'not_per_tick' (a per-tick source leaves that Key empty - ChangeReverence's Borders walks the borders where a source is applied once). A condition test names the fields of an entry - type, key and tag, a key or a tag at least, each equal - and lacks_cond holds when no entry of the list has them all (a ruler feat names no selector word of the vessel; no claim card buys the claim time but petition_pressure_measured).",
+		"The galaxy laws and the upper rungs (B6b [B-6b2a], header 3.3): a comparison test (gt, ge, lt, le) over a tag map holds when every value of the map holds it - an empty map holds (a galaxy law's spawn factors are at most 1); a conditions column may name the condition types whose Tag it leaves empty ('untagged' - a DT_Feats row's CivHasTreaty: the AI's treaty step signs a non-aggression only); and an effect's Key may say 'not_per_tick' (a per-tick source leaves that Key empty - ChangeReverence's Borders walks the borders where a source is applied once). A condition test names the fields of an entry - type, key and tag, a key or a tag at least, each equal - and lacks_cond holds when no entry of the list has them all (a ruler feat names no selector word of the vessel; no claim card buys the claim time but petition_pressure_measured). rows_of (B6b [B-6b2b]) holds when every row name of a rows column is a row of one of the named tables, each one the column names (the extinction is answered by a project alone - the ark).",
 		"A table whose columns are null has no rows yet: its columns are declared when its first row is written."
 	],
 	"tag_sources": ["Config/DefaultGameplayTags.ini"],
@@ -306,7 +306,7 @@
 			"struct": "LogTemplateDef",
 			"prefixes": ["log_"],
 			"must_exist": true,
-			"required_rows": ["log_first_life", "log_breakthrough_physics", "log_breakthrough_society", "log_breakthrough_engineering", "log_breakthrough_transcendence", "log_fallen_monarch", "log_first_contact", "log_contact", "log_far_event", "log_far_ascent", "log_scan_wild", "log_crowned", "log_returned", "log_throne_vacated", "log_rebellion_unseated", "log_edict_enacted", "log_edict_revoked", "log_edict_lapsed", "log_stance_changed", "log_stance_lapsed", "log_treaty_signed", "log_treaty_broken", "log_siege_begun", "log_siege_on_us", "log_siege_taken", "log_siege_lost", "log_siege_held", "log_siege_failed", "log_siege_lifted", "log_sign_claim", "log_fleet_worn", "log_death_hazard", "log_inauguration", "log_record_destroyed", "log_record_annexed", "log_inauguration_unnamed"],
+			"required_rows": ["log_first_life", "log_breakthrough_physics", "log_breakthrough_society", "log_breakthrough_engineering", "log_breakthrough_transcendence", "log_fallen_monarch", "log_first_contact", "log_contact", "log_far_event", "log_far_ascent", "log_scan_wild", "log_crowned", "log_returned", "log_throne_vacated", "log_rebellion_unseated", "log_edict_enacted", "log_edict_revoked", "log_edict_lapsed", "log_stance_changed", "log_stance_lapsed", "log_treaty_signed", "log_treaty_broken", "log_siege_begun", "log_siege_on_us", "log_siege_taken", "log_siege_lost", "log_siege_held", "log_siege_failed", "log_siege_lifted", "log_sign_claim", "log_fleet_worn", "log_death_hazard", "log_inauguration", "log_record_destroyed", "log_record_annexed", "log_inauguration_unnamed", "log_record_extinct", "log_death_extinction"],
 			"columns": {
 				"Category": {"kind": "tag", "root": "Log."},
 				"Context": {"kind": "tag", "root": "Revelation.", "optional": true},
@@ -375,6 +375,18 @@
 					"then": [{"col": "Category", "is": "Log.Calling"}, {"col": "Templates", "slots_in": ["Player", "Civ"]}, {"col": "Templates", "lacks_words": "afterlife_words"},
 						{"col": "Templates", "lacks_words": "book_of_life_words"}, {"col": "Templates", "lacks_words": "called_away_words"}, {"col": "Templates", "lacks_words": "reader_address"},
 						{"col": "Templates", "lacks_words": "realm_names"}, {"col": "Templates", "lacks_words": "rebirth_words"}]
+				},
+				{
+					"why": "the record of a people that let every system go at an extinction's expiry is a record line, so the record line's rule holds it: {System} alone, no figure, no word of a death, the remnant, nor days, names, people or the dead as what was recorded (B6b header 2.2, 3.3 rule 8, decision 5)",
+					"when": [{"row": "log_record_extinct"}],
+					"then": [{"col": "Category", "is": "Log.Record"}]
+				},
+				{
+					"why": "the death line of a ruler at an extinction's expiry is the death line in every way: the narrator's, in the third person by the vessel's name and the hazard, the calling's line, with no word of an afterlife, the book of life or a calling read as a death, no 'you' across the death, no name of the holy order or its realm, and no agent, sacrifice or cause of the death (B6b header 2.2, 3.3 rule 8, decision 5; the words of a ruler who stayed, stay_words, join it in [B-6b5] - header 3.3 rule 13)",
+					"when": [{"row": "log_death_extinction"}],
+					"then": [{"col": "Category", "is": "Log.Calling"}, {"col": "Templates", "slots_in": ["Player", "Hazard"]}, {"col": "Templates", "lacks_words": "afterlife_words"},
+						{"col": "Templates", "lacks_words": "book_of_life_words"}, {"col": "Templates", "lacks_words": "called_away_words"}, {"col": "Templates", "lacks_words": "reader_address"},
+						{"col": "Templates", "lacks_words": "realm_names"}, {"col": "Templates", "lacks_words": "death_frame_words"}]
 				}
 			]
 		},
@@ -720,6 +732,17 @@
 					"why": "the supernova precursor's expiry destroys the system, and the death line mourns a star that stays: no death at its expiry until it has a death row of its own (B5 header 8 [B-5d2], DECISIONS_LOG [B-5d1] (11))",
 					"when": [{"col": "HazardTag", "is": "Hazard.PreSupernova"}],
 					"then": [{"col": "OnExpireEffects", "lacks_type": "KillPlayer"}]
+				},
+				{
+					"why": "the extinction's loss is the expiry's code - its people lets every system go and its ruler dies (CosmicHazards::LetPeopleGo, KillsTheRulerOf): its row carries no expiry effect of its own, no branch and no damage to the neighbours, and it is answered by a project alone - the ark (B6b header 2.2, 3.3 rule 5, decision 5)",
+					"when": [{"col": "HazardTag", "is": "Hazard.Extinction"}],
+					"then": [
+						{"col": "OnExpireEffects", "max_len": 0},
+						{"col": "OnExpireBranchEffects", "max_len": 0},
+						{"col": "OnExpireNeighbourEffects", "max_len": 0},
+						{"col": "BranchChance", "is": 0},
+						{"col": "RulerResolutions", "rows_of": ["DT_Megaprojects"]}
+					]
 				},
 				{
 					"why": "the leader of a cult has no name (guideline 4.1)",

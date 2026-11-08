@@ -558,15 +558,19 @@ private:
 	 * lists in RulerResolutions (CosmicEdicts::HeldAnswerOf, B2), the hazard is resolved instead (CosmicHazards::Resolve,
 	 * then FollowUpKnowing and FollowUpNotes - a project's resolution): its numbers are thrown away and no claim rule runs.
 	 * Otherwise, in this order: the last-system gate, when the
-	 * code of the tag takes the system and it is its owner's last settled system (a kept system ends there: its slot is
-	 * emptied without result); the effects (OnExpireEffects, or OnExpireBranchEffects when OutcomeNumber is below
+	 * code of the tag takes the system and it is its owner's last settled system - the extinction (CosmicHazards::
+	 * KillsTheRulerOf - B6b) asks it whatever the number of systems (a kept system - a kept people - ends there: its slot is
+	 * emptied without result, and for the extinction every other extinction slot of the people with it); the effects (OnExpireEffects, or OnExpireBranchEffects when OutcomeNumber is below
 	 * BranchChance), then OnExpireNeighbourEffects; FollowUpKnowing (a system the effects handed to the vessel's people is
 	 * known and its giver met, with the meeting line - the one line that can leave before the code of the tag, while the
 	 * slot still holds the expiring tag); the code of the tag (Hazard.PreSupernova: CosmicHazards::Destroy, then
 	 * DeposeRuler through Apply when the people the vessel rules has no system left; Hazard.Rebellion: the throne;
-	 * Hazard.Claim: the join); the slot emptied; the claim rule on that slot; the expiry line (a claim that did not join
+	 * Hazard.Claim: the join; the extinction - B6b decision 5: CosmicHazards::LetPeopleGo, then KillPlayer (Death.Hazard)
+	 * and DeposeRuler through Apply on a subject with no system - the ruler of that people, first recorded wins); the slot
+	 * emptied; the claim rule on that slot; the expiry line (a claim that did not join
 	 * tells the resolution line); the record line of a people's irreversible loss (B5 decision 11 - CosmicRows::
-	 * LogRecordDestroyed when a settled system was destroyed, CosmicRows::LogRecordAnnexed when a claim joined; Log.Record,
+	 * LogRecordDestroyed when a settled system was destroyed, CosmicRows::LogRecordAnnexed when a claim joined,
+	 * CosmicRows::LogRecordExtinct when an extinction let its people go - B6b; Log.Record,
 	 * kept untold, one tell number); the voice of a join (its sign, then the fallen's first-person line); FollowUpNotes; then the awareness line (B6a header
 	 * section 2.11 - once per run, for the claimant TryPlaceClaim returned).
 	 * Should the effects have made the system its owner's last settled system after the gate let it pass (no row of the game can: Data.Integrity keeps TransferSystem out of the expiry effects
@@ -580,9 +584,11 @@ private:
 	 * The last-system gate (section 4.5, 7.4): when SystemIndex is its owner's last settled system
 	 * (CosmicHazards::IsLastSettledSystem - a settlement under way is no home and goes with it), fires
 	 * CosmicRows::EventGraceRemnant with that system and people as subject. True when the row fired: the loss does not
-	 * happen. The row's own conditions keep it to once per run. The subject of Ctx is left as it was.
+	 * happen. The row's own conditions keep it to once per run. The subject of Ctx is left as it was. bWholePeople (the
+	 * extinction, which takes the last settled system with every other - B6b header section 2.2) skips the first question:
+	 * the row is fired for any system with a people under it, whatever the number of its systems.
 	 */
-	bool GraceKeepsLastSystem(FCosmicEvalContext& Ctx, int32 SystemIndex);
+	bool GraceKeepsLastSystem(FCosmicEvalContext& Ctx, int32 SystemIndex, bool bWholePeople = false);
 
 	/**
 	 * Step (a) of the crisis stage (section 5.7, 7.4): CosmicMegaprojects::Advance for every response slot that holds a

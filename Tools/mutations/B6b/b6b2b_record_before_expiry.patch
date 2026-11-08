@@ -1,0 +1,14 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2621,7 +2621,10 @@
+ 		// AI people this tick, the ruled people the next.
+ 		if (CosmicHazards::LetPeopleGo(Ctx, OwnerIndex))
+ 		{
+-			RecordRow = CosmicRows::LogRecordExtinct;
++			UCosmicLogSubsystem* Early = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
++			FFormatNamedArguments Told;
++			Told.Add(TEXT("System"), State.Systems[SystemIndex].DisplayName);
++			Early->PushRow(CosmicRows::LogRecordExtinct, 1, Told, State.Systems[SystemIndex].SystemID, State.Civs[OwnerIndex].CivID);
+ 		}
+ 		Ctx.SystemIndex = INDEX_NONE;
+ 		FCosmicEffect Death;

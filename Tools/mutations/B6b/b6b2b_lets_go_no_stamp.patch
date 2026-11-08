@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -169,7 +169,7 @@
+ 		{
+ 			if (Record.CivID.IsNone())
+ 			{
+-				Record.CivID = CivID;
++				continue;
+ 			}
+ 		}
+ 		CosmicConflict::LiftTargetsOn(State, System.SystemID);

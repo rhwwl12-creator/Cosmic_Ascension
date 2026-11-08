@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -173,6 +173,7 @@
+ 			}
+ 		}
+ 		CosmicConflict::LiftTargetsOn(State, System.SystemID);
++		System.CompletedMegaprojects.Reset();
+ 		// A rebellion that leaves its slot without a change of throne ends its leader and the count (Transfer's form).
+ 		if (System.ActiveHazard == RebellionTag)
+ 		{

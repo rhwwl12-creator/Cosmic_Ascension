@@ -1,0 +1,10 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2627,7 +2627,6 @@
+ 		FCosmicEffect Death;
+ 		Death.Type = EEffectType::KillPlayer;
+ 		Death.Tag = CosmicTags::DeathHazard();
+-		UCosmicEventSubsystem::Apply(Death, Ctx);
+ 		if (!CosmicState::OwnsAnySystem(State, StateIndex, OwnerIndex))
+ 		{
+ 			FCosmicEffect Collapse;

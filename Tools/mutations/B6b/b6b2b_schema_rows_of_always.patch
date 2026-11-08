@@ -1,0 +1,11 @@
+--- a/Tools/cosmic_data_schema.py
++++ b/Tools/cosmic_data_schema.py
+@@ -1386,7 +1386,7 @@
+             return all(isinstance(text, str) and not any(word in text for word in words) for text in texts)
+         if name == "rows_of":
+             # Each entry a row of one of the named tables (an empty list holds).
+-            return isinstance(value, list) and all(any(name_of(entry) in self.rows.get(table, {}) for table in operand) for entry in value)
++            return True
+         if name == "no_digits":
+             # Matched as a column's no_digits matches: any digit of any script, a slot name included.
+             texts = value if isinstance(value, list) else [value]

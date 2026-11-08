@@ -390,5 +390,27 @@
 			"일이 {Player}에게 맡겨졌다. {Player}|hpp(은,는) {Civ}의 사람이었다.",
 			"{Civ} 사람 {Player}에게 일이 맡겨졌다. 그때 {Player}|hpp(은,는) 일하고 있었다."
 		]
+	},
+	{
+		"Name": "log_record_extinct",
+		"Category": "Log.Record",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{System}의 집들이 빈 일이 기록되었다.",
+			"{System}의 마을들이 빈 일이 기록되었다.",
+			"{System}의 거리가 빈 일이 기록되었다."
+		]
+	},
+	{
+		"Name": "log_death_extinction",
+		"Category": "Log.Calling",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{Hazard}|hpp(이,가) 끝나던 날, {Player}|hpp(은,는) 쓰러졌다. {Hazard}|hpp(을,를) 겪은 땅에는 빈 집들만 남았다.",
+			"{Player}|hpp(은,는) {Hazard}|hpp(이,가) 끝날 무렵 쓰러졌다. {Hazard}|hpp(을,를) 겪은 땅의 마을들이 모두 비었다.",
+			"{Hazard}의 끝에서 {Player}|hpp(이,가) 쓰러졌다. {Player}|hpp(이,가) 다스리던 땅은 오래도록 조용했다."
+		]
 	}
 ]

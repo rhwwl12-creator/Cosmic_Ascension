@@ -1,0 +1,15 @@
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2623,11 +2623,11 @@
+ 		{
+ 			RecordRow = CosmicRows::LogRecordExtinct;
+ 		}
+-		Ctx.SystemIndex = INDEX_NONE;
+ 		FCosmicEffect Death;
+ 		Death.Type = EEffectType::KillPlayer;
+ 		Death.Tag = CosmicTags::DeathHazard();
+ 		UCosmicEventSubsystem::Apply(Death, Ctx);
++		Ctx.SystemIndex = INDEX_NONE;
+ 		if (!CosmicState::OwnsAnySystem(State, StateIndex, OwnerIndex))
+ 		{
+ 			FCosmicEffect Collapse;
