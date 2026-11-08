@@ -1488,7 +1488,9 @@ class SchemaTests(unittest.TestCase):
                                   ("SiegeDefenceShares", [1.0, 0.5, 1.5], "above"), ("SiegeRepulsedFleetFactor", 1.5, "above"),
                                   ("AIHostileRelation", -1.5, "below"), ("AIHostilePowerRatio", -0.1, "below"), ("AIHostileRelationTowardRuled", 1.5, "above"), ("AIHostilePowerRatioTowardRuled", -0.1, "below"),
                                   ("AIHostilePacifismMax", 1.5, "above"), ("PlagueSpreadMultiplier", -1.0, "below"),
-                                  ("FleetDelayPerPower", -1.0, "below"), ("FleetDelayCap", -1.0, "below"), ("PressureFleetAttrition", -0.1, "below")):
+                                  ("FleetDelayPerPower", -1.0, "below"), ("FleetDelayCap", -1.0, "below"), ("PressureFleetAttrition", -0.1, "below"),
+                                  # B6b [B-6b2c] (header 2.10): the share of the countdown that caps the guard's delay, 0..1.
+                                  ("FleetDelayCountdownShare", -0.1, "below"), ("FleetDelayCountdownShare", 1.5, "above")):
             with self.subTest(knob=knob, value=value):
                 self.expect(self.after(rules(knob, value)), knob, word)
         for column, value, word in (("FleetGrowthMultiplier", -0.5, "below"), ("TreatyAcceptBonus", -0.1, "below"), ("TreatyAcceptBonus", 1.5, "above")):
@@ -3056,6 +3058,44 @@ class SchemaTests(unittest.TestCase):
         # Another hazard keeps its effects and may be answered by an edict.
         self.assertEqual(self.after(self.set_cell("DT_Hazards", "crisis_test_storm", "RulerResolutions", ["edict_test_order"])), [])
 
+    def test_the_binding_rows(self):
+        # B6b [B-6b2c] (header 3.3 rules 7 and 8): a member of a resource pool is named 'Pool.Member' and read as a number; a
+        # project asks no Causality (the breaking case: Causality 1); the binding's line names the system alone (the breaking
+        # cases: {Civ}, {Project}).
+        holds = checker.Checker(self.schema, self.tables, self.tags).holds
+        causality = {"col": "CostPerTick.Causality", "is": 0}
+        self.assertTrue(holds(causality, {"CostPerTick": pool()}, "r"))
+        self.assertFalse(holds(causality, {"CostPerTick": pool(Causality=1.0)}, "r"))
+        self.assertFalse(holds(causality, {"CostPerTick": {"Energy": 0.0}}, "r"))
+        self.assertTrue(holds({"col": "CostPerTick.Energy", "gt": 0}, {"CostPerTick": pool(Energy=2.0)}, "r"))
+        rule = ["tables", "DT_Megaprojects", "rules", 0]
+        self.schema_problem(self.put(rule, "then", [{"col": "CostPerTick.Faith", "is": 0}]),
+                            "schema.DT_Megaprojects", "names the member 'Faith', which the pool CostPerTick of DT_Megaprojects does not have")
+        self.schema_problem(self.put(rule, "then", [{"col": "CostPerTick.Energy", "ge_col": "RequiredProgress"}]),
+                            "schema.DT_Megaprojects", "the test 'ge_col' cannot be asked of a column of a list of structs or a member of a pool")
+        self.schema_problem(self.put(rule, "then", [{"col": "CostPerTick.Causality", "is": "None"}]),
+                            "schema.DT_Megaprojects", "the test 'is' over a column of kind number needs numbers")
+        self.schema_problem(self.put(rule, "then", [{"col": "RequiredProgress.Causality", "is": 0}]),
+                            "schema.DT_Megaprojects", "and RequiredProgress is no list of structs")
+        causality_why = "a project asks no Causality"
+        self.assertEqual(self.after(self.set_cell("DT_Megaprojects", "project_binding", "CostPerTick", pool(Energy=4.0, Matter=4.0))), [])
+        self.expect(self.after(self.set_cell("DT_Megaprojects", "project_binding", "CostPerTick", pool(Energy=4.0, Causality=1.0))),
+                    "DT_Megaprojects.project_binding", causality_why, '"col": "CostPerTick.Causality"')
+        # The project's own rows pass: the binding asks Energy and Matter only.
+        project_schema, project_tables, project_tags = checker.load_project()
+        binding = next(row for row in project_tables["DT_Megaprojects"] if row["Name"] == "project_binding")
+        self.assertEqual(binding["CostPerTick"]["Causality"], 0.0)
+        self.assertEqual(binding["RequiredTier"], "Tier4_Transcendent")
+        # The binding's line: {System} alone.
+        bound_why = "the line of the binding is told in the actorless passive"
+        line = lambda templates: self.set_cell("DT_LogTemplates", "log_fallen_bound", "Templates", templates)  # noqa: E731
+        self.assertEqual(self.after(line(["{System} a.", "b.", "c."])), [])
+        for slot in ("Civ", "Project", "OtherCiv", "Transcendent"):
+            with self.subTest(slot=slot):
+                self.expect(self.after(line(["{System} {%s} a." % slot, "b.", "c."])), "DT_LogTemplates.log_fallen_bound", bound_why, "slots_in")
+        # Another row may name the people.
+        self.assertEqual(self.after(self.set_cell("DT_LogTemplates", "log_fleet_worn", "Templates", ["{System} {Civ} a.", "b.", "c."])), [])
+
     def test_a_ruler_card_does_not_wait_on_the_vessel_rung(self):
         # B6a [B-6a6] (header 3.1, decision 9): the ruler's personal rung never rises, so a ruler's row that waits on it never
         # comes. The breaking case is petition_exalt as it stood from [A-2b] to [B-6a5]: the ruler and the vessel's rung 2.
@@ -3119,7 +3159,10 @@ class SchemaTests(unittest.TestCase):
                 self.satisfy_in(schema, columns[head]["columns"], dict(inner, col=inner["col"].partition(".")[2]), row[head][0])
             return
         head, mark, sub = test["col"].partition(".")
-        if mark:
+        if mark and columns[head]["kind"] == "pool":
+            # B6b [B-6b2c]: a member of a resource pool, broken as a number of the pool's own cell.
+            self.violate_in(schema, {sub: {"kind": "number"}}, dict(test, col=sub), row[head])
+        elif mark:
             self.violate_in(schema, columns[head]["columns"], dict(test, col=sub), row[head][0])
         else:
             self.violate_in(schema, columns, test, row)
@@ -3448,6 +3491,13 @@ class SchemaTests(unittest.TestCase):
                 (NOTHING, "log_record_extinct"),
             ("DT_LogTemplates", "the death line of a ruler at an extinction's expiry is the death line in every way: the narrator's, in the third person by the vessel's name and the hazard, the calling's line, with no word of an afterlife, the book of life or a calling read as a death, no 'you' across the death, no name of the holy order or its realm, and no agent, sacrifice or cause of the death (B6b header 2.2, 3.3 rule 8, decision 5; the words of a ruler who stayed, stay_words, join it in [B-6b5] - header 3.3 rule 13)"):
                 (NOTHING, "log_death_extinction"),
+            # B6b [B-6b2c]: the binding's line, the delay above the third rung and a project's Causality.
+            ("DT_LogTemplates", "the line of the binding is told in the actorless passive by the name of the system the work stood on alone: no people and no work is named in it - the people is never the binder (B6b header 2.5, 3.3 rule 8, decision 32; the triumph words join it in [B-6b5] - header 3.3 rule 13)"):
+                (NOTHING, "log_fallen_bound"),
+            ("DT_Rules", "the delay above the third rung multiplies the progress of an AI people's construction of the third rung or above: at 0 or below it would never progress, so the code reads it as 1 with an error line (B6b header 2.6, 3.4, decision 17)"):
+                (NOTHING, "rules"),
+            ("DT_Megaprojects", "a project asks no Causality: no people earns any (its income is 0 - guideline 16 #90), so a project that asks it would never be paid and its slot would stand for good (B6b header 3.3 rule 7)"):
+                (NOTHING, "project_test_build"),
             ("DT_LogTemplates", "the inauguration line of a vessel born in a system a claim joined on the same tick is the narrator's, in the third person by the vessel's name and its people, naming no system - no narrator line about that place follows the fallen's own line (rule 5): the calling's line, with no word of an afterlife, the book of life or a calling read as a death, no 'you' across the death, no name of the holy order or its realm, and no word of a return or a rebirth (B5 header 3.3, 3.6, decision 12-da)"):
                 (NOTHING, "log_inauguration_unnamed"),
             ("DT_Civs", "arch_default is the name bank of last resort for the vessel: a people whose own bank is empty names its vessel from it, and an empty name would leave the death and inauguration lines without their subject (B5 log_death_hazard, log_inauguration, log_inauguration_unnamed - CosmicChronicle::VesselNameOf)"):
@@ -3472,7 +3522,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 262, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 265, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

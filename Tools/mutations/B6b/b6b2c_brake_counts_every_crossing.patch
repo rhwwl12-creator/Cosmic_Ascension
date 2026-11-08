@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicAscent.cpp b/Source/Cosmic_Ascension/Sim/CosmicAscent.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicAscent.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicAscent.cpp
+@@ -21,7 +21,7 @@
+ 	}
+ 	for (const FTransitRecord& Transit : State.Transits)
+ 	{
+-		Count += (Transit.ToGalaxyRow == GalaxyRow && Transit.ArriveTick >= State.Tick) ? 1 : 0;
++		Count += (Transit.ArriveTick >= State.Tick) ? 1 : 0;
+ 	}
+ 	return Count < Galaxy->AIFourthRungCap;
+ }

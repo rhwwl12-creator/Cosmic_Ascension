@@ -1,0 +1,14 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2816,6 +2816,10 @@
+ 			}
+ 			FCosmicEvalContext Ctx = MakeEvalContext();
+ 			const FName RowName = CosmicMegaprojects::Advance(Ctx, SystemIndex, Slot, AIRate);
++			if (HeldRow == CosmicRows::ProjectBinding && RowName.IsNone() && State.Systems[SystemIndex].ActiveMegaproject.IsNone())
++			{
++				DrawTell(2);
++			}
+ 			// An answer that could not pay and still stands waits for its cost (one whose row or hazard is gone left its slot).
+ 			if (Slot == ECosmicProjectSlot::Response && !bCanPay && HeldDef && !OwnerID.IsNone() && State.Systems[SystemIndex].ResponseMegaproject == HeldRow)
+ 			{

@@ -1,0 +1,12 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -150,7 +150,7 @@
+ 				"FleetEffectivenessByTierGap": {"kind": "numbers", "len": 3},
+ 				"FleetDelayPerPower": {"kind": "number", "min": 0},
+ 				"FleetDelayCap": {"kind": "number", "min": 0},
+-				"FleetDelayCountdownShare": {"kind": "number", "min": 0, "max": 1},
++				"FleetDelayCountdownShare": {"kind": "number"},
+ 				"ImmutableLaws": {"kind": "tags", "root": "Law."},
+ 				"FallenTranscendentCount": {"kind": "number", "min": 0, "max": 3, "integer": true},
+ 				"PlayerArchetypeRow": {"kind": "row", "table": "DT_Civs"},

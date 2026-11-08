@@ -662,7 +662,7 @@ class Checker:
                 continue
             if PATH_MARK in test["col"] and name in NAMED_COLUMNS:
                 # The other columns it names are columns of the row, not of the entry: the pair would mean nothing.
-                self.report(where, "the test '%s' cannot be asked of a column of a list of structs: %s" % (name, shown))
+                self.report(where, "the test '%s' cannot be asked of a column of a list of structs or a member of a pool: %s" % (name, shown))
                 continue
             kind = column_spec.get("kind")
             if kind not in TEST_KINDS[name]:
@@ -748,13 +748,19 @@ class Checker:
 
     def column_at(self, columns, name, table_name):
         """(the spec of the column a test names, what is wrong with the name or None). 'List.Column' names a column of
-        the list of structs List; a name without the mark names a column of the row."""
+        the list of structs List, 'Pool.Member' a member of the resource pool Pool, read as a number (B6b [B-6b2c]); a name
+        without the mark names a column of the row."""
         head, mark, sub = name.partition(PATH_MARK)
         spec = columns.get(head)
         if not isinstance(spec, dict):
             return None, "a row test names the column %r, which %s does not declare" % (head if mark else name, table_name)
         if not mark:
             return spec, None
+        if spec.get("kind") == "pool":
+            members = self.schema["words"].get("resource", []) if isinstance(self.schema.get("words"), dict) else []
+            if sub not in members:
+                return None, "a row test names the member %r, which the pool %s of %s does not have" % (sub, head, table_name)
+            return {"kind": "number"}, None
         inner = spec.get("columns") if spec.get("kind") == "structs" else None
         if not isinstance(inner, dict):
             return None, "a row test names %r, and %s is no list of structs" % (name, head)
@@ -1322,6 +1328,9 @@ class Checker:
             inner = [dict(entry, col=entry["col"].partition(PATH_MARK)[2]) for entry in test[NONE_TEST]]
             return isinstance(items, list) and not any(isinstance(item, dict) and self.all_hold(inner, item, row_name) for item in items)
         head, mark, sub = test["col"].partition(PATH_MARK)
+        if mark and isinstance(row.get(head), dict):
+            # A member of a resource pool (B6b [B-6b2c]): the test over its number (a member the cell lacks is no number).
+            return self.holds(dict(test, col=sub), row[head], row_name)
         if mark:
             # A column of a list of structs: the test holds for every entry (and so for an empty list).
             items = row.get(head)

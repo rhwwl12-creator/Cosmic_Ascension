@@ -1,0 +1,24 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicAscent.cpp b/Source/Cosmic_Ascension/Sim/CosmicAscent.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicAscent.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicAscent.cpp
+@@ -15,6 +15,12 @@
+ 		return true;
+ 	}
+ 	int32 Count = 0;
++	static int64 OnceTick = -1;
++	static int32 OnceCount = 0;
++	if (OnceTick == State.Tick)
++	{
++		return OnceCount < Galaxy->AIFourthRungCap;
++	}
+ 	for (const FCivilizationState& Civ : State.Civs)
+ 	{
+ 		Count += (Civ.GalaxyRow == GalaxyRow && static_cast<int32>(Civ.Tier) >= static_cast<int32>(EAscensionTier::Tier4_Transcendent)) ? 1 : 0;
+@@ -23,5 +29,7 @@
+ 	{
+ 		Count += (Transit.ToGalaxyRow == GalaxyRow && Transit.ArriveTick >= State.Tick) ? 1 : 0;
+ 	}
++	OnceTick = State.Tick;
++	OnceCount = Count;
+ 	return Count < Galaxy->AIFourthRungCap;
+ }

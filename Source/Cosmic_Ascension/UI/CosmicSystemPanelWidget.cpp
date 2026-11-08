@@ -94,6 +94,7 @@ namespace CosmicSystemPanelImpl
 		nullptr,
 		nullptr,
 		TEXT("Start.Block.RowTier"),
+		TEXT("Start.Block.NoFallen"),
 		TEXT("Start.Block.Answering"),
 		TEXT("Start.Block.ResponseBusy"),
 		TEXT("Start.Block.Running"),
@@ -112,6 +113,7 @@ namespace CosmicSystemPanelImpl
 		nullptr,
 		nullptr,
 		TEXT("Start.Suffix.RowTier"),
+		TEXT("Start.Suffix.NoFallen"),
 		TEXT("Start.Suffix.Answering"),
 		TEXT("Start.Suffix.ResponseBusy"),
 		TEXT("Start.Suffix.Running"),
@@ -1017,15 +1019,23 @@ void UCosmicSystemPanelWidget::Refresh()
 			// Every row that belongs on this system, in lexical order, so a button that greys does not move under the
 			// cursor: enabled where the rule takes it, greyed with a short reason and its words where the rung or a slot
 			// stands in the way. A row whose reason has no words does not belong here (an answer to no hazard standing
-			// here, project_settle - the settle button is separate).
+			// here, project_settle - the settle button is separate). A construction row shows from the rung before its
+			// RequiredTier on (owner Tier + 1 >= RequiredTier - B6b header 4, decision 14): no greyed work of the fourth
+			// rung stands on a first- or second-rung home; an answer shows under its hazard whatever the rung. The
+			// presentation's filter alone - the rule is StartBlockOf's, and the greyed reasons (RowTier, NoFallen) stay.
 			TArray<FName> Rows = Tables.Megaprojects ? Tables.Megaprojects->GetRowNames() : TArray<FName>();
 			Rows.Sort(FNameLexicalLess());
+			const int32 RuledRung = static_cast<int32>(State.Civs[RuledIndex].Tier);
 			for (const FName Row : Rows)
 			{
 				const FMegaprojectDef* Def = Tables.FindMegaproject(Row);
 				const CosmicMegaprojects::ECosmicStartBlock Block = CosmicMegaprojects::StartBlockOf(State, Index, Tables, SystemIndex, Row);
 				const FText Reason = StartReasonOf(Block, Tables, Row);
 				if (!Def || (Block != CosmicMegaprojects::ECosmicStartBlock::None && Reason.IsEmpty()))
+				{
+					continue;
+				}
+				if (!Tables.IsHazardAnswer(Row) && RuledRung + 1 < static_cast<int32>(Def->RequiredTier))
 				{
 					continue;
 				}

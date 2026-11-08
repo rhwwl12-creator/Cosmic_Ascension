@@ -91,6 +91,7 @@ namespace CosmicCommandReasonTests
 	const FName Half(TEXT("project_test_half"));
 	const FName Answer(TEXT("project_test_answer"));
 	const FName Second(TEXT("project_test_second"));
+	const FName HighAnswer(TEXT("project_test_high_answer"));
 	const FName Pricey(TEXT("project_test_pricey"));
 	const FName PriceyAnswer(TEXT("project_test_pricey_answer"));
 	const FName Storm(TEXT("crisis_test_storm"));
@@ -146,9 +147,9 @@ namespace CosmicCommandReasonTests
 
 	// The game's tables with the test's projects - two constructions of the first rung that cost Energy 10, one of the
 	// third rung (a rung other than the settle row's second), one that costs nothing, one with a cost in decimals, two
-	// answers of the storm, and a copy of the game's project_settle row - and the game's hazards plus the storm
-	// (Hazard.Cult), answered by both answers and never drawn. The game's AI awakening lists no answer: under it both
-	// answers have no button.
+	// answers of the storm and a third of the third rung, and a copy of the game's project_settle row - and the game's
+	// hazards plus the storm (Hazard.Cult), answered by the three answers and never drawn. The game's AI awakening lists no
+	// answer: under it the answers have no button.
 	FCosmicDataTables ReasonTables(const FCosmicDataTables& Game)
 	{
 		UDataTable* Projects = CosmicTests::NewTable(FMegaprojectDef::StaticStruct());
@@ -159,13 +160,14 @@ namespace CosmicCommandReasonTests
 		Projects->AddRow(Half, Project(EAscensionTier::Tier1_Planetary, 1.5f, 1.f, 1.0e6f, TEXT("half")));
 		Projects->AddRow(Answer, Project(EAscensionTier::Tier1_Planetary, 0.f, 5.f, 1.0e6f, TEXT("answer")));
 		Projects->AddRow(Second, Project(EAscensionTier::Tier1_Planetary, 0.f, 5.f, 1.0e6f, TEXT("second")));
+		Projects->AddRow(HighAnswer, Project(EAscensionTier::Tier3_Causal, 0.f, 5.f, 1.0e6f, TEXT("high_answer")));
 		if (const FMegaprojectDef* Settle = Game.FindMegaproject(CosmicRows::ProjectSettle))
 		{
 			Projects->AddRow(CosmicRows::ProjectSettle, *Settle);
 		}
 		FCosmicDataTables Tables = Game;
 		Tables.Megaprojects = Projects;
-		Tables.Hazards = HazardsWith(Game, Storm, TestHazard(TEXT("storm"), { Answer, Second }));
+		Tables.Hazards = HazardsWith(Game, Storm, TestHazard(TEXT("storm"), { Answer, Second, HighAnswer }));
 		return Tables;
 	}
 
@@ -263,7 +265,7 @@ bool FCosmicUIStartReasonsTest::RunTest(const FString& Parameters)
 
 	// ---- 1. The words of every reason ----
 	{
-		const ECosmicStartBlock Shown[] = { ECosmicStartBlock::RowTier, ECosmicStartBlock::Answering, ECosmicStartBlock::ResponseBusy, ECosmicStartBlock::Running };
+		const ECosmicStartBlock Shown[] = { ECosmicStartBlock::RowTier, ECosmicStartBlock::NoFallen, ECosmicStartBlock::Answering, ECosmicStartBlock::ResponseBusy, ECosmicStartBlock::Running };
 		int32 Showable = 0;
 		for (int32 At = 0; At < static_cast<int32>(ECosmicStartBlock::Count); ++At)
 		{
@@ -291,12 +293,19 @@ bool FCosmicUIStartReasonsTest::RunTest(const FString& Parameters)
 	}
 
 	// ---- 2. The quiet home: its constructions in lexical order, no answer ----
+	// B6b [B-6b2c] (header 4): a construction row shows from the rung before its RequiredTier on - the first-rung home lists
+	// no button of the third rung's High (mutation: the filter dropped); on the second rung it stands, greyed for the rung.
 	Panel->ShowSystem(Home);
 	{
-		const TArray<FName> Expected = { Build, Free, Half, High, Rebuild };
-		TestTrue(TEXT("The quiet home lists its constructions in lexical order and no answer"), ActionsOf(*Panel) == Expected);
+		const TArray<FName> Expected = { Build, Free, Half, Rebuild };
+		TestTrue(TEXT("The quiet first-rung home lists its constructions in lexical order and no answer"), ActionsOf(*Panel) == Expected);
+		TestTrue(TEXT("A construction two rungs up has no button on a first-rung home"), Panel->GetShownStartBlock(High) == ECosmicStartBlock::Count && !ButtonOf(*Panel, High));
 		TestTrue(TEXT("An answer with no hazard here has no button"), Panel->GetShownStartBlock(Answer) == ECosmicStartBlock::Count);
 		TestTrue(TEXT("nor has the settle row"), Panel->GetShownStartBlock(CosmicRows::ProjectSettle) == ECosmicStartBlock::Count);
+		Live.Civs[Ruled].Tier = EAscensionTier::Tier2_Stellar;
+		Panel->Refresh();
+		const TArray<FName> OnSecond = { Build, Free, Half, High, Rebuild };
+		TestTrue(TEXT("The second-rung home lists the third rung's construction among them"), ActionsOf(*Panel) == OnSecond);
 		const UCosmicActionButton* BuildButton = ButtonOf(*Panel, Build);
 		const UCosmicActionButton* HighButton = ButtonOf(*Panel, High);
 		if (TestNotNull(TEXT("(the home shows the build button)"), BuildButton) && TestNotNull(TEXT("(and the high one)"), HighButton))
@@ -332,6 +341,8 @@ bool FCosmicUIStartReasonsTest::RunTest(const FString& Parameters)
 				TestTrue(TEXT("on the light face"), Style.Normal.TintColor.GetSpecifiedColor().GetLuminance() > 0.3f);
 			}
 		}
+		Live.Civs[Ruled].Tier = EAscensionTier::Tier1_Planetary;
+		Panel->Refresh();
 	}
 
 	// ---- 3. The cost line ----
@@ -404,6 +415,11 @@ bool FCosmicUIStartReasonsTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("and so does the second"), ActionsOf(*Panel).Contains(Second));
 		TestTrue(TEXT("the first enabled"), ButtonOf(*Panel, Answer) && ButtonOf(*Panel, Answer)->GetIsEnabled());
 		TestTrue(TEXT("and the second"), ButtonOf(*Panel, Second) && ButtonOf(*Panel, Second)->GetIsEnabled());
+		// B6b [B-6b2c] (header 4): the rung's filter is the build buttons' - an answer shows under its hazard at any rung
+		// (mutation: the filter on the answers too - the third rung's answer gone from a first-rung home).
+		TestTrue(TEXT("Under its hazard an answer two rungs up shows on a first-rung home"), ButtonOf(*Panel, HighAnswer) != nullptr);
+		TestFalse(TEXT("greyed"), ButtonOf(*Panel, HighAnswer) && ButtonOf(*Panel, HighAnswer)->GetIsEnabled());
+		TestTrue(TEXT("for the rung"), Panel->GetShownStartBlock(HighAnswer) == ECosmicStartBlock::RowTier);
 		if (UCosmicActionButton* AnswerButton = ButtonOf(*Panel, Answer))
 		{
 			AnswerButton->Press();
@@ -518,8 +534,8 @@ bool FCosmicUIStartReasonsTest::RunTest(const FString& Parameters)
 		Panel->ShowSystem(Home);
 		TestFalse(TEXT("No label of the panel is a missing String Table entry"), ReadTexts(*Panel).Contains(Placeholder));
 		// Every label this test reads has words: a search for a blank label finds it anywhere, and two blank texts are equal.
-		for (const TCHAR* Key : { TEXT("Start.Block.RowTier"), TEXT("Start.Block.Answering"), TEXT("Start.Block.ResponseBusy"), TEXT("Start.Block.Running"),
-			TEXT("Start.Suffix.RowTier"), TEXT("Start.Suffix.Answering"), TEXT("Start.Suffix.ResponseBusy"), TEXT("Start.Suffix.Running"),
+		for (const TCHAR* Key : { TEXT("Start.Block.RowTier"), TEXT("Start.Block.NoFallen"), TEXT("Start.Block.Answering"), TEXT("Start.Block.ResponseBusy"), TEXT("Start.Block.Running"),
+			TEXT("Start.Suffix.RowTier"), TEXT("Start.Suffix.NoFallen"), TEXT("Start.Suffix.Answering"), TEXT("Start.Suffix.ResponseBusy"), TEXT("Start.Suffix.Running"),
 			TEXT("Start.CostPerCycle"), TEXT("Start.CostPerYear"), TEXT("Start.Free"), TEXT("Start.AnswersFirst"), TEXT("Start.Replaces"),
 			TEXT("Panel.Stalled"), TEXT("Speed.ThirdRungTip"), TEXT("Panel.Start"), TEXT("Resource.Energy"), TEXT("Resource.Matter"),
 			TEXT("List.Pair"), TEXT("Settle.Block.Owned"), TEXT("Settle.Block.Sphere") })

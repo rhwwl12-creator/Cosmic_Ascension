@@ -4,17 +4,33 @@
 
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Core/CosmicIDs.h"
+#include "Cosmic_Ascension.h"
 #include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
 #include "Math/NumericLimits.h"
 #include "Sim/CosmicHazards.h"
+#include "Sim/CosmicSeal.h"
 #include "Sim/CosmicStateIndex.h"
 
 // Helpers of this file. A named namespace: the module is built as one unity file.
 namespace CosmicMegaprojectsImpl
 {
+	// The delay above the third rung (B6b header 2.6, decision 17): DT_Rules.AIUpperRungProgressMultiplier, read by a compare
+	// as AIAscensionSpeedMultiplier is (a value not above 0, or not a number, reads as 1 with one error line for each slot that
+	// reads it).
+	float UpperRungMultiplierOf(const FCosmicRulesDef& Rules)
+	{
+		const float Multiplier = Rules.AIUpperRungProgressMultiplier;
+		if (!(Multiplier > 0.f && Multiplier <= TNumericLimits<float>::Max()))
+		{
+			UE_LOG(LogCosmic, Error, TEXT("DT_Rules.AIUpperRungProgressMultiplier %f is not above 0: read as 1"), Multiplier);
+			return 1.f;
+		}
+		return Multiplier;
+	}
+
 	// A cost member as it is paid: below 0, not a number or not finite reads as 0 (a compare, not a CRT call - section 9.2).
 	float CostOf(float Value)
 	{
@@ -259,6 +275,11 @@ CosmicMegaprojects::ECosmicStartBlock CosmicMegaprojects::StartBlockOf(const FGa
 	if (static_cast<int32>(State.Civs[OwnerIndex].Tier) < static_cast<int32>(Row->RequiredTier))
 	{
 		return ECosmicStartBlock::RowTier;
+	}
+	// The binding after the rung, before the slots (B6b header 2.5): no fallen one left, nothing to start.
+	if (RowName == CosmicRows::ProjectBinding && CosmicSeal::BindTargetOf(State, Tables) == INDEX_NONE)
+	{
+		return ECosmicStartBlock::NoFallen;
 	}
 	if (bAnswer)
 	{
@@ -635,6 +656,10 @@ FName CosmicMegaprojects::Advance(FCosmicEvalContext& Ctx, int32 SystemIndex, EC
 		if (!RowName.IsNone())
 		{
 			const FMegaprojectDef* Row = Ctx.Tables.FindMegaproject(RowName);
+			// The binding asks for its target on every call, before it pays (B6b header 2.5): a binding earlier in Systems
+			// order in this pass may just have bound the one fallen. Read here, never once for a pass or a tick.
+			const bool bBinding = RowName == CosmicRows::ProjectBinding;
+			const int32 BindTarget = (Row && bBinding) ? CosmicSeal::BindTargetOf(State, Ctx.Tables) : INDEX_NONE;
 			if (!Row)
 			{
 				// A settlement waits for its row: the system does not become settled for want of one.
@@ -644,14 +669,29 @@ FName CosmicMegaprojects::Advance(FCosmicEvalContext& Ctx, int32 SystemIndex, EC
 					System.MegaprojectProgress = 0.f;
 				}
 			}
+			else if (bBinding && BindTarget == INDEX_NONE)
+			{
+				// No fallen one left: the binding ends without result - nothing paid, recorded, listed or told.
+				System.ActiveMegaproject = NAME_None;
+				System.MegaprojectProgress = 0.f;
+			}
 			else if (PayInFull(State.Civs[OwnerIndex].Stockpile, *Row))
 			{
-				System.MegaprojectProgress += Rate;
+				// The delay above the third rung (B6b header 2.6): the construction slot of a people the player does not rule,
+				// a row of the third rung or above. At its knob of 1 the product is the rate itself, bit for bit.
+				const bool bUpper = !State.Civs[OwnerIndex].bIsPlayerRuled && static_cast<int32>(Row->RequiredTier) >= static_cast<int32>(EAscensionTier::Tier3_Causal);
+				System.MegaprojectProgress += bUpper ? Rate * UpperRungMultiplierOf(Ctx.Rules) : Rate;
 				if (System.MegaprojectProgress >= CosmicMegaprojects::RequiredProgressOf(*Row))
 				{
 					System.ActiveMegaproject = NAME_None;
 					System.MegaprojectProgress = 0.f;
 					Complete(RowName);
+					// The seal, after the record, in one place (docs/50). Between the ask and here only the record and the life
+					// list were written (no hazard row answers with the binding - Data.Integrity), so Bind does not fail.
+					if (bBinding)
+					{
+						CosmicSeal::Bind(State, BindTarget, State.Tick);
+					}
 				}
 			}
 		}

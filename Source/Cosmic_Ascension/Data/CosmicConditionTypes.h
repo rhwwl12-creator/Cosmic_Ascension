@@ -53,7 +53,8 @@ enum class EConditionType : uint8
 	GalaxyTickAtLeast,
 	// True only when bSealed and SealedTick >= the SinceTick of the evaluation (as MegaprojectComplete; section 4.4, 7.5).
 	// No ruler feat row carries it (schema, B6b decision 12): an AI is judged from 0, so another people's binding would hold
-	// for it too (#73).
+	// for it too (#73). No row uses it: the fourth-to-fifth row reads MegaprojectComplete project_binding - the binding's
+	// completion record names the people that made it (B6b header 2.5).
 	TranscendentSealed,
 	TranscendentAwareOfPlayer,
 	// Tag = Flag.*. Reads FGalaxyState.Flags (section 4.5).

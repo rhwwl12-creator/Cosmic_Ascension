@@ -26,8 +26,11 @@
 #include "Misc/SecureHash.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "Sim/CosmicConflict.h"
 #include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicEvalContext.h"
+#include "Sim/CosmicHazards.h"
+#include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
@@ -2189,6 +2192,87 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		Expect(TEXT("a galaxy law listed as a hazard's answer"), LawProblems(CosmicTests::WithRules(Answered, Two)), { TEXT("crisis_test_answered"), TEXT("edict_test_law_a"), TEXT("answer") });
 	}
 
+	// B6b [B-6b2c] (docs/60_DECISIONS/headers/B6b_upper_rungs_and_the_race.md section 2.2, 2.5, 2.6; notes 2 b): the ark and the
+	// binding, across tables. The ark's margin: for every hazard row whose tag kills the ruler (CosmicHazards::KillsTheRulerOf -
+	// the extinction), every DT_Megaprojects row among its RulerResolutions completes for an AI people within the countdown -
+	// RequiredProgressOf / the AI's rate (DT_Rules.AIAscensionSpeedMultiplier as the crisis stage reads it: not above 0, or not
+	// a number, is 1) below CountdownTicks; the response slot is never delayed (AIUpperRungProgressMultiplier is the
+	// construction slot's), so the multiplier of the upper rungs is not in it. And no hazard row lists project_binding as an
+	// answer: an answer runs in the response slot, whose completion seals nothing (CosmicMegaprojects::Advance binds in the
+	// construction slot), so the feat that reads its record would come without the binding. The game holds no extinction row
+	// before [B-6b6]: the margin is held on a copy with a test extinction and a test ark too, under the game's rules - the
+	// check bites now (a multiplier of 0.5 there leaves the ark 300 ticks of 250).
+	auto BindingProblems = [](const FCosmicDataTables& Tables)
+	{
+		TArray<FString> Problems;
+		const FCosmicRulesDef* Rules = Tables.FindRules();
+		if (!Rules)
+		{
+			Problems.Add(TEXT("no DT_Rules row"));
+			return Problems;
+		}
+		const float Rate = (Rules->AIAscensionSpeedMultiplier > 0.f && Rules->AIAscensionSpeedMultiplier <= TNumericLimits<float>::Max()) ? Rules->AIAscensionSpeedMultiplier : 1.f;
+		for (const FName HazardRow : Tables.GetHazardRowNames())
+		{
+			const FHazardDef* Hazard = Tables.FindHazard(HazardRow);
+			for (const FName Answer : Hazard ? Hazard->RulerResolutions : TArray<FName>())
+			{
+				if (Answer == CosmicRows::ProjectBinding)
+				{
+					Problems.Add(FString::Printf(TEXT("DT_Hazards.%s lists project_binding as an answer: the binding is a construction, sealed in the construction slot alone"), *HazardRow.ToString()));
+				}
+				const FMegaprojectDef* Ark = CosmicHazards::KillsTheRulerOf(Hazard->HazardTag) ? Tables.FindMegaproject(Answer) : nullptr;
+				const double Ticks = Ark ? static_cast<double>(CosmicMegaprojects::RequiredProgressOf(*Ark)) / Rate : 0.0;
+				if (Ark && !(Ticks < static_cast<double>(Hazard->CountdownTicks)))
+				{
+					Problems.Add(FString::Printf(TEXT("DT_Hazards.%s: its answer %s needs %.1f ticks of an AI people (RequiredProgress / AIAscensionSpeedMultiplier %g), not below the countdown of %d - the ark would never come in time"),
+						*HazardRow.ToString(), *Answer.ToString(), Ticks, Rate, Hazard->CountdownTicks));
+				}
+			}
+		}
+		return Problems;
+	};
+	TestEqual(TEXT("The game's arks answer in time and no hazard answers with the binding"), FString::Join(BindingProblems(Game), TEXT("; ")), FString());
+	if (const FCosmicRulesDef* GameRules = Game.FindRules())
+	{
+		// A test extinction of the design's 250 ticks and a test ark of the design's 150 (notes 2 b), the binding's game row.
+		auto Arked = [&Game](float ArkProgress, bool bBindingAnswers)
+		{
+			UDataTable* Hazards = CopyOf<FHazardDef>(Game.Hazards);
+			FHazardDef Extinct;
+			Extinct.HazardTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Extinction")));
+			Extinct.CountdownTicks = 250;
+			Extinct.RulerResolutions = { FName(TEXT("project_test_ark")) };
+			if (bBindingAnswers)
+			{
+				Extinct.RulerResolutions.Add(CosmicRows::ProjectBinding);
+			}
+			Hazards->AddRow(FName(TEXT("crisis_test_extinct")), Extinct);
+			UDataTable* Projects = CopyOf<FMegaprojectDef>(Game.Megaprojects);
+			FMegaprojectDef Ark;
+			Ark.RequiredTier = EAscensionTier::Tier3_Causal;
+			Ark.RequiredProgress = ArkProgress;
+			Projects->AddRow(FName(TEXT("project_test_ark")), Ark);
+			FCosmicDataTables Tables = Game;
+			Tables.Hazards = Hazards;
+			Tables.Megaprojects = Projects;
+			return Tables;
+		};
+		TestTrue(TEXT("(the game holds the binding's row)"), Game.FindMegaproject(CosmicRows::ProjectBinding) != nullptr);
+		TestEqual(TEXT("Under the game's rules the design's ark of 150 comes within the extinction's 250 ticks"), FString::Join(BindingProblems(Arked(150.f, false)), TEXT("; ")), FString());
+		FCosmicRulesDef Half = *GameRules;
+		Half.AIAscensionSpeedMultiplier = 0.5f;
+		Expect(TEXT("an AI rate of 0.5: the ark takes 300 ticks of 250"), BindingProblems(CosmicTests::WithRules(Arked(150.f, false), Half)), { TEXT("crisis_test_extinct"), TEXT("project_test_ark"), TEXT("300.0") });
+		FCosmicRulesDef Even = *GameRules;
+		Even.AIAscensionSpeedMultiplier = 1.f;
+		Expect(TEXT("an ark of 250 progress at the rate 1: not below the countdown"), BindingProblems(CosmicTests::WithRules(Arked(250.f, false), Even)), { TEXT("project_test_ark"), TEXT("250.0") });
+		TestTrue(TEXT("An ark of 249 at the rate 1 passes"), BindingProblems(CosmicTests::WithRules(Arked(249.f, false), Even)).IsEmpty());
+		FCosmicRulesDef NotANumber = *GameRules;
+		NotANumber.AIAscensionSpeedMultiplier = std::numeric_limits<float>::quiet_NaN();
+		TestTrue(TEXT("A rate that is not a number reads as 1, as the crisis stage reads it"), BindingProblems(CosmicTests::WithRules(Arked(249.f, false), NotANumber)).IsEmpty());
+		Expect(TEXT("the binding listed as a hazard's answer"), BindingProblems(CosmicTests::WithRules(Arked(150.f, true), Even)), { TEXT("crisis_test_extinct"), TEXT("project_binding"), TEXT("answer") });
+	}
+
 	// The choices of a card (section 5.9), entry by entry - a rule of the schema holds over every entry of a list, not over
 	// each entry's own fields together: a choice with a check says what its failure is, and a choice without one never
 	// fails, so it carries no failure effects, no failure line and no difficulty. B1: a wanderer's card costs nothing (no
@@ -2378,7 +2462,8 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 	// factor x EventChancePerSlot, summed - leaves at least a quarter, multiplied over the slots of the longest the hazard can
 	// stand: its CountdownTicks, the positive HazardCountdownBonus for the tag of every DT_Edicts row (CountdownBonusOf adds
 	// every held one, and from B6b the galaxy laws of the system's galaxy once a row - the sum over every row stays the bound),
-	// the guard's FleetDelayCap and, per card row, its largest DelayHazard on the tag; the slots are that
+	// the guard's bound for the row (CosmicConflict::GuardDelayCapOf of its CountdownTicks - FleetDelayCap, or less under B6b's
+	// share of the countdown; read, not copied) and, per card row, its largest DelayHazard on the tag; the slots are that
 	// many ticks over EventSlotTicks, rounded up. The upper end of the sphere factor of a row's Category is the product, over
 	// the transcendent rows that weight that Category, of the most each can give - min(3, modifier x (1 +
 	// SphereEventWeightStep x the largest sphere it can hold)) when above 1, the largest sphere being MaxInfluencedSystems or
@@ -2412,7 +2497,6 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		};
 		const int64 SlotTicks = FMath::Max(1, Rules.EventSlotTicks);
 		const double Chance = Rules.EventChancePerSlot > 0.f ? Rules.EventChancePerSlot : 0.0;
-		const int64 GuardCap = Rules.FleetDelayCap > 0.f ? static_cast<int64>(FMath::Min(Rules.FleetDelayCap, 100000.f)) : 0;
 		for (const FName HazardName : Tables.GetHazardRowNames())
 		{
 			const FHazardDef* Hazard = Tables.FindHazard(HazardName);
@@ -2442,7 +2526,7 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 			{
 				continue;
 			}
-			int64 Longest = FMath::Max(1, Hazard->CountdownTicks) + GuardCap;
+			int64 Longest = FMath::Max(1, Hazard->CountdownTicks) + CosmicConflict::GuardDelayCapOf(Rules, Hazard->CountdownTicks);
 			for (const FName EdictName : Tables.GetEdictRowNames())
 			{
 				const FEdictDef* Edict = Tables.FindEdict(EdictName);

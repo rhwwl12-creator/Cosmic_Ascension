@@ -1,0 +1,12 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -398,7 +398,7 @@
+ 				{
+ 					"why": "the line of the binding is told in the actorless passive by the name of the system the work stood on alone: no people and no work is named in it - the people is never the binder (B6b header 2.5, 3.3 rule 8, decision 32; the triumph words join it in [B-6b5] - header 3.3 rule 13)",
+ 					"when": [{"row": "log_fallen_bound"}],
+-					"then": [{"col": "Templates", "slots_in": ["System"]}]
++					"then": [{"col": "Templates", "slots_in": ["System", "Civ", "Project", "OtherCiv", "Transcendent"]}]
+ 				}
+ 			]
+ 		},

@@ -58,5 +58,17 @@
 			"{System}의 별 가까이 세운 장치들이 마지막 조율을 마쳤다. {Civ}의 {Project}|hpp(이,가) 끝났다.",
 			"{Civ}의 기술자들이 일을 마치고 {System}의 별 곁을 떠났다."
 		]
+	},
+	{
+		"Name": "project_binding",
+		"DisplayName": "공명 기관",
+		"RequiredTier": "Tier4_Transcendent",
+		"CostPerTick": {"Energy": 4.0, "Matter": 4.0, "Insight": 0.0, "Influence": 0.0, "Causality": 0.0},
+		"RequiredProgress": 1800.0,
+		"CompleteTemplates": [
+			"{Civ}|hpp(이,가) {System}에서 {Project}|hpp(을,를) 다 지었다.",
+			"{System}의 {Project}|hpp(이,가) 다 지어졌다. {Civ}의 오랜 일이 끝났다.",
+			"{Civ}의 일꾼들이 {System}에서 {Project}의 마지막 마디를 맞추었다."
+		]
 	}
 ]

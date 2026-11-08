@@ -244,14 +244,20 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("and its star class by letter"), Shown.Contains(FString::Printf(TEXT("%s  %s"), *LabelText(TEXT("Panel.StarClass")), *ClassName.RightChop(ClassName.Find(TEXT("."), ESearchCase::CaseSensitive, ESearchDir::FromEnd) + 1))));
 
 		// The rows that belong on the home: those the rule takes and those it greys for a reason with words (Phase 3 item 12 -
-		// on a quiet first-rung home only the Dyson swarm: every answer has no hazard here, the settle row has its button).
+		// on a quiet first-rung home only the Dyson swarm: every answer has no hazard here, the settle row has its button), but
+		// a construction more than one rung above the people (B6b [B-6b2c], header 4: the binding of the fourth rung is no
+		// greyed button on a first-rung home).
 		TArray<FName> Listed = GameTables.Megaprojects ? GameTables.Megaprojects->GetRowNames() : TArray<FName>();
 		Listed.Sort(FNameLexicalLess());
 		Listed.RemoveAll([&](FName Row)
 		{
 			const CosmicMegaprojects::ECosmicStartBlock Block = CosmicMegaprojects::StartBlockOf(Live, Sim->GetStateIndex(), GameTables, HomeIndex, Row);
-			return Block != CosmicMegaprojects::ECosmicStartBlock::None && UCosmicSystemPanelWidget::StartReasonOf(Block, GameTables, Row).IsEmpty();
+			const FMegaprojectDef* Def = GameTables.FindMegaproject(Row);
+			const bool bTooHigh = Def && !GameTables.IsHazardAnswer(Row) && static_cast<int32>(Live.Civs[RuledIndex].Tier) + 1 < static_cast<int32>(Def->RequiredTier);
+			return bTooHigh || (Block != CosmicMegaprojects::ECosmicStartBlock::None && UCosmicSystemPanelWidget::StartReasonOf(Block, GameTables, Row).IsEmpty());
 		});
+		TestTrue(TEXT("(the game's binding row stands two rungs and more above a first-rung home)"), GameTables.FindMegaproject(CosmicRows::ProjectBinding) != nullptr
+			&& !Listed.Contains(CosmicRows::ProjectBinding));
 		TestTrue(TEXT("(the home lists a project)"), !Listed.IsEmpty());
 		TestTrue(TEXT("One button per project the home lists, in row order"), ActionsOf(*Panel) == Listed);
 		TestTrue(TEXT("which on a quiet first-rung home is the Dyson swarm alone"), ActionsOf(*Panel) == TArray<FName>({ FName(TEXT("project_dyson")) }));

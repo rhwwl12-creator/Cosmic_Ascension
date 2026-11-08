@@ -1,0 +1,16 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicAscent.cpp b/Source/Cosmic_Ascension/Sim/CosmicAscent.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicAscent.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicAscent.cpp
+@@ -10,7 +10,11 @@
+ bool CosmicAscent::FourthRungOpenOf(const FGalaxyState& State, const FCosmicDataTables& Tables, FName GalaxyRow)
+ {
+ 	const FGalaxyDef* Galaxy = Tables.FindGalaxy(GalaxyRow);
+-	if (!Galaxy || Galaxy->AIFourthRungCap <= 0)
++	if (!Galaxy)
++	{
++		return false;
++	}
++	if (Galaxy->AIFourthRungCap <= 0)
+ 	{
+ 		return true;
+ 	}

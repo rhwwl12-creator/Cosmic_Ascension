@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1035,7 +1035,7 @@
+ 				{
+ 					continue;
+ 				}
+-				if (!Tables.IsHazardAnswer(Row) && RuledRung + 1 < static_cast<int32>(Def->RequiredTier))
++				if (!Tables.IsHazardAnswer(Row) && RuledRung + 1 < static_cast<int32>(Def->RequiredTier) && false)
+ 				{
+ 					continue;
+ 				}

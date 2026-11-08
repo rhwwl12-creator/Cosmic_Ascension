@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+@@ -689,7 +689,6 @@
+ 					// list were written (no hazard row answers with the binding - Data.Integrity), so Bind does not fail.
+ 					if (bBinding)
+ 					{
+-						CosmicSeal::Bind(State, BindTarget, State.Tick);
+ 					}
+ 				}
+ 			}

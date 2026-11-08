@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp b/Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp
+@@ -92,7 +92,7 @@
+ 	// rung keeps it where it stands this tick (no draw, no line). The people the player rules and the climb to the fifth
+ 	// rung are never braked. The judgment's order (the ruled people, then Civs order) and the Tier that Ascend sets at once
+ 	// make the people judged first pass first and count a climb made earlier in the tick.
+-	if (!bPlayer && State.Civs[CivIndex].Tier == EAscensionTier::Tier3_Causal && !CosmicAscent::FourthRungOpenOf(State, Tables, State.Civs[CivIndex].GalaxyRow))
++	if (State.Civs[CivIndex].Tier == EAscensionTier::Tier3_Causal && !CosmicAscent::FourthRungOpenOf(State, Tables, State.Civs[CivIndex].GalaxyRow))
+ 	{
+ 		return false;
+ 	}

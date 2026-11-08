@@ -1,0 +1,12 @@
+diff --git a/Tools/cosmic_data_schema.py b/Tools/cosmic_data_schema.py
+--- a/Tools/cosmic_data_schema.py
++++ b/Tools/cosmic_data_schema.py
+@@ -1328,7 +1328,7 @@
+             inner = [dict(entry, col=entry["col"].partition(PATH_MARK)[2]) for entry in test[NONE_TEST]]
+             return isinstance(items, list) and not any(isinstance(item, dict) and self.all_hold(inner, item, row_name) for item in items)
+         head, mark, sub = test["col"].partition(PATH_MARK)
+-        if mark and isinstance(row.get(head), dict):
++        if mark and isinstance(row.get(head), dict) and False:
+             # A member of a resource pool (B6b [B-6b2c]): the test over its number (a member the cell lacks is no number).
+             return self.holds(dict(test, col=sub), row[head], row_name)
+         if mark:

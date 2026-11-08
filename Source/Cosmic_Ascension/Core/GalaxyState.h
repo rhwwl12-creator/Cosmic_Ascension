@@ -482,11 +482,15 @@ struct COSMIC_ASCENSION_API FTranscendentState
 	UPROPERTY(BlueprintReadOnly)
 	bool bAwareOfPlayer = false;
 
+	// Bound (B6b header 2.5): written by the binding's completion alone - CosmicSeal::Bind, called from the construction
+	// slot of project_binding in the crisis stage's step (a), with SealedTick in the same place - and never written back.
+	// The sphere stays as it is (frozen, not cleared); every reader of this field treats the instance as held.
 	UPROPERTY(BlueprintReadOnly)
 	bool bSealed = false;
 
-	// Tick of sealing. Condition TranscendentSealed is true only when bSealed and this is >= the SinceTick of the
-	// evaluation (section 4.4, 7.5).
+	// Tick of sealing, written with bSealed by CosmicSeal::Bind alone (the first binding's tick - a seal is never moved).
+	// Condition TranscendentSealed is true only when bSealed and this is >= the SinceTick of the evaluation (section 4.4,
+	// 7.5).
 	UPROPERTY(BlueprintReadOnly)
 	int64 SealedTick = 0;
 };

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+@@ -25,7 +25,7 @@
+ 		if (!(Multiplier > 0.f && Multiplier <= TNumericLimits<float>::Max()))
+ 		{
+ 			UE_LOG(LogCosmic, Error, TEXT("DT_Rules.AIUpperRungProgressMultiplier %f is not above 0: read as 1"), Multiplier);
+-			return 1.f;
++			return Multiplier;
+ 		}
+ 		return Multiplier;
+ 	}

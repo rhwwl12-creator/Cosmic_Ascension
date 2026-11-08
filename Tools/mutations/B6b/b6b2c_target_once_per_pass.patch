@@ -1,0 +1,19 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+@@ -658,7 +658,14 @@
+ 			// The binding asks for its target on every call, before it pays (B6b header 2.5): a binding earlier in Systems
+ 			// order in this pass may just have bound the one fallen. Read here, never once for a pass or a tick.
+ 			const bool bBinding = RowName == CosmicRows::ProjectBinding;
+-			const int32 BindTarget = (Row && bBinding) ? CosmicSeal::BindTargetOf(State, Ctx.Tables) : INDEX_NONE;
++			static int64 PassTick = -1;
++			static int32 PassTarget = INDEX_NONE;
++			if (PassTick != State.Tick)
++			{
++				PassTick = State.Tick;
++				PassTarget = CosmicSeal::BindTargetOf(State, Ctx.Tables);
++			}
++			const int32 BindTarget = (Row && bBinding) ? PassTarget : INDEX_NONE;
+ 			if (!Row)
+ 			{
+ 				// A settlement waits for its row: the system does not become settled for want of one.

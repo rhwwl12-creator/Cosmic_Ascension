@@ -143,8 +143,16 @@ namespace CosmicConflict
 
 	/** The ticks the guard of the people Owner adds to a new hazard against a source Gap rungs above it: DT_Rules.FleetDelayPerPower
 	 * x EffectivePowerOf(its FleetPower, Gap), at most FleetDelayCap (and 100000), cut to int32; 0 for no fleet. FleetDelayOf's
-	 * arithmetic, and the system panel's delay line (gap 0). */
+	 * arithmetic, and the system panel's delay line (gap 0), which reads it with no hazard row: the row's own bound is
+	 * GuardDelayCapOf, which FleetDelayOf takes as well. */
 	COSMIC_ASCENSION_API int32 GuardDelayTicksOf(const FCivilizationState& Owner, int32 Gap, const FCosmicRulesDef& Rules);
+
+	/** The most a guard adds to a hazard of a row with CountdownTicks (B6b header 2.10, #132 - decision 23): Min(FleetDelayCap,
+	 * DT_Rules.FleetDelayCountdownShare x CountdownTicks) - FleetDelayCap alone while the share is not above 0 or not a
+	 * number (the knob's 0: the bound before B6b) - within [0, 100000] by comparisons, cut to int32; a product and compares
+	 * only (rule 6). Per hazard row: FleetDelayOf takes the smaller of it and GuardDelayTicksOf (a Capital row gets 0 there
+	 * before either is asked), and the theodicy's invariant of Data.Integrity reads it for every row. */
+	COSMIC_ASCENSION_API int32 GuardDelayCapOf(const FCosmicRulesDef& Rules, int32 CountdownTicks);
 
 	/** The share of its fleet a repulsed attacker keeps: DT_Rules.SiegeRepulsedFleetFactor when in [0, 1], else 0 (the
 	 * conflict stage, and [Send the fleet]'s tooltip). */
@@ -173,7 +181,7 @@ namespace CosmicConflict
 	 * only when the owner's fleet targets that system and the row is not a Capital row (a people's discontent is not put off
 	 * by force), FleetDelayPerPower x the owner's effective power across the gap to the hazard's source (a claim: the
 	 * claimant's tier, CosmicHazards::ClaimantOf; any other row: 0), within [0, Min(FleetDelayCap, 100000)] by comparisons,
-	 * then cut to int32. 0 otherwise.
+	 * then cut to int32 (GuardDelayTicksOf), and at most GuardDelayCapOf of the row's CountdownTicks (B6b). 0 otherwise.
 	 */
 	COSMIC_ASCENSION_API int32 FleetDelayOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
 		const FCosmicRulesDef& Rules, int32 SystemIndex, const FHazardDef& Row);

@@ -31,8 +31,9 @@ public:
 	/**
 	 * The feat judgment (section 3.2, 4.3, 7.5): exactly once per tick, at the end of the AI stage, over the live state and
 	 * the sim stream it is handed. First the people the vessel rules (only while Embodied and Ruler; SinceTick =
-	 * Calling.BornTick), then every other people with a settled system in Civs order (SinceTick 0). For a people, the
-	 * DT_Feats rows with Path Ruler and RequiredTier == its Tier are looked at in lexical order (a row whose TargetTier is
+	 * Calling.BornTick), then every other people with a settled system in Civs order (SinceTick 0). A people the player does
+	 * not rule standing on the third rung is judged only while CosmicAscent::FourthRungOpenOf holds for its galaxy (the brake
+	 * on the fourth rung, B6b header 2.6 - asked before the rows; no draw, no line). For a people, the DT_Feats rows with Path Ruler and RequiredTier == its Tier are looked at in lexical order (a row whose TargetTier is
 	 * not RequiredTier + 1, or that has no condition, is not judged: an error line); the first whose CompletionConditions
 	 * all hold with the people and one of the settled systems it owns (OwnedSystems order) as subject is the one, and a
 	 * people climbs at most one rung per tick. Climbing, in order: Tier = TargetTier; AscensionCost (ApplyAll, SourceRow =
@@ -53,7 +54,7 @@ public:
 	FOnTierAscended OnTierAscended;
 
 private:
-	// The judgment of one people. True when it climbed.
+	// The judgment of one people. True when it climbed. The brake on the fourth rung is asked here (B6b).
 	bool JudgePeople(FGalaxyState& State, FRandomStream& Rng, int32 CivIndex, int64 SinceTick, bool bPlayer);
 
 	// One climb by FeatRow, in the order EvaluateFeats gives.

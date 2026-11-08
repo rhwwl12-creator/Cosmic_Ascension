@@ -1,0 +1,28 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+@@ -275,11 +275,6 @@
+ 	{
+ 		return ECosmicStartBlock::RowTier;
+ 	}
+-	// The binding after the rung, before the slots (B6b header 2.5): no fallen one left, nothing to start.
+-	if (RowName == CosmicRows::ProjectBinding && CosmicSeal::BindTargetOf(State, Tables) == INDEX_NONE)
+-	{
+-		return ECosmicStartBlock::NoFallen;
+-	}
+ 	if (bAnswer)
+ 	{
+ 		if (System.ResponseMegaproject == RowName)
+@@ -289,7 +284,11 @@
+ 		return System.ResponseMegaproject.IsNone() ? ECosmicStartBlock::None : ECosmicStartBlock::ResponseBusy;
+ 	}
+ 	// A construction slot that holds another row takes this one over (section 5.7): only the same row refuses.
+-	return System.ActiveMegaproject == RowName ? ECosmicStartBlock::Running : ECosmicStartBlock::None;
++	if (System.ActiveMegaproject == RowName)
++	{
++		return ECosmicStartBlock::Running;
++	}
++	return (RowName == CosmicRows::ProjectBinding && CosmicSeal::BindTargetOf(State, Tables) == INDEX_NONE) ? ECosmicStartBlock::NoFallen : ECosmicStartBlock::None;
+ }
+ 
+ bool CosmicMegaprojects::CanStart(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, int32 SystemIndex, FName RowName)

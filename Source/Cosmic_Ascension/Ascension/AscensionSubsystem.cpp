@@ -12,6 +12,7 @@
 #include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
+#include "Sim/CosmicAscent.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 
@@ -83,6 +84,15 @@ bool UAscensionSubsystem::JudgePeople(FGalaxyState& State, FRandomStream& Rng, i
 		}
 	}
 	if (Settled.IsEmpty())
+	{
+		return false;
+	}
+	// The brake on the fourth rung (B6b header 2.6, decision 16): a people the player does not rule climbs from the third
+	// rung only while CosmicAscent::FourthRungOpenOf holds for its galaxy - asked here alone, before the rows, so a closed
+	// rung keeps it where it stands this tick (no draw, no line). The people the player rules and the climb to the fifth
+	// rung are never braked. The judgment's order (the ruled people, then Civs order) and the Tier that Ascend sets at once
+	// make the people judged first pass first and count a climb made earlier in the tick.
+	if (!bPlayer && State.Civs[CivIndex].Tier == EAscensionTier::Tier3_Causal && !CosmicAscent::FourthRungOpenOf(State, Tables, State.Civs[CivIndex].GalaxyRow))
 	{
 		return false;
 	}

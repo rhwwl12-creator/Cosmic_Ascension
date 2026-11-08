@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp b/Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp
+@@ -56,7 +56,7 @@
+ 	}
+ 
+ 	// Then every other people, judged from the beginning.
+-	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
++	for (int32 CivIndex = State.Civs.Num() - 1; CivIndex >= 0; --CivIndex)
+ 	{
+ 		if (!State.Civs[CivIndex].bIsPlayerRuled)
+ 		{

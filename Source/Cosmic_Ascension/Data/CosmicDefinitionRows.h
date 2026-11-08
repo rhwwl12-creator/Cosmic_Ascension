@@ -316,7 +316,8 @@ struct COSMIC_ASCENSION_API FAscensionFeatDef : public FTableRowBase
  * Where it runs follows from DT_Hazards: a row that some hazard row lists in RulerResolutions answers that hazard - it
  * starts only while such a hazard stands in the system, runs in the response slot and ends with the hazard. Any other
  * row runs in the construction slot. A completion is recorded on the system and resolves the hazard of the system when
- * that hazard's row lists the project.
+ * that hazard's row lists the project. One construction row is called by name besides project_settle: project_binding,
+ * whose completion seals the fallen one it asked for (B6b - CosmicSeal, CosmicRows::ProjectBinding).
  */
 USTRUCT(BlueprintType)
 struct COSMIC_ASCENSION_API FMegaprojectDef : public FTableRowBase
@@ -338,7 +339,8 @@ struct COSMIC_ASCENSION_API FMegaprojectDef : public FTableRowBase
 	FResourcePool CostPerTick;
 
 	// Progress to completion: 1 per paid tick, DT_Rules.AIAscensionSpeedMultiplier per paid tick for a people the player
-	// does not rule. Read as at least 1.
+	// does not rule - times DT_Rules.AIUpperRungProgressMultiplier for such a people's construction of a row of the third
+	// rung or above (B6b, the construction slot only). Read as at least 1.
 	UPROPERTY(EditAnywhere)
 	float RequiredProgress = 100.f;
 
@@ -769,7 +771,8 @@ struct COSMIC_ASCENSION_API FLogTemplateDef : public FTableRowBase
  * DT_Galaxies row (section 5.11): one galaxy that has a name. The row name is the identity of the galaxy and lands in
  * saves (GalaxyRow, OriginGalaxyRow, FTransitRecord), so it never changes once shipped.
  * One row is the home galaxy (DT_Rules.HomeGalaxyRow), the only galaxy simulated in detail. Of that row the simulation
- * reads LivingWorlds, Peoples, HomeRadiusShare and the three name pools at generation, and AIFourthRungCap from B6b.
+ * reads LivingWorlds, Peoples, HomeRadiusShare and the three name pools at generation, and AIFourthRungCap at the feat
+ * judgment (B6b - CosmicAscent::FourthRungOpenOf).
  * Of the other rows it reads nothing until the crossings of Phase 6a (BridgeTicks, PeopleStems). Every other column
  * is display only: editing it never moves a hash.
  * The member initializers are what a run falls back on when the table or the home row is missing: the numbers of the
@@ -799,9 +802,10 @@ struct COSMIC_ASCENSION_API FGalaxyDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	int32 Peoples = 12;
 
-	// The brake on the fourth rung (section 5.12, 7.4 crossing stage). 0 = no brake. Nothing reads it yet: the simplified
-	// AI ascent past the third rung reads it from B6b (its form and value - #161), and the player's feats never do. Home
-	// row only.
+	// The brake on the fourth rung (section 5.12, 7.4 crossing stage). 0 = no brake. Read by CosmicAscent::FourthRungOpenOf
+	// alone (B6b header 2.6, decision 16; its form and value - #161): the judgment of a people the player does not rule on the
+	// third rung asks it before the rows. The player's feats and the climb to the fifth rung never do. A row the tables do not
+	// hold is no brake. Home row only.
 	UPROPERTY(EditAnywhere)
 	int32 AIFourthRungCap = 2;
 
@@ -926,6 +930,16 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	float AIAscensionSpeedMultiplier = 1.f;
 
+	// The delay above the third rung (B6b header 2.6, 3.4, decision 17): multiplies AIAscensionSpeedMultiplier in the
+	// construction slot alone, for a people the player does not rule and a row whose RequiredTier is the third rung or above
+	// (CosmicMegaprojects::Advance, its one reader - in B6b the binding alone). Never the response slot: an ark slowed past
+	// its extinction's countdown would end the AI people it answers for. Above 0 (schema); not above 0 or not a number reads
+	// as 1 with an error line each time a slot reads it (Advance reads it per slot; AIAscensionSpeedMultiplier's line comes
+	// once a tick). Values exact in binary only (0.25, 0.3125, 0.375 ... - a rate that is not completes one tick late,
+	// Advance): the main dial of the race's band (#161, header 5.3). 1 = no delay.
+	UPROPERTY(EditAnywhere)
+	float AIUpperRungProgressMultiplier = 1.f;
+
 	// Stability cap right after deposition.
 	UPROPERTY(EditAnywhere)
 	float PostRebellionStability = 0.15f;
@@ -971,6 +985,13 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// The most one guard adds to one hazard (and never more than 100000).
 	UPROPERTY(EditAnywhere)
 	float FleetDelayCap = 100.f;
+
+	// The guard's bound as a share of the hazard's own countdown (B6b header 2.10, #132 - decision 23):
+	// CosmicConflict::GuardDelayCapOf = Min(FleetDelayCap, this x the row's CountdownTicks), its one reader (FleetDelayOf and
+	// the theodicy's invariant call it). 0 or below, or not a number = no share: FleetDelayCap alone, the bound before B6b.
+	// 0..1 (schema). Off (0) until [B-6b8b] sets its value.
+	UPROPERTY(EditAnywhere)
+	float FleetDelayCountdownShare = 0.f;
 
 	// ---- Laws that cannot be rewritten (section 4.5) ----
 

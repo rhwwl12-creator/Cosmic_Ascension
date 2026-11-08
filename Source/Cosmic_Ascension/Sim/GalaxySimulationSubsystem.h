@@ -532,7 +532,9 @@ private:
 	// Stage 5. Four steps in a fixed order (section 7.4). Every hazard is placed through CosmicHazards::Place, and its lines
 	// follow (FollowUpNotes) before the next placement.
 	// (a) Megaprojects and resolution (AdvanceMegaprojects), before the countdown: a project completed on the last tick of
-	//     a hazard still saves the system. Every response slot before any construction slot.
+	//     a hazard still saves the system. Every response slot before any construction slot. The delay above the third
+	//     rung and the binding's seal are this step's (B6b - CosmicMegaprojects::Advance): a claim expiring at (b) of the
+	//     same tick finds no claimant in the fallen bound here.
 	// (b) Countdown and expiry, in two passes. First every countdown goes down by one and the systems that reach 0 are
 	//     collected in Systems order, so a hazard placed later in this stage keeps its whole count this tick. Then two
 	//     numbers per collected system are drawn from the sim stream, all of them before the first expiry: the outcome
@@ -601,7 +603,9 @@ private:
 	 * progress. DT_Rules.AIAscensionSpeedMultiplier is the rate of the peoples the player does not rule
 	 * (not above 0, or not a number: 1, with one error line). After each slot FollowUpKnowing (a system a resolution
 	 * handed to the vessel's people), then its completion line (the row's CompleteTemplates, Log.Civ, Severity 1 for the
-	 * people the player rules and 0 for the others, slots {Civ} {System} {Project}), then the lines that follow
+	 * people the player rules and 0 for the others, slots {Civ} {System} {Project}) - for project_binding, whose completion
+	 * sealed its target, followed by the binding's line CosmicRows::LogFallenBound ({System} alone, the same focus and
+	 * Severity; B6b) -, then the lines that follow
 	 * (FollowUpNotes - the resolution a completion made). No draw of its own.
 	 */
 	void AdvanceMegaprojects();

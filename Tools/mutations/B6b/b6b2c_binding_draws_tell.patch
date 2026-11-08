@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2856,6 +2856,7 @@
+ 					FFormatNamedArguments BoundArgs;
+ 					BoundArgs.Add(TEXT("System"), State.Systems[SystemIndex].DisplayName);
+ 					Log->PushRow(CosmicRows::LogFallenBound, Line.Severity, BoundArgs, Line.FocusSystem, Line.FocusCiv);
++					DrawTell(2);
+ 				}
+ 			}
+ 			// What the completion did (a resolution), told after it: a cause comes before what follows from it.

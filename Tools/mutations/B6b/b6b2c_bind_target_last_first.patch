@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicSeal.cpp b/Source/Cosmic_Ascension/Sim/CosmicSeal.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicSeal.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicSeal.cpp
+@@ -11,7 +11,7 @@
+ int32 CosmicSeal::BindTargetOf(const FGalaxyState& State, const FCosmicDataTables& Tables)
+ {
+ 	const FGameplayTag AbyssalTag = CosmicTags::RealmAbyssal();
+-	for (int32 At = 0; At < State.Transcendents.Num(); ++At)
++	for (int32 At = State.Transcendents.Num() - 1; At >= 0; --At)
+ 	{
+ 		const FTranscendentState& Transcendent = State.Transcendents[At];
+ 		const FTranscendentDef* Def = Transcendent.bSealed ? nullptr : Tables.FindTranscendent(Transcendent.TranscendentID);

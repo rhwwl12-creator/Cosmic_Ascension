@@ -1,0 +1,12 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -805,7 +805,7 @@
+ 			"rules": [
+ 				{
+ 					"why": "a project asks no Causality: no people earns any (its income is 0 - guideline 16 #90), so a project that asks it would never be paid and its slot would stand for good (B6b header 3.3 rule 7)",
+-					"then": [{"col": "CostPerTick.Causality", "is": 0}]
++					"then": [{"col": "CostPerTick.Causality", "ge": 0}]
+ 				}
+ 			]
+ 		},

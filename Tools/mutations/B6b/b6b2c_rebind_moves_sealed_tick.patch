@@ -1,0 +1,21 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicSeal.cpp b/Source/Cosmic_Ascension/Sim/CosmicSeal.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicSeal.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicSeal.cpp
+@@ -14,7 +14,7 @@
+ 	for (int32 At = 0; At < State.Transcendents.Num(); ++At)
+ 	{
+ 		const FTranscendentState& Transcendent = State.Transcendents[At];
+-		const FTranscendentDef* Def = Transcendent.bSealed ? nullptr : Tables.FindTranscendent(Transcendent.TranscendentID);
++		const FTranscendentDef* Def = Tables.FindTranscendent(Transcendent.TranscendentID);
+ 		if (Def && Def->Allegiance == AbyssalTag)
+ 		{
+ 			return At;
+@@ -25,7 +25,7 @@
+ 
+ bool CosmicSeal::Bind(FGalaxyState& State, int32 TranscendentIndex, int64 Tick)
+ {
+-	if (!State.Transcendents.IsValidIndex(TranscendentIndex) || State.Transcendents[TranscendentIndex].bSealed)
++	if (!State.Transcendents.IsValidIndex(TranscendentIndex))
+ 	{
+ 		return false;
+ 	}

@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_Rules.json b/Tools/data/DT_Rules.json
+--- a/Tools/data/DT_Rules.json
++++ b/Tools/data/DT_Rules.json
+@@ -13,7 +13,7 @@
+ 		"SuccessionSameCivPenalty": 1.0,
+ 		"SuccessionMinHazardTicks": 300,
+ 		"ReverenceDecay": 0.5,
+-		"AIAscensionSpeedMultiplier": 1.0,
++		"AIAscensionSpeedMultiplier": 0.5,
+ 		"AIUpperRungProgressMultiplier": 1.0,
+ 		"PostRebellionStability": 0.15,
+ 		"ThroneLockTicks": 600,

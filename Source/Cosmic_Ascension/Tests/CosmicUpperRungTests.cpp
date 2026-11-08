@@ -1,10 +1,12 @@
 // Cosmic Ascension - automation tests of the fourth and fifth rungs (B6b): from B-6b1 the two saved counters of a people
 // (LawsHeldTicks, PressureEnduredTicks) through the save and the hashes; from B-6b2a the count of the held laws, the two hooks
 // of a galaxy law, the AI's law and treaty steps and the vocabulary of the endured era (the condition's window, the selector
-// word Ruled, the Key Borders); from B-6b2b the extinction's expiry (the gate, LetPeopleGo, the ruler's death, the record line).
+// word Ruled, the Key Borders); from B-6b2b the extinction's expiry (the gate, LetPeopleGo, the ruler's death, the record line);
+// from B-6b2c the ark's slot, the delay above the third rung, the brake on the fourth rung and the binding.
 // The count of the endured pressure is Sim.PressureEndured (Tests/CosmicBookTests.cpp, beside the fallen-sphere counter it is
 // counted with).
-// Design: docs/60_DECISIONS/headers/B6b_upper_rungs_and_the_race.md section 2.1, 2.2, 2.3, 2.4, 2.7, 6; docs/20 section 9.1.
+// Design: docs/60_DECISIONS/headers/B6b_upper_rungs_and_the_race.md section 2.1 - 2.7, 6; docs/20 section 9.1; docs/21 section
+// 7.4 (the count of the fourth rung).
 
 #include "CoreMinimal.h"
 
@@ -35,7 +37,9 @@
 #include "Sim/CosmicDiplomacy.h"
 #include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicEvalContext.h"
+#include "Sim/CosmicAscent.h"
 #include "Sim/CosmicHazards.h"
+#include "Sim/CosmicSeal.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Templates/Function.h"
@@ -43,6 +47,7 @@
 #include "UObject/Package.h"
 
 #include <initializer_list>
+#include <limits>
 
 namespace CosmicUpperRungTests
 {
@@ -1189,6 +1194,570 @@ bool FCosmicSimExtinctionExpiryTest::RunTest(const FString& Parameters)
 		TestFalse(*FString::Printf(TEXT("KillsTheRulerOf %s"), Other), CosmicHazards::KillsTheRulerOf(Tag(Other)));
 	}
 	TestFalse(TEXT("KillsTheRulerOf no tag"), CosmicHazards::KillsTheRulerOf(FGameplayTag()));
+	return true;
+}
+
+// ---- B-6b2c: the ark's slot, the delay above the third rung, the brake on the fourth rung and the binding ----
+
+namespace CosmicUpperRungTests
+{
+	// The rows of the boards below (the game holds no ark, and its binding row's values are [B-6b7]'s): the binding of the
+	// fourth rung, a construction of the third (Upper) and of the second (Lower), the ark of the third that answers the
+	// extinction - each 4 of progress at Energy 1 a tick, three lines -, and an independent transcendent beside the game's
+	// fallen row.
+	const FName Ark(TEXT("project_test_ark"));
+	const FName Upper(TEXT("project_test_upper"));
+	const FName Lower(TEXT("project_test_lower"));
+	const FName Still(TEXT("trans_test_still"));
+
+	FMegaprojectDef ProjectOf(EAscensionTier Tier, const TCHAR* Stem)
+	{
+		FMegaprojectDef Row;
+		Row.DisplayName = FText::AsCultureInvariant(FString::Printf(TEXT("<%s>"), Stem));
+		Row.RequiredTier = Tier;
+		Row.CostPerTick.Energy = 1.f;
+		Row.RequiredProgress = 4.f;
+		for (const TCHAR* Variant : { TEXT("one"), TEXT("two"), TEXT("three") })
+		{
+			Row.CompleteTemplates.Add(FText::AsCultureInvariant(FString::Printf(TEXT("{Civ} {System} {Project} %s done %s"), Stem, Variant)));
+		}
+		return Row;
+	}
+
+	/**
+	 * LayBoard's board (people 0 - the vessel's, capital 0 - holds {0, 1}; 1 holds {3, 2, 4}; 2 {6, 5, 7}; 3 {9, 8, 10, 11})
+	 * with this block's projects (and WithoutProjects' unpaid project_settle), the extinction of LinedHazardOf answered by the
+	 * ark as its one hazard row, and the game's fallen row beside an independent copy of it (no instance: a case adds its own).
+	 * Null when the board is not laid or the game has no fallen row.
+	 */
+	FGalaxyState* LayBindingBoard(UGalaxySimulationSubsystem& Sim, const FCosmicDataTables& Original, UDataTable* Feats, TFunctionRef<void(FCosmicRulesDef&)> Edit)
+	{
+		const FTranscendentDef* Silence = Original.FindTranscendent(CosmicRows::TransSilence);
+		FGalaxyState* Board = Silence ? LayBoard(Sim, Original, Feats, Edit) : nullptr;
+		if (!Board)
+		{
+			return nullptr;
+		}
+		FCosmicDataTables Tables = Sim.GetTables();
+		UDataTable* Projects = CosmicTests::NewTable(FMegaprojectDef::StaticStruct());
+		Projects->AddRow(CosmicRows::ProjectBinding, ProjectOf(EAscensionTier::Tier4_Transcendent, TEXT("binding")));
+		Projects->AddRow(Upper, ProjectOf(EAscensionTier::Tier3_Causal, TEXT("upper")));
+		Projects->AddRow(Lower, ProjectOf(EAscensionTier::Tier2_Stellar, TEXT("lower")));
+		Projects->AddRow(Ark, ProjectOf(EAscensionTier::Tier3_Causal, TEXT("ark")));
+		if (const FMegaprojectDef* Settle = Tables.FindMegaproject(CosmicRows::ProjectSettle))
+		{
+			Projects->AddRow(CosmicRows::ProjectSettle, *Settle);
+		}
+		Tables.Megaprojects = Projects;
+		UDataTable* HazardRows = CosmicTests::NewTable(FHazardDef::StaticStruct());
+		FHazardDef Extinction = LinedHazardOf(TEXT("Hazard.Extinction"));
+		Extinction.RulerResolutions = { Ark };
+		HazardRows->AddRow(Extinct, Extinction);
+		Tables.Hazards = HazardRows;
+		UDataTable* Transcendents = CosmicTests::NewTable(FTranscendentDef::StaticStruct());
+		Transcendents->AddRow(CosmicRows::TransSilence, *Silence);
+		FTranscendentDef Independent = *Silence;
+		Independent.Allegiance = Tag(TEXT("Realm.Independent"));
+		Transcendents->AddRow(Still, Independent);
+		Tables.Transcendents = Transcendents;
+		Sim.SetTables(Tables);
+		Sim.SyncRngState();
+		return Board;
+	}
+
+	// A copy of the game's galaxy rows with the home row's AIFourthRungCap set to Cap (the tables keep every other row).
+	UDataTable* GalaxiesWithCap(const FCosmicDataTables& Original, int32 Cap)
+	{
+		UDataTable* Galaxies = CosmicTests::NewTable(FGalaxyDef::StaticStruct());
+		const FCosmicRulesDef* Rules = Original.FindRules();
+		for (const FName GalaxyRow : Original.GetGalaxyRowNames())
+		{
+			if (const FGalaxyDef* Galaxy = Original.FindGalaxy(GalaxyRow))
+			{
+				FGalaxyDef Copy = *Galaxy;
+				if (Rules && GalaxyRow == Rules->HomeGalaxyRow)
+				{
+					Copy.AIFourthRungCap = Cap;
+				}
+				Galaxies->AddRow(GalaxyRow, Copy);
+			}
+		}
+		return Galaxies;
+	}
+
+	// Whether a system holds a completion record of the binding's row.
+	bool HoldsBinding(const FStarSystemState& System)
+	{
+		return System.CompletedMegaprojects.ContainsByPredicate([](const FMegaprojectRecord& Each) { return Each.Row == CosmicRows::ProjectBinding; });
+	}
+}
+
+// The ark's slot (header section 2.6, notes 2 b): an AI people's answer to an extinction starts in the AI stage and runs in the
+// response slot at the AI rate alone - never delayed, though the ark is a row of the third rung and the delay above it is 0.25
+// (mutation: the delay on the response slot) -, completes within the countdown, resolves the extinction (no expiry, the
+// people keeps its systems) and records its maker.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimArkAnswersTest, "Cosmic_Ascension.Sim.ArkAnswers", CosmicTests::Flags)
+bool FCosmicSimArkAnswersTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicUpperRungTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	FGalaxyState* Board = LayBindingBoard(*Sim, Original, nullptr, [](FCosmicRulesDef& Rules)
+	{
+		Rules.AIAscensionSpeedMultiplier = 1.f;
+		Rules.AIUpperRungProgressMultiplier = 0.25f;
+	});
+	if (!TestNotNull(TEXT("The board of the ark is laid"), Board))
+	{
+		return false;
+	}
+	const FName Maker = Board->Civs[1].CivID;
+	Board->Civs[1].Tier = EAscensionTier::Tier3_Causal;
+	Board->Systems[3].ActiveHazard = Tag(TEXT("Hazard.Extinction"));
+	Board->Systems[3].HazardTicksRemaining = 50;
+	Sim->StepOnce();
+	TestEqual(TEXT("The AI people starts the ark in the response slot of the extinction's system"), Board->Systems[3].ResponseMegaproject, Ark);
+	TestEqual(TEXT("(in the AI stage, after this tick's crisis stage: no progress yet)"), Board->Systems[3].ResponseProgress, 0.f);
+	Sim->StepOnce();
+	TestEqual(TEXT("The ark progresses by the AI rate, 1 - the delay above the third rung is the construction slot's alone"), Board->Systems[3].ResponseProgress, 1.f);
+	Sim->StepOnce();
+	Sim->StepOnce();
+	Sim->StepOnce();
+	const int64 Done = Board->Tick;
+	TestTrue(TEXT("At its fourth paid tick the ark completes and empties its slot"), Board->Systems[3].ResponseMegaproject.IsNone() && Board->Systems[3].ResponseProgress == 0.f);
+	TestFalse(TEXT("and the extinction is resolved"), Board->Systems[3].ActiveHazard.IsValid());
+	const FMegaprojectRecord* Made = Board->Systems[3].CompletedMegaprojects.FindByPredicate([](const FMegaprojectRecord& Each) { return Each.Row == Ark; });
+	if (TestNotNull(TEXT("The ark's completion is recorded"), Made))
+	{
+		TestEqual(TEXT("at its tick"), Made->Tick, Done);
+		TestEqual(TEXT("by the people that built it"), Made->CivID, Maker);
+	}
+	TestEqual(TEXT("The people keeps its three systems"), Board->Civs[1].OwnedSystems.Num(), 3);
+	TestFalse(TEXT("No expiry line is told"), Board->Log.ContainsByPredicate([](const FCosmicLogEntry& Entry) { return Entry.Message.ToString().Contains(TEXT("Hazard.Extinction expiry")); }));
+	TestTrue(TEXT("but its resolution line"), Board->Log.ContainsByPredicate([Done](const FCosmicLogEntry& Entry) { return Entry.Tick == Done && Entry.Message.ToString().Contains(TEXT("Hazard.Extinction resolution")); }));
+	return true;
+}
+
+// The delay above the third rung (header section 2.6, 3.4, decision 17): DT_Rules.AIUpperRungProgressMultiplier multiplies the
+// AI rate in the construction slot of a people the player does not rule, for a row of the third rung or above (the binding
+// among them) - not a row of the second (mutation: the delay on a second-rung row too) and not the people the player rules,
+// which progresses by 1. A knob not above 0, or not a number, is read as 1 with one error line (mutation: read as it is).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimUpperRungDelayTest, "Cosmic_Ascension.Sim.UpperRungDelay", CosmicTests::Flags)
+bool FCosmicSimUpperRungDelayTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicUpperRungTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	// Every people on the fourth rung: 0 (the vessel's) builds Upper on 0, 1 Upper on 3, 2 Lower on 6, 3 the binding on 9 (a
+	// fallen instance to bind). AI rate 2, the delay as given - 0.25 is exact in binary.
+	auto Lay = [&](float Delay)
+	{
+		FGalaxyState* Board = LayBindingBoard(*Sim, Original, nullptr, [Delay](FCosmicRulesDef& Rules)
+		{
+			Rules.AIAscensionSpeedMultiplier = 2.f;
+			Rules.AIUpperRungProgressMultiplier = Delay;
+		});
+		if (Board)
+		{
+			for (FCivilizationState& Civ : Board->Civs)
+			{
+				Civ.Tier = EAscensionTier::Tier4_Transcendent;
+			}
+			CosmicTests::AddInstance(*Board, CosmicRows::TransSilence, {});
+			Board->Systems[0].ActiveMegaproject = Upper;
+			Board->Systems[3].ActiveMegaproject = Upper;
+			Board->Systems[6].ActiveMegaproject = Lower;
+			Board->Systems[9].ActiveMegaproject = CosmicRows::ProjectBinding;
+		}
+		return Board;
+	};
+	FGalaxyState* Board = Lay(0.25f);
+	if (!TestNotNull(TEXT("The board of the delay is laid"), Board))
+	{
+		return false;
+	}
+	Sim->StepOnce();
+	TestEqual(TEXT("An AI people's construction of the third rung progresses by 2 x 0.25"), Board->Systems[3].MegaprojectProgress, 0.5f);
+	TestEqual(TEXT("and so does its binding, of the fourth"), Board->Systems[9].MegaprojectProgress, 0.5f);
+	TestEqual(TEXT("A construction of the second rung is not delayed: 2"), Board->Systems[6].MegaprojectProgress, 2.f);
+	TestEqual(TEXT("The people the player rules progresses by 1"), Board->Systems[0].MegaprojectProgress, 1.f);
+
+	// The knob's 1: the AI rate itself.
+	FGalaxyState* Even = Lay(1.f);
+	if (!TestNotNull(TEXT("The board of no delay is laid"), Even))
+	{
+		return false;
+	}
+	Sim->StepOnce();
+	TestEqual(TEXT("At the knob's 1 the third rung's construction progresses by the AI rate, 2"), Even->Systems[3].MegaprojectProgress, 2.f);
+
+	// A knob not above 0 or not a number: 1, with one error line a tick for each (one slot reads it - people 1's Upper; the
+	// binding and the ruled people's Upper are taken out).
+	AddExpectedError(TEXT("AIUpperRungProgressMultiplier"), EAutomationExpectedErrorFlags::Contains, 2);
+	for (const float Bad : { 0.f, std::numeric_limits<float>::quiet_NaN() })
+	{
+		FGalaxyState* Again = Lay(Bad);
+		if (!TestNotNull(TEXT("The board of a bad delay is laid"), Again))
+		{
+			return false;
+		}
+		Again->Systems[0].ActiveMegaproject = NAME_None;
+		Again->Systems[9].ActiveMegaproject = NAME_None;
+		Sim->StepOnce();
+		TestEqual(*FString::Printf(TEXT("A delay of %f is read as 1: the AI rate, 2"), Bad), Again->Systems[3].MegaprojectProgress, 2.f);
+	}
+	return true;
+}
+
+// The brake on the fourth rung (header section 2.6, decision 16; docs/21 section 7.4, the count of the fourth rung - case by
+// case): a people the player does not rule climbs from the third rung only while the peoples of its galaxy on the fourth rung
+// or above - the ruled people counted (mutation: left out), another galaxy's not (mutation: every galaxy's) - and the
+// crossings bound for it (mutation: bound anywhere) that have not landed stay below the home row's AIFourthRungCap. The judgment's order decides: the people first in Civs passes first (mutation: the order
+// reversed), and a climb earlier in the tick is counted (mutation: the count read once a tick). The people the player rules
+// (mutation: braked too) and the climb to the fifth rung (mutation: braked too) are never braked; a cap of 0 (mutation: still
+// braking) and a galaxy row the tables do not hold (mutation: closed) are no brake. A blocked people climbs on the tick the
+// count drops - a people of the fourth rung that let every system go leaves at the crossing stage (mutation: the count from the
+// third rung, the asking people counting itself), a crossing that landed is no longer inbound (mutation: a landed crossing
+// counted). No draw, no line.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimFourthRungBrakeTest, "Cosmic_Ascension.Sim.FourthRungBrake", CosmicTests::Flags)
+bool FCosmicSimFourthRungBrakeTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicUpperRungTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	const FCosmicRulesDef* GameRules = Original.FindRules();
+	if (!TestNotNull(TEXT("(the game has its rules row)"), GameRules))
+	{
+		return false;
+	}
+	const FName Home = GameRules->HomeGalaxyRow;
+	// The rows: from the third rung, a condition every tick holds; from the fourth, the completion of a row no table holds,
+	// laid by hand where a case wants a people to climb to the fifth.
+	const FName Five(TEXT("project_test_five"));
+	UDataTable* Feats = CosmicTests::NewTable(FAscensionFeatDef::StaticStruct());
+	FAscensionFeatDef Fourth = FeatRow(EAscensionTier::Tier3_Causal, { Cond(EConditionType::GalaxyTickAtLeast, nullptr, 0.f) });
+	FAscensionFeatDef Fifth = FeatRow(EAscensionTier::Tier4_Transcendent, { Cond(EConditionType::MegaprojectComplete, TEXT("project_test_five")) });
+	for (const TCHAR* Variant : { TEXT("one"), TEXT("two"), TEXT("three") })
+	{
+		Fourth.LogTemplates.Add(FText::AsCultureInvariant(FString::Printf(TEXT("{Civ} climbed %s"), Variant)));
+		Fifth.LogTemplates.Add(FText::AsCultureInvariant(FString::Printf(TEXT("{Civ} climbed on %s"), Variant)));
+	}
+	Feats->AddRow(FName(TEXT("feat_test_fourth")), Fourth);
+	Feats->AddRow(FName(TEXT("feat_test_fifth")), Fifth);
+	using T = EAscensionTier;
+	// A board under the cap given (INDEX_NONE: no galaxy table at all), the four peoples on the rungs given.
+	auto Lay = [&](int32 Cap, T Rung0, T Rung1, T Rung2, T Rung3) -> FGalaxyState*
+	{
+		FGalaxyState* Board = LayBoard(*Sim, Original, Feats, NoEdit);
+		if (!Board)
+		{
+			return nullptr;
+		}
+		FCosmicDataTables Tables = Sim->GetTables();
+		Tables.Galaxies = Cap == INDEX_NONE ? nullptr : GalaxiesWithCap(Original, Cap);
+		Sim->SetTables(Tables);
+		Board->Civs[0].Tier = Rung0;
+		Board->Civs[1].Tier = Rung1;
+		Board->Civs[2].Tier = Rung2;
+		Board->Civs[3].Tier = Rung3;
+		Sim->SyncRngState();
+		return Board;
+	};
+	auto RecordFifth = [&](FGalaxyState& Board, int32 CivIndex)
+	{
+		const int32 Capital = Sim->GetStateIndex().FindSystem(Board, Board.Civs[CivIndex].HomeSystemID);
+		FMegaprojectRecord& Made = Board.Systems[Capital].CompletedMegaprojects.AddDefaulted_GetRef();
+		Made.Row = Five;
+		Made.Tick = 1;
+		Made.CivID = Board.Civs[CivIndex].CivID;
+	};
+
+	// (1) Cap 2, the ruled people on the fourth rung, peoples 1 and 2 on the third: 1 climbs (1 < 2), then 2 is held (2 = 2).
+	FGalaxyState* Board = Lay(2, T::Tier4_Transcendent, T::Tier3_Causal, T::Tier3_Causal, T::Tier1_Planetary);
+	if (!TestNotNull(TEXT("The board of the brake is laid"), Board))
+	{
+		return false;
+	}
+	TestTrue(TEXT("(every people of the board stands in the home galaxy)"), Board->Civs[0].GalaxyRow == Home && Board->Civs[1].GalaxyRow == Home && Board->Civs[2].GalaxyRow == Home);
+	TestTrue(TEXT("Open below the cap"), CosmicAscent::FourthRungOpenOf(*Board, Sim->GetTables(), Home));
+	const int32 LinesBefore = Board->Log.Num();
+	Sim->StepOnce();
+	const int32 CappedSeed = Sim->GetRng().GetCurrentSeed();
+	TestEqual(TEXT("The people first in Civs climbs while the count - the ruled people's one - is below the cap"), Board->Civs[1].Tier, T::Tier4_Transcendent);
+	TestEqual(TEXT("The next is held: the ruled people and the climb just made fill the cap"), Board->Civs[2].Tier, T::Tier3_Causal);
+	TestFalse(TEXT("Closed at the cap"), CosmicAscent::FourthRungOpenOf(*Board, Sim->GetTables(), Home));
+	int32 Ascents = 0;
+	for (int32 At = LinesBefore; At < Board->Log.Num(); ++At)
+	{
+		Ascents += Board->Log[At].Category == Tag(TEXT("Log.Ascension")) ? 1 : 0;
+	}
+	TestEqual(TEXT("One ascension line, the climb's: the brake tells nothing"), Ascents, 1);
+	{
+		FGalaxyState* Free = Lay(0, T::Tier4_Transcendent, T::Tier3_Causal, T::Tier3_Causal, T::Tier1_Planetary);
+		Sim->StepOnce();
+		TestEqual(TEXT("Under a cap of 0 both climb"), Free->Civs[2].Tier, T::Tier4_Transcendent);
+		TestEqual(TEXT("The brake draws nothing: the held tick draws as the free one"), CappedSeed, Sim->GetRng().GetCurrentSeed());
+	}
+
+	// (2) Cap 2, peoples 1 and 2 on the fourth rung with the fifth's record, the ruled people on the third: it climbs, and so
+	// do both to the fifth, at the cap.
+	{
+		FGalaxyState* Full = Lay(2, T::Tier3_Causal, T::Tier4_Transcendent, T::Tier4_Transcendent, T::Tier1_Planetary);
+		RecordFifth(*Full, 1);
+		RecordFifth(*Full, 2);
+		Sim->StepOnce();
+		TestEqual(TEXT("The people the player rules is never braked"), Full->Civs[0].Tier, T::Tier4_Transcendent);
+		TestEqual(TEXT("The climb to the fifth rung is never braked"), Full->Civs[1].Tier, T::Tier5_EternalOrder);
+		TestEqual(TEXT("(both peoples of the fourth climb to it)"), Full->Civs[2].Tier, T::Tier5_EternalOrder);
+	}
+
+	// (3) No brake: a cap of 0, and no galaxy table at all - three peoples of the third climb past a ruled people of the fourth.
+	for (const int32 Cap : { 0, static_cast<int32>(INDEX_NONE) })
+	{
+		FGalaxyState* Free = Lay(Cap, T::Tier4_Transcendent, T::Tier3_Causal, T::Tier3_Causal, T::Tier3_Causal);
+		Sim->StepOnce();
+		const bool bAll = Free->Civs[1].Tier == T::Tier4_Transcendent && Free->Civs[2].Tier == T::Tier4_Transcendent && Free->Civs[3].Tier == T::Tier4_Transcendent;
+		TestTrue(Cap == 0 ? TEXT("A cap of 0 is no brake: every people of the third climbs") : TEXT("A galaxy row the tables do not hold is no brake"), bAll);
+	}
+
+	// (4) The count drops: peoples 1 and 2 on the fourth rung, 3 on the third, held at the cap of 2. People 2 lets every
+	// system go between two ticks: on the next tick it is still among the peoples at the AI stage (the crossing stage comes
+	// after) and 3 is held once more; on the tick after, 3 climbs.
+	{
+		FGalaxyState* Drop = Lay(2, T::Tier1_Planetary, T::Tier4_Transcendent, T::Tier4_Transcendent, T::Tier3_Causal);
+		Sim->StepOnce();
+		TestEqual(TEXT("The people of the third is held at the cap"), Drop->Civs[3].Tier, T::Tier3_Causal);
+		const FName Gone = Drop->Civs[2].CivID;
+		const FName Held = Drop->Civs[3].CivID;
+		{
+			FCosmicEvalContext Ctx = Sim->MakeEvalContext();
+			TestTrue(TEXT("(people 2 lets every system go)"), CosmicHazards::LetPeopleGo(Ctx, 2));
+		}
+		Sim->StepOnce();
+		TestEqual(TEXT("(the crossing stage took it)"), Sim->GetStateIndex().FindCiv(*Drop, Gone), static_cast<int32>(INDEX_NONE));
+		const int32 HeldIndex = Sim->GetStateIndex().FindCiv(*Drop, Held);
+		TestTrue(TEXT("On that tick the people still counted holds the third at the cap"), Drop->Civs.IsValidIndex(HeldIndex) && Drop->Civs[HeldIndex].Tier == T::Tier3_Causal);
+		Sim->StepOnce();
+		TestTrue(TEXT("On the tick after, the count below the cap, the held people climbs"), Drop->Civs.IsValidIndex(HeldIndex) && Drop->Civs[HeldIndex].Tier == T::Tier4_Transcendent);
+	}
+
+	// (5) A crossing bound for the home galaxy counts until it lands: people 1 on the fourth rung, 3 on the third, one crossing
+	// arriving at the tick that runs next - held (1 + 1 = 2); on the tick after, the crossing landed, it climbs.
+	{
+		FGalaxyState* Inbound = Lay(2, T::Tier1_Planetary, T::Tier4_Transcendent, T::Tier1_Planetary, T::Tier3_Causal);
+		FTransitRecord& Crossing = Inbound->Transits.AddDefaulted_GetRef();
+		Crossing.ToGalaxyRow = Home;
+		Crossing.DepartTick = Inbound->Tick;
+		Crossing.ArriveTick = Inbound->Tick + 1;
+		Sim->StepOnce();
+		TestEqual(TEXT("A crossing that lands on this tick is still inbound: the people of the third is held"), Inbound->Civs[3].Tier, T::Tier3_Causal);
+		Sim->StepOnce();
+		TestEqual(TEXT("Landed, it is no longer counted: the people climbs"), Inbound->Civs[3].Tier, T::Tier4_Transcendent);
+		Inbound->Transits.Reset();
+	}
+
+	// (6) Only its galaxy: the ruled people on the fourth rung at home, people 1 on the fourth rung in another galaxy and a
+	// crossing bound there that has not landed, 3 on the third at home - the home count is 1, so 3 climbs (mutations: the
+	// peoples of every galaxy counted; the crossings bound anywhere counted - either alone fills the cap of 2).
+	{
+		const FName Far(TEXT("gal_andromeda"));
+		FGalaxyState* Apart = Lay(2, T::Tier4_Transcendent, T::Tier4_Transcendent, T::Tier1_Planetary, T::Tier3_Causal);
+		TestTrue(TEXT("(the tables hold the far row, another than home)"), Far != Home && Sim->GetTables().FindGalaxy(Far) != nullptr);
+		Apart->Civs[1].GalaxyRow = Far;
+		FTransitRecord& Away = Apart->Transits.AddDefaulted_GetRef();
+		Away.ToGalaxyRow = Far;
+		Away.DepartTick = Apart->Tick;
+		Away.ArriveTick = Apart->Tick + 100;
+		TestTrue(TEXT("Open: a people and a crossing of another galaxy are not counted"), CosmicAscent::FourthRungOpenOf(*Apart, Sim->GetTables(), Home));
+		Sim->StepOnce();
+		TestEqual(TEXT("The people of the third climbs past a people and a crossing of another galaxy"), Apart->Civs[3].Tier, T::Tier4_Transcendent);
+		Apart->Transits.Reset();
+	}
+	return true;
+}
+
+// The binding (header section 2.5, decisions 12-15, 32): (1) CosmicSeal::BindTargetOf is the first unsealed instance of a
+// fallen row in Transcendents order - an independent instance, one whose row the tables do not hold and a sealed one are
+// passed by (mutations: any realm; a sealed one taken again; the walk from the end); none left, INDEX_NONE. (2) A binding
+// that completes writes its record (the maker), then seals the target - bSealed and SealedTick = the tick, in one place
+// (mutation: no seal) -, and the binding's line follows the completion line at once (mutation: told before it), {System}
+// filled, with the completion line's Severity (the ruled people's 1 - mutation: told with 0); the fallen's claim no longer
+// stands (ClaimantOf); nothing of the sim stream (mutation: a draw), one number of the tell stream more than another
+// completion (mutation: a second tell draw). (3) A binding whose target is bound already ends at its next Advance without
+// result - nothing paid, recorded or told, no number of the tell stream, SealedTick unmoved (mutation: the sealed one bound
+// again). (4) Two bindings completing on one tick: the first in Systems order binds, the second ends without result and its
+// people holds no completion (mutation: the target read once for the pass).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimBindingTest, "Cosmic_Ascension.Sim.Binding", CosmicTests::Flags)
+bool FCosmicSimBindingTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicUpperRungTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	FGalaxyState* Board = LayBindingBoard(*Sim, Original, nullptr, NoEdit);
+	if (!TestNotNull(TEXT("The board of the binding is laid"), Board))
+	{
+		return false;
+	}
+
+	// (1) The target.
+	{
+		const FCosmicDataTables& Tables = Sim->GetTables();
+		CosmicTests::AddInstance(*Board, Still, {});
+		CosmicTests::AddInstance(*Board, FName(TEXT("trans_test_gone")), {});
+		TestEqual(TEXT("No fallen instance: no target"), CosmicSeal::BindTargetOf(*Board, Tables), static_cast<int32>(INDEX_NONE));
+		CosmicTests::AddInstance(*Board, CosmicRows::TransSilence, {}).bSealed = true;
+		TestEqual(TEXT("A sealed fallen one is no target"), CosmicSeal::BindTargetOf(*Board, Tables), static_cast<int32>(INDEX_NONE));
+		CosmicTests::AddInstance(*Board, CosmicRows::TransSilence, {});
+		TestEqual(TEXT("The first unsealed fallen one, past an independent one, a row-less one and a sealed one"), CosmicSeal::BindTargetOf(*Board, Tables), 3);
+		CosmicTests::AddInstance(*Board, CosmicRows::TransSilence, {});
+		TestEqual(TEXT("Of two unsealed fallen ones, the first in Transcendents order"), CosmicSeal::BindTargetOf(*Board, Tables), 3);
+		Board->Transcendents.Reset();
+	}
+
+	// (2) People 1 on the fourth rung completes its binding on its capital 3 this tick; the target stands behind an
+	// independent instance, its sphere {11} - next to 10, where its claim would stand.
+	const FName Maker = Board->Civs[1].CivID;
+	Board->Civs[1].Tier = EAscensionTier::Tier4_Transcendent;
+	CosmicTests::AddInstance(*Board, Still, {});
+	CosmicTests::AddInstance(*Board, CosmicRows::TransSilence, { Board->Systems[11].SystemID });
+	Board->Systems[3].ActiveMegaproject = CosmicRows::ProjectBinding;
+	Board->Systems[3].MegaprojectProgress = 3.f;
+	const FGalaxyState Twin = *Board;
+	TestEqual(TEXT("(before the binding the fallen one claims next to its sphere)"),
+		CosmicHazards::ClaimantOf(*Board, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), 10), 1);
+	const float EnergyBefore = Board->Civs[1].Stockpile.Energy;
+	Sim->StepOnce();
+	const int64 Bound = Board->Tick;
+	const int32 BoundSeed = Sim->GetRng().GetCurrentSeed();
+	const int32 BoundTell = Board->TellRngState;
+	TestTrue(TEXT("The binding seals the target"), Board->Transcendents[1].bSealed);
+	TestEqual(TEXT("at the tick of its completion"), Board->Transcendents[1].SealedTick, Bound);
+	TestFalse(TEXT("The independent instance stays as it was"), Board->Transcendents[0].bSealed);
+	TestEqual(TEXT("The sphere stays: the binding freezes it"), Board->Transcendents[1].InfluencedSystems.Num(), 1);
+	const FMegaprojectRecord* Made = Board->Systems[3].CompletedMegaprojects.FindByPredicate([](const FMegaprojectRecord& Each) { return Each.Row == CosmicRows::ProjectBinding; });
+	TestTrue(TEXT("Its completion is recorded at the tick, by its maker"), Made && Made->Tick == Bound && Made->CivID == Maker);
+	TestTrue(TEXT("and the slot is empty"), Board->Systems[3].ActiveMegaproject.IsNone() && Board->Systems[3].MegaprojectProgress == 0.f);
+	TestEqual(TEXT("It paid its tick"), Board->Civs[1].Stockpile.Energy, EnergyBefore + Board->Civs[1].IncomePerTick.Energy - 1.f, 0.01f);
+	const int32 Completion = LineOf(*Board, CosmicRows::ProjectBinding, Bound);
+	const int32 BoundLine = LineOf(*Board, CosmicRows::LogFallenBound, Bound);
+	TestTrue(TEXT("The completion line is told"), Completion != INDEX_NONE);
+	TestTrue(TEXT("and the binding's line right after it"), BoundLine != INDEX_NONE && BoundLine == Completion + 1);
+	if (Board->Log.IsValidIndex(BoundLine))
+	{
+		const FCosmicLogEntry& Line = Board->Log[BoundLine];
+		TestTrue(TEXT("The binding's line names the system the work stood on, every slot filled"), Line.Message.ToString().Contains(Board->Systems[3].DisplayName.ToString())
+			&& !Line.Message.ToString().Contains(TEXT("{")));
+		TestTrue(TEXT("with the completion line's focus"), Line.FocusSystemID == Board->Systems[3].SystemID && Line.FocusCivID == Maker);
+		TestEqual(TEXT("and its Severity (0: an AI people's work)"), static_cast<int32>(Line.Severity), 0);
+	}
+	TestEqual(TEXT("After the binding no claim stands by the bound one"), CosmicHazards::ClaimantOf(*Board, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), 10),
+		static_cast<int32>(INDEX_NONE));
+	{
+		// The same tick with an Upper completing in the slot instead: no seal, the same draws.
+		FGalaxyState Other = Twin;
+		Other.Systems[3].ActiveMegaproject = Upper;
+		Sim->LoadState(Other);
+		Sim->StepOnce();
+		TestFalse(TEXT("(another construction seals nothing)"), Sim->GetState().Transcendents[1].bSealed);
+		TestEqual(TEXT("The binding draws nothing of the sim stream"), Sim->GetRng().GetCurrentSeed(), BoundSeed);
+		TestEqual(TEXT("The binding's line draws one number of the tell stream more than the twin's completion"),
+			DrawsFrom(Sim->GetState().TellRngState, BoundTell), 1);
+	}
+	{
+		// The ruled people's binding (notes 5, block 2): the binding's line takes the completion line's Severity, 1
+		// (mutation: told with 0).
+		FGalaxyState Ruled = Twin;
+		Ruled.Systems[3].ActiveMegaproject = NAME_None;
+		Ruled.Systems[3].MegaprojectProgress = 0.f;
+		Ruled.Civs[0].Tier = EAscensionTier::Tier4_Transcendent;
+		Ruled.Systems[0].ActiveMegaproject = CosmicRows::ProjectBinding;
+		Ruled.Systems[0].MegaprojectProgress = 3.f;
+		Sim->LoadState(Ruled);
+		Sim->StepOnce();
+		const FGalaxyState& Live = Sim->GetState();
+		const int32 Done = LineOf(Live, CosmicRows::ProjectBinding, Live.Tick);
+		const int32 RuledLine = LineOf(Live, CosmicRows::LogFallenBound, Live.Tick);
+		TestTrue(TEXT("(the ruled people binds, its line right after the completion line)"), Live.Civs[0].bIsPlayerRuled && Live.Transcendents[1].bSealed
+			&& Done != INDEX_NONE && RuledLine == Done + 1);
+		TestTrue(TEXT("The ruled people's binding line has its completion line's Severity, 1"), Live.Log.IsValidIndex(RuledLine)
+			&& Live.Log[Done].Severity == 1 && Live.Log[RuledLine].Severity == 1);
+	}
+
+	// (3) The target is bound: people 2 completes its own binding on 6 at the next tick - it ends without result.
+	{
+		Sim->LoadState(Twin);
+		Sim->StepOnce();
+		FGalaxyState& Live = Sim->GetMutableState();
+		const int64 FirstBound = Live.Tick;
+		Live.Civs[2].Tier = EAscensionTier::Tier4_Transcendent;
+		// The same tick with no binding on 6, for the tell stream below.
+		const FGalaxyState Plain = Live;
+		Live.Systems[6].ActiveMegaproject = CosmicRows::ProjectBinding;
+		Live.Systems[6].MegaprojectProgress = 3.f;
+		const float Before = Live.Civs[2].Stockpile.Energy;
+		Sim->StepOnce();
+		TestEqual(TEXT("A seal is never moved: SealedTick stays the first binding's"), Live.Transcendents[1].SealedTick, FirstBound);
+		TestTrue(TEXT("A binding with no target left ends: its slot empty, its progress 0"), Live.Systems[6].ActiveMegaproject.IsNone() && Live.Systems[6].MegaprojectProgress == 0.f);
+		TestFalse(TEXT("nothing recorded"), HoldsBinding(Live.Systems[6]));
+		TestEqual(TEXT("nothing paid"), Live.Civs[2].Stockpile.Energy, Before + Live.Civs[2].IncomePerTick.Energy, 0.01f);
+		TestEqual(TEXT("no completion line"), LineOf(Live, CosmicRows::ProjectBinding, Live.Tick), static_cast<int32>(INDEX_NONE));
+		TestEqual(TEXT("no binding's line"), LineOf(Live, CosmicRows::LogFallenBound, Live.Tick), static_cast<int32>(INDEX_NONE));
+		const int32 EndedTell = Live.TellRngState;
+		Sim->LoadState(Plain);
+		Sim->StepOnce();
+		TestEqual(TEXT("and no number of the tell stream: it draws as the same tick without the binding"), DrawsFrom(Sim->GetState().TellRngState, EndedTell), 0);
+	}
+
+	// (4) Two bindings completing on one tick, one fallen one: people 1 on 3 and people 2 on 6 (3 comes first in Systems order).
+	{
+		FGalaxyState Both = Twin;
+		Both.Civs[2].Tier = EAscensionTier::Tier4_Transcendent;
+		Both.Systems[6].ActiveMegaproject = CosmicRows::ProjectBinding;
+		Both.Systems[6].MegaprojectProgress = 3.f;
+		Sim->LoadState(Both);
+		FGalaxyState& Live = Sim->GetMutableState();
+		const float Before = Live.Civs[2].Stockpile.Energy;
+		Sim->StepOnce();
+		const int64 Tick = Live.Tick;
+		TestTrue(TEXT("The first in Systems order binds"), Live.Transcendents[1].bSealed && Live.Transcendents[1].SealedTick == Tick && HoldsBinding(Live.Systems[3]));
+		TestTrue(TEXT("The second ends without result in the same pass"), Live.Systems[6].ActiveMegaproject.IsNone() && Live.Systems[6].MegaprojectProgress == 0.f
+			&& !HoldsBinding(Live.Systems[6]));
+		TestEqual(TEXT("and pays nothing"), Live.Civs[2].Stockpile.Energy, Before + Live.Civs[2].IncomePerTick.Energy, 0.01f);
+		FCosmicEvalView View(Live, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules());
+		View.CivIndex = 2;
+		View.SystemIndex = 6;
+		TestFalse(TEXT("Its people holds no completion of the binding: MegaprojectComplete project_binding is false"),
+			UCosmicEventSubsystem::Check(Cond(EConditionType::MegaprojectComplete, TEXT("project_binding")), View));
+		View.CivIndex = 1;
+		View.SystemIndex = 3;
+		TestTrue(TEXT("while the maker's holds"), UCosmicEventSubsystem::Check(Cond(EConditionType::MegaprojectComplete, TEXT("project_binding")), View));
+		int32 BoundLines = 0;
+		for (const FCosmicLogEntry& Entry : Live.Log)
+		{
+			BoundLines += Entry.SourceRow == CosmicRows::LogFallenBound && Entry.Tick == Tick ? 1 : 0;
+		}
+		TestEqual(TEXT("One binding's line"), BoundLines, 1);
+	}
 	return true;
 }
 

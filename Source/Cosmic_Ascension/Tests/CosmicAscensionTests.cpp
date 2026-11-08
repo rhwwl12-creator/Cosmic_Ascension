@@ -27,6 +27,7 @@
 #include "Sim/CosmicEndings.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
+#include "Sim/CosmicSeal.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Templates/Tuple.h"
@@ -876,8 +877,9 @@ bool FCosmicStartMegaprojectTest::RunTest(const FString& Parameters)
 
 namespace CosmicAscensionTests
 {
-	// The rule of guideline 5.7 as Phase 2 wrote it (the body of CosmicMegaprojects::CanStart at 75af02b): change both
-	// together. StartBlockOf asks the same refusals in another order and must take exactly what this takes.
+	// The rule of guideline 5.7 as Phase 2 wrote it (the body of CosmicMegaprojects::CanStart at 75af02b), with the binding's
+	// refusal of B6b [B-6b2c] (no fallen one left - CosmicSeal::BindTargetOf): change both together. StartBlockOf asks the
+	// same refusals in another order and must take exactly what this takes.
 	bool ReferenceCanStart(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, int32 SystemIndex, FName RowName)
 	{
 		const FMegaprojectDef* Row = Tables.FindMegaproject(RowName);
@@ -892,6 +894,10 @@ namespace CosmicAscensionTests
 			return false;
 		}
 		if (static_cast<int32>(State.Civs[OwnerIndex].Tier) < static_cast<int32>(Row->RequiredTier))
+		{
+			return false;
+		}
+		if (RowName == CosmicRows::ProjectBinding && CosmicSeal::BindTargetOf(State, Tables) == INDEX_NONE)
 		{
 			return false;
 		}
@@ -938,8 +944,9 @@ namespace CosmicAscensionTests
 }
 
 // Why Start refuses a row (the system panel's reasons, Phase 3 item 12): one case per reason on the projects' board, the
-// order where two stand at once (the hazard before the rung, the rung before the slot), and on nine states - the board in
-// six forms and the game's galaxy at three rungs - the reason's None is exactly the Phase 2 rule (a copy of its body) and
+// order where two stand at once (the hazard before the rung, the rung before the fallen one, the fallen one before the
+// slot), and on thirteen states - the board in eight forms (two with the binding's row) and the game's galaxy at four rungs
+// and once more at rung 4 with its fallen one bound - the reason's None is exactly the Phase 2 rule (a copy of its body) and
 // CanStart. The order names the reason and decides nothing: no start of the command or of the AI moves.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicStartBlockReasonsTest, "Cosmic_Ascension.Sim.StartBlockReasons", CosmicTests::Flags)
 bool FCosmicStartBlockReasonsTest::RunTest(const FString& Parameters)
@@ -1044,7 +1051,7 @@ bool FCosmicStartBlockReasonsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("and no world"), Sim->ComputeWorldHash(), WorldHash);
 	TestEqual(TEXT("and draw nothing"), Sim->GetRng().GetCurrentSeed(), SeedBefore);
 
-	// ---- The sweep: nine states ----
+	// ---- The sweep: thirteen states ----
 	auto Swept = [&](const TCHAR* Name)
 	{
 		const FSweep Sweep = SweepStarts(Sim->GetState(), Sim->GetStateIndex(), Sim->GetTables());
@@ -1076,6 +1083,49 @@ bool FCosmicStartBlockReasonsTest::RunTest(const FString& Parameters)
 	State.Civs[0].Tier = EAscensionTier::Tier2_Stellar;
 	Swept(TEXT("the board with people 0 on the second rung"));
 
+	// ---- B6b [B-6b2c]: the binding (header 2.5) - NoFallen after the rung, before the slots ----
+	// The board's projects with the binding's row (the fourth rung) and the game's fallen row: people 0 on the fourth rung,
+	// one fallen instance. Read only, the stream untouched.
+	{
+		const FTranscendentDef* Silence = Original.FindTranscendent(CosmicRows::TransSilence);
+		if (!TestNotNull(TEXT("(the game has its fallen row)"), Silence))
+		{
+			return false;
+		}
+		FCosmicDataTables BindTables = Sim->GetTables();
+		UDataTable* Projects = ProjectRows();
+		Projects->AddRow(CosmicRows::ProjectBinding, Project(EAscensionTier::Tier4_Transcendent, 10.f, 0.f, 3.f, TEXT("binding")));
+		UDataTable* Fallen = NewTable(FTranscendentDef::StaticStruct());
+		Fallen->AddRow(CosmicRows::TransSilence, *Silence);
+		BindTables.Megaprojects = Projects;
+		BindTables.Transcendents = Fallen;
+		Sim->SetTables(BindTables);
+		const EAscensionTier WasTier = State.Civs[0].Tier;
+		const FName WasRow = State.Systems[0].ActiveMegaproject;
+		State.Systems[0].ActiveMegaproject = NAME_None;
+		CosmicTests::AddInstance(State, CosmicRows::TransSilence, {});
+		State.Civs[0].Tier = EAscensionTier::Tier4_Transcendent;
+		const int32 BindSeed = Sim->GetRng().GetCurrentSeed();
+		Is(TEXT("With a fallen one left the binding has no reason"), 0, CosmicRows::ProjectBinding, ECosmicStartBlock::None);
+		Swept(TEXT("the board with a fallen one to bind"));
+		State.Transcendents.Last().bSealed = true;
+		Is(TEXT("With none left it is NoFallen"), 0, CosmicRows::ProjectBinding, ECosmicStartBlock::NoFallen);
+		Swept(TEXT("the board with the fallen one bound"));
+		Is(TEXT("NoFallen names the binding alone: another construction has no reason"), 0, Build, ECosmicStartBlock::None);
+		State.Civs[0].Tier = EAscensionTier::Tier3_Causal;
+		Is(TEXT("Below the row's rung it is RowTier: the rung before the fallen one"), 0, CosmicRows::ProjectBinding, ECosmicStartBlock::RowTier);
+		State.Civs[0].Tier = EAscensionTier::Tier4_Transcendent;
+		State.Systems[0].ActiveMegaproject = CosmicRows::ProjectBinding;
+		Is(TEXT("A running binding with no fallen one left is NoFallen: the fallen one before the slot"), 0, CosmicRows::ProjectBinding, ECosmicStartBlock::NoFallen);
+		State.Transcendents.Last().bSealed = false;
+		Is(TEXT("and Running while one is left"), 0, CosmicRows::ProjectBinding, ECosmicStartBlock::Running);
+		TestEqual(TEXT("The binding's reasons draw nothing"), Sim->GetRng().GetCurrentSeed(), BindSeed);
+		State.Systems[0].ActiveMegaproject = WasRow;
+		State.Transcendents.Pop();
+		State.Civs[0].Tier = WasTier;
+		Sim->SetTables(Tables);
+	}
+
 	// The game's tables on the game's galaxy, some way in - the inherited edict revoked first, as a player does (B2: kept,
 	// it ends in a rebellion and a deposition before tick 2,000).
 	Sim->SetTables(Original);
@@ -1089,10 +1139,19 @@ bool FCosmicStartBlockReasonsTest::RunTest(const FString& Parameters)
 	{
 		CosmicHazards::EmptyHazardSlot(Game.Systems[Capital]);
 		PlaceByHand(Game, Capital, TEXT("Hazard.PreSupernova"), 300);
-		for (const EAscensionTier Tier : { EAscensionTier::Tier1_Planetary, EAscensionTier::Tier2_Stellar, EAscensionTier::Tier3_Causal })
+		for (const EAscensionTier Tier : { EAscensionTier::Tier1_Planetary, EAscensionTier::Tier2_Stellar, EAscensionTier::Tier3_Causal, EAscensionTier::Tier4_Transcendent })
 		{
 			Game.Civs[Ruled].Tier = Tier;
 			Swept(*FString::Printf(TEXT("the game's galaxy at rung %d"), static_cast<int32>(Tier) + 1));
+		}
+		// B6b [B-6b2c]: the game's binding row with its one fallen bound.
+		const int32 Target = CosmicSeal::BindTargetOf(Game, Sim->GetTables());
+		if (TestTrue(TEXT("(the game's galaxy has a fallen one to bind)"), Target != INDEX_NONE))
+		{
+			Game.Transcendents[Target].bSealed = true;
+			TestEqual(TEXT("On the game's galaxy at rung 4 with its fallen one bound the binding is NoFallen"),
+				static_cast<int32>(CosmicMegaprojects::StartBlockOf(Game, Sim->GetStateIndex(), Sim->GetTables(), Capital, CosmicRows::ProjectBinding)), static_cast<int32>(ECosmicStartBlock::NoFallen));
+			Swept(TEXT("the game's galaxy at rung 4 with its fallen one bound"));
 		}
 	}
 	return true;
@@ -1603,8 +1662,8 @@ bool FCosmicFeatsEvaluateTest::RunTest(const FString& Parameters)
 			LawRows->AddRow(Law, Row);
 		}
 		// The knob the count of 1001 is read against, and no brake on the fourth rung: two peoples stand on it here while an AI
-		// people of the third climbs, which the home row's AIFourthRungCap (2 in the game) would hold back once the brake is
-		// read ([B-6b2c]) - a copy of the game's galaxy rows, the home row kept, every cap 0.
+		// people of the third climbs, which the home row's AIFourthRungCap (2 in the game) holds back (the brake -
+		// CosmicAscent::FourthRungOpenOf, B6b [B-6b2c]) - a copy of the game's galaxy rows, the home row kept, every cap 0.
 		FCosmicRulesDef UpperRules = Knobs(BaseRules);
 		UpperRules.GalaxyLawsToHold = 3;
 		UDataTable* Unbraked = NewTable(FGalaxyDef::StaticStruct());
@@ -1661,6 +1720,39 @@ bool FCosmicFeatsEvaluateTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("The vessel's people waits: 49 stages of this life, not the 1001 ticks of the count"), Upper->Civs[0].Tier, EAscensionTier::Tier4_Transcendent);
 		Sim->StepOnce();
 		TestEqual(TEXT("and climbs at the fiftieth"), Upper->Civs[0].Tier, EAscensionTier::Tier5_EternalOrder);
+	}
+
+	// B6b [B-6b2c] (header 2.5, decision 12): the fifth rung reads the binding's completion record - the people that made it -,
+	// never the seal itself. Peoples 2 and 3 on the fourth rung, the one fallen instance sealed at tick 10 by people 3's binding
+	// (its record on 11): the row [MegaprojectComplete project_binding] lifts people 3 alone (mutation: the condition read as
+	// TranscendentSealed for the binding's row - people 2, judged from tick 0, would climb by people 3's work).
+	{
+		const FName FeatBound(TEXT("feat_test_bound"));
+		UDataTable* BoundFeats = NewTable(FAscensionFeatDef::StaticStruct());
+		BoundFeats->AddRow(FeatBound, FeatRow(EAscensionTier::Tier4_Transcendent, EAscensionTier::Tier5_EternalOrder,
+			{ Cond(EConditionType::MegaprojectComplete, CosmicRows::ProjectBinding) }, TEXT("bound")));
+		FCosmicDataTables BoundTables = TablesWith(Original, Knobs(BaseRules), BoundFeats);
+		UDataTable* Projects = ProjectRows();
+		Projects->AddRow(CosmicRows::ProjectBinding, Project(EAscensionTier::Tier4_Transcendent, 10.f, 0.f, 3.f, TEXT("binding")));
+		BoundTables.Megaprojects = Projects;
+		FGalaxyState* Bound = LayBoard(*Sim, BoundTables);
+		if (!TestNotNull(TEXT("The board of the binding's record is laid"), Bound))
+		{
+			return false;
+		}
+		Bound->Tick = 100;
+		Bound->Civs[2].Tier = EAscensionTier::Tier4_Transcendent;
+		Bound->Civs[3].Tier = EAscensionTier::Tier4_Transcendent;
+		FMegaprojectRecord& Made = Bound->Systems[11].CompletedMegaprojects.AddDefaulted_GetRef();
+		Made.Row = CosmicRows::ProjectBinding;
+		Made.Tick = 10;
+		Made.CivID = Bound->Civs[3].CivID;
+		FTranscendentState& Sealed = CosmicTests::AddInstance(*Bound, CosmicRows::TransSilence, {});
+		Sealed.bSealed = true;
+		Sealed.SealedTick = 10;
+		Sim->StepOnce();
+		TestEqual(TEXT("The people that made the binding climbs to the fifth rung"), Bound->Civs[3].Tier, EAscensionTier::Tier5_EternalOrder);
+		TestEqual(TEXT("Another people on the fourth rung does not climb by it: the record names its maker"), Bound->Civs[2].Tier, EAscensionTier::Tier4_Transcendent);
 	}
 	return true;
 }

@@ -1,11 +1,11 @@
 --- a/Tools/data/schema.json
 +++ b/Tools/data/schema.json
-@@ -386,7 +386,7 @@
+@@ -393,7 +393,7 @@
  					"when": [{"row": "log_death_extinction"}],
  					"then": [{"col": "Category", "is": "Log.Calling"}, {"col": "Templates", "slots_in": ["Player", "Hazard"]}, {"col": "Templates", "lacks_words": "afterlife_words"},
  						{"col": "Templates", "lacks_words": "book_of_life_words"}, {"col": "Templates", "lacks_words": "called_away_words"}, {"col": "Templates", "lacks_words": "reader_address"},
 -						{"col": "Templates", "lacks_words": "realm_names"}, {"col": "Templates", "lacks_words": "death_frame_words"}]
 +						{"col": "Templates", "lacks_words": "realm_names"}]
- 				}
- 			]
- 		},
+ 				},
+ 				{
+ 					"why": "the line of the binding is told in the actorless passive by the name of the system the work stood on alone: no people and no work is named in it - the people is never the binder (B6b header 2.5, 3.3 rule 8, decision 32; the triumph words join it in [B-6b5] - header 3.3 rule 13)",

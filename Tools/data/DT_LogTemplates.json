@@ -412,5 +412,16 @@
 			"{Player}|hpp(은,는) {Hazard}|hpp(이,가) 끝날 무렵 쓰러졌다. {Hazard}|hpp(을,를) 겪은 땅의 마을들이 모두 비었다.",
 			"{Hazard}의 끝에서 {Player}|hpp(이,가) 쓰러졌다. {Player}|hpp(이,가) 다스리던 땅은 오래도록 조용했다."
 		]
+	},
+	{
+		"Name": "log_fallen_bound",
+		"Category": "Log.Civ",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{System}의 하늘에 드리우던 먼 그늘이 묶였다.",
+			"그늘이 묶였다. {System}에서도 보이던 그 그늘은 더는 넓어지지 않는다.",
+			"{System}에서 보이던 그늘이 묶였다. 그 그늘이 쥐었던 곳은 그대로 남았다."
+		]
 	}
 ]

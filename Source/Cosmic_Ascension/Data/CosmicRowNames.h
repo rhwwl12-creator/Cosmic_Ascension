@@ -26,6 +26,12 @@ namespace CosmicRows
 	// DT_Megaprojects: settling. A system whose ActiveMegaproject is this row is owned but not yet settled (section 5.7).
 	inline const FName ProjectSettle(TEXT("project_settle"));
 
+	// DT_Megaprojects: the binding (B6b header 2.5, 3.1, decision 12) - a construction row of the fourth rung that no hazard
+	// row lists as an answer. The start asks for a fallen one left to bind (CosmicMegaprojects::StartBlockOf - NoFallen),
+	// its construction slot asks again on every tick before it pays, and its completion seals that one
+	// (CosmicSeal::Bind). The fourth rung's feat reads its completion record (MegaprojectComplete), never the seal itself.
+	inline const FName ProjectBinding(TEXT("project_binding"));
+
 	// DT_Events: the book is found. The research stage fires it at every Society breakthrough; the row's conditions
 	// pick the people whose book is shut (section 5.11).
 	inline const FName EventBookFound(TEXT("event_book_found"));
@@ -94,6 +100,12 @@ namespace CosmicRows
 	// extinction's expiry (CosmicHazards::LetPeopleGo) - the third loss, told in the same place, {System} the system the
 	// extinction stood on.
 	inline const FName LogRecordExtinct(TEXT("log_record_extinct"));
+
+	// DT_LogTemplates: B6b [B-6b2c] (header section 2.5, 3.1, decision 32). The line of the binding: right after the completion
+	// line of project_binding, in the crisis stage's step (a) - the actorless passive about the shadow that was bound, {System}
+	// alone (the system the work stood on), no people and no work named; the same focus and Severity as the completion line,
+	// one tell number, nothing of the world.
+	inline const FName LogFallenBound(TEXT("log_fallen_bound"));
 
 	// DT_LogTemplates: B5 [B-5d1] (header section 2.2, 3.3, decision 12-da). The tenth stage's lines of the calling - Log.Calling,
 	// Severity 2, the narrator's, in the third person by the vessel's name ({Player} is passed in: CosmicChronicle::VesselNameOf).

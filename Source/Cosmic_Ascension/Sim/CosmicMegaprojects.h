@@ -79,9 +79,11 @@ namespace CosmicMegaprojects
 
 	// Why Start refuses a row on a system, in the order StartBlockOf asks (the system panel shows it - section 5.7, 6.3):
 	// first the row (none, the settle row), then the system (none, dead, not settled, no living owner), then - for an
-	// answer - whether it answers the hazard standing there (none, another), then the people (the row's Tier), last the
-	// slot (this answer runs, another answer runs, this construction runs). A construction slot that holds another row is
-	// no reason (Start replaces that row, section 5.7), and neither is the cost (a tick that cannot pay waits).
+	// answer - whether it answers the hazard standing there (none, another), then the people (the row's Tier), then - for
+	// the binding (B6b) - whether a fallen one is left to bind, last the slot (this answer runs, another answer runs, this
+	// construction runs). A construction slot that holds another row is no reason (Start replaces that row, section 5.7),
+	// and neither is the cost (a tick that cannot pay waits). Never saved and never compared by its order: the order of
+	// the enumerators is the order StartBlockOf asks, and the panel's two key tables follow it (static_assert).
 	enum class ECosmicStartBlock : uint8
 	{
 		None,
@@ -103,6 +105,10 @@ namespace CosmicMegaprojects
 		OtherHazard,
 		// The owner's Tier is below the row's RequiredTier.
 		RowTier,
+		// project_binding (CosmicRows::ProjectBinding), and no fallen one is left to bind (CosmicSeal::BindTargetOf -
+		// B6b header 2.5): the first binding of a run closes it for every people (one below the row's rung reads RowTier
+		// first).
+		NoFallen,
 		// An answer, and the response slot holds this row already.
 		Answering,
 		// An answer, and the response slot holds another row.
@@ -126,7 +132,8 @@ namespace CosmicMegaprojects
 	 * Whether Start would take RowName on SystemIndex now (section 5.7): StartBlockOf says None - one rule for the ruler's
 	 * command, the AI's choices and the panel's project buttons. That is: the row exists and is not project_settle (a
 	 * settlement starts through Settle alone), the system is a settled system of a living people whose Tier is at least the
-	 * row's RequiredTier, and then - for an answer (FCosmicDataTables::IsHazardAnswer) - the row of the system's hazard
+	 * row's RequiredTier, for project_binding a fallen one is left to bind (CosmicSeal::BindTargetOf - B6b), and then - for an
+	 * answer (FCosmicDataTables::IsHazardAnswer) - the row of the system's hazard
 	 * lists it and the response slot is empty, or - for any other row - the construction slot does not hold that row.
 	 */
 	COSMIC_ASCENSION_API bool CanStart(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, int32 SystemIndex, FName RowName);
@@ -248,13 +255,20 @@ namespace CosmicMegaprojects
 	 * settlement (project_settle) is paid, progresses and completes as every construction row does; it needs its row like
 	 * them, but a settlement whose row the table does not hold stays in its slot (the system does not become settled for
 	 * want of a row). Any other slot whose row the table does not hold, and a response the row of the system's hazard no
-	 * longer lists, ends without result. Otherwise the slot is paid in full from the owner's stockpile and progresses by 1
-	 * (by AIRate for a people the player does not rule), or costs and progresses nothing. A slot whose progress reaches
+	 * longer lists, ends without result. So does a construction slot of project_binding when no fallen one is left to bind
+	 * (CosmicSeal::BindTargetOf, asked on every call before it pays - another binding earlier in the same pass may just
+	 * have bound the target; B6b header 2.5): the slot empties, its progress goes to 0 and nothing is paid, recorded or
+	 * told. Otherwise the slot is paid in full from the owner's stockpile and progresses by 1 (by AIRate for a people the
+	 * player does not rule), or costs and progresses nothing. In the construction slot alone, a row whose RequiredTier is
+	 * the third rung or above progresses for a people the player does not rule by AIRate x DT_Rules.AIUpperRungProgressMultiplier
+	 * (the delay above the third rung, B6b header 2.6 - not above 0, or not a number: 1, with one error line for each slot
+	 * that reads it); a response (an ark answering an extinction) is never delayed. A slot whose progress reaches
 	 * RequiredProgressOf(row) completes (on the first paid tick on which the float sum reaches it, which for a rate not
 	 * exact in binary can be one tick after Required / rate): the record of the row moves to this tick
 	 * (CompletedMegaprojects, MegaprojectCompletedTick), the slot empties, the open life of the vessel takes the row when
 	 * the people is the one the vessel rules, and the hazard of the system is resolved when its row lists the project
-	 * (CosmicHazards::Resolve - a HazardResolved note in Ctx). Returns the completed row, or NAME_None, for the caller's
+	 * (CosmicHazards::Resolve - a HazardResolved note in Ctx); a completed binding then seals the target it asked for
+	 * (CosmicSeal::Bind - bSealed and SealedTick in one place). Returns the completed row, or NAME_None, for the caller's
 	 * line.
 	 */
 	COSMIC_ASCENSION_API FName Advance(FCosmicEvalContext& Ctx, int32 SystemIndex, ECosmicProjectSlot Slot, float AIRate);

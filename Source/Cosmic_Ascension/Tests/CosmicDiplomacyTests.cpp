@@ -35,6 +35,8 @@
 #include "World/CosmicAutoPause.h"
 #include "World/CosmicRulerPolicy.h"
 
+#include <limits>
+
 namespace CosmicDiplomacyTests
 {
 	using CosmicConflict::ECosmicGuardBlock;
@@ -1401,7 +1403,10 @@ bool FCosmicSimSiegeTest::RunTest(const FString& Parameters)
 }
 
 // The fleet's delay (header section 2.7 (1)): a hazard placed on a guarded system gains FleetDelayPerPower x the effective
-// power within the cap; a rebellion never; a standing hazard never; a claim by the gap to its claimant.
+// power within the cap; a rebellion never; a standing hazard never; a claim by the gap to its claimant. B6b [B-6b2c] (B6b
+// header 2.10, #132): the cap is the row's own, CosmicConflict::GuardDelayCapOf - FleetDelayCap at the share's 0 (the values
+// above), the share of the row's countdown below it once the share is set (mutations: FleetDelayOf without the row's cap;
+// GuardDelayCapOf without FleetDelayCap - the share's product alone).
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimFleetDelayTest, "Cosmic_Ascension.Sim.FleetDelay", CosmicTests::Flags)
 bool FCosmicSimFleetDelayTest::RunTest(const FString& Parameters)
 {
@@ -1464,6 +1469,43 @@ bool FCosmicSimFleetDelayTest::RunTest(const FString& Parameters)
 		Sim->SetTables(CosmicTests::WithRules(Kept, Below));
 		TestEqual(TEXT("A knob below 0 puts nothing off and takes nothing away"), PlaceOn(1, Sick), 200);
 		Sim->SetTables(Kept);
+	}
+	// B6b [B-6b2c]: the row's cap. Fleet 3 guards system 1 (150 ticks before any cap); the plague row counts 200.
+	{
+		FCivilizationState& Guard = State->Civs[0];
+		Guard.FleetPower = 3.f;
+		Guard.FleetTargetSystemID = IDOf(*State, 1);
+		const FCosmicRulesDef Game = Sim->GetRules();
+		TestEqual(TEXT("(the knob is off in the game's rules: no share)"), Game.FleetDelayCountdownShare, 0.f);
+		TestEqual(TEXT("At the share's 0 the row's cap is FleetDelayCap"), CosmicConflict::GuardDelayCapOf(Game, 200), 100);
+		TestEqual(TEXT("and the delay of fleet 3 the cap of 100, as before"), PlaceOn(1, Sick), 300);
+		const FCosmicDataTables Kept = Sim->GetTables();
+		auto WithShare = [&](float Share)
+		{
+			FCosmicRulesDef Rules = Kept.FindRules() ? *Kept.FindRules() : Game;
+			Rules.FleetDelayCountdownShare = Share;
+			Sim->SetTables(CosmicTests::WithRules(Kept, Rules));
+			return Rules;
+		};
+		const FCosmicRulesDef Quarter = WithShare(0.25f);
+		TestEqual(TEXT("A share of 0.25 caps the plague's 200 at 50"), CosmicConflict::GuardDelayCapOf(Quarter, 200), 50);
+		TestEqual(TEXT("so fleet 3 adds 50, not 100"), PlaceOn(1, Sick), 250);
+		const FCosmicRulesDef Half = WithShare(0.5f);
+		TestEqual(TEXT("A share of 0.5 of 150 (the awakening's countdown) is 75"), CosmicConflict::GuardDelayCapOf(Half, 150), 75);
+		TestEqual(TEXT("and of 300 (the claim's countdown), 150 - FleetDelayCap stays the bound: 100"), CosmicConflict::GuardDelayCapOf(Half, 300), 100);
+		TestEqual(TEXT("A share of 0.5 leaves the plague's 300 as it was"), PlaceOn(1, Sick), 300);
+		const FCosmicRulesDef NotANumber = WithShare(std::numeric_limits<float>::quiet_NaN());
+		TestEqual(TEXT("A share that is not a number is no share"), CosmicConflict::GuardDelayCapOf(NotANumber, 150), 100);
+		const FCosmicRulesDef Below = WithShare(-0.5f);
+		TestEqual(TEXT("nor is one below 0"), CosmicConflict::GuardDelayCapOf(Below, 150), 100);
+		const FCosmicRulesDef Full = WithShare(1.f);
+		TestEqual(TEXT("A share of 1 of 200 is still FleetDelayCap's 100"), CosmicConflict::GuardDelayCapOf(Full, 200), 100);
+		const FHazardDef* EndlessRow = Sim->GetTables().FindHazard(Endless);
+		TestEqual(TEXT("and of a countdown near the int32 limit, 100: the cap keeps the product in range"),
+			EndlessRow ? CosmicConflict::GuardDelayCapOf(Full, EndlessRow->CountdownTicks) : static_cast<int32>(INDEX_NONE), 100);
+		TestEqual(TEXT("A countdown of 0 caps nothing under a share"), CosmicConflict::GuardDelayCapOf(Half, 0), 0);
+		Sim->SetTables(Kept);
+		Guard.FleetPower = 1.f;
 	}
 	return true;
 }

@@ -1,0 +1,14 @@
+diff --git a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+@@ -484,6 +484,10 @@
+ 	}
+ 
+ 	case EConditionType::MegaprojectComplete:
++		if (Condition.Key == CosmicRows::ProjectBinding)
++		{
++			return State.Transcendents.ContainsByPredicate([&View](const FTranscendentState& Each) { return Each.bSealed && Each.SealedTick >= View.SinceTick; });
++		}
+ 		// The record of the Key's row on the subject system, since the life the judgment counts from (section 4.4, 5.7).
+ 		// By the context people only (#73, B3 section 2.10): another people's completion is not this people's work.
+ 		return System && CosmicMegaprojects::HasCompleted(*System, Condition.Key, View.SinceTick, Civ ? Civ->CivID : NAME_None);

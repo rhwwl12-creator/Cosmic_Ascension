@@ -1,6 +1,6 @@
 # CONFIG REFERENCE — DT_Rules 노브 표 (생성 문서)
 
-> `python -I Tools/make_config_reference.py`가 `Tools/data/DT_Rules.json`·`schema.json`·`Source/`에서 만든다. **손으로 고치지 않는다** — 값은 JSON에서, 규칙은 schema에서, 읽는 곳은 코드에서 바뀐다. 노브 98개 가운데 런타임이 읽는 것 89개, 예약 9개(읽는 코드가 올 Phase에서 산다 — `docs/40_DEV_GUIDE.md` §4). 밸런스 상수 가운데 아직 코드에 박힌 것(별 등급의 에너지 `StarClassEnergy` — `Sim/GalaxySimulationSubsystem.cpp`의 `namespace Economy`, 단계 5까지)은 이 표에 없다 — 경제·연구의 나머지 계수는 MVP ⑧부터 이 표의 노브다.
+> `python -I Tools/make_config_reference.py`가 `Tools/data/DT_Rules.json`·`schema.json`·`Source/`에서 만든다. **손으로 고치지 않는다** — 값은 JSON에서, 규칙은 schema에서, 읽는 곳은 코드에서 바뀐다. 노브 100개 가운데 런타임이 읽는 것 91개, 예약 9개(읽는 코드가 올 Phase에서 산다 — `docs/40_DEV_GUIDE.md` §4). 밸런스 상수 가운데 아직 코드에 박힌 것(별 등급의 에너지 `StarClassEnergy` — `Sim/GalaxySimulationSubsystem.cpp`의 `namespace Economy`, 단계 5까지)은 이 표에 없다 — 경제·연구의 나머지 계수는 MVP ⑧부터 이 표의 노브다.
 
 | 노브 | 값 | 종류 | 스키마 규칙 | 읽는 코드(테스트 제외) | 상태 |
 |---|---|---|---|---|---|
@@ -17,6 +17,7 @@
 | `SuccessionMinHazardTicks` | `300` | number | `{"min": 0, "integer": true}` | Sim/CosmicSuccession.cpp | 읽힘 |
 | `ReverenceDecay` | `0.5` | number | `{"min": 0, "max": 1}` | Player/PlayerRoleSubsystem.cpp | 읽힘 |
 | `AIAscensionSpeedMultiplier` | `1.0` | number |  | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
+| `AIUpperRungProgressMultiplier` | `1.0` | number |  | Sim/CosmicMegaprojects.cpp | 읽힘 |
 | `PostRebellionStability` | `0.15` | number |  | Player/PlayerRoleSubsystem.cpp | 읽힘 |
 | `ThroneLockTicks` | `600` | number | `{"integer": true}` | Player/PlayerRoleSubsystem.cpp, UI/CosmicSystemPanelWidget.cpp | 읽힘 |
 | `PressureBySourceTier` | `[0.0, 0.0, 0.25, 1.0, 2.0]` | numbers | `{"len": 5, "min": 0}` | Sim/CosmicHazards.cpp, Sim/GalaxySimulationSubsystem.cpp, World/CosmicMapLook.cpp | 읽힘 |
@@ -26,6 +27,7 @@
 | `FleetEffectivenessByTierGap` | `[1.0, 0.5, 0.0]` | numbers | `{"len": 3}` | Sim/CosmicConflict.cpp | 읽힘 |
 | `FleetDelayPerPower` | `50.0` | number | `{"min": 0}` | Sim/CosmicConflict.cpp | 읽힘 |
 | `FleetDelayCap` | `100.0` | number | `{"min": 0}` | Sim/CosmicConflict.cpp | 읽힘 |
+| `FleetDelayCountdownShare` | `0.0` | number | `{"min": 0, "max": 1}` | Sim/CosmicConflict.cpp | 읽힘 |
 | `ImmutableLaws` | `"(GameplayTags=((TagName=\"Law.Judgment\"),(TagName=\"Law.Sabbath\"…` | tags | `{"root": "Law."}` | — | 예약 |
 | `FallenTranscendentCount` | `1` | number | `{"min": 0, "max": 3, "integer": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `PlayerArchetypeRow` | `"arch_seeker"` | row | `{"table": "DT_Civs"}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |

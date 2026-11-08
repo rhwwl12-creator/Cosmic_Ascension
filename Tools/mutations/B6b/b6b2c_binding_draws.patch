@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+@@ -690,6 +690,7 @@
+ 					if (bBinding)
+ 					{
+ 						CosmicSeal::Bind(State, BindTarget, State.Tick);
++						Ctx.Stream.GetFraction();
+ 					}
+ 				}
+ 			}

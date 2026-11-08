@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+@@ -712,7 +712,7 @@
+ 			}
+ 			else if (PayInFull(State.Civs[OwnerIndex].Stockpile, *Row))
+ 			{
+-				System.ResponseProgress += Rate;
++				System.ResponseProgress += (!State.Civs[OwnerIndex].bIsPlayerRuled && static_cast<int32>(Row->RequiredTier) >= static_cast<int32>(EAscensionTier::Tier3_Causal)) ? Rate * UpperRungMultiplierOf(Ctx.Rules) : Rate;
+ 				if (System.ResponseProgress >= CosmicMegaprojects::RequiredProgressOf(*Row))
+ 				{
+ 					System.ResponseMegaproject = NAME_None;

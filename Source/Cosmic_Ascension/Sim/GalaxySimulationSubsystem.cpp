@@ -2848,6 +2848,15 @@ void UGalaxySimulationSubsystem::AdvanceMegaprojects()
 				Args.Add(TEXT("System"), State.Systems[SystemIndex].DisplayName);
 				Args.Add(TEXT("Project"), Row->DisplayName);
 				Log->PushVariants(Line, Row->CompleteTemplates, Args);
+				// The binding's line right after it (B6b header 2.5, decision 32): a completed project_binding has sealed its
+				// target in Advance. The actorless passive, {System} alone - the people is never the binder -, the same focus
+				// and Severity as the completion line; one tell number, nothing of the world.
+				if (RowName == CosmicRows::ProjectBinding)
+				{
+					FFormatNamedArguments BoundArgs;
+					BoundArgs.Add(TEXT("System"), State.Systems[SystemIndex].DisplayName);
+					Log->PushRow(CosmicRows::LogFallenBound, Line.Severity, BoundArgs, Line.FocusSystem, Line.FocusCiv);
+				}
 			}
 			// What the completion did (a resolution), told after it: a cause comes before what follows from it.
 			Events->FollowUpNotes(Ctx);

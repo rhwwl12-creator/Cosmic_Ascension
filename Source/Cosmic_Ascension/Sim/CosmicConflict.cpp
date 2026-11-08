@@ -389,7 +389,23 @@ int32 CosmicConflict::FleetDelayOf(const FGalaxyState& State, const FCosmicState
 		const FTranscendentDef* Def = State.Transcendents.IsValidIndex(Claimant) ? Tables.FindTranscendent(State.Transcendents[Claimant].TranscendentID) : nullptr;
 		Gap = Def ? CosmicConflictImpl::TierGap(Def->Tier, Owner.Tier) : 0;
 	}
-	return GuardDelayTicksOf(Owner, Gap, Rules);
+	// The row's own bound (B6b header 2.10): at the share's 0 it is FleetDelayCap, which GuardDelayTicksOf keeps already.
+	const int32 Delay = GuardDelayTicksOf(Owner, Gap, Rules);
+	const int32 RowCap = GuardDelayCapOf(Rules, Row.CountdownTicks);
+	return Delay < RowCap ? Delay : RowCap;
+}
+
+int32 CosmicConflict::GuardDelayCapOf(const FCosmicRulesDef& Rules, int32 CountdownTicks)
+{
+	const float Cap = FMath::Min(CosmicConflictImpl::FactorOr(Rules.FleetDelayCap, 0.f), 100000.f);
+	const float Share = Rules.FleetDelayCountdownShare;
+	// A compare, so a share that is not a number is no share.
+	if (!(Share > 0.f))
+	{
+		return static_cast<int32>(Cap);
+	}
+	const float ByCountdown = Share * static_cast<float>(CountdownTicks > 0 ? CountdownTicks : 0);
+	return static_cast<int32>(ByCountdown < Cap ? ByCountdown : Cap);
 }
 
 int32 CosmicConflict::GuardDelayTicksOf(const FCivilizationState& Owner, int32 Gap, const FCosmicRulesDef& Rules)

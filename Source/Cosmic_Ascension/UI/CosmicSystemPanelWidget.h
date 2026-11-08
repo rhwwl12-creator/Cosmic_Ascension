@@ -77,9 +77,10 @@ namespace CosmicSlotWatch
  * no number; a block apart, so that the words never cover the people's band) - then, for the people the player rules,
  * the commands. On its settled system one button per project row that belongs there, in lexical order: enabled when
  * CosmicMegaprojects::StartBlockOf says None, greyed out with a short reason after its name and the reason first in its
- * tooltip when the row's rung, this answer running already, another answer in the response slot or this construction
- * running already stands in the way (StartReasonOf); a row that does not belong there (an answer to no hazard standing
- * there, project_settle, ...) has no button. On every living known system that is not the people's a settle button -
+ * tooltip when the row's rung, no fallen one left to bind (B6b), this answer running already, another answer in the
+ * response slot or this construction running already stands in the way (StartReasonOf); a row that does not belong there
+ * (an answer to no hazard standing there, project_settle, a construction more than one rung above the people - B6b ...)
+ * has no button. On every living known system that is not the people's a settle button -
  * greyed out, with the reason first in its tooltip and as a line under it, when CosmicMegaprojects::SettleBlockOf
  * refuses (where another people lives, Settle.Block.Owned names no people, whether the viewer is shown it or not; on the
  * sanctuary, Settle.Block.Sanctuary).

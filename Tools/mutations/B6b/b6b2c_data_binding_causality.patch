@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_Megaprojects.json b/Tools/data/DT_Megaprojects.json
+--- a/Tools/data/DT_Megaprojects.json
++++ b/Tools/data/DT_Megaprojects.json
+@@ -63,7 +63,7 @@
+ 		"Name": "project_binding",
+ 		"DisplayName": "공명 기관",
+ 		"RequiredTier": "Tier4_Transcendent",
+-		"CostPerTick": {"Energy": 4.0, "Matter": 4.0, "Insight": 0.0, "Influence": 0.0, "Causality": 0.0},
++		"CostPerTick": {"Energy": 4.0, "Matter": 4.0, "Insight": 0.0, "Influence": 0.0, "Causality": 1.0},
+ 		"RequiredProgress": 1800.0,
+ 		"CompleteTemplates": [
+ 			"{Civ}|hpp(이,가) {System}에서 {Project}|hpp(을,를) 다 지었다.",

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicAscent.cpp b/Source/Cosmic_Ascension/Sim/CosmicAscent.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicAscent.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicAscent.cpp
+@@ -17,7 +17,7 @@
+ 	int32 Count = 0;
+ 	for (const FCivilizationState& Civ : State.Civs)
+ 	{
+-		Count += (Civ.GalaxyRow == GalaxyRow && static_cast<int32>(Civ.Tier) >= static_cast<int32>(EAscensionTier::Tier4_Transcendent)) ? 1 : 0;
++		Count += (!Civ.bIsPlayerRuled && Civ.GalaxyRow == GalaxyRow && static_cast<int32>(Civ.Tier) >= static_cast<int32>(EAscensionTier::Tier4_Transcendent)) ? 1 : 0;
+ 	}
+ 	for (const FTransitRecord& Transit : State.Transits)
+ 	{

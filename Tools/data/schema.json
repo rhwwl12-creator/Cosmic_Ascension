@@ -11,6 +11,7 @@
 		"Row tests (closed list): is, in, gt, ge, lt, le, set, min_len, max_len, each_contains, lacks_type, has_type, has_cond, lacks_cond, slots_in, len_ge_col, pairs_ge_col, ge_col, contains_all, contains_none, zero, lacks_words, no_digits, rows_of",
 		"A row rule is 'when -> then' over tests: one column with one test of the list above, 'row' with a row name, 'row_not' with a row name (every other row - B3), 'row_prefix' with one of the table's prefixes (the rows of one kind - B1), or 'none' with a list of tests over the columns of one list of structs (no entry of the list holds every one of them - B4: one choice read as a whole). Each test can be asked of some kinds of column only (the checker holds the table).",
 		"What a condition or an effect says of its Tag, its Key and its Value is a closed list in the checker too. A Tag may refuse the tag of the rows of a table that hold tests ('not_tag_of': table, tag column, when) and the tags a condition of the named enumerators reads in any row of any table ('not_read_by') - B4: DelayHazard.",
+		"A member of a resource pool (kind pool) is named in a rule as 'Pool.Member' - a member of words.resource, read as a number (B6b [B-6b2c]: a project asks no Causality).",
 		"A column of a list of structs (kind structs) is named in a rule as 'List.Column': the test holds when it holds for every entry of the list, and so for an empty list. The tests that name other columns of the row (len_ge_col, pairs_ge_col, ge_col) are not asked of such a column.",
 		"A rule added here needs an input that breaks it in Tools/test_data_schema.py: that test walks every rule, unique, pair, target and slot list of this file.",
 		"A number range stands here only where the guideline states one. A column without a range is checked for being a finite number.",
@@ -139,6 +140,7 @@
 				"SuccessionMinHazardTicks": {"kind": "number", "min": 0, "integer": true},
 				"ReverenceDecay": {"kind": "number", "min": 0, "max": 1},
 				"AIAscensionSpeedMultiplier": {"kind": "number"},
+				"AIUpperRungProgressMultiplier": {"kind": "number"},
 				"PostRebellionStability": {"kind": "number"},
 				"ThroneLockTicks": {"kind": "number", "integer": true},
 				"PressureBySourceTier": {"kind": "numbers", "len": 5, "min": 0},
@@ -148,6 +150,7 @@
 				"FleetEffectivenessByTierGap": {"kind": "numbers", "len": 3},
 				"FleetDelayPerPower": {"kind": "number", "min": 0},
 				"FleetDelayCap": {"kind": "number", "min": 0},
+				"FleetDelayCountdownShare": {"kind": "number", "min": 0, "max": 1},
 				"ImmutableLaws": {"kind": "tags", "root": "Law."},
 				"FallenTranscendentCount": {"kind": "number", "min": 0, "max": 3, "integer": true},
 				"PlayerArchetypeRow": {"kind": "row", "table": "DT_Civs"},
@@ -245,6 +248,10 @@
 					"then": [{"col": "AIAscensionSpeedMultiplier", "gt": 0}]
 				},
 				{
+					"why": "the delay above the third rung multiplies the progress of an AI people's construction of the third rung or above: at 0 or below it would never progress, so the code reads it as 1 with an error line (B6b header 2.6, 3.4, decision 17)",
+					"then": [{"col": "AIUpperRungProgressMultiplier", "gt": 0}]
+				},
+				{
 					"why": "the first life is born into the first life's row, arch_seeker (guideline 5.10)",
 					"then": [{"col": "PlayerArchetypeRow", "is": "arch_seeker"}]
 				},
@@ -306,7 +313,7 @@
 			"struct": "LogTemplateDef",
 			"prefixes": ["log_"],
 			"must_exist": true,
-			"required_rows": ["log_first_life", "log_breakthrough_physics", "log_breakthrough_society", "log_breakthrough_engineering", "log_breakthrough_transcendence", "log_fallen_monarch", "log_first_contact", "log_contact", "log_far_event", "log_far_ascent", "log_scan_wild", "log_crowned", "log_returned", "log_throne_vacated", "log_rebellion_unseated", "log_edict_enacted", "log_edict_revoked", "log_edict_lapsed", "log_stance_changed", "log_stance_lapsed", "log_treaty_signed", "log_treaty_broken", "log_siege_begun", "log_siege_on_us", "log_siege_taken", "log_siege_lost", "log_siege_held", "log_siege_failed", "log_siege_lifted", "log_sign_claim", "log_fleet_worn", "log_death_hazard", "log_inauguration", "log_record_destroyed", "log_record_annexed", "log_inauguration_unnamed", "log_record_extinct", "log_death_extinction"],
+			"required_rows": ["log_first_life", "log_breakthrough_physics", "log_breakthrough_society", "log_breakthrough_engineering", "log_breakthrough_transcendence", "log_fallen_monarch", "log_first_contact", "log_contact", "log_far_event", "log_far_ascent", "log_scan_wild", "log_crowned", "log_returned", "log_throne_vacated", "log_rebellion_unseated", "log_edict_enacted", "log_edict_revoked", "log_edict_lapsed", "log_stance_changed", "log_stance_lapsed", "log_treaty_signed", "log_treaty_broken", "log_siege_begun", "log_siege_on_us", "log_siege_taken", "log_siege_lost", "log_siege_held", "log_siege_failed", "log_siege_lifted", "log_sign_claim", "log_fleet_worn", "log_death_hazard", "log_inauguration", "log_record_destroyed", "log_record_annexed", "log_inauguration_unnamed", "log_record_extinct", "log_death_extinction", "log_fallen_bound"],
 			"columns": {
 				"Category": {"kind": "tag", "root": "Log."},
 				"Context": {"kind": "tag", "root": "Revelation.", "optional": true},
@@ -387,6 +394,11 @@
 					"then": [{"col": "Category", "is": "Log.Calling"}, {"col": "Templates", "slots_in": ["Player", "Hazard"]}, {"col": "Templates", "lacks_words": "afterlife_words"},
 						{"col": "Templates", "lacks_words": "book_of_life_words"}, {"col": "Templates", "lacks_words": "called_away_words"}, {"col": "Templates", "lacks_words": "reader_address"},
 						{"col": "Templates", "lacks_words": "realm_names"}, {"col": "Templates", "lacks_words": "death_frame_words"}]
+				},
+				{
+					"why": "the line of the binding is told in the actorless passive by the name of the system the work stood on alone: no people and no work is named in it - the people is never the binder (B6b header 2.5, 3.3 rule 8, decision 32; the triumph words join it in [B-6b5] - header 3.3 rule 13)",
+					"when": [{"row": "log_fallen_bound"}],
+					"then": [{"col": "Templates", "slots_in": ["System"]}]
 				}
 			]
 		},
@@ -781,7 +793,7 @@
 		"DT_Megaprojects": {
 			"struct": "MegaprojectDef",
 			"prefixes": ["project_"],
-			"required_rows": ["project_settle"],
+			"required_rows": ["project_settle", "project_binding"],
 			"must_exist": true,
 			"columns": {
 				"DisplayName": {"kind": "text", "required": true, "slots": [], "forbidden": "verdict"},
@@ -789,7 +801,13 @@
 				"CostPerTick": {"kind": "pool", "min": 0},
 				"RequiredProgress": {"kind": "number", "min": 1},
 				"CompleteTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "System", "Project"], "forbidden": ["verdict", "rescue_words"]}
-			}
+			},
+			"rules": [
+				{
+					"why": "a project asks no Causality: no people earns any (its income is 0 - guideline 16 #90), so a project that asks it would never be paid and its slot would stand for good (B6b header 3.3 rule 7)",
+					"then": [{"col": "CostPerTick.Causality", "is": 0}]
+				}
+			]
 		},
 		"DT_Feats": {
 			"struct": "AscensionFeatDef",

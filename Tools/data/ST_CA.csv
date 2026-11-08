@@ -445,3 +445,5 @@ Key,SourceString
 "Chronicle.Note.NoVessel","그릇이 없던 동안의 일이다."
 "Panel.ClaimMayFollow","이 위기가 해결되지 않은 채 만료하면 이 성계에 주장이 설 수 있다."
 "Panel.RebellionWatch","안정도가 {0} 아래에 머문 지 {1}주기째 — 반란은 머문 지 {2}주기째부터 설 수 있다."
+"Start.Block.NoFallen","이 판에서는 더 지을 수 없다."
+"Start.Suffix.NoFallen","(더 지을 수 없음)"
