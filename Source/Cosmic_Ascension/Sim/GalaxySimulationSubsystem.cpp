@@ -1687,6 +1687,8 @@ void UGalaxySimulationSubsystem::TickEconomy()
 	}
 	// By index into Civs: a settled system of the civilization lies inside a fallen sphere this tick.
 	TBitArray<> InFallenSphere(false, State.Civs.Num());
+	// By index into Civs: the drain took Stability this tick while the capital lay in none of those spheres (B6b, #156).
+	TBitArray<> EnduredPressure(false, State.Civs.Num());
 
 	// The context of the per-tick sources: the only place where MultiplyIncome applies (section 5.8).
 	FCosmicEvalContext Sources = MakeEvalContext();
@@ -1832,6 +1834,14 @@ void UGalaxySimulationSubsystem::TickEconomy()
 		if (Loss > 0.f)
 		{
 			Civ.Stability = FMath::Max(0.f, Civ.Stability - Loss);
+			// Endured, not subjected: the capital stands outside every fallen sphere this stage counts (B6b header section 2.7).
+			const int32 HomeIndex = StateIndex.FindSystem(State, Civ.HomeSystemID);
+			bool bHomeInside = false;
+			for (int32 TranscendentIndex = 0; TranscendentIndex < TranscendentCount && !bHomeInside; ++TranscendentIndex)
+			{
+				bHomeInside = FallenPresser[TranscendentIndex] && InSphere[TranscendentIndex].IsValidIndex(HomeIndex) && InSphere[TranscendentIndex][HomeIndex];
+			}
+			EnduredPressure[CivIndex] = !bHomeInside;
 		}
 		for (int32 TranscendentIndex = 0; TranscendentIndex < TranscendentCount; ++TranscendentIndex)
 		{
@@ -1880,12 +1890,14 @@ void UGalaxySimulationSubsystem::TickEconomy()
 
 	// Counted last, over the Stability every civilization has at the end of this stage (section 7.4), and over the
 	// sphere membership of its start (section 5.11). The threshold is the one the rebellion watch shows
-	// (CosmicHazards::LowStabilityThreshold).
+	// (CosmicHazards::LowStabilityThreshold). The endured pressure is counted for every people too (B6b header section 2.7):
+	// a tick of drain with the capital outside the fallen spheres adds one, any other tick starts it over.
 	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
 	{
 		FCivilizationState& Civ = State.Civs[CivIndex];
 		Civ.LowStabilityTicks = (Civ.Stability < CosmicHazards::LowStabilityThreshold) ? Civ.LowStabilityTicks + 1 : 0;
 		Civ.FallenSphereTicks = InFallenSphere[CivIndex] ? Civ.FallenSphereTicks + 1 : 0;
+		Civ.PressureEnduredTicks = EnduredPressure[CivIndex] ? Civ.PressureEnduredTicks + 1 : 0;
 	}
 }
 

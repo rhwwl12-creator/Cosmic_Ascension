@@ -351,6 +351,8 @@ void CosmicHazards::MoveCapital(FGalaxyState& State, const FCosmicStateIndex& In
 	}
 	Civ.HomeSystemID = NewHome;
 	Civ.Stability = FMath::Max(0.f, Civ.Stability - CapitalLossStability);
+	// The endured pressure is endured without the loss of the capital (B6b header section 2.7, #156): it starts over here.
+	Civ.PressureEnduredTicks = 0;
 }
 
 void CosmicHazards::Destroy(FCosmicEvalContext& Ctx, int32 SystemIndex)

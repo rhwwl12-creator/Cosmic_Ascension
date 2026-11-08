@@ -16,6 +16,7 @@
 #include "Internationalization/Text.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
+#include "Sim/CosmicHazards.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
 #include "UObject/NameTypes.h"
@@ -340,6 +341,138 @@ bool FCosmicFallenSphereTicksTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Another people's system inside does not count for this one"), Count(0), 0);
 	TestEqual(TEXT("It counts for the people that holds it"), Count(1), 1);
 	TestEqual(TEXT("A third people without a system inside still counts nothing"), Count(2), 0);
+
+	Sim->SetTables(Original);
+	Sim->NewGalaxy(42, 5, 3);
+	return true;
+}
+
+// The endured pressure (B6b header section 2.7, #156), counted with the fallen-sphere counter at the end of the economy stage
+// for every people: a tick on which the drain took Stability while the capital lay in no unsealed fallen sphere adds one, any
+// other tick starts it over - a capital inside a fallen sphere is subjected, not enduring (mutation: counting it anyway); a
+// people that is not the ruled one counts the same (mutation: only the ruled people); an independent sphere over the capital is
+// no subjection (mutation: any sphere), and the drain of an independent presser is a drain (mutation: only a drain beside a
+// fallen sphere); no drain (no sphere, a sealed transcendent, the knob at 0) is no tick; CosmicHazards::MoveCapital starts it
+// over (mutation: without that reset the count runs on through the loss of the capital). Nothing reads it before B-6b2 and it
+// takes no draw (the runner's CSV columns stay those of B-6a7).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicPressureEnduredTest, "Cosmic_Ascension.Sim.PressureEndured", CosmicTests::Flags)
+bool FCosmicPressureEnduredTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicBookTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	const FCosmicRulesDef BaseRules = Sim->GetRules();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); };
+
+	// The tables of the sphere counter's test, with a drain: no event, no hazard, no recovery, so only the drain moves
+	// Stability and nothing moves a capital but the test.
+	auto WithDrain = [&](float Drain)
+	{
+		FCosmicDataTables Tables = TablesWith(Original, BaseRules, NewTable(FCosmicEventDef::StaticStruct()));
+		FCosmicRulesDef Knobs = *Tables.Rules->FindRow<FCosmicRulesDef>(CosmicRows::Rules, TEXT("PressureEndured"));
+		Knobs.SpiritualPressureStabilityDrain = Drain;
+		UDataTable* RulesTable = NewTable(FCosmicRulesDef::StaticStruct());
+		RulesTable->AddRow(CosmicRows::Rules, Knobs);
+		Tables.Rules = RulesTable;
+		return Tables;
+	};
+	Sim->SetTables(WithDrain(0.001f));
+	Sim->NewGalaxy(42, 12, 4);
+	FGalaxyState& State = Sim->GetMutableState();
+	if (!TestTrue(TEXT("The board of the test is laid"), Board(State)))
+	{
+		return false;
+	}
+	// The capitals the cases read: system 0 for the people of systems 0 and 1, system 6 for the people of systems 6 and 7.
+	CosmicTests::Give(State, 1, { 7 });
+	State.Civs[0].HomeSystemID = State.Systems[0].SystemID;
+	State.Civs[1].HomeSystemID = State.Systems[6].SystemID;
+	AddInstance(State, Fallen, TEXT("Doctrine.Silence"), { 1 });
+	auto Count = [&State](int32 CivIndex)
+	{
+		return State.Civs.IsValidIndex(CivIndex) ? State.Civs[CivIndex].PressureEnduredTicks : static_cast<int32>(INDEX_NONE);
+	};
+	auto Sphere = [&State](std::initializer_list<int32> Systems)
+	{
+		State.Transcendents[0].InfluencedSystems.Reset();
+		for (const int32 SystemIndex : Systems)
+		{
+			State.Transcendents[0].InfluencedSystems.Add(State.Systems[SystemIndex].SystemID);
+		}
+	};
+
+	const float Before = State.Civs[0].Stability;
+	Sim->RunHeadless(4);
+	if (!TestEqual(TEXT("The one transcendent of the test is still there"), State.Transcendents.Num(), 1))
+	{
+		return false;
+	}
+	TestTrue(TEXT("(the drain takes Stability from the people of the sphere)"), State.Civs[0].Stability < Before);
+	TestEqual(TEXT("A drained people whose capital is outside the sphere counts one a tick"), Count(0), 4);
+	TestEqual(TEXT("A people out of the drain counts nothing"), Count(1), 0);
+
+	// The capital decides, for every people: inside is subjected.
+	Sphere({ 0, 1 });
+	Sim->RunHeadless(1);
+	TestEqual(TEXT("With the capital inside the sphere the count starts over"), Count(0), 0);
+	Sphere({ 1, 6 });
+	Sim->RunHeadless(2);
+	TestEqual(TEXT("Outside again, it counts from one"), Count(0), 2);
+	TestEqual(TEXT("Another people drained with its capital inside counts nothing"), Count(1), 0);
+
+	// No drain is no tick.
+	Sphere({});
+	Sim->RunHeadless(1);
+	TestEqual(TEXT("Out of every sphere the count starts over"), Count(0), 0);
+	// A people that is not the ruled one: drained through system 7 with its capital 6 outside the sphere, it counts.
+	Sphere({ 7 });
+	Sim->RunHeadless(2);
+	TestEqual(TEXT("The second people endures with its capital outside the sphere"), Count(1), 2);
+	TestEqual(TEXT("(the first people is out of the drain)"), Count(0), 0);
+	Sphere({ 1 });
+	State.Transcendents[0].bSealed = true;
+	Sim->RunHeadless(1);
+	TestEqual(TEXT("A sealed transcendent drains nothing - no tick"), Count(0), 0);
+	State.Transcendents[0].bSealed = false;
+	Sim->RunHeadless(3);
+	TestEqual(TEXT("Unsealed, it counts again"), Count(0), 3);
+
+	// Only a fallen sphere subjects: an independent sphere over the capital leaves the count running, and with the fallen
+	// sphere empty the independent presser's drain alone still counts.
+	AddInstance(State, Apart, TEXT("Doctrine.Stillness"), { 0 });
+	Sim->RunHeadless(1);
+	TestEqual(TEXT("A capital inside an independent sphere still endures"), Count(0), 4);
+	Sphere({});
+	Sim->RunHeadless(1);
+	TestEqual(TEXT("The drain of an independent presser alone is a drain"), Count(0), 5);
+	State.Transcendents.RemoveAt(1);
+	Sphere({ 1 });
+
+	// The loss of the capital starts it over, and the next drained tick counts from one.
+	CosmicHazards::MoveCapital(State, Sim->GetStateIndex(), 0);
+	TestEqual(TEXT("MoveCapital starts the count over"), Count(0), 0);
+	Sim->RunHeadless(1);
+	TestEqual(TEXT("and the next drained tick counts one"), Count(0), 1);
+
+	// The knob is the guard: a drain of 0 takes nothing and counts nothing.
+	{
+		const FName CivID = State.Civs[0].CivID;
+		Sim->SetTables(WithDrain(0.f));
+		Sim->NewGalaxy(42, 12, 4);
+		FGalaxyState& Undrained = Sim->GetMutableState();
+		if (TestTrue(TEXT("The board of the knob case is laid"), Board(Undrained)))
+		{
+			Undrained.Civs[0].HomeSystemID = Undrained.Systems[0].SystemID;
+			AddInstance(Undrained, Fallen, TEXT("Doctrine.Silence"), { 1 });
+			Sim->RunHeadless(3);
+			TestEqual(TEXT("With the drain knob at 0 nothing counts"), Undrained.Civs[0].PressureEnduredTicks, 0);
+			TestEqual(TEXT("(the same people of the same seed)"), Undrained.Civs[0].CivID, CivID);
+		}
+	}
 
 	Sim->SetTables(Original);
 	Sim->NewGalaxy(42, 5, 3);

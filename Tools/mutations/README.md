@@ -689,3 +689,10 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B6a/` | `b6a5_awareness_reads_voice.patch` — the awareness line reads `VoiceTemplates` (the hedge's testimony, empty in the game) instead of `AwarenessTemplates` | `Cosmic_Ascension.Log.AwarenessVoice` |
 | `B6a/` | `b6a5_awareness_writes_knowing.patch` — the awareness line's block writes the knowing (`FarLineUntilTick`) | `Cosmic_Ascension.Log.AwarenessVoice` |
 | `B6a/` | `b6a6_exalt_as_before_is_the_game.patch` — `CosmicTests::WithExaltAsBefore` hands back the game's tables (the pair's off side would be the on side; the data's own revert is caught by the schema test - `Tools/test_data_schema.py`) | `Cosmic_Ascension.Sim.ExaltArrives` |
+| `B6b/` | `b6b1_laws_held_initializer_one.patch` — `LawsHeldTicks` starts at 1 (the frozen initializer is 0 - CLAUDE.md rule 7) | `Cosmic_Ascension.Sim.SaveLawsHeld` |
+| `B6b/` | `b6b1_hasher_skips_counters.patch` — the state hasher skips `LawsHeldTicks` and `PressureEnduredTicks` (the two counters are world state) | `Cosmic_Ascension.Sim.HashCoversNewCounters` |
+| `B6b/` | `b6b1_move_capital_keeps_endured.patch` — `CosmicHazards::MoveCapital` leaves `PressureEnduredTicks` alone (the count runs on through the loss of the capital) | `Cosmic_Ascension.Sim.PressureEndured` |
+| `B6b/` | `b6b1_endured_capital_inside.patch` — a drained tick counts as endured even with the capital inside a fallen sphere (subjected is not enduring) | `Cosmic_Ascension.Sim.PressureEndured` |
+| `B6b/` | `b6b1_endured_any_sphere.patch` — any transcendent's sphere over the capital stops the count, not only an unsealed fallen one (an independent sphere is no subjection) | `Cosmic_Ascension.Sim.PressureEndured` |
+| `B6b/` | `b6b1_endured_ruled_only.patch` — only the ruled people counts its endured pressure (the count is kept for every people) | `Cosmic_Ascension.Sim.PressureEndured` |
+| `B6b/` | `b6b1_endured_fallen_drain_only.patch` — a drained tick counts only when a settled system lies inside a fallen sphere (the drain of any presser is a drain) | `Cosmic_Ascension.Sim.PressureEndured` |

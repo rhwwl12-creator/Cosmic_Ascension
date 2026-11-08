@@ -96,8 +96,8 @@ namespace CosmicHazards
 	/**
 	 * The capital of CivIndex was lost (section 5.10): HomeSystemID moves to its first settled system in OwnedSystems
 	 * order, or with none to its first owned system (an entry whose owner is the people: a listed system another people
-	 * owns is never made the capital), and Stability goes down by 0.3. A people with no system left keeps the old ID and
-	 * its Stability.
+	 * owns is never made the capital), Stability goes down by 0.3 and PressureEnduredTicks starts over at 0 (B6b, #156). A
+	 * people with no system left keeps the old ID, its Stability and its count.
 	 */
 	COSMIC_ASCENSION_API void MoveCapital(FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex);
 

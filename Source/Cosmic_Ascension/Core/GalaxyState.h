@@ -325,6 +325,19 @@ struct COSMIC_ASCENSION_API FCivilizationState
 	UPROPERTY(BlueprintReadOnly)
 	int32 FallenSphereTicks = 0;
 
+	// Consecutive ticks at the end of whose economy stage the people stood on the fourth rung or above and held at least
+	// DT_Rules.GalaxyLawsToHold edicts of home-galaxy scope (B6b header section 2.4). Read (from B-6b2) by
+	// CivLawsHeldTicksAtLeast within the life being judged. 0 below the fourth rung. Nothing counts it before B-6b2 (B6b
+	// header section 2.1).
+	UPROPERTY(BlueprintReadOnly)
+	int32 LawsHeldTicks = 0;
+
+	// Consecutive ticks at the end of whose economy stage the people took the drain while its capital lay in no unsealed
+	// fallen sphere (B6b header section 2.7, #156); MoveCapital starts it over. Read (from B-6b2) by
+	// CivPressureEnduredTicksReached, in a one-slot window like CivFallenSphereTicksReached; nothing reads it before.
+	UPROPERTY(BlueprintReadOnly)
+	int32 PressureEnduredTicks = 0;
+
 	UPROPERTY(BlueprintReadOnly)
 	TArray<FName> OwnedSystems;
 

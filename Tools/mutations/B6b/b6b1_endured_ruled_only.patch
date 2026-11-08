@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1841,7 +1841,7 @@ void UGalaxySimulationSubsystem::TickEconomy()
+ 			{
+ 				bHomeInside = FallenPresser[TranscendentIndex] && InSphere[TranscendentIndex].IsValidIndex(HomeIndex) && InSphere[TranscendentIndex][HomeIndex];
+ 			}
+-			EnduredPressure[CivIndex] = !bHomeInside;
++			EnduredPressure[CivIndex] = !bHomeInside && Civ.bIsPlayerRuled;
+ 		}
+ 		for (int32 TranscendentIndex = 0; TranscendentIndex < TranscendentCount; ++TranscendentIndex)
+ 		{

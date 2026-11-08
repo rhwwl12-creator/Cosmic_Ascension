@@ -473,9 +473,11 @@ private:
 	// this stage makes no draw and records no role effect, whatever the rows hold.
 	// The pressures are read from one table of sphere membership and one list of rows built at the start of the stage,
 	// not by one call of the public function per system (section 9.4).
-	// Loop two: LowStabilityTicks and FallenSphereTicks. Last and separate on purpose: the count reads the Stability every
-	// civilization has at the end of this stage, recovery and per-tick sources included. A Stability change made anywhere
-	// else in the tick is first counted one tick later. FallenSphereTicks reads the sphere membership the stage built at its start.
+	// Loop two: LowStabilityTicks, FallenSphereTicks and PressureEnduredTicks (B6b). Last and separate on purpose: the count
+	// reads the Stability every civilization has at the end of this stage, recovery and per-tick sources included. A
+	// Stability change made anywhere else in the tick is first counted one tick later. FallenSphereTicks reads the sphere
+	// membership the stage built at its start; PressureEnduredTicks adds one when this tick's drain took Stability and
+	// HomeSystemID lies in no unsealed fallen sphere of that same table, else it starts over (MoveCapital starts it over too).
 	void TickEconomy();
 
 	// Research progress and breakthroughs, civilization by civilization. A Society breakthrough fires the DT_Events row
