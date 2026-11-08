@@ -117,7 +117,8 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 	TArray<FName> GetEncounterRowNames() const;
 
 	// Row names of DT_Edicts in lexical order: the order the edict window lists them in (a table's own order is insertion
-	// order). No world rule walks the table: held edicts are walked in ActiveEdicts order.
+	// order), and the order the AI's law step walks the galaxy laws in (CosmicEdicts::GalaxyLawRowsOf - B6b). Held edicts
+	// are walked in ActiveEdicts order.
 	TArray<FName> GetEdictRowNames() const;
 
 	// Row names of DT_Galaxies in lexical order: the order the universe level draws and labels the named galaxies in

@@ -123,9 +123,12 @@ OBJECT_OR_NULL = ("an object or null", lambda value: value is None or isinstance
 NAME_LISTS = ("an object of lists of strings", lambda value: isinstance(value, dict) and all(is_names(e) for e in value.values()))
 WORDS = ("a list of strings, not empty", lambda value: is_names(value) and len(value) > 0 and all(entry != "" for entry in value))
 TWO_NAMES = ("a list of two column names", lambda value: is_names(value) and len(value) == 2)
-# A condition or an effect by its enumerator and its Key: what has_type cannot tell apart (PlayerRoleIs Ruler and Wanderer).
-TYPE_AND_KEY = ("an object with exactly the strings type and key", lambda value: isinstance(value, dict) and set(value) == {"type", "key"}
-                and all(isinstance(entry, str) for entry in value.values()))
+# A condition or an effect by the fields it names - its enumerator (type), its Key, its Tag -, each equal: what has_type cannot
+# tell apart (B1: PlayerRoleIs Ruler and Wanderer). A Key or a Tag is named (the enumerator alone is has_type); the type may
+# be left out (B6b: any condition on the claim's tag). The operand's names -> the fields of the entry.
+CONDITION_FIELDS = {"type": "Type", "key": "Key", "tag": "Tag"}
+CONDITION_SPEC = ("an object of the strings type, key and tag with a key or a tag", lambda value: isinstance(value, dict) and set(value) <= set(CONDITION_FIELDS)
+                  and bool(set(value) & {"key", "tag"}) and all(isinstance(entry, str) for entry in value.values()))
 
 RANGE = {"min": NUMBER, "max": NUMBER, "integer": FLAG}
 # Kind of column -> the options a column of that kind may carry next to "kind", each with its type.
@@ -147,7 +150,9 @@ COLUMN_OPTIONS = {
     "rows": {"tables": WORDS, "unique": FLAG},
     "word_map": dict(RANGE, words=NAME),
     "enum": {"enum": NAME},
-    "conditions": {},
+    # "untagged": the condition types whose Tag this column leaves empty (B6b: a DT_Feats row's CivHasTreaty - the AI's
+    # treaty step signs a non-aggression only, so a feat asking another treaty would ask what no AI ever does).
+    "conditions": {"untagged": NAMES},
     # "no_duration": no entry has a DurationTicks (an edict stands until it is revoked, B2); "keyed": the effect types that
     # must name their Key in this column (a relation names its party: a per-tick source has no other ID); "card": the
     # effects of a card's answer, the only place a card_only effect stands (B3: SetStance).
@@ -168,8 +173,9 @@ PATH_MARK = "."
 TESTS = {
     "is": SCALAR, "in": SCALARS, "gt": NUMBER, "ge": NUMBER, "lt": NUMBER, "le": NUMBER, "set": FLAG,
     "min_len": COUNT, "max_len": COUNT, "each_contains": NAME, "lacks_type": NAME, "has_type": NAME, "slots_in": NAMES,
-    # A list of conditions or effects with one of the named enumerator and Key, at least (B1: the role a card is put before).
-    "has_cond": TYPE_AND_KEY,
+    # A list of conditions or effects with an entry of the named fields, at least (B1: the role a card is put before), or
+    # without one (B6b: no ruler feat names a selector word of the vessel, no claim card's choice buys the claim time).
+    "has_cond": CONDITION_SPEC, "lacks_cond": CONDITION_SPEC,
     # The size of a list against other columns of the same row: at least the number in the named column; the product
     # of the two lengths at least the number in the second named column (two pools whose pairs are handed out).
     "len_ge_col": NAME, "pairs_ge_col": TWO_NAMES,
@@ -196,12 +202,15 @@ VALUE_KINDS = ("number", "text", "tag", "row", "enum")
 SIZED_KINDS = ("numbers", "texts", "tags", "tag_list", "tag_map", "row_map", "word_map", "rows", "conditions", "effects", "structs")
 # A pool is a list or a map; a tag container is no pool of names (its export text is a string, never held as a list).
 POOL_KINDS = tuple(kind for kind in SIZED_KINDS if kind != "tags")
+# A comparison over a tag map holds when every value of the map holds it, and so for an empty map (B6b: a galaxy law's
+# spawn factors are at most 1).
 TEST_KINDS = {
-    "is": VALUE_KINDS, "in": VALUE_KINDS, "gt": ("number",), "ge": ("number",), "lt": ("number",), "le": ("number",),
+    "is": VALUE_KINDS, "in": VALUE_KINDS, "gt": ("number", "tag_map"), "ge": ("number", "tag_map"), "lt": ("number", "tag_map"), "le": ("number", "tag_map"),
     # A number, an enumerator and a resource pool are always there: 'set' over them says nothing (whether a pool asks
     # anything is 'zero').
     "set": tuple(kind for kind in COLUMN_KINDS if kind not in ("number", "enum", "plain", "pool")), "min_len": SIZED_KINDS, "max_len": SIZED_KINDS, "each_contains": ("texts",),
     "lacks_type": ("conditions", "effects"), "has_type": ("conditions", "effects"), "has_cond": ("conditions", "effects"),
+    "lacks_cond": ("conditions", "effects"),
     "slots_in": ("text", "texts"), "len_ge_col": POOL_KINDS, "ge_col": ("number",),
     "pairs_ge_col": POOL_KINDS, "contains_all": ("tags", "tag_list"), "contains_none": ("tags", "tag_list", "tag_map"),
     "zero": ("pool",),
@@ -242,12 +251,14 @@ RULE_KEYS = {
 }
 RULE_REQUIRED = {"rules": ("why", "then"), "unique": ("why", "cols"), "pairs": ("why", "key", "value", "allowed")}
 # What a condition or an effect may say about each of its three cells; "per_tick_only" and "card_only" are for effects.
+# A Key may say "not_per_tick" (B6b, effects only): a per-tick source leaves that Key empty - the word asks for a walk a
+# source applied once may take (ChangeReverence's Borders), not one for every tick.
 # A Tag may refuse two kinds of tags (B4: DelayHazard): "not_tag_of" - the tag column of the rows of a table that hold
 # its tests (the capital rule's hazard); "not_read_by" - the tags a condition of the named enumerators reads in any row
 # of any table (the hazard a card waits on with SystemHazardTicksAtMost).
 USAGE_KEYS = {
     "tag": {"root": ROOT, "optional": FLAG, "not_tag_of": OBJECT, "not_read_by": NAMES},
-    "key": {"word": NAME, "row": NAME, "digits": FLAG, "any": FLAG, "optional": FLAG, "target": LIST},
+    "key": {"word": NAME, "row": NAME, "digits": FLAG, "any": FLAG, "optional": FLAG, "target": LIST, "not_per_tick": FLAG},
     "value": dict(RANGE),
 }
 NOT_TAG_OF_KEYS = {"table": NAME, "col": NAME, "when": LIST}
@@ -669,8 +680,12 @@ class Checker:
                     self.report(where, "a row test names the row %s, which %s neither requires nor has" % (value, column_spec.get("table")))
             if name in ("lacks_type", "has_type") and operand not in self.schema[kind]:
                 self.report(where, "a row test names %r, which is no enumerator of %s" % (operand, kind))
-            if name == "has_cond" and operand["type"] not in self.schema[kind]:
+            if name in ("has_cond", "lacks_cond") and "type" in operand and operand["type"] not in self.schema[kind]:
                 self.report(where, "a row test names %r, which is no enumerator of %s" % (operand["type"], kind))
+            elif name in ("has_cond", "lacks_cond") and "type" in operand:
+                self.check_condition_operand(where, kind, operand, shown)
+            if name in ("has_cond", "lacks_cond") and name_of(operand.get("tag", "")) != "" and operand["tag"] not in self.tags:
+                self.report(where, "a row test names the tag %s, which the ini does not declare" % (operand["tag"],))
             if name in ("contains_all", "contains_none"):
                 for value in operand:
                     if value not in self.tags:
@@ -684,6 +699,43 @@ class Checker:
                         self.report(where, "a row test names the column %r, which %s does not declare" % (other, table_name))
                     elif other_spec.get("kind") not in kinds:
                         self.report(where, "the test '%s' needs a column of kind %s, and %s is of kind %s: %s" % (name, " or ".join(kinds), other, other_spec.get("kind"), shown))
+
+    def check_condition_operand(self, where, kind, operand, shown):
+        """The Key and the Tag a condition test names, against the usage of its enumerator, read as check_usage reads an
+        entry (B6b): a misspelt Key, or a Key or a Tag on a type that reads none, matches no entry a valid row can hold, so
+        a lacks_cond would hold always - a then-test switched off in silence. Both are read as holds() reads them (name_of:
+        'None' is the empty field). An empty Key or Tag on a field the usage leaves optional is the empty field of the data
+        (an untagged ResolveHazard); on a field the usage requires it matches no entry either, and is reported. A usage of a
+        broken shape is check_usage_entry's to report."""
+        usage = self.schema[kind].get(operand["type"]) if isinstance(self.schema[kind], dict) else None
+        if not isinstance(usage, dict):
+            return
+        key = name_of(operand.get("key", ""))
+        key_spec = usage.get("key")
+        if "key" in operand and key == "" and isinstance(key_spec, dict) and not key_spec.get("optional"):
+            self.report(where, "a row test names an empty Key of %s, which requires one: %s" % (operand["type"], shown))
+        if key != "" and "key" not in usage:
+            self.report(where, "a row test names the Key %s of %s, which reads no Key: %s" % (key, operand["type"], shown))
+        elif key != "" and isinstance(key_spec, dict):
+            lists = self.schema.get("words") if isinstance(self.schema.get("words"), dict) else {}
+            words = lists.get(key_spec["word"]) if isinstance(key_spec.get("word"), str) else None
+            if isinstance(key_spec.get("word"), str) and not (is_names(words) and key in words):
+                self.report(where, "a row test names the Key %s of %s, which is none of %s: %s" % (key, operand["type"], key_spec["word"], shown))
+            elif isinstance(key_spec.get("row"), str) and not self.row_is_known(key_spec["row"], key):
+                self.report(where, "a row test names the Key %s of %s, which %s neither requires nor has: %s" % (key, operand["type"], key_spec["row"], shown))
+            elif key_spec.get("digits") is True and not (key.isascii() and key.isdigit() and len(key) <= 9 and int(key) > 0):
+                self.report(where, "a row test names the Key %r of %s, which is not a count of ticks: %s" % (key, operand["type"], shown))
+        tag = name_of(operand.get("tag", ""))
+        tag_spec = usage.get("tag")
+        if "tag" in operand and tag == "" and isinstance(tag_spec, dict) and not tag_spec.get("optional"):
+            self.report(where, "a row test names an empty Tag of %s, which requires one: %s" % (operand["type"], shown))
+        if tag != "" and "tag" not in usage:
+            self.report(where, "a row test names the tag %s of %s, which reads no Tag: %s" % (tag, operand["type"], shown))
+        elif tag != "" and isinstance(tag_spec, dict):
+            roots = tag_spec.get("root")
+            roots = [roots] if isinstance(roots, str) else (roots if is_names(roots) else [])
+            if roots and not any(tag.startswith(root) for root in roots):
+                self.report(where, "a row test names the tag %s of %s, which is not under %s: %s" % (tag, operand["type"], " or ".join(roots), shown))
 
     def column_at(self, columns, name, table_name):
         """(the spec of the column a test names, what is wrong with the name or None). 'List.Column' names a column of
@@ -731,6 +783,8 @@ class Checker:
             self.check_tests(where + ".key", key_spec["target"], key_spec["row"])
         if said[0] != "row" and "target" in key_spec:
             self.report(where + ".key", "a target needs a row of a table to look at")
+        if kind == "conditions" and key_spec.get("not_per_tick"):
+            self.report(where + ".key", "not_per_tick is said of an effect's Key: no source applies a condition every tick")
 
     def check_tag_refusals(self, where, tag_spec):
         """The tags a Tag refuses (B4): a table and a tag column of it that exist, tests the rows of that table can be
@@ -783,6 +837,13 @@ class Checker:
                 self.report(where, "the word list %r is not in the schema" % (listed,))
         if kind == "enum" and column_spec["enum"] not in self.schema["enums"]:
             self.report(where, "the enum %r is not in the schema" % (column_spec["enum"],))
+        for name in (column_spec.get("untagged", []) if kind == "conditions" else []):
+            # A misspelt name, or one that reads no Tag, would leave the Tag it means unchecked in silence.
+            usage = self.schema["conditions"].get(name)
+            if not isinstance(usage, dict):
+                self.report(where, "untagged names %r, which is no enumerator of conditions" % (name,))
+            elif "tag" not in usage:
+                self.report(where, "untagged names %s, a condition that reads no Tag" % (name,))
         if kind == "pool" and "resource" not in self.schema["words"]:
             self.report(where, "a resource pool holds the words of the list 'resource', which the schema does not have")
         for column, inner in (column_spec["columns"].items() if kind == "structs" else []):
@@ -1057,6 +1118,8 @@ class Checker:
             self.check_tag(where + ".Tag", tag, usage["tag"])
             if isinstance(tag, str) and tag != "":
                 self.check_refused_tag(where + ".Tag", tag, usage["tag"])
+            if spec and type_name in (spec.get("untagged") or []) and tag != "":
+                self.report(where + ".Tag", "this column's %s carries no Tag, found %s" % (type_name, tag))
         elif tag != "":
             self.report(where + ".Tag", "this type reads no Tag, found %s" % (tag,))
 
@@ -1078,6 +1141,8 @@ class Checker:
         elif key_spec.get("digits"):
             if not (key.isascii() and key.isdigit() and len(key) <= 9 and int(key) > 0):
                 self.report(where + ".Key", "%r is not a count of ticks (digits only, nine at most, above zero)" % (key,))
+        if isinstance(key, str) and key != "" and per_tick and key_spec and key_spec.get("not_per_tick"):
+            self.report(where + ".Key", "a per-tick source leaves this Key empty, found %s" % key)
 
         value = item.get("Value", 0)
         if "value" in usage:
@@ -1262,9 +1327,11 @@ class Checker:
         if name == "in":
             return not isinstance(plain, (list, dict)) and plain in operand
         if name in ("gt", "ge", "lt", "le"):
-            if not is_number(value):
+            # Over a tag map, every value (B6b).
+            values = list(value.values()) if isinstance(value, dict) else [value]
+            if not all(is_number(entry) for entry in values):
                 return False
-            return {"gt": value > operand, "ge": value >= operand, "lt": value < operand, "le": value <= operand}[name]
+            return all({"gt": entry > operand, "ge": entry >= operand, "lt": entry < operand, "le": entry <= operand}[name] for entry in values)
         if name == "set":
             return is_set(value) == operand
         if name == "min_len":
@@ -1279,10 +1346,13 @@ class Checker:
         if name == "has_type":
             # A list of conditions or effects with one of the named enumerator, at least.
             return isinstance(value, list) and any(isinstance(item, dict) and item.get("Type") == operand for item in value)
-        if name == "has_cond":
-            # The same with the Key as well.
-            return isinstance(value, list) and any(isinstance(item, dict) and item.get("Type") == operand["type"] and item.get("Key") == operand["key"]
-                                                   for item in value)
+        if name in ("has_cond", "lacks_cond"):
+            # An entry with every named field (the Key, the Tag, the enumerator) - at least one, or none. Each field is read as
+            # the importer reads a name (name_of), as 'is' reads it: the data writes an empty Key 'None' and an empty Tag "".
+            found = isinstance(value, list) and any(isinstance(item, dict) and all(name_of(item.get(field)) == name_of(operand[said])
+                                                                                   for said, field in CONDITION_FIELDS.items() if said in operand)
+                                                    for item in value)
+            return found if name == "has_cond" else isinstance(value, list) and not found
         if name in ("contains_all", "contains_none"):
             if isinstance(value, str):
                 held = TAG_NAME.findall(value)

@@ -43,10 +43,11 @@ struct FCosmicEvalSubject
 	// NameNotable store it. FireRow sets it to the fired row.
 	FName SourceRow;
 
-	// Lower bound of the two life-relative conditions (section 4.4): MegaprojectComplete and TranscendentSealed are true
-	// only when the completion or sealing tick is above zero and not below this. 0 = any time: events, hazards and the
-	// feats of AI civilizations. Only the judgment of the player's feats puts Calling.BornTick here, so nothing else in
-	// the world depends on the birth tick of the vessel.
+	// Lower bound of the three life-relative conditions (section 4.4): MegaprojectComplete and TranscendentSealed are true
+	// only when the completion or sealing tick is above zero and not below this, and CivLawsHeldTicksAtLeast counts the held
+	// laws since it (Min(LawsHeldTicks, Tick - SinceTick) - B6b). 0 = any time: events, hazards and the feats of AI
+	// civilizations. Only the judgment of the player's feats puts Calling.BornTick here, so nothing else in the world
+	// depends on the birth tick of the vessel.
 	int64 SinceTick = 0;
 };
 

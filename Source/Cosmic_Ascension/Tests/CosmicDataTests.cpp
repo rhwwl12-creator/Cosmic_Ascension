@@ -4,6 +4,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Core/CosmicIDs.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicConditionTypes.h"
@@ -18,6 +19,7 @@
 #include "GameplayTagsManager.h"
 #include "HAL/FileManager.h"
 #include "Internationalization/Regex.h"
+#include "Math/RandomStream.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -25,6 +27,7 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Sim/CosmicEdicts.h"
+#include "Sim/CosmicEvalContext.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
@@ -1548,6 +1551,7 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		Bench.Player.Role = EPlayerRole::Ruler;
 		Bench.Civs[0].Stockpile = FResourcePool();
 		Bench.Player.FormerCivID = Bench.Civs[1].CivID;
+		Bench.Player.RuledCivID = Bench.Civs[0].CivID;
 		FNotableRecord& Rebel = Bench.Civs[1].Notables.AddDefaulted_GetRef();
 		Rebel.Role = FGameplayTag::RequestGameplayTag(FName(TEXT("Notable.Rebel")));
 		Rebel.FirstTick = 1;
@@ -1583,8 +1587,72 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		EveryWord(TEXT("axis"), [&](const FString& Word) { return Holds(Bench, EConditionType::CivEthicsAxisAbove, Word, -2.f); });
 		EveryWord(TEXT("stat"), [&](const FString& Word) { return Holds(Bench, EConditionType::PlayerStatAtLeast, Word, 0.f); });
 		EveryWord(TEXT("role"), [&](const FString& Word) { return Holds(Bench, EConditionType::PlayerRoleIs, Word, 0.f) != Holds(Wandering, EConditionType::PlayerRoleIs, Word, 0.f); });
-		EveryWord(TEXT("civ_selector"), [&](const FString& Word) { return Holds(Bench, EConditionType::CivHasNotable, Word, 0.f, TEXT("Notable.Rebel")); });
+		// The civ selector is the Key of SystemOwnedBy (B6b: Former and Ruled - a word resolves when some people's capital
+		// answers for it); the notable selector, Former alone, is the Key of CivHasNotable and NameNotable.
+		auto OwnedByWord = [&](const FString& Word)
+		{
+			FCosmicCondition Condition;
+			Condition.Type = EConditionType::SystemOwnedBy;
+			Condition.Key = FName(*Word);
+			for (int32 CivIndex = 0; CivIndex < Bench.Civs.Num(); ++CivIndex)
+			{
+				FCosmicEvalView View(Bench, Index, Sim->GetTables(), Sim->GetRules());
+				View.CivIndex = CivIndex;
+				View.SystemIndex = Index.FindSystem(Bench, Bench.Civs[CivIndex].HomeSystemID);
+				if (UCosmicEventSubsystem::Check(Condition, View))
+				{
+					return true;
+				}
+			}
+			return false;
+		};
+		EveryWord(TEXT("civ_selector"), OwnedByWord);
+		EveryWord(TEXT("notable_selector"), [&](const FString& Word) { return Holds(Bench, EConditionType::CivHasNotable, Word, 0.f, TEXT("Notable.Rebel")); });
 		EveryWord(TEXT("research"), [&](const FString& Word) { return Holds(Bench, EConditionType::CivResearchAtLeast, Word, 0.f); });
+		// B6b: the reach of ChangeReverence (Borders) is the Key of an effect - applied on a copy of the bench where people 0
+		// borders people 1 (a lane of a settled system of people 0 to a system handed to people 1, settled), since the reach
+		// resolves to nothing when no people borders. A word resolves when Apply takes it.
+		FGalaxyState Bordered = Bench;
+		bool bBorder = false;
+		for (int32 From = 0; From < Bordered.Systems.Num() && !bBorder; ++From)
+		{
+			const FStarSystemState& Own = Bordered.Systems[From];
+			if (Own.OwnerCivID != Bordered.Civs[0].CivID || !CosmicState::IsSettled(Own))
+			{
+				continue;
+			}
+			for (const FName LaneID : Own.Lanes)
+			{
+				const int32 To = Index.FindSystem(Bordered, LaneID);
+				if (!Bordered.Systems.IsValidIndex(To) || Bordered.Systems[To].GalaxyRow != Own.GalaxyRow || CosmicState::IsSanctuary(LaneID)
+					|| Bordered.Systems[To].OwnerCivID == Bordered.Civs[0].CivID)
+				{
+					continue;
+				}
+				FStarSystemState& Next = Bordered.Systems[To];
+				if (Next.OwnerCivID != Bordered.Civs[1].CivID)
+				{
+					Next.OwnerCivID = Bordered.Civs[1].CivID;
+					Bordered.Civs[1].OwnedSystems.AddUnique(LaneID);
+				}
+				Next.ActiveMegaproject = NAME_None;
+				bBorder = true;
+				break;
+			}
+		}
+		TestTrue(TEXT("(people 0 of the bench borders people 1)"), bBorder);
+		EveryWord(TEXT("reverence_reach"), [&](const FString& Word)
+		{
+			FGalaxyState Copy = Bordered;
+			FRandomStream Stream(0);
+			FCosmicEvalContext Ctx(Copy, Stream, Index, Sim->GetTables(), Sim->GetRules());
+			Ctx.CivIndex = 0;
+			FCosmicEffect Effect;
+			Effect.Type = EEffectType::ChangeReverence;
+			Effect.Key = FName(*Word);
+			Effect.Value = 0.1f;
+			return UCosmicEventSubsystem::Apply(Effect, Ctx);
+		});
 	}
 
 	// ---- The loaded assets ----
@@ -2032,6 +2100,95 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		}
 	}
 
+	// B6b [B-6b2a] (docs/60_DECISIONS/headers/B6b_upper_rungs_and_the_race.md section 2.4, 3.3 rule 4, 3.4): the galaxy laws,
+	// across tables. DT_Rules.GalaxyLawsToHold is at most the edict slots' end, 1 + the EdictSlotSocietyMarks (no people can
+	// hold more), and, once a feat row reads the held laws (CivLawsHeldTicksAtLeast), at most the HomeGalaxy rows of DT_Edicts
+	// (else that row is never reached); and no DT_Hazards row lists a law among its RulerResolutions (the schema cannot read
+	// across the two tables: a law only shields - its answer at an expiry stays the holder's, decision 9).
+	auto LawProblems = [](const FCosmicDataTables& Tables)
+	{
+		TArray<FString> Problems;
+		const FCosmicRulesDef* Rules = Tables.FindRules();
+		if (!Rules)
+		{
+			Problems.Add(TEXT("no DT_Rules row"));
+			return Problems;
+		}
+		const int32 SlotEnd = 1 + Rules->EdictSlotSocietyMarks.Num();
+		if (Rules->GalaxyLawsToHold > SlotEnd)
+		{
+			Problems.Add(FString::Printf(TEXT("DT_Rules.GalaxyLawsToHold %d is above the edict slots' end %d"), Rules->GalaxyLawsToHold, SlotEnd));
+		}
+		const int32 Laws = CosmicEdicts::GalaxyLawRowsOf(Tables).Num();
+		for (const FName FeatRow : Tables.GetFeatRowNames())
+		{
+			const FAscensionFeatDef* Feat = Tables.FindFeat(FeatRow);
+			if (Feat && Feat->CarriesCondition(EConditionType::CivLawsHeldTicksAtLeast) && Rules->GalaxyLawsToHold > Laws)
+			{
+				Problems.Add(FString::Printf(TEXT("DT_Feats.%s reads the held laws, and DT_Rules.GalaxyLawsToHold %d is above the %d HomeGalaxy rows of DT_Edicts"),
+					*FeatRow.ToString(), Rules->GalaxyLawsToHold, Laws));
+			}
+		}
+		for (const FName HazardRow : Tables.GetHazardRowNames())
+		{
+			const FHazardDef* Hazard = Tables.FindHazard(HazardRow);
+			for (const FName Answer : Hazard ? Hazard->RulerResolutions : TArray<FName>())
+			{
+				if (CosmicEdicts::IsGalaxyLaw(Tables, Answer))
+				{
+					Problems.Add(FString::Printf(TEXT("DT_Hazards.%s lists the galaxy law %s as an answer"), *HazardRow.ToString(), *Answer.ToString()));
+				}
+			}
+		}
+		return Problems;
+	};
+	TestEqual(TEXT("The game's galaxy laws keep to the rules row and to the hazards"), FString::Join(LawProblems(Game), TEXT("; ")), FString());
+	if (const FCosmicRulesDef* GameRules = Game.FindRules())
+	{
+		FCosmicRulesDef Four = *GameRules;
+		Four.GalaxyLawsToHold = 2 + GameRules->EdictSlotSocietyMarks.Num();
+		Expect(TEXT("a laws knob above the slots' end"), LawProblems(CosmicTests::WithRules(Game, Four)), { TEXT("GalaxyLawsToHold"), TEXT("slots' end") });
+		FCosmicRulesDef AtEnd = *GameRules;
+		AtEnd.GalaxyLawsToHold = 1 + GameRules->EdictSlotSocietyMarks.Num();
+		TestFalse(TEXT("The slots' end itself passes"), AnyCarries(LawProblems(CosmicTests::WithRules(Game, AtEnd)), { TEXT("slots' end") }));
+		// A feat that reads the held laws: above the HomeGalaxy rows it is caught, at them it passes.
+		FAscensionFeatDef Laws;
+		Laws.RequiredTier = EAscensionTier::Tier4_Transcendent;
+		Laws.TargetTier = EAscensionTier::Tier5_EternalOrder;
+		FCosmicCondition Held;
+		Held.Type = EConditionType::CivLawsHeldTicksAtLeast;
+		Held.Key = FName(TEXT("600"));
+		Laws.CompletionConditions = { Held };
+		UDataTable* LawFeats = CopyOf<FAscensionFeatDef>(Game.Feats);
+		LawFeats->AddRow(FName(TEXT("feat_test_laws")), Laws);
+		UDataTable* LawEdicts = CopyOf<FEdictDef>(Game.Edicts);
+		auto AddLaw = [LawEdicts](const TCHAR* Name)
+		{
+			FEdictDef Law;
+			Law.RequiredTier = EAscensionTier::Tier4_Transcendent;
+			Law.Scope = ECosmicEdictScope::HomeGalaxy;
+			LawEdicts->AddRow(FName(Name), Law);
+		};
+		FCosmicDataTables Reads = Game;
+		Reads.Feats = LawFeats;
+		FCosmicRulesDef Two = *GameRules;
+		Two.GalaxyLawsToHold = 2;
+		AddLaw(TEXT("edict_test_law_a"));
+		Reads.Edicts = LawEdicts;
+		Expect(TEXT("a feat reading three laws over one HomeGalaxy row"), LawProblems(CosmicTests::WithRules(Reads, AtEnd)), { TEXT("feat_test_laws"), TEXT("HomeGalaxy rows") });
+		AddLaw(TEXT("edict_test_law_b"));
+		TestTrue(TEXT("Two laws to hold over two HomeGalaxy rows pass"), LawProblems(CosmicTests::WithRules(Reads, Two)).IsEmpty());
+		// A law as a hazard's answer.
+		UDataTable* Answering = CopyOf<FHazardDef>(Game.Hazards);
+		FHazardDef Asked;
+		Asked.HazardTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Cult")));
+		Asked.RulerResolutions = { FName(TEXT("edict_test_law_a")) };
+		Answering->AddRow(FName(TEXT("crisis_test_answered")), Asked);
+		FCosmicDataTables Answered = Reads;
+		Answered.Hazards = Answering;
+		Expect(TEXT("a galaxy law listed as a hazard's answer"), LawProblems(CosmicTests::WithRules(Answered, Two)), { TEXT("crisis_test_answered"), TEXT("edict_test_law_a"), TEXT("answer") });
+	}
+
 	// The choices of a card (section 5.9), entry by entry - a rule of the schema holds over every entry of a list, not over
 	// each entry's own fields together: a choice with a check says what its failure is, and a choice without one never
 	// fails, so it carries no failure effects, no failure line and no difficulty. B1: a wanderer's card costs nothing (no
@@ -2220,7 +2377,8 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 	// share a slot of the non-grace Lottery rows of DT_Events that resolve its tag - BaseWeight x the upper end of the sphere
 	// factor x EventChancePerSlot, summed - leaves at least a quarter, multiplied over the slots of the longest the hazard can
 	// stand: its CountdownTicks, the positive HazardCountdownBonus for the tag of every DT_Edicts row (CountdownBonusOf adds
-	// every held one), the guard's FleetDelayCap and, per card row, its largest DelayHazard on the tag; the slots are that
+	// every held one, and from B6b the galaxy laws of the system's galaxy once a row - the sum over every row stays the bound),
+	// the guard's FleetDelayCap and, per card row, its largest DelayHazard on the tag; the slots are that
 	// many ticks over EventSlotTicks, rounded up. The upper end of the sphere factor of a row's Category is the product, over
 	// the transcendent rows that weight that Category, of the most each can give - min(3, modifier x (1 +
 	// SphereEventWeightStep x the largest sphere it can hold)) when above 1, the largest sphere being MaxInfluencedSystems or

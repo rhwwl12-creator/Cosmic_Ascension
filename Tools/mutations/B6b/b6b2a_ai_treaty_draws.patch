@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2869,6 +2869,7 @@
+ 				Cost.Influence = Rules.TreatyCostInfluence;
+ 				CosmicEdicts::TryPay(State.Civs[CivIndex].Stockpile, Cost);
+ 				CosmicDiplomacy::Sign(State, CivIndex, Partner, CosmicTags::TreatyNonAggression());
++				Rng.GetFraction();
+ 			}
+ 		}
+ 		// Its diplomacy (B3 section 2.8): no draw, no profile.

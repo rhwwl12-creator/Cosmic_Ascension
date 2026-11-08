@@ -57,7 +57,8 @@ namespace CosmicHazards
 	 * sanctuary, whatever else holds (Law.Hedge, section 4.5 (1)), and unless the
 	 * row exists, the system is a settled system with a free slot and, for a Capital row, the capital of its owner.
 	 * Sets ActiveHazard to the row's HazardTag and HazardTicksRemaining to its CountdownTicks (read as at least 1) plus
-	 * the owner's edicts' CosmicEdicts::CountdownBonusOf for its tag (B2) plus the delay of a fleet that guards the system
+	 * the edicts' CosmicEdicts::CountdownBonusOf for its tag on the system (the owner's - B2 - and the galaxy laws of the
+	 * other peoples of its galaxy - B6b) plus the delay of a fleet that guards the system
 	 * (CosmicConflict::FleetDelayOf, B3) - at placement only: no edict or guard changes a standing hazard's count, a card's
 	 * DelayHazard alone adds to it (B4, CosmicConflict::ResistBlockOf) - and leaves a HazardPlaced note in Ctx.
 	 */

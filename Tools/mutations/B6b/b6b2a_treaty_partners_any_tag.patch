@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+@@ -145,7 +145,7 @@
+ 	int32 Count = 0;
+ 	for (const TPair<FName, FCosmicTie>& Pair : Civ.Ties)
+ 	{
+-		Count += (Treaty.IsValid() ? Pair.Value.Treaties.HasTagExact(Treaty) : !Pair.Value.Treaties.IsEmpty()) ? 1 : 0;
++		Count += !Pair.Value.Treaties.IsEmpty() ? 1 : 0;
+ 	}
+ 	return Count;
+ }

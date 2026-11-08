@@ -1933,7 +1933,13 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			// B4: the guarded hazards placed in the tick (merged into the standing list once the tick's ends are read).
 			TMap<FName, FGameplayTag> NewGuarded;
 			// B3: the delay a guard bought each hazard placed in the tick, read from its slot before the boundary (the count it
-			// was placed with, less the row's countdown and the owner's edicts' bonus).
+			// was placed with, less the row's countdown and the edicts' bonus on the system - the owner's and, from B6b, the
+			// galaxy laws of its galaxy). The bonus is read from the union after the tick, not the one CosmicHazards::Place read
+			// in the crisis stage: the two are the same while no galaxy law exists. Once laws exist they can differ both ways -
+			// a law the AI's law step enacts, or enacts again after its upkeep lapsed, later in the same tick makes the bought
+			// delay too small, and the laws of a people the crossing stage removes in the tick make it too large (as an edict the
+			// AI stage revokes after the placement already did before B6b). B6b notes section 5 [B-6b2a]: the capture before the
+			// tick is [B-6b3]'s, before the [B-6b7] rows make it live.
 			for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num() && SystemIndex < Before.Num(); ++SystemIndex)
 			{
 				const FStarSystemState& System = State.Systems[SystemIndex];
@@ -1944,7 +1950,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				if (Owner)
 				{
 					const int64 Delay = static_cast<int64>(System.HazardTicksRemaining) - FMath::Max(1, Placed->CountdownTicks)
-						- CosmicEdicts::CountdownBonusOf(*Owner, Sim->GetTables(), System.ActiveHazard);
+						- CosmicEdicts::CountdownBonusOf(State, StateIndex, Sim->GetTables(), SystemIndex, System.ActiveHazard);
 					if (Delay > 0)
 					{
 						TPair<int64, int32>& Bought = Counts.DelayBought.FindOrAdd(System.ActiveHazard.ToString());

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -686,7 +686,7 @@
+ 	{
+ 		const FCivilizationState& Ruling = State.Civs[CivIndex];
+ 		const bool bAnswerHolds = Ruling.ActiveEdicts.ContainsByPredicate([&Tables](FName Held) { return CosmicEdicts::IsAnswerEdict(Tables, Held); });
+-		if (CosmicEdicts::SlotsOf(Ruling, Rules) >= CosmicEdicts::GalaxyLawsToHoldOf(Rules) && !bAnswerHolds)
++		if (CosmicEdicts::SlotsOf(Ruling, Rules) >= CosmicEdicts::GalaxyLawsToHoldOf(Rules) && (!bAnswerHolds || Rules.GalaxyLawsToHold > 0))
+ 		{
+ 			for (const FName Law : CosmicEdicts::GalaxyLawRowsOf(Tables))
+ 			{

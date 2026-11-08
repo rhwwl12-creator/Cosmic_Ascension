@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -590,7 +590,7 @@
+ 			}
+ 			// The first held edict of the lowest rank: 0 any other, 1 EdictRow, 2 a galaxy law (never for a law).
+ 			const bool bLaw = CosmicEdicts::IsGalaxyLaw(Tables, Held);
+-			if (bLaw && bForLaw)
++			if (bLaw && bForLaw && Held.IsNone())
+ 			{
+ 				continue;
+ 			}

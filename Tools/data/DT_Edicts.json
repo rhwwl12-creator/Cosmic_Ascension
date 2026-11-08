@@ -17,7 +17,8 @@
 		"HazardCountdownBonus": {},
 		"FleetGrowthMultiplier": 1.0,
 		"TreatyAcceptBonus": 0.2,
-		"PressureDrainMultiplier": 1.0
+		"PressureDrainMultiplier": 1.0,
+		"Scope": "People"
 	},
 	{
 		"Name": "edict_machine_rights",
@@ -35,7 +36,8 @@
 		"HazardCountdownBonus": {},
 		"FleetGrowthMultiplier": 1.0,
 		"TreatyAcceptBonus": 0.0,
-		"PressureDrainMultiplier": 1.0
+		"PressureDrainMultiplier": 1.0,
+		"Scope": "People"
 	},
 	{
 		"Name": "edict_mobilization",
@@ -54,7 +56,8 @@
 		"HazardCountdownBonus": {},
 		"FleetGrowthMultiplier": 1.5,
 		"TreatyAcceptBonus": 0.0,
-		"PressureDrainMultiplier": 1.0
+		"PressureDrainMultiplier": 1.0,
+		"Scope": "People"
 	},
 	{
 		"Name": "edict_open_thought",
@@ -73,7 +76,8 @@
 		"HazardCountdownBonus": {},
 		"FleetGrowthMultiplier": 1.0,
 		"TreatyAcceptBonus": 0.0,
-		"PressureDrainMultiplier": 1.0
+		"PressureDrainMultiplier": 1.0,
+		"Scope": "People"
 	},
 	{
 		"Name": "edict_vigil",
@@ -92,7 +96,8 @@
 		"HazardCountdownBonus": {"Hazard.Claim": 100, "Hazard.Rebellion": 200},
 		"FleetGrowthMultiplier": 1.0,
 		"TreatyAcceptBonus": 0.0,
-		"PressureDrainMultiplier": 1.0
+		"PressureDrainMultiplier": 1.0,
+		"Scope": "People"
 	},
 	{
 		"Name": "edict_quarantine",
@@ -109,7 +114,8 @@
 		"HazardCountdownBonus": {},
 		"FleetGrowthMultiplier": 1.0,
 		"TreatyAcceptBonus": 0.0,
-		"PressureDrainMultiplier": 1.0
+		"PressureDrainMultiplier": 1.0,
+		"Scope": "People"
 	},
 	{
 		"Name": "edict_against_silence",
@@ -126,6 +132,7 @@
 		"HazardCountdownBonus": {},
 		"FleetGrowthMultiplier": 1.0,
 		"TreatyAcceptBonus": 0.0,
-		"PressureDrainMultiplier": 0.45
+		"PressureDrainMultiplier": 0.45,
+		"Scope": "People"
 	}
 ]

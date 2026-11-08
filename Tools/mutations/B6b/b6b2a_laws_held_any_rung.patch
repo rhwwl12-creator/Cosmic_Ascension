@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+@@ -236,7 +236,7 @@
+ 
+ bool CosmicEdicts::HoldsGalaxyLawsOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules)
+ {
+-	return static_cast<uint8>(Civ.Tier) >= static_cast<uint8>(EAscensionTier::Tier4_Transcendent) && GalaxyLawCountOf(Civ, Tables) >= GalaxyLawsToHoldOf(Rules);
++	return GalaxyLawCountOf(Civ, Tables) >= GalaxyLawsToHoldOf(Rules);
+ }
+ 
+ bool CosmicEdicts::AsksForLawsOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables)

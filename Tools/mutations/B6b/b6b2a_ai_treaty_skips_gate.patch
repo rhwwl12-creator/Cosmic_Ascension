@@ -1,0 +1,13 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+@@ -469,8 +469,7 @@
+ 	BordersOf(State, Index, CivIndex, Bordering);
+ 	for (int32 Other = 0; Other < State.Civs.Num(); ++Other)
+ 	{
+-		if (Bordering[Other] && !State.Civs[Other].bIsPlayerRuled
+-			&& TreatyBlockOf(State, Index, Tables, Rules, CivIndex, State.Civs[Other].CivID, CosmicTags::TreatyNonAggression(), true) == ECosmicTreatyBlock::None)
++		if (Bordering[Other] && !State.Civs[Other].bIsPlayerRuled)
+ 		{
+ 			return Other;
+ 		}

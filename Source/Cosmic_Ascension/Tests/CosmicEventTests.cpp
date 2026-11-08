@@ -190,6 +190,11 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 	const FName HeldEdict = Detached.Civs[0].ActiveEdicts.IsEmpty() ? NAME_None : Detached.Civs[0].ActiveEdicts[0];
 	const FName GoneEdict(TEXT("edict_test_gone"));
 	Detached.Civs[0].ActiveEdicts.Add(GoneEdict);
+	// B6b: the two counters civ 0 reads (laws held 80 ticks, pressure endured 405) and a trade treaty with civ 1 - one partner.
+	Detached.Civs[0].LawsHeldTicks = 80;
+	Detached.Civs[0].PressureEnduredTicks = 405;
+	Detached.Civs[0].Ties.FindOrAdd(Civ1).Treaties.AddTag(Tag(TEXT("Treaty.Trade")));
+	Detached.Civs[1].Ties.FindOrAdd(Detached.Civs[0].CivID).Treaties.AddTag(Tag(TEXT("Treaty.Trade")));
 	{
 		// The two transcendents of the cases and no other: whatever roster the tables of the game gave is taken out.
 		Detached.Transcendents.Reset();
@@ -219,10 +224,10 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 	FCosmicRulesDef NoAging = Sim->GetRules();
 	NoAging.BaseLifespanTicks = 0;
 	NoAging.EventSlotTicks = 10;
-	// The pressure weights of the test, not of the game: the owner of sol stands on the second rung, which weighs 0 here.
+	// The pressure weights of the test, not of the game: the owner of sys_0 stands on the second rung, which weighs 0 here.
 	NoAging.PressureBySourceTier = { 0.f, 0.f, 0.25f, 1.f, 2.f };
 
-	// One line per case: the condition, the lower tick bound of the view, the expected answer for subject (civ 0, sol).
+	// One line per case: the condition, the lower tick bound of the view, the expected answer for subject (civ 0, sys_0).
 	struct FCase
 	{
 		FCosmicCondition Condition;
@@ -257,8 +262,8 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		// The record of its own row only: another row, and an empty Key, are false.
 		{ Cond(EConditionType::MegaprojectComplete, nullptr, FName(TEXT("project_test_other")), 0.f), 0, false },
 		{ Cond(EConditionType::MegaprojectComplete, nullptr, NAME_None, 0.f), 0, false },
-		// The transcendent of the test has no row in DT_Transcendents and the owner of sol, on the second rung, weighs 0 under
-		// the test's weights, so nothing presses on sol: 0 is reached, more is not.
+		// The transcendent of the test has no row in DT_Transcendents and the owner of sys_0, on the second rung, weighs 0 under
+		// the test's weights, so nothing presses on sys_0: 0 is reached, more is not.
 		{ Cond(EConditionType::SystemPressureAtLeast, nullptr, NAME_None, 0.f), 0, true },
 		{ Cond(EConditionType::SystemPressureAtLeast, nullptr, NAME_None, 0.1f), 0, false },
 		{ Cond(EConditionType::SystemInfluencedBy, nullptr, TrActive, 0.f), 0, true },
@@ -294,7 +299,7 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		// A stay of 305 ticks: Key 300 lies in the window of the last slot period (Key <= 305 < Key + 10), 306 is not reached.
 		{ Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("300")), 0.f), 0, true },
 		{ Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("306")), 0.f), 0, false },
-		// With a doctrine: sol lies in the sphere of the unsealed Silence of the test; the Zeal of the test is sealed.
+		// With a doctrine: sys_0 lies in the sphere of the unsealed Silence of the test; the Zeal of the test is sealed.
 		{ Cond(EConditionType::CivFallenSphereTicksReached, TEXT("Doctrine.Silence"), FName(TEXT("300")), 0.f), 0, true },
 		{ Cond(EConditionType::CivFallenSphereTicksReached, TEXT("Doctrine.Zeal"), FName(TEXT("300")), 0.f), 0, false },
 		// The boundary of every "at least": the bound itself passes.
@@ -320,7 +325,7 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		// A research field: its progress; a Key that is no field is false.
 		{ Cond(EConditionType::CivResearchAtLeast, nullptr, FName(TEXT("Physics")), 0.51f), 0, false },
 		{ Cond(EConditionType::CivResearchAtLeast, nullptr, FName(TEXT("NoSuchField")), 0.f), 0, false },
-		// The hazard of the Tag with at most Value ticks left (sol's plague has fifty): the bound itself holds, one below
+		// The hazard of the Tag with at most Value ticks left (sys_0's plague has fifty): the bound itself holds, one below
 		// does not, another hazard and an empty Tag do not.
 		{ Cond(EConditionType::SystemHazardTicksAtMost, TEXT("Hazard.Plague"), NAME_None, 50.f), 0, true },
 		{ Cond(EConditionType::SystemHazardTicksAtMost, TEXT("Hazard.Plague"), NAME_None, 49.f), 0, false },
@@ -333,6 +338,25 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		{ Cond(EConditionType::CivHasEdict, nullptr, HeldEdict, 0.f), 0, true },
 		{ Cond(EConditionType::CivHasEdict, nullptr, FName(TEXT("edict_vigil")), 0.f), 0, false },
 		{ Cond(EConditionType::CivHasEdict, nullptr, GoneEdict, 0.f), 0, false },
+		// B6b: the peoples civ 0 shares a treaty with - one, by a trade treaty: any treaty and the trade one reach 1, the
+		// non-aggression does not, and two partners are not there.
+		{ Cond(EConditionType::CivHasTreaty, nullptr, NAME_None, 1.f), 0, true },
+		{ Cond(EConditionType::CivHasTreaty, TEXT("Treaty.Trade"), NAME_None, 1.f), 0, true },
+		{ Cond(EConditionType::CivHasTreaty, TEXT("Treaty.NonAggression"), NAME_None, 1.f), 0, false },
+		{ Cond(EConditionType::CivHasTreaty, nullptr, NAME_None, 2.f), 0, false },
+		// The laws held within the life judged (80 ticks counted at tick 100): from 0 the count itself; from 30 the 70 ticks since
+		// - the bound of each passes, one more does not; a Key that is not a count does not.
+		{ Cond(EConditionType::CivLawsHeldTicksAtLeast, nullptr, FName(TEXT("80")), 0.f), 0, true },
+		{ Cond(EConditionType::CivLawsHeldTicksAtLeast, nullptr, FName(TEXT("81")), 0.f), 0, false },
+		{ Cond(EConditionType::CivLawsHeldTicksAtLeast, nullptr, FName(TEXT("70")), 0.f), 30, true },
+		{ Cond(EConditionType::CivLawsHeldTicksAtLeast, nullptr, FName(TEXT("71")), 0.f), 30, false },
+		{ Cond(EConditionType::CivLawsHeldTicksAtLeast, nullptr, FName(TEXT("80ticks")), 0.f), 0, false },
+		// The pressure endured 405 ticks, in the window of one slot of ten: Key 400 and 396 hold, 395 is past it, 406 not reached.
+		{ Cond(EConditionType::CivPressureEnduredTicksReached, nullptr, FName(TEXT("400")), 0.f), 0, true },
+		{ Cond(EConditionType::CivPressureEnduredTicksReached, nullptr, FName(TEXT("396")), 0.f), 0, true },
+		{ Cond(EConditionType::CivPressureEnduredTicksReached, nullptr, FName(TEXT("395")), 0.f), 0, false },
+		{ Cond(EConditionType::CivPressureEnduredTicksReached, nullptr, FName(TEXT("406")), 0.f), 0, false },
+		{ Cond(EConditionType::CivPressureEnduredTicksReached, nullptr, FName(TEXT("abc")), 0.f), 0, false },
 	};
 
 	auto Answers = [&](const FGalaxyState& State, int32 CivIndex, int32 SystemIndex)
@@ -352,7 +376,8 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 	{
 		return Type <= EConditionType::SystemInfluencedBy || Type == EConditionType::CivHasNotable || Type == EConditionType::CivFallenSphereTicksReached
 			|| Type == EConditionType::CivResearchAtLeast || Type == EConditionType::SystemHazardTicksAtMost || Type == EConditionType::CivSettledSystemsAtLeast
-			|| Type == EConditionType::CivHasEdict;
+			|| Type == EConditionType::CivHasEdict || Type == EConditionType::CivHasTreaty || Type == EConditionType::CivLawsHeldTicksAtLeast
+			|| Type == EConditionType::CivPressureEnduredTicksReached;
 	};
 	auto IsPlayerType = [](EConditionType Type)
 	{
@@ -380,7 +405,7 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("FlagNotSet is true for a flag that is not set"), UCosmicEventSubsystem::Check(Cond(EConditionType::FlagNotSet, TEXT("Flag.Grace.Spent"), NAME_None, 0.f), View));
 	}
 
-	// The doctrine of CivFallenSphereTicksReached is looked for among unsealed transcendents: sol in the sphere of the
+	// The doctrine of CivFallenSphereTicksReached is looked for among unsealed transcendents: sys_0 in the sphere of the
 	// sealed Zeal of the test does not answer for Zeal, and does once it is unsealed. A system of another people inside
 	// the sphere does not answer for this one.
 	{
@@ -419,7 +444,7 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 			UCosmicEventSubsystem::Check(Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("305")), 0.f), Narrow));
 		TestFalse(TEXT("Slots below one tick are read as one: Key 304 lies past the window"),
 			UCosmicEventSubsystem::Check(Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("304")), 0.f), Narrow));
-		// The doctrine is looked for on settled systems: sol, still being settled, does not answer for Silence.
+		// The doctrine is looked for on settled systems: sys_0, still being settled, does not answer for Silence.
 		FGalaxyState SolSettling = Detached;
 		SolSettling.Systems[0].ActiveMegaproject = CosmicRows::ProjectSettle;
 		FCosmicEvalView Settling(SolSettling, Index, Sim->GetTables(), NoAging);
@@ -436,6 +461,39 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("A stay of five ticks reaches Key 5"), UCosmicEventSubsystem::Check(Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("5")), 0.f), Short));
 		TestFalse(TEXT("A Key that is not a count is never reached, not even by a short stay"),
 			UCosmicEventSubsystem::Check(Cond(EConditionType::CivFallenSphereTicksReached, nullptr, FName(TEXT("abc")), 0.f), Short));
+	}
+
+	// B6b (header section 2.7): the selector words of SystemOwnedBy. Ruled is the people a vessel on a throne rules: civ 0's
+	// capital, sys_0, holds for it; the capital of civ 1, an AI people, does not, though civ 1 is the context there; during the
+	// interregnum and for a wanderer the word names no people. Former is the people the vessel left. (Not in the cases above:
+	// the interregnum's rule there holds every answer but the Player conditions' to the same.)
+	{
+		FGalaxyState Ruling = Detached;
+		Ruling.Player.Role = EPlayerRole::Ruler;
+		Ruling.Player.RuledCivID = Ruling.Civs[0].CivID;
+		Ruling.Player.FormerCivID = Civ1;
+		const int32 Civ1Home = Index.FindSystem(Ruling, Ruling.Civs[1].HomeSystemID);
+		auto OwnedBy = [&](const FGalaxyState& State, const TCHAR* Word, int32 CivIndex, int32 SystemIndex)
+		{
+			FCosmicEvalView View(State, Index, Sim->GetTables(), NoAging);
+			View.CivIndex = CivIndex;
+			View.SystemIndex = SystemIndex;
+			return UCosmicEventSubsystem::Check(Cond(EConditionType::SystemOwnedBy, nullptr, FName(Word), 0.f), View);
+		};
+		if (TestTrue(TEXT("(civ 1 has a capital)"), Ruling.Systems.IsValidIndex(Civ1Home)))
+		{
+			TestTrue(TEXT("SystemOwnedBy Ruled holds on the capital of the people the vessel rules"), OwnedBy(Ruling, TEXT("Ruled"), 0, 0));
+			TestFalse(TEXT("and not on the capital of an AI people, whose own context it is"), OwnedBy(Ruling, TEXT("Ruled"), 1, Civ1Home));
+			TestTrue(TEXT("SystemOwnedBy Former holds on a system of the people the vessel left"), OwnedBy(Ruling, TEXT("Former"), 0, Civ1Home));
+			TestFalse(TEXT("and not on the ruled people's"), OwnedBy(Ruling, TEXT("Former"), 0, 0));
+		}
+		FGalaxyState Wandering = Ruling;
+		Wandering.Player.Role = EPlayerRole::Wanderer;
+		TestFalse(TEXT("A wanderer rules no people: Ruled names none"), OwnedBy(Wandering, TEXT("Ruled"), 0, 0));
+		FGalaxyState Between = Ruling;
+		Between.Calling.LifeState = ELifeState::Interregnum;
+		TestFalse(TEXT("During the interregnum Ruled names none"), OwnedBy(Between, TEXT("Ruled"), 0, 0));
+		TestFalse(TEXT("nor Former"), OwnedBy(Between, TEXT("Former"), 0, Civ1Home));
 	}
 
 	// The settled systems of the people (MVP item 3): a second settled system counts, whatever the subject system; the same
@@ -487,7 +545,7 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 	}
 
 	// SystemPressureAtLeast reads the pressure function (section 4.2): with a row for the transcendent whose sphere holds
-	// sol, the pressure there is the weight of a tier-4 source. The name of a celestial row of DT_Transcendents is a
+	// sys_0, the pressure there is the weight of a tier-4 source. The name of a celestial row of DT_Transcendents is a
 	// relation party without an instance in the run (a celestial transcendent has none); a fallen row is a party only
 	// as an instance.
 	{
@@ -2345,7 +2403,7 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 	const FName Row(TEXT("evt_test"));
 	const int64 PastProtection = Sim->GetRules().BirthProtectionTicks + 1;
 
-	// One detached state per case: the first-life ruler of civ 0, standing in sol, at a tick the test picks.
+	// One detached state per case: the first-life ruler of civ 0, standing in sys_0, at a tick the test picks.
 	struct FBench
 	{
 		FBench(const FGalaxyState& InState, UGalaxySimulationSubsystem& InSim, int64 InTick)
@@ -2567,7 +2625,7 @@ bool FCosmicEventsRoleEffectRulesTest::RunTest(const FString& Parameters)
 		for (const FPerTickCase& Case : PerTick)
 		{
 			Types.Add(Case.Effect.Type);
-			// The vessel rules civilization 0 and stands in sol, past the birth protection: both role effects, the vessel
+			// The vessel rules civilization 0 and stands in sys_0, past the birth protection: both role effects, the vessel
 			// effects and the notable would all go through if the source were an event row. The three hazard effects would
 			// not (the bench has no subject system): Events.HazardEffects refuses them from a per-tick source with one.
 			FBench Bench(Fresh, *Sim, PastProtection);

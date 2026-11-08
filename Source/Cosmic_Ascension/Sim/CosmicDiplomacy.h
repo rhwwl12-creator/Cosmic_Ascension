@@ -67,6 +67,10 @@ namespace CosmicDiplomacy
 	/** The trade treaties Civ holds with every partner (the economy stage's income). */
 	COSMIC_ASCENSION_API int32 TradeTreatyCountOf(const FCivilizationState& Civ);
 
+	/** B6b (header section 2.3, decision 7): the peoples Civ shares Treaty with - every partner when Treaty is the empty tag
+	 * (a partner with any treaty, counted once). The condition CivHasTreaty reads it. */
+	COSMIC_ASCENSION_API int32 TreatyPartnersOf(const FCivilizationState& Civ, FGameplayTag Treaty);
+
 	/** The peoples Civ is friendly toward. */
 	COSMIC_ASCENSION_API int32 FriendlyCountOf(const FCivilizationState& Civ);
 
@@ -126,9 +130,24 @@ namespace CosmicDiplomacy
 	COSMIC_ASCENSION_API ECosmicStanceBlock StanceBlockOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules,
 		int32 CivIndex, FName OtherID, FGameplayTag Stance, bool bMet);
 
-	/** The first reason CivIndex cannot sign Treaty with OtherID, NoCiv .. Cost. */
+	/** The first reason CivIndex cannot sign Treaty with OtherID, NoCiv .. Cost. NotRuler is the command's own, never given
+	 * here - so the AI's treaty step (B6b) asks the same gate with bMet true, as the effect SetStance asks its own (the
+	 * world never reads knowing). */
 	COSMIC_ASCENSION_API ECosmicTreatyBlock TreatyBlockOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
 		const FCosmicRulesDef& Rules, int32 CivIndex, FName OtherID, FGameplayTag Treaty, bool bMet);
+
+	/** B6b (header section 2.3, decision 1): whether the row judged at the rung of the people CivIndex asks a treaty it lacks -
+	 * a DT_Feats row that IsJudgedRulerRowAt its Tier carries a CivHasTreaty that does not hold for it (the people and its
+	 * capital as subject, SinceTick 0 - an AI is judged from 0). The AI's treaty step stands on it; false while no feat row
+	 * carries the condition. */
+	COSMIC_ASCENSION_API bool AsksForTreatyOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
+		const FCosmicRulesDef& Rules, int32 CivIndex);
+
+	/** B6b: the partner of the AI's treaty step for the people CivIndex - in Civs order the first people the player does not
+	 * rule that borders it (BordersOf) and with which TreatyBlockOf(..., Treaty.NonAggression, bMet = true) is None;
+	 * INDEX_NONE when none is. The ruled people is never one: its consent is the ruler's command (a card asking it is B7). */
+	COSMIC_ASCENSION_API int32 AITreatyPartnerOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
+		const FCosmicRulesDef& Rules, int32 CivIndex);
 
 	/** Turns CivIndex hostile toward Other and breaks the pair's trade treaty (header section 2.2): when it held one, the other
 	 * people's view of CivIndex falls by Penalty at once (the ruler's command passes BetrayalRelationPenalty, the AI 0). The

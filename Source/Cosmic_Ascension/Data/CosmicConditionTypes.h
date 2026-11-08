@@ -52,6 +52,8 @@ enum class EConditionType : uint8
 	PlayerAgeAtLeast,
 	GalaxyTickAtLeast,
 	// True only when bSealed and SealedTick >= the SinceTick of the evaluation (as MegaprojectComplete; section 4.4, 7.5).
+	// No ruler feat row carries it (schema, B6b decision 12): an AI is judged from 0, so another people's binding would hold
+	// for it too (#73).
 	TranscendentSealed,
 	TranscendentAwareOfPlayer,
 	// Tag = Flag.*. Reads FGalaxyState.Flags (section 4.5).
@@ -88,7 +90,22 @@ enum class EConditionType : uint8
 	// the context people holds it (ActiveEdicts) and the tables hold the row - the count of CosmicEdicts::HeldCountOf. Not
 	// on a grace row (the schema: grace is never drawn by an edict). Carried now by event_claim_eased (edict_vigil - B4
 	// [B-4d2]).
-	CivHasEdict
+	CivHasEdict,
+	// The three below were appended by B6b [B-6b2a] (docs/60_DECISIONS/headers/B6b_upper_rungs_and_the_race.md section 2.3,
+	// 2.4, 2.7). Tag = Treaty.* (empty = any treaty), Value = a whole number from 1: the context people shares that treaty
+	// with at least Value peoples (CosmicDiplomacy::TreatyPartnersOf). The context people only, as CivSettledSystemsAtLeast:
+	// the subject system is not read. Not relative to a life - a treaty carries no tick. A DT_Feats row carries it without a
+	// Tag (the schema: the AI's treaty step signs a non-aggression only - B6b decision 1).
+	CivHasTreaty,
+	// Key = tick count (CosmicConditions::TickCountOf), Value unused: Min(LawsHeldTicks, Tick - SinceTick) >= Key. The count
+	// ends now, so the smaller of the two is the stretch held within the life being judged (the third condition that reads
+	// SinceTick; an AI is judged from 0). A Key that is not a count is false (B6b decision 10).
+	CivLawsHeldTicksAtLeast,
+	// Key = tick count. The one-slot window of CivFallenSphereTicksReached over PressureEnduredTicks: Key <=
+	// PressureEnduredTicks < Key + DT_Rules.EventSlotTicks (below 1 read as 1), so a Civilization slot row finds it in one slot
+	// of an endured stretch at most. No Tag, no Value. Named and SettledSystem event rows and the spawn conditions of a hazard
+	// do not carry it (schema, for the reasons of the fallen-sphere window - B6b decision 22, #156).
+	CivPressureEnduredTicksReached
 	// Decided, appended with the first row that uses each (section 16 #29): CivStabilityAtLeast, PlayerHasPower.
 };
 
@@ -126,6 +143,9 @@ enum class EEffectType : uint8
 	SpawnHazard,
 	ResolveHazard,
 	TransferSystem,
+	// ReverenceToPlayer + Value, clamped 0..1, on the context people; with Key Borders (B6b decision 22) on every people that
+	// borders it instead (CosmicDiplomacy::BordersOf, Civs order - the context people itself is not touched). Any other Key
+	// is turned away. A per-tick source leaves the Key empty (schema).
 	ChangeReverence,
 	GrantPower,
 	PlayerStatDelta,

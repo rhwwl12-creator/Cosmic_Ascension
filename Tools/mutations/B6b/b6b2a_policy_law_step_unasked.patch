@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -682,7 +682,7 @@
+ 	// (MakeRoomFor - the law takes the vigil's slot back once the discontent is no longer counted and Stability is 0.5 or
+ 	// more, or takes the free slot (4) leaves) - so the laws never turn over among themselves or with the vigil and cost an
+ 	// enactment, a line and a decision a boundary.
+-	if (CosmicEdicts::AsksForLawsOf(State.Civs[CivIndex], Tables))
++	if (CosmicEdicts::AsksForLawsOf(State.Civs[CivIndex], Tables) || CivIndex >= 0)
+ 	{
+ 		const FCivilizationState& Ruling = State.Civs[CivIndex];
+ 		const bool bAnswerHolds = Ruling.ActiveEdicts.ContainsByPredicate([&Tables](FName Held) { return CosmicEdicts::IsAnswerEdict(Tables, Held); });

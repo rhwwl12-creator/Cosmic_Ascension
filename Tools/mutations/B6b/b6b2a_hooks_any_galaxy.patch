@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+@@ -159,7 +159,7 @@
+ 	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+ 	{
+ 		const FCivilizationState& Civ = State.Civs[CivIndex];
+-		if (CivIndex == OwnerIndex || Civ.ActiveEdicts.IsEmpty() || Civ.GalaxyRow != System.GalaxyRow)
++		if (CivIndex == OwnerIndex || Civ.ActiveEdicts.IsEmpty())
+ 		{
+ 			continue;
+ 		}

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+@@ -642,7 +642,7 @@
+ 	case EConditionType::CivHasTreaty:
+ 		// The peoples the context people shares the treaty with - any treaty for an empty Tag (B6b section 2.3). The subject
+ 		// system is not read.
+-		return Civ && static_cast<float>(CosmicDiplomacy::TreatyPartnersOf(*Civ, Condition.Tag)) >= Condition.Value;
++		return Civ && static_cast<float>(CosmicDiplomacy::TreatyPartnersOf(*Civ, Condition.Tag)) > Condition.Value;
+ 
+ 	case EConditionType::CivLawsHeldTicksAtLeast:
+ 	{

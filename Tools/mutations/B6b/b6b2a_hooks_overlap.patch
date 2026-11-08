@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+@@ -166,7 +166,7 @@
+ 		for (const FName Row : Civ.ActiveEdicts)
+ 		{
+ 			const FEdictDef* Def = Tables.FindEdict(Row);
+-			if (Def && Def->Scope == ECosmicEdictScope::HomeGalaxy && !Names.Contains(Row))
++			if (Def && Def->Scope == ECosmicEdictScope::HomeGalaxy)
+ 			{
+ 				Names.Add(Row);
+ 				Hooks.Add(Def);

@@ -555,10 +555,18 @@ void CosmicRulerPolicy::ActEdicts(const FCosmicRulerPolicy& Policy, UGalaxySimul
 		++Counts.EdictsEnacted;
 		return true;
 	};
-	// Room for Row: a free slot, or one made by revoking a held edict that answers no standing hazard (EdictRow last) -
-	// only when Row could then be enacted: the slots its one reason and the stockpile paying its cost (EnactBlockOf asks the
-	// slots before the cost), so no edict is given up for an enactment that would be refused.
-	auto MakeRoomFor = [&](FName Row)
+	// Room for Row: a free slot, or one made by revoking a held edict that answers no standing hazard (EdictRow after the
+	// others and a galaxy law last - B6b) - only when Row could then be enacted: the slots its one reason and the stockpile
+	// paying its cost (EnactBlockOf asks the slots before the cost), so no edict is given up for an enactment that would be
+	// refused. For the law step (bForLaw - B6b header section 2.4) a galaxy law is never given up: a law takes a free slot or
+	// the slot of an edict that is no law, so the laws never turn over among themselves. Nor is the vigil while (3) would
+	// enact it again (discontent counted, no rebellion standing) or while Stability is below RevokeBelow: (3) gave up a law
+	// for it, and a law taking its slot back would hand it to (3) at the next boundary - the vigil and a law would swap
+	// every two boundaries, and under a steady drain again each time Stability climbs back to 0.3, where the discontent is
+	// no longer counted. So the law step leaves a band, as (3) and (4) leave one between their edges: the law takes the
+	// vigil's slot back once the discontent is no longer counted and Stability is 0.5 or more, or takes the free slot (4)
+	// leaves at RestAt.
+	auto MakeRoomFor = [&](FName Row, bool bForLaw)
 	{
 		const FCivilizationState& Civ = State.Civs[CivIndex];
 		if (CosmicEdicts::HeldCountOf(Civ, Tables) < CosmicEdicts::SlotsOf(Civ, Rules))
@@ -572,6 +580,7 @@ void CosmicRulerPolicy::ActEdicts(const FCosmicRulerPolicy& Policy, UGalaxySimul
 			return false;
 		}
 		FName Spare;
+		int32 SpareRank = 3;
 		for (const FName Held : TArray<FName>(Civ.ActiveEdicts))
 		{
 			if (Held == Row || !Tables.FindEdict(Held) || Enacted.Contains(Held) || CosmicEdicts::AnswersStanding(State, Index, Tables, CivIndex, Held)
@@ -579,21 +588,36 @@ void CosmicRulerPolicy::ActEdicts(const FCosmicRulerPolicy& Policy, UGalaxySimul
 			{
 				continue;
 			}
-			if (Held != Policy.EdictRow)
+			// The first held edict of the lowest rank: 0 any other, 1 EdictRow, 2 a galaxy law (never for a law).
+			const bool bLaw = CosmicEdicts::IsGalaxyLaw(Tables, Held);
+			if (bLaw && bForLaw)
+			{
+				continue;
+			}
+			if (bForLaw && Held == Vigil
+				&& ((State.Civs[CivIndex].LowStabilityTicks > 0 && !RebellionStands()) || State.Civs[CivIndex].Stability < RevokeBelow))
+			{
+				continue;
+			}
+			const int32 Rank = bLaw ? 2 : (Held == Policy.EdictRow ? 1 : 0);
+			if (Rank < SpareRank)
 			{
 				Spare = Held;
+				SpareRank = Rank;
+			}
+			if (Rank == 0)
+			{
 				break;
 			}
-			Spare = Spare.IsNone() ? Held : Spare;
 		}
 		return !Spare.IsNone() && Revoke(Spare);
 	};
 
-	// (1) Below 0.5, the edicts that cost Stability go.
+	// (1) Below 0.5, the edicts that cost Stability go - never a galaxy law (B6b: the laws go only to make room, last).
 	for (const FName Held : TArray<FName>(State.Civs[CivIndex].ActiveEdicts))
 	{
 		const FEdictDef* Def = Tables.FindEdict(Held);
-		if (Def && CosmicEdicts::HasStabilityCost(*Def) && State.Civs[CivIndex].Stability < RevokeBelow)
+		if (Def && Def->Scope != ECosmicEdictScope::HomeGalaxy && CosmicEdicts::HasStabilityCost(*Def) && State.Civs[CivIndex].Stability < RevokeBelow)
 		{
 			Revoke(Held);
 		}
@@ -619,7 +643,7 @@ void CosmicRulerPolicy::ActEdicts(const FCosmicRulerPolicy& Policy, UGalaxySimul
 			}
 			if (Tables.FindEdict(Answer))
 			{
-				if (!Revoked.Contains(Answer) && MakeRoomFor(Answer))
+				if (!Revoked.Contains(Answer) && MakeRoomFor(Answer, false))
 				{
 					Enact(Answer);
 				}
@@ -629,7 +653,7 @@ void CosmicRulerPolicy::ActEdicts(const FCosmicRulerPolicy& Policy, UGalaxySimul
 	}
 	// (3) The vigil against a coming rebellion: discontent counted, no rebellion yet, the vigil not held.
 	if (!Vigil.IsNone() && State.Civs[CivIndex].LowStabilityTicks > 0 && !RebellionStands() && !State.Civs[CivIndex].ActiveEdicts.Contains(Vigil)
-		&& !Revoked.Contains(Vigil) && MakeRoomFor(Vigil) && Enact(Vigil))
+		&& !Revoked.Contains(Vigil) && MakeRoomFor(Vigil, false) && Enact(Vigil))
 	{
 		Counts.VigilEnacted = Vigil;
 	}
@@ -648,6 +672,29 @@ void CosmicRulerPolicy::ActEdicts(const FCosmicRulerPolicy& Policy, UGalaxySimul
 		if (bIdleAnswer || bVigilDone)
 		{
 			Revoke(Held);
+		}
+	}
+	// (4') B6b (header section 2.4): the galaxy laws the row judged at the people's rung asks for (CosmicEdicts::AsksForLawsOf),
+	// those it lacks in table order, each through MakeRoomFor for a law - into a free slot or by giving up an edict that is
+	// no law. It stands still while the slots are fewer than DT_Rules.GalaxyLawsToHold (the count could not be reached) or
+	// while an answer edict holds a slot (the answer of (2) came first: the law whose slot it took waits until the answer
+	// goes in (4)), and it does not take the slot of the vigil while (3) would enact it again or Stability is below 0.5
+	// (MakeRoomFor - the law takes the vigil's slot back once the discontent is no longer counted and Stability is 0.5 or
+	// more, or takes the free slot (4) leaves) - so the laws never turn over among themselves or with the vigil and cost an
+	// enactment, a line and a decision a boundary.
+	if (CosmicEdicts::AsksForLawsOf(State.Civs[CivIndex], Tables))
+	{
+		const FCivilizationState& Ruling = State.Civs[CivIndex];
+		const bool bAnswerHolds = Ruling.ActiveEdicts.ContainsByPredicate([&Tables](FName Held) { return CosmicEdicts::IsAnswerEdict(Tables, Held); });
+		if (CosmicEdicts::SlotsOf(Ruling, Rules) >= CosmicEdicts::GalaxyLawsToHoldOf(Rules) && !bAnswerHolds)
+		{
+			for (const FName Law : CosmicEdicts::GalaxyLawRowsOf(Tables))
+			{
+				if (!State.Civs[CivIndex].ActiveEdicts.Contains(Law) && !Revoked.Contains(Law) && MakeRoomFor(Law, true))
+				{
+					Enact(Law);
+				}
+			}
 		}
 	}
 	// (5) EdictRow in a free slot - a row that costs Stability only at the resting level.

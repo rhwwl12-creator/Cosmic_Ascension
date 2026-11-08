@@ -2,7 +2,7 @@
 
 Each patch breaks one new assertion once, as `docs/40_DEV_GUIDE.md` asks of every new test: apply it (`git apply <patch>`),
 build, run the named test and see it fail, then revert (`git apply -R <patch>`). The patch name says which test it breaks.
-A patch of `Tools/data` (the `b4d2_data_` ones) needs the assets rebuilt by `Tools/make_data_tables.py` instead of a build,
+A patch of `Tools/data` (the `b4d2_data_` ones, `b6b2a_data_laws_knob_four` and `b6b2a_data_reach_word_renamed`) needs the assets rebuilt by `Tools/make_data_tables.py` instead of a build,
 after the apply and again after the revert.
 Kept from milestone B on (B1); the earlier milestones ran their mutations from scripts and recorded them in the commit
 messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
@@ -696,3 +696,34 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B6b/` | `b6b1_endured_any_sphere.patch` — any transcendent's sphere over the capital stops the count, not only an unsealed fallen one (an independent sphere is no subjection) | `Cosmic_Ascension.Sim.PressureEndured` |
 | `B6b/` | `b6b1_endured_ruled_only.patch` — only the ruled people counts its endured pressure (the count is kept for every people) | `Cosmic_Ascension.Sim.PressureEndured` |
 | `B6b/` | `b6b1_endured_fallen_drain_only.patch` — a drained tick counts only when a settled system lies inside a fallen sphere (the drain of any presser is a drain) | `Cosmic_Ascension.Sim.PressureEndured` |
+| `B6b/` | `b6b2a_treaty_partners_any_tag.patch` — `CosmicDiplomacy::TreatyPartnersOf` counts a partner of any treaty whatever the Tag asks (a non-aggression is not the trade treaty) | `Cosmic_Ascension.Events.CheckIsPure` |
+| `B6b/` | `b6b2a_treaty_strictly_more.patch` — `CivHasTreaty` asks more partners than its Value (the bound itself holds) | `Cosmic_Ascension.Feats.Evaluate` (and `Events.CheckIsPure`) |
+| `B6b/` | `b6b2a_laws_held_no_min.patch` — `CivLawsHeldTicksAtLeast` reads `LawsHeldTicks` without the `Min` with `Tick - SinceTick` (the stretch before the vessel's birth counts) | `Cosmic_Ascension.Feats.Evaluate` (and `Events.CheckIsPure`) |
+| `B6b/` | `b6b2a_endured_window_inclusive.patch` — the window of `CivPressureEnduredTicksReached` is one tick wider (the next slot finds it too) | `Cosmic_Ascension.Sim.EraSelector` (and `Events.CheckIsPure`) |
+| `B6b/` | `b6b2a_ruled_is_context.patch` — the selector word `Ruled` names the context people (an AI people's capital answers for it) | `Cosmic_Ascension.Sim.EraSelector` (and `Events.CheckIsPure`) |
+| `B6b/` | `b6b2a_borders_twice.patch` — `ChangeReverence Borders` adds twice to each bordering people | `Cosmic_Ascension.Sim.EraSelector` |
+| `B6b/` | `b6b2a_laws_counted_before_upkeep.patch` — `LawsHeldTicks` is counted before the upkeep (a law that lapses in the tick is held at the count) | `Cosmic_Ascension.Sim.LawsHeld` |
+| `B6b/` | `b6b2a_laws_held_any_rung.patch` — `CosmicEdicts::HoldsGalaxyLawsOf` without its fourth-rung test (a people of the third rung holding the laws counts) | `Cosmic_Ascension.Sim.LawsHeld` (the third rung) |
+| `B6b/` | `b6b2a_hooks_overlap.patch` — the galaxy walk adds a law once for every people that holds it (the union counts each row once) | `Cosmic_Ascension.Sim.GalaxyLaws` |
+| `B6b/` | `b6b2a_hooks_owner_only.patch` — the two hooks read the owner's edicts alone (a galaxy law reaches no other people's system) | `Cosmic_Ascension.Sim.GalaxyLaws` |
+| `B6b/` | `b6b2a_hooks_any_galaxy.patch` — `CosmicEdicts::HookEdictsOf` without its `GalaxyRow` test (a galaxy law reaches a system of another galaxy) | `Cosmic_Ascension.Sim.GalaxyLaws` (the other galaxy) |
+| `B6b/` | `b6b2a_ai_treaty_to_ruled.patch` — the AI's treaty step may take the ruled people as its partner (its consent is the ruler's command) | `Cosmic_Ascension.Sim.AIRowSteps` |
+| `B6b/` | `b6b2a_ai_treaty_draws.patch` — the AI's treaty step draws one number from the sim stream | `Cosmic_Ascension.Sim.AIRowSteps` |
+| `B6b/` | `b6b2a_ai_law_step_skips_gate.patch` — the AI's law step enacts every law it lacks without the gate `EnactBlockOf` (a refused condition, full slots) | `Cosmic_Ascension.Sim.AIRowSteps` |
+| `B6b/` | `b6b2a_ai_steps_unasked.patch` — the AI's treaty step runs with no row that asks (`AsksForTreatyOf` in `TickCivAI` reads true) | `Cosmic_Ascension.Sim.AIRowSteps` (without a row that asks; the plain board's treaty also spoils the asked board's comparisons) |
+| `B6b/` | `b6b2a_ai_treaty_skips_gate.patch` — `CosmicDiplomacy::AITreatyPartnerOf` without the gate `TreatyBlockOf` (a hostile partner is not passed by) | `Cosmic_Ascension.Sim.AIRowSteps` (the hostile case; the second treaty of the next tick too - the partner the first tick took is taken again) |
+| `B6b/` | `b6b2a_ai_revokes_laws.patch` — `CosmicEdicts::AIRevokesOf` walks the galaxy laws too | `Cosmic_Ascension.Sim.EdictAI` |
+| `B6b/` | `b6b2a_policy_step1_drops_law.patch` — the policy's step (1) revokes a galaxy law with a Stability cost below 0.5 | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
+| `B6b/` | `b6b2a_policy_law_first.patch` — the policy's room making gives up a galaxy law first (laws come last) | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
+| `B6b/` | `b6b2a_policy_law_before_edict_row.patch` — the policy's room making gives up a galaxy law before `EdictRow` (the ranks of the two swapped) | `Cosmic_Ascension.Sim.RulerEdictPolicy` (the kept row's case) |
+| `B6b/` | `b6b2a_policy_law_for_law.patch` — the policy's law step gives up a law for a law (the laws turn over) | `Cosmic_Ascension.Sim.RulerEdictPolicy` (the first law case, its second boundary) |
+| `B6b/` | `b6b2a_policy_law_step_ignores_answer.patch` — the policy's law step no longer stands still while an answer edict holds a slot (a law takes the free slot) | `Cosmic_Ascension.Sim.RulerEdictPolicy` (the free slot's case) |
+| `B6b/` | `b6b2a_policy_vigil_for_law.patch` — the policy's law step takes the vigil's slot at any boundary, while step (3) would enact it again too (the vigil and a law swap every two boundaries) | `Cosmic_Ascension.Sim.RulerEdictPolicy` (the vigil's case, its two boundaries) |
+| `B6b/` | `b6b2a_policy_vigil_band.patch` — the policy's law step keeps off the vigil's slot only while step (3) would enact it again, not below Stability 0.5 (under a steady drain the vigil and a law swap each time Stability climbs back to 0.3) | `Cosmic_Ascension.Sim.RulerEdictPolicy` (the vigil's case, the boundary at 0.45) |
+| `B6b/` | `b6b2a_policy_vigil_waits_for_rest.patch` — the policy's law step keeps off the vigil's slot below `RestAt` (0.6) instead of 0.5, so the law waits for step (4) to let the vigil go (the stall the verdict measured) | `Cosmic_Ascension.Sim.RulerEdictPolicy` (the vigil's case, the boundary at 0.55) |
+| `B6b/` | `b6b2a_policy_law_step_ignores_slots.patch` — the policy's law step enacts while the slots are fewer than `GalaxyLawsToHold` | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
+| `B6b/` | `b6b2a_policy_law_step_free_slot_only.patch` — the policy's room making gives a law no room once the slots are full (a law takes free slots only) | `Cosmic_Ascension.Sim.RulerEdictPolicy` (the first law case) |
+| `B6b/` | `b6b2a_policy_law_step_unasked.patch` — the policy's law step (4') runs with no row that asks for laws | `Cosmic_Ascension.Sim.RulerEdictPolicy` (without a row that reads the laws; the third rung's case too) |
+| `B6b/` | `b6b2a_asks_for_laws_any_rung.patch` — `CosmicEdicts::AsksForLawsOf` without its rung check (a row of the third rung that reads the laws asks for them) | `Cosmic_Ascension.Sim.RulerEdictPolicy` (below the fourth rung - run over the whole suite, the one test of the 214 it breaks: no other board puts a row that reads the laws below the fourth rung) |
+| `B6b/` | `b6b2a_data_laws_knob_four.patch` — `DT_Rules.GalaxyLawsToHold` 4, above the edict slots' end (a data patch: rebuild the assets) | `Cosmic_Ascension.Data.Integrity` |
+| `B6b/` | `b6b2a_data_reach_word_renamed.patch` — the schema's word list `reverence_reach` says `Border` (a data patch of `schema.json`: `make_data_tables.py` stops at the checker's own tests, `Tools/test_data_schema.py` - caught there as well - having taken the stamp `generated.sha1` away, so run it again after the revert; `Data.Integrity` reads the file itself) | `Cosmic_Ascension.Data.Integrity` |

@@ -1,0 +1,12 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -35,7 +35,7 @@
+ 		"role": ["Ruler", "Wanderer"],
+ 		"civ_selector": ["Former", "Ruled"],
+ 		"notable_selector": ["Former"],
+-		"reverence_reach": ["Borders"],
++		"reverence_reach": ["Border"],
+ 		"policy": ["Cautious", "Reckless", "Faithful", "Tribute"],
+ 		"research": ["Physics", "Society", "Engineering", "Transcendence"],
+ 		"verdict": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"],

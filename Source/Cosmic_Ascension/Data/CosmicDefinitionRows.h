@@ -156,7 +156,8 @@ struct COSMIC_ASCENSION_API FHazardDef : public FTableRowBase
 	ECosmicHazardSpawn SpawnRule = ECosmicHazardSpawn::Draw;
 
 	// Draw rows: the share of one spawn draw, times the owner archetype's HazardSpawnMultipliers[HazardTag] (missing = 1),
-	// times the owner's held edicts' HazardSpawnMultipliers (CosmicEdicts::SpawnMultiplierOf, B2).
+	// times the owner's held edicts' HazardSpawnMultipliers and those of the home-galaxy edicts the other peoples of the
+	// system's galaxy hold (CosmicEdicts::SpawnMultiplierOf - B2, B6b).
 	// Capital and ClaimRule rows carry 0 (Data.Integrity). Below 0, or not a number, reads as 0.
 	UPROPERTY(EditAnywhere)
 	float SpawnChancePerTick = 0.0005f;
@@ -299,6 +300,14 @@ struct COSMIC_ASCENSION_API FAscensionFeatDef : public FTableRowBase
 	{
 		return Path == EPlayerRole::Ruler && RequiredTier == Tier && IsOneRungWithDeed();
 	}
+
+	// Whether CompletionConditions holds a condition of Type (B6b header section 2.3, 2.4): what a judged row asks of a
+	// people - the AI's law step and treaty step (CosmicEdicts::AsksForLawsOf, CosmicDiplomacy::AsksForTreatyOf) and the
+	// measuring policy's law step read it.
+	bool CarriesCondition(EConditionType Type) const
+	{
+		return CompletionConditions.ContainsByPredicate([Type](const FCosmicCondition& Condition) { return Condition.Type == Type; });
+	}
 };
 
 /**
@@ -339,10 +348,26 @@ struct COSMIC_ASCENSION_API FMegaprojectDef : public FTableRowBase
 };
 
 /**
+ * The reach of an edict (B6b - docs/60_DECISIONS/headers/B6b_upper_rungs_and_the_race.md section 2.4, decision 9). A
+ * definition enum: data rows hold it, no save does. Append only.
+ */
+UENUM(BlueprintType)
+enum class ECosmicEdictScope : uint8
+{
+	// The holder's own: every part of the row reaches the people that holds it (the seven rows of B2-B4).
+	People,
+	// A galaxy law (the design's word - the screen says edict): its two hazard hooks, HazardSpawnMultipliers and
+	// HazardCountdownBonus, reach every settled system of the holder's GalaxyRow, once a row (CosmicEdicts::SpawnMultiplierOf,
+	// CountdownBonusOf); every other part stays the holder's. The rows of the fourth rung (schema), never revoked by the AI.
+	HomeGalaxy
+};
+
+/**
  * One edict (DT_Edicts, B2 - docs/60_DECISIONS/headers/B2_edicts_and_research.md, docs/10_DESIGN/systems.md section 5.8): a
  * modifier a ruler sets on the whole people and keeps standing until it is revoked. The row name is saved in
  * FCivilizationState.ActiveEdicts, so it never changes once a save exists. Which hazards an edict answers is said by the
- * hazard rows (FHazardDef.RulerResolutions), not here. No draw reads a row: every part is a rate, a factor or a sum.
+ * hazard rows (FHazardDef.RulerResolutions), not here. No draw reads a row: every part is a rate, a factor or a sum. Scope
+ * (B6b) says how far the two hazard hooks reach.
  */
 USTRUCT(BlueprintType)
 struct COSMIC_ASCENSION_API FEdictDef : public FTableRowBase
@@ -385,13 +410,15 @@ struct COSMIC_ASCENSION_API FEdictDef : public FTableRowBase
 	TArray<FCosmicEffect> EffectsPerTick;
 
 	// Hazard.* -> factor on the spawn share of that Draw row on the people's settled systems, beside the archetype's
-	// HazardSpawnMultipliers (the number of draws does not change). Below 0, or not a finite number, reads as 0.
+	// HazardSpawnMultipliers (the number of draws does not change). Below 0, or not a finite number, reads as 0. A
+	// HomeGalaxy row's factors reach every settled system of the holder's galaxy (B6b; the schema keeps them at most 1).
 	UPROPERTY(EditAnywhere)
 	TMap<FGameplayTag, float> HazardSpawnMultipliers;
 
 	// Hazard.* -> ticks added to the countdown of that hazard when it is placed on a system of the people (every path goes
 	// through CosmicHazards::Place). An edict never changes a standing hazard's countdown (only a card's DelayHazard does -
-	// B4, CosmicConflict::ResistBlockOf). Below 0 reads as 0.
+	// B4, CosmicConflict::ResistBlockOf). Below 0 reads as 0. A HomeGalaxy row's ticks reach every settled system of the
+	// holder's galaxy (B6b).
 	UPROPERTY(EditAnywhere)
 	TMap<FGameplayTag, int32> HazardCountdownBonus;
 
@@ -411,6 +438,12 @@ struct COSMIC_ASCENSION_API FEdictDef : public FTableRowBase
 	// 0.45 (B4 [B-4d2]), every other row 1.
 	UPROPERTY(EditAnywhere)
 	float PressureDrainMultiplier = 1.f;
+
+	// B6b (header section 2.4, decision 9): how far the two hazard hooks above reach - People (the holder's settled systems,
+	// as in B2) or HomeGalaxy (every settled system of the holder's GalaxyRow: a galaxy law). The data writes People on every
+	// row of B2-B4 (an enum column has no empty value), the default here.
+	UPROPERTY(EditAnywhere)
+	ECosmicEdictScope Scope = ECosmicEdictScope::People;
 };
 
 /**
@@ -1341,4 +1374,13 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// 0.5/0.45 pair and a floor wait for the B7 header).
 	UPROPERTY(EditAnywhere)
 	float ResistFleetFactor = 1.f;
+
+	// ---- The upper rungs (B6b, docs/60_DECISIONS/headers/B6b_upper_rungs_and_the_race.md section 3.4) ----
+
+	// The galaxy laws (DT_Edicts rows of Scope HomeGalaxy) a people of the fourth rung or above holds for a tick to count in
+	// FCivilizationState.LawsHeldTicks (decision 10). Read by the economy stage's count (CosmicEdicts::HoldsGalaxyLawsOf -
+	// below 1 read as 1) and by the measuring policy's law step. At least 1 (schema); Data.Integrity keeps it at most the
+	// edict slots' end (1 + the EdictSlotSocietyMarks) and, once a feat row reads the count, at most the HomeGalaxy rows.
+	UPROPERTY(EditAnywhere)
+	int32 GalaxyLawsToHold = 3;
 };

@@ -23,6 +23,7 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
 #include "Player/PlayerRoleSubsystem.h"
+#include "Sim/CosmicDiplomacy.h"
 #include "Sim/CosmicEndings.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
@@ -1576,6 +1577,90 @@ bool FCosmicFeatsEvaluateTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The handler of the ascension line ran"), bTried);
 		TestEqual(TEXT("and lifted nobody again"), Again->Civs[2].Tier, EAscensionTier::Tier3_Causal);
 		Probe.Probe->OnLog = nullptr;
+	}
+
+	// B6b [B-6b2a] (header section 2.3, 2.4): the two conditions of the upper rungs, judged. A treaty is the context people's own
+	// and relative to no life: people 1 on the third rung climbs with the non-aggression it shares with people 2 (on the first
+	// rung - its own rows are of another rung) and does not without it (no Influence: the AI's treaty step, which the row now
+	// asks, cannot sign one). The held laws count within the life judged - Min(LawsHeldTicks, Tick - SinceTick): the vessel's
+	// people, which held its three laws long before the vessel was born 49 economy stages ago, waits one tick for its fifth rung
+	// while AI people 3, which held them as long, climbs at once (mutation: without the Min the stretch before the birth counts).
+	{
+		const FName FeatTreaty(TEXT("feat_test_treaty"));
+		const FName FeatLaws(TEXT("feat_test_laws"));
+		UDataTable* UpperFeats = NewTable(FAscensionFeatDef::StaticStruct());
+		UpperFeats->AddRow(FeatTreaty, FeatRow(EAscensionTier::Tier3_Causal, EAscensionTier::Tier4_Transcendent, { Cond(EConditionType::CivHasTreaty, NAME_None, 1.f) }, TEXT("treaty")));
+		UpperFeats->AddRow(FeatLaws, FeatRow(EAscensionTier::Tier4_Transcendent, EAscensionTier::Tier5_EternalOrder,
+			{ Cond(EConditionType::CivLawsHeldTicksAtLeast, FName(TEXT("50"))) }, TEXT("laws")));
+		const FName Laws[] = { FName(TEXT("edict_test_law_a")), FName(TEXT("edict_test_law_b")), FName(TEXT("edict_test_law_c")) };
+		UDataTable* LawRows = NewTable(FEdictDef::StaticStruct());
+		for (const FName Law : Laws)
+		{
+			FEdictDef Row;
+			Row.DisplayName = FText::AsCultureInvariant(Law.ToString());
+			Row.RequiredTier = EAscensionTier::Tier4_Transcendent;
+			Row.Scope = ECosmicEdictScope::HomeGalaxy;
+			LawRows->AddRow(Law, Row);
+		}
+		// The knob the count of 1001 is read against, and no brake on the fourth rung: two peoples stand on it here while an AI
+		// people of the third climbs, which the home row's AIFourthRungCap (2 in the game) would hold back once the brake is
+		// read ([B-6b2c]) - a copy of the game's galaxy rows, the home row kept, every cap 0.
+		FCosmicRulesDef UpperRules = Knobs(BaseRules);
+		UpperRules.GalaxyLawsToHold = 3;
+		UDataTable* Unbraked = NewTable(FGalaxyDef::StaticStruct());
+		for (const FName GalaxyRow : Original.GetGalaxyRowNames())
+		{
+			if (const FGalaxyDef* Galaxy = Original.FindGalaxy(GalaxyRow))
+			{
+				FGalaxyDef Copy = *Galaxy;
+				Copy.AIFourthRungCap = 0;
+				Unbraked->AddRow(GalaxyRow, Copy);
+			}
+		}
+		FCosmicDataTables UpperTables = CosmicTests::WithGalaxies(TablesWith(Original, UpperRules, UpperFeats), Unbraked);
+		UpperTables.Edicts = LawRows;
+		auto LayUpper = [&](bool bTreaty) -> FGalaxyState*
+		{
+			FGalaxyState* Upper = LayBoard(*Sim, UpperTables);
+			if (!Upper)
+			{
+				return nullptr;
+			}
+			Upper->Tick = 2000;
+			Upper->Calling.BornTick = Upper->Tick + 1 - 49;
+			Upper->Civs[1].Tier = EAscensionTier::Tier3_Causal;
+			Upper->Civs[1].Stockpile.Influence = 0.f;
+			if (bTreaty)
+			{
+				CosmicDiplomacy::Sign(*Upper, 1, 2, CosmicTags::TreatyNonAggression());
+			}
+			for (const int32 CivIndex : { 0, 3 })
+			{
+				Upper->Civs[CivIndex].Tier = EAscensionTier::Tier4_Transcendent;
+				Upper->Civs[CivIndex].ActiveEdicts = { Laws[0], Laws[1], Laws[2] };
+				Upper->Civs[CivIndex].LawsHeldTicks = 1000;
+			}
+			return Upper;
+		};
+		FGalaxyState* Without = LayUpper(false);
+		if (!TestNotNull(TEXT("The board of the upper rungs is laid"), Without))
+		{
+			return false;
+		}
+		Sim->StepOnce();
+		TestEqual(TEXT("Without a treaty the people of the third rung stays"), Without->Civs[1].Tier, EAscensionTier::Tier3_Causal);
+		FGalaxyState* Upper = LayUpper(true);
+		if (!TestNotNull(TEXT("The board of the upper rungs is laid again"), Upper))
+		{
+			return false;
+		}
+		Sim->StepOnce();
+		TestEqual(TEXT("With the non-aggression it shares, the people of the third rung climbs"), Upper->Civs[1].Tier, EAscensionTier::Tier4_Transcendent);
+		TestEqual(TEXT("(its partner of the first rung is not judged by the row)"), Upper->Civs[2].Tier, EAscensionTier::Tier1_Planetary);
+		TestEqual(TEXT("An AI people that held the laws long enough climbs"), Upper->Civs[3].Tier, EAscensionTier::Tier5_EternalOrder);
+		TestEqual(TEXT("The vessel's people waits: 49 stages of this life, not the 1001 ticks of the count"), Upper->Civs[0].Tier, EAscensionTier::Tier4_Transcendent);
+		Sim->StepOnce();
+		TestEqual(TEXT("and climbs at the fiftieth"), Upper->Civs[0].Tier, EAscensionTier::Tier5_EternalOrder);
 	}
 	return true;
 }

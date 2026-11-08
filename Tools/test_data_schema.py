@@ -233,6 +233,7 @@ def edict_row(name="edict_test_order", **changes):
         "FleetGrowthMultiplier": 1.0,
         "TreatyAcceptBonus": 0.0,
         "PressureDrainMultiplier": 1.0,
+        "Scope": "People",
     }
     row.update(changes)
     return row
@@ -2425,6 +2426,133 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(per_tick(eff("MultiplyIncome", value=0.9, duration=10)), [])
         self.expect(per_tick(eff("MultiplyIncome", value=-0.2)), "is below 0")
 
+    def test_upper_rung_vocabulary(self):
+        """B6b [B-6b2a] (header 3.3, rules 1-4, 6 and 6'): the three conditions appended to the vocabulary, the selector word
+        Ruled (SystemOwnedBy alone), the Key Borders of ChangeReverence (never per tick), the scope of an edict and the
+        galaxy law's rule, and the two feat rules (no sealed transcendent on a ruler row, no Tag on a feat's treaty). One
+        input that breaks each, beside the walk of every rule below."""
+        self.assertEqual(self.after(), [])
+        # (1) CivHasTreaty: a Treaty.* Tag that may be left out, a whole number of partners from 1.
+        self.assertEqual(self.conditions(cond("CivHasTreaty", value=1)), [])
+        self.assertEqual(self.conditions(cond("CivHasTreaty", tag="Treaty.NonAggression", value=2)), [])
+        self.expect(self.conditions(cond("CivHasTreaty", value=0)), "(CivHasTreaty).Value", "is below 1")
+        self.expect(self.conditions(cond("CivHasTreaty", value=1.5)), "(CivHasTreaty).Value", "not a whole number")
+        self.expect(self.conditions(cond("CivHasTreaty", tag="Stance.Friendly", value=1)), "(CivHasTreaty).Tag", "not under Treaty.")
+        self.expect(self.conditions(cond("CivHasTreaty", key="civ_1", value=1)), "(CivHasTreaty).Key", "reads no Key")
+        # CivLawsHeldTicksAtLeast: a count of ticks, no Value.
+        self.assertEqual(self.conditions(cond("CivLawsHeldTicksAtLeast", key="600")), [])
+        self.expect(self.conditions(cond("CivLawsHeldTicksAtLeast", key="N")), "(CivLawsHeldTicksAtLeast).Key", "not a count of ticks")
+        self.expect(self.conditions(cond("CivLawsHeldTicksAtLeast")), "(CivLawsHeldTicksAtLeast).Key", "a Key is required")
+        self.expect(self.conditions(cond("CivLawsHeldTicksAtLeast", key="600", value=3)), "(CivLawsHeldTicksAtLeast)", "reads no Value")
+        # CivPressureEnduredTicksReached: a count of ticks, no Tag; a Civilization slot row only, as the fallen-sphere window.
+        endured = cond("CivPressureEnduredTicksReached", key="600")
+        harvest = lambda **changes: (lambda tables: self.row(tables, "DT_Events", "event_test_harvest").update(changes))  # noqa: E731
+        self.assertEqual(self.after(harvest(Trigger="Standing", BaseWeight=0, Conditions=[endured])), [])
+        self.expect(self.conditions(cond("CivPressureEnduredTicksReached", key="600ticks")), "(CivPressureEnduredTicksReached).Key", "not a count of ticks")
+        self.expect(self.conditions(cond("CivPressureEnduredTicksReached", key="600", tag="Doctrine.Silence")), "(CivPressureEnduredTicksReached).Tag", "reads no Tag")
+        self.expect(self.after(harvest(Trigger="Named", BaseWeight=0, CooldownTicks=0, LogTemplates=["one."], Conditions=[endured])),
+                    "a row fired by name is not a slot", "CivPressureEnduredTicksReached")
+        self.expect(self.after(harvest(Subject="SettledSystem", Conditions=[endured])), "a system-subject row lands on a place", "CivPressureEnduredTicksReached")
+        self.expect(self.after(self.set_cell("DT_Hazards", "crisis_test_storm", "SpawnConditions", [endured])),
+                    "the stage reads the spawn conditions on every tick", "CivPressureEnduredTicksReached")
+        # (2) The selector word Ruled: SystemOwnedBy takes the civ selector, the two notable conditions Former alone.
+        self.assertEqual(self.conditions(cond("SystemOwnedBy"), cond("SystemOwnedBy", key="Ruled"), cond("SystemOwnedBy", key="Former")), [])
+        self.expect(self.conditions(cond("SystemOwnedBy", key="Latter")), "(SystemOwnedBy).Key", "Latter is none of Former, Ruled")
+        self.expect(self.conditions(cond("CivHasNotable", tag="Notable.Rebel", key="Ruled")), "(CivHasNotable).Key", "Ruled is none of Former")
+        self.expect(self.effects(eff("NameNotable", tag="Notable.Rebel", key="Ruled")), "(NameNotable).Key", "Ruled is none of Former")
+        self.assertEqual(self.effects(eff("NameNotable", tag="Notable.Rebel", key="Former")), [])
+        # (3) The Key Borders of ChangeReverence: empty or Borders, and a per-tick source leaves it empty.
+        self.assertEqual(self.effects(eff("ChangeReverence", key="Borders", value=0.2), eff("ChangeReverence", value=0.1)), [])
+        self.expect(self.effects(eff("ChangeReverence", key="Neighbours", value=0.2)), "(ChangeReverence).Key", "Neighbours is none of Borders")
+        self.assertEqual(self.after(self.set_cell("DT_Edicts", "edict_test_order", "EffectsPerTick", [eff("ChangeReverence", value=0.001)])), [])
+        self.expect(self.after(self.set_cell("DT_Edicts", "edict_test_order", "EffectsPerTick", [eff("ChangeReverence", key="Borders", value=0.001)])),
+                    "DT_Edicts.edict_test_order.EffectsPerTick[0](ChangeReverence).Key", "a per-tick source leaves this Key empty")
+        self.expect(self.after(self.set_cell("DT_Transcendents", "trans_silence", "PressureEffectsPerTick", [eff("ChangeReverence", key="Borders", value=-0.001)])),
+                    "(ChangeReverence).Key", "a per-tick source leaves this Key empty")
+        self.schema_problem(self.put(["conditions", "CivLawsHeldTicksAtLeast", "key"], "not_per_tick", True), "schema.conditions.CivLawsHeldTicksAtLeast.key",
+                            "not_per_tick is said of an effect's Key")
+        self.schema_problem(self.put(["effects", "ChangeReverence", "key"], "not_per_tick", "yes"), "schema.effects.ChangeReverence.key", "not_per_tick")
+        # (4) The scope of an edict: one of the enum (no empty value), and a galaxy law of the fourth rung that only shields.
+        def law(**changes):
+            cells = dict(Scope="HomeGalaxy", RequiredTier="Tier4_Transcendent", HazardSpawnMultipliers={"Hazard.Plague": 0.5},
+                         HazardCountdownBonus={"Hazard.Plague": 10})
+            cells.update(changes)
+            return lambda tables: self.row(tables, "DT_Edicts", "edict_test_order").update(cells)
+        galaxy_law = "a galaxy law is an edict of the fourth rung"
+        self.assertEqual(self.after(law()), [])
+        self.assertEqual(self.after(law(HazardSpawnMultipliers={}, HazardCountdownBonus={})), [])
+        self.expect(self.after(self.set_cell("DT_Edicts", "edict_test_order", "Scope", "Galaxy")), "DT_Edicts.edict_test_order.Scope", "is no enumerator of ECosmicEdictScope")
+        self.expect(self.after(self.set_cell("DT_Edicts", "edict_test_order", "Scope", "")), "DT_Edicts.edict_test_order.Scope", "is no enumerator of ECosmicEdictScope")
+        self.expect(self.after(law(RequiredTier="Tier3_Causal")), "edict_test_order", galaxy_law, '"RequiredTier"')
+        self.expect(self.after(law(HazardSpawnMultipliers={"Hazard.Plague": 1.5})), "edict_test_order", galaxy_law, '"le": 1')
+        self.assertEqual(self.after(law(HazardSpawnMultipliers={"Hazard.Plague": 1.0})), [])
+        self.expect(self.after(law(HazardCountdownBonus={"Hazard.Claim": 100})), "edict_test_order", galaxy_law, '"HazardCountdownBonus"', "Hazard.Claim")
+        for tag in ("Hazard.Claim", "Hazard.Extinction", "Hazard.PreSupernova"):
+            with self.subTest(tag=tag):
+                self.expect(self.after(law(HazardSpawnMultipliers={tag: 0.5})), "edict_test_order", galaxy_law, '"HazardSpawnMultipliers", "contains_none"')
+        # A row of the people's scope keeps the hooks of B2: a factor above 1, a claim's bonus.
+        self.assertEqual(self.after(law(Scope="People", RequiredTier="Tier1_Planetary", HazardSpawnMultipliers={"Hazard.Plague": 2.0},
+                                        HazardCountdownBonus={"Hazard.Claim": 100})), [])
+        # (6) No ruler feat reads a sealed transcendent; (6') a feat's treaty carries no Tag (an event row's may).
+        feat = lambda conditions: self.set_cell("DT_Feats", "feat_test_climb", "CompletionConditions", conditions)  # noqa: E731
+        self.expect(self.after(feat([cond("TranscendentSealed")])), "feat_test_climb", "a ruler row never reads a sealed transcendent")
+        self.assertEqual(self.after(feat([cond("CivHasTreaty", value=1)])), [])
+        self.expect(self.after(feat([cond("CivHasTreaty", tag="Treaty.Trade", value=1)])), "DT_Feats.feat_test_climb.CompletionConditions[0](CivHasTreaty).Tag",
+                    "this column's CivHasTreaty carries no Tag")
+        self.assertEqual(self.conditions(cond("CivHasTreaty", tag="Treaty.Trade", value=1)), [])
+        # A ruler feat names no selector word of the vessel (A3): Ruled or Former of SystemOwnedBy, Former of CivHasNotable; the
+        # empty Key (the context people's own system) stays.
+        self.assertEqual(self.after(feat([cond("SystemOwnedBy")])), [])
+        selector_rule = "a ruler row names no selector word of the vessel either"
+        self.expect(self.after(feat([cond("SystemOwnedBy", key="Ruled")])), "feat_test_climb", selector_rule, '"key": "Ruled"')
+        self.expect(self.after(feat([cond("SystemOwnedBy", key="Former")])), "feat_test_climb", selector_rule, '"key": "Former"')
+        self.expect(self.after(feat([cond("CivHasNotable", tag="Notable.Rebel", key="Former")])), "feat_test_climb", selector_rule, "CivHasNotable")
+        # Nor its price: every people's climb pays it, and NameNotable Former names a notable in the vessel's former people.
+        self.expect(self.after(self.set_cell("DT_Feats", "feat_test_climb", "AscensionCost", [eff("NameNotable", tag="Notable.Hearer", key="Former")])),
+                    "feat_test_climb", selector_rule, "NameNotable")
+        # (8') A card on the claim neither ends it nor buys it time - the time is petition_pressure_measured's alone (the game's
+        # rows keep both: the walk above starts from them).
+        on_claim = [cond("PlayerRoleIs", key="Ruler"), cond("SystemHasHazard", tag="Hazard.Claim")]
+        plea = lambda choices: (lambda tables: self.row(tables, "DT_Encounters", "petition_test_plea").update(Conditions=on_claim, Choices=choices))  # noqa: E731
+        self.assertEqual(self.after(plea([choice(), choice("Wait.", SuccessText="{Civ} waited.")])), [])
+        self.expect(self.after(plea([choice(OnSuccess=[eff("ResolveHazard", tag="Hazard.Claim")]), choice("Wait.", SuccessText="{Civ} waited.")])),
+                    "petition_test_plea", "a card on the claim does not end it")
+        self.expect(self.after(plea([choice(OnSuccess=[eff("DelayHazard", tag="Hazard.Claim", value=50)]), choice("Wait.", SuccessText="{Civ} waited.")])),
+                    "petition_test_plea", "the claim's time is bought by one card alone")
+        # Nor a card whose conditions do not name the claim (an untagged hazard condition stands on the claim too): no answer
+        # resolves the claim, nor an untagged hazard, which ends whatever stands.
+        any_hazard = [cond("PlayerRoleIs", key="Ruler"), cond("SystemHasHazard")]
+        for answer in (eff("ResolveHazard", tag="Hazard.Claim"), eff("ResolveHazard")):
+            for column in ("OnSuccess", "OnFailure"):
+                with self.subTest(answer=answer["Tag"], column=column):
+                    self.expect(self.after(lambda tables, answer=answer, column=column: self.row(tables, "DT_Encounters", "petition_test_plea").update(
+                        Conditions=any_hazard, Choices=[choice(**{column: [answer]}), choice("Wait.", SuccessText="{Civ} waited.")])),
+                                "petition_test_plea", "nor does any card, whatever its conditions")
+        self.assertEqual(self.after(lambda tables: self.row(tables, "DT_Encounters", "petition_test_plea").update(
+            Conditions=any_hazard, Choices=[choice(OnSuccess=[eff("ResolveHazard", tag="Hazard.Plague")]), choice("Wait.", SuccessText="{Civ} waited.")])), [])
+        self.assertEqual(self.after(self.set_cell("DT_Encounters", "petition_test_plea", "Choices",
+                                                  [choice(OnSuccess=[eff("DelayHazard", tag="Hazard.Plague", value=50)]), choice("Wait.", SuccessText="{Civ} waited.")])), [])
+        self.schema_problem(self.put(["tables", "DT_Feats", "columns", "CompletionConditions"], "untagged", ["CivHasTreety"]),
+                            "schema.DT_Feats.CompletionConditions", "untagged names 'CivHasTreety', which is no enumerator of conditions")
+        self.schema_problem(self.put(["tables", "DT_Feats", "columns", "CompletionConditions"], "untagged", ["CivTierAtLeast"]),
+                            "schema.DT_Feats.CompletionConditions", "untagged names CivTierAtLeast, a condition that reads no Tag")
+        self.schema_problem(self.put(["tables", "DT_Feats", "columns", "CompletionConditions"], "untagged", "CivHasTreaty"),
+                            "schema.DT_Feats.CompletionConditions", "untagged")
+        self.schema_problem(self.put(["tables", "DT_Feats", "columns", "AscensionCost"], "untagged", ["CivHasTreaty"]),
+                            "schema.DT_Feats.AscensionCost", "'untagged' is not read here")
+        # A comparison over a tag map reads every value (an empty map holds); over a tag container it is no question.
+        holds = checker.Checker(self.schema, {}, self.tags).holds
+        le = lambda value: holds({"col": "C", "le": 1}, {"C": value}, "r")  # noqa: E731
+        self.assertTrue(le({}))
+        self.assertTrue(le({"Hazard.Plague": 0.5, "Hazard.Cult": 1.0}))
+        self.assertFalse(le({"Hazard.Plague": 0.5, "Hazard.Cult": 1.5}))
+        self.assertFalse(le({"Hazard.Plague": "0.5"}))
+        self.assertTrue(holds({"col": "C", "gt": 0}, {"C": {"Hazard.Plague": 0.5}}, "r"))
+        self.assertFalse(holds({"col": "C", "gt": 0}, {"C": {"Hazard.Plague": 0.0}}, "r"))
+        self.schema_problem(self.put(["tables", "DT_Civs", "rules", 0], "when", [{"col": "Traits", "le": 1}]), "schema.DT_Civs",
+                            "the test 'le' cannot be asked of a column of kind tags")
+        self.assertEqual(self.after(NOTHING, self.put(["tables", "DT_Civs", "rules", 0], "when", [{"col": "HazardSpawnMultipliers", "le": 9}, {"col": "Weight", "gt": 0}])), [])
+
     # ---- the schema itself ----
 
     def test_a_problem_of_the_schema_stops_the_check_of_the_data(self):
@@ -2837,9 +2965,56 @@ class SchemaTests(unittest.TestCase):
         self.schema_problem(self.put(rule, "then", [{"col": "Conditions", "has_cond": {"type": "PlayerRoleIz", "key": "Ruler"}}]),
                             "schema.DT_Encounters", "'PlayerRoleIz', which is no enumerator of conditions")
         self.schema_problem(self.put(rule, "then", [{"col": "Conditions", "has_cond": {"type": "PlayerRoleIs"}}]),
-                            "schema.DT_Encounters", "the test 'has_cond' needs an object with exactly the strings type and key")
+                            "schema.DT_Encounters", "the test 'has_cond' needs an object of the strings type, key and tag with a key or a tag")
         self.schema_problem(self.put(rule, "then", [{"col": "Body", "has_cond": {"type": "PlayerRoleIs", "key": "Ruler"}}]),
                             "schema.DT_Encounters", "the test 'has_cond' cannot be asked of a column of kind text")
+
+    def test_lacks_cond(self):
+        # B6b [B-6b2a]: the negation of has_cond, and the Tag as a field of both (the type may then be left out).
+        holds = checker.Checker(self.schema, self.tables, self.tags).holds
+        lacks = {"col": "C", "lacks_cond": {"type": "SystemOwnedBy", "key": "Ruled"}}
+        for fine in ([cond("SystemOwnedBy"), cond("SystemOwnedBy", key="Former"), cond("CivHasNotable", key="Ruled")], []):
+            with self.subTest(cell=fine):
+                self.assertTrue(holds(lacks, {"C": fine}, "r"))
+        for wrong in ([cond("GalaxyTickAtLeast"), cond("SystemOwnedBy", key="Ruled")], None, "SystemOwnedBy"):
+            with self.subTest(cell=wrong):
+                self.assertFalse(holds(lacks, {"C": wrong}, "r"))
+        on_claim = {"col": "C", "has_cond": {"tag": "Hazard.Claim"}}
+        self.assertTrue(holds(on_claim, {"C": [cond("PlayerRoleIs", key="Wanderer"), cond("PlayerInSystemWithHazard", tag="Hazard.Claim")]}, "r"))
+        self.assertTrue(holds(on_claim, {"C": [cond("SystemHasHazard", tag="Hazard.Claim")]}, "r"))
+        self.assertFalse(holds(on_claim, {"C": [cond("SystemHasHazard", tag="Hazard.Plague"), cond("SystemHasHazard")]}, "r"))
+        delay = {"col": "C", "lacks_cond": {"type": "DelayHazard", "tag": "Hazard.Claim"}}
+        self.assertTrue(holds(delay, {"C": [eff("DelayHazard", tag="Hazard.Plague", value=50), eff("ResolveHazard", tag="Hazard.Claim")]}, "r"))
+        self.assertFalse(holds(delay, {"C": [eff("DelayHazard", tag="Hazard.Claim", value=50)]}, "r"))
+        # A field is read as the importer reads a name: the empty Key the data writes 'None' is the empty Key of an operand, and
+        # an empty Tag names the untagged entry (the cards' side of rule 8': no untagged ResolveHazard).
+        self.assertTrue(holds({"col": "C", "has_cond": {"type": "SystemOwnedBy", "key": ""}}, {"C": [cond("SystemOwnedBy", key="None")]}, "r"))
+        untagged = {"col": "C", "lacks_cond": {"type": "ResolveHazard", "tag": ""}}
+        self.assertTrue(holds(untagged, {"C": [eff("ResolveHazard", tag="Hazard.Plague"), eff("DelayHazard", value=50)]}, "r"))
+        self.assertFalse(holds(untagged, {"C": [eff("ResolveHazard", tag="Hazard.Plague"), eff("ResolveHazard")]}, "r"))
+        rule = ["tables", "DT_Encounters", "rules", 0]
+        # The Key and the Tag of a typed operand are read against the usage of the type, as an entry's are: a misspelt Key, or
+        # a Tag on a type that reads none, would match no entry - a lacks_cond switched off in silence.
+        self.schema_problem(self.put(rule, "then", [{"col": "Conditions", "lacks_cond": {"type": "SystemOwnedBy", "key": "Ruld"}}]),
+                            "schema.DT_Encounters", "names the Key Ruld of SystemOwnedBy, which is none of civ_selector")
+        self.schema_problem(self.put(rule, "then", [{"col": "Conditions", "lacks_cond": {"type": "SystemOwnedBy", "tag": "Hazard.Claim"}}]),
+                            "schema.DT_Encounters", "names the tag Hazard.Claim of SystemOwnedBy, which reads no Tag")
+        # An empty Key or Tag where the usage requires one matches no valid entry either (an empty optional one is the empty
+        # field - the untagged ResolveHazard above), and 'None' is read as the empty field, as holds() reads it.
+        self.schema_problem(self.put(rule, "then", [{"col": "Conditions", "lacks_cond": {"type": "PlayerRoleIs", "key": ""}}]),
+                            "schema.DT_Encounters", "names an empty Key of PlayerRoleIs, which requires one")
+        self.schema_problem(self.put(rule, "then", [{"col": "Conditions", "lacks_cond": {"type": "CivHasNotable", "tag": "None"}}]),
+                            "schema.DT_Encounters", "names an empty Tag of CivHasNotable, which requires one")
+        self.expect(self.after(NOTHING, self.put(rule, "then", [{"col": "Conditions", "lacks_cond": {"type": "SystemOwnedBy", "key": "None"}}])),
+                    NOT_CHECKED, wanted=False)
+        self.schema_problem(self.put(rule, "then", [{"col": "Conditions", "lacks_cond": {"type": "PlayerRoleIz", "key": "Ruler"}}]),
+                            "schema.DT_Encounters", "'PlayerRoleIz', which is no enumerator of conditions")
+        self.schema_problem(self.put(rule, "then", [{"col": "Conditions", "lacks_cond": {"tag": "Hazard.Claimed"}}]),
+                            "schema.DT_Encounters", "names the tag Hazard.Claimed, which the ini does not declare")
+        self.schema_problem(self.put(rule, "then", [{"col": "Conditions", "lacks_cond": {"type": "PlayerRoleIs", "value": "1"}}]),
+                            "schema.DT_Encounters", "the test 'lacks_cond' needs an object of the strings type, key and tag with a key or a tag")
+        self.schema_problem(self.put(rule, "then", [{"col": "Title", "lacks_cond": {"type": "PlayerRoleIs", "key": "Ruler"}}]),
+                            "schema.DT_Encounters", "the test 'lacks_cond' cannot be asked of a column of kind text")
 
     def test_a_ruler_card_does_not_wait_on_the_vessel_rung(self):
         # B6a [B-6a6] (header 3.1, decision 9): the ruler's personal rung never rises, so a ruler's row that waits on it never
@@ -2946,12 +3121,16 @@ class SchemaTests(unittest.TestCase):
                 row[column] = next(entry for entry in schema["enums"][spec["enum"]] if entry not in taken)
             else:
                 self.fail("the walker cannot break %s over a column of kind %s: add the case" % (name, kind))
-        elif name in ("gt", "lt"):
-            row[column] = operand
-        elif name == "ge":
-            row[column] = operand - 1
-        elif name == "le":
-            row[column] = operand + 1
+        elif name in ("gt", "lt", "ge", "le"):
+            bad = operand if name in ("gt", "lt") else operand - 1 if name == "ge" else operand + 1
+            if kind == "tag_map":
+                # B6b: a comparison over a tag map is broken in its first key (a tag under the column's root when it is empty).
+                roots = spec.get("root")
+                roots = [roots] if isinstance(roots, str) else (roots or [""])
+                key = next(iter(row[column]), None) or next(tag for tag in sorted(self.tags) if any(tag.startswith(root) for root in roots))
+                row[column] = dict(row[column], **{key: float(bad)})
+            else:
+                row[column] = bad
         elif name == "min_len":
             row[column] = self.sample(kind, operand - 1)
         elif name == "max_len":
@@ -2964,7 +3143,13 @@ class SchemaTests(unittest.TestCase):
             row[column] = [item for item in row[column] if item.get("Type") != operand]
         elif name == "has_cond":
             # The named one keeps its enumerator and loses its Key: what has_type alone could not see.
+            self.assertEqual(set(operand), {"type", "key"}, "the walker breaks a has_cond of a type and a Key only: add the case")
             row[column] = [dict(item, Key="Other") if item.get("Type") == operand["type"] and item.get("Key") == operand["key"] else item for item in row[column]]
+        elif name == "lacks_cond":
+            # An entry of the named fields put into the list (B6b).
+            self.assertIn("type", operand, "the walker breaks a lacks_cond that names its type: add the case")
+            make = cond if kind == "conditions" else eff
+            row[column] = list(row[column]) + [make(operand["type"], tag=operand.get("tag", ""), key=operand.get("key", ""))]
         elif name == "set" and operand is True:
             row[column] = ""
         elif name == "set" and operand is False and kind == "text":
@@ -3061,7 +3246,7 @@ class SchemaTests(unittest.TestCase):
                 (NOTHING, "arch_default"),
             ("DT_Events", "a slot row tells with three variants or more (guideline 8.2)"): (NOTHING, event),
             ("DT_Events", "a row fired by name tells with one variant or more (guideline 8.2)"): (named, event),
-            ("DT_Events", "a slot runs for every people: until the selector words reach the code (Phase 4 petitions) it carries no condition on the vessel, no role effect and no effect on the vessel (guideline 16 #29 (7))"): (NOTHING, event),
+            ("DT_Events", "a slot runs for every people: it carries no condition on the vessel, no role effect and no effect on the vessel - the selector words of a slot row that read the vessel are Ruled (B6b header 2.7) and Former of SystemOwnedBy, Former of CivHasNotable and Former of NameNotable (an effect); the other selector words wait for the Phase 4 petitions (guideline 16 #29 (7))"): (NOTHING, event),
             ("DT_Events", "a row fired by name is not a slot: the stay condition holds on every tick of its window there (guideline 7.3)"): (named, event),
             ("DT_Events", "a system-subject row lands on a place and the stay condition is about the people: without a cooldown a Standing row would fire once for every settled system in the one slot, otherwise it lands on whichever settled system comes first (guideline 7.3)"):
                 (update_event(Subject="SettledSystem"), event),
@@ -3116,7 +3301,13 @@ class SchemaTests(unittest.TestCase):
             ("DT_Feats", "the fifth rung is the last: no feat climbs from it (guideline 3.2)"): (NOTHING, "feat_test_climb"),
             ("DT_Feats", "no people climbs without a deed: a feat holds one condition or more (guideline 3.2; the judgment does not judge a row without one)"):
                 (NOTHING, "feat_test_climb"),
-            ("DT_Feats", "a ruler feat row judges every people, the AI's too (guideline 4.3): its conditions do not read the vessel, and its price records no role effect and touches no vessel (a death comes only from a hazard's expiry - B5 decision 6). How a vessel condition of a T4->T5 row reads for the AI is decided with that row (guideline 16 #1); a wanderer's feat is judged on the vessel and gets its own rules with its first row (guideline 16 #28)"):
+            ("DT_Feats", "a ruler feat row judges every people, the AI's too (guideline 4.3): its conditions do not read the vessel, and its price records no role effect and touches no vessel (a death comes only from a hazard's expiry - B5 decision 6). The rungs stand apart: no ruler row reads the vessel (guideline 16 #1 closed - B6b answer A3); a wanderer's feat is judged on the vessel and gets its own rules with its first row (guideline 16 #28)"):
+                (NOTHING, "feat_test_climb"),
+            # B6b [B-6b2a]: no ruler row reads a sealed transcendent (decision 12).
+            ("DT_Feats", "a ruler row never reads a sealed transcendent: an AI is judged from tick 0, so another people's binding would lift it for nothing - the binding is read by MegaprojectComplete of the people that made it (B6b decision 12, guideline 16 #73)"):
+                (NOTHING, "feat_test_climb"),
+            # B6b [B-6b2a]: nor a selector word of the vessel (A3).
+            ("DT_Feats", "a ruler row names no selector word of the vessel either: Ruled and Former of SystemOwnedBy and Former of CivHasNotable in its conditions, and Former of NameNotable in its price (every people's climb pays it, an AI's too), resolve from the vessel (the people it rules, the one it left), so the row would judge the ruled people apart from every AI or name a notable in the vessel's former people (B6b answer A3, header 3.3 rule 6)"):
                 (NOTHING, "feat_test_climb"),
             ("DT_Feats", "a feat's price records no death on any path, the wanderer's too when its rows come: a death comes only from a hazard's own expiry (B5 decision 6-ga, header 3.5)"):
                 (NOTHING, "feat_test_climb"),
@@ -3163,12 +3354,25 @@ class SchemaTests(unittest.TestCase):
             ("DT_Encounters", "the edict's own EnactCost is the one price of the choice that enacts it: that choice asks nothing more (B4 header 3.8)"): (NOTHING, plea),
             ("DT_Encounters", "a card is never blocked: with one waiting place a card whose every choice is gated would block every card behind it, so a card with a gated choice (SetStance, EnactEdict, DelayHazard) holds a choice with no cost and no gate - said the other way round: a card without such a choice carries no gate (B4 header 2.4, 3.8)"):
                 (update_plea(Choices=[choice(Cost=pool(Energy=5.0)), choice("Wait.", SuccessText="{Civ} waited.", Cost=pool(Matter=1.0))]), plea),
+            # B6b [B-6b2a] (header 3.3 rule 8'): a card on the claim does not end it, nor does any card end the claim or an
+            # untagged hazard, and one card alone buys it time.
+            ("DT_Encounters", "a card on the claim does not end it: a row whose conditions name the claim carries no ResolveHazard, so the theodicy's count of the claims stays as it is (B6b header 2.8, 3.3 rule 8')"):
+                (update_plea(Conditions=[cond("PlayerRoleIs", key="Ruler"), cond("SystemHasHazard", tag="Hazard.Claim")]), plea),
+            ("DT_Encounters", "nor does any card, whatever its conditions: no answer resolves the claim, nor an untagged hazard (which ends whatever hazard stands - the claim too, on a card whose conditions name no hazard or an untagged one); the theodicy's count reads the claims of DT_Events alone, so this is the cards' side of rule 8' (B6b header 2.8, 3.3 rule 8')"):
+                (NOTHING, plea),
+            ("DT_Encounters", "the claim's time is bought by one card alone, the fleet of petition_pressure_measured: one card more of 50 ticks would break the theodicy's bound the Data.Integrity invariant keeps (B6b header 2.8, 3.3 rule 8')"):
+                (NOTHING, plea),
             ("DT_Events", "grace is never drawn by an edict: no grace row waits on an edict the people holds (B2 header :342, B4 header 3.8)"):
                 (update_event(Category="Event.Grace.Jubilee", LogCategory="Log.Civ"), event),
             ("DT_Events", "a transcendent's own line is first person: it waits for the third tier, and the viewers below it hear the row's sign (B4 header 3.8 - a door for the rows to come)"):
                 (lambda tables: (self.add_sign_row(tables), update_event(Category="Event.Crisis.Transcendent", LogCategory="Log.Transcendent")(tables)), event),
             ("DT_Edicts", "a held edict damps the pressure's drain on Stability, never undoes it: a factor in (0, 1], and the code reads a factor that is not above 0 as 1 (B4 header 2.3)"):
                 (NOTHING, "edict_test_order"),
+            # B6b [B-6b2a]: the galaxy law (decision 9) - the fixture's edict made one, a shield with no claim's bonus.
+            ("DT_Edicts", "a galaxy law is an edict of the fourth rung whose two hazard hooks reach every settled system of the holder's galaxy: it only shields - a spawn factor at most 1 (its countdown bonus is at least 0 on every row) - and has no hook on the claim (the theodicy's bound W stays), on the extinction or on the supernova's warning (no other people's feat is held back), and no hazard row lists it as an answer (Data.Integrity) (B6b header 2.4, decision 9)"):
+                (lambda tables: self.row(tables, "DT_Edicts", "edict_test_order").update(
+                    Scope="HomeGalaxy", RequiredTier="Tier4_Transcendent", HazardSpawnMultipliers={"Hazard.Plague": 0.5}, HazardCountdownBonus={"Hazard.Plague": 10}),
+                 "edict_test_order"),
             ("DT_Transcendents", "a fallen one counterfeits a truth, and its row names that truth: a tag under Truth. (B4 header 3.5, 3.8)"): (NOTHING, "trans_silence"),
             ("DT_Transcendents", "nothing reads a transcendent's voice lines yet: the column stays empty until the code that tells them comes (B4 header 3.5, 3.8)"):
                 (NOTHING, "trans_silence"),
@@ -3216,7 +3420,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 229, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 248, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

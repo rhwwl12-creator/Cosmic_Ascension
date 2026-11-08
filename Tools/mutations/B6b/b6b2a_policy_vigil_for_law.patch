@@ -1,0 +1,15 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -594,11 +594,6 @@
+ 			{
+ 				continue;
+ 			}
+-			if (bForLaw && Held == Vigil
+-				&& ((State.Civs[CivIndex].LowStabilityTicks > 0 && !RebellionStands()) || State.Civs[CivIndex].Stability < RevokeBelow))
+-			{
+-				continue;
+-			}
+ 			const int32 Rank = bLaw ? 2 : (Held == Policy.EdictRow ? 1 : 0);
+ 			if (Rank < SpareRank)
+ 			{

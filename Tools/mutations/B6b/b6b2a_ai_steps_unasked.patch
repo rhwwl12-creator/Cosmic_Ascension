@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2861,7 +2861,7 @@
+ 		// The treaty step (decision 1): under a row whose CivHasTreaty does not hold, at most one a tick - a non-aggression
+ 		// with the first bordering people the player does not rule that the gate takes (bMet true: the world never reads
+ 		// knowing), paid as the command pays (DT_Rules.TreatyCostInfluence) and signed.
+-		if (CosmicDiplomacy::AsksForTreatyOf(State, StateIndex, Tables, Rules, CivIndex))
++		if (CosmicDiplomacy::AsksForTreatyOf(State, StateIndex, Tables, Rules, CivIndex) || CivIndex >= 0)
+ 		{
+ 			const int32 Partner = CosmicDiplomacy::AITreatyPartnerOf(State, StateIndex, Tables, Rules, CivIndex);
+ 			if (Partner != INDEX_NONE)

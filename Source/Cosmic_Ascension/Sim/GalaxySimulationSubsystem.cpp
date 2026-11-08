@@ -11,6 +11,7 @@
 #include "Core/CosmicTags.h"
 #include "Cosmic_Ascension.h"
 #include "Data/CosmicDataTables.h"
+#include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
 #include "Engine/GameInstance.h"
 #include "Events/CosmicEventSubsystem.h"
@@ -1891,13 +1892,17 @@ void UGalaxySimulationSubsystem::TickEconomy()
 	// Counted last, over the Stability every civilization has at the end of this stage (section 7.4), and over the
 	// sphere membership of its start (section 5.11). The threshold is the one the rebellion watch shows
 	// (CosmicHazards::LowStabilityThreshold). The endured pressure is counted for every people too (B6b header section 2.7):
-	// a tick of drain with the capital outside the fallen spheres adds one, any other tick starts it over.
+	// a tick of drain with the capital outside the fallen spheres adds one, any other tick starts it over. So are the held
+	// galaxy laws (B6b header section 2.4): after the upkeep and its lapses, so an edict that lapsed this tick is not held -
+	// the fourth rung or above with DT_Rules.GalaxyLawsToHold laws adds one (CosmicEdicts::HoldsGalaxyLawsOf), any other
+	// tick starts it over. No draw, no knowing read.
 	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
 	{
 		FCivilizationState& Civ = State.Civs[CivIndex];
 		Civ.LowStabilityTicks = (Civ.Stability < CosmicHazards::LowStabilityThreshold) ? Civ.LowStabilityTicks + 1 : 0;
 		Civ.FallenSphereTicks = InFallenSphere[CivIndex] ? Civ.FallenSphereTicks + 1 : 0;
 		Civ.PressureEnduredTicks = EnduredPressure[CivIndex] ? Civ.PressureEnduredTicks + 1 : 0;
+		Civ.LawsHeldTicks = CosmicEdicts::HoldsGalaxyLawsOf(Civ, Tables, Rules) ? Civ.LawsHeldTicks + 1 : 0;
 	}
 }
 
@@ -2336,9 +2341,10 @@ void UGalaxySimulationSubsystem::TickHazards()
 			const float Chance = Row->SpawnChancePerTick > 0.f ? FMath::Min(Row->SpawnChancePerTick, 1.f) : 0.f;
 			const float* Multiplier = Archetype ? Archetype->HazardSpawnMultipliers.Find(Row->HazardTag) : nullptr;
 			const float Factor = Multiplier ? ((*Multiplier > 0.f && *Multiplier <= TNumericLimits<float>::Max()) ? *Multiplier : 0.f) : 1.f;
-			// The owner's held edicts multiply the share too (B2), and a plague next door (B3): 1 when none, so the bits stay.
+			// The owner's held edicts multiply the share too (B2) - with the galaxy laws the other peoples of the system's galaxy
+			// hold (B6b hook 1) - and a plague next door (B3): 1 when none, so the bits stay.
 			const float Spreading = (Row->HazardTag == PlagueTag && NextToPlague.IsValidIndex(SystemIndex) && NextToPlague[SystemIndex]) ? Spread : 1.f;
-			const float Share = ((Chance * Factor) * CosmicEdicts::SpawnMultiplierOf(Owner, Tables, Row->HazardTag)) * Spreading;
+			const float Share = ((Chance * Factor) * CosmicEdicts::SpawnMultiplierOf(State, StateIndex, Tables, SystemIndex, Row->HazardTag)) * Spreading;
 			if (!(Share > 0.f))
 			{
 				continue;
@@ -2797,7 +2803,8 @@ void UGalaxySimulationSubsystem::AdvanceMegaprojects()
 void UGalaxySimulationSubsystem::TickCivAI()
 {
 	// (a) The peoples the player does not rule start what they would start, no draw; then a people that may settle draws
-	// one number, before the targets are looked at, and settles the target it falls on (section 4.3, 5.7, 9.2).
+	// one number, before the targets are looked at, and settles the target it falls on (section 4.3, 5.7, 9.2); then it
+	// revokes its edicts, takes the law step and the treaty step its judged row may ask (B6b), and keeps its diplomacy.
 	static const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Claim")));
 	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
 	{
@@ -2827,11 +2834,43 @@ void UGalaxySimulationSubsystem::TickCivAI()
 				CosmicMegaprojects::Settle(Ctx, CivIndex, Targets[Pick]);
 			}
 		}
-		// The AI holds no edict in B2 (section 2.6): it revokes what it holds - an edict with a Stability cost once below
-		// DT_Rules.AIEdictRevokeStability, any other at once. No draw, no line. A regent revokes what the ruler left.
+		// The AI holds no edict of the people's scope (B2 section 2.6): it revokes what it holds - an edict with a Stability
+		// cost once below DT_Rules.AIEdictRevokeStability, any other at once. No draw, no line. A regent revokes what the
+		// ruler left - but a galaxy law, which AIRevokesOf passes by (B6b decision 11).
 		for (const FName Row : CosmicEdicts::AIRevokesOf(State.Civs[CivIndex], Tables, Rules))
 		{
 			CosmicEdicts::Revoke(State.Civs[CivIndex], Row);
+		}
+		// The two steps a judged row asks of an AI people (B6b decision 1), right after the revocations and before its
+		// diplomacy, so that the siege aim of this tick (CosmicConflict::AIAimOf passes a non-aggression partner by) sees the
+		// treaty. Both do nothing while no judged row asks - no draw, no line, no knowing write either way.
+		// The law step (decision 11): on the fourth rung or above, under a row that carries CivLawsHeldTicksAtLeast, every
+		// galaxy law in table order that the one gate takes (CosmicEdicts::EnactBlockOf - None) is enacted and paid. A law that
+		// lapsed by its upkeep is enacted again here.
+		if (CosmicEdicts::AsksForLawsOf(State.Civs[CivIndex], Tables))
+		{
+			for (const FName Law : CosmicEdicts::GalaxyLawRowsOf(Tables))
+			{
+				const FEdictDef* Def = Tables.FindEdict(Law);
+				if (Def && CosmicEdicts::EnactBlockOf(State, StateIndex, Tables, Rules, CivIndex, Law) == CosmicEdicts::ECosmicEdictBlock::None)
+				{
+					CosmicEdicts::Enact(State.Civs[CivIndex], Law, *Def);
+				}
+			}
+		}
+		// The treaty step (decision 1): under a row whose CivHasTreaty does not hold, at most one a tick - a non-aggression
+		// with the first bordering people the player does not rule that the gate takes (bMet true: the world never reads
+		// knowing), paid as the command pays (DT_Rules.TreatyCostInfluence) and signed.
+		if (CosmicDiplomacy::AsksForTreatyOf(State, StateIndex, Tables, Rules, CivIndex))
+		{
+			const int32 Partner = CosmicDiplomacy::AITreatyPartnerOf(State, StateIndex, Tables, Rules, CivIndex);
+			if (Partner != INDEX_NONE)
+			{
+				FResourcePool Cost;
+				Cost.Influence = Rules.TreatyCostInfluence;
+				CosmicEdicts::TryPay(State.Civs[CivIndex].Stockpile, Cost);
+				CosmicDiplomacy::Sign(State, CivIndex, Partner, CosmicTags::TreatyNonAggression());
+			}
 		}
 		// Its diplomacy (B3 section 2.8): no draw, no profile.
 		TickAIDiplomacy(CivIndex);
@@ -2849,7 +2888,8 @@ void UGalaxySimulationSubsystem::TickAIDiplomacy(int32 CivIndex)
 	const FGameplayTag Hostile = CosmicTags::StanceHostile();
 	FCivilizationState& Civ = State.Civs[CivIndex];
 
-	// (1) No friendly stance and no guard: those ledgers are the ruler's (a regent lets go of what the ruler left).
+	// (1) No friendly stance and no guard: those ledgers are the ruler's (a regent lets go of what the ruler left). A treaty
+	// stays - the ruler's, and the one the treaty step of TickCivAI signed just before (B6b).
 	// (2) A hostility whose people the fleet does not besiege ends.
 	if (!Civ.Ties.IsEmpty())
 	{

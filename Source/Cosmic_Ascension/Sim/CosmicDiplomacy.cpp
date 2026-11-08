@@ -5,11 +5,14 @@
 #include "Core/CosmicTags.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
+#include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
+#include "Events/CosmicEventSubsystem.h"
 #include "Internationalization/StringTableCoreFwd.h"
 #include "Internationalization/Text.h"
 #include "Math/NumericLimits.h"
+#include "Sim/CosmicEvalContext.h"
 #include "Sim/CosmicStateIndex.h"
 
 namespace CosmicDiplomacyImpl
@@ -133,6 +136,16 @@ int32 CosmicDiplomacy::TradeTreatyCountOf(const FCivilizationState& Civ)
 	for (const TPair<FName, FCosmicTie>& Pair : Civ.Ties)
 	{
 		Count += Pair.Value.Treaties.HasTagExact(CosmicTags::TreatyTrade()) ? 1 : 0;
+	}
+	return Count;
+}
+
+int32 CosmicDiplomacy::TreatyPartnersOf(const FCivilizationState& Civ, FGameplayTag Treaty)
+{
+	int32 Count = 0;
+	for (const TPair<FName, FCosmicTie>& Pair : Civ.Ties)
+	{
+		Count += (Treaty.IsValid() ? Pair.Value.Treaties.HasTagExact(Treaty) : !Pair.Value.Treaties.IsEmpty()) ? 1 : 0;
 	}
 	return Count;
 }
@@ -412,6 +425,57 @@ CosmicDiplomacy::ECosmicTreatyBlock CosmicDiplomacy::TreatyBlockOf(const FGalaxy
 		return ECosmicTreatyBlock::Cost;
 	}
 	return ECosmicTreatyBlock::None;
+}
+
+bool CosmicDiplomacy::AsksForTreatyOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
+	const FCosmicRulesDef& Rules, int32 CivIndex)
+{
+	if (!State.Civs.IsValidIndex(CivIndex))
+	{
+		return false;
+	}
+	const FCivilizationState& Civ = State.Civs[CivIndex];
+	for (const FName FeatRow : Tables.GetFeatRowNames())
+	{
+		const FAscensionFeatDef* Feat = Tables.FindFeat(FeatRow);
+		if (!Feat || !Feat->IsJudgedRulerRowAt(Civ.Tier) || !Feat->CarriesCondition(EConditionType::CivHasTreaty))
+		{
+			continue;
+		}
+		FCosmicEvalView View(State, Index, Tables, Rules);
+		View.CivIndex = CivIndex;
+		View.SystemIndex = Index.FindSystem(State, Civ.HomeSystemID);
+		View.GalaxyRow = Civ.GalaxyRow;
+		View.SourceRow = FeatRow;
+		for (const FCosmicCondition& Condition : Feat->CompletionConditions)
+		{
+			if (Condition.Type == EConditionType::CivHasTreaty && !UCosmicEventSubsystem::Check(Condition, View))
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+int32 CosmicDiplomacy::AITreatyPartnerOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
+	const FCosmicRulesDef& Rules, int32 CivIndex)
+{
+	if (!State.Civs.IsValidIndex(CivIndex))
+	{
+		return INDEX_NONE;
+	}
+	TArray<bool> Bordering;
+	BordersOf(State, Index, CivIndex, Bordering);
+	for (int32 Other = 0; Other < State.Civs.Num(); ++Other)
+	{
+		if (Bordering[Other] && !State.Civs[Other].bIsPlayerRuled
+			&& TreatyBlockOf(State, Index, Tables, Rules, CivIndex, State.Civs[Other].CivID, CosmicTags::TreatyNonAggression(), true) == ECosmicTreatyBlock::None)
+		{
+			return Other;
+		}
+	}
+	return INDEX_NONE;
 }
 
 bool CosmicDiplomacy::TurnHostile(FGalaxyState& State, int32 CivIndex, int32 Other, float Penalty)

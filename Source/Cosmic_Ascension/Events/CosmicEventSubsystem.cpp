@@ -34,6 +34,8 @@ namespace CosmicEventImpl
 	int32 NestedOutbreakRows = 0;
 
 	const FName KeyFormer(TEXT("Former"));
+	const FName KeyRuled(TEXT("Ruled"));
+	const FName KeyBorders(TEXT("Borders"));
 	const FName KeyRuler(TEXT("Ruler"));
 	const FName KeyWanderer(TEXT("Wanderer"));
 	const FName KeyBody(TEXT("Body"));
@@ -140,8 +142,16 @@ namespace CosmicEventImpl
 		return nullptr;
 	}
 
+	// Whether Key is a word of the civ selector (the schema's civ_selector): Former, Ruled.
+	bool IsSelectorWord(FName Key)
+	{
+		return Key == KeyFormer || Key == KeyRuled;
+	}
+
 	// The civilization a civ selector names: an empty Key is the context civilization, Former the civilization the
-	// vessel left (only while there is a vessel). Any other word is not resolved (section 16 #29).
+	// vessel left (only while there is a vessel), Ruled the civilization the vessel rules (only while a vessel is on a
+	// throne - B6b header section 2.7; the schema lets SystemOwnedBy alone carry it). Any other word is not resolved
+	// (section 16 #29).
 	int32 SelectCiv(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicEvalSubject& Subject, FName Key)
 	{
 		if (Key.IsNone())
@@ -151,6 +161,10 @@ namespace CosmicEventImpl
 		if (Key == KeyFormer && IsEmbodied(State))
 		{
 			return Index.FindCiv(State, State.Player.FormerCivID);
+		}
+		if (Key == KeyRuled && IsEmbodied(State) && State.Player.Role == EPlayerRole::Ruler)
+		{
+			return Index.FindCiv(State, State.Player.RuledCivID);
 		}
 		return INDEX_NONE;
 	}
@@ -453,12 +467,21 @@ bool UCosmicEventSubsystem::Check(const FCosmicCondition& Condition, const FCosm
 		return System && System->ActiveHazard.IsValid() && (!Condition.Tag.IsValid() || System->ActiveHazard.MatchesTag(Condition.Tag));
 
 	case EConditionType::SystemOwnedBy:
-		// An empty Key = the context civilization; otherwise a CivID. The selector words wait for section 16 #29.
+	{
+		// An empty Key = the context civilization, a selector word the civilization it names (Former, and Ruled from B6b: a
+		// Civilization row's system is the capital, so SystemOwnedBy Ruled reads "the people the vessel rules, its capital
+		// settled"); any other Key a CivID.
 		if (!System || System->OwnerCivID.IsNone())
 		{
 			return false;
 		}
-		return Condition.Key.IsNone() ? (Civ && System->OwnerCivID == Civ->CivID) : System->OwnerCivID == Condition.Key;
+		if (!Condition.Key.IsNone() && !IsSelectorWord(Condition.Key))
+		{
+			return System->OwnerCivID == Condition.Key;
+		}
+		const int32 Selected = SelectCiv(State, View.Index, View, Condition.Key);
+		return Selected != INDEX_NONE && System->OwnerCivID == State.Civs[Selected].CivID;
+	}
 
 	case EConditionType::MegaprojectComplete:
 		// The record of the Key's row on the subject system, since the life the judgment counts from (section 4.4, 5.7).
@@ -615,6 +638,27 @@ bool UCosmicEventSubsystem::Check(const FCosmicCondition& Condition, const FCosm
 	case EConditionType::CivHasEdict:
 		// A held edict the tables know (B4 section 2.2): the count of CosmicEdicts::HeldCountOf.
 		return Civ && Civ->ActiveEdicts.Contains(Condition.Key) && View.Tables.FindEdict(Condition.Key) != nullptr;
+
+	case EConditionType::CivHasTreaty:
+		// The peoples the context people shares the treaty with - any treaty for an empty Tag (B6b section 2.3). The subject
+		// system is not read.
+		return Civ && static_cast<float>(CosmicDiplomacy::TreatyPartnersOf(*Civ, Condition.Tag)) >= Condition.Value;
+
+	case EConditionType::CivLawsHeldTicksAtLeast:
+	{
+		// The held laws within the life judged (B6b section 2.4): the count ends now, so the smaller of it and the ticks since
+		// SinceTick is the stretch of this life.
+		const int32 Ticks = TickCountOf(Condition.Key);
+		return Civ && Ticks > 0 && FMath::Min<int64>(Civ->LawsHeldTicks, State.Tick - View.SinceTick) >= Ticks;
+	}
+
+	case EConditionType::CivPressureEnduredTicksReached:
+	{
+		// The window of CivFallenSphereTicksReached over the endured pressure (B6b section 2.7): one slot of a stretch.
+		const int32 Ticks = TickCountOf(Condition.Key);
+		const int32 Window = FMath::Max(1, View.Rules.EventSlotTicks);
+		return Civ && Ticks > 0 && Civ->PressureEnduredTicks >= Ticks && Civ->PressureEnduredTicks - Ticks < Window;
+	}
 
 	default:
 		// An enumerator this build does not know (a row written for a later build).
@@ -777,12 +821,31 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
 	}
 
 	case EEffectType::ChangeReverence:
-		if (!Civ || !IsAmount(Effect.Value))
+	{
+		if (!Civ || !IsAmount(Effect.Value) || !(Effect.Key.IsNone() || Effect.Key == KeyBorders))
 		{
 			return false;
 		}
-		Civ->ReverenceToPlayer = FMath::Clamp(Civ->ReverenceToPlayer + Effect.Value, 0.f, 1.f);
-		return true;
+		if (Effect.Key.IsNone())
+		{
+			Civ->ReverenceToPlayer = FMath::Clamp(Civ->ReverenceToPlayer + Effect.Value, 0.f, 1.f);
+			return true;
+		}
+		// Key Borders (B6b decision 22, the answer A): every people that borders the context people, in Civs order, once
+		// each - the context people itself is not touched.
+		TArray<bool> Bordering;
+		CosmicDiplomacy::BordersOf(State, Ctx.Index, Ctx.CivIndex, Bordering);
+		bool bAny = false;
+		for (int32 Other = 0; Other < State.Civs.Num(); ++Other)
+		{
+			if (Bordering[Other])
+			{
+				State.Civs[Other].ReverenceToPlayer = FMath::Clamp(State.Civs[Other].ReverenceToPlayer + Effect.Value, 0.f, 1.f);
+				bAny = true;
+			}
+		}
+		return bAny;
+	}
 
 	case EEffectType::GrantPower:
 		// The calling gains it through the vessel: nothing during the interregnum.

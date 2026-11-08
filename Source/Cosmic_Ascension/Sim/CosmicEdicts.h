@@ -1,13 +1,16 @@
 // Cosmic Ascension - Sim layer (Core Logic). Design: docs/60_DECISIONS/headers/B2_edicts_and_research.md section 2,
 // docs/10_DESIGN/systems.md section 5.8.
 // The single home of the edict rules: slots, the gate of an enactment, what a held edict multiplies or adds, the answer a
-// people holds against a hazard, the AI's revocations and the inherited edict's invariant. Pure functions of the state and
+// people holds against a hazard, the AI's revocations, the inherited edict's invariant and, from B6b, the galaxy laws
+// (DT_Edicts rows of Scope HomeGalaxy - docs/60_DECISIONS/headers/B6b_upper_rungs_and_the_race.md section 2.4): the reach
+// of their two hazard hooks, the count of LawsHeldTicks and what the AI's law step asks. Pure functions of the state and
 // the tables - no draw, no state of their own. The commands (UPlayerRoleSubsystem::EnactEdict / RevokeEdict), the economy,
 // crisis and AI stages, the edict window and the commandlet's policy read them.
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "GameplayTagContainer.h"
 
 struct FCivilizationState;
@@ -59,12 +62,46 @@ namespace CosmicEdicts
 	/** Whether Row is listed in the RulerResolutions of any DT_Hazards row (an answer edict). */
 	COSMIC_ASCENSION_API bool IsAnswerEdict(const FCosmicDataTables& Tables, FName Row);
 
-	/** The product, in ActiveEdicts order, of the held edicts' HazardSpawnMultipliers for Tag (missing = 1). A factor below
-	 * 0, or not a finite number, reads as 0 - the comparison guard of the archetype's factor. */
-	COSMIC_ASCENSION_API float SpawnMultiplierOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables, FGameplayTag Tag);
+	/** The edicts whose two hazard hooks reach the system SystemIndex (B6b header section 2.4 - one walk, once a row): the
+	 * ActiveEdicts of its owner (both scopes, in that order), then, in Civs order and each in its own ActiveEdicts order, the
+	 * HomeGalaxy rows held by the other peoples whose GalaxyRow is the system's, a row name already in the list passed by.
+	 * Names the table does not hold are left out. Without a HomeGalaxy row this is the owner's held edicts, as in B2. Empty
+	 * for an index out of range; an unowned system has the galaxy's laws alone. */
+	COSMIC_ASCENSION_API TArray<const FEdictDef*, TInlineAllocator<8>> HookEdictsOf(const FGalaxyState& State, const FCosmicStateIndex& Index,
+		const FCosmicDataTables& Tables, int32 SystemIndex);
 
-	/** The sum of the held edicts' HazardCountdownBonus for Tag: values above 0 only, summed as int64, cut to 0..100000. */
-	COSMIC_ASCENSION_API int32 CountdownBonusOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables, FGameplayTag Tag);
+	/** Hook 1: the product, in the order of HookEdictsOf, of their HazardSpawnMultipliers for Tag (missing = 1) - on the spawn
+	 * share of a Draw row on the system. A factor below 0, or not a finite number, reads as 0 - the comparison guard of the
+	 * archetype's factor. */
+	COSMIC_ASCENSION_API float SpawnMultiplierOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
+		int32 SystemIndex, FGameplayTag Tag);
+
+	/** Hook 2: the sum of the HazardCountdownBonus for Tag of the edicts of HookEdictsOf - added when a hazard is placed on the
+	 * system (CosmicHazards::Place): values above 0 only, summed as int64, cut to 0..100000. */
+	COSMIC_ASCENSION_API int32 CountdownBonusOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
+		int32 SystemIndex, FGameplayTag Tag);
+
+	/** B6b: whether Row is a DT_Edicts row of Scope HomeGalaxy (a galaxy law). */
+	COSMIC_ASCENSION_API bool IsGalaxyLaw(const FCosmicDataTables& Tables, FName Row);
+
+	/** B6b: the DT_Edicts rows of Scope HomeGalaxy in lexical order (GetEdictRowNames) - the order the AI's law step and the
+	 * measuring policy's law step walk them in. */
+	COSMIC_ASCENSION_API TArray<FName> GalaxyLawRowsOf(const FCosmicDataTables& Tables);
+
+	/** B6b: the galaxy laws the people holds that the table knows. */
+	COSMIC_ASCENSION_API int32 GalaxyLawCountOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables);
+
+	/** B6b: DT_Rules.GalaxyLawsToHold read for the count - below 1 is 1 (the range is a lint, the guard is here). */
+	COSMIC_ASCENSION_API int32 GalaxyLawsToHoldOf(const FCosmicRulesDef& Rules);
+
+	/** B6b (header section 2.4, decision 10): the tick the economy stage counts in LawsHeldTicks - the people stands on the
+	 * fourth rung or above and holds GalaxyLawsToHoldOf galaxy laws or more (GalaxyLawCountOf). */
+	COSMIC_ASCENSION_API bool HoldsGalaxyLawsOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules);
+
+	/** B6b (header section 2.4, decision 11): whether the row judged at the people's rung asks for laws - the people stands on
+	 * the fourth rung or above and a DT_Feats row that IsJudgedRulerRowAt its Tier carries CivLawsHeldTicksAtLeast. The AI's
+	 * law step and the measuring policy's law step stand on it; false while no feat row carries the condition. */
+	COSMIC_ASCENSION_API bool AsksForLawsOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables);
 
 	/** B4: the product, in ActiveEdicts order, of the held edicts' PressureDrainMultiplier (a factor that is not above 0 and
 	 * finite reads as 1 - the schema keeps it in (0, 1]). The economy stage multiplies the pressure's Stability drain by it
@@ -94,7 +131,8 @@ namespace CosmicEdicts
 
 	/** The held edicts the AI stage revokes, in ActiveEdicts order (B2 section 2.6): an edict with a Stability cost once
 	 * Stability is below DT_Rules.AIEdictRevokeStability (a value that is not a number revokes nothing of that kind), every
-	 * other known edict at once. Names the table does not hold are left alone. */
+	 * other known edict at once. Names the table does not hold are left alone, and so are the galaxy laws (B6b decision 11:
+	 * the AI's law step keeps them - a regent's people goes on holding the laws the ruler left). */
 	COSMIC_ASCENSION_API TArray<FName> AIRevokesOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules);
 
 	/** The invariant of the inherited edict (B2 section 2.7): true when DT_Rules.StartingEdict is empty; false when it names

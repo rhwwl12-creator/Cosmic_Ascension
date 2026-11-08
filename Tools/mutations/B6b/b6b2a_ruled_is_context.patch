@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+@@ -164,7 +164,7 @@
+ 		}
+ 		if (Key == KeyRuled && IsEmbodied(State) && State.Player.Role == EPlayerRole::Ruler)
+ 		{
+-			return Index.FindCiv(State, State.Player.RuledCivID);
++			return State.Civs.IsValidIndex(Subject.CivIndex) ? Subject.CivIndex : INDEX_NONE;
+ 		}
+ 		return INDEX_NONE;
+ 	}

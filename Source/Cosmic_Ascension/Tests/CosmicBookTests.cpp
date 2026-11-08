@@ -353,8 +353,8 @@ bool FCosmicFallenSphereTicksTest::RunTest(const FString& Parameters)
 // people that is not the ruled one counts the same (mutation: only the ruled people); an independent sphere over the capital is
 // no subjection (mutation: any sphere), and the drain of an independent presser is a drain (mutation: only a drain beside a
 // fallen sphere); no drain (no sphere, a sealed transcendent, the knob at 0) is no tick; CosmicHazards::MoveCapital starts it
-// over (mutation: without that reset the count runs on through the loss of the capital). Nothing reads it before B-6b2 and it
-// takes no draw (the runner's CSV columns stay those of B-6a7).
+// over (mutation: without that reset the count runs on through the loss of the capital). It takes no draw; from B-6b2a
+// CivPressureEnduredTicksReached reads it (Sim.EraSelector).
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicPressureEnduredTest, "Cosmic_Ascension.Sim.PressureEndured", CosmicTests::Flags)
 bool FCosmicPressureEnduredTest::RunTest(const FString& Parameters)
 {

@@ -2,6 +2,7 @@
 
 #include "Sim/CosmicEdicts.h"
 
+#include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
@@ -130,13 +131,58 @@ bool CosmicEdicts::IsAnswerEdict(const FCosmicDataTables& Tables, FName Row)
 	return !Row.IsNone() && Tables.FindEdict(Row) && Tables.IsHazardAnswer(Row);
 }
 
-float CosmicEdicts::SpawnMultiplierOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables, FGameplayTag Tag)
+TArray<const FEdictDef*, TInlineAllocator<8>> CosmicEdicts::HookEdictsOf(const FGalaxyState& State, const FCosmicStateIndex& Index,
+	const FCosmicDataTables& Tables, int32 SystemIndex)
+{
+	TArray<const FEdictDef*, TInlineAllocator<8>> Hooks;
+	if (!State.Systems.IsValidIndex(SystemIndex))
+	{
+		return Hooks;
+	}
+	const FStarSystemState& System = State.Systems[SystemIndex];
+	const int32 OwnerIndex = Index.FindCiv(State, System.OwnerCivID);
+	// The owner's held edicts first, both scopes, in ActiveEdicts order: without a galaxy law the list - and the order of the
+	// product over it - is the one of B2.
+	TArray<FName, TInlineAllocator<8>> Names;
+	if (State.Civs.IsValidIndex(OwnerIndex))
+	{
+		for (const FName Row : State.Civs[OwnerIndex].ActiveEdicts)
+		{
+			if (const FEdictDef* Def = Tables.FindEdict(Row))
+			{
+				Names.Add(Row);
+				Hooks.Add(Def);
+			}
+		}
+	}
+	// Then the galaxy laws the other peoples of the system's galaxy hold, in Civs order, each row once (B6b header section 2.4).
+	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+	{
+		const FCivilizationState& Civ = State.Civs[CivIndex];
+		if (CivIndex == OwnerIndex || Civ.ActiveEdicts.IsEmpty() || Civ.GalaxyRow != System.GalaxyRow)
+		{
+			continue;
+		}
+		for (const FName Row : Civ.ActiveEdicts)
+		{
+			const FEdictDef* Def = Tables.FindEdict(Row);
+			if (Def && Def->Scope == ECosmicEdictScope::HomeGalaxy && !Names.Contains(Row))
+			{
+				Names.Add(Row);
+				Hooks.Add(Def);
+			}
+		}
+	}
+	return Hooks;
+}
+
+float CosmicEdicts::SpawnMultiplierOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, int32 SystemIndex,
+	FGameplayTag Tag)
 {
 	float Product = 1.f;
-	for (const FName Row : Civ.ActiveEdicts)
+	for (const FEdictDef* Def : HookEdictsOf(State, Index, Tables, SystemIndex))
 	{
-		const FEdictDef* Def = Tables.FindEdict(Row);
-		const float* Factor = Def ? Def->HazardSpawnMultipliers.Find(Tag) : nullptr;
+		const float* Factor = Def->HazardSpawnMultipliers.Find(Tag);
 		if (Factor)
 		{
 			Product *= (*Factor >= 0.f && *Factor <= TNumericLimits<float>::Max()) ? *Factor : 0.f;
@@ -145,19 +191,69 @@ float CosmicEdicts::SpawnMultiplierOf(const FCivilizationState& Civ, const FCosm
 	return Product;
 }
 
-int32 CosmicEdicts::CountdownBonusOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables, FGameplayTag Tag)
+int32 CosmicEdicts::CountdownBonusOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, int32 SystemIndex,
+	FGameplayTag Tag)
 {
 	int64 Sum = 0;
-	for (const FName Row : Civ.ActiveEdicts)
+	for (const FEdictDef* Def : HookEdictsOf(State, Index, Tables, SystemIndex))
 	{
-		const FEdictDef* Def = Tables.FindEdict(Row);
-		const int32* Bonus = Def ? Def->HazardCountdownBonus.Find(Tag) : nullptr;
+		const int32* Bonus = Def->HazardCountdownBonus.Find(Tag);
 		if (Bonus && *Bonus > 0)
 		{
 			Sum += *Bonus;
 		}
 	}
 	return static_cast<int32>(FMath::Clamp<int64>(Sum, 0, 100000));
+}
+
+bool CosmicEdicts::IsGalaxyLaw(const FCosmicDataTables& Tables, FName Row)
+{
+	const FEdictDef* Def = Row.IsNone() ? nullptr : Tables.FindEdict(Row);
+	return Def && Def->Scope == ECosmicEdictScope::HomeGalaxy;
+}
+
+TArray<FName> CosmicEdicts::GalaxyLawRowsOf(const FCosmicDataTables& Tables)
+{
+	TArray<FName> Laws = Tables.GetEdictRowNames();
+	Laws.RemoveAll([&Tables](FName Row) { return !IsGalaxyLaw(Tables, Row); });
+	return Laws;
+}
+
+int32 CosmicEdicts::GalaxyLawCountOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables)
+{
+	int32 Count = 0;
+	for (const FName Row : Civ.ActiveEdicts)
+	{
+		Count += IsGalaxyLaw(Tables, Row) ? 1 : 0;
+	}
+	return Count;
+}
+
+int32 CosmicEdicts::GalaxyLawsToHoldOf(const FCosmicRulesDef& Rules)
+{
+	return FMath::Max(1, Rules.GalaxyLawsToHold);
+}
+
+bool CosmicEdicts::HoldsGalaxyLawsOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules)
+{
+	return static_cast<uint8>(Civ.Tier) >= static_cast<uint8>(EAscensionTier::Tier4_Transcendent) && GalaxyLawCountOf(Civ, Tables) >= GalaxyLawsToHoldOf(Rules);
+}
+
+bool CosmicEdicts::AsksForLawsOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables)
+{
+	if (static_cast<uint8>(Civ.Tier) < static_cast<uint8>(EAscensionTier::Tier4_Transcendent))
+	{
+		return false;
+	}
+	for (const FName FeatRow : Tables.GetFeatRowNames())
+	{
+		const FAscensionFeatDef* Feat = Tables.FindFeat(FeatRow);
+		if (Feat && Feat->IsJudgedRulerRowAt(Civ.Tier) && Feat->CarriesCondition(EConditionType::CivLawsHeldTicksAtLeast))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 float CosmicEdicts::PressureDrainMultiplierOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables)
@@ -250,7 +346,8 @@ TArray<FName> CosmicEdicts::AIRevokesOf(const FCivilizationState& Civ, const FCo
 	for (const FName Row : Civ.ActiveEdicts)
 	{
 		const FEdictDef* Def = Tables.FindEdict(Row);
-		if (!Def)
+		// A galaxy law stays (B6b decision 11): the AI's law step enacts the laws its row asks for, and keeps them.
+		if (!Def || Def->Scope == ECosmicEdictScope::HomeGalaxy)
 		{
 			continue;
 		}

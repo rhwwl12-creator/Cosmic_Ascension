@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -617,7 +617,7 @@
+ 	for (const FName Held : TArray<FName>(State.Civs[CivIndex].ActiveEdicts))
+ 	{
+ 		const FEdictDef* Def = Tables.FindEdict(Held);
+-		if (Def && Def->Scope != ECosmicEdictScope::HomeGalaxy && CosmicEdicts::HasStabilityCost(*Def) && State.Civs[CivIndex].Stability < RevokeBelow)
++		if (Def && CosmicEdicts::HasStabilityCost(*Def) && State.Civs[CivIndex].Stability < RevokeBelow)
+ 		{
+ 			Revoke(Held);
+ 		}

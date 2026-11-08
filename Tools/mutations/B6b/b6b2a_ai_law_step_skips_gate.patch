@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2851,7 +2851,7 @@
+ 			for (const FName Law : CosmicEdicts::GalaxyLawRowsOf(Tables))
+ 			{
+ 				const FEdictDef* Def = Tables.FindEdict(Law);
+-				if (Def && CosmicEdicts::EnactBlockOf(State, StateIndex, Tables, Rules, CivIndex, Law) == CosmicEdicts::ECosmicEdictBlock::None)
++				if (Def && !State.Civs[CivIndex].ActiveEdicts.Contains(Law))
+ 				{
+ 					CosmicEdicts::Enact(State.Civs[CivIndex], Law, *Def);
+ 				}

@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+@@ -840,6 +840,7 @@
+ 		{
+ 			if (Bordering[Other])
+ 			{
++				State.Civs[Other].ReverenceToPlayer = FMath::Clamp(State.Civs[Other].ReverenceToPlayer + Effect.Value, 0.f, 1.f);
+ 				State.Civs[Other].ReverenceToPlayer = FMath::Clamp(State.Civs[Other].ReverenceToPlayer + Effect.Value, 0.f, 1.f);
+ 				bAny = true;
+ 			}

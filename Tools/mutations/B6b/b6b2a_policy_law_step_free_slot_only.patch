@@ -1,0 +1,14 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -573,6 +573,10 @@
+ 		{
+ 			return true;
+ 		}
++		if (bForLaw)
++		{
++			return false;
++		}
+ 		const FEdictDef* Wanted = Tables.FindEdict(Row);
+ 		if (!Wanted || CosmicEdicts::EnactBlockOf(State, Index, Tables, Rules, CivIndex, Row) != CosmicEdicts::ECosmicEdictBlock::Slots
+ 			|| !CosmicMegaprojects::CanPay(Civ.Stockpile, CosmicEdicts::CostOf(Wanted->EnactCost)))

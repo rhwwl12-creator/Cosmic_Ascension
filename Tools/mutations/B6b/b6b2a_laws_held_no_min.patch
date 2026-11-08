@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+@@ -649,7 +649,7 @@
+ 		// The held laws within the life judged (B6b section 2.4): the count ends now, so the smaller of it and the ticks since
+ 		// SinceTick is the stretch of this life.
+ 		const int32 Ticks = TickCountOf(Condition.Key);
+-		return Civ && Ticks > 0 && FMath::Min<int64>(Civ->LawsHeldTicks, State.Tick - View.SinceTick) >= Ticks;
++		return Civ && Ticks > 0 && Civ->LawsHeldTicks >= Ticks;
+ 	}
+ 
+ 	case EConditionType::CivPressureEnduredTicksReached:

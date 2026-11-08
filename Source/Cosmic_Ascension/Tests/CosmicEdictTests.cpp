@@ -31,6 +31,7 @@
 #include "Tests/CosmicTestProbe.h"
 #include "World/CosmicRulerPolicy.h"
 
+#include <initializer_list>
 #include <limits>
 
 namespace CosmicEdictTests
@@ -54,6 +55,12 @@ namespace CosmicEdictTests
 	const FName Heavy(TEXT("edict_test_heavy"));      // an upkeep no stockpile pays, Stability -0.01
 	const FName Kin(TEXT("edict_test_kin"));          // a relation with no party named
 	const FName Faint(TEXT("edict_test_faint"));      // a Stability cost too small to move a float of 0.5
+	// B6b: four galaxy laws of the fourth rung (Scope HomeGalaxy), in table order a, b, c, d - a with a Stability cost and an
+	// Influence cost of 5, the others with nothing.
+	const FName LawA(TEXT("edict_test_law_a"));
+	const FName LawB(TEXT("edict_test_law_b"));
+	const FName LawC(TEXT("edict_test_law_c"));
+	const FName LawD(TEXT("edict_test_law_d"));
 
 	const FName Wake(TEXT("crisis_test_wake"));
 	const FName Sick(TEXT("crisis_test_sick"));
@@ -122,6 +129,19 @@ namespace CosmicEdictTests
 		});
 		Add(Kin, [](FEdictDef& Row) { Row.EffectsPerTick = { Effect(EEffectType::ChangeRelation, nullptr, 0.1f) }; });
 		Add(Faint, [](FEdictDef& Row) { Row.EffectsPerTick = { Effect(EEffectType::ChangeStability, nullptr, -1.0e-30f) }; });
+		for (const FName Law : { LawA, LawB, LawC, LawD })
+		{
+			Add(Law, [Law](FEdictDef& Row)
+			{
+				Row.Scope = ECosmicEdictScope::HomeGalaxy;
+				Row.RequiredTier = EAscensionTier::Tier4_Transcendent;
+				if (Law == LawA)
+				{
+					Row.EnactCost = Influence(5.f);
+					Row.EffectsPerTick = { Effect(EEffectType::ChangeStability, nullptr, -0.01f) };
+				}
+			});
+		}
 		return Table;
 	}
 
@@ -193,6 +213,26 @@ namespace CosmicEdictTests
 	}
 
 	void NoEdit(FCosmicRulesDef&) {}
+
+	// B6b: the tables of the board with one feat row of the fourth rung that reads the held laws, so that the row judged there
+	// asks for laws (CosmicEdicts::AsksForLawsOf) - the AI's law step and the measuring policy's. Rung puts the row on another
+	// rung (one rung up from it), for a case that only the rung check of AsksForLawsOf keeps still.
+	void AskForLaws(UGalaxySimulationSubsystem& Sim, EAscensionTier Rung = EAscensionTier::Tier4_Transcendent)
+	{
+		FAscensionFeatDef Row;
+		Row.Title = FText::AsCultureInvariant(TEXT("laws"));
+		Row.RequiredTier = Rung;
+		Row.TargetTier = static_cast<EAscensionTier>(static_cast<uint8>(Rung) + 1);
+		FCosmicCondition Held;
+		Held.Type = EConditionType::CivLawsHeldTicksAtLeast;
+		Held.Key = FName(TEXT("600"));
+		Row.CompletionConditions = { Held };
+		UDataTable* Feats = CosmicTests::NewTable(FAscensionFeatDef::StaticStruct());
+		Feats->AddRow(FName(TEXT("feat_test_laws")), Row);
+		FCosmicDataTables Tables = Sim.GetTables();
+		Tables.Feats = Feats;
+		Sim.SetTables(Tables);
+	}
 
 	int32 CapitalOf(const UGalaxySimulationSubsystem& Sim, int32 CivIndex)
 	{
@@ -643,6 +683,22 @@ bool FCosmicSimEdictAITest::RunTest(const FString& Parameters)
 			Seeds[Pass] = Sim->GetRng().GetCurrentSeed();
 		}
 		TestEqual(TEXT("The revocations draw nothing"), Seeds[1], Seeds[0]);
+	}
+
+	// B6b (decision 11): AIRevokesOf passes a galaxy law by - one with a Stability cost too, below the threshold - and a regent's
+	// people keeps the law the ruler left, while what else it holds goes (mutation: AIRevokesOf walks the laws as well).
+	{
+		FGalaxyState* Board = LayBoard(*Sim, Original, NoEdit);
+		Board->Civs[1].ActiveEdicts = { LawA, Plain };
+		Board->Civs[1].Stability = 0.5f;
+		TestTrue(TEXT("AIRevokesOf names the edict of the people's scope and not the law"),
+			CosmicEdicts::AIRevokesOf(Board->Civs[1], Sim->GetTables(), Sim->GetRules()) == TArray<FName>({ Plain }));
+		Board->Civs[0].ActiveEdicts = { LawB, Taxing };
+		Board->Civs[0].bIsPlayerRuled = false;
+		Board->Civs[0].Stockpile.Influence = 1000.f;
+		Sim->StepOnce();
+		TestTrue(TEXT("An AI people keeps a galaxy law, its Stability cost and all"), Board->Civs[1].ActiveEdicts == TArray<FName>({ LawA }));
+		TestTrue(TEXT("A regent's people keeps the law the ruler left, and lets the rest go"), Board->Civs[0].ActiveEdicts == TArray<FName>({ LawB }));
 	}
 	return true;
 }
@@ -1116,6 +1172,179 @@ bool FCosmicSimRulerEdictPolicyTest::RunTest(const FString& Parameters)
 		Board->Civs[0].LowStabilityTicks = 0;
 		Boundary(Policy(NAME_None), Counts, 1);
 		TestTrue(TEXT("and goes at it"), !Board->Civs[0].ActiveEdicts.Contains(Guard) && Counts.VigilEnacted.IsNone());
+	}
+
+	// B6b (header section 2.4): the law step (4') under a row of the fourth rung that reads the held laws, three to hold
+	// (GalaxyLawsToHold) and four laws in the table. Every case: the ruled people on the fourth rung, three slots (Society 1).
+	auto LawBoard = [&](std::initializer_list<FName> Held, float Society = 1.f)
+	{
+		FGalaxyState* Board = LayBoard(*Sim, Original, [](FCosmicRulesDef& Rules) { Rules.GalaxyLawsToHold = 3; });
+		AskForLaws(*Sim);
+		Board->Civs[0].Tier = EAscensionTier::Tier4_Transcendent;
+		Board->Civs[0].Research.Add(FName(TEXT("Society")), Society);
+		Board->Civs[0].Stockpile.Influence = 1000.f;
+		Board->Civs[0].Stability = 0.8f;
+		Board->Civs[0].ActiveEdicts = Held;
+		return Board;
+	};
+	{
+		// The laws it lacks, in table order: a and b into the free slots, c into the slot of the edict that is no law (mutation
+		// b6b2a_policy_law_step_free_slot_only: the law step takes free slots only - c finds no room); d finds no room - a law is
+		// never given up for a law, so the next boundaries change nothing (mutation b6b2a_policy_law_for_law: the law step gives
+		// up a law for a law - the laws turn over).
+		FGalaxyState* Board = LawBoard({ Plain });
+		FCosmicRulerPolicyCounts Counts;
+		Boundary(Policy(NAME_None), Counts, 1);
+		TestTrue(TEXT("The law step enacts the laws in table order, making room by giving up the edict that is no law"),
+			Board->Civs[0].ActiveEdicts == TArray<FName>({ LawA, LawB, LawC }) && Counts.EdictsEnacted == 3 && Counts.EdictsRevoked == 1);
+		Boundary(Policy(NAME_None), Counts, 2);
+		TestTrue(TEXT("and the fourth law gives up none of the three over two more boundaries"),
+			Changes(Counts) == 4 && Board->Civs[0].ActiveEdicts == TArray<FName>({ LawA, LawB, LawC }));
+	}
+	{
+		// (1) gives up the edicts that cost Stability below 0.5 - never a law, though law a costs Stability (mutation: it does).
+		FGalaxyState* Board = LawBoard({ Taxing, LawA });
+		Board->Civs[0].Stability = 0.45f;
+		FCosmicRulerPolicyCounts Counts;
+		Boundary(Policy(NAME_None), Counts, 1);
+		TestFalse(TEXT("Below 0.5 the Stability edict goes"), Board->Civs[0].ActiveEdicts.Contains(Taxing));
+		TestTrue(TEXT("and the law with a Stability cost stays"), Board->Civs[0].ActiveEdicts.Contains(LawA));
+	}
+	{
+		// (2) makes room for a hazard's answer with the laws last: the edict that is no law goes (mutation: the first held edict
+		// goes, a law).
+		FGalaxyState* Board = LawBoard({ LawA, LawB, Plain });
+		const int32 Capital = CapitalOf(*Sim, 0);
+		Board->Systems[Capital].ActiveHazard = Tag(TEXT("Hazard.AIAwakening"));
+		Board->Systems[Capital].HazardTicksRemaining = 3;
+		FCosmicRulerPolicyCounts Counts;
+		Boundary(Policy(NAME_None), Counts, 1);
+		TestTrue(TEXT("An answer takes the slot of the edict that is no law, the laws last"),
+			Board->Civs[0].ActiveEdicts == TArray<FName>({ LawA, LawB, Answer }) && Counts.EdictsRevoked == 1);
+	}
+	{
+		// The same with that edict the kept row: EdictRow is given up before a law, the laws last of all, and (5) does not
+		// bring it back - no slot is free and it was revoked at this boundary (mutation: a law goes before EdictRow).
+		FGalaxyState* Board = LawBoard({ LawA, LawB, Plain });
+		const int32 Capital = CapitalOf(*Sim, 0);
+		Board->Systems[Capital].ActiveHazard = Tag(TEXT("Hazard.AIAwakening"));
+		Board->Systems[Capital].HazardTicksRemaining = 3;
+		FCosmicRulerPolicyCounts Counts;
+		Boundary(Policy(Plain), Counts, 1);
+		TestTrue(TEXT("An answer takes the slot of the kept row before a law's"),
+			Board->Civs[0].ActiveEdicts == TArray<FName>({ LawA, LawB, Answer }) && Counts.EdictsRevoked == 1);
+	}
+	{
+		// One law and the awakening's answer in three slots: while the answer holds a slot the law step stands still, a free slot
+		// though there is (mutation: the law step does not stand still for an answer - law a takes the free slot).
+		FGalaxyState* Board = LawBoard({ LawB, Answer });
+		const int32 Capital = CapitalOf(*Sim, 0);
+		Board->Systems[Capital].ActiveHazard = Tag(TEXT("Hazard.AIAwakening"));
+		Board->Systems[Capital].HazardTicksRemaining = 3;
+		FCosmicRulerPolicyCounts Counts;
+		Boundary(Policy(NAME_None), Counts, 1);
+		TestTrue(TEXT("While an answer holds a slot the law step leaves the free slot alone"),
+			Changes(Counts) == 0 && Board->Civs[0].ActiveEdicts == TArray<FName>({ LawB, Answer }));
+	}
+	{
+		// The vigil of (3) before a rebellion, three laws in the three slots: (3) gives up the first law for it, and the law step
+		// does not take its slot back while (3) would enact it again - over two more boundaries nothing changes (mutation
+		// b6b2a_policy_vigil_for_law: the law step takes the vigil's slot - the vigil and a law swap every two boundaries). Nor
+		// once the discontent is no longer counted (Stability 0.3 or more) while Stability is below 0.5: the band (3) and (4)
+		// keep (mutation b6b2a_policy_vigil_band: the law takes the slot back at 0.45 - under a steady drain the vigil and a law
+		// swap each time Stability climbs back to 0.3). At 0.5 or more (0.55) the law takes the vigil's slot back while (4)
+		// still keeps the vigil (mutation b6b2a_policy_vigil_waits_for_rest: the law waits for (4) at RestAt - the stall the
+		// verdict measured).
+		FGalaxyState* Board = LawBoard({ LawA, LawB, LawC });
+		Board->Civs[0].Stability = 0.25f;
+		Board->Civs[0].LowStabilityTicks = 5;
+		FCosmicRulerPolicyCounts Counts;
+		Boundary(Policy(NAME_None), Counts, 1);
+		TestTrue(TEXT("The vigil takes the first law's slot"),
+			Board->Civs[0].ActiveEdicts == TArray<FName>({ LawB, LawC, Guard }) && Changes(Counts) == 2 && Counts.VigilEnacted == Guard);
+		Boundary(Policy(NAME_None), Counts, 2);
+		TestTrue(TEXT("While the discontent is counted no law takes the vigil's slot over two boundaries"),
+			Changes(Counts) == 2 && Board->Civs[0].ActiveEdicts == TArray<FName>({ LawB, LawC, Guard }));
+		Board->Civs[0].Stability = 0.45f;
+		Board->Civs[0].LowStabilityTicks = 0;
+		Boundary(Policy(NAME_None), Counts, 1);
+		TestTrue(TEXT("With the discontent no longer counted but Stability below 0.5 no law takes the vigil's slot"),
+			Changes(Counts) == 2 && Board->Civs[0].ActiveEdicts == TArray<FName>({ LawB, LawC, Guard }) && Counts.VigilEnacted == Guard);
+		Board->Civs[0].Stability = 0.55f;
+		Boundary(Policy(NAME_None), Counts, 1);
+		TestTrue(TEXT("At Stability 0.5 or more the first law takes the vigil's slot back, below the resting level where (4) keeps it"),
+			Changes(Counts) == 4 && Board->Civs[0].ActiveEdicts == TArray<FName>({ LawB, LawC, LawA }) && Counts.VigilEnacted.IsNone());
+	}
+	{
+		// The same vigil, the danger passed at once (Stability 0.6, the discontent no longer counted): (4) lets the vigil go and
+		// the law comes back into the slot it leaves at the same boundary.
+		FGalaxyState* Board = LawBoard({ LawA, LawB, LawC });
+		Board->Civs[0].Stability = 0.25f;
+		Board->Civs[0].LowStabilityTicks = 5;
+		FCosmicRulerPolicyCounts Counts;
+		Boundary(Policy(NAME_None), Counts, 1);
+		Board->Civs[0].Stability = 0.6f;
+		Board->Civs[0].LowStabilityTicks = 0;
+		Boundary(Policy(NAME_None), Counts, 1);
+		TestTrue(TEXT("Once the danger passed the vigil goes and the first law comes back"),
+			Changes(Counts) == 4 && Board->Civs[0].ActiveEdicts == TArray<FName>({ LawB, LawC, LawA }) && Counts.VigilEnacted.IsNone());
+	}
+	{
+		// Three laws held, the awakening's answer the only one: (2) gives up the first law for it. While the answer holds a slot
+		// the law step stands still - over two more boundaries no law is given up for the one that went (it holds while either
+		// guard does - no law given up for a law, no step while an answer holds a slot: the mutation of the first alone is
+		// killed by the first law case, the second's by the case of the free slot above); when nothing is left to answer, the
+		// answer goes and the law comes back into its slot.
+		FGalaxyState* Board = LawBoard({ LawA, LawB, LawC });
+		const int32 Capital = CapitalOf(*Sim, 0);
+		Board->Systems[Capital].ActiveHazard = Tag(TEXT("Hazard.AIAwakening"));
+		Board->Systems[Capital].HazardTicksRemaining = 3;
+		FCosmicRulerPolicyCounts Counts;
+		Boundary(Policy(NAME_None), Counts, 1);
+		TestTrue(TEXT("With three laws held the answer takes the first law's slot"),
+			Board->Civs[0].ActiveEdicts == TArray<FName>({ LawB, LawC, Answer }) && Changes(Counts) == 2);
+		Boundary(Policy(NAME_None), Counts, 2);
+		TestTrue(TEXT("While the answer holds a slot no law is given up for another over two boundaries"),
+			Changes(Counts) == 2 && Board->Civs[0].ActiveEdicts == TArray<FName>({ LawB, LawC, Answer }));
+		Board->Systems[Capital].ActiveHazard = FGameplayTag();
+		Boundary(Policy(NAME_None), Counts, 1);
+		TestTrue(TEXT("With nothing left to answer the answer goes and the first law comes back"),
+			Board->Civs[0].ActiveEdicts == TArray<FName>({ LawB, LawC, LawA }));
+	}
+	{
+		// The law step stands still while the slots are fewer than the laws to hold (mutation b6b2a_policy_law_step_ignores_slots:
+		// it enacts into the two it has), below the fourth rung, and without a row that reads the laws (mutation
+		// b6b2a_policy_law_step_unasked: the step runs unasked). Below the fourth rung the case gives the third rung a row that
+		// reads the laws (third to fourth) and laws of the third rung the people may enact, so only the rung check of
+		// CosmicEdicts::AsksForLawsOf keeps the step still (mutation b6b2a_asks_for_laws_any_rung: without it the step enacts).
+		FGalaxyState* Board = LawBoard({}, 0.5f);
+		FCosmicRulerPolicyCounts Two;
+		Boundary(Policy(NAME_None), Two, 1);
+		TestTrue(TEXT("With two slots for three laws the law step enacts none"), Changes(Two) == 0 && Board->Civs[0].ActiveEdicts.IsEmpty());
+		Board = LawBoard({});
+		Board->Civs[0].Tier = EAscensionTier::Tier3_Causal;
+		AskForLaws(*Sim, EAscensionTier::Tier3_Causal);
+		for (const FName Law : { LawA, LawB, LawC, LawD })
+		{
+			FEdictDef* Row = Sim->GetTables().Edicts->FindRow<FEdictDef>(Law, TEXT("test"));
+			if (!TestNotNull(TEXT("(the test's law row)"), Row))
+			{
+				return false;
+			}
+			Row->RequiredTier = EAscensionTier::Tier3_Causal;
+		}
+		TestTrue(TEXT("(a law of the third rung is open to the people of the third rung)"),
+			CosmicEdicts::EnactBlockOf(Sim->GetState(), Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), 0, LawB) == ECosmicEdictBlock::None);
+		FCosmicRulerPolicyCounts Below;
+		Boundary(Policy(NAME_None), Below, 1);
+		TestTrue(TEXT("Below the fourth rung no row asks for laws"), Changes(Below) == 0 && Board->Civs[0].ActiveEdicts.IsEmpty());
+		Board = LayBoard(*Sim, Original, NoEdit);
+		Board->Civs[0].Tier = EAscensionTier::Tier4_Transcendent;
+		Board->Civs[0].Research.Add(FName(TEXT("Society")), 1.f);
+		Board->Civs[0].Stockpile.Influence = 1000.f;
+		FCosmicRulerPolicyCounts Unasked;
+		Boundary(Policy(NAME_None), Unasked, 1);
+		TestTrue(TEXT("Without a row that reads the laws no law is enacted"), Changes(Unasked) == 0);
 	}
 
 	// Nothing after the provisional end, nothing without -Edict.

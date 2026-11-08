@@ -1,0 +1,14 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+@@ -241,10 +241,6 @@
+ 
+ bool CosmicEdicts::AsksForLawsOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables)
+ {
+-	if (static_cast<uint8>(Civ.Tier) < static_cast<uint8>(EAscensionTier::Tier4_Transcendent))
+-	{
+-		return false;
+-	}
+ 	for (const FName FeatRow : Tables.GetFeatRowNames())
+ 	{
+ 		const FAscensionFeatDef* Feat = Tables.FindFeat(FeatRow);

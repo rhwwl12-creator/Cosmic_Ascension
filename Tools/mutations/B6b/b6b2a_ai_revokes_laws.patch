@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+@@ -347,7 +347,7 @@
+ 	{
+ 		const FEdictDef* Def = Tables.FindEdict(Row);
+ 		// A galaxy law stays (B6b decision 11): the AI's law step enacts the laws its row asks for, and keeps them.
+-		if (!Def || Def->Scope == ECosmicEdictScope::HomeGalaxy)
++		if (!Def)
+ 		{
+ 			continue;
+ 		}

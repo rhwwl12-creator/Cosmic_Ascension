@@ -165,13 +165,15 @@ bool CosmicHazards::Place(FCosmicEvalContext& Ctx, int32 SystemIndex, FName Haza
 	{
 		return false;
 	}
-	// The owner's edicts (B2) and a fleet that guards the system (B3 section 2.7) may add to the countdown of a hazard placed
-	// now - a standing hazard's countdown never changes. Each term lies in [0, 100000]. The delay is read before the slot is
-	// filled (a claim's delay asks for the claimant of the system as it stands).
+	// The owner's edicts (B2) - with the galaxy laws the other peoples of the system's galaxy hold (B6b hook 2) - and a fleet
+	// that guards the system (B3 section 2.7) may add to the countdown of a hazard placed now - a standing hazard's countdown
+	// never changes. Each term lies in [0, 100000]. The delay is read before the slot is filled (a claim's delay asks for the
+	// claimant of the system as it stands).
 	const int32 FleetDelay = CosmicConflict::FleetDelayOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, SystemIndex, *Row);
+	const int32 EdictBonus = CosmicEdicts::CountdownBonusOf(State, Ctx.Index, Ctx.Tables, SystemIndex, Row->HazardTag);
 	System.ActiveHazard = Row->HazardTag;
 	System.HazardTicksRemaining = static_cast<int32>(FMath::Min<int64>(static_cast<int64>(FMath::Max(1, Row->CountdownTicks))
-		+ CosmicEdicts::CountdownBonusOf(State.Civs[OwnerIndex], Ctx.Tables, Row->HazardTag) + FleetDelay, MAX_int32));
+		+ EdictBonus + FleetDelay, MAX_int32));
 	Ctx.Notes.Add({ ECosmicWorldNote::HazardPlaced, SystemIndex, OwnerIndex, HazardRow });
 	return true;
 }

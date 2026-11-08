@@ -32,7 +32,7 @@ enum class ECosmicPressurePolicy : uint8
 // -Diplomacy; B4: -PlayerPolicy, -Guard, -LeaveNearSphere) as one function the commandlet and the hash run
 // (World/CosmicHashRun) share, so the cooked build plays the inputs the editor's baseline played
 // (docs/60_DECISIONS/headers/A9_win64_packaging.md section 2.2). Moved out of the commandlet unchanged. Every place that
-// makes one writes all nine values (an aggregate initialisation would leave a missing one false or 0).
+// makes one writes all ten values (an aggregate initialisation would leave a missing one false or 0).
 struct FCosmicRulerPolicy
 {
 	bool bAnswer = false;
@@ -173,11 +173,17 @@ namespace CosmicRulerPolicy
 	// LowStabilityTicks is above 0 and no rebellion (a hazard of a Capital row) stands on its capital, it enacts the vigil -
 	// the first edict row, lexical, with a countdown bonus for a Capital row's tag; (4) it revokes a held answer edict
 	// with no hazard to answer, and the vigil of step 3 once Stability is 0.6 or more with no rebellion standing - never
-	// EdictRow; (5) with a free slot it enacts EdictRow - a row with a Stability cost only at Stability 0.6 or more. A
-	// full set of slots is made room for in (2) and (3) by revoking first a held edict that answers no standing hazard
-	// (EdictRow only when no other one does) - only when the row's one reason is Slots (CosmicEdicts::EnactBlockOf) and
-	// the stockpile can pay its EnactCost, so nothing is given up for an enactment that would be refused. One boundary
-	// never revokes a row it enacted, nor enacts one it revoked.
+	// EdictRow; (4') B6b (header section 2.4): when the people stands on the fourth rung or above and the row judged there
+	// asks for laws (CosmicEdicts::AsksForLawsOf), it enacts the galaxy laws it lacks in table order, each through the room
+	// making for a law - a free slot, or the slot of an edict that is no law (a law is never given up for a law, nor the
+	// vigil while step 3 would enact it again or Stability is below 0.5: the law takes the vigil's slot back once the
+	// discontent is no longer counted and Stability is 0.5 or more, or takes the free slot step 4 leaves) - and not at all
+	// while its slots are fewer than DT_Rules.GalaxyLawsToHold or an answer edict holds a slot; (5) with a free slot
+	// it enacts EdictRow - a row with a Stability cost only at Stability 0.6 or more. A full set of slots is made room for
+	// in (2) and (3) by revoking first a held edict that answers no standing hazard (EdictRow only when no other one does,
+	// a galaxy law only when neither does) - only when the row's one reason is Slots (CosmicEdicts::EnactBlockOf) and the
+	// stockpile can pay its EnactCost, so nothing is given up for an enactment that would be refused. Step (1) never
+	// revokes a galaxy law. One boundary never revokes a row it enacted, nor enacts one it revoked.
 	// B4 (header section 2.9, decision 9): under a pressure policy, step (2) leaves a hazard unanswered when its first edict
 	// answer is one ProjectChoicesOf leaves out (a claim's; with bLeaveNearSphere, an awakening's or a plague's on a settled
 	// system a claimant could reach). While a claim stands on a settled system of the people (ClaimStandsOn), the

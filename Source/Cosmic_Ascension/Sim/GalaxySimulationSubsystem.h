@@ -604,8 +604,11 @@ private:
 	// (SinceTick 0), no draw (section 4.3, 5.7); then, when CosmicMegaprojects::MaySettle holds, one number from the sim
 	// stream, drawn before the targets are looked at and thrown away when there is none, picks a target of SettleTargets
 	// to Settle (section 9.2). A people that may not settle draws nothing. Then it revokes, in ActiveEdicts order, the edicts
-	// CosmicEdicts::AIRevokesOf names - no draw, no line: an AI people holds no edict in B2. Then its diplomacy
-	// (TickAIDiplomacy, B3). (b)
+	// CosmicEdicts::AIRevokesOf names - no draw, no line: an AI people holds no edict of the people's scope (B2), a galaxy
+	// law stays (B6b). Then the two steps a judged row asks (B6b decision 1 - nothing while no row asks, no draw, no line):
+	// the law step (CosmicEdicts::AsksForLawsOf - every galaxy law in table order the gate EnactBlockOf takes is enacted)
+	// and the treaty step (CosmicDiplomacy::AsksForTreatyOf - one non-aggression a tick with AITreatyPartnerOf, paid as the
+	// command pays). Then its diplomacy (TickAIDiplomacy, B3). (b)
 	// UAscensionSubsystem::EvaluateFeats, exactly once per tick and nowhere else in the tick.
 	void TickCivAI();
 

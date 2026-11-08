@@ -104,17 +104,23 @@ public:
 	 *   (FPlayerEntityState keeps the dead one until Install). Together with the Embodied test of the vessel effects and
 	 *   the role effects in Apply, that is the whole exclusion of the player from the leap: the vocabulary has no negation
 	 *   that could turn it around (FlagNotSet reads flags only).
-	 * - MegaprojectComplete and TranscendentSealed compare with View.SinceTick, never with the life state.
-	 *   MegaprojectComplete reads the completion record of its Key's row on the subject system, made by the context people
-	 *   (CosmicMegaprojects::HasCompleted with its CivID - #73, B3); an empty Key is false.
+	 * - MegaprojectComplete, TranscendentSealed and CivLawsHeldTicksAtLeast (B6b) compare with View.SinceTick, never with
+	 *   the life state. MegaprojectComplete reads the completion record of its Key's row on the subject system, made by the
+	 *   context people (CosmicMegaprojects::HasCompleted with its CivID - #73, B3); an empty Key is false.
+	 *   CivLawsHeldTicksAtLeast holds when Min(LawsHeldTicks, Tick - SinceTick) reaches its Key.
+	 * - CivHasTreaty (B6b) counts the peoples the context people shares its Tag's treaty with (any treaty for an empty Tag -
+	 *   CosmicDiplomacy::TreatyPartnersOf); the subject system is not read.
+	 * - The Key of SystemOwnedBy is a civ selector (empty = the context civilization, Former, and Ruled from B6b - the people
+	 *   of a vessel on a throne, false otherwise) or a CivID.
 	 * - CivResearchAtLeast resolves its Key only as a key of the civilization's Research (a research field).
 	 * - Tier values are tier numbers 1..5 (section 7.3).
 	 * - A condition whose Key names something the view cannot resolve is false. The other party of CivRelationAtLeast
 	 *   (its Key, or the OtherID of the view when the Key is empty) resolves only when it is the CivID of a living
 	 *   civilization, the TranscendentID of a transcendent in State.Transcendents, or the name of a celestial row of
 	 *   DT_Transcendents (it never has a state instance and is still a party; a fallen or independent row is a party
-	 *   only as an instance of the run). The tick counts of CivStabilityBelowFor and CivFallenSphereTicksReached
-	 *   resolve only when their Key is digits alone (nine at most) and above zero.
+	 *   only as an instance of the run). The tick counts of CivStabilityBelowFor, CivFallenSphereTicksReached,
+	 *   CivLawsHeldTicksAtLeast and CivPressureEnduredTicksReached resolve only when their Key is digits alone (nine at most)
+	 *   and above zero.
 	 * - SystemPressureAtLeast reads P of the subject system from UGalaxySimulationSubsystem::ComputePressureIn over the
 	 *   state of the view. It is the whole sum: the term of the civilization that owns the system and the term of a
 	 *   wanderer standing there count like the term of a transcendent (section 16 #62).
@@ -171,6 +177,8 @@ public:
 	 * - An effect whose Key names something the context cannot resolve is turned away. ChangeRelation resolves its
 	 *   other party as CivRelationAtLeast does and writes no entry for one that does not resolve: the keys of
 	 *   Relations are saved, and they are living civilizations, transcendents of the run and celestial rows only.
+	 *   ChangeReverence takes an empty Key (the context civilization) or Borders (B6b decision 22: every civilization that
+	 *   borders the context one, CosmicDiplomacy::BordersOf, in Civs order - false when none does).
 	 * - NameNotable closes the open record of the same role with LastTick = max(Tick, 1): 0 marks an open record, so a
 	 *   record closed before the first tick still reads as closed (section 16 #35).
 	 */

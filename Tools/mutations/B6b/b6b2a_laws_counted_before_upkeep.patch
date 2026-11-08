@@ -1,0 +1,19 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1864,6 +1864,7 @@
+ 		Civ.Stockpile.Insight += Civ.IncomePerTick.Insight;
+ 		Civ.Stockpile.Influence += Civ.IncomePerTick.Influence;
+ 
++		Civ.LawsHeldTicks = CosmicEdicts::HoldsGalaxyLawsOf(Civ, Tables, Rules) ? Civ.LawsHeldTicks + 1 : 0;
+ 		// The edicts' upkeep (B2), after this tick's income, in ActiveEdicts order: paid in full, or the edict lapses (its
+ 		// effects of this tick have been applied). Only the people the player rules is told (the stage's only line - the
+ 		// tell stream; no draw, no role effect).
+@@ -1902,7 +1903,6 @@
+ 		Civ.LowStabilityTicks = (Civ.Stability < CosmicHazards::LowStabilityThreshold) ? Civ.LowStabilityTicks + 1 : 0;
+ 		Civ.FallenSphereTicks = InFallenSphere[CivIndex] ? Civ.FallenSphereTicks + 1 : 0;
+ 		Civ.PressureEnduredTicks = EnduredPressure[CivIndex] ? Civ.PressureEnduredTicks + 1 : 0;
+-		Civ.LawsHeldTicks = CosmicEdicts::HoldsGalaxyLawsOf(Civ, Tables, Rules) ? Civ.LawsHeldTicks + 1 : 0;
+ 	}
+ }
+ 
