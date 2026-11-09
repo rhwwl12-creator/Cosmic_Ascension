@@ -6,6 +6,7 @@
 #include "Core/GalaxyState.h"
 #include "Cosmic_Ascension.h"
 #include "Data/CosmicDataTables.h"
+#include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
 #include "Engine/DataTable.h"
 #include "Events/CosmicEventSubsystem.h"
@@ -28,11 +29,13 @@
 #include "Save/CosmicSaveSlot.h"
 #include "Save/CosmicSaveSubsystem.h"
 #include "Compression/OodleDataCompression.h"
+#include "Sim/CosmicAscent.h"
 #include "Sim/CosmicConflict.h"
 #include "Sim/CosmicDiplomacy.h"
 #include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicEndings.h"
+#include "Sim/CosmicEvalContext.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/CosmicSuccession.h"
@@ -42,8 +45,12 @@
 #include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 #include "World/CosmicDigest.h"
+#include "World/CosmicGameMode.h"
+#include "World/CosmicMapLook.h"
 #include "World/CosmicRulerPolicy.h"
 #include "World/CosmicWandererPolicy.h"
+#include "Tests/CosmicB6bRowNames.h"
+#include "Tests/CosmicRaceMeasure.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 #include "Tests/CosmicTestHelpers.h"
@@ -187,7 +194,8 @@ namespace
 	};
 
 	// A people before a tick (B3): its fleet's target and since, the target's owner, its fleet and rung, its hostile stances
-	// and its treaties ("OtherID|Treaty").
+	// and its treaties ("OtherID|Treaty"); B6b [B-6b3b] (the race line): its galaxy, its LawsHeldTicks and its galaxy laws
+	// (CosmicEdicts::IsGalaxyLaw, with the galaxy - the capture LawsAsPlacedOf reads).
 	struct FCivBefore
 	{
 		FName Target;
@@ -197,9 +205,12 @@ namespace
 		EAscensionTier Tier = EAscensionTier::Tier1_Planetary;
 		TSet<FName> Hostile;
 		TSet<FString> Treaties;
+		FName GalaxyRow;
+		int32 LawsHeld = 0;
+		CosmicRaceMeasure::FPeopleLaws Laws;
 	};
 
-	FCivBefore CivBeforeOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCivilizationState& Civ)
+	FCivBefore CivBeforeOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCivilizationState& Civ)
 	{
 		FCivBefore Before;
 		Before.Target = Civ.FleetTargetSystemID;
@@ -208,6 +219,16 @@ namespace
 		Before.TargetOwner = State.Systems.IsValidIndex(Target) ? State.Systems[Target].OwnerCivID : NAME_None;
 		Before.Fleet = Civ.FleetPower;
 		Before.Tier = Civ.Tier;
+		Before.GalaxyRow = Civ.GalaxyRow;
+		Before.LawsHeld = Civ.LawsHeldTicks;
+		Before.Laws.GalaxyRow = Civ.GalaxyRow;
+		for (const FName Row : Civ.ActiveEdicts)
+		{
+			if (CosmicEdicts::IsGalaxyLaw(Tables, Row))
+			{
+				Before.Laws.Laws.Add(Row);
+			}
+		}
 		for (const TPair<FName, FCosmicTie>& Tie : Civ.Ties)
 		{
 			if (Tie.Value.Stance == CosmicTags::StanceHostile())
@@ -455,6 +476,247 @@ namespace
 		TArray<FString> ExaltPreCount;
 		bool bExaltHeldAfterInput = false;
 	};
+
+	// B6b [B-6b3b] (header section 5.1): a slot at the boundary after a tick, before any input - what the tick itself did (the
+	// race line's diffs, the claims file, and B4's ends: an input's fleet delay is not a placement).
+	struct FRaceSlotAfterTick
+	{
+		FGameplayTag Tag;
+		int32 Remaining = 0;
+		FName Owner;
+		CosmicMegaprojects::FCosmicSlotReading Construction;
+	};
+
+	// B6b [B-6b3b] (#142, notes section 2.1): one claim of the claims file, every owner's, in the order it was seen placed (the
+	// tick, then the system). -1 where a value is missing; EndKind is CosmicRaceMeasure::ClaimEndNameOf's (6 standing).
+	struct FRaceClaimRow
+	{
+		FName SystemID;
+		FName Owner;
+		bool bRuled = false;
+		int64 PlacedTick = -1;
+		int32 PlacedCount = 0;
+		bool bGuard = false;
+		int64 GuardDelay = 0;
+		bool bVigil = false;
+		int64 CardTick = -1;
+		int32 RemainingAtCard = -1;
+		int64 Resisted = 0;
+		int32 VigilKept = -1;
+		int32 Relief = -1;
+		bool bOwnerChanged = false;
+		int64 EndTick = -1;
+		int32 EndKind = 6;
+		int32 RemainingAtEnd = 0;
+		int64 SealedTick = -1;
+		int32 AfterBinding = -1;
+	};
+
+	// B6b [B-6b3b]: a completed binding - its system, the people that made it (FMegaprojectRecord::CivID, the owner for a record
+	// without one), and whether another holds the system now (the lock - decision 14).
+	struct FRaceBinding
+	{
+		FName SystemID;
+		FName Binder;
+		bool bLocked = false;
+	};
+
+	// B6b [B-6b3b] (#132): the crises guarded by the ruled people (or not) that ended, by how - answered, expired, resolved by an edict.
+	struct FRaceEnds
+	{
+		int32 Answered = 0;
+		int32 Expired = 0;
+		int32 Edict = 0;
+	};
+
+	// B6b [B-6b3b] (header section 5.1, notes section 2.1): the race line - read from the state, the record, the policies' own
+	// counts and the game's pure windows (EndingOf, IsSilent, FourthRungOpenOf, the static CheckAll, KnownViewOf, CrownBlockOf,
+	// HasCompleted, AsksForTreatyOf, HoldsGalaxyLawsOf, KillsTheRulerOf, GuardDelayCapOf - no rule copied but FourthRungCountOf,
+	// pinned to its window by Sim.RaceMeasure, and BrakeHeldOf's walk of the judgment (UAscensionSubsystem::JudgePeople's settled
+	// systems, rows and view), held to the judgment by Sim.FourthRungBrake; the race check's RaceRuledJudged finds the ruled
+	// people as UAscensionSubsystem::EvaluateFeats does, with no test - the wiring's probe is [B-6b7]). A tick is -1 and a name
+	// None ("-") while missing. A count covers the run unless it says by the record (the boundaries up to and including the
+	// record's tick - every line's "by end"). An AI climb is a people's the vessel did not rule before the tick (the ending
+	// line's), an AI reading at a boundary a people's it does not rule then.
+	struct FRaceCounts
+	{
+		// The first two climbs of an AI people to the fourth rung and its first to the fifth, at the exact boundary, with the feat
+		// row of the climb (its Log.Ascension line - missing under -TellAll=0 when untold).
+		int64 AIT4Tick[2] = { -1, -1 };
+		FName AIT4CivID[2];
+		FName AIT4Feat;
+		int64 AIT5Tick = -1;
+		FName AIT5CivID;
+		FName AIT5Feat;
+		// The first boundary a people the vessel rules stood at the third, fourth and fifth rung or above (after the tick and
+		// after the inputs - any reign's), and that people.
+		int64 RuledTick[3] = { -1, -1, -1 };
+		FName RuledCivID[3];
+		// The first boundary an end of the fifth rung held (CosmicRaceMeasure::FifthRungEndOf - apart from the record: the clock
+		// or the silence may have written it first), its kind and people; the first boundary it answered RuledPeople; the first
+		// boundary of the silence (CosmicSuccession::IsSilent).
+		int64 FifthTick = -1;
+		FGameplayTag FifthKind;
+		FName FifthCivID;
+		int64 RuledPeopleEndTick = -1;
+		int64 SilenceTick = -1;
+		// #162, when that first end is OtherPeople: whether the viewer was shown its people then (KnownViewOf's ShownOrderOf), and
+		// whether some life ruled it.
+		int32 OtherShown = -1;
+		int32 OtherOnceRuled = -1;
+		// The home galaxy's peoples on the fourth rung or above (CosmicRaceMeasure::FourthRungCountOf): at the first boundary the
+		// record stood, and the most at any boundary.
+		int32 T4AtRecord = -1;
+		int32 T4Most = 0;
+		// The brake held an AI people (CosmicRaceMeasure::BrakeHeldOf): people-boundaries, the first, the peoples.
+		int32 BrakeHeld = 0;
+		int64 BrakeHeldFirst = -1;
+		TSet<FName> BrakeHeldPeoples;
+		// The first construction of a row of the third rung or above an AI started in a tick (the tick, the people, the row), and
+		// the first boundary a system of the ruled people took project_binding at an input.
+		int64 AIUpperStartTick = -1;
+		FName AIUpperStartCivID;
+		FName AIUpperStartRow;
+		int64 RuledBindingStartTick = -1;
+		// The extinction (CosmicHazards::KillsTheRulerOf - never its tag by name): placed on the ruled people's systems (the
+		// first) and on AI peoples'; arks completed (its answer, by the owner) and the arks whose system another took before the
+		// maker stood on the fourth rung (the records: system, maker); expiries apart from the grace's, the ones the grace kept
+		// ("tick:CivID:r|a"), the ruled people's expiries while the vessel ruled it (the vessel died, was deposed, neither);
+		// the vessel's deaths it caused; the peoples erased (CivsBefore keys gone), those an extinction's expiry took - ruled or AI
+		// at that expiry -, and those some life ruled.
+		int32 ExtinctionOnRuled = 0;
+		int64 ExtinctionOnRuledFirst = -1;
+		int32 ExtinctionOnAI = 0;
+		int32 ArksCompleted = 0;
+		int32 ArksLostBeforeT4 = 0;
+		TArray<TPair<FName, FName>> Arks;
+		int32 Expired = 0;
+		int32 KeptByGrace = 0;
+		TArray<FString> GraceKeys;
+		int32 RuledExpiries = 0;
+		int32 RuledExpiryDied = 0;
+		int32 RuledExpiryDeposed = 0;
+		int32 RuledExpiryNeither = 0;
+		int32 RulerDeaths = 0;
+		int32 Erased = 0;
+		int32 ErasedRuled = 0;
+		int32 ErasedAI = 0;
+		int32 ErasedOnceRuled = 0;
+		// The treaty pairs the AI's treaty step signed in a tick (neither people ruled before it - each pair once) and the first;
+		// the ruled people's new treaties at an input whose partner's row asked for one (AsksForTreatyOf true before, false after).
+		int32 AITreaties = 0;
+		int64 AITreatyFirst = -1;
+		int32 RuledTreatiesMetAsk = 0;
+		// The galaxy laws, [0] the ruled people's and [1] the AI peoples' (bIsPlayerRuled at the boundary): the first boundary a
+		// LawsHeldTicks stood above 0 (and the AI people), the longest, the resets to 0 in a tick - by upkeep (a law held before
+		// it is gone), and for an AI also its laws held again by the boundary (a lapse and a re-enactment in one tick: the
+		// leftover of the pre-tick capture) -; the ruled people's laws dropped at an input.
+		int64 LawsFirst[2] = { -1, -1 };
+		FName LawsFirstAICivID;
+		int32 LawsLongest[2] = { 0, 0 };
+		int32 Resets[2] = { 0, 0 };
+		int32 ResetsUpkeep[2] = { 0, 0 };
+		int32 ResetsHeldAgain = 0;
+		int32 RuledLawsDroppedAtInput = 0;
+		// The binding (decision 14): the first completion - its tick, its maker's kind (ruled, former - some life ruled it -, AI),
+		// its people and system, the ruled people's rung then (1-5, 0 with none ruled; -1 without a binding) -; the completions,
+		// the ticks with more than one, the bindings that ended without result (the target bound already - the row left the
+		// slot with no completion and no change of owner), the locks (another holds the bound system) and retakings, and whether
+		// the vessel left the binder people before it stood on the fifth rung (-1 without a binding by the ruled people).
+		int64 BindingTick = -1;
+		const TCHAR* BindingBy = TEXT("-");
+		FName BindingCivID;
+		FName BindingSystemID;
+		int32 BindingRuledRung = -1;
+		int32 Completions = 0;
+		int32 BindingTicksWithMore = 0;
+		int32 EndedWithoutResult = 0;
+		int64 EndedWithoutResultFirst = -1;
+		int32 Locked = 0;
+		int64 LockedFirst = -1;
+		int32 Retaken = 0;
+		int64 RetakenFirst = -1;
+		FName VesselBinder;
+		bool bVesselBinderAtT5 = false;
+		int32 VesselLeftBeforeT5 = -1;
+		// #156 and #141: the era's lines (event_era_endured - the whole run, by the record, the first), and the witness cards
+		// come by the record (the wanderer policy's own count by row; the whole run's are read from its maps).
+		int32 EraLines = 0;
+		int32 EraLinesByRecord = 0;
+		int64 EraFirst = -1;
+		int32 WitnessCardsByRecord = 0;
+		// #122: the boundaries the crown gate would refuse the wanderer with FarAbove where it stands (read before its input, at a
+		// boundary the wanderer policy asks the gate - with -PastEnd=0 the count stops before the record's own boundary, where
+		// the policy already stops), the first, the returns among them, and the peoples.
+		int32 CrownFarAbove = 0;
+		int64 CrownFarAboveFirst = -1;
+		int32 CrownFarAboveReturns = 0;
+		TSet<FName> CrownFarAbovePeoples;
+		// #132 by the record, by tag: the crises the ruled people guarded (B4's guard) placed at the row's cap
+		// (CosmicConflict::GuardDelayCapOf) of all of them; how the guarded ones and the ruled people's unguarded ones ended.
+		TMap<FString, TPair<int32, int32>> GuardAtCap;
+		TMap<FString, FRaceEnds> GuardedEnds;
+		TMap<FString, FRaceEnds> UnguardedEnds;
+	};
+
+	// B6b [B-6b3b]: a name for the race line, "-" for None.
+	FString RaceNameOf(FName Name)
+	{
+		return Name.IsNone() ? FString(TEXT("-")) : Name.ToString();
+	}
+
+	// B6b [B-6b3b] (#132): "tag:atcap/all" by tag, and "tag:answered/expired/edict" by tag.
+	FString RaceAtCapText(const TMap<FString, TPair<int32, int32>>& Counts)
+	{
+		TArray<FString> Keys;
+		Counts.GetKeys(Keys);
+		Keys.Sort();
+		TArray<FString> Parts;
+		for (const FString& Key : Keys)
+		{
+			Parts.Add(FString::Printf(TEXT("%s:%d/%d"), *Key, Counts[Key].Key, Counts[Key].Value));
+		}
+		return FString::Join(Parts, TEXT(" "));
+	}
+
+	FString RaceEndsText(const TMap<FString, FRaceEnds>& Counts)
+	{
+		TArray<FString> Keys;
+		Counts.GetKeys(Keys);
+		Keys.Sort();
+		TArray<FString> Parts;
+		for (const FString& Key : Keys)
+		{
+			Parts.Add(FString::Printf(TEXT("%s:%d/%d/%d"), *Key, Counts[Key].Answered, Counts[Key].Expired, Counts[Key].Edict));
+		}
+		return FString::Join(Parts, TEXT(" "));
+	}
+
+	// B6b [B-6b3b] (#142): the claims file - one row per claim in the order it was seen placed (Claim is 1-based).
+	FString RaceClaimsCsvOf(const TArray<FRaceClaimRow>& Claims)
+	{
+		FString Csv = TEXT("Claim,SystemID,Owner,Ruled,PlacedTick,PlacedCount,Guard,GuardDelay,Vigil,CardTick,RemainingAtCard,Resisted,VigilKept,Relief,OwnerChanged,EndTick,EndKind,RemainingAtEnd,SealedTick,AfterBinding\n");
+		for (int32 At = 0; At < Claims.Num(); ++At)
+		{
+			const FRaceClaimRow& Claim = Claims[At];
+			Csv += FString::Printf(TEXT("%d,%s,%s,%d,%lld,%d,%d,%lld,%d,%lld,%d,%lld,%d,%d,%d,%lld,%s,%d,%lld,%d\n"), At + 1, *Claim.SystemID.ToString(),
+				*RaceNameOf(Claim.Owner), Claim.bRuled ? 1 : 0, Claim.PlacedTick, Claim.PlacedCount, Claim.bGuard ? 1 : 0, Claim.GuardDelay, Claim.bVigil ? 1 : 0,
+				Claim.CardTick, Claim.RemainingAtCard, Claim.Resisted, Claim.VigilKept, Claim.Relief, Claim.bOwnerChanged ? 1 : 0, Claim.EndTick,
+				CosmicRaceMeasure::ClaimEndNameOf(Claim.EndKind), Claim.RemainingAtEnd, Claim.SealedTick, Claim.AfterBinding);
+		}
+		return Csv;
+	}
+
+	// B6b [B-6b3b]: the smallest SealedTick of a sealed transcendent (a seal is never moved), -1 for none.
+	int64 RaceFirstSealOf(const FGalaxyState& State)
+	{
+		int64 First = -1;
+		for (const FTranscendentState& Transcendent : State.Transcendents)
+		{
+			First = (Transcendent.bSealed && (First < 0 || Transcendent.SealedTick < First)) ? Transcendent.SealedTick : First;
+		}
+		return First;
+	}
 
 	// The ruler's Standing petition units whose conditions hold, as CosmicPetitions::StandingHeld reads them but with a card
 	// waiting too (B4 [B-4d2] - which cards came to hold in a tick and lost it to the one put).
@@ -805,6 +1067,8 @@ namespace
 		bool bRuledSettled = false;
 		bool bClaimReach = false;
 		bool bLastUnclaimed = false;
+		// B6b [B-6b3b]: the owner (a people the state holds; None for none) - appended last, the slot is built by position.
+		FName Owner;
 	};
 
 	// Whether Tag is the tag of a Capital row of DT_Hazards (a rebellion). Named apart from the ruler policy's helper: one
@@ -1237,12 +1501,20 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	// build); in a build with the automation tests only, not an argument of the hash run or the runner.
 	int32 ExaltAsBefore = 0;
 	FParse::Value(*Params, TEXT("ExaltAsBefore="), ExaltAsBefore);
+	// B6b ([B-6b3b] - header section 5.1, decision 34, measurement only): -WithoutB6bData=1 runs on the tables without B6b's
+	// rows and with its two knobs off (CosmicTests::WithoutB6bData - the data-off side of a pair in the same build);
+	// -FourthRungCap=<n> puts the home galaxy row's AIFourthRungCap (n 0 or more, 0: no brake - a value that is not a number
+	// reads as 0, FParse's). Neither is an argument of the hash run or the runner.
+	int32 WithoutB6bData = 0;
+	int32 FourthRungCap = -1;
+	FParse::Value(*Params, TEXT("WithoutB6bData="), WithoutB6bData);
+	const bool bCapGiven = FParse::Value(*Params, TEXT("FourthRungCap="), FourthRungCap);
 	// The home galaxy row too (-Systems and -Civs 0): the game never builds another size.
 	const bool bSaveShape = TellAll == 0 && RulesText.IsEmpty() && WithoutPressure == 0 && Systems == 0 && Civs == 0 && DeathAt < 0 && WithoutDeath == 0
-		&& PastEnd == 0 && ExaltAsBefore == 0;
+		&& PastEnd == 0 && ExaltAsBefore == 0 && WithoutB6bData == 0 && !bCapGiven;
 	if (SaveAt >= 0 && !bSaveShape)
 	{
-		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -SaveAt writes only a run of the game's shape (-TellAll=0, no -Rules, -WithoutPressure, -Systems, -Civs, -DeathAt, -WithoutDeath, -PastEnd or -ExaltAsBefore): no save"));
+		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -SaveAt writes only a run of the game's shape (-TellAll=0, no -Rules, -WithoutPressure, -Systems, -Civs, -DeathAt, -WithoutDeath, -PastEnd, -ExaltAsBefore, -WithoutB6bData or -FourthRungCap): no save"));
 	}
 	// A boundary the run never reaches writes nothing: said at once, not found missing after the run.
 	if (SaveAt >= 0 && (SaveAt < 1 || SaveAt > Ticks))
@@ -1252,6 +1524,8 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	bool bSavedAt = false;
 	const FString OutPath = FPaths::IsRelative(Out) ? FPaths::ProjectSavedDir() / TEXT("Balance") / Out : Out;
 	const FString RowsPath = FPaths::GetPath(OutPath) / (FPaths::GetBaseFilename(OutPath) + TEXT("_rows.csv"));
+	// B6b [B-6b3b] (#142): the claims file, one row per claim (-Out=balance.csv writes balance_claims.csv).
+	const FString RaceClaimsPath = FPaths::GetPath(OutPath) / (FPaths::GetBaseFilename(OutPath) + TEXT("_claims.csv"));
 
 	// The commandlet runs under the editor engine without a GameInstance, and the subsystems live on one (section 9.3).
 	UClass* GameInstanceClass = GetDefault<UGameMapsSettings>()->GameInstanceClass.TryLoadClass<UGameInstance>();
@@ -1306,6 +1580,43 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	{
 		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -ExaltAsBefore is 0 or 1 (1 in a build with the automation tests): %d"), ExaltAsBefore);
 	}
+	// B6b ([B-6b3b]): -WithoutB6bData and -FourthRungCap are a test build's only too, the gate of -ExaltAsBefore - after -Rules
+	// (OverrideRules wrote its row into the tables: WithoutB6bData keeps its fields but the two knobs) and after the other
+	// data-off helpers (they compose), the cap last.
+	bool bB6bOffArg = WithoutB6bData == 0;
+	bool bCapArg = !bCapGiven;
+#if WITH_DEV_AUTOMATION_TESTS
+	bB6bOffArg = WithoutB6bData == 0 || WithoutB6bData == 1;
+	if (Sim && WithoutB6bData == 1)
+	{
+		TArray<FName> Removed;
+		const float WasR = Sim->GetRules().AIUpperRungProgressMultiplier;
+		const float WasS = Sim->GetRules().FleetDelayCountdownShare;
+		Sim->SetTables(CosmicTests::WithoutB6bData(Sim->GetTables(), &Removed));
+		UE_LOG(LogCosmic, Display, TEXT("CosmicBalance: tables without B6b's data - rows taken out [%s], AIUpperRungProgressMultiplier 1 (was %g), FleetDelayCountdownShare 0 (was %g)"),
+			*FString::JoinBy(Removed, TEXT(" "), [](FName Name) { return Name.ToString(); }), WasR, WasS);
+	}
+	if (Sim && bCapGiven && FourthRungCap >= 0)
+	{
+		const FName HomeRow = Sim->GetRules().HomeGalaxyRow;
+		if (const FGalaxyDef* HomeGalaxy = Sim->GetTables().FindGalaxy(HomeRow))
+		{
+			const int32 WasCap = HomeGalaxy->AIFourthRungCap;
+			Sim->SetTables(CosmicTests::WithGalaxies(Sim->GetTables(), CosmicTests::GalaxiesWithCap(Sim->GetTables(), FourthRungCap)));
+			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance: home galaxy %s AIFourthRungCap %d (was %d)"), *HomeRow.ToString(), FourthRungCap, WasCap);
+			bCapArg = true;
+		}
+	}
+#endif
+	if (!bB6bOffArg)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -WithoutB6bData is 0 or 1 (1 in a build with the automation tests): %d"), WithoutB6bData);
+	}
+	if (!bCapArg)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -FourthRungCap is 0 or more (0: no brake), with the home galaxy row %s in the tables, in a build with the automation tests: %d"),
+			Sim ? *Sim->GetRules().HomeGalaxyRow.ToString() : TEXT("-"), FourthRungCap);
+	}
 	// A kept row the tables do not hold would measure the policy without it under its name: no run (B2).
 	const bool bEdictRow = Sim && (EdictRowText.IsEmpty() || Sim->GetTables().FindEdict(FName(*EdictRowText)) != nullptr);
 	if (Sim && !bEdictRow)
@@ -1327,7 +1638,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -PlayerPolicy is Cautious, Reckless or Faithful (B4 has no tribute), -Guard and -LeaveNearSphere 0 or 1, and -LeaveNearSphere=1 needs one of the three policies: %s %d %d"),
 			*PlayerPolicyText, GuardArg, LeaveNearSphere);
 	}
-	if (Sim && Role && bRules && bEdictRow && bDiplomacy && bPressure && bUnpressed && bDeathArgs && bExaltArg)
+	if (Sim && Role && bRules && bEdictRow && bDiplomacy && bPressure && bUnpressed && bDeathArgs && bExaltArg && bB6bOffArg && bCapArg)
 	{
 		// Every line is stored unless -TellAll=0 asks for the scope of telling of a game (section 8.1). The world hash is
 		// the same either way.
@@ -1367,6 +1678,34 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				Ending.SeasonCivID = Ruled->CivID;
 			}
 		};
+		// B6b [B-6b3b] (header section 5.1, notes section 2.1): the race line's counts; the claims file's rows (every owner's, in
+		// the order they were seen placed) with the standing ones by system; the completed bindings; the peoples an extinction's
+		// expiry took (CivID -> the ruled people at that expiry), read when the people leaves Civs.
+		FRaceCounts Race;
+		TArray<FRaceClaimRow> RaceClaimRows;
+		TMap<FName, int32> RaceOpenClaims;
+		TArray<FRaceBinding> RaceBindings;
+		TMap<FName, bool> RaceExtinguished;
+		// The first boundary a people the vessel rules stands at the third, fourth and fifth rung or above (NoteSeason's form: read
+		// after the tick and again after the inputs - a throne taken over such a people counts there).
+		const auto NoteRuledRungs = [&State, &Race]()
+		{
+			for (int32 Rung = 0; Rung < 3; ++Rung)
+			{
+				const EAscensionTier AtLeast = static_cast<EAscensionTier>(static_cast<int32>(EAscensionTier::Tier3_Causal) + Rung);
+				const FCivilizationState* Ruled = Race.RuledTick[Rung] >= 0 ? nullptr
+					: State.Civs.FindByPredicate([AtLeast](const FCivilizationState& Civ) { return Civ.bIsPlayerRuled && Civ.Tier >= AtLeast; });
+				if (Ruled)
+				{
+					Race.RuledTick[Rung] = State.Tick;
+					Race.RuledCivID[Rung] = Ruled->CivID;
+				}
+			}
+		};
+		// The laws as the crisis stage placed a hazard (CosmicRaceMeasure::LawsAsPlacedOf - a state apart from the simulation's,
+		// built in a tick only when the laws before it differ from those after it) and its index.
+		FGalaxyState RaceLightState;
+		FCosmicStateIndex RaceLightIndex;
 		const FName VigilRow = CosmicRulerPolicy::VigilRowOf(Sim->GetTables());
 		const int32 SphereStart = SphereSize(State);
 		const TArray<FString> SpheresStart = SpheresOf(State);
@@ -1411,6 +1750,9 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		FCosmicEndingRecord EndCheckExpected;
 		int64 EndCheckMisses = 0;
 		int64 EndCheckFirstMiss = -1;
+		// B6b [B-6b3b] (header section 5.1): the race check - the boundaries at which it did not hold, and the first of them.
+		int64 RaceCheckMisses = 0;
+		int64 RaceCheckFirstMiss = -1;
 		for (int64 Done = 0; Done < Ticks; ++Done)
 		{
 			Before.Reset();
@@ -1419,6 +1761,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				const FCivilizationState* Owner = State.Civs.FindByPredicate([&System](const FCivilizationState& Civ) { return Civ.CivID == System.OwnerCivID; });
 				FSlotBefore& Slot = Before.Add_GetRef({ System.ActiveHazard, System.HazardTicksRemaining, System.ResponseMegaproject, Owner ? Owner->Stockpile.Influence : 0.f,
 					CosmicMegaprojects::ReadSlot(System, CosmicMegaprojects::ECosmicProjectSlot::Construction) });
+				Slot.Owner = Owner ? Owner->CivID : NAME_None;
 				const FHazardDef* Hazard = (Owner && System.ActiveHazard.IsValid()) ? Sim->GetTables().FindHazardByTag(System.ActiveHazard) : nullptr;
 				Slot.HeldAnswer = Hazard ? CosmicEdicts::HeldAnswerOf(*Owner, *Hazard, Sim->GetTables()) : NAME_None;
 				if (const FEdictDef* Held = Slot.HeldAnswer.IsNone() ? nullptr : Sim->GetTables().FindEdict(Slot.HeldAnswer))
@@ -1457,10 +1800,12 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			// B3: every people before the tick, and the fleet the attrition will take in it (the stage's own estimate - the
 			// pressure inside a higher sphere on the target, at most the fleet).
 			TMap<FName, FCivBefore> CivsBefore;
+			// B6b [B-6b3b]: every people's galaxy laws before the tick (the capture of the delay loop below).
+			TMap<FName, CosmicRaceMeasure::FPeopleLaws> RaceLawsBefore;
 			for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
 			{
 				const FCivilizationState& Civ = State.Civs[CivIndex];
-				CivsBefore.Add(Civ.CivID, CivBeforeOf(State, StateIndex, Civ));
+				RaceLawsBefore.Add(Civ.CivID, CivsBefore.Add(Civ.CivID, CivBeforeOf(State, StateIndex, Sim->GetTables(), Civ)).Laws);
 				const int32 Target = Civ.FleetTargetSystemID.IsNone() ? INDEX_NONE : StateIndex.FindSystem(State, Civ.FleetTargetSystemID);
 				if (State.Systems.IsValidIndex(Target) && Civ.FleetPower > 0.f)
 				{
@@ -1483,6 +1828,12 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			// B6a [B-6a3c]: the people the vessel rules before the tick (its climb in the tick is not an AI people's).
 			const FCivilizationState* RuledBeforeTick = State.Civs.FindByPredicate([](const FCivilizationState& Civ) { return Civ.bIsPlayerRuled; });
 			const FName RuledCivBeforeTick = RuledBeforeTick ? RuledBeforeTick->CivID : NAME_None;
+			// B6b [B-6b3b] (the race check): the people the feat judgment judges first in the tick, as UAscensionSubsystem::EvaluateFeats
+			// finds it (the role and the life change only at the inputs and in the tenth stage, so the value before the tick is
+			// the AI stage's).
+			const int32 RaceJudgedIndex = (State.Calling.LifeState == ELifeState::Embodied && State.Player.Role == EPlayerRole::Ruler)
+				? StateIndex.FindCiv(State, State.Player.RuledCivID) : INDEX_NONE;
+			const FName RaceRuledJudged = (State.Civs.IsValidIndex(RaceJudgedIndex) && State.Civs[RaceJudgedIndex].bIsPlayerRuled) ? State.Player.RuledCivID : NAME_None;
 			const int32 SphereBefore = SphereSize(State);
 			const FName CardBefore = State.Knowing.PendingPetitionRow;
 			// B6a [B-6a3c] (the petition_exalt pre-count): the tick about to run begins a reign - its knowing stage compares the
@@ -1623,11 +1974,69 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				}
 			}
 
+			// B6b [B-6b3b] (header section 5.1): every slot as the tick left it, before any input - the race line's diffs of the
+			// tick, the claims file's and B4's ends (a fleet delay bought at an input is no new placement).
+			TArray<FRaceSlotAfterTick> RaceSlotsAfterTick;
+			{
+				RaceSlotsAfterTick.Reserve(State.Systems.Num());
+				for (const FStarSystemState& System : State.Systems)
+				{
+					const bool bOwned = !System.OwnerCivID.IsNone() && StateIndex.FindCiv(State, System.OwnerCivID) != INDEX_NONE;
+					RaceSlotsAfterTick.Add({ System.ActiveHazard, System.HazardTicksRemaining, bOwned ? System.OwnerCivID : NAME_None,
+						CosmicMegaprojects::ReadSlot(System, CosmicMegaprojects::ECosmicProjectSlot::Construction) });
+				}
+			}
+
+			// B6b [B-6b3b] (header section 5.1): the race check - the brake's promise, as the judgment keeps it, at this boundary
+			// before the inputs. Over the home galaxy's peoples before the tick (a people gone in the tick keeps its rung): when the
+			// cap is above 0 and a people other than the one the judgment judged first (the ruled one, which the brake never
+			// holds) climbed to the fourth rung in the tick, the peoples there before it plus those that climbed must stay at or
+			// below the cap (CosmicRaceMeasure::FourthRungCheckOf - the cap from the tables, -FourthRungCap's). The crossings
+			// (Inbound) are not counted until 6a: a smaller sum, never a false miss. An invariant with no fair exception, so a miss
+			// fails the run (the end check's form); nothing is printed while it holds.
+			{
+				const FName RaceHome = RulesNow.HomeGalaxyRow;
+				const FGalaxyDef* RaceHomeGalaxy = Sim->GetTables().FindGalaxy(RaceHome);
+				const int32 RaceCap = RaceHomeGalaxy ? RaceHomeGalaxy->AIFourthRungCap : 0;
+				TArray<CosmicRaceMeasure::FRungStep> Steps;
+				for (const TPair<FName, FCivBefore>& Each : CivsBefore)
+				{
+					if (Each.Value.GalaxyRow != RaceHome)
+					{
+						continue;
+					}
+					const int32 CivIndex = StateIndex.FindCiv(State, Each.Key);
+					const EAscensionTier After = State.Civs.IsValidIndex(CivIndex) ? State.Civs[CivIndex].Tier : Each.Value.Tier;
+					Steps.Add({ Each.Key, Each.Value.Tier, After, Each.Key == RaceRuledJudged });
+				}
+				const CosmicRaceMeasure::FFourthRungCheck Check = CosmicRaceMeasure::FourthRungCheckOf(Steps, RaceCap);
+				if (!Check.Holds())
+				{
+					if (RaceCheckMisses == 0)
+					{
+						TArray<FString> Climbers;
+						for (const CosmicRaceMeasure::FRungStep& Step : Steps)
+						{
+							if (Step.Before < EAscensionTier::Tier4_Transcendent && Step.After >= EAscensionTier::Tier4_Transcendent)
+							{
+								Climbers.Add(FString::Printf(TEXT("%s:%s"), *Step.CivID.ToString(), Step.bRuled ? TEXT("r") : TEXT("a")));
+							}
+						}
+						UE_LOG(LogCosmic, Error, TEXT("CosmicBalance race check: at %lld an AI people climbed to the fourth rung past the home cap %d - %d stood there before the tick and %d climbed in it (%s)"),
+							State.Tick, Check.Cap, Check.Before, Check.Climbed, *FString::Join(Climbers, TEXT(" ")));
+						RaceCheckFirstMiss = State.Tick;
+					}
+					++RaceCheckMisses;
+					Result = 1;
+				}
+			}
+
 			// B6a [B-6a3c] (header section 5.1, notes section 2.1): the ending line's readings of the tick, at this boundary before
 			// the inputs. TickPhase is the phase of what happened in the tick (a season that starts at this boundary starts after
 			// it - the rung was reached at the end of the AI stage); BoundaryPhase that of what this boundary reads.
 			const int32 TickPhase = bEndedBefore ? 2 : (Ending.SeasonStart >= 0 ? 1 : 0);
 			NoteSeason();
+			NoteRuledRungs();
 			const int32 BoundaryPhase = bEndedBefore ? 2 : (Ending.SeasonStart >= 0 ? 1 : 0);
 			{
 				// The exact first climb of an AI people to the third rung (the AI stage's feat judgment), and its feat row.
@@ -1684,6 +2093,244 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				}
 			}
 
+			// B6b [B-6b3b] (header section 5.1, notes section 2.1): the race line's readings of the tick, at this boundary before the
+			// inputs.
+			{
+				// The climbs of the AI peoples to the fourth and the fifth rung (the AI stage's judgment), and their feat rows.
+				for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+				{
+					const FCivilizationState& Civ = State.Civs[CivIndex];
+					const FCivBefore* Was = CivsBefore.Find(Civ.CivID);
+					if (!Was || Civ.CivID == RuledCivBeforeTick)
+					{
+						continue;
+					}
+					const bool bFourth = Race.AIT4Tick[1] < 0 && Was->Tier < EAscensionTier::Tier4_Transcendent && Civ.Tier >= EAscensionTier::Tier4_Transcendent;
+					const bool bFifth = Race.AIT5Tick < 0 && Was->Tier < EAscensionTier::Tier5_EternalOrder && Civ.Tier >= EAscensionTier::Tier5_EternalOrder;
+					if (!bFourth && !bFifth)
+					{
+						continue;
+					}
+					FName Feat;
+					for (int32 Index = State.Log.Num() - 1; Index >= 0 && State.Log[Index].Tick > TickBefore; --Index)
+					{
+						if (State.Log[Index].Category == AscensionTag && State.Log[Index].FocusCivID == Civ.CivID)
+						{
+							Feat = State.Log[Index].SourceRow;
+							break;
+						}
+					}
+					if (bFourth)
+					{
+						const int32 At = Race.AIT4Tick[0] < 0 ? 0 : 1;
+						Race.AIT4Tick[At] = State.Tick;
+						Race.AIT4CivID[At] = Civ.CivID;
+						Race.AIT4Feat = At == 0 ? Feat : Race.AIT4Feat;
+					}
+					if (bFifth)
+					{
+						Race.AIT5Tick = State.Tick;
+						Race.AIT5CivID = Civ.CivID;
+						Race.AIT5Feat = Feat;
+					}
+				}
+				// The first end of the fifth rung, whatever the record holds, and the first boundary it is the ruled people's (that
+				// end stays once it holds and ranks first); #162 at the first one when it is another people's.
+				if (Race.FifthTick < 0 || Race.RuledPeopleEndTick < 0)
+				{
+					const FCosmicEndingRecord Fifth = CosmicRaceMeasure::FifthRungEndOf(State, Sim->GetRules());
+					if (Fifth.Kind.IsValid() && Race.FifthTick < 0)
+					{
+						Race.FifthTick = State.Tick;
+						Race.FifthKind = Fifth.Kind;
+						Race.FifthCivID = Fifth.CivID;
+						if (Fifth.Kind == CosmicTags::EndingOtherPeople())
+						{
+							const int32 OtherIndex = StateIndex.FindCiv(State, Fifth.CivID);
+							Race.OtherShown = (State.Civs.IsValidIndex(OtherIndex)
+								&& CosmicMapLook::KnownViewOf(State, StateIndex, Sim->GetViewerTier(), false).ShownOrderOf(OtherIndex) != INDEX_NONE) ? 1 : 0;
+							Race.OtherOnceRuled = State.Calling.Lives.ContainsByPredicate([&Fifth](const FLifeRecord& Life) { return Life.RuledCivIDs.Contains(Fifth.CivID); }) ? 1 : 0;
+						}
+					}
+					Race.RuledPeopleEndTick = (Race.RuledPeopleEndTick < 0 && Fifth.Kind == CosmicTags::EndingRuledPeople()) ? State.Tick : Race.RuledPeopleEndTick;
+				}
+				Race.SilenceTick = (Race.SilenceTick < 0 && CosmicSuccession::IsSilent(State.Calling)) ? State.Tick : Race.SilenceTick;
+				// The home galaxy's fourth rung: the most, and the count at the record's boundary.
+				const int32 FourthNow = CosmicRaceMeasure::FourthRungCountOf(State, RulesNow.HomeGalaxyRow);
+				Race.T4Most = FMath::Max(Race.T4Most, FourthNow);
+				Race.T4AtRecord = (Race.T4AtRecord < 0 && State.Ending.Kind.IsValid()) ? FourthNow : Race.T4AtRecord;
+				// The AI peoples the brake held at this boundary.
+				for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+				{
+					if (CosmicRaceMeasure::BrakeHeldOf(State, StateIndex, Sim->GetTables(), RulesNow, CivIndex))
+					{
+						++Race.BrakeHeld;
+						Race.BrakeHeldFirst = Race.BrakeHeldFirst < 0 ? State.Tick : Race.BrakeHeldFirst;
+						Race.BrakeHeldPeoples.Add(State.Civs[CivIndex].CivID);
+					}
+				}
+				// The slots' diffs of the tick: an AI's first construction above the second rung, the extinction placed (its tag or
+				// a count that did not drop) by the owner after the tick, an ark completed (its answer, by the owner, on a system
+				// whose extinction ended), a binding that ended without result, and the bindings completed (in Systems order).
+				int32 BindingsNow = 0;
+				for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num() && SystemIndex < Before.Num() && SystemIndex < RaceSlotsAfterTick.Num(); ++SystemIndex)
+				{
+					const FStarSystemState& System = State.Systems[SystemIndex];
+					const FSlotBefore& SlotWas = Before[SystemIndex];
+					const FRaceSlotAfterTick& SlotNow = RaceSlotsAfterTick[SystemIndex];
+					if (Race.AIUpperStartTick < 0 && !SlotNow.Construction.Row.IsNone() && SlotNow.Construction.Row != SlotWas.Construction.Row
+						&& !SlotNow.Owner.IsNone() && SlotNow.Owner != RuledCivBeforeTick)
+					{
+						const FMegaprojectDef* Upper = Sim->GetTables().FindMegaproject(SlotNow.Construction.Row);
+						if (Upper && Upper->RequiredTier >= EAscensionTier::Tier3_Causal)
+						{
+							Race.AIUpperStartTick = State.Tick;
+							Race.AIUpperStartCivID = SlotNow.Owner;
+							Race.AIUpperStartRow = SlotNow.Construction.Row;
+						}
+					}
+					if (CosmicHazards::KillsTheRulerOf(SlotNow.Tag) && (SlotNow.Tag != SlotWas.Tag || SlotNow.Remaining >= SlotWas.Remaining))
+					{
+						if (!SlotNow.Owner.IsNone() && SlotNow.Owner == RuledCivBeforeTick)
+						{
+							++Race.ExtinctionOnRuled;
+							Race.ExtinctionOnRuledFirst = Race.ExtinctionOnRuledFirst < 0 ? State.Tick : Race.ExtinctionOnRuledFirst;
+						}
+						else
+						{
+							++Race.ExtinctionOnAI;
+						}
+					}
+					if (CosmicHazards::KillsTheRulerOf(SlotWas.Tag) && (SlotNow.Tag != SlotWas.Tag || SlotNow.Remaining >= SlotWas.Remaining)
+						&& CosmicMegaprojects::HasCompleted(System, SlotWas.Answer, State.Tick, NAME_None))
+					{
+						++Race.ArksCompleted;
+						Race.Arks.Add(TPair<FName, FName>(System.SystemID, SlotWas.Owner));
+					}
+					const FMegaprojectRecord* Bound = System.CompletedMegaprojects.FindByPredicate([](const FMegaprojectRecord& Record) { return Record.Row == CosmicRows::ProjectBinding; });
+					const bool bBoundNow = Bound && Bound->Tick == State.Tick;
+					if (SlotWas.Construction.Row == CosmicRows::ProjectBinding && SlotNow.Construction.Row != CosmicRows::ProjectBinding && !bBoundNow
+						&& SlotNow.Owner == SlotWas.Owner)
+					{
+						++Race.EndedWithoutResult;
+						Race.EndedWithoutResultFirst = Race.EndedWithoutResultFirst < 0 ? State.Tick : Race.EndedWithoutResultFirst;
+					}
+					if (!bBoundNow)
+					{
+						continue;
+					}
+					// Every completion seals (Sim/CosmicMegaprojects.h: a binding with no fallen one left ends without result before
+					// it pays, and a completion seals the target it asked for), so no seal is paired with it.
+					++BindingsNow;
+					++Race.Completions;
+					const FName Binder = Bound->CivID.IsNone() ? System.OwnerCivID : Bound->CivID;
+					RaceBindings.Add({ System.SystemID, Binder, false });
+					if (Race.BindingTick >= 0)
+					{
+						continue;
+					}
+					const FCivilizationState* BinderPeople = State.Civs.FindByPredicate([Binder](const FCivilizationState& Civ) { return Civ.CivID == Binder; });
+					const bool bFormer = State.Calling.Lives.ContainsByPredicate([Binder](const FLifeRecord& Life) { return Life.RuledCivIDs.Contains(Binder); });
+					const FCivilizationState* RuledThen = State.Civs.FindByPredicate([](const FCivilizationState& Civ) { return Civ.bIsPlayerRuled; });
+					Race.BindingTick = State.Tick;
+					Race.BindingBy = (BinderPeople && BinderPeople->bIsPlayerRuled) ? TEXT("ruled") : (bFormer ? TEXT("former") : TEXT("AI"));
+					Race.BindingCivID = Binder;
+					Race.BindingSystemID = System.SystemID;
+					Race.BindingRuledRung = RuledThen ? static_cast<int32>(RuledThen->Tier) + 1 : 0;
+					if (BinderPeople && BinderPeople->bIsPlayerRuled)
+					{
+						Race.VesselBinder = Binder;
+						Race.VesselLeftBeforeT5 = 0;
+					}
+				}
+				Race.BindingTicksWithMore += BindingsNow > 1 ? 1 : 0;
+				// The bound systems another people holds now (locked) or the binder again (retaken).
+				for (FRaceBinding& Binding : RaceBindings)
+				{
+					const int32 SystemIndex = StateIndex.FindSystem(State, Binding.SystemID);
+					const FName Holder = State.Systems.IsValidIndex(SystemIndex) ? State.Systems[SystemIndex].OwnerCivID : NAME_None;
+					if (!Binding.bLocked && Holder != Binding.Binder)
+					{
+						Binding.bLocked = true;
+						++Race.Locked;
+						Race.LockedFirst = Race.LockedFirst < 0 ? State.Tick : Race.LockedFirst;
+					}
+					else if (Binding.bLocked && Holder == Binding.Binder)
+					{
+						Binding.bLocked = false;
+						++Race.Retaken;
+						Race.RetakenFirst = Race.RetakenFirst < 0 ? State.Tick : Race.RetakenFirst;
+					}
+				}
+				// The vessel left the people it bound with (no people it rules is that one) before that people stood on the fifth rung.
+				if (Race.VesselLeftBeforeT5 == 0 && !Race.bVesselBinderAtT5)
+				{
+					const FName Binder = Race.VesselBinder;
+					const FCivilizationState* BinderPeople = State.Civs.FindByPredicate([Binder](const FCivilizationState& Civ) { return Civ.CivID == Binder; });
+					Race.bVesselBinderAtT5 = BinderPeople && BinderPeople->Tier >= EAscensionTier::Tier5_EternalOrder;
+					Race.VesselLeftBeforeT5 = (!Race.bVesselBinderAtT5 && !(BinderPeople && BinderPeople->bIsPlayerRuled)) ? 1 : 0;
+				}
+				// The arks whose maker stands on the fourth rung are kept; one whose system another holds before that is lost.
+				for (int32 At = Race.Arks.Num() - 1; At >= 0; --At)
+				{
+					const FName Maker = Race.Arks[At].Value;
+					const FCivilizationState* MakerPeople = State.Civs.FindByPredicate([Maker](const FCivilizationState& Civ) { return Civ.CivID == Maker; });
+					const int32 SystemIndex = StateIndex.FindSystem(State, Race.Arks[At].Key);
+					const FName Holder = State.Systems.IsValidIndex(SystemIndex) ? State.Systems[SystemIndex].OwnerCivID : NAME_None;
+					if (MakerPeople && MakerPeople->Tier >= EAscensionTier::Tier4_Transcendent)
+					{
+						Race.Arks.RemoveAt(At);
+					}
+					else if (Holder != Maker)
+					{
+						++Race.ArksLostBeforeT4;
+						Race.Arks.RemoveAt(At);
+					}
+				}
+				// The treaty pairs the AI's treaty step signed in the tick (each pair once, from the lexically lower side; neither
+				// party the people the vessel ruled before the tick).
+				for (const FCivilizationState& Civ : State.Civs)
+				{
+					const FCivBefore* Was = Civ.CivID == RuledCivBeforeTick ? nullptr : CivsBefore.Find(Civ.CivID);
+					if (!Was)
+					{
+						continue;
+					}
+					for (const FString& Treaty : CivBeforeOf(State, StateIndex, Sim->GetTables(), Civ).Treaties)
+					{
+						FString OtherText;
+						Treaty.Split(TEXT("|"), &OtherText, nullptr);
+						const FName Other(*OtherText);
+						if (!Was->Treaties.Contains(Treaty) && Other != RuledCivBeforeTick && FNameLexicalLess()(Civ.CivID, Other))
+						{
+							++Race.AITreaties;
+							Race.AITreatyFirst = Race.AITreatyFirst < 0 ? State.Tick : Race.AITreatyFirst;
+						}
+					}
+				}
+				// The galaxy laws, the ruled people's [0] and the AI peoples' [1]: the first held, the longest, the resets in the tick.
+				for (const FCivilizationState& Civ : State.Civs)
+				{
+					const int32 Side = Civ.bIsPlayerRuled ? 0 : 1;
+					if (Civ.LawsHeldTicks > 0 && Race.LawsFirst[Side] < 0)
+					{
+						Race.LawsFirst[Side] = State.Tick;
+						Race.LawsFirstAICivID = Side == 1 ? Civ.CivID : Race.LawsFirstAICivID;
+					}
+					Race.LawsLongest[Side] = FMath::Max(Race.LawsLongest[Side], Civ.LawsHeldTicks);
+					const FCivBefore* Was = CivsBefore.Find(Civ.CivID);
+					if (!Was || Was->LawsHeld <= 0 || Civ.LawsHeldTicks != 0)
+					{
+						continue;
+					}
+					const bool bGone = Was->Laws.Laws.ContainsByPredicate([&Civ](FName Law) { return !Civ.ActiveEdicts.Contains(Law); });
+					const bool bHeldAgain = Side == 1 && CosmicEdicts::HoldsGalaxyLawsOf(Civ, Sim->GetTables(), RulesNow);
+					++Race.Resets[Side];
+					Race.ResetsUpkeep[Side] += (bGone || bHeldAgain) ? 1 : 0;
+					Race.ResetsHeldAgain += bHeldAgain ? 1 : 0;
+				}
+			}
+
 			// B5 ([B-5a]): the death chances of the tick - the crisis stage's notes of its expiries, the gap from the last reign
 			// end before this tick; then a reign that ended in the tick (the tenth stage leaves the throne).
 			for (const FCosmicStageClock::FExpiry& Expiry : Sim->GetStageClock().Expiries)
@@ -1692,6 +2339,58 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				{
 					Calling.Chances.Add({ Expiry.Tag, State.Tick, Expiry.SystemID, Expiry.bGrace, Expiry.bBranch, bEndedBefore,
 						Calling.ReignEndTick >= 0 ? State.Tick - Calling.ReignEndTick : -1 });
+				}
+				// B6b [B-6b3b] (the race line): every expiry of the extinction (CosmicHazards::KillsTheRulerOf - bReached says only
+				// that a vessel stood at risk) on a system some people owned at the expiry (the stage's own extinction branch needs
+				// one): kept by the grace, or expired - the people taken, and for the ruled people while the vessel ruled it, what the
+				// tenth stage did with the vessel (it died, or was deposed - the birth protection -, or neither). The owner at the
+				// expiry is the owner before the tick, or the attacker of a siege the tick's conflict stage won on the system - it comes
+				// before the crisis stage, and CosmicHazards::Transfer hands a Draw hazard (the extinction) over with the system; the
+				// stage clock's last Taken end on it names the attacker.
+				if (CosmicHazards::KillsTheRulerOf(Expiry.Tag))
+				{
+					const int32 SystemIndex = StateIndex.FindSystem(State, Expiry.SystemID);
+					FName Owner = Before.IsValidIndex(SystemIndex) ? Before[SystemIndex].Owner : NAME_None;
+					for (const FCosmicStageClock::FSiegeEnd& End : Sim->GetStageClock().SiegeEnds)
+					{
+						Owner = (End.Kind == FCosmicStageClock::ESiegeEnd::Taken && End.SystemID == Expiry.SystemID) ? End.Attacker : Owner;
+					}
+					const bool bRuled = !Owner.IsNone() && Owner == RuledCivBeforeTick;
+					if (!Owner.IsNone() && Expiry.bGrace)
+					{
+						++Race.KeptByGrace;
+						Race.GraceKeys.Add(FString::Printf(TEXT("%lld:%s:%s"), State.Tick, *Owner.ToString(), bRuled ? TEXT("r") : TEXT("a")));
+					}
+					else if (!Owner.IsNone())
+					{
+						++Race.Expired;
+						RaceExtinguished.Add(Owner, bRuled);
+						if (bRuled && RoleBefore == EPlayerRole::Ruler)
+						{
+							++Race.RuledExpiries;
+							const bool bDied = ACosmicPlayerController::LifeClosedAt(State, State.Tick);
+							const bool bDeposed = !bDied && State.Player.Role != EPlayerRole::Ruler;
+							++(bDied ? Race.RuledExpiryDied : (bDeposed ? Race.RuledExpiryDeposed : Race.RuledExpiryNeither));
+						}
+					}
+				}
+			}
+			// B6b [B-6b3b]: the peoples gone in the tick - those an extinction's expiry took (an AI people in its tick, the ruled
+			// people a tick later - the crossing stage removes it), ruled or AI at that expiry, and those some life ruled.
+			{
+				for (const TPair<FName, FCivBefore>& Each : CivsBefore)
+				{
+					if (StateIndex.FindCiv(State, Each.Key) != INDEX_NONE)
+					{
+						continue;
+					}
+					++Race.Erased;
+					if (const bool* bRuledThen = RaceExtinguished.Find(Each.Key))
+					{
+						++(*bRuledThen ? Race.ErasedRuled : Race.ErasedAI);
+					}
+					const FName Gone = Each.Key;
+					Race.ErasedOnceRuled += State.Calling.Lives.ContainsByPredicate([Gone](const FLifeRecord& Life) { return Life.RuledCivIDs.Contains(Gone); }) ? 1 : 0;
 				}
 			}
 			// [B-5b]: a life that closed in the tick (the last closed life's DiedTick - a leap of 0 began the next already).
@@ -1734,6 +2433,8 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					Calling.DeathsSetApart += bSetApart ? 1 : 0;
 					Calling.DeathsOnTheCard += (bOnTheCard && !bSetApart) ? 1 : 0;
 					Calling.DeathsAtCrowningReverence += ReverenceAtStart >= RulesNow.CoronationReverence ? 1 : 0;
+					// B6b [B-6b3b]: a ruler the extinction's expiry killed (its row's tag - CosmicHazards::KillsTheRulerOf).
+					Race.RulerDeaths += (Killer && CosmicHazards::KillsTheRulerOf(Killer->HazardTag)) ? 1 : 0;
 					Calling.DeathAnswers += FString::Printf(TEXT("%s%lld:%s:%.2f"), Calling.DeathAnswers.IsEmpty() ? TEXT("") : TEXT(","), State.Tick,
 						bSetApart ? TEXT("a") : (bOnTheCard ? TEXT("c") : TEXT("-")), ReverenceAtStart);
 				}
@@ -1934,12 +2635,17 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			TMap<FName, FGameplayTag> NewGuarded;
 			// B3: the delay a guard bought each hazard placed in the tick, read from its slot before the boundary (the count it
 			// was placed with, less the row's countdown and the edicts' bonus on the system - the owner's and, from B6b, the
-			// galaxy laws of its galaxy). The bonus is read from the union after the tick, not the one CosmicHazards::Place read
-			// in the crisis stage: the two are the same while no galaxy law exists. Once laws exist they can differ both ways -
-			// a law the AI's law step enacts, or enacts again after its upkeep lapsed, later in the same tick makes the bought
-			// delay too small, and the laws of a people the crossing stage removes in the tick make it too large (as an edict the
-			// AI stage revokes after the placement already did before B6b). B6b notes section 5 [B-6b2a]: the capture before the
-			// tick is [B-6b3]'s, before the [B-6b7] rows make it live.
+			// galaxy laws of its galaxy). B6b [B-6b3b] (notes section 5 [B-6b2a]): the bonus is that of the laws as they stood when
+			// CosmicHazards::Place read them in the crisis stage - the galaxy laws captured before the tick (the economy stage's
+			// upkeep runs before the crisis stage, the AI stage and the crossing stage after it: CosmicRaceMeasure::LawsAsPlacedOf
+			// drops a law enacted later in the tick and keeps the laws of a people the crossing stage removed in it), asked once
+			// per tick at the first placement; the union after the tick when nothing differs (always while no galaxy law exists).
+			// What is left: a law that lapsed in the economy stage and was enacted again in the AI stage of one tick reads as held
+			// (the bought delay too small - the race line counts such resets as "held again in the tick"), and an edict the AI
+			// stage revokes after the placement makes it too large, as before B6b.
+			// The raw delay of each placement by system (the claims file's GuardDelay - 0 or below for none).
+			TMap<int32, int64> RacePlacedDelay;
+			int32 RaceLightAsked = 0;
 			for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num() && SystemIndex < Before.Num(); ++SystemIndex)
 			{
 				const FStarSystemState& System = State.Systems[SystemIndex];
@@ -1949,8 +2655,18 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				const FCivilizationState* Owner = Placed ? State.Civs.FindByPredicate([&System](const FCivilizationState& Civ) { return Civ.CivID == System.OwnerCivID; }) : nullptr;
 				if (Owner)
 				{
-					const int64 Delay = static_cast<int64>(System.HazardTicksRemaining) - FMath::Max(1, Placed->CountdownTicks)
-						- CosmicEdicts::CountdownBonusOf(State, StateIndex, Sim->GetTables(), SystemIndex, System.ActiveHazard);
+					if (RaceLightAsked == 0)
+					{
+						RaceLightAsked = CosmicRaceMeasure::LawsAsPlacedOf(RaceLawsBefore, State, Sim->GetTables(), RaceLightState) ? 1 : -1;
+						if (RaceLightAsked > 0)
+						{
+							RaceLightIndex.Rebuild(RaceLightState);
+						}
+					}
+					const int32 Bonus = RaceLightAsked > 0 ? CosmicEdicts::CountdownBonusOf(RaceLightState, RaceLightIndex, Sim->GetTables(), SystemIndex, System.ActiveHazard)
+						: CosmicEdicts::CountdownBonusOf(State, StateIndex, Sim->GetTables(), SystemIndex, System.ActiveHazard);
+					const int64 Delay = static_cast<int64>(System.HazardTicksRemaining) - FMath::Max(1, Placed->CountdownTicks) - Bonus;
+					RacePlacedDelay.Add(SystemIndex, Delay);
 					if (Delay > 0)
 					{
 						TPair<int64, int32>& Bought = Counts.DelayBought.FindOrAdd(System.ActiveHazard.ToString());
@@ -1972,9 +2688,86 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 						++ByPhase.Count;
 						ByPhase.Delay += Delay > 0 ? Delay : 0;
 						ByPhase.Countdown += FMath::Max(1, Placed->CountdownTicks);
+						// B6b [B-6b3b] (#132, by the record): placed at the row's cap (CosmicConflict::GuardDelayCapOf), of all, by tag.
+						if (!bEndedBefore)
+						{
+							TPair<int32, int32>& AtCap = Race.GuardAtCap.FindOrAdd(Tag);
+							AtCap.Key += Delay >= CosmicConflict::GuardDelayCapOf(RulesNow, Placed->CountdownTicks) ? 1 : 0;
+							++AtCap.Value;
+						}
 						// Into the standing list after the ends of the tick are read: a guarded hazard that ended in this tick
 						// on the same system is classified first.
 						NewGuarded.Add(System.SystemID, System.ActiveHazard);
+					}
+				}
+			}
+			// B6b [B-6b3b] (#142 - the claims file): every owner's claims as the tick changed them, before the inputs - the ends
+			// first (so a claim placed again in the same tick opens a new row), then the placements, then whether the owner changed
+			// under a standing claim and the claim card that came for it at this boundary. A claim placed and ended inside one tick
+			// is not seen (the rule of the hazards' counts). The ends are B4's five (CosmicRaceMeasure::ClaimEndOf, with the vigil's
+			// ease lines of the tick); the guard and the vigil are B4's too (the owner's fleet target before the tick, with no fleet
+			// test - a guard with no fleet buys nothing, GuardDelay shows it).
+			{
+				TSet<FName> EasedInTick;
+				for (int32 Index = State.Log.Num() - 1; Index >= 0 && State.Log[Index].Tick > TickBefore; --Index)
+				{
+					if (State.Log[Index].SourceRow == CosmicRows::EventClaimEased)
+					{
+						EasedInTick.Add(State.Log[Index].FocusSystemID);
+					}
+				}
+				const int64 SealedNow = RaceFirstSealOf(State);
+				for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num() && SystemIndex < Before.Num() && SystemIndex < RaceSlotsAfterTick.Num(); ++SystemIndex)
+				{
+					const FStarSystemState& System = State.Systems[SystemIndex];
+					const FSlotBefore& SlotWas = Before[SystemIndex];
+					const FRaceSlotAfterTick& SlotNow = RaceSlotsAfterTick[SystemIndex];
+					const bool bPlacedAgain = SlotNow.Tag == SlotWas.Tag && SlotNow.Remaining >= SlotWas.Remaining;
+					if (SlotWas.Tag == ClaimTag && (SlotNow.Tag != ClaimTag || bPlacedAgain))
+					{
+						if (const int32* Open = RaceOpenClaims.Find(System.SystemID))
+						{
+							FRaceClaimRow& Claim = RaceClaimRows[*Open];
+							const bool bAnswered = !SlotWas.Answer.IsNone() && CosmicMegaprojects::HasCompleted(System, SlotWas.Answer, State.Tick, NAME_None);
+							const bool bByEdict = !bAnswered && SlotWas.Remaining == 1 && !SlotWas.HeldAnswer.IsNone() && SlotWas.bUpkeepPayable;
+							const bool bJoined = InSomeSphere(State, System.SystemID);
+							Claim.EndTick = State.Tick;
+							Claim.EndKind = CosmicRaceMeasure::ClaimEndOf(bJoined, !bJoined && EasedInTick.Contains(System.SystemID), bAnswered, !bByEdict && SlotWas.Remaining == 1);
+							Claim.RemainingAtEnd = SlotWas.Remaining;
+							Claim.SealedTick = SealedNow;
+							// The binding's step (a) runs before the countdown: an end at the seal's tick is after it.
+							Claim.AfterBinding = (SealedNow >= 0 && State.Tick >= SealedNow) ? 1 : 0;
+							RaceOpenClaims.Remove(System.SystemID);
+						}
+					}
+					if (SlotNow.Tag == ClaimTag && (SlotWas.Tag != ClaimTag || bPlacedAgain))
+					{
+						const FName Holder = SlotNow.Owner;
+						const FCivBefore* GuardWas = Holder.IsNone() ? nullptr : CivsBefore.Find(Holder);
+						const FCivilizationState* HolderPeople = Holder.IsNone() ? nullptr : State.Civs.FindByPredicate([Holder](const FCivilizationState& Civ) { return Civ.CivID == Holder; });
+						FRaceClaimRow& Claim = RaceClaimRows.AddDefaulted_GetRef();
+						Claim.SystemID = System.SystemID;
+						Claim.Owner = Holder;
+						Claim.bRuled = !Holder.IsNone() && Holder == RuledCivBeforeTick;
+						Claim.PlacedTick = State.Tick;
+						Claim.PlacedCount = SlotNow.Remaining;
+						Claim.bGuard = GuardWas && GuardWas->Target == System.SystemID;
+						Claim.GuardDelay = RacePlacedDelay.FindRef(SystemIndex);
+						Claim.bVigil = HolderPeople && !VigilRow.IsNone() && HolderPeople->ActiveEdicts.Contains(VigilRow);
+						RaceOpenClaims.Add(System.SystemID, RaceClaimRows.Num() - 1);
+					}
+					if (const int32* Standing = RaceOpenClaims.Find(System.SystemID))
+					{
+						FRaceClaimRow& Claim = RaceClaimRows[*Standing];
+						Claim.bOwnerChanged = Claim.bOwnerChanged || SlotNow.Owner != Claim.Owner;
+						if (Claim.CardTick < 0 && State.Knowing.PendingPetitionRow == CosmicRows::PetitionPressureClaim && State.Knowing.PendingPetitionRow != CardBefore
+							&& State.Knowing.PendingPetitionSystemID == System.SystemID)
+						{
+							Claim.CardTick = State.Tick;
+							Claim.RemainingAtCard = SlotNow.Remaining;
+							Claim.VigilKept = 1;
+							Claim.Relief = 0;
+						}
 					}
 				}
 			}
@@ -2026,7 +2819,46 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				ExaltPredicted = (RulerPolicy.bAnswer && ExaltRow) ? CosmicRulerPolicy::ChoiceOf(State, StateIndex, *ExaltRow, RulerCounts.Answers, CosmicRows::PetitionExalt,
 					RulerPolicy.Diplomacy, &RulesNow, &Sim->GetTables(), RulerPolicy.Pressure) : INDEX_NONE;
 			}
+			// B6b [B-6b3b] (the race line): before the inputs - the ruled people's galaxy laws and treaties, and the AI peoples whose
+			// row asks a treaty (CosmicDiplomacy::AsksForTreatyOf).
+			const FName RaceRuledBeforeInput = RuledAtBoundary ? RuledAtBoundary->CivID : NAME_None;
+			const int32 RaceRuledLawsBeforeInput = RuledAtBoundary ? CosmicEdicts::GalaxyLawCountOf(*RuledAtBoundary, Sim->GetTables()) : 0;
+			const TSet<FString> RaceRuledTreatiesBeforeInput = RuledAtBoundary ? CivBeforeOf(State, StateIndex, Sim->GetTables(), *RuledAtBoundary).Treaties : TSet<FString>();
+			TSet<FName> RaceAsksBeforeInput;
+			for (int32 CivIndex = 0; RuledAtBoundary && CivIndex < State.Civs.Num(); ++CivIndex)
+			{
+				if (!State.Civs[CivIndex].bIsPlayerRuled && CosmicDiplomacy::AsksForTreatyOf(State, StateIndex, Sim->GetTables(), RulesNow, CivIndex))
+				{
+					RaceAsksBeforeInput.Add(State.Civs[CivIndex].CivID);
+				}
+			}
 			CosmicRulerPolicy::Act(RulerPolicy, *Sim, *Role, CardBefore, RulerCounts);
+			// B6b [B-6b3b] (#122 - the race line): whether the crown gate would refuse the wanderer with FarAbove where it stands, read
+			// before its input - the policy asks the gate at this boundary and travels on in the same Act, after which it stands
+			// nowhere. Its own reading of the meeting; no card waiting (it answers every card before it asks the gate, and the gate
+			// asks CardWaiting before FarAbove - a card its answers left waiting, refused or past the chain of eight, is the rare
+			// boundary counted here that the gate would answer CardWaiting). The ruler's Act changes nothing for a wanderer. Only
+			// at a boundary the policy asks the gate (CosmicWandererPolicy::Act's own guard: -Wander=1, and after the record only
+			// with -PastEnd=1 - the record read as Act reads it): a successor or a deposed vessel of a ruler's run and a vessel
+			// standing after the record are not asked, so they count nothing.
+			{
+				const bool bRaceWandererAsks = WandererPolicy.bWander && !((WandererCounts.bEnded || State.Ending.Kind.IsValid()) && !WandererPolicy.bPastEnd);
+				const int32 Here = bRaceWandererAsks ? CosmicWanderer::StandingIndexOf(State, StateIndex) : INDEX_NONE;
+				const FName Holder = State.Systems.IsValidIndex(Here) ? State.Systems[Here].OwnerCivID : NAME_None;
+				if (!Holder.IsNone() && StateIndex.FindCiv(State, Holder) != INDEX_NONE)
+				{
+					const bool bMetHolder = State.Knowing.MetCivs.ContainsByPredicate([Holder](const FKnownMark& Mark) { return Mark.ID == Holder; });
+					if (CosmicWanderer::CrownBlockOf(State, StateIndex, RulesNow, Holder, bMetHolder, false) == CosmicWanderer::ECrownBlock::FarAbove)
+					{
+						++Race.CrownFarAbove;
+						Race.CrownFarAboveFirst = Race.CrownFarAboveFirst < 0 ? State.Tick : Race.CrownFarAboveFirst;
+						Race.CrownFarAboveReturns += CosmicWanderer::IsReturn(State, Holder) ? 1 : 0;
+						Race.CrownFarAbovePeoples.Add(Holder);
+					}
+				}
+			}
+			// The witness cards the wanderer policy saw come before its input (its count by row).
+			const int32 RaceWitnessCardsBefore = WandererCounts.CardsByRow.FindRef(CosmicB6bRows::EncWitness);
 			CosmicWandererPolicy::Act(WandererPolicy, *Sim, *Role, CardBefore, WandererCounts);
 			// B6a [B-6a3c]: what the inputs did for the ending line - the decisions taken at this boundary, the answer to
 			// petition_exalt (its card answers first: a refusal stops the answers and a withdrawal counts none, so only its taken
@@ -2048,6 +2880,82 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					Ending.CardInfluence[BoundaryPhase].Add(InfluenceBeforeAct);
 				}
 				NoteSeason();
+				NoteRuledRungs();
+			}
+			// B6b [B-6b3b] (the race line, the claims file): what the inputs did - each standing claim's count raised (a fleet's time)
+			// and, from its card on, B4's vigil and relief read after the input (the vigil kept while the ruled people holds the
+			// vigil's row, a relief once the system's response slot holds a project); a claim gone at an input (rule 8' forbids it);
+			// the ruled people's first binding started, its galaxy laws dropped, its new treaties that met an AI's ask; the
+			// witness cards come by the record; the era's lines.
+			{
+				const FCivilizationState* RuledNow = State.Civs.FindByPredicate([](const FCivilizationState& Civ) { return Civ.bIsPlayerRuled; });
+				TArray<FName> GoneAtInput;
+				for (const TPair<FName, int32>& Open : RaceOpenClaims)
+				{
+					FRaceClaimRow& Claim = RaceClaimRows[Open.Value];
+					const int32 SystemIndex = StateIndex.FindSystem(State, Open.Key);
+					if (!State.Systems.IsValidIndex(SystemIndex) || !RaceSlotsAfterTick.IsValidIndex(SystemIndex))
+					{
+						continue;
+					}
+					const FStarSystemState& System = State.Systems[SystemIndex];
+					if (System.ActiveHazard != ClaimTag)
+					{
+						const int64 SealedNow = RaceFirstSealOf(State);
+						Claim.EndTick = State.Tick;
+						Claim.EndKind = 5;
+						Claim.RemainingAtEnd = RaceSlotsAfterTick[SystemIndex].Remaining;
+						Claim.SealedTick = SealedNow;
+						Claim.AfterBinding = (SealedNow >= 0 && State.Tick >= SealedNow) ? 1 : 0;
+						GoneAtInput.Add(Open.Key);
+						continue;
+					}
+					Claim.Resisted += FMath::Max(0, System.HazardTicksRemaining - RaceSlotsAfterTick[SystemIndex].Remaining);
+					if (Claim.CardTick >= 0)
+					{
+						Claim.VigilKept = (Claim.VigilKept == 1 && RuledNow && !VigilRow.IsNone() && RuledNow->ActiveEdicts.Contains(VigilRow)) ? 1 : 0;
+						Claim.Relief = (Claim.Relief == 1 || !System.ResponseMegaproject.IsNone()) ? 1 : 0;
+					}
+				}
+				for (const FName SystemID : GoneAtInput)
+				{
+					RaceOpenClaims.Remove(SystemID);
+				}
+				for (int32 SystemIndex = 0; RuledNow && Race.RuledBindingStartTick < 0 && SystemIndex < State.Systems.Num() && SystemIndex < RaceSlotsAfterTick.Num(); ++SystemIndex)
+				{
+					const FStarSystemState& System = State.Systems[SystemIndex];
+					if (System.OwnerCivID == RuledNow->CivID && RaceSlotsAfterTick[SystemIndex].Construction.Row != CosmicRows::ProjectBinding
+						&& CosmicMegaprojects::ReadSlot(System, CosmicMegaprojects::ECosmicProjectSlot::Construction).Row == CosmicRows::ProjectBinding)
+					{
+						Race.RuledBindingStartTick = State.Tick;
+					}
+				}
+				const FName RuledInputID = RaceRuledBeforeInput;
+				const FCivilizationState* RuledSame = RuledInputID.IsNone() ? nullptr
+					: State.Civs.FindByPredicate([RuledInputID](const FCivilizationState& Civ) { return Civ.CivID == RuledInputID; });
+				if (RuledSame)
+				{
+					Race.RuledLawsDroppedAtInput += FMath::Max(0, RaceRuledLawsBeforeInput - CosmicEdicts::GalaxyLawCountOf(*RuledSame, Sim->GetTables()));
+					for (const FString& Treaty : CivBeforeOf(State, StateIndex, Sim->GetTables(), *RuledSame).Treaties)
+					{
+						FString OtherText;
+						Treaty.Split(TEXT("|"), &OtherText, nullptr);
+						const FName Other(*OtherText);
+						const int32 OtherIndex = StateIndex.FindCiv(State, Other);
+						Race.RuledTreatiesMetAsk += (!RaceRuledTreatiesBeforeInput.Contains(Treaty) && RaceAsksBeforeInput.Contains(Other) && State.Civs.IsValidIndex(OtherIndex)
+							&& !CosmicDiplomacy::AsksForTreatyOf(State, StateIndex, Sim->GetTables(), RulesNow, OtherIndex)) ? 1 : 0;
+					}
+				}
+				Race.WitnessCardsByRecord += bEndedBefore ? 0 : WandererCounts.CardsByRow.FindRef(CosmicB6bRows::EncWitness) - RaceWitnessCardsBefore;
+				for (int32 Index = State.Log.Num() - 1; Index >= 0 && State.Log[Index].Tick > TickBefore; --Index)
+				{
+					if (State.Log[Index].SourceRow == CosmicB6bRows::EventEraEndured)
+					{
+						++Race.EraLines;
+						Race.EraLinesByRecord += bEndedBefore ? 0 : 1;
+						Race.EraFirst = (Race.EraFirst < 0 || State.Log[Index].Tick < Race.EraFirst) ? State.Log[Index].Tick : Race.EraFirst;
+					}
+				}
 			}
 			// B5 ([B-5a]): the first throne taken after a reign ended; [B-5b]: after a succession, and a reign begun while a claim
 			// that had its card still stood (old 16 #143, B5 decision 4 - the lock keeps it at 0).
@@ -2149,7 +3057,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				{
 					const FCivilizationState& Civ = State.Civs[CivIndex];
 					const FCivBefore* Was = CivsBefore.Find(Civ.CivID);
-					const FCivBefore Now = CivBeforeOf(State, StateIndex, Civ);
+					const FCivBefore Now = CivBeforeOf(State, StateIndex, Sim->GetTables(), Civ);
 					if (Now.TargetOwner != NAME_None && Now.TargetOwner != Civ.CivID)
 					{
 						++SiegersOn.FindOrAdd(Now.TargetOwner);
@@ -2347,7 +3255,10 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			{
 				const FStarSystemState& System = State.Systems[SystemIndex];
 				const FSlotBefore& Slot = Before[SystemIndex];
-				const bool bAgain = System.ActiveHazard == Slot.Tag && System.HazardTicksRemaining >= Slot.Remaining;
+				// Placed again in the tick: by the count the tick left (B6b [B-6b3b] - R1), not the one after the input - a fleet's time
+				// bought at the input (DelayHazard) raises a standing hazard's count and is no end and no new placement.
+				const bool bAgain = System.ActiveHazard == Slot.Tag && RaceSlotsAfterTick.IsValidIndex(SystemIndex) && RaceSlotsAfterTick[SystemIndex].Tag == Slot.Tag
+					&& RaceSlotsAfterTick[SystemIndex].Remaining >= Slot.Remaining;
 				if (Slot.Tag.IsValid() && (System.ActiveHazard != Slot.Tag || bAgain))
 				{
 					const FString Tag = Slot.Tag.ToString();
@@ -2368,6 +3279,20 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					}
 					// B4: the ruled people's claims that ended, and the other hazards that ended within a claimant's reach.
 					const bool bByEdict = !bAnswered && Slot.Remaining == 1 && !Slot.HeldAnswer.IsNone() && Slot.bUpkeepPayable;
+					// B6b [B-6b3b] (#132, by the record): how the guarded crises (B4's standing list) and the unguarded ones on a
+					// settled system of the ruled people ended, by tag.
+					if (!bEndedBefore)
+					{
+						const FGameplayTag* RaceGuarded = PressureCounts.Standing.Find(System.SystemID);
+						const bool bRaceGuarded = RaceGuarded && *RaceGuarded == Slot.Tag;
+						if (bRaceGuarded || Slot.bRuledSettled)
+						{
+							FRaceEnds& RaceTagEnds = (bRaceGuarded ? Race.GuardedEnds : Race.UnguardedEnds).FindOrAdd(Tag);
+							RaceTagEnds.Answered += bAnswered ? 1 : 0;
+							RaceTagEnds.Expired += (!bAnswered && !bByEdict && Slot.Remaining == 1) ? 1 : 0;
+							RaceTagEnds.Edict += bByEdict ? 1 : 0;
+						}
+					}
 					if (const FGameplayTag* Guarded = PressureCounts.Standing.Find(System.SystemID); Guarded && *Guarded == Slot.Tag)
 					{
 						PressureCounts.GuardedAnswered += bAnswered ? 1 : 0;
@@ -2384,7 +3309,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 						Spirit.StilledByRelief += (!bJoined && bAnswered) ? 1 : 0;
 						// [B-4d2]: the claim's end of five, and its card's measure (header section 2.8 - a state, not an answer).
 						const bool bEased = !bJoined && EasedNow.Contains(System.SystemID);
-						const int32 EndAt = bJoined ? 0 : bEased ? 1 : bAnswered ? 2 : (!bByEdict && Slot.Remaining == 1) ? 4 : 3;
+						const int32 EndAt = CosmicRaceMeasure::ClaimEndOf(bJoined, bEased, bAnswered, !bByEdict && Slot.Remaining == 1);
 						++PressureCounts.Ends[EndAt];
 						const FClaimTrack* Track = PressureCounts.Claims.Find(System.SystemID);
 						PressureCounts.NoCard += (!Track || Track->CardTick < 0) ? 1 : 0;
@@ -2643,8 +3568,25 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		{
 			UE_LOG(LogCosmic, Error, TEXT("CosmicBalance end check: the record missed at %lld boundaries, the first at %lld"), EndCheckMisses, EndCheckFirstMiss);
 		}
+		// B6b [B-6b3b]: the race check names its first miss in the loop; more than one is counted here, once. The claims still
+		// standing at the run's end close as "standing" with their count now.
+		if (RaceCheckMisses > 1)
+		{
+			UE_LOG(LogCosmic, Error, TEXT("CosmicBalance race check: the home cap was passed at %lld boundaries, the first at %lld"), RaceCheckMisses, RaceCheckFirstMiss);
+		}
+		for (const TPair<FName, int32>& Open : RaceOpenClaims)
+		{
+			FRaceClaimRow& Claim = RaceClaimRows[Open.Value];
+			const int32 SystemIndex = StateIndex.FindSystem(State, Open.Key);
+			Claim.EndKind = 6;
+			Claim.EndTick = -1;
+			Claim.RemainingAtEnd = State.Systems.IsValidIndex(SystemIndex) ? State.Systems[SystemIndex].HazardTicksRemaining : 0;
+			Claim.SealedTick = RaceFirstSealOf(State);
+			Claim.AfterBinding = -1;
+		}
+		const FString RaceClaimsCsv = RaceClaimsCsvOf(RaceClaimRows);
 
-		if (FFileHelper::SaveStringToFile(Csv, *OutPath) && FFileHelper::SaveStringToFile(Rows, *RowsPath))
+		if (FFileHelper::SaveStringToFile(Csv, *OutPath) && FFileHelper::SaveStringToFile(Rows, *RowsPath) && FFileHelper::SaveStringToFile(RaceClaimsCsv, *RaceClaimsPath))
 		{
 			UE_LOG(LogCosmic, Display, TEXT("CosmicBalance: seed %d, %lld ticks, hash %u, world %u, wrote %s"), Seed, Ticks, Sim->ComputeStateHash(), Sim->ComputeWorldHash(), *OutPath);
 			TickMicros.Sort();
@@ -2874,11 +3816,11 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				}
 				const int32* Tiers = RulerCounts.PressureCardsByTier;
 				const int32* Kinds = RulerCounts.PressureAnswers;
-				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance pressure: policy pressure %s guard %d leave near sphere %d; guarded crises %d by tag [%s] (by end %d), delay bought %lld by tag [%s], ends of guarded crises: answered %d, expired %d, resolved by an edict %d; cards came %d (by end %d; first at %lld; claim card %d, measured card %d; by tier [T1 %d, T2 %d, T3 %d]), claim card lost to a waiting card %d (same tick %d; to [%s]), standing cards lost in their tick [%s], answers by kind [intercede %d, discern %d, watch %d, edict %d, resist %d] (by end %d), choices greyed by reason [%s]; edicts enacted by cards [%s] (revoked by the script %d); resist ticks bought %lld, fleet spent %.2f, claims delayed twice %d, fleet regrown after a resistance %d (median %lld ticks, still short %d); discern insight min %.1f; first-person lines told %d (by end %d, untold %d), sign lines told %d (by end %d), max in 600 ticks %d/%d; first sign at %lld, first claim line at %lld; vigil eased %d (by end %d); theodicy (vigil held from the card to the claim's end, no relief): by remaining band [<=300 %d eased %d, 301-400 %d eased %d, 401-550 %d eased %d, more %d eased %d]; claim ends on ruled [joined %d, eased %d, relief %d, other %d, expired unjoined %d] (no claim card %d); under watch %d, joined %d; fleet worn lines %d"),
+				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance pressure: policy pressure %s guard %d leave near sphere %d; guarded crises %d by tag [%s] (by end %d), delay bought %lld by tag [%s], ends of guarded crises: answered %d, expired %d, resolved by an edict %d; cards came %d (by end %d; first at %lld; claim card %d, measured card %d; by tier [T1 %d, T2 %d, T3 %d, T4 %d, T5 %d]), claim card lost to a waiting card %d (same tick %d; to [%s]), standing cards lost in their tick [%s], answers by kind [intercede %d, discern %d, watch %d, edict %d, resist %d] (by end %d), choices greyed by reason [%s]; edicts enacted by cards [%s] (revoked by the script %d); resist ticks bought %lld, fleet spent %.2f, claims delayed twice %d, fleet regrown after a resistance %d (median %lld ticks, still short %d); discern insight min %.1f; first-person lines told %d (by end %d, untold %d), sign lines told %d (by end %d), max in 600 ticks %d/%d; first sign at %lld, first claim line at %lld; vigil eased %d (by end %d); theodicy (vigil held from the card to the claim's end, no relief): by remaining band [<=300 %d eased %d, 301-400 %d eased %d, 401-550 %d eased %d, more %d eased %d]; claim ends on ruled [joined %d, eased %d, relief %d, other %d, expired unjoined %d] (no claim card %d); under watch %d, joined %d; fleet worn lines %d"),
 					CosmicRulerPolicy::PressurePolicyName(RulerPolicy.Pressure), RulerPolicy.Guard, RulerPolicy.bLeaveNearSphere ? 1 : 0, PressureCounts.Guarded,
 					*TagCountsText(PressureCounts.GuardedByTag), PressureCounts.GuardedByEnd, PressureCounts.DelayBought, *TagTicksText(PressureCounts.DelayByTag),
 					PressureCounts.GuardedAnswered, PressureCounts.GuardedExpired, PressureCounts.GuardedByEdict,
-					RulerCounts.PressureCards, RulerCounts.PressureCardsByEnd, RulerCounts.FirstPressureCardTick, RulerCounts.ClaimCards, RulerCounts.MeasuredCards, Tiers[0], Tiers[1], Tiers[2],
+					RulerCounts.PressureCards, RulerCounts.PressureCardsByEnd, RulerCounts.FirstPressureCardTick, RulerCounts.ClaimCards, RulerCounts.MeasuredCards, Tiers[0], Tiers[1], Tiers[2], Tiers[3], Tiers[4],
 					PressureCounts.ClaimLostWait, PressureCounts.ClaimLostSame, *TagCountsText(PressureCounts.ClaimLostTo), *TagCountsText(PressureCounts.StandingLost), Kinds[0], Kinds[1], Kinds[2], Kinds[3], Kinds[4], RulerCounts.PressureAnswersByEnd,
 					*TagCountsText(RulerCounts.PressureGreyed), *TagCountsText(Enactments), RulerCounts.CardEdictsRevoked, PressureCounts.ResistBought,
 					PressureCounts.FleetSpent, PressureCounts.DelayedTwice, PressureCounts.Regrown.Num(), MedianOf(PressureCounts.Regrown), PressureCounts.Regrowing.Num(),
@@ -2961,6 +3903,95 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					*FString::Printf(TEXT("%d/%d/%d"), Ending.CardInsight[0].Num(), Ending.CardInsight[1].Num(), Ending.CardInsight[2].Num()),
 					*StockPhasesText(Ending.CardInsight), *StockPhasesText(Ending.CardInfluence), Ending.ExaltTick, Ending.ExaltChoice, *FString::Join(Ending.ExaltPreCount, TEXT(" ")));
 			}
+			// B6b [B-6b3b] (header section 5.1, notes section 2.1): the race line - always told, outside the three lines the runner
+			// compares (seed, ruler, wanderer). One part per reading in the notes' order, the decisions last (a long list); a tick
+			// is -1 and a name "-" while missing; exact ticks, so a clock C is cut outside.
+			{
+				const FName RaceHome = RulesNow.HomeGalaxyRow;
+				const FGalaxyDef* RaceHomeGalaxy = Sim->GetTables().FindGalaxy(RaceHome);
+				int32 AITreatyHolders = 0;
+				for (const FCivilizationState& Civ : State.Civs)
+				{
+					bool bHolds = false;
+					for (const TPair<FName, FCosmicTie>& Tie : Civ.Ties)
+					{
+						bHolds = bHolds || !Tie.Value.Treaties.IsEmpty();
+					}
+					AITreatyHolders += (bHolds && !Civ.bIsPlayerRuled && Civ.Tier >= EAscensionTier::Tier3_Causal) ? 1 : 0;
+				}
+				const int32 WitnessCards = WandererCounts.CardsByRow.FindRef(CosmicB6bRows::EncWitness);
+				const int32 WitnessFailed = WandererCounts.FailedByRow.FindRef(CosmicB6bRows::EncWitness);
+				const int32 WitnessWithdrawn = WandererCounts.WithdrawnByRow.FindRef(CosmicB6bRows::EncWitness);
+				const int32 WitnessSucceeded = WandererCounts.AnswersByRow.FindRef(CosmicB6bRows::EncWitness) - WitnessFailed;
+				int32 StandingClaims = 0;
+				for (const FRaceClaimRow& Claim : RaceClaimRows)
+				{
+					StandingClaims += Claim.EndKind == 6 ? 1 : 0;
+				}
+				// The decisions of every boundary (Ending.Decisions), and the longest stretch without one from the ruled third rung to
+				// the record - or to the last boundary without one -, both ends included (the ending line's season gap); -1 without
+				// the rung, or with the rung after the record. The policy stops its focus, edicts and diplomacy after the record.
+				TArray<FString> DecisionTicks;
+				for (const TPair<int64, int32>& Each : Ending.Decisions)
+				{
+					DecisionTicks.Add(FString::Printf(TEXT("%lld:%d"), Each.Key, Each.Value));
+				}
+				const int64 GapEnd = State.Ending.Kind.IsValid() ? State.Ending.Tick : State.Tick;
+				int64 GapLongest = -1;
+				if (Race.RuledTick[0] >= 0 && Race.RuledTick[0] <= GapEnd)
+				{
+					int64 GapLast = Race.RuledTick[0];
+					GapLongest = 0;
+					for (const TPair<int64, int32>& Each : Ending.Decisions)
+					{
+						if (Each.Key < Race.RuledTick[0] || Each.Key >= GapEnd)
+						{
+							continue;
+						}
+						GapLongest = FMath::Max(GapLongest, Each.Key - GapLast);
+						GapLast = Each.Key;
+					}
+					GapLongest = FMath::Max(GapLongest, GapEnd - GapLast);
+				}
+				const bool bOther = Race.FifthKind == CosmicTags::EndingOtherPeople();
+				TArray<FString> Parts;
+				Parts.Add(FString::Printf(TEXT("home %s cap %d"), *RaceNameOf(RaceHome), RaceHomeGalaxy ? RaceHomeGalaxy->AIFourthRungCap : 0));
+				Parts.Add(FString::Printf(TEXT("first AI T4 at %lld (%s, feat %s), second AI T4 at %lld (%s), first AI T5 at %lld (%s, feat %s)"), Race.AIT4Tick[0],
+					*RaceNameOf(Race.AIT4CivID[0]), *RaceNameOf(Race.AIT4Feat), Race.AIT4Tick[1], *RaceNameOf(Race.AIT4CivID[1]), Race.AIT5Tick, *RaceNameOf(Race.AIT5CivID),
+					*RaceNameOf(Race.AIT5Feat)));
+				Parts.Add(FString::Printf(TEXT("ruled T3 at %lld (%s), T4 at %lld (%s), T5 at %lld (%s)"), Race.RuledTick[0], *RaceNameOf(Race.RuledCivID[0]), Race.RuledTick[1],
+					*RaceNameOf(Race.RuledCivID[1]), Race.RuledTick[2], *RaceNameOf(Race.RuledCivID[2])));
+				Parts.Add(FString::Printf(TEXT("fifth rung first at %lld (%s, people %s), ruled people's end first at %lld, silence first at %lld"), Race.FifthTick,
+					Race.FifthKind.IsValid() ? CosmicEndings::NameOf(Race.FifthKind) : TEXT("-"), *RaceNameOf(Race.FifthCivID), Race.RuledPeopleEndTick, Race.SilenceTick));
+				Parts.Add(FString::Printf(TEXT("T4 civs at the record %d, at the end %d, most %d"), Race.T4AtRecord, CosmicRaceMeasure::FourthRungCountOf(State, RaceHome), Race.T4Most));
+				Parts.Add(FString::Printf(TEXT("brake held AI-ticks %d (first at %lld, peoples %d)"), Race.BrakeHeld, Race.BrakeHeldFirst, Race.BrakeHeldPeoples.Num()));
+				Parts.Add(FString::Printf(TEXT("upper construction first started by an AI at %lld (%s, %s), ruled binding started at %lld"), Race.AIUpperStartTick,
+					*RaceNameOf(Race.AIUpperStartCivID), *RaceNameOf(Race.AIUpperStartRow), Race.RuledBindingStartTick));
+				Parts.Add(FString::Printf(TEXT("extinction placed on ruled %d (first at %lld) on AI %d, arks completed %d lost before T4 %d, expired %d, kept by grace %d [%s], ruled expiries %d (died %d, deposed %d, neither %d), ruler deaths %d, peoples erased %d (by an extinction %d: ruled %d, AI %d; once ruled %d)"),
+					Race.ExtinctionOnRuled, Race.ExtinctionOnRuledFirst, Race.ExtinctionOnAI, Race.ArksCompleted, Race.ArksLostBeforeT4, Race.Expired, Race.KeptByGrace,
+					*FString::Join(Race.GraceKeys, TEXT(" ")), Race.RuledExpiries, Race.RuledExpiryDied, Race.RuledExpiryDeposed, Race.RuledExpiryNeither, Race.RulerDeaths,
+					Race.Erased, Race.ErasedRuled + Race.ErasedAI, Race.ErasedRuled, Race.ErasedAI, Race.ErasedOnceRuled));
+				Parts.Add(FString::Printf(TEXT("treaties by the AI step %d (first at %lld), AI at T3+ holding one at the end %d, ruled treaties that met an AI's ask %d"), Race.AITreaties,
+					Race.AITreatyFirst, AITreatyHolders, Race.RuledTreatiesMetAsk));
+				Parts.Add(FString::Printf(TEXT("laws first held ruled at %lld, AI at %lld (%s), longest held ruled %d AI %d, resets ruled %d (by upkeep %d) AI %d (by upkeep %d, held again in the tick %d), ruled laws dropped at an input %d"),
+					Race.LawsFirst[0], Race.LawsFirst[1], *RaceNameOf(Race.LawsFirstAICivID), Race.LawsLongest[0], Race.LawsLongest[1], Race.Resets[0], Race.ResetsUpkeep[0],
+					Race.Resets[1], Race.ResetsUpkeep[1], Race.ResetsHeldAgain, Race.RuledLawsDroppedAtInput));
+				Parts.Add(FString::Printf(TEXT("binding at %lld by %s (%s on %s, ruled rung %d), completions %d (ticks with more than one %d), ended without result %d (first at %lld), locked %d (first at %lld), retaken %d (first at %lld), vessel left before T5 %d"),
+					Race.BindingTick, Race.BindingBy, *RaceNameOf(Race.BindingCivID), *RaceNameOf(Race.BindingSystemID), Race.BindingRuledRung, Race.Completions,
+					Race.BindingTicksWithMore, Race.EndedWithoutResult, Race.EndedWithoutResultFirst, Race.Locked, Race.LockedFirst, Race.Retaken, Race.RetakenFirst,
+					Race.VesselLeftBeforeT5));
+				Parts.Add(FString::Printf(TEXT("#162 other order %s shown %d once ruled %d"), bOther ? *RaceNameOf(Race.FifthCivID) : TEXT("-"), bOther ? Race.OtherShown : -1,
+					bOther ? Race.OtherOnceRuled : -1));
+				Parts.Add(FString::Printf(TEXT("era lines %d (by the record %d, first at %lld), witness cards %d (by the record %d; succeeded %d, failed %d, withdrawn %d)"), Race.EraLines,
+					Race.EraLinesByRecord, Race.EraFirst, WitnessCards, Race.WitnessCardsByRecord, WitnessSucceeded, WitnessFailed, WitnessWithdrawn));
+				Parts.Add(FString::Printf(TEXT("crown refused far above %d (first at %lld, returns %d, peoples %d)"), Race.CrownFarAbove, Race.CrownFarAboveFirst,
+					Race.CrownFarAboveReturns, Race.CrownFarAbovePeoples.Num()));
+				Parts.Add(FString::Printf(TEXT("#132 by the record: guarded at the row's cap by tag [%s], guarded ends by tag [%s], ruled unguarded ends by tag [%s]"),
+					*RaceAtCapText(Race.GuardAtCap), *RaceEndsText(Race.GuardedEnds), *RaceEndsText(Race.UnguardedEnds)));
+				Parts.Add(FString::Printf(TEXT("claims %d (standing at the end %d)"), RaceClaimRows.Num(), StandingClaims));
+				Parts.Add(FString::Printf(TEXT("decisions [%s], longest gap from ruled T3 to the record %lld"), *FString::Join(DecisionTicks, TEXT(" ")), GapLongest));
+				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance race: %s"), *FString::Join(Parts, TEXT("; ")));
+			}
 			if (ExpansionSum != Counts.ExpansionPairs)
 			{
 				UE_LOG(LogCosmic, Error, TEXT("CosmicBalance expansion: the counts add up to %lld, not %lld"), ExpansionSum, Counts.ExpansionPairs);
@@ -2969,14 +4000,14 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		}
 		else
 		{
-			UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: could not write %s or %s"), *OutPath, *RowsPath);
+			UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: could not write %s, %s or %s"), *OutPath, *RowsPath, *RaceClaimsPath);
 			Result = 1;
 		}
 		Save->RemoveFromRoot();
 	}
 	else
 	{
-		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: no simulation or role subsystem, or -Rules, -EdictRow, -Diplomacy, -PlayerPolicy, -Guard, -LeaveNearSphere, -WithoutPressure, the death's arguments or -ExaltAsBefore refused: nothing run"));
+		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: no simulation or role subsystem, or -Rules, -EdictRow, -Diplomacy, -PlayerPolicy, -Guard, -LeaveNearSphere, -WithoutPressure, the death's arguments, -ExaltAsBefore, -WithoutB6bData or -FourthRungCap refused: nothing run"));
 		Result = 1;
 	}
 

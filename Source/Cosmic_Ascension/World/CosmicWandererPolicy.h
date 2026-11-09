@@ -41,6 +41,11 @@ struct FCosmicWandererPolicyCounts
 	int32 Answers = 0;
 	// B5 ([B-5a] - the calling line, open question #151's material): the answers that failed, by card row.
 	TMap<FName, int32> FailedByRow;
+	// B6b ([B-6b3b] - the race line's witness cards, notes section 2.1): Cards, Answers (a failed one among them) and the
+	// withdrawn answers, by card row - the policy answers a chain of cards at one boundary, so only it sees each card's end.
+	TMap<FName, int32> CardsByRow;
+	TMap<FName, int32> AnswersByRow;
+	TMap<FName, int32> WithdrawnByRow;
 	// B5: the last throne taken, and its way (the calling line's throne after a succession).
 	int64 LastCrownedAt = -1;
 	const TCHAR* LastCrownedPath = TEXT("none");

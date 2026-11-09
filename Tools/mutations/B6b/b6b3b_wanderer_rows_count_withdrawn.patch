@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+@@ -72,7 +72,6 @@
+ 		{
+ 			++Counts.WithdrawnByRow.FindOrAdd(Card);
+ 		}
+-		else
+ 		{
+ 			++Counts.AnswersByRow.FindOrAdd(Card);
+ 		}

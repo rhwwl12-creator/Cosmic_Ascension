@@ -43,7 +43,11 @@ void CosmicWandererPolicy::Act(const FCosmicWandererPolicy& Policy, UGalaxySimul
 	{
 		Counts.ReverencePeak = FMath::Max(Counts.ReverencePeak, Civ.ReverenceToPlayer);
 	}
-	Counts.Cards += (!State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != CardBefore) ? 1 : 0;
+	if (!State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != CardBefore)
+	{
+		++Counts.Cards;
+		++Counts.CardsByRow.FindOrAdd(State.Knowing.PendingPetitionRow);
+	}
 	if (!Policy.bWander || (Counts.bEnded && !Policy.bPastEnd))
 	{
 		return;
@@ -64,11 +68,23 @@ void CosmicWandererPolicy::Act(const FCosmicWandererPolicy& Policy, UGalaxySimul
 			break;
 		}
 		Counts.Answers += (Taken.Outcome == ECosmicPetitionOutcome::Withdrawn) ? 0 : 1;
+		if (Taken.Outcome == ECosmicPetitionOutcome::Withdrawn)
+		{
+			++Counts.WithdrawnByRow.FindOrAdd(Card);
+		}
+		else
+		{
+			++Counts.AnswersByRow.FindOrAdd(Card);
+		}
 		if (Taken.Outcome == ECosmicPetitionOutcome::Failed)
 		{
 			++Counts.FailedByRow.FindOrAdd(Card);
 		}
-		Counts.Cards += (!State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != Card) ? 1 : 0;
+		if (!State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != Card)
+		{
+			++Counts.Cards;
+			++Counts.CardsByRow.FindOrAdd(State.Knowing.PendingPetitionRow);
+		}
 	}
 	// An answer lifts reverence at once - the coronation it opens may come at this very boundary.
 	for (const FCivilizationState& Civ : State.Civs)

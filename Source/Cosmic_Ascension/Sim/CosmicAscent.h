@@ -4,7 +4,9 @@
 // third rung to the fourth now. A pure function of the state and the tables - no draw, no field, no line, no knowing read
 // (rule 2). The feat judgment asks it in one place (UAscensionSubsystem::JudgePeople, before it looks at the rows of a
 // people the player does not rule standing on the third rung); the player's people and the climb to the fifth rung are never
-// braked. The brake is a count against a cap, never a place a people takes: no text names it so.
+// braked. The balance commandlet's race line reads it too (measurement - Tests/CosmicRaceMeasure.h, B6b [B-6b3b]), and a Tests
+// copy of its count (FourthRungCountOf) is pinned to it by Sim.RaceMeasure. The brake is a count against a cap, never a place a
+// people takes: no text names it so.
 // RULE (section 6.1): files under Sim/ must never include UUserWidget or AActor headers.
 
 #pragma once

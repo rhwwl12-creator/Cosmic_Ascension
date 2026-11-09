@@ -1,0 +1,19 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+@@ -46,7 +46,6 @@
+ 	if (!State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != CardBefore)
+ 	{
+ 		++Counts.Cards;
+-		++Counts.CardsByRow.FindOrAdd(State.Knowing.PendingPetitionRow);
+ 	}
+ 	if (!Policy.bWander || (Counts.bEnded && !Policy.bPastEnd))
+ 	{
+@@ -83,7 +82,6 @@
+ 		if (!State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != Card)
+ 		{
+ 			++Counts.Cards;
+-			++Counts.CardsByRow.FindOrAdd(State.Knowing.PendingPetitionRow);
+ 		}
+ 	}
+ 	// An answer lifts reverence at once - the coronation it opens may come at this very boundary.

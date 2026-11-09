@@ -151,10 +151,11 @@ namespace CosmicEndingTests
 		return Rules;
 	}
 
-	// The game's tables without a KillPlayer (no death but the ones a test records) and with Rules as DT_Rules.
+	// The game's tables without a KillPlayer (no death but the ones a test records) and without B6b's rows (the extinction's
+	// death is code - CosmicTests::WithoutB6bData, outside the WithRules), with Rules as DT_Rules (B6b's two knobs off).
 	FCosmicDataTables EndingTables(const FCosmicDataTables& Original, const FCosmicRulesDef& Rules)
 	{
-		return CosmicTests::WithRules(CosmicTests::WithoutDeath(Original), Rules);
+		return CosmicTests::WithoutB6bData(CosmicTests::WithRules(CosmicTests::WithoutDeath(Original), Rules));
 	}
 
 	// A new galaxy (seed 42) of the given size, paused, at tick At - 1: the next RunHeadless(1) is the tick At.

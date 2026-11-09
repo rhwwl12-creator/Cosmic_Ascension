@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+@@ -434,6 +434,7 @@
+ 				FGalaxyDef Copy = *Galaxy;
+ 				if (Rules && GalaxyRow == Rules->HomeGalaxyRow)
+ 				{
++					Copy = FGalaxyDef();
+ 					Copy.AIFourthRungCap = Cap;
+ 				}
+ 				Galaxies->AddRow(GalaxyRow, Copy);

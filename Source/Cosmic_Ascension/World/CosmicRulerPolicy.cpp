@@ -369,7 +369,8 @@ namespace CosmicRulerPolicyImpl
 		Counts.FirstPressureCardTick = Counts.FirstPressureCardTick < 0 ? State.Tick : Counts.FirstPressureCardTick;
 		Counts.ClaimCards += Card == CosmicRows::PetitionPressureClaim ? 1 : 0;
 		Counts.MeasuredCards += Card == CosmicRows::PetitionPressureMeasured ? 1 : 0;
-		++Counts.PressureCardsByTier[FMath::Clamp(static_cast<int32>(State.Civs[Ruled].Tier), 0, 2)];
+		static_assert(UE_ARRAY_COUNT(Counts.PressureCardsByTier) == static_cast<int32>(EAscensionTier::Tier5_EternalOrder) + 1, "one bin per rung");
+		++Counts.PressureCardsByTier[FMath::Clamp(static_cast<int32>(State.Civs[Ruled].Tier), 0, static_cast<int32>(EAscensionTier::Tier5_EternalOrder))];
 		const int32 SystemIndex = CosmicPetitions::SubjectOf(State, Sim.GetStateIndex(), Ruled, Row->Subject, State.Knowing.PendingPetitionSystemID);
 		for (const FEncounterChoice& Choice : Row->Choices)
 		{

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h b/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
+@@ -89,7 +89,7 @@
+ 	inline FCosmicEndingRecord FifthRungEndOf(const FGalaxyState& State, const FCosmicRulesDef& Rules)
+ 	{
+ 		const FCosmicEndingRecord End = CosmicEndings::EndingOf(State, Rules);
+-		const bool bFifth = End.Kind == CosmicTags::EndingRuledPeople() || End.Kind == CosmicTags::EndingVessel() || End.Kind == CosmicTags::EndingOtherPeople();
++		const bool bFifth = End.Kind == CosmicTags::EndingRuledPeople() || End.Kind == CosmicTags::EndingVessel() || End.Kind == CosmicTags::EndingOtherPeople() || End.Kind == CosmicTags::EndingNoCandidate();
+ 		return bFifth ? End : FCosmicEndingRecord();
+ 	}
+ 

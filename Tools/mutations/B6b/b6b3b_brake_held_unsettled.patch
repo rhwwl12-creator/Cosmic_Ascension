@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h b/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
+@@ -131,7 +131,7 @@
+ 		for (const FName SystemID : Civ.OwnedSystems)
+ 		{
+ 			const int32 SystemIndex = Index.FindSystem(State, SystemID);
+-			if (State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == Civ.CivID && CosmicState::IsSettled(State.Systems[SystemIndex]))
++			if (State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == Civ.CivID)
+ 			{
+ 				Settled.Add(SystemIndex);
+ 			}

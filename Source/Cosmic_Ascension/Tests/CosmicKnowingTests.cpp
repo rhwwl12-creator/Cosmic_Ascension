@@ -1867,11 +1867,12 @@ bool FCosmicSightWalkMovedTest::RunTest(const FString& Parameters)
 	// death (B5 [B-5d2]: the AI awakening's own expiry kills a wanderer standing there - the first crisis puts one on every
 	// capital at tick 150 - and those runs had none: CosmicTests::WithoutDeath, the same world until a death), and no
 	// petition_exalt (B6a [B-6a6] moved its condition to the ruled people's rung, so the ruler's card comes at the second rung
-	// and its answer moves the walk - CosmicTests::WithExaltAsBefore, the card waiting as it did).
+	// and its answer moves the walk - CosmicTests::WithExaltAsBefore, the card waiting as it did), and no B6b data (B6b
+	// [B-6b3b]: the extinction's death is code - CosmicTests::WithoutB6bData, outermost).
 	{
 		FCosmicRulesDef Before = CosmicTests::WithoutStartingEdict(Sim->GetRules());
 		Before.SocietyRecoveryBonus = 0.f;
-		Sim->SetTables(CosmicTests::WithExaltAsBefore(CosmicTests::WithoutDeath(CosmicTests::WithoutDiplomacy(CosmicTests::WithRules(Original, Before)))));
+		Sim->SetTables(CosmicTests::WithoutB6bData(CosmicTests::WithExaltAsBefore(CosmicTests::WithoutDeath(CosmicTests::WithoutDiplomacy(CosmicTests::WithRules(Original, Before))))));
 	}
 
 	struct FCase

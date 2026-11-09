@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+@@ -359,8 +359,6 @@
+ 	{
+ 		const FCosmicRulesDef* GameRules = Base.FindRules();
+ 		FCosmicRulesDef Off = GameRules ? *GameRules : FCosmicRulesDef();
+-		Off.AIUpperRungProgressMultiplier = 1.f;
+-		Off.FleetDelayCountdownShare = 0.f;
+ 		FCosmicDataTables Tables = WithRules(Base, Off);
+ 		auto Note = [Removed](const UDataTable* Table, std::initializer_list<FName> Names)
+ 		{

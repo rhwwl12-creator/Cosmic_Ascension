@@ -1395,7 +1395,8 @@ bool FCosmicSimWandererLoopTest::RunTest(const FString& Parameters)
 }
 
 // The wanderer's policy, rule by rule on the board (B1 header section 5): the first lane neighbour with a crisis standing,
-// not straight back unless it must; one scan on each arrival; the card's choices in turn; no input after the provisional end.
+// not straight back unless it must; one scan on each arrival; the card's choices in turn, and the cards, answers and withdrawn
+// answers by card row, the card a chain opens included (B6b [B-6b3b]); no input after the provisional end.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimWandererPolicyTest, "Cosmic_Ascension.Sim.WandererPolicy", CosmicTests::Flags)
 bool FCosmicSimWandererPolicyTest::RunTest(const FString& Parameters)
 {
@@ -1456,6 +1457,57 @@ bool FCosmicSimWandererPolicyTest::RunTest(const FString& Parameters)
 		Counts.Answers = 1;
 		CosmicWandererPolicy::Act(Walks, *Sim, *Role, ArriveA, Counts);
 		TestTrue(TEXT("The second answer takes the second choice (no Body)"), State->Knowing.PendingPetitionRow.IsNone() && State->Player.Body == Body && Counts.Answers == 2);
+		// B6b [B-6b3b] (the race line's witness cards): the cards, answers and withdrawn answers by card row. The card waited
+		// before the tick, so it did not come at this boundary.
+		TestTrue(TEXT("The answer is counted by its card's row, and nothing withdrawn"), Counts.AnswersByRow.FindRef(ArriveA) == 1 && Counts.WithdrawnByRow.IsEmpty());
+		TestTrue(TEXT("(a card that waited before the tick is no card that came)"), Counts.Cards == 0 && Counts.CardsByRow.IsEmpty());
+		auto Sum = [](const TMap<FName, int32>& ByRow)
+		{
+			int32 Total = 0;
+			for (const TPair<FName, int32>& Each : ByRow)
+			{
+				Total += Each.Value;
+			}
+			return Total;
+		};
+		// A card that comes at the boundary (mutation: not counted by its row); the sums are the counts.
+		auto StandStill = [State]()
+		{
+			State->Player.TravelTargetSystemID = NAME_None;
+			State->Player.TravelTicksRemaining = 0;
+		};
+		StandStill();
+		State->Knowing.PendingPetitionRow = ArriveA;
+		State->Knowing.PendingPetitionSystemID = State->Systems[7].SystemID;
+		FCosmicWandererPolicyCounts Came;
+		CosmicWandererPolicy::Act(Walks, *Sim, *Role, NAME_None, Came);
+		TestTrue(TEXT("A card that came is counted by its row"), Came.CardsByRow.FindRef(ArriveA) == 1 && Came.AnswersByRow.FindRef(ArriveA) == 1);
+		TestTrue(TEXT("and the rows sum to the cards and the answers"), Sum(Came.CardsByRow) == Came.Cards && Sum(Came.AnswersByRow) == Came.Answers && Came.Cards == 1);
+		// A card whose system the vessel left is withdrawn: counted apart, not as an answer (mutation: counted as one).
+		StandStill();
+		State->Knowing.PendingPetitionRow = ArriveA;
+		State->Knowing.PendingPetitionSystemID = State->Systems[6].SystemID;
+		FCosmicWandererPolicyCounts Left;
+		CosmicWandererPolicy::Act(Walks, *Sim, *Role, ArriveA, Left);
+		TestTrue(TEXT("A withdrawn answer is counted by its row apart from the answers"), Left.WithdrawnByRow.FindRef(ArriveA) == 1 && Left.AnswersByRow.IsEmpty()
+			&& Left.Answers == 0 && State->Knowing.PendingPetitionRow.IsNone());
+		// A card whose answer opens the next card at the same boundary (NextEncounter - the chain the policy answers in one Act):
+		// the next card is counted by its row too (mutation: the chain's card not counted by its row). The first choice of
+		// ArriveA opens ArriveB for this case alone; the second answer takes ArriveB's second choice, which opens nothing.
+		StandStill();
+		FEncounterDef* Chained = Sim->GetTables().Encounters ? Sim->GetTables().Encounters->FindRow<FEncounterDef>(ArriveA, TEXT("WandererPolicy"), false) : nullptr;
+		if (TestNotNull(TEXT("(the arrival card of the chain)"), Chained))
+		{
+			Chained->Choices[0].NextEncounter = ArriveB;
+			State->Knowing.PendingPetitionRow = ArriveA;
+			State->Knowing.PendingPetitionSystemID = State->Systems[7].SystemID;
+			FCosmicWandererPolicyCounts Chain;
+			CosmicWandererPolicy::Act(Walks, *Sim, *Role, NAME_None, Chain);
+			Chained->Choices[0].NextEncounter = NAME_None;
+			TestTrue(TEXT("A card a chain opens is counted by its row"), Chain.Cards == 2 && Chain.CardsByRow.FindRef(ArriveA) == 1 && Chain.CardsByRow.FindRef(ArriveB) == 1);
+			TestTrue(TEXT("and the rows sum to the cards and the answers over the chain"), Sum(Chain.CardsByRow) == Chain.Cards && Sum(Chain.AnswersByRow) == Chain.Answers
+				&& Chain.Answers == 2 && Chain.AnswersByRow.FindRef(ArriveB) == 1 && State->Knowing.PendingPetitionRow.IsNone());
+		}
 	}
 
 	// No input after the provisional end: no abdication recorded, no scan, no journey. The end is the clock's, put at the

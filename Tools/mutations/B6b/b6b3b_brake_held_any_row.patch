@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h b/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
+@@ -139,7 +139,7 @@
+ 		for (const FName FeatRow : Tables.GetFeatRowNames())
+ 		{
+ 			const FAscensionFeatDef* Feat = Tables.FindFeat(FeatRow);
+-			if (!Feat || !Feat->IsJudgedRulerRowAt(EAscensionTier::Tier3_Causal))
++			if (!Feat)
+ 			{
+ 				continue;
+ 			}

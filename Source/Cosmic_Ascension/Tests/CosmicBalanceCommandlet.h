@@ -18,7 +18,8 @@
  * its settlement paid nothing in the tick just run - CosmicMegaprojects::PaidNothing; empty for the people the player
  * rules) - and, last, B3's four: FleetPower, Hostile (the people's own hostile stances), Treaties (the treaties it holds)
  * and BorderPeoples (the peoples its systems border - CosmicDiplomacy::BorderTableOf), a second CSV named after -Out with "_rows" before ".csv" (-Out=balance.csv writes balance_rows.csv) with
- * the lines of every 100-tick sample by SourceRow, and eight log lines: the hashes ("CosmicBalance: seed ... hash ...
+ * the lines of every 100-tick sample by SourceRow, a third with "_claims" (balance_claims.csv - B6b [B-6b3b], one row per claim,
+ * below), and eight log lines: the hashes ("CosmicBalance: seed ... hash ...
  * world ..."), a summary (claims placed, ended and joined, the first claim and the first join, the first tick some people
  * holds two settled systems and the claims placed after it, the sphere, wild systems, the tick the vessel was deposed,
  * tick micros mean/p99/max, the slot bytes, the engine bytes before packing and the time of the copy, serialization and packing
@@ -73,6 +74,24 @@
  * embodied ruler, the ruled people at the second rung or above) came to hold in the tick (it did not after the last
  * boundary's inputs, or the tick began a reign), as "tick:kind:row" with kind waited (a card waited at the tick's head),
  * floor (no card put), contest (another Standing card put) or other (a card of another trigger put).
+ * The race line (B6b [B-6b3b], header section 5.1, notes section 2.1 - outside the three lines the runner compares, a record
+ * with no assertion), "CosmicBalance race:", parts joined by "; " in the notes' order, read from the state, the record, the
+ * policies' own counts and the game's pure windows (Tests/CosmicRaceMeasure.h - no rule copied but the fourth rung's count and
+ * the brake's walk of the judgment, pinned by Sim.RaceMeasure and Sim.FourthRungBrake; the copies are named in docs/40): the
+ * climbs of the AI peoples and of the ruled people to the upper rungs, the first end of the fifth rung apart from the record,
+ * the silence, the home galaxy's fourth rung against its cap, the brake, the extinction and the arks, the treaties, the laws,
+ * the binding, #162, the era and the witness, the crown gate's FarAbove, #132, the claims and every boundary's decisions
+ * (docs/40's paragraph on the race line names each part); a tick -1 and a name "-"
+ * while missing, a count over the run unless by the record (up to and including the record's tick). The race check asks at
+ * every tick boundary whether an AI people that climbed to the fourth rung in the tick passed the home galaxy's
+ * AIFourthRungCap (CosmicRaceMeasure::FourthRungCheckOf over the home peoples before the tick - those there before plus those
+ * that climbed, the ruled one counted; the crossings not until 6a): a miss prints a "CosmicBalance race check:" error (the
+ * first miss, and the count when there are more) and fails the run; a run that passes prints no race check line. The claims
+ * file has one row per claim of every owner, in the order seen placed: Claim, SystemID, Owner, Ruled, PlacedTick,
+ * PlacedCount, Guard, GuardDelay, Vigil, CardTick, RemainingAtCard, Resisted, VigilKept, Relief, OwnerChanged, EndTick, EndKind
+ * (B4's five ends by the tick's diff, input or standing), RemainingAtEnd, SealedTick, AfterBinding (-1 where missing; Guard,
+ * Vigil, VigilKept and Relief are B4's). UHT keeps this comment as one string literal (16,380 bytes at most - C2026): the
+ * details are docs/40's.
  * The ruler's policy (World/CosmicRulerPolicy, shared with the hash run of a game process - MVP item 9), between ticks
  * after each tick and before the tick's counts: -Answer=1 answers every card the tick it comes (the first choice the
  * stockpile can pay, from choice (answers so far mod choices) on), -Build=1 presses the
@@ -98,6 +117,17 @@
  * PlayerTierAtLeast 2 (CosmicTests::WithExaltAsBefore - the card never comes) and logs "tables with petition_exalt as
  * before"; it is refused in a build without the automation tests (any value but 0 there, any value but 0 or 1 in a test
  * build: an error line, nothing run) and is not an argument of the hash run or the runner; -SaveAt writes no slot beside it.
+ * -WithoutB6bData=1 and -FourthRungCap=<n> (B6b [B-6b3b], header section 5.1, decision 34 - measurement only, the form of
+ * -ExaltAsBefore=1, applied after -Rules and the other data-off arguments): the first runs on the tables without B6b's rows
+ * (CosmicTests::WithoutB6bData - the two feats above the third rung, project_ark, project_binding, the extinction, the three
+ * galaxy laws, the era's event and enc_witness; a row the data does not hold yet takes nothing out) and with B6b's two knobs
+ * off (AIUpperRungProgressMultiplier 1, FleetDelayCountdownShare 0; every other field of the rules kept, -Rules's too) - the
+ * data-off side of a pair in the same build - and logs "tables without B6b's data - rows taken out [...]" with the knobs'
+ * old values; the second puts the home galaxy row's AIFourthRungCap to n (CosmicTests::GalaxiesWithCap - 0 is no brake;
+ * -Rules sets DT_Rules alone) and logs "home galaxy <row> AIFourthRungCap <n> (was <cap>)". Both are refused in a build
+ * without the automation tests, and so are a -WithoutB6bData but 0 or 1 and a -FourthRungCap below 0 or with no home galaxy
+ * row in the tables (an error line each, nothing run; a -FourthRungCap that is not a number reads as 0); neither is an
+ * argument of the hash run or the runner, and -SaveAt writes no slot beside either.
  *
  *   UnrealEditor-Cmd Cosmic_Ascension.uproject -run=CosmicBalance -Seed=42 -Ticks=20000 -Out=balance.csv
  *

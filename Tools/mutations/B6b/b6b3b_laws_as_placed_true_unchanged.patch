@@ -1,0 +1,14 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h b/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
+@@ -200,10 +200,6 @@
+ 				bChanged = true;
+ 			}
+ 		}
+-		if (!bChanged)
+-		{
+-			return false;
+-		}
+ 		Out.Systems = After.Systems;
+ 		Out.Civs = MoveTemp(Civs);
+ 		return true;

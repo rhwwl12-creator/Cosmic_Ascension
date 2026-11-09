@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h b/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
+@@ -151,7 +151,7 @@
+ 				View.GalaxyRow = Civ.GalaxyRow;
+ 				View.SourceRow = FeatRow;
+ 				View.SinceTick = 0;
+-				if (UCosmicEventSubsystem::CheckAll(Feat->CompletionConditions, View))
++				if (true || UCosmicEventSubsystem::CheckAll(Feat->CompletionConditions, View))
+ 				{
+ 					return true;
+ 				}

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h b/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
+@@ -185,7 +185,7 @@
+ 		for (FCivilizationState& Civ : Civs)
+ 		{
+ 			const FPeopleLaws* Held = Before.Find(Civ.CivID);
+-			const int32 Dropped = Civ.ActiveEdicts.RemoveAll([&Tables, Held](FName Row) { return CosmicEdicts::IsGalaxyLaw(Tables, Row) && !(Held && Held->Laws.Contains(Row)); });
++			const int32 Dropped = Civ.ActiveEdicts.RemoveAll([&Tables, Held](FName Row) { return CosmicEdicts::IsGalaxyLaw(Tables, Row) && Held && !Held->Laws.Contains(Row); });
+ 			bChanged |= Dropped > 0;
+ 		}
+ 		for (const TPair<FName, FPeopleLaws>& Entry : Before)

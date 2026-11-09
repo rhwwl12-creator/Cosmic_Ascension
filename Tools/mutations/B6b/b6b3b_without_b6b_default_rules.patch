@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+@@ -358,7 +358,7 @@
+ 	inline FCosmicDataTables WithoutB6bData(const FCosmicDataTables& Base, TArray<FName>* Removed = nullptr)
+ 	{
+ 		const FCosmicRulesDef* GameRules = Base.FindRules();
+-		FCosmicRulesDef Off = GameRules ? *GameRules : FCosmicRulesDef();
++		FCosmicRulesDef Off = GameRules ? FCosmicRulesDef() : FCosmicRulesDef();
+ 		Off.AIUpperRungProgressMultiplier = 1.f;
+ 		Off.FleetDelayCountdownShare = 0.f;
+ 		FCosmicDataTables Tables = WithRules(Base, Off);

@@ -30,6 +30,7 @@
 #include "Player/PlayerRoleSubsystem.h"
 #include "Save/CosmicSaveSubsystem.h"
 #include "Sim/GalaxySimulationSubsystem.h"
+#include "Tests/CosmicB6bRowNames.h"
 #include "Tests/CosmicTestProbe.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
@@ -266,7 +267,8 @@ namespace CosmicTests
 	// (both outcomes of every choice) - the data-off side of a pair in the same build (-WithoutDeath=1, WithoutPressure's form).
 	// Everything else as given. The data's deaths only: the ruler's death at an extinction's expiry is code
 	// (CosmicHazards::KillsTheRulerOf - B6b decision 5) and stays while a Hazard.Extinction row does (none in the game's data
-	// before [B-6b6]; a test that means a world without death then takes the B6b rows out too - B6b header section 5.1).
+	// before [B-6b6]); a test that means a world without death takes the B6b rows out too: CosmicTests::WithoutB6bData,
+	// outside every WithRules (B6b header section 5.1).
 	inline FCosmicDataTables WithoutDeath(const FCosmicDataTables& Base)
 	{
 		auto Strip = [](TArray<FCosmicEffect>& Effects)
@@ -343,6 +345,54 @@ namespace CosmicTests
 		return Tables;
 	}
 
+	// The tables without B6b's data (B6b header section 5.1, decision 34 - [B-6b3b]): the data-off side of a pair in the same
+	// build (-WithoutB6bData=1, WithoutDeath's form) and the world without death of a test (with WithoutDeath). The rules of
+	// Base (the C++ defaults without a rules row) with B6b's two knobs off - AIUpperRungProgressMultiplier 1 and
+	// FleetDelayCountdownShare 0 - and every other field kept, the -Rules fields among them (WithoutDiplomacy's form); then
+	// B6b's rows taken out of a copy of each table (CosmicB6bRows, and CosmicRows::ProjectBinding): DT_Feats the two feats above
+	// the third rung, DT_Megaprojects the ark and the binding, DT_Hazards the extinction, DT_Edicts the three galaxy laws,
+	// DT_Events the era's row and DT_Encounters the witness. A name the table does not hold yet takes nothing out; Removed, when
+	// given, gets every name a table held, in this order. The clock, GalaxyLawsToHold, DT_Galaxies (-FourthRungCap's) and B6b's
+	// nine log rows stay: they are lines, not world, reached only through the rows taken out. Apply it outside every
+	// WithRules (a later WithRules replaces the knobs).
+	inline FCosmicDataTables WithoutB6bData(const FCosmicDataTables& Base, TArray<FName>* Removed = nullptr)
+	{
+		const FCosmicRulesDef* GameRules = Base.FindRules();
+		FCosmicRulesDef Off = GameRules ? *GameRules : FCosmicRulesDef();
+		Off.AIUpperRungProgressMultiplier = 1.f;
+		Off.FleetDelayCountdownShare = 0.f;
+		FCosmicDataTables Tables = WithRules(Base, Off);
+		auto Note = [Removed](const UDataTable* Table, std::initializer_list<FName> Names)
+		{
+			for (const FName& Name : Names)
+			{
+				if (Removed && Table && Table->GetRowMap().Contains(Name))
+				{
+					Removed->Add(Name);
+				}
+			}
+		};
+		const std::initializer_list<FName> Feats = { CosmicB6bRows::FeatPassageByArk, CosmicB6bRows::FeatLawsAndBinding };
+		const std::initializer_list<FName> Projects = { CosmicB6bRows::ProjectArk, CosmicRows::ProjectBinding };
+		const std::initializer_list<FName> Hazards = { CosmicB6bRows::CrisisSpeciesExtinction };
+		const std::initializer_list<FName> Edicts = { CosmicB6bRows::EdictWideMachineAccord, CosmicB6bRows::EdictWideQuarantine, CosmicB6bRows::EdictWideWarning };
+		const std::initializer_list<FName> Events = { CosmicB6bRows::EventEraEndured };
+		const std::initializer_list<FName> Encounters = { CosmicB6bRows::EncWitness };
+		Note(Base.Feats, Feats);
+		Tables.Feats = CopyWithout<FAscensionFeatDef>(Base.Feats, Feats);
+		Note(Base.Megaprojects, Projects);
+		Tables.Megaprojects = CopyWithout<FMegaprojectDef>(Base.Megaprojects, Projects);
+		Note(Base.Hazards, Hazards);
+		Tables.Hazards = CopyWithout<FHazardDef>(Base.Hazards, Hazards);
+		Note(Base.Edicts, Edicts);
+		Tables.Edicts = CopyWithout<FEdictDef>(Base.Edicts, Edicts);
+		Note(Base.Events, Events);
+		Tables.Events = CopyWithout<FCosmicEventDef>(Base.Events, Events);
+		Note(Base.Encounters, Encounters);
+		Tables.Encounters = CopyWithout<FEncounterDef>(Base.Encounters, Encounters);
+		return Tables;
+	}
+
 	// The tables with DT_Galaxies replaced, everything else as given (as WithTranscendents). A test that hands it to SetTables
 	// puts a copy of the game's home row in it: a table without the home row is an error line and the C++ defaults (7.4).
 	inline FCosmicDataTables WithGalaxies(const FCosmicDataTables& Base, UDataTable* Galaxies)
@@ -367,6 +417,29 @@ namespace CosmicTests
 		Row.BridgeTicks = 0;
 		Row.MapPosition = MapPosition;
 		return Row;
+	}
+
+	// A copy of the game's galaxy rows with the home row's AIFourthRungCap set to Cap (the tables keep every other row) - for
+	// WithGalaxies. The home row is the rules row's HomeGalaxyRow; every row is copied and only the home row's cap is set. A
+	// null DT_Galaxies gives an empty table, which holds no home row: SetTables reports that with an error line (the
+	// commandlet's -FourthRungCap asks for the home row first).
+	inline UDataTable* GalaxiesWithCap(const FCosmicDataTables& Original, int32 Cap)
+	{
+		UDataTable* Galaxies = CosmicTests::NewTable(FGalaxyDef::StaticStruct());
+		const FCosmicRulesDef* Rules = Original.FindRules();
+		for (const FName GalaxyRow : Original.GetGalaxyRowNames())
+		{
+			if (const FGalaxyDef* Galaxy = Original.FindGalaxy(GalaxyRow))
+			{
+				FGalaxyDef Copy = *Galaxy;
+				if (Rules && GalaxyRow == Rules->HomeGalaxyRow)
+				{
+					Copy.AIFourthRungCap = Cap;
+				}
+				Galaxies->AddRow(GalaxyRow, Copy);
+			}
+		}
+		return Galaxies;
 	}
 
 	// The tables with DT_Transcendents replaced, everything else as given.

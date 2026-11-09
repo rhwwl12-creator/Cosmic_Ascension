@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+@@ -432,7 +432,7 @@
+ 			if (const FGalaxyDef* Galaxy = Original.FindGalaxy(GalaxyRow))
+ 			{
+ 				FGalaxyDef Copy = *Galaxy;
+-				if (Rules && GalaxyRow == Rules->HomeGalaxyRow)
++				if (Rules)
+ 				{
+ 					Copy.AIFourthRungCap = Cap;
+ 				}

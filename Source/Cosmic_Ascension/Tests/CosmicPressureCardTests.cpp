@@ -616,8 +616,9 @@ bool FCosmicSimResistDelayTest::RunTest(const FString& Parameters)
 }
 
 // The pressure policies of the script (header section 2.9 - measurement only): the order of the kinds on a pressure card,
-// Tribute refused, the edicts a card enacted and the vigil kept while a claim stands, no relief on a claim, the guard of
-// -Guard=1, and the near-sphere crises -LeaveNearSphere=1 leaves alone; Round as before.
+// Tribute refused, the edicts a card enacted and the vigil kept while a claim stands, the cards counted by the ruled people's
+// rung (one bin per rung - B6b [B-6b3b]), no relief on a claim, the guard of -Guard=1, and the near-sphere crises
+// -LeaveNearSphere=1 leaves alone; Round as before.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimRulerPressurePolicyTest, "Cosmic_Ascension.Sim.RulerPressurePolicy", CosmicTests::Flags)
 bool FCosmicSimRulerPressurePolicyTest::RunTest(const FString& Parameters)
 {
@@ -730,6 +731,30 @@ bool FCosmicSimRulerPressurePolicyTest::RunTest(const FString& Parameters)
 		State->Systems[Capital].HazardTicksRemaining = 0;
 		State->Systems[Near].ActiveHazard = Tag(TEXT("Hazard.Claim"));
 		State->Systems[Near].HazardTicksRemaining = 200;
+	}
+
+	// The pressure cards by the ruled people's rung, one bin per rung (B6b [B-6b3b] - the fourth and the fifth are bins of their
+	// own, mutation: the three bins of B4, the third and up): a silent policy (no answer, no input) counts the card that came.
+	{
+		const FCosmicRulerPolicy Silent{ false, false, false, false, NAME_None, 0, ECosmicPressurePolicy::Round, 0, false, false };
+		const EAscensionTier TierWas = Ruled.Tier;
+		const FName CardWas = State->Knowing.PendingPetitionRow;
+		const FName CardSystemWas = State->Knowing.PendingPetitionSystemID;
+		TestTrue(TEXT("(the vessel rules the board's people)"), State->Player.Role == EPlayerRole::Ruler && Ruled.bIsPlayerRuled);
+		State->Knowing.PendingPetitionRow = PressFirst;
+		State->Knowing.PendingPetitionSystemID = State->Systems[Near].SystemID;
+		Ruled.Tier = EAscensionTier::Tier4_Transcendent;
+		FCosmicRulerPolicyCounts Counts;
+		CosmicRulerPolicy::Act(Silent, *Sim, *Role, NAME_None, Counts);
+		TestTrue(TEXT("A pressure card at the fourth rung is counted in the fourth bin, not the third"), Counts.PressureCards == 1 && Counts.PressureCardsByTier[3] == 1
+			&& Counts.PressureCardsByTier[2] == 0);
+		Ruled.Tier = EAscensionTier::Tier5_EternalOrder;
+		FCosmicRulerPolicyCounts Fifth;
+		CosmicRulerPolicy::Act(Silent, *Sim, *Role, NAME_None, Fifth);
+		TestTrue(TEXT("and at the fifth rung in the fifth"), Fifth.PressureCardsByTier[4] == 1 && Fifth.PressureCardsByTier[3] == 0 && Fifth.PressureCardsByTier[2] == 0);
+		Ruled.Tier = TierWas;
+		State->Knowing.PendingPetitionRow = CardWas;
+		State->Knowing.PendingPetitionSystemID = CardSystemWas;
 	}
 
 	// The vigil the script enacted itself (step (3)) while the claim stands: a pressure policy keeps it - in step (4) and when

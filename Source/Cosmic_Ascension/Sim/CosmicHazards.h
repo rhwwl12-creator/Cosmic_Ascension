@@ -252,8 +252,9 @@ namespace CosmicHazards
 	 * section 2.2, decision 5): Hazard.Extinction alone - the one death the code records rather than a row (the second source
 	 * of a death the design names; DECISIONS_LOG B6b). Its expiry lets the people go (LetPeopleGo) and records KillPlayer
 	 * (Death.Hazard, the row as its source) on a subject with no system (VesselAtRiskOf: the ruler of that people; the birth
-	 * protection decided there), then DeposeRuler. The expiry's code, the death line's choice (log_death_extinction) and the
-	 * screen's answers read it: one answer. KillsAVesselOf stays the data's (a vessel standing there) and is no part of it.
+	 * protection decided there), then DeposeRuler. The expiry's code, the death line's choice (log_death_extinction), the
+	 * screen's answers and the balance commandlet's race line (B6b [B-6b3b], measurement) read it: one answer. KillsAVesselOf
+	 * stays the data's (a vessel standing there) and is no part of it.
 	 */
 	COSMIC_ASCENSION_API bool KillsTheRulerOf(const FGameplayTag& Tag);
 }

@@ -1,0 +1,13 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+@@ -390,6 +390,9 @@
+ 		Tables.Events = CopyWithout<FCosmicEventDef>(Base.Events, Events);
+ 		Note(Base.Encounters, Encounters);
+ 		Tables.Encounters = CopyWithout<FEncounterDef>(Base.Encounters, Encounters);
++		Tables.LogTemplates = CopyWithout<FLogTemplateDef>(Base.LogTemplates, { CosmicRows::LogRecordExtinct, CosmicRows::LogDeathExtinction,
++			CosmicRows::LogFallenBound, CosmicRows::LogSiegeOnUsFar, CosmicRows::LogTreatyBrokenFar, CosmicRows::LogSiegeLostFar, CosmicRows::LogSiegeHeldFar,
++			CosmicRows::LogSiegeLiftedFar, CosmicRows::LogStanceLapsedFar });
+ 		return Tables;
+ 	}
+ 

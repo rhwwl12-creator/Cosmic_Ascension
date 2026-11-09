@@ -95,7 +95,8 @@ struct FCosmicRulerPolicyCounts
 	TArray<FName> CardEdicts;
 	// B4 (header section 5, the commandlet's pressure line - measurement only, the policy's play unchanged): the pressure
 	// cards seen to come (at CardsCome's two places), before the end, the tick of the first (-1: none), as the claim card
-	// and the measured card, and by the ruled people's rung (first, second, third and up); the answers taken on them by kind
+	// and the measured card, and by the ruled people's rung (one bin per rung - B6b [B-6b3b]: the third bin was the third and
+	// up before; the pressure and race lines read them); the answers taken on them by kind
 	// (intercede, discern, watch, edict, resist) and before the end; the choices greyed when such a card came, by reason (the
 	// stockpile's, the gate's - its kind and reason); the enactments a card's answer made, by row, and the card edicts the
 	// script revoked; the least Insight a discernment was taken at (-1: none).
@@ -104,7 +105,7 @@ struct FCosmicRulerPolicyCounts
 	int64 FirstPressureCardTick = -1;
 	int32 ClaimCards = 0;
 	int32 MeasuredCards = 0;
-	int32 PressureCardsByTier[3] = { 0, 0, 0 };
+	int32 PressureCardsByTier[5] = { 0, 0, 0, 0, 0 };
 	int32 PressureAnswers[5] = { 0, 0, 0, 0, 0 };
 	int32 PressureAnswersByEnd = 0;
 	TMap<FString, int32> PressureGreyed;

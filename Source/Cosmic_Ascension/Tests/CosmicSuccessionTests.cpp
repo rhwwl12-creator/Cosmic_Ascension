@@ -621,13 +621,14 @@ bool FCosmicSuccessionPossibleTest::RunTest(const FString& Parameters)
 	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
 	const FGalaxyState& State = Sim->GetState();
 
-	// The input-less run: the game's data without a kill anywhere, the leap knobs (read at a death only) the test's own.
+	// The input-less run: the game's data without a kill anywhere - no KillPlayer (CosmicTests::WithoutDeath) and no B6b row
+	// (CosmicTests::WithoutB6bData: the extinction's death is code) -, the leap knobs (read at a death only) the test's own.
 	constexpr int64 RunLeapTicks = 20;
 	FCosmicRulesDef RunRules = GameRules;
 	RunRules.LeapTicksMin = static_cast<int32>(RunLeapTicks);
 	RunRules.LeapTicksMax = static_cast<int32>(RunLeapTicks);
 	RunRules.LeapTotalCap = 1000000;
-	Sim->SetTables(CosmicTests::WithoutDeath(CosmicTests::WithRules(Original, RunRules)));
+	Sim->SetTables(CosmicTests::WithoutB6bData(CosmicTests::WithoutDeath(CosmicTests::WithRules(Original, RunRules))));
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	const int64 Samples[] = { 600, 3000, 7000, 11000, 15000, 20000 };
 	int32 WithPlace = 0;

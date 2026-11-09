@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h b/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
+@@ -49,7 +49,7 @@
+ 
+ 		bool Holds() const
+ 		{
+-			return !bAsked || Before + Climbed <= Cap;
++			return !bAsked || Before + Climbed < Cap;
+ 		}
+ 	};
+ 

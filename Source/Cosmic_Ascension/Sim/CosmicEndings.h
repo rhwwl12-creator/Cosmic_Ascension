@@ -27,7 +27,8 @@ namespace CosmicEndings
 	 * State.Tick): the rung was reached at the end of the AI stage, while the vessel stood, before the tenth stage carried the death out.
 	 * Reads State.Tick, Calling (Lives, LifeState, PendingLeapTicks, PersonalTier), Civs (CivID, Tier) and the knob only - never Knowing, the log, the
 	 * chronicle or the telling stream (rule 2). No draw, no write. Called by the one place that writes the record (UGalaxySimulationSubsystem::SimulateTick,
-	 * after the tenth stage, while State.Ending is empty), the tests and the commandlet's end check; the screens, policies and the save layer read the record.
+	 * after the tenth stage, while State.Ending is empty), the tests, the commandlet's end check and its race line (Tests/CosmicRaceMeasure.h's
+	 * FifthRungEndOf - B6b [B-6b3b], measurement); the screens, policies and the save layer read the record.
 	 */
 	COSMIC_ASCENSION_API FCosmicEndingRecord EndingOf(const FGalaxyState& State, const FCosmicRulesDef& Rules);
 

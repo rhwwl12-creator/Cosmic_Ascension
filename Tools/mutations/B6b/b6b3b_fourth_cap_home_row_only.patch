@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+@@ -429,7 +429,7 @@
+ 		const FCosmicRulesDef* Rules = Original.FindRules();
+ 		for (const FName GalaxyRow : Original.GetGalaxyRowNames())
+ 		{
+-			if (const FGalaxyDef* Galaxy = Original.FindGalaxy(GalaxyRow))
++			if (const FGalaxyDef* Galaxy = (Rules && GalaxyRow == Rules->HomeGalaxyRow) ? Original.FindGalaxy(GalaxyRow) : nullptr)
+ 			{
+ 				FGalaxyDef Copy = *Galaxy;
+ 				if (Rules && GalaxyRow == Rules->HomeGalaxyRow)

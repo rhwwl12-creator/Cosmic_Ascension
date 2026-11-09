@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h b/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
+@@ -78,7 +78,7 @@
+ 		int32 Count = 0;
+ 		for (const FCivilizationState& Civ : State.Civs)
+ 		{
+-			Count += (Civ.GalaxyRow == GalaxyRow && static_cast<int32>(Civ.Tier) >= static_cast<int32>(EAscensionTier::Tier4_Transcendent)) ? 1 : 0;
++			Count += (Civ.GalaxyRow == GalaxyRow && !Civ.bIsPlayerRuled && static_cast<int32>(Civ.Tier) >= static_cast<int32>(EAscensionTier::Tier4_Transcendent)) ? 1 : 0;
+ 		}
+ 		return Count;
+ 	}

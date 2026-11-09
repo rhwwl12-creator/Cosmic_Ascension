@@ -2690,6 +2690,103 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		Moved.Hazards = Hazards;
 		TestTrue(TEXT("(the walk finds a death on the awakening's branch side)"), KillPlayersOf(Moved).Contains(TEXT("DT_Hazards.crisis_ai_awakening.OnExpireBranchEffects Death.Hazard")));
 	}
+	// B6b [B-6b3b] (header section 5.1, decision 34): CosmicTests::WithoutB6bData, the data-off side of B6b's pairs
+	// (-WithoutB6bData=1) and, with WithoutDeath, a test's world without death. (1) Today's data holds one of B6b's ten rows,
+	// project_binding: the helper takes exactly it (a tripwire - [B-6b6] brings rows and updates it). (2) On a full copy - a
+	// stand-in row for each of the ten (the extinction with Hazard.Extinction, the three laws of the galaxy's scope) and its
+	// two knobs on: the ten are taken out and nothing else (mutations: the binding or the extinction kept, another row taken),
+	// the knobs are off and every other field of the rules is the copy's (mutations: the knobs kept; the rules from the C++
+	// defaults), B6b's nine log rows stay (mutation: taken out), and in either order with WithoutDeath no hazard row kills the
+	// ruler at its expiry (KillPlayersOf's emptiness is WithoutDeath's own pin above).
+	if (TestNotNull(TEXT("(the game's rules for B6b's data)"), Game.FindRules()) && Game.Feats.Get() && Game.Megaprojects.Get() && Game.Hazards.Get() && Game.Edicts.Get()
+		&& Game.Events.Get() && Game.Encounters.Get() && Game.LogTemplates.Get())
+	{
+		const TArray<FName> Ten = { CosmicB6bRows::FeatPassageByArk, CosmicB6bRows::FeatLawsAndBinding, CosmicB6bRows::ProjectArk, CosmicRows::ProjectBinding,
+			CosmicB6bRows::CrisisSpeciesExtinction, CosmicB6bRows::EdictWideMachineAccord, CosmicB6bRows::EdictWideQuarantine, CosmicB6bRows::EdictWideWarning,
+			CosmicB6bRows::EventEraEndured, CosmicB6bRows::EncWitness };
+		auto Names = [](const TArray<FName>& Rows) { return FString::JoinBy(Rows, TEXT(" "), [](FName Row) { return Row.ToString(); }); };
+		TArray<FName> Today;
+		CosmicTests::WithoutB6bData(Game, &Today);
+		TestTrue(*FString::Printf(TEXT("Today's data: WithoutB6bData takes out project_binding alone (taken: %s) - [B-6b6] updates this pin with its rows"), *Names(Today)),
+			Today == TArray<FName>{ CosmicRows::ProjectBinding });
+
+		// The full copy.
+		FCosmicRulesDef FullRules = *Game.FindRules();
+		FullRules.AIUpperRungProgressMultiplier = 0.375f;
+		FullRules.FleetDelayCountdownShare = 0.5f;
+		FullRules.GalaxyLawsToHold = 7;
+		FCosmicDataTables Full = CosmicTests::WithRules(Game, FullRules);
+		auto StandIn = [](UDataTable* Table, FName Row, const auto& Def)
+		{
+			if (!Table->GetRowMap().Contains(Row))
+			{
+				Table->AddRow(Row, Def);
+			}
+		};
+		UDataTable* Feats = CopyOf<FAscensionFeatDef>(Game.Feats);
+		StandIn(Feats, CosmicB6bRows::FeatPassageByArk, FAscensionFeatDef());
+		StandIn(Feats, CosmicB6bRows::FeatLawsAndBinding, FAscensionFeatDef());
+		Full.Feats = Feats;
+		UDataTable* Projects = CopyOf<FMegaprojectDef>(Game.Megaprojects);
+		StandIn(Projects, CosmicB6bRows::ProjectArk, FMegaprojectDef());
+		StandIn(Projects, CosmicRows::ProjectBinding, FMegaprojectDef());
+		Full.Megaprojects = Projects;
+		UDataTable* Hazards = CopyOf<FHazardDef>(Game.Hazards);
+		FHazardDef Extinction;
+		Extinction.HazardTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Extinction")));
+		StandIn(Hazards, CosmicB6bRows::CrisisSpeciesExtinction, Extinction);
+		Full.Hazards = Hazards;
+		UDataTable* Edicts = CopyOf<FEdictDef>(Game.Edicts);
+		FEdictDef Law;
+		Law.Scope = ECosmicEdictScope::HomeGalaxy;
+		Law.RequiredTier = EAscensionTier::Tier4_Transcendent;
+		for (const FName Row : { CosmicB6bRows::EdictWideMachineAccord, CosmicB6bRows::EdictWideQuarantine, CosmicB6bRows::EdictWideWarning })
+		{
+			StandIn(Edicts, Row, Law);
+		}
+		Full.Edicts = Edicts;
+		UDataTable* Events = CopyOf<FCosmicEventDef>(Game.Events);
+		StandIn(Events, CosmicB6bRows::EventEraEndured, FCosmicEventDef());
+		Full.Events = Events;
+		UDataTable* Encounters = CopyOf<FEncounterDef>(Game.Encounters);
+		StandIn(Encounters, CosmicB6bRows::EncWitness, FEncounterDef());
+		Full.Encounters = Encounters;
+		auto RowCount = [](const UDataTable* Table) { return Table ? Table->GetRowMap().Num() : -1; };
+		auto KillsTheRuler = [](const FCosmicDataTables& Tables)
+		{
+			bool bKills = false;
+			for (const FName Row : Tables.Hazards ? Tables.Hazards->GetRowNames() : TArray<FName>())
+			{
+				const FHazardDef* Hazard = Tables.FindHazard(Row);
+				bKills |= Hazard && CosmicHazards::KillsTheRulerOf(Hazard->HazardTag);
+			}
+			return bKills;
+		};
+		TestTrue(TEXT("(the full copy holds a row whose expiry kills the ruler)"), KillsTheRuler(Full));
+
+		TArray<FName> Removed;
+		const FCosmicDataTables Off = CosmicTests::WithoutB6bData(Full, &Removed);
+		TestTrue(*FString::Printf(TEXT("On the full copy WithoutB6bData takes out the ten rows, in order (taken: %s)"), *Names(Removed)), Removed == Ten);
+		TestTrue(TEXT("and keeps every other row of the six tables"), RowCount(Off.Feats.Get()) == RowCount(Full.Feats.Get()) - 2
+			&& RowCount(Off.Megaprojects.Get()) == RowCount(Full.Megaprojects.Get()) - 2 && RowCount(Off.Hazards.Get()) == RowCount(Full.Hazards.Get()) - 1
+			&& RowCount(Off.Edicts.Get()) == RowCount(Full.Edicts.Get()) - 3 && RowCount(Off.Events.Get()) == RowCount(Full.Events.Get()) - 1
+			&& RowCount(Off.Encounters.Get()) == RowCount(Full.Encounters.Get()) - 1);
+		TestTrue(TEXT("and leaves the other tables alone (the log rows, the galaxies)"), RowCount(Off.LogTemplates.Get()) == RowCount(Full.LogTemplates.Get())
+			&& RowCount(Off.Galaxies.Get()) == RowCount(Full.Galaxies.Get()));
+		const FCosmicRulesDef* OffRules = Off.FindRules();
+		FCosmicRulesDef Expected = FullRules;
+		Expected.AIUpperRungProgressMultiplier = 1.f;
+		Expected.FleetDelayCountdownShare = 0.f;
+		TestTrue(TEXT("Its knobs are off (1 and 0) and every other field of the rules is the copy's - GalaxyLawsToHold and the clock too"),
+			OffRules && FCosmicRulesDef::StaticStruct()->CompareScriptStruct(OffRules, &Expected, 0));
+		for (const FName Row : { CosmicRows::LogRecordExtinct, CosmicRows::LogDeathExtinction, CosmicRows::LogFallenBound, CosmicRows::LogSiegeOnUsFar,
+			CosmicRows::LogTreatyBrokenFar, CosmicRows::LogSiegeLostFar, CosmicRows::LogSiegeHeldFar, CosmicRows::LogSiegeLiftedFar, CosmicRows::LogStanceLapsedFar })
+		{
+			TestNotNull(*FString::Printf(TEXT("B6b's log row %s stays (a line, not world)"), *Row.ToString()), Off.FindLogTemplate(Row));
+		}
+		TestFalse(TEXT("WithoutB6bData after WithoutDeath leaves no hazard that kills the ruler"), KillsTheRuler(CosmicTests::WithoutB6bData(CosmicTests::WithoutDeath(Full))));
+		TestFalse(TEXT("and so does WithoutDeath after WithoutB6bData"), KillsTheRuler(CosmicTests::WithoutDeath(CosmicTests::WithoutB6bData(Full))));
+	}
 	// B5 [B-5d2] (balance review: the first-crisis edge; DECISIONS_LOG B5 [B-5d2]): the first crisis stands on every capital at
 	// FirstCrisisTick and expires its CountdownTicks later; when that row's own expiry kills, the first vessel (born at tick 0)
 	// must still be inside the birth protection then - VesselAtRiskOf shields Tick - BornTick < BirthProtectionTicks, so the

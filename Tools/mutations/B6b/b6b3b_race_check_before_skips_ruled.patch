@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h b/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
+@@ -62,7 +62,7 @@
+ 		{
+ 			const bool bStood = static_cast<int32>(Step.Before) >= Fourth;
+ 			const bool bClimbed = !bStood && static_cast<int32>(Step.After) >= Fourth;
+-			Check.Before += bStood ? 1 : 0;
++			Check.Before += (bStood && !Step.bRuled) ? 1 : 0;
+ 			Check.Climbed += bClimbed ? 1 : 0;
+ 			Check.bAsked |= Cap > 0 && bClimbed && !Step.bRuled;
+ 		}

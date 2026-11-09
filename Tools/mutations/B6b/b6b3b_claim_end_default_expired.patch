@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h b/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h
+@@ -98,7 +98,7 @@
+ 	// edict), 3 another end - in that order of precedence.
+ 	inline int32 ClaimEndOf(bool bJoined, bool bEased, bool bAnswered, bool bExpired)
+ 	{
+-		return bJoined ? 0 : bEased ? 1 : bAnswered ? 2 : bExpired ? 4 : 3;
++		return bJoined ? 0 : bEased ? 1 : bAnswered ? 2 : bExpired ? 4 : 4;
+ 	}
+ 
+ 	// The word of an end of ClaimEndOf, and of the two the claims file adds: 5 input (gone at an input - B4 rule 8' forbids it),

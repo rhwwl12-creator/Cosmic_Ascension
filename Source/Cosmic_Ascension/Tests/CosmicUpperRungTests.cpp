@@ -43,6 +43,7 @@
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Templates/Function.h"
+#include "Tests/CosmicRaceMeasure.h"
 #include "Tests/CosmicTestHelpers.h"
 #include "UObject/Package.h"
 
@@ -1265,26 +1266,6 @@ namespace CosmicUpperRungTests
 		return Board;
 	}
 
-	// A copy of the game's galaxy rows with the home row's AIFourthRungCap set to Cap (the tables keep every other row).
-	UDataTable* GalaxiesWithCap(const FCosmicDataTables& Original, int32 Cap)
-	{
-		UDataTable* Galaxies = CosmicTests::NewTable(FGalaxyDef::StaticStruct());
-		const FCosmicRulesDef* Rules = Original.FindRules();
-		for (const FName GalaxyRow : Original.GetGalaxyRowNames())
-		{
-			if (const FGalaxyDef* Galaxy = Original.FindGalaxy(GalaxyRow))
-			{
-				FGalaxyDef Copy = *Galaxy;
-				if (Rules && GalaxyRow == Rules->HomeGalaxyRow)
-				{
-					Copy.AIFourthRungCap = Cap;
-				}
-				Galaxies->AddRow(GalaxyRow, Copy);
-			}
-		}
-		return Galaxies;
-	}
-
 	// Whether a system holds a completion record of the binding's row.
 	bool HoldsBinding(const FStarSystemState& System)
 	{
@@ -1428,7 +1409,11 @@ bool FCosmicSimUpperRungDelayTest::RunTest(const FString& Parameters)
 // braking) and a galaxy row the tables do not hold (mutation: closed) are no brake. A blocked people climbs on the tick the
 // count drops - a people of the fourth rung that let every system go leaves at the crossing stage (mutation: the count from the
 // third rung, the asking people counting itself), a crossing that landed is no longer inbound (mutation: a landed crossing
-// counted). No draw, no line.
+// counted). No draw, no line. The race line's CosmicRaceMeasure::BrakeHeldOf (B6b [B-6b3b] - the judgment's walk without
+// Ascend, read at the boundary) agrees with the judgment: the people held is held, the one that climbed is not, and neither is
+// a people of the third under a cap of 0 (mutation: the window not asked), one whose deed is unmet (mutation: the deed not
+// asked), one whose deed is met only by a row of another rung (mutation: every row asked), one whose every system is being
+// settled (mutation: the systems being settled asked) or the people the player rules (mutation: counted).
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimFourthRungBrakeTest, "Cosmic_Ascension.Sim.FourthRungBrake", CosmicTests::Flags)
 bool FCosmicSimFourthRungBrakeTest::RunTest(const FString& Parameters)
 {
@@ -1469,7 +1454,7 @@ bool FCosmicSimFourthRungBrakeTest::RunTest(const FString& Parameters)
 			return nullptr;
 		}
 		FCosmicDataTables Tables = Sim->GetTables();
-		Tables.Galaxies = Cap == INDEX_NONE ? nullptr : GalaxiesWithCap(Original, Cap);
+		Tables.Galaxies = Cap == INDEX_NONE ? nullptr : CosmicTests::GalaxiesWithCap(Original, Cap);
 		Sim->SetTables(Tables);
 		Board->Civs[0].Tier = Rung0;
 		Board->Civs[1].Tier = Rung1;
@@ -1501,6 +1486,51 @@ bool FCosmicSimFourthRungBrakeTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("The people first in Civs climbs while the count - the ruled people's one - is below the cap"), Board->Civs[1].Tier, T::Tier4_Transcendent);
 	TestEqual(TEXT("The next is held: the ruled people and the climb just made fill the cap"), Board->Civs[2].Tier, T::Tier3_Causal);
 	TestFalse(TEXT("Closed at the cap"), CosmicAscent::FourthRungOpenOf(*Board, Sim->GetTables(), Home));
+	// B6b [B-6b3b]: the race line's count of the held (CosmicRaceMeasure::BrakeHeldOf - the judgment's walk without Ascend, read
+	// at the boundary) agrees with the judgment: people 2 was held, people 1 climbed (mutation: the brake's window not asked).
+	TestTrue(TEXT("BrakeHeldOf: the held people was held"), CosmicRaceMeasure::BrakeHeldOf(*Board, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), 2));
+	TestFalse(TEXT("BrakeHeldOf: the people that climbed was not"), CosmicRaceMeasure::BrakeHeldOf(*Board, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), 1));
+	{
+		// The deed asked (mutation: not): a third rung's row no tick of the board meets holds nobody.
+		UDataTable* Unmet = CosmicTests::NewTable(FAscensionFeatDef::StaticStruct());
+		Unmet->AddRow(FName(TEXT("feat_test_fourth")), FeatRow(EAscensionTier::Tier3_Causal, { Cond(EConditionType::GalaxyTickAtLeast, nullptr, 1000000.f) }));
+		FCosmicDataTables Later = Sim->GetTables();
+		Later.Feats = Unmet;
+		TestFalse(TEXT("BrakeHeldOf: a people the brake holds whose deed is unmet is not counted"), CosmicRaceMeasure::BrakeHeldOf(*Board, Sim->GetStateIndex(), Later, Sim->GetRules(), 2));
+	}
+	{
+		// The judgment's rows alone (mutation: every row asked): a row of another rung whose deed is met holds nobody.
+		UDataTable* OtherRung = CosmicTests::NewTable(FAscensionFeatDef::StaticStruct());
+		OtherRung->AddRow(FName(TEXT("feat_test_fourth")), FeatRow(EAscensionTier::Tier3_Causal, { Cond(EConditionType::GalaxyTickAtLeast, nullptr, 1000000.f) }));
+		OtherRung->AddRow(FName(TEXT("feat_test_third")), FeatRow(EAscensionTier::Tier2_Stellar, { Cond(EConditionType::GalaxyTickAtLeast, nullptr, 0.f) }));
+		FCosmicDataTables Later = Sim->GetTables();
+		Later.Feats = OtherRung;
+		TestFalse(TEXT("BrakeHeldOf: a row of another rung whose deed is met is not asked"), CosmicRaceMeasure::BrakeHeldOf(*Board, Sim->GetStateIndex(), Later, Sim->GetRules(), 2));
+	}
+	{
+		// The judgment's systems alone (mutation: a system being settled asked): a people whose every system is being settled has
+		// no settled system for the deed to hold on.
+		TArray<int32> Settling;
+		bool bOwned = !Board->Civs[2].OwnedSystems.IsEmpty();
+		for (const FName SystemID : Board->Civs[2].OwnedSystems)
+		{
+			const int32 SystemIndex = Sim->GetStateIndex().FindSystem(*Board, SystemID);
+			bOwned &= Board->Systems.IsValidIndex(SystemIndex);
+			Settling.Add(SystemIndex);
+		}
+		if (TestTrue(TEXT("(people 2 owns systems)"), bOwned))
+		{
+			for (const int32 SystemIndex : Settling)
+			{
+				Board->Systems[SystemIndex].ActiveMegaproject = CosmicRows::ProjectSettle;
+			}
+			TestFalse(TEXT("BrakeHeldOf: a people whose every system is being settled is not held"), CosmicRaceMeasure::BrakeHeldOf(*Board, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), 2));
+			for (const int32 SystemIndex : Settling)
+			{
+				Board->Systems[SystemIndex].ActiveMegaproject = NAME_None;
+			}
+		}
+	}
 	int32 Ascents = 0;
 	for (int32 At = LinesBefore; At < Board->Log.Num(); ++At)
 	{
@@ -1509,6 +1539,7 @@ bool FCosmicSimFourthRungBrakeTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("One ascension line, the climb's: the brake tells nothing"), Ascents, 1);
 	{
 		FGalaxyState* Free = Lay(0, T::Tier4_Transcendent, T::Tier3_Causal, T::Tier3_Causal, T::Tier1_Planetary);
+		TestFalse(TEXT("BrakeHeldOf: under a cap of 0 a people of the third with its deed met is not held"), CosmicRaceMeasure::BrakeHeldOf(*Free, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), 1));
 		Sim->StepOnce();
 		TestEqual(TEXT("Under a cap of 0 both climb"), Free->Civs[2].Tier, T::Tier4_Transcendent);
 		TestEqual(TEXT("The brake draws nothing: the held tick draws as the free one"), CappedSeed, Sim->GetRng().GetCurrentSeed());
@@ -1520,6 +1551,9 @@ bool FCosmicSimFourthRungBrakeTest::RunTest(const FString& Parameters)
 		FGalaxyState* Full = Lay(2, T::Tier3_Causal, T::Tier4_Transcendent, T::Tier4_Transcendent, T::Tier1_Planetary);
 		RecordFifth(*Full, 1);
 		RecordFifth(*Full, 2);
+		// BrakeHeldOf never counts the ruled people (mutation: counted): on the third rung, the window closed (2 of 2), its deed met.
+		TestTrue(TEXT("(the ruled people on the third rung, the window closed)"), Full->Civs[0].bIsPlayerRuled && !CosmicAscent::FourthRungOpenOf(*Full, Sim->GetTables(), Home));
+		TestFalse(TEXT("BrakeHeldOf: the people the player rules is never held"), CosmicRaceMeasure::BrakeHeldOf(*Full, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), 0));
 		Sim->StepOnce();
 		TestEqual(TEXT("The people the player rules is never braked"), Full->Civs[0].Tier, T::Tier4_Transcendent);
 		TestEqual(TEXT("The climb to the fifth rung is never braked"), Full->Civs[1].Tier, T::Tier5_EternalOrder);
