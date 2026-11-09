@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_LogTemplates.json b/Tools/data/DT_LogTemplates.json
+--- a/Tools/data/DT_LogTemplates.json
++++ b/Tools/data/DT_LogTemplates.json
+@@ -419,7 +419,7 @@
+ 		"Context": "",
+ 		"MinTierToReveal": 0,
+ 		"Templates": [
+-			"{System}의 하늘 어딘가에 드리우던 그늘이 묶였다.",
++			"{System}에서 그늘을 묶었다.",
+ 			"그늘이 묶였다. {System}에서도 보이던 그 그늘은 더는 넓어지지 않는다.",
+ 			"{System}에서 보이던 그늘이 묶였다. 그 그늘이 쥐었던 곳은 그대로 남았다."
+ 		]

@@ -19,9 +19,10 @@
 		"What a rule names has to exist: a test over a column the table does not declare, a tag the ini lacks, a name that is no enumerator or a row the table neither requires nor has is a problem (it would never hold).",
 		"required_rows are the rows the code calls by name: the checker holds them, both ways, to the names in the headers under row_name_sources. A table that has an asset carries must_exist.",
 		"epitaph_leaves_out (B5): the DT_Encounters rows whose title the epitaph never shows among a dead vessel's last answers - the code holds the same rows as CosmicRows::EpitaphLeavesOut, so each is a required row of DT_Encounters. A card title that speaks to the reader (a word of words.reader_address, or it ends in a word of words.reader_question_ends) has to be listed there: the death and inauguration pages keep the third person (decision 12-da). The [B-5d1] text audit lists four more, whose titles read as a eulogy under a death (a virtue, a memorial day, the two 'beside' titles of the sacrifice reading - header 3.6-1): those titles stay right on their own cards.",
-		"The words of a death (B5 [B-5d1], header 3.5): afterlife_words (an idiom that tells where the dead went, and the words of an afterlife), book_of_life_words (the book of life), called_away_words (a calling read as a death) and remnant_words (the word of election - Log.Record rows only), with death_frame_words (an agent, a sacrifice or a cause of the death - the death row only), rebirth_words (a return or a rebirth - the inauguration rows and Succession. only) and record_object_words (days, names, people or the dead as what was recorded - Log.Record rows only), are matched letter for letter, so a short word is found inside others: they hang on the new places alone - the string keys under Epitaph., Reign., Digest., Succession. and Chronicle. (the two books' chapter), and the DT_LogTemplates rows of Log.Record with the death and inauguration rows - never on a whole column ('잠들지' and '돌아가' already stand elsewhere), save one: the fallen's awareness line (DT_Transcendents.AwarenessTemplates, B6a header 3.2) refuses rebirth_words and called_away_words, a column of its own that only that line fills.",
+		"The words of a death (B5 [B-5d1], header 3.5): afterlife_words (an idiom that tells where the dead went, and the words of an afterlife), book_of_life_words (the book of life), called_away_words (a calling read as a death) and remnant_words (the word of election - Log.Record rows only), with death_frame_words (an agent, a sacrifice or a cause of the death - the death row only), rebirth_words (a return or a rebirth - the inauguration rows and Succession. only) and record_object_words (days, names, people or the dead as what was recorded - Log.Record rows only), are matched letter for letter, so a short word is found inside others: they hang on the new places alone - the string keys under Epitaph., Reign., Digest., Succession. and Chronicle. (the two books' chapter), the key Panel.RulerLethal (death_frame_words - B6b [B-6b5]), and the DT_LogTemplates rows of Log.Record with the death and inauguration rows, with the extinction row of DT_Hazards by a row rule (B6b [B-6b5]) - never on a whole column ('잠들지' and '돌아가' already stand elsewhere), save two: the fallen's awareness line (DT_Transcendents.AwarenessTemplates, B6a header 3.2) refuses rebirth_words and called_away_words, a column of its own that only that line fills, and the three text columns of DT_Feats (Title, MythicNarrative, LogTemplates) refuse afterlife_words alone - no feat tells a people's climb as an ascent of the dead (B6b [B-6b5], decision 33).",
 		"The words of the awareness and of the end (B6a [B-6a5], header 3.2, 3.4): awareness_words (a sameness, an again and a recognition - the fallen's one second-person line would read as knowing the vessel again; '다시 ' and '알아보았' of rebirth_words let '다시는' and '알아본다' through) hang on DT_Transcendents.AwarenessTemplates alone, and holy_passive (the passive of the holy order and the idiom of an end that comes) on every string key under Chronicle., so that no reason line ties the holy order to the end of a run.",
 		"The galaxy laws and the upper rungs (B6b [B-6b2a], header 3.3): a comparison test (gt, ge, lt, le) over a tag map holds when every value of the map holds it - an empty map holds (a galaxy law's spawn factors are at most 1); a conditions column may name the condition types whose Tag it leaves empty ('untagged' - a DT_Feats row's CivHasTreaty: the AI's treaty step signs a non-aggression only); and an effect's Key may say 'not_per_tick' (a per-tick source leaves that Key empty - ChangeReverence's Borders walks the borders where a source is applied once). A condition test names the fields of an entry - type, key and tag, a key or a tag at least, each equal - and lacks_cond holds when no entry of the list has them all (a ruler feat names no selector word of the vessel; no claim card buys the claim time but petition_pressure_measured). rows_of (B6b [B-6b2b]) holds when every row name of a rows column is a row of one of the named tables, each one the column names (the extinction is answered by a project alone - the ark).",
+		"The words of the upper rungs (B6b [B-6b5], header 3.3, notes 1.6; decision 33): rung_grasp_words (a rung grasped, reached or raced for, eternity and the order), title_words (a title of election, anointing or a saviour, and the crown), binding_words (the binding, its binder verbs and the shadow - the binding is said in its two story lines alone), triumph_words (a victory, the shadow lifted, mockery, and a link word that makes a deed the price of what follows), stay_words (a ruler who stayed with the dying), self_rescue_words (a people that rescues itself, a new birth and the images of the flood), dawn_words (dawn, light, throne and reign), desolation_words (the quenched lamp, the ceased song, the shut door, the flood, a punishment, the shadow, cold and endurance as merit) and binding_name_words (a tower, a ring, a fence, a binding tool, another work's word or a word of contact or tuning in the name of the binding's work) are matched letter for letter, with holy_passive extended by the end-time idiom. rung_grasp_words and title_words hang on DT_LogTemplates.Templates, DT_Events.LogTemplates, the three template columns of DT_Hazards, DT_Megaprojects.CompleteTemplates and the three text columns of DT_Feats, which also take binding_words, self_rescue_words and triumph_words (no feat binds, rescues itself or buys its rung), and on the string keys Rung., Sight., Chronicle., Epitaph., Digest. and six of the seven keys of the B6b screens (all but Diplomacy.TreatyRungTip); binding_words also hangs on Rung., Chronicle., the three Start. keys and Diplomacy.TreatyRungTip, triumph_words on the three Start. keys, stay_words on Panel.ExtinctionFollows and Panel.RulerLethal, and holy_passive also on Rung.; every list but rung_grasp_words and title_words also hangs on single rows by row rules (the fifth-rung feat, the extinction, the era named after endured pressure, project_binding, and log_far_ascent, log_record_extinct, log_death_extinction and log_fallen_bound), and dawn_words, desolation_words and binding_name_words hang there alone.",
 		"A table whose columns are null has no rows yet: its columns are declared when its first row is written."
 	],
 	"tag_sources": ["Config/DefaultGameplayTags.ini"],
@@ -60,18 +61,27 @@
 		"death_frame_words": ["불이 내려", "쏟아져", "내리쳐", "그들을 위해", "위하여", "했기에"],
 		"rebirth_words": ["다시 ", "돌아오", "돌아왔", "태어나", "태어났", "거듭나", "머물렀", "임했", "깃들", "알아보았"],
 		"awareness_words": ["같은", "똑같", "다시", "알아보", "알아본", "알아봤", "알아볼"],
-		"holy_passive": ["맡겨졌", "맡겨진", "허락되", "허락된", "때가 찼", "때가 차", "때가 왔", "끝이 왔"],
-		"record_object_words": ["날들", "이름", "사람", "죽은 자", "죽은 이", "남은 이"]
+		"holy_passive": ["맡겨졌", "맡겨진", "허락되", "허락된", "때가 찼", "때가 차", "때가 왔", "끝이 왔", "마지막 날", "종말", "때가 되", "끝이 오", "때가 이르"],
+		"record_object_words": ["날들", "이름", "사람", "죽은 자", "죽은 이", "남은 이"],
+		"rung_grasp_words": ["영겁", "왕 노릇", "질서의 화신", "초월자가 되", "신이 되", "일체화", "질서", "영원", "칸에 올", "올라섰", "올라선", "더 올랐", "경주"],
+		"title_words": ["선택받은", "선택 받은", "택함 받은", "택함을 받은", "택하신", "빛의 아들", "기름 받은", "기름 부음", "기름 부은", "구세주", "메시야", "구원자", "메시아", "선택된 백성", "택한 백성", "택하심", "면류관", "왕관", "관을 쓰"],
+		"binding_words": ["묶", "봉인", "결박", "가두", "갇혔", "갇힌", "사로잡", "막는", "막았", "막아", "눌렀", "그늘", "그림자"],
+		"triumph_words": ["이겼", "이긴", "물리쳤", "무찔", "쓰러뜨", "마침내", "드디어", "걷혔", "걷히", "사슬", "열쇠", "가두", "갇혔", "그래서", "그 일로", "덕분", "그늘 아래", "묶었", "묶어", "묶는", "묶을", "기에", "끝에", "덕에", "대가로", "보상", "쫓", "물러가", "물러갔", "물러났", "사라졌", "흩어", "꿇", "비웃", "조롱"],
+		"stay_words": ["곁에 남", "끝까지", "함께 쓰러", "함께 스러", "함께 죽", "떠나지 않", "대신", "함께", "위해", "희생", "목숨", "바쳤", "바친", "마지막까지"],
+		"self_rescue_words": ["구해", "구했", "구한", "살려", "살렸", "건져", "건졌", "건진", "지켜 냈", "거듭나", "새로 태어", "다시 태어", "씻겨", "새 땅", "홍수", "물이 불", "물이 걷", "물이 빠", "무지개", "비둘기", "감람"],
+		"dawn_words": ["새벽", "동틀", "동이 트", "해가 뜨", "돋는", "샛별", "새 해", "빛", "밝아", "걷혔", "다스림", "왕좌", "임금", "떠오", "떠올", "해가 떠", "광명", "여명", "서광", "아침", "햇살", "치세", "재위", "통치", "왕국", "다스리"],
+		"desolation_words": ["꺼지", "꺼졌", "꺼진", "꺼뜨", "껐", "꺼져", "꺼질", "식어", "식었", "노랫소리", "노래가 그", "맷돌", "등불", "심지", "촛불", "등잔", "불씨", "문이 닫", "닫힌 문", "신랑", "신부", "홍수", "물이 불", "물이 걷", "물이 빠", "무지개", "비둘기", "감람", "진노", "심판", "형벌", "죗값", "벌로", "벌을", "교만", "재앙이 내", "그늘", "그림자", "어둠", "서리", "겨울", "견딘", "견딤", "견뎠", "버틴"],
+		"binding_name_words": ["탑", "둘레", "울타리", "산울", "고리", "관측소", "공명", "감응", "교감"]
 	},
 
 	"string_table": {
 		"checked_prefixes": {
-			"Chronicle.": {"forbidden": ["verdict", "soul_verbs", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "holy_passive"], "no_digits": true},
-			"Chronicle.Note.": {"forbidden": ["verdict", "soul_verbs", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "holy_passive", "holy_words", "realm_names", "silence_words", "revelation_mimicry"], "no_digits": true},
+			"Chronicle.": {"forbidden": ["verdict", "soul_verbs", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "holy_passive", "rung_grasp_words", "title_words", "binding_words"], "no_digits": true},
+			"Chronicle.Note.": {"forbidden": ["verdict", "soul_verbs", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "holy_passive", "holy_words", "realm_names", "silence_words", "revelation_mimicry", "rung_grasp_words", "title_words", "binding_words"], "no_digits": true},
 			"Chronicle.NoVessel": {"forbidden": ["verdict", "soul_verbs", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "silence_words"], "no_digits": true},
-			"Epitaph.": {"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "reader_address"], "no_digits": true},
+			"Epitaph.": {"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "reader_address", "rung_grasp_words", "title_words"], "no_digits": true},
 			"Reign.": {"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words"], "no_digits": true},
-			"Digest.": {"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "silence_words", "reader_address"], "no_digits": true},
+			"Digest.": {"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "silence_words", "reader_address", "rung_grasp_words", "title_words"], "no_digits": true},
 			"Succession.": {"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "reader_address", "rebirth_words"], "no_digits": true},
 			"Save.": {"forbidden": "verdict", "no_digits": true},
 			"Hint.": {"forbidden": "verdict", "no_digits": true},
@@ -90,7 +100,16 @@
 			"Petition.Resist": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
 			"Petition.Edict": {"forbidden": ["verdict", "holy_words", "soul_verbs"], "no_digits": true},
 			"Panel.ClaimMayFollow": {"forbidden": ["verdict", "holy_words", "silence_words"], "no_digits": true},
-			"Panel.RebellionWatch": {"forbidden": ["verdict", "holy_words", "silence_words"], "no_digits": true}
+			"Panel.RebellionWatch": {"forbidden": ["verdict", "holy_words", "silence_words"], "no_digits": true},
+			"Rung.": {"forbidden": ["verdict", "holy_words", "soul_verbs", "realm_names", "rescue_words", "holy_passive", "rung_grasp_words", "title_words", "binding_words"], "no_digits": true},
+			"Sight.": {"forbidden": ["verdict", "holy_words", "realm_names", "rescue_words", "rung_grasp_words", "title_words"], "no_digits": true},
+			"Start.BindHint": {"forbidden": ["verdict", "holy_words", "soul_verbs", "realm_names", "rescue_words", "rung_grasp_words", "title_words", "binding_words", "triumph_words"], "no_digits": true},
+			"Start.Block.NoFallen": {"forbidden": ["verdict", "holy_words", "soul_verbs", "realm_names", "rescue_words", "rung_grasp_words", "title_words", "binding_words", "triumph_words"], "no_digits": true},
+			"Start.Suffix.NoFallen": {"forbidden": ["verdict", "holy_words", "soul_verbs", "realm_names", "rescue_words", "rung_grasp_words", "title_words", "binding_words", "triumph_words"], "no_digits": true},
+			"Panel.ExtinctionFollows": {"forbidden": ["verdict", "holy_words", "silence_words", "rescue_words", "stay_words", "rung_grasp_words", "title_words"], "no_digits": true},
+			"Panel.RulerLethal": {"forbidden": ["verdict", "holy_words", "silence_words", "rescue_words", "stay_words", "rung_grasp_words", "title_words", "death_frame_words"], "no_digits": true},
+			"Settle.Block.RealmCapLast": {"forbidden": ["verdict", "holy_words", "rescue_words", "rung_grasp_words", "title_words"], "no_digits": true},
+			"Diplomacy.TreatyRungTip": {"forbidden": ["verdict", "holy_words", "soul_verbs", "binding_words"], "no_digits": true}
 		}
 	},
 
@@ -323,7 +342,7 @@
 					"min": 3,
 					"single_variant": true,
 					"slots": ["Civ", "System", "OtherCiv", "Trait", "Value", "Tier", "Hazard", "Player", "HomeSystem", "Dedication", "Epithet", "Revelation", "Transcendent", "Ruler", "Regent", "Rebel", "Loyalist", "Hearer", "Ascendant", "PopBand", "CivAdj", "Edict", "Stance", "Treaty"],
-					"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words"]
+					"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words", "rung_grasp_words", "title_words"]
 				}
 			},
 			"unique": [
@@ -343,7 +362,8 @@
 				{
 					"why": "a far line is the same sentence for everyone, told with no subject and no arguments, and the clock of the race stops when a window hides it: log_far_ascent (guideline 8.1)",
 					"when": [{"row": "log_far_ascent"}],
-					"then": [{"col": "Category", "is": "Log.Discovery"}, {"col": "MinTierToReveal", "is": 0}, {"col": "Templates", "slots_in": []}]
+					"then": [{"col": "Category", "is": "Log.Discovery"}, {"col": "MinTierToReveal", "is": 0}, {"col": "Templates", "slots_in": []},
+						{"col": "Templates", "lacks_words": "holy_passive"}, {"col": "Templates", "lacks_words": "binding_words"}]
 				},
 				{
 					"why": "the sign of a claim that joined a sphere is a sign the code tells, about the claimed system and its people: told below the third rung before the fallen's own line (B4 header 2.6, 3.6)",
@@ -386,19 +406,21 @@
 				{
 					"why": "the record of a people that let every system go at an extinction's expiry is a record line, so the record line's rule holds it: {System} alone, no figure, no word of a death, the remnant, nor days, names, people or the dead as what was recorded (B6b header 2.2, 3.3 rule 8, decision 5)",
 					"when": [{"row": "log_record_extinct"}],
-					"then": [{"col": "Category", "is": "Log.Record"}]
+					"then": [{"col": "Category", "is": "Log.Record"},
+						{"col": "Templates", "lacks_words": "stay_words"}, {"col": "Templates", "lacks_words": "death_frame_words"}, {"col": "Templates", "lacks_words": "desolation_words"}]
 				},
 				{
-					"why": "the death line of a ruler at an extinction's expiry is the death line in every way: the narrator's, in the third person by the vessel's name and the hazard, the calling's line, with no word of an afterlife, the book of life or a calling read as a death, no 'you' across the death, no name of the holy order or its realm, and no agent, sacrifice or cause of the death (B6b header 2.2, 3.3 rule 8, decision 5; the words of a ruler who stayed, stay_words, join it in [B-6b5] - header 3.3 rule 13)",
+					"why": "the death line of a ruler at an extinction's expiry is the death line in every way: the narrator's, in the third person by the vessel's name and the hazard, the calling's line, with no word of an afterlife, the book of life or a calling read as a death, no 'you' across the death, no name of the holy order or its realm, no agent, sacrifice or cause of the death, no ruler who stayed with them, and no image of a desolation (B6b header 2.2, 3.3 rules 8 and 13, decision 5; notes 1.6 rule 3)",
 					"when": [{"row": "log_death_extinction"}],
 					"then": [{"col": "Category", "is": "Log.Calling"}, {"col": "Templates", "slots_in": ["Player", "Hazard"]}, {"col": "Templates", "lacks_words": "afterlife_words"},
 						{"col": "Templates", "lacks_words": "book_of_life_words"}, {"col": "Templates", "lacks_words": "called_away_words"}, {"col": "Templates", "lacks_words": "reader_address"},
-						{"col": "Templates", "lacks_words": "realm_names"}, {"col": "Templates", "lacks_words": "death_frame_words"}]
+						{"col": "Templates", "lacks_words": "realm_names"}, {"col": "Templates", "lacks_words": "death_frame_words"},
+						{"col": "Templates", "lacks_words": "stay_words"}, {"col": "Templates", "lacks_words": "desolation_words"}]
 				},
 				{
-					"why": "the line of the binding is told in the actorless passive by the name of the system the work stood on alone: no people and no work is named in it - the people is never the binder (B6b header 2.5, 3.3 rule 8, decision 32; the triumph words join it in [B-6b5] - header 3.3 rule 13)",
+					"why": "the line of the binding is told in the actorless passive by the name of the system the work stood on alone: no people and no work is named in it - the people is never the binder - and nothing in it triumphs, lifts the shadow, or lets light or dawn rise over it (B6b header 2.5, 3.3 rules 8 and 13, decision 32; notes 1.6 rule 4)",
 					"when": [{"row": "log_fallen_bound"}],
-					"then": [{"col": "Templates", "slots_in": ["System"]}]
+					"then": [{"col": "Templates", "slots_in": ["System"]}, {"col": "Templates", "lacks_words": "triumph_words"}, {"col": "Templates", "lacks_words": "dawn_words"}]
 				},
 				{
 					"why": "the nameless variant of log_siege_on_us names no other people: the code chooses it when that people stands far above the ruled one (CosmicKnowing::IsFarAbove), so it says {Civ} and {System} and never {OtherCiv} - the name the map and the scope of telling hide (B6b header 2.9, 3.3 rule 8, decision 19)",
@@ -447,7 +469,7 @@
 				"BaseWeight": {"kind": "number", "min": 0},
 				"CooldownTicks": {"kind": "number", "min": 0, "integer": true},
 				"Effects": {"kind": "effects"},
-				"LogTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "holy_words", "soul_verbs", "rescue_words"]},
+				"LogTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "holy_words", "soul_verbs", "rescue_words", "rung_grasp_words", "title_words"]},
 				"Severity": {"kind": "number", "min": 0, "max": 2, "integer": true},
 				"MinTierToReveal": {"kind": "number", "min": 0, "max": 5, "integer": true},
 				"SignRow": {
@@ -566,6 +588,11 @@
 					"why": "the vigil's draw row tells a plain day, with no image of the night's vigil: the vigil is never told as the cause of the easing (B4 header 2.8, 3.9)",
 					"when": [{"row": "event_claim_eased"}],
 					"then": [{"col": "LogTemplates", "lacks_words": "vigil_image"}]
+				},
+				{
+					"why": "an era the people names after its endured pressure is named from its own life and land: no dawn, light, throne or reign, no word of silence, and no desolation, shadow, cold or endurance as merit (B6b header 3.3 / notes 1.6 rule 6; decision 22)",
+					"when": [{"col": "Conditions", "has_type": "CivPressureEnduredTicksReached"}],
+					"then": [{"col": "LogTemplates", "lacks_words": "dawn_words"}, {"col": "LogTemplates", "lacks_words": "silence_words"}, {"col": "LogTemplates", "lacks_words": "desolation_words"}]
 				}
 			]
 		},
@@ -708,9 +735,9 @@
 				"WandererResolutions": {"kind": "rows", "tables": ["DT_Encounters"], "unique": true},
 				"LogCategory": {"kind": "tag", "root": ["Log.Crisis"]},
 				"Severity": {"kind": "number", "min": 0, "max": 2, "integer": true},
-				"OutbreakTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "rescue_words"]},
-				"ExpireTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "rescue_words"]},
-				"ResolveTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "rescue_words"]},
+				"OutbreakTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "rescue_words", "rung_grasp_words", "title_words"]},
+				"ExpireTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "rescue_words", "rung_grasp_words", "title_words"]},
+				"ResolveTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "rescue_words", "rung_grasp_words", "title_words"]},
 				"OutbreakRow": {"kind": "row", "table": "DT_Events", "optional": true, "target": [{"col": "Trigger", "is": "Named"}, {"col": "Subject", "is": "SettledSystem"}, {"col": "Effects", "lacks_type": "ResolveHazard"}]}
 			},
 			"unique": [
@@ -787,6 +814,16 @@
 					]
 				},
 				{
+					"why": "the extinction's lines tell a loss and end in mourning: no ruler who stayed, no agent, sacrifice or cause of a death, no image of a desolation, a flood, a punishment or the claimant's shadow, and its resolution rescues no one (B6b header 3.3 / notes 1.6 rule 3; decision 33)",
+					"when": [{"col": "HazardTag", "is": "Hazard.Extinction"}],
+					"then": [
+						{"col": "OutbreakTemplates", "lacks_words": "stay_words"}, {"col": "OutbreakTemplates", "lacks_words": "death_frame_words"}, {"col": "OutbreakTemplates", "lacks_words": "desolation_words"},
+						{"col": "ExpireTemplates", "lacks_words": "stay_words"}, {"col": "ExpireTemplates", "lacks_words": "death_frame_words"}, {"col": "ExpireTemplates", "lacks_words": "desolation_words"},
+						{"col": "ResolveTemplates", "lacks_words": "stay_words"}, {"col": "ResolveTemplates", "lacks_words": "death_frame_words"}, {"col": "ResolveTemplates", "lacks_words": "desolation_words"},
+						{"col": "ResolveTemplates", "lacks_words": "self_rescue_words"}
+					]
+				},
+				{
 					"why": "the leader of a cult has no name (guideline 4.1)",
 					"when": [{"col": "HazardTag", "is": "Hazard.Cult"}],
 					"then": [
@@ -830,12 +867,18 @@
 				"RequiredTier": {"kind": "enum", "enum": "EAscensionTier"},
 				"CostPerTick": {"kind": "pool", "min": 0},
 				"RequiredProgress": {"kind": "number", "min": 1},
-				"CompleteTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "System", "Project"], "forbidden": ["verdict", "rescue_words"]}
+				"CompleteTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "System", "Project"], "forbidden": ["verdict", "rescue_words", "rung_grasp_words", "title_words"]}
 			},
 			"rules": [
 				{
 					"why": "a project asks no Causality: no people earns any (its income is 0 - guideline 16 #90), so a project that asks it would never be paid and its slot would stand for good (B6b header 3.3 rule 7)",
 					"then": [{"col": "CostPerTick.Causality", "is": 0}]
+				},
+				{
+					"why": "the binding's work is named and told as the people's plain work: its name has no tower, ring, fence, binding tool, contact or tuning word and no word another work owns, and its completion line neither binds, triumphs, nor lets light or dawn rise over the shadow (B6b header 3.3 / notes 1.6 rule 4; decision 32; header rule 14)",
+					"when": [{"row": "project_binding"}],
+					"then": [{"col": "DisplayName", "lacks_words": "binding_name_words"}, {"col": "DisplayName", "lacks_words": "binding_words"}, {"col": "DisplayName", "lacks_words": "triumph_words"},
+						{"col": "CompleteTemplates", "lacks_words": "binding_words"}, {"col": "CompleteTemplates", "lacks_words": "triumph_words"}, {"col": "CompleteTemplates", "lacks_words": "dawn_words"}]
 				}
 			]
 		},
@@ -844,8 +887,8 @@
 			"prefixes": ["feat_"],
 			"must_exist": true,
 			"columns": {
-				"Title": {"kind": "text", "required": true, "slots": [], "forbidden": "verdict"},
-				"MythicNarrative": {"kind": "text", "required": true, "slots": [], "forbidden": "verdict"},
+				"Title": {"kind": "text", "required": true, "slots": [], "forbidden": ["verdict", "holy_words", "realm_names", "rescue_words", "afterlife_words", "holy_and_myth", "rung_grasp_words", "title_words", "binding_words", "self_rescue_words", "triumph_words"]},
+				"MythicNarrative": {"kind": "text", "required": true, "slots": [], "forbidden": ["verdict", "holy_words", "realm_names", "rescue_words", "afterlife_words", "holy_and_myth", "rung_grasp_words", "title_words", "binding_words", "self_rescue_words", "triumph_words"]},
 				"RequiredTier": {"kind": "enum", "enum": "EAscensionTier"},
 				"TargetTier": {"kind": "enum", "enum": "EAscensionTier"},
 				"Path": {"kind": "enum", "enum": "EPlayerRole"},
@@ -855,7 +898,7 @@
 				"DedicationBank": {"kind": "tag", "root": "Faith.Bank.", "optional": true},
 				"FX": {"kind": "plain"},
 				"Sound": {"kind": "plain"},
-				"LogTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "HomeSystem"], "forbidden": "verdict"}
+				"LogTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "HomeSystem"], "forbidden": ["verdict", "holy_words", "realm_names", "rescue_words", "afterlife_words", "holy_and_myth", "rung_grasp_words", "title_words", "binding_words", "self_rescue_words", "triumph_words"]}
 			},
 			"rules": [
 				{
@@ -926,6 +969,12 @@
 						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasNotable", "key": "Former"}},
 						{"col": "AscensionCost", "lacks_cond": {"type": "NameNotable", "key": "Former"}}
 					]
+				},
+				{
+					"why": "the fifth rung is a place the people came to stand on, not one it reached or was handed: its feat row's title, narrative and lines carry no passive of the holy order or end-time idiom, and no gold, light, dawn or reign (B6b header 3.3 / notes 1.6 rule 1; decisions 26 and 33)",
+					"when": [{"col": "TargetTier", "is": "Tier5_EternalOrder"}],
+					"then": [{"col": "Title", "lacks_words": "holy_passive"}, {"col": "Title", "lacks_words": "dawn_words"}, {"col": "MythicNarrative", "lacks_words": "holy_passive"},
+						{"col": "MythicNarrative", "lacks_words": "dawn_words"}, {"col": "LogTemplates", "lacks_words": "holy_passive"}, {"col": "LogTemplates", "lacks_words": "dawn_words"}]
 				}
 			]
 		},

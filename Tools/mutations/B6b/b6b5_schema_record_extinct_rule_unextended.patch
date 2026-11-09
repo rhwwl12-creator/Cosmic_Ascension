@@ -1,0 +1,13 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -406,8 +406,7 @@
+ 				{
+ 					"why": "the record of a people that let every system go at an extinction's expiry is a record line, so the record line's rule holds it: {System} alone, no figure, no word of a death, the remnant, nor days, names, people or the dead as what was recorded (B6b header 2.2, 3.3 rule 8, decision 5)",
+ 					"when": [{"row": "log_record_extinct"}],
+-					"then": [{"col": "Category", "is": "Log.Record"},
+-						{"col": "Templates", "lacks_words": "stay_words"}, {"col": "Templates", "lacks_words": "death_frame_words"}, {"col": "Templates", "lacks_words": "desolation_words"}]
++					"then": [{"col": "Category", "is": "Log.Record"}]
+ 				},
+ 				{
+ 					"why": "the death line of a ruler at an extinction's expiry is the death line in every way: the narrator's, in the third person by the vessel's name and the hazard, the calling's line, with no word of an afterlife, the book of life or a calling read as a death, no 'you' across the death, no name of the holy order or its realm, no agent, sacrifice or cause of the death, no ruler who stayed with them, and no image of a desolation (B6b header 2.2, 3.3 rules 8 and 13, decision 5; notes 1.6 rule 3)",

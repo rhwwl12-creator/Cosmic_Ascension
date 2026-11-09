@@ -1,12 +1,12 @@
 diff --git a/Tools/data/schema.json b/Tools/data/schema.json
 --- a/Tools/data/schema.json
 +++ b/Tools/data/schema.json
-@@ -805,7 +805,7 @@
+@@ -872,7 +872,7 @@
  			"rules": [
  				{
  					"why": "a project asks no Causality: no people earns any (its income is 0 - guideline 16 #90), so a project that asks it would never be paid and its slot would stand for good (B6b header 3.3 rule 7)",
 -					"then": [{"col": "CostPerTick.Causality", "is": 0}]
 +					"then": [{"col": "CostPerTick.Causality", "ge": 0}]
- 				}
- 			]
- 		},
+ 				},
+ 				{
+ 					"why": "the binding's work is named and told as the people's plain work: its name has no tower, ring, fence, binding tool, contact or tuning word and no word another work owns, and its completion line neither binds, triumphs, nor lets light or dawn rise over the shadow (B6b header 3.3 / notes 1.6 rule 4; decision 32; header rule 14)",

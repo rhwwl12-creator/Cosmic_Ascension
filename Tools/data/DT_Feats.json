@@ -2,7 +2,7 @@
 	{
 		"Name": "feat_dyson_swarm",
 		"Title": "다이슨 스웜",
-		"MythicNarrative": "별 하나의 빛을 두른 백성은 더 이상 한 행성의 백성이 아니다.",
+		"MythicNarrative": "별 하나 곁에 일터를 띄운 백성은 더 이상 한 행성의 백성이 아니다.",
 		"RequiredTier": "Tier1_Planetary",
 		"TargetTier": "Tier2_Stellar",
 		"Path": "Ruler",
@@ -16,15 +16,15 @@
 		"FX": "",
 		"Sound": "",
 		"LogTemplates": [
-			"{Civ}|hpp(이,가) 별의 칸에 올랐다. {HomeSystem}의 빛이 그들의 것이 되었다.",
-			"{Civ}|hpp(은,는) 이제 한 행성에 묶이지 않는다.",
-			"{HomeSystem}의 하늘이 바뀌었다. {Civ}|hpp(이,가) 항성의 백성이 되었다."
+			"{Civ}|hpp(이,가) 둘째 칸에 서 있게 되었다. 그들의 일은 이제 별 하나의 크기다.",
+			"{Civ}의 일꾼들이 이제 행성 밖 하늘에서 일한다.",
+			"{Civ}|hpp(이,가) 사는 하늘이 바뀌었다. 그들은 항성의 백성이 되었다."
 		]
 	},
 	{
 		"Name": "feat_supernova_stabilized",
 		"Title": "초신성 안정화",
-		"MythicNarrative": "무너지려던 별을 붙든 손은 원인과 결과의 결을 만졌다.",
+		"MythicNarrative": "무너지려던 별을 바로잡은 백성은 작은 일이 먼 데까지 미치는 것을 안다.",
 		"RequiredTier": "Tier2_Stellar",
 		"TargetTier": "Tier3_Causal",
 		"Path": "Ruler",
@@ -39,7 +39,7 @@
 		"LogTemplates": [
 			"{Civ}|hpp(이,가) 문턱에 섰다. 그들은 이제 보이지 않는 것을 느낀다.",
 			"{Civ}|hpp(은,는) 무너지는 별을 붙들었다. 그 일이 끝났을 때 그들은 문턱에 서 있었다.",
-			"{HomeSystem}에서 원인과 결과의 결이 보이기 시작했다. {Civ}|hpp(이,가) 인과의 칸에 올랐다."
+			"{HomeSystem}에서 원인과 결과의 결이 보이기 시작했다. {Civ}|hpp(은,는) 셋째 칸에 서 있게 되었다."
 		]
 	},
 	{
@@ -59,7 +59,7 @@
 		"FX": "",
 		"Sound": "",
 		"LogTemplates": [
-			"{Civ}|hpp(이,가) 인과의 칸에 올랐다. 그들의 집은 이제 {HomeSystem} 밖에도 있다.",
+			"{Civ}|hpp(이,가) 셋째 칸에 서 있게 되었다. 그들의 집은 이제 {HomeSystem} 밖에도 있다.",
 			"{HomeSystem}의 일이 이제 다른 별들의 일과 맞물려 돈다. {Civ}|hpp(은,는) 원인과 결과의 결을 읽기 시작했다.",
 			"{Civ}의 살림이 여러 별에 걸쳤다. 그들은 이제 한 별의 일이 다른 별로 이어지는 것을 안다."
 		]

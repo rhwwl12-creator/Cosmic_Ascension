@@ -1,0 +1,12 @@
+diff --git a/Tools/data/ST_CA.csv b/Tools/data/ST_CA.csv
+--- a/Tools/data/ST_CA.csv
++++ b/Tools/data/ST_CA.csv
+@@ -66,7 +66,7 @@
+ "Start.Replaces","시작하면 건설 칸에서 짓던 {0}의 진척이 사라진다."
+ "Panel.Stalled","멈춤 — 자원 부족"
+ "Rung.Next","다음 칸까지: {0}"
+-"Rung.Done","완성"
++"Rung.Done","하나님의 완성"
+ "Rung.NotStarted","시작 전"
+ "Rung.WhenHazard","{0}에 답할 때"
+ "Rung.Other","그 밖의 조건"

@@ -1,0 +1,12 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -420,7 +420,7 @@
+ 				{
+ 					"why": "the line of the binding is told in the actorless passive by the name of the system the work stood on alone: no people and no work is named in it - the people is never the binder - and nothing in it triumphs, lifts the shadow, or lets light or dawn rise over it (B6b header 2.5, 3.3 rules 8 and 13, decision 32; notes 1.6 rule 4)",
+ 					"when": [{"row": "log_fallen_bound"}],
+-					"then": [{"col": "Templates", "slots_in": ["System"]}, {"col": "Templates", "lacks_words": "triumph_words"}, {"col": "Templates", "lacks_words": "dawn_words"}]
++					"then": [{"col": "Templates", "slots_in": ["System"]}, {"col": "Templates", "lacks_words": "dawn_words"}]
+ 				},
+ 				{
+ 					"why": "the nameless variant of log_siege_on_us names no other people: the code chooses it when that people stands far above the ruled one (CosmicKnowing::IsFarAbove), so it says {Civ} and {System} and never {OtherCiv} - the name the map and the scope of telling hide (B6b header 2.9, 3.3 rule 8, decision 19)",

@@ -506,8 +506,11 @@ class SchemaTests(unittest.TestCase):
         not looked at."""
         check = lambda text: checker.check_string_table("ST_X.csv", text, self.schema)  # noqa: E731
         verdict = self.schema["words"]["verdict"]
+        # B6b [B-6b5]: a rung grasped or raced for, a title of election and the binding's words join the chronicle (the two
+        # books' chapter and the reason lines - decision 33, notes 1.6 rules 1 and 4).
         self.assertEqual(self.schema["string_table"]["checked_prefixes"]["Chronicle."],
-                         {"forbidden": ["verdict", "soul_verbs", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "holy_passive"], "no_digits": True})
+                         {"forbidden": ["verdict", "soul_verbs", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "holy_passive",
+                                        "rung_grasp_words", "title_words", "binding_words"], "no_digits": True})
         # (1) A slot carries its digit; the text around it does not.
         self.assertEqual(check('Key,SourceString\n"Chronicle.A","{0}주기 {Civ}|hpp(이,가)"\n'), [])
         self.expect(check('Key,SourceString\n"Chronicle.A","3주기"\n'), "entry 1 (Chronicle.A)", "a digit outside a slot")
@@ -1999,12 +2002,19 @@ class SchemaTests(unittest.TestCase):
         for prefix, spec in prefixes.items():
             with self.subTest(prefix=prefix):
                 named = set(checker.forbidden_lists(spec)) & set(new_lists)
-                allowed = (set(death_lists) if prefix.startswith(places) else set()) | ({"rebirth_words"} if prefix.startswith("Succession.") else set())
+                # B6b [B-6b5]: the panel's line of the ruler's death at an extinction's expiry refuses the death's agent, sacrifice
+                # or cause too (notes 1.6 rule 3) - a frame word on a key of its own.
+                allowed = (set(death_lists) if prefix.startswith(places) else set()) | ({"rebirth_words"} if prefix.startswith("Succession.") else set()) | (
+                    {"death_frame_words"} if prefix == "Panel.RulerLethal" else set())
                 self.assertEqual(named - allowed, set())
         # One column only, a column of its own (B6a [B-6a5], header 3.2): the fallen's awareness line refuses a return and a
         # calling; no other list of a death hangs there.
+        # B6b [B-6b5] (decision 33, signal 11): the three text columns of a feat refuse the words of an afterlife - no people's
+        # climb is told as an ascent of the dead ('승천') - and no other list of a death.
         self.assertEqual([(table, column) for table, column, spec in self.columns_of(lambda spec: set(checker.forbidden_lists(spec)) & set(new_lists))],
-                         [("DT_Transcendents", "AwarenessTemplates")])
+                         [("DT_Feats", "LogTemplates"), ("DT_Feats", "MythicNarrative"), ("DT_Feats", "Title"), ("DT_Transcendents", "AwarenessTemplates")])
+        for column in ("LogTemplates", "MythicNarrative", "Title"):
+            self.assertEqual(set(checker.forbidden_lists(self.schema["tables"]["DT_Feats"]["columns"][column])) & set(new_lists), {"afterlife_words"})
         awareness_spec = self.schema["tables"]["DT_Transcendents"]["columns"]["AwarenessTemplates"]
         self.assertEqual(set(checker.forbidden_lists(awareness_spec)) & set(new_lists), {"rebirth_words", "called_away_words"})
         self.assertEqual(check('Key,SourceString\n"Wander.A","%s"\n' % " ".join(lists[listed][0] for listed in new_lists)), [])
@@ -2128,7 +2138,8 @@ class SchemaTests(unittest.TestCase):
         # (1) The lists stand as the header wrote them ('다시 ' and '알아보았' of rebirth_words let '다시는' and '알아본다'
         # through; '같은' was in no list).
         self.assertEqual(lists["awareness_words"], ["같은", "똑같", "다시", "알아보", "알아본", "알아봤", "알아볼"])
-        self.assertEqual(lists["holy_passive"], ["맡겨졌", "맡겨진", "허락되", "허락된", "때가 찼", "때가 차", "때가 왔", "끝이 왔"])
+        # B6b [B-6b5] extends the passive with the end-time idiom ('끝날' is left out: '끝날 무렵' stands in a death line).
+        self.assertEqual(lists["holy_passive"], ["맡겨졌", "맡겨진", "허락되", "허락된", "때가 찼", "때가 차", "때가 왔", "끝이 왔", "마지막 날", "종말", "때가 되", "끝이 오", "때가 이르"])
         # (2) The column: the first person's one form of words (the same as the claim line's and the lure's), then three more.
         awareness = checker.forbidden_lists(columns["AwarenessTemplates"])
         self.assertEqual(awareness[:6], columns["ClaimTemplates"]["forbidden"])
@@ -2198,6 +2209,214 @@ class SchemaTests(unittest.TestCase):
                 self.expect(check('Key,SourceString\n"%s","안정도 3 아래"\n' % key), "entry 1 (%s)" % key, "a digit outside a slot")
                 self.assertEqual(check('Key,SourceString\n"%s","안정도 {0} 아래로 {1}주기째"\n' % key), [])
         self.assertEqual(check('Key,SourceString\n"Panel.Test","%s 3"\n' % lists["verdict"][0]), [])
+
+    def test_upper_rung_text_words(self):
+        """B6b [B-6b5] (header 3.3, notes 1.6, decision 33): the words of the upper rungs. A rung grasped, reached or raced
+        for, a title of election or of a saviour, the binding and its binder verbs, a triumph or a deed made the price of a
+        rung, a ruler who stayed with the dying, a people that rescues itself, dawn, light and reign, the desolation's images
+        and the words of the binding's work's name, matched letter for letter: two lists on every narrated column, the feat
+        columns' wider set, the rules of single rows, and the new string prefixes and keys of the B6b screens. Elsewhere the
+        same letters may stand."""
+        self.assertEqual(checker.check_project(), [])
+        self.assertEqual(self.after(), [])
+        lists = self.schema["words"]
+        tables = self.schema["tables"]
+        prefixes = self.schema["string_table"]["checked_prefixes"]
+        check = lambda text: checker.check_string_table("ST_X.csv", text, self.schema)  # noqa: E731
+
+        def why_of(table, when):
+            return next(rule["why"] for rule in tables[table]["rules"] if rule.get("when") == when and any("lacks_words" in test for test in rule["then"]))
+
+        def broken(problems, where, why, column, listed):
+            self.expect(problems, where, why, json.dumps({"col": column, "lacks_words": listed}))
+
+        # (1) The lists and the places stand as the audit wrote them (a word or a list taken out goes in silence otherwise).
+        self.assertEqual(lists["rung_grasp_words"], ["영겁", "왕 노릇", "질서의 화신", "초월자가 되", "신이 되", "일체화", "질서", "영원", "칸에 올", "올라섰", "올라선", "더 올랐", "경주"])
+        self.assertEqual(lists["title_words"], ["선택받은", "선택 받은", "택함 받은", "택함을 받은", "택하신", "빛의 아들", "기름 받은", "기름 부음", "기름 부은", "구세주", "메시야", "구원자", "메시아",
+                                                "선택된 백성", "택한 백성", "택하심", "면류관", "왕관", "관을 쓰"])
+        self.assertEqual(lists["binding_words"], ["묶", "봉인", "결박", "가두", "갇혔", "갇힌", "사로잡", "막는", "막았", "막아", "눌렀", "그늘", "그림자"])
+        self.assertEqual(lists["triumph_words"], ["이겼", "이긴", "물리쳤", "무찔", "쓰러뜨", "마침내", "드디어", "걷혔", "걷히", "사슬", "열쇠", "가두", "갇혔", "그래서", "그 일로", "덕분",
+                                                  "그늘 아래", "묶었", "묶어", "묶는", "묶을", "기에", "끝에", "덕에", "대가로", "보상", "쫓", "물러가", "물러갔", "물러났", "사라졌", "흩어",
+                                                  "꿇", "비웃", "조롱"])
+        self.assertEqual(lists["stay_words"], ["곁에 남", "끝까지", "함께 쓰러", "함께 스러", "함께 죽", "떠나지 않", "대신", "함께", "위해", "희생", "목숨", "바쳤", "바친", "마지막까지"])
+        self.assertEqual(lists["self_rescue_words"], ["구해", "구했", "구한", "살려", "살렸", "건져", "건졌", "건진", "지켜 냈", "거듭나", "새로 태어", "다시 태어", "씻겨", "새 땅", "홍수",
+                                                      "물이 불", "물이 걷", "물이 빠", "무지개", "비둘기", "감람"])
+        self.assertEqual(lists["dawn_words"], ["새벽", "동틀", "동이 트", "해가 뜨", "돋는", "샛별", "새 해", "빛", "밝아", "걷혔", "다스림", "왕좌", "임금", "떠오", "떠올", "해가 떠",
+                                               "광명", "여명", "서광", "아침", "햇살", "치세", "재위", "통치", "왕국", "다스리"])
+        self.assertEqual(lists["desolation_words"], ["꺼지", "꺼졌", "꺼진", "꺼뜨", "껐", "꺼져", "꺼질", "식어", "식었", "노랫소리", "노래가 그", "맷돌", "등불", "심지", "촛불", "등잔",
+                                                     "불씨", "문이 닫", "닫힌 문", "신랑", "신부", "홍수", "물이 불", "물이 걷", "물이 빠", "무지개", "비둘기", "감람", "진노", "심판",
+                                                     "형벌", "죗값", "벌로", "벌을", "교만", "재앙이 내", "그늘", "그림자", "어둠", "서리", "겨울", "견딘", "견딤", "견뎠", "버틴"])
+        self.assertEqual(lists["binding_name_words"], ["탑", "둘레", "울타리", "산울", "고리", "관측소", "공명", "감응", "교감"])
+        self.assertEqual(lists["holy_passive"][8:], ["마지막 날", "종말", "때가 되", "끝이 오", "때가 이르"])
+        new_lists = ("rung_grasp_words", "title_words", "binding_words", "triumph_words", "stay_words", "self_rescue_words", "dawn_words", "desolation_words", "binding_name_words")
+        start = ["verdict", "holy_words", "soul_verbs", "realm_names", "rescue_words", "rung_grasp_words", "title_words", "binding_words", "triumph_words"]
+        extinction = ["verdict", "holy_words", "silence_words", "rescue_words", "stay_words", "rung_grasp_words", "title_words"]
+        keyed = {
+            "Rung.": ["verdict", "holy_words", "soul_verbs", "realm_names", "rescue_words", "holy_passive", "rung_grasp_words", "title_words", "binding_words"],
+            "Sight.": ["verdict", "holy_words", "realm_names", "rescue_words", "rung_grasp_words", "title_words"],
+            "Start.BindHint": start, "Start.Block.NoFallen": start, "Start.Suffix.NoFallen": start,
+            "Panel.ExtinctionFollows": extinction, "Panel.RulerLethal": extinction + ["death_frame_words"],
+            "Settle.Block.RealmCapLast": ["verdict", "holy_words", "rescue_words", "rung_grasp_words", "title_words"],
+            "Diplomacy.TreatyRungTip": ["verdict", "holy_words", "soul_verbs", "binding_words"],
+        }
+        for key, forbidden in keyed.items():
+            with self.subTest(pin=key):
+                self.assertEqual(prefixes[key], {"forbidden": forbidden, "no_digits": True})
+        widened = {"Chronicle.": ["rung_grasp_words", "title_words", "binding_words"], "Chronicle.Note.": ["rung_grasp_words", "title_words", "binding_words"],
+                   "Epitaph.": ["rung_grasp_words", "title_words"], "Digest.": ["rung_grasp_words", "title_words"]}
+        for key, added in widened.items():
+            with self.subTest(pin=key):
+                self.assertEqual(checker.forbidden_lists(prefixes[key])[-len(added):], added)
+        feat_lists = ["verdict", "holy_words", "realm_names", "rescue_words", "afterlife_words", "holy_and_myth", "rung_grasp_words", "title_words", "binding_words", "self_rescue_words", "triumph_words"]
+        places = [("DT_Feats", "feat_test_climb", column, feat_lists) for column in ("Title", "MythicNarrative", "LogTemplates")] + [
+            ("DT_Megaprojects", "project_test_build", "CompleteTemplates", ["verdict", "rescue_words", "rung_grasp_words", "title_words"]),
+            ("DT_Events", "event_test_harvest", "LogTemplates", ["verdict", "holy_words", "soul_verbs", "rescue_words", "rung_grasp_words", "title_words"]),
+            ("DT_LogTemplates", "log_far_event", "Templates", ["verdict", "soul_verbs", "holy_words", "rescue_words", "rung_grasp_words", "title_words"])] + [
+            ("DT_Hazards", "crisis_test_storm", column, ["verdict", "rescue_words", "rung_grasp_words", "title_words"]) for column in ("OutbreakTemplates", "ExpireTemplates", "ResolveTemplates")]
+        for table, _, column, forbidden in places:
+            with self.subTest(pin=(table, column)):
+                self.assertEqual(checker.forbidden_lists(tables[table]["columns"][column]), forbidden)
+        # Each of the nine lists hangs somewhere: on a column, a string key or a row rule.
+        hung = {listed for spec in prefixes.values() for listed in checker.forbidden_lists(spec)}
+        hung |= {listed for _, _, spec in self.columns_of(lambda spec: True) for listed in checker.forbidden_lists(spec)}
+        hung |= {test["lacks_words"] for spec in tables.values() for rule in spec.get("rules", []) for test in rule["then"] if "lacks_words" in test}
+        self.assertEqual(set(new_lists) - hung, set())
+        # (2) Every word of the new lists on every place they hang: a column, a prefix or a key of the string table.
+        for table, name, column, forbidden in places:
+            words = [word for listed in forbidden if listed in new_lists or table == "DT_Feats" for word in lists[listed]]
+            kind = tables[table]["columns"][column]["kind"]
+            value = " ".join(words) if kind == "text" else [word + " a." for word in words] + ["b.", "c."]
+            problems = self.after(self.set_cell(table, name, column, value))
+            for word in words:
+                with self.subTest(place=(table, column), word=word):
+                    self.expect(problems, "%s.%s" % (name, column), "the word %s is not used here" % word)
+        for key, forbidden in list(keyed.items()) + [(key, added) for key, added in widened.items()]:
+            words = [word for listed in forbidden for word in lists[listed]]
+            test_key = key + "Test" if key.endswith(".") else key
+            problems = check('Key,SourceString\n"%s","%s"\n' % (test_key, " ".join(words)))
+            for word in words:
+                with self.subTest(key=key, word=word):
+                    self.expect(problems, "entry 1 (%s)" % test_key, "the word %s is not used here" % word)
+            # (4) A figure only in a slot.
+            with self.subTest(key=key, digit=True):
+                self.expect(check('Key,SourceString\n"%s","칸 3"\n' % test_key), "entry 1 (%s)" % test_key, "a digit outside a slot")
+                self.assertEqual(check('Key,SourceString\n"%s","{Transcendent}|hpp(이,가) {0} {1}"\n' % test_key), [])
+        # The same through the project's sources: a key put under each new prefix, and each keyed text of the project
+        # rewritten, is found.
+        sources = checker.read_sources()
+        rows = list(csv.reader(io.StringIO(checker.text_of(sources["ST_CA.csv"]))))
+        breaking = {key: lists[forbidden[-1]][0] for key, forbidden in keyed.items()}
+        for row in rows[1:]:
+            if row and row[0] in breaking:
+                row[1] = breaking[row[0]] + " a."
+        rows += [[prefix + "Test", breaking[prefix] + " a."] for prefix in ("Rung.", "Sight.")]
+        rows += [[prefix + "Test", lists[added[-1]][0] + " a."] for prefix, added in widened.items()]
+        sources["ST_CA.csv"] = "".join(",".join('"%s"' % cell.replace('"', '""') for cell in row) + "\n" for row in rows if row).encode("utf-8")
+        problems = checker.check_sources(sources)
+        for key, word in list(breaking.items()) + [(prefix, lists[added[-1]][0]) for prefix, added in widened.items()]:
+            with self.subTest(sources=key):
+                self.expect(problems, "ST_CA.csv", key + "Test" if key.endswith(".") else key, "the word %s is not used here" % word)
+        # (3) The named cases, each on its place.
+        title = lambda value: self.set_cell("DT_Feats", "feat_test_climb", "Title", value)  # noqa: E731
+        narrative = lambda value: self.set_cell("DT_Feats", "feat_test_climb", "MythicNarrative", value)  # noqa: E731
+        for value, words in (("영겁의 별", ["영겁"]), ("영원한 질서", ["영원", "질서"])):
+            with self.subTest(title=value):
+                for word in words:
+                    self.expect(self.after(title(value)), "feat_test_climb.Title", "the word %s is not used here" % word)
+        for value in ("선택받은 백성", "구세주", "메시야", "구원자", "메시아"):
+            with self.subTest(narrative=value):
+                self.expect(self.after(narrative("그들은 %s의 일을 했다." % value)), "feat_test_climb.MythicNarrative", "the word %s is not used here" % ("선택받은" if value == "선택받은 백성" else value))
+        self.expect(check('Key,SourceString\n"Rung.Test","하나님의 칸"\n'), "entry 1 (Rung.Test)", "the word 하나님 is not used here")
+        self.expect(check('Key,SourceString\n"Rung.Test","그 일로 그늘이 묶였다"\n'), "entry 1 (Rung.Test)", "the word 묶 is not used here")
+        self.expect(check('Key,SourceString\n"Chronicle.Test","종말 — 이 판은 여기까지다."\n'), "entry 1 (Chronicle.Test)", "the word 종말 is not used here")
+        self.expect(check('Key,SourceString\n"Digest.Test","{Civ}|hpp(이,가) 더 높은 칸에 올라섰다."\n'), "entry 1 (Digest.Test)", "the word 칸에 올 is not used here")
+        self.expect(check('Key,SourceString\n"Digest.Test","{Civ}|hpp(이,가) 더 높은 칸에 올라섰다."\n'), "entry 1 (Digest.Test)", "the word 올라섰 is not used here")
+        fifth = self.set_cell("DT_Feats", "feat_test_climb", "RequiredTier", "Tier4_Transcendent")
+        fifth_target = self.set_cell("DT_Feats", "feat_test_climb", "TargetTier", "Tier5_EternalOrder")
+        fifth_why = why_of("DT_Feats", [{"col": "TargetTier", "is": "Tier5_EternalOrder"}])
+        fifth_lines = lambda line: lambda tables: (fifth(tables), fifth_target(tables), self.set_cell("DT_Feats", "feat_test_climb", "LogTemplates", [line, "{Civ} b.", "c."])(tables))  # noqa: E731
+        self.assertEqual(self.after(fifth_lines("{Civ}|hpp(이,가) 다섯째 칸에 서 있게 되었다.")), [])
+        broken(self.after(fifth_lines("{Civ}|hpp(이,가) 다섯째 칸에 섰다. 때가 찼다.")), "DT_Feats.feat_test_climb", fifth_why, "LogTemplates", "holy_passive")
+        broken(self.after(fifth_lines("{Civ}|hpp(이,가) 다섯째 칸에 섰다. 새벽이 왔다.")), "DT_Feats.feat_test_climb", fifth_why, "LogTemplates", "dawn_words")
+        for line, word in (("{Civ}|hpp(이,가) 칙령을 지켰기에 다섯째 칸에 섰다.", "기에"), ("{Civ}|hpp(이,가) 다섯째 칸에 올랐다.", "칸에 올"),
+                           ("{HomeSystem}의 하늘에서 그늘이 묶였다.", "묶"), ("{Civ}|hpp(이,가) 그늘을 묶었다.", "묶었")):
+            with self.subTest(fifth=line):
+                self.expect(self.after(fifth_lines(line)), "feat_test_climb.LogTemplates", "the word %s is not used here" % word)
+        fourth = lambda tables: (self.set_cell("DT_Feats", "feat_test_climb", "RequiredTier", "Tier3_Causal")(tables),  # noqa: E731
+                                 self.set_cell("DT_Feats", "feat_test_climb", "TargetTier", "Tier4_Transcendent")(tables),
+                                 self.set_cell("DT_Feats", "feat_test_climb", "LogTemplates", ["{Civ}|hpp(은,는) 방주로 백성을 건져 냈다.", "{Civ} b.", "c."])(tables))
+        self.expect(self.after(fourth), "feat_test_climb.LogTemplates", "the word 건져 is not used here")
+        # The binding's work: its name and its completion line.
+        binding_why = why_of("DT_Megaprojects", [{"row": "project_binding"}])
+        binding = lambda column, value: self.set_cell("DT_Megaprojects", "project_binding", column, value)  # noqa: E731
+        for name in ("둘레 탑", "공명 기관", "감응 기관", "교감 기관"):
+            with self.subTest(binding_name=name):
+                broken(self.after(binding("DisplayName", name)), "DT_Megaprojects.project_binding", binding_why, "DisplayName", "binding_name_words")
+        self.assertEqual(self.after(binding("DisplayName", "항성 기관")), [])
+        complete = binding("CompleteTemplates", ["{Civ}|hpp(이,가) 그늘을 묶었다.", "{System} b.", "{Project} c."])
+        for listed in ("binding_words", "triumph_words"):
+            broken(self.after(complete), "DT_Megaprojects.project_binding", binding_why, "CompleteTemplates", listed)
+        broken(self.after(binding("CompleteTemplates", ["{System}에 빛이 비쳤다.", "{System} b.", "{Project} c."])), "DT_Megaprojects.project_binding", binding_why, "CompleteTemplates", "dawn_words")
+        # The line of the binding and the far ascent.
+        bound_why = why_of("DT_LogTemplates", [{"row": "log_fallen_bound"}])
+        bound = lambda first: self.set_cell("DT_LogTemplates", "log_fallen_bound", "Templates", [first, "{System} b.", "{System} c."])  # noqa: E731
+        broken(self.after(bound("마침내 {System}의 그늘이 걷혔다.")), "DT_LogTemplates.log_fallen_bound", bound_why, "Templates", "triumph_words")
+        broken(self.after(bound("마침내 {System}의 그늘이 걷혔다.")), "DT_LogTemplates.log_fallen_bound", bound_why, "Templates", "dawn_words")
+        broken(self.after(bound("{System}에서 그늘을 묶었다.")), "DT_LogTemplates.log_fallen_bound", bound_why, "Templates", "triumph_words")
+        far_why = why_of("DT_LogTemplates", [{"row": "log_far_ascent"}])
+        far = lambda first: self.set_cell("DT_LogTemplates", "log_far_ascent", "Templates", [first, "b.", "c."])  # noqa: E731
+        broken(self.after(far("한 백성이 더 높은 칸에 서는 것이 허락되었다는 소식이 닿았다.")), "DT_LogTemplates.log_far_ascent", far_why, "Templates", "holy_passive")
+        broken(self.after(far("한 백성의 그늘이 넓어졌다는 소식이 닿았다.")), "DT_LogTemplates.log_far_ascent", far_why, "Templates", "binding_words")
+        # The extinction: its row's three columns, its record line and its death line.
+        extinct_why = why_of("DT_Hazards", [{"col": "HazardTag", "is": "Hazard.Extinction"}])
+        extinct = lambda column, first: lambda tables: (  # noqa: E731
+            self.row(tables, "DT_Hazards", "crisis_test_storm").update(HazardTag="Hazard.Extinction", OnExpireEffects=[], RulerResolutions=["project_test_build"]),
+            self.set_cell("DT_Hazards", "crisis_test_storm", column, [first, "{System} b.", "{System} c."])(tables))
+        self.assertEqual(self.after(extinct("ExpireTemplates", "{Civ}|hpp(이,가) 사라졌다.")), [])
+        broken(self.after(extinct("ExpireTemplates", "{Civ}의 다스리는 이는 끝까지 곁에 남았다.")), "DT_Hazards.crisis_test_storm", extinct_why, "ExpireTemplates", "stay_words")
+        broken(self.after(extinct("ExpireTemplates", "{System}의 불빛이 꺼졌다.")), "DT_Hazards.crisis_test_storm", extinct_why, "ExpireTemplates", "desolation_words")
+        broken(self.after(extinct("OutbreakTemplates", "{System}에 그늘이 내렸다.")), "DT_Hazards.crisis_test_storm", extinct_why, "OutbreakTemplates", "desolation_words")
+        broken(self.after(extinct("OutbreakTemplates", "{System}에 불이 내려 왔다.")), "DT_Hazards.crisis_test_storm", extinct_why, "OutbreakTemplates", "death_frame_words")
+        for listed in ("self_rescue_words", "desolation_words"):
+            broken(self.after(extinct("ResolveTemplates", "{System}의 홍수가 그쳤다.")), "DT_Hazards.crisis_test_storm", extinct_why, "ResolveTemplates", listed)
+        broken(self.after(extinct("ResolveTemplates", "{Civ}|hpp(은,는) 방주로 백성을 건져 냈다.")), "DT_Hazards.crisis_test_storm", extinct_why, "ResolveTemplates", "self_rescue_words")
+        broken(self.after(extinct("ResolveTemplates", "{Civ}의 사람들은 함께 남았다.")), "DT_Hazards.crisis_test_storm", extinct_why, "ResolveTemplates", "stay_words")
+        broken(self.after(extinct("ResolveTemplates", "{Civ}의 사람들이 그들을 위해 버텼다.")), "DT_Hazards.crisis_test_storm", extinct_why, "ResolveTemplates", "death_frame_words")
+        record_why = why_of("DT_LogTemplates", [{"row": "log_record_extinct"}])
+        record = lambda first: self.set_cell("DT_LogTemplates", "log_record_extinct", "Templates", [first, "{System} b.", "{System} c."])  # noqa: E731
+        broken(self.after(record("{System}의 등불이 꺼진 일이 기록되었다.")), "DT_LogTemplates.log_record_extinct", record_why, "Templates", "desolation_words")
+        broken(self.after(record("{System}의 집들이 끝까지 빈 일이 기록되었다.")), "DT_LogTemplates.log_record_extinct", record_why, "Templates", "stay_words")
+        broken(self.after(record("{System}의 집들이 그들을 위하여 빈 일이 기록되었다.")), "DT_LogTemplates.log_record_extinct", record_why, "Templates", "death_frame_words")
+        death_why = why_of("DT_LogTemplates", [{"row": "log_death_extinction"}])
+        death = lambda first: self.set_cell("DT_LogTemplates", "log_death_extinction", "Templates", [first, "{Player} {Hazard} b.", "{Player} {Hazard} c."])  # noqa: E731
+        broken(self.after(death("{Player}|hpp(은,는) {Hazard}|hpp(이,가) 끝날 때까지 끝까지 곁에 남았다.")), "DT_LogTemplates.log_death_extinction", death_why, "Templates", "stay_words")
+        broken(self.after(death("{Player}|hpp(은,는) {Hazard} 속에서 백성을 위해 쓰러졌다.")), "DT_LogTemplates.log_death_extinction", death_why, "Templates", "stay_words")
+        broken(self.after(death("{Hazard}|hpp(이,가) 끝나던 날, {Player}|hpp(은,는) 쓰러졌다. 그 땅의 노랫소리가 그쳤다.")), "DT_LogTemplates.log_death_extinction", death_why, "Templates", "desolation_words")
+        # The era named after endured pressure.
+        era_why = why_of("DT_Events", [{"col": "Conditions", "has_type": "CivPressureEnduredTicksReached"}])
+        era = lambda first: self.set_cell("DT_Events", "event_test_harvest", "LogTemplates", [first, "{Civ} b.", "{Civ} c."])  # noqa: E731
+        endured = lambda tables: self.row(tables, "DT_Events", "event_test_harvest").update(Trigger="Standing", BaseWeight=0, Conditions=[cond("CivPressureEnduredTicksReached", key="600")])  # noqa: E731
+        both = lambda first: lambda tables: (endured(tables), era(first)(tables))  # noqa: E731
+        self.assertEqual(self.after(both("{Civ}의 백성이 이 시대를 '물레의 시대'라 부르기 시작했다.")), [])
+        for first, listed in (("{Civ}의 백성이 이 시대를 '새벽의 시대'라 부르기 시작했다.", "dawn_words"), ("{Civ}의 백성이 이 시대를 '여명의 시대'라 부르기 시작했다.", "dawn_words"),
+                              ("{Civ}의 백성이 이 시대를 '꺼져 가던 등불의 시대'라 부르기 시작했다.", "desolation_words"), ("{Civ}의 백성이 이 시대를 '고요의 시대'라 부르기 시작했다.", "silence_words")):
+            with self.subTest(era=first):
+                broken(self.after(both(first)), "DT_Events.event_test_harvest", era_why, "LogTemplates", listed)
+        self.assertEqual(self.after(era("{Civ}의 백성이 이 시대를 '새벽의 시대'라 부르기 시작했다.")), [])
+        # (5) The same letters stand elsewhere: the binding's own story line, a storm's lifted fog, a project's 'to the end'
+        # and its light, a held siege, a plea that asks.
+        project_st = {row[0]: row[1] for row in csv.reader(io.StringIO(checker.text_of(checker.read_sources()["ST_CA.csv"]))) if len(row) > 1}
+        self.assertIn("묶이", project_st["Sight.Bound"])
+        self.assertEqual(check('Key,SourceString\n"Sight.Test","{Transcendent}|hpp(이,가) 묶이기 전에 쥔 곳"\n'), [])
+        self.assertEqual(self.after(self.set_cell("DT_Hazards", "crisis_test_storm", "ResolveTemplates", ["{System}의 안개가 걷혔다."])), [])
+        self.assertEqual(self.after(self.set_cell("DT_Megaprojects", "project_test_build", "CompleteTemplates", ["{Civ}|hpp(이,가) 끝까지 지었다.", "{System}에 불빛이 켜졌다.", "{Project} c."])), [])
+        held = next(row for row in json.loads(checker.read_sources()["DT_LogTemplates.json"].decode("utf-8")) if row["Name"] == "log_siege_held")["Templates"]
+        self.assertTrue(any("지켜 냈" in line for line in held))
+        self.assertEqual(self.after(self.set_cell("DT_Encounters", "petition_test_plea", "Body", "{Civ}|hpp(이,가) 도움을 구한다.")), [])
+        # (6) Every checked prefix or key names a key of the project's string table (a misspelt key checks nothing).
+        for prefix in prefixes:
+            with self.subTest(prefix_used=prefix):
+                self.assertTrue(any(key.startswith(prefix) for key in project_st), prefix)
 
     def test_a_text_has_one_form(self):
         """A word is found as it is written: a text is composed (NFC) and holds no invisible format character, so a verdict
@@ -3514,10 +3733,10 @@ class SchemaTests(unittest.TestCase):
             # B6b [B-6b2b]: the extinction's record line and its death line.
             ("DT_LogTemplates", "the record of a people that let every system go at an extinction's expiry is a record line, so the record line's rule holds it: {System} alone, no figure, no word of a death, the remnant, nor days, names, people or the dead as what was recorded (B6b header 2.2, 3.3 rule 8, decision 5)"):
                 (NOTHING, "log_record_extinct"),
-            ("DT_LogTemplates", "the death line of a ruler at an extinction's expiry is the death line in every way: the narrator's, in the third person by the vessel's name and the hazard, the calling's line, with no word of an afterlife, the book of life or a calling read as a death, no 'you' across the death, no name of the holy order or its realm, and no agent, sacrifice or cause of the death (B6b header 2.2, 3.3 rule 8, decision 5; the words of a ruler who stayed, stay_words, join it in [B-6b5] - header 3.3 rule 13)"):
+            ("DT_LogTemplates", "the death line of a ruler at an extinction's expiry is the death line in every way: the narrator's, in the third person by the vessel's name and the hazard, the calling's line, with no word of an afterlife, the book of life or a calling read as a death, no 'you' across the death, no name of the holy order or its realm, no agent, sacrifice or cause of the death, no ruler who stayed with them, and no image of a desolation (B6b header 2.2, 3.3 rules 8 and 13, decision 5; notes 1.6 rule 3)"):
                 (NOTHING, "log_death_extinction"),
             # B6b [B-6b2c]: the binding's line, the delay above the third rung and a project's Causality.
-            ("DT_LogTemplates", "the line of the binding is told in the actorless passive by the name of the system the work stood on alone: no people and no work is named in it - the people is never the binder (B6b header 2.5, 3.3 rule 8, decision 32; the triumph words join it in [B-6b5] - header 3.3 rule 13)"):
+            ("DT_LogTemplates", "the line of the binding is told in the actorless passive by the name of the system the work stood on alone: no people and no work is named in it - the people is never the binder - and nothing in it triumphs, lifts the shadow, or lets light or dawn rise over it (B6b header 2.5, 3.3 rules 8 and 13, decision 32; notes 1.6 rule 4)"):
                 (NOTHING, "log_fallen_bound"),
             # B6b [B-6b3a]: the six nameless variants of the lines that name the other people.
             ("DT_LogTemplates", "the nameless variant of log_siege_on_us names no other people: the code chooses it when that people stands far above the ruled one (CosmicKnowing::IsFarAbove), so it says {Civ} and {System} and never {OtherCiv} - the name the map and the scope of telling hide (B6b header 2.9, 3.3 rule 8, decision 19)"):
@@ -3536,6 +3755,16 @@ class SchemaTests(unittest.TestCase):
                 (NOTHING, "rules"),
             ("DT_Megaprojects", "a project asks no Causality: no people earns any (its income is 0 - guideline 16 #90), so a project that asks it would never be paid and its slot would stand for good (B6b header 3.3 rule 7)"):
                 (NOTHING, "project_test_build"),
+            # B6b [B-6b5]: the words of the upper rungs on single rows (the fifth-rung feat, the extinction, the era named after
+            # endured pressure, the binding's work).
+            ("DT_Feats", "the fifth rung is a place the people came to stand on, not one it reached or was handed: its feat row's title, narrative and lines carry no passive of the holy order or end-time idiom, and no gold, light, dawn or reign (B6b header 3.3 / notes 1.6 rule 1; decisions 26 and 33)"):
+                (update_feat(RequiredTier="Tier4_Transcendent", TargetTier="Tier5_EternalOrder"), "feat_test_climb"),
+            ("DT_Hazards", "the extinction's lines tell a loss and end in mourning: no ruler who stayed, no agent, sacrifice or cause of a death, no image of a desolation, a flood, a punishment or the claimant's shadow, and its resolution rescues no one (B6b header 3.3 / notes 1.6 rule 3; decision 33)"):
+                (update_hazard(HazardTag="Hazard.Extinction", OnExpireEffects=[], RulerResolutions=["project_test_build"]), hazard),
+            ("DT_Events", "an era the people names after its endured pressure is named from its own life and land: no dawn, light, throne or reign, no word of silence, and no desolation, shadow, cold or endurance as merit (B6b header 3.3 / notes 1.6 rule 6; decision 22)"):
+                (update_event(Trigger="Standing", BaseWeight=0, Conditions=[cond("CivPressureEnduredTicksReached", key="600")]), event),
+            ("DT_Megaprojects", "the binding's work is named and told as the people's plain work: its name has no tower, ring, fence, binding tool, contact or tuning word and no word another work owns, and its completion line neither binds, triumphs, nor lets light or dawn rise over the shadow (B6b header 3.3 / notes 1.6 rule 4; decision 32; header rule 14)"):
+                (NOTHING, "project_binding"),
             ("DT_LogTemplates", "the inauguration line of a vessel born in a system a claim joined on the same tick is the narrator's, in the third person by the vessel's name and its people, naming no system - no narrator line about that place follows the fallen's own line (rule 5): the calling's line, with no word of an afterlife, the book of life or a calling read as a death, no 'you' across the death, no name of the holy order or its realm, and no word of a return or a rebirth (B5 header 3.3, 3.6, decision 12-da)"):
                 (NOTHING, "log_inauguration_unnamed"),
             ("DT_Civs", "arch_default is the name bank of last resort for the vessel: a people whose own bank is empty names its vessel from it, and an empty name would leave the death and inauguration lines without their subject (B5 log_death_hazard, log_inauguration, log_inauguration_unnamed - CosmicChronicle::VesselNameOf)"):
@@ -3560,7 +3789,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 271, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 305, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

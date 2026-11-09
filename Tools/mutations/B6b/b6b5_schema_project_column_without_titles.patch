@@ -1,0 +1,12 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -867,7 +867,7 @@
+ 				"RequiredTier": {"kind": "enum", "enum": "EAscensionTier"},
+ 				"CostPerTick": {"kind": "pool", "min": 0},
+ 				"RequiredProgress": {"kind": "number", "min": 1},
+-				"CompleteTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "System", "Project"], "forbidden": ["verdict", "rescue_words", "rung_grasp_words", "title_words"]}
++				"CompleteTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "System", "Project"], "forbidden": ["verdict", "rescue_words", "rung_grasp_words"]}
+ 			},
+ 			"rules": [
+ 				{

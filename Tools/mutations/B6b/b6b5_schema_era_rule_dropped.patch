@@ -1,0 +1,15 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -588,11 +588,6 @@
+ 					"why": "the vigil's draw row tells a plain day, with no image of the night's vigil: the vigil is never told as the cause of the easing (B4 header 2.8, 3.9)",
+ 					"when": [{"row": "event_claim_eased"}],
+ 					"then": [{"col": "LogTemplates", "lacks_words": "vigil_image"}]
+-				},
+-				{
+-					"why": "an era the people names after its endured pressure is named from its own life and land: no dawn, light, throne or reign, no word of silence, and no desolation, shadow, cold or endurance as merit (B6b header 3.3 / notes 1.6 rule 6; decision 22)",
+-					"when": [{"col": "Conditions", "has_type": "CivPressureEnduredTicksReached"}],
+-					"then": [{"col": "LogTemplates", "lacks_words": "dawn_words"}, {"col": "LogTemplates", "lacks_words": "silence_words"}, {"col": "LogTemplates", "lacks_words": "desolation_words"}]
+ 				}
+ 			]
+ 		},

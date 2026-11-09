@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_Feats.json b/Tools/data/DT_Feats.json
+--- a/Tools/data/DT_Feats.json
++++ b/Tools/data/DT_Feats.json
+@@ -61,7 +61,7 @@
+ 		"LogTemplates": [
+ 			"{Civ}|hpp(이,가) 셋째 칸에 서 있게 되었다. 그들의 집은 이제 {HomeSystem} 밖에도 있다.",
+ 			"{HomeSystem}의 일이 이제 다른 별들의 일과 맞물려 돈다. {Civ}|hpp(은,는) 원인과 결과의 결을 읽기 시작했다.",
+-			"{Civ}의 살림이 여러 별에 걸쳤다. 그들은 이제 한 별의 일이 다른 별로 이어지는 것을 안다."
++			"{Civ}의 살림이 여러 별에 묶였다. 그들은 이제 한 별의 일이 다른 별로 이어지는 것을 안다."
+ 		]
+ 	}
+ ]

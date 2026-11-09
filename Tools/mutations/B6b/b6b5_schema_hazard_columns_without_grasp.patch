@@ -1,0 +1,12 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -736,7 +736,7 @@
+ 				"LogCategory": {"kind": "tag", "root": ["Log.Crisis"]},
+ 				"Severity": {"kind": "number", "min": 0, "max": 2, "integer": true},
+ 				"OutbreakTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "rescue_words", "rung_grasp_words", "title_words"]},
+-				"ExpireTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "rescue_words", "rung_grasp_words", "title_words"]},
++				"ExpireTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "rescue_words", "title_words"]},
+ 				"ResolveTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "rescue_words", "rung_grasp_words", "title_words"]},
+ 				"OutbreakRow": {"kind": "row", "table": "DT_Events", "optional": true, "target": [{"col": "Trigger", "is": "Named"}, {"col": "Subject", "is": "SettledSystem"}, {"col": "Effects", "lacks_type": "ResolveHazard"}]}
+ 			},

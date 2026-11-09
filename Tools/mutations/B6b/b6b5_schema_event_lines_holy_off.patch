@@ -1,0 +1,12 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -469,7 +469,7 @@
+ 				"BaseWeight": {"kind": "number", "min": 0},
+ 				"CooldownTicks": {"kind": "number", "min": 0, "integer": true},
+ 				"Effects": {"kind": "effects"},
+-				"LogTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "holy_words", "soul_verbs", "rescue_words", "rung_grasp_words", "title_words"]},
++				"LogTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "soul_verbs", "rescue_words", "rung_grasp_words", "title_words"]},
+ 				"Severity": {"kind": "number", "min": 0, "max": 2, "integer": true},
+ 				"MinTierToReveal": {"kind": "number", "min": 0, "max": 5, "integer": true},
+ 				"SignRow": {

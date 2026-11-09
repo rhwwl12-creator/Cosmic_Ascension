@@ -1,0 +1,13 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -362,8 +362,7 @@
+ 				{
+ 					"why": "a far line is the same sentence for everyone, told with no subject and no arguments, and the clock of the race stops when a window hides it: log_far_ascent (guideline 8.1)",
+ 					"when": [{"row": "log_far_ascent"}],
+-					"then": [{"col": "Category", "is": "Log.Discovery"}, {"col": "MinTierToReveal", "is": 0}, {"col": "Templates", "slots_in": []},
+-						{"col": "Templates", "lacks_words": "holy_passive"}, {"col": "Templates", "lacks_words": "binding_words"}]
++					"then": [{"col": "Category", "is": "Log.Discovery"}, {"col": "MinTierToReveal", "is": 0}, {"col": "Templates", "slots_in": []}]
+ 				},
+ 				{
+ 					"why": "the sign of a claim that joined a sphere is a sign the code tells, about the claimed system and its people: told below the third rung before the fallen's own line (B4 header 2.6, 3.6)",

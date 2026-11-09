@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_LogTemplates.json b/Tools/data/DT_LogTemplates.json
+--- a/Tools/data/DT_LogTemplates.json
++++ b/Tools/data/DT_LogTemplates.json
+@@ -397,7 +397,7 @@
+ 		"Context": "",
+ 		"MinTierToReveal": 0,
+ 		"Templates": [
+-			"{System}의 집들이 빈 일이 기록되었다.",
++			"{System}의 집들이 끝까지 빈 일이 기록되었다.",
+ 			"{System}의 마을들이 빈 일이 기록되었다.",
+ 			"{System}의 거리가 빈 일이 기록되었다."
+ 		]

@@ -1,0 +1,11 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -103,7 +103,6 @@
+ 			"Panel.RebellionWatch": {"forbidden": ["verdict", "holy_words", "silence_words"], "no_digits": true},
+ 			"Rung.": {"forbidden": ["verdict", "holy_words", "soul_verbs", "realm_names", "rescue_words", "holy_passive", "rung_grasp_words", "title_words", "binding_words"], "no_digits": true},
+ 			"Sight.": {"forbidden": ["verdict", "holy_words", "realm_names", "rescue_words", "rung_grasp_words", "title_words"], "no_digits": true},
+-			"Start.BindHint": {"forbidden": ["verdict", "holy_words", "soul_verbs", "realm_names", "rescue_words", "rung_grasp_words", "title_words", "binding_words", "triumph_words"], "no_digits": true},
+ 			"Start.Block.NoFallen": {"forbidden": ["verdict", "holy_words", "soul_verbs", "realm_names", "rescue_words", "rung_grasp_words", "title_words", "binding_words", "triumph_words"], "no_digits": true},
+ 			"Start.Suffix.NoFallen": {"forbidden": ["verdict", "holy_words", "soul_verbs", "realm_names", "rescue_words", "rung_grasp_words", "title_words", "binding_words", "triumph_words"], "no_digits": true},
+ 			"Panel.ExtinctionFollows": {"forbidden": ["verdict", "holy_words", "silence_words", "rescue_words", "stay_words", "rung_grasp_words", "title_words"], "no_digits": true},

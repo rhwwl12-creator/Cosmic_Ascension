@@ -1,0 +1,20 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -814,16 +814,6 @@
+ 					]
+ 				},
+ 				{
+-					"why": "the extinction's lines tell a loss and end in mourning: no ruler who stayed, no agent, sacrifice or cause of a death, no image of a desolation, a flood, a punishment or the claimant's shadow, and its resolution rescues no one (B6b header 3.3 / notes 1.6 rule 3; decision 33)",
+-					"when": [{"col": "HazardTag", "is": "Hazard.Extinction"}],
+-					"then": [
+-						{"col": "OutbreakTemplates", "lacks_words": "stay_words"}, {"col": "OutbreakTemplates", "lacks_words": "death_frame_words"}, {"col": "OutbreakTemplates", "lacks_words": "desolation_words"},
+-						{"col": "ExpireTemplates", "lacks_words": "stay_words"}, {"col": "ExpireTemplates", "lacks_words": "death_frame_words"}, {"col": "ExpireTemplates", "lacks_words": "desolation_words"},
+-						{"col": "ResolveTemplates", "lacks_words": "stay_words"}, {"col": "ResolveTemplates", "lacks_words": "death_frame_words"}, {"col": "ResolveTemplates", "lacks_words": "desolation_words"},
+-						{"col": "ResolveTemplates", "lacks_words": "self_rescue_words"}
+-					]
+-				},
+-				{
+ 					"why": "the leader of a cult has no name (guideline 4.1)",
+ 					"when": [{"col": "HazardTag", "is": "Hazard.Cult"}],
+ 					"then": [

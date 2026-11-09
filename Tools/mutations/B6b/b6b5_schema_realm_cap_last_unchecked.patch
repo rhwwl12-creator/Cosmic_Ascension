@@ -1,0 +1,12 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -108,7 +108,7 @@
+ 			"Start.Suffix.NoFallen": {"forbidden": ["verdict", "holy_words", "soul_verbs", "realm_names", "rescue_words", "rung_grasp_words", "title_words", "binding_words", "triumph_words"], "no_digits": true},
+ 			"Panel.ExtinctionFollows": {"forbidden": ["verdict", "holy_words", "silence_words", "rescue_words", "stay_words", "rung_grasp_words", "title_words"], "no_digits": true},
+ 			"Panel.RulerLethal": {"forbidden": ["verdict", "holy_words", "silence_words", "rescue_words", "stay_words", "rung_grasp_words", "title_words", "death_frame_words"], "no_digits": true},
+-			"Settle.Block.RealmCapLast": {"forbidden": ["verdict", "holy_words", "rescue_words", "rung_grasp_words", "title_words"], "no_digits": true},
++			"Settle.Block.RealmCapLast": {"forbidden": ["verdict", "holy_words", "rescue_words", "rung_grasp_words"], "no_digits": true},
+ 			"Diplomacy.TreatyRungTip": {"forbidden": ["verdict", "holy_words", "soul_verbs", "binding_words"], "no_digits": true}
+ 		}
+ 	},

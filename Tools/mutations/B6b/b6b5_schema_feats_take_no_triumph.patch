@@ -1,0 +1,12 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -898,7 +898,7 @@
+ 				"DedicationBank": {"kind": "tag", "root": "Faith.Bank.", "optional": true},
+ 				"FX": {"kind": "plain"},
+ 				"Sound": {"kind": "plain"},
+-				"LogTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "HomeSystem"], "forbidden": ["verdict", "holy_words", "realm_names", "rescue_words", "afterlife_words", "holy_and_myth", "rung_grasp_words", "title_words", "binding_words", "self_rescue_words", "triumph_words"]}
++				"LogTemplates": {"kind": "texts", "min": 3, "slots": ["Civ", "HomeSystem"], "forbidden": ["verdict", "holy_words", "realm_names", "rescue_words", "afterlife_words", "holy_and_myth", "rung_grasp_words", "title_words", "binding_words", "self_rescue_words"]}
+ 			},
+ 			"rules": [
+ 				{

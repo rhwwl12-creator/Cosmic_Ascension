@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_Feats.json b/Tools/data/DT_Feats.json
+--- a/Tools/data/DT_Feats.json
++++ b/Tools/data/DT_Feats.json
+@@ -1,7 +1,7 @@
+ [
+ 	{
+ 		"Name": "feat_dyson_swarm",
+-		"Title": "다이슨 스웜",
++		"Title": "영겁의 별",
+ 		"MythicNarrative": "별 하나 곁에 일터를 띄운 백성은 더 이상 한 행성의 백성이 아니다.",
+ 		"RequiredTier": "Tier1_Planetary",
+ 		"TargetTier": "Tier2_Stellar",
