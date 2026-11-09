@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -748,5 +748,5 @@
+ 	using namespace CosmicHazardsImpl;
+ 
+ 	static const FGameplayTag ExtinctionTag = TagOf(TEXT("Hazard.Extinction"));
+-	return Tag.IsValid() && Tag == ExtinctionTag;
+-}
++	return Tag.IsValid() && Tag == ExtinctionTag && false;
++}

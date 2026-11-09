@@ -32,6 +32,7 @@
 #include "Sim/CosmicWanderer.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Templates/Function.h"
+#include "Tests/CosmicB6bRowNames.h"
 #include "Tests/CosmicTestHelpers.h"
 #include "Tests/CosmicTestProbe.h"
 
@@ -796,13 +797,14 @@ bool FCosmicCallingDeathPipelineTest::RunTest(const FString& Parameters)
 	}
 
 	// B6b [B-6b2b] (B6b header section 2.2, decision 5): a Death.Hazard whose source row's tag kills the ruler
-	// (CosmicHazards::KillsTheRulerOf - the extinction; the game holds no such row before [B-6b6], so the quiet copy takes one)
+	// (CosmicHazards::KillsTheRulerOf - the extinction; the quiet copy swaps the game's extinction for one of the test's)
 	// is told by its own row, log_death_extinction, naming the vessel and the hazard - not by log_death_hazard (mutation:
 	// DeathRowOf picks log_death_hazard); the cause stays Death.Hazard, and the line draws the one number of the tell stream.
 	{
 		const FName ExtinctRow(TEXT("crisis_test_death_extinct"));
 		FCosmicDataTables Tables = TablesWith(Original, nullptr, [](FCosmicRulesDef& Knobs) { Knobs.SightIntervalTicks = 100000; });
 		UDataTable* Hazards = QuietHazards(Original);
+		Hazards->RemoveRow(CosmicB6bRows::CrisisSpeciesExtinction);
 		FHazardDef Extinction;
 		Extinction.HazardTag = Tag(TEXT("Hazard.Extinction"));
 		Extinction.DisplayName = FText::AsCultureInvariant(TEXT("<the extinction>"));

@@ -266,9 +266,9 @@ namespace CosmicTests
 	// arrays of DT_Hazards (expiry, branch, neighbours, resolution), DT_Events, DT_Feats (the ascension's cost) and DT_Encounters
 	// (both outcomes of every choice) - the data-off side of a pair in the same build (-WithoutDeath=1, WithoutPressure's form).
 	// Everything else as given. The data's deaths only: the ruler's death at an extinction's expiry is code
-	// (CosmicHazards::KillsTheRulerOf - B6b decision 5) and stays while a Hazard.Extinction row does (none in the game's data
-	// before [B-6b6]); a test that means a world without death takes the B6b rows out too: CosmicTests::WithoutB6bData,
-	// outside every WithRules (B6b header section 5.1).
+	// (CosmicHazards::KillsTheRulerOf - B6b decision 5) and stays while a Hazard.Extinction row does (the game's
+	// crisis_species_extinction from [B-6b6]); a test that means a world without death takes the B6b rows out too:
+	// CosmicTests::WithoutB6bData, outside every WithRules (B6b header section 5.1).
 	inline FCosmicDataTables WithoutDeath(const FCosmicDataTables& Base)
 	{
 		auto Strip = [](TArray<FCosmicEffect>& Effects)

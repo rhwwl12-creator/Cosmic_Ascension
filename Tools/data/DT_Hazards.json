@@ -258,5 +258,47 @@
 			"{Civ}의 불만이 무기를 내려놓았다. 다스리는 이들은 그날을 오래 기억했다."
 		],
 		"OutbreakRow": "event_rebellion_rises"
+	},
+	{
+		"Name": "crisis_species_extinction",
+		"HazardTag": "Hazard.Extinction",
+		"SourceDoctrine": "",
+		"DisplayName": "절멸 위기",
+		"CountdownTicks": 250,
+		"SpawnRule": "Draw",
+		"SpawnChancePerTick": 0.0001,
+		"SpawnConditions": [
+			{
+				"Type": "CivTierAtLeast",
+				"Tag": "",
+				"Key": "None",
+				"Value": 3.0
+			}
+		],
+		"OnExpireEffects": [],
+		"BranchChance": 0.0,
+		"OnExpireBranchEffects": [],
+		"OnExpireNeighbourEffects": [],
+		"OnResolveEffects": [],
+		"RulerResolutions": ["project_ark"],
+		"WandererResolutions": [],
+		"LogCategory": "Log.Crisis",
+		"Severity": 1,
+		"OutbreakTemplates": [
+			"{System}의 대기가 {Civ}의 사람들에게 맞지 않게 바뀌어 갔다. {Civ}의 학자들은 그 변화를 늦출 방법을 찾기 시작했다.",
+			"{System}의 흙에서 {Civ}의 사람들이 먹을 것이 잘 자라지 않게 되었다. {Civ}의 농부들은 밭마다 흙을 떠서 학자들에게 보냈다.",
+			"{System}에서 {Civ}의 사람들의 몸이 그 땅의 변화를 따라가지 못했다. {Civ}의 의원들이 그 차이를 재기 시작했다."
+		],
+		"ExpireTemplates": [
+			"{Civ}|hpp(이,가) 사라졌다. {System}의 산과 강을 그들의 말로 부르던 이름들은 잊혀 갔다.",
+			"{Civ}|hpp(은,는) {Hazard} 속에 자취를 감추었다. 그들이 즐겨 먹던 음식은 이제 어느 밥상에도 오르지 않는다.",
+			"{Civ}의 사람들은 {System}에서 다음 세대를 잇지 못했다. 그들의 달력은 그해의 장에서 멈추었다."
+		],
+		"ResolveTemplates": [
+			"{System}의 위기가 그쳤다. 장이 서는 날이면 {Civ}의 장터가 붐볐다.",
+			"{System}의 위기는 더 나아가지 않았다. {Civ}의 아이들은 그해에도 자랐다.",
+			"{Civ}의 사람들은 {System}에 그대로 살았다. 그들은 그 위기의 일을 이웃들과 이야기했다."
+		],
+		"OutbreakRow": "None"
 	}
 ]

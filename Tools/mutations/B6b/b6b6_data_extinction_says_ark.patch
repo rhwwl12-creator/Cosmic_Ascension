@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_Hazards.json b/Tools/data/DT_Hazards.json
+--- a/Tools/data/DT_Hazards.json
++++ b/Tools/data/DT_Hazards.json
+@@ -295,7 +295,7 @@
+ 			"{Civ}의 사람들은 {System}에서 다음 세대를 잇지 못했다. 그들의 달력은 그해의 장에서 멈추었다."
+ 		],
+ 		"ResolveTemplates": [
+-			"{System}의 위기가 그쳤다. 장이 서는 날이면 {Civ}의 장터가 붐볐다.",
++			"{System}의 위기가 그쳤다. 장이 서는 날이면 {Civ}의 장터가 붐볐다. 방주는 그 곁에 서 있었다.",
+ 			"{System}의 위기는 더 나아가지 않았다. {Civ}의 아이들은 그해에도 자랐다.",
+ 			"{Civ}의 사람들은 {System}에 그대로 살았다. 그들은 그 위기의 일을 이웃들과 이야기했다."
+ 		],

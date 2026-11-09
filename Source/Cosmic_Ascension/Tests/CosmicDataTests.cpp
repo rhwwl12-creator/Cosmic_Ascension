@@ -33,6 +33,7 @@
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
+#include "Tests/CosmicB6bRowNames.h"
 #include "Tests/CosmicTestHelpers.h"
 #include "UObject/Class.h"
 #include "UObject/EnumProperty.h"
@@ -2199,9 +2200,9 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 	// a number, is 1) below CountdownTicks; the response slot is never delayed (AIUpperRungProgressMultiplier is the
 	// construction slot's), so the multiplier of the upper rungs is not in it. And no hazard row lists project_binding as an
 	// answer: an answer runs in the response slot, whose completion seals nothing (CosmicMegaprojects::Advance binds in the
-	// construction slot), so the feat that reads its record would come without the binding. The game holds no extinction row
-	// before [B-6b6]: the margin is held on a copy with a test extinction and a test ark too, under the game's rules - the
-	// check bites now (a multiplier of 0.5 there leaves the ark 300 ticks of 250).
+	// construction slot), so the feat that reads its record would come without the binding. The game's extinction and ark are
+	// held by the first assertion (from [B-6b6]); the copies below hold the edges - a test extinction and a test ark under the
+	// game's rules (a multiplier of 0.5 there leaves the ark 300 ticks of 250).
 	auto BindingProblems = [](const FCosmicDataTables& Tables)
 	{
 		TArray<FString> Problems;
@@ -2663,13 +2664,34 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 	// exactly it away and keeps every row of the tables it copies. One of two pins with Tools/test_data_schema.py's
 	// (test_the_lethal_expiry): the schema's rules refuse, and the pins hold the one row allowed. B6b [B-6b2b] (decision 5 -
 	// DECISIONS_LOG B6b): the second source of a death is code, not data - the extinction's expiry kills the ruler
-	// (CosmicHazards::KillsTheRulerOf, Sim.ExtinctionExpiry), so this pin of the data stands as it is; [B-6b6] pins that row.
+	// (CosmicHazards::KillsTheRulerOf, Sim.ExtinctionExpiry), so this pin of the data stands as it is; from [B-6b6] the next pin
+	// holds that code death to the one row.
 	if (TestNotNull(TEXT("(the game's hazards, events, feats and cards)"), Game.Hazards.Get()) && Game.Events.Get() && Game.Feats.Get() && Game.Encounters.Get())
 	{
 		const TArray<FString> Deaths = KillPlayersOf(Game);
 		TestTrue(*FString::Printf(TEXT("The game's one death is the AI awakening's own expiry, by Death.Hazard - decision 6-ga (2026-10-30) opened that one alone: another source of death is a new decision (DECISIONS_LOG), and this pin and Tools/test_data_schema.py's change with it (found: %s)"),
 			*FString::Join(Deaths, TEXT(", "))),
 			Deaths == TArray<FString>{ TEXT("DT_Hazards.crisis_ai_awakening.OnExpireEffects Death.Hazard") });
+		// B6b [B-6b6] (decision 5, DECISIONS_LOG B6b [B-6b2b]): the code's one death - the ruler killed at an extinction's expiry
+		// (CosmicHazards::KillsTheRulerOf, read by the tag) - comes from one row of the game's hazards, crisis_species_extinction,
+		// and that row's expiry carries nothing of the data's own: no effect on any side and no branch (the expiry is the code's
+		// alone - LetPeopleGo, the death, DeposeRuler; the schema's rule 5 holds the same on the sources).
+		TArray<FName> CodeDeaths;
+		for (const FName HazardRow : Game.GetHazardRowNames())
+		{
+			const FHazardDef* Hazard = Game.FindHazard(HazardRow);
+			if (Hazard && CosmicHazards::KillsTheRulerOf(Hazard->HazardTag))
+			{
+				CodeDeaths.Add(HazardRow);
+			}
+		}
+		TestTrue(*FString::Printf(TEXT("The code's one death is the extinction's expiry (decision 5, DECISIONS_LOG B6b [B-6b2b]): exactly crisis_species_extinction kills the ruler at its expiry - another source of death is a new decision (found: %s)"),
+			*FString::JoinBy(CodeDeaths, TEXT(", "), [](FName Row) { return Row.ToString(); })),
+			CodeDeaths == TArray<FName>{ CosmicB6bRows::CrisisSpeciesExtinction });
+		const FHazardDef* Extinction = Game.FindHazard(CosmicB6bRows::CrisisSpeciesExtinction);
+		TestTrue(TEXT("and its expiry carries no effect of the data - none on expiry, on the branch or on the neighbours, and a BranchChance of 0"),
+			Extinction && Extinction->OnExpireEffects.IsEmpty() && Extinction->OnExpireBranchEffects.IsEmpty() && Extinction->OnExpireNeighbourEffects.IsEmpty()
+			&& Extinction->BranchChance == 0.f);
 		const FCosmicDataTables Deathless = CosmicTests::WithoutDeath(Game);
 		const TArray<FString> Left = KillPlayersOf(Deathless);
 		TestTrue(*FString::Printf(TEXT("CosmicTests::WithoutDeath takes every death away (left: %s)"), *FString::Join(Left, TEXT(", "))), Left.IsEmpty());
@@ -2691,8 +2713,9 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("(the walk finds a death on the awakening's branch side)"), KillPlayersOf(Moved).Contains(TEXT("DT_Hazards.crisis_ai_awakening.OnExpireBranchEffects Death.Hazard")));
 	}
 	// B6b [B-6b3b] (header section 5.1, decision 34): CosmicTests::WithoutB6bData, the data-off side of B6b's pairs
-	// (-WithoutB6bData=1) and, with WithoutDeath, a test's world without death. (1) Today's data holds one of B6b's ten rows,
-	// project_binding: the helper takes exactly it (a tripwire - [B-6b6] brings rows and updates it). (2) On a full copy - a
+	// (-WithoutB6bData=1) and, with WithoutDeath, a test's world without death. (1) Today's data holds four of B6b's ten rows,
+	// the passage by the ark, the ark, project_binding and the extinction ([B-6b6]): the helper takes exactly them, in its
+	// order (a tripwire - [B-6b7] and [B-6b8] bring rows and update it). (2) On a full copy - a
 	// stand-in row for each of the ten (the extinction with Hazard.Extinction, the three laws of the galaxy's scope) and its
 	// two knobs on: the ten are taken out and nothing else (mutations: the binding or the extinction kept, another row taken),
 	// the knobs are off and every other field of the rules is the copy's (mutations: the knobs kept; the rules from the C++
@@ -2707,8 +2730,8 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		auto Names = [](const TArray<FName>& Rows) { return FString::JoinBy(Rows, TEXT(" "), [](FName Row) { return Row.ToString(); }); };
 		TArray<FName> Today;
 		CosmicTests::WithoutB6bData(Game, &Today);
-		TestTrue(*FString::Printf(TEXT("Today's data: WithoutB6bData takes out project_binding alone (taken: %s) - [B-6b6] updates this pin with its rows"), *Names(Today)),
-			Today == TArray<FName>{ CosmicRows::ProjectBinding });
+		TestTrue(*FString::Printf(TEXT("Today's data: WithoutB6bData takes out [B-6b6]'s three rows and project_binding (taken: %s) - [B-6b7] and [B-6b8] update this pin with their rows"), *Names(Today)),
+			Today == TArray<FName>{ CosmicB6bRows::FeatPassageByArk, CosmicB6bRows::ProjectArk, CosmicRows::ProjectBinding, CosmicB6bRows::CrisisSpeciesExtinction });
 
 		// The full copy.
 		FCosmicRulesDef FullRules = *Game.FindRules();

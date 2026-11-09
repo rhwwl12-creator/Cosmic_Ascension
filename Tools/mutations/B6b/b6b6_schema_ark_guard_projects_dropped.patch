@@ -1,0 +1,15 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -887,11 +887,6 @@
+ 					"when": [{"row": "project_ark"}],
+ 					"then": [{"col": "DisplayName", "lacks_words": "rescue_words"}, {"col": "DisplayName", "lacks_words": "title_words"}, {"col": "DisplayName", "lacks_words": "holy_and_myth"},
+ 						{"col": "DisplayName", "lacks_words": "self_rescue_words"}, {"col": "CompleteTemplates", "lacks_words": "self_rescue_words"}, {"col": "CompleteTemplates", "lacks_words": "holy_and_myth"}]
+-				},
+-				{
+-					"why": "'방주' is the ark's word: no other project is named or told with it - it stands only in the ark and the fourth-rung feat (B6b decision 33)",
+-					"when": [{"row_not": "project_ark"}],
+-					"then": [{"col": "DisplayName", "lacks_words": "ark_words"}, {"col": "CompleteTemplates", "lacks_words": "ark_words"}]
+ 				}
+ 			]
+ 		},

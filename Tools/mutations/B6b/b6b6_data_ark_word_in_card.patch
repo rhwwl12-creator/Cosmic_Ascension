@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_Encounters.json b/Tools/data/DT_Encounters.json
+--- a/Tools/data/DT_Encounters.json
++++ b/Tools/data/DT_Encounters.json
+@@ -2,7 +2,7 @@
+ 	{
+ 		"Name": "petition_wise_heart",
+ 		"Title": "지혜로운 마음",
+-		"Body": "의회가 첫 청을 올렸다. 이 백성이 무엇을 먼저 구할지 당신이 정해 달라고 했다.",
++		"Body": "의회가 첫 청을 올렸다. 이 백성이 무엇을 먼저 구할지 당신이 정해 달라고 했다. 방주의 일은 아직 멀다.",
+ 		"Conditions": [
+ 			{
+ 				"Type": "PlayerRoleIs",

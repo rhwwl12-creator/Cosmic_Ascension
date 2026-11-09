@@ -1,16 +1,16 @@
 diff --git a/Tools/data/schema.json b/Tools/data/schema.json
 --- a/Tools/data/schema.json
 +++ b/Tools/data/schema.json
-@@ -969,12 +969,6 @@
- 						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasNotable", "key": "Former"}},
- 						{"col": "AscensionCost", "lacks_cond": {"type": "NameNotable", "key": "Former"}}
+@@ -984,12 +984,6 @@
  					]
--				},
--				{
+ 				},
+ 				{
 -					"why": "the fifth rung is a place the people came to stand on, not one it reached or was handed: its feat row's title, narrative and lines carry no passive of the holy order or end-time idiom, and no gold, light, dawn or reign (B6b header 3.3 / notes 1.6 rule 1; decisions 26 and 33)",
 -					"when": [{"col": "TargetTier", "is": "Tier5_EternalOrder"}],
 -					"then": [{"col": "Title", "lacks_words": "holy_passive"}, {"col": "Title", "lacks_words": "dawn_words"}, {"col": "MythicNarrative", "lacks_words": "holy_passive"},
 -						{"col": "MythicNarrative", "lacks_words": "dawn_words"}, {"col": "LogTemplates", "lacks_words": "holy_passive"}, {"col": "LogTemplates", "lacks_words": "dawn_words"}]
- 				}
- 			]
- 		},
+-				},
+-				{
+ 					"why": "'방주' is said among the feats by the fourth-rung feat alone, whose deed is the ark: no other feat's title, narrative or lines carry it (B6b decision 33)",
+ 					"when": [{"row_not": "feat_passage_by_ark"}],
+ 					"then": [{"col": "Title", "lacks_words": "ark_words"}, {"col": "MythicNarrative", "lacks_words": "ark_words"}, {"col": "LogTemplates", "lacks_words": "ark_words"}]

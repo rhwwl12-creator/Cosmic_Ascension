@@ -63,5 +63,29 @@
 			"{HomeSystem}의 일이 이제 다른 별들의 일과 맞물려 돈다. {Civ}|hpp(은,는) 원인과 결과의 결을 읽기 시작했다.",
 			"{Civ}의 살림이 여러 별에 걸쳤다. 그들은 이제 한 별의 일이 다른 별로 이어지는 것을 안다."
 		]
+	},
+	{
+		"Name": "feat_passage_by_ark",
+		"Title": "방주와 조약",
+		"MythicNarrative": "이 백성과 마주 앉는 이들은 말을 더 신중히 고른다.",
+		"RequiredTier": "Tier3_Causal",
+		"TargetTier": "Tier4_Transcendent",
+		"Path": "Ruler",
+		"CompletionConditions": [
+			{"Type": "MegaprojectComplete", "Tag": "", "Key": "project_ark", "Value": 0.0},
+			{"Type": "CivHasTreaty", "Tag": "", "Key": "None", "Value": 1.0}
+		],
+		"AscensionCost": [
+			{"Type": "ShiftEthics", "Tag": "", "Key": "Openness", "Value": -0.1, "DurationTicks": 0}
+		],
+		"GrantedPowers": "(GameplayTags=)",
+		"DedicationBank": "",
+		"FX": "",
+		"Sound": "",
+		"LogTemplates": [
+			"{Civ}|hpp(은,는) 방주를 지어 위기를 건넜다. 다른 백성들의 사절이 전보다 자주 {HomeSystem}|hpp(을,를) 찾았다.",
+			"{Civ}|hpp(이,가) 넷째 칸에 서 있게 되었다. {HomeSystem}에 닿는 다른 백성들의 배가 먼저 인사를 보내왔다.",
+			"{Civ}|hpp(은,는) 넷째 칸에 서 있게 되었다. 다른 백성들은 저마다의 지도에서 {Civ}의 자리를 고쳐 그렸다."
+		]
 	}
 ]

@@ -468,6 +468,7 @@ B6a의 일하는 법 그대로(B6a 헤더 §5.2): **30건 이상일 때만 판�
 - `[B-6b3b]`(2026-11-09): 측정(`[B-6b3]`을 나눈 둘째) — `race:` 줄·`race check`·주장마다의 CSV·두 스위치·다섯 통. 더한 것: 세 테스트의 `WithoutB6bData`, 틱 앞 법의 잡음, B4 주장 셈의 입력 지연 고침, 방랑자 카드의 행별 셈, 제동 틱은 판정의 조건 검사로, `-Data` 없이. 세부는 노트 §5.
 - `[B-6b4]`(2026-11-09): 표현(결정 25~32). 더한 것: `LookOf`가 시야를 여는 칸도 답한다; 규칙 줄과 조약 툴팁은 판정받는 행이 있을 때만(규칙 줄은 끝 스위치도); 조약 조각은 `TreatyPartnersOf`; 힌트는 영적 시야만; `RulerDiesAtExpiryOf`; '다음 칸 없음'은 지금. 세부는 노트 §5.
 - `[B-6b5]`(2026-11-09): 글과 목소리(결정 33). 더한 것: 목록 둘(`desolation_words`·`binding_name_words`), 업적 글 칸의 `binding_words`·`self_rescue_words`·`triumph_words`, `Digest.`·`Diplomacy.TreatyRungTip`의 검사, `log_far_event`·`Edict.TipWide`의 글; 방주의 행 규칙은 `[B-6b6]`. 세부는 노트 §5.
+- `[B-6b6]`(2026-11-10): 데이터 ① — 절멸 행(c 1e-4)·`project_ark`(에너지·물질 3)·`feat_passage_by_ark`, 결정 5의 코드 죽음 핀. 다르게: 세계는 첫 셋째 칸 +1부터 갈릴 수 있다(절멸 또는 AI 조약 걸음 — §3.1은 추첨 표만); 이름은 `CosmicB6bRows`에; '방주' 지킴·'노아'; `Feats.Reachable`은 넷째 칸. 세부는 노트 §5.
 
 ## 추가 이야기와 보완
 

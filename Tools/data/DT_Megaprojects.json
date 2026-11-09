@@ -70,5 +70,17 @@
 			"{System}의 {Project}|hpp(이,가) 다 지어졌다. {Civ}|hpp(이,가) 그곳에서 하던 일이 끝났다.",
 			"{Civ}의 일꾼들이 {System}에서 {Project}의 마지막 마디를 맞추었다."
 		]
+	},
+	{
+		"Name": "project_ark",
+		"DisplayName": "방주",
+		"RequiredTier": "Tier3_Causal",
+		"CostPerTick": {"Energy": 3.0, "Matter": 3.0, "Insight": 0.0, "Influence": 0.0, "Causality": 0.0},
+		"RequiredProgress": 150.0,
+		"CompleteTemplates": [
+			"{Civ}|hpp(이,가) {System}에서 {Project}|hpp(을,를) 완성했다.",
+			"{System}의 {Project}|hpp(이,가) 다 지어졌다. {Civ}의 기술자들이 마지막 점검표를 덮었다.",
+			"{System}에서 {Civ}의 {Project}|hpp(을,를) 쓸 수 있게 되었다."
+		]
 	}
 ]

@@ -2941,9 +2941,10 @@ bool FCosmicNotablesCappedTest::RunTest(const FString& Parameters)
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	const FGalaxyState& State = Sim->GetState();
 	const int32 Cap = Sim->GetRules().MaxNotablesPerCiv;
-	// The guards of a nameless people and of the fourth rung are Events.NotableDrawFixed's: no people of the slice meets
-	// them in this run. The closing of open records at the fourth rung is Feats.Evaluate's: the game's data has no feat to
-	// the fourth rung, so no people of this run reaches it.
+	// The guards of a nameless people and of the fourth rung are Events.NotableDrawFixed's: no people of the slice is
+	// nameless in this run. From [B-6b6] the game's data holds feat_passage_by_ark and AI peoples of this run reach the
+	// fourth rung, so the fourth-rung guard holds for them and the closing of open records there (Feats.Evaluate's) happens
+	// here too - the cap and the order below hold over it.
 	bool bCapped = true;
 	bool bOnePerRole = true;
 	bool bClosedInOrder = true;

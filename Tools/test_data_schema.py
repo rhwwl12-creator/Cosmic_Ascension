@@ -288,7 +288,11 @@ def fixture_tables(schema, tables):
     tables["DT_Transcendents"] = [transcendent_row(), celestial_row()]
     tables["DT_Hazards"] = [hazard_row()]
     tables["DT_Megaprojects"] = [megaproject_row()] + [megaproject_row(name) for name in schema["tables"]["DT_Megaprojects"].get("required_rows", [])]
-    tables["DT_Feats"] = [feat_row()]
+    # B6b [B-6b6]: the ark and the fourth-rung feat - rows the code reads by tag or by table walk, not by name, which the
+    # schema's row rules name (the ark's own rule and the two row_not rules of its word): a rule's row has to be a row of
+    # the table. The feat is feat_test_climb's copy one rung up.
+    tables["DT_Megaprojects"].append(megaproject_row("project_ark", RequiredTier="Tier3_Causal"))
+    tables["DT_Feats"] = [feat_row(), feat_row("feat_passage_by_ark", RequiredTier="Tier3_Causal", TargetTier="Tier4_Transcendent")]
     # The first contact card (B3) is put by name: a Named row without weight. A wanderer's card the code calls by name (B5:
     # the epitaph leaves it out) is a wanderer's card of its own kind.
     tables["DT_Encounters"] = [encounter_row(), wanderer_card_row()] + [
@@ -2270,9 +2274,9 @@ class SchemaTests(unittest.TestCase):
         feat_lists = ["verdict", "holy_words", "realm_names", "rescue_words", "afterlife_words", "holy_and_myth", "rung_grasp_words", "title_words", "binding_words", "self_rescue_words", "triumph_words"]
         places = [("DT_Feats", "feat_test_climb", column, feat_lists) for column in ("Title", "MythicNarrative", "LogTemplates")] + [
             ("DT_Megaprojects", "project_test_build", "CompleteTemplates", ["verdict", "rescue_words", "rung_grasp_words", "title_words"]),
-            ("DT_Events", "event_test_harvest", "LogTemplates", ["verdict", "holy_words", "soul_verbs", "rescue_words", "rung_grasp_words", "title_words"]),
-            ("DT_LogTemplates", "log_far_event", "Templates", ["verdict", "soul_verbs", "holy_words", "rescue_words", "rung_grasp_words", "title_words"])] + [
-            ("DT_Hazards", "crisis_test_storm", column, ["verdict", "rescue_words", "rung_grasp_words", "title_words"]) for column in ("OutbreakTemplates", "ExpireTemplates", "ResolveTemplates")]
+            ("DT_Events", "event_test_harvest", "LogTemplates", ["verdict", "holy_words", "soul_verbs", "rescue_words", "rung_grasp_words", "title_words", "ark_words"]),
+            ("DT_LogTemplates", "log_far_event", "Templates", ["verdict", "soul_verbs", "holy_words", "rescue_words", "rung_grasp_words", "title_words", "ark_words"])] + [
+            ("DT_Hazards", "crisis_test_storm", column, ["verdict", "rescue_words", "rung_grasp_words", "title_words", "ark_words"]) for column in ("OutbreakTemplates", "ExpireTemplates", "ResolveTemplates")]
         for table, _, column, forbidden in places:
             with self.subTest(pin=(table, column)):
                 self.assertEqual(checker.forbidden_lists(tables[table]["columns"][column]), forbidden)
@@ -2417,6 +2421,90 @@ class SchemaTests(unittest.TestCase):
         for prefix in prefixes:
             with self.subTest(prefix_used=prefix):
                 self.assertTrue(any(key.startswith(prefix) for key in project_st), prefix)
+
+    def test_the_ark_and_its_word(self):
+        """B6b [B-6b6] (header 3.3 rule 13, 3.5 rule 2, decision 33): '방주' stands only in the ark (project_ark) and the
+        fourth-rung feat (feat_passage_by_ark). The schema refuses it on the extinction's name and lines, on the event and
+        log lines and, by two row_not rules, on every other project and feat; the ark's own rule keeps rescue, title and
+        holy names out of its name and self-rescue and holy names out of its completion lines; '노아' is a name of
+        holy_and_myth. The rest of the project - a card, a string - is read here, not by check_data."""
+        self.assertEqual(self.after(), [])
+        lists = self.schema["words"]
+        tables = self.schema["tables"]
+        # The list and the name stand as written.
+        self.assertEqual(lists["ark_words"], ["방주"])
+        self.assertIn("노아", lists["holy_and_myth"])
+
+        def why_of(table, when):
+            # A rule taken out reads as no line at all, so its case fails (not errs).
+            return next((rule["why"] for rule in tables[table]["rules"] if rule.get("when") == when), "(no rule when %s)" % json.dumps(when))
+
+        def broken(problems, where, why, column, listed):
+            self.expect(problems, where, why, json.dumps({"col": column, "lacks_words": listed}))
+
+        word = "the word 방주 is not used here"
+        # (1) Each place of the list as a forbidden word: the extinction's name and three columns, an event line, a log line.
+        self.expect(self.after(self.set_cell("DT_Hazards", "crisis_test_storm", "DisplayName", "방주")), "crisis_test_storm.DisplayName", word)
+        for column in ("OutbreakTemplates", "ExpireTemplates", "ResolveTemplates"):
+            with self.subTest(hazard=column):
+                self.expect(self.after(self.set_cell("DT_Hazards", "crisis_test_storm", column, ["{System}의 방주 a.", "b.", "c."])), "crisis_test_storm.%s" % column, word)
+        self.expect(self.after(self.set_cell("DT_Events", "event_test_harvest", "LogTemplates", ["{Civ}의 방주 a.", "b.", "c."])), "event_test_harvest.LogTemplates", word)
+        self.expect(self.after(self.set_cell("DT_LogTemplates", "log_far_event", "Templates", ["방주 a.", "b.", "c."])), "log_far_event.Templates", word)
+        # (2) The ark's own rule: its completion lines rescue no one, its name is no holy name.
+        ark_why = why_of("DT_Megaprojects", [{"row": "project_ark"}])
+        ark = lambda column, value: self.set_cell("DT_Megaprojects", "project_ark", column, value)  # noqa: E731
+        broken(self.after(ark("CompleteTemplates", ["{Civ}|hpp(은,는) 방주로 백성을 건져 냈다.", "{System} b.", "{Project} c."])),
+               "DT_Megaprojects.project_ark", ark_why, "CompleteTemplates", "self_rescue_words")
+        broken(self.after(ark("DisplayName", "노아의 배")), "DT_Megaprojects.project_ark", ark_why, "DisplayName", "holy_and_myth")
+        # (3) The two row_not rules: '방주' on another feat or another project.
+        feat_why = why_of("DT_Feats", [{"row_not": "feat_passage_by_ark"}])
+        project_why = why_of("DT_Megaprojects", [{"row_not": "project_ark"}])
+        broken(self.after(self.set_cell("DT_Feats", "feat_test_climb", "LogTemplates", ["{Civ}|hpp(은,는) 방주를 지었다.", "{Civ} b.", "c."])),
+               "DT_Feats.feat_test_climb", feat_why, "LogTemplates", "ark_words")
+        broken(self.after(self.set_cell("DT_Megaprojects", "project_test_build", "CompleteTemplates", ["{Civ}의 방주 a.", "{System} b.", "{Project} c."])),
+               "DT_Megaprojects.project_test_build", project_why, "CompleteTemplates", "ark_words")
+        # ... and in the two rows' own cells it passes.
+        own = lambda tables: (ark("DisplayName", "방주")(tables),  # noqa: E731
+                              ark("CompleteTemplates", ["{Civ}|hpp(이,가) {System}에서 {Project}|hpp(을,를) 완성했다.", "{System} b.", "{Project} c."])(tables),
+                              self.set_cell("DT_Feats", "feat_passage_by_ark", "Title", "방주와 조약")(tables),
+                              self.set_cell("DT_Feats", "feat_passage_by_ark", "MythicNarrative", "방주를 지은 백성.")(tables),
+                              self.set_cell("DT_Feats", "feat_passage_by_ark", "LogTemplates", ["{Civ}|hpp(은,는) 방주를 지어 위기를 건넜다.", "{HomeSystem} b.", "c."])(tables))
+        self.assertEqual(self.after(own), [])
+
+        # (4) The whole project: outside the two rows, no source holds the word - a card, a string, any table (schema.json
+        # names the list and is left out). This is a test, not a check_data gate: the runner records it and exits 1.
+        keep = {("DT_Megaprojects.json", "project_ark"), ("DT_Feats.json", "feat_passage_by_ark")}
+
+        def strays(sources):
+            found = []
+            for name, data in sorted(sources.items()):
+                if name == checker.SCHEMA_FILE:
+                    continue
+                text = checker.text_of(data)
+                for ark_word in lists["ark_words"]:
+                    if name.endswith(".json"):
+                        found += ["%s %s" % (name, row.get("Name")) for row in json.loads(text)
+                                  if (name, row.get("Name")) not in keep and ark_word in json.dumps(row, ensure_ascii=False)]
+                    else:
+                        found += ["%s:%d" % (name, number) for number, line in enumerate(text.splitlines(), 1) if ark_word in line]
+            return found
+
+        sources = checker.read_sources()
+        self.assertEqual(strays(sources), [])
+        # The two rows themselves do hold it (the walk skips them by name, not by luck).
+        self.assertTrue(all(any("방주" in json.dumps(row, ensure_ascii=False) for row in json.loads(checker.text_of(sources[name])) if row.get("Name") == row_name)
+                            for name, row_name in keep))
+        # Injected: a card's body (check_data lets it through) and a string of ST_CA are found.
+        card = copy.deepcopy(sources)
+        cards = json.loads(checker.text_of(card["DT_Encounters.json"]))
+        cards[0]["Body"] += " 방주"
+        card["DT_Encounters.json"] = json.dumps(cards, ensure_ascii=False).encode("utf-8")
+        self.assertEqual(strays(card), ["DT_Encounters.json %s" % cards[0]["Name"]])
+        strings = copy.deepcopy(sources)
+        strings["ST_CA.csv"] = strings["ST_CA.csv"] + '"Panel.ArkTest","방주"\n'.encode("utf-8")
+        found = strays(strings)
+        self.assertEqual(len(found), 1)
+        self.assertTrue(found[0].startswith("ST_CA.csv:"), found)
 
     def test_a_text_has_one_form(self):
         """A word is found as it is written: a text is composed (NFC) and holds no invisible format character, so a verdict
@@ -3614,7 +3702,7 @@ class SchemaTests(unittest.TestCase):
             ("DT_Hazards", "the supernova precursor's expiry destroys the system, and the death line mourns a star that stays: no death at its expiry until it has a death row of its own (B5 header 8 [B-5d2], DECISIONS_LOG [B-5d1] (11))"):
                 (update_hazard(HazardTag="Hazard.PreSupernova"), hazard),
             ("DT_Hazards", "the leader of a cult has no name (guideline 4.1)"): (update_hazard(HazardTag="Hazard.Cult"), hazard),
-            # B6b [B-6b2b]: the extinction's row (the fixture's hazard made one - the game holds none before [B-6b6]).
+            # B6b [B-6b2b]: the extinction's row (the fixture's own extinction - the game's row lives in the project data, which the fixture replaces).
             ("DT_Hazards", "the extinction's loss is the expiry's code - its people lets every system go and its ruler dies (CosmicHazards::LetPeopleGo, KillsTheRulerOf): its row carries no expiry effect of its own, no branch and no damage to the neighbours, and it is answered by a project alone - the ark (B6b header 2.2, 3.3 rule 5, decision 5)"):
                 (update_hazard(HazardTag="Hazard.Extinction", OnExpireEffects=[], RulerResolutions=["project_test_build"]), hazard),
             ("DT_Hazards", "the stage reads the spawn conditions on every tick, and the stay condition holds on every tick of its window, not in one slot (guideline 7.3)"):
@@ -3765,6 +3853,13 @@ class SchemaTests(unittest.TestCase):
                 (update_event(Trigger="Standing", BaseWeight=0, Conditions=[cond("CivPressureEnduredTicksReached", key="600")]), event),
             ("DT_Megaprojects", "the binding's work is named and told as the people's plain work: its name has no tower, ring, fence, binding tool, contact or tuning word and no word another work owns, and its completion line neither binds, triumphs, nor lets light or dawn rise over the shadow (B6b header 3.3 / notes 1.6 rule 4; decision 32; header rule 14)"):
                 (NOTHING, "project_binding"),
+            # B6b [B-6b6]: the ark's row and the two rules that keep its word to the ark and the fourth-rung feat.
+            ("DT_Megaprojects", "the people crosses the extinction in the ark it built; the ark is no one's rescuer - no rescue, title or holy name in its name, no self-rescue, new birth, washing, new land or Flood picture in its completion lines (B6b header 3.3 rule 13, 3.5 rule 2, decision 33)"):
+                (NOTHING, "project_ark"),
+            ("DT_Megaprojects", "'방주' is the ark's word: no other project is named or told with it - it stands only in the ark and the fourth-rung feat (B6b decision 33)"):
+                (NOTHING, "project_test_build"),
+            ("DT_Feats", "'방주' is said among the feats by the fourth-rung feat alone, whose deed is the ark: no other feat's title, narrative or lines carry it (B6b decision 33)"):
+                (NOTHING, "feat_test_climb"),
             ("DT_LogTemplates", "the inauguration line of a vessel born in a system a claim joined on the same tick is the narrator's, in the third person by the vessel's name and its people, naming no system - no narrator line about that place follows the fallen's own line (rule 5): the calling's line, with no word of an afterlife, the book of life or a calling read as a death, no 'you' across the death, no name of the holy order or its realm, and no word of a return or a rebirth (B5 header 3.3, 3.6, decision 12-da)"):
                 (NOTHING, "log_inauguration_unnamed"),
             ("DT_Civs", "arch_default is the name bank of last resort for the vessel: a people whose own bank is empty names its vessel from it, and an empty name would leave the death and inauguration lines without their subject (B5 log_death_hazard, log_inauguration, log_inauguration_unnamed - CosmicChronicle::VesselNameOf)"):
@@ -3789,7 +3884,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 305, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 316, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

@@ -773,9 +773,9 @@ bool FCosmicSimEraSelectorTest::RunTest(const FString& Parameters)
 
 namespace CosmicUpperRungTests
 {
-	// The rows of the extinction's boards: the extinction (the game holds no Hazard.Extinction row before [B-6b6]) and a plague
-	// that CosmicTests::StandingProject answers, each with three lines for every moment and no effect; the grace row of the
-	// remnant is the game's.
+	// The rows of the extinction's boards: the extinction of the tests (the board's table replaces the game's, whose
+	// crisis_species_extinction is there from [B-6b6]) and a plague that CosmicTests::StandingProject answers, each with three
+	// lines for every moment and no effect; the grace row of the remnant is the game's.
 	const FName Extinct(TEXT("crisis_test_extinct"));
 	const FName Plague(TEXT("crisis_test_plague"));
 
@@ -1202,10 +1202,10 @@ bool FCosmicSimExtinctionExpiryTest::RunTest(const FString& Parameters)
 
 namespace CosmicUpperRungTests
 {
-	// The rows of the boards below (the game holds no ark, and its binding row's values are [B-6b7]'s): the binding of the
-	// fourth rung, a construction of the third (Upper) and of the second (Lower), the ark of the third that answers the
-	// extinction - each 4 of progress at Energy 1 a tick, three lines -, and an independent transcendent beside the game's
-	// fallen row.
+	// The rows of the boards below (the boards' own ark - the game's project_ark is in the data from [B-6b6] - and the
+	// game's binding row's values are [B-6b7]'s): the binding of the fourth rung, a construction of the third (Upper) and
+	// of the second (Lower), the ark of the third that answers the extinction - each 4 of progress at Energy 1 a tick,
+	// three lines -, and an independent transcendent beside the game's fallen row.
 	const FName Ark(TEXT("project_test_ark"));
 	const FName Upper(TEXT("project_test_upper"));
 	const FName Lower(TEXT("project_test_lower"));

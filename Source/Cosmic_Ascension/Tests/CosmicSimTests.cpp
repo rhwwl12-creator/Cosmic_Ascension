@@ -544,24 +544,32 @@ bool FCosmicSimDeterminismTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Hash sees a system name field"), Sim->ComputeStateHash() != Base);
 	Owner = OldOwner;
 
-	// B3: a struct value in a map (a tie's stance) and a record's completer.
-	State.Civs[0].Ties.Add(State.Civs[1].CivID).Stance = CosmicSimTests::Tag(TEXT("Stance.Friendly"));
-	TestTrue(TEXT("Hash sees a tie"), Sim->ComputeStateHash() != Base);
-	const uint32 WithTie = Sim->ComputeStateHash();
-	State.Civs[0].Ties.FindChecked(State.Civs[1].CivID).Stance = CosmicSimTests::Tag(TEXT("Stance.Hostile"));
-	TestTrue(TEXT("Hash sees the stance inside a tie"), Sim->ComputeStateHash() != WithTie);
-	// The same treaties added in another order hash the same: a tag container is hashed as a set (B3).
+	// B3: a struct value in a map (a tie's stance) and a record's completer. The first people's own ties are kept and put
+	// back: from [B-6b6] the AI treaty step signs treaties before tick 3,000 (civ_0 holds two).
+	const TMap<FName, FCosmicTie> OldTies = State.Civs[0].Ties;
+	// The new tie goes to a people civ_0 holds none with, so the check sees a new key, not an erased treaty (TMap::Add of a
+	// held key puts a default value in its place).
+	const int32 Fresh = State.Civs.IndexOfByPredicate([&](const FCivilizationState& Civ) { return Civ.CivID != State.Civs[0].CivID && !OldTies.Contains(Civ.CivID); });
+	if (TestTrue(TEXT("(a people civ_0 holds no tie with)"), State.Civs.IsValidIndex(Fresh)))
 	{
-		FGameplayTagContainer& Treaties = State.Civs[0].Ties.FindChecked(State.Civs[1].CivID).Treaties;
-		Treaties.AddTag(CosmicSimTests::Tag(TEXT("Treaty.Trade")));
-		Treaties.AddTag(CosmicSimTests::Tag(TEXT("Treaty.NonAggression")));
-		const uint32 TradeFirst = Sim->ComputeStateHash();
-		Treaties.Reset();
-		Treaties.AddTag(CosmicSimTests::Tag(TEXT("Treaty.NonAggression")));
-		Treaties.AddTag(CosmicSimTests::Tag(TEXT("Treaty.Trade")));
-		TestEqual(TEXT("Hash of a tag container does not depend on the order its tags were added"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(TradeFirst));
+		State.Civs[0].Ties.Add(State.Civs[Fresh].CivID).Stance = CosmicSimTests::Tag(TEXT("Stance.Friendly"));
+		TestTrue(TEXT("Hash sees a tie"), Sim->ComputeStateHash() != Base);
+		const uint32 WithTie = Sim->ComputeStateHash();
+		State.Civs[0].Ties.FindChecked(State.Civs[Fresh].CivID).Stance = CosmicSimTests::Tag(TEXT("Stance.Hostile"));
+		TestTrue(TEXT("Hash sees the stance inside a tie"), Sim->ComputeStateHash() != WithTie);
+		// The same treaties added in another order hash the same: a tag container is hashed as a set (B3).
+		{
+			FGameplayTagContainer& Treaties = State.Civs[0].Ties.FindChecked(State.Civs[Fresh].CivID).Treaties;
+			Treaties.AddTag(CosmicSimTests::Tag(TEXT("Treaty.Trade")));
+			Treaties.AddTag(CosmicSimTests::Tag(TEXT("Treaty.NonAggression")));
+			const uint32 TradeFirst = Sim->ComputeStateHash();
+			Treaties.Reset();
+			Treaties.AddTag(CosmicSimTests::Tag(TEXT("Treaty.NonAggression")));
+			Treaties.AddTag(CosmicSimTests::Tag(TEXT("Treaty.Trade")));
+			TestEqual(TEXT("Hash of a tag container does not depend on the order its tags were added"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(TradeFirst));
+		}
 	}
-	State.Civs[0].Ties.Reset();
+	State.Civs[0].Ties = OldTies;
 	if (TestTrue(TEXT("(seed 42 has a completion record by tick 3,000)"), State.Systems.ContainsByPredicate([](const FStarSystemState& System) { return !System.CompletedMegaprojects.IsEmpty(); })))
 	{
 		FStarSystemState* Done = State.Systems.FindByPredicate([](const FStarSystemState& System) { return !System.CompletedMegaprojects.IsEmpty(); });

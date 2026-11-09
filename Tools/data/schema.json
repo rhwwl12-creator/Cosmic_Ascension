@@ -23,6 +23,7 @@
 		"The words of the awareness and of the end (B6a [B-6a5], header 3.2, 3.4): awareness_words (a sameness, an again and a recognition - the fallen's one second-person line would read as knowing the vessel again; '다시 ' and '알아보았' of rebirth_words let '다시는' and '알아본다' through) hang on DT_Transcendents.AwarenessTemplates alone, and holy_passive (the passive of the holy order and the idiom of an end that comes) on every string key under Chronicle., so that no reason line ties the holy order to the end of a run.",
 		"The galaxy laws and the upper rungs (B6b [B-6b2a], header 3.3): a comparison test (gt, ge, lt, le) over a tag map holds when every value of the map holds it - an empty map holds (a galaxy law's spawn factors are at most 1); a conditions column may name the condition types whose Tag it leaves empty ('untagged' - a DT_Feats row's CivHasTreaty: the AI's treaty step signs a non-aggression only); and an effect's Key may say 'not_per_tick' (a per-tick source leaves that Key empty - ChangeReverence's Borders walks the borders where a source is applied once). A condition test names the fields of an entry - type, key and tag, a key or a tag at least, each equal - and lacks_cond holds when no entry of the list has them all (a ruler feat names no selector word of the vessel; no claim card buys the claim time but petition_pressure_measured). rows_of (B6b [B-6b2b]) holds when every row name of a rows column is a row of one of the named tables, each one the column names (the extinction is answered by a project alone - the ark).",
 		"The words of the upper rungs (B6b [B-6b5], header 3.3, notes 1.6; decision 33): rung_grasp_words (a rung grasped, reached or raced for, eternity and the order), title_words (a title of election, anointing or a saviour, and the crown), binding_words (the binding, its binder verbs and the shadow - the binding is said in its two story lines alone), triumph_words (a victory, the shadow lifted, mockery, and a link word that makes a deed the price of what follows), stay_words (a ruler who stayed with the dying), self_rescue_words (a people that rescues itself, a new birth and the images of the flood), dawn_words (dawn, light, throne and reign), desolation_words (the quenched lamp, the ceased song, the shut door, the flood, a punishment, the shadow, cold and endurance as merit) and binding_name_words (a tower, a ring, a fence, a binding tool, another work's word or a word of contact or tuning in the name of the binding's work) are matched letter for letter, with holy_passive extended by the end-time idiom. rung_grasp_words and title_words hang on DT_LogTemplates.Templates, DT_Events.LogTemplates, the three template columns of DT_Hazards, DT_Megaprojects.CompleteTemplates and the three text columns of DT_Feats, which also take binding_words, self_rescue_words and triumph_words (no feat binds, rescues itself or buys its rung), and on the string keys Rung., Sight., Chronicle., Epitaph., Digest. and six of the seven keys of the B6b screens (all but Diplomacy.TreatyRungTip); binding_words also hangs on Rung., Chronicle., the three Start. keys and Diplomacy.TreatyRungTip, triumph_words on the three Start. keys, stay_words on Panel.ExtinctionFollows and Panel.RulerLethal, and holy_passive also on Rung.; every list but rung_grasp_words and title_words also hangs on single rows by row rules (the fifth-rung feat, the extinction, the era named after endured pressure, project_binding, and log_far_ascent, log_record_extinct, log_death_extinction and log_fallen_bound), and dawn_words, desolation_words and binding_name_words hang there alone.",
+		"The ark's word (B6b [B-6b6], decision 33): ark_words ('방주') stands only in the ark and the fourth-rung feat (project_ark, feat_passage_by_ark) - it hangs on the name and the three template columns of DT_Hazards, on DT_Events.LogTemplates and DT_LogTemplates.Templates, and by two row_not rules on the name and completion lines of every other project and the title, narrative and lines of every other feat; Tools/test_data_schema.py reads every other source for it, ST_CA included. The ark's own row rule keeps rescue, title and holy names out of its name and self-rescue and holy names out of its completion lines, and '노아' is a name of holy_and_myth.",
 		"A table whose columns are null has no rows yet: its columns are declared when its first row is written."
 	],
 	"tag_sources": ["Config/DefaultGameplayTags.ini"],
@@ -42,7 +43,7 @@
 		"research": ["Physics", "Society", "Engineering", "Transcendence"],
 		"verdict": ["천국", "지옥", "구원받", "멸망받", "영혼", "저주받", "심판받"],
 		"other_works": [],
-		"holy_and_myth": ["여호와", "예수", "그리스도", "보혜사", "메시아", "사탄", "루시퍼", "미가엘", "가브리엘", "바알", "몰렉", "아스다롯", "바벨론", "니므롯", "리워야단", "레비아단", "베헤못", "아바돈", "아볼루온", "마몬", "벨리알", "바알세불", "에덴", "골고다", "시온", "예루살렘", "모세", "다윗", "솔로몬", "엘리야", "아브라함", "이스라엘", "바울", "베드로", "마리아", "제우스", "오딘", "라그나로크", "이그드라실", "아누비스", "오시리스", "하데스", "타르타로스", "올림포스", "발할라", "아스가르드", "판도라", "프로메테우스", "세라핌", "케루빔", "네피림", "엘로힘", "아도나이", "임마누엘", "할렐루야", "호산나", "마라나타"],
+		"holy_and_myth": ["여호와", "예수", "그리스도", "보혜사", "메시아", "사탄", "루시퍼", "미가엘", "가브리엘", "바알", "몰렉", "아스다롯", "바벨론", "니므롯", "리워야단", "레비아단", "베헤못", "아바돈", "아볼루온", "마몬", "벨리알", "바알세불", "에덴", "골고다", "시온", "예루살렘", "모세", "다윗", "솔로몬", "엘리야", "아브라함", "이스라엘", "바울", "베드로", "마리아", "제우스", "오딘", "라그나로크", "이그드라실", "아누비스", "오시리스", "하데스", "타르타로스", "올림포스", "발할라", "아스가르드", "판도라", "프로메테우스", "세라핌", "케루빔", "네피림", "엘로힘", "아도나이", "임마누엘", "할렐루야", "호산나", "마라나타", "노아"],
 		"holy_words": ["성령", "은혜", "기름부음", "성결"],
 		"soul_verbs": ["거두", "거둬", "거뒀", "거둔", "거둘"],
 		"verdict_without_soul": ["천국", "지옥", "구원받", "멸망받", "저주받", "심판받"],
@@ -71,7 +72,8 @@
 		"self_rescue_words": ["구해", "구했", "구한", "살려", "살렸", "건져", "건졌", "건진", "지켜 냈", "거듭나", "새로 태어", "다시 태어", "씻겨", "새 땅", "홍수", "물이 불", "물이 걷", "물이 빠", "무지개", "비둘기", "감람"],
 		"dawn_words": ["새벽", "동틀", "동이 트", "해가 뜨", "돋는", "샛별", "새 해", "빛", "밝아", "걷혔", "다스림", "왕좌", "임금", "떠오", "떠올", "해가 떠", "광명", "여명", "서광", "아침", "햇살", "치세", "재위", "통치", "왕국", "다스리"],
 		"desolation_words": ["꺼지", "꺼졌", "꺼진", "꺼뜨", "껐", "꺼져", "꺼질", "식어", "식었", "노랫소리", "노래가 그", "맷돌", "등불", "심지", "촛불", "등잔", "불씨", "문이 닫", "닫힌 문", "신랑", "신부", "홍수", "물이 불", "물이 걷", "물이 빠", "무지개", "비둘기", "감람", "진노", "심판", "형벌", "죗값", "벌로", "벌을", "교만", "재앙이 내", "그늘", "그림자", "어둠", "서리", "겨울", "견딘", "견딤", "견뎠", "버틴"],
-		"binding_name_words": ["탑", "둘레", "울타리", "산울", "고리", "관측소", "공명", "감응", "교감"]
+		"binding_name_words": ["탑", "둘레", "울타리", "산울", "고리", "관측소", "공명", "감응", "교감"],
+		"ark_words": ["방주"]
 	},
 
 	"string_table": {
@@ -342,7 +344,7 @@
 					"min": 3,
 					"single_variant": true,
 					"slots": ["Civ", "System", "OtherCiv", "Trait", "Value", "Tier", "Hazard", "Player", "HomeSystem", "Dedication", "Epithet", "Revelation", "Transcendent", "Ruler", "Regent", "Rebel", "Loyalist", "Hearer", "Ascendant", "PopBand", "CivAdj", "Edict", "Stance", "Treaty"],
-					"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words", "rung_grasp_words", "title_words"]
+					"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words", "rung_grasp_words", "title_words", "ark_words"]
 				}
 			},
 			"unique": [
@@ -469,7 +471,7 @@
 				"BaseWeight": {"kind": "number", "min": 0},
 				"CooldownTicks": {"kind": "number", "min": 0, "integer": true},
 				"Effects": {"kind": "effects"},
-				"LogTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "holy_words", "soul_verbs", "rescue_words", "rung_grasp_words", "title_words"]},
+				"LogTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "holy_words", "soul_verbs", "rescue_words", "rung_grasp_words", "title_words", "ark_words"]},
 				"Severity": {"kind": "number", "min": 0, "max": 2, "integer": true},
 				"MinTierToReveal": {"kind": "number", "min": 0, "max": 5, "integer": true},
 				"SignRow": {
@@ -721,7 +723,7 @@
 			"columns": {
 				"HazardTag": {"kind": "tag", "root": "Hazard."},
 				"SourceDoctrine": {"kind": "tag", "root": ["Doctrine.Silence", "Doctrine.Assimilation", "Doctrine.Zeal", "Doctrine.Recurrence"], "optional": true},
-				"DisplayName": {"kind": "text", "required": true, "slots": [], "forbidden": "verdict"},
+				"DisplayName": {"kind": "text", "required": true, "slots": [], "forbidden": ["verdict", "ark_words"]},
 				"CountdownTicks": {"kind": "number", "min": 1, "integer": true},
 				"SpawnRule": {"kind": "enum", "enum": "ECosmicHazardSpawn"},
 				"SpawnChancePerTick": {"kind": "number", "min": 0, "max": 1},
@@ -735,9 +737,9 @@
 				"WandererResolutions": {"kind": "rows", "tables": ["DT_Encounters"], "unique": true},
 				"LogCategory": {"kind": "tag", "root": ["Log.Crisis"]},
 				"Severity": {"kind": "number", "min": 0, "max": 2, "integer": true},
-				"OutbreakTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "rescue_words", "rung_grasp_words", "title_words"]},
-				"ExpireTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "rescue_words", "rung_grasp_words", "title_words"]},
-				"ResolveTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "rescue_words", "rung_grasp_words", "title_words"]},
+				"OutbreakTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "rescue_words", "rung_grasp_words", "title_words", "ark_words"]},
+				"ExpireTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "rescue_words", "rung_grasp_words", "title_words", "ark_words"]},
+				"ResolveTemplates": {"kind": "texts", "slots": ["Civ", "System", "Hazard"], "forbidden": ["verdict", "rescue_words", "rung_grasp_words", "title_words", "ark_words"]},
 				"OutbreakRow": {"kind": "row", "table": "DT_Events", "optional": true, "target": [{"col": "Trigger", "is": "Named"}, {"col": "Subject", "is": "SettledSystem"}, {"col": "Effects", "lacks_type": "ResolveHazard"}]}
 			},
 			"unique": [
@@ -879,6 +881,17 @@
 					"when": [{"row": "project_binding"}],
 					"then": [{"col": "DisplayName", "lacks_words": "binding_name_words"}, {"col": "DisplayName", "lacks_words": "binding_words"}, {"col": "DisplayName", "lacks_words": "triumph_words"},
 						{"col": "CompleteTemplates", "lacks_words": "binding_words"}, {"col": "CompleteTemplates", "lacks_words": "triumph_words"}, {"col": "CompleteTemplates", "lacks_words": "dawn_words"}]
+				},
+				{
+					"why": "the people crosses the extinction in the ark it built; the ark is no one's rescuer - no rescue, title or holy name in its name, no self-rescue, new birth, washing, new land or Flood picture in its completion lines (B6b header 3.3 rule 13, 3.5 rule 2, decision 33)",
+					"when": [{"row": "project_ark"}],
+					"then": [{"col": "DisplayName", "lacks_words": "rescue_words"}, {"col": "DisplayName", "lacks_words": "title_words"}, {"col": "DisplayName", "lacks_words": "holy_and_myth"},
+						{"col": "DisplayName", "lacks_words": "self_rescue_words"}, {"col": "CompleteTemplates", "lacks_words": "self_rescue_words"}, {"col": "CompleteTemplates", "lacks_words": "holy_and_myth"}]
+				},
+				{
+					"why": "'방주' is the ark's word: no other project is named or told with it - it stands only in the ark and the fourth-rung feat (B6b decision 33)",
+					"when": [{"row_not": "project_ark"}],
+					"then": [{"col": "DisplayName", "lacks_words": "ark_words"}, {"col": "CompleteTemplates", "lacks_words": "ark_words"}]
 				}
 			]
 		},
@@ -975,6 +988,11 @@
 					"when": [{"col": "TargetTier", "is": "Tier5_EternalOrder"}],
 					"then": [{"col": "Title", "lacks_words": "holy_passive"}, {"col": "Title", "lacks_words": "dawn_words"}, {"col": "MythicNarrative", "lacks_words": "holy_passive"},
 						{"col": "MythicNarrative", "lacks_words": "dawn_words"}, {"col": "LogTemplates", "lacks_words": "holy_passive"}, {"col": "LogTemplates", "lacks_words": "dawn_words"}]
+				},
+				{
+					"why": "'방주' is said among the feats by the fourth-rung feat alone, whose deed is the ark: no other feat's title, narrative or lines carry it (B6b decision 33)",
+					"when": [{"row_not": "feat_passage_by_ark"}],
+					"then": [{"col": "Title", "lacks_words": "ark_words"}, {"col": "MythicNarrative", "lacks_words": "ark_words"}, {"col": "LogTemplates", "lacks_words": "ark_words"}]
 				}
 			]
 		},

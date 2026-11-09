@@ -120,8 +120,9 @@ Step 'balance: seed 42 with the ruler policy vs baseline' { Compare-Balance 'che
 
 # B1 (header section 5): the same ruler, who leaves the throne at tick 1,200 and walks (World/CosmicWandererPolicy) - the
 # hash line, the ruler line and the wanderer line, over 6,000 ticks, the horizon of Sim.WandererLoop (seed 42 took its
-# throne back at 4,901 with B2's data, at none before 6,000 with B3's card and data off, and at 3,121 - by the vacuum - with
-# B3's data on; Sim.WandererLoop plays seed 4).
+# throne back at 4,901 with B2's data, at none before 6,000 with B3's card and data off, at 3,121 - by the vacuum - with
+# B3's data on through [B-6b5], and at none before 6,000 from [B-6b6]'s data - the AI treaty step moves the world first,
+# at 1,935; Sim.WandererLoop plays seed 4).
 Step 'balance: seed 42 with the wanderer policy vs baseline' { Compare-Balance 'checks_wanderer' 'wanderer_summary_line' @('-Answer=1', '-Build=1', '-Focus=1', '-Edict=1', '-Diplomacy=1', '-TellAll=0', '-Abdicate=1200', '-Wander=1') -Ruler -Wanderer -Ticks 6000 }
 
 # B1 (docs/60_DECISIONS/headers/B1_wanderer_loop.md section 5): the two long runs of seed 42 as well, in the full tier -

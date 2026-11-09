@@ -108,9 +108,9 @@ namespace CosmicWarningLineTests
 	// The game's tables made quiet for the board (CosmicAwarenessTests' form): no inherited edict, no event slot, no first
 	// crisis, no periodic petition, no drift and no fleet, no pressure drain, a realm cap of one, claims one lane out, no
 	// project or feat, no event or card row. The hazards: a plague of the tests (one tick; AnswerEdict answers it), the claim
-	// row (300 ticks), a supernova of the tests (one tick) and an extinction of the tests (one tick - B6b; the game holds no
-	// Hazard.Extinction row before [B-6b6]). The transcendents: WideFallen and NarrowFallen. The edicts: the game's and
-	// AnswerEdict (no upkeep).
+	// row (300 ticks), a supernova of the tests (one tick) and an extinction of the tests (one tick - B6b; this table replaces
+	// the game's, whose crisis_species_extinction is there from [B-6b6]). The transcendents: WideFallen and NarrowFallen. The
+	// edicts: the game's and AnswerEdict (no upkeep).
 	FCosmicDataTables WarnTablesOf(const FCosmicDataTables& Original, const FCosmicRulesDef& GameRules)
 	{
 		FCosmicRulesDef Rules = CosmicTests::WithoutStartingEdict(GameRules);

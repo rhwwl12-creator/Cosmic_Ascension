@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_Megaprojects.json b/Tools/data/DT_Megaprojects.json
+--- a/Tools/data/DT_Megaprojects.json
++++ b/Tools/data/DT_Megaprojects.json
+@@ -78,7 +78,7 @@
+ 		"CostPerTick": {"Energy": 3.0, "Matter": 3.0, "Insight": 0.0, "Influence": 0.0, "Causality": 0.0},
+ 		"RequiredProgress": 150.0,
+ 		"CompleteTemplates": [
+-			"{Civ}|hpp(이,가) {System}에서 {Project}|hpp(을,를) 완성했다.",
++			"{Civ}|hpp(이,가) {System}에서 {Project}|hpp(을,를) 완성했다. 그들은 그것으로 백성을 구했다.",
+ 			"{System}의 {Project}|hpp(이,가) 다 지어졌다. {Civ}의 기술자들이 마지막 점검표를 덮었다.",
+ 			"{System}에서 {Civ}의 {Project}|hpp(을,를) 쓸 수 있게 되었다."
+ 		]

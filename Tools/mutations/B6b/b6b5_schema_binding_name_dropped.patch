@@ -1,12 +1,12 @@
 diff --git a/Tools/data/schema.json b/Tools/data/schema.json
 --- a/Tools/data/schema.json
 +++ b/Tools/data/schema.json
-@@ -877,7 +877,7 @@
+@@ -879,7 +879,7 @@
  				{
  					"why": "the binding's work is named and told as the people's plain work: its name has no tower, ring, fence, binding tool, contact or tuning word and no word another work owns, and its completion line neither binds, triumphs, nor lets light or dawn rise over the shadow (B6b header 3.3 / notes 1.6 rule 4; decision 32; header rule 14)",
  					"when": [{"row": "project_binding"}],
 -					"then": [{"col": "DisplayName", "lacks_words": "binding_name_words"}, {"col": "DisplayName", "lacks_words": "binding_words"}, {"col": "DisplayName", "lacks_words": "triumph_words"},
 +					"then": [{"col": "DisplayName", "lacks_words": "binding_words"}, {"col": "DisplayName", "lacks_words": "triumph_words"},
  						{"col": "CompleteTemplates", "lacks_words": "binding_words"}, {"col": "CompleteTemplates", "lacks_words": "triumph_words"}, {"col": "CompleteTemplates", "lacks_words": "dawn_words"}]
- 				}
- 			]
+ 				},
+ 				{
