@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1074,7 +1074,7 @@
+ 				FText BindHint;
+ 				if (Row == CosmicRows::ProjectBinding && ACosmicPlayerController::ShownViewModeFor(*this) == ECosmicViewMode::Spiritual)
+ 				{
+-					const int32 BindTarget = CosmicSeal::BindTargetOf(State, Tables);
++					const int32 BindTarget = CosmicSeal::BindTargetOf(State, Tables) == INDEX_NONE ? 0 : CosmicSeal::BindTargetOf(State, Tables);
+ 					const FTranscendentDef* Bound = State.Transcendents.IsValidIndex(BindTarget) ? Tables.FindTranscendent(State.Transcendents[BindTarget].TranscendentID) : nullptr;
+ 					if (Bound && !Bound->Title.IsEmpty())
+ 					{

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -353,7 +353,7 @@
+ 	// people's.
+ 	if (CosmicEdicts::IsGalaxyLaw(Tables, Row) && (bSpawn || bCountdown))
+ 	{
+-		Lines.Add(Label(TEXT("Edict.TipWide")));
++		Lines.Insert(Label(TEXT("Edict.TipWide")), 0);
+ 	}
+ 	// The hazards it answers at their expiry, by their rows' order.
+ 	for (const FName HazardRow : Tables.GetHazardRowNames())

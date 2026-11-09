@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp b/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
+@@ -202,7 +202,7 @@
+ 				Part.Progress = static_cast<float>(CosmicDiplomacy::TreatyPartnersOf(Civ, Condition.Tag));
+ 				Part.Needed = Condition.Value;
+ 			}
+-			else if (Condition.Type == EConditionType::CivLawsHeldTicksAtLeast)
++			else if (Condition.Type == EConditionType::CivLawsHeldTicksAtLeast && Condition.Value < -1.f)
+ 			{
+ 				Part.Kind = ECosmicRungPartKind::Laws;
+ 				Part.Progress = static_cast<float>(CosmicEdicts::GalaxyLawCountOf(Civ, Tables));

@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Core/CosmicTypes.h"
+#include "UI/CosmicPalette.h"
 #include "CosmicAscensionOverlayWidget.generated.h"
 
 class UImage;
@@ -13,6 +14,20 @@ class UMaterialInstanceDynamic;
 class USoundWaveProcedural;
 class UTextBlock;
 class UWidget;
+
+// What the ascension presentation of one rung wears (B6b decisions 25, 26). A plain value of the presentation: never stored.
+// The defaults are the ordinary rung's look.
+struct FCosmicAscensionLook
+{
+	// The gold glow in the centre (M_AscensionGlow) and the chime (CosmicAscensionSound::MakeChime).
+	bool bGlow = true;
+	bool bChime = true;
+	// The title's colour: CosmicPalette::Gold; CosmicPalette::White on the fifth rung.
+	FLinearColor TitleColor = CosmicPalette::Gold;
+	// The rung that opens the spiritual sight (CosmicMapLook::SpiritualSightTier): the reveal follows its close, and the top
+	// bar's x25 waits for it alone.
+	bool bOpensSight = false;
+};
 
 namespace CosmicAscensionOverlay
 {
@@ -24,6 +39,13 @@ namespace CosmicAscensionOverlay
 
 	/** The glow's strength at Seconds into the presentation: 0 -> 1 over 0.8 s, 1 until 4.2 s, 1 -> 0 at 5 s, 0 after. */
 	COSMIC_ASCENSION_API float GlowAt(float Seconds);
+
+	/** What the presentation of NewTier wears (B6b decisions 25, 26): the second to fourth rungs the gold title, the glow
+	 * and the chime; the fifth a white title with no glow and no chime - the veil, the rung, the narrative and the pause
+	 * stay (self-exaltation is the pattern of the fall: the top of the ladder is received, not crowned). bOpensSight on
+	 * CosmicMapLook::SpiritualSightTier alone. NewTier alone - no state, no row, no FX/Sound column, so no data brings the
+	 * gold back. Show, Close and IsShowingSightOpening read it. */
+	COSMIC_ASCENSION_API FCosmicAscensionLook LookOf(EAscensionTier NewTier);
 }
 
 namespace CosmicAscensionSound
@@ -34,11 +56,14 @@ namespace CosmicAscensionSound
 
 /**
  * The ascension presentation (the C++ stand-in for WBP_AscensionOverlay): over the whole screen a dim veil, a gold glow
- * in the centre (the UI material M_AscensionGlow), the feat's title, the new rung and its MythicNarrative, with a chime.
+ * in the centre (the UI material M_AscensionGlow), the feat's title in gold, the new rung and its MythicNarrative, with a
+ * chime - the look of the second to fourth rungs. The fifth rung's wears no glow, no gold and no chime: the veil, a white
+ * title, the rung, the narrative and the pause (B6b decision 26; CosmicAscensionOverlay::LookOf is the one answer).
  * About five seconds of real time, then it closes; a click closes it at once. It answers UAscensionSubsystem::
  * OnTierAscended (the player's ascensions) and pauses a running simulation while it shows, giving the speed back when it
  * closes unless the player changed it meanwhile; a close always redraws the HUD, since the top bar holds the third rung's
- * x25 back while the presentation shows (guideline 6.3). When the presentation of the rung that opens the spiritual sight
+ * x25 back while the presentation that opens the spiritual sight shows (guideline 6.3; B6b decision 25 - a presentation
+ * of another rung leaves an open x25 in place). When the presentation of the rung that opens the spiritual sight
  * (CosmicMapLook::SpiritualSightTier) closes and the view drawn is spiritual, a second phase shows ST_CA Sight.Opened
  * over the map - one plain white line, no veil, no glow, no chime, taking no click, for RevealSeconds (guideline 6.4:
  * the opening is received, so it stands apart from the feat's prize). NS_Ascension (Niagara) is deferred (guideline
@@ -64,12 +89,20 @@ public:
 	/** Moves the presentation, or the reveal, on by DeltaSeconds of real time (its tick; tests call it). */
 	void Advance(float DeltaSeconds);
 	bool IsShowing() const { return bShowing; }
+	/** Whether the presentation that shows opens the spiritual sight (LookOf(PresentedTier).bOpensSight): the top bar's
+	 * x25 waits for this one alone (B6b decision 25). False while nothing shows. */
+	bool IsShowingSightOpening() const;
 	/** Whether the reveal ("this is seen now") shows. */
 	bool IsRevealing() const { return bRevealing; }
 	// The speed Close gives back; 0 when the simulation was already stopped at Show (tests: UI.RunEnd (6)).
 	float GetPausedSpeed() const { return PausedSpeed; }
 	/** The reveal's line (tests): ST_CA Sight.Opened while the reveal shows; collapsed and empty otherwise. */
 	const UTextBlock* GetRevealText() const { return RevealText; }
+	/** The presentation's title, its glow and the chimes played since construction (tests: UI.AscensionOverlay - the look
+	 * of LookOf on the widget). */
+	const UTextBlock* GetTitleText() const { return TitleText; }
+	const UImage* GetGlow() const { return Glow; }
+	int32 GetChimeCount() const { return ChimeCount; }
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -121,4 +154,6 @@ private:
 	EAscensionTier PresentedTier = EAscensionTier::Tier1_Planetary;
 	bool bRevealing = false;
 	float RevealElapsed = 0.f;
+	// The chimes PlayChime played (a test read).
+	int32 ChimeCount = 0;
 };

@@ -28,6 +28,7 @@
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicResearch.h"
+#include "Sim/CosmicSeal.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/CosmicWanderer.h"
 #include "Sim/GalaxySimulationSubsystem.h"
@@ -653,7 +654,7 @@ FText UCosmicSystemPanelWidget::OwnerLineOf(const FGalaxyState& State, const FCo
 	return Label(TEXT("Panel.NoOwner"));
 }
 
-FText UCosmicSystemPanelWidget::ReasonOf(CosmicMegaprojects::ECosmicSettleBlock Block, const FCosmicDataTables& Tables)
+FText UCosmicSystemPanelWidget::ReasonOf(CosmicMegaprojects::ECosmicSettleBlock Block, const FCosmicDataTables& Tables, EAscensionTier RuledTier)
 {
 	using namespace CosmicSystemPanelImpl;
 	using CosmicMegaprojects::ECosmicSettleBlock;
@@ -674,6 +675,11 @@ FText UCosmicSystemPanelWidget::ReasonOf(CosmicMegaprojects::ECosmicSettleBlock 
 	if (Block == ECosmicSettleBlock::Sphere)
 	{
 		return FText::Format(CosmicUI::Label(Key), FText::AsNumber(static_cast<int32>(CosmicMegaprojects::SphereLiftTier) + 1));
+	}
+	// From the fourth rung no rung lifts the cap within the run (B6b decision 27): no word of rising.
+	if (Block == ECosmicSettleBlock::RealmCap && static_cast<int32>(RuledTier) >= static_cast<int32>(EAscensionTier::Tier4_Transcendent))
+	{
+		return CosmicUI::Label(TEXT("Settle.Block.RealmCapLast"));
 	}
 	return CosmicUI::Label(Key);
 }
@@ -864,6 +870,10 @@ void UCosmicSystemPanelWidget::Refresh()
 	// The claim's warning (B6a): its line under the hazard's, and the same words as the tooltip of the details that carry
 	// the hazard's line; empty when the panel does not show it.
 	FText ClaimWords;
+	// The extinction's lines (B6b decisions 4, 5): under the hazard's, and in the same tooltip after the claim's warning.
+	TArray<FText> ExtinctionWords;
+	// The reason of the settle button the panel shows, for the line under it (the ruled people's rung read in).
+	FText SettleReason;
 	// The people whose research focus the panel shows (MVP item 7): the ruled people, on a settled system of its own.
 	const FCivilizationState* FocusCiv = nullptr;
 	// The wanderer's row (B1), and whether the panel shows the ruled people's capital ([Abdicate], the first-ship line).
@@ -956,6 +966,19 @@ void UCosmicSystemPanelWidget::Refresh()
 					ClaimWords = Label(TEXT("Panel.ClaimMayFollow"));
 					Lines.Add(ClaimWords);
 				}
+				// B6b (header section 4, decisions 4, 5): the extinction on a settled system of the people the vessel rules -
+				// its expiry with no answer lets the people go (CosmicHazards::KillsTheRulerOf), and whether the ruler's life
+				// ends with it (CosmicAutoPause::RulerDiesAtExpiryOf - the birth protection decided there). Words that promise
+				// nothing; no pause of its own. Not in an ended run.
+				if (bRules && !bEnded && OwnerIndex == RuledIndex && CosmicState::IsSettled(System) && CosmicHazards::KillsTheRulerOf(System.ActiveHazard))
+				{
+					ExtinctionWords.Add(Label(TEXT("Panel.ExtinctionFollows")));
+					if (CosmicAutoPause::RulerDiesAtExpiryOf(State, Sim->GetRules(), SystemIndex))
+					{
+						ExtinctionWords.Add(Label(TEXT("Panel.RulerLethal")));
+					}
+					Lines.Append(ExtinctionWords);
+				}
 			}
 			// A slot line takes the paused mark while its watch says the slot does not pay - on a system of the people the
 			// vessel rules only: on another people's slot the mark would tell its stockpile. The watches keep to that people
@@ -1046,7 +1069,19 @@ void UCosmicSystemPanelWidget::Refresh()
 				const FText Name = FText::Format(INVTEXT("{0}  {1}"), Label(TEXT("Panel.Start")), Def->DisplayName);
 				const FText Suffix = bEnded ? Label(TEXT("Chronicle.Suffix")) : StartSuffixOf(Block, Tables, Row);
 				const FText ButtonLabel = Suffix.IsEmpty() ? Name : FText::Format(INVTEXT("{0}  {1}"), Name, Suffix);
-				Wanted.Add({ Row, ButtonLabel, bEnded ? EndBlock : Reason, bEnded ? EndBlock : JoinLines({ Reason, StartHintOf(Tables, Row, System, Unit) }) });
+				// The binding's hint (B6b decision 28): which fallen one it would hold, by its title - in the spiritual view
+				// only, as the sight names it (the physical view has no line and no tooltip of it); none with no one left.
+				FText BindHint;
+				if (Row == CosmicRows::ProjectBinding && ACosmicPlayerController::ShownViewModeFor(*this) == ECosmicViewMode::Spiritual)
+				{
+					const int32 BindTarget = CosmicSeal::BindTargetOf(State, Tables);
+					const FTranscendentDef* Bound = State.Transcendents.IsValidIndex(BindTarget) ? Tables.FindTranscendent(State.Transcendents[BindTarget].TranscendentID) : nullptr;
+					if (Bound && !Bound->Title.IsEmpty())
+					{
+						BindHint = FText::FormatNamed(Label(TEXT("Start.BindHint")), TEXT("Transcendent"), Bound->Title);
+					}
+				}
+				Wanted.Add({ Row, ButtonLabel, bEnded ? EndBlock : Reason, bEnded ? EndBlock : JoinLines({ Reason, StartHintOf(Tables, Row, System, Unit), BindHint }) });
 				bEnabledProject |= !bEnded && Block == CosmicMegaprojects::ECosmicStartBlock::None;
 				ShownStartBlocks.Emplace(Row, Block);
 			}
@@ -1058,7 +1093,8 @@ void UCosmicSystemPanelWidget::Refresh()
 			// Its cost follows the reason, except where no settlement can start whatever the player does (another people
 			// lives there, no settle row).
 			ShownSettleBlock = CosmicMegaprojects::SettleBlockOf(State, Index, Tables, Sim->GetRules(), RuledIndex, SystemIndex);
-			const FText Reason = ReasonOf(ShownSettleBlock, Tables);
+			const FText Reason = ReasonOf(ShownSettleBlock, Tables, State.Civs[RuledIndex].Tier);
+			SettleReason = Reason;
 			// A reason added to ECosmicSettleBlock decides here whether its button shows the cost: the sanctuary's shows
 			// none, as Owned and NoRow (guideline 6.3).
 			static_assert(static_cast<int32>(CosmicMegaprojects::ECosmicSettleBlock::Count) == 11, "A new settle reason: decide whether its settle button shows the cost line");
@@ -1324,7 +1360,7 @@ void UCosmicSystemPanelWidget::Refresh()
 	}
 
 	// The reason line under a greyed-out settle button.
-	const FText Reason = (bEnded && bSettleButton) ? EndBlock : ReasonOf(ShownSettleBlock, Tables);
+	const FText Reason = (bEnded && bSettleButton) ? EndBlock : SettleReason;
 	if (!SameWords(ReasonText->GetText(), Reason))
 	{
 		ReasonText->SetText(Reason);
@@ -1433,10 +1469,12 @@ void UCosmicSystemPanelWidget::Refresh()
 		}
 	}
 
-	// The details' tooltip: the claim's warning (B6a), or none (set only when its words change).
-	if (!SameWords(DetailText->GetToolTipText(), ClaimWords))
+	// The details' tooltip: the claim's warning (B6a) and the extinction's lines (B6b), or none (set only when its words
+	// change).
+	const FText DetailTip = JoinLines({ ClaimWords, JoinLines(ExtinctionWords) });
+	if (!SameWords(DetailText->GetToolTipText(), DetailTip))
 	{
-		DetailText->SetToolTipText(ClaimWords);
+		DetailText->SetToolTipText(DetailTip);
 	}
 
 	// The fleet's lines (B3), a block of their own with its tooltip (set only when its words change).

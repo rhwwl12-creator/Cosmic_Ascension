@@ -16,6 +16,7 @@
 #include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
+#include "Data/CosmicRowNames.h"
 #include "Engine/DataTable.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -254,7 +255,9 @@ namespace CosmicWarningLineTests
 // false and no claim. A hazard the owner's held edict answers (mutation: dropping the edict gate from ClaimMayFollowOf breaks
 // it), Hazard.PreSupernova and Hazard.Claim: false, no new claim after the expiry, though the rule itself holds there. B6b
 // [B-6b2b]: the extinction - false, its people lets every system go and no claim follows (mutation: asking the claim rule of
-// the slot for it breaks it).
+// the slot for it breaks it); [B-6b4]: the panel's extinction line keeps the claim's gate - there on the ruled people's
+// settled system, not on another people's, in the interregnum, in an ended run or on a system still being settled (a
+// mutation dropping each part breaks it).
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicUIClaimMayFollowTest, "Cosmic_Ascension.UI.ClaimMayFollow", CosmicTests::Flags)
 bool FCosmicUIClaimMayFollowTest::RunTest(const FString& Parameters)
 {
@@ -488,7 +491,54 @@ bool FCosmicUIClaimMayFollowTest::RunTest(const FString& Parameters)
 		StandOn(*Laid, WarnedSystem, TEXT("Hazard.Extinction"));
 		TestTrue(TEXT("(the claim rule itself holds there)"), RuleHolds());
 		TestFalse(TEXT("Hazard.Extinction: no claim may follow"), MayFollow());
-		TestTrue(TEXT("The panel says nothing of a claim"), PanelSilent());
+		// The extinction's own lines stand there (B6b [B-6b4], decisions 4, 5 - UI.TopBarAndPanel), in the details and their
+		// tooltip: the claim's warning is asked after here, and the gate of the extinction's line - the claim's gate, step by
+		// step as in (a), each step restoring the board.
+		Panel->ShowSystem(State.Systems[WarnedSystem].SystemID);
+		const UTextBlock* Details = Panel->GetDetailText();
+		TestTrue(TEXT("The panel says nothing of a claim"), Details && !Details->GetText().ToString().Contains(ClaimLine)
+			&& !Details->GetToolTipText().ToString().Contains(ClaimLine));
+		const FString Follows = WarnWords(TEXT("Panel.ExtinctionFollows"));
+		auto ExtinctionShown = [&]()
+		{
+			Panel->ShowSystem(State.Systems[WarnedSystem].SystemID);
+			const UTextBlock* Lines = Panel->GetDetailText();
+			return Lines && Lines->GetText().ToString().Contains(Follows);
+		};
+		TestTrue(TEXT("On a settled system of the ruled people the extinction's line stands"), ExtinctionShown());
+		// Another people's settled system (mutation: the line for any owner breaks it).
+		const FName Warned = Laid->Systems[WarnedSystem].SystemID;
+		const TArray<FName> WasOwned0 = Laid->Civs[0].OwnedSystems;
+		const TArray<FName> WasOwned1 = Laid->Civs[1].OwnedSystems;
+		Laid->Systems[WarnedSystem].OwnerCivID = Laid->Civs[1].CivID;
+		Laid->Civs[0].OwnedSystems.Remove(Warned);
+		Laid->Civs[1].OwnedSystems.Add(Warned);
+		TestFalse(TEXT("On another people's settled system the panel has no extinction line"), ExtinctionShown());
+		Laid->Systems[WarnedSystem].OwnerCivID = Laid->Civs[0].CivID;
+		Laid->Civs[0].OwnedSystems = WasOwned0;
+		Laid->Civs[1].OwnedSystems = WasOwned1;
+		TestTrue(TEXT("(the line is back on the ruled people's system)"), ExtinctionShown());
+		// The interregnum: Player still holds the dead ruler's people (mutation: dropping bRules breaks it).
+		Laid->Calling.LifeState = ELifeState::Interregnum;
+		TestFalse(TEXT("In the interregnum the panel has no extinction line on the dead ruler's people"), ExtinctionShown());
+		Laid->Calling.LifeState = ELifeState::Embodied;
+		TestTrue(TEXT("(the line is back with the vessel)"), ExtinctionShown());
+		// An ended run, latched as the controller latches it.
+		const int64 WasTick = Laid->Tick;
+		CosmicTests::EndRunAt(*Laid, CosmicTags::EndingClock(), WasTick);
+		Controller->FollowEnd(false);
+		TestTrue(TEXT("(the end latched)"), Controller->IsRunEnded());
+		TestFalse(TEXT("In an ended run the panel has no extinction line"), ExtinctionShown());
+		Controller->ClearRunEnd();
+		Laid->Tick = WasTick;
+		Laid->Ending = FCosmicEndingRecord();
+		TestTrue(TEXT("(the line is back in the run that goes on)"), ExtinctionShown());
+		// A system still being settled is not settled (mutation: dropping IsSettled breaks it).
+		const FName WasProject = Laid->Systems[WarnedSystem].ActiveMegaproject;
+		Laid->Systems[WarnedSystem].ActiveMegaproject = CosmicRows::ProjectSettle;
+		TestFalse(TEXT("On a system still being settled the panel has no extinction line"), ExtinctionShown());
+		Laid->Systems[WarnedSystem].ActiveMegaproject = WasProject;
+		TestTrue(TEXT("(the line is back on the settled system)"), ExtinctionShown());
 		Sim->RunHeadless(1);
 		TestTrue(TEXT("(the extinction let the owner's systems go)"), State.Systems[WarnedSystem].OwnerCivID.IsNone() && State.Systems[LaterSystem].OwnerCivID.IsNone());
 		TestEqual(TEXT("After the expiry no claim stands"), ClaimCount(State), 0);

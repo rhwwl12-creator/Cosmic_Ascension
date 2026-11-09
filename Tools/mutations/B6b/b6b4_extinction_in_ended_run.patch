@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -970,7 +970,7 @@
+ 				// its expiry with no answer lets the people go (CosmicHazards::KillsTheRulerOf), and whether the ruler's life
+ 				// ends with it (CosmicAutoPause::RulerDiesAtExpiryOf - the birth protection decided there). Words that promise
+ 				// nothing; no pause of its own. Not in an ended run.
+-				if (bRules && !bEnded && OwnerIndex == RuledIndex && CosmicState::IsSettled(System) && CosmicHazards::KillsTheRulerOf(System.ActiveHazard))
++				if (bRules && OwnerIndex == RuledIndex && CosmicState::IsSettled(System) && CosmicHazards::KillsTheRulerOf(System.ActiveHazard))
+ 				{
+ 					ExtinctionWords.Add(Label(TEXT("Panel.ExtinctionFollows")));
+ 					if (CosmicAutoPause::RulerDiesAtExpiryOf(State, Sim->GetRules(), SystemIndex))

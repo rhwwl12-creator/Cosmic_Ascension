@@ -165,3 +165,18 @@ const TCHAR* CosmicAutoPause::WhyKeyOf(ECosmicAutoPause Reason)
 	}
 	return nullptr;
 }
+
+bool CosmicAutoPause::RulerDiesAtExpiryOf(const FGalaxyState& State, const FCosmicRulesDef& Rules, int32 SystemIndex)
+{
+	if (!State.Systems.IsValidIndex(SystemIndex))
+	{
+		return false;
+	}
+	const FStarSystemState& System = State.Systems[SystemIndex];
+	if (!CosmicHazards::KillsTheRulerOf(System.ActiveHazard) || System.OwnerCivID.IsNone())
+	{
+		return false;
+	}
+	// The expiry's code records the death on a subject with no system, of the owner people: the same question here.
+	return CosmicHazards::VesselAtRiskOf(State.Player, State.Calling, Rules, CosmicAutoPauseImpl::ExpiryTickOf(State, System), NAME_None, System.OwnerCivID);
+}

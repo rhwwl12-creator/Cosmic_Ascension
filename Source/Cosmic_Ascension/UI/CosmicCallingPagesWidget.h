@@ -25,7 +25,8 @@ struct FHazardDef;
 enum class ECosmicCallingPage : uint8
 {
 	None,
-	// A life closed: its cause, its source, the cycles it lived, its highest rung, its feats and its last answers.
+	// A life closed: its cause, its source, the cycles it lived, the highest rung its people reached (none for the first - B6b
+	// decision 30), its feats and its last answers.
 	Epitaph,
 	// What the world did while no vessel stood (CosmicDigest::LinesOf).
 	Digest,
@@ -84,7 +85,8 @@ public:
 	/** The epitaph of Lives[InLifeAt]: the title 'the Nth' with the vessel's name (third person - decision 12-da), the cause and
 	 * its source (a hazard's name; a cause whose source is a card names the hazard the card belongs to - IsCardOfHazard - or
 	 * nothing: never a card's title, an answer never shares the cause's line), the cycles lived (DiedTick - BornTick), the
-	 * highest rung, the feats, the last answers
+	 * highest rung the people reached while the vessel ruled (Epitaph.Peak - no line for the first rung, B6b decision 30), the
+	 * feats, the last answers
 	 * (LastAnswersOf - the one of the death set apart below the others); no epithet. bSkippable shows 'skip' (a second or later
 	 * death). bAtOnce: no fade, no reveal (a continued run). */
 	void OpenEpitaph(int32 InLifeAt, bool bSkippable, bool bAtOnce);
@@ -116,7 +118,7 @@ public:
 	TArray<FString> GetPageKeys() const { return Keys; }          // tests: every ST_CA key the page's words came from (its buttons too)
 	int32 GetApartRow() const { return ApartRow; }                // tests: the row of the answer set apart, INDEX_NONE for none
 	int32 GetCauseRow() const { return CauseRow; }                // tests: the epitaph's cause row, INDEX_NONE on another page
-	int32 GetFactsEndRow() const { return FactsEndRow; }          // tests: the epitaph's last fact row (the cause, the cycles, the rung, the feats)
+	int32 GetFactsEndRow() const { return FactsEndRow; }          // tests: the epitaph's last fact row (the cause, the cycles, the rung above the first, the feats)
 	const TArray<FCosmicAnswerTitle>& GetAnswers() const { return Answers; }   // tests: the epitaph's answers as shown
 	UCosmicActionButton* GetNextButton() const { return NextButton; }
 	UCosmicActionButton* GetSkipButton() const { return SkipButton; }

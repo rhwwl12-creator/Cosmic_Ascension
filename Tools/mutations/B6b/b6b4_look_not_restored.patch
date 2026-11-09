@@ -1,0 +1,19 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicAscensionOverlayWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicAscensionOverlayWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicAscensionOverlayWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicAscensionOverlayWidget.cpp
+@@ -243,9 +243,12 @@
+ 		RungText->SetText(FText::Format(INVTEXT("{0} {1}"), CosmicUI::Label(TEXT("Panel.Tier")), FText::AsNumber(static_cast<int32>(NewTier) + 1)));
+ 		NarrativeText->SetText(Feat ? Feat->MythicNarrative : FText::GetEmpty());
+ 		// Set on every show: the fifth rung's white and missing glow do not stay for the next presentation.
+-		TitleText->SetColorAndOpacity(FSlateColor(Look.TitleColor));
+-	}
+-	if (Glow)
++		if (NewTier == EAscensionTier::Tier5_EternalOrder)
++		{
++			TitleText->SetColorAndOpacity(FSlateColor(Look.TitleColor));
++		}
++	}
++	if (Glow && NewTier == EAscensionTier::Tier5_EternalOrder)
+ 	{
+ 		Glow->SetVisibility(Look.bGlow ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+ 	}

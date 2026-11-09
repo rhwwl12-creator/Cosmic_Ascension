@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
+@@ -537,7 +537,7 @@
+ {
+ 	FText Tip = FText::Format(INVTEXT("{0}\n{1}"), CosmicUI::Label(TEXT("Time.Tip")), CosmicUI::Label(TEXT("Time.TipPress")));
+ 	// With the end switched off nothing ends (the game mode's run end returns first): no rule line.
+-	if (!bEndOn)
++	if (!bEndOn && !bRungRule)
+ 	{
+ 		return Tip;
+ 	}

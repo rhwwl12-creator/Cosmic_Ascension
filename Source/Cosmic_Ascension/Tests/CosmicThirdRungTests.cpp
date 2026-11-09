@@ -10,6 +10,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/SlateWrapperTypes.h"
 #include "Components/TextBlock.h"
+#include "Core/CosmicTags.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicConditionTypes.h"
@@ -27,11 +28,14 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/Optional.h"
 #include "Misc/ScopeExit.h"
+#include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicHazards.h"
+#include "Sim/CosmicSeal.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Styling/SlateColor.h"
 #include "Styling/SlateTypes.h"
+#include "Tests/CosmicB6bRowNames.h"
 #include "Tests/CosmicTestHelpers.h"
 #include "UI/CosmicActionButton.h"
 #include "UI/CosmicAscensionOverlayWidget.h"
@@ -90,6 +94,18 @@ namespace CosmicThirdRungTests
 		Sim.SetBroadcastEnabled(bWasBroadcasting);
 	}
 
+	// How often Part stands in Text.
+	int32 CountOf(const FString& Text, const FString& Part)
+	{
+		int32 Count = 0;
+		for (int32 From = Part.IsEmpty() ? INDEX_NONE : Text.Find(Part, ESearchCase::CaseSensitive); From != INDEX_NONE;
+			From = Text.Find(Part, ESearchCase::CaseSensitive, ESearchDir::FromStart, From + Part.Len()))
+		{
+			++Count;
+		}
+		return Count;
+	}
+
 	// The digits of a text as one number (a percent the bar shows: "35%" is 35); -1 without a digit.
 	int32 DigitsOf(const FString& Text)
 	{
@@ -141,8 +157,8 @@ namespace CosmicThirdRungTests
 }
 
 // The third rung's speed (Phase 3 item 12, guideline 2.1, 6.3): the table of steps and the one gate (the spiritual
-// sight's), the bar's sixth button (collapsed below the third rung and while the ascension presentation shows, its
-// tooltip, its press, its year label), a bar without a controller, the controller's keys, SetSpeed, the pause's release,
+// sight's), the bar's sixth button (collapsed below the third rung and while the presentation that opens the sight shows -
+// a fourth or fifth rung's presentation leaves it, B6b decision 25 -, its tooltip, its press, its year label), a bar without a controller, the controller's keys, SetSpeed, the pause's release,
 // the presentation's give-back and the lowering when the gate closes on a tick; neither hash moves.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicUIThirdRungSpeedTest, "Cosmic_Ascension.UI.ThirdRungSpeed", CosmicTests::Flags)
 bool FCosmicUIThirdRungSpeedTest::RunTest(const FString& Parameters)
@@ -295,6 +311,24 @@ bool FCosmicUIThirdRungSpeedTest::RunTest(const FString& Parameters)
 		Overlay->Close();
 		TestTrue(TEXT("x25 shows when the presentation closes, not before"), ShowsForClicks(HudX25));
 		Overlay->Advance(CosmicAscensionOverlay::RevealSeconds + 1.f);
+
+		// B6b decision 25: only the presentation that opens the sight holds x25 back - a fourth or fifth rung's leaves an
+		// open x25 in place.
+		Live.Civs[RuledIndex].Tier = EAscensionTier::Tier4_Transcendent;
+		Overlay->Show(EAscensionTier::Tier4_Transcendent, AnyFeat);
+		HudBar->Refresh();
+		TestTrue(TEXT("(the fourth rung's presentation shows)"), Overlay->IsShowing());
+		TestTrue(TEXT("x25 stays while the fourth rung's presentation shows"), ShowsForClicks(HudX25));
+		Overlay->Close();
+		Live.Civs[RuledIndex].Tier = EAscensionTier::Tier5_EternalOrder;
+		Overlay->Show(EAscensionTier::Tier5_EternalOrder, AnyFeat);
+		HudBar->Refresh();
+		TestTrue(TEXT("(the fifth rung's presentation shows)"), Overlay->IsShowing());
+		TestTrue(TEXT("and while the fifth rung's does"), ShowsForClicks(HudX25));
+		Overlay->Close();
+		Overlay->Advance(CosmicAscensionOverlay::RevealSeconds + 1.f);
+		Live.Civs[RuledIndex].Tier = EAscensionTier::Tier3_Causal;
+		HudBar->Refresh();
 	}
 
 	// ---- 3. A bar without a controller ----
@@ -433,7 +467,8 @@ bool FCosmicUIThirdRungSpeedTest::RunTest(const FString& Parameters)
 // The top bar's 'next rung' (Phase 3 item 12, guideline 6.3): what the next feat row asks, read as the judgment reads it
 // - the row, its parts and their words on the game's rows, progress, the life-relative completion, the percent forms,
 // the judgment itself as the oracle, the second rung, injected rows (a refused row, parts on two systems, other
-// conditions), the rungs and roles without a next rung - and the bar's tooltip bound once on the rung and the research.
+// conditions), B6b's upper rungs on injected rows (decision 28: the ark, the treaty, the laws and their count, the
+// binding), the rungs and roles without a next rung - and the bar's tooltip bound once on the rung and the research.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicUINextRungTest, "Cosmic_Ascension.UI.NextRung", CosmicTests::Flags)
 bool FCosmicUINextRungTest::RunTest(const FString& Parameters)
 {
@@ -704,10 +739,236 @@ bool FCosmicUINextRungTest::RunTest(const FString& Parameters)
 		Reset();
 	}
 
+	// ---- 9b. B6b's upper rungs on injected rows (decision 28): the ark, the treaty, the laws and the binding ----
+	{
+		using CosmicUI::Label;
+		using CosmicUI::WholeNumber;
+		const FName ArkFeat = CosmicB6bRows::FeatPassageByArk;
+		const FName LawsFeat = CosmicB6bRows::FeatLawsAndBinding;
+		const FName Ark = CosmicB6bRows::ProjectArk;
+		const FName Binding = CosmicRows::ProjectBinding;
+		const FMegaprojectDef* BindingRow = GameTables.FindMegaproject(Binding);
+		if (!TestNotNull(TEXT("(the game has the binding row)"), BindingRow))
+		{
+			return false;
+		}
+		// DT_Megaprojects: the game's rows (the binding among them) and the ark.
+		UDataTable* Projects = CosmicTests::CopyWithout<FMegaprojectDef>(GameTables.Megaprojects, {});
+		FMegaprojectDef ArkRow;
+		ArkRow.DisplayName = FText::AsCultureInvariant(TEXT("<ark>"));
+		ArkRow.RequiredProgress = 3.f;
+		ArkRow.RequiredTier = EAscensionTier::Tier3_Causal;
+		Projects->AddRow(Ark, ArkRow);
+		// DT_Hazards: the game's rows and the extinction, which the ark answers.
+		UDataTable* Hazards = CosmicTests::CopyWithout<FHazardDef>(GameTables.Hazards, {});
+		FHazardDef Extinction;
+		Extinction.HazardTag = Tag(TEXT("Hazard.Extinction"));
+		Extinction.DisplayName = FText::AsCultureInvariant(TEXT("<extinction>"));
+		Extinction.RulerResolutions = { Ark };
+		Hazards->AddRow(CosmicB6bRows::CrisisSpeciesExtinction, Extinction);
+		// DT_Edicts: the game's rows and three galaxy laws of the fourth rung.
+		UDataTable* Edicts = CosmicTests::CopyWithout<FEdictDef>(GameTables.Edicts, {});
+		const FName Laws[] = { CosmicB6bRows::EdictWideMachineAccord, CosmicB6bRows::EdictWideQuarantine, CosmicB6bRows::EdictWideWarning };
+		for (const FName Law : Laws)
+		{
+			FEdictDef Row;
+			Row.DisplayName = FText::AsCultureInvariant(TEXT("<law>"));
+			Row.RequiredTier = EAscensionTier::Tier4_Transcendent;
+			Row.Scope = ECosmicEdictScope::HomeGalaxy;
+			Edicts->AddRow(Law, Row);
+		}
+		// DT_Feats: the passage by the ark (the third rung to the fourth) and the laws and the binding (the fourth to the fifth).
+		UDataTable* Feats = CosmicTests::NewTable(FAscensionFeatDef::StaticStruct());
+		Feats->AddRow(ArkFeat, FeatRow(EAscensionTier::Tier3_Causal, EAscensionTier::Tier4_Transcendent,
+			{ Cond(EConditionType::MegaprojectComplete, Ark), Cond(EConditionType::CivHasTreaty, NAME_None, 1.f) }));
+		Feats->AddRow(LawsFeat, FeatRow(EAscensionTier::Tier4_Transcendent, EAscensionTier::Tier5_EternalOrder,
+			{ Cond(EConditionType::CivLawsHeldTicksAtLeast, FName(TEXT("100"))), Cond(EConditionType::MegaprojectComplete, Binding) }));
+		FCosmicDataTables Injected = GameTables;
+		Injected.Megaprojects = Projects;
+		Injected.Hazards = Hazards;
+		Injected.Edicts = Edicts;
+		Injected.Feats = Feats;
+		Sim->SetTables(Injected);
+		Reset();
+		const TMap<FName, FCosmicTie> SavedTies = Live.Civs[Ruled].Ties;
+		const TArray<FName> SavedEdicts = Live.Civs[Ruled].ActiveEdicts;
+		const int32 SavedLawsHeld = Live.Civs[Ruled].LawsHeldTicks;
+		const TArray<FTranscendentState> SavedTranscendents = Live.Transcendents;
+
+		// (a) The ark: an answer no slot holds says the hazard it answers.
+		Live.Civs[Ruled].Tier = EAscensionTier::Tier3_Causal;
+		{
+			const FCosmicNextRung Next = NextOf();
+			TestEqual(TEXT("The third rung's next rung is the passage by the ark"), Next.FeatRow, ArkFeat);
+			if (TestEqual(TEXT("(two parts, the ark and the treaty)"), Next.Parts.Num(), 2))
+			{
+				TestTrue(TEXT("The ark is a project part"), Next.Parts[0].Kind == ECosmicRungPartKind::Project && Next.Parts[0].Key == Ark);
+				TestEqual(TEXT("that answers the extinction"), Next.Parts[0].HazardRow, CosmicB6bRows::CrisisSpeciesExtinction);
+				const FString Words = TextNow();
+				TestTrue(TEXT("Its words name the extinction it answers"),
+					Words.Contains(FText::Format(INVTEXT("{0}({1})"), ArkRow.DisplayName, FText::Format(Label(TEXT("Rung.WhenHazard")), Extinction.DisplayName)).ToString()));
+				TestFalse(TEXT("not 'not started'"), Words.Contains(Label(TEXT("Rung.NotStarted")).ToString()));
+
+				// (b) The treaty: the peoples sharing one against those asked.
+				const FCosmicRungPart& Treaty = Next.Parts[1];
+				TestTrue(TEXT("The treaty is a part of its own"), Treaty.Kind == ECosmicRungPartKind::Treaty);
+				TestEqual(TEXT("no people shares one"), Treaty.Progress, 0.f);
+				TestEqual(TEXT("of one asked"), Treaty.Needed, 1.f);
+				TestFalse(TEXT("(not met)"), Treaty.bMet);
+				TestTrue(TEXT("Its words: the peoples with a treaty against those asked"),
+					Words.Contains(FText::Format(Label(TEXT("Rung.Treaty")), WholeNumber(0.f), WholeNumber(1.f)).ToString()));
+			}
+			// (c) The judgment is the oracle on the third rung.
+			TestEqual(TEXT("Nothing met on the third rung: every part met exactly when the judgment lifts the people"), NextOf().AllMet(), JudgmentLifts());
+		}
+		const int32 Other = Live.Civs.IndexOfByPredicate([&](const FCivilizationState& Civ) { return Civ.CivID != Live.Civs[Ruled].CivID; });
+		if (TestTrue(TEXT("(another people to sign with)"), Live.Civs.IsValidIndex(Other)))
+		{
+			// Two treaties with one people: one people shares a treaty.
+			FCosmicTie& Tie = Live.Civs[Ruled].Ties.FindOrAdd(Live.Civs[Other].CivID);
+			Tie.Treaties.AddTag(CosmicTags::TreatyTrade());
+			Tie.Treaties.AddTag(CosmicTags::TreatyNonAggression());
+			const FCosmicNextRung Next = NextOf();
+			if (TestEqual(TEXT("(two parts)"), Next.Parts.Num(), 2))
+			{
+				TestEqual(TEXT("Trade and non-aggression with one people count one people"), Next.Parts[1].Progress, 1.f);
+				TestTrue(TEXT("and meet the treaty"), Next.Parts[1].bMet);
+				TestTrue(TEXT("Its words: 1/1"), TextNow().Contains(FText::Format(Label(TEXT("Rung.Treaty")), WholeNumber(1.f), WholeNumber(1.f)).ToString()));
+			}
+			Record(Live.Systems[Home], Ark, 5);
+			TestTrue(TEXT("(the ark and the treaty: all met)"), NextOf().AllMet());
+			TestEqual(TEXT("The ark and the treaty on the third rung: every part met exactly when the judgment lifts the people"), NextOf().AllMet(), JudgmentLifts());
+			Live.Civs[Ruled].Ties = SavedTies;
+		}
+
+		// (d) The laws on the fourth rung: the galaxy laws held against those to hold, then the ticks still to hold them.
+		Reset();
+		Live.Civs[Ruled].Tier = EAscensionTier::Tier4_Transcendent;
+		const int32 ToHold = CosmicEdicts::GalaxyLawsToHoldOf(Sim->GetRules());
+		TestTrue(TEXT("(the rules ask no more laws than the three rows)"), ToHold <= static_cast<int32>(UE_ARRAY_COUNT(Laws)));
+		const FString ResetLine = Label(TEXT("Rung.LawsReset")).ToString();
+		{
+			const FCosmicNextRung Next = NextOf();
+			TestEqual(TEXT("The fourth rung's next rung is the laws and the binding"), Next.FeatRow, LawsFeat);
+			if (TestEqual(TEXT("(two parts, the laws and the binding)"), Next.Parts.Num(), 2))
+			{
+				TestTrue(TEXT("The laws are a part of their own"), Next.Parts[0].Kind == ECosmicRungPartKind::Laws);
+				TestEqual(TEXT("none held"), Next.Parts[0].Progress, 0.f);
+				TestEqual(TEXT("of those to hold"), Next.Parts[0].Needed, static_cast<float>(ToHold));
+				TestEqual(TEXT("and no ticks told while one is missing"), Next.Parts[0].TicksLeft, static_cast<int64>(-1));
+				TestTrue(TEXT("Their words: the laws held against those to hold"),
+					TextNow().Contains(FText::Format(Label(TEXT("Rung.Laws")), WholeNumber(0.f), WholeNumber(static_cast<float>(ToHold))).ToString()));
+			}
+		}
+		for (int32 At = 0; At < ToHold; ++At)
+		{
+			Live.Civs[Ruled].ActiveEdicts.Add(Laws[At]);
+		}
+		// Held 80 ticks, but only 40 of them in this life: 60 still to hold.
+		Live.Civs[Ruled].LawsHeldTicks = 80;
+		Live.Calling.BornTick = 60;
+		Live.Tick = 100;
+		{
+			const FCosmicNextRung Next = NextOf();
+			if (TestEqual(TEXT("(two parts)"), Next.Parts.Num(), 2))
+			{
+				TestEqual(TEXT("Every law held"), Next.Parts[0].Progress, static_cast<float>(ToHold));
+				TestFalse(TEXT("(not met yet)"), Next.Parts[0].bMet);
+				TestEqual(TEXT("leaves the count less the stretch within this life"), Next.Parts[0].TicksLeft, static_cast<int64>(60));
+			}
+			const FString Words = TextNow();
+			TestTrue(TEXT("Their words tell the time still to hold"), Words.Contains(FText::Format(Label(TEXT("Rung.LawsLeft")), WholeNumber(static_cast<float>(ToHold)),
+				WholeNumber(static_cast<float>(ToHold)), CosmicUI::DurationLabel(60, ECosmicTimeUnit::Cycle)).ToString()));
+			TestEqual(TEXT("A laws part ends the tooltip with what resets the count, once"), CountOf(Words, ResetLine), 1);
+			TestTrue(TEXT("as its last line"), Words.EndsWith(TEXT("\n") + ResetLine));
+			const FString AllWords = CosmicNextRung::TextOfAll({ Next, Next }, Sim->GetTables()).ToString();
+			TestEqual(TEXT("Over two ways up with laws it is said once"), CountOf(AllWords, ResetLine), 1);
+			TestTrue(TEXT("after the last row"), AllWords.EndsWith(TEXT("\n") + ResetLine));
+			TestTrue(TEXT("In years the time still to hold reads in years"), CosmicNextRung::TextOf(Next, Sim->GetTables(), ECosmicTimeUnit::Year).ToString()
+				.Contains(CosmicUI::DurationLabel(60, ECosmicTimeUnit::Year).ToString()));
+		}
+		// Laws newly held in a longer life: the ticks held, not the life, are the stretch - 90 still to hold.
+		Live.Civs[Ruled].LawsHeldTicks = 10;
+		{
+			const FCosmicNextRung Next = NextOf();
+			if (TestEqual(TEXT("(two parts)"), Next.Parts.Num(), 2))
+			{
+				TestFalse(TEXT("(not met yet)"), Next.Parts[0].bMet);
+				TestEqual(TEXT("Laws held less than this life leave the count less the ticks held"), Next.Parts[0].TicksLeft, static_cast<int64>(90));
+			}
+		}
+
+		// (e) The binding: not started while a fallen one is left; closed with none left and no completion of this life;
+		// lost - not closed, not 'not started' - with this life's completion on a system the people lost.
+		const int32 Target = CosmicSeal::BindTargetOf(Live, Sim->GetTables());
+		if (TestTrue(TEXT("(the galaxy has a fallen one to bind)"), Target != INDEX_NONE))
+		{
+			const FString NotStarted = FText::Format(INVTEXT("{0}({1})"), BindingRow->DisplayName, Label(TEXT("Rung.NotStarted"))).ToString();
+			const FString Closed = FText::Format(INVTEXT("{0}({1})"), BindingRow->DisplayName, Label(TEXT("Rung.NoFallen"))).ToString();
+			const FString LostWords = FText::Format(INVTEXT("{0}({1})"), BindingRow->DisplayName, Label(TEXT("Rung.Lost"))).ToString();
+			{
+				const FCosmicNextRung Next = NextOf();
+				TestTrue(TEXT("(the binding is the second part)"), Next.Parts.Num() == 2 && Next.Parts[1].Kind == ECosmicRungPartKind::Project && Next.Parts[1].Key == Binding);
+				TestFalse(TEXT("With a fallen one left the binding is not closed"), Next.Parts.Num() == 2 && Next.Parts[1].bClosed);
+				TestFalse(TEXT("nor lost, with no completion"), Next.Parts.Num() == 2 && Next.Parts[1].bLost);
+				TestTrue(TEXT("and reads 'not started'"), TextNow().Contains(NotStarted));
+			}
+			for (FTranscendentState& Transcendent : Live.Transcendents)
+			{
+				Transcendent.bSealed = true;
+			}
+			{
+				const FCosmicNextRung Next = NextOf();
+				TestTrue(TEXT("With every fallen one bound and no completion the binding is closed"), Next.Parts.Num() == 2 && Next.Parts[1].bClosed);
+				const FString Words = TextNow();
+				TestTrue(TEXT("and says it cannot be met"), Words.Contains(Closed));
+				TestFalse(TEXT("(not 'not started')"), Words.Contains(NotStarted));
+			}
+			// This life's completion on a system the people lost can be taken back: not closed.
+			const int32 Lost = Live.Systems.IndexOfByPredicate([&](const FStarSystemState& System) { return System.OwnerCivID != Live.Civs[Ruled].CivID && !CosmicHazards::IsDeadNode(System); });
+			if (TestTrue(TEXT("(a system the people does not hold)"), Live.Systems.IsValidIndex(Lost)))
+			{
+				Record(Live.Systems[Lost], Binding, 70);
+				Live.Systems[Lost].CompletedMegaprojects.Last().CivID = Live.Civs[Ruled].CivID;
+				const FCosmicNextRung Next = NextOf();
+				TestFalse(TEXT("A completion of this life on a lost system keeps the binding open"), Next.Parts.Num() == 2 && Next.Parts[1].bClosed);
+				TestFalse(TEXT("(and unmet on the people's systems)"), Next.Parts.Num() == 2 && Next.Parts[1].bMet);
+				TestTrue(TEXT("It is lost: done, on a system to take back"), Next.Parts.Num() == 2 && Next.Parts[1].bLost);
+				const FString Words = TextNow();
+				TestTrue(TEXT("and reads so"), Words.Contains(LostWords));
+				TestFalse(TEXT("(not 'not started' - the work was done)"), Words.Contains(NotStarted));
+				Live.Systems[Lost].CompletedMegaprojects.Reset();
+			}
+			Live.Transcendents = SavedTranscendents;
+		}
+
+		// (f) The judgment is the oracle on the fourth rung: every law held through the count, the binding done.
+		Live.Civs[Ruled].LawsHeldTicks = 200;
+		Live.Calling.BornTick = 0;
+		Live.Tick = 300;
+		TestEqual(TEXT("The laws without the binding on the fourth rung: every part met exactly when the judgment lifts the people"), NextOf().AllMet(), JudgmentLifts());
+		{
+			const FCosmicNextRung Next = NextOf();
+			TestTrue(TEXT("Laws held through the count are met"), Next.Parts.Num() == 2 && Next.Parts[0].bMet && Next.Parts[0].TicksLeft == -1);
+			TestTrue(TEXT("and read without a time"), TextNow().Contains(FText::Format(Label(TEXT("Rung.Laws")), WholeNumber(static_cast<float>(ToHold)),
+				WholeNumber(static_cast<float>(ToHold))).ToString()));
+		}
+		Record(Live.Systems[Home], Binding, 5);
+		TestTrue(TEXT("(the laws and the binding: all met)"), NextOf().AllMet());
+		TestEqual(TEXT("The laws and the binding on the fourth rung: every part met exactly when the judgment lifts the people"), NextOf().AllMet(), JudgmentLifts());
+
+		Live.Civs[Ruled].ActiveEdicts = SavedEdicts;
+		Live.Civs[Ruled].LawsHeldTicks = SavedLawsHeld;
+		Live.Civs[Ruled].Ties = SavedTies;
+		Live.Transcendents = SavedTranscendents;
+		Sim->SetTables(GameTables);
+		Reset();
+	}
+
 	// ---- 10. No next rung ----
 	{
-		Live.Civs[Ruled].Tier = EAscensionTier::Tier3_Causal;
-		TestTrue(TEXT("The third rung has no next rung in the game's rows"), NextOf().FeatRow.IsNone());
+		Live.Civs[Ruled].Tier = EAscensionTier::Tier5_EternalOrder;
+		TestTrue(TEXT("The fifth rung has no next rung - the ladder has no sixth"), NextOf().FeatRow.IsNone());
 		TestTrue(TEXT("and no words"), TextNow().IsEmpty());
 		Reset();
 		Live.Player.Role = EPlayerRole::Wanderer;
@@ -718,7 +979,8 @@ bool FCosmicUINextRungTest::RunTest(const FString& Parameters)
 		Live.Calling.LifeState = ELifeState::Embodied;
 		// Every label this test reads has words: a search for a blank label finds it anywhere, and its length is 0.
 		for (const TCHAR* Key : { TEXT("Rung.Next"), TEXT("Rung.Done"), TEXT("Rung.NotStarted"), TEXT("Rung.WhenHazard"), TEXT("Rung.Other"), TEXT("Rung.Met"), TEXT("Rung.NotMet"), TEXT("List.Pair"),
-			TEXT("Research.Physics"), TEXT("Panel.Tier"), TEXT("Speed.ThirdRungTip") })
+			TEXT("Research.Physics"), TEXT("Panel.Tier"), TEXT("Speed.ThirdRungTip"), TEXT("Rung.Treaty"), TEXT("Rung.Laws"), TEXT("Rung.LawsLeft"), TEXT("Rung.LawsReset"),
+			TEXT("Rung.NoFallen"), TEXT("Rung.Lost") })
 		{
 			TestFalse(*FString::Printf(TEXT("%s is no missing String Table entry"), Key), CosmicUI::Label(Key).ToString().Contains(Placeholder));
 			TestFalse(*FString::Printf(TEXT("%s has words"), Key), CosmicUI::Label(Key).ToString().IsEmpty());
@@ -767,23 +1029,23 @@ bool FCosmicUINextRungTest::RunTest(const FString& Parameters)
 			StepBroadcast(*Sim);
 			TestTrue(TEXT("a tick keeps the tooltip object"), SlateRung->GetToolTip().Get() == TipBefore);
 			TestTrue(TEXT("and the research one's"), SlateResearch->GetToolTip().Get() == ResearchTipBefore);
-			Live.Civs[Ruled].Tier = EAscensionTier::Tier3_Causal;
+			Live.Civs[Ruled].Tier = EAscensionTier::Tier5_EternalOrder;
 			Bar->Refresh();
 			// Read once and guarded: a text set in place of the binding takes the tooltip away when it is empty, and an
 			// assertion does not stop the test before the pointer is used.
-			const TSharedPtr<IToolTip> TipOnThird = SlateRung->GetToolTip();
-			TestTrue(TEXT("(on the third rung the rung keeps its tooltip object)"), TipOnThird.Get() == TipBefore);
-			TestTrue(TEXT("On the third rung the same tooltip is empty"), TipOnThird.IsValid() && TipOnThird->IsEmpty());
+			const TSharedPtr<IToolTip> TipOnFifth = SlateRung->GetToolTip();
+			TestTrue(TEXT("(on the fifth rung the rung keeps its tooltip object)"), TipOnFifth.Get() == TipBefore);
+			TestTrue(TEXT("On the fifth rung the same tooltip is empty"), TipOnFifth.IsValid() && TipOnFifth->IsEmpty());
 			Live.Civs[Ruled].Tier = EAscensionTier::Tier1_Planetary;
 		}
 		Bar->SetRungHovered(true);
 		TestTrue(TEXT("The mouse on the rung lights it as the clock"), Bar->GetRungText()->GetColorAndOpacity().GetSpecifiedColor().Equals(Gold, 1e-4f));
 		Bar->SetRungHovered(false);
 		TestTrue(TEXT("and off it the rung is white again"), Bar->GetRungText()->GetColorAndOpacity().GetSpecifiedColor().Equals(FLinearColor::White, 1e-4f));
-		// The gold says a tooltip waits there: with no next rung to tell (the third rung of the game's rows) it stays white.
-		Live.Civs[Ruled].Tier = EAscensionTier::Tier3_Causal;
+		// The gold says a tooltip waits there: with no next rung to tell (the fifth rung) it stays white.
+		Live.Civs[Ruled].Tier = EAscensionTier::Tier5_EternalOrder;
 		Bar->Refresh();
-		TestTrue(TEXT("(the third rung has no next rung's words)"), Bar->GetNextRungTip().IsEmpty());
+		TestTrue(TEXT("(the fifth rung has no next rung's words)"), Bar->GetNextRungTip().IsEmpty());
 		Bar->SetRungHovered(true);
 		TestTrue(TEXT("With no next rung the mouse leaves the rung white"), Bar->GetRungText()->GetColorAndOpacity().GetSpecifiedColor().Equals(FLinearColor::White, 1e-4f));
 		Bar->SetRungHovered(false);

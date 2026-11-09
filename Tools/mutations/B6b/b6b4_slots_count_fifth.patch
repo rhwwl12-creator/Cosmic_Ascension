@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1234,7 +1234,7 @@
+ {
+ 	const int32 Now = CosmicDiplomacy::FriendlySlotsOf(Civ, Rules);
+ 	// The fifth rung's slot comes after the run's end (B6b decision 27): it is never told.
+-	for (int32 At = static_cast<int32>(Civ.Tier) + 1; At < static_cast<int32>(EAscensionTier::Tier5_EternalOrder) && Rules.FriendlySlotsByTier.IsValidIndex(At); ++At)
++	for (int32 At = static_cast<int32>(Civ.Tier) + 1; At <= static_cast<int32>(EAscensionTier::Tier5_EternalOrder) && Rules.FriendlySlotsByTier.IsValidIndex(At); ++At)
+ 	{
+ 		if (FMath::Max(0, Rules.FriendlySlotsByTier[At]) > Now)
+ 		{

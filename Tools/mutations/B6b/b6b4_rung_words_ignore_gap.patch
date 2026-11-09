@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1247,7 +1247,7 @@
+ FText UCosmicEdictWidget::RungWordsOf(const FCosmicKnownView& View, const FGalaxyState& State, int32 CivIndex)
+ {
+ 	// Known: met, and shown - a people three rungs or more above the viewer is not (rule 14).
+-	if (!State.Civs.IsValidIndex(CivIndex) || !View.IsMet(CivIndex) || View.ShownOrderOf(CivIndex) == INDEX_NONE)
++	if (!State.Civs.IsValidIndex(CivIndex) || !View.IsMet(CivIndex))
+ 	{
+ 		return FText::GetEmpty();
+ 	}

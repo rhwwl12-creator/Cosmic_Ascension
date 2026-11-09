@@ -450,6 +450,74 @@ bool FCosmicUIEdictWindowTest::RunTest(const FString& Parameters)
 			Words(FText::FormatNamed(CosmicUI::Label(TEXT("Edict.TipAnswers")), TEXT("Hazard"), Awakening->DisplayName))));
 	}
 
+	// B6b: the galaxy laws (Scope HomeGalaxy) - the row head's mark on every law and on no other row, and under a law's
+	// hazard lines what reaches the whole home galaxy (none without hazard lines, none for a people's own edict).
+	{
+		const FName LawSpawn(TEXT("edict_test_law_spawn"));
+		const FName LawPlain(TEXT("edict_test_law_plain"));
+		const FName LawCountdown(TEXT("edict_test_law_countdown"));
+		const FName PeopleSpawn(TEXT("edict_test_people_spawn"));
+		const FGameplayTag Plague = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Plague")));
+		auto RowOf = [&Plague](ECosmicEdictScope Scope, bool bSpawn, bool bCountdown = false)
+		{
+			FEdictDef Row;
+			Row.DisplayName = FText::AsCultureInvariant(TEXT("<law>"));
+			Row.RequiredTier = EAscensionTier::Tier4_Transcendent;
+			Row.Scope = Scope;
+			if (bSpawn)
+			{
+				Row.HazardSpawnMultipliers.Add(Plague, 0.5f);
+			}
+			if (bCountdown)
+			{
+				Row.HazardCountdownBonus.Add(Plague, 30);
+			}
+			return Row;
+		};
+		FCosmicDataTables WideTables = Tables;
+		UDataTable* Edicts = CosmicTests::CopyWithout<FEdictDef>(Tables.Edicts, {});
+		Edicts->AddRow(LawSpawn, RowOf(ECosmicEdictScope::HomeGalaxy, true));
+		Edicts->AddRow(LawPlain, RowOf(ECosmicEdictScope::HomeGalaxy, false));
+		Edicts->AddRow(LawCountdown, RowOf(ECosmicEdictScope::HomeGalaxy, false, true));
+		Edicts->AddRow(PeopleSpawn, RowOf(ECosmicEdictScope::People, true));
+		WideTables.Edicts = Edicts;
+		const FString Wide = Words(TEXT("Edict.TipWide"));
+		TestFalse(TEXT("(Edict.TipWide and Edict.Wide have words)"), Wide.IsEmpty() || HasPlaceholder(CosmicUI::Label(TEXT("Edict.TipWide")))
+			|| Words(TEXT("Edict.Wide")).IsEmpty() || HasPlaceholder(CosmicUI::Label(TEXT("Edict.Wide"))));
+		const FString LawTip = Words(UCosmicEdictWidget::TipOf(WideTables, LawSpawn, Unit));
+		TestTrue(TEXT("A galaxy law's tooltip says what reaches the home galaxy, under its hazard lines"), LawTip.EndsWith(TEXT("\n") + Wide));
+		TestFalse(TEXT("(not first)"), LawTip.StartsWith(Wide));
+		const FHazardDef* PlagueRow = WideTables.FindHazardByTag(Plague);
+		if (TestNotNull(TEXT("(the game has the plague row)"), PlagueRow))
+		{
+			FFormatNamedArguments SpawnArgs;
+			SpawnArgs.Add(TEXT("Hazard"), PlagueRow->DisplayName);
+			SpawnArgs.Add(TEXT("Factor"), UCosmicEdictWidget::AmountOf(0.5f));
+			TestTrue(TEXT("right after the spawn line"), LawTip.Contains(Words(FText::Format(CosmicUI::Label(TEXT("Edict.Effect.Spawn")), SpawnArgs)) + TEXT("\n") + Wide));
+		}
+		const FString CountdownTip = Words(UCosmicEdictWidget::TipOf(WideTables, LawCountdown, Unit));
+		TestTrue(TEXT("A galaxy law with only a countdown line says it too"), CountdownTip.EndsWith(TEXT("\n") + Wide));
+		TestTrue(TEXT("right after what the countdown reaches"), CountdownTip.Contains(Words(TEXT("Edict.TipNewOnly")) + TEXT("\n") + Wide));
+		TestFalse(TEXT("A galaxy law without hazard lines does not"), Words(UCosmicEdictWidget::TipOf(WideTables, LawPlain, Unit)).Contains(Wide));
+		TestFalse(TEXT("nor a people's own edict with them"), Words(UCosmicEdictWidget::TipOf(WideTables, PeopleSpawn, Unit)).Contains(Wide));
+		Sim->SetTables(WideTables);
+		const EAscensionTier WasTier = Civ->Tier;
+		Civ->Tier = EAscensionTier::Tier4_Transcendent;
+		Window->Refresh();
+		TestTrue(TEXT("(on the fourth rung the laws' rows stand)"), Window->GetShownRows().Contains(LawSpawn) && Window->GetShownRows().Contains(PeopleSpawn));
+		bool bMarks = true;
+		for (const FName Row : Window->GetShownRows())
+		{
+			bMarks &= Shown(Window->GetRowWideMark(Row)) == CosmicEdicts::IsGalaxyLaw(WideTables, Row);
+		}
+		TestTrue(TEXT("A galaxy law's row carries the mark"), Shown(Window->GetRowWideMark(LawSpawn)) && Shown(Window->GetRowWideMark(LawPlain)));
+		TestTrue(TEXT("and no other row does"), bMarks && !Shown(Window->GetRowWideMark(PeopleSpawn)));
+		TestEqual(TEXT("which says the edict reaches the home galaxy"), Words(Window->GetRowWideMark(LawSpawn)->GetText()), Words(TEXT("Edict.Wide")));
+		Civ->Tier = WasTier;
+		Sim->SetTables(Tables);
+		Window->Refresh();
+	}
+
 	// Every slot open and filled: the slots' reason no longer sends the player to Society research.
 	{
 		const float WasSociety = Civ->Research.FindRef(Society);

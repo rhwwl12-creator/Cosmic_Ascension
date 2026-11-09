@@ -1,0 +1,10 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp b/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicAutoPause.cpp
+@@ -178,5 +178,5 @@
+ 		return false;
+ 	}
+ 	// The expiry's code records the death on a subject with no system, of the owner people: the same question here.
+-	return CosmicHazards::VesselAtRiskOf(State.Player, State.Calling, Rules, CosmicAutoPauseImpl::ExpiryTickOf(State, System), NAME_None, System.OwnerCivID);
++	return !System.OwnerCivID.IsNone();
+ }

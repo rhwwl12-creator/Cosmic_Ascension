@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1271,7 +1271,7 @@
+ 	{
+ 		return;   // any rung's presentation, and the third rung's reveal, first (B6b: the ruled people's end falls on the tick of its fifth rung's presentation)
+ 	}
+-	if (IsCallingPageOpen())
++	if (false && IsCallingPageOpen())
+ 	{
+ 		return;   // the calling's pages first (B5): their last 'next' opens the chronicle (FinishCallingPages)
+ 	}

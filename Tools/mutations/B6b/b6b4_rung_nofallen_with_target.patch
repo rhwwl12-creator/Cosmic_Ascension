@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp b/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
+@@ -180,7 +180,7 @@
+ 							break;
+ 						}
+ 					}
+-					Part.bClosed = CosmicSeal::BindTargetOf(State, Tables) == INDEX_NONE && !bAnyRecord;
++					Part.bClosed = !bAnyRecord;
+ 					Part.bLost = bAnyRecord;
+ 				}
+ 			}

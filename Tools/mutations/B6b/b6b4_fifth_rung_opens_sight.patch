@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicAscensionOverlayWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicAscensionOverlayWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicAscensionOverlayWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicAscensionOverlayWidget.cpp
+@@ -86,6 +86,7 @@
+ 		Look.bGlow = false;
+ 		Look.bChime = false;
+ 		Look.TitleColor = CosmicPalette::White;
++		Look.bOpensSight = true;
+ 		return Look;
+ 	}
+ 	Look.bOpensSight = NewTier == CosmicMapLook::SpiritualSightTier;

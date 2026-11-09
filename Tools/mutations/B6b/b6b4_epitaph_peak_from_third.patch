@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicCallingPagesWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicCallingPagesWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicCallingPagesWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicCallingPagesWidget.cpp
+@@ -404,7 +404,7 @@
+ 	CauseRow = RowTexts.Num();
+ 	AddRow(FText::Format(LabelOf(Source.IsEmpty() ? TEXT("Epitaph.Cause") : TEXT("Epitaph.CauseFrom")), CauseArgs), 16, CosmicPalette::White, 14.f);
+ 	AddRow(FText::Format(LabelOf(TEXT("Epitaph.Lived")), FText::AsNumber(FMath::Max<int64>(0, Life.DiedTick - Life.BornTick))), 14, CosmicPalette::Grey, 2.f);
+-	if (Life.PeakTier != EAscensionTier::Tier1_Planetary)
++	if (Life.PeakTier > EAscensionTier::Tier2_Stellar)
+ 	{
+ 		AddRow(FText::Format(LabelOf(TEXT("Epitaph.Peak")), FText::AsNumber(static_cast<int32>(Life.PeakTier) + 1)), 14, CosmicPalette::Grey, 2.f);
+ 	}

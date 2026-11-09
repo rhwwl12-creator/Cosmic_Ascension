@@ -1,0 +1,15 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp b/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
+@@ -337,7 +337,10 @@
+ 		const FAscensionFeatDef* Feat = Tables.FindFeat(Next.FeatRow);
+ 		const FText Title = (Feat && !Feat->Title.IsEmpty()) ? Feat->Title : FText::AsCultureInvariant(Next.FeatRow.ToString());
+ 		Text += TEXT("\n") + FText::Format(Label(TEXT("Rung.Row")), Title, CosmicNextRungImpl::PartsText(Next, Tables, Unit)).ToString();
+-		bAnyLaws = bAnyLaws || CosmicNextRungImpl::HasLawsPart(Next);
++		if (CosmicNextRungImpl::HasLawsPart(Next))
++		{
++			Text += TEXT("\n") + Label(TEXT("Rung.LawsReset")).ToString();
++		}
+ 	}
+ 	// Once for every row, after the last.
+ 	if (bAnyLaws)

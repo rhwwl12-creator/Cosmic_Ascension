@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicAscensionOverlayWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicAscensionOverlayWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicAscensionOverlayWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicAscensionOverlayWidget.cpp
+@@ -83,7 +83,6 @@
+ 	if (NewTier == EAscensionTier::Tier5_EternalOrder)
+ 	{
+ 		// The top of the ladder: no light, no gold, no sound (B6b decision 26).
+-		Look.bGlow = false;
+ 		Look.bChime = false;
+ 		Look.TitleColor = CosmicPalette::White;
+ 		return Look;

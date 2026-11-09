@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -763,7 +763,7 @@
+ 			RowNames[At]->SetText(Def->DisplayName);
+ 		}
+ 		// The galaxy law's mark: on every row of Scope HomeGalaxy, held or not.
+-		RowWideMarks[At]->SetVisibility(CosmicEdicts::IsGalaxyLaw(Tables, Row) ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
++		RowWideMarks[At]->SetVisibility(ESlateVisibility::HitTestInvisible);
+ 		if (!SameWords(RowSummaries[At]->GetText(), Def->Summary))
+ 		{
+ 			RowSummaries[At]->SetText(Def->Summary);

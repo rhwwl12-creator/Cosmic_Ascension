@@ -29,7 +29,9 @@
 #include "Sim/CosmicResearch.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
+#include "Data/CosmicConditionTypes.h"
 #include "UI/CosmicActionButton.h"
+#include "UI/CosmicNextRung.h"
 #include "UI/CosmicUILabels.h"
 #include "World/CosmicGameMode.h"
 #include "World/CosmicMapLook.h"
@@ -311,6 +313,8 @@ FText UCosmicEdictWidget::TipOf(const FCosmicDataTables& Tables, FName Row, ECos
 	{
 		Lines.Add(FText::Format(Label(TEXT("Edict.Effect.TreatyAccept")), Amount(Def->TreatyAcceptBonus)));
 	}
+	// Whether a hazard's spawn line stands (B6b: a galaxy law's Edict.TipWide follows it).
+	bool bSpawn = false;
 	// The pressure's drain on Stability (B4), read as CosmicEdicts::PressureDrainMultiplierOf reads it.
 	if (Def->PressureDrainMultiplier > 0.f && Def->PressureDrainMultiplier <= TNumericLimits<float>::Max() && Def->PressureDrainMultiplier != 1.f)
 	{
@@ -325,6 +329,7 @@ FText UCosmicEdictWidget::TipOf(const FCosmicDataTables& Tables, FName Row, ECos
 			Args.Add(TEXT("Hazard"), HazardNameOf(Tables, Tag));
 			Args.Add(TEXT("Factor"), Amount(Factor));
 			Lines.Add(FText::Format(Label(TEXT("Edict.Effect.Spawn")), Args));
+			bSpawn = true;
 		}
 	}
 	bool bCountdown = false;
@@ -343,6 +348,12 @@ FText UCosmicEdictWidget::TipOf(const FCosmicDataTables& Tables, FName Row, ECos
 	if (bCountdown)
 	{
 		Lines.Add(Label(TEXT("Edict.TipNewOnly")));
+	}
+	// A galaxy law's hazard lines reach the whole home galaxy (B6b): said under them; its cost and other effects stay the
+	// people's.
+	if (CosmicEdicts::IsGalaxyLaw(Tables, Row) && (bSpawn || bCountdown))
+	{
+		Lines.Add(Label(TEXT("Edict.TipWide")));
 	}
 	// The hazards it answers at their expiry, by their rows' order.
 	for (const FName HazardRow : Tables.GetHazardRowNames())
@@ -701,6 +712,7 @@ void UCosmicEdictWidget::RefreshEdicts(int32 RuledIndex)
 		RowBox->ClearChildren();
 		RowButtons.Reset();
 		RowMarks.Reset();
+		RowWideMarks.Reset();
 		RowNames.Reset();
 		RowSummaries.Reset();
 		for (const FName Row : Wanted)
@@ -717,6 +729,14 @@ void UCosmicEdictWidget::RefreshEdicts(int32 RuledIndex)
 			UHorizontalBoxSlot* MarkSlot = Head->AddChildToHorizontalBox(Mark);
 			MarkSlot->SetVerticalAlignment(VAlign_Bottom);
 			MarkSlot->SetPadding(FMargin(8.f, 0.f, 0.f, 1.f));
+			// The galaxy law's mark (B6b): the same grey, after the inherited one.
+			UTextBlock* WideMark = CosmicUI::MakeText(*WidgetTree, 12, false);
+			WideMark->SetColorAndOpacity(FSlateColor(QuietColor));
+			WideMark->SetText(Label(TEXT("Edict.Wide")));
+			WideMark->SetVisibility(ESlateVisibility::Collapsed);
+			UHorizontalBoxSlot* WideMarkSlot = Head->AddChildToHorizontalBox(WideMark);
+			WideMarkSlot->SetVerticalAlignment(VAlign_Bottom);
+			WideMarkSlot->SetPadding(FMargin(8.f, 0.f, 0.f, 1.f));
 			UTextBlock* Summary = CosmicUI::MakeText(*WidgetTree, 12);
 			Summary->SetColorAndOpacity(FSlateColor(SummaryColor));
 			RowBox->AddChildToVerticalBox(Summary)->SetPadding(FMargin(0.f, 0.f, 0.f, 4.f));
@@ -726,6 +746,7 @@ void UCosmicEdictWidget::RefreshEdicts(int32 RuledIndex)
 			RowBox->AddChildToVerticalBox(Button);
 			RowNames.Add(Name);
 			RowMarks.Add(Mark);
+			RowWideMarks.Add(WideMark);
 			RowSummaries.Add(Summary);
 			RowButtons.Add(Button);
 		}
@@ -741,6 +762,8 @@ void UCosmicEdictWidget::RefreshEdicts(int32 RuledIndex)
 		{
 			RowNames[At]->SetText(Def->DisplayName);
 		}
+		// The galaxy law's mark: on every row of Scope HomeGalaxy, held or not.
+		RowWideMarks[At]->SetVisibility(CosmicEdicts::IsGalaxyLaw(Tables, Row) ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 		if (!SameWords(RowSummaries[At]->GetText(), Def->Summary))
 		{
 			RowSummaries[At]->SetText(Def->Summary);
@@ -953,6 +976,12 @@ const UTextBlock* UCosmicEdictWidget::GetRowMark(FName Row) const
 {
 	const int32 At = ShownRows.IndexOfByKey(Row);
 	return RowMarks.IsValidIndex(At) ? RowMarks[At].Get() : nullptr;
+}
+
+const UTextBlock* UCosmicEdictWidget::GetRowWideMark(FName Row) const
+{
+	const int32 At = ShownRows.IndexOfByKey(Row);
+	return RowWideMarks.IsValidIndex(At) ? RowWideMarks[At].Get() : nullptr;
 }
 
 TOptional<CosmicEdicts::ECosmicEdictBlock> UCosmicEdictWidget::GetShownBlock(FName Row) const
@@ -1204,7 +1233,8 @@ FText UCosmicEdictWidget::AmountOf(float Value)
 TOptional<int32> UCosmicEdictWidget::NextFriendlySlotRungOf(const FCivilizationState& Civ, const FCosmicRulesDef& Rules)
 {
 	const int32 Now = CosmicDiplomacy::FriendlySlotsOf(Civ, Rules);
-	for (int32 At = static_cast<int32>(Civ.Tier) + 1; At <= static_cast<int32>(EAscensionTier::Tier5_EternalOrder) && Rules.FriendlySlotsByTier.IsValidIndex(At); ++At)
+	// The fifth rung's slot comes after the run's end (B6b decision 27): it is never told.
+	for (int32 At = static_cast<int32>(Civ.Tier) + 1; At < static_cast<int32>(EAscensionTier::Tier5_EternalOrder) && Rules.FriendlySlotsByTier.IsValidIndex(At); ++At)
 	{
 		if (FMath::Max(0, Rules.FriendlySlotsByTier[At]) > Now)
 		{
@@ -1212,6 +1242,16 @@ TOptional<int32> UCosmicEdictWidget::NextFriendlySlotRungOf(const FCivilizationS
 		}
 	}
 	return TOptional<int32>();
+}
+
+FText UCosmicEdictWidget::RungWordsOf(const FCosmicKnownView& View, const FGalaxyState& State, int32 CivIndex)
+{
+	// Known: met, and shown - a people three rungs or more above the viewer is not (rule 14).
+	if (!State.Civs.IsValidIndex(CivIndex) || !View.IsMet(CivIndex) || View.ShownOrderOf(CivIndex) == INDEX_NONE)
+	{
+		return FText::GetEmpty();
+	}
+	return FText::Format(INVTEXT("{0} {1}"), CosmicUI::Label(TEXT("Panel.Tier")), FText::AsNumber(static_cast<int32>(State.Civs[CivIndex].Tier) + 1));
 }
 
 const UWidget* UCosmicEdictWidget::GetEdictsPage() const
@@ -1340,6 +1380,7 @@ void UCosmicEdictWidget::RefreshPeoples(int32 RuledIndex)
 		PeopleBox->ClearChildren();
 		PeopleRows.Reset();
 		PeopleNames.Reset();
+		PeopleRungs.Reset();
 		PeopleBands.Reset();
 		PeopleHostilities.Reset();
 		PeopleSieges.Reset();
@@ -1355,6 +1396,12 @@ void UCosmicEdictWidget::RefreshPeoples(int32 RuledIndex)
 			Row->AddChildToVerticalBox(Head)->SetPadding(FMargin(0.f, 0.f, 0.f, 3.f));
 			UTextBlock* Name = CosmicUI::MakeText(*WidgetTree, 15, false);
 			Head->AddChildToHorizontalBox(Name)->SetVerticalAlignment(VAlign_Bottom);
+			// The people's rung beside its name (B6b decision 31): set on every refresh, a climb keeps the row.
+			UTextBlock* Rung = CosmicUI::MakeText(*WidgetTree, 12, false);
+			Rung->SetColorAndOpacity(FSlateColor(SummaryColor));
+			UHorizontalBoxSlot* RungSlot = Head->AddChildToHorizontalBox(Rung);
+			RungSlot->SetVerticalAlignment(VAlign_Bottom);
+			RungSlot->SetPadding(FMargin(8.f, 0.f, 0.f, 1.f));
 			UTextBlock* Band = CosmicUI::MakeText(*WidgetTree, 12, false);
 			Band->SetColorAndOpacity(FSlateColor(SummaryColor));
 			UHorizontalBoxSlot* BandSlot = Head->AddChildToHorizontalBox(Band);
@@ -1389,6 +1436,7 @@ void UCosmicEdictWidget::RefreshPeoples(int32 RuledIndex)
 			Row->AddChildToVerticalBox(Siege);
 			PeopleRows.Add(Row);
 			PeopleNames.Add(Name);
+			PeopleRungs.Add(Rung);
 			PeopleBands.Add(Band);
 			PeopleHostilities.Add(Hostility);
 			PeopleSieges.Add(Siege);
@@ -1399,12 +1447,16 @@ void UCosmicEdictWidget::RefreshPeoples(int32 RuledIndex)
 	ShownStanceBlocks.SetNum(ShownPeoples.Num() * 3);
 	ShownTreatyBlocks.SetNum(ShownPeoples.Num() * 2);
 	const FText Upkeep = Amount(Rules.FriendlyUpkeepInfluence);
+	// A treaty is a part of the next rung while a judged third-rung row asks one (B6b decision 28): definitions only.
+	const FText TreatyRungTip = CosmicNextRung::HasJudgedRowAskingAt(Tables, EAscensionTier::Tier3_Causal, EConditionType::CivHasTreaty)
+		? Label(TEXT("Diplomacy.TreatyRungTip")) : FText::GetEmpty();
 	for (int32 At = 0; At < Wanted.Num(); ++At)
 	{
 		const int32 Other = Wanted[At];
 		const FCivilizationState& Them = State.Civs[Other];
 		const bool bMet = View.IsMet(Other);
 		SetWords(PeopleNames[At], Them.CivName);
+		SetWords(PeopleRungs[At], RungWordsOf(View, State, Other));
 		const float TheirView = CosmicDiplomacy::ViewOf(State, Index, Rules, Other, RuledIndex);
 		SetWords(PeopleBands[At], ViewWordOf(TheirView));
 		SetTip(PeopleBands[At], ViewTipOf(State, Index, Rules, Other, RuledIndex));
@@ -1479,7 +1531,7 @@ void UCosmicEdictWidget::RefreshPeoples(int32 RuledIndex)
 			{
 				ShownTreatyBlocks[At * 2 + TreatyIndex].Reset();
 				ButtonLabel = Label(TreatyIndex == 0 ? TEXT("Diplomacy.Break.Trade") : TEXT("Diplomacy.Break.NonAggression"));
-				Tip = CosmicUI::JoinLines({ What, Fall(TEXT("Diplomacy.TipBreak"), TEXT("Diplomacy.TipBreakFar")) });
+				Tip = CosmicUI::JoinLines({ What, Fall(TEXT("Diplomacy.TipBreak"), TEXT("Diplomacy.TipBreakFar")), TreatyRungTip });
 				Button->SetIsEnabled(true);
 			}
 			else
@@ -1488,7 +1540,7 @@ void UCosmicEdictWidget::RefreshPeoples(int32 RuledIndex)
 				ShownTreatyBlocks[At * 2 + TreatyIndex] = Block;
 				ButtonLabel = Label(TreatyIndex == 0 ? TEXT("Diplomacy.Treaty.Trade") : TEXT("Diplomacy.Treaty.NonAggression"));
 				Tip = CosmicUI::JoinLines({ TreatyReasonOf(Block), What, FText::Format(Label(TEXT("Diplomacy.TipCost")), Amount(CosmicDiplomacy::TreatyCostOf(Rules))),
-					FText::Format(Label(TEXT("Diplomacy.TipBar")), ViewAgainstBarOf(TheirView, Bar), Signed(Bar)) });
+					FText::Format(Label(TEXT("Diplomacy.TipBar")), ViewAgainstBarOf(TheirView, Bar), Signed(Bar)), TreatyRungTip });
 				Button->SetIsEnabled(Block == CosmicDiplomacy::ECosmicTreatyBlock::None);
 			}
 			if (!SameWords(Button->GetLabel(), ButtonLabel))
@@ -1583,6 +1635,12 @@ const UTextBlock* UCosmicEdictWidget::GetPeopleBand(FName CivID) const
 {
 	const int32 At = ShownPeoples.IndexOfByKey(CivID);
 	return PeopleBands.IsValidIndex(At) ? PeopleBands[At].Get() : nullptr;
+}
+
+const UTextBlock* UCosmicEdictWidget::GetPeopleRung(FName CivID) const
+{
+	const int32 At = ShownPeoples.IndexOfByKey(CivID);
+	return PeopleRungs.IsValidIndex(At) ? PeopleRungs[At].Get() : nullptr;
 }
 
 const UTextBlock* UCosmicEdictWidget::GetPeopleHostility(FName CivID) const

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp b/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
+@@ -256,7 +256,7 @@
+ 			{
+ 				Status = FText::Format(INVTEXT("{0}/{1}"), CosmicUI::WholeNumber(Part.Progress), CosmicUI::WholeNumber(Part.Needed));
+ 			}
+-			else if (!Part.HazardRow.IsNone())
++			else if (!Part.HazardRow.IsNone() && Part.bClosed)
+ 			{
+ 				const FHazardDef* Hazard = Tables.FindHazard(Part.HazardRow);
+ 				Status = FText::Format(Label(TEXT("Rung.WhenHazard")), Hazard ? Hazard->DisplayName : FText::AsCultureInvariant(Part.HazardRow.ToString()));

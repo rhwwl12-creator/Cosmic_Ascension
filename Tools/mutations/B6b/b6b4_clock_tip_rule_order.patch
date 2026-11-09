@@ -1,0 +1,23 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
+@@ -542,15 +542,15 @@
+ 		return Tip;
+ 	}
+ 	// The fifth rung's rule while a row can reach it (B6b decision 27: the ruled people's end), with or without a clock.
+-	if (bRungRule)
+-	{
+-		Tip = FText::Format(INVTEXT("{0}\n{1}"), Tip, CosmicUI::Label(TEXT("Chronicle.RuleRung")));
+-	}
+ 	// The clock end's rule, always in cycles: the rule is the run's, not the viewer's unit.
+ 	if (EndTick > 0)
+ 	{
+ 		const FText Rule = FText::Format(CosmicUI::Label(TEXT("Chronicle.Rule")), CosmicUI::ClockLabel(EndTick, ECosmicTimeUnit::Cycle));
+ 		Tip = FText::Format(INVTEXT("{0}\n{1}"), Tip, Rule);
++	}
++	if (bRungRule)
++	{
++		Tip = FText::Format(INVTEXT("{0}\n{1}"), Tip, CosmicUI::Label(TEXT("Chronicle.RuleRung")));
+ 	}
+ 	return Tip;
+ }

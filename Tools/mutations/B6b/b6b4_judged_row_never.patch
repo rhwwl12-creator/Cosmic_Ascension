@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp b/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
+@@ -368,7 +368,7 @@
+ 	for (const FName FeatRow : Tables.GetFeatRowNames())
+ 	{
+ 		const FAscensionFeatDef* Feat = Tables.FindFeat(FeatRow);
+-		if (Feat && Feat->IsJudgedRulerRowAt(Tier))
++		if (Feat && Feat->IsJudgedRulerRowAt(Tier) && Tier == EAscensionTier::Tier1_Planetary)
+ 		{
+ 			return true;
+ 		}

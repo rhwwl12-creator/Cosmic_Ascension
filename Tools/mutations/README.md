@@ -2,7 +2,7 @@
 
 Each patch breaks one new assertion once, as `docs/40_DEV_GUIDE.md` asks of every new test: apply it (`git apply <patch>`),
 build, run the named test and see it fail, then revert (`git apply -R <patch>`). The patch name says which test it breaks.
-A patch of `Tools/data` (the `b4d2_data_` ones, `b6b2a_data_laws_knob_four`, `b6b2a_data_reach_word_renamed`, `b6b2c_data_ark_margin_half`, `b6b2c_data_binding_answers` and `b6b3a_data_far_line_shares_text`) needs the assets rebuilt by `Tools/make_data_tables.py` instead of a build,
+A patch of `Tools/data` (the `b4d2_data_` ones, `b6b2a_data_laws_knob_four`, `b6b2a_data_reach_word_renamed`, `b6b2c_data_ark_margin_half`, `b6b2c_data_binding_answers`, `b6b3a_data_far_line_shares_text` and `b6b4_data_bound_words_seal`) needs the assets rebuilt by `Tools/make_data_tables.py` instead of a build,
 after the apply and again after the revert. The `b6b2b_schema_` and `b6b2b_data_` ones, the `b6b2c_schema_` ones, `b6b2c_data_binding_causality`, `b6b2c_data_bound_line_names_people`, `b6b3a_data_far_line_names_people` and `b6b3a_schema_far_rule_takes_other` are run by the Python tools alone (`python -I Tools/test_data_schema.py`,
 `python -I Tools/check_data.py`): the checker refuses them before an asset is written, so no asset is rebuilt.
 Kept from milestone B on (B1); the earlier milestones ran their mutations from scripts and recorded them in the commit
@@ -186,7 +186,7 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B3/` | `b3c_ticks_left_below_zero.patch` — a siege past its end has time left below 0 | `Cosmic_Ascension.UI.PeoplesTab` |
 | `B3/` | `b3c_nofleet_head_always_fleet.patch` — the head tells a fleet of 0 with a cap of 0 | `Cosmic_Ascension.UI.PeoplesTab` |
 | `B3/` | `b3c_slots_all_missing.patch` — the slots' tooltip says nothing once every slot is open | `Cosmic_Ascension.UI.PeoplesTab` |
-| `B3/` | `b3c_slots_next_strict.patch` — the next friendly slot is the next rung's, grown or not | `Cosmic_Ascension.UI.PeoplesTab` |
+| `B3/` | `b3c_slots_next_strict.patch` — the next friendly slot is the next rung's, grown or not (no longer applies since [B-6b4] - taken again as `b6b4_slots_next_strict`) | `Cosmic_Ascension.UI.PeoplesTab` |
 | `B3/` | `b3c_no_betrayal.patch` — [Hostile] over a trade treaty says nothing of the betrayal | `Cosmic_Ascension.UI.PeoplesTab` |
 | `B3/` | `b3c_break_far_as_near.patch` — breaking with a far people tells the bordering fall | `Cosmic_Ascension.UI.PeoplesTab` |
 | `B3/` | `b3c_lifts_missing.patch` — [Neutral] and [Friendly] do not say our siege of them lifts | `Cosmic_Ascension.UI.PeoplesTab` |
@@ -459,7 +459,7 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B5/` | `b5c_digest_thrones_unbounded.patch` — every changed seat becomes an item | `Cosmic_Ascension.UI.Digest` |
 | `B5/` | `b5c_reign_end_opens_epitaph.patch` — an abdication or a deposition opens the epitaph, not the reign end's page | `Cosmic_Ascension.UI.Epitaph` |
 | `B5/` | `b5c_next_without_leap.patch` — the epitaph's 'next' opens the digest without running the leap | `Cosmic_Ascension.UI.Epitaph` |
-| `B5/` | `b5c_runend_ignores_pages.patch` — the chronicle's wait counts while a calling page shows | `Cosmic_Ascension.UI.Epitaph` |
+| `B5/` | `b5c_runend_ignores_pages.patch` — the chronicle's wait counts while a calling page shows (no longer applies since [B-6b4] - taken again as `b6b4_runend_ignores_pages`) | `Cosmic_Ascension.UI.Epitaph` |
 | `B5/` | `b5c_speeds_not_grey.patch` — the speed buttons stay enabled while a calling page shows | `Cosmic_Ascension.UI.Epitaph` |
 | `B5/` | `b5c_apart_never.patch` — the answer on the killing hazard's card never stands apart | `Cosmic_Ascension.UI.Epitaph` |
 | `B5/` | `b5c_answer_any_slot.patch` — an answer title keeps a slot its line does not fill (empty) | `Cosmic_Ascension.UI.Epitaph` |
@@ -480,7 +480,7 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B5/` | `b5c_lethal_follow_off.patch` — a new lethal hazard where the vessel stands does not stop the time | `Cosmic_Ascension.UI.LethalWarning` |
 | `B5/` | `b5c_lethal_seen_kept.patch` — the lethal hazard seen is kept across a new galaxy or a load | `Cosmic_Ascension.UI.LethalWarning` |
 | `B5/` | `b5c_lethal_no_arrival.patch` — the lethal pause compares the hazard's tag only (an arrival where the same tag stands is no news) | `Cosmic_Ascension.UI.LethalWarning` |
-| `B5/` | `b5c_panel_no_warning.patch` — the system panel says nothing of a lethal hazard | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5c_panel_no_warning.patch` — the system panel says nothing of a lethal hazard (no longer applies since [B-6a4] - taken again at [B-6b4] as `b6b4_panel_no_warning`) | `Cosmic_Ascension.UI.LethalWarning` |
 | `B5/` | `b5c_travel_tip_no_warning.patch` — the travel button's tooltip says nothing of the lethal hazard where the vessel stands (the destination's own [B-5r] words stay; regenerated at [B-5r]) | `Cosmic_Ascension.UI.LethalWarning` |
 | `B5/` | `b5c_lock_reason_old.patch` — a new vessel gets the old lock reason ('left not long ago') | `Cosmic_Ascension.UI.LethalWarning` |
 | `B5/` | `b5c_digest_quiet_then_elsewhere.patch` — a digest with no item closes with `Digest.Elsewhere` after the quiet line | `Cosmic_Ascension.UI.Digest` |
@@ -671,7 +671,7 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B6a/` | `b6a4_chronicle_names_unshown_people.patch` — the chronicle's cause line names another people at the fifth rung even when the viewer is not shown it (rule 14; no longer applies since [B-6b3a] - taken again as `b6b3a_chronicle_names_unshown_people`) | `Cosmic_Ascension.UI.Chronicle` |
 | `B6a/` | `b6a4_provisional_notice_every_end.patch` — the provisional notice stands under every end, not only the clock's (decision 13) | `Cosmic_Ascension.UI.Chronicle` |
 | `B6a/` | `b6a4_no_vessel_line_dropped.patch` — the line of an end met with no vessel never stands | `Cosmic_Ascension.UI.Chronicle`, `Cosmic_Ascension.UI.Epitaph` |
-| `B6a/` | `b6a4_clock_tip_reads_rung_rule.patch` — the clock tip shows the rung's rule line (`Chronicle.RuleRung`) when the knob is 0 or below | `Cosmic_Ascension.UI.Chronicle` |
+| `B6a/` | `b6a4_clock_tip_reads_rung_rule.patch` — the clock tip shows the rung's rule line (`Chronicle.RuleRung`) when the knob is 0 or below (no longer applies since [B-6b4] - taken again as `b6b4_clock_tip_rung_rule_without_row`) | `Cosmic_Ascension.UI.Chronicle` |
 | `B6a/` | `b6a4_nocandidate_says_rung.patch` — the chronicle's cause line loses its no-candidate branch: the silence reads as a people's fifth rung | `Cosmic_Ascension.UI.Chronicle`, `Cosmic_Ascension.UI.Epitaph` |
 | `B6a/` | `b6a4_claim_may_follow_no_nova_claim_gate.patch` — `ClaimMayFollowOf` drops the gate of `Hazard.PreSupernova` and `Hazard.Claim` (their expiries never run the claim rule on that system) | `Cosmic_Ascension.UI.ClaimMayFollow` |
 | `B6a/` | `b6a4_rebellion_watch_under_standing.patch` — the rebellion watch shows while a rebellion already stands on the capital | `Cosmic_Ascension.UI.RebellionWatch` |
@@ -871,3 +871,66 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B6b/` | `b6b3b_without_b6b_drops_log_rows.patch` — `WithoutB6bData` takes B6b's nine log rows out too | `Cosmic_Ascension.Data.Integrity` (B6b's log rows stay; the other tables left alone) |
 | `B6b/` | `b6b3b_without_b6b_default_rules.patch` — `WithoutB6bData` starts its rules from the C++ defaults | `Cosmic_Ascension.Data.Integrity` (every other field of the rules is the copy's) |
 | `B6b/` | `b6b3b_without_b6b_drops_other_rows.patch` — `WithoutB6bData` takes `petition_exalt` out with the witness | `Cosmic_Ascension.Data.Integrity` (every other row of the six tables kept; the ten, in order) |
+| `B6b/` | `b6b4_fifth_rung_gold.patch` — `CosmicAscensionOverlay::LookOf` gives the fifth rung the gold title | `Cosmic_Ascension.UI.AscensionOverlay`, `Cosmic_Ascension.UI.RunEnd` (the fifth's white title) |
+| `B6b/` | `b6b4_fifth_rung_glow.patch` — `LookOf` gives the fifth rung the glow | `Cosmic_Ascension.UI.AscensionOverlay`, `Cosmic_Ascension.UI.RunEnd` (the fifth wears no glow) |
+| `B6b/` | `b6b4_fifth_rung_chime.patch` — `Show` plays the chime on the fifth rung too | `Cosmic_Ascension.UI.AscensionOverlay`, `Cosmic_Ascension.UI.RunEnd` (no chime counted on the fifth) |
+| `B6b/` | `b6b4_fourth_rung_plain.patch` — `LookOf` treats the fourth rung as the fifth | `Cosmic_Ascension.UI.AscensionOverlay` (the second to fourth rungs wear the gold, the glow and the chime) |
+| `B6b/` | `b6b4_look_not_restored.patch` — `Show` paints the title's colour and the glow only on the fifth rung | `Cosmic_Ascension.UI.AscensionOverlay` (a second rung after the fifth has the gold and the glow again) |
+| `B6b/` | `b6b4_fifth_rung_opens_sight.patch` — `LookOf` lets the fifth rung open the sight | `Cosmic_Ascension.UI.AscensionOverlay`, `Cosmic_Ascension.UI.RunEnd`, `Cosmic_Ascension.UI.ThirdRungSpeed` (no reveal after the fifth rung's presentation) |
+| `B6b/` | `b6b4_x25_hidden_any_presentation.patch` — the top bar hides x25 while any presentation shows | `Cosmic_Ascension.UI.ThirdRungSpeed` (x25 stays while the fourth and the fifth rung's presentation show) |
+| `B6b/` | `b6b4_sight_opening_ignores_showing.patch` — `IsShowingSightOpening` does not ask whether a presentation shows (reads the closed one's rung) | `Cosmic_Ascension.UI.ThirdRungSpeed` (x25 shows when the presentation closes) |
+| `B6b/` | `b6b4_clock_tip_rung_rule_without_row.patch` — `ClockTipOf` states the fifth rung's rule without a judged row when there is no clock end (`b6a4_clock_tip_reads_rung_rule` taken again) | `Cosmic_Ascension.UI.Chronicle` (no clock end and no judged row: no rule) |
+| `B6b/` | `b6b4_clock_tip_rung_rule_end_off.patch` — `ClockTipOf` states the fifth rung's rule with the end switched off | `Cosmic_Ascension.UI.Chronicle` (with the end off the fifth rung's rule is not stated) |
+| `B6b/` | `b6b4_clock_tip_rung_rule_needs_clock.patch` — `ClockTipOf` states the fifth rung's rule only with a clock end | `Cosmic_Ascension.UI.Chronicle` (without a clock end the fifth rung's rule still stands) |
+| `B6b/` | `b6b4_clock_tip_rule_order.patch` — `ClockTipOf` puts the clock's rule before the fifth rung's | `Cosmic_Ascension.UI.Chronicle` (the fifth rung's rule first, the clock's last) |
+| `B6b/` | `b6b4_clock_tip_caller_always_rung.patch` — the top bar's clock passes the rung rule whatever the tables hold | `Cosmic_Ascension.UI.Chronicle` (the bar's clock carries that tooltip) |
+| `B6b/` | `b6b4_judged_row_any_path.patch` — `CosmicNextRung::HasJudgedRowAt` takes a row of any path | `Cosmic_Ascension.UI.Chronicle` (a wanderer's row is not one) |
+| `B6b/` | `b6b4_judged_row_never.patch` — `HasJudgedRowAt` answers false | `Cosmic_Ascension.UI.Chronicle` (a Ruler row from the fourth rung with a condition is one) |
+| `B6b/` | `b6b4_run_end_skips_presentation.patch` — the run end's wait counts while a presentation other than the sight's shows | `Cosmic_Ascension.UI.RunEnd` (while the fifth rung's presentation shows the page waits) |
+| `B6b/` | `b6b4_rung_treaty_as_other.patch` — `AllOf` reads `CivHasTreaty` as an other condition | `Cosmic_Ascension.UI.NextRung` (the treaty is a part of its own) |
+| `B6b/` | `b6b4_rung_treaty_counts_treaties.patch` — the treaty part counts treaties, not peoples | `Cosmic_Ascension.UI.NextRung` (trade and non-aggression with one people count one people) |
+| `B6b/` | `b6b4_rung_laws_as_other.patch` — `AllOf` reads `CivLawsHeldTicksAtLeast` as an other condition | `Cosmic_Ascension.UI.NextRung` (the laws are a part of their own) |
+| `B6b/` | `b6b4_rung_laws_left_ignores_life.patch` — the laws' ticks left count the held ticks before this life | `Cosmic_Ascension.UI.NextRung` (the count less the stretch within this life) |
+| `B6b/` | `b6b4_rung_laws_left_ignores_held.patch` — the laws' ticks left count the whole life even when the laws were held for less of it | `Cosmic_Ascension.UI.NextRung` (laws held less than this life leave the count less the ticks held) |
+| `B6b/` | `b6b4_rung_laws_reset_missing.patch` — `TextOf` drops `Rung.LawsReset` | `Cosmic_Ascension.UI.NextRung` (a laws part ends the tooltip with what resets the count) |
+| `B6b/` | `b6b4_rung_laws_reset_per_row.patch` — `TextOfAll` adds `Rung.LawsReset` after every row with laws | `Cosmic_Ascension.UI.NextRung` (over two ways up it is said once) |
+| `B6b/` | `b6b4_rung_nofallen_ignores_record.patch` — the binding closes with a completion of this life on a lost system | `Cosmic_Ascension.UI.NextRung` (a completion on a lost system keeps the binding open) |
+| `B6b/` | `b6b4_rung_nofallen_with_target.patch` — the binding closes with a fallen one left to bind | `Cosmic_Ascension.UI.NextRung` (with a fallen one left the binding is not closed) |
+| `B6b/` | `b6b4_rung_lost_reads_notstarted.patch` — this life's completion on a lost system reads 'not started' (`bLost` never set) | `Cosmic_Ascension.UI.NextRung` (it is lost: done, on a system to take back) |
+| `B6b/` | `b6b4_rung_ark_not_started.patch` — an answer no slot holds reads 'not started', not the hazard it answers | `Cosmic_Ascension.UI.NextRung` (the ark's words name the extinction it answers) |
+| `B6b/` | `b6b4_slots_count_fifth.patch` — `NextFriendlySlotRungOf` tells the fifth rung's slot again | `Cosmic_Ascension.UI.PeoplesTab` (from the third rung no next slot is told) |
+| `B6b/` | `b6b4_slots_next_strict.patch` — the next friendly slot is the next rung's, grown or not (`b3c_slots_next_strict` taken again) | `Cosmic_Ascension.UI.PeoplesTab` (the rung that opens the next slot) |
+| `B6b/` | `b6b4_rung_words_unmet.patch` — `UCosmicEdictWidget::RungWordsOf` tells the rung of a people not met | `Cosmic_Ascension.UI.PeoplesTab` (seeing all, a people not met has no rung words) |
+| `B6b/` | `b6b4_rung_words_ignore_gap.patch` — `RungWordsOf` tells the rung of a people three rungs above | `Cosmic_Ascension.UI.PeoplesTab` (a people three rungs above has no rung words) |
+| `B6b/` | `b6b4_rung_words_off_by_one.patch` — `RungWordsOf` says the rung's index, not its number | `Cosmic_Ascension.UI.PeoplesTab` (people 1's row says its rung) |
+| `B6b/` | `b6b4_rung_set_at_build.patch` — the peoples tab sets the rung words once, when the row is built | `Cosmic_Ascension.UI.PeoplesTab` (the row follows its climb) |
+| `B6b/` | `b6b4_treaty_tip_ungated.patch` — the treaty buttons carry `Diplomacy.TreatyRungTip` with no judged row asking a treaty | `Cosmic_Ascension.UI.PeoplesTab` (no judged row: no tip) |
+| `B6b/` | `b6b4_treaty_tip_proposal_only.patch` — the held treaty's tooltip drops `Diplomacy.TreatyRungTip` | `Cosmic_Ascension.UI.PeoplesTab` (the held treaty's tooltip ends with the tip) |
+| `B6b/` | `b6b4_treaty_tip_any_condition.patch` — the treaty buttons carry `Diplomacy.TreatyRungTip` for a judged third-rung row that asks no treaty | `Cosmic_Ascension.UI.PeoplesTab` (a judged third-rung row that asks no treaty adds no tip) |
+| `B6b/` | `b6b4_bind_hint_without_target.patch` — the binding's hint names the first instance when none is left to bind | `Cosmic_Ascension.UI.StartReasons` (with every fallen one bound no one is named) |
+| `B6b/` | `b6b4_bind_hint_missing.patch` — the binding's tooltip drops `Start.BindHint` | `Cosmic_Ascension.UI.StartReasons` (its tooltip names the fallen one it would hold) |
+| `B6b/` | `b6b4_bind_hint_every_row.patch` — every construction's tooltip carries the binding's hint | `Cosmic_Ascension.UI.StartReasons` (another construction's does not) |
+| `B6b/` | `b6b4_bind_hint_physical_view.patch` — the binding's hint stands in the physical view too | `Cosmic_Ascension.UI.StartReasons` (in the physical view its tooltip names no one) |
+| `B6b/` | `b6b4_epitaph_peak_first_rung.patch` — the epitaph keeps the rung line on the first rung | `Cosmic_Ascension.UI.Epitaph` (a life whose people stayed on the first rung has no rung line) |
+| `B6b/` | `b6b4_epitaph_peak_from_third.patch` — the epitaph's rung line from the third rung (an off-by-one between the enum and the shown rung) | `Cosmic_Ascension.UI.Epitaph` (a people that reached the second rung: its rung after the cycles lived) |
+| `B6b/` | `b6b4_runend_ignores_pages.patch` — the chronicle's wait counts while a calling page shows (`b5c_runend_ignores_pages` taken again) | `Cosmic_Ascension.UI.Epitaph` |
+| `B6b/` | `b6b4_extinction_lines_any_hazard.patch` — the panel's extinction lines stand under any hazard | `Cosmic_Ascension.UI.ClaimMayFollow`, `Cosmic_Ascension.UI.TopBarAndPanel` (the AI awakening says nothing of the extinction; the plague's panel and details checks of `UI.ClaimMayFollow`) |
+| `B6b/` | `b6b4_extinction_reads_vessel_kill.patch` — `CosmicAutoPause::RulerDiesAtExpiryOf` does not ask `VesselAtRiskOf` (the birth protection) | `Cosmic_Ascension.UI.TopBarAndPanel` (an expiry inside the birth protection ends no ruler's life) |
+| `B6b/` | `b6b4_ruler_lethal_ungated.patch` — the panel adds `Panel.RulerLethal` whatever `RulerDiesAtExpiryOf` answers | `Cosmic_Ascension.UI.TopBarAndPanel` (an expiry inside the birth protection ends no ruler's life) |
+| `B6b/` | `b6b4_extinction_tip_dropped.patch` — the details' tooltip keeps the claim's warning alone | `Cosmic_Ascension.UI.TopBarAndPanel` (the details' tooltip is that line) |
+| `B6b/` | `b6b4_extinction_any_owner.patch` — the panel's extinction line stands on any owner's settled system | `Cosmic_Ascension.UI.ClaimMayFollow` (on another people's settled system no extinction line) |
+| `B6b/` | `b6b4_extinction_in_interregnum.patch` — the panel's extinction line stands without an embodied ruler (`bRules` dropped) | `Cosmic_Ascension.UI.ClaimMayFollow` (in the interregnum no extinction line on the dead ruler's people) |
+| `B6b/` | `b6b4_extinction_in_ended_run.patch` — the panel's extinction line stands in an ended run | `Cosmic_Ascension.UI.ClaimMayFollow` (in an ended run no extinction line) |
+| `B6b/` | `b6b4_extinction_while_settling.patch` — the panel's extinction line stands on a system still being settled | `Cosmic_Ascension.UI.ClaimMayFollow` (on a system still being settled no extinction line) |
+| `B6b/` | `b6b4_realm_cap_last_fifth_only.patch` — `ReasonOf` gives `Settle.Block.RealmCapLast` only from the fifth rung | `Cosmic_Ascension.UI.TopBarAndPanel` (on the fourth rung the settle tooltip starts with the cap's last words) |
+| `B6b/` | `b6b4_realm_cap_last_from_third.patch` — `ReasonOf` gives `Settle.Block.RealmCapLast` from the third rung | `Cosmic_Ascension.UI.TopBarAndPanel` (below the fourth rung the cap's reason keeps its words) |
+| `B6b/` | `b6b4_realm_cap_last_line_dropped.patch` — the reason line under the settle button reads the cap without the rung | `Cosmic_Ascension.UI.TopBarAndPanel` (and so does the line under it) |
+| `B6b/` | `b6b4_panel_no_warning.patch` — the system panel says nothing of a lethal hazard (`b5c_panel_no_warning` taken again) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B6b/` | `b6b4_sealed_ring_gold.patch` — the seal ring is drawn gold | `Cosmic_Ascension.UI.SpiritualSight` (the seal ring's segments are grey) |
+| `B6b/` | `b6b4_sealed_ring_dashed.patch` — the seal ring is drawn dashed | `Cosmic_Ascension.UI.SpiritualSight` (the seal ring's 24 segments) |
+| `B6b/` | `b6b4_data_bound_words_seal.patch` — `ST_CA.csv` `Sight.Bound` says '봉인' (a data patch) | `Cosmic_Ascension.UI.SpiritualSight` (no word of a seal on the panel) |
+| `B6b/` | `b6b4_wide_tip_any_edict.patch` — `Edict.TipWide` follows the hazard lines of any edict | `Cosmic_Ascension.UI.EdictWindow` (nor a people's own edict with them) |
+| `B6b/` | `b6b4_wide_tip_without_hazard_lines.patch` — `Edict.TipWide` stands on a galaxy law without hazard lines | `Cosmic_Ascension.UI.EdictWindow` (a galaxy law without hazard lines does not) |
+| `B6b/` | `b6b4_wide_tip_spawn_only.patch` — `Edict.TipWide` only under a spawn line (the countdown half of the gate dropped) | `Cosmic_Ascension.UI.EdictWindow` (a galaxy law with only a countdown line says it too) |
+| `B6b/` | `b6b4_wide_tip_first.patch` — `Edict.TipWide` goes first in the tooltip | `Cosmic_Ascension.UI.EdictWindow` (not first) |
+| `B6b/` | `b6b4_wide_mark_every_row.patch` — every edict row carries the galaxy law's mark | `Cosmic_Ascension.UI.EdictWindow` (and no other row does) |

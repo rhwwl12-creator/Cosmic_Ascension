@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Core/CosmicTypes.h"
 #include "Engine/TimerHandle.h"
 #include "Misc/Optional.h"
 #include "Sim/CosmicConflict.h"
@@ -80,10 +81,12 @@ namespace CosmicSlotWatch
  * tooltip when the row's rung, no fallen one left to bind (B6b), this answer running already, another answer in the
  * response slot or this construction running already stands in the way (StartReasonOf); a row that does not belong there
  * (an answer to no hazard standing there, project_settle, a construction more than one rung above the people - B6b ...)
- * has no button. On every living known system that is not the people's a settle button -
+ * has no button. In the spiritual view the binding's tooltip ends with Start.BindHint - the title of the fallen one it would
+ * hold (CosmicSeal::BindTargetOf), none with no one left (B6b decision 28). On every living known system that is not the
+ * people's a settle button -
  * greyed out, with the reason first in its tooltip and as a line under it, when CosmicMegaprojects::SettleBlockOf
  * refuses (where another people lives, Settle.Block.Owned names no people, whether the viewer is shown it or not; on the
- * sanctuary, Settle.Block.Sanctuary).
+ * sanctuary, Settle.Block.Sanctuary; the realm's cap from the fourth rung, Settle.Block.RealmCapLast).
  * Every command button's tooltip carries its cost after the reason (StartHintOf - none where another people lives, on the
  * sanctuary or where no settle row exists): the cost refuses nothing (section 5.7). No commands while the vessel is not an embodied ruler. The
  * buttons are built again only when the list of their actions changes; otherwise each keeps its object and takes its
@@ -131,7 +134,9 @@ namespace CosmicSlotWatch
  * gives one).
  * B6a (header section 4, decision 14), for an embodied ruler on the people it rules, in a run that is not over: on its settled
  * system with a hazard standing, right under the hazard's line and as the tooltip of the detail lines, Panel.ClaimMayFollow
- * while CosmicHazards::ClaimMayFollowOf says an expiry with no answer could leave a claim there; on its capital, after the
+ * while CosmicHazards::ClaimMayFollowOf says an expiry with no answer could leave a claim there - and with the extinction
+ * standing (B6b decisions 4, 5: CosmicHazards::KillsTheRulerOf) Panel.ExtinctionFollows, then Panel.RulerLethal while
+ * CosmicAutoPause::RulerDiesAtExpiryOf, as lines and in the same tooltip after the claim's; on its capital, after the
  * edict line, Panel.RebellionWatch while CosmicHazards::RebellionWatchOf shows it - the threshold as a percent, the ticks
  * under it and the ticks the rebellion row waits for, as cycles (the simulation's constant and the row's key - no value here).
  * The fleet (B3 header section 4), for the people the player rules: on its settled system, the line Guard.Holding while its
@@ -179,8 +184,11 @@ public:
 	/**
 	 * The words of a reason a settlement is refused (ST_CA Settle.Block.*, the rung read from the settle row and the
 	 * sphere rule; Settle.Block.Sanctuary for the sanctuary); empty for None, NoPeople and Dead, which no settle button shows.
+	 * RealmCap for a people on RuledTier Tier4_Transcendent or above says Settle.Block.RealmCapLast - no rung to rise for
+	 * more (B6b decision 27: the fifth rung ends the run); the settle button's tooltip and the line under it pass the ruled
+	 * people's rung.
 	 */
-	static FText ReasonOf(CosmicMegaprojects::ECosmicSettleBlock Block, const FCosmicDataTables& Tables);
+	static FText ReasonOf(CosmicMegaprojects::ECosmicSettleBlock Block, const FCosmicDataTables& Tables, EAscensionTier RuledTier = EAscensionTier::Tier1_Planetary);
 
 	/** The reason the panel shows on RowName's project button: None for an enabled button, Count when no project button of
 	 * RowName shows (tests). */
@@ -216,7 +224,8 @@ public:
 	 * the row and when its Title is empty (a slip the schema refuses for a fallen row).
 	 */
 	static FText SpiritTipOf(const FCosmicSpiritLook& Spirit, const FCosmicDataTables& Tables);
-	/** The block of detail lines (tests read its text, and its tooltip - Panel.ClaimMayFollow or empty). */
+	/** The block of detail lines (tests read its text, and its tooltip - Panel.ClaimMayFollow and the extinction's lines,
+	 * Panel.ExtinctionFollows and Panel.RulerLethal, joined, or empty). */
 	const UTextBlock* GetDetailText() const { return DetailText; }
 	/** The line of the sight's words under the detail lines, with the same words as its tooltip (tests): shown in the
 	 * spiritual view when SpiritTipOf has words, collapsed and empty otherwise. */

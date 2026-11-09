@@ -8,6 +8,7 @@
 #include "Ascension/AscensionSubsystem.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/Image.h"
 #include "Components/SlateWrapperTypes.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
@@ -26,6 +27,7 @@
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
 #include "UI/CosmicAscensionOverlayWidget.h"
+#include "UI/CosmicPalette.h"
 #include "UI/CosmicUILabels.h"
 #include "World/CosmicGameMode.h"
 #include "World/CosmicMapLook.h"
@@ -195,6 +197,73 @@ bool FCosmicUIAscensionOverlayTest::RunTest(const FString& Parameters)
 			TestFalse(TEXT("A presentation ends a reveal"), Overlay->IsRevealing());
 			Overlay->Close();
 			TestFalse(TEXT("Sight.Opened is no missing entry"), CosmicUI::Label(TEXT("Sight.Opened")).ToString().Contains(FStringTableEntry::GetPlaceholderSourceString()));
+			Live.Civs[Ruled].Tier = EAscensionTier::Tier1_Planetary;
+		}
+	}
+
+	// ---- B6b decisions 25, 26: what each rung's presentation wears - the fifth no glow, no gold, no chime ----
+	{
+		using CosmicAscensionOverlay::LookOf;
+		for (const EAscensionTier Tier : { EAscensionTier::Tier2_Stellar, EAscensionTier::Tier3_Causal, EAscensionTier::Tier4_Transcendent })
+		{
+			const FCosmicAscensionLook Look = LookOf(Tier);
+			const FString Rung = FString::Printf(TEXT("(rung %d)"), static_cast<int32>(Tier) + 1);
+			TestTrue(TEXT("The second to fourth rungs wear the glow ") + Rung, Look.bGlow);
+			TestTrue(TEXT("the chime ") + Rung, Look.bChime);
+			TestTrue(TEXT("and the gold title ") + Rung, Look.TitleColor.Equals(CosmicPalette::Gold, 1e-4f));
+			TestEqual(TEXT("Only the third rung's opens the sight ") + Rung, Look.bOpensSight, Tier == CosmicMapLook::SpiritualSightTier);
+		}
+		const FCosmicAscensionLook Fifth = LookOf(EAscensionTier::Tier5_EternalOrder);
+		TestFalse(TEXT("The fifth rung's wears no glow"), Fifth.bGlow);
+		TestFalse(TEXT("no chime"), Fifth.bChime);
+		TestTrue(TEXT("and a white title"), Fifth.TitleColor.Equals(CosmicPalette::White, 1e-4f));
+		TestFalse(TEXT("and opens no sight"), Fifth.bOpensSight);
+		TestFalse(TEXT("(nor does the first rung's)"), LookOf(EAscensionTier::Tier1_Planetary).bOpensSight);
+
+		// The fifth on the widget: the veil, the white title, the rung, the narrative and the pause stay; the glow and the
+		// chime do not.
+		const UTextBlock* Title = Overlay->GetTitleText();
+		const UImage* Glow = Overlay->GetGlow();
+		if (TestNotNull(TEXT("(the overlay has its title)"), Title) && TestNotNull(TEXT("(and its glow)"), Glow))
+		{
+			Controller->SetSpeed(2.f);
+			const int32 ChimesBefore = Overlay->GetChimeCount();
+			Overlay->Show(EAscensionTier::Tier5_EternalOrder, FeatRows[0]);
+			TestTrue(TEXT("The fifth rung's presentation shows"), Overlay->IsShowing());
+			TestEqual(TEXT("with the row's title"), Title->GetText().ToString(), Feat->Title.ToString());
+			const FString Shown = ReadTexts(*Overlay);
+			TestTrue(TEXT("its narrative"), Shown.Contains(Feat->MythicNarrative.ToString()));
+			TestTrue(TEXT("and the fifth rung"), Shown.Contains(FString::Printf(TEXT("%s 5"), *CosmicUI::Label(TEXT("Panel.Tier")).ToString())));
+			TestTrue(TEXT("The title is white"), Title->GetColorAndOpacity().GetSpecifiedColor().Equals(CosmicPalette::White, 1e-4f));
+			TestTrue(TEXT("the glow collapsed"), Glow->GetVisibility() == ESlateVisibility::Collapsed);
+			TestEqual(TEXT("and no chime played"), Overlay->GetChimeCount(), ChimesBefore);
+			TestEqual(TEXT("The fifth rung's presentation pauses too"), Sim->GetTimeScale(), 0.f);
+			Overlay->Advance(CosmicAscensionOverlay::Seconds + 0.1f);
+			TestFalse(TEXT("and closes after five seconds"), Overlay->IsShowing());
+			TestEqual(TEXT("giving the speed back"), Sim->GetTimeScale(), 2.f);
+			Controller->SetSpeed(0.f);
+
+			// The look comes back for the next rung's presentation.
+			Overlay->Show(EAscensionTier::Tier5_EternalOrder, FeatRows[0]);
+			Overlay->Show(EAscensionTier::Tier2_Stellar, FeatRows[0]);
+			TestTrue(TEXT("A second rung's presentation after the fifth's has the gold title again"),
+				Title->GetColorAndOpacity().GetSpecifiedColor().Equals(CosmicPalette::Gold, 1e-4f));
+			TestTrue(TEXT("its glow"), Glow->GetVisibility() != ESlateVisibility::Collapsed);
+			TestEqual(TEXT("and its chime"), Overlay->GetChimeCount(), ChimesBefore + 1);
+			Overlay->Close();
+		}
+
+		// No reveal follows the fifth rung's presentation, over a spiritual map of a people on the fifth rung.
+		FGalaxyState& Live = Sim->GetMutableState();
+		const int32 Ruled = Sim->GetStateIndex().FindCiv(Live, Live.Player.RuledCivID);
+		if (TestTrue(TEXT("(the player rules a people)"), Live.Civs.IsValidIndex(Ruled)))
+		{
+			Live.Civs[Ruled].Tier = EAscensionTier::Tier5_EternalOrder;
+			Controller->SetWantedViewMode(ECosmicViewMode::Spiritual);
+			TestTrue(TEXT("(the view drawn is spiritual)"), ACosmicPlayerController::ShownViewModeFor(*Overlay) == ECosmicViewMode::Spiritual);
+			Overlay->Show(EAscensionTier::Tier5_EternalOrder, FeatRows[0]);
+			Overlay->Close();
+			TestFalse(TEXT("No reveal follows the fifth rung's presentation"), Overlay->IsRevealing());
 			Live.Civs[Ruled].Tier = EAscensionTier::Tier1_Planetary;
 		}
 	}

@@ -114,6 +114,12 @@ namespace CosmicAutoPause
 	COSMIC_ASCENSION_API ECosmicLethalStay LethalStayOf(const FGalaxyState& State, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 SystemIndex,
 		int64 StandsFromTick);
 
+	/** B6b (header section 4, decisions 4-5): whether the expiry of the hazard standing on SystemIndex would end the life of
+	 * the ruler of its owner people - CosmicHazards::KillsTheRulerOf its tag, and CosmicHazards::VesselAtRiskOf the systemless
+	 * subject of that people at the tick it expires (the birth protection decided there - the rule is not copied). The system
+	 * panel's Panel.RulerLethal reads it; no automatic pause does (no new pause). */
+	COSMIC_ASCENSION_API bool RulerDiesAtExpiryOf(const FGalaxyState& State, const FCosmicRulesDef& Rules, int32 SystemIndex);
+
 	/** The ST_CA key of the line a pause shows for Reason ("stopped - ..."); null for None. */
 	COSMIC_ASCENSION_API const TCHAR* WhyKeyOf(ECosmicAutoPause Reason);
 }

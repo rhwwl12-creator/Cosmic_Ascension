@@ -14,6 +14,7 @@
 #include "Core/CosmicTags.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
+#include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
@@ -44,6 +45,7 @@
 #include "UI/CosmicUILabels.h"
 #include "Widgets/Input/SButton.h"
 #include "World/CosmicGameMode.h"
+#include "World/CosmicMapLook.h"
 
 #include <limits>
 
@@ -221,6 +223,35 @@ namespace CosmicDiplomacyUITests
 		return &State;
 	}
 
+	// A judged feat row from the third rung to the fourth that asks a treaty (B6b decision 28: the treaty buttons' tip).
+	FAscensionFeatDef TreatyRungRow()
+	{
+		FAscensionFeatDef Row;
+		Row.Title = FText::AsCultureInvariant(TEXT("<passage>"));
+		Row.RequiredTier = EAscensionTier::Tier3_Causal;
+		Row.TargetTier = EAscensionTier::Tier4_Transcendent;
+		Row.Path = EPlayerRole::Ruler;
+		FCosmicCondition Condition;
+		Condition.Type = EConditionType::CivHasTreaty;
+		Condition.Value = 1.f;
+		Row.CompletionConditions.Add(Condition);
+		return Row;
+	}
+
+	// The same judged row asking no treaty: a part of another kind (the settled systems).
+	FAscensionFeatDef UnaskingRungRow()
+	{
+		FAscensionFeatDef Row = TreatyRungRow();
+		Row.CompletionConditions[0].Type = EConditionType::CivSettledSystemsAtLeast;
+		return Row;
+	}
+
+	// The rung words beside a people's name: "<Panel.Tier> <rung>".
+	FString RungWords(int32 Rung)
+	{
+		return Words(FText::Format(INVTEXT("{0} {1}"), CosmicUI::Label(TEXT("Panel.Tier")), FText::AsNumber(Rung)));
+	}
+
 	// Meets 2 then 1 again, every system known (after a test cleared the marks).
 	void MeetAgain(FGalaxyState& State)
 	{
@@ -323,6 +354,33 @@ bool FCosmicUIPeoplesTabTest::RunTest(const FString& Parameters)
 		Controller->CosmicSeeAll(0);
 		Window->Refresh();
 	}
+	// B6b decision 31: each row's rung beside the name, for a people the viewer knows - met and shown (rule 14).
+	{
+		const UTextBlock* RungOfOne = Window->GetPeopleRung(One);
+		if (TestNotNull(TEXT("(a row has its rung)"), RungOfOne))
+		{
+			TestEqual(TEXT("People 1's row says its rung"), Words(RungOfOne->GetText()), RungWords(2));
+			TestTrue(TEXT("beside its name"), RungOfOne->GetParent() != nullptr && RungOfOne->GetParent() == Window->GetPeopleBand(One)->GetParent());
+			Civs[1].Tier = EAscensionTier::Tier3_Causal;
+			Window->Refresh();
+			TestTrue(TEXT("(a climb keeps the row)"), Window->GetPeopleRung(One) == RungOfOne);
+			TestEqual(TEXT("and the row follows its climb"), Words(RungOfOne->GetText()), RungWords(3));
+		}
+		// Three rungs above the viewer a people is not shown: no row, and no rung words for it.
+		Civs[2].Tier = EAscensionTier::Tier4_Transcendent;
+		Window->Refresh();
+		TestFalse(TEXT("A people three rungs above has no row"), Window->GetShownPeoples().Contains(Two));
+		TestTrue(TEXT("and no rung words"), UCosmicEdictWidget::RungWordsOf(ACosmicPlayerController::KnownViewFor(*Window), *State, 2).IsEmpty());
+		// Seeing all shows a people not met, but its rung is not told.
+		Controller->CosmicSeeAll(1);
+		TestTrue(TEXT("(seeing all, people 3 is shown)"), ACosmicPlayerController::KnownViewFor(*Window).ShownOrderOf(3) != INDEX_NONE);
+		TestTrue(TEXT("Seeing all, a people not met has no rung words"), UCosmicEdictWidget::RungWordsOf(ACosmicPlayerController::KnownViewFor(*Window), *State, 3).IsEmpty());
+		Controller->CosmicSeeAll(0);
+		Civs[1].Tier = EAscensionTier::Tier2_Stellar;
+		Civs[2].Tier = EAscensionTier::Tier2_Stellar;
+		Window->Refresh();
+		TestTrue(TEXT("(the rows are back)"), Window->GetShownPeoples() == TArray<FName>({ Two, One }));
+	}
 	// The head's tooltips: how the fleet grows and its upkeep a size; the rung that opens the next friendly slot.
 	{
 		TestEqual(TEXT("The fleet's tooltip says how it grows and its upkeep"), Words(Window->GetFleetText()->GetToolTipText()), Words(CosmicUI::JoinLines({
@@ -331,7 +389,15 @@ bool FCosmicUIPeoplesTabTest::RunTest(const FString& Parameters)
 			Words(CosmicUI::JoinLines({ Label(TEXT("Diplomacy.SlotsTip")), FText::Format(Label(TEXT("Diplomacy.SlotsNext")), FText::AsNumber(3)) })));
 		FCivilizationState Probe;
 		Probe.Tier = EAscensionTier::Tier3_Causal;
-		TestTrue(TEXT("From the third rung the next slot is the fifth's"), UCosmicEdictWidget::NextFriendlySlotRungOf(Probe, Rules) == TOptional<int32>(4));
+		TestFalse(TEXT("From the third rung no next slot is told - the fifth's comes after the end"), UCosmicEdictWidget::NextFriendlySlotRungOf(Probe, Rules).IsSet());
+		Probe.Tier = EAscensionTier::Tier4_Transcendent;
+		TestFalse(TEXT("nor on the fourth"), UCosmicEdictWidget::NextFriendlySlotRungOf(Probe, Rules).IsSet());
+		Civs[0].Tier = EAscensionTier::Tier3_Causal;
+		Window->Refresh();
+		TestEqual(TEXT("On the third rung the slots' tooltip says every slot is open"), Words(Window->GetSlotsText()->GetToolTipText()),
+			Words(CosmicUI::JoinLines({ Label(TEXT("Diplomacy.SlotsTip")), Label(TEXT("Diplomacy.SlotsAll")) })));
+		Civs[0].Tier = EAscensionTier::Tier1_Planetary;
+		Window->Refresh();
 		Probe.Tier = EAscensionTier::Tier5_EternalOrder;
 		TestFalse(TEXT("and on the fifth every slot is open"), UCosmicEdictWidget::NextFriendlySlotRungOf(Probe, Rules).IsSet());
 		Civs[0].Tier = EAscensionTier::Tier5_EternalOrder;
@@ -555,6 +621,37 @@ bool FCosmicUIPeoplesTabTest::RunTest(const FString& Parameters)
 			Words(FText::Format(Label(TEXT("Diplomacy.TipBetray")), UCosmicEdictWidget::AmountOf(0.3f)))));
 		CosmicDiplomacy::Break(*State, 0, 1, CosmicTags::TreatyTrade());
 		Civs[0].Stockpile.Influence = 100.f;
+		Window->Refresh();
+	}
+
+	// B6b decision 28: the treaty buttons say a treaty is a part of the next rung while a judged third-rung row asks one.
+	{
+		const FString RungTip = Words(TEXT("Diplomacy.TreatyRungTip"));
+		TestFalse(TEXT("Diplomacy.TreatyRungTip has words"), RungTip.IsEmpty() || HasPlaceholder(Label(TEXT("Diplomacy.TreatyRungTip"))));
+		CosmicDiplomacy::Sign(*State, 0, 1, CosmicTags::TreatyTrade());
+		Window->Refresh();
+		TestTrue(TEXT("(people 1's trade is held, its non-aggression proposed)"), !Window->GetShownTreatyBlock(One, 0).IsSet() && Window->GetShownTreatyBlock(One, 1).IsSet());
+		TestFalse(TEXT("With no judged row asking a treaty the held treaty's tooltip says nothing of the rung"), Words(Window->GetTreatyButton(One, 0)->GetToolTipText()).Contains(RungTip));
+		TestFalse(TEXT("nor the proposal's"), Words(Window->GetTreatyButton(One, 1)->GetToolTipText()).Contains(RungTip));
+		const FCosmicDataTables Board = Sim->GetTables();
+		FCosmicDataTables Unasking = Board;
+		UDataTable* Others = CosmicTests::CopyWithout<FAscensionFeatDef>(Board.Feats, {});
+		Others->AddRow(FName(TEXT("feat_test_unasking")), UnaskingRungRow());
+		Unasking.Feats = Others;
+		Sim->SetTables(Unasking);
+		Window->Refresh();
+		TestFalse(TEXT("A judged third-rung row that asks no treaty adds no tip to the held treaty"), Words(Window->GetTreatyButton(One, 0)->GetToolTipText()).Contains(RungTip));
+		TestFalse(TEXT("nor to the proposal"), Words(Window->GetTreatyButton(One, 1)->GetToolTipText()).Contains(RungTip));
+		FCosmicDataTables Asking = Board;
+		UDataTable* Feats = CosmicTests::CopyWithout<FAscensionFeatDef>(Board.Feats, {});
+		Feats->AddRow(FName(TEXT("feat_test_passage")), TreatyRungRow());
+		Asking.Feats = Feats;
+		Sim->SetTables(Asking);
+		Window->Refresh();
+		TestTrue(TEXT("With one the held treaty's tooltip ends with the tip"), Words(Window->GetTreatyButton(One, 0)->GetToolTipText()).EndsWith(TEXT("\n") + RungTip));
+		TestTrue(TEXT("and so does the proposal's"), Words(Window->GetTreatyButton(One, 1)->GetToolTipText()).EndsWith(TEXT("\n") + RungTip));
+		Sim->SetTables(Board);
+		CosmicDiplomacy::Break(*State, 0, 1, CosmicTags::TreatyTrade());
 		Window->Refresh();
 	}
 

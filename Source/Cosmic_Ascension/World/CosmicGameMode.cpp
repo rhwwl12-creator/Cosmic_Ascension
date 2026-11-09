@@ -1269,7 +1269,7 @@ void ACosmicPlayerController::AdvanceRunEnd(float DeltaSeconds)
 	const UCosmicAscensionOverlayWidget* Overlay = CosmicHUD ? CosmicHUD->GetAscensionOverlay() : nullptr;
 	if (Overlay && (Overlay->IsShowing() || Overlay->IsRevealing()))
 	{
-		return;   // the third rung's presentation and its reveal first
+		return;   // any rung's presentation, and the third rung's reveal, first (B6b: the ruled people's end falls on the tick of its fifth rung's presentation)
 	}
 	if (IsCallingPageOpen())
 	{

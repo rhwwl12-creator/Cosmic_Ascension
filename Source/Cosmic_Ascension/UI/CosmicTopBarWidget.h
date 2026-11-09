@@ -67,10 +67,12 @@ public:
 	const UTextBlock* GetClockText() const { return ClockText; }
 	/** The clock's button (tests read its tooltip). */
 	const UButton* GetClockButton() const { return ClockButton; }
-	/** The clock's tooltip: what the clock is, what a press does and, with the provisional end on (MVP item 4) and a clock end
-	 * (EndTick above 0), the run's rule - Chronicle.Rule with EndTick in cycles. No rule line without a clock end: the clock is
-	 * the one end play reaches in B6a (decision 13; Chronicle.RuleRung is not read). Built once (tests). */
-	static FText ClockTipOf(int32 EndTick, bool bEndOn);
+	/** The clock's tooltip: what the clock is, what a press does and, with the provisional end on (MVP item 4), the run's
+	 * rules - Chronicle.RuleRung when bRungRule (the tables hold a judged row up to the fifth rung:
+	 * CosmicNextRung::HasJudgedRowAt Tier4_Transcendent - B6b decision 27, with or without a clock end), then Chronicle.Rule
+	 * with EndTick in cycles when there is a clock end (EndTick above 0). With the end switched off nothing ends, so neither
+	 * rule line shows. Built once (tests). */
+	static FText ClockTipOf(int32 EndTick, bool bEndOn, bool bRungRule);
 
 	/** What a click on the view button does (tests call it in place of a click). */
 	void PressViewButton();
@@ -100,8 +102,8 @@ public:
 	void SetRungHovered(bool bHovered);
 
 	/**
-	 * What the next-rung tooltip says now: CosmicNextRung::TextOfAll of AllOf over the live state (every way up); empty -
-	 * no tooltip - without a next rung. Bound once to the ToolTipTextDelegate of RungText before its Slate widget is built
+	 * What the next-rung tooltip says now: CosmicNextRung::TextOfAll of AllOf over the live state (every way up), its
+	 * durations in the viewer's unit (ACosmicPlayerController::TimeUnitFor); empty - no tooltip - without a next rung. Bound once to the ToolTipTextDelegate of RungText before its Slate widget is built
 	 * (GetResearchTip, ResearchText's, reads it after the focus line), so the Slate tooltip reads it only while the mouse is
 	 * on it; SetToolTipText is never called on them (it would build a new
 	 * tooltip at every change and close an open one).

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
+@@ -102,7 +102,7 @@
+ 		const APlayerController* Owner = Bar.GetOwningPlayer();
+ 		const ACosmicHUD* HUD = Owner ? Owner->GetHUD<ACosmicHUD>() : nullptr;
+ 		const UCosmicAscensionOverlayWidget* Overlay = HUD ? HUD->GetAscensionOverlay() : nullptr;
+-		return Overlay && Overlay->IsShowingSightOpening();
++		return Overlay && Overlay->IsShowing();
+ 	}
+ }
+ 

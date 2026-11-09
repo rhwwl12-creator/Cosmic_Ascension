@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp b/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
+@@ -213,7 +213,7 @@
+ 				const int32 Ticks = CosmicConditions::TickCountOf(Condition.Key);
+ 				if (Part.Progress >= Part.Needed && !Part.bMet && Ticks > 0)
+ 				{
+-					Part.TicksLeft = FMath::Max<int64>(0, Ticks - FMath::Min<int64>(Civ.LawsHeldTicks, State.Tick - View.SinceTick));
++					Part.TicksLeft = FMath::Max<int64>(0, Ticks - (State.Tick - View.SinceTick));
+ 				}
+ 			}
+ 			else

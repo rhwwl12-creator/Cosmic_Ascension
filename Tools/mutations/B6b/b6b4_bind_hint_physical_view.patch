@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1072,7 +1072,7 @@
+ 				// The binding's hint (B6b decision 28): which fallen one it would hold, by its title - in the spiritual view
+ 				// only, as the sight names it (the physical view has no line and no tooltip of it); none with no one left.
+ 				FText BindHint;
+-				if (Row == CosmicRows::ProjectBinding && ACosmicPlayerController::ShownViewModeFor(*this) == ECosmicViewMode::Spiritual)
++				if (Row == CosmicRows::ProjectBinding)
+ 				{
+ 					const int32 BindTarget = CosmicSeal::BindTargetOf(State, Tables);
+ 					const FTranscendentDef* Bound = State.Transcendents.IsValidIndex(BindTarget) ? Tables.FindTranscendent(State.Transcendents[BindTarget].TranscendentID) : nullptr;

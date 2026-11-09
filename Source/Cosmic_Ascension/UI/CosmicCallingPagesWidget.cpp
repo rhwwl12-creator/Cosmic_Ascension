@@ -382,7 +382,8 @@ void UCosmicCallingPagesWidget::OpenEpitaph(int32 InLifeAt, bool bSkippable, boo
 	AddRow(Name.IsEmpty() ? Nth : FText::Format(LabelOf(TEXT("List.Pair")), Nth, Name), 24, CosmicPalette::White, 8.f);
 
 	// The facts, a line each: the cause with its source (a hazard's name - a UI label of the tables), the cycles lived, the highest
-	// rung, the feats. No epithet: nothing names the era yet (EpithetRow stays empty). A cause whose source is a card (a
+	// rung the people reached while the vessel ruled (none for the first rung - B6b decision 30: the peak is the people's
+	// climb, PeakTier rising only with it), the feats. No epithet: nothing names the era yet (EpithetRow stays empty). A cause whose source is a card (a
 	// Death.Encounter) names the hazard the card belongs to, or nothing - never the card's title: the vessel's answer and its
 	// death never share a line (header section 3.6 1, 4).
 	FText Source;
@@ -403,7 +404,10 @@ void UCosmicCallingPagesWidget::OpenEpitaph(int32 InLifeAt, bool bSkippable, boo
 	CauseRow = RowTexts.Num();
 	AddRow(FText::Format(LabelOf(Source.IsEmpty() ? TEXT("Epitaph.Cause") : TEXT("Epitaph.CauseFrom")), CauseArgs), 16, CosmicPalette::White, 14.f);
 	AddRow(FText::Format(LabelOf(TEXT("Epitaph.Lived")), FText::AsNumber(FMath::Max<int64>(0, Life.DiedTick - Life.BornTick))), 14, CosmicPalette::Grey, 2.f);
-	AddRow(FText::Format(LabelOf(TEXT("Epitaph.Peak")), FText::AsNumber(static_cast<int32>(Life.PeakTier) + 1)), 14, CosmicPalette::Grey, 2.f);
+	if (Life.PeakTier != EAscensionTier::Tier1_Planetary)
+	{
+		AddRow(FText::Format(LabelOf(TEXT("Epitaph.Peak")), FText::AsNumber(static_cast<int32>(Life.PeakTier) + 1)), 14, CosmicPalette::Grey, 2.f);
+	}
 	TArray<FText> FeatTitles;
 	for (const FName Feat : Life.Feats)
 	{

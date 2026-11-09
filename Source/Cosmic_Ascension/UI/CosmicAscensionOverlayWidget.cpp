@@ -37,7 +37,6 @@ namespace CosmicAscensionOverlayImpl
 	const TCHAR* const GlowMaterialPath = TEXT("/Game/CA/Materials/M_AscensionGlow.M_AscensionGlow");
 	const FName GlowParam(TEXT("Glow"));
 	const FLinearColor VeilColor(0.f, 0.f, 0.02f, 0.6f);
-	const FLinearColor TitleColor(1.f, 0.82f, 0.4f);
 	constexpr float FadeIn = 0.8f;
 	constexpr float FadeOutFrom = 4.2f;
 	// The glow grows from this scale to the next over the presentation.
@@ -76,6 +75,21 @@ float CosmicAscensionOverlay::GlowAt(float At)
 		return 1.f;
 	}
 	return (CosmicAscensionOverlay::Seconds - At) / (CosmicAscensionOverlay::Seconds - FadeOutFrom);
+}
+
+FCosmicAscensionLook CosmicAscensionOverlay::LookOf(EAscensionTier NewTier)
+{
+	FCosmicAscensionLook Look;
+	if (NewTier == EAscensionTier::Tier5_EternalOrder)
+	{
+		// The top of the ladder: no light, no gold, no sound (B6b decision 26).
+		Look.bGlow = false;
+		Look.bChime = false;
+		Look.TitleColor = CosmicPalette::White;
+		return Look;
+	}
+	Look.bOpensSight = NewTier == CosmicMapLook::SpiritualSightTier;
+	return Look;
 }
 
 TArray<int16> CosmicAscensionSound::MakeChime(int32 SampleRate, float Seconds)
@@ -141,7 +155,7 @@ TSharedRef<SWidget> UCosmicAscensionOverlayWidget::RebuildWidget()
 		ColumnSlot->SetHorizontalAlignment(HAlign_Center);
 		ColumnSlot->SetVerticalAlignment(VAlign_Center);
 		TitleText = CosmicUI::MakeText(*WidgetTree, 34, false);
-		TitleText->SetColorAndOpacity(FSlateColor(TitleColor));
+		TitleText->SetColorAndOpacity(FSlateColor(CosmicPalette::Gold));
 		TitleText->SetJustification(ETextJustify::Center);
 		AddShadow(*TitleText);
 		Column->AddChildToVerticalBox(TitleText)->SetHorizontalAlignment(HAlign_Center);
@@ -219,6 +233,8 @@ void UCosmicAscensionOverlayWidget::Show(EAscensionTier NewTier, FName FeatRow)
 		EndReveal();
 	}
 	PresentedTier = NewTier;
+	// Fully qualified: CosmicMapLook::LookOf exists too.
+	const FCosmicAscensionLook Look = CosmicAscensionOverlay::LookOf(NewTier);
 	const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
 	const FAscensionFeatDef* Feat = (Sim && !FeatRow.IsNone()) ? Sim->GetTables().FindFeat(FeatRow) : nullptr;
 	if (TitleText)
@@ -226,9 +242,16 @@ void UCosmicAscensionOverlayWidget::Show(EAscensionTier NewTier, FName FeatRow)
 		TitleText->SetText(Feat ? Feat->Title : FText::GetEmpty());
 		RungText->SetText(FText::Format(INVTEXT("{0} {1}"), CosmicUI::Label(TEXT("Panel.Tier")), FText::AsNumber(static_cast<int32>(NewTier) + 1)));
 		NarrativeText->SetText(Feat ? Feat->MythicNarrative : FText::GetEmpty());
+		// Set on every show: the fifth rung's white and missing glow do not stay for the next presentation.
+		TitleText->SetColorAndOpacity(FSlateColor(Look.TitleColor));
+	}
+	if (Glow)
+	{
+		Glow->SetVisibility(Look.bGlow ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 
-	// Showing before the pause: the pause redraws the HUD, and the top bar keeps x25 hidden while the presentation shows.
+	// Showing before the pause: the pause redraws the HUD, and the top bar keeps x25 hidden while the presentation that
+	// opens the spiritual sight shows.
 	bShowing = true;
 	Elapsed = 0.f;
 	// Pause a running simulation (a second ascension while showing pauses again if the player resumed meanwhile).
@@ -242,7 +265,21 @@ void UCosmicAscensionOverlayWidget::Show(EAscensionTier NewTier, FName FeatRow)
 	}
 	SetVisibility(ESlateVisibility::Visible);
 	Advance(0.f);
-	PlayChime();
+	if (Look.bChime)
+	{
+		PlayChime();
+	}
+	else if (Chime)
+	{
+		// The fifth rung is silent: a chime of an earlier presentation still sounding stops.
+		Chime->ResetAudio();
+	}
+}
+
+bool UCosmicAscensionOverlayWidget::IsShowingSightOpening() const
+{
+	// PresentedTier outlives the presentation (Close and FoldSilently leave it): bShowing first.
+	return bShowing && CosmicAscensionOverlay::LookOf(PresentedTier).bOpensSight;
 }
 
 void UCosmicAscensionOverlayWidget::Close()
@@ -269,7 +306,7 @@ void UCosmicAscensionOverlayWidget::Close()
 	PausedSpeed = 0.f;
 	// The first reward of the third rung (guideline 6.4): after the presentation, never inside it, and only over a map
 	// that shows what it says.
-	if (PresentedTier == CosmicMapLook::SpiritualSightTier && ACosmicPlayerController::ShownViewModeFor(*this) == ECosmicViewMode::Spiritual)
+	if (CosmicAscensionOverlay::LookOf(PresentedTier).bOpensSight && ACosmicPlayerController::ShownViewModeFor(*this) == ECosmicViewMode::Spiritual)
 	{
 		// At the universe level the map shows no star the reveal speaks of: the camera comes back to the region first
 		// (Phase 3 item 9), at once - a glide would keep the stars hidden for the reveal's first frames (the map hides the
@@ -408,4 +445,5 @@ void UCosmicAscensionOverlayWidget::PlayChime()
 	Chime->ResetAudio();
 	Chime->QueueAudio(reinterpret_cast<const uint8*>(Samples.GetData()), Samples.Num() * sizeof(int16));
 	UGameplayStatics::PlaySound2D(this, Chime);
+	++ChimeCount;
 }

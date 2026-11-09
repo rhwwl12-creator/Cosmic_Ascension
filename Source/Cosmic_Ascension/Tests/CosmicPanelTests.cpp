@@ -387,6 +387,26 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("on a line"), Panel->IsReasonShown());
 			TestTrue(TEXT("and its tooltip starts with it"), !Panel->GetActionButtons().IsEmpty() && Panel->GetActionButtons()[0]->GetToolTipText().ToString().StartsWith(LabelText(TEXT("Settle.Block.RealmCap")), ESearchCase::CaseSensitive));
 			TestTrue(TEXT("The line says so"), ReadTexts(*Panel).Contains(LabelText(TEXT("Settle.Block.RealmCap"))));
+			// B6b decision 27: from the fourth rung no rung lifts the cap within the run - the words say the cap is reached
+			// and nothing of rising (the line and the tooltip both), the reason itself unchanged.
+			{
+				const EAscensionTier WasTier = Live.Civs[RuledIndex].Tier;
+				Live.Civs[RuledIndex].Tier = EAscensionTier::Tier4_Transcendent;
+				Panel->Refresh();
+				TestTrue(TEXT("(on the fourth rung the reason is still the realm cap)"), Panel->GetShownSettleBlock() == CosmicMegaprojects::ECosmicSettleBlock::RealmCap);
+				const FString Last = LabelText(TEXT("Settle.Block.RealmCapLast"));
+				const FString Rise = LabelText(TEXT("Settle.Block.RealmCap"));
+				const FString CapTip = Panel->GetActionButtons().IsEmpty() ? FString() : Panel->GetActionButtons()[0]->GetToolTipText().ToString();
+				TestTrue(TEXT("On the fourth rung the settle tooltip starts with the cap's last words"), CapTip.StartsWith(Last, ESearchCase::CaseSensitive));
+				TestFalse(TEXT("not the words of rising"), CapTip.Contains(Rise));
+				TestTrue(TEXT("and so does the line under it"), Panel->IsReasonShown() && ReadTexts(*Panel).Contains(Last));
+				TestFalse(TEXT("(the panel says nothing of rising)"), ReadTexts(*Panel).Contains(Rise));
+				TestEqual(TEXT("Below the fourth rung the cap's reason keeps its words"),
+					UCosmicSystemPanelWidget::ReasonOf(CosmicMegaprojects::ECosmicSettleBlock::RealmCap, GameTables, EAscensionTier::Tier3_Causal).ToString(), Rise);
+				TestFalse(TEXT("(Settle.Block.RealmCapLast has words)"), Last.IsEmpty() || Last.Contains(Placeholder));
+				Live.Civs[RuledIndex].Tier = WasTier;
+				Panel->Refresh();
+			}
 			const int32 Untouched = FindUntouched(*Sim, RuledID);
 			if (TestTrue(TEXT("(a wild system away from the people)"), Untouched != INDEX_NONE))
 			{
@@ -511,6 +531,36 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("A row that needs less than 1 shows that it needs 1"), ReadTexts(*Panel).Contains(TEXT("<half> 0/1")));
 		Sim->SetTables(GameTables);
 		Live.Systems[HomeIndex].ActiveMegaproject = NAME_None;
+
+		// B6b decisions 4, 5: the extinction on the ruled home - that the people may let every system go, and whether the
+		// ruler's life ends with it (the birth protection at the expiry's tick decides); the details' tooltip holds the lines.
+		const FString Follows = LabelText(TEXT("Panel.ExtinctionFollows"));
+		const FString Lethal = LabelText(TEXT("Panel.RulerLethal"));
+		TestFalse(TEXT("(the extinction's labels have words)"), Follows.IsEmpty() || Lethal.IsEmpty() || Follows.Contains(Placeholder) || Lethal.Contains(Placeholder));
+		Panel->Refresh();
+		TestFalse(TEXT("The AI awakening says nothing of the extinction"), ReadTexts(*Panel).Contains(Follows) || ReadTexts(*Panel).Contains(Lethal));
+		const FGameplayTag WasHazard = Live.Systems[HomeIndex].ActiveHazard;
+		const int32 WasRemaining = Live.Systems[HomeIndex].HazardTicksRemaining;
+		// The ticks to the end of the birth protection, from now (the hazard expires at Tick + its ticks left).
+		const int64 Shield = static_cast<int64>(Sim->GetRules().BirthProtectionTicks) - (Live.Tick - Live.Calling.BornTick);
+		if (TestTrue(TEXT("(the vessel is still shielded for more than a tick)"), Shield > 1))
+		{
+			Live.Systems[HomeIndex].ActiveHazard = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Extinction")));
+			Live.Systems[HomeIndex].HazardTicksRemaining = static_cast<int32>(Shield - 1);
+			Panel->Refresh();
+			TestTrue(TEXT("Under the extinction the details say the people may let every system go"), ReadTexts(*Panel).Contains(Follows));
+			TestFalse(TEXT("an expiry inside the birth protection ends no ruler's life"), ReadTexts(*Panel).Contains(Lethal));
+			TestEqual(TEXT("The details' tooltip is that line"), Panel->GetDetailText()->GetToolTipText().ToString(), Follows);
+			Live.Systems[HomeIndex].HazardTicksRemaining = static_cast<int32>(Shield);
+			Panel->Refresh();
+			TestTrue(TEXT("An expiry past the birth protection says the people may go"), ReadTexts(*Panel).Contains(Follows));
+			TestTrue(TEXT("and that the ruler's life may end"), ReadTexts(*Panel).Contains(Lethal));
+			TestEqual(TEXT("The details' tooltip holds both"), Panel->GetDetailText()->GetToolTipText().ToString(),
+				CosmicUI::JoinLines({ CosmicUI::Label(TEXT("Panel.ExtinctionFollows")), CosmicUI::Label(TEXT("Panel.RulerLethal")) }).ToString());
+		}
+		Live.Systems[HomeIndex].ActiveHazard = WasHazard;
+		Live.Systems[HomeIndex].HazardTicksRemaining = WasRemaining;
+		Panel->Refresh();
 	}
 
 	// ---- The people line: the owner people's band right after the owner, never a number, never on a wild system ----

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1081,7 +1081,7 @@
+ 						BindHint = FText::FormatNamed(Label(TEXT("Start.BindHint")), TEXT("Transcendent"), Bound->Title);
+ 					}
+ 				}
+-				Wanted.Add({ Row, ButtonLabel, bEnded ? EndBlock : Reason, bEnded ? EndBlock : JoinLines({ Reason, StartHintOf(Tables, Row, System, Unit), BindHint }) });
++				Wanted.Add({ Row, ButtonLabel, bEnded ? EndBlock : Reason, bEnded ? EndBlock : JoinLines({ Reason, StartHintOf(Tables, Row, System, Unit) }) });
+ 				bEnabledProject |= !bEnded && Block == CosmicMegaprojects::ECosmicStartBlock::None;
+ 				ShownStartBlocks.Emplace(Row, Block);
+ 			}

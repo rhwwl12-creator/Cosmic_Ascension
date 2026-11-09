@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1531,7 +1531,7 @@
+ 			{
+ 				ShownTreatyBlocks[At * 2 + TreatyIndex].Reset();
+ 				ButtonLabel = Label(TreatyIndex == 0 ? TEXT("Diplomacy.Break.Trade") : TEXT("Diplomacy.Break.NonAggression"));
+-				Tip = CosmicUI::JoinLines({ What, Fall(TEXT("Diplomacy.TipBreak"), TEXT("Diplomacy.TipBreakFar")), TreatyRungTip });
++				Tip = CosmicUI::JoinLines({ What, Fall(TEXT("Diplomacy.TipBreak"), TEXT("Diplomacy.TipBreakFar")) });
+ 				Button->SetIsEnabled(true);
+ 			}
+ 			else

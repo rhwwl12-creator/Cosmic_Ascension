@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicAscensionOverlayWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicAscensionOverlayWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicAscensionOverlayWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicAscensionOverlayWidget.cpp
+@@ -279,7 +279,7 @@
+ bool UCosmicAscensionOverlayWidget::IsShowingSightOpening() const
+ {
+ 	// PresentedTier outlives the presentation (Close and FoldSilently leave it): bShowing first.
+-	return bShowing && CosmicAscensionOverlay::LookOf(PresentedTier).bOpensSight;
++	return CosmicAscensionOverlay::LookOf(PresentedTier).bOpensSight;
+ }
+ 
+ void UCosmicAscensionOverlayWidget::Close()

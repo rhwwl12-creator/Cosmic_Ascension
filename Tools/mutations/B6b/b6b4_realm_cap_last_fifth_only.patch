@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -677,7 +677,7 @@
+ 		return FText::Format(CosmicUI::Label(Key), FText::AsNumber(static_cast<int32>(CosmicMegaprojects::SphereLiftTier) + 1));
+ 	}
+ 	// From the fourth rung no rung lifts the cap within the run (B6b decision 27): no word of rising.
+-	if (Block == ECosmicSettleBlock::RealmCap && static_cast<int32>(RuledTier) >= static_cast<int32>(EAscensionTier::Tier4_Transcendent))
++	if (Block == ECosmicSettleBlock::RealmCap && static_cast<int32>(RuledTier) >= static_cast<int32>(EAscensionTier::Tier5_EternalOrder))
+ 	{
+ 		return CosmicUI::Label(TEXT("Settle.Block.RealmCapLast"));
+ 	}

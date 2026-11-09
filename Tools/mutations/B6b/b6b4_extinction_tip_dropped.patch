@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1471,7 +1471,7 @@
+ 
+ 	// The details' tooltip: the claim's warning (B6a) and the extinction's lines (B6b), or none (set only when its words
+ 	// change).
+-	const FText DetailTip = JoinLines({ ClaimWords, JoinLines(ExtinctionWords) });
++	const FText DetailTip = ClaimWords;
+ 	if (!SameWords(DetailText->GetToolTipText(), DetailTip))
+ 	{
+ 		DetailText->SetToolTipText(DetailTip);

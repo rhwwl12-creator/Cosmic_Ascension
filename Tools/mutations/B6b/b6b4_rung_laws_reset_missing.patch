@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp b/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
+@@ -314,7 +314,7 @@
+ 	}
+ 	const FText Text = FText::Format(CosmicUI::Label(TEXT("Rung.Next")), CosmicNextRungImpl::PartsText(Next, Tables, Unit));
+ 	// What breaks the count of held laws, once, as the last line.
+-	return CosmicNextRungImpl::HasLawsPart(Next) ? FText::Format(INVTEXT("{0}\n{1}"), Text, CosmicUI::Label(TEXT("Rung.LawsReset"))) : Text;
++	return Text;
+ }
+ 
+ FText CosmicNextRung::TextOfAll(const TArray<FCosmicNextRung>& Rungs, const FCosmicDataTables& Tables)

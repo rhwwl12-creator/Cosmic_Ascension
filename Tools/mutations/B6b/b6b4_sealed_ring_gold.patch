@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicGalaxyMapActor.cpp b/Source/Cosmic_Ascension/World/CosmicGalaxyMapActor.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicGalaxyMapActor.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGalaxyMapActor.cpp
+@@ -866,7 +866,7 @@
+ 		}
+ 		if (bSpiritual && Spirits[Index].bSealedRing)
+ 		{
+-			AddRing(Lines, Centre, OwnerRadius + SealedGapRings * RingThickness, RingSegments, false, CosmicPalette::Grey, RingThickness);
++			AddRing(Lines, Centre, OwnerRadius + SealedGapRings * RingThickness, RingSegments, false, CosmicPalette::Gold, RingThickness);
+ 			++DrawnSealedRings;
+ 		}
+ 		if (bSelected)

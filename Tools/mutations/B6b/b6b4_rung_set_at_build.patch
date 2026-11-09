@@ -1,0 +1,15 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1456,7 +1456,10 @@
+ 		const FCivilizationState& Them = State.Civs[Other];
+ 		const bool bMet = View.IsMet(Other);
+ 		SetWords(PeopleNames[At], Them.CivName);
+-		SetWords(PeopleRungs[At], RungWordsOf(View, State, Other));
++		if (PeopleRungs[At]->GetText().IsEmpty())
++		{
++			SetWords(PeopleRungs[At], RungWordsOf(View, State, Other));
++		}
+ 		const float TheirView = CosmicDiplomacy::ViewOf(State, Index, Rules, Other, RuledIndex);
+ 		SetWords(PeopleBands[At], ViewWordOf(TheirView));
+ 		SetTip(PeopleBands[At], ViewTipOf(State, Index, Rules, Other, RuledIndex));

@@ -94,14 +94,15 @@ namespace CosmicTopBarImpl
 		return Controller ? Controller->IsSpiritualSightOpen() : CosmicMapLook::SpiritualSightOpens(Sim.GetViewerTier());
 	}
 
-	// Whether the HUD's ascension presentation shows now: x25 waits for it to close (guideline 6.3 - after the
-	// presentation, at the same moment as the sight's reveal).
+	// Whether the HUD shows the ascension presentation that opens the spiritual sight now: x25 waits for it alone to close
+	// (guideline 6.3 - after the presentation, at the same moment as the sight's reveal; B6b decision 25 - a presentation
+	// of another rung leaves an open x25 in place).
 	bool Presenting(const UUserWidget& Bar)
 	{
 		const APlayerController* Owner = Bar.GetOwningPlayer();
 		const ACosmicHUD* HUD = Owner ? Owner->GetHUD<ACosmicHUD>() : nullptr;
 		const UCosmicAscensionOverlayWidget* Overlay = HUD ? HUD->GetAscensionOverlay() : nullptr;
-		return Overlay && Overlay->IsShowing();
+		return Overlay && Overlay->IsShowingSightOpening();
 	}
 }
 
@@ -212,11 +213,13 @@ TSharedRef<SWidget> UCosmicTopBarWidget::RebuildWidget()
 		ClockButton->OnUnhovered.AddUniqueDynamic(this, &UCosmicTopBarWidget::HandleClockUnhovered);
 		// Set once: SetToolTipText builds a new Slate tooltip each time. What a year is, then what a press does (a flat
 		// button does not look pressable).
-		// A third line states the clock end as a rule of the run (MVP item 4; none without a clock end): the tooltip is built once.
+		// Then the run's rules (MVP item 4; B6b decision 27): the fifth rung's while the tables judge a row up to it, the
+		// clock end's while there is one - the tooltip is built once.
 		{
 			const ACosmicPlayerController* Owner = Cast<ACosmicPlayerController>(GetOwningPlayer());
 			const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
-			ClockButton->SetToolTipText(ClockTipOf(Sim ? Sim->GetRules().ProvisionalEndTick : 0, Sim && (!Owner || Owner->IsProvisionalEndEnabled())));
+			ClockButton->SetToolTipText(ClockTipOf(Sim ? Sim->GetRules().ProvisionalEndTick : 0, Sim && (!Owner || Owner->IsProvisionalEndEnabled()),
+				Sim && CosmicNextRung::HasJudgedRowAt(Sim->GetTables(), EAscensionTier::Tier4_Transcendent)));
 		}
 		UHorizontalBoxSlot* ClockSlot = Row->AddChildToHorizontalBox(ClockButton);
 		ClockSlot->SetVerticalAlignment(VAlign_Center);
@@ -530,18 +533,26 @@ void UCosmicTopBarWidget::HandleSpeed(FName Action, float Value)
 	Refresh();
 }
 
-FText UCosmicTopBarWidget::ClockTipOf(int32 EndTick, bool bEndOn)
+FText UCosmicTopBarWidget::ClockTipOf(int32 EndTick, bool bEndOn, bool bRungRule)
 {
-	const FText Tip = FText::Format(INVTEXT("{0}\n{1}"), CosmicUI::Label(TEXT("Time.Tip")), CosmicUI::Label(TEXT("Time.TipPress")));
-	// The clock is the one end this run reaches (B6a decision 13): no clock end, no rule line (Chronicle.RuleRung is not read -
-	// B6b writes the fifth rung's rule into it).
-	if (!bEndOn || EndTick <= 0)
+	FText Tip = FText::Format(INVTEXT("{0}\n{1}"), CosmicUI::Label(TEXT("Time.Tip")), CosmicUI::Label(TEXT("Time.TipPress")));
+	// With the end switched off nothing ends (the game mode's run end returns first): no rule line.
+	if (!bEndOn)
 	{
 		return Tip;
 	}
-	// Always in cycles: the rule is the run's, not the viewer's unit.
-	const FText Rule = FText::Format(CosmicUI::Label(TEXT("Chronicle.Rule")), CosmicUI::ClockLabel(EndTick, ECosmicTimeUnit::Cycle));
-	return FText::Format(INVTEXT("{0}\n{1}"), Tip, Rule);
+	// The fifth rung's rule while a row can reach it (B6b decision 27: the ruled people's end), with or without a clock.
+	if (bRungRule)
+	{
+		Tip = FText::Format(INVTEXT("{0}\n{1}"), Tip, CosmicUI::Label(TEXT("Chronicle.RuleRung")));
+	}
+	// The clock end's rule, always in cycles: the rule is the run's, not the viewer's unit.
+	if (EndTick > 0)
+	{
+		const FText Rule = FText::Format(CosmicUI::Label(TEXT("Chronicle.Rule")), CosmicUI::ClockLabel(EndTick, ECosmicTimeUnit::Cycle));
+		Tip = FText::Format(INVTEXT("{0}\n{1}"), Tip, Rule);
+	}
+	return Tip;
 }
 
 void UCosmicTopBarWidget::HandleReopen(FName Action, float Value)
@@ -661,7 +672,7 @@ void UCosmicTopBarWidget::SetClockHovered(bool bHovered)
 void UCosmicTopBarWidget::SetRungHovered(bool bHovered)
 {
 	// Only the colour: the words are the tooltip's, pulled while the mouse stays. The gold says a tooltip waits there, so
-	// the rung lights only while there is a next rung to tell (none on the third rung of the slice, the fifth, for a
+	// the rung lights only while there is a next rung to tell (none on the fifth or on a rung with no judged row, for a
 	// wanderer or in the interregnum).
 	if (RungText)
 	{
@@ -677,7 +688,8 @@ FText UCosmicTopBarWidget::GetNextRungTip() const
 	{
 		return FText::GetEmpty();
 	}
-	return CosmicNextRung::TextOfAll(CosmicNextRung::AllOf(Sim->GetState(), Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules()), Sim->GetTables());
+	return CosmicNextRung::TextOfAll(CosmicNextRung::AllOf(Sim->GetState(), Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules()), Sim->GetTables(),
+		ACosmicPlayerController::TimeUnitFor(*this));
 }
 
 FText UCosmicTopBarWidget::GetResearchTip() const
@@ -823,8 +835,8 @@ void UCosmicTopBarWidget::Refresh()
 		}
 	}
 
-	// The speed buttons: a step the gate does not open is collapsed (x25 also while the ascension presentation shows - it
-	// appears when the presentation closes), the current speed's button is greyed out (a click on it would change
+	// The speed buttons: a step the gate does not open is collapsed (x25 also while the presentation that opens the
+	// spiritual sight shows - it appears when that presentation closes; B6b decision 25), the current speed's button is greyed out (a click on it would change
 	// nothing), and every label, the collapsed ones too, follows the unit. Visibility is set only when it changes.
 	const bool bThirdRungShown = CosmicTopBarImpl::ThirdRungOpen(*this, *Sim) && !CosmicTopBarImpl::Presenting(*this);
 	// The run is over (MVP item 4): every speed button is greyed out (x25 stays where the gate shows it).

@@ -447,6 +447,14 @@ bool FCosmicUIEpitaphTest::RunTest(const FString& Parameters)
 		const FText Nth = FText::Format(Label(TEXT("Chronicle.Life")), FText::AsNumber(1));
 		const FText Name = CosmicChronicle::VesselNameOf(Dead, Tables);
 		const int32 Cause = Pages->GetCauseRow();
+		// The ruler that died stood on the first rung: no rung line (B6b decision 30) - the row after the cycles lived is the next
+		// fact or the answers' head.
+		TestEqual(TEXT("(the people stood on the first rung)"), Dead.PeakTier, EAscensionTier::Tier1_Planetary);
+		TestFalse(TEXT("A life whose people stayed on the first rung has no rung line"), Pages->GetPageKeys().Contains(TEXT("Epitaph.Peak")));
+		TestFalse(TEXT("(no row is one)"), Texts.ContainsByPredicate([](const FText& Row)
+			{
+				return Row.ToString() == FText::Format(CosmicUI::Label(TEXT("Epitaph.Peak")), FText::AsNumber(1)).ToString();
+			}));
 		if (TestTrue(TEXT("(the page has its title, its facts and its answers)"), Texts.Num() >= 6 && Texts.IsValidIndex(Cause + 2)))
 		{
 			TestEqual(TEXT("The title is 'the Nth' with the vessel's name"), Texts[0].ToString(), (Name.IsEmpty() ? Nth : FText::Format(Label(TEXT("List.Pair")), Nth, Name)).ToString());
@@ -455,7 +463,6 @@ bool FCosmicUIEpitaphTest::RunTest(const FString& Parameters)
 			CauseArgs.Add(TEXT("Source"), Killer->DisplayName);
 			TestEqual(TEXT("then the cause with the hazard's name"), Texts[Cause].ToString(), FText::Format(Label(TEXT("Epitaph.CauseFrom")), CauseArgs).ToString());
 			TestEqual(TEXT("the cycles lived"), Texts[Cause + 1].ToString(), FText::Format(Label(TEXT("Epitaph.Lived")), FText::AsNumber(400)).ToString());
-			TestEqual(TEXT("the highest rung"), Texts[Cause + 2].ToString(), FText::Format(Label(TEXT("Epitaph.Peak")), FText::AsNumber(static_cast<int32>(Dead.PeakTier) + 1)).ToString());
 		}
 		// The last answers: the first contact card's title is left out ({OtherCiv} - its line does not say the other people).
 		const TArray<FCosmicAnswerTitle>& Answers = Pages->GetAnswers();
@@ -487,6 +494,31 @@ bool FCosmicUIEpitaphTest::RunTest(const FString& Parameters)
 		Pages->OpenEpitaph(0, false, true);
 		TestTrue(TEXT("Building the epitaph again moves neither hash"), Sim->ComputeStateHash() == Before && Sim->ComputeWorldHash() == BeforeWorld);
 		TestTrue(TEXT("and gives the same page"), Pages->GetPageTexts().Num() == Texts.Num() && !Pages->IsRevealing());
+		// A people that climbed while the vessel ruled: the rung line after the cycles lived (PeakTier is in the state hash -
+		// put back, and the page built again, before 'next').
+		const EAscensionTier Peak = Live.Calling.Lives[0].PeakTier;
+		Live.Calling.Lives[0].PeakTier = EAscensionTier::Tier4_Transcendent;
+		Pages->OpenEpitaph(0, false, true);
+		const TArray<FText> Climbed = Pages->GetPageTexts();
+		const int32 ClimbedCause = Pages->GetCauseRow();
+		if (TestTrue(TEXT("(the page of a climb has its rung row)"), Climbed.IsValidIndex(ClimbedCause + 2)))
+		{
+			TestEqual(TEXT("A people that reached the fourth rung: its rung after the cycles lived"), Climbed[ClimbedCause + 2].ToString(),
+				FText::Format(Label(TEXT("Epitaph.Peak")), FText::AsNumber(4)).ToString());
+		}
+		TestTrue(TEXT("(its key read)"), Pages->GetPageKeys().Contains(TEXT("Epitaph.Peak")));
+		// The second rung, the first above the line-less one: its rung line too.
+		Live.Calling.Lives[0].PeakTier = EAscensionTier::Tier2_Stellar;
+		Pages->OpenEpitaph(0, false, true);
+		const TArray<FText> Second = Pages->GetPageTexts();
+		const int32 SecondCause = Pages->GetCauseRow();
+		if (TestTrue(TEXT("(the page of a second rung has its rung row)"), Second.IsValidIndex(SecondCause + 2)))
+		{
+			TestEqual(TEXT("A people that reached the second rung: its rung after the cycles lived"), Second[SecondCause + 2].ToString(),
+				FText::Format(Label(TEXT("Epitaph.Peak")), FText::AsNumber(2)).ToString());
+		}
+		Live.Calling.Lives[0].PeakTier = Peak;
+		Pages->OpenEpitaph(0, false, true);
 	}
 
 	// ---- (2) 'Next': the leap, then the digest ----

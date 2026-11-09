@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicTopBarWidget.cpp
+@@ -219,7 +219,7 @@
+ 			const ACosmicPlayerController* Owner = Cast<ACosmicPlayerController>(GetOwningPlayer());
+ 			const UGalaxySimulationSubsystem* Sim = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>() : nullptr;
+ 			ClockButton->SetToolTipText(ClockTipOf(Sim ? Sim->GetRules().ProvisionalEndTick : 0, Sim && (!Owner || Owner->IsProvisionalEndEnabled()),
+-				Sim && CosmicNextRung::HasJudgedRowAt(Sim->GetTables(), EAscensionTier::Tier4_Transcendent)));
++				Sim != nullptr));
+ 		}
+ 		UHorizontalBoxSlot* ClockSlot = Row->AddChildToHorizontalBox(ClockButton);
+ 		ClockSlot->SetVerticalAlignment(VAlign_Center);

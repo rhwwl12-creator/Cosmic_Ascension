@@ -7,12 +7,14 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Components/Button.h"
+#include "Components/Image.h"
 #include "Components/PanelWidget.h"
 #include "Components/SlateWrapperTypes.h"
 #include "Components/TextBlock.h"
 #include "Core/CosmicTags.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
+#include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
@@ -38,6 +40,7 @@
 #include "UI/CosmicAscensionOverlayWidget.h"
 #include "UI/CosmicChronicleWidget.h"
 #include "UI/CosmicLogFeedWidget.h"
+#include "UI/CosmicNextRung.h"
 #include "UI/CosmicPalette.h"
 #include "UI/CosmicPetitionCardWidget.h"
 #include "UI/CosmicSystemPanelWidget.h"
@@ -135,12 +138,44 @@ namespace CosmicChronicleScreenTests
 		Overlay.Close();
 		Overlay.Advance(CosmicAscensionOverlay::RevealSeconds + 1.f);
 	}
+
+	// A feat row from the fourth rung to the fifth on Path, with GalaxyTickAtLeast 1 when bWithCondition, its title, its
+	// narrative and two templates (the Log.Ascension line is told - B6b: the fifth rung's tests).
+	FAscensionFeatDef FifthRungRow(EPlayerRole Path, bool bWithCondition)
+	{
+		FAscensionFeatDef Row;
+		Row.Title = FText::AsCultureInvariant(TEXT("<fifth>"));
+		Row.MythicNarrative = FText::AsCultureInvariant(TEXT("<fifth narrative>"));
+		Row.RequiredTier = EAscensionTier::Tier4_Transcendent;
+		Row.TargetTier = EAscensionTier::Tier5_EternalOrder;
+		Row.Path = Path;
+		if (bWithCondition)
+		{
+			FCosmicCondition Condition;
+			Condition.Type = EConditionType::GalaxyTickAtLeast;
+			Condition.Value = 1.f;
+			Row.CompletionConditions.Add(Condition);
+		}
+		Row.LogTemplates = { FText::AsCultureInvariant(TEXT("{Civ} {HomeSystem} stood one")), FText::AsCultureInvariant(TEXT("{Civ} {HomeSystem} stood two")) };
+		return Row;
+	}
+
+	// A copy of Base with Row added to DT_Feats under Name (the game's rows kept).
+	FCosmicDataTables WithFeat(const FCosmicDataTables& Base, FName Name, const FAscensionFeatDef& Row)
+	{
+		FCosmicDataTables Tables = Base;
+		UDataTable* Feats = CosmicTests::CopyWithout<FAscensionFeatDef>(Base.Feats, {});
+		Feats->AddRow(Name, Row);
+		Tables.Feats = Feats;
+		return Tables;
+	}
 }
 
 // The provisional end's latch and lock (MVP item 4): the clock end at exactly tick 6,000, the speed before it, the lock on
 // the speeds, the keys and the commands, the card folded, the wait before the page, the third rung's two orders with the
-// presentation (no end since B6a) and the clock's end over the presentation, an ended load, FollowEnd's contract, the new
-// run, the switch, the reset of AcquireSim and the two hashes.
+// presentation (no end since B6a) and the clock's end over the presentation, the ruled people's end over its fifth rung's
+// presentation (B6b decisions 26, 27: the end falls on the tick of that presentation - the fifth's look, no reveal, the page
+// after it), an ended load, FollowEnd's contract, the new run, the switch, the reset of AcquireSim and the two hashes.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicUIRunEndTest, "Cosmic_Ascension.UI.RunEnd", CosmicTests::Flags)
 bool FCosmicUIRunEndTest::RunTest(const FString& Parameters)
 {
@@ -485,6 +520,66 @@ bool FCosmicUIRunEndTest::RunTest(const FString& Parameters)
 		Screen.Overlay->Advance(CosmicAscensionOverlay::RevealSeconds + 1.f);
 		Controller->AdvanceRunEnd(CosmicChronicleScreen::HoldSeconds + 0.1f);
 		TestTrue(*FString::Printf(TEXT("Then the page opens %s"), Order), Page->IsOpen());
+	}
+
+	// B6b (decisions 26, 27): the ruled people's end over its fifth rung's presentation - a judged row from the fourth rung
+	// lifts the people in one stepped tick with the broadcast on; the end falls on the tick of the presentation, which wears
+	// the fifth rung's look, opens no sight and is waited for; then the page names the people.
+	{
+		const FName FifthFeat(TEXT("feat_test_fifth"));
+		const FAscensionFeatDef FifthRow = FifthRungRow(EPlayerRole::Ruler, true);
+		Sim->SetTables(WithFeat(CosmicTests::WithRules(Original, NoClock), FifthFeat, FifthRow));
+		Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+		Quiet(*Screen.Overlay);
+		Sim->SetTimeScale(0.f);
+		FGalaxyState& Top = Sim->GetMutableState();
+		const int32 TopCiv = CosmicPetitions::RuledCivIndexOf(Top, Sim->GetStateIndex());
+		if (!TestTrue(TEXT("(the vessel rules a people)"), Top.Civs.IsValidIndex(TopCiv)))
+		{
+			return false;
+		}
+		Top.Civs[TopCiv].Tier = EAscensionTier::Tier4_Transcendent;
+		const FText TopName = Top.Civs[TopCiv].CivName;
+		const FGalaxyState BeforeFifth = Sim->GetState();
+		const UTextBlock* Title = Screen.Overlay->GetTitleText();
+		const UImage* Glow = Screen.Overlay->GetGlow();
+		if (!TestNotNull(TEXT("(the overlay has its title)"), Title) || !TestNotNull(TEXT("(and its glow)"), Glow))
+		{
+			return false;
+		}
+		FFormatNamedArguments NoteArgs;
+		NoteArgs.Add(TEXT("Civ"), TopName);
+		const FString NoteLine = FText::Format(CosmicUI::Label(TEXT("Chronicle.Note.Rung")), NoteArgs).ToString();
+		for (const bool bAutoPause : { true, false })
+		{
+			const TCHAR* Order = bAutoPause ? TEXT("with the automatic pause on") : TEXT("with the automatic pause off");
+			Sim->LoadState(BeforeFifth);
+			Quiet(*Screen.Overlay);
+			Controller->SetAutoPause(bAutoPause);
+			const int32 Chimes = Screen.Overlay->GetChimeCount();
+			Controller->SetSpeed(10.f);
+			Sim->StepOnce();
+			const FGalaxyState& After = Sim->GetState();
+			if (!TestEqual(*FString::Printf(TEXT("(the people stands on the fifth rung %s)"), Order), After.Civs[TopCiv].Tier, EAscensionTier::Tier5_EternalOrder))
+			{
+				return false;
+			}
+			TestEqual(*FString::Printf(TEXT("The fifth rung ends the run for the ruled people %s"), Order), Controller->GetRunEnd(), CosmicTags::EndingRuledPeople());
+			TestTrue(*FString::Printf(TEXT("in the tick of the presentation %s"), Order), Screen.Overlay->IsShowing());
+			TestTrue(*FString::Printf(TEXT("which wears a white title %s"), Order), Title->GetColorAndOpacity().GetSpecifiedColor().Equals(CosmicPalette::White, 1e-4f));
+			TestTrue(*FString::Printf(TEXT("no glow %s"), Order), Glow->GetVisibility() == ESlateVisibility::Collapsed);
+			TestEqual(*FString::Printf(TEXT("and plays no chime %s"), Order), Screen.Overlay->GetChimeCount(), Chimes);
+			TestEqual(*FString::Printf(TEXT("The presentation holds the speed it found %s"), Order), Screen.Overlay->GetPausedSpeed(), bAutoPause ? 0.f : 10.f);
+			TestTrue(*FString::Printf(TEXT("and the reason is the end %s"), Order), Controller->GetAutoPauseReason() == ECosmicAutoPause::RunEnd);
+			Controller->AdvanceRunEnd(10.f);
+			TestFalse(*FString::Printf(TEXT("While the fifth rung's presentation shows the page waits %s"), Order), Page->IsOpen());
+			Screen.Overlay->Close();
+			TestEqual(*FString::Printf(TEXT("Closing it gives no speed back %s"), Order), Sim->GetTimeScale(), 0.f);
+			TestFalse(*FString::Printf(TEXT("and no reveal follows %s"), Order), Screen.Overlay->IsRevealing());
+			Controller->AdvanceRunEnd(CosmicChronicleScreen::HoldSeconds + 0.1f);
+			TestTrue(*FString::Printf(TEXT("Then the page opens %s"), Order), Page->IsOpen());
+			TestTrue(*FString::Printf(TEXT("naming the people that reached the fifth rung %s"), Order), CosmicTests::ReadTexts(*Page).Contains(NoteLine));
+		}
 	}
 	return true;
 }
@@ -840,18 +935,36 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 	Sim->SetTimeScale(0.f);
 	FGalaxyState& Bar42 = Sim->GetMutableState();
 	const int32 EndTick = Sim->GetRules().ProvisionalEndTick;
-	// The clock's tooltip states the rule: in cycles; with no clock end (the knob 0 or less) or with the end off no rule at all
-	// (B6a [B-6a4], decision 13 - the clock is the one end a run of B6a meets; Chronicle.RuleRung is not read).
-	FString Third = UCosmicTopBarWidget::ClockTipOf(EndTick, true).ToString();
+	// The clock's tooltip states the rules: the fifth rung's while the tables judge a row up to it (B6b decision 27, with or
+	// without a clock end), then the clock end's in cycles; with the end off no rule at all.
+	FString Third = UCosmicTopBarWidget::ClockTipOf(EndTick, true, false).ToString();
 	Third.Split(TEXT("\n"), nullptr, &Third, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 	TestEqual(TEXT("The clock's tooltip ends with the run's rule"), Third, FText::Format(Label(TEXT("Chronicle.Rule")), CosmicUI::ClockLabel(EndTick, ECosmicTimeUnit::Cycle)).ToString());
 	TestTrue(TEXT("(which names the end tick in cycles)"), Third.Contains(CosmicUI::ClockLabel(EndTick, ECosmicTimeUnit::Cycle).ToString()));
-	const FString NoRule = UCosmicTopBarWidget::ClockTipOf(EndTick, false).ToString();
+	const FString NoRule = UCosmicTopBarWidget::ClockTipOf(EndTick, false, false).ToString();
 	TestFalse(TEXT("With the end off the tooltip states no rule"), NoRule.Contains(Third) || NoRule.Contains(CosmicUI::ClockLabel(EndTick, ECosmicTimeUnit::Cycle).ToString()));
-	TestEqual(TEXT("The tooltip with the rule is the one without it and the rule's line"), UCosmicTopBarWidget::ClockTipOf(EndTick, true).ToString(), NoRule + TEXT("\n") + Third);
-	TestEqual(TEXT("Without a clock end the tooltip states no rule - no rung's rule either"), UCosmicTopBarWidget::ClockTipOf(0, true).ToString(), NoRule);
-	TestEqual(TEXT("nor with a knob below 0"), UCosmicTopBarWidget::ClockTipOf(-1, true).ToString(), NoRule);
-	TestEqual(TEXT("The bar's clock carries that tooltip"), Bar->GetClockButton() ? Bar->GetClockButton()->GetToolTipText().ToString() : FString(), UCosmicTopBarWidget::ClockTipOf(EndTick, true).ToString());
+	TestEqual(TEXT("The tooltip with the rule is the one without it and the rule's line"), UCosmicTopBarWidget::ClockTipOf(EndTick, true, false).ToString(), NoRule + TEXT("\n") + Third);
+	const FString RungRule = Words(TEXT("Chronicle.RuleRung"));
+	TestEqual(TEXT("Without a clock end and without a judged row up to the fifth rung the tooltip states no rule"), UCosmicTopBarWidget::ClockTipOf(0, true, false).ToString(), NoRule);
+	TestEqual(TEXT("Without a clock end the fifth rung's rule still stands"), UCosmicTopBarWidget::ClockTipOf(0, true, true).ToString(), NoRule + TEXT("\n") + RungRule);
+	TestEqual(TEXT("With the end off the fifth rung's rule is not stated"), UCosmicTopBarWidget::ClockTipOf(0, false, true).ToString(), NoRule);
+	TestEqual(TEXT("With both the fifth rung's rule comes first and the clock's last"), UCosmicTopBarWidget::ClockTipOf(EndTick, true, true).ToString(),
+		NoRule + TEXT("\n") + RungRule + TEXT("\n") + Third);
+	TestEqual(TEXT("nor with a knob below 0"), UCosmicTopBarWidget::ClockTipOf(-1, true, false).ToString(), NoRule);
+	TestEqual(TEXT("The bar's clock carries that tooltip"), Bar->GetClockButton() ? Bar->GetClockButton()->GetToolTipText().ToString() : FString(),
+		UCosmicTopBarWidget::ClockTipOf(EndTick, true, CosmicNextRung::HasJudgedRowAt(Sim->GetTables(), EAscensionTier::Tier4_Transcendent)).ToString());
+	// The fifth rung's rule stands on the definitions alone: a judged row from the fourth rung (a Ruler row, one rung up, with
+	// a condition).
+	{
+		const FName FifthFeat(TEXT("feat_test_fifth"));
+		TestFalse(TEXT("The game's tables judge no row up to the fifth rung yet"), CosmicNextRung::HasJudgedRowAt(Sim->GetTables(), EAscensionTier::Tier4_Transcendent));
+		TestTrue(TEXT("a Ruler row from the fourth rung with a condition is one"),
+			CosmicNextRung::HasJudgedRowAt(WithFeat(Sim->GetTables(), FifthFeat, FifthRungRow(EPlayerRole::Ruler, true)), EAscensionTier::Tier4_Transcendent));
+		TestFalse(TEXT("a wanderer's row is not"),
+			CosmicNextRung::HasJudgedRowAt(WithFeat(Sim->GetTables(), FifthFeat, FifthRungRow(EPlayerRole::Wanderer, true)), EAscensionTier::Tier4_Transcendent));
+		TestFalse(TEXT("nor a row without a condition"),
+			CosmicNextRung::HasJudgedRowAt(WithFeat(Sim->GetTables(), FifthFeat, FifthRungRow(EPlayerRole::Ruler, false)), EAscensionTier::Tier4_Transcendent));
+	}
 	// The notice: none before the last EndSoonTicks, then the time left.
 	Bar42.Tick = EndTick - CosmicChronicleScreen::EndSoonTicks - 1;
 	Bar->Refresh();

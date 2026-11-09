@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicAscensionOverlayWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicAscensionOverlayWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicAscensionOverlayWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicAscensionOverlayWidget.cpp
+@@ -80,7 +80,7 @@
+ FCosmicAscensionLook CosmicAscensionOverlay::LookOf(EAscensionTier NewTier)
+ {
+ 	FCosmicAscensionLook Look;
+-	if (NewTier == EAscensionTier::Tier5_EternalOrder)
++	if (NewTier >= EAscensionTier::Tier4_Transcendent)
+ 	{
+ 		// The top of the ladder: no light, no gold, no sound (B6b decision 26).
+ 		Look.bGlow = false;

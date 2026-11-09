@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -953,7 +953,6 @@
+ 				// under way too, until it arrives. Words that promise nothing.
+ 				if (SystemIndex == LethalPlace)
+ 				{
+-					Lines.Add(Label(TEXT("Wander.Lethal")));
+ 				}
+ 				// B6a (header section 4, decision 14): on a settled system of the people the vessel rules as an embodied ruler,
+ 				// that an expiry with no answer could leave a claim here - the screen's answer (CosmicHazards::ClaimMayFollowOf:

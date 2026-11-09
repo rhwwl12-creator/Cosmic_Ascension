@@ -20,6 +20,7 @@ class UTextBlock;
 class UVerticalBox;
 struct FCivilizationState;
 struct FCosmicDataTables;
+struct FCosmicKnownView;
 struct FCosmicRulesDef;
 struct FCosmicStateIndex;
 struct FEdictDef;
@@ -42,7 +43,8 @@ enum class ECosmicEdictTab : uint8
  * shown greyed out, the edicts' tab named with the held edicts and the slots (Edict.Count) - then [Close]:
  * - Edicts: one row per DT_Edicts row (CosmicDataTables::GetEdictRowNames, lexical) of the ruled people's rung or below,
  *   and any it holds: its name, the grey mark of the inherited edict (Edict.Inherited - while the people holds
- *   DT_Rules.StartingEdict, enacted again or not), its Summary and one button - [Revoke] for a held edict, else [Enact]
+ *   DT_Rules.StartingEdict, enacted again or not), the grey mark of a galaxy law (Edict.Wide - CosmicEdicts::IsGalaxyLaw,
+ *   B6b), its Summary and one button - [Revoke] for a held edict, else [Enact]
  *   with the cost, greyed by the first reason of CosmicEdicts::EnactBlockOf (the command's own gate: the short words after
  *   the label, the long words first in the tooltip). The tooltip then says what the edict costs and does (TipOf). Only the
  *   ruled people's edicts are shown.
@@ -55,20 +57,23 @@ enum class ECosmicEdictTab : uint8
  *   holds one or after a person moved one. Before a move the share beside each slider is the share now and the 'would'
  *   line is hidden; three sliders at 0 say that nothing can be shared (Edict.Shares.Zero).
  * - Peoples (B3 header section 4 - the tab Diplomacy.Tab): a head of the fleet (Siege.Fleet - its power and its cap,
- *   CosmicConflict::FleetCapOf; Guard.NoFleet without either - its tooltip how it grows and its upkeep a size), its target
- *   (Guard.Line, Siege.Line with the time left and our side's band, or Guard.Even) with [Withdraw the fleet] while it has
- *   one (its tooltip by the target's kind), and the friendly slots (Diplomacy.Slots - the rung that opens the next in the
- *   tooltip); then one row per people met and shown (FCosmicKnownView::IsMet and ShownOrderOf, in the meeting order - no
- *   transcendent): its name and the band of the view it holds of us (CosmicDiplomacy::ViewOf, ViewBandOf - the terms in
- *   the tooltip, ViewTipOf); Diplomacy.TheyHostile on a line of its own when it is hostile toward us; our three stances
- *   (the one held greyed and marked with Edict.Mark, Diplomacy.TipNow; a refused one greyed with the first reason of
- *   CosmicDiplomacy::StanceBlockOf - the command's gate; the tooltips say what a stance costs and breaks - a trade treaty's
- *   betrayal, our siege of them lifted); the two treaties - [Trade] [Non-aggression] greyed by
- *   CosmicDiplomacy::TreatyBlockOf, the cost and the acceptance bar (TreatyBarOf) in the tooltip, or [Break ...] for one
- *   held; and a line of each siege between us (Siege.Row.Ours, Siege.Row.Theirs). Diplomacy.None with nobody met. Every
- *   press is one command through the controller. The page is redrawn only while it is shown. The live view moves with
- *   the tick: one tooltip tells it, beside the treaties' bar, to a tenth (cut down, never below a bar it reaches - it
- *   agrees with the gate), so an open tooltip seldom closes; the band's tooltip tells the terms, which keep still.
+ *   CosmicConflict::FleetCapOf; Guard.NoFleet without either - its tooltip how it grows and its upkeep a size), its
+ *   target (Guard.Line, Siege.Line with the time left and our side's band, or Guard.Even) with [Withdraw the fleet]
+ *   while it has one (its tooltip by the target's kind), and the friendly slots (Diplomacy.Slots - the rung that opens
+ *   the next in the tooltip - Diplomacy.SlotsAll from the third rung: the fifth rung's slot comes after the run's end);
+ *   then one row per people met and shown (FCosmicKnownView::IsMet and ShownOrderOf, in the meeting order - no
+ *   transcendent): its name, its rung (RungWordsOf - B6b decision 31) and the band of the view it holds of us
+ *   (CosmicDiplomacy::ViewOf, ViewBandOf - the terms in the tooltip, ViewTipOf); Diplomacy.TheyHostile on a line of its
+ *   own when it is hostile toward us; our three stances (the one held greyed and marked with Edict.Mark,
+ *   Diplomacy.TipNow; a refused one greyed with the first reason of CosmicDiplomacy::StanceBlockOf - the command's
+ *   gate; the tooltips say what a stance costs and breaks - a trade treaty's betrayal, our siege of them lifted); the
+ *   two treaties - [Trade] [Non-aggression] greyed by CosmicDiplomacy::TreatyBlockOf, the cost and the acceptance bar
+ *   (TreatyBarOf) in the tooltip, or [Break ...] for one held - both tooltips end with Diplomacy.TreatyRungTip while
+ *   the tables judge a third-rung row that asks a treaty (CosmicNextRung::HasJudgedRowAskingAt, B6b decision 28); and a
+ *   line of each siege between us (Siege.Row.Ours, Siege.Row.Theirs). Diplomacy.None with nobody met. Every press is
+ *   one command through the controller. The page is redrawn only while it is shown. The live view moves with the tick:
+ *   one tooltip tells it, beside the treaties' bar, to a tenth (cut down, never below a bar it reaches - it agrees with
+ *   the gate), so an open tooltip seldom closes; the band's tooltip tells the terms, which keep still.
  * Shown only while open for an embodied ruler in a run that is not over; it closes itself otherwise, and on a new galaxy
  * or a load. Built in C++ (no WBP); redrawn from the simulation's ticks and by the HUD; clicks on it do not reach the map.
  */
@@ -112,6 +117,8 @@ public:
 	const TArray<FName>& GetShownRows() const { return ShownRows; }
 	UCosmicActionButton* GetRowButton(FName Row) const;
 	const UTextBlock* GetRowMark(FName Row) const;
+	/** A row's galaxy-law mark (Edict.Wide - B6b): shown on a CosmicEdicts::IsGalaxyLaw row, collapsed on any other. */
+	const UTextBlock* GetRowWideMark(FName Row) const;
 	/** The gate's answer a row's [Enact] shows (None for an enabled one); unset for a held row and a row not shown. */
 	TOptional<CosmicEdicts::ECosmicEdictBlock> GetShownBlock(FName Row) const;
 	UCosmicActionButton* GetApplyButton() const { return ApplyButton; }
@@ -124,6 +131,8 @@ public:
 	const TArray<FName>& GetShownPeoples() const { return ShownPeoples; }
 	const UWidget* GetPeopleRow(FName CivID) const;
 	const UTextBlock* GetPeopleBand(FName CivID) const;
+	/** A row's rung beside the people's name (RungWordsOf - B6b decision 31). */
+	const UTextBlock* GetPeopleRung(FName CivID) const;
 	const UTextBlock* GetPeopleHostility(FName CivID) const;
 	const UTextBlock* GetPeopleSiege(FName CivID) const;
 	UCosmicActionButton* GetStanceButton(FName CivID, int32 StanceAt) const;
@@ -155,9 +164,11 @@ public:
 	 * over one hundred cycles or years, an ethics axis in words), the fleet's growth and the treaties' acceptance (B3) and
 	 * the pressure's drain (B4 - Edict.Effect.PressureDrain) where they change something, the spawn factors and countdown
 	 * bonuses by hazard (in
-	 * tag order, Edict.TipNewOnly after the bonuses), and for each DT_Hazards row that lists the row among its
-	 * RulerResolutions, Edict.TipAnswers. Built from the row, the tables and the unit alone: the words stay while the
-	 * stockpile moves. Empty for a row the tables do not hold.
+	 * tag order, Edict.TipNewOnly after the bonuses), for a galaxy law (CosmicEdicts::IsGalaxyLaw - B6b) with a spawn or
+	 * countdown line Edict.TipWide under them - what reaches the whole home galaxy and what stays the people's -, and for
+	 * each DT_Hazards row that lists the row among its RulerResolutions, Edict.TipAnswers. Built from the row, the tables
+	 * and the unit alone: the words stay while the stockpile moves. Empty for a row the tables do not hold. The petition
+	 * card's edict tooltip reads it too, so a card choice that enacts a galaxy law carries Edict.TipWide.
 	 */
 	static FText TipOf(const FCosmicDataTables& Tables, FName Row, ECosmicTimeUnit Unit);
 
@@ -209,9 +220,14 @@ public:
 	static FText SiegeSuffixOf(CosmicConflict::ECosmicSiegeBlock Block, bool bAbove = false);
 	/** A number as the window says it: up to two decimals, a plain 0 for anything nearer 0 than 0.005 (never '-0'). */
 	static FText AmountOf(float Value);
-	/** The rung (EAscensionTier's value, 0..4) at which the people's next friendly slot opens: the first above its Tier
-	 * whose DT_Rules.FriendlySlotsByTier entry is more than CosmicDiplomacy::FriendlySlotsOf now; unset when none is. */
+	/** The rung (EAscensionTier's value, 0..3) at which the people's next friendly slot opens: the first above its Tier
+	 * and below the fifth whose DT_Rules.FriendlySlotsByTier entry is more than CosmicDiplomacy::FriendlySlotsOf now; unset
+	 * when none is (the fifth rung's slot comes after the run's end - B6b decision 27). */
 	static TOptional<int32> NextFriendlySlotRungOf(const FCivilizationState& Civ, const FCosmicRulesDef& Rules);
+	/** The rung words beside a people's name on the peoples' page (B6b decision 31): Panel.Tier and the rung (1 to 5) of
+	 * the people CivIndex while the viewer knows it - met (FCosmicKnownView::IsMet) and shown (ShownOrderOf: not one far
+	 * above, rule 14); empty otherwise. Reads the view, never writes Knowing. */
+	static FText RungWordsOf(const FCosmicKnownView& View, const FGalaxyState& State, int32 CivIndex);
 	/** Our side's band of a siege (Siege.Band.* - CosmicConflict::OddsBandOf of the odds read from our side). */
 	static FText OddsWordOf(float OursOdds);
 	/** The time a siege of the people Attacker has left, in ticks (never below 0). */
@@ -287,6 +303,10 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> RowMarks;
 
+	// The galaxy-law marks (Edict.Wide - B6b), one a row.
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> RowWideMarks;
+
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> RowSummaries;
 
@@ -338,6 +358,10 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> PeopleNames;
+
+	// The rung beside each name (B6b decision 31).
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> PeopleRungs;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> PeopleBands;

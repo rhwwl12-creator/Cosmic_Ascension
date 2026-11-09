@@ -26,6 +26,7 @@
 #include "Materials/MaterialParameters.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
+#include "Sim/CosmicSeal.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
@@ -625,7 +626,9 @@ bool FCosmicUISpiritualSightTest::RunTest(const FString& Parameters)
 		System.ActiveHazard = FGameplayTag();
 	}
 	AddInstance(Live, Quiet, { Live.Systems[6].SystemID });
-	AddInstance(Live, Zeal, { Live.Systems[2].SystemID, Live.Systems[3].SystemID }).bSealed = true;
+	// Sealed through the game's one writer (B6b: the binding - CosmicSeal::Bind).
+	AddInstance(Live, Zeal, { Live.Systems[2].SystemID, Live.Systems[3].SystemID });
+	TestTrue(TEXT("(the binding's writer seals the zeal)"), CosmicSeal::Bind(Live, Live.Transcendents.Num() - 1, Live.Tick));
 	Live.Civs[RuledIndex].Tier = EAscensionTier::Tier1_Planetary;
 	// The whole board known (Phase 3 item 8): the sight draws only what the viewer knows (UI.KnownFilter holds that).
 	CosmicTests::KnowAll(Live);
@@ -771,6 +774,22 @@ bool FCosmicUISpiritualSightTest::RunTest(const FString& Parameters)
 		}
 		TestEqual(TEXT("The sight's sky is quiet"), Map->GetSkyIntensity(), 1.f);
 		TestEqual(TEXT("and the sky's instance holds SpiritualIntensity 1"), SkyValue(), 1.f);
+
+		// B6b decision 32: a bound system's words are what the fallen one held before the binding - never the word of a seal
+		// or of binding on the panel.
+		if (UCosmicSystemPanelWidget* HudPanel = HUD->GetSystemPanel(); TestNotNull(TEXT("(the HUD has its system panel)"), HudPanel) && ZealRow)
+		{
+			Controller->SelectSystem(Live.Systems[2].SystemID);
+			HudPanel->Refresh();
+			const UTextBlock* Mark = HudPanel->GetMarkText();
+			TestEqual(TEXT("A bound system's mark says what the fallen one held before the binding"), Mark ? Mark->GetText().ToString() : FString(),
+				FText::FormatNamed(CosmicUI::Label(TEXT("Sight.Bound")), TEXT("Transcendent"), ZealRow->Title).ToString());
+			const FString PanelWords = CosmicTests::ReadTexts(*HudPanel) + (Mark ? Mark->GetToolTipText().ToString() : FString())
+				+ (HudPanel->GetDetailText() ? HudPanel->GetDetailText()->GetToolTipText().ToString() : FString());
+			TestFalse(TEXT("No word of a seal on the panel"), PanelWords.Contains(TEXT("\uBD09\uC778")));
+			TestFalse(TEXT("nor of binding"), PanelWords.Contains(TEXT("\uACB0\uBC15")));
+			Controller->SelectSystem(NAME_None);
+		}
 
 		// A setter marks the map; the next frame draws.
 		int32 Announced = 0;

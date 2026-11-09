@@ -8,9 +8,13 @@
 #include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
+#include "Data/CosmicRowNames.h"
 #include "Events/CosmicEventSubsystem.h"
 #include "Math/UnrealMathUtility.h"
+#include "Sim/CosmicDiplomacy.h"
+#include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicMegaprojects.h"
+#include "Sim/CosmicSeal.h"
 #include "Sim/CosmicStateIndex.h"
 #include "UI/CosmicUILabels.h"
 
@@ -26,7 +30,13 @@ namespace CosmicNextRungImpl
 		return CosmicUI::Percent(static_cast<float>(Whole) / 100.f);
 	}
 
-	FText PartsText(const FCosmicNextRung& Next, const FCosmicDataTables& Tables);
+	FText PartsText(const FCosmicNextRung& Next, const FCosmicDataTables& Tables, ECosmicTimeUnit Unit);
+
+	// Whether a part of Next counts held galaxy laws: the tooltip then ends with Rung.LawsReset.
+	bool HasLawsPart(const FCosmicNextRung& Next)
+	{
+		return Next.Parts.ContainsByPredicate([](const FCosmicRungPart& Part) { return Part.Kind == ECosmicRungPartKind::Laws; });
+	}
 }
 
 bool FCosmicNextRung::AllMet() const
@@ -156,6 +166,23 @@ TArray<FCosmicNextRung> CosmicNextRung::AllOf(const FGalaxyState& State, const F
 						}
 					}
 				}
+				if (Condition.Key == CosmicRows::ProjectBinding && !Part.bMet)
+				{
+					// Closed in this run: no fallen one left to bind, and no system holds this life's completion - a
+					// completion on a system the people lost can be taken back (decision 14), so every system is read, and such a
+					// completion reads as lost rather than not started.
+					bool bAnyRecord = false;
+					for (const FStarSystemState& System : State.Systems)
+					{
+						if (CosmicMegaprojects::HasCompleted(System, Condition.Key, View.SinceTick, Civ.CivID))
+						{
+							bAnyRecord = true;
+							break;
+						}
+					}
+					Part.bClosed = CosmicSeal::BindTargetOf(State, Tables) == INDEX_NONE && !bAnyRecord;
+					Part.bLost = bAnyRecord;
+				}
 			}
 			else if (Condition.Type == EConditionType::CivResearchAtLeast && ResearchLabelKey(Condition.Key))
 			{
@@ -169,6 +196,25 @@ TArray<FCosmicNextRung> CosmicNextRung::AllOf(const FGalaxyState& State, const F
 				Part.Kind = ECosmicRungPartKind::Realm;
 				Part.Progress = static_cast<float>(Settled.Num());
 				Part.Needed = Condition.Value;
+			}
+			else if (Condition.Type == EConditionType::CivHasTreaty)
+			{
+				// The evaluator's own count: the peoples sharing the treaty (any treaty for an empty Tag).
+				Part.Kind = ECosmicRungPartKind::Treaty;
+				Part.Progress = static_cast<float>(CosmicDiplomacy::TreatyPartnersOf(Civ, Condition.Tag));
+				Part.Needed = Condition.Value;
+			}
+			else if (Condition.Type == EConditionType::CivLawsHeldTicksAtLeast)
+			{
+				Part.Kind = ECosmicRungPartKind::Laws;
+				Part.Progress = static_cast<float>(CosmicEdicts::GalaxyLawCountOf(Civ, Tables));
+				Part.Needed = static_cast<float>(CosmicEdicts::GalaxyLawsToHoldOf(Rules));
+				// Every law held: the ticks still to hold within this life, as the evaluator counts them.
+				const int32 Ticks = CosmicConditions::TickCountOf(Condition.Key);
+				if (Part.Progress >= Part.Needed && !Part.bMet && Ticks > 0)
+				{
+					Part.TicksLeft = FMath::Max<int64>(0, Ticks - FMath::Min<int64>(Civ.LawsHeldTicks, State.Tick - View.SinceTick));
+				}
 			}
 			else
 			{
@@ -186,7 +232,7 @@ FCosmicNextRung CosmicNextRung::Of(const FGalaxyState& State, const FCosmicState
 }
 
 // The parts of one row as TextOf joins them inside Rung.Next.
-FText CosmicNextRungImpl::PartsText(const FCosmicNextRung& Next, const FCosmicDataTables& Tables)
+FText CosmicNextRungImpl::PartsText(const FCosmicNextRung& Next, const FCosmicDataTables& Tables, ECosmicTimeUnit Unit)
 {
 	using CosmicUI::Label;
 
@@ -203,6 +249,14 @@ FText CosmicNextRungImpl::PartsText(const FCosmicNextRung& Next, const FCosmicDa
 			if (Part.bMet)
 			{
 				Status = Label(TEXT("Rung.Done"));
+			}
+			else if (Part.bClosed)
+			{
+				Status = Label(TEXT("Rung.NoFallen"));
+			}
+			else if (Part.bLost)
+			{
+				Status = Label(TEXT("Rung.Lost"));
 			}
 			else if (Part.Progress >= 0.f)
 			{
@@ -229,6 +283,16 @@ FText CosmicNextRungImpl::PartsText(const FCosmicNextRung& Next, const FCosmicDa
 		{
 			Named.Add(FText::Format(Label(TEXT("Rung.Realm")), CosmicUI::WholeNumber(Part.Progress), CosmicUI::WholeNumber(Part.Needed)));
 		}
+		else if (Part.Kind == ECosmicRungPartKind::Treaty)
+		{
+			Named.Add(FText::Format(Label(TEXT("Rung.Treaty")), CosmicUI::WholeNumber(Part.Progress), CosmicUI::WholeNumber(Part.Needed)));
+		}
+		else if (Part.Kind == ECosmicRungPartKind::Laws)
+		{
+			Named.Add(Part.TicksLeft > 0
+				? FText::Format(Label(TEXT("Rung.LawsLeft")), CosmicUI::WholeNumber(Part.Progress), CosmicUI::WholeNumber(Part.Needed), CosmicUI::DurationLabel(Part.TicksLeft, Unit))
+				: FText::Format(Label(TEXT("Rung.Laws")), CosmicUI::WholeNumber(Part.Progress), CosmicUI::WholeNumber(Part.Needed)));
+		}
 		else
 		{
 			bAnyOther = true;
@@ -245,27 +309,46 @@ FText CosmicNextRungImpl::PartsText(const FCosmicNextRung& Next, const FCosmicDa
 
 FText CosmicNextRung::TextOf(const FCosmicNextRung& Next, const FCosmicDataTables& Tables)
 {
+	return TextOf(Next, Tables, ECosmicTimeUnit::Cycle);
+}
+
+FText CosmicNextRung::TextOf(const FCosmicNextRung& Next, const FCosmicDataTables& Tables, ECosmicTimeUnit Unit)
+{
 	if (Next.FeatRow.IsNone())
 	{
 		return FText::GetEmpty();
 	}
-	return FText::Format(CosmicUI::Label(TEXT("Rung.Next")), CosmicNextRungImpl::PartsText(Next, Tables));
+	const FText Text = FText::Format(CosmicUI::Label(TEXT("Rung.Next")), CosmicNextRungImpl::PartsText(Next, Tables, Unit));
+	// What breaks the count of held laws, once, as the last line.
+	return CosmicNextRungImpl::HasLawsPart(Next) ? FText::Format(INVTEXT("{0}\n{1}"), Text, CosmicUI::Label(TEXT("Rung.LawsReset"))) : Text;
 }
 
 FText CosmicNextRung::TextOfAll(const TArray<FCosmicNextRung>& Rungs, const FCosmicDataTables& Tables)
+{
+	return TextOfAll(Rungs, Tables, ECosmicTimeUnit::Cycle);
+}
+
+FText CosmicNextRung::TextOfAll(const TArray<FCosmicNextRung>& Rungs, const FCosmicDataTables& Tables, ECosmicTimeUnit Unit)
 {
 	using CosmicUI::Label;
 
 	if (Rungs.Num() <= 1)
 	{
-		return Rungs.IsEmpty() ? FText::GetEmpty() : TextOf(Rungs[0], Tables);
+		return Rungs.IsEmpty() ? FText::GetEmpty() : TextOf(Rungs[0], Tables, Unit);
 	}
 	FString Text = Label(TEXT("Rung.NextAny")).ToString();
+	bool bAnyLaws = false;
 	for (const FCosmicNextRung& Next : Rungs)
 	{
 		const FAscensionFeatDef* Feat = Tables.FindFeat(Next.FeatRow);
 		const FText Title = (Feat && !Feat->Title.IsEmpty()) ? Feat->Title : FText::AsCultureInvariant(Next.FeatRow.ToString());
-		Text += TEXT("\n") + FText::Format(Label(TEXT("Rung.Row")), Title, CosmicNextRungImpl::PartsText(Next, Tables)).ToString();
+		Text += TEXT("\n") + FText::Format(Label(TEXT("Rung.Row")), Title, CosmicNextRungImpl::PartsText(Next, Tables, Unit)).ToString();
+		bAnyLaws = bAnyLaws || CosmicNextRungImpl::HasLawsPart(Next);
+	}
+	// Once for every row, after the last.
+	if (bAnyLaws)
+	{
+		Text += TEXT("\n") + Label(TEXT("Rung.LawsReset")).ToString();
 	}
 	return FText::AsCultureInvariant(Text);
 }
@@ -284,6 +367,32 @@ TArray<FCosmicRungPart> CosmicNextRung::ResearchFieldsOf(const TArray<FCosmicNex
 		}
 	}
 	return Fields;
+}
+
+bool CosmicNextRung::HasJudgedRowAt(const FCosmicDataTables& Tables, EAscensionTier Tier)
+{
+	for (const FName FeatRow : Tables.GetFeatRowNames())
+	{
+		const FAscensionFeatDef* Feat = Tables.FindFeat(FeatRow);
+		if (Feat && Feat->IsJudgedRulerRowAt(Tier))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool CosmicNextRung::HasJudgedRowAskingAt(const FCosmicDataTables& Tables, EAscensionTier Tier, EConditionType Type)
+{
+	for (const FName FeatRow : Tables.GetFeatRowNames())
+	{
+		const FAscensionFeatDef* Feat = Tables.FindFeat(FeatRow);
+		if (Feat && Feat->IsJudgedRulerRowAt(Tier) && Feat->CarriesCondition(Type))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 int32 CosmicNextRung::WholePercent(float Share)

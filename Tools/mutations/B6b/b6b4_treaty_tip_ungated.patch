@@ -1,0 +1,13 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1448,8 +1448,7 @@
+ 	ShownTreatyBlocks.SetNum(ShownPeoples.Num() * 2);
+ 	const FText Upkeep = Amount(Rules.FriendlyUpkeepInfluence);
+ 	// A treaty is a part of the next rung while a judged third-rung row asks one (B6b decision 28): definitions only.
+-	const FText TreatyRungTip = CosmicNextRung::HasJudgedRowAskingAt(Tables, EAscensionTier::Tier3_Causal, EConditionType::CivHasTreaty)
+-		? Label(TEXT("Diplomacy.TreatyRungTip")) : FText::GetEmpty();
++	const FText TreatyRungTip = Label(TEXT("Diplomacy.TreatyRungTip"));
+ 	for (int32 At = 0; At < Wanted.Num(); ++At)
+ 	{
+ 		const int32 Other = Wanted[At];

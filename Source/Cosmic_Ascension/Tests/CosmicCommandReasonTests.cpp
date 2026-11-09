@@ -26,6 +26,7 @@
 #include "Player/PlayerRoleSubsystem.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
+#include "Sim/CosmicSeal.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Styling/SlateColor.h"
@@ -205,7 +206,8 @@ namespace CosmicCommandReasonTests
 // Why a project button is greyed (Phase 3 item 12, guideline 5.7, 6.3): the words of every reason, which rows belong on a
 // system and in which order, the cost line of every command button (the settle button too), a pressed construction that
 // stays greyed with its reason, the replacement warning, the answers under their hazard and hidden under another, the
-// year unit, a tooltip that a tick does not rebuild, the game's stabilization under a supernova, and the labels.
+// year unit, a tooltip that a tick does not rebuild, the game's stabilization under a supernova, the binding's hint (B6b
+// decision 28: the fallen one's title in the spiritual view, none in the physical view or with none left), and the labels.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicUIStartReasonsTest, "Cosmic_Ascension.UI.StartReasons", CosmicTests::Flags)
 bool FCosmicUIStartReasonsTest::RunTest(const FString& Parameters)
 {
@@ -529,6 +531,55 @@ bool FCosmicUIStartReasonsTest::RunTest(const FString& Parameters)
 		Live.Civs[Ruled].Tier = EAscensionTier::Tier1_Planetary;
 	}
 
+	// ---- 10b. The binding's hint (B6b decision 28): which fallen one it would hold, in the spiritual view only ----
+	{
+		FCosmicDataTables BindTables = Tables;
+		UDataTable* Projects = CosmicTests::CopyWithout<FMegaprojectDef>(Tables.Megaprojects, {});
+		Projects->AddRow(CosmicRows::ProjectBinding, Project(EAscensionTier::Tier4_Transcendent, 10.f, 0.f, 1.0e6f, TEXT("binding")));
+		BindTables.Megaprojects = Projects;
+		Sim->SetTables(BindTables);
+		const TArray<FTranscendentState> SavedTranscendents = Live.Transcendents;
+		const int32 Target = CosmicSeal::BindTargetOf(Live, BindTables);
+		const FTranscendentDef* Fallen = Live.Transcendents.IsValidIndex(Target) ? BindTables.FindTranscendent(Live.Transcendents[Target].TranscendentID) : nullptr;
+		if (TestNotNull(TEXT("(the galaxy has a fallen one to bind, with its row)"), Fallen))
+		{
+			const FString Hint = FText::FormatNamed(CosmicUI::Label(TEXT("Start.BindHint")), TEXT("Transcendent"), Fallen->Title).ToString();
+			// The words after the title: a piece of the hint that names no one.
+			const FString HintTail = Hint.Right(Hint.Len() / 2);
+			Live.Civs[Ruled].Tier = EAscensionTier::Tier3_Causal;
+			Controller->SetWantedViewMode(ECosmicViewMode::Spiritual);
+			Panel->ShowSystem(Home);
+			TestTrue(TEXT("(the view drawn is spiritual)"), ACosmicPlayerController::ShownViewModeFor(*Panel) == ECosmicViewMode::Spiritual);
+			const UCosmicActionButton* BindButton = ButtonOf(*Panel, CosmicRows::ProjectBinding);
+			TestTrue(TEXT("On the third rung the binding stands greyed for the rung"), BindButton && !BindButton->GetIsEnabled()
+				&& Panel->GetShownStartBlock(CosmicRows::ProjectBinding) == ECosmicStartBlock::RowTier);
+			TestTrue(TEXT("its tooltip names the fallen one it would hold"), TipOf(*Panel, CosmicRows::ProjectBinding).Contains(Hint));
+			TestFalse(TEXT("another construction's does not"), TipOf(*Panel, Build).Contains(HintTail));
+			Controller->SetWantedViewMode(ECosmicViewMode::Physical);
+			Panel->Refresh();
+			TestTrue(TEXT("(the view drawn is physical)"), ACosmicPlayerController::ShownViewModeFor(*Panel) == ECosmicViewMode::Physical);
+			TestTrue(TEXT("(the binding still stands)"), ButtonOf(*Panel, CosmicRows::ProjectBinding) != nullptr);
+			TestFalse(TEXT("In the physical view its tooltip names no one"), TipOf(*Panel, CosmicRows::ProjectBinding).Contains(HintTail));
+			Controller->SetWantedViewMode(ECosmicViewMode::Spiritual);
+			// Every fallen one bound: NoFallen, and no hint.
+			for (FTranscendentState& Transcendent : Live.Transcendents)
+			{
+				Transcendent.bSealed = true;
+			}
+			Live.Civs[Ruled].Tier = EAscensionTier::Tier4_Transcendent;
+			Panel->Refresh();
+			TestTrue(TEXT("With every fallen one bound the binding is NoFallen"), Panel->GetShownStartBlock(CosmicRows::ProjectBinding) == ECosmicStartBlock::NoFallen);
+			const UCosmicActionButton* Closed = ButtonOf(*Panel, CosmicRows::ProjectBinding);
+			TestTrue(TEXT("its label says so"), Closed && Closed->GetLabel().ToString().Contains(Words(TEXT("Start.Suffix.NoFallen"))));
+			const FString ClosedTip = TipOf(*Panel, CosmicRows::ProjectBinding);
+			TestTrue(TEXT("its tooltip starts with the reason"), ClosedTip.StartsWith(Words(TEXT("Start.Block.NoFallen")), ESearchCase::CaseSensitive));
+			TestFalse(TEXT("and names no one"), ClosedTip.Contains(HintTail));
+		}
+		Live.Transcendents = SavedTranscendents;
+		Live.Civs[Ruled].Tier = EAscensionTier::Tier1_Planetary;
+		Sim->SetTables(Tables);
+	}
+
 	// ---- 11. The labels ----
 	{
 		Panel->ShowSystem(Home);
@@ -538,7 +589,7 @@ bool FCosmicUIStartReasonsTest::RunTest(const FString& Parameters)
 			TEXT("Start.Suffix.RowTier"), TEXT("Start.Suffix.NoFallen"), TEXT("Start.Suffix.Answering"), TEXT("Start.Suffix.ResponseBusy"), TEXT("Start.Suffix.Running"),
 			TEXT("Start.CostPerCycle"), TEXT("Start.CostPerYear"), TEXT("Start.Free"), TEXT("Start.AnswersFirst"), TEXT("Start.Replaces"),
 			TEXT("Panel.Stalled"), TEXT("Speed.ThirdRungTip"), TEXT("Panel.Start"), TEXT("Resource.Energy"), TEXT("Resource.Matter"),
-			TEXT("List.Pair"), TEXT("Settle.Block.Owned"), TEXT("Settle.Block.Sphere") })
+			TEXT("List.Pair"), TEXT("Settle.Block.Owned"), TEXT("Settle.Block.Sphere"), TEXT("Start.BindHint") })
 		{
 			TestFalse(*FString::Printf(TEXT("%s is no missing String Table entry"), Key), Words(Key).Contains(Placeholder));
 			TestFalse(*FString::Printf(TEXT("%s has words"), Key), Words(Key).IsEmpty());

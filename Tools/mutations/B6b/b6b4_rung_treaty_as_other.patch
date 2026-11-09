@@ -1,0 +1,17 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp b/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicNextRung.cpp
+@@ -195,13 +195,6 @@
+ 				Part.Progress = static_cast<float>(Settled.Num());
+ 				Part.Needed = Condition.Value;
+ 			}
+-			else if (Condition.Type == EConditionType::CivHasTreaty)
+-			{
+-				// The evaluator's own count: the peoples sharing the treaty (any treaty for an empty Tag).
+-				Part.Kind = ECosmicRungPartKind::Treaty;
+-				Part.Progress = static_cast<float>(CosmicDiplomacy::TreatyPartnersOf(Civ, Condition.Tag));
+-				Part.Needed = Condition.Value;
+-			}
+ 			else if (Condition.Type == EConditionType::CivLawsHeldTicksAtLeast)
+ 			{
+ 				Part.Kind = ECosmicRungPartKind::Laws;
