@@ -46,6 +46,10 @@ struct FCosmicWandererPolicyCounts
 	TMap<FName, int32> CardsByRow;
 	TMap<FName, int32> AnswersByRow;
 	TMap<FName, int32> WithdrawnByRow;
+	// B6b ([B-6b8] - the race line's witness split, notes section 2.1): the accepted answers whose choice has no check
+	// (CheckStat NoCheck - the step back), by card row; the others among AnswersByRow went through a check (FailedByRow the
+	// failed ones). Measurement only: not saved, not hashed, read by no play.
+	TMap<FName, int32> NoCheckByRow;
 	// B5: the last throne taken, and its way (the calling line's throne after a succession).
 	int64 LastCrownedAt = -1;
 	const TCHAR* LastCrownedPath = TEXT("none");

@@ -2756,10 +2756,10 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("(the walk finds a death on the awakening's branch side)"), KillPlayersOf(Moved).Contains(TEXT("DT_Hazards.crisis_ai_awakening.OnExpireBranchEffects Death.Hazard")));
 	}
 	// B6b [B-6b3b] (header section 5.1, decision 34): CosmicTests::WithoutB6bData, the data-off side of B6b's pairs
-	// (-WithoutB6bData=1) and, with WithoutDeath, a test's world without death. (1) Today's data holds eight of B6b's ten rows,
-	// the passage by the ark, the ark, project_binding and the extinction ([B-6b6]), the feat of the laws and the binding
-	// and the three galaxy laws ([B-6b7]): the helper takes exactly them, in its order (a tripwire - [B-6b8] brings its rows
-	// and updates it). (2) On a full copy - a
+	// (-WithoutB6bData=1) and, with WithoutDeath, a test's world without death. (1) Today's data holds the ten: the passage by
+	// the ark, the ark, project_binding and the extinction ([B-6b6]), the feat of the laws and the binding and the three galaxy
+	// laws ([B-6b7]), the era's row and the witness ([B-6b8]): the helper takes exactly them, in its order (a tripwire - a
+	// row of the ten that leaves the data, or a name of the helper that no longer finds its row, breaks it). (2) On a full copy - a
 	// stand-in row for each of the ten (the extinction with Hazard.Extinction, the three laws of the galaxy's scope) and its
 	// two knobs on: the ten are taken out and nothing else (mutations: the binding or the extinction kept, another row taken),
 	// the knobs are off and every other field of the rules is the copy's (mutations: the knobs kept; the rules from the C++
@@ -2774,9 +2774,7 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		auto Names = [](const TArray<FName>& Rows) { return FString::JoinBy(Rows, TEXT(" "), [](FName Row) { return Row.ToString(); }); };
 		TArray<FName> Today;
 		CosmicTests::WithoutB6bData(Game, &Today);
-		TestTrue(*FString::Printf(TEXT("Today's data: WithoutB6bData takes out [B-6b6]'s and [B-6b7]'s rows and project_binding (taken: %s) - [B-6b8] updates this pin with its rows"), *Names(Today)),
-			Today == TArray<FName>{ CosmicB6bRows::FeatPassageByArk, CosmicB6bRows::FeatLawsAndBinding, CosmicB6bRows::ProjectArk, CosmicRows::ProjectBinding,
-				CosmicB6bRows::CrisisSpeciesExtinction, CosmicB6bRows::EdictWideMachineAccord, CosmicB6bRows::EdictWideQuarantine, CosmicB6bRows::EdictWideWarning });
+		TestTrue(*FString::Printf(TEXT("Today's data holds all ten of B6b's rows: WithoutB6bData takes out exactly them (taken: %s)"), *Names(Today)), Today == Ten);
 
 		// The full copy.
 		FCosmicRulesDef FullRules = *Game.FindRules();

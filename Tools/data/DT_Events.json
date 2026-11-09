@@ -415,5 +415,45 @@
 		"Severity": 1,
 		"MinTierToReveal": 0,
 		"SignRow": "None"
+	},
+	{
+		"Name": "event_era_endured",
+		"Category": "Event.Civ.Society",
+		"LogCategory": "Log.Civ",
+		"Trigger": "Standing",
+		"Subject": "Civilization",
+		"Conditions": [
+			{
+				"Type": "SystemOwnedBy",
+				"Tag": "",
+				"Key": "Ruled",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivPressureEnduredTicksReached",
+				"Tag": "",
+				"Key": "600",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 0.0,
+		"CooldownTicks": 0,
+		"Effects": [
+			{
+				"Type": "ChangeReverence",
+				"Tag": "",
+				"Key": "Borders",
+				"Value": 0.2,
+				"DurationTicks": 0
+			}
+		],
+		"LogTemplates": [
+			"{Civ}의 백성이 이 시대를 '물레의 시대'라 부르기 시작했다.",
+			"{Civ}의 백성이 이 시대를 '장독의 시대'라 부르기 시작했다.",
+			"{Civ}의 백성이 이 시대를 '느린 수레의 시대'라 부르기 시작했다."
+		],
+		"Severity": 1,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
 	}
 ]

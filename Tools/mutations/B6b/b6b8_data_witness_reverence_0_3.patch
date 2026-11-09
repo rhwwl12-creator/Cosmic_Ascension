@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_Encounters.json b/Tools/data/DT_Encounters.json
+--- a/Tools/data/DT_Encounters.json
++++ b/Tools/data/DT_Encounters.json
+@@ -1724,7 +1724,7 @@
+ 						"Type": "ChangeReverence",
+ 						"Tag": "",
+ 						"Key": "None",
+-						"Value": 0.1,
++						"Value": 0.3,
+ 						"DurationTicks": 0
+ 					}
+ 				],

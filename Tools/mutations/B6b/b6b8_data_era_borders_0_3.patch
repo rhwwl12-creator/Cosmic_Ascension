@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_Events.json b/Tools/data/DT_Events.json
+--- a/Tools/data/DT_Events.json
++++ b/Tools/data/DT_Events.json
+@@ -443,7 +443,7 @@
+ 				"Type": "ChangeReverence",
+ 				"Tag": "",
+ 				"Key": "Borders",
+-				"Value": 0.2,
++				"Value": 0.3,
+ 				"DurationTicks": 0
+ 			}
+ 		],

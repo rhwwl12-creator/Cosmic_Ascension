@@ -1,0 +1,13 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+@@ -68,8 +68,8 @@
+ 			break;
+ 		}
+ 		// B6b [B-6b8]: whether the choice taken (the one of the count of answers, as above) has no check - the step back.
++		Counts.Answers += (Taken.Outcome == ECosmicPetitionOutcome::Withdrawn) ? 0 : 1;
+ 		const bool bNoCheck = Row->Choices[Counts.Answers % Row->Choices.Num()].CheckStat == ECosmicCheckStat::NoCheck;
+-		Counts.Answers += (Taken.Outcome == ECosmicPetitionOutcome::Withdrawn) ? 0 : 1;
+ 		if (Taken.Outcome == ECosmicPetitionOutcome::Withdrawn)
+ 		{
+ 			++Counts.WithdrawnByRow.FindOrAdd(Card);

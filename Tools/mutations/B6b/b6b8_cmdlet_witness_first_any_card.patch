@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp b/Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp
+--- a/Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp
++++ b/Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp
+@@ -2951,7 +2951,7 @@
+ 				}
+ 				const int32 RaceWitnessCardsCame = WandererCounts.CardsByRow.FindRef(CosmicB6bRows::EncWitness) - RaceWitnessCardsBefore;
+ 				Race.WitnessCardsByRecord += bEndedBefore ? 0 : RaceWitnessCardsCame;
+-				Race.WitnessFirst = (Race.WitnessFirst < 0 && RaceWitnessCardsCame > 0) ? State.Tick : Race.WitnessFirst;
++				Race.WitnessFirst = (Race.WitnessFirst < 0 && WandererCounts.Cards > 0) ? State.Tick : Race.WitnessFirst;
+ 				for (int32 Index = State.Log.Num() - 1; Index >= 0 && State.Log[Index].Tick > TickBefore; --Index)
+ 				{
+ 					if (State.Log[Index].SourceRow == CosmicB6bRows::EventEraEndured)

@@ -67,6 +67,8 @@ void CosmicWandererPolicy::Act(const FCosmicWandererPolicy& Policy, UGalaxySimul
 		{
 			break;
 		}
+		// B6b [B-6b8]: whether the choice taken (the one of the count of answers, as above) has no check - the step back.
+		const bool bNoCheck = Row->Choices[Counts.Answers % Row->Choices.Num()].CheckStat == ECosmicCheckStat::NoCheck;
 		Counts.Answers += (Taken.Outcome == ECosmicPetitionOutcome::Withdrawn) ? 0 : 1;
 		if (Taken.Outcome == ECosmicPetitionOutcome::Withdrawn)
 		{
@@ -79,6 +81,10 @@ void CosmicWandererPolicy::Act(const FCosmicWandererPolicy& Policy, UGalaxySimul
 		if (Taken.Outcome == ECosmicPetitionOutcome::Failed)
 		{
 			++Counts.FailedByRow.FindOrAdd(Card);
+		}
+		if (bNoCheck && Taken.Outcome != ECosmicPetitionOutcome::Withdrawn)
+		{
+			++Counts.NoCheckByRow.FindOrAdd(Card);
 		}
 		if (!State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow != Card)
 		{

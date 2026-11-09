@@ -30,9 +30,9 @@ namespace CosmicB6bRows
 	inline const FName EdictWideQuarantine(TEXT("edict_wide_quarantine"));
 	inline const FName EdictWideWarning(TEXT("edict_wide_warning"));
 
-	// DT_Events: the era of the endured pressure - [B-6b8].
+	// DT_Events: the era of the endured pressure - in the data from [B-6b8].
 	inline const FName EventEraEndured(TEXT("event_era_endured"));
 
-	// DT_Encounters: the wanderer's witness - [B-6b8].
+	// DT_Encounters: the wanderer's witness - in the data from [B-6b8].
 	inline const FName EncWitness(TEXT("enc_witness"));
 }

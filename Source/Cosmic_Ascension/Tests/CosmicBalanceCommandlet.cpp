@@ -641,11 +641,13 @@ namespace
 		bool bVesselBinderAtT5 = false;
 		int32 VesselLeftBeforeT5 = -1;
 		// #156 and #141: the era's lines (event_era_endured - the whole run, by the record, the first), and the witness cards
-		// come by the record (the wanderer policy's own count by row; the whole run's are read from its maps).
+		// come by the record (the wanderer policy's own count by row; the whole run's are read from its maps) and the boundary
+		// the first came at ([B-6b8] - W of a pair's bridge: the policy counts a card while the vessel walks, -Wander or not).
 		int32 EraLines = 0;
 		int32 EraLinesByRecord = 0;
 		int64 EraFirst = -1;
 		int32 WitnessCardsByRecord = 0;
+		int64 WitnessFirst = -1;
 		// #122: the boundaries the crown gate would refuse the wanderer with FarAbove where it stands (read before its input, at a
 		// boundary the wanderer policy asks the gate - with -PastEnd=0 the count stops before the record's own boundary, where
 		// the policy already stops), the first, the returns among them, and the peoples.
@@ -2947,7 +2949,9 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 							&& !CosmicDiplomacy::AsksForTreatyOf(State, StateIndex, Sim->GetTables(), RulesNow, OtherIndex)) ? 1 : 0;
 					}
 				}
-				Race.WitnessCardsByRecord += bEndedBefore ? 0 : WandererCounts.CardsByRow.FindRef(CosmicB6bRows::EncWitness) - RaceWitnessCardsBefore;
+				const int32 RaceWitnessCardsCame = WandererCounts.CardsByRow.FindRef(CosmicB6bRows::EncWitness) - RaceWitnessCardsBefore;
+				Race.WitnessCardsByRecord += bEndedBefore ? 0 : RaceWitnessCardsCame;
+				Race.WitnessFirst = (Race.WitnessFirst < 0 && RaceWitnessCardsCame > 0) ? State.Tick : Race.WitnessFirst;
 				for (int32 Index = State.Log.Num() - 1; Index >= 0 && State.Log[Index].Tick > TickBefore; --Index)
 				{
 					if (State.Log[Index].SourceRow == CosmicB6bRows::EventEraEndured)
@@ -3923,7 +3927,11 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				const int32 WitnessCards = WandererCounts.CardsByRow.FindRef(CosmicB6bRows::EncWitness);
 				const int32 WitnessFailed = WandererCounts.FailedByRow.FindRef(CosmicB6bRows::EncWitness);
 				const int32 WitnessWithdrawn = WandererCounts.WithdrawnByRow.FindRef(CosmicB6bRows::EncWitness);
-				const int32 WitnessSucceeded = WandererCounts.AnswersByRow.FindRef(CosmicB6bRows::EncWitness) - WitnessFailed;
+				// [B-6b8] (notes section 2.1, the witness's success, failure and step back): the answers split into those that went
+				// through the check (passed or failed) and those of the choice without one.
+				const int32 WitnessAnswered = WandererCounts.AnswersByRow.FindRef(CosmicB6bRows::EncWitness);
+				const int32 WitnessNoCheck = WandererCounts.NoCheckByRow.FindRef(CosmicB6bRows::EncWitness);
+				const int32 WitnessPassed = WitnessAnswered - WitnessFailed - WitnessNoCheck;
 				int32 StandingClaims = 0;
 				for (const FRaceClaimRow& Claim : RaceClaimRows)
 				{
@@ -3983,8 +3991,9 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 					Race.VesselLeftBeforeT5));
 				Parts.Add(FString::Printf(TEXT("#162 other order %s shown %d once ruled %d"), bOther ? *RaceNameOf(Race.FifthCivID) : TEXT("-"), bOther ? Race.OtherShown : -1,
 					bOther ? Race.OtherOnceRuled : -1));
-				Parts.Add(FString::Printf(TEXT("era lines %d (by the record %d, first at %lld), witness cards %d (by the record %d; succeeded %d, failed %d, withdrawn %d)"), Race.EraLines,
-					Race.EraLinesByRecord, Race.EraFirst, WitnessCards, Race.WitnessCardsByRecord, WitnessSucceeded, WitnessFailed, WitnessWithdrawn));
+				Parts.Add(FString::Printf(TEXT("era lines %d (by the record %d, first at %lld), witness cards %d (first at %lld, by the record %d; answered %d: by the check %d, failed %d, without a check %d; gone before the answer %d)"),
+					Race.EraLines, Race.EraLinesByRecord, Race.EraFirst, WitnessCards, Race.WitnessFirst, Race.WitnessCardsByRecord, WitnessAnswered, WitnessPassed, WitnessFailed,
+					WitnessNoCheck, WitnessWithdrawn));
 				Parts.Add(FString::Printf(TEXT("crown refused far above %d (first at %lld, returns %d, peoples %d)"), Race.CrownFarAbove, Race.CrownFarAboveFirst,
 					Race.CrownFarAboveReturns, Race.CrownFarAbovePeoples.Num()));
 				Parts.Add(FString::Printf(TEXT("#132 by the record: guarded at the row's cap by tag [%s], guarded ends by tag [%s], ruled unguarded ends by tag [%s]"),

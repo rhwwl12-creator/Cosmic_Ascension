@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_Encounters.json b/Tools/data/DT_Encounters.json
+--- a/Tools/data/DT_Encounters.json
++++ b/Tools/data/DT_Encounters.json
+@@ -1709,7 +1709,7 @@
+ 		"BaseWeight": 1.0,
+ 		"Choices": [
+ 			{
+-				"Label": "그늘의 가장자리를 재어 둔다",
++				"Label": "그늘의 가장자리를 재어 증언해 둔다",
+ 				"CheckStat": "Mind",
+ 				"Difficulty": 3,
+ 				"Cost": {

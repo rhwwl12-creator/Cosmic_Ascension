@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+@@ -82,7 +82,7 @@
+ 		{
+ 			++Counts.FailedByRow.FindOrAdd(Card);
+ 		}
+-		if (bNoCheck && Taken.Outcome != ECosmicPetitionOutcome::Withdrawn)
++		if (Taken.Outcome != ECosmicPetitionOutcome::Withdrawn)
+ 		{
+ 			++Counts.NoCheckByRow.FindOrAdd(Card);
+ 		}

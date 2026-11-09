@@ -1687,5 +1687,73 @@
 			"학자들은 {System}|hpp(이,가) 쉬는 것처럼 보이지만 아무것도 다시 자라지 않는다고 적어 보냈다. 의회는 함대를 보내 할 수 있는 일부터 하자고 청했다.",
 			"학자들은 {System}|hpp(이,가) 쉬는 것처럼 보이지만 아무것도 다시 자라지 않는다고 적어 보냈다. 회중의 장로들은 그것이 쉼이 아니라 쉼의 흉내라며 저녁마다 서로를 찾아가 깨우자고 청했다."
 		]
+	},
+	{
+		"Name": "enc_witness",
+		"Title": "그늘의 가장자리",
+		"Body": "{System}의 땅 한쪽에 그늘이 드리워 있다. {Civ}의 학자들은 그 그늘이 어디까지 닿았는지 다 재지 못했다.",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Wanderer",
+				"Value": 0.0
+			},
+			{
+				"Type": "PlayerInSystemWithHazard",
+				"Tag": "Hazard.Claim",
+				"Key": "None",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "그늘의 가장자리를 재어 둔다",
+				"CheckStat": "Mind",
+				"Difficulty": 3,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ChangeReverence",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.1,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "당신은 그늘이 닿은 땅의 가장자리를 재었다. 당신이 잰 것은 {Civ}의 학자들의 기록에 남았다.",
+				"FailureText": "그늘의 가장자리는 잴 때마다 달랐다. 그 그늘이 어디까지 닿았는지는 여전히 가늠되지 않았다.",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "물러난다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "당신은 그늘을 재지 않았다. 그 가장자리는 {Civ}의 학자들이 계속 재었다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Standing",
+		"Subject": "VesselSystem",
+		"VoiceBodies": []
 	}
 ]

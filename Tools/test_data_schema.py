@@ -2399,7 +2399,10 @@ class SchemaTests(unittest.TestCase):
         # The era named after endured pressure.
         era_why = why_of("DT_Events", [{"col": "Conditions", "has_type": "CivPressureEnduredTicksReached"}])
         era = lambda first: self.set_cell("DT_Events", "event_test_harvest", "LogTemplates", [first, "{Civ} b.", "{Civ} c."])  # noqa: E731
-        endured = lambda tables: self.row(tables, "DT_Events", "event_test_harvest").update(Trigger="Standing", BaseWeight=0, Conditions=[cond("CivPressureEnduredTicksReached", key="600")])  # noqa: E731
+        # The row has the era's shape ([B-6b8], decision 22): the ruled people and the Borders reverence.
+        endured = lambda tables: self.row(tables, "DT_Events", "event_test_harvest").update(  # noqa: E731
+            Trigger="Standing", BaseWeight=0, Conditions=[cond("SystemOwnedBy", key="Ruled"), cond("CivPressureEnduredTicksReached", key="600")],
+            Effects=[eff("ChangeReverence", key="Borders", value=0.2)])
         both = lambda first: lambda tables: (endured(tables), era(first)(tables))  # noqa: E731
         self.assertEqual(self.after(both("{Civ}의 백성이 이 시대를 '물레의 시대'라 부르기 시작했다.")), [])
         for first, listed in (("{Civ}의 백성이 이 시대를 '새벽의 시대'라 부르기 시작했다.", "dawn_words"), ("{Civ}의 백성이 이 시대를 '여명의 시대'라 부르기 시작했다.", "dawn_words"),
@@ -2505,6 +2508,110 @@ class SchemaTests(unittest.TestCase):
         found = strays(strings)
         self.assertEqual(len(found), 1)
         self.assertTrue(found[0].startswith("ST_CA.csv:"), found)
+
+    def test_the_witness_words(self):
+        """B6b [B-6b8] (header 2.7, 2.8, notes 1.6 rule 7; decisions 20 and 22): a wanderer's card on the claim is a sign
+        seen or measured - no testimony, record, telling or speaking in any of its texts (witness_words, the contracted past
+        forms listed apart), no voice of the sign in its body (sign_voice_words), and '기록' in the choices' success lines
+        alone (witness_record_words; the step back's success line is the text audit's - a column test cannot tell one choice
+        from another). The rule reads the enc_ rows whose conditions name the claim, and nothing else. The era of an endured
+        pressure keeps the shape of decision 22: the ruled people's condition and the Borders reverence."""
+        self.assertEqual(self.after(), [])
+        lists = self.schema["words"]
+        encounters = self.schema["tables"]["DT_Encounters"]["rules"]
+        events = self.schema["tables"]["DT_Events"]["rules"]
+        claim_when = [{"row_prefix": "enc_"}, {"col": "Conditions", "has_cond": {"tag": "Hazard.Claim"}}]
+        # A rule taken out reads as no line at all, so its cases fail (not err).
+        witness_why = next((rule["why"] for rule in encounters if rule.get("when") == claim_when), "(no witness rule)")
+        shape_then = [{"col": "Conditions", "has_cond": {"type": "SystemOwnedBy", "key": "Ruled"}}, {"col": "Effects", "has_cond": {"type": "ChangeReverence", "key": "Borders"}}]
+        shape_why = next((rule["why"] for rule in events if any(test in shape_then for test in rule["then"])), "(no era shape rule)")
+
+        def broken(problems, where, why, column, listed):
+            self.expect(problems, where, why, json.dumps({"col": column, "lacks_words": listed}))
+
+        claim = [cond("PlayerRoleIs", key="Wanderer"), cond("PlayerInSystemWithHazard", tag="Hazard.Claim", key="None")]
+
+        def card(on_claim=True, **changes):
+            # The fixture's arrival card, made a Standing card on the claim (or left an arrival card on no hazard).
+            def change(tables):
+                row = self.row(tables, "DT_Encounters", "enc_test_weave")
+                if on_claim:
+                    row.update(Trigger="Standing", Conditions=copy.deepcopy(claim))
+                for column, value in changes.items():
+                    head, _, index_and_sub = column.partition(":")
+                    if index_and_sub:
+                        index, _, sub = index_and_sub.partition(".")
+                        row[head][int(index)][sub] = value
+                    else:
+                        row[head] = value
+            return change
+
+        where = "DT_Encounters.enc_test_weave"
+        self.assertEqual(self.after(card()), [])
+        # (1) One breaking case per column and list: a testimony in a label, a word for 'saw' in the body, a voice of the
+        # sign in the body, a flight and a leaving in the step back's line, a record made in a failure line, '기록' in the body.
+        broken(self.after(card(**{"Choices:0.Label": "{System}의 일을 증언한다."})), where, witness_why, "Choices.Label", "witness_words")
+        broken(self.after(card(Body="{System}의 그늘을 목격한 자는 적다.")), where, witness_why, "Body", "witness_words")
+        broken(self.after(card(Body="{System}의 그늘에서 목소리가 들린다.")), where, witness_why, "Body", "sign_voice_words")
+        broken(self.after(card(**{"Choices:1.SuccessText": "당신은 {System}에서 도망쳤다."})), where, witness_why, "Choices.SuccessText", "witness_words")
+        broken(self.after(card(**{"Choices:0.FailureText": "{System}의 그늘을 기록하지 못했다."})), where, witness_why, "Choices.FailureText", "witness_words")
+        # The contracted past forms are words of the list on their own: '기록했다' holds no '기록하', '떠났다' no '떠나'.
+        broken(self.after(card(**{"Choices:0.FailureText": "{System}의 그늘을 기록했다."})), where, witness_why, "Choices.FailureText", "witness_words")
+        broken(self.after(card(**{"Choices:1.SuccessText": "당신은 {System}을 떠났다."})), where, witness_why, "Choices.SuccessText", "witness_words")
+        # The adnominal forms (-ㄴ, -ㄹ) hold no stem of the list either: '떠난' holds no '떠나', '기록한' no '기록하', and the plain
+        # present '말한다' no '말하' - they are words of the list on their own, as are the nominal forms (-ㅁ) '떠남', '기록함'.
+        broken(self.after(card(**{"Choices:1.SuccessText": "당신은 {System}을 떠난 뒤였다."})), where, witness_why, "Choices.SuccessText", "witness_words")
+        broken(self.after(card(**{"Choices:0.SuccessText": "당신이 기록한 것은 {System}의 가장자리다."})), where, witness_why, "Choices.SuccessText", "witness_words")
+        broken(self.after(card(Body="{System}의 그늘을 {Civ}에게 말한다.")), where, witness_why, "Body", "witness_words")
+        broken(self.after(card(**{"Choices:0.FailureText": "{System}의 떠남이 늦었다."})), where, witness_why, "Choices.FailureText", "witness_words")
+        broken(self.after(card(Body="{System}의 기록이 남아 있다.")), where, witness_why, "Body", "witness_record_words")
+        broken(self.after(card(**{"Choices:1.Label": "기록을 남긴다"})), where, witness_why, "Choices.Label", "witness_record_words")
+        # '기록' stands in a success line (the measure kept in the scholars' record) - and only there.
+        self.assertEqual(self.after(card(**{"Choices:0.SuccessText": "당신이 잰 {System}의 가장자리는 학자들의 기록에 남았다."})), [])
+        # (2) The scope: the same words on a wanderer's card that names no claim, and on a petition on the claim, pass.
+        words = {"Body": "{System}에서 목소리를 목격했다. 기록이 남았다.", "Choices:0.Label": "증언한다", "Choices:1.SuccessText": "{System}을 떠났다."}
+        self.assertEqual(self.after(card(on_claim=False, **words)), [])
+        plea = lambda tables: self.row(tables, "DT_Encounters", "petition_test_plea").update(  # noqa: E731
+            Conditions=[cond("PlayerRoleIs", key="Ruler"), cond("SystemHasHazard", tag="Hazard.Claim")], Body="{Civ}의 기록과 증언.")
+        self.assertEqual(self.after(plea), [])
+        # (3) The game's card is in the rule's scope: a testimony in its label is refused (the project's own tables - the
+        # fixture replaces the project's cards).
+        schema, project, tags = checker.load_project()
+        self.assertEqual(checker.check(schema, project, tags), [])
+
+        def game(table, name, change):
+            changed = copy.deepcopy(project)
+            change(self.row(changed, table, name))
+            return checker.check(schema, changed, tags)
+
+        self.expect(game("DT_Encounters", "enc_witness", lambda row: row["Choices"][0].update(Label="그늘을 증언한다")),
+                    "DT_Encounters.enc_witness", witness_why, json.dumps({"col": "Choices.Label", "lacks_words": "witness_words"}))
+
+        # (4) The era's shape: without Ruled, or with the reverence of the context people, the row is refused.
+        endured = cond("CivPressureEnduredTicksReached", key="600")
+        era = lambda conditions, effects: (lambda tables: self.row(tables, "DT_Events", "event_test_harvest").update(  # noqa: E731
+            Trigger="Standing", BaseWeight=0, Conditions=conditions, Effects=effects))
+        borders = [eff("ChangeReverence", key="Borders", value=0.2)]
+        self.assertEqual(self.after(era([cond("SystemOwnedBy", key="Ruled"), endured], borders)), [])
+        self.expect(self.after(era([endured], borders)), "DT_Events.event_test_harvest", shape_why, json.dumps(shape_then[0]))
+        self.expect(self.after(era([cond("SystemOwnedBy", key="Ruled"), endured], [eff("ChangeReverence", key="None", value=0.2)])),
+                    "DT_Events.event_test_harvest", shape_why, json.dumps(shape_then[1]))
+        # The game's era row is in the rule's scope: its Ruled taken out is refused.
+        self.expect(game("DT_Events", "event_era_endured", lambda row: row.update(Conditions=[endured])),
+                    "DT_Events.event_era_endured", shape_why, json.dumps(shape_then[0]))
+
+        # (5) The lists stand as the audit wrote them (pinned last, so that a word taken out fails its case above first).
+        self.assertEqual(lists["witness_words"], ["본 것", "보고 들은", "말하", "말했", "말해", "전하", "전했", "전해", "증거", "증언", "증인", "목격", "기록하", "기록했", "기록해",
+                                                  "지나간다", "지나가", "지나갔", "떠난다", "떠나", "떠났", "외면", "눈을 돌", "등을 돌", "모른 척", "피했", "도망", "부끄",
+                                                  "말한", "말할", "전한", "전할", "기록한", "기록할", "떠난", "떠날", "지나간", "지나갈",
+                                                  "말함", "전함", "기록함", "떠남", "지나감"])
+        self.assertEqual(lists["sign_voice_words"], ["목소리", "속삭", "이르기를", "말씀"])
+        self.assertEqual(lists["witness_record_words"], ["기록"])
+        # The three lists hang on the witness rule alone.
+        hung = [(table, rule["why"]) for table, spec in self.schema["tables"].items() for rule in spec.get("rules", [])
+                for test in rule["then"] if test.get("lacks_words") in ("witness_words", "sign_voice_words", "witness_record_words")]
+        self.assertEqual({key for key in hung}, {("DT_Encounters", witness_why)})
+        self.assertEqual(len(hung), 12)
 
     def test_a_text_has_one_form(self):
         """A word is found as it is written: a text is composed (NFC) and holds no invisible format character, so a verdict
@@ -2760,7 +2867,9 @@ class SchemaTests(unittest.TestCase):
         # CivPressureEnduredTicksReached: a count of ticks, no Tag; a Civilization slot row only, as the fallen-sphere window.
         endured = cond("CivPressureEnduredTicksReached", key="600")
         harvest = lambda **changes: (lambda tables: self.row(tables, "DT_Events", "event_test_harvest").update(changes))  # noqa: E731
-        self.assertEqual(self.after(harvest(Trigger="Standing", BaseWeight=0, Conditions=[endured])), [])
+        # In the era's shape ([B-6b8], decision 22): the ruled people and the Borders reverence.
+        self.assertEqual(self.after(harvest(Trigger="Standing", BaseWeight=0, Conditions=[cond("SystemOwnedBy", key="Ruled"), endured],
+                                            Effects=[eff("ChangeReverence", key="Borders", value=0.2)])), [])
         self.expect(self.conditions(cond("CivPressureEnduredTicksReached", key="600ticks")), "(CivPressureEnduredTicksReached).Key", "not a count of ticks")
         self.expect(self.conditions(cond("CivPressureEnduredTicksReached", key="600", tag="Doctrine.Silence")), "(CivPressureEnduredTicksReached).Tag", "reads no Tag")
         self.expect(self.after(harvest(Trigger="Named", BaseWeight=0, CooldownTicks=0, LogTemplates=["one."], Conditions=[endured])),
@@ -3850,7 +3959,15 @@ class SchemaTests(unittest.TestCase):
             ("DT_Hazards", "the extinction's lines tell a loss and end in mourning: no ruler who stayed, no agent, sacrifice or cause of a death, no image of a desolation, a flood, a punishment or the claimant's shadow, and its resolution rescues no one (B6b header 3.3 / notes 1.6 rule 3; decision 33)"):
                 (update_hazard(HazardTag="Hazard.Extinction", OnExpireEffects=[], RulerResolutions=["project_test_build"]), hazard),
             ("DT_Events", "an era the people names after its endured pressure is named from its own life and land: no dawn, light, throne or reign, no word of silence, and no desolation, shadow, cold or endurance as merit (B6b header 3.3 / notes 1.6 rule 6; decision 22)"):
-                (update_event(Trigger="Standing", BaseWeight=0, Conditions=[cond("CivPressureEnduredTicksReached", key="600")]), event),
+                (update_event(Trigger="Standing", BaseWeight=0, Conditions=[cond("SystemOwnedBy", key="Ruled"), cond("CivPressureEnduredTicksReached", key="600")],
+                              Effects=[eff("ChangeReverence", key="Borders", value=0.2)]), event),
+            # B6b [B-6b8]: the era's shape (decision 22) and the witness's words (decision 20).
+            ("DT_Events", "the era of an endured pressure is told for the ruled people alone and raises its neighbours' reverence for the vessel (B6b decision 22, the answer A; header 2.7) - without Ruled every AI people's endurance would lift its neighbours"):
+                (update_event(Trigger="Standing", BaseWeight=0, Conditions=[cond("SystemOwnedBy", key="Ruled"), cond("CivPressureEnduredTicksReached", key="600")],
+                              Effects=[eff("ChangeReverence", key="Borders", value=0.2)]), event),
+            ("DT_Encounters", "a wanderer's card on the claim is a sign seen or measured: it does not testify, record, tell or speak, the sign has no voice, and the step back neither leaves nor shames (B6b header 2.8, notes 1.6 rule 7; decision 20). A substring test: the contracted past forms are listed apart, and a false hit inside a longer word is accepted within this narrow scope"):
+                (lambda tables: self.row(tables, "DT_Encounters", "enc_test_weave").update(
+                    Trigger="Standing", Conditions=[cond("PlayerRoleIs", key="Wanderer"), cond("PlayerInSystemWithHazard", tag="Hazard.Claim", key="None")]), "enc_test_weave"),
             ("DT_Megaprojects", "the binding's work is named and told as the people's plain work: its name has no tower, ring, fence, binding tool, contact or tuning word and no word another work owns, and its completion line neither binds, triumphs, nor lets light or dawn rise over the shadow (B6b header 3.3 / notes 1.6 rule 4; decision 32; header rule 14)"):
                 (NOTHING, "project_binding"),
             # B6b [B-6b6]: the ark's row and the two rules that keep its word to the ark and the fourth-rung feat.
@@ -3884,7 +4001,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 316, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 330, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

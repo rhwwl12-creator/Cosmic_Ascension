@@ -24,6 +24,7 @@
 		"The galaxy laws and the upper rungs (B6b [B-6b2a], header 3.3): a comparison test (gt, ge, lt, le) over a tag map holds when every value of the map holds it - an empty map holds (a galaxy law's spawn factors are at most 1); a conditions column may name the condition types whose Tag it leaves empty ('untagged' - a DT_Feats row's CivHasTreaty: the AI's treaty step signs a non-aggression only); and an effect's Key may say 'not_per_tick' (a per-tick source leaves that Key empty - ChangeReverence's Borders walks the borders where a source is applied once). A condition test names the fields of an entry - type, key and tag, a key or a tag at least, each equal - and lacks_cond holds when no entry of the list has them all (a ruler feat names no selector word of the vessel; no claim card buys the claim time but petition_pressure_measured). rows_of (B6b [B-6b2b]) holds when every row name of a rows column is a row of one of the named tables, each one the column names (the extinction is answered by a project alone - the ark).",
 		"The words of the upper rungs (B6b [B-6b5], header 3.3, notes 1.6; decision 33): rung_grasp_words (a rung grasped, reached or raced for, eternity and the order), title_words (a title of election, anointing or a saviour, and the crown), binding_words (the binding, its binder verbs and the shadow - the binding is said in its two story lines alone), triumph_words (a victory, the shadow lifted, mockery, and a link word that makes a deed the price of what follows), stay_words (a ruler who stayed with the dying), self_rescue_words (a people that rescues itself, a new birth and the images of the flood), dawn_words (dawn, light, throne and reign), desolation_words (the quenched lamp, the ceased song, the shut door, the flood, a punishment, the shadow, cold and endurance as merit) and binding_name_words (a tower, a ring, a fence, a binding tool, another work's word or a word of contact or tuning in the name of the binding's work) are matched letter for letter, with holy_passive extended by the end-time idiom. rung_grasp_words and title_words hang on DT_LogTemplates.Templates, DT_Events.LogTemplates, the three template columns of DT_Hazards, DT_Megaprojects.CompleteTemplates and the three text columns of DT_Feats, which also take binding_words, self_rescue_words and triumph_words (no feat binds, rescues itself or buys its rung), and on the string keys Rung., Sight., Chronicle., Epitaph., Digest. and six of the seven keys of the B6b screens (all but Diplomacy.TreatyRungTip); binding_words also hangs on Rung., Chronicle., the three Start. keys and Diplomacy.TreatyRungTip, triumph_words on the three Start. keys, stay_words on Panel.ExtinctionFollows and Panel.RulerLethal, and holy_passive also on Rung.; every list but rung_grasp_words and title_words also hangs on single rows by row rules (the fifth-rung feat, the extinction, the era named after endured pressure, project_binding, and log_far_ascent, log_record_extinct, log_death_extinction and log_fallen_bound), and dawn_words, desolation_words and binding_name_words hang there alone.",
 		"The ark's word (B6b [B-6b6], decision 33): ark_words ('방주') stands only in the ark and the fourth-rung feat (project_ark, feat_passage_by_ark) - it hangs on the name and the three template columns of DT_Hazards, on DT_Events.LogTemplates and DT_LogTemplates.Templates, and by two row_not rules on the name and completion lines of every other project and the title, narrative and lines of every other feat; Tools/test_data_schema.py reads every other source for it, ST_CA included. The ark's own row rule keeps rescue, title and holy names out of its name and self-rescue and holy names out of its completion lines, and '노아' is a name of holy_and_myth.",
+		"The witness's words (B6b [B-6b8], header 2.8, notes 1.6 rule 7; decision 20): witness_words (a testimony, a record made, a telling or a speaking, and a step back that leaves, looks away or is ashamed - the contracted past forms are listed apart), sign_voice_words (a voice of the sign) and witness_record_words ('기록') hang by one DT_Encounters row rule on the wanderer's cards whose conditions name the claim: witness_words on every text column, sign_voice_words on the body, witness_record_words on every text column but the choices' success lines (a column test cannot tell one choice from another, so the step back's success line is held by the text audit alone). A substring test: a false hit inside a longer word is accepted in this narrow scope. The era of an endured pressure (decision 22) keeps its shape by a DT_Events row rule: the ruled people's condition and the Borders reverence.",
 		"A table whose columns are null has no rows yet: its columns are declared when its first row is written."
 	],
 	"tag_sources": ["Config/DefaultGameplayTags.ini"],
@@ -73,7 +74,10 @@
 		"dawn_words": ["새벽", "동틀", "동이 트", "해가 뜨", "돋는", "샛별", "새 해", "빛", "밝아", "걷혔", "다스림", "왕좌", "임금", "떠오", "떠올", "해가 떠", "광명", "여명", "서광", "아침", "햇살", "치세", "재위", "통치", "왕국", "다스리"],
 		"desolation_words": ["꺼지", "꺼졌", "꺼진", "꺼뜨", "껐", "꺼져", "꺼질", "식어", "식었", "노랫소리", "노래가 그", "맷돌", "등불", "심지", "촛불", "등잔", "불씨", "문이 닫", "닫힌 문", "신랑", "신부", "홍수", "물이 불", "물이 걷", "물이 빠", "무지개", "비둘기", "감람", "진노", "심판", "형벌", "죗값", "벌로", "벌을", "교만", "재앙이 내", "그늘", "그림자", "어둠", "서리", "겨울", "견딘", "견딤", "견뎠", "버틴"],
 		"binding_name_words": ["탑", "둘레", "울타리", "산울", "고리", "관측소", "공명", "감응", "교감"],
-		"ark_words": ["방주"]
+		"ark_words": ["방주"],
+		"witness_words": ["본 것", "보고 들은", "말하", "말했", "말해", "전하", "전했", "전해", "증거", "증언", "증인", "목격", "기록하", "기록했", "기록해", "지나간다", "지나가", "지나갔", "떠난다", "떠나", "떠났", "외면", "눈을 돌", "등을 돌", "모른 척", "피했", "도망", "부끄", "말한", "말할", "전한", "전할", "기록한", "기록할", "떠난", "떠날", "지나간", "지나갈", "말함", "전함", "기록함", "떠남", "지나감"],
+		"sign_voice_words": ["목소리", "속삭", "이르기를", "말씀"],
+		"witness_record_words": ["기록"]
 	},
 
 	"string_table": {
@@ -595,6 +599,11 @@
 					"why": "an era the people names after its endured pressure is named from its own life and land: no dawn, light, throne or reign, no word of silence, and no desolation, shadow, cold or endurance as merit (B6b header 3.3 / notes 1.6 rule 6; decision 22)",
 					"when": [{"col": "Conditions", "has_type": "CivPressureEnduredTicksReached"}],
 					"then": [{"col": "LogTemplates", "lacks_words": "dawn_words"}, {"col": "LogTemplates", "lacks_words": "silence_words"}, {"col": "LogTemplates", "lacks_words": "desolation_words"}]
+				},
+				{
+					"why": "the era of an endured pressure is told for the ruled people alone and raises its neighbours' reverence for the vessel (B6b decision 22, the answer A; header 2.7) - without Ruled every AI people's endurance would lift its neighbours",
+					"when": [{"col": "Conditions", "has_type": "CivPressureEnduredTicksReached"}],
+					"then": [{"col": "Conditions", "has_cond": {"type": "SystemOwnedBy", "key": "Ruled"}}, {"col": "Effects", "has_cond": {"type": "ChangeReverence", "key": "Borders"}}]
 				}
 			]
 		},
@@ -1213,6 +1222,17 @@
 					"why": "the claim's time is bought by one card alone, the fleet of petition_pressure_measured: one card more of 50 ticks would break the theodicy's bound the Data.Integrity invariant keeps (B6b header 2.8, 3.3 rule 8')",
 					"when": [{"row_not": "petition_pressure_measured"}],
 					"then": [{"col": "Choices.OnSuccess", "lacks_cond": {"type": "DelayHazard", "tag": "Hazard.Claim"}}]
+				},
+				{
+					"why": "a wanderer's card on the claim is a sign seen or measured: it does not testify, record, tell or speak, the sign has no voice, and the step back neither leaves nor shames (B6b header 2.8, notes 1.6 rule 7; decision 20). A substring test: the contracted past forms are listed apart, and a false hit inside a longer word is accepted within this narrow scope",
+					"when": [{"row_prefix": "enc_"}, {"col": "Conditions", "has_cond": {"tag": "Hazard.Claim"}}],
+					"then": [
+						{"col": "Title", "lacks_words": "witness_words"}, {"col": "Body", "lacks_words": "witness_words"}, {"col": "VoiceBodies", "lacks_words": "witness_words"},
+						{"col": "Choices.Label", "lacks_words": "witness_words"}, {"col": "Choices.SuccessText", "lacks_words": "witness_words"}, {"col": "Choices.FailureText", "lacks_words": "witness_words"},
+						{"col": "Body", "lacks_words": "sign_voice_words"},
+						{"col": "Title", "lacks_words": "witness_record_words"}, {"col": "Body", "lacks_words": "witness_record_words"}, {"col": "VoiceBodies", "lacks_words": "witness_record_words"},
+						{"col": "Choices.Label", "lacks_words": "witness_record_words"}, {"col": "Choices.FailureText", "lacks_words": "witness_record_words"}
+					]
 				}
 			]
 		},

@@ -1,0 +1,12 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -1229,7 +1229,7 @@
+ 					"then": [
+ 						{"col": "Title", "lacks_words": "witness_words"}, {"col": "Body", "lacks_words": "witness_words"}, {"col": "VoiceBodies", "lacks_words": "witness_words"},
+ 						{"col": "Choices.Label", "lacks_words": "witness_words"}, {"col": "Choices.SuccessText", "lacks_words": "witness_words"}, {"col": "Choices.FailureText", "lacks_words": "witness_words"},
+-						{"col": "Body", "lacks_words": "sign_voice_words"},
++						{"col": "Title", "lacks_words": "sign_voice_words"},
+ 						{"col": "Title", "lacks_words": "witness_record_words"}, {"col": "Body", "lacks_words": "witness_record_words"}, {"col": "VoiceBodies", "lacks_words": "witness_record_words"},
+ 						{"col": "Choices.Label", "lacks_words": "witness_record_words"}, {"col": "Choices.FailureText", "lacks_words": "witness_record_words"}
+ 					]

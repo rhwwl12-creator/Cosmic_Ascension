@@ -1,0 +1,15 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -595,11 +595,6 @@
+ 					"when": [{"row": "event_claim_eased"}],
+ 					"then": [{"col": "LogTemplates", "lacks_words": "vigil_image"}]
+ 				},
+-				{
+-					"why": "an era the people names after its endured pressure is named from its own life and land: no dawn, light, throne or reign, no word of silence, and no desolation, shadow, cold or endurance as merit (B6b header 3.3 / notes 1.6 rule 6; decision 22)",
+-					"when": [{"col": "Conditions", "has_type": "CivPressureEnduredTicksReached"}],
+-					"then": [{"col": "LogTemplates", "lacks_words": "dawn_words"}, {"col": "LogTemplates", "lacks_words": "silence_words"}, {"col": "LogTemplates", "lacks_words": "desolation_words"}]
+-				},
+ 				{
+ 					"why": "the era of an endured pressure is told for the ruled people alone and raises its neighbours' reverence for the vessel (B6b decision 22, the answer A; header 2.7) - without Ruled every AI people's endurance would lift its neighbours",
+ 					"when": [{"col": "Conditions", "has_type": "CivPressureEnduredTicksReached"}],
