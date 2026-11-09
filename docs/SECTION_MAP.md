@@ -110,3 +110,6 @@
 | v08_agent_directive.md | docs/archive/ (결정 15·13·손 확인은 DECISIONS_LOG v0.8 확정 블록) |
 | code_artifact.md | docs/archive/ (대도감 옛 판 — 원천 아님) |
 | cosmic_species_codex.md | docs/90_LORE/cosmic_species_codex.md |
+| docs/10_DESIGN/EXISTENCE_EVOLUTION_AND_ECOLOGY.md의 원안(9be5b3e, 2026-11-09) | docs/archive/EXISTENCE_EVOLUTION_original_2026-11-09.md (받지 않은 것을 포함한 동결본 — 받은 꼴은 docs/10_DESIGN/EXISTENCE_EVOLUTION_AND_ECOLOGY.md와 B7x 헤더) |
+| docs/OVERVIEW_as_of_B6a.html (design/b7x 브랜치) | docs/archive/OVERVIEW_as_of_B6a.html (B6a 때의 한눈 보기와 받지 않은 B7x 원안 — 현행 설계가 아니다; 현행은 docs/) |
+| 1단계 분석 산출물(2026-10-18 브리핑·렌즈·digests·다음 세션 문구) | docs/archive/analysis_2026-10-18/ (동결본 — 헤더 A6·A7·B4·B6a가 근거로 부른다) |

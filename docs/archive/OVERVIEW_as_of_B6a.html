@@ -1,0 +1,1108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cosmic Ascension — 한눈 요약 · 기승전결 · 비대칭 개성화 설계 (B6b · cef8cc7)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+/* Layout: a quiet reading page with a sticky chapter list on the left; diagrams are built from boxes and arrows, not pictures. */
+:root {
+  --bg: #0c0f1a;
+  --bg-2: #141829;
+  --bg-3: #1b2036;
+  --fg: #e9e6dd;
+  --fg-2: #a7a6b4;
+  --fg-3: #767588;
+  --line: #2a2f47;
+  --line-2: #3a4060;
+  --gold: #d8b561;      /* the calling, ascension, the player */
+  --violet: #a08ddb;    /* the fallen transcendent, pressure, the claim */
+  --teal: #74bcaa;      /* the world, the simulation */
+  --rose: #d98a8a;      /* hazards, endings */
+  --gold-dim: rgba(216,181,97,.14);
+  --violet-dim: rgba(160,141,219,.14);
+  --teal-dim: rgba(116,188,170,.14);
+  --rose-dim: rgba(217,138,138,.14);
+  --display: "Gowun Batang", "Noto Serif KR", "Apple SD Gothic Neo", "Malgun Gothic", serif;
+  --body: "IBM Plex Sans KR", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f6f4ee; --bg-2: #ffffff; --bg-3: #efece3;
+    --fg: #1f1d27; --fg-2: #5b5967; --fg-3: #8a8896;
+    --line: #dcd8cc; --line-2: #c4bfb0;
+    --gold: #9a7a1f; --violet: #6a52b3; --teal: #2f7f70; --rose: #b4473f;
+    --gold-dim: rgba(154,122,31,.12); --violet-dim: rgba(106,82,179,.12);
+    --teal-dim: rgba(47,127,112,.12); --rose-dim: rgba(180,71,63,.12);
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f6f4ee; --bg-2: #ffffff; --bg-3: #efece3;
+  --fg: #1f1d27; --fg-2: #5b5967; --fg-3: #8a8896;
+  --line: #dcd8cc; --line-2: #c4bfb0;
+  --gold: #9a7a1f; --violet: #6a52b3; --teal: #2f7f70; --rose: #b4473f;
+  --gold-dim: rgba(154,122,31,.12); --violet-dim: rgba(106,82,179,.12);
+  --teal-dim: rgba(47,127,112,.12); --rose-dim: rgba(180,71,63,.12);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font-family: var(--body); font-size: 15.5px; line-height: 1.65;
+  padding-block: 0 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  word-break: keep-all; overflow-wrap: anywhere;
+}
+a { color: inherit; }
+h1, h2, h3, h4 { font-family: var(--display); font-weight: 700; line-height: 1.3; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(30px, 4.4vw, 46px); letter-spacing: -.01em; }
+h2 { font-size: clamp(22px, 2.6vw, 28px); }
+h3 { font-size: 17px; }
+p { margin: 0; }
+ul, ol { margin: 0; padding: 0; }
+code, .k { font-family: var(--mono); font-size: .86em; color: var(--fg-2); background: var(--bg-3); padding: 1px 5px; border-radius: 4px; white-space: nowrap; }
+small { color: var(--fg-2); }
+.eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--fg-3); font-weight: 600; }
+.muted { color: var(--fg-2); }
+.note { font-size: 13.5px; color: var(--fg-2); }
+.gold { color: var(--gold); } .violet { color: var(--violet); } .teal { color: var(--teal); } .rose { color: var(--rose); }
+
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 48px; }
+.toc { position: sticky; top: 24px; align-self: start; padding-top: 96px; }
+.toc ol { list-style: none; display: grid; gap: 2px; }
+.toc a { display: block; text-decoration: none; color: var(--fg-2); font-size: 13.5px; padding: 5px 10px; border-left: 2px solid var(--line); }
+.toc a:hover, .toc a:focus-visible { color: var(--fg); border-color: var(--gold); outline: none; }
+.toc .eyebrow { padding: 0 10px 8px; }
+main { min-width: 0; display: grid; gap: 72px; }
+
+header.hero { padding-top: 64px; display: grid; gap: 18px; border-bottom: 1px solid var(--line); padding-bottom: 36px; }
+header.hero .lead { font-family: var(--display); font-size: clamp(17px, 2vw, 20px); line-height: 1.7; max-width: 42em; color: var(--fg); }
+.scale { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-top: 8px; }
+.scale div { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--bg-2); }
+.scale b { display: block; font-family: var(--display); font-size: 22px; font-variant-numeric: tabular-nums; }
+.scale span { font-size: 12.5px; color: var(--fg-2); }
+
+section { display: grid; gap: 20px; scroll-margin-top: 24px; }
+section > .head { display: grid; gap: 6px; }
+section > .head p { max-width: 46em; color: var(--fg-2); }
+
+/* status chips */
+.chip { display: inline-block; font-size: 11.5px; font-weight: 600; letter-spacing: .04em; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--fg-2); vertical-align: 2px; white-space: nowrap; }
+.chip.on { color: var(--teal); border-color: var(--teal); background: var(--teal-dim); }
+.chip.plan { color: var(--fg-3); border-style: dashed; }
+.chip.part { color: var(--gold); border-color: var(--gold); background: var(--gold-dim); }
+.chip.end { color: var(--rose); border-color: var(--rose); background: var(--rose-dim); }
+
+/* flow: boxes joined by arrows, stacking to a column when narrow */
+.flow { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 0; align-items: stretch; }
+.flow > li { display: flex; align-items: center; min-width: 0; flex: 1 1 270px; }
+.flow > li + li::before { content: "\2192"; color: var(--fg-3); padding: 0 8px; flex: none; }
+.flow .box { border: 1px solid var(--line-2); border-radius: 8px; padding: 8px 12px; background: var(--bg-2); min-width: 0; flex: 1; }
+.branch .flow { flex-direction: column; }
+.branch .flow > li { flex-direction: column; align-items: stretch; flex-basis: auto; }
+.branch .flow > li + li::before { content: "\2193"; padding: 2px 0; text-align: center; }
+.flow .box b { display: block; font-weight: 600; font-size: 14.5px; }
+.flow .box small { display: block; font-size: 12.5px; line-height: 1.45; }
+.flow .box.gold { border-color: var(--gold); background: var(--gold-dim); color: var(--fg); }
+.flow .box.violet { border-color: var(--violet); background: var(--violet-dim); color: var(--fg); }
+.flow .box.rose { border-color: var(--rose); background: var(--rose-dim); color: var(--fg); }
+.flow .box.teal { border-color: var(--teal); background: var(--teal-dim); color: var(--fg); }
+.flow .box.plan { border-style: dashed; color: var(--fg-2); background: transparent; }
+.loop { font-size: 12.5px; color: var(--fg-3); padding-left: 4px; }
+
+.branches { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.branch { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: var(--bg-2); display: grid; gap: 10px; }
+.branch h3 { font-size: 16px; }
+.branch .flow .box { padding: 6px 10px; }
+
+/* the five rungs */
+.ladder { list-style: none; display: grid; gap: 0; border-left: 2px solid var(--line-2); margin-left: 8px; }
+.ladder li { display: grid; grid-template-columns: 56px minmax(0,1fr); gap: 14px; padding: 12px 0 14px 18px; position: relative; border-bottom: 1px dashed var(--line); }
+.ladder li:last-child { border-bottom: 0; }
+.ladder li::before { content: ""; position: absolute; left: -7px; top: 20px; width: 12px; height: 12px; border-radius: 50%; background: var(--bg); border: 2px solid var(--line-2); }
+.ladder li.on::before { background: var(--teal); border-color: var(--teal); }
+.ladder li.now::before { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 0 4px var(--gold-dim); }
+.ladder .n { font-family: var(--display); font-size: 26px; line-height: 1; color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.ladder .n small { display: block; font-family: var(--body); font-size: 11px; letter-spacing: .08em; color: var(--fg-3); margin-top: 4px; }
+.ladder b { font-size: 16px; font-family: var(--display); }
+.ladder p { font-size: 14px; color: var(--fg-2); margin-top: 2px; }
+
+/* two columns */
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.col { border: 1px solid var(--line); border-radius: 10px; background: var(--bg-2); padding: 16px 18px; display: grid; gap: 10px; align-content: start; }
+.col h3 { display: flex; align-items: baseline; gap: 10px; }
+.col ul { list-style: none; display: grid; gap: 8px; }
+.col li { padding-left: 14px; position: relative; font-size: 14.5px; }
+.col li::before { content: ""; position: absolute; left: 0; top: .62em; width: 6px; height: 6px; border-radius: 50%; background: var(--line-2); }
+.col.ruler li::before { background: var(--gold); }
+.col.wander li::before { background: var(--teal); }
+.col li b { font-weight: 600; }
+.col li.no { color: var(--fg-3); }
+.col li.no::before { background: transparent; border: 1px dashed var(--fg-3); }
+
+.switch { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: var(--bg-2); }
+.switch .who { text-align: center; font-family: var(--display); font-size: 18px; padding: 10px; border-radius: 8px; }
+.switch .who small { display: block; font-family: var(--body); font-size: 12.5px; color: var(--fg-2); margin-top: 2px; }
+.switch .who.r { background: var(--gold-dim); border: 1px solid var(--gold); }
+.switch .who.w { background: var(--teal-dim); border: 1px solid var(--teal); }
+.switch .arrows { display: grid; gap: 6px; text-align: center; font-size: 13px; color: var(--fg-2); }
+.switch .arrows span { display: block; }
+.switch .arrows .a { font-size: 18px; color: var(--fg-3); line-height: 1; }
+.death { display: grid; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: var(--bg-2); }
+
+/* state model */
+.state { display: grid; gap: 12px; }
+.layer { border: 1px solid var(--line-2); border-radius: 10px; padding: 12px 14px; display: grid; gap: 10px; }
+.layer > .t { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.layer > .t b { font-family: var(--display); font-size: 16px; }
+.layer > .t span { font-size: 13px; color: var(--fg-2); }
+.layer.world { border-color: var(--teal); }
+.layer.know { border-color: var(--gold); }
+.layer.tell { border-color: var(--violet); }
+.members { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+.member { background: var(--bg-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 13.5px; }
+.member b { display: block; font-weight: 600; font-size: 14px; }
+.member .k { font-size: 11.5px; }
+.member p { color: var(--fg-2); font-size: 13px; margin-top: 3px; }
+.hashes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.hashes div { font-size: 13.5px; padding: 10px 12px; border-left: 3px solid var(--line-2); background: var(--bg-2); }
+.hashes b { display: block; }
+
+/* tick stages */
+.stages { list-style: none; counter-reset: s; display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: 8px; }
+.stages li { counter-increment: s; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px 10px 12px; background: var(--bg-2); position: relative; font-size: 13.5px; display: grid; gap: 2px; }
+.stages li::before { content: counter(s); font-family: var(--display); font-size: 22px; color: var(--fg-3); line-height: 1; font-variant-numeric: tabular-nums; }
+.stages li b { font-size: 15px; font-weight: 600; }
+.stages li span { color: var(--fg-2); }
+.stages li em { font-style: normal; color: var(--gold); font-size: 12.5px; }
+.after { border: 1px dashed var(--line-2); border-radius: 8px; padding: 10px 12px; font-size: 13.5px; color: var(--fg-2); }
+
+/* catalog cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.card { border: 1px solid var(--line); border-radius: 10px; background: var(--bg-2); padding: 14px 16px; display: grid; gap: 8px; align-content: start; }
+.card .t { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.card .t b { font-family: var(--display); font-size: 16px; }
+.card .t i { font-style: normal; font-family: var(--display); font-size: 22px; color: var(--fg-3); font-variant-numeric: tabular-nums; }
+.card .names { display: flex; flex-wrap: wrap; gap: 5px; }
+.card .names span { font-size: 12.5px; padding: 2px 8px; border-radius: 6px; background: var(--bg-3); border: 1px solid var(--line); }
+.card .names span.plan { border-style: dashed; color: var(--fg-3); background: transparent; }
+.card .names span.t2 { border-color: var(--line-2); }
+.card p { font-size: 13px; color: var(--fg-2); }
+.card.gold { border-top: 3px solid var(--gold); }
+.card.violet { border-top: 3px solid var(--violet); }
+.card.teal { border-top: 3px solid var(--teal); }
+.card.rose { border-top: 3px solid var(--rose); }
+
+/* screens */
+.screens { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.screen { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--bg-2); font-size: 13.5px; }
+.screen b { display: block; font-size: 14.5px; margin-bottom: 2px; }
+.screen span { color: var(--fg-2); }
+
+/* code layers */
+.layers { display: grid; gap: 6px; }
+.band { display: grid; grid-template-columns: 120px minmax(0,1fr); gap: 12px; align-items: start; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--bg-2); }
+.band .n { font-family: var(--display); font-size: 15px; }
+.band .n small { display: block; font-family: var(--body); font-size: 11.5px; color: var(--fg-3); letter-spacing: .04em; }
+.band .f { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.band .f span { font-family: var(--mono); font-size: 11.5px; color: var(--fg-2); background: var(--bg-3); padding: 1px 6px; border-radius: 4px; }
+.band .f span.sub { color: var(--fg-3); background: transparent; border: 1px dashed var(--line); }
+.band.top { border-color: var(--line-2); }
+.band.top .n { color: var(--fg-2); }
+.band.core { border-left: 3px solid var(--teal); }
+.band.pres { border-left: 3px solid var(--gold); }
+.dep { font-size: 13px; color: var(--fg-2); text-align: center; }
+
+/* timeline */
+.timeline { list-style: none; display: grid; gap: 0; border-left: 2px solid var(--line-2); margin-left: 8px; }
+.timeline li { display: grid; grid-template-columns: 110px minmax(0,1fr); gap: 14px; padding: 8px 0 10px 18px; position: relative; }
+.timeline li::before { content: ""; position: absolute; left: -6px; top: 15px; width: 10px; height: 10px; border-radius: 50%; background: var(--bg); border: 2px solid var(--line-2); }
+.timeline li.now::before { background: var(--gold); border-color: var(--gold); }
+.timeline .d { font-family: var(--mono); font-size: 12.5px; color: var(--fg-3); padding-top: 3px; font-variant-numeric: tabular-nums; }
+.timeline b { font-weight: 600; }
+.timeline span { color: var(--fg-2); font-size: 14px; }
+
+/* next */
+.next { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.next .card.now { border-color: var(--gold); background: var(--gold-dim); }
+.next ul { list-style: none; display: grid; gap: 6px; font-size: 14px; }
+.next li { padding-left: 12px; position: relative; }
+.next li::before { content: ""; position: absolute; left: 0; top: .66em; width: 5px; height: 5px; border-radius: 50%; background: var(--fg-3); }
+
+/* glossary */
+.gloss { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 6px 24px; }
+.gloss div { display: grid; grid-template-columns: 96px minmax(0,1fr); gap: 10px; padding: 7px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
+.gloss dt { font-weight: 600; }
+.gloss dd { margin: 0; color: var(--fg-2); }
+
+footer { color: var(--fg-3); font-size: 12.5px; border-top: 1px solid var(--line); padding-top: 16px; }
+
+/* ahead: planned timeline, growth table, cut list */
+.timeline li.plan::before { border-style: dashed; }
+.timeline.ahead li { padding-bottom: 14px; }
+.timeline.ahead li.plan b { color: var(--fg); }
+.timeline .d { white-space: nowrap; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-2); }
+table.grow { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+table.grow th, table.grow td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.grow th { font-family: var(--body); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--fg-3); font-weight: 600; background: var(--bg-3); }
+table.grow th:nth-child(2) { color: var(--teal); }
+table.grow th:nth-child(3) { color: var(--gold); }
+table.grow th:nth-child(4) { color: var(--violet); }
+table.grow td:first-child { font-weight: 600; white-space: nowrap; }
+table.grow td small { color: var(--fg-3); font-size: 11.5px; margin-left: 4px; }
+table.grow tr:last-child td { border-bottom: 0; }
+.cut { display: flex; flex-wrap: wrap; gap: 6px; }
+.cut span { font-size: 13px; padding: 4px 10px; border-radius: 999px; border: 1px dashed var(--line-2); color: var(--fg-2); background: transparent; }
+
+@media (max-width: 980px) {
+  .wrap { grid-template-columns: minmax(0,1fr); gap: 0; }
+  .toc { position: static; padding-top: 40px; }
+  .toc ol { display: flex; flex-wrap: wrap; gap: 4px; }
+  .toc a { border-left: 0; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+  header.hero { padding-top: 28px; }
+}
+@media (max-width: 640px) {
+  .flow { flex-direction: column; }
+  .flow > li { flex-direction: column; align-items: stretch; flex: 0 0 auto; }
+  .flow > li + li::before { content: "\2193"; padding: 2px 0; text-align: center; }
+  .switch { grid-template-columns: 1fr; }
+  .switch .arrows .a { transform: rotate(90deg); display: inline-block; }
+  .band { grid-template-columns: minmax(0,1fr); }
+  .timeline li { grid-template-columns: minmax(0,1fr); gap: 2px; }
+  .ladder li { grid-template-columns: minmax(0,1fr); }
+  .gloss div { grid-template-columns: minmax(0,1fr); gap: 2px; }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<!-- 동결본 (고치지 않는다): B6a 때의 개관, 2026-11-09. 받지 않은 원안(B7x 절의 여러 표현)을 담고 있어 현행 설계가 아니다. 현행은 docs/의 문서와 B7x 헤더. -->
+<div role="note" style="margin:16px;padding:10px 14px;border:1px solid var(--rose);border-radius:6px;background:var(--rose-dim);color:var(--fg);font:14px/1.6 var(--body)"><b>동결본 — B6a 때의 개관(2026-11-09).</b> 받지 않은 원안(B7x 절의 여러 표현 포함)을 담고 있다 — 현행 설계가 아니다. 현행은 docs/의 문서와 B7x 헤더(docs/60_DECISIONS/headers/B7_composable_existence_and_evolution.md).</div>
+<div class="wrap">
+
+<nav class="toc" aria-label="차례">
+  <div class="eyebrow">차례</div>
+  <ol>
+    <li><a href="#arc"><b class="gold">기승전결 (4막 구조)</b></a></li>
+    <li><a href="#flow">한 판의 흐름</a></li>
+    <li><a href="#rungs">다섯 칸</a></li>
+    <li><a href="#roles">두 역할</a></li>
+    <li><a href="#state">세계의 구조</a></li>
+    <li><a href="#tick">틱의 열 단계</a></li>
+    <li><a href="#catalog">들어 있는 것들</a></li>
+    <li><a href="#asymmetry"><b class="teal">성계·문명·초월자 차별화</b></a></li>
+    <li><a href="#ontology"><b class="violet">초월 생태계와 무한 진화</b></a></li>
+    <li><a href="#screens">화면</a></li>
+    <li><a href="#code">코드의 층</a></li>
+    <li><a href="#pipeline">데이터와 검증</a></li>
+    <li><a href="#history">걸어온 길</a></li>
+    <li><a href="#ahead">앞으로의 길</a></li>
+    <li><a href="#masterplan"><b class="gold">완성 마스터플랜</b></a></li>
+    <li><a href="#then">그때의 한 판</a></li>
+    <li><a href="#grow">늘어나는 것</a></li>
+    <li><a href="#blocks">블록마다 들어오는 것</a></li>
+    <li><a href="#open">열린 결정</a></li>
+    <li><a href="#cut">만들지 않는 것 &amp; 해금</a></li>
+    <li><a href="#words">낱말</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<header class="hero">
+  <div class="eyebrow">2026-11-09 기준 (커밋 cef8cc7 · [B-6b3b]) · 만든 것은 B6b 코어 장치·측정까지, 만들 것은 B6b UI·데이터에서 얼리 액세스까지</div>
+  <h1>Cosmic Ascension, 기승전결과 완성 청사진</h1>
+  <p class="lead">은하의 문명들이 스스로 흥하고 망하는 텍스트 시뮬레이션 위에서, 성역 밖 먼 별의 필멸자가 부르심을 입어 한 백성을 맡는다. 성계에 서는 위기에 답하며 존재의 격을 다섯 칸 오른다. 그릇은 쓰러지고 부름만 이어진다. 게임 오버는 없다.</p>
+  <p class="note">UE 5.8.3, C++ 모듈 하나, 1인 개발. 3D 캐릭터와 행성 표면이 없고, 세계는 수치 몇 개와 태그와 문장으로만 있다. 이 문서는 <code>docs/</code>와 코드에서 뽑은 요약이고, 어긋나면 코드와 <code>docs/</code>가 이긴다.</p>
+  <div class="scale" aria-label="규모">
+    <div><b>cef8cc7</b><span>최신 커밋 · <code>[B-6b3b]</code> (10-10 → 11-09)</span></div>
+    <div><b>223 + 93</b><span>자동화 테스트 223건 · 스키마 93건 통과</span></div>
+    <div><b>97</b><span><code>DT_Rules</code> 튜닝 노브 (84 읽음 · 13 예약)</span></div>
+    <div><b>11 + 1</b><span>데이터 테이블 + 문자열 테이블 (로그 45행)</span></div>
+    <div><b>6 · 7 · 18</b><span>거대사업 6 (결박 추가) · 칙령 7 · 카드 18</span></div>
+    <div><b>61 · 12 · 1</b><span>성계 · 백성 · 타락 초월자 (한 판)</span></div>
+  </div>
+</header>
+
+<!-- ───────────────────────── 기승전결 (4막 구조) ───────────────────────── -->
+<section id="arc">
+  <div class="head">
+    <div class="eyebrow">프로젝트의 기승전결</div>
+    <h2>시작(1칸)부터 두 권의 책(5칸 엔딩)까지 — 한 판의 4막 드라마 호</h2>
+    <p>초반은 익숙한 한 행성의 통치로 출발하지만, <b>셋째 칸(문턱)</b>에서 보이지 않던 영적 전쟁의 지도가 열리고, <b>넷째·다섯째 칸</b>에서 절멸의 방주와 초월자 결박을 거쳐 <b>판정 없는 두 권의 책</b>으로 맺어진다.</p>
+  </div>
+  <div class="cards">
+    <div class="card teal">
+      <div class="t"><b>기 (起) · 부르심과 모성계</b><i>1칸</i></div>
+      <div class="names"><span>틱 0 ~ 650</span><span class="t2">행성급 (Planetary)</span></div>
+      <p><b>"어떤 마음으로 이 백성을 다스릴 것인가?"</b><br>성역(<code>sol</code>) 밖 <code>sys_0</code>에서 <code>arch_seeker</code> 백성과 물려받은 칙령 <code>전시 동원</code>의 압박 속에 출발. 첫 청원 <code>지혜로운 마음</code>(솔로몬 패턴), 첫 시련(틱 150 <code>채굴 AI 각성</code>), 첫 이웃(틱 330 <code>첫 접촉 카드</code>)을 겪으며 모성계에 <b>다이슨 스웜</b>을 완공해 2칸으로 도약한다. <span class="chip on">구현 완료</span></p>
+    </div>
+    <div class="card gold">
+      <div class="t"><b>승 (承) · 확장과 문턱의 개안</b><i>2→3칸</i></div>
+      <div class="names"><span>틱 650 ~ 2,400</span><span class="t2">항성급 → 인과 간섭형 ★</span></div>
+      <p><b>"번영의 꼭대기에서 스스로를 높일 것인가, 낮출 것인가?"</b><br>무주 성계 <code>정착(600)</code>과 외교 조약·200틱 공성으로 별들을 넓힌다. 번영기 청원 <code>'그들이 당신을 높이려 한다'</code>(헤롯 패턴)의 시험을 지나 <b>초신성 안정화</b> 또는 <b>여러 별의 살림(3성계+공학 100%)</b>을 달성하면, <b>"이제 보인다."</b>와 함께 <b>영적 시야</b>·<code>×25</code> 배속이 열린다. <span class="chip on">구현 완료</span></p>
+    </div>
+    <div class="card rose">
+      <div class="t"><b>전 (轉) · 알아챔과 절멸의 방주</b><i>3→4칸</i></div>
+      <div class="names"><span>틱 2,400 ~ 4,500</span><span class="t2">초월자 (Transcendent)</span></div>
+      <p><b>"보이지 않는 자가 우리를 알아챘을 때, 홀로 숨을 것인가 손을 잡을 것인가?"</b><br>영적 시야 아래 타락 초월자('꺼뜨리는 이')의 보랏빛 영향권과 <code>주장(Claim)</code>, 1인칭 줄, 그리고 플레이어를 향한 2인칭 <b>알아챔</b>과 <b>영압 카드 2장</b>이 닥친다. 3칸 백성을 덮치는 <b>종족 절멸 위기(250틱)</b> 앞에서 <b>차원 방주(<code>project_ark</code>)</b>를 짓고 이웃과 <b>외교 조약(<code>CivHasTreaty</code>)</b>을 맺어 4칸에 진입한다. <span class="chip part">장치 완료 · 데이터 [B-6b6]</span></p>
+    </div>
+    <div class="card violet">
+      <div class="t"><b>결 (結) · 은하 법칙·결박·두 책</b><i>4→5칸</i></div>
+      <div class="names"><span>틱 4,500 ~ 시계 C</span><span class="t2">신적 영역 (Eternal Order)</span></div>
+      <p><b>"은하의 질서를 세우고 역사에 무엇으로 기록될 것인가?"</b><br>고향 은하 전체에 걸리는 <b>은하 법칙 3종(<code>Scope: HomeGalaxy</code>)</b>을 유지(<code>LawsHeldTicks</code>)하고, <b>공명 기관(<code>project_binding</code>)</b>을 완공해 타락 초월자를 <b>묶인 상태(<code>Bound</code>)</b>로 봉인한다. 누가 먼저 5칸에 닿았는가(5대 엔딩)가 적히고, <b>연대기(1부 기록된 것들 / 2부 주장된 것들)</b>가 펼쳐진다. <span class="chip part">장치 완료 · 데이터 [B-6b7~10]</span></p>
+    </div>
+  </div>
+  <div class="after"><b>가로축 (언제든 일어나는 전환):</b> 반란 폐위·자발적 양위 시 즉시 <b>방랑자</b>가 되어 성계를 걸어 다니고(<code>B1</code>), 암살·반란·편입·절멸 만료로 그릇이 쓰러지면 <b>공백기</b>를 거쳐 <b>새 그릇으로 계승</b>된다(<code>B5</code>). 단, 내 개인 칸보다 3칸 이상 높은 백성(<code>IsFarAbove</code>)의 왕관은 쓸 수 없다(<code>[B-6b3a]</code>).</div>
+</section>
+
+<!-- ───────────────────────── 한 판의 흐름 ───────────────────────── -->
+<section id="flow">
+  <div class="head">
+    <div class="eyebrow">한 판의 흐름</div>
+    <h2>부르심에서 연대기까지</h2>
+    <p>한 판은 우주 시드 하나, 부름 한 번이다. 그릇이 바뀌어도 판은 이어진다. 굵은 줄이 지금 코드에 있는 길이고, 점선은 아직 없는 자리다.</p>
+  </div>
+  <ul class="flow">
+    <li><div class="box plan"><b>서막</b><small>틱 밖의 부르심 장면 <span class="chip plan">B8</span></small></div></li>
+    <li><div class="box gold"><b>통치자로 시작</b><small>첫 생애 백성 <code>arch_seeker</code>, 모성계 <code>sys_0</code>. 첫 줄 "이 백성이 당신에게 맡겨졌다."</small></div></li>
+    <li><div class="box"><b>시간이 흐른다</b><small>1틱 = 1주기 = 1배속 1초. ×1~×10, 셋째 칸부터 ×25</small></div></li>
+    <li><div class="box"><b>로그에 사건이 쌓인다</b><small>Severity 2 줄·내 위기·카드 도착에 자동 일시정지</small></div></li>
+    <li><div class="box gold"><b>결정 하나</b><small>카드 한 장(선택 2~3) 또는 단추 하나(프로젝트·칙령·연구·외교·함대)</small></div></li>
+    <li><div class="box"><b>결과가 줄로 돌아온다</b><small>안정도 추세, '다음 칸까지' 진척</small></div></li>
+  </ul>
+  <p class="loop">↺ 300~600틱마다 결정 하나가 목표. 이 작은 바퀴가 돌면서 아래의 큰 바퀴가 돈다.</p>
+  <ul class="flow">
+    <li><div class="box rose"><b>위기가 선다</b><small>성계 하나에 카운트다운 하나. 첫 위기는 틱 150에 보장</small></div></li>
+    <li><div class="box"><b>답한다</b><small>대응 프로젝트·카드·칙령·함대로 시간 사기. 답하지 않으면 만료의 효과</small></div></li>
+    <li><div class="box gold"><b>업적 → 칸이 오른다</b><small>건설 1 또는 위기 해결 1. 승천 연출, 지도가 넓어진다</small></div></li>
+    <li><div class="box violet"><b>셋째 칸 뒤의 계절</b><small>영적 시야, 타락의 1인칭 줄, 알아챔 <span class="chip on">B6a</span></small></div></li>
+    <li><div class="box rose"><b>판의 끝</b><small>시계 틱 6,000. 엔딩 기록 하나가 어떻게 끝났는지 적는다</small></div></li>
+    <li><div class="box"><b>연대기</b><small>생애의 장들, 까닭 줄, 두 책. 아무도 너를 판정하지 않는다</small></div></li>
+  </ul>
+  <div class="branches">
+    <div class="branch">
+      <h3 class="teal">왕좌를 잃거나 내려놓으면</h3>
+      <ul class="flow">
+        <li><div class="box"><b>폐위 · 붕괴 · 양위</b><small>반란 만료 / 성계 0 / 스스로</small></div></li>
+        <li><div class="box teal"><b>방랑자</b><small>레인 이웃으로 이동, 스캔, 조우 카드</small></div></li>
+        <li><div class="box"><b>즉위 · 복귀</b><small>경외 0.6 이상이거나 지도자 공백 / 잠금 600틱 뒤 옛 백성에게</small></div></li>
+      </ul>
+      <p class="note">같은 세이브 안에서 통치자와 방랑자를 오간다. 방랑자가 되는 것은 실패의 끝이지 게임의 끝이 아니다. <span class="chip on">B1</span></p>
+    </div>
+    <div class="branch">
+      <h3 class="gold">그릇이 쓰러지면</h3>
+      <ul class="flow">
+        <li><div class="box rose"><b>죽음</b><small>치명 경고와 정지. 지금은 채굴 AI 각성의 만료 하나가 치명</small></div></li>
+        <li><div class="box"><b>공백기</b><small>그릇 없이 세계가 흐른다. 빨리 넘기기</small></div></li>
+        <li><div class="box gold"><b>계승</b><small>다른 성계의 필멸자가 방랑자로 취임. 연대기와 앎만 넘어간다</small></div></li>
+      </ul>
+      <p class="note">계승할 후보가 없으면 침묵의 우주로 판이 끝난다. 기대 2~5대. <span class="chip on">B5</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 다섯 칸 ───────────────────────── -->
+<section id="rungs">
+  <div class="head">
+    <div class="eyebrow">다섯 칸</div>
+    <h2>존재의 격, 그리고 지금 닿는 곳</h2>
+    <p>칸은 경험치로 오르지 않는다. 세계에 흔적을 남기는 업적 하나가 한 칸이다. 오른 칸은 다스린 백성의 것이다. 데이터의 Tier는 1~5, 코드의 <code>EAscensionTier</code>는 0~4.</p>
+  </div>
+  <ol class="ladder">
+    <li class="now"><div class="n">1<small>행성</small></div><div><b>행성의 시대</b> <span class="chip part">시작점</span><p>한 백성, 한 모성계. 의회와 회중의 첫 청원, 첫 위기(채굴 AI 각성), 물려받은 칙령 전시 동원, 다이슨 스웜. 손대지 않으면 틱 1,050 무렵 폐위된다.</p></div></li>
+    <li class="on"><div class="n">2<small>성간</small></div><div><b>성간 시대</b> <span class="chip on">업적: 다이슨 스웜</span><p>정착으로 성계가 는다. 다른 백성과의 마찰이 열린다(태세·조약·함대·공성). 헤롯 패턴 카드 '그들이 당신을 높이려 한다'가 처음 선다.</p></div></li>
+    <li class="on"><div class="n">3<small>인과</small></div><div><b>인과의 시대</b> <span class="chip on">업적: 초신성 안정화 / 여러 별의 살림</span><p>영적 시야가 열리고 ×25가 더해진다. 주장이 편입될 때 타락의 1인칭 줄이 들린다. B6a부터 셋째 칸은 판을 끝내지 않는다.</p></div></li>
+    <li class="now"><div class="n">4<small>초월</small></div><div><b>초월</b> <span class="chip part">업적: 방주와 손잡음 — B6b 장치 완료 · 데이터 [B-6b6]</span><p>셋째 칸 백성을 덮치는 <b>종족 절멸 위기(250틱)</b>에 맞서 <b>차원 방주(<code>project_ark</code>, 150)</b>를 완공하고 이웃과 <b>외교 조약(<code>CivHasTreaty 1</code>)</b>을 맺어 오른다. AI는 한 판에 최대 두 백성까지만 넷째 칸에 오를 수 있다(<code>FourthRungOpenOf</code>).</p></div></li>
+    <li class="now"><div class="n">5<small>영겁</small></div><div><b>영겁</b> <span class="chip part">업적: 법칙과 결박 — B6b 장치 완료 · 데이터 [B-6b7]</span><p>고향 은하 전체에 걸리는 <b>은하 법칙 3종(<code>Scope: HomeGalaxy</code>)</b>을 유지(<code>LawsHeldTicks</code>)하고, <b>공명 기관(<code>project_binding</code>, 1,800)</b>을 완공해 타락 초월자를 <b>묶인 상태(<code>Bound</code>)</b>로 봉인한다. 다섯째 칸 연출은 금빛과 차임 없이 고요히 열린다.</p></div></li>
+  </ol>
+</section>
+
+<!-- ───────────────────────── 두 역할 ───────────────────────── -->
+<section id="roles">
+  <div class="head">
+    <div class="eyebrow">두 역할</div>
+    <h2>통치자와 방랑자가 지금 할 수 있는 것</h2>
+    <p>같은 은하, 같은 카드 정의를 두 시점에서 쓴다. 통치자에게는 청원, 방랑자에게는 조우. 결정은 전부 '수치 하나를 바꾸거나 프로젝트 하나를 켜는' 크기다.</p>
+  </div>
+  <div class="cols">
+    <div class="col ruler">
+      <h3 class="gold">통치자 <small class="muted">첫 생애는 늘 여기서</small></h3>
+      <ul>
+        <li><b>카드에 답한다</b> — 청원 13장. 의회와 회중의 두 목소리, 첫 접촉 카드, 영압 카드 둘, 헤롯 패턴 카드.</li>
+        <li><b>거대 프로젝트</b> — 다이슨 스웜·개혁·구호·정착·초신성 안정화. 성계마다 건설 칸과 대응 칸이 하나씩.</li>
+        <li><b>연구 중점</b> — 프리셋 넷(균형·물리·사회·공학) 또는 몫 슬라이더 셋.</li>
+        <li><b>칙령</b> — 일곱 행을 제정·철회. 자리는 사회 연구로 는다. 시작은 물려받은 전시 동원 하나.</li>
+        <li><b>외교</b> — 만난 백성마다 태세 셋(우호·중립·적대)과 조약 둘(무역·불가침, 둘째 칸부터).</li>
+        <li><b>함대</b> — 수 하나와 목표 성계 하나. 제 성계면 지키고, 적대한 이웃의 성계면 에워싼다(200틱 뒤 한 번 판정).</li>
+        <li><b>왕좌를 내려놓는다</b> — 양위. 수도 패널의 단추나 왕좌 카드의 셋째 선택지.</li>
+        <li><b>그 밖</b> — 배속 키 0~5, 자동 일시정지, 자동 저장과 이어하기, 시계의 '주기'↔'년'.</li>
+      </ul>
+    </div>
+    <div class="col wander">
+      <h3 class="teal">방랑자 <small class="muted">B1부터</small></h3>
+      <ul>
+        <li><b>이리로 간다</b> — 레인 이웃 하나로, 20틱. 가는 동안 카드가 오지 않는다.</li>
+        <li><b>스캔</b> — 선 성계에서 한 레인 더 멀리 본다.</li>
+        <li><b>조우 카드 5장</b> — 위기 곁의 넷과 도착 카드 하나. 비용이 없고 판정은 그릇의 능력치(몸·정신·인과·높아짐)로.</li>
+        <li><b>왕좌를 맡는다</b> — 만난 백성의 정착된 성계에서, 경외 0.6 이상이거나 지도자 공백(안정도 0.2 미만)일 때.</li>
+        <li><b>돌아간다</b> — 떠나온 옛 백성에게, 왕좌 잠금 600틱이 지나면.</li>
+        <li><b>죽을 수 있다</b> — 치명한 자리에는 경고와 정지가 선다. 죽으면 공백기와 계승.</li>
+        <li class="no">아직 없음 — 수련, 유물, 개인 자원, 여러 레인을 잇는 경로, 순간 이동, 방랑자의 업적과 승천.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="switch" aria-label="역할 전환">
+    <div class="who r">통치자<small>왕좌·백성·칙령·함대</small></div>
+    <div class="arrows">
+      <span>폐위 · 붕괴 · 양위</span><span class="a">⇄</span><span>즉위 · 복귀</span>
+      <span class="note">떠날 때 모든 왕좌가 600틱 잠긴다</span>
+    </div>
+    <div class="who w">방랑자<small>그릇 하나·레인·조우</small></div>
+  </div>
+  <div class="death">
+    <b class="gold">부름 / 그릇 / 세계의 세 갈래</b>
+    <p class="note">그릇이 쓰러지면 <b>그릇</b>(능력치·자원·왕좌·소속·경외)은 전부 초기화되고, <b>부름</b>(연대기·앎·업적 기록, 셋째 칸 이상의 개인 칸, <code>Way.*</code> 권능)만 다음 사람에게 맡겨지며, <b>세계</b>는 그 사이에도 혼자 흐른다. 공백기의 도약은 판 합계 4,500틱 안이다.</p>
+  </div>
+</section>
+
+<!-- ───────────────────────── 세계의 구조 ───────────────────────── -->
+<section id="state">
+  <div class="head">
+    <div class="eyebrow">세계의 구조</div>
+    <h2>저장되는 모든 것은 상자 하나 안에 있다</h2>
+    <p>런타임 상태는 전부 <code>FGalaxyState</code> 안의 USTRUCT다. UObject 그래프도, 액터나 위젯에 숨은 상태도 없다. 세 층이 한 방향으로만 흐른다: 세계 → 앎 → 이야기. 세계 코드는 앎에 쓰기만 하고 읽지 않는다.</p>
+  </div>
+  <div class="state">
+    <div class="layer world">
+      <div class="t"><b class="teal">세계</b><span>시뮬이 읽고 쓰는 것. 두 해시 모두에 든다.</span></div>
+      <div class="members">
+        <div class="member"><b>성계 <span class="k">Systems</span></b><p>생명 성계 60 + 성역 '태양계' <code>sol</code>(배열 끝, 레인 없음). 주인, 항성 등급, 위기 한 칸과 남은 틱, 건설 칸·대응 칸, 완성 기록, 함대 목표.</p></div>
+        <div class="member"><b>백성 <span class="k">Civs</span></b><p>12(플레이어 포함). 자원 다섯, 안정도 하나, 윤리 3축, 특성 태그, 연구 넷, 칙령 목록, 관계·태세·조약, 함대 수, 인물 기록(5필드), 수도와 소유 성계.</p></div>
+        <div class="member"><b>타락 초월자 <span class="k">Transcendents</span></b><p>'꺼뜨리는 이' 한 체. 영향권(영혼 경제의 유일한 크기)과 알아챔 플래그.</p></div>
+        <div class="member"><b>그릇 <span class="k">Player</span></b><p>능력치를 가진 유일한 개인. 역할, 선 성계, 이동, 몸·정신·인과·높아짐, 다스리는 백성.</p></div>
+        <div class="member"><b>부름 <span class="k">Calling</span></b><p>생애 기록들, 개인 칸, 권능, 업적 기록. 그릇에서 그릇으로 넘어간다.</p></div>
+        <div class="member"><b>엔딩 기록 <span class="k">Ending</span></b><p>종류 태그 다섯 중 하나, 틱, 백성, 그릇 없음. 비어 있으면 흐르는 판.</p></div>
+      </div>
+    </div>
+    <div class="layer know">
+      <div class="t"><b class="gold">앎</b><span>부름이 알게 된 것. 상태 해시에는 들고 세계 해시에서는 빠진다.</span></div>
+      <div class="members">
+        <div class="member"><b>아는 성계 · 만난 백성 <span class="k">Knowing</span></b><p>발견한 차례로 자라기만 한다. 지도·패널·피드는 이것만 읽어 그린다(<code>CosmicMapLook::KnownViewOf</code> 한 창구). 모르는 성계는 배경 별의 점 하나다.</p></div>
+      </div>
+    </div>
+    <div class="layer tell">
+      <div class="t"><b class="violet">이야기</b><span>말해진 것. 세계 해시에서 빠진다.</span></div>
+      <div class="members">
+        <div class="member"><b>로그 <span class="k">Log</span></b><p>Severity 0·1·2의 줄. 범위 밖의 줄은 저장되되 말해지지 않는다.</p></div>
+        <div class="member"><b>연대기 <span class="k">Chronicle</span></b><p>판의 끝에 펼쳐지는 기록. 주장·기록 줄은 늘 여기로 온다. 상한을 넘으면 오래된 Severity 1부터 밀려난다.</p></div>
+        <div class="member"><b>말하기 스트림 <span class="k">TellRngState</span></b><p>문장 변형만 뽑는 난수. 세계의 추첨과 서로 읽지 않는다.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="hashes">
+    <div><b>상태 해시</b>FText와 세이브 ID만 빼고 전부. "저장 → 재시작 → 로드"가 같은 값을 내야 한다.</div>
+    <div><b>세계 해시</b>거기서 앎·로그·연대기·말하기 스트림을 뺀 값. 앎이 세계를 바꾸지 않음을 재는 자.</div>
+    <div><b>저장</b>델타 저장이라 기본값은 세이브가 생긴 뒤 바꾸지 않는다. <code>SaveVersion</code>은 아직 1. 슬롯 하나가 약 86 KB.</div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 틱의 열 단계 ───────────────────────── -->
+<section id="tick">
+  <div class="head">
+    <div class="eyebrow">틱의 열 단계</div>
+    <h2>한 주기 안에서 세계가 도는 차례</h2>
+    <p>순서는 고정이고 추첨은 시뮬 스트림 하나에서만 나온다. 추첨 지점은 테이블 내용을 보기 전에 정해진 횟수를 무조건 뽑는다. 그래서 같은 시드는 언제나 같은 세계다.</p>
+  </div>
+  <ol class="stages">
+    <li><b>경제</b><span>수입과 유지비, 영압과 칙령의 틱당 효과, 인구 회복 뒤 안정도 회복</span></li>
+    <li><b>연구</b><span>네 분야의 진척, 0.25마다 돌파 한 줄</span></li>
+    <li><b>외교</b><span>우호의 유지비, 국경이 닿은 쌍의 관계 표류</span></li>
+    <li><b>분쟁</b><span>함대의 자람과 유지비, 끝에 이른 공성의 한 번 판정, 목표 점검</span></li>
+    <li><b>위기</b><span>발생·카운트다운·만료, 수도 규칙, 첫 위기 보장</span><em>끝에 이벤트 슬롯</em></li>
+    <li><b>AI</b><span>다른 백성의 프로젝트·정착·구호·외교</span><em>끝에 업적 판정</em></li>
+    <li><b>건넘</b><span>백성이 사라지는 유일한 자리. 성계는 줄지 않는다</span></li>
+    <li><b>플레이어 이동</b><span>방랑자의 레인 이동 카운트다운</span></li>
+    <li><b>앎</b><span>보이는 것을 앎에 적는다. 세계를 읽고 앎에만 쓴다</span><em>끝에 기다리는 카드 제시</em></li>
+    <li><b>역할 효과 해소</b><span>폐위·양위·죽음, 공백기 카운트다운, 계승</span></li>
+  </ol>
+  <div class="after">열째 단계 뒤, 판이 끝난 틱이면 <b>엔딩 기록</b>을 한 번 적는다(추첨 없음, 먼저 온 끝만). 시뮬은 끝 뒤에도 돌고 빨리 넘기기만 그 틱에서 선다. 핸들러(<code>OnLogEntry</code>·<code>OnEventFired</code>·<code>OnTierAscended</code>) 안에서는 상태를 바꾸지 않는다. 일시정지는 <code>SetTimeScale(0)</code> 하나.</div>
+</section>
+
+<!-- ───────────────────────── 카탈로그 ───────────────────────── -->
+<section id="catalog">
+  <div class="head">
+    <div class="eyebrow">들어 있는 것들</div>
+    <h2>데이터 행으로 세어 본 세계</h2>
+    <p>새 카드·칙령·위기·문장은 C++ 재컴파일 없이 행 하나로 는다. 원본은 <code>Tools/data/*.json</code>이고 에디터의 에셋은 그 산출물이다. 점선은 태그나 칸만 선언되고 행이 없는 것.</p>
+  </div>
+  <div class="cards">
+    <div class="card teal">
+      <div class="t"><b>자원</b><i>5</i></div>
+      <div class="names"><span>에너지</span><span>물질</span><span>지식</span><span>영향력</span><span class="t2">인과</span></div>
+      <p>인과는 영력의 서사 이름. 셋째 칸 연구 뒤 극소량. 로그에는 자원 숫자가 없고 UI에만 있다.</p>
+    </div>
+    <div class="card teal">
+      <div class="t"><b>연구</b><i>4</i></div>
+      <div class="names"><span>물리</span><span>사회</span><span>공학</span><span class="plan">초월</span></div>
+      <p>트리 없이 분야마다 0~1 진척 하나. 물리는 다이슨 스웜과 항성 안정화를, 사회는 칙령 자리와 안정도 회복을, 공학은 정착 비용을 연다. 초월은 아직 아무것도 열지 않는다.</p>
+    </div>
+    <div class="card rose">
+      <div class="t"><b>위기</b><i>5</i></div>
+      <div class="names"><span>채굴 AI 각성</span><span>주장</span><span>성간 역병</span><span>초신성 전조</span><span>반란</span><span class="plan">아공간 침식</span><span class="plan">멸종</span><span class="plan">교단</span><span class="plan">방문</span></div>
+      <p>성계 하나에 한 번에 하나. 통치자의 답은 대응 프로젝트·카드·칙령, 방랑자의 답은 위기 곁의 조우 카드. 주장은 타락이 정착된 성계에 거는 위기.</p>
+    </div>
+    <div class="card gold">
+      <div class="t"><b>거대 프로젝트</b><i>5</i></div>
+      <div class="names"><span>다이슨 스웜</span><span>개혁</span><span>구호</span><span class="t2">정착 (T2)</span><span class="t2">초신성 안정화 (T2)</span></div>
+      <p>개혁은 반란의, 구호는 주장과 역병의, 안정화는 전조의 답이라 대응 칸에서 돈다. 다이슨 스웜과 정착은 건설 칸. AI 백성도 같은 길로 시작한다.</p>
+    </div>
+    <div class="card gold">
+      <div class="t"><b>칙령</b><i>7</i></div>
+      <div class="names"><span>기계 권리</span><span>전시 동원</span><span>사상 개방</span><span>무역 자유화</span><span>밤샘·절식</span><span>격리령</span><span class="t2">저녁 안부 (T2)</span></div>
+      <p>켜 두는 수정자. 기한도 쿨다운도 없고 서 있는 동안 틱마다 효과를 낸다. 모든 백성은 전시 동원을 물려받은 채 시작하고, 그대로 두면 무너진다.</p>
+    </div>
+    <div class="card gold">
+      <div class="t"><b>카드</b><i>18</i></div>
+      <div class="names"><span>지혜로운 마음</span><span>흔들리는 거리</span><span>곳간 앞의 줄</span><span>일손</span><span>기억할 날</span><span>왕좌를 지키겠는가</span><span>역병</span><span>깨어난 기계</span><span>흔들리는 별</span><span>그들이 당신을 높이려 한다</span><span>{OtherCiv}의 신호</span><span class="t2">{System} 위의 그늘</span><span class="t2">{System}에서 온 글</span></div>
+      <div class="names"><span>두 편 사이</span><span>앓는 이들 곁</span><span>깨어난 것 앞에서</span><span>흔들리는 별 곁에서</span><span>휘는 별빛</span></div>
+      <p>위의 13장이 통치자의 청원, 아래 5장이 방랑자의 조우. 마지막 두 청원이 영압 카드(타락의 두 목소리). 카드가 칙령을 내리거나 함대로 시간을 살 수도 있다.</p>
+    </div>
+    <div class="card gold">
+      <div class="t"><b>업적</b><i>3</i></div>
+      <div class="names"><span>다이슨 스웜</span><span>초신성 안정화</span><span>여러 별의 살림</span></div>
+      <p>첫째는 T1→T2, 뒤의 둘은 T2→T3의 두 길. 넷째·다섯째 칸의 업적 행은 B6b.</p>
+    </div>
+    <div class="card violet">
+      <div class="t"><b>타락 초월자</b><i>1</i></div>
+      <div class="names"><span>꺼뜨리는 이 (침묵, 넷째 칸)</span></div>
+      <p>교리마다 한 체. 영향권과 압력, 주장 위기, 영압 카드 두 장, 셋째 칸부터 들리는 1인칭 줄, 판에 한 번뿐인 2인칭 알아챔 줄. 거룩한 질서는 엔티티가 아니다.</p>
+    </div>
+    <div class="card rose">
+      <div class="t"><b>엔딩 기록의 종류</b><i>5</i></div>
+      <div class="names"><span>시계 (틱 6,000)</span><span class="plan">집단 승천</span><span class="plan">단독 승천</span><span class="plan">다른 질서</span><span class="plan">침묵의 우주</span></div>
+      <p>지금의 데이터로 놀이에서 닿는 끝은 시계뿐이다. 나머지 넷은 기록·연대기의 까닭 줄·테스트까지 서 있고, 닿는 길은 B6b가 연다. 화면 제목은 없고 까닭 줄 하나가 판의 규칙으로 말한다.</p>
+    </div>
+    <div class="card teal">
+      <div class="t"><b>이벤트 행</b><i>12</i></div>
+      <div class="names"><span class="k">book_closed · found · reading</span><span class="k">civ_lode</span><span class="k">civ_grid_failure</span><span class="k">civ_quarrel</span><span class="k">civ_festival</span><span class="k">grace_remnant</span><span class="k">rebellion_murmur · rises</span><span class="k">plague_repentance</span><span class="k">claim_eased</span></div>
+      <p>위기 단계 끝의 이벤트 슬롯에서 조건으로 걸러 발화한다. 발화한 행은 '효과 → 앎 → 줄 → 핸들러'의 원자.</p>
+    </div>
+    <div class="card teal">
+      <div class="t"><b>은하와 글</b><i>20 · 45 · 446</i></div>
+      <div class="names"><span>은하 행 20 (고향 1 + 표시 전용 19)</span><span>로그 템플릿 45 (절멸·결박·무명 9행 추가)</span><span>UI 문자열 446</span><span>백성 원형 2</span></div>
+      <p>배경 별 20,000점은 그림뿐이다. 사람의 수는 어디에도 숫자로 쓰지 않고 규모 등급으로만 읽힌다. 지어낸 이름은 한국어 묘사 이름.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 성계·문명·초월자 차별화 ───────────────────────── -->
+<section id="asymmetry">
+  <div class="head">
+    <div class="eyebrow">비대칭 개성화 설계 (고도화 방향)</div>
+    <h2>일괄적인 느낌을 깨는 3대 축 — 성계 · 문명 · 초월자의 고유 메커니즘</h2>
+    <p>3D 모델이나 타일 UI를 만들지 않는 린(Lean) 구조 안에서도, 대도감(<code>cosmic_species_codex.md</code>)의 원형이 단순 텍스트 교체가 아니라 <b>실제 작동 규칙의 차이</b>로 드러나도록 설계한 비대칭 개성화 청사진이다.</p>
+  </div>
+
+  <div class="cols">
+    <div class="col ruler">
+      <h3 class="gold">축 1 · 성계(Star Systems)의 고유 생태 기믹 <small class="muted">Trait.World.*</small></h3>
+      <ul>
+        <li><b>미끼의 대지 (리토스-므네모시네)</b> — 정착 비용 절반·광물 산출 2배이나, 300틱 뒤 지각 신경 동기화 위기가 발발해 이웃 성계로 감염 개척선을 쏘아 올리는 함정 성계.</li>
+        <li><b>폭풍의 거성 (제논 콰이어)</b> — 광물 산출은 0이지만 초고압 자기장 공명으로 <b>에너지+지식</b>을 동시 산출하며, 적 함대의 공성 기간을 +100틱 지연시키는 천연 요새.</li>
+        <li><b>식어가는 잔불 (백색왜성 · 아셰라)</b> — 산출은 낮으나 고밀도 시간 지연 효과로 이 성계에 선 <b>모든 위기·주장의 카운트다운이 2배 느리게(격틱) 진행</b>되는 최후의 보루.</li>
+        <li><b>중력 거미줄 해역 (보이드 위버)</b> — 연결된 레인의 이동·공성 진입 시간을 늦추고, 포획된 난파선에서 주기적 공학 돌파를 주는 관문 성계.</li>
+        <li><b>펄서의 모루 (중성자별 · 마그네타 스미스)</b> — 식량·인구는 자라지 않으나 '중성자 파스타' 채굴로 <b>문명 전체 거대사업 속도를 +25% 가속</b>하는 공업 성계.</li>
+        <li><b>잿빛 왕관 (고대 다툼 성계)</b> — 정착 즉시 연구 돌파와 희귀 변칙 조우(<code>CHM</code>)를 여는 하이리스크 중심부 유적 성계(연대기 특별 비문).</li>
+      </ul>
+    </div>
+
+    <div class="col wander">
+      <h3 class="teal">축 2 · 성계 문명(Civilizations)의 비대칭 생리 <small class="muted">DT_Civs 원형</small></h3>
+      <ul>
+        <li><b>살아있는 지각 (<code>arch_swarm</code> · 카르시노스 군체)</b> — 정착 첫 200틱 동안 산출 1.8배를 뽑아먹고 성계 풍부도를 깎는 <b>메뚜기형 포식 경제</b>. 멈추면 굶주리므로 끊임없이 팽창·공성한다.</li>
+        <li><b>별빛을 벼리는 자들 (<code>arch_psionic</code> · 공명 신정)</b> — 소수 성계(2~3곳)에만 집중하는 대신 <b>지식·경외·인과 산출 2배 + 차원 봉쇄막(공성 방어 2배)</b>을 가진 고대 성소 문명.</li>
+        <li><b>셈 대장간 (<code>arch_machine</code> · 자가복제 기계)</b> — 안정도가 흔들리지 않고 <code>채굴 AI 각성</code> 위기를 오히려 <b>생산력 부스트로 흡수</b>하지만, 기본 경외가 0이라 영적 울타리에 취약한 연산 제국.</li>
+        <li><b>찾는 백성들 (<code>arch_seeker</code> · 회중과 의회)</b> — 영성을 찾는 '회중'과 괴수 부산물까지 역설계하는 '의회'가 줄다리기하며, <b>잊혔던 언약책</b>과 외교 조약에 가장 유연한 적응형 문명.</li>
+        <li><b>특화 백성 4종 (상인·학파·군벌·사제단)</b> — 조약을 맺었을 때 주는 고유 혜택(자원 보너스 vs 지식 공유 vs 공성 방어 지원 vs 경외 전파)이 각기 다르게 작동한다.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card violet">
+      <div class="t"><b>타락 1 · 침묵 ('꺼뜨리는 이')</b><i>안식 위조</i></div>
+      <div class="names"><span>짙은 보라</span><span>CHM-07 보랏빛 태양</span></div>
+      <p><b>고립과 무기력 유도:</b> 방치된 위기 자리에 주장을 꽂고 인접 문명의 <b>거대사업·연구 속도를 감속</b>시킨다. <i>"소리가 멎은 자리에 평화가 온다"</i>며 사업을 멈추는 대가로 즉각적 안정도를 유혹한다.</p>
+    </div>
+    <div class="card teal">
+      <div class="t"><b>타락 2 · 동화 ('천 개의 입')</b><i>연합 위조</i></div>
+      <div class="names"><span>창백한 청록</span><span>CHM-05 살점과 빛의 입</span></div>
+      <p><b>무역로·개방성 감염:</b> 높은 개방성이나 무역 레인을 타고 번진다. 편입된 성계는 죽은 별이 아니라 <b>'하나가 된 군락'</b>이 되어 이웃 성계로 동화 청원을 역수출하며 경계 해체를 유혹한다.</p>
+    </div>
+    <div class="card rose">
+      <div class="t"><b>타락 3 · 광신 ('태우는 이')</b><i>열심 위조</i></div>
+      <div class="names"><span>타오르는 주홍</span><span>CHM-02 통곡하는 강철</span></div>
+      <p><b>성전과 자해적 분쟁 선동:</b> 문명 내부에 광신 교단(<code>Hazard.Cult</code>)을 일으켜 이웃과 <b>강제 공성전</b>을 벌이게 만든다. 안정도와 인구를 태워 즉각적 군사력·위기 파괴를 얻게 한 뒤 제국을 재로 만든다.</p>
+    </div>
+    <div class="card gold">
+      <div class="t"><b>타락 4 · 회귀 ('되감는 이')</b><i>영원 위조</i></div>
+      <div class="names"><span>창백한 금·은</span><span>크로노보어 · CHM-10</span></div>
+      <p><b>시간 감옥과 귀환 유혹:</b> 성계의 거대사업 진척을 과거로 되감는다. 통치자 사망 시 <b>공백기 없이 즉시 옛 왕좌로 되돌려주겠다(<code>OfferReturn</code>)</b>고 속삭이며 모성계에 영구 저당을 꽂는다.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 초월 생태계와 무한 진화 ───────────────────────── -->
+<section id="ontology">
+  <div class="head">
+    <div class="eyebrow">무정형 진화 생태계 · 5축 60블록 존재 유전자 · 시간의 결정체</div>
+    <h2>정형화된 프리셋이 아니라, 플레이어와 우주의 모든 존재가 수만 가지 모습으로 자라나는 세계</h2>
+    <p>상세 마스터 설계서는 <code>docs/10_DESIGN/EXISTENCE_EVOLUTION_AND_ECOLOGY.md</code>. 몇 개의 고정된 보스나 직업 목록을 두는 대신, <b>60개의 '존재 규칙 블록(형태 14 × 섭식 14 × 공간 법칙 12 × 상호작용 본능 8 × 시간 변이 12 = 초기 조합만 18,816종)'이 레고처럼 조합·변이되는 구조</b>를 쓴다. 3D 모델이 없는 텍스트·노드 시뮬레이션이기에 <code>FCivilizationState::Traits</code>와 틱 함수 약 300줄만으로 플레이어와 AI 모두가 상상치 못한 고차원 존재로 진화하는 생태계를 구현할 수 있다.</p>
+  </div>
+
+  <div class="cards">
+    <div class="card gold">
+      <div class="t"><b>축 1 · 형태 (<code>Brick.Form.*</code>)</b><i>14종</i></div>
+      <div class="names"><span>단일 육신(Vessel)</span><span>사회 군집(Society)</span><span>행성 지각(Crust)</span><span>항성 수의(Shroud)</span><span>성간 거미줄(VoidWeb)</span><span>살아있는 성운(LivingNebula)</span><span>연산 고리(Computronium)</span><span>검은 구(DysonBrain)</span><span>지평선 각인체(EventHorizon)</span><span>양자 확률구름(QuantumCloud)</span><span>중력파 현악기(AcousticString)</span><span>역류하는 시간선(ReverseTime)</span><span>영구 자동유산(FossilAutomata)</span><span>무형의 법칙/신앙(UnseenLaw)</span></div>
+      <p>처음엔 작은 개체나 사회로 출발했더라도, 살아온 시간에 따라 <b>미래에서 과거로 거슬러 사는 존재</b>, <b>블랙홀 경계면에 새겨진 2차원 정보 생명체</b>, <b>관측 전까지 모든 무주 성계에 중첩된 유령 문명</b>, <b>살아있는 성운 세계</b> 등으로 변이한다.</p>
+    </div>
+    <div class="card teal">
+      <div class="t"><b>축 2 · 섭식 (<code>Brick.Diet.*</code>)</b><i>14종</i></div>
+      <div class="names"><span>생태 순환(Biosphere)</span><span>맨틀 포식(MantleStrip)</span><span>항성 핵융합(StarEater)</span><span>암흑물질·공허(DarkMatter)</span><span>궤도 제동(OrbitBrake)</span><span>생체 흡수(BioHarvest)</span><span>폐기된 미래(ChronoEntropy)</span><span>경외·의식 공명(Resonance)</span><span>절대 고요·무사건(SilenceFeed)</span><span>망각된 이름들(ForgottenNames)</span><span>이별·공간 장력(DistanceTension)</span><span>재앙·고통 여과(CrisisParasite)</span><span>식어가는 잔불(DeadStarLight)</span><span>법칙 마찰열(BorderFriction)</span></div>
+      <p>별을 씹어 삼켜 등급을 깎는 포식자뿐 아니라, <b>아무 사건도 일어나지 않는 '고요한 틱'만 먹고 자라는 존재</b>, <b>멸망해 잊힌 문명들의 이름을 먹는 존재</b>, <b>분신들이 은하 양 끝으로 멀어질수록 그 그리움(공간 장력)에서 무한 동력을 얻는 존재</b>가 탄생한다.</p>
+    </div>
+    <div class="card violet">
+      <div class="t"><b>축 3 · 공간 법칙 (<code>Brick.Space.*</code>)</b><i>12종</i></div>
+      <div class="names"><span>성계 정주(Settler)</span><span>영겁 유영(Nomad)</span><span>항성계 견인(SystemDragger)</span><span>인공 레인 재편(OrbitShaper)</span><span>절대 은둔 소우주(HermitMonolith)</span><span>동종 초연결 편재(OmniLinked)</span><span>내벽 공생 세계(HostWorld)</span><span>접힌 위상 공간(FoldedTopology)</span><span>원자 틈새 미시우주(PlanckMicro)</span><span>비유클리드 미궁(Labyrinth)</span><span>거울 그림자 투영(MirrorProjection)</span><span>초신성 포자 산란(NovaSpore)</span></div>
+      <p>항성계들을 몸에 달고 끌고 다니는 존재, <b>거대해지는 대신 원자보다 작아져 빈 별 틈새에 불침의 미시 제국을 세우는 존재</b>, <b>은하의 양 끝 성계를 한 점으로 포개 놓는 존재</b>, 죽는 순간 은하 전역에 포자로 흩어지는 존재가 지도를 살아 숨 쉬게 만든다.</p>
+    </div>
+    <div class="card rose">
+      <div class="t"><b>축 4 · 본능 (<code>Brick.Instinct.*</code>)</b><i>8종</i></div>
+      <div class="names"><span>절대 무관심(Aloof)</span><span>무차별 탐식(ApexDevour)</span><span>내벽 공생·보육(Symbiotic)</span><span>경계 해체·동화(HiveMerge)</span><span>번식·역설계(SwarmTech)</span><span>법칙·신앙 전파(LawRadiant)</span><span>수호와 결박(Warden)</span><span>기억·표본 박제(Collector)</span></div>
+      <p>자기 몸(성운) 안에 작은 문명들을 품고 살아가는 거대 생명, 건드리지 않으면 영원히 침묵하는 고독자, 작은 기술과 무한 번식으로 초월자들과 맞서는 군집, 사라져 가는 문명을 성계째 박제해 보존하는 수집가가 서로 맞물려 동적 세력 균형을 이룬다.</p>
+    </div>
+  </div>
+
+  <div class="tablewrap">
+    <table class="grow">
+      <thead><tr><th>상대 존재의 주요 블록 조합</th><th>대상 맞춤형 반응형 상호작용 (자동 조립되는 선택지와 흐름)</th><th>플레이어가 그 길로 진화했을 때의 모습</th></tr></thead>
+      <tbody>
+        <tr><td><code>Space.SystemDragger</code> + <code>Diet.OrbitBrake</code><br><small>별을 끌고 다니며 궤도를 비트는 존재</small></td><td><b>[견인 궤도 올라타기]</b> 내 성계를 그 중력 꼬리에 매달아 함께 유랑 / <b>[중력 닻 박기]</b> 레인 단절 방어</td><td>내 모성계들을 직접 몸에 매달고 은하를 유영하며 원하는 별들과 레인을 실시간으로 엮는 <b>항성 유목신</b></td></tr>
+        <tr><td><code>Form.LivingNebula</code> + <code>Space.HostWorld</code><br><small>암흑물질을 먹고 세계 자체가 된 생명</small></td><td><b>[성운 내벽에 공생 정착]</b> 거대 생명의 몸 안에서 에너지 공유 + 들숨·날숨 주기에 동조 / <b>[신경핵 교감]</b></td><td>내 몸(성운 영역) 안에 후발 문명들을 행성처럼 품어 기르며 우주를 떠도는 <b>살아있는 방주-세계</b></td></tr>
+        <tr><td><code>Space.OmniLinked</code> + <code>Diet.Resonance</code><br><small>모든 동종이 하나로 연결된 정점 존재</small></td><td><b>[공명 주파수 접속]</b> 전 은하 시야·통찰 즉시 공유(동화 위험) / <b>[정신 차폐막 전개]</b> 편재 개입 차단</td><td>물리적 이동 시간 0틱, 은하 어디에든 동종의 흔적이 있는 성계에 즉시 현현해 에너지를 모으는 <b>만물 공명체</b></td></tr>
+        <tr><td><code>Space.HermitMonolith</code> + <code>Instinct.Aloof</code><br><small>자기 영역만 두고 살아가는 절대 은둔자</small></td><td>무력 침공 시 '침공 인과' 자동 삭제 / <b>[경계 밖 수백 주기의 침묵 순례]</b>로만 시간 조작 기술 전수 가능</td><td>단 하나의 성계를 절대불침으로 닫아걸고 외부보다 10배 빠른 내부 시간 속에서 영원을 응시하는 <b>사건의 지평선 성소</b></td></tr>
+        <tr><td><code>Form.Society</code> + <code>Instinct.SwarmTech</code><br><small>무한 번식과 과학으로 맞서는 작은 존재들</small></td><td><b>[성간 교역망·인공 레인 공동 부설]</b> / <b>[초월 포식자 방어 연합]</b> / 괴수 잔해 공동 역설계</td><td>초능력 없이 순수 과학·번식·인공 다리로 은하를 거대한 회로판처럼 덮어 초월자들을 제압하는 <b>티끌들의 초과학 군집</b></td></tr>
+        <tr><td><code>Form.UnseenLaw</code> + <code>Instinct.LawRadiant</code><br><small>육신도 영토도 없는 신앙·법칙 존재</small></td><td><b>[그 법칙을 받아들여 성계에 울타리 세우기]</b> / <b>[역사 기록 속에 남은 메아리 해독]</b></td><td>왕좌도 육신도 내려놓고 <b>보이지 않는 우주 법칙·언약 자체</b>가 되어 여러 백성의 역사 속에 영원히 흐르는 존재</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="cols">
+    <div class="col ruler">
+      <h3 class="gold">6대 시간 누적 벡터 (<code>FCosmicTimeVectors</code>) — 살아낸 시간이 곧 유전자다</h3>
+      <ul>
+        <li><b>구축의 시간 (<code>Built</code>)</b> — 별을 깎고, 과학을 연구하고, 번식하며 구조물을 세운 시간.</li>
+        <li><b>섭취의 시간 (<code>Consumed</code>)</b> — 항성·물질·암흑물질을 삼키며 존재의 질량(<code>Scale</code>)을 키운 시간.</li>
+        <li><b>유영의 시간 (<code>Drifted</code>)</b> — 한 자리에 매이지 않고 성간을 떠돌거나 별들을 끌고 다닌 시간.</li>
+        <li><b>연결의 시간 (<code>Linked</code>)</b> — 타자와 조약을 맺고, 동종과 공명하며, 작은 생명을 품어준 시간.</li>
+        <li><b>고독의 시간 (<code>Isolated</code>)</b> — 외부의 팽창을 거절하고 단일 영역과 내면의 깊이를 파고든 시간.</li>
+        <li><b>언약의 시간 (<code>Endured</code>)</b> — 영압(<code>PressureEnduredTicks</code>)과 법칙(<code>LawsHeldTicks</code>)을 견디며 약속을 지킨 시간.</li>
+      </ul>
+    </div>
+    <div class="col wander">
+      <h3 class="teal">시간 결정체(Time-Crystallized) 결말 — "그 끝엔 시간을 기반으로 한 결과 상태가 남는다"</h3>
+      <ul>
+        <li><b>100틱마다 열리는 후천적 진화</b> — 어느 한 방향을 미리 고르는 것이 아니라, 플레이어가 실제로 시간을 쓴 벡터가 임계점을 넘을 때마다 새로운 변이 블록(<code>Brick.Mutation.*</code>)과 진화 카드가 자연스럽게 열린다.</li>
+        <li><b>최종 결과 상태의 합성</b> — 판이 끝날 때 고정된 엔딩 문구 대신, 최종 보유 블록(<code>형태×섭식×공간</code>)과 가장 깊게 쌓인 시간 벡터 2~3개가 합성되어 <b>『별들을 품고 유영하는 영겁의 성운』, 『티끌들이 직조한 불멸의 성간 신경망』, 『사건의 지평선 너머의 닫힌 왕국』, 『모든 빛을 삼킨 마지막 특이점』, 『우주에 새겨진 보이지 않는 울타리』</b> 등 그 존재가 살아낸 시간 그 자체인 최종 상태가 연대기에 헌정된다.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 화면 ───────────────────────── -->
+<section id="screens">
+  <div class="head">
+    <div class="eyebrow">화면</div>
+    <h2>마우스만으로 한 판을 놀 수 있는 자리들</h2>
+    <p>UMG C++ 위젯만 쓴다. 그래픽 예산은 은하 지도, 승천의 순간, 깔끔한 UI 셋에만 쓴다.</p>
+  </div>
+  <div class="screens">
+    <div class="screen"><b>은하 지도</b><span>성계마다 별 하나(항성 등급·주인 색·위기 경고), 레인, 배경 별, 모르는 성계는 점. 셋째 칸의 영적 시야. 휠로 물러나면 우주 화면(은하 20).</span></div>
+    <div class="screen"><b>상단 바</b><span>자원 다섯, 시계(주기/년), 배속 단추, 칸과 '다음 칸까지', 연구 %, 안정도와 60틱 추세, 칙령 단추, 시계의 규칙 줄.</span></div>
+    <div class="screen"><b>성계 패널</b><span>주인·등급·위기와 남은 틱, 프로젝트 단추와 거절 사유, 정착, 함대 단추, 방랑자의 이동·스캔·왕좌 단추, 주장 경고와 반란 문턱.</span></div>
+    <div class="screen"><b>은하 패널</b><span>종류, 별의 수, 거리. 아무것도 고르지 않았을 때의 첫 안내.</span></div>
+    <div class="screen"><b>로그 피드</b><span>가상화된 목록, 표시 상한 500. 줄을 누르면 카메라가 그 성계로 간다.</span></div>
+    <div class="screen"><b>카드 창</b><span>청원과 조우. 선택 2~3, 막힌 선택의 회색과 사유, 도착하면 자동 정지.</span></div>
+    <div class="screen"><b>칙령 창</b><span>[칙령] 제정과 철회, [연구] 몫 슬라이더, [백성] 만난 백성의 눈·태세·조약.</span></div>
+    <div class="screen"><b>승천 연출</b><span>C++ 오버레이. 셋째 칸 뒤 "이제 보인다."와 ×25.</span></div>
+    <div class="screen"><b>연대기</b><span>생애의 장, 그릇이 없던 동안, 까닭 줄, 두 책, 시험판 알림.</span></div>
+    <div class="screen"><b>부름의 쪽</b><span>죽음·재위 끝·취임의 다이제스트. 공백기의 빨리 넘기기.</span></div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 코드의 층 ───────────────────────── -->
+<section id="code">
+  <div class="head">
+    <div class="eyebrow">코드의 층</div>
+    <h2>아래는 위를 모른다</h2>
+    <p>Core Logic은 액터와 위젯을 include하지 않는다. 표현 계층은 상태를 읽어 그리고, 명령은 Subsystem 함수 하나를 부른다. <code>Tools/check_layers.py</code>가 이 방향을 잰다.</p>
+  </div>
+  <div class="layers">
+    <div class="band top pres">
+      <div class="n">표현<small>World · UI</small></div>
+      <div class="f"><span>CosmicGameMode</span><span>CosmicGalaxyMapActor</span><span>CosmicStarSystemActor</span><span>CosmicCameraPawn</span><span>CosmicMapLook</span><span>CosmicMapPick</span><span>CosmicAutoPause</span><span>CosmicDigest</span><span>CosmicHashRun</span><span>CosmicRulerPolicy</span><span>CosmicWandererPolicy</span><span>CosmicUniverseLook</span><span>CosmicZoomLevels</span><span class="sub">UI:</span><span>TopBar</span><span>SystemPanel</span><span>GalaxyPanel</span><span>LogFeed</span><span>PetitionCard</span><span>Edict</span><span>AscensionOverlay</span><span>Chronicle</span><span>CallingPages</span><span>ActionButton</span><span>SystemLabel</span><span>NextRung</span><span>StabilityTrend</span></div>
+    </div>
+    <p class="dep">↑ 읽고 그린다 · 명령은 함수 호출 하나</p>
+    <div class="band core">
+      <div class="n">Core Logic<small>Events · Ascension · Log · Player · Save</small></div>
+      <div class="f"><span>CosmicEventSubsystem</span><span>CosmicPetitions</span><span>AscensionSubsystem</span><span>CosmicLogSubsystem</span><span>CosmicChronicle</span><span>PlayerRoleSubsystem</span><span>CosmicSaveSubsystem</span><span>CosmicSaveSlot</span><span>CosmicSaveGame</span></div>
+    </div>
+    <div class="band core">
+      <div class="n">Sim<small>세계의 틱과 규칙</small></div>
+      <div class="f"><span>GalaxySimulationSubsystem</span><span>CosmicHazards</span><span>CosmicMegaprojects</span><span>CosmicEdicts</span><span>CosmicResearch</span><span>CosmicDiplomacy</span><span>CosmicConflict</span><span>CosmicWanderer</span><span>CosmicSuccession</span><span>CosmicEndings</span><span>CosmicStateIndex</span><span>CosmicEvalContext</span></div>
+    </div>
+    <div class="band core">
+      <div class="n">Data<small>정의 행과 테이블</small></div>
+      <div class="f"><span>CosmicDataTables</span><span>CosmicDefinitionRows</span><span>CosmicRowNames</span><span>CosmicConditionTypes</span></div>
+    </div>
+    <div class="band core">
+      <div class="n">Core<small>타입·상태·씨앗</small></div>
+      <div class="f"><span>CosmicTypes</span><span>GalaxyState</span><span>CosmicIDs</span><span>CosmicSeed</span><span>CosmicTags</span></div>
+    </div>
+  </div>
+  <div class="hashes">
+    <div><b>세계 규칙의 단일 창구</b>정착할 수 있는가, 위기를 놓을 수 있는가, 칙령을 내릴 수 있는가, 공성할 수 있는가 같은 물음마다 답하는 함수가 하나다. 시뮬과 화면과 커맨드렛이 같은 함수를 읽는다.</div>
+    <div><b>난수 출처 셋</b>시뮬 스트림(세계를 바꾸는 모든 추첨), 말하기 스트림(문장 변형), 파생 정수 <code>CosmicSeed::Derive</code>. 서로 읽지 않고 <code>FMath::Rand</code>는 금지.</div>
+    <div><b>요약 단위</b>인물은 5필드 기록이고 능력치·AI·관계가 없다. 영혼·구원·멸망을 세는 필드는 없다. 초월자는 교리마다 한 체.</div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 데이터와 검증 ───────────────────────── -->
+<section id="pipeline">
+  <div class="head">
+    <div class="eyebrow">데이터와 검증</div>
+    <h2>JSON에서 패키지까지</h2>
+    <p>커밋은 컴파일되는 상태에 자동화 테스트 두 번 연속 통과다. 세계를 옮기는 블록은 장치 커밋(기준값 그대로)과 데이터를 켜는 밸런스 커밋으로 나눈다.</p>
+  </div>
+  <ul class="flow">
+    <li><div class="box"><b>원본</b><small><code>Tools/data/*.json</code> + <code>ST_CA.csv</code>, 규칙은 <code>schema.json</code></small></div></li>
+    <li><div class="box"><b>데이터 검사</b><small><code>check_data.py</code> — 행 이름·태그·금지어·조건</small></div></li>
+    <li><div class="box"><b>에셋 생성</b><small><code>make_data_tables.py</code> → <code>DT_*.uasset</code>, 도장 <code>generated.sha1</code></small></div></li>
+    <li><div class="box"><b>빌드</b><small>에디터·게임 타깃, 헤더가 바뀌면 전체 빌드</small></div></li>
+    <li><div class="box teal"><b>테스트 207 × 2회</b><small>Sim 128 · UI 40 · Log 16 · Events 12 · Calling 7 · Feats 2 · Data 2</small></div></li>
+    <li><div class="box"><b>스모크</b><small><code>-game -nullrhi</code></small></div></li>
+    <li><div class="box"><b>밸런스 커맨드렛</b><small>시드 42, 3,000틱 기준값. 정책 판 30개로 결정 밀도를 잰다</small></div></li>
+    <li><div class="box"><b>해시 판</b><small><code>-CosmicHashRun</code> = 커맨드렛. 쿠킹 빌드와 에디터가 같은 해시</small></div></li>
+    <li><div class="box"><b>패키지</b><small><code>Tools\package.ps1</code>, Win64. 첫 패키지 10-24</small></div></li>
+  </ul>
+  <p class="note">러너 하나로 전부 돈다: <code>Tools\run_checks.ps1 -Tier smoke|full</code>. 에디터 없이도 파이썬 검사 다섯(데이터·스키마·레이어·문서·설정 표)은 <code>Tools/run_checks.sh</code>로. 측정은 커맨드렛의 정책 인자(<code>-Answer -Build -Focus -Edict -Diplomacy -Wander -Abdicate</code> 등)로 30판씩 돌려 중앙값을 읽는다.</p>
+</section>
+
+<!-- ───────────────────────── 걸어온 길 ───────────────────────── -->
+<section id="history">
+  <div class="head">
+    <div class="eyebrow">걸어온 길</div>
+    <h2>스물두 작업일</h2>
+    <p>블록마다 헤더(결정)를 먼저 쓰고, 코드와 테스트, 밸런스 측정, 문서 재감사로 닫았다. 헤더는 <code>docs/60_DECISIONS/headers/</code>에 열아홉 장.</p>
+  </div>
+  <ol class="timeline">
+    <li><div class="d">10-10</div><div><b>Phase 0</b> <span>UE 5.8.3 프로젝트 셋업. 엔진 버전 고정.</span></div></li>
+    <li><div class="d">10-11 ~ 12</div><div><b>설계 v0.4 → v0.7, Phase 1 데이터 엔진</b> <span>부름과 계승, 요약 단위, 앎과 건넘. 상태 구조체, 틱 골격, 상태 해시, 저장·로드, 밸런스 커맨드렛.</span></div></li>
+    <li><div class="d">10-13 ~ 17</div><div><b>Phase 2 이벤트·위기·승천</b> <span>이벤트 평가기, 영적 압력, 스키마 검사기, 은하 생성 규칙, 정착과 문명 제거, 위기 처리, 거대 프로젝트와 승천 판정.</span></div></li>
+    <li><div class="d">10-17 ~ 18</div><div><b>Phase 3 은하 지도</b> <span>성계와 레인 그리기, 카메라, 상단 바와 패널, 로그 피드, 승천 연출, 영적 시야, 앎의 표시, 우주 화면, 시간 표시 토글.</span></div></li>
+    <li><div class="d">10-18 ~ 19</div><div><b>문서 재편과 v0.8</b> <span>guideline.md를 docs/로 나눔. 성역, 찾는 백성의 첫 생애, 서막, 실제 하늘을 예약.</span></div></li>
+    <li><div class="d">10-19</div><div><b>A0 성역과 첫 생애 행</b> <span>태양계 <code>sol</code>은 성역, 플레이어는 <code>sys_0</code>의 <code>arch_seeker</code>.</span></div></li>
+    <li><div class="d">10-20 ~ 24</div><div><b>Playable MVP ①~⑨</b> <span>자동 일시정지, 청원 카드 10장, 첫 위기 보장, 임시 끝과 연대기, 저장 최소형, 지표와 첫 안내, 연구 중점, 경제 노브, Win64 패키지.</span></div></li>
+    <li><div class="d">10-25</div><div><b>B1 방랑자 최소 루프 · B2 칙령과 연구</b> <span>이동·스캔·조우 5장·즉위·복귀·양위. 칙령 다섯과 물려받은 칙령, 칙령 창, 연구의 몫.</span></div></li>
+    <li><div class="d">10-26</div><div><b>B3 외교와 분쟁</b> <span>관계 표류, 태세·조약, 함대와 공성, 첫 접촉 카드, 격리령.</span></div></li>
+    <li><div class="d">10-26 ~ 29</div><div><b>B4 초월자의 목소리와 영압 카드</b> <span>영압 카드 둘, 카드가 내리는 칙령, 함대로 시간 사기, 저녁 안부, 침묵의 1인칭 줄과 징조 줄.</span></div></li>
+    <li><div class="d">10-30 ~ 31</div><div><b>B5 죽음·계승·공백기·두 책</b> <span>열째 단계의 죽음, 공백기 카운트다운과 빨리 넘기기, 계승 후보, 치명 경고, 부름의 쪽, 두 책.</span></div></li>
+    <li><div class="d">10-31 ~ 11-01</div><div><b>B6a 판의 끝과 셋째 칸 뒤의 판</b> <span>엔딩 기록 필드, 끝을 읽는 모든 곳이 그 기록을 읽는다, 셋째 칸은 더는 끝이 아니다, 알아챔 줄, 헤롯 패턴 카드가 처음 선다.</span></div></li>
+    <li class="now"><div class="d">11-08 ~ 11-09</div><div><b>B6b 넷째·다섯째 칸과 경주 (진행 중 · <code>cef8cc7</code>)</b> <span>승인된 42개 결정 중 코어 장치·측정 6단계(<code>[B-6b1]</code>~<code>[B-6b3b]</code>: 상태 카운터·은하 법칙 범위·절멸 만료·초월자 결박·격차 차단 <code>IsFarAbove</code>·무명 로그·경주 측정 줄 <code>race:</code>) 완료. UI·데이터 8단계(<code>[B-6b4]</code>~<code>[B-6b12]</code>) 대기.</span></div></li>
+  </ol>
+</section>
+
+<!-- ───────────────────────── 앞으로의 길 ───────────────────────── -->
+<section id="ahead">
+  <div class="head">
+    <div class="eyebrow">앞으로의 길</div>
+    <h2>B6b 마무리에서 얼리 액세스까지</h2>
+    <p>마일스톤 B(코어 시뮬 완성)의 B6b 코어 장치와 측정이 들어갔고, 이제 B6b UI·데이터 개통과 손 확인을 앞둔 자리다. 아래 차례는 <code>docs/50_ROADMAP.md</code>의 마일스톤 표와 <code>WORKPLAN.md</code>의 effort 표를 그대로 옮긴 것이다.</p>
+  </div>
+  <ol class="timeline ahead">
+    <li class="now"><div class="d">지금 · B6b 후반</div><div><b>B6b UI·데이터 완주 (<code>[B-6b4]</code> ~ <code>[B-6b12]</code>)</b> <span class="chip part">진행 중</span><br><span><code>[B-6b4]</code> 4·5칸 오버레이와 툴팁 · <code>[B-6b5]</code> 금지어 감사 확장 · <code>[B-6b6~8b]</code> 차원 방주·은하 법칙 3종·결박 업적 데이터 개통 및 함대 캡 <code>0.5</code> · <code>[B-6b9~12]</code> 시계 <code>C</code> 확정과 문서 동기화.</span></div></li>
+    <li class="plan"><div class="d">손 확인</div><div><b>개발자의 손 확인 (3세션 압축 검증)</b> <span class="chip part">사람의 몫</span><br><span>B1~B6b 일곱 블록을 한 빌드로 확인. 셋째 칸 뒤의 계절, 4·5칸 방주·결박, 공백기와 계승, 두 책 연대기, 벽시계.</span></div></li>
+    <li class="plan"><div class="d">B7</div><div><b>AI 백성과 AI의 손 (비대칭 문명 생리)</b> <span class="chip plan">헤더 먼저 · xhigh</span><br><span>외계 백성 다섯 원형(군체·공명·기계·언약·상인), AI의 칙령과 연구 중점, 고넬료 사슬, 교단, 안식·낭독 칙령으로 칙령 아홉.</span></div></li>
+    <li class="plan"><div class="d">B8</div><div><b>서막 문안과 실제 하늘 (성계 환경 특성)</b> <span class="chip plan">xhigh (지도 표현은 medium)</span><br><span>틱 밖의 서막 카드 여덟 장과 부르심, 관측된 별 목록으로 만든 지도와 행성 목록, <code>Trait.World.*</code> 성계 환경 기믹, 성역의 레인.</span></div></li>
+    <li class="plan"><div class="d">B의 끝</div><div><b>수직 슬라이스의 수량</b> <span class="chip plan">종료 조건</span><br><span>백성 원형 7, 위기 8, 조우 25 + 청원 13, 업적 5, 거대 프로젝트 7, 칙령 12(은하 법칙 포함), 유물 8. 밸런스 목표 ±30%.</span></div></li>
+    <li class="plan"><div class="d">C · Phase 5</div><div><b>폴리싱과 테스터</b> <span class="chip plan">medium · 밸런스 분석만 ultracode</span><br><span>등급별 페이싱 맞추기, 첫 10분의 로그 튜토리얼, '세계관과 출처' 최소형, Niagara 3종, 영어 로컬, 설정 화면, Steam 페이지.</span></div></li>
+    <li class="plan"><div class="d">6a · 6+</div><div><b>건넘 최소형 · 4대 타락 교리와 얼리 액세스</b> <span class="chip plan">high ~ xhigh</span><br><span>백성의 은하 건넘(6a), T5 문턱과 두 길, 타락 교리 네 행(침묵·동화·광신·회귀)과 독립 초월자, 이벤트 150+ · 조우 100+, 데모 및 EA 출시.</span></div></li>
+  </ol>
+</section>
+
+<!-- ───────────────────────── 완성 마스터플랜 ───────────────────────── -->
+<section id="masterplan">
+  <div class="head">
+    <div class="eyebrow">완성 마스터플랜</div>
+    <h2>미완성 프로젝트를 어떻게 다듬어 완주할 것인가 (5단계 실행 나침반)</h2>
+    <p>지금 막막함이 느껴지는 이유는 <b>① 3·4막(4·5칸) 데이터 행이 아직 잠겨 있고, ② 방랑·영압·죽음 루프가 무난한 정석 플레이에서는 잘 드러나지 않으며, ③ 에디터 손 확인이 밀려 있기 때문</b>이다. 아래 5단계 순서로 다듬으면 흔들림 없이 완주할 수 있다.</p>
+  </div>
+  <div class="cards">
+    <div class="card gold">
+      <div class="t"><b>STEP 1 · 전 구간 개통</b><i>B6b 완주</i></div>
+      <div class="names"><span>[B-6b4] ~ [B-6b12]</span><span class="t2">최우선</span></div>
+      <p>차원 방주(4칸)와 은하 법칙·공명 기관 결박(5칸) 데이터를 JSON에 켜고 시계 <code>C</code>를 확정해, <b>1칸부터 5칸·두 책 엔딩까지 한 판이 막힘없이 끝나는 상태</b>를 먼저 만든다.</p>
+    </div>
+    <div class="card teal">
+      <div class="t"><b>STEP 2 · 가시화 검증</b><i>손 확인 3세션</i></div>
+      <div class="names"><span>세이브 스냅샷 3종</span><span class="t2">45분 점검</span></div>
+      <p>틱 0부터 매번 기다리지 말고 <b>① 3칸 직전(개안·영압), ② 3칸 후반(방주·결박), ③ 사망/방랑/연대기</b>의 3개 시나리오로 밀린 26개 손 확인을 단번에 눈으로 확인한다.</p>
+    </div>
+    <div class="card violet">
+      <div class="t"><b>STEP 3 · 초반 밀도와 루프 깨우기</b><i>4대 처방</i></div>
+      <div class="names"><span>언약책 부활</span><span>낮은 선택 구호</span><span>자발적 순례</span></div>
+      <p>① <code>arch_seeker</code>에 <code>BookShut</code>을 주어 사회 연구 25% 돌파 시 <b>'잊혔던 언약책'</b> 사슬을 깨우고, ② 위기 청원의 겸비 선택지에 실제 구호 효과를 연결하며(<code>#157</code>), ③ 3칸 이후 통치자의 자발적 방랑(순례) 보상을 강화한다.</p>
+    </div>
+    <div class="card rose">
+      <div class="t"><b>STEP 4 &amp; 5 · 비대칭 개성과 포장</b><i>B7 · B8 · C</i></div>
+      <div class="names"><span>성계·문명·초월자 비대칭</span><span>3분 서막</span><span>기록 서고</span></div>
+      <p>성계 환경 기믹(<code>Trait.World.*</code>), 문명 원형별 비대칭 생리(포식 군체·공명 신정·연산 기계), 4대 타락 교리의 고유 압박을 입히고, 3분 프롤로그와 인게임 <b>[성간 기록 서고]</b>로 세계관 몰입을 완성한다.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 그때의 한 판 ───────────────────────── -->
+<section id="then">
+  <div class="head">
+    <div class="eyebrow">그때의 한 판</div>
+    <h2>지금의 흐름 위에 더해질 자리</h2>
+    <p>위 '한 판의 흐름'과 같은 그림이다. 여기의 상자는 전부 점선, 곧 아직 코드에 없는 것이고, 꼬리표가 어느 블록에서 오는지 말한다.</p>
+  </div>
+  <ul class="flow">
+    <li><div class="box plan"><b>서막 여덟 장</b><small>평범한 일 → 징조 → 고향의 시련 → 꿈의 유혹 → 밤의 부름 → 대답 → 머묾 → 개국 청원. 3인칭, 추첨도 죽음도 없다 <span class="chip plan">B8</span></small></div></li>
+    <li><div class="box plan"><b>부르심</b><small>Core 함수 하나가 서막의 결과(높아짐·연구 중점·상처·거절 횟수)를 상태에 적는다. 카메라가 하늘로 물러난다 <span class="chip plan">B8</span></small></div></li>
+    <li><div class="box plan"><b>실제 하늘</b><small>태양 근방의 관측된 계 60 + 성역. 행성 목록, 나선팔과 '여기' 표지, 거리에 따른 이동 시간 <span class="chip plan">B8</span></small></div></li>
+    <li><div class="box plan"><b>AI 백성의 손</b><small>다섯 원형(군체·초능력·기계·언약·상인)이 제 칙령·연구·조약을 고른다. 동맹, 되받는 공성 <span class="chip plan">B7</span></small></div></li>
+    <li><div class="box plan"><b>위기 여덟</b><small>아공간 침식·멸종·교단·방문이 더해지고, 답으로 방주·피난 호위·교단의 칙령과 청원 <span class="chip plan">B7 무렵</span></small></div></li>
+  </ul>
+  <ul class="flow">
+    <li><div class="box plan"><b>넷째 칸</b><small>손짓 테라포밍(성계의 위기 제거), 칙령 범위의 확대, 타락과의 대면. 업적 행이 생긴다 <span class="chip plan">B6b</span></small></div></li>
+    <li><div class="box plan"><b>다섯째 칸</b><small>집단 승천과 다른 질서가 실제로 닿는다. 다섯째의 연출은 금빛 없이 <span class="chip plan">B6b</span></small></div></li>
+    <li><div class="box plan"><b>문턱의 문</b><small>통과할 선택지가 없는 유일한 카드. 두드린다 / 기다린다 / 돌아선다 <span class="chip plan">6+</span></small></div></li>
+    <li><div class="box plan"><b>받는 길 / 찬탈의 길</b><small>높아짐이 낮으면 열리고, 높으면 닫힌다. 찬탈의 길에는 교리마다 후원 카드 한 장 <span class="chip plan">6+</span></small></div></li>
+    <li><div class="box plan"><b>엔딩 넷과 연대기</b><small>집단 승천·단독 승천·다른 질서·침묵의 우주. 화면 제목 없이 까닭 줄 하나 <span class="chip plan">B6b → 6+</span></small></div></li>
+  </ul>
+  <div class="branches">
+    <div class="branch">
+      <h3 class="teal">방랑자의 나머지</h3>
+      <ul class="flow">
+        <li><div class="box plan"><b>조우 25장</b><small>몰락한 군주 3~5, 언약의 길 5, 사자 3, 증언, 성역의 경계 '지경' <span class="chip plan">B7 · B8</span></small></div></li>
+        <li><div class="box plan"><b>유물 8 · 수련 · 권능</b><small>몸·정신·인과가 오르는 길. 여러 레인의 경로와 셋째 칸의 순간 이동 <span class="chip plan">B7 · 6+</span></small></div></li>
+      </ul>
+    </div>
+    <div class="branch">
+      <h3 class="violet">타락의 나머지</h3>
+      <ul class="flow">
+        <li><div class="box plan"><b>교리 네 행</b><small>침묵에 동화·광신·회귀가 더해지고 판마다 셋까지 활성. 천상의 사자와 독립 초월자 둘 <span class="chip plan">6+</span></small></div></li>
+        <li><div class="box plan"><b>회귀의 유혹</b><small>죽음 직후 "같은 이름으로, 같은 손으로, 다시." 받아도 게임 오버가 아니다 <span class="chip plan">6+</span></small></div></li>
+      </ul>
+    </div>
+    <div class="branch">
+      <h3 class="gold">은하 사이</h3>
+      <ul class="flow">
+        <li><div class="box plan"><b>백성의 건넘</b><small>기록으로만 건넌다. 만난 은하가 은하 패널의 낱말이 된다 <span class="chip plan">6a</span></small></div></li>
+        <li><div class="box plan"><b>플레이어의 건넘</b><small>둘째 상세 은하가 전제. 6a의 실측 뒤에 정한다 <span class="chip plan">6b 후보</span></small></div></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 늘어나는 것 ───────────────────────── -->
+<section id="grow">
+  <div class="head">
+    <div class="eyebrow">늘어나는 것</div>
+    <h2>지금 · 수직 슬라이스 · 얼리 액세스</h2>
+    <p>'들어 있는 것들'의 표를 앞으로 당긴 것. 수직 슬라이스는 B의 끝과 Phase 5의 목표치, EA는 Phase 6+의 목표치다. 빈 칸은 그 단계에 바뀌지 않는 것.</p>
+  </div>
+  <div class="tablewrap">
+    <table class="grow">
+      <thead><tr><th>항목</th><th>지금 (B6a)</th><th>수직 슬라이스 (B8 · Phase 5)</th><th>얼리 액세스 (6+)</th></tr></thead>
+      <tbody>
+        <tr><td>닿는 칸</td><td><span class="chip on">T3</span></td><td>T5 <small>B6b</small></td><td>T5의 두 길과 문턱</td></tr>
+        <tr><td>엔딩 (놀이에서 닿는 것)</td><td>시계</td><td>집단 승천 · 다른 질서 · 침묵 <small>B6b</small></td><td>단독 승천까지 넷, 길마다 변형</td></tr>
+        <tr><td>성계</td><td>60 + 성역</td><td>관측된 계 60 + 성역 <small>B8</small></td><td>300 + 성역</td></tr>
+        <tr><td>백성</td><td>12</td><td>12</td><td>48</td></tr>
+        <tr><td>백성 원형</td><td>2</td><td>7 <small>B7</small></td><td>12</td></tr>
+        <tr><td>타락 초월자</td><td>1 (침묵)</td><td>1</td><td>교리 4행, 판마다 활성 3 이하 + 천상 사자 + 독립 2</td></tr>
+        <tr><td>위기</td><td>5</td><td>8 + 방문 1 <small>B7 무렵</small></td><td>+ 이중 계 6</td></tr>
+        <tr><td>거대 프로젝트</td><td>5</td><td>7 (방주 · 웜홀 게이트)</td><td></td></tr>
+        <tr><td>칙령</td><td>7</td><td>9 (안식 · 낭독) <small>B7</small></td><td>+ 희년 · 도피성 · 이삭 줍기</td></tr>
+        <tr><td>카드</td><td>청원 13 + 조우 5</td><td>청원 13 + 조우 25</td><td>조우 100+</td></tr>
+        <tr><td>업적</td><td>3</td><td>4 + 넷째·다섯째 칸 행 <small>B6b</small></td><td>등급당 3~4, 길마다 변형</td></tr>
+        <tr><td>이벤트 행</td><td>12</td><td>40</td><td>150+</td></tr>
+        <tr><td>특성 행</td><td>태그만</td><td></td><td>60</td></tr>
+        <tr><td>유물</td><td>없음</td><td>8</td><td></td></tr>
+        <tr><td>서막</td><td>없음</td><td>카드 8장 <small>B8</small></td><td>둘째 판부터 짧게</td></tr>
+        <tr><td>행성</td><td>없음</td><td>약 120 (정의 데이터만) <small>B8</small></td><td></td></tr>
+        <tr><td>은하 사이</td><td>그림뿐 (우주 화면)</td><td></td><td>백성의 건넘 <small>6a</small></td></tr>
+        <tr><td>언어</td><td>한국어</td><td>한국어</td><td>영어 로컬</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ───────────────────────── 블록마다 ───────────────────────── -->
+<section id="blocks">
+  <div class="head">
+    <div class="eyebrow">블록마다 들어오는 것</div>
+    <h2>헤더 한 장이 정하는 범위</h2>
+    <p>블록은 헤더(결정) → 필드 → 장치 → 표현 → 밸런스 → 문서의 차례로 닫힌다. 아래는 로드맵이 이미 그 블록에 적어 둔 것이고, 헤더가 쓰일 때 줄거나 옮겨질 수 있다.</p>
+  </div>
+  <div class="cards">
+    <div class="card gold">
+      <div class="t"><b>B6b 넷째·다섯째 칸</b><span class="chip plan">다음</span></div>
+      <div class="names"><span>T3→T4 · T4→T5 업적 행</span><span>칙령 범위의 확대</span><span>AI의 T3→T4 판정</span><span>넷째 칸의 제동</span><span>'다른 백성이 먼저'의 몫</span><span>개인 칸 ≥ 3과 칸 공명</span><span>방랑자의 영압 선택</span><span>넷째·다섯째의 연출</span><span>시계의 마지막 값</span><span>보이지 않는 백성의 엔딩 글</span></div>
+      <p>B6a가 수와 함께 넘긴 것도 여기서 다시 잰다: 끝 전 1인칭 주장 줄 7/30, 지킴의 지연 64%, B1의 즉위·복귀 40/60, 다스리는 백성과 AI의 셋째 칸 경주.</p>
+    </div>
+    <div class="card teal">
+      <div class="t"><b>B7 AI 백성과 AI의 손</b><span class="chip plan">예정</span></div>
+      <div class="names"><span>외계 백성 5행</span><span>AI의 칙령</span><span>AI의 연구 중점</span><span>동맹 · AI끼리의 조약</span><span>되받는 공성 · 수도 정복의 물음</span><span>고넬료 사슬</span><span>'옛 땅의 기억' 화면</span><span>교단과 남은 자 법</span><span>안식 · 낭독 칙령</span><span>대도감의 문장</span><span>물리 연구의 함대 승수</span></div>
+      <p>고넬료 사슬은 방문 응답 → 사자의 전언 → "말이 도착했다"로 이어지는 사건 줄이다. 입력 없는 세계의 안정도 0.3 미만 백성과 주장의 수는 AI가 칙령을 갖는 이 블록에서 다시 잰다.</p>
+    </div>
+    <div class="card violet">
+      <div class="t"><b>B8 서막과 실제 하늘</b><span class="chip plan">예정</span></div>
+      <div class="names"><span>서막 카드 8장</span><span>부르심 함수</span><span>관측 목록과 투영</span><span>별 이름과 거름</span><span>행성 목록 DT_Planets</span><span>나선팔 · '여기' 표지</span><span>항성 등급의 표시 이름</span><span>환경 특성 Trait.World.*</span><span>성역의 레인 · '지경' 카드</span><span>거리에 따른 이동 시간</span><span>울타리의 증언</span><span>헌정명 뱅크</span></div>
+      <p>천문 수치는 관측이고 그 위의 생명·백성·사건은 허구다. 지도가 바뀌므로 모든 시드의 기준값이 여기서 마지막으로 옮겨진다.</p>
+    </div>
+    <div class="card">
+      <div class="t"><b>C · Phase 5 폴리싱</b><span class="chip plan">예정</span></div>
+      <div class="names"><span>페이싱 ±30%</span><span>로그 튜토리얼</span><span>테스터 5~10</span><span>'세계관과 출처'</span><span>Niagara 3종</span><span>영어 로컬</span><span>UI 테마 · DPI</span><span>설정 화면</span><span>Steam 페이지</span></div>
+      <p>테스터의 반응으로 정하는 것: 관조 모드 토글, 노화, 폐위 뒤의 자리, 받는 길 두 변형의 유지, 타락 1인칭 줄의 밀도. 첫 10분 이탈 10% 미만, '설교처럼 느낀 순간' 세션당 1회 이하.</p>
+    </div>
+    <div class="card">
+      <div class="t"><b>6a 건넘 최소형</b><span class="chip plan">예정</span></div>
+      <div class="names"><span>건넘 프로젝트</span><span>건넘 단계의 도착 · 출발</span><span>만난 은하</span><span>건넘 로그 4행</span><span>EA 규모 데이터</span></div>
+      <p>시뮬 추첨 지점이 Phase 5 뒤에 늘어나는 하나뿐인 자리. 잣대는 시드 42의 한 판에 건넘 기록 하나 이상, 건넘과 도약이 연 '다른 질서' 15% 미만.</p>
+    </div>
+    <div class="card rose">
+      <div class="t"><b>6+ 콘텐츠와 EA</b><span class="chip plan">예정</span></div>
+      <div class="names"><span>T5 문턱 · 두 길 · 후원 카드 4</span><span>교리 4행 · 독립 초월자</span><span>아키타입 12</span><span>반란 결말 3종</span><span>길 3종</span><span>모티프 24</span><span>칙령 4</span><span>첫 생애 선택 화면</span><span>귀환 제안</span><span>노화</span><span>데모 빌드</span></div>
+      <p>신학 민감도가 가장 높은 글이라 묶음마다 감사가 작성보다 먼저 선다. 영겁 모드(엔딩 뒤 샌드박스)는 EA 이후의 스트레치.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 열린 결정 ───────────────────────── -->
+<section id="open">
+  <div class="head">
+    <div class="eyebrow">열린 결정</div>
+    <h2>어느 헤더가 무엇을 닫는가</h2>
+    <p>미결은 <code>docs/60_DECISIONS/OPEN_QUESTIONS.md</code>에 번호로 남아 있고, 기본값이 본문에 적용되어 있어 작업을 막지 않는다. 자주 오르내리는 것만 골랐다.</p>
+  </div>
+  <div class="cols">
+    <div class="col">
+      <h3 class="gold">B6b 헤더가 본다</h3>
+      <ul>
+        <li><b>시계의 마지막 값</b> — 넷째·다섯째 칸의 경주를 잰 뒤. 옮기면 6,000에 끝난 세이브를 다시 열지도 함께(그러면 SaveVersion 2).</li>
+        <li><b>넷째·다섯째 칸 업적 행의 꼴</b>과 칙령 범위의 넓힘, 셋째 칸 위의 AI와 넷째 칸의 제동.</li>
+        <li><b>개인 칸과 칸 공명</b>, 방랑자의 영압 선택. 개인 칸을 올리면 스키마의 통치자 행 규칙이 풀린다.</li>
+        <li><b>즉위의 문</b>이 보이지 않는 백성을 볼지, 섭정 아래 옛 백성의 업적.</li>
+      </ul>
+    </div>
+    <div class="col">
+      <h3 class="teal">B7 헤더가 본다</h3>
+      <ul>
+        <li><b>수도와 마지막 정착된 성계의 정복</b> — 지금은 분쟁이 앗지 않는다. 헤더의 첫 물음.</li>
+        <li><b>동맹</b>, 비슷한 쪽끼리 되받는 공성, 격리령의 값, 전시 동원의 함대 곱을 AI가 지니는 몫.</li>
+        <li><b>주장이 서는 자리</b>(지금은 거의 AI 각성의 만료 뒤)와 교단·남은 자 법의 범위.</li>
+        <li><b>역할이 바뀐 첫 틱의 카드</b> — 헤롯 카드가 지혜로운 마음의 자리를 가져가는 겨룸.</li>
+      </ul>
+    </div>
+    <div class="col">
+      <h3 class="violet">더 뒤에서 본다</h3>
+      <ul>
+        <li><b>도약의 길이와 노화</b> — 6,000틱 판에서는 끝 전 죽음의 넷에 하나가 공백기 안에서 끝난다. Phase 5.</li>
+        <li><b>관조 모드 · 폐위율 20~35% · 폐위 뒤의 자리</b> — 테스터의 반응으로. Phase 5.</li>
+        <li><b>T5 문턱과 두 길의 신학 판정</b>, 회귀 교리와 귀환 제안. Phase 6+.</li>
+        <li><b>플레이어의 건넘</b> — 6a의 틱 비용과 세이브 크기를 잰 뒤.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 만들지 않는 것 & 세계관 해금 ───────────────────────── -->
+<section id="cut">
+  <div class="head">
+    <div class="eyebrow">만들지 않는 것 &amp; 세계관 해금 기준</div>
+    <h2>1인 개발 생존을 위한 '영구 방수벽'과 세계관 확장을 위해 '열어줄 것'</h2>
+    <p>전문은 <code>docs/50_ROADMAP.md</code> §12.2~12.3. 3D 에셋·미시 조작 폭발은 끝까지 막되, 대도감(<code>cosmic_species_codex.md</code>)의 성계·문명·초월자가 획일화되지 않도록 <b>데이터 기반의 고유 규칙 충격과 기록 서고</b>는 점진적으로 해금한다.</p>
+  </div>
+  <div class="cols">
+    <div class="col">
+      <h3 class="rose">영구 방수벽 (끝까지 만들지 않는 것)</h3>
+      <div class="cut">
+        <span>실시간 함선 조작과 3D 전투</span><span>행성 표면 · 타일 · 건물 배치</span><span>개별 유닛 · 함선 설계기</span><span>수백 노드 기술 트리</span><span>외계인 · 초월자 3D 캐릭터 모델</span><span>멀티플레이 · 성우</span><span>영혼 카운터 · 구원/멸망 숫자 집계</span><span>천국 · 지옥을 지도의 영토로</span><span>절대자 엔티티 · 대화 NPC</span><span>인물의 가계도 · 혼인 · 궁정 AI</span><span>틱당 무작위 돌연사</span><span>우주론 요소 끄기('세속 모드')</span>
+      </div>
+    </div>
+    <div class="col">
+      <h3 class="teal">세계관 확장 통로 (데이터·규칙 훅으로 열어줄 것)</h3>
+      <ul>
+        <li><b>성계별 환경 기믹 (<code>Trait.World.*</code>)</b> — 미끼 광맥(리토스), 폭풍 방어막(제논), 백색왜성 시간 지연(아셰라), 중성자별 공업 가속(마그네타) 등 성계마다 다른 규칙 작동.</li>
+        <li><b>문명 원형별 비대칭 생리 (<code>Trait.Arch.*</code>)</b> — 군체의 맨틀 포식 경제, 공명 신정의 소수 성계 집약, 기계 제국의 AI 각성 흡수 등 아키타입마다 다른 내정·외교 공식.</li>
+        <li><b>4대 타락 초월자의 차별화된 잠식</b> — 침묵(사업 감속·고립), 동화(무역로 감염·융합), 광신(교단 내전·강제 성전), 회귀(시간 역행·사망 시 저당 귀환).</li>
+        <li><b>다단계 서사 사슬 &amp; [성간 기록 서고]</b> — 단발 카드로 증발하지 않는 3~5단계 연속 추적 조우(잿빛 왕관·변칙 개체)와, 발견한 세계관 기록을 다시 읽는 텍스트 서고 탭.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 낱말 ───────────────────────── -->
+<section id="words">
+  <div class="head">
+    <div class="eyebrow">낱말</div>
+    <h2>이 문서가 쓴 말</h2>
+    <p>인게임 낱말과 코드 식별자의 짝은 <code>docs/15_GLOSSARY.md</code>에 전부 있다. 여기는 이 문서를 읽는 데 필요한 만큼만.</p>
+  </div>
+  <dl class="gloss">
+    <div><dt>칸</dt><dd>존재의 격 다섯(Tier). 업적 하나가 한 칸.</dd></div>
+    <div><dt>백성</dt><dd>문명(civ). 수치 몇 개와 특성 태그와 인물 기록.</dd></div>
+    <div><dt>성계</dt><dd>지도의 최소 단위. 행성 표면도 개별 함선도 없다.</dd></div>
+    <div><dt>성역</dt><dd>태양계 <code>sol</code>. 소유·정착·주장·파괴·압력에서 빠진다.</dd></div>
+    <div><dt>그릇</dt><dd>플레이어의 육신 하나. 능력치를 가진 유일한 개인.</dd></div>
+    <div><dt>부름</dt><dd>그릇에서 그릇으로 맡겨지는 것. 연대기와 앎이 넘어간다.</dd></div>
+    <div><dt>앎</dt><dd>부름이 알게 된 성계와 백성. 세계는 읽지 않는다.</dd></div>
+    <div><dt>틱 · 주기</dt><dd>시뮬의 한 걸음. 1배속 1초. 화면에서 1년으로 보일 수 있다.</dd></div>
+    <div><dt>위기</dt><dd>성계에 서는 카운트다운(Hazard). 답하지 않으면 만료의 효과.</dd></div>
+    <div><dt>주장</dt><dd>타락이 정착된 성계에 거는 위기. 편입되면 영향권.</dd></div>
+    <div><dt>영압</dt><dd>타락의 압력. 카드 두 장과 1인칭 줄로 닿는다.</dd></div>
+    <div><dt>청원 · 조우</dt><dd>같은 카드 정의를 통치자는 청원으로, 방랑자는 조우로 받는다.</dd></div>
+    <div><dt>칙령</dt><dd>백성 전체에 켜 두는 수정자. 자리는 사회 연구로 는다.</dd></div>
+    <div><dt>거대 프로젝트</dt><dd>성계 하나에 자원을 틱마다 넣어 올리는 진척. 업적의 실체.</dd></div>
+    <div><dt>업적</dt><dd>칸을 올리는 사건(Feat). 건설 하나 또는 위기 해결 하나.</dd></div>
+    <div><dt>연대기 · 두 책</dt><dd>판의 끝에 펼쳐지는 기록. 두 책은 모든 백성의 잃음의 기록과 그 위의 타락의 주장.</dd></div>
+    <div><dt>공백기</dt><dd>그릇이 없는 사이 세계가 혼자 흐르는 틱. 빨리 넘길 수 있다.</dd></div>
+    <div><dt>경외</dt><dd>백성이 플레이어를 우러르는 정도(Reverence). 즉위의 문.</dd></div>
+    <div><dt>알아챔</dt><dd>타락이 셋째 칸 이상의 통치자를 알아채는 틱. 판에 한 번의 2인칭 줄.</dd></div>
+  </dl>
+</section>
+
+<footer>
+  2026-11-09 · 커밋 <code>cef8cc7</code> (<code>[B-6b3b]</code>) 기준 업데이트. 원천: <code>STATUS.md</code>, <code>docs/00_VISION.md</code>, <code>docs/50_ROADMAP.md</code>, <code>docs/10_DESIGN/</code>, <code>docs/20_ARCHITECTURE.md</code>, <code>docs/60_DECISIONS/headers/B6b_upper_rungs_and_the_race.md</code>, <code>docs/90_LORE/cosmic_species_codex.md</code>.
+</footer>
+
+</main>
+</div>
+</body>
+</html>

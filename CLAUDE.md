@@ -24,7 +24,7 @@ UE 5.8.3, C++ 게임 모듈 `Cosmic_Ascension`. 1인 개발, 린 시뮬레이션
 | `docs/90_LORE/` | 대도감 원문·신학 조율·대도감 배정표 |
 | `docs/CHANGELOG.md` | 변경 이력·Phase 상태 기록·작업 일지·리뷰 통계(본문에 두지 않는다) |
 | `docs/SECTION_MAP.md` | 옛 `guideline.md §N` → 새 문서 위치. 코드 주석의 `guideline.md section N`은 이 표로 푼다 |
-| `docs/archive/` | `guideline_v0.8_2026-10-18.md`·`v08_rulings.md`·`v08_agent_directive.md`·`code_artifact.md` 동결본(고치지 않는다) |
+| `docs/archive/` | 옛 판·원안의 동결본(고치지 않는다 — 목록은 `docs/SECTION_MAP.md`) |
 | `WORKPLAN.md` | 세션 절차·effort·ultracode 기준(Phase별) |
 
 문장 표지: `(v0.8 — 단계 N부터)`·`(v0.7 — …)`·`Phase N` 표지가 붙은 문장은 **아직 코드에 없는 예정**이고, 표지 없는 문장이 현행 규칙이다. 설계가 바뀌면 docs의 해당 문서 → 코드 → STATUS.md 순서로 고친다. 같은 문장을 두 문서에 적지 않고 링크한다.
