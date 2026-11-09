@@ -134,5 +134,53 @@
 		"TreatyAcceptBonus": 0.0,
 		"PressureDrainMultiplier": 0.45,
 		"Scope": "People"
+	},
+	{
+		"Name": "edict_wide_machine_accord",
+		"DisplayName": "기계 살핌",
+		"Summary": "기계에게 맡기는 일을 서두르지 않는다. 낯선 계산의 조짐이 보이면 그 일을 멈추고 사람이 직접 살핀다.",
+		"RequiredTier": "Tier4_Transcendent",
+		"EnactConditions": [],
+		"EnactCost": {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 40.0, "Causality": 0.0},
+		"UpkeepPerTick": {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 0.0, "Causality": 0.0},
+		"EffectsPerTick": [],
+		"HazardSpawnMultipliers": {"Hazard.AIAwakening": 0.5},
+		"HazardCountdownBonus": {},
+		"FleetGrowthMultiplier": 1.0,
+		"TreatyAcceptBonus": 0.0,
+		"PressureDrainMultiplier": 1.0,
+		"Scope": "HomeGalaxy"
+	},
+	{
+		"Name": "edict_wide_quarantine",
+		"DisplayName": "은하 검역",
+		"Summary": "이 백성의 배는 고향 은하의 어느 별에 닿든 정한 날수만큼 기다린 뒤에 사람을 내린다. 병이 배를 따라 다른 별로 번지는 일이 드물어진다.",
+		"RequiredTier": "Tier4_Transcendent",
+		"EnactConditions": [],
+		"EnactCost": {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 40.0, "Causality": 0.0},
+		"UpkeepPerTick": {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 0.0, "Causality": 0.0},
+		"EffectsPerTick": [],
+		"HazardSpawnMultipliers": {"Hazard.Plague": 0.5},
+		"HazardCountdownBonus": {},
+		"FleetGrowthMultiplier": 1.0,
+		"TreatyAcceptBonus": 0.0,
+		"PressureDrainMultiplier": 1.0,
+		"Scope": "HomeGalaxy"
+	},
+	{
+		"Name": "edict_wide_warning",
+		"DisplayName": "은하 경보망",
+		"Summary": "위기의 조짐이 보이면 이 백성의 배들이 고향 은하의 별마다 그 소식을 먼저 나른다. 몇몇 위기 앞에서는 소식이 닿은 별에 채비할 시간이 조금 더 남는다.",
+		"RequiredTier": "Tier4_Transcendent",
+		"EnactConditions": [],
+		"EnactCost": {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 40.0, "Causality": 0.0},
+		"UpkeepPerTick": {"Energy": 0.0, "Matter": 0.0, "Insight": 0.0, "Influence": 0.0, "Causality": 0.0},
+		"EffectsPerTick": [],
+		"HazardSpawnMultipliers": {},
+		"HazardCountdownBonus": {"Hazard.AIAwakening": 50, "Hazard.Plague": 50},
+		"FleetGrowthMultiplier": 1.0,
+		"TreatyAcceptBonus": 0.0,
+		"PressureDrainMultiplier": 1.0,
+		"Scope": "HomeGalaxy"
 	}
 ]

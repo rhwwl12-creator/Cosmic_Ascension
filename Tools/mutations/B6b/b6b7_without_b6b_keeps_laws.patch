@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+@@ -375,7 +375,7 @@
+ 		const std::initializer_list<FName> Feats = { CosmicB6bRows::FeatPassageByArk, CosmicB6bRows::FeatLawsAndBinding };
+ 		const std::initializer_list<FName> Projects = { CosmicB6bRows::ProjectArk, CosmicRows::ProjectBinding };
+ 		const std::initializer_list<FName> Hazards = { CosmicB6bRows::CrisisSpeciesExtinction };
+-		const std::initializer_list<FName> Edicts = { CosmicB6bRows::EdictWideMachineAccord, CosmicB6bRows::EdictWideQuarantine, CosmicB6bRows::EdictWideWarning };
++		const std::initializer_list<FName> Edicts = {};
+ 		const std::initializer_list<FName> Events = { CosmicB6bRows::EventEraEndured };
+ 		const std::initializer_list<FName> Encounters = { CosmicB6bRows::EncWitness };
+ 		Note(Base.Feats, Feats);

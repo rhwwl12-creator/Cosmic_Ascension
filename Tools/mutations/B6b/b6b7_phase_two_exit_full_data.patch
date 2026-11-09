@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicSimTests.cpp b/Source/Cosmic_Ascension/Tests/CosmicSimTests.cpp
+--- a/Source/Cosmic_Ascension/Tests/CosmicSimTests.cpp
++++ b/Source/Cosmic_Ascension/Tests/CosmicSimTests.cpp
+@@ -2287,7 +2287,7 @@
+ 	// 16,316 and 18,764 come back), and the check below would cross no death and no succession (mutation: the game's
+ 	// data whole).
+ 	const FCosmicDataTables Game = CosmicTests::WithoutB6bData(Original);
+-	Sim->SetTables(Game);
++	Sim->SetTables(Original);
+ 	static const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Claim")));
+ 	static const FGameplayTag RebellionTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Rebellion")));
+ 	static const FGameplayTag FallenTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Status.FallenMonarch")));

@@ -2281,7 +2281,13 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 	// stepped == headless check run across the deaths and the successions. A succession clears the fallen monarch's status, so
 	// the deposition is read at its own boundary in the stepped run (the same world as the whole run), and the status is held at
 	// every boundary from there until the deposed life closes. Calling.LethalSource pins the death itself.
-	Sim->SetTables(Original);
+	// B6b [B-6b7]: on the game's data without B6b's rows (CosmicTests::WithoutB6bData - the world of [B-6b5], where the ticks
+	// above hold). With the galaxy laws, the fifth rung's feat and r 0.375 in the data the deposed vessel of seed 18 lives
+	// past 20,000 ticks (the commandlet's seed-18 run: no log_death_hazard line; with -WithoutB6bData=1 the deaths of
+	// 16,316 and 18,764 come back), and the check below would cross no death and no succession (mutation: the game's
+	// data whole).
+	const FCosmicDataTables Game = CosmicTests::WithoutB6bData(Original);
+	Sim->SetTables(Game);
 	static const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Claim")));
 	static const FGameplayTag RebellionTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Rebellion")));
 	static const FGameplayTag FallenTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Status.FallenMonarch")));
@@ -2290,7 +2296,7 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 
 	// The deposition of condition 5 rests on the game's rebellion row: the evidence of seed 18 below is only as good as this.
 	FName RebellionRow;
-	const FHazardDef* Rebellion = Original.FindHazardByTag(RebellionTag, &RebellionRow);
+	const FHazardDef* Rebellion = Game.FindHazardByTag(RebellionTag, &RebellionRow);
 	TestTrue(TEXT("The game's rebellion row deposes the ruler when it runs out"),
 		Rebellion && Rebellion->OnExpireEffects.ContainsByPredicate([](const FCosmicEffect& Effect) { return Effect.Type == EEffectType::DeposeRuler; }));
 
@@ -2354,7 +2360,7 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 			if (Slot.Tag.IsValid() && (System.ActiveHazard != Slot.Tag || bAgain))
 			{
 				FName Row;
-				Original.FindHazardByTag(Slot.Tag, &Row);
+				Game.FindHazardByTag(Slot.Tag, &Row);
 				// Answered: before its last count, the answer in its response slot completed in this tick (its record moved
 				// to this tick) - only the resolution of that completion ends a hazard there. On the last count an expiry
 				// ends it in the same tick whatever the answer did, so such an end is counted as neither. Ran out: not

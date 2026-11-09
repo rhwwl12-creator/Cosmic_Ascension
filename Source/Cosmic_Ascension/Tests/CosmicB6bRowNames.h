@@ -25,7 +25,7 @@ namespace CosmicB6bRows
 	// DT_Hazards: the extinction (Hazard.Extinction) - in the data from [B-6b6].
 	inline const FName CrisisSpeciesExtinction(TEXT("crisis_species_extinction"));
 
-	// DT_Edicts: the three galaxy laws (Scope HomeGalaxy) - [B-6b7].
+	// DT_Edicts: the three galaxy laws (Scope HomeGalaxy) - in the data from [B-6b7].
 	inline const FName EdictWideMachineAccord(TEXT("edict_wide_machine_accord"));
 	inline const FName EdictWideQuarantine(TEXT("edict_wide_quarantine"));
 	inline const FName EdictWideWarning(TEXT("edict_wide_warning"));

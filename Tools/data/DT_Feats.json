@@ -87,5 +87,27 @@
 			"{Civ}|hpp(이,가) 넷째 칸에 서 있게 되었다. {HomeSystem}에 닿는 다른 백성들의 배가 먼저 인사를 보내왔다.",
 			"{Civ}|hpp(은,는) 넷째 칸에 서 있게 되었다. 다른 백성들은 저마다의 지도에서 {Civ}의 자리를 고쳐 그렸다."
 		]
+	},
+	{
+		"Name": "feat_laws_and_binding",
+		"Title": "고향 은하의 칙령",
+		"MythicNarrative": "고향 은하에 닿는 칙령은 그것을 내린 백성만의 것이 아니다.",
+		"RequiredTier": "Tier4_Transcendent",
+		"TargetTier": "Tier5_EternalOrder",
+		"Path": "Ruler",
+		"CompletionConditions": [
+			{"Type": "CivLawsHeldTicksAtLeast", "Tag": "", "Key": "1200", "Value": 0.0},
+			{"Type": "MegaprojectComplete", "Tag": "", "Key": "project_binding", "Value": 0.0}
+		],
+		"AscensionCost": [],
+		"GrantedPowers": "(GameplayTags=)",
+		"DedicationBank": "",
+		"FX": "",
+		"Sound": "",
+		"LogTemplates": [
+			"{Civ}|hpp(이,가) 다섯째 칸에 서 있게 되었다. {HomeSystem}의 사람들은 저마다 하던 일을 이어 갔다.",
+			"{Civ}|hpp(은,는) 다섯째 칸에 서 있게 되었다. 그들이 내린 칙령들은 그때에도 고향 은하의 별들에 닿아 있었다.",
+			"{Civ}|hpp(이,가) 다섯째 칸에 서 있게 되었다. 다른 백성들은 그 일을 오래 헤아렸다."
+		]
 	}
 ]

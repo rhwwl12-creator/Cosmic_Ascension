@@ -1770,14 +1770,15 @@ bool FCosmicFeatsReachableTest::RunTest(const FString& Parameters)
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	Sim->RunHeadless(20000);
 	const FGalaxyState& State = Sim->GetState();
-	// B6b [B-6b6] (the notes' table of the tests whose meaning moves): with the passage by the ark in the data, an AI
-	// people climbs past the third rung - the extinction, its own ark and the treaty step (mutation: the brake always shut).
-	int32 Fourth = 0;
+	// B6b [B-6b7] (the notes' table of the tests whose meaning moves): with the galaxy laws and the binding in the data, an
+	// AI people climbs past the fourth rung - its three laws held and its own binding, after the passage by the ark of
+	// [B-6b6] (mutations: the brake always shut, the binding never completes).
+	int32 Fifth = 0;
 	for (const FCivilizationState& Civ : State.Civs)
 	{
-		Fourth += (!Civ.bIsPlayerRuled && static_cast<int32>(Civ.Tier) >= static_cast<int32>(EAscensionTier::Tier4_Transcendent)) ? 1 : 0;
+		Fifth += (!Civ.bIsPlayerRuled && static_cast<int32>(Civ.Tier) >= static_cast<int32>(EAscensionTier::Tier5_EternalOrder)) ? 1 : 0;
 	}
-	TestTrue(TEXT("An AI people reaches the fourth rung in 20,000 ticks of the game's data"), Fourth >= 1);
+	TestTrue(TEXT("An AI people reaches the fifth rung in 20,000 ticks of the game's data"), Fifth >= 1);
 	return true;
 }
 

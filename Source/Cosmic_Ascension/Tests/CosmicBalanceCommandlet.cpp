@@ -534,7 +534,8 @@ namespace
 	// HasCompleted, AsksForTreatyOf, HoldsGalaxyLawsOf, KillsTheRulerOf, GuardDelayCapOf - no rule copied but FourthRungCountOf,
 	// pinned to its window by Sim.RaceMeasure, and BrakeHeldOf's walk of the judgment (UAscensionSubsystem::JudgePeople's settled
 	// systems, rows and view), held to the judgment by Sim.FourthRungBrake; the race check's RaceRuledJudged finds the ruled
-	// people as UAscensionSubsystem::EvaluateFeats does, with no test - the wiring's probe is [B-6b7]). A tick is -1 and a name
+	// people as UAscensionSubsystem::EvaluateFeats does, with no test - probed once at [B-6b7] (notes section 5;
+	// Tools/mutations/B6b/b6b7_probe_race_*.patch)). A tick is -1 and a name
 	// None ("-") while missing. A count covers the run unless it says by the record (the boundaries up to and including the
 	// record's tick - every line's "by end"). An AI climb is a people's the vessel did not rule before the tick (the ending
 	// line's), an AI reading at a boundary a people's it does not rule then.

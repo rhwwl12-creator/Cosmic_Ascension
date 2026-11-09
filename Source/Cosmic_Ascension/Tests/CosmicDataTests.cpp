@@ -2155,7 +2155,8 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		FCosmicRulesDef AtEnd = *GameRules;
 		AtEnd.GalaxyLawsToHold = 1 + GameRules->EdictSlotSocietyMarks.Num();
 		TestFalse(TEXT("The slots' end itself passes"), AnyCarries(LawProblems(CosmicTests::WithRules(Game, AtEnd)), { TEXT("slots' end") }));
-		// A feat that reads the held laws: above the HomeGalaxy rows it is caught, at them it passes.
+		// A feat that reads the held laws: above the HomeGalaxy rows it is caught, at them it passes - on the game's edicts
+		// without the game's own laws (the game's feat_laws_and_binding, which reads them too, may report beside the test row).
 		FAscensionFeatDef Laws;
 		Laws.RequiredTier = EAscensionTier::Tier4_Transcendent;
 		Laws.TargetTier = EAscensionTier::Tier5_EternalOrder;
@@ -2166,6 +2167,11 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		UDataTable* LawFeats = CopyOf<FAscensionFeatDef>(Game.Feats);
 		LawFeats->AddRow(FName(TEXT("feat_test_laws")), Laws);
 		UDataTable* LawEdicts = CopyOf<FEdictDef>(Game.Edicts);
+		// The game's own galaxy laws out (three from [B-6b7]): the cases below count only the HomeGalaxy rows they add.
+		for (const FName GameLaw : CosmicEdicts::GalaxyLawRowsOf(Game))
+		{
+			LawEdicts->RemoveRow(GameLaw);
+		}
 		auto AddLaw = [LawEdicts](const TCHAR* Name)
 		{
 			FEdictDef Law;
@@ -2272,6 +2278,43 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		NotANumber.AIAscensionSpeedMultiplier = std::numeric_limits<float>::quiet_NaN();
 		TestTrue(TEXT("A rate that is not a number reads as 1, as the crisis stage reads it"), BindingProblems(CosmicTests::WithRules(Arked(249.f, false), NotANumber)).IsEmpty());
 		Expect(TEXT("the binding listed as a hazard's answer"), BindingProblems(CosmicTests::WithRules(Arked(150.f, true), Even)), { TEXT("crisis_test_extinct"), TEXT("project_binding"), TEXT("answer") });
+	}
+
+	// B6b [B-6b7] (header decisions 12, 15): the race is the binding. Every game DT_Feats row of the fourth rung on the Ruler
+	// path reads both the binding's record (MegaprojectComplete project_binding) and the held laws (CivLawsHeldTicksAtLeast),
+	// and one such row stands: CosmicMegaprojects::Choices builds the binding only for a judged row that names it, so a data
+	// edit that dropped it would drop the race without a word. And the delay above the third rung is a sixteenth step in
+	// (0, 1] - exact in binary, as the note on FCosmicRulesDef::AIUpperRungProgressMultiplier asks (header 5.3 (2)): plain
+	// arithmetic, no FMath.
+	{
+		int32 FourthRulerRows = 0;
+		TArray<FString> Without;
+		for (const FName FeatRow : Game.GetFeatRowNames())
+		{
+			const FAscensionFeatDef* Feat = Game.FindFeat(FeatRow);
+			if (!Feat || Feat->Path != EPlayerRole::Ruler || Feat->RequiredTier != EAscensionTier::Tier4_Transcendent)
+			{
+				continue;
+			}
+			++FourthRulerRows;
+			const bool bBinding = Feat->CompletionConditions.ContainsByPredicate([](const FCosmicCondition& Condition)
+			{
+				return Condition.Type == EConditionType::MegaprojectComplete && Condition.Key == CosmicRows::ProjectBinding;
+			});
+			if (!bBinding || !Feat->CarriesCondition(EConditionType::CivLawsHeldTicksAtLeast))
+			{
+				Without.Add(FeatRow.ToString());
+			}
+		}
+		TestTrue(*FString::Printf(TEXT("The fourth-to-fifth ruler row reads the binding and the held laws (B6b decisions 12, 15) - %d such rows, without: [%s]"),
+			FourthRulerRows, *FString::Join(Without, TEXT(" "))), FourthRulerRows > 0 && Without.IsEmpty());
+	}
+	if (const FCosmicRulesDef* GameRules = Game.FindRules())
+	{
+		const float Rate = GameRules->AIUpperRungProgressMultiplier;
+		const float Sixteenths = Rate * 16.f;
+		TestTrue(*FString::Printf(TEXT("DT_Rules.AIUpperRungProgressMultiplier is a sixteenth step in (0, 1] (exact in binary - CosmicDefinitionRows.h, header 5.3 (2)) - it is %g"), Rate),
+			Rate > 0.f && Rate <= 1.f && Sixteenths == static_cast<float>(static_cast<int32>(Sixteenths)));
 	}
 
 	// The choices of a card (section 5.9), entry by entry - a rule of the schema holds over every entry of a list, not over
@@ -2713,9 +2756,10 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("(the walk finds a death on the awakening's branch side)"), KillPlayersOf(Moved).Contains(TEXT("DT_Hazards.crisis_ai_awakening.OnExpireBranchEffects Death.Hazard")));
 	}
 	// B6b [B-6b3b] (header section 5.1, decision 34): CosmicTests::WithoutB6bData, the data-off side of B6b's pairs
-	// (-WithoutB6bData=1) and, with WithoutDeath, a test's world without death. (1) Today's data holds four of B6b's ten rows,
-	// the passage by the ark, the ark, project_binding and the extinction ([B-6b6]): the helper takes exactly them, in its
-	// order (a tripwire - [B-6b7] and [B-6b8] bring rows and update it). (2) On a full copy - a
+	// (-WithoutB6bData=1) and, with WithoutDeath, a test's world without death. (1) Today's data holds eight of B6b's ten rows,
+	// the passage by the ark, the ark, project_binding and the extinction ([B-6b6]), the feat of the laws and the binding
+	// and the three galaxy laws ([B-6b7]): the helper takes exactly them, in its order (a tripwire - [B-6b8] brings its rows
+	// and updates it). (2) On a full copy - a
 	// stand-in row for each of the ten (the extinction with Hazard.Extinction, the three laws of the galaxy's scope) and its
 	// two knobs on: the ten are taken out and nothing else (mutations: the binding or the extinction kept, another row taken),
 	// the knobs are off and every other field of the rules is the copy's (mutations: the knobs kept; the rules from the C++
@@ -2730,8 +2774,9 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		auto Names = [](const TArray<FName>& Rows) { return FString::JoinBy(Rows, TEXT(" "), [](FName Row) { return Row.ToString(); }); };
 		TArray<FName> Today;
 		CosmicTests::WithoutB6bData(Game, &Today);
-		TestTrue(*FString::Printf(TEXT("Today's data: WithoutB6bData takes out [B-6b6]'s three rows and project_binding (taken: %s) - [B-6b7] and [B-6b8] update this pin with their rows"), *Names(Today)),
-			Today == TArray<FName>{ CosmicB6bRows::FeatPassageByArk, CosmicB6bRows::ProjectArk, CosmicRows::ProjectBinding, CosmicB6bRows::CrisisSpeciesExtinction });
+		TestTrue(*FString::Printf(TEXT("Today's data: WithoutB6bData takes out [B-6b6]'s and [B-6b7]'s rows and project_binding (taken: %s) - [B-6b8] updates this pin with its rows"), *Names(Today)),
+			Today == TArray<FName>{ CosmicB6bRows::FeatPassageByArk, CosmicB6bRows::FeatLawsAndBinding, CosmicB6bRows::ProjectArk, CosmicRows::ProjectBinding,
+				CosmicB6bRows::CrisisSpeciesExtinction, CosmicB6bRows::EdictWideMachineAccord, CosmicB6bRows::EdictWideQuarantine, CosmicB6bRows::EdictWideWarning });
 
 		// The full copy.
 		FCosmicRulesDef FullRules = *Game.FindRules();
@@ -3013,10 +3058,13 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		FTheodicyBoard Behind = Named;
 		Behind.bEffectFirst = true;
 		Expect(TEXT("a gated effect after another effect"), CardEdictNameProblems(BoardOf(Behind)), { TEXT("petition_test_resist.Choices[0].OnSuccess[1]"), TEXT("alone, first") });
-		// The sphere a fallen row can hold is at least its one core: a cap of 0 with a core weighs as a sphere of one.
+		// The sphere a fallen row can hold is at least its one core: a cap of 0 with a core weighs as a sphere of one. The
+		// weight sits between the two readings for the plague's longest stand of 350 ticks (35 slots - the galaxy warning's
+		// +50 from B6b [B-6b7]; 2.2 fitted the 300 ticks before it): 1.85 x 1.1 leaves 0.234 of it, 1.85 alone 0.267
+		// (mutation: the bound reads the cap alone).
 		FTheodicyBoard CoreOnly;
 		CoreOnly.Weighted = FGameplayTag::RequestGameplayTag(FName(TEXT("Event.Civ.Society")));
-		CoreOnly.WeightOf = 2.2f;
+		CoreOnly.WeightOf = 1.85f;
 		CoreOnly.SilenceCap = 0;
 		Expect(TEXT("a weight on the plague's repentance over a sphere of one core and a cap of 0"), TheodicyProblems(BoardOf(CoreOnly), *GameRules),
 			{ TEXT("crisis_plague"), TEXT("quarter") });

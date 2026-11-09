@@ -1,0 +1,13 @@
+diff --git a/Tools/data/DT_Feats.json b/Tools/data/DT_Feats.json
+--- a/Tools/data/DT_Feats.json
++++ b/Tools/data/DT_Feats.json
+@@ -96,8 +96,7 @@
+ 		"TargetTier": "Tier5_EternalOrder",
+ 		"Path": "Ruler",
+ 		"CompletionConditions": [
+-			{"Type": "CivLawsHeldTicksAtLeast", "Tag": "", "Key": "1200", "Value": 0.0},
+-			{"Type": "MegaprojectComplete", "Tag": "", "Key": "project_binding", "Value": 0.0}
++			{"Type": "CivLawsHeldTicksAtLeast", "Tag": "", "Key": "1200", "Value": 0.0}
+ 		],
+ 		"AscensionCost": [],
+ 		"GrantedPowers": "(GameplayTags=)",

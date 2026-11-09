@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicSeal.cpp b/Source/Cosmic_Ascension/Sim/CosmicSeal.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicSeal.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicSeal.cpp
+@@ -17,7 +17,7 @@
+ 		const FTranscendentDef* Def = Transcendent.bSealed ? nullptr : Tables.FindTranscendent(Transcendent.TranscendentID);
+ 		if (Def && Def->Allegiance == AbyssalTag)
+ 		{
+-			return At;
++			return INDEX_NONE;
+ 		}
+ 	}
+ 	return INDEX_NONE;

@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_Hazards.json b/Tools/data/DT_Hazards.json
+--- a/Tools/data/DT_Hazards.json
++++ b/Tools/data/DT_Hazards.json
+@@ -121,7 +121,7 @@
+ 		"OnExpireBranchEffects": [],
+ 		"OnExpireNeighbourEffects": [],
+ 		"OnResolveEffects": [],
+-		"RulerResolutions": ["project_relief"],
++		"RulerResolutions": ["project_relief", "edict_wide_quarantine"],
+ 		"WandererResolutions": [],
+ 		"LogCategory": "Log.Crisis",
+ 		"Severity": 1,

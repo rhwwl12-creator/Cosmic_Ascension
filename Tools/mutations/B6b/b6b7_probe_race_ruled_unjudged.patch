@@ -1,0 +1,21 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp b/Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp
+--- a/Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp
++++ b/Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp
+@@ -1998,7 +1998,7 @@
+ 			{
+ 				const FName RaceHome = RulesNow.HomeGalaxyRow;
+ 				const FGalaxyDef* RaceHomeGalaxy = Sim->GetTables().FindGalaxy(RaceHome);
+-				const int32 RaceCap = RaceHomeGalaxy ? RaceHomeGalaxy->AIFourthRungCap : 0;
++				const int32 RaceCap = RaceHomeGalaxy ? RaceHomeGalaxy->AIFourthRungCap - 1 : 0;
+ 				TArray<CosmicRaceMeasure::FRungStep> Steps;
+ 				for (const TPair<FName, FCivBefore>& Each : CivsBefore)
+ 				{
+@@ -2008,7 +2008,7 @@
+ 					}
+ 					const int32 CivIndex = StateIndex.FindCiv(State, Each.Key);
+ 					const EAscensionTier After = State.Civs.IsValidIndex(CivIndex) ? State.Civs[CivIndex].Tier : Each.Value.Tier;
+-					Steps.Add({ Each.Key, Each.Value.Tier, After, Each.Key == RaceRuledJudged });
++					Steps.Add({ Each.Key, Each.Value.Tier, After, Each.Key == RaceRuledJudged && RaceRuledJudged.IsNone() });
+ 				}
+ 				const CosmicRaceMeasure::FFourthRungCheck Check = CosmicRaceMeasure::FourthRungCheckOf(Steps, RaceCap);
+ 				if (!Check.Holds())

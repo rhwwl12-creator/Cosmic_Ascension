@@ -315,9 +315,9 @@ namespace CosmicUpperRungTests
 	 * A board of twelve systems wired as CosmicTests::WireChain and four peoples that own every one of them, all settled:
 	 * people 0 (the player's) holds {0, 1}, 1 holds {3, 2, 4}, 2 holds {6, 5, 7}, 3 holds {9, 8, 10, 11}; capitals 0, 3, 6, 9.
 	 * 0 borders 1, 1 borders 2 and 3, 2 borders 3 (the board of Tests/CosmicDiplomacyTests.cpp). Quiet rules (no event, no
-	 * drain, no first crisis, no projects, no inherited edict, no transcendent, no card, no drift, no fleet, no sight stage),
-	 * this file's edicts and plague and the feat rows given (none: an empty table). Every people on the first rung with three
-	 * slots (Society 1), Stability 0.75 and a stockpile of 1000 of each resource.
+	 * drain, no first crisis, no projects, no inherited edict, no transcendent, no card, no drift, no fleet, no sight stage,
+	 * no delay above the third rung), this file's edicts and plague and the feat rows given (none: an empty table). Every
+	 * people on the first rung with three slots (Society 1), Stability 0.75 and a stockpile of 1000 of each resource.
 	 */
 	FGalaxyState* LayBoard(UGalaxySimulationSubsystem& Sim, const FCosmicDataTables& Original, UDataTable* Feats,
 		TFunctionRef<void(FCosmicRulesDef&)> Edit, float SickChance = 0.f)
@@ -338,6 +338,8 @@ namespace CosmicUpperRungTests
 		Rules.PlagueSpreadMultiplier = 1.f;
 		Rules.FirstSightTick = 1000000;
 		Rules.SightIntervalTicks = 1000000;
+		// The boards' own rate; the game's r is [B-6b7]'s (a case that reads the delay sets its own in Edit).
+		Rules.AIUpperRungProgressMultiplier = 1.f;
 		Edit(Rules);
 		FCosmicDataTables Tables = CosmicTests::WithoutProjects(CosmicTests::WithRules(Original, Rules));
 		Tables.Edicts = Edicts();
@@ -1202,10 +1204,10 @@ bool FCosmicSimExtinctionExpiryTest::RunTest(const FString& Parameters)
 
 namespace CosmicUpperRungTests
 {
-	// The rows of the boards below (the boards' own ark - the game's project_ark is in the data from [B-6b6] - and the
-	// game's binding row's values are [B-6b7]'s): the binding of the fourth rung, a construction of the third (Upper) and
-	// of the second (Lower), the ark of the third that answers the extinction - each 4 of progress at Energy 1 a tick,
-	// three lines -, and an independent transcendent beside the game's fallen row.
+	// The rows of the boards below (the boards' own rows; the game's ark and binding values are not read here): the binding
+	// of the fourth rung, a construction of the third (Upper) and of the second (Lower), the ark of the third that answers
+	// the extinction - each 4 of progress at Energy 1 a tick, three lines -, and an independent transcendent beside the
+	// game's fallen row.
 	const FName Ark(TEXT("project_test_ark"));
 	const FName Upper(TEXT("project_test_upper"));
 	const FName Lower(TEXT("project_test_lower"));

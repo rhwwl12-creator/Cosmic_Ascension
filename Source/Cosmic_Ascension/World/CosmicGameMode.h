@@ -541,8 +541,8 @@ public:
 	 * the second) with the first feat row that reaches that rung, or the first feat row ("CosmicPreviewRung 19 3" shows
 	 * the third rung's, whose close shows the reveal of the spiritual sight when the view drawn will be spiritual - force
 	 * the sight open below the third rung; the fifth rung's wears no glow, no gold title and no chime -
-	 * CosmicAscensionOverlay::LookOf -, and until a row reaches the fifth rung (B6b [B-6b7]) it shows the first feat row's
-	 * words). A command of its own, not a default argument of CosmicPreviewAscension: an
+	 * CosmicAscensionOverlay::LookOf -, with the words of the first DT_Feats row whose TargetTier is the rung -
+	 * feat_laws_and_binding for the fifth). A command of its own, not a default argument of CosmicPreviewAscension: an
 	 * Exec's default comes from editor-only metadata, and a build without it refuses a call that leaves the argument out.
 	 * Changes no state. */
 	UFUNCTION(Exec)

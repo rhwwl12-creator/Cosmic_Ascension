@@ -6,6 +6,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Blueprint/UserWidget.h"
 #include "Components/Button.h"
 #include "Components/Image.h"
 #include "Components/PanelWidget.h"
@@ -46,6 +47,7 @@
 #include "UI/CosmicSystemPanelWidget.h"
 #include "UI/CosmicTopBarWidget.h"
 #include "UI/CosmicUILabels.h"
+#include "Widgets/SWidget.h"
 #include "World/CosmicAutoPause.h"
 #include "World/CosmicGalaxyMapActor.h"
 #include "World/CosmicGameMode.h"
@@ -953,17 +955,37 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("nor with a knob below 0"), UCosmicTopBarWidget::ClockTipOf(-1, true, false).ToString(), NoRule);
 	TestEqual(TEXT("The bar's clock carries that tooltip"), Bar->GetClockButton() ? Bar->GetClockButton()->GetToolTipText().ToString() : FString(),
 		UCosmicTopBarWidget::ClockTipOf(EndTick, true, CosmicNextRung::HasJudgedRowAt(Sim->GetTables(), EAscensionTier::Tier4_Transcendent)).ToString());
+	// A bar built on tables with no judged row up to the fifth rung states the clock's rule alone (B6b [B-6b7]: the game's own
+	// tables now hold such a row, so this case takes B6b's data out - mutation: the caller passes the rung rule whatever the
+	// tables hold). The tooltip is built once, with the Slate widget.
+	{
+		const FCosmicDataTables GameTables = Sim->GetTables();
+		Sim->SetTables(CosmicTests::WithoutB6bData(GameTables));
+		UCosmicTopBarWidget* Lone = CreateWidget<UCosmicTopBarWidget>(Controller);
+		if (TestNotNull(TEXT("(a second top bar can be created)"), Lone))
+		{
+			const TSharedRef<SWidget> SlateLone = Lone->TakeWidget();
+			TestEqual(TEXT("A bar built without a judged row up to the fifth rung states the clock's rule alone"),
+				Lone->GetClockButton() ? Lone->GetClockButton()->GetToolTipText().ToString() : FString(),
+				UCosmicTopBarWidget::ClockTipOf(EndTick, true, false).ToString());
+		}
+		Sim->SetTables(GameTables);
+	}
 	// The fifth rung's rule stands on the definitions alone: a judged row from the fourth rung (a Ruler row, one rung up, with
-	// a condition).
+	// a condition). The game's own such row is feat_laws_and_binding (B6b [B-6b7]).
 	{
 		const FName FifthFeat(TEXT("feat_test_fifth"));
-		TestFalse(TEXT("The game's tables judge no row up to the fifth rung yet"), CosmicNextRung::HasJudgedRowAt(Sim->GetTables(), EAscensionTier::Tier4_Transcendent));
+		TestTrue(TEXT("true on the game tables: feat_laws_and_binding is the judged fourth-to-fifth row (B6b [B-6b7])"),
+			CosmicNextRung::HasJudgedRowAt(Sim->GetTables(), EAscensionTier::Tier4_Transcendent));
+		// (the game's own fourth-to-fifth row out: the cases judge only the row they add)
+		const FCosmicDataTables WithoutFifth = CosmicTests::WithoutB6bData(Sim->GetTables());
+		TestFalse(TEXT("(without B6b's data the tables judge no row up to the fifth rung)"), CosmicNextRung::HasJudgedRowAt(WithoutFifth, EAscensionTier::Tier4_Transcendent));
 		TestTrue(TEXT("a Ruler row from the fourth rung with a condition is one"),
-			CosmicNextRung::HasJudgedRowAt(WithFeat(Sim->GetTables(), FifthFeat, FifthRungRow(EPlayerRole::Ruler, true)), EAscensionTier::Tier4_Transcendent));
+			CosmicNextRung::HasJudgedRowAt(WithFeat(WithoutFifth, FifthFeat, FifthRungRow(EPlayerRole::Ruler, true)), EAscensionTier::Tier4_Transcendent));
 		TestFalse(TEXT("a wanderer's row is not"),
-			CosmicNextRung::HasJudgedRowAt(WithFeat(Sim->GetTables(), FifthFeat, FifthRungRow(EPlayerRole::Wanderer, true)), EAscensionTier::Tier4_Transcendent));
+			CosmicNextRung::HasJudgedRowAt(WithFeat(WithoutFifth, FifthFeat, FifthRungRow(EPlayerRole::Wanderer, true)), EAscensionTier::Tier4_Transcendent));
 		TestFalse(TEXT("nor a row without a condition"),
-			CosmicNextRung::HasJudgedRowAt(WithFeat(Sim->GetTables(), FifthFeat, FifthRungRow(EPlayerRole::Ruler, false)), EAscensionTier::Tier4_Transcendent));
+			CosmicNextRung::HasJudgedRowAt(WithFeat(WithoutFifth, FifthFeat, FifthRungRow(EPlayerRole::Ruler, false)), EAscensionTier::Tier4_Transcendent));
 	}
 	// The notice: none before the last EndSoonTicks, then the time left.
 	Bar42.Tick = EndTick - CosmicChronicleScreen::EndSoonTicks - 1;

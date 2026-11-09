@@ -14,7 +14,7 @@
 		"SuccessionMinHazardTicks": 300,
 		"ReverenceDecay": 0.5,
 		"AIAscensionSpeedMultiplier": 1.0,
-		"AIUpperRungProgressMultiplier": 1.0,
+		"AIUpperRungProgressMultiplier": 0.375,
 		"PostRebellionStability": 0.15,
 		"ThroneLockTicks": 600,
 		"PressureBySourceTier": [0.0, 0.0, 0.25, 1.0, 2.0],
