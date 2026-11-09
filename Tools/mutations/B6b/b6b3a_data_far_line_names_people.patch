@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_LogTemplates.json b/Tools/data/DT_LogTemplates.json
+--- a/Tools/data/DT_LogTemplates.json
++++ b/Tools/data/DT_LogTemplates.json
+@@ -430,7 +430,7 @@
+ 		"Context": "",
+ 		"MinTierToReveal": 0,
+ 		"Templates": [
+-			"한 백성의 함대가 {Civ}의 {System}|hpp(을,를) 에워쌌다. 그 깃발에는 읽을 수 있는 이름이 없었다.",
++			"{OtherCiv}의 함대가 {Civ}의 {System}|hpp(을,를) 에워쌌다. 그 깃발에는 읽을 수 있는 이름이 없었다.",
+ 			"{System}의 하늘에 깃발을 읽을 수 없는 함대가 나타났다. {Civ}의 성계가 에워싸였다.",
+ 			"한 백성이 {Civ}|hpp(을,를) 적으로 삼고 {System}에 공성을 세웠다. {System}에서 온 소식은 그들의 이름을 싣지 않았다."
+ 		]

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicWanderer.cpp b/Source/Cosmic_Ascension/Sim/CosmicWanderer.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicWanderer.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicWanderer.cpp
+@@ -103,7 +103,7 @@
+ 	}
+ 	const FCivilizationState& Civ = State.Civs[CivIndex];
+ 	// B6b (decision 41): no throne of a people far above the vessel's own rung - a coronation and a return alike.
+-	if (CosmicKnowing::IsFarAbove(Civ.Tier, State.Calling.PersonalTier))
++	if (CosmicKnowing::IsFarAbove(Civ.Tier, EAscensionTier::Tier1_Planetary))
+ 	{
+ 		return ECrownBlock::FarAbove;
+ 	}

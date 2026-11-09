@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -3041,7 +3041,7 @@
+ 		{
+ 			FFormatNamedArguments TreatyArgs = Args;
+ 			TreatyArgs.Add(TEXT("Treaty"), CosmicDiplomacy::TreatyNameOf(CosmicTags::TreatyTrade()));
+-			Log->PushRow(ToldRowOf(CosmicRows::LogTreatyBroken, AttackerTier, Them.Tier), 1, TreatyArgs, NAME_None, Them.CivID);
++			Log->PushRow(CosmicRows::LogTreatyBroken, 1, TreatyArgs, NAME_None, Them.CivID);
+ 		}
+ 		Args.Add(TEXT("System"), State.Systems[Aim].DisplayName);
+ 		Log->PushRow(ToldRowOf(CosmicRows::LogSiegeOnUs, AttackerTier, Them.Tier), 2, Args, AimID, Them.CivID);

@@ -7,6 +7,7 @@
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/Set.h"
 #include "Core/CosmicIDs.h"
+#include "Core/CosmicKnowing.h"
 #include "Core/CosmicSeed.h"
 #include "Core/CosmicTags.h"
 #include "Cosmic_Ascension.h"
@@ -53,6 +54,34 @@ namespace
 	constexpr float BreakthroughThresholds[] = { 0.25f, 0.5f, 0.75f, 1.0f };
 
 	constexpr int32 MaxLanesPerSystem = 4;
+
+	// The row of a line told to the ruled people (tier Ruled) that names another people (tier Other) as {OtherCiv} - B6b
+	// [B-6b3a] (header section 2.9, decision 19): the named row, or its nameless variant when the other people stands far
+	// above the ruled one (CosmicKnowing::IsFarAbove over the world's tiers - never Knowing, nor what NoteMet answered). A
+	// row with no variant keeps its name (the attacker's lines: a far owner is never besieged). One tell number either way.
+	FName ToldRowOf(FName Row, EAscensionTier Other, EAscensionTier Ruled)
+	{
+		if (!CosmicKnowing::IsFarAbove(Other, Ruled))
+		{
+			return Row;
+		}
+		static const TPair<FName, FName> Nameless[] = {
+			{ CosmicRows::LogSiegeOnUs, CosmicRows::LogSiegeOnUsFar },
+			{ CosmicRows::LogTreatyBroken, CosmicRows::LogTreatyBrokenFar },
+			{ CosmicRows::LogSiegeLost, CosmicRows::LogSiegeLostFar },
+			{ CosmicRows::LogSiegeHeld, CosmicRows::LogSiegeHeldFar },
+			{ CosmicRows::LogSiegeLifted, CosmicRows::LogSiegeLiftedFar },
+			{ CosmicRows::LogStanceLapsed, CosmicRows::LogStanceLapsedFar },
+		};
+		for (const TPair<FName, FName>& Pair : Nameless)
+		{
+			if (Pair.Key == Row)
+			{
+				return Pair.Value;
+			}
+		}
+		return Row;
+	}
 
 	// The disc of the home galaxy: about pi x 1000^2 of map per system (section 7.4).
 	constexpr float DiscRadiusPerRootSystem = 1000.f;
@@ -1254,8 +1283,8 @@ bool UGalaxySimulationSubsystem::NoteMet(FName CivID, FName SeenAtSystemID)
 	{
 		return false;
 	}
-	// The gap rule (section 3.2): a people three rungs or more above the viewer is seen, not met.
-	if (static_cast<int32>(State.Civs[CivIndex].Tier) - static_cast<int32>(GetViewerTier()) >= 3)
+	// The gap rule (section 3.2): a people far above the viewer is seen, not met (the one Core predicate - B6b [B-6b3a]).
+	if (CosmicKnowing::IsFarAbove(State.Civs[CivIndex].Tier, GetViewerTier()))
 	{
 		return false;
 	}
@@ -2012,7 +2041,7 @@ void UGalaxySimulationSubsystem::TickDiplomacy()
 				FFormatNamedArguments Args;
 				Args.Add(TEXT("Civ"), Civ.CivName);
 				Args.Add(TEXT("OtherCiv"), State.Civs[Other].CivName);
-				Log->PushRow(CosmicRows::LogStanceLapsed, 1, Args, NAME_None, Civ.CivID);
+				Log->PushRow(ToldRowOf(CosmicRows::LogStanceLapsed, State.Civs[Other].Tier, Civ.Tier), 1, Args, NAME_None, Civ.CivID);
 			}
 		}
 	}
@@ -2057,7 +2086,8 @@ void UGalaxySimulationSubsystem::TickConflict()
 	const auto RateOf = [](float Value) { return (Value > 0.f && Value <= TNumericLimits<float>::Max()) ? Value : 0.f; };
 
 	// A line of a siege the people the player rules is a party to (B3 section 3.4): the other people is met first, then
-	// told. Nothing when Ruled is not the ruled people.
+	// told - by the nameless variant of the row when it stands far above the ruled people (ToldRowOf - B6b; NoteMet
+	// refuses that people by itself, and the choice does not read its answer). Nothing when Ruled is not the ruled people.
 	const auto TellSiege = [this, Log](FName Row, uint8 Severity, int32 Ruled, int32 Other, int32 SystemIndex)
 	{
 		if (!State.Civs.IsValidIndex(Ruled) || !State.Civs[Ruled].bIsPlayerRuled || !State.Civs.IsValidIndex(Other) || !State.Systems.IsValidIndex(SystemIndex))
@@ -2070,7 +2100,7 @@ void UGalaxySimulationSubsystem::TickConflict()
 		Args.Add(TEXT("Civ"), State.Civs[Ruled].CivName);
 		Args.Add(TEXT("OtherCiv"), State.Civs[Other].CivName);
 		Args.Add(TEXT("System"), State.Systems[SystemIndex].DisplayName);
-		Log->PushRow(Row, Severity, Args, SystemID, State.Civs[Ruled].CivID);
+		Log->PushRow(ToldRowOf(Row, State.Civs[Other].Tier, State.Civs[Ruled].Tier), Severity, Args, SystemID, State.Civs[Ruled].CivID);
 	};
 	// A lifted siege is told to the ruled side, attacker or owner (the line names no side).
 	const auto TellLifted = [&TellSiege](int32 Attacker, int32 Owner, int32 SystemIndex)
@@ -3000,7 +3030,10 @@ void UGalaxySimulationSubsystem::TickAIDiplomacy(int32 CivIndex)
 		UCosmicLogSubsystem* Log = GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
 		check(Log);
 		const FName AimID = State.Systems[Aim].SystemID;
+		// Met first (refused by NoteMet itself when this people stands far above the ruled one), then told - by the nameless
+		// variants when it does (ToldRowOf: the world's tiers, B6b).
 		NoteMet(State.Civs[CivIndex].CivID, AimID);
+		const EAscensionTier AttackerTier = State.Civs[CivIndex].Tier;
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("Civ"), Them.CivName);
 		Args.Add(TEXT("OtherCiv"), State.Civs[CivIndex].CivName);
@@ -3008,10 +3041,10 @@ void UGalaxySimulationSubsystem::TickAIDiplomacy(int32 CivIndex)
 		{
 			FFormatNamedArguments TreatyArgs = Args;
 			TreatyArgs.Add(TEXT("Treaty"), CosmicDiplomacy::TreatyNameOf(CosmicTags::TreatyTrade()));
-			Log->PushRow(CosmicRows::LogTreatyBroken, 1, TreatyArgs, NAME_None, Them.CivID);
+			Log->PushRow(ToldRowOf(CosmicRows::LogTreatyBroken, AttackerTier, Them.Tier), 1, TreatyArgs, NAME_None, Them.CivID);
 		}
 		Args.Add(TEXT("System"), State.Systems[Aim].DisplayName);
-		Log->PushRow(CosmicRows::LogSiegeOnUs, 2, Args, AimID, Them.CivID);
+		Log->PushRow(ToldRowOf(CosmicRows::LogSiegeOnUs, AttackerTier, Them.Tier), 2, Args, AimID, Them.CivID);
 	}
 }
 

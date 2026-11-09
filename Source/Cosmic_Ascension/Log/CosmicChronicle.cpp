@@ -216,10 +216,11 @@ bool CosmicChronicle::Admits(const FCosmicLogEntry& Entry, TConstArrayView<FName
 	{
 		return true;
 	}
-	// The edict lines of the ruled people (B2) and its stance lines (B3) are the ruler's bookkeeping, not the life's story:
-	// left out, so they never crowd a chapter. The treaty and siege lines are its story.
+	// The edict lines of the ruled people (B2) and its stance lines (B3 - and the lapse's nameless variant, B6b) are the
+	// ruler's bookkeeping, not the life's story: left out, so they never crowd a chapter. The treaty and siege lines are its
+	// story, named or not.
 	if (Entry.SourceRow == CosmicRows::LogEdictEnacted || Entry.SourceRow == CosmicRows::LogEdictRevoked || Entry.SourceRow == CosmicRows::LogEdictLapsed
-		|| Entry.SourceRow == CosmicRows::LogStanceChanged || Entry.SourceRow == CosmicRows::LogStanceLapsed)
+		|| Entry.SourceRow == CosmicRows::LogStanceChanged || Entry.SourceRow == CosmicRows::LogStanceLapsed || Entry.SourceRow == CosmicRows::LogStanceLapsedFar)
 	{
 		return false;
 	}

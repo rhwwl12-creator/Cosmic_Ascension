@@ -100,7 +100,10 @@ namespace CosmicSlotWatch
  * [Return] for the people it left; on each living lane neighbour of that system, [Travel] with the lane's time. Each is
  * greyed by the first reason of the command's own gate (CosmicWanderer::TravelBlockOf, CrownBlockOf - fed the meeting and
  * the waiting card from the view), the short words after its name and the reason first in its tooltip (a refused crown
- * of a shown people also says its reverence and the two thresholds). For a wanderer, a shown people's panel says how much
+ * of a shown people also says its reverence and the two thresholds; a met people far above the vessel - the gate's FarAbove,
+ * B6b - gets no [Crown] or [Return] at all, standing or under way or with a card waiting, as a system being settled gets
+ * none; a people not met gets the greyed button of any people not met - Unmet standing, Travelling under way - the meeting
+ * asked first as in the gate). For a wanderer, a shown people's panel says how much
  * it looks up to the vessel (Wander.Reverence), and a scan that learned nothing says so there (Wander.ScanNothing) while
  * the vessel stands in it. A locked throne's time left (as the clock counts down) stays on the button's label; its tooltip
  * keeps still (B5: a vessel whose life began after the lock started is told the lock in words of its own - IsLockedBeforeLife).

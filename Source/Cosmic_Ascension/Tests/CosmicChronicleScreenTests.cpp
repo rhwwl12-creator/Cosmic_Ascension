@@ -639,6 +639,8 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 	const int32 Other = Live.Civs.IndexOfByPredicate([&Live, Ruled](const FCivilizationState& Civ) { return Civ.CivID != Live.Civs[Ruled].CivID; });
 	if (TestTrue(TEXT("(another people)"), Other != INDEX_NONE))
 	{
+		// Room for a second life (the case of an earlier life below) before the first is held: Mutable stays where it is.
+		Live.Calling.Lives.Reserve(2);
 		FLifeRecord& Mutable = Live.Calling.Lives[0];
 		auto NamesOf = [](const FText& CivName)
 		{
@@ -669,8 +671,8 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 		Live.Civs[Ruled].Tier = EAscensionTier::Tier1_Planetary;
 		TestFalse(TEXT("(CosmicSeeAll is off)"), Controller->IsSeeingAll());
 
-		// Another people: named only while the viewer is shown it (CosmicMapLook::KnownViewOf - met, fewer than ShownGap
-		// rungs above the viewer); else the line that names none (mutation: always naming it breaks the far and the unmet case).
+		// Another people: named only while the viewer is shown it (CosmicMapLook::KnownViewOf - met, not far above the viewer:
+		// CosmicKnowing::IsFarAbove); else the line that names none (mutation: always naming it breaks the far and the unmet case).
 		MeetOther(true);
 		Live.Civs[Other].Tier = EAscensionTier::Tier3_Causal;
 		Page->Open(RecordOf(CosmicTags::EndingOtherPeople(), Live.Civs[Other].CivID), true);
@@ -685,13 +687,49 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 		}
 		Live.Civs[Other].Tier = EAscensionTier::Tier4_Transcendent;
 		Page->Open(RecordOf(CosmicTags::EndingOtherPeople(), Live.Civs[Other].CivID), true);
-		FootIs(TEXT("Another people met but ShownGap rungs above the viewer is named by none"), { NoCivLine });
+		FootIs(TEXT("Another people met but far above the viewer is named by none"), { NoCivLine });
 		Live.Civs[Other].Tier = EAscensionTier::Tier3_Causal;
 		MeetOther(false);
 		Page->Open(RecordOf(CosmicTags::EndingOtherPeople(), Live.Civs[Other].CivID), true);
 		FootIs(TEXT("Another people never met is named by none"), { NoCivLine });
 		Page->Open(RecordOf(CosmicTags::EndingOtherPeople(), FName(TEXT("civ_test_nowhere"))), true);
 		FootIs(TEXT("A record's people the state does not hold is named by none"), { NoCivLine });
+
+		// A people of a life of the calling (B6b [B-6b3a], #162 - CosmicChronicle::PeoplesOfEveryLife): a people the vessel
+		// ruled and left, that reached the fifth rung as another people (an AI under a regent, #121), is named however far
+		// above the viewer it stands - and with no mark of the meeting left (mutation: the ruled people's end alone always
+		// named names it by none); so is a people an earlier life ruled once the next life stands, and a people a life was
+		// born among and never ruled (mutation: the present life's ruled peoples alone names them by none).
+		{
+			Mutable.RuledCivIDs.Add(Live.Civs[Other].CivID);
+			Mutable.ReignEndReasons.Add(CosmicTags::ReignAbdicated());
+			Mutable.ReignTicks.Add(1);
+			TestTrue(TEXT("(a people of a life of the calling)"), CosmicChronicle::PeoplesOfEveryLife(Live.Calling).Contains(Live.Civs[Other].CivID));
+			MeetOther(true);
+			Live.Civs[Other].Tier = EAscensionTier::Tier5_EternalOrder;
+			Page->Open(RecordOf(CosmicTags::EndingOtherPeople(), Live.Civs[Other].CivID), true);
+			FootIs(TEXT("A people the vessel ruled, at the fifth rung far above the viewer, is named"), { NamesOf(Live.Civs[Other].CivName) });
+			MeetOther(false);
+			Page->Open(RecordOf(CosmicTags::EndingOtherPeople(), Live.Civs[Other].CivID), true);
+			FootIs(TEXT("and with no mark of the meeting"), { NamesOf(Live.Civs[Other].CivName) });
+			// The vessel died and the next life stands (#121): the people of the earlier life is named still.
+			FLifeRecord& Next = Live.Calling.Lives.AddDefaulted_GetRef();
+			Next.BirthCivID = Live.Civs[Ruled].CivID;
+			Next.BornTick = Live.Tick;
+			Page->Open(RecordOf(CosmicTags::EndingOtherPeople(), Live.Civs[Other].CivID), true);
+			FootIs(TEXT("A people an earlier life ruled is named under the next life"), { NamesOf(Live.Civs[Other].CivName) });
+			Mutable.RuledCivIDs.Pop();
+			Mutable.ReignEndReasons.Pop();
+			Mutable.ReignTicks.Pop();
+			// A people the present life was born among and never ruled: named.
+			Live.Calling.Lives.Last().BirthCivID = Live.Civs[Other].CivID;
+			Page->Open(RecordOf(CosmicTags::EndingOtherPeople(), Live.Civs[Other].CivID), true);
+			FootIs(TEXT("A people a life was born among, never ruled, is named"), { NamesOf(Live.Civs[Other].CivName) });
+			Live.Calling.Lives.Pop(EAllowShrinking::No);
+			Live.Civs[Other].Tier = EAscensionTier::Tier3_Causal;
+			Page->Open(RecordOf(CosmicTags::EndingOtherPeople(), Live.Civs[Other].CivID), true);
+			FootIs(TEXT("(another people again: named by none)"), { NoCivLine });
+		}
 
 		// The ruled people: always named - whatever its rung, and whatever the knowing would show: the vessel gone from its
 		// throne (the view's tier is then the calling's own) and the people four rungs above it.

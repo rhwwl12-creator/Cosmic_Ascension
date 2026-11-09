@@ -1,10 +1,12 @@
 // Cosmic Ascension - automation tests of knowing and the scope of telling: the sight stage, the writers of knowing, the
-// scope of the log, and the proof that the world never reads any of it. Design: guideline.md section 4.4, 7.4, 8.1, 9.3.
+// scope of the log, the gap rule's one predicate and its readers (B6b), and the proof that the world never reads any of it.
+// Design: guideline.md section 4.4, 7.4, 8.1, 9.3.
 
 #include "CoreMinimal.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Core/CosmicKnowing.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicConditionTypes.h"
@@ -14,6 +16,7 @@
 #include "Engine/DataTable.h"
 #include "Engine/GameInstance.h"
 #include "Events/CosmicEventSubsystem.h"
+#include "Events/CosmicPetitions.h"
 #include "GameplayTagContainer.h"
 #include "Internationalization/Text.h"
 #include "Log/CosmicLogSubsystem.h"
@@ -31,6 +34,7 @@
 #include "UObject/NameTypes.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
+#include "World/CosmicMapLook.h"
 #include "World/CosmicRulerPolicy.h"
 
 #include <initializer_list>
@@ -1929,6 +1933,111 @@ bool FCosmicSightWalkMovedTest::RunTest(const FString& Parameters)
 			State.Knowing.KnownSystems.Num(), State.Knowing.MetCivs.Num()));
 		TestEqual(FString::Printf(TEXT("Seed %d %s: what the calling knows is what the walk before the move made"), Case.Seed,
 			Case.bRuler ? TEXT("ruler") : TEXT("wanderer")), Crc, Case.Expected);
+	}
+	return true;
+}
+
+// B6b [B-6b3a] (header section 2.9, decision 19 - 16 #107): the gap rule is one Core predicate. On every pair of rungs it
+// gives the answer the three copies it replaced gave (the rungs' difference three or more), and its readers give that answer
+// on every pair - the scope of telling (a met people's line in a known system is stored), the meeting (NoteMet) and the
+// shown people (CosmicMapLook::IsShownPeople) - while a wanderer's card keeps its own threshold on the same count (at most
+// one rung up: CosmicPetitions::WithinWandererGap). The viewer is the ruled people's rung (GetViewerTier), the card's the
+// calling's own.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicKnowingFarAboveTest, "Cosmic_Ascension.Knowing.FarAbove", CosmicTests::Flags)
+bool FCosmicKnowingFarAboveTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicKnowingTests;
+	const EAscensionTier Rungs[] = { EAscensionTier::Tier1_Planetary, EAscensionTier::Tier2_Stellar, EAscensionTier::Tier3_Causal,
+		EAscensionTier::Tier4_Transcendent, EAscensionTier::Tier5_EternalOrder };
+	// The copies' own expression, written out once more: Tier - viewer >= 3.
+	auto CopiesSay = [](EAscensionTier Of, EAscensionTier Viewer) { return static_cast<int32>(Of) - static_cast<int32>(Viewer) >= 3; };
+	auto PairOf = [](EAscensionTier Of, EAscensionTier Viewer)
+	{
+		return FString::Printf(TEXT("(rung %d seen from rung %d)"), static_cast<int32>(Of) + 1, static_cast<int32>(Viewer) + 1);
+	};
+
+	// The predicate itself.
+	for (const EAscensionTier Viewer : Rungs)
+	{
+		for (const EAscensionTier Of : Rungs)
+		{
+			TestEqual(*(TEXT("RungsAbove counts the rungs between ") + PairOf(Of, Viewer)), CosmicKnowing::RungsAbove(Of, Viewer),
+				static_cast<int32>(Of) - static_cast<int32>(Viewer));
+			TestEqual(*(TEXT("IsFarAbove is the copies' answer ") + PairOf(Of, Viewer)), CosmicKnowing::IsFarAbove(Of, Viewer), CopiesSay(Of, Viewer));
+		}
+	}
+	TestFalse(TEXT("Two rungs up is not far"), CosmicKnowing::IsFarAbove(EAscensionTier::Tier3_Causal, EAscensionTier::Tier1_Planetary));
+	TestTrue(TEXT("three rungs up is"), CosmicKnowing::IsFarAbove(EAscensionTier::Tier4_Transcendent, EAscensionTier::Tier1_Planetary));
+	TestFalse(TEXT("and a people below never is"), CosmicKnowing::IsFarAbove(EAscensionTier::Tier1_Planetary, EAscensionTier::Tier5_EternalOrder));
+
+	// Its readers, on the board of the scope: the vessel rules people 0 (the viewer's rung is people 0's), knows system 11
+	// and has met people 3 there; people 1 is not met (the meeting's case); the first contact is behind it.
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	UCosmicLogSubsystem* Log = Sim->GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
+	if (!TestNotNull(TEXT("The log subsystem exists"), Log))
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Log->SetTellAll(true); Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	FGalaxyState* Laid = LayBoard(*Sim, TablesWith(Original, Knobs(Sim->GetRules())));
+	if (!TestNotNull(TEXT("The board of the scope is laid"), Laid))
+	{
+		return false;
+	}
+	FGalaxyState& State = *Laid;
+	Log->SetTellAll(false);
+	Mark(State.Knowing.KnownSystems, State.Systems[11].SystemID);
+	Mark(State.Knowing.MetCivs, State.Civs[3].CivID);
+	State.Knowing.FirstContactCivID = State.Civs[2].CivID;
+	const FName One = State.Civs[1].CivID;
+	const FName Three = State.Civs[3].CivID;
+	const FName Eleven = State.Systems[11].SystemID;
+	int32 Serial = 0;
+	for (const EAscensionTier Viewer : Rungs)
+	{
+		State.Civs[0].Tier = Viewer;
+		TestTrue(*FString::Printf(TEXT("(the viewer stands on rung %d)"), static_cast<int32>(Viewer) + 1), Sim->GetViewerTier() == Viewer);
+		for (const EAscensionTier Of : Rungs)
+		{
+			const FString Pair = PairOf(Of, Viewer);
+			const bool bFar = CopiesSay(Of, Viewer);
+			State.Civs[1].Tier = Of;
+			State.Civs[3].Tier = Of;
+
+			// The scope of telling: a Severity 1 line about met people 3 in known system 11.
+			FCosmicLine Line;
+			Line.Category = Tag(TEXT("Log.Civ"));
+			Line.Severity = 1;
+			Line.FocusCiv = Three;
+			Line.FocusSystem = Eleven;
+			Line.SourceRow = FName(TEXT("log_test_far_above"));
+			const TArray<FText> Variants = { FText::AsCultureInvariant(FString::Printf(TEXT("far above line %d"), ++Serial)) };
+			const int32 Before = State.Log.Num();
+			Log->PushVariants(Line, Variants, FFormatNamedArguments());
+			TestEqual(*(TEXT("Tell stores a met people's line unless it is far above ") + Pair), State.Log.Num() - Before, bFar ? 0 : 1);
+
+			// The shown people: the same answer for the same met people.
+			TestEqual(*(TEXT("IsShownPeople shows a met people unless it is far above ") + Pair), CosmicMapLook::IsShownPeople(true, State.Civs[3], Viewer), !bFar);
+
+			// The meeting: people 1 is met unless it is far above.
+			State.Knowing.MetCivs.RemoveAll([One](const FKnownMark& Mark) { return Mark.ID == One; });
+			TestEqual(*(TEXT("NoteMet meets a people unless it is far above ") + Pair), Sim->NoteMet(One, NAME_None), !bFar);
+			TestEqual(*(TEXT("(and Knowing holds it as NoteMet said) ") + Pair), HasMet(State, One), !bFar);
+			State.Knowing.MetCivs.RemoveAll([One](const FKnownMark& Mark) { return Mark.ID == One; });
+
+			// A wanderer's card: its own threshold on the same count, from the calling's own rung.
+			State.Calling.PersonalTier = Viewer;
+			TestEqual(*(TEXT("A wanderer's card comes at most one rung up ") + Pair), CosmicPetitions::WithinWandererGap(State, 3),
+				CosmicKnowing::RungsAbove(Of, Viewer) <= 1);
+			TestEqual(*(TEXT("(that is, two rungs up it does not) ") + Pair), CosmicPetitions::WithinWandererGap(State, 3),
+				static_cast<int32>(Of) - static_cast<int32>(Viewer) < 2);
+			State.Calling.PersonalTier = EAscensionTier::Tier1_Planetary;
+		}
 	}
 	return true;
 }

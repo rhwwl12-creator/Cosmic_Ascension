@@ -35,6 +35,7 @@
 #include "World/CosmicAutoPause.h"
 #include "World/CosmicRulerPolicy.h"
 
+#include <initializer_list>
 #include <limits>
 
 namespace CosmicDiplomacyTests
@@ -2062,6 +2063,304 @@ bool FCosmicLogConflictLinesTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("A treaty's line goes in"), CosmicChronicle::Admits(Entry, Peoples));
 	Entry.SourceRow = CosmicRows::LogSiegeLifted;
 	TestTrue(TEXT("and a lifted siege's"), CosmicChronicle::Admits(Entry, Peoples));
+	return true;
+}
+
+// B6b [B-6b3a] (header section 2.9, 3.1, decision 19): the lines told to the ruled people that name another people take
+// their nameless variant when that people stands three rungs or more above the ruled one - the world's rungs, never Knowing:
+// the AI's siege laid on the ruled people and the treaty it broke, the three ends of a siege on the ruled side, and a
+// friendship that lapses by its upkeep. The game's six rows keep the named row's category and number of variants and say no
+// {OtherCiv} nor any template of the eleven named lines of diplomacy and conflict; each line keeps the named row's Severity
+// and focus, draws one tell number (a table without the row tells nothing in its place) and leaves the sim stream as it
+// was - as many numbers of each stream as the same tick two rungs up, the people met on both; the far people is not met by
+// it and its name is in no line. Two rungs up, the named row as before.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicLogFarNamelessTest, "Cosmic_Ascension.Log.FarNameless", CosmicTests::Flags)
+bool FCosmicLogFarNamelessTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicDiplomacyTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	if (!Sim)
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+
+	// The game's rows: each nameless row beside its named row.
+	const TPair<FName, FName> Pairs[] = {
+		{ CosmicRows::LogSiegeOnUs, CosmicRows::LogSiegeOnUsFar }, { CosmicRows::LogTreatyBroken, CosmicRows::LogTreatyBrokenFar },
+		{ CosmicRows::LogSiegeLost, CosmicRows::LogSiegeLostFar }, { CosmicRows::LogSiegeHeld, CosmicRows::LogSiegeHeldFar },
+		{ CosmicRows::LogSiegeLifted, CosmicRows::LogSiegeLiftedFar }, { CosmicRows::LogStanceLapsed, CosmicRows::LogStanceLapsedFar } };
+	// Every template of the eleven named lines of diplomacy and conflict (Log.ConflictLines' rows) first: no nameless variant
+	// shares one with any of them, nor with another nameless row.
+	TSet<FString> Seen;
+	for (const FName Row : { CosmicRows::LogStanceChanged, CosmicRows::LogStanceLapsed, CosmicRows::LogTreatySigned, CosmicRows::LogTreatyBroken,
+		CosmicRows::LogSiegeBegun, CosmicRows::LogSiegeOnUs, CosmicRows::LogSiegeTaken, CosmicRows::LogSiegeLost, CosmicRows::LogSiegeHeld,
+		CosmicRows::LogSiegeFailed, CosmicRows::LogSiegeLifted })
+	{
+		if (const FLogTemplateDef* Named = Original.FindLogTemplate(Row))
+		{
+			for (const FText& Text : Named->Templates)
+			{
+				Seen.Add(Text.ToString());
+			}
+		}
+	}
+	for (const TPair<FName, FName>& Pair : Pairs)
+	{
+		const FLogTemplateDef* Named = Original.FindLogTemplate(Pair.Key);
+		const FLogTemplateDef* Far = Original.FindLogTemplate(Pair.Value);
+		const FString Name = Pair.Value.ToString();
+		if (!TestNotNull(*FString::Printf(TEXT("The game has %s"), *Name), Far) || !TestNotNull(TEXT("(and its named row)"), Named))
+		{
+			continue;
+		}
+		TestTrue(*FString::Printf(TEXT("%s is in its named row's category"), *Name), Far->Category == Named->Category);
+		TestEqual(*FString::Printf(TEXT("%s has as many variants as its named row"), *Name), Far->Templates.Num(), Named->Templates.Num());
+		TestEqual(*FString::Printf(TEXT("%s reveals as its named row does"), *Name), static_cast<int32>(Far->MinTierToReveal), static_cast<int32>(Named->MinTierToReveal));
+		for (const FText& Text : Far->Templates)
+		{
+			TestFalse(*FString::Printf(TEXT("%s says no {OtherCiv}"), *Name), Text.ToString().Contains(TEXT("{OtherCiv}")));
+			TestFalse(*FString::Printf(TEXT("%s shares no template with a line of diplomacy or conflict"), *Name), Seen.Contains(Text.ToString()));
+			Seen.Add(Text.ToString());
+		}
+	}
+
+	// The board of Sim.DiplomacyAI and Sim.Siege: every people on the first rung, fleets from the second rung (the ruled
+	// people keeps none - a siege on it is taken for sure), the AI's gate at -0.3 and 1.5, a siege ends after 5 ticks.
+	FGalaxyState* State = LayBoard(*Sim, Original, [](FCosmicRulesDef& Rules)
+	{
+		Fleets(Rules);
+		Rules.SiegeTicks = 5;
+		Rules.SiegeRestTicks = 50;
+		Rules.AIHostileRelation = -0.3f;
+		Rules.AIHostilePowerRatio = 1.5f;
+		Rules.AIHostileRelationTowardRuled = -0.3f;
+		Rules.AIHostilePowerRatioTowardRuled = 1.5f;
+	});
+	if (!TestNotNull(TEXT("The board is laid"), State))
+	{
+		return false;
+	}
+	for (FCivilizationState& Civ : State->Civs)
+	{
+		Civ.Stockpile.Energy = 1000.f;
+		Civ.FleetPower = 1.f;
+	}
+	State->Tick = 100;
+	Sim->SyncRngState();
+	const FGalaxyState Start = *State;
+	const FName Zero = Start.Civs[0].CivID;
+	const FName One = Start.Civs[1].CivID;
+	const FString OneName = Start.Civs[1].CivName.ToString();
+	const FCosmicDataTables Board = Sim->GetTables();
+	auto WithoutFar = [&Pairs](const FCosmicDataTables& Tables)
+	{
+		FCosmicDataTables Copy = Tables;
+		Copy.LogTemplates = CosmicTests::CopyWithout<FLogTemplateDef>(Tables.LogTemplates, { Pairs[0].Value, Pairs[1].Value, Pairs[2].Value, Pairs[3].Value,
+			Pairs[4].Value, Pairs[5].Value });
+		return Copy;
+	};
+	// Fleets on the first rung too: the ruled people guards with a fleet of its own (a siege on it may be held).
+	FCosmicDataTables Guarded;
+	{
+		FCosmicRulesDef Rules = Sim->GetRules();
+		Rules.FleetPerSettledByTier = { 1.f, 1.f, 1.f, 1.f, 1.f };
+		Guarded = CosmicTests::WithRules(Board, Rules);
+	}
+
+	// One tick from From under Tables: the state after it and how many numbers each stream moved.
+	struct FStepped
+	{
+		FGalaxyState After;
+		int32 SimDraws = INDEX_NONE;
+		int32 TellDraws = INDEX_NONE;
+	};
+	auto Step = [&](const FGalaxyState& From, const FCosmicDataTables& Tables)
+	{
+		Sim->SetTables(Tables);
+		Sim->LoadState(From);
+		Sim->StepOnce();
+		FStepped Stepped;
+		Stepped.After = Sim->GetState();
+		Stepped.SimDraws = DrawsBetween(From.RngState, Stepped.After.RngState);
+		Stepped.TellDraws = DrawsBetween(From.TellRngState, Stepped.After.TellRngState);
+		Sim->SetTables(Board);
+		return Stepped;
+	};
+	// Whether a line told on the tick (after From's entries) names the far people.
+	auto Names = [&OneName](const FGalaxyState& From, const FGalaxyState& After)
+	{
+		for (int32 Index = From.Log.Num(); Index < After.Log.Num(); ++Index)
+		{
+			if (After.Log[Index].Message.ToString().Contains(OneName))
+			{
+				return true;
+			}
+		}
+		return false;
+	};
+	// The far case (people 1 three rungs above the ruled one): the nameless row of each pair, as the named row would be told
+	// (category, Severity, focus), and none of the named rows; the far people met only if it was; one tell number per
+	// nameless line, the sim stream as without the rows - and no named row in their place without them.
+	// Severity is the named row's (the broken treaty's line beside a siege is told at 1).
+	auto Far = [&](const TCHAR* What, const FGalaxyState& From, const FCosmicDataTables& Tables, std::initializer_list<TPair<FName, FName>> Told,
+		uint8 Severity, FName FocusSystem)
+	{
+		const FStepped With = Step(From, Tables);
+		const FStepped Without = Step(From, WithoutFar(Tables));
+		for (const TPair<FName, FName>& Pair : Told)
+		{
+			const int32 Line = LineIndexOf(With.After, Pair.Value, Zero);
+			if (TestTrue(*FString::Printf(TEXT("%s: %s is told"), What, *Pair.Value.ToString()), Line != INDEX_NONE))
+			{
+				const FCosmicLogEntry& Entry = With.After.Log[Line];
+				const FLogTemplateDef* Named = Original.FindLogTemplate(Pair.Key);
+				TestTrue(TEXT("(in its named row's category)"), Named && Entry.Category == Named->Category);
+				TestEqual(TEXT("(about the named row's system)"), Entry.FocusSystemID, Pair.Value == CosmicRows::LogTreatyBrokenFar ? FName() : FocusSystem);
+				TestEqual(*FString::Printf(TEXT("%s: %s keeps the named row's Severity"), What, *Pair.Value.ToString()),
+					static_cast<int32>(Entry.Severity), static_cast<int32>(Pair.Value == CosmicRows::LogTreatyBrokenFar ? 1 : Severity));
+			}
+			TestEqual(*FString::Printf(TEXT("%s: not %s"), What, *Pair.Key.ToString()), LineIndexOf(With.After, Pair.Key), INDEX_NONE);
+			TestEqual(*FString::Printf(TEXT("%s: without its row nothing is told in its place"), What), LineIndexOf(Without.After, Pair.Key), INDEX_NONE);
+		}
+		TestFalse(*FString::Printf(TEXT("%s: no line names the far people"), What), Names(From, With.After));
+		TestEqual(*FString::Printf(TEXT("%s: met only as it was"), What), HasMet(With.After, One), HasMet(From, One));
+		TestEqual(*FString::Printf(TEXT("%s: one tell number for each nameless line"), What), With.TellDraws - Without.TellDraws, static_cast<int32>(Told.size()));
+		TestEqual(*FString::Printf(TEXT("%s: the sim stream as without them"), What), With.SimDraws, Without.SimDraws);
+		return With;
+	};
+	// The choice of the nameless row draws nothing of its own: the same tick with the far people three rungs up (FarFrom)
+	// and two rungs up (NearFrom - the same state but its rung, the people met on both so that no contact line is told on
+	// either) moves each stream by as many numbers. On this board the third and the fourth rung draw alike otherwise
+	// (RealmCapByTier 5 on both, a fleet of 1 from the second rung, no event or feat row that tells them apart). The
+	// comparison above, with a table that lacks the rows, passes through the same branch and cannot see a draw there.
+	auto SameDraws = [&](const TCHAR* What, const FGalaxyState& FarFrom, const FGalaxyState& NearFrom, const FCosmicDataTables& Tables)
+	{
+		const FStepped FarStep = Step(FarFrom, Tables);
+		const FStepped NearStep = Step(NearFrom, Tables);
+		TestEqual(*FString::Printf(TEXT("%s: the nameless choice draws no sim number (as the named lines two rungs up)"), What), FarStep.SimDraws, NearStep.SimDraws);
+		TestEqual(*FString::Printf(TEXT("%s: and one tell number a line, as the named lines"), What), FarStep.TellDraws, NearStep.TellDraws);
+	};
+	// The state From with the people CivID met.
+	auto WithMet = [](const FGalaxyState& From, FName CivID)
+	{
+		FGalaxyState Copy = From;
+		if (!HasMet(Copy, CivID))
+		{
+			Copy.Knowing.MetCivs.AddDefaulted_GetRef().ID = CivID;
+		}
+		return Copy;
+	};
+	// Two rungs up: the named row, and no nameless one.
+	auto Near = [&](const TCHAR* What, const FGalaxyState& From, const FCosmicDataTables& Tables, std::initializer_list<TPair<FName, FName>> Told)
+	{
+		const FStepped With = Step(From, Tables);
+		for (const TPair<FName, FName>& Pair : Told)
+		{
+			TestTrue(*FString::Printf(TEXT("%s two rungs up: %s is told"), What, *Pair.Key.ToString()), LineIndexOf(With.After, Pair.Key, Zero) != INDEX_NONE);
+			TestEqual(*FString::Printf(TEXT("%s two rungs up: not %s"), What, *Pair.Value.ToString()), LineIndexOf(With.After, Pair.Value), INDEX_NONE);
+		}
+		return With;
+	};
+
+	// (1) The AI lays its siege on the ruled people (system 1) and breaks their trade treaty: people 1 sees people 0 at -0.4.
+	{
+		FGalaxyState Opening = Start;
+		Opening.Civs[1].FleetPower = 2.f;
+		Opening.Civs[1].Ethics.Pacifism = -0.5f;
+		Opening.Civs[1].Relations.Add(Zero, -0.4f);
+		Opening.Civs[1].Tier = EAscensionTier::Tier4_Transcendent;
+		CosmicDiplomacy::Sign(Opening, 0, 1, Trade());
+		Unmeet(Opening, 1);
+		const FStepped Opened = Far(TEXT("The AI's siege on the ruled people"), Opening, Board,
+			{ { CosmicRows::LogSiegeOnUs, CosmicRows::LogSiegeOnUsFar }, { CosmicRows::LogTreatyBroken, CosmicRows::LogTreatyBrokenFar } }, 2, IDOf(Start, 1));
+		TestTrue(TEXT("(the AI turned hostile and laid its siege)"), Opened.After.Civs[1].FleetTargetSystemID == IDOf(Start, 1));
+		TestTrue(TEXT("The treaty's line comes first, as the named one does"), LineIndexOf(Opened.After, CosmicRows::LogTreatyBrokenFar, Zero)
+			< LineIndexOf(Opened.After, CosmicRows::LogSiegeOnUsFar, Zero));
+		TestEqual(TEXT("NoteMet refused the far people (no contact line)"), LineIndexOf(Opened.After, CosmicRows::LogContact, One), INDEX_NONE);
+		// Met before it rose: the nameless rows all the same - the rungs choose, not Knowing.
+		FGalaxyState Known = Opening;
+		Known.Knowing.MetCivs.AddDefaulted_GetRef().ID = One;
+		Far(TEXT("The AI's siege by a people met before it rose"), Known, Board,
+			{ { CosmicRows::LogSiegeOnUs, CosmicRows::LogSiegeOnUsFar }, { CosmicRows::LogTreatyBroken, CosmicRows::LogTreatyBrokenFar } }, 2, IDOf(Start, 1));
+		FGalaxyState Close = Opening;
+		Close.Civs[1].Tier = EAscensionTier::Tier3_Causal;
+		const FStepped Named = Near(TEXT("The AI's siege"), Close, Board,
+			{ { CosmicRows::LogSiegeOnUs, CosmicRows::LogSiegeOnUsFar }, { CosmicRows::LogTreatyBroken, CosmicRows::LogTreatyBrokenFar } });
+		TestTrue(TEXT("which names the besieger"), Names(Close, Named.After));
+		TestTrue(TEXT("met first (NoteMet)"), HasMet(Named.After, One));
+		FGalaxyState CloseKnown = Close;
+		CloseKnown.Knowing.MetCivs.AddDefaulted_GetRef().ID = One;
+		Near(TEXT("The AI's siege by a people already met"), CloseKnown, Board,
+			{ { CosmicRows::LogSiegeOnUs, CosmicRows::LogSiegeOnUsFar }, { CosmicRows::LogTreatyBroken, CosmicRows::LogTreatyBrokenFar } });
+		SameDraws(TEXT("The AI's siege"), Known, CloseKnown, Board);
+	}
+
+	// (2) The three ends of people 1's siege on the ruled people's system 1, on its last tick.
+	{
+		FGalaxyState Losing = Start;
+		Besiege(Losing, 1, 0, 1, 96);
+		Losing.Civs[0].FleetPower = 0.f;
+		Losing.Civs[1].Tier = EAscensionTier::Tier4_Transcendent;
+		Unmeet(Losing, 1);
+		const FStepped Lost = Far(TEXT("A siege taken from the ruled people"), Losing, Board, { { CosmicRows::LogSiegeLost, CosmicRows::LogSiegeLostFar } }, 2, IDOf(Start, 1));
+		TestEqual(TEXT("(the system is taken)"), Lost.After.Systems[1].OwnerCivID, One);
+		FGalaxyState Close = Losing;
+		Close.Civs[1].Tier = EAscensionTier::Tier3_Causal;
+		TestTrue(TEXT("The loss two rungs up names the conqueror"), Names(Close, Near(TEXT("The loss"), Close, Board, { { CosmicRows::LogSiegeLost, CosmicRows::LogSiegeLostFar } }).After));
+		SameDraws(TEXT("The loss"), WithMet(Losing, One), WithMet(Close, One), Board);
+
+		FGalaxyState Holding = Start;
+		Besiege(Holding, 1, 0, 1, 96);
+		Holding.Civs[1].FleetPower = 0.0001f;
+		Holding.Civs[0].FleetPower = 3.f;
+		Holding.Civs[0].FleetTargetSystemID = IDOf(Holding, 1);
+		Holding.Civs[1].Tier = EAscensionTier::Tier4_Transcendent;
+		Unmeet(Holding, 1);
+		const FStepped Held = Far(TEXT("A siege the ruled people held"), Holding, Guarded, { { CosmicRows::LogSiegeHeld, CosmicRows::LogSiegeHeldFar } }, 2, IDOf(Start, 1));
+		TestEqual(TEXT("(the system is held)"), Held.After.Systems[1].OwnerCivID, Zero);
+		Close = Holding;
+		Close.Civs[1].Tier = EAscensionTier::Tier3_Causal;
+		TestTrue(TEXT("The hold two rungs up names the besieger"), Names(Close, Near(TEXT("The hold"), Close, Guarded, { { CosmicRows::LogSiegeHeld, CosmicRows::LogSiegeHeldFar } }).After));
+		SameDraws(TEXT("The hold"), WithMet(Holding, One), WithMet(Close, One), Guarded);
+
+		FGalaxyState Lifting = Start;
+		Besiege(Lifting, 1, 0, 1, 96);
+		CosmicDiplomacy::Sign(Lifting, 0, 1, NonAggression());
+		Lifting.Civs[1].Tier = EAscensionTier::Tier4_Transcendent;
+		Unmeet(Lifting, 1);
+		const FStepped Lifted = Far(TEXT("A siege on the ruled people lifted"), Lifting, Board, { { CosmicRows::LogSiegeLifted, CosmicRows::LogSiegeLiftedFar } }, 1, IDOf(Start, 1));
+		TestTrue(TEXT("(the siege is lifted)"), Lifted.After.Civs[1].FleetTargetSystemID.IsNone());
+		Close = Lifting;
+		Close.Civs[1].Tier = EAscensionTier::Tier3_Causal;
+		Near(TEXT("The lifting"), Close, Board, { { CosmicRows::LogSiegeLifted, CosmicRows::LogSiegeLiftedFar } });
+		SameDraws(TEXT("The lifting"), WithMet(Lifting, One), WithMet(Close, One), Board);
+	}
+
+	// (3) The ruled people's friendship toward people 1 lapses: its upkeep cannot be paid. People 1 is met (a friend) - the
+	// nameless row all the same. Out of the chronicle as the named line is.
+	{
+		FCosmicRulesDef Dear = Sim->GetRules();
+		Dear.FriendlyUpkeepInfluence = 1.0e6f;
+		const FCosmicDataTables Upkeep = CosmicTests::WithRules(Board, Dear);
+		FGalaxyState Lapsing = Start;
+		CosmicDiplomacy::SetStanceOf(Lapsing.Civs[0], One, Friendly());
+		Lapsing.Civs[0].Stockpile.Influence = 0.f;
+		Lapsing.Civs[1].Tier = EAscensionTier::Tier4_Transcendent;
+		const FStepped Lapsed = Far(TEXT("A friendship that lapses"), Lapsing, Upkeep, { { CosmicRows::LogStanceLapsed, CosmicRows::LogStanceLapsedFar } }, 1, FName());
+		TestFalse(TEXT("(the friendship lapsed)"), Lapsed.After.Civs[0].Ties.Contains(One));
+		const int32 Line = LineIndexOf(Lapsed.After, CosmicRows::LogStanceLapsedFar, Zero);
+		if (Line != INDEX_NONE)
+		{
+			TestFalse(TEXT("The nameless lapse stays out of the chronicle, as the named one"),
+				CosmicChronicle::Admits(Lapsed.After.Log[Line], CosmicChronicle::PeoplesOfEveryLife(Lapsed.After.Calling)));
+		}
+		FGalaxyState Close = Lapsing;
+		Close.Civs[1].Tier = EAscensionTier::Tier3_Causal;
+		TestTrue(TEXT("The lapse two rungs up names the friend"), Names(Close, Near(TEXT("The lapse"), Close, Upkeep, { { CosmicRows::LogStanceLapsed, CosmicRows::LogStanceLapsedFar } }).After));
+		SameDraws(TEXT("The lapse"), WithMet(Lapsing, One), WithMet(Close, One), Upkeep);
+	}
 	return true;
 }
 

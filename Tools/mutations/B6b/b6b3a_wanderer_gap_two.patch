@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp b/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
+--- a/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
+@@ -171,7 +171,7 @@
+ bool CosmicPetitions::WithinWandererGap(const FGalaxyState& State, int32 CivIndex)
+ {
+ 	// The card's own threshold on the gap rule's count of rungs (not the gap rule's 'far above').
+-	return !State.Civs.IsValidIndex(CivIndex) || CosmicKnowing::RungsAbove(State.Civs[CivIndex].Tier, State.Calling.PersonalTier) <= 1;
++	return !State.Civs.IsValidIndex(CivIndex) || CosmicKnowing::RungsAbove(State.Civs[CivIndex].Tier, State.Calling.PersonalTier) <= 2;
+ }
+ 
+ bool CosmicPetitions::IsFirstTickOfReign(const FGalaxyState& State)

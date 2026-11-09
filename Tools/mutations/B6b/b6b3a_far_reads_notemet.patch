@@ -1,0 +1,13 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -3032,8 +3032,7 @@
+ 		const FName AimID = State.Systems[Aim].SystemID;
+ 		// Met first (refused by NoteMet itself when this people stands far above the ruled one), then told - by the nameless
+ 		// variants when it does (ToldRowOf: the world's tiers, B6b).
+-		NoteMet(State.Civs[CivIndex].CivID, AimID);
+-		const EAscensionTier AttackerTier = State.Civs[CivIndex].Tier;
++		const EAscensionTier AttackerTier = NoteMet(State.Civs[CivIndex].CivID, AimID) ? Them.Tier : EAscensionTier::Tier5_EternalOrder;
+ 		FFormatNamedArguments Args;
+ 		Args.Add(TEXT("Civ"), Them.CivName);
+ 		Args.Add(TEXT("OtherCiv"), State.Civs[CivIndex].CivName);

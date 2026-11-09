@@ -5,6 +5,7 @@
 #include "Containers/Map.h"
 #include "Containers/Set.h"
 #include "Core/CosmicIDs.h"
+#include "Core/CosmicKnowing.h"
 #include "Core/CosmicSeed.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
@@ -377,8 +378,8 @@ FLinearColor CosmicMapLook::OwnerRingColorOf(const FLinearColor& OwnerColor, ECo
 
 bool CosmicMapLook::IsShownPeople(bool bMet, const FCivilizationState& Civ, EAscensionTier ViewerTier)
 {
-	// The subject rule of the scope of telling (section 8.1): the gap is measured upward only.
-	return bMet && !(static_cast<int32>(Civ.Tier) - static_cast<int32>(ViewerTier) >= ShownGap);
+	// The subject rule of the scope of telling (section 8.1): the gap is measured upward only - the one Core predicate.
+	return bMet && !CosmicKnowing::IsFarAbove(Civ.Tier, ViewerTier);
 }
 
 FCosmicKnownView CosmicMapLook::KnownViewOf(const FGalaxyState& State, const FCosmicStateIndex& Index, EAscensionTier ViewerTier, bool bSeeAll)

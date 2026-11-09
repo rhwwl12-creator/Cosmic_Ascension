@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Core/CosmicKnowing.h b/Source/Cosmic_Ascension/Core/CosmicKnowing.h
+--- a/Source/Cosmic_Ascension/Core/CosmicKnowing.h
++++ b/Source/Cosmic_Ascension/Core/CosmicKnowing.h
+@@ -15,7 +15,7 @@
+ {
+ 	/** A people this many rungs or more above the viewer is far above it: seen, not met, its lines untold, not shown
+ 	 * (section 3.2, 8.1). Measured upward only - a people below the viewer is never far. */
+-	inline constexpr int32 FarAboveRungs = 3;
++	inline constexpr int32 FarAboveRungs = 2;
+ 
+ 	/** How many rungs Of stands above Viewer (negative when below): the tier numbers' difference, 1..5 as the gap rule
+ 	 * counts them (EAscensionTier's values are the numbers less one, so the difference is the same). */

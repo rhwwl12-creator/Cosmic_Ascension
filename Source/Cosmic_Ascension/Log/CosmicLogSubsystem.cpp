@@ -3,6 +3,7 @@
 #include "Log/CosmicLogSubsystem.h"
 
 #include "Core/CosmicTags.h"
+#include "Core/CosmicKnowing.h"
 #include "Core/CosmicTypes.h"
 #include "Cosmic_Ascension.h"
 #include "Data/CosmicDataTables.h"
@@ -195,8 +196,8 @@ void UCosmicLogSubsystem::Tell(const FCosmicLine& Line, FString&& Rendered)
 	const FKnowingState& Knowing = State.Knowing;
 	const EAscensionTier Viewer = Sim->GetViewerTier();
 
-	// The subject (section 8.1): a met people not three rungs or more above the viewer (a lower one is never held
-	// back), and a known system. The calling's own lines always hold.
+	// The subject (section 8.1): a met people not far above the viewer (the one Core predicate CosmicKnowing::IsFarAbove -
+	// a lower one is never held back), and a known system. The calling's own lines always hold.
 	const int32 CivIndex = Line.FocusCiv.IsNone() ? INDEX_NONE : Sim->GetStateIndex().FindCiv(State, Line.FocusCiv);
 	const FCivilizationState* Civ = State.Civs.IsValidIndex(CivIndex) ? &State.Civs[CivIndex] : nullptr;
 	bool bSubject = true;
@@ -206,7 +207,7 @@ void UCosmicLogSubsystem::Tell(const FCosmicLine& Line, FString&& Rendered)
 		{
 			const FName CivID = Line.FocusCiv;
 			const bool bMet = Knowing.MetCivs.ContainsByPredicate([CivID](const FKnownMark& Mark) { return Mark.ID == CivID; });
-			const bool bFarAbove = Civ && static_cast<int32>(Civ->Tier) - static_cast<int32>(Viewer) >= 3;
+			const bool bFarAbove = Civ && CosmicKnowing::IsFarAbove(Civ->Tier, Viewer);
 			bSubject = bMet && !bFarAbove;
 		}
 		if (bSubject && !Line.FocusSystem.IsNone())

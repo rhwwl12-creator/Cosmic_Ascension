@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2100,7 +2100,7 @@
+ 		Args.Add(TEXT("Civ"), State.Civs[Ruled].CivName);
+ 		Args.Add(TEXT("OtherCiv"), State.Civs[Other].CivName);
+ 		Args.Add(TEXT("System"), State.Systems[SystemIndex].DisplayName);
+-		Log->PushRow(ToldRowOf(Row, State.Civs[Other].Tier, State.Civs[Ruled].Tier), Severity, Args, SystemID, State.Civs[Ruled].CivID);
++		Log->PushRow(Row, Severity, Args, SystemID, State.Civs[Ruled].CivID);
+ 	};
+ 	// A lifted siege is told to the ruled side, attacker or owner (the line names no side).
+ 	const auto TellLifted = [&TellSiege](int32 Attacker, int32 Owner, int32 SystemIndex)

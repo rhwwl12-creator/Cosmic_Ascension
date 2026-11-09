@@ -1,0 +1,14 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicWanderer.cpp b/Source/Cosmic_Ascension/Sim/CosmicWanderer.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicWanderer.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicWanderer.cpp
+@@ -97,6 +97,10 @@
+ 	{
+ 		return ECrownBlock::NotSettled;
+ 	}
++	if (CosmicKnowing::IsFarAbove(State.Civs[CivIndex].Tier, State.Calling.PersonalTier))
++	{
++		return ECrownBlock::FarAbove;
++	}
+ 	if (!bMet)
+ 	{
+ 		return ECrownBlock::Unmet;

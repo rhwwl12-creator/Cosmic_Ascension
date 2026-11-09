@@ -124,8 +124,9 @@ namespace CosmicPetitions
 
 	/**
 	 * Whether a wanderer's card may come on the people CivIndex: no people (a wild system), or a people at most one rung
-	 * above the calling's PersonalTier - the gap-2 variants of awe and fear (pillars.md) come later. The world's tiers
-	 * only: no knowing is read.
+	 * above the calling's PersonalTier (CosmicKnowing::RungsAbove <= 1 - the card's own threshold on the gap rule's count,
+	 * not its 'far above') - the gap-2 variants of awe and fear (pillars.md) come later. The world's tiers only: no
+	 * knowing is read.
 	 */
 	COSMIC_ASCENSION_API bool WithinWandererGap(const FGalaxyState& State, int32 CivIndex);
 

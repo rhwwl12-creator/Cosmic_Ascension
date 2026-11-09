@@ -1,0 +1,14 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -61,10 +61,6 @@
+ 	// row with no variant keeps its name (the attacker's lines: a far owner is never besieged). One tell number either way.
+ 	FName ToldRowOf(FName Row, EAscensionTier Other, EAscensionTier Ruled)
+ 	{
+-		if (!CosmicKnowing::IsFarAbove(Other, Ruled))
+-		{
+-			return Row;
+-		}
+ 		static const TPair<FName, FName> Nameless[] = {
+ 			{ CosmicRows::LogSiegeOnUs, CosmicRows::LogSiegeOnUsFar },
+ 			{ CosmicRows::LogTreatyBroken, CosmicRows::LogTreatyBrokenFar },

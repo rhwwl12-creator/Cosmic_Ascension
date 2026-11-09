@@ -177,8 +177,9 @@ enum class ECosmicOwnerShown : uint8
 	None,
 	// A people the viewer is shown: its colour, its name, its people line, its works.
 	Shown,
-	// A people the viewer is not shown - not met, or met and ShownGap rungs or more above: no colour, no name, no people
-	// line, no works (slot lines, label bars, the settling dash). The system's hazard and the spiritual marks still show.
+	// A people the viewer is not shown - not met, or met and far above (CosmicKnowing::IsFarAbove): no colour, no name,
+	// no people line, no works (slot lines, label bars, the settling dash). The system's hazard and the spiritual marks
+	// still show.
 	Hidden,
 };
 
@@ -301,18 +302,11 @@ namespace CosmicMapLook
 
 	// ---- Knowing (section 6.4 'the display of knowing', 8.1) ----
 
-	/**
-	 * A people this many rungs or more above the viewer is not shown: the gap of the scope of telling's subject rule
-	 * (section 3.2, 8.1). The rule lives in three places, held together by their tests until B6b (whose fourth- and
-	 * fifth-rung feats first make such a people - 16 #107) moves them into one Core predicate:
-	 * UCosmicLogSubsystem::Tell (Log.TellScope), UGalaxySimulationSubsystem::NoteMet - seen, not met (Sim.KnowingWriters,
-	 * Sim.SightStage) - and IsShownPeople here (UI.KnownFilter's parity with the log).
-	 */
-	inline constexpr int32 ShownGap = 3;
-
 	/** Whether the viewer is shown Civ (section 3.2, 8.1): it is met (bMet - Knowing.MetCivs holds it, as KnownViewOf
-	 * read it) and stands fewer than ShownGap rungs above ViewerTier (UGalaxySimulationSubsystem::GetViewerTier) - the
-	 * subject rule of the scope of telling, so the map, the system panel and the feed name the same peoples. */
+	 * read it) and is not far above ViewerTier (UGalaxySimulationSubsystem::GetViewerTier) - the subject rule of the scope
+	 * of telling, so the map, the system panel and the feed name the same peoples. The gap is the one Core predicate
+	 * CosmicKnowing::IsFarAbove (B6b [B-6b3a], 16 #107) that UCosmicLogSubsystem::Tell and
+	 * UGalaxySimulationSubsystem::NoteMet - seen, not met - read too (Knowing.FarAbove; UI.KnownFilter's parity with the log). */
 	COSMIC_ASCENSION_API bool IsShownPeople(bool bMet, const FCivilizationState& Civ, EAscensionTier ViewerTier);
 
 	/** The view of State.Knowing for a viewer on ViewerTier; bSeeAll (the development aid CosmicSeeAll) knows every system

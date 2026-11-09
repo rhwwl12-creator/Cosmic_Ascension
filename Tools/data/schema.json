@@ -313,7 +313,7 @@
 			"struct": "LogTemplateDef",
 			"prefixes": ["log_"],
 			"must_exist": true,
-			"required_rows": ["log_first_life", "log_breakthrough_physics", "log_breakthrough_society", "log_breakthrough_engineering", "log_breakthrough_transcendence", "log_fallen_monarch", "log_first_contact", "log_contact", "log_far_event", "log_far_ascent", "log_scan_wild", "log_crowned", "log_returned", "log_throne_vacated", "log_rebellion_unseated", "log_edict_enacted", "log_edict_revoked", "log_edict_lapsed", "log_stance_changed", "log_stance_lapsed", "log_treaty_signed", "log_treaty_broken", "log_siege_begun", "log_siege_on_us", "log_siege_taken", "log_siege_lost", "log_siege_held", "log_siege_failed", "log_siege_lifted", "log_sign_claim", "log_fleet_worn", "log_death_hazard", "log_inauguration", "log_record_destroyed", "log_record_annexed", "log_inauguration_unnamed", "log_record_extinct", "log_death_extinction", "log_fallen_bound"],
+			"required_rows": ["log_first_life", "log_breakthrough_physics", "log_breakthrough_society", "log_breakthrough_engineering", "log_breakthrough_transcendence", "log_fallen_monarch", "log_first_contact", "log_contact", "log_far_event", "log_far_ascent", "log_scan_wild", "log_crowned", "log_returned", "log_throne_vacated", "log_rebellion_unseated", "log_edict_enacted", "log_edict_revoked", "log_edict_lapsed", "log_stance_changed", "log_stance_lapsed", "log_treaty_signed", "log_treaty_broken", "log_siege_begun", "log_siege_on_us", "log_siege_taken", "log_siege_lost", "log_siege_held", "log_siege_failed", "log_siege_lifted", "log_sign_claim", "log_fleet_worn", "log_death_hazard", "log_inauguration", "log_record_destroyed", "log_record_annexed", "log_inauguration_unnamed", "log_record_extinct", "log_death_extinction", "log_fallen_bound", "log_siege_on_us_far", "log_treaty_broken_far", "log_siege_lost_far", "log_siege_held_far", "log_siege_lifted_far", "log_stance_lapsed_far"],
 			"columns": {
 				"Category": {"kind": "tag", "root": "Log."},
 				"Context": {"kind": "tag", "root": "Revelation.", "optional": true},
@@ -399,6 +399,36 @@
 					"why": "the line of the binding is told in the actorless passive by the name of the system the work stood on alone: no people and no work is named in it - the people is never the binder (B6b header 2.5, 3.3 rule 8, decision 32; the triumph words join it in [B-6b5] - header 3.3 rule 13)",
 					"when": [{"row": "log_fallen_bound"}],
 					"then": [{"col": "Templates", "slots_in": ["System"]}]
+				},
+				{
+					"why": "the nameless variant of log_siege_on_us names no other people: the code chooses it when that people stands far above the ruled one (CosmicKnowing::IsFarAbove), so it says {Civ} and {System} and never {OtherCiv} - the name the map and the scope of telling hide (B6b header 2.9, 3.3 rule 8, decision 19)",
+					"when": [{"row": "log_siege_on_us_far"}],
+					"then": [{"col": "Templates", "slots_in": ["Civ", "System"]}]
+				},
+				{
+					"why": "the nameless variant of log_treaty_broken names no other people: the code chooses it when that people stands far above the ruled one (CosmicKnowing::IsFarAbove), so it says {Civ} and {Treaty} and never {OtherCiv} - the name the map and the scope of telling hide (B6b header 2.9, 3.3 rule 8, decision 19)",
+					"when": [{"row": "log_treaty_broken_far"}],
+					"then": [{"col": "Templates", "slots_in": ["Civ", "Treaty"]}]
+				},
+				{
+					"why": "the nameless variant of log_siege_lost names no other people: the code chooses it when that people stands far above the ruled one (CosmicKnowing::IsFarAbove), so it says {Civ} and {System} and never {OtherCiv} - the name the map and the scope of telling hide (B6b header 2.9, 3.3 rule 8, decision 19)",
+					"when": [{"row": "log_siege_lost_far"}],
+					"then": [{"col": "Templates", "slots_in": ["Civ", "System"]}]
+				},
+				{
+					"why": "the nameless variant of log_siege_held names no other people: the code chooses it when that people stands far above the ruled one (CosmicKnowing::IsFarAbove), so it says {Civ} and {System} and never {OtherCiv} - the name the map and the scope of telling hide (B6b header 2.9, 3.3 rule 8, decision 19)",
+					"when": [{"row": "log_siege_held_far"}],
+					"then": [{"col": "Templates", "slots_in": ["Civ", "System"]}]
+				},
+				{
+					"why": "the nameless variant of log_siege_lifted names no other people: the code chooses it when that people stands far above the ruled one (CosmicKnowing::IsFarAbove), so it says {Civ} and {System} and never {OtherCiv} - the name the map and the scope of telling hide (B6b header 2.9, 3.3 rule 8, decision 19)",
+					"when": [{"row": "log_siege_lifted_far"}],
+					"then": [{"col": "Templates", "slots_in": ["Civ", "System"]}]
+				},
+				{
+					"why": "the nameless variant of log_stance_lapsed names no other people: the code chooses it when that people stands far above the ruled one (CosmicKnowing::IsFarAbove), so it says {Civ} and never {OtherCiv} - the name the map and the scope of telling hide (B6b header 2.9, 3.3 rule 8, decision 19)",
+					"when": [{"row": "log_stance_lapsed_far"}],
+					"then": [{"col": "Templates", "slots_in": ["Civ"]}]
 				}
 			]
 		},

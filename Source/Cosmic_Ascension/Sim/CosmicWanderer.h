@@ -29,7 +29,8 @@ namespace CosmicWanderer
 		Handler
 	};
 
-	/** The first reason a coronation or a return is refused; None = taken. Not saved. */
+	/** The first reason a coronation or a return is refused; None = taken. Not saved: an enumerator is appended at the end
+	 * (FarAbove, B6b) while the gate asks it where its order says. */
 	enum class ECrownBlock : uint8
 	{
 		None,
@@ -45,7 +46,11 @@ namespace CosmicWanderer
 		// Neither reverence nor a leader vacuum (a coronation; a return needs neither).
 		Lacking,
 		// Called from a handler of a Core Logic delegate (an error line).
-		Handler
+		Handler,
+		// B6b [B-6b3a] (header section 2.9, decision 41 - 16 #122): the people stands far above the calling's PersonalTier
+		// (CosmicKnowing::IsFarAbove - the world's tiers; asked right after Unmet), a coronation and a return alike. The
+		// panel shows no button for it (no greyed 'too high' - that would reveal a people the map hides).
+		FarAbove
 	};
 
 	/** Travelling = Player.TravelTargetSystemID != NAME_None (the field comment): every gate, card and withdrawal reads this. */
@@ -76,10 +81,11 @@ namespace CosmicWanderer
 
 	/**
 	 * BecomeRuler's gate on CivID, the owner of the system the vessel stands in: an embodied wanderer, not travelling, no
-	 * card waiting, standing in a settled system of that people, bMet, Tick >= the people's ThroneLockedUntilTick (written
-	 * on every people when the vessel left a throne), and - unless it is a return (IsReturn: the lock alone, section 5.10) -
-	 * ReverenceToPlayer >= DT_Rules.CoronationReverence or Stability < CoronationStabilityBelow (a value that is not a
-	 * number passes neither).
+	 * card waiting, standing in a settled system of that people, bMet, the people not far above the calling's PersonalTier
+	 * (CosmicKnowing::IsFarAbove - B6b, a return too: a vessel does not take the throne of a people the map hides), Tick >=
+	 * the people's ThroneLockedUntilTick (written on every people when the vessel left a throne), and - unless it is a
+	 * return (IsReturn: the lock alone, section 5.10) - ReverenceToPlayer >= DT_Rules.CoronationReverence or Stability <
+	 * CoronationStabilityBelow (a value that is not a number passes neither). The rungs are the world's: no knowing is read.
 	 */
 	COSMIC_ASCENSION_API ECrownBlock CrownBlockOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules, FName CivID,
 		bool bMet, bool bCardWaiting);

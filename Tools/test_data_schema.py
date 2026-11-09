@@ -3096,6 +3096,31 @@ class SchemaTests(unittest.TestCase):
         # Another row may name the people.
         self.assertEqual(self.after(self.set_cell("DT_LogTemplates", "log_fleet_worn", "Templates", ["{System} {Civ} a.", "b.", "c."])), [])
 
+    def test_the_nameless_lines(self):
+        # B6b [B-6b3a] (header 2.9, 3.3 rule 8, decision 19): the nameless variant of each of the six lines that name the
+        # other people - chosen when that people stands far above the ruled one - says no {OtherCiv}. The breaking case, in
+        # every row: {OtherCiv} in its first variant; the named row keeps it.
+        far_rows = {"log_siege_on_us_far": "log_siege_on_us", "log_treaty_broken_far": "log_treaty_broken", "log_siege_lost_far": "log_siege_lost",
+                    "log_siege_held_far": "log_siege_held", "log_siege_lifted_far": "log_siege_lifted", "log_stance_lapsed_far": "log_stance_lapsed"}
+        for far, named in far_rows.items():
+            with self.subTest(row=far):
+                templates = self.row(self.tables, "DT_LogTemplates", far)["Templates"]
+                self.assertEqual(self.after(self.set_cell("DT_LogTemplates", far, "Templates", list(templates))), [])
+                broken = ["{OtherCiv} " + templates[0]] + list(templates[1:])
+                self.expect(self.after(self.set_cell("DT_LogTemplates", far, "Templates", broken)),
+                            "DT_LogTemplates.%s" % far, "the nameless variant of %s names no other people" % named, "slots_in")
+                self.assertTrue(any("{OtherCiv}" in text for text in self.row(self.tables, "DT_LogTemplates", named)["Templates"]))
+        # The project's own rows: each nameless row is in the project with the category and the number of variants of its
+        # named row, and none of its variants says {OtherCiv}.
+        project_schema, project_tables, project_tags = checker.load_project()
+        rows = {row["Name"]: row for row in project_tables["DT_LogTemplates"]}
+        for far, named in far_rows.items():
+            with self.subTest(project_row=far):
+                self.assertIn(far, project_schema["tables"]["DT_LogTemplates"]["required_rows"])
+                self.assertEqual(rows[far]["Category"], rows[named]["Category"])
+                self.assertEqual(len(rows[far]["Templates"]), len(rows[named]["Templates"]))
+                self.assertFalse(any("{OtherCiv}" in text for text in rows[far]["Templates"]))
+
     def test_a_ruler_card_does_not_wait_on_the_vessel_rung(self):
         # B6a [B-6a6] (header 3.1, decision 9): the ruler's personal rung never rises, so a ruler's row that waits on it never
         # comes. The breaking case is petition_exalt as it stood from [A-2b] to [B-6a5]: the ruler and the vessel's rung 2.
@@ -3494,6 +3519,19 @@ class SchemaTests(unittest.TestCase):
             # B6b [B-6b2c]: the binding's line, the delay above the third rung and a project's Causality.
             ("DT_LogTemplates", "the line of the binding is told in the actorless passive by the name of the system the work stood on alone: no people and no work is named in it - the people is never the binder (B6b header 2.5, 3.3 rule 8, decision 32; the triumph words join it in [B-6b5] - header 3.3 rule 13)"):
                 (NOTHING, "log_fallen_bound"),
+            # B6b [B-6b3a]: the six nameless variants of the lines that name the other people.
+            ("DT_LogTemplates", "the nameless variant of log_siege_on_us names no other people: the code chooses it when that people stands far above the ruled one (CosmicKnowing::IsFarAbove), so it says {Civ} and {System} and never {OtherCiv} - the name the map and the scope of telling hide (B6b header 2.9, 3.3 rule 8, decision 19)"):
+                (NOTHING, "log_siege_on_us_far"),
+            ("DT_LogTemplates", "the nameless variant of log_treaty_broken names no other people: the code chooses it when that people stands far above the ruled one (CosmicKnowing::IsFarAbove), so it says {Civ} and {Treaty} and never {OtherCiv} - the name the map and the scope of telling hide (B6b header 2.9, 3.3 rule 8, decision 19)"):
+                (NOTHING, "log_treaty_broken_far"),
+            ("DT_LogTemplates", "the nameless variant of log_siege_lost names no other people: the code chooses it when that people stands far above the ruled one (CosmicKnowing::IsFarAbove), so it says {Civ} and {System} and never {OtherCiv} - the name the map and the scope of telling hide (B6b header 2.9, 3.3 rule 8, decision 19)"):
+                (NOTHING, "log_siege_lost_far"),
+            ("DT_LogTemplates", "the nameless variant of log_siege_held names no other people: the code chooses it when that people stands far above the ruled one (CosmicKnowing::IsFarAbove), so it says {Civ} and {System} and never {OtherCiv} - the name the map and the scope of telling hide (B6b header 2.9, 3.3 rule 8, decision 19)"):
+                (NOTHING, "log_siege_held_far"),
+            ("DT_LogTemplates", "the nameless variant of log_siege_lifted names no other people: the code chooses it when that people stands far above the ruled one (CosmicKnowing::IsFarAbove), so it says {Civ} and {System} and never {OtherCiv} - the name the map and the scope of telling hide (B6b header 2.9, 3.3 rule 8, decision 19)"):
+                (NOTHING, "log_siege_lifted_far"),
+            ("DT_LogTemplates", "the nameless variant of log_stance_lapsed names no other people: the code chooses it when that people stands far above the ruled one (CosmicKnowing::IsFarAbove), so it says {Civ} and never {OtherCiv} - the name the map and the scope of telling hide (B6b header 2.9, 3.3 rule 8, decision 19)"):
+                (NOTHING, "log_stance_lapsed_far"),
             ("DT_Rules", "the delay above the third rung multiplies the progress of an AI people's construction of the third rung or above: at 0 or below it would never progress, so the code reads it as 1 with an error line (B6b header 2.6, 3.4, decision 17)"):
                 (NOTHING, "rules"),
             ("DT_Megaprojects", "a project asks no Causality: no people earns any (its income is 0 - guideline 16 #90), so a project that asks it would never be paid and its slot would stand for good (B6b header 3.3 rule 7)"):
@@ -3522,7 +3560,7 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 265, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        self.assertEqual(walked, 271, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

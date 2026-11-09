@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+--- a/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicChronicle.cpp
+@@ -220,7 +220,7 @@
+ 	// ruler's bookkeeping, not the life's story: left out, so they never crowd a chapter. The treaty and siege lines are its
+ 	// story, named or not.
+ 	if (Entry.SourceRow == CosmicRows::LogEdictEnacted || Entry.SourceRow == CosmicRows::LogEdictRevoked || Entry.SourceRow == CosmicRows::LogEdictLapsed
+-		|| Entry.SourceRow == CosmicRows::LogStanceChanged || Entry.SourceRow == CosmicRows::LogStanceLapsed || Entry.SourceRow == CosmicRows::LogStanceLapsedFar)
++		|| Entry.SourceRow == CosmicRows::LogStanceChanged || Entry.SourceRow == CosmicRows::LogStanceLapsed)
+ 	{
+ 		return false;
+ 	}

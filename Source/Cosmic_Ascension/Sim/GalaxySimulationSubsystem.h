@@ -257,8 +257,8 @@ public:
 	/**
 	 * Meets the people CivID (section 7.4, 8.1): the one writer of Knowing.MetCivs besides Install. Nothing when the
 	 * people is already met, is not in Civs, or when the calling has no vessel (interregnum). The gap rule comes first: a
-	 * people whose Tier is three or more above GetViewerTier is not met. A new meeting is appended with the current tick
-	 * and told at once, through the tell stream only (no sim draw): the first meeting of the run - while
+	 * people far above GetViewerTier (CosmicKnowing::IsFarAbove - three rungs or more) is not met. A new meeting is
+	 * appended with the current tick and told at once, through the tell stream only (no sim draw): the first meeting of the run - while
 	 * Knowing.FirstContactCivID is NAME_None - writes that field and tells CosmicRows::LogFirstContact, any later one
 	 * CosmicRows::LogContact, both Severity 1 about that people and about SeenAtSystemID (NAME_None when the caller has
 	 * no place). The first meeting also writes Knowing.PendingContactCivID for an embodied ruler while DT_Encounters holds
@@ -489,10 +489,11 @@ private:
 	// Stage 3 (B3 header section 2.5). No draw; the tell stream only. (1) The friendly stances' upkeep, people by people in
 	// Civs order, each people's friendly entries in lexical key order: those beyond its friendly slots (a save made with
 	// other knobs) lapse to neutral from the back first, then each pays DT_Rules.FriendlyUpkeepInfluence from the stockpile
-	// or lapses. A lapse of the people the player rules is told (CosmicRows::LogStanceLapsed). (2) The drift: for every
-	// people X (Civs order) its borders once (CosmicDiplomacy::BordersOf, one array kept across the viewers - the same
-	// answer as BorderTableOf, for the drift moves no settled system) and every people Y it borders, in Civs order, X's
-	// relation toward Y moves by DT_Rules.RelationDriftRate of the way to
+	// or lapses. A lapse of the people the player rules is told (CosmicRows::LogStanceLapsed - its nameless variant
+	// LogStanceLapsedFar when the friend stands far above it, CosmicKnowing::IsFarAbove over the world's tiers, B6b).
+	// (2) The drift: for every people X (Civs order) its borders once (CosmicDiplomacy::BordersOf, one array kept across
+	// the viewers - the same answer as BorderTableOf, for the drift moves no settled system) and every people Y it borders,
+	// in Civs order, X's relation toward Y moves by DT_Rules.RelationDriftRate of the way to
 	// CosmicDiplomacy::TargetRelationOf, within [-1, 1] - and an entry is written only when the value changes (a rate of 0
 	// writes nothing). A pair that does not border does not move; a transcendent's key never drifts. A silent drift meets
 	// no one.
@@ -512,7 +513,8 @@ private:
 	// the loser) lowers its view of it by ConquestRelationPenalty; held: the attacker's fleet x SiegeRepulsedFleetFactor.
 	// Either way the attacker turns neutral toward the owner and its target is lifted. A line only when the people the
 	// player rules is a party, after it has met the other (NoteMet): taken / lost / held / failed (Severity 2), lifted
-	// (Severity 1).
+	// (Severity 1) - on the ruled owner's side the nameless variant of lost / held / lifted when the attacker stands far
+	// above it (CosmicKnowing::IsFarAbove over the world's tiers, B6b; NoteMet refuses that people by itself).
 	void TickConflict();
 
 	// The diplomacy of the AI stage for the people CivIndex the player does not rule (B3 header section 2.8 - after its
@@ -526,7 +528,9 @@ private:
 	// bAssumeHostile and ComputeAttritionPressureIn leaves at 0 - the gate and the target are CosmicConflict::AIAimOf, asked
 	// without its lift, B5) - turning hostile breaks the pair's trade treaty
 	// (CosmicDiplomacy::TurnHostile, no penalty) and the siege stands at once on that system. A people the player rules is
-	// met first and told (CosmicRows::LogTreatyBroken when a treaty broke, then CosmicRows::LogSiegeOnUs).
+	// met first and told (CosmicRows::LogTreatyBroken when a treaty broke, then CosmicRows::LogSiegeOnUs - their nameless
+	// variants LogTreatyBrokenFar and LogSiegeOnUsFar when this people stands far above it, B6b: the world's tiers, and
+	// NoteMet refuses it by itself).
 	void TickAIDiplomacy(int32 CivIndex);
 
 	// Stage 5. Four steps in a fixed order (section 7.4). Every hazard is placed through CosmicHazards::Place, and its lines

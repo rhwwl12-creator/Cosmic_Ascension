@@ -423,5 +423,71 @@
 			"그늘이 묶였다. {System}에서도 보이던 그 그늘은 더는 넓어지지 않는다.",
 			"{System}에서 보이던 그늘이 묶였다. 그 그늘이 쥐었던 곳은 그대로 남았다."
 		]
+	},
+	{
+		"Name": "log_siege_on_us_far",
+		"Category": "Log.Conflict",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"한 백성의 함대가 {Civ}의 {System}|hpp(을,를) 에워쌌다. 그 깃발에는 읽을 수 있는 이름이 없었다.",
+			"{System}의 하늘에 깃발을 읽을 수 없는 함대가 나타났다. {Civ}의 성계가 에워싸였다.",
+			"한 백성이 {Civ}|hpp(을,를) 적으로 삼고 {System}에 공성을 세웠다. {System}에서 온 소식은 그들의 이름을 싣지 않았다."
+		]
+	},
+	{
+		"Name": "log_treaty_broken_far",
+		"Category": "Log.Civ",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{Civ}|hpp(이,가) 한 백성과 맺어 지키던 {Treaty}|hpp(이,가) 깨졌다.",
+			"{Civ}|hpp(과,와) 한 백성 사이의 {Treaty}|hpp(이,가) 끝났다. 서로를 묶던 약속이 풀렸다.",
+			"{Civ}의 문서고에서 한 백성과 맺은 {Treaty}에 줄이 그어졌다."
+		]
+	},
+	{
+		"Name": "log_siege_lost_far",
+		"Category": "Log.Conflict",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"한 백성이 {System}|hpp(을,를) 차지했다. {Civ}의 사람들은 잃은 성계를 두고 오래 슬퍼했다.",
+			"깃발을 읽을 수 없는 함대가 {System}에 들어섰다. {Civ}의 사람들은 그 별이 있는 하늘을 오래 바라보았다.",
+			"한 백성이 공성 끝에 {System}|hpp(을,를) 차지했다. {Civ}의 광장에 조기가 걸렸다."
+		]
+	},
+	{
+		"Name": "log_siege_held_far",
+		"Category": "Log.Conflict",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{Civ}|hpp(이,가) {System}|hpp(을,를) 지켜 냈다. 에워싸던 함대가 물러갔다.",
+			"{System}|hpp(은,는) 끝까지 버텼다. 에워싸던 함대는 꺾여 물러갔고, {Civ}|hpp(은,는) 다친 이들을 돌보았다.",
+			"에워싸던 함대가 {System}에서 돌아섰다. {Civ}의 사람들은 무너진 성벽을 다시 쌓기 시작했다."
+		]
+	},
+	{
+		"Name": "log_siege_lifted_far",
+		"Category": "Log.Conflict",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{System}|hpp(을,를) 에워쌌던 공성이 풀렸다. {Civ}|hpp(은,는) 그 하늘을 계속 지켜본다.",
+			"{System} 둘레에 머물던 함대가 물러났다. 공성은 끝을 보지 못하고 풀렸다.",
+			"{System}의 공성이 그쳤다. 그곳의 하늘이 다시 고요해졌다."
+		]
+	},
+	{
+		"Name": "log_stance_lapsed_far",
+		"Category": "Log.Civ",
+		"Context": "",
+		"MinTierToReveal": 0,
+		"Templates": [
+			"{Civ}|hpp(은,는) 한 백성을 향한 우호를 더 지키지 못했다. 태세가 중립으로 돌아갔다.",
+			"한 백성을 향한 {Civ}의 우호가 그쳤다. 태세는 다시 중립이다.",
+			"{Civ}의 사절들이 돌아왔다. 우호를 이어 갈 값이 모자랐다."
+		]
 	}
 ]

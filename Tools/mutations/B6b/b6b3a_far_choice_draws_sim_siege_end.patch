@@ -1,0 +1,14 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2096,6 +2096,10 @@
+ 		}
+ 		const FName SystemID = State.Systems[SystemIndex].SystemID;
+ 		NoteMet(State.Civs[Other].CivID, SystemID);
++		if (CosmicKnowing::IsFarAbove(State.Civs[Other].Tier, State.Civs[Ruled].Tier))
++		{
++			GetRng().GetFraction();
++		}
+ 		FFormatNamedArguments Args;
+ 		Args.Add(TEXT("Civ"), State.Civs[Ruled].CivName);
+ 		Args.Add(TEXT("OtherCiv"), State.Civs[Other].CivName);

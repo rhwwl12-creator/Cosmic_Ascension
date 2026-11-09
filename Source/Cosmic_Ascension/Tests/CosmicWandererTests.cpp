@@ -971,6 +971,112 @@ bool FCosmicSimCoronationTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// B6b [B-6b3a] (header section 2.9, decision 41 - 16 #122): the crown gate asks the gap right after the meeting - a people
+// three rungs or more above the calling's PersonalTier gives no throne, a coronation and a return alike (FarAbove); two
+// rungs up it does. The rungs are the world's, the vessel's own rung its PersonalTier (not the people it left); the
+// meeting still comes first and the lock after; the command refuses with it and writes nothing.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimCrownFarAboveTest, "Cosmic_Ascension.Sim.CrownFarAbove", CosmicTests::Flags)
+bool FCosmicSimCrownFarAboveTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicWandererTests;
+	using CosmicWanderer::ECrownBlock;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	UPlayerRoleSubsystem* Role = Sim ? Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (!Sim || !TestNotNull(TEXT("The role subsystem exists"), Role))
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	FGalaxyState* State = LayBoard(*Sim, TablesWith(Original, Cards()));
+	if (!TestNotNull(TEXT("The board is laid"), State))
+	{
+		return false;
+	}
+	const FCosmicStateIndex& Index = Sim->GetStateIndex();
+	const FCosmicRulesDef& Rules = Sim->GetRules();
+	const FName People0 = State->Civs[0].CivID;
+	const FName People1 = State->Civs[1].CivID;
+
+	// The vessel walks from 5, people 1's settled system, on the first rung; people 1 met and looking up to it, no lock.
+	Walk(*Sim, *Role, 5);
+	for (FCivilizationState& Civ : State->Civs)
+	{
+		Civ.ThroneLockedUntilTick = 0;
+	}
+	Meet(*State, 1);
+	State->Civs[1].ReverenceToPlayer = 0.9f;
+	TestTrue(TEXT("(a wanderer on the first rung at 5)"), State->Player.Role == EPlayerRole::Wanderer && State->Calling.PersonalTier == EAscensionTier::Tier1_Planetary
+		&& State->Player.CurrentSystemID == State->Systems[5].SystemID);
+	auto Gate = [&](FName CivID, bool bMet)
+	{
+		return CosmicWanderer::CrownBlockOf(*State, Index, Rules, CivID, bMet, false);
+	};
+
+	// The coronation: two rungs above the vessel is crowned, three and four are not.
+	State->Civs[1].Tier = EAscensionTier::Tier3_Causal;
+	TestTrue(TEXT("A people two rungs above the vessel crowns it"), Gate(People1, true) == ECrownBlock::None);
+	State->Civs[1].Tier = EAscensionTier::Tier4_Transcendent;
+	TestTrue(TEXT("Three rungs above: FarAbove"), Gate(People1, true) == ECrownBlock::FarAbove);
+	State->Civs[1].Tier = EAscensionTier::Tier5_EternalOrder;
+	TestTrue(TEXT("Four rungs above: FarAbove"), Gate(People1, true) == ECrownBlock::FarAbove);
+	// Counted from the vessel's own rung: from the second, the fifth is far and the fourth is not.
+	State->Calling.PersonalTier = EAscensionTier::Tier2_Stellar;
+	TestTrue(TEXT("From the second rung the fifth is far"), Gate(People1, true) == ECrownBlock::FarAbove);
+	State->Civs[1].Tier = EAscensionTier::Tier4_Transcendent;
+	TestTrue(TEXT("and the fourth is not"), Gate(People1, true) == ECrownBlock::None);
+	State->Calling.PersonalTier = EAscensionTier::Tier1_Planetary;
+	// Its place among the reasons: after the meeting, before the lock.
+	TestTrue(TEXT("A people far above and not met says Unmet first"), Gate(People1, false) == ECrownBlock::Unmet);
+	State->Civs[1].ThroneLockedUntilTick = State->Tick + 10;
+	TestTrue(TEXT("A people far above with a locked throne says FarAbove first"), Gate(People1, true) == ECrownBlock::FarAbove);
+	State->Civs[1].ThroneLockedUntilTick = 0;
+	// The command: refused with the gate's reason, nothing written.
+	{
+		const uint32 Before = Sim->ComputeStateHash();
+		const int32 Seed = Sim->GetRng().GetCurrentSeed();
+		TestTrue(TEXT("The command refuses a people far above"), Role->BecomeRuler(People1) == ECrownBlock::FarAbove);
+		TestEqual(TEXT("and writes nothing"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(Before));
+		TestEqual(TEXT("(no number of the sim stream)"), Sim->GetRng().GetCurrentSeed(), Seed);
+		TestTrue(TEXT("(the vessel still walks)"), State->Player.Role == EPlayerRole::Wanderer);
+	}
+
+	// The return: the people the vessel left, three rungs above it, takes it back no more; two rungs above it does.
+	{
+		State->Player.CurrentSystemID = State->Systems[0].SystemID;
+		State->Civs[0].ReverenceToPlayer = 0.f;
+		TestTrue(TEXT("(the vessel left people 0)"), State->Player.FormerCivID == People0 && CosmicWanderer::IsReturn(*State, People0));
+		State->Civs[0].Tier = EAscensionTier::Tier4_Transcendent;
+		TestTrue(TEXT("A return to a people three rungs above is refused"), Gate(People0, true) == ECrownBlock::FarAbove);
+		const uint32 Before = Sim->ComputeStateHash();
+		TestTrue(TEXT("The command refuses that return"), Role->BecomeRuler(People0) == ECrownBlock::FarAbove);
+		TestEqual(TEXT("and writes nothing"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(Before));
+		State->Civs[0].Tier = EAscensionTier::Tier3_Causal;
+		TestTrue(TEXT("A return to a people two rungs above is taken"), Gate(People0, true) == ECrownBlock::None);
+		TestTrue(TEXT("through the command"), Role->BecomeRuler(People0) == ECrownBlock::None);
+		TestTrue(TEXT("(the vessel rules people 0 again)"), State->Player.Role == EPlayerRole::Ruler && State->Player.RuledCivID == People0);
+	}
+
+	// A coronation two rungs up through the command, on a board of its own.
+	{
+		FGalaxyState* Again = LayBoard(*Sim, TablesWith(Original, Cards()));
+		if (TestNotNull(TEXT("(the board again)"), Again))
+		{
+			Walk(*Sim, *Role, 5);
+			for (FCivilizationState& Civ : Again->Civs)
+			{
+				Civ.ThroneLockedUntilTick = 0;
+			}
+			Meet(*Again, 1);
+			Again->Civs[1].ReverenceToPlayer = 0.9f;
+			Again->Civs[1].Tier = EAscensionTier::Tier3_Causal;
+			TestTrue(TEXT("The coronation two rungs above the vessel is taken"), Role->BecomeRuler(Again->Civs[1].CivID) == ECrownBlock::None);
+			TestTrue(TEXT("(the vessel rules people 1)"), Again->Player.Role == EPlayerRole::Ruler && Again->Player.RuledCivID == Again->Civs[1].CivID);
+		}
+	}
+	return true;
+}
+
 // The abdication (B1 header section 2.8): the command records, the tenth stage leaves; two numbers, the regent's record,
 // reverence kept; the throne card's last choice the same way; the script never takes it; a rebellion that ends with it.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimAbdicationTest, "Cosmic_Ascension.Sim.Abdication", CosmicTests::Flags)

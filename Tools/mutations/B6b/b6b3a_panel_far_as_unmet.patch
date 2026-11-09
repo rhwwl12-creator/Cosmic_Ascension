@@ -1,0 +1,29 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -205,6 +205,7 @@
+ 		case CosmicWanderer::ECrownBlock::CardWaiting:
+ 			return bShort ? TEXT("Wander.Suffix.CardWaiting") : TEXT("Wander.Block.CardWaiting");
+ 		case CosmicWanderer::ECrownBlock::Unmet:
++		case CosmicWanderer::ECrownBlock::FarAbove:
+ 			return bShort ? TEXT("Wander.Suffix.Unmet") : TEXT("Wander.Block.Unmet");
+ 		case CosmicWanderer::ECrownBlock::ThroneLocked:
+ 			return bShort ? TEXT("Wander.Suffix.Locked") : TEXT("Wander.Block.Locked");
+@@ -215,7 +216,6 @@
+ 		case CosmicWanderer::ECrownBlock::NotStanding:
+ 		case CosmicWanderer::ECrownBlock::NotSettled:
+ 		case CosmicWanderer::ECrownBlock::Handler:
+-		case CosmicWanderer::ECrownBlock::FarAbove:
+ 			break;
+ 		}
+ 		return nullptr;
+@@ -1181,8 +1181,7 @@
+ 				// as in the gate: a people not met gets the greyed button of any people not met (Unmet standing, Travelling under
+ 				// way). The viewer and the order are the gate's (CrownBlockOf - the calling's PersonalTier, after Unmet): one changes
+ 				// with the other.
+-				if (State.Civs.IsValidIndex(OwnerIndex) && CosmicState::IsSettled(System)
+-					&& !(View.IsMet(OwnerIndex) && CosmicKnowing::IsFarAbove(State.Civs[OwnerIndex].Tier, State.Calling.PersonalTier)))
++				if (State.Civs.IsValidIndex(OwnerIndex) && CosmicState::IsSettled(System))
+ 				{
+ 					const FCivilizationState& Owner = State.Civs[OwnerIndex];
+ 					const CosmicWanderer::ECrownBlock Block = CosmicWanderer::CrownBlockOf(State, Index, Sim->GetRules(), Owner.CivID, View.IsMet(OwnerIndex), bCardWaiting);

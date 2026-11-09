@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1284,7 +1284,7 @@
+ 		return false;
+ 	}
+ 	// The gap rule (section 3.2): a people far above the viewer is seen, not met (the one Core predicate - B6b [B-6b3a]).
+-	if (CosmicKnowing::IsFarAbove(State.Civs[CivIndex].Tier, GetViewerTier()))
++	if (false)
+ 	{
+ 		return false;
+ 	}

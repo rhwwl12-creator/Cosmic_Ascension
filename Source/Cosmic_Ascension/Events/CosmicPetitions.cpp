@@ -3,6 +3,7 @@
 #include "Events/CosmicPetitions.h"
 
 #include "Core/CosmicSeed.h"
+#include "Core/CosmicKnowing.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
@@ -65,12 +66,6 @@ namespace CosmicPetitionsImpl
 			}
 		}
 		return Units;
-	}
-
-	// The tier of a people as a number 1..5, as the gap rule counts it.
-	int32 RungOf(EAscensionTier Tier)
-	{
-		return static_cast<int32>(Tier) + 1;
 	}
 
 	// The most recent row of the life's last choices that is a wanderer's card (bWanderer) or a petition (!bWanderer) and,
@@ -175,8 +170,8 @@ FCosmicVesselSubject CosmicPetitions::VesselSubjectOf(const FGalaxyState& State,
 
 bool CosmicPetitions::WithinWandererGap(const FGalaxyState& State, int32 CivIndex)
 {
-	using namespace CosmicPetitionsImpl;
-	return !State.Civs.IsValidIndex(CivIndex) || RungOf(State.Civs[CivIndex].Tier) - RungOf(State.Calling.PersonalTier) <= 1;
+	// The card's own threshold on the gap rule's count of rungs (not the gap rule's 'far above').
+	return !State.Civs.IsValidIndex(CivIndex) || CosmicKnowing::RungsAbove(State.Civs[CivIndex].Tier, State.Calling.PersonalTier) <= 1;
 }
 
 bool CosmicPetitions::IsFirstTickOfReign(const FGalaxyState& State)

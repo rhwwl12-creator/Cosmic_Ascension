@@ -83,6 +83,17 @@ namespace CosmicRows
 	inline const FName LogSiegeHeld(TEXT("log_siege_held"));
 	inline const FName LogSiegeFailed(TEXT("log_siege_failed"));
 	inline const FName LogSiegeLifted(TEXT("log_siege_lifted"));
+	// B6b [B-6b3a] (header section 2.9, 3.1, decision 19): the nameless variants of the six lines that name the other people
+	// - chosen in their place when it stands far above the ruled people (CosmicKnowing::IsFarAbove over the world's tiers,
+	// never Knowing): the AI's siege laid on the ruled people and the treaty it broke, the three ends of that siege on the
+	// ruled side, and a friendly stance that lapses. The same category, Severity, focus and one tell number as the named
+	// row; no {OtherCiv} (schema rule 8). The attacker's lines have none - a people two rungs up cannot be besieged.
+	inline const FName LogSiegeOnUsFar(TEXT("log_siege_on_us_far"));
+	inline const FName LogTreatyBrokenFar(TEXT("log_treaty_broken_far"));
+	inline const FName LogSiegeLostFar(TEXT("log_siege_lost_far"));
+	inline const FName LogSiegeHeldFar(TEXT("log_siege_held_far"));
+	inline const FName LogSiegeLiftedFar(TEXT("log_siege_lifted_far"));
+	inline const FName LogStanceLapsedFar(TEXT("log_stance_lapsed_far"));
 
 	// DT_LogTemplates: B4 (header section 2.6, 2.7, 3.6). The sign of a claim that joined a sphere - told below the third
 	// rung before the fallen's first-person line (UCosmicLogSubsystem::PushWithSign); the ruled people's fleet worn at its

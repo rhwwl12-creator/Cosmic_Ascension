@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2041,7 +2041,7 @@
+ 				FFormatNamedArguments Args;
+ 				Args.Add(TEXT("Civ"), Civ.CivName);
+ 				Args.Add(TEXT("OtherCiv"), State.Civs[Other].CivName);
+-				Log->PushRow(ToldRowOf(CosmicRows::LogStanceLapsed, State.Civs[Other].Tier, Civ.Tier), 1, Args, NAME_None, Civ.CivID);
++				Log->PushRow(CosmicRows::LogStanceLapsed, 1, Args, NAME_None, Civ.CivID);
+ 			}
+ 		}
+ 	}

@@ -326,6 +326,59 @@ bool FCosmicUIWandererPanelTest::RunTest(const FString& Parameters)
 		State->Player.FormerCivID = Former;
 		Panel->Refresh();
 	}
+	{
+		// B6b [B-6b3a] (decision 41): a people three rungs or more above the vessel gives no throne - and the panel shows no
+		// [Crown] or [Return] for it at all, not a greyed one (a 'too high' would reveal a people the map hides; the mutation
+		// that drops the panel's filter and gives FarAbove the words of Unmet shows one; the one that drops the filter alone
+		// shows one under way). Two rungs up, the button as before.
+		State->Civs[1].Tier = EAscensionTier::Tier4_Transcendent;
+		Panel->Refresh();
+		TestTrue(TEXT("A people far above the vessel: [Scan] alone"), ActionsOf(*Panel) == TArray<FName>({ Scan }));
+		TestFalse(TEXT("(no crown reason shown)"), Panel->GetShownCrownBlock().IsSet());
+		TestTrue(TEXT("(the command's gate says FarAbove)"), CosmicWanderer::CrownBlockOf(*State, Index, Sim->GetRules(), State->Civs[1].CivID, true, false)
+			== CosmicWanderer::ECrownBlock::FarAbove);
+		const FName Former = State->Player.FormerCivID;
+		State->Player.FormerCivID = State->Civs[1].CivID;
+		Panel->Refresh();
+		TestTrue(TEXT("The people it left, far above it: no [Return] either"), ActionsOf(*Panel) == TArray<FName>({ Scan }));
+		// Nor under way from it or with a card waiting: the gate asks those first, and a greyed [Return] there would promise
+		// a throne refused on arrival (the panel leaves out a met people far above before it asks the gate).
+		State->Player.TravelTargetSystemID = State->Systems[4].SystemID;
+		State->Player.TravelTicksRemaining = Sim->GetRules().LaneTravelTicks;
+		Panel->Refresh();
+		TestTrue(TEXT("Under way from a people far above it: [Scan] alone"), ActionsOf(*Panel) == TArray<FName>({ Scan }));
+		TestFalse(TEXT("(no crown reason shown under way)"), Panel->GetShownCrownBlock().IsSet());
+		State->Player.TravelTargetSystemID = NAME_None;
+		State->Player.TravelTicksRemaining = 0;
+		State->Knowing.PendingPetitionRow = FName(TEXT("enc_test"));
+		Panel->Refresh();
+		TestTrue(TEXT("With a card waiting, at a people far above it: [Scan] alone"), ActionsOf(*Panel) == TArray<FName>({ Scan }));
+		TestFalse(TEXT("(no crown reason shown with a card waiting)"), Panel->GetShownCrownBlock().IsSet());
+		State->Knowing.PendingPetitionRow = NAME_None;
+		State->Player.FormerCivID = Former;
+		// Not met, the meeting comes first as in the gate: the greyed button of any people not met - Unmet standing,
+		// Travelling under way - so that no missing button tells a rung the map hides (the mutation that asks the rung
+		// without the meeting shows [Scan] alone).
+		const TArray<FKnownMark> WasMet = State->Knowing.MetCivs;
+		State->Knowing.MetCivs.RemoveAll([State](const FKnownMark& Mark) { return Mark.ID == State->Civs[1].CivID; });
+		Panel->Refresh();
+		TestTrue(TEXT("A people far above, not met: the greyed Unmet of any people not met"), ActionsOf(*Panel) == TArray<FName>({ Scan, Crown })
+			&& Panel->GetShownCrownBlock() == TOptional<CosmicWanderer::ECrownBlock>(CosmicWanderer::ECrownBlock::Unmet));
+		State->Player.TravelTargetSystemID = State->Systems[4].SystemID;
+		State->Player.TravelTicksRemaining = Sim->GetRules().LaneTravelTicks;
+		Panel->Refresh();
+		TestTrue(TEXT("and under way, the greyed Travelling of any people not met"), ActionsOf(*Panel) == TArray<FName>({ Scan, Crown })
+			&& Panel->GetShownCrownBlock() == TOptional<CosmicWanderer::ECrownBlock>(CosmicWanderer::ECrownBlock::Travelling));
+		State->Player.TravelTargetSystemID = NAME_None;
+		State->Player.TravelTicksRemaining = 0;
+		State->Knowing.MetCivs = WasMet;
+		State->Civs[1].Tier = EAscensionTier::Tier3_Causal;
+		Panel->Refresh();
+		TestTrue(TEXT("Two rungs up: [Crown] again, greyed for the reverence"), ActionsOf(*Panel) == TArray<FName>({ Scan, Crown })
+			&& Panel->GetShownCrownBlock() == TOptional<CosmicWanderer::ECrownBlock>(CosmicWanderer::ECrownBlock::Lacking));
+		State->Civs[1].Tier = EAscensionTier::Tier1_Planetary;
+		Panel->Refresh();
+	}
 	TestTrue(TEXT("The reverence line shows for the met people"), Words(Panel->GetDetailText()->GetText()).Contains(
 		Words(FText::Format(CosmicUI::Label(TEXT("Wander.Reverence")), CosmicUI::Percent(0.f)))));
 	State->Civs[1].ReverenceToPlayer = Sim->GetRules().CoronationReverence;

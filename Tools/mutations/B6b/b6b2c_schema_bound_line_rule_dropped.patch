@@ -7,6 +7,6 @@ diff --git a/Tools/data/schema.json b/Tools/data/schema.json
  					"when": [{"row": "log_fallen_bound"}],
 -					"then": [{"col": "Templates", "slots_in": ["System"]}]
 +					"then": [{"col": "Templates", "slots_in": ["System", "Civ", "Project", "OtherCiv", "Transcendent"]}]
- 				}
- 			]
- 		},
+ 				},
+ 				{
+ 					"why": "the nameless variant of log_siege_on_us names no other people: the code chooses it when that people stands far above the ruled one (CosmicKnowing::IsFarAbove), so it says {Civ} and {System} and never {OtherCiv} - the name the map and the scope of telling hide (B6b header 2.9, 3.3 rule 8, decision 19)",

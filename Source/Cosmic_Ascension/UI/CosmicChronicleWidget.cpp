@@ -140,13 +140,16 @@ FText UCosmicChronicleWidget::NoteOf(const FCosmicEndingRecord& Record) const
 		Args.Add(TEXT("Player"), State.Calling.Lives.IsEmpty() ? FText::GetEmpty() : CosmicChronicle::VesselNameOf(State.Calling.Lives.Last(), Sim->GetTables()));
 		return FText::Format(Label(TEXT("Chronicle.Note.Vessel")), Args);
 	}
-	// A people at the fifth rung (Ending.RuledPeople, Ending.OtherPeople): its name while the state holds it - the ruled
-	// people's always (a people the vessel ruled was met), another people's only while the viewer is shown it, read from the
-	// view (CosmicMapLook::KnownViewOf through the controller - invariant rule 14; the gap rule is not copied here) - else the
-	// line that names none.
+	// A people at the fifth rung (Ending.RuledPeople, Ending.OtherPeople): its name while the state holds it - always for
+	// the ruled people and for every people of a life of the calling (CosmicChronicle::PeoplesOfEveryLife - the birth people
+	// and every people a vessel ruled, all met; B6b [B-6b3a], #162: a former people that reached the fifth rung as an AI under
+	// a regent, #121, is not 'a people' however far above the viewer it stands), another people's only while the viewer is
+	// shown it, read from the view (CosmicMapLook::KnownViewOf through the controller - invariant rule 14; the gap rule is not
+	// copied here) - else the line that names none.
 	const int32 CivIndex = Record.CivID.IsNone() ? INDEX_NONE : Sim->GetStateIndex().FindCiv(State, Record.CivID);
 	const bool bNamed = State.Civs.IsValidIndex(CivIndex)
-		&& (Record.Kind == CosmicTags::EndingRuledPeople() || ACosmicPlayerController::KnownViewFor(*this).ShownOrderOf(CivIndex) != INDEX_NONE);
+		&& (Record.Kind == CosmicTags::EndingRuledPeople() || CosmicChronicle::PeoplesOfEveryLife(State.Calling).Contains(Record.CivID)
+			|| ACosmicPlayerController::KnownViewFor(*this).ShownOrderOf(CivIndex) != INDEX_NONE);
 	if (bNamed)
 	{
 		FFormatNamedArguments Args;

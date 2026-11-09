@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicMapLook.cpp b/Source/Cosmic_Ascension/World/CosmicMapLook.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicMapLook.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicMapLook.cpp
+@@ -379,7 +379,7 @@
+ bool CosmicMapLook::IsShownPeople(bool bMet, const FCivilizationState& Civ, EAscensionTier ViewerTier)
+ {
+ 	// The subject rule of the scope of telling (section 8.1): the gap is measured upward only - the one Core predicate.
+-	return bMet && !CosmicKnowing::IsFarAbove(Civ.Tier, ViewerTier);
++	return bMet;
+ }
+ 
+ FCosmicKnownView CosmicMapLook::KnownViewOf(const FGalaxyState& State, const FCosmicStateIndex& Index, EAscensionTier ViewerTier, bool bSeeAll)

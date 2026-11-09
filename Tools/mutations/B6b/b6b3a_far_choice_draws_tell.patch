@@ -1,0 +1,14 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -3034,6 +3034,10 @@
+ 		// variants when it does (ToldRowOf: the world's tiers, B6b).
+ 		NoteMet(State.Civs[CivIndex].CivID, AimID);
+ 		const EAscensionTier AttackerTier = State.Civs[CivIndex].Tier;
++		if (CosmicKnowing::IsFarAbove(AttackerTier, Them.Tier))
++		{
++			DrawTell(1);
++		}
+ 		FFormatNamedArguments Args;
+ 		Args.Add(TEXT("Civ"), Them.CivName);
+ 		Args.Add(TEXT("OtherCiv"), State.Civs[CivIndex].CivName);

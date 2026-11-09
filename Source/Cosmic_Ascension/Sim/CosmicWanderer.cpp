@@ -3,6 +3,7 @@
 #include "Sim/CosmicWanderer.h"
 
 #include "Core/CosmicIDs.h"
+#include "Core/CosmicKnowing.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicStateIndex.h"
 
@@ -101,6 +102,11 @@ CosmicWanderer::ECrownBlock CosmicWanderer::CrownBlockOf(const FGalaxyState& Sta
 		return ECrownBlock::Unmet;
 	}
 	const FCivilizationState& Civ = State.Civs[CivIndex];
+	// B6b (decision 41): no throne of a people far above the vessel's own rung - a coronation and a return alike.
+	if (CosmicKnowing::IsFarAbove(Civ.Tier, State.Calling.PersonalTier))
+	{
+		return ECrownBlock::FarAbove;
+	}
 	if (State.Tick < Civ.ThroneLockedUntilTick)
 	{
 		return ECrownBlock::ThroneLocked;

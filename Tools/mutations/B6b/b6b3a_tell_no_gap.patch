@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp b/Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Log/CosmicLogSubsystem.cpp
+@@ -207,7 +207,7 @@
+ 		{
+ 			const FName CivID = Line.FocusCiv;
+ 			const bool bMet = Knowing.MetCivs.ContainsByPredicate([CivID](const FKnownMark& Mark) { return Mark.ID == CivID; });
+-			const bool bFarAbove = Civ && CosmicKnowing::IsFarAbove(Civ->Tier, Viewer);
++			const bool bFarAbove = false;
+ 			bSubject = bMet && !bFarAbove;
+ 		}
+ 		if (bSubject && !Line.FocusSystem.IsNone())

@@ -11,6 +11,7 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Core/CosmicIDs.h"
+#include "Core/CosmicKnowing.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
@@ -192,7 +193,9 @@ namespace CosmicSystemPanelImpl
 	}
 
 	// The words of a greyed crown button, in the same two lengths (ThroneLocked's take the time left as {0}); null for
-	// None and for the reasons that show no button (the vessel stands elsewhere or in a system being settled).
+	// None and for the reasons that show no button (the vessel stands elsewhere or in a system being settled, and a people
+	// far above the vessel - B6b: a greyed 'too high' would reveal a people the map hides; no key of its own; the panel
+	// leaves out a met people far above before it asks the gate, so that no earlier reason greys a button for it).
 	const TCHAR* CrownKeyOf(CosmicWanderer::ECrownBlock Block, bool bShort)
 	{
 		switch (Block)
@@ -212,6 +215,7 @@ namespace CosmicSystemPanelImpl
 		case CosmicWanderer::ECrownBlock::NotStanding:
 		case CosmicWanderer::ECrownBlock::NotSettled:
 		case CosmicWanderer::ECrownBlock::Handler:
+		case CosmicWanderer::ECrownBlock::FarAbove:
 			break;
 		}
 		return nullptr;
@@ -1172,7 +1176,13 @@ void UCosmicSystemPanelWidget::Refresh()
 				Want(ScanAction, Label(TEXT("Wander.Scan")), bUnderWay ? Label(TEXT("Wander.Suffix.Travelling")) : FText::GetEmpty(),
 					bUnderWay ? Label(TEXT("Wander.Block.Travelling")) : FText::GetEmpty(), { Label(TEXT("Wander.ScanTip")) });
 				// [Crown] or [Return]: on a settled system of a people.
-				if (State.Civs.IsValidIndex(OwnerIndex) && CosmicState::IsSettled(System))
+				// Not of a met people far above the vessel (B6b, decision 41), whatever reason the gate asks before FarAbove (under
+				// way, a card waiting): a greyed button there would offer a throne the gate refuses on arrival. The meeting first,
+				// as in the gate: a people not met gets the greyed button of any people not met (Unmet standing, Travelling under
+				// way). The viewer and the order are the gate's (CrownBlockOf - the calling's PersonalTier, after Unmet): one changes
+				// with the other.
+				if (State.Civs.IsValidIndex(OwnerIndex) && CosmicState::IsSettled(System)
+					&& !(View.IsMet(OwnerIndex) && CosmicKnowing::IsFarAbove(State.Civs[OwnerIndex].Tier, State.Calling.PersonalTier)))
 				{
 					const FCivilizationState& Owner = State.Civs[OwnerIndex];
 					const CosmicWanderer::ECrownBlock Block = CosmicWanderer::CrownBlockOf(State, Index, Sim->GetRules(), Owner.CivID, View.IsMet(OwnerIndex), bCardWaiting);

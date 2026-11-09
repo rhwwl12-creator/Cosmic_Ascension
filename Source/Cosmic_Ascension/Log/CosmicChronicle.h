@@ -124,7 +124,8 @@ namespace CosmicChronicle
 	/** 16 #31 (2) from the eight fields alone: Log.Calling, Log.Claim, Log.Record and every Severity 2; a Severity 1 entry when FocusCivID is one of Peoples,
 	 * SourceRow is CosmicRows::LogFirstContact, or SourceRow starts with enc_ (a wanderer's card answered, B1 - compared without case) - but never the three
 	 * edict lines of the ruled people, SourceRow CosmicRows::LogEdictEnacted, LogEdictRevoked or LogEdictLapsed (B2: the ruler's bookkeeping, Severity 1), nor its
- * two stance lines, LogStanceChanged and LogStanceLapsed (B3 - the treaty and siege lines are admitted) - and never Log.Transcendent, whatever its
+ * two stance lines, LogStanceChanged and LogStanceLapsed with its nameless variant LogStanceLapsedFar (B3, B6b - the treaty and siege lines are admitted,
+	 * their nameless variants too) - and never Log.Transcendent, whatever its
 	 * Severity (the fallen's awareness line, the one second person - heard in the feed alone, B6a header section 2.11: no chapter and neither of the two
 	 * books shows it, so it is dropped when it leaves the log, as every line the chronicle cannot show is; Build's own clause leaves it out too).
 	 * Reads neither bUntold nor a table. MVP item 5's Chronicle filter (16 #40 (7)) calls it with every life's peoples. */

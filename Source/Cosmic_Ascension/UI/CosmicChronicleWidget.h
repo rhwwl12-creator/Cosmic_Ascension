@@ -1,6 +1,8 @@
 // Cosmic Ascension - UI layer (Presentation). Design: docs/70_CONTENT_GUIDE.md section 8.4, headers/A4_provisional_end.md section 5 (MVP item 4).
-// The chronicle screen: reads the state through UCosmicLogSubsystem::BuildChronicle (the book, never Knowing - 16 #49) and
-// writes nothing; its buttons go through the player controller.
+// The chronicle screen: reads the state through UCosmicLogSubsystem::BuildChronicle (the book - its body is never filtered
+// by Knowing, 16 #49) and writes nothing; its buttons go through the player controller. The cause line under the page is
+// the one place it reads knowing - through the view (CosmicMapLook::KnownViewOf, invariant rule 14): another people at the
+// fifth rung is named only while shown, a people of a life of the calling always (B6a [B-6a4], B6b [B-6b3a] - #162).
 
 #pragma once
 

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -1182,7 +1182,7 @@
+ 				// way). The viewer and the order are the gate's (CrownBlockOf - the calling's PersonalTier, after Unmet): one changes
+ 				// with the other.
+ 				if (State.Civs.IsValidIndex(OwnerIndex) && CosmicState::IsSettled(System)
+-					&& !(View.IsMet(OwnerIndex) && CosmicKnowing::IsFarAbove(State.Civs[OwnerIndex].Tier, State.Calling.PersonalTier)))
++					&& !CosmicKnowing::IsFarAbove(State.Civs[OwnerIndex].Tier, State.Calling.PersonalTier))
+ 				{
+ 					const FCivilizationState& Owner = State.Civs[OwnerIndex];
+ 					const CosmicWanderer::ECrownBlock Block = CosmicWanderer::CrownBlockOf(State, Index, Sim->GetRules(), Owner.CivID, View.IsMet(OwnerIndex), bCardWaiting);

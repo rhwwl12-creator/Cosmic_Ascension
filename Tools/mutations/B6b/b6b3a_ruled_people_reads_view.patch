@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+@@ -148,7 +148,6 @@
+ 	// copied here) - else the line that names none.
+ 	const int32 CivIndex = Record.CivID.IsNone() ? INDEX_NONE : Sim->GetStateIndex().FindCiv(State, Record.CivID);
+ 	const bool bNamed = State.Civs.IsValidIndex(CivIndex)
+-		&& (Record.Kind == CosmicTags::EndingRuledPeople() || CosmicChronicle::PeoplesOfEveryLife(State.Calling).Contains(Record.CivID)
+-			|| ACosmicPlayerController::KnownViewFor(*this).ShownOrderOf(CivIndex) != INDEX_NONE);
++		&& ACosmicPlayerController::KnownViewFor(*this).ShownOrderOf(CivIndex) != INDEX_NONE;
+ 	if (bNamed)
+ 	{
