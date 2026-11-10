@@ -165,6 +165,7 @@ B1~B6a(B6a ①③⑨은 빌드 `5455e56`이 든다 — `[B-6b12]` 지침서가 `
 ## 7. 지난 교훈 (같은 실수를 하지 않는다)
 
 - `git apply`·PowerShell이 CRLF를 쓴다 — 커밋 전 CR 확인.
+- `UnrealEditor-Cmd`는 시작마다 UBT `-Mode=ValidatePlatforms`(SDK 조회)를 스스로 띄운다 — 판마다 바쁨을 검사하는 도구는 그 `dotnet` 줄을 빼야 한다(`[B-6b11]` 첫 묶음이 324/620에서 멈춘 까닭; `SCR6b11undleC.py` `_busy_others`; `lanes.py`에도 같은 예외가 든다).
 - main 작업 사본의 `git status`가 많은 파일을 ` M`으로 보이는데 `git diff --quiet`가 0이면 줄끝만 다른 낡은 색인 정보다(2026-11-10 15:40에 229개 — 파일은 LF, 색인에 적힌 크기는 CRLF). 내용 차이가 없음을 그 명령으로 확인한 뒤 `git add -u`로 색인만 새로 고친다(커밋할 것은 생기지 않는다).
 - `make_data_tables`는 검사기 테스트를 먼저 돌린다; 새 `DT_Rules` 칸·열거자는 빌드 먼저, 그다음 `-Data`.
 - `-Tier smoke`는 테스트 전부를 돌리지 않는다(어떤 테스트는 full에서만 깨졌다).
