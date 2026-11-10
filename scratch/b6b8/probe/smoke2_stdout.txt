@@ -1,0 +1,118 @@
+﻿free memory 9.1 GB of 31.1 GB
+bundle B: 18 jobs, 6 workers, folder C:\Users\rhwwl\AppData\Local\Temp\claude\c--Users-rhwwl-OneDrive-Documents-Unreal-Projects-Cosmic-Ascension\37de2919-0c44-45d8-94cd-4dcf0860263e\scratchpad\b6b8\smoke2
+[1/18 14s] R_1_off ok
+[2/18 15s] slowR_1_off ok
+[3/18 16s] R_1 ok
+[4/18 17s] R_2_off ok
+[5/18 18s] slowR_1 ok
+[6/18 20s] R_2 ok
+[7/18 25s] slowR_2 ok
+[8/18 26s] slowR_2_off ok
+[9/18 27s] wanderer_1_off ok
+[10/18 29s] wanderer_1 ok
+[11/18 30s] wanderer_2 ok
+[12/18 31s] wanderer_2_off ok
+[13/18 36s] inputless_1_off ok
+[14/18 36s] inputless_1 ok
+[15/18 38s] inputless_2 ok
+[16/18 38s] inputless_2_off ok
+[17/18 40s] death_1 ok
+[18/18 41s] death_2 ok
+# [B-6b8] 묶음 B — 2026-11-10
+
+- 빌드: 220129d [B-6b7] 데이터 ② — 은하 법칙 셋·feat_laws_and_binding·r 0.375를 켜 넷째 칸이 지평 안인 세 줄이 옮았다, 각성 몫 0.5, 핀 둘과 여덟 행 걸림줄, Feats.Reachable은 다섯째 칸, 묶음 A′, 탐침 둘 (269 changed paths); DLL sha1 daa43ed46186
+- 프로세스: 묶음 18회(작업 18, 재실행 0) — ⓐ·base·on 15회는 리드가 더한다(총 555)
+- 두 번 실패: 없음
+- 폴더: `C:\Users\rhwwl\AppData\Local\Temp\claude\c--Users-rhwwl-OneDrive-Documents-Unreal-Projects-Cosmic-Ascension\37de2919-0c44-45d8-94cd-4dcf0860263e\scratchpad\b6b8\smoke2`
+- check 줄: end check 0, race check 0
+- 스위치·필드 대조: 통과
+  - 끈 쪽의 r: ['0.375']
+- 짝(Tick < T_B): 8/8 통과
+- 다리(강제 죽음 < T_DEATH, 방랑자 < 1,200): 4/4 통과
+- sha1 지킴: unchanged (14 files)
+- 판정: **PASS**
+
+## 판단 (H §5.3 — 브리프 §4.3의 얼린 셈)
+- ① R: J1 = 2/2 = 1.000 [0.342, 1.000] — 재지 않음 (두 번 실패 [])
+- ② R: n₂ 2, J2 = 1/2 = 0.500 [0.095, 0.905] — 재지 않음; 통째로 띠 밖 False
+  - (가) 0 (결박한 백성 = 기록의 백성 0), (나) 1, (다) 0; 다스린 적 있는 백성의 다른 질서 []
+    - (나) {'binding': 8124, 'by': 'AI', 'binder': 'civ_10', 'rung': 3, 'ruled T4': 8213, 'erased ruled': 0, 'record people': 'civ_10', 'seed': 1}
+- ② 느린 R(적기만): n₂ 2, 1/2 = 0.500 [0.095, 0.905]
+- ③ R: n₃ 1 — 재지 않음 — 잰 1 — 재지 않음; r5 − r4 < 1,200: []; 창 0: []
+- ④ 느린 R: 재지 않음 — 잰 2 — 재지 않음
+  - E: 1:8268 2:6241
+
+## N §3 자리
+- <J1> 2/2 (재지 않음 — 잰 2)
+- <J2> 1/2 = 0.500 [0.095, 0.905]; (가) 0 (binder = record people 0), (나) 1, (다) 0; once-ruled 0
+- <J3> 재지 않음 — 잰 1; violations 0; zero windows 0; apart 0
+- <E_1..E_60> 1:8268 2:6241
+- <C0> -
+- <C> 없음 (재지 않음 — 잰 2)
+- <(i)/(ii)> (i) None (ii) None
+- <B_LOCKED> 0 ([])
+- <B_AI_US> n 10 median 30.6 [q1 29.3, q3 31.3] (min 23.6, max 32.0)
+- <B_MINUTES> 0.7
+
+## 적기만 (on / off / on − off; 같은 세계는 칸마다 따로 — 칸을 가로지르는 합은 만들지 않는다)
+### R
+- on: 판 2; T4 civs most n 2 median 3 [q1 3, q3 3] (min 3, max 3); brake held n 2 median 102501.5 [q1 101743.2, q3 103259.8] (min 100985, max 104018); 기록 {'OtherPeople': '1/2 = 0.500 [0.095, 0.905]', 'RuledPeople': '1/2 = 0.500 [0.095, 0.905]'}
+  - 절멸 {'on_ruled': 18, 'on_ai': 133, 'arks': 151, 'arks_lost': 4, 'expired': 0, 'grace': 0, 'erased_ext': 0, 'ruler_deaths': 0}; 방주를 둔 채 만료 — 재지 않음 (카운터 없음)
+  - 결박 {'bound': '2/2 = 1.000 [0.342, 1.000]', 'tick': 'n 2 median 7699 [q1 7486.5, q3 7911.5] (min 7274, max 8124)', 'by': {'AI': 1, 'ruled': 1}, 'ended without result': 3, 'locked': 0, 'retaken': 0, 'vessel left before T5': -1}; #162 {'other-order ends': 1, 'shown': 1, 'once ruled': 0}
+  - #156 {'runs': '1/2 = 0.500 [0.095, 0.905]', 'lines': 1, 'by the record': 1, 'first': 'n 1 median 5481 [q1 5481, q3 5481] (min 5481, max 5481)'}; #141 {'runs': '0/2 = 0.000 [0.000, 0.658]', 'came': 0, 'by the record': 0, 'first': 'n 0', 'passed the check': 0, 'failed': 0, 'without a check': 0, 'gone before the answer': 0}
+  - 법 {'first held ruled': 'n 1 median 5475 [q1 5475, q3 5475] (min 5475, max 5475)', 'first held AI': 'n 2 median 3402 [q1 3363.5, q3 3440.5] (min 3325, max 3479)', 'resets ruled by upkeep': 0, 'resets AI by upkeep': 0, 'held again in the tick': 0, 'ruled laws dropped at an input': 2}; AI µs n 2 median 30.3 [q1 30.2, q3 30.5] (min 30.0, max 30.6)
+- off: 판 2; T4 civs most n 2 median 0 [q1 0, q3 0] (min 0, max 0); brake held n 2 median 0 [q1 0, q3 0] (min 0, max 0); 기록 {'None': '2/2 = 1.000 [0.342, 1.000]'}
+  - 절멸 {'on_ruled': 0, 'on_ai': 0, 'arks': 0, 'arks_lost': 0, 'expired': 0, 'grace': 0, 'erased_ext': 0, 'ruler_deaths': 0}; 방주를 둔 채 만료 — 재지 않음 (카운터 없음)
+  - 결박 {'bound': '0/2 = 0.000 [0.000, 0.658]', 'tick': 'n 0', 'by': {}, 'ended without result': 0, 'locked': 0, 'retaken': 0, 'vessel left before T5': -2}; #162 {'other-order ends': 0, 'shown': 0, 'once ruled': 0}
+  - #156 {'runs': '0/2 = 0.000 [0.000, 0.658]', 'lines': 0, 'by the record': 0, 'first': 'n 0'}; #141 {'runs': '0/2 = 0.000 [0.000, 0.658]', 'came': 0, 'by the record': 0, 'first': 'n 0', 'passed the check': 0, 'failed': 0, 'without a check': 0, 'gone before the answer': 0}
+  - 법 {'first held ruled': 'n 0', 'first held AI': 'n 0', 'resets ruled by upkeep': 0, 'resets AI by upkeep': 0, 'held again in the tick': 0, 'ruled laws dropped at an input': 0}; AI µs n 2 median 17.0 [q1 17.0, q3 17.1] (min 16.9, max 17.2)
+- 짝마다: {'T4 civs most': 'n 2 median 3 [q1 3, q3 3] (min 3, max 3)', 'extinctions placed': 'n 2 median 75.5 [q1 72.2, q3 78.8] (min 69, max 82)', 'era lines': 'n 2 median 0.5 [q1 0.2, q3 0.8] (min 0, max 1)', 'witness cards': 'n 2 median 0 [q1 0, q3 0] (min 0, max 0)', 'claims': 'n 2 median -8 [q1 -10.5, q3 -5.5] (min -13, max -3)', 'AI us': 'n 2 median 13.3 [q1 13.2, q3 13.4] (min 13.1, max 13.4)'}
+### slowR
+- on: 판 2; T4 civs most n 2 median 3 [q1 3, q3 3] (min 3, max 3); brake held n 2 median 99881 [q1 89306, q3 110456] (min 78731, max 121031); 기록 {'OtherPeople': '1/2 = 0.500 [0.095, 0.905]', 'RuledPeople': '1/2 = 0.500 [0.095, 0.905]'}
+  - 절멸 {'on_ruled': 13, 'on_ai': 133, 'arks': 145, 'arks_lost': 1, 'expired': 0, 'grace': 0, 'erased_ext': 0, 'ruler_deaths': 0}; 방주를 둔 채 만료 — 재지 않음 (카운터 없음)
+  - 결박 {'bound': '2/2 = 1.000 [0.342, 1.000]', 'tick': 'n 2 median 7254.5 [q1 6747.8, q3 7761.2] (min 6241, max 8268)', 'by': {'AI': 1, 'ruled': 1}, 'ended without result': 4, 'locked': 0, 'retaken': 0, 'vessel left before T5': -1}; #162 {'other-order ends': 1, 'shown': 1, 'once ruled': 0}
+  - #156 {'runs': '0/2 = 0.000 [0.000, 0.658]', 'lines': 0, 'by the record': 0, 'first': 'n 0'}; #141 {'runs': '0/2 = 0.000 [0.000, 0.658]', 'came': 0, 'by the record': 0, 'first': 'n 0', 'passed the check': 0, 'failed': 0, 'without a check': 0, 'gone before the answer': 0}
+  - 법 {'first held ruled': 'n 2 median 5587 [q1 5014.5, q3 6159.5] (min 4442, max 6732)', 'first held AI': 'n 2 median 3182 [q1 3038.5, q3 3325.5] (min 2895, max 3469)', 'resets ruled by upkeep': 0, 'resets AI by upkeep': 0, 'held again in the tick': 0, 'ruled laws dropped at an input': 1}; AI µs n 2 median 31.0 [q1 30.8, q3 31.2] (min 30.6, max 31.4)
+- off: 판 2; T4 civs most n 2 median 0 [q1 0, q3 0] (min 0, max 0); brake held n 2 median 0 [q1 0, q3 0] (min 0, max 0); 기록 {'None': '2/2 = 1.000 [0.342, 1.000]'}
+  - 절멸 {'on_ruled': 0, 'on_ai': 0, 'arks': 0, 'arks_lost': 0, 'expired': 0, 'grace': 0, 'erased_ext': 0, 'ruler_deaths': 0}; 방주를 둔 채 만료 — 재지 않음 (카운터 없음)
+  - 결박 {'bound': '0/2 = 0.000 [0.000, 0.658]', 'tick': 'n 0', 'by': {}, 'ended without result': 0, 'locked': 0, 'retaken': 0, 'vessel left before T5': -2}; #162 {'other-order ends': 0, 'shown': 0, 'once ruled': 0}
+  - #156 {'runs': '0/2 = 0.000 [0.000, 0.658]', 'lines': 0, 'by the record': 0, 'first': 'n 0'}; #141 {'runs': '0/2 = 0.000 [0.000, 0.658]', 'came': 0, 'by the record': 0, 'first': 'n 0', 'passed the check': 0, 'failed': 0, 'without a check': 0, 'gone before the answer': 0}
+  - 법 {'first held ruled': 'n 0', 'first held AI': 'n 0', 'resets ruled by upkeep': 0, 'resets AI by upkeep': 0, 'held again in the tick': 0, 'ruled laws dropped at an input': 0}; AI µs n 2 median 19.1 [q1 18.7, q3 19.4] (min 18.4, max 19.8)
+- 짝마다: {'T4 civs most': 'n 2 median 3 [q1 3, q3 3] (min 3, max 3)', 'extinctions placed': 'n 2 median 73 [q1 66.5, q3 79.5] (min 60, max 86)', 'era lines': 'n 2 median 0 [q1 0, q3 0] (min 0, max 0)', 'witness cards': 'n 2 median 0 [q1 0, q3 0] (min 0, max 0)', 'claims': 'n 2 median -7 [q1 -7.5, q3 -6.5] (min -8, max -6)', 'AI us': 'n 2 median 12.0 [q1 11.8, q3 12.1] (min 11.7, max 12.2)'}
+### wanderer
+- on: 판 2; T4 civs most n 2 median 2.5 [q1 2.2, q3 2.8] (min 2, max 3); brake held n 2 median 106243.5 [q1 96111.8, q3 116375.2] (min 85980, max 126507); 기록 {'OtherPeople': '1/2 = 0.500 [0.095, 0.905]', 'RuledPeople': '1/2 = 0.500 [0.095, 0.905]'}
+  - 절멸 {'on_ruled': 17, 'on_ai': 132, 'arks': 147, 'arks_lost': 0, 'expired': 0, 'grace': 0, 'erased_ext': 0, 'ruler_deaths': 0}; 방주를 둔 채 만료 — 재지 않음 (카운터 없음)
+  - 결박 {'bound': '2/2 = 1.000 [0.342, 1.000]', 'tick': 'n 2 median 6957 [q1 5764, q3 8150] (min 4571, max 9343)', 'by': {'AI': 1, 'ruled': 1}, 'ended without result': 3, 'locked': 0, 'retaken': 0, 'vessel left before T5': -1}; #162 {'other-order ends': 1, 'shown': 1, 'once ruled': 0}
+  - #156 {'runs': '0/2 = 0.000 [0.000, 0.658]', 'lines': 0, 'by the record': 0, 'first': 'n 0'}; #141 {'runs': '0/2 = 0.000 [0.000, 0.658]', 'came': 0, 'by the record': 0, 'first': 'n 0', 'passed the check': 0, 'failed': 0, 'without a check': 0, 'gone before the answer': 0}
+  - 법 {'first held ruled': 'n 2 median 6212 [q1 4840.5, q3 7583.5] (min 3469, max 8955)', 'first held AI': 'n 2 median 3925 [q1 3615.5, q3 4234.5] (min 3306, max 4544)', 'resets ruled by upkeep': 0, 'resets AI by upkeep': 0, 'held again in the tick': 0, 'ruled laws dropped at an input': 3}; AI µs n 2 median 30.3 [q1 29.7, q3 30.9] (min 29.1, max 31.5)
+- off: 판 2; T4 civs most n 2 median 0 [q1 0, q3 0] (min 0, max 0); brake held n 2 median 0 [q1 0, q3 0] (min 0, max 0); 기록 {'None': '2/2 = 1.000 [0.342, 1.000]'}
+  - 절멸 {'on_ruled': 0, 'on_ai': 0, 'arks': 0, 'arks_lost': 0, 'expired': 0, 'grace': 0, 'erased_ext': 0, 'ruler_deaths': 0}; 방주를 둔 채 만료 — 재지 않음 (카운터 없음)
+  - 결박 {'bound': '0/2 = 0.000 [0.000, 0.658]', 'tick': 'n 0', 'by': {}, 'ended without result': 0, 'locked': 0, 'retaken': 0, 'vessel left before T5': -2}; #162 {'other-order ends': 0, 'shown': 0, 'once ruled': 0}
+  - #156 {'runs': '0/2 = 0.000 [0.000, 0.658]', 'lines': 0, 'by the record': 0, 'first': 'n 0'}; #141 {'runs': '0/2 = 0.000 [0.000, 0.658]', 'came': 0, 'by the record': 0, 'first': 'n 0', 'passed the check': 0, 'failed': 0, 'without a check': 0, 'gone before the answer': 0}
+  - 법 {'first held ruled': 'n 0', 'first held AI': 'n 0', 'resets ruled by upkeep': 0, 'resets AI by upkeep': 0, 'held again in the tick': 0, 'ruled laws dropped at an input': 0}; AI µs n 2 median 16.3 [q1 15.9, q3 16.7] (min 15.5, max 17.1)
+- 짝마다: {'T4 civs most': 'n 2 median 2.5 [q1 2.2, q3 2.8] (min 2, max 3)', 'extinctions placed': 'n 2 median 74.5 [q1 69.8, q3 79.2] (min 65, max 84)', 'era lines': 'n 2 median 0 [q1 0, q3 0] (min 0, max 0)', 'witness cards': 'n 2 median 0 [q1 0, q3 0] (min 0, max 0)', 'claims': 'n 2 median -5 [q1 -5, q3 -5] (min -5, max -5)', 'AI us': 'n 2 median 14.0 [q1 13.0, q3 15.0] (min 12.0, max 16.0)'}
+### inputless
+- on: 판 2; T4 civs most n 2 median 2 [q1 2, q3 2] (min 2, max 2); brake held n 2 median 96417 [q1 90093, q3 102741] (min 83769, max 109065); 기록 {'OtherPeople': '2/2 = 1.000 [0.342, 1.000]'}
+  - 절멸 {'on_ruled': 0, 'on_ai': 159, 'arks': 156, 'arks_lost': 2, 'expired': 0, 'grace': 0, 'erased_ext': 0, 'ruler_deaths': 0}; 방주를 둔 채 만료 — 재지 않음 (카운터 없음)
+  - 결박 {'bound': '2/2 = 1.000 [0.342, 1.000]', 'tick': 'n 2 median 7897.5 [q1 7782.2, q3 8012.8] (min 7667, max 8128)', 'by': {'AI': 2}, 'ended without result': 2, 'locked': 0, 'retaken': 0, 'vessel left before T5': -2}; #162 {'other-order ends': 2, 'shown': 0, 'once ruled': 0}
+  - #156 {'runs': '0/2 = 0.000 [0.000, 0.658]', 'lines': 0, 'by the record': 0, 'first': 'n 0'}; #141 {'runs': '0/2 = 0.000 [0.000, 0.658]', 'came': 0, 'by the record': 0, 'first': 'n 0', 'passed the check': 0, 'failed': 0, 'without a check': 0, 'gone before the answer': 0}
+  - 법 {'first held ruled': 'n 0', 'first held AI': 'n 2 median 3098.5 [q1 2983.2, q3 3213.8] (min 2868, max 3329)', 'resets ruled by upkeep': 0, 'resets AI by upkeep': 0, 'held again in the tick': 0, 'ruled laws dropped at an input': 0}; AI µs n 2 median 31.4 [q1 31.1, q3 31.7] (min 30.9, max 32.0)
+- off: 판 2; T4 civs most n 2 median 0 [q1 0, q3 0] (min 0, max 0); brake held n 2 median 0 [q1 0, q3 0] (min 0, max 0); 기록 {'None': '2/2 = 1.000 [0.342, 1.000]'}
+  - 절멸 {'on_ruled': 0, 'on_ai': 0, 'arks': 0, 'arks_lost': 0, 'expired': 0, 'grace': 0, 'erased_ext': 0, 'ruler_deaths': 0}; 방주를 둔 채 만료 — 재지 않음 (카운터 없음)
+  - 결박 {'bound': '0/2 = 0.000 [0.000, 0.658]', 'tick': 'n 0', 'by': {}, 'ended without result': 0, 'locked': 0, 'retaken': 0, 'vessel left before T5': -2}; #162 {'other-order ends': 0, 'shown': 0, 'once ruled': 0}
+  - #156 {'runs': '0/2 = 0.000 [0.000, 0.658]', 'lines': 0, 'by the record': 0, 'first': 'n 0'}; #141 {'runs': '0/2 = 0.000 [0.000, 0.658]', 'came': 0, 'by the record': 0, 'first': 'n 0', 'passed the check': 0, 'failed': 0, 'without a check': 0, 'gone before the answer': 0}
+  - 법 {'first held ruled': 'n 0', 'first held AI': 'n 0', 'resets ruled by upkeep': 0, 'resets AI by upkeep': 0, 'held again in the tick': 0, 'ruled laws dropped at an input': 0}; AI µs n 2 median 16.2 [q1 15.6, q3 16.8] (min 15.0, max 17.4)
+- 짝마다: {'T4 civs most': 'n 2 median 2 [q1 2, q3 2] (min 2, max 2)', 'extinctions placed': 'n 2 median 79.5 [q1 76.8, q3 82.2] (min 74, max 85)', 'era lines': 'n 2 median 0 [q1 0, q3 0] (min 0, max 0)', 'witness cards': 'n 2 median 0 [q1 0, q3 0] (min 0, max 0)', 'claims': 'n 2 median -15 [q1 -18.5, q3 -11.5] (min -22, max -8)', 'AI us': 'n 2 median 15.2 [q1 14.9, q3 15.6] (min 14.6, max 15.9)'}
+### death
+- on: 판 2; T4 civs most n 2 median 2 [q1 2, q3 2] (min 2, max 2); brake held n 2 median 114896.5 [q1 112351.8, q3 117441.2] (min 109807, max 119986); 기록 {'OtherPeople': '2/2 = 1.000 [0.342, 1.000]'}
+  - 절멸 {'on_ruled': 0, 'on_ai': 146, 'arks': 146, 'arks_lost': 2, 'expired': 0, 'grace': 0, 'erased_ext': 0, 'ruler_deaths': 0}; 방주를 둔 채 만료 — 재지 않음 (카운터 없음)
+  - 결박 {'bound': '2/2 = 1.000 [0.342, 1.000]', 'tick': 'n 2 median 8201 [q1 8162.5, q3 8239.5] (min 8124, max 8278)', 'by': {'AI': 2}, 'ended without result': 2, 'locked': 0, 'retaken': 0, 'vessel left before T5': -2}; #162 {'other-order ends': 2, 'shown': 0, 'once ruled': 0}
+  - #156 {'runs': '0/2 = 0.000 [0.000, 0.658]', 'lines': 0, 'by the record': 0, 'first': 'n 0'}; #141 {'runs': '0/2 = 0.000 [0.000, 0.658]', 'came': 0, 'by the record': 0, 'first': 'n 0', 'passed the check': 0, 'failed': 0, 'without a check': 0, 'gone before the answer': 0}
+  - 법 {'first held ruled': 'n 0', 'first held AI': 'n 2 median 3402 [q1 3363.5, q3 3440.5] (min 3325, max 3479)', 'resets ruled by upkeep': 0, 'resets AI by upkeep': 0, 'held again in the tick': 0, 'ruled laws dropped at an input': 0}; AI µs n 2 median 24.1 [q1 23.9, q3 24.4] (min 23.6, max 24.7)
+- 잠김(R, locked ≥ 1이고 다섯째 칸 기록 없음): 0 []
+- 넷째 칸 이상에 백성을 두고 떠난 그릇(#96): []
+- B1 미리 봄(판단 아님, 6,000에서 자름): {'pairs': 2, 'on': '2/2 = 1.000 [0.342, 1.000]', 'off': '2/2 = 1.000 [0.342, 1.000]', 'L (only off)': 0, 'G (only on)': 0, 'sign test p': 1.0, 'median on': 2641, 'median off': 3161}
+- AI µs: {'bundle on (parallel)': 'n 10 median 30.6 [q1 29.3, q3 31.3] (min 23.6, max 32.0)', 'threshold': 16.049999999999997, 'threshold low': 15.600000000000001, 'serial': None, 'serial above': None}
+- 강제 죽음이 바꾼 기록(R 켬과 견줌): ['2: RuledPeople@9136 -> OtherPeople@8278']
+
+bundle B: PASS

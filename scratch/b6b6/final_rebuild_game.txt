@@ -1,0 +1,119 @@
+﻿Using bundled DotNet SDK version: 10.0 win-x64
+Running UnrealBuildTool: dotnet "..\..\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.dll" Cosmic_Ascension Win64 Development "-Project=C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Cosmic_Ascension.uproject" -WaitMutex
+Log file: C:\Users\rhwwl\AppData\Local\UnrealBuildTool\Log.txt
+Determining max actions to execute in parallel (8 physical cores, 16 logical cores)
+  Executing up to 8 processes, one per physical core
+Using 'git status' to determine working set for adaptive non-unity build (C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension).
+UbaServer - Listening on 0.0.0.0:1345
+UHT compiled-in object format Default
+Building Cosmic_Ascension...
+===== Toolchain Information =====
+Using ISPC compiler (C:\Program Files\Epic Games\UE_5.8\Engine\Source\ThirdParty\Intel\ISPC\bin\Windows\ispc.exe)
+  Intel(r) Implicit SPMD Program Compiler (Intel(r) ISPC), 1.24.0 (build commit  @ 20250404, LLVM 18.1.2) 
+Using Visual Studio 14.44.35226 toolchain (C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207) and Windows 10.0.26100.0 SDK (C:\Program Files (x86)\Windows Kits\10).
+[Adaptive Build] Excluded from Cosmic_Ascension unity file: Cosmic_Ascension.cpp, AscensionSubsystem.cpp, CosmicTypes.cpp, CosmicDataTables.cpp, CosmicEventSubsystem.cpp, CosmicPetitions.cpp, CosmicChronicle.cpp, CosmicLogSubsystem.cpp, PlayerRoleSubsystem.cpp, CosmicSaveSlot.cpp, CosmicSaveSubsystem.cpp, CosmicAscent.cpp, CosmicConflict.cpp, CosmicDiplomacy.cpp, CosmicEdicts.cpp, CosmicEndings.cpp, CosmicHazards.cpp, CosmicMegaprojects.cpp, CosmicResearch.cpp, CosmicSeal.cpp, CosmicStateIndex.cpp, CosmicSuccession.cpp, CosmicWanderer.cpp, GalaxySimulationSubsystem.cpp, CosmicAscensionTests.cpp, CosmicAutoPauseTests.cpp, CosmicAwarenessTests.cpp, CosmicAwarenessVoiceTests.cpp, CosmicBalanceCommandlet.cpp, CosmicBookTests.cpp, CosmicCameraTests.cpp, CosmicChronicleTests.cpp, CosmicDataTests.cpp, CosmicDeathTests.cpp, CosmicDigestTests.cpp, CosmicDiplomacyTests.cpp, CosmicEdictTests.cpp, CosmicEndingTests.cpp, CosmicEventTests.cpp, CosmicExaltTests.cpp, CosmicFeedbackTests.cpp, CosmicHashRunTests.cpp, CosmicHazardTests.cpp, CosmicKnowingTests.cpp, CosmicKnownFilterTests.cpp, CosmicLeapTests.cpp, CosmicLethalWarningTests.cpp, CosmicLogFeedTests.cpp, CosmicLogTests.cpp, CosmicMapTests.cpp, CosmicPetitionCardTests.cpp, CosmicPetitionTests.cpp, CosmicPressureCardTests.cpp, CosmicPressureTests.cpp, CosmicRaceMeasureTests.cpp, CosmicRecordTests.cpp, CosmicResearchFocusTests.cpp, CosmicResearchFocusUITests.cpp, CosmicSanctuaryTests.cpp, CosmicSaveSessionTests.cpp, CosmicSaveSlotTests.cpp, CosmicSettlementTests.cpp, CosmicSimTests.cpp, CosmicSuccessionTests.cpp, CosmicTestProbe.cpp, CosmicUniverseTests.cpp, CosmicUpperRungTests.cpp, CosmicVesselShownTests.cpp, CosmicWandererTests.cpp, CosmicWandererUITests.cpp, CosmicWarningLineTests.cpp, CosmicWorldMendTests.cpp, CosmicActionButton.cpp, CosmicChronicleWidget.cpp, CosmicGalaxyPanelWidget.cpp, CosmicLogFeedWidget.cpp, CosmicPetitionCardWidget.cpp, CosmicStabilityTrend.cpp, CosmicSystemLabelWidget.cpp, CosmicCameraPawn.cpp, CosmicDigest.cpp, CosmicGalaxyMapActor.cpp, CosmicHashRun.cpp, CosmicMapLook.cpp, CosmicMapPick.cpp, CosmicRulerPolicy.cpp, CosmicStarSystemActor.cpp, CosmicUniverseLook.cpp, CosmicWandererPolicy.cpp, CosmicZoomLevels.cpp
+=================================
+Using Unreal Build Accelerator local executor to run 92 action(s)
+  CPU 8 physical cores, 16 logical cores
+  Memory 31.06 GB physical, 39.65 GB/63.06 GB committed
+  UBA Storage capacity 40 GB
+[1/92] Compile [x64] CosmicAscent.cpp
+[2/92] Compile [x64] AscensionSubsystem.cpp
+[3/92] Compile [x64] CosmicAwarenessTests.cpp
+[4/92] Compile [x64] CosmicAwarenessVoiceTests.cpp
+[5/92] Compile [x64] CosmicAutoPauseTests.cpp
+[6/92] Compile [x64] CosmicAscensionTests.cpp
+[7/92] Compile [x64] CosmicChronicle.cpp
+[8/92] Compile [x64] CosmicBookTests.cpp
+[9/92] Compile [x64] CosmicCameraTests.cpp
+[10/92] Compile [x64] CosmicConflict.cpp
+[11/92] Compile [x64] CosmicChronicleWidget.cpp
+[12/92] Compile [x64] CosmicChronicleTests.cpp
+[13/92] Compile [x64] CosmicDeathTests.cpp
+[14/92] Compile [x64] CosmicDigest.cpp
+[15/92] Compile [x64] CosmicDiplomacy.cpp
+[16/92] Compile [x64] CosmicDigestTests.cpp
+[17/92] Compile [x64] CosmicEdicts.cpp
+[18/92] Compile [x64] CosmicEdictTests.cpp
+[19/92] Compile [x64] CosmicDiplomacyTests.cpp
+[20/92] Compile [x64] CosmicEndingTests.cpp
+[21/92] Compile [x64] CosmicEndings.cpp
+[22/92] Compile [x64] CosmicEventSubsystem.cpp
+[23/92] Compile [x64] CosmicDataTests.cpp
+[24/92] Compile [x64] CosmicExaltTests.cpp
+[25/92] Compile [x64] CosmicFeedbackTests.cpp
+[26/92] Compile [x64] CosmicEventTests.cpp
+[27/92] Compile [x64] CosmicGalaxyPanelWidget.cpp
+[28/92] Compile [x64] CosmicGalaxyMapActor.cpp
+[29/92] Compile [x64] CosmicHashRun.cpp
+[30/92] Compile [x64] CosmicHazards.cpp
+[31/92] Compile [x64] CosmicHashRunTests.cpp
+[32/92] Compile [x64] CosmicHazardTests.cpp
+[33/92] Compile [x64] CosmicKnowingTests.cpp
+[34/92] Compile [x64] CosmicLeapTests.cpp
+[35/92] Compile [x64] CosmicBalanceCommandlet.cpp
+[36/92] Compile [x64] CosmicLethalWarningTests.cpp
+[37/92] Compile [x64] CosmicLogFeedTests.cpp
+[38/92] Compile [x64] CosmicLogSubsystem.cpp
+[39/92] Compile [x64] CosmicLogFeedWidget.cpp
+[40/92] Compile [x64] CosmicKnownFilterTests.cpp
+[41/92] Compile [x64] CosmicLogTests.cpp
+[42/92] Compile [x64] CosmicMapLook.cpp
+[43/92] Compile [x64] CosmicMegaprojects.cpp
+[44/92] Compile [x64] CosmicMapTests.cpp
+[45/92] Compile [x64] CosmicPetitionCardWidget.cpp
+[46/92] Compile [x64] CosmicPetitionCardTests.cpp
+[47/92] Compile [x64] CosmicPetitions.cpp
+[48/92] Compile [x64] CosmicPetitionTests.cpp
+[49/92] Compile [x64] CosmicPressureCardTests.cpp
+[50/92] Compile [x64] CosmicPressureTests.cpp
+[51/92] Compile [x64] CosmicResearchFocusTests.cpp
+[52/92] Compile [x64] CosmicRecordTests.cpp
+[53/92] Compile [x64] CosmicRaceMeasureTests.cpp
+[54/92] Compile [x64] CosmicResearchFocusUITests.cpp
+[55/92] Compile [x64] CosmicRulerPolicy.cpp
+[56/92] Compile [x64] CosmicSaveSlot.cpp
+[57/92] Compile [x64] CosmicSanctuaryTests.cpp
+[58/92] Compile [x64] CosmicSaveSessionTests.cpp
+[59/92] Compile [x64] CosmicSaveSlotTests.cpp
+[60/92] Compile [x64] CosmicSeal.cpp
+[61/92] Compile [x64] CosmicSaveSubsystem.cpp
+[62/92] Compile [x64] CosmicStateIndex.cpp
+[63/92] Compile [x64] CosmicSuccession.cpp
+[64/92] Compile [x64] CosmicStarSystemActor.cpp
+[65/92] Compile [x64] CosmicSettlementTests.cpp
+[66/92] Compile [x64] CosmicSimTests.cpp
+[67/92] Compile [x64] CosmicSuccessionTests.cpp
+[68/92] Compile [x64] CosmicTestProbe.cpp
+[69/92] Compile [x64] CosmicSystemLabelWidget.cpp
+[70/92] Compile [x64] CosmicWanderer.cpp
+[71/92] Compile [x64] CosmicWandererPolicy.cpp
+[72/92] Compile [x64] CosmicUpperRungTests.cpp
+[73/92] Compile [x64] CosmicVesselShownTests.cpp
+[74/92] Compile [x64] CosmicUniverseTests.cpp
+[75/92] Compile [x64] CosmicWandererTests.cpp
+[76/92] Compile [x64] CosmicWarningLineTests.cpp
+[77/92] Compile [x64] CosmicWandererUITests.cpp
+[78/92] Compile [x64] CosmicWorldMendTests.cpp
+[79/92] Compile [x64] GalaxySimulationSubsystem.cpp
+[80/92] Compile [x64] Module.Cosmic_Ascension.10.cpp
+[81/92] Compile [x64] Module.Cosmic_Ascension.1.cpp
+[82/92] Compile [x64] Module.Cosmic_Ascension.2.cpp
+[83/92] Compile [x64] Module.Cosmic_Ascension.4.cpp
+[84/92] Compile [x64] Module.Cosmic_Ascension.6.cpp
+[85/92] Compile [x64] Module.Cosmic_Ascension.7.cpp
+[86/92] Compile [x64] Module.Cosmic_Ascension.8.cpp
+[87/92] Compile [x64] Module.Cosmic_Ascension.3.cpp
+[88/92] Compile [x64] PlayerRoleSubsystem.cpp
+[89/92] Compile [x64] Module.Cosmic_Ascension.5.cpp
+[90/92] Compile [x64] Module.Cosmic_Ascension.9.cpp
+[91/92] Link [x64] Cosmic_Ascension.exe
+   C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Binaries\Win64\Cosmic_Ascension.lib 라이브러리 및 C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Binaries\Win64\Cosmic_Ascension.exp 개체를 생성하고 있습니다.
+[92/92] WriteMetadata Cosmic_Ascension.target [NoUba]
+
+Total time in Unreal Build Accelerator local executor: 75.91 seconds
+Output binary: C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Binaries\Win64\Cosmic_Ascension.exe
+
+Result: Succeeded
+Total execution time: 79.47 seconds
+Trace written to file C:\Users\rhwwl\AppData\Local\UnrealBuildTool\Trace.uba with size 34.4kb

@@ -1,0 +1,172 @@
+# [B-6b8] rerun set (mechanical - scratchpad/b6b8/rerun_set.py; apply state at HEAD 220129d from apply_before.txt)
+# edited files: Tools/data/DT_Events.json, Tools/data/DT_Encounters.json, Tools/data/schema.json, Tools/test_data_schema.py, Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp, Source/Cosmic_Ascension/Tests/CosmicB6bRowNames.h, Source/Cosmic_Ascension/World/CosmicWandererPolicy.h, Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp, Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp, Source/Cosmic_Ascension/Tests/CosmicSideRowTests.cpp
+# by file Tools/data/DT_Events.json: 3 patches (3 apply at HEAD)
+# by file Tools/data/DT_Encounters.json: 5 patches (4 apply at HEAD)
+# by file Tools/data/schema.json: 77 patches (63 apply at HEAD)
+# by file Tools/test_data_schema.py: 1 patches (1 apply at HEAD)
+# by file Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp: 15 patches (13 apply at HEAD)
+# by file Source/Cosmic_Ascension/Tests/CosmicB6bRowNames.h: 0 patches (0 apply at HEAD)
+# by file Source/Cosmic_Ascension/World/CosmicWandererPolicy.h: 0 patches (0 apply at HEAD)
+# by file Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp: 12 patches (9 apply at HEAD)
+# by file Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp: 2 patches (2 apply at HEAD)
+# by file Source/Cosmic_Ascension/Tests/CosmicSideRowTests.cpp: 0 patches (0 apply at HEAD)
+# by Breaks test in Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp: 43 patches, 25 not already counted by file
+# by Breaks test in Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp: 0 patches, 0 not already counted by file
+# by Breaks test in Source/Cosmic_Ascension/Tests/CosmicSideRowTests.cpp: 0 patches, 0 not already counted by file
+# old union: 139 patches, 118 apply at HEAD (rerun), 21 FAIL at HEAD (dead, not this commit's)
+# --- old patches to rerun (118)
+Tools/mutations/B1/b1d_answer_first_choice.patch=Cosmic_Ascension.Sim.WandererPolicy+Cosmic_Ascension.Sim.WandererLoop
+Tools/mutations/B1/b1d_no_crisis_preference.patch=Cosmic_Ascension.Sim.WandererPolicy+Cosmic_Ascension.Sim.WandererLoop
+Tools/mutations/B1/b1d_return_mislabelled.patch=Cosmic_Ascension.Sim.WandererPolicy+Cosmic_Ascension.Sim.WandererLoop
+Tools/mutations/B1/b1d_scan_every_boundary.patch=Cosmic_Ascension.Sim.WandererPolicy+Cosmic_Ascension.Sim.WandererLoop
+Tools/mutations/B1/b1d_straight_back.patch=Cosmic_Ascension.Sim.WandererPolicy+Cosmic_Ascension.Sim.WandererLoop
+Tools/mutations/B2/b2a_integrity_duration.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B2/b2a_invariant_negative_only.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B3/b3d_schema_chain_into_contact.patch=python:Tools/test_data_schema.py
+Tools/mutations/B3/b3d_schema_stance_enc_only.patch=python:Tools/test_data_schema.py
+Tools/mutations/B4/b4b_card_edict_name_unchecked.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B4/b4b_delay_shape_cycle_ok.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B4/b4b_delay_shape_lottery_ok.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B4/b4b_delay_shape_roots_ok.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B4/b4b_gate_effect_anywhere.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B4/b4b_schema_capital_when_draw.patch=python:Tools/test_data_schema.py
+Tools/mutations/B4/b4b_schema_counterfeit_when_celestial.patch=python:Tools/test_data_schema.py
+Tools/mutations/B4/b4b_schema_delay_max.patch=python:Tools/test_data_schema.py
+Tools/mutations/B4/b4b_schema_delay_not_card_only.patch=python:Tools/test_data_schema.py
+Tools/mutations/B4/b4b_schema_e1_prefix_petition.patch=python:Tools/test_data_schema.py
+Tools/mutations/B4/b4b_schema_e3_list_short.patch=python:Tools/test_data_schema.py
+Tools/mutations/B4/b4b_schema_e5_when_free_only.patch=python:Tools/test_data_schema.py
+Tools/mutations/B4/b4b_schema_grace_rule_weak.patch=python:Tools/test_data_schema.py
+Tools/mutations/B4/b4b_theodicy_cap_only.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B4/b4b_theodicy_factor_one.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B4/b4b_theodicy_lower_bar.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B4/b4d1_schema_petition_failure_rescue_off.patch=python:Tools/test_data_schema.py
+Tools/mutations/B4/b4d1_schema_realm_with_eumbu.patch=python:Tools/test_data_schema.py
+Tools/mutations/B4/b4d1_schema_realm_without_most_high.patch=python:Tools/test_data_schema.py
+Tools/mutations/B4/b4d1_schema_sign_slots_wide.patch=python:Tools/test_data_schema.py
+Tools/mutations/B4/b4d2_data_delay_40.patch=Cosmic_Ascension.Sim.PressureChain
+Tools/mutations/B4/b4d2_data_discern_cheaper.patch=Cosmic_Ascension.Sim.PressureChain
+Tools/mutations/B4/b4d2_data_discern_no_chain.patch=Cosmic_Ascension.Sim.PressureChain
+Tools/mutations/B4/b4d2_data_ease_heavier.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B4/b4d2_data_ease_no_vigil.patch=Cosmic_Ascension.Sim.VigilEase
+Tools/mutations/B4/b4d2_data_ease_plague.patch=Cosmic_Ascension.Sim.VigilEase
+Tools/mutations/B4/b4d2_theodicy_lock_strict.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B4/b4d2_theodicy_no_lock.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B4/b4d2_theodicy_standing_ignored.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B4/b4d2_unpressed_drops_more.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B4/b4d2_unpressed_keeps_cards.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B4/b4d2_unpressed_keeps_ease.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B4/b4d2_unpressed_keeps_edict.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B4/b4d2_unpressed_keeps_voice.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B5/b5d2_first_crisis_edge_open.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B5/b5d2_without_death_keeps_expiry.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6a/b6a3c_wanderer_policy_reads_clock.patch=Cosmic_Ascension.Sim.WandererPolicy
+Tools/mutations/B6b/b6b2a_data_laws_knob_four.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6b/b6b2a_data_reach_word_renamed.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6b/b6b2b_kills_ruler_other_tag.patch=Cosmic_Ascension.Sim.ExtinctionExpiry+Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6b/b6b2b_schema_death_extinction_rule_dropped.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b2b_schema_extinction_rule_dropped.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b2c_data_binding_answers.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6b/b6b2c_schema_bound_line_rule_dropped.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b2c_schema_causality_rule_dropped.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b2c_schema_share_range_dropped.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b3a_schema_far_rule_takes_other.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b3b_wanderer_cards_by_row_off.patch=Cosmic_Ascension.Sim.WandererPolicy
+Tools/mutations/B6b/b6b3b_wanderer_chain_card_not_by_row.patch=Cosmic_Ascension.Sim.WandererPolicy
+Tools/mutations/B6b/b6b3b_wanderer_rows_count_withdrawn.patch=Cosmic_Ascension.Sim.WandererPolicy
+Tools/mutations/B6b/b6b3b_without_b6b_default_rules.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6b/b6b3b_without_b6b_drops_log_rows.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6b/b6b3b_without_b6b_drops_other_rows.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6b/b6b3b_without_b6b_keeps_binding.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6b/b6b3b_without_b6b_keeps_extinction.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6b/b6b3b_without_b6b_keeps_knobs.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6b/b6b5_schema_bind_hint_unchecked.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_binding_name_dropped.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_bound_line_triumph_dropped.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_chronicle_without_titles.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_death_extinction_rule_unextended.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_desolation_without_lamp.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_digest_without_grasp.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_epitaph_without_titles.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_era_rule_dropped.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_event_column_without_titles.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_event_lines_holy_off.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_event_lines_soul_off.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_extinction_follows_without_stay.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_extinction_text_rule_dropped.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_far_ascent_rule_unextended.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_feats_take_no_afterlife.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_feats_take_no_triumph.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_fifth_feat_rule_dropped.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_hazard_columns_without_grasp.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_hazard_expiry_rescue_off.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_holy_passive_unextended.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_log_column_without_grasp.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_no_fallen_block_unchecked.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_no_fallen_suffix_unchecked.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_note_without_binding.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_project_column_without_titles.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_realm_cap_last_unchecked.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_record_extinct_rule_unextended.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_ruler_lethal_without_death_frame.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_rung_prefix_without_binding.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_sight_prefix_dropped.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_title_without_messiah.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b5_schema_treaty_tip_unchecked.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b6_data_ark_word_in_card.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b6_data_extinction_expiry_effect.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6b/b6b6_kills_ruler_not_extinction.patch=Cosmic_Ascension.Data.Integrity+Cosmic_Ascension.Sim.ExtinctionExpiry
+Tools/mutations/B6b/b6b6_schema_ark_guard_feats_dropped.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b6_schema_ark_guard_projects_dropped.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b6_schema_ark_rule_dropped.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b6_schema_ark_words_off_hazards.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b6_schema_ark_words_off_lines.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b6_schema_myth_takes_baro.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b6_schema_myth_without_noah.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b6_schema_verdict_without_soul_has_soul.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b7_data_ark_margin_half.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6b/b6b7_data_feat_without_binding.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6b/b6b7_data_law_answers.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6b/b6b7_data_laws_two_rows.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6b/b6b7_data_upper_rung_not_binary.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6b/b6b7_probe_race_cap_minus_one.patch=probe
+Tools/mutations/B6b/b6b7_probe_race_ruled_unjudged.patch=probe
+Tools/mutations/B6b/b6b7_without_b6b_keeps_fifth_feat.patch=Cosmic_Ascension.UI.Chronicle+Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6b/b6b7_without_b6b_keeps_laws.patch=Cosmic_Ascension.Data.Integrity
+# --- new b6b8_ patches (13; a README row without its file yet, or a file without its row, is marked)
+Tools/mutations/B6b/b6b8_cmdlet_witness_first_any_card.patch=harness:bundleB-smoke
+Tools/mutations/B6b/b6b8_data_era_borders_0_3.patch=Cosmic_Ascension.Sim.EraEndured
+Tools/mutations/B6b/b6b8_data_era_no_ruled.patch=python:Tools/check_data.py
+Tools/mutations/B6b/b6b8_data_extinction_expiry_effect.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6b/b6b8_data_witness_reverence_0_3.patch=Cosmic_Ascension.Sim.WitnessCard
+Tools/mutations/B6b/b6b8_data_witness_says_jeungeon.patch=python:Tools/check_data.py
+Tools/mutations/B6b/b6b8_schema_desolation_without_lamp.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b8_schema_era_rule_dropped.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b8_schema_era_shape_dropped.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b8_schema_witness_past_forms_dropped.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b8_schema_witness_rule_dropped.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b8_schema_witness_words_off_body.patch=python:Tools/test_data_schema.py
+Tools/mutations/B6b/b6b8_wanderer_nocheck_not_by_row.patch=Cosmic_Ascension.Sim.WitnessCard
+# --- dead (FAIL at HEAD, not rerun) (21)
+# Tools/mutations/B1/b1d_abdicate_after_end.patch
+# Tools/mutations/B1/b1d_abdicate_again.patch
+# Tools/mutations/B1/b1d_walk_after_end.patch
+# Tools/mutations/B3/b3b_schema_log_without_holy_words.patch
+# Tools/mutations/B3/b3d2_schema_ruled_ratio_unbounded.patch
+# Tools/mutations/B4/b4b_schema_civhasedict_optional.patch
+# Tools/mutations/B4/b4b_schema_claim_pair_log_claim.patch
+# Tools/mutations/B4/b4b_schema_drain_max_off.patch
+# Tools/mutations/B4/b4b_schema_enact_not_card_only.patch
+# Tools/mutations/B4/b4b_schema_resist_min_off.patch
+# Tools/mutations/B4/b4b_schema_v2_ge_2.patch
+# Tools/mutations/B4/b4b_theodicy_no_card_delay.patch
+# Tools/mutations/B4/b4b_theodicy_one_bonus.patch
+# Tools/mutations/B4/b4d1_schema_event_lines_holy_off.patch
+# Tools/mutations/B4/b4d1_schema_event_lines_soul_off.patch
+# Tools/mutations/B4/b4d1_schema_first_person_forms_differ.patch
+# Tools/mutations/B4/b4d1_schema_hazard_expiry_rescue_off.patch
+# Tools/mutations/B4/b4d1_schema_myth_takes_baro.patch
+# Tools/mutations/B4/b4d1_schema_verdict_without_soul_has_soul.patch
+# Tools/mutations/B4/b4d2_data_card_before_1800.patch
+# Tools/mutations/B6b/b6b2c_data_ark_margin_half.patch
+# old by kind: cpp 54, probe 2, python 62

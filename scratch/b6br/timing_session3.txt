@@ -1,0 +1,33 @@
+﻿2026-11-10 13:24:08 round 2
+before checks              r2 AI  18.85 eco  1.75 crisis  10.89 free  10.5 GB cpu   8.8 % wall   9.9 s exit 0
+after  checks              r2 AI   6.11 eco  1.57 crisis   8.43 free  10.5 GB cpu   9.6 % wall    10 s exit 0
+after  checks_ruler        r2 AI   5.88 eco  1.75 crisis   9.25 free  10.5 GB cpu  10.2 % wall   9.9 s exit 0
+before checks_ruler        r2 AI  17.75 eco  1.77 crisis  10.90 free  10.5 GB cpu  12.4 % wall   9.9 s exit 0
+before checks_wanderer     r2 AI  19.96 eco  2.95 crisis  19.72 free  10.5 GB cpu  11.8 % wall  10.4 s exit 0
+after  checks_wanderer     r2 AI   7.64 eco  2.82 crisis  18.08 free  10.4 GB cpu   8.6 % wall  10.4 s exit 0
+2026-11-10 13:26:17 waiting before after_checks_20000_r2: CPU 17.2 % >= 15
+after  checks_20000        r2 AI  11.01 eco  3.04 crisis  27.79 free  10.5 GB cpu    14 % wall    12 s exit 0
+before checks_20000        r2 AI  24.17 eco  3.13 crisis  28.34 free  10.2 GB cpu    12 % wall  11.9 s exit 0
+2026-11-10 13:27:40 waiting before before_checks_ruler_20000_r2: CPU 15 % >= 15
+before checks_ruler_20000  r2 AI  20.56 eco  2.89 crisis  27.42 free  10.4 GB cpu     9 % wall  12.9 s exit 0
+after  checks_ruler_20000  r2 AI   8.68 eco  2.72 crisis  24.58 free  10.4 GB cpu   9.2 % wall  12.4 s exit 0
+after  off_checks          r2 AI   4.67 eco  1.62 crisis   7.62 free  10.4 GB cpu     4 % wall   9.9 s exit 0
+before off_checks          r2 AI  10.34 eco  1.58 crisis   8.62 free  10.5 GB cpu   6.2 % wall   9.5 s exit 0
+before off_checks_20000    r2 AI  11.64 eco  3.17 crisis  13.38 free  10.5 GB cpu   3.2 % wall  10.4 s exit 0
+after  off_checks_20000    r2 AI   5.56 eco  3.08 crisis  11.37 free  10.5 GB cpu   7.8 % wall  10.4 s exit 0
+2026-11-10 13:30:15 round 3
+after  checks              r3 AI   6.02 eco  1.55 crisis   8.46 free  10.5 GB cpu   4.4 % wall   9.9 s exit 0
+before checks              r3 AI  17.31 eco  1.58 crisis   9.70 free  10.5 GB cpu   9.4 % wall   9.5 s exit 0
+before checks_ruler        r3 AI  16.31 eco  1.62 crisis   9.80 free  10.5 GB cpu     8 % wall   9.9 s exit 0
+after  checks_ruler        r3 AI   5.56 eco  1.60 crisis   8.55 free  10.5 GB cpu   6.6 % wall   9.9 s exit 0
+after  checks_wanderer     r3 AI   7.24 eco  2.78 crisis  17.53 free  10.5 GB cpu   5.4 % wall   9.9 s exit 0
+before checks_wanderer     r3 AI  18.97 eco  2.83 crisis  18.98 free  10.5 GB cpu   4.2 % wall   9.9 s exit 0
+before checks_20000        r3 AI  22.05 eco  2.85 crisis  26.40 free  10.4 GB cpu     4 % wall  11.4 s exit 0
+after  checks_20000        r3 AI  10.16 eco  2.78 crisis  25.12 free  10.4 GB cpu   5.2 % wall  11.4 s exit 0
+after  checks_ruler_20000  r3 AI   8.32 eco  2.57 crisis  23.53 free  10.3 GB cpu   3.8 % wall  11.9 s exit 0
+before checks_ruler_20000  r3 AI  19.19 eco  2.68 crisis  25.54 free  10.3 GB cpu   5.2 % wall  12.4 s exit 0
+before off_checks          r3 AI  10.46 eco  1.60 crisis   8.83 free  10.3 GB cpu   7.2 % wall   9.4 s exit 0
+after  off_checks          r3 AI   4.76 eco  1.56 crisis   7.64 free  10.4 GB cpu   4.4 % wall   9.9 s exit 0
+after  off_checks_20000    r3 AI   5.69 eco  3.18 crisis  11.68 free  10.4 GB cpu   5.6 % wall  10.5 s exit 0
+before off_checks_20000    r3 AI  11.59 eco  3.14 crisis  13.53 free  10.3 GB cpu   5.2 % wall  10.4 s exit 0
+2026-11-10 13:35:02 done: C:\Users\rhwwl\AppData\Local\Temp\claude\c--Users-rhwwl-OneDrive-Documents-Unreal-Projects-Cosmic-Ascension\37de2919-0c44-45d8-94cd-4dcf0860263e\scratchpad\b6br\timing\timing.tsv

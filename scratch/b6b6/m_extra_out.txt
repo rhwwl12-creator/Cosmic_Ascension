@@ -1,0 +1,31 @@
+== T4 civs most > 2: is every such run a ruled climb past two AIs (the brake counts the ruled people, never brakes it)?
+R runs above 2: 18 not explained by a ruled climb after two AIs: []
+wanderer runs above 2: 17 not explained by a ruled climb after two AIs: []
+== grace keys and the extinctions per people around them
+R_7 5803:civ_7:a {'placed': {'Hazard.AIAwakening': 145, 'Hazard.Claim': 8, 'Hazard.Extinction': 52, 'Hazard.Plague': 67, 'Hazard.PreSupernova': 57, 'Hazard.Rebellion': 234}, 'answered': {'Hazard.Claim': 2, 'Hazard.Extinction': 51, 'Hazard.Plague': 49, 'Hazard.PreSupernova': 57, 'Hazard.Rebellion': 231}, 'expired': {'Hazard.AIAwakening': 133, 'Hazard.Claim': 6, 'Hazard.Extinction': 1}, 'ended': {'Hazard.AIAwakening': 145, 'Hazard.Claim': 8, 'Hazard.Extinction': 52, 'Hazard.Plague': 67, 'Hazard.PreSupernova': 57, 'Hazard.Rebellion': 231}}
+wanderer_25 3919:civ_7:a {'placed': {'Hazard.AIAwakening': 34, 'Hazard.Claim': 1, 'Hazard.Extinction': 9, 'Hazard.Plague': 21, 'Hazard.PreSupernova': 11, 'Hazard.Rebellion': 74}, 'answered': {'Hazard.Claim': 1, 'Hazard.Extinction': 8, 'Hazard.Plague': 14, 'Hazard.PreSupernova': 11, 'Hazard.Rebellion': 73}, 'expired': {'Hazard.AIAwakening': 30, 'Hazard.Extinction': 1, 'Hazard.Plague': 1}, 'ended': {'Hazard.AIAwakening': 33, 'Hazard.Claim': 1, 'Hazard.Extinction': 9, 'Hazard.Plague': 21, 'Hazard.PreSupernova': 11, 'Hazard.Rebellion': 73}}
+== first mover per pair (first differing csv sample - T, and AI treaty first / first placement)
+R first diff - T: n 30 median 415.5 [q1 183.8, q3 823.5] (min 5, max 1359) | first mover (treaty tick vs first extinction sample): {'treaty': 24, 'extinction': 4, 'same': 2}
+inputless first diff - T: n 30 median 271.5 [q1 89, q3 430.5] (min 28, max 1185) | first mover (treaty tick vs first extinction sample): {'treaty': 27, 'extinction': 1, 'same': 2}
+wanderer first diff - T: n 60 median 439.5 [q1 291.2, q3 608.5] (min 26, max 1256) | first mover (treaty tick vs first extinction sample): {'treaty': 49, 'extinction': 8, 'same': 3}
+== wanderer crowning per pair (on vs off)
+lost (seed, off tick, refused far above, first refusal): [(6, 4501, 0, -1), (10, 4921, 7, 5477), (18, 4101, 2, 4901), (21, 5847, 3, 3461), (23, 4501, 0, -1), (29, 3621, 7, 5360), (42, 3121, 0, -1)]
+gained: [(15, 4841), (19, 4261), (38, 3821), (45, 4861), (56, 4421)] moved: 11
+== ruled extinctions per R run, ruled T4 - first placement
+placements on ruled per run: n 30 median 10 [q1 7.2, q3 12] (min 3, max 18)
+== serial runner AI us (Saved/Logs, this build) and the on/off 20,000 pairs of this stage
+runner checks 15.04
+runner checks_ruler 13.91
+runner checks_wanderer 15.75
+checks on 15.04 off(new build) 11.63 base(old build) 11.39
+checks_ruler on 13.91 off(new build) 10.47 base(old build) 12.8
+checks_wanderer on 15.75 off(new build) 16.52 base(old build) 12.65
+checks_20000 on 19.22 off(new build) 15.27 base(old build) 19.8
+checks_ruler_20000 on 17.32 off(new build) 15.99 base(old build) 11.39
+== diplomacy (AI non-aggression) on vs off, conflict #129 transfers
+R on nonaggression n 30 median 8.5 [q1 7, q3 10] (min 4, max 12) | signed 417 | sieges sum 193 taken sum 113
+R off nonaggression n 30 median 5 [q1 4, q3 6] (min 1, max 8) | signed 288 | sieges sum 176 taken sum 99
+inputless on nonaggression n 30 median 6 [q1 5, q3 6] (min 3, max 9) | signed 173 | sieges sum 196 taken sum 126
+inputless off nonaggression n 30 median 0 [q1 0, q3 0] (min 0, max 0) | signed 0 | sieges sum 128 taken sum 73
+wanderer on nonaggression n 60 median 7 [q1 6, q3 9] (min 3, max 12) | signed 614 | sieges sum 305 taken sum 181
+wanderer off nonaggression n 60 median 2 [q1 1, q3 3.2] (min 0, max 6) | signed 304 | sieges sum 237 taken sum 148

@@ -1,0 +1,16 @@
+PASS off_checks.csv: 372 rows, 29 columns (without TickMicros/SaveBytes/SaveRawBytes)
+PASS off_checks_rows.csv: 252 rows, 3 columns
+PASS off_checks_claims.csv: 0 rows, 20 columns
+PASS off_checks_ruler.csv: 372 rows, 29 columns (without TickMicros/SaveBytes/SaveRawBytes)
+PASS off_checks_ruler_rows.csv: 230 rows, 3 columns
+PASS off_checks_ruler_claims.csv: 0 rows, 20 columns
+PASS off_checks_wanderer.csv: 732 rows, 29 columns (without TickMicros/SaveBytes/SaveRawBytes)
+PASS off_checks_wanderer_rows.csv: 484 rows, 3 columns
+PASS off_checks_wanderer_claims.csv: 0 rows, 20 columns
+PASS off_checks_20000.csv: 2412 rows, 29 columns (without TickMicros/SaveBytes/SaveRawBytes)
+PASS off_checks_20000_rows.csv: 1837 rows, 3 columns
+PASS off_checks_20000_claims.csv: 14 rows, 20 columns
+PASS off_checks_ruler_20000.csv: 2412 rows, 29 columns (without TickMicros/SaveBytes/SaveRawBytes)
+PASS off_checks_ruler_20000_rows.csv: 1809 rows, 3 columns
+PASS off_checks_ruler_20000_claims.csv: 5 rows, 20 columns
+csv_same: PASS

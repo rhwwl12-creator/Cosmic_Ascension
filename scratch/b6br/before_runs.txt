@@ -1,0 +1,16 @@
+﻿checks	exit 0	11 s
+checks_ruler	exit 0	11 s
+checks_wanderer	exit 0	11 s
+checks_20000	exit 0	12 s
+checks_ruler_20000	exit 0	13 s
+off_checks	exit 0	10 s
+off_checks_ruler	exit 0	10 s
+off_checks_wanderer	exit 0	11 s
+off_checks_20000	exit 0	12 s
+off_checks_ruler_20000	exit 0	12 s
+done
+--- retake of off_checks, off_checks_20000 (first take passed the flag as characters)
+done
+off_checks	exit 0	10 s
+off_checks_20000	exit 0	11 s
+done

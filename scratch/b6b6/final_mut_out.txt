@@ -1,0 +1,251 @@
+﻿b6b6_data_extinction_expiry_effect assets: NOT written (checker stopped)
+b6b6_data_extinction_expiry_effect SURVIVED [('Integrity', 'Success')] 104s
+b6b6_data_extinction_expiry_effect assets after revert: written
+b4d2_data_ease_heavier assets: written
+b4d2_data_ease_heavier KILLED [('Integrity', 'Fail')] 105s
+     [2026.11.09-15.03.56:467][276]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.03.56:467][276]LogAutomationController: Error: theodicy: DT_Hazards.crisis_claim: the non-grace rows that resolve Hazard.Claim take it away 0.0260 a slot; over the 55 slots of its longest stand (550 ticks) 0.235 stays - below the quarter the theodicy keeps [C:\Users\rhwwl\OneDrive\Doc
+     [2026.11.09-15.03.56:468][276]LogAutomationController: Error: Expected 'No hazard of the game is taken away for certain: a quarter of its longest stand stays' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(2845)]
+b4d2_data_ease_heavier assets after revert: written
+b6b2a_data_laws_knob_four assets: written
+b6b2a_data_laws_knob_four KILLED [('Integrity', 'Fail')] 114s
+     [2026.11.09-15.07.20:512][449]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.07.20:512][449]LogAutomationController: Error: Expected 'The game's galaxy laws keep to the rules row and to the hazards' to be "", but it was "DT_Rules.GalaxyLawsToHold 4 is above the edict slots' end 3". [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosm
+b6b2a_data_laws_knob_four assets after revert: written
+b6b2a_data_reach_word_renamed assets: NOT written (checker stopped)
+b6b2a_data_reach_word_renamed KILLED [('Integrity', 'Fail')] 114s
+     [2026.11.09-15.10.45:196][171]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.10.45:196][171]LogAutomationController: Error: Expected 'Border, a word of the list reverence_reach, is a word the evaluator resolves' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1586)]
+b6b2a_data_reach_word_renamed assets after revert: written
+b6b2c_data_ark_margin_half assets: written
+b6b2c_data_ark_margin_half KILLED [('Integrity', 'Fail')] 103s
+     [2026.11.09-15.13.54:622][ 31]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.13.54:622][ 31]LogAutomationController: Error: Expected 'The game's arks answer in time and no hazard answers with the binding' to be "", but it was "DT_Hazards.crisis_species_extinction: its answer project_ark needs 300.0 ticks of an AI people (RequiredProgress / AIAscensionSpeedMult
+     [2026.11.09-15.13.54:622][ 31]LogAutomationController: Error: Expected 'Under the game's rules the design's ark of 150 comes within the extinction's 250 ticks' to be "", but it was "DT_Hazards.crisis_species_extinction: its answer project_ark needs 300.0 ticks of an AI people (RequiredProgress / AIA
+b6b2c_data_ark_margin_half assets after revert: written
+b6b2c_data_binding_answers assets: written
+b6b2c_data_binding_answers KILLED [('Integrity', 'Fail')] 112s
+     [2026.11.09-15.17.18:354][973]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.17.18:354][973]LogAutomationController: Error: Expected 'The game's arks answer in time and no hazard answers with the binding' to be "", but it was "DT_Hazards.crisis_plague lists project_binding as an answer: the binding is a construction, sealed in the construction slot alone". [C:
+     [2026.11.09-15.17.18:354][973]LogAutomationController: Error: Expected 'Under the game's rules the design's ark of 150 comes within the extinction's 250 ticks' to be "", but it was "DT_Hazards.crisis_plague lists project_binding as an answer: the binding is a construction, sealed in the construction
+     [2026.11.09-15.17.18:354][973]LogAutomationController: Error: Expected 'An ark of 249 at the rate 1 passes' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(2270)]
+b6b2c_data_binding_answers assets after revert: written
+b6b6_kills_ruler_not_extinction KILLED [('Integrity', 'Fail'), ('ExtinctionExpiry', 'Fail')] 30s
+     [2026.11.09-15.19.15:982][850]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.19.15:982][850]LogAutomationController: Error: Expected 'Reported: an AI rate of 0.5: the ark takes 300 ticks of 250' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+     [2026.11.09-15.19.15:982][850]LogAutomationController: Error: Expected 'Reported: an ark of 250 progress at the rate 1: not below the countdown' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+     [2026.11.09-15.19.15:982][850]LogAutomationController: Error: Expected 'The code's one death is the extinction's expiry (decision 5, DECISIONS_LOG B6b [B-6b2b]): exactly crisis_species_extinction kills the ruler at its expiry - another source of death is a new decision (found: )' to be true. [C:\Use
+b6b6_brake_always_shut KILLED [('Reachable', 'Fail')] 23s
+     [2026.11.09-15.19.39:362][937]LogAutomationController: Error: Test Completed. Result={Fail} Name={Reachable} Path={Cosmic_Ascension.Feats.Reachable}
+     [2026.11.09-15.19.39:362][937]LogAutomationController: Error: Expected 'An AI people reaches the fourth rung in 20,000 ticks of the game's data' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicAscensionTests.cpp(1780)]
+b2a_integrity_duration KILLED [('Integrity', 'Fail')] 36s
+     [2026.11.09-15.20.15:373][696]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.20.15:373][696]LogAutomationController: Error: Expected 'Reported: an edict's effect with a duration' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+b2a_invariant_negative_only KILLED [('Integrity', 'Fail')] 29s
+     [2026.11.09-15.20.44:838][ 74]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.20.44:838][ 74]LogAutomationController: Error: Expected 'Reported: an inherited edict whose gain nets its cost below the recovery' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+b2c_helper_keeps_edict KILLED [('PlayerAscendsToT3', 'Fail')] 86s
+     [2026.11.09-15.22.11:316][142]LogAutomationController: Error: Test Completed. Result={Fail} Name={PlayerAscendsToT3} Path={Cosmic_Ascension.Sim.PlayerAscendsToT3}
+     [2026.11.09-15.22.11:316][142]LogAutomationController: Error: Expected 'by the feat of the Dyson swarm' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicAscensionTests.cpp(1819)]
+     [2026.11.09-15.22.11:316][142]LogAutomationController: Error: and rules: The two values are not equal. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicAscensionTests.cpp(1820)]
+     [2026.11.09-15.22.11:316][142]LogAutomationController: Error: Expected 'the same people' to be civ_0, but it was None. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicAscensionTests.cpp(1825)]
+b3a_fleet_tick_not_saved KILLED [('SaveRoundTrip', 'Fail')] 113s
+     [2026.11.09-15.24.04:946][  8]LogAutomationController: Error: Test Completed. Result={Fail} Name={SaveRoundTrip} Path={Cosmic_Ascension.Sim.SaveRoundTrip}
+     [2026.11.09-15.24.04:946][  8]LogAutomationController: Error: Expected 'Every later member survives the round trip' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicSimTests.cpp(1891)]
+b3a_new_record_no_completer KILLED [('MegaprojectProgress', 'Fail')] 105s
+     [2026.11.09-15.25.50:070][757]LogAutomationController: Error: Test Completed. Result={Fail} Name={MegaprojectProgress} Path={Cosmic_Ascension.Sim.MegaprojectProgress}
+     [2026.11.09-15.25.50:070][757]LogAutomationController: Error: Expected 'A new record names the people that completed it' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicAscensionTests.cpp(534)]
+     [2026.11.09-15.25.50:070][757]LogAutomationController: Error: Expected '(the answer's too)' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicAscensionTests.cpp(535)]
+b3a_recompletion_keeps_completer KILLED [('MegaprojectProgress', 'Fail')] 24s
+     [2026.11.09-15.26.13:630][764]LogAutomationController: Error: Test Completed. Result={Fail} Name={MegaprojectProgress} Path={Cosmic_Ascension.Sim.MegaprojectProgress}
+     [2026.11.09-15.26.13:630][764]LogAutomationController: Error: Expected 'and whose completer is the people that completed it again' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicAscensionTests.cpp(562)]
+     [2026.11.09-15.26.13:630][764]LogAutomationController: Error: Expected 'An old record without a completer gets one' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicAscensionTests.cpp(577)]
+b3a_tags_hashed_in_stored_order KILLED [('Determinism', 'Fail')] 22s
+     [2026.11.09-15.26.35:111][487]LogAutomationController: Error: Test Completed. Result={Fail} Name={Determinism} Path={Cosmic_Ascension.Sim.Determinism}
+     [2026.11.09-15.26.35:111][487]LogAutomationController: Error: Expected 'Hash of a tag container does not depend on the order its tags were added' to be 3237537930, but it was 574362226. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicSimTests.c
+b4b_card_edict_name_unchecked KILLED [('Integrity', 'Fail')] 28s
+     [2026.11.09-15.27.03:879][614]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.27.03:879][614]LogAutomationController: Error: Expected 'Reported: a choice that enacts the vigil under another name' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+b4b_delay_shape_cycle_ok KILLED [('Integrity', 'Fail')] 29s
+     [2026.11.09-15.27.32:363][729]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.27.32:363][729]LogAutomationController: Error: Expected 'Reported: a card that buys a hazard time and chains to itself' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+b4b_delay_shape_lottery_ok KILLED [('Integrity', 'Fail')] 29s
+     [2026.11.09-15.28.01:334][101]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.28.01:334][101]LogAutomationController: Error: Expected 'Reported: a Lottery card that buys a hazard time' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+b4b_delay_shape_roots_ok KILLED [('Integrity', 'Fail')] 29s
+     [2026.11.09-15.28.29:836][171]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.28.29:836][171]LogAutomationController: Error: Expected 'Reported: a card that buys a hazard time led to by two Standing cards' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+b4b_gate_effect_anywhere KILLED [('Integrity', 'Fail')] 34s
+     [2026.11.09-15.29.03:755][382]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.29.03:755][382]LogAutomationController: Error: Expected 'Reported: a gated effect after another effect' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+b4b_theodicy_cap_only KILLED [('Integrity', 'Fail')] 29s
+     [2026.11.09-15.29.32:659][308]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.29.32:659][308]LogAutomationController: Error: Expected 'Reported: a weight on the plague's repentance over a sphere of one core and a cap of 0' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+b4b_theodicy_factor_one KILLED [('Integrity', 'Fail')] 29s
+     [2026.11.09-15.30.01:361][530]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.30.01:361][530]LogAutomationController: Error: Expected 'Reported: a transcendent row weighting Event.Crisis.Claim' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+     [2026.11.09-15.30.01:361][530]LogAutomationController: Error: Expected 'Reported: a transcendent row weighting the plague's repentance three times' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+     [2026.11.09-15.30.01:361][530]LogAutomationController: Error: Expected 'Reported: a weight on the plague's repentance over a sphere of one core and a cap of 0' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+b4b_theodicy_lower_bar KILLED [('Integrity', 'Fail')] 29s
+     [2026.11.09-15.30.29:627][632]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.30.29:627][632]LogAutomationController: Error: Expected 'Reported: a claim-easing row of weight 1.3' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+     [2026.11.09-15.30.29:627][632]LogAutomationController: Error: Expected 'Reported: a card's DelayHazard of 100 on the claim' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+     [2026.11.09-15.30.29:627][632]LogAutomationController: Error: Expected 'Reported: a second edict's claim bonus' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+b4d2_theodicy_lock_strict KILLED [('Integrity', 'Fail')] 36s
+     [2026.11.09-15.31.05:685][976]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.31.05:685][976]LogAutomationController: Error: Expected 'A throne lock of 550 ticks passes' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(2986)]
+b4d2_theodicy_no_lock KILLED [('Integrity', 'Fail')] 29s
+     [2026.11.09-15.31.34:865][200]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.31.34:865][200]LogAutomationController: Error: Expected 'Reported: a throne lock of 549 ticks under a card's DelayHazard' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+b4d2_theodicy_standing_ignored KILLED [('Integrity', 'Fail')] 29s
+     [2026.11.09-15.32.03:520][348]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.32.03:520][348]LogAutomationController: Error: Expected 'Reported: a Standing claim-easing row of weight 0.1' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+b4d2_unpressed_drops_more KILLED [('Integrity', 'Fail')] 80s
+     [2026.11.09-15.33.23:699][941]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.33.23:699][941]LogAutomationController: Error: Expected 'CosmicTests::WithoutPressure takes all of it away and keeps every transcendent row' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(2969)]
+     [2026.11.09-15.33.23:699][941]LogAutomationController: Error: Expected 'Reported: a transcendent row weighting the plague's repentance three times' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+     [2026.11.09-15.33.23:699][941]LogAutomationController: Error: Expected 'Reported: a weight on the plague's repentance over a sphere of one core and a cap of 0' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+b4d2_unpressed_keeps_cards KILLED [('Integrity', 'Fail')] 81s
+     [2026.11.09-15.34.43:744][245]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.34.43:744][245]LogAutomationController: Error: Expected 'CosmicTests::WithoutPressure takes all of it away and keeps every transcendent row' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(2969)]
+     [2026.11.09-15.34.43:744][245]LogAutomationController: Error: Expected 'A claim-easing row of weight 1.2 leaves a quarter of the claim's longest stand (300 + the vigil's 100 + the guard's 100 + a card's 50)' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmi
+     [2026.11.09-15.34.43:744][245]LogAutomationController: Error: Expected 'Reported: a throne lock of 549 ticks under a card's DelayHazard' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+b4d2_unpressed_keeps_ease KILLED [('Integrity', 'Fail')] 81s
+     [2026.11.09-15.36.05:067][335]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.36.05:067][335]LogAutomationController: Error: Expected 'CosmicTests::WithoutPressure takes all of it away and keeps every transcendent row' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(2969)]
+     [2026.11.09-15.36.05:067][335]LogAutomationController: Error: Expected 'A claim-easing row of weight 1.2 leaves a quarter of the claim's longest stand (300 + the vigil's 100 + the guard's 100 + a card's 50)' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmi
+     [2026.11.09-15.36.05:067][335]LogAutomationController: Error: Expected 'A throne lock of 550 ticks passes' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(2986)]
+b4d2_unpressed_keeps_edict KILLED [('Integrity', 'Fail')] 82s
+     [2026.11.09-15.37.27:896][ 78]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.37.27:896][ 78]LogAutomationController: Error: Expected 'CosmicTests::WithoutPressure takes all of it away and keeps every transcendent row' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(2969)]
+b4d2_unpressed_keeps_voice KILLED [('Integrity', 'Fail')] 84s
+     [2026.11.09-15.38.51:253][921]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.38.51:253][921]LogAutomationController: Error: Expected 'CosmicTests::WithoutPressure takes all of it away and keeps every transcendent row' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(2969)]
+b5b_countdown_two_a_tick KILLED [('DeathPipeline', 'Fail'), ('NoPlayerDuringLeap', 'Fail')] 85s
+     [2026.11.09-15.40.16:713][905]LogAutomationController: Error: Test Completed. Result={Fail} Name={DeathPipeline} Path={Cosmic_Ascension.Calling.DeathPipeline}
+     [2026.11.09-15.40.16:713][905]LogAutomationController: Error: Expected 'The next tick's tenth stage takes one tick off the leap' to be 1464, but it was 1463. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDeathTests.cpp(725)]
+     [2026.11.09-15.40.16:720][907]LogAutomationController: Error: Test Completed. Result={Fail} Name={NoPlayerDuringLeap} Path={Cosmic_Ascension.Calling.NoPlayerDuringLeap}
+     [2026.11.09-15.40.16:720][907]LogAutomationController: Error: Expected 'Every tick of the leap takes one off it and nothing else ends the interregnum' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDeathTests.cpp(1262)]
+b5b_death_keeps_reverence KILLED [('DeathPipeline', 'Fail'), ('RulerDeath', 'Fail')] 27s
+     [2026.11.09-15.40.43:472][204]LogAutomationController: Error: Test Completed. Result={Fail} Name={DeathPipeline} Path={Cosmic_Ascension.Calling.DeathPipeline}
+     [2026.11.09-15.40.43:472][204]LogAutomationController: Error: Expected 'Every people's reverence is 0 (decision 23-na - not the deposition's decay)' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDeathTests.cpp(682)]
+     [2026.11.09-15.40.43:478][206]LogAutomationController: Error: Test Completed. Result={Fail} Name={RulerDeath} Path={Cosmic_Ascension.Calling.RulerDeath}
+     [2026.11.09-15.40.43:478][206]LogAutomationController: Error: Expected 'Every people's reverence is 0' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDeathTests.cpp(938)]
+b5b_dying_vessel_moves KILLED [('DeathPipeline', 'Fail')] 21s
+     [2026.11.09-15.41.04:573][439]LogAutomationController: Error: Test Completed. Result={Fail} Name={DeathPipeline} Path={Cosmic_Ascension.Calling.DeathPipeline}
+     [2026.11.09-15.41.04:573][439]LogAutomationController: Error: Expected 'A vessel whose death the tick recorded does not move: it stays at the journey's origin' to be sys_5, but it was sys_6. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDeath
+     [2026.11.09-15.41.04:573][439]LogAutomationController: Error: Expected 'It does not look at the neighbour' to be false. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDeathTests.cpp(768)]
+     [2026.11.09-15.41.04:573][439]LogAutomationController: Error: Expected 'nor meet the neighbour's people through a look or a card' to be false. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDeathTests.cpp(769)]
+b5d1_death_line_after_leap KILLED [('DeathPipeline', 'Fail')] 23s
+     [2026.11.09-15.41.27:862][802]LogAutomationController: Error: Test Completed. Result={Fail} Name={DeathPipeline} Path={Cosmic_Ascension.Calling.DeathPipeline}
+     [2026.11.09-15.41.27:862][802]LogAutomationController: Error: Expected 'It is told while the vessel still stands - before the interregnum and its leap' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDeathTests.cpp(706)]
+     [2026.11.09-15.41.27:862][802]LogAutomationController: Error: Expected 'before the reverence is cleared' to be 0.200000, but it was 0.000000 and outside tolerance 0.000100. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDeathTests.cpp(707)]
+     [2026.11.09-15.41.27:862][802]LogAutomationController: Error: Expected 'and before any number of the death is drawn' to be -1715424353, but it was -724988074. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDeathTests.cpp(708)]
+b5d1_death_line_draws_sim KILLED [('DeathPipeline', 'Fail')] 21s
+     [2026.11.09-15.41.48:086][694]LogAutomationController: Error: Test Completed. Result={Fail} Name={DeathPipeline} Path={Cosmic_Ascension.Calling.DeathPipeline}
+     [2026.11.09-15.41.48:086][694]LogAutomationController: Error: Expected 'A wanderer's death draws exactly one number more than the same tick without it (the leap)' to be 1, but it was 2. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDeathTests
+     [2026.11.09-15.41.48:086][694]LogAutomationController: Error: Expected 'The remaining leap is that one number through LeapOf' to be 1465, but it was 890. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDeathTests.cpp(676)]
+     [2026.11.09-15.41.48:086][694]LogAutomationController: Error: Expected 'The run total takes it once' to be 1465, but it was 890. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDeathTests.cpp(677)]
+b5d1_death_line_focus KILLED [('DeathPipeline', 'Fail')] 23s
+     [2026.11.09-15.42.11:269][804]LogAutomationController: Error: Test Completed. Result={Fail} Name={DeathPipeline} Path={Cosmic_Ascension.Calling.DeathPipeline}
+     [2026.11.09-15.42.11:269][804]LogAutomationController: Error: Expected 'A wanderer's death: with no focus - it calls no system and no people' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDeathTests.cpp(542)]
+     [2026.11.09-15.42.11:269][804]LogAutomationController: Error: Expected 'Log.Calling, Severity 2, told, with no focus' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDeathTests.cpp(839)]
+b5d1_no_death_line KILLED [('DeathPipeline', 'Fail')] 20s
+     [2026.11.09-15.42.31:343][837]LogAutomationController: Error: Test Completed. Result={Fail} Name={DeathPipeline} Path={Cosmic_Ascension.Calling.DeathPipeline}
+     [2026.11.09-15.42.31:344][837]LogAutomationController: Error: Expected 'A wanderer's death: the death tells one death line' to be 1, but it was 0. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDeathTests.cpp(535)]
+     [2026.11.09-15.42.31:344][837]LogAutomationController: Error: Expected 'A wanderer's death: (the death line)' to be not null. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDeathTests.cpp(536)]
+     [2026.11.09-15.42.31:344][837]LogAutomationController: Error: Expected 'It is the last line of the death's tick (the tenth stage is the last)' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDeathTests.cpp(704)]
+b5d2_first_crisis_edge_open KILLED [('Integrity', 'Fail')] 33s
+     [2026.11.09-15.43.04:201][775]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.43.04:201][775]LogAutomationController: Error: Expected 'Reported: a birth protection ending on the first crisis's expiry tick' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1218)]
+b5d2_without_death_keeps_expiry KILLED [('Integrity', 'Fail')] 81s
+     [2026.11.09-15.44.25:832][861]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.44.25:832][861]LogAutomationController: Error: Expected 'CosmicTests::WithoutDeath takes every death away (left: DT_Hazards.crisis_ai_awakening.OnExpireEffects Death.Hazard)' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\
+     [2026.11.09-15.44.25:832][861]LogAutomationController: Error: Expected 'A first crisis that kills nobody needs no protection over it' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(2840)]
+b5r_death_draws_when_stepped KILLED [('PhaseTwoExit', 'Fail')] 85s
+     [2026.11.09-15.45.50:851][808]LogAutomationController: Error: Test Completed. Result={Fail} Name={PhaseTwoExit} Path={Cosmic_Ascension.Sim.PhaseTwoExit}
+     [2026.11.09-15.45.50:851][808]LogAutomationController: Error: Stepped with the gate open, one tick at a time is the same world as the whole run at once with it closed: The two values are not equal. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\Cosm
+b5r_deposed_no_status KILLED [('PhaseTwoExit', 'Fail')] 24s
+     [2026.11.09-15.46.14:642][940]LogAutomationController: Error: Test Completed. Result={Fail} Name={PhaseTwoExit} Path={Cosmic_Ascension.Sim.PhaseTwoExit}
+     [2026.11.09-15.46.14:642][940]LogAutomationController: Error: Expected 'and carries the status of a fallen monarch at the boundary of the deposition' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicSimTests.cpp(2419)]
+     [2026.11.09-15.46.14:642][940]LogAutomationController: Error: Expected 'The status of a fallen monarch is held at every boundary from the deposition until the deposed life closes' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicSimT
+b5r_fallen_status_one_tick KILLED [('PhaseTwoExit', 'Fail')] 37s
+     [2026.11.09-15.46.51:794][136]LogAutomationController: Error: Test Completed. Result={Fail} Name={PhaseTwoExit} Path={Cosmic_Ascension.Sim.PhaseTwoExit}
+     [2026.11.09-15.46.51:794][136]LogAutomationController: Error: Expected 'The status of a fallen monarch is held at every boundary from the deposition until the deposed life closes' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicSimT
+b5r_phase_two_no_death KILLED [('PhaseTwoExit', 'Fail')] 24s
+     [2026.11.09-15.47.16:276][572]LogAutomationController: Error: Test Completed. Result={Fail} Name={PhaseTwoExit} Path={Cosmic_Ascension.Sim.PhaseTwoExit}
+     [2026.11.09-15.47.16:276][572]LogAutomationController: Error: Expected '(the whole run: the deposed life closes after the deposition and a succession follows before the end)' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicSimTests.
+b6a2_ending_out_of_world_hash KILLED [('HashCoversEnding', 'Fail'), ('TellStreamSeparate', 'Fail')] 21s
+     [2026.11.09-15.47.37:265][338]LogAutomationController: Error: Test Completed. Result={Fail} Name={HashCoversEnding} Path={Cosmic_Ascension.Sim.HashCoversEnding}
+     [2026.11.09-15.47.37:265][338]LogAutomationController: Error: Expected 'A kind moves the world hash' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicEndingTests.cpp(366)]
+     [2026.11.09-15.47.37:265][338]LogAutomationController: Error: Expected 'A tick moves the world hash' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicEndingTests.cpp(366)]
+     [2026.11.09-15.47.37:265][338]LogAutomationController: Error: Expected 'A people moves the world hash' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicEndingTests.cpp(366)]
+b6a6_exalt_as_before_is_the_game KILLED [('ExaltArrives', 'Fail')] 84s
+     [2026.11.09-15.49.02:099][271]LogAutomationController: Error: Test Completed. Result={Fail} Name={ExaltArrives} Path={Cosmic_Ascension.Sim.ExaltArrives}
+     [2026.11.09-15.49.02:099][271]LogAutomationController: Error: Expected 'WithExaltAsBefore gives the row the old PlayerTierAtLeast 2 and no CivTierAtLeast' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicExaltTests.cpp(203)]
+     [2026.11.09-15.49.02:099][271]LogAutomationController: Error: Expected 'and leaves the game's own table as it is' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicExaltTests.cpp(207)]
+     [2026.11.09-15.49.02:099][271]LogAutomationController: Error: Expected 'but petition_exalt does not come in the climb tick' to differ from petition_exalt, but it was petition_exalt. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicExaltTests.cpp
+b6b2a_laws_held_no_min KILLED [('Evaluate', 'Fail')] 85s
+     [2026.11.09-15.50.27:412][175]LogAutomationController: Error: Test Completed. Result={Fail} Name={Evaluate} Path={Cosmic_Ascension.Feats.Evaluate}
+     [2026.11.09-15.50.27:412][175]LogAutomationController: Error: The vessel's people waits: 49 stages of this life, not the 1001 ticks of the count: The two values are not equal. [C:\Program Files\Epic Games\UE_5.8\Engine\Source\Runtime\Core\Public\Misc\AutomationTest.h(2190)]
+b6b2a_treaty_strictly_more KILLED [('Evaluate', 'Fail')] 20s
+     [2026.11.09-15.50.47:961][329]LogAutomationController: Error: Test Completed. Result={Fail} Name={Evaluate} Path={Cosmic_Ascension.Feats.Evaluate}
+     [2026.11.09-15.50.47:961][329]LogAutomationController: Error: With the non-aggression it shares, the people of the third rung climbs: The two values are not equal. [C:\Program Files\Epic Games\UE_5.8\Engine\Source\Runtime\Core\Public\Misc\AutomationTest.h(2190)]
+b6b2b_death_row_hazard KILLED [('DeathPipeline', 'Fail')] 22s
+     [2026.11.09-15.51.09:731][894]LogAutomationController: Error: Test Completed. Result={Fail} Name={DeathPipeline} Path={Cosmic_Ascension.Calling.DeathPipeline}
+     [2026.11.09-15.51.09:731][894]LogAutomationController: Error: Expected 'The extinction's death tells its own death line' to be 1, but it was 0. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDeathTests.cpp(832)]
+     [2026.11.09-15.51.09:731][894]LogAutomationController: Error: Expected 'and not the line of one person a star lost' to be 0, but it was 1. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDeathTests.cpp(833)]
+b6b2b_kills_ruler_other_tag KILLED [('Integrity', 'Fail'), ('ExtinctionExpiry', 'Fail')] 21s
+     [2026.11.09-15.51.30:460][622]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.51.30:460][622]LogAutomationController: Error: Expected 'The code's one death is the extinction's expiry (decision 5, DECISIONS_LOG B6b [B-6b2b]): exactly crisis_species_extinction kills the ruler at its expiry - another source of death is a new decision (found: crisis_plague, crisis_
+     [2026.11.09-15.51.30:460][622]LogAutomationController: Error: Expected 'WithoutB6bData after WithoutDeath leaves no hazard that kills the ruler' to be false. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(2811)]
+     [2026.11.09-15.51.30:460][622]LogAutomationController: Error: Expected 'and so does WithoutDeath after WithoutB6bData' to be false. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(2811)]
+b6b2c_binding_read_as_sealed KILLED [('Evaluate', 'Fail')] 21s
+     [2026.11.09-15.51.51:429][508]LogAutomationController: Error: Test Completed. Result={Fail} Name={Evaluate} Path={Cosmic_Ascension.Feats.Evaluate}
+     [2026.11.09-15.51.51:429][508]LogAutomationController: Error: Another people on the fourth rung does not climb by it: the record names its maker: The two values are not equal. [C:\Program Files\Epic Games\UE_5.8\Engine\Source\Runtime\Core\Public\Misc\AutomationTest.h(2190)]
+b6b2c_nofallen_after_slot KILLED [('StartBlockReasons', 'Fail')] 21s
+     [2026.11.09-15.52.12:196][779]LogAutomationController: Error: Test Completed. Result={Fail} Name={StartBlockReasons} Path={Cosmic_Ascension.Sim.StartBlockReasons}
+     [2026.11.09-15.52.12:196][779]LogAutomationController: Error: Expected 'A running binding with no fallen one left is NoFallen: the fallen one before the slot' to be 10, but it was 13. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicAscensionTes
+b6b2c_nofallen_before_rowtier KILLED [('StartBlockReasons', 'Fail')] 20s
+     [2026.11.09-15.52.32:714][739]LogAutomationController: Error: Test Completed. Result={Fail} Name={StartBlockReasons} Path={Cosmic_Ascension.Sim.StartBlockReasons}
+     [2026.11.09-15.52.32:714][739]LogAutomationController: Error: Expected 'Below the row's rung it is RowTier: the rung before the fallen one' to be 9, but it was 10. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicAscensionTests.cpp(1117)]
+b6b3b_fourth_cap_every_row KILLED [('RaceMeasure', 'Fail')] 86s
+     [2026.11.09-15.53.58:570][971]LogAutomationController: Error: Test Completed. Result={Fail} Name={RaceMeasure} Path={Cosmic_Ascension.Sim.RaceMeasure}
+     [2026.11.09-15.53.58:570][971]LogAutomationController: Error: Expected 'Every other row is equal: gal_andromeda' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicRaceMeasureTests.cpp(390)]
+     [2026.11.09-15.53.58:570][971]LogAutomationController: Error: Expected 'Every other row is equal: gal_cen_a' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicRaceMeasureTests.cpp(390)]
+     [2026.11.09-15.53.58:570][971]LogAutomationController: Error: Expected 'Every other row is equal: gal_fornax_dsph' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicRaceMeasureTests.cpp(390)]
+b6b3b_fourth_cap_home_row_blank KILLED [('RaceMeasure', 'Fail')] 95s
+     [2026.11.09-15.55.33:479][318]LogAutomationController: Error: Test Completed. Result={Fail} Name={RaceMeasure} Path={Cosmic_Ascension.Sim.RaceMeasure}
+     [2026.11.09-15.55.33:479][318]LogAutomationController: Error: Expected 'and every other field of the home row is the game's: the same world, the cap alone differs' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicRaceMeasureTests.cpp
+b6b3b_fourth_cap_home_row_only KILLED [('RaceMeasure', 'Fail')] 100s
+     [2026.11.09-15.57.13:222][459]LogAutomationController: Error: Test Completed. Result={Fail} Name={RaceMeasure} Path={Cosmic_Ascension.Sim.RaceMeasure}
+     [2026.11.09-15.57.13:222][459]LogAutomationController: Error: Expected 'No row is left out' to be 20, but it was 1. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicRaceMeasureTests.cpp(384)]
+     [2026.11.09-15.57.13:222][459]LogAutomationController: Error: Expected 'The copy holds gal_andromeda' to be not null. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicRaceMeasureTests.cpp(388)]
+     [2026.11.09-15.57.13:222][459]LogAutomationController: Error: Expected 'The copy holds gal_cen_a' to be not null. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicRaceMeasureTests.cpp(388)]
+b6b3b_without_b6b_default_rules KILLED [('Integrity', 'Fail')] 89s
+     [2026.11.09-15.58.42:952][788]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-15.58.42:952][788]LogAutomationController: Error: Expected 'Its knobs are off (1 and 0) and every other field of the rules is the copy's - GalaxyLawsToHold and the clock too' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\Cos
+b6b3b_without_b6b_drops_log_rows KILLED [('Integrity', 'Fail')] 83s
+     [2026.11.09-16.00.06:445][325]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-16.00.06:445][325]LogAutomationController: Error: Expected 'and leaves the other tables alone (the log rows, the galaxies)' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(2799)]
+     [2026.11.09-16.00.06:445][325]LogAutomationController: Error: Expected 'B6b's log row log_record_extinct stays (a line, not world)' to be not null. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(2808)]
+     [2026.11.09-16.00.06:445][325]LogAutomationController: Error: Expected 'B6b's log row log_death_extinction stays (a line, not world)' to be not null. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(2808)]
+b6b3b_without_b6b_drops_other_rows KILLED [('Integrity', 'Fail')] 81s
+     [2026.11.09-16.01.27:702][766]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-16.01.27:702][766]LogAutomationController: Error: Expected 'Today's data: WithoutB6bData takes out [B-6b6]'s three rows and project_binding (taken: feat_passage_by_ark project_ark project_binding crisis_species_extinction petition_exalt) - [B-6b7] and [B-6b8] update this pin with their r
+     [2026.11.09-16.01.27:702][766]LogAutomationController: Error: Expected 'On the full copy WithoutB6bData takes out the ten rows, in order (taken: feat_passage_by_ark feat_laws_and_binding project_ark project_binding crisis_species_extinction edict_wide_machine_accord edict_wide_quarantine edict_wide_
+     [2026.11.09-16.01.27:702][766]LogAutomationController: Error: Expected 'and keeps every other row of the six tables' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1782)]
+b6b3b_without_b6b_keeps_binding KILLED [('Integrity', 'Fail')] 103s
+     [2026.11.09-16.03.10:630][331]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-16.03.10:630][331]LogAutomationController: Error: Expected 'Today's data: WithoutB6bData takes out [B-6b6]'s three rows and project_binding (taken: feat_passage_by_ark project_ark crisis_species_extinction) - [B-6b7] and [B-6b8] update this pin with their rows' to be true. [C:\Users\rhww
+     [2026.11.09-16.03.10:630][331]LogAutomationController: Error: Expected 'On the full copy WithoutB6bData takes out the ten rows, in order (taken: feat_passage_by_ark feat_laws_and_binding project_ark crisis_species_extinction edict_wide_machine_accord edict_wide_quarantine edict_wide_warning event_er
+     [2026.11.09-16.03.10:630][331]LogAutomationController: Error: Expected 'and keeps every other row of the six tables' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1782)]
+b6b3b_without_b6b_keeps_extinction KILLED [('Integrity', 'Fail')] 101s
+     [2026.11.09-16.04.52:105][116]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-16.04.52:105][116]LogAutomationController: Error: Expected 'Today's data: WithoutB6bData takes out [B-6b6]'s three rows and project_binding (taken: feat_passage_by_ark project_ark project_binding) - [B-6b7] and [B-6b8] update this pin with their rows' to be true. [C:\Users\rhwwl\OneDrive
+     [2026.11.09-16.04.52:105][116]LogAutomationController: Error: Expected 'On the full copy WithoutB6bData takes out the ten rows, in order (taken: feat_passage_by_ark feat_laws_and_binding project_ark project_binding edict_wide_machine_accord edict_wide_quarantine edict_wide_warning event_era_endured 
+     [2026.11.09-16.04.52:105][116]LogAutomationController: Error: Expected 'and keeps every other row of the six tables' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\CosmicDataTests.cpp(1782)]
+b6b3b_without_b6b_keeps_knobs KILLED [('Integrity', 'Fail')] 84s
+     [2026.11.09-16.06.16:069][342]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-16.06.16:069][342]LogAutomationController: Error: Expected 'Its knobs are off (1 and 0) and every other field of the rules is the copy's - GalaxyLawsToHold and the clock too' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\Tests\Cos
+done

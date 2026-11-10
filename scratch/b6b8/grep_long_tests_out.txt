@@ -1,0 +1,28 @@
+smoke filter: Cosmic_Ascension.Sim.Determinism+Cosmic_Ascension.Sim.Save+Cosmic_Ascension.Data+Cosmic_Ascension.Sim.KnowingInert
+test | file:line | most ticks | own DT_Events or no pressure | own DT_Encounters | WithoutB6bData | ruler words | wanderer words | claim words | tier
+Cosmic_Ascension.Sim.StartBlockReasons | CosmicAscensionTests.cpp:951 | 2000 | False | False | False | True | False | False | full
+Cosmic_Ascension.Feats.Reachable | CosmicAscensionTests.cpp:1760 | 20000 | False | False | False | False | False | False | full
+Cosmic_Ascension.Sim.AwarenessOnce | CosmicAwarenessTests.cpp:221 | 20 | False | False | False | False | True | True | full
+Cosmic_Ascension.Events.BookCycle | CosmicBookTests.cpp:482 | 1799 | False | False | False | False | False | False | full
+Cosmic_Ascension.UI.Chronicle | CosmicChronicleScreenTests.cpp:600 | 1500 | False | False | True | True | True | True | full
+Cosmic_Ascension.Data.Integrity | CosmicDataTests.cpp:1178 | 0 | True | True | True | True | True | True | smoke
+Cosmic_Ascension.Sim.StartingEdict | CosmicEdictTests.cpp:746 | 1200 | False | False | False | True | False | False | full
+Cosmic_Ascension.Sim.EndingRecordOnce | CosmicEndingTests.cpp:655 | 6005 | False | False | False | True | False | False | full
+Cosmic_Ascension.Events.RowOrderInert | CosmicEventTests.cpp:1019 | 1000 | True | False | False | False | False | False | full
+Cosmic_Ascension.Events.NotableDrawFixed | CosmicEventTests.cpp:1880 | 1000 | False | False | False | False | False | False | full
+Cosmic_Ascension.Log.ClaimVoice | CosmicHazardTests.cpp:1767 | 2 | False | False | False | True | True | True | full
+Cosmic_Ascension.Sim.NotablesFromEventsOnly | CosmicHazardTests.cpp:2984 | 20000 | False | False | False | False | True | False | full
+Cosmic_Ascension.Sim.KnowingInert | CosmicKnowingTests.cpp:1567 | 20000 | False | False | False | True | True | False | smoke
+Cosmic_Ascension.Log.NoConsecutiveRepeat | CosmicLogTests.cpp:42 | 20000 | False | False | False | False | False | False | full
+Cosmic_Ascension.Sim.PetitionPresent | CosmicPetitionTests.cpp:139 | 700 | False | False | False | True | True | False | full
+Cosmic_Ascension.Sim.SaveSlotForm | CosmicSaveSlotTests.cpp:130 | 1000 | False | False | False | False | False | False | smoke
+Cosmic_Ascension.Sim.SaveNeutral | CosmicSaveSlotTests.cpp:501 | 2000 | False | False | False | False | False | False | smoke
+Cosmic_Ascension.Sim.NoNaN | CosmicSimTests.cpp:591 | 10000 | False | False | False | False | False | False | full
+Cosmic_Ascension.Sim.FrameStep | CosmicSimTests.cpp:747 | 734 | False | False | False | False | False | False | full
+Cosmic_Ascension.Sim.TellStreamSeparate | CosmicSimTests.cpp:1661 | 3000 | False | False | False | False | False | False | full
+Cosmic_Ascension.Sim.SaveRoundTrip | CosmicSimTests.cpp:1786 | 1000 | False | False | False | False | False | False | smoke
+Cosmic_Ascension.Sim.LayersInRange | CosmicSimTests.cpp:2065 | 1000 | False | False | False | False | False | False | full
+Cosmic_Ascension.Sim.PhaseTwoExit | CosmicSimTests.cpp:2268 | 0 | False | False | True | True | True | True | full
+Cosmic_Ascension.UI.SpiritualSight | CosmicSpiritualSightTests.cpp:228 | 0 | False | False | False | True | True | True | full
+Cosmic_Ascension.Sim.ExtinctionExpiry | CosmicUpperRungTests.cpp:906 | 0 | False | False | False | True | True | True | full
+Cosmic_Ascension.UI.ClaimMayFollow | CosmicWarningLineTests.cpp:261 | 1 | False | False | False | True | True | True | full

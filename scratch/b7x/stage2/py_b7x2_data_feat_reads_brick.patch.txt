@@ -1,0 +1,99 @@
+..................................F........................FF........F.......................F....
+======================================================================
+FAIL: test_every_table_source_of_the_folder_is_read (__main__.SchemaTests.test_every_table_source_of_the_folder_is_read)
+A DT_*.json the schema does not name is not skipped: it is a table nobody declared.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\rhwwl\AppData\Local\Temp\claude\c--Users-rhwwl-OneDrive-Documents-Unreal-Projects-Cosmic-Ascension\37de2919-0c44-45d8-94cd-4dcf0860263e\scratchpad\b7x\int\Tools\test_data_schema.py", line 475, in test_every_table_source_of_the_folder_is_read
+    self.assertEqual(checker.check_project(work), [])
+AssertionError: Lists differ: ['DT_Feats.feat_dyson_swarm: K4 - a rung c[193 chars]"}}'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'DT_Feats.feat_dyson_swarm: K4 - a rung comes from a feat\'s deed, never from a brick or a mutation (B7x header K4): it does not hold {"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Mutation.StarTow"}}'
+
++ []
+- ["DT_Feats.feat_dyson_swarm: K4 - a rung comes from a feat's deed, never from "
+-  'a brick or a mutation (B7x header K4): it does not hold {"col": '
+-  '"CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": '
+-  '"Brick.Mutation.StarTow"}}']
+
+======================================================================
+FAIL: test_project_and_fixture_rows_pass (__main__.SchemaTests.test_project_and_fixture_rows_pass)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\rhwwl\AppData\Local\Temp\claude\c--Users-rhwwl-OneDrive-Documents-Unreal-Projects-Cosmic-Ascension\37de2919-0c44-45d8-94cd-4dcf0860263e\scratchpad\b7x\int\Tools\test_data_schema.py", line 428, in test_project_and_fixture_rows_pass
+    self.assertEqual(checker.check_project(), [])
+AssertionError: Lists differ: ['DT_Feats.feat_dyson_swarm: K4 - a rung c[193 chars]"}}'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'DT_Feats.feat_dyson_swarm: K4 - a rung comes from a feat\'s deed, never from a brick or a mutation (B7x header K4): it does not hold {"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Mutation.StarTow"}}'
+
++ []
+- ["DT_Feats.feat_dyson_swarm: K4 - a rung comes from a feat's deed, never from "
+-  'a brick or a mutation (B7x header K4): it does not hold {"col": '
+-  '"CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": '
+-  '"Brick.Mutation.StarTow"}}']
+
+======================================================================
+FAIL: test_reading_the_sources (__main__.SchemaTests.test_reading_the_sources)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\rhwwl\AppData\Local\Temp\claude\c--Users-rhwwl-OneDrive-Documents-Unreal-Projects-Cosmic-Ascension\37de2919-0c44-45d8-94cd-4dcf0860263e\scratchpad\b7x\int\Tools\test_data_schema.py", line 449, in test_reading_the_sources
+    self.assertEqual(checker.check_sources(base), [])
+AssertionError: Lists differ: ['DT_Feats.feat_dyson_swarm: K4 - a rung c[193 chars]"}}'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'DT_Feats.feat_dyson_swarm: K4 - a rung comes from a feat\'s deed, never from a brick or a mutation (B7x header K4): it does not hold {"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Mutation.StarTow"}}'
+
++ []
+- ["DT_Feats.feat_dyson_swarm: K4 - a rung comes from a feat's deed, never from "
+-  'a brick or a mutation (B7x header K4): it does not hold {"col": '
+-  '"CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": '
+-  '"Brick.Mutation.StarTow"}}']
+
+======================================================================
+FAIL: test_rows_the_code_calls_by_name (__main__.SchemaTests.test_rows_the_code_calls_by_name)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\rhwwl\AppData\Local\Temp\claude\c--Users-rhwwl-OneDrive-Documents-Unreal-Projects-Cosmic-Ascension\37de2919-0c44-45d8-94cd-4dcf0860263e\scratchpad\b7x\int\Tools\test_data_schema.py", line 621, in test_rows_the_code_calls_by_name
+    self.assertEqual(checker.check_project(work), [])
+AssertionError: Lists differ: ['DT_Feats.feat_dyson_swarm: K4 - a rung c[193 chars]"}}'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'DT_Feats.feat_dyson_swarm: K4 - a rung comes from a feat\'s deed, never from a brick or a mutation (B7x header K4): it does not hold {"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Mutation.StarTow"}}'
+
++ []
+- ["DT_Feats.feat_dyson_swarm: K4 - a rung comes from a feat's deed, never from "
+-  'a brick or a mutation (B7x header K4): it does not hold {"col": '
+-  '"CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": '
+-  '"Brick.Mutation.StarTow"}}']
+
+======================================================================
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words)
+B6b [B-6b5] (header 3.3, notes 1.6, decision 33): the words of the upper rungs. A rung grasped, reached or raced
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\rhwwl\AppData\Local\Temp\claude\c--Users-rhwwl-OneDrive-Documents-Unreal-Projects-Cosmic-Ascension\37de2919-0c44-45d8-94cd-4dcf0860263e\scratchpad\b7x\int\Tools\test_data_schema.py", line 2224, in test_upper_rung_text_words
+    self.assertEqual(checker.check_project(), [])
+AssertionError: Lists differ: ['DT_Feats.feat_dyson_swarm: K4 - a rung c[193 chars]"}}'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'DT_Feats.feat_dyson_swarm: K4 - a rung comes from a feat\'s deed, never from a brick or a mutation (B7x header K4): it does not hold {"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Mutation.StarTow"}}'
+
++ []
+- ["DT_Feats.feat_dyson_swarm: K4 - a rung comes from a feat's deed, never from "
+-  'a brick or a mutation (B7x header K4): it does not hold {"col": '
+-  '"CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": '
+-  '"Brick.Mutation.StarTow"}}']
+
+----------------------------------------------------------------------
+Ran 98 tests in 88.901s
+
+FAILED (failures=5)
+DT_Feats.feat_dyson_swarm: K4 - a rung comes from a feat's deed, never from a brick or a mutation (B7x header K4): it does not hold {"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Mutation.StarTow"}}
+check_data: 1 problem(s)

@@ -1,0 +1,23 @@
+checks	EQUAL	errors end/race/LogCosmic (0, 0, 0)
+   CosmicBalance: seed 42, 3000 ticks, hash 2557850423, world 2906170550
+   CosmicBalance stages: diplomacy 1.23 us, conflict 0.29 us, crisis 8.52 us, AI 6.00 us (means of 3000 ticks); diplomacy + conflict 8.0% of the tick mean; economy 1.57 us, card presentation 0.04 us
+checks_ruler	EQUAL	errors end/race/LogCosmic (0, 0, 0)
+   CosmicBalance: seed 42, 3000 ticks, hash 1189870756, world 3359656751 | CosmicBalance ruler: answer 1 build 1 focus 1 edict 1 diplomacy 1; cards 17, answers 17, started 5, focus changes 5, edict changes 5, diplomacy changes 17, decisions 49 (by 600 12, by 6000 -1, by end -1); told by 600 25, by 6000 -1; ruled people T2 at 1175, T3 at 2375
+   CosmicBalance stages: diplomacy 1.34 us, conflict 0.28 us, crisis 8.71 us, AI 5.62 us (means of 3000 ticks); diplomacy + conflict 7.9% of the tick mean; economy 1.61 us, card presentation 0.75 us
+checks_wanderer	EQUAL	errors end/race/LogCosmic (0, 0, 0)
+   CosmicBalance: seed 42, 6000 ticks, hash 1631315934, world 489794244 | CosmicBalance ruler: answer 1 build 1 focus 1 edict 1 diplomacy 1; cards 8, answers 8, started 2, focus changes 4, edict changes 3, diplomacy changes 2, decisions 19 (by 600 12, by 6000 19, by end 19); told by 600 25, by 6000 733; ruled people T2 at 1175, T3 at -1 | CosmicBalance wanderer: abdicate 1200 wander 1; left at 1201, crowned at -1 (None, tier 0, path none), journeys 191, scans 191, cards 7, answers 7, reverence peak 0.00, body 3, mind 1
+   CosmicBalance stages: diplomacy 2.21 us, conflict 0.44 us, crisis 17.54 us, AI 7.56 us (means of 6000 ticks); diplomacy + conflict 8.2% of the tick mean; economy 2.81 us, card presentation 0.17 us
+checks_20000	EQUAL	errors end/race/LogCosmic (0, 0, 0)
+   CosmicBalance: seed 42, 20000 ticks, hash 1957158585, world 3764704052
+   CosmicBalance stages: diplomacy 2.84 us, conflict 0.56 us, crisis 24.98 us, AI 10.35 us (means of 20000 ticks); diplomacy + conflict 7.9% of the tick mean; economy 2.83 us, card presentation 0.11 us
+checks_ruler_20000	EQUAL	errors end/race/LogCosmic (0, 0, 0)
+   CosmicBalance: seed 42, 20000 ticks, hash 1375149537, world 510604211 | CosmicBalance ruler: answer 1 build 1 focus 1 edict 1 diplomacy 1; cards 110, answers 110, started 41, focus changes 5, edict changes 18, diplomacy changes 17, decisions 191 (by 600 12, by 6000 90, by end 89); told by 600 25, by 6000 927; ruled people T2 at 1175, T3 at 2375
+   CosmicBalance stages: diplomacy 3.00 us, conflict 0.52 us, crisis 23.97 us, AI 8.29 us (means of 20000 ticks); diplomacy + conflict 8.3% of the tick mean; economy 2.65 us, card presentation 1.17 us
+hashrun	EQUAL	errors end/race/LogCosmic (0, 0, 0)
+   seed 42, 3000 ticks, hash 2557850423, world 2906170550
+hashrun_policy	EQUAL	errors end/race/LogCosmic (0, 0, 0)
+   seed 42, 3000 ticks, hash 1189870756, world 3359656751
+record Tests1	errors end/race/LogCosmic (0, 0, 0)
+record Tests2	errors end/race/LogCosmic (0, 0, 0)
+record GameSmoke	errors end/race/LogCosmic (0, 0, 0)
+final_lines: PASS

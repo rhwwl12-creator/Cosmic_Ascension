@@ -1,0 +1,5 @@
+7d9302c018a28540b54c6874de163ce01937d12a *Binaries/Win64/UnrealEditor-Cosmic_Ascension.dll
+794eec5c6a36045a4241c8486657cd752d57d3ca *Binaries/Win64/Cosmic_Ascension.exe
+99e15ee777e82ef8a044bdce8ea8ba3d46bb957d *Content/CA/Data/DT_Hazards.uasset
+9e61b256d36d91c8c17f320f8eeb690d10a05fb2 *Content/CA/Data/DT_Megaprojects.uasset
+ea8c270d8eaf369cf61730b3dedc0361295db2fa *Content/CA/Data/DT_Feats.uasset

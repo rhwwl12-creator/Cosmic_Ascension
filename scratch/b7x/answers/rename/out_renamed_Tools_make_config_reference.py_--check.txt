@@ -1,0 +1,1 @@
+make_config_reference: docs/30_CONFIG_REFERENCE.md is stale - run the script

@@ -1,0 +1,134 @@
+--- a/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
++++ b/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
+@@ -29,6 +29,55 @@
+ 	{
+ 		return Table ? Table->FindRow<RowType>(RowName, TEXT("FCosmicDataTables"), false) : nullptr;
+ 	}
++
++	// The sorted row names of a table, remembered with the key sequence they were made from (RowMap iteration order,
++	// compared case-sensitively with the number). The sorted list is a function of that sequence alone, so a table that
++	// gained, lost or renamed a row - or another table - is sorted again; the array handed out is the same.
++	struct FSortedNamesMemo
++	{
++		TArray<FName> Keys;
++		TArray<FName> Sorted;
++		bool bValid = false;
++	};
++
++	bool SameKeySequence(const UDataTable* Table, const TArray<FName>& Keys)
++	{
++		const TMap<FName, uint8*>& RowMap = Table->GetRowMap();
++		if (RowMap.Num() != Keys.Num())
++		{
++			return false;
++		}
++		int32 At = 0;
++		for (const TPair<FName, uint8*>& Row : RowMap)
++		{
++			if (!Row.Key.IsEqual(Keys[At], ENameCase::CaseSensitive, true))
++			{
++				return false;
++			}
++			++At;
++		}
++		return true;
++	}
++
++	TArray<FName> SortedRowNamesOf(const UDataTable* Table, FSortedNamesMemo& Memo)
++	{
++		if (!Table)
++		{
++			return TArray<FName>();
++		}
++		if (!Memo.bValid || !SameKeySequence(Table, Memo.Keys))
++		{
++			Memo.Keys.Reset();
++			for (const TPair<FName, uint8*>& Row : Table->GetRowMap())
++			{
++				Memo.Keys.Add(Row.Key);
++			}
++			Memo.Sorted = Table->GetRowNames();
++			Memo.Sorted.Sort(FNameLexicalLess());
++			Memo.bValid = true;
++		}
++		return Memo.Sorted;
++	}
+ }
+ 
+ void FCosmicDataTables::LoadFromFixedPaths()
+@@ -128,37 +177,32 @@
+ 
+ TArray<FName> FCosmicDataTables::GetEventRowNames() const
+ {
+-	TArray<FName> Names = Events ? Events->GetRowNames() : TArray<FName>();
+-	Names.Sort(FNameLexicalLess());
+-	return Names;
++	static FSortedNamesMemo Memo;
++	return SortedRowNamesOf(Events, Memo);
+ }
+ 
+ TArray<FName> FCosmicDataTables::GetTranscendentRowNames() const
+ {
+-	TArray<FName> Names = Transcendents ? Transcendents->GetRowNames() : TArray<FName>();
+-	Names.Sort(FNameLexicalLess());
+-	return Names;
++	static FSortedNamesMemo Memo;
++	return SortedRowNamesOf(Transcendents, Memo);
+ }
+ 
+ TArray<FName> FCosmicDataTables::GetHazardRowNames() const
+ {
+-	TArray<FName> Names = Hazards ? Hazards->GetRowNames() : TArray<FName>();
+-	Names.Sort(FNameLexicalLess());
+-	return Names;
++	static FSortedNamesMemo Memo;
++	return SortedRowNamesOf(Hazards, Memo);
+ }
+ 
+ TArray<FName> FCosmicDataTables::GetFeatRowNames() const
+ {
+-	TArray<FName> Names = Feats ? Feats->GetRowNames() : TArray<FName>();
+-	Names.Sort(FNameLexicalLess());
+-	return Names;
++	static FSortedNamesMemo Memo;
++	return SortedRowNamesOf(Feats, Memo);
+ }
+ 
+ TArray<FName> FCosmicDataTables::GetEncounterRowNames() const
+ {
+-	TArray<FName> Names = Encounters ? Encounters->GetRowNames() : TArray<FName>();
+-	Names.Sort(FNameLexicalLess());
+-	return Names;
++	static FSortedNamesMemo Memo;
++	return SortedRowNamesOf(Encounters, Memo);
+ }
+ 
+ bool FCosmicDataTables::IsHazardAnswer(FName RowName) const
+@@ -180,21 +224,18 @@
+ 
+ TArray<FName> FCosmicDataTables::GetEdictRowNames() const
+ {
+-	TArray<FName> Names = Edicts ? Edicts->GetRowNames() : TArray<FName>();
+-	Names.Sort(FNameLexicalLess());
+-	return Names;
++	static FSortedNamesMemo Memo;
++	return SortedRowNamesOf(Edicts, Memo);
+ }
+ 
+ TArray<FName> FCosmicDataTables::GetGalaxyRowNames() const
+ {
+-	TArray<FName> Names = Galaxies ? Galaxies->GetRowNames() : TArray<FName>();
+-	Names.Sort(FNameLexicalLess());
+-	return Names;
++	static FSortedNamesMemo Memo;
++	return SortedRowNamesOf(Galaxies, Memo);
+ }
+ 
+ TArray<FName> FCosmicDataTables::GetCivRowNames() const
+ {
+-	TArray<FName> Names = Civs ? Civs->GetRowNames() : TArray<FName>();
+-	Names.Sort(FNameLexicalLess());
+-	return Names;
++	static FSortedNamesMemo Memo;
++	return SortedRowNamesOf(Civs, Memo);
+ }

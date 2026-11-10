@@ -1,0 +1,47 @@
+-- plan.py over the real README and patch files (HEAD, read-only)
+   rows whose name-based routing ('_data_' -> assets, run_mutations2.py:48) disagrees with the README row: 15
+   rows 977, patch files 1047, orphans 70, rows without file 0, tests 223
+   kind of every row: cpp 846, asset 17, python 113, probe 1
+   B6b rows 297: cpp 224, asset 7, python 66, probe 0; not run (no longer applies) 0
+   older touched: 20 rows, run 17 (cpp 16, python 1), not run 3
+   older meaning: 46 rows, run 46 (asset 1, cpp 45), not run 0
+   to run: 360 items - lanes 293, pool 67, probes 0; by kind asset 8, cpp 285, python 67
+   lane groups 44; largest: CosmicTestHelpers.h (16, ~1360 s); GalaxySimulationSubsystem.cpp (50, ~1050 s); CosmicRaceMeasure.h (27, ~567 s); CosmicSystemPanelWidget.cpp (20, ~420 s); CosmicChronicleWidget.cpp (16, ~336 s)
+   meaning-changed tests: Sim.EndingRecordOnce, Sim.EndingInert, Sim.SightWalkMoved, Sim.NotablesFromEventsOnly, Sim.WandererLoop, Sim.PlayerAscendsToT3, Feats.Reachable, Sim.RealmCap, Sim.CivAIProjects, Sim.NotablesCapped, Sim.PhaseTwoExit, Sim.SuccessionPossible, Sim.EndingOf, UI.RunEnd, Calling.LeapDeterminism, Data.Integrity
+   note: stale filter Cosmic_Ascension.Sim.ProvisionalEnd in b6a3a_rung_end_back (README:647) - matches no IMPLEMENT_ test
+   note: b6b6_data_extinction_expiry_effect touches 3 files: Tools/data/DT_Hazards.json, Tools/data/schema.json, Tools/test_data_schema.py
+   note: orphan Tools/mutations/B1/b1c_chronicle_no_wandering.patch patches a Phase A file (Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp) - no row, no filter: not run
+   note: orphan Tools/mutations/B1/b1c_chronicle_repeats.patch patches a Phase A file (Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp) - no row, no filter: not run
+   orphans (listed, no row): 70 (B1)
+   working tree: rows 986, to run 368, problems 0, orphans 70
+-- plan.py on a synthetic README (kinds from rows, sets, groups, assertions)
+-- verdict parser (run_mutations2.py's reading, with the map-reload rule)
+   real log Mutation_b6b1_endured_any_sphere-backup-2026.11.08-08.51.15.log -> KILLED
+   real log Mutation_b6b1_endured_any_sphere-backup-2026.11.08-13.33.04.log -> KILLED
+   real log Mutation_b6b1_endured_any_sphere-backup-2026.11.08-16.34.02.log -> KILLED
+   real log Mutation_b6b1_endured_any_sphere-backup-2026.11.08-20.24.21.log -> KILLED
+   real log Mutation_b6b1_endured_any_sphere-backup-2026.11.09-00.15.05.log -> KILLED
+   real log Mutation_b6b1_endured_any_sphere-backup-2026.11.09-04.03.40.log -> KILLED
+-- Python pool kill rule (section 5.6)
+-- dry run, 3 lanes: schedule (whole groups, shared queue), one item, end checks, probes, merge
+-- one item: the byte restore when apply -R leaves CRLF
+-- the memory gate: max(2.0 GB, peak + 0.5 GB), two lanes below 8 GB
+-- the gate: -DisableUnity fails -> -WaitMutex for every lane
+-- a lane stops when its baseline run fails; a map-reload-only baseline is rerun alone
+-- NOT APPLIED and BUILD FAILED
+-- simulated wall time (virtual clock vs the section 5.4 estimate)
+   synthetic set: virtual run 3 lanes 2895 s, 2 lanes 2592 s; estimate 3 lanes 2880 s, 2 lanes 2543 s
+-- apply_mid.py on a throwaway repo (HEAD + phaseA.diff, new and phantom patches)
+   phaseA files 0 (each equal to the tree) | patches copied in 1, removed 1 | patches 4 OK 4 FAIL 0
+     copied in: Tools/mutations/B6b/p_new.patch
+     removed (not in the tree): Tools/mutations/B6b/p_gone.patch
+-- section 5.4 estimate over the HEAD plan (and the threaded dry run)
+   3 lanes low : pool  5.0 + lanes  78.1 + probes 0.0 =  83.1 min (mutex held  71.8 min)
+   3 lanes mid : pool  5.0 + lanes 100.8 + probes 0.0 = 105.8 min (mutex held  95.7 min)
+   3 lanes high: pool  5.0 + lanes 125.8 + probes 0.0 = 130.8 min (mutex held 121.0 min)
+   2 lanes low : pool  5.0 + lanes  85.8 + probes 0.0 =  90.8 min (mutex held  64.8 min)
+   2 lanes mid : pool  5.0 + lanes  99.4 + probes 0.0 = 104.5 min (mutex held  88.7 min)
+   2 lanes high: pool  5.0 + lanes 122.9 + probes 0.0 = 128.0 min (mutex held 114.0 min)
+   threaded dry run, 3 lanes: 107.9 min simulated, mutex held 95.7 min, items 360
+   threaded dry run, 2 lanes: 107.0 min simulated, mutex held 88.7 min, items 360
+selftest: 118 passed, 0 failed

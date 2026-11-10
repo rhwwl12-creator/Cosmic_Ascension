@@ -1,0 +1,24 @@
+[B-7x1+2] 리뷰 넘김 — 남긴 법의 좁힘·위기 몫의 거름·기생 덤 한 번·외교 항·IsBrick·주석, 시험 보드와 새 단언, K4 업적 규칙·Inward 글 규칙, docs/20·21·40, 변이 패치(통합 브랜치, 빌드 전)
+
+B7x 노트 §5.4의 넘긴 고침을 통합 브랜치 integrate/b7x에 넣었다. 한 번도 빌드하지 않았다 — 컴파일·자동화 테스트·C++ 변이의 깨짐은 B6b가 끝난 뒤(또는 B6b의 빌드 없는 틈)에 본다.
+
+- 코1(결정 18의 좁힘): CosmicEdicts::AIRevokesOf — 남긴 법(Brick.Form.KeptLaw) 백성도 주장의 카운트다운에 더하는 칙령과 위기의 답인 칙령은 여느 AI처럼 철회하고, 그 백성의 행이 법칙을 물으면(AsksForLawsOf) 백성 범위 칙령을 모두 여느 AI처럼 철회한다. 선언 주석, TickCivAI 주석, 서브시스템 헤더의 6단계 주석을 함께 고쳤다.
+- 코2: 아주 작은 백성(Brick.Space.FoldedSmall)의 위기 몫 감쇠가 주장·절멸·초신성 전조를 건드리지 않는다(IsSparedHazard). 별의 위기 곱은 그대로다.
+- 코3: CosmicBricks::ParasiteBonusBoundOf를 새로 두었다(위기 하나에 한 번 더하는 기생 덤의 상한). ParasiteCountdownBonusOf가 그것을 읽으며, 모든 입력에서 답이 앞과 같다.
+- 코4: 외교 표류 목표에 블록 항을 자르지 않고 더한다. 관계는 표류 단계가 자른다.
+- 코5: CosmicTags::IsBrick이 대소문자를 가리지 않는다.
+- 코6: 주석과 DevComment를 고쳤다(노브 묶음, 남긴 법·닫힌 구·아주 작은 백성의 ini 글, CosmicSeed.h 머리 목록). 동작은 그대로다.
+- 코7: 잎 이름 여덟·노브·함수는 앞 커밋 b2c7348에서 바꾸었다.
+- 주석 고침: CosmicDataTables.h의 IsHazardAnswer 주석(칙령 행을 묻는 곳이 있다), CosmicEventTests.cpp의 테스트 이름(Events.BrickConditions), GalaxyState.h의 HostCivID 주석에 결정 6의 두 규칙.
+- 시1: CosmicTests::WithInertBricks와 StripBricks를 두고, 게임 규칙을 읽는 시드 42 공유 보드 열한 곳(ExistenceBricks·Diplomacy·UpperRung·Edict·DiplomacyUI·PressureCard 둘·Death·Record·Wanderer)에 씌웠다. 오늘 데이터에서는 비트 그대로다. 트립와이어로 새 테스트 Sim.BrickBoardHelpers를 두었다(Brick 칸 열일곱의 핀).
+- 시2: Sim.SeedBricks의 Pass 0과 Pass 1이 블록을 끈 규칙에서 시작한다. 기대값에 아키타입 행의 블록 수를 넣었다. 씨앗은 블록이 없는 AI 백성에게만 준다.
+- 시4: 새 테스트 Sim.KeptLawEdicts. (a) vigil과 machine rights는 철회하고 mobilization은 지닌다. (b) 법칙을 묻는 행 아래에서는 법칙 셋을 지니고 HoldsGalaxyLawsOf가 참이다. 테스트 안의 대조군은 법칙 둘에서 멈추고 LawsHeldTicks가 0이다. Sim.MutationStep의 글도 좁힘에 맞추었다.
+- 시5·시6·시7: Sim.BrickShares에 경우를 더했다. 아주 작은 백성의 절멸·전조 몫이 그대로인지, DimCapitalStar의 거절 갈래 셋, −1 아래로 내려간 목표에 항이 그대로 더해지는지를 본다.
+- 데3·시8: DT_Feats에 K4 규칙을 더했다. 업적 행은 Brick. 태그 열일곱을 CivHasTrait/CivLacksTrait로 읽지 않고 BorderingCivHasTrait를 쓰지 않는다. Settle.Block.Inward는 검사하는 키다. 시험 test_a_rung_never_from_a_brick을 두었고 walked 핀은 358이다. AscensionCost의 AddTrait/RemoveTrait 금지(선택)는 넣지 않았다.
+- 문서: docs/20(시간 셈 여섯과 HostCivID, 씨앗 문장 셋과 용도 13, 규칙 3의 한 문장, 존재의 블록 걸음), docs/21(FCosmicTimeVectors, 조건 셋, 노브 열일곱, 세계 함수와 B7x 절), docs/40(변이 폴더, 테스트 표의 B7x 행, 보드 도우미, Settle.Block.Inward와 K4 규칙). docs/30은 --check로 최신임을 확인했다.
+- 노트 §5.4: 이 단계가 한 넘김마다 '(통합 브랜치에서 했다 — 빌드 전, 2026-11-10)' 표지를 달았다. 시12에는 다시 뜬 패치를 더 적었다.
+- 변이: Tools/mutations/B7x/에 패치 29개와 README 행을 두었다. 파이썬 셋(K4 규칙에서 StarTow를 뺌, Inward의 칭호 목록을 뺌, 업적이 블록을 읽음)은 오늘 깨뜨렸다. C++ 스물여섯은 apply와 되돌림만 증명했고 아직 깨뜨려 보지 않았다.
+- 다시 뜬 패치: 시12의 다섯(b3b_no_trade_income, b6b2a_data_laws_knob_four, b6b2a_endured_window_inclusive, b6b2a_laws_counted_before_upkeep, b6b2c_delay_second_rung). 이 커밋의 스키마 때문에 B6b 다섯(b6b5_schema_extinction_follows_without_stay, b6b5_schema_realm_cap_last_unchecked, b6b5_schema_ruler_lethal_without_death_frame, b6b5_schema_treaty_tip_unchecked, b6b6_schema_ark_guard_feats_dropped)과 b6b6_data_extinction_expiry_effect(walked 핀 358에서 354로)도 다시 떴다. 40cc67b에서 다시 뜬 b6b5_schema_desolation_without_lamp까지 README 행에 'regenerated at [B-7x1+2]'를 적었다.
+- 아직 안 한 것: 시3(TheodicyProblems에 ParasiteBonusBoundOf와 덤 400 패치)은 [B-6b8b] 뒤에 한다. Unreal 빌드, 자동화 테스트 두 번, C++ 변이를 깨뜨리는 회차, 에셋과 generated.sha1을 다시 만드는 일(Data.SourcesInSync는 지금 낡았다)은 B6b가 끝난 뒤나 B6b의 빌드 없는 틈에 한다. Sim->GetRules()를 쓰는 보드가 블록 노브를 켠 [B-7x5s] 뒤에도 서는지는 모음 전체를 돌려 본다. STATUS·DECISIONS_LOG·OPEN_QUESTIONS·docs/50·CLAUDE.md의 docs/archive 행은 B6b 뒤에 쓴다.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>

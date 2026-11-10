@@ -1,0 +1,3 @@
+NOTE  tag literals outside constant headers: 48 (baseline 49)
+NOTE  DT_Rules knobs: 117, without a runtime reader: 9 (baseline 9): SuccessionHazardWeight, SuccessionCivTierWeight, SuccessionReverenceWeight, SuccessionReverenceThreshold, SuccessionSameCivPenalty, ImmutableLaws, ReturnLureMaxLanes, ReturnedLivesToSeize, LureAcceptByPolicy
+check_layers: 177 files, 0 error(s), 0 warning(s)

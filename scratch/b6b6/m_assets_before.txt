@@ -1,0 +1,12 @@
+3a53592e5e5cbd5f63c67e2b1e3dfa1074b3ce95 *Content/CA/Data/DT_Civs.uasset
+ac3ae2913d8ab5d6a476f370af982385a19885f4 *Content/CA/Data/DT_Edicts.uasset
+93f1d0fd70660348f8169edee7aaa87f34a88d93 *Content/CA/Data/DT_Encounters.uasset
+286b1c291f901470316680747ed74d03e368aabb *Content/CA/Data/DT_Events.uasset
+d356999335b15a879d72a0a7fb2349950109d41c *Content/CA/Data/DT_Feats.uasset
+2cbe36b730f3cc13751b059ad06a472b8aca95f3 *Content/CA/Data/DT_Galaxies.uasset
+5f492d1cf5091f061fdd9ba0d81f9ba981343c1c *Content/CA/Data/DT_Hazards.uasset
+fb973c524c1ebc96f3a12a9d55bf7a980fbb5ac8 *Content/CA/Data/DT_LogTemplates.uasset
+c75ff8101295d0ac9cac804f081f11a01cd5049f *Content/CA/Data/DT_Megaprojects.uasset
+eee5a7bdb0edcd306e7012a26b1b3e6cb1f330f2 *Content/CA/Data/DT_Rules.uasset
+10f7f1b3bd1820546c55da337755007cde1d8632 *Content/CA/Data/DT_Transcendents.uasset
+ac83424d7285ff0ba97097e1f841421b452ac25e *Content/CA/Data/ST_CA.uasset

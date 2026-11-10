@@ -1,0 +1,14 @@
+[B-7x1+2] 리뷰 고침(통합 브랜치, 빌드 전)
+
+- Sim.BrickShares: 기생 백성이 둘이어도 덤은 한 번(40)이고, 한도 ParasiteBonusBoundOf는 노브 그대로·0~100,000으로 잘리며 주장·절멸·초신성 전조·빈 태그에는 0임을 단언했다(BD-1·TM-1)
+- Sim.BrickShares 무동작 판: 표류를 켜고 백성 0의 성계에 역병을 세워, 관계와 카운트다운이 움직일 수 있는 판에서 비트 그대로임을 본다(BD-2)
+- Sim.BrickShares에 단계를 지나는 몫 둘을 더했다: 유랑 블록의 정착 걸음이 Advance를 지나 세 배, 미시 블록의 위기 몫이 위기 단계의 추첨을 지나 그 백성의 성계만 막는다(BD-3)
+- Sim.KeptLawEdicts: 은하 법칙 셋의 사실(조건 없음·넷째 칸 이하·놓인 비축이 값과 두 틱의 유지비를 낸다)을 먼저 제 말로 단언한다(TM-4)
+- 외교 창 툴팁: 국경이 닿은 갈래에 블록 항 줄 Diplomacy.TipBricks를 0이 아닐 때만 보인다, ST_CA 끝에 키 하나(BD-4 — 노트 §5.2 7을 앞당겨 했다)
+- 변이 패치: 서지 않게 된 B3·B6b 패치 열둘은 220129d의 바이트와 README 행으로 되돌려 기록으로 두고, 열은 B7x/에 b7x2_ 이름으로 다시 떴다(옛 행에 no longer applies since [B-7x1+2]); [B-6b8]이 b6b8_로 이미 다시 뜬 둘은 리베이스 뒤에 견준다(TM-2·D2 — 헤더 §6과 노트 시12를 따랐다)
+- 새 변이 여섯: b7x2_parasite_bonus_per_parasite·parasite_bound_unclamped·inert_brick_term_floor·inert_parasite_bound_floor·settle_step_bare·spawn_share_bare(적용·되돌림만 확인, 빌드 뒤 죽인다); B7x/는 45개
+- 문서: docs/40의 B7x 패치 문장(45개와 그 내력)·SeedDerive 행(용도 1~13)·보드 규칙 문단·BrickShares와 KeptLawEdicts 행, docs/21의 카운트다운·발생 몫·TickHazards의 블록 항과 IsBrick의 대소문자, systems.md의 섭식 블록 표지, 칙령에는 '거두다' 대신 '철회하다'(D1~D7·D9·TM-3)
+- 헤더 §6의 표지를 [B-7x1+2]로, §11에 통합 브랜치 행; 노트 §5.2 7 완료 표시·데2의 카드 제목 초안 '남겨 둔 칙령'·시12·넘김의 수(D8)
+- 파이썬 검사 다섯 통과(check_data·test_data_schema·check_layers --strict·make_config_reference --check·check_docs), 다시 뜬 스키마 다섯은 test_data_schema가 죽였다; Data.SourcesInSync의 도장은 에셋을 다시 만들 때까지 낡았다
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>

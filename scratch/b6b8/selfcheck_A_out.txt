@@ -1,0 +1,234 @@
+# [B-6b6] 묶음 A — 2026-11-09
+
+- 빌드: 10205b6 [B-6b5] 글과 목소리 — 먼 줄 둘·은혜 행·결박의 이름과 줄·옛 업적 셋·Digest.Rose·B6b 키의 글, 새 낱말 목록 아홉과 접두어 Rung.·Sight., 다음 행들의 감사한 초안(노트 §1.5), 비트 그대로 (291 changed paths); DLL sha1 6f577c54676f
+- 프로세스: 묶음 240회 실행(작업 240, 재실행 0) — 묶음 밖의 ⓐ·base·on 15회는 리드가 더한다(총 255)
+- 실패: 0 (없음)
+- 폴더: `C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Saved\Balance\b6b_bundleA`
+- check 줄: end check 0, race check 0
+- 스위치 대조: 통과
+  - on: 놓인 절멸 5015, AI 걸음 조약 561, T 뒤에 갈린 쌍 120
+- 쌍 검사(Tick ≤ T 같음): 120/120 통과
+- sha1 지킴: unchanged (12 files)
+
+## R
+
+| 값 | on | off |
+|---|---|---|
+| first AI T4 닿음 | 30/30 = 1.000 [0.886, 1.000] | 0/30 = 0.000 [0.000, 0.114] |
+| first AI T4 틱 | n 30 median 3281.5 [q1 2983.2, q3 3743.2] (min 2527, max 4896) | n 0 |
+| second AI T4 닿음 | 18/30 = 0.600 [0.423, 0.754] | 0/30 = 0.000 [0.000, 0.114] |
+| second AI T4 틱 | n 18 median 3623.5 [q1 3392.2, q3 3779.2] (min 2932, max 4260) | n 0 |
+| first AI T5 닿음 | 0/30 = 0.000 [0.000, 0.114] | 0/30 = 0.000 [0.000, 0.114] |
+| first AI T5 틱 | n 0 | n 0 |
+| ruled T3 닿음 | 30/30 = 1.000 [0.886, 1.000] | 30/30 = 1.000 [0.886, 1.000] |
+| ruled T3 틱 | n 30 median 2365.5 [q1 2362, q3 2374] (min 1391, max 2375) | n 30 median 2365.5 [q1 2362, q3 2374] (min 1391, max 2375) |
+| ruled T4 닿음 | 30/30 = 1.000 [0.886, 1.000] | 0/30 = 0.000 [0.000, 0.114] |
+| ruled T4 틱 | n 30 median 4983.5 [q1 3608.8, q3 7855.2] (min 2688, max 14421) | n 0 |
+| ruled T5 닿음 | 0/30 = 0.000 [0.000, 0.114] | 0/30 = 0.000 [0.000, 0.114] |
+| ruled T5 틱 | n 0 | n 0 |
+| brake held AI-ticks | n 30 median 86735.5 [q1 68533.8, q3 105775.5] (min 54444, max 137887) | n 30 median 0 [q1 0, q3 0] (min 0, max 0) |
+| brake held peoples | n 30 median 7 [q1 5.2, q3 8] (min 4, max 10) | n 30 median 0 [q1 0, q3 0] (min 0, max 0) |
+| T4 civs at end | n 30 median 3 [q1 2, q3 3] (min 2, max 3) | n 30 median 0 [q1 0, q3 0] (min 0, max 0) |
+| T4 civs most | n 30 median 3 [q1 2, q3 3] (min 2, max 3) | n 30 median 0 [q1 0, q3 0] (min 0, max 0) |
+| crown refused far above | n 30 median 0 [q1 0, q3 0] (min 0, max 0) | n 30 median 0 [q1 0, q3 0] (min 0, max 0) |
+| AI us | n 30 median 23.7 [q1 22.9, q3 25.9] (min 21.1, max 27.6) | n 30 median 17.0 [q1 16.3, q3 17.7] (min 14.5, max 19.0) |
+| brake held runs | 30/30 = 1.000 [0.886, 1.000] | 0/30 = 0.000 [0.000, 0.114] |
+| T4 civs most > cap 2 (runs) | 18 | 0 |
+| extinction on_ruled (합) | 306 | 0 |
+| extinction on_ai (합) | 1871 | 0 |
+| extinction arks (합) | 2157 | 0 |
+| extinction arks_lost (합) | 6 | 0 |
+| extinction expired (합) | 0 | 0 |
+| extinction grace (합) | 1 | 0 |
+| extinction ruled_expiries (합) | 0 | 0 |
+| extinction died (합) | 0 | 0 |
+| extinction deposed (합) | 0 | 0 |
+| extinction neither (합) | 0 | 0 |
+| extinction ruler_deaths (합) | 0 | 0 |
+| extinction erased (합) | 1 | 1 |
+| extinction erased_ext (합) | 0 | 0 |
+| extinction erased_ruled (합) | 0 | 0 |
+| extinction erased_ai (합) | 0 | 0 |
+| extinction erased_once_ruled (합) | 0 | 0 |
+| 카운트다운 안 완성 = arks/(arks+expired) | 2157/2157 = 1.000 [0.998, 1.000] | 0/0 (재지 않음 — 잰 0) |
+| grace ruled/AI (keys) | (0, 1) | (0, 0) |
+| grace by tag (calling) | {} | {} |
+| 지워진 AI/판 | n 30 median 0 [q1 0, q3 0] (min 0, max 0) | n 30 median 0 [q1 0, q3 0] (min 0, max 0) |
+| AI treaties by the step | n 30 median 3 [q1 2.2, q3 4] (min 0, max 6) | n 30 median 0 [q1 0, q3 0] (min 0, max 0) |
+| AI treaties first | n 29 median 2535 [q1 2295, q3 2668] (min 1596, max 3384) | n 0 |
+| AI treaties AI T3+ holding one | n 30 median 9 [q1 7, q3 10] (min 6, max 11) | n 30 median 5 [q1 4, q3 6] (min 1, max 8) |
+| AI treaties ruled met an AI's ask | n 30 median 1 [q1 0.2, q3 2] (min 0, max 4) | n 30 median 0 [q1 0, q3 0] (min 0, max 0) |
+| conflict AI sieges begun | n 30 median 4.5 [q1 1.2, q3 8.8] (min 0, max 24) | n 30 median 3.5 [q1 1, q3 8.8] (min 0, max 16) |
+| conflict taken | n 30 median 2.5 [q1 1, q3 6.8] (min 0, max 13) | n 30 median 2 [q1 0, q3 5] (min 0, max 12) |
+| conflict taken not from ruled | n 30 median 2 [q1 1, q3 6] (min 0, max 13) | n 30 median 2 [q1 0, q3 5] (min 0, max 12) |
+| 치르지 못한 틱 / 방주가 선 채 만료 | 재지 않음 | 재지 않음 |
+
+## inputless
+
+| 값 | on | off |
+|---|---|---|
+| first AI T4 닿음 | 30/30 = 1.000 [0.886, 1.000] | 0/30 = 0.000 [0.000, 0.114] |
+| first AI T4 틱 | n 30 median 3248.5 [q1 2968.2, q3 3348.2] (min 2329, max 4759) | n 0 |
+| second AI T4 닿음 | 30/30 = 1.000 [0.886, 1.000] | 0/30 = 0.000 [0.000, 0.114] |
+| second AI T4 틱 | n 30 median 3641.5 [q1 3335.8, q3 4024.5] (min 2975, max 8611) | n 0 |
+| first AI T5 닿음 | 0/30 = 0.000 [0.000, 0.114] | 0/30 = 0.000 [0.000, 0.114] |
+| first AI T5 틱 | n 0 | n 0 |
+| ruled T3 닿음 | 0/30 = 0.000 [0.000, 0.114] | 0/30 = 0.000 [0.000, 0.114] |
+| ruled T3 틱 | n 0 | n 0 |
+| ruled T4 닿음 | 0/30 = 0.000 [0.000, 0.114] | 0/30 = 0.000 [0.000, 0.114] |
+| ruled T4 틱 | n 0 | n 0 |
+| ruled T5 닿음 | 0/30 = 0.000 [0.000, 0.114] | 0/30 = 0.000 [0.000, 0.114] |
+| ruled T5 틱 | n 0 | n 0 |
+| brake held AI-ticks | n 30 median 89568.5 [q1 72399.2, q3 100791.2] (min 45558, max 131224) | n 30 median 0 [q1 0, q3 0] (min 0, max 0) |
+| brake held peoples | n 30 median 7 [q1 5.2, q3 8] (min 3, max 10) | n 30 median 0 [q1 0, q3 0] (min 0, max 0) |
+| T4 civs at end | n 30 median 2 [q1 2, q3 2] (min 2, max 2) | n 30 median 0 [q1 0, q3 0] (min 0, max 0) |
+| T4 civs most | n 30 median 2 [q1 2, q3 2] (min 2, max 2) | n 30 median 0 [q1 0, q3 0] (min 0, max 0) |
+| crown refused far above | n 30 median 0 [q1 0, q3 0] (min 0, max 0) | n 30 median 0 [q1 0, q3 0] (min 0, max 0) |
+| AI us | n 30 median 28.1 [q1 26.3, q3 29.0] (min 24.3, max 31.5) | n 30 median 18.1 [q1 17.2, q3 19.1] (min 16.0, max 21.2) |
+| brake held runs | 30/30 = 1.000 [0.886, 1.000] | 0/30 = 0.000 [0.000, 0.114] |
+| T4 civs most > cap 2 (runs) | 0 | 0 |
+| extinction on_ruled (합) | 0 | 0 |
+| extinction on_ai (합) | 2110 | 0 |
+| extinction arks (합) | 2092 | 0 |
+| extinction arks_lost (합) | 5 | 0 |
+| extinction expired (합) | 0 | 0 |
+| extinction grace (합) | 0 | 0 |
+| extinction ruled_expiries (합) | 0 | 0 |
+| extinction died (합) | 0 | 0 |
+| extinction deposed (합) | 0 | 0 |
+| extinction neither (합) | 0 | 0 |
+| extinction ruler_deaths (합) | 0 | 0 |
+| extinction erased (합) | 0 | 0 |
+| extinction erased_ext (합) | 0 | 0 |
+| extinction erased_ruled (합) | 0 | 0 |
+| extinction erased_ai (합) | 0 | 0 |
+| extinction erased_once_ruled (합) | 0 | 0 |
+| 카운트다운 안 완성 = arks/(arks+expired) | 2092/2092 = 1.000 [0.998, 1.000] | 0/0 (재지 않음 — 잰 0) |
+| grace ruled/AI (keys) | (0, 0) | (0, 0) |
+| grace by tag (calling) | {} | {} |
+| 지워진 AI/판 | n 30 median 0 [q1 0, q3 0] (min 0, max 0) | n 30 median 0 [q1 0, q3 0] (min 0, max 0) |
+| AI treaties by the step | n 30 median 6 [q1 5, q3 6] (min 3, max 9) | n 30 median 0 [q1 0, q3 0] (min 0, max 0) |
+| AI treaties first | n 30 median 2411.5 [q1 2279, q3 2631.5] (min 1738, max 2875) | n 0 |
+| AI treaties AI T3+ holding one | n 30 median 9 [q1 7.2, q3 10] (min 5, max 12) | n 30 median 0 [q1 0, q3 0] (min 0, max 0) |
+| AI treaties ruled met an AI's ask | n 30 median 0 [q1 0, q3 0] (min 0, max 0) | n 30 median 0 [q1 0, q3 0] (min 0, max 0) |
+| conflict AI sieges begun | n 30 median 6 [q1 3, q3 9.5] (min 0, max 22) | n 30 median 4 [q1 1, q3 7.8] (min 0, max 11) |
+| conflict taken | n 30 median 4 [q1 1.2, q3 6] (min 0, max 17) | n 30 median 2 [q1 1, q3 4] (min 0, max 7) |
+| conflict taken not from ruled | n 30 median 4 [q1 1.2, q3 6] (min 0, max 17) | n 30 median 2 [q1 1, q3 4] (min 0, max 7) |
+| 치르지 못한 틱 / 방주가 선 채 만료 | 재지 않음 | 재지 않음 |
+
+## wanderer
+
+| 값 | on | off |
+|---|---|---|
+| first AI T4 닿음 | 60/60 = 1.000 [0.940, 1.000] | 0/60 = 0.000 [0.000, 0.060] |
+| first AI T4 틱 | n 60 median 3263 [q1 3039.8, q3 3533] (min 2177, max 4542) | n 0 |
+| second AI T4 닿음 | 48/60 = 0.800 [0.682, 0.882] | 0/60 = 0.000 [0.000, 0.060] |
+| second AI T4 틱 | n 48 median 3604.5 [q1 3333, q3 3953.5] (min 2861, max 5024) | n 0 |
+| first AI T5 닿음 | 0/60 = 0.000 [0.000, 0.060] | 0/60 = 0.000 [0.000, 0.060] |
+| first AI T5 틱 | n 0 | n 0 |
+| ruled T3 닿음 | 42/60 = 0.700 [0.575, 0.801] | 44/60 = 0.733 [0.610, 0.829] |
+| ruled T3 틱 | n 42 median 2775.5 [q1 2421, q3 3926] (min 2041, max 5461) | n 44 median 3041 [q1 2421, q3 4186] (min 2041, max 5893) |
+| ruled T4 닿음 | 28/60 = 0.467 [0.346, 0.591] | 0/60 = 0.000 [0.000, 0.060] |
+| ruled T4 틱 | n 28 median 4751 [q1 3256.8, q3 5259] (min 2631, max 5995) | n 0 |
+| ruled T5 닿음 | 0/60 = 0.000 [0.000, 0.060] | 0/60 = 0.000 [0.000, 0.060] |
+| ruled T5 틱 | n 0 | n 0 |
+| brake held AI-ticks | n 60 median 4516 [q1 2556.8, q3 6537.8] (min 0, max 12375) | n 60 median 0 [q1 0, q3 0] (min 0, max 0) |
+| brake held peoples | n 60 median 4 [q1 3, q3 5] (min 0, max 9) | n 60 median 0 [q1 0, q3 0] (min 0, max 0) |
+| T4 civs at end | n 60 median 2 [q1 2, q3 3] (min 1, max 3) | n 60 median 0 [q1 0, q3 0] (min 0, max 0) |
+| T4 civs most | n 60 median 2 [q1 2, q3 3] (min 1, max 3) | n 60 median 0 [q1 0, q3 0] (min 0, max 0) |
+| crown refused far above | n 60 median 0 [q1 0, q3 0.2] (min 0, max 64) | n 60 median 0 [q1 0, q3 0] (min 0, max 0) |
+| AI us | n 60 median 25.7 [q1 23.8, q3 28.1] (min 18.9, max 33.0) | n 60 median 18.4 [q1 16.3, q3 19.9] (min 11.9, max 24.3) |
+| brake held runs | 58/60 = 0.967 [0.886, 0.991] | 0/60 = 0.000 [0.000, 0.060] |
+| T4 civs most > cap 2 (runs) | 17 | 0 |
+| extinction on_ruled (합) | 43 | 0 |
+| extinction on_ai (합) | 685 | 0 |
+| extinction arks (합) | 699 | 0 |
+| extinction arks_lost (합) | 3 | 0 |
+| extinction expired (합) | 0 | 0 |
+| extinction grace (합) | 1 | 0 |
+| extinction ruled_expiries (합) | 0 | 0 |
+| extinction died (합) | 0 | 0 |
+| extinction deposed (합) | 0 | 0 |
+| extinction neither (합) | 0 | 0 |
+| extinction ruler_deaths (합) | 0 | 0 |
+| extinction erased (합) | 0 | 0 |
+| extinction erased_ext (합) | 0 | 0 |
+| extinction erased_ruled (합) | 0 | 0 |
+| extinction erased_ai (합) | 0 | 0 |
+| extinction erased_once_ruled (합) | 0 | 0 |
+| 카운트다운 안 완성 = arks/(arks+expired) | 699/699 = 1.000 [0.995, 1.000] | 0/0 (재지 않음 — 잰 0) |
+| grace ruled/AI (keys) | (0, 1) | (0, 0) |
+| grace by tag (calling) | {} | {} |
+| 지워진 AI/판 | n 60 median 0 [q1 0, q3 0] (min 0, max 0) | n 60 median 0 [q1 0, q3 0] (min 0, max 0) |
+| AI treaties by the step | n 60 median 5 [q1 4, q3 6] (min 2, max 8) | n 60 median 0 [q1 0, q3 0] (min 0, max 0) |
+| AI treaties first | n 60 median 2471.5 [q1 2298.5, q3 2668] (min 1749, max 3369) | n 0 |
+| AI treaties AI T3+ holding one | n 60 median 9 [q1 8, q3 9.2] (min 6, max 12) | n 60 median 2.5 [q1 2, q3 3.2] (min 0, max 6) |
+| AI treaties ruled met an AI's ask | n 60 median 0 [q1 0, q3 1] (min 0, max 3) | n 60 median 0 [q1 0, q3 0] (min 0, max 0) |
+| conflict AI sieges begun | n 60 median 4.5 [q1 2, q3 7] (min 0, max 12) | n 60 median 3 [q1 1.8, q3 5] (min 0, max 11) |
+| conflict taken | n 60 median 3 [q1 1, q3 5] (min 0, max 9) | n 60 median 2 [q1 1, q3 3.2] (min 0, max 9) |
+| conflict taken not from ruled | n 60 median 3 [q1 1, q3 4.2] (min 0, max 9) | n 60 median 2 [q1 1, q3 3.2] (min 0, max 9) |
+| B1 지킴: crowned | 43/60 = 0.717 [0.592, 0.815] | 45/60 = 0.750 [0.628, 0.842] |
+| B1 지킴: crowned at | n 43 median 2601 [q1 1901, q3 3911] (min 1801, max 5461) | n 45 median 2901 [q1 1941, q3 4101] (min 1801, max 5893) |
+| 치르지 못한 틱 / 방주가 선 채 만료 | 재지 않음 | 재지 않음 |
+
+## R on: 셋째 → 넷째 칸의 세 토막
+- 판 30; 타격 기다림 n 30 median 2465.5 [q1 1179.8, q3 4858.8] (min 197, max 11897); 방주 짓기 n 30 median 150 [q1 150, q3 150] (min 150, max 4144); 조약 기다림 n 30 median 0 [q1 0, q3 0] (min 0, max 0); 다스리는 백성에 둘 이상 놓인 판 30
+- 첫 카운트다운의 최소 에너지 n 30 median 15430.5 [q1 8349.8, q3 27908] (min 1750.5, max 69236.3), 물질 n 30 median 17271.0 [q1 7837.5, q3 34643.6] (min 1747.7, max 83248.9)
+- 절멸 줄 600틱 창: {'R': {'1800-2400': 1, '2400-3000': 39, '3000-3600': 94, '3600-4200': 148, '4200-4800': 119, '4800-5400': 126, '5400-6000': 162, '6000-6600': 123, '6600-7200': 141, '7200-7800': 131, '7800-8400': 178, '8400-9000': 170, '9000-9600': 176, '9600-10200': 178, '10200-10800': 149, '10800-11400': 146, '11400-12000': 138, '12000-12600': 141, '12600-13200': 142, '13200-13800': 142, '13800-14400': 172, '14400-15000': 141, '15000-15600': 175, '15600-16200': 153, '16200-16800': 149, '16800-17400': 145, '17400-18000': 140, '18000-18600': 181, '18600-19200': 157, '19200-19800': 173, '19800-20400': 52}, 'inputless': {'1800-2400': 2, '2400-3000': 35, '3000-3600': 97, '3600-4200': 164, '4200-4800': 121, '4800-5400': 147, '5400-6000': 140, '6000-6600': 149, '6600-7200': 154, '7200-7800': 138, '7800-8400': 145, '8400-9000': 175, '9000-9600': 164, '9600-10200': 164, '10200-10800': 153, '10800-11400': 141, '11400-12000': 126, '12000-12600': 123, '12600-13200': 147, '13200-13800': 156, '13800-14400': 174, '14400-15000': 162, '15000-15600': 135, '15600-16200': 150, '16200-16800': 171, '16800-17400': 148, '17400-18000': 130, '18000-18600': 137, '18600-19200': 144, '19200-19800': 158, '19800-20400': 52}}
+- AI µs on−off (쌍): {'R': 'n 30 median 7.1 [q1 6.1, q3 8.9] (min 3.8, max 10.3)', 'inputless': 'n 30 median 9.7 [q1 8.7, q3 10.8] (min 5.7, max 12.6)', 'wanderer': 'n 60 median 7.5 [q1 4.2, q3 9.9] (min 0.6, max 18)'}
+- c 검토: 지워진 AI(R on 합) 0; 다스리는 T4 중앙값 4983.5 (모형 2,913 / 4,310); 첫 AI T4가 다스리는 T4보다 먼저 24/30 = 0.800 [0.627, 0.905]
+- 은혜의 두 길: 둘 이상 절멸 칸을 가진 백성의 은혜 — 재지 않음 — 잰 2; 모형 P = 0.072
+
+## 4.5 다시 셈의 입력
+- L (R 30, ruled T3 − first AI T3): [-203, 415, 767, 629, 20, 850, 265, 7, 288, 54, 587, 784, 887, 24, 616, 21, 636, -416, -59, 45, 135, 359, 33, 843, -67, -48, -245, 130, 47, -974]
+- FIRST 2317.5 (n 30); AIOFF [0.0, 200.0, 300.0, 300.0, 350.0, 400.0, 550.0, 750.0, 1100.0, 1350.0, 3400.0] (n per rank [30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 28])
+- k at T3 n 30 median 4 [q1 4, q3 4] (min 2, max 4); k at T4 n 30 median 5 [q1 5, q3 5] (min 4, max 5)
+- ruled T3→T4 n 30 median 2794.5 [q1 1329.8, q3 5491.8] (min 347, max 12047) (never 0); AI T3→T4 input-less n 56 median 700 [q1 500, q3 1000] (min 100, max 5600) (never 272)
+
+| seed | ruled T3 | ruled T4 (civ) | first AI T3 | L | AI T4 | ruled erased | k3 | k4 |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 2369 | 5801 (civ_0) | 2572 | -203 | 3323:civ_10 3630:civ_3 | - | 4 | 4 |
+| 2 | 2366 | 10884 (civ_0) | 1951 | 415 | 3477:civ_4 3750:civ_5 | - | 4 | 5 |
+| 3 | 2362 | 7826 (civ_0) | 1595 | 767 | 3592:civ_9 3695:civ_10 | - | 4 | 4 |
+| 4 | 2370 | 5902 (civ_0) | 1741 | 629 | 3995:civ_6 4260:civ_4 | - | 4 | 5 |
+| 5 | 2364 | 4439 (civ_0) | 2344 | 20 | 2971:civ_11 | - | 4 | 5 |
+| 6 | 2366 | 3591 (civ_0) | 1516 | 850 | 2779:civ_2 | - | 4 | 5 |
+| 7 | 2375 | 3386 (civ_0) | 2110 | 265 | 3899:civ_1 | - | 4 | 5 |
+| 8 | 2374 | 5646 (civ_0) | 2367 | 7 | 2655:civ_2 3191:civ_6 | - | 4 | 5 |
+| 9 | 1895 | 5007 (civ_0) | 1607 | 288 | 2928:civ_8 3659:civ_1 | - | 3 | 5 |
+| 10 | 2374 | 3877 (civ_0) | 2320 | 54 | 3330:civ_11 3384:civ_2 | - | 4 | 5 |
+| 11 | 2374 | 4963 (civ_0) | 1787 | 587 | 3226:civ_7 | - | 4 | 5 |
+| 12 | 2369 | 2806 (civ_0) | 1585 | 784 | 2930:civ_6 | - | 4 | 4 |
+| 13 | 2364 | 8155 (civ_0) | 1477 | 887 | 3190:civ_4 3617:civ_5 | - | 4 | 5 |
+| 14 | 2364 | 7865 (civ_0) | 2340 | 24 | 3657:civ_9 3915:civ_11 | - | 4 | 5 |
+| 15 | 2374 | 14421 (civ_0) | 1758 | 616 | 2807:civ_5 3483:civ_2 | - | 4 | 5 |
+| 16 | 2356 | 9408 (civ_0) | 2335 | 21 | 3772:civ_11 3861:civ_6 | - | 4 | 4 |
+| 17 | 2363 | 3893 (civ_0) | 1727 | 636 | 2852:civ_10 2932:civ_5 | - | 4 | 5 |
+| 18 | 1673 | 4680 (civ_0) | 2089 | -416 | 3240:civ_3 3789:civ_5 | - | 2 | 4 |
+| 19 | 2371 | 3190 (civ_0) | 2430 | -59 | 3791:civ_4 | - | 4 | 5 |
+| 20 | 2374 | 3362 (civ_0) | 2329 | 45 | 2527:civ_3 | - | 4 | 5 |
+| 21 | 2374 | 10919 (civ_0) | 2239 | 135 | 3509:civ_1 3535:civ_10 | - | 4 | 5 |
+| 22 | 2374 | 7909 (civ_0) | 2015 | 359 | 3048:civ_6 3293:civ_1 | - | 4 | 5 |
+| 23 | 2363 | 5310 (civ_0) | 2330 | 33 | 3020:civ_2 3417:civ_7 | - | 4 | 5 |
+| 24 | 2375 | 3323 (civ_0) | 1532 | 843 | 3907:civ_9 | - | 4 | 5 |
+| 25 | 2365 | 8214 (civ_0) | 2432 | -67 | 3811:civ_7 4016:civ_10 | - | 4 | 5 |
+| 26 | 2362 | 5004 (civ_0) | 2410 | -48 | 4896:civ_8 | - | 4 | 5 |
+| 27 | 2360 | 2707 (civ_0) | 2605 | -245 | 4692:civ_2 | - | 4 | 4 |
+| 28 | 1907 | 3662 (civ_0) | 1777 | 130 | 3218:civ_9 3319:civ_10 | - | 3 | 5 |
+| 29 | 2362 | 3790 (civ_0) | 2315 | 47 | 3552:civ_5 | - | 4 | 5 |
+| 30 | 1391 | 2688 (civ_0) | 2365 | -974 | 3236:civ_2 | - | 2 | 4 |
+
+### P_bind 1800, N 1,200
+| r | 직접 다시 뽑기: 다른 질서 | 끝 중앙값 | 계절(전부) | 계절(다스리는 쪽 먼저) | 몬테카를로: 다른 질서 | 끝 | 계절 |
+|---|---|---|---|---|---|---|---|
+| 0.25 | 4/30 = 0.133 [0.053, 0.297] | 6783.5 | 1800 | 1800 | 820/6000 = 0.137 [0.128, 0.146] | 7084.5 | 1800 |
+| 0.3125 | 9/30 = 0.300 [0.167, 0.479] | 6783.5 | 1800 | 1800 | 1472/6000 = 0.245 [0.235, 0.256] | 7084.5 | 1800 |
+| 0.375 | 9/30 = 0.300 [0.167, 0.479] | 6783.5 | 1800 | 1800 | 1725/6000 = 0.287 [0.276, 0.299] | 7084.5 | 1800 |
+| 0.4375 | 11/30 = 0.367 [0.219, 0.545] | 6766.1 | 1800 | 1800 | 2200/6000 = 0.367 [0.355, 0.379] | 6931.8 | 1800 |
+| 0.5 | 14/30 = 0.467 [0.302, 0.639] | 6443.5 | 1800 | 1800 | 2592/6000 = 0.432 [0.420, 0.445] | 6534.5 | 1800 |
+- 판단(직접): {'r': 0.375, 'why': 'kept (inside 15-35%)'}; 판단(몬테카를로): {'r': 0.375, 'why': 'kept (inside 15-35%)'}
+
+- t = 5000 (R에서 T4에 닿은 판 n 30, 중앙값 4983.5; 30판 검열 중앙값 4983.5)
+
+bundle B parser over bundle A's logs: every part read
+bundle A check-only through bundle B: PASS

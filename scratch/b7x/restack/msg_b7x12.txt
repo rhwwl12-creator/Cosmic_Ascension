@@ -1,0 +1,15 @@
+[B-7x1+2] 필드와 장치 — 통합 브랜치, 빌드 전(01eef6f·492c4f0·5969bd5·85f297c를 220129d 위로 다시 쌓음)
+
+- 디자인 브랜치의 코드 커밋 넷([B-7x1] 필드, [B-7x2] 장치, [B-7x2r] 리뷰 고침, [B-7x2c] 주석의 절 번호)을 차례대로 main의 220129d([B-6b7]) 위에 옮겨 하나로 합쳤다(헤더 §8: 필드와 장치는 하나로 다시 쌓는다).
+- 충돌은 세 파일에서만 났고 main의 줄은 하나도 빼지 않았다.
+- Tools/data/ST_CA.csv: main의 마지막 줄(Rung.Lost) 뒤에 브랜치의 새 키 Settle.Block.Inward 한 줄을 더했다.
+- Tools/data/schema.json의 words: main의 목록은 그대로 두었다([B-6b5]의 13낱말 holy_passive와 아홉 목록, [B-6b6]의 ark_words 등). 브랜치의 옛 holy_passive·record_object_words 사본은 버리고, time_vectors 한 줄만 words의 끝에 더했다.
+- Tools/test_data_schema.py의 walked 핀: 손으로 더하지 않고 테스트를 돌려 센 수 323으로 맞췄다(main 316, [B-7x2] +6, [B-7x2r] +1).
+- 저절로 합쳐진 곳도 다시 읽었다. DT_Rules.json은 main의 값(AIUpperRungProgressMultiplier 0.375 등)을 그대로 두고, 브랜치의 노브 열일곱은 끝에 무동작 값으로 붙었다.
+- 정착 사유: main의 ECosmicSettleBlock은 B6b에서 늘지 않아 사유가 11개다. 끝에 Inward를 더해 12개가 되었다. CosmicMegaprojects.cpp와 CosmicSystemPanelWidget.cpp의 static_assert는 12, 커맨드렛과 패널의 이름 배열도 12칸이다. main의 ReasonOf(…, Tier)·SettleReason 연결은 그대로다.
+- docs/30_CONFIG_REFERENCE.md는 make_config_reference.py로 다시 만들었다(노브 117개).
+- 이 커밋은 통합 브랜치에서 빌드하기 전에 만든 작업 커밋이다. B6b가 끝나면 마지막 main 위로 다시 쌓고, 빌드와 테스트를 거치며 다시 쓴다.
+- 잎 이름 바꾸기(결정 3)와 리뷰가 넘긴 고침(노트 §5.4)은 다음 단계에서 한다.
+- 에셋과 generated.sha1은 에디터 없이 다시 만들 수 없어 지금은 낡은 채로 둔다(Data.SourcesInSync는 빌드할 PC에서 확인한다).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>

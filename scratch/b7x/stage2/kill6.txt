@@ -1,0 +1,91 @@
+=== b6b5_schema_extinction_follows_without_stay
+check_data: 0 problem(s)
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (pin='Panel.ExtinctionFollows')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Panel.ExtinctionFollows', word='곁에 남')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Panel.ExtinctionFollows', word='끝까지')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Panel.ExtinctionFollows', word='함께 쓰러')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Panel.ExtinctionFollows', word='함께 스러')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Panel.ExtinctionFollows', word='함께 죽')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Panel.ExtinctionFollows', word='떠나지 않')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Panel.ExtinctionFollows', word='대신')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Panel.ExtinctionFollows', word='함께')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Panel.ExtinctionFollows', word='위해')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Panel.ExtinctionFollows', word='희생')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Panel.ExtinctionFollows', word='목숨')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Panel.ExtinctionFollows', word='바쳤')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Panel.ExtinctionFollows', word='바친')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Panel.ExtinctionFollows', word='마지막까지')
+Ran 98 tests in 114.249s
+FAILED (failures=15)
+=== b6b5_schema_realm_cap_last_unchecked
+check_data: 0 problem(s)
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (pin='Settle.Block.RealmCapLast')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Settle.Block.RealmCapLast', word='선택받은')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Settle.Block.RealmCapLast', word='선택 받은')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Settle.Block.RealmCapLast', word='택함 받은')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Settle.Block.RealmCapLast', word='택함을 받은')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Settle.Block.RealmCapLast', word='택하신')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Settle.Block.RealmCapLast', word='빛의 아들')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Settle.Block.RealmCapLast', word='기름 받은')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Settle.Block.RealmCapLast', word='기름 부음')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Settle.Block.RealmCapLast', word='기름 부은')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Settle.Block.RealmCapLast', word='구세주')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Settle.Block.RealmCapLast', word='메시야')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Settle.Block.RealmCapLast', word='구원자')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Settle.Block.RealmCapLast', word='메시아')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Settle.Block.RealmCapLast', word='선택된 백성')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Settle.Block.RealmCapLast', word='택한 백성')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Settle.Block.RealmCapLast', word='택하심')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Settle.Block.RealmCapLast', word='면류관')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Settle.Block.RealmCapLast', word='왕관')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Settle.Block.RealmCapLast', word='관을 쓰')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (sources='Settle.Block.RealmCapLast')
+Ran 98 tests in 130.195s
+FAILED (failures=21)
+=== b6b5_schema_ruler_lethal_without_death_frame
+check_data: 0 problem(s)
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (pin='Panel.RulerLethal')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Panel.RulerLethal', word='불이 내려')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Panel.RulerLethal', word='쏟아져')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Panel.RulerLethal', word='내리쳐')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Panel.RulerLethal', word='그들을 위해')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Panel.RulerLethal', word='위하여')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Panel.RulerLethal', word='했기에')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (sources='Panel.RulerLethal')
+Ran 98 tests in 130.823s
+FAILED (failures=8)
+=== b6b5_schema_treaty_tip_unchecked
+check_data: 0 problem(s)
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (pin='Diplomacy.TreatyRungTip')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Diplomacy.TreatyRungTip', word='묶')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Diplomacy.TreatyRungTip', word='봉인')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Diplomacy.TreatyRungTip', word='결박')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Diplomacy.TreatyRungTip', word='가두')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Diplomacy.TreatyRungTip', word='갇혔')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Diplomacy.TreatyRungTip', word='갇힌')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Diplomacy.TreatyRungTip', word='사로잡')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Diplomacy.TreatyRungTip', word='막는')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Diplomacy.TreatyRungTip', word='막았')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Diplomacy.TreatyRungTip', word='막아')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Diplomacy.TreatyRungTip', word='눌렀')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Diplomacy.TreatyRungTip', word='그늘')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (key='Diplomacy.TreatyRungTip', word='그림자')
+FAIL: test_upper_rung_text_words (__main__.SchemaTests.test_upper_rung_text_words) (sources='Diplomacy.TreatyRungTip')
+Ran 98 tests in 149.079s
+FAILED (failures=15)
+=== b6b6_schema_ark_guard_feats_dropped
+check_data: 0 problem(s)
+FAIL: test_every_rule_of_the_schema_can_fail (__main__.SchemaTests.test_every_rule_of_the_schema_can_fail)
+FAIL: test_the_ark_and_its_word (__main__.SchemaTests.test_the_ark_and_its_word)
+Ran 98 tests in 133.249s
+FAILED (failures=2)
+=== b6b6_data_extinction_expiry_effect
+check_data: 0 problem(s)
+Ran 98 tests in 136.454s
+OK
+warning: in the working copy of 'Tools/data/DT_Hazards.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Tools/data/schema.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'Tools/test_data_schema.py', LF will be replaced by CRLF the next time Git touches it
+41	0	Tools/data/schema.json
+65	1	Tools/test_data_schema.py
+DONE

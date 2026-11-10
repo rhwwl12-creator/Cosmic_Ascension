@@ -1,0 +1,3 @@
+baseline [('check_data.py', 0, []), ('test_data_schema.py', 0, [])]
+b6b8_data_era_no_ruled_past_checker PASSES THE CHECKER (reaches the asset) [('check_data.py', 0, []), ('test_data_schema.py', 0, [])] 
+summary: {'PASSES THE CHECKER (reaches the asset)': 1}

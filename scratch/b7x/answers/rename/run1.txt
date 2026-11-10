@@ -1,0 +1,57 @@
+rename_leaves: C:\Users\rhwwl\AppData\Local\Temp\claude\c--Users-rhwwl-OneDrive-Documents-Unreal-Projects-Cosmic-Ascension\37de2919-0c44-45d8-94cd-4dcf0860263e\scratchpad\b7x\answers\rename\renamed
+token table (26):
+  Brick.Form.UnseenLaw -> Brick.Form.KeptLaw
+  BrickFormUnseenLaw -> BrickFormKeptLaw
+  Brick.Diet.SilenceFeed -> Brick.Diet.IdleFeed
+  BrickDietSilenceFeed -> BrickDietIdleFeed
+  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+  BrickSpacePlanckMicro -> BrickSpaceFoldedSmall
+  Brick.Form.DysonBrain -> Brick.Form.ShutSphere
+  BrickFormDysonBrain -> BrickFormShutSphere
+  Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand
+  BrickMutationKesslerTapestry -> BrickMutationDustBand
+  Brick.Mutation.AbyssalMaw -> Brick.Mutation.InwardHunger
+  BrickMutationAbyssalMaw -> BrickMutationInwardHunger
+  Brick.Mutation.StarShepherd -> Brick.Mutation.StarTow
+  BrickMutationStarShepherd -> BrickMutationStarTow
+  Brick.Space.HermitMonolith -> Brick.Space.ClosedPort
+  BrickSpaceHermitMonolith -> BrickSpaceClosedPort
+  UnseenLaw -> KeptLaw
+  SilenceFeed -> IdleFeed
+  PlanckMicro -> FoldedSmall
+  DysonBrain -> ShutSphere
+  KesslerTapestry -> DustBand
+  AbyssalMaw -> InwardHunger
+  StarShepherd -> StarTow
+  HermitMonolith -> ClosedPort
+  BrickQuietInsightPerTick -> BrickIdleInsightPerTick
+  IsQuietOf -> IsIdleOf
+allow list (0) - empty: no old name may stay under Source/, Config/, Tools/
+  Source/Cosmic_Ascension/Core/CosmicTags.h                                16  (Brick.Diet.SilenceFeed -> Brick.Diet.IdleFeed x1, Brick.Form.DysonBrain -> Brick.Form.ShutSphere x1, Brick.Form.UnseenLaw -> Brick.Form.KeptLaw x1, Brick.Mutation.AbyssalMaw -> Brick.Mutation.InwardHunger x1, Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand x1, Brick.Mutation.StarShepherd -> Brick.Mutation.StarTow x1, Brick.Space.HermitMonolith -> Brick.Space.ClosedPort x1, Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall x1, BrickDietSilenceFeed -> BrickDietIdleFeed x1, BrickFormDysonBrain -> BrickFormShutSphere x1, BrickFormUnseenLaw -> BrickFormKeptLaw x1, BrickMutationAbyssalMaw -> BrickMutationInwardHunger x1, BrickMutationKesslerTapestry -> BrickMutationDustBand x1, BrickMutationStarShepherd -> BrickMutationStarTow x1, BrickSpaceHermitMonolith -> BrickSpaceClosedPort x1, BrickSpacePlanckMicro -> BrickSpaceFoldedSmall x1)
+  Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h                       7  ("a quiet tick" -> "an idle tick" x1, Brick.Diet.SilenceFeed -> Brick.Diet.IdleFeed x1, Brick.Form.DysonBrain -> Brick.Form.ShutSphere x1, Brick.Space.HermitMonolith -> Brick.Space.ClosedPort x1, Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall x2, BrickQuietInsightPerTick -> BrickIdleInsightPerTick x1)
+  Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp                              3  ("an unseen law" -> "a kept law" x1, Brick.Form.UnseenLaw -> Brick.Form.KeptLaw x1, BrickFormUnseenLaw -> BrickFormKeptLaw x1)
+  Source/Cosmic_Ascension/Sim/CosmicEdicts.h                                1  (Brick.Form.UnseenLaw -> Brick.Form.KeptLaw x1)
+  Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp                    22  ("the quiet tick" -> "the idle tick" x1, BrickDietSilenceFeed -> BrickDietIdleFeed x1, BrickFormDysonBrain -> BrickFormShutSphere x2, BrickFormUnseenLaw -> BrickFormKeptLaw x1, BrickMutationAbyssalMaw -> BrickMutationInwardHunger x2, BrickMutationKesslerTapestry -> BrickMutationDustBand x2, BrickMutationStarShepherd -> BrickMutationStarTow x2, BrickQuietInsightPerTick -> BrickIdleInsightPerTick x1, BrickSpaceHermitMonolith -> BrickSpaceClosedPort x2, BrickSpacePlanckMicro -> BrickSpaceFoldedSmall x3, IsQuietOf -> IsIdleOf x2, local (?<![A-Za-z0-9_.])Quiet(?![A-Za-z0-9_]) -> Idle x3)
+  Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h                      20  ("a quiet tick" -> "an idle tick" x2, AbyssalMaw -> InwardHunger x1, Brick.Diet.SilenceFeed -> Brick.Diet.IdleFeed x1, Brick.Form.DysonBrain -> Brick.Form.ShutSphere x2, Brick.Form.UnseenLaw -> Brick.Form.KeptLaw x1, Brick.Mutation.AbyssalMaw -> Brick.Mutation.InwardHunger x1, Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand x1, Brick.Mutation.StarShepherd -> Brick.Mutation.StarTow x1, Brick.Space.HermitMonolith -> Brick.Space.ClosedPort x2, Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall x3, BrickQuietInsightPerTick -> BrickIdleInsightPerTick x1, IsQuietOf -> IsIdleOf x2, KesslerTapestry -> DustBand x1, StarShepherd -> StarTow x1)
+  Source/Cosmic_Ascension/Sim/CosmicMegaprojects.h                          2  (Brick.Space.HermitMonolith -> Brick.Space.ClosedPort x1, Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall x1)
+  Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp                 2  (Brick.Form.DysonBrain -> Brick.Form.ShutSphere x1, Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall x1)
+  Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.h                   2  (Brick.Form.DysonBrain -> Brick.Form.ShutSphere x1, Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall x1)
+  Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp             64  ("(quiet again)" -> "(idle again)" x1, "A quiet tick" -> "An idle tick" x1, "TEXT("The hermit")" -> "TEXT("The closed port")" x1, "The board is quiet for people" -> "The board is idle for people" x1, "The quiet tick" -> "The idle tick" x1, "The tapestry needs" -> "The dust band needs" x1, "The unseen law" -> "The kept law" x2, "an unseen law" -> "a kept law" x1, "breaks the quiet" -> "ends the idle tick" x1, "is a star shepherd" -> "carries the star tow" x1, "the Kessler tapestry" -> "the dust band" x1, "the abyssal maw" -> "the inward hunger" x2, "the silence feeder" -> "the idle feeder" x1, "the star shepherd" -> "the star tow" x1, "the unseen law" -> "the kept law" x1, "the unseen law's kept edicts" -> "the kept law's edicts" x2, AbyssalMaw -> InwardHunger x1, Brick.Form.UnseenLaw -> Brick.Form.KeptLaw x1, Brick.Space.HermitMonolith -> Brick.Space.ClosedPort x1, Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall x1, BrickDietSilenceFeed -> BrickDietIdleFeed x2, BrickFormDysonBrain -> BrickFormShutSphere x5, BrickFormUnseenLaw -> BrickFormKeptLaw x3, BrickMutationAbyssalMaw -> BrickMutationInwardHunger x4, BrickMutationKesslerTapestry -> BrickMutationDustBand x3, BrickMutationStarShepherd -> BrickMutationStarTow x4, BrickQuietInsightPerTick -> BrickIdleInsightPerTick x1, BrickSpaceHermitMonolith -> BrickSpaceClosedPort x5, BrickSpacePlanckMicro -> BrickSpaceFoldedSmall x6, IsQuietOf -> IsIdleOf x6, KesslerTapestry -> DustBand x1, StarShepherd -> StarTow x1)
+  Config/DefaultGameplayTags.ini                                           12  ("; leaf rename to QuietFeed proposed before any save" -> "" x1, "an unseen law" -> "a kept law" x1, "feeds on quiet ticks" -> "feeds on idle ticks" x1, Brick.Diet.SilenceFeed -> Brick.Diet.IdleFeed x1, Brick.Form.DysonBrain -> Brick.Form.ShutSphere x1, Brick.Form.UnseenLaw -> Brick.Form.KeptLaw x1, Brick.Mutation.AbyssalMaw -> Brick.Mutation.InwardHunger x1, Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand x1, Brick.Mutation.StarShepherd -> Brick.Mutation.StarTow x1, Brick.Space.HermitMonolith -> Brick.Space.ClosedPort x1, Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall x1, BrickQuietInsightPerTick -> BrickIdleInsightPerTick x1)
+  Tools/test_data_schema.py                                                 5  (Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand x1, Brick.Space.HermitMonolith -> Brick.Space.ClosedPort x1, Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall x2, BrickQuietInsightPerTick -> BrickIdleInsightPerTick x1)
+  Tools/data/DT_Encounters.json                                            17  (Brick.Form.DysonBrain -> Brick.Form.ShutSphere x2, Brick.Form.UnseenLaw -> Brick.Form.KeptLaw x2, Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand x3, Brick.Mutation.StarShepherd -> Brick.Mutation.StarTow x3, Brick.Space.HermitMonolith -> Brick.Space.ClosedPort x4, Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall x3)
+  Tools/data/DT_Events.json                                                 5  (Brick.Form.DysonBrain -> Brick.Form.ShutSphere x1, Brick.Mutation.AbyssalMaw -> Brick.Mutation.InwardHunger x1, Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand x1, Brick.Space.HermitMonolith -> Brick.Space.ClosedPort x1, Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall x1)
+  Tools/data/DT_Rules.json                                                  2  (Brick.Diet.SilenceFeed -> Brick.Diet.IdleFeed x1, BrickQuietInsightPerTick -> BrickIdleInsightPerTick x1)
+  Tools/data/schema.json                                                   33  (Brick.Diet.SilenceFeed -> Brick.Diet.IdleFeed x4, Brick.Form.DysonBrain -> Brick.Form.ShutSphere x4, Brick.Form.UnseenLaw -> Brick.Form.KeptLaw x4, Brick.Mutation.AbyssalMaw -> Brick.Mutation.InwardHunger x4, Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand x4, Brick.Mutation.StarShepherd -> Brick.Mutation.StarTow x4, Brick.Space.HermitMonolith -> Brick.Space.ClosedPort x4, Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall x4, BrickQuietInsightPerTick -> BrickIdleInsightPerTick x1)
+changes: 213 in 16 files
+sites: 213 written to sites.txt
+old names outside the scope (docs - edited by hand, not by this script): 5 files
+  docs/30_CONFIG_REFERENCE.md
+  docs/OVERVIEW_as_of_B6a.html
+  docs/10_DESIGN/EXISTENCE_EVOLUTION_AND_ECOLOGY.md
+  docs/60_DECISIONS/headers/B7_composable_existence_and_evolution.md
+  docs/60_DECISIONS/headers/B7_composable_existence_and_evolution_notes.md
+follow-up (not done by this script):
+  python -I Tools/make_config_reference.py      (docs/30_CONFIG_REFERENCE.md still names BrickQuietInsightPerTick; then python -I Tools/make_config_reference.py --check)
+  powershell -ExecutionPolicy Bypass -File Tools\run_checks.ps1 -Tier full -Data      (editor closed: make_data_tables.py rebuilds the DT_ .uasset files and Tools/data/generated.sha1 - stale now: DT_Rules.json, DT_Civs.json, DT_Events.json, DT_Encounters.json, ST_CA.csv, schema.json)
+no old name left under Source/, Config/, Tools/

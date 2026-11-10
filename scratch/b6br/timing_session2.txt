@@ -1,0 +1,46 @@
+﻿2026-11-10 12:49:29 round 2
+before checks              r2 AI  17.51 eco  1.61 crisis   9.86 free   9.4 GB cpu  11.6 % wall   9.9 s exit 0
+after  checks              r2 AI   6.58 eco  1.65 crisis   9.10 free   9.4 GB cpu     8 % wall    10 s exit 0
+after  checks_ruler        r2 AI   5.62 eco  1.60 crisis   8.60 free   9.4 GB cpu   9.2 % wall    10 s exit 0
+2026-11-10 12:50:38 waiting before before_checks_ruler_r2: CPU 17.8 % >= 15
+before checks_ruler        r2 AI  18.62 eco  1.86 crisis  11.75 free   9.4 GB cpu  10.4 % wall   9.9 s exit 0
+before checks_wanderer     r2 AI  19.96 eco  3.02 crisis  20.26 free   9.4 GB cpu  10.6 % wall  10.4 s exit 0
+after  checks_wanderer     r2 AI   7.85 eco  2.93 crisis  18.79 free   9.4 GB cpu  12.2 % wall  10.4 s exit 0
+after  checks_20000        r2 AI  11.14 eco  3.02 crisis  26.81 free   9.3 GB cpu  10.6 % wall  11.4 s exit 0
+before checks_20000        r2 AI  24.24 eco  3.14 crisis  28.91 free   9.3 GB cpu  14.8 % wall  11.9 s exit 0
+before checks_ruler_20000  r2 AI  20.02 eco  2.84 crisis  27.23 free   9.4 GB cpu    14 % wall  12.9 s exit 0
+after  checks_ruler_20000  r2 AI   8.24 eco  2.68 crisis  24.64 free   9.4 GB cpu  10.8 % wall  12.4 s exit 0
+2026-11-10 12:53:46 waiting before after_off_checks_r2: CPU 18.6 % >= 15
+2026-11-10 12:54:25 waiting before after_off_checks_r2: CPU 17.2 % >= 15
+2026-11-10 12:55:05 waiting before after_off_checks_r2: CPU 21.6 % >= 15
+2026-11-10 12:55:45 waiting before after_off_checks_r2: CPU 21 % >= 15
+2026-11-10 12:56:15 waiting before after_off_checks_r2: busy: cmd.exe (56764): C:\WINDOWS\system32\cmd.exe /c ""C:\Program Files\Epic Games\UE_5.8\Engine\Build\BatchFiles\Build.bat" Cosmic_AscensionE; dotnet UnrealBuildTool (10600); cl.exe (33564); cl.exe (57988); cl.exe (56716); cl.exe (18060); cl.exe (56924) | free memory 6.5 GB < 8
+2026-11-10 12:56:46 waiting before after_off_checks_r2: busy: cmd.exe (56764): C:\WINDOWS\system32\cmd.exe /c ""C:\Program Files\Epic Games\UE_5.8\Engine\Build\BatchFiles\Build.bat" Cosmic_AscensionE; dotnet UnrealBuildTool (10600); cl.exe (56924); cl.exe (4288); cl.exe (25296); cl.exe (31488); cl.exe (20240) | free memory 7.3 GB < 8
+2026-11-10 12:57:16 waiting before after_off_checks_r2: busy: cmd.exe (6632): C:\WINDOWS\system32\cmd.exe /c ""C:\Program Files\Epic Games\UE_5.8\Engine\Build\BatchFiles\Build.bat" Cosmic_Ascension ; dotnet UnrealBuildTool (53176); cl.exe (48028); cl.exe (35360); cl.exe (23328); cl.exe (8820); cl.exe (57996); cl.exe (43680) | free memory 5.9 GB < 8
+2026-11-10 12:57:47 waiting before after_off_checks_r2: busy: cmd.exe (6632): C:\WINDOWS\system32\cmd.exe /c ""C:\Program Files\Epic Games\UE_5.8\Engine\Build\BatchFiles\Build.bat" Cosmic_Ascension ; dotnet UnrealBuildTool (53176); cl.exe (57996)
+2026-11-10 12:58:27 waiting before after_off_checks_r2: CPU 29 % >= 15
+2026-11-10 12:58:58 waiting before after_off_checks_r2: busy: UnrealEditor-Cmd.exe (10816)
+2026-11-10 12:59:43 waiting before after_off_checks_r2: CPU 23 % >= 15
+2026-11-10 13:00:14 waiting before after_off_checks_r2: busy: UnrealEditor-Cmd.exe (6228)
+2026-11-10 13:00:44 waiting before after_off_checks_r2: busy: UnrealEditor-Cmd.exe (6228)
+2026-11-10 13:01:15 waiting before after_off_checks_r2: busy: UnrealEditor-Cmd.exe (6228)
+2026-11-10 13:01:45 waiting before after_off_checks_r2: busy: UnrealEditor-Cmd.exe (53032)
+after  off_checks          r2 AI   5.00 eco  1.62 crisis   8.02 free  10.5 GB cpu    11 % wall  10.4 s exit 0
+2026-11-10 13:02:36 waiting before before_off_checks_r2: busy: UnrealEditor-Cmd.exe (5972)
+2026-11-10 13:03:06 waiting before before_off_checks_r2: busy: UnrealEditor-Cmd.exe (5972)
+2026-11-10 13:03:37 waiting before before_off_checks_r2: busy: UnrealEditor-Cmd.exe (5972)
+2026-11-10 13:04:07 waiting before before_off_checks_r2: busy: UnrealEditor-Cmd.exe (5972)
+before off_checks          r2 AI  11.36 eco  1.76 crisis   9.84 free  10.6 GB cpu     2 % wall   9.9 s exit 0
+before off_checks_20000    r2 AI  11.74 eco  3.18 crisis  13.76 free  10.6 GB cpu   5.2 % wall  10.4 s exit 0
+2026-11-10 13:05:17 waiting before after_off_checks_20000_r2: busy: UnrealEditor-Cmd.exe (13884)
+2026-11-10 13:05:48 waiting before after_off_checks_20000_r2: busy: UnrealEditor-Cmd.exe (13884)
+2026-11-10 13:06:18 waiting before after_off_checks_20000_r2: busy: UnrealEditor-Cmd.exe (13884)
+2026-11-10 13:06:48 waiting before after_off_checks_20000_r2: busy: UnrealEditor-Cmd.exe (13884)
+after  off_checks_20000    r2 AI   6.01 eco  3.31 crisis  12.31 free  10.6 GB cpu   8.2 % wall   7.9 s exit 0
+2026-11-10 13:07:36 round 3
+2026-11-10 13:07:37 waiting before after_checks_r3: busy: UnrealEditor-Cmd.exe (55252)
+2026-11-10 13:08:07 waiting before after_checks_r3: busy: UnrealEditor-Cmd.exe (55252)
+2026-11-10 13:08:37 waiting before after_checks_r3: busy: UnrealEditor-Cmd.exe (55252)
+2026-11-10 13:09:17 waiting before after_checks_r3: CPU 17 % >= 15
+2026-11-10 13:09:48 waiting before after_checks_r3: busy: UnrealEditor-Cmd.exe (9972)
+2026-11-10 13:10:18 waiting before after_checks_r3: busy: UnrealEditor-Cmd.exe (9972)

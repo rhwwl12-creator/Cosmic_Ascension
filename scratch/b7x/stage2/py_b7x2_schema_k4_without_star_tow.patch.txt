@@ -1,0 +1,33 @@
+...........F....................F.................................................................
+======================================================================
+FAIL: test_a_rung_never_from_a_brick (__main__.SchemaTests.test_a_rung_never_from_a_brick)
+B7x [B-7x2] (header K4, section 3.3 rule 7; notes 5.4 data-3 and tests-8): a rung comes from a feat's deed, never
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\rhwwl\AppData\Local\Temp\claude\c--Users-rhwwl-OneDrive-Documents-Unreal-Projects-Cosmic-Ascension\37de2919-0c44-45d8-94cd-4dcf0860263e\scratchpad\b7x\int\Tools\test_data_schema.py", line 2833, in test_a_rung_never_from_a_brick
+    self.assertEqual(rules[0]["then"], [{"col": "CompletionConditions", "lacks_type": "BorderingCivHasTrait"}]
+AssertionError: Lists differ: [{'co[1514 chars]rick.Space.ClosedPort'}}, {'col': 'CompletionC[1998 chars]d'}}] != [{'co[1514 chars]rick.Mutation.StarTow'}}, {'col': 'CompletionC[2103 chars]d'}}]
+
+First differing element 14:
+{'col[35 chars]ond': {'type': 'CivHasTrait', 'tag': 'Brick.Space.ClosedPort'}}
+{'col[35 chars]ond': {'type': 'CivHasTrait', 'tag': 'Brick.Mutation.StarTow'}}
+
+Second list contains 1 additional elements.
+First extra element 34:
+{'col': 'CompletionConditions', 'lacks_cond': {'type': 'CivLacksTrait', 'tag': 'Brick.Space.Nomad'}}
+
+Diff is 3933 characters long. Set self.maxDiff to None to see it.
+
+======================================================================
+FAIL: test_every_rule_of_the_schema_can_fail (__main__.SchemaTests.test_every_rule_of_the_schema_can_fail)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\rhwwl\AppData\Local\Temp\claude\c--Users-rhwwl-OneDrive-Documents-Unreal-Projects-Cosmic-Ascension\37de2919-0c44-45d8-94cd-4dcf0860263e\scratchpad\b7x\int\Tools\test_data_schema.py", line 4042, in test_every_rule_of_the_schema_can_fail
+    self.assertEqual(walked, 358, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+AssertionError: 357 != 358 : the number of then-tests in schema.json changed: look at what was added or taken out, then set the count
+
+----------------------------------------------------------------------
+Ran 98 tests in 87.930s
+
+FAILED (failures=2)
+check_data: 0 problem(s)

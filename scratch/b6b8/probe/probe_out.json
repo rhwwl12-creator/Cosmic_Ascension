@@ -1,0 +1,172 @@
+{
+ "checks": {
+  "side": {
+   "era": 0,
+   "era_rec": 0,
+   "era_first": -1,
+   "wit": 0,
+   "wit_first": -1,
+   "wit_rec": 0,
+   "answered": 0,
+   "passed": 0,
+   "failed": 0,
+   "nocheck": 0,
+   "gone": 0,
+   "layout": "new"
+  },
+  "E": Infinity,
+  "W": Infinity,
+  "limit": Infinity,
+  "first_diff": {
+   "csv": null,
+   "rows": null
+  },
+  "moved": false,
+  "key_now": "CosmicBalance: seed 42, 3000 ticks, hash 2557850423, world 2906170550",
+  "key_before": "CosmicBalance: seed 42, 3000 ticks, hash 2557850423, world 2906170550",
+  "ending": {
+   "kind": "None",
+   "tick": -1,
+   "civ": "-",
+   "some_life_ruled": 0,
+   "no_vessel": 0
+  },
+  "T": 1521
+ },
+ "checks_ruler": {
+  "side": {
+   "era": 0,
+   "era_rec": 0,
+   "era_first": -1,
+   "wit": 0,
+   "wit_first": -1,
+   "wit_rec": 0,
+   "answered": 0,
+   "passed": 0,
+   "failed": 0,
+   "nocheck": 0,
+   "gone": 0,
+   "layout": "new"
+  },
+  "E": Infinity,
+  "W": Infinity,
+  "limit": Infinity,
+  "first_diff": {
+   "csv": null,
+   "rows": null
+  },
+  "moved": false,
+  "key_now": "CosmicBalance: seed 42, 3000 ticks, hash 1189870756, world 3359656751 | CosmicBalance ruler: answer 1 build 1 focus 1 edict 1 diplomacy 1; cards 17, answers 17, started 5, focus changes 5, edict changes 5, diplomacy changes 17, decisions 49 (by 600 12, by 6000 -1, by end -1); told by 600 25, by 6000 -1; ruled people T2 at 1175, T3 at 2375",
+  "key_before": "CosmicBalance: seed 42, 3000 ticks, hash 1189870756, world 3359656751 | CosmicBalance ruler: answer 1 build 1 focus 1 edict 1 diplomacy 1; cards 17, answers 17, started 5, focus changes 5, edict changes 5, diplomacy changes 17, decisions 49 (by 600 12, by 6000 -1, by end -1); told by 600 25, by 6000 -1; ruled people T2 at 1175, T3 at 2375",
+  "ending": {
+   "kind": "None",
+   "tick": -1,
+   "civ": "-",
+   "some_life_ruled": 0,
+   "no_vessel": 0
+  },
+  "T": 1521
+ },
+ "checks_wanderer": {
+  "side": {
+   "era": 0,
+   "era_rec": 0,
+   "era_first": -1,
+   "wit": 0,
+   "wit_first": -1,
+   "wit_rec": 0,
+   "answered": 0,
+   "passed": 0,
+   "failed": 0,
+   "nocheck": 0,
+   "gone": 0,
+   "layout": "new"
+  },
+  "E": Infinity,
+  "W": Infinity,
+  "limit": Infinity,
+  "first_diff": {
+   "csv": null,
+   "rows": null
+  },
+  "moved": false,
+  "key_now": "CosmicBalance: seed 42, 6000 ticks, hash 1631315934, world 489794244 | CosmicBalance ruler: answer 1 build 1 focus 1 edict 1 diplomacy 1; cards 8, answers 8, started 2, focus changes 4, edict changes 3, diplomacy changes 2, decisions 19 (by 600 12, by 6000 19, by end 19); told by 600 25, by 6000 733; ruled people T2 at 1175, T3 at -1 | CosmicBalance wanderer: abdicate 1200 wander 1; left at 1201, crowned at -1 (None, tier 0, path none), journeys 191, scans 191, cards 7, answers 7, reverence peak 0.00, body 3, mind 1",
+  "key_before": "CosmicBalance: seed 42, 6000 ticks, hash 1631315934, world 489794244 | CosmicBalance ruler: answer 1 build 1 focus 1 edict 1 diplomacy 1; cards 8, answers 8, started 2, focus changes 4, edict changes 3, diplomacy changes 2, decisions 19 (by 600 12, by 6000 19, by end 19); told by 600 25, by 6000 733; ruled people T2 at 1175, T3 at -1 | CosmicBalance wanderer: abdicate 1200 wander 1; left at 1201, crowned at -1 (None, tier 0, path none), journeys 191, scans 191, cards 7, answers 7, reverence peak 0.00, body 3, mind 1",
+  "ending": {
+   "kind": "Clock",
+   "tick": 6000,
+   "civ": "-",
+   "some_life_ruled": 0,
+   "no_vessel": 1
+  },
+  "T": 1558
+ },
+ "checks_20000": {
+  "side": {
+   "era": 0,
+   "era_rec": 0,
+   "era_first": -1,
+   "wit": 0,
+   "wit_first": -1,
+   "wit_rec": 0,
+   "answered": 0,
+   "passed": 0,
+   "failed": 0,
+   "nocheck": 0,
+   "gone": 0,
+   "layout": "new"
+  },
+  "E": Infinity,
+  "W": Infinity,
+  "limit": Infinity,
+  "first_diff": {
+   "csv": null,
+   "rows": null
+  },
+  "moved": false,
+  "key_now": "CosmicBalance: seed 42, 20000 ticks, hash 1957158585, world 3764704052",
+  "key_before": "CosmicBalance: seed 42, 20000 ticks, hash 1957158585, world 3764704052",
+  "ending": {
+   "kind": "Clock",
+   "tick": 6000,
+   "civ": "-",
+   "some_life_ruled": 0,
+   "no_vessel": 0
+  },
+  "T": 1521
+ },
+ "checks_ruler_20000": {
+  "side": {
+   "era": 0,
+   "era_rec": 0,
+   "era_first": -1,
+   "wit": 0,
+   "wit_first": -1,
+   "wit_rec": 0,
+   "answered": 0,
+   "passed": 0,
+   "failed": 0,
+   "nocheck": 0,
+   "gone": 0,
+   "layout": "new"
+  },
+  "E": Infinity,
+  "W": Infinity,
+  "limit": Infinity,
+  "first_diff": {
+   "csv": null,
+   "rows": null
+  },
+  "moved": false,
+  "key_now": "CosmicBalance: seed 42, 20000 ticks, hash 1375149537, world 510604211 | CosmicBalance ruler: answer 1 build 1 focus 1 edict 1 diplomacy 1; cards 110, answers 110, started 41, focus changes 5, edict changes 18, diplomacy changes 17, decisions 191 (by 600 12, by 6000 90, by end 89); told by 600 25, by 6000 927; ruled people T2 at 1175, T3 at 2375",
+  "key_before": "CosmicBalance: seed 42, 20000 ticks, hash 1375149537, world 510604211 | CosmicBalance ruler: answer 1 build 1 focus 1 edict 1 diplomacy 1; cards 110, answers 110, started 41, focus changes 5, edict changes 18, diplomacy changes 17, decisions 191 (by 600 12, by 6000 90, by end 89); told by 600 25, by 6000 927; ruled people T2 at 1175, T3 at 2375",
+  "ending": {
+   "kind": "RuledPeople",
+   "tick": 5899,
+   "civ": "civ_0",
+   "some_life_ruled": 1,
+   "no_vessel": 0
+  },
+  "T": 1521
+ }
+}

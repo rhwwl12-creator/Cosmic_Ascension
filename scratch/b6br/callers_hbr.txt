@@ -1,0 +1,81 @@
+Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp:100:	for (const FName FeatRow : Tables.GetFeatRowNames())
+Source/Cosmic_Ascension/Data/CosmicDataTables.cpp:114:	for (const FName RowName : GetHazardRowNames())
+Source/Cosmic_Ascension/Data/CosmicDataTables.cpp:129:TArray<FName> FCosmicDataTables::GetEventRowNames() const
+Source/Cosmic_Ascension/Data/CosmicDataTables.cpp:136:TArray<FName> FCosmicDataTables::GetTranscendentRowNames() const
+Source/Cosmic_Ascension/Data/CosmicDataTables.cpp:143:TArray<FName> FCosmicDataTables::GetHazardRowNames() const
+Source/Cosmic_Ascension/Data/CosmicDataTables.cpp:150:TArray<FName> FCosmicDataTables::GetFeatRowNames() const
+Source/Cosmic_Ascension/Data/CosmicDataTables.cpp:157:TArray<FName> FCosmicDataTables::GetEncounterRowNames() const
+Source/Cosmic_Ascension/Data/CosmicDataTables.cpp:181:TArray<FName> FCosmicDataTables::GetEdictRowNames() const
+Source/Cosmic_Ascension/Data/CosmicDataTables.cpp:188:TArray<FName> FCosmicDataTables::GetGalaxyRowNames() const
+Source/Cosmic_Ascension/Data/CosmicDataTables.cpp:195:TArray<FName> FCosmicDataTables::GetCivRowNames() const
+Source/Cosmic_Ascension/Data/CosmicDataTables.h:100:	TArray<FName> GetCivRowNames() const;
+Source/Cosmic_Ascension/Data/CosmicDataTables.h:103:	TArray<FName> GetEventRowNames() const;
+Source/Cosmic_Ascension/Data/CosmicDataTables.h:106:	TArray<FName> GetTranscendentRowNames() const;
+Source/Cosmic_Ascension/Data/CosmicDataTables.h:110:	TArray<FName> GetHazardRowNames() const;
+Source/Cosmic_Ascension/Data/CosmicDataTables.h:113:	TArray<FName> GetFeatRowNames() const;
+Source/Cosmic_Ascension/Data/CosmicDataTables.h:117:	TArray<FName> GetEncounterRowNames() const;
+Source/Cosmic_Ascension/Data/CosmicDataTables.h:122:	TArray<FName> GetEdictRowNames() const;
+Source/Cosmic_Ascension/Data/CosmicDataTables.h:126:	TArray<FName> GetGalaxyRowNames() const;
+Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp:1052:	const TArray<FName> RowNames = Tables.GetEventRowNames();
+Source/Cosmic_Ascension/Events/CosmicPetitions.cpp:244:		for (const FName RowName : Tables.GetEncounterRowNames())
+Source/Cosmic_Ascension/Events/CosmicPetitions.cpp:255:	for (const FName RowName : Tables.GetEncounterRowNames())
+Source/Cosmic_Ascension/Events/CosmicPetitions.cpp:314:			for (const FName RowName : Tables.GetEncounterRowNames())
+Source/Cosmic_Ascension/Events/CosmicPetitions.cpp:387:			for (const FName RowName : Tables.GetEncounterRowNames())
+Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp:438:	for (const FName FeatRow : Tables.GetFeatRowNames())
+Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp:217:	TArray<FName> Laws = Tables.GetEdictRowNames();
+Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp:248:	for (const FName FeatRow : Tables.GetFeatRowNames())
+Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:361:	for (const FName FeatRow : Tables.GetFeatRowNames())
+Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:899:	for (const FName RowName : Tables.GetCivRowNames())
+Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:1046:		for (const FName RowName : Tables.GetTranscendentRowNames())
+Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2321:	const TArray<FName> HazardRows = Tables.GetHazardRowNames();
+Source/Cosmic_Ascension/Tests/CosmicAscensionOverlayTests.cpp:72:	TArray<FName> FeatRows = Sim->GetTables().GetFeatRowNames();
+Source/Cosmic_Ascension/Tests/CosmicAscensionTests.cpp:1670:		for (const FName GalaxyRow : Original.GetGalaxyRowNames())
+Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp:734:		for (const FName RowName : Tables.GetEncounterRowNames())
+Source/Cosmic_Ascension/Tests/CosmicBookTests.cpp:632:		const TArray<FName> SlotOrder = Original.GetEventRowNames();
+Source/Cosmic_Ascension/Tests/CosmicCallingPagesTests.cpp:543:		const TArray<FName> Feats = Tables.GetFeatRowNames();
+Source/Cosmic_Ascension/Tests/CosmicChronicleScreenTests.cpp:1286:			const TArray<FName> Claimants = Game.GetTranscendentRowNames();
+Source/Cosmic_Ascension/Tests/CosmicCommandReasonTests.cpp:120:			for (const FName RowName : Game.GetHazardRowNames())
+Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp:1828:			const TArray<FName> Names = Game.GetHazardRowNames();
+Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp:1838:		TestTrue(TEXT("The game has a hazard row to change"), !Game.GetHazardRowNames().IsEmpty());
+Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp:1844:		for (const FName HazardName : Game.GetHazardRowNames())
+Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp:2072:		for (const FName FeatRow : Tables.GetFeatRowNames())
+Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp:2127:		for (const FName FeatRow : Tables.GetFeatRowNames())
+Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp:2136:		for (const FName HazardRow : Tables.GetHazardRowNames())
+Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp:2222:		for (const FName HazardRow : Tables.GetHazardRowNames())
+Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp:2292:		for (const FName FeatRow : Game.GetFeatRowNames())
+Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp:2420:		for (const FName RowName : Tables.GetEdictRowNames())
+Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp:2529:			for (const FName Row : Tables.GetTranscendentRowNames())
+Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp:2544:		for (const FName HazardName : Tables.GetHazardRowNames())
+Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp:2553:			for (const FName EventName : Tables.GetEventRowNames())
+Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp:2574:			for (const FName EdictName : Tables.GetEdictRowNames())
+Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp:2581:			for (const FName CardName : Tables.GetEncounterRowNames())
+Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp:2621:		for (const FName CardName : Tables.GetEncounterRowNames())
+Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp:2656:		const TArray<FName> Names = Tables.GetEncounterRowNames();
+Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp:2723:		for (const FName HazardRow : Game.GetHazardRowNames())
+Source/Cosmic_Ascension/Tests/CosmicEdictUITests.cpp:414:	TArray<FName> Expected = Tables.GetEdictRowNames();
+Source/Cosmic_Ascension/Tests/CosmicEventTests.cpp:72:		for (const FName RowName : Base.GetCivRowNames())
+Source/Cosmic_Ascension/Tests/CosmicEventTests.cpp:86:		for (const FName RowName : Base.GetCivRowNames())
+Source/Cosmic_Ascension/Tests/CosmicHazardTests.cpp:302:		for (const FName RowName : Original.GetCivRowNames())
+Source/Cosmic_Ascension/Tests/CosmicHazardTests.cpp:783:	for (const FName RowName : Original.GetCivRowNames())
+Source/Cosmic_Ascension/Tests/CosmicPressureCardTests.cpp:1231:	for (const FName Row : Original.GetEventRowNames())
+Source/Cosmic_Ascension/Tests/CosmicRaceMeasure.h:139:		for (const FName FeatRow : Tables.GetFeatRowNames())
+Source/Cosmic_Ascension/Tests/CosmicRaceMeasureTests.cpp:382:		TestTrue(TEXT("(the game has rows besides the home row)"), Game.GetGalaxyRowNames().Num() > 1);
+Source/Cosmic_Ascension/Tests/CosmicRaceMeasureTests.cpp:384:		for (const FName Row : Game.GetGalaxyRowNames())
+Source/Cosmic_Ascension/Tests/CosmicSanctuaryTests.cpp:242:		for (const FName Row : Tables.GetHazardRowNames())
+Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h:430:		for (const FName GalaxyRow : Original.GetGalaxyRowNames())
+Source/Cosmic_Ascension/Tests/CosmicThirdRungTests.cpp:214:	const TArray<FName> FeatRows = Sim->GetTables().GetFeatRowNames();
+Source/Cosmic_Ascension/Tests/CosmicUniverseTests.cpp:1022:		for (const FName Row : GameTables.GetGalaxyRowNames())
+Source/Cosmic_Ascension/Tests/CosmicUniverseTests.cpp:1103:		for (const FName Row : GameTables.GetGalaxyRowNames())
+Source/Cosmic_Ascension/Tests/CosmicUniverseTests.cpp:1505:			for (const FName Row : GameTables.GetGalaxyRowNames())
+Source/Cosmic_Ascension/Tests/CosmicUniverseTests.cpp:1621:		const TArray<FName> Feats = Sim->GetTables().GetFeatRowNames();
+Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp:359:	for (const FName HazardRow : Tables.GetHazardRowNames())
+Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp:702:	for (const FName Row : Tables.GetEdictRowNames())
+Source/Cosmic_Ascension/UI/CosmicNextRung.cpp:92:	for (const FName FeatRow : Tables.GetFeatRowNames())
+Source/Cosmic_Ascension/UI/CosmicNextRung.cpp:159:					for (const FName HazardRow : Tables.GetHazardRowNames())
+Source/Cosmic_Ascension/UI/CosmicNextRung.cpp:374:	for (const FName FeatRow : Tables.GetFeatRowNames())
+Source/Cosmic_Ascension/UI/CosmicNextRung.cpp:387:	for (const FName FeatRow : Tables.GetFeatRowNames())
+Source/Cosmic_Ascension/World/CosmicGameMode.cpp:1792:		const TArray<FName> Feats = Sim ? Sim->GetTables().GetFeatRowNames() : TArray<FName>();
+Source/Cosmic_Ascension/World/CosmicGameMode.cpp:2585:		for (const FName Each : Sim->GetTables().GetEdictRowNames())
+Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp:243:	for (const FName Row : Tables.GetEdictRowNames())
+Source/Cosmic_Ascension/World/CosmicUniverseLook.cpp:115:	for (const FName Name : Tables.GetGalaxyRowNames())
+Source/Cosmic_Ascension/World/CosmicUniverseLook.cpp:157:	for (const FName Name : Tables.GetGalaxyRowNames())

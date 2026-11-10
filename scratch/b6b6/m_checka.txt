@@ -1,0 +1,15 @@
+checks_20000 exit 0
+checks_ruler_20000 exit 0
+checks_wanderer exit 0
+checks exit 0
+checks_ruler exit 0
+checks               seed 42, 3000 ticks, hash 2816687688, world 3300228750 | equal to summary_line: True | check lines 0 | LogCosmic errors 0 | ['rows taken out [feat_passage_by_ark project_ark project_binding crisis_species_extinction]']
+checks_ruler         seed 42, 3000 ticks, hash 3561771757, world 2462331303 | equal to ruler_summary_line: True | check lines 0 | LogCosmic errors 0 | ['rows taken out [feat_passage_by_ark project_ark project_binding crisis_species_extinction]']
+checks_wanderer      seed 42, 6000 ticks, hash 2665013209, world 2229239127 | equal to wanderer_summary_line: True | check lines 0 | LogCosmic errors 0 | ['rows taken out [feat_passage_by_ark project_ark project_binding crisis_species_extinction]']
+checks_20000         seed 42, 20000 ticks, hash 2359424635, world 726895141 | equal to summary_line_20000: True | check lines 0 | LogCosmic errors 0 | ['rows taken out [feat_passage_by_ark project_ark project_binding crisis_species_extinction]']
+checks_ruler_20000   seed 42, 20000 ticks, hash 1611658162, world 29194274 | equal to ruler_summary_line_20000: True | check lines 0 | LogCosmic errors 0 | ['rows taken out [feat_passage_by_ark project_ark project_binding crisis_species_extinction]']
+ALL KEYS EQUAL
+
+real	0m14.813s
+user	0m0.000s
+sys	0m0.015s

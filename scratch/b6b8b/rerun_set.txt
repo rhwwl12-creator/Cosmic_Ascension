@@ -1,0 +1,25 @@
+# [B-6b8b] rerun set (mechanical - scratchpad/b6b8b/mut/rerun_set.py; apply state at {H8B} 84f0d36 from apply_before.txt,
+# and git apply --check on the working tree)
+# edited files: Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h, Source/Cosmic_Ascension/Tests/CosmicDiplomacyTests.cpp, Tools/data/DT_Rules.json
+# by file Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h: 0 patches (0 apply at {H8B})
+# by file Source/Cosmic_Ascension/Tests/CosmicDiplomacyTests.cpp: 0 patches (0 apply at {H8B})
+# by file Tools/data/DT_Rules.json: 5 patches (3 apply at {H8B})
+# by Breaks test Cosmic_Ascension.Sim.FleetDelay: 6 patches (4 apply at {H8B})
+# old union 11: 7 apply at {H8B} (rerun), 4 FAIL at {H8B} (dead, not this commit's)
+# --- old patches to rerun (7)
+Tools/mutations/B3/b3b_delay_on_rebellion.patch=Cosmic_Ascension.Sim.FleetDelay
+Tools/mutations/B3/b3b_delay_unguarded.patch=Cosmic_Ascension.Sim.FleetDelay
+Tools/mutations/B6b/b6b2a_data_laws_knob_four.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6b/b6b2c_guard_cap_ignored.patch=Cosmic_Ascension.Sim.FleetDelay
+Tools/mutations/B6b/b6b2c_guard_cap_no_fleet_cap.patch=Cosmic_Ascension.Sim.FleetDelay
+Tools/mutations/B6b/b6b7_data_ark_margin_half.patch=Cosmic_Ascension.Data.Integrity
+Tools/mutations/B6b/b6b7_data_upper_rung_not_binary.patch=Cosmic_Ascension.Data.Integrity
+# --- new b6b8b_ patches (3)
+Tools/mutations/B6b/b6b8b_data_share_off.patch=Cosmic_Ascension.Sim.FleetDelay
+Tools/mutations/B6b/b6b8b_data_share_third.patch=Cosmic_Ascension.Data.Integrity+Cosmic_Ascension.Sim.FleetDelay
+Tools/mutations/B6b/b6b8b_share_zero_is_a_share.patch=Cosmic_Ascension.Sim.FleetDelay
+# --- dead (FAIL at {H8B}, not rerun) (4)
+# Tools/mutations/B3/b3b_delay_ignores_gap.patch  (README: marked)
+# Tools/mutations/B3/b3b_delay_outside_cut.patch  (README: marked)
+# Tools/mutations/B4/b4d2_data_resist_factor.patch  (README: not marked)
+# Tools/mutations/B6b/b6b2c_data_ark_margin_half.patch  (README: marked)

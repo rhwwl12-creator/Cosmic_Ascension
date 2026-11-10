@@ -1,0 +1,35 @@
+﻿2026-11-10 12:43:43 warm-up (round 0, discarded)
+before checks              r0 AI  17.22 eco  1.64 crisis   9.80 free   9.2 GB cpu     6 % wall   9.9 s exit 0
+after  checks              r0 AI   5.85 eco  1.58 crisis   8.37 free   9.2 GB cpu  13.4 % wall   9.9 s exit 0
+2026-11-10 12:44:23 round 1
+after  checks              r1 AI   5.93 eco  1.57 crisis   8.26 free   9.3 GB cpu  10.2 % wall   9.9 s exit 0
+before checks              r1 AI  18.62 eco  1.76 crisis  10.73 free   9.3 GB cpu   3.6 % wall   9.5 s exit 0
+before checks_ruler        r1 AI  16.37 eco  1.66 crisis   9.93 free   9.4 GB cpu     4 % wall   9.5 s exit 0
+after  checks_ruler        r1 AI   5.67 eco  1.64 crisis   8.60 free   9.4 GB cpu   3.2 % wall   9.9 s exit 0
+after  checks_wanderer     r1 AI   7.56 eco  2.76 crisis  17.22 free   9.4 GB cpu   3.6 % wall  10.4 s exit 0
+before checks_wanderer     r1 AI  19.22 eco  2.86 crisis  19.11 free   9.3 GB cpu     7 % wall   9.9 s exit 0
+before checks_20000        r1 AI  22.69 eco  2.92 crisis  26.77 free   9.3 GB cpu     4 % wall  11.4 s exit 0
+after  checks_20000        r1 AI  10.01 eco  2.78 crisis  25.14 free   9.4 GB cpu   8.4 % wall  11.4 s exit 0
+after  checks_ruler_20000  r1 AI   7.80 eco  2.55 crisis  23.33 free   9.3 GB cpu     9 % wall  11.9 s exit 0
+before checks_ruler_20000  r1 AI  19.36 eco  2.71 crisis  25.62 free   9.3 GB cpu   9.8 % wall  12.4 s exit 0
+before off_checks          r1 AI  10.54 eco  1.70 crisis   8.94 free   9.3 GB cpu   5.6 % wall   9.5 s exit 0
+after  off_checks          r1 AI   4.78 eco  1.51 crisis   7.72 free   9.3 GB cpu   6.2 % wall   9.9 s exit 0
+after  off_checks_20000    r1 AI   5.76 eco  3.23 crisis  11.96 free   9.4 GB cpu   9.6 % wall  10.9 s exit 0
+before off_checks_20000    r1 AI  12.46 eco  3.38 crisis  14.38 free   9.3 GB cpu  13.4 % wall  10.9 s exit 0
+powershell : Add-Content : The process cannot access the file 'C:\Users\rhwwl\AppData\Local\Temp\claude\c--Users-rhwwl-
+OneDrive-Docu
+At line:1 char:544
++ ... 0=Get-Date; powershell -ExecutionPolicy Bypass -File "$sp\run_timing_ ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Add-Content : T...l-OneDrive-Docu:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ments-Unreal-Projects-Cosmic-Ascension\37de2919-0c44-45d8-94cd-4dcf0860263e\scratchpad\b6br\timing\quiet.log' because i
+t is being used by another process.
+At C:\Users\rhwwl\AppData\Local\Temp\claude\c--Users-rhwwl-OneDrive-Documents-Unreal-Projects-Cosmic-Ascension\37de2919
+-0c44-45d8-94cd-4dcf0860263e\scratchpad\b6br\run_timing_ab.ps1:78 char:5
++     Add-Content -Path $QuietLog -Value $line -Encoding UTF8
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (C:\Users\rhwwl\...iming\quiet.log:String) [Add-Content], IOException
+    + FullyQualifiedErrorId : GetContentWriterIOError,Microsoft.PowerShell.Commands.AddContentCommand
+ 

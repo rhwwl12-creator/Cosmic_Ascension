@@ -1,0 +1,12 @@
+Source/Cosmic_Ascension/Data/CosmicDataTables.cpp:164:bool FCosmicDataTables::IsHazardAnswer(FName RowName) const
+Source/Cosmic_Ascension/Data/CosmicDataTables.h:131:	bool IsHazardAnswer(FName RowName) const;
+Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp:131:	return !Row.IsNone() && Tables.FindEdict(Row) && Tables.IsHazardAnswer(Row);
+Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:262:	const bool bAnswer = Tables.IsHazardAnswer(RowName);
+Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:308:	if (Tables.IsHazardAnswer(RowName))
+Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp:372:			if (Condition.Type != EConditionType::MegaprojectComplete || Tables.IsHazardAnswer(Condition.Key) || CompletedByPeople(State, Index, CivIndex, Condition.Key, SinceTick)
+Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2914:			if (bLeavesClaims && State.Systems[Choice.Key].ActiveHazard == ClaimTag && Tables.IsHazardAnswer(Choice.Value))
+Source/Cosmic_Ascension/Tests/CosmicAscensionTests.cpp:904:		if (Tables.IsHazardAnswer(RowName))
+Source/Cosmic_Ascension/Tests/CosmicPanelTests.cpp:256:			const bool bTooHigh = Def && !GameTables.IsHazardAnswer(Row) && static_cast<int32>(Live.Civs[RuledIndex].Tier) + 1 < static_cast<int32>(Def->RequiredTier);
+Source/Cosmic_Ascension/UI/CosmicNextRung.cpp:142:				const bool bAnswer = Tables.IsHazardAnswer(Condition.Key);
+Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp:587:	const bool bConstruction = !Tables.IsHazardAnswer(RowName);
+Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp:1065:				if (!Tables.IsHazardAnswer(Row) && RuledRung + 1 < static_cast<int32>(Def->RequiredTier))

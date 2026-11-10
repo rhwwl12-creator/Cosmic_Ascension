@@ -1,0 +1,13 @@
+checks_20000 exit 0
+checks_ruler_20000 exit 0
+checks_20000         seed 42, 20000 ticks, hash 3168555397, world 1640870674 | equal to summary_line_20000: False | check lines 0 | LogCosmic errors 0 | []
+    now:  CosmicBalance: seed 42, 20000 ticks, hash 3168555397, world 1640870674
+    base: CosmicBalance: seed 42, 20000 ticks, hash 2359424635, world 726895141
+checks_ruler_20000   seed 42, 20000 ticks, hash 4053448003, world 129517356 | equal to ruler_summary_line_20000: False | check lines 0 | LogCosmic errors 0 | []
+    now:  CosmicBalance: seed 42, 20000 ticks, hash 4053448003, world 129517356 | CosmicBalance ruler: answer 1 build 1 focus 1 edict 1 diplomacy 1; cards 117, answers 117, started 32, focus changes 5, edict changes 11, diplomacy changes 17, decisions 182 (by 600 12, by 6000 78, by end 77); told by 600 25, by 6000 936; ruled people T2 at 1175, T3 at 2375
+    base: CosmicBalance: seed 42, 20000 ticks, hash 1611658162, world 29194274 | CosmicBalance ruler: answer 1 build 1 focus 1 edict 1 diplomacy 1; cards 105, answers 105, started 36, focus changes 5, edict changes 11, diplomacy changes 15, decisions 172 (by 600 12, by 6000 69, by end 68); told by 600 25, by 6000 873; ruled people T2 at 1175, T3 at 2375
+KEYS DIFFER
+
+real	0m12.738s
+user	0m0.000s
+sys	0m0.015s

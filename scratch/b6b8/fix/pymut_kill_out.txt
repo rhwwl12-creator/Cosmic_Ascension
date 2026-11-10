@@ -1,0 +1,4 @@
+baseline [('check_data.py', 0, []), ('test_data_schema.py', 0, [])]
+b6b8_schema_desolation_without_lamp KILLED [('check_data.py', 0, []), ('test_data_schema.py', 1, ['test_upper_rung_text_words'])] 
+b6b8_schema_witness_past_forms_dropped KILLED [('check_data.py', 0, []), ('test_data_schema.py', 1, ['test_the_witness_words'])] 
+summary: {'KILLED': 2}

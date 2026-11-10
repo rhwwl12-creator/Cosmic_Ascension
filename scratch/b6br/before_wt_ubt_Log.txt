@@ -1,0 +1,256 @@
+Log started at 11/10/2026 11:51:36 (2026-11-10T02:51:36Z)
+Resolved project argument C:\Users\rhwwl\AppData\Local\Temp\b6br_b\Cosmic_Ascension.uproject to C:\Users\rhwwl\AppData\Local\Temp\b6br_b\Cosmic_Ascension.uproject
+No config file at C:\ProgramData\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml
+No config file at C:\Users\rhwwl\AppData\Local\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml
+No config file at C:\Users\rhwwl\OneDrive\Documents\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml
+Configuration will be read from:
+  C:\Users\rhwwl\AppData\Roaming\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml
+No project scope config file at C:\Users\rhwwl\AppData\Local\Temp\b6br_b\Saved\UnrealBuildTool\BuildConfiguration.xml. Creating default.
+Reading configuration file from: C:\Users\rhwwl\AppData\Roaming\Unreal Engine\UnrealBuildTool\BuildConfiguration.xml
+Reading configuration file from: C:\Users\rhwwl\AppData\Local\Temp\b6br_b\Saved\UnrealBuildTool\BuildConfiguration.xml
+Reading configuration file from: C:\Users\rhwwl\AppData\Local\UnrealEngine\Intermediate\Build\UnrealBuildTool.Env.BuildConfiguration.xml
+Setting temp directory to 'C:\Users\rhwwl\AppData\Local\Temp\UnrealBuildTool\eb6d2d82'
+    Registering build platform: UnrealBuildTool.AndroidPlatformFactory
+    Registering build platform: UnrealBuildTool.IOSPlatformFactory
+    Registering build platform: UnrealBuildTool.LinuxPlatformFactory
+    Registering build platform: UnrealBuildTool.MacPlatformFactory
+    Registering build platform: UnrealBuildTool.TVOSPlatformFactory
+    Registering build platform: UnrealBuildTool.WindowsPlatformFactory
+Found Windows 10 SDK root at C:\Program Files (x86)\Windows Kits\10 (1)
+Found Windows 10 SDK root at C:\Program Files (x86)\Windows Kits\10 (2)
+Found Windows 10 SDK version 10.0.26100.0 at C:\Program Files (x86)\Windows Kits\10
+Found Universal CRT version 10.0.26100.0 at C:\Program Files (x86)\Windows Kits\10
+Win64 Installed SDK(s): MinVersion_Sdk=10.0.19041.0, MaxVersion_Sdk=10.9.99999.0, CurrentVersion_Sdk=10.0.26100.0, Version_AutoSdk=10.0.22621.0, CurrentVersion_AutoSdk=
+        Registering build platform: Win64 - buildable: True
+    Registering build platform: UnrealBuildTool.VisionOSPlatformFactory
+Command line: "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.dll" Cosmic_AscensionEditor Win64 Development -Project=C:\Users\rhwwl\AppData\Local\Temp\b6br_b\Cosmic_Ascension.uproject -WaitMutex -NoHotReloadFromIDE -DisableUnity
+Log file: C:\Users\rhwwl\AppData\Local\UnrealBuildTool\Log.txt
+Deleting old log file: C:\Users\rhwwl\AppData\Local\UnrealBuildTool\Log-backup-2026.10.10-10.46.02.txt
+Deleting old log file: C:\Users\rhwwl\AppData\Local\UnrealBuildTool\Log-backup-2026.10.10-10.46.02.json
+
+Determining max actions to execute in parallel (8 physical cores, 16 logical cores)
+  Executing up to 8 processes, one per physical core
+Using 'git status' to determine working set for adaptive non-unity build (C:\Users\rhwwl\AppData\Local\Temp\b6br_b).
+Creating makefile for Cosmic_AscensionEditor (no existing makefile)
+UbaStorageServer - Database loaded from C:\ProgramData\Epic\UnrealBuildAccelerator\cas\casdb (v32) in 1ms (contained 0 entries estimated to 0b)
+UbaServer - Listening on 0.0.0.0:1345
+Skipping C:\Program Files\Epic Games\UE_5.8\Engine\Intermediate\Build\BuildRules\UE5Rules.dll: File is installed
+Skipping C:\Program Files\Epic Games\UE_5.8\Engine\Intermediate\Build\BuildRules\UE5ProgramRules.dll: File is installed
+Compiling C:\Users\rhwwl\AppData\Local\Temp\b6br_b\Intermediate\Build\BuildRules\Cosmic_AscensionModuleRules.dll: Assembly does not exist
+Creating makefile for Cosmic_AscensionEditor (no existing makefile)
+Compiler: C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64\cl.exe
+Linker: C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64\link.exe
+Library Manager: C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64\link.exe
+Resource Compiler: C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\rc.exe
+Resource Converter: C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64\cvtres.exe
+Using EngineIncludeOrderVersion.Unreal5_8 for target Cosmic_AscensionEditor.Target.cs
+Building UnrealEditor - Cosmic_AscensionEditor - Win64 - Development
+VerseVMBytecodeGenerator.Generate, generating CPP headers in: 'C:\Program Files\Epic Games\UE_5.8\Engine\Intermediate\Build\Win64\UnrealEditor\Inc\CoreUObject\VerseVMBytecode'
+	Writing out generated header file. Changed:False Path:'C:\Program Files\Epic Games\UE_5.8\Engine\Intermediate\Build\Win64\UnrealEditor\Inc\CoreUObject\VerseVMBytecode\VVMBytecodeOps.gen.h'
+	Writing out generated header file. Changed:False Path:'C:\Program Files\Epic Games\UE_5.8\Engine\Intermediate\Build\Win64\UnrealEditor\Inc\CoreUObject\VerseVMBytecode\VVMBytecodesAndCaptures.gen.h'
+	Writing out generated header file. Changed:False Path:'C:\Program Files\Epic Games\UE_5.8\Engine\Intermediate\Build\Win64\UnrealEditor\Inc\CoreUObject\VerseVMBytecode\VVMMakeCapturesFuncs.gen.h'
+	Writing out generated header file. Changed:False Path:'C:\Program Files\Epic Games\UE_5.8\Engine\Intermediate\Build\Win64\UnrealEditor\Inc\CoreUObject\VerseVMBytecode\VVMCaptureSwitch.gen.h'
+Found 5 shared PCH headers (listed in order of preference):
+	UnrealEd
+	Engine
+	Slate
+	CoreUObject
+	Core
+Parsing headers for Cosmic_AscensionEditor
+  Running Internal UnrealHeaderTool C:\Users\rhwwl\AppData\Local\Temp\b6br_b\Cosmic_Ascension.uproject C:\Users\rhwwl\AppData\Local\Temp\b6br_b\Intermediate\Build\Win64\Cosmic_AscensionEditor\Cosmic_AscensionEditor.uhtmanifest -WarningsAsErrors -installed
+UHT compiled-in object format Default
+Step - Parse Headers
+Reading engine version from file: C:\Program Files\Epic Games\UE_5.8\Engine\Source\Runtime\Launch\Resources\Version.h
+Got engine version 5.8.3
+Step - Populate symbol table
+Step - Exports
+       Exporter Stats skipped
+       Exporter Json skipped
+       Running exporter CodeGen
+UHT processed Cosmic_AscensionEditor in 1.6798564 seconds (60 generated files written)
+Building Cosmic_AscensionEditor...
+===== Toolchain Information =====
+Using ISPC compiler (C:\Program Files\Epic Games\UE_5.8\Engine\Source\ThirdParty\Intel\ISPC\bin\Windows\ispc.exe)
+  Intel(r) Implicit SPMD Program Compiler (Intel(r) ISPC), 1.24.0 (build commit  @ 20250404, LLVM 18.1.2) 
+Using Visual Studio 14.44.35226 toolchain (C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207) and Windows 10.0.26100.0 SDK (C:\Program Files (x86)\Windows Kits\10).
+=================================
+Using Unreal Build Accelerator local executor to run 115 action(s)
+  CPU 8 physical cores, 16 logical cores
+  Memory 31.06 GB physical, 38.91 GB/63.06 GB committed
+  UBA Storage capacity 40 GB
+  UBA RootDir C:\ProgramData\Epic\UnrealBuildAccelerator
+Cache bucket 3555462311 used. Action: Compile [x64] SharedPCH.UnrealEd.Project.ValApi.ValExpApi.Cpp20.cpp ()
+Cache bucket 608523902 used. Action: Compile [x64] AscensionSubsystem.cpp ()
+Cache bucket 1104734331 used. Action: Compile [x64] Module.Cosmic_Ascension.gen.cpp ()
+Cache bucket 2611342960 used. Action: Link [x64] UnrealEditor-Cosmic_Ascension.lib ()
+All processes queued
+[1/115] Compile Resource [x64] Default.rc2
+[2/115] Compile [x64] SharedPCH.UnrealEd.Project.ValApi.ValExpApi.Cpp20.cpp
+[3/115] Compile [x64] CosmicAscent.cpp
+[4/115] Compile [x64] AscensionSubsystem.cpp
+[5/115] Compile [x64] CosmicActionButton.cpp
+[6/115] Compile [x64] CosmicAscensionOverlayWidget.cpp
+[7/115] Compile [x64] CosmicAscensionOverlayTests.cpp
+[8/115] Compile [x64] CosmicAscensionTests.cpp
+[9/115] Compile [x64] CosmicAutoPause.cpp
+[10/115] Compile [x64] CosmicAwarenessTests.cpp
+[11/115] Compile [x64] CosmicAutoPauseTests.cpp
+[12/115] Compile [x64] CosmicAwarenessVoiceTests.cpp
+[13/115] Compile [x64] CosmicBookTests.cpp
+[14/115] Compile [x64] CosmicCameraPawn.cpp
+[15/115] Compile [x64] CosmicCallingPagesWidget.cpp
+[16/115] Compile [x64] CosmicChronicle.cpp
+[17/115] Compile [x64] CosmicCameraTests.cpp
+[18/115] Compile [x64] CosmicCallingPagesTests.cpp
+[19/115] Compile [x64] CosmicChronicleWidget.cpp
+[20/115] Compile [x64] CosmicChronicleTests.cpp
+[21/115] Compile [x64] CosmicCommandReasonTests.cpp
+[22/115] Compile [x64] CosmicConflict.cpp
+[23/115] Compile [x64] CosmicChronicleScreenTests.cpp
+[24/115] Compile [x64] CosmicDataTables.cpp
+[25/115] Compile [x64] CosmicDigest.cpp
+[26/115] Compile [x64] CosmicDeathTests.cpp
+[27/115] Compile [x64] CosmicDiplomacy.cpp
+[28/115] Compile [x64] CosmicDigestTests.cpp
+[29/115] Compile [x64] CosmicDiplomacyTests.cpp
+[30/115] Compile [x64] CosmicBalanceCommandlet.cpp
+[31/115] Compile [x64] CosmicEdictTests.cpp
+[32/115] Compile [x64] CosmicDataTests.cpp
+[33/115] Compile [x64] CosmicEdicts.cpp
+[34/115] Compile [x64] CosmicEdictUITests.cpp
+[35/115] Compile [x64] CosmicEdictWidget.cpp
+[36/115] Compile [x64] CosmicEndings.cpp
+[37/115] Compile [x64] CosmicEndingTests.cpp
+[38/115] Compile [x64] CosmicEventSubsystem.cpp
+[39/115] Compile [x64] CosmicDiplomacyUITests.cpp
+[40/115] Compile [x64] CosmicExaltTests.cpp
+[41/115] Compile [x64] CosmicEventTests.cpp
+[42/115] Compile [x64] CosmicFeedbackTests.cpp
+[43/115] Compile [x64] CosmicGalaxyPanelWidget.cpp
+[44/115] Compile [x64] CosmicGalaxyMapActor.cpp
+[45/115] Compile [x64] CosmicHashRun.cpp
+[46/115] Compile [x64] CosmicGameMode.cpp
+[47/115] Compile [x64] CosmicHashRunTests.cpp
+[48/115] Compile [x64] CosmicHazards.cpp
+[49/115] Compile [x64] CosmicHazardTests.cpp
+[50/115] Compile [x64] CosmicKnowingTests.cpp
+[51/115] Compile [x64] CosmicLeapTests.cpp
+[52/115] Compile [x64] CosmicLogFeedTests.cpp
+[53/115] Compile [x64] CosmicLethalWarningTests.cpp
+[54/115] Compile [x64] CosmicKnownFilterTests.cpp
+[55/115] Compile [x64] CosmicLogFeedWidget.cpp
+[56/115] Compile [x64] CosmicLogSubsystem.cpp
+[57/115] Compile [x64] CosmicMapPick.cpp
+[58/115] Compile [x64] CosmicMapLook.cpp
+[59/115] Compile [x64] CosmicLogTests.cpp
+[60/115] Compile [x64] CosmicMegaprojects.cpp
+[61/115] Compile [x64] CosmicNextRung.cpp
+[62/115] Compile [x64] CosmicMapTests.cpp
+[63/115] Compile [x64] CosmicPanelTests.cpp
+[64/115] Compile [x64] CosmicPetitionCardTests.cpp
+[65/115] Compile [x64] CosmicPetitionCardWidget.cpp
+[66/115] Compile [x64] CosmicPetitionTests.cpp
+[67/115] Compile [x64] CosmicPetitions.cpp
+[68/115] Compile [x64] CosmicPressureCardTests.cpp
+[69/115] Compile [x64] CosmicPressureTests.cpp
+[70/115] Compile [x64] CosmicRaceMeasureTests.cpp
+[71/115] Compile [x64] CosmicResearch.cpp
+[72/115] Compile [x64] CosmicRecordTests.cpp
+[73/115] Compile [x64] CosmicResearchFocusTests.cpp
+[74/115] Compile [x64] CosmicResearchFocusUITests.cpp
+[75/115] Compile [x64] CosmicRulerPolicy.cpp
+[76/115] Compile [x64] CosmicSanctuaryTests.cpp
+[77/115] Compile [x64] CosmicSaveSlot.cpp
+[78/115] Compile [x64] CosmicSaveSessionTests.cpp
+[79/115] Compile [x64] CosmicSaveSlotTests.cpp
+[80/115] Compile [x64] CosmicSaveSubsystem.cpp
+[81/115] Compile [x64] CosmicSeal.cpp
+[82/115] Compile [x64] CosmicSideRowTests.cpp
+[83/115] Compile [x64] CosmicSettlementTests.cpp
+[84/115] Compile [x64] CosmicSimTests.cpp
+[85/115] Compile [x64] CosmicStabilityTrend.cpp
+[86/115] Compile [x64] CosmicStateIndex.cpp
+[87/115] Compile [x64] CosmicSpiritualSightTests.cpp
+[88/115] Compile [x64] CosmicStarSystemActor.cpp
+[89/115] Compile [x64] CosmicSuccession.cpp
+[90/115] Compile [x64] CosmicSystemLabelWidget.cpp
+[91/115] Compile [x64] CosmicSuccessionTests.cpp
+[92/115] Compile [x64] CosmicTestProbe.cpp
+[93/115] Compile [x64] CosmicTypes.cpp
+[94/115] Compile [x64] CosmicSystemPanelWidget.cpp
+[95/115] Compile [x64] CosmicUniverseLook.cpp
+[96/115] Compile [x64] CosmicTopBarWidget.cpp
+[97/115] Compile [x64] CosmicThirdRungTests.cpp
+[98/115] Compile [x64] CosmicWanderer.cpp
+[99/115] Compile [x64] CosmicUpperRungTests.cpp
+[100/115] Compile [x64] CosmicVesselShownTests.cpp
+[101/115] Compile [x64] CosmicUniverseTests.cpp
+[102/115] Compile [x64] CosmicWandererPolicy.cpp
+[103/115] Compile [x64] CosmicWandererTests.cpp
+[104/115] Compile [x64] CosmicWandererUITests.cpp
+[105/115] Compile [x64] CosmicWorldMendTests.cpp
+[106/115] Compile [x64] CosmicWarningLineTests.cpp
+[107/115] Compile [x64] CosmicZoomLevels.cpp
+[108/115] Compile [x64] Cosmic_Ascension.cpp
+[109/115] Compile [x64] PerModuleInline.gen.cpp
+[110/115] Compile [x64] GalaxySimulationSubsystem.cpp
+[111/115] Compile [x64] PlayerRoleSubsystem.cpp
+[112/115] Compile [x64] Module.Cosmic_Ascension.gen.cpp
+[113/115] Link [x64] UnrealEditor-Cosmic_Ascension.lib
+   C:/Users/rhwwl/AppData/Local/Temp/b6br_b/Intermediate/Build/Win64/x64/UnrealEditor/Development/Cosmic_Ascension/UnrealEditor-Cosmic_Ascension.lib 라이브러리 및 C:/Users/rhwwl/AppData/Local/Temp/b6br_b/Intermediate/Build/Win64/x64/UnrealEditor/Development/Cosmic_Ascension/UnrealEditor-Cosmic_Ascension.exp 개체를 생성하고 있습니다.
+[114/115] Link [x64] UnrealEditor-Cosmic_Ascension.dll
+[115/115] WriteMetadata Cosmic_AscensionEditor.target [NoUba]
+
+Total time in Unreal Build Accelerator local executor: 138.52 seconds
+Output binary: C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe
+UbaStorageServer - Database saved in 1ms (0 file entries, 0 cas entries. deleted 0 dropped cas files)
+WriteFileIfChanged() wrote 0 changed files of 1 requested writes.
+
+Timeline:
+[  0.000]  +0.240 Main
+   0.012          [  0.011]  +0.089 Apply XmlConfig
+   0.103          [  0.103]  +0.042 AddTelemetry
+   0.158          [  0.158]  +0.082 RegisterPlatforms
+[  0.265]  +0.038 ParseCommandLine
+[  0.490]  +0.084 EngineRulesPlugins
+[  0.576]  +0.062 EngineRulesFetchDirs
+[  0.646]  +0.006 EngineRulesAssembly
+[  0.653]  +0.001 ProgramRulesAssembly
+[  0.654]  +2.135 ProjectRulesAssembly
+[  2.789]  +0.110 CreateTargetRules
+[  2.933]  +0.002 CppDependencyCache
+[  2.942]  +9.675 Cosmic_AscensionEditor Win64 Development
+   2.942          [  0.000]  +0.367 <unknown>
+   3.310          [  0.367]  +7.652 UHTModules
+  11.068          [  8.126]  +0.102 UHTManifest
+  11.170          [  8.228]  +1.684 UHT
+  11.170             8.228          [  0.000]  +0.994 <unknown>
+  12.165             9.222          [  0.994]  +0.000 GitWait
+  12.165             9.223          [  0.994]  +0.419 <unknown>
+  12.584             9.642          [  1.413]  +0.000 WaitOnWrites
+  12.618             9.676          [  1.447]  +0.214 SavingMakefile
+[ 12.618]  +0.239 <unknown>
+[ 12.857]  +0.015 UHTTimestamps
+[ 12.873]  +0.000 CppDependencyCache
+[ 12.874]  +0.041 Preparing ActionGraph
+  12.883          [  0.009]  +0.003 LinkActions
+  12.886             0.012          [  0.003]  +0.000 DetectActionGraphCycles
+  12.887          [  0.013]  +0.000 GatherPrerequisiteActions
+  12.888          [  0.014]  +0.000 CppDependencyCacheWait
+  12.889          [  0.015]  +0.014 GatherOutdatedActions
+  12.906          [  0.032]  +0.002 LinkActions
+  12.906             0.032          [  0.000]  +0.000 DetectActionGraphCycles
+  12.909          [  0.034]  +0.000 DeleteOutdatedProducedItems
+  12.909          [  0.035]  +0.004 SaveActionHistory
+  12.914          [  0.040]  +0.001 CreateDirectoriesForProducedItems
+[ 12.925]  +0.222 GarbageCollect
+[ 13.148]+138.295 <unknown>
+[151.443]  +0.000 Deploying targets
+[151.445]  +0.000 DisconnectCache
+[151.448]  +0.046 SaveCasTable
+[151.498]  +0.065 Saving caches
+[151.564]  +0.001 TelemetryService.FlushEvents
+[151.567]
+
+Result: Succeeded
+Total execution time: 151.57 seconds

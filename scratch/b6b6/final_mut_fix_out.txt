@@ -1,0 +1,6 @@
+﻿b6b6_data_extinction_expiry_effect assets: written
+b6b6_data_extinction_expiry_effect KILLED [('Integrity', 'Fail')] 105s
+     [2026.11.09-16.09.41:871][728]LogAutomationController: Error: Test Completed. Result={Fail} Name={Integrity} Path={Cosmic_Ascension.Data.Integrity}
+     [2026.11.09-16.09.41:871][728]LogAutomationController: Error: Expected 'and its expiry carries no effect of the data - none on expiry, on the branch or on the neighbours, and a BranchChance of 0' to be true. [C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension\Source\Cosmic_Ascension\
+b6b6_data_extinction_expiry_effect assets after revert: written
+done

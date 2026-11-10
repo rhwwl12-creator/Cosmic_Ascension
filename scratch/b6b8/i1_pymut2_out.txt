@@ -1,0 +1,6 @@
+b6b8_schema_desolation_without_lamp PATCH DID NOT APPLY error: can't open patch './Tools/mutations/B6b/b6b8_schema_desolation_without_lamp.patch': No such file or directory
+b6b8_schema_era_rule_dropped PATCH DID NOT APPLY error: can't open patch './Tools/mutations/B6b/b6b8_schema_era_rule_dropped.patch': No such file or directory
+b6b8_data_era_borders_0_3 PASSES THE CHECKER (reaches the asset) [('check_data.py', 0, []), ('test_data_schema.py', 0, [])]
+b6b8_data_witness_reverence_0_3 PASSES THE CHECKER (reaches the asset) [('check_data.py', 0, []), ('test_data_schema.py', 0, [])]
+b6b8_data_extinction_expiry_effect PATCH DID NOT APPLY error: can't open patch './Tools/mutations/B6b/b6b8_data_extinction_expiry_effect.patch': No such file or directory
+tree clean: True

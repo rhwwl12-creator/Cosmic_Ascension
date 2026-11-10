@@ -1,0 +1,2 @@
+Tools/mutations/B6b/b6b2a_data_reach_word_renamed.patch (C++ test: Cosmic_Ascension.*)
+Tools/mutations/B6b/b6b2c_data_binding_answers.patch (C++ test: Cosmic_Ascension.*)

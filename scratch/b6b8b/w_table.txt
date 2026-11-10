@@ -1,0 +1,21 @@
+== share 0.0 (H8B Tools/data)
+crisis_ai_awakening: skipped (no resolving non-grace row)
+crisis_claim (Hazard.Claim): share/slot 0.0240; longest 300+100+100+50=550 ticks; slots 55; stays 0.2629; weight bound (one row, factor 1) 1.2445; throne lock 600 >= 550
+crisis_plague (Hazard.Plague): share/slot 0.0200; longest 200+100+50+0=350 ticks; slots 35; stays 0.4931; weight bound (one row, factor 1) 1.9417; throne lock 600 >= 350
+crisis_pre_supernova: skipped (no resolving non-grace row)
+crisis_rebellion: skipped (no resolving non-grace row)
+crisis_species_extinction: skipped (no resolving non-grace row)
+== share 0.5 (H8B Tools/data)
+crisis_ai_awakening: skipped (no resolving non-grace row)
+crisis_claim (Hazard.Claim): share/slot 0.0240; longest 300+100+100+50=550 ticks; slots 55; stays 0.2629; weight bound (one row, factor 1) 1.2445; throne lock 600 >= 550
+crisis_plague (Hazard.Plague): share/slot 0.0200; longest 200+100+50+0=350 ticks; slots 35; stays 0.4931; weight bound (one row, factor 1) 1.9417; throne lock 600 >= 350
+crisis_pre_supernova: skipped (no resolving non-grace row)
+crisis_rebellion: skipped (no resolving non-grace row)
+crisis_species_extinction: skipped (no resolving non-grace row)
+== share 0.3 (H8B Tools/data)
+crisis_ai_awakening: skipped (no resolving non-grace row)
+crisis_claim (Hazard.Claim): share/slot 0.0240; longest 300+90+100+50=540 ticks; slots 54; stays 0.2693; weight bound (one row, factor 1) 1.2673; throne lock 600 >= 540
+crisis_plague (Hazard.Plague): share/slot 0.0200; longest 200+60+50+0=310 ticks; slots 31; stays 0.5346; weight bound (one row, factor 1) 2.1867; throne lock 600 >= 310
+crisis_pre_supernova: skipped (no resolving non-grace row)
+crisis_rebellion: skipped (no resolving non-grace row)
+crisis_species_extinction: skipped (no resolving non-grace row)

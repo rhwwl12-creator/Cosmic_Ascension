@@ -1,0 +1,40 @@
+rename_leaves: C:\Users\rhwwl\AppData\Local\Temp\claude\c--Users-rhwwl-OneDrive-Documents-Unreal-Projects-Cosmic-Ascension\37de2919-0c44-45d8-94cd-4dcf0860263e\scratchpad\b7x\answers\rename\renamed
+token table (26):
+  Brick.Form.UnseenLaw -> Brick.Form.KeptLaw
+  BrickFormUnseenLaw -> BrickFormKeptLaw
+  Brick.Diet.SilenceFeed -> Brick.Diet.IdleFeed
+  BrickDietSilenceFeed -> BrickDietIdleFeed
+  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+  BrickSpacePlanckMicro -> BrickSpaceFoldedSmall
+  Brick.Form.DysonBrain -> Brick.Form.ShutSphere
+  BrickFormDysonBrain -> BrickFormShutSphere
+  Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand
+  BrickMutationKesslerTapestry -> BrickMutationDustBand
+  Brick.Mutation.AbyssalMaw -> Brick.Mutation.InwardHunger
+  BrickMutationAbyssalMaw -> BrickMutationInwardHunger
+  Brick.Mutation.StarShepherd -> Brick.Mutation.StarTow
+  BrickMutationStarShepherd -> BrickMutationStarTow
+  Brick.Space.HermitMonolith -> Brick.Space.ClosedPort
+  BrickSpaceHermitMonolith -> BrickSpaceClosedPort
+  UnseenLaw -> KeptLaw
+  SilenceFeed -> IdleFeed
+  PlanckMicro -> FoldedSmall
+  DysonBrain -> ShutSphere
+  KesslerTapestry -> DustBand
+  AbyssalMaw -> InwardHunger
+  StarShepherd -> StarTow
+  HermitMonolith -> ClosedPort
+  BrickQuietInsightPerTick -> BrickIdleInsightPerTick
+  IsQuietOf -> IsIdleOf
+allow list (0) - empty: no old name may stay under Source/, Config/, Tools/
+changes: 0 in 0 files
+old names outside the scope (docs - edited by hand, not by this script): 5 files
+  docs/30_CONFIG_REFERENCE.md
+  docs/OVERVIEW_as_of_B6a.html
+  docs/10_DESIGN/EXISTENCE_EVOLUTION_AND_ECOLOGY.md
+  docs/60_DECISIONS/headers/B7_composable_existence_and_evolution.md
+  docs/60_DECISIONS/headers/B7_composable_existence_and_evolution_notes.md
+follow-up (not done by this script):
+  python -I Tools/make_config_reference.py      (docs/30_CONFIG_REFERENCE.md still names BrickQuietInsightPerTick; then python -I Tools/make_config_reference.py --check)
+  powershell -ExecutionPolicy Bypass -File Tools\run_checks.ps1 -Tier full -Data      (editor closed: make_data_tables.py rebuilds the DT_ .uasset files and Tools/data/generated.sha1 - stale now: DT_Rules.json, DT_Civs.json, DT_Events.json, DT_Encounters.json, ST_CA.csv, schema.json)
+no old name left under Source/, Config/, Tools/

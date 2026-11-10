@@ -1,0 +1,17 @@
+checks_20000 exit 0
+checks_ruler_20000 exit 0
+checks_wanderer exit 0
+checks exit 0
+checks_ruler exit 0
+checks               seed 42, 3000 ticks, hash 2816687688, world 3300228750 | equal to summary_line: True | check lines 0 | LogCosmic errors 0
+    CosmicBalance ending: record None at -1 (people -, a people some life ruled 0, no vessel 0); ruled T3 at -1 (-), season -1; season decisions 0 in 0 windows of 600 (median -1, least -1), longest gap -1
+checks_ruler         seed 42, 3000 ticks, hash 3561771757, world 2462331303 | equal to ruler_summary_line: True | check lines 0 | LogCosmic errors 0
+    CosmicBalance ending: record None at -1 (people -, a people some life ruled 0, no vessel 0); ruled T3 at 2375 (civ_0), season -1; season decisions 0 in 0 windows of 600 (median -1, least -1), longest 
+checks_wanderer      seed 42, 6000 ticks, hash 2665013209, world 2229239127 | equal to wanderer_summary_line: True | check lines 0 | LogCosmic errors 0
+    CosmicBalance ending: record Clock at 6000 (people -, a people some life ruled 0, no vessel 0); ruled T3 at 3417 (civ_7), season 2583; season decisions 29 in 4 windows of 600 (median 6, least 6), long
+checks_20000         seed 42, 20000 ticks, hash 2359424635, world 726895141 | equal to summary_line_20000: True | check lines 0 | LogCosmic errors 0
+    CosmicBalance ending: record Clock at 6000 (people -, a people some life ruled 0, no vessel 0); ruled T3 at -1 (-), season -1; season decisions 0 in 0 windows of 600 (median -1, least -1), longest gap
+checks_ruler_20000   seed 42, 20000 ticks, hash 1611658162, world 29194274 | equal to ruler_summary_line_20000: True | check lines 0 | LogCosmic errors 0
+    CosmicBalance ending: record Clock at 6000 (people -, a people some life ruled 0, no vessel 0); ruled T3 at 2375 (civ_0), season 3625; season decisions 39 in 6 windows of 600 (median 5, least 2), long
+ALL KEYS EQUAL
+exit 0

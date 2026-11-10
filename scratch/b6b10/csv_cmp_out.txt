@@ -1,0 +1,18 @@
+PASS checks_20000.csv: rows 2412/2412 (every row; parent record Clock@6000 from parent log; without TickMicros/SaveBytes/SaveRawBytes)
+PASS checks_20000_rows.csv: rows 1499/1499 (every row; parent record Clock@6000 from parent log; without TickMicros/SaveBytes/SaveRawBytes)
+PASS checks_20000_claims.csv: rows 5/5 (every row; parent record Clock@6000 from parent log; without TickMicros/SaveBytes/SaveRawBytes)
+PASS checks_ruler_20000.csv: rows 2412/2412 (every row; parent record RuledPeople@5899 from parent log; without TickMicros/SaveBytes/SaveRawBytes)
+PASS checks_ruler_20000_rows.csv: rows 1469/1469 (every row; parent record RuledPeople@5899 from parent log; without TickMicros/SaveBytes/SaveRawBytes)
+PASS checks_ruler_20000_claims.csv: rows 1/1 (every row; parent record RuledPeople@5899 from parent log; without TickMicros/SaveBytes/SaveRawBytes)
+PASS checks_wanderer.csv: rows 720/720 (rows < 6000; parent record Clock@6000 from parent log; without TickMicros/SaveBytes/SaveRawBytes)
+PASS checks_wanderer_rows.csv: rows 451/451 (rows < 6000; parent record Clock@6000 from parent log; without TickMicros/SaveBytes/SaveRawBytes)
+PASS checks_wanderer_claims.csv: rows 0/0 (PlacedTick < 6000 and 0 <= EndTick < 6000; parent record Clock@6000 from parent log; without TickMicros/SaveBytes/SaveRawBytes)
+PASS checks.log: no end-check, race-check or LogCosmic error line; first None at -1; clock at -1
+PASS checks_ruler.log: no end-check, race-check or LogCosmic error line; first None at -1; clock at -1
+PASS checks_wanderer.log: no end-check, race-check or LogCosmic error line; first None at -1; clock at -1
+PASS checks_wanderer.log: clock at -1 (want -1)
+PASS checks_20000.log: no end-check, race-check or LogCosmic error line; first OtherPeople at 7950; clock at 9000
+PASS checks_20000.log: clock at 9000 (want 9000)
+PASS checks_ruler_20000.log: no end-check, race-check or LogCosmic error line; first RuledPeople at 5899; clock at 9000
+PASS checks_ruler_20000.log: clock at 9000 (want 9000)
+csv_cmp: PASS (17 lines)

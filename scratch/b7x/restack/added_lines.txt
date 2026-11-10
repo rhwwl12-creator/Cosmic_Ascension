@@ -1,0 +1,2761 @@
++; ---- Existence bricks (B7x, docs/10_DESIGN/EXISTENCE_EVOLUTION_AND_ECOLOGY.md) - carried in FCivilizationState.Traits ----
++; Brick.<Axis>.<Leaf>: Form, Diet, Space, Instinct, Mutation. Only bricks with a reader are declared. All knobs are inert by
++; default (DT_Rules Brick*), so no world changes while no people carries a brick. Names land in saves: never renamed.
+++GameplayTagList=(Tag="Brick.Form.Society",DevComment="Form brick: a people of many small bodies held together by custom. Read by conditions only (B7x slice ga). Saved name, never renamed.")
+++GameplayTagList=(Tag="Brick.Form.LivingNebula",DevComment="Form brick: a people whose body is a living nebula. Read by the end shape (SpreadBody) and conditions (B7x). Saved name, never renamed.")
+++GameplayTagList=(Tag="Brick.Form.DysonBrain",DevComment="Form brick: a people that became one mind around its star. Read by the end shape (ShutHouse), DT_Rules.BrickStellarCrisisSpawnMultiplier and conditions (B7x). Saved name, never renamed.")
+++GameplayTagList=(Tag="Brick.Form.UnseenLaw",DevComment="Form brick: a people that lives on as an unseen law of its region - a description of a people, never of the holy order (K6). Read by the end shape (KeptLaw) and conditions (B7x). Saved name, never renamed.")
+++GameplayTagList=(Tag="Brick.Diet.DarkMatter",DevComment="Diet brick: feeds on dark matter - DT_Rules.BrickDarkMatterEnergyPerTick flat Energy a tick (B7x header 2.4); end shape SpreadBody. Saved name, never renamed.")
+++GameplayTagList=(Tag="Brick.Diet.StarEater",DevComment="Diet brick: eats stars - DT_Rules.BrickStarEaterEnergyMultiplier on its Energy, BrickStarEaterRelationTarget as a term of the drift target of every view of it, BrickStarEaterDimPeriodTicks, BrickStellarCrisisSpawnMultiplier (B7x header 2.4, R10). Saved name, never renamed.")
+++GameplayTagList=(Tag="Brick.Diet.SilenceFeed",DevComment="Diet brick: feeds on quiet ticks - DT_Rules.BrickQuietInsightPerTick Insight on a tick with no hazard, project or siege on its settled systems (B7x header 2.4; leaf rename to QuietFeed proposed before any save). Saved name, never renamed.")
+++GameplayTagList=(Tag="Brick.Diet.DistanceTension",DevComment="Diet brick: feeds on its own span - DT_Rules.BrickSpanEnergyPerLane Energy per lane of the widest lane distance between two of its settled systems (B7x header 2.4). Saved name, never renamed.")
+++GameplayTagList=(Tag="Brick.Diet.CrisisParasite",DevComment="Diet brick: lives off its neighbours crises - DT_Rules.BrickParasiteCountdownBonusTicks on a new hazard next door (never the claim, the extinction or the supernova precursor), BrickParasiteInsightPerHazard (B7x header 2.4). Saved name, never renamed.")
+++GameplayTagList=(Tag="Brick.Space.Nomad",DevComment="Space brick: a wandering people - DT_Rules.BrickNomadSettleProgressMultiplier on its settlements (B7x header 2.4). Saved name, never renamed.")
+++GameplayTagList=(Tag="Brick.Space.HermitMonolith",DevComment="Space brick: a people folded inward into one sealed house - starts no further settlement (settle reason Inward), DT_Rules.BrickInwardResearchMultiplier (B7x header 2.4). Saved name, never renamed.")
+++GameplayTagList=(Tag="Brick.Space.PlanckMicro",DevComment="Space brick: a people folded into the very small - starts no further settlement (Inward), BrickInwardResearchMultiplier, BrickInwardHazardSpawnMultiplier on its systems (B7x header 2.4). Saved name, never renamed.")
+++GameplayTagList=(Tag="Brick.Instinct.SwarmTech",DevComment="Instinct brick: a swarm that learns together - DT_Rules.BrickSwarmResearchMultiplier (B7x header 2.4). Saved name, never renamed.")
+++GameplayTagList=(Tag="Brick.Instinct.HiveMerge",DevComment="Instinct brick: a people that draws its neighbours in - DT_Rules.BrickMergeRelationTarget as a term of the drift target of every view of it (B7x header 2.4). Saved name, never renamed.")
+++GameplayTagList=(Tag="Brick.Mutation.StarShepherd",DevComment="Mutation brick: added by the AI mutation step to a Brick.Space.Nomad people whose Drifted vector reaches DT_Rules.BrickMutationThresholdTicks (B7x header 2.6). Saved name, never renamed.")
+++GameplayTagList=(Tag="Brick.Mutation.KesslerTapestry",DevComment="Mutation brick: added by the AI mutation step to a Brick.Instinct.SwarmTech people whose Built and Linked vectors reach DT_Rules.BrickMutationThresholdTicks (B7x header 2.6). Saved name, never renamed.")
+++GameplayTagList=(Tag="Brick.Mutation.AbyssalMaw",DevComment="Mutation brick: added by the AI mutation step to a Brick.Diet.StarEater people whose Consumed vector reaches DT_Rules.BrickMutationThresholdTicks (B7x header 2.6). Saved name, never renamed.")
++
++		inline constexpr uint32 Brick = 13;     // the seed brick of an AI people at generation (name = CivID, index 0), B7x - CosmicBricks::SeedBrickOf
++	static_assert(Purpose::Brick == 13, "CosmicSeed::Purpose: fixed numbers, append only (B7x [B-7x2] names 13)");
++
++	// B7x [B-7x1]: the existence bricks (docs/60_DECISIONS/headers/B7_composable_existence_and_evolution.md, rule R1) - tags of
++	// FCivilizationState::Traits that Sim/CosmicExistenceBricks reads with HasTagExact (from [B-7x2]). Saved names, never renamed.
++	inline FGameplayTag BrickFormSociety()
++	{
++		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Form.Society")));
++		return Tag;
++	}
++
++	inline FGameplayTag BrickFormLivingNebula()
++	{
++		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Form.LivingNebula")));
++		return Tag;
++	}
++
++	inline FGameplayTag BrickFormDysonBrain()
++	{
++		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Form.DysonBrain")));
++		return Tag;
++	}
++
++	inline FGameplayTag BrickFormUnseenLaw()
++	{
++		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Form.UnseenLaw")));
++		return Tag;
++	}
++
++	inline FGameplayTag BrickDietDarkMatter()
++	{
++		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Diet.DarkMatter")));
++		return Tag;
++	}
++
++	inline FGameplayTag BrickDietStarEater()
++	{
++		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Diet.StarEater")));
++		return Tag;
++	}
++
++	inline FGameplayTag BrickDietSilenceFeed()
++	{
++		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Diet.SilenceFeed")));
++		return Tag;
++	}
++
++	inline FGameplayTag BrickDietDistanceTension()
++	{
++		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Diet.DistanceTension")));
++		return Tag;
++	}
++
++	inline FGameplayTag BrickDietCrisisParasite()
++	{
++		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Diet.CrisisParasite")));
++		return Tag;
++	}
++
++	inline FGameplayTag BrickSpaceNomad()
++	{
++		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Space.Nomad")));
++		return Tag;
++	}
++
++	inline FGameplayTag BrickSpaceHermitMonolith()
++	{
++		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Space.HermitMonolith")));
++		return Tag;
++	}
++
++	inline FGameplayTag BrickSpacePlanckMicro()
++	{
++		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Space.PlanckMicro")));
++		return Tag;
++	}
++
++	inline FGameplayTag BrickInstinctSwarmTech()
++	{
++		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Instinct.SwarmTech")));
++		return Tag;
++	}
++
++	inline FGameplayTag BrickInstinctHiveMerge()
++	{
++		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Instinct.HiveMerge")));
++		return Tag;
++	}
++
++	inline FGameplayTag BrickMutationStarShepherd()
++	{
++		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Mutation.StarShepherd")));
++		return Tag;
++	}
++
++	inline FGameplayTag BrickMutationKesslerTapestry()
++	{
++		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Mutation.KesslerTapestry")));
++		return Tag;
++	}
++
++	inline FGameplayTag BrickMutationAbyssalMaw()
++	{
++		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Mutation.AbyssalMaw")));
++		return Tag;
++	}
++
++	// B7x [B-7x2]: the hazards no brick touches - the parasite's countdown bonus passes them by, as a galaxy law's hooks do
++	// (schema, B6b header 3.3): the claim, the extinction and the supernova precursor.
++	inline FGameplayTag HazardClaim()
++	{
++		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Claim")));
++		return Tag;
++	}
++
++	inline FGameplayTag HazardExtinction()
++	{
++		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Extinction")));
++		return Tag;
++	}
++
++	inline FGameplayTag HazardPreSupernova()
++	{
++		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.PreSupernova")));
++		return Tag;
++	}
++
++	// B7x [B-7x2]: whether a tag is an existence brick - under the root Brick. (the seed bricks of NewGalaxy look for one).
++	inline bool IsBrick(const FGameplayTag& Tag)
++	{
++		return Tag.IsValid() && Tag.GetTagName().ToString().StartsWith(TEXT("Brick."), ESearchCase::CaseSensitive);
++	}
++
++	// B7x [B-7x2] (rule R10): the seven star classes from the hottest to the coolest - the one list of them: the generation and
++	// the economy's star energy read it (Sim/GalaxySimulationSubsystem.cpp), and a star eater's capital dims along it
++	// (CosmicBricks::DimmerStarClassOf).
++	inline constexpr int32 StarClassCount = 7;
++
++	inline FGameplayTag StarClassAt(int32 HotToCool)
++	{
++		static const FGameplayTag Tags[StarClassCount] = {
++			FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.O"))),
++			FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.B"))),
++			FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.A"))),
++			FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.F"))),
++			FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.G"))),
++			FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.K"))),
++			FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.M"))),
++		};
++		return (HotToCool >= 0 && HotToCool < StarClassCount) ? Tags[HotToCool] : FGameplayTag();
++	}
++	// B7x [B-7x1] (docs/60_DECISIONS/headers/B7_composable_existence_and_evolution.md, rule R3): the CivID of the people that
++	// hosts this system's owner - a people living inside another. NAME_None = none (the frozen initializer). Reserved: nothing
++	// writes or reads it before slice "da" ([B-7x7]). One owner per system is unchanged: the hosted people is OwnerCivID, the
++	// host is only named beside it.
++	UPROPERTY(BlueprintReadOnly)
++	FName HostCivID;
++
++/**
++ * The six time vectors of a people (B7x [B-7x1], docs/60_DECISIONS/headers/B7_composable_existence_and_evolution.md
++ * section 2.1): how many ticks of its life the people spent in each way of living. Unlike the four streak counters of
++ * FCivilizationState (LowStabilityTicks ... PressureEnduredTicks) they are cumulative: each grows by one in a tick whose fact
++ * holds and never resets - not at a capital's move, a lost system or a change of throne. Counted at the end of the economy
++ * stage, after the streak counters (CosmicBricks::CountTimeVectors, from [B-7x2]); no draw, no knowing read. A tick may count
++ * in several vectors, or in none. They live on the people only (K10: identity does not cross bodies). Read by the condition
++ * CivTimeVectorAtLeast, the AI mutation step and the end shape (CosmicBricks::ShapeOf). Frozen initializers 0.
++ */
++USTRUCT(BlueprintType)
++struct COSMIC_ASCENSION_API FCosmicTimeVectors
++{
++	GENERATED_BODY()
++
++	// Ticks in which a system the people owns had a megaproject in progress other than the settle row (project_settle):
++	// its construction slot or its response slot.
++	UPROPERTY(BlueprintReadOnly)
++	int32 Built = 0;
++
++	// Ticks in which the people's fleet was aimed at a system another people owns (a siege of its own), or the people held
++	// the edict of DT_Rules.StartingEdict.
++	UPROPERTY(BlueprintReadOnly)
++	int32 Consumed = 0;
++
++	// Ticks in which a system the people owns was being settled (project_settle in its construction slot).
++	UPROPERTY(BlueprintReadOnly)
++	int32 Drifted = 0;
++
++	// Ticks in which one of the people's ties carried a treaty or the friendly stance.
++	UPROPERTY(BlueprintReadOnly)
++	int32 Linked = 0;
++
++	// Ticks in which the people had exactly one settled system and no tie with a treaty or a stance that is not neutral.
++	UPROPERTY(BlueprintReadOnly)
++	int32 Isolated = 0;
++
++	// Ticks in which the people endured: PressureEnduredTicks or LawsHeldTicks above 0 after this tick's count, or a hazard
++	// standing on a settled system of the people.
++	UPROPERTY(BlueprintReadOnly)
++	int32 Endured = 0;
++};
++
++	// Trait.* (section 5.3) and, from B7x [B-7x1], Brick.* - the existence bricks (rule R1; Sim/CosmicExistenceBricks reads them
++	// with HasTagExact). The schema roots of DT_Civs.Traits, CivHasTrait, AddTrait and RemoveTrait are both.
++	// B7x [B-7x1]: the six cumulative time vectors of the people (FCosmicTimeVectors - never reset, unlike the four streak
++	// counters above). Counted from [B-7x2] (CosmicBricks::CountTimeVectors, after the streak counters at the end of the
++	// economy stage); nothing counts or reads them before.
++	UPROPERTY(BlueprintReadOnly)
++	FCosmicTimeVectors TimeVectors;
++
++	// Tag = Trait.* or Brick.* (B7x [B-7x1]); HasTag, so a parent tag matches its children.
++	CivPressureEnduredTicksReached,
++	// The three below were appended by B7x [B-7x2] (docs/60_DECISIONS/headers/B7_composable_existence_and_evolution.md section
++	// 2.3). Key = a time vector word (schema words.time_vectors: Built, Consumed, Drifted, Linked, Isolated, Endured - any
++	// other word is false), Value = ticks, a whole number from 1: the context people's TimeVectors member of that name is at
++	// least Value (CosmicBricks::VectorOf). Cumulative, so no window: an 'AtLeast' that stays true once reached. No Tag.
++	CivTimeVectorAtLeast,
++	// Tag = Trait.* or Brick.* (required; empty is false): the context people exists and does not carry it (HasTag - the
++	// negation of CivHasTrait for a valid tag and an existing people; without a people it is false, as every Civ condition).
++	CivLacksTrait,
++	// Tag = Trait.* or Brick.* (required): some people that borders the context people (CosmicDiplomacy::BordersOf - one walk
++	// of its settled systems) carries it (HasTag). The hazards' SpawnConditions and SettledSystem-subject event rows do not
++	// carry it (schema: one border walk per settled system per tick).
++	BorderingCivHasTrait
++	// Tag = Trait.* or Brick.* (B7x [B-7x1]), on the context people's Traits.
++	// Includes the archetype tag (Trait.Arch.*). Filtered with CivHasTrait. Copied into FCivilizationState::Traits at generation:
++	// tags under Trait. or, from B7x [B-7x1], Brick. (the schema root of the column is that list).
++
++	// ---- The existence bricks (B7x [B-7x2], docs/60_DECISIONS/headers/B7_composable_existence_and_evolution.md section 2.4, 2.6) ----
++	// Every initializer is INERT - a multiplier 1, a flat amount 0, a period or a threshold 0 (off) - so that while no people
++	// carries a Brick.* tag the world is the one before B7x, bit for bit, and with these values a people that carries one
++	// lives as before too. The data's values arrive with [B-7x5]. Read by Sim/CosmicExistenceBricks (CosmicBricks) alone; a
++	// value outside its range (a lint) reads as the inert one there.
++
++	// Brick.Diet.DarkMatter: Energy added to the people's income every tick (a flat amount; not above 0: none).
++	UPROPERTY(EditAnywhere)
++	float BrickDarkMatterEnergyPerTick = 0.f;
++
++	// Brick.Diet.StarEater: multiplies the people's Energy income (below 0 or not a number: 1).
++	UPROPERTY(EditAnywhere)
++	float BrickStarEaterEnergyMultiplier = 1.f;
++
++	// Brick.Diet.StarEater: a term of the drift target of every view of the star eater (CosmicDiplomacy::TargetRelationOf
++	// through CosmicBricks::RelationTargetTermOf) - the data makes it negative. In [-1, 1]; anything else reads as 0.
++	UPROPERTY(EditAnywhere)
++	float BrickStarEaterRelationTarget = 0.f;
++
++	// Brick.Diet.StarEater: every this many ticks the star of its capital dims one class (rule R10, within the seven
++	// Star.Class.* tags, never past the dimmest - CosmicBricks::StarDimDueOf, DimCapitalStar). 0 = off. Not wired into a
++	// stage yet (B7x [B-7x2]): the world function and its answer exist and are tested.
++	UPROPERTY(EditAnywhere)
++	int32 BrickStarEaterDimPeriodTicks = 0;
++
++	// Brick.Diet.SilenceFeed: Insight added on a quiet tick - no hazard, no project and no siege by or on the people's
++	// settled systems (not above 0: none).
++	UPROPERTY(EditAnywhere)
++	float BrickQuietInsightPerTick = 0.f;
++
++	// Brick.Diet.DistanceTension: Energy a tick for each lane of the widest lane-count distance between two settled systems
++	// of the people (CosmicState::LaneDistancesFrom; not above 0: none).
++	UPROPERTY(EditAnywhere)
++	float BrickSpanEnergyPerLane = 0.f;
++
++	// Brick.Diet.CrisisParasite: ticks added to the countdown of a new hazard placed on a system whose owner borders a parasite
++	// people (CosmicHazards::Place) - never the claim, the extinction or the supernova precursor. 0..100000; 0 = none.
++	UPROPERTY(EditAnywhere)
++	int32 BrickParasiteCountdownBonusTicks = 0;
++
++	// Brick.Diet.CrisisParasite: Insight a tick for each such hazard standing on a settled system of a people that borders
++	// the parasite (not above 0: none).
++	UPROPERTY(EditAnywhere)
++	float BrickParasiteInsightPerHazard = 0.f;
++
++	// Brick.Space.Nomad: multiplies the progress of the people's settlements (project_settle). Above 0 (schema); anything
++	// else reads as 1.
++	UPROPERTY(EditAnywhere)
++	float BrickNomadSettleProgressMultiplier = 1.f;
++
++	// Brick.Space.HermitMonolith and Brick.Space.PlanckMicro (the inward peoples): multiplies their research progress. Above 0
++	// (schema); anything else reads as 1.
++	UPROPERTY(EditAnywhere)
++	float BrickInwardResearchMultiplier = 1.f;
++
++	// Brick.Space.PlanckMicro: multiplies the spawn share of every Draw hazard on its systems - never 0 (schema: above 0;
++	// anything else reads as 1).
++	UPROPERTY(EditAnywhere)
++	float BrickInwardHazardSpawnMultiplier = 1.f;
++
++	// Brick.Instinct.SwarmTech: multiplies the people's research progress. Above 0 (schema); anything else reads as 1.
++	UPROPERTY(EditAnywhere)
++	float BrickSwarmResearchMultiplier = 1.f;
++
++	// Brick.Instinct.HiveMerge: a term of the drift target of every view of the merging people (as the star eater's) - the
++	// data makes it positive. In [-1, 1]; anything else reads as 0.
++	UPROPERTY(EditAnywhere)
++	float BrickMergeRelationTarget = 0.f;
++
++	// The AI mutation step (section 2.6): every this many ticks, at the end of the AI stage before the feat judgment, a people
++	// the player does not rule takes the first mutation brick that is due (CosmicBricks::MutationDueOf). 0 = off.
++	UPROPERTY(EditAnywhere)
++	int32 BrickEvolutionPeriodTicks = 0;
++
++	// The ticks a time vector has to reach for a mutation to be due (CosmicBricks::MutationDueOf). 0 = no mutation is ever due.
++	UPROPERTY(EditAnywhere)
++	int32 BrickMutationThresholdTicks = 0;
++
++	// The seed bricks (Brick.*): NewGalaxy gives every AI people that carries no brick one of them, picked by a derived
++	// integer (CosmicBricks::SeedBrickOf, CosmicSeed Purpose::Brick - no sim draw). Empty = off (the initializer).
++	UPROPERTY(EditAnywhere)
++	FGameplayTagContainer BrickSeedTags;
++
++	// Brick.Form.DysonBrain and Brick.Diet.StarEater (a people that lives off its star): multiplies the spawn share of the
++	// stellar crisis (the Draw row of Hazard.PreSupernova) on its systems - once, whichever of the two it carries
++	// (CosmicBricks::HazardSpawnShareOf). Above 0 (schema); anything else reads as 1.
++	UPROPERTY(EditAnywhere)
++	float BrickStellarCrisisSpawnMultiplier = 1.f;
++#include "Sim/CosmicExistenceBricks.h"
++	case EConditionType::CivTimeVectorAtLeast:
++	{
++		// The cumulative time vector the Key names (B7x section 2.3); a Value below 1, or not a number, is false.
++		int32 Ticks = 0;
++		return Civ && Condition.Value >= 1.f && CosmicBricks::VectorOf(Civ->TimeVectors, Condition.Key, Ticks) && static_cast<float>(Ticks) >= Condition.Value;
++	}
++
++	case EConditionType::CivLacksTrait:
++		// The negation of CivHasTrait for a valid tag and an existing people (B7x section 2.3).
++		return Civ && Condition.Tag.IsValid() && !Civ->Traits.HasTag(Condition.Tag);
++
++	case EConditionType::BorderingCivHasTrait:
++	{
++		// Any people that borders the context people carries the tag (B7x section 2.3): one BordersOf walk.
++		if (!Civ || !Condition.Tag.IsValid())
++		{
++			return false;
++		}
++		TArray<bool> Borders;
++		CosmicDiplomacy::BordersOf(State, View.Index, View.CivIndex, Borders);
++		for (int32 Other = 0; Other < Borders.Num() && Other < State.Civs.Num(); ++Other)
++		{
++			if (Borders[Other] && State.Civs[Other].Traits.HasTag(Condition.Tag))
++			{
++				return true;
++			}
++		}
++		return false;
++	}
++
++	 * - B7x (section 2.3): CivTimeVectorAtLeast resolves its Key only as a word of the six time vectors
++	 *   (CosmicBricks::VectorOf) and holds when that cumulative vector reaches Value (a whole number from 1); CivLacksTrait
++	 *   is the negation of CivHasTrait for a valid Tag and an existing context people - the vocabulary's one negation of a
++	 *   people's tags (the Player conditions keep their own exclusion above); BorderingCivHasTrait holds when a people that
++	 *   borders the context people (CosmicDiplomacy::BordersOf) carries its Tag.
++#include "Sim/CosmicExistenceBricks.h"
++	// The bricks of the people seen (B7x [B-7x2]): a star eater is seen worse, a merging people better - 0 for a people that
++	// carries neither or under the inert knobs, and then the target keeps its bits. With a term the target stays in [-1, 1].
++	const float BrickTerm = CosmicBricks::RelationTargetTermOf(State.Civs[Other], Rules);
++	if (BrickTerm != 0.f)
++	{
++		Target = FMath::Clamp(Target + BrickTerm, -1.f, 1.f);
++	}
++	 * holds toward Viewer (RelationStanceTerms) + RelationTreatyTerm x the pair's treaties + the term of Other's bricks
++	 * (CosmicBricks::RelationTargetTermOf, B7x - when it is not 0 the sum is clamped to [-1, 1]). It reads no relation. */
++#include "Core/CosmicTags.h"
++	// A people that lives on as an unseen law (B7x [B-7x2], Brick.Form.UnseenLaw) keeps every edict it holds - nothing to
++	// revoke, whoever runs it.
++	if (Civ.Traits.HasTagExact(CosmicTags::BrickFormUnseenLaw()))
++	{
++		return Revokes;
++	}
++	 * the AI's law step keeps them - a regent's people goes on holding the laws the ruler left). A people that carries
++	 * Brick.Form.UnseenLaw (B7x) revokes nothing: it keeps every edict it holds. */
++// Cosmic Ascension - Sim layer (Core Logic).
++
++#include "Sim/CosmicExistenceBricks.h"
++
++#include "Core/CosmicIDs.h"
++#include "Core/CosmicSeed.h"
++#include "Core/CosmicTags.h"
++#include "Core/CosmicTypes.h"
++#include "Core/GalaxyState.h"
++#include "Data/CosmicDefinitionRows.h"
++#include "Data/CosmicRowNames.h"
++#include "GameplayTagContainer.h"
++#include "Math/NumericLimits.h"
++#include "Sim/CosmicDiplomacy.h"
++#include "Sim/CosmicHazards.h"
++#include "Sim/CosmicStateIndex.h"
++#include "UObject/NameTypes.h"
++
++// Helpers of this file. A named namespace: the module is built as one unity file.
++namespace CosmicBricksImpl
++{
++	// A flat knob (an amount a tick): above 0 and finite, else 0 - a compare, so a value that is not a number gives nothing.
++	float FlatOf(float Value)
++	{
++		return (Value > 0.f && Value <= TNumericLimits<float>::Max()) ? Value : 0.f;
++	}
++
++	// A multiplier the schema keeps above 0 (a progress, a share): above 0 and finite, else 1.
++	float PositiveFactorOf(float Value)
++	{
++		return (Value > 0.f && Value <= TNumericLimits<float>::Max()) ? Value : 1.f;
++	}
++
++	// A multiplier the schema keeps at 0 or above (the star eater's Energy): 0 or above and finite, else 1.
++	float FactorOf(float Value)
++	{
++		return (Value >= 0.f && Value <= TNumericLimits<float>::Max()) ? Value : 1.f;
++	}
++
++	// A term of a drift target: in [-1, 1], else 0 (a compare, so a value that is not a number gives nothing).
++	float TargetTermOf(float Value)
++	{
++		return (Value >= -1.f && Value <= 1.f) ? Value : 0.f;
++	}
++
++	// One more tick of a cumulative vector, never past MAX_int32.
++	int32 Bump(int32 Value)
++	{
++		return Value < MAX_int32 ? Value + 1 : Value;
++	}
++
++	// The index of an entry of the people's OwnedSystems when the people owns it (settled or being settled); INDEX_NONE for an
++	// entry whose owner is another people, as in the economy stage.
++	int32 OwnedIndexOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCivilizationState& Civ, FName SystemID)
++	{
++		const int32 SystemIndex = Index.FindSystem(State, SystemID);
++		return (State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == Civ.CivID) ? SystemIndex : INDEX_NONE;
++	}
++
++	// The settled systems the people owns, in OwnedSystems order.
++	TArray<int32, TInlineAllocator<16>> SettledOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCivilizationState& Civ)
++	{
++		TArray<int32, TInlineAllocator<16>> Settled;
++		for (const FName SystemID : Civ.OwnedSystems)
++		{
++			const int32 SystemIndex = OwnedIndexOf(State, Index, Civ, SystemID);
++			if (SystemIndex != INDEX_NONE && CosmicState::IsSettled(State.Systems[SystemIndex]))
++			{
++				Settled.Add(SystemIndex);
++			}
++		}
++		return Settled;
++	}
++
++	// The words of the six vectors, the Key of CivTimeVectorAtLeast (schema words.time_vectors), in the fixed order.
++	const FName BuiltWord(TEXT("Built"));
++	const FName ConsumedWord(TEXT("Consumed"));
++	const FName DriftedWord(TEXT("Drifted"));
++	const FName LinkedWord(TEXT("Linked"));
++	const FName IsolatedWord(TEXT("Isolated"));
++	const FName EnduredWord(TEXT("Endured"));
++}
++
++CosmicBricks::FCosmicTimeFacts CosmicBricks::TimeFactsOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules, int32 CivIndex)
++{
++	using namespace CosmicBricksImpl;
++
++	FCosmicTimeFacts Facts;
++	if (!State.Civs.IsValidIndex(CivIndex))
++	{
++		return Facts;
++	}
++	const FCivilizationState& Civ = State.Civs[CivIndex];
++
++	// One walk over the systems it owns: the two project slots, the settlement, the settled count and the standing hazards.
++	int32 Settled = 0;
++	for (const FName SystemID : Civ.OwnedSystems)
++	{
++		const int32 SystemIndex = OwnedIndexOf(State, Index, Civ, SystemID);
++		if (SystemIndex == INDEX_NONE)
++		{
++			continue;
++		}
++		const FStarSystemState& System = State.Systems[SystemIndex];
++		const bool bSettling = System.ActiveMegaproject == CosmicRows::ProjectSettle;
++		Facts.bDrifted |= bSettling;
++		Facts.bBuilt |= (!System.ActiveMegaproject.IsNone() && !bSettling) || !System.ResponseMegaproject.IsNone();
++		if (CosmicState::IsSettled(System))
++		{
++			++Settled;
++			Facts.bEndured |= System.ActiveHazard.IsValid();
++		}
++	}
++
++	// The fleet aimed at a system of another people, or the starting edict held.
++	bool bAimedAway = false;
++	if (!Civ.FleetTargetSystemID.IsNone())
++	{
++		const int32 Target = Index.FindSystem(State, Civ.FleetTargetSystemID);
++		bAimedAway = State.Systems.IsValidIndex(Target) && !State.Systems[Target].OwnerCivID.IsNone() && State.Systems[Target].OwnerCivID != Civ.CivID;
++	}
++	Facts.bConsumed = bAimedAway || (!Rules.StartingEdict.IsNone() && Civ.ActiveEdicts.Contains(Rules.StartingEdict));
++
++	// The ties: an any-question, so the order of the map does not matter.
++	const FGameplayTag Friendly = CosmicTags::StanceFriendly();
++	bool bBond = false;
++	bool bStanding = false;
++	for (const TPair<FName, FCosmicTie>& Pair : Civ.Ties)
++	{
++		const bool bTreaty = Pair.Value.Treaties.Num() > 0;
++		bBond |= bTreaty || Pair.Value.Stance == Friendly;
++		bStanding |= bTreaty || Pair.Value.Stance.IsValid();
++	}
++	Facts.bLinked = bBond;
++	Facts.bIsolated = Settled == 1 && !bStanding;
++	Facts.bEndured |= Civ.PressureEnduredTicks > 0 || Civ.LawsHeldTicks > 0;
++	return Facts;
++}
++
++void CosmicBricks::CountTimeVectors(FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules)
++{
++	using namespace CosmicBricksImpl;
++
++	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
++	{
++		const FCosmicTimeFacts Facts = TimeFactsOf(State, Index, Rules, CivIndex);
++		FCosmicTimeVectors& Vectors = State.Civs[CivIndex].TimeVectors;
++		Vectors.Built = Facts.bBuilt ? Bump(Vectors.Built) : Vectors.Built;
++		Vectors.Consumed = Facts.bConsumed ? Bump(Vectors.Consumed) : Vectors.Consumed;
++		Vectors.Drifted = Facts.bDrifted ? Bump(Vectors.Drifted) : Vectors.Drifted;
++		Vectors.Linked = Facts.bLinked ? Bump(Vectors.Linked) : Vectors.Linked;
++		Vectors.Isolated = Facts.bIsolated ? Bump(Vectors.Isolated) : Vectors.Isolated;
++		Vectors.Endured = Facts.bEndured ? Bump(Vectors.Endured) : Vectors.Endured;
++	}
++}
++
++bool CosmicBricks::VectorOf(const FCosmicTimeVectors& Vectors, FName Word, int32& OutTicks)
++{
++	using namespace CosmicBricksImpl;
++
++	OutTicks = 0;
++	if (Word.IsNone())
++	{
++		return false;
++	}
++	const FName Words[] = { BuiltWord, ConsumedWord, DriftedWord, LinkedWord, IsolatedWord, EnduredWord };
++	const int32 Ticks[] = { Vectors.Built, Vectors.Consumed, Vectors.Drifted, Vectors.Linked, Vectors.Isolated, Vectors.Endured };
++	static_assert(UE_ARRAY_COUNT(Words) == UE_ARRAY_COUNT(Ticks), "One word per vector");
++	for (int32 At = 0; At < static_cast<int32>(UE_ARRAY_COUNT(Words)); ++At)
++	{
++		// The schema holds the case of the word; the evaluator, like every Key, compares names.
++		if (Word == Words[At])
++		{
++			OutTicks = Ticks[At];
++			return true;
++		}
++	}
++	return false;
++}
++
++int32 CosmicBricks::SpanOf(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex)
++{
++	using namespace CosmicBricksImpl;
++
++	if (!State.Civs.IsValidIndex(CivIndex))
++	{
++		return 0;
++	}
++	const TArray<int32, TInlineAllocator<16>> Settled = SettledOf(State, Index, State.Civs[CivIndex]);
++	int32 Widest = 0;
++	for (int32 From = 0; From + 1 < Settled.Num(); ++From)
++	{
++		const TArray<int32> Distances = CosmicState::LaneDistancesFrom(State, Index, Settled[From]);
++		for (int32 To = From + 1; To < Settled.Num(); ++To)
++		{
++			const int32 Lanes = Distances.IsValidIndex(Settled[To]) ? Distances[Settled[To]] : INDEX_NONE;
++			Widest = FMath::Max(Widest, Lanes);
++		}
++	}
++	return Widest;
++}
++
++bool CosmicBricks::IsQuietOf(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex)
++{
++	using namespace CosmicBricksImpl;
++
++	if (!State.Civs.IsValidIndex(CivIndex))
++	{
++		return false;
++	}
++	const FCivilizationState& Civ = State.Civs[CivIndex];
++	const TArray<int32, TInlineAllocator<16>> Settled = SettledOf(State, Index, Civ);
++	for (const int32 SystemIndex : Settled)
++	{
++		const FStarSystemState& System = State.Systems[SystemIndex];
++		if (System.ActiveHazard.IsValid() || !System.ActiveMegaproject.IsNone() || !System.ResponseMegaproject.IsNone())
++		{
++			return false;
++		}
++	}
++	// A siege by the people.
++	if (!Civ.FleetTargetSystemID.IsNone())
++	{
++		const int32 Target = Index.FindSystem(State, Civ.FleetTargetSystemID);
++		if (State.Systems.IsValidIndex(Target) && !State.Systems[Target].OwnerCivID.IsNone() && State.Systems[Target].OwnerCivID != Civ.CivID)
++		{
++			return false;
++		}
++	}
++	// A siege on the people: another people's fleet aimed at one of its settled systems.
++	for (int32 Other = 0; Other < State.Civs.Num(); ++Other)
++	{
++		const FName Aim = State.Civs[Other].FleetTargetSystemID;
++		if (Other == CivIndex || Aim.IsNone())
++		{
++			continue;
++		}
++		const int32 Target = Index.FindSystem(State, Aim);
++		if (Settled.Contains(Target))
++		{
++			return false;
++		}
++	}
++	return true;
++}
++
++bool CosmicBricks::IsSparedHazard(const FGameplayTag& Hazard)
++{
++	return Hazard == CosmicTags::HazardClaim() || Hazard == CosmicTags::HazardExtinction() || Hazard == CosmicTags::HazardPreSupernova();
++}
++
++int32 CosmicBricks::ParasiteHazardsOf(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex)
++{
++	using namespace CosmicBricksImpl;
++
++	if (!State.Civs.IsValidIndex(CivIndex))
++	{
++		return 0;
++	}
++	TArray<bool> Borders;
++	CosmicDiplomacy::BordersOf(State, Index, CivIndex, Borders);
++	int32 Count = 0;
++	for (int32 Other = 0; Other < Borders.Num() && Other < State.Civs.Num(); ++Other)
++	{
++		if (!Borders[Other])
++		{
++			continue;
++		}
++		for (const int32 SystemIndex : SettledOf(State, Index, State.Civs[Other]))
++		{
++			const FGameplayTag Hazard = State.Systems[SystemIndex].ActiveHazard;
++			Count += (Hazard.IsValid() && !IsSparedHazard(Hazard)) ? 1 : 0;
++		}
++	}
++	return Count;
++}
++
++void CosmicBricks::AddIncomeShares(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules, int32 CivIndex, FResourcePool& Income)
++{
++	using namespace CosmicBricksImpl;
++
++	if (!State.Civs.IsValidIndex(CivIndex))
++	{
++		return;
++	}
++	const FGameplayTagContainer& Traits = State.Civs[CivIndex].Traits;
++	if (Traits.Num() == 0)
++	{
++		return;
++	}
++	// Energy: the star eater's factor on the income of its stars first, then the flat shares.
++	if (Traits.HasTagExact(CosmicTags::BrickDietStarEater()))
++	{
++		const float Factor = FactorOf(Rules.BrickStarEaterEnergyMultiplier);
++		if (Factor != 1.f)
++		{
++			Income.Energy = Income.Energy * Factor;
++		}
++	}
++	if (Traits.HasTagExact(CosmicTags::BrickDietDarkMatter()))
++	{
++		const float Flat = FlatOf(Rules.BrickDarkMatterEnergyPerTick);
++		if (Flat > 0.f)
++		{
++			Income.Energy += Flat;
++		}
++	}
++	if (Traits.HasTagExact(CosmicTags::BrickDietDistanceTension()))
++	{
++		const float PerLane = FlatOf(Rules.BrickSpanEnergyPerLane);
++		const int32 Span = PerLane > 0.f ? SpanOf(State, Index, CivIndex) : 0;
++		if (Span > 0)
++		{
++			Income.Energy += PerLane * static_cast<float>(Span);
++		}
++	}
++	// Insight: the quiet tick, then the neighbours' crises.
++	if (Traits.HasTagExact(CosmicTags::BrickDietSilenceFeed()))
++	{
++		const float Quiet = FlatOf(Rules.BrickQuietInsightPerTick);
++		if (Quiet > 0.f && IsQuietOf(State, Index, CivIndex))
++		{
++			Income.Insight += Quiet;
++		}
++	}
++	if (Traits.HasTagExact(CosmicTags::BrickDietCrisisParasite()))
++	{
++		const float PerHazard = FlatOf(Rules.BrickParasiteInsightPerHazard);
++		const int32 Hazards = PerHazard > 0.f ? ParasiteHazardsOf(State, Index, CivIndex) : 0;
++		if (Hazards > 0)
++		{
++			Income.Insight += PerHazard * static_cast<float>(Hazards);
++		}
++	}
++}
++
++int32 CosmicBricks::ParasiteCountdownBonusOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules, int32 SystemIndex, const FGameplayTag& Hazard)
++{
++	const int32 Bonus = FMath::Clamp(Rules.BrickParasiteCountdownBonusTicks, 0, 100000);
++	if (Bonus <= 0 || !Hazard.IsValid() || IsSparedHazard(Hazard) || !State.Systems.IsValidIndex(SystemIndex))
++	{
++		return 0;
++	}
++	const int32 OwnerIndex = Index.FindCiv(State, State.Systems[SystemIndex].OwnerCivID);
++	if (!State.Civs.IsValidIndex(OwnerIndex))
++	{
++		return 0;
++	}
++	TArray<bool> Borders;
++	CosmicDiplomacy::BordersOf(State, Index, OwnerIndex, Borders);
++	const FGameplayTag Parasite = CosmicTags::BrickDietCrisisParasite();
++	for (int32 Other = 0; Other < Borders.Num() && Other < State.Civs.Num(); ++Other)
++	{
++		if (Borders[Other] && State.Civs[Other].Traits.HasTagExact(Parasite))
++		{
++			return Bonus;
++		}
++	}
++	return 0;
++}
++
++float CosmicBricks::ResearchMultiplierOf(const FCivilizationState& Civ, const FCosmicRulesDef& Rules)
++{
++	using namespace CosmicBricksImpl;
++
++	float Factor = 1.f;
++	if (Civ.Traits.HasTagExact(CosmicTags::BrickInstinctSwarmTech()))
++	{
++		Factor *= PositiveFactorOf(Rules.BrickSwarmResearchMultiplier);
++	}
++	if (IsInward(Civ))
++	{
++		Factor *= PositiveFactorOf(Rules.BrickInwardResearchMultiplier);
++	}
++	return Factor;
++}
++
++float CosmicBricks::SettleProgressOf(const FCivilizationState& Civ, const FCosmicRulesDef& Rules, float Step)
++{
++	using namespace CosmicBricksImpl;
++
++	if (!Civ.Traits.HasTagExact(CosmicTags::BrickSpaceNomad()))
++	{
++		return Step;
++	}
++	const float Factor = PositiveFactorOf(Rules.BrickNomadSettleProgressMultiplier);
++	return Factor != 1.f ? Step * Factor : Step;
++}
++
++float CosmicBricks::HazardSpawnShareOf(const FCivilizationState& Owner, const FCosmicRulesDef& Rules, const FGameplayTag& Hazard, float Share)
++{
++	using namespace CosmicBricksImpl;
++
++	float Out = Share;
++	if (Owner.Traits.HasTagExact(CosmicTags::BrickSpacePlanckMicro()))
++	{
++		const float Factor = PositiveFactorOf(Rules.BrickInwardHazardSpawnMultiplier);
++		Out = Factor != 1.f ? Out * Factor : Out;
++	}
++	// The stellar crisis on the system of a people that lives off its star (once, whichever of the two bricks it carries).
++	if (Hazard == CosmicTags::HazardPreSupernova()
++		&& (Owner.Traits.HasTagExact(CosmicTags::BrickFormDysonBrain()) || Owner.Traits.HasTagExact(CosmicTags::BrickDietStarEater())))
++	{
++		const float Factor = PositiveFactorOf(Rules.BrickStellarCrisisSpawnMultiplier);
++		Out = Factor != 1.f ? Out * Factor : Out;
++	}
++	return Out;
++}
++
++float CosmicBricks::RelationTargetTermOf(const FCivilizationState& Seen, const FCosmicRulesDef& Rules)
++{
++	using namespace CosmicBricksImpl;
++
++	float Term = 0.f;
++	if (Seen.Traits.HasTagExact(CosmicTags::BrickDietStarEater()))
++	{
++		Term += TargetTermOf(Rules.BrickStarEaterRelationTarget);
++	}
++	if (Seen.Traits.HasTagExact(CosmicTags::BrickInstinctHiveMerge()))
++	{
++		Term += TargetTermOf(Rules.BrickMergeRelationTarget);
++	}
++	return Term;
++}
++
++bool CosmicBricks::IsInward(const FCivilizationState& Civ)
++{
++	return Civ.Traits.HasTagExact(CosmicTags::BrickSpaceHermitMonolith()) || Civ.Traits.HasTagExact(CosmicTags::BrickSpacePlanckMicro());
++}
++
++FGameplayTag CosmicBricks::MutationDueOf(const FCivilizationState& Civ, const FCosmicRulesDef& Rules)
++{
++	const int32 Threshold = Rules.BrickMutationThresholdTicks;
++	if (Threshold <= 0)
++	{
++		return FGameplayTag();
++	}
++	const FGameplayTagContainer& Traits = Civ.Traits;
++	const FCosmicTimeVectors& Vectors = Civ.TimeVectors;
++	if (!Traits.HasTagExact(CosmicTags::BrickMutationStarShepherd()) && Traits.HasTagExact(CosmicTags::BrickSpaceNomad()) && Vectors.Drifted >= Threshold)
++	{
++		return CosmicTags::BrickMutationStarShepherd();
++	}
++	if (!Traits.HasTagExact(CosmicTags::BrickMutationKesslerTapestry()) && Traits.HasTagExact(CosmicTags::BrickInstinctSwarmTech())
++		&& Vectors.Built >= Threshold && Vectors.Linked >= Threshold)
++	{
++		return CosmicTags::BrickMutationKesslerTapestry();
++	}
++	if (!Traits.HasTagExact(CosmicTags::BrickMutationAbyssalMaw()) && Traits.HasTagExact(CosmicTags::BrickDietStarEater()) && Vectors.Consumed >= Threshold)
++	{
++		return CosmicTags::BrickMutationAbyssalMaw();
++	}
++	return FGameplayTag();
++}
++
++bool CosmicBricks::MutationStepDueAt(const FCosmicRulesDef& Rules, int64 Tick)
++{
++	const int64 Period = Rules.BrickEvolutionPeriodTicks;
++	return Period > 0 && Tick > 0 && Tick % Period == 0;
++}
++
++int32 CosmicBricks::MutateAIPeoples(FGalaxyState& State, const FCosmicRulesDef& Rules)
++{
++	int32 Mutated = 0;
++	for (FCivilizationState& Civ : State.Civs)
++	{
++		if (Civ.bIsPlayerRuled)
++		{
++			continue;
++		}
++		const FGameplayTag Due = MutationDueOf(Civ, Rules);
++		if (Due.IsValid())
++		{
++			// As the effect AddTrait adds a tag (UCosmicEventSubsystem::Apply).
++			Civ.Traits.AddTag(Due);
++			++Mutated;
++		}
++	}
++	return Mutated;
++}
++
++FGameplayTag CosmicBricks::SeedBrickOf(const FCosmicRulesDef& Rules, int32 Seed, const FCivilizationState& Civ)
++{
++	if (Rules.BrickSeedTags.Num() == 0)
++	{
++		return FGameplayTag();
++	}
++	for (const FGameplayTag& Held : Civ.Traits)
++	{
++		if (CosmicTags::IsBrick(Held))
++		{
++			return FGameplayTag();
++		}
++	}
++	TArray<FGameplayTag> Seeds;
++	for (const FGameplayTag& Listed : Rules.BrickSeedTags)
++	{
++		if (CosmicTags::IsBrick(Listed))
++		{
++			Seeds.Add(Listed);
++		}
++	}
++	if (Seeds.IsEmpty())
++	{
++		return FGameplayTag();
++	}
++	Seeds.Sort([](const FGameplayTag& A, const FGameplayTag& B) { return FNameLexicalLess()(A.GetTagName(), B.GetTagName()); });
++	const uint32 Pick = CosmicSeed::DeriveForName(Seed, Civ.CivID, CosmicSeed::Purpose::Brick, 0) % static_cast<uint32>(Seeds.Num());
++	return Seeds[static_cast<int32>(Pick)];
++}
++
++FGameplayTag CosmicBricks::DimmerStarClassOf(const FGameplayTag& StarClass)
++{
++	if (!StarClass.IsValid())
++	{
++		return StarClass;
++	}
++	for (int32 At = 0; At < CosmicTags::StarClassCount; ++At)
++	{
++		if (CosmicTags::StarClassAt(At) == StarClass)
++		{
++			return At + 1 < CosmicTags::StarClassCount ? CosmicTags::StarClassAt(At + 1) : StarClass;
++		}
++	}
++	return StarClass;
++}
++
++bool CosmicBricks::StarDimDueOf(const FCivilizationState& Civ, const FCosmicRulesDef& Rules, int64 Tick)
++{
++	const int64 Period = Rules.BrickStarEaterDimPeriodTicks;
++	return Period > 0 && Tick > 0 && Tick % Period == 0 && Civ.Traits.HasTagExact(CosmicTags::BrickDietStarEater());
++}
++
++bool CosmicBricks::DimCapitalStar(FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex)
++{
++	if (!State.Civs.IsValidIndex(CivIndex))
++	{
++		return false;
++	}
++	const FCivilizationState& Civ = State.Civs[CivIndex];
++	const int32 Capital = Index.FindSystem(State, Civ.HomeSystemID);
++	if (!State.Systems.IsValidIndex(Capital))
++	{
++		return false;
++	}
++	FStarSystemState& System = State.Systems[Capital];
++	if (System.OwnerCivID != Civ.CivID || !CosmicState::IsSettled(System) || CosmicHazards::IsDeadNode(System) || CosmicState::IsSanctuary(System.SystemID))
++	{
++		return false;
++	}
++	const FGameplayTag Dimmer = DimmerStarClassOf(System.StarClass);
++	if (Dimmer == System.StarClass)
++	{
++		return false;
++	}
++	System.StarClass = Dimmer;
++	return true;
++}
++
++CosmicBricks::ECosmicShape CosmicBricks::ShapeOf(const FCivilizationState& Civ)
++{
++	const FGameplayTagContainer& Traits = Civ.Traits;
++	if (Traits.HasTagExact(CosmicTags::BrickFormUnseenLaw()))
++	{
++		return ECosmicShape::KeptLaw;
++	}
++	if (Traits.HasTagExact(CosmicTags::BrickSpacePlanckMicro()))
++	{
++		return ECosmicShape::FoldedSmall;
++	}
++	if (Traits.HasTagExact(CosmicTags::BrickSpaceHermitMonolith()) || Traits.HasTagExact(CosmicTags::BrickFormDysonBrain()))
++	{
++		return ECosmicShape::ShutHouse;
++	}
++	if (Traits.HasTagExact(CosmicTags::BrickFormLivingNebula()) || Traits.HasTagExact(CosmicTags::BrickDietDarkMatter()))
++	{
++		return ECosmicShape::SpreadBody;
++	}
++	if (Traits.HasTagExact(CosmicTags::BrickSpaceNomad()))
++	{
++		return ECosmicShape::StarHerd;
++	}
++	if (Traits.HasTagExact(CosmicTags::BrickInstinctSwarmTech()))
++	{
++		return ECosmicShape::WovenSwarm;
++	}
++	if (Traits.HasTagExact(CosmicTags::BrickDietStarEater()))
++	{
++		return ECosmicShape::LastHunger;
++	}
++	if (Traits.HasTagExact(CosmicTags::BrickInstinctHiveMerge()))
++	{
++		return ECosmicShape::Entwined;
++	}
++	// The largest vector, the first in the fixed order on a tie (a strict compare keeps the earlier one).
++	const FCosmicTimeVectors& Vectors = Civ.TimeVectors;
++	const int32 Ticks[] = { Vectors.Built, Vectors.Consumed, Vectors.Drifted, Vectors.Linked, Vectors.Isolated, Vectors.Endured };
++	const ECosmicShape Shapes[] = { ECosmicShape::BuiltOrLinked, ECosmicShape::ConsumedOrDrifted, ECosmicShape::ConsumedOrDrifted,
++		ECosmicShape::BuiltOrLinked, ECosmicShape::Isolated, ECosmicShape::Endured };
++	static_assert(UE_ARRAY_COUNT(Ticks) == UE_ARRAY_COUNT(Shapes), "One shape per vector");
++	int32 Largest = 0;
++	for (int32 At = 1; At < static_cast<int32>(UE_ARRAY_COUNT(Ticks)); ++At)
++	{
++		if (Ticks[At] > Ticks[Largest])
++		{
++			Largest = At;
++		}
++	}
++	return Shapes[Largest];
++}
++// Cosmic Ascension - Sim layer (Core Logic). Design: docs/60_DECISIONS/headers/B7_composable_existence_and_evolution.md
++// section 2 (B7x slice ga - rules R1, R2, R10; walls K1 - K10), docs/10_DESIGN/EXISTENCE_EVOLUTION_AND_ECOLOGY.md.
++// The single home of the existence bricks' world rules (rule 13): the count of the six time vectors, the shares a brick
++// (a Brick.* tag of FCivilizationState::Traits) takes in the economy, research, diplomacy, crisis and project steps, the
++// inward peoples' settle refusal, the AI mutation step and the end shape. Pure functions of the state, the index and the
++// rules - no draw, no line, no knowing read (rule 2), no delegate; the few writers are named as such. Every share is read
++// through a DT_Rules knob whose C++ initializer is inert (a multiplier 1, a flat 0, a period 0), and every reader asks
++// HasTagExact first, so a people without the brick takes the old path bit for bit.
++// RULE (section 6.1): files under Sim/ must never include UUserWidget or AActor headers; a Sim header includes no Events header.
++
++#pragma once
++
++#include "CoreMinimal.h"
++#include "GameplayTagContainer.h"
++
++struct FCivilizationState;
++struct FCosmicRulesDef;
++struct FCosmicStateIndex;
++struct FCosmicTimeVectors;
++struct FGalaxyState;
++struct FResourcePool;
++
++namespace CosmicBricks
++{
++	// ---- The six time vectors (section 2.2) ----
++
++	/** Which of the six facts hold for one people at the end of this tick's economy stage (section 2.2). Never stored. */
++	struct FCosmicTimeFacts
++	{
++		// A system the people owns has a megaproject in progress other than project_settle (construction or response slot).
++		bool bBuilt = false;
++		// Its fleet is aimed at a system another people owns, or it holds the edict DT_Rules.StartingEdict.
++		bool bConsumed = false;
++		// A system the people owns is being settled (project_settle in its construction slot).
++		bool bDrifted = false;
++		// One of its ties carries a treaty or the friendly stance.
++		bool bLinked = false;
++		// It has exactly one settled system and no tie with a treaty or a stance that is not neutral.
++		bool bIsolated = false;
++		// PressureEnduredTicks or LawsHeldTicks is above 0, or a hazard stands on one of its settled systems.
++		bool bEndured = false;
++	};
++
++	/**
++	 * The facts of the people CivIndex now (section 2.2): one walk over its OwnedSystems (an entry whose owner is another
++	 * people counts for nothing, as in the economy stage), its ties, its fleet target and its edicts. All false for an index
++	 * out of range. Reads only; draws nothing; reads no knowing.
++	 */
++	COSMIC_ASCENSION_API FCosmicTimeFacts TimeFactsOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules, int32 CivIndex);
++
++	/**
++	 * The count of the time vectors (section 2.2, rule R2): for every people, in Civs order, each vector whose fact holds
++	 * (TimeFactsOf) grows by one (never past MAX_int32); none is ever reset. The sub-step right after the streak counters at the
++	 * end of the economy stage (UGalaxySimulationSubsystem::TickEconomy), so Endured reads this tick's PressureEnduredTicks
++	 * and LawsHeldTicks. Writes FCivilizationState::TimeVectors only. No draw, no knowing read, no line.
++	 */
++	COSMIC_ASCENSION_API void CountTimeVectors(FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules);
++
++	/**
++	 * The vector a word names - the Key of condition CivTimeVectorAtLeast (schema words.time_vectors: Built, Consumed,
++	 * Drifted, Linked, Isolated, Endured): true and its ticks in OutTicks, or false (OutTicks 0) for any other word.
++	 */
++	COSMIC_ASCENSION_API bool VectorOf(const FCosmicTimeVectors& Vectors, FName Word, int32& OutTicks);
++
++	// ---- The shares (section 2.4) - each 'no change' for a people without its brick or under its inert knob ----
++
++	/**
++	 * The bricks' part of the income of the people CivIndex (the economy stage, right before IncomePerTick is cached):
++	 * Brick.Diet.StarEater multiplies Income.Energy by BrickStarEaterEnergyMultiplier; then Brick.Diet.DarkMatter adds
++	 * BrickDarkMatterEnergyPerTick and Brick.Diet.DistanceTension adds BrickSpanEnergyPerLane x SpanOf to Energy;
++	 * Brick.Diet.SilenceFeed adds BrickQuietInsightPerTick to Insight on a quiet tick (IsQuietOf) and Brick.Diet.CrisisParasite
++	 * adds BrickParasiteInsightPerHazard x ParasiteHazardsOf to Insight. Income is not touched at all for a people that
++	 * carries none of them, or whose knobs are inert. No draw.
++	 */
++	COSMIC_ASCENSION_API void AddIncomeShares(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules, int32 CivIndex, FResourcePool& Income);
++
++	/** The widest lane-count distance between two settled systems of the people CivIndex (CosmicState::LaneDistancesFrom - a
++	 * pair in two galaxy rows, or that no lane joins, counts for nothing); 0 with fewer than two. Reads only. */
++	COSMIC_ASCENSION_API int32 SpanOf(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex);
++
++	/** Whether this is a quiet tick for the people CivIndex: none of its settled systems holds a hazard or a project (either
++	 * slot), its fleet besieges no system of another people, and no other people's fleet is aimed at one of its settled
++	 * systems. False for an index out of range. Reads only. */
++	COSMIC_ASCENSION_API bool IsQuietOf(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex);
++
++	/** Whether a hazard tag is one no brick touches: Hazard.Claim, Hazard.Extinction, Hazard.PreSupernova (as a galaxy law's
++	 * hooks pass them by - schema, B6b header 3.3; K9: nothing new delays the claim). */
++	COSMIC_ASCENSION_API bool IsSparedHazard(const FGameplayTag& Hazard);
++
++	/** The hazards a crisis parasite CivIndex feeds on now: those standing, not spared (IsSparedHazard), on the settled
++	 * systems of every people that borders it (CosmicDiplomacy::BordersOf). Reads only. */
++	COSMIC_ASCENSION_API int32 ParasiteHazardsOf(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex);
++
++	/**
++	 * The parasite's countdown bonus for a hazard of tag Hazard placed now on SystemIndex (CosmicHazards::Place, with the
++	 * edicts' bonus and the fleet's delay): BrickParasiteCountdownBonusTicks (cut to 0..100000) when the system's owner
++	 * borders a people that carries Brick.Diet.CrisisParasite, once whatever their number; 0 for a spared hazard, an unowned
++	 * system, an index out of range, or a knob of 0 (then no border is walked). Reads only.
++	 */
++	COSMIC_ASCENSION_API int32 ParasiteCountdownBonusOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules, int32 SystemIndex, const FGameplayTag& Hazard);
++
++	/** The factor of the people's research progress (the research stage): BrickSwarmResearchMultiplier for
++	 * Brick.Instinct.SwarmTech times BrickInwardResearchMultiplier for an inward people (IsInward); exactly 1 for a people
++	 * with neither, or under inert knobs. A knob not above 0, or not a number, reads as 1. */
++	COSMIC_ASCENSION_API float ResearchMultiplierOf(const FCivilizationState& Civ, const FCosmicRulesDef& Rules);
++
++	/** One tick's progress of a settlement of the people (CosmicMegaprojects::Advance, project_settle only): Step x
++	 * BrickNomadSettleProgressMultiplier for Brick.Space.Nomad, else Step itself. A knob not above 0 reads as 1. */
++	COSMIC_ASCENSION_API float SettleProgressOf(const FCivilizationState& Civ, const FCosmicRulesDef& Rules, float Step);
++
++	/** The spawn share of the Draw hazard of tag Hazard on a system of Owner (the crisis stage): Share x
++	 * BrickInwardHazardSpawnMultiplier for Brick.Space.PlanckMicro, then x BrickStellarCrisisSpawnMultiplier when Hazard is
++	 * Hazard.PreSupernova and Owner carries Brick.Form.DysonBrain or Brick.Diet.StarEater (once, whichever it carries); else
++	 * Share itself, bit for bit. A knob not above 0 reads as 1 (never 0). */
++	COSMIC_ASCENSION_API float HazardSpawnShareOf(const FCivilizationState& Owner, const FCosmicRulesDef& Rules, const FGameplayTag& Hazard, float Share);
++
++	/**
++	 * The term the bricks of the people Seen add to the drift target of every view of it (CosmicDiplomacy::TargetRelationOf
++	 * - the diplomacy stage moves a bordering pair's view toward that target; no other people's state is written here):
++	 * BrickStarEaterRelationTarget for Brick.Diet.StarEater plus BrickMergeRelationTarget for Brick.Instinct.HiveMerge, each
++	 * read in [-1, 1] (anything else, or not a number: 0). Exactly 0 for a people with neither, or under the inert knobs.
++	 */
++	COSMIC_ASCENSION_API float RelationTargetTermOf(const FCivilizationState& Seen, const FCosmicRulesDef& Rules);
++
++	// ---- The settle gate (CosmicMegaprojects::SettleBlockOf - reason Inward) ----
++
++	/** Whether the people is folded inward: it carries Brick.Space.HermitMonolith or Brick.Space.PlanckMicro. Such a people
++	 * starts no further settlement (CosmicMegaprojects::ECosmicSettleBlock::Inward); what it holds stays. */
++	COSMIC_ASCENSION_API bool IsInward(const FCivilizationState& Civ);
++
++	// ---- The AI mutation step (section 2.6) ----
++
++	/**
++	 * The first mutation brick due for the people, in the fixed order StarShepherd, KesslerTapestry, AbyssalMaw; the empty
++	 * tag when none is, or when BrickMutationThresholdTicks is not above 0. Each is due once (not while the people carries it)
++	 * when its prerequisite brick is carried and its vectors reach the threshold: Brick.Mutation.StarShepherd - Brick.Space.Nomad
++	 * and Drifted; Brick.Mutation.KesslerTapestry - Brick.Instinct.SwarmTech, Built and Linked; Brick.Mutation.AbyssalMaw -
++	 * Brick.Diet.StarEater and Consumed. Reads only; never a rung (K4).
++	 */
++	COSMIC_ASCENSION_API FGameplayTag MutationDueOf(const FCivilizationState& Civ, const FCosmicRulesDef& Rules);
++
++	/** Whether the AI mutation step runs at Tick: BrickEvolutionPeriodTicks above 0, Tick above 0 and a multiple of it. */
++	COSMIC_ASCENSION_API bool MutationStepDueAt(const FCosmicRulesDef& Rules, int64 Tick);
++
++	/**
++	 * The AI mutation step (the end of the AI stage, before the feat judgment): every people the player does not rule, in
++	 * Civs order, takes the brick MutationDueOf names - added to its Traits as the effect AddTrait adds a tag. The player's
++	 * people changes only through cards. Returns how many peoples took one. No draw, no line.
++	 */
++	COSMIC_ASCENSION_API int32 MutateAIPeoples(FGalaxyState& State, const FCosmicRulesDef& Rules);
++
++	// ---- The seed bricks of the AI peoples (NewGalaxy - draw-free, off while DT_Rules.BrickSeedTags is empty) ----
++
++	/**
++	 * The brick NewGalaxy adds to the AI people Civ right after its archetype's Traits are copied: none (the empty tag) when
++	 * DT_Rules.BrickSeedTags holds no Brick.* tag or the people already carries a Brick.* tag; else the seed tag at
++	 * CosmicSeed::DeriveForName(Seed, Civ.CivID, Purpose::Brick, 0) modulo their number, the tags taken in FNameLexicalLess
++	 * order of their names (so the pick does not follow the container's order). A derived integer - the sim stream is not
++	 * drawn. Pure.
++	 */
++	COSMIC_ASCENSION_API FGameplayTag SeedBrickOf(const FCosmicRulesDef& Rules, int32 Seed, const FCivilizationState& Civ);
++
++	// ---- The star eater's dimming (rule R10) - implemented and tested, not wired into a stage yet ----
++
++	/** The next dimmer of the seven Star.Class.* tags (CosmicTags::StarClassAt, hottest first); the dimmest stays itself, and
++	 * an empty tag or one outside the seven comes back unchanged (never an eighth class, never a destruction). */
++	COSMIC_ASCENSION_API FGameplayTag DimmerStarClassOf(const FGameplayTag& StarClass);
++
++	/** Whether the star eater's capital dims at Tick: the people carries Brick.Diet.StarEater, BrickStarEaterDimPeriodTicks is
++	 * above 0, and Tick is above 0 and a multiple of it. */
++	COSMIC_ASCENSION_API bool StarDimDueOf(const FCivilizationState& Civ, const FCosmicRulesDef& Rules, int64 Tick);
++
++	/** The one world function that dims a star (R10): the capital of the people CivIndex - when it owns it and it is settled,
++	 * living and not the sanctuary - takes DimmerStarClassOf its class. True when the class changed. */
++	COSMIC_ASCENSION_API bool DimCapitalStar(FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex);
++
++	// ---- The end shape (section 2.7) - display only, never saved, never an ending kind ----
++
++	/**
++	 * The shape a people's life took. Four for a people without a shape brick, by its largest vector (ties broken by the
++	 * fixed order Built, Consumed, Drifted, Linked, Isolated, Endured), and eight by shape brick. Never saved and never
++	 * compared by its numeric value; the presentation maps it to Chronicle.Shape.* ([B-7x3]).
++	 */
++	enum class ECosmicShape : uint8
++	{
++		// Largest vector Built or Linked.
++		BuiltOrLinked,
++		// Largest vector Consumed or Drifted.
++		ConsumedOrDrifted,
++		// Largest vector Isolated.
++		Isolated,
++		// Largest vector Endured.
++		Endured,
++		// Brick.Form.UnseenLaw.
++		KeptLaw,
++		// Brick.Space.PlanckMicro.
++		FoldedSmall,
++		// Brick.Space.HermitMonolith or Brick.Form.DysonBrain.
++		ShutHouse,
++		// Brick.Form.LivingNebula or Brick.Diet.DarkMatter.
++		SpreadBody,
++		// Brick.Space.Nomad.
++		StarHerd,
++		// Brick.Instinct.SwarmTech.
++		WovenSwarm,
++		// Brick.Diet.StarEater.
++		LastHunger,
++		// Brick.Instinct.HiveMerge.
++		Entwined,
++		// The number of the values above (not a shape).
++		Count,
++	};
++
++	/**
++	 * The end shape of the people (section 2.7): the first shape brick it carries in the priority KeptLaw, FoldedSmall,
++	 * ShutHouse, SpreadBody (Brick.Form.LivingNebula or Brick.Diet.DarkMatter), StarHerd, WovenSwarm, LastHunger, Entwined
++	 * (HasTagExact); else the shape of its largest vector.
++	 * Pure; reads the people alone.
++	 */
++	COSMIC_ASCENSION_API ECosmicShape ShapeOf(const FCivilizationState& Civ);
++}
++#include "Sim/CosmicExistenceBricks.h"
++	// The crisis parasite next door (B7x section 2.4): 0 unless the owner borders a people that carries Brick.Diet.CrisisParasite
++	// and DT_Rules.BrickParasiteCountdownBonusTicks is above 0 - never for the claim, the extinction or the supernova precursor.
++	const int32 ParasiteBonus = CosmicBricks::ParasiteCountdownBonusOf(State, Ctx.Index, Ctx.Rules, SystemIndex, Row->HazardTag);
++		+ EdictBonus + FleetDelay + ParasiteBonus, MAX_int32));
++	 * (CosmicConflict::FleetDelayOf, B3) plus the crisis parasite's bonus (CosmicBricks::ParasiteCountdownBonusOf, B7x - 0
++	 * for the claim, the extinction and the supernova precursor, and while no bordering people carries the brick or the knob
++	 * is 0) - at placement only: no edict or guard changes a standing hazard's count, a card's
++#include "Sim/CosmicExistenceBricks.h"
++	// B7x (section 2.5): a people folded inward settles no further - the last reason of the people.
++	if (CosmicBricks::IsInward(State.Civs[CivIndex]))
++	{
++		return ECosmicSettleBlock::Inward;
++	}
++	// A people folded inward (B7x) has no target: SettleBlockOf gives Inward for every system. MaySettle stays as it is, so
++	// the AI's settlement draw is made as before and finds no target.
++	if (!MaySettle(State, Index, Rules, CivIndex) || !SettleRowAllows(State, Tables, CivIndex) || CosmicBricks::IsInward(State.Civs[CivIndex]))
++	if (CosmicBricks::IsInward(State.Civs[CivIndex]))
++	{
++		return ECosmicSettleBlock::Inward;
++	}
++	// people whose only neighbour it is has no lane to settle by (it has no lane before v0.8 step 5). Inward (B7x) is a
++	// reason of the people, answered above: no neighbour gives it here, so it scores 0.
++	static_assert(static_cast<int32>(ECosmicSettleBlock::Count) == 12, "A new settle reason: give it its rank among a people's neighbour reasons (the sanctuary scores 0 on purpose)");
++				// A settlement of a wandering people (B7x section 2.4, Brick.Space.Nomad) takes its factor - the step itself
++				// for any other people and any other row.
++				const float Step = bUpper ? Rate * UpperRungMultiplierOf(Ctx.Rules) : Rate;
++				System.MegaprojectProgress += RowName == CosmicRows::ProjectSettle ? CosmicBricks::SettleProgressOf(State.Civs[OwnerIndex], Ctx.Rules, Step) : Step;
++	// under way, and - appended last, asked right after Settling - a people folded inward, B7x), last the sphere that the
++	// third rung lifts. Never saved; new enumerators are appended at the end (B7x), so from Inward on the order of the
++	// enumerators is no longer the order of the asking.
++		// B7x [B-7x2] (section 2.5): the people is folded inward - it carries Brick.Space.HermitMonolith or
++		// Brick.Space.PlanckMicro (CosmicBricks::IsInward) - and starts no further settlement. A reason of the people, asked
++		// right after Settling.
++		Inward,
++	 * systems than RealmCapOf its Tier and has no settlement under way (MaySettle); the people is not folded inward
++	 * (CosmicBricks::IsInward - Inward, B7x); and outside every sphere, or on Tier 3 or higher. Reads only; draws nothing.
++	 * in its order - NoRow, RowTier, RealmCap, Settling, Inward (B7x); then, when none of those stands, the lane neighbours of its
++#include "Sim/CosmicExistenceBricks.h"
++	// Star classes from the hottest to the coolest: CosmicTags::StarClassAt (Core/CosmicTags.h) is the one list - the
++	// generation, the economy and the star eater's dimming (CosmicBricks::DimmerStarClassOf) read it.
++		// Energy of one owned system by star class, in the order of CosmicTags::StarClassAt. G is the baseline.
++		static_assert(static_cast<int32>(UE_ARRAY_COUNT(StarClassEnergy)) == CosmicTags::StarClassCount, "One energy per star class, in the order of CosmicTags::StarClassAt");
++		for (int32 Index = 0; Index < CosmicTags::StarClassCount; ++Index)
++			if (CosmicTags::StarClassAt(Index).GetTagName() == ClassName)
++	const TArray<float>& StarShares = (Rules.LivingWorldStarShares.Num() == CosmicTags::StarClassCount) ? Rules.LivingWorldStarShares : DefaultRules.LivingWorldStarShares;
++		UE_LOG(LogCosmic, Error, TEXT("DT_Rules: LivingWorldStarShares has %d entries, not %d: the C++ default is used"), Rules.LivingWorldStarShares.Num(), CosmicTags::StarClassCount);
++		System.StarClass = CosmicTags::StarClassAt(StarClassIndex(ClassRoll, StarShares));
++			// The seed brick of an AI people (B7x [B-7x2]): one Brick.* tag of DT_Rules.BrickSeedTags picked by a derived
++			// integer (CosmicSeed Purpose::Brick) - no sim draw, and nothing at all while the knob is empty.
++			if (!bPlayerCiv)
++			{
++				const FGameplayTag Seeded = CosmicBricks::SeedBrickOf(Rules, Seed, Civ);
++				if (Seeded.IsValid())
++				{
++					Civ.Traits.AddTag(Seeded);
++				}
++			}
++		// The bricks' shares (B7x section 2.4): a people that carries none - or under the inert knobs - keeps its income as it is.
++		CosmicBricks::AddIncomeShares(State, StateIndex, Rules, CivIndex, Income);
++	// The six time vectors (B7x section 2.2): cumulative, after the streak counters so that Endured reads this tick's
++	// PressureEnduredTicks and LawsHeldTicks. No draw, no knowing read.
++	CosmicBricks::CountTimeVectors(State, StateIndex, Rules);
++		// The bricks' factor on the progress (B7x section 2.4): exactly 1 for a people that carries none, which then takes the
++		// expression below unchanged, bit for bit.
++		const float BrickFactor = CosmicBricks::ResearchMultiplierOf(Civ, Rules);
++		const bool bBrickFactor = BrickFactor != 1.f;
++			const float After = bBrickFactor
++				? FMath::Min(1.f, Before + Spent * Civ.ResearchFocus.FindRef(Field) * EconomyRateOf(Rules.ResearchPerInsight) * BrickFactor)
++				: FMath::Min(1.f, Before + Spent * Civ.ResearchFocus.FindRef(Field) * EconomyRateOf(Rules.ResearchPerInsight));
++			// A people folded into the very small (B7x section 2.4, Brick.Space.PlanckMicro) multiplies it once more, and so does
++			// a people living off its star for the stellar crisis (Brick.Form.DysonBrain, Brick.Diet.StarEater) - the share
++			// itself for any other owner.
++			const float Share = CosmicBricks::HazardSpawnShareOf(Owner, Rules, Row->HazardTag,
++				((Chance * Factor) * CosmicEdicts::SpawnMultiplierOf(State, StateIndex, Tables, SystemIndex, Row->HazardTag)) * Spreading);
++	// (a2) The AI mutation step (B7x section 2.6): every DT_Rules.BrickEvolutionPeriodTicks (0 = off), every people the player
++	// does not rule takes the first mutation brick that is due (CosmicBricks::MutationDueOf). No draw, no line, no knowing.
++	if (CosmicBricks::MutationStepDueAt(Rules, State.Tick))
++	{
++		CosmicBricks::MutateAIPeoples(State, Rules);
++	}
++
++	// DT_Rules.TradeInfluencePerTreaty to the Influence - B3; then the bricks' shares, CosmicBricks::AddIncomeShares - B7x,
++	// nothing for a people that carries no brick or under the inert knobs); then the per-tick sources, the
++	// Loop two: LowStabilityTicks, FallenSphereTicks, PressureEnduredTicks and LawsHeldTicks (B6b). Last and separate on purpose: the count
++	// Then the six time vectors (B7x section 2.2 - CosmicBricks::CountTimeVectors): cumulative, never reset, after the four
++	// streak counters. No draw, no knowing read.
++	// Insight and crosses no mark (section 7.4 (o)). The bricks' factor (CosmicBricks::ResearchMultiplierOf - B7x) multiplies
++	// the progress of a people that carries SwarmTech or an inward brick; exactly 1, and the old expression, for any other.
++	// no one. The target holds the term of the bricks of the people seen (B7x - CosmicBricks::RelationTargetTermOf: a star
++	// eater is seen worse, a merging people better; 0 under the inert knobs).
++	//     plague on a lane neighbour as the step begins, DT_Rules.PlagueSpreadMultiplier - B3; on a system of a people that
++	//     carries Brick.Space.PlanckMicro, DT_Rules.BrickInwardHazardSpawnMultiplier, and for the Hazard.PreSupernova row on a
++	//     system of a people that carries Brick.Form.DysonBrain or Brick.Diet.StarEater, DT_Rules.BrickStellarCrisisSpawnMultiplier
++	//     - CosmicBricks::HazardSpawnShareOf, B7x;
++	//     the factors change the shares, never the count of draws). Then the Capital rows, civilization by civilization in Civs order.
++	// command pays). Then its diplomacy (TickAIDiplomacy, B3). (a2) The AI mutation step (B7x section 2.6): at a tick that
++	// CosmicBricks::MutationStepDueAt names (DT_Rules.BrickEvolutionPeriodTicks, 0 = off), every people the player does not
++	// rule takes the brick CosmicBricks::MutationDueOf names - no draw, no line. (b)
++		TEXT("Inward"),
++		// B7x: every time vector of the first civilization at 1, so that each word of time_vectors resolves.
++		Bench.Civs[0].TimeVectors.Built = 1;
++		Bench.Civs[0].TimeVectors.Consumed = 1;
++		Bench.Civs[0].TimeVectors.Drifted = 1;
++		Bench.Civs[0].TimeVectors.Linked = 1;
++		Bench.Civs[0].TimeVectors.Isolated = 1;
++		Bench.Civs[0].TimeVectors.Endured = 1;
++		// B7x: the six time vectors are the Key of CivTimeVectorAtLeast.
++		EveryWord(TEXT("time_vectors"), [&](const FString& Word) { return Holds(Bench, EConditionType::CivTimeVectorAtLeast, Word, 1.f); });
++		Expect(TEXT("a tag of a container under the wrong root"), WithCiv([Plague](FCivArchetypeDef& Row) { Row.Traits.AddTag(Plague); }), { TEXT("Traits"), TEXT("not under Trait. or Brick.") });
++		// B7x [B-7x1] (rule R1): the existence bricks ride in Traits - the root of the column (and of CivHasTrait, AddTrait and
++		// RemoveTrait, held by Tools/test_data_schema.py) is the list Trait. and Brick.
++		TestTrue(TEXT("A brick in a people's Traits is under the root of the column"),
++			Report(TEXT("DT_Civs with a brick"), WithCiv([](FCivArchetypeDef& Row) { Row.Traits.AddTag(FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Diet.StarEater")))); })));
++	// B7x: civ 0 has built 30 ticks (the cumulative vector CivTimeVectorAtLeast reads).
++	Detached.Civs[0].TimeVectors.Built = 30;
++		// B7x: the vector Built reaches 30 and not 31; a word that names no vector is false.
++		{ Cond(EConditionType::CivTimeVectorAtLeast, nullptr, FName(TEXT("Built")), 30.f), 0, true },
++		{ Cond(EConditionType::CivTimeVectorAtLeast, nullptr, FName(TEXT("Built")), 31.f), 0, false },
++		{ Cond(EConditionType::CivTimeVectorAtLeast, nullptr, FName(TEXT("Consumed")), 1.f), 0, false },
++		{ Cond(EConditionType::CivTimeVectorAtLeast, nullptr, FName(TEXT("Wandered")), 1.f), 0, false },
++		// A trait civ 0 lacks holds, one it carries does not.
++		{ Cond(EConditionType::CivLacksTrait, TEXT("Trait.Faith.Remnant"), NAME_None, 0.f), 0, true },
++		{ Cond(EConditionType::CivLacksTrait, TEXT("Trait.Faith.Seeking"), NAME_None, 0.f), 0, false },
++		// No people of the detached galaxy carries a brick, bordering or not (the true case is Sim.BrickConditions).
++		{ Cond(EConditionType::BorderingCivHasTrait, TEXT("Brick.Diet.StarEater"), NAME_None, 0.f), 0, false },
++			|| Type == EConditionType::CivPressureEnduredTicksReached || Type == EConditionType::CivTimeVectorAtLeast
++			|| Type == EConditionType::CivLacksTrait || Type == EConditionType::BorderingCivHasTrait;
++// Cosmic Ascension - automation tests of the existence bricks (B7x): from B-7x1 the six time vectors of a people
++// (FCivilizationState::TimeVectors) and the host of a system (FStarSystemState::HostCivID) through the save and the hashes;
++// from B-7x2 the module CosmicBricks - the count of the vectors, the bricks' shares, the settle gate's reason Inward, the AI
++// mutation step and the unseen law's kept edicts, the end shape, the seed bricks of NewGalaxy - and the three conditions.
++// Design: docs/60_DECISIONS/headers/B7_composable_existence_and_evolution.md section 2.1, 6 (rules R2, R3); docs/20 section 9.1.
++
++#include "CoreMinimal.h"
++
++#if WITH_DEV_AUTOMATION_TESTS
++
++#include "Containers/StringConv.h"
++#include "Core/CosmicSeed.h"
++#include "Core/CosmicTags.h"
++#include "Core/CosmicTypes.h"
++#include "Core/GalaxyState.h"
++#include "Data/CosmicConditionTypes.h"
++#include "Data/CosmicDataTables.h"
++#include "Data/CosmicDefinitionRows.h"
++#include "Data/CosmicRowNames.h"
++#include "Engine/DataTable.h"
++#include "Engine/GameInstance.h"
++#include "Events/CosmicEventSubsystem.h"
++#include "GameplayTagContainer.h"
++#include "Internationalization/Text.h"
++#include "Kismet/GameplayStatics.h"
++#include "Math/RandomStream.h"
++#include "Misc/AutomationTest.h"
++#include "Misc/Guid.h"
++#include "Misc/ScopeExit.h"
++#include "Save/CosmicSaveGame.h"
++#include "Save/CosmicSaveSubsystem.h"
++#include "Sim/CosmicDiplomacy.h"
++#include "Sim/CosmicEdicts.h"
++#include "Sim/CosmicEvalContext.h"
++#include "Sim/CosmicExistenceBricks.h"
++#include "Sim/CosmicHazards.h"
++#include "Sim/CosmicMegaprojects.h"
++#include "Sim/CosmicStateIndex.h"
++#include "Sim/GalaxySimulationSubsystem.h"
++#include "Templates/Function.h"
++#include "Tests/CosmicTestHelpers.h"
++#include "UObject/NameTypes.h"
++#include "UObject/Package.h"
++
++#include <initializer_list>
++
++namespace CosmicExistenceBricksTests
++{
++	// The engine's save bytes of a state (the carrier the game's slot wraps - Save/CosmicSaveSubsystem.cpp).
++	TArray<uint8> SaveBytesOf(const FGalaxyState& State)
++	{
++		UCosmicSaveGame* Carrier = NewObject<UCosmicSaveGame>(GetTransientPackage());
++		Carrier->State = State;
++		TArray<uint8> Raw;
++		UGameplayStatics::SaveGameToMemory(Carrier, Raw);
++		return Raw;
++	}
++
++	// Renames every occurrence of Name in the save bytes to a name no build knows (its last letter changed, so the bytes keep
++	// their length): what a save made before the member was added reads like. Returns how many it renamed. Only an OUTER name
++	// is ever forgotten here - an inner name such as Endured is a substring of PressureEndured(Ticks) and would corrupt it.
++	int32 Forget(TArray<uint8>& Raw, const TCHAR* Name)
++	{
++		const auto Ansi = StringCast<ANSICHAR>(Name);
++		int32 Renamed = 0;
++		for (int32 At = 0; At + Ansi.Length() <= Raw.Num(); ++At)
++		{
++			if (FMemory::Memcmp(Raw.GetData() + At, Ansi.Get(), Ansi.Length()) == 0)
++			{
++				Raw[At + Ansi.Length() - 1] = static_cast<uint8>('Q');
++				++Renamed;
++			}
++		}
++		return Renamed;
++	}
++
++	// The six vectors as one list, in the fixed order (Built, Consumed, Drifted, Linked, Isolated, Endured).
++	TArray<int32> VectorsOf(const FCosmicTimeVectors& Vectors)
++	{
++		return { Vectors.Built, Vectors.Consumed, Vectors.Drifted, Vectors.Linked, Vectors.Isolated, Vectors.Endured };
++	}
++
++	// Sets the six vectors from a first value counting up by one.
++	void SetVectors(FCosmicTimeVectors& Vectors, int32 First)
++	{
++		Vectors.Built = First;
++		Vectors.Consumed = First + 1;
++		Vectors.Drifted = First + 2;
++		Vectors.Linked = First + 3;
++		Vectors.Isolated = First + 4;
++		Vectors.Endured = First + 5;
++	}
++}
++
++// The time vectors and the host through the save (header section 2.1, 6; rules R2, R3): their initializers are the frozen 0
++// and NAME_None (CLAUDE.md rule 7 - mutation: an initializer of 1 breaks it); off them they round trip people by people and
++// system by system through the game's slot with the hash they were saved with; and a save without them - written before
++// B-7x1 - loads them at their initializers while the rest of each element comes back (an element of Civs or Systems is
++// written whole, so the old bytes simply lack the member). The old save forgets the OUTER name TimeVectors - never an inner
++// one: Endured is a substring of PressureEnduredTicks.
++IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimSaveTimeVectorsTest, "Cosmic_Ascension.Sim.SaveTimeVectors", CosmicTests::Flags)
++bool FCosmicSimSaveTimeVectorsTest::RunTest(const FString& Parameters)
++{
++	using namespace CosmicExistenceBricksTests;
++	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
++	if (!Sim)
++	{
++		return false;
++	}
++	UCosmicSaveSubsystem* Save = Sim->GetGameInstance()->GetSubsystem<UCosmicSaveSubsystem>();
++	if (!TestNotNull(TEXT("The save subsystem exists"), Save))
++	{
++		return false;
++	}
++	FGuid Galaxy;
++	ON_SCOPE_EXIT
++	{
++		if (Galaxy.IsValid())
++		{
++			Save->DeleteSave(Galaxy);
++		}
++		Sim->NewGalaxy(42, 5, 3);
++		Sim->SetTimeScale(0.f);
++	};
++
++	// (1) The frozen initializers.
++	const FCivilizationState Fresh;
++	TestTrue(TEXT("The frozen time vectors are all 0"), VectorsOf(Fresh.TimeVectors) == TArray<int32>({ 0, 0, 0, 0, 0, 0 }));
++	const FStarSystemState FreshSystem;
++	TestTrue(TEXT("The frozen HostCivID is NAME_None"), FreshSystem.HostCivID.IsNone());
++
++	// (2) Off their initializers, both round trip through the game's slot, each on its own element, with both hashes.
++	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
++	Sim->RunHeadless(200);
++	FGalaxyState& Live = Sim->GetMutableState();
++	Galaxy = Live.GalaxyID;
++	if (!TestTrue(TEXT("The slice has three peoples and two systems"), Live.Civs.Num() >= 3 && Live.Systems.Num() >= 2))
++	{
++		return false;
++	}
++	SetVectors(Live.Civs[1].TimeVectors, 301);
++	SetVectors(Live.Civs[2].TimeVectors, 401);
++	Live.Civs[2].PressureEnduredTicks = 77;
++	Live.Systems[1].HostCivID = Live.Civs[2].CivID;
++	const TArray<int32> One = VectorsOf(Live.Civs[1].TimeVectors);
++	const TArray<int32> Two = VectorsOf(Live.Civs[2].TimeVectors);
++	const TArray<int32> Zero = VectorsOf(Live.Civs[0].TimeVectors);
++	const FName Host = Live.Civs[2].CivID;
++	const uint32 Hash = Sim->ComputeStateHash();
++	const uint32 World = Sim->ComputeWorldHash();
++	if (TestTrue(TEXT("The run with the vectors and a host off their initializers saves"), Save->SaveCurrentGalaxy()))
++	{
++		SetVectors(Live.Civs[1].TimeVectors, 0);
++		Live.Systems[1].HostCivID = NAME_None;
++		if (TestTrue(TEXT("and loads"), Save->LoadGalaxy(Galaxy)))
++		{
++			const FGalaxyState& Loaded = Sim->GetState();
++			TestTrue(TEXT("The six vectors survive the round trip"), VectorsOf(Loaded.Civs[1].TimeVectors) == One);
++			TestTrue(TEXT("on their own people only"), VectorsOf(Loaded.Civs[2].TimeVectors) == Two && VectorsOf(Loaded.Civs[0].TimeVectors) == Zero);
++			TestEqual(TEXT("HostCivID survives the round trip"), Loaded.Systems[1].HostCivID, Host);
++			TestTrue(TEXT("on its own system only"), Loaded.Systems[0].HostCivID.IsNone());
++			TestEqual(TEXT("with the hash it was saved with"), static_cast<int64>(Sim->ComputeStateHash()), static_cast<int64>(Hash));
++			TestEqual(TEXT("and the world hash"), static_cast<int64>(Sim->ComputeWorldHash()), static_cast<int64>(World));
++		}
++	}
++
++	// (3) A save without the two members (an old save) loads them at their initializers, and the rest of the element as it
++	// was. The struct's own type name holds the outer name too (CosmicTimeVectors), so each people may carry it twice.
++	TArray<uint8> Raw = SaveBytesOf(Sim->GetState());
++	const int32 Civs = Sim->GetState().Civs.Num();
++	const int32 VectorNames = Forget(Raw, TEXT("TimeVectors"));
++	TestTrue(TEXT("Every people writes TimeVectors"), VectorNames >= Civs);
++	TestEqual(TEXT("Every system writes HostCivID"), Forget(Raw, TEXT("HostCivID")), Sim->GetState().Systems.Num());
++	const UCosmicSaveGame* Old = Cast<UCosmicSaveGame>(UGameplayStatics::LoadGameFromMemory(Raw));
++	if (TestNotNull(TEXT("The bytes without the two members load"), Old) && TestEqual(TEXT("with every people"), Old->State.Civs.Num(), Civs)
++		&& TestTrue(TEXT("and every system"), Old->State.Systems.Num() == Sim->GetState().Systems.Num()))
++	{
++		TestTrue(TEXT("An old save reads the time vectors as 0"), VectorsOf(Old->State.Civs[2].TimeVectors) == TArray<int32>({ 0, 0, 0, 0, 0, 0 }));
++		TestTrue(TEXT("An old save reads HostCivID as NAME_None"), Old->State.Systems[1].HostCivID.IsNone());
++		TestEqual(TEXT("and the counter whose name holds Endured as it was saved"), Old->State.Civs[2].PressureEnduredTicks, 77);
++		TestEqual(TEXT("and the people's name"), Old->State.Civs[2].CivID, Sim->GetState().Civs[2].CivID);
++		TestEqual(TEXT("and the system's owner"), Old->State.Systems[1].OwnerCivID, Sim->GetState().Systems[1].OwnerCivID);
++	}
++	return true;
++}
++
++// The time vectors and the host are world state (header section 2.1; rules R2, R3): any of the six vectors off its value, or a
++// host named on a system, moves both hashes, and putting it back restores both. The exclusion lists are untouched (CLAUDE.md
++// rule 6): they name top-level members of FGalaxyState only - the mutation is a hasher that skips the names.
++IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimHashCoversTimeVectorsTest, "Cosmic_Ascension.Sim.HashCoversTimeVectors", CosmicTests::Flags)
++bool FCosmicSimHashCoversTimeVectorsTest::RunTest(const FString& Parameters)
++{
++	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
++	if (!Sim)
++	{
++		return false;
++	}
++	ON_SCOPE_EXIT
++	{
++		Sim->NewGalaxy(42, 5, 3);
++		Sim->SetTimeScale(0.f);
++	};
++	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
++	Sim->RunHeadless(200);
++	FGalaxyState& State = Sim->GetMutableState();
++	if (!TestTrue(TEXT("The slice has three peoples and two systems"), State.Civs.Num() >= 3 && State.Systems.Num() >= 2))
++	{
++		return false;
++	}
++	const uint32 World = Sim->ComputeWorldHash();
++	const uint32 Full = Sim->ComputeStateHash();
++
++	auto Moves = [&](const TCHAR* What, TFunctionRef<int32&(FCivilizationState&)> Counter)
++	{
++		int32& Value = Counter(State.Civs[1]);
++		const int32 Was = Value;
++		Value = Was + 600;
++		TestTrue(*FString::Printf(TEXT("%s moves the world hash"), What), Sim->ComputeWorldHash() != World);
++		TestTrue(*FString::Printf(TEXT("%s moves the full hash"), What), Sim->ComputeStateHash() != Full);
++		Value = Was;
++		TestTrue(*FString::Printf(TEXT("(both hashes are back after %s is put back)"), What), Sim->ComputeWorldHash() == World && Sim->ComputeStateHash() == Full);
++	};
++	Moves(TEXT("Built"), [](FCivilizationState& Civ) -> int32& { return Civ.TimeVectors.Built; });
++	Moves(TEXT("Consumed"), [](FCivilizationState& Civ) -> int32& { return Civ.TimeVectors.Consumed; });
++	Moves(TEXT("Drifted"), [](FCivilizationState& Civ) -> int32& { return Civ.TimeVectors.Drifted; });
++	Moves(TEXT("Linked"), [](FCivilizationState& Civ) -> int32& { return Civ.TimeVectors.Linked; });
++	Moves(TEXT("Isolated"), [](FCivilizationState& Civ) -> int32& { return Civ.TimeVectors.Isolated; });
++	Moves(TEXT("Endured"), [](FCivilizationState& Civ) -> int32& { return Civ.TimeVectors.Endured; });
++
++	// Two vectors swapped are another state: the struct's members are hashed in their order, not as a sum.
++	{
++		FCosmicTimeVectors& Vectors = State.Civs[1].TimeVectors;
++		const FCosmicTimeVectors Was = Vectors;
++		Vectors.Built = Was.Built + 5;
++		Vectors.Consumed = Was.Consumed + 7;
++		const uint32 First = Sim->ComputeWorldHash();
++		Vectors.Built = Was.Built + 7;
++		Vectors.Consumed = Was.Consumed + 5;
++		TestTrue(TEXT("Two vectors that trade their values move the world hash apart"), Sim->ComputeWorldHash() != First);
++		Vectors = Was;
++	}
++
++	// The host of a system.
++	FStarSystemState& System = State.Systems[1];
++	const FName WasHost = System.HostCivID;
++	System.HostCivID = State.Civs[2].CivID;
++	TestTrue(TEXT("A host named on a system moves the world hash"), Sim->ComputeWorldHash() != World);
++	TestTrue(TEXT("and the full hash"), Sim->ComputeStateHash() != Full);
++	System.HostCivID = WasHost;
++	TestTrue(TEXT("(both hashes are back after the host is taken off)"), Sim->ComputeWorldHash() == World && Sim->ComputeStateHash() == Full);
++	return true;
++}
++
++// ---- B-7x2: the module CosmicBricks ----
++
++namespace CosmicExistenceBricksTests
++{
++	FGameplayTag Tag(const TCHAR* Name)
++	{
++		return FGameplayTag::RequestGameplayTag(FName(Name));
++	}
++
++	// The edicts and the hazard of the boards below (the test builds them: no case leans on the game's rows). A people's edict
++	// with no cost of any kind (the AI revokes it at once - CosmicEdicts::AIRevokesOf), and a Draw plague of countdown 200.
++	const FName Kept(TEXT("edict_test_kept"));
++	const FName Sick(TEXT("crisis_test_sick"));
++
++	UDataTable* Edicts()
++	{
++		UDataTable* Table = CosmicTests::NewTable(FEdictDef::StaticStruct());
++		FEdictDef Row;
++		Row.DisplayName = FText::AsCultureInvariant(TEXT("kept"));
++		Row.Summary = FText::AsCultureInvariant(TEXT("a test edict."));
++		Row.Scope = ECosmicEdictScope::People;
++		Row.RequiredTier = EAscensionTier::Tier1_Planetary;
++		Table->AddRow(Kept, Row);
++		return Table;
++	}
++
++	UDataTable* Hazards()
++	{
++		UDataTable* Table = CosmicTests::NewTable(FHazardDef::StaticStruct());
++		FHazardDef Plague;
++		Plague.HazardTag = Tag(TEXT("Hazard.Plague"));
++		Plague.DisplayName = FText::AsCultureInvariant(TEXT("sick"));
++		Plague.CountdownTicks = 200;
++		Plague.SpawnRule = ECosmicHazardSpawn::Draw;
++		Plague.SpawnChancePerTick = 0.f;
++		Table->AddRow(Sick, Plague);
++		return Table;
++	}
++
++	void NoEdit(FCosmicRulesDef&) {}
++
++	/**
++	 * The board of Tests/CosmicUpperRungTests.cpp: twelve systems wired as CosmicTests::WireChain, four peoples owning all of
++	 * them, all settled - 0 (the player's) {0, 1}, 1 {3, 2, 4}, 2 {6, 5, 7}, 3 {9, 8, 10, 11}; capitals 0, 3, 6, 9. 0 borders
++	 * 1, 1 borders 2 and 3, 2 borders 3. Quiet rules (no event, no drain, no first crisis, no inherited edict, no drift, no
++	 * fleet, no sight stage), unpaid projects (CosmicTests::WithoutProjects), this file's edict and plague, no transcendent.
++	 * Every people on the first rung, no tie, no edict, no fleet target, Stability 0.75, 1000 of each resource; every time
++	 * vector 0 (a fresh galaxy). So no fact of the six holds for any people on the board as laid.
++	 */
++	FGalaxyState* LayBoard(UGalaxySimulationSubsystem& Sim, const FCosmicDataTables& Original, TFunctionRef<void(FCosmicRulesDef&)> Edit)
++	{
++		const FCosmicRulesDef* Game = Original.FindRules();
++		if (!Game)
++		{
++			return nullptr;
++		}
++		FCosmicRulesDef Rules = CosmicTests::WithoutStartingEdict(*Game);
++		Rules.EventChancePerSlot = 0.f;
++		Rules.SpiritualPressureStabilityDrain = 0.f;
++		Rules.FirstCrisisTick = 0;
++		Rules.SocietyRecoveryBonus = 0.f;
++		Rules.RealmCapByTier = { 4, 4, 5, 5, 5 };
++		Rules.RelationDriftRate = 0.f;
++		Rules.FleetPerSettledByTier = { 0.f, 0.f, 0.f, 0.f, 0.f };
++		Rules.FirstSightTick = 1000000;
++		Rules.SightIntervalTicks = 1000000;
++		Edit(Rules);
++		FCosmicDataTables Tables = CosmicTests::WithoutProjects(CosmicTests::WithRules(Original, Rules));
++		Tables.Edicts = Edicts();
++		Tables.Hazards = Hazards();
++		Tables.Events = nullptr;
++		Tables.Encounters = nullptr;
++		Tables.Transcendents = nullptr;
++		Sim.SetTables(Tables);
++		Sim.NewGalaxy(42, 12, 4);
++		FGalaxyState& State = Sim.GetMutableState();
++		if (State.Civs.Num() != 4 || !CosmicTests::WireChain(State))
++		{
++			return nullptr;
++		}
++		State.Transcendents.Reset();
++		CosmicTests::ClearOwners(State);
++		for (FStarSystemState& System : State.Systems)
++		{
++			CosmicHazards::EmptyHazardSlot(System);
++			System.ActiveMegaproject = NAME_None;
++			System.MegaprojectProgress = 0.f;
++			System.ResponseMegaproject = NAME_None;
++			System.ResponseProgress = 0.f;
++			System.CompletedMegaprojects.Reset();
++		}
++		CosmicTests::Give(State, 0, { 0, 1 });
++		CosmicTests::Give(State, 1, { 3, 2, 4 });
++		CosmicTests::Give(State, 2, { 6, 5, 7 });
++		CosmicTests::Give(State, 3, { 9, 8, 10, 11 });
++		const int32 Capitals[] = { 0, 3, 6, 9 };
++		for (int32 CivIndex = 0; CivIndex < 4; ++CivIndex)
++		{
++			FCivilizationState& Civ = State.Civs[CivIndex];
++			Civ.HomeSystemID = State.Systems[Capitals[CivIndex]].SystemID;
++			Civ.Tier = EAscensionTier::Tier1_Planetary;
++			Civ.Ethics = FEthicsAxes();
++			Civ.FleetPower = 0.f;
++			Civ.FleetTargetSystemID = NAME_None;
++			Civ.FleetTargetSinceTick = 0;
++			Civ.Ties.Reset();
++			Civ.Relations.Reset();
++			Civ.ActiveEdicts.Reset();
++			Civ.Stability = 0.75f;
++			Civ.Research.Add(FName(TEXT("Society")), 1.f);
++			Civ.Stockpile.Energy = 1000.f;
++			Civ.Stockpile.Matter = 1000.f;
++			Civ.Stockpile.Insight = 1000.f;
++			Civ.Stockpile.Influence = 1000.f;
++			Civ.Stockpile.Causality = 0.f;
++			Civ.TimeVectors = FCosmicTimeVectors();
++		}
++		Sim.RebuildStateIndex();
++		Sim.SyncRngState();
++		return &State;
++	}
++
++	FCosmicCondition Cond(EConditionType Type, const TCHAR* TagName, const TCHAR* Key = nullptr, float Value = 0.f)
++	{
++		FCosmicCondition Condition;
++		Condition.Type = Type;
++		Condition.Tag = TagName ? Tag(TagName) : FGameplayTag();
++		Condition.Key = Key ? FName(Key) : FName();
++		Condition.Value = Value;
++		return Condition;
++	}
++}
++
++// The count of the six time vectors (header section 2.2): on a board where no fact holds, each fact laid on people 1 makes
++// exactly its vector grow (people 2, the control, stays at 0); the vectors are cumulative - a second count adds one more, and
++// a fact that stops leaves the count where it was; the economy stage counts them (one StepOnce); and the count takes no draw.
++IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimTimeVectorsCountTest, "Cosmic_Ascension.Sim.TimeVectorsCount", CosmicTests::Flags)
++bool FCosmicSimTimeVectorsCountTest::RunTest(const FString& Parameters)
++{
++	using namespace CosmicExistenceBricksTests;
++	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
++	if (!Sim)
++	{
++		return false;
++	}
++	const FCosmicDataTables Original = Sim->GetTables();
++	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
++	const TArray<int32> None = { 0, 0, 0, 0, 0, 0 };
++	// VectorsOf order: Built, Consumed, Drifted, Linked, Isolated, Endured.
++	auto Case = [&](const TCHAR* What, TFunctionRef<void(FGalaxyState&)> Lay, const TArray<int32>& Expected, TFunctionRef<void(FCosmicRulesDef&)> Edit)
++	{
++		FGalaxyState* Board = LayBoard(*Sim, Original, Edit);
++		if (!TestNotNull(*FString::Printf(TEXT("The board is laid (%s)"), What), Board))
++		{
++			return;
++		}
++		Lay(*Board);
++		const int32 SeedBefore = Sim->GetRng().GetCurrentSeed();
++		CosmicBricks::CountTimeVectors(*Board, Sim->GetStateIndex(), Sim->GetRules());
++		TestTrue(*FString::Printf(TEXT("%s: people 1 counts exactly its vector"), What), VectorsOf(Board->Civs[1].TimeVectors) == Expected);
++		TestTrue(*FString::Printf(TEXT("%s: the control people 2 counts nothing"), What), VectorsOf(Board->Civs[2].TimeVectors) == None);
++		TestEqual(*FString::Printf(TEXT("%s: the count takes no draw"), What), Sim->GetRng().GetCurrentSeed(), SeedBefore);
++	};
++
++	Case(TEXT("Nothing laid"), [](FGalaxyState&) {}, None, NoEdit);
++	Case(TEXT("A project in a construction slot"), [](FGalaxyState& State) { State.Systems[2].ActiveMegaproject = CosmicTests::StandingProject(); },
++		{ 1, 0, 0, 0, 0, 0 }, NoEdit);
++	Case(TEXT("A project in a response slot"), [](FGalaxyState& State) { State.Systems[4].ResponseMegaproject = CosmicTests::StandingProject(); },
++		{ 1, 0, 0, 0, 0, 0 }, NoEdit);
++	Case(TEXT("A settlement (not built: drifted)"), [](FGalaxyState& State) { State.Systems[2].ActiveMegaproject = CosmicRows::ProjectSettle; },
++		{ 0, 0, 1, 0, 0, 0 }, NoEdit);
++	Case(TEXT("A fleet aimed at another people's system"), [](FGalaxyState& State) { State.Civs[1].FleetTargetSystemID = State.Systems[6].SystemID; },
++		{ 0, 1, 0, 0, 0, 0 }, NoEdit);
++	Case(TEXT("A fleet guarding its own system"), [](FGalaxyState& State) { State.Civs[1].FleetTargetSystemID = State.Systems[3].SystemID; },
++		None, NoEdit);
++	Case(TEXT("The starting edict held"), [](FGalaxyState& State) { State.Civs[1].ActiveEdicts = { Kept }; },
++		{ 0, 1, 0, 0, 0, 0 }, [](FCosmicRulesDef& Rules) { Rules.StartingEdict = Kept; });
++	Case(TEXT("Another edict held"), [](FGalaxyState& State) { State.Civs[1].ActiveEdicts = { Kept }; }, None, NoEdit);
++	Case(TEXT("A friendly stance"), [](FGalaxyState& State) { State.Civs[1].Ties.Add(State.Civs[2].CivID).Stance = CosmicTags::StanceFriendly(); },
++		{ 0, 0, 0, 1, 0, 0 }, NoEdit);
++	Case(TEXT("A treaty"), [](FGalaxyState& State) { State.Civs[1].Ties.Add(State.Civs[3].CivID).Treaties.AddTag(CosmicTags::TreatyTrade()); },
++		{ 0, 0, 0, 1, 0, 0 }, NoEdit);
++	Case(TEXT("A hostile stance alone"), [](FGalaxyState& State) { State.Civs[1].Ties.Add(State.Civs[2].CivID).Stance = CosmicTags::StanceHostile(); },
++		None, NoEdit);
++	// One settled system left (the other two being settled - drifted too), no tie: isolated.
++	Case(TEXT("One settled system and no tie"), [](FGalaxyState& State)
++	{
++		State.Systems[2].ActiveMegaproject = CosmicRows::ProjectSettle;
++		State.Systems[4].ActiveMegaproject = CosmicRows::ProjectSettle;
++	}, { 0, 0, 1, 0, 1, 0 }, NoEdit);
++	Case(TEXT("One settled system and a hostile stance"), [](FGalaxyState& State)
++	{
++		State.Systems[2].ActiveMegaproject = CosmicRows::ProjectSettle;
++		State.Systems[4].ActiveMegaproject = CosmicRows::ProjectSettle;
++		State.Civs[1].Ties.Add(State.Civs[2].CivID).Stance = CosmicTags::StanceHostile();
++	}, { 0, 0, 1, 0, 0, 0 }, NoEdit);
++	Case(TEXT("An endured pressure"), [](FGalaxyState& State) { State.Civs[1].PressureEnduredTicks = 1; }, { 0, 0, 0, 0, 0, 1 }, NoEdit);
++	Case(TEXT("Laws held"), [](FGalaxyState& State) { State.Civs[1].LawsHeldTicks = 1; }, { 0, 0, 0, 0, 0, 1 }, NoEdit);
++	Case(TEXT("A hazard on a settled system"), [](FGalaxyState& State) { State.Systems[3].ActiveHazard = Tag(TEXT("Hazard.Plague")); },
++		{ 0, 0, 0, 0, 0, 1 }, NoEdit);
++	// An entry of OwnedSystems another people owns counts for nothing.
++	Case(TEXT("A project on a system the people lists but does not own"), [](FGalaxyState& State)
++	{
++		State.Civs[1].OwnedSystems.Add(State.Systems[8].SystemID);
++		State.Systems[8].ActiveMegaproject = CosmicTests::StandingProject();
++	}, None, NoEdit);
++
++	// Cumulative: never reset.
++	{
++		FGalaxyState* Board = LayBoard(*Sim, Original, NoEdit);
++		if (!TestNotNull(TEXT("The board is laid (cumulative)"), Board))
++		{
++			return false;
++		}
++		Board->Civs[1].Ties.Add(Board->Civs[2].CivID).Stance = CosmicTags::StanceFriendly();
++		CosmicBricks::CountTimeVectors(*Board, Sim->GetStateIndex(), Sim->GetRules());
++		CosmicBricks::CountTimeVectors(*Board, Sim->GetStateIndex(), Sim->GetRules());
++		TestEqual(TEXT("Two ticks of a fact count two"), Board->Civs[1].TimeVectors.Linked, 2);
++		Board->Civs[1].Ties.Reset();
++		CosmicBricks::CountTimeVectors(*Board, Sim->GetStateIndex(), Sim->GetRules());
++		TestEqual(TEXT("A fact that stops leaves its vector where it was (cumulative, never reset)"), Board->Civs[1].TimeVectors.Linked, 2);
++		Board->Civs[1].TimeVectors.Endured = MAX_int32;
++		Board->Civs[1].PressureEnduredTicks = 1;
++		CosmicBricks::CountTimeVectors(*Board, Sim->GetStateIndex(), Sim->GetRules());
++		TestEqual(TEXT("A vector never passes MAX_int32"), Board->Civs[1].TimeVectors.Endured, MAX_int32);
++	}
++
++	// The economy stage counts them, and the count draws nothing: a run whose people builds ends on the seed of a run whose
++	// people does not, with the vectors of every people laid far off 0 in the second.
++	{
++		int32 Seeds[2] = { 0, 0 };
++		for (int32 Pass = 0; Pass < 2; ++Pass)
++		{
++			FGalaxyState* Board = LayBoard(*Sim, Original, NoEdit);
++			if (!TestNotNull(TEXT("The board is laid (stage)"), Board))
++			{
++				return false;
++			}
++			if (Pass == 1)
++			{
++				Board->Systems[2].ActiveMegaproject = CosmicTests::StandingProject();
++				for (FCivilizationState& Civ : Board->Civs)
++				{
++					SetVectors(Civ.TimeVectors, 1000);
++				}
++			}
++			Sim->StepOnce();
++			Seeds[Pass] = Sim->GetRng().GetCurrentSeed();
++			if (Pass == 1)
++			{
++				TestEqual(TEXT("The economy stage counts a tick of building"), Board->Civs[1].TimeVectors.Built, 1001);
++				TestEqual(TEXT("and not a fact that does not hold"), Board->Civs[1].TimeVectors.Linked, 1003);
++			}
++		}
++		TestEqual(TEXT("The count draws nothing"), Seeds[1], Seeds[0]);
++	}
++	return true;
++}
++
++// The bricks' shares (header section 2.4): each wired share changes the tagged people alone, and under the inert knobs (the C++
++// initializers - the data's values arrive with [B-7x5]) nothing changes, whatever the people carries. The functions first,
++// then the stage for the energy and the research.
++IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimBrickSharesTest, "Cosmic_Ascension.Sim.BrickShares", CosmicTests::Flags)
++bool FCosmicSimBrickSharesTest::RunTest(const FString& Parameters)
++{
++	using namespace CosmicExistenceBricksTests;
++	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
++	if (!Sim)
++	{
++		return false;
++	}
++	const FCosmicDataTables Original = Sim->GetTables();
++	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
++	FGalaxyState* Board = LayBoard(*Sim, Original, NoEdit);
++	if (!TestNotNull(TEXT("The board is laid"), Board))
++	{
++		return false;
++	}
++	const FCosmicStateIndex& Index = Sim->GetStateIndex();
++	const FCosmicRulesDef Inert = FCosmicRulesDef();
++	FCosmicRulesDef On = Sim->GetRules();
++	On.BrickDarkMatterEnergyPerTick = 2.f;
++	On.BrickStarEaterEnergyMultiplier = 1.5f;
++	On.BrickStarEaterRelationTarget = -0.4f;
++	On.BrickQuietInsightPerTick = 3.f;
++	On.BrickSpanEnergyPerLane = 0.5f;
++	On.BrickParasiteCountdownBonusTicks = 40;
++	On.BrickParasiteInsightPerHazard = 0.25f;
++	On.BrickNomadSettleProgressMultiplier = 3.f;
++	On.BrickInwardResearchMultiplier = 1.5f;
++	On.BrickInwardHazardSpawnMultiplier = 0.5f;
++	On.BrickSwarmResearchMultiplier = 2.f;
++	On.BrickMergeRelationTarget = 0.3f;
++	auto Income = [&](const FCosmicRulesDef& Rules, int32 CivIndex)
++	{
++		FResourcePool Pool;
++		Pool.Energy = 10.f;
++		Pool.Insight = 5.f;
++		CosmicBricks::AddIncomeShares(*Board, Index, Rules, CivIndex, Pool);
++		return Pool;
++	};
++	FCivilizationState& One = Board->Civs[1];
++
++	// (1) The income. Without a brick: untouched under any knob.
++	TestEqual(TEXT("Without a brick the income is untouched (Energy)"), Income(On, 1).Energy, 10.f);
++	TestEqual(TEXT("Without a brick the income is untouched (Insight)"), Income(On, 1).Insight, 5.f);
++	One.Traits.AddTag(CosmicTags::BrickDietDarkMatter());
++	TestEqual(TEXT("Dark matter adds its flat Energy"), Income(On, 1).Energy, 12.f);
++	TestEqual(TEXT("under the inert knob, nothing"), Income(Inert, 1).Energy, 10.f);
++	TestEqual(TEXT("and only the tagged people takes it"), Income(On, 2).Energy, 10.f);
++	One.Traits.AddTag(CosmicTags::BrickDietStarEater());
++	TestEqual(TEXT("The star eater multiplies the Energy before the flat shares"), Income(On, 1).Energy, 17.f);
++	One.Traits.Reset();
++	// The span: people 1 holds 3, 2, 4 on the chain - two lanes from 2 to 4; people 3 holds 9, 8, 10, 11 - seven from 9 to 11.
++	TestEqual(TEXT("The span of people 1 is two lanes"), CosmicBricks::SpanOf(*Board, Index, 1), 2);
++	TestEqual(TEXT("The span of people 3 is seven lanes"), CosmicBricks::SpanOf(*Board, Index, 3), 7);
++	One.Traits.AddTag(CosmicTags::BrickDietDistanceTension());
++	TestEqual(TEXT("The distance tension adds the knob for each lane of its span"), Income(On, 1).Energy, 11.f);
++	TestEqual(TEXT("under the inert knob, nothing"), Income(Inert, 1).Energy, 10.f);
++	One.Traits.Reset();
++	// The quiet tick.
++	One.Traits.AddTag(CosmicTags::BrickDietSilenceFeed());
++	TestTrue(TEXT("The board is quiet for people 1"), CosmicBricks::IsQuietOf(*Board, Index, 1));
++	TestEqual(TEXT("A quiet tick feeds the silence feeder"), Income(On, 1).Insight, 8.f);
++	TestEqual(TEXT("under the inert knob, nothing"), Income(Inert, 1).Insight, 5.f);
++	Board->Systems[3].ActiveHazard = Tag(TEXT("Hazard.Plague"));
++	TestFalse(TEXT("A hazard on its settled system breaks the quiet"), CosmicBricks::IsQuietOf(*Board, Index, 1));
++	CosmicHazards::EmptyHazardSlot(Board->Systems[3]);
++	Board->Systems[4].ActiveMegaproject = CosmicTests::StandingProject();
++	TestFalse(TEXT("so does a project"), CosmicBricks::IsQuietOf(*Board, Index, 1));
++	Board->Systems[4].ActiveMegaproject = NAME_None;
++	Board->Civs[2].FleetTargetSystemID = Board->Systems[2].SystemID;
++	TestFalse(TEXT("so does another people's fleet aimed at it"), CosmicBricks::IsQuietOf(*Board, Index, 1));
++	Board->Civs[2].FleetTargetSystemID = NAME_None;
++	One.FleetTargetSystemID = Board->Systems[6].SystemID;
++	TestFalse(TEXT("so does its own siege"), CosmicBricks::IsQuietOf(*Board, Index, 1));
++	One.FleetTargetSystemID = NAME_None;
++	TestTrue(TEXT("(quiet again)"), CosmicBricks::IsQuietOf(*Board, Index, 1));
++	One.Traits.Reset();
++	// The crisis parasite's Insight: a plague on a system of people 2 (it borders people 1) feeds it; the claim does not.
++	One.Traits.AddTag(CosmicTags::BrickDietCrisisParasite());
++	Board->Systems[6].ActiveHazard = Tag(TEXT("Hazard.Plague"));
++	Board->Systems[8].ActiveHazard = CosmicTags::HazardClaim();
++	TestEqual(TEXT("The parasite counts the standing hazards of its neighbours, the claim left out"), CosmicBricks::ParasiteHazardsOf(*Board, Index, 1), 1);
++	TestEqual(TEXT("and takes the knob's Insight for each"), Income(On, 1).Insight, 5.25f);
++	TestEqual(TEXT("under the inert knob, nothing"), Income(Inert, 1).Insight, 5.f);
++	CosmicHazards::EmptyHazardSlot(Board->Systems[6]);
++	CosmicHazards::EmptyHazardSlot(Board->Systems[8]);
++	One.Traits.Reset();
++
++	// (2) The parasite's countdown bonus: people 0 is the parasite; it borders people 1 alone.
++	Board->Civs[0].Traits.AddTag(CosmicTags::BrickDietCrisisParasite());
++	const FGameplayTag Plague = Tag(TEXT("Hazard.Plague"));
++	TestEqual(TEXT("A new hazard next to the parasite takes the bonus"), CosmicBricks::ParasiteCountdownBonusOf(*Board, Index, On, 3, Plague), 40);
++	TestEqual(TEXT("not on a people that does not border it"), CosmicBricks::ParasiteCountdownBonusOf(*Board, Index, On, 6, Plague), 0);
++	TestEqual(TEXT("never for the claim"), CosmicBricks::ParasiteCountdownBonusOf(*Board, Index, On, 3, CosmicTags::HazardClaim()), 0);
++	TestEqual(TEXT("nor the extinction"), CosmicBricks::ParasiteCountdownBonusOf(*Board, Index, On, 3, CosmicTags::HazardExtinction()), 0);
++	TestEqual(TEXT("nor the supernova precursor"), CosmicBricks::ParasiteCountdownBonusOf(*Board, Index, On, 3, CosmicTags::HazardPreSupernova()), 0);
++	TestEqual(TEXT("and under the inert knob, nothing"), CosmicBricks::ParasiteCountdownBonusOf(*Board, Index, Inert, 3, Plague), 0);
++	{
++		// Through the one placement window.
++		FRandomStream Stream(7);
++		FCosmicEvalContext Ctx(*Board, Stream, Index, Sim->GetTables(), On);
++		TestTrue(TEXT("The plague is placed next to the parasite"), CosmicHazards::Place(Ctx, 3, Sick));
++		TestEqual(TEXT("with its countdown and the bonus"), Board->Systems[3].HazardTicksRemaining, 240);
++		FCosmicEvalContext Plain(*Board, Stream, Index, Sim->GetTables(), Inert);
++		TestTrue(TEXT("(and one away from it)"), CosmicHazards::Place(Plain, 6, Sick));
++		TestEqual(TEXT("with its countdown alone"), Board->Systems[6].HazardTicksRemaining, 200);
++		CosmicHazards::EmptyHazardSlot(Board->Systems[3]);
++		CosmicHazards::EmptyHazardSlot(Board->Systems[6]);
++	}
++	Board->Civs[0].Traits.Reset();
++
++	// (3) The factors of research, settlement and spawn: exactly the old value without the brick or under the inert knob.
++	TestEqual(TEXT("No brick: research factor 1"), CosmicBricks::ResearchMultiplierOf(One, On), 1.f);
++	One.Traits.AddTag(CosmicTags::BrickInstinctSwarmTech());
++	TestEqual(TEXT("The swarm's research factor"), CosmicBricks::ResearchMultiplierOf(One, On), 2.f);
++	One.Traits.AddTag(CosmicTags::BrickSpaceHermitMonolith());
++	TestEqual(TEXT("with an inward brick, both factors"), CosmicBricks::ResearchMultiplierOf(One, On), 3.f);
++	TestEqual(TEXT("under the inert knobs, 1"), CosmicBricks::ResearchMultiplierOf(One, Inert), 1.f);
++	FCosmicRulesDef Zero = On;
++	Zero.BrickSwarmResearchMultiplier = 0.f;
++	Zero.BrickInwardResearchMultiplier = -1.f;
++	TestEqual(TEXT("a knob not above 0 reads as 1"), CosmicBricks::ResearchMultiplierOf(One, Zero), 1.f);
++	One.Traits.Reset();
++	TestEqual(TEXT("No brick: the settlement's step itself"), CosmicBricks::SettleProgressOf(One, On, 0.75f), 0.75f);
++	One.Traits.AddTag(CosmicTags::BrickSpaceNomad());
++	TestEqual(TEXT("The nomad's settlement step"), CosmicBricks::SettleProgressOf(One, On, 0.75f), 2.25f);
++	TestEqual(TEXT("under the inert knob, the step itself"), CosmicBricks::SettleProgressOf(One, Inert, 0.75f), 0.75f);
++	One.Traits.Reset();
++	TestEqual(TEXT("No brick: the spawn share itself"), CosmicBricks::HazardSpawnShareOf(One, On, Plague, 0.02f), 0.02f);
++	One.Traits.AddTag(CosmicTags::BrickSpacePlanckMicro());
++	TestEqual(TEXT("The very small halves the spawn share"), CosmicBricks::HazardSpawnShareOf(One, On, Plague, 0.02f), 0.01f);
++	TestEqual(TEXT("under the inert knob, the share itself"), CosmicBricks::HazardSpawnShareOf(One, Inert, Plague, 0.02f), 0.02f);
++	Zero.BrickInwardHazardSpawnMultiplier = 0.f;
++	TestEqual(TEXT("never 0: a knob of 0 reads as 1"), CosmicBricks::HazardSpawnShareOf(One, Zero, Plague, 0.02f), 0.02f);
++	One.Traits.Reset();
++	// The stellar crisis on the system of a people that lives off its star: the supernova precursor's share alone, once.
++	{
++		FCosmicRulesDef Stellar = On;
++		Stellar.BrickStellarCrisisSpawnMultiplier = 3.f;
++		const FGameplayTag Precursor = CosmicTags::HazardPreSupernova();
++		TestEqual(TEXT("No brick: the precursor's share itself"), CosmicBricks::HazardSpawnShareOf(One, Stellar, Precursor, 0.02f), 0.02f);
++		One.Traits.AddTag(CosmicTags::BrickFormDysonBrain());
++		TestEqual(TEXT("The one mind round its star triples the precursor's share"), CosmicBricks::HazardSpawnShareOf(One, Stellar, Precursor, 0.02f), 0.06f);
++		TestEqual(TEXT("and no other hazard's"), CosmicBricks::HazardSpawnShareOf(One, Stellar, Plague, 0.02f), 0.02f);
++		One.Traits.AddTag(CosmicTags::BrickDietStarEater());
++		TestEqual(TEXT("with the star eater too, once"), CosmicBricks::HazardSpawnShareOf(One, Stellar, Precursor, 0.02f), 0.06f);
++		One.Traits.RemoveTag(CosmicTags::BrickFormDysonBrain());
++		TestEqual(TEXT("the star eater alone, too"), CosmicBricks::HazardSpawnShareOf(One, Stellar, Precursor, 0.02f), 0.06f);
++		TestEqual(TEXT("under the inert knob, the share itself"), CosmicBricks::HazardSpawnShareOf(One, Inert, Precursor, 0.02f), 0.02f);
++		Stellar.BrickStellarCrisisSpawnMultiplier = 0.f;
++		TestEqual(TEXT("never 0: a knob of 0 reads as 1"), CosmicBricks::HazardSpawnShareOf(One, Stellar, Precursor, 0.02f), 0.02f);
++		One.Traits.Reset();
++	}
++
++	// (4) The term of the drift target: how the others see a star eater, a merging people (CosmicDiplomacy::TargetRelationOf).
++	const float Before = CosmicDiplomacy::TargetRelationOf(*Board, On, 2, 1);
++	const float InertBefore = CosmicDiplomacy::TargetRelationOf(*Board, Inert, 2, 1);
++	const float Third = CosmicDiplomacy::TargetRelationOf(*Board, On, 2, 3);
++	TestEqual(TEXT("No brick: no term"), CosmicBricks::RelationTargetTermOf(One, On), 0.f);
++	One.Traits.AddTag(CosmicTags::BrickDietStarEater());
++	TestEqual(TEXT("A star eater is seen worse"), CosmicBricks::RelationTargetTermOf(One, On), -0.4f);
++	TestEqual(TEXT("in the drift target of a people that borders it"), CosmicDiplomacy::TargetRelationOf(*Board, On, 2, 1), FMath::Clamp(Before - 0.4f, -1.f, 1.f), 1.e-6f);
++	TestEqual(TEXT("under the inert knob, the target as it was"), CosmicDiplomacy::TargetRelationOf(*Board, Inert, 2, 1), InertBefore);
++	TestEqual(TEXT("(the term is 0 under the inert knob)"), CosmicBricks::RelationTargetTermOf(One, Inert), 0.f);
++	One.Traits.AddTag(CosmicTags::BrickInstinctHiveMerge());
++	TestEqual(TEXT("with the merging brick too, the two terms add"), CosmicBricks::RelationTargetTermOf(One, On), -0.1f, 1.e-6f);
++	FCosmicRulesDef Far = On;
++	Far.BrickStarEaterRelationTarget = -5.f;
++	TestEqual(TEXT("a term outside [-1, 1] reads as 0"), CosmicBricks::RelationTargetTermOf(One, Far), 0.3f, 1.e-6f);
++	Far.BrickStarEaterRelationTarget = -1.f;
++	Far.BrickMergeRelationTarget = 0.f;
++	TestTrue(TEXT("the target stays in [-1, 1]"), CosmicDiplomacy::TargetRelationOf(*Board, Far, 2, 1) >= -1.f);
++	TestEqual(TEXT("The view of another people is not touched"), CosmicDiplomacy::TargetRelationOf(*Board, On, 2, 3), Third);
++	One.Traits.Reset();
++
++	// (5) The star eater's dimming (R10 - implemented, not wired into a stage): along the seven classes, never past the dimmest.
++	for (int32 At = 0; At + 1 < CosmicTags::StarClassCount; ++At)
++	{
++		TestTrue(*FString::Printf(TEXT("Class %d dims to class %d"), At, At + 1), CosmicBricks::DimmerStarClassOf(CosmicTags::StarClassAt(At)) == CosmicTags::StarClassAt(At + 1));
++	}
++	const FGameplayTag Dimmest = CosmicTags::StarClassAt(CosmicTags::StarClassCount - 1);
++	TestTrue(TEXT("The dimmest stays the dimmest"), CosmicBricks::DimmerStarClassOf(Dimmest) == Dimmest);
++	TestFalse(TEXT("A dead node's empty class stays empty"), CosmicBricks::DimmerStarClassOf(FGameplayTag()).IsValid());
++	TestTrue(TEXT("A tag outside the seven comes back unchanged"), CosmicBricks::DimmerStarClassOf(Plague) == Plague);
++	FCosmicRulesDef Dim = On;
++	Dim.BrickStarEaterDimPeriodTicks = 100;
++	TestFalse(TEXT("No star eater, no dimming"), CosmicBricks::StarDimDueOf(One, Dim, 200));
++	One.Traits.AddTag(CosmicTags::BrickDietStarEater());
++	TestTrue(TEXT("A star eater dims on its period"), CosmicBricks::StarDimDueOf(One, Dim, 200));
++	TestFalse(TEXT("and not between"), CosmicBricks::StarDimDueOf(One, Dim, 250));
++	TestFalse(TEXT("nor under the inert period 0"), CosmicBricks::StarDimDueOf(One, On, 200));
++	Board->Systems[3].StarClass = CosmicTags::StarClassAt(4);
++	TestTrue(TEXT("The capital's star dims"), CosmicBricks::DimCapitalStar(*Board, Index, 1));
++	TestTrue(TEXT("one class"), Board->Systems[3].StarClass == CosmicTags::StarClassAt(5));
++	Board->Systems[3].StarClass = Dimmest;
++	TestFalse(TEXT("and never past the dimmest"), CosmicBricks::DimCapitalStar(*Board, Index, 1));
++	One.Traits.Reset();
++
++	// (6) The stage: dark matter reaches IncomePerTick and the swarm's factor the research progress of the tagged people
++	// alone; with every share brick on people 1 under the inert knobs, no number of the world moves.
++	{
++		float Energy[2] = { 0.f, 0.f };
++		float OtherEnergy[2] = { 0.f, 0.f };
++		float Physics[2] = { 0.f, 0.f };
++		float OtherPhysics[2] = { 0.f, 0.f };
++		for (int32 Pass = 0; Pass < 2; ++Pass)
++		{
++			FGalaxyState* Run = LayBoard(*Sim, Original, [](FCosmicRulesDef& Rules)
++			{
++				Rules.BrickDarkMatterEnergyPerTick = 2.f;
++				Rules.BrickSwarmResearchMultiplier = 2.f;
++			});
++			if (!TestNotNull(TEXT("The board is laid (stage)"), Run))
++			{
++				return false;
++			}
++			if (Pass == 1)
++			{
++				Run->Civs[1].Traits.AddTag(CosmicTags::BrickDietDarkMatter());
++				Run->Civs[1].Traits.AddTag(CosmicTags::BrickInstinctSwarmTech());
++			}
++			Sim->StepOnce();
++			Energy[Pass] = Run->Civs[1].IncomePerTick.Energy;
++			OtherEnergy[Pass] = Run->Civs[2].IncomePerTick.Energy;
++			Physics[Pass] = Run->Civs[1].Research.FindRef(FName(TEXT("Physics")));
++			OtherPhysics[Pass] = Run->Civs[2].Research.FindRef(FName(TEXT("Physics")));
++		}
++		TestEqual(TEXT("The economy stage adds dark matter's Energy to the tagged people"), Energy[1] - Energy[0], 2.f, 1.e-3f);
++		TestEqual(TEXT("and to no other"), OtherEnergy[1], OtherEnergy[0]);
++		TestTrue(TEXT("(the research stage spends Insight on the board)"), Physics[0] > 0.f);
++		TestEqual(TEXT("The research stage doubles the swarm's progress"), Physics[1], 2.f * Physics[0], 1.e-6f);
++		TestEqual(TEXT("and no other people's"), OtherPhysics[1], OtherPhysics[0]);
++	}
++	{
++		TArray<FResourcePool> Stockpiles[2];
++		TArray<float> Stabilities[2];
++		TArray<float> Views[2];
++		TArray<int32> Countdowns[2];
++		int32 Seeds[2] = { 0, 0 };
++		for (int32 Pass = 0; Pass < 2; ++Pass)
++		{
++			FGalaxyState* Run = LayBoard(*Sim, Original, NoEdit);
++			if (!TestNotNull(TEXT("The board is laid (inert)"), Run))
++			{
++				return false;
++			}
++			if (Pass == 1)
++			{
++				// Every brick whose reader is a share (the inward bricks refuse a settlement and the unseen law keeps its edicts
++				// whatever the knobs say: they are Sim.BrickSettleGate's and Sim.MutationStep's).
++				for (const FGameplayTag Brick : { CosmicTags::BrickDietDarkMatter(), CosmicTags::BrickDietStarEater(), CosmicTags::BrickDietSilenceFeed(),
++						CosmicTags::BrickDietDistanceTension(), CosmicTags::BrickDietCrisisParasite(), CosmicTags::BrickSpaceNomad(),
++						CosmicTags::BrickInstinctSwarmTech(), CosmicTags::BrickInstinctHiveMerge(), CosmicTags::BrickFormSociety(),
++						CosmicTags::BrickFormLivingNebula(), CosmicTags::BrickFormDysonBrain() })
++				{
++					Run->Civs[1].Traits.AddTag(Brick);
++				}
++			}
++			for (int32 Tick = 0; Tick < 20; ++Tick)
++			{
++				Sim->StepOnce();
++			}
++			for (const FCivilizationState& Civ : Run->Civs)
++			{
++				Stockpiles[Pass].Add(Civ.Stockpile);
++				Stabilities[Pass].Add(Civ.Stability);
++				for (const FCivilizationState& Other : Run->Civs)
++				{
++					Views[Pass].Add(Civ.Relations.FindRef(Other.CivID));
++				}
++			}
++			for (const FStarSystemState& System : Run->Systems)
++			{
++				Countdowns[Pass].Add(System.HazardTicksRemaining);
++			}
++			Seeds[Pass] = Sim->GetRng().GetCurrentSeed();
++		}
++		bool bSameStockpiles = Stockpiles[0].Num() == Stockpiles[1].Num();
++		for (int32 At = 0; bSameStockpiles && At < Stockpiles[0].Num(); ++At)
++		{
++			const FResourcePool& A = Stockpiles[0][At];
++			const FResourcePool& B = Stockpiles[1][At];
++			bSameStockpiles = A.Energy == B.Energy && A.Matter == B.Matter && A.Insight == B.Insight && A.Influence == B.Influence && A.Causality == B.Causality;
++		}
++		TestTrue(TEXT("Under the inert knobs the bricks move no stockpile, bit for bit"), bSameStockpiles);
++		TestTrue(TEXT("no Stability"), Stabilities[0] == Stabilities[1]);
++		TestTrue(TEXT("no view"), Views[0] == Views[1]);
++		TestTrue(TEXT("no countdown"), Countdowns[0] == Countdowns[1]);
++		TestEqual(TEXT("and no draw"), Seeds[1], Seeds[0]);
++	}
++	return true;
++}
++
++// The settle gate (header section 2.5): a people folded inward - Brick.Space.HermitMonolith or Brick.Space.PlanckMicro - starts
++// no further settlement. One reason appended at the end of ECosmicSettleBlock (Inward), answered by the one gate SettleBlockOf
++// and by PeopleSettleBlockOf after Settling; SettleTargets is empty, the command refuses, the AI still draws its number.
++IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimBrickSettleGateTest, "Cosmic_Ascension.Sim.BrickSettleGate", CosmicTests::Flags)
++bool FCosmicSimBrickSettleGateTest::RunTest(const FString& Parameters)
++{
++	using namespace CosmicExistenceBricksTests;
++	using CosmicMegaprojects::ECosmicSettleBlock;
++	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
++	if (!Sim)
++	{
++		return false;
++	}
++	const FCosmicDataTables Original = Sim->GetTables();
++	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
++	TestEqual(TEXT("Inward is the last reason, appended at the end"), static_cast<int32>(ECosmicSettleBlock::Inward), static_cast<int32>(ECosmicSettleBlock::Count) - 1);
++	TestEqual(TEXT("twelve values before Count"), static_cast<int32>(ECosmicSettleBlock::Count), 12);
++
++	// System 4 left wild: people 1 (3, 2) and people 2 (5) both have a foothold one lane away.
++	auto Lay = [&]()
++	{
++		FGalaxyState* Board = LayBoard(*Sim, Original, NoEdit);
++		if (Board)
++		{
++			Board->Systems[4].OwnerCivID = NAME_None;
++			Board->Civs[1].OwnedSystems.Remove(Board->Systems[4].SystemID);
++		}
++		return Board;
++	};
++	FGalaxyState* Board = Lay();
++	if (!TestNotNull(TEXT("The board is laid"), Board))
++	{
++		return false;
++	}
++	const FCosmicStateIndex& Index = Sim->GetStateIndex();
++	const FCosmicDataTables& Tables = Sim->GetTables();
++	const FCosmicRulesDef& Rules = Sim->GetRules();
++	TestTrue(TEXT("Without a brick people 1 may settle the wild system"), CosmicMegaprojects::SettleBlockOf(*Board, Index, Tables, Rules, 1, 4) == ECosmicSettleBlock::None);
++	for (const FGameplayTag Inward : { CosmicTags::BrickSpaceHermitMonolith(), CosmicTags::BrickSpacePlanckMicro() })
++	{
++		Board->Civs[1].Traits.Reset();
++		Board->Civs[1].Traits.AddTag(Inward);
++		const FString Name = Inward.ToString();
++		TestTrue(*FString::Printf(TEXT("%s: the gate gives Inward"), *Name), CosmicMegaprojects::SettleBlockOf(*Board, Index, Tables, Rules, 1, 4) == ECosmicSettleBlock::Inward);
++		TestTrue(*FString::Printf(TEXT("%s: so does the people's reason"), *Name), CosmicMegaprojects::PeopleSettleBlockOf(*Board, Index, Tables, Rules, 1) == ECosmicSettleBlock::Inward);
++		TestTrue(*FString::Printf(TEXT("%s: no target"), *Name), CosmicMegaprojects::SettleTargets(*Board, Index, Tables, Rules, 1).IsEmpty());
++		TestTrue(*FString::Printf(TEXT("%s: MaySettle as before (the AI's draw is made)"), *Name), CosmicMegaprojects::MaySettle(*Board, Index, Rules, 1));
++		TestTrue(*FString::Printf(TEXT("%s: another people may still settle there"), *Name), CosmicMegaprojects::SettleBlockOf(*Board, Index, Tables, Rules, 2, 4) == ECosmicSettleBlock::None);
++		TestTrue(*FString::Printf(TEXT("%s: an owned system gives Owned first"), *Name), CosmicMegaprojects::SettleBlockOf(*Board, Index, Tables, Rules, 1, 6) == ECosmicSettleBlock::Owned);
++		{
++			FRandomStream Stream(3);
++			FCosmicEvalContext Ctx(*Board, Stream, Index, Tables, Rules);
++			TestFalse(*FString::Printf(TEXT("%s: the command refuses"), *Name), CosmicMegaprojects::Settle(Ctx, 1, 4));
++			TestTrue(*FString::Printf(TEXT("%s: and the system stays wild"), *Name), Board->Systems[4].OwnerCivID.IsNone());
++		}
++	}
++	// A settlement under way is named before the brick.
++	Board->Systems[2].ActiveMegaproject = CosmicRows::ProjectSettle;
++	TestTrue(TEXT("A settlement under way comes before Inward"), CosmicMegaprojects::SettleBlockOf(*Board, Index, Tables, Rules, 1, 4) == ECosmicSettleBlock::Settling);
++	TestTrue(TEXT("(for the people's reason too)"), CosmicMegaprojects::PeopleSettleBlockOf(*Board, Index, Tables, Rules, 1) == ECosmicSettleBlock::Settling);
++
++	// The AI's settlement draw is made whether the people is folded inward or not: the two runs end on one seed, and only the
++	// people without the brick settles.
++	int32 Seeds[2] = { 0, 0 };
++	bool bSettled[2] = { false, false };
++	for (int32 Pass = 0; Pass < 2; ++Pass)
++	{
++		FGalaxyState* Run = Lay();
++		if (!TestNotNull(TEXT("The board is laid (draw)"), Run))
++		{
++			return false;
++		}
++		// People 2 may not settle the wild system this tick: a settlement of its own is under way (MaySettle - it draws
++		// nothing). People 3 (10 lies next to 4) is at its realm cap. People 1 is the only one that could.
++		Run->Systems[7].ActiveMegaproject = CosmicRows::ProjectSettle;
++		if (Pass == 1)
++		{
++			Run->Civs[1].Traits.AddTag(CosmicTags::BrickSpacePlanckMicro());
++		}
++		Sim->StepOnce();
++		Seeds[Pass] = Sim->GetRng().GetCurrentSeed();
++		bSettled[Pass] = !Run->Systems[4].OwnerCivID.IsNone();
++	}
++	TestTrue(TEXT("Without the brick the AI settles the wild system"), bSettled[0]);
++	TestFalse(TEXT("folded inward it does not"), bSettled[1]);
++	TestEqual(TEXT("and the draw is the same"), Seeds[1], Seeds[0]);
++	return true;
++}
++
++// The AI mutation step (header section 2.6) and the unseen law's kept edicts: MutationDueOf names the first due mutation in the
++// fixed order StarShepherd, KesslerTapestry, AbyssalMaw from the prerequisite brick and the vectors (threshold 0 = never);
++// MutateAIPeoples adds it to the peoples the player does not rule; the stage runs it on its period (0 = off) without a draw.
++// A people that carries Brick.Form.UnseenLaw revokes nothing (CosmicEdicts::AIRevokesOf).
++IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimMutationStepTest, "Cosmic_Ascension.Sim.MutationStep", CosmicTests::Flags)
++bool FCosmicSimMutationStepTest::RunTest(const FString& Parameters)
++{
++	using namespace CosmicExistenceBricksTests;
++	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
++	if (!Sim)
++	{
++		return false;
++	}
++	const FCosmicDataTables Original = Sim->GetTables();
++	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
++
++	FCosmicRulesDef Rules;
++	Rules.BrickMutationThresholdTicks = 100;
++	FCivilizationState Civ;
++	TestFalse(TEXT("No prerequisite brick: no mutation"), CosmicBricks::MutationDueOf(Civ, Rules).IsValid());
++	Civ.Traits.AddTag(CosmicTags::BrickSpaceNomad());
++	Civ.Traits.AddTag(CosmicTags::BrickInstinctSwarmTech());
++	Civ.Traits.AddTag(CosmicTags::BrickDietStarEater());
++	TestFalse(TEXT("Vectors below the threshold: none"), CosmicBricks::MutationDueOf(Civ, Rules).IsValid());
++	SetVectors(Civ.TimeVectors, 100);
++	TestTrue(TEXT("All due: the star shepherd first"), CosmicBricks::MutationDueOf(Civ, Rules) == CosmicTags::BrickMutationStarShepherd());
++	Civ.Traits.AddTag(CosmicTags::BrickMutationStarShepherd());
++	TestTrue(TEXT("then the Kessler tapestry"), CosmicBricks::MutationDueOf(Civ, Rules) == CosmicTags::BrickMutationKesslerTapestry());
++	Civ.Traits.AddTag(CosmicTags::BrickMutationKesslerTapestry());
++	TestTrue(TEXT("then the abyssal maw"), CosmicBricks::MutationDueOf(Civ, Rules) == CosmicTags::BrickMutationAbyssalMaw());
++	Civ.Traits.AddTag(CosmicTags::BrickMutationAbyssalMaw());
++	TestFalse(TEXT("then none: each is due once"), CosmicBricks::MutationDueOf(Civ, Rules).IsValid());
++	{
++		FCivilizationState Swarm;
++		Swarm.Traits.AddTag(CosmicTags::BrickInstinctSwarmTech());
++		Swarm.TimeVectors.Built = 100;
++		TestFalse(TEXT("The tapestry needs Built and Linked both"), CosmicBricks::MutationDueOf(Swarm, Rules).IsValid());
++		Swarm.TimeVectors.Linked = 100;
++		TestTrue(TEXT("(with both it is due)"), CosmicBricks::MutationDueOf(Swarm, Rules) == CosmicTags::BrickMutationKesslerTapestry());
++		TestFalse(TEXT("Under the inert threshold 0 no mutation is ever due"), CosmicBricks::MutationDueOf(Swarm, FCosmicRulesDef()).IsValid());
++	}
++	FCosmicRulesDef Period;
++	Period.BrickEvolutionPeriodTicks = 50;
++	TestTrue(TEXT("The step runs on its period"), CosmicBricks::MutationStepDueAt(Period, 100));
++	TestFalse(TEXT("not between"), CosmicBricks::MutationStepDueAt(Period, 120));
++	TestFalse(TEXT("not at tick 0"), CosmicBricks::MutationStepDueAt(Period, 0));
++	TestFalse(TEXT("never under the inert period 0"), CosmicBricks::MutationStepDueAt(FCosmicRulesDef(), 100));
++
++	// The step on the board: people 0 is the player's and keeps its bricks as they are.
++	{
++		FGalaxyState* Board = LayBoard(*Sim, Original, NoEdit);
++		if (!TestNotNull(TEXT("The board is laid"), Board))
++		{
++			return false;
++		}
++		TestTrue(TEXT("(people 0 is the player's)"), Board->Civs[0].bIsPlayerRuled);
++		for (const int32 CivIndex : { 0, 1 })
++		{
++			Board->Civs[CivIndex].Traits.AddTag(CosmicTags::BrickSpaceNomad());
++			Board->Civs[CivIndex].TimeVectors.Drifted = 100;
++		}
++		TestEqual(TEXT("One AI people takes a mutation"), CosmicBricks::MutateAIPeoples(*Board, Rules), 1);
++		TestTrue(TEXT("people 1 is a star shepherd"), Board->Civs[1].Traits.HasTagExact(CosmicTags::BrickMutationStarShepherd()));
++		TestFalse(TEXT("the player's people changes only through cards"), Board->Civs[0].Traits.HasTagExact(CosmicTags::BrickMutationStarShepherd()));
++	}
++	// The stage: on its period, before the feats; no draw.
++	{
++		int32 Seeds[2] = { 0, 0 };
++		for (int32 Pass = 0; Pass < 2; ++Pass)
++		{
++			FGalaxyState* Run = LayBoard(*Sim, Original, [Pass](FCosmicRulesDef& Edit)
++			{
++				Edit.BrickMutationThresholdTicks = 100;
++				Edit.BrickEvolutionPeriodTicks = Pass == 1 ? 1 : 0;
++			});
++			if (!TestNotNull(TEXT("The board is laid (stage)"), Run))
++			{
++				return false;
++			}
++			Run->Civs[2].Traits.AddTag(CosmicTags::BrickDietStarEater());
++			Run->Civs[2].TimeVectors.Consumed = 100;
++			Sim->StepOnce();
++			Seeds[Pass] = Sim->GetRng().GetCurrentSeed();
++			TestTrue(*FString::Printf(TEXT("Pass %d: the abyssal maw comes exactly when the step runs"), Pass),
++				Run->Civs[2].Traits.HasTagExact(CosmicTags::BrickMutationAbyssalMaw()) == (Pass == 1));
++		}
++		TestEqual(TEXT("The step draws nothing"), Seeds[1], Seeds[0]);
++	}
++
++	// The unseen law keeps every edict when the AI runs the people.
++	{
++		FGalaxyState* Board = LayBoard(*Sim, Original, NoEdit);
++		if (!TestNotNull(TEXT("The board is laid (law)"), Board))
++		{
++			return false;
++		}
++		const FCosmicDataTables& Tables = Sim->GetTables();
++		Board->Civs[1].ActiveEdicts = { Kept };
++		TestTrue(TEXT("Without the brick the AI revokes a people's edict it holds"), CosmicEdicts::AIRevokesOf(Board->Civs[1], Tables, Sim->GetRules()) == TArray<FName>({ Kept }));
++		Board->Civs[1].Traits.AddTag(CosmicTags::BrickFormUnseenLaw());
++		TestTrue(TEXT("A people that lives on as an unseen law revokes nothing"), CosmicEdicts::AIRevokesOf(Board->Civs[1], Tables, Sim->GetRules()).IsEmpty());
++		Board->Civs[2].ActiveEdicts = { Kept };
++		Sim->StepOnce();
++		TestTrue(TEXT("and keeps its edict through the AI stage"), Board->Civs[1].ActiveEdicts.Contains(Kept));
++		TestFalse(TEXT("while a people without it loses its own"), Board->Civs[2].ActiveEdicts.Contains(Kept));
++	}
++	return true;
++}
++
++// The end shape (header section 2.7): the eight shape bricks in their priority, then the largest vector with the ties broken by
++// the fixed order Built, Consumed, Drifted, Linked, Isolated, Endured - all twelve answers.
++IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimShapeOfTest, "Cosmic_Ascension.Sim.ShapeOf", CosmicTests::Flags)
++bool FCosmicSimShapeOfTest::RunTest(const FString& Parameters)
++{
++	using namespace CosmicExistenceBricksTests;
++	using CosmicBricks::ECosmicShape;
++	TestEqual(TEXT("Twelve shapes"), static_cast<int32>(ECosmicShape::Count), 12);
++	auto ShapeWith = [](std::initializer_list<FGameplayTag> Tags, TFunctionRef<void(FCosmicTimeVectors&)> Vectors)
++	{
++		FCivilizationState Civ;
++		for (const FGameplayTag& Each : Tags)
++		{
++			Civ.Traits.AddTag(Each);
++		}
++		Vectors(Civ.TimeVectors);
++		return CosmicBricks::ShapeOf(Civ);
++	};
++	auto Zero = [](FCosmicTimeVectors&) {};
++	TestTrue(TEXT("All vectors 0: Built wins the tie"), ShapeWith({}, Zero) == ECosmicShape::BuiltOrLinked);
++	TestTrue(TEXT("Largest Consumed"), ShapeWith({}, [](FCosmicTimeVectors& V) { V.Consumed = 5; }) == ECosmicShape::ConsumedOrDrifted);
++	TestTrue(TEXT("Largest Drifted"), ShapeWith({}, [](FCosmicTimeVectors& V) { V.Drifted = 5; }) == ECosmicShape::ConsumedOrDrifted);
++	TestTrue(TEXT("Largest Linked"), ShapeWith({}, [](FCosmicTimeVectors& V) { V.Linked = 5; }) == ECosmicShape::BuiltOrLinked);
++	TestTrue(TEXT("Largest Isolated"), ShapeWith({}, [](FCosmicTimeVectors& V) { V.Isolated = 5; }) == ECosmicShape::Isolated);
++	TestTrue(TEXT("Largest Endured"), ShapeWith({}, [](FCosmicTimeVectors& V) { V.Endured = 5; }) == ECosmicShape::Endured);
++	TestTrue(TEXT("A tie of Isolated and Endured goes to Isolated, the earlier"), ShapeWith({}, [](FCosmicTimeVectors& V) { V.Isolated = 5; V.Endured = 5; }) == ECosmicShape::Isolated);
++	TestTrue(TEXT("A tie of Drifted and Isolated goes to Drifted"), ShapeWith({}, [](FCosmicTimeVectors& V) { V.Drifted = 9; V.Isolated = 9; }) == ECosmicShape::ConsumedOrDrifted);
++	TestTrue(TEXT("A tie of Built and Endured goes to Built"), ShapeWith({}, [](FCosmicTimeVectors& V) { V.Built = 3; V.Endured = 3; }) == ECosmicShape::BuiltOrLinked);
++	// The shape bricks, each alone.
++	TestTrue(TEXT("The unseen law"), ShapeWith({ CosmicTags::BrickFormUnseenLaw() }, Zero) == ECosmicShape::KeptLaw);
++	TestTrue(TEXT("The very small"), ShapeWith({ CosmicTags::BrickSpacePlanckMicro() }, Zero) == ECosmicShape::FoldedSmall);
++	TestTrue(TEXT("The hermit"), ShapeWith({ CosmicTags::BrickSpaceHermitMonolith() }, Zero) == ECosmicShape::ShutHouse);
++	TestTrue(TEXT("The one mind round its star"), ShapeWith({ CosmicTags::BrickFormDysonBrain() }, Zero) == ECosmicShape::ShutHouse);
++	TestTrue(TEXT("The living nebula"), ShapeWith({ CosmicTags::BrickFormLivingNebula() }, Zero) == ECosmicShape::SpreadBody);
++	TestTrue(TEXT("The dark matter feeder spreads its body too"), ShapeWith({ CosmicTags::BrickDietDarkMatter() }, Zero) == ECosmicShape::SpreadBody);
++	TestTrue(TEXT("(with the living nebula, the same answer)"), ShapeWith({ CosmicTags::BrickDietDarkMatter(), CosmicTags::BrickFormLivingNebula() }, Zero) == ECosmicShape::SpreadBody);
++	TestTrue(TEXT("The nomad"), ShapeWith({ CosmicTags::BrickSpaceNomad() }, Zero) == ECosmicShape::StarHerd);
++	TestTrue(TEXT("The swarm"), ShapeWith({ CosmicTags::BrickInstinctSwarmTech() }, Zero) == ECosmicShape::WovenSwarm);
++	TestTrue(TEXT("The star eater"), ShapeWith({ CosmicTags::BrickDietStarEater() }, Zero) == ECosmicShape::LastHunger);
++	TestTrue(TEXT("The merging people"), ShapeWith({ CosmicTags::BrickInstinctHiveMerge() }, Zero) == ECosmicShape::Entwined);
++	// The priority, pairwise along it; a brick that names no shape and a large vector change nothing.
++	auto Endless = [](FCosmicTimeVectors& V) { V.Endured = 100000; };
++	TestTrue(TEXT("KeptLaw before FoldedSmall"), ShapeWith({ CosmicTags::BrickSpacePlanckMicro(), CosmicTags::BrickFormUnseenLaw() }, Endless) == ECosmicShape::KeptLaw);
++	TestTrue(TEXT("FoldedSmall before ShutHouse"), ShapeWith({ CosmicTags::BrickSpaceHermitMonolith(), CosmicTags::BrickSpacePlanckMicro() }, Endless) == ECosmicShape::FoldedSmall);
++	TestTrue(TEXT("ShutHouse before SpreadBody"), ShapeWith({ CosmicTags::BrickFormLivingNebula(), CosmicTags::BrickFormDysonBrain() }, Endless) == ECosmicShape::ShutHouse);
++	TestTrue(TEXT("SpreadBody before StarHerd"), ShapeWith({ CosmicTags::BrickSpaceNomad(), CosmicTags::BrickFormLivingNebula() }, Endless) == ECosmicShape::SpreadBody);
++	TestTrue(TEXT("ShutHouse before SpreadBody by dark matter"), ShapeWith({ CosmicTags::BrickDietDarkMatter(), CosmicTags::BrickSpaceHermitMonolith() }, Endless) == ECosmicShape::ShutHouse);
++	TestTrue(TEXT("SpreadBody by dark matter before StarHerd"), ShapeWith({ CosmicTags::BrickSpaceNomad(), CosmicTags::BrickDietDarkMatter() }, Endless) == ECosmicShape::SpreadBody);
++	TestTrue(TEXT("StarHerd before WovenSwarm"), ShapeWith({ CosmicTags::BrickInstinctSwarmTech(), CosmicTags::BrickSpaceNomad() }, Endless) == ECosmicShape::StarHerd);
++	TestTrue(TEXT("WovenSwarm before LastHunger"), ShapeWith({ CosmicTags::BrickDietStarEater(), CosmicTags::BrickInstinctSwarmTech() }, Endless) == ECosmicShape::WovenSwarm);
++	TestTrue(TEXT("LastHunger before Entwined"), ShapeWith({ CosmicTags::BrickInstinctHiveMerge(), CosmicTags::BrickDietStarEater() }, Endless) == ECosmicShape::LastHunger);
++	TestTrue(TEXT("A brick that names no shape leaves the vectors to decide"),
++		ShapeWith({ CosmicTags::BrickDietDistanceTension(), CosmicTags::BrickMutationAbyssalMaw(), CosmicTags::BrickFormSociety() }, Endless) == ECosmicShape::Endured);
++	return true;
++}
++
++// The seed bricks (draw-free, off by default): SeedBrickOf picks one tag of DT_Rules.BrickSeedTags for a people that carries
++// no brick - by CosmicSeed Purpose::Brick (13) over the tags in lexical order - and none otherwise; NewGalaxy gives one to every
++// AI people and none to the player's, without a draw: the stream after NewGalaxy and the generated galaxy are the same with and
++// without the knob.
++IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimSeedBricksTest, "Cosmic_Ascension.Sim.SeedBricks", CosmicTests::Flags)
++bool FCosmicSimSeedBricksTest::RunTest(const FString& Parameters)
++{
++	using namespace CosmicExistenceBricksTests;
++	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
++	if (!Sim)
++	{
++		return false;
++	}
++	const FCosmicDataTables Original = Sim->GetTables();
++	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
++	TestEqual(TEXT("The brick's purpose is 13, appended after Digest"), CosmicSeed::Purpose::Brick, 13u);
++
++	FCosmicRulesDef Rules;
++	TArray<FGameplayTag> Listed = { CosmicTags::BrickSpaceNomad(), CosmicTags::BrickDietDarkMatter(), CosmicTags::BrickInstinctSwarmTech() };
++	for (const FGameplayTag& Each : Listed)
++	{
++		Rules.BrickSeedTags.AddTag(Each);
++	}
++	Listed.Sort([](const FGameplayTag& A, const FGameplayTag& B) { return FNameLexicalLess()(A.GetTagName(), B.GetTagName()); });
++	FCivilizationState Civ;
++	Civ.CivID = FName(TEXT("civ_7"));
++	Civ.Traits.AddTag(Tag(TEXT("Trait.Arch.Default")));
++	const FGameplayTag Picked = CosmicBricks::SeedBrickOf(Rules, 42, Civ);
++	TestTrue(TEXT("A people without a brick takes one of the seed tags"), Listed.Contains(Picked));
++	TestTrue(TEXT("the one the derived integer names, the tags in lexical order"),
++		Picked == Listed[static_cast<int32>(CosmicSeed::DeriveForName(42, Civ.CivID, CosmicSeed::Purpose::Brick, 0) % 3u)]);
++	TestTrue(TEXT("The same seed gives the same brick"), CosmicBricks::SeedBrickOf(Rules, 42, Civ) == Picked);
++	{
++		// The container's own order does not decide the pick.
++		FCosmicRulesDef Reversed;
++		for (int32 At = Listed.Num() - 1; At >= 0; --At)
++		{
++			Reversed.BrickSeedTags.AddTag(Listed[At]);
++		}
++		TestTrue(TEXT("Whatever order the tags were listed in"), CosmicBricks::SeedBrickOf(Reversed, 42, Civ) == Picked);
++	}
++	TestFalse(TEXT("An empty knob gives none"), CosmicBricks::SeedBrickOf(FCosmicRulesDef(), 42, Civ).IsValid());
++	FCivilizationState Carrier = Civ;
++	Carrier.Traits.AddTag(CosmicTags::BrickFormSociety());
++	TestFalse(TEXT("A people that carries a brick gets none"), CosmicBricks::SeedBrickOf(Rules, 42, Carrier).IsValid());
++	{
++		FCosmicRulesDef TraitsOnly;
++		TraitsOnly.BrickSeedTags.AddTag(Tag(TEXT("Trait.Faith.Book")));
++		TestFalse(TEXT("A tag that is no brick is never seeded"), CosmicBricks::SeedBrickOf(TraitsOnly, 42, Civ).IsValid());
++	}
++
++	// NewGalaxy: with and without the knob.
++	const FCosmicRulesDef* Game = Original.FindRules();
++	if (!TestNotNull(TEXT("The game's rules"), Game))
++	{
++		return false;
++	}
++	FCosmicRulesDef Seeding = *Game;
++	Seeding.BrickSeedTags = Rules.BrickSeedTags;
++	int32 Seeds[2] = { 0, 0 };
++	TArray<FName> Owners[2];
++	TArray<float> Ethics[2];
++	for (int32 Pass = 0; Pass < 2; ++Pass)
++	{
++		Sim->SetTables(CosmicTests::WithRules(Original, Pass == 0 ? *Game : Seeding));
++		Sim->NewGalaxy(42, 12, 4);
++		const FGalaxyState& State = Sim->GetState();
++		Seeds[Pass] = Sim->GetRng().GetCurrentSeed();
++		for (const FStarSystemState& System : State.Systems)
++		{
++			Owners[Pass].Add(System.OwnerCivID);
++		}
++		for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
++		{
++			const FCivilizationState& Each = State.Civs[CivIndex];
++			Ethics[Pass].Add(Each.Ethics.Pacifism);
++			int32 Bricks = 0;
++			for (const FGameplayTag& Held : Each.Traits)
++			{
++				Bricks += CosmicTags::IsBrick(Held) ? 1 : 0;
++			}
++			const int32 Expected = (Pass == 1 && CivIndex > 0) ? 1 : 0;
++			TestEqual(*FString::Printf(TEXT("Pass %d, people %d: its seed bricks"), Pass, CivIndex), Bricks, Expected);
++			if (Pass == 1 && CivIndex > 0)
++			{
++				FCivilizationState Bare = Each;
++				Bare.Traits.Reset();
++				TestTrue(*FString::Printf(TEXT("people %d: the pick of SeedBrickOf"), CivIndex), Each.Traits.HasTagExact(CosmicBricks::SeedBrickOf(Seeding, 42, Bare)));
++			}
++		}
++	}
++	TestEqual(TEXT("NewGalaxy takes no draw for the seed bricks"), Seeds[1], Seeds[0]);
++	TestTrue(TEXT("and generates the same galaxy otherwise (owners)"), Owners[0] == Owners[1]);
++	TestTrue(TEXT("(ethics)"), Ethics[0] == Ethics[1]);
++	return true;
++}
++
++// The three conditions on a laid board (header section 2.3 - the detached cases are in Events.CheckIsPure): CivTimeVectorAtLeast
++// reads the context people's counted vector; CivLacksTrait is the negation of CivHasTrait for a valid tag and an existing
++// people; BorderingCivHasTrait looks at the peoples that border the context people, and only at them.
++IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicEventsBrickConditionsTest, "Cosmic_Ascension.Events.BrickConditions", CosmicTests::Flags)
++bool FCosmicEventsBrickConditionsTest::RunTest(const FString& Parameters)
++{
++	using namespace CosmicExistenceBricksTests;
++	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
++	if (!Sim)
++	{
++		return false;
++	}
++	const FCosmicDataTables Original = Sim->GetTables();
++	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
++	FGalaxyState* Board = LayBoard(*Sim, Original, NoEdit);
++	if (!TestNotNull(TEXT("The board is laid"), Board))
++	{
++		return false;
++	}
++	auto Holds = [&](const FCosmicCondition& Condition, int32 CivIndex)
++	{
++		FCosmicEvalView View(*Board, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules());
++		View.CivIndex = CivIndex;
++		View.SystemIndex = INDEX_NONE;
++		return UCosmicEventSubsystem::Check(Condition, View);
++	};
++	// The vector, once counted.
++	Board->Civs[1].Ties.Add(Board->Civs[2].CivID).Stance = CosmicTags::StanceFriendly();
++	for (int32 Tick = 0; Tick < 3; ++Tick)
++	{
++		CosmicBricks::CountTimeVectors(*Board, Sim->GetStateIndex(), Sim->GetRules());
++	}
++	TestTrue(TEXT("Three linked ticks reach 3"), Holds(Cond(EConditionType::CivTimeVectorAtLeast, nullptr, TEXT("Linked"), 3.f), 1));
++	TestFalse(TEXT("and not 4"), Holds(Cond(EConditionType::CivTimeVectorAtLeast, nullptr, TEXT("Linked"), 4.f), 1));
++	TestFalse(TEXT("A Value below 1 is false"), Holds(Cond(EConditionType::CivTimeVectorAtLeast, nullptr, TEXT("Linked"), 0.f), 1));
++	TestFalse(TEXT("Another people's vector is not read"), Holds(Cond(EConditionType::CivTimeVectorAtLeast, nullptr, TEXT("Linked"), 1.f), 2));
++	// The lacking trait and the bordering trait: people 0 is a star eater; it borders people 1 alone.
++	Board->Civs[0].Traits.AddTag(CosmicTags::BrickDietStarEater());
++	TestFalse(TEXT("The star eater does not lack its brick"), Holds(Cond(EConditionType::CivLacksTrait, TEXT("Brick.Diet.StarEater")), 0));
++	TestTrue(TEXT("its neighbour does"), Holds(Cond(EConditionType::CivLacksTrait, TEXT("Brick.Diet.StarEater")), 1));
++	TestFalse(TEXT("Without a people it is false"), Holds(Cond(EConditionType::CivLacksTrait, TEXT("Brick.Diet.StarEater")), INDEX_NONE));
++	TestFalse(TEXT("and without a tag"), Holds(Cond(EConditionType::CivLacksTrait, nullptr), 1));
++	TestTrue(TEXT("People 1 borders the star eater"), Holds(Cond(EConditionType::BorderingCivHasTrait, TEXT("Brick.Diet.StarEater")), 1));
++	TestFalse(TEXT("people 2 does not"), Holds(Cond(EConditionType::BorderingCivHasTrait, TEXT("Brick.Diet.StarEater")), 2));
++	TestFalse(TEXT("nor is a people its own neighbour"), Holds(Cond(EConditionType::BorderingCivHasTrait, TEXT("Brick.Diet.StarEater")), 0));
++	TestFalse(TEXT("A brick nobody carries is not found"), Holds(Cond(EConditionType::BorderingCivHasTrait, TEXT("Brick.Instinct.HiveMerge")), 1));
++	return true;
++}
++
++#endif // WITH_DEV_AUTOMATION_TESTS
++			ECosmicSettleBlock::RowTier, ECosmicSettleBlock::RealmCap, ECosmicSettleBlock::Settling, ECosmicSettleBlock::Sphere, ECosmicSettleBlock::Inward };
++	// initializer are set here too (MVP item 5's ChronicleEviction, B6a's Ending, B7x's TimeVectors and HostCivID) - compared
++	// one by one with SameLaterMembers.
++		// B7x [B-7x1]: the six time vectors of a people (cumulative counts) and the host of a system (reserved - nothing reads it
++		// before [B-7x7]): both start at their initializer in a plain run.
++		State.Civs[1].TimeVectors.Built = 21;
++		State.Civs[1].TimeVectors.Consumed = 22;
++		State.Civs[1].TimeVectors.Drifted = 23;
++		State.Civs[1].TimeVectors.Linked = 24;
++		State.Civs[1].TimeVectors.Isolated = 25;
++		State.Civs[1].TimeVectors.Endured = 26;
++		State.Systems[1].HostCivID = State.Civs[2].CivID;
++		// B7x [B-7x1]: the time vectors of every people and the host of every system.
++		for (int32 Index = 0; bSame && Index < A.Civs.Num(); ++Index)
++		{
++			const FCosmicTimeVectors& Left = A.Civs[Index].TimeVectors;
++			const FCosmicTimeVectors& Right = B.Civs[Index].TimeVectors;
++			bSame = Left.Built == Right.Built && Left.Consumed == Right.Consumed && Left.Drifted == Right.Drifted && Left.Linked == Right.Linked
++				&& Left.Isolated == Right.Isolated && Left.Endured == Right.Endured;
++		}
++		for (int32 Index = 0; bSame && Index < A.Systems.Num(); ++Index)
++		{
++			bSame = A.Systems[Index].HostCivID == B.Systems[Index].HostCivID;
++		}
++		CosmicSeed::Purpose::EventSlot, CosmicSeed::Purpose::Petition, CosmicSeed::Purpose::Encounter, CosmicSeed::Purpose::Digest,
++		CosmicSeed::Purpose::Brick
++	TestTrue(TEXT("The thirteen purposes are numbered 1 to 13 in their fixed order (Digest 12 - B5, Brick 13 - B7x)"), bPurposesFixed);
++		TEXT("Settle.Block.Inward"),
++			// none, as Owned and NoRow (guideline 6.3); neither does Inward (B7x - a people folded inward settles no more).
++			static_assert(static_cast<int32>(CosmicMegaprojects::ECosmicSettleBlock::Count) == 12, "A new settle reason: decide whether its settle button shows the cost line");
++				&& ShownSettleBlock != CosmicMegaprojects::ECosmicSettleBlock::Sanctuary && ShownSettleBlock != CosmicMegaprojects::ECosmicSettleBlock::Inward;
++		"GalaxyLawsToHold": 3,
++		"BrickDarkMatterEnergyPerTick": 0.0,
++		"BrickStarEaterEnergyMultiplier": 1.0,
++		"BrickStarEaterRelationTarget": 0.0,
++		"BrickStarEaterDimPeriodTicks": 0,
++		"BrickQuietInsightPerTick": 0.0,
++		"BrickSpanEnergyPerLane": 0.0,
++		"BrickParasiteCountdownBonusTicks": 0,
++		"BrickParasiteInsightPerHazard": 0.0,
++		"BrickNomadSettleProgressMultiplier": 1.0,
++		"BrickInwardResearchMultiplier": 1.0,
++		"BrickInwardHazardSpawnMultiplier": 1.0,
++		"BrickSwarmResearchMultiplier": 1.0,
++		"BrickMergeRelationTarget": 0.0,
++		"BrickEvolutionPeriodTicks": 0,
++		"BrickMutationThresholdTicks": 0,
++		"BrickSeedTags": "(GameplayTags=)",
++		"BrickStellarCrisisSpawnMultiplier": 1.0
++"Settle.Block.Inward","안으로 접힌 백성은 더 넓히지 않는다."
++		"ark_words": ["방주"],
++		"time_vectors": ["Built", "Consumed", "Drifted", "Linked", "Isolated", "Endured"]
++				"GalaxyLawsToHold": {"kind": "number", "min": 1, "integer": true},
++				"BrickDarkMatterEnergyPerTick": {"kind": "number", "min": 0},
++				"BrickStarEaterEnergyMultiplier": {"kind": "number", "min": 0},
++				"BrickStarEaterRelationTarget": {"kind": "number", "min": -1, "max": 1},
++				"BrickStarEaterDimPeriodTicks": {"kind": "number", "min": 0, "integer": true},
++				"BrickQuietInsightPerTick": {"kind": "number", "min": 0},
++				"BrickSpanEnergyPerLane": {"kind": "number", "min": 0},
++				"BrickParasiteCountdownBonusTicks": {"kind": "number", "min": 0, "max": 100000, "integer": true},
++				"BrickParasiteInsightPerHazard": {"kind": "number", "min": 0},
++				"BrickNomadSettleProgressMultiplier": {"kind": "number"},
++				"BrickInwardResearchMultiplier": {"kind": "number"},
++				"BrickInwardHazardSpawnMultiplier": {"kind": "number"},
++				"BrickSwarmResearchMultiplier": {"kind": "number"},
++				"BrickMergeRelationTarget": {"kind": "number", "min": -1, "max": 1},
++				"BrickEvolutionPeriodTicks": {"kind": "number", "min": 0, "integer": true},
++				"BrickMutationThresholdTicks": {"kind": "number", "min": 0, "integer": true},
++				"BrickSeedTags": {"kind": "tags", "root": "Brick."},
++				"BrickStellarCrisisSpawnMultiplier": {"kind": "number"}
++				{
++					"why": "a brick multiplier of a progress or a share multiplies what every tick of a people that carries the brick adds: at 0 or below a settlement or a research would never progress and a hazard would never come, so the code reads such a value as 1 (B7x header section 2.4)",
++					"then": [{"col": "BrickNomadSettleProgressMultiplier", "gt": 0}, {"col": "BrickInwardResearchMultiplier", "gt": 0}, {"col": "BrickInwardHazardSpawnMultiplier", "gt": 0}, {"col": "BrickSwarmResearchMultiplier", "gt": 0}, {"col": "BrickStellarCrisisSpawnMultiplier", "gt": 0}]
++				},
++				"Traits": {"kind": "tags", "root": ["Trait.", "Brick."]},
++				{
++					"why": "a system-subject row is evaluated on every settled system of its slot, and the bordering condition walks the people's borders on each: it is about the people alone, so it stands on Civilization rows (B7x header section 2.3)",
++					"when": [{"col": "Subject", "is": "SettledSystem"}],
++					"then": [{"col": "Conditions", "lacks_type": "BorderingCivHasTrait"}]
++				},
++				{
++					"why": "the stage reads the spawn conditions of every Draw row on every settled system on every tick: the bordering condition would walk the owner's borders once a system and a tick (B7x header section 2.3)",
++					"then": [{"col": "SpawnConditions", "lacks_type": "BorderingCivHasTrait"}]
++				},
++		"CivHasTrait": {"tag": {"root": ["Trait.", "Brick."]}},
++		"CivPressureEnduredTicksReached": {"key": {"digits": true}},
++		"CivTimeVectorAtLeast": {"key": {"word": "time_vectors"}, "value": {"min": 1, "integer": true}},
++		"CivLacksTrait": {"tag": {"root": ["Trait.", "Brick."]}},
++		"BorderingCivHasTrait": {"tag": {"root": ["Trait.", "Brick."]}}
++		"AddTrait": {"tag": {"root": ["Trait.", "Brick."]}},
++		"RemoveTrait": {"tag": {"root": ["Trait.", "Brick."]}},
++        self.expect(self.conditions(cond("CivHasTrait", tag="Hazard.Plague")), "not under Trait. or Brick.")
++    def test_the_trait_roots_hold_the_bricks(self):
++        """B7x [B-7x1] (rule R1): the existence bricks ride in a people's Traits, so the four trait roots - DT_Civs.Traits,
++        CivHasTrait, AddTrait and RemoveTrait - are the list Trait. and Brick.; any other root is still refused, and a brick
++        has to be declared in the ini like a trait (a parent that only its children imply is not)."""
++        self.assertEqual(self.after(self.set_cell("DT_Civs", "arch_default", "Traits", tags_text("Trait.Arch.Default", "Brick.Diet.StarEater"))), [])
++        self.assertEqual(self.conditions(cond("CivHasTrait", tag="Brick.Space.Nomad")), [])
++        self.assertEqual(self.effects(eff("AddTrait", tag="Brick.Instinct.SwarmTech"), eff("RemoveTrait", tag="Brick.Form.Society")), [])
++        for root in ("DT_Civs", "CivHasTrait", "AddTrait", "RemoveTrait"):
++            with self.subTest(root=root):
++                if root == "DT_Civs":
++                    found = self.after(self.set_cell("DT_Civs", "arch_default", "Traits", tags_text("Trait.Arch.Default", "Hazard.Plague")))
++                elif root == "CivHasTrait":
++                    found = self.conditions(cond("CivHasTrait", tag="Hazard.Plague"))
++                else:
++                    found = self.effects(eff(root, tag="Hazard.Plague"))
++                self.expect(found, "Hazard.Plague is not under Trait. or Brick.")
++        self.expect(self.conditions(cond("CivHasTrait", tag="Brick.Diet")), "(CivHasTrait).Tag", "Brick.Diet", "not declared")
++        self.expect(self.effects(eff("AddTrait", tag="Brick.Diet.Nobody")), "(AddTrait).Tag", "Brick.Diet.Nobody", "not declared")
++        for column, usage in (("DT_Civs.Traits", self.schema["tables"]["DT_Civs"]["columns"]["Traits"]),
++                              ("CivHasTrait", self.schema["conditions"]["CivHasTrait"]["tag"]),
++                              ("AddTrait", self.schema["effects"]["AddTrait"]["tag"]),
++                              ("RemoveTrait", self.schema["effects"]["RemoveTrait"]["tag"])):
++            with self.subTest(column=column):
++                self.assertEqual(usage["root"], ["Trait.", "Brick."])
++
++    def test_existence_vocabulary(self):
++        """B7x [B-7x2] (header section 2.3, 2.4): the three conditions appended after CivPressureEnduredTicksReached - a time
++        vector word and a whole count from 1, a tag a people lacks, a tag a bordering people carries (not on a system-subject
++        row, not in a hazard's spawn conditions) - and the brick knobs of DT_Rules. One input that breaks each."""
++        self.assertEqual(self.after(), [])
++        # CivTimeVectorAtLeast: a word of time_vectors, a whole number of ticks from 1, no Tag.
++        for word in self.schema["words"]["time_vectors"]:
++            with self.subTest(word=word):
++                self.assertEqual(self.conditions(cond("CivTimeVectorAtLeast", key=word, value=600)), [])
++        self.assertEqual(self.schema["words"]["time_vectors"], ["Built", "Consumed", "Drifted", "Linked", "Isolated", "Endured"])
++        self.expect(self.conditions(cond("CivTimeVectorAtLeast", key="Wandered", value=600)), "(CivTimeVectorAtLeast).Key", "Wandered is none of Built")
++        self.expect(self.conditions(cond("CivTimeVectorAtLeast", key="built", value=600)), "(CivTimeVectorAtLeast).Key", "built is none of Built")
++        self.expect(self.conditions(cond("CivTimeVectorAtLeast", value=600)), "(CivTimeVectorAtLeast).Key", "a Key is required")
++        self.expect(self.conditions(cond("CivTimeVectorAtLeast", key="Built", value=0)), "(CivTimeVectorAtLeast).Value", "is below 1")
++        self.expect(self.conditions(cond("CivTimeVectorAtLeast", key="Built", value=1.5)), "(CivTimeVectorAtLeast).Value", "not a whole number")
++        self.expect(self.conditions(cond("CivTimeVectorAtLeast", key="Built", value=600, tag="Brick.Space.Nomad")), "(CivTimeVectorAtLeast)", "reads no Tag")
++        # CivLacksTrait and BorderingCivHasTrait: a Trait. or Brick. tag, required, no Key, no Value.
++        for type_name in ("CivLacksTrait", "BorderingCivHasTrait"):
++            with self.subTest(type_name=type_name):
++                self.assertEqual(self.conditions(cond(type_name, tag="Brick.Diet.StarEater")), [])
++                self.assertEqual(self.conditions(cond(type_name, tag="Trait.Faith.Book")), [])
++                self.expect(self.conditions(cond(type_name)), "(%s).Tag" % type_name, "a tag is required")
++                self.expect(self.conditions(cond(type_name, tag="Hazard.Plague")), "(%s).Tag" % type_name, "not under Trait. or Brick.")
++                self.expect(self.conditions(cond(type_name, tag="Brick.Diet.StarEater", key="Borders")), "(%s)" % type_name, "reads no Key")
++                self.expect(self.conditions(cond(type_name, tag="Brick.Diet.StarEater", value=1)), "(%s)" % type_name, "reads no Value")
++        bordering = cond("BorderingCivHasTrait", tag="Brick.Diet.StarEater")
++        harvest = lambda **changes: (lambda tables: self.row(tables, "DT_Events", "event_test_harvest").update(changes))  # noqa: E731
++        self.assertEqual(self.after(harvest(Trigger="Standing", BaseWeight=0, Conditions=[bordering])), [])
++        self.expect(self.after(harvest(Subject="SettledSystem", Conditions=[bordering])), "the bordering condition walks the people's borders", "BorderingCivHasTrait")
++        self.assertEqual(self.after(harvest(Subject="SettledSystem", Conditions=[cond("CivLacksTrait", tag="Brick.Diet.StarEater")])), [])
++        self.expect(self.after(self.set_cell("DT_Hazards", "crisis_test_storm", "SpawnConditions", [bordering])),
++                    "the bordering condition would walk the owner's borders", "BorderingCivHasTrait")
++        self.assertEqual(self.after(self.set_cell("DT_Hazards", "crisis_test_storm", "SpawnConditions", [cond("CivLacksTrait", tag="Brick.Space.PlanckMicro")])), [])
++        # The knobs: the inert values pass; a range is held; a multiplier of a progress or a share is above 0.
++        rules = lambda column, value: self.set_cell("DT_Rules", "rules", column, value)  # noqa: E731
++        for column, value, word in (("BrickDarkMatterEnergyPerTick", -0.1, "below"), ("BrickStarEaterEnergyMultiplier", -1, "below"),
++                                    ("BrickStarEaterRelationTarget", -1.5, "below"), ("BrickMergeRelationTarget", 1.5, "above"),
++                                    ("BrickStarEaterDimPeriodTicks", -1, "below"), ("BrickParasiteCountdownBonusTicks", 100001, "above"),
++                                    ("BrickEvolutionPeriodTicks", 2.5, "whole"), ("BrickMutationThresholdTicks", -5, "below")):
++            with self.subTest(column=column):
++                self.expect(self.after(rules(column, value)), "rules.%s" % column, word)
++        self.assertEqual(self.after(rules("BrickStarEaterRelationTarget", -0.3)), [])
++        self.assertEqual(self.after(rules("BrickMergeRelationTarget", 0.3)), [])
++        for column in ("BrickNomadSettleProgressMultiplier", "BrickInwardResearchMultiplier", "BrickInwardHazardSpawnMultiplier", "BrickSwarmResearchMultiplier",
++                       "BrickStellarCrisisSpawnMultiplier"):
++            with self.subTest(column=column):
++                self.expect(self.after(rules(column, 0)), "rules", "a brick multiplier of a progress or a share", '"%s"' % column)
++        # The seed bricks: Brick.* tags only, empty by default.
++        self.assertEqual(self.after(rules("BrickSeedTags", tags_text("Brick.Diet.DarkMatter", "Brick.Space.Nomad"))), [])
++        self.expect(self.after(rules("BrickSeedTags", tags_text("Trait.Faith.Book"))), "rules.BrickSeedTags", "not under Brick.")
++        inert = {row["Name"]: row for row in self.tables["DT_Rules"]}["rules"]
++        for column, value in (("BrickDarkMatterEnergyPerTick", 0), ("BrickStarEaterEnergyMultiplier", 1), ("BrickStarEaterRelationTarget", 0),
++                              ("BrickStarEaterDimPeriodTicks", 0), ("BrickQuietInsightPerTick", 0), ("BrickSpanEnergyPerLane", 0),
++                              ("BrickParasiteCountdownBonusTicks", 0), ("BrickParasiteInsightPerHazard", 0), ("BrickNomadSettleProgressMultiplier", 1),
++                              ("BrickInwardResearchMultiplier", 1), ("BrickInwardHazardSpawnMultiplier", 1), ("BrickSwarmResearchMultiplier", 1),
++                              ("BrickMergeRelationTarget", 0), ("BrickEvolutionPeriodTicks", 0), ("BrickMutationThresholdTicks", 0),
++                              ("BrickStellarCrisisSpawnMultiplier", 1)):
++            with self.subTest(inert=column):
++                self.assertEqual(inert[column], value, "the data holds the inert value until [B-7x5]")
++        self.assertEqual(inert["BrickSeedTags"], "(GameplayTags=)")
++
++            # B7x [B-7x2] (header section 2.3, 2.4): the bordering condition off system-subject rows and spawn conditions, and the
++            # brick multipliers above 0.
++            ("DT_Events", "a system-subject row is evaluated on every settled system of its slot, and the bordering condition walks the people's borders on each: it is about the people alone, so it stands on Civilization rows (B7x header section 2.3)"): (update_event(Subject="SettledSystem"), event),
++            ("DT_Hazards", "the stage reads the spawn conditions of every Draw row on every settled system on every tick: the bordering condition would walk the owner's borders once a system and a tick (B7x header section 2.3)"): (NOTHING, hazard),
++            ("DT_Rules", "a brick multiplier of a progress or a share multiplies what every tick of a people that carries the brick adds: at 0 or below a settlement or a research would never progress and a hazard would never come, so the code reads such a value as 1 (B7x header section 2.4)"): (NOTHING, "rules"),
++        self.assertEqual(walked, 323, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
++> `python -I Tools/make_config_reference.py`가 `Tools/data/DT_Rules.json`·`schema.json`·`Source/`에서 만든다. **손으로 고치지 않는다** — 값은 JSON에서, 규칙은 schema에서, 읽는 곳은 코드에서 바뀐다. 노브 117개 가운데 런타임이 읽는 것 108개, 예약 9개(읽는 코드가 올 Phase에서 산다 — `docs/40_DEV_GUIDE.md` §4). 밸런스 상수 가운데 아직 코드에 박힌 것(별 등급의 에너지 `StarClassEnergy` — `Sim/GalaxySimulationSubsystem.cpp`의 `namespace Economy`, 단계 5까지)은 이 표에 없다 — 경제·연구의 나머지 계수는 MVP ⑧부터 이 표의 노브다.
++| `StartingEdict` | `"edict_mobilization"` | row | `{"table": "DT_Edicts", "optional": true}` | Sim/CosmicEdicts.cpp, Sim/CosmicExistenceBricks.cpp, Sim/GalaxySimulationSubsystem.cpp, UI/CosmicEdictWidget.cpp, World/CosmicGameMode.cpp | 읽힘 |
++| `BrickDarkMatterEnergyPerTick` | `0.0` | number | `{"min": 0}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
++| `BrickStarEaterEnergyMultiplier` | `1.0` | number | `{"min": 0}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
++| `BrickStarEaterRelationTarget` | `0.0` | number | `{"min": -1, "max": 1}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
++| `BrickStarEaterDimPeriodTicks` | `0` | number | `{"min": 0, "integer": true}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
++| `BrickQuietInsightPerTick` | `0.0` | number | `{"min": 0}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
++| `BrickSpanEnergyPerLane` | `0.0` | number | `{"min": 0}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
++| `BrickParasiteCountdownBonusTicks` | `0` | number | `{"min": 0, "max": 100000, "integer": true}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
++| `BrickParasiteInsightPerHazard` | `0.0` | number | `{"min": 0}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
++| `BrickNomadSettleProgressMultiplier` | `1.0` | number |  | Sim/CosmicExistenceBricks.cpp | 읽힘 |
++| `BrickInwardResearchMultiplier` | `1.0` | number |  | Sim/CosmicExistenceBricks.cpp | 읽힘 |
++| `BrickInwardHazardSpawnMultiplier` | `1.0` | number |  | Sim/CosmicExistenceBricks.cpp | 읽힘 |
++| `BrickSwarmResearchMultiplier` | `1.0` | number |  | Sim/CosmicExistenceBricks.cpp | 읽힘 |
++| `BrickMergeRelationTarget` | `0.0` | number | `{"min": -1, "max": 1}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
++| `BrickEvolutionPeriodTicks` | `0` | number | `{"min": 0, "integer": true}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
++| `BrickMutationThresholdTicks` | `0` | number | `{"min": 0, "integer": true}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
++| `BrickSeedTags` | `"(GameplayTags=)"` | tags | `{"root": "Brick."}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
++| `BrickStellarCrisisSpawnMultiplier` | `1.0` | number |  | Sim/CosmicExistenceBricks.cpp | 읽힘 |

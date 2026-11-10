@@ -1,0 +1,922 @@
+diff --git a/Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp b/Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp
+index f94828a..c88f8b1 100644
+--- a/Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Ascension/AscensionSubsystem.cpp
+@@ -2,6 +2,7 @@
+ 
+ #include "Ascension/AscensionSubsystem.h"
+ 
++#include "Core/CosmicAIProbe.h"
+ #include "Core/GalaxyState.h"
+ #include "Cosmic_Ascension.h"
+ #include "Data/CosmicConditionTypes.h"
+@@ -67,6 +68,7 @@ void UAscensionSubsystem::EvaluateFeats(FGalaxyState& State, FRandomStream& Rng)
+ 
+ bool UAscensionSubsystem::JudgePeople(FGalaxyState& State, FRandomStream& Rng, int32 CivIndex, int64 SinceTick, bool bPlayer)
+ {
++	CosmicAIProbe::Count(CosmicAIProbe::CJudgeCall);
+ 	UGalaxySimulationSubsystem* Sim = GetGameInstance()->GetSubsystem<UGalaxySimulationSubsystem>();
+ 	const FCosmicDataTables& Tables = Sim->GetTables();
+ 	const FCosmicStateIndex& Index = Sim->GetStateIndex();
+@@ -92,11 +94,19 @@ bool UAscensionSubsystem::JudgePeople(FGalaxyState& State, FRandomStream& Rng, i
+ 	// rung keeps it where it stands this tick (no draw, no line). The people the player rules and the climb to the fifth
+ 	// rung are never braked. The judgment's order (the ruled people, then Civs order) and the Tier that Ascend sets at once
+ 	// make the people judged first pass first and count a climb made earlier in the tick.
+-	if (!bPlayer && State.Civs[CivIndex].Tier == EAscensionTier::Tier3_Causal && !CosmicAscent::FourthRungOpenOf(State, Tables, State.Civs[CivIndex].GalaxyRow))
++	bool bProbeClosed = false;
++	if (!bPlayer && State.Civs[CivIndex].Tier == EAscensionTier::Tier3_Causal)
+ 	{
++		CosmicAIProbe::FScope ProbeBrake(CosmicAIProbe::BBrake);
++		bProbeClosed = !CosmicAscent::FourthRungOpenOf(State, Tables, State.Civs[CivIndex].GalaxyRow);
++	}
++	if (bProbeClosed)
++	{
++		CosmicAIProbe::Count(CosmicAIProbe::CJudgeBraked);
+ 		return false;
+ 	}
+ 
++	CosmicAIProbe::FScope ProbeRows(CosmicAIProbe::BJudgeRows);
+ 	for (const FName FeatRow : Tables.GetFeatRowNames())
+ 	{
+ 		const FAscensionFeatDef* Feat = Tables.FindFeat(FeatRow);
+@@ -119,6 +129,7 @@ bool UAscensionSubsystem::JudgePeople(FGalaxyState& State, FRandomStream& Rng, i
+ 			View.GalaxyRow = State.Civs[CivIndex].GalaxyRow;
+ 			View.SourceRow = FeatRow;
+ 			View.SinceTick = SinceTick;
++			CosmicAIProbe::Count(CosmicAIProbe::CJudgeCheckAll);
+ 			if (UCosmicEventSubsystem::CheckAll(Feat->CompletionConditions, View))
+ 			{
+ 				FCosmicEvalContext Ctx(State, Rng, Index, Tables, Rules);
+diff --git a/Source/Cosmic_Ascension/Core/CosmicAIProbe.h b/Source/Cosmic_Ascension/Core/CosmicAIProbe.h
+new file mode 100644
+index 0000000..f1fc036
+--- /dev/null
++++ b/Source/Cosmic_Ascension/Core/CosmicAIProbe.h
+@@ -0,0 +1,144 @@
++// TEMPORARY timing probe for the G1 gate (SAND only - never committed).
++// Laps inside the AI stage, call counters in the table primitives, and a census. Reads the clock only; no state, no draw.
++#pragma once
++
++#include "CoreMinimal.h"
++#include "HAL/PlatformTime.h"
++
++namespace CosmicAIProbe
++{
++	enum EBlock : int32
++	{
++		BChoices,
++		BSettle,
++		BRevoke,
++		BLaws,
++		BTreaty,
++		BTreatyPartner,
++		BDiplomacy,
++		BAim,
++		BFeats,
++		BBrake,
++		BJudgeRows,
++		BPrimFeatNames,
++		BPrimHazardByTag,
++		BPrimHazardAnswer,
++		BPrimEdictNames,
++		BNum
++	};
++	enum ECount : int32
++	{
++		CFeatNames,
++		CHazardNames,
++		CEdictNames,
++		CEventNames,
++		CHazardAnswer,
++		CHazardByTag,
++		CFindFeat,
++		CFindEdict,
++		CFindHazard,
++		CFindProject,
++		CFindGalaxy,
++		CFindTrans,
++		CFindArch,
++		CFindEvent,
++		CAsksTreatyCall,
++		CAsksTreatyTrue,
++		CPartnerCands,
++		CMarkNeighbours,
++		CAimCall,
++		CAimScan,
++		CAimSiegeChecks,
++		CAsksLawsCall,
++		CAsksLawsTrue,
++		CEnactBlock,
++		CJudgeCall,
++		CJudgeBraked,
++		CJudgeCheckAll,
++		CChoicesCall,
++		CChoicesCapital,
++		CStartBlock,
++		CNum
++	};
++	enum EStage : int32
++	{
++		SNone,
++		SCrisis,
++		SAI,
++		SNum
++	};
++	inline int32 GLevel = 0;      // -AIProbe=<n>: 1 laps and counts, 2 also the primitives' own laps
++	inline int32 GStage = SNone;  // the stage the tick is in (crisis, AI), for the counters
++	inline uint64 GCycles[BNum] = {};
++	inline int64 GHits[BNum] = {};
++	inline int64 GCount[SNum][CNum] = {};
++	inline int64 GTierTicks[5] = {};
++	inline int64 GT3BareTicks = 0;
++	inline int64 GTreatyReason[16] = {};
++
++	inline void Reset()
++	{
++		FMemory::Memzero(GCycles);
++		FMemory::Memzero(GHits);
++		FMemory::Memzero(GCount);
++		FMemory::Memzero(GTierTicks);
++		GT3BareTicks = 0;
++		FMemory::Memzero(GTreatyReason);
++	}
++	FORCEINLINE bool On()
++	{
++		return GLevel > 0;
++	}
++	FORCEINLINE uint64 Now()
++	{
++		return GLevel > 0 ? FPlatformTime::Cycles64() : 0;
++	}
++	FORCEINLINE void Lap(int32 B, uint64& L)
++	{
++		if (GLevel > 0)
++		{
++			const uint64 N = FPlatformTime::Cycles64();
++			GCycles[B] += N - L;
++			++GHits[B];
++			L = N;
++		}
++	}
++	struct FScope
++	{
++		int32 B;
++		bool bActive;
++		uint64 T0;
++		explicit FScope(int32 In, bool bIn = true)
++			: B(In), bActive(bIn && GLevel > 0), T0(bActive ? FPlatformTime::Cycles64() : 0)
++		{
++		}
++		~FScope()
++		{
++			if (bActive)
++			{
++				GCycles[B] += FPlatformTime::Cycles64() - T0;
++				++GHits[B];
++			}
++		}
++	};
++	// A primitive's own lap: only at level 2 and only inside the AI stage.
++	struct FPrimScope : public FScope
++	{
++		explicit FPrimScope(int32 In)
++			: FScope(In, GLevel >= 2 && GStage == SAI)
++		{
++		}
++	};
++	FORCEINLINE void Count(int32 C)
++	{
++		if (GLevel > 0)
++		{
++			++GCount[GStage][C];
++		}
++	}
++	FORCEINLINE bool CountTrue(int32 C)
++	{
++		Count(C);
++		return true;
++	}
++}
+diff --git a/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp b/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
+index 8958f03..35a982d 100644
+--- a/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
++++ b/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
+@@ -2,6 +2,7 @@
+ 
+ #include "Data/CosmicDataTables.h"
+ 
++#include "Core/CosmicAIProbe.h"
+ #include "Cosmic_Ascension.h"
+ #include "Data/CosmicRowNames.h"
+ #include "UObject/NameTypes.h"
+@@ -53,6 +54,7 @@ const FCosmicRulesDef* FCosmicDataTables::FindRules() const
+ 
+ const FCivArchetypeDef* FCosmicDataTables::FindCiv(FName RowName) const
+ {
++	CosmicAIProbe::Count(CosmicAIProbe::CFindArch);
+ 	return FindRowQuiet<FCivArchetypeDef>(Civs, RowName);
+ }
+ 
+@@ -63,31 +65,37 @@ const FLogTemplateDef* FCosmicDataTables::FindLogTemplate(FName RowName) const
+ 
+ const FGalaxyDef* FCosmicDataTables::FindGalaxy(FName RowName) const
+ {
++	CosmicAIProbe::Count(CosmicAIProbe::CFindGalaxy);
+ 	return FindRowQuiet<FGalaxyDef>(Galaxies, RowName);
+ }
+ 
+ const FCosmicEventDef* FCosmicDataTables::FindEvent(FName RowName) const
+ {
++	CosmicAIProbe::Count(CosmicAIProbe::CFindEvent);
+ 	return FindRowQuiet<FCosmicEventDef>(Events, RowName);
+ }
+ 
+ const FTranscendentDef* FCosmicDataTables::FindTranscendent(FName RowName) const
+ {
++	CosmicAIProbe::Count(CosmicAIProbe::CFindTrans);
+ 	return FindRowQuiet<FTranscendentDef>(Transcendents, RowName);
+ }
+ 
+ const FHazardDef* FCosmicDataTables::FindHazard(FName RowName) const
+ {
++	CosmicAIProbe::Count(CosmicAIProbe::CFindHazard);
+ 	return FindRowQuiet<FHazardDef>(Hazards, RowName);
+ }
+ 
+ const FMegaprojectDef* FCosmicDataTables::FindMegaproject(FName RowName) const
+ {
++	CosmicAIProbe::Count(CosmicAIProbe::CFindProject);
+ 	return FindRowQuiet<FMegaprojectDef>(Megaprojects, RowName);
+ }
+ 
+ const FAscensionFeatDef* FCosmicDataTables::FindFeat(FName RowName) const
+ {
++	CosmicAIProbe::Count(CosmicAIProbe::CFindFeat);
+ 	return FindRowQuiet<FAscensionFeatDef>(Feats, RowName);
+ }
+ 
+@@ -98,6 +106,7 @@ const FEncounterDef* FCosmicDataTables::FindEncounter(FName RowName) const
+ 
+ const FEdictDef* FCosmicDataTables::FindEdict(FName RowName) const
+ {
++	CosmicAIProbe::Count(CosmicAIProbe::CFindEdict);
+ 	return FindRowQuiet<FEdictDef>(Edicts, RowName);
+ }
+ 
+@@ -111,6 +120,8 @@ const FHazardDef* FCosmicDataTables::FindHazardByTag(FGameplayTag Tag, FName* Ou
+ 	{
+ 		return nullptr;
+ 	}
++	CosmicAIProbe::Count(CosmicAIProbe::CHazardByTag);
++	CosmicAIProbe::FPrimScope ProbePrim(CosmicAIProbe::BPrimHazardByTag);
+ 	for (const FName RowName : GetHazardRowNames())
+ 	{
+ 		const FHazardDef* Row = FindHazard(RowName);
+@@ -128,6 +139,7 @@ const FHazardDef* FCosmicDataTables::FindHazardByTag(FGameplayTag Tag, FName* Ou
+ 
+ TArray<FName> FCosmicDataTables::GetEventRowNames() const
+ {
++	CosmicAIProbe::Count(CosmicAIProbe::CEventNames);
+ 	TArray<FName> Names = Events ? Events->GetRowNames() : TArray<FName>();
+ 	Names.Sort(FNameLexicalLess());
+ 	return Names;
+@@ -142,6 +154,7 @@ TArray<FName> FCosmicDataTables::GetTranscendentRowNames() const
+ 
+ TArray<FName> FCosmicDataTables::GetHazardRowNames() const
+ {
++	CosmicAIProbe::Count(CosmicAIProbe::CHazardNames);
+ 	TArray<FName> Names = Hazards ? Hazards->GetRowNames() : TArray<FName>();
+ 	Names.Sort(FNameLexicalLess());
+ 	return Names;
+@@ -149,6 +162,8 @@ TArray<FName> FCosmicDataTables::GetHazardRowNames() const
+ 
+ TArray<FName> FCosmicDataTables::GetFeatRowNames() const
+ {
++	CosmicAIProbe::Count(CosmicAIProbe::CFeatNames);
++	CosmicAIProbe::FPrimScope ProbePrim(CosmicAIProbe::BPrimFeatNames);
+ 	TArray<FName> Names = Feats ? Feats->GetRowNames() : TArray<FName>();
+ 	Names.Sort(FNameLexicalLess());
+ 	return Names;
+@@ -163,6 +178,8 @@ TArray<FName> FCosmicDataTables::GetEncounterRowNames() const
+ 
+ bool FCosmicDataTables::IsHazardAnswer(FName RowName) const
+ {
++	CosmicAIProbe::Count(CosmicAIProbe::CHazardAnswer);
++	CosmicAIProbe::FPrimScope ProbePrim(CosmicAIProbe::BPrimHazardAnswer);
+ 	if (RowName.IsNone() || !Hazards)
+ 	{
+ 		return false;
+@@ -180,6 +197,8 @@ bool FCosmicDataTables::IsHazardAnswer(FName RowName) const
+ 
+ TArray<FName> FCosmicDataTables::GetEdictRowNames() const
+ {
++	CosmicAIProbe::Count(CosmicAIProbe::CEdictNames);
++	CosmicAIProbe::FPrimScope ProbePrim(CosmicAIProbe::BPrimEdictNames);
+ 	TArray<FName> Names = Edicts ? Edicts->GetRowNames() : TArray<FName>();
+ 	Names.Sort(FNameLexicalLess());
+ 	return Names;
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+index 9964d5e..3624eea 100644
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -1,6 +1,7 @@
+ // Cosmic Ascension - Sim layer (Core Logic).
+ 
+ #include "Sim/CosmicConflict.h"
++#include "Core/CosmicAIProbe.h"
+ 
+ #include "Core/CosmicIDs.h"
+ #include "Core/CosmicTags.h"
+@@ -488,6 +489,7 @@ CosmicConflict::FCosmicAIAim CosmicConflict::AIAimOf(const FGalaxyState& State,
+ 	const FCosmicRulesDef& Rules, int32 CivIndex, bool bLiftHeld)
+ {
+ 	FCosmicAIAim Aim;
++	CosmicAIProbe::Count(CosmicAIProbe::CAimCall);
+ 	if (!State.Civs.IsValidIndex(CivIndex))
+ 	{
+ 		return Aim;
+@@ -514,6 +516,7 @@ CosmicConflict::FCosmicAIAim CosmicConflict::AIAimOf(const FGalaxyState& State,
+ 	}
+ 	// Its borders once for the scan (Borders and ViewOf ask them a pair at a time): a bordering people's view is its
+ 	// stored relation (CosmicDiplomacy::ViewOf).
++	CosmicAIProbe::Count(CosmicAIProbe::CAimScan);
+ 	TArray<bool> Borders;
+ 	CosmicDiplomacy::BordersOf(State, Index, CivIndex, Borders);
+ 	// The people the ruled people's fleet besieges, if any.
+@@ -551,6 +554,7 @@ CosmicConflict::FCosmicAIAim CosmicConflict::AIAimOf(const FGalaxyState& State,
+ 		for (int32 SystemIndex = 0; SystemIndex < State.Systems.Num(); ++SystemIndex)
+ 		{
+ 			if (State.Systems[SystemIndex].OwnerCivID == Them.CivID
++				&& CosmicAIProbe::CountTrue(CosmicAIProbe::CAimSiegeChecks)
+ 				&& CosmicConflictImpl::SiegeBlockWith(State, Index, Rules, CivIndex, SystemIndex, true, bLiftHeld) == ECosmicSiegeBlock::None
+ 				&& !(UGalaxySimulationSubsystem::ComputeAttritionPressureIn(State, Index, Tables, Rules, CivIndex, SystemIndex).P > 0.f))
+ 			{
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+index 283dc24..8594a6b 100644
+--- a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+@@ -1,6 +1,7 @@
+ // Cosmic Ascension - Sim layer (Core Logic).
+ 
+ #include "Sim/CosmicDiplomacy.h"
++#include "Core/CosmicAIProbe.h"
+ 
+ #include "Core/CosmicTags.h"
+ #include "Core/CosmicTypes.h"
+@@ -69,6 +70,7 @@ namespace CosmicDiplomacyImpl
+ 	// system of the people CivIndex, within that system's GalaxyRow. The people itself is never marked.
+ 	void MarkNeighboursOf(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 CivIndex, TArray<bool>& Out)
+ 	{
++		CosmicAIProbe::Count(CosmicAIProbe::CMarkNeighbours);
+ 		Out.Init(false, State.Civs.Num());
+ 		const FCivilizationState& Civ = State.Civs[CivIndex];
+ 		TArray<int32, TInlineAllocator<16>> Settled;
+@@ -435,6 +437,7 @@ bool CosmicDiplomacy::AsksForTreatyOf(const FGalaxyState& State, const FCosmicSt
+ 		return false;
+ 	}
+ 	const FCivilizationState& Civ = State.Civs[CivIndex];
++	CosmicAIProbe::Count(CosmicAIProbe::CAsksTreatyCall);
+ 	for (const FName FeatRow : Tables.GetFeatRowNames())
+ 	{
+ 		const FAscensionFeatDef* Feat = Tables.FindFeat(FeatRow);
+@@ -469,10 +472,18 @@ int32 CosmicDiplomacy::AITreatyPartnerOf(const FGalaxyState& State, const FCosmi
+ 	BordersOf(State, Index, CivIndex, Bordering);
+ 	for (int32 Other = 0; Other < State.Civs.Num(); ++Other)
+ 	{
+-		if (Bordering[Other] && !State.Civs[Other].bIsPlayerRuled
+-			&& TreatyBlockOf(State, Index, Tables, Rules, CivIndex, State.Civs[Other].CivID, CosmicTags::TreatyNonAggression(), true) == ECosmicTreatyBlock::None)
++		if (Bordering[Other] && !State.Civs[Other].bIsPlayerRuled)
+ 		{
+-			return Other;
++			CosmicAIProbe::Count(CosmicAIProbe::CPartnerCands);
++			const ECosmicTreatyBlock ProbeBlock = TreatyBlockOf(State, Index, Tables, Rules, CivIndex, State.Civs[Other].CivID, CosmicTags::TreatyNonAggression(), true);
++			if (CosmicAIProbe::On() && CosmicAIProbe::GStage == CosmicAIProbe::SAI)
++			{
++				++CosmicAIProbe::GTreatyReason[FMath::Clamp(static_cast<int32>(ProbeBlock), 0, 15)];
++			}
++			if (ProbeBlock == ECosmicTreatyBlock::None)
++			{
++				return Other;
++			}
+ 		}
+ 	}
+ 	return INDEX_NONE;
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+index f2f3fc5..bc85791 100644
+--- a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+@@ -1,6 +1,7 @@
+ // Cosmic Ascension - Sim layer (Core Logic).
+ 
+ #include "Sim/CosmicEdicts.h"
++#include "Core/CosmicAIProbe.h"
+ 
+ #include "Core/CosmicTypes.h"
+ #include "Core/GalaxyState.h"
+@@ -47,6 +48,7 @@ int32 CosmicEdicts::HeldCountOf(const FCivilizationState& Civ, const FCosmicData
+ CosmicEdicts::ECosmicEdictBlock CosmicEdicts::EnactBlockOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
+ 	const FCosmicRulesDef& Rules, int32 CivIndex, FName Row)
+ {
++	CosmicAIProbe::Count(CosmicAIProbe::CEnactBlock);
+ 	const FEdictDef* Def = Row.IsNone() ? nullptr : Tables.FindEdict(Row);
+ 	if (!Def || !State.Civs.IsValidIndex(CivIndex))
+ 	{
+@@ -241,6 +243,7 @@ bool CosmicEdicts::HoldsGalaxyLawsOf(const FCivilizationState& Civ, const FCosmi
+ 
+ bool CosmicEdicts::AsksForLawsOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables)
+ {
++	CosmicAIProbe::Count(CosmicAIProbe::CAsksLawsCall);
+ 	if (static_cast<uint8>(Civ.Tier) < static_cast<uint8>(EAscensionTier::Tier4_Transcendent))
+ 	{
+ 		return false;
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+index 228ba68..bcb93b5 100644
+--- a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+@@ -1,6 +1,7 @@
+ // Cosmic Ascension - Sim layer.
+ 
+ #include "Sim/CosmicMegaprojects.h"
++#include "Core/CosmicAIProbe.h"
+ 
+ #include "Containers/ContainerAllocationPolicies.h"
+ #include "Core/CosmicIDs.h"
+@@ -259,6 +260,7 @@ CosmicMegaprojects::ECosmicStartBlock CosmicMegaprojects::StartBlockOf(const FGa
+ 		return ECosmicStartBlock::NoOwner;
+ 	}
+ 	// The hazard before the rung: an answer to no hazard standing here is no button at all, whatever the rung.
++	CosmicAIProbe::Count(CosmicAIProbe::CStartBlock);
+ 	const bool bAnswer = Tables.IsHazardAnswer(RowName);
+ 	if (bAnswer)
+ 	{
+@@ -323,6 +325,7 @@ TArray<TPair<int32, FName>> CosmicMegaprojects::Choices(const FGalaxyState& Stat
+ 	using namespace CosmicMegaprojectsImpl;
+ 
+ 	TArray<TPair<int32, FName>> Result;
++	CosmicAIProbe::Count(CosmicAIProbe::CChoicesCall);
+ 	if (!State.Civs.IsValidIndex(CivIndex))
+ 	{
+ 		return Result;
+@@ -358,6 +361,7 @@ TArray<TPair<int32, FName>> CosmicMegaprojects::Choices(const FGalaxyState& Stat
+ 	{
+ 		return Result;
+ 	}
++	CosmicAIProbe::Count(CosmicAIProbe::CChoicesCapital);
+ 	for (const FName FeatRow : Tables.GetFeatRowNames())
+ 	{
+ 		const FAscensionFeatDef* Feat = Tables.FindFeat(FeatRow);
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+index 13d7d07..53e840d 100644
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2,6 +2,7 @@
+ 
+ #include "Sim/GalaxySimulationSubsystem.h"
+ 
++#include "Core/CosmicAIProbe.h"
+ #include "Containers/ArrayView.h"
+ #include "Containers/BitArray.h"
+ #include "Containers/ContainerAllocationPolicies.h"
+@@ -1629,9 +1630,13 @@ void UGalaxySimulationSubsystem::SimulateTick()
+ 		Mark(0);
+ 		TickConflict();
+ 		Mark(1);
++		CosmicAIProbe::GStage = CosmicAIProbe::SCrisis;
+ 		TickHazards();
++		CosmicAIProbe::GStage = CosmicAIProbe::SNone;
+ 		Mark(2);
++		CosmicAIProbe::GStage = CosmicAIProbe::SAI;
+ 		TickCivAI();
++		CosmicAIProbe::GStage = CosmicAIProbe::SNone;
+ 		Mark(3);
+ 		StageClock.Ticks += bClock ? 1 : 0;
+ 		TickCrossings();
+@@ -2906,6 +2911,16 @@ void UGalaxySimulationSubsystem::TickCivAI()
+ 		{
+ 			continue;
+ 		}
++		if (CosmicAIProbe::On())
++		{
++			const FCivilizationState& ProbeCiv = State.Civs[CivIndex];
++			++CosmicAIProbe::GTierTicks[FMath::Clamp(static_cast<int32>(ProbeCiv.Tier), 0, 4)];
++			if (ProbeCiv.Tier == EAscensionTier::Tier3_Causal && CosmicDiplomacy::TreatyPartnersOf(ProbeCiv, FGameplayTag()) == 0)
++			{
++				++CosmicAIProbe::GT3BareTicks;
++			}
++		}
++		uint64 ProbeLap = CosmicAIProbe::Now();
+ 		// A profile that leaves claims alone does not start a claim's answer (16 #71); a construction is never one (Choices
+ 		// builds no row that answers a hazard).
+ 		const bool bLeavesClaims = Rules.ClaimLeaveProfiles.HasTagExact(State.Civs[CivIndex].AIProfile);
+@@ -2917,6 +2932,7 @@ void UGalaxySimulationSubsystem::TickCivAI()
+ 			}
+ 			CosmicMegaprojects::Start(State, StateIndex, Tables, Choice.Key, Choice.Value);
+ 		}
++		CosmicAIProbe::Lap(CosmicAIProbe::BChoices, ProbeLap);
+ 		if (CosmicMegaprojects::MaySettle(State, StateIndex, Rules, CivIndex))
+ 		{
+ 			const float Roll = Rng.GetFraction();
+@@ -2928,6 +2944,7 @@ void UGalaxySimulationSubsystem::TickCivAI()
+ 				CosmicMegaprojects::Settle(Ctx, CivIndex, Targets[Pick]);
+ 			}
+ 		}
++		CosmicAIProbe::Lap(CosmicAIProbe::BSettle, ProbeLap);
+ 		// The AI holds no edict of the people's scope (B2 section 2.6): it revokes what it holds - an edict with a Stability
+ 		// cost once below DT_Rules.AIEdictRevokeStability, any other at once. No draw, no line. A regent revokes what the
+ 		// ruler left - but a galaxy law, which AIRevokesOf passes by (B6b decision 11).
+@@ -2935,6 +2952,7 @@ void UGalaxySimulationSubsystem::TickCivAI()
+ 		{
+ 			CosmicEdicts::Revoke(State.Civs[CivIndex], Row);
+ 		}
++		CosmicAIProbe::Lap(CosmicAIProbe::BRevoke, ProbeLap);
+ 		// The two steps a judged row asks of an AI people (B6b decision 1), right after the revocations and before its
+ 		// diplomacy, so that the siege aim of this tick (CosmicConflict::AIAimOf passes a non-aggression partner by) sees the
+ 		// treaty. Both do nothing while no judged row asks - no draw, no line, no knowing write either way.
+@@ -2943,6 +2961,7 @@ void UGalaxySimulationSubsystem::TickCivAI()
+ 		// lapsed by its upkeep is enacted again here.
+ 		if (CosmicEdicts::AsksForLawsOf(State.Civs[CivIndex], Tables))
+ 		{
++			CosmicAIProbe::Count(CosmicAIProbe::CAsksLawsTrue);
+ 			for (const FName Law : CosmicEdicts::GalaxyLawRowsOf(Tables))
+ 			{
+ 				const FEdictDef* Def = Tables.FindEdict(Law);
+@@ -2952,12 +2971,18 @@ void UGalaxySimulationSubsystem::TickCivAI()
+ 				}
+ 			}
+ 		}
++		CosmicAIProbe::Lap(CosmicAIProbe::BLaws, ProbeLap);
+ 		// The treaty step (decision 1): under a row whose CivHasTreaty does not hold, at most one a tick - a non-aggression
+ 		// with the first bordering people the player does not rule that the gate takes (bMet true: the world never reads
+ 		// knowing), paid as the command pays (DT_Rules.TreatyCostInfluence) and signed.
+ 		if (CosmicDiplomacy::AsksForTreatyOf(State, StateIndex, Tables, Rules, CivIndex))
+ 		{
+-			const int32 Partner = CosmicDiplomacy::AITreatyPartnerOf(State, StateIndex, Tables, Rules, CivIndex);
++			CosmicAIProbe::Count(CosmicAIProbe::CAsksTreatyTrue);
++			int32 Partner = INDEX_NONE;
++			{
++				CosmicAIProbe::FScope ProbePartner(CosmicAIProbe::BTreatyPartner);
++				Partner = CosmicDiplomacy::AITreatyPartnerOf(State, StateIndex, Tables, Rules, CivIndex);
++			}
+ 			if (Partner != INDEX_NONE)
+ 			{
+ 				FResourcePool Cost;
+@@ -2966,11 +2991,14 @@ void UGalaxySimulationSubsystem::TickCivAI()
+ 				CosmicDiplomacy::Sign(State, CivIndex, Partner, CosmicTags::TreatyNonAggression());
+ 			}
+ 		}
++		CosmicAIProbe::Lap(CosmicAIProbe::BTreaty, ProbeLap);
+ 		// Its diplomacy (B3 section 2.8): no draw, no profile.
+ 		TickAIDiplomacy(CivIndex);
++		CosmicAIProbe::Lap(CosmicAIProbe::BDiplomacy, ProbeLap);
+ 	}
+ 
+ 	// (b) The feat judgment, once per tick.
++	CosmicAIProbe::FScope ProbeFeats(CosmicAIProbe::BFeats);
+ 	UAscensionSubsystem* Ascension = GetGameInstance()->GetSubsystem<UAscensionSubsystem>();
+ 	check(Ascension);
+ 	Ascension->EvaluateFeats(State, Rng);
+@@ -3014,7 +3042,11 @@ void UGalaxySimulationSubsystem::TickAIDiplomacy(int32 CivIndex)
+ 
+ 	// (3) A hostility opens only with a siege: the gate and the target are one pure function (CosmicConflict::AIAimOf - B5;
+ 	// the measurement of open question #126 asks it too).
+-	const CosmicConflict::FCosmicAIAim Aimed = CosmicConflict::AIAimOf(State, StateIndex, Tables, Rules, CivIndex, false);
++	CosmicConflict::FCosmicAIAim Aimed;
++	{
++		CosmicAIProbe::FScope ProbeAim(CosmicAIProbe::BAim);
++		Aimed = CosmicConflict::AIAimOf(State, StateIndex, Tables, Rules, CivIndex, false);
++	}
+ 	if (Aimed.System == INDEX_NONE)
+ 	{
+ 		return;
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp b/Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp
+index d28e998..4d594ef 100644
+--- a/Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp
++++ b/Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp
+@@ -56,6 +56,298 @@
+ #include "Tests/CosmicTestHelpers.h"
+ #endif
+ 
++#include "Core/CosmicAIProbe.h"
++
++// TEMPORARY (SAND only): the AI-stage probe's report and the same-state bench.
++namespace CosmicAIProbeReport
++{
++	static const TCHAR* const CountNames[] = { TEXT("featNames"), TEXT("hazardNames"), TEXT("edictNames"), TEXT("eventNames"), TEXT("hazardAnswer"),
++		TEXT("hazardByTag"), TEXT("findFeat"), TEXT("findEdict"), TEXT("findHazard"), TEXT("findProject"), TEXT("findGalaxy"), TEXT("findTrans"),
++		TEXT("findArch"), TEXT("findEvent"), TEXT("asksTreatyCall"), TEXT("asksTreatyTrue"), TEXT("partnerCands"), TEXT("markNeighbours"),
++		TEXT("aimCall"), TEXT("aimScan"), TEXT("aimSiegeChecks"), TEXT("asksLawsCall"), TEXT("asksLawsTrue"), TEXT("enactBlock"), TEXT("judgeCall"),
++		TEXT("judgeBraked"), TEXT("judgeCheckAll"), TEXT("choicesCall"), TEXT("choicesCapital"), TEXT("startBlock") };
++	static_assert(UE_ARRAY_COUNT(CountNames) == CosmicAIProbe::CNum, "count names");
++
++	int64 JudgeReplica(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex)
++	{
++		TArray<int32, TInlineAllocator<8>> Settled;
++		for (const FName SystemID : State.Civs[CivIndex].OwnedSystems)
++		{
++			const int32 SystemIndex = Index.FindSystem(State, SystemID);
++			if (State.Systems.IsValidIndex(SystemIndex) && State.Systems[SystemIndex].OwnerCivID == State.Civs[CivIndex].CivID && CosmicState::IsSettled(State.Systems[SystemIndex]))
++			{
++				Settled.Add(SystemIndex);
++			}
++		}
++		if (Settled.IsEmpty())
++		{
++			return 0;
++		}
++		if (State.Civs[CivIndex].Tier == EAscensionTier::Tier3_Causal && !CosmicAscent::FourthRungOpenOf(State, Tables, State.Civs[CivIndex].GalaxyRow))
++		{
++			return 1;
++		}
++		int64 Out = 2;
++		for (const FName FeatRow : Tables.GetFeatRowNames())
++		{
++			const FAscensionFeatDef* Feat = Tables.FindFeat(FeatRow);
++			const EAscensionTier Tier = State.Civs[CivIndex].Tier;
++			if (!Feat || !Feat->IsJudgedRulerRowAt(Tier))
++			{
++				continue;
++			}
++			for (const int32 SystemIndex : Settled)
++			{
++				FCosmicEvalView View(State, Index, Tables, Rules);
++				View.CivIndex = CivIndex;
++				View.SystemIndex = SystemIndex;
++				View.GalaxyRow = State.Civs[CivIndex].GalaxyRow;
++				View.SourceRow = FeatRow;
++				View.SinceTick = 0;
++				Out += UCosmicEventSubsystem::CheckAll(Feat->CompletionConditions, View) ? 10 : 3;
++			}
++		}
++		return Out;
++	}
++
++	int64 LawsReplica(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex)
++	{
++		int64 Out = 0;
++		if (CosmicEdicts::AsksForLawsOf(State.Civs[CivIndex], Tables))
++		{
++			for (const FName Law : CosmicEdicts::GalaxyLawRowsOf(Tables))
++			{
++				const FEdictDef* Def = Tables.FindEdict(Law);
++				Out += (Def && CosmicEdicts::EnactBlockOf(State, Index, Tables, Rules, CivIndex, Law) == CosmicEdicts::ECosmicEdictBlock::None) ? 3 : 1;
++			}
++		}
++		return Out;
++	}
++
++	void Print(UGalaxySimulationSubsystem* Sim, const FCosmicStageClock& Clock, double PerCycle, double Ticked)
++	{
++		using namespace CosmicAIProbe;
++		auto Us = [PerCycle, Ticked](int32 B) { return static_cast<double>(GCycles[B]) * PerCycle / Ticked; };
++		auto Hit = [Ticked](int32 B) { return static_cast<double>(GHits[B]) / Ticked; };
++		const double Stage = Clock.Cycles[3] * PerCycle / Ticked;
++		const double Laps = Us(BChoices) + Us(BSettle) + Us(BRevoke) + Us(BLaws) + Us(BTreaty) + Us(BDiplomacy) + Us(BFeats);
++		UE_LOG(LogCosmic, Display, TEXT("CosmicProbe blocks us/tick: choices %.3f settle %.3f revoke %.3f laws %.3f treaty %.3f partner %.3f diplomacy %.3f aim %.3f feats %.3f brake %.3f rows %.3f; prim featNames %.3f hazardByTag %.3f hazardAnswer %.3f edictNames %.3f; laps %.3f stage %.3f economy %.3f crisis %.3f; level %d ticks %.0f"),
++			Us(BChoices), Us(BSettle), Us(BRevoke), Us(BLaws), Us(BTreaty), Us(BTreatyPartner), Us(BDiplomacy), Us(BAim), Us(BFeats), Us(BBrake), Us(BJudgeRows),
++			Us(BPrimFeatNames), Us(BPrimHazardByTag), Us(BPrimHazardAnswer), Us(BPrimEdictNames), Laps, Stage, Clock.Cycles[4] * PerCycle / Ticked,
++			Clock.Cycles[2] * PerCycle / Ticked, GLevel, Ticked);
++		UE_LOG(LogCosmic, Display, TEXT("CosmicProbe block hits/tick: choices %.2f partner %.3f aim %.2f brake %.3f rows %.2f prim featNames %.2f hazardByTag %.2f hazardAnswer %.2f edictNames %.3f"),
++			Hit(BChoices), Hit(BTreatyPartner), Hit(BAim), Hit(BBrake), Hit(BJudgeRows), Hit(BPrimFeatNames), Hit(BPrimHazardByTag), Hit(BPrimHazardAnswer), Hit(BPrimEdictNames));
++		for (int32 S = SCrisis; S <= SAI; ++S)
++		{
++			FString Line;
++			for (int32 C = 0; C < CNum; ++C)
++			{
++				Line += FString::Printf(TEXT(" %s=%.3f"), CountNames[C], static_cast<double>(GCount[S][C]) / Ticked);
++			}
++			UE_LOG(LogCosmic, Display, TEXT("CosmicProbe counts/tick %s:%s"), S == SAI ? TEXT("AI") : TEXT("crisis"), *Line);
++		}
++		FString Reasons;
++		for (int32 R = 0; R < 16; ++R)
++		{
++			if (GTreatyReason[R] > 0)
++			{
++				Reasons += FString::Printf(TEXT(" %d=%lld"), R, GTreatyReason[R]);
++			}
++		}
++		UE_LOG(LogCosmic, Display, TEXT("CosmicProbe census AI-people ticks/tick: T1 %.3f T2 %.3f T3 %.3f T4 %.3f T5 %.3f; T3 without treaty %.3f; partner blocks (ECosmicTreatyBlock index=count):%s"),
++			GTierTicks[0] / Ticked, GTierTicks[1] / Ticked, GTierTicks[2] / Ticked, GTierTicks[3] / Ticked, GTierTicks[4] / Ticked, GT3BareTicks / Ticked, *Reasons);
++
++		// The bench: pure reads of the final state, three table sets, three rounds, the least time kept. No draw, no write.
++		const int32 WasLevel = GLevel;
++		GLevel = 0;
++		const FGalaxyState& State = Sim->GetState();
++		const FCosmicStateIndex& Index = Sim->GetStateIndex();
++		const FCosmicRulesDef& Rules = Sim->GetRules();
++		const FCosmicDataTables& Live = Sim->GetTables();
++#if WITH_DEV_AUTOMATION_TESTS
++		FCosmicDataTables Copy = Live;
++		Copy.Feats = CosmicTests::CopyWithout<FAscensionFeatDef>(Live.Feats, {});
++		Copy.Megaprojects = CosmicTests::CopyWithout<FMegaprojectDef>(Live.Megaprojects, {});
++		Copy.Hazards = CosmicTests::CopyWithout<FHazardDef>(Live.Hazards, {});
++		Copy.Edicts = CosmicTests::CopyWithout<FEdictDef>(Live.Edicts, {});
++		Copy.Events = CosmicTests::CopyWithout<FCosmicEventDef>(Live.Events, {});
++		Copy.Encounters = CosmicTests::CopyWithout<FEncounterDef>(Live.Encounters, {});
++		const FCosmicDataTables Off = CosmicTests::WithoutB6bData(Live);
++		const FCosmicDataTables* Sets[3] = { &Live, &Copy, &Off };
++		const TCHAR* SetNames[3] = { TEXT("live"), TEXT("copy"), TEXT("off") };
++#else
++		const FCosmicDataTables* Sets[1] = { &Live };
++		const TCHAR* SetNames[1] = { TEXT("live") };
++#endif
++		constexpr int32 NumSets = UE_ARRAY_COUNT(Sets);
++		TArray<int32> AIPeoples;
++		TArray<int32> Askers;
++		for (int32 C = 0; C < State.Civs.Num(); ++C)
++		{
++			if (!State.Civs[C].bIsPlayerRuled)
++			{
++				AIPeoples.Add(C);
++				if (CosmicDiplomacy::AsksForTreatyOf(State, Index, Live, Rules, C))
++				{
++					Askers.Add(C);
++				}
++			}
++		}
++		TArray<FGameplayTag> HazardTags;
++		for (const FName Row : Live.GetHazardRowNames())
++		{
++			if (const FHazardDef* Def = Live.FindHazard(Row))
++			{
++				HazardTags.AddUnique(Def->HazardTag);
++			}
++		}
++		const TArray<FName> OffFeats = Sets[NumSets - 1]->GetFeatRowNames();
++		const FName SomeFeat = OffFeats.Num() ? OffFeats[0] : NAME_None;
++		const FName SettleRow(TEXT("project_settle"));
++		const FName ArkRow(TEXT("project_ark"));
++		struct FItem
++		{
++			const TCHAR* Name;
++			int32 N;
++			bool bPerTick;
++			TFunction<int64(const FCosmicDataTables&)> Body;
++		};
++		TArray<FItem> Items;
++		Items.Add({ TEXT("featNames"), 20000, false, [](const FCosmicDataTables& T) -> int64 { return T.GetFeatRowNames().Num(); } });
++		Items.Add({ TEXT("featRowNamesNoSort"), 20000, false, [](const FCosmicDataTables& T) -> int64 { return T.Feats ? T.Feats->GetRowNames().Num() : 0; } });
++		Items.Add({ TEXT("hazardNames"), 20000, false, [](const FCosmicDataTables& T) -> int64 { return T.GetHazardRowNames().Num(); } });
++		Items.Add({ TEXT("edictNames"), 20000, false, [](const FCosmicDataTables& T) -> int64 { return T.GetEdictRowNames().Num(); } });
++		Items.Add({ TEXT("eventNames"), 2000, false, [](const FCosmicDataTables& T) -> int64 { return T.GetEventRowNames().Num(); } });
++		Items.Add({ TEXT("findFeat"), 50000, false, [SomeFeat](const FCosmicDataTables& T) -> int64 { return T.FindFeat(SomeFeat) ? 1 : 0; } });
++		Items.Add({ TEXT("hazardByTagAvg"), 20000, false, [&HazardTags](const FCosmicDataTables& T) -> int64
++			{
++				int64 Out = 0;
++				for (const FGameplayTag& Tag : HazardTags)
++				{
++					Out += T.FindHazardByTag(Tag) ? 1 : 0;
++				}
++				return Out;
++			} });
++		Items.Add({ TEXT("hazardAnswerMiss"), 20000, false, [SettleRow](const FCosmicDataTables& T) -> int64 { return T.IsHazardAnswer(SettleRow) ? 1 : 0; } });
++		Items.Add({ TEXT("hazardAnswerArk"), 20000, false, [ArkRow](const FCosmicDataTables& T) -> int64 { return T.IsHazardAnswer(ArkRow) ? 1 : 0; } });
++		Items.Add({ TEXT("tickChoices"), 2000, true, [&](const FCosmicDataTables& T) -> int64
++			{
++				int64 Out = 0;
++				for (const int32 C : AIPeoples)
++				{
++					Out += CosmicMegaprojects::Choices(State, Index, T, C, 0).Num();
++				}
++				return Out;
++			} });
++		Items.Add({ TEXT("tickAsksTreaty"), 2000, true, [&](const FCosmicDataTables& T) -> int64
++			{
++				int64 Out = 0;
++				for (const int32 C : AIPeoples)
++				{
++					Out += CosmicDiplomacy::AsksForTreatyOf(State, Index, T, Rules, C) ? 1 : 0;
++				}
++				return Out;
++			} });
++		Items.Add({ TEXT("tickPartnerOfLiveAskers"), 2000, true, [&](const FCosmicDataTables& T) -> int64
++			{
++				int64 Out = 0;
++				for (const int32 C : Askers)
++				{
++					Out += CosmicDiplomacy::AITreatyPartnerOf(State, Index, T, Rules, C);
++				}
++				return Out;
++			} });
++		Items.Add({ TEXT("tickAim"), 2000, true, [&](const FCosmicDataTables& T) -> int64
++			{
++				int64 Out = 0;
++				for (const int32 C : AIPeoples)
++				{
++					Out += CosmicConflict::AIAimOf(State, Index, T, Rules, C, false).System;
++				}
++				return Out;
++			} });
++		Items.Add({ TEXT("tickLaws"), 2000, true, [&](const FCosmicDataTables& T) -> int64
++			{
++				int64 Out = 0;
++				for (const int32 C : AIPeoples)
++				{
++					Out += LawsReplica(State, Index, T, Rules, C);
++				}
++				return Out;
++			} });
++		Items.Add({ TEXT("tickJudge"), 2000, true, [&](const FCosmicDataTables& T) -> int64
++			{
++				int64 Out = 0;
++				for (const int32 C : AIPeoples)
++				{
++					Out += JudgeReplica(State, Index, T, Rules, C);
++				}
++				return Out;
++			} });
++		TArray<double> Best;
++		Best.Init(TNumericLimits<double>::Max(), Items.Num() * NumSets);
++		TArray<int64> Sinks;
++		Sinks.Init(0, Items.Num() * NumSets);
++		for (int32 Round = 0; Round < 3; ++Round)
++		{
++			for (int32 I = 0; I < Items.Num(); ++I)
++			{
++				for (int32 SetIndex = 0; SetIndex < NumSets; ++SetIndex)
++				{
++					const FCosmicDataTables& T = *Sets[SetIndex];
++					int64 Sink = 0;
++					const uint64 T0 = FPlatformTime::Cycles64();
++					for (int32 K = 0; K < Items[I].N; ++K)
++					{
++						Sink += Items[I].Body(T);
++					}
++					const uint64 T1 = FPlatformTime::Cycles64();
++					const double Ns = static_cast<double>(T1 - T0) * PerCycle * 1000.0 / Items[I].N;
++					Best[I * NumSets + SetIndex] = FMath::Min(Best[I * NumSets + SetIndex], Ns);
++					Sinks[I * NumSets + SetIndex] = Sink / Items[I].N;
++				}
++			}
++		}
++		for (int32 I = 0; I < Items.Num(); ++I)
++		{
++			FString Line;
++			for (int32 SetIndex = 0; SetIndex < NumSets; ++SetIndex)
++			{
++				Line += FString::Printf(TEXT(" %s %.1f (r%lld)"), SetNames[SetIndex], Best[I * NumSets + SetIndex], Sinks[I * NumSets + SetIndex]);
++			}
++			UE_LOG(LogCosmic, Display, TEXT("CosmicProbe bench %s ns/%s:%s"), Items[I].Name, Items[I].bPerTick ? TEXT("tick") : TEXT("call"), *Line);
++		}
++		{
++			const FName A(TEXT("feat_passage_by_ark"));
++			const FName B(TEXT("feat_laws_and_binding"));
++			double BestCmp = TNumericLimits<double>::Max();
++			double BestQpc = TNumericLimits<double>::Max();
++			int64 Sink = 0;
++			for (int32 Round = 0; Round < 3; ++Round)
++			{
++				uint64 T0 = FPlatformTime::Cycles64();
++				for (int32 K = 0; K < 200000; ++K)
++				{
++					Sink += FNameLexicalLess()(((K & 1) ? A : B), ((K & 1) ? B : A)) ? 1 : 0;
++				}
++				uint64 T1 = FPlatformTime::Cycles64();
++				BestCmp = FMath::Min(BestCmp, static_cast<double>(T1 - T0) * PerCycle * 1000.0 / 200000);
++				T0 = FPlatformTime::Cycles64();
++				for (int32 K = 0; K < 200000; ++K)
++				{
++					const uint64 X = FPlatformTime::Cycles64();
++					Sink += static_cast<int64>(FPlatformTime::Cycles64() - X);
++				}
++				T1 = FPlatformTime::Cycles64();
++				BestQpc = FMath::Min(BestQpc, static_cast<double>(T1 - T0) * PerCycle * 1000.0 / 200000);
++			}
++			UE_LOG(LogCosmic, Display, TEXT("CosmicProbe bench lexicalCompare %.1f ns, Cycles64 pair %.1f ns; AI peoples %d, askers %d, hazard tags %d (sink %lld)"),
++				BestCmp, BestQpc, AIPeoples.Num(), Askers.Num(), HazardTags.Num(), Sink);
++		}
++		GLevel = WasLevel;
++	}
++}
++
+ namespace
+ {
+ 	constexpr int64 SampleEveryTicks = 100;
+@@ -1511,6 +1803,8 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
+ 	int32 WithoutB6bData = 0;
+ 	int32 FourthRungCap = -1;
+ 	FParse::Value(*Params, TEXT("WithoutB6bData="), WithoutB6bData);
++	int32 AIProbe = 0;
++	FParse::Value(*Params, TEXT("AIProbe="), AIProbe);
+ 	const bool bCapGiven = FParse::Value(*Params, TEXT("FourthRungCap="), FourthRungCap);
+ 	// The home galaxy row too (-Systems and -Civs 0): the game never builds another size.
+ 	const bool bSaveShape = TellAll == 0 && RulesText.IsEmpty() && WithoutPressure == 0 && Systems == 0 && Civs == 0 && DeathAt < 0 && WithoutDeath == 0
+@@ -1652,6 +1946,8 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
+ 		Sim->NewGalaxy(Seed, Systems, Civs);
+ 		Sim->GetStageClock() = FCosmicStageClock();
+ 		Sim->GetStageClock().bOn = true;
++		CosmicAIProbe::Reset();
++		CosmicAIProbe::GLevel = AIProbe;
+ 		const FGalaxyState& State = Sim->GetState();
+ 		const FCosmicStateIndex& StateIndex = Sim->GetStateIndex();
+ 		const FCosmicRulesDef& RulesNow = Sim->GetRules();
+@@ -3736,6 +4032,10 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
+ 				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance stages: diplomacy %.2f us, conflict %.2f us, crisis %.2f us, AI %.2f us (means of %lld ticks); diplomacy + conflict %.1f%% of the tick mean; economy %.2f us, card presentation %.2f us"),
+ 					Diplomacy0, Conflict1, Clock.Cycles[2] * PerCycle / Ticked, Clock.Cycles[3] * PerCycle / Ticked, Clock.Ticks,
+ 					TickMean > 0.0 ? 100.0 * (Diplomacy0 + Conflict1) / TickMean : 0.0, Clock.Cycles[4] * PerCycle / Ticked, Clock.Cycles[5] * PerCycle / Ticked);
++				if (CosmicAIProbe::On())
++				{
++					CosmicAIProbeReport::Print(Sim, Clock, PerCycle, Ticked);
++				}
+ 			}
+ 			// The wanderer's side (B1): only when the run asked for it (the lines of the runs before B1 stay as they were).
+ 			if (AbdicateAt > 0 || Wander != 0)

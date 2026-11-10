@@ -1,0 +1,11 @@
+[B-7x0] 승인 문서 — 통합 브랜치: B7x 헤더·노트·받은 설계서·동결본 둘, systems.md의 번복 표지, B2 헤더의 표지, SECTION_MAP 세 줄
+
+- 설계 브랜치의 79f2583(개발자가 2026-11-10 모든 결정에 '권장대로'로 답한 판)에서 다섯 파일을 글자 그대로 들였다: B7x 헤더, B7x 노트, 받은 꼴만 남은 설계서 docs/10_DESIGN/EXISTENCE_EVOLUTION_AND_ECOLOGY.md, 동결본 둘(docs/archive/EXISTENCE_EVOLUTION_original_2026-11-09.md, docs/archive/OVERVIEW_as_of_B6a.html).
+- docs/10_DESIGN/systems.md: 섭식 칸의 판정('Trait.Diet.* 없음')에 번복 표지를 달았다 — 결정 2, 읽는 곳이 있는 블록은 Brick. 뿌리 아래 선언하고 읽는 곳이 없는 태그는 여전히 ini에 넣지 않는다(헤더 §0 R1).
+- B2 헤더 §2.6의 두 문장('AI는 칙령을 내리지 않고 지니지 않는다', 섭정 아래 백성의 철회)에 B7x 표지를 달았다 — 결정 18의 좁힘, 글은 B7x 헤더 R12 한 곳에.
+- docs/SECTION_MAP.md의 옛 위치 표 끝에 세 줄을 더했다: 설계서 원안의 동결본, OVERVIEW html의 동결본, 1단계 분석 산출물(docs/archive/analysis_2026-10-18/).
+- docs/OVERVIEW.html은 건드리지 않았다(다른 파일이다).
+- B6b가 아직 고치고 있는 살아 있는 문서는 이번에 고치지 않았다 — B6b가 끝난 뒤에 쓴다: STATUS.md, DECISIONS_LOG의 B7x 절, OPEN_QUESTIONS의 #36 ②·#88 행 고침과 새 행(번호), docs/50_ROADMAP.md의 B 행과 수량, CLAUDE.md의 docs/archive 행(목록 없이 짧게 고쳐 쓰기).
+- 점검: check_docs 오류 0.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>

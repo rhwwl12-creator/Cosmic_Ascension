@@ -1,0 +1,214 @@
+# rename_leaves.py sites in C:/Users/rhwwl/AppData/Local/Temp/claude/c--Users-rhwwl-OneDrive-Documents-Unreal-Projects-Cosmic-Ascension/37de2919-0c44-45d8-94cd-4dcf0860263e/scratchpad/b7x/answers/rename/pristine (line numbers of the tree before the run)
+Config/DefaultGameplayTags.ini:172  Brick.Form.DysonBrain -> Brick.Form.ShutSphere
+Config/DefaultGameplayTags.ini:173  Brick.Form.UnseenLaw -> Brick.Form.KeptLaw
+Config/DefaultGameplayTags.ini:173  an unseen law -> a kept law
+Config/DefaultGameplayTags.ini:176  Brick.Diet.SilenceFeed -> Brick.Diet.IdleFeed
+Config/DefaultGameplayTags.ini:176  BrickQuietInsightPerTick -> BrickIdleInsightPerTick
+Config/DefaultGameplayTags.ini:176  ; leaf rename to QuietFeed proposed before any save -> (removed)
+Config/DefaultGameplayTags.ini:176  feeds on quiet ticks -> feeds on idle ticks
+Config/DefaultGameplayTags.ini:180  Brick.Space.HermitMonolith -> Brick.Space.ClosedPort
+Config/DefaultGameplayTags.ini:181  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Config/DefaultGameplayTags.ini:184  Brick.Mutation.StarShepherd -> Brick.Mutation.StarTow
+Config/DefaultGameplayTags.ini:185  Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand
+Config/DefaultGameplayTags.ini:186  Brick.Mutation.AbyssalMaw -> Brick.Mutation.InwardHunger
+Source/Cosmic_Ascension/Core/CosmicTags.h:192  BrickFormDysonBrain -> BrickFormShutSphere
+Source/Cosmic_Ascension/Core/CosmicTags.h:194  Brick.Form.DysonBrain -> Brick.Form.ShutSphere
+Source/Cosmic_Ascension/Core/CosmicTags.h:198  BrickFormUnseenLaw -> BrickFormKeptLaw
+Source/Cosmic_Ascension/Core/CosmicTags.h:200  Brick.Form.UnseenLaw -> Brick.Form.KeptLaw
+Source/Cosmic_Ascension/Core/CosmicTags.h:216  BrickDietSilenceFeed -> BrickDietIdleFeed
+Source/Cosmic_Ascension/Core/CosmicTags.h:218  Brick.Diet.SilenceFeed -> Brick.Diet.IdleFeed
+Source/Cosmic_Ascension/Core/CosmicTags.h:240  BrickSpaceHermitMonolith -> BrickSpaceClosedPort
+Source/Cosmic_Ascension/Core/CosmicTags.h:242  Brick.Space.HermitMonolith -> Brick.Space.ClosedPort
+Source/Cosmic_Ascension/Core/CosmicTags.h:246  BrickSpacePlanckMicro -> BrickSpaceFoldedSmall
+Source/Cosmic_Ascension/Core/CosmicTags.h:248  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Source/Cosmic_Ascension/Core/CosmicTags.h:264  BrickMutationStarShepherd -> BrickMutationStarTow
+Source/Cosmic_Ascension/Core/CosmicTags.h:266  Brick.Mutation.StarShepherd -> Brick.Mutation.StarTow
+Source/Cosmic_Ascension/Core/CosmicTags.h:270  BrickMutationKesslerTapestry -> BrickMutationDustBand
+Source/Cosmic_Ascension/Core/CosmicTags.h:272  Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand
+Source/Cosmic_Ascension/Core/CosmicTags.h:276  BrickMutationAbyssalMaw -> BrickMutationInwardHunger
+Source/Cosmic_Ascension/Core/CosmicTags.h:278  Brick.Mutation.AbyssalMaw -> Brick.Mutation.InwardHunger
+Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:1435  Brick.Diet.SilenceFeed -> Brick.Diet.IdleFeed
+Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:1435  a quiet tick -> an idle tick
+Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:1438  BrickQuietInsightPerTick -> BrickIdleInsightPerTick
+Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:1460  Brick.Space.HermitMonolith -> Brick.Space.ClosedPort
+Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:1460  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:1465  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Source/Cosmic_Ascension/Data/CosmicDefinitionRows.h:1493  Brick.Form.DysonBrain -> Brick.Form.ShutSphere
+Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp:347  Brick.Form.UnseenLaw -> Brick.Form.KeptLaw
+Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp:347  an unseen law -> a kept law
+Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp:349  BrickFormUnseenLaw -> BrickFormKeptLaw
+Source/Cosmic_Ascension/Sim/CosmicEdicts.h:136  Brick.Form.UnseenLaw -> Brick.Form.KeptLaw
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:203  IsQuietOf -> IsIdleOf
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:317  the quiet tick -> the idle tick
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:318  BrickDietSilenceFeed -> BrickDietIdleFeed
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:320  BrickQuietInsightPerTick -> BrickIdleInsightPerTick
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:320  Quiet (local) -> Idle
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:321  IsQuietOf -> IsIdleOf
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:321  Quiet (local) -> Idle
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:323  Quiet (local) -> Idle
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:395  BrickSpacePlanckMicro -> BrickSpaceFoldedSmall
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:402  BrickFormDysonBrain -> BrickFormShutSphere
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:428  BrickSpaceHermitMonolith -> BrickSpaceClosedPort
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:428  BrickSpacePlanckMicro -> BrickSpaceFoldedSmall
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:440  BrickMutationStarShepherd -> BrickMutationStarTow
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:442  BrickMutationStarShepherd -> BrickMutationStarTow
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:444  BrickMutationKesslerTapestry -> BrickMutationDustBand
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:447  BrickMutationKesslerTapestry -> BrickMutationDustBand
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:449  BrickMutationAbyssalMaw -> BrickMutationInwardHunger
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:451  BrickMutationAbyssalMaw -> BrickMutationInwardHunger
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:563  BrickFormUnseenLaw -> BrickFormKeptLaw
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:567  BrickSpacePlanckMicro -> BrickSpaceFoldedSmall
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:571  BrickSpaceHermitMonolith -> BrickSpaceClosedPort
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp:571  BrickFormDysonBrain -> BrickFormShutSphere
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h:71  Brick.Diet.SilenceFeed -> Brick.Diet.IdleFeed
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h:71  BrickQuietInsightPerTick -> BrickIdleInsightPerTick
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h:71  IsQuietOf -> IsIdleOf
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h:71  a quiet tick -> an idle tick
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h:81  a quiet tick -> an idle tick
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h:84  IsQuietOf -> IsIdleOf
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h:112  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h:113  Brick.Form.DysonBrain -> Brick.Form.ShutSphere
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h:127  Brick.Space.HermitMonolith -> Brick.Space.ClosedPort
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h:127  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h:134  StarShepherd -> StarTow
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h:134  KesslerTapestry -> DustBand
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h:134  AbyssalMaw -> InwardHunger
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h:136  Brick.Mutation.StarShepherd -> Brick.Mutation.StarTow
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h:137  Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h:137  Brick.Mutation.AbyssalMaw -> Brick.Mutation.InwardHunger
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h:194  Brick.Form.UnseenLaw -> Brick.Form.KeptLaw
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h:196  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h:198  Brick.Space.HermitMonolith -> Brick.Space.ClosedPort
+Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.h:198  Brick.Form.DysonBrain -> Brick.Form.ShutSphere
+Source/Cosmic_Ascension/Sim/CosmicMegaprojects.h:208  Brick.Space.HermitMonolith -> Brick.Space.ClosedPort
+Source/Cosmic_Ascension/Sim/CosmicMegaprojects.h:209  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2396  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp:2397  Brick.Form.DysonBrain -> Brick.Form.ShutSphere
+Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.h:556  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.h:557  Brick.Form.DysonBrain -> Brick.Form.ShutSphere
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:4  the unseen law's kept edicts -> the kept law's edicts
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:538  BrickQuietInsightPerTick -> BrickIdleInsightPerTick
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:574  The quiet tick -> The idle tick
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:575  BrickDietSilenceFeed -> BrickDietIdleFeed
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:576  IsQuietOf -> IsIdleOf
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:576  The board is quiet for people -> The board is idle for people
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:577  the silence feeder -> the idle feeder
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:577  A quiet tick -> An idle tick
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:580  IsQuietOf -> IsIdleOf
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:580  breaks the quiet -> ends the idle tick
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:583  IsQuietOf -> IsIdleOf
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:586  IsQuietOf -> IsIdleOf
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:589  IsQuietOf -> IsIdleOf
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:591  IsQuietOf -> IsIdleOf
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:591  (quiet again) -> (idle again)
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:631  BrickSpaceHermitMonolith -> BrickSpaceClosedPort
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:645  BrickSpacePlanckMicro -> BrickSpaceFoldedSmall
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:657  BrickFormDysonBrain -> BrickFormShutSphere
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:662  BrickFormDysonBrain -> BrickFormShutSphere
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:764  the unseen law -> the kept law
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:766  BrickDietSilenceFeed -> BrickDietIdleFeed
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:769  BrickFormDysonBrain -> BrickFormShutSphere
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:809  Brick.Space.HermitMonolith -> Brick.Space.ClosedPort
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:809  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:847  BrickSpaceHermitMonolith -> BrickSpaceClosedPort
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:847  BrickSpacePlanckMicro -> BrickSpaceFoldedSmall
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:886  BrickSpacePlanckMicro -> BrickSpaceFoldedSmall
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:898  the unseen law's kept edicts -> the kept law's edicts
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:899  StarShepherd -> StarTow
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:899  KesslerTapestry -> DustBand
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:899  AbyssalMaw -> InwardHunger
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:901  Brick.Form.UnseenLaw -> Brick.Form.KeptLaw
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:923  BrickMutationStarShepherd -> BrickMutationStarTow
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:923  the star shepherd -> the star tow
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:924  BrickMutationStarShepherd -> BrickMutationStarTow
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:925  BrickMutationKesslerTapestry -> BrickMutationDustBand
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:925  the Kessler tapestry -> the dust band
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:926  BrickMutationKesslerTapestry -> BrickMutationDustBand
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:927  BrickMutationAbyssalMaw -> BrickMutationInwardHunger
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:927  the abyssal maw -> the inward hunger
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:928  BrickMutationAbyssalMaw -> BrickMutationInwardHunger
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:934  The tapestry needs -> The dust band needs
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:936  BrickMutationKesslerTapestry -> BrickMutationDustBand
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:960  BrickMutationStarShepherd -> BrickMutationStarTow
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:960  is a star shepherd -> carries the star tow
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:961  BrickMutationStarShepherd -> BrickMutationStarTow
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:981  the abyssal maw -> the inward hunger
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:982  BrickMutationAbyssalMaw -> BrickMutationInwardHunger
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:987  The unseen law -> The kept law
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:997  BrickFormUnseenLaw -> BrickFormKeptLaw
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:998  an unseen law -> a kept law
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:1036  BrickFormUnseenLaw -> BrickFormKeptLaw
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:1036  The unseen law -> The kept law
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:1037  BrickSpacePlanckMicro -> BrickSpaceFoldedSmall
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:1038  BrickSpaceHermitMonolith -> BrickSpaceClosedPort
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:1038  TEXT("The hermit") -> TEXT("The closed port")
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:1039  BrickFormDysonBrain -> BrickFormShutSphere
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:1049  BrickSpacePlanckMicro -> BrickSpaceFoldedSmall
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:1049  BrickFormUnseenLaw -> BrickFormKeptLaw
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:1050  BrickSpaceHermitMonolith -> BrickSpaceClosedPort
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:1050  BrickSpacePlanckMicro -> BrickSpaceFoldedSmall
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:1051  BrickFormDysonBrain -> BrickFormShutSphere
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:1053  BrickSpaceHermitMonolith -> BrickSpaceClosedPort
+Source/Cosmic_Ascension/Tests/CosmicExistenceBricksTests.cpp:1059  BrickMutationAbyssalMaw -> BrickMutationInwardHunger
+Tools/data/DT_Encounters.json:2194  Brick.Space.HermitMonolith -> Brick.Space.ClosedPort
+Tools/data/DT_Encounters.json:2316  Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand
+Tools/data/DT_Encounters.json:2349  Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand
+Tools/data/DT_Encounters.json:2465  Brick.Mutation.StarShepherd -> Brick.Mutation.StarTow
+Tools/data/DT_Encounters.json:2492  Brick.Mutation.StarShepherd -> Brick.Mutation.StarTow
+Tools/data/DT_Encounters.json:2758  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Tools/data/DT_Encounters.json:2764  Brick.Mutation.StarShepherd -> Brick.Mutation.StarTow
+Tools/data/DT_Encounters.json:2791  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Tools/data/DT_Encounters.json:2908  Brick.Space.HermitMonolith -> Brick.Space.ClosedPort
+Tools/data/DT_Encounters.json:2914  Brick.Form.DysonBrain -> Brick.Form.ShutSphere
+Tools/data/DT_Encounters.json:2941  Brick.Form.DysonBrain -> Brick.Form.ShutSphere
+Tools/data/DT_Encounters.json:2980  Brick.Space.HermitMonolith -> Brick.Space.ClosedPort
+Tools/data/DT_Encounters.json:3065  Brick.Form.UnseenLaw -> Brick.Form.KeptLaw
+Tools/data/DT_Encounters.json:3092  Brick.Form.UnseenLaw -> Brick.Form.KeptLaw
+Tools/data/DT_Encounters.json:3220  Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand
+Tools/data/DT_Encounters.json:3382  Brick.Space.HermitMonolith -> Brick.Space.ClosedPort
+Tools/data/DT_Encounters.json:3388  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Tools/data/DT_Events.json:428  Brick.Space.HermitMonolith -> Brick.Space.ClosedPort
+Tools/data/DT_Events.json:434  Brick.Form.DysonBrain -> Brick.Form.ShutSphere
+Tools/data/DT_Events.json:702  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Tools/data/DT_Events.json:742  Brick.Mutation.AbyssalMaw -> Brick.Mutation.InwardHunger
+Tools/data/DT_Events.json:788  Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand
+Tools/data/DT_Rules.json:108  BrickQuietInsightPerTick -> BrickIdleInsightPerTick
+Tools/data/DT_Rules.json:119  Brick.Diet.SilenceFeed -> Brick.Diet.IdleFeed
+Tools/data/schema.json:245  BrickQuietInsightPerTick -> BrickIdleInsightPerTick
+Tools/data/schema.json:1187  Brick.Diet.SilenceFeed -> Brick.Diet.IdleFeed
+Tools/data/schema.json:1189  Brick.Form.DysonBrain -> Brick.Form.ShutSphere
+Tools/data/schema.json:1192  Brick.Form.UnseenLaw -> Brick.Form.KeptLaw
+Tools/data/schema.json:1195  Brick.Mutation.AbyssalMaw -> Brick.Mutation.InwardHunger
+Tools/data/schema.json:1196  Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand
+Tools/data/schema.json:1197  Brick.Mutation.StarShepherd -> Brick.Mutation.StarTow
+Tools/data/schema.json:1198  Brick.Space.HermitMonolith -> Brick.Space.ClosedPort
+Tools/data/schema.json:1200  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Tools/data/schema.json:1204  Brick.Diet.SilenceFeed -> Brick.Diet.IdleFeed
+Tools/data/schema.json:1206  Brick.Form.DysonBrain -> Brick.Form.ShutSphere
+Tools/data/schema.json:1209  Brick.Form.UnseenLaw -> Brick.Form.KeptLaw
+Tools/data/schema.json:1212  Brick.Mutation.AbyssalMaw -> Brick.Mutation.InwardHunger
+Tools/data/schema.json:1213  Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand
+Tools/data/schema.json:1214  Brick.Mutation.StarShepherd -> Brick.Mutation.StarTow
+Tools/data/schema.json:1215  Brick.Space.HermitMonolith -> Brick.Space.ClosedPort
+Tools/data/schema.json:1217  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Tools/data/schema.json:1234  Brick.Diet.SilenceFeed -> Brick.Diet.IdleFeed
+Tools/data/schema.json:1236  Brick.Form.DysonBrain -> Brick.Form.ShutSphere
+Tools/data/schema.json:1239  Brick.Form.UnseenLaw -> Brick.Form.KeptLaw
+Tools/data/schema.json:1242  Brick.Mutation.AbyssalMaw -> Brick.Mutation.InwardHunger
+Tools/data/schema.json:1243  Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand
+Tools/data/schema.json:1244  Brick.Mutation.StarShepherd -> Brick.Mutation.StarTow
+Tools/data/schema.json:1245  Brick.Space.HermitMonolith -> Brick.Space.ClosedPort
+Tools/data/schema.json:1247  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Tools/data/schema.json:1251  Brick.Diet.SilenceFeed -> Brick.Diet.IdleFeed
+Tools/data/schema.json:1253  Brick.Form.DysonBrain -> Brick.Form.ShutSphere
+Tools/data/schema.json:1256  Brick.Form.UnseenLaw -> Brick.Form.KeptLaw
+Tools/data/schema.json:1259  Brick.Mutation.AbyssalMaw -> Brick.Mutation.InwardHunger
+Tools/data/schema.json:1260  Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand
+Tools/data/schema.json:1261  Brick.Mutation.StarShepherd -> Brick.Mutation.StarTow
+Tools/data/schema.json:1262  Brick.Space.HermitMonolith -> Brick.Space.ClosedPort
+Tools/data/schema.json:1264  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Tools/test_data_schema.py:2484  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Tools/test_data_schema.py:2506  BrickQuietInsightPerTick -> BrickIdleInsightPerTick
+Tools/test_data_schema.py:2515  Brick.Space.HermitMonolith -> Brick.Space.ClosedPort
+Tools/test_data_schema.py:2515  Brick.Space.PlanckMicro -> Brick.Space.FoldedSmall
+Tools/test_data_schema.py:3621  Brick.Mutation.KesslerTapestry -> Brick.Mutation.DustBand

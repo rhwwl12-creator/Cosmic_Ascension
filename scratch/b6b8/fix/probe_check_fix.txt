@@ -1,0 +1,26 @@
+== check a (off runs = [B-6b5]'s keys, the ten-name line)
+checks               keys (2816687688, 3300228750) SAME, ten-name line OK
+checks_ruler         keys (3561771757, 2462331303) SAME, ten-name line OK
+checks_wanderer      keys (2665013209, 2229239127) SAME, ten-name line OK
+checks_20000         keys (2359424635, 726895141) SAME, ten-name line OK
+checks_ruler_20000   keys (1611658162, 29194274) SAME, ten-name line OK
+== check b (on vs b6b8_base)
+checks               OK limit inf first diff csv None rows None | key same | era 0 first -1, witness 0 first -1 (by record 0; answered 0: check 0 failed 0 none 0; gone 0)
+checks_ruler         OK limit inf first diff csv None rows None | key same | era 0 first -1, witness 0 first -1 (by record 0; answered 0: check 0 failed 0 none 0; gone 0)
+checks_wanderer      OK limit inf first diff csv None rows None | key same | era 0 first -1, witness 0 first -1 (by record 0; answered 0: check 0 failed 0 none 0; gone 0)
+checks_20000         OK limit inf first diff csv None rows None | key same | era 0 first -1, witness 0 first -1 (by record 0; answered 0: check 0 failed 0 none 0; gone 0)
+checks_ruler_20000   OK limit inf first diff csv None rows None | key same | era 0 first -1, witness 0 first -1 (by record 0; answered 0: check 0 failed 0 none 0; gone 0)
+== check c (end check / race check / LogCosmic: Error)
+b6b8_on\checks.log                                           end check 0 race check 0 errors 0
+b6b8_on\checks_ruler.log                                     end check 0 race check 0 errors 0
+b6b8_on\checks_wanderer.log                                  end check 0 race check 0 errors 0
+b6b8_on\checks_20000.log                                     end check 0 race check 0 errors 0
+b6b8_on\checks_ruler_20000.log                               end check 0 race check 0 errors 0
+b6b8_off\checks.log                                          end check 0 race check 0 errors 0
+b6b8_off\checks_ruler.log                                    end check 0 race check 0 errors 0
+b6b8_off\checks_wanderer.log                                 end check 0 race check 0 errors 0
+b6b8_off\checks_20000.log                                    end check 0 race check 0 errors 0
+b6b8_off\checks_ruler_20000.log                              end check 0 race check 0 errors 0
+b6b8_on\hashrun.log                                          end check 0 race check 0 errors 0
+b6b8_on\hashrun_policy.log                                   end check 0 race check 0 errors 0
+CHECK A PASS, CHECK B PASS, CHECK C PASS

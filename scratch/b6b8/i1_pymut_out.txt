@@ -1,0 +1,9 @@
+baseline Tools/check_data.py 0 []
+baseline Tools/test_data_schema.py 0 []
+b6b8_schema_witness_rule_dropped KILLED [('check_data.py', 0, 'check_data: 0 problem(s)'), ('test_data_schema.py', 1, ['test_every_rule_of_the_schema_can_fail', 'test_the_witness_words'])]
+b6b8_schema_witness_words_off_body KILLED [('check_data.py', 0, 'check_data: 0 problem(s)'), ('test_data_schema.py', 1, ['test_the_witness_words'])]
+b6b8_schema_witness_past_forms_dropped KILLED [('check_data.py', 0, 'check_data: 0 problem(s)'), ('test_data_schema.py', 1, ['test_the_witness_words'])]
+b6b8_data_witness_says_jeungeon KILLED [('check_data.py', 1, 'check_data: 1 problem(s)'), ('test_data_schema.py', 1, ['test_every_table_source_of_the_folder_is_read', 'test_project_and_fixture_rows_pass', 'test_reading_the_sources', 'test_rows_the_code_calls_by_name', 'test_the_witness_words', 'test_upper_rung_text_words'])]
+b6b8_schema_era_shape_dropped KILLED [('check_data.py', 0, 'check_data: 0 problem(s)'), ('test_data_schema.py', 1, ['test_every_rule_of_the_schema_can_fail', 'test_the_witness_words'])]
+b6b8_data_era_no_ruled KILLED [('check_data.py', 1, 'check_data: 1 problem(s)'), ('test_data_schema.py', 1, ['test_every_table_source_of_the_folder_is_read', 'test_project_and_fixture_rows_pass', 'test_reading_the_sources', 'test_rows_the_code_calls_by_name', 'test_the_witness_words', 'test_upper_rung_text_words'])]
+tree clean after the runs: True

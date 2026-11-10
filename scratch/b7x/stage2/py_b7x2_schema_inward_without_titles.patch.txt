@@ -1,0 +1,22 @@
+...........F......................................................................................
+======================================================================
+FAIL: test_a_rung_never_from_a_brick (__main__.SchemaTests.test_a_rung_never_from_a_brick)
+B7x [B-7x2] (header K4, section 3.3 rule 7; notes 5.4 data-3 and tests-8): a rung comes from a feat's deed, never
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\rhwwl\AppData\Local\Temp\claude\c--Users-rhwwl-OneDrive-Documents-Unreal-Projects-Cosmic-Ascension\37de2919-0c44-45d8-94cd-4dcf0860263e\scratchpad\b7x\int\Tools\test_data_schema.py", line 2858, in test_a_rung_never_from_a_brick
+    self.assertEqual(prefixes["Settle.Block.Inward"], {"forbidden": inward, "no_digits": True})
+AssertionError: {'for[42 chars]_words', 'rung_grasp_words'], 'no_digits': True} != {'for[42 chars]_words', 'rung_grasp_words', 'title_words'], 'no_digits': True}
+- {'forbidden': ['verdict', 'holy_words', 'rescue_words', 'rung_grasp_words'],
++ {'forbidden': ['verdict',
++                'holy_words',
++                'rescue_words',
++                'rung_grasp_words',
++                'title_words'],
+   'no_digits': True}
+
+----------------------------------------------------------------------
+Ran 98 tests in 89.042s
+
+FAILED (failures=1)
+check_data: 0 problem(s)
