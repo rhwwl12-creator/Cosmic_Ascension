@@ -64,6 +64,32 @@ namespace CosmicChronicleWidgetImpl
 		const int32 CivIndex = CivID.IsNone() ? INDEX_NONE : Index.FindCiv(State, CivID);
 		return State.Civs.IsValidIndex(CivIndex) ? State.Civs[CivIndex].CivName : FText::GetEmpty();
 	}
+
+	// The shape word at the end of the facts of the chapter of life LifeAt (B7x header section 4 - decision 13 (c), nothing
+	// saved): (a) the word of the people of the life's last reign (RuledCivIDs' last) - none for a life that never ruled;
+	// (b) only while the state still holds that people (a removed people has no shape to read); (c) only on the last life
+	// that ruled it, at any place of its reigns - a later life that ruled it takes the word, and when that life's last reign
+	// is another people's the word stands on no chapter. (d) The word is the people's present way of life
+	// (CosmicUI::ShapeWordOf): its vectors still count under a regent or an AI after the reign, so a page opened again after
+	// the end may say another word.
+	FText ShapeWordOfLife(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 LifeAt)
+	{
+		const TArray<FLifeRecord>& Lives = State.Calling.Lives;
+		if (!Lives.IsValidIndex(LifeAt) || Lives[LifeAt].RuledCivIDs.IsEmpty())
+		{
+			return FText::GetEmpty();
+		}
+		const FName Last = Lives[LifeAt].RuledCivIDs.Last();
+		for (int32 Later = LifeAt + 1; Later < Lives.Num(); ++Later)
+		{
+			if (Lives[Later].RuledCivIDs.Contains(Last))
+			{
+				return FText::GetEmpty();
+			}
+		}
+		const int32 CivIndex = Last.IsNone() ? INDEX_NONE : Index.FindCiv(State, Last);
+		return State.Civs.IsValidIndex(CivIndex) ? CosmicUI::ShapeWordOf(State.Civs[CivIndex]) : FText::GetEmpty();
+	}
 }
 
 TSharedRef<SWidget> UCosmicChronicleWidget::RebuildWidget()
@@ -291,7 +317,10 @@ void UCosmicChronicleWidget::BuildPage()
 		const FText Rung = Life.PeakTier == EAscensionTier::Tier1_Planetary ? FText::GetEmpty()
 			: FText::Format(INVTEXT("{0} {1}"), Label(TEXT("Panel.Tier")), FText::AsNumber(static_cast<int32>(Life.PeakTier) + 1));
 		const FText Lasted = FText::Format(Label(TEXT("Chronicle.Stamp")), FText::AsNumber(FMath::Max<int64>(0, Chapter.ToTick - Life.BornTick)));
-		AddText(CosmicUI::JoinList({ People, Rung, Lasted }), 14, CosmicPalette::Grey, FMargin(0.f, 0.f, 0.f, 10.f));
+		// B7x (header section 4, decision 13): the shape word of the people of its last reign closes the facts - a UI word
+		// beside the numbers, never on the epilogue's lines, so every end still differs by its cause line alone.
+		const FText Shape = ShapeWordOfLife(State, Sim->GetStateIndex(), Chapter.LifeAt);
+		AddText(CosmicUI::JoinList({ People, Rung, Lasted, Shape }), 14, CosmicPalette::Grey, FMargin(0.f, 0.f, 0.f, 10.f));
 		// The span with no vessel that led to this life, at the head of its chapter; then the body; then, on the last chapter,
 		// the span after its death when no shown life follows.
 		AddSpan(Chapter.Before);

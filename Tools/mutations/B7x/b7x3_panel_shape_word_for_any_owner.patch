@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -916,7 +916,7 @@
+ 			{
+ 				Lines.Add(FText::Format(INVTEXT("{0}  {1}"), Label(TEXT("Panel.StarClass")), FText::AsCultureInvariant(Letter)));
+ 			}
+-			Lines.Add(OwnerLineOf(State, View, SystemIndex));
++			Lines.Add(JoinList({ OwnerLineOf(State, View, SystemIndex), State.Civs.IsValidIndex(OwnerIndex) ? ShapeWordOf(State.Civs[OwnerIndex]) : FText::GetEmpty() }));
+ 			// The owner people's size, as its band only (section 8.3), for a people the viewer is shown: never asked of a
+ 			// wild system or an owner the state does not hold - GetPopulationBand reads those as Few. B7x (header section 4,
+ 			// decision 13): the line ends with the people's shape word, the chronicle's word - a shape at work only through a

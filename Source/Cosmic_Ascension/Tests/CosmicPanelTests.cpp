@@ -583,6 +583,10 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 			const FString RuledBand = CosmicUI::PeopleLine(Sim->GetPopulationBand(RuledID)).ToString();
 			const FString OtherBand = CosmicUI::PeopleLine(Sim->GetPopulationBand(Live.Civs[OtherCiv].CivID)).ToString();
 			TestFalse(TEXT("(the two peoples' bands differ)"), RuledBand.Equals(OtherBand, ESearchCase::CaseSensitive));
+			// B7x (header section 4): the line a shown owner gets is its band with the people's shape word after it, when it has
+			// one (CosmicUI::PeopleLineOf - UI.KnownFilter reads the word).
+			const FString RuledLine = CosmicUI::PeopleLineOf(Sim->GetPopulationBand(RuledID), Live.Civs[RuledIndex]).ToString();
+			const FString OtherLine = CosmicUI::PeopleLineOf(Sim->GetPopulationBand(Live.Civs[OtherCiv].CivID), Live.Civs[OtherCiv]).ToString();
 			auto DetailLines = [Panel]()
 			{
 				TArray<FString> Lines;
@@ -598,7 +602,9 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 				const UEnum* Bands = StaticEnum<EPopulationBand>();
 				for (int32 At = 0; At < Bands->NumEnums() - 1; ++At)
 				{
-					if (Lines.Contains(CosmicUI::PeopleLine(static_cast<EPopulationBand>(Bands->GetValueByIndex(At))).ToString()))
+					// A band's line with or without the shape word after it (B7x).
+					const FString Band = CosmicUI::PeopleLine(static_cast<EPopulationBand>(Bands->GetValueByIndex(At))).ToString();
+					if (Lines.ContainsByPredicate([&Band](const FString& Line) { return Line.StartsWith(Band, ESearchCase::CaseSensitive); }))
 					{
 						return true;
 					}
@@ -609,13 +615,13 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 			Panel->ShowSystem(Home);
 			const TArray<FString> HomeLines = DetailLines();
 			const int32 OwnerLine = HomeLines.IndexOfByPredicate([](const FString& Line) { return Line.StartsWith(LabelText(TEXT("Panel.Owner"))); });
-			const int32 PeopleLineAt = HomeLines.IndexOfByPredicate([&RuledBand](const FString& Line) { return Line.Equals(RuledBand, ESearchCase::CaseSensitive); });
+			const int32 PeopleLineAt = HomeLines.IndexOfByPredicate([&RuledLine](const FString& Line) { return Line.Equals(RuledLine, ESearchCase::CaseSensitive); });
 			TestTrue(TEXT("The ruled home shows its people's band"), PeopleLineAt != INDEX_NONE);
 			TestTrue(TEXT("right after its owner"), OwnerLine != INDEX_NONE && PeopleLineAt == OwnerLine + 1);
 
 			Panel->ShowSystem(Live.Systems[OtherSystem].SystemID);
-			TestTrue(TEXT("Another people's system shows that people's band"), DetailLines().Contains(OtherBand));
-			TestFalse(TEXT("not the ruled people's"), DetailLines().Contains(RuledBand));
+			TestTrue(TEXT("Another people's system shows that people's band"), DetailLines().Contains(OtherLine));
+			TestFalse(TEXT("not the ruled people's"), DetailLines().Contains(RuledLine));
 
 			Panel->ShowSystem(Live.Systems[Wild].SystemID);
 			TestTrue(TEXT("(the wild system's panel shows)"), !DetailLines().IsEmpty());

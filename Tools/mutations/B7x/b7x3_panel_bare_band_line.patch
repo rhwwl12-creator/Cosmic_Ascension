@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicSystemPanelWidget.cpp
+@@ -924,7 +924,7 @@
+ 			const ECosmicOwnerShown OwnerShown = CosmicMapLook::OwnerShownOf(State, View, SystemIndex);
+ 			if (OwnerShown == ECosmicOwnerShown::Shown && State.Civs.IsValidIndex(OwnerIndex))
+ 			{
+-				Lines.Add(PeopleLineOf(Sim->GetPopulationBand(State.Civs[OwnerIndex].CivID), State.Civs[OwnerIndex]));
++				Lines.Add(PeopleLine(Sim->GetPopulationBand(State.Civs[OwnerIndex].CivID)));
+ 			}
+ 			// How much a shown people looks up to the vessel, for a wanderer (B1 - what a coronation reads; a number of the
+ 			// screen only).

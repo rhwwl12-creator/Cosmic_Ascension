@@ -52,6 +52,35 @@ namespace CosmicPlayerRoleImpl
 		return State.Civs.IsValidIndex(CivIndex) ? CivIndex : INDEX_NONE;
 	}
 
+	// The scan's face of a people spread between the stars (B7x header section 3.1, S15 - decision 18): whether a lane
+	// neighbour of the system SystemIndex, in its own galaxy, is a settled system (CosmicState::IsSettled) of a people that
+	// carries both Brick.Form.LivingNebula and Brick.Diet.DarkMatter. The world alone - no knowing, no draw; false while no
+	// people carries both, so the scan tells the wild line then, bit for bit. A rumour beside its own star only: the scanned
+	// system is never drawn as that people's.
+	bool SpreadBesideOf(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 SystemIndex)
+	{
+		if (!State.Systems.IsValidIndex(SystemIndex))
+		{
+			return false;
+		}
+		const FStarSystemState& Here = State.Systems[SystemIndex];
+		for (const FName LaneID : Here.Lanes)
+		{
+			const int32 Next = Index.FindSystem(State, LaneID);
+			if (!State.Systems.IsValidIndex(Next) || State.Systems[Next].GalaxyRow != Here.GalaxyRow || !CosmicState::IsSettled(State.Systems[Next]))
+			{
+				continue;
+			}
+			const int32 Owner = Index.FindCiv(State, State.Systems[Next].OwnerCivID);
+			if (State.Civs.IsValidIndex(Owner) && State.Civs[Owner].Traits.HasTagExact(CosmicTags::BrickFormLivingNebula())
+				&& State.Civs[Owner].Traits.HasTagExact(CosmicTags::BrickDietDarkMatter()))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	// Whether the calling has met the people CivID: the input definition of a diplomacy command (rule 2).
 	bool IsMet(const FGalaxyState& State, FName CivID)
 	{
@@ -1129,7 +1158,10 @@ int32 UPlayerRoleSubsystem::ScanCurrentSystem()
 	{
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("System"), Here.DisplayName);
-		Log->PushRow(CosmicRows::LogScanWild, 1, Args, Here.SystemID);
+		// B7x (S15): beside a settled system of a people spread between the stars, the rumour's face in its place -
+		// log_brick_scan_spread, the same category, Severity and focus, {System} alone.
+		const bool bSpread = CosmicPlayerRoleImpl::SpreadBesideOf(State, Sim->GetStateIndex(), Standing);
+		Log->PushRow(bSpread ? CosmicRows::LogBrickScanSpread : CosmicRows::LogScanWild, 1, Args, Here.SystemID);
 	}
 	return Learned;
 }

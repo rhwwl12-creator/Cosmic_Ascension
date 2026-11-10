@@ -34,6 +34,7 @@
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
 #include "Player/PlayerRoleSubsystem.h"
+#include "Sim/CosmicExistenceBricks.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
 #include "Tests/CosmicTestHelpers.h"
@@ -51,6 +52,8 @@
 #include "World/CosmicAutoPause.h"
 #include "World/CosmicGalaxyMapActor.h"
 #include "World/CosmicGameMode.h"
+
+#include <initializer_list>
 
 namespace CosmicChronicleScreenTests
 {
@@ -676,7 +679,12 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 	const FText Rung = Life.PeakTier == EAscensionTier::Tier1_Planetary ? FText::GetEmpty()
 		: FText::Format(INVTEXT("{0} {1}"), Label(TEXT("Panel.Tier")), FText::AsNumber(static_cast<int32>(Life.PeakTier) + 1));
 	const FText Lasted = FText::Format(Label(TEXT("Chronicle.Stamp")), FText::AsNumber(Live.Tick - Life.BornTick));
-	TestEqual(TEXT("The facts: the people, the rung above the first, the cycles"), Texts[1].ToString(), CosmicUI::JoinList({ Live.Civs[Ruled].CivName, Rung, Lasted }).ToString());
+	// B7x (header section 4, decision 13): the facts end with the shape word of the people of the life's last reign - after
+	// 1,500 ticks its time vectors have counted, so it has one (CosmicUI::ShapeWordOf; the cases are read in the B7x part).
+	const FText RuledShape = CosmicUI::ShapeWordOf(Live.Civs[Ruled]);
+	TestFalse(TEXT("(after 1,500 ticks the ruled people has counted a way of life)"), RuledShape.IsEmpty());
+	TestEqual(TEXT("The facts: the people, the rung above the first, the cycles and that people's shape word"), Texts[1].ToString(),
+		CosmicUI::JoinList({ Live.Civs[Ruled].CivName, Rung, Lasted, RuledShape }).ToString());
 	const TArray<FText> Stamps = Page->GetLineStamps();
 	const TArray<float> Opacities = Page->GetLineOpacities();
 	bool bOwnSeen = false;
@@ -874,7 +882,7 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 		FootIs(TEXT("A people on the third rung changes nothing: the clock's note and the notice"), { ClockLine, NoticeLine });
 		const FText RungThree = FText::Format(INVTEXT("{0} {1}"), Label(TEXT("Panel.Tier")), FText::AsNumber(3));
 		TestEqual(TEXT("A peak above the first rung is named in the chapter's facts"), Page->GetPageTexts()[1].ToString(),
-			CosmicUI::JoinList({ Live.Civs[Ruled].CivName, RungThree, Lasted }).ToString());
+			CosmicUI::JoinList({ Live.Civs[Ruled].CivName, RungThree, Lasted, RuledShape }).ToString());
 		Mutable.PeakTier = WasPeak;
 		Live.Civs[Ruled].Tier = WasTier;
 
@@ -888,14 +896,14 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 		Mutable.ReignTicks.Add(10);
 		Page->Open(ClockRecord, true);
 		const FText Peoples = FText::Format(Label(TEXT("Chronicle.Then")), Live.Civs[Ruled].CivName, Live.Civs[Other].CivName);
-		TestEqual(TEXT("The facts name the peoples in order and the walking end"), Page->GetPageTexts()[1].ToString(),
-			CosmicUI::JoinList({ Peoples, Label(TEXT("Chronicle.Wandering")), Rung, Lasted }).ToString());
+		TestEqual(TEXT("The facts name the peoples in order and the walking end, then the last people's shape word"), Page->GetPageTexts()[1].ToString(),
+			CosmicUI::JoinList({ Peoples, Label(TEXT("Chronicle.Wandering")), Rung, Lasted, CosmicUI::ShapeWordOf(Live.Civs[Other]) }).ToString());
 		Mutable.RuledCivIDs.Pop();
 		// A return to the same people (left it, took it again): that people once.
 		Mutable.RuledCivIDs.Add(Live.Civs[Ruled].CivID);
 		Page->Open(ClockRecord, true);
 		TestEqual(TEXT("A return to the same people names it once"), Page->GetPageTexts()[1].ToString(),
-			CosmicUI::JoinList({ Live.Civs[Ruled].CivName, Label(TEXT("Chronicle.Wandering")), Rung, Lasted }).ToString());
+			CosmicUI::JoinList({ Live.Civs[Ruled].CivName, Label(TEXT("Chronicle.Wandering")), Rung, Lasted, RuledShape }).ToString());
 		Mutable.RuledCivIDs.Pop();
 		Mutable.ReignEndReasons = EndsBefore;
 		Mutable.ReignTicks = TicksBefore;
@@ -1186,6 +1194,124 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 		}
 		TestEqual(TEXT("Every line of the span, of the bodies and of the books has its stamp in cycles"), StampWords,
 			TArray<FString>({ LastedOf(900).ToString(), LastedOf(1100).ToString(), LastedOf(1300).ToString(), LastedOf(1150).ToString(), LastedOf(1150).ToString() }));
+
+		// ---- B7x (header section 4, decision 13 (c); notes 5.4 tests-9): the shape word at the end of a chapter's facts - the
+		// people of the life's last reign (a), while the state still holds it (b), on the last life that ruled it alone (c), read
+		// at display and never saved ((d) - a page opened again may say another word: not asserted). The board never ticked:
+		// the vectors are laid by hand so the two peoples say two words ----
+		{
+			// The word of a people (CosmicUI::ShapeWordOf): none before anything is counted and without a shape brick (ShapeOf
+			// would answer BuiltOrLinked - mutation: not asking first breaks the first case), the largest vector's, a shape
+			// brick's over every vector, and a shape brick's with nothing counted. The twelve keys stand in the String Table,
+			// twelve words.
+			FCivilizationState Lone;
+			TestTrue(TEXT("A people that has counted nothing and carries no shape brick shows no shape word"), CosmicUI::ShapeWordOf(Lone).IsEmpty());
+			Lone.TimeVectors.Isolated = 3;
+			Lone.TimeVectors.Built = 2;
+			TestEqual(TEXT("A people shows the word of its largest vector"), CosmicUI::ShapeWordOf(Lone).ToString(), Words(TEXT("Shape.Isolated")));
+			Lone.Traits.AddTag(CosmicTags::BrickSpaceNomad());
+			TestEqual(TEXT("and a shape brick's word over every vector"), CosmicUI::ShapeWordOf(Lone).ToString(), Words(TEXT("Shape.StarHerd")));
+			Lone.TimeVectors = FCosmicTimeVectors();
+			TestEqual(TEXT("a shape brick's word with nothing counted too"), CosmicUI::ShapeWordOf(Lone).ToString(), Words(TEXT("Shape.StarHerd")));
+			TSet<FString> ShapeWords;
+			for (int32 At = 0; At < static_cast<int32>(CosmicBricks::ECosmicShape::Count); ++At)
+			{
+				const TCHAR* Key = CosmicUI::ShapeKey(static_cast<CosmicBricks::ECosmicShape>(At));
+				if (TestNotNull(*FString::Printf(TEXT("Shape %d has its key"), At), Key))
+				{
+					TestFalse(*FString::Printf(TEXT("%s has words in the String Table"), Key), Words(Key).IsEmpty() || Words(Key).Contains(FStringTableEntry::GetPlaceholderSourceString()));
+					ShapeWords.Add(Words(Key));
+				}
+			}
+			TestEqual(TEXT("Twelve shapes, twelve words"), ShapeWords.Num(), 12);
+			TestTrue(TEXT("(Count has no key)"), CosmicUI::ShapeKey(CosmicBricks::ECosmicShape::Count) == nullptr);
+
+			const FLifeRecord FirstWas = Two.Calling.Lives[0];
+			const FLifeRecord CalledWas = Two.Calling.Lives[1];
+			const FCosmicTimeVectors OwnWas = Two.Civs[Own].TimeVectors;
+			const FCosmicTimeVectors LaterWas = Two.Civs[Later].TimeVectors;
+			Two.Civs[Own].TimeVectors = FCosmicTimeVectors();
+			Two.Civs[Own].TimeVectors.Isolated = 40;
+			Two.Civs[Later].TimeVectors = FCosmicTimeVectors();
+			Two.Civs[Later].TimeVectors.Endured = 40;
+			const FString OwnShape = CosmicUI::ShapeWordOf(Two.Civs[Own]).ToString();
+			const FString LaterShape = CosmicUI::ShapeWordOf(Two.Civs[Later]).ToString();
+			TestTrue(TEXT("(the two peoples say two words)"), !OwnShape.IsEmpty() && !LaterShape.IsEmpty() && !OwnShape.Equals(LaterShape, ESearchCase::CaseSensitive));
+			const FText OwnName = Two.Civs[Own].CivName;
+			const FText LaterName = Two.Civs[Later].CivName;
+			const FText OwnThenLater = FText::Format(Label(TEXT("Chronicle.Then")), OwnName, LaterName);
+			// The facts row of the chapter of life LifeAt (its title's next row), and whether a word stands anywhere on the page.
+			auto FactsOf = [&](const TArray<FString>& Rows, int32 LifeAt)
+			{
+				const int32 At = Rows.IndexOfByKey(TitleOf(Two.Calling.Lives[LifeAt]));
+				return (At != INDEX_NONE && Rows.IsValidIndex(At + 1)) ? Rows[At + 1] : FString();
+			};
+			auto Anywhere = [](const TArray<FString>& Rows, const FString& Word)
+			{
+				return Rows.ContainsByPredicate([&Word](const FString& Row) { return Row.Contains(Word); });
+			};
+			// The reigns of a life, laid with the three arrays of one length.
+			auto Reigns = [](FLifeRecord& OfLife, std::initializer_list<FName> CivIDs, std::initializer_list<FGameplayTag> Ends)
+			{
+				OfLife.RuledCivIDs = CivIDs;
+				OfLife.ReignEndReasons = Ends;
+				OfLife.ReignTicks.Init(1, OfLife.RuledCivIDs.Num());
+			};
+			const FGameplayTag Left = CosmicTags::ReignAbdicated();
+			const FGameplayTag Unended = FGameplayTag();
+
+			// The life that ruled one people ends with its word; a life that never ruled (a), born among a people with a word of
+			// its own, has none.
+			{
+				const TArray<FString> Rows = PageOf();
+				TestEqual(TEXT("A life that ruled one people: its facts end with that people's word"), FactsOf(Rows, 0),
+					CosmicUI::JoinList({ OwnName, LastedOf(1000), FText::AsCultureInvariant(OwnShape) }).ToString());
+				TestEqual(TEXT("(a) A life that never ruled has no shape word, not even its birth people's"), FactsOf(Rows, 1), CalledFacts);
+				TestFalse(TEXT("(the birth people's word is nowhere on the page)"), Anywhere(Rows, LaterShape));
+			}
+			// (b) The life's last reign was over a people the state no longer holds: no word - not the word of the people it ruled
+			// before (mutation: reading past the Civs question to the last people still held breaks it).
+			{
+				Reigns(Two.Calling.Lives[0], { OwnID, FName(TEXT("civ_test_gone")) }, { Left, CosmicTags::ReignDied() });
+				const TArray<FString> Rows = PageOf();
+				TestEqual(TEXT("(b) A last people the state no longer holds gives no shape word"), FactsOf(Rows, 0),
+					CosmicUI::JoinList({ OwnName, LastedOf(1000) }).ToString());
+				TestFalse(TEXT("(b) nor the word of the people ruled before it"), Anywhere(Rows, OwnShape));
+			}
+			// (a) A life that ruled A, then B: B's word alone.
+			{
+				Reigns(Two.Calling.Lives[0], { OwnID, LaterID }, { Left, CosmicTags::ReignDied() });
+				const TArray<FString> Rows = PageOf();
+				TestEqual(TEXT("(a) A life that ruled A then B ends with B's word"), FactsOf(Rows, 0),
+					CosmicUI::JoinList({ OwnThenLater, LastedOf(1000), FText::AsCultureInvariant(LaterShape) }).ToString());
+				TestFalse(TEXT("(a) and A's word stands nowhere"), Anywhere(Rows, OwnShape));
+			}
+			// (c) Two lives that ruled the same people: the last one's chapter alone (mutation: the later lives not asked breaks
+			// it and the next case).
+			{
+				Reigns(Two.Calling.Lives[0], { OwnID }, { CosmicTags::ReignDied() });
+				Reigns(Two.Calling.Lives[1], { OwnID }, { Unended });
+				const TArray<FString> Rows = PageOf();
+				TestEqual(TEXT("(c) The earlier life that ruled the same people has no word"), FactsOf(Rows, 0),
+					CosmicUI::JoinList({ OwnName, LastedOf(1000) }).ToString());
+				TestEqual(TEXT("(c) the last life that ruled it has it"), FactsOf(Rows, 1),
+					CosmicUI::JoinList({ OwnName, LastedOf(300), FText::AsCultureInvariant(OwnShape) }).ToString());
+			}
+			// (a) and (c): the first life ruled A, the second A then B - A's word on no chapter, B's on the second.
+			{
+				Reigns(Two.Calling.Lives[1], { OwnID, LaterID }, { Left, Unended });
+				const TArray<FString> Rows = PageOf();
+				TestEqual(TEXT("(a, c) The first life's people, ruled again later, gives it no word"), FactsOf(Rows, 0),
+					CosmicUI::JoinList({ OwnName, LastedOf(1000) }).ToString());
+				TestEqual(TEXT("(a, c) the second life ends with B's word"), FactsOf(Rows, 1),
+					CosmicUI::JoinList({ OwnThenLater, LastedOf(300), FText::AsCultureInvariant(LaterShape) }).ToString());
+				TestFalse(TEXT("(a, c) and A's word stands on no chapter"), Anywhere(Rows, OwnShape));
+			}
+			Two.Calling.Lives[0] = FirstWas;
+			Two.Calling.Lives[1] = CalledWas;
+			Two.Civs[Own].TimeVectors = OwnWas;
+			Two.Civs[Later].TimeVectors = LaterWas;
+		}
 
 		// The succession on the end's tick (the end wins): the vessel born there was never shown - no chapter; the span goes to
 		// the end of the chapter before.

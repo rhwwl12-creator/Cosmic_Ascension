@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -67,7 +67,7 @@
+ 		for (const FName LaneID : Here.Lanes)
+ 		{
+ 			const int32 Next = Index.FindSystem(State, LaneID);
+-			if (!State.Systems.IsValidIndex(Next) || State.Systems[Next].GalaxyRow != Here.GalaxyRow || !CosmicState::IsSettled(State.Systems[Next]))
++			if (!State.Systems.IsValidIndex(Next) || State.Systems[Next].GalaxyRow != Here.GalaxyRow)
+ 			{
+ 				continue;
+ 			}

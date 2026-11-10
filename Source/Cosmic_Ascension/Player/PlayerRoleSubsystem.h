@@ -239,8 +239,10 @@ public:
 	 * The wanderer's scan (B1 header section 2.3, section 5.9), between ticks: one look from the system it stands in
 	 * (UGalaxySimulationSubsystem::LookFrom) with the reach SightLanesByTier[PersonalTier] (below 1 read as 1) plus
 	 * DT_Rules.ScanSightBonusLanes (below 0 read as 0) - knowing and the telling only, no draw of the sim stream. Tells
-	 * CosmicRows::LogScanWild (Severity 1) when the vessel stands in a system no people owns and the look learned a system.
-	 * Returns how many systems it learned (0 = nothing new); INDEX_NONE when refused: not an embodied wanderer standing
+	 * CosmicRows::LogScanWild (Severity 1) when the vessel stands in a system no people owns and the look learned a system -
+	 * B7x (S15): CosmicRows::LogBrickScanSpread in its place when a lane neighbour of that system, in its galaxy, is a settled
+	 * system of a people carrying both Brick.Form.LivingNebula and Brick.Diet.DarkMatter ({System} alone; the world read, no
+	 * knowing). Returns how many systems it learned (0 = nothing new); INDEX_NONE when refused: not an embodied wanderer standing
 	 * still, or inside a handler (an error line).
 	 */
 	int32 ScanCurrentSystem();

@@ -1431,7 +1431,7 @@ namespace
 		return FString::Printf(TEXT("%d/%d/%d/%d/%d/%d"), Vectors.Built, Vectors.Consumed, Vectors.Drifted, Vectors.Linked, Vectors.Isolated, Vectors.Endured);
 	}
 
-	// The word of an end shape (CosmicBricks::ShapeOf - the enumerator's name; the screen's words are Chronicle.Shape.*).
+	// The word of an end shape (CosmicBricks::ShapeOf - the enumerator's name; the screen's words are ST_CA Shape.* - CosmicUI::ShapeKey).
 	const TCHAR* BrickShapeNameOf(CosmicBricks::ECosmicShape Shape)
 	{
 		switch (Shape)

@@ -1,0 +1,14 @@
+diff --git a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -72,8 +72,8 @@
+ 				continue;
+ 			}
+ 			const int32 Owner = Index.FindCiv(State, State.Systems[Next].OwnerCivID);
+-			if (State.Civs.IsValidIndex(Owner) && State.Civs[Owner].Traits.HasTagExact(CosmicTags::BrickFormLivingNebula())
+-				&& State.Civs[Owner].Traits.HasTagExact(CosmicTags::BrickDietDarkMatter()))
++			if (State.Civs.IsValidIndex(Owner) && (State.Civs[Owner].Traits.HasTagExact(CosmicTags::BrickFormLivingNebula())
++				|| State.Civs[Owner].Traits.HasTagExact(CosmicTags::BrickDietDarkMatter())))
+ 			{
+ 				return true;
+ 			}

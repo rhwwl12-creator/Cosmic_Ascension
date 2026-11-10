@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -1081,7 +1081,7 @@
+ 		Lines.Add(FText::Format(Label(TEXT("Diplomacy.TipStance")), Signed(Stance)));
+ 		Lines.Add(FText::Format(Label(TEXT("Diplomacy.TipTreaties")), Signed(Treaties)));
+ 		const float Bricks = CosmicBricks::RelationTargetTermOf(Us, Rules);
+-		if (Bricks != 0.f)
++		if (Bricks != Bricks)
+ 		{
+ 			Lines.Add(FText::Format(Label(TEXT("Diplomacy.TipBricks")), Signed(Bricks)));
+ 		}

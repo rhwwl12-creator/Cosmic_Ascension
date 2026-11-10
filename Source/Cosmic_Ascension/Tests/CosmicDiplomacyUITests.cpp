@@ -444,6 +444,23 @@ bool FCosmicUIPeoplesTabTest::RunTest(const FString& Parameters)
 		CosmicDiplomacy::SetStanceOf(Civs[0], One, FGameplayTag());
 		CosmicDiplomacy::SetStanceOf(Civs[1], Zero, FGameplayTag());
 		Civs[1].Ethics = FEthicsAxes();
+		// B7x [B-7x3] (header section 4; notes 5.2 item 7): the bricks we carry are a term of their target - a line of its own
+		// after the treaties, only when not 0 (CosmicBricks::RelationTargetTermOf). Under the board's inert knobs a star eater's
+		// tooltip reads as before; with the knob on, the line and the target that holds it (mutation: the line never shown
+		// breaks the second).
+		{
+			const FString Before = Words(UCosmicEdictWidget::ViewTipOf(*State, Index, Rules, 1, 0));
+			Civs[0].Traits.AddTag(CosmicTags::BrickDietStarEater());
+			TestEqual(TEXT("Under the inert knob a brick we carry adds no line to their view's terms"), Words(UCosmicEdictWidget::ViewTipOf(*State, Index, Rules, 1, 0)), Before);
+			FCosmicRulesDef Eater = Rules;
+			Eater.BrickStarEaterRelationTarget = -0.25f;
+			TestEqual(TEXT("With the knob on, the brick's term stands after the treaties, and the target holds it"), Words(UCosmicEdictWidget::ViewTipOf(*State, Index, Eater, 1, 0)),
+				Words(CosmicUI::JoinLines({ Line(TEXT("Diplomacy.TipTarget"), TEXT("-0.25")), Line(TEXT("Diplomacy.TipEthics"), TEXT("0")),
+					Line(TEXT("Diplomacy.TipStance"), TEXT("0")), Line(TEXT("Diplomacy.TipTreaties"), TEXT("0")), Line(TEXT("Diplomacy.TipBricks"), TEXT("-0.25")) })));
+			TestFalse(TEXT("(the brick line's words are in the String Table)"), HasPlaceholder(Line(TEXT("Diplomacy.TipBricks"), TEXT("-0.25"))));
+			Civs[0].Traits.RemoveTag(CosmicTags::BrickDietStarEater());
+			TestEqual(TEXT("A people without the brick has no such line, the knob on or not"), Words(UCosmicEdictWidget::ViewTipOf(*State, Index, Eater, 1, 0)), Before);
+		}
 		// People 2 does not border us: the band of the target without the stance - our friendly stance would lift the target
 		// to 0 (indifferent), the view stays at the ethics' -0.4 (cold).
 		Civs[2].Ethics.Pacifism = -1.f;

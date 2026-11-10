@@ -1,0 +1,12 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -85,7 +85,7 @@
+ 			"Chronicle.Note.": {"forbidden": ["verdict", "soul_verbs", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "holy_passive", "holy_words", "realm_names", "silence_words", "revelation_mimicry", "rung_grasp_words", "title_words", "binding_words"], "no_digits": true},
+ 			"Chronicle.NoVessel": {"forbidden": ["verdict", "soul_verbs", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "silence_words"], "no_digits": true},
+ 			"Shape.": {"forbidden": ["verdict", "soul_verbs", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "holy_passive", "rung_grasp_words", "title_words", "binding_words", "remnant_words", "desolation_words", "shape_merit_words"], "no_digits": true},
+-			"Epitaph.": {"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "reader_address", "rung_grasp_words", "title_words"], "no_digits": true},
++			"Epitaph.": {"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "reader_address", "rung_grasp_words"], "no_digits": true},
+ 			"Reign.": {"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words"], "no_digits": true},
+ 			"Digest.": {"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "silence_words", "reader_address", "rung_grasp_words", "title_words"], "no_digits": true},
+ 			"Succession.": {"forbidden": ["verdict", "soul_verbs", "holy_words", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "reader_address", "rebirth_words"], "no_digits": true},

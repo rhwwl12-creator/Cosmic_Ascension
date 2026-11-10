@@ -1,0 +1,21 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+@@ -87,8 +87,15 @@
+ 				return FText::GetEmpty();
+ 			}
+ 		}
+-		const int32 CivIndex = Last.IsNone() ? INDEX_NONE : Index.FindCiv(State, Last);
+-		return State.Civs.IsValidIndex(CivIndex) ? CosmicUI::ShapeWordOf(State.Civs[CivIndex]) : FText::GetEmpty();
++		for (int32 At = Lives[LifeAt].RuledCivIDs.Num() - 1; At >= 0; --At)
++		{
++			const int32 CivIndex = Index.FindCiv(State, Lives[LifeAt].RuledCivIDs[At]);
++			if (State.Civs.IsValidIndex(CivIndex))
++			{
++				return CosmicUI::ShapeWordOf(State.Civs[CivIndex]);
++			}
++		}
++		return FText::GetEmpty();
+ 	}
+ }
+ 

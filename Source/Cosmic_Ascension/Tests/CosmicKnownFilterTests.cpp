@@ -410,13 +410,15 @@ namespace CosmicKnownFilterTests
 		return Tips;
 	}
 
-	// Whether any people line (any band) stands among Lines.
+	// Whether any people line (any band) stands among Lines - with the people's shape word after it or without (B7x:
+	// CosmicUI::PeopleLineOf), so a line that begins with a band's words is one.
 	bool AnyPeopleLine(const TArray<FString>& Lines)
 	{
 		const UEnum* Bands = StaticEnum<EPopulationBand>();
 		for (int32 At = 0; At < Bands->NumEnums() - 1; ++At)
 		{
-			if (Lines.Contains(CosmicUI::PeopleLine(static_cast<EPopulationBand>(Bands->GetValueByIndex(At))).ToString()))
+			const FString Band = CosmicUI::PeopleLine(static_cast<EPopulationBand>(Bands->GetValueByIndex(At))).ToString();
+			if (Lines.ContainsByPredicate([&Band](const FString& Line) { return Line.StartsWith(Band, ESearchCase::CaseSensitive); }))
 			{
 				return true;
 			}
@@ -1077,7 +1079,7 @@ bool FCosmicUIKnownFilterTest::RunTest(const FString& Parameters)
 		{
 			const TArray<FString> Lines = DetailLines(*Panel);
 			const int32 OwnerAt = Lines.IndexOfByKey(FString::Printf(TEXT("%s  %s"), *Words(TEXT("Panel.Owner")), MetMarker));
-			const int32 PeopleAt = Lines.IndexOfByKey(CosmicUI::PeopleLine(Sim->GetPopulationBand(Board.Civs[P.A].CivID)).ToString());
+			const int32 PeopleAt = Lines.IndexOfByKey(CosmicUI::PeopleLineOf(Sim->GetPopulationBand(Board.Civs[P.A].CivID), Board.Civs[P.A]).ToString());
 			const int32 LifeAt = Lines.IndexOfByKey(CosmicUI::LifeLine(Board.Seed, IdOf(2)).ToString());
 			TestTrue(TEXT("A shown owner is named"), OwnerAt != INDEX_NONE);
 			TestTrue(TEXT("with its people line"), PeopleAt != INDEX_NONE && PeopleAt == OwnerAt + 1);
@@ -1089,6 +1091,38 @@ bool FCosmicUIKnownFilterTest::RunTest(const FString& Parameters)
 					*FText::AsNumber(FMath::FloorToInt32(CosmicMegaprojects::RequiredProgressOf(*Dyson))).ToString());
 				TestTrue(TEXT("and its works"), Lines.Contains(Works));
 			}
+		}
+
+		// B7x (header section 4, decision 13): the people line of a shown owner ends with that people's shape word - the
+		// chronicle's word, from its counted ways of life; an owner the viewer is not shown (not met: 3; met and far above: 8)
+		// shows it nowhere, in no line and no tooltip (mutation: the word put on the owner line of any owner breaks the second;
+		// the bare band line breaks the first). The board never ticked: the vectors are laid by hand, and no people keeps a
+		// brick the game's data may have given it (CosmicTests::StripBricks), so each says the word of its largest vector.
+		{
+			FGalaxyState& Shaped = Sim->GetMutableState();
+			CosmicTests::StripBricks(Shaped);
+			for (const int32 CivAt : { P.A, P.U, P.F })
+			{
+				Shaped.Civs[CivAt].TimeVectors = FCosmicTimeVectors();
+				Shaped.Civs[CivAt].TimeVectors.Isolated = 7;
+			}
+			const FString Word = CosmicUI::ShapeWordOf(Shaped.Civs[P.A]).ToString();
+			TestEqual(TEXT("(a people that stood alone the longest says the word of standing alone)"), Word, Words(TEXT("Shape.Isolated")));
+			Panel->ShowSystem(IdOf(2));
+			const FString Band = CosmicUI::PeopleLine(Sim->GetPopulationBand(Shaped.Civs[P.A].CivID)).ToString();
+			const TArray<FString> Lines = DetailLines(*Panel);
+			const int32 OwnerAt = Lines.IndexOfByKey(FString::Printf(TEXT("%s  %s"), *Words(TEXT("Panel.Owner")), MetMarker));
+			const int32 PeopleAt = Lines.IndexOfByKey(CosmicUI::JoinList({ FText::AsCultureInvariant(Band), FText::AsCultureInvariant(Word) }).ToString());
+			TestTrue(TEXT("A shown owner's people line ends with its shape word"), PeopleAt != INDEX_NONE && PeopleAt == OwnerAt + 1);
+			TestEqual(TEXT("(the line PeopleLineOf gives)"), Lines.IsValidIndex(PeopleAt) ? Lines[PeopleAt] : FString(),
+				CosmicUI::PeopleLineOf(Sim->GetPopulationBand(Shaped.Civs[P.A].CivID), Shaped.Civs[P.A]).ToString());
+			for (const int32 At : { 3, 8 })
+			{
+				Panel->ShowSystem(IdOf(At));
+				TestFalse(*FString::Printf(TEXT("A hidden owner's shape word stands nowhere on system %d's panel"), At),
+					ReadTexts(*Panel).Contains(Word) || PanelTooltips(*Panel).Contains(Word));
+			}
+			Restore();
 		}
 
 		// 5: a wild system; 9: a destroyed one.

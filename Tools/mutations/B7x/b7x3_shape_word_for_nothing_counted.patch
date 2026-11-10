@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicUILabels.h b/Source/Cosmic_Ascension/UI/CosmicUILabels.h
+--- a/Source/Cosmic_Ascension/UI/CosmicUILabels.h
++++ b/Source/Cosmic_Ascension/UI/CosmicUILabels.h
+@@ -163,7 +163,7 @@
+ 			&& Vectors.Isolated == 0 && Vectors.Endured == 0;
+ 		const CosmicBricks::ECosmicShape Shape = CosmicBricks::ShapeOf(Civ);
+ 		// With nothing counted, ShapeOf's BuiltOrLinked is no shape brick's answer (no brick gives it): nothing to tell.
+-		if (bNoneCounted && Shape == CosmicBricks::ECosmicShape::BuiltOrLinked)
++		if (bNoneCounted && Shape == CosmicBricks::ECosmicShape::Count)
+ 		{
+ 			return FText::GetEmpty();
+ 		}

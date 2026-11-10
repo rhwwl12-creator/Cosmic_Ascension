@@ -2001,15 +2001,17 @@ class SchemaTests(unittest.TestCase):
                     self.expect(check('Key,SourceString\n"%s","%s a."\n' % (key, word)), "entry 1 (%s)" % key, "the word %s is not used here" % word)
         self.assertEqual(check('Key,SourceString\n"Chronicle.A","쉼 a."\n'), [])
         # (4) The new places alone: no other prefix names a list of a death, the remnant's word hangs on no key, and no
-        # column of any table names one (the record lines and the two named rows carry them by row rules).
-        places = ("Epitaph.", "Reign.", "Digest.", "Succession.", "Chronicle.")
+        # column of any table names one (the record lines and the two named rows carry them by row rules). B7x [B-7x3]
+        # (header 3.2 - review T7, I8): the shape words of a people (Shape.) stand on a chronicle's chapter, so they take the
+        # chronicle's lists and the remnant's word with them - the one key where it hangs (test_shape_words).
+        places = ("Epitaph.", "Reign.", "Digest.", "Succession.", "Chronicle.", "Shape.")
         for prefix, spec in prefixes.items():
             with self.subTest(prefix=prefix):
                 named = set(checker.forbidden_lists(spec)) & set(new_lists)
                 # B6b [B-6b5]: the panel's line of the ruler's death at an extinction's expiry refuses the death's agent, sacrifice
                 # or cause too (notes 1.6 rule 3) - a frame word on a key of its own.
                 allowed = (set(death_lists) if prefix.startswith(places) else set()) | ({"rebirth_words"} if prefix.startswith("Succession.") else set()) | (
-                    {"death_frame_words"} if prefix == "Panel.RulerLethal" else set())
+                    {"death_frame_words"} if prefix == "Panel.RulerLethal" else set()) | ({"remnant_words"} if prefix == "Shape." else set())
                 self.assertEqual(named - allowed, set())
         # One column only, a column of its own (B6a [B-6a5], header 3.2): the fallen's awareness line refuses a return and a
         # calling; no other list of a death hangs there.
@@ -2983,6 +2985,68 @@ class SchemaTests(unittest.TestCase):
                 row[1] = word + " a."
         sources["ST_CA.csv"] = "".join(",".join('"%s"' % cell.replace('"', '""') for cell in row) + "\n" for row in rows if row).encode("utf-8")
         self.expect(checker.check_sources(sources), "ST_CA.csv", "Settle.Block.Inward", "the word %s is not used here" % word)
+
+    def test_shape_words(self):
+        """B7x [B-7x3] (header 3.2, section 4; notes 5.4 data-3 and tests-8; decision 13): the shape word of a people - the
+        keys under Shape., which the chronicle's fact line and the system panel's people line show - holds the chronicle's
+        lists with the remnant's word and the words of desolation, and shape_merit_words ('견디', '남은' - an enduring or a
+        remaining told as a merit), a list that hangs on that prefix alone; a figure only in a slot. The project holds the
+        twelve keys the code names (CosmicUI::ShapeKey), each a word of a way of life, and they pass."""
+        self.assertEqual(self.after(), [])
+        lists = self.schema["words"]
+        prefixes = self.schema["string_table"]["checked_prefixes"]
+        check = lambda text: checker.check_string_table("ST_X.csv", text, self.schema)  # noqa: E731
+        # (1) The list pinned by hand (a walk built from the schema's own operand would move with a weakened rule), right after
+        # the chronicle's keys: every list of Chronicle., then remnant_words, desolation_words and shape_merit_words.
+        shape = ["verdict", "soul_verbs", "rescue_words", "afterlife_words", "book_of_life_words", "called_away_words", "holy_passive",
+                 "rung_grasp_words", "title_words", "binding_words", "remnant_words", "desolation_words", "shape_merit_words"]
+        self.assertEqual(prefixes["Shape."], {"forbidden": shape, "no_digits": True})
+        self.assertEqual(list(prefixes).index("Shape."), list(prefixes).index("Chronicle.NoVessel") + 1)
+        self.assertEqual(set(checker.forbidden_lists(prefixes["Chronicle."])) - set(shape), set())
+        self.assertEqual(lists["shape_merit_words"], ["견디", "남은"])
+        # '견디' joins no other list: desolation_words hangs on row rules too (header 3.2).
+        self.assertNotIn("견디", lists["desolation_words"])
+        # (2) One break per list under the prefix, every word of shape_merit_words, and a figure outside a slot.
+        for listed in shape:
+            word = lists[listed][0]
+            with self.subTest(listed=listed):
+                self.expect(check('Key,SourceString\n"Shape.Test","%s 살림"\n' % word), "entry 1 (Shape.Test)", "the word %s is not used here" % word)
+        for word in lists["shape_merit_words"]:
+            with self.subTest(merit=word):
+                self.expect(check('Key,SourceString\n"Shape.Test","오래 %s 살림"\n' % word), "entry 1 (Shape.Test)", "the word %s is not used here" % word)
+        self.expect(check('Key,SourceString\n"Shape.Test","7대의 살림"\n'), "entry 1 (Shape.Test)", "a digit outside a slot")
+        self.assertEqual(check('Key,SourceString\n"Shape.Test","홀로 선 살림"\n'), [])
+        # (3) shape_merit_words hangs on Shape. alone: no other key and no column names it, so a chronicle key may say it.
+        self.assertEqual([prefix for prefix, spec in prefixes.items() if "shape_merit_words" in checker.forbidden_lists(spec)], ["Shape."])
+        self.assertEqual(self.columns_of(lambda spec: "shape_merit_words" in checker.forbidden_lists(spec)), [])
+        self.assertEqual(check('Key,SourceString\n"Chronicle.Test","견디어 남은 길 a."\n'), [])
+        # (4) The project's keys are the code's twelve (CosmicUI::ShapeKey - one per CosmicBricks::ECosmicShape but Count), each a
+        # word of a way of life ('살림'); one rewritten with a merit word is found through the sources.
+        labels = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Source", "Cosmic_Ascension", "UI", "CosmicUILabels.h")
+        with open(labels, encoding="utf-8") as handle:
+            code = handle.read()
+        named = []
+        at = code.find('TEXT("Shape.')
+        while at != -1:
+            start = at + len('TEXT("')
+            named.append(code[start:code.index('"', start)])
+            at = code.find('TEXT("Shape.', start)
+        sources = checker.read_sources()
+        rows = list(csv.reader(io.StringIO(checker.text_of(sources["ST_CA.csv"]))))
+        keys = [row[0] for row in rows[1:] if row and row[0].startswith("Shape.")]
+        self.assertEqual(len(named), 12)
+        self.assertEqual(sorted(keys), sorted(named))
+        for row in rows[1:]:
+            if row and row[0].startswith("Shape."):
+                with self.subTest(key=row[0]):
+                    self.assertTrue(row[1].endswith("살림"), row)
+                    self.assertEqual(check('Key,SourceString\n"%s","%s"\n' % (row[0], row[1])), [])
+        word = lists["shape_merit_words"][0]
+        for row in rows[1:]:
+            if row and row[0] == "Shape.Endured":
+                row[1] = "눌림 속에 %s어 온 살림" % word
+        sources["ST_CA.csv"] = "".join(",".join('"%s"' % cell.replace('"', '""') for cell in row) + "\n" for row in rows if row).encode("utf-8")
+        self.expect(checker.check_sources(sources), "ST_CA.csv", "Shape.Endured", "the word %s is not used here" % word)
 
     def test_per_tick_column(self):
         def per_tick(*items):

@@ -54,6 +54,10 @@ namespace CosmicRows
 	// (the tenth stage's pipeline - also the SourceRow of its Notable.Regent record); a rebellion that expires while
 	// another source has recorded the throne's end first (the throne does not go to the rebels).
 	inline const FName LogScanWild(TEXT("log_scan_wild"));
+	// B7x [B-7x3] (header section 3.1, S15 - decision 18): the scan's face of a people spread between the stars, told in
+	// place of LogScanWild when a lane neighbour of the wild system is a settled system of a people that carries both
+	// Brick.Form.LivingNebula and Brick.Diet.DarkMatter ({System} only - that people's name never passed the knowing gate).
+	inline const FName LogBrickScanSpread(TEXT("log_brick_scan_spread"));
 	inline const FName LogCrowned(TEXT("log_crowned"));
 	inline const FName LogReturned(TEXT("log_returned"));
 	inline const FName LogThroneVacated(TEXT("log_throne_vacated"));

@@ -66,7 +66,8 @@ namespace CosmicSlotWatch
  * place while nothing is selected): its name, star class, the
  * owner as OwnerLineOf says (a people the viewer is shown by name, any other as another people, or none, or destroyed)
  * and right after a shown owner that people's band (ST_CA Panel.People - section 8.3, never a number; none on a wild or
- * destroyed system or for an owner the viewer is not shown), the life of its world (ST_CA Panel.Life with one of twelve
+ * destroyed system or for an owner the viewer is not shown) with the people's shape word after it (B7x decision 13 -
+ * CosmicUI::PeopleLineOf, the chronicle's word; none for a people that has counted no way of life and carries no shape brick), the life of its world (ST_CA Panel.Life with one of twelve
  * words, CosmicUI::LifeLine - none on a destroyed system and none on the sanctuary, whose owner line says it is kept),
  * the hazard standing there with the time it has left (in the clock's unit - cycles
  * or years, the controller's choice; the HUD redraws the panel when it changes), the construction and response slots

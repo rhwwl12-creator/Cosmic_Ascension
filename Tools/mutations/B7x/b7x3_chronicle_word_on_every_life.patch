@@ -1,0 +1,17 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+@@ -80,13 +80,6 @@
+ 			return FText::GetEmpty();
+ 		}
+ 		const FName Last = Lives[LifeAt].RuledCivIDs.Last();
+-		for (int32 Later = LifeAt + 1; Later < Lives.Num(); ++Later)
+-		{
+-			if (Lives[Later].RuledCivIDs.Contains(Last))
+-			{
+-				return FText::GetEmpty();
+-			}
+-		}
+ 		const int32 CivIndex = Last.IsNone() ? INDEX_NONE : Index.FindCiv(State, Last);
+ 		return State.Civs.IsValidIndex(CivIndex) ? CosmicUI::ShapeWordOf(State.Civs[CivIndex]) : FText::GetEmpty();
+ 	}

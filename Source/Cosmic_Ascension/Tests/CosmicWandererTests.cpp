@@ -447,7 +447,7 @@ bool FCosmicSimTravelToTest::RunTest(const FString& Parameters)
 }
 
 // The scan (B1 header section 2.3): one look a lane farther than the wanderer sees, knowing only, a line on a wild system
-// that showed something new.
+// that showed something new - beside a people spread between the stars, the rumour's face in its place (B7x S15).
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimScanTest, "Cosmic_Ascension.Sim.Scan", CosmicTests::Flags)
 bool FCosmicSimScanTest::RunTest(const FString& Parameters)
 {
@@ -513,6 +513,75 @@ bool FCosmicSimScanTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("The handler ran"), bTried);
 		TestEqual(TEXT("and the scan was refused"), Tried, INDEX_NONE);
 		TestEqual(TEXT("learning nothing"), State->Knowing.KnownSystems.Num(), KnownBefore);
+	}
+
+	// B7x [B-7x3] (header section 3.1 - S15, decision 18): the rumour's face. On the same board people 1 holds 5, a lane
+	// neighbour of the wild 4; carrying both Brick.Form.LivingNebula and Brick.Diet.DarkMatter it turns the wild line of a scan
+	// at 4 into log_brick_scan_spread - {System} alone, never that people's name. Five cases: one brick alone (each of the
+	// two), both, both with 5 not settled (a settlement under way - project_settle), both with 5 in another galaxy row (the
+	// lane 4-5 leads out of the galaxy); only the second is the rumour (mutations: either brick enough, any settlement, any
+	// galaxy - each breaks one pass). The scan learns as before and the world and the sim stream stay as they were.
+	constexpr int32 SpreadCases = 5;
+	const TCHAR* const SpreadCaseNames[SpreadCases] = { TEXT("LivingNebula alone"), TEXT("both bricks"), TEXT("DarkMatter alone"),
+		TEXT("both bricks, 5 not settled"), TEXT("both bricks, 5 in another galaxy") };
+	for (int32 Case = 0; Case < SpreadCases; ++Case)
+	{
+		FGalaxyState* Spread = LayBoard(*Sim, TablesWith(Original, Cards(), [](FCosmicRulesDef& Rules)
+		{
+			Rules.SightLanesByTier = { 2, 3, 4, 6, 10 };
+			Rules.ScanSightBonusLanes = 1;
+		}));
+		if (!TestNotNull(TEXT("The board of the rumour is laid"), Spread))
+		{
+			return false;
+		}
+		if (Case != 2)
+		{
+			Spread->Civs[1].Traits.AddTag(CosmicTags::BrickFormLivingNebula());
+		}
+		if (Case != 0)
+		{
+			Spread->Civs[1].Traits.AddTag(CosmicTags::BrickDietDarkMatter());
+		}
+		if (Case == 3)
+		{
+			// LayBoard cleared every megaproject and no tick runs before the scan: 5 stays owned and is not settled.
+			Spread->Systems[5].ActiveMegaproject = CosmicRows::ProjectSettle;
+		}
+		if (Case == 4)
+		{
+			Spread->Systems[5].GalaxyRow = FName(TEXT("b7x_test_other_galaxy"));
+		}
+		Walk(*Sim, *Role, 4);
+		const uint32 SpreadWorld = Sim->ComputeWorldHash();
+		const int32 SpreadSeed = Sim->GetRng().GetCurrentSeed();
+		// In another galaxy row 5 is neither known around 4 nor walked through: the scan learns 2, 11 and 1 alone.
+		TestEqual(*FString::Printf(TEXT("(%s) The scan learns as before"), SpreadCaseNames[Case]), Role->ScanCurrentSystem(), Case == 4 ? 3 : 5);
+		TestEqual(TEXT("(the world is the same)"), static_cast<int64>(Sim->ComputeWorldHash()), static_cast<int64>(SpreadWorld));
+		TestEqual(TEXT("(no number of the sim stream)"), Sim->GetRng().GetCurrentSeed(), SpreadSeed);
+		if (Case != 1)
+		{
+			TestEqual(*FString::Printf(TEXT("(%s) Not the rumour's case beside the wild system: the wild line"), SpreadCaseNames[Case]),
+				LinesOf(*Spread, CosmicRows::LogScanWild), 1);
+			TestEqual(*FString::Printf(TEXT("(%s) and not the rumour's"), SpreadCaseNames[Case]), LinesOf(*Spread, CosmicRows::LogBrickScanSpread), 0);
+			continue;
+		}
+		TestEqual(TEXT("Both bricks beside the wild system: the rumour's face"), LinesOf(*Spread, CosmicRows::LogBrickScanSpread), 1);
+		TestEqual(TEXT("in place of the wild line"), LinesOf(*Spread, CosmicRows::LogScanWild), 0);
+		const FCosmicLogEntry* Rumour = Spread->Log.FindByPredicate([](const FCosmicLogEntry& Entry) { return Entry.SourceRow == CosmicRows::LogBrickScanSpread; });
+		if (TestNotNull(TEXT("(the rumour's line)"), Rumour))
+		{
+			TestTrue(TEXT("It names the scanned system"), Rumour->Message.ToString().Contains(Spread->Systems[4].DisplayName.ToString()));
+			TestFalse(TEXT("and not the people whose bricks it tells"), Rumour->Message.ToString().Contains(Spread->Civs[1].CivName.ToString()));
+			TestEqual(TEXT("It is the wild line's kind: a discovery, Severity 1, about the system scanned"), Rumour->Category, Tag(TEXT("Log.Discovery")));
+			TestEqual(TEXT("(Severity 1)"), static_cast<int32>(Rumour->Severity), 1);
+			TestEqual(TEXT("(its focus)"), Rumour->FocusSystemID, Spread->Systems[4].SystemID);
+		}
+		// A scan of a system a people owns is no wild scan: at 5, people 1's own, no rumour is told.
+		TestTrue(TEXT("(under way to 5)"), Role->TravelTo(Spread->Systems[5].SystemID) == CosmicWanderer::ETravelBlock::None);
+		Sim->RunHeadless(Sim->GetRules().LaneTravelTicks);
+		Role->ScanCurrentSystem();
+		TestEqual(TEXT("A scan of a system a people owns tells no rumour"), LinesOf(*Spread, CosmicRows::LogBrickScanSpread), 1);
 	}
 	return true;
 }

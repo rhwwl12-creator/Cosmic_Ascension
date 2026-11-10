@@ -918,11 +918,13 @@ void UCosmicSystemPanelWidget::Refresh()
 			}
 			Lines.Add(OwnerLineOf(State, View, SystemIndex));
 			// The owner people's size, as its band only (section 8.3), for a people the viewer is shown: never asked of a
-			// wild system or an owner the state does not hold - GetPopulationBand reads those as Few.
+			// wild system or an owner the state does not hold - GetPopulationBand reads those as Few. B7x (header section 4,
+			// decision 13): the line ends with the people's shape word, the chronicle's word - a shape at work only through a
+			// hidden factor would be an unseen judgment; the word tells of the people, so a hidden owner has none either.
 			const ECosmicOwnerShown OwnerShown = CosmicMapLook::OwnerShownOf(State, View, SystemIndex);
 			if (OwnerShown == ECosmicOwnerShown::Shown && State.Civs.IsValidIndex(OwnerIndex))
 			{
-				Lines.Add(PeopleLine(Sim->GetPopulationBand(State.Civs[OwnerIndex].CivID)));
+				Lines.Add(PeopleLineOf(Sim->GetPopulationBand(State.Civs[OwnerIndex].CivID), State.Civs[OwnerIndex]));
 			}
 			// How much a shown people looks up to the vessel, for a wanderer (B1 - what a coronation reads; a number of the
 			// screen only).

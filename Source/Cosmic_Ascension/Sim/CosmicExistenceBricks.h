@@ -188,7 +188,7 @@ namespace CosmicBricks
 	/**
 	 * The shape a people's life took. Four for a people without a shape brick, by its largest vector (ties broken by the
 	 * fixed order Built, Consumed, Drifted, Linked, Isolated, Endured), and eight by shape brick. Never saved and never
-	 * compared by its numeric value; the presentation maps it to Chronicle.Shape.* ([B-7x3]).
+	 * compared by its numeric value; the presentation maps it to ST_CA Shape.* (CosmicUI::ShapeKey - [B-7x3]).
 	 */
 	enum class ECosmicShape : uint8
 	{

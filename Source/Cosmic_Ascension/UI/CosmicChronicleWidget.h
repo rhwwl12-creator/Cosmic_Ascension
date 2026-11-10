@@ -52,7 +52,9 @@ namespace CosmicChronicleScreen
  * Chronicle.Note.NoVessel), the provisional notice (the clock's end only) and two buttons. No screen title for an end (B6a decision 6-na): every end
  * has the same page, colours and fixed lines, and only the cause line differs. A click on the page is not a map click.
  * A chapter is its title, its facts (the peoples ruled, or for a life that never ruled ST_CA Chronicle.BornAmong with its birth people, then 'wandering';
- * the rung; the cycles), then - B5 - the span with no vessel that led to it under ST_CA Chronicle.NoVessel, its body, and on the last chapter the span
+ * the rung; the cycles; then - B7x decision 13 - the shape word of the people of its last reign, ST_CA Shape.*, read at display and never saved: none for a
+ * life that never ruled, for a people the state no longer holds, or for one a later life ruled too - the last such life's chapter alone may carry it), then - B5 - the span
+ * with no vessel that led to it under ST_CA Chronicle.NoVessel, its body, and on the last chapter the span
  * after its death when no shown life follows (FCosmicChronicleChapter::Before, After; a span without a line shows nothing).
  * After the last chapter and before the fixed lines, the two books (B5 - CosmicChronicle::BuildTwoBooks): ST_CA
  * Chronicle.BookRecorded over part one as a chapter's head (a life chapter's size, colour and padding - one chapter, not a

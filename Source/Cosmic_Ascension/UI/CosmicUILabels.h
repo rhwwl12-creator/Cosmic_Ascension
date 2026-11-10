@@ -1,6 +1,6 @@
 // Cosmic Ascension - UI layer (Presentation). Design: guideline.md section 2.1, 5.7, 5.11, 6.3, 8.3, 8.5.
 // Small shared helpers of the C++ widgets: the String Table labels, the number forms the UI may show, the speed steps
-// and the third rung's speed gate, the joins of texts, the life words and the galaxy kinds.
+// and the third rung's speed gate, the joins of texts, the life words, the shape words (B7x) and the galaxy kinds.
 
 #pragma once
 
@@ -11,6 +11,7 @@
 #include "Core/CosmicIDs.h"
 #include "Core/CosmicSeed.h"
 #include "Core/CosmicTypes.h"
+#include "Core/GalaxyState.h"
 #include "Data/CosmicDataTables.h"
 #include "Data/CosmicDefinitionRows.h"
 #include "Fonts/SlateFontInfo.h"
@@ -19,6 +20,7 @@
 #include "Internationalization/Text.h"
 #include "Misc/Optional.h"
 #include "Sim/CosmicConflict.h"
+#include "Sim/CosmicExistenceBricks.h"
 #include "Sim/CosmicResearch.h"
 #include "World/CosmicZoomLevels.h"
 
@@ -109,6 +111,64 @@ namespace CosmicUI
 	inline FText PeopleLine(EPopulationBand Band)
 	{
 		return FText::FormatNamed(Label(TEXT("Panel.People")), TEXT("PopBand"), PopulationBandLabel(Band));
+	}
+
+	// The String Table key of an end shape (B7x header sections 2.7, 3.2): ST_CA Shape.<the enumerator's name>, written out
+	// here (an enumerator's name keeps its case in an editor build only, and a shape is never read by its numeric value).
+	// Null for Count.
+	inline const TCHAR* ShapeKey(CosmicBricks::ECosmicShape Shape)
+	{
+		using CosmicBricks::ECosmicShape;
+		switch (Shape)
+		{
+		case ECosmicShape::BuiltOrLinked:
+			return TEXT("Shape.BuiltOrLinked");
+		case ECosmicShape::ConsumedOrDrifted:
+			return TEXT("Shape.ConsumedOrDrifted");
+		case ECosmicShape::Isolated:
+			return TEXT("Shape.Isolated");
+		case ECosmicShape::Endured:
+			return TEXT("Shape.Endured");
+		case ECosmicShape::KeptLaw:
+			return TEXT("Shape.KeptLaw");
+		case ECosmicShape::FoldedSmall:
+			return TEXT("Shape.FoldedSmall");
+		case ECosmicShape::ShutHouse:
+			return TEXT("Shape.ShutHouse");
+		case ECosmicShape::SpreadBody:
+			return TEXT("Shape.SpreadBody");
+		case ECosmicShape::StarHerd:
+			return TEXT("Shape.StarHerd");
+		case ECosmicShape::WovenSwarm:
+			return TEXT("Shape.WovenSwarm");
+		case ECosmicShape::LastHunger:
+			return TEXT("Shape.LastHunger");
+		case ECosmicShape::Entwined:
+			return TEXT("Shape.Entwined");
+		case ECosmicShape::Count:
+			break;
+		}
+		return nullptr;
+	}
+
+	/** The shape word of a people (B7x header section 4 - decision 13 (d)): its present way of life, the label of
+	 * CosmicBricks::ShapeOf (a 'way of life' word of ST_CA Shape. - never a design name), read now and never saved; the
+	 * chronicle's fact line and the system panel's people line say the same word. Empty for a people with no time vector
+	 * counted and no shape brick: ShapeOf answers BuiltOrLinked then, so this asks first - a people that has lived no tick of
+	 * any way shows nothing. */
+	inline FText ShapeWordOf(const FCivilizationState& Civ)
+	{
+		const FCosmicTimeVectors& Vectors = Civ.TimeVectors;
+		const bool bNoneCounted = Vectors.Built == 0 && Vectors.Consumed == 0 && Vectors.Drifted == 0 && Vectors.Linked == 0
+			&& Vectors.Isolated == 0 && Vectors.Endured == 0;
+		const CosmicBricks::ECosmicShape Shape = CosmicBricks::ShapeOf(Civ);
+		// With nothing counted, ShapeOf's BuiltOrLinked is no shape brick's answer (no brick gives it): nothing to tell.
+		if (bNoneCounted && Shape == CosmicBricks::ECosmicShape::BuiltOrLinked)
+		{
+			return FText::GetEmpty();
+		}
+		const TCHAR* Key = ShapeKey(Shape);
+		return Key ? Label(Key) : FText::GetEmpty();
 	}
 
 	// Resources and progress as whole numbers (section 8.3: resource numbers are for the UI only).
@@ -218,6 +278,13 @@ namespace CosmicUI
 			bAny = true;
 		}
 		return bAny ? Joined : FText::GetEmpty();
+	}
+
+	// The system panel's people line of a shown owner (B7x header section 4): PeopleLine with the people's shape word after
+	// it (List.Pair - ShapeWordOf), the line alone while the people shows no shape.
+	inline FText PeopleLineOf(EPopulationBand Band, const FCivilizationState& Civ)
+	{
+		return JoinList({ PeopleLine(Band), ShapeWordOf(Civ) });
 	}
 
 	// Texts one per line, the empty ones left out (a tooltip of a reason and its hint): empty when all are.
