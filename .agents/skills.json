@@ -1,0 +1,8 @@
+{
+  "entries": [
+    {
+      "path": ".claude/skills",
+      "include_only": ["cosmic-gatekeeper", "cosmic-design-scout", "cosmic-decision-digest", "cosmic-lead"]
+    }
+  ]
+}
