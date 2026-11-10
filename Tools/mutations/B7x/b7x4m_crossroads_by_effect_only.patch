@@ -1,0 +1,13 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -274,8 +274,7 @@
+ 
+ bool CosmicRulerPolicy::IsCrossroadsCard(const FEncounterDef& Row)
+ {
+-	return Row.Conditions.ContainsByPredicate([](const FCosmicCondition& Condition) { return Condition.Type == EConditionType::CivTimeVectorAtLeast; })
+-		|| Row.Choices.ContainsByPredicate([](const FEncounterChoice& Choice) { return CosmicRulerPolicy::MovesABrickOf(Choice); });
++	return Row.Choices.ContainsByPredicate([](const FEncounterChoice& Choice) { return CosmicRulerPolicy::MovesABrickOf(Choice); });
+ }
+ 
+ bool CosmicRulerPolicy::AsksABrickOf(const TArray<FCosmicCondition>& Conditions)

@@ -36,6 +36,7 @@
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicEndings.h"
 #include "Sim/CosmicEvalContext.h"
+#include "Sim/CosmicExistenceBricks.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/CosmicSuccession.h"
@@ -50,6 +51,7 @@
 #include "World/CosmicRulerPolicy.h"
 #include "World/CosmicWandererPolicy.h"
 #include "Tests/CosmicB6bRowNames.h"
+#include "Tests/CosmicB7xRowNames.h"
 #include "Tests/CosmicRaceMeasure.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -1366,6 +1368,130 @@ namespace
 		}
 	}
 
+	// B7x [B-7x4m] (B7x header section 5 'the new line bricks:', notes section 5.4 code 8): what the bricks line reads - the
+	// state, the policies' inputs and the event cooldown keys; no hook into the simulation, no draw, the same with -TellAll=0.
+	struct FBrickCounts
+	{
+		// The reading points of the six vectors: 1,200, 2,400, the ruled third rung + 1,200 (the second crossroads' threshold
+		// rule), the clock C, the run's end; the tick each was read at (-1: not reached).
+		static constexpr int32 Points = 5;
+		int64 ReadAt[Points] = { -1, -1, -1, -1, -1 };
+		// The peoples of tick 0 in Civs order, the bricks each held then ("-" none - an AI people's is its seed brick) and its
+		// vectors at each point ("B/C/D/L/I/E", "*" after it for the people the vessel ruled then; "-" gone or not read).
+		TArray<FName> Peoples;
+		TMap<FName, FString> BricksAtStart;
+		TMap<FName, TArray<FString>> Vectors;
+		int32 AISeeds = 0;
+		float RuledStabilityAtC = -1.f;
+		// The crossroads cards that came (CosmicRulerPolicy::IsCrossroadsCard - tick and row), and their accepted answers
+		// ("tick:row:choice:shape" - the choice from 1, the shape of the people the answer touched, after it).
+		TArray<TPair<int64, FName>> Came;
+		TArray<FString> Answers;
+		// The ticks of the ruler policy's crossroads answers alone (judgment 5: Ending.Decisions counts the ruler's, never the
+		// wanderer's).
+		TArray<int64> RulerAnswerTicks;
+		// petition_walls and petition_bread that came (header section 5 judgment 3: the Standing cards a waiting card may push off).
+		int32 WallsCame = 0;
+		int32 BreadCame = 0;
+		// The DT_Events rows that ask a brick (CosmicRulerPolicy::AsksABrickOf) and their fires per people and tick, read from the
+		// cooldown key the event slot writes ("<row>@<CivID>" = the tick + CooldownTicks - UCosmicEventSubsystem::CooldownKey):
+		// RunHeadless closes the broadcast gate, so OnEventFired is never heard here. A Named row or one without a cooldown
+		// writes no key and reads "?"; a SettledSystem row counts once per people and tick.
+		TArray<FName> BrickRows;
+		TMap<FName, TArray<FName>> FireKeys;
+		TMap<FString, int64> Fires;
+		// The code rules: the placements the crisis parasite's bonus reached and the ticks it added by tag; the ticks some
+		// parasite took insight in; the (viewer, seen) border pairs whose drift target took a brick term, at the 100-tick
+		// samples; the mutations the AI step added, by tag.
+		int32 ParasitePlacements = 0;
+		TMap<FString, int64> ParasiteTicksByTag;
+		int32 ParasiteInsightTicks = 0;
+		TSet<FString> TermPairs;
+		TMap<FString, int64> Mutations;
+		// The wanderer's first stand on each settled system of a people, and that owner's Drifted then (the wanderer card's
+		// threshold rule).
+		TSet<FName> StoodOn;
+		TArray<int64> StandDrifted;
+		// The kept-law peoples (Brick.Form.KeptLaw - the -Crossroads cell, judgment 8): the boundary it was first seen, Stability
+		// first below 0.2, the rebellions placed on its systems, the boundary it was gone at, its LawsHeldTicks last read.
+		struct FKept
+		{
+			FName CivID;
+			int64 From = -1;
+			int64 Below = -1;
+			int32 Rebellions = 0;
+			int64 Gone = -1;
+			int32 LawsHeld = 0;
+		};
+		TArray<FKept> Kept;
+	};
+
+	FString BrickVectorsText(const FCosmicTimeVectors& Vectors)
+	{
+		return FString::Printf(TEXT("%d/%d/%d/%d/%d/%d"), Vectors.Built, Vectors.Consumed, Vectors.Drifted, Vectors.Linked, Vectors.Isolated, Vectors.Endured);
+	}
+
+	// The word of an end shape (CosmicBricks::ShapeOf - the enumerator's name; the screen's words are Chronicle.Shape.*).
+	const TCHAR* BrickShapeNameOf(CosmicBricks::ECosmicShape Shape)
+	{
+		switch (Shape)
+		{
+		case CosmicBricks::ECosmicShape::BuiltOrLinked:
+			return TEXT("BuiltOrLinked");
+		case CosmicBricks::ECosmicShape::ConsumedOrDrifted:
+			return TEXT("ConsumedOrDrifted");
+		case CosmicBricks::ECosmicShape::Isolated:
+			return TEXT("Isolated");
+		case CosmicBricks::ECosmicShape::Endured:
+			return TEXT("Endured");
+		case CosmicBricks::ECosmicShape::KeptLaw:
+			return TEXT("KeptLaw");
+		case CosmicBricks::ECosmicShape::FoldedSmall:
+			return TEXT("FoldedSmall");
+		case CosmicBricks::ECosmicShape::ShutHouse:
+			return TEXT("ShutHouse");
+		case CosmicBricks::ECosmicShape::SpreadBody:
+			return TEXT("SpreadBody");
+		case CosmicBricks::ECosmicShape::StarHerd:
+			return TEXT("StarHerd");
+		case CosmicBricks::ECosmicShape::WovenSwarm:
+			return TEXT("WovenSwarm");
+		case CosmicBricks::ECosmicShape::LastHunger:
+			return TEXT("LastHunger");
+		case CosmicBricks::ECosmicShape::Entwined:
+			return TEXT("Entwined");
+		default:
+			return TEXT("-");
+		}
+	}
+
+	// The bricks a people holds, by name, joined by "+" ("-" for none).
+	FString BrickHeldText(const FCivilizationState& Civ)
+	{
+		TArray<FString> Held;
+		for (const FGameplayTag& Trait : Civ.Traits)
+		{
+			if (CosmicTags::IsBrick(Trait))
+			{
+				Held.Add(Trait.ToString());
+			}
+		}
+		Held.Sort();
+		return Held.IsEmpty() ? FString(TEXT("-")) : FString::Join(Held, TEXT("+"));
+	}
+
+	// "key:count" pairs in key order ("-" for none).
+	FString BrickPairsText(const TMap<FString, int64>& Pairs)
+	{
+		TArray<FString> Parts;
+		for (const TPair<FString, int64>& Pair : Pairs)
+		{
+			Parts.Add(FString::Printf(TEXT("%s:%lld"), *Pair.Key, Pair.Value));
+		}
+		Parts.Sort();
+		return Parts.IsEmpty() ? FString(TEXT("-")) : FString::Join(Parts, TEXT(" "));
+	}
+
 	// -Rules=Name:Value;Name:Value - DT_Rules fields replaced for this run only (section 9.3: a knob measured before it is
 	// written into the data). Each value is read as the data importer reads it (ImportText). False, with an error line, for
 	// a field the row lacks or a value it cannot read.
@@ -1425,6 +1551,36 @@ namespace
 		return FString::Printf(TEXT("%s at %lld people %s no vessel %d"), CosmicEndings::NameOf(Record.Kind), Record.Tick, *Record.CivID.ToString(),
 			Record.bNoVessel ? 1 : 0);
 	}
+}
+
+bool CosmicBalanceArgs::IsSaveShapeOf(const FString& Params)
+{
+	int32 TellAll = 1;
+	FString RulesText;
+	int32 WithoutPressure = 0;
+	int32 Systems = 0;
+	int32 Civs = 0;
+	int64 DeathAt = -1;
+	int32 WithoutDeath = 0;
+	int32 PastEnd = 0;
+	int32 ExaltAsBefore = 0;
+	int32 WithoutB6bData = 0;
+	int32 FourthRungCap = -1;
+	int32 WithoutB7xData = 0;
+	FParse::Value(*Params, TEXT("TellAll="), TellAll);
+	FParse::Value(*Params, TEXT("Rules="), RulesText, false);
+	FParse::Value(*Params, TEXT("WithoutPressure="), WithoutPressure);
+	FParse::Value(*Params, TEXT("Systems="), Systems);
+	FParse::Value(*Params, TEXT("Civs="), Civs);
+	FParse::Value(*Params, TEXT("DeathAt="), DeathAt);
+	FParse::Value(*Params, TEXT("WithoutDeath="), WithoutDeath);
+	FParse::Value(*Params, TEXT("PastEnd="), PastEnd);
+	FParse::Value(*Params, TEXT("ExaltAsBefore="), ExaltAsBefore);
+	FParse::Value(*Params, TEXT("WithoutB6bData="), WithoutB6bData);
+	const bool bCapGiven = FParse::Value(*Params, TEXT("FourthRungCap="), FourthRungCap);
+	FParse::Value(*Params, TEXT("WithoutB7xData="), WithoutB7xData);
+	return TellAll == 0 && RulesText.IsEmpty() && WithoutPressure == 0 && Systems == 0 && Civs == 0 && DeathAt < 0 && WithoutDeath == 0 && PastEnd == 0
+		&& ExaltAsBefore == 0 && WithoutB6bData == 0 && !bCapGiven && WithoutB7xData == 0;
 }
 
 int32 UCosmicBalanceCommandlet::Main(const FString& Params)
@@ -1513,12 +1669,21 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	int32 FourthRungCap = -1;
 	FParse::Value(*Params, TEXT("WithoutB6bData="), WithoutB6bData);
 	const bool bCapGiven = FParse::Value(*Params, TEXT("FourthRungCap="), FourthRungCap);
-	// The home galaxy row too (-Systems and -Civs 0): the game never builds another size.
-	const bool bSaveShape = TellAll == 0 && RulesText.IsEmpty() && WithoutPressure == 0 && Systems == 0 && Civs == 0 && DeathAt < 0 && WithoutDeath == 0
-		&& PastEnd == 0 && ExaltAsBefore == 0 && WithoutB6bData == 0 && !bCapGiven;
+	// B7x ([B-7x4m] - B7x header section 5, notes section 5.4 code 8, measurement only): -WithoutB7xData=1 runs on the tables
+	// without B7x's data (CosmicTests::WithoutB7xData - its twelve cards and nine events, Society off arch_seeker, the seventeen
+	// knobs inert), =2 without its rows and Society alone (the knobs and the seed bricks kept) - the data-off sides of a pair in
+	// the same build; -Crossroads=<k> (k 1 or more) lets both policies take the k-th choice that moves a brick on a crossroads
+	// card (an input's form: any build, and -SaveAt still writes). Neither is an argument of the hash run or the runner.
+	int32 WithoutB7xData = 0;
+	int32 Crossroads = 0;
+	FParse::Value(*Params, TEXT("WithoutB7xData="), WithoutB7xData);
+	const bool bCrossroadsGiven = FParse::Value(*Params, TEXT("Crossroads="), Crossroads);
+	// The home galaxy row too (-Systems and -Civs 0): the game never builds another size. The list is CosmicBalanceArgs::IsSaveShapeOf
+	// (B7x [B-7x4m] - read apart, so that a test holds it).
+	const bool bSaveShape = CosmicBalanceArgs::IsSaveShapeOf(Params);
 	if (SaveAt >= 0 && !bSaveShape)
 	{
-		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -SaveAt writes only a run of the game's shape (-TellAll=0, no -Rules, -WithoutPressure, -Systems, -Civs, -DeathAt, -WithoutDeath, -PastEnd, -ExaltAsBefore, -WithoutB6bData or -FourthRungCap): no save"));
+		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -SaveAt writes only a run of the game's shape (-TellAll=0, no -Rules, -WithoutPressure, -Systems, -Civs, -DeathAt, -WithoutDeath, -PastEnd, -ExaltAsBefore, -WithoutB6bData, -FourthRungCap or -WithoutB7xData): no save"));
 	}
 	// A boundary the run never reaches writes nothing: said at once, not found missing after the run.
 	if (SaveAt >= 0 && (SaveAt < 1 || SaveAt > Ticks))
@@ -1540,6 +1705,9 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	int32 Result = 0;
 	UGalaxySimulationSubsystem* Sim = GameInstance->GetSubsystem<UGalaxySimulationSubsystem>();
 	UPlayerRoleSubsystem* Role = GameInstance->GetSubsystem<UPlayerRoleSubsystem>();
+	// B7x [B-7x4m] (the bricks line): the clock C - the game's ProvisionalEndTick as the data holds it, read before -Rules (the
+	// measurement's runs turn the clock off with -Rules=ProvisionalEndTick:0; C stays the data's, [B-6b10]'s value). 0: none.
+	const int32 BrickClock = Sim ? Sim->GetRules().ProvisionalEndTick : 0;
 	// A run on rules it could not set would print numbers of other rules: it does not run.
 	const bool bRules = Sim && (RulesText.IsEmpty() || OverrideRules(*Sim, RulesText));
 	// The tables the run plays on first, then the checks that read them (a kept row the data-off tables do not hold is refused).
@@ -1621,6 +1789,32 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -FourthRungCap is 0 or more (0: no brake), with the home galaxy row %s in the tables, in a build with the automation tests: %d"),
 			Sim ? *Sim->GetRules().HomeGalaxyRow.ToString() : TEXT("-"), FourthRungCap);
 	}
+	// B7x ([B-7x4m]): -WithoutB7xData is a test build's only too, the gate of -WithoutB6bData - after it and after -Rules
+	// (WithoutB7xData keeps every field of the rules but the seventeen knobs; the two helpers take out rows and knobs that do not
+	// overlap, so their order changes nothing). -Crossroads is the policies' input, read in any build.
+	bool bB7xOffArg = WithoutB7xData == 0;
+#if WITH_DEV_AUTOMATION_TESTS
+	bB7xOffArg = WithoutB7xData >= 0 && WithoutB7xData <= 2;
+	if (Sim && (WithoutB7xData == 1 || WithoutB7xData == 2))
+	{
+		const FCivArchetypeDef* Seeker = Sim->GetTables().FindCiv(CosmicRows::ArchSeeker);
+		const bool bSociety = Seeker && Seeker->Traits.HasTagExact(CosmicTags::BrickFormSociety());
+		TArray<FName> Removed;
+		Sim->SetTables(CosmicTests::WithoutB7xData(Sim->GetTables(), &Removed, WithoutB7xData == 2));
+		UE_LOG(LogCosmic, Display, TEXT("CosmicBalance: tables without B7x's %s - rows taken out [%s], Brick.Form.Society %s arch_seeker, %s"),
+			WithoutB7xData == 1 ? TEXT("data") : TEXT("cards and events"), *FString::JoinBy(Removed, TEXT(" "), [](FName Name) { return Name.ToString(); }),
+			bSociety ? TEXT("off") : TEXT("not on"), WithoutB7xData == 1 ? TEXT("17 knobs inert") : TEXT("knobs and seeds kept"));
+	}
+#endif
+	if (!bB7xOffArg)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -WithoutB7xData is 0, 1 or 2 (1 and 2 in a build with the automation tests): %d"), WithoutB7xData);
+	}
+	const bool bCrossroadsArg = !bCrossroadsGiven || Crossroads >= 1;
+	if (!bCrossroadsArg)
+	{
+		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -Crossroads is 1 or more (the k-th choice that moves a brick on a crossroads card): %d"), Crossroads);
+	}
 	// A kept row the tables do not hold would measure the policy without it under its name: no run (B2).
 	const bool bEdictRow = Sim && (EdictRowText.IsEmpty() || Sim->GetTables().FindEdict(FName(*EdictRowText)) != nullptr);
 	if (Sim && !bEdictRow)
@@ -1642,7 +1836,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: -PlayerPolicy is Cautious, Reckless or Faithful (B4 has no tribute), -Guard and -LeaveNearSphere 0 or 1, and -LeaveNearSphere=1 needs one of the three policies: %s %d %d"),
 			*PlayerPolicyText, GuardArg, LeaveNearSphere);
 	}
-	if (Sim && Role && bRules && bEdictRow && bDiplomacy && bPressure && bUnpressed && bDeathArgs && bExaltArg && bB6bOffArg && bCapArg)
+	if (Sim && Role && bRules && bEdictRow && bDiplomacy && bPressure && bUnpressed && bDeathArgs && bExaltArg && bB6bOffArg && bCapArg && bB7xOffArg && bCrossroadsArg)
 	{
 		// Every line is stored unless -TellAll=0 asks for the scope of telling of a game (section 8.1). The world hash is
 		// the same either way.
@@ -1711,6 +1905,31 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		FGalaxyState RaceLightState;
 		FCosmicStateIndex RaceLightIndex;
 		const FName VigilRow = CosmicRulerPolicy::VigilRowOf(Sim->GetTables());
+		// B7x [B-7x4m] (the bricks line): the peoples of tick 0 and the bricks each holds (an AI people's is its seed brick -
+		// NewGalaxy; the first life's those of its archetype row), their readings not taken yet, and the DT_Events rows that ask
+		// a brick with the cooldown key of each people.
+		FBrickCounts Bricks;
+		for (const FCivilizationState& Civ : State.Civs)
+		{
+			const FString Held = BrickHeldText(Civ);
+			Bricks.Peoples.Add(Civ.CivID);
+			Bricks.BricksAtStart.Add(Civ.CivID, Held);
+			Bricks.AISeeds += (!Civ.bIsPlayerRuled && Held != TEXT("-")) ? 1 : 0;
+			Bricks.Vectors.Add(Civ.CivID).Init(FString(TEXT("-")), FBrickCounts::Points);
+		}
+		for (const FName BrickRow : Sim->GetTables().GetEventRowNames())
+		{
+			const FCosmicEventDef* BrickDef = Sim->GetTables().FindEvent(BrickRow);
+			if (BrickDef && CosmicRulerPolicy::AsksABrickOf(BrickDef->Conditions))
+			{
+				Bricks.BrickRows.Add(BrickRow);
+				TArray<FName>& BrickKeys = Bricks.FireKeys.Add(BrickRow);
+				for (const FName People : Bricks.Peoples)
+				{
+					BrickKeys.Add(UCosmicEventSubsystem::CooldownKey(BrickRow, People));
+				}
+			}
+		}
 		const int32 SphereStart = SphereSize(State);
 		const TArray<FString> SpheresStart = SpheresOf(State);
 		for (const FCosmicLogEntry& Entry : State.Log)
@@ -1734,9 +1953,9 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 		int64 SampleTicks = 0;
 		int64 Samples = 0;
 		const FCosmicRulerPolicy RulerPolicy{ Answer != 0, Build != 0, Focus != 0, Edict != 0, EdictRowText.IsEmpty() ? NAME_None : FName(*EdictRowText), Diplomacy,
-			PressurePolicy, GuardArg, LeaveNearSphere != 0, PastEnd != 0 };
+			PressurePolicy, GuardArg, LeaveNearSphere != 0, PastEnd != 0, Crossroads };
 		FCosmicRulerPolicyCounts RulerCounts;
-		const FCosmicWandererPolicy WandererPolicy{ AbdicateAt, Wander != 0, PastEnd != 0 };
+		const FCosmicWandererPolicy WandererPolicy{ AbdicateAt, Wander != 0, PastEnd != 0, Crossroads };
 		FCosmicWandererPolicyCounts WandererCounts;
 		// B5 ([B-5a]): the calling line's counts, and the rules of the ruler's window B' (every realm cap raised - #133).
 		FCallingCounts Calling;
@@ -1905,6 +2124,31 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			for (const FCivilizationState& Civ : State.Civs)
 			{
 				ReverenceAtStart = FMath::Max(ReverenceAtStart, Civ.ReverenceToPlayer);
+			}
+			// B7x [B-7x4m] (the bricks line): before the tick, as its stages find the state - a crisis parasite's insight in the
+			// economy stage (its knob above 0 and a hazard it feeds on - CosmicBricks::ParasiteHazardsOf), and the traits of the
+			// AI peoples when the tick's AI stage runs the mutation step (CosmicBricks::MutationStepDueAt; none while it is off).
+			if (RulesNow.BrickParasiteInsightPerHazard > 0.f)
+			{
+				for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+				{
+					if (State.Civs[CivIndex].Traits.HasTagExact(CosmicTags::BrickDietCrisisParasite()) && CosmicBricks::ParasiteHazardsOf(State, StateIndex, CivIndex) > 0)
+					{
+						++Bricks.ParasiteInsightTicks;
+						break;
+					}
+				}
+			}
+			TMap<FName, FGameplayTagContainer> MutationsBefore;
+			if (CosmicBricks::MutationStepDueAt(RulesNow, State.Tick + 1))
+			{
+				for (const FCivilizationState& Civ : State.Civs)
+				{
+					if (!Civ.bIsPlayerRuled)
+					{
+						MutationsBefore.Add(Civ.CivID, Civ.Traits);
+					}
+				}
 			}
 			const bool bLeapTick = State.Calling.LifeState == ELifeState::Interregnum;
 			const uint64 Start = FPlatformTime::Cycles64();
@@ -2781,6 +3025,98 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			// (World/CosmicRulerPolicy - MVP item 9), so the cooked build plays the same inputs.
 			// The abdication first (B1 header section 5: the boundary's order - the end read, the abdication, the ruler's
 			// input, the wanderer's), so that a ruler who leaves at this tick still gives this tick's answers.
+			// B7x [B-7x4m] (B7x header section 5, the bricks line): at this boundary, before the inputs - the fires in the tick of
+			// the event rows that ask a brick, the mutations the tick's AI step added, the six vectors at the reading points, the
+			// cards that came, the wanderer's first stand on a people's settled system; and a waiting crossroads card with the
+			// choice the policies' own pick gives it (asked with Act's arguments: the policies answer the waiting card first).
+			for (const FName BrickRow : Bricks.BrickRows)
+			{
+				const FCosmicEventDef* BrickDef = Sim->GetTables().FindEvent(BrickRow);
+				const TArray<FName>* BrickKeys = Bricks.FireKeys.Find(BrickRow);
+				if (!BrickDef || !BrickKeys || BrickDef->CooldownTicks <= 0 || BrickDef->Trigger == ECosmicEventTrigger::Named)
+				{
+					continue;
+				}
+				for (const FName BrickKey : *BrickKeys)
+				{
+					const int64* BrickUntil = State.EventCooldownUntilTick.Find(BrickKey);
+					Bricks.Fires.FindOrAdd(BrickRow.ToString()) += (BrickUntil && *BrickUntil == State.Tick + BrickDef->CooldownTicks) ? 1 : 0;
+				}
+			}
+			for (const TPair<FName, FGameplayTagContainer>& Was : MutationsBefore)
+			{
+				const FCivilizationState* Mutated = State.Civs.FindByPredicate([&Was](const FCivilizationState& Each) { return Each.CivID == Was.Key; });
+				const FGameplayTag MutationTags[] = { CosmicTags::BrickMutationStarTow(), CosmicTags::BrickMutationDustBand(), CosmicTags::BrickMutationInwardHunger() };
+				for (const FGameplayTag& Mutation : MutationTags)
+				{
+					if (Mutated && Mutated->Traits.HasTagExact(Mutation) && !Was.Value.HasTagExact(Mutation))
+					{
+						++Bricks.Mutations.FindOrAdd(Mutation.ToString());
+					}
+				}
+			}
+			{
+				const int64 BrickPoints[FBrickCounts::Points] = { 1200, 2400, Race.RuledTick[0] >= 0 ? Race.RuledTick[0] + 1200 : -1, BrickClock > 0 ? static_cast<int64>(BrickClock) : -1,
+					Done + 1 == Ticks ? State.Tick : -1 };
+				for (int32 Point = 0; Point < FBrickCounts::Points; ++Point)
+				{
+					if (BrickPoints[Point] < 0 || State.Tick != BrickPoints[Point] || Bricks.ReadAt[Point] >= 0)
+					{
+						continue;
+					}
+					Bricks.ReadAt[Point] = State.Tick;
+					for (const FCivilizationState& Civ : State.Civs)
+					{
+						if (TArray<FString>* Readings = Bricks.Vectors.Find(Civ.CivID))
+						{
+							(*Readings)[Point] = BrickVectorsText(Civ.TimeVectors) + (Civ.bIsPlayerRuled ? TEXT("*") : TEXT(""));
+						}
+						Bricks.RuledStabilityAtC = (Point == 3 && Civ.bIsPlayerRuled) ? Civ.Stability : Bricks.RuledStabilityAtC;
+					}
+				}
+			}
+			const FName BrickPending = State.Knowing.PendingPetitionRow;
+			const FEncounterDef* BrickPendingRow = BrickPending.IsNone() ? nullptr : Sim->GetTables().FindEncounter(BrickPending);
+			const bool bBrickCrossroads = BrickPendingRow && CosmicRulerPolicy::IsCrossroadsCard(*BrickPendingRow);
+			if (!BrickPending.IsNone() && BrickPending != CardBefore)
+			{
+				if (bBrickCrossroads)
+				{
+					Bricks.Came.Add(TPair<int64, FName>(State.Tick, BrickPending));
+				}
+				Bricks.WallsCame += BrickPending == CosmicB7xRows::PetitionWalls ? 1 : 0;
+				Bricks.BreadCame += BrickPending == CosmicB7xRows::PetitionBread ? 1 : 0;
+			}
+			if (CosmicWanderer::IsEmbodiedWanderer(State))
+			{
+				const int32 StoodAt = CosmicWanderer::StandingIndexOf(State, StateIndex);
+				const int32 StoodOwner = State.Systems.IsValidIndex(StoodAt) && CosmicState::IsSettled(State.Systems[StoodAt])
+					? StateIndex.FindCiv(State, State.Systems[StoodAt].OwnerCivID) : INDEX_NONE;
+				if (State.Civs.IsValidIndex(StoodOwner) && !Bricks.StoodOn.Contains(State.Systems[StoodAt].SystemID))
+				{
+					Bricks.StoodOn.Add(State.Systems[StoodAt].SystemID);
+					Bricks.StandDrifted.Add(State.Civs[StoodOwner].TimeVectors.Drifted);
+				}
+			}
+			FName BrickAnswerCivID;
+			int32 BrickAnswerPick = INDEX_NONE;
+			const int32 BrickAnswersBefore = RulerCounts.Answers + WandererCounts.Answers;
+			const int32 BrickRulerAnswersBefore = RulerCounts.Answers;
+			if (bBrickCrossroads)
+			{
+				if (CosmicPetitions::IsWandererCard(*BrickPendingRow))
+				{
+					const FCosmicVesselSubject BrickVessel = CosmicPetitions::VesselSubjectOf(State, StateIndex);
+					BrickAnswerCivID = State.Civs.IsValidIndex(BrickVessel.CivIndex) ? State.Civs[BrickVessel.CivIndex].CivID : NAME_None;
+					BrickAnswerPick = CosmicWandererPolicy::PickOf(*BrickPendingRow, WandererCounts.Answers, WandererPolicy.Crossroads);
+				}
+				else
+				{
+					BrickAnswerCivID = RuledAtBoundary ? RuledAtBoundary->CivID : NAME_None;
+					BrickAnswerPick = CosmicRulerPolicy::ChoiceOf(State, StateIndex, *BrickPendingRow, RulerCounts.Answers, BrickPending, RulerPolicy.Diplomacy, &RulesNow,
+						&Sim->GetTables(), RulerPolicy.Pressure, RulerPolicy.Crossroads);
+				}
+			}
 			CosmicWandererPolicy::AbdicateIfDue(WandererPolicy, *Sim, *Role, WandererCounts);
 			// B4 ([B-4d2]): the claim card that came at this boundary, and the ruled people's claims and fleet before the input.
 			const int32 RuledBeforeAct = RuledAtBoundary ? StateIndex.FindCiv(State, RuledAtBoundary->CivID) : INDEX_NONE;
@@ -2821,7 +3157,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				Ending.ExaltTick = Ending.ExaltTick < 0 ? State.Tick : Ending.ExaltTick;
 				const FEncounterDef* ExaltRow = Sim->GetTables().FindEncounter(CosmicRows::PetitionExalt);
 				ExaltPredicted = (RulerPolicy.bAnswer && ExaltRow) ? CosmicRulerPolicy::ChoiceOf(State, StateIndex, *ExaltRow, RulerCounts.Answers, CosmicRows::PetitionExalt,
-					RulerPolicy.Diplomacy, &RulesNow, &Sim->GetTables(), RulerPolicy.Pressure) : INDEX_NONE;
+					RulerPolicy.Diplomacy, &RulesNow, &Sim->GetTables(), RulerPolicy.Pressure, RulerPolicy.Crossroads) : INDEX_NONE;
 			}
 			// B6b [B-6b3b] (the race line): before the inputs - the ruled people's galaxy laws and treaties, and the AI peoples whose
 			// row asks a treaty (CosmicDiplomacy::AsksForTreatyOf).
@@ -2864,6 +3200,39 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 			// The witness cards the wanderer policy saw come before its input (its count by row).
 			const int32 RaceWitnessCardsBefore = WandererCounts.CardsByRow.FindRef(CosmicB6bRows::EncWitness);
 			CosmicWandererPolicy::Act(WandererPolicy, *Sim, *Role, CardBefore, WandererCounts);
+			// B7x [B-7x4m] (the bricks line): the waiting crossroads card the inputs answered - it left and the accepted answers grew
+			// (a refusal leaves it, a withdrawal counts none) -, with the choice the pick gave it and the shape of the people it
+			// touched, after the answer; then the kept-law peoples as the inputs left them (the -Crossroads cell).
+			if (bBrickCrossroads && State.Knowing.PendingPetitionRow != BrickPending && RulerCounts.Answers + WandererCounts.Answers > BrickAnswersBefore)
+			{
+				const int32 Touched = StateIndex.FindCiv(State, BrickAnswerCivID);
+				Bricks.Answers.Add(FString::Printf(TEXT("%lld:%s:%d:%s"), State.Tick, *BrickPending.ToString(), BrickAnswerPick + 1,
+					State.Civs.IsValidIndex(Touched) ? BrickShapeNameOf(CosmicBricks::ShapeOf(State.Civs[Touched])) : TEXT("-")));
+				if (RulerCounts.Answers > BrickRulerAnswersBefore)
+				{
+					Bricks.RulerAnswerTicks.Add(State.Tick);
+				}
+			}
+			for (const FCivilizationState& Civ : State.Civs)
+			{
+				if (!Civ.Traits.HasTagExact(CosmicTags::BrickFormKeptLaw()))
+				{
+					continue;
+				}
+				FBrickCounts::FKept* Kept = Bricks.Kept.FindByPredicate([&Civ](const FBrickCounts::FKept& Each) { return Each.CivID == Civ.CivID; });
+				if (!Kept)
+				{
+					Kept = &Bricks.Kept.AddDefaulted_GetRef();
+					Kept->CivID = Civ.CivID;
+					Kept->From = State.Tick;
+				}
+				Kept->Below = (Kept->Below < 0 && Civ.Stability < 0.2f) ? State.Tick : Kept->Below;
+				Kept->LawsHeld = Civ.LawsHeldTicks;
+			}
+			for (FBrickCounts::FKept& Kept : Bricks.Kept)
+			{
+				Kept.Gone = (Kept.Gone < 0 && StateIndex.FindCiv(State, Kept.CivID) == INDEX_NONE) ? State.Tick : Kept.Gone;
+			}
 			// B6a [B-6a3c]: what the inputs did for the ending line - the decisions taken at this boundary, the answer to
 			// petition_exalt (its card answers first: a refusal stops the answers and a withdrawal counts none, so only its taken
 			// answer adds to Answers), the stock of each pressure card that came, and a throne taken over a people at the third rung.
@@ -3360,6 +3729,19 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				{
 					Counts.Placed.FindOrAdd(System.ActiveHazard.ToString())++;
 					const FCivilizationState* Owner = State.Civs.FindByPredicate([&System](const FCivilizationState& Civ) { return Civ.CivID == System.OwnerCivID; });
+					// B7x [B-7x4m] (the bricks line): the crisis parasite's placement bonus (CosmicBricks::ParasiteCountdownBonusOf -
+					// read after the inputs, on the borders the tick left; 0 under its inert knob, no border walked), and a rebellion
+					// placed on a kept-law people's system.
+					const int32 ParasiteBonus = CosmicBricks::ParasiteCountdownBonusOf(State, StateIndex, RulesNow, SystemIndex, System.ActiveHazard);
+					if (ParasiteBonus > 0)
+					{
+						++Bricks.ParasitePlacements;
+						Bricks.ParasiteTicksByTag.FindOrAdd(System.ActiveHazard.ToString()) += ParasiteBonus;
+					}
+					if (FBrickCounts::FKept* KeptOwner = Owner ? Bricks.Kept.FindByPredicate([Owner](const FBrickCounts::FKept& Each) { return Each.CivID == Owner->CivID; }) : nullptr)
+					{
+						KeptOwner->Rebellions += IsRebellionTag(Sim->GetTables(), System.ActiveHazard) ? 1 : 0;
+					}
 					// B3: a plague placed next to one that still stood when the spawn step began (not one that ended by its answer
 					// or its count in this tick), and the ruled people's.
 					if (System.ActiveHazard == CosmicTags::HazardPlague())
@@ -3557,6 +3939,27 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				}
 				AppendSample(Csv, *Sim, Before, Counts, SampleTicks > 0 ? SampleMicros / SampleTicks : 0.0, SaveBytes, SaveRawBytes, &DrainsBefore);
 				Counts.ExpansionPairs += PeoplesNotRuled(State);
+				// B7x [B-7x4m] (the bricks line): the (viewer, seen) border pairs whose drift target takes a brick term
+				// (CosmicBricks::RelationTargetTermOf - the star eater's and the entwined people's); no border walked while none has one.
+				bool bBrickTerm = false;
+				for (const FCivilizationState& Seen : State.Civs)
+				{
+					bBrickTerm = bBrickTerm || CosmicBricks::RelationTargetTermOf(Seen, RulesNow) != 0.f;
+				}
+				if (bBrickTerm)
+				{
+					const TArray<TArray<int32>> BrickBorders = CosmicDiplomacy::BorderTableOf(State, StateIndex);
+					for (int32 Viewer = 0; Viewer < BrickBorders.Num() && Viewer < State.Civs.Num(); ++Viewer)
+					{
+						for (const int32 Bordered : BrickBorders[Viewer])
+						{
+							if (State.Civs.IsValidIndex(Bordered) && CosmicBricks::RelationTargetTermOf(State.Civs[Bordered], RulesNow) != 0.f)
+							{
+								Bricks.TermPairs.Add(State.Civs[Viewer].CivID.ToString() + TEXT(">") + State.Civs[Bordered].CivID.ToString());
+							}
+						}
+					}
+				}
 				TArray<FString> Keys;
 				SampleRows.GetKeys(Keys);
 				Keys.Sort();
@@ -4003,6 +4406,117 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				Parts.Add(FString::Printf(TEXT("decisions [%s], longest gap from ruled T3 to the record %lld"), *FString::Join(DecisionTicks, TEXT(" ")), GapLongest));
 				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance race: %s"), *FString::Join(Parts, TEXT("; ")));
 			}
+			// B7x [B-7x4m] (B7x header section 5, the new line bricks:): always told, outside the three lines the runner compares - a
+			// record with no assertion (docs/40 names each part). The four totals first - the AI peoples' seed bricks, the crossroads
+			// cards, the AI mutations and the fires of the rows that ask a brick: all 0 on the data-off side (check (b)).
+			{
+				const bool bBrickRecord = State.Ending.Kind.IsValid();
+				// The end of judgments 1 and 5: the record's tick, else the clock C, else the last tick.
+				const int64 BrickEnd = bBrickRecord ? State.Ending.Tick : (BrickClock > 0 ? static_cast<int64>(BrickClock) : State.Tick);
+				int64 BrickFireTotal = 0;
+				TArray<FString> BrickFireParts;
+				for (const FName BrickRow : Bricks.BrickRows)
+				{
+					const FCosmicEventDef* BrickDef = Sim->GetTables().FindEvent(BrickRow);
+					const bool bCounted = BrickDef && BrickDef->CooldownTicks > 0 && BrickDef->Trigger != ECosmicEventTrigger::Named;
+					const int64 Fired = Bricks.Fires.FindRef(BrickRow.ToString());
+					BrickFireTotal += bCounted ? Fired : 0;
+					BrickFireParts.Add(bCounted ? FString::Printf(TEXT("%s:%lld"), *BrickRow.ToString(), Fired) : FString::Printf(TEXT("%s:?"), *BrickRow.ToString()));
+				}
+				int64 MutationTotal = 0;
+				for (const TPair<FString, int64>& Mutation : Bricks.Mutations)
+				{
+					MutationTotal += Mutation.Value;
+				}
+				int32 CameByEnd = 0;
+				TArray<FString> CameParts;
+				for (const TPair<int64, FName>& Card : Bricks.Came)
+				{
+					CameByEnd += Card.Key <= BrickEnd ? 1 : 0;
+					CameParts.Add(FString::Printf(TEXT("%lld:%s"), Card.Key, *Card.Value.ToString()));
+				}
+				TArray<FString> SeedParts;
+				TArray<FString> VectorParts;
+				for (const FName People : Bricks.Peoples)
+				{
+					SeedParts.Add(People.ToString() + TEXT(":") + Bricks.BricksAtStart.FindRef(People));
+					const TArray<FString>* Readings = Bricks.Vectors.Find(People);
+					VectorParts.Add(People.ToString() + TEXT(" ") + (Readings ? FString::Join(*Readings, TEXT("|")) : FString(TEXT("-"))));
+				}
+				// Judgment 5: the decisions (Ending.Decisions - every boundary's, the ruler policy's alone) less the ruler's crossroads
+				// answers (a wanderer's answer is no decision of that count), up to the end above;
+				// and per full 600-tick window (the ending line's form) from the ruled third rung to the earlier of the record and C.
+				int64 DecisionsByEnd = 0;
+				for (const TPair<int64, int32>& Each : Ending.Decisions)
+				{
+					DecisionsByEnd += Each.Key <= BrickEnd ? Each.Value : 0;
+				}
+				for (const int64 AnswerTick : Bricks.RulerAnswerTicks)
+				{
+					DecisionsByEnd -= AnswerTick <= BrickEnd ? 1 : 0;
+				}
+				const int64 WindowStart = Race.RuledTick[0];
+				const int64 WindowRecord = bBrickRecord ? State.Ending.Tick : State.Tick;
+				const int64 WindowStop = BrickClock > 0 ? FMath::Min(WindowRecord, static_cast<int64>(BrickClock)) : WindowRecord;
+				TArray<int64> BrickWindows;
+				if (WindowStart >= 0 && WindowStop > WindowStart)
+				{
+					BrickWindows.Init(0, static_cast<int32>(FMath::Max<int64>(1, (WindowStop - WindowStart) / SeasonWindowTicks)));
+					auto AddTo = [&BrickWindows, WindowStart, WindowStop](int64 At, int64 Amount)
+					{
+						const int64 Window = At >= WindowStart ? (At - WindowStart) / SeasonWindowTicks : -1;
+						if (At < WindowStop && Window >= 0 && Window < BrickWindows.Num())
+						{
+							BrickWindows[static_cast<int32>(Window)] += Amount;
+						}
+					};
+					for (const TPair<int64, int32>& Each : Ending.Decisions)
+					{
+						AddTo(Each.Key, Each.Value);
+					}
+					for (const int64 AnswerTick : Bricks.RulerAnswerTicks)
+					{
+						AddTo(AnswerTick, -1);
+					}
+				}
+				const FCivilizationState* BrickRuled = State.Civs.FindByPredicate([](const FCivilizationState& Each) { return Each.bIsPlayerRuled; });
+				TArray<FString> KeptParts;
+				for (const FBrickCounts::FKept& Kept : Bricks.Kept)
+				{
+					KeptParts.Add(FString::Printf(TEXT("%s:%lld:%lld:%d:%lld:%d"), *Kept.CivID.ToString(), Kept.From, Kept.Below, Kept.Rebellions, Kept.Gone, Kept.LawsHeld));
+				}
+				int32 StandingLostAll = 0;
+				for (const TPair<FString, int32>& Lost : PressureCounts.StandingLost)
+				{
+					StandingLostAll += Lost.Value;
+				}
+				TArray<FString> BrickParts;
+				BrickParts.Add(FString::Printf(TEXT("AI seeds %d, crossroads cards %d, AI mutations %lld, brick row fires %lld"), Bricks.AISeeds, Bricks.Came.Num(), MutationTotal,
+					BrickFireTotal));
+				BrickParts.Add(FString::Printf(TEXT("without B7x data %d, crossroads %d, clock C %d"), WithoutB7xData, Crossroads, BrickClock));
+				BrickParts.Add(FString::Printf(TEXT("seeds [%s]"), *FString::Join(SeedParts, TEXT(" "))));
+				BrickParts.Add(FString::Printf(TEXT("vectors B/C/D/L/I/E at 1200 (%lld) | 2400 (%lld) | ruled T3+1200 (%lld) | C (%lld) | end (%lld) [%s]"), Bricks.ReadAt[0],
+					Bricks.ReadAt[1], Bricks.ReadAt[2], Bricks.ReadAt[3], Bricks.ReadAt[4], *FString::Join(VectorParts, TEXT(", "))));
+				BrickParts.Add(FString::Printf(TEXT("crossroads came %d (by the end %d, first at %lld) [%s], answered %d [%s]"), Bricks.Came.Num(), CameByEnd,
+					Bricks.Came.IsEmpty() ? static_cast<int64>(-1) : Bricks.Came[0].Key, *FString::Join(CameParts, TEXT(" ")), Bricks.Answers.Num(),
+					*FString::Join(Bricks.Answers, TEXT(" "))));
+				BrickParts.Add(FString::Printf(TEXT("petition_walls came %d, petition_bread came %d, standing cards lost %d (petition_walls %d, petition_bread %d)"),
+					Bricks.WallsCame, Bricks.BreadCame, StandingLostAll, PressureCounts.StandingLost.FindRef(CosmicB7xRows::PetitionWalls.ToString()),
+					PressureCounts.StandingLost.FindRef(CosmicB7xRows::PetitionBread.ToString())));
+				BrickParts.Add(FString::Printf(TEXT("fires [%s]"), BrickFireParts.IsEmpty() ? TEXT("-") : *FString::Join(BrickFireParts, TEXT(" "))));
+				BrickParts.Add(FString::Printf(TEXT("parasite bonus placements %d (ticks by tag [%s]), parasite insight ticks %d, brick term border pairs %d, AI mutations by tag [%s]"),
+					Bricks.ParasitePlacements, *BrickPairsText(Bricks.ParasiteTicksByTag), Bricks.ParasiteInsightTicks, Bricks.TermPairs.Num(), *BrickPairsText(Bricks.Mutations)));
+				BrickParts.Add(FString::Printf(TEXT("decisions less the ruler's crossroads answers by the end %lld (end at %lld), from ruled T3 (%lld) to the record or C (%lld) %d windows of %lld, median %lld"),
+					DecisionsByEnd, BrickEnd, WindowStart, WindowStop, BrickWindows.Num(), SeasonWindowTicks, MedianOf(BrickWindows)));
+				BrickParts.Add(FString::Printf(TEXT("ruled stability at C %.3f, ruled at the end %s (shape %s, bricks %s)"), Bricks.RuledStabilityAtC,
+					BrickRuled ? *BrickRuled->CivID.ToString() : TEXT("-"), BrickRuled ? BrickShapeNameOf(CosmicBricks::ShapeOf(*BrickRuled)) : TEXT("-"),
+					BrickRuled ? *BrickHeldText(*BrickRuled) : TEXT("-")));
+				BrickParts.Add(FString::Printf(TEXT("wanderer first stands on a people's settled system %d, the owner's Drifted [%s] (median %lld)"), Bricks.StandDrifted.Num(),
+					*FString::JoinBy(Bricks.StandDrifted, TEXT(" "), [](int64 Drifted) { return FString::Printf(TEXT("%lld"), Drifted); }), MedianOf(Bricks.StandDrifted)));
+				BrickParts.Add(FString::Printf(TEXT("kept law [%s] (people:from:Stability below 0.2 at:rebellions:gone at:LawsHeldTicks)"), *FString::Join(KeptParts, TEXT(" "))));
+				BrickParts.Add(FString::Printf(TEXT("peoples gone %d"), Bricks.Peoples.Num() - State.Civs.Num()));
+				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance bricks: %s"), *FString::Join(BrickParts, TEXT("; ")));
+			}
 			if (ExpansionSum != Counts.ExpansionPairs)
 			{
 				UE_LOG(LogCosmic, Error, TEXT("CosmicBalance expansion: the counts add up to %lld, not %lld"), ExpansionSum, Counts.ExpansionPairs);
@@ -4018,7 +4532,7 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 	}
 	else
 	{
-		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: no simulation or role subsystem, or -Rules, -EdictRow, -Diplomacy, -PlayerPolicy, -Guard, -LeaveNearSphere, -WithoutPressure, the death's arguments, -ExaltAsBefore, -WithoutB6bData or -FourthRungCap refused: nothing run"));
+		UE_LOG(LogCosmic, Error, TEXT("CosmicBalance: no simulation or role subsystem, or -Rules, -EdictRow, -Diplomacy, -PlayerPolicy, -Guard, -LeaveNearSphere, -WithoutPressure, the death's arguments, -ExaltAsBefore, -WithoutB6bData, -FourthRungCap, -WithoutB7xData or -Crossroads refused: nothing run"));
 		Result = 1;
 	}
 

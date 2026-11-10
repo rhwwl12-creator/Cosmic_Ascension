@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -463,7 +463,7 @@
+ 	{
+ 		const FName Card = State.Knowing.PendingPetitionRow;
+ 		const FEncounterDef* Row = Sim.GetTables().FindEncounter(Card);
+-		const int32 Choice = Row ? ChoiceOf(State, Sim.GetStateIndex(), *Row, Counts.Answers, Card, Policy.Diplomacy, &Sim.GetRules(), &Sim.GetTables(), Policy.Pressure,
++		const int32 Choice = Row ? ChoiceOf(State, Sim.GetStateIndex(), *Row, Counts.Answers, Card, Policy.Diplomacy, &Sim.GetRules(), &Sim.GetTables(), ECosmicPressurePolicy::Round,
+ 			Policy.Crossroads) : INDEX_NONE;
+ 		if (Choice == INDEX_NONE)
+ 		{

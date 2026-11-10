@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+@@ -511,7 +511,7 @@
+ 			B7xRows::PetitionCrossIntoDust, B7xRows::PetitionCrossWrappedStar, B7xRows::PetitionCrossLawStays, B7xRows::PetitionCrossSeam, B7xRows::EncCrossDriftFleet };
+ 		const std::initializer_list<FName> Events = { B7xRows::EventBrickShutStar, B7xRows::EventBrickHeatAtDoor, B7xRows::EventBrickDriftPlenty,
+ 			B7xRows::EventBrickEmptiedTrail, B7xRows::EventBrickEmberWake, B7xRows::EventBrickOwnHour, B7xRows::EventBrickFoldGleaning,
+-			B7xRows::EventBrickInwardAppetite, B7xRows::EventBrickWorksRun };
++			B7xRows::EventBrickInwardAppetite };
+ 		Note(Base.Encounters, Cards);
+ 		Tables.Encounters = CopyWithout<FEncounterDef>(Base.Encounters, Cards);
+ 		Note(Base.Events, Events);

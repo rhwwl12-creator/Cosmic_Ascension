@@ -5,6 +5,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Core/CosmicIDs.h"
+#include "Core/CosmicTags.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicConditionTypes.h"
@@ -41,6 +42,7 @@
 #include "UObject/Package.h"
 #include "UObject/TextProperty.h"
 #include "UObject/UnrealType.h"
+#include "World/CosmicRulerPolicy.h"
 
 #include <initializer_list>
 #include <limits>
@@ -2870,6 +2872,172 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		}
 		TestFalse(TEXT("WithoutB6bData after WithoutDeath leaves no hazard that kills the ruler"), KillsTheRuler(CosmicTests::WithoutB6bData(CosmicTests::WithoutDeath(Full))));
 		TestFalse(TEXT("and so does WithoutDeath after WithoutB6bData"), KillsTheRuler(CosmicTests::WithoutDeath(CosmicTests::WithoutB6bData(Full))));
+	}
+	// B7x [B-7x4m] (B7x header section 5, notes section 5.4 code 8): CosmicTests::WithoutB7xData, the data-off side of B7x's
+	// pairs (-WithoutB7xData=1; =2 the rows alone) and the outermost helper of a test whose subject is not B7x - pinned to
+	// exactly the set it takes. (1) Today's data holds none of B7x's data: the helper takes no row out, arch_seeker carries no
+	// brick, the seventeen knobs are inert (the helper leaves the rules as they are) - a tripwire: [B-7x5s] (the knobs and the
+	// seed bricks) and [B-7x5c] (the cards, the events, Society) update it with their data; no card of today is a crossroads
+	// card and no event row asks a brick (the policies and the bricks line read them so - CosmicRulerPolicy::IsCrossroadsCard,
+	// AsksABrickOf). (2) On a full copy - a stand-in for each of the twenty-one rows, Society on arch_seeker, every knob off its
+	// initializer and a seed tag: =1 takes out the twenty-one, in order, and nothing else (mutations: an event kept), takes
+	// Society off arch_seeker and leaves its other traits (mutation: Society kept), puts the seventeen knobs back and keeps
+	// every other field of the rules (mutation: the knobs and the seeds kept); =2 takes the same rows and Society and keeps the
+	// rules whole (mutation: the knobs reset); after either, no crossroads card, no event row that asks a brick and no brick on
+	// a DT_Civs row is left.
+	if (TestNotNull(TEXT("(the game's rules for B7x's data)"), Game.FindRules()) && Game.Encounters.Get() && Game.Events.Get() && Game.Civs.Get())
+	{
+		const TArray<FName> TwentyOne = { CosmicTests::B7xRows::PetitionCrossBuilt, CosmicTests::B7xRows::PetitionCrossConsumed, CosmicTests::B7xRows::PetitionCrossDrifted,
+			CosmicTests::B7xRows::PetitionCrossIsolated, CosmicTests::B7xRows::PetitionCrossDustBand, CosmicTests::B7xRows::PetitionCrossStarLine,
+			CosmicTests::B7xRows::PetitionCrossBetweenStars, CosmicTests::B7xRows::PetitionCrossIntoDust, CosmicTests::B7xRows::PetitionCrossWrappedStar,
+			CosmicTests::B7xRows::PetitionCrossLawStays, CosmicTests::B7xRows::PetitionCrossSeam, CosmicTests::B7xRows::EncCrossDriftFleet,
+			CosmicTests::B7xRows::EventBrickShutStar, CosmicTests::B7xRows::EventBrickHeatAtDoor, CosmicTests::B7xRows::EventBrickDriftPlenty,
+			CosmicTests::B7xRows::EventBrickEmptiedTrail, CosmicTests::B7xRows::EventBrickEmberWake, CosmicTests::B7xRows::EventBrickOwnHour,
+			CosmicTests::B7xRows::EventBrickFoldGleaning, CosmicTests::B7xRows::EventBrickInwardAppetite, CosmicTests::B7xRows::EventBrickWorksRun };
+		auto B7xNames = [](const TArray<FName>& Rows) { return FString::JoinBy(Rows, TEXT(" "), [](FName Row) { return Row.ToString(); }); };
+		const FGameplayTag Society = CosmicTags::BrickFormSociety();
+		// What is left of B7x's data in tables: the crossroads cards, the event rows that ask a brick, the DT_Civs rows that carry one.
+		auto LeftOf = [](const FCosmicDataTables& Tables)
+		{
+			TArray<FString> Left;
+			for (const FName Row : Tables.GetEncounterRowNames())
+			{
+				const FEncounterDef* Card = Tables.FindEncounter(Row);
+				if (Card && CosmicRulerPolicy::IsCrossroadsCard(*Card))
+				{
+					Left.Add(FString(TEXT("card ")) + Row.ToString());
+				}
+			}
+			for (const FName Row : Tables.GetEventRowNames())
+			{
+				const FCosmicEventDef* Event = Tables.FindEvent(Row);
+				if (Event && CosmicRulerPolicy::AsksABrickOf(Event->Conditions))
+				{
+					Left.Add(FString(TEXT("event ")) + Row.ToString());
+				}
+			}
+			for (const FName Row : Tables.GetCivRowNames())
+			{
+				const FCivArchetypeDef* Archetype = Tables.FindCiv(Row);
+				for (const FGameplayTag& Trait : Archetype ? Archetype->Traits : FGameplayTagContainer())
+				{
+					if (CosmicTags::IsBrick(Trait))
+					{
+						Left.Add(FString(TEXT("brick ")) + Row.ToString() + TEXT(" ") + Trait.ToString());
+					}
+				}
+			}
+			return FString::Join(Left, TEXT(", "));
+		};
+
+		// (1) Today's data.
+		TArray<FName> TodayB7x;
+		const FCosmicDataTables TodayOff = CosmicTests::WithoutB7xData(Game, &TodayB7x);
+		TestTrue(*FString::Printf(TEXT("Today's data: WithoutB7xData takes out no row (taken: %s) - [B-7x5c] brings the twenty-one and updates this pin"), *B7xNames(TodayB7x)),
+			TodayB7x.IsEmpty());
+		const FCivArchetypeDef* TodaySeeker = Game.FindCiv(CosmicRows::ArchSeeker);
+		TestTrue(TEXT("Today's arch_seeker carries no Brick.Form.Society - [B-7x5c] puts it there and updates this pin"),
+			TodaySeeker && !TodaySeeker->Traits.HasTagExact(Society));
+		const FCosmicRulesDef* TodayRules = Game.FindRules();
+		const FCosmicRulesDef* TodayOffRules = TodayOff.FindRules();
+		TestTrue(TEXT("Today's seventeen knobs are inert: WithoutB7xData leaves the rules as they are - [B-7x5s] gives them their values and updates this pin"),
+			TodayRules && TodayOffRules && FCosmicRulesDef::StaticStruct()->CompareScriptStruct(TodayOffRules, TodayRules, 0));
+		const FString TodayLeft = LeftOf(Game);
+		TestTrue(*FString::Printf(TEXT("No row of today's data is B7x's (left: %s) - the policies play as before"), *TodayLeft), TodayLeft.IsEmpty());
+
+		// (2) The full copy.
+		FCosmicRulesDef FullRules = *Game.FindRules();
+		FullRules.BrickDarkMatterEnergyPerTick = 0.5f;
+		FullRules.BrickStarEaterEnergyMultiplier = 1.5f;
+		FullRules.BrickStarEaterRelationTarget = -0.25f;
+		FullRules.BrickStarEaterDimPeriodTicks = 500;
+		FullRules.BrickIdleInsightPerTick = 0.25f;
+		FullRules.BrickSpanEnergyPerLane = 0.125f;
+		FullRules.BrickParasiteCountdownBonusTicks = 30;
+		FullRules.BrickParasiteInsightPerHazard = 0.25f;
+		FullRules.BrickNomadSettleProgressMultiplier = 1.5f;
+		FullRules.BrickInwardResearchMultiplier = 1.5f;
+		FullRules.BrickInwardHazardSpawnMultiplier = 0.5f;
+		FullRules.BrickSwarmResearchMultiplier = 1.25f;
+		FullRules.BrickMergeRelationTarget = 0.25f;
+		FullRules.BrickEvolutionPeriodTicks = 100;
+		FullRules.BrickMutationThresholdTicks = 1500;
+		FullRules.BrickStellarCrisisSpawnMultiplier = 2.f;
+		FullRules.BrickSeedTags.AddTag(CosmicTags::BrickDietStarEater());
+		FullRules.GalaxyLawsToHold = 7;
+		FCosmicDataTables FullB7x = CosmicTests::WithRules(Game, FullRules);
+		// A stand-in crossroads card (a time vector asked, a choice that moves a brick, the no-value choice) and a stand-in event
+		// row that asks a brick, under each of the twenty-one names.
+		FEncounterDef Crossroads;
+		FCosmicCondition TimeAsked;
+		TimeAsked.Type = EConditionType::CivTimeVectorAtLeast;
+		TimeAsked.Key = FName(TEXT("Built"));
+		TimeAsked.Value = 1.f;
+		Crossroads.Conditions.Add(TimeAsked);
+		FCosmicEffect Give;
+		Give.Type = EEffectType::AddTrait;
+		Give.Tag = CosmicTags::BrickInstinctSwarmTech();
+		Crossroads.Choices.AddDefaulted_GetRef().OnSuccess.Add(Give);
+		Crossroads.Choices.AddDefaulted();
+		FCosmicEventDef Overlap;
+		FCosmicCondition Asks;
+		Asks.Type = EConditionType::CivHasTrait;
+		Asks.Tag = CosmicTags::BrickInstinctSwarmTech();
+		Overlap.Conditions.Add(Asks);
+		UDataTable* Cards = CopyOf<FEncounterDef>(Game.Encounters);
+		UDataTable* Events = CopyOf<FCosmicEventDef>(Game.Events);
+		for (int32 At = 0; At < TwentyOne.Num(); ++At)
+		{
+			if (At < 12)
+			{
+				Cards->AddRow(TwentyOne[At], Crossroads);
+			}
+			else
+			{
+				Events->AddRow(TwentyOne[At], Overlap);
+			}
+		}
+		FullB7x.Encounters = Cards;
+		FullB7x.Events = Events;
+		UDataTable* Civs = CopyOf<FCivArchetypeDef>(Game.Civs);
+		FCivArchetypeDef* FullSeeker = Civs->FindRow<FCivArchetypeDef>(CosmicRows::ArchSeeker, TEXT("Data.Integrity"), false);
+		const int32 SeekerTraits = FullSeeker ? FullSeeker->Traits.Num() : -1;
+		if (FullSeeker)
+		{
+			FullSeeker->Traits.AddTag(Society);
+		}
+		FullB7x.Civs = Civs;
+		auto RowCount = [](const UDataTable* Table) { return Table ? Table->GetRowMap().Num() : -1; };
+		TestTrue(TEXT("(the full copy holds the twenty-one rows and Society)"), RowCount(Cards) == RowCount(Game.Encounters.Get()) + 12
+			&& RowCount(Events) == RowCount(Game.Events.Get()) + 9 && FullSeeker && FullSeeker->Traits.HasTagExact(Society));
+		TestFalse(TEXT("(and the walk finds them)"), LeftOf(FullB7x).IsEmpty());
+
+		for (const bool bRowsOnly : { false, true })
+		{
+			const TCHAR* Side = bRowsOnly ? TEXT("=2") : TEXT("=1");
+			TArray<FName> Removed;
+			const FCosmicDataTables Off = CosmicTests::WithoutB7xData(FullB7x, &Removed, bRowsOnly);
+			TestTrue(*FString::Printf(TEXT("%s: on the full copy WithoutB7xData takes out the twenty-one rows, in order (taken: %s)"), Side, *B7xNames(Removed)), Removed == TwentyOne);
+			TestTrue(*FString::Printf(TEXT("%s: and keeps every other row of the two tables, and every DT_Civs row"), Side), RowCount(Off.Encounters.Get()) == RowCount(Game.Encounters.Get())
+				&& RowCount(Off.Events.Get()) == RowCount(Game.Events.Get()) && RowCount(Off.Civs.Get()) == RowCount(Game.Civs.Get()));
+			TestTrue(*FString::Printf(TEXT("%s: and leaves the other tables alone"), Side), Off.Feats == FullB7x.Feats && Off.Megaprojects == FullB7x.Megaprojects
+				&& Off.Hazards == FullB7x.Hazards && Off.Edicts == FullB7x.Edicts && Off.LogTemplates == FullB7x.LogTemplates && Off.Galaxies == FullB7x.Galaxies
+				&& Off.Transcendents == FullB7x.Transcendents);
+			const FCivArchetypeDef* OffSeeker = Off.FindCiv(CosmicRows::ArchSeeker);
+			TestTrue(*FString::Printf(TEXT("%s: Society is off arch_seeker, and its other traits stay"), Side), OffSeeker && !OffSeeker->Traits.HasTagExact(Society)
+				&& OffSeeker->Traits.Num() == SeekerTraits);
+			const FCosmicRulesDef* OffRules = Off.FindRules();
+			const FCosmicRulesDef Expected = bRowsOnly ? FullRules : CosmicTests::WithInertBricks(FullRules);
+			TestTrue(*FString::Printf(TEXT("%s: %s"), Side, bRowsOnly ? TEXT("the rules are the copy's, the knobs and the seed tag kept")
+				: TEXT("the seventeen knobs are back at their initializers, the seed tags empty, and every other field is the copy's (GalaxyLawsToHold)")),
+				OffRules && FCosmicRulesDef::StaticStruct()->CompareScriptStruct(OffRules, &Expected, 0));
+			const FString OffLeft = LeftOf(Off);
+			TestTrue(*FString::Printf(TEXT("%s: nothing of B7x's rows is left (left: %s)"), Side, *OffLeft), OffLeft.IsEmpty());
+		}
+		const FCosmicDataTables FullOff = CosmicTests::WithoutB7xData(FullB7x);
+		const FCosmicRulesDef* FullOffRules = FullOff.FindRules();
+		TestTrue(TEXT("(=1 moves the knobs: the copy's are not inert)"), FullOffRules && FullOffRules->BrickSeedTags.IsEmpty() && !FullRules.BrickSeedTags.IsEmpty()
+			&& FullOffRules->BrickStarEaterEnergyMultiplier == 1.f && FullOffRules->GalaxyLawsToHold == 7);
 	}
 	// B5 [B-5d2] (balance review: the first-crisis edge; DECISIONS_LOG B5 [B-5d2]): the first crisis stands on every capital at
 	// FirstCrisisTick and expires its CountdownTicks later; when that row's own expiry kills, the first vessel (born at tick 0)

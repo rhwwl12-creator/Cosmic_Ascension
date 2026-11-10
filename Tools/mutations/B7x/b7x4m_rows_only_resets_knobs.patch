@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+@@ -491,7 +491,7 @@
+ 	inline FCosmicDataTables WithoutB7xData(const FCosmicDataTables& Base, TArray<FName>* Removed = nullptr, bool bRowsOnly = false)
+ 	{
+ 		FCosmicDataTables Tables = Base;
+-		if (!bRowsOnly)
++		if (Base.FindRules() != nullptr || !bRowsOnly)
+ 		{
+ 			const FCosmicRulesDef* GameRules = Base.FindRules();
+ 			Tables = WithRules(Base, WithInertBricks(GameRules ? *GameRules : FCosmicRulesDef()));

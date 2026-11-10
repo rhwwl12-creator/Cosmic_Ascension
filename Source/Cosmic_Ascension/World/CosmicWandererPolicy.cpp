@@ -11,6 +11,44 @@
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/CosmicWanderer.h"
 #include "Sim/GalaxySimulationSubsystem.h"
+#include "World/CosmicRulerPolicy.h"
+
+int32 CosmicWandererPolicy::PickOf(const FEncounterDef& Row, int32 AnswersSoFar, int32 Crossroads)
+{
+	const int32 Count = Row.Choices.Num();
+	if (Count <= 0)
+	{
+		return INDEX_NONE;
+	}
+	if (!CosmicRulerPolicy::IsCrossroadsCard(Row))
+	{
+		return AnswersSoFar % Count;
+	}
+	// A crossroads card (B7x [B-7x4m]): the k-th choice that moves a brick under -Crossroads, else the no-value choice.
+	if (Crossroads > 0)
+	{
+		int32 Seen = 0;
+		for (int32 Pick = 0; Pick < Count; ++Pick)
+		{
+			if (CosmicRulerPolicy::MovesABrickOf(Row.Choices[Pick]))
+			{
+				++Seen;
+				if (Seen == Crossroads)
+				{
+					return Pick;
+				}
+			}
+		}
+	}
+	for (int32 Pick = 0; Pick < Count; ++Pick)
+	{
+		if (CosmicRulerPolicy::IsNoValueChoice(Row.Choices[Pick]))
+		{
+			return Pick;
+		}
+	}
+	return INDEX_NONE;
+}
 
 void CosmicWandererPolicy::AbdicateIfDue(const FCosmicWandererPolicy& Policy, UGalaxySimulationSubsystem& Sim, UPlayerRoleSubsystem& Role,
 	FCosmicWandererPolicyCounts& Counts)
@@ -53,22 +91,24 @@ void CosmicWandererPolicy::Act(const FCosmicWandererPolicy& Policy, UGalaxySimul
 		return;
 	}
 
-	// 1. A waiting card: its choices in turn (a wanderer pays nothing, so every choice can be given).
+	// 1. A waiting card: its choices in turn (a wanderer pays nothing, so every choice can be given); on a crossroads card the
+	// no-value choice, or the -Crossroads one (PickOf - B7x [B-7x4m]).
 	for (int32 Guard = 0; Guard < 8 && !State.Knowing.PendingPetitionRow.IsNone(); ++Guard)
 	{
 		const FName Card = State.Knowing.PendingPetitionRow;
 		const FEncounterDef* Row = Sim.GetTables().FindEncounter(Card);
-		if (!Row || Row->Choices.IsEmpty())
+		const int32 Pick = Row ? PickOf(*Row, Counts.Answers, Policy.Crossroads) : INDEX_NONE;
+		if (Pick == INDEX_NONE)
 		{
 			break;
 		}
-		const FCosmicPetitionAnswer Taken = Role.AnswerPetition(Counts.Answers % Row->Choices.Num());
+		const FCosmicPetitionAnswer Taken = Role.AnswerPetition(Pick);
 		if (Taken.Outcome == ECosmicPetitionOutcome::Refused)
 		{
 			break;
 		}
-		// B6b [B-6b8]: whether the choice taken (the one of the count of answers, as above) has no check - the step back.
-		const bool bNoCheck = Row->Choices[Counts.Answers % Row->Choices.Num()].CheckStat == ECosmicCheckStat::NoCheck;
+		// B6b [B-6b8]: whether the choice taken (Pick, as above - B7x [B-7x4m] reads it after PickOf) has no check - the step back.
+		const bool bNoCheck = Row->Choices[Pick].CheckStat == ECosmicCheckStat::NoCheck;
 		Counts.Answers += (Taken.Outcome == ECosmicPetitionOutcome::Withdrawn) ? 0 : 1;
 		if (Taken.Outcome == ECosmicPetitionOutcome::Withdrawn)
 		{

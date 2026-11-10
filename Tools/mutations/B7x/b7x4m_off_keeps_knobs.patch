@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+@@ -494,7 +494,7 @@
+ 		if (!bRowsOnly)
+ 		{
+ 			const FCosmicRulesDef* GameRules = Base.FindRules();
+-			Tables = WithRules(Base, WithInertBricks(GameRules ? *GameRules : FCosmicRulesDef()));
++			Tables = WithRules(Base, GameRules ? *GameRules : FCosmicRulesDef());
+ 		}
+ 		auto Note = [Removed](const UDataTable* Table, std::initializer_list<FName> Names)
+ 		{

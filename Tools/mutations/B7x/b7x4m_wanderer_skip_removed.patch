@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+@@ -20,7 +20,7 @@
+ 	{
+ 		return INDEX_NONE;
+ 	}
+-	if (!CosmicRulerPolicy::IsCrossroadsCard(Row))
++	if (!CosmicRulerPolicy::IsCrossroadsCard(Row) || Crossroads == 0)
+ 	{
+ 		return AnswersSoFar % Count;
+ 	}

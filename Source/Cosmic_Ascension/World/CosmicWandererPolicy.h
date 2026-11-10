@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Core/CosmicTypes.h"
 
+struct FEncounterDef;
 class UGalaxySimulationSubsystem;
 class UPlayerRoleSubsystem;
 
@@ -20,6 +21,10 @@ struct FCosmicWandererPolicy
 	// B5 (header section 5.1 - measurement only): the run's end (the record State.Ending) is not counted - the policy goes on
 	// after it.
 	bool bPastEnd = false;
+	// B7x ([B-7x4m] - docs/60_DECISIONS/headers/B7_composable_existence_and_evolution.md section 5, decision 19): how a
+	// crossroads card is answered (PickOf) - 0, every baseline: the no-value choice alone; k of 1 or more (-Crossroads=<k>,
+	// measurement only): the k-th choice that moves a brick, else the no-value one.
+	int32 Crossroads = 0;
 };
 
 // What the policy saw and did so far in a run (the commandlet's wanderer line).
@@ -71,9 +76,16 @@ namespace CosmicWandererPolicy
 	void AbdicateIfDue(const FCosmicWandererPolicy& Policy, UGalaxySimulationSubsystem& Sim, UPlayerRoleSubsystem& Role,
 		FCosmicWandererPolicyCounts& Counts);
 
+	// The choice the policy gives the card Row (B1 header section 5; B7x [B-7x4m] - B7x header section 5, decision 19): the one
+	// of the count of its answers (AnswersSoFar mod its choices - a wanderer pays nothing); on a crossroads card
+	// (CosmicRulerPolicy::IsCrossroadsCard) the no-value choice (CosmicRulerPolicy::IsNoValueChoice) instead, or with Crossroads
+	// k of 1 or more the k-th choice that moves a brick (CosmicRulerPolicy::MovesABrickOf) first. INDEX_NONE for a card without
+	// choices, or a crossroads card without the choice it would take (the card is left waiting). Pure.
+	int32 PickOf(const FEncounterDef& Row, int32 AnswersSoFar, int32 Crossroads = 0);
+
 	// One tick boundary, after the ruler policy (B1 header section 5): counts what a wanderer saw (its first leaving, the
 	// cards that came, the reverence held), and with bWander, while the run has not ended: (1) answers a waiting card -
-	// its choices in turn, from the count of its answers (a wanderer pays nothing); (2) takes the throne of the people of
+	// its choices in turn, from the count of its answers (PickOf - a wanderer pays nothing); (2) takes the throne of the people of
 	// the system it stands in when the gate says None (CosmicWanderer::CrownBlockOf with the meeting read from knowing);
 	// (3) scans once on each arrival; (4) not travelling, sets off to the first lane neighbour TravelTo takes with a crisis
 	// standing (in Lanes order, not the system it just left unless that is the only one open), else the (journeys mod open

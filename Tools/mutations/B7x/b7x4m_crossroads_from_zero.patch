@@ -1,0 +1,13 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -338,8 +338,7 @@
+ 			{
+ 				if (MovesABrickOf(Row.Choices[Pick]) && Taken(Pick))
+ 				{
+-					++Seen;
+-					if (Seen == Crossroads)
++					if (Seen++ == Crossroads)
+ 					{
+ 						return Pick;
+ 					}

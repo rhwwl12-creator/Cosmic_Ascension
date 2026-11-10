@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+@@ -97,7 +97,7 @@
+ 	{
+ 		const FName Card = State.Knowing.PendingPetitionRow;
+ 		const FEncounterDef* Row = Sim.GetTables().FindEncounter(Card);
+-		const int32 Pick = Row ? PickOf(*Row, Counts.Answers, Policy.Crossroads) : INDEX_NONE;
++		const int32 Pick = Row ? PickOf(*Row, Counts.Answers, 0) : INDEX_NONE;
+ 		if (Pick == INDEX_NONE)
+ 		{
+ 			break;

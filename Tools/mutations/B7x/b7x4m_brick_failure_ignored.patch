@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -262,7 +262,7 @@
+ 	{
+ 		return (Effect.Type == EEffectType::AddTrait || Effect.Type == EEffectType::RemoveTrait) && CosmicTags::IsBrick(Effect.Tag);
+ 	};
+-	return Choice.OnSuccess.ContainsByPredicate(Moves) || Choice.OnFailure.ContainsByPredicate(Moves);
++	return Choice.OnSuccess.ContainsByPredicate(Moves);
+ }
+ 
+ bool CosmicRulerPolicy::IsNoValueChoice(const FEncounterChoice& Choice)

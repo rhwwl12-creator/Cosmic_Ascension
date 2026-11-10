@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -329,7 +329,7 @@
+ 	// (-Crossroads, measurement only) the k-th choice the answer takes that moves a brick comes first - the one place an end of
+ 	// the reign passes the guard above (the kept law's abdication, as -Abdicate leaves the throne). No card of a data without
+ 	// B7x's cards is one.
+-	if (IsCrossroadsCard(Row))
++	if (IsCrossroadsCard(Row) && Crossroads > 0)
+ 	{
+ 		if (Crossroads > 0)
+ 		{

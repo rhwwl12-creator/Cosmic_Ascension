@@ -4,9 +4,11 @@
 
 #include "CoreMinimal.h"
 
+struct FCosmicCondition;
 struct FCosmicDataTables;
 struct FCosmicRulesDef;
 struct FCosmicStateIndex;
+struct FEncounterChoice;
 struct FEncounterDef;
 struct FGalaxyState;
 class UGalaxySimulationSubsystem;
@@ -32,7 +34,8 @@ enum class ECosmicPressurePolicy : uint8
 // -Diplomacy; B4: -PlayerPolicy, -Guard, -LeaveNearSphere) as one function the commandlet and the hash run
 // (World/CosmicHashRun) share, so the cooked build plays the inputs the editor's baseline played
 // (docs/60_DECISIONS/headers/A9_win64_packaging.md section 2.2). Moved out of the commandlet unchanged. Every place that
-// makes one writes all ten values (an aggregate initialisation would leave a missing one false or 0).
+// makes one writes all ten values (an aggregate initialisation would leave a missing one false or 0); B7x's Crossroads, the
+// eleventh, is written by the commandlet alone - every other place leaves it at 0 (the policy of every baseline).
 struct FCosmicRulerPolicy
 {
 	bool bAnswer = false;
@@ -56,6 +59,10 @@ struct FCosmicRulerPolicy
 	// B5 (header section 5.1 - measurement only): the run's end (the record State.Ending) is not counted - the policy goes on
 	// after it.
 	bool bPastEnd = false;
+	// B7x ([B-7x4m] - docs/60_DECISIONS/headers/B7_composable_existence_and_evolution.md section 5, decision 19): how a
+	// crossroads card (CosmicRulerPolicy::IsCrossroadsCard) is answered - 0, every baseline: the no-value choice alone; k of 1
+	// or more (-Crossroads=<k>, measurement only): the k-th choice the answer takes that moves a brick, else the no-value one.
+	int32 Crossroads = 0;
 };
 
 // What the policy did so far in a run.
@@ -128,9 +135,31 @@ namespace CosmicRulerPolicy
 	// With Tables and a pressure policy (B4), a pressure card - one with a choice that enacts an edict or buys a hazard time -
 	// is answered by the policy's order of kinds (ECosmicPressurePolicy), the first choice of the first kind the answer
 	// takes; the round when none is.
+	// B7x ([B-7x4m] - B7x header section 5, decision 19): a crossroads card (IsCrossroadsCard), before everything above, takes
+	// the no-value choice (IsNoValueChoice) the answer takes - a choice that moves a brick, and a choice with a value that moves
+	// none, are passed by -, or INDEX_NONE when it has none (the card waits, as one the stockpile cannot pay). With Crossroads k
+	// of 1 or more, the k-th choice the answer takes that moves a brick (MovesABrickOf) first, the end of the reign let through
+	// on it (the kept law's abdication - the throne's guard stays for every other card).
 	int32 ChoiceOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FEncounterDef& Row, int32 AnswersSoFar, FName RowName = NAME_None,
 		int32 Diplomacy = 0, const FCosmicRulesDef* Rules = nullptr, const FCosmicDataTables* Tables = nullptr,
-		ECosmicPressurePolicy Pressure = ECosmicPressurePolicy::Round);
+		ECosmicPressurePolicy Pressure = ECosmicPressurePolicy::Round, int32 Crossroads = 0);
+
+	// B7x ([B-7x4m] - B7x header section 3.3 rules 4 and 5, section 5): the crossroads cards, read from the row and never by its
+	// name, so that no row of a data without B7x's cards is one and both policies play as before, bit for bit. A choice moves
+	// a brick when either outcome adds or removes a Brick.* tag (AddTrait, RemoveTrait - CosmicTags::IsBrick).
+	bool MovesABrickOf(const FEncounterChoice& Choice);
+
+	// The no-value choice: no cost, no check, no effect on either outcome and no next card (the watch of the pressure cards;
+	// every card that moves a brick holds one - schema rule 4).
+	bool IsNoValueChoice(const FEncounterChoice& Choice);
+
+	// A crossroads card: a condition CivTimeVectorAtLeast (the schema's mark of the crossroads cards - rule 5) or a choice that
+	// moves a brick (rule 4).
+	bool IsCrossroadsCard(const FEncounterDef& Row);
+
+	// Whether conditions ask a brick or a time vector - CivHasTrait or CivLacksTrait with a Brick.* tag, BorderingCivHasTrait,
+	// CivTimeVectorAtLeast: the DT_Events rows of the overlap rules (the commandlet's bricks line, Data.Integrity's pin).
+	bool AsksABrickOf(const TArray<FCosmicCondition>& Conditions);
 
 	// The -PlayerPolicy word (docs/40): Round, Cautious, Reckless, Faithful, case-insensitive. False for any other word -
 	// Tribute among them (B4 has no tribute): the commandlet runs nothing then.

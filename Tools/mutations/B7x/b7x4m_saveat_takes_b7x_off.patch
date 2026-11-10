@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp b/Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp
+--- a/Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp
++++ b/Source/Cosmic_Ascension/Tests/CosmicBalanceCommandlet.cpp
+@@ -1575,7 +1575,7 @@
+ 	const bool bCapGiven = FParse::Value(*Params, TEXT("FourthRungCap="), FourthRungCap);
+ 	FParse::Value(*Params, TEXT("WithoutB7xData="), WithoutB7xData);
+ 	return TellAll == 0 && RulesText.IsEmpty() && WithoutPressure == 0 && Systems == 0 && Civs == 0 && DeathAt < 0 && WithoutDeath == 0 && PastEnd == 0
+-		&& ExaltAsBefore == 0 && WithoutB6bData == 0 && !bCapGiven && WithoutB7xData == 0;
++		&& ExaltAsBefore == 0 && WithoutB6bData == 0 && !bCapGiven;
+ }
+ 
+ int32 UCosmicBalanceCommandlet::Main(const FString& Params)

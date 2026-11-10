@@ -456,6 +456,88 @@ namespace CosmicTests
 		return Tables;
 	}
 
+	// The names of B7x's rows that no game code calls by name (B7x header section 3.1 - [B-7x5c] brings them), for the
+	// measurement and its pin only: CosmicB6bRows' form, kept here because only WithoutB7xData and Data.Integrity read them (the
+	// commandlet's bricks line finds the rows by their conditions and effects - CosmicRulerPolicy::IsCrossroadsCard,
+	// AsksABrickOf). Not CosmicRows:: constants: the data checker holds each of those to a row the data holds.
+	namespace B7xRows
+	{
+		// DT_Encounters: the twelve crossroads cards, in the design's order C01-C12 (the ruler's eleven, the wanderer's one).
+		inline const FName PetitionCrossBuilt(TEXT("petition_cross_built"));
+		inline const FName PetitionCrossConsumed(TEXT("petition_cross_consumed"));
+		inline const FName PetitionCrossDrifted(TEXT("petition_cross_drifted"));
+		inline const FName PetitionCrossIsolated(TEXT("petition_cross_isolated"));
+		inline const FName PetitionCrossDustBand(TEXT("petition_cross_dust_band"));
+		inline const FName PetitionCrossStarLine(TEXT("petition_cross_star_line"));
+		inline const FName PetitionCrossBetweenStars(TEXT("petition_cross_between_stars"));
+		inline const FName PetitionCrossIntoDust(TEXT("petition_cross_into_dust"));
+		inline const FName PetitionCrossWrappedStar(TEXT("petition_cross_wrapped_star"));
+		inline const FName PetitionCrossLawStays(TEXT("petition_cross_law_stays"));
+		inline const FName PetitionCrossSeam(TEXT("petition_cross_seam"));
+		inline const FName EncCrossDriftFleet(TEXT("enc_cross_drift_fleet"));
+		// DT_Events: the nine rows of the overlap rules (B7x header section 3.1, the design's section 3.3).
+		inline const FName EventBrickShutStar(TEXT("event_brick_shut_star"));
+		inline const FName EventBrickHeatAtDoor(TEXT("event_brick_heat_at_door"));
+		inline const FName EventBrickDriftPlenty(TEXT("event_brick_drift_plenty"));
+		inline const FName EventBrickEmptiedTrail(TEXT("event_brick_emptied_trail"));
+		inline const FName EventBrickEmberWake(TEXT("event_brick_ember_wake"));
+		inline const FName EventBrickOwnHour(TEXT("event_brick_own_hour"));
+		inline const FName EventBrickFoldGleaning(TEXT("event_brick_fold_gleaning"));
+		inline const FName EventBrickInwardAppetite(TEXT("event_brick_inward_appetite"));
+		inline const FName EventBrickWorksRun(TEXT("event_brick_works_run"));
+	}
+
+	// The tables without B7x's data (B7x header section 5, notes section 5.4 code 8 - [B-7x4m]): the data-off side of a pair in
+	// the same build (-WithoutB7xData=1) and the world of a test whose subject is not B7x (header section 6 - outermost, outside
+	// WithoutB6bData too: the two take out rows and knobs that do not overlap). Every source of a brick goes: the twelve
+	// crossroads cards and the nine event rows (B7xRows, in that order) out of a copy of DT_Encounters and DT_Events,
+	// Brick.Form.Society off arch_seeker's Traits (CosmicRows::ArchSeeker - its other traits stay), and the rules of Base (the C++
+	// defaults without a rules row) with the seventeen knobs inert - WithInertBricks: the sixteen numbers back to their
+	// initializers and BrickSeedTags empty, every other field kept, -Rules's among them. bRowsOnly (-WithoutB7xData=2) takes the
+	// rows and Society alone and keeps the rules whole (the knobs and the seed bricks on: the events and the cards measured
+	// together). A name the table does not hold yet takes nothing out; Removed, when given, gets every name a table held, in
+	// this order. Apply it outside every WithRules (a later WithRules replaces the knobs). Data.Integrity pins the set it takes.
+	inline FCosmicDataTables WithoutB7xData(const FCosmicDataTables& Base, TArray<FName>* Removed = nullptr, bool bRowsOnly = false)
+	{
+		FCosmicDataTables Tables = Base;
+		if (!bRowsOnly)
+		{
+			const FCosmicRulesDef* GameRules = Base.FindRules();
+			Tables = WithRules(Base, WithInertBricks(GameRules ? *GameRules : FCosmicRulesDef()));
+		}
+		auto Note = [Removed](const UDataTable* Table, std::initializer_list<FName> Names)
+		{
+			for (const FName& Name : Names)
+			{
+				if (Removed && Table && Table->GetRowMap().Contains(Name))
+				{
+					Removed->Add(Name);
+				}
+			}
+		};
+		const std::initializer_list<FName> Cards = { B7xRows::PetitionCrossBuilt, B7xRows::PetitionCrossConsumed, B7xRows::PetitionCrossDrifted,
+			B7xRows::PetitionCrossIsolated, B7xRows::PetitionCrossDustBand, B7xRows::PetitionCrossStarLine, B7xRows::PetitionCrossBetweenStars,
+			B7xRows::PetitionCrossIntoDust, B7xRows::PetitionCrossWrappedStar, B7xRows::PetitionCrossLawStays, B7xRows::PetitionCrossSeam, B7xRows::EncCrossDriftFleet };
+		const std::initializer_list<FName> Events = { B7xRows::EventBrickShutStar, B7xRows::EventBrickHeatAtDoor, B7xRows::EventBrickDriftPlenty,
+			B7xRows::EventBrickEmptiedTrail, B7xRows::EventBrickEmberWake, B7xRows::EventBrickOwnHour, B7xRows::EventBrickFoldGleaning,
+			B7xRows::EventBrickInwardAppetite, B7xRows::EventBrickWorksRun };
+		Note(Base.Encounters, Cards);
+		Tables.Encounters = CopyWithout<FEncounterDef>(Base.Encounters, Cards);
+		Note(Base.Events, Events);
+		Tables.Events = CopyWithout<FCosmicEventDef>(Base.Events, Events);
+		const FCivArchetypeDef* Seeker = Base.FindCiv(CosmicRows::ArchSeeker);
+		if (Seeker && Seeker->Traits.HasTagExact(CosmicTags::BrickFormSociety()))
+		{
+			UDataTable* Civs = CopyWithout<FCivArchetypeDef>(Base.Civs, {});
+			if (FCivArchetypeDef* Copied = Civs ? Civs->FindRow<FCivArchetypeDef>(CosmicRows::ArchSeeker, TEXT("WithoutB7xData"), false) : nullptr)
+			{
+				Copied->Traits.RemoveTag(CosmicTags::BrickFormSociety());
+			}
+			Tables.Civs = Civs;
+		}
+		return Tables;
+	}
+
 	// The tables with DT_Galaxies replaced, everything else as given (as WithTranscendents). A test that hands it to SetTables
 	// puts a copy of the game's home row in it: a table without the home row is an error line and the C++ defaults (7.4).
 	inline FCosmicDataTables WithGalaxies(const FCosmicDataTables& Base, UDataTable* Galaxies)

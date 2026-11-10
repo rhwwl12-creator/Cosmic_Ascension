@@ -74,10 +74,8 @@ namespace CosmicRulerPolicyImpl
 		{
 			return EPressureKind::Discern;
 		}
-		const FResourcePool Cost = CosmicPetitions::CostOf(Choice);
-		const bool bFree = Cost.Energy <= 0.f && Cost.Matter <= 0.f && Cost.Insight <= 0.f && Cost.Influence <= 0.f && Cost.Causality <= 0.f;
-		return (bFree && Choice.CheckStat == ECosmicCheckStat::NoCheck && Choice.OnSuccess.IsEmpty() && Choice.OnFailure.IsEmpty())
-			? EPressureKind::Watch : EPressureKind::Other;
+		// The watch is the no-value choice (B7x [B-7x4m]: one definition with the crossroads cards').
+		return CosmicRulerPolicy::IsNoValueChoice(Choice) ? EPressureKind::Watch : EPressureKind::Other;
 	}
 
 	// A pressure card: a choice that enacts an edict or buys a hazard time.
@@ -258,8 +256,39 @@ FName CosmicRulerPolicy::VigilRowOf(const FCosmicDataTables& Tables)
 	return NAME_None;
 }
 
+bool CosmicRulerPolicy::MovesABrickOf(const FEncounterChoice& Choice)
+{
+	auto Moves = [](const FCosmicEffect& Effect)
+	{
+		return (Effect.Type == EEffectType::AddTrait || Effect.Type == EEffectType::RemoveTrait) && CosmicTags::IsBrick(Effect.Tag);
+	};
+	return Choice.OnSuccess.ContainsByPredicate(Moves) || Choice.OnFailure.ContainsByPredicate(Moves);
+}
+
+bool CosmicRulerPolicy::IsNoValueChoice(const FEncounterChoice& Choice)
+{
+	const FResourcePool Cost = CosmicPetitions::CostOf(Choice);
+	const bool bFree = Cost.Energy <= 0.f && Cost.Matter <= 0.f && Cost.Insight <= 0.f && Cost.Influence <= 0.f && Cost.Causality <= 0.f;
+	return bFree && Choice.CheckStat == ECosmicCheckStat::NoCheck && Choice.OnSuccess.IsEmpty() && Choice.OnFailure.IsEmpty() && Choice.NextEncounter.IsNone();
+}
+
+bool CosmicRulerPolicy::IsCrossroadsCard(const FEncounterDef& Row)
+{
+	return Row.Conditions.ContainsByPredicate([](const FCosmicCondition& Condition) { return Condition.Type == EConditionType::CivTimeVectorAtLeast; })
+		|| Row.Choices.ContainsByPredicate([](const FEncounterChoice& Choice) { return CosmicRulerPolicy::MovesABrickOf(Choice); });
+}
+
+bool CosmicRulerPolicy::AsksABrickOf(const TArray<FCosmicCondition>& Conditions)
+{
+	return Conditions.ContainsByPredicate([](const FCosmicCondition& Condition)
+	{
+		return Condition.Type == EConditionType::CivTimeVectorAtLeast || Condition.Type == EConditionType::BorderingCivHasTrait
+			|| ((Condition.Type == EConditionType::CivHasTrait || Condition.Type == EConditionType::CivLacksTrait) && CosmicTags::IsBrick(Condition.Tag));
+	});
+}
+
 int32 CosmicRulerPolicy::ChoiceOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FEncounterDef& Row, int32 AnswersSoFar, FName RowName,
-	int32 Diplomacy, const FCosmicRulesDef* Rules, const FCosmicDataTables* Tables, ECosmicPressurePolicy Pressure)
+	int32 Diplomacy, const FCosmicRulesDef* Rules, const FCosmicDataTables* Tables, ECosmicPressurePolicy Pressure, int32 Crossroads)
 {
 	const int32 CivIndex = CosmicPetitions::RuledCivIndexOf(State, Index);
 	const int32 Count = Row.Choices.Num();
@@ -295,6 +324,37 @@ int32 CosmicRulerPolicy::ChoiceOf(const FGalaxyState& State, const FCosmicStateI
 		}
 		return !Rules || CosmicPetitions::StanceBlockOfChoice(State, Index, *Rules, CivIndex, Other, Row.Choices[Choice]) == CosmicDiplomacy::ECosmicStanceBlock::None;
 	};
+	// A crossroads card (B7x [B-7x4m] - B7x header section 5, decision 19): the no-value choice alone - the script never takes
+	// a fork it cannot undo blindly, nor takes a value again and again from a card that does not close. With Crossroads k
+	// (-Crossroads, measurement only) the k-th choice the answer takes that moves a brick comes first - the one place an end of
+	// the reign passes the guard above (the kept law's abdication, as -Abdicate leaves the throne). No card of a data without
+	// B7x's cards is one.
+	if (IsCrossroadsCard(Row))
+	{
+		if (Crossroads > 0)
+		{
+			int32 Seen = 0;
+			for (int32 Pick = 0; Pick < Count; ++Pick)
+			{
+				if (MovesABrickOf(Row.Choices[Pick]) && Taken(Pick))
+				{
+					++Seen;
+					if (Seen == Crossroads)
+					{
+						return Pick;
+					}
+				}
+			}
+		}
+		for (const int32 Pick : Stays)
+		{
+			if (IsNoValueChoice(Row.Choices[Pick]) && Taken(Pick))
+			{
+				return Pick;
+			}
+		}
+		return INDEX_NONE;
+	}
 	// A pressure card under a pressure policy (B4 header section 2.9): the first choice the answer takes of the first kind of
 	// the policy's order.
 	if (Pressure != ECosmicPressurePolicy::Round && Tables && CosmicRulerPolicyImpl::IsPressureCard(Row))
@@ -403,7 +463,8 @@ void CosmicRulerPolicy::Act(const FCosmicRulerPolicy& Policy, UGalaxySimulationS
 	{
 		const FName Card = State.Knowing.PendingPetitionRow;
 		const FEncounterDef* Row = Sim.GetTables().FindEncounter(Card);
-		const int32 Choice = Row ? ChoiceOf(State, Sim.GetStateIndex(), *Row, Counts.Answers, Card, Policy.Diplomacy, &Sim.GetRules(), &Sim.GetTables(), Policy.Pressure) : INDEX_NONE;
+		const int32 Choice = Row ? ChoiceOf(State, Sim.GetStateIndex(), *Row, Counts.Answers, Card, Policy.Diplomacy, &Sim.GetRules(), &Sim.GetTables(), Policy.Pressure,
+			Policy.Crossroads) : INDEX_NONE;
 		if (Choice == INDEX_NONE)
 		{
 			break;

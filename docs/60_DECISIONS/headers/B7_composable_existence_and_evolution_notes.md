@@ -205,7 +205,7 @@ B2 헤더 §2.6(`docs/60_DECISIONS/headers/B2_edicts_and_research.md:125`·`:129
 3. 자동화 테스트 `Cosmic_Ascension.*` 두 번.
 4. `[B-7x1]`(누적 셈과 한 커밋 — 헤더 §8, 결정 20)은 다섯 줄의 두 해시를 한 번 옮긴다 — CSV가 `TickMicros`·`SaveBytes`·`SaveRawBytes`를 빼고 같음을 본 뒤 `Tools\run_checks.ps1 -Tier full -UpdateBaseline` 한 번. `_rows.csv`·`_claims.csv`와 `ending:`·`race:` 줄도 같아야 한다(리뷰 I9). 선택: 해셔 탐침의 비트 그대로(헤더 §8 차례 2 — 리뷰 DET-2).
 5. 변이 패치(`Tools/mutations/B7x/`)와 README의 줄: 초기값 1, 해시가 `TimeVectors`를 건너뜀, 셈이 되돌아감, `Inward`를 묻지 않음, 기생이 주장에 닿음, 남긴 법의 첫 물음을 뺌, 씨앗이 시뮬 스트림에서 뽑음. 리뷰가 더한 변이는 §5.4(시3·시4·시5·시6·시7과 `[B-7x4m]`의 둘).
-6. 헤더 §7의 문서: `docs/20`(규칙 4의 새 걸음, 저장 필드, 용도 13 — 규칙 3의 세 문장)·`docs/21`·`docs/40`의 테스트 표·`STATUS.md`(`[B-6b12]` 끝의 227 + 11 = 238 — 리뷰 I10)·`DECISIONS_LOG`. `CLAUDE.md` 규칙 13은 슬라이스 나의 몫이다(헤더 §7 — 리뷰 F12, 결정 14). `CLAUDE.md`의 `docs/archive/` 행은 `[B-7x0]`이 고쳐 쓴다(§5.4).
+6. 헤더 §7의 문서: `docs/20`(규칙 4의 새 걸음, 저장 필드, 용도 13 — 규칙 3의 세 문장)·`docs/21`·`docs/40`의 테스트 표·`STATUS.md`(`[B-6b12]` 끝의 227 + 11 = 238, `[B-7x4m]` 뒤 240 — 리뷰 I10)·`DECISIONS_LOG`. `CLAUDE.md` 규칙 13은 슬라이스 나의 몫이다(헤더 §7 — 리뷰 F12, 결정 14). `CLAUDE.md`의 `docs/archive/` 행은 `[B-7x0]`이 고쳐 쓴다(§5.4).
 
 ### 5.4 리뷰가 넘긴 고침 (리베이스 때 — 대상 커밋마다)
 
@@ -311,7 +311,7 @@ TArray<FName> CosmicEdicts::AIRevokesOf(const FCivilizationState& Civ, const FCo
 
 #### `[B-7x4m]` 측정 (새 커밋)
 
-- **코8**(M2·M4·M5·M6·M7·M8·M12·I7·I3): 통치자·방랑자 정책의 건너뜀('갈림 카드에서는 ③만'), `-Crossroads=<k>`와 `petition_cross_law_stays` ①의 `DeposeRuler` 통과, `-WithoutB7xData=1`·`=2`, `CosmicTests::WithoutB7xData`, `bricks:` 줄(측정 쪽 `OnEventFired` 셈, 사람마다·틱마다의 셈, 갈림 답의 틱, `petition_walls`·`petition_bread`의 온 수), `-SaveAt`의 거절 목록 — 명세는 헤더 §5. 도우미의 트립와이어: `Data.Integrity`가 뺀 집합(카드 열둘·사건 아홉·Society·노브 열일곱의 초기값·빈 `BrickSeedTags`)을 정확히 핀으로 박는다. 증명: 비트 그대로(다섯 줄·해시 판 둘, `-TellAll=0` 판 포함); 변이 둘 — 건너뜀을 뺌(테스트 안에서 지은 벤치 카드로), 끈 스위치가 씨앗·노브를 남김.
+- **코8**(M2·M4·M5·M6·M7·M8·M12·I7·I3): 통치자·방랑자 정책의 건너뜀('갈림 카드에서는 ③만'), `-Crossroads=<k>`와 `petition_cross_law_stays` ①의 `DeposeRuler` 통과, `-WithoutB7xData=1`·`=2`, `CosmicTests::WithoutB7xData`, `bricks:` 줄(측정 쪽 `OnEventFired` 셈, 사람마다·틱마다의 셈, 갈림 답의 틱, `petition_walls`·`petition_bread`의 온 수), `-SaveAt`의 거절 목록 — 명세는 헤더 §5. 도우미의 트립와이어: `Data.Integrity`가 뺀 집합(카드 열둘·사건 아홉·Society·노브 열일곱의 초기값·빈 `BrickSeedTags`)을 정확히 핀으로 박는다. 증명: 비트 그대로(다섯 줄·해시 판 둘, `-TellAll=0` 판 포함); 변이 둘 — 건너뜀을 뺌(테스트 안에서 지은 벤치 카드로), 끈 스위치가 씨앗·노브를 남김. (`[B-7x4m]`에서 했다 — 2026-11-12 증명: 기준값·해시 판 둘이 `[B-7x1]` 그대로, 테스트 240; 변이가 죽는지는 가지 끝의 C++ 변이)
 
 #### `[B-7x3]` 표현
 
@@ -410,3 +410,4 @@ TArray<FName> CosmicEdicts::AIRevokesOf(const FCivilizationState& Civ, const FCo
 - **차례와 바탕**: `[B-7x0]` → `[B-7x1]` → `[B-7x4m]` → `[B-7x3]` → `[B-7x4]`(헤더 §8의 차례 1~5). 다시 쌓기는 git과 파이썬만으로 하고, 코드 커밋의 빌드와 증명은 엔진이 있는 개발 PC에서 커밋마다 한다 — 그 커밋과 소스·데이터·Config가 바이트 그대로 같은 작업 사본에 앞 커밋의 생성물을 얹어(커밋 메시지의 맨 아래 항목).
 - **`[B-7x0]`**(문서만): 파이썬 검사 다섯과 LF 검사. 살아 있는 문서 다섯(`STATUS.md`·`docs/50`·`DECISIONS_LOG`·`OPEN_QUESTIONS`·`CLAUDE.md`)을 접었고, 새 물음은 #169~#178이다(§3).
 - **`[B-7x1]`**: 이 바탕 위 B7x C++의 첫 빌드(오류 없음), 러너 `-Tier full -Data -UpdateBaseline` — 자동화 테스트 238 × 두 판(227 + 11). 다섯 판 CSV의 결정적 칸(`TickMicros`·`SaveBytes`·`SaveRawBytes` 빼고)·`_rows`·`_claims`·요약 줄(두 해시 빼고)이 `29e2ecd`와 같다 — 세계는 그대로이고, 새 저장 필드로 두 해시(`hash`/`world`)만 옮았다: 3,000틱 2557850423/2906170550 → 2172948422/1868952007, 통치자 3,000 1189870756/3359656751 → 1023765488/3511480669, 방랑자 6,000 2158489212/1214038630 → 2398988755/787344698, 20,000틱 4192287602/2387995655 → 2266351602/3640316943, 통치자 20,000 1375149537/510604211 → 3035997636/3729142648. 생성물: `DT_Rules`·`ST_CA` 에셋, `generated.sha1`, `seed42.json`(그 `note`는 옛 값의 사슬을 잇지 않는다 — 옛 값은 `29e2ecd`의 파일). 정착 사유는 12(B6b가 더하지 않아 13이 아니다 — static_assert), walked 핀 330 → 372. 변이: main의 `b6b12_` 서른일곱 가운데 일곱이 이 커밋부터 서지 않아 `b7x2_` 일곱으로 다시 떴다(`b7x2_data_resist_factor`·`b7x2_schema_resist_min_off`·`b7x2_schema_civhasedict_optional`·`b7x2_theodicy_one_bonus`·`b7x2_delay_outside_cut`·`b7x2_spread_live_table`·`b7x2_spread_no_multiplier`); C++ 변이는 가지 끝에서 한 번에.
+- **`[B-7x4m]`**: 러너 `-Tier full`(`Tools/data`를 고치지 않아 `-Data` 없이) — 240 × 두 판(+ `Sim.CrossroadsPolicy`·`Sim.BalanceArgs`), 기준값 다섯 줄과 해시 판 둘이 `[B-7x1]` 그대로, 다섯 판 CSV의 결정적 칸이 `29e2ecd`와 같다. 생성물 없음. 변이: 이 커밋에서 새로 서지 않게 된 패치는 없다.

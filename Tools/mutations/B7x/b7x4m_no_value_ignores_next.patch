@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -269,7 +269,7 @@
+ {
+ 	const FResourcePool Cost = CosmicPetitions::CostOf(Choice);
+ 	const bool bFree = Cost.Energy <= 0.f && Cost.Matter <= 0.f && Cost.Insight <= 0.f && Cost.Influence <= 0.f && Cost.Causality <= 0.f;
+-	return bFree && Choice.CheckStat == ECosmicCheckStat::NoCheck && Choice.OnSuccess.IsEmpty() && Choice.OnFailure.IsEmpty() && Choice.NextEncounter.IsNone();
++	return bFree && Choice.CheckStat == ECosmicCheckStat::NoCheck && Choice.OnSuccess.IsEmpty() && Choice.OnFailure.IsEmpty();
+ }
+ 
+ bool CosmicRulerPolicy::IsCrossroadsCard(const FEncounterDef& Row)

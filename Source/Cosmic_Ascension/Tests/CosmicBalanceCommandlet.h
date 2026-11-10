@@ -128,6 +128,11 @@
  * without the automation tests, and so are a -WithoutB6bData but 0 or 1 and a -FourthRungCap below 0 or with no home galaxy
  * row in the tables (an error line each, nothing run; a -FourthRungCap that is not a number reads as 0); neither is an
  * argument of the hash run or the runner, and -SaveAt writes no slot beside either.
+ * -WithoutB7xData=1|2 and -Crossroads=<k> (B7x [B-7x4m], B7x header section 5 - measurement only): the first runs on the
+ * tables without B7x's data (CosmicTests::WithoutB7xData - 1: its rows, Society and the seventeen knobs; 2: the rows and
+ * Society alone), logs "tables without B7x's ...", needs a test build and keeps -SaveAt from writing; the second lets both
+ * policies take the k-th choice that moves a brick on a crossroads card (else its no-value choice). The line "CosmicBalance
+ * bricks:" is outside the three lines the runner compares - docs/40.
  *
  *   UnrealEditor-Cmd Cosmic_Ascension.uproject -run=CosmicBalance -Seed=42 -Ticks=20000 -Out=balance.csv
  *
@@ -145,3 +150,13 @@ class COSMIC_ASCENSION_API UCosmicBalanceCommandlet : public UCommandlet
 public:
 	virtual int32 Main(const FString& Params) override;
 };
+
+// The commandlet's arguments read apart from Main, for a test (B7x [B-7x4m] - B7x header section 5, 6).
+namespace CosmicBalanceArgs
+{
+	// Whether -SaveAt may write beside the arguments Params (Main's gate): a run of the game's shape - -TellAll=0 and none of
+	// -Rules, -WithoutPressure, -Systems, -Civs, -DeathAt, -WithoutDeath, -PastEnd, -ExaltAsBefore, -WithoutB6bData,
+	// -FourthRungCap or -WithoutB7xData (a -Systems or -Civs of 0 is the home row's size; -Crossroads is an input's form and
+	// counts for nothing). Read with FParse as Main reads them. Sim.BalanceArgs holds it to the list.
+	COSMIC_ASCENSION_API bool IsSaveShapeOf(const FString& Params);
+}

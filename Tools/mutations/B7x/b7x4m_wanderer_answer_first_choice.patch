@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicWandererPolicy.cpp
+@@ -102,7 +102,7 @@
+ 		{
+ 			break;
+ 		}
+-		const FCosmicPetitionAnswer Taken = Role.AnswerPetition(Pick);
++		const FCosmicPetitionAnswer Taken = Role.AnswerPetition(0);
+ 		if (Taken.Outcome == ECosmicPetitionOutcome::Refused)
+ 		{
+ 			break;
