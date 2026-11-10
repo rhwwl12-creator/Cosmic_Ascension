@@ -234,6 +234,8 @@ def make_c(Fm, folder, t_death=TD, mutate=None):
 
 def make_b6a(Fm, folder, seeds=(1, 2)):
     for s in seeds:
+        # B6a's own wanderer log (B-e per seed, review L1-2): the same own-vessel reading as C's off side.
+        write_log(os.path.join(folder, "wanderer_%d.log" % s), Fm, specs()["wanderer_%d_off" % s][0], 6000, cell="wanderer")
         write_csv(os.path.join(folder, "wanderer_%d.csv" % s), Fm, 6000, (), (5990,))
         with open(os.path.join(folder, "wanderer_%d_rows.csv" % s), "w", encoding="utf-8") as f:
             f.write(Fm.rows_header + "\n500,log_x,1\n")
@@ -446,7 +448,8 @@ def main():
     check(all(p["ok"] for p in res["pairs"]) and len(res["pairs"]) == 4, "clean B-a %s" % [(p["pair"], p["why"]) for p in res["pairs"]])
     check(all(b["ok"] for b in res["bridge_b"]) and len(res["bridge_b"]) == 4, "clean B-b %s" % [(b["pair"], b["why"]) for b in res["bridge_b"]])
     check(all(b["ok"] for b in res["bridge_c"]) and len(res["bridge_c"]) == 2, "clean B-c %s" % [(b["pair"], b["why"]) for b in res["bridge_c"]])
-    check(res["bridge_e"]["ok"] is None, "B-e skipped on a 2-seed subset")
+    check(res["bridge_e"]["ok"] is True and res["bridge_e"]["compared"] == 2 and "totals not compared" in res["bridge_e"]["notes"][0],
+          "B-e per seed on a 2-seed subset, totals not compared: %s" % (res["bridge_e"],))
     check(res["bridge_d"]["ok"] is True and res["bridge_d"]["mode"] == "csv" and len(res["bridge_d"]["entries"]) == 14, "clean B-d (csv): %s" % ((
         res["bridge_d"].get("why"), [e for e in res["bridge_d"]["entries"] if e["why"]], len(res["bridge_d"]["entries"])),))
     check(C.verdict(res, {"end_check": 0, "race_check": 0}), "clean verdict PASS")
@@ -619,7 +622,10 @@ def main():
     C.B6A_B1 = saved_b6a
     _, _, _, r = variant("be", lambda sp: setv(sp, "wanderer_1_off", fd=2000))
     check(r["readings"]["R4"]["off"]["own"] == 1 and r["readings"]["R4"]["off"]["any"] == 2, "off own counts drop a crowning after the first death")
-    # F-3 (review): 60 off runs reproducing B6a (own 40, 22/15/3, median 1,350); one twice-failed off run -> B-e skipped, not broken.
+    check(r["bridge_e"]["ok"] is False and any(w.startswith("seed 1: own False, B6a True") for w in r["bridge_e"]["why"]) and not r["readings"]["R4"]["read"]
+          and r["readings"]["R4"]["text"].startswith("not read - bridge B-c or B-e broken"),
+          "B-e per seed: one off seed that no longer matches B6a's own log breaks it (L1-2): %s" % r["bridge_e"]["why"])
+    # F-3 (review): 60 off runs reproducing B6a (own 40, 22/15/3, median 1,350); one twice-failed off run -> that seed left out, not broken.
     jobs_e = C.build_jobs(os.path.join(root, "be60"), CC, TD, cells={"wanderer"})
     parsed_e, results_e = {}, {}
     for j in jobs_e:
@@ -628,14 +634,30 @@ def main():
         path = "return" if s_ <= 22 else ("vacuum" if s_ <= 37 else "reverence")
         parsed_e[j["name"]] = {"crowned": {"tick": 1201 + 1350 if own else -1, "path": path if own else "none"}, "left_at": 1201, "calling": {"first_death": -1}}
         results_e[j["name"]] = {"ok": True}
-    be = C.bridge_e(jobs_e, parsed_e, results_e)
-    check(be["ok"] is True, "B-e: 60 off runs 40/60, 22/15/3, median 1,350 pass: %s" % be["why"])
+    b6a_e = {j["seed"]: parsed_e[j["name"]] for j in jobs_e if j["off"]}
+    be = C.bridge_e(jobs_e, parsed_e, results_e, b6a_parsed=b6a_e)
+    check(be["ok"] is True and be["compared"] == 60 and not be["notes"], "B-e: 60 off runs 40/60, 22/15/3, median 1,350 pass: %s" % be["why"])
+    b6a_e2 = dict(b6a_e)
+    b6a_e2[7] = dict(b6a_e[7], crowned={"tick": 1201 + 1351, "path": "return"})
+    be3 = C.bridge_e(jobs_e, parsed_e, results_e, b6a_parsed=b6a_e2)
+    check(be3["ok"] is False and be3["why"] == ["seed 7: after leaving 1350, B6a 1351"], "B-e per seed: one seed's crowned - left differs: %s" % be3["why"])
     results_e["wanderer_5_off"] = {"ok": False}
-    be2 = C.bridge_e(jobs_e, parsed_e, results_e)
+    be2 = C.bridge_e(jobs_e, parsed_e, results_e, b6a_parsed=b6a_e)
     _, withheld_e = C.withheld_cells(jobs_e, results_e)
-    check(withheld_e == [] and be2["ok"] is None and "failed twice [5]" in be2["why"][0], "B-e: one twice-failed off run (cell not withheld) -> skipped, not broken: %s %s" % (
-        be2["ok"], be2["why"]))
-    check(not C.r4_b1(jobs_e, parsed_e, results_e, be2["ok"] is True)["read"], "B-e skipped -> R4 not read")
+    check(withheld_e == [] and be2["ok"] is True and be2["skipped"] == [5] and be2["compared"] == 59 and "seeds not compared [5]" in be2["notes"][0],
+          "B-e: one twice-failed off run (cell not withheld) -> that seed left out, the other 59 compared: %s %s" % (be2["ok"], be2.get("notes")))
+    r4e = C.r4_b1(jobs_e, parsed_e, results_e, True, [5], None)
+    check(r4e["read"] and r4e["excluded"] == [5] and "left out of the pairs" in r4e["text"] and "[5]" in r4e["text"], "R4 read without seed 5, listed: %s" % r4e["text"])
+    check(C.r4_b1(jobs_e, parsed_e, results_e, False, [5], "skipped")["text"] == "not read - B-c/B-e skipped (seeds [5])", "R4 skipped text apart from broken")
+    # L1-2 through analyse: wanderer_2_off fails (its claims file is missing) - one failure, cell not withheld; B-c seed 2 has no
+    # result, B-e compares seed 1, R4 is read without seed 2 (before the fix: 'not read - bridge B-c or B-e broken').
+    fl = os.path.join(root, "l12")
+    make_c(Fm, fl)
+    os.remove(os.path.join(fl, "wanderer_2_off_claims.csv"))
+    _, _, rl, r = analyse_dir(fl, ctx_of(root), logs, csvs)
+    r4l = r["readings"]["R4"]
+    check(not rl["wanderer_2_off"]["ok"] and r["withheld"] == [] and r["bridge_e"]["ok"] is True and r["bridge_e"]["skipped"] == [2] and r4l["read"]
+          and r4l["excluded"] == [2] and C.bridges_ok(r), "one failed off run: R4 read on seed 1, seed 2 listed: %s / %s" % (r4l.get("text"), r["bridge_e"]))
 
     print("10. frozen arithmetic")
     # #142 (decision 24): p_e = 1 - 0.976^47.5 = 0.6846; n = 30 region [0.5183, 0.8509]; n = 31 [0.5210, 0.8482].
@@ -747,8 +769,17 @@ def main():
     r6 = C.r6_154(jobs6, parsed6, {n: {"ok": True} for n in parsed6})
     check(r6["wanderer"]["late"]["k"] == 1 and r6["wanderer"]["late"]["n"] == 2 and r6["inputless"]["late"]["n"] == 2 and r6["pooled"]["late"]["k"] == 2
           and r6["pooled"]["early"]["n"] == 1, "#154 late/early split")
+    # L2-3: an early succession after an early record (3,500) is not counted early (B5's split is over pre-clock successions).
+    jobs6b = jobs6 + [{"name": "wanderer_2", "cell": "wanderer", "seed": 2, "off": False}]
+    parsed6b = dict(parsed6, wanderer_2={"calling": {"successions": [(3000, 6), (3800, 6)]}, "ending_x": {"tick": 3500}})
+    r6b = C.r6_154(jobs6b, parsed6b, {n: {"ok": True} for n in parsed6b})
+    check(r6b["pooled"]["early"]["n"] == 2 and r6b["pooled"]["early"]["k"] == 2 and r6b["wanderer"]["early"]["n"] == 2,
+          "#154 early only up to the record: %s" % r6b["pooled"]["early"])
+    check("walking cell" in r6b["text"] and "7/29" in r6b["text"], "#154 text names B5's walking cell (L2-2)")
     # #132: whole run weighted by count, by the record phases 0-1.
     jobsC, parsedC, resultsC, resC = analyse_dir(folder, ctx_of(root))
+    ph10 = C.placeholders(resC, {}, ctx_of(root))["<#10>"]
+    check("28/37" in ph10 and "44/59" in ph10 and "walking cell" in ph10, "<#10> carries B5's like-for-like 28/37 and the 44/59 with the walking cell (L2-2): %s" % ph10)
     r3 = resC["readings"]["R3"]
     check(r3["n"] == 6 and abs(r3["share_pct"] - (2 * 48 + 50) / 3.0) < 1e-9 and r3["text"] == "재지 않음 — 잰 6" and r3["cap"]["k"] == 2 and r3["cap"]["n"] == 6
           and r3["ends_guarded"] == [4, 2, 0] and r3["pressure_delay"] == 440, "#132 weighted share 48.67%%, cap 2/6: %s" % r3)
@@ -781,7 +812,19 @@ def main():
     check(hc["1"]["seed"] == 1 and hc["1"]["save_at"] == 2950 and hc["1"]["cell"] == "R", "(1) R seed 1 at T4 3,000 - 50")
     check(hc["2"]["seed"] == 2 and hc["2"]["save_at"] == 5470, "(2) OtherPeople seed 2 at 5,500 - 30")
     check(hc["3"]["seed"] == 2 and hc["3"]["save_at"] == 3990 and "4250 + guard delay" in hc["3"]["expected"], "(3) extinction at 4,000 - 10, expiry 4,250")
+    check("record OtherPeople at 5500" in hc["3"]["expected"] and "before the countdown" not in hc["3"]["expected"], "(3) expected names the record: %s" % hc["3"]["expected"])
     check(hc["6i"]["seed"] == 1 and hc["6i"]["save_at"] == 870, "(6 i) era at 900 - 30")
+    check("record RuledPeople at 5000" in hc["6i"]["expected"] and "record Clock at 6000" in hc["6ii"]["expected"], "(6) expected texts name the record (HC-2)")
+    # HC-2: R_1's countdown (5,900 + 250) ends after its record (5,950); R_2's (4,000 + 250) ends before its Clock at 6,000 -> R_2.
+    _, _, _, rh4 = variant("hc4", lambda sp: [setv(sp, "R_1", kind="OtherPeople", rec=5950, on_ruled=1, on_ruled_first=5900),
+                                              setv(sp, "R_2", kind="Clock", rec=CC, on_ruled=1, on_ruled_first=4000)])
+    h3 = rh4["handcheck"]["3"]
+    check(h3["seed"] == 2 and "record Clock at 6000" in h3["expected"] and h3["save_at"] == 3990, "(3) prefers the seed whose countdown ends by its record: %s" % h3)
+    _, _, _, rh5 = variant("hc5", lambda sp: [setv(sp, "R_1", kind="OtherPeople", rec=5950, on_ruled=1, on_ruled_first=5900),
+                                              setv(sp, "R_2", kind="Clock", rec=CC, on_ruled=1, on_ruled_first=5800)])
+    h3 = rh5["handcheck"]["3"]
+    check(h3["seed"] == 1 and "the end comes before the countdown" in h3["expected"] and "record OtherPeople at 5950" in h3["expected"],
+          "(3) no seed fits: the literal pick, said so: %s" % h3.get("expected"))
     check(hc["6ii"]["cell"] == "wanderer" and hc["6ii"]["save_at"] == 1470 and "-Abdicate=1200 -Wander=1" in hc["6ii"]["cmd"], "(6 ii) witness from a wanderer seed")
     for k in ("1", "2", "3", "6i", "6ii"):
         cmdk = hc[k]["cmd"]
@@ -793,10 +836,42 @@ def main():
           "(1)/(2)/(6) 없음 when none qualifies")
     _, _, _, rh = variant("hc3", lambda sp: [setv(sp, "R_1", kind="Clock", rec=CC), setv(sp, "slowR_2", kind="RuledPeople", rec=5800, r4=4000, r5=5800)])
     check(rh["handcheck"]["1"]["cell"] == "slowR" and "-Focus=0" in rh["handcheck"]["1"]["cmd"], "(1) falls back to slowR")
+    # HC-1: the -SaveAt lines. A failed save ('could not write', then the end-of-run 'wrote no slot' error) gives no path.
+    hcl = os.path.join(root, "hc_logs")
+    bad_log = os.path.join(hcl, "bad.log")
+    write_log(bad_log, Fm, dict(specs()["R_1"][0], extra=[T.ue("CosmicBalance: -SaveAt 2797 could not write C:/a b/Saved/SaveGames/Galaxy_X.sav"),
+                                                          T.ue("CosmicBalance: -SaveAt 2797 wrote no slot", "Error")]), CC)
+    pb = C.parse_log(bad_log)
+    check(pb["saveat"] == [] and pb["saveat_failed"], "a failed -SaveAt gives no save path: %s %s" % (pb["saveat"], pb["saveat_failed"]))
+    proj2 = os.path.join(root, "proj_hc")
+    games = os.path.join(proj2, "Saved", "SaveGames")
+    os.makedirs(games)
+    sav = os.path.join(games, "Galaxy_12B1.sav")
+    with open(sav, "w", encoding="utf-8") as f:
+        f.write("save\n")
+    good_log = os.path.join(hcl, "good.log")
+    write_log(good_log, Fm, dict(specs()["R_1"][0], extra=[T.ue("CosmicBalance: -SaveAt 2797 wrote " + A.fwd(sav))]), CC)
+    pg = C.parse_log(good_log)
+    check(pg["saveat"] == [(2797, A.fwd(sav))] and not pg["saveat_failed"], "a good -SaveAt line (path with spaces) parses: %s" % pg["saveat"])
+    write_log(os.path.join(hcl, "spaces.log"), Fm, dict(specs()["R_1"][0], extra=[T.ue("CosmicBalance: -SaveAt 5 wrote C:/a b/Saved/SaveGames/Galaxy_X.sav")]), CC)
+    check(C.parse_log(os.path.join(hcl, "spaces.log"))["saveat"] == [(5, "C:/a b/Saved/SaveGames/Galaxy_X.sav")], "'wrote C:/a b/.../Galaxy_X.sav' keeps the path")
+    dest_dir = os.path.join(proj2, "Saved", "HandCheck", "B6b_3_extinction_seed1_2797")
+    moved, why = C.take_save(bad_log, proj2, dest_dir)
+    check(moved is None and "failed" in why and os.path.exists(sav), "take_save refuses a failed save: %s" % why)
+    os.makedirs(dest_dir)
+    with open(os.path.join(dest_dir, "other.sav"), "w", encoding="utf-8") as f:
+        f.write("x\n")
+    moved, why = C.take_save(good_log, proj2, dest_dir)
+    check(moved is None and "not empty" in why and os.path.exists(sav), "take_save refuses a non-empty folder: %s" % why)
+    moved, why = C.take_save(good_log, os.path.join(root, "proj"), dest_dir + "_2")
+    check(moved is None and "not under" in why and os.path.exists(sav), "take_save refuses a path outside <root>/Saved/SaveGames: %s" % why)
+    os.remove(os.path.join(dest_dir, "other.sav"))
+    moved, why = C.take_save(good_log, proj2, dest_dir)
+    check(moved == os.path.join(dest_dir, "Galaxy_12B1.sav") and os.path.exists(moved) and not os.path.exists(sav), "take_save moves only that file: %s" % why)
 
     print("12. driver: mocked commandlet, busy check, rerun, archive")
     tmpl = folder
-    calls = {"n": 0, "fail_once": {"R_2"}, "busy_after": None}
+    calls = {"n": 0, "fail_once": {"R_2"}, "busy_after": None, "check_once": set()}
 
     def fake_run(cmdl):
         calls["n"] += 1
@@ -808,6 +883,11 @@ def main():
             return 3
         for suffix in (".log", ".csv", "_rows.csv", "_claims.csv"):
             shutil.copy2(os.path.join(tmpl, stem + suffix), os.path.join(out_dir, stem + suffix))
+        if stem in calls["check_once"]:
+            # L1-1: a first attempt that prints an end check line and exits 0; the rerun is clean.
+            calls["check_once"].discard(stem)
+            with open(log, "a", encoding="utf-8") as f:
+                f.write(T.ue("CosmicBalance end check: x", "Error") + "\n")
         return 0
 
     busy_calls = {"n": 0}
@@ -829,11 +909,58 @@ def main():
           "archive: logs and a sha1 manifest")
     check("freeze sha1" in out and C.freeze_hashes(os.path.join(root, "frozen_4_3.md"))["frozen_4_3.md"] in out, "freeze hashes printed before job 1")
     meta = json.load(open(os.path.join(run_dir, "bundle_meta.json"), encoding="utf-8"))
-    check(meta["sha1_ok"] and meta["frozen"] and meta["aborted"] is None, "bundle_meta: sha1 unchanged, freeze stored")
+    check(meta["sha1_ok"] and meta["frozen"] and meta["aborted"] is None and meta["workers"] == 2, "bundle_meta: sha1 unchanged, freeze stored, workers 2")
+    # L1-1: R_2's first attempt prints an end check line (exit 0), its rerun is clean -> the header still counts it, FAIL, and
+    # the first attempt's log is kept and archived.
+    calls.update(n=0, fail_once=set(), check_once={"R_2"})
+    run_chk, arch_chk = os.path.join(root, "run_chk"), os.path.join(root, "archive_chk")
+    i = argv.index("--folder")
+    argv_chk = argv[:i + 1] + [run_chk] + argv[i + 2:]
+    i = argv_chk.index("--archive-dir")
+    argv_chk = argv_chk[:i + 1] + [arch_chk] + argv_chk[i + 2:]
+    code, out = quiet(C.main, argv_chk)
+    runs_chk = json.load(open(os.path.join(run_chk, "runs.json"), encoding="utf-8"))
+    summ = json.load(open(os.path.join(run_chk, "summary.json"), encoding="utf-8"))
+    check(code == 1 and "bundle C: FAIL" in out and "- end check 1, race check 0" in out and summ["header"]["end_check"] == 1
+          and runs_chk["R_2"]["attempts"][0]["end_check"] == 1 and len(runs_chk["R_2"]["attempts"]) == 2 and runs_chk["R_2"]["ok"],
+          "an end check line in a rerun job's first attempt still counts (L1-1): code %s, %s" % (code, [l for l in out.splitlines() if "end check" in l][:3]))
+    check(os.path.exists(os.path.join(run_chk, "R_2.try1.log")) and os.path.exists(os.path.join(arch_chk, "R_2.try1.log")) and "rerun R_2: attempt 1" in out
+          and "R_2.try1.log" in out, "the first attempt's log is kept, archived and its reason listed")
+    code, out = quiet(C.main, base_args(proj) + ["--check-only", run_chk, "--cells", "R,slowR", "--max-seed", "2", "--bundle-b-logs", logs, "--bundle-b-csv", csvs,
+                                                 "--b6a-dir", b6, "--no-archive"])
+    check(code == 1 and "- end check 1, race check 0" in out, "check-only keeps the first attempt's end check from runs.json")
+    # L1-3: 2.4 GB free of 31.1 GB (bundle B's start) at 6 workers -> 3 workers (0.8 GB each); 0.5 GB free -> refused.
+    C.HOOKS["memory"] = lambda: (2.4, 31.1)
+    calls.update(n=0, check_once=set())
+    run_mem = os.path.join(root, "run_mem")
+    i = argv.index("--folder")
+    argv_mem = argv[:i + 1] + [run_mem] + argv[i + 2:]
+    i = argv_mem.index("--workers")
+    argv_mem = argv_mem[:i] + ["--workers", "6", "--no-archive"]
+    code, out = quiet(C.main, argv_mem)
+    meta_mem = json.load(open(os.path.join(run_mem, "bundle_meta.json"), encoding="utf-8"))
+    check(code == 0 and "workers 6 -> 3" in out and "4 jobs, 3 workers" in out and meta_mem["workers"] == 3, "low free memory lowers the workers (L1-3): %s" % (
+        [l for l in out.splitlines() if "memory" in l or "workers" in l][:3],))
+    C.HOOKS["memory"] = lambda: (0.5, 31.1)
+    code, out = quiet(C.main, argv_mem)
+    check(code == 2 and "free memory 0.5 GB does not cover one commandlet" in out, "free memory below one commandlet: refused")
+    C.HOOKS["memory"] = lambda: (16.0, 32.0)
     calls.update(n=0, fail_once=set(), busy_after=2)
     busy_calls["n"] = 0
     code, out = quiet(C.main, argv[:argv.index("--workers")] + ["--workers", "1", "--no-archive"])
     check(code == 1 and "ABORTED" in out and calls["n"] == 1, "a busy machine aborts the bundle early (%d launched)" % calls["n"])
+    # HC-3: the same abort without --no-archive and with a fresh archive folder - nothing reaches the archive.
+    calls.update(n=0, fail_once=set(), busy_after=2)
+    busy_calls["n"] = 0
+    arch_ab = os.path.join(root, "archive_abort")
+    i = argv.index("--folder")
+    argv_ab = argv[:i + 1] + [os.path.join(root, "run_abort")] + argv[i + 2:]
+    i = argv_ab.index("--archive-dir")
+    argv_ab = argv_ab[:i + 1] + [arch_ab] + argv_ab[i + 2:]
+    argv_ab = argv_ab[:argv_ab.index("--workers")] + ["--workers", "1"]
+    code, out = quiet(C.main, argv_ab)
+    check(code == 1 and "ABORTED" in out and "archive skipped: aborted" in out and not os.path.exists(os.path.join(arch_ab, "manifest.sha1")),
+          "an aborted bundle is not archived (HC-3): code %s, manifest %s" % (code, os.path.exists(os.path.join(arch_ab, "manifest.sha1"))))
     calls["busy_after"] = 0
     busy_calls["n"] = 0
     code, out = quiet(C.main, argv)
@@ -855,6 +982,14 @@ def main():
     C.OWN["pids"].add(5001)
     C.HOOKS["busy_all"] = lambda: ["UnrealEditor-Cmd.exe (pid 5001)", "UnrealEditor-Cmd.exe (pid 500)", "UnrealEditor.exe (pid 50)"]
     check(C._busy_others() == ["UnrealEditor-Cmd.exe (pid 500)", "UnrealEditor.exe (pid 50)"], "busy: only the own pid 5001 is dropped")
+    # The first full bundle C aborted at job 324 on the UBT SDK query every commandlet start runs. That query is not
+    # another job; a UBT build still is.
+    sdk = "dotnet: 9212 dotnet UnrealBuildTool.dll -Mode=ValidatePlatforms -OutputSDKs  -AllPlatforms -project=x.uproject"
+    build = "dotnet: 9300 dotnet UnrealBuildTool.dll Cosmic_AscensionEditor Win64 Development -Project=x.uproject"
+    C.HOOKS["busy_all"] = lambda: [sdk, build]
+    check(C._busy_others() == [build], "busy: the SDK query (-Mode=ValidatePlatforms) is dropped, a UBT build is not")
+    C.HOOKS["busy_all"] = lambda: [sdk]
+    check(C._busy_others() == [], "busy: the SDK query alone is not a busy machine")
     C.OWN["pids"].clear()
     running, lock, pid_next, foreign = [], threading.Lock(), [5000], {"after_first": False, "on": False}
 

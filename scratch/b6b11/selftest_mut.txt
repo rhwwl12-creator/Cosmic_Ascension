@@ -1,0 +1,17 @@
+1. job list
+2. refusals without placeholders and against the build's data
+3. dry run
+4. clean fixture: parser, run failures, controls, bridges
+5. F1 breaks
+6. F2, F3, F4, F5, F6, F8 breaks
+7. F7 bound
+8. bridges that break
+9. B-e and R4 (own vessel)
+10. frozen arithmetic
+11. hand-check selection
+12. driver: mocked commandlet, busy check, rerun, archive
+  FAIL: busy: the SDK query (-Mode=ValidatePlatforms) is dropped, a UBT build is not
+  FAIL: busy: the SDK query alone is not a busy machine
+13. --cell-set B over bundle B's logs
+
+self-test: 221 checks passed, 2 failed

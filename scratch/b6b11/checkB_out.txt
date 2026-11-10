@@ -1,0 +1,3 @@
+bundle C parsers over bundle B's logs: 540 of 540 logs; unreadable 0, run failures 0
+may move by the predictor (Hazard.AIAwakening sum > 75): {}
+check-only B: PASS
