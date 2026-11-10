@@ -74,7 +74,9 @@ namespace CosmicHazards
 	 * Sets ActiveHazard to the row's HazardTag and HazardTicksRemaining to its CountdownTicks (read as at least 1) plus
 	 * the edicts' CosmicEdicts::CountdownBonusOf for its tag on the system (the owner's - B2 - and the galaxy laws of the
 	 * other peoples of its galaxy - B6b) plus the delay of a fleet that guards the system
-	 * (CosmicConflict::FleetDelayOf, B3) - at placement only: no edict or guard changes a standing hazard's count, a card's
+	 * (CosmicConflict::FleetDelayOf, B3) plus the crisis parasite's bonus (CosmicBricks::ParasiteCountdownBonusOf, B7x - 0
+	 * for the claim, the extinction and the supernova precursor, and while no bordering people carries the brick or the knob
+	 * is 0) - at placement only: no edict or guard changes a standing hazard's count, a card's
 	 * DelayHazard alone adds to it (B4, CosmicConflict::ResistBlockOf) - and leaves a HazardPlaced note in Ctx.
 	 */
 	COSMIC_ASCENSION_API bool Place(FCosmicEvalContext& Ctx, int32 SystemIndex, FName HazardRow);

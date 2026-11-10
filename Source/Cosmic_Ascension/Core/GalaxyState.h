@@ -196,6 +196,15 @@ struct COSMIC_ASCENSION_API FStarSystemState
 	UPROPERTY(BlueprintReadOnly)
 	TArray<FMegaprojectRecord> CompletedMegaprojects;
 
+	// B7x [B-7x1] (docs/60_DECISIONS/headers/B7_composable_existence_and_evolution.md, rule R3): the CivID of the people that
+	// hosts this system's owner - a people living inside another. NAME_None = none (the frozen initializer). Reserved: nothing
+	// writes or reads it before slice "da" ([B-7x7]). One owner per system is unchanged: the hosted people is OwnerCivID, the
+	// host is only named beside it. Two rules (decision 6, for the commit that first writes it): (1) the crossing stage, in the
+	// step that erases a people, clears that CivID from every system's HostCivID too (no draw - as PendingContactCivID is
+	// cleared); (2) a people born later takes its CivID from NextCivSerial, so an erased name is never used again.
+	UPROPERTY(BlueprintReadOnly)
+	FName HostCivID;
+
 	// Phase 6 (append): FName EpithetRow - the second name the chronicle gives a system (section 5.11).
 };
 
@@ -232,6 +241,48 @@ struct COSMIC_ASCENSION_API FNotableRecord
 	// row log_throne_vacated (abdication Regent). Basis of test Sim.NotablesFromEventsOnly (section 7.5, 9.3).
 	UPROPERTY()
 	FName SourceRow;
+};
+
+/**
+ * The six time vectors of a people (B7x [B-7x1], docs/60_DECISIONS/headers/B7_composable_existence_and_evolution.md
+ * section 2.1): how many ticks of its life the people spent in each way of living. Unlike the four streak counters of
+ * FCivilizationState (LowStabilityTicks ... PressureEnduredTicks) they are cumulative: each grows by one in a tick whose fact
+ * holds and never resets - not at a capital's move, a lost system or a change of throne. Counted at the end of the economy
+ * stage, after the streak counters (CosmicBricks::CountTimeVectors, from [B-7x2]); no draw, no knowing read. A tick may count
+ * in several vectors, or in none. They live on the people only (K10: identity does not cross bodies). Read by the condition
+ * CivTimeVectorAtLeast, the AI mutation step and the end shape (CosmicBricks::ShapeOf). Frozen initializers 0.
+ */
+USTRUCT(BlueprintType)
+struct COSMIC_ASCENSION_API FCosmicTimeVectors
+{
+	GENERATED_BODY()
+
+	// Ticks in which a system the people owns had a megaproject in progress other than the settle row (project_settle):
+	// its construction slot or its response slot.
+	UPROPERTY(BlueprintReadOnly)
+	int32 Built = 0;
+
+	// Ticks in which the people's fleet was aimed at a system another people owns (a siege of its own), or the people held
+	// the edict of DT_Rules.StartingEdict.
+	UPROPERTY(BlueprintReadOnly)
+	int32 Consumed = 0;
+
+	// Ticks in which a system the people owns was being settled (project_settle in its construction slot).
+	UPROPERTY(BlueprintReadOnly)
+	int32 Drifted = 0;
+
+	// Ticks in which one of the people's ties carried a treaty or the friendly stance.
+	UPROPERTY(BlueprintReadOnly)
+	int32 Linked = 0;
+
+	// Ticks in which the people had exactly one settled system and no tie with a treaty or a stance that is not neutral.
+	UPROPERTY(BlueprintReadOnly)
+	int32 Isolated = 0;
+
+	// Ticks in which the people endured: PressureEnduredTicks or LawsHeldTicks above 0 after this tick's count, or a hazard
+	// standing on a settled system of the people.
+	UPROPERTY(BlueprintReadOnly)
+	int32 Endured = 0;
 };
 
 /** One civilization (section 7.2). */
@@ -277,7 +328,8 @@ struct COSMIC_ASCENSION_API FCivilizationState
 	UPROPERTY(BlueprintReadOnly)
 	FEthicsAxes Ethics;
 
-	// Trait.* (section 5.3).
+	// Trait.* (section 5.3) and, from B7x [B-7x1], Brick.* - the existence bricks (rule R1; Sim/CosmicExistenceBricks reads them
+	// with HasTagExact). The schema roots of DT_Civs.Traits, CivHasTrait, AddTrait and RemoveTrait are both.
 	UPROPERTY(BlueprintReadOnly)
 	FGameplayTagContainer Traits;
 
@@ -337,6 +389,12 @@ struct COSMIC_ASCENSION_API FCivilizationState
 	// one-slot window like CivFallenSphereTicksReached.
 	UPROPERTY(BlueprintReadOnly)
 	int32 PressureEnduredTicks = 0;
+
+	// B7x [B-7x1]: the six cumulative time vectors of the people (FCosmicTimeVectors - never reset, unlike the four streak
+	// counters above). Counted from [B-7x2] (CosmicBricks::CountTimeVectors, after the streak counters at the end of the
+	// economy stage); nothing counts or reads them before.
+	UPROPERTY(BlueprintReadOnly)
+	FCosmicTimeVectors TimeVectors;
 
 	UPROPERTY(BlueprintReadOnly)
 	TArray<FName> OwnedSystems;

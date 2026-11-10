@@ -454,7 +454,8 @@ private:
 	// DT_Rules.StabilityRestingLevel it rises by StabilityRecoveryPerTick x (1 + SocietyRecoveryBonus x Society) up to the
 	// level - MVP item 3, B2; Society research read 0..1, a bonus not above 0 or not finite read as 0); income of its
 	// settled systems into IncomePerTick (a system being settled pays nothing, section 5.7; each trade treaty adds
-	// DT_Rules.TradeInfluencePerTreaty to the Influence - B3); then the per-tick sources, the
+	// DT_Rules.TradeInfluencePerTreaty to the Influence - B3; then the bricks' shares, CosmicBricks::AddIncomeShares - B7x,
+	// nothing for a people that carries no brick or under the inert knobs); then the per-tick sources, the
 	// only effects that may scale IncomePerTick or act every tick; then IncomePerTick into the Stockpile; then the edicts'
 	// upkeep (B2): in ActiveEdicts order each held edict pays UpkeepPerTick in full from the stockpile or lapses
 	// (log_edict_lapsed for the people the player rules - the stage's one line, the tell stream only). The per-tick sources:
@@ -473,17 +474,20 @@ private:
 	// this stage makes no draw and records no role effect, whatever the rows hold.
 	// The pressures are read from one table of sphere membership and one list of rows built at the start of the stage,
 	// not by one call of the public function per system (section 9.4).
-	// Loop two: LowStabilityTicks, FallenSphereTicks and PressureEnduredTicks (B6b). Last and separate on purpose: the count
+	// Loop two: LowStabilityTicks, FallenSphereTicks, PressureEnduredTicks and LawsHeldTicks (B6b). Last and separate on purpose: the count
 	// reads the Stability every civilization has at the end of this stage, recovery and per-tick sources included. A
 	// Stability change made anywhere else in the tick is first counted one tick later. FallenSphereTicks reads the sphere
 	// membership the stage built at its start; PressureEnduredTicks adds one when this tick's drain took Stability and
 	// HomeSystemID lies in no unsealed fallen sphere of that same table, else it starts over (MoveCapital starts it over too).
+	// Then the six time vectors (B7x section 2.2 - CosmicBricks::CountTimeVectors): cumulative, never reset, after the four
+	// streak counters. No draw, no knowing read.
 	void TickEconomy();
 
 	// Research progress and breakthroughs, civilization by civilization. A Society breakthrough fires the DT_Events row
 	// CosmicRows::EventBookFound after its line; the row's conditions pick the people whose book is shut (section 5.11).
 	// A people that owns no system (the one the player ruled, kept for the tick of its loss) is passed by: it spends no
-	// Insight and crosses no mark (section 7.4 (o)).
+	// Insight and crosses no mark (section 7.4 (o)). The bricks' factor (CosmicBricks::ResearchMultiplierOf - B7x) multiplies
+	// the progress of a people that carries SwarmTech or an inward brick; exactly 1, and the old expression, for any other.
 	void TickResearch();
 
 	// Stage 3 (B3 header section 2.5). No draw; the tell stream only. (1) The friendly stances' upkeep, people by people in
@@ -496,7 +500,8 @@ private:
 	// in Civs order, X's relation toward Y moves by DT_Rules.RelationDriftRate of the way to
 	// CosmicDiplomacy::TargetRelationOf, within [-1, 1] - and an entry is written only when the value changes (a rate of 0
 	// writes nothing). A pair that does not border does not move; a transcendent's key never drifts. A silent drift meets
-	// no one.
+	// no one. The target holds the term of the bricks of the people seen (B7x - CosmicBricks::RelationTargetTermOf: a star
+	// eater is seen worse, a merging people better; 0 under the inert knobs).
 	void TickDiplomacy();
 
 	// Stage 4 (B3 header section 2.6). (1) The fleets, people by people in Civs order: the Energy upkeep
@@ -547,8 +552,12 @@ private:
 	// (c) Spawn. One number per settled system in Systems order, all drawn first, whether its slot is free or not; then,
 	//     in the same order, the Draw row the number falls on is placed on a free slot (a row's share is its chance times the
 	//     owner archetype's and the owner's held edicts' factors - B2 - and, for the plague row on a system with a standing
-	//     plague on a lane neighbour as the step begins, DT_Rules.PlagueSpreadMultiplier - B3; the factors change the shares,
-	//     never the count of draws). Then the Capital rows, civilization by civilization in Civs order.
+	//     plague on a lane neighbour as the step begins, DT_Rules.PlagueSpreadMultiplier - B3; on a system of a people that
+	//     carries Brick.Space.FoldedSmall, DT_Rules.BrickInwardHazardSpawnMultiplier (never for the claim, the extinction or
+	//     the supernova precursor - CosmicBricks::IsSparedHazard), and for the Hazard.PreSupernova row on a system of a
+	//     people that carries Brick.Form.ShutSphere or Brick.Diet.StarEater, DT_Rules.BrickStellarCrisisSpawnMultiplier
+	//     - CosmicBricks::HazardSpawnShareOf, B7x;
+	//     the factors change the shares, never the count of draws). Then the Capital rows, civilization by civilization in Civs order.
 	// (d) The event slots, UCosmicEventSubsystem::EvaluateAndFire.
 	// Each draw point of this stage draws a count that no row, tag, chance or weight decides: one number per settled
 	// system, two per hazard that runs out, whatever DT_Hazards holds. How many hazards run out, and when, follows the
@@ -619,10 +628,13 @@ private:
 	// stream, drawn before the targets are looked at and thrown away when there is none, picks a target of SettleTargets
 	// to Settle (section 9.2). A people that may not settle draws nothing. Then it revokes, in ActiveEdicts order, the edicts
 	// CosmicEdicts::AIRevokesOf names - no draw, no line: an AI people holds no edict of the people's scope (B2), a galaxy
-	// law stays (B6b). Then the two steps a judged row asks (B6b decision 1 - nothing while no row asks, no draw, no line):
-	// the law step (CosmicEdicts::AsksForLawsOf - every galaxy law in table order the gate EnactBlockOf takes is enacted)
+	// law stays (B6b), and a people that carries Brick.Form.KeptLaw keeps what AIRevokesOf leaves it (B7x). Then the two
+	// steps a judged row asks (B6b decision 1 - nothing while no row asks, no draw, no line): the law step
+	// (CosmicEdicts::AsksForLawsOf - every galaxy law in table order the gate EnactBlockOf takes is enacted)
 	// and the treaty step (CosmicDiplomacy::AsksForTreatyOf - one non-aggression a tick with AITreatyPartnerOf, paid as the
-	// command pays). Then its diplomacy (TickAIDiplomacy, B3). (b)
+	// command pays). Then its diplomacy (TickAIDiplomacy, B3). (a2) The AI mutation step (B7x section 2.6): at a tick that
+	// CosmicBricks::MutationStepDueAt names (DT_Rules.BrickEvolutionPeriodTicks, 0 = off), every people the player does not
+	// rule takes the brick CosmicBricks::MutationDueOf names - no draw, no line. (b)
 	// UAscensionSubsystem::EvaluateFeats, exactly once per tick and nowhere else in the tick.
 	void TickCivAI();
 

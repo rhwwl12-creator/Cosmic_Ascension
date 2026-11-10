@@ -136,7 +136,8 @@ namespace CosmicDiplomacyUITests
 	 * second rung (one a settled system), no drift, no transcendent, every system known; people 0 the ruled one on the
 	 * first rung, the others on the second. Met: 2 then 1 (in that order) - people 3 not. The diplomacy and siege knobs the
 	 * page reads are set here (the expectations below hold whatever [B-3d] tunes), and the only edict is AccordRow
-	 * (TreatyAcceptBonus 0.15 - a bar that is no tenth, FleetGrowthMultiplier 1.5). The run is the game's otherwise.
+	 * (TreatyAcceptBonus 0.15 - a bar that is no tenth, FleetGrowthMultiplier 1.5). The existence bricks inert and carried
+	 * by no people (B7x - CosmicTests::WithInertBricks, StripBricks). The run is the game's otherwise.
 	 */
 	FGalaxyState* LayBoard(UGalaxySimulationSubsystem& Sim, const FCosmicDataTables& Original)
 	{
@@ -145,7 +146,7 @@ namespace CosmicDiplomacyUITests
 		{
 			return nullptr;
 		}
-		FCosmicRulesDef Rules = CosmicTests::WithoutStartingEdict(*Game);
+		FCosmicRulesDef Rules = CosmicTests::WithInertBricks(CosmicTests::WithoutStartingEdict(*Game));
 		Rules.EventChancePerSlot = 0.f;
 		Rules.FirstCrisisTick = 0;
 		Rules.RelationDriftRate = 0.f;
@@ -181,6 +182,7 @@ namespace CosmicDiplomacyUITests
 		Sim.NewGalaxy(42, 12, 4);
 		Sim.SetTimeScale(0.f);
 		FGalaxyState& State = Sim.GetMutableState();
+		CosmicTests::StripBricks(State);
 		if (State.Civs.Num() != 4 || !CosmicTests::WireChain(State))
 		{
 			return nullptr;

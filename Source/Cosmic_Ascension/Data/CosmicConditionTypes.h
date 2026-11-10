@@ -14,6 +14,7 @@ enum class EConditionType : uint8
 {
 	// CivTierAtLeast and PlayerTierAtLeast: Value = tier number 1..5 (EAscensionTier value + 1).
 	CivTierAtLeast,
+	// Tag = Trait.* or Brick.* (B7x [B-7x1]); HasTag, so a parent tag matches its children.
 	CivHasTrait,
 	CivResourceAtLeast,
 	CivStabilityBelow,
@@ -106,7 +107,19 @@ enum class EConditionType : uint8
 	// PressureEnduredTicks < Key + DT_Rules.EventSlotTicks (below 1 read as 1), so a Civilization slot row finds it in one slot
 	// of an endured stretch at most. No Tag, no Value. Named and SettledSystem event rows and the spawn conditions of a hazard
 	// do not carry it (schema, for the reasons of the fallen-sphere window - B6b decision 22, #156).
-	CivPressureEnduredTicksReached
+	CivPressureEnduredTicksReached,
+	// The three below were appended by B7x [B-7x2] (docs/60_DECISIONS/headers/B7_composable_existence_and_evolution.md section
+	// 2.3). Key = a time vector word (schema words.time_vectors: Built, Consumed, Drifted, Linked, Isolated, Endured - any
+	// other word is false), Value = ticks, a whole number from 1: the context people's TimeVectors member of that name is at
+	// least Value (CosmicBricks::VectorOf). Cumulative, so no window: an 'AtLeast' that stays true once reached. No Tag.
+	CivTimeVectorAtLeast,
+	// Tag = Trait.* or Brick.* (required; empty is false): the context people exists and does not carry it (HasTag - the
+	// negation of CivHasTrait for a valid tag and an existing people; without a people it is false, as every Civ condition).
+	CivLacksTrait,
+	// Tag = Trait.* or Brick.* (required): some people that borders the context people (CosmicDiplomacy::BordersOf - one walk
+	// of its settled systems) carries it (HasTag). The hazards' SpawnConditions and SettledSystem-subject event rows do not
+	// carry it (schema: one border walk per settled system per tick).
+	BorderingCivHasTrait
 	// Decided, appended with the first row that uses each (section 16 #29): CivStabilityAtLeast, PlayerHasPower.
 };
 
@@ -137,6 +150,7 @@ enum class EEffectType : uint8
 	AddResource,
 	MultiplyIncome,
 	ShiftEthics,
+	// Tag = Trait.* or Brick.* (B7x [B-7x1]), on the context people's Traits.
 	AddTrait,
 	RemoveTrait,
 	ChangeStability,

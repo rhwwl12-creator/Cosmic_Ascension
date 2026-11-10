@@ -155,11 +155,12 @@ namespace CosmicDeathTests
 
 	// The game's tables with quiet hazards, no projects or feats, the cards given (none when null), the left edict, the twin
 	// archetypes, and rules without the inherited edict, the event slot, the first crisis, the periodic petition, drift,
-	// fleets, spread and settlement; Tune changes the rules last. The leap knobs are the game's unless Tune sets them.
+	// fleets, spread and settlement, and the existence bricks inert (B7x - CosmicTests::WithInertBricks; LayBoard strips the
+	// bricks off the peoples); Tune changes the rules last. The leap knobs are the game's unless Tune sets them.
 	FCosmicDataTables TablesWith(const FCosmicDataTables& Original, UDataTable* Encounters, TFunctionRef<void(FCosmicRulesDef&)> Tune)
 	{
 		const FCosmicRulesDef* GameRules = Original.FindRules();
-		FCosmicRulesDef Rules = CosmicTests::WithoutStartingEdict(GameRules ? *GameRules : FCosmicRulesDef());
+		FCosmicRulesDef Rules = CosmicTests::WithInertBricks(CosmicTests::WithoutStartingEdict(GameRules ? *GameRules : FCosmicRulesDef()));
 		Rules.EventChancePerSlot = 0.f;
 		Rules.FirstCrisisTick = 0;
 		Rules.PetitionPeriodTicks = 100000;
@@ -187,6 +188,7 @@ namespace CosmicDeathTests
 		Sim.SetTables(Tables);
 		Sim.NewGalaxy(42, 12, Peoples);
 		FGalaxyState& State = Sim.GetMutableState();
+		CosmicTests::StripBricks(State);
 		if (!CosmicTests::WireChain(State) || State.Civs.Num() != Peoples || State.Player.RuledCivID != State.Civs[0].CivID)
 		{
 			return nullptr;

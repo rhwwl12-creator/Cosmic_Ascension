@@ -30,6 +30,7 @@
 #include "Sim/CosmicDiplomacy.h"
 #include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicEndings.h"
+#include "Sim/CosmicExistenceBricks.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
@@ -117,19 +118,16 @@ namespace
 		return Shares.Num() - 1;
 	}
 
-	// Star classes from the hottest to the coolest.
-	const FName StarClassNames[] = {
-		FName(TEXT("Star.Class.O")), FName(TEXT("Star.Class.B")), FName(TEXT("Star.Class.A")), FName(TEXT("Star.Class.F")),
-		FName(TEXT("Star.Class.G")), FName(TEXT("Star.Class.K")), FName(TEXT("Star.Class.M"))
-	};
+	// Star classes from the hottest to the coolest: CosmicTags::StarClassAt (Core/CosmicTags.h) is the one list - the
+	// generation, the economy and the star eater's dimming (CosmicBricks::DimmerStarClassOf) read it.
 
 	// Section 5.1 fixes what each resource depends on. The rest of the economy's numbers are DT_Rules knobs (MVP item 8 -
 	// FCosmicRulesDef, read through the functions after TierIndex); the stars' stay here until step 5 (the real sky).
 	namespace Economy
 	{
-		// Energy of one owned system by star class, in the order of StarClassNames. G is the baseline.
+		// Energy of one owned system by star class, in the order of CosmicTags::StarClassAt. G is the baseline.
 		constexpr float StarClassEnergy[] = { 2.0f, 1.7f, 1.4f, 1.2f, 1.0f, 0.8f, 0.6f };
-		static_assert(UE_ARRAY_COUNT(StarClassEnergy) == UE_ARRAY_COUNT(StarClassNames));
+		static_assert(static_cast<int32>(UE_ARRAY_COUNT(StarClassEnergy)) == CosmicTags::StarClassCount, "One energy per star class, in the order of CosmicTags::StarClassAt");
 	}
 
 	// At most this many fallen transcendents are active in a run (section 4.2).
@@ -191,9 +189,9 @@ namespace
 	float StarEnergy(const FGameplayTag& StarClass)
 	{
 		const FName ClassName = StarClass.GetTagName();
-		for (int32 Index = 0; Index < static_cast<int32>(UE_ARRAY_COUNT(StarClassNames)); ++Index)
+		for (int32 Index = 0; Index < CosmicTags::StarClassCount; ++Index)
 		{
-			if (StarClassNames[Index] == ClassName)
+			if (CosmicTags::StarClassAt(Index).GetTagName() == ClassName)
 			{
 				return Economy::StarClassEnergy[Index];
 			}
@@ -712,10 +710,10 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 
 	// The range checks of the two knobs are lints; the guards are here, with one line when they bite.
 	const FCosmicRulesDef DefaultRules;
-	const TArray<float>& StarShares = (Rules.LivingWorldStarShares.Num() == static_cast<int32>(UE_ARRAY_COUNT(StarClassNames))) ? Rules.LivingWorldStarShares : DefaultRules.LivingWorldStarShares;
+	const TArray<float>& StarShares = (Rules.LivingWorldStarShares.Num() == CosmicTags::StarClassCount) ? Rules.LivingWorldStarShares : DefaultRules.LivingWorldStarShares;
 	if (&StarShares != &Rules.LivingWorldStarShares)
 	{
-		UE_LOG(LogCosmic, Error, TEXT("DT_Rules: LivingWorldStarShares has %d entries, not %d: the C++ default is used"), Rules.LivingWorldStarShares.Num(), static_cast<int32>(UE_ARRAY_COUNT(StarClassNames)));
+		UE_LOG(LogCosmic, Error, TEXT("DT_Rules: LivingWorldStarShares has %d entries, not %d: the C++ default is used"), Rules.LivingWorldStarShares.Num(), CosmicTags::StarClassCount);
 	}
 	float HomeShare = HomeGalaxy.HomeRadiusShare;
 	if (!(HomeShare >= 0.f && HomeShare <= 1.f))
@@ -778,7 +776,7 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 		}
 
 		const float ClassRoll = Rng.FRand();
-		System.StarClass = FGameplayTag::RequestGameplayTag(StarClassNames[StarClassIndex(ClassRoll, StarShares)]);
+		System.StarClass = CosmicTags::StarClassAt(StarClassIndex(ClassRoll, StarShares));
 
 		// The player's home stays ordinary: no numeric edge (section 5.11).
 		const float Richness = 0.5f + Rng.FRand();
@@ -936,6 +934,16 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 		if (const FCivArchetypeDef* Archetype = Tables.FindCiv(Civ.ArchetypeRow))
 		{
 			Civ.Traits = Archetype->Traits;
+			// The seed brick of an AI people (B7x [B-7x2]): one Brick.* tag of DT_Rules.BrickSeedTags picked by a derived
+			// integer (CosmicSeed Purpose::Brick) - no sim draw, and nothing at all while the knob is empty.
+			if (!bPlayerCiv)
+			{
+				const FGameplayTag Seeded = CosmicBricks::SeedBrickOf(Rules, Seed, Civ);
+				if (Seeded.IsValid())
+				{
+					Civ.Traits.AddTag(Seeded);
+				}
+			}
 			Civ.Ethics = Archetype->EthicsPreset;
 			Civ.AIProfile = Archetype->AIProfile;
 			if (bPlayerCiv)
@@ -1778,6 +1786,8 @@ void UGalaxySimulationSubsystem::TickEconomy()
 		{
 			Income.Influence += EconomyRateOf(Rules.TradeInfluencePerTreaty) * static_cast<float>(TradeTreaties);
 		}
+		// The bricks' shares (B7x section 2.4): a people that carries none - or under the inert knobs - keeps its income as it is.
+		CosmicBricks::AddIncomeShares(State, StateIndex, Rules, CivIndex, Income);
 
 		Civ.IncomePerTick = Income;
 
@@ -1933,6 +1943,9 @@ void UGalaxySimulationSubsystem::TickEconomy()
 		Civ.PressureEnduredTicks = EnduredPressure[CivIndex] ? Civ.PressureEnduredTicks + 1 : 0;
 		Civ.LawsHeldTicks = CosmicEdicts::HoldsGalaxyLawsOf(Civ, Tables, Rules) ? Civ.LawsHeldTicks + 1 : 0;
 	}
+	// The six time vectors (B7x section 2.2): cumulative, after the streak counters so that Endured reads this tick's
+	// PressureEnduredTicks and LawsHeldTicks. No draw, no knowing read.
+	CosmicBricks::CountTimeVectors(State, StateIndex, Rules);
 }
 
 void UGalaxySimulationSubsystem::TickResearch()
@@ -1953,12 +1966,18 @@ void UGalaxySimulationSubsystem::TickResearch()
 		FCivilizationState& Civ = State.Civs[CivIndex];
 		const float Spent = FMath::Max(0.f, FMath::Min(Civ.Stockpile.Insight, Civ.IncomePerTick.Insight * ResearchShareOf(Rules)));
 		Civ.Stockpile.Insight -= Spent;
+		// The bricks' factor on the progress (B7x section 2.4): exactly 1 for a people that carries none, which then takes the
+		// expression below unchanged, bit for bit.
+		const float BrickFactor = CosmicBricks::ResearchMultiplierOf(Civ, Rules);
+		const bool bBrickFactor = BrickFactor != 1.f;
 
 		for (int32 FieldIndex = 0; FieldIndex < static_cast<int32>(UE_ARRAY_COUNT(ResearchFields)); ++FieldIndex)
 		{
 			const FName Field = ResearchFields[FieldIndex];
 			const float Before = Civ.Research.FindRef(Field);
-			const float After = FMath::Min(1.f, Before + Spent * Civ.ResearchFocus.FindRef(Field) * EconomyRateOf(Rules.ResearchPerInsight));
+			const float After = bBrickFactor
+				? FMath::Min(1.f, Before + Spent * Civ.ResearchFocus.FindRef(Field) * EconomyRateOf(Rules.ResearchPerInsight) * BrickFactor)
+				: FMath::Min(1.f, Before + Spent * Civ.ResearchFocus.FindRef(Field) * EconomyRateOf(Rules.ResearchPerInsight));
 			Civ.Research.Add(Field, After);
 
 			// A breakthrough is told once per mark crossed. Every people has a name from its birth (section 5.11); whether
@@ -2374,7 +2393,11 @@ void UGalaxySimulationSubsystem::TickHazards()
 			// The owner's held edicts multiply the share too (B2) - with the galaxy laws the other peoples of the system's galaxy
 			// hold (B6b hook 1) - and a plague next door (B3): 1 when none, so the bits stay.
 			const float Spreading = (Row->HazardTag == PlagueTag && NextToPlague.IsValidIndex(SystemIndex) && NextToPlague[SystemIndex]) ? Spread : 1.f;
-			const float Share = ((Chance * Factor) * CosmicEdicts::SpawnMultiplierOf(State, StateIndex, Tables, SystemIndex, Row->HazardTag)) * Spreading;
+			// A people folded into the very small (B7x section 2.4, Brick.Space.FoldedSmall) multiplies it once more, and so does
+			// a people living off its star for the stellar crisis (Brick.Form.ShutSphere, Brick.Diet.StarEater) - the share
+			// itself for any other owner.
+			const float Share = CosmicBricks::HazardSpawnShareOf(Owner, Rules, Row->HazardTag,
+				((Chance * Factor) * CosmicEdicts::SpawnMultiplierOf(State, StateIndex, Tables, SystemIndex, Row->HazardTag)) * Spreading);
 			if (!(Share > 0.f))
 			{
 				continue;
@@ -2930,7 +2953,8 @@ void UGalaxySimulationSubsystem::TickCivAI()
 		}
 		// The AI holds no edict of the people's scope (B2 section 2.6): it revokes what it holds - an edict with a Stability
 		// cost once below DT_Rules.AIEdictRevokeStability, any other at once. No draw, no line. A regent revokes what the
-		// ruler left - but a galaxy law, which AIRevokesOf passes by (B6b decision 11).
+		// ruler left - but a galaxy law, which AIRevokesOf passes by (B6b decision 11) - except a people that carries
+		// Brick.Form.KeptLaw (B7x), which keeps what CosmicEdicts::AIRevokesOf leaves it.
 		for (const FName Row : CosmicEdicts::AIRevokesOf(State.Civs[CivIndex], Tables, Rules))
 		{
 			CosmicEdicts::Revoke(State.Civs[CivIndex], Row);
@@ -2968,6 +2992,13 @@ void UGalaxySimulationSubsystem::TickCivAI()
 		}
 		// Its diplomacy (B3 section 2.8): no draw, no profile.
 		TickAIDiplomacy(CivIndex);
+	}
+
+	// (a2) The AI mutation step (B7x section 2.6): every DT_Rules.BrickEvolutionPeriodTicks (0 = off), every people the player
+	// does not rule takes the first mutation brick that is due (CosmicBricks::MutationDueOf). No draw, no line, no knowing.
+	if (CosmicBricks::MutationStepDueAt(Rules, State.Tick))
+	{
+		CosmicBricks::MutateAIPeoples(State, Rules);
 	}
 
 	// (b) The feat judgment, once per tick.

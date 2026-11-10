@@ -80,6 +80,7 @@ namespace CosmicSystemPanelImpl
 		TEXT("Settle.Block.RealmCap"),
 		TEXT("Settle.Block.Settling"),
 		TEXT("Settle.Block.Sphere"),
+		TEXT("Settle.Block.Inward"),
 	};
 	static_assert(static_cast<int32>(UE_ARRAY_COUNT(SettleBlockKeys)) == static_cast<int32>(CosmicMegaprojects::ECosmicSettleBlock::Count), "One key per reason, in the order of the enum");
 
@@ -1096,10 +1097,10 @@ void UCosmicSystemPanelWidget::Refresh()
 			const FText Reason = ReasonOf(ShownSettleBlock, Tables, State.Civs[RuledIndex].Tier);
 			SettleReason = Reason;
 			// A reason added to ECosmicSettleBlock decides here whether its button shows the cost: the sanctuary's shows
-			// none, as Owned and NoRow (guideline 6.3).
-			static_assert(static_cast<int32>(CosmicMegaprojects::ECosmicSettleBlock::Count) == 11, "A new settle reason: decide whether its settle button shows the cost line");
+			// none, as Owned and NoRow (guideline 6.3); neither does Inward (B7x - a people folded inward settles no more).
+			static_assert(static_cast<int32>(CosmicMegaprojects::ECosmicSettleBlock::Count) == 12, "A new settle reason: decide whether its settle button shows the cost line");
 			const bool bHint = ShownSettleBlock != CosmicMegaprojects::ECosmicSettleBlock::Owned && ShownSettleBlock != CosmicMegaprojects::ECosmicSettleBlock::NoRow
-				&& ShownSettleBlock != CosmicMegaprojects::ECosmicSettleBlock::Sanctuary;
+				&& ShownSettleBlock != CosmicMegaprojects::ECosmicSettleBlock::Sanctuary && ShownSettleBlock != CosmicMegaprojects::ECosmicSettleBlock::Inward;
 			Wanted.Add({ CosmicRows::ProjectSettle, Label(TEXT("Panel.Settle")), bEnded ? EndBlock : Reason,
 				bEnded ? EndBlock : JoinLines({ Reason, bHint ? StartHintOf(Tables, CosmicRows::ProjectSettle, System, Unit) : FText::GetEmpty() }) });
 			bSettleButton = true;

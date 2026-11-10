@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+@@ -692,7 +692,7 @@
+ 			{
+ 				// The delay above the third rung (B6b header 2.6): the construction slot of a people the player does not rule,
+ 				// a row of the third rung or above. At its knob of 1 the product is the rate itself, bit for bit.
+-				const bool bUpper = !State.Civs[OwnerIndex].bIsPlayerRuled && static_cast<int32>(Row->RequiredTier) >= static_cast<int32>(EAscensionTier::Tier3_Causal);
++				const bool bUpper = !State.Civs[OwnerIndex].bIsPlayerRuled && static_cast<int32>(Row->RequiredTier) >= static_cast<int32>(EAscensionTier::Tier2_Stellar);
+ 				// A settlement of a wandering people (B7x section 2.4, Brick.Space.Nomad) takes its factor - the step itself
+ 				// for any other people and any other row.
+ 				const float Step = bUpper ? Rate * UpperRungMultiplierOf(Ctx.Rules) : Rate;

@@ -1,0 +1,24 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+@@ -348,7 +348,6 @@
+ 	// edict that adds to the claim's countdown or answers a crisis, which it revokes as any AI does (K9, the line B6b
+ 	// decision 9 drew for galaxy laws), and except while its row asks for galaxy laws (the slots are the laws' places, B6b
+ 	// decisions 10-11).
+-	const bool bKeepsEdicts = Civ.Traits.HasTagExact(CosmicTags::BrickFormKeptLaw()) && !AsksForLawsOf(Civ, Tables);
+ 	for (const FName Row : Civ.ActiveEdicts)
+ 	{
+ 		const FEdictDef* Def = Tables.FindEdict(Row);
+@@ -357,12 +356,6 @@
+ 		{
+ 			continue;
+ 		}
+-		// A kept-law people keeps it - unless it adds to the claim's countdown or answers a crisis: those fall to the rule
+-		// every AI uses.
+-		if (bKeepsEdicts && !Def->HazardCountdownBonus.Contains(CosmicTags::HazardClaim()) && !Tables.IsHazardAnswer(Row))
+-		{
+-			continue;
+-		}
+ 		if (!HasStabilityCost(*Def) || Civ.Stability < Rules.AIEdictRevokeStability)
+ 		{
+ 			Revokes.Add(Row);

@@ -286,7 +286,7 @@ bool FCosmicUITopBarAndPanelTest::RunTest(const FString& Parameters)
 		using CosmicMegaprojects::ECosmicSettleBlock;
 		// The reasons a button shows, by hand (the enum's count below catches one added without words here).
 		const ECosmicSettleBlock Shown[] = { ECosmicSettleBlock::Sanctuary, ECosmicSettleBlock::Owned, ECosmicSettleBlock::NoLane, ECosmicSettleBlock::NoRow,
-			ECosmicSettleBlock::RowTier, ECosmicSettleBlock::RealmCap, ECosmicSettleBlock::Settling, ECosmicSettleBlock::Sphere };
+			ECosmicSettleBlock::RowTier, ECosmicSettleBlock::RealmCap, ECosmicSettleBlock::Settling, ECosmicSettleBlock::Sphere, ECosmicSettleBlock::Inward };
 		int32 Showable = 0;
 		for (int32 At = 0; At < static_cast<int32>(ECosmicSettleBlock::Count); ++At)
 		{

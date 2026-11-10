@@ -174,4 +174,155 @@ namespace CosmicTags
 		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Ending.Clock")));
 		return Tag;
 	}
+
+	// B7x [B-7x1]: the existence bricks (docs/60_DECISIONS/headers/B7_composable_existence_and_evolution.md, rule R1) - tags of
+	// FCivilizationState::Traits that Sim/CosmicExistenceBricks reads with HasTagExact (from [B-7x2]). Saved names, never renamed.
+	inline FGameplayTag BrickFormSociety()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Form.Society")));
+		return Tag;
+	}
+
+	inline FGameplayTag BrickFormLivingNebula()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Form.LivingNebula")));
+		return Tag;
+	}
+
+	// The shell closed around its own star; not the fallen sphere (InSphere/FallenSphereTicks) nor Trait.Faith.BookShut.
+	inline FGameplayTag BrickFormShutSphere()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Form.ShutSphere")));
+		return Tag;
+	}
+
+	inline FGameplayTag BrickFormKeptLaw()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Form.KeptLaw")));
+		return Tag;
+	}
+
+	inline FGameplayTag BrickDietDarkMatter()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Diet.DarkMatter")));
+		return Tag;
+	}
+
+	inline FGameplayTag BrickDietStarEater()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Diet.StarEater")));
+		return Tag;
+	}
+
+	inline FGameplayTag BrickDietIdleFeed()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Diet.IdleFeed")));
+		return Tag;
+	}
+
+	inline FGameplayTag BrickDietDistanceTension()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Diet.DistanceTension")));
+		return Tag;
+	}
+
+	inline FGameplayTag BrickDietCrisisParasite()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Diet.CrisisParasite")));
+		return Tag;
+	}
+
+	inline FGameplayTag BrickSpaceNomad()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Space.Nomad")));
+		return Tag;
+	}
+
+	inline FGameplayTag BrickSpaceClosedPort()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Space.ClosedPort")));
+		return Tag;
+	}
+
+	inline FGameplayTag BrickSpaceFoldedSmall()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Space.FoldedSmall")));
+		return Tag;
+	}
+
+	inline FGameplayTag BrickInstinctSwarmTech()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Instinct.SwarmTech")));
+		return Tag;
+	}
+
+	inline FGameplayTag BrickInstinctHiveMerge()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Instinct.HiveMerge")));
+		return Tag;
+	}
+
+	inline FGameplayTag BrickMutationStarTow()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Mutation.StarTow")));
+		return Tag;
+	}
+
+	inline FGameplayTag BrickMutationDustBand()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Mutation.DustBand")));
+		return Tag;
+	}
+
+	inline FGameplayTag BrickMutationInwardHunger()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Mutation.InwardHunger")));
+		return Tag;
+	}
+
+	// B7x [B-7x2]: the hazards no brick touches - the parasite's countdown bonus passes them by, as a galaxy law's hooks do
+	// (schema, B6b header 3.3): the claim, the extinction and the supernova precursor.
+	inline FGameplayTag HazardClaim()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Claim")));
+		return Tag;
+	}
+
+	inline FGameplayTag HazardExtinction()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Extinction")));
+		return Tag;
+	}
+
+	inline FGameplayTag HazardPreSupernova()
+	{
+		static const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.PreSupernova")));
+		return Tag;
+	}
+
+	// B7x [B-7x2]: whether a tag is an existence brick - under the root Brick., read without case as an FName is (the seed
+	// bricks of NewGalaxy look for one).
+	inline bool IsBrick(const FGameplayTag& Tag)
+	{
+		return Tag.IsValid() && Tag.GetTagName().ToString().StartsWith(TEXT("Brick."), ESearchCase::IgnoreCase);
+	}
+
+	// B7x [B-7x2] (rule R10): the seven star classes from the hottest to the coolest - the one list of them: the generation and
+	// the economy's star energy read it (Sim/GalaxySimulationSubsystem.cpp), and a star eater's capital dims along it
+	// (CosmicBricks::DimmerStarClassOf).
+	inline constexpr int32 StarClassCount = 7;
+
+	inline FGameplayTag StarClassAt(int32 HotToCool)
+	{
+		static const FGameplayTag Tags[StarClassCount] = {
+			FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.O"))),
+			FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.B"))),
+			FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.A"))),
+			FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.F"))),
+			FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.G"))),
+			FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.K"))),
+			FGameplayTag::RequestGameplayTag(FName(TEXT("Star.Class.M"))),
+		};
+		return (HotToCool >= 0 && HotToCool < StarClassCount) ? Tags[HotToCool] : FGameplayTag();
+	}
 }

@@ -29,6 +29,7 @@
 #include "Sim/CosmicConflict.h"
 #include "Sim/CosmicEdicts.h"
 #include "Sim/CosmicEvalContext.h"
+#include "Sim/CosmicExistenceBricks.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicStateIndex.h"
@@ -1560,6 +1561,13 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		Rebel.Role = FGameplayTag::RequestGameplayTag(FName(TEXT("Notable.Rebel")));
 		Rebel.FirstTick = 1;
 		Rebel.LastTick = 0;
+		// B7x: every time vector of the first civilization at 1, so that each word of time_vectors resolves.
+		Bench.Civs[0].TimeVectors.Built = 1;
+		Bench.Civs[0].TimeVectors.Consumed = 1;
+		Bench.Civs[0].TimeVectors.Drifted = 1;
+		Bench.Civs[0].TimeVectors.Linked = 1;
+		Bench.Civs[0].TimeVectors.Isolated = 1;
+		Bench.Civs[0].TimeVectors.Endured = 1;
 		FGalaxyState Wandering = Bench;
 		Wandering.Player.Role = EPlayerRole::Wanderer;
 		FCosmicStateIndex Index;
@@ -1613,6 +1621,8 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		EveryWord(TEXT("civ_selector"), OwnedByWord);
 		EveryWord(TEXT("notable_selector"), [&](const FString& Word) { return Holds(Bench, EConditionType::CivHasNotable, Word, 0.f, TEXT("Notable.Rebel")); });
 		EveryWord(TEXT("research"), [&](const FString& Word) { return Holds(Bench, EConditionType::CivResearchAtLeast, Word, 0.f); });
+		// B7x: the six time vectors are the Key of CivTimeVectorAtLeast.
+		EveryWord(TEXT("time_vectors"), [&](const FString& Word) { return Holds(Bench, EConditionType::CivTimeVectorAtLeast, Word, 1.f); });
 		// B6b: the reach of ChangeReverence (Borders) is the Key of an effect - applied on a copy of the bench where people 0
 		// borders people 1 (a lane of a settled system of people 0 to a system handed to people 1, settled), since the reach
 		// resolves to nothing when no people borders. A word resolves when Apply takes it.
@@ -1788,7 +1798,11 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 
 		// Tags.
 		Expect(TEXT("a single tag under the wrong root"), WithCiv([Plague](FCivArchetypeDef& Row) { Row.AIProfile = Plague; }), { TEXT("AIProfile"), TEXT("not under AI.Profile.") });
-		Expect(TEXT("a tag of a container under the wrong root"), WithCiv([Plague](FCivArchetypeDef& Row) { Row.Traits.AddTag(Plague); }), { TEXT("Traits"), TEXT("not under Trait.") });
+		Expect(TEXT("a tag of a container under the wrong root"), WithCiv([Plague](FCivArchetypeDef& Row) { Row.Traits.AddTag(Plague); }), { TEXT("Traits"), TEXT("not under Trait. or Brick.") });
+		// B7x [B-7x1] (rule R1): the existence bricks ride in Traits - the root of the column (and of CivHasTrait, AddTrait and
+		// RemoveTrait, held by Tools/test_data_schema.py) is the list Trait. and Brick.
+		TestTrue(TEXT("A brick in a people's Traits is under the root of the column"),
+			Report(TEXT("DT_Civs with a brick"), WithCiv([](FCivArchetypeDef& Row) { Row.Traits.AddTag(FGameplayTag::RequestGameplayTag(FName(TEXT("Brick.Diet.StarEater")))); })));
 		Expect(TEXT("a tag of a list under the wrong root"), WithCiv([Plague](FCivArchetypeDef& Row) { Row.DedicationBanks = { Plague }; }), { TEXT("DedicationBanks[0]"), TEXT("not under Faith.Bank.") });
 		Expect(TEXT("a tag used as a map key under the wrong root"),
 			WithCiv([](FCivArchetypeDef& Row) { Row.HazardSpawnMultipliers = { { FGameplayTag::RequestGameplayTag(FName(TEXT("Law.Remnant"))), 1.f } }; }),
@@ -2577,6 +2591,10 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 				const int32* Bonus = Edict ? Edict->HazardCountdownBonus.Find(Tag) : nullptr;
 				Longest += (Bonus && *Bonus > 0) ? *Bonus : 0;
 			}
+			// And the crisis parasite's placement bonus (CosmicBricks::ParasiteCountdownBonusOf - once a hazard, never for the
+			// claim, the extinction or the supernova precursor, B7x); the ThroneLockTicks bound is unchanged while only claim cards
+			// delay.
+			Longest += CosmicBricks::ParasiteBonusBoundOf(Rules, Tag);
 			bool bCardDelays = false;
 			for (const FName CardName : Tables.GetEncounterRowNames())
 			{

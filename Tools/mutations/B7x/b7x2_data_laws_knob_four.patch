@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_Rules.json b/Tools/data/DT_Rules.json
+--- a/Tools/data/DT_Rules.json
++++ b/Tools/data/DT_Rules.json
+@@ -100,7 +100,7 @@
+ 		"AIHostileRelationTowardRuled": 0.0,
+ 		"AIHostilePowerRatioTowardRuled": 0.6,
+ 		"ResistFleetFactor": 0.5,
+-		"GalaxyLawsToHold": 3,
++		"GalaxyLawsToHold": 4,
+ 		"BrickDarkMatterEnergyPerTick": 0.0,
+ 		"BrickStarEaterEnergyMultiplier": 1.0,
+ 		"BrickStarEaterRelationTarget": 0.0,

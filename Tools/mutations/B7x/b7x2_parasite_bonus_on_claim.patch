@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp b/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
+@@ -336,7 +336,7 @@
+ 
+ int32 CosmicBricks::ParasiteBonusBoundOf(const FCosmicRulesDef& Rules, const FGameplayTag& Hazard)
+ {
+-	if (!Hazard.IsValid() || IsSparedHazard(Hazard))
++	if (!Hazard.IsValid() || (IsSparedHazard(Hazard) && Hazard != CosmicTags::HazardClaim()))
+ 	{
+ 		return 0;
+ 	}

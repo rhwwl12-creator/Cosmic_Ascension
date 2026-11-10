@@ -10,6 +10,7 @@
 #include "Data/CosmicDefinitionRows.h"
 #include "Data/CosmicRowNames.h"
 #include "Math/NumericLimits.h"
+#include "Sim/CosmicExistenceBricks.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicSeal.h"
 #include "Sim/CosmicStateIndex.h"
@@ -466,6 +467,11 @@ CosmicMegaprojects::ECosmicSettleBlock CosmicMegaprojects::SettleBlockOf(const F
 	{
 		return ECosmicSettleBlock::Settling;
 	}
+	// B7x (section 2.5): a people folded inward settles no further - the last reason of the people.
+	if (CosmicBricks::IsInward(State.Civs[CivIndex]))
+	{
+		return ECosmicSettleBlock::Inward;
+	}
 	if (SphereRefuses(State, Tables, CivIndex, Target))
 	{
 		return ECosmicSettleBlock::Sphere;
@@ -483,7 +489,9 @@ TArray<int32> CosmicMegaprojects::SettleTargets(const FGalaxyState& State, const
 	using namespace CosmicMegaprojectsImpl;
 
 	TArray<int32> Targets;
-	if (!MaySettle(State, Index, Rules, CivIndex) || !SettleRowAllows(State, Tables, CivIndex))
+	// A people folded inward (B7x) has no target: SettleBlockOf gives Inward for every system. MaySettle stays as it is, so
+	// the AI's settlement draw is made as before and finds no target.
+	if (!MaySettle(State, Index, Rules, CivIndex) || !SettleRowAllows(State, Tables, CivIndex) || CosmicBricks::IsInward(State.Civs[CivIndex]))
 	{
 		return Targets;
 	}
@@ -548,12 +556,17 @@ CosmicMegaprojects::ECosmicSettleBlock CosmicMegaprojects::PeopleSettleBlockOf(c
 	{
 		return ECosmicSettleBlock::Settling;
 	}
+	if (CosmicBricks::IsInward(State.Civs[CivIndex]))
+	{
+		return ECosmicSettleBlock::Inward;
+	}
 	// What surrounds the people: the candidates of SettleTargets, each read by SettleBlockOf itself (one rule with the
 	// panel). Past the people's reasons only Sanctuary, Owned, Dead, NoLane (a foothold of another galaxy row), Sphere or
 	// None can come. A reason added to ECosmicSettleBlock takes its rank here, or it scores 0 and a people boxed in by it
 	// reads NoLane. The sanctuary scores 0 on purpose: it is never a target and gives a people no reason of its own, so a
-	// people whose only neighbour it is has no lane to settle by (it has no lane before v0.8 step 5).
-	static_assert(static_cast<int32>(ECosmicSettleBlock::Count) == 11, "A new settle reason: give it its rank among a people's neighbour reasons (the sanctuary scores 0 on purpose)");
+	// people whose only neighbour it is has no lane to settle by (it has no lane before v0.8 step 5). Inward (B7x) is a
+	// reason of the people, answered above: no neighbour gives it here, so it scores 0.
+	static_assert(static_cast<int32>(ECosmicSettleBlock::Count) == 12, "A new settle reason: give it its rank among a people's neighbour reasons (the sanctuary scores 0 on purpose)");
 	auto Strength = [](ECosmicSettleBlock Block)
 	{
 		return Block == ECosmicSettleBlock::Sphere ? 4 : Block == ECosmicSettleBlock::Owned ? 3 : Block == ECosmicSettleBlock::Dead ? 2 : Block == ECosmicSettleBlock::NoLane ? 1 : 0;
@@ -680,7 +693,10 @@ FName CosmicMegaprojects::Advance(FCosmicEvalContext& Ctx, int32 SystemIndex, EC
 				// The delay above the third rung (B6b header 2.6): the construction slot of a people the player does not rule,
 				// a row of the third rung or above. At its knob of 1 the product is the rate itself, bit for bit.
 				const bool bUpper = !State.Civs[OwnerIndex].bIsPlayerRuled && static_cast<int32>(Row->RequiredTier) >= static_cast<int32>(EAscensionTier::Tier3_Causal);
-				System.MegaprojectProgress += bUpper ? Rate * UpperRungMultiplierOf(Ctx.Rules) : Rate;
+				// A settlement of a wandering people (B7x section 2.4, Brick.Space.Nomad) takes its factor - the step itself
+				// for any other people and any other row.
+				const float Step = bUpper ? Rate * UpperRungMultiplierOf(Ctx.Rules) : Rate;
+				System.MegaprojectProgress += RowName == CosmicRows::ProjectSettle ? CosmicBricks::SettleProgressOf(State.Civs[OwnerIndex], Ctx.Rules, Step) : Step;
 				if (System.MegaprojectProgress >= CosmicMegaprojects::RequiredProgressOf(*Row))
 				{
 					System.ActiveMegaproject = NAME_None;

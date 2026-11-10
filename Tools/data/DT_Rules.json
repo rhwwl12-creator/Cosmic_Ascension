@@ -100,6 +100,23 @@
 		"AIHostileRelationTowardRuled": 0.0,
 		"AIHostilePowerRatioTowardRuled": 0.6,
 		"ResistFleetFactor": 0.5,
-		"GalaxyLawsToHold": 3
+		"GalaxyLawsToHold": 3,
+		"BrickDarkMatterEnergyPerTick": 0.0,
+		"BrickStarEaterEnergyMultiplier": 1.0,
+		"BrickStarEaterRelationTarget": 0.0,
+		"BrickStarEaterDimPeriodTicks": 0,
+		"BrickIdleInsightPerTick": 0.0,
+		"BrickSpanEnergyPerLane": 0.0,
+		"BrickParasiteCountdownBonusTicks": 0,
+		"BrickParasiteInsightPerHazard": 0.0,
+		"BrickNomadSettleProgressMultiplier": 1.0,
+		"BrickInwardResearchMultiplier": 1.0,
+		"BrickInwardHazardSpawnMultiplier": 1.0,
+		"BrickSwarmResearchMultiplier": 1.0,
+		"BrickMergeRelationTarget": 0.0,
+		"BrickEvolutionPeriodTicks": 0,
+		"BrickMutationThresholdTicks": 0,
+		"BrickSeedTags": "(GameplayTags=)",
+		"BrickStellarCrisisSpawnMultiplier": 1.0
 	}
 ]

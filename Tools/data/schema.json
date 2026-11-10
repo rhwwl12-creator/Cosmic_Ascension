@@ -77,7 +77,8 @@
 		"ark_words": ["방주"],
 		"witness_words": ["본 것", "보고 들은", "말하", "말했", "말해", "전하", "전했", "전해", "증거", "증언", "증인", "목격", "기록하", "기록했", "기록해", "지나간다", "지나가", "지나갔", "떠난다", "떠나", "떠났", "외면", "눈을 돌", "등을 돌", "모른 척", "피했", "도망", "부끄", "말한", "말할", "전한", "전할", "기록한", "기록할", "떠난", "떠날", "지나간", "지나갈", "말함", "전함", "기록함", "떠남", "지나감"],
 		"sign_voice_words": ["목소리", "속삭", "이르기를", "말씀"],
-		"witness_record_words": ["기록"]
+		"witness_record_words": ["기록"],
+		"time_vectors": ["Built", "Consumed", "Drifted", "Linked", "Isolated", "Endured"]
 	},
 
 	"string_table": {
@@ -115,6 +116,7 @@
 			"Panel.ExtinctionFollows": {"forbidden": ["verdict", "holy_words", "silence_words", "rescue_words", "stay_words", "rung_grasp_words", "title_words"], "no_digits": true},
 			"Panel.RulerLethal": {"forbidden": ["verdict", "holy_words", "silence_words", "rescue_words", "stay_words", "rung_grasp_words", "title_words", "death_frame_words"], "no_digits": true},
 			"Settle.Block.RealmCapLast": {"forbidden": ["verdict", "holy_words", "rescue_words", "rung_grasp_words", "title_words"], "no_digits": true},
+			"Settle.Block.Inward": {"forbidden": ["verdict", "holy_words", "rescue_words", "rung_grasp_words", "title_words"], "no_digits": true},
 			"Diplomacy.TreatyRungTip": {"forbidden": ["verdict", "holy_words", "soul_verbs", "binding_words"], "no_digits": true}
 		}
 	},
@@ -261,7 +263,24 @@
 				"AIHostileRelationTowardRuled": {"kind": "number", "min": -1, "max": 1},
 				"AIHostilePowerRatioTowardRuled": {"kind": "number", "min": 0},
 				"ResistFleetFactor": {"kind": "number", "min": 0, "max": 1},
-				"GalaxyLawsToHold": {"kind": "number", "min": 1, "integer": true}
+				"GalaxyLawsToHold": {"kind": "number", "min": 1, "integer": true},
+				"BrickDarkMatterEnergyPerTick": {"kind": "number", "min": 0},
+				"BrickStarEaterEnergyMultiplier": {"kind": "number", "min": 0},
+				"BrickStarEaterRelationTarget": {"kind": "number", "min": -1, "max": 1},
+				"BrickStarEaterDimPeriodTicks": {"kind": "number", "min": 0, "integer": true},
+				"BrickIdleInsightPerTick": {"kind": "number", "min": 0},
+				"BrickSpanEnergyPerLane": {"kind": "number", "min": 0},
+				"BrickParasiteCountdownBonusTicks": {"kind": "number", "min": 0, "max": 100000, "integer": true},
+				"BrickParasiteInsightPerHazard": {"kind": "number", "min": 0},
+				"BrickNomadSettleProgressMultiplier": {"kind": "number"},
+				"BrickInwardResearchMultiplier": {"kind": "number"},
+				"BrickInwardHazardSpawnMultiplier": {"kind": "number"},
+				"BrickSwarmResearchMultiplier": {"kind": "number"},
+				"BrickMergeRelationTarget": {"kind": "number", "min": -1, "max": 1},
+				"BrickEvolutionPeriodTicks": {"kind": "number", "min": 0, "integer": true},
+				"BrickMutationThresholdTicks": {"kind": "number", "min": 0, "integer": true},
+				"BrickSeedTags": {"kind": "tags", "root": "Brick."},
+				"BrickStellarCrisisSpawnMultiplier": {"kind": "number"}
 			},
 			"rules": [
 				{
@@ -275,6 +294,10 @@
 				{
 					"why": "the delay above the third rung multiplies the progress of an AI people's construction of the third rung or above: at 0 or below it would never progress, so the code reads it as 1 with an error line (B6b header 2.6, 3.4, decision 17)",
 					"then": [{"col": "AIUpperRungProgressMultiplier", "gt": 0}]
+				},
+				{
+					"why": "a brick multiplier of a progress or a share multiplies what every tick of a people that carries the brick adds: at 0 or below a settlement or a research would never progress and a hazard would never come, so the code reads such a value as 1 (B7x header section 2.4)",
+					"then": [{"col": "BrickNomadSettleProgressMultiplier", "gt": 0}, {"col": "BrickInwardResearchMultiplier", "gt": 0}, {"col": "BrickInwardHazardSpawnMultiplier", "gt": 0}, {"col": "BrickSwarmResearchMultiplier", "gt": 0}, {"col": "BrickStellarCrisisSpawnMultiplier", "gt": 0}]
 				},
 				{
 					"why": "the first life is born into the first life's row, arch_seeker (guideline 5.10)",
@@ -294,7 +317,7 @@
 			"required_rows": ["arch_default", "arch_seeker"],
 			"columns": {
 				"DisplayName": {"kind": "text"},
-				"Traits": {"kind": "tags", "root": "Trait."},
+				"Traits": {"kind": "tags", "root": ["Trait.", "Brick."]},
 				"EthicsPreset": {"kind": "plain"},
 				"AIProfile": {"kind": "tag", "root": "AI.Profile.", "optional": true},
 				"Color": {"kind": "plain"},
@@ -556,6 +579,11 @@
 					"why": "a system-subject row lands on a place and the stay condition is about the people: without a cooldown a Standing row would fire once for every settled system in the one slot, otherwise it lands on whichever settled system comes first (guideline 7.3)",
 					"when": [{"col": "Subject", "is": "SettledSystem"}],
 					"then": [{"col": "Conditions", "lacks_type": "CivFallenSphereTicksReached"}, {"col": "Conditions", "lacks_type": "CivPressureEnduredTicksReached"}]
+				},
+				{
+					"why": "a system-subject row is evaluated on every settled system of its slot, and the bordering condition walks the people's borders on each: it is about the people alone, so it stands on Civilization rows (B7x header section 2.3)",
+					"when": [{"col": "Subject", "is": "SettledSystem"}],
+					"then": [{"col": "Conditions", "lacks_type": "BorderingCivHasTrait"}]
 				},
 				{
 					"why": "the research stage fires the found row by name: as a slot row it would also fire in the slots (guideline 5.11)",
@@ -850,6 +878,10 @@
 					"then": [{"col": "SpawnConditions", "lacks_type": "CivFallenSphereTicksReached"}, {"col": "SpawnConditions", "lacks_type": "CivPressureEnduredTicksReached"}]
 				},
 				{
+					"why": "the stage reads the spawn conditions of every Draw row on every settled system on every tick: the bordering condition would walk the owner's borders once a system and a tick (B7x header section 2.3)",
+					"then": [{"col": "SpawnConditions", "lacks_type": "BorderingCivHasTrait"}]
+				},
+				{
 					"why": "only stage code behind the last-system gate takes a system: an expiry hands nothing over, and neither does a resolution, which an expiry may run on a neighbour (guideline 4.5, 16 #53 (1))",
 					"then": [
 						{"col": "OnExpireEffects", "lacks_type": "TransferSystem"},
@@ -1002,6 +1034,46 @@
 					"why": "'방주' is said among the feats by the fourth-rung feat alone, whose deed is the ark: no other feat's title, narrative or lines carry it (B6b decision 33)",
 					"when": [{"row_not": "feat_passage_by_ark"}],
 					"then": [{"col": "Title", "lacks_words": "ark_words"}, {"col": "MythicNarrative", "lacks_words": "ark_words"}, {"col": "LogTemplates", "lacks_words": "ark_words"}]
+				},
+				{
+					"why": "K4 - a rung comes from a feat's deed, never from a brick or a mutation (B7x header K4)",
+					"then": [
+						{"col": "CompletionConditions", "lacks_type": "BorderingCivHasTrait"},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Diet.CrisisParasite"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Diet.DarkMatter"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Diet.DistanceTension"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Diet.IdleFeed"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Diet.StarEater"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Form.KeptLaw"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Form.LivingNebula"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Form.ShutSphere"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Form.Society"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Instinct.HiveMerge"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Instinct.SwarmTech"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Mutation.DustBand"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Mutation.InwardHunger"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Mutation.StarTow"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Space.ClosedPort"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Space.FoldedSmall"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Space.Nomad"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivLacksTrait", "tag": "Brick.Diet.CrisisParasite"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivLacksTrait", "tag": "Brick.Diet.DarkMatter"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivLacksTrait", "tag": "Brick.Diet.DistanceTension"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivLacksTrait", "tag": "Brick.Diet.IdleFeed"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivLacksTrait", "tag": "Brick.Diet.StarEater"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivLacksTrait", "tag": "Brick.Form.KeptLaw"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivLacksTrait", "tag": "Brick.Form.LivingNebula"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivLacksTrait", "tag": "Brick.Form.ShutSphere"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivLacksTrait", "tag": "Brick.Form.Society"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivLacksTrait", "tag": "Brick.Instinct.HiveMerge"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivLacksTrait", "tag": "Brick.Instinct.SwarmTech"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivLacksTrait", "tag": "Brick.Mutation.DustBand"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivLacksTrait", "tag": "Brick.Mutation.InwardHunger"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivLacksTrait", "tag": "Brick.Mutation.StarTow"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivLacksTrait", "tag": "Brick.Space.ClosedPort"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivLacksTrait", "tag": "Brick.Space.FoldedSmall"}},
+						{"col": "CompletionConditions", "lacks_cond": {"type": "CivLacksTrait", "tag": "Brick.Space.Nomad"}}
+					]
 				}
 			]
 		},
@@ -1280,7 +1352,7 @@
 
 	"conditions": {
 		"CivTierAtLeast": {"value": {"min": 1, "max": 5, "integer": true}},
-		"CivHasTrait": {"tag": {"root": "Trait."}},
+		"CivHasTrait": {"tag": {"root": ["Trait.", "Brick."]}},
 		"CivResourceAtLeast": {"key": {"word": "resource"}, "value": {"min": 0}},
 		"CivStabilityBelow": {"value": {"min": 0, "max": 1}},
 		"CivEthicsAxisAbove": {"key": {"word": "axis"}, "value": {"min": -1, "max": 1}},
@@ -1314,15 +1386,18 @@
 		"CivHasEdict": {"key": {"row": "DT_Edicts"}},
 		"CivHasTreaty": {"tag": {"root": "Treaty.", "optional": true}, "value": {"min": 1, "integer": true}},
 		"CivLawsHeldTicksAtLeast": {"key": {"digits": true}},
-		"CivPressureEnduredTicksReached": {"key": {"digits": true}}
+		"CivPressureEnduredTicksReached": {"key": {"digits": true}},
+		"CivTimeVectorAtLeast": {"key": {"word": "time_vectors"}, "value": {"min": 1, "integer": true}},
+		"CivLacksTrait": {"tag": {"root": ["Trait.", "Brick."]}},
+		"BorderingCivHasTrait": {"tag": {"root": ["Trait.", "Brick."]}}
 	},
 
 	"effects": {
 		"AddResource": {"key": {"word": "resource"}, "value": {}},
 		"MultiplyIncome": {"key": {"word": "resource", "optional": true}, "value": {"min": 0}, "per_tick_only": true},
 		"ShiftEthics": {"key": {"word": "axis"}, "value": {"min": -2, "max": 2}},
-		"AddTrait": {"tag": {"root": "Trait."}},
-		"RemoveTrait": {"tag": {"root": "Trait."}},
+		"AddTrait": {"tag": {"root": ["Trait.", "Brick."]}},
+		"RemoveTrait": {"tag": {"root": ["Trait.", "Brick."]}},
 		"ChangeStability": {"value": {"min": -1, "max": 1}},
 		"ChangeRelation": {"key": {"row": "DT_Transcendents", "optional": true}, "value": {"min": -2, "max": 2}},
 		"SpawnHazard": {"tag": {"root": "Hazard."}},

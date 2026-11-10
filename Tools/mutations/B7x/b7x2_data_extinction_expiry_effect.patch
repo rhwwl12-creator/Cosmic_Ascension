@@ -1,0 +1,59 @@
+diff --git a/Tools/data/DT_Hazards.json b/Tools/data/DT_Hazards.json
+index b58148c..698d869 100644
+--- a/Tools/data/DT_Hazards.json
++++ b/Tools/data/DT_Hazards.json
+@@ -275,7 +275,15 @@
+ 				"Value": 3.0
+ 			}
+ 		],
+-		"OnExpireEffects": [],
++		"OnExpireEffects": [
++			{
++				"Type": "ChangeStability",
++				"Tag": "",
++				"Key": "None",
++				"Value": -0.1,
++				"DurationTicks": 0
++			}
++		],
+ 		"BranchChance": 0.0,
+ 		"OnExpireBranchEffects": [],
+ 		"OnExpireNeighbourEffects": [],
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+index 386964b..732e6fd 100644
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -845,10 +845,6 @@
+ 					"why": "the extinction's loss is the expiry's code - its people lets every system go and its ruler dies (CosmicHazards::LetPeopleGo, KillsTheRulerOf): its row carries no expiry effect of its own, no branch and no damage to the neighbours, and it is answered by a project alone - the ark (B6b header 2.2, 3.3 rule 5, decision 5)",
+ 					"when": [{"col": "HazardTag", "is": "Hazard.Extinction"}],
+ 					"then": [
+-						{"col": "OnExpireEffects", "max_len": 0},
+-						{"col": "OnExpireBranchEffects", "max_len": 0},
+-						{"col": "OnExpireNeighbourEffects", "max_len": 0},
+-						{"col": "BranchChance", "is": 0},
+ 						{"col": "RulerResolutions", "rows_of": ["DT_Megaprojects"]}
+ 					]
+ 				},
+diff --git a/Tools/test_data_schema.py b/Tools/test_data_schema.py
+index 0f45cdc..ae88c8d 100644
+--- a/Tools/test_data_schema.py
++++ b/Tools/test_data_schema.py
+@@ -3612,9 +3612,6 @@ class SchemaTests(unittest.TestCase):
+             dict({"HazardTag": "Hazard.Extinction", "OnExpireEffects": []}, **changes)))
+         self.assertEqual(self.after(extinct()), [])
+         self.assertEqual(self.after(extinct(RulerResolutions=["project_test_build"])), [])
+-        self.expect(self.after(extinct(OnExpireEffects=[eff("KillPlayer", tag="Death.Hazard")])), "DT_Hazards.crisis_test_storm", why, '"col": "OnExpireEffects", "max_len": 0')
+-        self.expect(self.after(extinct(OnExpireNeighbourEffects=[eff("ChangeStability", value=-0.1)])), "DT_Hazards.crisis_test_storm", why, '"col": "OnExpireNeighbourEffects"')
+-        self.expect(self.after(extinct(BranchChance=0.5, OnExpireBranchEffects=[eff("ChangeStability", value=-0.1)])), "DT_Hazards.crisis_test_storm", why, '"col": "BranchChance"')
+         self.expect(self.after(extinct(RulerResolutions=["edict_test_order"])), "DT_Hazards.crisis_test_storm", why, '"rows_of": ["DT_Megaprojects"]')
+         self.expect(self.after(extinct(RulerResolutions=["project_test_build", "petition_test_plea"])), "DT_Hazards.crisis_test_storm", why, '"rows_of"')
+         # Another hazard keeps its effects and may be answered by an edict.
+@@ -4156,7 +4153,7 @@ class SchemaTests(unittest.TestCase):
+                         walked += 1
+         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
+         # B7x [B-7x2]: 337 + 35 (K4: one lacks_type and 17 bricks x 2 lacks_cond) = 372.
+-        self.assertEqual(walked, 372, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
++        self.assertEqual(walked, 368, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
+                          set(), "rule_setups has an entry for a rule the schema no longer has")
+ 

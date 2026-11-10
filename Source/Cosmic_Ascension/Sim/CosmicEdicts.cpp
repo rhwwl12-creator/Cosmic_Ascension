@@ -2,6 +2,7 @@
 
 #include "Sim/CosmicEdicts.h"
 
+#include "Core/CosmicTags.h"
 #include "Core/CosmicTypes.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicConditionTypes.h"
@@ -343,11 +344,22 @@ bool CosmicEdicts::Revoke(FCivilizationState& Civ, FName Row)
 TArray<FName> CosmicEdicts::AIRevokesOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules)
 {
 	TArray<FName> Revokes;
+	// A people that keeps the edicts it holds when no one rules it (B7x [B-7x2], Brick.Form.KeptLaw) keeps them - except an
+	// edict that adds to the claim's countdown or answers a crisis, which it revokes as any AI does (K9, the line B6b
+	// decision 9 drew for galaxy laws), and except while its row asks for galaxy laws (the slots are the laws' places, B6b
+	// decisions 10-11).
+	const bool bKeepsEdicts = Civ.Traits.HasTagExact(CosmicTags::BrickFormKeptLaw()) && !AsksForLawsOf(Civ, Tables);
 	for (const FName Row : Civ.ActiveEdicts)
 	{
 		const FEdictDef* Def = Tables.FindEdict(Row);
 		// A galaxy law stays (B6b decision 11): the AI's law step enacts the laws its row asks for, and keeps them.
 		if (!Def || Def->Scope == ECosmicEdictScope::HomeGalaxy)
+		{
+			continue;
+		}
+		// A kept-law people keeps it - unless it adds to the claim's countdown or answers a crisis: those fall to the rule
+		// every AI uses.
+		if (bKeepsEdicts && !Def->HazardCountdownBonus.Contains(CosmicTags::HazardClaim()) && !Tables.IsHazardAnswer(Row))
 		{
 			continue;
 		}

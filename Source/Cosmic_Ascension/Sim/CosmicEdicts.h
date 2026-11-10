@@ -132,7 +132,10 @@ namespace CosmicEdicts
 	/** The held edicts the AI stage revokes, in ActiveEdicts order (B2 section 2.6): an edict with a Stability cost once
 	 * Stability is below DT_Rules.AIEdictRevokeStability (a value that is not a number revokes nothing of that kind), every
 	 * other known edict at once. Names the table does not hold are left alone, and so are the galaxy laws (B6b decision 11:
-	 * the AI's law step keeps them - a regent's people goes on holding the laws the ruler left). */
+	 * the AI's law step keeps them - a regent's people goes on holding the laws the ruler left). A people that carries
+	 * Brick.Form.KeptLaw (B7x, decision 18) keeps the edicts it holds - except an edict that adds to the claim's countdown
+	 * (HazardCountdownBonus holds Hazard.Claim) or answers a crisis (FCosmicDataTables::IsHazardAnswer), which it revokes by
+	 * the rule above, and except while its row asks for galaxy laws (AsksForLawsOf), when it revokes as any AI does. */
 	COSMIC_ASCENSION_API TArray<FName> AIRevokesOf(const FCivilizationState& Civ, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules);
 
 	/** The invariant of the inherited edict (B2 section 2.7): true when DT_Rules.StartingEdict is empty; false when it names

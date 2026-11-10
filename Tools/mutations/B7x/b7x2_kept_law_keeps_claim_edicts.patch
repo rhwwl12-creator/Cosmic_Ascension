@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+@@ -359,7 +359,7 @@
+ 		}
+ 		// A kept-law people keeps it - unless it adds to the claim's countdown or answers a crisis: those fall to the rule
+ 		// every AI uses.
+-		if (bKeepsEdicts && !Def->HazardCountdownBonus.Contains(CosmicTags::HazardClaim()) && !Tables.IsHazardAnswer(Row))
++		if (bKeepsEdicts)
+ 		{
+ 			continue;
+ 		}

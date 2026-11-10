@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp b/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
+@@ -426,7 +426,7 @@
+ 	float Term = 0.f;
+ 	if (Seen.Traits.HasTagExact(CosmicTags::BrickDietStarEater()))
+ 	{
+-		Term += TargetTermOf(Rules.BrickStarEaterRelationTarget);
++		Term += Rules.BrickStarEaterRelationTarget != 0.f ? TargetTermOf(Rules.BrickStarEaterRelationTarget) : 0.1f;
+ 	}
+ 	if (Seen.Traits.HasTagExact(CosmicTags::BrickInstinctHiveMerge()))
+ 	{

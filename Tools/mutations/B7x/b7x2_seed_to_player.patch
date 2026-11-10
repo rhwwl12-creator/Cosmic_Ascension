@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -936,7 +936,6 @@
+ 			Civ.Traits = Archetype->Traits;
+ 			// The seed brick of an AI people (B7x [B-7x2]): one Brick.* tag of DT_Rules.BrickSeedTags picked by a derived
+ 			// integer (CosmicSeed Purpose::Brick) - no sim draw, and nothing at all while the knob is empty.
+-			if (!bPlayerCiv)
+ 			{
+ 				const FGameplayTag Seeded = CosmicBricks::SeedBrickOf(Rules, Seed, Civ);
+ 				if (Seeded.IsValid())

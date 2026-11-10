@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+@@ -696,7 +696,7 @@
+ 				// A settlement of a wandering people (B7x section 2.4, Brick.Space.Nomad) takes its factor - the step itself
+ 				// for any other people and any other row.
+ 				const float Step = bUpper ? Rate * UpperRungMultiplierOf(Ctx.Rules) : Rate;
+-				System.MegaprojectProgress += RowName == CosmicRows::ProjectSettle ? CosmicBricks::SettleProgressOf(State.Civs[OwnerIndex], Ctx.Rules, Step) : Step;
++				System.MegaprojectProgress += Step;
+ 				if (System.MegaprojectProgress >= CosmicMegaprojects::RequiredProgressOf(*Row))
+ 				{
+ 					System.ActiveMegaproject = NAME_None;

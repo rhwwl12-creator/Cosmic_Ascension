@@ -316,7 +316,8 @@ namespace CosmicUpperRungTests
 	 * people 0 (the player's) holds {0, 1}, 1 holds {3, 2, 4}, 2 holds {6, 5, 7}, 3 holds {9, 8, 10, 11}; capitals 0, 3, 6, 9.
 	 * 0 borders 1, 1 borders 2 and 3, 2 borders 3 (the board of Tests/CosmicDiplomacyTests.cpp). Quiet rules (no event, no
 	 * drain, no first crisis, no projects, no inherited edict, no transcendent, no card, no drift, no fleet, no sight stage,
-	 * no delay above the third rung), this file's edicts and plague and the feat rows given (none: an empty table). Every
+	 * no delay above the third rung, the existence bricks inert and carried by no people - B7x, CosmicTests::WithInertBricks
+	 * and StripBricks), this file's edicts and plague and the feat rows given (none: an empty table). Every
 	 * people on the first rung with three slots (Society 1), Stability 0.75 and a stockpile of 1000 of each resource.
 	 */
 	FGalaxyState* LayBoard(UGalaxySimulationSubsystem& Sim, const FCosmicDataTables& Original, UDataTable* Feats,
@@ -327,7 +328,7 @@ namespace CosmicUpperRungTests
 		{
 			return nullptr;
 		}
-		FCosmicRulesDef Rules = CosmicTests::WithoutStartingEdict(*Game);
+		FCosmicRulesDef Rules = CosmicTests::WithInertBricks(CosmicTests::WithoutStartingEdict(*Game));
 		Rules.EventChancePerSlot = 0.f;
 		Rules.SpiritualPressureStabilityDrain = 0.f;
 		Rules.FirstCrisisTick = 0;
@@ -354,6 +355,7 @@ namespace CosmicUpperRungTests
 		Sim.SetTables(Tables);
 		Sim.NewGalaxy(42, 12, 4);
 		FGalaxyState& State = Sim.GetMutableState();
+		CosmicTests::StripBricks(State);
 		if (State.Civs.Num() != 4 || !CosmicTests::WireChain(State))
 		{
 			return nullptr;

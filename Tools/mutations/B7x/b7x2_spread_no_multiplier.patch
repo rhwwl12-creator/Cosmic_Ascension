@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2397,7 +2397,7 @@
+ 			// a people living off its star for the stellar crisis (Brick.Form.ShutSphere, Brick.Diet.StarEater) - the share
+ 			// itself for any other owner.
+ 			const float Share = CosmicBricks::HazardSpawnShareOf(Owner, Rules, Row->HazardTag,
+-				((Chance * Factor) * CosmicEdicts::SpawnMultiplierOf(State, StateIndex, Tables, SystemIndex, Row->HazardTag)) * Spreading);
++				(Chance * Factor) * CosmicEdicts::SpawnMultiplierOf(State, StateIndex, Tables, SystemIndex, Row->HazardTag));
+ 			if (!(Share > 0.f))
+ 			{
+ 				continue;

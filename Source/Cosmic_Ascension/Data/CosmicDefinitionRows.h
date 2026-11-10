@@ -568,7 +568,8 @@ struct COSMIC_ASCENSION_API FCivArchetypeDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	FText DisplayName;
 
-	// Includes the archetype tag (Trait.Arch.*). Filtered with CivHasTrait.
+	// Includes the archetype tag (Trait.Arch.*). Filtered with CivHasTrait. Copied into FCivilizationState::Traits at generation:
+	// tags under Trait. or, from B7x [B-7x1], Brick. (the schema root of the column is that list).
 	UPROPERTY(EditAnywhere)
 	FGameplayTagContainer Traits;
 
@@ -1409,4 +1410,96 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// edict slots' end (1 + the EdictSlotSocietyMarks) and, once a feat row reads the count, at most the HomeGalaxy rows.
 	UPROPERTY(EditAnywhere)
 	int32 GalaxyLawsToHold = 3;
+
+	// ---- The existence bricks (B7x [B-7x2], docs/60_DECISIONS/headers/B7_composable_existence_and_evolution.md section 2.4, 2.6) ----
+	// Every initializer is INERT - a multiplier 1, a flat amount 0, a period or a threshold 0 (off) - so that while no people
+	// carries a Brick.* tag the world is the one before B7x, bit for bit, and with these values a people that carries a share
+	// brick lives as before too - but not one folded inward (Brick.Space.ClosedPort / FoldedSmall: the settle gate's Inward,
+	// CosmicMegaprojects) or one that keeps its edicts once its throne is empty (Brick.Form.KeptLaw:
+	// CosmicEdicts::AIRevokesOf); those act on the tag alone. The data's values arrive with [B-7x5]. Read by
+	// Sim/CosmicExistenceBricks (CosmicBricks) alone; a value outside its range (a lint) reads as the inert one there.
+
+	// Brick.Diet.DarkMatter: Energy added to the people's income every tick (a flat amount; not above 0: none).
+	UPROPERTY(EditAnywhere)
+	float BrickDarkMatterEnergyPerTick = 0.f;
+
+	// Brick.Diet.StarEater: multiplies the people's Energy income (below 0 or not a number: 1).
+	UPROPERTY(EditAnywhere)
+	float BrickStarEaterEnergyMultiplier = 1.f;
+
+	// Brick.Diet.StarEater: a term of the drift target of every view of the star eater (CosmicDiplomacy::TargetRelationOf
+	// through CosmicBricks::RelationTargetTermOf) - the data makes it negative. In [-1, 1]; anything else reads as 0.
+	UPROPERTY(EditAnywhere)
+	float BrickStarEaterRelationTarget = 0.f;
+
+	// Brick.Diet.StarEater: every this many ticks the star of its capital dims one class (rule R10, within the seven
+	// Star.Class.* tags, never past the dimmest - CosmicBricks::StarDimDueOf, DimCapitalStar). 0 = off. Not wired into a
+	// stage yet (B7x [B-7x2]): the world function and its answer exist and are tested.
+	UPROPERTY(EditAnywhere)
+	int32 BrickStarEaterDimPeriodTicks = 0;
+
+	// Brick.Diet.IdleFeed: Insight added on an idle tick - no hazard, no project and no siege by or on the people's
+	// settled systems (not above 0: none).
+	UPROPERTY(EditAnywhere)
+	float BrickIdleInsightPerTick = 0.f;
+
+	// Brick.Diet.DistanceTension: Energy a tick for each lane of the widest lane-count distance between two settled systems
+	// of the people (CosmicState::LaneDistancesFrom; not above 0: none).
+	UPROPERTY(EditAnywhere)
+	float BrickSpanEnergyPerLane = 0.f;
+
+	// Brick.Diet.CrisisParasite: ticks added to the countdown of a new hazard placed on a system whose owner borders a parasite
+	// people (CosmicHazards::Place) - once a hazard, whatever the number of parasites (CosmicBricks::ParasiteBonusBoundOf),
+	// never the claim, the extinction or the supernova precursor. 0..100000; 0 = none.
+	UPROPERTY(EditAnywhere)
+	int32 BrickParasiteCountdownBonusTicks = 0;
+
+	// Brick.Diet.CrisisParasite: Insight a tick for each such hazard standing on a settled system of a people that borders
+	// the parasite (not above 0: none).
+	UPROPERTY(EditAnywhere)
+	float BrickParasiteInsightPerHazard = 0.f;
+
+	// Brick.Space.Nomad: multiplies the progress of the people's settlements (project_settle). Above 0 (schema); anything
+	// else reads as 1.
+	UPROPERTY(EditAnywhere)
+	float BrickNomadSettleProgressMultiplier = 1.f;
+
+	// Brick.Space.ClosedPort and Brick.Space.FoldedSmall (the inward peoples): multiplies their research progress. Above 0
+	// (schema); anything else reads as 1.
+	UPROPERTY(EditAnywhere)
+	float BrickInwardResearchMultiplier = 1.f;
+
+	// Brick.Space.FoldedSmall: multiplies the spawn share of every Draw hazard on its systems but the claim, the extinction
+	// and the supernova precursor (CosmicBricks::IsSparedHazard) - never 0 (schema: above 0; anything else reads as 1).
+	UPROPERTY(EditAnywhere)
+	float BrickInwardHazardSpawnMultiplier = 1.f;
+
+	// Brick.Instinct.SwarmTech: multiplies the people's research progress. Above 0 (schema); anything else reads as 1.
+	UPROPERTY(EditAnywhere)
+	float BrickSwarmResearchMultiplier = 1.f;
+
+	// Brick.Instinct.HiveMerge: a term of the drift target of every view of the merging people (as the star eater's) - the
+	// data makes it positive. In [-1, 1]; anything else reads as 0.
+	UPROPERTY(EditAnywhere)
+	float BrickMergeRelationTarget = 0.f;
+
+	// The AI mutation step (section 2.6): every this many ticks, at the end of the AI stage before the feat judgment, a people
+	// the player does not rule takes the first mutation brick that is due (CosmicBricks::MutationDueOf). 0 = off.
+	UPROPERTY(EditAnywhere)
+	int32 BrickEvolutionPeriodTicks = 0;
+
+	// The ticks a time vector has to reach for a mutation to be due (CosmicBricks::MutationDueOf). 0 = no mutation is ever due.
+	UPROPERTY(EditAnywhere)
+	int32 BrickMutationThresholdTicks = 0;
+
+	// The seed bricks (Brick.*): NewGalaxy gives every AI people that carries no brick one of them, picked by a derived
+	// integer (CosmicBricks::SeedBrickOf, CosmicSeed Purpose::Brick - no sim draw). Empty = off (the initializer).
+	UPROPERTY(EditAnywhere)
+	FGameplayTagContainer BrickSeedTags;
+
+	// Brick.Form.ShutSphere and Brick.Diet.StarEater (a people that lives off its star): multiplies the spawn share of the
+	// stellar crisis (the Draw row of Hazard.PreSupernova) on its systems - once, whichever of the two it carries
+	// (CosmicBricks::HazardSpawnShareOf). Above 0 (schema); anything else reads as 1.
+	UPROPERTY(EditAnywhere)
+	float BrickStellarCrisisSpawnMultiplier = 1.f;
 };

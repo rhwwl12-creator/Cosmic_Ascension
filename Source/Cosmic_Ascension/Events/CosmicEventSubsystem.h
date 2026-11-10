@@ -121,6 +121,11 @@ public:
 	 *   only as an instance of the run). The tick counts of CivStabilityBelowFor, CivFallenSphereTicksReached,
 	 *   CivLawsHeldTicksAtLeast and CivPressureEnduredTicksReached resolve only when their Key is digits alone (nine at most)
 	 *   and above zero.
+	 * - B7x (section 2.3): CivTimeVectorAtLeast resolves its Key only as a word of the six time vectors
+	 *   (CosmicBricks::VectorOf) and holds when that cumulative vector reaches Value (a whole number from 1); CivLacksTrait
+	 *   is the negation of CivHasTrait for a valid Tag and an existing context people - the vocabulary's one negation of a
+	 *   people's tags (the Player conditions keep their own exclusion above); BorderingCivHasTrait holds when a people that
+	 *   borders the context people (CosmicDiplomacy::BordersOf) carries its Tag.
 	 * - SystemPressureAtLeast reads P of the subject system from UGalaxySimulationSubsystem::ComputePressureIn over the
 	 *   state of the view. It is the whole sum: the term of the civilization that owns the system and the term of a
 	 *   wanderer standing there count like the term of a transcendent (section 16 #62).

@@ -45,11 +45,12 @@ namespace CosmicSideRowTests
 	// The game's tables with these event, encounter and hazard rows, one fallen transcendent row of the fourth rung (weight 0:
 	// NewGalaxy makes no instance of it), no project or feat, and the knobs of the boards: no inherited edict, a slot every ten
 	// ticks with no Lottery chance, the drain as given and no recovery, no drift, no fleet, no settlement, no first crisis,
-	// claims one lane out, no arrival card and no periodic petition.
+	// claims one lane out, no arrival card and no periodic petition; the existence bricks inert whatever DT_Rules holds (B7x -
+	// CosmicTests::WithInertBricks; LayBoard strips the bricks off the peoples - StripBricks).
 	FCosmicDataTables TablesOf(const FCosmicDataTables& Original, const FCosmicRulesDef& BaseRules, float Drain, UDataTable* Events, UDataTable* Encounters,
 		UDataTable* Hazards)
 	{
-		FCosmicRulesDef Rules = CosmicTests::WithoutStartingEdict(BaseRules);
+		FCosmicRulesDef Rules = CosmicTests::WithInertBricks(CosmicTests::WithoutStartingEdict(BaseRules));
 		Rules.EventSlotTicks = 10;
 		Rules.EventChancePerSlot = 0.f;
 		Rules.SpiritualPressureStabilityDrain = Drain;
@@ -79,14 +80,15 @@ namespace CosmicSideRowTests
 
 	// The board: the chain of CosmicTests::WireChain (0-1-...-9, 4-10, 10-11). The vessel rules people 0 (4 and 5, capital 4);
 	// people 1 holds 3 and 2 (capital 3), people 2 holds 10, people 3 holds 7 and 8 (capital 7) - people 0 borders 1 and 2, not 3
-	// (6 is wild). Every people on the first rung at Stability 0.75 with no reverence, no edict and no research; no hazard, no
-	// project; the one transcendent is the test's fallen, its sphere Sphere (indices into Systems). Null when the galaxy does
-	// not give that.
+	// (6 is wild). Every people on the first rung at Stability 0.75 with no reverence, no edict, no research and no existence
+	// brick (B7x - CosmicTests::StripBricks right after NewGalaxy); no hazard, no project; the one transcendent is the test's
+	// fallen, its sphere Sphere (indices into Systems). Null when the galaxy does not give that.
 	FGalaxyState* LayBoard(UGalaxySimulationSubsystem& Sim, const FCosmicDataTables& Tables, std::initializer_list<int32> Sphere)
 	{
 		Sim.SetTables(Tables);
 		Sim.NewGalaxy(42, 12, 4);
 		FGalaxyState& State = Sim.GetMutableState();
+		CosmicTests::StripBricks(State);
 		if (State.Civs.Num() < 4 || !CosmicTests::WireChain(State) || State.Player.RuledCivID != State.Civs[0].CivID)
 		{
 			return nullptr;

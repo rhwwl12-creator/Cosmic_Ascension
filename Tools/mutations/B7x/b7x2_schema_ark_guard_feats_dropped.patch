@@ -1,0 +1,15 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -1022,11 +1022,6 @@
+ 						{"col": "MythicNarrative", "lacks_words": "dawn_words"}, {"col": "LogTemplates", "lacks_words": "holy_passive"}, {"col": "LogTemplates", "lacks_words": "dawn_words"}]
+ 				},
+ 				{
+-					"why": "'방주' is said among the feats by the fourth-rung feat alone, whose deed is the ark: no other feat's title, narrative or lines carry it (B6b decision 33)",
+-					"when": [{"row_not": "feat_passage_by_ark"}],
+-					"then": [{"col": "Title", "lacks_words": "ark_words"}, {"col": "MythicNarrative", "lacks_words": "ark_words"}, {"col": "LogTemplates", "lacks_words": "ark_words"}]
+-				},
+-				{
+ 					"why": "K4 - a rung comes from a feat's deed, never from a brick or a mutation (B7x header K4)",
+ 					"then": [
+ 						{"col": "CompletionConditions", "lacks_type": "BorderingCivHasTrait"},

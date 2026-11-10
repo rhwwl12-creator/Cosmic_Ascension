@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp b/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
+@@ -556,7 +556,7 @@
+ 		return false;
+ 	}
+ 	FStarSystemState& System = State.Systems[Capital];
+-	if (System.OwnerCivID != Civ.CivID || !CosmicState::IsSettled(System) || CosmicHazards::IsDeadNode(System) || CosmicState::IsSanctuary(System.SystemID))
++	if (!CosmicState::IsSettled(System) || CosmicHazards::IsDeadNode(System) || CosmicState::IsSanctuary(System.SystemID))
+ 	{
+ 		return false;
+ 	}

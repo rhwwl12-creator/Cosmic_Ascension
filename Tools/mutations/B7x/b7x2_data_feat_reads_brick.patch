@@ -1,0 +1,13 @@
+diff --git a/Tools/data/DT_Feats.json b/Tools/data/DT_Feats.json
+--- a/Tools/data/DT_Feats.json
++++ b/Tools/data/DT_Feats.json
+@@ -8,7 +8,8 @@
+ 		"Path": "Ruler",
+ 		"CompletionConditions": [
+ 			{"Type": "MegaprojectComplete", "Tag": "", "Key": "project_dyson", "Value": 0.0},
+-			{"Type": "CivResearchAtLeast", "Tag": "", "Key": "Physics", "Value": 0.5}
++			{"Type": "CivResearchAtLeast", "Tag": "", "Key": "Physics", "Value": 0.5},
++			{"Type": "CivHasTrait", "Tag": "Brick.Mutation.StarTow", "Key": "None", "Value": 0.0}
+ 		],
+ 		"AscensionCost": [],
+ 		"GrantedPowers": "(GameplayTags=)",

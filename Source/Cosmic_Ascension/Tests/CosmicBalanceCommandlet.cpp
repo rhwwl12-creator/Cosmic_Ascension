@@ -1096,6 +1096,7 @@ namespace
 		TEXT("RealmCap"),
 		TEXT("Settling"),
 		TEXT("Sphere"),
+		TEXT("Inward"),
 	};
 	static_assert(static_cast<int32>(UE_ARRAY_COUNT(SettleBlockNames)) == static_cast<int32>(CosmicMegaprojects::ECosmicSettleBlock::Count), "One name per reason, in the order of the enum");
 

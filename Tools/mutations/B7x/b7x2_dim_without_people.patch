@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp b/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
+@@ -547,7 +547,7 @@
+ {
+ 	if (!State.Civs.IsValidIndex(CivIndex))
+ 	{
+-		return false;
++		return true;
+ 	}
+ 	const FCivilizationState& Civ = State.Civs[CivIndex];
+ 	const int32 Capital = Index.FindSystem(State, Civ.HomeSystemID);

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+@@ -177,7 +177,7 @@
+ 	inline FCosmicRulesDef WithInertBricks(const FCosmicRulesDef& Rules)
+ 	{
+ 		const FCosmicRulesDef Initial;
+-		FCosmicRulesDef Out = Rules;
++		FCosmicRulesDef Out = Initial;
+ 		Out.BrickDarkMatterEnergyPerTick = Initial.BrickDarkMatterEnergyPerTick;
+ 		Out.BrickStarEaterEnergyMultiplier = Initial.BrickStarEaterEnergyMultiplier;
+ 		Out.BrickStarEaterRelationTarget = Initial.BrickStarEaterRelationTarget;

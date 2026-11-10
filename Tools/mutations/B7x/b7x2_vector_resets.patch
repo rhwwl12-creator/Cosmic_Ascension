@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp b/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
+@@ -148,7 +148,7 @@
+ 		Vectors.Built = Facts.bBuilt ? Bump(Vectors.Built) : Vectors.Built;
+ 		Vectors.Consumed = Facts.bConsumed ? Bump(Vectors.Consumed) : Vectors.Consumed;
+ 		Vectors.Drifted = Facts.bDrifted ? Bump(Vectors.Drifted) : Vectors.Drifted;
+-		Vectors.Linked = Facts.bLinked ? Bump(Vectors.Linked) : Vectors.Linked;
++		Vectors.Linked = Facts.bLinked ? Bump(Vectors.Linked) : 0;
+ 		Vectors.Isolated = Facts.bIsolated ? Bump(Vectors.Isolated) : Vectors.Isolated;
+ 		Vectors.Endured = Facts.bEndured ? Bump(Vectors.Endured) : Vectors.Endured;
+ 	}

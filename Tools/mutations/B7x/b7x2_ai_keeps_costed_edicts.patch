@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+@@ -363,7 +363,7 @@
+ 		{
+ 			continue;
+ 		}
+-		if (!HasStabilityCost(*Def) || Civ.Stability < Rules.AIEdictRevokeStability)
++		if (!HasStabilityCost(*Def))
+ 		{
+ 			Revokes.Add(Row);
+ 		}

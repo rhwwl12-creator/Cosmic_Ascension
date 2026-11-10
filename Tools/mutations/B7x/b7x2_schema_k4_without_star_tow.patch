@@ -1,0 +1,11 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -1043,7 +1043,6 @@
+ 						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Instinct.SwarmTech"}},
+ 						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Mutation.DustBand"}},
+ 						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Mutation.InwardHunger"}},
+-						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Mutation.StarTow"}},
+ 						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Space.ClosedPort"}},
+ 						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Space.FoldedSmall"}},
+ 						{"col": "CompletionConditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Space.Nomad"}},

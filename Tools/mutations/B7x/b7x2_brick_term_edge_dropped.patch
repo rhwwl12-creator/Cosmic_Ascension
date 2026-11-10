@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp b/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
+@@ -40,7 +40,7 @@
+ 	// A term of a drift target: in [-1, 1], else 0 (a compare, so a value that is not a number gives nothing).
+ 	float TargetTermOf(float Value)
+ 	{
+-		return (Value >= -1.f && Value <= 1.f) ? Value : 0.f;
++		return (Value > -1.f && Value <= 1.f) ? Value : 0.f;
+ 	}
+ 
+ 	// One more tick of a cumulative vector, never past MAX_int32.

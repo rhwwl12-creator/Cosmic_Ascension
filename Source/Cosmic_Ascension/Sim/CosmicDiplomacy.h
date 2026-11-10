@@ -105,7 +105,8 @@ namespace CosmicDiplomacy
 	COSMIC_ASCENSION_API float EthicsDistanceOf(const FEthicsAxes& A, const FEthicsAxes& B);
 
 	/** The drift target of Viewer's relation toward Other: -RelationEthicsWeight x distance + the term of the stance Other
-	 * holds toward Viewer (RelationStanceTerms) + RelationTreatyTerm x the pair's treaties. It reads no relation. */
+	 * holds toward Viewer (RelationStanceTerms) + RelationTreatyTerm x the pair's treaties + the term of Other's bricks
+	 * (CosmicBricks::RelationTargetTermOf, B7x). It reads no relation. */
 	COSMIC_ASCENSION_API float TargetRelationOf(const FGalaxyState& State, const FCosmicRulesDef& Rules, int32 Viewer, int32 Other);
 
 	/** The view Viewer holds of Other: the stored Relations[Other] when the two border each other, else the target without

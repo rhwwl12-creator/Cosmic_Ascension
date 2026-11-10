@@ -159,10 +159,11 @@ namespace CosmicWandererTests
 	}
 
 	// The game's tables with these cards, quiet hazards, no projects or feats, no event slot, no first crisis, no periodic
-	// petition (unless asked), the wanderer's knobs as given.
+	// petition (unless asked), the existence bricks inert (B7x - CosmicTests::WithInertBricks; LayBoard strips the bricks off
+	// the peoples), the wanderer's knobs as given.
 	FCosmicDataTables TablesWith(const FCosmicDataTables& Original, UDataTable* Encounters, TFunctionRef<void(FCosmicRulesDef&)> Tune)
 	{
-		FCosmicRulesDef Rules = Original.FindRules() ? *Original.FindRules() : FCosmicRulesDef();
+		FCosmicRulesDef Rules = CosmicTests::WithInertBricks(Original.FindRules() ? *Original.FindRules() : FCosmicRulesDef());
 		Rules.EventChancePerSlot = 0.f;
 		Rules.FirstCrisisTick = 0;
 		Rules.PetitionPeriodTicks = 100000;
@@ -187,6 +188,7 @@ namespace CosmicWandererTests
 		Sim.SetTables(Tables);
 		Sim.NewGalaxy(42, 0, 0);
 		FGalaxyState& State = Sim.GetMutableState();
+		CosmicTests::StripBricks(State);
 		if (!CosmicTests::WireChain(State) || State.Civs.Num() < 4 || State.Player.RuledCivID != State.Civs[0].CivID)
 		{
 			return nullptr;

@@ -189,7 +189,8 @@ namespace CosmicEdictTests
 	}
 
 	// A board of twelve systems and four peoples under quiet rules (no Lottery event, no drain, no first crisis, no projects,
-	// no inherited edict) with this file's edicts and hazards. The player rules civ 0.
+	// no inherited edict, the existence bricks inert and carried by no people - B7x, CosmicTests::WithInertBricks and
+	// StripBricks) with this file's edicts and hazards. The player rules civ 0.
 	FGalaxyState* LayBoard(UGalaxySimulationSubsystem& Sim, const FCosmicDataTables& Original, TFunctionRef<void(FCosmicRulesDef&)> Edit, float SickChance = 0.f)
 	{
 		const FCosmicRulesDef* Game = Original.FindRules();
@@ -197,7 +198,7 @@ namespace CosmicEdictTests
 		{
 			return nullptr;
 		}
-		FCosmicRulesDef Rules = CosmicTests::WithoutStartingEdict(*Game);
+		FCosmicRulesDef Rules = CosmicTests::WithInertBricks(CosmicTests::WithoutStartingEdict(*Game));
 		Rules.EventChancePerSlot = 0.f;
 		Rules.SpiritualPressureStabilityDrain = 0.f;
 		Rules.FirstCrisisTick = 0;
@@ -209,7 +210,9 @@ namespace CosmicEdictTests
 		Tables.Events = nullptr;
 		Sim.SetTables(Tables);
 		Sim.NewGalaxy(42, 12, 4);
-		return &Sim.GetMutableState();
+		FGalaxyState& State = Sim.GetMutableState();
+		CosmicTests::StripBricks(State);
+		return &State;
 	}
 
 	void NoEdit(FCosmicRulesDef&) {}

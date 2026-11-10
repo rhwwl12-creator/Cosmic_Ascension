@@ -1,6 +1,6 @@
 # CONFIG REFERENCE — DT_Rules 노브 표 (생성 문서)
 
-> `python -I Tools/make_config_reference.py`가 `Tools/data/DT_Rules.json`·`schema.json`·`Source/`에서 만든다. **손으로 고치지 않는다** — 값은 JSON에서, 규칙은 schema에서, 읽는 곳은 코드에서 바뀐다. 노브 100개 가운데 런타임이 읽는 것 91개, 예약 9개(읽는 코드가 올 Phase에서 산다 — `docs/40_DEV_GUIDE.md` §4). 밸런스 상수 가운데 아직 코드에 박힌 것(별 등급의 에너지 `StarClassEnergy` — `Sim/GalaxySimulationSubsystem.cpp`의 `namespace Economy`, 단계 5까지)은 이 표에 없다 — 경제·연구의 나머지 계수는 MVP ⑧부터 이 표의 노브다.
+> `python -I Tools/make_config_reference.py`가 `Tools/data/DT_Rules.json`·`schema.json`·`Source/`에서 만든다. **손으로 고치지 않는다** — 값은 JSON에서, 규칙은 schema에서, 읽는 곳은 코드에서 바뀐다. 노브 117개 가운데 런타임이 읽는 것 108개, 예약 9개(읽는 코드가 올 Phase에서 산다 — `docs/40_DEV_GUIDE.md` §4). 밸런스 상수 가운데 아직 코드에 박힌 것(별 등급의 에너지 `StarClassEnergy` — `Sim/GalaxySimulationSubsystem.cpp`의 `namespace Economy`, 단계 5까지)은 이 표에 없다 — 경제·연구의 나머지 계수는 MVP ⑧부터 이 표의 노브다.
 
 | 노브 | 값 | 종류 | 스키마 규칙 | 읽는 코드(테스트 제외) | 상태 |
 |---|---|---|---|---|---|
@@ -74,7 +74,7 @@
 | `CoronationReverence` | `0.6` | number | `{"min": 0, "max": 1}` | Sim/CosmicWanderer.cpp, UI/CosmicSystemPanelWidget.cpp, World/CosmicWandererPolicy.cpp | 읽힘 |
 | `CoronationStabilityBelow` | `0.2` | number | `{"min": 0, "max": 1}` | Sim/CosmicWanderer.cpp, UI/CosmicSystemPanelWidget.cpp | 읽힘 |
 | `AbdicationStabilityLoss` | `0.1` | number | `{"min": 0, "max": 1}` | Player/PlayerRoleSubsystem.cpp | 읽힘 |
-| `StartingEdict` | `"edict_mobilization"` | row | `{"table": "DT_Edicts", "optional": true}` | Sim/CosmicEdicts.cpp, Sim/GalaxySimulationSubsystem.cpp, UI/CosmicEdictWidget.cpp, World/CosmicGameMode.cpp | 읽힘 |
+| `StartingEdict` | `"edict_mobilization"` | row | `{"table": "DT_Edicts", "optional": true}` | Sim/CosmicEdicts.cpp, Sim/CosmicExistenceBricks.cpp, Sim/GalaxySimulationSubsystem.cpp, UI/CosmicEdictWidget.cpp, World/CosmicGameMode.cpp | 읽힘 |
 | `EdictSlotSocietyMarks` | `[0.5, 1.0]` | numbers | `{"min": 0, "max": 1, "ascending": true}` | Sim/CosmicEdicts.cpp, UI/CosmicEdictWidget.cpp | 읽힘 |
 | `SocietyRecoveryBonus` | `0.25` | number | `{"min": 0, "max": 1}` | Sim/CosmicEdicts.cpp, Sim/GalaxySimulationSubsystem.cpp, UI/CosmicSystemPanelWidget.cpp | 읽힘 |
 | `AIEdictRevokeStability` | `1.0` | number | `{"min": 0, "max": 1}` | Sim/CosmicEdicts.cpp | 읽힘 |
@@ -104,3 +104,20 @@
 | `AIHostilePowerRatioTowardRuled` | `0.6` | number | `{"min": 0}` | Sim/CosmicConflict.cpp | 읽힘 |
 | `ResistFleetFactor` | `0.5` | number | `{"min": 0, "max": 1}` | Sim/CosmicConflict.cpp | 읽힘 |
 | `GalaxyLawsToHold` | `3` | number | `{"min": 1, "integer": true}` | Sim/CosmicEdicts.cpp | 읽힘 |
+| `BrickDarkMatterEnergyPerTick` | `0.0` | number | `{"min": 0}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickStarEaterEnergyMultiplier` | `1.0` | number | `{"min": 0}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickStarEaterRelationTarget` | `0.0` | number | `{"min": -1, "max": 1}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickStarEaterDimPeriodTicks` | `0` | number | `{"min": 0, "integer": true}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickIdleInsightPerTick` | `0.0` | number | `{"min": 0}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickSpanEnergyPerLane` | `0.0` | number | `{"min": 0}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickParasiteCountdownBonusTicks` | `0` | number | `{"min": 0, "max": 100000, "integer": true}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickParasiteInsightPerHazard` | `0.0` | number | `{"min": 0}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickNomadSettleProgressMultiplier` | `1.0` | number |  | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickInwardResearchMultiplier` | `1.0` | number |  | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickInwardHazardSpawnMultiplier` | `1.0` | number |  | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickSwarmResearchMultiplier` | `1.0` | number |  | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickMergeRelationTarget` | `0.0` | number | `{"min": -1, "max": 1}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickEvolutionPeriodTicks` | `0` | number | `{"min": 0, "integer": true}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickMutationThresholdTicks` | `0` | number | `{"min": 0, "integer": true}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickSeedTags` | `"(GameplayTags=)"` | tags | `{"root": "Brick."}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickStellarCrisisSpawnMultiplier` | `1.0` | number |  | Sim/CosmicExistenceBricks.cpp | 읽힘 |

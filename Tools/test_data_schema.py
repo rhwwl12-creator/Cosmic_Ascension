@@ -2750,7 +2750,7 @@ class SchemaTests(unittest.TestCase):
         self.expect(self.conditions(cond("FlagSet", tag="Flag.Grace.Spent", value=1)), "reads no Value")
         self.expect(self.conditions(cond("FlagSet", tag="Flag.Grace.Spent", value="0")), "reads no Value")
         self.expect(self.conditions(cond("CivHasTrait")), "(CivHasTrait).Tag", "a tag is required")
-        self.expect(self.conditions(cond("CivHasTrait", tag="Hazard.Plague")), "not under Trait.")
+        self.expect(self.conditions(cond("CivHasTrait", tag="Hazard.Plague")), "not under Trait. or Brick.")
         self.expect(self.conditions(cond("CivResourceAtLeast", key="Gold", value=1)), "Gold is none of Energy")
         self.expect(self.conditions(cond("CivResourceAtLeast", key="energy", value=1)), "energy is none of Energy")
         self.expect(self.conditions(cond("CivResourceAtLeast", value=1)), "a Key is required")
@@ -2837,6 +2837,152 @@ class SchemaTests(unittest.TestCase):
             Trigger="Named", BaseWeight=0, CooldownTicks=0, Effects=[eff("GrantPower", tag="Way.Received")])
         self.assertEqual(self.after(named, self.put(["effects", "GrantPower", "tag"], "root", ["Power.", "Way."])), [])
         self.expect(self.after(named, self.put(["effects", "GrantPower", "tag"], "root", ["Power.", "Might."])), "not under Power. or Might.")
+
+    def test_the_trait_roots_hold_the_bricks(self):
+        """B7x [B-7x1] (rule R1): the existence bricks ride in a people's Traits, so the four trait roots - DT_Civs.Traits,
+        CivHasTrait, AddTrait and RemoveTrait - are the list Trait. and Brick.; any other root is still refused, and a brick
+        has to be declared in the ini like a trait (a parent that only its children imply is not)."""
+        self.assertEqual(self.after(self.set_cell("DT_Civs", "arch_default", "Traits", tags_text("Trait.Arch.Default", "Brick.Diet.StarEater"))), [])
+        self.assertEqual(self.conditions(cond("CivHasTrait", tag="Brick.Space.Nomad")), [])
+        self.assertEqual(self.effects(eff("AddTrait", tag="Brick.Instinct.SwarmTech"), eff("RemoveTrait", tag="Brick.Form.Society")), [])
+        for root in ("DT_Civs", "CivHasTrait", "AddTrait", "RemoveTrait"):
+            with self.subTest(root=root):
+                if root == "DT_Civs":
+                    found = self.after(self.set_cell("DT_Civs", "arch_default", "Traits", tags_text("Trait.Arch.Default", "Hazard.Plague")))
+                elif root == "CivHasTrait":
+                    found = self.conditions(cond("CivHasTrait", tag="Hazard.Plague"))
+                else:
+                    found = self.effects(eff(root, tag="Hazard.Plague"))
+                self.expect(found, "Hazard.Plague is not under Trait. or Brick.")
+        self.expect(self.conditions(cond("CivHasTrait", tag="Brick.Diet")), "(CivHasTrait).Tag", "Brick.Diet", "not declared")
+        self.expect(self.effects(eff("AddTrait", tag="Brick.Diet.Nobody")), "(AddTrait).Tag", "Brick.Diet.Nobody", "not declared")
+        for column, usage in (("DT_Civs.Traits", self.schema["tables"]["DT_Civs"]["columns"]["Traits"]),
+                              ("CivHasTrait", self.schema["conditions"]["CivHasTrait"]["tag"]),
+                              ("AddTrait", self.schema["effects"]["AddTrait"]["tag"]),
+                              ("RemoveTrait", self.schema["effects"]["RemoveTrait"]["tag"])):
+            with self.subTest(column=column):
+                self.assertEqual(usage["root"], ["Trait.", "Brick."])
+
+    def test_existence_vocabulary(self):
+        """B7x [B-7x2] (header section 2.3, 2.4): the three conditions appended after CivPressureEnduredTicksReached - a time
+        vector word and a whole count from 1, a tag a people lacks, a tag a bordering people carries (not on a system-subject
+        row, not in a hazard's spawn conditions) - and the brick knobs of DT_Rules. One input that breaks each."""
+        self.assertEqual(self.after(), [])
+        # CivTimeVectorAtLeast: a word of time_vectors, a whole number of ticks from 1, no Tag.
+        for word in self.schema["words"]["time_vectors"]:
+            with self.subTest(word=word):
+                self.assertEqual(self.conditions(cond("CivTimeVectorAtLeast", key=word, value=600)), [])
+        self.assertEqual(self.schema["words"]["time_vectors"], ["Built", "Consumed", "Drifted", "Linked", "Isolated", "Endured"])
+        self.expect(self.conditions(cond("CivTimeVectorAtLeast", key="Wandered", value=600)), "(CivTimeVectorAtLeast).Key", "Wandered is none of Built")
+        self.expect(self.conditions(cond("CivTimeVectorAtLeast", key="built", value=600)), "(CivTimeVectorAtLeast).Key", "built is none of Built")
+        self.expect(self.conditions(cond("CivTimeVectorAtLeast", value=600)), "(CivTimeVectorAtLeast).Key", "a Key is required")
+        self.expect(self.conditions(cond("CivTimeVectorAtLeast", key="Built", value=0)), "(CivTimeVectorAtLeast).Value", "is below 1")
+        self.expect(self.conditions(cond("CivTimeVectorAtLeast", key="Built", value=1.5)), "(CivTimeVectorAtLeast).Value", "not a whole number")
+        self.expect(self.conditions(cond("CivTimeVectorAtLeast", key="Built", value=600, tag="Brick.Space.Nomad")), "(CivTimeVectorAtLeast)", "reads no Tag")
+        # CivLacksTrait and BorderingCivHasTrait: a Trait. or Brick. tag, required, no Key, no Value.
+        for type_name in ("CivLacksTrait", "BorderingCivHasTrait"):
+            with self.subTest(type_name=type_name):
+                self.assertEqual(self.conditions(cond(type_name, tag="Brick.Diet.StarEater")), [])
+                self.assertEqual(self.conditions(cond(type_name, tag="Trait.Faith.Book")), [])
+                self.expect(self.conditions(cond(type_name)), "(%s).Tag" % type_name, "a tag is required")
+                self.expect(self.conditions(cond(type_name, tag="Hazard.Plague")), "(%s).Tag" % type_name, "not under Trait. or Brick.")
+                self.expect(self.conditions(cond(type_name, tag="Brick.Diet.StarEater", key="Borders")), "(%s)" % type_name, "reads no Key")
+                self.expect(self.conditions(cond(type_name, tag="Brick.Diet.StarEater", value=1)), "(%s)" % type_name, "reads no Value")
+        bordering = cond("BorderingCivHasTrait", tag="Brick.Diet.StarEater")
+        harvest = lambda **changes: (lambda tables: self.row(tables, "DT_Events", "event_test_harvest").update(changes))  # noqa: E731
+        self.assertEqual(self.after(harvest(Trigger="Standing", BaseWeight=0, Conditions=[bordering])), [])
+        self.expect(self.after(harvest(Subject="SettledSystem", Conditions=[bordering])), "the bordering condition walks the people's borders", "BorderingCivHasTrait")
+        self.assertEqual(self.after(harvest(Subject="SettledSystem", Conditions=[cond("CivLacksTrait", tag="Brick.Diet.StarEater")])), [])
+        self.expect(self.after(self.set_cell("DT_Hazards", "crisis_test_storm", "SpawnConditions", [bordering])),
+                    "the bordering condition would walk the owner's borders", "BorderingCivHasTrait")
+        self.assertEqual(self.after(self.set_cell("DT_Hazards", "crisis_test_storm", "SpawnConditions", [cond("CivLacksTrait", tag="Brick.Space.FoldedSmall")])), [])
+        # The knobs: the inert values pass; a range is held; a multiplier of a progress or a share is above 0.
+        rules = lambda column, value: self.set_cell("DT_Rules", "rules", column, value)  # noqa: E731
+        for column, value, word in (("BrickDarkMatterEnergyPerTick", -0.1, "below"), ("BrickStarEaterEnergyMultiplier", -1, "below"),
+                                    ("BrickStarEaterRelationTarget", -1.5, "below"), ("BrickMergeRelationTarget", 1.5, "above"),
+                                    ("BrickStarEaterDimPeriodTicks", -1, "below"), ("BrickParasiteCountdownBonusTicks", 100001, "above"),
+                                    ("BrickEvolutionPeriodTicks", 2.5, "whole"), ("BrickMutationThresholdTicks", -5, "below")):
+            with self.subTest(column=column):
+                self.expect(self.after(rules(column, value)), "rules.%s" % column, word)
+        self.assertEqual(self.after(rules("BrickStarEaterRelationTarget", -0.3)), [])
+        self.assertEqual(self.after(rules("BrickMergeRelationTarget", 0.3)), [])
+        for column in ("BrickNomadSettleProgressMultiplier", "BrickInwardResearchMultiplier", "BrickInwardHazardSpawnMultiplier", "BrickSwarmResearchMultiplier",
+                       "BrickStellarCrisisSpawnMultiplier"):
+            with self.subTest(column=column):
+                self.expect(self.after(rules(column, 0)), "rules", "a brick multiplier of a progress or a share", '"%s"' % column)
+        # The seed bricks: Brick.* tags only, empty by default.
+        self.assertEqual(self.after(rules("BrickSeedTags", tags_text("Brick.Diet.DarkMatter", "Brick.Space.Nomad"))), [])
+        self.expect(self.after(rules("BrickSeedTags", tags_text("Trait.Faith.Book"))), "rules.BrickSeedTags", "not under Brick.")
+        inert = {row["Name"]: row for row in self.tables["DT_Rules"]}["rules"]
+        for column, value in (("BrickDarkMatterEnergyPerTick", 0), ("BrickStarEaterEnergyMultiplier", 1), ("BrickStarEaterRelationTarget", 0),
+                              ("BrickStarEaterDimPeriodTicks", 0), ("BrickIdleInsightPerTick", 0), ("BrickSpanEnergyPerLane", 0),
+                              ("BrickParasiteCountdownBonusTicks", 0), ("BrickParasiteInsightPerHazard", 0), ("BrickNomadSettleProgressMultiplier", 1),
+                              ("BrickInwardResearchMultiplier", 1), ("BrickInwardHazardSpawnMultiplier", 1), ("BrickSwarmResearchMultiplier", 1),
+                              ("BrickMergeRelationTarget", 0), ("BrickEvolutionPeriodTicks", 0), ("BrickMutationThresholdTicks", 0),
+                              ("BrickStellarCrisisSpawnMultiplier", 1)):
+            with self.subTest(inert=column):
+                self.assertEqual(inert[column], value, "the data holds the inert value until [B-7x5]")
+        self.assertEqual(inert["BrickSeedTags"], "(GameplayTags=)")
+
+    def test_a_rung_never_from_a_brick(self):
+        """B7x [B-7x2] (header K4, section 3.3 rule 7; notes 5.4 data-3 and tests-8): a rung comes from a feat's deed, never
+        from a brick or a mutation - no feat row asks whether its people carries a brick or lacks one, nor what a bordering
+        people carries, and the rule names every Brick. tag of the ini (a brick declared later breaks the pin until the rule
+        names it too). A trait is still a feat's to read. And the settle gate's Inward line (Settle.Block.Inward) is held as
+        RealmCapLast is: no verdict, holy, rescue, rung-grasp or title word, and a figure only in a slot."""
+        self.assertEqual(self.after(), [])
+        k4 = "K4 - a rung comes from a feat's deed, never from a brick or a mutation (B7x header K4)"
+        rules = [rule for rule in self.schema["tables"]["DT_Feats"]["rules"] if rule["why"] == k4]
+        self.assertEqual(len(rules), 1)
+        self.assertNotIn("when", rules[0], "K4 holds for every feat row, on every path")
+        bricks = sorted(tag for tag in self.tags if tag.startswith("Brick.") and tag.count(".") == 2)
+        self.assertEqual(len(bricks), 17)
+        self.assertEqual(rules[0]["then"], [{"col": "CompletionConditions", "lacks_type": "BorderingCivHasTrait"}]
+                         + [{"col": "CompletionConditions", "lacks_cond": {"type": type_name, "tag": tag}}
+                            for type_name in ("CivHasTrait", "CivLacksTrait") for tag in bricks])
+        deed = cond("CivResearchAtLeast", key="Physics", value=0.5)
+        feat = lambda *conditions: self.set_cell("DT_Feats", "feat_test_climb", "CompletionConditions", [deed] + list(conditions))  # noqa: E731
+
+        def broken(problems, type_name, tag):
+            self.expect(problems, "DT_Feats.feat_test_climb", k4,
+                        json.dumps({"col": "CompletionConditions", "lacks_cond": {"type": type_name, "tag": tag}}))
+
+        # The named case: a mutation read as the price of a rung.
+        broken(self.after(feat(cond("CivHasTrait", tag="Brick.Mutation.StarTow"))), "CivHasTrait", "Brick.Mutation.StarTow")
+        for type_name in ("CivHasTrait", "CivLacksTrait"):
+            for tag in bricks:
+                with self.subTest(type_name=type_name, tag=tag):
+                    broken(self.after(feat(cond(type_name, tag=tag))), type_name, tag)
+        self.expect(self.after(feat(cond("BorderingCivHasTrait", tag="Trait.Faith.Book"))), "DT_Feats.feat_test_climb", k4,
+                    json.dumps({"col": "CompletionConditions", "lacks_type": "BorderingCivHasTrait"}))
+        self.assertEqual(self.after(feat(cond("CivHasTrait", tag="Trait.Faith.Book"))), [])
+        self.assertEqual(self.after(feat(cond("CivLacksTrait", tag="Trait.Faith.Book"))), [])
+        # A brick in the price is not K4's (a choice of the rule - the notes call it optional): the rule reads the deed only.
+        self.assertEqual(self.after(self.set_cell("DT_Feats", "feat_test_climb", "AscensionCost", [eff("AddTrait", tag="Brick.Form.Society")])), [])
+        # Settle.Block.Inward: the list pinned, right after RealmCapLast; every word of each list refused, a figure only in a slot.
+        prefixes = self.schema["string_table"]["checked_prefixes"]
+        inward = ["verdict", "holy_words", "rescue_words", "rung_grasp_words", "title_words"]
+        self.assertEqual(prefixes["Settle.Block.Inward"], {"forbidden": inward, "no_digits": True})
+        self.assertEqual(list(prefixes).index("Settle.Block.Inward"), list(prefixes).index("Settle.Block.RealmCapLast") + 1)
+        lists = self.schema["words"]
+        check = lambda text: checker.check_string_table("ST_X.csv", text, self.schema)  # noqa: E731
+        self.assertEqual(check('Key,SourceString\n"Settle.Block.Inward","안으로 접힌 백성은 더 넓히지 않는다."\n'), [])
+        for listed in inward:
+            for word in lists[listed]:
+                with self.subTest(key="Settle.Block.Inward", word=word):
+                    self.expect(check('Key,SourceString\n"Settle.Block.Inward","%s a."\n' % word), "entry 1 (Settle.Block.Inward)", "the word %s is not used here" % word)
+        self.expect(check('Key,SourceString\n"Settle.Block.Inward","칸 3"\n'), "entry 1 (Settle.Block.Inward)", "a digit outside a slot")
+        self.assertEqual(check('Key,SourceString\n"Settle.Block.Inward","칸 {0}"\n'), [])
+        # The same through the project's sources: the project's own Inward line, rewritten with a title word, is found.
+        sources = checker.read_sources()
+        rows = list(csv.reader(io.StringIO(checker.text_of(sources["ST_CA.csv"]))))
+        self.assertIn("Settle.Block.Inward", [row[0] for row in rows if row])
+        word = lists["title_words"][0]
+        for row in rows[1:]:
+            if row and row[0] == "Settle.Block.Inward":
+                row[1] = word + " a."
+        sources["ST_CA.csv"] = "".join(",".join('"%s"' % cell.replace('"', '""') for cell in row) + "\n" for row in rows if row).encode("utf-8")
+        self.expect(checker.check_sources(sources), "ST_CA.csv", "Settle.Block.Inward", "the word %s is not used here" % word)
 
     def test_per_tick_column(self):
         def per_tick(*items):
@@ -3779,6 +3925,11 @@ class SchemaTests(unittest.TestCase):
             ("DT_Events", "a system-subject row lands on a place and the stay condition is about the people: without a cooldown a Standing row would fire once for every settled system in the one slot, otherwise it lands on whichever settled system comes first (guideline 7.3)"):
                 (update_event(Subject="SettledSystem"), event),
             ("DT_Events", "the research stage fires the found row by name: as a slot row it would also fire in the slots (guideline 5.11)"): (NOTHING, "event_book_found"),
+            # B7x [B-7x2] (header section 2.3, 2.4): the bordering condition off system-subject rows and spawn conditions, and the
+            # brick multipliers above 0.
+            ("DT_Events", "a system-subject row is evaluated on every settled system of its slot, and the bordering condition walks the people's borders on each: it is about the people alone, so it stands on Civilization rows (B7x header section 2.3)"): (update_event(Subject="SettledSystem"), event),
+            ("DT_Hazards", "the stage reads the spawn conditions of every Draw row on every settled system on every tick: the bordering condition would walk the owner's borders once a system and a tick (B7x header section 2.3)"): (NOTHING, hazard),
+            ("DT_Rules", "a brick multiplier of a progress or a share multiplies what every tick of a people that carries the brick adds: at 0 or below a settlement or a research would never progress and a hazard would never come, so the code reads such a value as 1 (B7x header section 2.4)"): (NOTHING, "rules"),
             ("DT_Events", "a Lottery row with no weight never fires (guideline 7.5)"): (NOTHING, event),
             ("DT_Events", "only a Lottery row has a weight"): (update_event(Trigger="Standing", BaseWeight=0), event),
             ("DT_Events", "a row fired by name has no cooldown key"): (named, event),
@@ -3841,6 +3992,9 @@ class SchemaTests(unittest.TestCase):
             ("DT_Feats", "a ruler row names no selector word of the vessel either: Ruled and Former of SystemOwnedBy and Former of CivHasNotable in its conditions, and Former of NameNotable in its price (every people's climb pays it, an AI's too), resolve from the vessel (the people it rules, the one it left), so the row would judge the ruled people apart from every AI or name a notable in the vessel's former people (B6b answer A3, header 3.3 rule 6)"):
                 (NOTHING, "feat_test_climb"),
             ("DT_Feats", "a feat's price records no death on any path, the wanderer's too when its rows come: a death comes only from a hazard's own expiry (B5 decision 6-ga, header 3.5)"):
+                (NOTHING, "feat_test_climb"),
+            # B7x [B-7x2]: K4 - no feat row reads a brick (notes 5.4 data-3).
+            ("DT_Feats", "K4 - a rung comes from a feat's deed, never from a brick or a mutation (B7x header K4)"):
                 (NOTHING, "feat_test_climb"),
             ("DT_Rules", "the rate of the AI's projects multiplies their progress: at 0 or below they would never progress, so the code reads it as 1 with an error line (guideline 4.3, 5.7)"):
                 (NOTHING, "rules"),
@@ -4001,7 +4155,8 @@ class SchemaTests(unittest.TestCase):
                         self.expect(self.after(change), "%s.%s" % (table, row_name), rule["why"], json.dumps(test))
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
-        self.assertEqual(walked, 330, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        # B7x [B-7x2]: 337 + 35 (K4: one lacks_type and 17 bricks x 2 lacks_cond) = 372.
+        self.assertEqual(walked, 372, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

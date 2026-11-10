@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp b/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
+@@ -340,7 +340,7 @@
+ 	{
+ 		return 0;
+ 	}
+-	return FMath::Clamp(Rules.BrickParasiteCountdownBonusTicks, 0, 100000);
++	return FMath::Max(Rules.BrickParasiteCountdownBonusTicks, 0);
+ }
+ 
+ int32 CosmicBricks::ParasiteCountdownBonusOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicRulesDef& Rules, int32 SystemIndex, const FGameplayTag& Hazard)

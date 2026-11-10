@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+@@ -194,7 +194,6 @@
+ 		Out.BrickEvolutionPeriodTicks = Initial.BrickEvolutionPeriodTicks;
+ 		Out.BrickMutationThresholdTicks = Initial.BrickMutationThresholdTicks;
+ 		Out.BrickStellarCrisisSpawnMultiplier = Initial.BrickStellarCrisisSpawnMultiplier;
+-		Out.BrickSeedTags.Reset();
+ 		return Out;
+ 	}
+ 

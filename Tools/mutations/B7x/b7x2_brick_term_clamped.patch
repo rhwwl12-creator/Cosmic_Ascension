@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+@@ -292,7 +292,7 @@
+ 	const float BrickTerm = CosmicBricks::RelationTargetTermOf(State.Civs[Other], Rules);
+ 	if (BrickTerm != 0.f)
+ 	{
+-		Target += BrickTerm;
++		Target = FMath::Clamp(Target + BrickTerm, -1.f, 1.f);
+ 	}
+ 	return Target;
+ }

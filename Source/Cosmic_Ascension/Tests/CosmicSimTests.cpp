@@ -276,7 +276,8 @@ namespace CosmicSimTests
 	// in v0.7 (section 9.1), 24 leave their initializer here: no game code moves them off it yet, and a member that
 	// reloads as its initializer looks the same whether it was saved or not. The 25th, TellRngState, is not touched:
 	// NewGalaxy stamps it and DrawTell moves it. Needs three civs or more. The members after v0.7 that start at their
-	// initializer are set here too (MVP item 5's ChronicleEviction, B6a's Ending) - compared one by one with SameLaterMembers.
+	// initializer are set here too (MVP item 5's ChronicleEviction, B6a's Ending, B7x's TimeVectors and HostCivID) - compared
+	// one by one with SameLaterMembers.
 	void FillEmptyContainers(FGalaxyState& State)
 	{
 		State.ChronicleEviction.Count = 3;
@@ -338,6 +339,15 @@ namespace CosmicSimTests
 			Civ.GalaxyRow = HomeGalaxy;
 		}
 		State.Civs[1].OriginGalaxyRow = FName(TEXT("gal_andromeda"));
+		// B7x [B-7x1]: the six time vectors of a people (cumulative counts) and the host of a system (reserved - nothing reads it
+		// before [B-7x7]): both start at their initializer in a plain run.
+		State.Civs[1].TimeVectors.Built = 21;
+		State.Civs[1].TimeVectors.Consumed = 22;
+		State.Civs[1].TimeVectors.Drifted = 23;
+		State.Civs[1].TimeVectors.Linked = 24;
+		State.Civs[1].TimeVectors.Isolated = 25;
+		State.Civs[1].TimeVectors.Endured = 26;
+		State.Systems[1].HostCivID = State.Civs[2].CivID;
 
 		FKnownMark& KnownSystem = State.Knowing.KnownSystems.AddDefaulted_GetRef();
 		KnownSystem.ID = State.Systems[0].SystemID;
@@ -470,6 +480,18 @@ namespace CosmicSimTests
 			{
 				bSame = Left[Record].Row == Right[Record].Row && Left[Record].Tick == Right[Record].Tick && Left[Record].CivID == Right[Record].CivID;
 			}
+		}
+		// B7x [B-7x1]: the time vectors of every people and the host of every system.
+		for (int32 Index = 0; bSame && Index < A.Civs.Num(); ++Index)
+		{
+			const FCosmicTimeVectors& Left = A.Civs[Index].TimeVectors;
+			const FCosmicTimeVectors& Right = B.Civs[Index].TimeVectors;
+			bSame = Left.Built == Right.Built && Left.Consumed == Right.Consumed && Left.Drifted == Right.Drifted && Left.Linked == Right.Linked
+				&& Left.Isolated == Right.Isolated && Left.Endured == Right.Endured;
+		}
+		for (int32 Index = 0; bSame && Index < A.Systems.Num(); ++Index)
+		{
+			bSame = A.Systems[Index].HostCivID == B.Systems[Index].HostCivID;
 		}
 		return bSame;
 	}
@@ -1619,14 +1641,15 @@ bool FCosmicSimSeedDeriveTest::RunTest(const FString& Parameters)
 	const uint32 Purposes[] = {
 		CosmicSeed::Purpose::Tell, CosmicSeed::Purpose::Summary, CosmicSeed::Purpose::Name, CosmicSeed::Purpose::Life,
 		CosmicSeed::Purpose::Backdrop, CosmicSeed::Purpose::Scenery, CosmicSeed::Purpose::Depart, CosmicSeed::Purpose::Archetype,
-		CosmicSeed::Purpose::EventSlot, CosmicSeed::Purpose::Petition, CosmicSeed::Purpose::Encounter
+		CosmicSeed::Purpose::EventSlot, CosmicSeed::Purpose::Petition, CosmicSeed::Purpose::Encounter, CosmicSeed::Purpose::Digest,
+		CosmicSeed::Purpose::Brick
 	};
 	bool bPurposesFixed = true;
 	for (int32 Index = 0; Index < static_cast<int32>(UE_ARRAY_COUNT(Purposes)); ++Index)
 	{
 		bPurposesFixed &= Purposes[Index] == static_cast<uint32>(Index + 1);
 	}
-	TestTrue(TEXT("The eleven purposes are numbered 1 to 11 in their fixed order"), bPurposesFixed);
+	TestTrue(TEXT("The thirteen purposes are numbered 1 to 13 in their fixed order (Digest 12 - B5, Brick 13 - B7x)"), bPurposesFixed);
 
 	// The helper for a caller that holds an FName lower-cases for it, whatever casing the name was registered in.
 	TestEqual(TEXT("DeriveForName gives the reference value of the lower-case name"),

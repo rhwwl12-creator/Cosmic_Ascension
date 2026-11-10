@@ -1,0 +1,23 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp b/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
+@@ -359,14 +359,15 @@
+ 	TArray<bool> Borders;
+ 	CosmicDiplomacy::BordersOf(State, Index, OwnerIndex, Borders);
+ 	const FGameplayTag Parasite = CosmicTags::BrickDietCrisisParasite();
++	int32 Sum = 0;
+ 	for (int32 Other = 0; Other < Borders.Num() && Other < State.Civs.Num(); ++Other)
+ 	{
+ 		if (Borders[Other] && State.Civs[Other].Traits.HasTagExact(Parasite))
+ 		{
+-			return Bonus;
+-		}
+-	}
+-	return 0;
++			Sum += Bonus;
++		}
++	}
++	return Sum;
+ }
+ 
+ float CosmicBricks::ResearchMultiplierOf(const FCivilizationState& Civ, const FCosmicRulesDef& Rules)

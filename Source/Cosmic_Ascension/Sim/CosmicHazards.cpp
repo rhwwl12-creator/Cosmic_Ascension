@@ -13,6 +13,7 @@
 #include "GameplayTagContainer.h"
 #include "Sim/CosmicConflict.h"
 #include "Sim/CosmicEdicts.h"
+#include "Sim/CosmicExistenceBricks.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Templates/UnrealTemplate.h"
 
@@ -218,9 +219,12 @@ bool CosmicHazards::Place(FCosmicEvalContext& Ctx, int32 SystemIndex, FName Haza
 	// claimant of the system as it stands).
 	const int32 FleetDelay = CosmicConflict::FleetDelayOf(State, Ctx.Index, Ctx.Tables, Ctx.Rules, SystemIndex, *Row);
 	const int32 EdictBonus = CosmicEdicts::CountdownBonusOf(State, Ctx.Index, Ctx.Tables, SystemIndex, Row->HazardTag);
+	// The crisis parasite next door (B7x section 2.4): 0 unless the owner borders a people that carries Brick.Diet.CrisisParasite
+	// and DT_Rules.BrickParasiteCountdownBonusTicks is above 0 - never for the claim, the extinction or the supernova precursor.
+	const int32 ParasiteBonus = CosmicBricks::ParasiteCountdownBonusOf(State, Ctx.Index, Ctx.Rules, SystemIndex, Row->HazardTag);
 	System.ActiveHazard = Row->HazardTag;
 	System.HazardTicksRemaining = static_cast<int32>(FMath::Min<int64>(static_cast<int64>(FMath::Max(1, Row->CountdownTicks))
-		+ EdictBonus + FleetDelay, MAX_int32));
+		+ EdictBonus + FleetDelay + ParasiteBonus, MAX_int32));
 	Ctx.Notes.Add({ ECosmicWorldNote::HazardPlaced, SystemIndex, OwnerIndex, HazardRow });
 	return true;
 }

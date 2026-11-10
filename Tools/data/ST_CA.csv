@@ -460,3 +460,5 @@ Key,SourceString
 "Diplomacy.TreatyRungTip","조약은 맺은 두 백성 모두의 것이다 — 셋째 칸에 선 백성에게는 다음 칸의 조건 하나가 된다."
 "Settle.Block.RealmCapLast","지금의 칸이 다스릴 수 있는 성계 수에 닿았다."
 "Rung.Lost","다 지었다 — 그 성계를 되찾으면 갖춘다."
+"Settle.Block.Inward","안으로 접힌 백성은 더 넓히지 않는다."
+"Diplomacy.TipBricks","우리 삶의 꼴이 더하는 몫 {0}"

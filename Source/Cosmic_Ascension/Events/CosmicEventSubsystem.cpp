@@ -17,6 +17,7 @@
 #include "Sim/CosmicConflict.h"
 #include "Sim/CosmicDiplomacy.h"
 #include "Sim/CosmicEdicts.h"
+#include "Sim/CosmicExistenceBricks.h"
 #include "Sim/CosmicHazards.h"
 #include "Sim/CosmicMegaprojects.h"
 #include "Sim/CosmicResearch.h"
@@ -658,6 +659,36 @@ bool UCosmicEventSubsystem::Check(const FCosmicCondition& Condition, const FCosm
 		const int32 Ticks = TickCountOf(Condition.Key);
 		const int32 Window = FMath::Max(1, View.Rules.EventSlotTicks);
 		return Civ && Ticks > 0 && Civ->PressureEnduredTicks >= Ticks && Civ->PressureEnduredTicks - Ticks < Window;
+	}
+
+	case EConditionType::CivTimeVectorAtLeast:
+	{
+		// The cumulative time vector the Key names (B7x section 2.3); a Value below 1, or not a number, is false.
+		int32 Ticks = 0;
+		return Civ && Condition.Value >= 1.f && CosmicBricks::VectorOf(Civ->TimeVectors, Condition.Key, Ticks) && static_cast<float>(Ticks) >= Condition.Value;
+	}
+
+	case EConditionType::CivLacksTrait:
+		// The negation of CivHasTrait for a valid tag and an existing people (B7x section 2.3).
+		return Civ && Condition.Tag.IsValid() && !Civ->Traits.HasTag(Condition.Tag);
+
+	case EConditionType::BorderingCivHasTrait:
+	{
+		// Any people that borders the context people carries the tag (B7x section 2.3): one BordersOf walk.
+		if (!Civ || !Condition.Tag.IsValid())
+		{
+			return false;
+		}
+		TArray<bool> Borders;
+		CosmicDiplomacy::BordersOf(State, View.Index, View.CivIndex, Borders);
+		for (int32 Other = 0; Other < Borders.Num() && Other < State.Civs.Num(); ++Other)
+		{
+			if (Borders[Other] && State.Civs[Other].Traits.HasTag(Condition.Tag))
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	default:

@@ -1,0 +1,15 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+@@ -466,11 +466,6 @@
+ 	if (IsSettling(State, Index, CivIndex))
+ 	{
+ 		return ECosmicSettleBlock::Settling;
+-	}
+-	// B7x (section 2.5): a people folded inward settles no further - the last reason of the people.
+-	if (CosmicBricks::IsInward(State.Civs[CivIndex]))
+-	{
+-		return ECosmicSettleBlock::Inward;
+ 	}
+ 	if (SphereRefuses(State, Tables, CivIndex, Target))
+ 	{

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+@@ -209,7 +209,7 @@
+ 			TArray<FGameplayTag> Bricks;
+ 			for (const FGameplayTag& Held : Civ.Traits)
+ 			{
+-				if (CosmicTags::IsBrick(Held))
++				if (Held == CosmicTags::BrickFormSociety())
+ 				{
+ 					Bricks.Add(Held);
+ 				}

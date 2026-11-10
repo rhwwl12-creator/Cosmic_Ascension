@@ -193,6 +193,8 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 	// B6b: the two counters civ 0 reads (laws held 80 ticks, pressure endured 405) and a trade treaty with civ 1 - one partner.
 	Detached.Civs[0].LawsHeldTicks = 80;
 	Detached.Civs[0].PressureEnduredTicks = 405;
+	// B7x: civ 0 has built 30 ticks (the cumulative vector CivTimeVectorAtLeast reads).
+	Detached.Civs[0].TimeVectors.Built = 30;
 	Detached.Civs[0].Ties.FindOrAdd(Civ1).Treaties.AddTag(Tag(TEXT("Treaty.Trade")));
 	Detached.Civs[1].Ties.FindOrAdd(Detached.Civs[0].CivID).Treaties.AddTag(Tag(TEXT("Treaty.Trade")));
 	{
@@ -357,6 +359,16 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		{ Cond(EConditionType::CivPressureEnduredTicksReached, nullptr, FName(TEXT("395")), 0.f), 0, false },
 		{ Cond(EConditionType::CivPressureEnduredTicksReached, nullptr, FName(TEXT("406")), 0.f), 0, false },
 		{ Cond(EConditionType::CivPressureEnduredTicksReached, nullptr, FName(TEXT("abc")), 0.f), 0, false },
+		// B7x: the vector Built reaches 30 and not 31; a word that names no vector is false.
+		{ Cond(EConditionType::CivTimeVectorAtLeast, nullptr, FName(TEXT("Built")), 30.f), 0, true },
+		{ Cond(EConditionType::CivTimeVectorAtLeast, nullptr, FName(TEXT("Built")), 31.f), 0, false },
+		{ Cond(EConditionType::CivTimeVectorAtLeast, nullptr, FName(TEXT("Consumed")), 1.f), 0, false },
+		{ Cond(EConditionType::CivTimeVectorAtLeast, nullptr, FName(TEXT("Wandered")), 1.f), 0, false },
+		// A trait civ 0 lacks holds, one it carries does not.
+		{ Cond(EConditionType::CivLacksTrait, TEXT("Trait.Faith.Remnant"), NAME_None, 0.f), 0, true },
+		{ Cond(EConditionType::CivLacksTrait, TEXT("Trait.Faith.Seeking"), NAME_None, 0.f), 0, false },
+		// No people of the detached galaxy carries a brick, bordering or not (the true case is Events.BrickConditions).
+		{ Cond(EConditionType::BorderingCivHasTrait, TEXT("Brick.Diet.StarEater"), NAME_None, 0.f), 0, false },
 	};
 
 	auto Answers = [&](const FGalaxyState& State, int32 CivIndex, int32 SystemIndex)
@@ -377,7 +389,8 @@ bool FCosmicEventsCheckIsPureTest::RunTest(const FString& Parameters)
 		return Type <= EConditionType::SystemInfluencedBy || Type == EConditionType::CivHasNotable || Type == EConditionType::CivFallenSphereTicksReached
 			|| Type == EConditionType::CivResearchAtLeast || Type == EConditionType::SystemHazardTicksAtMost || Type == EConditionType::CivSettledSystemsAtLeast
 			|| Type == EConditionType::CivHasEdict || Type == EConditionType::CivHasTreaty || Type == EConditionType::CivLawsHeldTicksAtLeast
-			|| Type == EConditionType::CivPressureEnduredTicksReached;
+			|| Type == EConditionType::CivPressureEnduredTicksReached || Type == EConditionType::CivTimeVectorAtLeast
+			|| Type == EConditionType::CivLacksTrait || Type == EConditionType::BorderingCivHasTrait;
 	};
 	auto IsPlayerType = [](EConditionType Type)
 	{

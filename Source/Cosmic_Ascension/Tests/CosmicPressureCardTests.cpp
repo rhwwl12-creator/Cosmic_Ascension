@@ -140,8 +140,9 @@ namespace CosmicPressureCardTests
 	}
 
 	// A board of twelve systems and four peoples under quiet rules (no Lottery event, no drain, no first crisis, no
-	// projects, no inherited edict, no drift) with this file's edicts, hazards, card and a fallen row; fleets from the second
-	// rung and a resistance that keeps half the fleet. The player rules civ 0.
+	// projects, no inherited edict, no drift, the existence bricks inert and carried by no people - B7x,
+	// CosmicTests::WithInertBricks and StripBricks) with this file's edicts, hazards, card and a fallen row; fleets from the
+	// second rung and a resistance that keeps half the fleet. The player rules civ 0.
 	FGalaxyState* LayBoard(UGalaxySimulationSubsystem& Sim, const FCosmicDataTables& Original)
 	{
 		const FCosmicRulesDef* Game = Original.FindRules();
@@ -149,7 +150,7 @@ namespace CosmicPressureCardTests
 		{
 			return nullptr;
 		}
-		FCosmicRulesDef Rules = CosmicTests::WithoutStartingEdict(*Game);
+		FCosmicRulesDef Rules = CosmicTests::WithInertBricks(CosmicTests::WithoutStartingEdict(*Game));
 		Rules.EventChancePerSlot = 0.f;
 		Rules.SpiritualPressureStabilityDrain = 0.f;
 		Rules.FirstCrisisTick = 0;
@@ -172,6 +173,7 @@ namespace CosmicPressureCardTests
 		Sim.SetTables(CosmicTests::WithTranscendents(Tables, Transcendents));
 		Sim.NewGalaxy(42, 12, 4);
 		FGalaxyState& State = Sim.GetMutableState();
+		CosmicTests::StripBricks(State);
 		State.Transcendents.Reset();
 		return &State;
 	}
@@ -231,7 +233,8 @@ namespace CosmicPressureCardTests
 		{
 			return nullptr;
 		}
-		FCosmicRulesDef Rules = CosmicTests::WithoutStartingEdict(*Game);
+		// The existence bricks inert and carried by no people (B7x - CosmicTests::WithInertBricks, StripBricks below).
+		FCosmicRulesDef Rules = CosmicTests::WithInertBricks(CosmicTests::WithoutStartingEdict(*Game));
 		Rules.EventChancePerSlot = 0.f;
 		Rules.SpiritualPressureStabilityDrain = 0.f;
 		Rules.FirstCrisisTick = 0;
@@ -252,6 +255,7 @@ namespace CosmicPressureCardTests
 		Sim.SetTables(CosmicTests::WithTranscendents(Tables, Transcendents));
 		Sim.NewGalaxy(42, 12, 4);
 		FGalaxyState& State = Sim.GetMutableState();
+		CosmicTests::StripBricks(State);
 		if (State.Civs.Num() != 4 || !CosmicTests::WireChain(State))
 		{
 			return nullptr;

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Core/GalaxyState.h b/Source/Cosmic_Ascension/Core/GalaxyState.h
+--- a/Source/Cosmic_Ascension/Core/GalaxyState.h
++++ b/Source/Cosmic_Ascension/Core/GalaxyState.h
+@@ -258,7 +258,7 @@
+ 	// Ticks in which a system the people owns had a megaproject in progress other than the settle row (project_settle):
+ 	// its construction slot or its response slot.
+ 	UPROPERTY(BlueprintReadOnly)
+-	int32 Built = 0;
++	int32 Built = 1;
+ 
+ 	// Ticks in which the people's fleet was aimed at a system another people owns (a siege of its own), or the people held
+ 	// the edict of DT_Rules.StartingEdict.

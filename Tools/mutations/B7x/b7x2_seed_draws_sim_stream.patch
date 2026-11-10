@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -938,7 +938,7 @@
+ 			// integer (CosmicSeed Purpose::Brick) - no sim draw, and nothing at all while the knob is empty.
+ 			if (!bPlayerCiv)
+ 			{
+-				const FGameplayTag Seeded = CosmicBricks::SeedBrickOf(Rules, Seed, Civ);
++				const FGameplayTag Seeded = CosmicBricks::SeedBrickOf(Rules, Rules.BrickSeedTags.Num() > 0 ? static_cast<int32>(Rng.GetUnsignedInt()) : Seed, Civ);
+ 				if (Seeded.IsValid())
+ 				{
+ 					Civ.Traits.AddTag(Seeded);

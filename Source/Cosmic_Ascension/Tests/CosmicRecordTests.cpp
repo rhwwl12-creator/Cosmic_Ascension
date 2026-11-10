@@ -73,13 +73,14 @@ namespace CosmicRecordTests
 	 * The game's tables with: the rules without the inherited edict, the event slot, the first crisis, the periodic petition,
 	 * drift, fleets, spread and settlement, claims one lane out; no projects or feats; three hazard rows of the tests (a
 	 * supernova, a claim and a plague, none drawn); the game's grace of the remnant as the one event row; one fallen row of
-	 * the fourth rung that speaks when it joins; no card. With bRecordRows false, the game's DT_LogTemplates without the two
+	 * the fourth rung that speaks when it joins; no card; the existence bricks inert (B7x - CosmicTests::WithInertBricks;
+	 * LayBoard strips the bricks off the peoples). With bRecordRows false, the game's DT_LogTemplates without the two
 	 * record rows (CosmicRows::LogRecordDestroyed, LogRecordAnnexed) - the same world told without its record.
 	 */
 	FCosmicDataTables TablesOf(const FCosmicDataTables& Original, bool bRecordRows)
 	{
 		const FCosmicRulesDef* GameRules = Original.FindRules();
-		FCosmicRulesDef Rules = CosmicTests::WithoutStartingEdict(GameRules ? *GameRules : FCosmicRulesDef());
+		FCosmicRulesDef Rules = CosmicTests::WithInertBricks(CosmicTests::WithoutStartingEdict(GameRules ? *GameRules : FCosmicRulesDef()));
 		Rules.EventSlotTicks = 10;
 		Rules.EventChancePerSlot = 0.f;
 		Rules.FirstCrisisTick = 0;
@@ -138,6 +139,7 @@ namespace CosmicRecordTests
 		Sim.SetTables(Tables);
 		Sim.NewGalaxy(42, 12, 4);
 		FGalaxyState& State = Sim.GetMutableState();
+		CosmicTests::StripBricks(State);
 		if (!CosmicTests::WireChain(State) || State.Civs.Num() != 4 || State.Player.RuledCivID != State.Civs[0].CivID)
 		{
 			return nullptr;

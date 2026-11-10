@@ -126,7 +126,8 @@ namespace CosmicDiplomacyTests
 	 * 0 borders 1 (lane 1-2), 1 borders 2 (4-5) and 3 (4-10), 2 borders 3 (7-8). Realm caps {4, 4, 5, 5, 5}, so no settlement
 	 * has a target and a T2 people may still take a system. Every people on the first rung with ethics 0. Diplomacy and
 	 * conflict off (no drift, no fleet, no spread - whatever DT_Rules holds), the AI's gate toward the ruled people the general
-	 * one, and no sight stage (FirstSightTick far away):
+	 * one, and no sight stage (FirstSightTick far away); the existence bricks inert and carried by no people (B7x -
+	 * CosmicTests::WithInertBricks, StripBricks: no seed brick and no brick's term in a drift target):
 	 * the case turns on what it reads, and every knowing write it sees comes from the path under test.
 	 */
 	FGalaxyState* LayBoard(UGalaxySimulationSubsystem& Sim, const FCosmicDataTables& Original, TFunctionRef<void(FCosmicRulesDef&)> Edit, float SickChance = 0.f)
@@ -136,7 +137,7 @@ namespace CosmicDiplomacyTests
 		{
 			return nullptr;
 		}
-		FCosmicRulesDef Rules = CosmicTests::WithoutStartingEdict(*Game);
+		FCosmicRulesDef Rules = CosmicTests::WithInertBricks(CosmicTests::WithoutStartingEdict(*Game));
 		Rules.EventChancePerSlot = 0.f;
 		Rules.SpiritualPressureStabilityDrain = 0.f;
 		Rules.FirstCrisisTick = 0;
@@ -158,6 +159,7 @@ namespace CosmicDiplomacyTests
 		Sim.SetTables(Tables);
 		Sim.NewGalaxy(42, 12, 4);
 		FGalaxyState& State = Sim.GetMutableState();
+		CosmicTests::StripBricks(State);
 		if (State.Civs.Num() != 4 || !CosmicTests::WireChain(State))
 		{
 			return nullptr;

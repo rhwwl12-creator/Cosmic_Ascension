@@ -13,6 +13,7 @@
 #include "Internationalization/Text.h"
 #include "Math/NumericLimits.h"
 #include "Sim/CosmicEvalContext.h"
+#include "Sim/CosmicExistenceBricks.h"
 #include "Sim/CosmicStateIndex.h"
 
 namespace CosmicDiplomacyImpl
@@ -284,6 +285,14 @@ float CosmicDiplomacy::TargetRelationOf(const FGalaxyState& State, const FCosmic
 	if (Rules.RelationStanceTerms.IsValidIndex(TermAt))
 	{
 		Target += CosmicDiplomacyImpl::Term(Rules.RelationStanceTerms[TermAt]);
+	}
+	// The bricks of the people seen (B7x [B-7x2]): a star eater is seen worse, a merging people better - 0 for a people that
+	// carries neither or under the inert knobs, and then the target keeps its bits. A term added like the stance term; the
+	// drift stage clamps the relation.
+	const float BrickTerm = CosmicBricks::RelationTargetTermOf(State.Civs[Other], Rules);
+	if (BrickTerm != 0.f)
+	{
+		Target += BrickTerm;
 	}
 	return Target;
 }

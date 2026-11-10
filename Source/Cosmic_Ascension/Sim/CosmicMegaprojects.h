@@ -178,7 +178,9 @@ namespace CosmicMegaprojects
 	// Why a settlement of a system is refused, in the order SettleBlockOf asks (the system panel shows it - section 5.7,
 	// 5.12): first the sanctuary, which no people settles whoever asks; then what the system is (an owner, a dead node, no
 	// foothold one lane away), then what the people may do now (the settle row and its Tier, the realm cap, a settlement
-	// under way), last the sphere that the third rung lifts. Never saved: an enumerator may go anywhere.
+	// under way, and - appended last, asked right after Settling - a people folded inward, B7x), last the sphere that the
+	// third rung lifts. Never saved; new enumerators are appended at the end (B7x), so from Inward on the order of the
+	// enumerators is no longer the order of the asking.
 	enum class ECosmicSettleBlock : uint8
 	{
 		None,
@@ -203,6 +205,10 @@ namespace CosmicMegaprojects
 		// The system lies in the sphere of an unsealed transcendent (one with a DT_Transcendents row, as the pressure counts
 		// them) and the people stands below Tier 3 (section 4.2 modifier 4).
 		Sphere,
+		// B7x [B-7x2] (section 2.5): the people is folded inward - it carries Brick.Space.ClosedPort or
+		// Brick.Space.FoldedSmall (CosmicBricks::IsInward) - and starts no further settlement. A reason of the people, asked
+		// right after Settling.
+		Inward,
 		// The number of the values above (not a reason).
 		Count,
 	};
@@ -212,8 +218,8 @@ namespace CosmicMegaprojects
 	 * system is not the sanctuary (asked first, of any people - a people out of range included), it is wild (no owner,
 	 * not a dead node) and one lane from a settled system the people owns, in that system's
 	 * GalaxyRow; the project_settle row exists and its RequiredTier is at most the people's Tier; the people owns fewer
-	 * systems than RealmCapOf its Tier and has no settlement under way (MaySettle); and outside every sphere, or on Tier 3
-	 * or higher. Reads only; draws nothing.
+	 * systems than RealmCapOf its Tier and has no settlement under way (MaySettle); the people is not folded inward
+	 * (CosmicBricks::IsInward - Inward, B7x); and outside every sphere, or on Tier 3 or higher. Reads only; draws nothing.
 	 */
 	COSMIC_ASCENSION_API ECosmicSettleBlock SettleBlockOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, const FCosmicRulesDef& Rules, int32 CivIndex, int32 SystemIndex);
 
@@ -228,7 +234,7 @@ namespace CosmicMegaprojects
 	/**
 	 * Why the people CivIndex starts no settlement now, as one reason (the balance commandlet counts it - section 9.3):
 	 * NoPeople for an index out of range; NoLane when it owns no settled system; then the people's reasons of SettleBlockOf
-	 * in its order - NoRow, RowTier, RealmCap, Settling; then, when none of those stands, the lane neighbours of its
+	 * in its order - NoRow, RowTier, RealmCap, Settling, Inward (B7x); then, when none of those stands, the lane neighbours of its
 	 * settled systems (the candidates of SettleTargets), each read by SettleBlockOf itself: None as soon as one of them is
 	 * a target, otherwise the strongest of their reasons - Sphere (the third rung lifts it) before Owned before Dead
 	 * before NoLane (no neighbour, or none in the galaxy row of a foothold; the sanctuary counts as no neighbour, and is

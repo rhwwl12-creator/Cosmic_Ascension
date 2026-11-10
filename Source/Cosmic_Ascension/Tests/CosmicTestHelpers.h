@@ -13,6 +13,7 @@
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "Core/CosmicIDs.h"
+#include "Core/CosmicTags.h"
 #include "Core/GalaxyState.h"
 #include "Data/CosmicConditionTypes.h"
 #include "Data/CosmicDataTables.h"
@@ -174,6 +175,59 @@ namespace CosmicTests
 		FCosmicRulesDef Out = Rules;
 		Out.StartingEdict = NAME_None;
 		return Out;
+	}
+
+	// The rules with the existence bricks inert (B7x - notes section 5.4, test hand-off 1): the sixteen numeric Brick knobs back
+	// to the initializers of a default-constructed FCosmicRulesDef (a multiplier 1, a flat amount 0, a period or a threshold 0)
+	// and BrickSeedTags emptied (NewGalaxy seeds no brick); every other field as given. For a shared board that reads the game's
+	// rules as its base and its numbers as constants: once the data gives the knobs their values ([B-7x5s]) such a board would
+	// see the seed bricks and the shares. Apply it before a case's own edits (a case of a brick sets its knob after it), and lay
+	// the board's peoples with StripBricks (below). Sim.BrickBoardHelpers holds it to every Brick field of the struct.
+	inline FCosmicRulesDef WithInertBricks(const FCosmicRulesDef& Rules)
+	{
+		const FCosmicRulesDef Initial;
+		FCosmicRulesDef Out = Rules;
+		Out.BrickDarkMatterEnergyPerTick = Initial.BrickDarkMatterEnergyPerTick;
+		Out.BrickStarEaterEnergyMultiplier = Initial.BrickStarEaterEnergyMultiplier;
+		Out.BrickStarEaterRelationTarget = Initial.BrickStarEaterRelationTarget;
+		Out.BrickStarEaterDimPeriodTicks = Initial.BrickStarEaterDimPeriodTicks;
+		Out.BrickIdleInsightPerTick = Initial.BrickIdleInsightPerTick;
+		Out.BrickSpanEnergyPerLane = Initial.BrickSpanEnergyPerLane;
+		Out.BrickParasiteCountdownBonusTicks = Initial.BrickParasiteCountdownBonusTicks;
+		Out.BrickParasiteInsightPerHazard = Initial.BrickParasiteInsightPerHazard;
+		Out.BrickNomadSettleProgressMultiplier = Initial.BrickNomadSettleProgressMultiplier;
+		Out.BrickInwardResearchMultiplier = Initial.BrickInwardResearchMultiplier;
+		Out.BrickInwardHazardSpawnMultiplier = Initial.BrickInwardHazardSpawnMultiplier;
+		Out.BrickSwarmResearchMultiplier = Initial.BrickSwarmResearchMultiplier;
+		Out.BrickMergeRelationTarget = Initial.BrickMergeRelationTarget;
+		Out.BrickEvolutionPeriodTicks = Initial.BrickEvolutionPeriodTicks;
+		Out.BrickMutationThresholdTicks = Initial.BrickMutationThresholdTicks;
+		Out.BrickStellarCrisisSpawnMultiplier = Initial.BrickStellarCrisisSpawnMultiplier;
+		Out.BrickSeedTags.Reset();
+		return Out;
+	}
+
+	// Every existence brick (CosmicTags::IsBrick) taken off the Traits of every people (B7x - notes section 5.4, test hand-off
+	// 1): the seed brick NewGalaxy gives an AI people and the bricks an archetype row carries (from [B-7x5s] the first
+	// life's Brick.Form.Society among them); every other tag - the archetype's Trait.* - stays. Writes Traits only: no draw, and
+	// the state index does not hold traits. Call it right after NewGalaxy on a board whose rules are WithInertBricks'.
+	inline void StripBricks(FGalaxyState& State)
+	{
+		for (FCivilizationState& Civ : State.Civs)
+		{
+			TArray<FGameplayTag> Bricks;
+			for (const FGameplayTag& Held : Civ.Traits)
+			{
+				if (CosmicTags::IsBrick(Held))
+				{
+					Bricks.Add(Held);
+				}
+			}
+			for (const FGameplayTag& Brick : Bricks)
+			{
+				Civ.Traits.RemoveTag(Brick);
+			}
+		}
 	}
 
 	// The player's first act in a game of the game's data (B2): the inherited edict revoked, as the edict hint teaches - for a

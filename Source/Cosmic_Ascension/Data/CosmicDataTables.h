@@ -146,8 +146,9 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 	TArray<FName> GetGalaxyRowNames() const;
 
 	// Whether some DT_Hazards row lists RowName in RulerResolutions. Called with DT_Megaprojects rows: such a project
-	// answers a hazard and runs in the response slot (section 5.7). It is true for a listed DT_Edicts row too (B2), but no
-	// caller passes one - an edict answers at the expiry (CosmicEdicts::HeldAnswerOf).
+	// answers a hazard and runs in the response slot (section 5.7). It is true for a listed DT_Edicts row too (B2): an edict
+	// answers at the expiry (CosmicEdicts::HeldAnswerOf), and CosmicEdicts::IsAnswerEdict and AIRevokesOf (B7x, a kept-law
+	// people revokes a crisis's answer) ask it of an edict row.
 	bool IsHazardAnswer(FName RowName) const;
 
 private:

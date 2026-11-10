@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp b/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
+@@ -404,7 +404,7 @@
+ 	float Out = Share;
+ 	// The inward people's damping spares the hazards no brick touches (IsSparedHazard): the claim, the extinction and the
+ 	// supernova precursor keep their shares.
+-	if (Owner.Traits.HasTagExact(CosmicTags::BrickSpaceFoldedSmall()) && !IsSparedHazard(Hazard))
++	if (Owner.Traits.HasTagExact(CosmicTags::BrickSpaceFoldedSmall()))
+ 	{
+ 		const float Factor = PositiveFactorOf(Rules.BrickInwardHazardSpawnMultiplier);
+ 		Out = Factor != 1.f ? Out * Factor : Out;

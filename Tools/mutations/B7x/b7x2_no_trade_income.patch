@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1784,7 +1784,6 @@
+ 		const int32 TradeTreaties = CosmicDiplomacy::TradeTreatyCountOf(Civ);
+ 		if (TradeTreaties > 0)
+ 		{
+-			Income.Influence += EconomyRateOf(Rules.TradeInfluencePerTreaty) * static_cast<float>(TradeTreaties);
+ 		}
+ 		// The bricks' shares (B7x section 2.4): a people that carries none - or under the inert knobs - keeps its income as it is.
+ 		CosmicBricks::AddIncomeShares(State, StateIndex, Rules, CivIndex, Income);

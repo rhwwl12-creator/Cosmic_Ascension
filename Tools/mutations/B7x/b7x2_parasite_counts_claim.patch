@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp b/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicExistenceBricks.cpp
+@@ -269,7 +269,7 @@
+ 		for (const int32 SystemIndex : SettledOf(State, Index, State.Civs[Other]))
+ 		{
+ 			const FGameplayTag Hazard = State.Systems[SystemIndex].ActiveHazard;
+-			Count += (Hazard.IsValid() && !IsSparedHazard(Hazard)) ? 1 : 0;
++			Count += (Hazard.IsValid() && (!IsSparedHazard(Hazard) || Hazard == CosmicTags::HazardClaim())) ? 1 : 0;
+ 		}
+ 	}
+ 	return Count;

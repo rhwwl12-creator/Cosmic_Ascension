@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+@@ -658,7 +658,7 @@
+ 		// The window of CivFallenSphereTicksReached over the endured pressure (B6b section 2.7): one slot of a stretch.
+ 		const int32 Ticks = TickCountOf(Condition.Key);
+ 		const int32 Window = FMath::Max(1, View.Rules.EventSlotTicks);
+-		return Civ && Ticks > 0 && Civ->PressureEnduredTicks >= Ticks && Civ->PressureEnduredTicks - Ticks < Window;
++		return Civ && Ticks > 0 && Civ->PressureEnduredTicks >= Ticks && Civ->PressureEnduredTicks - Ticks <= Window;
+ 	}
+ 
+ 	case EConditionType::CivTimeVectorAtLeast:

@@ -26,6 +26,7 @@
 #include "Sim/CosmicConflict.h"
 #include "Sim/CosmicDiplomacy.h"
 #include "Sim/CosmicEdicts.h"
+#include "Sim/CosmicExistenceBricks.h"
 #include "Sim/CosmicResearch.h"
 #include "Sim/CosmicStateIndex.h"
 #include "Sim/GalaxySimulationSubsystem.h"
@@ -1064,7 +1065,8 @@ FText UCosmicEdictWidget::ViewTipOf(const FGalaxyState& State, const FCosmicStat
 	}
 	const FCivilizationState& Them = State.Civs[Viewer];
 	const FCivilizationState& Us = State.Civs[Viewed];
-	// The terms as CosmicDiplomacy::TargetRelationOf sums them: the ethics, the stance we hold toward them, the treaties.
+	// The terms as CosmicDiplomacy::TargetRelationOf sums them: the ethics, the stance we hold toward them, the treaties, and the
+	// bricks we carry (B7x - CosmicBricks::RelationTargetTermOf; shown only when not 0).
 	const float Ethics = -Rules.RelationEthicsWeight * CosmicDiplomacy::EthicsDistanceOf(Them.Ethics, Us.Ethics);
 	const float Treaties = Rules.RelationTreatyTerm * static_cast<float>(CosmicDiplomacy::TreatyCountOf(Them, Us.CivID));
 	TArray<FText> Lines;
@@ -1078,6 +1080,11 @@ FText UCosmicEdictWidget::ViewTipOf(const FGalaxyState& State, const FCosmicStat
 		Lines.Add(FText::Format(Label(TEXT("Diplomacy.TipEthics")), Signed(Ethics)));
 		Lines.Add(FText::Format(Label(TEXT("Diplomacy.TipStance")), Signed(Stance)));
 		Lines.Add(FText::Format(Label(TEXT("Diplomacy.TipTreaties")), Signed(Treaties)));
+		const float Bricks = CosmicBricks::RelationTargetTermOf(Us, Rules);
+		if (Bricks != 0.f)
+		{
+			Lines.Add(FText::Format(Label(TEXT("Diplomacy.TipBricks")), Signed(Bricks)));
+		}
 	}
 	else
 	{
