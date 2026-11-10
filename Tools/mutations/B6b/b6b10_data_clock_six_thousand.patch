@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_Rules.json b/Tools/data/DT_Rules.json
+--- a/Tools/data/DT_Rules.json
++++ b/Tools/data/DT_Rules.json
+@@ -54,7 +54,7 @@
+ 		"ClaimLeaveProfiles": "(GameplayTags=((TagName=\"AI.Profile.Expansionist\"),(TagName=\"AI.Profile.Militarist\")))",
+ 		"FirstCrisisTick": 150,
+ 		"FirstCrisisHazard": "Hazard.AIAwakening",
+-		"ProvisionalEndTick": 9000,
++		"ProvisionalEndTick": 6000,
+ 		"ChronicleCap": 1500,
+ 		"ResearchFocusShare": 0.55,
+ 		"TierMultiplier": [1.0, 1.5, 2.2, 3.0, 3.0],

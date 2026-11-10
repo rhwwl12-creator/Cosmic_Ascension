@@ -173,7 +173,7 @@ namespace CosmicChronicleScreenTests
 	}
 }
 
-// The provisional end's latch and lock (MVP item 4): the clock end at exactly tick 6,000, the speed before it, the lock on
+// The provisional end's latch and lock (MVP item 4): the clock end at exactly the clock's tick, the speed before it, the lock on
 // the speeds, the keys and the commands, the card folded, the wait before the page, the third rung's two orders with the
 // presentation (no end since B6a) and the clock's end over the presentation, the ruled people's end over its fifth rung's
 // presentation (B6b decisions 26, 27: the end falls on the tick of that presentation - the fifth's look, no reveal, the page
@@ -218,7 +218,7 @@ bool FCosmicUIRunEndTest::RunTest(const FString& Parameters)
 		return false;
 	}
 	const int32 EndTick = Sim->GetRules().ProvisionalEndTick;
-	TestEqual(TEXT("(the game's clock end is tick 6,000)"), EndTick, 6000);
+	TestEqual(TEXT("(the game's clock end is tick 9,000)"), EndTick, 9000);
 
 	// (2) Before the end the speed is the viewer's.
 	Live.Tick = EndTick - 2;
@@ -389,7 +389,7 @@ bool FCosmicUIRunEndTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("and no system selected once the map is rebuilt"), Controller->GetSelectedSystem().IsNone());
 	Sim->SetTimeScale(0.f);
 
-	// (10) With the switch off, tick 6,000 is a tick like any other.
+	// (10) With the switch off, the clock's tick is a tick like any other.
 	Controller->SetProvisionalEndEnabled(false);
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	Quiet(*Screen.Overlay);
@@ -413,7 +413,7 @@ bool FCosmicUIRunEndTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("and folds the page"), Page->IsOpen());
 
 	// (6) The third rung with the presentation, which ends no run (B6a decision 2-ga), and the end over the presentation:
-	// the clock is switched off (the climb may pass tick 6,000), the climb to the second rung runs headless, then the
+	// the clock is switched off (the climb may pass the clock's tick), the climb to the second rung runs headless, then the
 	// stabilization of a supernova is stepped with the broadcast on - SetSpeed(10) before each step, as AcquireSim left the
 	// speed at 0 (no pause and no presentation would stop anything).
 	FCosmicRulesDef NoClock = Sim->GetRules();

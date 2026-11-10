@@ -349,11 +349,12 @@ bool FCosmicLeapDeterminismTest::RunTest(const FString& Parameters)
 	// ---- B6a [B-6a3c] (header section 2.6): across the end's stop, with the end switched off ----
 	// A death at 5,500 with a leap of 800 over the clock (6,000): RunLeap stops at the tick that wrote the record, and with the
 	// switch off AdvanceLeap calls it once more for the rest - the same state as the leap one tick at a time (mutation: without
-	// the second call the rest of the leap is left and the tick stops at 6,000).
+	// the second call the rest of the leap is left and the tick stops at 6,000). The test keeps its own clock at 6,000
+	// (EndingClockAt): the leap over the clock is the subject, and from B6b [B-6b10] the game's clock lies past it.
 	{
 		Controller->SetProvisionalEndEnabled(false);
 		ON_SCOPE_EXIT { Controller->SetProvisionalEndEnabled(true); };
-		Sim->SetTables(CosmicTests::WithRules(Original, LeapRules(Sim->GetRules(), 800, 800)));
+		Sim->SetTables(CosmicTests::WithRules(Original, CosmicTests::EndingClockAt(LeapRules(Sim->GetRules(), 800, 800), 6000)));
 		const int64 ClockTick = Sim->GetRules().ProvisionalEndTick;
 		const int64 Died = 5500;
 		auto DieAt5500 = [Sim, Died]() -> FGalaxyState&

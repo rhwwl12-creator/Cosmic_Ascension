@@ -1161,13 +1161,16 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	UPROPERTY(EditAnywhere)
 	FGameplayTag FirstCrisisHazard;
 
-	// ---- The provisional end (MVP item 4): from B6a the clock kind of the ending record, Ending.Clock - provisional until B6b sets its last value (#2) ----
+	// ---- The end of the run by the clock (MVP item 4): from B6a the clock kind of the ending record, Ending.Clock; its value set by B6b [B-6b10] (#2 - the value; the row closes at [B-6b12]) ----
 
 	// The MVP run's clock end (CosmicEndings::EndingOf - Ending.Clock): the tick in which State.Tick reaches this writes the record State.Ending when no end
 	// stands yet and none before the clock in the order holds; from that tick boundary the presentation keeps the time stopped and opens the chronicle, and the
 	// run's last tick is this one. 0 or below = no clock end. The simulation records the end and does not stop at it (RunLeap alone stops in the record's
 	// tick; the commandlet reports it).
-	// Start value 6000 = ten minutes of running at x10; it lengthens only a run the clock ends.
+	// DT_Rules holds the last value 9000 = about 15 minutes of running at x10 (B6b [B-6b10], decision 35 - header B6b section
+	// 5.3): the 80th percentile (48th of 60, nearest rank) of the slow ruler's (-Focus=0) first fifth-rung end over seeds 1~60,
+	// run with no clock to 20,000 ticks, rounded up to a multiple of 1,000 and held within 6,000..18,000. The C++ default keeps
+	// the B6a start value 6000 (a board without DT_Rules). A save ended by the clock at 6,000 stays ended: the record decides, never this knob.
 	UPROPERTY(EditAnywhere)
 	int32 ProvisionalEndTick = 6000;
 

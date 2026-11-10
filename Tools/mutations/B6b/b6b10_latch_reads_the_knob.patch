@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicGameMode.cpp
+@@ -1212,7 +1212,7 @@
+ 		// The record the tick wrote after its tenth stage (B6a header section 2.7) - never the predicate afresh: a state with no
+ 		// record goes on (a save from before the field, decision 2-da, until its next tick writes one).
+ 		const FCosmicEndingRecord Ending = Sim->GetState().Ending;
+-		if (!Ending.Kind.IsValid())
++		if (!Ending.Kind.IsValid() || (Ending.Kind == CosmicTags::EndingClock() && Ending.Tick < Sim->GetRules().ProvisionalEndTick))
+ 		{
+ 			return;
+ 		}

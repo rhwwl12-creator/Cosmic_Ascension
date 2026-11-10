@@ -71,6 +71,15 @@ namespace CosmicTests
 		State.Ending.bNoVessel = false;
 	}
 
+	// The game's rules with the clock at ClockTick (0 = no clock) - moved from CosmicEndingTests in B6b [B-6b10] so a save
+	// test can open a state under a clock the game no longer has (Sim.SaveOldEndFlows (5)).
+	inline FCosmicRulesDef EndingClockAt(const FCosmicRulesDef& Base, int32 ClockTick)
+	{
+		FCosmicRulesDef Rules = Base;
+		Rules.ProvisionalEndTick = ClockTick;
+		return Rules;
+	}
+
 	inline UGameInstance* FindGameInstance()
 	{
 		if (GEngine)

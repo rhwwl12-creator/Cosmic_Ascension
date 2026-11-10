@@ -134,13 +134,7 @@ namespace CosmicEndingTests
 
 	// ---- Live boards (B-6a3b) ----
 
-	// The game's rules with the clock at ClockTick (0 = no clock).
-	FCosmicRulesDef EndingClockAt(const FCosmicRulesDef& Base, int32 ClockTick)
-	{
-		FCosmicRulesDef Rules = Base;
-		Rules.ProvisionalEndTick = ClockTick;
-		return Rules;
-	}
+	using CosmicTests::EndingClockAt;   // B6b [B-6b10]: the helper lives in Tests/CosmicTestHelpers.h
 
 	// The game's rules with the interregnum's leap exactly Ticks long (one number either way - B5 decision 3).
 	FCosmicRulesDef EndingLeapOf(const FCosmicRulesDef& Base, int32 Ticks)
@@ -393,7 +387,7 @@ bool FCosmicSimHashCoversEndingTest::RunTest(const FString& Parameters)
 // exception, or widening it to every kind, breaks it); a third or fourth peak is no end; knowing, the log, the chronicle and the
 // tell stream change no answer (mutation: an OtherPeople that reads Knowing.MetCivs answers differently over an empty, a partial
 // and a full MetCivs); a knob at 0 or below has no clock; NameOf(tag) is the leaf word. From [B-6a3c] the cases of the deleted
-// Sim.ProvisionalEnd live here: the game's clock is 6,000, a life before the last at the third rung and a people raised by
+// Sim.ProvisionalEnd live here: the game's clock is 9,000 (B6b [B-6b10]), a life before the last at the third rung and a people raised by
 // hand to it are no end, and the predicate is pure on a live state (a thousand answers move no hash and no stream).
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimEndingOfTest, "Cosmic_Ascension.Sim.EndingOf", CosmicTests::Flags)
 bool FCosmicSimEndingOfTest::RunTest(const FString& Parameters)
@@ -619,7 +613,7 @@ bool FCosmicSimEndingOfTest::RunTest(const FString& Parameters)
 			Sim->NewGalaxy(42, 5, 3);
 			Sim->SetTimeScale(0.f);
 		};
-		TestEqual(TEXT("The game's clock end is tick 6,000"), Sim->GetRules().ProvisionalEndTick, 6000);
+		TestEqual(TEXT("The game's clock end is tick 9,000 (B6b decision 35)"), Sim->GetRules().ProvisionalEndTick, 9000);
 		Sim->NewGalaxy(42, 5, 3);
 		FGalaxyState& Live = Sim->GetMutableState();
 		if (TestFalse(TEXT("(the board has a life)"), Live.Calling.Lives.IsEmpty()))
