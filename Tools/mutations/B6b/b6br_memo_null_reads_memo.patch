@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp b/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
+--- a/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
++++ b/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
+@@ -61,7 +61,7 @@ namespace
+ 	{
+ 		if (!Table)
+ 		{
+-			return TArray<FName>();
++			return Memo.Sorted;
+ 		}
+ 		if (!SameKeySequence(*Table, Memo.Keys))
+ 		{

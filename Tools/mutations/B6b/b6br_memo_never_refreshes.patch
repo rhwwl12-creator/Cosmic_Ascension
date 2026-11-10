@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp b/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
+--- a/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
++++ b/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
+@@ -63,7 +63,7 @@ namespace
+ 		{
+ 			return TArray<FName>();
+ 		}
+-		if (!SameKeySequence(*Table, Memo.Keys))
++		if (Memo.Keys.IsEmpty() && !SameKeySequence(*Table, Memo.Keys))
+ 		{
+ 			Memo.Keys = Table->GetRowNames();
+ 			Memo.Sorted = Memo.Keys;

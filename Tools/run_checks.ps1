@@ -97,6 +97,15 @@ function Compare-Balance([string] $Name, [string] $Field, [string[]] $Extra, [sw
         if (-not $wandererLine) { throw "no ""CosmicBalance wanderer:"" line in $Name.log" }
         $summary += ' | ' + $(if ($wandererLine.Line -match '(CosmicBalance wanderer:.*)') { $Matches[1] } else { $wandererLine.Line })
     }
+    # The stage times beside the line, and the free memory read after the run (B6b [B-6br]): a loaded machine shows itself - in bundle B the
+    # economy stage, which no B6b step touches, swelled x1.5-1.8 with the AI stage. Printed only; nothing is compared.
+    try {
+        $stages = Select-String -Path $log -Pattern 'CosmicBalance stages:.*crisis ([0-9.]+) us, AI ([0-9.]+) us.*economy ([0-9.]+) us' | Select-Object -Last 1
+        if ($stages) {
+            $freeGB = [math]::Round((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1MB, 1)
+            Write-Host ("   stages: AI {0} us, economy {1} us, crisis {2} us (free memory {3} GB)" -f $stages.Matches[0].Groups[2].Value, $stages.Matches[0].Groups[3].Value, $stages.Matches[0].Groups[1].Value, $freeGB)
+        }
+    } catch { }
     $baselinePath = Join-Path $Root 'Tools\baselines\seed42.json'
     $baseline = Get-Content $baselinePath -Raw | ConvertFrom-Json
     if ($UpdateBaseline) {

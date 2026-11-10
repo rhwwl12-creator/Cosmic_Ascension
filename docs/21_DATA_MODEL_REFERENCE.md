@@ -1533,7 +1533,7 @@ void ResolvePendingRoleEffect(); // 역할 효과 해소(단계 가드 안 — B
 
 UPROPERTY() FGalaxyState State;
 
-UPROPERTY(Transient) FCosmicDataTables Tables; // 정의 테이블. UDataTable 참조를 쥐므로 UPROPERTY
+UPROPERTY(Transient) FCosmicDataTables Tables; // 정의 테이블. UDataTable 참조를 쥐므로 UPROPERTY. 정렬하는 접근자 여덟(Get…RowNames)은 저마다 기억(FCosmicSortedRowNames — 정렬할 때의 키 차례와 정렬한 이름, UPROPERTY가 아닌 mutable 멤버, B6b [B-6br])으로 답한다: 표의 키 차례가 기억과 원소마다(대소문자·번호까지) 같을 때만 쓰고 아니면 전처럼 모아 정렬하므로 답은 같은 배열이다(이름만 기억한다 — 키가 같은 다른 표·사본도 기억으로 답하므로 행의 값에서 나온 것은 이 검사로 기억하지 않는다). 기억은 const 부름 안에서 쓰이므로 한 인스턴스를 두 스레드가 함께 부르지 않는다 — 다른 스레드는 제 사본을 쓴다. 저장·해시 밖이고 규칙이 읽지 않는다 — 테이블에서만 나오므로 멤버라도 플레이어·생애 종속 상태가 아니다(불변 규칙 2)
 
 FCosmicRulesDef Rules; // SetTables가 다시 읽는 DT_Rules 행의 사본(행이 없으면 C++ 기본값)
 

@@ -1,0 +1,15 @@
+diff --git a/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp b/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
+--- a/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
++++ b/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
+@@ -206,10 +206,7 @@ bool FCosmicDataTables::IsHazardAnswer(FName RowName) const
+ 	for (const TPair<FName, uint8*>& Row : HazardTable->GetRowMap())
+ 	{
+ 		const FHazardDef* Def = FindHazard(Row.Key);
+-		if (Def && Def->RulerResolutions.Contains(RowName))
+-		{
+-			return true;
+-		}
++		return Def && Def->RulerResolutions.Contains(RowName);
+ 	}
+ 	return false;
+ }

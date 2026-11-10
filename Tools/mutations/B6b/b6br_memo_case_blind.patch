@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp b/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
+--- a/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
++++ b/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
+@@ -43,7 +43,7 @@ namespace
+ 		int32 At = 0;
+ 		for (const TPair<FName, uint8*>& Row : RowMap)
+ 		{
+-			if (!Row.Key.IsEqual(Keys[At], ENameCase::CaseSensitive, true))
++			if (!Row.Key.IsEqual(Keys[At], ENameCase::IgnoreCase, true))
+ 			{
+ 				return false;
+ 			}

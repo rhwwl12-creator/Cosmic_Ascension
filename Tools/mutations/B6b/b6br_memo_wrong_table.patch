@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp b/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
+--- a/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
++++ b/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
+@@ -190,7 +190,7 @@ TArray<FName> FCosmicDataTables::GetFeatRowNames() const
+ 
+ TArray<FName> FCosmicDataTables::GetEncounterRowNames() const
+ {
+-	return SortedRowNamesOf(Encounters, EncounterNamesMemo);
++	return SortedRowNamesOf(Events, EncounterNamesMemo);
+ }
+ 
+ bool FCosmicDataTables::IsHazardAnswer(FName RowName) const

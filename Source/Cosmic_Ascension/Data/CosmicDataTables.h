@@ -16,6 +16,26 @@ namespace CosmicLabels
 	inline const FName TableId(TEXT("/Game/CA/Data/ST_CA.ST_CA"));
 }
 
+// The row names of one table in lexical order, kept with the keys they were sorted from (B6b [B-6br] - the AI stage asked
+// GetFeatRowNames about thirty times a tick, and every call gathered the names into a fresh array and sorted them again).
+// FCosmicDataTables keeps one per sorting accessor. A memo answers only while its table's keys, in RowMap order, are the
+// remembered ones element by element, case and number compared: the array it returns is then the one GetRowNames sorted
+// with FNameLexicalLess returns. The memo holds names only, and names are a function of the keys. Any table whose keys, in
+// RowMap order, differ from the remembered ones is sorted again: a row added, removed or renamed in place, or another
+// table with other keys. Another table with the same keys in the same order (a copy such as CosmicTests::CopyWithout(T,
+// {}), whose row values may differ) is answered from the memo, and that is its answer too. Never cache anything taken
+// from row values on this check. Not a UPROPERTY and not state: never saved, never hashed, read by no rule; it holds
+// FNames only (no object reference for the collector). A copy of FCosmicDataTables carries its memos, which the check
+// makes harmless. Not thread-safe: the accessors write their memo inside a const call, so two threads must never call
+// them on one instance at once (before B6b [B-6br] they could). Work moved off the game thread takes its own copy of
+// FCosmicDataTables. A Live Coding patch to the sort takes effect on new memos only: start a new PIE session (a new game
+// instance makes new tables).
+struct FCosmicSortedRowNames
+{
+	TArray<FName> Keys;
+	TArray<FName> Sorted;
+};
+
 USTRUCT()
 struct COSMIC_ASCENSION_API FCosmicDataTables
 {
@@ -129,4 +149,16 @@ struct COSMIC_ASCENSION_API FCosmicDataTables
 	// answers a hazard and runs in the response slot (section 5.7). It is true for a listed DT_Edicts row too (B2), but no
 	// caller passes one - an edict answers at the expiry (CosmicEdicts::HeldAnswerOf).
 	bool IsHazardAnswer(FName RowName) const;
+
+private:
+	// The memo of each sorting accessor above (FCosmicSortedRowNames - B6b [B-6br]). mutable: the accessors stay const
+	// reads; every call checks its memo against its table (Data/CosmicDataTables.cpp, SortedRowNamesOf).
+	mutable FCosmicSortedRowNames CivNamesMemo;
+	mutable FCosmicSortedRowNames EventNamesMemo;
+	mutable FCosmicSortedRowNames TranscendentNamesMemo;
+	mutable FCosmicSortedRowNames HazardNamesMemo;
+	mutable FCosmicSortedRowNames FeatNamesMemo;
+	mutable FCosmicSortedRowNames EncounterNamesMemo;
+	mutable FCosmicSortedRowNames EdictNamesMemo;
+	mutable FCosmicSortedRowNames GalaxyNamesMemo;
 };

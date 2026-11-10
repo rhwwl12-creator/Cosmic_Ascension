@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp b/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
+--- a/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
++++ b/Source/Cosmic_Ascension/Data/CosmicDataTables.cpp
+@@ -67,7 +67,6 @@ namespace
+ 		{
+ 			Memo.Keys = Table->GetRowNames();
+ 			Memo.Sorted = Memo.Keys;
+-			Memo.Sorted.Sort(FNameLexicalLess());
+ 		}
+ 		return Memo.Sorted;
+ 	}
