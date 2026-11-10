@@ -17,6 +17,6 @@
    - 커밋 제목은 한국어 요약에 `[B-6b12]` 접두어, 본문에 러너 결과와 기준값. 커밋한 뒤 `origin`에 push.
    - 개발자의 결정이 필요한 것은 지침서·노트의 권장안으로 진행한다(개발자, 2026-11-10). 성경 구절 대조와 손 확인은 개발자 몫이다.
    - main만 고친다. 원격의 `cloud/*`·`integrate/b7x`·`handoff/cloud`는 클라우드 Claude Code 세션의 것이라 건드리지 않는다.
-   - 알려진 함정: `UnrealEditor-Cmd`는 시작할 때마다 `dotnet ... UnrealBuildTool.dll -Mode=ValidatePlatforms`(SDK 조회 — 빌드가 아니다)를 스스로 띄운다. 판마다 '다른 UE·UBT가 돌면 멈춤'을 검사하는 도구는 이 줄을 다른 작업으로 읽어 멈춘다(`[B-6b11]`의 첫 묶음이 324/620에서 그렇게 멈췄다 — 고친 꼴은 `SCR6b11undleC.py`의 `_busy_others`). `lanes.py`의 바쁨 검사(`busy_processes`, `witness_smoke`)도 같은 줄을 본다 — 레인을 돌리기 전에 같은 예외를 넣는다.
+   - 알려진 함정: `UnrealEditor-Cmd`는 시작할 때마다 `dotnet ... UnrealBuildTool.dll -Mode=ValidatePlatforms`(SDK 조회 — 빌드가 아니다)를 스스로 띄운다. 판마다 '다른 UE·UBT가 돌면 멈춤'을 검사하는 도구는 이 줄을 다른 작업으로 읽어 멈춘다(`[B-6b11]`의 첫 묶음이 324/620에서 그렇게 멈췄다 — 고친 꼴은 `SCR\b6b11\bundleC.py`의 `_busy_others`). `lanes.py`의 바쁨 검사(`busy_processes`, `witness_smoke`)도 같은 줄을 본다 — 레인을 돌리기 전에 같은 예외를 넣는다.
    - 도중에 멈추면 HANDOFF §8의 `wip/<단계>` 규칙대로 하고, 끝나면 `STATUS.md`와 HANDOFF.md 맨 위 상태 줄을 고친다.
 5. B6b가 끝나면(`[B-6b12]` 커밋 뒤): 다음은 HANDOFF §5.3 — B7x의 마지막 단계(이 PC가 필요하다). 클라우드 세션이 `origin/cloud/b7x-on-*` 브랜치를 올려 두었으면 그것을 받아 커밋마다 빌드·러너로 증명한다(HANDOFF §9). `origin/handoff/cloud`의 `CLOUD_STATUS.md`에 클라우드가 한 일이 적혀 있다.
