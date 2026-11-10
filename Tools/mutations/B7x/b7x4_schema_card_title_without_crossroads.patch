@@ -1,0 +1,12 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -1310,7 +1310,7 @@
+ 					"why": "a crossroads card tells what a people did and where it then stands: its words name no rest or silence, no grasp of a rung, no title, and none of the fenced words of the crossroads - silence, fence, covenant, ark, shepherd, pilgrimage, sanctuary, the deathless, becoming one (B7x header 3.5, notes 5.4)",
+ 					"when": [{"col": "Conditions", "has_type": "CivTimeVectorAtLeast"}],
+ 					"then": [
+-						{"col": "Title", "lacks_words": "silence_words"}, {"col": "Title", "lacks_words": "rung_grasp_words"}, {"col": "Title", "lacks_words": "title_words"}, {"col": "Title", "lacks_words": "crossroads_words"},
++						{"col": "Title", "lacks_words": "silence_words"}, {"col": "Title", "lacks_words": "rung_grasp_words"}, {"col": "Title", "lacks_words": "title_words"},
+ 						{"col": "Body", "lacks_words": "silence_words"}, {"col": "Body", "lacks_words": "rung_grasp_words"}, {"col": "Body", "lacks_words": "title_words"}, {"col": "Body", "lacks_words": "crossroads_words"},
+ 						{"col": "VoiceBodies", "lacks_words": "silence_words"}, {"col": "VoiceBodies", "lacks_words": "rung_grasp_words"}, {"col": "VoiceBodies", "lacks_words": "title_words"}, {"col": "VoiceBodies", "lacks_words": "crossroads_words"},
+ 						{"col": "Choices.Label", "lacks_words": "silence_words"}, {"col": "Choices.Label", "lacks_words": "rung_grasp_words"}, {"col": "Choices.Label", "lacks_words": "title_words"}, {"col": "Choices.Label", "lacks_words": "crossroads_words"},

@@ -1,0 +1,12 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -480,7 +480,7 @@
+ 				{
+ 					"why": "the nameless variant of log_stance_lapsed names no other people: the code chooses it when that people stands far above the ruled one (CosmicKnowing::IsFarAbove), so it says {Civ} and never {OtherCiv} - the name the map and the scope of telling hide (B6b header 2.9, 3.3 rule 8, decision 19)",
+ 					"when": [{"row": "log_stance_lapsed_far"}],
+-					"then": [{"col": "Templates", "slots_in": ["Civ"]}]
++					"then": [{"col": "Templates", "slots_in": ["Civ", "OtherCiv"]}]
+ 				},
+ 				{
+ 					"why": "the scan face of a people spread between the stars tells no rest or silence and none of the fenced words of the crossroads, and is named because a log row has no conditions (B7x header 3.5, S15)",

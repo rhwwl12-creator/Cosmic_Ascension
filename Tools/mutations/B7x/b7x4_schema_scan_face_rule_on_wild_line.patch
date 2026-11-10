@@ -1,0 +1,12 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -484,7 +484,7 @@
+ 				},
+ 				{
+ 					"why": "the scan face of a people spread between the stars tells no rest or silence and none of the fenced words of the crossroads, and is named because a log row has no conditions (B7x header 3.5, S15)",
+-					"when": [{"row": "log_brick_scan_spread"}],
++					"when": [{"row": "log_scan_wild"}],
+ 					"then": [{"col": "Templates", "lacks_words": "silence_words"}, {"col": "Templates", "lacks_words": "crossroads_words"}]
+ 				}
+ 			]

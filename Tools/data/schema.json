@@ -26,6 +26,7 @@
 		"The ark's word (B6b [B-6b6], decision 33): ark_words ('방주') stands only in the ark and the fourth-rung feat (project_ark, feat_passage_by_ark) - it hangs on the name and the three template columns of DT_Hazards, on DT_Events.LogTemplates and DT_LogTemplates.Templates, and by two row_not rules on the name and completion lines of every other project and the title, narrative and lines of every other feat; Tools/test_data_schema.py reads every other source for it, ST_CA included. The ark's own row rule keeps rescue, title and holy names out of its name and self-rescue and holy names out of its completion lines, and '노아' is a name of holy_and_myth.",
 		"The witness's words (B6b [B-6b8], header 2.8, notes 1.6 rule 7; decision 20): witness_words (a testimony, a record made, a telling or a speaking, and a step back that leaves, looks away or is ashamed - the contracted past forms are listed apart), sign_voice_words (a voice of the sign) and witness_record_words ('기록') hang by one DT_Encounters row rule on the wanderer's cards whose conditions name the claim: witness_words on every text column, sign_voice_words on the body, witness_record_words on every text column but the choices' success lines (a column test cannot tell one choice from another, so the step back's success line is held by the text audit alone). A substring test: a false hit inside a longer word is accepted in this narrow scope. The era of an endured pressure (decision 22) keeps its shape by a DT_Events row rule: the ruled people's condition and the Borders reverence.",
 		"The shape words of a people (B7x [B-7x3], header 3.2, notes 5.4 data-3; decision 13): the keys under Shape. - the word the chronicle's fact line and the system panel's people line give a people's present way of life - refuse the lists of Chronicle. with remnant_words and desolation_words, and shape_merit_words ('견디', '남은' - an enduring or a remaining told as a merit), a list that hangs on that prefix alone ('견디' joins no other list: desolation_words also hangs on row rules).",
+		"The fenced words of the crossroads (B7x [B-7x4], header 3.5, notes 5.4 data-3): crossroads_words (silence, a fence, a covenant, an ark, a shepherd, a pilgrimage, a sanctuary, the deathless, becoming one) hang with silence_words, by rules alone, on a crossroads card - a DT_Encounters row whose conditions ask CivTimeVectorAtLeast, every text field, with rung_grasp_words and title_words -, on DT_Events.LogTemplates of a row that asks CivTimeVectorAtLeast or BorderingCivHasTrait, and on the scan face log_brick_scan_spread by its row rule. A when has no OR and a log row has no conditions: the brick rows a condition does not reach take row rules in the commit that adds them.",
 		"A table whose columns are null has no rows yet: its columns are declared when its first row is written."
 	],
 	"tag_sources": ["Config/DefaultGameplayTags.ini"],
@@ -80,7 +81,8 @@
 		"sign_voice_words": ["목소리", "속삭", "이르기를", "말씀"],
 		"witness_record_words": ["기록"],
 		"time_vectors": ["Built", "Consumed", "Drifted", "Linked", "Isolated", "Endured"],
-		"shape_merit_words": ["견디", "남은"]
+		"shape_merit_words": ["견디", "남은"],
+		"crossroads_words": ["침묵", "울타리", "언약", "방주", "목자", "순례", "성소", "불멸", "하나가 되"]
 	},
 
 	"string_table": {
@@ -483,6 +485,11 @@
 					"why": "the nameless variant of log_stance_lapsed names no other people: the code chooses it when that people stands far above the ruled one (CosmicKnowing::IsFarAbove), so it says {Civ} and never {OtherCiv} - the name the map and the scope of telling hide (B6b header 2.9, 3.3 rule 8, decision 19)",
 					"when": [{"row": "log_stance_lapsed_far"}],
 					"then": [{"col": "Templates", "slots_in": ["Civ"]}]
+				},
+				{
+					"why": "the scan face of a people spread between the stars tells no rest or silence and none of the fenced words of the crossroads, and is named because a log row has no conditions (B7x header 3.5, S15)",
+					"when": [{"row": "log_brick_scan_spread"}],
+					"then": [{"col": "Templates", "lacks_words": "silence_words"}, {"col": "Templates", "lacks_words": "crossroads_words"}]
 				}
 			]
 		},
@@ -635,6 +642,16 @@
 					"why": "the era of an endured pressure is told for the ruled people alone and raises its neighbours' reverence for the vessel (B6b decision 22, the answer A; header 2.7) - without Ruled every AI people's endurance would lift its neighbours",
 					"when": [{"col": "Conditions", "has_type": "CivPressureEnduredTicksReached"}],
 					"then": [{"col": "Conditions", "has_cond": {"type": "SystemOwnedBy", "key": "Ruled"}}, {"col": "Effects", "has_cond": {"type": "ChangeReverence", "key": "Borders"}}]
+				},
+				{
+					"why": "a line of a people's lived way tells no rest or silence and none of the fenced words of the crossroads (B7x header 3.5, notes 5.4)",
+					"when": [{"col": "Conditions", "has_type": "CivTimeVectorAtLeast"}],
+					"then": [{"col": "LogTemplates", "lacks_words": "silence_words"}, {"col": "LogTemplates", "lacks_words": "crossroads_words"}]
+				},
+				{
+					"why": "a line about a bordering people's brick tells no rest or silence and none of the fenced words of the crossroads (B7x header 3.5, notes 5.4)",
+					"when": [{"col": "Conditions", "has_type": "BorderingCivHasTrait"}],
+					"then": [{"col": "LogTemplates", "lacks_words": "silence_words"}, {"col": "LogTemplates", "lacks_words": "crossroads_words"}]
 				}
 			]
 		},
@@ -1307,6 +1324,18 @@
 						{"col": "Body", "lacks_words": "sign_voice_words"},
 						{"col": "Title", "lacks_words": "witness_record_words"}, {"col": "Body", "lacks_words": "witness_record_words"}, {"col": "VoiceBodies", "lacks_words": "witness_record_words"},
 						{"col": "Choices.Label", "lacks_words": "witness_record_words"}, {"col": "Choices.FailureText", "lacks_words": "witness_record_words"}
+					]
+				},
+				{
+					"why": "a crossroads card tells what a people did and where it then stands: its words name no rest or silence, no grasp of a rung, no title, and none of the fenced words of the crossroads - silence, fence, covenant, ark, shepherd, pilgrimage, sanctuary, the deathless, becoming one (B7x header 3.5, notes 5.4)",
+					"when": [{"col": "Conditions", "has_type": "CivTimeVectorAtLeast"}],
+					"then": [
+						{"col": "Title", "lacks_words": "silence_words"}, {"col": "Title", "lacks_words": "rung_grasp_words"}, {"col": "Title", "lacks_words": "title_words"}, {"col": "Title", "lacks_words": "crossroads_words"},
+						{"col": "Body", "lacks_words": "silence_words"}, {"col": "Body", "lacks_words": "rung_grasp_words"}, {"col": "Body", "lacks_words": "title_words"}, {"col": "Body", "lacks_words": "crossroads_words"},
+						{"col": "VoiceBodies", "lacks_words": "silence_words"}, {"col": "VoiceBodies", "lacks_words": "rung_grasp_words"}, {"col": "VoiceBodies", "lacks_words": "title_words"}, {"col": "VoiceBodies", "lacks_words": "crossroads_words"},
+						{"col": "Choices.Label", "lacks_words": "silence_words"}, {"col": "Choices.Label", "lacks_words": "rung_grasp_words"}, {"col": "Choices.Label", "lacks_words": "title_words"}, {"col": "Choices.Label", "lacks_words": "crossroads_words"},
+						{"col": "Choices.SuccessText", "lacks_words": "silence_words"}, {"col": "Choices.SuccessText", "lacks_words": "rung_grasp_words"}, {"col": "Choices.SuccessText", "lacks_words": "title_words"}, {"col": "Choices.SuccessText", "lacks_words": "crossroads_words"},
+						{"col": "Choices.FailureText", "lacks_words": "silence_words"}, {"col": "Choices.FailureText", "lacks_words": "rung_grasp_words"}, {"col": "Choices.FailureText", "lacks_words": "title_words"}, {"col": "Choices.FailureText", "lacks_words": "crossroads_words"}
 					]
 				}
 			]

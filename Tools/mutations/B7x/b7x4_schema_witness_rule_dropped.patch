@@ -1,0 +1,21 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -1315,17 +1315,6 @@
+ 					"when": [{"row_not": "petition_pressure_measured"}],
+ 					"then": [{"col": "Choices.OnSuccess", "lacks_cond": {"type": "DelayHazard", "tag": "Hazard.Claim"}}]
+ 				},
+-				{
+-					"why": "a wanderer's card on the claim is a sign seen or measured: it does not testify, record, tell or speak, the sign has no voice, and the step back neither leaves nor shames (B6b header 2.8, notes 1.6 rule 7; decision 20). A substring test: the contracted past forms are listed apart, and a false hit inside a longer word is accepted within this narrow scope",
+-					"when": [{"row_prefix": "enc_"}, {"col": "Conditions", "has_cond": {"tag": "Hazard.Claim"}}],
+-					"then": [
+-						{"col": "Title", "lacks_words": "witness_words"}, {"col": "Body", "lacks_words": "witness_words"}, {"col": "VoiceBodies", "lacks_words": "witness_words"},
+-						{"col": "Choices.Label", "lacks_words": "witness_words"}, {"col": "Choices.SuccessText", "lacks_words": "witness_words"}, {"col": "Choices.FailureText", "lacks_words": "witness_words"},
+-						{"col": "Body", "lacks_words": "sign_voice_words"},
+-						{"col": "Title", "lacks_words": "witness_record_words"}, {"col": "Body", "lacks_words": "witness_record_words"}, {"col": "VoiceBodies", "lacks_words": "witness_record_words"},
+-						{"col": "Choices.Label", "lacks_words": "witness_record_words"}, {"col": "Choices.FailureText", "lacks_words": "witness_record_words"}
+-					]
+-				},
+ 				{
+ 					"why": "a crossroads card tells what a people did and where it then stands: its words name no rest or silence, no grasp of a rung, no title, and none of the fenced words of the crossroads - silence, fence, covenant, ark, shepherd, pilgrimage, sanctuary, the deathless, becoming one (B7x header 3.5, notes 5.4)",
+ 					"when": [{"col": "Conditions", "has_type": "CivTimeVectorAtLeast"}],

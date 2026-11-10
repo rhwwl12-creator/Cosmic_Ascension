@@ -3048,6 +3048,94 @@ class SchemaTests(unittest.TestCase):
         sources["ST_CA.csv"] = "".join(",".join('"%s"' % cell.replace('"', '""') for cell in row) + "\n" for row in rows if row).encode("utf-8")
         self.expect(checker.check_sources(sources), "ST_CA.csv", "Shape.Endured", "the word %s is not used here" % word)
 
+    def test_crossroads_words(self):
+        """B7x [B-7x4] (header 3.5; notes 5.4 data-3 and tests-8; the text audit's 7.3): crossroads_words - the fenced words
+        of the crossroads (silence, fence, covenant, ark, shepherd, pilgrimage, sanctuary, the deathless, becoming one) - and
+        the rules that hang it with silence_words on a crossroads card (a DT_Encounters row whose conditions ask
+        CivTimeVectorAtLeast, with rung_grasp_words and title_words, in every text field), on the lines of a DT_Events row that
+        asks CivTimeVectorAtLeast or BorderingCivHasTrait, and on the scan face log_brick_scan_spread by its name (a log row has
+        no conditions). The list and the rules pinned by hand; one break per list a rule newly hangs, each one refused by that
+        rule alone - the same input passes with the rule taken out (a word a column already refuses would prove nothing)."""
+        self.assertEqual(self.after(), [])
+        lists = self.schema["words"]
+        # (1) The list, the last of words; no column and no string key refuses it: it hangs on rules alone.
+        self.assertEqual(lists["crossroads_words"], ["침묵", "울타리", "언약", "방주", "목자", "순례", "성소", "불멸", "하나가 되"])
+        self.assertEqual(list(lists)[-1], "crossroads_words")
+        self.assertEqual(self.columns_of(lambda spec: "crossroads_words" in checker.forbidden_lists(spec)), [])
+        self.assertEqual([prefix for prefix, spec in self.schema["string_table"]["checked_prefixes"].items()
+                          if "crossroads_words" in checker.forbidden_lists(spec)], [])
+        # (2) The four rules pinned by hand (a walk built from the schema's own operands would move with a weakened rule).
+        card = "a crossroads card tells what a people did and where it then stands: its words name no rest or silence, no grasp of a rung, no title, and none of the fenced words of the crossroads - silence, fence, covenant, ark, shepherd, pilgrimage, sanctuary, the deathless, becoming one (B7x header 3.5, notes 5.4)"
+        lived = "a line of a people's lived way tells no rest or silence and none of the fenced words of the crossroads (B7x header 3.5, notes 5.4)"
+        bordering = "a line about a bordering people's brick tells no rest or silence and none of the fenced words of the crossroads (B7x header 3.5, notes 5.4)"
+        scan = "the scan face of a people spread between the stars tells no rest or silence and none of the fenced words of the crossroads, and is named because a log row has no conditions (B7x header 3.5, S15)"
+        rules = {(table, rule["why"]): rule for table, spec in self.schema["tables"].items() for rule in spec.get("rules", [])}
+        card_lists = ["silence_words", "rung_grasp_words", "title_words", "crossroads_words"]
+        card_columns = ["Title", "Body", "VoiceBodies", "Choices.Label", "Choices.SuccessText", "Choices.FailureText"]
+        self.assertEqual(rules[("DT_Encounters", card)]["when"], [{"col": "Conditions", "has_type": "CivTimeVectorAtLeast"}])
+        self.assertEqual(rules[("DT_Encounters", card)]["then"], [{"col": column, "lacks_words": listed} for column in card_columns for listed in card_lists])
+        lines = [{"col": "LogTemplates", "lacks_words": "silence_words"}, {"col": "LogTemplates", "lacks_words": "crossroads_words"}]
+        for why, type_name in ((lived, "CivTimeVectorAtLeast"), (bordering, "BorderingCivHasTrait")):
+            with self.subTest(why=why):
+                self.assertEqual(rules[("DT_Events", why)]["when"], [{"col": "Conditions", "has_type": type_name}])
+                self.assertEqual(rules[("DT_Events", why)]["then"], lines)
+        self.assertEqual(rules[("DT_LogTemplates", scan)]["when"], [{"row": "log_brick_scan_spread"}])
+        self.assertEqual(rules[("DT_LogTemplates", scan)]["then"],
+                         [{"col": "Templates", "lacks_words": "silence_words"}, {"col": "Templates", "lacks_words": "crossroads_words"}])
+
+        def without(table, why):
+            def change(schema):
+                schema["tables"][table]["rules"] = [rule for rule in schema["tables"][table]["rules"] if rule["why"] != why]
+            return change
+
+        def refused_by_it_alone(table, why, change, where, test):
+            self.expect(self.after(change), where, why, json.dumps(test))
+            self.assertEqual(self.after(change, without(table, why)), [], "the input has to pass without the rule: %r" % (test,))
+
+        # (3) A crossroads card: '언약' in the title, '안식' in a voice, '올라섰' in a choice's name, '면류관' in its line - none of
+        # them a word a petition's column or rule 0 already refuses. The same title on a card that asks no time vector passes.
+        vector = cond("CivTimeVectorAtLeast", key="Built", value=600)
+        ruler = cond("PlayerRoleIs", key="Ruler")
+
+        def crossroads(**changes):
+            def change(tables):
+                row = self.row(tables, "DT_Encounters", "petition_test_plea")
+                row["Conditions"] = [ruler, vector]
+                for column, value in changes.items():
+                    if column in ("Label", "SuccessText"):
+                        row["Choices"][0][column] = value
+                    else:
+                        row[column] = value
+            return change
+
+        where = "DT_Encounters.petition_test_plea"
+        self.assertEqual(self.after(crossroads()), [])
+        refused_by_it_alone("DT_Encounters", card, crossroads(Title="언약의 길"), where, {"col": "Title", "lacks_words": "crossroads_words"})
+        refused_by_it_alone("DT_Encounters", card, crossroads(Body="", VoiceBodies=["{Civ}의 의회는 안식을 청했다.", "{Civ}의 장로들은 길을 청했다."]), where,
+                            {"col": "VoiceBodies", "lacks_words": "silence_words"})
+        refused_by_it_alone("DT_Encounters", card, crossroads(Label="한 칸 위에 올라섰다."), where, {"col": "Choices.Label", "lacks_words": "rung_grasp_words"})
+        refused_by_it_alone("DT_Encounters", card, crossroads(SuccessText="{Civ}는 면류관을 보았다."), where, {"col": "Choices.SuccessText", "lacks_words": "title_words"})
+        self.assertEqual(self.after(self.set_cell("DT_Encounters", "petition_test_plea", "Title", "언약의 길")), [])
+        # (4) An event row's lines: '순례' (not '방주' - ark_words refuses it on every line already; not '목자' - revelation_mimicry
+        # holds '선한 목자') and '고요' (silence_words hangs elsewhere on the rows of endured pressure alone), under each condition.
+        pilgrim = ["{Civ}의 배들이 순례를 떠났다.", "{Civ} two.", "{Civ} three."]
+        hushed = ["{Civ}의 항구가 고요해졌다.", "{Civ} two.", "{Civ} three."]
+        for why, condition in ((lived, vector), (bordering, cond("BorderingCivHasTrait", tag="Brick.Diet.StarEater"))):
+            for templates, listed in ((pilgrim, "crossroads_words"), (hushed, "silence_words")):
+                with self.subTest(why=why, listed=listed):
+                    def change(tables, templates=templates, condition=condition):
+                        self.row(tables, "DT_Events", "event_test_harvest").update(Conditions=[condition], LogTemplates=list(templates))
+                    refused_by_it_alone("DT_Events", why, change, "DT_Events.event_test_harvest", {"col": "LogTemplates", "lacks_words": listed})
+        self.assertEqual(self.after(self.set_cell("DT_Events", "event_test_harvest", "LogTemplates", list(pilgrim))), [])
+        self.assertEqual(self.after(self.set_cell("DT_Events", "event_test_harvest", "LogTemplates", list(hushed))), [])
+        # (5) The scan face: '성소' and '잠잠' - DT_LogTemplates.Templates refuses neither by its column.
+        for word, listed in (("성소", "crossroads_words"), ("잠잠", "silence_words")):
+            with self.subTest(scan=word):
+                def change(tables, word=word):
+                    row = self.row(tables, "DT_LogTemplates", "log_brick_scan_spread")
+                    row["Templates"] = ["{System} 곁의 %s a." % word] + list(row["Templates"][1:])
+                refused_by_it_alone("DT_LogTemplates", scan, change, "DT_LogTemplates.log_brick_scan_spread", {"col": "Templates", "lacks_words": listed})
+
     def test_per_tick_column(self):
         def per_tick(*items):
             return self.after(self.set_cell("DT_Transcendents", "trans_silence", "PressureEffectsPerTick", list(items)))
@@ -4201,6 +4289,16 @@ class SchemaTests(unittest.TestCase):
                 (NOTHING, "arch_default"),
             ("DT_Transcendents", "no transcendent weighs the claim's events: the vigil's draw on Event.Crisis.Claim keeps a factor of 1, so the bound of the theodicy budget the invariant counts holds (B4 header 2.8)"):
                 (NOTHING, "trans_silence"),
+            # B7x [B-7x4]: the crossroads words - a card that asks a time vector, an event row that asks one or a bordering
+            # people's trait, and the scan face by its name.
+            ("DT_Encounters", "a crossroads card tells what a people did and where it then stands: its words name no rest or silence, no grasp of a rung, no title, and none of the fenced words of the crossroads - silence, fence, covenant, ark, shepherd, pilgrimage, sanctuary, the deathless, becoming one (B7x header 3.5, notes 5.4)"):
+                (update_plea(Conditions=[cond("PlayerRoleIs", key="Ruler"), cond("CivTimeVectorAtLeast", key="Built", value=600)]), plea),
+            ("DT_Events", "a line of a people's lived way tells no rest or silence and none of the fenced words of the crossroads (B7x header 3.5, notes 5.4)"):
+                (update_event(Conditions=[cond("CivTimeVectorAtLeast", key="Built", value=600)]), event),
+            ("DT_Events", "a line about a bordering people's brick tells no rest or silence and none of the fenced words of the crossroads (B7x header 3.5, notes 5.4)"):
+                (update_event(Conditions=[cond("BorderingCivHasTrait", tag="Brick.Diet.StarEater")]), event),
+            ("DT_LogTemplates", "the scan face of a people spread between the stars tells no rest or silence and none of the fenced words of the crossroads, and is named because a log row has no conditions (B7x header 3.5, S15)"):
+                (NOTHING, "log_brick_scan_spread"),
         }
 
     def test_every_rule_of_the_schema_can_fail(self):
@@ -4220,7 +4318,8 @@ class SchemaTests(unittest.TestCase):
                         walked += 1
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
         # B7x [B-7x2]: 337 + 35 (K4: one lacks_type and 17 bricks x 2 lacks_cond) = 372.
-        self.assertEqual(walked, 372, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        # B7x [B-7x4]: 372 + 30 (the crossroads card: 6 columns x 4 lists; two event rules x 2; the scan face x 2) = 402.
+        self.assertEqual(walked, 402, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

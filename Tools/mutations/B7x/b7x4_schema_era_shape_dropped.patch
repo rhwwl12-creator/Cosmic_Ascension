@@ -1,0 +1,15 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -638,11 +638,6 @@
+ 					"when": [{"col": "Conditions", "has_type": "CivPressureEnduredTicksReached"}],
+ 					"then": [{"col": "LogTemplates", "lacks_words": "dawn_words"}, {"col": "LogTemplates", "lacks_words": "silence_words"}, {"col": "LogTemplates", "lacks_words": "desolation_words"}]
+ 				},
+-				{
+-					"why": "the era of an endured pressure is told for the ruled people alone and raises its neighbours' reverence for the vessel (B6b decision 22, the answer A; header 2.7) - without Ruled every AI people's endurance would lift its neighbours",
+-					"when": [{"col": "Conditions", "has_type": "CivPressureEnduredTicksReached"}],
+-					"then": [{"col": "Conditions", "has_cond": {"type": "SystemOwnedBy", "key": "Ruled"}}, {"col": "Effects", "has_cond": {"type": "ChangeReverence", "key": "Borders"}}]
+-				},
+ 				{
+ 					"why": "a line of a people's lived way tells no rest or silence and none of the fenced words of the crossroads (B7x header 3.5, notes 5.4)",
+ 					"when": [{"col": "Conditions", "has_type": "CivTimeVectorAtLeast"}],

@@ -1,0 +1,15 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -630,11 +630,6 @@
+ 					"then": [{"col": "LogTemplates", "lacks_words": "vigil_image"}]
+ 				},
+ 				{
+-					"why": "an era the people names after its endured pressure is named from its own life and land: no dawn, light, throne or reign, no word of silence, and no desolation, shadow, cold or endurance as merit (B6b header 3.3 / notes 1.6 rule 6; decision 22)",
+-					"when": [{"col": "Conditions", "has_type": "CivPressureEnduredTicksReached"}],
+-					"then": [{"col": "LogTemplates", "lacks_words": "dawn_words"}, {"col": "LogTemplates", "lacks_words": "silence_words"}, {"col": "LogTemplates", "lacks_words": "desolation_words"}]
+-				},
+-				{
+ 					"why": "a line of a people's lived way tells no rest or silence and none of the fenced words of the crossroads (B7x header 3.5, notes 5.4)",
+ 					"when": [{"col": "Conditions", "has_type": "CivTimeVectorAtLeast"}],
+ 					"then": [{"col": "LogTemplates", "lacks_words": "silence_words"}, {"col": "LogTemplates", "lacks_words": "crossroads_words"}]

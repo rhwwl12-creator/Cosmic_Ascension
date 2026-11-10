@@ -1,0 +1,12 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -637,7 +637,7 @@
+ 				{
+ 					"why": "a line of a people's lived way tells no rest or silence and none of the fenced words of the crossroads (B7x header 3.5, notes 5.4)",
+ 					"when": [{"col": "Conditions", "has_type": "CivTimeVectorAtLeast"}],
+-					"then": [{"col": "LogTemplates", "lacks_words": "silence_words"}, {"col": "LogTemplates", "lacks_words": "crossroads_words"}]
++					"then": [{"col": "LogTemplates", "lacks_words": "crossroads_words"}]
+ 				},
+ 				{
+ 					"why": "a line about a bordering people's brick tells no rest or silence and none of the fenced words of the crossroads (B7x header 3.5, notes 5.4)",

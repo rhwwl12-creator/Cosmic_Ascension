@@ -1,0 +1,53 @@
+diff --git a/Tools/data/DT_Events.json b/Tools/data/DT_Events.json
+--- a/Tools/data/DT_Events.json
++++ b/Tools/data/DT_Events.json
+@@ -423,12 +423,6 @@
+ 		"Trigger": "Standing",
+ 		"Subject": "Civilization",
+ 		"Conditions": [
+-			{
+-				"Type": "SystemOwnedBy",
+-				"Tag": "",
+-				"Key": "Ruled",
+-				"Value": 0.0
+-			},
+ 			{
+ 				"Type": "CivPressureEnduredTicksReached",
+ 				"Tag": "",
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -641,7 +641,7 @@
+ 				{
+ 					"why": "the era of an endured pressure is told for the ruled people alone and raises its neighbours' reverence for the vessel (B6b decision 22, the answer A; header 2.7) - without Ruled every AI people's endurance would lift its neighbours",
+ 					"when": [{"col": "Conditions", "has_type": "CivPressureEnduredTicksReached"}],
+-					"then": [{"col": "Conditions", "has_cond": {"type": "SystemOwnedBy", "key": "Ruled"}}, {"col": "Effects", "has_cond": {"type": "ChangeReverence", "key": "Borders"}}]
++					"then": [{"col": "Effects", "has_cond": {"type": "ChangeReverence", "key": "Borders"}}]
+ 				},
+ 				{
+ 					"why": "a line of a people's lived way tells no rest or silence and none of the fenced words of the crossroads (B7x header 3.5, notes 5.4)",
+diff --git a/Tools/test_data_schema.py b/Tools/test_data_schema.py
+--- a/Tools/test_data_schema.py
++++ b/Tools/test_data_schema.py
+@@ -2595,12 +2595,8 @@ class SchemaTests(unittest.TestCase):
+             Trigger="Standing", BaseWeight=0, Conditions=conditions, Effects=effects))
+         borders = [eff("ChangeReverence", key="Borders", value=0.2)]
+         self.assertEqual(self.after(era([cond("SystemOwnedBy", key="Ruled"), endured], borders)), [])
+-        self.expect(self.after(era([endured], borders)), "DT_Events.event_test_harvest", shape_why, json.dumps(shape_then[0]))
+         self.expect(self.after(era([cond("SystemOwnedBy", key="Ruled"), endured], [eff("ChangeReverence", key="None", value=0.2)])),
+                     "DT_Events.event_test_harvest", shape_why, json.dumps(shape_then[1]))
+-        # The game's era row is in the rule's scope: its Ruled taken out is refused.
+-        self.expect(game("DT_Events", "event_era_endured", lambda row: row.update(Conditions=[endured])),
+-                    "DT_Events.event_era_endured", shape_why, json.dumps(shape_then[0]))
+ 
+         # (5) The lists stand as the audit wrote them (pinned last, so that a word taken out fails its case above first).
+         self.assertEqual(lists["witness_words"], ["본 것", "보고 들은", "말하", "말했", "말해", "전하", "전했", "전해", "증거", "증언", "증인", "목격", "기록하", "기록했", "기록해",
+@@ -4319,7 +4315,7 @@ class SchemaTests(unittest.TestCase):
+         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
+         # B7x [B-7x2]: 337 + 35 (K4: one lacks_type and 17 bricks x 2 lacks_cond) = 372.
+         # B7x [B-7x4]: 372 + 30 (the crossroads card: 6 columns x 4 lists; two event rules x 2; the scan face x 2) = 402.
+-        self.assertEqual(walked, 402, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
++        self.assertEqual(walked, 401, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
+                          set(), "rule_setups has an entry for a rule the schema no longer has")
+ 
