@@ -989,7 +989,8 @@ struct COSMIC_ASCENSION_API FCosmicRulesDef : public FTableRowBase
 	// The guard's bound as a share of the hazard's own countdown (B6b header 2.10, #132 - decision 23):
 	// CosmicConflict::GuardDelayCapOf = Min(FleetDelayCap, this x the row's CountdownTicks), its one reader (FleetDelayOf and
 	// the theodicy's invariant call it). 0 or below, or not a number = no share: FleetDelayCap alone, the bound before B6b.
-	// 0..1 (schema). Off (0) until [B-6b8b] sets its value.
+	// 0..1 (schema). The C++ default 0 is off; DT_Rules holds 0.5 from [B-6b8b] (decision 23): the awakening's cap
+	// 100 -> 75 (0.5 x 150); plague, pre-supernova, claim and extinction keep FleetDelayCap's 100; the rebellion (Capital rule) gains none.
 	UPROPERTY(EditAnywhere)
 	float FleetDelayCountdownShare = 0.f;
 

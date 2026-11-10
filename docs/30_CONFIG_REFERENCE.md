@@ -27,7 +27,7 @@
 | `FleetEffectivenessByTierGap` | `[1.0, 0.5, 0.0]` | numbers | `{"len": 3}` | Sim/CosmicConflict.cpp | 읽힘 |
 | `FleetDelayPerPower` | `50.0` | number | `{"min": 0}` | Sim/CosmicConflict.cpp | 읽힘 |
 | `FleetDelayCap` | `100.0` | number | `{"min": 0}` | Sim/CosmicConflict.cpp | 읽힘 |
-| `FleetDelayCountdownShare` | `0.0` | number | `{"min": 0, "max": 1}` | Sim/CosmicConflict.cpp | 읽힘 |
+| `FleetDelayCountdownShare` | `0.5` | number | `{"min": 0, "max": 1}` | Sim/CosmicConflict.cpp | 읽힘 |
 | `ImmutableLaws` | `"(GameplayTags=((TagName=\"Law.Judgment\"),(TagName=\"Law.Sabbath\"…` | tags | `{"root": "Law."}` | — | 예약 |
 | `FallenTranscendentCount` | `1` | number | `{"min": 0, "max": 3, "integer": true}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |
 | `PlayerArchetypeRow` | `"arch_seeker"` | row | `{"table": "DT_Civs"}` | Sim/GalaxySimulationSubsystem.cpp | 읽힘 |

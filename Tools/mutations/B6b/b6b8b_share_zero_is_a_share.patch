@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -400,7 +400,7 @@
+ 	const float Cap = FMath::Min(CosmicConflictImpl::FactorOr(Rules.FleetDelayCap, 0.f), 100000.f);
+ 	const float Share = Rules.FleetDelayCountdownShare;
+ 	// A compare, so a share that is not a number is no share.
+-	if (!(Share > 0.f))
++	if (Share < 0.f)
+ 	{
+ 		return static_cast<int32>(Cap);
+ 	}

@@ -24,7 +24,7 @@
 		"FleetEffectivenessByTierGap": [1.0, 0.5, 0.0],
 		"FleetDelayPerPower": 50.0,
 		"FleetDelayCap": 100.0,
-		"FleetDelayCountdownShare": 0.0,
+		"FleetDelayCountdownShare": 0.5,
 		"ImmutableLaws": "(GameplayTags=((TagName=\"Law.Judgment\"),(TagName=\"Law.Sabbath\"),(TagName=\"Law.Humility\"),(TagName=\"Law.Remnant\"),(TagName=\"Law.Hedge\")))",
 		"FallenTranscendentCount": 1,
 		"PlayerArchetypeRow": "arch_seeker",

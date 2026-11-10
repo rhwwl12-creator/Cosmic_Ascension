@@ -1407,7 +1407,8 @@ bool FCosmicSimSiegeTest::RunTest(const FString& Parameters)
 // power within the cap; a rebellion never; a standing hazard never; a claim by the gap to its claimant. B6b [B-6b2c] (B6b
 // header 2.10, #132): the cap is the row's own, CosmicConflict::GuardDelayCapOf - FleetDelayCap at the share's 0 (the values
 // above), the share of the row's countdown below it once the share is set (mutations: FleetDelayOf without the row's cap;
-// GuardDelayCapOf without FleetDelayCap - the share's product alone).
+// GuardDelayCapOf without FleetDelayCap - the share's product alone). B6b [B-6b8b] (decision 23): the game's share is 0.5 -
+// the game's awakening row (150) gains 75 from fleet 3, 100 at the share's 0.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimFleetDelayTest, "Cosmic_Ascension.Sim.FleetDelay", CosmicTests::Flags)
 bool FCosmicSimFleetDelayTest::RunTest(const FString& Parameters)
 {
@@ -1477,10 +1478,31 @@ bool FCosmicSimFleetDelayTest::RunTest(const FString& Parameters)
 		Guard.FleetPower = 3.f;
 		Guard.FleetTargetSystemID = IDOf(*State, 1);
 		const FCosmicRulesDef Game = Sim->GetRules();
-		TestEqual(TEXT("(the knob is off in the game's rules: no share)"), Game.FleetDelayCountdownShare, 0.f);
-		TestEqual(TEXT("At the share's 0 the row's cap is FleetDelayCap"), CosmicConflict::GuardDelayCapOf(Game, 200), 100);
+		TestEqual(TEXT("The game's share is 0.5 ([B-6b8b], decision 23)"), Game.FleetDelayCountdownShare, 0.5f);
+		TestEqual(TEXT("so the plague's 200 keeps FleetDelayCap's 100 (0.5 x 200 = 100)"), CosmicConflict::GuardDelayCapOf(Game, 200), 100);
 		TestEqual(TEXT("and the delay of fleet 3 the cap of 100, as before"), PlaceOn(1, Sick), 300);
 		const FCosmicDataTables Kept = Sim->GetTables();
+		// B6b [B-6b8b] (decision 23): the game's awakening row on the board - 150 + the game's share of it, 75, not FleetDelayCap's 100.
+		const FName Awake(TEXT("crisis_test_awake"));
+		const FHazardDef* GameAwakening = Original.FindHazardByTag(Tag(TEXT("Hazard.AIAwakening")));
+		if (TestNotNull(TEXT("(the game's awakening row)"), GameAwakening))
+		{
+			TestEqual(TEXT("(the game's awakening counts 150)"), GameAwakening->CountdownTicks, 150);
+			FHazardDef Row = *GameAwakening;
+			Row.SpawnChancePerTick = 0.f;
+			UDataTable* Copy = CosmicTests::CopyWithout<FHazardDef>(Kept.Hazards, {});
+			Copy->AddRow(Awake, Row);
+			FCosmicDataTables WithAwake = Kept;
+			WithAwake.Hazards = Copy;
+			Sim->SetTables(WithAwake);
+			TestEqual(TEXT("Fleet 3 adds the awakening the game's share of its 150, 75: 225"), PlaceOn(1, Awake), 225);
+			FCosmicRulesDef Zero = Game;
+			Zero.FleetDelayCountdownShare = 0.f;
+			Sim->SetTables(CosmicTests::WithRules(WithAwake, Zero));
+			TestEqual(TEXT("At a share of 0 the row's cap is FleetDelayCap's 100"), CosmicConflict::GuardDelayCapOf(Zero, 150), 100);
+			TestEqual(TEXT("so fleet 3 adds the awakening 100: 250, the bound before [B-6b8b]"), PlaceOn(1, Awake), 250);
+			Sim->SetTables(Kept);
+		}
 		auto WithShare = [&](float Share)
 		{
 			FCosmicRulesDef Rules = Kept.FindRules() ? *Kept.FindRules() : Game;
