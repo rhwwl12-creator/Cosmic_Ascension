@@ -1,5 +1,7 @@
 # CLOUD_STATUS — GitHub 쪽 일의 넘김 (넷째 세션, 2026-11-12)
 
+> **갱신 2026-11-12 05:40** — 개발자가 B7 헤더의 [개발자] 넷(14·22·24·29)을 '권장대로 진행해줘'로 답했다. B7 헤더는 **승인**이고, 승인 문서 `[B-7h0]`의 살아 있는 문서 초안이 `cloud/docs-b7-header` `8afc9b5`에 있다(아래 3·'PC가 할 것 — B7').
+
 > 이 파일이 클라우드 쪽 일의 지금 상태다. PC 세션은 `git fetch origin` 뒤 `git show origin/handoff/cloud:CLOUD_STATUS.md`로 읽는다. 앞 세션들의 기록은 `git show origin/cloud/docs-b7x0:docs/drafts/CLOUD_STATUS.md`(셋째 세션까지).
 > 넷째 세션은 클라우드가 아니라 **이 PC의 Claude Code 세션**이 클라우드 시작 문구대로 git과 파이썬만으로 했다. UE·빌드·러너·커맨드렛은 돌리지 않았다 — 같은 시각 main 작업 사본에서 `[B-6b12]`의 변이 레인(`lanes.py`)이 돌고 있었고, 그 작업 사본과 `C:\CAL\l1`·`l2`는 건드리지 않았다.
 
@@ -40,6 +42,8 @@
 
 ## PC가 할 것 — B7 (B7x가 main에 든 뒤)
 
-1. 개발자의 답(위 넷) → 헤더 승인 커밋(헤더 §7 — `DECISIONS_LOG`의 B7 절, `OPEN_QUESTIONS` 닫음·새 행, `STATUS`, `docs/50`; 줄 번호를 그때의 main에 맞춤).
-2. `[B-7m0]` B7-0 측정(헤더 §5.1 — 여섯 수, 입력 없는 20,000 60판 짝 등).
+- `cloud/docs-b7-header`의 커밋 셋: `17c34c2` 헤더 초안 → `1bacd61` B7x 살아 있는 문서(cloud/docs-b7x0 `453f7f0`의 대상 넷을 글자 그대로 — 바탕일 뿐, PC는 cloud/docs-b7x0 쪽을 `[B-7x0]`에 접고 이 커밋은 버린다) → `8afc9b5` `[B-7h0]` 승인 문서 초안(헤더 상태 '승인 (2026-11-12)'·`DECISIONS_LOG`의 B7 절·`OPEN_QUESTIONS` 닫음 열여섯·고침 여섯·새 행 새12~새16·`STATUS`·`docs/50`의 B7 칸과 Cut List 표지).
+1. B7x가 main에 든 뒤 헤더 파일과 `8afc9b5`의 다섯 파일 고침을 `[B-7h0]`으로 든다 — `[B-6b12]`의 고침과 손으로 합치고, 줄 번호(헤더는 `84997fe`의 줄)와 새N(B7x 새2~새11 다음이 새12~새16)을 실제 번호로.
+2. `[B-7m0]` B7-0 측정(헤더 §5.1 — 여섯 수, 판단 없음).
 3. 그다음 헤더 §8의 커밋 차례(`[B-7a1]` 필드와 쓰는 곳 → …).
+
