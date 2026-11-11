@@ -1,6 +1,6 @@
 # Cosmic Ascension 인수인계 — B6b 마무리와 B7x 통합 (Claude Code 세션 → 다른 세션)
 
-> **상태 줄**(커밋할 때마다, 그리고 멈출 때 고친다): 2026-11-10 — main의 마지막 커밋은 `467cfdb` `[B-6b11]`(묶음 C 620판 PASS — #136 18/60 열어 둠·#142 재지 않음(잰 4)·B1 잡음(L 7/G 4, p 0.5488)·[개발자] 항목 없음, 손 확인 세이브 넷(Saved\HandCheck\B6b_*), 비트 그대로). 푸시됨. **Claude Code 세션은 개발자의 요청으로 여기서 멈췄다** — 돌고 있는 것 없음(워크플로·UE·파이썬), 작업 사본 깨끗. 다음: `[B-6b12]`는 **Antigravity가 이 PC에서**(시작 문구 `Saved\Handoff\PROMPT_antigravity_B6b12.md`); GitHub만으로 되는 일(B7x를 main 위로 다시 쌓기, 문서 초안)은 **클라우드 Claude Code 세션이**(시작 문구 `Saved\Handoff\PROMPT_cloud_claude_code.md` — `origin/handoff/cloud`에도 있다; §9). B7x 통합 브랜치 `integrate/b7x`(원격에도 있음)는 main `8b6c5a7` 위의 다섯 커밋 그대로다. 이 줄이 오래되었으면 §8의 '시작 확인'이 진짜 상태다.
+> **상태 줄**(커밋할 때마다, 그리고 멈출 때 고친다): 2026-11-12 08:05 — main의 마지막 커밋은 `29e2ecd` `[B-6b12]`(B6b 끝, 푸시함; Claude Code 세션 15a1d0fe). 패키지 ⓓ 통과(`C:\CA_Builds\20261112-0746-29e2ecd` — 쿠킹 빌드 = 에디터, 3,000·20,000틱). 앞 상태 줄(2026-11-11 23:25)의 '`wip/b6b12` 가지에 보존됨'은 사실이 아니었다 — 그 가지는 만들어지지 않았고 변경은 main 작업 사본에만 있었다. 지금: B7x 다섯 커밋을 `29e2ecd` 위로 다시 쌓은 로컬 가지 `cloud/b7x-on-29e2ecd`(통합 작업 사본 `SCR\b7x\int`, 빌드는 정션 `C:\Users\rhwwl\AppData\Local\Temp\b7xi`) — 살아 있는 문서 접기(새2~새11 → #169~)와 낡은 b6b12 패치 아홉의 다시 뜨기, 그다음 커밋마다 빌드·러너 full(-Data, `[B-7x1]`만 -UpdateBaseline). 차례와 보충은 `Saved\Handoff\PROMPT_session_B6b12_finish_2026-11-12.md`.
 
 이 파일은 저장소 밖(`Saved/`는 git이 무시한다)의 운영 메모다. 설계의 단일 기준은 `docs/`, 지금 상태는 `STATUS.md`와 `git log`다 — 이 파일과 다르면 그쪽이 이긴다.
 
