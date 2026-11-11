@@ -26,8 +26,29 @@
 ## PC가 할 것 (빌드·러너로 증명)
 
 1. `[B-6b12]` 커밋 뒤: `cloud/b7x-on-rebase`를 그 main 위로 한 번 더 쌓는다(충돌 자리는 위와 같은 둘이 다시 날 수 있다 — README의 표 끝과 머리 목록, `docs/40`의 테스트 표). 그다음 HANDOFF §5.3의 차례 — 커밋마다 체크아웃한 채 빌드·러너 full(`[B-7x1]`은 새 저장 필드로 두 해시만 옮긴다 → 그 커밋의 하나뿐인 `-UpdateBaseline`, 다섯 판 CSV가 앞 커밋과 같음), `-Data`(ST_CA·DT_LogTemplates·schema·DT_Rules가 바뀌어 `generated.sha1`이 낡았다), C++ 변이(`Tools/mutations/B7x/`의 `Source/` 패치는 아직 한 번도 죽여 보지 않았다), 헤더 §11의 `[B-7x1]` 한 줄.
-2. `cloud/docs-b7x0`의 `453f7f0`을 `[B-7x0]`에 접어 넣는다 — `OPEN_QUESTIONS`·`DECISIONS_LOG`·`docs/50`·`STATUS`는 `[B-6b12]`의 고침과 충돌할 수 있다(손으로). 새N을 실제 번호로, `git grep -n "새[0-9]"`가 `docs/drafts/` 밖에서 0, 그 뒤 `docs/drafts/`를 지운다.
+2. `cloud/docs-b7x0`의 `453f7f0`을 `[B-7x0]`에 접어 넣는다 — `OPEN_QUESTIONS`·`DECISIONS_LOG`·`docs/50`·`STATUS`는 `[B-6b12]`의 고침과 충돌할 수 있다(손으로). 새N을 실제 번호로, 살아 있는 문서 넷에서 `git grep -n "새[0-9]" -- STATUS.md docs/50_ROADMAP.md docs/60_DECISIONS/OPEN_QUESTIONS.md docs/60_DECISIONS/DECISIONS_LOG.md`가 0줄(헤더 4곳·노트 15곳의 새N은 노트 §3 행의 이름이라 그대로 둔다 — 개발자 2026-11-12), 그 뒤 `docs/drafts/`를 지운다.
 3. 병합 뒤 원격 `cloud/*`·`integrate/b7x`·`handoff/cloud`를 지운다(HANDOFF §5.5).
+
+## 검증 세션 (2026-11-12 05:45, 클라우드 — git과 파이썬만, 원격에 쓴 것 없음)
+
+> 이 절은 그 세션이 넘긴 글을 이 PC의 Claude Code 세션(handoff/cloud를 쓰는 하나뿐인 세션)이 2026-11-12 05:50에 옮겨 넣은 것이다.
+
+- 바탕: main `467cfdb`, `integrate/b7x` `279b353`, `cloud/b7x-on-rebase` `84997fe`, `cloud/docs-b7x0` `453f7f0` — 이 세션이 받은 요청(B7x 다시 쌓기·`[B-7x0]` 문서 초안)은 넷째 세션이 같은 main 위에서 이미 끝냈다. 다시 하지 않았고(해시가 바뀌면 `cloud/docs-b7-header`의 바탕 `84997fe`가 끊긴다) 따로 확인만 했다.
+- **`cloud/b7x-on-rebase` 확인**:
+  - 다섯 커밋 `9d3ecf7` → `ea05044` → `b4a1aaa` → `6ae3663` → `84997fe`, 맨 아래 부모 `467cfdb`. `git range-diff 8b6c5a7..279b353 467cfdb..84997fe`에서 다섯이 1:1로 짝지어진다.
+  - 끝 트리는 `git merge-tree --write-tree origin/main origin/integrate/b7x`(`9fadba8`)와 두 파일만 다르다 — `Tools/mutations/README.md`·`docs/40_DEV_GUIDE.md`(충돌 난 둘). 그 둘의 줄을 바탕·main·B7x·결과 넷으로 견줬다: `Data.Integrity`·`UI.Chronicle` 행은 B7x 글(main은 그 행을 고치지 않았다), `UI.RunEnd` 행은 main 글(B7x는 그 행을 고치지 않았다), `Data.SortedNamesFollowTable`·`Data.HazardAnswerAnyRow` 행은 main 그대로, README 머리 목록에 `b6b10_data_clock_six_thousand`가 있다. 충돌 표지 0.
+  - 커밋마다 파이썬 검사 다섯 통과(rc 0): `check_data: 0 problem(s)`, `test_data_schema` OK(96·99·99·100·101 tests; walked 핀 372·372·372·402), `check_layers --strict` 0 error(s) 0 warning(s)(176·179·181·181·181 files), `check_docs: 46 files, 0 error(s)`, `make_config_reference: up to date`. 검사 뒤 바뀐 파일 0.
+  - 커밋마다 더하거나 고친 파일(8·102·30·37·17)의 커밋된 바이트에 CR 0.
+  - `docs/OVERVIEW.html`·`docs/90_LORE/cosmic_species_codex.md`는 `467cfdb..84997fe`에서 바뀌지 않았다.
+  - 변이 패치 `git apply --check`: main의 새 열셋은 다섯 커밋 모두에서 선다(13/13). 서지 않는 패치의 집합은 옛 커밋과 새 커밋이 짝마다 같다(`5414eb1`=`ea05044`, `cc1bd0e`=`b4a1aaa`, `16e5cf7`=`6ae3663`, `279b353`=`84997fe` — 끝에서 175). `B7x/`는 92개; 끝에서 서지 않는 B7x 패치 셋(`b7x2_data_era_no_ruled_past_checker`·`b7x2_data_extinction_expiry_effect`·`b7x4_schema_era_rule_dropped`)은 옛 끝 `279b353`에서도 같고 README에 까닭이 적혀 있다.
+- **`cloud/docs-b7x0` `453f7f0` 확인**:
+  - 바탕 `467cfdb`. 바뀐 파일 일곱: `CLAUDE.md`·`STATUS.md`·`docs/50_ROADMAP.md`·`DECISIONS_LOG.md`·`OPEN_QUESTIONS.md`와 `docs/drafts/` 둘. 두 금지 파일은 바뀌지 않았다. CR 0.
+  - `check_docs: 45 files, 0 error(s)`. `CLAUDE.md` 16,308바이트(≤ 16,384).
+  - `OPEN_QUESTIONS.md`의 새 행 열(새2~새11)은 노트 §3의 표 행과 글자 그대로 같다(10/10). 새1은 노트 §3이 '답(닫힘 — 행으로 넣지 않는다)'로 적어 행이 없다.
+  - `cloud/b7x-on-rebase`와 `git merge-tree`로 합치면 충돌 없다(트리 `aba689f`), 그 트리에서 `check_docs: 48 files, 0 error(s)`.
+- **개발자의 답**(2026-11-12 '권장대로'): 새 행은 새2~새11 열 줄 그대로(새1은 행 없음). 'PC가 할 것' 2의 증명은 살아 있는 문서 넷으로 좁힌다 — `git grep -n "새[0-9]" -- STATUS.md docs/50_ROADMAP.md docs/60_DECISIONS/OPEN_QUESTIONS.md docs/60_DECISIONS/DECISIONS_LOG.md`가 0줄. 까닭: `[B-7x0]`이 넣는 헤더(4곳)와 노트(15곳)가 새N을 노트 §3 행의 이름으로 쓴다. `DECISIONS_LOG` B7x 절의 '새1, 닫힘'(번호 없음)과 '노트 §3의 새2~새11'은 글로 고쳐 쓴다.
+- **하지 못한 것**(PC 몫 그대로): 빌드, 자동화 테스트 두 판, `[B-7x1]`의 두 해시와 `-UpdateBaseline`, `-Data`, C++ 변이를 실제로 죽이기, `[B-6b12]` 뒤 한 번 더 쌓기.
+- **이 세션이 확인하지 않은 것**: `cloud/docs-b7-header`(`8afc9b5`)의 내용. 그 브랜치의 `[B-7h0]` 초안은 살아 있는 문서에 자리표 새12~새16을 더한다 — 위의 좁힌 `git grep`이 `[B-7h0]`을 들일 때도 같이 0줄이어야 한다(새12~새16도 그때의 실제 번호로).
 
 ## 이 PC에서 본 것 (알림)
 
