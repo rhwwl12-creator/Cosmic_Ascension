@@ -1,0 +1,12 @@
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -1311,7 +1311,7 @@
+ 		"CivResearchAtLeast": {"key": {"word": "research"}, "value": {"min": 0, "max": 1}},
+ 		"SystemHazardTicksAtMost": {"tag": {"root": "Hazard."}, "value": {"min": 1, "integer": true}},
+ 		"CivSettledSystemsAtLeast": {"value": {"min": 1, "integer": true}},
+-		"CivHasEdict": {"key": {"row": "DT_Edicts"}},
++		"CivHasEdict": {"key": {"row": "DT_Edicts", "optional": true}},
+ 		"CivHasTreaty": {"tag": {"root": "Treaty.", "optional": true}, "value": {"min": 1, "integer": true}},
+ 		"CivLawsHeldTicksAtLeast": {"key": {"digits": true}},
+ 		"CivPressureEnduredTicksReached": {"key": {"digits": true}}
+

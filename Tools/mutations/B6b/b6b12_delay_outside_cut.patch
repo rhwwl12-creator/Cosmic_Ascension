@@ -1,0 +1,13 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -220,7 +220,7 @@
+ 	const int32 EdictBonus = CosmicEdicts::CountdownBonusOf(State, Ctx.Index, Ctx.Tables, SystemIndex, Row->HazardTag);
+ 	System.ActiveHazard = Row->HazardTag;
+ 	System.HazardTicksRemaining = static_cast<int32>(FMath::Min<int64>(static_cast<int64>(FMath::Max(1, Row->CountdownTicks))
+-		+ EdictBonus + FleetDelay, MAX_int32));
++		+ EdictBonus, MAX_int32)) + FleetDelay;
+ 	Ctx.Notes.Add({ ECosmicWorldNote::HazardPlaced, SystemIndex, OwnerIndex, HazardRow });
+ 	return true;
+ }
+

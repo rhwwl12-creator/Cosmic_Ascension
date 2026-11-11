@@ -2275,37 +2275,33 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 	}
 	const FCosmicDataTables Original = Sim->GetTables();
 	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
-	// The game's data, its one death included (B5 [B-5r] - balance review risk-4; [B-5d2] ran the whole test WithoutDeath): the
-	// deposed vessel of seed 18 stands on at its old capital, where an AI awakening expires on its own side at tick 16,316 (bundle
-	// 3: the succession at 17,761, a second death at 18,764 and its succession at 19,800), so the counts of the hazards and the
-	// stepped == headless check run across the deaths and the successions. A succession clears the fallen monarch's status, so
-	// the deposition is read at its own boundary in the stepped run (the same world as the whole run), and the status is held at
-	// every boundary from there until the deposed life closes. Calling.LethalSource pins the death itself.
-	// B6b [B-6b7]: on the game's data without B6b's rows (CosmicTests::WithoutB6bData - the world of [B-6b5], where the ticks
-	// above hold). With the galaxy laws, the fifth rung's feat and r 0.375 in the data the deposed vessel of seed 18 lives
-	// past 20,000 ticks (the commandlet's seed-18 run: no log_death_hazard line; with -WithoutB6bData=1 the deaths of
-	// 16,316 and 18,764 come back), and the check below would cross no death and no succession (mutation: the game's
-	// data whole).
-	const FCosmicDataTables Game = CosmicTests::WithoutB6bData(Original);
-	Sim->SetTables(Game);
+	// The game's data, its deaths and B6b's rows included (B5 [B-5r] - balance review risk-4; [B-5d2] ran the whole test
+	// WithoutDeath; [B-6b7] ran it WithoutB6bData on seed 18, where the deposed vessel lived past 20,000 ticks once the galaxy
+	// laws, the fifth rung's feat and r 0.375 came in; B6b [B-6b12] moves to seed 1 on the game's data whole): the deposed
+	// vessel of seed 1 (deposed at tick 1,038) stands on at its old capital, where an AI awakening expires on its own side at
+	// tick 1,915 (the succession at 3,423, four lives in 20,000 ticks), so the counts of the hazards and the stepped ==
+	// headless check run across the deaths and the successions. A succession clears the fallen monarch's status, so the
+	// deposition is read at its own boundary in the stepped run (the same world as the whole run), and the status is held at
+	// every boundary from there until the deposed life closes (876 boundaries). Calling.LethalSource pins the death itself.
+	const FCosmicDataTables& Game = Original;
 	static const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Claim")));
 	static const FGameplayTag RebellionTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Rebellion")));
 	static const FGameplayTag FallenTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Status.FallenMonarch")));
 	static const FGameplayTag DeposedTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Deposed")));
 	constexpr int64 Ticks = 20000;
 
-	// The deposition of condition 5 rests on the game's rebellion row: the evidence of seed 18 below is only as good as this.
+	// The deposition of condition 5 rests on the game's rebellion row: the evidence of seed 1 below is only as good as this.
 	FName RebellionRow;
 	const FHazardDef* Rebellion = Game.FindHazardByTag(RebellionTag, &RebellionRow);
 	TestTrue(TEXT("The game's rebellion row deposes the ruler when it runs out"),
 		Rebellion && Rebellion->OnExpireEffects.ContainsByPredicate([](const FCosmicEffect& Effect) { return Effect.Type == EEffectType::DeposeRuler; }));
 
-	// Seed 18 since MVP item 8 A-8b: with the people's Influence at 1.0 the AI relieves the few claims of seed 42 before they run
-	// out (2 placed, none joined in 20,000 ticks); seed 18 has nine that join.
-	Sim->NewGalaxy(18, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	// Seed 1 on the game's data whole (B6b [B-6b12]; seed 18 from MVP item 8 A-8b through [B-6b11]): three claims placed and
+	// all three join the sphere of Silence (1 -> 4), and the deposed vessel dies at tick 1,915 with a succession at 3,423.
+	Sim->NewGalaxy(1, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	const FGalaxyState& State = Sim->GetState();
 	auto Silence = [&State]() { return State.Transcendents.FindByPredicate([](const FTranscendentState& Each) { return Each.TranscendentID == CosmicRows::TransSilence; }); };
-	TestTrue(TEXT("Silence is in the roster (seed 18)"), Silence() != nullptr);
+	TestTrue(TEXT("Silence is in the roster (seed 1)"), Silence() != nullptr);
 	const int32 SphereStart = Silence() ? Silence()->InfluencedSystems.Num() : 0;
 	int32 Placed = 0;
 	int32 RanOut = 0;
@@ -2409,18 +2405,18 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("and every one that runs out is told by its row on its system"), RanOutTold, RanOut);
 	TestTrue(TEXT("some are answered: an answer of the hazard's row completes before it runs out"), Answered > 0);
 	TestEqual(TEXT("and every answered one is told by its row on its system"), AnsweredTold, Answered);
-	TestTrue(TEXT("A claim stands (seed 18)"), Claims > 0);
-	TestTrue(TEXT("A claim runs out and its system joins the sphere of Silence (seed 18)"), ClaimsJoined > 0);
-	TestTrue(TEXT("and the sphere of Silence grows (seed 18)"), Silence() && Silence()->InfluencedSystems.Num() > SphereStart);
+	TestTrue(TEXT("A claim stands (seed 1)"), Claims > 0);
+	TestTrue(TEXT("A claim runs out and its system joins the sphere of Silence (seed 1)"), ClaimsJoined > 0);
+	TestTrue(TEXT("and the sphere of Silence grows (seed 1)"), Silence() && Silence()->InfluencedSystems.Num() > SphereStart);
 	const uint32 Stepped = Sim->ComputeWorldHash();
-	Sim->NewGalaxy(18, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+	Sim->NewGalaxy(1, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	Sim->RunHeadless(Ticks);
 	TestEqual(TEXT("Stepped with the gate open, one tick at a time is the same world as the whole run at once with it closed"), Sim->ComputeWorldHash(), Stepped);
 
 	// Neglect: nothing the player does keeps the ruled people's stability up, and a rebellion deposes the ruler - read at the
 	// boundary of the deposition in the stepped run above (the same world as the whole run; one run since MVP item 8 moved the
 	// claims there), since the game's death closes that life later and the succession after it clears the status (B5).
-	TestTrue(TEXT("A neglected ruler is deposed (seed 18)"), DeposedTick > 0);
+	TestTrue(TEXT("A neglected ruler is deposed (seed 1)"), DeposedTick > 0);
 	TestTrue(TEXT("and carries the status of a fallen monarch at the boundary of the deposition"), bStatusAtDeposition);
 	TestTrue(TEXT("and the fallen monarch's line is told in the tick of the deposition"), bFallenLineAtDeposition);
 	TestTrue(TEXT("The first reign ended as a deposition"), bReignDeposed);
@@ -2432,8 +2428,8 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 		AddInfo(FString::Printf(TEXT("(the status was gone at tick %lld; deposed at %lld)"), StatusLostAt, DeposedTick));
 	}
 	// What keeps the check of the whole run on the game's data: the deposed life closes in a death and a succession follows
-	// before the end (seed 18 - bundle 3 of [B-5d2]: 16,316 and 17,761), so the stepped == headless check above crosses them.
-	// A change of the world that moves them past the end shows it here and says so (guideline 9.3).
+	// before the end (seed 1 - B6b [B-6b12]: 1,915 and 3,423, four lives in 20,000 ticks), so the stepped == headless check
+	// above crosses them. A change of the world that moves them past the end shows it here and says so (guideline 9.3).
 	TestTrue(TEXT("(the whole run: the deposed life closes after the deposition and a succession follows before the end)"),
 		State.Calling.Lives.Num() >= 2 && State.Calling.Lives[0].DiedTick > DeposedTick && DeposedTick > 0
 		&& State.Calling.Lives[0].ReignEndReasons.Contains(DeposedTag));

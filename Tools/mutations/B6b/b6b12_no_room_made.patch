@@ -1,0 +1,13 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -611,7 +611,7 @@
+ 				break;
+ 			}
+ 		}
+-		return !Spare.IsNone() && Revoke(Spare);
++		return Spare.IsNone() && Revoke(Spare);
+ 	};
+ 
+ 	// (1) Below 0.5, the edicts that cost Stability go - never a galaxy law (B6b: the laws go only to make room, last).
+

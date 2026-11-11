@@ -2,8 +2,8 @@
 
 Each patch breaks one new assertion once, as `docs/40_DEV_GUIDE.md` asks of every new test: apply it (`git apply <patch>`),
 build, run the named test and see it fail, then revert (`git apply -R <patch>`). The patch name says which test it breaks.
-A patch of `Tools/data` (the `b4d2_data_` ones, `b6b2a_data_laws_knob_four`, `b6b2a_data_reach_word_renamed`, `b6b2c_data_ark_margin_half`, `b6b2c_data_binding_answers`, `b6b3a_data_far_line_shares_text`, `b6b4_data_bound_words_seal`, `b6b6_data_extinction_expiry_effect`, `b6b7_data_laws_two_rows`, `b6b7_data_feat_without_binding`, `b6b7_data_upper_rung_not_binary`, `b6b7_data_law_answers`, `b6b7_data_ark_margin_half`, `b6b8_data_era_borders_0_3`, `b6b8_data_witness_reverence_0_3`, `b6b8_data_extinction_expiry_effect`, `b6b8_data_era_no_ruled_past_checker`, `b6b8b_data_share_off`, `b6b8b_data_share_third` and `b6b10_data_clock_six_thousand`) needs the assets rebuilt by `Tools/make_data_tables.py` instead of a build,
-after the apply and again after the revert. The `b6b2b_schema_` and `b6b2b_data_` ones, the `b6b2c_schema_` ones, `b6b2c_data_binding_causality`, `b6b2c_data_bound_line_names_people`, `b6b3a_data_far_line_names_people`, `b6b3a_schema_far_rule_takes_other`, the `b6b5_schema_` and `b6b5_data_` ones and the `b6b6_schema_` ones, `b6b6_data_extinction_says_ark`, `b6b6_data_ark_rescues`, `b6b6_data_ark_word_in_card`, the `b6b8_schema_` ones, `b6b8_data_witness_says_jeungeon` and `b6b8_data_era_no_ruled` are run by the Python tools alone (`python -I Tools/test_data_schema.py`,
+A patch of `Tools/data` (the `b4d2_data_` ones, `b6b2a_data_laws_knob_four`, `b6b2a_data_reach_word_renamed`, `b6b2c_data_ark_margin_half`, `b6b2c_data_binding_answers`, `b6b3a_data_far_line_shares_text`, `b6b4_data_bound_words_seal`, `b6b6_data_extinction_expiry_effect`, `b6b7_data_laws_two_rows`, `b6b7_data_feat_without_binding`, `b6b7_data_upper_rung_not_binary`, `b6b7_data_law_answers`, `b6b7_data_ark_margin_half`, `b6b8_data_era_borders_0_3`, `b6b8_data_witness_reverence_0_3`, `b6b8_data_extinction_expiry_effect`, `b6b8_data_era_no_ruled_past_checker`, `b6b8b_data_share_off`, `b6b8b_data_share_third`, `b6b10_data_clock_six_thousand` and `b6b12_data_resist_factor`) needs the assets rebuilt by `Tools/make_data_tables.py` instead of a build,
+after the apply and again after the revert. The `b6b2b_schema_` and `b6b2b_data_` ones, the `b6b2c_schema_` ones, `b6b2c_data_binding_causality`, `b6b2c_data_bound_line_names_people`, `b6b3a_data_far_line_names_people`, `b6b3a_schema_far_rule_takes_other`, the `b6b5_schema_` and `b6b5_data_` ones and the `b6b6_schema_` ones, `b6b6_data_extinction_says_ark`, `b6b6_data_ark_rescues`, `b6b6_data_ark_word_in_card`, the `b6b8_schema_` ones, `b6b8_data_witness_says_jeungeon`, `b6b8_data_era_no_ruled` and the `b6b12_schema_` ones are run by the Python tools alone (`python -I Tools/test_data_schema.py`,
 `python -I Tools/check_data.py`): the checker refuses them before an asset is written, so no asset is rebuilt (`b6b6_data_ark_word_in_card` passes the checker and fails `Tools/test_data_schema.py` alone - the runner then writes the assets, records the failure and exits 1; rebuild them after the revert).
 The `b6b7_probe_` ones are commandlet probes in the form of `b6a3a_probe_no_awareness_flag` (B6a), not mutations that break a test: applied, built, run on the seed and tick their row names, then reverted and both targets rebuilt clean.
 Kept from milestone B on (B1); the earlier milestones ran their mutations from scripts and recorded them in the commit
@@ -85,16 +85,16 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B2/` | `b2c_vigil_with_rebellion.patch` — the policy enacts the vigil with a rebellion already standing | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
 | `B2/` | `b2c_kept_without_rest.patch` — the kept Stability edict comes back below the resting level | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
 | `B2/` | `b2c_kept_revoked_as_idle.patch` — the kept row is revoked as an idle answer | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
-| `B2/` | `b2c_no_room_made.patch` — no slot is made for a standing hazard's answer | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
+| `B2/` | `b2c_no_room_made.patch` — no slot is made for a standing hazard's answer (no longer applies since [B-6b2a] - taken again at [B-6b12] as `b6b12_no_room_made`) | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
 | `B2/` | `b2c_vigil_kept.patch` — the policy's vigil stays after the danger passed | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
 | `B2/` | `b2c_idle_answer_kept.patch` — an answer with nothing to answer stays | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
 | `B2/` | `b2c_decisions_without_edicts.patch` — the decisions leave out the edict commands | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
 | `B2/` | `b2c_edicts_after_end.patch` — the policy changes edicts after the provisional end | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
 | `B2/` | `b2c_helper_keeps_edict.patch` — the test helper does not revoke the inherited edict | `Cosmic_Ascension.Sim.PlayerAscendsToT3` |
 | `B2/` | `b2c_quiet_keeps_edict.patch` — the quiet board keeps the inherited edict | `Cosmic_Ascension.Sim.StabilityRecovery` |
-| `B2/` | `b2c_sightwalk_new_world.patch` — the sight-walk proof runs on the B2 world | `Cosmic_Ascension.Sim.SightWalkMoved` |
-| `B2/` | `b2c_room_takes_kept_row.patch` — room is made by giving up the kept row first | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
-| `B2/` | `b2c_room_never_kept.patch` — the kept row is never given up for an answer | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
+| `B2/` | `b2c_sightwalk_new_world.patch` — the sight-walk proof runs on the B2 world (no longer applies since [B-3d1] - taken again at [B-6b12] as `b6b12_sightwalk_new_world`) | `Cosmic_Ascension.Sim.SightWalkMoved` |
+| `B2/` | `b2c_room_takes_kept_row.patch` — room is made by giving up the kept row first (no longer applies since [B-6b2a] - taken again at [B-6b12] as `b6b12_room_takes_kept_row`) | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
+| `B2/` | `b2c_room_never_kept.patch` — the kept row is never given up for an answer (no longer applies since [B-6b2a] - taken again at [B-6b12] as `b6b12_room_never_kept`) | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
 | `B2/` | `b2c_room_ignores_gate.patch` — an edict is given up for an answer that would be refused | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
 | `B2/` | `b2c_hashrun_no_edict.patch` — the hash run's policy holds no edicts | `Cosmic_Ascension.Sim.HashRun` |
 | `B2/` | `b2c_ship_hint_under_rebellion.patch` — the first ship's line stands beside a rebellion | `Cosmic_Ascension.UI.FirstHints` |
@@ -148,10 +148,10 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B3/` | `b3b_guard_never_checked.patch` — a guard is never asked its gate | `Cosmic_Ascension.Sim.Siege` |
 | `B3/` | `b3b_delay_on_rebellion.patch` — a rebellion in a guarded capital is put off | `Cosmic_Ascension.Sim.FleetDelay` |
 | `B3/` | `b3b_delay_unguarded.patch` — an unguarded system gains the delay | `Cosmic_Ascension.Sim.FleetDelay` |
-| `B3/` | `b3b_delay_ignores_gap.patch` — a claim's delay ignores the gap to its claimant (no longer applies since [B-3c] - not retaken; [B-6b12]'s whole-B6b rerun decides) | `Cosmic_Ascension.Sim.FleetDelay` |
-| `B3/` | `b3b_delay_outside_cut.patch` — the delay is added past the int32 cut (no longer applies since [B-6b2a] - not retaken; [B-6b12]'s whole-B6b rerun decides) | `Cosmic_Ascension.Sim.FleetDelay` |
-| `B3/` | `b3b_spread_live_table.patch` — the spread reads a plague placed in the same step | `Cosmic_Ascension.Sim.PlagueSpread` |
-| `B3/` | `b3b_spread_no_multiplier.patch` — the spread multiplies nothing | `Cosmic_Ascension.Sim.PlagueSpread` |
+| `B3/` | `b3b_delay_ignores_gap.patch` — a claim's delay ignores the gap to its claimant (no longer applies since [B-3c] - taken again at [B-6b12] as `b6b12_delay_ignores_gap`) | `Cosmic_Ascension.Sim.FleetDelay` |
+| `B3/` | `b3b_delay_outside_cut.patch` — the delay is added past the int32 cut (no longer applies since [B-6b2a] - taken again at [B-6b12] as `b6b12_delay_outside_cut`) | `Cosmic_Ascension.Sim.FleetDelay` |
+| `B3/` | `b3b_spread_live_table.patch` — the spread reads a plague placed in the same step (no longer applies since [B-6b2a] - taken again at [B-6b12] as `b6b12_spread_live_table`) | `Cosmic_Ascension.Sim.PlagueSpread` |
+| `B3/` | `b3b_spread_no_multiplier.patch` — the spread multiplies nothing (no longer applies since [B-6b2a] - taken again at [B-6b12] as `b6b12_spread_no_multiplier`) | `Cosmic_Ascension.Sim.PlagueSpread` |
 | `B3/` | `b3b_ai_pileon.patch` — an AI opens hostility on a people another AI is hostile to | `Cosmic_Ascension.Sim.DiplomacyAI` |
 | `B3/` | `b3b_ai_no_aim_needed.patch` — an AI turns hostile with no system to aim at | `Cosmic_Ascension.Sim.DiplomacyAI` |
 | `B3/` | `b3b_ai_keeps_hostility.patch` — an AI keeps a hostility with no siege | `Cosmic_Ascension.Sim.DiplomacyAI` |
@@ -261,7 +261,7 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B4/` | `b4b_enact_pays_twice.patch` — EnactEdict pays the EnactCost twice | `Cosmic_Ascension.Sim.EnactEdictEffect` |
 | `B4/` | `b4b_enact_per_tick.patch` — EnactEdict joins the per-tick effects | `Cosmic_Ascension.Sim.EnactEdictEffect` |
 | `B4/` | `b4b_enact_accepts_norow.patch` — EnactEdict appends a Key the table does not hold | `Cosmic_Ascension.Sim.EnactEdictEffect` |
-| `B4/` | `b4b_civhasedict_no_table.patch` — CivHasEdict does not ask the table | `Cosmic_Ascension.Sim.CivHasEdictCondition` |
+| `B4/` | `b4b_civhasedict_no_table.patch` — CivHasEdict does not ask the table (no longer applies since [B-6b2a] - taken again at [B-6b12] as `b6b12_civhasedict_no_table`) | `Cosmic_Ascension.Sim.CivHasEdictCondition` |
 | `B4/` | `b4b_gate_draw_first.patch` — the answer draws before the choice's gate | `Cosmic_Ascension.Sim.PetitionChoiceGate` |
 | `B4/` | `b4b_policy_stance_only.patch` — the policy reads the stance gate alone, with the tables too | `Cosmic_Ascension.Sim.PetitionChoiceGate` |
 | `B4/` | `b4b_gate_held_open.patch` — the choice's gate takes an edict held | `Cosmic_Ascension.Sim.PetitionChoiceGate` |
@@ -277,8 +277,8 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B4/` | `b4b_sign_draws_empty.patch` — PushWithSign tells the sign with no variants of the line | `Cosmic_Ascension.Log.SignHelper` |
 | `B4/` | `b4b_sign_after_line.patch` — PushWithSign tells the sign after the line | `Cosmic_Ascension.Log.SignHelper` |
 | `B4/` | `b4b_sign_silent_missing.patch` — a sign row the table lacks passes silently | `Cosmic_Ascension.Log.SignHelper` |
-| `B4/` | `b4b_theodicy_one_bonus.patch` — the theodicy's longest stand counts one edict's countdown bonus | `Cosmic_Ascension.Data.Integrity` |
-| `B4/` | `b4b_theodicy_no_card_delay.patch` — the theodicy's longest stand leaves the cards' DelayHazard out | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4b_theodicy_one_bonus.patch` — the theodicy's longest stand counts one edict's countdown bonus (no longer applies since [B-4d2] - taken again at [B-6b12] as `b6b12_theodicy_one_bonus`) | `Cosmic_Ascension.Data.Integrity` |
+| `B4/` | `b4b_theodicy_no_card_delay.patch` — the theodicy's longest stand leaves the cards' DelayHazard out (no longer applies since [B-4d2] - taken again at [B-6b12] as `b6b12_theodicy_no_card_delay`) | `Cosmic_Ascension.Data.Integrity` |
 | `B4/` | `b4b_theodicy_factor_one.patch` — the theodicy counts the sphere factor as 1 | `Cosmic_Ascension.Data.Integrity` |
 | `B4/` | `b4b_theodicy_lower_bar.patch` — the theodicy keeps a fifth instead of a quarter | `Cosmic_Ascension.Data.Integrity` |
 | `B4/` | `b4b_card_edict_name_unchecked.patch` — a choice that enacts an edict need not carry its name | `Cosmic_Ascension.Data.Integrity` |
@@ -312,25 +312,25 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B4/` | `b4b_drain_loss_no_factor.patch` — DrainLossOf leaves the held edicts' factor out | `Cosmic_Ascension.Sim.PressureDrainEdict` |
 | `B4/` | `b4b_schema_not_tag_of_skipped.patch` — the checker skips the tag option not_tag_of | `test_pressure_cards` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4b_schema_not_read_by_skipped.patch` — the checker skips the tag option not_read_by | `test_pressure_cards` (`Tools/test_data_schema.py`) |
-| `B4/` | `b4b_schema_none_always_true.patch` — the row test none always holds | `test_pressure_cards` (`Tools/test_data_schema.py`) |
-| `B4/` | `b4b_schema_none_any_all.patch` — the row test none asks all the entries instead of any | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_none_always_true.patch` — the row test none always holds (no longer applies since [B-6b2c] - taken again at [B-6b12] as `b6b12_schema_none_always_true`) | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_none_any_all.patch` — the row test none asks all the entries instead of any (no longer applies since [B-6b2c] - taken again at [B-6b12] as `b6b12_schema_none_any_all`) | `test_pressure_cards` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4b_schema_zero_inverted.patch` — the row test zero is inverted | `test_pressure_cards` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4b_schema_contains_none_always.patch` — the row test contains_none always holds | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4b_schema_struct_conditions_not_read.patch` — not_read_by does not look into the conditions of a list of structs | `test_pressure_cards` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4b_schema_refusal_table_check_off.patch` — the schema check of not_tag_of takes a column that is no tag | `test_pressure_cards` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4b_schema_not_read_by_tag_check_off.patch` — the schema check of not_read_by takes a condition that reads no tag | `test_pressure_cards` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4b_schema_none_shape_check_off.patch` — the schema check of none takes tests over more than one list | `test_voice_and_drain` (`Tools/test_data_schema.py` - corrected at [B-6b6]: the row named `test_pressure_cards`, which this patch never broke) |
-| `B4/` | `b4b_schema_contains_none_tag_decl_off.patch` — the tags of contains_none need not be declared | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_contains_none_tag_decl_off.patch` — the tags of contains_none need not be declared (no longer applies since [B-6b2a] - taken again at [B-6b12] as `b6b12_schema_contains_none_tag_decl_off`) | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4b_schema_grace_rule_weak.patch` — the grace rule bans another condition than CivHasEdict | `test_pressure_cards` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4b_schema_e3_list_short.patch` — the rolled-choice ban misses the Stability check | `test_pressure_cards` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4b_schema_delay_max.patch` — DelayHazard may carry up to 1,000 ticks | `test_pressure_cards` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4b_schema_delay_not_card_only.patch` — DelayHazard is not card_only | `test_pressure_cards` (`Tools/test_data_schema.py`) |
-| `B4/` | `b4b_schema_enact_not_card_only.patch` — EnactEdict is not card_only | `test_pressure_cards` (`Tools/test_data_schema.py`) |
-| `B4/` | `b4b_schema_civhasedict_optional.patch` — CivHasEdict's Key is optional | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_enact_not_card_only.patch` — EnactEdict is not card_only (no longer applies since [B-6b2a] - taken again at [B-6b12] as `b6b12_schema_enact_not_card_only`) | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_civhasedict_optional.patch` — CivHasEdict's Key is optional (no longer applies since [B-6b2a] - taken again at [B-6b12] as `b6b12_schema_civhasedict_optional`) | `test_pressure_cards` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4b_schema_counterfeit_when_celestial.patch` — CounterfeitOf is required of the celestial rows instead | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4b_schema_claim_pair_log_claim.patch` — Event.Crisis.Claim keeps Log.Claim among its line categories | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
-| `B4/` | `b4b_schema_drain_max_off.patch` — PressureDrainMultiplier has no upper bound | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
-| `B4/` | `b4b_schema_resist_min_off.patch` — ResistFleetFactor has no lower bound | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_drain_max_off.patch` — PressureDrainMultiplier has no upper bound (no longer applies since [B-6b2a] - taken again at [B-6b12] as `b6b12_schema_drain_max_off`) | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4b_schema_resist_min_off.patch` — ResistFleetFactor has no lower bound (no longer applies since [B-6b2a] - taken again at [B-6b12] as `b6b12_schema_resist_min_off`) | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4b_schema_e1_prefix_petition.patch` — the ruler-only rule bans the petition rows instead of the wanderer's | `test_pressure_cards` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4b_schema_e5_when_free_only.patch` — a free choice with a stance counts as the card's unblocked choice | `test_pressure_cards` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4b_schema_v2_ge_2.patch` — a Log.Transcendent row may be revealed from the second rung | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
@@ -352,11 +352,11 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B4/` | `b4c_no_fleet_suffix.patch` — a fleet with no cap has no short words after its label | `Cosmic_Ascension.UI.PetitionCard` |
 | `B4/` | `b4c_resist_hazard_unnamed.patch` — the fleet's reasons do not name the refused hazard | `Cosmic_Ascension.UI.PetitionCard` |
 | `B4/` | `b4c_panel_not_redrawn.patch` — an answer does not redraw the panel (the crisis line waits for a tick) | `Cosmic_Ascension.UI.PetitionCard` |
-| `B4/` | `b4c_drain_tip_one.patch` — the drain line shows for a factor of 1 | `Cosmic_Ascension.UI.EdictRules` |
+| `B4/` | `b4c_drain_tip_one.patch` — the drain line shows for a factor of 1 (no longer applies since [B-6b4] - taken again at [B-6b12] as `b6b12_drain_tip_one`) | `Cosmic_Ascension.UI.EdictRules` |
 | `B4/` | `b4c_drain_tip_complement.patch` — the drain line tells 1 - the factor | `Cosmic_Ascension.UI.EdictRules` |
-| `B4/` | `b4c_drain_tip_below_one.patch` — the drain line shows only for a factor below 1 | `Cosmic_Ascension.UI.EdictRules` |
-| `B4/` | `b4c_drain_tip_infinite.patch` — the drain line shows for an infinite factor | `Cosmic_Ascension.UI.EdictRules` |
-| `B4/` | `b4c_drain_tip_zero.patch` — the drain line shows for a factor of 0 or below | `Cosmic_Ascension.UI.EdictRules` |
+| `B4/` | `b4c_drain_tip_below_one.patch` — the drain line shows only for a factor below 1 (no longer applies since [B-6b4] - taken again at [B-6b12] as `b6b12_drain_tip_below_one`) | `Cosmic_Ascension.UI.EdictRules` |
+| `B4/` | `b4c_drain_tip_infinite.patch` — the drain line shows for an infinite factor (no longer applies since [B-6b4] - taken again at [B-6b12] as `b6b12_drain_tip_infinite`) | `Cosmic_Ascension.UI.EdictRules` |
+| `B4/` | `b4c_drain_tip_zero.patch` — the drain line shows for a factor of 0 or below (no longer applies since [B-6b4] - taken again at [B-6b12] as `b6b12_drain_tip_zero`) | `Cosmic_Ascension.UI.EdictRules` |
 | `B4/` | `b4c_ticks_round.patch` — ResistTicksOf rounds instead of taking the whole part | `Cosmic_Ascension.Sim.ResistDelay` |
 | `B4/` | `b4c_ticks_from_above_one.patch` — ResistTicksOf takes a Value of 1 as none | `Cosmic_Ascension.Sim.ResistDelay` |
 | `B4/` | `b4c_ticks_no_cut.patch` — ResistTicksOf does not cut at 2^31 | `Cosmic_Ascension.Sim.ResistDelay` |
@@ -373,7 +373,7 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B4/` | `b4d1_worn_no_focus.patch` — the fleet worn line names no system | `Cosmic_Ascension.Log.AttritionLine` |
 | `B4/` | `b4d1_schema_lacks_words_always.patch` — the row test lacks_words always holds | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4d1_schema_lacks_words_first_text.patch` — lacks_words reads the first text of a list alone | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
-| `B4/` | `b4d1_schema_lacks_words_list_unchecked.patch` — a lacks_words that names no word list of the schema passes | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
+| `B4/` | `b4d1_schema_lacks_words_list_unchecked.patch` — a lacks_words that names no word list of the schema passes (no longer applies since [B-6b2b] - taken again at [B-6b12] as `b6b12_schema_lacks_words_list_unchecked`) | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4d1_schema_lacks_words_any_kind.patch` — lacks_words may be asked of a number column | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4d1_schema_hazard_expiry_rescue_off.patch` — the hazards' expiry lines take the rescue words (no longer applies since [B-6b5] - taken again as `b6b5_schema_hazard_expiry_rescue_off`) | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
 | `B4/` | `b4d1_schema_event_lines_holy_off.patch` — the events' lines take the holy words (no longer applies since [B-6b5] - taken again as `b6b5_schema_event_lines_holy_off`) | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
@@ -396,7 +396,7 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B4/` | `b4d2_data_discern_cheaper.patch` — (data) the discernment costs 150 Insight | `Cosmic_Ascension.Sim.PressureChain` |
 | `B4/` | `b4d2_data_delay_40.patch` — (data) the fleet buys the claim 40 ticks | `Cosmic_Ascension.Sim.PressureChain` |
 | `B4/` | `b4d2_data_discern_no_chain.patch` — (data) the discernment puts no second card | `Cosmic_Ascension.Sim.PressureChain` |
-| `B4/` | `b4d2_data_resist_factor.patch` — (data) the fleet's time spends 0.6 of the fleet (no longer applies since [B-6b2a] - not retaken; [B-6b12]'s whole-B6b rerun decides) | `Cosmic_Ascension.Sim.PressureChain` |
+| `B4/` | `b4d2_data_resist_factor.patch` — (data) the fleet's time spends 0.6 of the fleet (no longer applies since [B-6b2a] - taken again at [B-6b12] as `b6b12_data_resist_factor`) | `Cosmic_Ascension.Sim.PressureChain` |
 | `B4/` | `b4d2_data_silence_first_rung.patch` — (data) the seventh edict stands from the first rung | `Cosmic_Ascension.UI.EdictWindow` |
 | `B4/` | `b4d2_data_silence_third_rung.patch` — (data) the seventh edict stands from the third rung | `Cosmic_Ascension.UI.EdictWindow` |
 | `B4/` | `b4d2_data_ease_no_vigil.patch` — (data) the vigil's draw row eases a claim with no vigil held | `Cosmic_Ascension.Sim.VigilEase` |
@@ -440,11 +440,11 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B5/` | `b5b_succeed_keeps_low_tier.patch` — a succession keeps a personal tier below the third | `Cosmic_Ascension.Calling.HardReset` |
 | `B5/` | `b5b_succeed_drops_way.patch` — a succession drops the way (Way.*) | `Cosmic_Ascension.Calling.HardReset` |
 | `B5/` | `b5b_name_compare_off.patch` — a new vessel's name is never compared with the previous life's | `Cosmic_Ascension.Calling.HardReset` |
-| `B5/` | `b5b_tenth_outside_guard.patch` — the tenth stage runs outside the stage guard (no longer applies since [B-6a3b] - the ending record's write after the tenth stage changed the context in `Sim/GalaxySimulationSubsystem.cpp`; not retaken; [B-6b12]'s whole-B6b rerun decides) | `Cosmic_Ascension.Calling.LeapDeterminism` |
+| `B5/` | `b5b_tenth_outside_guard.patch` — the tenth stage runs outside the stage guard (no longer applies since [B-6a3b] - taken again at [B-6b12] as `b6b12_tenth_outside_guard`) | `Cosmic_Ascension.Calling.LeapDeterminism` |
 | `B5/` | `b5b_runleap_no_boundary.patch` — RunLeap sends no boundary | `Cosmic_Ascension.Calling.LeapDeterminism`, `Cosmic_Ascension.Sim.SaveLeapResume`, `Cosmic_Ascension.UI.LeapBoundary` |
 | `B5/` | `b5b_feed_tick_rule_only.patch` — the feed rebuilds on a tick gap only, not on the leap's boundary | `Cosmic_Ascension.UI.LeapBoundary` |
 | `B5/` | `b5b_feed_no_simtick.patch` — the feed does not listen to OnSimTick | `Cosmic_Ascension.UI.LeapBoundary` |
-| `B5/` | `b5b_advance_no_end_cut.patch` — AdvanceLeap does not stop at the provisional end | `Cosmic_Ascension.UI.LeapBoundary` |
+| `B5/` | `b5b_advance_no_end_cut.patch` — AdvanceLeap does not stop at the provisional end (no longer applies since [B-6a3c] - `RunLeap` stops at the ending record, covered by `b6a3c_runleap_never_stops` and `b6a3c_advanceleap_no_second_call`) | `Cosmic_Ascension.UI.LeapBoundary` |
 | `B5/` | `b5b_death_stop_after_end.patch` — the boundary looks for a death only after the end's early return | `Cosmic_Ascension.UI.LeapBoundary` |
 | `B5/` | `b5b_save_role_before_death.patch` — the save causes put Role before Death | `Cosmic_Ascension.Sim.SaveLeapResume`, `Cosmic_Ascension.Sim.SaveTriggers`, `Cosmic_Ascension.UI.LeapBoundary` |
 | `B5/` | `b5b_first_tick_of_life_off.patch` — a succeeded life's first tick compares with the head | `Cosmic_Ascension.Calling.FirstTickOfLife` |
@@ -540,9 +540,9 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B5/` | `b5d1_no_death_line.patch` — the death tells no line | `Cosmic_Ascension.Calling.DeathPipeline` |
 | `B5/` | `b5d1_death_line_draws_sim.patch` — the death line draws a number of the sim stream (rule 3: its variant is the tell stream's alone) | `Cosmic_Ascension.Calling.DeathPipeline` |
 | `B5/` | `b5d1_death_line_focus.patch` — the death line has a focus system (a narrator's line about the place of the death could follow a first-person line about it) | `Cosmic_Ascension.Calling.DeathPipeline` |
-| `B5/` | `b5d1_death_line_no_hazard.patch` — the death line's {Hazard} is left empty (not the hazard row behind the death) | `Cosmic_Ascension.Calling.DeathPipeline` |
-| `B5/` | `b5d1_death_line_no_name.patch` — the death line's {Player} is left empty (not the closed life's name - the third person, decision 12-da) | `Cosmic_Ascension.Calling.DeathPipeline` |
-| `B5/` | `b5d1_death_line_any_cause.patch` — a cause with no row of its own (the measurement's Death.Age) is told with the hazard death's row | `Cosmic_Ascension.Calling.DeathPipeline` |
+| `B5/` | `b5d1_death_line_no_hazard.patch` — the death line's {Hazard} is left empty (not the hazard row behind the death; no longer applies since [B-6b2b] - taken again at [B-6b12] as `b6b12_death_line_no_hazard`) | `Cosmic_Ascension.Calling.DeathPipeline` |
+| `B5/` | `b5d1_death_line_no_name.patch` — the death line's {Player} is left empty (not the closed life's name - the third person, decision 12-da; no longer applies since [B-6b2b] - taken again at [B-6b12] as `b6b12_death_line_no_name`) | `Cosmic_Ascension.Calling.DeathPipeline` |
+| `B5/` | `b5d1_death_line_any_cause.patch` — a cause with no row of its own (the measurement's Death.Age) is told with the hazard death's row (no longer applies since [B-6b2b] - taken again at [B-6b12] as `b6b12_death_line_any_cause`) | `Cosmic_Ascension.Calling.DeathPipeline` |
 | `B5/` | `b5d1_no_inauguration_line.patch` — the succession tells no inauguration line | `Cosmic_Ascension.Calling.HardReset` |
 | `B5/` | `b5d1_inauguration_focus.patch` — the inauguration line has no focus (not the new life's birth system and people) | `Cosmic_Ascension.Calling.HardReset` |
 | `B5/` | `b5d1_inauguration_before_install.patch` — the inauguration line is told before Install (it names the life that closed, not the new vessel) | `Cosmic_Ascension.Calling.HardReset` |
@@ -554,8 +554,8 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B5/` | `b5d1_after_span_whole_end_tick.patch` — with a life born on the end's tick, the last chapter's After span keeps the whole end tick: the inauguration line stands under Chronicle.NoVessel (digest-5) | `Cosmic_Ascension.UI.Digest` |
 | `B5/` | `b5d1_digest_past_inauguration.patch` — the digest reads the succession's tick past the inauguration line (what is told after it becomes an item) | `Cosmic_Ascension.UI.Digest` |
 | `B5/` | `b5d1_record_told.patch` — a record line is judged by the scope like any other: told in the tell-all mode and in scope | `Cosmic_Ascension.Log.TwoBooksSameLoss`, `Cosmic_Ascension.Log.ClaimVoice` |
-| `B5/` | `b5d1_record_no_annex.patch` — a claim that joins a sphere records nothing | `Cosmic_Ascension.Log.TwoBooksSameLoss`, `Cosmic_Ascension.Log.ClaimVoice` |
-| `B5/` | `b5d1_record_unjoined_claim.patch` — every claim's expiry records a loss, one that joins nothing too | `Cosmic_Ascension.Log.TwoBooksSameLoss`, `Cosmic_Ascension.Log.ClaimVoice` |
+| `B5/` | `b5d1_record_no_annex.patch` — a claim that joins a sphere records nothing (no longer applies since [B-6b2b] - taken again at [B-6b12] as `b6b12_record_no_annex`) | `Cosmic_Ascension.Log.TwoBooksSameLoss`, `Cosmic_Ascension.Log.ClaimVoice` |
+| `B5/` | `b5d1_record_unjoined_claim.patch` — every claim's expiry records a loss, one that joins nothing too (no longer applies since [B-6b2b] - taken again at [B-6b12] as `b6b12_record_unjoined_claim`) | `Cosmic_Ascension.Log.TwoBooksSameLoss`, `Cosmic_Ascension.Log.ClaimVoice` |
 | `B5/` | `b5d1_record_no_destroy.patch` — a settled system destroyed records nothing | `Cosmic_Ascension.Log.TwoBooksSameLoss` |
 | `B5/` | `b5d1_record_after_voice.patch` — the record line comes after the claim's sign and first person | `Cosmic_Ascension.Log.TwoBooksSameLoss`, `Cosmic_Ascension.Log.ClaimVoice` |
 | `B5/` | `b5d1_record_before_expiry.patch` — the record line comes before the expiry line | `Cosmic_Ascension.Log.TwoBooksSameLoss`, `Cosmic_Ascension.Log.ClaimVoice` |
@@ -577,12 +577,12 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B5/` | `b5d1_claim_line_told_only.patch` — the log's question of a same-tick first person passes the first person kept untold (below the third rung the named row follows it) | `Cosmic_Ascension.Log.ClaimVoice` |
 | `B5/` | `b5d1_claim_line_any_tick.patch` — the log's question of a same-tick first person reads a first person of any tick | `Cosmic_Ascension.Log.ClaimVoice` |
 | `B5/` | `b5d1_opens_named_only.patch` — `CosmicChronicle::OpensCalledChapter` opens the called life's chapter at the named inauguration row only (the unnamed row opens nothing) | `Cosmic_Ascension.Log.ChronicleBuild`, `Cosmic_Ascension.Log.ClaimVoice` |
-| `B5/` | `b5d1_death_line_death_place.patch` — the death line has the place of the death (the dead vessel's `CurrentSystemID`) as its focus: a narrator's line calls the claimed system after the first person when the vessel dies there on the joining tick | `Cosmic_Ascension.Log.ClaimVoice`, `Cosmic_Ascension.Calling.DeathPipeline` |
+| `B5/` | `b5d1_death_line_death_place.patch` — the death line has the place of the death (the dead vessel's `CurrentSystemID`) as its focus: a narrator's line calls the claimed system after the first person when the vessel dies there on the joining tick (no longer applies since [B-6b2b] - taken again at [B-6b12] as `b6b12_death_line_death_place`) | `Cosmic_Ascension.Log.ClaimVoice`, `Cosmic_Ascension.Calling.DeathPipeline` |
 | `B5/` | `b5d1_unseen_line_shown.patch` — `CosmicChronicle::IsUnseenLifeLine` holds nothing back: the feed shows the inauguration line of the vessel the end's tick installed | `Cosmic_Ascension.UI.LeapBoundary`, `Cosmic_Ascension.Log.ChronicleBuild` |
 | `B5/` | `b5d1_unseen_line_while_running.patch` — `CosmicChronicle::IsUnseenLifeLine` holds the inauguration line back while the run goes on (the feed's last item after a leap is not the new vessel's line) | `Cosmic_Ascension.UI.LeapBoundary`, `Cosmic_Ascension.Log.ChronicleBuild` |
 | `B5/` | `b5d1_feed_rebuild_shows_unseen.patch` — the feed's rebuild skips only untold lines (the inauguration line of the vessel the end's tick installed stands last) | `Cosmic_Ascension.UI.LeapBoundary` |
 | `B5/` | `b5d1_feed_appends_unseen.patch` — a new line of the vessel the end's tick installed, heard after the end latched, is appended to the feed | `Cosmic_Ascension.UI.LeapBoundary` |
-| `B5/` | `b5d1_feed_no_end_refresh.patch` — the end's latch announces nothing (`OnRunEndChanged`): after a leap of 0 on the end's tick the feed keeps the inauguration line it heard | `Cosmic_Ascension.UI.LeapBoundary` |
+| `B5/` | `b5d1_feed_no_end_refresh.patch` — the end's latch announces nothing (`OnRunEndChanged`): after a leap of 0 on the end's tick the feed keeps the inauguration line it heard (no longer applies since [B-6a3c] - taken again at [B-6b12] as `b6b12_feed_no_end_refresh`) | `Cosmic_Ascension.UI.LeapBoundary` |
 | `B5/` | `b5d1_feed_clear_no_refresh.patch` — forgetting the end announces nothing: the feed keeps holding the inauguration line back once the end is switched off | `Cosmic_Ascension.UI.LeapBoundary` |
 | `B5/` | `b5d1_books_part_one_alone.patch` — part one is thinned first-and-last alone again, blind to part two: a shown claim can stand over a place whose record part one left out | `Cosmic_Ascension.Log.TwoBooksNoVessel` |
 | `B5/` | `b5d1_books_no_item_cap.patch` — part two loses its 12-item cap (the fit test and the deal's `ItemsLeft`): only the 28-row cap stops it | `Cosmic_Ascension.Log.TwoBooksNoVessel` |
@@ -595,8 +595,8 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B5/` | `b5d2_risk_any_system.patch` — a KillPlayer on a system reaches a wanderer anywhere (the reach no longer asks where it stands): a wanderer one lane from the expiry dies | `Cosmic_Ascension.Calling.LethalSource` |
 | `B5/` | `b5d2_risk_spares_travellers.patch` — a vessel under way is out of reach (the reach asks for no journey): the vessel that set out from the awakening's system lives (header 2.8: it stands where it left until it arrives) | `Cosmic_Ascension.Calling.LethalSource` |
 | `B5/` | `b5d2_risk_no_protection.patch` — the reach drops the birth protection: a vessel shielded on the expiry's tick dies | `Cosmic_Ascension.Calling.LethalSource` |
-| `B5/` | `b5d2_kills_branch_only.patch` — CosmicHazards::KillsAVesselOf reads the branch effects alone: the game's AI awakening (own side lethal) reads as harmless, and the succession offers its system | `Cosmic_Ascension.Calling.LethalSource` |
-| `B5/` | `b5d2_kills_branch_only_ui.patch` — the same patch against the screens: no warning where the game's AI awakening stands (and none for the test row) | `Cosmic_Ascension.UI.LethalWarning` |
+| `B5/` | `b5d2_kills_branch_only.patch` — CosmicHazards::KillsAVesselOf reads the branch effects alone: the game's AI awakening (own side lethal) reads as harmless, and the succession offers its system (no longer applies since [B-6b2b] - taken again at [B-6b12] as `b6b12_kills_branch_only`) | `Cosmic_Ascension.Calling.LethalSource` |
+| `B5/` | `b5d2_kills_branch_only_ui.patch` — the same patch against the screens: no warning where the game's AI awakening stands (and none for the test row; no longer applies since [B-6b2b] - taken again at [B-6b12] as `b6b12_kills_branch_only`) | `Cosmic_Ascension.UI.LethalWarning` |
 | `B5/` | `b5d2_expiry_own_side_always.patch` — an expiry runs its own effects whichever side its number takes: the AI awakening's branch side kills | `Cosmic_Ascension.Calling.LethalSource` |
 | `B5/` | `b5d2_kill_no_source_row.patch` — a recorded role effect keeps no source row: the death's CauseSourceRow is not crisis_ai_awakening and its line names no hazard | `Cosmic_Ascension.Calling.LethalSource` |
 | `B5/` | `b5d2_card_resolves_nothing.patch` — ResolveHazard reports success and leaves the slot: the awakening the card's success ended still expires | `Cosmic_Ascension.Calling.LethalSource` |
@@ -631,7 +631,7 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B5/` | `b5r_fallen_status_one_tick.patch` — the tenth stage clears the vessel's status on every tick with no role effect (the fallen monarch's status lasts only the tick of the deposition) | `Cosmic_Ascension.Sim.PhaseTwoExit` |
 | `B5/` | `b5r_deposed_no_status.patch` — a deposition leaves no fallen monarch's status (read at the boundary of the deposition) | `Cosmic_Ascension.Sim.PhaseTwoExit` |
 | `B5/` | `b5r_death_draws_when_stepped.patch` — a death draws one more number of the sim stream while the broadcast gate is open, so stepping one tick at a time is no longer the same world as the whole run at once (lived while the test ran WithoutDeath) | `Cosmic_Ascension.Sim.PhaseTwoExit` |
-| `B5/` | `b5r_phase_two_no_death.patch` — the tenth stage never carries a death out (the whole run of seed 18 crosses no death and no succession) | `Cosmic_Ascension.Sim.PhaseTwoExit` |
+| `B5/` | `b5r_phase_two_no_death.patch` — the tenth stage never carries a death out (the whole run of seed 1 - seed 18 until [B-6b11] - crosses no death and no succession) | `Cosmic_Ascension.Sim.PhaseTwoExit` |
 | `B5/` | `b5r_warn_card_trap_never.patch` — a wanderer's card at a lethal hazard that expires within one lane's time never says that leaving after the answer is too late (the plain words in the trap band too) | `Cosmic_Ascension.UI.LethalWarning` |
 | `B5/` | `b5r_warn_card_one_band.patch` — the card window's two bands swapped: the trap's words for a lethal hazard the vessel can still leave, the plain words where leaving after the answer is too late | `Cosmic_Ascension.UI.LethalWarning` |
 | `B5/` | `b5r_warn_ship_hint_ignores_lethal.patch` — the capital's first-ship line waits for a rebellion only, so it invites the abdication while a lethal hazard stands where the vessel off the throne would walk from | `Cosmic_Ascension.UI.LethalWarning` |
@@ -645,7 +645,7 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B6a/` | `b6a3a_aware_draws.patch` — writing the awareness flag draws one number from the sim stream | `Cosmic_Ascension.Sim.AwarenessOnce` |
 | `B6a/` | `b6a3a_aware_rung_exact.patch` — the awareness flag's rung gate reads 'exactly the third rung' instead of 'the third rung or above': a claim on a ruled people on the fourth rung makes nobody aware | `Cosmic_Ascension.Sim.AwarenessOnce` |
 | `B6a/` | `b6a3a_aware_no_owner_gate.patch` — the awareness flag drops its owner gate (`Player.RuledCivID != OwnerID`): the rung gate then reads the claimed system's owner, so a claim on another people's third-rung system makes its claimant aware | `Cosmic_Ascension.Sim.AwarenessOnce` |
-| `B6a/` | `b6a3a_rung_end_back.patch` — `ProvisionalEndOf` answers `Rung` again for a life's `PeakTier` at the third rung (the end that B6a decision 2-ga removed; no longer applies since [B-6a3c] - `ProvisionalEndOf` deleted; not retaken; [B-6b12]'s whole-B6b rerun decides) | `Cosmic_Ascension.Sim.ProvisionalEnd`, `Cosmic_Ascension.Sim.PlayerAscendsToT3`, `Cosmic_Ascension.UI.RunEnd`, `Cosmic_Ascension.UI.MouseOnlyAscent` |
+| `B6a/` | `b6a3a_rung_end_back.patch` — `ProvisionalEndOf` answers `Rung` again for a life's `PeakTier` at the third rung (the end that B6a decision 2-ga removed; no longer applies since [B-6a3c] - `ProvisionalEndOf` deleted; not retaken at [B-6b12]: no live patch puts the third rung's end back into `EndingOf` - the `Sim.EndingOf` case 'A third peak, its people at the third rung: none' has no mutation, so a retake is owed) | `Cosmic_Ascension.Sim.EndingOf`, `Cosmic_Ascension.Sim.PlayerAscendsToT3`, `Cosmic_Ascension.UI.RunEnd`, `Cosmic_Ascension.UI.MouseOnlyAscent` |
 | `B6a/` | `b6a3a_probe_no_awareness_flag.patch` — **a probe, not a mutation** (header B6a section 5.3, check d of `[B-6a3a]`): the build without the flag write gives, on the five runs with `-PastEnd=1`, both hashes of the `[B-6a2]` build's `-PastEnd=1` runs (`Saved\Balance\b6a2_pastend\`). At `[B-6a3a]` the five `-PastEnd=1` runs of the real build already gave those hashes (no claim stands on the ruled people while the policy plays), and the probe build was run on the one run where a claim does - the ruler's 20,000 ticks without the switch, two claims on the third-rung ruled people after the input stops at the clock: 1072463830 / 4098835384 without the flag against 1219932898 / 330974340 with it (notes B6a section 5) | (probe — commandlet runs, no test) |
 | `B6a/` | `b6a3b_other_people_first.patch` — `EndingOf` skips the ruled people's end whenever any people stands on the fifth rung, so another people's end comes first (B6a decision 5 reversed) | `Cosmic_Ascension.Sim.EndingOf` |
 | `B6a/` | `b6a3b_other_people_reads_knowing.patch` — the other people's end counts only a people the calling has met (`Knowing.MetCivs` — the world read through the knowing, CLAUDE.md rule 2) | `Cosmic_Ascension.Sim.EndingOf` |
@@ -674,7 +674,7 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B6a/` | `b6a4_no_vessel_line_dropped.patch` — the line of an end met with no vessel never stands | `Cosmic_Ascension.UI.Chronicle`, `Cosmic_Ascension.UI.Epitaph` |
 | `B6a/` | `b6a4_clock_tip_reads_rung_rule.patch` — the clock tip shows the rung's rule line (`Chronicle.RuleRung`) when the knob is 0 or below (no longer applies since [B-6b4] - taken again as `b6b4_clock_tip_rung_rule_without_row`) | `Cosmic_Ascension.UI.Chronicle` |
 | `B6a/` | `b6a4_nocandidate_says_rung.patch` — the chronicle's cause line loses its no-candidate branch: the silence reads as a people's fifth rung | `Cosmic_Ascension.UI.Chronicle`, `Cosmic_Ascension.UI.Epitaph` |
-| `B6a/` | `b6a4_claim_may_follow_no_nova_claim_gate.patch` — `ClaimMayFollowOf` drops the gate of `Hazard.PreSupernova` and `Hazard.Claim` (their expiries never run the claim rule on that system) | `Cosmic_Ascension.UI.ClaimMayFollow` |
+| `B6a/` | `b6a4_claim_may_follow_no_nova_claim_gate.patch` — `ClaimMayFollowOf` drops the gate of `Hazard.PreSupernova` and `Hazard.Claim` (their expiries never run the claim rule on that system; no longer applies since [B-6b2b] - taken again at [B-6b12] as `b6b12_claim_may_follow_no_nova_claim_gate`) | `Cosmic_Ascension.UI.ClaimMayFollow` |
 | `B6a/` | `b6a4_rebellion_watch_under_standing.patch` — the rebellion watch shows while a rebellion already stands on the capital | `Cosmic_Ascension.UI.RebellionWatch` |
 | `B6a/` | `b6a4_rebellion_watch_zero_count.patch` — the rebellion watch shows below the threshold with a count of 0 | `Cosmic_Ascension.UI.RebellionWatch` |
 | `B6a/` | `b6a4_rebellion_watch_no_floor.patch` — the rebellion watch's wait ignores the row's first tick (`GalaxyTickAtLeast`) | `Cosmic_Ascension.UI.RebellionWatch` |
@@ -684,7 +684,7 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B6a/` | `b6a5_awareness_severity_2.patch` — the awareness line is Severity 2: the automatic pause stops for it | `Cosmic_Ascension.Log.AwarenessVoice` |
 | `B6a/` | `b6a5_awareness_gate_own_flag.patch` — the line's gate is the claimant's own flag, not 'no transcendent aware before': a second fallen's first claim tells a second line | `Cosmic_Ascension.Log.AwarenessVoice` |
 | `B6a/` | `b6a5_awareness_with_sign.patch` — the awareness line is told with a sign (`PushWithSign`): two numbers of the tell stream | `Cosmic_Ascension.Log.AwarenessVoice` |
-| `B6a/` | `b6a5_awareness_before_outbreak.patch` — the awareness line is told before the new claim's outbreak line (it is no longer the expiry's last line) | `Cosmic_Ascension.Log.AwarenessVoice` |
+| `B6a/` | `b6a5_awareness_before_outbreak.patch` — the awareness line is told before the new claim's outbreak line (it is no longer the expiry's last line; no longer applies since [B-6b2b] - taken again at [B-6b12] as `b6b12_awareness_before_outbreak`) | `Cosmic_Ascension.Log.AwarenessVoice` |
 | `B6a/` | `b6a5_life_chapter_admits_awareness.patch` — both chronicle gates of `Log.Transcendent` go (the life chapter's gather and `Admits`): the awareness line moves into the chronicle and a chapter shows it | `Cosmic_Ascension.Log.AwarenessVoice` |
 | `B6a/` | `b6a5_admits_awareness.patch` — `CosmicChronicle::Admits` takes the awareness line when it leaves the log (a saved entry nothing can show, holding a slot of the chronicle's cap) | `Cosmic_Ascension.Log.AwarenessVoice` |
 | `B6a/` | `b6a5_succession_clears_flags.patch` — a succession clears every `bAwareOfPlayer` (the flag must survive it - B6a decision 7-na) | `Cosmic_Ascension.Log.AwarenessVoice` |
@@ -996,7 +996,7 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B6b/` | `b6b7_without_b6b_keeps_laws.patch` — `CosmicTests::WithoutB6bData` takes out no galaxy law (its `Edicts` list empty) | `Cosmic_Ascension.Data.Integrity` (the tripwire on today's eight rows and the full copy's ten) |
 | `B6b/` | `b6b7_without_b6b_keeps_fifth_feat.patch` — `CosmicTests::WithoutB6bData` keeps `feat_laws_and_binding` | `Cosmic_Ascension.UI.Chronicle` (without B6b's data the tables judge no row up to the fifth rung; a wanderer's row is not one; nor a row without a condition); `Cosmic_Ascension.Data.Integrity` (the tripwire) |
 | `B6b/` | `b6b7_binding_never_completes.patch` — `CosmicSeal::BindTargetOf` finds no fallen one (always `INDEX_NONE`: no binding starts, none completes) | `Cosmic_Ascension.Feats.Reachable` (an AI people reaches the fifth rung in 20,000 ticks) |
-| `B6b/` | `b6b7_phase_two_exit_full_data.patch` — `Sim.PhaseTwoExit` runs on the game's data whole instead of `CosmicTests::WithoutB6bData` (the deposed vessel of seed 18 then lives past 20,000 ticks) | `Cosmic_Ascension.Sim.PhaseTwoExit` (the whole run: the deposed life closes after the deposition and a succession follows before the end) |
+| `B6b/` | `b6b7_phase_two_exit_full_data.patch` — `Sim.PhaseTwoExit` runs on the game's data whole instead of `CosmicTests::WithoutB6bData` (the deposed vessel of seed 18 then lives past 20,000 ticks; no longer applies since [B-6b12] - `Sim.PhaseTwoExit` returned to the game's data whole on seed 1) | `Cosmic_Ascension.Sim.PhaseTwoExit` (the whole run: the deposed life closes after the deposition and a succession follows before the end) |
 | `B6b/` | `b6b7_probe_race_cap_minus_one.patch` — **a probe, not a mutation** (B6b header section 5.1, notes section 5 [B-6b7]): the race check reads the home cap less one, so an AI people that climbs to the fourth rung while another people already stands there is a miss - one `CosmicBalance race check: at <tick> ... past the home cap <cap-1> ...` line naming an `:a` climber and exit code 1 (no `the home cap was passed at N boundaries` line, which prints only from a second miss, `RaceCheckMisses > 1`) on the seed and tick of notes section 5 (`-Ticks` = that climb + 100; at [B-6b7]: seed 12, `-Ticks=3030`, `-Answer=1 -Build=1 -Focus=1 -Edict=1 -Diplomacy=1 -TellAll=0 -Rules=ProvisionalEndTick:0` - the ruled civ_0 on T4 at 2,806, civ_6 climbs at 2,930; notes section 3, bundle A'); never `-FourthRungCap`, which lowers the brake too | (probe — commandlet runs, no test) |
 | `B6b/` | `b6b7_probe_race_ruled_unjudged.patch` — **a probe, not a mutation** (B6b header section 5.1, notes section 5 [B-6b7]): the cap less one and `RaceRuledJudged` never matching, so the ruled people's own climb to the fourth rung beside one AI people is asked as an AI climb - a miss at the ruled climb's tick naming the ruled `CivID` as `:a` (the broken flag feeds the climbers' tags too), where `b6b7_probe_race_cap_minus_one` alone gives none at that tick (at [B-6b7]: seed 6, `-Ticks=3177`, the same arguments - civ_2 alone on T4 from 2,779, the ruled civ_0 climbs at 3,077) | (probe — commandlet runs, no test) |
 | `B6b/` | `b6b8_schema_witness_rule_dropped.patch` — the witness rule of `DT_Encounters` is gone ('증언' in a label, '목소리' in the body, '기록' outside a success line pass on a wanderer's card on the claim) | `test_every_rule_of_the_schema_can_fail` (the count), `test_the_witness_words` (`Tools/test_data_schema.py`) |
@@ -1032,3 +1032,40 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B6b/` | `b6b10_latch_reads_the_knob.patch` — the latch (`ACosmicPlayerController::FollowEnd`, `World/CosmicGameMode.cpp`) compares the record with the knob: a record `Ending.Clock` whose tick lies under `ProvisionalEndTick` is taken for no record | `Cosmic_Ascension.Sim.SaveOldEndFlows` (case (5): a B6a save ended by the clock at 6,000, opened under a clock of 7,000, latches nothing; cases (1), (2) and (4) have a record tick at or past the knob) |
 | `B6b/` | `b6b10_markof_reads_the_knob.patch` — `UCosmicSaveSubsystem::MarkOf` compares the record with the knob: a record `Ending.Clock` whose tick lies under `Rules.ProvisionalEndTick` marks the disk copy not ended (the patch adds `#include "Core/CosmicTags.h"`) | `Cosmic_Ascension.Sim.SaveOldEndFlows` (case (5): the disk copy of the 6,000 save under the 7,000 clock is a run that goes on) |
 | `B6b/` | `b6b10_data_clock_six_thousand.patch` — `DT_Rules.ProvisionalEndTick` 6000, the B6a start value before [B-6b10] (a data patch: rebuild the assets) | `Cosmic_Ascension.Sim.EndingOf` (the game's clock end is tick 9,000) and `Cosmic_Ascension.UI.RunEnd` (the game's clock end is tick 9,000) |
+| `B6b/` | `b6b12_chronicle_rung_at_first.patch` — the chronicle chapter's facts keep the rung on the first rung (`Life.PeakTier == Tier1_Planetary`) | `Cosmic_Ascension.UI.Chronicle` (a life whose peak stayed on the first rung has no rung fact) |
+| `B6b/` | `b6b12_chronicle_rung_never.patch` — the chronicle chapter's facts never show the rung (`Rung` always empty) | `Cosmic_Ascension.UI.Chronicle` (the chapter of a life whose peak is the third rung carries its rung fact) |
+| `B6b/` | `b6b12_data_resist_factor.patch` — `DT_Rules.ResistFleetFactor` 0.6 (`b4d2_data_resist_factor` taken again at [B-6b12]; a data patch: rebuild the assets) | `Cosmic_Ascension.Sim.PressureChain` |
+| `B6b/` | `b6b12_no_room_made.patch` — no slot is made for a standing hazard's answer (`b2c_no_room_made` taken again at [B-6b12]) | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
+| `B6b/` | `b6b12_sightwalk_new_world.patch` — the sight-walk proof runs on the current world (`b2c_sightwalk_new_world` taken again at [B-6b12]) | `Cosmic_Ascension.Sim.SightWalkMoved` |
+| `B6b/` | `b6b12_room_takes_kept_row.patch` — room is made by giving up the kept row first (`b2c_room_takes_kept_row` taken again at [B-6b12]) | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
+| `B6b/` | `b6b12_room_never_kept.patch` — the kept row is never given up for an answer (`b2c_room_never_kept` taken again at [B-6b12]) | `Cosmic_Ascension.Sim.RulerEdictPolicy` |
+| `B6b/` | `b6b12_delay_ignores_gap.patch` — a claim's delay ignores the gap to its claimant (`b3b_delay_ignores_gap` taken again at [B-6b12]) | `Cosmic_Ascension.Sim.FleetDelay` |
+| `B6b/` | `b6b12_delay_outside_cut.patch` — the delay is added past the int32 cut (`b3b_delay_outside_cut` taken again at [B-6b12]) | `Cosmic_Ascension.Sim.FleetDelay` |
+| `B6b/` | `b6b12_spread_live_table.patch` — the spread reads a plague placed in the same step (`b3b_spread_live_table` taken again at [B-6b12]) | `Cosmic_Ascension.Sim.PlagueSpread` |
+| `B6b/` | `b6b12_spread_no_multiplier.patch` — the spread multiplies nothing (`b3b_spread_no_multiplier` taken again at [B-6b12]) | `Cosmic_Ascension.Sim.PlagueSpread` |
+| `B6b/` | `b6b12_civhasedict_no_table.patch` — CivHasEdict does not ask the table (`b4b_civhasedict_no_table` taken again at [B-6b12]) | `Cosmic_Ascension.Sim.CivHasEdictCondition` |
+| `B6b/` | `b6b12_theodicy_one_bonus.patch` — the theodicy's longest stand counts one edict's countdown bonus (`b4b_theodicy_one_bonus` taken again at [B-6b12]) | `Cosmic_Ascension.Data.Integrity` |
+| `B6b/` | `b6b12_theodicy_no_card_delay.patch` — the theodicy's longest stand leaves the cards' DelayHazard out (`b4b_theodicy_no_card_delay` taken again at [B-6b12]) | `Cosmic_Ascension.Data.Integrity` |
+| `B6b/` | `b6b12_schema_none_always_true.patch` — the row test none always holds (`b4b_schema_none_always_true` taken again at [B-6b12]) | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B6b/` | `b6b12_schema_none_any_all.patch` — the row test none asks all the entries instead of any (`b4b_schema_none_any_all` taken again at [B-6b12]) | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B6b/` | `b6b12_schema_contains_none_tag_decl_off.patch` — the tags of contains_none need not be declared (`b4b_schema_contains_none_tag_decl_off` taken again at [B-6b12]) | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
+| `B6b/` | `b6b12_schema_enact_not_card_only.patch` — EnactEdict is not card_only (`b4b_schema_enact_not_card_only` taken again at [B-6b12]) | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B6b/` | `b6b12_schema_civhasedict_optional.patch` — CivHasEdict's Key is optional (`b4b_schema_civhasedict_optional` taken again at [B-6b12]) | `test_pressure_cards` (`Tools/test_data_schema.py`) |
+| `B6b/` | `b6b12_schema_drain_max_off.patch` — PressureDrainMultiplier has no upper bound (`b4b_schema_drain_max_off` taken again at [B-6b12]) | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
+| `B6b/` | `b6b12_schema_resist_min_off.patch` — ResistFleetFactor has no lower bound (`b4b_schema_resist_min_off` taken again at [B-6b12]) | `test_voice_and_drain` (`Tools/test_data_schema.py`) |
+| `B6b/` | `b6b12_drain_tip_one.patch` — the drain line shows for a factor of 1 (`b4c_drain_tip_one` taken again at [B-6b12]) | `Cosmic_Ascension.UI.EdictRules` |
+| `B6b/` | `b6b12_drain_tip_below_one.patch` — the drain line shows only for a factor below 1 (`b4c_drain_tip_below_one` taken again at [B-6b12]) | `Cosmic_Ascension.UI.EdictRules` |
+| `B6b/` | `b6b12_drain_tip_infinite.patch` — the drain line shows for an infinite factor (`b4c_drain_tip_infinite` taken again at [B-6b12]) | `Cosmic_Ascension.UI.EdictRules` |
+| `B6b/` | `b6b12_drain_tip_zero.patch` — the drain line shows for a factor of 0 or below (`b4c_drain_tip_zero` taken again at [B-6b12]) | `Cosmic_Ascension.UI.EdictRules` |
+| `B6b/` | `b6b12_schema_lacks_words_list_unchecked.patch` — a lacks_words that names no word list of the schema passes (`b4d1_schema_lacks_words_list_unchecked` taken again at [B-6b12]) | `test_first_person_and_card_words` (`Tools/test_data_schema.py`) |
+| `B6b/` | `b6b12_tenth_outside_guard.patch` — the tenth stage runs outside the stage guard (`b5b_tenth_outside_guard` taken again at [B-6b12]) | `Cosmic_Ascension.Calling.LeapDeterminism` |
+| `B6b/` | `b6b12_death_line_no_hazard.patch` — the death line's {Hazard} is left empty (`b5d1_death_line_no_hazard` taken again at [B-6b12]) | `Cosmic_Ascension.Calling.DeathPipeline` |
+| `B6b/` | `b6b12_death_line_no_name.patch` — the death line's {Player} is left empty (`b5d1_death_line_no_name` taken again at [B-6b12]) | `Cosmic_Ascension.Calling.DeathPipeline` |
+| `B6b/` | `b6b12_death_line_any_cause.patch` — a cause with no row of its own is told with the hazard death's row (`b5d1_death_line_any_cause` taken again at [B-6b12]) | `Cosmic_Ascension.Calling.DeathPipeline` |
+| `B6b/` | `b6b12_record_no_annex.patch` — a claim that joins a sphere records nothing (`b5d1_record_no_annex` taken again at [B-6b12]) | `Cosmic_Ascension.Log.TwoBooksSameLoss`, `Cosmic_Ascension.Log.ClaimVoice` |
+| `B6b/` | `b6b12_record_unjoined_claim.patch` — every claim's expiry records a loss, one that joins nothing too (`b5d1_record_unjoined_claim` taken again at [B-6b12]) | `Cosmic_Ascension.Log.TwoBooksSameLoss`, `Cosmic_Ascension.Log.ClaimVoice` |
+| `B6b/` | `b6b12_death_line_death_place.patch` — the death line has the place of the death as its focus (`b5d1_death_line_death_place` taken again at [B-6b12]) | `Cosmic_Ascension.Log.ClaimVoice`, `Cosmic_Ascension.Calling.DeathPipeline` |
+| `B6b/` | `b6b12_feed_no_end_refresh.patch` — the end's latch announces nothing (`b5d1_feed_no_end_refresh` taken again at [B-6b12]) | `Cosmic_Ascension.UI.LeapBoundary` |
+| `B6b/` | `b6b12_kills_branch_only.patch` — CosmicHazards::KillsAVesselOf reads the branch effects alone (`b5d2_kills_branch_only` and `b5d2_kills_branch_only_ui` taken again at [B-6b12]) | `Cosmic_Ascension.Calling.LethalSource`, `Cosmic_Ascension.UI.LethalWarning` |
+| `B6b/` | `b6b12_claim_may_follow_no_nova_claim_gate.patch` — `ClaimMayFollowOf` drops the gate of `Hazard.PreSupernova` and `Hazard.Claim` (`b6a4_claim_may_follow_no_nova_claim_gate` taken again at [B-6b12]) | `Cosmic_Ascension.UI.ClaimMayFollow` |
+| `B6b/` | `b6b12_awareness_before_outbreak.patch` — the awareness line is told before the new claim's outbreak line (`b6a5_awareness_before_outbreak` taken again at [B-6b12]) | `Cosmic_Ascension.Log.AwarenessVoice` |

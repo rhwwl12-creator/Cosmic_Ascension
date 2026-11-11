@@ -1,0 +1,13 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicEdictWidget.cpp
+@@ -316,7 +316,7 @@
+ 	// Whether a hazard's spawn line stands (B6b: a galaxy law's Edict.TipWide follows it).
+ 	bool bSpawn = false;
+ 	// The pressure's drain on Stability (B4), read as CosmicEdicts::PressureDrainMultiplierOf reads it.
+-	if (Def->PressureDrainMultiplier > 0.f && Def->PressureDrainMultiplier <= TNumericLimits<float>::Max() && Def->PressureDrainMultiplier != 1.f)
++	if (Def->PressureDrainMultiplier > 0.f && Def->PressureDrainMultiplier <= TNumericLimits<float>::Max() && Def->PressureDrainMultiplier < 1.f)
+ 	{
+ 		Lines.Add(FText::Format(Label(TEXT("Edict.Effect.PressureDrain")), Amount(Def->PressureDrainMultiplier)));
+ 	}
+

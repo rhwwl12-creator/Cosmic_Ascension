@@ -673,9 +673,10 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 	const FText Nth = FText::Format(Label(TEXT("Chronicle.Life")), FText::AsNumber(1));
 	const FText Name = CosmicChronicle::VesselNameOf(Life, Sim->GetTables());
 	TestEqual(TEXT("The title names the first life"), Texts[0].ToString(), (Name.IsEmpty() ? Nth : FText::Format(Label(TEXT("List.Pair")), Nth, Name)).ToString());
-	const FText Rung = FText::Format(INVTEXT("{0} {1}"), Label(TEXT("Panel.Tier")), FText::AsNumber(static_cast<int32>(Life.PeakTier) + 1));
+	const FText Rung = Life.PeakTier == EAscensionTier::Tier1_Planetary ? FText::GetEmpty()
+		: FText::Format(INVTEXT("{0} {1}"), Label(TEXT("Panel.Tier")), FText::AsNumber(static_cast<int32>(Life.PeakTier) + 1));
 	const FText Lasted = FText::Format(Label(TEXT("Chronicle.Stamp")), FText::AsNumber(Live.Tick - Life.BornTick));
-	TestEqual(TEXT("The facts: the people, the rung, the cycles"), Texts[1].ToString(), CosmicUI::JoinList({ Live.Civs[Ruled].CivName, Rung, Lasted }).ToString());
+	TestEqual(TEXT("The facts: the people, the rung above the first, the cycles"), Texts[1].ToString(), CosmicUI::JoinList({ Live.Civs[Ruled].CivName, Rung, Lasted }).ToString());
 	const TArray<FText> Stamps = Page->GetLineStamps();
 	const TArray<float> Opacities = Page->GetLineOpacities();
 	bool bOwnSeen = false;
@@ -863,13 +864,17 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 		Live.Civs[Ruled].Tier = WasRuledTier;
 		Live.Civs[Other].Tier = WasOtherTier;
 
-		// The rungs are not read: the ruled people on the third rung with the life's peak there names no one under the clock.
+		// The rungs are not read for the foot: the ruled people on the third rung with the life's peak there names no one under
+		// the clock, while the chapter's facts name that rung (B6b decision 30: a rung above the first is shown, the first is not).
 		const EAscensionTier WasPeak = Mutable.PeakTier;
 		const EAscensionTier WasTier = Live.Civs[Ruled].Tier;
 		Mutable.PeakTier = EAscensionTier::Tier3_Causal;
 		Live.Civs[Ruled].Tier = EAscensionTier::Tier3_Causal;
 		Page->Open(ClockRecord, true);
 		FootIs(TEXT("A people on the third rung changes nothing: the clock's note and the notice"), { ClockLine, NoticeLine });
+		const FText RungThree = FText::Format(INVTEXT("{0} {1}"), Label(TEXT("Panel.Tier")), FText::AsNumber(3));
+		TestEqual(TEXT("A peak above the first rung is named in the chapter's facts"), Page->GetPageTexts()[1].ToString(),
+			CosmicUI::JoinList({ Live.Civs[Ruled].CivName, RungThree, Lasted }).ToString());
 		Mutable.PeakTier = WasPeak;
 		Live.Civs[Ruled].Tier = WasTier;
 
@@ -1108,12 +1113,11 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 			const FText OfName = CosmicChronicle::VesselNameOf(OfLife, Sim->GetTables());
 			return (OfName.IsEmpty() ? OfNth : FText::Format(Label(TEXT("List.Pair")), OfNth, OfName)).ToString();
 		};
-		const FText RungOne = FText::Format(INVTEXT("{0} {1}"), Label(TEXT("Panel.Tier")), FText::AsNumber(1));
 		auto LastedOf = [&](int64 Ticks) { return FText::Format(Label(TEXT("Chronicle.Stamp")), FText::AsNumber(Ticks)); };
-		const FString FirstFacts = CosmicUI::JoinList({ Two.Civs[Own].CivName, RungOne, LastedOf(1000) }).ToString();
+		const FString FirstFacts = CosmicUI::JoinList({ Two.Civs[Own].CivName, LastedOf(1000) }).ToString();
 		FFormatNamedArguments Born;
 		Born.Add(TEXT("Civ"), Two.Civs[Later].CivName);
-		const FString CalledFacts = CosmicUI::JoinList({ FText::Format(Label(TEXT("Chronicle.BornAmong")), Born), Label(TEXT("Chronicle.Wandering")), RungOne,
+		const FString CalledFacts = CosmicUI::JoinList({ FText::Format(Label(TEXT("Chronicle.BornAmong")), Born), Label(TEXT("Chronicle.Wandering")),
 			LastedOf(300) }).ToString();
 		auto PageOf = [&]()
 		{

@@ -1,0 +1,13 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp b/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
+--- a/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
++++ b/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
+@@ -2589,7 +2589,7 @@
+ 						Most = (Effect.Type == EEffectType::DelayHazard && Effect.Tag.IsValid() && Tag.MatchesTag(Effect.Tag) && Effect.Value > Most) ? Effect.Value : Most;
+ 					}
+ 				}
+-				Longest += static_cast<int64>(FMath::Min(Most, 100000.f));
++				Longest += 0 * static_cast<int64>(FMath::Min(Most, 100000.f));
+ 				bCardDelays |= Most > 0.f;
+ 			}
+ 			if (bCardDelays && static_cast<int64>(Rules.ThroneLockTicks) < Longest)
+

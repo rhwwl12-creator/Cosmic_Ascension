@@ -1,0 +1,13 @@
+diff --git a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+--- a/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
++++ b/Source/Cosmic_Ascension/World/CosmicRulerPolicy.cpp
+@@ -600,7 +600,7 @@
+ 			{
+ 				continue;
+ 			}
+-			const int32 Rank = bLaw ? 2 : (Held == Policy.EdictRow ? 1 : 0);
++			const int32 Rank = bLaw ? 2 : 0;
+ 			if (Rank < SpareRank)
+ 			{
+ 				Spare = Held;
+

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -112,6 +112,6 @@
+ 		}
+ 		FFormatNamedArguments Args;
+-		Args.Add(TEXT("Player"), CosmicChronicle::VesselNameOf(Life, Tables));
++		Args.Add(TEXT("Player"), FText::GetEmpty());
+ 		Args.Add(TEXT("Hazard"), Hazard ? Hazard->DisplayName : FText::GetEmpty());
+ 		Log.PushRow(Row, 2, Args, NAME_None, NAME_None);
+ 	}
+

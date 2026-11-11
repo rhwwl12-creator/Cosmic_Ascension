@@ -287,7 +287,9 @@ void UCosmicChronicleWidget::BuildPage()
 				People = CosmicUI::JoinList({ People, Label(TEXT("Chronicle.Wandering")) });
 			}
 		}
-		const FText Rung = FText::Format(INVTEXT("{0} {1}"), Label(TEXT("Panel.Tier")), FText::AsNumber(static_cast<int32>(Life.PeakTier) + 1));
+		// As on the epitaph (CosmicCallingPagesWidget, B6b decision 30): a rung above the first only, never 'rung 1'.
+		const FText Rung = Life.PeakTier == EAscensionTier::Tier1_Planetary ? FText::GetEmpty()
+			: FText::Format(INVTEXT("{0} {1}"), Label(TEXT("Panel.Tier")), FText::AsNumber(static_cast<int32>(Life.PeakTier) + 1));
 		const FText Lasted = FText::Format(Label(TEXT("Chronicle.Stamp")), FText::AsNumber(FMath::Max<int64>(0, Chapter.ToTick - Life.BornTick)));
 		AddText(CosmicUI::JoinList({ People, Rung, Lasted }), 14, CosmicPalette::Grey, FMargin(0.f, 0.f, 0.f, 10.f));
 		// The span with no vessel that led to this life, at the head of its chapter; then the body; then, on the last chapter,

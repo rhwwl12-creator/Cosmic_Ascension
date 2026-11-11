@@ -1,0 +1,13 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2374,7 +2374,7 @@
+ 			// The owner's held edicts multiply the share too (B2) - with the galaxy laws the other peoples of the system's galaxy
+ 			// hold (B6b hook 1) - and a plague next door (B3): 1 when none, so the bits stay.
+ 			const float Spreading = (Row->HazardTag == PlagueTag && NextToPlague.IsValidIndex(SystemIndex) && NextToPlague[SystemIndex]) ? Spread : 1.f;
+-			const float Share = ((Chance * Factor) * CosmicEdicts::SpawnMultiplierOf(State, StateIndex, Tables, SystemIndex, Row->HazardTag)) * Spreading;
++			const float Share = (Chance * Factor) * CosmicEdicts::SpawnMultiplierOf(State, StateIndex, Tables, SystemIndex, Row->HazardTag);
+ 			if (!(Share > 0.f))
+ 			{
+ 				continue;
+

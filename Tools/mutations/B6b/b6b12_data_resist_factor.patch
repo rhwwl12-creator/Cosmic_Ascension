@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_Rules.json b/Tools/data/DT_Rules.json
+--- a/Tools/data/DT_Rules.json
++++ b/Tools/data/DT_Rules.json
+@@ -100,6 +100,6 @@
+ 		"AIHostileRelationTowardRuled": 0.0,
+ 		"AIHostilePowerRatioTowardRuled": 0.6,
+-		"ResistFleetFactor": 0.5,
++		"ResistFleetFactor": 0.6,
+ 		"GalaxyLawsToHold": 3
+ 	}
+ ]
+

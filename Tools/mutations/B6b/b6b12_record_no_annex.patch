@@ -1,0 +1,15 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2650,10 +2650,6 @@
+ 	{
+ 		JoinedTo = JoinClaimedSphere(Ctx, SystemIndex);
+ 		bJoined = JoinedTo != INDEX_NONE;
+-		if (bJoined)
+-		{
+-			RecordRow = CosmicRows::LogRecordAnnexed;
+-		}
+ 	}
+ 	else if (bExtinction)
+ 	{
+

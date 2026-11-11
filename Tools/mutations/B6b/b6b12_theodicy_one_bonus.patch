@@ -1,0 +1,15 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp b/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
+--- a/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
++++ b/Source/Cosmic_Ascension/Tests/CosmicDataTests.cpp
+@@ -2576,6 +2576,10 @@
+ 				const FEdictDef* Edict = Tables.FindEdict(EdictName);
+ 				const int32* Bonus = Edict ? Edict->HazardCountdownBonus.Find(Tag) : nullptr;
+ 				Longest += (Bonus && *Bonus > 0) ? *Bonus : 0;
++				if (Bonus && *Bonus > 0)
++				{
++					break;
++				}
+ 			}
+ 			bool bCardDelays = false;
+ 			for (const FName CardName : Tables.GetEncounterRowNames())
+

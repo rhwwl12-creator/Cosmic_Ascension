@@ -1594,7 +1594,7 @@ bool FCosmicKnowingInertTest::RunTest(const FString& Parameters)
 	};
 	// The game's data, 20,000 ticks of seed 42 (past the first claims, the settlements and their completions; since MVP
 	// item 8 the AI relieves seed 42's claims, so the joins of the sphere are passed by the two runs of seed 18 below - nine,
-	// which Sim.PhaseTwoExit sees in the same world), no input but one: the first life rules people 0 and gives no command
+	// which Sim.PhaseTwoExit saw in the same world until B6b [B-6b7]; it runs seed 1 since [B-6b12]), no input but one: the first life rules people 0 and gives no command
 	// after revoking the inherited edict (B2 - kept, it deposes the ruler at about tick 1,070, before any settlement, and the
 	// long reign over many systems would not be seen). With bWanderer the vessel walks from the start instead, a wanderer of
 	// the second rung standing in its birth system. Seed 18 keeps the inherited edict and so deposes the neglected ruler in

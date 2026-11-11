@@ -1,0 +1,13 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicConflict.cpp
+@@ -387,7 +387,7 @@
+ 	{
+ 		const int32 Claimant = CosmicHazards::ClaimantOf(State, Index, Tables, Rules, SystemIndex);
+ 		const FTranscendentDef* Def = State.Transcendents.IsValidIndex(Claimant) ? Tables.FindTranscendent(State.Transcendents[Claimant].TranscendentID) : nullptr;
+-		Gap = Def ? CosmicConflictImpl::TierGap(Def->Tier, Owner.Tier) : 0;
++		Gap = 0;
+ 	}
+ 	// The row's own bound (B6b header 2.10): at the share's 0 it is FleetDelayCap, which GuardDelayTicksOf keeps already.
+ 	const int32 Delay = GuardDelayTicksOf(Owner, Gap, Rules);
+

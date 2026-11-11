@@ -25,7 +25,7 @@
 		"Context": "",
 		"MinTierToReveal": 0,
 		"Templates": [
-			"{Civ}의 사람들이 오랜 다툼 하나를 약속으로 묶었다. 서로를 조금 덜 두려워하게 되었다.",
+			"{Civ}의 사람들이 오랜 다툼 하나를 약속으로 매듭지었다. 서로를 조금 덜 두려워하게 되었다.",
 			"{Civ}의 기록관들이 흩어진 법을 한 자리에 모았다. 내일의 결정은 오늘보다 덜 흔들릴 것이다.",
 			"{Civ}의 도시들이 서로의 말을 더 깊이 배웠다. 멀던 이웃이 가까워진다."
 		]
@@ -233,7 +233,7 @@
 		"MinTierToReveal": 0,
 		"Templates": [
 			"{Civ}|hpp(이,가) {OtherCiv}|hpp(과,와) 맺어 지키던 {Treaty}|hpp(이,가) 깨졌다.",
-			"{Civ}|hpp(과,와) {OtherCiv} 사이의 {Treaty}|hpp(이,가) 끝났다. 서로를 묶던 약속이 풀렸다.",
+			"{Civ}|hpp(과,와) {OtherCiv} 사이의 {Treaty}|hpp(이,가) 끝났다. 서로를 잇던 약속이 끊어졌다.",
 			"{Civ}의 문서고에서 {OtherCiv}|hpp(과,와) 맺은 {Treaty}에 줄이 그어졌다."
 		]
 	},

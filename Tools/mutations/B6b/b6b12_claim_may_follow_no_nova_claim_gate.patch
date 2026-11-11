@@ -1,0 +1,13 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicHazards.cpp
+@@ -614,7 +614,7 @@
+ 	// settled no more. A claim's expiry joins the system to the sphere of the one claimant ClaimantOf could pick. The
+ 	// extinction's grace keeps the people and empties its extinction slots only; otherwise its people lets every system
+ 	// go (B6b).
+-	if (Standing == SupernovaTag || Standing == ClaimTag || KillsTheRulerOf(Standing))
++	if (KillsTheRulerOf(Standing))
+ 	{
+ 		return false;
+ 	}
+

@@ -1,0 +1,12 @@
+--- a/Tools/cosmic_data_schema.py
++++ b/Tools/cosmic_data_schema.py
+@@ -690,7 +690,7 @@
+                 self.check_condition_operand(where, kind, operand, shown)
+             if name in ("has_cond", "lacks_cond") and name_of(operand.get("tag", "")) != "" and operand["tag"] not in self.tags:
+                 self.report(where, "a row test names the tag %s, which the ini does not declare" % (operand["tag"],))
+-            if name in ("contains_all", "contains_none"):
++            if name in ("contains_all",):
+                 for value in operand:
+                     if value not in self.tags:
+                         self.report(where, "a row test names the tag %s, which the ini does not declare" % (value,))
+

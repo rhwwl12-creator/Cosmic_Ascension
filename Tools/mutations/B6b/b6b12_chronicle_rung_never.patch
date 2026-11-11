@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+--- a/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
++++ b/Source/Cosmic_Ascension/UI/CosmicChronicleWidget.cpp
+@@ -289,6 +289,5 @@
+ 		}
+ 		// As on the epitaph (CosmicCallingPagesWidget, B6b decision 30): a rung above the first only, never 'rung 1'.
+-		const FText Rung = Life.PeakTier == EAscensionTier::Tier1_Planetary ? FText::GetEmpty()
+-			: FText::Format(INVTEXT("{0} {1}"), Label(TEXT("Panel.Tier")), FText::AsNumber(static_cast<int32>(Life.PeakTier) + 1));
++		const FText Rung = FText::GetEmpty();
+ 		const FText Lasted = FText::Format(Label(TEXT("Chronicle.Stamp")), FText::AsNumber(FMath::Max<int64>(0, Chapter.ToTick - Life.BornTick)));
+ 		AddText(CosmicUI::JoinList({ People, Rung, Lasted }), 14, CosmicPalette::Grey, FMargin(0.f, 0.f, 0.f, 10.f));
+

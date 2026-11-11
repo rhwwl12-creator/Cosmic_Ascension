@@ -1,0 +1,12 @@
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -90,7 +90,7 @@
+ 	// log_death_hazard mourns one person a star lost, untrue on the tick a whole people ended. The cause stays Death.Hazard.
+ 	FName DeathRowOf(const FGameplayTag& Cause, const FHazardDef* Hazard)
+ 	{
+-		if (Cause != CosmicTags::DeathHazard())
++		if (!Cause.IsValid())
+ 		{
+ 			return FName();
+ 		}
+
