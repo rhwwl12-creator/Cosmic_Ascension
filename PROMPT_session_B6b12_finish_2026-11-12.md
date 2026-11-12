@@ -78,3 +78,28 @@
 6. [B-7x5s]·[B-7x5c]: SCR_OLD\b7x\port의 port_b7x5s.py·port_b7x5c.py를 먼저 --dry-run. port_b7x5c.py 뒤 walked 핀을 다시 센다. 판단 ⓪~⑧(⑥은 B6b 경주 다시 잼)은 B7x 헤더 §5대로.
 7. B7 헤더는 B7x가 main에 든 뒤 [B-7h0]으로: 17c34c2와 8afc9b5만 옮기고 1bacd61은 건너뛴다. 새12~새16 → B7x 번호 다음. 헤더의 줄 번호는 그때의 main에 맞춘다. B7 코드와 B7-0 측정은 그 뒤.
 8. cloud/b7x-on-<sha>를 푸시한 뒤 로컬 임시 가지 tmp/b6b12-provisional·tmp/b7x-restack-pre를 지운다. 남은 정리는 HANDOFF §5.5.
+
+## 7. 멈춘 자리 (2026-11-12 11:05 — 개발자의 요청으로 멈춤, Claude Code 세션 15a1d0fe)
+
+**main**: `29e2ecd` `[B-6b12]`(B6b 끝, 푸시함). 패키지 ⓓ 통과(`C:\CA_Builds\20261112-0746-29e2ecd`). 이 세션이 main에 더 쓴 것은 없다.
+
+**B7x(모두 로컬 가지 — 아직 원격에 없다)**
+- `cloud/b7x-on-29e2ecd` = `fb38fa3`→`84f47ae`→`9c38ed8`→`ab401c5`→`fd75d00`: 커밋마다 빌드·러너 full로 증명한 판(테스트 238·240·240·240 × 두 판, `[B-7x1]`만 두 해시 옮김·세계 CSV 그대로, 생성물 들어 있음). 통합 작업 사본 `SCR_OLD\b7x\int`(정션 `C:\Users\rhwwl\AppData\Local\Temp\b7xi`)가 이 가지에 있다.
+- **`tmp/b7x-fixed` = `bf6ef85`→`0f03dad`→`878e9bd`→`2de9cf4`→`0e102eb`**: 위 다섯에 적대 리뷰(발견 72 가운데 69 반영, 3 건너뜀 — 기준값 파일이나 닿지 않는 sha라서)와 그 확인(V1~V4)을 넣은 판 — 코드·데이터·에셋·기준값은 `fd75d00`과 바이트 그대로(`git diff fd75d00 0e102eb -- Source Config Tools/data Content Tools/baselines` 0). 작업 사본 `Saved\AgentWorktrees\b7xfix`. **이것을 쓸 판으로 권한다**(`cloud/b7x-on-29e2ecd`를 이 끝으로 옮기고 푸시).
+- **`tmp/b7h0-fixed` = `ff13adf` `[B-7h0]`**(부모 `0e102eb`): 승인된 B7 헤더와 승인 문서(새12~새16 → #179~#183, 닫은 행 17 — #174 포함, 줄 인용 고침). 작업 사본 `Saved\AgentWorktrees\b7h0`. 확인하는 이가 문서의 작은 어긋남 12건을 더 찾았다(모두 주인 칸·STATUS Top 5의 글 — #144·#123·#29·#158·#119·#36·#124·#153·#43) — 아직 넣지 않았다: `SCR_NEW\b7h0_check2_pending.json`(백업 `Saved\Handoff\scratch_15a1d0fe\`). B7x를 main에 합친 뒤 들인다(HANDOFF §5.5 — 그 전에 `[B-7x5s]`·`[B-7x5c]`).
+
+**B7x 변이(멈춤 — 이어 하면 된다)**: 살아 있는 98개 가운데 35개 깨짐(파이썬 23 모두, 레인 12), 살아남음 0. 남은 레인 63개는 `SCR_NEW\b7x_mut\remaining_tags.txt`. 처음 판은 `-DisableUnity`라 항목마다 모듈 전체를 다시 컴파일해(공유 PCH부터, 항목당 약 17분) 멈췄고, unity 없는 컴파일은 그 판의 문 빌드(09:00)가 지났다. 이어 할 명령(에디터·UBT가 없을 때, 바탕은 `fd75d00` 그대로 — 가지를 옮겼으면 `plan.py`를 그 sha로 다시):
+```
+$S = 'C:\Users\rhwwl\AppData\Local\Temp\claude\96227757d97b02e7\15a1d0fe-7848-4df0-9fc2-e33990085063\scratchpad\b7x_mut'; $R = 'C:\Users\rhwwl\AppData\Local\Temp\b7xi'
+python -I -X utf8 "$S\lanes.py" --plan "$S\plan.json" --root $R --out "$S\run" --phase lanes --lanes 2 --base C:\CAL --reuse-lanes --only "$S\remaining_tags.txt" "--lane-flags=-WaitMutex"
+python -I -X utf8 "$S\lanes.py" --plan "$S\plan.json" --root $R --out "$S\run" --phase merge
+```
+(이 폴더가 지워졌으면 `Saved\Handoff\scratch_15a1d0fe\b7x_mut\`를 같은 경로로 되돌린다.) 앞 12개의 결과는 `run\results_first12.jsonl`에도 있다. 레인 `C:\CAL\l1`·`l2`는 깨끗하다.
+
+**`[B-7x5s]`·`[B-7x5c]` 준비 끝**: 지침서 `SCR_NEW\b7x5_prep\brief_b7x5.md`(이식 스크립트 dry-run 통과, `walked` 402 → 479, 다시 뜰 패치 5와 새 변이 12, C++ 테스트 고침 초안 둘(컴파일 전), 판단 ⓪~⑧ 하네스 — 합성 자기 시험 47/47). 리드가 정할 셈의 해석은 권장대로(40번째 백분위수 = 가장 가까운 순위, 중앙값 = 아래 가운데, 변이 문턱 칸 = R 30).
+
+**이야기 행 초안(`cloud/content-rungs`)**: 묶음 파일 `cosmic_ascension_story_drafts.md`가 없어 시작하지 않았다(작업 사본 `Saved\AgentWorktrees\content-rungs`만 꺼냄). 코드 확인 셋은 끝 — `SCR_NEW\story_code_checks.json`(글만 있는 행은 쿨다운 0·주제 백성일 때만 세계 해시 그대로; 도착 카드 셋이면 몸·정신이 생애 안에서 계속 오른다; 상시 청원은 조건이 막 선 틱에 한 번).
+
+**개발자가 볼 것**: B7 헤더 쪽 #174 닫음, #136·#142의 주인(권장 B7c·J5), 시대 줄의 '조공 없이' 조건(`[B-7e1]` 전); 이야기 행 묶음 파일.
+
+**다음 차례(이어 할 때)**: ① B7x 변이 남은 63 → 병합·기록(노트 §5.6) ② `cloud/b7x-on-29e2ecd`를 `tmp/b7x-fixed` 끝으로 옮겨 푸시, CLOUD_STATUS 갱신 ③ `[B-7x5s]`·`[B-7x5c]`(지침서대로 — 빌드·러너 `-Data`·묶음 측정·판단) ④ main 병합과 가지 정리(HANDOFF §5.5) ⑤ `[B-7h0]`(남은 12건 고침 뒤) ⑥ 이야기 행.
