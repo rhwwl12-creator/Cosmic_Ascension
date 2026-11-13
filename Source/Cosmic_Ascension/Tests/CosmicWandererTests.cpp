@@ -1424,7 +1424,14 @@ bool FCosmicSimWandererLoopTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	ON_SCOPE_EXIT { Sim->NewGalaxy(42, 5, 3); };
+	// B7x (header section 6 - find the cause first): from [B-7x5s] the seed bricks change the AI peoples from generation, and on
+	// seed 4 the vessel dies of an AI awakening at tick 3,164 on the way (a lethal crisis in the diverged world - B5's death
+	// source; not a B7x rule acting on the wanderer's path), so the loop closes only in a second life (7,779, path vacuum). The
+	// loop mechanism is this test's subject, not B7x: the game's data without B7x's (CosmicTests::WithoutB7xData, outermost);
+	// the B1 guard with B7x's data on is the B7x measurement's (header section 5, judgment 6 - the wanderer pair).
+	const FCosmicDataTables TablesBeforeLoop = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(TablesBeforeLoop); Sim->NewGalaxy(42, 5, 3); };
+	Sim->SetTables(CosmicTests::WithoutB7xData(TablesBeforeLoop));
 	TArray<TPair<uint32, uint32>> Hashes;
 	for (int32 Run = 0; Run < 2; ++Run)
 	{

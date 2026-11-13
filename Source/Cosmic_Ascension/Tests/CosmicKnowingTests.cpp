@@ -1868,11 +1868,14 @@ bool FCosmicSightWalkMovedTest::RunTest(const FString& Parameters)
 	// capital at tick 150 - and those runs had none: CosmicTests::WithoutDeath, the same world until a death), and no
 	// petition_exalt (B6a [B-6a6] moved its condition to the ruled people's rung, so the ruler's card comes at the second rung
 	// and its answer moves the walk - CosmicTests::WithExaltAsBefore, the card waiting as it did), and no B6b data (B6b
-	// [B-6b3b]: the extinction's death is code - CosmicTests::WithoutB6bData, outermost).
+	// [B-6b3b]: the extinction's death is code - CosmicTests::WithoutB6bData), and no B7x data (B7x header section 6: from
+	// [B-7x5s] the seed bricks change every AI people from generation, from [B-7x5c] the crossroads cards wait in the slot -
+	// CosmicTests::WithoutB7xData, outermost, outside WithoutB6bData).
 	{
 		FCosmicRulesDef Before = CosmicTests::WithoutStartingEdict(Sim->GetRules());
 		Before.SocietyRecoveryBonus = 0.f;
-		Sim->SetTables(CosmicTests::WithoutB6bData(CosmicTests::WithExaltAsBefore(CosmicTests::WithoutDeath(CosmicTests::WithoutDiplomacy(CosmicTests::WithRules(Original, Before))))));
+		Sim->SetTables(CosmicTests::WithoutB7xData(CosmicTests::WithoutB6bData(CosmicTests::WithExaltAsBefore(CosmicTests::WithoutDeath(CosmicTests::WithoutDiplomacy(
+			CosmicTests::WithRules(Original, Before)))))));
 	}
 
 	struct FCase

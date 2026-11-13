@@ -2915,16 +2915,20 @@ class SchemaTests(unittest.TestCase):
         # The seed bricks: Brick.* tags only, empty by default.
         self.assertEqual(self.after(rules("BrickSeedTags", tags_text("Brick.Diet.DarkMatter", "Brick.Space.Nomad"))), [])
         self.expect(self.after(rules("BrickSeedTags", tags_text("Trait.Faith.Book"))), "rules.BrickSeedTags", "not under Brick.")
-        inert = {row["Name"]: row for row in self.tables["DT_Rules"]}["rules"]
-        for column, value in (("BrickDarkMatterEnergyPerTick", 0), ("BrickStarEaterEnergyMultiplier", 1), ("BrickStarEaterRelationTarget", 0),
-                              ("BrickStarEaterDimPeriodTicks", 0), ("BrickIdleInsightPerTick", 0), ("BrickSpanEnergyPerLane", 0),
-                              ("BrickParasiteCountdownBonusTicks", 0), ("BrickParasiteInsightPerHazard", 0), ("BrickNomadSettleProgressMultiplier", 1),
-                              ("BrickInwardResearchMultiplier", 1), ("BrickInwardHazardSpawnMultiplier", 1), ("BrickSwarmResearchMultiplier", 1),
-                              ("BrickMergeRelationTarget", 0), ("BrickEvolutionPeriodTicks", 0), ("BrickMutationThresholdTicks", 0),
-                              ("BrickStellarCrisisSpawnMultiplier", 1)):
-            with self.subTest(inert=column):
-                self.assertEqual(inert[column], value, "the data holds the inert value until [B-7x5]")
-        self.assertEqual(inert["BrickSeedTags"], "(GameplayTags=)")
+        # [B-7x5s] (header section 3.4; the start values of the data draft [B-7x5a]): the data holds the start values (the C++
+        # defaults stay inert); the star stays undimmed (decision 8) and the seed bricks leave out the two that bar settlement.
+        start = {row["Name"]: row for row in self.tables["DT_Rules"]}["rules"]
+        for column, value in (("BrickDarkMatterEnergyPerTick", 0.5), ("BrickStarEaterEnergyMultiplier", 1.5), ("BrickStarEaterRelationTarget", -0.25),
+                              ("BrickStarEaterDimPeriodTicks", 0), ("BrickIdleInsightPerTick", 0.25), ("BrickSpanEnergyPerLane", 0.125),
+                              ("BrickParasiteCountdownBonusTicks", 30), ("BrickParasiteInsightPerHazard", 0.25), ("BrickNomadSettleProgressMultiplier", 1.5),
+                              ("BrickInwardResearchMultiplier", 1.5), ("BrickInwardHazardSpawnMultiplier", 0.5), ("BrickSwarmResearchMultiplier", 1.25),
+                              ("BrickMergeRelationTarget", 0.25), ("BrickEvolutionPeriodTicks", 100), ("BrickMutationThresholdTicks", 1200),
+                              ("BrickStellarCrisisSpawnMultiplier", 2.0)):
+            with self.subTest(start=column):
+                self.assertEqual(start[column], value, "the data holds the start value of [B-7x5s] (header section 3.4)")
+        seeds = checker.TAG_NAME.findall(start["BrickSeedTags"])
+        self.assertEqual(len(seeds), 8)
+        self.assertFalse({"Brick.Space.ClosedPort", "Brick.Space.FoldedSmall"} & set(seeds))
 
     def test_a_rung_never_from_a_brick(self):
         """B7x [B-7x2] (header K4, section 3.3 rule 7; notes 5.4 data-3 and tests-8): a rung comes from a feat's deed, never

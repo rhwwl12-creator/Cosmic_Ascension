@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_Rules.json b/Tools/data/DT_Rules.json
+--- a/Tools/data/DT_Rules.json
++++ b/Tools/data/DT_Rules.json
+@@ -116,7 +116,7 @@
+ 		"BrickMergeRelationTarget": 0.25,
+ 		"BrickEvolutionPeriodTicks": 100,
+ 		"BrickMutationThresholdTicks": 1200,
+-		"BrickSeedTags": "(GameplayTags=((TagName=\"Brick.Diet.DarkMatter\"),(TagName=\"Brick.Diet.StarEater\"),(TagName=\"Brick.Diet.IdleFeed\"),(TagName=\"Brick.Diet.DistanceTension\"),(TagName=\"Brick.Diet.CrisisParasite\"),(TagName=\"Brick.Space.Nomad\"),(TagName=\"Brick.Instinct.SwarmTech\"),(TagName=\"Brick.Instinct.HiveMerge\")))",
++		"BrickSeedTags": "(GameplayTags=((TagName=\"Brick.Diet.DarkMatter\"),(TagName=\"Brick.Diet.StarEater\"),(TagName=\"Brick.Diet.IdleFeed\"),(TagName=\"Brick.Diet.DistanceTension\"),(TagName=\"Brick.Diet.CrisisParasite\"),(TagName=\"Brick.Space.Nomad\"),(TagName=\"Brick.Instinct.SwarmTech\")))",
+ 		"BrickStellarCrisisSpawnMultiplier": 2.0
+ 	}
+ ]

@@ -617,14 +617,22 @@ bool FCosmicUIChronicleTest::RunTest(const FString& Parameters)
 	UCosmicTopBarWidget* Bar = Screen.Bar;
 	const UCosmicLogSubsystem* Log = Sim->GetGameInstance()->GetSubsystem<UCosmicLogSubsystem>();
 	const ECosmicTimeUnit ViewerUnit = Controller->GetTimeUnit();
+	// B7x (header section 6): the page is not B7x's subject - its shape-word cases below lay the vectors by hand on peoples
+	// that carry no brick of the data -, and from [B-7x5s] the seed bricks change every AI people from generation, from
+	// [B-7x5c] the crossroads cards wait in the slot and arch_seeker carries Brick.Form.Society: the whole test runs on the
+	// game's data without B7x's (CosmicTests::WithoutB7xData, outermost; the parts that take B6b's data out read these
+	// tables and put them back).
+	const FCosmicDataTables TablesBeforeChronicle = Sim->GetTables();
 	ON_SCOPE_EXIT
 	{
 		Controller->SetTimeUnit(ViewerUnit);
 		Sim->SetTimeScale(0.f);
+		Sim->SetTables(TablesBeforeChronicle);
 		Sim->NewGalaxy(42, 5, 3);
 		Sim->SetTimeScale(0.f);
 	};
 	Controller->SetTimeUnit(ECosmicTimeUnit::Cycle);
+	Sim->SetTables(CosmicTests::WithoutB7xData(TablesBeforeChronicle));
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	// The player's first act (B2): the inherited edict revoked - kept, it ends the reign before this path does.
 	CosmicTests::RevokeInheritedEdict(*Sim);

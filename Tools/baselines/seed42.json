@@ -2,18 +2,18 @@
     "what": "Balance commandlet summary for seed 42 on the home row (60 living systems and the sanctuary, 12 peoples). Tools/run_checks.ps1 compares its 'CosmicBalance: seed ...' line with summary_line; an intended world change reruns with -UpdateBaseline and quotes the new hashes in the commit message.",
     "seed": 42,
     "ticks": 3000,
-    "summary_line": "CosmicBalance: seed 42, 3000 ticks, hash 2172948422, world 1868952007, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks.csv",
-    "verified_at": "2026-11-12",
+    "summary_line": "CosmicBalance: seed 42, 3000 ticks, hash 317038099, world 3081540024, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks.csv",
+    "verified_at": "2026-11-14",
     "last_recorded_in_changelog": {
-        "task": "B7x B-7x1 (fields and device: six time counters, HostCivID, seventeen Brick tags and CosmicBricks) - new saved fields move both hashes on every line; the world is unchanged",
-        "state_hash_3000": 2172948422,
-        "world_hash_3000": 1868952007,
-        "state_hash_20000": 2266351602,
-        "world_hash_20000": 3640316943,
-        "note": "Measured 2026-11-12 on Windows (editor binaries), restacked on main 29e2ecd [B-6b12]: the deterministic cells of all five runs' CSVs (TickMicros, SaveBytes and SaveRawBytes aside), the _rows and _claims CSVs and every summary line apart from the two hashes equal 29e2ecd's; only the new saved fields move the state and world hashes."
+        "task": "B7x B-7x5s (seeds and knobs: sixteen start values, eight seed bricks, BrickMutationThresholdTicks 1200 by the threshold rule - lead ruling L8) - the seed bricks change every AI people from generation, so all five lines and both hash runs move",
+        "state_hash_3000": 317038099,
+        "world_hash_3000": 3081540024,
+        "state_hash_20000": 1581711066,
+        "world_hash_20000": 1866885625,
+        "note": "Measured 2026-11-14 on Windows (editor binaries) on the B7x tip 8b7c2de + [B-7x5s]; the previous values ([B-7x1]..[B-7x4]) are in that commit's seed42.json. The world moves (AI only): the -WithoutB7xData=1 pair of the same build gives the [B-7x4] lines (serial check, header section 5 (a))."
     },
-    "summary_line_20000": "CosmicBalance: seed 42, 20000 ticks, hash 2266351602, world 3640316943, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks_20000.csv",
-    "ruler_summary_line_20000": "CosmicBalance: seed 42, 20000 ticks, hash 3035997636, world 3729142648, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks_ruler_20000.csv | CosmicBalance ruler: answer 1 build 1 focus 1 edict 1 diplomacy 1; cards 110, answers 110, started 41, focus changes 5, edict changes 18, diplomacy changes 17, decisions 191 (by 600 12, by 6000 90, by end 89); told by 600 25, by 6000 927; ruled people T2 at 1175, T3 at 2375",
-    "ruler_summary_line": "CosmicBalance: seed 42, 3000 ticks, hash 1023765488, world 3511480669, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks_ruler.csv | CosmicBalance ruler: answer 1 build 1 focus 1 edict 1 diplomacy 1; cards 17, answers 17, started 5, focus changes 5, edict changes 5, diplomacy changes 17, decisions 49 (by 600 12, by 6000 -1, by end -1); told by 600 25, by 6000 -1; ruled people T2 at 1175, T3 at 2375",
-    "wanderer_summary_line": "CosmicBalance: seed 42, 6000 ticks, hash 2398988755, world 787344698, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks_wanderer.csv | CosmicBalance ruler: answer 1 build 1 focus 1 edict 1 diplomacy 1; cards 8, answers 8, started 2, focus changes 4, edict changes 3, diplomacy changes 2, decisions 19 (by 600 12, by 6000 19, by end -1); told by 600 25, by 6000 733; ruled people T2 at 1175, T3 at -1 | CosmicBalance wanderer: abdicate 1200 wander 1; left at 1201, crowned at -1 (None, tier 0, path none), journeys 191, scans 191, cards 7, answers 7, reverence peak 0.00, body 3, mind 1"
+    "summary_line_20000": "CosmicBalance: seed 42, 20000 ticks, hash 1581711066, world 1866885625, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks_20000.csv",
+    "ruler_summary_line_20000": "CosmicBalance: seed 42, 20000 ticks, hash 1684507862, world 3600545501, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks_ruler_20000.csv | CosmicBalance ruler: answer 1 build 1 focus 1 edict 1 diplomacy 1; cards 109, answers 109, started 31, focus changes 5, edict changes 12, diplomacy changes 19, decisions 176 (by 600 12, by 6000 80, by end 80); told by 600 29, by 6000 809; ruled people T2 at 1175, T3 at 2375",
+    "ruler_summary_line": "CosmicBalance: seed 42, 3000 ticks, hash 2250973646, world 1266125583, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks_ruler.csv | CosmicBalance ruler: answer 1 build 1 focus 1 edict 1 diplomacy 1; cards 16, answers 16, started 4, focus changes 5, edict changes 5, diplomacy changes 17, decisions 47 (by 600 12, by 6000 -1, by end -1); told by 600 29, by 6000 -1; ruled people T2 at 1175, T3 at 2375",
+    "wanderer_summary_line": "CosmicBalance: seed 42, 6000 ticks, hash 365718255, world 2485867649, wrote ../../../../../../Users/rhwwl/OneDrive/Documents/Unreal Projects/Cosmic_Ascension/Saved/Balance/checks_wanderer.csv | CosmicBalance ruler: answer 1 build 1 focus 1 edict 1 diplomacy 1; cards 17, answers 17, started 15, focus changes 4, edict changes 6, diplomacy changes 8, decisions 50 (by 600 12, by 6000 50, by end -1); told by 600 29, by 6000 854; ruled people T2 at 1175, T3 at -1 | CosmicBalance wanderer: abdicate 1200 wander 1; left at 1201, crowned at 4141 (civ_1, tier 3, path vacuum), journeys 71, scans 71, cards 6, answers 6, reverence peak 0.00, body 1, mind 1"
 }

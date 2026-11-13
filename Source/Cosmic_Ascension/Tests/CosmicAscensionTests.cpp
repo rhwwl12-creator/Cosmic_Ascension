@@ -1766,7 +1766,12 @@ bool FCosmicFeatsReachableTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
-	ON_SCOPE_EXIT { Sim->NewGalaxy(42, 5, 3); };
+	// B7x (header section 6): the climb is not B7x's subject, and from [B-7x5s] the seed bricks change every AI people from
+	// generation - the game's data without B7x's (CosmicTests::WithoutB7xData, outermost; the race with B7x's data on is the
+	// B7x measurement's, header section 5 judgment 6).
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	Sim->SetTables(CosmicTests::WithoutB7xData(Original));
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	Sim->RunHeadless(20000);
 	const FGalaxyState& State = Sim->GetState();

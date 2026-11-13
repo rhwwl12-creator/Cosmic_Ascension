@@ -622,13 +622,15 @@ bool FCosmicSuccessionPossibleTest::RunTest(const FString& Parameters)
 	const FGalaxyState& State = Sim->GetState();
 
 	// The input-less run: the game's data without a kill anywhere - no KillPlayer (CosmicTests::WithoutDeath) and no B6b row
-	// (CosmicTests::WithoutB6bData: the extinction's death is code) -, the leap knobs (read at a death only) the test's own.
+	// (CosmicTests::WithoutB6bData: the extinction's death is code) -, the leap knobs (read at a death only) the test's own;
+	// and without B7x's data (B7x header section 6: the succession is not B7x's subject, and from [B-7x5s] the seed bricks
+	// change every AI people from generation - CosmicTests::WithoutB7xData, outermost, here and on the quiet board below).
 	constexpr int64 RunLeapTicks = 20;
 	FCosmicRulesDef RunRules = GameRules;
 	RunRules.LeapTicksMin = static_cast<int32>(RunLeapTicks);
 	RunRules.LeapTicksMax = static_cast<int32>(RunLeapTicks);
 	RunRules.LeapTotalCap = 1000000;
-	Sim->SetTables(CosmicTests::WithoutB6bData(CosmicTests::WithoutDeath(CosmicTests::WithRules(Original, RunRules))));
+	Sim->SetTables(CosmicTests::WithoutB7xData(CosmicTests::WithoutB6bData(CosmicTests::WithoutDeath(CosmicTests::WithRules(Original, RunRules)))));
 	Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
 	const int64 Samples[] = { 600, 3000, 7000, 11000, 15000, 20000 };
 	int32 WithPlace = 0;
@@ -702,7 +704,7 @@ bool FCosmicSuccessionPossibleTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("(and some death of the run called a new vessel)"), Called > 0);
 
 	// The silence (section 2.11), and its twin with a second settled system: a ruler dies in system 0.
-	Sim->SetTables(QuietTables(Original, GameRules, QuietLeap));
+	Sim->SetTables(CosmicTests::WithoutB7xData(QuietTables(Original, GameRules, QuietLeap)));
 	for (const bool bOther : { false, true })
 	{
 		const FString Case = bOther ? TEXT("With a second settled system") : TEXT("The silence");

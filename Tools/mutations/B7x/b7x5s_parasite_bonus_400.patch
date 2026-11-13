@@ -1,0 +1,24 @@
+diff --git a/Tools/data/DT_Rules.json b/Tools/data/DT_Rules.json
+--- a/Tools/data/DT_Rules.json
++++ b/Tools/data/DT_Rules.json
+@@ -107,7 +107,7 @@
+ 		"BrickStarEaterDimPeriodTicks": 0,
+ 		"BrickIdleInsightPerTick": 0.25,
+ 		"BrickSpanEnergyPerLane": 0.125,
+-		"BrickParasiteCountdownBonusTicks": 30,
++		"BrickParasiteCountdownBonusTicks": 400,
+ 		"BrickParasiteInsightPerHazard": 0.25,
+ 		"BrickNomadSettleProgressMultiplier": 1.5,
+ 		"BrickInwardResearchMultiplier": 1.5,
+diff --git a/Tools/test_data_schema.py b/Tools/test_data_schema.py
+--- a/Tools/test_data_schema.py
++++ b/Tools/test_data_schema.py
+@@ -2920,7 +2920,7 @@
+         start = {row["Name"]: row for row in self.tables["DT_Rules"]}["rules"]
+         for column, value in (("BrickDarkMatterEnergyPerTick", 0.5), ("BrickStarEaterEnergyMultiplier", 1.5), ("BrickStarEaterRelationTarget", -0.25),
+                               ("BrickStarEaterDimPeriodTicks", 0), ("BrickIdleInsightPerTick", 0.25), ("BrickSpanEnergyPerLane", 0.125),
+-                              ("BrickParasiteCountdownBonusTicks", 30), ("BrickParasiteInsightPerHazard", 0.25), ("BrickNomadSettleProgressMultiplier", 1.5),
++                              ("BrickParasiteCountdownBonusTicks", 400), ("BrickParasiteInsightPerHazard", 0.25), ("BrickNomadSettleProgressMultiplier", 1.5),
+                               ("BrickInwardResearchMultiplier", 1.5), ("BrickInwardHazardSpawnMultiplier", 0.5), ("BrickSwarmResearchMultiplier", 1.25),
+                               ("BrickMergeRelationTarget", 0.25), ("BrickEvolutionPeriodTicks", 100), ("BrickMutationThresholdTicks", 1200),
+                               ("BrickStellarCrisisSpawnMultiplier", 2.0)):

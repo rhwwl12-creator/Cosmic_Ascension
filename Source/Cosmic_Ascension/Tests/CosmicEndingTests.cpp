@@ -145,11 +145,13 @@ namespace CosmicEndingTests
 		return Rules;
 	}
 
-	// The game's tables without a KillPlayer (no death but the ones a test records) and without B6b's rows (the extinction's
-	// death is code - CosmicTests::WithoutB6bData, outside the WithRules), with Rules as DT_Rules (B6b's two knobs off).
+	// The game's tables without a KillPlayer (no death but the ones a test records), without B6b's rows (the extinction's
+	// death is code - CosmicTests::WithoutB6bData, outside the WithRules) and without B7x's data (B7x header section 6: the
+	// ending is not B7x's subject, and from [B-7x5s] the seed bricks change every AI people from generation -
+	// CosmicTests::WithoutB7xData, outermost), with Rules as DT_Rules (B6b's two knobs off, B7x's seventeen inert).
 	FCosmicDataTables EndingTables(const FCosmicDataTables& Original, const FCosmicRulesDef& Rules)
 	{
-		return CosmicTests::WithoutB6bData(CosmicTests::WithRules(CosmicTests::WithoutDeath(Original), Rules));
+		return CosmicTests::WithoutB7xData(CosmicTests::WithoutB6bData(CosmicTests::WithRules(CosmicTests::WithoutDeath(Original), Rules)));
 	}
 
 	// A new galaxy (seed 42) of the given size, paused, at tick At - 1: the next RunHeadless(1) is the tick At.

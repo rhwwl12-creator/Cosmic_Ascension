@@ -1,0 +1,11 @@
+--- a/Source/Cosmic_Ascension/Tests/CosmicKnowingTests.cpp
++++ b/Source/Cosmic_Ascension/Tests/CosmicKnowingTests.cpp
+@@ -1874,8 +1874,6 @@
+ 	{
+ 		FCosmicRulesDef Before = CosmicTests::WithoutStartingEdict(Sim->GetRules());
+ 		Before.SocietyRecoveryBonus = 0.f;
+-		Sim->SetTables(CosmicTests::WithoutB7xData(CosmicTests::WithoutB6bData(CosmicTests::WithExaltAsBefore(CosmicTests::WithoutDeath(CosmicTests::WithoutDiplomacy(
+-			CosmicTests::WithRules(Original, Before)))))));
+ 	}
+ 
+ 	struct FCase

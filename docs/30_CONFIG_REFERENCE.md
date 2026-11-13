@@ -104,20 +104,20 @@
 | `AIHostilePowerRatioTowardRuled` | `0.6` | number | `{"min": 0}` | Sim/CosmicConflict.cpp | 읽힘 |
 | `ResistFleetFactor` | `0.5` | number | `{"min": 0, "max": 1}` | Sim/CosmicConflict.cpp | 읽힘 |
 | `GalaxyLawsToHold` | `3` | number | `{"min": 1, "integer": true}` | Sim/CosmicEdicts.cpp | 읽힘 |
-| `BrickDarkMatterEnergyPerTick` | `0.0` | number | `{"min": 0}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
-| `BrickStarEaterEnergyMultiplier` | `1.0` | number | `{"min": 0}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
-| `BrickStarEaterRelationTarget` | `0.0` | number | `{"min": -1, "max": 1}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickDarkMatterEnergyPerTick` | `0.5` | number | `{"min": 0}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickStarEaterEnergyMultiplier` | `1.5` | number | `{"min": 0}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickStarEaterRelationTarget` | `-0.25` | number | `{"min": -1, "max": 1}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
 | `BrickStarEaterDimPeriodTicks` | `0` | number | `{"min": 0, "integer": true}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
-| `BrickIdleInsightPerTick` | `0.0` | number | `{"min": 0}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
-| `BrickSpanEnergyPerLane` | `0.0` | number | `{"min": 0}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
-| `BrickParasiteCountdownBonusTicks` | `0` | number | `{"min": 0, "max": 100000, "integer": true}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
-| `BrickParasiteInsightPerHazard` | `0.0` | number | `{"min": 0}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
-| `BrickNomadSettleProgressMultiplier` | `1.0` | number |  | Sim/CosmicExistenceBricks.cpp | 읽힘 |
-| `BrickInwardResearchMultiplier` | `1.0` | number |  | Sim/CosmicExistenceBricks.cpp | 읽힘 |
-| `BrickInwardHazardSpawnMultiplier` | `1.0` | number |  | Sim/CosmicExistenceBricks.cpp | 읽힘 |
-| `BrickSwarmResearchMultiplier` | `1.0` | number |  | Sim/CosmicExistenceBricks.cpp | 읽힘 |
-| `BrickMergeRelationTarget` | `0.0` | number | `{"min": -1, "max": 1}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
-| `BrickEvolutionPeriodTicks` | `0` | number | `{"min": 0, "integer": true}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
-| `BrickMutationThresholdTicks` | `0` | number | `{"min": 0, "integer": true}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
-| `BrickSeedTags` | `"(GameplayTags=)"` | tags | `{"root": "Brick."}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
-| `BrickStellarCrisisSpawnMultiplier` | `1.0` | number |  | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickIdleInsightPerTick` | `0.25` | number | `{"min": 0}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickSpanEnergyPerLane` | `0.125` | number | `{"min": 0}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickParasiteCountdownBonusTicks` | `30` | number | `{"min": 0, "max": 100000, "integer": true}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickParasiteInsightPerHazard` | `0.25` | number | `{"min": 0}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickNomadSettleProgressMultiplier` | `1.5` | number |  | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickInwardResearchMultiplier` | `1.5` | number |  | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickInwardHazardSpawnMultiplier` | `0.5` | number |  | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickSwarmResearchMultiplier` | `1.25` | number |  | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickMergeRelationTarget` | `0.25` | number | `{"min": -1, "max": 1}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickEvolutionPeriodTicks` | `100` | number | `{"min": 0, "integer": true}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickMutationThresholdTicks` | `1200` | number | `{"min": 0, "integer": true}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickSeedTags` | `"(GameplayTags=((TagName=\"Brick.Diet.DarkMatter\"),(TagName=\"Bric…` | tags | `{"root": "Brick."}` | Sim/CosmicExistenceBricks.cpp | 읽힘 |
+| `BrickStellarCrisisSpawnMultiplier` | `2.0` | number |  | Sim/CosmicExistenceBricks.cpp | 읽힘 |

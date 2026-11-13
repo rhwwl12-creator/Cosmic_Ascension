@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_Rules.json b/Tools/data/DT_Rules.json
+--- a/Tools/data/DT_Rules.json
++++ b/Tools/data/DT_Rules.json
+@@ -104,7 +104,7 @@
+ 		"BrickDarkMatterEnergyPerTick": 0.5,
+ 		"BrickStarEaterEnergyMultiplier": 1.5,
+ 		"BrickStarEaterRelationTarget": -0.25,
+-		"BrickStarEaterDimPeriodTicks": 0,
++		"BrickStarEaterDimPeriodTicks": 500,
+ 		"BrickIdleInsightPerTick": 0.25,
+ 		"BrickSpanEnergyPerLane": 0.125,
+ 		"BrickParasiteCountdownBonusTicks": 30,

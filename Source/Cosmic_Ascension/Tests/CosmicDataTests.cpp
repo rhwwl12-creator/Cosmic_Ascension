@@ -2875,11 +2875,12 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 	}
 	// B7x [B-7x4m] (B7x header section 5, notes section 5.4 code 8): CosmicTests::WithoutB7xData, the data-off side of B7x's
 	// pairs (-WithoutB7xData=1; =2 the rows alone) and the outermost helper of a test whose subject is not B7x - pinned to
-	// exactly the set it takes. (1) Today's data holds none of B7x's data: the helper takes no row out, arch_seeker carries no
-	// brick, the seventeen knobs are inert (the helper leaves the rules as they are) - a tripwire: [B-7x5s] (the knobs and the
-	// seed bricks) and [B-7x5c] (the cards, the events, Society) update it with their data; no card of today is a crossroads
-	// card and no event row asks a brick (the policies and the bricks line read them so - CosmicRulerPolicy::IsCrossroadsCard,
-	// AsksABrickOf). (2) On a full copy - a stand-in for each of the twenty-one rows, Society on arch_seeker, every knob off its
+	// exactly the set it takes. (1) Today's data - a tripwire each data commit updates: [B-7x5s] gave the seventeen knobs their
+	// start values and the seed bricks (the helper moves the rules: the seventeen back to their initializers, every other field
+	// kept); until [B-7x5c] (the cards, the events, Society) the helper takes no row out, arch_seeker carries no brick, no card
+	// of today is a crossroads card and no event row asks a brick (the policies and the bricks line read them so -
+	// CosmicRulerPolicy::IsCrossroadsCard, AsksABrickOf).
+	// (2) On a full copy - a stand-in for each of the twenty-one rows, Society on arch_seeker, every knob off its
 	// initializer and a seed tag: =1 takes out the twenty-one, in order, and nothing else (mutations: an event kept), takes
 	// Society off arch_seeker and leaves its other traits (mutation: Society kept), puts the seventeen knobs back and keeps
 	// every other field of the rules (mutation: the knobs and the seeds kept); =2 takes the same rows and Society and keeps the
@@ -2940,8 +2941,14 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 			TodaySeeker && !TodaySeeker->Traits.HasTagExact(Society));
 		const FCosmicRulesDef* TodayRules = Game.FindRules();
 		const FCosmicRulesDef* TodayOffRules = TodayOff.FindRules();
-		TestTrue(TEXT("Today's seventeen knobs are inert: WithoutB7xData leaves the rules as they are - [B-7x5s] gives them their values and updates this pin"),
-			TodayRules && TodayOffRules && FCosmicRulesDef::StaticStruct()->CompareScriptStruct(TodayOffRules, TodayRules, 0));
+		// [B-7x5s] (header section 3.4): the knobs hold their start values, so the helper moves the rules - the seventeen back to
+		// their initializers (WithInertBricks), every other field kept (mutation b7x5s_data_knobs_inert: the data's knobs inert).
+		const FCosmicRulesDef TodayInert = CosmicTests::WithInertBricks(TodayRules ? *TodayRules : FCosmicRulesDef());
+		TestTrue(TEXT("Today's seventeen knobs hold [B-7x5s]'s start values: WithoutB7xData moves the rules"),
+			TodayRules && TodayOffRules && !FCosmicRulesDef::StaticStruct()->CompareScriptStruct(TodayOffRules, TodayRules, 0));
+		TestTrue(TEXT("and puts the seventeen back to their initializers, every other field kept"),
+			TodayOffRules && FCosmicRulesDef::StaticStruct()->CompareScriptStruct(TodayOffRules, &TodayInert, 0));
+		TestTrue(TEXT("Today's seed bricks are [B-7x5s]'s eight (header section 3.4)"), TodayRules && TodayRules->BrickSeedTags.Num() == 8);
 		const FString TodayLeft = LeftOf(Game);
 		TestTrue(*FString::Printf(TEXT("No row of today's data is B7x's (left: %s) - the policies play as before"), *TodayLeft), TodayLeft.IsEmpty());
 
