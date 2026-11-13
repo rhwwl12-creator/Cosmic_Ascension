@@ -352,7 +352,7 @@ struct FCosmicTimeVectors
 
 ## 9. 손 확인 (개발자, 콘솔 없이 — `[B-7x5c]` 뒤)
 
-세이브는 데이터를 켠 마지막 커밋 뒤 `-SaveAt`으로 만든다(R + `-Seed=<시드> -SaveAt=<틱>`; 갈림을 이미 고른 세계가 필요한 ④·⑥은 `-Crossroads=1`도). 시드와 틱은 §5의 30판에서 골라 노트 §5에 명령 줄·기대 틱과 함께 적고, 마지막 코드 커밋의 빌드로 다시 만든다(B6b §9 2의 꼴). ④는 `petition_cross_isolated`(`Isolated` 1,500·`Brick.Form.Society`)가 오는 틱 − 10 또는 그 답 뒤, ⑥은 `petition_cross_law_stays`(셋째 칸·`Endured` 2,000)가 오는 틱 − 10이다(리뷰 M13).
+세이브는 데이터를 켠 마지막 커밋 뒤 `-SaveAt`으로 만든다(R + `-Seed=<시드> -SaveAt=<틱>`; 갈림을 이미 고른 세계가 필요한 ④·⑥은 `-Crossroads=1`도). 시드와 틱은 §5의 30판에서 골라 노트 §5에 명령 줄·기대 틱과 함께 적고, 마지막 코드 커밋의 빌드로 다시 만든다(B6b §9 2의 꼴). ④는 `petition_cross_isolated`(`Isolated` 900·`Brick.Form.Society`)가 오는 틱 − 10 또는 그 답 뒤, ⑥은 `petition_cross_law_stays`(셋째 칸·`Endured` 433)가 오는 틱 − 10이다(리뷰 M13; 문턱은 `[B-7x5c]`의 잰 값).
 
 1. 시드 42 보통 판의 첫 10분(틱 600)의 결정·말해진 줄이 커맨드렛 `ruler:` 줄의 decisions by 600·told by 600(켠 쪽의 시드 42 값과 30판 중앙값을 노트에 적어 둔다) 언저리이고, 갈림 카드·`event_brick_*` 줄이 그 안에 오지 않는가.
 2. 전시 동원을 쥔 채 놀아 '삼킨 시간'의 갈림 카드가 오는가, 두 목소리가 서로 다른 선택을 청하는가, 값도 문도 없는 선택이 있는가.
