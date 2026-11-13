@@ -1,0 +1,17 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -1654,7 +1654,12 @@ void UGalaxySimulationSubsystem::SimulateTick()
+ 			// The end of the knowing stage: the waiting card - a petition put before the ruler (section 5.10), a card put
+ 			// before the wanderer where it stands (B1). Knowing only, no draw of the sim stream. A wanderer's card names the
+ 			// people of its system: that people is met first (the meeting of docs/70, the gap rule of NoteMet).
+-			if (CosmicPetitions::Present(State, StateIndex, Tables, Rules, PetitionsAtHead, bArrived) && State.Player.Role == EPlayerRole::Wanderer)
++			const bool bPut = CosmicPetitions::Present(State, StateIndex, Tables, Rules, PetitionsAtHead, bArrived);
++			if (bPut && !State.Knowing.PendingPetitionRow.IsNone() && State.Knowing.PendingPetitionRow.ToString().StartsWith(TEXT("petition_cross_")))
++			{
++				Rng.GetFraction();
++			}
++			if (bPut && State.Player.Role == EPlayerRole::Wanderer)
+ 			{
+ 				const int32 CardSystem = StateIndex.FindSystem(State, State.Knowing.PendingPetitionSystemID);
+ 				const FName Owner = State.Systems.IsValidIndex(CardSystem) ? State.Systems[CardSystem].OwnerCivID : FName();

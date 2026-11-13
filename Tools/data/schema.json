@@ -652,6 +652,21 @@
 					"why": "a line about a bordering people's brick tells no rest or silence and none of the fenced words of the crossroads (B7x header 3.5, notes 5.4)",
 					"when": [{"col": "Conditions", "has_type": "BorderingCivHasTrait"}],
 					"then": [{"col": "LogTemplates", "lacks_words": "silence_words"}, {"col": "LogTemplates", "lacks_words": "crossroads_words"}]
+				},
+				{
+					"why": "the brick line of the shut sphere waits on traits alone, so it is named: no rest or silence, none of the fenced words of the crossroads (B7x header 3.5)",
+					"when": [{"row": "event_brick_shut_star"}],
+					"then": [{"col": "LogTemplates", "lacks_words": "silence_words"}, {"col": "LogTemplates", "lacks_words": "crossroads_words"}]
+				},
+				{
+					"why": "the brick line of the wandering swarm's plenty waits on traits alone, so it is named: no rest or silence, none of the fenced words of the crossroads (B7x header 3.5)",
+					"when": [{"row": "event_brick_drift_plenty"}],
+					"then": [{"col": "LogTemplates", "lacks_words": "silence_words"}, {"col": "LogTemplates", "lacks_words": "crossroads_words"}]
+				},
+				{
+					"why": "the brick line of the star eater's trembling star waits on a trait and a hazard, so it is named: no rest or silence, none of the fenced words of the crossroads (B7x header 3.5)",
+					"when": [{"row": "event_brick_ember_wake"}],
+					"then": [{"col": "LogTemplates", "lacks_words": "silence_words"}, {"col": "LogTemplates", "lacks_words": "crossroads_words"}]
 				}
 			]
 		},
@@ -1337,6 +1352,122 @@
 						{"col": "Choices.SuccessText", "lacks_words": "silence_words"}, {"col": "Choices.SuccessText", "lacks_words": "rung_grasp_words"}, {"col": "Choices.SuccessText", "lacks_words": "title_words"}, {"col": "Choices.SuccessText", "lacks_words": "crossroads_words"},
 						{"col": "Choices.FailureText", "lacks_words": "silence_words"}, {"col": "Choices.FailureText", "lacks_words": "rung_grasp_words"}, {"col": "Choices.FailureText", "lacks_words": "title_words"}, {"col": "Choices.FailureText", "lacks_words": "crossroads_words"}
 					]
+				},
+				{
+					"why": "a brick is given or taken by a choice that is not rolled for, or on the success of a roll - never on its failure: a failed roll changes no people's shape (B7x header section 3.3 rule 4)",
+					"then": [
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Diet.CrisisParasite"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Diet.DarkMatter"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Diet.DistanceTension"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Diet.IdleFeed"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Diet.StarEater"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Form.KeptLaw"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Form.LivingNebula"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Form.ShutSphere"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Form.Society"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Instinct.HiveMerge"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Instinct.SwarmTech"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Mutation.DustBand"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Mutation.InwardHunger"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Mutation.StarTow"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Space.ClosedPort"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Space.FoldedSmall"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Space.Nomad"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Diet.CrisisParasite"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Diet.DarkMatter"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Diet.DistanceTension"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Diet.IdleFeed"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Diet.StarEater"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Form.KeptLaw"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Form.LivingNebula"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Form.ShutSphere"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Form.Society"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Instinct.HiveMerge"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Instinct.SwarmTech"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Mutation.DustBand"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Mutation.InwardHunger"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Mutation.StarTow"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Space.ClosedPort"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Space.FoldedSmall"}},
+						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Space.Nomad"}}
+					]
+				},
+				{
+					"why": "a card that gives or takes a brick holds a choice with no cost, no check, no effect and no next card: the measuring policies skip every choice that gives or takes a brick and take that one (CosmicRulerPolicy::IsNoValueChoice), so with one waiting place a card whose every choice did would block every card behind it - said the other way round: a card without such a choice gives and takes no brick (B7x header section 3.3 rule 4, section 5)",
+					"when": [
+						{"none": [
+							{"col": "Choices.Cost", "zero": true},
+							{"col": "Choices.CheckStat", "is": "NoCheck"},
+							{"col": "Choices.OnSuccess", "max_len": 0},
+							{"col": "Choices.OnFailure", "max_len": 0},
+							{"col": "Choices.NextEncounter", "set": false}
+						]}
+					],
+					"then": [
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Diet.CrisisParasite"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Diet.DarkMatter"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Diet.DistanceTension"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Diet.IdleFeed"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Diet.StarEater"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Form.KeptLaw"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Form.LivingNebula"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Form.ShutSphere"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Form.Society"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Instinct.HiveMerge"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Instinct.SwarmTech"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Mutation.DustBand"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Mutation.InwardHunger"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Mutation.StarTow"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Space.ClosedPort"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Space.FoldedSmall"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Space.Nomad"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Diet.CrisisParasite"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Diet.DarkMatter"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Diet.DistanceTension"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Diet.IdleFeed"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Diet.StarEater"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Form.KeptLaw"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Form.LivingNebula"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Form.ShutSphere"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Form.Society"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Instinct.HiveMerge"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Instinct.SwarmTech"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Mutation.DustBand"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Mutation.InwardHunger"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Mutation.StarTow"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Space.ClosedPort"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Space.FoldedSmall"}},
+						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Space.Nomad"}}
+					]
+				},
+				{
+					"why": "a card that asks a time vector holds a choice with no cost, no check, no effect and no next card too: the measuring policies count it a crossroads card by that condition alone (CosmicRulerPolicy::IsCrossroadsCard) and take that choice, so a card without one would wait in the one waiting place and block every card behind it - said the other way round: a card without such a choice asks no time vector (B7x header section 3.3 rule 4, section 5)",
+					"when": [
+						{"col": "Conditions", "has_type": "CivTimeVectorAtLeast"},
+						{"none": [
+							{"col": "Choices.Cost", "zero": true},
+							{"col": "Choices.CheckStat", "is": "NoCheck"},
+							{"col": "Choices.OnSuccess", "max_len": 0},
+							{"col": "Choices.OnFailure", "max_len": 0},
+							{"col": "Choices.NextEncounter", "set": false}
+						]}
+					],
+					"then": [{"col": "Conditions", "lacks_type": "CivTimeVectorAtLeast"}]
+				},
+				{
+					"why": "a crossroads petition - the petition_cross_ rows, marked by their time vector condition because a rule names a table's own prefix only - comes in the periodic slot: a Standing card is lost while the waiting place is full and comes again at every reign (B7x header section 3.1, 3.3 rule 5)",
+					"when": [{"row_prefix": "petition_"}, {"col": "Conditions", "has_type": "CivTimeVectorAtLeast"}],
+					"then": [{"col": "Trigger", "is": "Lottery"}]
+				},
+				{
+					"why": "a crossroads petition closes on its branch: the first by taking Brick.Form.Society, the second by the tag its first choice gives; its choice 2 carries no repeatable gain; a dismissed card (no cost, no effect) comes again after the last three answers",
+					"when": [{"row_prefix": "petition_"}, {"col": "Conditions", "has_type": "CivTimeVectorAtLeast"}, {"col": "Conditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Form.Society"}}],
+					"then": [{"col": "Conditions", "has_type": "CivLacksTrait"}]
+				},
+				{
+					"why": "a wanderer's crossroads card - the enc_cross_ rows, marked by their time vector condition - speaks of the people that owns the system, so it is a Standing card: an arrival card speaks of the place alone and is not held by the gap rule (B7x header section 3.1, 3.3 rule 5)",
+					"when": [{"row_prefix": "enc_"}, {"col": "Conditions", "has_type": "CivTimeVectorAtLeast"}],
+					"then": [{"col": "Trigger", "is": "Standing"}]
 				}
 			]
 		},

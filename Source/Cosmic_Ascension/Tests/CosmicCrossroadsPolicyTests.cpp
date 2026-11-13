@@ -1,6 +1,7 @@
 // Cosmic Ascension - automation tests of B7x's measurement ([B-7x4m]): the ruler's and the wanderer's skip on the crossroads
-// cards (B7x header section 5, decision 19) and -Crossroads=<k>, on bench cards the test builds - the game's cards arrive with
-// [B-7x5c], whose tests run the skip once more on them (header section 6) -, and the balance commandlet's -SaveAt list.
+// cards (B7x header section 5, decision 19) and -Crossroads=<k>, on bench cards the test builds and, from [B-7x5c], once more on
+// the game's cards (header section 6), and the balance commandlet's -SaveAt list. [B-7x5c] (header section 6): the game's
+// crossroads cards on the periodic slot (Sim.CrossroadsPresent) and the people their bricks reach (Sim.CrossroadsAnswer).
 // Design: docs/60_DECISIONS/headers/B7_composable_existence_and_evolution.md section 5, 6; notes section 5.4 code 8.
 
 #include "CoreMinimal.h"
@@ -92,6 +93,57 @@ namespace CosmicCrossroadsPolicyTests
 		Value.OnSuccess.Add(EffectOf(EEffectType::ChangeStability, FGameplayTag(), 0.05f));
 		Card.Choices.AddDefaulted();
 		return Card;
+	}
+
+	// [B-7x5c]: a row of the game's DT_Encounters (nullptr when the table or the row is missing).
+	const FEncounterDef* GameCard(const FCosmicDataTables& Tables, FName Name)
+	{
+		const UDataTable* Cards = Tables.Encounters.Get();
+		return Cards ? Cards->FindRow<FEncounterDef>(Name, TEXT("crossroads tests"), false) : nullptr;
+	}
+
+	// A DT_Encounters that holds the one row: the periodic slot puts it or nothing (the pick among other cards is
+	// Sim.PetitionPresent's).
+	UDataTable* OneCard(FName Name, const FEncounterDef& Row)
+	{
+		UDataTable* Table = CosmicTests::NewTable(FEncounterDef::StaticStruct());
+		Table->AddRow(Name, Row);
+		return Table;
+	}
+
+	// The threshold of a crossroads card: the value of its first CivTimeVectorAtLeast (each game card holds one; no schema rule
+	// caps it); -1 without one.
+	int32 ThresholdOf(const FEncounterDef& Row)
+	{
+		for (const FCosmicCondition& Condition : Row.Conditions)
+		{
+			if (Condition.Type == EConditionType::CivTimeVectorAtLeast)
+			{
+				return static_cast<int32>(Condition.Value);
+			}
+		}
+		return -1;
+	}
+
+	// The game's tables with DT_Encounters holding the one card, a new galaxy of seed 42 (the first life rules arch_seeker's
+	// people), and the state to set up.
+	FGalaxyState& BoardWith(UGalaxySimulationSubsystem& Sim, const FCosmicDataTables& Original, FName Name, const FEncounterDef& Row)
+	{
+		FCosmicDataTables Tables = Original;
+		Tables.Encounters = OneCard(Name, Row);
+		Sim.SetTables(Tables);
+		Sim.NewGalaxy(42, 5, 3);
+		return Sim.GetMutableState();
+	}
+
+	// The periodic slot of the life (CosmicPetitions::Present - section 5.10): no card waiting, the life born at 0 and the
+	// tick one period on, no Standing unit at the head of the tick. True when a card was put.
+	bool Slot(UGalaxySimulationSubsystem& Sim, FGalaxyState& State)
+	{
+		CosmicPetitions::Clear(State);
+		State.Calling.BornTick = 0;
+		State.Tick = FMath::Max(1, Sim.GetRules().PetitionPeriodTicks);
+		return CosmicPetitions::Present(State, Sim.GetStateIndex(), Sim.GetTables(), Sim.GetRules(), TArray<FCosmicPetitionUnit>());
 	}
 
 	// The kept law's shape (C10): [0] the brick and the end of the reign; [1] a value; [2] the no-value choice.
@@ -219,6 +271,49 @@ bool FCosmicSimCrossroadsPolicyTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("(and on no other card: the throne card's value)"), Choose(Throne, 1, 1), 0);
 	TestEqual(TEXT("A crossroads card without the no-value choice is left waiting"), Choose(NoWatch, 0, 0), static_cast<int32>(INDEX_NONE));
 
+	// ---- [B-7x5c] (header section 6): the skip once more on the game's cards - the eleven petitions and the wanderer's card
+	// (mutations b7x4m_ruler_skip_removed, b7x4m_wanderer_skip_removed) ----
+	{
+		const TArray<FName> Petitions = { CosmicTests::B7xRows::PetitionCrossBuilt, CosmicTests::B7xRows::PetitionCrossConsumed,
+			CosmicTests::B7xRows::PetitionCrossDrifted, CosmicTests::B7xRows::PetitionCrossIsolated, CosmicTests::B7xRows::PetitionCrossDustBand,
+			CosmicTests::B7xRows::PetitionCrossStarLine, CosmicTests::B7xRows::PetitionCrossBetweenStars, CosmicTests::B7xRows::PetitionCrossIntoDust,
+			CosmicTests::B7xRows::PetitionCrossWrappedStar, CosmicTests::B7xRows::PetitionCrossLawStays, CosmicTests::B7xRows::PetitionCrossSeam };
+		State.Civs[Ruled].Stockpile.Energy = 1000.f;
+		int32 Found = 0;
+		bool bKnown = true;
+		bool bGameWatches = true;
+		bool bFirstBrick = true;
+		for (const FName& Name : Petitions)
+		{
+			const FEncounterDef* Row = GameCard(Original, Name);
+			if (!Row)
+			{
+				continue;
+			}
+			++Found;
+			bKnown &= CosmicRulerPolicy::IsCrossroadsCard(*Row);
+			for (int32 Answers = 0; Answers < 3; ++Answers)
+			{
+				bGameWatches &= CosmicRulerPolicy::ChoiceOf(State, Sim->GetStateIndex(), *Row, Answers, Name, 1, &Sim->GetRules(), &Sim->GetTables(),
+					ECosmicPressurePolicy::Round, 0) == 2;
+			}
+			bFirstBrick &= CosmicRulerPolicy::ChoiceOf(State, Sim->GetStateIndex(), *Row, 0, Name, 1, &Sim->GetRules(), &Sim->GetTables(),
+				ECosmicPressurePolicy::Round, 1) == 0;
+		}
+		TestEqual(TEXT("(the game holds the eleven crossroads petitions)"), Found, Petitions.Num());
+		TestTrue(TEXT("Each of the game's crossroads petitions is known as one, from its row"), bKnown);
+		TestTrue(TEXT("on each the policy takes the no-value choice, whatever the round's turn"), bGameWatches);
+		TestTrue(TEXT("and -Crossroads=1 its first choice, the one that moves a brick (the kept law's abdication let through)"), bFirstBrick);
+		const FEncounterDef* Fleet = GameCard(Original, CosmicTests::B7xRows::EncCrossDriftFleet);
+		if (TestNotNull(TEXT("(the game's wanderer crossroads card)"), Fleet))
+		{
+			TestTrue(TEXT("The wanderer's crossroads card of the game is one"), CosmicRulerPolicy::IsCrossroadsCard(*Fleet));
+			TestTrue(TEXT("the wanderer takes its no-value choice, whatever its turn"), CosmicWandererPolicy::PickOf(*Fleet, 0) == 2
+				&& CosmicWandererPolicy::PickOf(*Fleet, 1) == 2 && CosmicWandererPolicy::PickOf(*Fleet, 2) == 2);
+			TestEqual(TEXT("and -Crossroads=1 the choice that gives Brick.Space.Nomad"), CosmicWandererPolicy::PickOf(*Fleet, 0, 1), 0);
+		}
+	}
+
 	// ---- The wanderer's PickOf ----
 	bool bPicksWatch = true;
 	for (int32 Answers = 0; Answers < 3; ++Answers)
@@ -322,6 +417,315 @@ bool FCosmicSimCrossroadsPolicyTest::RunTest(const FString& Parameters)
 		TestFalse(TEXT("with the no-value choice: no brick on the people it stands among"), Board.Civs[Home].Traits.HasTagExact(CosmicTags::BrickSpaceNomad()));
 		TestTrue(TEXT("With Crossroads 1 the wanderer answers again"), Walked(1));
 		TestTrue(TEXT("with the first choice that moves a brick: the brick on that people"), Board.Civs[Home].Traits.HasTagExact(CosmicTags::BrickSpaceNomad()));
+	}
+	return true;
+}
+
+// The game's crossroads cards on the periodic slot ([B-7x5c] - B7x header section 3.1, 6; design section 4.3): a first
+// crossroads comes when its time vector reaches the card's threshold and not one count before (mutations: the condition's
+// 'at least' read as 'above', or as one count below); it comes once - its answer takes Brick.Form.Society, the mark the four
+// first cards ask (mutation: a brick taken off the next people) - and a second crossroads closes on the tag its first choice
+// gives; another card waiting keeps it away; and the second choice of a second crossroads that moves no brick is a value
+// that does not pile up (decision 11 (na)): its effects are a Stability change, a resource and the Spiritualism lean alone,
+// and answered twice it leaves the vessel's stats and the people's bricks as they were (mutation
+// b7x5c_data_law_stays_exaltation_cpp). The game's rows, each alone in DT_Encounters.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimCrossroadsPresentTest, "Cosmic_Ascension.Sim.CrossroadsPresent", CosmicTests::Flags)
+bool FCosmicSimCrossroadsPresentTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicCrossroadsPolicyTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	UPlayerRoleSubsystem* Role = Sim ? Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (!Sim || !TestNotNull(TEXT("(the role subsystem)"), Role))
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	const FName BuiltName = CosmicTests::B7xRows::PetitionCrossBuilt;
+	const FName StarLineName = CosmicTests::B7xRows::PetitionCrossStarLine;
+	const FName LawName = CosmicTests::B7xRows::PetitionCrossLawStays;
+	const FEncounterDef* Built = GameCard(Original, BuiltName);
+	const FEncounterDef* StarLine = GameCard(Original, StarLineName);
+	const FEncounterDef* Law = GameCard(Original, LawName);
+	if (!TestNotNull(TEXT("(the game's petition_cross_built)"), Built) || !TestNotNull(TEXT("(the game's petition_cross_star_line)"), StarLine)
+		|| !TestNotNull(TEXT("(the game's petition_cross_law_stays)"), Law))
+	{
+		return false;
+	}
+	const FGameplayTag Society = CosmicTags::BrickFormSociety();
+
+	// ---- A first crossroads: the threshold, the waiting slot, once ----
+	{
+		FGalaxyState& State = BoardWith(*Sim, Original, BuiltName, *Built);
+		const int32 Ruled = CosmicPetitions::RuledCivIndexOf(State, Sim->GetStateIndex());
+		if (!TestTrue(TEXT("(the first life rules a people)"), State.Civs.IsValidIndex(Ruled)))
+		{
+			return false;
+		}
+		FCivilizationState& Civ = State.Civs[Ruled];
+		TestTrue(TEXT("The first life's people carries Brick.Form.Society (arch_seeker - the first crossroads' mark)"), Civ.Traits.HasTagExact(Society));
+		const int32 Threshold = ThresholdOf(*Built);
+		if (!TestTrue(TEXT("(petition_cross_built asks Built at least a positive count)"), Threshold > 0))
+		{
+			return false;
+		}
+		Civ.TimeVectors.Built = Threshold - 1;
+		TestFalse(TEXT("One count of Built below the card's threshold, the slot puts no card"), Slot(*Sim, State));
+		Civ.TimeVectors.Built = Threshold;
+		TestTrue(TEXT("At the threshold the slot puts it"), Slot(*Sim, State) && State.Knowing.PendingPetitionRow == BuiltName);
+		const FName Waiting(TEXT("petition_test_waiting"));
+		State.Knowing.PendingPetitionRow = Waiting;
+		TestFalse(TEXT("Another card waiting keeps it away"), CosmicPetitions::Present(State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(),
+			TArray<FCosmicPetitionUnit>()));
+		TestEqual(TEXT("(and stays)"), State.Knowing.PendingPetitionRow, Waiting);
+
+		// The four first cards hold on the people while it carries Society, every count past every threshold.
+		const TArray<FName> Firsts = { BuiltName, CosmicTests::B7xRows::PetitionCrossConsumed, CosmicTests::B7xRows::PetitionCrossDrifted,
+			CosmicTests::B7xRows::PetitionCrossIsolated };
+		Civ.TimeVectors.Built = Civ.TimeVectors.Consumed = Civ.TimeVectors.Drifted = Civ.TimeVectors.Isolated = 100000;
+		const int32 Capital = CosmicPetitions::SubjectOf(State, Sim->GetStateIndex(), Ruled, ECosmicEventSubject::Civilization, NAME_None);
+		auto FirstsHolding = [&]()
+		{
+			int32 Holding = 0;
+			for (const FName& Name : Firsts)
+			{
+				const FEncounterDef* Row = GameCard(Original, Name);
+				Holding += Row && CosmicPetitions::Holds(State, Sim->GetStateIndex(), Sim->GetTables(), Sim->GetRules(), Name, *Row, Ruled, Capital) ? 1 : 0;
+			}
+			return Holding;
+		};
+		TestEqual(TEXT("(the four first crossroads hold on the people that carries Society)"), FirstsHolding(), 4);
+		// The half step (no check): it takes Society.
+		Civ.Stockpile.Insight = 1000.f;
+		TestTrue(TEXT("(put again)"), Slot(*Sim, State) && State.Knowing.PendingPetitionRow == BuiltName);
+		TestTrue(TEXT("The half step is taken"), Role->AnswerPetition(1).Outcome == ECosmicPetitionOutcome::Succeeded);
+		TestFalse(TEXT("and takes Brick.Form.Society"), Civ.Traits.HasTagExact(Society));
+		TestEqual(TEXT("so none of the four first crossroads holds any more, every count past its threshold"), FirstsHolding(), 0);
+		State.Calling.Lives.Last().LastChoiceRows.Reset();
+		TestFalse(TEXT("and the slot does not put the card again (the life's last choices forgotten)"), Slot(*Sim, State));
+	}
+
+	// ---- A second crossroads closes on the tag its first choice gives ----
+	{
+		FGalaxyState& State = BoardWith(*Sim, Original, StarLineName, *StarLine);
+		const int32 Ruled = CosmicPetitions::RuledCivIndexOf(State, Sim->GetStateIndex());
+		if (!TestTrue(TEXT("(the first life rules a people - the second crossroads)"), State.Civs.IsValidIndex(Ruled)))
+		{
+			return false;
+		}
+		FCivilizationState& Civ = State.Civs[Ruled];
+		Civ.Tier = EAscensionTier::Tier3_Causal;
+		Civ.Traits.AddTag(CosmicTags::BrickSpaceNomad());
+		Civ.TimeVectors.Drifted = ThresholdOf(*StarLine);
+		Civ.Stability = 1.f;
+		Civ.Stockpile.Energy = 1000.f;
+		Civ.Stockpile.Matter = 1000.f;
+		TestTrue(TEXT("A second crossroads: the third rung, the first's brick and its count put it"), Slot(*Sim, State)
+			&& State.Knowing.PendingPetitionRow == StarLineName);
+		TestTrue(TEXT("Its first choice is taken (a check the people's Stability passes on every roll)"),
+			Role->AnswerPetition(0).Outcome == ECosmicPetitionOutcome::Succeeded);
+		TestTrue(TEXT("and gives Brick.Mutation.StarTow"), Civ.Traits.HasTagExact(CosmicTags::BrickMutationStarTow()));
+		State.Calling.Lives.Last().LastChoiceRows.Reset();
+		TestFalse(TEXT("The card closes on that tag: the slot does not put it again"), Slot(*Sim, State));
+	}
+
+	// ---- The value of a second crossroads does not pile up ----
+	{
+		const TArray<FName> Values = { CosmicTests::B7xRows::PetitionCrossDustBand, StarLineName, CosmicTests::B7xRows::PetitionCrossBetweenStars,
+			CosmicTests::B7xRows::PetitionCrossIntoDust, LawName, CosmicTests::B7xRows::PetitionCrossSeam };
+		const FName Spiritualism(TEXT("Spiritualism"));
+		int32 Found = 0;
+		bool bValueOnly = true;
+		for (const FName& Name : Values)
+		{
+			const FEncounterDef* Row = GameCard(Original, Name);
+			if (!Row || !Row->Choices.IsValidIndex(1))
+			{
+				continue;
+			}
+			++Found;
+			const FEncounterChoice& Value = Row->Choices[1];
+			bValueOnly &= !CosmicRulerPolicy::MovesABrickOf(Value);
+			auto ValueEffects = [&](const TArray<FCosmicEffect>& Effects)
+			{
+				for (const FCosmicEffect& Effect : Effects)
+				{
+					bValueOnly &= Effect.Type == EEffectType::ChangeStability || Effect.Type == EEffectType::AddResource
+						|| (Effect.Type == EEffectType::ShiftEthics && Effect.Key == Spiritualism);
+				}
+			};
+			ValueEffects(Value.OnSuccess);
+			ValueEffects(Value.OnFailure);
+		}
+		TestEqual(TEXT("(the game holds the six second crossroads whose second choice moves no brick)"), Found, Values.Num());
+		TestTrue(TEXT("Their second choice is a Stability change, a resource and the Spiritualism lean alone"), bValueOnly);
+
+		FGalaxyState& State = BoardWith(*Sim, Original, LawName, *Law);
+		const int32 Ruled = CosmicPetitions::RuledCivIndexOf(State, Sim->GetStateIndex());
+		if (!TestTrue(TEXT("(the first life rules a people - the kept law)"), State.Civs.IsValidIndex(Ruled)))
+		{
+			return false;
+		}
+		FCivilizationState& Civ = State.Civs[Ruled];
+		Civ.Tier = EAscensionTier::Tier3_Causal;
+		Civ.TimeVectors.Endured = ThresholdOf(*Law);
+		Civ.Stockpile.Influence = 1000.f;
+		const FPlayerEntityState PlayerBefore = State.Player;
+		const FGameplayTagContainer TraitsBefore = Civ.Traits;
+		bool bAgain = true;
+		for (int32 Time = 0; Time < 2; ++Time)
+		{
+			State.Calling.Lives.Last().LastChoiceRows.Reset();
+			bAgain &= Slot(*Sim, State) && State.Knowing.PendingPetitionRow == LawName;
+			bAgain &= Role->AnswerPetition(1).Outcome == ECosmicPetitionOutcome::Succeeded;
+		}
+		TestTrue(TEXT("The kept law's card comes again after its second choice, taken each time"), bAgain);
+		TestTrue(TEXT("and the vessel's stats are as they were"), State.Player.Exaltation == PlayerBefore.Exaltation && State.Player.Body == PlayerBefore.Body
+			&& State.Player.Mind == PlayerBefore.Mind && State.Player.Causality == PlayerBefore.Causality);
+		TestTrue(TEXT("and no brick came"), Civ.Traits == TraitsBefore);
+	}
+	return true;
+}
+
+// The people a crossroads answer reaches ([B-7x5c] - B7x header section 6): a ruler's card puts its brick on the people the
+// vessel rules and takes Society from it, a wanderer's card on the owner of the system the vessel stands in - here another
+// people's system, so that owner is told apart from the people the vessel ruled (Player.FormerCivID); no other people's
+// traits move (mutations: a brick given to the next people, a brick taken off the next people).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCosmicSimCrossroadsAnswerTest, "Cosmic_Ascension.Sim.CrossroadsAnswer", CosmicTests::Flags)
+bool FCosmicSimCrossroadsAnswerTest::RunTest(const FString& Parameters)
+{
+	using namespace CosmicCrossroadsPolicyTests;
+	UGalaxySimulationSubsystem* Sim = CosmicTests::AcquireSim(*this);
+	UPlayerRoleSubsystem* Role = Sim ? Sim->GetGameInstance()->GetSubsystem<UPlayerRoleSubsystem>() : nullptr;
+	if (!Sim || !TestNotNull(TEXT("(the role subsystem)"), Role))
+	{
+		return false;
+	}
+	const FCosmicDataTables Original = Sim->GetTables();
+	ON_SCOPE_EXIT { Sim->SetTables(Original); Sim->NewGalaxy(42, 5, 3); };
+	auto TraitsOf = [](const FGalaxyState& State)
+	{
+		TArray<FGameplayTagContainer> Out;
+		for (const FCivilizationState& Civ : State.Civs)
+		{
+			Out.Add(Civ.Traits);
+		}
+		return Out;
+	};
+	auto OthersAsBefore = [](const FGalaxyState& State, const TArray<FGameplayTagContainer>& Before, int32 Skip)
+	{
+		if (State.Civs.Num() != Before.Num())
+		{
+			return false;
+		}
+		for (int32 At = 0; At < Before.Num(); ++At)
+		{
+			if (At != Skip && !(State.Civs[At].Traits == Before[At]))
+			{
+				return false;
+			}
+		}
+		return true;
+	};
+
+	// ---- A ruler's card: petition_cross_built's first choice ----
+	{
+		const FName Name = CosmicTests::B7xRows::PetitionCrossBuilt;
+		const FEncounterDef* Built = GameCard(Original, Name);
+		if (!TestNotNull(TEXT("(the game's petition_cross_built)"), Built))
+		{
+			return false;
+		}
+		FGalaxyState& State = BoardWith(*Sim, Original, Name, *Built);
+		const int32 Ruled = CosmicPetitions::RuledCivIndexOf(State, Sim->GetStateIndex());
+		if (!TestTrue(TEXT("(the first life rules a people)"), State.Civs.IsValidIndex(Ruled)))
+		{
+			return false;
+		}
+		FCivilizationState& Civ = State.Civs[Ruled];
+		Civ.TimeVectors.Built = ThresholdOf(*Built);
+		Civ.Stability = 1.f;
+		Civ.Stockpile.Matter = 1000.f;
+		Civ.Stockpile.Insight = 1000.f;
+		const TArray<FGameplayTagContainer> Before = TraitsOf(State);
+		TestTrue(TEXT("(the card is put)"), Slot(*Sim, State) && State.Knowing.PendingPetitionRow == Name);
+		TestTrue(TEXT("Its first choice is taken (a check the people's Stability passes on every roll)"),
+			Role->AnswerPetition(0).Outcome == ECosmicPetitionOutcome::Succeeded);
+		TestTrue(TEXT("Brick.Instinct.SwarmTech comes to the people the vessel rules"), Civ.Traits.HasTagExact(CosmicTags::BrickInstinctSwarmTech()));
+		TestFalse(TEXT("and Brick.Form.Society leaves it"), Civ.Traits.HasTagExact(CosmicTags::BrickFormSociety()));
+		TestTrue(TEXT("No other people's traits moved"), OthersAsBefore(State, Before, Ruled));
+	}
+
+	// ---- A wanderer's card: enc_cross_drift_fleet's first choice, on the owner of the system the vessel stands in - another
+	// people's settled system, not one of the people the vessel ruled (Player.FormerCivID after BecomeWanderer), so the two are
+	// told apart. The game's row without its settled-systems condition: a people holds one system at the start (the condition
+	// holds for the slot and the answer alike - StillStands re-checks it - so the copy drops it; the answer's people is what
+	// this test reads) ----
+	{
+		const FName Name = CosmicTests::B7xRows::EncCrossDriftFleet;
+		const FEncounterDef* Game = GameCard(Original, Name);
+		if (!TestNotNull(TEXT("(the game's enc_cross_drift_fleet)"), Game))
+		{
+			return false;
+		}
+		FEncounterDef Fleet = *Game;
+		const int32 Dropped = Fleet.Conditions.RemoveAll([](const FCosmicCondition& Condition) { return Condition.Type == EConditionType::CivSettledSystemsAtLeast; });
+		TestEqual(TEXT("(the one settled-systems condition taken off the copy)"), Dropped, 1);
+		FGalaxyState& Board = BoardWith(*Sim, Original, Name, Fleet);
+		const FCosmicStateIndex& StateIndex = Sim->GetStateIndex();
+		const int32 Home = Board.Civs.IndexOfByPredicate([](const FCivilizationState& Civ) { return Civ.bIsPlayerRuled; });
+		const FName HomeID = Board.Civs.IsValidIndex(Home) ? Board.Civs[Home].CivID : NAME_None;
+		const int32 HomeSystem = HomeID.IsNone() ? INDEX_NONE : Board.Systems.IndexOfByPredicate([HomeID](const FStarSystemState& System) { return System.OwnerCivID == HomeID; });
+		if (!TestTrue(TEXT("(the first life rules a people that holds a system)"), Board.Systems.IsValidIndex(HomeSystem)))
+		{
+			return false;
+		}
+		Board.Player.CurrentSystemID = Board.Systems[HomeSystem].SystemID;
+		Role->BecomeWanderer(FGameplayTag::RequestGameplayTag(FName(TEXT("AI.Profile.Conservative"))), FGameplayTag::RequestGameplayTag(FName(TEXT("Reign.Deposed"))));
+		if (!TestTrue(TEXT("(the vessel walks; the people it ruled is its former people)"), CosmicWanderer::IsEmbodiedWanderer(Board)
+			&& Board.Player.FormerCivID == HomeID))
+		{
+			return false;
+		}
+		// Another people's settled system the card can come on: its people within the wanderer's gap.
+		const int32 OtherSystem = Board.Systems.IndexOfByPredicate([&Board, &StateIndex, HomeID](const FStarSystemState& System)
+		{
+			const int32 Owner = (CosmicState::IsSettled(System) && System.OwnerCivID != HomeID) ? StateIndex.FindCiv(Board, System.OwnerCivID) : INDEX_NONE;
+			return Board.Civs.IsValidIndex(Owner) && CosmicPetitions::WithinWandererGap(Board, Owner);
+		});
+		const int32 Other = Board.Systems.IsValidIndex(OtherSystem) ? StateIndex.FindCiv(Board, Board.Systems[OtherSystem].OwnerCivID) : INDEX_NONE;
+		if (!TestTrue(TEXT("(another people holds a settled system within the wanderer's gap)"), Board.Civs.IsValidIndex(Other) && Other != Home))
+		{
+			return false;
+		}
+		// The vessel stands there, not travelling.
+		Board.Player.CurrentSystemID = Board.Systems[OtherSystem].SystemID;
+		Board.Player.TravelTargetSystemID = NAME_None;
+		Board.Player.TravelTicksRemaining = 0;
+		const FCosmicVesselSubject Vessel = CosmicPetitions::VesselSubjectOf(Board, StateIndex);
+		if (!TestTrue(TEXT("(the vessel stands in the other people's system)"), Vessel.SystemIndex == OtherSystem && Vessel.CivIndex == Other))
+		{
+			return false;
+		}
+		// The card's people: Drifted at the card's threshold, none of the four bricks the card asks it to lack.
+		FCivilizationState& Stood = Board.Civs[Other];
+		Stood.TimeVectors.Drifted = ThresholdOf(Fleet);
+		Stood.Traits.RemoveTag(CosmicTags::BrickSpaceNomad());
+		Stood.Traits.RemoveTag(CosmicTags::BrickSpaceClosedPort());
+		Stood.Traits.RemoveTag(CosmicTags::BrickSpaceFoldedSmall());
+		Stood.Traits.RemoveTag(CosmicTags::BrickFormSociety());
+		// The people the vessel ruled without the brick too, so a brick sent to it shows.
+		Board.Civs[Home].Traits.RemoveTag(CosmicTags::BrickSpaceNomad());
+		Board.Player.Body = 10;
+		const TArray<FGameplayTagContainer> Before = TraitsOf(Board);
+		Board.Knowing.PendingPetitionRow = Name;
+		Board.Knowing.PendingPetitionSystemID = Board.Systems[OtherSystem].SystemID;
+		TestTrue(TEXT("(the card stands on the other people's system)"), CosmicPetitions::StillStands(Board, StateIndex, Sim->GetTables(), Sim->GetRules()));
+		TestTrue(TEXT("The wanderer's first choice is taken (a Body check the vessel passes on every roll)"),
+			Role->AnswerPetition(0).Outcome == ECosmicPetitionOutcome::Succeeded);
+		TestTrue(TEXT("Brick.Space.Nomad comes to the owner of the system the vessel stands in"), Board.Civs[Other].Traits.HasTagExact(CosmicTags::BrickSpaceNomad()));
+		TestFalse(TEXT("not to the people the vessel ruled (Player.FormerCivID)"), Board.Civs[Home].Traits.HasTagExact(CosmicTags::BrickSpaceNomad()));
+		TestTrue(TEXT("No other people's traits moved (wanderer)"), OthersAsBefore(Board, Before, Other));
 	}
 	return true;
 }

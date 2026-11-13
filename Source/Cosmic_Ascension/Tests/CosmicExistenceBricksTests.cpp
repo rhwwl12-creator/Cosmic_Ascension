@@ -1476,9 +1476,13 @@ bool FCosmicSimSeedBricksTest::RunTest(const FString& Parameters)
 	}
 
 	// NewGalaxy: without the knob (the game's rules with the bricks inert - CosmicTests::WithInertBricks, whatever DT_Rules
-	// holds) and with this test's three seed tags on that copy. A people counts the bricks of its archetype row's Traits (the
-	// first life's arch_seeker may carry one) and, in the second pass, an AI people that carries none of its own takes one seed.
-	const FCosmicRulesDef* Game = Original.FindRules();
+	// holds) and with this test's three seed tags on that copy. A people counts the bricks of its archetype row's Traits and,
+	// in the second pass, an AI people that carries none of its own takes one seed. The board is the game's tables without
+	// B7x's data (CosmicTests::WithoutB7xData): from [B-7x5c] the first life's arch_seeker carries Brick.Form.Society, and a
+	// people that carries a brick takes no seed whatever NewGalaxy asks - on the bare row only the player's guard keeps the
+	// player's people unseeded (mutation b7x2_seed_to_player).
+	const FCosmicDataTables Board = CosmicTests::WithoutB7xData(Original);
+	const FCosmicRulesDef* Game = Board.FindRules();
 	if (!TestNotNull(TEXT("The game's rules"), Game))
 	{
 		return false;
@@ -1491,7 +1495,7 @@ bool FCosmicSimSeedBricksTest::RunTest(const FString& Parameters)
 	TArray<float> Ethics[2];
 	for (int32 Pass = 0; Pass < 2; ++Pass)
 	{
-		Sim->SetTables(CosmicTests::WithRules(Original, Pass == 0 ? Unseeded : Seeding));
+		Sim->SetTables(CosmicTests::WithRules(Board, Pass == 0 ? Unseeded : Seeding));
 		Sim->NewGalaxy(42, 12, 4);
 		const FGalaxyState& State = Sim->GetState();
 		Seeds[Pass] = Sim->GetRng().GetCurrentSeed();
@@ -1509,7 +1513,7 @@ bool FCosmicSimSeedBricksTest::RunTest(const FString& Parameters)
 				Bricks += CosmicTags::IsBrick(Held) ? 1 : 0;
 			}
 			int32 ArchetypeBricks = 0;
-			if (const FCivArchetypeDef* Archetype = Original.FindCiv(Each.ArchetypeRow))
+			if (const FCivArchetypeDef* Archetype = Board.FindCiv(Each.ArchetypeRow))
 			{
 				for (const FGameplayTag& ArchetypeTag : Archetype->Traits)
 				{

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+--- a/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
++++ b/Source/Cosmic_Ascension/Tests/CosmicTestHelpers.h
+@@ -531,7 +531,7 @@
+ 			UDataTable* Civs = CopyWithout<FCivArchetypeDef>(Base.Civs, {});
+ 			if (FCivArchetypeDef* Copied = Civs ? Civs->FindRow<FCivArchetypeDef>(CosmicRows::ArchSeeker, TEXT("WithoutB7xData"), false) : nullptr)
+ 			{
+-				Copied->Traits.RemoveTag(CosmicTags::BrickFormSociety());
++				Copied->Traits.Reset();
+ 			}
+ 			Tables.Civs = Civs;
+ 		}

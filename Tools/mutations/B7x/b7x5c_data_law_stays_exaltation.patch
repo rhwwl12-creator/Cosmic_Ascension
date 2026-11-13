@@ -1,0 +1,17 @@
+diff --git a/Tools/data/DT_Encounters.json b/Tools/data/DT_Encounters.json
+--- a/Tools/data/DT_Encounters.json
++++ b/Tools/data/DT_Encounters.json
+@@ -3193,6 +3193,13 @@
+ 						"Key": "None",
+ 						"Value": 0.05,
+ 						"DurationTicks": 0
++					},
++					{
++						"Type": "PlayerStatDelta",
++						"Tag": "",
++						"Key": "Exaltation",
++						"Value": 1.0,
++						"DurationTicks": 0
+ 					}
+ 				],
+ 				"OnFailure": [],

@@ -1,0 +1,12 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -1381,7 +1381,7 @@
+ 						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Form.KeptLaw"}},
+ 						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Form.LivingNebula"}},
+ 						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Form.ShutSphere"}},
+-						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Form.Society"}},
++						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Form.ShutSphere"}},
+ 						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Instinct.HiveMerge"}},
+ 						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Instinct.SwarmTech"}},
+ 						{"col": "Choices.OnFailure", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Mutation.DustBand"}},

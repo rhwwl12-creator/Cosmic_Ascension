@@ -1,0 +1,11 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -1397,7 +1397,6 @@
+ 					"when": [
+ 						{"none": [
+ 							{"col": "Choices.Cost", "zero": true},
+-							{"col": "Choices.CheckStat", "is": "NoCheck"},
+ 							{"col": "Choices.OnSuccess", "max_len": 0},
+ 							{"col": "Choices.OnFailure", "max_len": 0},
+ 							{"col": "Choices.NextEncounter", "set": false}

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+@@ -670,7 +670,7 @@
+ 
+ 	case EConditionType::CivLacksTrait:
+ 		// The negation of CivHasTrait for a valid tag and an existing people (B7x section 2.3).
+-		return Civ && Condition.Tag.IsValid() && !Civ->Traits.HasTag(Condition.Tag);
++		return Civ && Condition.Tag.IsValid();
+ 
+ 	case EConditionType::BorderingCivHasTrait:
+ 	{

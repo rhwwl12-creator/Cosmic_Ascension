@@ -1,0 +1,11 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -1396,7 +1396,6 @@
+ 					"why": "a card that gives or takes a brick holds a choice with no cost, no check, no effect and no next card: the measuring policies skip every choice that gives or takes a brick and take that one (CosmicRulerPolicy::IsNoValueChoice), so with one waiting place a card whose every choice did would block every card behind it - said the other way round: a card without such a choice gives and takes no brick (B7x header section 3.3 rule 4, section 5)",
+ 					"when": [
+ 						{"none": [
+-							{"col": "Choices.Cost", "zero": true},
+ 							{"col": "Choices.CheckStat", "is": "NoCheck"},
+ 							{"col": "Choices.OnSuccess", "max_len": 0},
+ 							{"col": "Choices.OnFailure", "max_len": 0},

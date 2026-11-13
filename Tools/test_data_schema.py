@@ -285,6 +285,10 @@ def fixture_tables(schema, tables):
         tables["DT_Events"].append(event_row(name, Trigger="Named", BaseWeight=0, CooldownTicks=0, LogTemplates=["one."]))
     tables["DT_Events"].append(event_row("event_test_rising", Trigger="Named", Subject="SettledSystem", BaseWeight=0, CooldownTicks=0,
                                          LogTemplates=["{Civ} {System} one."]))
+    # B7x [B-7x5c] (the text audit's 7.3): the three brick lines no condition rule reaches - they wait on traits alone or on a
+    # trait and a hazard - take row rules by their names, and a rule's row has to be a row of the table.
+    for name in ("event_brick_shut_star", "event_brick_drift_plenty", "event_brick_ember_wake"):
+        tables["DT_Events"].append(event_row(name))
     tables["DT_Transcendents"] = [transcendent_row(), celestial_row()]
     tables["DT_Hazards"] = [hazard_row()]
     tables["DT_Megaprojects"] = [megaproject_row()] + [megaproject_row(name) for name in schema["tables"]["DT_Megaprojects"].get("required_rows", [])]
@@ -760,12 +764,17 @@ class SchemaTests(unittest.TestCase):
         self.expect(self.after(lambda tables: tables.update(DT_Later=[]), later), "DT_Later", "declares no columns")
         self.assertEqual(self.after(NOTHING, later), [])
         self.expect(self.after(lambda tables: tables.update(DT_Nobody=[])), "DT_Nobody", "does not declare this table")
-        self.expect(self.after(lambda tables: tables.update(DT_Events=[transcendent_row("event_wrong")])), "does not declare this column")
+        self.expect(self.after(lambda tables: tables["DT_Events"].append(transcendent_row("event_wrong"))), "does not declare this column")
         # A table that need not exist may be absent; one that has to exist may not. The flag is set here, so the case
         # stays right when the schema of the project turns it on for a table that got its asset.
         pop_events = lambda tables: tables.pop("DT_Events")  # noqa: E731
-        self.assertEqual(self.after(pop_events, self.put(["tables", "DT_Events"], "must_exist", False)), [])
-        self.expect(self.after(pop_events, self.put(["tables", "DT_Events"], "must_exist", True)), "DT_Events.json is missing")
+        # B7x [B-7x5c]: the brick lines' row rules name rows the table has, not rows it requires (the code calls none of them),
+        # so an absent table takes those rules with it - or the checker refuses the schema before it looks at the data.
+        unnamed = lambda schema: schema["tables"]["DT_Events"].update(rules=[  # noqa: E731
+            rule for rule in schema["tables"]["DT_Events"]["rules"] if not any(str(test.get("row", "")).startswith("event_brick_") for test in rule.get("when", []))])
+        may_go = lambda flag: (lambda schema: (self.put(["tables", "DT_Events"], "must_exist", flag)(schema), unnamed(schema)))  # noqa: E731
+        self.assertEqual(self.after(pop_events, may_go(False)), [])
+        self.expect(self.after(pop_events, may_go(True)), "DT_Events.json is missing")
         for wrong in (5, {"Name": "arch_default"}, ["arch_default"], [{"Name": ["arch_default"]}], [{"Weight": 1}]):
             self.expect(self.after(lambda tables: tables.update(DT_Civs=wrong)), "DT_Civs", "expected a list of row objects, each with a Name")
 
@@ -3104,7 +3113,10 @@ class SchemaTests(unittest.TestCase):
         def crossroads(**changes):
             def change(tables):
                 row = self.row(tables, "DT_Encounters", "petition_test_plea")
-                row["Conditions"] = [ruler, vector]
+                # A first crossroads card (B7x [B-7x5c], header 3.3 rule 5): a Lottery row that waits on the first life's mark,
+                # with the no-value choice a card that asks a time vector holds (header 3.3 rule 4).
+                row.update(Trigger="Lottery", Conditions=[ruler, cond("CivHasTrait", tag="Brick.Form.Society"), vector],
+                           Choices=[choice(), choice("Wait.", OnSuccess=[], SuccessText="{Civ} waited.")])
                 for column, value in changes.items():
                     if column in ("Label", "SuccessText"):
                         row["Choices"][0][column] = value
@@ -3139,6 +3151,163 @@ class SchemaTests(unittest.TestCase):
                     row = self.row(tables, "DT_LogTemplates", "log_brick_scan_spread")
                     row["Templates"] = ["{System} 곁의 %s a." % word] + list(row["Templates"][1:])
                 refused_by_it_alone("DT_LogTemplates", scan, change, "DT_LogTemplates.log_brick_scan_spread", {"col": "Templates", "lacks_words": listed})
+
+    def test_crossroads_cards(self):
+        """B7x [B-7x5c] (header section 3.3 rules 4 and 5; first drafted in [B-7x5a]): the breaking case the header names for
+        each - a card whose every choice gives a brick (and a brick on a roll's failure), a crossroads petition that is
+        Standing or never closes, a wanderer's crossroads card that is an arrival card - and the twelve cards of the project
+        pass. Two pins of the project's rows beside them: the first life's row carries the start mark Brick.Form.Society, and
+        choice 2 of a second crossroads petition carries no repeatable gain - a stability or resource change and the voice's
+        Spiritualism tilt only (decision 11 (na) as the lead ruled it in [B-7x4]) - except the revert of
+        petition_cross_wrapped_star, which closes the card by taking its parent away. From the review of [B-7x5c]: C10's
+        choice 2 the stability change alone; how each crossroads petition closes, which the closing rule reads in part only;
+        each member of rule 4's free choice broken alone, the check among them (CosmicRulerPolicy::IsNoValueChoice); a card
+        that asks a time vector holds that choice too; and rule 4's two lists pinned to the ini's Brick. tags, as K4 is."""
+        _, project_tables, _ = checker.load_project()
+        crossroads = [row for row in project_tables["DT_Encounters"] if "_cross_" in row["Name"]]
+        self.assertEqual(len(crossroads), 12)
+        self.assertEqual(checker.check_project(), [])
+        seeker = {row["Name"]: row for row in project_tables["DT_Civs"]}["arch_seeker"]
+        self.assertIn("Brick.Form.Society", checker.TAG_NAME.findall(seeker["Traits"]))
+        for row in crossroads:
+            opens = any(entry["Type"] == "CivHasTrait" and entry["Tag"] == "Brick.Form.Society" for entry in row["Conditions"])
+            if not row["Name"].startswith("petition_") or opens or row["Name"] == "petition_cross_wrapped_star":
+                continue
+            with self.subTest(second=row["Name"]):
+                answer = row["Choices"][1]["OnSuccess"] + row["Choices"][1]["OnFailure"]
+                self.assertLessEqual({entry["Type"] for entry in answer}, {"ChangeStability", "AddResource", "ShiftEthics"}, answer)
+                self.assertLessEqual({entry["Key"] for entry in answer if entry["Type"] == "ShiftEthics"}, {"Spiritualism"}, answer)
+        # C10's choice 2 keeps the stability change alone - no reverence, no rise and no Spiritualism tilt (decision 11 (na);
+        # notes 5.4 data-2; design 4.3, C10), which the loop above lets through on every other second crossroads.
+        law_answer = {row["Name"]: row for row in crossroads}["petition_cross_law_stays"]["Choices"][1]
+        self.assertEqual([entry["Type"] for entry in law_answer["OnSuccess"] + law_answer["OnFailure"]], ["ChangeStability"], law_answer)
+        # How a crossroads petition closes (header 3.1, 3.3 rule 5; design 4.3), which the closing rule reads in part only - it
+        # skips a first crossroads, and any CivLacksTrait answers it. A first crossroads - one that asks the first life's mark
+        # Brick.Form.Society - takes the mark away with every choice but the no-value one (a shape or the half step). And the
+        # first choice of every crossroads petition, and every choice of it that gives or takes a brick on success, closes the
+        # card: it gives a brick the conditions lack or takes away one they ask (petition_cross_seam does both; the revert of
+        # petition_cross_wrapped_star takes away the ClosedPort it asks).
+        def no_value(entry):
+            return (all(amount == 0 for amount in entry["Cost"].values()) and entry["CheckStat"] == "NoCheck" and not entry["OnSuccess"]
+                    and not entry["OnFailure"] and checker.name_of(entry["NextEncounter"]) == "")
+
+        def moved(entry, type_name):
+            return {effect["Tag"] for effect in entry["OnSuccess"] if effect["Type"] == type_name and effect["Tag"].startswith("Brick.")}
+
+        for row in crossroads:
+            if not row["Name"].startswith("petition_"):
+                continue
+            asks = {entry["Tag"] for entry in row["Conditions"] if entry["Type"] == "CivHasTrait"}
+            lacks = {entry["Tag"] for entry in row["Conditions"] if entry["Type"] == "CivLacksTrait"}
+            for index, entry in enumerate(row["Choices"]):
+                with self.subTest(closes=row["Name"], choice=index + 1):
+                    gives, takes = moved(entry, "AddTrait"), moved(entry, "RemoveTrait")
+                    if "Brick.Form.Society" in asks and not no_value(entry):
+                        self.assertIn("Brick.Form.Society", takes, entry)
+                    if index == 0 or gives or takes:
+                        self.assertTrue(gives & lacks or takes & asks, entry)
+        plea = "petition_test_plea"
+        update_plea = lambda **changes: (lambda tables: self.row(tables, "DT_Encounters", plea).update(**changes))  # noqa: E731
+        give = lambda tag, label: choice(label, Cost=pool(Matter=10.0), OnSuccess=[eff("AddTrait", tag=tag)], SuccessText="{Civ} changed.")  # noqa: E731
+        # Rule 4: three choices, each gives a brick - no free choice.
+        every = [give("Brick.Space.Nomad", "Go."), give("Brick.Instinct.SwarmTech", "Build."), give("Brick.Diet.DarkMatter", "Sift.")]
+        self.expect(self.after(update_plea(Choices=every)), "DT_Encounters.%s" % plea, "a card that gives or takes a brick holds a choice")
+        self.assertEqual(self.after(update_plea(Choices=every[:2] + [choice("Watch.", OnSuccess=[], SuccessText="{Civ} watched.")])), [])
+        # A free choice is free of effects too - and of a cost, a check, an effect on a roll's failure and a next card
+        # (CosmicRulerPolicy::IsNoValueChoice), each member of the rule's 'none' list broken alone below.
+        self.expect(self.after(update_plea(Choices=every[:2] + [choice("Watch.", SuccessText="{Civ} watched.")])), "a card that gives or takes a brick holds a choice")
+        # The failure's effect stands on a choice with no check, so that it alone takes the card's last free choice away.
+        for member, changes in (("Cost", dict(Cost=pool(Matter=1.0))), ("CheckStat", dict(CheckStat="Stability", Difficulty=8, FailureText="{Civ} looked away.")),
+                                ("OnFailure", dict(OnFailure=[eff("ChangeStability", value=-0.01)], FailureText="{Civ} looked away.")),
+                                ("NextEncounter", dict(NextEncounter=plea))):
+            with self.subTest(free_of=member):
+                watch = choice("Watch.", OnSuccess=[], SuccessText="{Civ} watched.", **changes)
+                self.expect(self.after(update_plea(Choices=every[:2] + [watch])), "DT_Encounters.%s" % plea, "a card that gives or takes a brick holds a choice")
+        # Rule 4: a brick on the failure of a roll, taken or given.
+        rolled = choice("Try.", CheckStat="Stability", Difficulty=8, OnSuccess=[], OnFailure=[eff("RemoveTrait", tag="Brick.Form.Society")],
+                        SuccessText="{Civ} tried.", FailureText="{Civ} failed.")
+        self.expect(self.after(update_plea(Choices=[rolled, choice("Watch.", OnSuccess=[], SuccessText="{Civ} watched.")])),
+                    "DT_Encounters.%s" % plea, "never on its failure", "Brick.Form.Society")
+        # Rule 5: a crossroads petition is a Lottery row and waits on the first life's mark or on a lack.
+        # Each with the no-value choice a card that asks a time vector holds (rule 4, below).
+        free = [choice(), choice("Wait.", OnSuccess=[], SuccessText="{Civ} waited.")]
+        first = [cond("PlayerRoleIs", key="Ruler"), cond("CivHasTrait", tag="Brick.Form.Society"), cond("CivTimeVectorAtLeast", key="Built", value=1200)]
+        self.assertEqual(self.after(update_plea(Trigger="Lottery", Conditions=first, Choices=free)), [])
+        self.expect(self.after(update_plea(Trigger="Standing", Conditions=first, Choices=free)), "DT_Encounters.%s" % plea, "comes in the periodic slot")
+        open_ended = [cond("PlayerRoleIs", key="Ruler"), cond("CivHasTrait", tag="Brick.Instinct.SwarmTech"), cond("CivTimeVectorAtLeast", key="Linked", value=1800)]
+        self.expect(self.after(update_plea(Trigger="Lottery", Conditions=open_ended, Choices=free)), "DT_Encounters.%s" % plea, "closes on its branch")
+        self.assertEqual(self.after(update_plea(Trigger="Lottery", Conditions=open_ended + [cond("CivLacksTrait", tag="Brick.Instinct.HiveMerge")], Choices=free)), [])
+        # Rule 4: a card that asks a time vector holds the no-value choice too, whether or not it moves a brick - the policies
+        # count it a crossroads card by that condition alone (CosmicRulerPolicy::IsCrossroadsCard). The plea's own two
+        # choices each carry an effect; a would-be free choice rolled for is none (the plea's 'Wait.' with a check - the shape
+        # of the review's probe on petition_cross_built's choice 3); a wanderer's card is held as a petition is
+        # (enc_test_weave's free choice rolled for, below).
+        vector_card = "a card that asks a time vector holds a choice"
+        self.expect(self.after(update_plea(Trigger="Lottery", Conditions=first)), "DT_Encounters.%s" % plea, vector_card)
+        rolled_wait = [choice(), choice("Wait.", OnSuccess=[], CheckStat="Stability", Difficulty=8, SuccessText="{Civ} waited.", FailureText="{Civ} looked away.")]
+        self.expect(self.after(update_plea(Trigger="Lottery", Conditions=first, Choices=rolled_wait)), "DT_Encounters.%s" % plea, vector_card)
+        # Rule 5: a wanderer's crossroads card is Standing, never an arrival card.
+        weave = lambda trigger: (lambda tables: self.row(tables, "DT_Encounters", "enc_test_weave").update(  # noqa: E731
+            Trigger=trigger, Conditions=[cond("PlayerRoleIs", key="Wanderer"), cond("CivTimeVectorAtLeast", key="Drifted", value=900)]))
+        self.expect(self.after(weave("Lottery")), "DT_Encounters.enc_test_weave", "a wanderer's crossroads card")
+        self.assertEqual(self.after(weave("Standing")), [])
+
+        def rolled_push(tables):
+            weave("Standing")(tables)
+            self.row(tables, "DT_Encounters", "enc_test_weave")["Choices"][1].update(CheckStat="Body", Difficulty=4, FailureText="{System} at last.")
+        self.expect(self.after(rolled_push), "DT_Encounters.enc_test_weave", vector_card)
+        # (Pinned last, so that a test taken out fails its case above first.) Rule 4's two lists name every Brick. tag of the
+        # ini, given and taken, as K4 names them for rule 7 (header 3.3 rule 4: a new brick tag is added to the three rules
+        # together): a tag left out, named twice or put in another's place passes every case above.
+        failure_why = "a brick is given or taken by a choice that is not rolled for, or on the success of a roll - never on its failure: a failed roll changes no people's shape (B7x header section 3.3 rule 4)"
+        free_why = "a card that gives or takes a brick holds a choice with no cost, no check, no effect and no next card: the measuring policies skip every choice that gives or takes a brick and take that one (CosmicRulerPolicy::IsNoValueChoice), so with one waiting place a card whose every choice did would block every card behind it - said the other way round: a card without such a choice gives and takes no brick (B7x header section 3.3 rule 4, section 5)"
+        rules = {rule["why"]: rule for rule in self.schema["tables"]["DT_Encounters"]["rules"]}
+        bricks = sorted(tag for tag in self.tags if tag.startswith("Brick.") and tag.count(".") == 2)
+        self.assertEqual(len(bricks), 17)
+        self.assertNotIn("when", rules[failure_why], "rule 4's failure side holds for every row, on every path")
+        for why, column in ((failure_why, "Choices.OnFailure"), (free_why, "Choices.OnSuccess")):
+            with self.subTest(pinned=column):
+                self.assertEqual(rules[why]["then"], [{"col": column, "lacks_cond": {"type": type_name, "tag": tag}}
+                                                      for type_name in ("AddTrait", "RemoveTrait") for tag in bricks])
+        # The time vector card's free choice is the free-choice rule's, member for member: the free_of cases above break
+        # each member of that list, and this pin carries them to the sibling rule's list.
+        vector_why = 'a card that asks a time vector holds a choice with no cost, no check, no effect and no next card too: the measuring policies count it a crossroads card by that condition alone (CosmicRulerPolicy::IsCrossroadsCard) and take that choice, so a card without one would wait in the one waiting place and block every card behind it - said the other way round: a card without such a choice asks no time vector (B7x header section 3.3 rule 4, section 5)'
+        self.assertEqual(rules[vector_why]["when"], [{"col": "Conditions", "has_type": "CivTimeVectorAtLeast"}] + rules[free_why]["when"])
+
+    def test_crossroads_brick_lines(self):
+        """B7x [B-7x5c] (header 3.5; the text audit's 7.3 and F12; notes 5.4 data-3): the three brick lines no condition rule
+        reaches - event_brick_shut_star and event_brick_drift_plenty wait on traits alone, event_brick_ember_wake on a trait
+        and a hazard - take row rules by their names, silence_words and crossroads_words on their lines. The rules pinned by
+        hand; the project's rows ask neither condition of the [B-7x4] rules; each list broken on each row and refused by that
+        rule alone - the same input passes with the rule taken out (the fixture rows ask no time vector and no bordering
+        trait)."""
+        self.assertEqual(self.after(), [])
+        named = {
+            "event_brick_shut_star": "the brick line of the shut sphere waits on traits alone, so it is named: no rest or silence, none of the fenced words of the crossroads (B7x header 3.5)",
+            "event_brick_drift_plenty": "the brick line of the wandering swarm's plenty waits on traits alone, so it is named: no rest or silence, none of the fenced words of the crossroads (B7x header 3.5)",
+            "event_brick_ember_wake": "the brick line of the star eater's trembling star waits on a trait and a hazard, so it is named: no rest or silence, none of the fenced words of the crossroads (B7x header 3.5)",
+        }
+        lines = [{"col": "LogTemplates", "lacks_words": "silence_words"}, {"col": "LogTemplates", "lacks_words": "crossroads_words"}]
+        rules = {rule["why"]: rule for rule in self.schema["tables"]["DT_Events"].get("rules", [])}
+        _, project_tables, _ = checker.load_project()
+        project = {row["Name"]: row for row in project_tables["DT_Events"]}
+        for row_name, why in named.items():
+            with self.subTest(pin=row_name):
+                self.assertEqual(rules[why]["when"], [{"row": row_name}])
+                self.assertEqual(rules[why]["then"], lines)
+                self.assertFalse({entry["Type"] for entry in project[row_name]["Conditions"]} & {"CivTimeVectorAtLeast", "BorderingCivHasTrait"})
+
+        def without(why):
+            def change(schema):
+                schema["tables"]["DT_Events"]["rules"] = [rule for rule in schema["tables"]["DT_Events"]["rules"] if rule["why"] != why]
+            return change
+
+        for row_name, why in named.items():
+            for line, listed in (("{Civ}의 배들이 순례를 떠났다.", "crossroads_words"), ("{Civ}의 항구가 고요해졌다.", "silence_words")):
+                with self.subTest(row=row_name, listed=listed):
+                    change = self.set_cell("DT_Events", row_name, "LogTemplates", [line, "{Civ} two.", "{Civ} three."])
+                    self.expect(self.after(change), "DT_Events.%s" % row_name, why, json.dumps({"col": "LogTemplates", "lacks_words": listed}))
+                    self.assertEqual(self.after(change, without(why)), [], "the input has to pass without the rule: %s" % listed)
 
     def test_per_tick_column(self):
         def per_tick(*items):
@@ -4296,13 +4465,40 @@ class SchemaTests(unittest.TestCase):
             # B7x [B-7x4]: the crossroads words - a card that asks a time vector, an event row that asks one or a bordering
             # people's trait, and the scan face by its name.
             ("DT_Encounters", "a crossroads card tells what a people did and where it then stands: its words name no rest or silence, no grasp of a rung, no title, and none of the fenced words of the crossroads - silence, fence, covenant, ark, shepherd, pilgrimage, sanctuary, the deathless, becoming one (B7x header 3.5, notes 5.4)"):
-                (update_plea(Conditions=[cond("PlayerRoleIs", key="Ruler"), cond("CivTimeVectorAtLeast", key="Built", value=600)]), plea),
+                (update_plea(Trigger="Lottery", Conditions=[cond("PlayerRoleIs", key="Ruler"), cond("CivHasTrait", tag="Brick.Form.Society"),
+                                                            cond("CivTimeVectorAtLeast", key="Built", value=600)], Choices=[choice(), choice("Wait.", OnSuccess=[], SuccessText="{Civ} waited.")]), plea),
             ("DT_Events", "a line of a people's lived way tells no rest or silence and none of the fenced words of the crossroads (B7x header 3.5, notes 5.4)"):
                 (update_event(Conditions=[cond("CivTimeVectorAtLeast", key="Built", value=600)]), event),
             ("DT_Events", "a line about a bordering people's brick tells no rest or silence and none of the fenced words of the crossroads (B7x header 3.5, notes 5.4)"):
                 (update_event(Conditions=[cond("BorderingCivHasTrait", tag="Brick.Diet.StarEater")]), event),
             ("DT_LogTemplates", "the scan face of a people spread between the stars tells no rest or silence and none of the fenced words of the crossroads, and is named because a log row has no conditions (B7x header 3.5, S15)"):
                 (NOTHING, "log_brick_scan_spread"),
+            # B7x [B-7x5c] (header section 3.3 rules 4 and 5): a brick on a roll's success or a choice not rolled for, the free
+            # choice of a card that gives or takes a brick or asks a time vector, and the trigger and the closing door of the
+            # crossroads cards (a card that asks a time vector with the no-value choice it holds).
+            ("DT_Encounters", "a brick is given or taken by a choice that is not rolled for, or on the success of a roll - never on its failure: a failed roll changes no people's shape (B7x header section 3.3 rule 4)"):
+                (NOTHING, plea),
+            ("DT_Encounters", "a card that gives or takes a brick holds a choice with no cost, no check, no effect and no next card: the measuring policies skip every choice that gives or takes a brick and take that one (CosmicRulerPolicy::IsNoValueChoice), so with one waiting place a card whose every choice did would block every card behind it - said the other way round: a card without such a choice gives and takes no brick (B7x header section 3.3 rule 4, section 5)"):
+                (update_plea(Choices=[choice(Cost=pool(Energy=5.0)), choice("Wait.", SuccessText="{Civ} waited.", Cost=pool(Matter=1.0))]), plea),
+            ("DT_Encounters", "a card that asks a time vector holds a choice with no cost, no check, no effect and no next card too: the measuring policies count it a crossroads card by that condition alone (CosmicRulerPolicy::IsCrossroadsCard) and take that choice, so a card without one would wait in the one waiting place and block every card behind it - said the other way round: a card without such a choice asks no time vector (B7x header section 3.3 rule 4, section 5)"):
+                (NOTHING, plea),
+            ("DT_Encounters", "a crossroads petition - the petition_cross_ rows, marked by their time vector condition because a rule names a table's own prefix only - comes in the periodic slot: a Standing card is lost while the waiting place is full and comes again at every reign (B7x header section 3.1, 3.3 rule 5)"):
+                (update_plea(Trigger="Lottery", Conditions=[cond("PlayerRoleIs", key="Ruler"), cond("CivHasTrait", tag="Brick.Form.Society"),
+                                                            cond("CivTimeVectorAtLeast", key="Built", value=1200)], Choices=[choice(), choice("Wait.", OnSuccess=[], SuccessText="{Civ} waited.")]), plea),
+            ("DT_Encounters", "a crossroads petition closes on its branch: the first by taking Brick.Form.Society, the second by the tag its first choice gives; its choice 2 carries no repeatable gain; a dismissed card (no cost, no effect) comes again after the last three answers"):
+                (update_plea(Trigger="Lottery", Conditions=[cond("PlayerRoleIs", key="Ruler"), cond("CivTimeVectorAtLeast", key="Linked", value=1800),
+                                                            cond("CivLacksTrait", tag="Brick.Mutation.DustBand")], Choices=[choice(), choice("Wait.", OnSuccess=[], SuccessText="{Civ} waited.")]), plea),
+            ("DT_Encounters", "a wanderer's crossroads card - the enc_cross_ rows, marked by their time vector condition - speaks of the people that owns the system, so it is a Standing card: an arrival card speaks of the place alone and is not held by the gap rule (B7x header section 3.1, 3.3 rule 5)"):
+                (lambda tables: self.row(tables, "DT_Encounters", "enc_test_weave").update(
+                    Trigger="Standing", Conditions=[cond("PlayerRoleIs", key="Wanderer"), cond("CivTimeVectorAtLeast", key="Drifted", value=900)]),
+                 "enc_test_weave"),
+            # B7x [B-7x5c] (the text audit's 7.3): the brick lines no condition rule reaches, by their names.
+            ("DT_Events", "the brick line of the shut sphere waits on traits alone, so it is named: no rest or silence, none of the fenced words of the crossroads (B7x header 3.5)"):
+                (NOTHING, "event_brick_shut_star"),
+            ("DT_Events", "the brick line of the wandering swarm's plenty waits on traits alone, so it is named: no rest or silence, none of the fenced words of the crossroads (B7x header 3.5)"):
+                (NOTHING, "event_brick_drift_plenty"),
+            ("DT_Events", "the brick line of the star eater's trembling star waits on a trait and a hazard, so it is named: no rest or silence, none of the fenced words of the crossroads (B7x header 3.5)"):
+                (NOTHING, "event_brick_ember_wake"),
         }
 
     def test_every_rule_of_the_schema_can_fail(self):
@@ -4323,7 +4519,8 @@ class SchemaTests(unittest.TestCase):
         # Exact on purpose: a then-test taken out of a rule changes the count, and so does one put in.
         # B7x [B-7x2]: 337 + 35 (K4: one lacks_type and 17 bricks x 2 lacks_cond) = 372.
         # B7x [B-7x4]: 372 + 30 (the crossroads card: 6 columns x 4 lists; two event rules x 2; the scan face x 2) = 402.
-        self.assertEqual(walked, 402, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+        # B7x [B-7x5c]: 402 + 78 (rule 4: 2 rules x 17 bricks x 2 (AddTrait, RemoveTrait) = 68, and the time vector card's free choice: 1; rule 5: 3; the three named brick lines: 6) = 480.
+        self.assertEqual(walked, 480, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
                          set(), "rule_setups has an entry for a rule the schema no longer has")
 

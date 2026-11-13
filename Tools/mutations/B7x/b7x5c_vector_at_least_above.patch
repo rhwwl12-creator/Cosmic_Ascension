@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+@@ -665,7 +665,7 @@ bool UCosmicEventSubsystem::Check(const FCosmicCondition& Condition, const FCosm
+ 	{
+ 		// The cumulative time vector the Key names (B7x section 2.3); a Value below 1, or not a number, is false.
+ 		int32 Ticks = 0;
+-		return Civ && Condition.Value >= 1.f && CosmicBricks::VectorOf(Civ->TimeVectors, Condition.Key, Ticks) && static_cast<float>(Ticks) >= Condition.Value;
++		return Civ && Condition.Value >= 1.f && CosmicBricks::VectorOf(Civ->TimeVectors, Condition.Key, Ticks) && static_cast<float>(Ticks) > Condition.Value;
+ 	}
+ 
+ 	case EConditionType::CivLacksTrait:

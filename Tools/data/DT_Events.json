@@ -455,5 +455,419 @@
 		"Severity": 1,
 		"MinTierToReveal": 0,
 		"SignRow": "None"
+	},
+	{
+		"Name": "event_brick_shut_star",
+		"Category": "Event.Civ.Economy",
+		"LogCategory": "Log.Civ",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"Conditions": [
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Space.ClosedPort",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Form.ShutSphere",
+				"Key": "None",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"CooldownTicks": 600,
+		"Effects": [
+			{
+				"Type": "AddResource",
+				"Tag": "",
+				"Key": "Insight",
+				"Value": 20.0,
+				"DurationTicks": 0
+			}
+		],
+		"LogTemplates": [
+			"{Civ}의 별을 감싼 구 안에서 셈이 끊이지 않고 돈다고 한다. 그들의 배는 새 터를 찾아 나서지 않는다.",
+			"{Civ}의 닫힌 구에서 새 셈법이 흘러나왔다. 그 셈을 낸 이들은 구 바깥을 내다보지 않았다.",
+			"{Civ}의 학자들이 별의 열로 돌린 셈을 장부에 옮겼다. 그 장부는 바깥으로 나가지 않았다."
+		],
+		"Severity": 0,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
+	},
+	{
+		"Name": "event_brick_heat_at_door",
+		"Category": "Event.Civ.Society",
+		"LogCategory": "Log.Civ",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"Conditions": [
+			{
+				"Type": "BorderingCivHasTrait",
+				"Tag": "Brick.Diet.CrisisParasite",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTimeVectorAtLeast",
+				"Tag": "",
+				"Key": "Endured",
+				"Value": 1200.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"CooldownTicks": 600,
+		"Effects": [
+			{
+				"Type": "ChangeStability",
+				"Tag": "",
+				"Key": "None",
+				"Value": -0.03,
+				"DurationTicks": 0
+			}
+		],
+		"LogTemplates": [
+			"{Civ}의 국경 너머에서 재앙 곁에 사는 이들이 서성인다고 한다. 오래 눌려 온 집들은 그들을 내쫓지 않지만, 거리는 술렁인다.",
+			"{Civ}의 국경 장터에 재앙 곁에서 사는 이웃의 배들이 드나들었다. 오래 눌려 온 이들은 그 배를 보며 말을 낮추었다.",
+			"{Civ}의 변경에서 이웃이 재앙의 자리를 찾아다닌다는 말이 돌았다. 그 말이 도는 동안 거리의 목소리가 날카로워졌다."
+		],
+		"Severity": 0,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
+	},
+	{
+		"Name": "event_brick_drift_plenty",
+		"Category": "Event.Civ.Economy",
+		"LogCategory": "Log.Civ",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"Conditions": [
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Instinct.SwarmTech",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Space.Nomad",
+				"Key": "None",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"CooldownTicks": 600,
+		"Effects": [
+			{
+				"Type": "AddResource",
+				"Tag": "",
+				"Key": "Matter",
+				"Value": 30.0,
+				"DurationTicks": 0
+			},
+			{
+				"Type": "ChangePopulation",
+				"Tag": "",
+				"Key": "None",
+				"Value": 0.02,
+				"DurationTicks": 0
+			}
+		],
+		"LogTemplates": [
+			"{Civ}의 떠도는 일손이 닿는 별마다 광맥을 열었다. 배 위의 창고가 차고 식구가 늘었다.",
+			"{Civ}의 작은 일꾼들이 새로 닿은 자리에서 쓸 것을 캐 올렸다. 배마다 식구가 늘었다.",
+			"{Civ}의 배들이 지나는 항로마다 캐 올린 것이 쌓였다. 배 위의 살림이 넉넉해지고 집이 늘었다."
+		],
+		"Severity": 1,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
+	},
+	{
+		"Name": "event_brick_emptied_trail",
+		"Category": "Event.Civ.Economy",
+		"LogCategory": "Log.Civ",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"Conditions": [
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Instinct.SwarmTech",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Space.Nomad",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTimeVectorAtLeast",
+				"Tag": "",
+				"Key": "Drifted",
+				"Value": 1800.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"CooldownTicks": 600,
+		"Effects": [
+			{
+				"Type": "ChangeStability",
+				"Tag": "",
+				"Key": "None",
+				"Value": -0.03,
+				"DurationTicks": 0
+			},
+			{
+				"Type": "ChangePopulation",
+				"Tag": "",
+				"Key": "None",
+				"Value": -0.03,
+				"DurationTicks": 0
+			},
+			{
+				"Type": "AddResource",
+				"Tag": "",
+				"Key": "Matter",
+				"Value": -40.0,
+				"DurationTicks": 0
+			}
+		],
+		"LogTemplates": [
+			"{Civ}의 배들이 지나온 자리에서는 더는 아무것도 올라오지 않았다. 갱도 어귀의 집들이 비어 갔다.",
+			"{Civ}의 일꾼들이 캐던 자리마다 바닥이 드러났다. 창고가 줄고 배 위의 식구도 줄었다.",
+			"{Civ}의 항로 뒤편에 파헤친 별들이 빈 채 남았다. 다음 터를 찾는 동안 배 위의 살림이 줄고 다툼이 잦아졌다."
+		],
+		"Severity": 1,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
+	},
+	{
+		"Name": "event_brick_ember_wake",
+		"Category": "Event.Civ.Society",
+		"LogCategory": "Log.Civ",
+		"Trigger": "Standing",
+		"Subject": "Civilization",
+		"Conditions": [
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Diet.StarEater",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "SystemHasHazard",
+				"Tag": "Hazard.PreSupernova",
+				"Key": "None",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 0.0,
+		"CooldownTicks": 300,
+		"Effects": [
+			{
+				"Type": "ChangeStability",
+				"Tag": "",
+				"Key": "None",
+				"Value": -0.02,
+				"DurationTicks": 0
+			}
+		],
+		"LogTemplates": [
+			"{Civ}의 해에 검은 벌집 무늬가 번졌다. 국경 너머에는 그 불이 잦아들기를 기다리는 이들이 있었다.",
+			"{Civ}의 화로가 끌어 쓰던 별이 고르지 않게 떨렸다. 화로 곁의 사람들이 불을 줄이자는 말을 주고받았다.",
+			"{Civ}의 도읍 하늘에서 별빛이 얼룩졌다. 그 별의 불을 끌어 쓰던 집들이 하늘을 자주 살폈다."
+		],
+		"Severity": 0,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
+	},
+	{
+		"Name": "event_brick_own_hour",
+		"Category": "Event.Civ.Society",
+		"LogCategory": "Log.Civ",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"Conditions": [
+			{
+				"Type": "BorderingCivHasTrait",
+				"Tag": "Brick.Instinct.HiveMerge",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTimeVectorAtLeast",
+				"Tag": "",
+				"Key": "Isolated",
+				"Value": 1500.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"CooldownTicks": 600,
+		"Effects": [
+			{
+				"Type": "ChangeStability",
+				"Tag": "",
+				"Key": "None",
+				"Value": -0.03,
+				"DurationTicks": 0
+			},
+			{
+				"Type": "AddResource",
+				"Tag": "",
+				"Key": "Insight",
+				"Value": 20.0,
+				"DurationTicks": 0
+			}
+		],
+		"LogTemplates": [
+			"{Civ}의 국경 너머에서는 모두가 같은 시각에 장을 연다고들 했다. {Civ}|hpp(은,는) 제 시각에 문을 열고 닫았다.",
+			"{Civ}의 변경 장터에 이웃의 한결같은 목소리가 들려왔다. {Civ}의 학자들은 술렁이는 거리에서 제 셈을 따로 적었다.",
+			"{Civ}의 국경 너머 이웃이 같은 답으로만 말한다는 소문이 돌았다. {Civ}|hpp(은,는) 술렁이면서도 제 셈법을 지켰다."
+		],
+		"Severity": 0,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
+	},
+	{
+		"Name": "event_brick_fold_gleaning",
+		"Category": "Event.Civ.Economy",
+		"LogCategory": "Log.Civ",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"Conditions": [
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Space.FoldedSmall",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "BorderingCivHasTrait",
+				"Tag": "Brick.Space.Nomad",
+				"Key": "None",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"CooldownTicks": 600,
+		"Effects": [
+			{
+				"Type": "AddResource",
+				"Tag": "",
+				"Key": "Insight",
+				"Value": 25.0,
+				"DurationTicks": 0
+			}
+		],
+		"LogTemplates": [
+			"{Civ}의 별 곁에는 떠도는 살림이 자리를 펴고 있다. {Civ}|hpp(은,는) 그들이 떨군 것을 주워 맞춘다.",
+			"{Civ}의 국경 너머 항로에는 떠도는 배들이 오간다. {Civ}의 학자들은 그 배들이 남긴 것에서 새 셈을 찾는다.",
+			"{Civ}|hpp(은,는) 이웃의 떠도는 배들이 버린 부스러기를 모은다. 작은 눈금 속에서 그것들이 새 앎으로 맞추어진다."
+		],
+		"Severity": 0,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
+	},
+	{
+		"Name": "event_brick_inward_appetite",
+		"Category": "Event.Civ.Economy",
+		"LogCategory": "Log.Civ",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"Conditions": [
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Mutation.InwardHunger",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTimeVectorAtLeast",
+				"Tag": "",
+				"Key": "Isolated",
+				"Value": 1500.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"CooldownTicks": 600,
+		"Effects": [
+			{
+				"Type": "AddResource",
+				"Tag": "",
+				"Key": "Energy",
+				"Value": 30.0,
+				"DurationTicks": 0
+			}
+		],
+		"LogTemplates": [
+			"{Civ}|hpp(은,는) 제 별의 불을 안으로 끌어 먹는다고 한다. 그 별을 바라보는 이웃들은 말을 아꼈다.",
+			"{Civ}의 화로가 제 별 깊은 곳의 불을 끌어올렸다. 그들의 창고에 에너지가 찼다.",
+			"{Civ}의 화로가 바깥의 것 없이 제 별의 불만으로 타올랐다. 화로지기들은 그 별을 오래 들여다보았다."
+		],
+		"Severity": 0,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
+	},
+	{
+		"Name": "event_brick_works_run",
+		"Category": "Event.Civ.Economy",
+		"LogCategory": "Log.Civ",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"Conditions": [
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Instinct.SwarmTech",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Mutation.DustBand",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTimeVectorAtLeast",
+				"Tag": "",
+				"Key": "Built",
+				"Value": 1500.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"CooldownTicks": 600,
+		"Effects": [
+			{
+				"Type": "AddResource",
+				"Tag": "",
+				"Key": "Energy",
+				"Value": 25.0,
+				"DurationTicks": 0
+			},
+			{
+				"Type": "AddResource",
+				"Tag": "",
+				"Key": "Matter",
+				"Value": 25.0,
+				"DurationTicks": 0
+			},
+			{
+				"Type": "ChangePopulation",
+				"Tag": "",
+				"Key": "None",
+				"Value": -0.02,
+				"DurationTicks": 0
+			}
+		],
+		"LogTemplates": [
+			"{Civ}의 기관들은 돌보는 손이 줄어든 뒤에도 돈다고 한다. 띠를 이룬 일꾼들이 서로를 고쳐 가며 일을 잇는다.",
+			"{Civ}의 별 둘레의 띠가 사람 손 없이 에너지와 물질을 실어 왔다. 공방을 지키던 집들 가운데 빈 집이 늘었다.",
+			"{Civ}의 일꾼 띠가 스스로를 고치며 창고를 채웠다. 그 곁에서 손으로 일하던 사람은 줄어 갔다."
+		],
+		"Severity": 0,
+		"MinTierToReveal": 0,
+		"SignRow": "None"
 	}
 ]

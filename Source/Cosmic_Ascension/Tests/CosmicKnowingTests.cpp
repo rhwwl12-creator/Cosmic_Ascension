@@ -1662,6 +1662,63 @@ bool FCosmicKnowingInertTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("The world is the same whether the sight stage looks or not, through a deposition (seed 18)"), DeposedBlind.World, Deposed.World);
 	TestEqual(TEXT("and so is the sim stream (deposition)"), DeposedBlind.Rng, Deposed.Rng);
 	TestTrue(TEXT("A far sight knows more than none through the deposition too (the case can tell)"), Deposed.Known > DeposedBlind.Known);
+
+	// B7x [B-7x5c] (header section 6): a crossroads card put before the ruler changes no world - DT_Encounters holding the game's
+	// twelve crossroads cards, or none, 600 ticks of seed 42 with no answer (the card waits), the ruled people's counts past
+	// every first card's threshold in both runs so the first periodic slot puts one (mutation: the presentation draws a number
+	// of the sim stream).
+	struct FCrossroadsRun
+	{
+		uint32 World = 0;
+		uint32 Whole = 0;
+		int32 Rng = 0;
+		FName Waiting;
+	};
+	auto CrossroadsRun = [&](bool bCards)
+	{
+		FCosmicDataTables Tables = Original;
+		UDataTable* Cards = CosmicTests::NewTable(FEncounterDef::StaticStruct());
+		const TArray<FName> Twelve = { CosmicTests::B7xRows::PetitionCrossBuilt, CosmicTests::B7xRows::PetitionCrossConsumed,
+			CosmicTests::B7xRows::PetitionCrossDrifted, CosmicTests::B7xRows::PetitionCrossIsolated, CosmicTests::B7xRows::PetitionCrossDustBand,
+			CosmicTests::B7xRows::PetitionCrossStarLine, CosmicTests::B7xRows::PetitionCrossBetweenStars, CosmicTests::B7xRows::PetitionCrossIntoDust,
+			CosmicTests::B7xRows::PetitionCrossWrappedStar, CosmicTests::B7xRows::PetitionCrossLawStays, CosmicTests::B7xRows::PetitionCrossSeam,
+			CosmicTests::B7xRows::EncCrossDriftFleet };
+		const UDataTable* Game = Original.Encounters.Get();
+		for (const FName& Name : Twelve)
+		{
+			const FEncounterDef* Row = Game ? Game->FindRow<FEncounterDef>(Name, TEXT("Sim.KnowingInert"), false) : nullptr;
+			if (bCards && Row)
+			{
+				Cards->AddRow(Name, *Row);
+			}
+		}
+		Tables.Encounters = Cards;
+		Sim->SetTables(Tables);
+		Log->SetTellAll(true);
+		Sim->NewGalaxy(42, CosmicTests::SliceSystems, CosmicTests::SliceCivs);
+		FGalaxyState& Mutable = Sim->GetMutableState();
+		const int32 Ruled = CosmicPetitions::RuledCivIndexOf(Mutable, Sim->GetStateIndex());
+		if (Mutable.Civs.IsValidIndex(Ruled))
+		{
+			FCosmicTimeVectors& Counts = Mutable.Civs[Ruled].TimeVectors;
+			Counts.Built = Counts.Consumed = Counts.Drifted = Counts.Isolated = 100000;
+		}
+		Sim->RunHeadless(600);
+		FCrossroadsRun Result;
+		Result.World = Sim->ComputeWorldHash();
+		Result.Whole = Sim->ComputeStateHash();
+		Result.Rng = Sim->GetRng().GetCurrentSeed();
+		Result.Waiting = Sim->GetState().Knowing.PendingPetitionRow;
+		return Result;
+	};
+	const FCrossroadsRun WithCards = CrossroadsRun(true);
+	const FCrossroadsRun WithoutCards = CrossroadsRun(false);
+	TestTrue(*FString::Printf(TEXT("(a crossroads card waits in the run that holds them: %s)"), *WithCards.Waiting.ToString()),
+		WithCards.Waiting.ToString().StartsWith(TEXT("petition_cross_")));
+	TestTrue(TEXT("(and no card in the run without them)"), WithoutCards.Waiting.IsNone());
+	TestEqual(TEXT("The world is the same whether a crossroads card waits or not"), WithCards.World, WithoutCards.World);
+	TestEqual(TEXT("and so is the sim stream (crossroads)"), WithCards.Rng, WithoutCards.Rng);
+	TestTrue(TEXT("The waiting card is in the whole state (the case can tell)"), WithCards.Whole != WithoutCards.Whole);
 	return true;
 }
 

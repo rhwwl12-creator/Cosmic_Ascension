@@ -2,7 +2,7 @@
 	{
 		"Name": "arch_seeker",
 		"DisplayName": "",
-		"Traits": "(GameplayTags=((TagName=\"Trait.Arch.Seeker\"),(TagName=\"Trait.Society.Divided\"),(TagName=\"Trait.Biology.Shortlived\")))",
+		"Traits": "(GameplayTags=((TagName=\"Trait.Arch.Seeker\"),(TagName=\"Trait.Society.Divided\"),(TagName=\"Trait.Biology.Shortlived\"),(TagName=\"Brick.Form.Society\")))",
 		"EthicsPreset": {"Pacifism": 0.0, "Spiritualism": 0.0, "Openness": 0.2},
 		"AIProfile": "",
 		"Color": {"R": 0.25, "G": 0.55, "B": 1.0, "A": 1.0},

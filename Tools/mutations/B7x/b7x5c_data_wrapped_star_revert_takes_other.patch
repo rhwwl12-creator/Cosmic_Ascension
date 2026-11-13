@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_Encounters.json b/Tools/data/DT_Encounters.json
+--- a/Tools/data/DT_Encounters.json
++++ b/Tools/data/DT_Encounters.json
+@@ -3038,7 +3038,7 @@
+ 				"OnSuccess": [
+ 					{
+ 						"Type": "RemoveTrait",
+-						"Tag": "Brick.Space.ClosedPort",
++						"Tag": "Brick.Space.Nomad",
+ 						"Key": "None",
+ 						"Value": 0.0,
+ 						"DurationTicks": 0

@@ -1,0 +1,11 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -1446,7 +1446,6 @@
+ 						{"col": "Conditions", "has_type": "CivTimeVectorAtLeast"},
+ 						{"none": [
+ 							{"col": "Choices.Cost", "zero": true},
+-							{"col": "Choices.CheckStat", "is": "NoCheck"},
+ 							{"col": "Choices.OnSuccess", "max_len": 0},
+ 							{"col": "Choices.OnFailure", "max_len": 0},
+ 							{"col": "Choices.NextEncounter", "set": false}

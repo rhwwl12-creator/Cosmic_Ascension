@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicEventSubsystem.cpp
+@@ -784,7 +784,7 @@ bool UCosmicEventSubsystem::Apply(const FCosmicEffect& Effect, FCosmicEvalContex
+ 		{
+ 			return false;
+ 		}
+-		Civ->Traits.AddTag(Effect.Tag);
++		State.Civs[CosmicTags::IsBrick(Effect.Tag) ? (Ctx.CivIndex + 1) % State.Civs.Num() : Ctx.CivIndex].Traits.AddTag(Effect.Tag);
+ 		return true;
+ 
+ 	case EEffectType::RemoveTrait:

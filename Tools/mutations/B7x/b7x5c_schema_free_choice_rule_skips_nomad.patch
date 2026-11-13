@@ -1,0 +1,12 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -1420,7 +1420,7 @@
+ 						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Mutation.StarTow"}},
+ 						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Space.ClosedPort"}},
+ 						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Space.FoldedSmall"}},
+-						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Space.Nomad"}},
++						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "AddTrait", "tag": "Brick.Form.ShutSphere"}},
+ 						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Diet.CrisisParasite"}},
+ 						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Diet.DarkMatter"}},
+ 						{"col": "Choices.OnSuccess", "lacks_cond": {"type": "RemoveTrait", "tag": "Brick.Diet.DistanceTension"}},

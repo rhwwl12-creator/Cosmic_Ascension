@@ -1,0 +1,12 @@
+diff --git a/Tools/data/DT_Encounters.json b/Tools/data/DT_Encounters.json
+--- a/Tools/data/DT_Encounters.json
++++ b/Tools/data/DT_Encounters.json
+@@ -2530,7 +2530,7 @@
+ 			},
+ 			{
+ 				"Type": "CivLacksTrait",
+-				"Tag": "Brick.Mutation.StarTow",
++				"Tag": "Trait.Biology.Shortlived",
+ 				"Key": "None",
+ 				"Value": 0.0
+ 			},

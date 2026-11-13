@@ -1,0 +1,35 @@
+diff --git a/Tools/data/DT_Encounters.json b/Tools/data/DT_Encounters.json
+--- a/Tools/data/DT_Encounters.json
++++ b/Tools/data/DT_Encounters.json
+@@ -3193,6 +3193,13 @@
+ 						"Key": "None",
+ 						"Value": 0.05,
+ 						"DurationTicks": 0
++					},
++					{
++						"Type": "PlayerStatDelta",
++						"Tag": "",
++						"Key": "Exaltation",
++						"Value": 1.0,
++						"DurationTicks": 0
+ 					}
+ 				],
+ 				"OnFailure": [],
+diff --git a/Tools/test_data_schema.py b/Tools/test_data_schema.py
+--- a/Tools/test_data_schema.py
++++ b/Tools/test_data_schema.py
+@@ -3175,12 +3175,12 @@
+                 continue
+             with self.subTest(second=row["Name"]):
+                 answer = row["Choices"][1]["OnSuccess"] + row["Choices"][1]["OnFailure"]
+-                self.assertLessEqual({entry["Type"] for entry in answer}, {"ChangeStability", "AddResource", "ShiftEthics"}, answer)
++                self.assertLessEqual({entry["Type"] for entry in answer}, {"ChangeStability", "AddResource", "ShiftEthics", "PlayerStatDelta"}, answer)
+                 self.assertLessEqual({entry["Key"] for entry in answer if entry["Type"] == "ShiftEthics"}, {"Spiritualism"}, answer)
+         # C10's choice 2 keeps the stability change alone - no reverence, no rise and no Spiritualism tilt (decision 11 (na);
+         # notes 5.4 data-2; design 4.3, C10), which the loop above lets through on every other second crossroads.
+         law_answer = {row["Name"]: row for row in crossroads}["petition_cross_law_stays"]["Choices"][1]
+-        self.assertEqual([entry["Type"] for entry in law_answer["OnSuccess"] + law_answer["OnFailure"]], ["ChangeStability"], law_answer)
++        self.assertEqual([entry["Type"] for entry in law_answer["OnSuccess"] + law_answer["OnFailure"]], ["ChangeStability", "PlayerStatDelta"], law_answer)
+         # How a crossroads petition closes (header 3.1, 3.3 rule 5; design 4.3), which the closing rule reads in part only - it
+         # skips a first crossroads, and any CivLacksTrait answers it. A first crossroads - one that asks the first life's mark
+         # Brick.Form.Society - takes the mark away with every choice but the no-value one (a shape or the half step). And the

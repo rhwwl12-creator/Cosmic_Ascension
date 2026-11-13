@@ -1,0 +1,17 @@
+diff --git a/Tools/data/DT_Encounters.json b/Tools/data/DT_Encounters.json
+--- a/Tools/data/DT_Encounters.json
++++ b/Tools/data/DT_Encounters.json
+@@ -2304,13 +2304,6 @@
+ 				},
+ 				"OnSuccess": [
+ 					{
+-						"Type": "RemoveTrait",
+-						"Tag": "Brick.Form.Society",
+-						"Key": "None",
+-						"Value": 0.0,
+-						"DurationTicks": 0
+-					},
+-					{
+ 						"Type": "AddResource",
+ 						"Tag": "",
+ 						"Key": "Insight",

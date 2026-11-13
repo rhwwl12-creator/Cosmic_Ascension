@@ -1755,5 +1755,1775 @@
 		"Trigger": "Standing",
 		"Subject": "VesselSystem",
 		"VoiceBodies": []
+	},
+	{
+		"Name": "petition_cross_built",
+		"Title": "작은 손들",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Form.Society",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTimeVectorAtLeast",
+				"Tag": "",
+				"Key": "Built",
+				"Value": 1100.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "집집마다 연장을 들인다",
+				"CheckStat": "Stability",
+				"Difficulty": 8,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 240.0,
+					"Insight": 120.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "AddTrait",
+						"Tag": "Brick.Instinct.SwarmTech",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "RemoveTrait",
+						"Tag": "Brick.Form.Society",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": -0.06,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": -0.06,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"SuccessText": "{Civ}의 집마다 작은 공방이 섰다. 그 일이 끝났을 때 큰 공사는 집집의 작은 손에 나뉘어 있었다.",
+				"FailureText": "{Civ}의 집집에 연장이 들었지만 손에 익지 않았다. 큰 공사는 장인들의 몫으로 남았고 거리는 술렁였다.",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "장인 조합에만 새 연장을 맡긴다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 100.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "RemoveTrait",
+						"Tag": "Brick.Form.Society",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "AddResource",
+						"Tag": "",
+						"Key": "Matter",
+						"Value": 150.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 장인 조합이 새 연장을 맡았다. 그들의 공방에서 나온 것이 창고에 쌓였다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "지켜본다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "{Civ}|hpp(은,는) 지켜보기로 했다. 작업장의 일은 하던 대로 이어졌다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"VoiceBodies": [
+			"{Civ}의 작업장은 오래 불을 끄지 않았다. 의회는 큰 공사를 잘게 나누어 집집마다 연장을 들이자고 청했다.",
+			"{Civ}의 작업장은 오래 불을 끄지 않았다. 회중의 장로들은 새 연장을 가르칠 수 있는 장인들의 손에만 맡기자고 청했다."
+		]
+	},
+	{
+		"Name": "petition_cross_consumed",
+		"Title": "땅이 내는 것",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Form.Society",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTimeVectorAtLeast",
+				"Tag": "",
+				"Key": "Consumed",
+				"Value": 900.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "별 사이의 엷은 것을 걸러 쓴다",
+				"CheckStat": "Stability",
+				"Difficulty": 9,
+				"Cost": {
+					"Energy": 260.0,
+					"Matter": 120.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "AddTrait",
+						"Tag": "Brick.Diet.DarkMatter",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "RemoveTrait",
+						"Tag": "Brick.Form.Society",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": -0.08,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": -0.08,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"SuccessText": "{Civ}의 배들이 암흑 구간에 넓은 체를 폈다. 그 일이 끝났을 때 그들의 화로는 별 사이에서 걸러 낸 것으로 타고 있었다.",
+				"FailureText": "{Civ}의 배들이 암흑 구간에 편 체에는 걸리는 것이 없었다. 광맥 곁의 집들은 들인 품을 두고 술렁였다.",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "제 별의 불을 화로에 끌어들인다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 200.0,
+					"Insight": 0.0,
+					"Influence": 100.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "AddTrait",
+						"Tag": "Brick.Diet.StarEater",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "RemoveTrait",
+						"Tag": "Brick.Form.Society",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeReverence",
+						"Tag": "",
+						"Key": "Borders",
+						"Value": -0.1,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 화로가 제 별의 불을 끌어 쓰기 시작했다. 국경 너머의 이웃들은 그 별빛을 오래 바라보았다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "지켜본다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "{Civ}|hpp(은,는) 지켜보기로 했다. 광맥의 일은 하던 대로 이어졌다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"VoiceBodies": [
+			"{Civ}의 광맥은 오래 싸움에 쓸 것을 대느라 깊어졌다. 의회는 땅을 더 파지 말고 제 별의 불을 바로 화로에 끌어들이자고 청했다.",
+			"{Civ}의 광맥은 오래 싸움에 쓸 것을 대느라 깊어졌다. 회중의 장로들은 땅을 그만 파고 별과 별 사이에 떠도는 엷은 것을 걸러 살자고 청했다."
+		]
+	},
+	{
+		"Name": "petition_cross_drifted",
+		"Title": "뭍과 배",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Form.Society",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTimeVectorAtLeast",
+				"Tag": "",
+				"Key": "Drifted",
+				"Value": 1200.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "살림을 통째로 배에 싣는다",
+				"CheckStat": "Stability",
+				"Difficulty": 9,
+				"Cost": {
+					"Energy": 100.0,
+					"Matter": 300.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "AddTrait",
+						"Tag": "Brick.Space.Nomad",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "RemoveTrait",
+						"Tag": "Brick.Form.Society",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": -0.1,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": -0.1,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"SuccessText": "{Civ}에서 배에 사는 집이 뭍의 집보다 많아졌다. 그 일이 끝났을 때 그들은 더는 닻을 내린 곳을 집이라 부르지 않았다.",
+				"FailureText": "{Civ}의 배에 살림을 실었지만 뭍을 떠나려는 집은 적었다. 실은 짐을 도로 내리는 동안 항구가 어수선했다.",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "떠나려는 집에만 배를 내준다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 140.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "RemoveTrait",
+						"Tag": "Brick.Form.Society",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.05,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 배가 떠나려는 집들만 태우고 항로에 올랐다. 뭍에 남은 집들은 하던 살림을 이어 갔다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "지켜본다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "{Civ}|hpp(은,는) 지켜보기로 했다. 새 터를 닦는 배들은 하던 대로 오갔다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"VoiceBodies": [
+			"{Civ}의 배들은 오래 새 터를 닦으러 나가 있었다. 의회는 떠나려는 집은 보내고 남으려는 집은 남게 두자고 청했다.",
+			"{Civ}의 배들은 오래 새 터를 닦으러 나가 있었다. 회중의 장로들은 닿는 곳마다 집이 함께 가야 한다며 살림을 통째로 배에 싣자고 청했다."
+		]
+	},
+	{
+		"Name": "petition_cross_isolated",
+		"Title": "항구의 빗장",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Form.Society",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTimeVectorAtLeast",
+				"Tag": "",
+				"Key": "Isolated",
+				"Value": 900.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "항구를 닫고 새 터를 찾지 않는다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 200.0,
+					"Insight": 0.0,
+					"Influence": 150.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "AddTrait",
+						"Tag": "Brick.Space.ClosedPort",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "RemoveTrait",
+						"Tag": "Brick.Form.Society",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeReverence",
+						"Tag": "",
+						"Key": "Borders",
+						"Value": -0.1,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 항구들이 닫히고 새 터로 떠날 배들이 항구에 매였다. 그 일이 끝났을 때 그들은 제 별 안쪽만 짓고 있었다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "큰 항구만 남기고 닫는다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 80.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "RemoveTrait",
+						"Tag": "Brick.Form.Society",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "AddResource",
+						"Tag": "",
+						"Key": "Insight",
+						"Value": 120.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 작은 항구들이 닫히고 큰 항구만 열려 있었다. 바깥으로 쓰던 손이 안을 짓는 데로 돌아갔고, 학자들의 셈이 깊어졌다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "지켜본다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "{Civ}|hpp(은,는) 지켜보기로 했다. 항구들은 하던 대로 열려 있었다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"VoiceBodies": [
+			"{Civ}의 백성은 오래 저희끼리 지냈다. 의회는 큰 항구만 남기고 나머지를 닫아 안을 짓는 데 힘을 모으자고 청했다.",
+			"{Civ}의 백성은 오래 저희끼리 지냈다. 회중의 장로들은 바깥의 것이 들면 지켜 온 것이 흐려진다며 항구를 모두 닫자고 청했다."
+		]
+	},
+	{
+		"Name": "petition_cross_dust_band",
+		"Title": "별 둘레의 티끌 띠",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTierAtLeast",
+				"Tag": "",
+				"Key": "None",
+				"Value": 3.0
+			},
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Instinct.SwarmTech",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivLacksTrait",
+				"Tag": "Brick.Mutation.DustBand",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivLacksTrait",
+				"Tag": "Brick.Instinct.HiveMerge",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTimeVectorAtLeast",
+				"Tag": "",
+				"Key": "Linked",
+				"Value": 3234.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "일꾼들을 별마다 띠로 두른다",
+				"CheckStat": "Stability",
+				"Difficulty": 9,
+				"Cost": {
+					"Energy": 150.0,
+					"Matter": 350.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "AddTrait",
+						"Tag": "Brick.Mutation.DustBand",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": -0.05,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"SuccessText": "{Civ}의 별마다 티끌 같은 일꾼들이 띠를 이루었다. 띠는 스스로를 고치며 돌았고, 그 일을 다 아는 사람은 없었다.",
+				"FailureText": "{Civ}의 일꾼들은 띠를 이루지 못하고 흩어졌다. 들인 것을 두고 의회의 말이 엇갈렸다.",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "사람을 먼저 돌본다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 150.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.05,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 물자가 집과 배움터를 짓는 데 들었다. 아이를 기르는 집들의 근심이 덜어졌다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "지켜본다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "{Civ}|hpp(은,는) 지켜보기로 했다. 작은 일꾼들은 하던 대로 일했다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"VoiceBodies": [
+			"{Civ}의 작은 일꾼들은 스스로를 고쳐 가며 일한다. 의회는 그 일꾼들을 별마다 띠로 둘러 손이 닿지 않던 일까지 맡기자고 청했다.",
+			"{Civ}의 작은 일꾼들은 스스로를 고쳐 가며 일한다. 회중의 장로들은 누구의 손에도 매이지 않는 것을 늘리기 전에 사람을 먼저 돌보자고 청했다."
+		]
+	},
+	{
+		"Name": "petition_cross_star_line",
+		"Title": "별에 거는 줄",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTierAtLeast",
+				"Tag": "",
+				"Key": "None",
+				"Value": 3.0
+			},
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Space.Nomad",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivLacksTrait",
+				"Tag": "Brick.Mutation.StarTow",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTimeVectorAtLeast",
+				"Tag": "",
+				"Key": "Drifted",
+				"Value": 1800.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "도읍의 별에 끄는 줄을 건다",
+				"CheckStat": "Stability",
+				"Difficulty": 9,
+				"Cost": {
+					"Energy": 300.0,
+					"Matter": 150.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "AddTrait",
+						"Tag": "Brick.Mutation.StarTow",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": -0.06,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"SuccessText": "{Civ}|hpp(이,가) 도읍의 별에 끄는 줄을 걸었다. 별은 제자리에 있었고, 그들은 떠날 채비를 한 채 살게 되었다.",
+				"FailureText": "{Civ}의 배들이 도읍의 별에 줄을 걸다가 놓쳤다. 끊어진 줄을 두고 배 위의 집들이 술렁였다.",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "집부터 고쳐 짓는다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 250.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.05,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 배 위 집들이 새로 고쳐졌다. 그 안에서 사는 날이 한결 편해졌다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "지켜본다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "{Civ}|hpp(은,는) 지켜보기로 했다. 배 위의 살림은 하던 대로 꾸려졌다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"VoiceBodies": [
+			"{Civ}의 살림은 오래 배 위에서 꾸려졌다. 의회는 도읍의 별에 끄는 줄을 걸어 데리고 떠날 채비를 하자고 청했다.",
+			"{Civ}의 살림은 오래 배 위에서 꾸려졌다. 회중의 장로들은 떠날 채비로 지은 집에서는 아무도 뿌리를 내리지 못한다며 집부터 고치자고 청했다."
+		]
+	},
+	{
+		"Name": "petition_cross_between_stars",
+		"Title": "별 사이의 엷은 것",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTierAtLeast",
+				"Tag": "",
+				"Key": "None",
+				"Value": 3.0
+			},
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Diet.DarkMatter",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivLacksTrait",
+				"Tag": "Brick.Form.LivingNebula",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTimeVectorAtLeast",
+				"Tag": "",
+				"Key": "Consumed",
+				"Value": 150.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "살림을 별들 사이에 푼다",
+				"CheckStat": "Stability",
+				"Difficulty": 9,
+				"Cost": {
+					"Energy": 300.0,
+					"Matter": 0.0,
+					"Insight": 150.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "AddTrait",
+						"Tag": "Brick.Form.LivingNebula",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": -0.06,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"SuccessText": "{Civ}|hpp(이,가) 살림을 별들 사이의 엷은 것에 풀었다. 그 일이 끝났을 때 그들의 살림은 별과 별 사이에 번져 있었다.",
+				"FailureText": "{Civ}|hpp(이,가) 별들 사이에 푼 살림은 번지지 못하고 흩어졌다. 땅 위의 집들이 그 일을 두고 술렁였다.",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "땅 위의 집을 고쳐 짓는다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 250.0,
+					"Insight": 0.0,
+					"Influence": 60.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.04,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 땅 위 집들이 지붕부터 고쳐졌다. 디딜 곳이 단단해지자 그 집들이 마음을 놓았다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "지켜본다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "{Civ}|hpp(은,는) 지켜보기로 했다. 별 사이에서 걸러 내는 일은 하던 대로 이어졌다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"VoiceBodies": [
+			"{Civ}의 살림은 별 사이에서 걸러 낸 것으로 오래 꾸려졌다. 의회는 지붕부터 고쳐 땅 위에 디딜 곳을 지키자고 청했다.",
+			"{Civ}의 살림은 별 사이에서 걸러 낸 것으로 오래 꾸려졌다. 회중의 장로들은 땅 위의 살림을 별들 사이의 엷은 것에 풀자고 청했다."
+		]
+	},
+	{
+		"Name": "petition_cross_into_dust",
+		"Title": "가장 작은 눈금",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTierAtLeast",
+				"Tag": "",
+				"Key": "None",
+				"Value": 3.0
+			},
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Space.Nomad",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivLacksTrait",
+				"Tag": "Brick.Space.FoldedSmall",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivLacksTrait",
+				"Tag": "Brick.Mutation.StarTow",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTimeVectorAtLeast",
+				"Tag": "",
+				"Key": "Endured",
+				"Value": 433.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "가장 작은 눈금 속으로 접혀 든다",
+				"CheckStat": "Stability",
+				"Difficulty": 9,
+				"Cost": {
+					"Energy": 300.0,
+					"Matter": 0.0,
+					"Insight": 200.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "AddTrait",
+						"Tag": "Brick.Space.FoldedSmall",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "RemoveTrait",
+						"Tag": "Brick.Space.Nomad",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": -0.06,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"SuccessText": "{Civ}|hpp(이,가) 살림을 가장 작은 눈금 속으로 접어 넣었다. 그 일이 끝났을 때 그들은 그 눈금 속에서 살고 있었고, 떠돌던 배들은 항구에 매여 있었다.",
+				"FailureText": "{Civ}|hpp(이,가) 살림을 접어 넣으려 했지만 눈금은 열리지 않았다. 떠돌던 배 위의 집들이 술렁였다.",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "별 곁에 디딜 곳을 마련한다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 200.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.05,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 배들이 별 곁에 디딜 곳을 닦았다. 떠돌던 집들이 그곳에서 숨을 골랐다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "지켜본다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "{Civ}|hpp(은,는) 지켜보기로 했다. 배들은 하던 대로 항로를 떠돌았다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"VoiceBodies": [
+			"{Civ}|hpp(은,는) 떠돈 날이 길었다. 의회는 가장 작은 눈금 속에 다투는 이 없는 넓이가 있다며 그리로 접혀 들자고 청했다.",
+			"{Civ}|hpp(은,는) 떠돈 날이 길었다. 회중의 장로들은 밖을 내다보지 않는 살림은 밖의 일을 잊는다며 별 곁에 디딜 곳을 마련하자고 청했다."
+		]
+	},
+	{
+		"Name": "petition_cross_wrapped_star",
+		"Title": "닫힌 구의 셈",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTierAtLeast",
+				"Tag": "",
+				"Key": "None",
+				"Value": 2.0
+			},
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Space.ClosedPort",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivLacksTrait",
+				"Tag": "Brick.Form.ShutSphere",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTimeVectorAtLeast",
+				"Tag": "",
+				"Key": "Isolated",
+				"Value": 330.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "감싼 구를 닫아 셈에 돌린다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 200.0,
+					"Matter": 400.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "AddTrait",
+						"Tag": "Brick.Form.ShutSphere",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Openness",
+						"Value": -0.05,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}|hpp(이,가) 제 별을 감싼 구를 닫았다. 그 별의 열은 모두 안쪽의 셈으로 흘러들었다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "닫아 둔 살림을 연다",
+				"CheckStat": "Stability",
+				"Difficulty": 8,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 150.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "RemoveTrait",
+						"Tag": "Brick.Space.ClosedPort",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": -0.05,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": -0.1,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"SuccessText": "{Civ}|hpp(이,가) 닫아 둔 살림을 열었다. 안에서만 정하던 일들이 바깥을 보며 정해지기 시작했다.",
+				"FailureText": "{Civ}의 빗장은 풀리지 않았다. 열자는 말과 닫자는 말이 맞서며 집집이 흔들렸다.",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "지켜본다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "{Civ}|hpp(은,는) 지켜보기로 했다. 닫힌 항구들은 그대로 닫혀 있었다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"VoiceBodies": [
+			"{Civ}|hpp(은,는) 오래 닫혀 있었고 그동안 제 별을 감싼 구를 지었다. 의회는 그 구를 닫아 별의 열을 모두 셈에 돌리자고 청했다.",
+			"{Civ}|hpp(은,는) 오래 닫혀 있었다. 회중의 장로들은 닫힌 집에는 바깥의 소식이 늦게 닿는다며 빗장을 풀고 이웃을 맞자고 청했다."
+		]
+	},
+	{
+		"Name": "petition_cross_law_stays",
+		"Title": "손대지 않은 칙령",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTierAtLeast",
+				"Tag": "",
+				"Key": "None",
+				"Value": 3.0
+			},
+			{
+				"Type": "CivLacksTrait",
+				"Tag": "Brick.Form.KeptLaw",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTimeVectorAtLeast",
+				"Tag": "",
+				"Key": "Endured",
+				"Value": 433.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "칙령을 남기고 왕좌를 내려놓는다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "AddTrait",
+						"Tag": "Brick.Form.KeptLaw",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "DeposeRuler",
+						"Tag": "Reign.Abdicated",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}|hpp(은,는) 정해 둔 칙령을 손대지 않은 채 두었다. 칙령을 정한 이는 자리에서 내려왔다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "칙령 머리에 다스리는 이의 이름을 새긴다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 60.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 칙령 머리마다 다스리는 이의 이름이 새겨졌다. 칙령을 읽는 이들은 누가 정한 법인지 알고 마음을 놓았다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "지켜본다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "{Civ}|hpp(은,는) 지켜보기로 했다. 칙령은 다스리는 이의 손에 그대로 매여 있었다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"VoiceBodies": [
+			"{Civ}의 칙령은 눌린 날들 내내 다스리는 이의 손에 매여 있었다. 의회는 다스리는 이가 정해 둔 칙령에 손대지 않은 채 내려오기를 청했다.",
+			"{Civ}의 칙령은 눌린 날들 내내 다스리는 이의 손에 매여 있었다. 회중의 장로들은 그 칙령을 지켜 온 이의 이름을 칙령 머리에 새겨 뒷사람이 알게 하자고 청했다."
+		]
+	},
+	{
+		"Name": "petition_cross_seam",
+		"Title": "이음매",
+		"Body": "",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Ruler",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTierAtLeast",
+				"Tag": "",
+				"Key": "None",
+				"Value": 3.0
+			},
+			{
+				"Type": "CivHasTrait",
+				"Tag": "Brick.Instinct.SwarmTech",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivLacksTrait",
+				"Tag": "Brick.Instinct.HiveMerge",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivLacksTrait",
+				"Tag": "Brick.Mutation.DustBand",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTimeVectorAtLeast",
+				"Tag": "",
+				"Key": "Linked",
+				"Value": 3234.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "이음매를 지운다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "AddTrait",
+						"Tag": "Brick.Instinct.HiveMerge",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "RemoveTrait",
+						"Tag": "Brick.Instinct.SwarmTech",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.08,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "PlayerStatDelta",
+						"Tag": "",
+						"Key": "Exaltation",
+						"Value": 2.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": -0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 회의장에서 다른 말이 그쳤다. 모두가 같은 것을 말했고, 그것은 당신이 한 말이었다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "맞닿은 자리를 손본다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 80.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "AddResource",
+						"Tag": "",
+						"Key": "Insight",
+						"Value": 120.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeStability",
+						"Tag": "",
+						"Key": "None",
+						"Value": -0.02,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ShiftEthics",
+						"Tag": "",
+						"Key": "Spiritualism",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "{Civ}의 이웃과 맞닿은 자리마다 고쳐 쓸 말이 정해졌다. 회의는 길어졌지만 거기서 오간 말이 학자들의 셈에 보태졌다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "지켜본다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "{Civ}|hpp(은,는) 지켜보기로 했다. 회의장에서는 여러 목소리가 하던 대로 오갔다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Lottery",
+		"Subject": "Civilization",
+		"VoiceBodies": [
+			"{Civ}|hpp(은,는) 오래 이웃과 맺은 것을 지키며 여러 목소리로 일을 정해 왔다. 의회는 이음매를 지우고 모두가 같은 답을 내게 하자고 청했다.",
+			"{Civ}|hpp(은,는) 오래 이웃과 맺은 것을 지키며 여러 목소리로 일을 정해 왔다. 회중의 장로들은 이음매가 서로 다른 이들이 맞닿은 자리라며 지우지 말고 손보자고 청했다."
+		]
+	},
+	{
+		"Name": "enc_cross_drift_fleet",
+		"Title": "집을 싣는 배",
+		"Body": "{System}의 사람들은 집을 통째로 싣는 배를 지으며 살림을 배에 옮길지를 두고 갈려 있다. 조선소에는 반쯤 지은 배들이 늘어서 있다.",
+		"Conditions": [
+			{
+				"Type": "PlayerRoleIs",
+				"Tag": "",
+				"Key": "Wanderer",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivTimeVectorAtLeast",
+				"Tag": "",
+				"Key": "Drifted",
+				"Value": 900.0
+			},
+			{
+				"Type": "CivSettledSystemsAtLeast",
+				"Tag": "",
+				"Key": "None",
+				"Value": 2.0
+			},
+			{
+				"Type": "CivLacksTrait",
+				"Tag": "Brick.Space.Nomad",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivLacksTrait",
+				"Tag": "Brick.Space.ClosedPort",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivLacksTrait",
+				"Tag": "Brick.Space.FoldedSmall",
+				"Key": "None",
+				"Value": 0.0
+			},
+			{
+				"Type": "CivLacksTrait",
+				"Tag": "Brick.Form.Society",
+				"Key": "None",
+				"Value": 0.0
+			}
+		],
+		"BaseWeight": 1.0,
+		"Choices": [
+			{
+				"Label": "배 위에서 사는 법을 보인다",
+				"CheckStat": "Body",
+				"Difficulty": 5,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "AddTrait",
+						"Tag": "Brick.Space.Nomad",
+						"Key": "None",
+						"Value": 0.0,
+						"DurationTicks": 0
+					},
+					{
+						"Type": "ChangeReverence",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.2,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [
+					{
+						"Type": "ChangeReverence",
+						"Tag": "",
+						"Key": "None",
+						"Value": -0.1,
+						"DurationTicks": 0
+					}
+				],
+				"SuccessText": "당신은 배 위에서 먹고 자고 고치는 법을 보였다. {Civ}의 사람들은 살림을 배에 싣기 시작했다.",
+				"FailureText": "당신이 보인 배 위의 살림은 {Civ}의 사람들에게 닿지 않았다. 조선소의 사람들은 당신을 낯설게 보았다.",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "조선소에서 일손을 보탠다",
+				"CheckStat": "Body",
+				"Difficulty": 4,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [
+					{
+						"Type": "ChangeReverence",
+						"Tag": "",
+						"Key": "None",
+						"Value": 0.05,
+						"DurationTicks": 0
+					}
+				],
+				"OnFailure": [],
+				"SuccessText": "당신은 조선소에서 배를 짓는 일을 거들었다. {Civ}의 일꾼들이 당신의 손을 기억했다.",
+				"FailureText": "당신이 거든 일은 조선소에 보탬이 되지 못했다. 배는 {Civ}의 일꾼들 손으로 지어졌다.",
+				"NextEncounter": "None"
+			},
+			{
+				"Label": "물러난다",
+				"CheckStat": "NoCheck",
+				"Difficulty": 0,
+				"Cost": {
+					"Energy": 0.0,
+					"Matter": 0.0,
+					"Insight": 0.0,
+					"Influence": 0.0,
+					"Causality": 0.0
+				},
+				"OnSuccess": [],
+				"OnFailure": [],
+				"SuccessText": "당신은 조선소 앞에서 걸음을 돌렸다. 떠날지 남을지는 {Civ}의 사람들이 정할 일로 남았다.",
+				"FailureText": "",
+				"NextEncounter": "None"
+			}
+		],
+		"Illustration": "",
+		"Trigger": "Standing",
+		"Subject": "VesselSystem",
+		"VoiceBodies": []
 	}
 ]

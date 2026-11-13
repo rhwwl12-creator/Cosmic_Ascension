@@ -1,0 +1,12 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -655,7 +655,7 @@
+ 				},
+ 				{
+ 					"why": "the brick line of the shut sphere waits on traits alone, so it is named: no rest or silence, none of the fenced words of the crossroads (B7x header 3.5)",
+-					"when": [{"row": "event_brick_shut_star"}],
++					"when": [{"row": "event_brick_drift_plenty"}],
+ 					"then": [{"col": "LogTemplates", "lacks_words": "silence_words"}, {"col": "LogTemplates", "lacks_words": "crossroads_words"}]
+ 				},
+ 				{

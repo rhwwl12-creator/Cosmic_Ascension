@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp b/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
+--- a/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
++++ b/Source/Cosmic_Ascension/Events/CosmicPetitions.cpp
+@@ -274,7 +274,7 @@
+ 	TConstArrayView<FCosmicPetitionUnit> HeldAtHead, bool bArrived)
+ {
+ 	using namespace CosmicPetitionsImpl;
+-	if (!State.Knowing.PendingPetitionRow.IsNone())
++	if (false && !State.Knowing.PendingPetitionRow.IsNone())
+ 	{
+ 		return false;
+ 	}

@@ -2306,7 +2306,14 @@ bool FCosmicSimPhaseTwoExitTest::RunTest(const FString& Parameters)
 	// headless check run across the deaths and the successions. A succession clears the fallen monarch's status, so the
 	// deposition is read at its own boundary in the stepped run (the same world as the whole run), and the status is held at
 	// every boundary from there until the deposed life closes (876 boundaries). Calling.LethalSource pins the death itself.
-	const FCosmicDataTables& Game = Original;
+	// B7x (header section 6 - the cause found first; B7x notes section 5.6, lead ruling L10): from [B-7x5c] the brick event rows
+	// change the world of seed 1 so that the deposed vessel's one lethal crisis (an AI awakening at 9,695) expires on the branch
+	// side and no life closes in 20,000 ticks (at [B-7x5s] the seed bricks had moved the death to 13,293). The deaths and the
+	// successions are this test's subject, not B7x: the game's data without B7x's (CosmicTests::WithoutB7xData, outermost) -
+	// the world of [B-7x4], where the ticks above hold.
+	const FCosmicDataTables WithoutB7x = CosmicTests::WithoutB7xData(Original);
+	Sim->SetTables(WithoutB7x);
+	const FCosmicDataTables& Game = WithoutB7x;
 	static const FGameplayTag ClaimTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Claim")));
 	static const FGameplayTag RebellionTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Hazard.Rebellion")));
 	static const FGameplayTag FallenTag = FGameplayTag::RequestGameplayTag(FName(TEXT("Status.FallenMonarch")));

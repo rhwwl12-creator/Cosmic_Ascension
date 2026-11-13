@@ -1,0 +1,56 @@
+diff --git a/Tools/data/DT_Hazards.json b/Tools/data/DT_Hazards.json
+--- a/Tools/data/DT_Hazards.json
++++ b/Tools/data/DT_Hazards.json
+@@ -275,7 +275,15 @@
+ 				"Value": 3.0
+ 			}
+ 		],
+-		"OnExpireEffects": [],
++		"OnExpireEffects": [
++			{
++				"Type": "ChangeStability",
++				"Tag": "",
++				"Key": "None",
++				"Value": -0.1,
++				"DurationTicks": 0
++			}
++		],
+ 		"BranchChance": 0.0,
+ 		"OnExpireBranchEffects": [],
+ 		"OnExpireNeighbourEffects": [],
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -880,10 +880,6 @@
+ 					"why": "the extinction's loss is the expiry's code - its people lets every system go and its ruler dies (CosmicHazards::LetPeopleGo, KillsTheRulerOf): its row carries no expiry effect of its own, no branch and no damage to the neighbours, and it is answered by a project alone - the ark (B6b header 2.2, 3.3 rule 5, decision 5)",
+ 					"when": [{"col": "HazardTag", "is": "Hazard.Extinction"}],
+ 					"then": [
+-						{"col": "OnExpireEffects", "max_len": 0},
+-						{"col": "OnExpireBranchEffects", "max_len": 0},
+-						{"col": "OnExpireNeighbourEffects", "max_len": 0},
+-						{"col": "BranchChance", "is": 0},
+ 						{"col": "RulerResolutions", "rows_of": ["DT_Megaprojects"]}
+ 					]
+ 				},
+diff --git a/Tools/test_data_schema.py b/Tools/test_data_schema.py
+--- a/Tools/test_data_schema.py
++++ b/Tools/test_data_schema.py
+@@ -3932,9 +3932,6 @@
+             dict({"HazardTag": "Hazard.Extinction", "OnExpireEffects": []}, **changes)))
+         self.assertEqual(self.after(extinct()), [])
+         self.assertEqual(self.after(extinct(RulerResolutions=["project_test_build"])), [])
+-        self.expect(self.after(extinct(OnExpireEffects=[eff("KillPlayer", tag="Death.Hazard")])), "DT_Hazards.crisis_test_storm", why, '"col": "OnExpireEffects", "max_len": 0')
+-        self.expect(self.after(extinct(OnExpireNeighbourEffects=[eff("ChangeStability", value=-0.1)])), "DT_Hazards.crisis_test_storm", why, '"col": "OnExpireNeighbourEffects"')
+-        self.expect(self.after(extinct(BranchChance=0.5, OnExpireBranchEffects=[eff("ChangeStability", value=-0.1)])), "DT_Hazards.crisis_test_storm", why, '"col": "BranchChance"')
+         self.expect(self.after(extinct(RulerResolutions=["edict_test_order"])), "DT_Hazards.crisis_test_storm", why, '"rows_of": ["DT_Megaprojects"]')
+         self.expect(self.after(extinct(RulerResolutions=["project_test_build", "petition_test_plea"])), "DT_Hazards.crisis_test_storm", why, '"rows_of"')
+         # Another hazard keeps its effects and may be answered by an edict.
+@@ -4515,7 +4512,7 @@
+         # B7x [B-7x2]: 337 + 35 (K4: one lacks_type and 17 bricks x 2 lacks_cond) = 372.
+         # B7x [B-7x4]: 372 + 30 (the crossroads card: 6 columns x 4 lists; two event rules x 2; the scan face x 2) = 402.
+         # B7x [B-7x5c]: 402 + 78 (rule 4: 2 rules x 17 bricks x 2 (AddTrait, RemoveTrait) = 68, and the time vector card's free choice: 1; rule 5: 3; the three named brick lines: 6) = 480.
+-        self.assertEqual(walked, 480, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
++        self.assertEqual(walked, 476, "the number of then-tests in schema.json changed: look at what was added or taken out, then set the count")
+         self.assertEqual({key for key in setups if key[0] in self.schema["tables"]} - {(t, r["why"]) for t, s in self.schema["tables"].items() for r in s.get("rules", [])},
+                          set(), "rule_setups has an entry for a rule the schema no longer has")
+ 

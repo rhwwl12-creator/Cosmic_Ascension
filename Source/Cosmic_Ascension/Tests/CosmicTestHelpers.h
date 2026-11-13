@@ -208,7 +208,7 @@ namespace CosmicTests
 	}
 
 	// Every existence brick (CosmicTags::IsBrick) taken off the Traits of every people (B7x - notes section 5.4, test hand-off
-	// 1): the seed brick NewGalaxy gives an AI people and the bricks an archetype row carries (from [B-7x5s] the first
+	// 1): the seed brick NewGalaxy gives an AI people and the bricks an archetype row carries (from [B-7x5c] the first
 	// life's Brick.Form.Society among them); every other tag - the archetype's Trait.* - stays. Writes Traits only: no draw, and
 	// the state index does not hold traits. Call it right after NewGalaxy on a board whose rules are WithInertBricks'.
 	inline void StripBricks(FGalaxyState& State)

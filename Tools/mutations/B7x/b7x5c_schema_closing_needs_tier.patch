@@ -1,0 +1,12 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -1446,7 +1446,7 @@
+ 				},
+ 				{
+ 					"why": "a crossroads petition closes on its branch: the first by taking Brick.Form.Society, the second by the tag its first choice gives; its choice 2 carries no repeatable gain; a dismissed card (no cost, no effect) comes again after the last three answers",
+-					"when": [{"row_prefix": "petition_"}, {"col": "Conditions", "has_type": "CivTimeVectorAtLeast"}, {"col": "Conditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Form.Society"}}],
++					"when": [{"row_prefix": "petition_"}, {"col": "Conditions", "has_type": "CivTimeVectorAtLeast"}, {"col": "Conditions", "lacks_cond": {"type": "CivHasTrait", "tag": "Brick.Form.Society"}}, {"col": "Conditions", "has_type": "CivTierAtLeast"}],
+ 					"then": [{"col": "Conditions", "has_type": "CivLacksTrait"}]
+ 				},
+ 				{

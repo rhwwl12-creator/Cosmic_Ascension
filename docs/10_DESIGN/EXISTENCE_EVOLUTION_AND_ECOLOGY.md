@@ -146,7 +146,7 @@
 
 ### 4.3 진화 분기 카드 열두 장 — 살아낸 시간이 문턱을 넘을 때 오는 갈림 (받은 꼴; 헤더 결정 9·10·11)
 
-**공통.** 통치자의 열한 장은 `petition_cross_*` — `PlayerRoleIs Ruler`, 주제 `Civilization`(슬롯 `{Civ}`뿐), 두 목소리(서로 다른 선택을 청하고 어느 쪽도 옳지 않다; 믿음의 낱말은 장로들에게만), 값은 다스리는 백성의 비축에서 낸다; 목소리가 청한 선택은 관례대로 `ShiftEthics Spiritualism`을 옮긴다(의회 −0.05, 장로들 +0.05). 모두 `Lottery`, `BaseWeight` 1 — 주기 칸에서 오고 칸이 차도 사라지지 않는다. 방랑자의 한 장은 `enc_cross_*`, `Standing`(도착 카드는 자리만 말하고 격차의 문을 지나지 않는다 — 헤더 §3.1), 주제 `VesselSystem`, 값 0, `AddTrait`은 주인에게 닿는다. **닫힘**: 첫 갈림은 꼴을 고르는 선택과 반걸음이 함께 `RemoveTrait Brick.Form.Society`를 하여 닫힌다(다른 첫 갈림도 함께); 둘째 갈림은 `CivLacksTrait <주는 태그>`나 걷힌 부모로 닫힌다. 둘째 갈림 여섯 장(C05~C08·C10·C11)의 ②는 닫지 않는다(C09의 ②는 하나뿐인 되돌림이라 판정에 성공하면 걷힌 부모로 닫히고, 실패하면 안정도만 잃는다) — 지난 세 답이 지나면 다시 오므로 ②에는 되풀이해 쌓이는 이득을 두지 않고 값과 작은 효과만 남긴다(`petition_road`·`petition_feast`의 꼴; 헤더 결정 11 (나), 데이터는 노트 §5.4 데1) — 남는 것은 값, 작은 한 번의 효과(안정도나 자원)와 목소리의 기울기다(그 두 행의 ②도 기울기를 지닌다); 둘째 윤리 축·인구·우러름·높아짐은 두지 않고, C10 ②는 기울기도 두지 않는다(노트 §5.4 데2; `[B-7x4]`의 리드 판정). 새 태그는 없다 — 블록 태그는 열일곱 그대로다. 카드마다 값·문·효과·다음 카드 없는 선택이 하나 있다. 답마다 시뮬 스트림 1. 측정 정책은 갈림 카드에서 값 없는 선택(③)만 고른다(헤더 결정 19 — 블록을 주거나 걷는 선택도, 블록 없는 값 있는 선택도 건너뛴다); 측정 전용 `-Crossroads=<k>`에서만 블록을 주거나 걷는 선택을 고르고, 그때만 C10 ①이 `DeposeRuler`를 지난다(헤더 §5). 칸·주장을 옮기는 효과는 없고 위기를 직접 놓지도 않는다 — 위기가 설 몫은 얻은 블록의 노브(S01의 별의 위기 몫, 미시 블록의 몫)로만 바뀐다; 안정도 0.8 위에서는 판정에 실패 면이 없어 확정을 막는 것은 블록의 음의 항이다. 문턱은 시작값(헤더 §5 ①·②). 글의 원본은 `[B-7x4]`의 감사 판이고 `[B-7x5c]`가 행에 옮긴다 — 아래 '(초안)' 줄은 초안이며, 감사가 바꾼 것 가운데 C05·C07·C08·C10·C11·C12의 선택·글 줄과 꼴 낱말은 이 문서도 맞췄다('(감사 판)').
+**공통.** 통치자의 열한 장은 `petition_cross_*` — `PlayerRoleIs Ruler`, 주제 `Civilization`(슬롯 `{Civ}`뿐), 두 목소리(서로 다른 선택을 청하고 어느 쪽도 옳지 않다; 믿음의 낱말은 장로들에게만), 값은 다스리는 백성의 비축에서 낸다; 목소리가 청한 선택은 관례대로 `ShiftEthics Spiritualism`을 옮긴다(의회 −0.05, 장로들 +0.05). 모두 `Lottery`, `BaseWeight` 1 — 주기 칸에서 오고 칸이 차도 사라지지 않는다. 방랑자의 한 장은 `enc_cross_*`, `Standing`(도착 카드는 자리만 말하고 격차의 문을 지나지 않는다 — 헤더 §3.1), 주제 `VesselSystem`, 값 0, `AddTrait`은 주인에게 닿는다. **닫힘**: 첫 갈림은 꼴을 고르는 선택과 반걸음이 함께 `RemoveTrait Brick.Form.Society`를 하여 닫힌다(다른 첫 갈림도 함께); 둘째 갈림은 `CivLacksTrait <주는 태그>`나 걷힌 부모로 닫힌다. 둘째 갈림 여섯 장(C05~C08·C10·C11)의 ②는 닫지 않는다(C09의 ②는 하나뿐인 되돌림이라 판정에 성공하면 걷힌 부모로 닫히고, 실패하면 안정도만 잃는다) — 지난 세 답이 지나면 다시 오므로 ②에는 되풀이해 쌓이는 이득을 두지 않고 값과 작은 효과만 남긴다(`petition_road`·`petition_feast`의 꼴; 헤더 결정 11 (나), 데이터는 노트 §5.4 데1) — 남는 것은 값, 작은 한 번의 효과(안정도나 자원)와 목소리의 기울기다(그 두 행의 ②도 기울기를 지닌다); 둘째 윤리 축·인구·우러름·높아짐은 두지 않고, C10 ②는 기울기도 두지 않는다(노트 §5.4 데2; `[B-7x4]`의 리드 판정). 새 태그는 없다 — 블록 태그는 열일곱 그대로다. 카드마다 값·문·효과·다음 카드 없는 선택이 하나 있다. 답마다 시뮬 스트림 1. 측정 정책은 갈림 카드에서 값 없는 선택(③)만 고른다(헤더 결정 19 — 블록을 주거나 걷는 선택도, 블록 없는 값 있는 선택도 건너뛴다); 측정 전용 `-Crossroads=<k>`에서만 블록을 주거나 걷는 선택을 고르고, 그때만 C10 ①이 `DeposeRuler`를 지난다(헤더 §5). 칸·주장을 옮기는 효과는 없고 위기를 직접 놓지도 않는다 — 위기가 설 몫은 얻은 블록의 노브(S01의 별의 위기 몫, 미시 블록의 몫)로만 바뀐다; 안정도 0.8 위에서는 판정에 실패 면이 없어 확정을 막는 것은 블록의 음의 항이다. 문턱은 `[B-7x5s]`의 잰 값을 문턱의 규칙으로 정한 것이다(B7x 노트 §5.6 — 카드마다 괄호에 초안 값; 헤더 §5 ①·②가 고칠 수 있다). 글의 원본은 `[B-7x4]`의 감사 판이고 `[B-7x5c]`가 행에 옮겼다 — 아래 '(초안)' 줄은 초안이며, 감사가 바꾼 것 가운데 C05·C07·C08·C10·C11·C12의 선택·글 줄과 꼴 낱말은 이 문서도 맞췄다('(감사 판)').
 
 **갈림의 나무**
 
@@ -160,7 +160,7 @@
 | 반걸음·되돌림·갈림 없음 | `Society`만 걷힌다 | — | '짓고 이은 살림'·'밖으로 뻗은 살림'·'홀로 선 살림'·'눌림 속에 이어 간 살림' (리뷰 T7; 글 감사 — 헤더 §3.2) |
 
 **C01 · 작업장에서 티끌 같은 손으로** — 행 `petition_cross_built`, 통치자, 주제 Civilization
-- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivHasTrait Brick.Form.Society` · `CivTimeVectorAtLeast Built 1200` · 무게 1.
+- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivHasTrait Brick.Form.Society` · `CivTimeVectorAtLeast Built 1100`(잰 값 — 초안 1200) · 무게 1.
 - 목소리: 의회 — 집집의 손에 나누자(①); 회중의 장로들 — 장인의 손에만 맡기자(②).
 - 선택:
   - ① '집집마다 연장을 들인다' (초안) — 판정 `Stability` 8, 물질 240·통찰 120 — 성공 `AddTrait Brick.Instinct.SwarmTech`, `RemoveTrait Brick.Form.Society`, `ChangeStability` −0.06; 실패 `ChangeStability` −0.06.
@@ -170,7 +170,7 @@
 - 글 (초안): 제목 '작은 손들'; 의회 '{Civ}의 작업장은 오래 불을 끄지 않았다. 의회는 큰 공사를 잘게 나누어 집집마다 연장을 들이자고 청했다.'; 장로들 '{Civ}의 작업장은 오래 불을 끄지 않았다. 회중의 장로들은 새 연장을 가르칠 수 있는 장인들의 손에만 맡기자고 청했다.'; ① 뒤 '{Civ}의 집마다 작은 공방이 섰다. 그 일이 끝났을 때 큰 공사는 집집의 작은 손에 나뉘어 있었다.'
 
 **C02 · 싸움의 광맥에서 별 사이의 체로, 또는 제 별의 화로로** — 행 `petition_cross_consumed`, 통치자, 주제 Civilization
-- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivHasTrait Brick.Form.Society` · `CivTimeVectorAtLeast Consumed 1500`(물려받은 전시 동원이 바닥을 채운다) · 무게 1.
+- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivHasTrait Brick.Form.Society` · `CivTimeVectorAtLeast Consumed 900`(잰 값은 150이라 아래 끝 900 — 초안 1500; 초안의 '물려받은 전시 동원이 바닥을 채운다'는 잰 값과 다르다 — `Consumed`가 쌓이지 않는 까닭은 노트 §5.6 L8, `[B-7x5r]`) · 무게 1.
 - 목소리: 회중의 장로들 — 별 사이의 엷은 것을 걸러 살자(①); 의회 — 제 별의 불을 화로에 끌어들이자(②). 반걸음 없이 두 돌아섬이다.
 - 선택:
   - ① '암흑 구간에 체를 편다' (초안) — 판정 `Stability` 9, 에너지 260·물질 120 — 성공 `AddTrait Brick.Diet.DarkMatter`, `RemoveTrait Brick.Form.Society`, `ChangeStability` −0.08; 실패 `ChangeStability` −0.08.
@@ -180,7 +180,7 @@
 - 글 (초안): 제목 '땅이 내는 것'; 의회 '{Civ}의 광맥은 오래 싸움에 쓸 것을 대느라 깊어졌다. 의회는 땅을 더 파지 말고 제 별의 불을 바로 화로에 끌어들이자고 청했다.'; 장로들 '{Civ}의 광맥은 오래 싸움에 쓸 것을 대느라 깊어졌다. 회중의 장로들은 땅을 그만 파고 별과 별 사이에 떠도는 엷은 것을 걸러 살자고 청했다.'; ② 뒤 '{Civ}의 화로가 제 별의 불을 끌어 쓰기 시작했다. 국경 너머의 이웃들은 그 별빛을 오래 바라보았다.'
 
 **C03 · 새 터를 닦던 배에서 배에 실린 살림으로** — 행 `petition_cross_drifted`, 통치자, 주제 Civilization
-- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivHasTrait Brick.Form.Society` · `CivTimeVectorAtLeast Drifted 900` · 무게 1.
+- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivHasTrait Brick.Form.Society` · `CivTimeVectorAtLeast Drifted 1200`(잰 값 — 초안 900) · 무게 1.
 - 목소리: 회중의 장로들 — 닿는 곳마다 집이 함께 가야 한다(①); 의회 — 떠나려는 집만 보내자(②).
 - 선택:
   - ① '살림을 통째로 배에 싣는다' (초안) — 판정 `Stability` 9, 물질 300·에너지 100 — 성공 `AddTrait Brick.Space.Nomad`, `RemoveTrait Brick.Form.Society`, `ChangeStability` −0.1; 실패 `ChangeStability` −0.1.
@@ -190,7 +190,7 @@
 - 글 (초안): 제목 '닻을 내리는 곳'; 의회 '{Civ}의 배들은 오래 새 터를 닦으러 나가 있었다. 의회는 떠나려는 집은 보내고 남으려는 집은 남게 두자고 청했다.'; 장로들 '{Civ}의 배들은 오래 새 터를 닦으러 나가 있었다. 회중의 장로들은 닿는 곳마다 집이 함께 가야 한다며 살림을 통째로 배에 싣자고 청했다.'; ① 뒤 '{Civ}에서 배에 사는 집이 뭍의 집보다 많아졌다. 그 일이 끝났을 때 그들은 닻을 내린 곳을 집이라 부르지 않고 있었다.'
 
 **C04 · 저희끼리 지낸 세월에서 빗장 건 항구로** — 행 `petition_cross_isolated`, 통치자, 주제 Civilization
-- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivHasTrait Brick.Form.Society` · `CivTimeVectorAtLeast Isolated 1500` · 무게 1.
+- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivHasTrait Brick.Form.Society` · `CivTimeVectorAtLeast Isolated 900`(잰 값은 330이라 아래 끝 900 — 초안 1500) · 무게 1.
 - 목소리: 회중의 장로들 — 항구를 모두 닫자(①); 의회 — 큰 항구는 남기자(②).
 - 선택:
   - ① '항구를 닫고 새 터를 찾지 않는다' (초안) — 판정 없음, 물질 200·영향력 150 — `AddTrait Brick.Space.ClosedPort`, `RemoveTrait Brick.Form.Society`, `ChangeReverence Borders` −0.1.
@@ -200,7 +200,7 @@
 - 글 (초안): 제목 '항구의 빗장'; 의회 '{Civ}의 백성은 오래 저희끼리 지냈다. 의회는 큰 항구만 남기고 나머지를 닫아 안을 짓는 데 힘을 모으자고 청했다.'; 장로들 '{Civ}의 백성은 오래 저희끼리 지냈다. 회중의 장로들은 바깥의 것이 들면 지켜 온 것이 흐려진다며 항구를 모두 닫자고 청했다.'; ① 뒤 '{Civ}의 항구들이 닫히고 새 터로 떠날 배들이 항구에 묶였다. 그 일이 끝났을 때 그들은 제 별 안쪽만 짓고 있었다.'
 
 **C05 · 티끌 같은 손이 별마다 띠가 된다** — 행 `petition_cross_dust_band`, 통치자, 주제 Civilization
-- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivTierAtLeast 3` · `CivHasTrait Brick.Instinct.SwarmTech` · `CivLacksTrait Brick.Mutation.DustBand` · `CivLacksTrait Brick.Instinct.HiveMerge` · `CivTimeVectorAtLeast Linked 1800` · 무게 1.
+- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivTierAtLeast 3` · `CivHasTrait Brick.Instinct.SwarmTech` · `CivLacksTrait Brick.Mutation.DustBand` · `CivLacksTrait Brick.Instinct.HiveMerge` · `CivTimeVectorAtLeast Linked 3234`(잰 값 — 초안 1800) · 무게 1.
 - 목소리: 의회 — 일꾼을 별마다 띠로 두르자(①); 회중의 장로들 — 사람을 먼저 돌보자(②).
 - 선택:
   - ① '일꾼들을 별마다 띠로 두른다' (초안) — 판정 `Stability` 9, 에너지 150·물질 350 — 성공 `AddTrait Brick.Mutation.DustBand`; 실패 `ChangeStability` −0.05.
@@ -210,7 +210,7 @@
 - 글 (초안): 제목 '별 둘레의 티끌 띠'; 의회 '{Civ}의 작은 일꾼들은 스스로를 고쳐 가며 일한다. 의회는 그 일꾼들을 별마다 띠로 둘러 손이 닿지 않던 일까지 맡기자고 청했다.'; 장로들 '{Civ}의 작은 일꾼들은 스스로를 고쳐 가며 일한다. 회중의 장로들은 누구의 손에도 매이지 않는 것을 늘리기 전에 사람을 먼저 돌보자고 청했다.'(감사 판); ① 뒤 '{Civ}의 별마다 티끌 같은 일꾼들이 띠를 이루었다. 띠는 스스로를 고치며 돌았고, 그 일을 다 아는 사람은 없었다.'; ② 뒤 (감사 판) '{Civ}의 물자가 집과 배움터를 짓는 데 들었다. 아이를 기르는 집들의 근심이 덜어졌다.'
 
 **C06 · 도읍의 별에 거는 줄** — 행 `petition_cross_star_line`, 통치자, 주제 Civilization
-- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivTierAtLeast 3` · `CivHasTrait Brick.Space.Nomad` · `CivLacksTrait Brick.Mutation.StarTow` · `CivTimeVectorAtLeast Drifted 1800`(빠듯하다 — 헤더 §5 ①이 못 미치면 먼저 내린다) · 무게 1.
+- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivTierAtLeast 3` · `CivHasTrait Brick.Space.Nomad` · `CivLacksTrait Brick.Mutation.StarTow` · `CivTimeVectorAtLeast Drifted 1800`(잰 값도 1800; 빠듯하다 — 헤더 §5 ①이 못 미치면 먼저 내린다) · 무게 1.
 - 목소리: 의회 — 도읍의 별에 줄을 걸자(①); 회중의 장로들 — 집부터 고치자(②).
 - 선택:
   - ① '도읍의 별에 끄는 줄을 건다' (초안) — 판정 `Stability` 9, 에너지 300·물질 150 — 성공 `AddTrait Brick.Mutation.StarTow`; 실패 `ChangeStability` −0.06.
@@ -220,17 +220,17 @@
 - 글 (초안): 제목 '별에 거는 줄'; 의회 '{Civ}의 살림은 오래 배 위에서 꾸려졌다. 의회는 도읍의 별에 끄는 줄을 걸어 데리고 떠날 채비를 하자고 청했다.'; 장로들 '{Civ}의 살림은 오래 배 위에서 꾸려졌다. 회중의 장로들은 떠날 채비로 지은 집에서는 아무도 뿌리를 내리지 못한다며 집부터 고치자고 청했다.'(감사 판); ① 뒤 '{Civ}|hpp(이,가) 도읍의 별에 끄는 줄을 걸었다. 별은 제자리에 있었고, 그들은 떠날 채비를 한 채 살게 되었다.'
 
 **C07 · 별 사이의 엷은 것에 푸는 살림** — 행 `petition_cross_between_stars`, 통치자, 주제 Civilization
-- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivTierAtLeast 3` · `CivHasTrait Brick.Diet.DarkMatter` · `CivLacksTrait Brick.Form.LivingNebula` · `CivTimeVectorAtLeast Consumed 2000` · 무게 1.
+- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivTierAtLeast 3` · `CivHasTrait Brick.Diet.DarkMatter` · `CivLacksTrait Brick.Form.LivingNebula` · `CivTimeVectorAtLeast Consumed 150`(잰 값 — 초안 2000; 노트 §5.6 L4·L8) · 무게 1.
 - 목소리(장로들이 늘 머묾을 청하는 쏠림을 깨려 뒤집었다): 회중의 장로들 — 별들 사이에 풀자(①); 의회 — 지붕부터 고치자(②).
 - 선택:
   - ① '살림을 별들 사이에 푼다' (초안) — 판정 `Stability` 9, 에너지 300·통찰 150 — 성공 `AddTrait Brick.Form.LivingNebula`; 실패 `ChangeStability` −0.06.
   - ② '땅 위의 집을 고쳐 짓는다' (초안) — 판정 없음, 물질 250·영향력 60 — `ChangeStability` +0.04(둘째 윤리 축은 두지 않는다 — 결정 11 (나)).
   - ③ '지켜본다' (초안) — 없음.
 - 귀결: 번진 살림의 표지 — 끝의 꼴, S15의 스캔 얼굴, 슬라이스 다의 품음(S13)이 읽는다; 별에 매이지 않는 에너지는 이어진다. 소유는 바뀌지 않는다. 되돌림 없음.
-- 글 (초안): 제목 '별 사이의 엷은 것'; 의회 '{Civ}의 살림은 별 사이에서 걸러 낸 것으로 오래 꾸려졌다. 의회는 지붕부터 고쳐 땅 위에 디딜 곳을 지키자고 청했다.'; 장로들 '{Civ}의 살림은 별 사이에서 걸러 낸 것으로 오래 꾸려졌다. 회중의 장로들은 땅에 매인 살림을 별들 사이의 엷은 것에 풀자고 청했다.'; ① 뒤 '{Civ}|hpp(이,가) 살림을 별들 사이의 엷은 것에 풀었다. 그 일이 끝났을 때 그들은 별과 별 사이에 번져 서 있었다.'
+- 글 (감사 판 — 장로들의 '땅에 매인'은 '땅 위의'로, ① 뒤의 '그들은 … 번져 서 있었다'는 '그들의 살림은 … 번져 있었다'로; 감사 §1.7): 제목 '별 사이의 엷은 것'; 의회 '{Civ}의 살림은 별 사이에서 걸러 낸 것으로 오래 꾸려졌다. 의회는 지붕부터 고쳐 땅 위에 디딜 곳을 지키자고 청했다.'; 장로들 '{Civ}의 살림은 별 사이에서 걸러 낸 것으로 오래 꾸려졌다. 회중의 장로들은 땅 위의 살림을 별들 사이의 엷은 것에 풀자고 청했다.'; ① 뒤 '{Civ}|hpp(이,가) 살림을 별들 사이의 엷은 것에 풀었다. 그 일이 끝났을 때 그들의 살림은 별과 별 사이에 번져 있었다.'; ② 뒤 '{Civ}의 땅 위 집들이 지붕부터 고쳐졌다. 디딜 곳이 단단해지자 그 집들이 마음을 놓았다.'
 
 **C08 · 떠돌던 살림이 가장 작은 눈금 속으로 접혀 든다** — 행 `petition_cross_into_dust`, 통치자, 주제 Civilization
-- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivTierAtLeast 3` · `CivHasTrait Brick.Space.Nomad` · `CivLacksTrait Brick.Space.FoldedSmall` · `CivLacksTrait Brick.Mutation.StarTow` · `CivTimeVectorAtLeast Endured 1800` · 무게 1.
+- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivTierAtLeast 3` · `CivHasTrait Brick.Space.Nomad` · `CivLacksTrait Brick.Space.FoldedSmall` · `CivLacksTrait Brick.Mutation.StarTow` · `CivTimeVectorAtLeast Endured 433`(잰 값 — 초안 1800) · 무게 1.
 - 목소리: 의회 — 가장 작은 눈금 속으로 접혀 들자(①); 회중의 장로들 — 별 곁에 디딜 곳을 마련하자(②).
 - 선택:
   - ① '가장 작은 눈금 속으로 접혀 든다' (감사 판) — 판정 `Stability` 9, 에너지 300·통찰 200 — 성공 `AddTrait Brick.Space.FoldedSmall`, `RemoveTrait Brick.Space.Nomad`; 실패 `ChangeStability` −0.06.
@@ -240,7 +240,7 @@
 - 글 (감사 판 — '티끌'은 비문과 연대기에서 죽음의 그림으로 읽힌다, T-09): 제목 '가장 작은 눈금'; 의회 '{Civ}|hpp(은,는) 떠돈 날이 길었다. 의회는 가장 작은 눈금 속에 다투는 이 없는 넓이가 있다며 그리로 접혀 들자고 청했다.'; 장로들 '{Civ}|hpp(은,는) 떠돈 날이 길었다. 회중의 장로들은 밖을 내다보지 않는 살림은 밖의 일을 잊는다며 별 곁에 디딜 곳을 마련하자고 청했다.'; ① 뒤 '{Civ}|hpp(이,가) 살림을 가장 작은 눈금 속으로 접어 넣었다. 그 일이 끝났을 때 그들은 그 눈금 속에서 살고 있었고, 떠돌던 배들은 항구에 매여 있었다.'
 
 **C09 · 닫힌 구의 셈, 또는 다시 연 항구** — 행 `petition_cross_wrapped_star`, 통치자, 주제 Civilization
-- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivTierAtLeast 2`(정착이 막힌 백성의 셋째 칸은 초신성 업적뿐이다 — 헤더 결정 11로 받았다) · `CivHasTrait Brick.Space.ClosedPort` · `CivLacksTrait Brick.Form.ShutSphere` · `CivTimeVectorAtLeast Isolated 2000` · 무게 1.
+- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivTierAtLeast 2`(정착이 막힌 백성의 셋째 칸은 초신성 업적뿐이다 — 헤더 결정 11로 받았다) · `CivHasTrait Brick.Space.ClosedPort` · `CivLacksTrait Brick.Form.ShutSphere` · `CivTimeVectorAtLeast Isolated 330`(잰 값 — 초안 2000) · 무게 1.
 - 목소리: 의회 — 구를 닫아 셈에 돌리자(①); 회중의 장로들 — 빗장을 풀자(②).
 - 선택:
   - ① '감싼 구를 닫아 셈에 돌린다' (초안) — 판정 없음, 에너지 200·물질 400 — `AddTrait Brick.Form.ShutSphere`, `ShiftEthics Openness` −0.05.
@@ -250,7 +250,7 @@
 - 글 (초안): 제목 '닫힌 구의 셈'; 의회 '{Civ}|hpp(은,는) 오래 닫혀 있었고 그동안 제 별을 감싼 구를 지었다. 의회는 그 구를 닫아 별의 열을 모두 셈에 돌리자고 청했다.'; 장로들 '{Civ}|hpp(은,는) 오래 닫혀 있었다. 회중의 장로들은 닫힌 집에는 바깥의 소식이 늦게 닿는다며 빗장을 풀고 이웃을 맞자고 청했다.'; ② 성공 뒤 '{Civ}|hpp(이,가) 닫아 둔 살림을 열었다. 안에서만 정하던 일들이 바깥을 보며 정해지기 시작했다.'
 
 **C10 · 왕좌를 비워도 서는 칙령** — 행 `petition_cross_law_stays`, 통치자, 주제 Civilization
-- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivTierAtLeast 3` · `CivLacksTrait Brick.Form.KeptLaw` · `CivTimeVectorAtLeast Endured 2000` · 무게 1. 첫 꼴을 묻지 않는다.
+- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivTierAtLeast 3` · `CivLacksTrait Brick.Form.KeptLaw` · `CivTimeVectorAtLeast Endured 433`(잰 값 — 초안 2000) · 무게 1. 첫 꼴을 묻지 않는다.
 - 목소리: 의회 — 정해 둔 칙령에 손대지 않은 채 내려오자(①); 회중의 장로들 — 지켜 온 이의 이름을 새기자(② — 다스리는 이의 이름을 칙령 머리에 남기자는 쪽이 회중이다; 그릇은 높아지지 않고, 다스리는 이의 이름을 높이는 일은 윤리 축을 옮기지 않는다 — `petition_exalt`, 노트 §5.4 데2).
 - 선택:
   - ① '칙령을 남기고 왕좌를 내려놓는다' (초안) — 판정 없음, 값 없음 — `AddTrait Brick.Form.KeptLaw`, `DeposeRuler`(Tag `Reign.Abdicated`).
@@ -260,7 +260,7 @@
 - 글 (감사 판): 제목 '손대지 않은 칙령'(개발자 답의 '거두지 않은 칙령'에서 벗어난다 — '거두'는 `words.soul_verbs`라 `DT_Encounters` 규칙 0이 거절한다; 뜻은 같다 — 헤더 §11, 노트 §5.4 데2); 의회 '{Civ}의 칙령은 눌린 날들 내내 다스리는 이의 손에 매여 있었다. 의회는 다스리는 이가 정해 둔 칙령에 손대지 않은 채 내려오기를 청했다.'; 장로들 '{Civ}의 칙령은 눌린 날들 내내 다스리는 이의 손에 매여 있었다. 회중의 장로들은 그 칙령을 지켜 온 이의 이름을 칙령 머리에 새겨 뒷사람이 알게 하자고 청했다.'; ① 뒤 '{Civ}|hpp(은,는) 정해 둔 칙령을 손대지 않은 채 두었다. 칙령을 정한 이는 자리에서 내려왔다.'; ② 뒤 '{Civ}의 칙령 머리마다 다스리는 이의 이름이 새겨졌다. 칙령을 읽는 이들은 누가 정한 법인지 알고 마음을 놓았다.'
 
 **C11 · 이음매를 지우자는 유혹** — 행 `petition_cross_seam`, 통치자, 주제 Civilization
-- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivTierAtLeast 3` · `CivHasTrait Brick.Instinct.SwarmTech` · `CivLacksTrait Brick.Instinct.HiveMerge` · `CivLacksTrait Brick.Mutation.DustBand` · `CivTimeVectorAtLeast Linked 2000` · 무게 1.
+- 언제: `Lottery` · `PlayerRoleIs Ruler` · `CivTierAtLeast 3` · `CivHasTrait Brick.Instinct.SwarmTech` · `CivLacksTrait Brick.Instinct.HiveMerge` · `CivLacksTrait Brick.Mutation.DustBand` · `CivTimeVectorAtLeast Linked 3234`(잰 값 — 초안 2000) · 무게 1.
 - 목소리: 의회 — 이음매를 지우자(① — 유혹하는 쪽이 의회다); 회중의 장로들 — 손보자(②).
 - 선택:
   - ① '이음매를 지운다' (초안) — 판정 없음, 값 없음 — `AddTrait Brick.Instinct.HiveMerge`, `RemoveTrait Brick.Instinct.SwarmTech`, `ChangeStability` +0.08, `PlayerStatDelta Exaltation` +2.
@@ -270,7 +270,7 @@
 - 글 (초안): 제목 '이음매'; 의회 '{Civ}|hpp(은,는) 오래 이웃과 맺은 것을 지키며 여러 목소리로 일을 정해 왔다. 의회는 이음매를 지우고 모두가 같은 답을 내게 하자고 청했다.'; 장로들 '{Civ}|hpp(은,는) 오래 이웃과 맺은 것을 지키며 여러 목소리로 일을 정해 왔다. 회중의 장로들은 이음매가 서로 다른 이들이 맞닿은 자리라며 지우지 말고 손보자고 청했다.'; ① 뒤 '{Civ}의 회의장에서 다른 말이 그쳤다. 모두가 같은 것을 말했고, 그것은 당신이 한 말이었다.'; ② 뒤 (감사 판) '{Civ}의 이웃과 맞닿은 자리마다 고쳐 쓸 말이 정해졌다. 회의는 길어졌지만 거기서 오간 말이 학자들의 셈에 보태졌다.'
 
 **C12 · 집을 싣는 배** — 행 `enc_cross_drift_fleet`, 방랑자, 주제 VesselSystem
-- 언제: `Standing` · `PlayerRoleIs Wanderer` · `CivTimeVectorAtLeast Drifted 900` · `CivSettledSystemsAtLeast 2` · `CivLacksTrait Brick.Space.Nomad`(한 번만) · `CivLacksTrait Brick.Space.ClosedPort` · `CivLacksTrait Brick.Space.FoldedSmall` · `CivLacksTrait Brick.Form.Society` · 무게 1. 주인 없는 성계에서는 서지 않는다.
+- 언제: `Standing` · `PlayerRoleIs Wanderer` · `CivTimeVectorAtLeast Drifted 900`(잰 중앙값 686이라 아래 끝 900) · `CivSettledSystemsAtLeast 2` · `CivLacksTrait Brick.Space.Nomad`(한 번만) · `CivLacksTrait Brick.Space.ClosedPort` · `CivLacksTrait Brick.Space.FoldedSmall` · `CivLacksTrait Brick.Form.Society` · 무게 1. 주인 없는 성계에서는 서지 않는다.
 - 선택:
   - ① '배 위에서 사는 법을 보인다' (감사 판 — 이 게임에서 '법'은 칙령의 낱말이다) — 판정 `Body` 5(능력치 1이면 6에 2), 값 0 — 성공 `AddTrait Brick.Space.Nomad`(주인 백성), `ChangeReverence` +0.2; 실패 `ChangeReverence` −0.1.
   - ② '조선소에서 일손을 보탠다' (초안) — 판정 `Body` 4(6에 3), 값 0 — 성공 `ChangeReverence` +0.05; 실패 없음(닫지 않는 `Standing` 카드라 다시 올 때마다 우러름에 쌓인다 — 우러름은 방랑자가 왕좌로 가는 설계된 길이라 남긴다; 그 몫은 헤더 §5 판단 ③′와 노트 §5.4 데5가 잰다).

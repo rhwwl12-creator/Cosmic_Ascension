@@ -2875,17 +2875,18 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 	}
 	// B7x [B-7x4m] (B7x header section 5, notes section 5.4 code 8): CosmicTests::WithoutB7xData, the data-off side of B7x's
 	// pairs (-WithoutB7xData=1; =2 the rows alone) and the outermost helper of a test whose subject is not B7x - pinned to
-	// exactly the set it takes. (1) Today's data - a tripwire each data commit updates: [B-7x5s] gave the seventeen knobs their
-	// start values and the seed bricks (the helper moves the rules: the seventeen back to their initializers, every other field
-	// kept); until [B-7x5c] (the cards, the events, Society) the helper takes no row out, arch_seeker carries no brick, no card
-	// of today is a crossroads card and no event row asks a brick (the policies and the bricks line read them so -
-	// CosmicRulerPolicy::IsCrossroadsCard, AsksABrickOf).
-	// (2) On a full copy - a stand-in for each of the twenty-one rows, Society on arch_seeker, every knob off its
-	// initializer and a seed tag: =1 takes out the twenty-one, in order, and nothing else (mutations: an event kept), takes
-	// Society off arch_seeker and leaves its other traits (mutation: Society kept), puts the seventeen knobs back and keeps
-	// every other field of the rules (mutation: the knobs and the seeds kept); =2 takes the same rows and Society and keeps the
-	// rules whole (mutation: the knobs reset); after either, no crossroads card, no event row that asks a brick and no brick on
-	// a DT_Civs row is left.
+	// exactly the set it takes. (1) Today's data - a tripwire each data commit updated: [B-7x5s] gave the seventeen knobs their
+	// start values and the seed bricks, [B-7x5c] the twenty-one rows and Brick.Form.Society on arch_seeker. The helper takes
+	// out exactly those rows, in order, takes Society off arch_seeker and puts the seventeen back to their initializers (every
+	// other field kept), and takes nothing else (every other row, every DT_Civs row, arch_seeker's other traits); the walk the
+	// policies and the bricks line use (CosmicRulerPolicy::IsCrossroadsCard, AsksABrickOf) finds each in today's tables and
+	// none after the helper.
+	// (2) On a full copy laid on today's tables without B7x's data - a stand-in for each of the twenty-one rows, Society on
+	// arch_seeker, every knob off its initializer and a seed tag: =1 takes out the twenty-one, in order, and nothing else
+	// (mutations: an event kept), takes Society off arch_seeker and leaves its other traits (mutation: Society kept), puts the
+	// seventeen knobs back and keeps every other field of the rules (mutation: the knobs and the seeds kept); =2 takes the same
+	// rows and Society and keeps the rules whole (mutation: the knobs reset); after either, no crossroads card, no event row
+	// that asks a brick and no brick on a DT_Civs row is left.
 	if (TestNotNull(TEXT("(the game's rules for B7x's data)"), Game.FindRules()) && Game.Encounters.Get() && Game.Events.Get() && Game.Civs.Get())
 	{
 		const TArray<FName> TwentyOne = { CosmicTests::B7xRows::PetitionCrossBuilt, CosmicTests::B7xRows::PetitionCrossConsumed, CosmicTests::B7xRows::PetitionCrossDrifted,
@@ -2934,11 +2935,13 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		// (1) Today's data.
 		TArray<FName> TodayB7x;
 		const FCosmicDataTables TodayOff = CosmicTests::WithoutB7xData(Game, &TodayB7x);
-		TestTrue(*FString::Printf(TEXT("Today's data: WithoutB7xData takes out no row (taken: %s) - [B-7x5c] brings the twenty-one and updates this pin"), *B7xNames(TodayB7x)),
-			TodayB7x.IsEmpty());
+		TestTrue(*FString::Printf(TEXT("Today's data: WithoutB7xData takes out [B-7x5c]'s twenty-one rows, in order (taken: %s)"), *B7xNames(TodayB7x)),
+			TodayB7x == TwentyOne);
 		const FCivArchetypeDef* TodaySeeker = Game.FindCiv(CosmicRows::ArchSeeker);
-		TestTrue(TEXT("Today's arch_seeker carries no Brick.Form.Society - [B-7x5c] puts it there and updates this pin"),
-			TodaySeeker && !TodaySeeker->Traits.HasTagExact(Society));
+		TestTrue(TEXT("Today's arch_seeker carries Brick.Form.Society ([B-7x5c] - the first crossroads' start mark)"),
+			TodaySeeker && TodaySeeker->Traits.HasTagExact(Society));
+		const FCivArchetypeDef* TodayOffSeeker = TodayOff.FindCiv(CosmicRows::ArchSeeker);
+		TestTrue(TEXT("and WithoutB7xData takes it off"), TodayOffSeeker && !TodayOffSeeker->Traits.HasTagExact(Society));
 		const FCosmicRulesDef* TodayRules = Game.FindRules();
 		const FCosmicRulesDef* TodayOffRules = TodayOff.FindRules();
 		// [B-7x5s] (header section 3.4): the knobs hold their start values, so the helper moves the rules - the seventeen back to
@@ -2949,10 +2952,32 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("and puts the seventeen back to their initializers, every other field kept"),
 			TodayOffRules && FCosmicRulesDef::StaticStruct()->CompareScriptStruct(TodayOffRules, &TodayInert, 0));
 		TestTrue(TEXT("Today's seed bricks are [B-7x5s]'s eight (header section 3.4)"), TodayRules && TodayRules->BrickSeedTags.Num() == 8);
+		// [B-7x5c]: the walk finds the twelve cards, the nine event rows and Society on arch_seeker in today's tables, and none
+		// of them after the helper - the data-off side plays as before (mutation b7x5c_data_seeker_bare: Society off the row).
 		const FString TodayLeft = LeftOf(Game);
-		TestTrue(*FString::Printf(TEXT("No row of today's data is B7x's (left: %s) - the policies play as before"), *TodayLeft), TodayLeft.IsEmpty());
+		for (int32 At = 0; At < TwentyOne.Num(); ++At)
+		{
+			const FString Found = FString(At < 12 ? TEXT("card ") : TEXT("event ")) + TwentyOne[At].ToString();
+			TestTrue(*FString::Printf(TEXT("Today's walk finds %s (left: %s)"), *Found, *TodayLeft), TodayLeft.Contains(Found));
+		}
+		TestTrue(*FString::Printf(TEXT("and Society on arch_seeker (left: %s)"), *TodayLeft),
+			TodayLeft.Contains(FString(TEXT("brick ")) + CosmicRows::ArchSeeker.ToString() + TEXT(" ") + Society.ToString()));
+		const FString TodayOffLeft = LeftOf(TodayOff);
+		TestTrue(*FString::Printf(TEXT("WithoutB7xData leaves no row of B7x's in today's tables (left: %s) - the policies play as before"), *TodayOffLeft),
+			TodayOffLeft.IsEmpty());
+		// TodayOff is the base of (2)'s counts, so it is held to today's tables here and those counts do not lean on the
+		// helper they test: it takes the twelve, the nine and Society and nothing else - every other row of the two tables,
+		// every DT_Civs row and arch_seeker's other traits stay (an over-taking helper takes as much from TodayOff as from the
+		// full copy, and (2) would not see it - mutation: the helper resets arch_seeker's traits).
+		auto RowCount = [](const UDataTable* Table) { return Table ? Table->GetRowMap().Num() : -1; };
+		TestTrue(TEXT("and takes nothing else of today's tables: every other row of the two, every DT_Civs row and arch_seeker's other traits stay"),
+			RowCount(TodayOff.Encounters.Get()) == RowCount(Game.Encounters.Get()) - 12 && RowCount(TodayOff.Events.Get()) == RowCount(Game.Events.Get()) - 9
+			&& RowCount(TodayOff.Civs.Get()) == RowCount(Game.Civs.Get()) && TodaySeeker && TodayOffSeeker
+			&& TodayOffSeeker->Traits.Num() == TodaySeeker->Traits.Num() - 1);
 
-		// (2) The full copy.
+		// (2) The full copy, laid on today's tables without B7x's data (TodayOff): from [B-7x5c] today's tables hold the
+		// twenty-one rows and Society themselves, and a stand-in added under a name a table holds replaces that row
+		// (UDataTable::AddRow) - laid on Game, the counts below would see no row added and Society already on arch_seeker.
 		FCosmicRulesDef FullRules = *Game.FindRules();
 		FullRules.BrickDarkMatterEnergyPerTick = 0.5f;
 		FullRules.BrickStarEaterEnergyMultiplier = 1.5f;
@@ -2972,7 +2997,7 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		FullRules.BrickStellarCrisisSpawnMultiplier = 2.f;
 		FullRules.BrickSeedTags.AddTag(CosmicTags::BrickDietStarEater());
 		FullRules.GalaxyLawsToHold = 7;
-		FCosmicDataTables FullB7x = CosmicTests::WithRules(Game, FullRules);
+		FCosmicDataTables FullB7x = CosmicTests::WithRules(TodayOff, FullRules);
 		// A stand-in crossroads card (a time vector asked, a choice that moves a brick, the no-value choice) and a stand-in event
 		// row that asks a brick, under each of the twenty-one names.
 		FEncounterDef Crossroads;
@@ -2991,8 +3016,8 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		Asks.Type = EConditionType::CivHasTrait;
 		Asks.Tag = CosmicTags::BrickInstinctSwarmTech();
 		Overlap.Conditions.Add(Asks);
-		UDataTable* Cards = CopyOf<FEncounterDef>(Game.Encounters);
-		UDataTable* Events = CopyOf<FCosmicEventDef>(Game.Events);
+		UDataTable* Cards = CopyOf<FEncounterDef>(TodayOff.Encounters);
+		UDataTable* Events = CopyOf<FCosmicEventDef>(TodayOff.Events);
 		for (int32 At = 0; At < TwentyOne.Num(); ++At)
 		{
 			if (At < 12)
@@ -3006,7 +3031,7 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 		}
 		FullB7x.Encounters = Cards;
 		FullB7x.Events = Events;
-		UDataTable* Civs = CopyOf<FCivArchetypeDef>(Game.Civs);
+		UDataTable* Civs = CopyOf<FCivArchetypeDef>(TodayOff.Civs);
 		FCivArchetypeDef* FullSeeker = Civs->FindRow<FCivArchetypeDef>(CosmicRows::ArchSeeker, TEXT("Data.Integrity"), false);
 		const int32 SeekerTraits = FullSeeker ? FullSeeker->Traits.Num() : -1;
 		if (FullSeeker)
@@ -3014,9 +3039,8 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 			FullSeeker->Traits.AddTag(Society);
 		}
 		FullB7x.Civs = Civs;
-		auto RowCount = [](const UDataTable* Table) { return Table ? Table->GetRowMap().Num() : -1; };
-		TestTrue(TEXT("(the full copy holds the twenty-one rows and Society)"), RowCount(Cards) == RowCount(Game.Encounters.Get()) + 12
-			&& RowCount(Events) == RowCount(Game.Events.Get()) + 9 && FullSeeker && FullSeeker->Traits.HasTagExact(Society));
+		TestTrue(TEXT("(the full copy holds the twenty-one rows and Society)"), RowCount(Cards) == RowCount(TodayOff.Encounters.Get()) + 12
+			&& RowCount(Events) == RowCount(TodayOff.Events.Get()) + 9 && FullSeeker && FullSeeker->Traits.HasTagExact(Society));
 		TestFalse(TEXT("(and the walk finds them)"), LeftOf(FullB7x).IsEmpty());
 
 		for (const bool bRowsOnly : { false, true })
@@ -3025,8 +3049,8 @@ bool FCosmicDataIntegrityTest::RunTest(const FString& Parameters)
 			TArray<FName> Removed;
 			const FCosmicDataTables Off = CosmicTests::WithoutB7xData(FullB7x, &Removed, bRowsOnly);
 			TestTrue(*FString::Printf(TEXT("%s: on the full copy WithoutB7xData takes out the twenty-one rows, in order (taken: %s)"), Side, *B7xNames(Removed)), Removed == TwentyOne);
-			TestTrue(*FString::Printf(TEXT("%s: and keeps every other row of the two tables, and every DT_Civs row"), Side), RowCount(Off.Encounters.Get()) == RowCount(Game.Encounters.Get())
-				&& RowCount(Off.Events.Get()) == RowCount(Game.Events.Get()) && RowCount(Off.Civs.Get()) == RowCount(Game.Civs.Get()));
+			TestTrue(*FString::Printf(TEXT("%s: and keeps every other row of the two tables, and every DT_Civs row"), Side), RowCount(Off.Encounters.Get()) == RowCount(TodayOff.Encounters.Get())
+				&& RowCount(Off.Events.Get()) == RowCount(TodayOff.Events.Get()) && RowCount(Off.Civs.Get()) == RowCount(TodayOff.Civs.Get()));
 			TestTrue(*FString::Printf(TEXT("%s: and leaves the other tables alone"), Side), Off.Feats == FullB7x.Feats && Off.Megaprojects == FullB7x.Megaprojects
 				&& Off.Hazards == FullB7x.Hazards && Off.Edicts == FullB7x.Edicts && Off.LogTemplates == FullB7x.LogTemplates && Off.Galaxies == FullB7x.Galaxies
 				&& Off.Transcendents == FullB7x.Transcendents);

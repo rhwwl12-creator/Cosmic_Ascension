@@ -1,0 +1,24 @@
+diff --git a/Tools/data/schema.json b/Tools/data/schema.json
+--- a/Tools/data/schema.json
++++ b/Tools/data/schema.json
+@@ -1441,20 +1441,6 @@
+ 					]
+ 				},
+ 				{
+-					"why": "a card that asks a time vector holds a choice with no cost, no check, no effect and no next card too: the measuring policies count it a crossroads card by that condition alone (CosmicRulerPolicy::IsCrossroadsCard) and take that choice, so a card without one would wait in the one waiting place and block every card behind it - said the other way round: a card without such a choice asks no time vector (B7x header section 3.3 rule 4, section 5)",
+-					"when": [
+-						{"col": "Conditions", "has_type": "CivTimeVectorAtLeast"},
+-						{"none": [
+-							{"col": "Choices.Cost", "zero": true},
+-							{"col": "Choices.CheckStat", "is": "NoCheck"},
+-							{"col": "Choices.OnSuccess", "max_len": 0},
+-							{"col": "Choices.OnFailure", "max_len": 0},
+-							{"col": "Choices.NextEncounter", "set": false}
+-						]}
+-					],
+-					"then": [{"col": "Conditions", "lacks_type": "CivTimeVectorAtLeast"}]
+-				},
+-				{
+ 					"why": "a crossroads petition - the petition_cross_ rows, marked by their time vector condition because a rule names a table's own prefix only - comes in the periodic slot: a Standing card is lost while the waiting place is full and comes again at every reign (B7x header section 3.1, 3.3 rule 5)",
+ 					"when": [{"row_prefix": "petition_"}, {"col": "Conditions", "has_type": "CivTimeVectorAtLeast"}],
+ 					"then": [{"col": "Trigger", "is": "Lottery"}]

@@ -1,0 +1,24 @@
+diff --git a/Tools/data/DT_Civs.json b/Tools/data/DT_Civs.json
+--- a/Tools/data/DT_Civs.json
++++ b/Tools/data/DT_Civs.json
+@@ -2,7 +2,7 @@
+ 	{
+ 		"Name": "arch_seeker",
+ 		"DisplayName": "",
+-		"Traits": "(GameplayTags=((TagName=\"Trait.Arch.Seeker\"),(TagName=\"Trait.Society.Divided\"),(TagName=\"Trait.Biology.Shortlived\"),(TagName=\"Brick.Form.Society\")))",
++		"Traits": "(GameplayTags=((TagName=\"Trait.Arch.Seeker\"),(TagName=\"Trait.Society.Divided\"),(TagName=\"Trait.Biology.Shortlived\")))",
+ 		"EthicsPreset": {"Pacifism": 0.0, "Spiritualism": 0.0, "Openness": 0.2},
+ 		"AIProfile": "",
+ 		"Color": {"R": 0.25, "G": 0.55, "B": 1.0, "A": 1.0},
+diff --git a/Tools/test_data_schema.py b/Tools/test_data_schema.py
+--- a/Tools/test_data_schema.py
++++ b/Tools/test_data_schema.py
+@@ -3163,7 +3163,7 @@
+         self.assertEqual(len(crossroads), 12)
+         self.assertEqual(checker.check_project(), [])
+         seeker = {row["Name"]: row for row in project_tables["DT_Civs"]}["arch_seeker"]
+-        self.assertIn("Brick.Form.Society", checker.TAG_NAME.findall(seeker["Traits"]))
++        self.assertNotIn("Brick.Form.Society", checker.TAG_NAME.findall(seeker["Traits"]))
+         for row in crossroads:
+             opens = any(entry["Type"] == "CivHasTrait" and entry["Tag"] == "Brick.Form.Society" for entry in row["Conditions"])
+             if not row["Name"].startswith("petition_") or opens or row["Name"] == "petition_cross_wrapped_star":
