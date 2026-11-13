@@ -1,0 +1,13 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2398,8 +2398,7 @@
+ 			// A people folded into the very small (B7x section 2.4, Brick.Space.FoldedSmall) multiplies it once more, and so does
+ 			// a people living off its star for the stellar crisis (Brick.Form.ShutSphere, Brick.Diet.StarEater) - the share
+ 			// itself for any other owner.
+-			const float Share = CosmicBricks::HazardSpawnShareOf(Owner, Rules, Row->HazardTag,
+-				((Chance * Factor) * CosmicEdicts::SpawnMultiplierOf(Hooks, Row->HazardTag)) * Spreading);
++			const float Share = ((Chance * Factor) * CosmicEdicts::SpawnMultiplierOf(Hooks, Row->HazardTag)) * Spreading;
+ 			if (!(Share > 0.f))
+ 			{
+ 				continue;

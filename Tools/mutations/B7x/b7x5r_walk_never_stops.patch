@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp b/Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp
+@@ -86,7 +86,7 @@
+ 	// The entries of StopAfter still without a distance: every entry counts (an index given twice is waited for twice), and
+ 	// one that never gets a distance keeps the walk whole.
+ 	int32 Waiting = StopAfter.Num();
+-	const bool bStops = Waiting > 0;
++	const bool bStops = Waiting < 0;
+ 	auto Reached = [&StopAfter, &Waiting](int32 SystemIndex)
+ 	{
+ 		for (const int32 Target : StopAfter)

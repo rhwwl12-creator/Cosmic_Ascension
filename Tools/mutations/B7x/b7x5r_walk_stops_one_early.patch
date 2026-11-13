@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp b/Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp
+@@ -93,7 +93,7 @@
+ 		{
+ 			Waiting -= Target == SystemIndex ? 1 : 0;
+ 		}
+-		return Waiting <= 0;
++		return Waiting <= 1;
+ 	};
+ 	const FName Galaxy = State.Systems[FromSystemIndex].GalaxyRow;
+ 	Distances[FromSystemIndex] = 0;

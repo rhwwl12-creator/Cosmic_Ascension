@@ -504,16 +504,16 @@
 		"Subject": "Civilization",
 		"Conditions": [
 			{
-				"Type": "BorderingCivHasTrait",
-				"Tag": "Brick.Diet.CrisisParasite",
-				"Key": "None",
-				"Value": 0.0
-			},
-			{
 				"Type": "CivTimeVectorAtLeast",
 				"Tag": "",
 				"Key": "Endured",
 				"Value": 1200.0
+			},
+			{
+				"Type": "BorderingCivHasTrait",
+				"Tag": "Brick.Diet.CrisisParasite",
+				"Key": "None",
+				"Value": 0.0
 			}
 		],
 		"BaseWeight": 1.0,
@@ -691,16 +691,16 @@
 		"Subject": "Civilization",
 		"Conditions": [
 			{
-				"Type": "BorderingCivHasTrait",
-				"Tag": "Brick.Instinct.HiveMerge",
-				"Key": "None",
-				"Value": 0.0
-			},
-			{
 				"Type": "CivTimeVectorAtLeast",
 				"Tag": "",
 				"Key": "Isolated",
 				"Value": 1500.0
+			},
+			{
+				"Type": "BorderingCivHasTrait",
+				"Tag": "Brick.Instinct.HiveMerge",
+				"Key": "None",
+				"Value": 0.0
 			}
 		],
 		"BaseWeight": 1.0,

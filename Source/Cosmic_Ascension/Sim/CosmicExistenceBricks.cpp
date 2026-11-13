@@ -188,12 +188,17 @@ int32 CosmicBricks::SpanOf(const FGalaxyState& State, const FCosmicStateIndex& I
 	}
 	const TArray<int32, TInlineAllocator<16>> Settled = SettledOf(State, Index, State.Civs[CivIndex]);
 	int32 Widest = 0;
+	// [B-7x5r] (B7x header section 5 judgment 4): one pair of buffers for every walk, and each walk stops once the later
+	// settled systems have their distances - the same distances, so the same answer, bit for bit.
+	TArray<int32> Distances;
+	TArray<int32> Queue;
 	for (int32 From = 0; From + 1 < Settled.Num(); ++From)
 	{
-		const TArray<int32> Distances = CosmicState::LaneDistancesFrom(State, Index, Settled[From]);
-		for (int32 To = From + 1; To < Settled.Num(); ++To)
+		const TConstArrayView<int32> Later(Settled.GetData() + From + 1, Settled.Num() - From - 1);
+		CosmicState::LaneDistancesInto(State, Index, Settled[From], Distances, Queue, Later);
+		for (const int32 To : Later)
 		{
-			const int32 Lanes = Distances.IsValidIndex(Settled[To]) ? Distances[Settled[To]] : INDEX_NONE;
+			const int32 Lanes = Distances.IsValidIndex(To) ? Distances[To] : INDEX_NONE;
 			Widest = FMath::Max(Widest, Lanes);
 		}
 	}

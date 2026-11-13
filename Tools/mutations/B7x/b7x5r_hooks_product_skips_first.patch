@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicEdicts.cpp
+@@ -186,7 +186,7 @@
+ float CosmicEdicts::SpawnMultiplierOf(TConstArrayView<const FEdictDef*> Hooks, FGameplayTag Tag)
+ {
+ 	float Product = 1.f;
+-	for (const FEdictDef* Def : Hooks)
++	for (const FEdictDef* Def : Hooks.RightChop(1))
+ 	{
+ 		const float* Factor = Def ? Def->HazardSpawnMultipliers.Find(Tag) : nullptr;
+ 		if (Factor)

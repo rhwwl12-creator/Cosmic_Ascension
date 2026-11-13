@@ -180,10 +180,15 @@ TArray<const FEdictDef*, TInlineAllocator<8>> CosmicEdicts::HookEdictsOf(const F
 float CosmicEdicts::SpawnMultiplierOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables, int32 SystemIndex,
 	FGameplayTag Tag)
 {
+	return SpawnMultiplierOf(HookEdictsOf(State, Index, Tables, SystemIndex), Tag);
+}
+
+float CosmicEdicts::SpawnMultiplierOf(TConstArrayView<const FEdictDef*> Hooks, FGameplayTag Tag)
+{
 	float Product = 1.f;
-	for (const FEdictDef* Def : HookEdictsOf(State, Index, Tables, SystemIndex))
+	for (const FEdictDef* Def : Hooks)
 	{
-		const float* Factor = Def->HazardSpawnMultipliers.Find(Tag);
+		const float* Factor = Def ? Def->HazardSpawnMultipliers.Find(Tag) : nullptr;
 		if (Factor)
 		{
 			Product *= (*Factor >= 0.f && *Factor <= TNumericLimits<float>::Max()) ? *Factor : 0.f;

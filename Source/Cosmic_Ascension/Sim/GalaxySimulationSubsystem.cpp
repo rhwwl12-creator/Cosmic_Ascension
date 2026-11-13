@@ -2380,6 +2380,8 @@ void UGalaxySimulationSubsystem::TickHazards()
 		View.GalaxyRow = System.GalaxyRow;
 		TArray<TPair<FName, float>, TInlineAllocator<8>> Shares;
 		float Total = 0.f;
+		// The edict hooks of the system, once for every Draw row (B7x [B-7x5r] - the same list and product each row read).
+		const TArray<const FEdictDef*, TInlineAllocator<8>> Hooks = CosmicEdicts::HookEdictsOf(State, StateIndex, Tables, SystemIndex);
 		for (const FName RowName : HazardRows)
 		{
 			const FHazardDef* Row = Tables.FindHazard(RowName);
@@ -2397,7 +2399,7 @@ void UGalaxySimulationSubsystem::TickHazards()
 			// a people living off its star for the stellar crisis (Brick.Form.ShutSphere, Brick.Diet.StarEater) - the share
 			// itself for any other owner.
 			const float Share = CosmicBricks::HazardSpawnShareOf(Owner, Rules, Row->HazardTag,
-				((Chance * Factor) * CosmicEdicts::SpawnMultiplierOf(State, StateIndex, Tables, SystemIndex, Row->HazardTag)) * Spreading);
+				((Chance * Factor) * CosmicEdicts::SpawnMultiplierOf(Hooks, Row->HazardTag)) * Spreading);
 			if (!(Share > 0.f))
 			{
 				continue;

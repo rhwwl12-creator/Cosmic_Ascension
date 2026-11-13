@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp b/Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp
+@@ -91,7 +91,7 @@
+ 	{
+ 		for (const int32 Target : StopAfter)
+ 		{
+-			Waiting -= Target == SystemIndex ? 1 : 0;
++			Waiting -= Target == SystemIndex ? StopAfter.Num() : 0;
+ 		}
+ 		return Waiting <= 0;
+ 	};

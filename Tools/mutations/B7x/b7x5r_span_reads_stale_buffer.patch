@@ -1,0 +1,15 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp b/Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicStateIndex.cpp
+@@ -77,7 +77,10 @@
+ void CosmicState::LaneDistancesInto(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 FromSystemIndex, TArray<int32>& Distances,
+ 	TArray<int32>& Queue, TConstArrayView<int32> StopAfter, int32 MaxLanes)
+ {
+-	Distances.Init(INDEX_NONE, State.Systems.Num());
++	if (Distances.Num() != State.Systems.Num())
++	{
++		Distances.Init(INDEX_NONE, State.Systems.Num());
++	}
+ 	Queue.Reset(State.Systems.Num());
+ 	if (!State.Systems.IsValidIndex(FromSystemIndex) || MaxLanes < 0)
+ 	{

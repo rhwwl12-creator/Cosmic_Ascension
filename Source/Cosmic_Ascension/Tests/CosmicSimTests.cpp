@@ -1594,6 +1594,37 @@ bool FCosmicSimStateIndexTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("The walk still reaches the near side"), Split.IsValidIndex(4) ? Split[4] : -2, 4);
 		const TArray<int32> Outside = CosmicState::LaneDistancesFrom(Wired, Index, Wired.Systems.Num());
 		TestTrue(TEXT("An index out of range reaches nothing"), Outside.Num() == Wired.Systems.Num() && !Outside.Contains(0));
+
+		// B7x [B-7x5r]: the walk into the caller's buffers (LaneDistancesInto) - with no target it gives what
+		// LaneDistancesFrom gives from every system and every MaxLanes, the buffers kept from one call to the next; with
+		// targets it stops once they have their distances, and they have the same distances (mutations: a stop one target
+		// early, a stop at the first target, a target counted on another system, a kept buffer not cleared, a walk that never
+		// stops).
+		TArray<int32> Distances;
+		TArray<int32> Queue;
+		bool bSame = true;
+		for (int32 From = -1; From <= Wired.Systems.Num(); ++From)
+		{
+			for (const int32 Cap : { MAX_int32, 3, 0, -1 })
+			{
+				CosmicState::LaneDistancesInto(Wired, Index, From, Distances, Queue, TConstArrayView<int32>(), Cap);
+				bSame &= Distances == CosmicState::LaneDistancesFrom(Wired, Index, From, Cap);
+			}
+		}
+		TestTrue(TEXT("Without targets the walk into kept buffers is LaneDistancesFrom, from every system and every MaxLanes"), bSame);
+		// (The galaxy as split above: 0-1-2-3-4, 4-10-11 reachable from 0; 5 in another galaxy, so 6-9 are not.)
+		const TArray<int32> Whole = CosmicState::LaneDistancesFrom(Wired, Index, 0);
+		const int32 Targets[] = { 3, 11 };
+		CosmicState::LaneDistancesInto(Wired, Index, 0, Distances, Queue, TConstArrayView<int32>(Targets));
+		TestTrue(TEXT("With targets each target has its distance"), Whole.IsValidIndex(11) && Whole[3] == 3 && Whole[11] == 6
+			&& Distances[3] == Whole[3] && Distances[11] == Whole[11]);
+		const int32 OneTarget[] = { 3 };
+		CosmicState::LaneDistancesInto(Wired, Index, 0, Distances, Queue, TConstArrayView<int32>(OneTarget));
+		TestEqual(TEXT("With one target the walk stops there: the target has its distance"), Distances.IsValidIndex(3) ? Distances[3] : -2, 3);
+		TestEqual(TEXT("and a farther system is left out"), Distances.IsValidIndex(4) ? Distances[4] : -2, static_cast<int32>(INDEX_NONE));
+		const int32 Cut[] = { 3, 12 };
+		CosmicState::LaneDistancesInto(Wired, Index, 0, Distances, Queue, TConstArrayView<int32>(Cut));
+		TestTrue(TEXT("A target that cannot be reached lets the walk run whole"), Distances == Whole);
 	}
 
 	// Leave a consistent galaxy behind.

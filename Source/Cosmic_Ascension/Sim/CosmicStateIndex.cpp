@@ -69,16 +69,39 @@ bool CosmicState::OwnsAnySystem(const FGalaxyState& State, const FCosmicStateInd
 TArray<int32> CosmicState::LaneDistancesFrom(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 FromSystemIndex, int32 MaxLanes)
 {
 	TArray<int32> Distances;
+	TArray<int32> Queue;
+	LaneDistancesInto(State, Index, FromSystemIndex, Distances, Queue, TConstArrayView<int32>(), MaxLanes);
+	return Distances;
+}
+
+void CosmicState::LaneDistancesInto(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 FromSystemIndex, TArray<int32>& Distances,
+	TArray<int32>& Queue, TConstArrayView<int32> StopAfter, int32 MaxLanes)
+{
 	Distances.Init(INDEX_NONE, State.Systems.Num());
+	Queue.Reset(State.Systems.Num());
 	if (!State.Systems.IsValidIndex(FromSystemIndex) || MaxLanes < 0)
 	{
-		return Distances;
+		return;
 	}
+	// The entries of StopAfter still without a distance: every entry counts (an index given twice is waited for twice), and
+	// one that never gets a distance keeps the walk whole.
+	int32 Waiting = StopAfter.Num();
+	const bool bStops = Waiting > 0;
+	auto Reached = [&StopAfter, &Waiting](int32 SystemIndex)
+	{
+		for (const int32 Target : StopAfter)
+		{
+			Waiting -= Target == SystemIndex ? 1 : 0;
+		}
+		return Waiting <= 0;
+	};
 	const FName Galaxy = State.Systems[FromSystemIndex].GalaxyRow;
-	TArray<int32> Queue;
-	Queue.Reserve(State.Systems.Num());
 	Distances[FromSystemIndex] = 0;
 	Queue.Add(FromSystemIndex);
+	if (bStops && Reached(FromSystemIndex))
+	{
+		return;
+	}
 	for (int32 Head = 0; Head < Queue.Num(); ++Head)
 	{
 		const int32 Current = Queue[Head];
@@ -93,10 +116,13 @@ TArray<int32> CosmicState::LaneDistancesFrom(const FGalaxyState& State, const FC
 			{
 				Distances[Next] = Distances[Current] + 1;
 				Queue.Add(Next);
+				if (bStops && Reached(Next))
+				{
+					return;
+				}
 			}
 		}
 	}
-	return Distances;
 }
 
 CosmicState::FCosmicSightWalk CosmicState::SightWalkOf(const FGalaxyState& State, const FCosmicStateIndex& Index, TConstArrayView<int32> EyePlaces)

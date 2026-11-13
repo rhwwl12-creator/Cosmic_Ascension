@@ -55,6 +55,18 @@ namespace CosmicState
 	 */
 	COSMIC_ASCENSION_API TArray<int32> LaneDistancesFrom(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 FromSystemIndex, int32 MaxLanes = MAX_int32);
 
+	/**
+	 * The walk of LaneDistancesFrom into the caller's arrays (B7x [B-7x5r] - a caller that walks again and again keeps its
+	 * buffers): Distances is set to one entry per element of State.Systems with the values LaneDistancesFrom gives, Queue
+	 * is scratch. With StopAfter not empty the walk stops as soon as every index in StopAfter has its distance (a
+	 * breadth-first distance is final when it is set), so only the entries of StopAfter are to be read - the others past
+	 * that point stay INDEX_NONE although they may be reachable. An index of StopAfter that is never reached (out of
+	 * range, cut off, in another GalaxyRow) lets the walk run whole. LaneDistancesFrom is this walk with an empty
+	 * StopAfter. StopAfter must not view Distances or Queue (both are reset before it is read). World state only, no draw.
+	 */
+	COSMIC_ASCENSION_API void LaneDistancesInto(const FGalaxyState& State, const FCosmicStateIndex& Index, int32 FromSystemIndex, TArray<int32>& Distances,
+		TArray<int32>& Queue, TConstArrayView<int32> StopAfter = TConstArrayView<int32>(), int32 MaxLanes = MAX_int32);
+
 	/** What one look outward from the places of an eye finds (SightWalkOf). */
 	struct FCosmicSightWalk
 	{

@@ -76,6 +76,10 @@ namespace CosmicEdicts
 	COSMIC_ASCENSION_API float SpawnMultiplierOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
 		int32 SystemIndex, FGameplayTag Tag);
 
+	/** Hook 1 over a list of hooks the caller holds (B7x [B-7x5r] - the spawn draw asks it for every Draw row of one system,
+	 * so it gathers HookEdictsOf once a system): the same product, in the same order, of the same factors. */
+	COSMIC_ASCENSION_API float SpawnMultiplierOf(TConstArrayView<const FEdictDef*> Hooks, FGameplayTag Tag);
+
 	/** Hook 2: the sum of the HazardCountdownBonus for Tag of the edicts of HookEdictsOf - added when a hazard is placed on the
 	 * system (CosmicHazards::Place): values above 0 only, summed as int64, cut to 0..100000. */
 	COSMIC_ASCENSION_API int32 CountdownBonusOf(const FGalaxyState& State, const FCosmicStateIndex& Index, const FCosmicDataTables& Tables,
