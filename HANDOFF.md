@@ -1,8 +1,10 @@
 # Cosmic Ascension 인수인계 — B6b 마무리와 B7x 통합 (Claude Code 세션 → 다른 세션)
 
-> **상태 줄**(커밋할 때마다, 그리고 멈출 때 고친다): 2026-11-14 03:00 — 진행 중(Claude Code 세션 15a1d0fe, 범위: `[B-7h0]` 들이기까지). main은 `29e2ecd` `[B-6b12]` 그대로. B7x 가지 `cloud/b7x-on-29e2ecd`(원격에 있음) = `2bd7bab` `[B-7x5s]`(씨앗·노브 — 판단 ⑥ 통과, 변이 `b7x5s_` 8/8 깨짐, 두 해시 다섯 쌍 옮음; 변이 문턱 1,200은 리드 판정 L8 — 개발자 확인 대기). 지금: `[B-7x5c]`(카드·사건·Society — 이식·문턱·새 테스트 넷을 통합 작업 사본에 얹고 빌드 중). 다음: 5c 측정·변이·밸런스 리뷰 → (필요하면 `[B-7x5r]`) → main에 합치기와 가지 정리 → `[B-7h0]` → Antigravity 넘김 글.
+> **상태 줄**(커밋할 때마다, 그리고 멈출 때 고친다): 2026-11-14 07:30 — 이 세션(Claude Code 15a1d0fe)의 범위를 마쳤다. main = `18a0cfa` `[B-7xz]`(푸시) — 그 아래 `56e7d82` `[B-7h0]` — B7x 여덟 커밋(`[B-7x0]`~`[B-7x5r]`, 끝 `62eb013`)과 B7 헤더 승인 문서. 남은 브랜치는 지웠다(원격은 `main`·`handoff/cloud`·`tools/agent-setup`만; 지우기 전 브랜치는 `Saved\Handoff\branches_before_cleanup_2026-11-14.bundle`). **다음 세션은 `Saved\Handoff\PROMPT_antigravity_B7_start_2026-11-14.md`부터 읽는다** — 이 파일의 §4·§5(B6b와 B7x 통합)는 끝난 일의 기록이다.
 
 이 파일은 저장소 밖(`Saved/`는 git이 무시한다)의 운영 메모다. 설계의 단일 기준은 `docs/`, 지금 상태는 `STATUS.md`와 `git log`다 — 이 파일과 다르면 그쪽이 이긴다.
+
+> **2026-11-14 — 이 파일의 §4(B6b)·§5(B7x 통합)·§6은 끝난 일이다.** 다음 일(B7-0 다시 잼·B7 코드·B7x 손 확인의 준비)과 지금의 규칙·도구는 `Saved\Handoff\PROMPT_antigravity_B7_start_2026-11-14.md`에 있다. §1~§3의 규칙 가운데 그 글과 다른 것(통합 작업 사본·`integrate/b7x`·`SCR\b7x\int` — 이제 없다)은 그 글이 이긴다.
 
 ## 0. 먼저 할 일 (차례)
 
