@@ -36,9 +36,11 @@ namespace CosmicSeed
 		inline constexpr uint32 Encounter = 11; // a wanderer's card: the arrival card's share and pick, the pick among Standing rows (name = the vessel's SystemID, index = tick), B1
 		inline constexpr uint32 Digest = 12;    // the variant of a line of the interregnum's digest (name = the item's ID, index = its tick; presentation), B5 - World/CosmicDigest
 		inline constexpr uint32 Brick = 13;     // the seed brick of an AI people at generation (name = CivID, index 0), B7x - CosmicBricks::SeedBrickOf
+		inline constexpr uint32 TreatyAsk = 14; // the ask slot of a bordering AI's treaty ask card (name = CivID, index 0), B7 [B-7b1]
 	}
 	static_assert(Purpose::Digest == 12, "CosmicSeed::Purpose: fixed numbers, append only (B5 header section 2.7 names 12)");
 	static_assert(Purpose::Brick == 13, "CosmicSeed::Purpose: fixed numbers, append only (B7x [B-7x2] names 13)");
+	static_assert(Purpose::TreatyAsk == 14, "CosmicSeed::Purpose: fixed numbers, append only (B7 header section 2.15 names 14)");
 
 	/**
 	 * Stateless integer from (Seed, name, purpose, index). LowerAsciiName is a row name or an ID in lower-case ASCII:

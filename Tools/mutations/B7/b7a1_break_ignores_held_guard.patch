@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+@@ -213,7 +213,7 @@
+ 	};
+ 	RemoveFrom(State.Civs[A], State.Civs[B].CivID);
+ 	RemoveFrom(State.Civs[B], State.Civs[A].CivID);
+-	if (bHeld)
++	if (true)
+ 	{
+ 		// B7 [B-7a1] (header sections 2.4, 2.15; decision 18): record the breaker's tick on any broken treaty, and stamp trade-shock window
+ 		// on both sides whenever a trade treaty breaks. If !bHeld, neither timestamp moves.

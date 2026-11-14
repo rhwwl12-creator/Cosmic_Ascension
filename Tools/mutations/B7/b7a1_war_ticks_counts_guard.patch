@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2303,7 +2303,7 @@
+ 	AtWar.Init(false, State.Civs.Num());
+ 	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+ 	{
+-		if (!CosmicConflict::IsBesieging(State, StateIndex, CivIndex))
++		if (State.Civs[CivIndex].FleetTargetSystemID.IsNone())
+ 		{
+ 			continue;
+ 		}

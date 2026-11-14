@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Core/GalaxyState.h b/Source/Cosmic_Ascension/Core/GalaxyState.h
+--- a/Source/Cosmic_Ascension/Core/GalaxyState.h
++++ b/Source/Cosmic_Ascension/Core/GalaxyState.h
+@@ -209,7 +209,6 @@
+ 	// Home.FoundingCivID = Civ.CivID; CosmicMegaprojects::Advance stamps CompleterID on project_settle completion when
+ 	// still NAME_None. Transfer, Destroy, LetPeopleGo and later settlements never overwrite it, and crossing cleanup
+ 	// keeps a vanished CivID as record (no memory when absent from Civs). Saved via delta; part of both hashes.
+-	UPROPERTY(BlueprintReadOnly)
+ 	FName FoundingCivID;
+ 
+ 	// Phase 6 (append): FName EpithetRow - the second name the chronicle gives a system (section 5.11).

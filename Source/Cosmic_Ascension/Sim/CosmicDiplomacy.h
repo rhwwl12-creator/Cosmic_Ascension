@@ -83,8 +83,9 @@ namespace CosmicDiplomacy
 	/** Adds Treaty to both peoples' ties - the one way a treaty is made, so the pair stays symmetric. */
 	COSMIC_ASCENSION_API void Sign(FGalaxyState& State, int32 A, int32 B, FGameplayTag Treaty);
 
-	/** Removes Treaty from both peoples' ties (normal form kept). False when the pair did not hold it. */
-	COSMIC_ASCENSION_API bool Break(FGalaxyState& State, int32 A, int32 B, FGameplayTag Treaty);
+	/** Removes Treaty from both peoples' ties (normal form kept). False when the pair did not hold it. When broken,
+	 * stamps A's TreatyBrokenTick and, for Treaty.Trade, both parties' TradeShockUntilTick (Tick + max(0, TradeShockTicks)). */
+	COSMIC_ASCENSION_API bool Break(FGalaxyState& State, int32 A, int32 B, FGameplayTag Treaty, int32 TradeShockTicks = 0);
 
 	/** Removes CivID's key from every people's Ties (the crossing stage, where it removes the Relations keys). */
 	COSMIC_ASCENSION_API void ForgetCiv(FGalaxyState& State, FName CivID);
@@ -151,9 +152,10 @@ namespace CosmicDiplomacy
 		const FCosmicRulesDef& Rules, int32 CivIndex);
 
 	/** Turns CivIndex hostile toward Other and breaks the pair's trade treaty (header section 2.2): when it held one, the other
-	 * people's view of CivIndex falls by Penalty at once (the ruler's command passes BetrayalRelationPenalty, the AI 0). The
-	 * gate is the caller's. True when a trade treaty was broken. */
-	COSMIC_ASCENSION_API bool TurnHostile(FGalaxyState& State, int32 CivIndex, int32 Other, float Penalty);
+	 * people's view of CivIndex falls by Penalty at once (the ruler's command passes BetrayalRelationPenalty, the AI 0),
+	 * and Break stamps TreatyBrokenTick and TradeShockUntilTick (using TradeShockTicks). The gate is the caller's. True
+	 * when a trade treaty was broken. */
+	COSMIC_ASCENSION_API bool TurnHostile(FGalaxyState& State, int32 CivIndex, int32 Other, float Penalty, int32 TradeShockTicks = 0);
 
 	/** The display name of a stance - ST_CA Stance.Friendly, Stance.Hostile, or Stance.Neutral for the empty tag (the
 	 * {Stance} slot of a line). */

@@ -1,0 +1,14 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -2310,10 +2310,6 @@
+ 		const int32 TargetSystem = StateIndex.FindSystem(State, State.Civs[CivIndex].FleetTargetSystemID);
+ 		const int32 Defender = State.Systems.IsValidIndex(TargetSystem) ? StateIndex.FindCiv(State, State.Systems[TargetSystem].OwnerCivID) : INDEX_NONE;
+ 		AtWar[CivIndex] = true;
+-		if (State.Civs.IsValidIndex(Defender))
+-		{
+-			AtWar[Defender] = true;
+-		}
+ 	}
+ 	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+ 	{

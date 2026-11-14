@@ -3,7 +3,7 @@
 ## 프로젝트
 
 UE 5.8.3, C++ 게임 모듈 `Cosmic_Ascension`. 1인 개발, 린 시뮬레이션: 3D 에셋·캐릭터 모델 참조 금지, 데이터는 DataTable(FTableRowBase), 식별자 FName, 분류 FGameplayTag, 표시 문자열 FText.
-개발 PC(Windows): 프로젝트 루트 `C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension`(OneDrive 안 — 옮기면 이 줄과 docs/40_DEV_GUIDE.md의 경로를 함께 갱신), 엔진 `C:\Program Files\Epic Games\UE_5.8`. `.uproject`의 EngineAssociation은 GUID `{CCB28703-480F-382D-F8F7-E6A5E7850219}`이고 `"5.8"` 문자열로 바꾸지 않는다(이유와 다른 PC에서의 재연결은 docs/45_ENGINE_NOTES.md).
+개발 PC(Windows): 루트 `C:\Users\rhwwl\OneDrive\Documents\Unreal Projects\Cosmic_Ascension`(옮기면 이 줄·docs/40_DEV_GUIDE.md 경로 동시 갱신), 엔진 `C:\Program Files\Epic Games\UE_5.8`. `.uproject`의 EngineAssociation은 GUID `{CCB28703-480F-382D-F8F7-E6A5E7850219}`이며 `"5.8"` 문자열로 바꾸지 않는다(상세: docs/45_ENGINE_NOTES.md).
 세계관 원천은 `docs/90_LORE/cosmic_species_codex.md`(개발자의 대도감 — 게임 데이터가 아니고 고치지 않는다).
 
 ## 문서 지도 (2026-10-18 재편 — 설계의 단일 기준은 docs/)
@@ -43,7 +43,7 @@ UE 5.8.3, C++ 게임 모듈 `Cosmic_Ascension`. 1인 개발, 린 시뮬레이션
 10. **소스**: ASCII만(주석 영문), 한국어는 DataTable/String Table에만. include는 모듈 루트 기준 `"Sim/GalaxySimulationSubsystem.h"`. `UE_LOG` 카테고리는 `LogCosmic` 하나. CommonUI 금지(UMG만). UI 라벨은 `FText::FromStringTable(…, FindOrFullyLoad)`.
 11. **서사**: 거룩한 질서(하나님)는 엔티티·화자·수치·엔딩 조건이 아니다. 1인칭 로그 화자는 타락 초월자만. 서술자 문장에 판정 어휘(천국·지옥·구원받·멸망받·영혼·저주받·심판받) 금지(스키마 `words.verdict` — `Tools/test_data_schema.py`가 이 괄호의 일곱 낱말을 그대로 읽는다). 사람의 수는 어디에도 숫자로 쓰지 않는다(규모 등급만); 서술의 숫자는 주기·비율뿐, 자원·Stability 숫자는 UI에만; 천체의 수와 거리는 UI 라벨에만('약'·'추정'). 지어낸 이름은 한국어 묘사 이름(다른 작품·신화·성경 고유명·실존 인물 금지 — '이름의 거름'). 플레이어에게 구원자·메시아 등의 칭호와 '신이 되었다' 금지 — 받은 꼴만.
 12. **요약 단위**: 인물은 `FNotableRecord`(5필드) 기록이고 능력치·AI·관계가 없다; 능력치를 가진 개인은 그릇 하나(`FPlayerEntityState`). 영혼·구원·멸망을 세는 필드·컬럼·업적은 없다(영혼 경제의 유일한 크기는 초월자 영향권). `Realm`·`Depth`는 정의(`FTranscendentDef`)이지 상태가 아니다. 칸(`EAscensionTier`)은 다섯 그대로(T0·T6·대체 등급 타입 없음). 초월자는 판에 교리마다 1체.
-13. **세계 규칙의 단일 창구**: 정착된 성계 = 소유 ∧ `ActiveMegaproject != project_settle`(수입·남은 자 법·Hazard 추첨·인접 판정·국경이 이 술어를 쓴다). 무주 성계에는 Hazard·주장이 서지 않는다. 성역 `sol`(배열 끝, `Law.Hedge`, 술어 `CosmicState::IsSanctuary` — `Core/CosmicIDs.h`)은 소유·정착·주장·파괴·압력·그릇에서 빠진다(거절 자리는 docs/21 §7.4 '세계 함수'). 정착 가능 여부는 `CosmicMegaprojects::SettleBlockOf` 하나(첫 사유 `Sanctuary`), Hazard 배치는 `CosmicHazards::Place` 하나, 칙령 제정은 `CosmicEdicts::EnactBlockOf` 하나, 공성·지킴은 `CosmicConflict::SiegeBlockOf`·`GuardBlockOf`, 태세·조약은 `CosmicDiplomacy::StanceBlockOf`·`TreatyBlockOf`(B3), 카드 선택은 `CosmicPetitions::ChoiceGateOf`, 카드의 함대 시간은 `CosmicConflict::ResistBlockOf`이고 효과 `EnactEdict`는 `EnactBlockOf`를 지난다(B4), `KillPlayer`의 닿음은 `CosmicHazards::VesselAtRiskOf`(B5), 계승 후보는 `CosmicSuccession::CandidatesOf`(B5), 절멸 `CosmicHazards::LetPeopleGo`·결박 `CosmicSeal::BindTargetOf`·제동 `CosmicAscent::FourthRungOpenOf`·지킴 상한 `GuardDelayCapOf`(B6b), 엔딩·침묵은 `CosmicEndings::EndingOf`·`CosmicSuccession::IsSilent`(B6a), 주장 규칙은 `CosmicHazards::ClaimRuleHoldsOf`(화면의 답은 `ClaimMayFollowOf`)(B6a). `Relations`·`Ties`의 없는 키 = 중립. `DeposeRuler`·`KillPlayer`는 `Apply`를 거쳐 `PendingRoleEffect`로 기록되고 열째 단계에서 처리된다(폐위·양위·죽음).
+13. **세계 규칙의 단일 창구**: 정착된 성계 = 소유 ∧ `ActiveMegaproject != project_settle`(수입·남은 자 법·Hazard 추첨·인접 판정·국경이 이 술어를 쓴다). 무주 성계에는 Hazard·주장이 서지 않는다. 성역 `sol`(배열 끝, `Law.Hedge`, 술어 `CosmicState::IsSanctuary` — `Core/CosmicIDs.h`)은 소유·정착·주장·파괴·압력·그릇에서 빠진다(거절 자리는 docs/21 §7.4 '세계 함수'). 정착 가능 여부는 `CosmicMegaprojects::SettleBlockOf` 하나(첫 사유 `Sanctuary`), Hazard 배치는 `CosmicHazards::Place` 하나, 칙령 제정은 `CosmicEdicts::EnactBlockOf` 하나, 공성·지킴은 `CosmicConflict::SiegeBlockOf`·`GuardBlockOf`, 태세·조약은 `CosmicDiplomacy::StanceBlockOf`·`TreatyBlockOf`(B3), 카드 선택은 `CosmicPetitions::ChoiceGateOf`, 카드의 함대 시간은 `CosmicConflict::ResistBlockOf`이고 효과 `EnactEdict`는 `EnactBlockOf`를 지난다(B4), `KillPlayer`의 닿음은 `CosmicHazards::VesselAtRiskOf`(B5), 계승 후보는 `CosmicSuccession::CandidatesOf`(B5), 절멸 `CosmicHazards::LetPeopleGo`·결박 `CosmicSeal::BindTargetOf`·제동 `CosmicAscent::FourthRungOpenOf`·지킴 상한 `GuardDelayCapOf`(B6b), 엔딩·침묵은 `CosmicEndings::EndingOf`·`CosmicSuccession::IsSilent`(B6a), 주장 규칙은 `CosmicHazards::ClaimRuleHoldsOf`(화면의 답은 `ClaimMayFollowOf`)(B6a), B7 예정 단일 창구는 `CosmicAIProfiles::Of`·`CosmicDiplomacy::TreatyAskOf`·`CosmicEdicts::IsClaimHookOf`. `Relations`·`Ties`의 없는 키 = 중립. `DeposeRuler`·`KillPlayer`는 `Apply`를 거쳐 `PendingRoleEffect`로 기록되고 열째 단계에서 처리된다(폐위·양위·죽음).
 14. **표현 계층의 앎 읽기**: 앎을 읽는 곳은 `CosmicMapLook::KnownViewOf` 하나(`FCosmicKnownView`) — 지도·성계 패널·선택·클릭·피드가 같은 답(`IsKnown`·`IsShownByName`·`IsShown`·`ShownOrderOf`·`OwnerShownOf`)을 읽고 앎에 쓰지 않는다. 그리기·고르기·선택의 문은 `IsShown`(= `IsKnown` ∨ `IsShownByName` — 성역은 이름과 별만), 주인을 알리는 답은 `IsKnown`만. 격차 규칙은 Core 술어 하나 `CosmicKnowing::IsFarAbove`(세 칸 이상 위)를 `Tell`·`NoteMet`·`IsShownPeople`·즉위의 문·이름 없는 줄이 읽는다(방랑자 카드는 `RungsAbove` ≤ 1). 우주 화면은 같은 지도의 줌 단계(`World/CosmicZoomLevels`·`World/CosmicUniverseLook`; `DT_Galaxies` 20행) — 수·다리·영적 표지가 없다.
 15. **예정(아직 코드에 없음 — 바꾸기 전에 docs/50_ROADMAP.md·OPEN_QUESTIONS 확인)**: 성역의 레인·실제 자리·실제 하늘·`DT_Planets`(단계 5), 서막·`ReceiveCalling`(단계 6), 첫 생애 행의 본문·이름 뱅크·금지어 목록(단계 7). **현재 코드**(A0~B6b — 블록마다 무엇이 코드에 들었는지, `sys_0`·`sol`의 자리 포함): docs/50_ROADMAP.md '현재 코드와 예정'. 헤더 `docs/60_DECISIONS/headers/`.
 
@@ -55,7 +55,7 @@ UE 5.8.3, C++ 게임 모듈 `Cosmic_Ascension`. 1인 개발, 린 시뮬레이션
 - UE 5.8은 학습 데이터보다 새 버전이다. 낯선 엔진 API는 반드시 로컬 엔진 소스에서 선언 헤더를 확인한다(검증된 경로 목록: docs/45_ENGINE_NOTES.md).
 - 새 UCLASS/USTRUCT/UENUM·헤더 변경 = 에디터를 닫고 전체 빌드. Live Coding(Ctrl+Alt+F11)은 .cpp 본문 변경에만.
 - 커밋 = 컴파일되는 상태 + 자동화 테스트 2회 연속 통과. 제목은 한국어 요약에 작업 접두어(예 `[P3-12]`), 본문 끝에 `Co-Authored-By` 트레일러. 작업 표에는 날짜만 적고 '표에 커밋 해시를 적는' 별도 커밋은 만들지 않는다(`git log --grep '[P3-12]'`로 찾는다).
-- 제안·리뷰·보고는 '추가 이야기와 보완'으로 끝낸다. 설계를 바꾸지 않는 작은 보완(툴팁·문구·표시)은 목록에 두지 않고 그 작업의 커밋에 바로 넣는다. 결정이 바뀌면 `docs/60_DECISIONS/DECISIONS_LOG.md`에 날짜·근거를 적고 OPEN_QUESTIONS의 행을 지운다.
+- 제안·리뷰·보고는 '추가 이야기와 보완'으로 끝낸다. 설계 불변의 작은 보완(툴팁·문구·표시)은 목록 없이 해당 커밋에 바로 넣는다. 결정이 바뀌면 `docs/60_DECISIONS/DECISIONS_LOG.md`에 날짜·근거를 적고 OPEN_QUESTIONS의 행을 지운다.
 
 ## 빌드 / 실행 / 테스트 (요약 — 명령 전문과 PowerShell 5.1 주의는 docs/40_DEV_GUIDE.md '빌드·실행·테스트')
 
@@ -63,9 +63,9 @@ Windows, 에디터를 닫은 상태에서. 순서: 데이터 검사(`python -I T
 
 ## 모듈 / UHT / 컴파일 규칙 (5.8 UBT 소스 확인)
 
-헤더 파일 이름은 **타깃 전체에서 유일**해야 한다(UHT가 모듈을 가로질러 검사). `Types.h`, `Utils.h` 같은 이름 금지. 항상 도메인 접두어(`CosmicTypes.h`).
-`.generated.h`는 헤더의 마지막 include. `#pragma once` 필수.
-include는 모듈 루트 기준(`"Sim/GalaxySimulationSubsystem.h"`). `"Cosmic_Ascension/Sim/..."`도 해석되지만 쓰지 않는다. 서브폴더는 자동 include 경로가 아니므로 다른 폴더의 헤더를 파일명만으로 include하지 않는다.
+헤더 파일 이름은 **타깃 전체에서 유일**해야 한다(UHT 모듈 횡단 검사: `Types.h` 금지, 도메인 접두어 필수).
+`.generated.h`는 헤더 마지막 include, `#pragma once` 필수.
+include는 모듈 루트 기준(`"Sim/GalaxySimulationSubsystem.h"`, `"Cosmic_Ascension/..."` 금지). 서브폴더는 자동 include 경로가 아니므로 파일명만 적지 않는다.
 BuildSettingsVersion.V7 + IncludeOrder Unreal5_8: C++20, `UE_LOG` 포맷 문자열 컴파일 타임 검증, 미정의 식별자/반환 타입/dangling/unreachable 경고가 **에러**, 전이 include 의존 금지(쓰는 헤더는 직접 include).
 UPROPERTY의 기본값 초기화식은 UHT가 `;`까지 건너뛴다(`EpicGames.UHT/Parsers/UhtPropertyParser.cs`의 `PropertyParsed`). `TArray<float> X = { 0.f, 1.f };`, `TMap<FName, float> M = { { TEXT("A"), 1.f } };` 같은 중괄호 초기화를 쓸 수 있다. Category 지정자는 엔진 모듈에서만 필수다.
 

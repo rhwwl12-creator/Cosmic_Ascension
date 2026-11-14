@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+@@ -218,7 +218,7 @@
+ 		// B7 [B-7a1] (header sections 2.4, 2.15; decision 18): record the breaker's tick on any broken treaty, and stamp trade-shock window
+ 		// on both sides whenever a trade treaty breaks. If !bHeld, neither timestamp moves.
+ 		State.Civs[A].TreatyBrokenTick = State.Tick;
+-		if (Treaty == CosmicTags::TreatyTrade())
++		if (Treaty.IsValid())
+ 		{
+ 			const int64 ShockUntil = State.Tick + static_cast<int64>(FMath::Max(0, TradeShockTicks));
+ 			State.Civs[A].TradeShockUntilTick = ShockUntil;

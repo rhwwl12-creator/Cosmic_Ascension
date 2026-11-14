@@ -196,7 +196,7 @@ void CosmicDiplomacy::Sign(FGalaxyState& State, int32 A, int32 B, FGameplayTag T
 	State.Civs[B].Ties.FindOrAdd(State.Civs[A].CivID).Treaties.AddTag(Treaty);
 }
 
-bool CosmicDiplomacy::Break(FGalaxyState& State, int32 A, int32 B, FGameplayTag Treaty)
+bool CosmicDiplomacy::Break(FGalaxyState& State, int32 A, int32 B, FGameplayTag Treaty, int32 TradeShockTicks)
 {
 	if (!State.Civs.IsValidIndex(A) || !State.Civs.IsValidIndex(B) || A == B || !Treaty.IsValid())
 	{
@@ -213,6 +213,18 @@ bool CosmicDiplomacy::Break(FGalaxyState& State, int32 A, int32 B, FGameplayTag 
 	};
 	RemoveFrom(State.Civs[A], State.Civs[B].CivID);
 	RemoveFrom(State.Civs[B], State.Civs[A].CivID);
+	if (bHeld)
+	{
+		// B7 [B-7a1] (header sections 2.4, 2.15; decision 18): record the breaker's tick on any broken treaty, and stamp trade-shock window
+		// on both sides whenever a trade treaty breaks. If !bHeld, neither timestamp moves.
+		State.Civs[A].TreatyBrokenTick = State.Tick;
+		if (Treaty == CosmicTags::TreatyTrade())
+		{
+			const int64 ShockUntil = State.Tick + static_cast<int64>(FMath::Max(0, TradeShockTicks));
+			State.Civs[A].TradeShockUntilTick = ShockUntil;
+			State.Civs[B].TradeShockUntilTick = ShockUntil;
+		}
+	}
 	return bHeld;
 }
 
@@ -487,14 +499,14 @@ int32 CosmicDiplomacy::AITreatyPartnerOf(const FGalaxyState& State, const FCosmi
 	return INDEX_NONE;
 }
 
-bool CosmicDiplomacy::TurnHostile(FGalaxyState& State, int32 CivIndex, int32 Other, float Penalty)
+bool CosmicDiplomacy::TurnHostile(FGalaxyState& State, int32 CivIndex, int32 Other, float Penalty, int32 TradeShockTicks)
 {
 	if (!State.Civs.IsValidIndex(CivIndex) || !State.Civs.IsValidIndex(Other) || CivIndex == Other)
 	{
 		return false;
 	}
 	SetStanceOf(State.Civs[CivIndex], State.Civs[Other].CivID, CosmicTags::StanceHostile());
-	const bool bBroke = Break(State, CivIndex, Other, CosmicTags::TreatyTrade());
+	const bool bBroke = Break(State, CivIndex, Other, CosmicTags::TreatyTrade(), TradeShockTicks);
 	if (bBroke)
 	{
 		LowerRelation(State.Civs[Other], State.Civs[CivIndex].CivID, Penalty);

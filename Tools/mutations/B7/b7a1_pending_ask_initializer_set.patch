@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Core/GalaxyState.h b/Source/Cosmic_Ascension/Core/GalaxyState.h
+--- a/Source/Cosmic_Ascension/Core/GalaxyState.h
++++ b/Source/Cosmic_Ascension/Core/GalaxyState.h
+@@ -815,7 +815,7 @@
+ 	// default NAME_None. [B-7a1] adds the field and cleanup hooks; [B-7b1] writes it at the knowing stage's end and
+ 	// clears it when answered. Part of ComputeStateHash; excluded from ComputeWorldHash.
+ 	UPROPERTY()
+-	FName PendingAskCivID;
++	FName PendingAskCivID = FName(TEXT("civ_0"));
+ 
+ 	// The deposed former people waiting for an exile card (B7 [B-7a1] - header sections 2.10, 2.12, 2.15). Frozen
+ 	// default NAME_None. [B-7a1] adds the field and cleanup hooks (ReleaseThrone leaves it for [B-7d2] deposed

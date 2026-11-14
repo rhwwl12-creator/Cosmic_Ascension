@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -516,7 +516,6 @@
+ 	CosmicPetitions::Clear(State);
+ 	State.Knowing.PendingContactCivID = NAME_None;
+ 	State.Knowing.PendingAskCivID = NAME_None;
+-	State.Knowing.PendingExileCivID = NAME_None;
+ 	State.Player.TravelTargetSystemID = NAME_None;
+ 	State.Player.TravelTicksRemaining = 0;
+ 

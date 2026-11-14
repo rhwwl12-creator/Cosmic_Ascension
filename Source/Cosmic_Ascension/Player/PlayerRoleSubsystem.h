@@ -38,7 +38,8 @@ public:
 	 * without a line (section 8.1): a life knows where it was born. It never writes Knowing.FirstContactCivID: the
 	 * people one is born into is not a contact. A life that starts as a wanderer (succession, B5 - Succeed) also knows the
 	 * lane neighbours of its birth system in its galaxy row (NoteKnown, Lanes order, no line - section 4.4: the new eye).
-	 * The card waiting and the first contact card waiting (Knowing.PendingContactCivID) are not the new life's: cleared.
+	 * The card waiting and the first contact/ask/exile cards waiting (Knowing.PendingContactCivID, PendingAskCivID,
+	 * PendingExileCivID) are not the new life's: cleared.
 	 * One draw from the sim stream per call, for the name of the vessel, made before the name bank is looked at. A life that is
 	 * not the first never takes the previous life's name: the first entry of its bank whose source string (FTextInspector -
 	 * no display culture) equals that name's is passed over (B5 header decision 8 - two archetypes may share a bank).
@@ -64,7 +65,7 @@ public:
 	 * Ruler to wanderer (section 5.10): Role = Wanderer, FormerCivID = the ruled people, RuledCivID cleared, the people
 	 * AI-run with RegentProfile, StatusTags from ReignEndReason (Reign.Abdicated: Status.Abdicated, Reign.Deposed:
 	 * Status.FallenMonarch, Reign.Died: none), the open reign closed with ReignEndReason, Knowing.PendingContactCivID
-	 * cleared, and the system the vessel stands in and its lane neighbours in its galaxy row known (NoteKnown, Lanes
+	 * and PendingAskCivID cleared (PendingExileCivID kept for [B-7d2] deposed BecomeWanderer), and the system the vessel stands in and its lane neighbours in its galaxy row known (NoteKnown, Lanes
 	 * order, no line -
 	 * section 4.4: the new eye of a wanderer; meeting their owners is the next sight stage's), and the journey fields
 	 * emptied. With Reign.Abdicated the regent's record (notable hook 1, B1): the NameNotable rule through
@@ -87,7 +88,7 @@ public:
 	 * (c) a ruler leaves the throne - one number for the regent profile, ReleaseThrone with
 	 * Reign.Died (its regent hook draws the name, source row PendingSourceRow), every throne locked (Tick + ThroneLockTicks,
 	 * never earlier - B5 decision 4, old 16 #143); no new eye; (d) every people's ReverenceToPlayer = 0 (decision 23-na: the new vessel is a
-	 * stranger to every people); (e) the waiting cards, the first contact waiting and the journey are cleared; (f) LifeState =
+	 * stranger to every people); (e) the waiting cards, the first contact/ask/exile waiting and the journey are cleared; (f) LifeState =
 	 * Interregnum, one number for the leap (CosmicSuccession::LeapOf), LeapTicksTotal += it, PendingLeapTicks = it; (g) a leap
 	 * of 0 succeeds at once. Numbers of the sim stream: a wanderer's death 1, a ruler's 3. Does nothing unless the calling is
 	 * Embodied; inside a handler of a Core Logic delegate an error line.
@@ -251,7 +252,7 @@ public:
 	 * The coronation or the return (B1 header section 2.7), between ticks, when CosmicWanderer::CrownBlockOf says None
 	 * (whether the people is met from Knowing.MetCivs, whether a card waits - the input definition): the people's
 	 * bIsPlayerRuled, Role Ruler and RuledCivID, one more entry in each reign array, the people's open Ruler and Regent
-	 * records closed (LastTick = max(Tick, 1)), the journey, the waiting card and Knowing.PendingContactCivID cleared, the
+	 * records closed (LastTick = max(Tick, 1)), the journey, the waiting card and Knowing.PendingContactCivID, PendingAskCivID and PendingExileCivID cleared, the
 	 * people's owned systems known (NoteKnown in OwnedSystems order, no line), a fleet target on another people's system
 	 * lifted and every hostile stance turned neutral (B3 - no siege or hostility the new ruler could not see or change; the
 	 * treaties stay), then CosmicRows::LogCrowned - or
@@ -284,8 +285,9 @@ private:
 	/**
 	 * The half of BecomeWanderer a death shares (B5 header section 2.3): the people is no longer ruled (bIsPlayerRuled false,
 	 * RegentProfile when valid), FormerCivID = the ruled people, RuledCivID cleared, Role Wanderer, the status of
-	 * ReignEndReason (none for Reign.Died), the open reign closed with it, the waiting cards, the first contact waiting and
-	 * the journey cleared, and the regent hook for Reign.Abdicated and Reign.Died (NameNotable through Apply, one number,
+	 * ReignEndReason (none for Reign.Died), the open reign closed with it, the waiting cards, the first contact and ask
+	 * waiting (PendingContactCivID, PendingAskCivID) and the journey cleared (PendingExileCivID stays until Die or
+	 * BecomeRuler), and the regent hook for Reign.Abdicated and Reign.Died (NameNotable through Apply, one number,
 	 * source row RegentSourceRow). No new eye. Returns whether the throne was left: false unless an embodied ruler, and with
 	 * an error line in the sanctuary. The callers ask about a handler first.
 	 */

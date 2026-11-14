@@ -216,9 +216,11 @@ void UPlayerRoleSubsystem::Install(FName SystemID, FName CivID, EPlayerRole Role
 	// The vessel starts from nothing: stats, pool, relics and status do not cross over (section 4.4).
 	// Birth stats (section 5.9) are the struct defaults plus the birth civ's DT_Traits modifiers, once DT_Traits exists.
 	State.Player = FPlayerEntityState();
-	// A card put before the last life is not this life's (section 5.10) - nor the first contact card waiting (B3).
+	// A card put before the last life is not this life's (section 5.10) - nor the waiting contact/ask/exile cards (B3, B7).
 	CosmicPetitions::Clear(State);
 	State.Knowing.PendingContactCivID = NAME_None;
+	State.Knowing.PendingAskCivID = NAME_None;
+	State.Knowing.PendingExileCivID = NAME_None;
 	State.Player.Role = Role;
 	State.Player.CurrentSystemID = SystemID;
 
@@ -430,9 +432,11 @@ bool UPlayerRoleSubsystem::ReleaseThrone(FGameplayTag RegentProfile, FGameplayTa
 		}
 	}
 
-	// A role change ends a first-contact card that was waiting (section 8.1), and a petition card: a wanderer rules no
-	// people to petition (section 5.10).
+	// A role change ends waiting first-contact and ask cards (sections 8.1, B7 2.10), and a petition card: a wanderer
+	// rules no people to petition (section 5.10). PendingExileCivID stays untouched here so deposed BecomeWanderer ([B-7d2])
+	// can write it and Die clears all waiting slots in step (e).
 	State.Knowing.PendingContactCivID = NAME_None;
+	State.Knowing.PendingAskCivID = NAME_None;
 	CosmicPetitions::Clear(State);
 	Player.TravelTargetSystemID = NAME_None;
 	Player.TravelTicksRemaining = 0;
@@ -511,6 +515,8 @@ void UPlayerRoleSubsystem::Die()
 	// (e) Nothing waits for a vessel that is gone.
 	CosmicPetitions::Clear(State);
 	State.Knowing.PendingContactCivID = NAME_None;
+	State.Knowing.PendingAskCivID = NAME_None;
+	State.Knowing.PendingExileCivID = NAME_None;
 	State.Player.TravelTargetSystemID = NAME_None;
 	State.Player.TravelTicksRemaining = 0;
 
@@ -1214,6 +1220,8 @@ CosmicWanderer::ECrownBlock UPlayerRoleSubsystem::BecomeRuler(FName CivID)
 	Player.TravelTicksRemaining = 0;
 	CosmicPetitions::Clear(State);
 	State.Knowing.PendingContactCivID = NAME_None;
+	State.Knowing.PendingAskCivID = NAME_None;
+	State.Knowing.PendingExileCivID = NAME_None;
 	// B3 section 2.8: the people's treaties stay, but no siege on a system the new ruler may not know and no hostility it
 	// could not change - a target on another people's system is lifted and every hostile stance turns neutral.
 	if (CosmicConflict::IsBesieging(State, Index, CivIndex))

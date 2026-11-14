@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -1220,8 +1220,6 @@
+ 	Player.TravelTicksRemaining = 0;
+ 	CosmicPetitions::Clear(State);
+ 	State.Knowing.PendingContactCivID = NAME_None;
+-	State.Knowing.PendingAskCivID = NAME_None;
+-	State.Knowing.PendingExileCivID = NAME_None;
+ 	// B3 section 2.8: the people's treaties stay, but no siege on a system the new ruler may not know and no hostility it
+ 	// could not change - a target on another people's system is lifted and every hostile stance turns neutral.
+ 	if (CosmicConflict::IsBesieging(State, Index, CivIndex))

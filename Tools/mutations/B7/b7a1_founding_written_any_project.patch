@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+@@ -648,7 +648,7 @@
+ 			Added.CivID = CompleterID;
+ 		}
+ 		System.MegaprojectCompletedTick = State.Tick;
+-		if (RowName == CosmicRows::ProjectSettle && System.FoundingCivID.IsNone())
++		if (System.FoundingCivID.IsNone())
+ 		{
+ 			System.FoundingCivID = CompleterID;
+ 		}

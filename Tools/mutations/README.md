@@ -1219,3 +1219,39 @@ messages and in `docs/60_DECISIONS/DECISIONS_LOG.md`.
 | `B7x/` | `b7x5r_hooks_product_skips_first.patch` — `CosmicEdicts::SpawnMultiplierOf` over a held hook list skips its first hook | `Cosmic_Ascension.Sim.GalaxyLaws` ('The owner's own edict and the law multiply'); the five runner lines move (the spawn draw reads the list) |
 | `B7x/` | `b7x5r_spawn_share_bare.patch` — `TickHazards` takes the bare share of a Draw row (`CosmicBricks::HazardSpawnShareOf` not asked; `b7x2_spawn_share_bare` taken again at [B-7x5r] - the spawn draw reads the hooks it gathers once a system) | `Cosmic_Ascension.Sim.BrickShares` ('folded into the very small, its share is the knob's and they stay clear') |
 | `B7x/` | `b7x5r_spread_no_multiplier.patch` — the spread multiplies nothing (`b7x2_spread_no_multiplier` taken again at [B-7x5r]) | `Cosmic_Ascension.Sim.PlagueSpread` |
+| `B7/` | `b7a1_founding_initializer_set.patch` — CosmicAIHands: FoundingCivID initializes to "civ_0" instead of NAME_None | `Cosmic_Ascension.Sim.SaveB7Fields` |
+| `B7/` | `b7a1_war_ticks_initializer_one.patch` — CosmicAIHands: WarTicks initializes to 1 instead of 0 | `Cosmic_Ascension.Sim.SaveB7Fields` |
+| `B7/` | `b7a1_treaty_broken_initializer_one.patch` — CosmicAIHands: TreatyBrokenTick initializes to 1 instead of 0 | `Cosmic_Ascension.Sim.SaveB7Fields` |
+| `B7/` | `b7a1_trade_shock_initializer_one.patch` — CosmicAIHands: TradeShockUntilTick initializes to 1 instead of 0 | `Cosmic_Ascension.Sim.SaveB7Fields` |
+| `B7/` | `b7a1_pending_ask_initializer_set.patch` — CosmicAIHands: PendingAskCivID initializes to "civ_0" instead of NAME_None | `Cosmic_Ascension.Sim.SaveB7Fields` |
+| `B7/` | `b7a1_pending_exile_initializer_set.patch` — CosmicAIHands: PendingExileCivID initializes to "civ_0" instead of NAME_None | `Cosmic_Ascension.Sim.SaveB7Fields` |
+| `B7/` | `b7a1_founding_not_saved.patch` — CosmicAIHands: FoundingCivID is not a UPROPERTY and is not saved | `Cosmic_Ascension.Sim.SaveB7Fields` |
+| `B7/` | `b7a1_war_ticks_not_saved.patch` — CosmicAIHands: WarTicks is not a UPROPERTY and is not saved | `Cosmic_Ascension.Sim.SaveB7Fields` |
+| `B7/` | `b7a1_treaty_broken_not_saved.patch` — CosmicAIHands: TreatyBrokenTick is not a UPROPERTY and is not saved | `Cosmic_Ascension.Sim.SaveB7Fields` |
+| `B7/` | `b7a1_trade_shock_not_saved.patch` — CosmicAIHands: TradeShockUntilTick is not a UPROPERTY and is not saved | `Cosmic_Ascension.Sim.SaveB7Fields` |
+| `B7/` | `b7a1_pending_ask_not_saved.patch` — CosmicAIHands: PendingAskCivID is not a UPROPERTY and is not saved | `Cosmic_Ascension.Sim.SaveB7Fields` |
+| `B7/` | `b7a1_pending_exile_not_saved.patch` — CosmicAIHands: PendingExileCivID is not a UPROPERTY and is not saved | `Cosmic_Ascension.Sim.SaveB7Fields` |
+| `B7/` | `b7a1_purpose_treaty_ask_renumbered.patch` — CosmicSeed: Purpose::TreatyAsk collides on 13 instead of fixed 14 | `Cosmic_Ascension.Sim.SaveB7Fields` |
+| `B7/` | `b7a1_hasher_skips_founding_civ.patch` — ComputeStateHash skips FoundingCivID | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_hasher_skips_war_ticks.patch` — ComputeStateHash skips WarTicks | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_hasher_skips_treaty_broken_tick.patch` — ComputeStateHash skips TreatyBrokenTick | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_hasher_skips_trade_shock_until_tick.patch` — ComputeStateHash skips TradeShockUntilTick | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_hasher_skips_pending_ask.patch` — ComputeStateHash skips PendingAskCivID | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_hasher_skips_pending_exile.patch` — ComputeStateHash skips PendingExileCivID | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_new_galaxy_no_founding.patch` — NewGalaxy does not stamp FoundingCivID on home systems | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_settle_complete_no_founding.patch` — CosmicMegaprojects::Advance never stamps FoundingCivID when project_settle completes | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_settle_overwrites_founding.patch` — CosmicMegaprojects::Advance overwrites existing FoundingCivID on re-settlement | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_founding_written_any_project.patch` — CosmicMegaprojects::Advance writes FoundingCivID on non-settle megaproject completion | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_war_ticks_attacker_only.patch` — TickConflict counts WarTicks only on the besieger, skipping the besieged defender | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_war_ticks_not_reset.patch` — TickConflict keeps stale WarTicks after a siege ends instead of resetting to 0 | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_war_ticks_counts_guard.patch` — TickConflict counts friendly guard fleets as active war in WarTicks | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_war_ticks_overflow.patch` — TickConflict increments WarTicks past MAX_int32 without saturation | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_break_ignores_held_guard.patch` — CosmicDiplomacy::Break stamps timestamps even when neither party held the treaty | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_break_stamps_nonaggression_shock.patch` — CosmicDiplomacy::Break stamps TradeShockUntilTick when breaking NonAggression | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_break_shock_breaker_only.patch` — CosmicDiplomacy::Break stamps TradeShockUntilTick on breaker A only, missing partner B | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_turn_hostile_drops_shock_ticks.patch` — CosmicDiplomacy::TurnHostile passes 0 instead of forwarding TradeShockTicks into Break | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_crossing_keeps_ask_exile.patch` — TickCrossings cleanup clears PendingContactCivID only, leaving PendingAskCivID and PendingExileCivID stale | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_release_throne_keeps_ask.patch` — ReleaseThrone leaves PendingAskCivID set when leaving the throne | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_die_keeps_exile.patch` — Die step (e) leaves PendingExileCivID behind after death | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_install_keeps_ask_exile.patch` — Install leaves PendingAskCivID and PendingExileCivID behind on new life | `Cosmic_Ascension.Sim.HashCoversB7Fields` |
+| `B7/` | `b7a1_become_ruler_keeps_exile.patch` — BecomeRuler leaves PendingAskCivID and PendingExileCivID set on coronation | `Cosmic_Ascension.Sim.HashCoversB7Fields` |

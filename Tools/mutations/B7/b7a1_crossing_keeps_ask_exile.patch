@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -3156,7 +3156,7 @@
+ 	{
+ 		CosmicDiplomacy::ForgetCiv(State, CivID);
+ 	}
+-	for (FName* Pending : { &State.Knowing.PendingContactCivID, &State.Knowing.PendingAskCivID, &State.Knowing.PendingExileCivID })
++	for (FName* Pending : { &State.Knowing.PendingContactCivID })
+ 	{
+ 		if (Removed.Contains(*Pending))
+ 		{

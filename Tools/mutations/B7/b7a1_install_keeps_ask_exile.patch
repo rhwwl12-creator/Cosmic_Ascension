@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -219,8 +219,6 @@
+ 	// A card put before the last life is not this life's (section 5.10) - nor the waiting contact/ask/exile cards (B3, B7).
+ 	CosmicPetitions::Clear(State);
+ 	State.Knowing.PendingContactCivID = NAME_None;
+-	State.Knowing.PendingAskCivID = NAME_None;
+-	State.Knowing.PendingExileCivID = NAME_None;
+ 	State.Player.Role = Role;
+ 	State.Player.CurrentSystemID = SystemID;
+ 

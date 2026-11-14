@@ -648,6 +648,10 @@ FName CosmicMegaprojects::Advance(FCosmicEvalContext& Ctx, int32 SystemIndex, EC
 			Added.CivID = CompleterID;
 		}
 		System.MegaprojectCompletedTick = State.Tick;
+		if (RowName == CosmicRows::ProjectSettle && System.FoundingCivID.IsNone())
+		{
+			System.FoundingCivID = CompleterID;
+		}
 		const FCivilizationState& Owner = State.Civs[OwnerIndex];
 		if (State.Calling.LifeState == ELifeState::Embodied && State.Player.Role == EPlayerRole::Ruler && State.Player.RuledCivID == Owner.CivID && !State.Calling.Lives.IsEmpty())
 		{

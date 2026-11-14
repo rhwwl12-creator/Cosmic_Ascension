@@ -1,0 +1,14 @@
+diff --git a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Sim/GalaxySimulationSubsystem.cpp
+@@ -520,6 +520,10 @@
+ 		{
+ 			for (TFieldIterator<FProperty> It(Struct); It; ++It)
+ 			{
++				if (It->GetFName() == TEXT("PendingAskCivID"))
++				{
++					continue;
++				}
+ 				for (int32 Index = 0; Index < It->ArrayDim; ++Index)
+ 				{
+ 					AddProperty(*It, It->ContainerPtrToValuePtr<void>(Data, Index));

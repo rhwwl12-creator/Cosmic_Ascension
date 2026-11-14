@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Core/GalaxyState.h b/Source/Cosmic_Ascension/Core/GalaxyState.h
+--- a/Source/Cosmic_Ascension/Core/GalaxyState.h
++++ b/Source/Cosmic_Ascension/Core/GalaxyState.h
+@@ -210,7 +210,7 @@
+ 	// still NAME_None. Transfer, Destroy, LetPeopleGo and later settlements never overwrite it, and crossing cleanup
+ 	// keeps a vanished CivID as record (no memory when absent from Civs). Saved via delta; part of both hashes.
+ 	UPROPERTY(BlueprintReadOnly)
+-	FName FoundingCivID;
++	FName FoundingCivID = FName(TEXT("civ_0"));
+ 
+ 	// Phase 6 (append): FName EpithetRow - the second name the chronicle gives a system (section 5.11).
+ };

@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Core/GalaxyState.h b/Source/Cosmic_Ascension/Core/GalaxyState.h
+--- a/Source/Cosmic_Ascension/Core/GalaxyState.h
++++ b/Source/Cosmic_Ascension/Core/GalaxyState.h
+@@ -469,7 +469,7 @@
+ 	// Tick through which trade treaty disruption applies after a trade treaty break (B7 [B-7a1] - header sections 2.4, 2.15; decision 18;
+ 	// stamped on both parties). 0 = none yet.
+ 	UPROPERTY(BlueprintReadOnly)
+-	int64 TradeShockUntilTick = 0;
++	int64 TradeShockUntilTick = 1;
+ };
+ 
+ /**

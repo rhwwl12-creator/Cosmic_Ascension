@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Core/GalaxyState.h b/Source/Cosmic_Ascension/Core/GalaxyState.h
+--- a/Source/Cosmic_Ascension/Core/GalaxyState.h
++++ b/Source/Cosmic_Ascension/Core/GalaxyState.h
+@@ -821,7 +821,6 @@
+ 	// default NAME_None. [B-7a1] adds the field and cleanup hooks (ReleaseThrone leaves it for [B-7d2] deposed
+ 	// BecomeWanderer; Install, Die, BecomeRuler and crossing cleanup clear it); [B-7d2] writes it and clears on answer.
+ 	// Part of ComputeStateHash; excluded from ComputeWorldHash.
+-	UPROPERTY()
+ 	FName PendingExileCivID;
+ };
+ 

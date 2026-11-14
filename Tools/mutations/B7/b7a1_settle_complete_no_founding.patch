@@ -1,0 +1,14 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicMegaprojects.cpp
+@@ -648,10 +648,6 @@
+ 			Added.CivID = CompleterID;
+ 		}
+ 		System.MegaprojectCompletedTick = State.Tick;
+-		if (RowName == CosmicRows::ProjectSettle && System.FoundingCivID.IsNone())
+-		{
+-			System.FoundingCivID = CompleterID;
+-		}
+ 		const FCivilizationState& Owner = State.Civs[OwnerIndex];
+ 		if (State.Calling.LifeState == ELifeState::Embodied && State.Player.Role == EPlayerRole::Ruler && State.Player.RuledCivID == Owner.CivID && !State.Calling.Lives.IsEmpty())
+ 		{

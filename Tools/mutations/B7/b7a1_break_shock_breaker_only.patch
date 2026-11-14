@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+--- a/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
++++ b/Source/Cosmic_Ascension/Sim/CosmicDiplomacy.cpp
+@@ -222,7 +222,6 @@
+ 		{
+ 			const int64 ShockUntil = State.Tick + static_cast<int64>(FMath::Max(0, TradeShockTicks));
+ 			State.Civs[A].TradeShockUntilTick = ShockUntil;
+-			State.Civs[B].TradeShockUntilTick = ShockUntil;
+ 		}
+ 	}
+ 	return bHeld;

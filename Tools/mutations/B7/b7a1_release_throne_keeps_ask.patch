@@ -1,0 +1,11 @@
+diff --git a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+--- a/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
++++ b/Source/Cosmic_Ascension/Player/PlayerRoleSubsystem.cpp
+@@ -436,7 +436,6 @@
+ 	// rules no people to petition (section 5.10). PendingExileCivID stays untouched here so deposed BecomeWanderer ([B-7d2])
+ 	// can write it and Die clears all waiting slots in step (e).
+ 	State.Knowing.PendingContactCivID = NAME_None;
+-	State.Knowing.PendingAskCivID = NAME_None;
+ 	CosmicPetitions::Clear(State);
+ 	Player.TravelTargetSystemID = NAME_None;
+ 	Player.TravelTicksRemaining = 0;

@@ -881,6 +881,7 @@ void UGalaxySimulationSubsystem::NewGalaxy(int32 Seed, int32 SystemCount, int32 
 		}
 		Civ.OwnedSystems.Add(Home.SystemID);
 		Home.OwnerCivID = Civ.CivID;
+		Home.FoundingCivID = Civ.CivID;
 		// The inherited edict (B2 section 2.7): every people starts holding it - the same rule for all. No draw, no cost.
 		if (!Rules.StartingEdict.IsNone() && Tables.FindEdict(Rules.StartingEdict))
 		{
@@ -2295,6 +2296,30 @@ void UGalaxySimulationSubsystem::TickConflict()
 		TellSiege(bTaken ? CosmicRows::LogSiegeTaken : CosmicRows::LogSiegeFailed, 2, Attacker, Owner, SystemIndex);
 		TellSiege(bTaken ? CosmicRows::LogSiegeLost : CosmicRows::LogSiegeHeld, 2, Owner, Attacker, SystemIndex);
 	}
+
+	// War weariness (B7 [B-7a1] - header section 2.8): count consecutive ticks with at least one ongoing siege standing
+	// at the end of the conflict stage (after sieges end) for both besieger and besieged; reset to 0 otherwise.
+	TArray<bool, TInlineAllocator<16>> AtWar;
+	AtWar.Init(false, State.Civs.Num());
+	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+	{
+		if (!CosmicConflict::IsBesieging(State, StateIndex, CivIndex))
+		{
+			continue;
+		}
+		const int32 TargetSystem = StateIndex.FindSystem(State, State.Civs[CivIndex].FleetTargetSystemID);
+		const int32 Defender = State.Systems.IsValidIndex(TargetSystem) ? StateIndex.FindCiv(State, State.Systems[TargetSystem].OwnerCivID) : INDEX_NONE;
+		AtWar[CivIndex] = true;
+		if (State.Civs.IsValidIndex(Defender))
+		{
+			AtWar[Defender] = true;
+		}
+	}
+	for (int32 CivIndex = 0; CivIndex < State.Civs.Num(); ++CivIndex)
+	{
+		FCivilizationState& Civ = State.Civs[CivIndex];
+		Civ.WarTicks = AtWar[CivIndex] ? (Civ.WarTicks < MAX_int32 ? Civ.WarTicks + 1 : MAX_int32) : 0;
+	}
 }
 
 void UGalaxySimulationSubsystem::TickHazards()
@@ -3131,9 +3156,12 @@ void UGalaxySimulationSubsystem::TickCrossings()
 	{
 		CosmicDiplomacy::ForgetCiv(State, CivID);
 	}
-	if (Removed.Contains(State.Knowing.PendingContactCivID))
+	for (FName* Pending : { &State.Knowing.PendingContactCivID, &State.Knowing.PendingAskCivID, &State.Knowing.PendingExileCivID })
 	{
-		State.Knowing.PendingContactCivID = NAME_None;
+		if (Removed.Contains(*Pending))
+		{
+			*Pending = NAME_None;
+		}
 	}
 	StateIndex.Rebuild(State);
 }

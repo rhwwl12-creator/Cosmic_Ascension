@@ -1,0 +1,12 @@
+diff --git a/Source/Cosmic_Ascension/Core/GalaxyState.h b/Source/Cosmic_Ascension/Core/GalaxyState.h
+--- a/Source/Cosmic_Ascension/Core/GalaxyState.h
++++ b/Source/Cosmic_Ascension/Core/GalaxyState.h
+@@ -460,7 +460,7 @@
+ 	// Consecutive ticks with an active siege on or by this people at the end of TickConflict (B7 [B-7a1] - header
+ 	// section 2.8; resets to 0 on a tick with no ongoing siege). Read in [B-7b1] (war weariness).
+ 	UPROPERTY(BlueprintReadOnly)
+-	int32 WarTicks = 0;
++	int32 WarTicks = 1;
+ 
+ 	// Tick when this people last broke a treaty (B7 [B-7a1] - header sections 2.4, 2.15; decision 18). 0 = never broken in this run.
+ 	UPROPERTY(BlueprintReadOnly)

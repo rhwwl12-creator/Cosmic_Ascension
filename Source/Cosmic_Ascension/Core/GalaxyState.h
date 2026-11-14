@@ -205,6 +205,13 @@ struct COSMIC_ASCENSION_API FStarSystemState
 	UPROPERTY(BlueprintReadOnly)
 	FName HostCivID;
 
+	// First settled owner of this system (B7 [B-7a1] - header section 2.7). Frozen default NAME_None: NewGalaxy stamps
+	// Home.FoundingCivID = Civ.CivID; CosmicMegaprojects::Advance stamps CompleterID on project_settle completion when
+	// still NAME_None. Transfer, Destroy, LetPeopleGo and later settlements never overwrite it, and crossing cleanup
+	// keeps a vanished CivID as record (no memory when absent from Civs). Saved via delta; part of both hashes.
+	UPROPERTY(BlueprintReadOnly)
+	FName FoundingCivID;
+
 	// Phase 6 (append): FName EpithetRow - the second name the chronicle gives a system (section 5.11).
 };
 
@@ -449,6 +456,20 @@ struct COSMIC_ASCENSION_API FCivilizationState
 	// was lifted (the start of an AI people's rest after a siege). 0 = never set.
 	UPROPERTY(BlueprintReadOnly)
 	int64 FleetTargetSinceTick = 0;
+
+	// Consecutive ticks with an active siege on or by this people at the end of TickConflict (B7 [B-7a1] - header
+	// section 2.8; resets to 0 on a tick with no ongoing siege). Read in [B-7b1] (war weariness).
+	UPROPERTY(BlueprintReadOnly)
+	int32 WarTicks = 0;
+
+	// Tick when this people last broke a treaty (B7 [B-7a1] - header sections 2.4, 2.15; decision 18). 0 = never broken in this run.
+	UPROPERTY(BlueprintReadOnly)
+	int64 TreatyBrokenTick = 0;
+
+	// Tick through which trade treaty disruption applies after a trade treaty break (B7 [B-7a1] - header sections 2.4, 2.15; decision 18;
+	// stamped on both parties). 0 = none yet.
+	UPROPERTY(BlueprintReadOnly)
+	int64 TradeShockUntilTick = 0;
 };
 
 /**
@@ -731,8 +752,8 @@ struct COSMIC_ASCENSION_API FKnownMark
 /**
  * Knowing: what the calling has come to know (section 8.1). Three layers, one direction: world -> knowing -> telling.
  * Saved and part of ComputeStateHash, but not world state: the world only writes it and never reads it (the full rule
- * and its one exception, the crossing-stage cleanup that compares a removed CivID with PendingContactCivID and clears
- * it, are in section 8.1), and ComputeWorldHash leaves it out. KnownSystems and MetCivs grow only through NoteMet,
+ * and its three exceptions, the crossing-stage cleanup that compares a removed CivID with PendingContactCivID,
+ * PendingAskCivID and PendingExileCivID and clears any match, are in section 8.1), and ComputeWorldHash leaves it out. KnownSystems and MetCivs grow only through NoteMet,
  * NoteKnown and Install (the birth system and civilization, without a line). The sight stage and the systems the vessel's
  * people receives (FollowUpKnowing) go through NoteKnown, then NoteMet; a wanderer's new eye through NoteKnown only (the
  * owners it now knows are met by the next look). The arrays are in order of
@@ -789,6 +810,19 @@ struct COSMIC_ASCENSION_API FKnowingState
 	// its capital) and when no card waits.
 	UPROPERTY()
 	FName PendingPetitionSystemID;
+
+	// The bordering AI people of a waiting treaty ask card (B7 [B-7a1] - header sections 2.10, 2.15). Frozen
+	// default NAME_None. [B-7a1] adds the field and cleanup hooks; [B-7b1] writes it at the knowing stage's end and
+	// clears it when answered. Part of ComputeStateHash; excluded from ComputeWorldHash.
+	UPROPERTY()
+	FName PendingAskCivID;
+
+	// The deposed former people waiting for an exile card (B7 [B-7a1] - header sections 2.10, 2.12, 2.15). Frozen
+	// default NAME_None. [B-7a1] adds the field and cleanup hooks (ReleaseThrone leaves it for [B-7d2] deposed
+	// BecomeWanderer; Install, Die, BecomeRuler and crossing cleanup clear it); [B-7d2] writes it and clears on answer.
+	// Part of ComputeStateHash; excluded from ComputeWorldHash.
+	UPROPERTY()
+	FName PendingExileCivID;
 };
 
 /**
