@@ -1424,6 +1424,17 @@ namespace
 			int32 LawsHeld = 0;
 		};
 		TArray<FKept> Kept;
+		// B7 [B-7m0] (B7 header section 5.1, metric 5): active edicts a kept-law people held under regency (!bIsPlayerRuled),
+		// read before the tick just as Counts.EdictHeldTicks reads the ruled people's.
+		struct FKeptEdictStats
+		{
+			int64 RegencyTicks = 0;
+			int64 AnyEdictTicks = 0;
+			int64 PeopleEdictTicks = 0;
+			int64 PeopleRowTicks = 0;
+			TMap<FName, int64> EdictHeldTicks;
+		};
+		TMap<FName, FKeptEdictStats> KeptEdicts;
 	};
 
 	FString BrickVectorsText(const FCosmicTimeVectors& Vectors)
@@ -2011,6 +2022,24 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				if (!Civ.bIsPlayerRuled)
 				{
 					AIEdictsBefore.Add(Civ.CivID, Civ.ActiveEdicts);
+					if (Civ.Traits.HasTagExact(CosmicTags::BrickFormKeptLaw()))
+					{
+						FBrickCounts::FKeptEdictStats& KeptStats = Bricks.KeptEdicts.FindOrAdd(Civ.CivID);
+						++KeptStats.RegencyTicks;
+						KeptStats.AnyEdictTicks += Civ.ActiveEdicts.IsEmpty() ? 0 : 1;
+						bool bHasPeopleEdict = false;
+						for (const FName Row : Civ.ActiveEdicts)
+						{
+							++KeptStats.EdictHeldTicks.FindOrAdd(Row);
+							const FEdictDef* Def = Sim->GetTables().FindEdict(Row);
+							if (Def && Def->Scope == ECosmicEdictScope::People)
+							{
+								bHasPeopleEdict = true;
+								++KeptStats.PeopleRowTicks;
+							}
+						}
+						KeptStats.PeopleEdictTicks += bHasPeopleEdict ? 1 : 0;
+					}
 				}
 				else
 				{
@@ -4516,6 +4545,56 @@ int32 UCosmicBalanceCommandlet::Main(const FString& Params)
 				BrickParts.Add(FString::Printf(TEXT("kept law [%s] (people:from:Stability below 0.2 at:rebellions:gone at:LawsHeldTicks)"), *FString::Join(KeptParts, TEXT(" "))));
 				BrickParts.Add(FString::Printf(TEXT("peoples gone %d"), Bricks.Peoples.Num() - State.Civs.Num()));
 				UE_LOG(LogCosmic, Display, TEXT("CosmicBalance bricks: %s"), *FString::Join(BrickParts, TEXT("; ")));
+				// B7 [B-7m0]: measurement-only line for regency edict held ticks on Brick.Form.KeptLaw peoples (outside bricks: so B7x readers stay as they are).
+				{
+					TArray<FName> KeptCivs;
+					for (const FBrickCounts::FKept& Kept : Bricks.Kept)
+					{
+						KeptCivs.AddUnique(Kept.CivID);
+					}
+					for (const TPair<FName, FBrickCounts::FKeptEdictStats>& Pair : Bricks.KeptEdicts)
+					{
+						KeptCivs.AddUnique(Pair.Key);
+					}
+					KeptCivs.Sort(FNameLexicalLess());
+					int64 TotalRegencyTicks = 0;
+					int64 TotalAnyEdictTicks = 0;
+					int64 TotalPeopleEdictTicks = 0;
+					int64 TotalPeopleRowTicks = 0;
+					TMap<FName, int64> TotalRows;
+					TArray<FString> PerPeople;
+					for (const FName CivID : KeptCivs)
+					{
+						const FBrickCounts::FKeptEdictStats* Found = Bricks.KeptEdicts.Find(CivID);
+						const int64 RegencyTicks = Found ? Found->RegencyTicks : 0;
+						const int64 AnyEdictTicks = Found ? Found->AnyEdictTicks : 0;
+						const int64 PeopleEdictTicks = Found ? Found->PeopleEdictTicks : 0;
+						const int64 PeopleRowTicks = Found ? Found->PeopleRowTicks : 0;
+						TotalRegencyTicks += RegencyTicks;
+						TotalAnyEdictTicks += AnyEdictTicks;
+						TotalPeopleEdictTicks += PeopleEdictTicks;
+						TotalPeopleRowTicks += PeopleRowTicks;
+						if (Found)
+						{
+							for (const TPair<FName, int64>& RowPair : Found->EdictHeldTicks)
+							{
+								TotalRows.FindOrAdd(RowPair.Key) += RowPair.Value;
+							}
+						}
+						PerPeople.Add(FString::Printf(TEXT("%s:%lld:%lld:%lld:%lld"), *CivID.ToString(), RegencyTicks, AnyEdictTicks, PeopleEdictTicks, PeopleRowTicks));
+					}
+					TArray<FName> RowKeys;
+					TotalRows.GetKeys(RowKeys);
+					RowKeys.Sort(FNameLexicalLess());
+					TArray<FString> HeldTickParts;
+					for (const FName Row : RowKeys)
+					{
+						HeldTickParts.Add(FString::Printf(TEXT("%s=%lld"), *Row.ToString(), TotalRows[Row]));
+					}
+					UE_LOG(LogCosmic, Display, TEXT("CosmicBalance kept law edicts: peoples %d, regency ticks %lld, with any edict %lld, with people edict %lld, people row ticks %lld, held ticks [%s], per people [%s] (people:regency:any:people:people_rows)"),
+						KeptCivs.Num(), TotalRegencyTicks, TotalAnyEdictTicks, TotalPeopleEdictTicks, TotalPeopleRowTicks,
+						*FString::Join(HeldTickParts, TEXT(" ")), *FString::Join(PerPeople, TEXT(" ")));
+				}
 			}
 			if (ExpansionSum != Counts.ExpansionPairs)
 			{
